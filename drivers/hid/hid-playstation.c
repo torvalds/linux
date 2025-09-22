@@ -1274,9 +1274,10 @@ static void dualsense_init_output_report(struct dualsense *ds,
 
 static inline void dualsense_schedule_work(struct dualsense *ds)
 {
-	guard(spinlock_irqsave)(&ds->base.lock);
-	if (ds->output_worker_initialized)
-		schedule_work(&ds->output_worker);
+	/* Using scoped_guard() instead of guard() to make sparse happy */
+	scoped_guard(spinlock_irqsave, &ds->base.lock)
+		if (ds->output_worker_initialized)
+			schedule_work(&ds->output_worker);
 }
 
 /*
@@ -2626,9 +2627,10 @@ static void dualshock4_remove(struct ps_device *ps_dev)
 
 static inline void dualshock4_schedule_work(struct dualshock4 *ds4)
 {
-	guard(spinlock_irqsave)(&ds4->base.lock);
-	if (ds4->output_worker_initialized)
-		schedule_work(&ds4->output_worker);
+	/* Using scoped_guard() instead of guard() to make sparse happy */
+	scoped_guard(spinlock_irqsave, &ds4->base.lock)
+		if (ds4->output_worker_initialized)
+			schedule_work(&ds4->output_worker);
 }
 
 static void dualshock4_set_bt_poll_interval(struct dualshock4 *ds4, u8 interval)
