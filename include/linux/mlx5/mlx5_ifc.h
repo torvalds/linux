@@ -2235,12 +2235,16 @@ struct mlx5_ifc_cmd_hca_cap_2_bits {
 	u8	   reserved_at_440[0x8];
 	u8	   max_num_eqs_24b[0x18];
 
-	u8         reserved_at_460[0x160];
+	u8         reserved_at_460[0x144];
+	u8         load_balance_id[0x4];
+	u8         reserved_at_5a8[0x18];
 
 	u8         query_adjacent_functions_id[0x1];
 	u8         ingress_egress_esw_vport_connect[0x1];
 	u8         function_id_type_vhca_id[0x1];
-	u8         reserved_at_5c3[0xd];
+	u8         reserved_at_5c3[0x1];
+	u8         lag_per_mp_group[0x1];
+	u8         reserved_at_5c5[0xb];
 	u8         delegate_vhca_management_profiles[0x10];
 
 	u8         delegated_vhca_max[0x10];
