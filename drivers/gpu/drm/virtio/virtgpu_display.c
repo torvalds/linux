@@ -257,6 +257,7 @@ static int vgdev_output_init(struct virtio_gpu_device *vgdev, int index)
 	struct drm_encoder *encoder = &output->enc;
 	struct drm_crtc *crtc = &output->crtc;
 	struct drm_plane *primary, *cursor;
+	int ret;
 
 	output->index = index;
 	if (index == 0) {
@@ -271,8 +272,10 @@ static int vgdev_output_init(struct virtio_gpu_device *vgdev, int index)
 	cursor = virtio_gpu_plane_init(vgdev, DRM_PLANE_TYPE_CURSOR, index);
 	if (IS_ERR(cursor))
 		return PTR_ERR(cursor);
-	drm_crtc_init_with_planes(dev, crtc, primary, cursor,
-				  &virtio_gpu_crtc_funcs, NULL);
+	ret = drm_crtc_init_with_planes(dev, crtc, primary, cursor,
+					&virtio_gpu_crtc_funcs, NULL);
+	if (ret)
+		return ret;
 	drm_crtc_helper_add(crtc, &virtio_gpu_crtc_helper_funcs);
 
 	drm_connector_init(dev, connector, &virtio_gpu_connector_funcs,
