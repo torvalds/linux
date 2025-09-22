@@ -611,39 +611,6 @@ devm_fwnode_pwm_get(struct device *dev, struct fwnode_handle *fwnode,
 }
 #endif
 
-static inline void pwm_apply_args(struct pwm_device *pwm)
-{
-	struct pwm_state state = { };
-
-	/*
-	 * PWM users calling pwm_apply_args() expect to have a fresh config
-	 * where the polarity and period are set according to pwm_args info.
-	 * The problem is, polarity can only be changed when the PWM is
-	 * disabled.
-	 *
-	 * PWM drivers supporting hardware readout may declare the PWM device
-	 * as enabled, and prevent polarity setting, which changes from the
-	 * existing behavior, where all PWM devices are declared as disabled
-	 * at startup (even if they are actually enabled), thus authorizing
-	 * polarity setting.
-	 *
-	 * To fulfill this requirement, we apply a new state which disables
-	 * the PWM device and set the reference period and polarity config.
-	 *
-	 * Note that PWM users requiring a smooth handover between the
-	 * bootloader and the kernel (like critical regulators controlled by
-	 * PWM devices) will have to switch to the atomic API and avoid calling
-	 * pwm_apply_args().
-	 */
-
-	state.enabled = false;
-	state.polarity = pwm->args.polarity;
-	state.period = pwm->args.period;
-	state.usage_power = false;
-
-	pwm_apply_might_sleep(pwm, &state);
-}
-
 struct pwm_lookup {
 	struct list_head list;
 	const char *provider;
