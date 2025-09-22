@@ -340,7 +340,7 @@ static int btrfs_clone(struct inode *src, struct inode *inode,
 		       const u64 destoff, bool no_time_update)
 {
 	struct btrfs_fs_info *fs_info = inode_to_fs_info(inode);
-	struct btrfs_path *path = NULL;
+	BTRFS_PATH_AUTO_FREE(path);
 	struct extent_buffer *leaf;
 	struct btrfs_trans_handle *trans;
 	char *buf = NULL;
@@ -611,7 +611,6 @@ process_slot:
 	}
 
 out:
-	btrfs_free_path(path);
 	kvfree(buf);
 	clear_bit(BTRFS_INODE_NO_DELALLOC_FLUSH, &BTRFS_I(inode)->runtime_flags);
 

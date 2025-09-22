@@ -925,7 +925,7 @@ static int get_default_subvol_objectid(struct btrfs_fs_info *fs_info, u64 *objec
 {
 	struct btrfs_root *root = fs_info->tree_root;
 	struct btrfs_dir_item *di;
-	struct btrfs_path *path;
+	BTRFS_PATH_AUTO_FREE(path);
 	struct btrfs_key location;
 	struct fscrypt_str name = FSTR_INIT("default", 7);
 	u64 dir_id;
@@ -942,7 +942,6 @@ static int get_default_subvol_objectid(struct btrfs_fs_info *fs_info, u64 *objec
 	dir_id = btrfs_super_root_dir(fs_info->super_copy);
 	di = btrfs_lookup_dir_item(NULL, root, path, dir_id, &name, 0);
 	if (IS_ERR(di)) {
-		btrfs_free_path(path);
 		return PTR_ERR(di);
 	}
 	if (!di) {
@@ -951,13 +950,11 @@ static int get_default_subvol_objectid(struct btrfs_fs_info *fs_info, u64 *objec
 		 * it's always been there, but don't freak out, just try and
 		 * mount the top-level subvolume.
 		 */
-		btrfs_free_path(path);
 		*objectid = BTRFS_FS_TREE_OBJECTID;
 		return 0;
 	}
 
 	btrfs_dir_item_key_to_cpu(path->nodes[0], di, &location);
-	btrfs_free_path(path);
 	*objectid = location.objectid;
 	return 0;
 }

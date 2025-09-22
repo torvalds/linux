@@ -1641,7 +1641,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	struct btrfs_root *parent_root;
 	struct btrfs_block_rsv *rsv;
 	struct btrfs_inode *parent_inode = pending->dir;
-	struct btrfs_path *path;
+	BTRFS_PATH_AUTO_FREE(path);
 	struct btrfs_dir_item *dir_item;
 	struct extent_buffer *tmp;
 	struct extent_buffer *old;
@@ -1905,7 +1905,6 @@ free_fname:
 free_pending:
 	kfree(new_root_item);
 	pending->root_item = NULL;
-	btrfs_free_path(path);
 	pending->path = NULL;
 
 	return ret;
