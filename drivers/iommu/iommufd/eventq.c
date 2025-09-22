@@ -393,12 +393,12 @@ static int iommufd_eventq_init(struct iommufd_eventq *eventq, char *name,
 			       const struct file_operations *fops)
 {
 	struct file *filep;
-	int fdno;
 
 	spin_lock_init(&eventq->lock);
 	INIT_LIST_HEAD(&eventq->deliver);
 	init_waitqueue_head(&eventq->wait_queue);
 
+	/* The filep is fput() by the core code during failure */
 	filep = anon_inode_getfile(name, fops, eventq, O_RDWR);
 	if (IS_ERR(filep))
 		return PTR_ERR(filep);
@@ -408,10 +408,7 @@ static int iommufd_eventq_init(struct iommufd_eventq *eventq, char *name,
 	eventq->filep = filep;
 	refcount_inc(&eventq->obj.users);
 
-	fdno = get_unused_fd_flags(O_CLOEXEC);
-	if (fdno < 0)
-		fput(filep);
-	return fdno;
+	return get_unused_fd_flags(O_CLOEXEC);
 }
 
 static const struct file_operations iommufd_fault_fops =
@@ -452,7 +449,6 @@ int iommufd_fault_alloc(struct iommufd_ucmd *ucmd)
 	return 0;
 out_put_fdno:
 	put_unused_fd(fdno);
-	fput(fault->common.filep);
 	return rc;
 }
 
@@ -536,7 +532,6 @@ int iommufd_veventq_alloc(struct iommufd_ucmd *ucmd)
 
 out_put_fdno:
 	put_unused_fd(fdno);
-	fput(veventq->common.filep);
 out_abort:
 	iommufd_object_abort_and_destroy(ucmd->ictx, &veventq->common.obj);
 out_unlock_veventqs:
