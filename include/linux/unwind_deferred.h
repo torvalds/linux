@@ -46,22 +46,22 @@ void unwind_deferred_task_exit(struct task_struct *task);
 static __always_inline void unwind_reset_info(void)
 {
 	struct unwind_task_info *info = &current->unwind_info;
-	unsigned long bits;
+	unsigned long bits = info->unwind_mask;
 
 	/* Was there any unwinding? */
-	if (unlikely(info->unwind_mask)) {
-		bits = info->unwind_mask;
-		do {
-			/* Is a task_work going to run again before going back */
-			if (bits & UNWIND_PENDING)
-				return;
-		} while (!try_cmpxchg(&info->unwind_mask, &bits, 0UL));
-		current->unwind_info.id.id = 0;
+	if (likely(!bits))
+		return;
 
-		if (unlikely(info->cache)) {
-			info->cache->nr_entries = 0;
-			info->cache->unwind_completed = 0;
-		}
+	do {
+		/* Is a task_work going to run again before going back */
+		if (bits & UNWIND_PENDING)
+			return;
+	} while (!try_cmpxchg(&info->unwind_mask, &bits, 0UL));
+	current->unwind_info.id.id = 0;
+
+	if (unlikely(info->cache)) {
+		info->cache->nr_entries = 0;
+		info->cache->unwind_completed = 0;
 	}
 }
 
