@@ -2847,22 +2847,16 @@ static int update_nodemask(struct cpuset *cs, struct cpuset *trialcs,
 
 	/*
 	 * An empty mems_allowed is ok iff there are no tasks in the cpuset.
-	 * Since nodelist_parse() fails on an empty mask, we special case
-	 * that parsing.  The validate_change() call ensures that cpusets
-	 * with tasks have memory.
+	 * The validate_change() call ensures that cpusets with tasks have memory.
 	 */
-	if (!*buf) {
-		nodes_clear(trialcs->mems_allowed);
-	} else {
-		retval = nodelist_parse(buf, trialcs->mems_allowed);
-		if (retval < 0)
-			goto done;
+	retval = nodelist_parse(buf, trialcs->mems_allowed);
+	if (retval < 0)
+		goto done;
 
-		if (!nodes_subset(trialcs->mems_allowed,
-				  top_cpuset.mems_allowed)) {
-			retval = -EINVAL;
-			goto done;
-		}
+	if (!nodes_subset(trialcs->mems_allowed,
+			  top_cpuset.mems_allowed)) {
+		retval = -EINVAL;
+		goto done;
 	}
 
 	if (nodes_equal(cs->mems_allowed, trialcs->mems_allowed)) {
