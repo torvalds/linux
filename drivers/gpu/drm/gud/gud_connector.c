@@ -593,7 +593,7 @@ int gud_connector_fill_properties(struct drm_connector_state *connector_state,
 			unsigned int *state_val;
 
 			state_val = gud_connector_tv_state_val(prop, &connector_state->tv);
-			if (drm_WARN_ON_ONCE(connector_state->connector->dev, state_val))
+			if (drm_WARN_ON_ONCE(connector_state->connector->dev, IS_ERR(state_val)))
 				return PTR_ERR(state_val);
 
 			val = *state_val;
