@@ -1123,6 +1123,9 @@ static int uclogic_params_parse_ugee_v2_desc(const __u8 *str_desc,
 		return -EINVAL;
 
 	pen_x_lm = get_unaligned_le16(str_desc + 2);
+	if (str_desc_size > 12)
+		pen_x_lm += (u8)str_desc[12] << 16;
+
 	pen_y_lm = get_unaligned_le16(str_desc + 4);
 	frame_num_buttons = str_desc[6];
 	*frame_type = str_desc[7];
@@ -1532,7 +1535,7 @@ cleanup:
 }
 
 /*
- * uclogic_params_init_ugee_xppen_pro_22r() - Initializes a UGEE XP-Pen Pro 22R tablet device.
+ * uclogic_params_init_ugee_xppen_pro() - Initializes a UGEE XP-Pen Pro tablet device.
  *
  * @hdev:	The HID device of the tablet interface to initialize and get
  *		parameters from. Cannot be NULL.
@@ -1543,15 +1546,17 @@ cleanup:
  * Returns:
  *	Zero, if successful. A negative errno code on error.
  */
-static int uclogic_params_init_ugee_xppen_pro_22r(struct uclogic_params *params,
-						  struct hid_device *hdev,
-						  const u8 rdesc_frame_arr[],
-						  const size_t rdesc_frame_size)
+static int uclogic_params_init_ugee_xppen_pro(struct uclogic_params *params,
+					     struct hid_device *hdev,
+					     const u8 rdesc_pen_arr[],
+					     const size_t rdesc_pen_size,
+					     const u8 rdesc_frame_arr[],
+					     const size_t rdesc_frame_size,
+					     size_t str_desc_len)
 {
 	int rc = 0;
 	struct usb_interface *iface;
 	__u8 bInterfaceNumber;
-	const int str_desc_len = 12;
 	u8 *str_desc = NULL;
 	__u8 *rdesc_pen = NULL;
 	s32 desc_params[UCLOGIC_RDESC_PH_ID_NUM];
@@ -1614,8 +1619,8 @@ static int uclogic_params_init_ugee_xppen_pro_22r(struct uclogic_params *params,
 
 	/* Initialize the pen interface */
 	rdesc_pen = uclogic_rdesc_template_apply(
-				uclogic_rdesc_ugee_v2_pen_template_arr,
-				uclogic_rdesc_ugee_v2_pen_template_size,
+				rdesc_pen_arr,
+				rdesc_pen_size,
 				desc_params, ARRAY_SIZE(desc_params));
 	if (!rdesc_pen) {
 		rc = -ENOMEM;
@@ -1623,7 +1628,7 @@ static int uclogic_params_init_ugee_xppen_pro_22r(struct uclogic_params *params,
 	}
 
 	p.pen.desc_ptr = rdesc_pen;
-	p.pen.desc_size = uclogic_rdesc_ugee_v2_pen_template_size;
+	p.pen.desc_size = rdesc_pen_size;
 	p.pen.id = 0x02;
 	p.pen.subreport_list[0].value = 0xf0;
 	p.pen.subreport_list[0].id = UCLOGIC_RDESC_V1_FRAME_ID;
@@ -1970,10 +1975,30 @@ int uclogic_params_init(struct uclogic_params *params,
 		break;
 	case VID_PID(USB_VENDOR_ID_UGEE,
 			USB_DEVICE_ID_UGEE_XPPEN_TABLET_22R_PRO):
-		rc = uclogic_params_init_ugee_xppen_pro_22r(&p,
+		rc = uclogic_params_init_ugee_xppen_pro(&p,
 			hdev,
+			uclogic_rdesc_ugee_v2_pen_template_arr,
+			uclogic_rdesc_ugee_v2_pen_template_size,
 			uclogic_rdesc_xppen_artist_22r_pro_frame_arr,
-			uclogic_rdesc_xppen_artist_22r_pro_frame_size);
+			uclogic_rdesc_xppen_artist_22r_pro_frame_size,
+			12);
+		if (rc != 0)
+			goto cleanup;
+
+		break;
+	case VID_PID(USB_VENDOR_ID_UGEE,
+			USB_DEVICE_ID_UGEE_XPPEN_TABLET_24_PRO):
+		rc = uclogic_params_init_ugee_xppen_pro(&p,
+			hdev,
+			uclogic_rdesc_xppen_artist_24_pro_pen_template_arr,
+			uclogic_rdesc_xppen_artist_24_pro_pen_template_size,
+			uclogic_rdesc_xppen_artist_24_pro_frame_arr,
+			uclogic_rdesc_xppen_artist_24_pro_frame_size,
+			14);
+
+		// The 24 Pro has a fragmented X Coord.
+		p.pen.fragmented_hires2 = true;
+
 		if (rc != 0)
 			goto cleanup;
 
