@@ -73,8 +73,6 @@
  * On any mode switch, if the new reg values are smaller than the current values,
  * then update the regs with the new values.
  *
- * Link to the ticket: http://ontrack-internal.amd.com/browse/DEDCN21-142
- *
  */
 void apply_DEDCN21_142_wa_for_hostvm_deadline(
 		struct hubp *hubp,
