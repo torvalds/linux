@@ -167,8 +167,6 @@ struct sock *inet6_lookup(const struct net *net, struct sk_buff *skb, int doff,
 			  const struct in6_addr *daddr, const __be16 dport,
 			  const int dif);
 
-int inet6_hash(struct sock *sk);
-
 static inline bool inet6_match(const struct net *net, const struct sock *sk,
 			       const struct in6_addr *saddr,
 			       const struct in6_addr *daddr,

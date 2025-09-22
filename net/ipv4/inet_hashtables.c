@@ -739,15 +739,18 @@ static int inet_reuseport_add_sock(struct sock *sk,
 	return reuseport_alloc(sk, inet_rcv_saddr_any(sk));
 }
 
-int __inet_hash(struct sock *sk, struct sock *osk)
+int inet_hash(struct sock *sk)
 {
 	struct inet_hashinfo *hashinfo = tcp_get_hashinfo(sk);
 	struct inet_listen_hashbucket *ilb2;
 	int err = 0;
 
+	if (sk->sk_state == TCP_CLOSE)
+		return 0;
+
 	if (sk->sk_state != TCP_LISTEN) {
 		local_bh_disable();
-		inet_ehash_nolisten(sk, osk, NULL);
+		inet_ehash_nolisten(sk, NULL, NULL);
 		local_bh_enable();
 		return 0;
 	}
@@ -772,17 +775,7 @@ unlock:
 
 	return err;
 }
-EXPORT_IPV6_MOD(__inet_hash);
-
-int inet_hash(struct sock *sk)
-{
-	int err = 0;
-
-	if (sk->sk_state != TCP_CLOSE)
-		err = __inet_hash(sk, NULL);
-
-	return err;
-}
+EXPORT_IPV6_MOD(inet_hash);
 
 void inet_unhash(struct sock *sk)
 {
@@ -800,11 +793,6 @@ void inet_unhash(struct sock *sk)
 		 * avoid circular locking dependency on PREEMPT_RT.
 		 */
 		spin_lock(&ilb2->lock);
-		if (sk_unhashed(sk)) {
-			spin_unlock(&ilb2->lock);
-			return;
-		}
-
 		if (rcu_access_pointer(sk->sk_reuseport_cb))
 			reuseport_stop_listen_sock(sk);
 
@@ -815,10 +803,6 @@ void inet_unhash(struct sock *sk)
 		spinlock_t *lock = inet_ehash_lockp(hashinfo, sk->sk_hash);
 
 		spin_lock_bh(lock);
-		if (sk_unhashed(sk)) {
-			spin_unlock_bh(lock);
-			return;
-		}
 		__sk_nulls_del_node_init_rcu(sk);
 		sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
 		spin_unlock_bh(lock);

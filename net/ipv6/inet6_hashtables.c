@@ -368,14 +368,3 @@ int inet6_hash_connect(struct inet_timewait_death_row *death_row,
 				   __inet6_check_established);
 }
 EXPORT_SYMBOL_GPL(inet6_hash_connect);
-
-int inet6_hash(struct sock *sk)
-{
-	int err = 0;
-
-	if (sk->sk_state != TCP_CLOSE)
-		err = __inet_hash(sk, NULL);
-
-	return err;
-}
-EXPORT_SYMBOL_GPL(inet6_hash);
