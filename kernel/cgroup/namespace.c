@@ -27,7 +27,7 @@ static struct cgroup_namespace *alloc_cgroup_ns(void)
 	new_ns = kzalloc(sizeof(struct cgroup_namespace), GFP_KERNEL_ACCOUNT);
 	if (!new_ns)
 		return ERR_PTR(-ENOMEM);
-	ret = ns_common_init(new_ns, &cgroupns_operations);
+	ret = ns_common_init(new_ns);
 	if (ret)
 		return ERR_PTR(ret);
 	ns_tree_add(new_ns);

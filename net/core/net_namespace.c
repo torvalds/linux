@@ -400,16 +400,9 @@ static __net_init void preinit_net_sysctl(struct net *net)
 /* init code that must occur even if setup_net() is not called. */
 static __net_init int preinit_net(struct net *net, struct user_namespace *user_ns)
 {
-	const struct proc_ns_operations *ns_ops;
 	int ret;
 
-#ifdef CONFIG_NET_NS
-	ns_ops = &netns_operations;
-#else
-	ns_ops = NULL;
-#endif
-
-	ret = ns_common_init(net, ns_ops);
+	ret = ns_common_init(net);
 	if (ret)
 		return ret;
 
