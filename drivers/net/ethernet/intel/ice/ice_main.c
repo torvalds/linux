@@ -3969,6 +3969,11 @@ static void ice_deinit_pf(struct ice_pf *pf)
 		pf->avail_rxqs = NULL;
 	}
 
+	if (pf->txtime_txqs) {
+		bitmap_free(pf->txtime_txqs);
+		pf->txtime_txqs = NULL;
+	}
+
 	if (pf->ptp.clock)
 		ptp_clock_unregister(pf->ptp.clock);
 
@@ -4059,6 +4064,15 @@ static int ice_init_pf(struct ice_pf *pf)
 	if (!pf->avail_rxqs) {
 		bitmap_free(pf->avail_txqs);
 		pf->avail_txqs = NULL;
+		return -ENOMEM;
+	}
+
+	pf->txtime_txqs = bitmap_zalloc(pf->max_pf_txqs, GFP_KERNEL);
+	if (!pf->txtime_txqs) {
+		bitmap_free(pf->avail_txqs);
+		pf->avail_txqs = NULL;
+		bitmap_free(pf->avail_rxqs);
+		pf->avail_rxqs = NULL;
 		return -ENOMEM;
 	}
 
@@ -7484,7 +7498,8 @@ int ice_vsi_open(struct ice_vsi *vsi)
 	if (err)
 		goto err_setup_rx;
 
-	ice_vsi_cfg_netdev_tc(vsi, vsi->tc_cfg.ena_tc);
+	if (bitmap_empty(pf->txtime_txqs, pf->max_pf_txqs))
+		ice_vsi_cfg_netdev_tc(vsi, vsi->tc_cfg.ena_tc);
 
 	if (vsi->type == ICE_VSI_PF || vsi->type == ICE_VSI_SF) {
 		/* Notify the stack of the actual queue counts. */
@@ -9273,6 +9288,96 @@ exit:
 	return ret;
 }
 
+/**
+ * ice_cfg_txtime - configure Tx Time for the Tx ring
+ * @tx_ring: pointer to the Tx ring structure
+ *
+ * Return: 0 on success, negative value on failure.
+ */
+static int ice_cfg_txtime(struct ice_tx_ring *tx_ring)
+{
+	int err, timeout = 50;
+	struct ice_vsi *vsi;
+	struct device *dev;
+	struct ice_pf *pf;
+	u32 queue;
+
+	if (!tx_ring)
+		return -EINVAL;
+
+	vsi = tx_ring->vsi;
+	pf = vsi->back;
+	while (test_and_set_bit(ICE_CFG_BUSY, pf->state)) {
+		timeout--;
+		if (!timeout)
+			return -EBUSY;
+		usleep_range(1000, 2000);
+	}
+
+	queue = tx_ring->q_index;
+	dev = ice_pf_to_dev(pf);
+
+	/* Ignore return value, and always attempt to enable queue. */
+	ice_qp_dis(vsi, queue);
+
+	err = ice_qp_ena(vsi, queue);
+	if (err)
+		dev_err(dev, "Failed to enable Tx queue %d for TxTime configuration\n",
+			queue);
+
+	clear_bit(ICE_CFG_BUSY, pf->state);
+	return err;
+}
+
+/**
+ * ice_offload_txtime - set earliest TxTime first
+ * @netdev: network interface device structure
+ * @qopt_off: etf queue option offload from the skb to set
+ *
+ * Return: 0 on success, negative value on failure.
+ */
+static int ice_offload_txtime(struct net_device *netdev,
+			      void *qopt_off)
+{
+	struct ice_netdev_priv *np = netdev_priv(netdev);
+	struct ice_pf *pf = np->vsi->back;
+	struct tc_etf_qopt_offload *qopt;
+	struct ice_vsi *vsi = np->vsi;
+	struct ice_tx_ring *tx_ring;
+	int ret = 0;
+
+	if (!ice_is_feature_supported(pf, ICE_F_TXTIME))
+		return -EOPNOTSUPP;
+
+	qopt = qopt_off;
+	if (!qopt_off || qopt->queue < 0 || qopt->queue >= vsi->num_txq)
+		return -EINVAL;
+
+	if (qopt->enable)
+		set_bit(qopt->queue,  pf->txtime_txqs);
+	else
+		clear_bit(qopt->queue, pf->txtime_txqs);
+
+	if (netif_running(vsi->netdev)) {
+		tx_ring = vsi->tx_rings[qopt->queue];
+		ret = ice_cfg_txtime(tx_ring);
+		if (ret)
+			goto err;
+	}
+
+	netdev_info(netdev, "%s TxTime on queue: %i\n",
+		    str_enable_disable(qopt->enable), qopt->queue);
+	return 0;
+
+err:
+	netdev_err(netdev, "Failed to %s TxTime on queue: %i\n",
+		   str_enable_disable(qopt->enable), qopt->queue);
+
+	if (qopt->enable)
+		clear_bit(qopt->queue,  pf->txtime_txqs);
+	return ret;
+}
+
 static LIST_HEAD(ice_block_cb_list);
 
 static int
@@ -9336,6 +9441,8 @@ adev_unlock:
 			mutex_unlock(&pf->adev_mutex);
 		}
 		return err;
+	case TC_SETUP_QDISC_ETF:
+		return ice_offload_txtime(netdev, type_data);
 	default:
 		return -EOPNOTSUPP;
 	}

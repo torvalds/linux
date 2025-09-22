@@ -54,7 +54,7 @@ static bool ice_vc_isvalid_ring_len(u16 ring_len)
 {
 	return ring_len == 0 ||
 	       (ring_len >= ICE_MIN_NUM_DESC &&
-		ring_len <= ICE_MAX_NUM_DESC &&
+		ring_len <= ICE_MAX_NUM_DESC_E810 &&
 		!(ring_len % ICE_REQ_DESC_MULTIPLE));
 }
 
@@ -905,8 +905,6 @@ error_param:
 
 	ice_lag_complete_vf_reset(pf->lag, act_prt);
 	mutex_unlock(&pf->lag_mutex);
-
-	ice_lag_move_new_vf_nodes(vf);
 
 	/* send the response to the VF */
 	return ice_vc_send_msg_to_vf(vf, VIRTCHNL_OP_CONFIG_VSI_QUEUES,

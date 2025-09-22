@@ -790,61 +790,6 @@ ice_lag_move_single_vf_nodes(struct ice_lag *lag, u8 oldport, u8 newport,
 }
 
 /**
- * ice_lag_move_new_vf_nodes - Move Tx scheduling nodes for a VF if required
- * @vf: the VF to move Tx nodes for
- *
- * Called just after configuring new VF queues. Check whether the VF Tx
- * scheduling nodes need to be updated to fail over to the active port. If so,
- * move them now.
- */
-void ice_lag_move_new_vf_nodes(struct ice_vf *vf)
-{
-	struct ice_lag_netdev_list ndlist;
-	u8 pri_port, act_port;
-	struct ice_lag *lag;
-	struct ice_vsi *vsi;
-	struct ice_pf *pf;
-
-	vsi = ice_get_vf_vsi(vf);
-
-	if (WARN_ON(!vsi))
-		return;
-
-	if (WARN_ON(vsi->type != ICE_VSI_VF))
-		return;
-
-	pf = vf->pf;
-	lag = pf->lag;
-
-	mutex_lock(&pf->lag_mutex);
-	if (!lag->bonded)
-		goto new_vf_unlock;
-
-	pri_port = pf->hw.port_info->lport;
-	act_port = lag->active_port;
-
-	if (lag->upper_netdev)
-		ice_lag_build_netdev_list(lag, &ndlist);
-
-	if (lag->bonded && lag->primary && !list_empty(lag->netdev_head)) {
-		if (lag->bond_aa &&
-		    ice_is_feature_supported(pf, ICE_F_SRIOV_AA_LAG))
-			ice_lag_aa_failover(lag, ICE_LAGS_IDX, NULL);
-
-		if (!lag->bond_aa &&
-		    ice_is_feature_supported(pf, ICE_F_SRIOV_LAG) &&
-		    pri_port != act_port)
-			ice_lag_move_single_vf_nodes(lag, pri_port, act_port,
-						     vsi->idx);
-	}
-
-	ice_lag_destroy_netdev_list(lag, &ndlist);
-
-new_vf_unlock:
-	mutex_unlock(&pf->lag_mutex);
-}
-
-/**
  * ice_lag_move_vf_nodes - move Tx scheduling nodes for all VFs to new port
  * @lag: lag info struct
  * @oldport: lport of previous interface

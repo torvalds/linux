@@ -33,6 +33,10 @@ typedef struct __packed { u8 buf[ICE_TXQ_CTX_SZ]; } ice_txq_ctx_buf_t;
 
 typedef struct __packed { u8 buf[ICE_TXQ_CTX_FULL_SZ]; } ice_txq_ctx_buf_full_t;
 
+#define ICE_TXTIME_CTX_SZ		25
+
+typedef struct __packed { u8 buf[ICE_TXTIME_CTX_SZ]; } ice_txtime_ctx_buf_t;
+
 /* Queue Shutdown (direct 0x0003) */
 struct ice_aqc_q_shutdown {
 	u8 driver_unloading;
@@ -2117,6 +2121,34 @@ struct ice_aqc_add_rdma_qset_data {
 	struct ice_aqc_add_tx_rdma_qset_entry rdma_qsets[];
 };
 
+/* Set Tx Time LAN Queue (indirect 0x0C35) */
+struct ice_aqc_set_txtimeqs {
+	__le16 q_id;
+	__le16 q_amount;
+	u8 reserved[4];
+	__le32 addr_high;
+	__le32 addr_low;
+};
+
+/* This is the descriptor of each queue entry for the Set Tx Time Queue
+ * command (0x0C35). Only used within struct ice_aqc_set_txtime_qgrp.
+ */
+struct ice_aqc_set_txtimeqs_perq {
+	u8 reserved[4];
+	ice_txtime_ctx_buf_t txtime_ctx;
+	u8 reserved1[3];
+};
+
+/* The format of the command buffer for Set Tx Time Queue (0x0C35)
+ * is an array of the following structs. Please note that the length of
+ * each struct ice_aqc_set_txtime_qgrp is variable due to the variable
+ * number of queues in each group!
+ */
+struct ice_aqc_set_txtime_qgrp {
+	u8 reserved[8];
+	struct ice_aqc_set_txtimeqs_perq txtimeqs[];
+};
+
 /* Download Package (indirect 0x0C40) */
 /* Also used for Update Package (indirect 0x0C41 and 0x0C42) */
 struct ice_aqc_download_pkg {
@@ -2613,6 +2645,9 @@ enum ice_adminq_opc {
 	ice_aqc_opc_dis_txqs				= 0x0C31,
 	ice_aqc_opc_cfg_txqs				= 0x0C32,
 	ice_aqc_opc_add_rdma_qset			= 0x0C33,
+
+	/* Tx Time queue commands */
+	ice_aqc_opc_set_txtimeqs			= 0x0C35,
 
 	/* package commands */
 	ice_aqc_opc_download_pkg			= 0x0C40,
