@@ -2316,10 +2316,8 @@ int gpiochip_add_pingroup_range(struct gpio_chip *gc,
 	int ret;
 
 	pin_range = kzalloc(sizeof(*pin_range), GFP_KERNEL);
-	if (!pin_range) {
-		chip_err(gc, "failed to allocate pin ranges\n");
+	if (!pin_range)
 		return -ENOMEM;
-	}
 
 	/* Use local offset as range ID */
 	pin_range->range.id = gpio_offset;
@@ -2379,10 +2377,8 @@ int gpiochip_add_pin_range_with_pins(struct gpio_chip *gc,
 	int ret;
 
 	pin_range = kzalloc(sizeof(*pin_range), GFP_KERNEL);
-	if (!pin_range) {
-		chip_err(gc, "failed to allocate pin ranges\n");
+	if (!pin_range)
 		return -ENOMEM;
-	}
 
 	/* Use local offset as range ID */
 	pin_range->range.id = gpio_offset;
