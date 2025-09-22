@@ -86,7 +86,7 @@ config DRM_PIXPAPER
         tristate "DRM support for PIXPAPER display panels"
         depends on DRM && SPI
         select DRM_CLIENT_SELECTION
-        select DRM_GEM_DMA_HELPER
+        select DRM_GEM_SHMEM_HELPER
         select DRM_KMS_HELPER
         help
 	  DRM driver for the Mayqueen Pixpaper e-ink display panel.
