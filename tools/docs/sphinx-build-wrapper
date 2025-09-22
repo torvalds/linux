@@ -185,6 +185,19 @@ class SphinxBuilder:
         self.kernelrelease = os.environ.get("KERNELRELEASE", "unknown")
         self.pdflatex = os.environ.get("PDFLATEX", "xelatex")
 
+        #
+        # Kernel main Makefile defines a PYTHON3 variable whose default is
+        # "python3". When set to a different value, it allows running a
+        # diferent version than the default official python3 package.
+        # Several distros package python3xx-sphinx packages with newer
+        # versions of Python and sphinx-build.
+        #
+        # Honor such variable different than default
+        #
+        self.python = os.environ.get("PYTHON3")
+        if self.python == "python3":
+            self.python = None
+
         if not interactive:
             self.latexopts = os.environ.get("LATEXOPTS", "-interaction=batchmode -no-shell-escape")
         else:
@@ -272,10 +285,16 @@ class SphinxBuilder:
             if self.n_jobs:
                 n_jobs = str(self.n_jobs)
 
-            if self.venv:
-                cmd = ["python"]
+            #
+            # We can't simply call python3 sphinx-build, as OpenSUSE
+            # Tumbleweed uses an ELF binary file (/usr/bin/alts) to switch
+            # between different versions of sphinx-build. So, only call it
+            # prepending "python3.xx" when PYTHON3 variable is not default.
+            #
+            if self.python:
+                cmd = [self.python]
             else:
-                cmd = [sys.executable]
+                cmd = []
 
             cmd += [sphinx_build]
             cmd += [f"-j{n_jobs}"]
