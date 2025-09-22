@@ -1193,6 +1193,5 @@ static struct platform_driver pl35x_nandc_driver = {
 module_platform_driver(pl35x_nandc_driver);
 
 MODULE_AUTHOR("Xilinx, Inc.");
-MODULE_ALIAS("platform:" PL35X_NANDC_DRIVER_NAME);
 MODULE_DESCRIPTION("ARM PL35X NAND controller driver");
 MODULE_LICENSE("GPL");
