@@ -1308,106 +1308,111 @@ static void dualsense_output_worker(struct work_struct *work)
 	struct dualsense *ds = container_of(work, struct dualsense, output_worker);
 	struct dualsense_output_report report;
 	struct dualsense_output_report_common *common;
-	unsigned long flags;
 
 	dualsense_init_output_report(ds, &report, ds->output_report_dmabuf);
 	common = report.common;
 
-	spin_lock_irqsave(&ds->base.lock, flags);
+	scoped_guard(spinlock_irqsave, &ds->base.lock) {
+		if (ds->update_rumble) {
+			/* Select classic rumble style haptics and enable it. */
+			common->valid_flag0 |= DS_OUTPUT_VALID_FLAG0_HAPTICS_SELECT;
+			if (ds->use_vibration_v2)
+				common->valid_flag2 |= DS_OUTPUT_VALID_FLAG2_COMPATIBLE_VIBRATION2;
+			else
+				common->valid_flag0 |= DS_OUTPUT_VALID_FLAG0_COMPATIBLE_VIBRATION;
+			common->motor_left = ds->motor_left;
+			common->motor_right = ds->motor_right;
+			ds->update_rumble = false;
+		}
 
-	if (ds->update_rumble) {
-		/* Select classic rumble style haptics and enable it. */
-		common->valid_flag0 |= DS_OUTPUT_VALID_FLAG0_HAPTICS_SELECT;
-		if (ds->use_vibration_v2)
-			common->valid_flag2 |= DS_OUTPUT_VALID_FLAG2_COMPATIBLE_VIBRATION2;
-		else
-			common->valid_flag0 |= DS_OUTPUT_VALID_FLAG0_COMPATIBLE_VIBRATION;
-		common->motor_left = ds->motor_left;
-		common->motor_right = ds->motor_right;
-		ds->update_rumble = false;
-	}
+		if (ds->update_lightbar) {
+			common->valid_flag1 |= DS_OUTPUT_VALID_FLAG1_LIGHTBAR_CONTROL_ENABLE;
+			common->lightbar_red = ds->lightbar_red;
+			common->lightbar_green = ds->lightbar_green;
+			common->lightbar_blue = ds->lightbar_blue;
 
-	if (ds->update_lightbar) {
-		common->valid_flag1 |= DS_OUTPUT_VALID_FLAG1_LIGHTBAR_CONTROL_ENABLE;
-		common->lightbar_red = ds->lightbar_red;
-		common->lightbar_green = ds->lightbar_green;
-		common->lightbar_blue = ds->lightbar_blue;
+			ds->update_lightbar = false;
+		}
 
-		ds->update_lightbar = false;
-	}
+		if (ds->update_player_leds) {
+			common->valid_flag1 |=
+				DS_OUTPUT_VALID_FLAG1_PLAYER_INDICATOR_CONTROL_ENABLE;
+			common->player_leds = ds->player_leds_state;
 
-	if (ds->update_player_leds) {
-		common->valid_flag1 |= DS_OUTPUT_VALID_FLAG1_PLAYER_INDICATOR_CONTROL_ENABLE;
-		common->player_leds = ds->player_leds_state;
+			ds->update_player_leds = false;
+		}
 
-		ds->update_player_leds = false;
-	}
+		if (ds->plugged_state != ds->prev_plugged_state) {
+			u8 val = ds->plugged_state & DS_STATUS1_HP_DETECT;
 
-	if (ds->plugged_state != ds->prev_plugged_state) {
-		u8 val = ds->plugged_state & DS_STATUS1_HP_DETECT;
-
-		if (val != (ds->prev_plugged_state & DS_STATUS1_HP_DETECT)) {
-			common->valid_flag0 = DS_OUTPUT_VALID_FLAG0_AUDIO_CONTROL_ENABLE;
-			/*
-			 *  _--------> Output path setup in audio_flag0
-			 * /  _------> Headphone (HP) Left channel sink
-			 * | /  _----> Headphone (HP) Right channel sink
-			 * | | /  _--> Internal Speaker (SP) sink
-			 * | | | /
-			 * | | | |     L/R - Left/Right channel source
-			 * 0 L-R X       X - Unrouted (muted) channel source
-			 * 1 L-L X
-			 * 2 L-L R
-			 * 3 X-X R
-			 */
-			if (val) {
-				/* Mute SP and route L+R channels to HP */
-				common->audio_control = 0;
-			} else {
-				/* Mute HP and route R channel to SP */
-				common->audio_control =
-					FIELD_PREP(DS_OUTPUT_AUDIO_FLAGS_OUTPUT_PATH_SEL, 0x3);
+			if (val != (ds->prev_plugged_state & DS_STATUS1_HP_DETECT)) {
+				common->valid_flag0 = DS_OUTPUT_VALID_FLAG0_AUDIO_CONTROL_ENABLE;
 				/*
-				 * Set SP hardware volume to 100%.
-				 * Note the accepted range seems to be [0x3d..0x64]
+				 *  _--------> Output path setup in audio_flag0
+				 * /  _------> Headphone (HP) Left channel sink
+				 * | /  _----> Headphone (HP) Right channel sink
+				 * | | /  _--> Internal Speaker (SP) sink
+				 * | | | /
+				 * | | | |     L/R - Left/Right channel source
+				 * 0 L-R X       X - Unrouted (muted) channel source
+				 * 1 L-L X
+				 * 2 L-L R
+				 * 3 X-X R
 				 */
-				common->valid_flag0 |= DS_OUTPUT_VALID_FLAG0_SPEAKER_VOLUME_ENABLE;
-				common->speaker_volume = 0x64;
-				/* Set SP preamp gain to +6dB */
-				common->valid_flag1 = DS_OUTPUT_VALID_FLAG1_AUDIO_CONTROL2_ENABLE;
-				common->audio_control2 =
-					FIELD_PREP(DS_OUTPUT_AUDIO_FLAGS2_SP_PREAMP_GAIN, 0x2);
+				if (val) {
+					/* Mute SP and route L+R channels to HP */
+					common->audio_control = 0;
+				} else {
+					/* Mute HP and route R channel to SP */
+					common->audio_control =
+						FIELD_PREP(DS_OUTPUT_AUDIO_FLAGS_OUTPUT_PATH_SEL,
+							   0x3);
+					/*
+					 * Set SP hardware volume to 100%.
+					 * Note the accepted range seems to be [0x3d..0x64]
+					 */
+					common->valid_flag0 |=
+						DS_OUTPUT_VALID_FLAG0_SPEAKER_VOLUME_ENABLE;
+					common->speaker_volume = 0x64;
+					/* Set SP preamp gain to +6dB */
+					common->valid_flag1 =
+						DS_OUTPUT_VALID_FLAG1_AUDIO_CONTROL2_ENABLE;
+					common->audio_control2 =
+						FIELD_PREP(DS_OUTPUT_AUDIO_FLAGS2_SP_PREAMP_GAIN,
+							   0x2);
+				}
+
+				input_report_switch(ds->jack, SW_HEADPHONE_INSERT, val);
 			}
 
-			input_report_switch(ds->jack, SW_HEADPHONE_INSERT, val);
+			val = ds->plugged_state & DS_STATUS1_MIC_DETECT;
+			if (val != (ds->prev_plugged_state & DS_STATUS1_MIC_DETECT))
+				input_report_switch(ds->jack, SW_MICROPHONE_INSERT, val);
+
+			input_sync(ds->jack);
+			ds->prev_plugged_state = ds->plugged_state;
 		}
 
-		val = ds->plugged_state & DS_STATUS1_MIC_DETECT;
-		if (val != (ds->prev_plugged_state & DS_STATUS1_MIC_DETECT))
-			input_report_switch(ds->jack, SW_MICROPHONE_INSERT, val);
+		if (ds->update_mic_mute) {
+			common->valid_flag1 |= DS_OUTPUT_VALID_FLAG1_MIC_MUTE_LED_CONTROL_ENABLE;
+			common->mute_button_led = ds->mic_muted;
 
-		input_sync(ds->jack);
-		ds->prev_plugged_state = ds->plugged_state;
-	}
+			if (ds->mic_muted) {
+				/* Disable microphone */
+				common->valid_flag1 |=
+					DS_OUTPUT_VALID_FLAG1_POWER_SAVE_CONTROL_ENABLE;
+				common->power_save_control |= DS_OUTPUT_POWER_SAVE_CONTROL_MIC_MUTE;
+			} else {
+				/* Enable microphone */
+				common->valid_flag1 |=
+					DS_OUTPUT_VALID_FLAG1_POWER_SAVE_CONTROL_ENABLE;
+				common->power_save_control &=
+					~DS_OUTPUT_POWER_SAVE_CONTROL_MIC_MUTE;
+			}
 
-	if (ds->update_mic_mute) {
-		common->valid_flag1 |= DS_OUTPUT_VALID_FLAG1_MIC_MUTE_LED_CONTROL_ENABLE;
-		common->mute_button_led = ds->mic_muted;
-
-		if (ds->mic_muted) {
-			/* Disable microphone */
-			common->valid_flag1 |= DS_OUTPUT_VALID_FLAG1_POWER_SAVE_CONTROL_ENABLE;
-			common->power_save_control |= DS_OUTPUT_POWER_SAVE_CONTROL_MIC_MUTE;
-		} else {
-			/* Enable microphone */
-			common->valid_flag1 |= DS_OUTPUT_VALID_FLAG1_POWER_SAVE_CONTROL_ENABLE;
-			common->power_save_control &= ~DS_OUTPUT_POWER_SAVE_CONTROL_MIC_MUTE;
+			ds->update_mic_mute = false;
 		}
-
-		ds->update_mic_mute = false;
 	}
-
-	spin_unlock_irqrestore(&ds->base.lock, flags);
 
 	dualsense_send_output_report(ds, &report);
 }
@@ -2264,61 +2269,58 @@ static void dualshock4_output_worker(struct work_struct *work)
 	struct dualshock4 *ds4 = container_of(work, struct dualshock4, output_worker);
 	struct dualshock4_output_report report;
 	struct dualshock4_output_report_common *common;
-	unsigned long flags;
 
 	dualshock4_init_output_report(ds4, &report, ds4->output_report_dmabuf);
 	common = report.common;
 
-	spin_lock_irqsave(&ds4->base.lock, flags);
-
-	/*
-	 * Some 3rd party gamepads expect updates to rumble and lightbar
-	 * together, and setting one may cancel the other.
-	 *
-	 * Let's maximise compatibility by always sending rumble and lightbar
-	 * updates together, even when only one has been scheduled, resulting
-	 * in:
-	 *
-	 *   ds4->valid_flag0 >= 0x03
-	 *
-	 * Hopefully this will maximise compatibility with third-party pads.
-	 *
-	 * Any further update bits, such as 0x04 for lightbar blinking, will
-	 * be or'd on top of this like before.
-	 */
-	if (ds4->update_rumble || ds4->update_lightbar) {
-		ds4->update_rumble = true; /* 0x01 */
-		ds4->update_lightbar = true; /* 0x02 */
-	}
-
-	if (ds4->update_rumble) {
-		/* Select classic rumble style haptics and enable it. */
-		common->valid_flag0 |= DS4_OUTPUT_VALID_FLAG0_MOTOR;
-		common->motor_left = ds4->motor_left;
-		common->motor_right = ds4->motor_right;
-		ds4->update_rumble = false;
-	}
-
-	if (ds4->update_lightbar) {
-		common->valid_flag0 |= DS4_OUTPUT_VALID_FLAG0_LED;
-		/* Compatible behavior with hid-sony, which used a dummy global LED to
-		 * allow enabling/disabling the lightbar. The global LED maps to
-		 * lightbar_enabled.
+	scoped_guard(spinlock_irqsave, &ds4->base.lock) {
+		/*
+		 * Some 3rd party gamepads expect updates to rumble and lightbar
+		 * together, and setting one may cancel the other.
+		 *
+		 * Let's maximise compatibility by always sending rumble and lightbar
+		 * updates together, even when only one has been scheduled, resulting
+		 * in:
+		 *
+		 *   ds4->valid_flag0 >= 0x03
+		 *
+		 * Hopefully this will maximise compatibility with third-party pads.
+		 *
+		 * Any further update bits, such as 0x04 for lightbar blinking, will
+		 * be or'd on top of this like before.
 		 */
-		common->lightbar_red = ds4->lightbar_enabled ? ds4->lightbar_red : 0;
-		common->lightbar_green = ds4->lightbar_enabled ? ds4->lightbar_green : 0;
-		common->lightbar_blue = ds4->lightbar_enabled ? ds4->lightbar_blue : 0;
-		ds4->update_lightbar = false;
-	}
+		if (ds4->update_rumble || ds4->update_lightbar) {
+			ds4->update_rumble = true; /* 0x01 */
+			ds4->update_lightbar = true; /* 0x02 */
+		}
 
-	if (ds4->update_lightbar_blink) {
-		common->valid_flag0 |= DS4_OUTPUT_VALID_FLAG0_LED_BLINK;
-		common->lightbar_blink_on = ds4->lightbar_blink_on;
-		common->lightbar_blink_off = ds4->lightbar_blink_off;
-		ds4->update_lightbar_blink = false;
-	}
+		if (ds4->update_rumble) {
+			/* Select classic rumble style haptics and enable it. */
+			common->valid_flag0 |= DS4_OUTPUT_VALID_FLAG0_MOTOR;
+			common->motor_left = ds4->motor_left;
+			common->motor_right = ds4->motor_right;
+			ds4->update_rumble = false;
+		}
 
-	spin_unlock_irqrestore(&ds4->base.lock, flags);
+		if (ds4->update_lightbar) {
+			common->valid_flag0 |= DS4_OUTPUT_VALID_FLAG0_LED;
+			/* Compatible behavior with hid-sony, which used a dummy global LED to
+			 * allow enabling/disabling the lightbar. The global LED maps to
+			 * lightbar_enabled.
+			 */
+			common->lightbar_red = ds4->lightbar_enabled ? ds4->lightbar_red : 0;
+			common->lightbar_green = ds4->lightbar_enabled ? ds4->lightbar_green : 0;
+			common->lightbar_blue = ds4->lightbar_enabled ? ds4->lightbar_blue : 0;
+			ds4->update_lightbar = false;
+		}
+
+		if (ds4->update_lightbar_blink) {
+			common->valid_flag0 |= DS4_OUTPUT_VALID_FLAG0_LED_BLINK;
+			common->lightbar_blink_on = ds4->lightbar_blink_on;
+			common->lightbar_blink_off = ds4->lightbar_blink_off;
+			ds4->update_lightbar_blink = false;
+		}
+	}
 
 	/* Bluetooth packets need additional flags as well as a CRC in the last 4 bytes. */
 	if (report.bt) {
