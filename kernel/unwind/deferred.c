@@ -79,6 +79,8 @@ static u64 get_cookie(struct unwind_task_info *info)
 {
 	u32 cnt = 1;
 
+	lockdep_assert_irqs_disabled();
+
 	if (info->id.cpu)
 		return info->id.id;
 
