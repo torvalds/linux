@@ -283,29 +283,17 @@ static inline int gpio_chip_hwgpio(const struct gpio_desc *desc)
 
 /* With descriptor prefix */
 
-#define gpiod_err(desc, fmt, ...) \
+#define __gpiod_pr(level, desc, fmt, ...) \
 do { \
 	scoped_guard(srcu, &desc->gdev->desc_srcu) { \
-		pr_err("gpio-%d (%s): " fmt, desc_to_gpio(desc), \
-		       gpiod_get_label(desc) ? : "?", ##__VA_ARGS__); \
+		pr_##level("gpio-%d (%s): " fmt, desc_to_gpio(desc), \
+			   gpiod_get_label(desc) ?: "?", ##__VA_ARGS__); \
 	} \
 } while (0)
 
-#define gpiod_warn(desc, fmt, ...) \
-do { \
-	scoped_guard(srcu, &desc->gdev->desc_srcu) { \
-		pr_warn("gpio-%d (%s): " fmt, desc_to_gpio(desc), \
-			gpiod_get_label(desc) ? : "?", ##__VA_ARGS__); \
-	} \
-} while (0)
-
-#define gpiod_dbg(desc, fmt, ...) \
-do { \
-	scoped_guard(srcu, &desc->gdev->desc_srcu) { \
-		pr_debug("gpio-%d (%s): " fmt, desc_to_gpio(desc), \
-			 gpiod_get_label(desc) ? : "?", ##__VA_ARGS__); \
-	} \
-} while (0)
+#define gpiod_err(desc, fmt, ...) __gpiod_pr(err, desc, fmt, ##__VA_ARGS__)
+#define gpiod_warn(desc, fmt, ...) __gpiod_pr(warn, desc, fmt, ##__VA_ARGS__)
+#define gpiod_dbg(desc, fmt, ...) __gpiod_pr(debug, desc, fmt, ##__VA_ARGS__)
 
 /* With chip prefix */
 
