@@ -10,9 +10,6 @@ maintainers:
   - Marek Vasut <marex@denx.de>
   - Woojung Huh <Woojung.Huh@microchip.com>
 
-allOf:
-  - $ref: /schemas/spi/spi-peripheral-props.yaml#
-
 properties:
   # See Documentation/devicetree/bindings/net/dsa/dsa.yaml for a list of additional
   # required and optional properties.
@@ -36,6 +33,13 @@ properties:
       - microchip,ksz8563
       - microchip,ksz8567
       - microchip,lan9646
+
+  pinctrl-names:
+    items:
+      - const: default
+      - const: reset
+        description:
+          Used during reset for strap configuration.
 
   reset-gpios:
     description:
@@ -107,38 +111,53 @@ required:
   - compatible
   - reg
 
-if:
-  not:
-    properties:
-      compatible:
-        enum:
-          - microchip,ksz8863
-          - microchip,ksz8873
-then:
-  $ref: dsa.yaml#/$defs/ethernet-ports
-else:
-  patternProperties:
-    "^(ethernet-)?ports$":
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+  - if:
+      not:
+        properties:
+          compatible:
+            enum:
+              - microchip,ksz8863
+              - microchip,ksz8873
+    then:
+      $ref: dsa.yaml#/$defs/ethernet-ports
+    else:
       patternProperties:
-        "^(ethernet-)?port@[0-2]$":
-          $ref: dsa-port.yaml#
-          unevaluatedProperties: false
-          properties:
-            microchip,rmii-clk-internal:
-              $ref: /schemas/types.yaml#/definitions/flag
-              description:
-                When ksz88x3 is acting as clock provier (via REFCLKO) it
-                can select between internal and external RMII reference
-                clock. Internal reference clock means that the clock for
-                the RMII of ksz88x3 is provided by the ksz88x3 internally
-                and the REFCLKI pin is unconnected. For the external
-                reference clock, the clock needs to be fed back to ksz88x3
-                via REFCLKI.
-                If microchip,rmii-clk-internal is set, ksz88x3 will provide
-                rmii reference clock internally, otherwise reference clock
-                should be provided externally.
-          dependencies:
-            microchip,rmii-clk-internal: [ethernet]
+        "^(ethernet-)?ports$":
+          patternProperties:
+            "^(ethernet-)?port@[0-2]$":
+              $ref: dsa-port.yaml#
+              unevaluatedProperties: false
+              properties:
+                microchip,rmii-clk-internal:
+                  $ref: /schemas/types.yaml#/definitions/flag
+                  description:
+                    When ksz88x3 is acting as clock provier (via REFCLKO) it
+                    can select between internal and external RMII reference
+                    clock. Internal reference clock means that the clock for
+                    the RMII of ksz88x3 is provided by the ksz88x3 internally
+                    and the REFCLKI pin is unconnected. For the external
+                    reference clock, the clock needs to be fed back to ksz88x3
+                    via REFCLKI.
+                    If microchip,rmii-clk-internal is set, ksz88x3 will provide
+                    rmii reference clock internally, otherwise reference clock
+                    should be provided externally.
+              dependencies:
+                microchip,rmii-clk-internal: [ethernet]
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: microchip,ksz8463
+    then:
+      properties:
+        straps-rxd-gpios:
+          description:
+            RXD0 and RXD1 pins, used to select SPI as bus interface.
+          minItems: 2
+          maxItems: 2
 
 unevaluatedProperties: false
 
