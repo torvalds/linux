@@ -289,10 +289,8 @@ static int dlh_probe(struct i2c_client *client)
 	}
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*st));
-	if (!indio_dev) {
-		dev_err(&client->dev, "failed to allocate iio device\n");
+	if (!indio_dev)
 		return -ENOMEM;
-	}
 
 	i2c_set_clientdata(client, indio_dev);
 

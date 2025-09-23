@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/iio/temperature/microchip,mcp9600.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Microchip MCP9600 thermocouple EMF converter
+title: Microchip MCP9600 and similar thermocouple EMF converters
 
 maintainers:
   - Andrew Hepp <andrew.hepp@ahepp.dev>
@@ -14,7 +14,11 @@ description:
 
 properties:
   compatible:
-    const: microchip,mcp9600
+    oneOf:
+      - const: microchip,mcp9600
+      - items:
+          - const: microchip,mcp9601
+          - const: microchip,mcp9600
 
   reg:
     maxItems: 1
@@ -37,12 +41,42 @@ properties:
 
   thermocouple-type:
     $ref: /schemas/types.yaml#/definitions/uint32
+    default: 3
     description:
       Type of thermocouple (THERMOCOUPLE_TYPE_K if omitted).
       Use defines in dt-bindings/iio/temperature/thermocouple.h.
       Supported types are B, E, J, K, N, R, S, T.
 
+  microchip,vsense:
+    type: boolean
+    description:
+      This flag indicates that the chip has been wired with VSENSE to
+      enable open and short circuit detect.
+
   vdd-supply: true
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          not:
+            contains:
+              const: microchip,mcp9601
+    then:
+      properties:
+        interrupts:
+          minItems: 1
+          maxItems: 4
+        interrupt-names:
+          minItems: 1
+          maxItems: 4
+          items:
+            enum:
+              - alert1
+              - alert2
+              - alert3
+              - alert4
+        microchip,vsense: false
 
 required:
   - compatible
@@ -63,8 +97,24 @@ examples:
             reg = <0x60>;
             interrupt-parent = <&gpio>;
             interrupts = <25 IRQ_TYPE_EDGE_RISING>;
-            interrupt-names = "open-circuit";
+            interrupt-names = "alert1";
             thermocouple-type = <THERMOCOUPLE_TYPE_K>;
             vdd-supply = <&vdd>;
+        };
+    };
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        temperature-sensor@62 {
+            compatible = "microchip,mcp9601", "microchip,mcp9600";
+            reg = <0x62>;
+            interrupt-parent = <&gpio>;
+            interrupts = <22 IRQ_TYPE_EDGE_RISING>, <23 IRQ_TYPE_EDGE_RISING>;
+            interrupt-names = "open-circuit", "short-circuit";
+            vdd-supply = <&vdd>;
+            microchip,vsense;
         };
     };

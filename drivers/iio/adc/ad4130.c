@@ -2035,8 +2035,7 @@ static int ad4130_probe(struct spi_device *spi)
 
 	ret = devm_add_action_or_reset(dev, ad4130_disable_regulators, st);
 	if (ret)
-		return dev_err_probe(dev, ret,
-				     "Failed to add regulators disable action\n");
+		return ret;
 
 	ret = ad4130_soft_reset(st);
 	if (ret)

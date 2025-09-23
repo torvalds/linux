@@ -1193,7 +1193,8 @@ static int bu27034_buffer_thread(void *arg)
 			 */
 			data->scan.mlux = (u32)mlux;
 		}
-		iio_push_to_buffers_with_timestamp(idev, &data->scan, tstamp);
+		iio_push_to_buffers_with_ts(idev, &data->scan,
+					    sizeof(data->scan), tstamp);
 	}
 
 	return 0;

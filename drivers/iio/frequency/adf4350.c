@@ -679,8 +679,7 @@ static int adf4350_probe(struct spi_device *spi)
 
 	ret = devm_add_action_or_reset(&spi->dev, adf4350_power_down, indio_dev);
 	if (ret)
-		return dev_err_probe(&spi->dev, ret,
-				     "Failed to add action to managed power down\n");
+		return ret;
 
 	return devm_iio_device_register(&spi->dev, indio_dev);
 }

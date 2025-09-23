@@ -428,8 +428,7 @@ static int opt4001_probe(struct i2c_client *client)
 					opt4001_chip_off_action,
 					chip);
 	if (ret < 0)
-		return dev_err_probe(&client->dev, ret,
-				     "Failed to setup power off action\n");
+		return ret;
 
 	return devm_iio_device_register(&client->dev, indio_dev);
 }

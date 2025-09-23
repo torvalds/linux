@@ -724,6 +724,19 @@ config VEML6040
 	  To compile this driver as a module, choose M here: the
 	  module will be called veml6040.
 
+config VEML6046X00
+	tristate "VEML6046X00 RGBIR color sensor"
+	select REGMAP_I2C
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	depends on I2C
+	help
+	  Say Y here if you want to build a driver for the Vishay VEML6046X00
+	  high accuracy RGBIR color sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called veml6046x00.
+
 config VEML6070
 	tristate "VEML6070 UV A light sensor"
 	depends on I2C

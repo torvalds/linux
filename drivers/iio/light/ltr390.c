@@ -26,6 +26,7 @@
 #include <linux/math.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 
 #include <linux/iio/iio.h>
@@ -38,12 +39,21 @@
 #define LTR390_ALS_UVS_GAIN		0x05
 #define LTR390_PART_ID			0x06
 #define LTR390_MAIN_STATUS		0x07
+
 #define LTR390_ALS_DATA			0x0D
+#define LTR390_ALS_DATA_BYTE(n)		(LTR390_ALS_DATA + (n))
+
 #define LTR390_UVS_DATA			0x10
+#define LTR390_UVS_DATA_BYTE(n)		(LTR390_UVS_DATA + (n))
+
 #define LTR390_INT_CFG			0x19
 #define LTR390_INT_PST			0x1A
+
 #define LTR390_THRESH_UP		0x21
+#define LTR390_THRESH_UP_BYTE(n)	(LTR390_THRESH_UP + (n))
+
 #define LTR390_THRESH_LOW		0x24
+#define LTR390_THRESH_LOW_BYTE(n)	(LTR390_THRESH_LOW + (n))
 
 #define LTR390_PART_NUMBER_ID		0xb
 #define LTR390_ALS_UVS_GAIN_MASK	GENMASK(2, 0)
@@ -96,6 +106,32 @@ struct ltr390_data {
 	enum ltr390_mode mode;
 	int gain;
 	int int_time_us;
+	bool irq_enabled;
+};
+
+static const struct regmap_range ltr390_readable_reg_ranges[] = {
+	regmap_reg_range(LTR390_MAIN_CTRL, LTR390_MAIN_CTRL),
+	regmap_reg_range(LTR390_ALS_UVS_MEAS_RATE, LTR390_MAIN_STATUS),
+	regmap_reg_range(LTR390_ALS_DATA_BYTE(0), LTR390_UVS_DATA_BYTE(2)),
+	regmap_reg_range(LTR390_INT_CFG, LTR390_INT_PST),
+	regmap_reg_range(LTR390_THRESH_UP_BYTE(0), LTR390_THRESH_LOW_BYTE(2)),
+};
+
+static const struct regmap_access_table ltr390_readable_reg_table = {
+	.yes_ranges = ltr390_readable_reg_ranges,
+	.n_yes_ranges = ARRAY_SIZE(ltr390_readable_reg_ranges),
+};
+
+static const struct regmap_range ltr390_writeable_reg_ranges[] = {
+	regmap_reg_range(LTR390_MAIN_CTRL, LTR390_MAIN_CTRL),
+	regmap_reg_range(LTR390_ALS_UVS_MEAS_RATE, LTR390_ALS_UVS_GAIN),
+	regmap_reg_range(LTR390_INT_CFG, LTR390_INT_PST),
+	regmap_reg_range(LTR390_THRESH_UP_BYTE(0), LTR390_THRESH_LOW_BYTE(2)),
+};
+
+static const struct regmap_access_table ltr390_writeable_reg_table = {
+	.yes_ranges = ltr390_writeable_reg_ranges,
+	.n_yes_ranges = ARRAY_SIZE(ltr390_writeable_reg_ranges),
 };
 
 static const struct regmap_config ltr390_regmap_config = {
@@ -103,6 +139,9 @@ static const struct regmap_config ltr390_regmap_config = {
 	.reg_bits = 8,
 	.reg_stride = 1,
 	.val_bits = 8,
+	.max_register = LTR390_THRESH_LOW_BYTE(2),
+	.rd_table = &ltr390_readable_reg_table,
+	.wr_table = &ltr390_writeable_reg_table,
 };
 
 /* Sampling frequency is in mili Hz and mili Seconds */
@@ -178,9 +217,10 @@ static int ltr390_get_samp_freq_or_period(struct ltr390_data *data,
 	return ltr390_samp_freq_table[value][option];
 }
 
-static int ltr390_read_raw(struct iio_dev *iio_device,
-			   struct iio_chan_spec const *chan, int *val,
-			   int *val2, long mask)
+
+static int ltr390_do_read_raw(struct iio_dev *iio_device,
+			      struct iio_chan_spec const *chan, int *val,
+			      int *val2, long mask)
 {
 	int ret;
 	struct ltr390_data *data = iio_priv(iio_device);
@@ -241,6 +281,27 @@ static int ltr390_read_raw(struct iio_dev *iio_device,
 	default:
 		return -EINVAL;
 	}
+}
+
+static int ltr390_read_raw(struct iio_dev *iio_device,
+			   struct iio_chan_spec const *chan,
+			   int *val, int *val2, long mask)
+{
+	int ret;
+	struct ltr390_data *data = iio_priv(iio_device);
+	struct device *dev = &data->client->dev;
+
+	ret = pm_runtime_resume_and_get(dev);
+	if (ret < 0) {
+		dev_err(dev, "runtime PM failed to resume: %d\n", ret);
+		return ret;
+	}
+
+	ret = ltr390_do_read_raw(iio_device, chan, val, val2, mask);
+
+	pm_runtime_put_autosuspend(dev);
+
+	return ret;
 }
 
 /* integration time in us */
@@ -549,11 +610,11 @@ static int ltr390_read_event_config(struct iio_dev *indio_dev,
 	return FIELD_GET(LTR390_LS_INT_EN, status);
 }
 
-static int ltr390_write_event_config(struct iio_dev *indio_dev,
-				const struct iio_chan_spec *chan,
-				enum iio_event_type type,
-				enum iio_event_direction dir,
-				bool state)
+static int ltr390_do_event_config(struct iio_dev *indio_dev,
+				  const struct iio_chan_spec *chan,
+				  enum iio_event_type type,
+				  enum iio_event_direction dir,
+				  bool state)
 {
 	struct ltr390_data *data = iio_priv(indio_dev);
 	int ret;
@@ -561,7 +622,6 @@ static int ltr390_write_event_config(struct iio_dev *indio_dev,
 	if (!state)
 		return regmap_clear_bits(data->regmap, LTR390_INT_CFG, LTR390_LS_INT_EN);
 
-	guard(mutex)(&data->lock);
 	ret = regmap_set_bits(data->regmap, LTR390_INT_CFG, LTR390_LS_INT_EN);
 	if (ret < 0)
 		return ret;
@@ -586,6 +646,51 @@ static int ltr390_write_event_config(struct iio_dev *indio_dev,
 	}
 }
 
+static int ltr390_write_event_config(struct iio_dev *indio_dev,
+				     const struct iio_chan_spec *chan,
+				     enum iio_event_type type,
+				     enum iio_event_direction dir,
+				     bool state)
+{
+	int ret;
+	struct ltr390_data *data = iio_priv(indio_dev);
+	struct device *dev = &data->client->dev;
+
+	guard(mutex)(&data->lock);
+
+	if (state && !data->irq_enabled) {
+		ret = pm_runtime_resume_and_get(dev);
+		if (ret < 0) {
+			dev_err(dev, "runtime PM failed to resume: %d\n", ret);
+			return ret;
+		}
+		data->irq_enabled = true;
+	}
+
+	ret = ltr390_do_event_config(indio_dev, chan, type, dir, state);
+
+	if (!state && data->irq_enabled) {
+		data->irq_enabled = false;
+		pm_runtime_put_autosuspend(dev);
+	}
+
+	return ret;
+}
+
+static int ltr390_debugfs_reg_access(struct iio_dev *indio_dev,
+						unsigned int reg, unsigned int writeval,
+						unsigned int *readval)
+{
+	struct ltr390_data *data = iio_priv(indio_dev);
+
+	guard(mutex)(&data->lock);
+
+	if (readval)
+		return regmap_read(data->regmap, reg, readval);
+
+	return regmap_write(data->regmap, reg, writeval);
+}
+
 static const struct iio_info ltr390_info = {
 	.read_raw = ltr390_read_raw,
 	.write_raw = ltr390_write_raw,
@@ -594,6 +699,7 @@ static const struct iio_info ltr390_info = {
 	.read_event_config = ltr390_read_event_config,
 	.write_event_value = ltr390_write_event_value,
 	.write_event_config = ltr390_write_event_config,
+	.debugfs_reg_access = ltr390_debugfs_reg_access,
 };
 
 static irqreturn_t ltr390_interrupt_handler(int irq, void *private)
@@ -628,6 +734,43 @@ static irqreturn_t ltr390_interrupt_handler(int irq, void *private)
 	return IRQ_HANDLED;
 }
 
+static void ltr390_powerdown(void *priv)
+{
+	struct ltr390_data *data = priv;
+	struct device *dev = &data->client->dev;
+	int ret;
+
+	guard(mutex)(&data->lock);
+
+	/* Ensure that power off and interrupts are disabled */
+	if (data->irq_enabled) {
+		ret = regmap_clear_bits(data->regmap, LTR390_INT_CFG, LTR390_LS_INT_EN);
+		if (ret < 0)
+			dev_err(dev, "failed to disable interrupts\n");
+
+		data->irq_enabled = false;
+		pm_runtime_put_autosuspend(dev);
+	}
+
+	ret = regmap_clear_bits(data->regmap, LTR390_MAIN_CTRL, LTR390_SENSOR_ENABLE);
+	if (ret < 0)
+		dev_err(dev, "failed to disable sensor\n");
+}
+
+static int ltr390_pm_init(struct ltr390_data *data)
+{
+	int ret;
+	struct device *dev = &data->client->dev;
+
+	ret = devm_pm_runtime_set_active_enabled(dev);
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to enable runtime PM\n");
+
+	pm_runtime_set_autosuspend_delay(dev, 1000);
+	pm_runtime_use_autosuspend(dev);
+	return 0;
+}
+
 static int ltr390_probe(struct i2c_client *client)
 {
 	struct ltr390_data *data;
@@ -640,8 +783,9 @@ static int ltr390_probe(struct i2c_client *client)
 	if (!indio_dev)
 		return -ENOMEM;
 
-	data = iio_priv(indio_dev);
+	i2c_set_clientdata(client, indio_dev);
 
+	data = iio_priv(indio_dev);
 	data->regmap = devm_regmap_init_i2c(client, &ltr390_regmap_config);
 	if (IS_ERR(data->regmap))
 		return dev_err_probe(dev, PTR_ERR(data->regmap),
@@ -654,6 +798,8 @@ static int ltr390_probe(struct i2c_client *client)
 	data->gain = 3;
 	/* default mode for ltr390 is ALS mode */
 	data->mode = LTR390_SET_ALS_MODE;
+	/* default value of irq_enabled is false */
+	data->irq_enabled = false;
 
 	mutex_init(&data->lock);
 
@@ -681,6 +827,10 @@ static int ltr390_probe(struct i2c_client *client)
 	if (ret)
 		return dev_err_probe(dev, ret, "failed to enable the sensor\n");
 
+	ret = devm_add_action_or_reset(dev, ltr390_powerdown, data);
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to add action or reset\n");
+
 	if (client->irq) {
 		ret = devm_request_threaded_irq(dev, client->irq,
 						NULL, ltr390_interrupt_handler,
@@ -691,6 +841,10 @@ static int ltr390_probe(struct i2c_client *client)
 			return dev_err_probe(dev, ret,
 					     "request irq (%d) failed\n", client->irq);
 	}
+
+	ret = ltr390_pm_init(data);
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to initialize runtime PM\n");
 
 	return devm_iio_device_register(dev, indio_dev);
 }
@@ -713,7 +867,26 @@ static int ltr390_resume(struct device *dev)
 				LTR390_SENSOR_ENABLE);
 }
 
-static DEFINE_SIMPLE_DEV_PM_OPS(ltr390_pm_ops, ltr390_suspend, ltr390_resume);
+static int ltr390_runtime_suspend(struct device *dev)
+{
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct ltr390_data *data = iio_priv(indio_dev);
+
+	return regmap_clear_bits(data->regmap, LTR390_MAIN_CTRL, LTR390_SENSOR_ENABLE);
+}
+
+static int ltr390_runtime_resume(struct device *dev)
+{
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct ltr390_data *data = iio_priv(indio_dev);
+
+	return regmap_set_bits(data->regmap, LTR390_MAIN_CTRL, LTR390_SENSOR_ENABLE);
+}
+
+static const struct dev_pm_ops ltr390_pm_ops = {
+	SYSTEM_SLEEP_PM_OPS(ltr390_suspend, ltr390_resume)
+	RUNTIME_PM_OPS(ltr390_runtime_suspend, ltr390_runtime_resume, NULL)
+};
 
 static const struct i2c_device_id ltr390_id[] = {
 	{ "ltr390" },
@@ -731,7 +904,7 @@ static struct i2c_driver ltr390_driver = {
 	.driver = {
 		.name = "ltr390",
 		.of_match_table = ltr390_of_table,
-		.pm = pm_sleep_ptr(&ltr390_pm_ops),
+		.pm = pm_ptr(&ltr390_pm_ops),
 	},
 	.probe = ltr390_probe,
 	.id_table = ltr390_id,

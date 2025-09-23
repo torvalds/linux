@@ -88,7 +88,6 @@ struct sx9500_data {
 	bool prox_stat[SX9500_NUM_CHANNELS];
 	bool event_enabled[SX9500_NUM_CHANNELS];
 	bool trigger_enabled;
-	u16 *buffer;
 	/* Remember enabled channels and sample rate during suspend. */
 	unsigned int suspend_ctrl0;
 	struct completion completion;
@@ -578,22 +577,6 @@ out_unlock:
 	return ret;
 }
 
-static int sx9500_update_scan_mode(struct iio_dev *indio_dev,
-				   const unsigned long *scan_mask)
-{
-	struct sx9500_data *data = iio_priv(indio_dev);
-
-	mutex_lock(&data->mutex);
-	kfree(data->buffer);
-	data->buffer = kzalloc(indio_dev->scan_bytes, GFP_KERNEL);
-	mutex_unlock(&data->mutex);
-
-	if (data->buffer == NULL)
-		return -ENOMEM;
-
-	return 0;
-}
-
 static IIO_CONST_ATTR_SAMP_FREQ_AVAIL(
 	"2.500000 3.333333 5 6.666666 8.333333 11.111111 16.666666 33.333333");
 
@@ -612,7 +595,6 @@ static const struct iio_info sx9500_info = {
 	.write_raw = &sx9500_write_raw,
 	.read_event_config = &sx9500_read_event_config,
 	.write_event_config = &sx9500_write_event_config,
-	.update_scan_mode = &sx9500_update_scan_mode,
 };
 
 static int sx9500_set_trigger_state(struct iio_trigger *trig,
@@ -649,6 +631,10 @@ static irqreturn_t sx9500_trigger_handler(int irq, void *private)
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct sx9500_data *data = iio_priv(indio_dev);
 	int val, bit, ret, i = 0;
+	struct {
+		u16 chan[SX9500_NUM_CHANNELS];
+		aligned_s64 timestamp;
+	} scan = { };
 
 	mutex_lock(&data->mutex);
 
@@ -658,10 +644,10 @@ static irqreturn_t sx9500_trigger_handler(int irq, void *private)
 		if (ret < 0)
 			goto out;
 
-		data->buffer[i++] = val;
+		scan.chan[i++] = val;
 	}
 
-	iio_push_to_buffers_with_timestamp(indio_dev, data->buffer,
+	iio_push_to_buffers_with_timestamp(indio_dev, &scan,
 					   iio_get_time_ns(indio_dev));
 
 out:
@@ -984,7 +970,6 @@ static void sx9500_remove(struct i2c_client *client)
 	iio_triggered_buffer_cleanup(indio_dev);
 	if (client->irq > 0)
 		iio_trigger_unregister(data->trig);
-	kfree(data->buffer);
 }
 
 static int sx9500_suspend(struct device *dev)

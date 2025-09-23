@@ -42,11 +42,6 @@ struct mb1232_data {
 	 */
 	struct completion	ranging;
 	int			irqnr;
-	/* Ensure correct alignment of data to push to IIO buffer */
-	struct {
-		s16 distance;
-		aligned_s64 ts;
-	} scan;
 };
 
 static irqreturn_t mb1232_handle_irq(int irq, void *dev_id)
@@ -120,12 +115,16 @@ static irqreturn_t mb1232_trigger_handler(int irq, void *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct mb1232_data *data = iio_priv(indio_dev);
+	struct {
+		s16 distance;
+		aligned_s64 ts;
+	} scan = { };
 
-	data->scan.distance = mb1232_read_distance(data);
-	if (data->scan.distance < 0)
+	scan.distance = mb1232_read_distance(data);
+	if (scan.distance < 0)
 		goto err;
 
-	iio_push_to_buffers_with_ts(indio_dev, &data->scan, sizeof(data->scan),
+	iio_push_to_buffers_with_ts(indio_dev, &scan, sizeof(scan),
 				    pf->timestamp);
 
 err:
