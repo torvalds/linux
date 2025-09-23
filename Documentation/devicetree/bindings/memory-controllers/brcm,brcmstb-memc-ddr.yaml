@@ -42,6 +42,10 @@ properties:
         items:
           - const: brcm,brcmstb-memc-ddr-rev-b.1.x
           - const: brcm,brcmstb-memc-ddr
+      - description: Revision 0.x controllers
+        items:
+          - const: brcm,brcmstb-memc-ddr-rev-a.0.0
+          - const: brcm,brcmstb-memc-ddr
 
   reg:
     maxItems: 1
