@@ -953,7 +953,9 @@ static int ltc2688_probe(struct spi_device *spi)
 
 	/* Just write this once. No need to do it in every regmap read. */
 	st->tx_data[3] = LTC2688_CMD_NOOP;
-	mutex_init(&st->lock);
+	ret = devm_mutex_init(dev, &st->lock);
+	if (ret)
+		return ret;
 
 	st->regmap = devm_regmap_init(dev, &ltc2688_regmap_bus, st,
 				      &ltc2688_regmap_config);
