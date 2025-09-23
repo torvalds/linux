@@ -214,7 +214,14 @@ void xe_tuning_process_lrc(struct xe_hw_engine *hwe)
 	xe_rtp_process_to_sr(&ctx, lrc_tunings, ARRAY_SIZE(lrc_tunings), &hwe->reg_lrc);
 }
 
-void xe_tuning_dump(struct xe_gt *gt, struct drm_printer *p)
+/**
+ * xe_tuning_dump() - Dump GT tuning info into a drm printer.
+ * @gt: the &xe_gt
+ * @p: the &drm_printer
+ *
+ * Return: always 0.
+ */
+int xe_tuning_dump(struct xe_gt *gt, struct drm_printer *p)
 {
 	size_t idx;
 
@@ -222,11 +229,15 @@ void xe_tuning_dump(struct xe_gt *gt, struct drm_printer *p)
 	for_each_set_bit(idx, gt->tuning_active.gt, ARRAY_SIZE(gt_tunings))
 		drm_printf_indent(p, 1, "%s\n", gt_tunings[idx].name);
 
-	drm_printf(p, "\nEngine Tunings\n");
+	drm_puts(p, "\n");
+	drm_printf(p, "Engine Tunings\n");
 	for_each_set_bit(idx, gt->tuning_active.engine, ARRAY_SIZE(engine_tunings))
 		drm_printf_indent(p, 1, "%s\n", engine_tunings[idx].name);
 
-	drm_printf(p, "\nLRC Tunings\n");
+	drm_puts(p, "\n");
+	drm_printf(p, "LRC Tunings\n");
 	for_each_set_bit(idx, gt->tuning_active.lrc, ARRAY_SIZE(lrc_tunings))
 		drm_printf_indent(p, 1, "%s\n", lrc_tunings[idx].name);
+
+	return 0;
 }

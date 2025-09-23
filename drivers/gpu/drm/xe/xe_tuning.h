@@ -14,6 +14,6 @@ int xe_tuning_init(struct xe_gt *gt);
 void xe_tuning_process_gt(struct xe_gt *gt);
 void xe_tuning_process_engine(struct xe_hw_engine *hwe);
 void xe_tuning_process_lrc(struct xe_hw_engine *hwe);
-void xe_tuning_dump(struct xe_gt *gt, struct drm_printer *p);
+int xe_tuning_dump(struct xe_gt *gt, struct drm_printer *p);
 
 #endif
