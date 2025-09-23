@@ -6322,9 +6322,7 @@ int intel_atomic_check(struct drm_device *dev,
 	struct intel_atomic_state *state = to_intel_atomic_state(_state);
 	struct intel_crtc_state *old_crtc_state, *new_crtc_state;
 	struct intel_crtc *crtc;
-	bool need_cdclk_calc = false;
 	int ret, i;
-	bool any_ms = false;
 
 	if (!intel_display_driver_check_access(display))
 		return -ENODEV;
@@ -6432,14 +6430,11 @@ int intel_atomic_check(struct drm_device *dev,
 		if (!intel_crtc_needs_modeset(new_crtc_state))
 			continue;
 
-		any_ms = true;
-
 		intel_dpll_release(state, crtc);
 	}
 
-	if (any_ms && !check_digital_port_conflicts(state)) {
-		drm_dbg_kms(display->drm,
-			    "rejecting conflicting digital port configuration\n");
+	if (intel_any_crtc_needs_modeset(state) && !check_digital_port_conflicts(state)) {
+		drm_dbg_kms(display->drm, "rejecting conflicting digital port configuration\n");
 		ret = -EINVAL;
 		goto fail;
 	}
@@ -6456,23 +6451,14 @@ int intel_atomic_check(struct drm_device *dev,
 	if (ret)
 		goto fail;
 
-	ret = intel_cdclk_atomic_check(state, &need_cdclk_calc);
+	ret = intel_cdclk_atomic_check(state);
 	if (ret)
 		goto fail;
 
-	if (intel_any_crtc_needs_modeset(state))
-		any_ms = true;
-
-	if (any_ms) {
+	if (intel_any_crtc_needs_modeset(state)) {
 		ret = intel_modeset_checks(state);
 		if (ret)
 			goto fail;
-	}
-
-	if (need_cdclk_calc) {
-		ret = intel_modeset_calc_cdclk(state);
-		if (ret)
-			return ret;
 	}
 
 	ret = intel_pmdemand_atomic_check(state);

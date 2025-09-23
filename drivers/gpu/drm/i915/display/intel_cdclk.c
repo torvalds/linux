@@ -3311,22 +3311,24 @@ static int intel_crtcs_calc_min_cdclk(struct intel_atomic_state *state,
 	return 0;
 }
 
-int intel_cdclk_atomic_check(struct intel_atomic_state *state,
-			     bool *need_cdclk_calc)
+static int intel_modeset_calc_cdclk(struct intel_atomic_state *state);
+
+int intel_cdclk_atomic_check(struct intel_atomic_state *state)
 {
 	const struct intel_cdclk_state *old_cdclk_state;
 	struct intel_cdclk_state *new_cdclk_state;
+	bool need_cdclk_calc = false;
 	int ret;
 
-	ret = intel_cdclk_modeset_checks(state, need_cdclk_calc);
+	ret = intel_cdclk_modeset_checks(state, &need_cdclk_calc);
 	if (ret)
 		return ret;
 
-	ret = intel_crtcs_calc_min_cdclk(state, need_cdclk_calc);
+	ret = intel_crtcs_calc_min_cdclk(state, &need_cdclk_calc);
 	if (ret)
 		return ret;
 
-	ret = intel_bw_calc_min_cdclk(state, need_cdclk_calc);
+	ret = intel_bw_calc_min_cdclk(state, &need_cdclk_calc);
 	if (ret)
 		return ret;
 
@@ -3339,7 +3341,13 @@ int intel_cdclk_atomic_check(struct intel_atomic_state *state,
 		if (ret)
 			return ret;
 
-		*need_cdclk_calc = true;
+		need_cdclk_calc = true;
+	}
+
+	if (need_cdclk_calc) {
+		ret = intel_modeset_calc_cdclk(state);
+		if (ret)
+			return ret;
 	}
 
 	return 0;
@@ -3387,7 +3395,7 @@ static bool intel_cdclk_need_serialize(struct intel_display *display,
 		dg2_power_well_count(display, new_cdclk_state);
 }
 
-int intel_modeset_calc_cdclk(struct intel_atomic_state *state)
+static int intel_modeset_calc_cdclk(struct intel_atomic_state *state)
 {
 	struct intel_display *display = to_intel_display(state);
 	const struct intel_cdclk_state *old_cdclk_state;
