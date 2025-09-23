@@ -2837,6 +2837,36 @@ static int intel_crtc_compute_min_cdclk(const struct intel_crtc_state *crtc_stat
 	return min_cdclk;
 }
 
+int intel_cdclk_update_crtc_min_cdclk(struct intel_atomic_state *state,
+				      struct intel_crtc *crtc,
+				      int old_min_cdclk, int new_min_cdclk,
+				      bool *need_cdclk_calc)
+{
+	struct intel_display *display = to_intel_display(state);
+	struct intel_cdclk_state *cdclk_state;
+
+	if (new_min_cdclk <= old_min_cdclk)
+		return 0;
+
+	cdclk_state = intel_atomic_get_cdclk_state(state);
+	if (IS_ERR(cdclk_state))
+		return PTR_ERR(cdclk_state);
+
+	old_min_cdclk = cdclk_state->min_cdclk[crtc->pipe];
+
+	if (new_min_cdclk <= old_min_cdclk)
+		return 0;
+
+	*need_cdclk_calc = true;
+
+	drm_dbg_kms(display->drm,
+		    "[CRTC:%d:%s] min cdclk: %d kHz -> %d kHz\n",
+		    crtc->base.base.id, crtc->base.name,
+		    old_min_cdclk, new_min_cdclk);
+
+	return 0;
+}
+
 int intel_cdclk_update_bw_min_cdclk(struct intel_atomic_state *state,
 				    int old_min_cdclk, int new_min_cdclk,
 				    bool *need_cdclk_calc)
