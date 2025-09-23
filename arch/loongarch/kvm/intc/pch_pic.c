@@ -168,6 +168,12 @@ static int loongarch_pch_pic_read(struct loongarch_pch_pic *s, gpa_t addr, int l
 		/* we only use defalut value 0: high level triggered */
 		*(u32 *)val = 0;
 		break;
+	case PCH_PIC_INT_IRR_START:
+		data = s->irr;
+		break;
+	case PCH_PIC_INT_ISR_START:
+		data = s->isr;
+		break;
 	default:
 		ret = -EINVAL;
 	}
