@@ -128,8 +128,9 @@ struct tls_rec {
 
 	char aad_space[TLS_AAD_SPACE_SIZE];
 	u8 iv_data[TLS_MAX_IV_SIZE];
+
+	/* Must be last --ends in a flexible-array member. */
 	struct aead_request aead_req;
-	u8 aead_req_ctx[];
 };
 
 int __net_init tls_proc_init(struct net *net);
