@@ -2708,6 +2708,9 @@ intel_set_cdclk_pre_plane_update(struct intel_atomic_state *state)
 	struct intel_cdclk_config cdclk_config;
 	enum pipe pipe;
 
+	if (!new_cdclk_state)
+		return;
+
 	if (!intel_cdclk_changed(&old_cdclk_state->actual,
 				 &new_cdclk_state->actual))
 		return;
@@ -2759,6 +2762,9 @@ intel_set_cdclk_post_plane_update(struct intel_atomic_state *state)
 	const struct intel_cdclk_state *new_cdclk_state =
 		intel_atomic_get_new_cdclk_state(state);
 	enum pipe pipe;
+
+	if (!new_cdclk_state)
+		return;
 
 	if (!intel_cdclk_changed(&old_cdclk_state->actual,
 				 &new_cdclk_state->actual))
