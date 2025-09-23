@@ -96,6 +96,16 @@ static void bnge_fw_unregister_dev(struct bnge_dev *bd)
 	bnge_free_ctx_mem(bd);
 }
 
+static void bnge_set_dflt_rss_hash_type(struct bnge_dev *bd)
+{
+	bd->rss_hash_cfg = VNIC_RSS_CFG_REQ_HASH_TYPE_IPV4 |
+			   VNIC_RSS_CFG_REQ_HASH_TYPE_TCP_IPV4 |
+			   VNIC_RSS_CFG_REQ_HASH_TYPE_IPV6 |
+			   VNIC_RSS_CFG_REQ_HASH_TYPE_TCP_IPV6 |
+			   VNIC_RSS_CFG_REQ_HASH_TYPE_UDP_IPV4 |
+			   VNIC_RSS_CFG_REQ_HASH_TYPE_UDP_IPV6;
+}
+
 static int bnge_fw_register_dev(struct bnge_dev *bd)
 {
 	int rc;
@@ -136,6 +146,8 @@ static int bnge_fw_register_dev(struct bnge_dev *bd)
 		rc = -ENODEV;
 		goto err_func_unrgtr;
 	}
+
+	bnge_set_dflt_rss_hash_type(bd);
 
 	return 0;
 
@@ -295,6 +307,10 @@ static int bnge_probe_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			rc);
 		goto err_config_uninit;
 	}
+
+#if BITS_PER_LONG == 32
+	spin_lock_init(&bd->db_lock);
+#endif
 
 	rc = bnge_alloc_irqs(bd);
 	if (rc) {
