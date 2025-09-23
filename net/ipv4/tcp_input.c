@@ -4085,7 +4085,8 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 	/* We passed data and got it acked, remove any soft error
 	 * log. Something worked...
 	 */
-	WRITE_ONCE(sk->sk_err_soft, 0);
+	if (READ_ONCE(sk->sk_err_soft))
+		WRITE_ONCE(sk->sk_err_soft, 0);
 	WRITE_ONCE(icsk->icsk_probes_out, 0);
 	tp->rcv_tstamp = tcp_jiffies32;
 	if (!prior_packets)
@@ -7281,8 +7282,8 @@ static bool tcp_syn_flood_action(struct sock *sk, const char *proto)
 #endif
 		__NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPREQQFULLDROP);
 
-	if (!READ_ONCE(queue->synflood_warned) && syncookies != 2 &&
-	    xchg(&queue->synflood_warned, 1) == 0) {
+	if (syncookies != 2 && !READ_ONCE(queue->synflood_warned)) {
+		WRITE_ONCE(queue->synflood_warned, 1);
 		if (IS_ENABLED(CONFIG_IPV6) && sk->sk_family == AF_INET6) {
 			net_info_ratelimited("%s: Possible SYN flooding on port [%pI6c]:%u. %s.\n",
 					proto, inet6_rcv_saddr(sk),
