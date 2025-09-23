@@ -132,7 +132,7 @@ int octeon_init_instr_queue(struct octeon_device *oct,
 	oct->fn_list.setup_iq_regs(oct, iq_no);
 
 	oct->check_db_wq[iq_no].wq = alloc_workqueue("check_iq_db",
-						     WQ_MEM_RECLAIM,
+						     WQ_MEM_RECLAIM | WQ_PERCPU,
 						     0);
 	if (!oct->check_db_wq[iq_no].wq) {
 		vfree(iq->request_list);
