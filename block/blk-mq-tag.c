@@ -566,6 +566,8 @@ struct blk_mq_tags *blk_mq_init_tags(unsigned int total_tags,
 	tags->nr_tags = total_tags;
 	tags->nr_reserved_tags = reserved_tags;
 	spin_lock_init(&tags->lock);
+	INIT_LIST_HEAD(&tags->page_list);
+
 	if (bt_alloc(&tags->bitmap_tags, depth, round_robin, node))
 		goto out_free_tags;
 	if (bt_alloc(&tags->breserved_tags, reserved_tags, round_robin, node))
@@ -603,6 +605,13 @@ void blk_mq_free_tags(struct blk_mq_tag_set *set, struct blk_mq_tags *tags)
 {
 	sbitmap_queue_free(&tags->bitmap_tags);
 	sbitmap_queue_free(&tags->breserved_tags);
+
+	/* if tags pages is not allocated yet, free tags directly */
+	if (list_empty(&tags->page_list)) {
+		kfree(tags);
+		return;
+	}
+
 	call_srcu(&set->tags_srcu, &tags->rcu_head, blk_mq_free_tags_callback);
 }
 

@@ -3582,8 +3582,6 @@ static int blk_mq_alloc_rqs(struct blk_mq_tag_set *set,
 	if (node == NUMA_NO_NODE)
 		node = set->numa_node;
 
-	INIT_LIST_HEAD(&tags->page_list);
-
 	/*
 	 * rq_size is the size of the request plus driver payload, rounded
 	 * to the cacheline size
