@@ -20,5 +20,6 @@ config TEE_DMABUF_HEAPS
 source "drivers/tee/optee/Kconfig"
 source "drivers/tee/amdtee/Kconfig"
 source "drivers/tee/tstee/Kconfig"
+source "drivers/tee/qcomtee/Kconfig"
 
 endif
