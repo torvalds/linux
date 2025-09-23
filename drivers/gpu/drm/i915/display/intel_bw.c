@@ -13,6 +13,7 @@
 #include "intel_atomic.h"
 #include "intel_bw.h"
 #include "intel_cdclk.h"
+#include "intel_crtc.h"
 #include "intel_display_core.h"
 #include "intel_display_regs.h"
 #include "intel_display_types.h"
@@ -1530,8 +1531,12 @@ static int intel_bw_modeset_checks(struct intel_atomic_state *state)
 	struct intel_display *display = to_intel_display(state);
 	const struct intel_bw_state *old_bw_state;
 	struct intel_bw_state *new_bw_state;
+	int ret;
 
 	if (DISPLAY_VER(display) < 9)
+		return 0;
+
+	if (!intel_any_crtc_active_changed(state))
 		return 0;
 
 	new_bw_state = intel_atomic_get_bw_state(state);
@@ -1543,13 +1548,9 @@ static int intel_bw_modeset_checks(struct intel_atomic_state *state)
 	new_bw_state->active_pipes =
 		intel_calc_active_pipes(state, old_bw_state->active_pipes);
 
-	if (new_bw_state->active_pipes != old_bw_state->active_pipes) {
-		int ret;
-
-		ret = intel_atomic_lock_global_state(&new_bw_state->base);
-		if (ret)
-			return ret;
-	}
+	ret = intel_atomic_lock_global_state(&new_bw_state->base);
+	if (ret)
+		return ret;
 
 	return 0;
 }
@@ -1599,7 +1600,7 @@ static int intel_bw_check_sagv_mask(struct intel_atomic_state *state)
 	return 0;
 }
 
-int intel_bw_atomic_check(struct intel_atomic_state *state, bool any_ms)
+int intel_bw_atomic_check(struct intel_atomic_state *state)
 {
 	struct intel_display *display = to_intel_display(state);
 	bool changed = false;
@@ -1610,11 +1611,9 @@ int intel_bw_atomic_check(struct intel_atomic_state *state, bool any_ms)
 	if (DISPLAY_VER(display) < 9)
 		return 0;
 
-	if (any_ms) {
-		ret = intel_bw_modeset_checks(state);
-		if (ret)
-			return ret;
-	}
+	ret = intel_bw_modeset_checks(state);
+	if (ret)
+		return ret;
 
 	ret = intel_bw_check_sagv_mask(state);
 	if (ret)

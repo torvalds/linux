@@ -28,7 +28,7 @@ intel_atomic_get_bw_state(struct intel_atomic_state *state);
 
 void intel_bw_init_hw(struct intel_display *display);
 int intel_bw_init(struct intel_display *display);
-int intel_bw_atomic_check(struct intel_atomic_state *state, bool any_ms);
+int intel_bw_atomic_check(struct intel_atomic_state *state);
 int intel_bw_calc_min_cdclk(struct intel_atomic_state *state,
 			    bool *need_cdclk_calc);
 int intel_bw_min_cdclk(struct intel_display *display,
