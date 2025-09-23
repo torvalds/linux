@@ -3966,7 +3966,7 @@ static int irdma_post_send(struct ib_qp *ibqp,
 		case IB_WR_ATOMIC_CMP_AND_SWP:
 			if (unlikely(!(dev->hw_attrs.uk_attrs.feature_flags &
 				       IRDMA_FEATURE_ATOMIC_OPS))) {
-				err = EINVAL;
+				err = -EINVAL;
 				break;
 			}
 			info.op_type = IRDMA_OP_TYPE_ATOMIC_COMPARE_AND_SWAP;
@@ -3983,7 +3983,7 @@ static int irdma_post_send(struct ib_qp *ibqp,
 		case IB_WR_ATOMIC_FETCH_AND_ADD:
 			if (unlikely(!(dev->hw_attrs.uk_attrs.feature_flags &
 				       IRDMA_FEATURE_ATOMIC_OPS))) {
-				err = EINVAL;
+				err = -EINVAL;
 				break;
 			}
 			info.op_type = IRDMA_OP_TYPE_ATOMIC_FETCH_AND_ADD;
