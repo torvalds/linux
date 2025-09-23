@@ -621,6 +621,13 @@ int mtk_find_possible_crtcs(struct drm_device *drm, struct device *dev)
 	return ret;
 }
 
+static void mtk_ddp_comp_put_device(void *_dev)
+{
+	struct device *dev = _dev;
+
+	put_device(dev);
+}
+
 static void mtk_ddp_comp_clk_put(void *_clk)
 {
 	struct clk *clk = _clk;
@@ -655,6 +662,10 @@ int mtk_ddp_comp_init(struct device *dev, struct device_node *node, struct mtk_d
 		return -EPROBE_DEFER;
 	}
 	comp->dev = &comp_pdev->dev;
+
+	ret = devm_add_action_or_reset(dev, mtk_ddp_comp_put_device, comp->dev);
+	if (ret)
+		return ret;
 
 	if (type == MTK_DISP_AAL ||
 	    type == MTK_DISP_BLS ||
