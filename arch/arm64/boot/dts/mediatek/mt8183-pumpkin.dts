@@ -482,6 +482,10 @@
 	domain-supply = <&mt6358_vgpu_reg>;
 };
 
+&cci {
+	proc-supply = <&mt6358_vproc12_reg>;
+};
+
 &cpu0 {
 	proc-supply = <&mt6358_vproc12_reg>;
 };
@@ -527,10 +531,8 @@
 	pinctrl-0 = <&dpi_func_pins>;
 	pinctrl-1 = <&dpi_idle_pins>;
 	status = "okay";
+};
 
-	port {
-		dpi_out: endpoint {
-			remote-endpoint = <&it66121_in>;
-		};
-	};
+&dpi_out {
+	remote-endpoint = <&it66121_in>;
 };
