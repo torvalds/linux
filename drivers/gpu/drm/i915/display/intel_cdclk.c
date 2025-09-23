@@ -146,6 +146,9 @@ struct intel_cdclk_state {
 	/* forced minimum cdclk for glk+ audio w/a */
 	int force_min_cdclk;
 
+	/* bitmask of enabled pipes */
+	u8 enabled_pipes;
+
 	/* bitmask of active pipes */
 	u8 active_pipes;
 
@@ -2934,8 +2937,8 @@ static bool glk_cdclk_audio_wa_needed(struct intel_display *display,
 				      const struct intel_cdclk_state *cdclk_state)
 {
 	return display->platform.geminilake &&
-		cdclk_state->active_pipes &&
-		!is_power_of_2(cdclk_state->active_pipes);
+		cdclk_state->enabled_pipes &&
+		!is_power_of_2(cdclk_state->enabled_pipes);
 }
 
 static int intel_compute_min_cdclk(struct intel_atomic_state *state)
@@ -3253,7 +3256,8 @@ static int intel_cdclk_modeset_checks(struct intel_atomic_state *state,
 	struct intel_cdclk_state *new_cdclk_state;
 	int ret;
 
-	if (!intel_any_crtc_active_changed(state))
+	if (!intel_any_crtc_enable_changed(state) &&
+	    !intel_any_crtc_active_changed(state))
 		return 0;
 
 	new_cdclk_state = intel_atomic_get_cdclk_state(state);
@@ -3261,6 +3265,9 @@ static int intel_cdclk_modeset_checks(struct intel_atomic_state *state,
 		return PTR_ERR(new_cdclk_state);
 
 	old_cdclk_state = intel_atomic_get_old_cdclk_state(state);
+
+	new_cdclk_state->enabled_pipes =
+		intel_calc_enabled_pipes(state, old_cdclk_state->enabled_pipes);
 
 	new_cdclk_state->active_pipes =
 		intel_calc_active_pipes(state, old_cdclk_state->active_pipes);
@@ -3496,6 +3503,7 @@ void intel_cdclk_update_hw_state(struct intel_display *display)
 		to_intel_cdclk_state(display->cdclk.obj.state);
 	struct intel_crtc *crtc;
 
+	cdclk_state->enabled_pipes = 0;
 	cdclk_state->active_pipes = 0;
 
 	for_each_intel_crtc(display->drm, crtc) {
@@ -3503,6 +3511,8 @@ void intel_cdclk_update_hw_state(struct intel_display *display)
 			to_intel_crtc_state(crtc->base.state);
 		enum pipe pipe = crtc->pipe;
 
+		if (crtc_state->hw.enable)
+			cdclk_state->enabled_pipes |= BIT(pipe);
 		if (crtc_state->hw.active)
 			cdclk_state->active_pipes |= BIT(pipe);
 
