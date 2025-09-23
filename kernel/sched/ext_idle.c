@@ -864,7 +864,7 @@ static s32 select_cpu_from_kfunc(struct scx_sched *sch, struct task_struct *p,
 	struct rq_flags rf;
 	s32 cpu;
 
-	if (!kf_cpu_valid(prev_cpu, NULL))
+	if (!ops_cpu_valid(sch, prev_cpu, NULL))
 		return -EINVAL;
 
 	if (!check_builtin_idle_enabled(sch))
@@ -923,9 +923,13 @@ static s32 select_cpu_from_kfunc(struct scx_sched *sch, struct task_struct *p,
  */
 __bpf_kfunc int scx_bpf_cpu_node(s32 cpu)
 {
-	if (!kf_cpu_valid(cpu, NULL))
-		return NUMA_NO_NODE;
+	struct scx_sched *sch;
 
+	guard(rcu)();
+
+	sch = rcu_dereference(scx_root);
+	if (unlikely(!sch) || !ops_cpu_valid(sch, cpu, NULL))
+		return NUMA_NO_NODE;
 	return cpu_to_node(cpu);
 }
 
@@ -1154,7 +1158,7 @@ __bpf_kfunc bool scx_bpf_test_and_clear_cpu_idle(s32 cpu)
 	if (!check_builtin_idle_enabled(sch))
 		return false;
 
-	if (!kf_cpu_valid(cpu, NULL))
+	if (!ops_cpu_valid(sch, cpu, NULL))
 		return false;
 
 	return scx_idle_test_and_clear_cpu(cpu);

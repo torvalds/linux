@@ -737,23 +737,6 @@ static bool ops_cpu_valid(struct scx_sched *sch, s32 cpu, const char *where)
 }
 
 /**
- * kf_cpu_valid - Verify a CPU number, to be used on kfunc input args
- * @cpu: cpu number which came from a BPF ops
- * @where: extra information reported on error
- *
- * The same as ops_cpu_valid() but @sch is implicit.
- */
-static bool kf_cpu_valid(u32 cpu, const char *where)
-{
-	if (__cpu_valid(cpu)) {
-		return true;
-	} else {
-		scx_kf_error("invalid CPU %d%s%s", cpu, where ? " " : "", where ?: "");
-		return false;
-	}
-}
-
-/**
  * ops_sanitize_err - Sanitize a -errno value
  * @sch: scx_sched to error out on error
  * @ops_name: operation to blame on failure
@@ -5815,7 +5798,7 @@ static void scx_kick_cpu(struct scx_sched *sch, s32 cpu, u64 flags)
 	struct rq *this_rq;
 	unsigned long irq_flags;
 
-	if (!kf_cpu_valid(cpu, NULL))
+	if (!ops_cpu_valid(sch, cpu, NULL))
 		return;
 
 	local_irq_save(irq_flags);
@@ -6224,7 +6207,12 @@ __bpf_kfunc void scx_bpf_dump_bstr(char *fmt, unsigned long long *data,
  */
 __bpf_kfunc u32 scx_bpf_cpuperf_cap(s32 cpu)
 {
-	if (kf_cpu_valid(cpu, NULL))
+	struct scx_sched *sch;
+
+	guard(rcu)();
+
+	sch = rcu_dereference(scx_root);
+	if (likely(sch) && ops_cpu_valid(sch, cpu, NULL))
 		return arch_scale_cpu_capacity(cpu);
 	else
 		return SCX_CPUPERF_ONE;
@@ -6246,7 +6234,12 @@ __bpf_kfunc u32 scx_bpf_cpuperf_cap(s32 cpu)
  */
 __bpf_kfunc u32 scx_bpf_cpuperf_cur(s32 cpu)
 {
-	if (kf_cpu_valid(cpu, NULL))
+	struct scx_sched *sch;
+
+	guard(rcu)();
+
+	sch = rcu_dereference(scx_root);
+	if (likely(sch) && ops_cpu_valid(sch, cpu, NULL))
 		return arch_scale_freq_capacity(cpu);
 	else
 		return SCX_CPUPERF_ONE;
@@ -6268,12 +6261,20 @@ __bpf_kfunc u32 scx_bpf_cpuperf_cur(s32 cpu)
  */
 __bpf_kfunc void scx_bpf_cpuperf_set(s32 cpu, u32 perf)
 {
+	struct scx_sched *sch;
+
+	guard(rcu)();
+
+	sch = rcu_dereference(sch);
+	if (unlikely(!sch))
+		return;
+
 	if (unlikely(perf > SCX_CPUPERF_ONE)) {
 		scx_kf_error("Invalid cpuperf target %u for CPU %d", perf, cpu);
 		return;
 	}
 
-	if (kf_cpu_valid(cpu, NULL)) {
+	if (ops_cpu_valid(sch, cpu, NULL)) {
 		struct rq *rq = cpu_rq(cpu), *locked_rq = scx_locked_rq();
 		struct rq_flags rf;
 
@@ -6379,18 +6380,21 @@ __bpf_kfunc struct rq *scx_bpf_cpu_rq(s32 cpu)
 {
 	struct scx_sched *sch;
 
-	if (!kf_cpu_valid(cpu, NULL))
+	guard(rcu)();
+
+	sch = rcu_dereference(scx_root);
+	if (unlikely(!sch))
 		return NULL;
 
-	rcu_read_lock();
-	sch = rcu_dereference(scx_root);
-	if (likely(sch) && !sch->warned_deprecated_rq) {
+	if (!ops_cpu_valid(sch, cpu, NULL))
+		return NULL;
+
+	if (!sch->warned_deprecated_rq) {
 		printk_deferred(KERN_WARNING "sched_ext: %s() is deprecated; "
 				"use scx_bpf_locked_rq() when holding rq lock "
 				"or scx_bpf_cpu_curr() to read remote curr safely.\n", __func__);
 		sch->warned_deprecated_rq = true;
 	}
-	rcu_read_unlock();
 
 	return cpu_rq(cpu);
 }
@@ -6425,8 +6429,17 @@ __bpf_kfunc struct rq *scx_bpf_locked_rq(void)
  */
 __bpf_kfunc struct task_struct *scx_bpf_cpu_curr(s32 cpu)
 {
-	if (!kf_cpu_valid(cpu, NULL))
+	struct scx_sched *sch;
+
+	guard(rcu)();
+
+	sch = rcu_dereference(scx_root);
+	if (unlikely(!sch))
 		return NULL;
+
+	if (!ops_cpu_valid(sch, cpu, NULL))
+		return NULL;
+
 	return rcu_dereference(cpu_rq(cpu)->curr);
 }
 
