@@ -1157,7 +1157,10 @@ static int stmmac_init_phy(struct net_device *dev)
 		ret = phylink_fwnode_phy_connect(priv->phylink, fwnode, 0);
 	}
 
-	if (ret == 0) {
+	if (ret) {
+		netdev_err(priv->dev, "cannot attach to PHY (error: %pe)\n",
+			   ERR_PTR(ret));
+	} else {
 		struct ethtool_keee eee;
 
 		/* Configure phylib's copy of the LPI timer. Normally,
@@ -3939,12 +3942,8 @@ static int __stmmac_open(struct net_device *dev,
 		priv->tx_lpi_timer = eee_timer * 1000;
 
 	ret = stmmac_init_phy(dev);
-	if (ret) {
-		netdev_err(priv->dev,
-			   "%s: Cannot attach to PHY (error: %d)\n",
-			   __func__, ret);
+	if (ret)
 		return ret;
-	}
 
 	for (int i = 0; i < MTL_MAX_TX_QUEUES; i++)
 		if (priv->dma_conf.tx_queue[i].tbs & STMMAC_TBS_EN)
