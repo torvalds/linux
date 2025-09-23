@@ -64,17 +64,15 @@ static struct module *to_bus_provider(struct device *dev)
 
 static void nvdimm_bus_probe_start(struct nvdimm_bus *nvdimm_bus)
 {
-	nvdimm_bus_lock(&nvdimm_bus->dev);
+	guard(nvdimm_bus)(&nvdimm_bus->dev);
 	nvdimm_bus->probe_active++;
-	nvdimm_bus_unlock(&nvdimm_bus->dev);
 }
 
 static void nvdimm_bus_probe_end(struct nvdimm_bus *nvdimm_bus)
 {
-	nvdimm_bus_lock(&nvdimm_bus->dev);
+	guard(nvdimm_bus)(&nvdimm_bus->dev);
 	if (--nvdimm_bus->probe_active == 0)
 		wake_up(&nvdimm_bus->wait);
-	nvdimm_bus_unlock(&nvdimm_bus->dev);
 }
 
 static int nvdimm_bus_probe(struct device *dev)
