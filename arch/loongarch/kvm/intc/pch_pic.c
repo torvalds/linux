@@ -118,55 +118,45 @@ static u32 pch_pic_write_reg(u64 *s, int high, u32 v)
 
 static int loongarch_pch_pic_read(struct loongarch_pch_pic *s, gpa_t addr, int len, void *val)
 {
-	int offset, index, ret = 0;
-	u32 data = 0;
+	int ret = 0, offset;
+	u64 data = 0;
+	void *ptemp;
 
 	offset = addr - s->pch_pic_base;
+	offset -= offset & 7;
 
 	spin_lock(&s->lock);
 	switch (offset) {
 	case PCH_PIC_INT_ID_START ... PCH_PIC_INT_ID_END:
-		*(u64 *)val = s->id.data;
+		data = s->id.data;
 		break;
 	case PCH_PIC_MASK_START ... PCH_PIC_MASK_END:
-		offset -= PCH_PIC_MASK_START;
-		index = offset >> 2;
-		/* read mask reg */
-		data = pch_pic_read_reg(&s->mask, index);
-		*(u32 *)val = data;
+		data = s->mask;
 		break;
 	case PCH_PIC_HTMSI_EN_START ... PCH_PIC_HTMSI_EN_END:
-		offset -= PCH_PIC_HTMSI_EN_START;
-		index = offset >> 2;
 		/* read htmsi enable reg */
-		data = pch_pic_read_reg(&s->htmsi_en, index);
-		*(u32 *)val = data;
+		data = s->htmsi_en;
 		break;
 	case PCH_PIC_EDGE_START ... PCH_PIC_EDGE_END:
-		offset -= PCH_PIC_EDGE_START;
-		index = offset >> 2;
 		/* read edge enable reg */
-		data = pch_pic_read_reg(&s->edge, index);
-		*(u32 *)val = data;
+		data = s->edge;
 		break;
 	case PCH_PIC_AUTO_CTRL0_START ... PCH_PIC_AUTO_CTRL0_END:
 	case PCH_PIC_AUTO_CTRL1_START ... PCH_PIC_AUTO_CTRL1_END:
 		/* we only use default mode: fixed interrupt distribution mode */
-		*(u32 *)val = 0;
 		break;
 	case PCH_PIC_ROUTE_ENTRY_START ... PCH_PIC_ROUTE_ENTRY_END:
 		/* only route to int0: eiointc */
-		*(u8 *)val = 1;
+		ptemp = s->route_entry + (offset - PCH_PIC_ROUTE_ENTRY_START);
+		data = *(u64 *)ptemp;
 		break;
 	case PCH_PIC_HTMSI_VEC_START ... PCH_PIC_HTMSI_VEC_END:
-		offset -= PCH_PIC_HTMSI_VEC_START;
 		/* read htmsi vector */
-		data = s->htmsi_vector[offset];
-		*(u8 *)val = data;
+		ptemp = s->htmsi_vector + (offset - PCH_PIC_HTMSI_VEC_START);
+		data = *(u64 *)ptemp;
 		break;
 	case PCH_PIC_POLARITY_START ... PCH_PIC_POLARITY_END:
-		/* we only use defalut value 0: high level triggered */
-		*(u32 *)val = 0;
+		data = s->polarity;
 		break;
 	case PCH_PIC_INT_IRR_START:
 		data = s->irr;
@@ -178,6 +168,12 @@ static int loongarch_pch_pic_read(struct loongarch_pch_pic *s, gpa_t addr, int l
 		ret = -EINVAL;
 	}
 	spin_unlock(&s->lock);
+
+	if (ret == 0) {
+		offset = (addr - s->pch_pic_base) & 7;
+		data = data >> (offset * 8);
+		memcpy(val, &data, len);
+	}
 
 	return ret;
 }
