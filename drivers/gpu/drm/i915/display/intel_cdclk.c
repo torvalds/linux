@@ -2873,8 +2873,13 @@ int intel_cdclk_update_bw_min_cdclk(struct intel_atomic_state *state,
 {
 	struct intel_display *display = to_intel_display(state);
 	struct intel_cdclk_state *cdclk_state;
+	bool allow_cdclk_decrease = intel_any_crtc_needs_modeset(state);
+	int ret;
 
-	if (new_min_cdclk <= old_min_cdclk)
+	if (new_min_cdclk == old_min_cdclk)
+		return 0;
+
+	if (!allow_cdclk_decrease && new_min_cdclk < old_min_cdclk)
 		return 0;
 
 	cdclk_state = intel_atomic_get_cdclk_state(state);
@@ -2883,8 +2888,17 @@ int intel_cdclk_update_bw_min_cdclk(struct intel_atomic_state *state,
 
 	old_min_cdclk = cdclk_state->bw_min_cdclk;
 
-	if (new_min_cdclk <= old_min_cdclk)
+	if (new_min_cdclk == old_min_cdclk)
 		return 0;
+
+	if (!allow_cdclk_decrease && new_min_cdclk < old_min_cdclk)
+		return 0;
+
+	cdclk_state->bw_min_cdclk = new_min_cdclk;
+
+	ret = intel_atomic_lock_global_state(&cdclk_state->base);
+	if (ret)
+		return ret;
 
 	*need_cdclk_calc = true;
 
@@ -2908,7 +2922,6 @@ static int intel_compute_min_cdclk(struct intel_atomic_state *state)
 	struct intel_display *display = to_intel_display(state);
 	struct intel_cdclk_state *cdclk_state =
 		intel_atomic_get_new_cdclk_state(state);
-	const struct intel_bw_state *bw_state;
 	struct intel_crtc *crtc;
 	struct intel_crtc_state *crtc_state;
 	int min_cdclk, i;
@@ -2931,23 +2944,8 @@ static int intel_compute_min_cdclk(struct intel_atomic_state *state)
 			return ret;
 	}
 
-	bw_state = intel_atomic_get_new_bw_state(state);
-	if (bw_state) {
-		min_cdclk = intel_bw_min_cdclk(display, bw_state);
-
-		if (cdclk_state->bw_min_cdclk != min_cdclk) {
-			int ret;
-
-			cdclk_state->bw_min_cdclk = min_cdclk;
-
-			ret = intel_atomic_lock_global_state(&cdclk_state->base);
-			if (ret)
-				return ret;
-		}
-	}
-
-	min_cdclk = max(cdclk_state->force_min_cdclk,
-			cdclk_state->bw_min_cdclk);
+	min_cdclk = cdclk_state->force_min_cdclk;
+	min_cdclk = max(min_cdclk, cdclk_state->bw_min_cdclk);
 	for_each_pipe(display, pipe)
 		min_cdclk = max(min_cdclk, cdclk_state->min_cdclk[pipe]);
 
