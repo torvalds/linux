@@ -35,16 +35,11 @@ static void pch_pic_update_irq(struct loongarch_pch_pic *s, int irq, int level)
 /* update batch irqs, the irq_mask is a bitmap of irqs */
 static void pch_pic_update_batch_irqs(struct loongarch_pch_pic *s, u64 irq_mask, int level)
 {
-	int irq, bits;
+	unsigned int irq;
+	DECLARE_BITMAP(irqs, 64) = { BITMAP_FROM_U64(irq_mask) };
 
-	/* find each irq by irqs bitmap and update each irq */
-	bits = sizeof(irq_mask) * 8;
-	irq = find_first_bit((void *)&irq_mask, bits);
-	while (irq < bits) {
+	for_each_set_bit(irq, irqs, 64)
 		pch_pic_update_irq(s, irq, level);
-		bitmap_clear((void *)&irq_mask, irq, 1);
-		irq = find_first_bit((void *)&irq_mask, bits);
-	}
 }
 
 /* called when a irq is triggered in pch pic */
