@@ -62,6 +62,16 @@ enum scx_exit_code {
 	SCX_ECODE_ACT_RESTART	= 1LLU << 48,
 };
 
+enum scx_exit_flags {
+	/*
+	 * ops.exit() may be called even if the loading failed before ops.init()
+	 * finishes successfully. This is because ops.exit() allows rich exit
+	 * info communication. The following flag indicates whether ops.init()
+	 * finished successfully.
+	 */
+	SCX_EFLAG_INITIALIZED,
+};
+
 /*
  * scx_exit_info is passed to ops.exit() to describe why the BPF scheduler is
  * being disabled.
@@ -72,6 +82,9 @@ struct scx_exit_info {
 
 	/* exit code if gracefully exiting */
 	s64			exit_code;
+
+	/* %SCX_EFLAG_* */
+	u64			flags;
 
 	/* textual representation of the above */
 	const char		*reason;
