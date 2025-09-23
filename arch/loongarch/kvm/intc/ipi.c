@@ -7,12 +7,25 @@
 #include <asm/kvm_ipi.h>
 #include <asm/kvm_vcpu.h>
 
+static void ipi_set(struct kvm_vcpu *vcpu, uint32_t data)
+{
+	uint32_t status;
+	struct kvm_interrupt irq;
+
+	spin_lock(&vcpu->arch.ipi_state.lock);
+	status = vcpu->arch.ipi_state.status;
+	vcpu->arch.ipi_state.status |= data;
+	spin_unlock(&vcpu->arch.ipi_state.lock);
+	if ((status == 0) && data) {
+		irq.irq = LARCH_INT_IPI;
+		kvm_vcpu_ioctl_interrupt(vcpu, &irq);
+	}
+}
+
 static void ipi_send(struct kvm *kvm, uint64_t data)
 {
-	int cpu, action;
-	uint32_t status;
+	int cpu;
 	struct kvm_vcpu *vcpu;
-	struct kvm_interrupt irq;
 
 	cpu = ((data & 0xffffffff) >> 16) & 0x3ff;
 	vcpu = kvm_get_vcpu_by_cpuid(kvm, cpu);
@@ -21,15 +34,7 @@ static void ipi_send(struct kvm *kvm, uint64_t data)
 		return;
 	}
 
-	action = BIT(data & 0x1f);
-	spin_lock(&vcpu->arch.ipi_state.lock);
-	status = vcpu->arch.ipi_state.status;
-	vcpu->arch.ipi_state.status |= action;
-	spin_unlock(&vcpu->arch.ipi_state.lock);
-	if (status == 0) {
-		irq.irq = LARCH_INT_IPI;
-		kvm_vcpu_ioctl_interrupt(vcpu, &irq);
-	}
+	ipi_set(vcpu, BIT(data & 0x1f));
 }
 
 static void ipi_clear(struct kvm_vcpu *vcpu, uint64_t data)
@@ -231,7 +236,7 @@ static int loongarch_ipi_writel(struct kvm_vcpu *vcpu, gpa_t addr, int len, cons
 		spin_unlock(&vcpu->arch.ipi_state.lock);
 		break;
 	case IOCSR_IPI_SET:
-		ret = -EINVAL;
+		ipi_set(vcpu, data);
 		break;
 	case IOCSR_IPI_CLEAR:
 		/* Just clear the status of the current vcpu */
@@ -250,10 +255,10 @@ static int loongarch_ipi_writel(struct kvm_vcpu *vcpu, gpa_t addr, int len, cons
 		ipi_send(vcpu->kvm, data);
 		break;
 	case IOCSR_MAIL_SEND:
-		ret = mail_send(vcpu->kvm, *(uint64_t *)val);
+		ret = mail_send(vcpu->kvm, data);
 		break;
 	case IOCSR_ANY_SEND:
-		ret = any_send(vcpu->kvm, *(uint64_t *)val);
+		ret = any_send(vcpu->kvm, data);
 		break;
 	default:
 		kvm_err("%s: unknown addr: %llx\n", __func__, addr);
