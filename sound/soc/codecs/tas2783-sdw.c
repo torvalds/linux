@@ -1229,7 +1229,7 @@ static s32 tas_update_status(struct sdw_slave *slave,
 	struct tas2783_prv *tas_dev = dev_get_drvdata(&slave->dev);
 	struct device *dev = &slave->dev;
 
-	dev_dbg(dev, "Perifpheral status = %s",
+	dev_dbg(dev, "Peripheral status = %s",
 		status == SDW_SLAVE_UNATTACHED ? "unattached" :
 		 status == SDW_SLAVE_ATTACHED ? "attached" : "alert");
 
