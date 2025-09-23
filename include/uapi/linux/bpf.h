@@ -1611,6 +1611,16 @@ union bpf_attr {
 		 * continuous.
 		 */
 		__u32		fd_array_cnt;
+		/* Pointer to a buffer containing the signature of the BPF
+		 * program.
+		 */
+		__aligned_u64   signature;
+		/* Size of the signature buffer in bytes. */
+		__u32 		signature_size;
+		/* ID of the kernel keyring to be used for signature
+		 * verification.
+		 */
+		__s32		keyring_id;
 	};
 
 	struct { /* anonymous struct used by BPF_OBJ_* commands */

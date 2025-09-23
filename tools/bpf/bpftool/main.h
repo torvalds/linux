@@ -6,9 +6,14 @@
 
 /* BFD and kernel.h both define GCC_VERSION, differently */
 #undef GCC_VERSION
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
 #include <stdbool.h>
 #include <stdio.h>
+#include <errno.h>
 #include <stdlib.h>
+#include <bpf/skel_internal.h>
 #include <linux/bpf.h>
 #include <linux/compiler.h>
 #include <linux/kernel.h>
@@ -52,6 +57,7 @@ static inline void *u64_to_ptr(__u64 ptr)
 	})
 
 #define ERR_MAX_LEN	1024
+#define MAX_SIG_SIZE	4096
 
 #define BPF_TAG_FMT	"%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx"
 
@@ -85,6 +91,9 @@ extern bool relaxed_maps;
 extern bool use_loader;
 extern struct btf *base_btf;
 extern struct hashmap *refs_table;
+extern bool sign_progs;
+extern const char *private_key_path;
+extern const char *cert_path;
 
 void __printf(1, 2) p_err(const char *fmt, ...);
 void __printf(1, 2) p_info(const char *fmt, ...);
@@ -284,4 +293,6 @@ struct kernel_config_option {
 int read_kernel_config(const struct kernel_config_option *requested_options,
 		       size_t num_options, char **out_values,
 		       const char *define_prefix);
+int bpftool_prog_sign(struct bpf_load_and_run_opts *opts);
+__u32 register_session_key(const char *key_der_path);
 #endif
