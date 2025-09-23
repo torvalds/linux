@@ -240,8 +240,8 @@ smb2_reconnect(__le16 smb2_command, struct cifs_tcon *tcon,
 		 */
 		if (smb2_command != SMB2_TREE_DISCONNECT) {
 			spin_unlock(&tcon->tc_lock);
-			cifs_dbg(FYI, "can not send cmd %d while umounting\n",
-				 smb2_command);
+			cifs_tcon_dbg(FYI, "can not send cmd %d while umounting\n",
+				      smb2_command);
 			return -ENODEV;
 		}
 	}
@@ -296,9 +296,9 @@ again:
 		return 0;
 	}
 	spin_unlock(&ses->chan_lock);
-	cifs_dbg(FYI, "sess reconnect mask: 0x%lx, tcon reconnect: %d",
-		 tcon->ses->chans_need_reconnect,
-		 tcon->need_reconnect);
+	cifs_tcon_dbg(FYI, "sess reconnect mask: 0x%lx, tcon reconnect: %d\n",
+		      tcon->ses->chans_need_reconnect,
+		      tcon->need_reconnect);
 
 	mutex_lock(&ses->session_mutex);
 	/*
@@ -392,11 +392,11 @@ skip_sess_setup:
 
 	rc = cifs_tree_connect(0, tcon);
 
-	cifs_dbg(FYI, "reconnect tcon rc = %d\n", rc);
+	cifs_tcon_dbg(FYI, "reconnect tcon rc = %d\n", rc);
 	if (rc) {
 		/* If sess reconnected but tcon didn't, something strange ... */
 		mutex_unlock(&ses->session_mutex);
-		cifs_dbg(VFS, "reconnect tcon failed rc = %d\n", rc);
+		cifs_tcon_dbg(VFS, "reconnect tcon failed rc = %d\n", rc);
 		goto out;
 	}
 
@@ -442,8 +442,8 @@ skip_sess_setup:
 						       from_reconnect);
 			goto skip_add_channels;
 		} else if (rc)
-			cifs_dbg(FYI, "%s: failed to query server interfaces: %d\n",
-				 __func__, rc);
+			cifs_tcon_dbg(FYI, "%s: failed to query server interfaces: %d\n",
+				      __func__, rc);
 
 		if (ses->chan_max > ses->chan_count &&
 		    ses->iface_count &&
