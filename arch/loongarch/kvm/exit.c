@@ -468,6 +468,8 @@ int kvm_emu_mmio_read(struct kvm_vcpu *vcpu, larch_inst inst)
 	if (ret == EMULATE_DO_MMIO) {
 		trace_kvm_mmio(KVM_TRACE_MMIO_READ, run->mmio.len, run->mmio.phys_addr, NULL);
 
+		vcpu->arch.io_gpr = rd; /* Set for kvm_complete_mmio_read() use */
+
 		/*
 		 * If mmio device such as PCH-PIC is emulated in KVM,
 		 * it need not return to user space to handle the mmio
@@ -475,16 +477,15 @@ int kvm_emu_mmio_read(struct kvm_vcpu *vcpu, larch_inst inst)
 		 */
 		idx = srcu_read_lock(&vcpu->kvm->srcu);
 		ret = kvm_io_bus_read(vcpu, KVM_MMIO_BUS, vcpu->arch.badv,
-				      run->mmio.len, &vcpu->arch.gprs[rd]);
+				      run->mmio.len, run->mmio.data);
 		srcu_read_unlock(&vcpu->kvm->srcu, idx);
 		if (!ret) {
+			kvm_complete_mmio_read(vcpu, run);
 			update_pc(&vcpu->arch);
 			vcpu->mmio_needed = 0;
 			return EMULATE_DONE;
 		}
 
-		/* Set for kvm_complete_mmio_read() use */
-		vcpu->arch.io_gpr = rd;
 		run->mmio.is_write = 0;
 		vcpu->mmio_is_write = 0;
 		return EMULATE_DO_MMIO;
