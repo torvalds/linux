@@ -680,6 +680,8 @@ static int _kvm_get_cpucfg_mask(int id, u64 *v)
 			*v |= CPUCFG2_ARMBT;
 		if (cpu_has_lbt_mips)
 			*v |= CPUCFG2_MIPSBT;
+		if (cpu_has_ptw)
+			*v |= CPUCFG2_PTW;
 
 		return 0;
 	case LOONGARCH_CPUCFG3:
