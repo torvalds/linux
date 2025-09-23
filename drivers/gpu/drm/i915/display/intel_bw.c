@@ -1528,13 +1528,9 @@ static int intel_bw_check_data_rate(struct intel_atomic_state *state, bool *chan
 
 static int intel_bw_modeset_checks(struct intel_atomic_state *state)
 {
-	struct intel_display *display = to_intel_display(state);
 	const struct intel_bw_state *old_bw_state;
 	struct intel_bw_state *new_bw_state;
 	int ret;
-
-	if (DISPLAY_VER(display) < 9)
-		return 0;
 
 	if (!intel_any_crtc_active_changed(state))
 		return 0;
