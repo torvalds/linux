@@ -1550,6 +1550,25 @@ int kgd2kfd_start_sched(struct kfd_dev *kfd, uint32_t node_id)
 	return ret;
 }
 
+int kgd2kfd_start_sched_all_nodes(struct kfd_dev *kfd)
+{
+	struct kfd_node *node;
+	int i, r;
+
+	if (!kfd->init_complete)
+		return 0;
+
+	for (i = 0; i < kfd->num_nodes; i++) {
+		node = kfd->nodes[i];
+		r = node->dqm->ops.unhalt(node->dqm);
+		if (r) {
+			dev_err(kfd_device, "Error in starting scheduler\n");
+			return r;
+		}
+	}
+	return 0;
+}
+
 int kgd2kfd_stop_sched(struct kfd_dev *kfd, uint32_t node_id)
 {
 	struct kfd_node *node;
@@ -1565,6 +1584,23 @@ int kgd2kfd_stop_sched(struct kfd_dev *kfd, uint32_t node_id)
 
 	node = kfd->nodes[node_id];
 	return node->dqm->ops.halt(node->dqm);
+}
+
+int kgd2kfd_stop_sched_all_nodes(struct kfd_dev *kfd)
+{
+	struct kfd_node *node;
+	int i, r;
+
+	if (!kfd->init_complete)
+		return 0;
+
+	for (i = 0; i < kfd->num_nodes; i++) {
+		node = kfd->nodes[i];
+		r = node->dqm->ops.halt(node->dqm);
+		if (r)
+			return r;
+	}
+	return 0;
 }
 
 bool kgd2kfd_compute_active(struct kfd_dev *kfd, uint32_t node_id)

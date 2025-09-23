@@ -102,15 +102,20 @@ KBUILD_CFLAGS			+= $(call cc-option,-mthin-add-sub) $(call cc-option,-Wa$(comma)
 
 ifdef CONFIG_OBJTOOL
 ifdef CONFIG_CC_HAS_ANNOTATE_TABLEJUMP
+KBUILD_CFLAGS			+= -mannotate-tablejump
+else
+KBUILD_CFLAGS			+= -fno-jump-tables # keep compatibility with older compilers
+endif
+ifdef CONFIG_RUSTC_HAS_ANNOTATE_TABLEJUMP
+KBUILD_RUSTFLAGS		+= -Cllvm-args=--loongarch-annotate-tablejump
+else
+KBUILD_RUSTFLAGS		+= -Zno-jump-tables # keep compatibility with older compilers
+endif
+ifdef CONFIG_LTO_CLANG
 # The annotate-tablejump option can not be passed to LLVM backend when LTO is enabled.
 # Ensure it is aware of linker with LTO, '--loongarch-annotate-tablejump' also needs to
 # be passed via '-mllvm' to ld.lld.
-KBUILD_CFLAGS			+= -mannotate-tablejump
-ifdef CONFIG_LTO_CLANG
 KBUILD_LDFLAGS			+= -mllvm --loongarch-annotate-tablejump
-endif
-else
-KBUILD_CFLAGS			+= -fno-jump-tables # keep compatibility with older compilers
 endif
 endif
 

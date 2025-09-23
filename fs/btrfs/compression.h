@@ -102,7 +102,7 @@ void btrfs_submit_compressed_write(struct btrfs_ordered_extent *ordered,
 				   bool writeback);
 void btrfs_submit_compressed_read(struct btrfs_bio *bbio);
 
-int btrfs_compress_str2level(unsigned int type, const char *str);
+int btrfs_compress_str2level(unsigned int type, const char *str, int *level_ret);
 
 struct folio *btrfs_alloc_compr_folio(void);
 void btrfs_free_compr_folio(struct folio *folio);

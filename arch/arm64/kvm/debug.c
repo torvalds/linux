@@ -96,6 +96,13 @@ void kvm_init_host_debug_data(void)
 	}
 }
 
+void kvm_debug_init_vhe(void)
+{
+	/* Clear PMSCR_EL1.E{0,1}SPE which reset to UNKNOWN values. */
+	if (SYS_FIELD_GET(ID_AA64DFR0_EL1, PMSVer, read_sysreg(id_aa64dfr0_el1)))
+		write_sysreg_el1(0, SYS_PMSCR);
+}
+
 /*
  * Configures the 'external' MDSCR_EL1 value for the guest, i.e. when the host
  * has taken over MDSCR_EL1.
@@ -137,6 +144,9 @@ void kvm_vcpu_load_debug(struct kvm_vcpu *vcpu)
 
 	/* Must be called before kvm_vcpu_load_vhe() */
 	KVM_BUG_ON(vcpu_get_flag(vcpu, SYSREGS_ON_CPU), vcpu->kvm);
+
+	if (has_vhe())
+		*host_data_ptr(host_debug_state.mdcr_el2) = read_sysreg(mdcr_el2);
 
 	/*
 	 * Determine which of the possible debug states we're in:
@@ -184,6 +194,9 @@ void kvm_vcpu_load_debug(struct kvm_vcpu *vcpu)
 
 void kvm_vcpu_put_debug(struct kvm_vcpu *vcpu)
 {
+	if (has_vhe())
+		write_sysreg(*host_data_ptr(host_debug_state.mdcr_el2), mdcr_el2);
+
 	if (likely(!(vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP)))
 		return;
 
