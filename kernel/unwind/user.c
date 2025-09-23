@@ -19,7 +19,6 @@ static int unwind_user_next_fp(struct unwind_user_state *state)
 {
 	const struct unwind_user_frame *frame = &fp_frame;
 	unsigned long cfa, fp, ra;
-	unsigned int shift;
 
 	if (frame->use_fp) {
 		if (state->fp < state->sp)
@@ -37,8 +36,7 @@ static int unwind_user_next_fp(struct unwind_user_state *state)
 		return -EINVAL;
 
 	/* Make sure that the address is word aligned */
-	shift = sizeof(long) == 4 ? 2 : 3;
-	if (cfa & ((1 << shift) - 1))
+	if (cfa & (sizeof(long) - 1))
 		return -EINVAL;
 
 	/* Find the Return Address (RA) */
