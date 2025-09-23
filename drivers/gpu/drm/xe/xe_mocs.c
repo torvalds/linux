@@ -772,12 +772,20 @@ void xe_mocs_init(struct xe_gt *gt)
 		init_l3cc_table(gt, &table);
 }
 
-void xe_mocs_dump(struct xe_gt *gt, struct drm_printer *p)
+/**
+ * xe_mocs_dump() - Dump MOCS table.
+ * @gt: the &xe_gt with MOCS table
+ * @p: the &drm_printer to dump info to
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_mocs_dump(struct xe_gt *gt, struct drm_printer *p)
 {
 	struct xe_device *xe = gt_to_xe(gt);
 	enum xe_force_wake_domains domain;
 	struct xe_mocs_info table;
 	unsigned int fw_ref, flags;
+	int err = 0;
 
 	flags = get_mocs_settings(xe, &table);
 
@@ -785,14 +793,17 @@ void xe_mocs_dump(struct xe_gt *gt, struct drm_printer *p)
 	xe_pm_runtime_get_noresume(xe);
 	fw_ref = xe_force_wake_get(gt_to_fw(gt), domain);
 
-	if (!xe_force_wake_ref_has_domain(fw_ref, domain))
+	if (!xe_force_wake_ref_has_domain(fw_ref, domain)) {
+		err = -ETIMEDOUT;
 		goto err_fw;
+	}
 
 	table.ops->dump(&table, flags, gt, p);
 
 err_fw:
 	xe_force_wake_put(gt_to_fw(gt), fw_ref);
 	xe_pm_runtime_put(xe);
+	return err;
 }
 
 #if IS_ENABLED(CONFIG_DRM_XE_KUNIT_TEST)

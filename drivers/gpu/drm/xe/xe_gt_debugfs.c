@@ -173,12 +173,6 @@ static int pat(struct xe_gt *gt, struct drm_printer *p)
 	return 0;
 }
 
-static int mocs(struct xe_gt *gt, struct drm_printer *p)
-{
-	xe_mocs_dump(gt, p);
-	return 0;
-}
-
 static int rcs_default_lrc(struct xe_gt *gt, struct drm_printer *p)
 {
 	xe_lrc_dump_default(p, gt, XE_ENGINE_CLASS_RENDER);
@@ -237,7 +231,7 @@ static const struct drm_info_list vf_safe_debugfs_list[] = {
 /* everything else should be added here */
 static const struct drm_info_list pf_only_debugfs_list[] = {
 	{ "hw_engines", .show = xe_gt_debugfs_show_with_rpm, .data = hw_engines },
-	{ "mocs", .show = xe_gt_debugfs_show_with_rpm, .data = mocs },
+	{ "mocs", .show = xe_gt_debugfs_show_with_rpm, .data = xe_mocs_dump },
 	{ "pat", .show = xe_gt_debugfs_show_with_rpm, .data = pat },
 	{ "powergate_info", .show = xe_gt_debugfs_show_with_rpm, .data = xe_gt_idle_pg_print },
 	{ "steering", .show = xe_gt_debugfs_show_with_rpm, .data = steering },
