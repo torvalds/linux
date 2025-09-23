@@ -1105,12 +1105,7 @@ static blk_status_t ublk_setup_iod(struct ublk_queue *ubq, struct request *req)
 {
 	struct ublksrv_io_desc *iod = ublk_get_iod(ubq, req->tag);
 	struct ublk_io *io = &ubq->ios[req->tag];
-	enum req_op op = req_op(req);
 	u32 ublk_op;
-
-	if (!ublk_queue_is_zoned(ubq) &&
-	    (op_is_zone_mgmt(op) || op == REQ_OP_ZONE_APPEND))
-		return BLK_STS_IOERR;
 
 	switch (req_op(req)) {
 	case REQ_OP_READ:
