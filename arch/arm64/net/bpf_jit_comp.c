@@ -3064,6 +3064,11 @@ bool bpf_jit_supports_insn(struct bpf_insn *insn, bool in_arena)
 		if (!bpf_atomic_is_load_store(insn) &&
 		    !cpus_have_cap(ARM64_HAS_LSE_ATOMICS))
 			return false;
+		break;
+	case BPF_LDX | BPF_MEMSX | BPF_B:
+	case BPF_LDX | BPF_MEMSX | BPF_H:
+	case BPF_LDX | BPF_MEMSX | BPF_W:
+		return false;
 	}
 	return true;
 }

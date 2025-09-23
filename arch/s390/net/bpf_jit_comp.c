@@ -2967,6 +2967,11 @@ bool bpf_jit_supports_insn(struct bpf_insn *insn, bool in_arena)
 	case BPF_STX | BPF_ATOMIC | BPF_DW:
 		if (bpf_atomic_is_load_store(insn))
 			return false;
+		break;
+	case BPF_LDX | BPF_MEMSX | BPF_B:
+	case BPF_LDX | BPF_MEMSX | BPF_H:
+	case BPF_LDX | BPF_MEMSX | BPF_W:
+		return false;
 	}
 	return true;
 }

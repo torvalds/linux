@@ -2066,6 +2066,11 @@ bool bpf_jit_supports_insn(struct bpf_insn *insn, bool in_arena)
 		case BPF_STX | BPF_ATOMIC | BPF_DW:
 			if (insn->imm == BPF_CMPXCHG)
 				return rv_ext_enabled(ZACAS);
+			break;
+		case BPF_LDX | BPF_MEMSX | BPF_B:
+		case BPF_LDX | BPF_MEMSX | BPF_H:
+		case BPF_LDX | BPF_MEMSX | BPF_W:
+			return false;
 		}
 	}
 
