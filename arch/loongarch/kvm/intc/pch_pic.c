@@ -120,20 +120,13 @@ static int loongarch_pch_pic_read(struct loongarch_pch_pic *s, gpa_t addr, int l
 {
 	int offset, index, ret = 0;
 	u32 data = 0;
-	u64 int_id = 0;
 
 	offset = addr - s->pch_pic_base;
 
 	spin_lock(&s->lock);
 	switch (offset) {
 	case PCH_PIC_INT_ID_START ... PCH_PIC_INT_ID_END:
-		/* int id version */
-		int_id |= (u64)PCH_PIC_INT_ID_VER << 32;
-		/* irq number */
-		int_id |= (u64)31 << (32 + 16);
-		/* int id value */
-		int_id |= PCH_PIC_INT_ID_VAL;
-		*(u64 *)val = int_id;
+		*(u64 *)val = s->id.data;
 		break;
 	case PCH_PIC_MASK_START ... PCH_PIC_MASK_END:
 		offset -= PCH_PIC_MASK_START;
@@ -484,7 +477,7 @@ static int kvm_setup_default_irq_routing(struct kvm *kvm)
 
 static int kvm_pch_pic_create(struct kvm_device *dev, u32 type)
 {
-	int ret;
+	int i, ret, irq_num;
 	struct kvm *kvm = dev->kvm;
 	struct loongarch_pch_pic *s;
 
@@ -500,6 +493,22 @@ static int kvm_pch_pic_create(struct kvm_device *dev, u32 type)
 	if (!s)
 		return -ENOMEM;
 
+	/*
+	 * Interrupt controller identification register 1
+	 *   Bit 24-31 Interrupt Controller ID
+	 * Interrupt controller identification register 2
+	 *   Bit  0-7  Interrupt Controller version number
+	 *   Bit 16-23 The number of interrupt sources supported
+	 */
+	irq_num = 32;
+	s->mask = -1UL;
+	s->id.desc.id = PCH_PIC_INT_ID_VAL;
+	s->id.desc.version = PCH_PIC_INT_ID_VER;
+	s->id.desc.irq_num = irq_num - 1;
+	for (i = 0; i < irq_num; i++) {
+		s->route_entry[i] = 1;
+		s->htmsi_vector[i] = i;
+	}
 	spin_lock_init(&s->lock);
 	s->kvm = kvm;
 	kvm->arch.pch_pic = s;
