@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0-only OR MIT
+/*
+ * AM6254atl SiP SK: https://www.ti.com/lit/df/sprr482b/sprr482b.zip
+ * Webpage: https://www.ti.com/tool/SK-AM62-SIP
+ *
+ * Copyright (C) 2025 Texas Instruments Incorporated - https://www.ti.com/
+ */
+
+#include "k3-am6254atl.dtsi"
+#include "k3-am625-sk-common.dtsi"
+
+/ {
+	model = "Texas Instruments AM6254atl SK";
+	compatible = "ti,am6254atl-sk", "ti,am6254atl", "ti,am625";
+};
