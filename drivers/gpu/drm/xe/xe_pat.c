@@ -57,7 +57,7 @@ struct xe_pat_ops {
 				 int n_entries);
 	void (*program_media)(struct xe_gt *gt, const struct xe_pat_table_entry table[],
 			      int n_entries);
-	void (*dump)(struct xe_gt *gt, struct drm_printer *p);
+	int (*dump)(struct xe_gt *gt, struct drm_printer *p);
 };
 
 static const struct xe_pat_table_entry xelp_pat_table[] = {
@@ -194,7 +194,7 @@ static void program_pat_mcr(struct xe_gt *gt, const struct xe_pat_table_entry ta
 		xe_gt_mcr_multicast_write(gt, XE_REG_MCR(_PAT_PTA), xe->pat.pat_pta->value);
 }
 
-static void xelp_dump(struct xe_gt *gt, struct drm_printer *p)
+static int xelp_dump(struct xe_gt *gt, struct drm_printer *p)
 {
 	struct xe_device *xe = gt_to_xe(gt);
 	unsigned int fw_ref;
@@ -202,7 +202,7 @@ static void xelp_dump(struct xe_gt *gt, struct drm_printer *p)
 
 	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
 	if (!fw_ref)
-		return;
+		return -ETIMEDOUT;
 
 	drm_printf(p, "PAT table:\n");
 
@@ -215,6 +215,7 @@ static void xelp_dump(struct xe_gt *gt, struct drm_printer *p)
 	}
 
 	xe_force_wake_put(gt_to_fw(gt), fw_ref);
+	return 0;
 }
 
 static const struct xe_pat_ops xelp_pat_ops = {
@@ -222,7 +223,7 @@ static const struct xe_pat_ops xelp_pat_ops = {
 	.dump = xelp_dump,
 };
 
-static void xehp_dump(struct xe_gt *gt, struct drm_printer *p)
+static int xehp_dump(struct xe_gt *gt, struct drm_printer *p)
 {
 	struct xe_device *xe = gt_to_xe(gt);
 	unsigned int fw_ref;
@@ -230,7 +231,7 @@ static void xehp_dump(struct xe_gt *gt, struct drm_printer *p)
 
 	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
 	if (!fw_ref)
-		return;
+		return -ETIMEDOUT;
 
 	drm_printf(p, "PAT table:\n");
 
@@ -245,6 +246,7 @@ static void xehp_dump(struct xe_gt *gt, struct drm_printer *p)
 	}
 
 	xe_force_wake_put(gt_to_fw(gt), fw_ref);
+	return 0;
 }
 
 static const struct xe_pat_ops xehp_pat_ops = {
@@ -252,7 +254,7 @@ static const struct xe_pat_ops xehp_pat_ops = {
 	.dump = xehp_dump,
 };
 
-static void xehpc_dump(struct xe_gt *gt, struct drm_printer *p)
+static int xehpc_dump(struct xe_gt *gt, struct drm_printer *p)
 {
 	struct xe_device *xe = gt_to_xe(gt);
 	unsigned int fw_ref;
@@ -260,7 +262,7 @@ static void xehpc_dump(struct xe_gt *gt, struct drm_printer *p)
 
 	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
 	if (!fw_ref)
-		return;
+		return -ETIMEDOUT;
 
 	drm_printf(p, "PAT table:\n");
 
@@ -273,6 +275,7 @@ static void xehpc_dump(struct xe_gt *gt, struct drm_printer *p)
 	}
 
 	xe_force_wake_put(gt_to_fw(gt), fw_ref);
+	return 0;
 }
 
 static const struct xe_pat_ops xehpc_pat_ops = {
@@ -280,7 +283,7 @@ static const struct xe_pat_ops xehpc_pat_ops = {
 	.dump = xehpc_dump,
 };
 
-static void xelpg_dump(struct xe_gt *gt, struct drm_printer *p)
+static int xelpg_dump(struct xe_gt *gt, struct drm_printer *p)
 {
 	struct xe_device *xe = gt_to_xe(gt);
 	unsigned int fw_ref;
@@ -288,7 +291,7 @@ static void xelpg_dump(struct xe_gt *gt, struct drm_printer *p)
 
 	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
 	if (!fw_ref)
-		return;
+		return -ETIMEDOUT;
 
 	drm_printf(p, "PAT table:\n");
 
@@ -306,6 +309,7 @@ static void xelpg_dump(struct xe_gt *gt, struct drm_printer *p)
 	}
 
 	xe_force_wake_put(gt_to_fw(gt), fw_ref);
+	return 0;
 }
 
 /*
@@ -318,7 +322,7 @@ static const struct xe_pat_ops xelpg_pat_ops = {
 	.dump = xelpg_dump,
 };
 
-static void xe2_dump(struct xe_gt *gt, struct drm_printer *p)
+static int xe2_dump(struct xe_gt *gt, struct drm_printer *p)
 {
 	struct xe_device *xe = gt_to_xe(gt);
 	unsigned int fw_ref;
@@ -327,7 +331,7 @@ static void xe2_dump(struct xe_gt *gt, struct drm_printer *p)
 
 	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
 	if (!fw_ref)
-		return;
+		return -ETIMEDOUT;
 
 	drm_printf(p, "PAT table:\n");
 
@@ -367,6 +371,7 @@ static void xe2_dump(struct xe_gt *gt, struct drm_printer *p)
 		   pat);
 
 	xe_force_wake_put(gt_to_fw(gt), fw_ref);
+	return 0;
 }
 
 static const struct xe_pat_ops xe2_pat_ops = {
@@ -462,12 +467,19 @@ void xe_pat_init(struct xe_gt *gt)
 		xe->pat.ops->program_graphics(gt, xe->pat.table, xe->pat.n_entries);
 }
 
-void xe_pat_dump(struct xe_gt *gt, struct drm_printer *p)
+/**
+ * xe_pat_dump() - Dump GT PAT table into a drm printer.
+ * @gt: the &xe_gt
+ * @p: the &drm_printer
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_pat_dump(struct xe_gt *gt, struct drm_printer *p)
 {
 	struct xe_device *xe = gt_to_xe(gt);
 
 	if (!xe->pat.ops)
-		return;
+		return -EOPNOTSUPP;
 
-	xe->pat.ops->dump(gt, p);
+	return xe->pat.ops->dump(gt, p);
 }
