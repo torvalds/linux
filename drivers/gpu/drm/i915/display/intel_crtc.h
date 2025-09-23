@@ -58,4 +58,8 @@ void intel_wait_for_vblank_if_active(struct intel_display *display,
 				     enum pipe pipe);
 void intel_crtc_wait_for_next_vblank(struct intel_crtc *crtc);
 
+bool intel_any_crtc_enable_changed(struct intel_atomic_state *state);
+bool intel_crtc_enable_changed(const struct intel_crtc_state *old_crtc_state,
+			       const struct intel_crtc_state *new_crtc_state);
+
 #endif
