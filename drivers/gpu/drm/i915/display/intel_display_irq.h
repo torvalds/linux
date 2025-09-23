@@ -47,8 +47,9 @@ void i965_disable_vblank(struct drm_crtc *crtc);
 void ilk_disable_vblank(struct drm_crtc *crtc);
 void bdw_disable_vblank(struct drm_crtc *crtc);
 
-void ivb_display_irq_handler(struct intel_display *display, u32 de_iir);
-void ilk_display_irq_handler(struct intel_display *display, u32 de_iir);
+void ilk_display_irq_master_disable(struct intel_display *display, u32 *de_ier, u32 *sde_ier);
+void ilk_display_irq_master_enable(struct intel_display *display, u32 de_ier, u32 sde_ier);
+bool ilk_display_irq_handler(struct intel_display *display);
 void gen8_de_irq_handler(struct intel_display *display, u32 master_ctl);
 void gen11_display_irq_handler(struct intel_display *display);
 

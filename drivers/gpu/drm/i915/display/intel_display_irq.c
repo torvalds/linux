@@ -872,7 +872,7 @@ static void ilk_gtt_fault_irq_handler(struct intel_display *display)
 	}
 }
 
-void ilk_display_irq_handler(struct intel_display *display, u32 de_iir)
+static void _ilk_display_irq_handler(struct intel_display *display, u32 de_iir)
 {
 	enum pipe pipe;
 	u32 hotplug_trigger = de_iir & DE_DP_A_HOTPLUG;
@@ -923,7 +923,7 @@ void ilk_display_irq_handler(struct intel_display *display, u32 de_iir)
 		ilk_display_rps_irq_handler(display);
 }
 
-void ivb_display_irq_handler(struct intel_display *display, u32 de_iir)
+static void _ivb_display_irq_handler(struct intel_display *display, u32 de_iir)
 {
 	enum pipe pipe;
 	u32 hotplug_trigger = de_iir & DE_DP_A_HOTPLUG_IVB;
@@ -970,6 +970,53 @@ void ivb_display_irq_handler(struct intel_display *display, u32 de_iir)
 		/* clear PCH hotplug event before clear CPU irq */
 		intel_de_write(display, SDEIIR, pch_iir);
 	}
+}
+
+void ilk_display_irq_master_disable(struct intel_display *display, u32 *de_ier, u32 *sde_ier)
+{
+	/* disable master interrupt before clearing iir  */
+	*de_ier = intel_de_read_fw(display, DEIER);
+	intel_de_write_fw(display, DEIER, *de_ier & ~DE_MASTER_IRQ_CONTROL);
+
+	/*
+	 * Disable south interrupts. We'll only write to SDEIIR once, so further
+	 * interrupts will be stored on its back queue, and then we'll be able
+	 * to process them after we restore SDEIER (as soon as we restore it,
+	 * we'll get an interrupt if SDEIIR still has something to process due
+	 * to its back queue).
+	 */
+	if (!HAS_PCH_NOP(display)) {
+		*sde_ier = intel_de_read_fw(display, SDEIER);
+		intel_de_write_fw(display, SDEIER, 0);
+	} else {
+		*sde_ier = 0;
+	}
+}
+
+void ilk_display_irq_master_enable(struct intel_display *display, u32 de_ier, u32 sde_ier)
+{
+	intel_de_write_fw(display, DEIER, de_ier);
+
+	if (sde_ier)
+		intel_de_write_fw(display, SDEIER, sde_ier);
+}
+
+bool ilk_display_irq_handler(struct intel_display *display)
+{
+	u32 de_iir;
+	bool handled = false;
+
+	de_iir = intel_de_read_fw(display, DEIIR);
+	if (de_iir) {
+		intel_de_write_fw(display, DEIIR, de_iir);
+		if (DISPLAY_VER(display) >= 7)
+			_ivb_display_irq_handler(display, de_iir);
+		else
+			_ilk_display_irq_handler(display, de_iir);
+		handled = true;
+	}
+
+	return handled;
 }
 
 static u32 gen8_de_port_aux_mask(struct intel_display *display)
