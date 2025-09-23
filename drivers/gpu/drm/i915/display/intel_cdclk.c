@@ -2831,6 +2831,14 @@ static int intel_crtc_compute_min_cdclk(const struct intel_crtc_state *crtc_stat
 	return min_cdclk;
 }
 
+static bool glk_cdclk_audio_wa_needed(struct intel_display *display,
+				      const struct intel_cdclk_state *cdclk_state)
+{
+	return display->platform.geminilake &&
+		cdclk_state->active_pipes &&
+		!is_power_of_2(cdclk_state->active_pipes);
+}
+
 static int intel_compute_min_cdclk(struct intel_atomic_state *state)
 {
 	struct intel_display *display = to_intel_display(state);
@@ -2887,8 +2895,7 @@ static int intel_compute_min_cdclk(struct intel_atomic_state *state)
 	 * by changing the cd2x divider (see glk_cdclk_table[]) and
 	 * thus a full modeset won't be needed then.
 	 */
-	if (display->platform.geminilake && cdclk_state->active_pipes &&
-	    !is_power_of_2(cdclk_state->active_pipes))
+	if (glk_cdclk_audio_wa_needed(display, cdclk_state))
 		min_cdclk = max(min_cdclk, 2 * 96000);
 
 	if (min_cdclk > display->cdclk.max_cdclk_freq) {
