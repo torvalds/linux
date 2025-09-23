@@ -136,12 +136,6 @@ fw_put:
 	return ret;
 }
 
-static int topology(struct xe_gt *gt, struct drm_printer *p)
-{
-	xe_gt_topology_dump(gt, p);
-	return 0;
-}
-
 static int steering(struct xe_gt *gt, struct drm_printer *p)
 {
 	xe_gt_mcr_steering_dump(gt, p);
@@ -239,7 +233,7 @@ static int hwconfig(struct xe_gt *gt, struct drm_printer *p)
  * - without access to the PF specific data
  */
 static const struct drm_info_list vf_safe_debugfs_list[] = {
-	{ "topology", .show = xe_gt_debugfs_show_with_rpm, .data = topology },
+	{ "topology", .show = xe_gt_debugfs_show_with_rpm, .data = xe_gt_topology_dump },
 	{ "register-save-restore",
 		.show = xe_gt_debugfs_show_with_rpm, .data = register_save_restore },
 	{ "workarounds", .show = xe_gt_debugfs_show_with_rpm, .data = workarounds },

@@ -269,8 +269,14 @@ static const char *eu_type_to_str(enum xe_gt_eu_type eu_type)
 	return NULL;
 }
 
-void
-xe_gt_topology_dump(struct xe_gt *gt, struct drm_printer *p)
+/**
+ * xe_gt_topology_dump() - Dump GT topology into a drm printer.
+ * @gt: the &xe_gt
+ * @p: the &drm_printer
+ *
+ * Return: always 0.
+ */
+int xe_gt_topology_dump(struct xe_gt *gt, struct drm_printer *p)
 {
 	drm_printf(p, "dss mask (geometry): %*pb\n", XE_MAX_DSS_FUSE_BITS,
 		   gt->fuse_topo.g_dss_mask);
@@ -285,6 +291,7 @@ xe_gt_topology_dump(struct xe_gt *gt, struct drm_printer *p)
 	if (xe_gt_topology_report_l3(gt))
 		drm_printf(p, "L3 bank mask:        %*pb\n", XE_MAX_L3_BANK_MASK_BITS,
 			   gt->fuse_topo.l3_bank_mask);
+	return 0;
 }
 
 /*
