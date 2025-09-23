@@ -24,7 +24,7 @@ uint32_t guest_random_seed;
 struct guest_random_state guest_rng;
 static uint32_t last_guest_seed;
 
-static int vcpu_mmap_sz(void);
+static size_t vcpu_mmap_sz(void);
 
 int __open_path_or_exit(const char *path, int flags, const char *enoent_help)
 {
@@ -95,7 +95,7 @@ static ssize_t get_module_param(const char *module_name, const char *param,
 	return bytes_read;
 }
 
-static int get_module_param_integer(const char *module_name, const char *param)
+int kvm_get_module_param_integer(const char *module_name, const char *param)
 {
 	/*
 	 * 16 bytes to hold a 64-bit value (1 byte per char), 1 byte for the
@@ -119,7 +119,7 @@ static int get_module_param_integer(const char *module_name, const char *param)
 	return atoi_paranoid(value);
 }
 
-static bool get_module_param_bool(const char *module_name, const char *param)
+bool kvm_get_module_param_bool(const char *module_name, const char *param)
 {
 	char value;
 	ssize_t r;
@@ -133,36 +133,6 @@ static bool get_module_param_bool(const char *module_name, const char *param)
 		return false;
 
 	TEST_FAIL("Unrecognized value '%c' for boolean module param", value);
-}
-
-bool get_kvm_param_bool(const char *param)
-{
-	return get_module_param_bool("kvm", param);
-}
-
-bool get_kvm_intel_param_bool(const char *param)
-{
-	return get_module_param_bool("kvm_intel", param);
-}
-
-bool get_kvm_amd_param_bool(const char *param)
-{
-	return get_module_param_bool("kvm_amd", param);
-}
-
-int get_kvm_param_integer(const char *param)
-{
-	return get_module_param_integer("kvm", param);
-}
-
-int get_kvm_intel_param_integer(const char *param)
-{
-	return get_module_param_integer("kvm_intel", param);
-}
-
-int get_kvm_amd_param_integer(const char *param)
-{
-	return get_module_param_integer("kvm_amd", param);
 }
 
 /*
@@ -1321,14 +1291,14 @@ void vm_guest_mem_fallocate(struct kvm_vm *vm, uint64_t base, uint64_t size,
 }
 
 /* Returns the size of a vCPU's kvm_run structure. */
-static int vcpu_mmap_sz(void)
+static size_t vcpu_mmap_sz(void)
 {
 	int dev_fd, ret;
 
 	dev_fd = open_kvm_dev_path_or_exit();
 
 	ret = ioctl(dev_fd, KVM_GET_VCPU_MMAP_SIZE, NULL);
-	TEST_ASSERT(ret >= sizeof(struct kvm_run),
+	TEST_ASSERT(ret >= 0 && ret >= sizeof(struct kvm_run),
 		    KVM_IOCTL_ERROR(KVM_GET_VCPU_MMAP_SIZE, ret));
 
 	close(dev_fd);
@@ -1369,7 +1339,7 @@ struct kvm_vcpu *__vm_vcpu_add(struct kvm_vm *vm, uint32_t vcpu_id)
 	TEST_ASSERT_VM_VCPU_IOCTL(vcpu->fd >= 0, KVM_CREATE_VCPU, vcpu->fd, vm);
 
 	TEST_ASSERT(vcpu_mmap_sz() >= sizeof(*vcpu->run), "vcpu mmap size "
-		"smaller than expected, vcpu_mmap_sz: %i expected_min: %zi",
+		"smaller than expected, vcpu_mmap_sz: %zi expected_min: %zi",
 		vcpu_mmap_sz(), sizeof(*vcpu->run));
 	vcpu->run = (struct kvm_run *) mmap(NULL, vcpu_mmap_sz(),
 		PROT_READ | PROT_WRITE, MAP_SHARED, vcpu->fd, 0);

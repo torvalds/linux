@@ -260,13 +260,18 @@ int __open_path_or_exit(const char *path, int flags, const char *enoent_help);
 int open_path_or_exit(const char *path, int flags);
 int open_kvm_dev_path_or_exit(void);
 
-bool get_kvm_param_bool(const char *param);
-bool get_kvm_intel_param_bool(const char *param);
-bool get_kvm_amd_param_bool(const char *param);
+int kvm_get_module_param_integer(const char *module_name, const char *param);
+bool kvm_get_module_param_bool(const char *module_name, const char *param);
 
-int get_kvm_param_integer(const char *param);
-int get_kvm_intel_param_integer(const char *param);
-int get_kvm_amd_param_integer(const char *param);
+static inline bool get_kvm_param_bool(const char *param)
+{
+	return kvm_get_module_param_bool("kvm", param);
+}
+
+static inline int get_kvm_param_integer(const char *param)
+{
+	return kvm_get_module_param_integer("kvm", param);
+}
 
 unsigned int kvm_check_cap(long cap);
 
