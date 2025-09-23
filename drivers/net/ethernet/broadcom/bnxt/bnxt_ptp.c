@@ -560,10 +560,11 @@ static int bnxt_hwrm_ptp_cfg(struct bnxt *bp)
 	return bnxt_ptp_cfg_tstamp_filters(bp);
 }
 
-int bnxt_hwtstamp_set(struct net_device *dev, struct ifreq *ifr)
+int bnxt_hwtstamp_set(struct net_device *dev,
+		      struct kernel_hwtstamp_config *stmpconf,
+		      struct netlink_ext_ack *extack)
 {
 	struct bnxt *bp = netdev_priv(dev);
-	struct hwtstamp_config stmpconf;
 	struct bnxt_ptp_cfg *ptp;
 	u16 old_rxctl;
 	int old_rx_filter, rc;
@@ -573,17 +574,14 @@ int bnxt_hwtstamp_set(struct net_device *dev, struct ifreq *ifr)
 	if (!ptp)
 		return -EOPNOTSUPP;
 
-	if (copy_from_user(&stmpconf, ifr->ifr_data, sizeof(stmpconf)))
-		return -EFAULT;
-
-	if (stmpconf.tx_type != HWTSTAMP_TX_ON &&
-	    stmpconf.tx_type != HWTSTAMP_TX_OFF)
+	if (stmpconf->tx_type != HWTSTAMP_TX_ON &&
+	    stmpconf->tx_type != HWTSTAMP_TX_OFF)
 		return -ERANGE;
 
 	old_rx_filter = ptp->rx_filter;
 	old_rxctl = ptp->rxctl;
 	old_tx_tstamp_en = ptp->tx_tstamp_en;
-	switch (stmpconf.rx_filter) {
+	switch (stmpconf->rx_filter) {
 	case HWTSTAMP_FILTER_NONE:
 		ptp->rxctl = 0;
 		ptp->rx_filter = HWTSTAMP_FILTER_NONE;
@@ -616,7 +614,7 @@ int bnxt_hwtstamp_set(struct net_device *dev, struct ifreq *ifr)
 		return -ERANGE;
 	}
 
-	if (stmpconf.tx_type == HWTSTAMP_TX_ON)
+	if (stmpconf->tx_type == HWTSTAMP_TX_ON)
 		ptp->tx_tstamp_en = 1;
 	else
 		ptp->tx_tstamp_en = 0;
@@ -625,9 +623,8 @@ int bnxt_hwtstamp_set(struct net_device *dev, struct ifreq *ifr)
 	if (rc)
 		goto ts_set_err;
 
-	stmpconf.rx_filter = ptp->rx_filter;
-	return copy_to_user(ifr->ifr_data, &stmpconf, sizeof(stmpconf)) ?
-		-EFAULT : 0;
+	stmpconf->rx_filter = ptp->rx_filter;
+	return 0;
 
 ts_set_err:
 	ptp->rx_filter = old_rx_filter;
@@ -636,22 +633,22 @@ ts_set_err:
 	return rc;
 }
 
-int bnxt_hwtstamp_get(struct net_device *dev, struct ifreq *ifr)
+int bnxt_hwtstamp_get(struct net_device *dev,
+		      struct kernel_hwtstamp_config *stmpconf)
 {
 	struct bnxt *bp = netdev_priv(dev);
-	struct hwtstamp_config stmpconf;
 	struct bnxt_ptp_cfg *ptp;
 
 	ptp = bp->ptp_cfg;
 	if (!ptp)
 		return -EOPNOTSUPP;
 
-	stmpconf.flags = 0;
-	stmpconf.tx_type = ptp->tx_tstamp_en ? HWTSTAMP_TX_ON : HWTSTAMP_TX_OFF;
+	stmpconf->flags = 0;
+	stmpconf->tx_type = ptp->tx_tstamp_en ? HWTSTAMP_TX_ON
+					      : HWTSTAMP_TX_OFF;
 
-	stmpconf.rx_filter = ptp->rx_filter;
-	return copy_to_user(ifr->ifr_data, &stmpconf, sizeof(stmpconf)) ?
-		-EFAULT : 0;
+	stmpconf->rx_filter = ptp->rx_filter;
+	return 0;
 }
 
 static int bnxt_map_regs(struct bnxt *bp, u32 *reg_arr, int count, int reg_win)
