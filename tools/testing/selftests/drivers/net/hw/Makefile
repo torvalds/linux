@@ -15,6 +15,7 @@ TEST_PROGS = \
 	iou-zcrx.py \
 	irq.py \
 	loopback.sh \
+	nic_timestamp.py \
 	pp_alloc_fail.py \
 	rss_api.py \
 	rss_ctx.py \
