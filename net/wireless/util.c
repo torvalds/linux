@@ -2942,9 +2942,8 @@ cfg80211_get_iftype_ext_capa(struct wiphy *wiphy, enum nl80211_iftype type)
 }
 EXPORT_SYMBOL(cfg80211_get_iftype_ext_capa);
 
-static bool
-ieee80211_radio_freq_range_valid(const struct wiphy_radio *radio,
-				 u32 freq, u32 width)
+bool ieee80211_radio_freq_range_valid(const struct wiphy_radio *radio,
+				      u32 freq, u32 width)
 {
 	const struct wiphy_radio_freq_range *r;
 	int i;
@@ -2958,6 +2957,7 @@ ieee80211_radio_freq_range_valid(const struct wiphy_radio *radio,
 
 	return false;
 }
+EXPORT_SYMBOL(ieee80211_radio_freq_range_valid);
 
 bool cfg80211_radio_chandef_valid(const struct wiphy_radio *radio,
 				  const struct cfg80211_chan_def *chandef)
