@@ -911,6 +911,38 @@ void stmmac_pltfr_remove(struct platform_device *pdev)
 }
 EXPORT_SYMBOL_GPL(stmmac_pltfr_remove);
 
+static int stmmac_bus_clks_config(struct stmmac_priv *priv, bool enabled)
+{
+	struct plat_stmmacenet_data *plat_dat = priv->plat;
+	int ret;
+
+	if (enabled) {
+		ret = clk_prepare_enable(plat_dat->stmmac_clk);
+		if (ret)
+			return ret;
+		ret = clk_prepare_enable(plat_dat->pclk);
+		if (ret) {
+			clk_disable_unprepare(plat_dat->stmmac_clk);
+			return ret;
+		}
+		if (plat_dat->clks_config) {
+			ret = plat_dat->clks_config(plat_dat->bsp_priv, enabled);
+			if (ret) {
+				clk_disable_unprepare(plat_dat->stmmac_clk);
+				clk_disable_unprepare(plat_dat->pclk);
+				return ret;
+			}
+		}
+	} else {
+		clk_disable_unprepare(plat_dat->stmmac_clk);
+		clk_disable_unprepare(plat_dat->pclk);
+		if (plat_dat->clks_config)
+			plat_dat->clks_config(plat_dat->bsp_priv, enabled);
+	}
+
+	return 0;
+}
+
 static int __maybe_unused stmmac_runtime_suspend(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);

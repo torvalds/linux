@@ -404,7 +404,6 @@ int stmmac_dvr_probe(struct device *device,
 		     struct stmmac_resources *res);
 int stmmac_reinit_queues(struct net_device *dev, u32 rx_cnt, u32 tx_cnt);
 int stmmac_reinit_ringparam(struct net_device *dev, u32 rx_size, u32 tx_size);
-int stmmac_bus_clks_config(struct stmmac_priv *priv, bool enabled);
 int stmmac_set_clk_tx_rate(void *bsp_priv, struct clk *clk_tx_i,
 			   phy_interface_t interface, int speed);
 

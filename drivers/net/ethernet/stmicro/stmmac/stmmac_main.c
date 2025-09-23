@@ -147,39 +147,6 @@ static void stmmac_exit_fs(struct net_device *dev);
 
 #define STMMAC_COAL_TIMER(x) (ns_to_ktime((x) * NSEC_PER_USEC))
 
-int stmmac_bus_clks_config(struct stmmac_priv *priv, bool enabled)
-{
-	struct plat_stmmacenet_data *plat_dat = priv->plat;
-	int ret;
-
-	if (enabled) {
-		ret = clk_prepare_enable(plat_dat->stmmac_clk);
-		if (ret)
-			return ret;
-		ret = clk_prepare_enable(plat_dat->pclk);
-		if (ret) {
-			clk_disable_unprepare(plat_dat->stmmac_clk);
-			return ret;
-		}
-		if (plat_dat->clks_config) {
-			ret = plat_dat->clks_config(plat_dat->bsp_priv, enabled);
-			if (ret) {
-				clk_disable_unprepare(plat_dat->stmmac_clk);
-				clk_disable_unprepare(plat_dat->pclk);
-				return ret;
-			}
-		}
-	} else {
-		clk_disable_unprepare(plat_dat->stmmac_clk);
-		clk_disable_unprepare(plat_dat->pclk);
-		if (plat_dat->clks_config)
-			plat_dat->clks_config(plat_dat->bsp_priv, enabled);
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(stmmac_bus_clks_config);
-
 /**
  * stmmac_set_clk_tx_rate() - set the clock rate for the MAC transmit clock
  * @bsp_priv: BSP private data structure (unused)
