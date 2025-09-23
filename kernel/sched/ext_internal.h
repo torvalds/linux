@@ -871,8 +871,8 @@ struct scx_sched {
 	struct scx_dispatch_q	**global_dsqs;
 	struct scx_sched_pcpu __percpu *pcpu;
 
-	bool			warned_zero_slice;
-	bool			warned_deprecated_rq;
+	bool			warned_zero_slice:1;
+	bool			warned_deprecated_rq:1;
 
 	atomic_t		exit_kind;
 	struct scx_exit_info	*exit_info;
