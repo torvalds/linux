@@ -79,6 +79,36 @@
 			};
 
 			/omit-if-no-ref/
+			i2c2_pd_pins: i2c2-pd-pins {
+				pins = "PD20", "PD21";
+				function = "i2c2";
+			};
+
+			/omit-if-no-ref/
+			i2c3_pg_pins: i2c3-pg-pins {
+				pins = "PG10", "PG11";
+				function = "i2c3";
+			};
+
+			/omit-if-no-ref/
+			i2s1_pins: i2s1-pins {
+				pins = "PG12", "PG13";
+				function = "i2s1";
+			};
+
+			/omit-if-no-ref/
+			i2s1_din0_pin: i2s1-din0-pin {
+				pins = "PG14";
+				function = "i2s1_din";
+			};
+
+			/omit-if-no-ref/
+			i2s1_dout0_pin: i2s1-dout0-pin {
+				pins = "PG15";
+				function = "i2s1_dout";
+			};
+
+			/omit-if-no-ref/
 			lcd_rgb666_pins: lcd-rgb666-pins {
 				pins = "PD0", "PD1", "PD2", "PD3", "PD4", "PD5",
 				       "PD6", "PD7", "PD8", "PD9", "PD10", "PD11",
@@ -124,6 +154,24 @@
 			spi0_pins: spi0-pins {
 				pins = "PC2", "PC3", "PC4", "PC5";
 				function = "spi0";
+			};
+
+			/omit-if-no-ref/
+			spi1_pins: spi1-pins {
+				pins = "PD10", "PD11", "PD12", "PD13";
+				function = "spi1";
+			};
+
+			/omit-if-no-ref/
+			spi1_hold_pin: spi1-hold-pin {
+				pins = "PD14";
+				function = "spi1";
+			};
+
+			/omit-if-no-ref/
+			spi1_wp_pin: spi1-wp-pin {
+				pins = "PD15";
+				function = "spi1";
 			};
 
 			/omit-if-no-ref/
