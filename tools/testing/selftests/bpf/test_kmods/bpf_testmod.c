@@ -62,6 +62,18 @@ struct bpf_testmod_struct_arg_5 {
 	long d;
 };
 
+union bpf_testmod_union_arg_1 {
+	char a;
+	short b;
+	struct bpf_testmod_struct_arg_1 arg;
+};
+
+union bpf_testmod_union_arg_2 {
+	int a;
+	long b;
+	struct bpf_testmod_struct_arg_2 arg;
+};
+
 __bpf_hook_start();
 
 noinline int
@@ -125,6 +137,20 @@ bpf_testmod_test_struct_arg_9(u64 a, void *b, short c, int d, void *e, char f,
 {
 	bpf_testmod_test_struct_arg_result = a + (long)b + c + d + (long)e +
 		f + g + h.a + h.b + h.c + h.d + i;
+	return bpf_testmod_test_struct_arg_result;
+}
+
+noinline int
+bpf_testmod_test_union_arg_1(union bpf_testmod_union_arg_1 a, int b, int c)
+{
+	bpf_testmod_test_struct_arg_result = a.arg.a + b + c;
+	return bpf_testmod_test_struct_arg_result;
+}
+
+noinline int
+bpf_testmod_test_union_arg_2(int a, union bpf_testmod_union_arg_2 b)
+{
+	bpf_testmod_test_struct_arg_result = a + b.arg.a + b.arg.b;
 	return bpf_testmod_test_struct_arg_result;
 }
 
@@ -408,6 +434,8 @@ bpf_testmod_test_read(struct file *file, struct kobject *kobj,
 	struct bpf_testmod_struct_arg_3 *struct_arg3;
 	struct bpf_testmod_struct_arg_4 struct_arg4 = {21, 22};
 	struct bpf_testmod_struct_arg_5 struct_arg5 = {23, 24, 25, 26};
+	union bpf_testmod_union_arg_1 union_arg1 = { .arg = {1} };
+	union bpf_testmod_union_arg_2 union_arg2 = { .arg = {2, 3} };
 	int i = 1;
 
 	while (bpf_testmod_return_ptr(i))
@@ -424,6 +452,9 @@ bpf_testmod_test_read(struct file *file, struct kobject *kobj,
 					    (void *)20, struct_arg4, 23);
 	(void)bpf_testmod_test_struct_arg_9(16, (void *)17, 18, 19, (void *)20,
 					    21, 22, struct_arg5, 27);
+
+	(void)bpf_testmod_test_union_arg_1(union_arg1, 4, 5);
+	(void)bpf_testmod_test_union_arg_2(6, union_arg2);
 
 	(void)bpf_testmod_test_arg_ptr_to_struct(&struct_arg1_2);
 
