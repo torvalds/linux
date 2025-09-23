@@ -3187,6 +3187,44 @@ intel_atomic_get_cdclk_state(struct intel_atomic_state *state)
 	return to_intel_cdclk_state(cdclk_state);
 }
 
+static int intel_cdclk_modeset_checks(struct intel_atomic_state *state,
+				      bool *need_cdclk_calc)
+{
+	struct intel_display *display = to_intel_display(state);
+	const struct intel_cdclk_state *old_cdclk_state;
+	struct intel_cdclk_state *new_cdclk_state;
+	int ret;
+
+	if (!intel_any_crtc_active_changed(state))
+		return 0;
+
+	new_cdclk_state = intel_atomic_get_cdclk_state(state);
+	if (IS_ERR(new_cdclk_state))
+		return PTR_ERR(new_cdclk_state);
+
+	old_cdclk_state = intel_atomic_get_old_cdclk_state(state);
+
+	new_cdclk_state->active_pipes =
+		intel_calc_active_pipes(state, old_cdclk_state->active_pipes);
+
+	ret = intel_atomic_lock_global_state(&new_cdclk_state->base);
+	if (ret)
+		return ret;
+
+	if (!old_cdclk_state->active_pipes != !new_cdclk_state->active_pipes)
+		*need_cdclk_calc = true;
+
+	if (glk_cdclk_audio_wa_needed(display, old_cdclk_state) !=
+	    glk_cdclk_audio_wa_needed(display, new_cdclk_state))
+		*need_cdclk_calc = true;
+
+	if (dg2_power_well_count(display, old_cdclk_state) !=
+	    dg2_power_well_count(display, new_cdclk_state))
+		*need_cdclk_calc = true;
+
+	return 0;
+}
+
 int intel_cdclk_atomic_check(struct intel_atomic_state *state,
 			     bool *need_cdclk_calc)
 {
@@ -3196,6 +3234,10 @@ int intel_cdclk_atomic_check(struct intel_atomic_state *state,
 	struct intel_plane *plane;
 	int ret;
 	int i;
+
+	ret = intel_cdclk_modeset_checks(state, need_cdclk_calc);
+	if (ret)
+		return ret;
 
 	/*
 	 * active_planes bitmask has been updated, and potentially affected
@@ -3278,9 +3320,6 @@ int intel_modeset_calc_cdclk(struct intel_atomic_state *state)
 
 	old_cdclk_state = intel_atomic_get_old_cdclk_state(state);
 
-	new_cdclk_state->active_pipes =
-		intel_calc_active_pipes(state, old_cdclk_state->active_pipes);
-
 	ret = intel_cdclk_modeset_calc_cdclk(state);
 	if (ret)
 		return ret;
@@ -3293,8 +3332,7 @@ int intel_modeset_calc_cdclk(struct intel_atomic_state *state)
 		ret = intel_atomic_serialize_global_state(&new_cdclk_state->base);
 		if (ret)
 			return ret;
-	} else if (old_cdclk_state->active_pipes != new_cdclk_state->active_pipes ||
-		   old_cdclk_state->force_min_cdclk != new_cdclk_state->force_min_cdclk ||
+	} else if (old_cdclk_state->force_min_cdclk != new_cdclk_state->force_min_cdclk ||
 		   intel_cdclk_changed(&old_cdclk_state->logical,
 				       &new_cdclk_state->logical)) {
 		ret = intel_atomic_lock_global_state(&new_cdclk_state->base);
