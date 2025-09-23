@@ -8,6 +8,7 @@
  * Author: Jingoo Han <jg1.han@samsung.com>
  */
 
+#include <linux/align.h>
 #include <linux/iopoll.h>
 #include <linux/irqchip/chained_irq.h>
 #include <linux/irqchip/irq-msi-lib.h>
@@ -31,6 +32,8 @@ static struct pci_ops dw_child_pcie_ops;
 #define DW_PCIE_MSI_FLAGS_SUPPORTED (MSI_FLAG_MULTI_PCI_MSI		| \
 				     MSI_FLAG_PCI_MSIX			| \
 				     MSI_GENERIC_FLAGS_MASK)
+
+#define IS_256MB_ALIGNED(x) IS_ALIGNED(x, SZ_256M)
 
 static const struct msi_parent_ops dw_pcie_msi_parent_ops = {
 	.required_flags		= DW_PCIE_MSI_FLAGS_REQUIRED,
@@ -474,6 +477,34 @@ static int dw_pcie_create_ecam_window(struct dw_pcie_rp *pp, struct resource *re
 	return 0;
 }
 
+static bool dw_pcie_ecam_enabled(struct dw_pcie_rp *pp, struct resource *config_res)
+{
+	struct resource *bus_range;
+	u64 nr_buses;
+
+	/* Vendor glue drivers may implement their own ECAM mechanism */
+	if (pp->native_ecam)
+		return false;
+
+	/*
+	 * PCIe spec r6.0, sec 7.2.2 mandates the base address used for ECAM to
+	 * be aligned on a 2^(n+20) byte boundary, where n is the number of bits
+	 * used for representing 'bus' in BDF. Since the DWC cores always use 8
+	 * bits for representing 'bus', the base address has to be aligned to
+	 * 2^28 byte boundary, which is 256 MiB.
+	 */
+	if (!IS_256MB_ALIGNED(config_res->start))
+		return false;
+
+	bus_range = resource_list_first_type(&pp->bridge->windows, IORESOURCE_BUS)->res;
+	if (!bus_range)
+		return false;
+
+	nr_buses = resource_size(config_res) >> PCIE_ECAM_BUS_SHIFT;
+
+	return nr_buses >= resource_size(bus_range);
+}
+
 static int dw_pcie_host_get_resources(struct dw_pcie_rp *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
@@ -492,6 +523,7 @@ static int dw_pcie_host_get_resources(struct dw_pcie_rp *pp)
 	pp->cfg0_size = resource_size(res);
 	pp->cfg0_base = res->start;
 
+	pp->ecam_enabled = dw_pcie_ecam_enabled(pp, res);
 	if (pp->ecam_enabled) {
 		ret = dw_pcie_create_ecam_window(pp, res);
 		if (ret)

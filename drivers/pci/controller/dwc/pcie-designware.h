@@ -429,6 +429,7 @@ struct dw_pcie_rp {
 	struct pci_eq_presets	presets;
 	struct pci_config_window *cfg;
 	bool			ecam_enabled;
+	bool			native_ecam;
 };
 
 struct dw_pcie_ep_ops {
