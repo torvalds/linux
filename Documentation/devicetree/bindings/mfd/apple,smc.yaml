@@ -15,12 +15,17 @@ description:
 
 properties:
   compatible:
-    items:
-      - enum:
-          - apple,t6000-smc
-          - apple,t8103-smc
-          - apple,t8112-smc
-      - const: apple,smc
+    oneOf:
+      - items:
+          - const: apple,t6020-smc
+          - const: apple,t8103-smc
+      - items:
+          - enum:
+              # Do not add additional SoC to this list.
+              - apple,t6000-smc
+              - apple,t8103-smc
+              - apple,t8112-smc
+          - const: apple,smc
 
   reg:
     items:

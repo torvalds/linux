@@ -31,7 +31,15 @@ properties:
               - apple,t8103-asc-mailbox
               - apple,t8112-asc-mailbox
               - apple,t6000-asc-mailbox
+              - apple,t6020-asc-mailbox
           - const: apple,asc-mailbox-v4
+
+      - description:
+          An older ASC mailbox interface found on T2 and A11 that is also
+          used for the NVMe coprocessor and the system management
+          controller.
+        items:
+          - const: apple,t8015-asc-mailbox
 
       - description:
           M3 mailboxes are an older variant with a slightly different MMIO

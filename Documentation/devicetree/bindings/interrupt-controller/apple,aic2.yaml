@@ -34,6 +34,7 @@ properties:
       - enum:
           - apple,t8112-aic
           - apple,t6000-aic
+          - apple,t6020-aic
       - const: apple,aic2
 
   interrupt-controller: true
