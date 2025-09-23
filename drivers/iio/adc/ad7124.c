@@ -1348,6 +1348,7 @@ static int ad7124_parse_channel_config(struct iio_dev *indio_dev,
 			},
 			.address = num_channels,
 			.scan_index = num_channels,
+			.ext_info = ad7124_calibsys_ext_info,
 		};
 	}
 
