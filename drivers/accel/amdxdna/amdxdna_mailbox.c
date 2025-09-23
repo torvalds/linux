@@ -194,7 +194,8 @@ static void mailbox_release_msg(struct mailbox_channel *mb_chann,
 {
 	MB_DBG(mb_chann, "msg_id 0x%x msg opcode 0x%x",
 	       mb_msg->pkg.header.id, mb_msg->pkg.header.opcode);
-	mb_msg->notify_cb(mb_msg->handle, NULL, 0);
+	if (mb_msg->notify_cb)
+		mb_msg->notify_cb(mb_msg->handle, NULL, 0);
 	kfree(mb_msg);
 }
 
@@ -248,7 +249,7 @@ mailbox_get_resp(struct mailbox_channel *mb_chann, struct xdna_msg_header *heade
 {
 	struct mailbox_msg *mb_msg;
 	int msg_id;
-	int ret;
+	int ret = 0;
 
 	msg_id = header->id;
 	if (!mailbox_validate_msgid(msg_id)) {
@@ -265,9 +266,11 @@ mailbox_get_resp(struct mailbox_channel *mb_chann, struct xdna_msg_header *heade
 
 	MB_DBG(mb_chann, "opcode 0x%x size %d id 0x%x",
 	       header->opcode, header->total_size, header->id);
-	ret = mb_msg->notify_cb(mb_msg->handle, data, header->total_size);
-	if (unlikely(ret))
-		MB_ERR(mb_chann, "Message callback ret %d", ret);
+	if (mb_msg->notify_cb) {
+		ret = mb_msg->notify_cb(mb_msg->handle, data, header->total_size);
+		if (unlikely(ret))
+			MB_ERR(mb_chann, "Message callback ret %d", ret);
+	}
 
 	kfree(mb_msg);
 	return ret;

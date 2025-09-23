@@ -161,19 +161,14 @@ int amdxdna_drm_create_hwctx_ioctl(struct drm_device *dev, void *data, struct dr
 	if (args->ext || args->ext_flags)
 		return -EINVAL;
 
-	if (!drm_dev_enter(dev, &idx))
-		return -ENODEV;
-
 	hwctx = kzalloc(sizeof(*hwctx), GFP_KERNEL);
-	if (!hwctx) {
-		ret = -ENOMEM;
-		goto exit;
-	}
+	if (!hwctx)
+		return -ENOMEM;
 
 	if (copy_from_user(&hwctx->qos, u64_to_user_ptr(args->qos_p), sizeof(hwctx->qos))) {
 		XDNA_ERR(xdna, "Access QoS info failed");
-		ret = -EFAULT;
-		goto free_hwctx;
+		kfree(hwctx);
+		return -EFAULT;
 	}
 
 	hwctx->client = client;
@@ -181,30 +176,36 @@ int amdxdna_drm_create_hwctx_ioctl(struct drm_device *dev, void *data, struct dr
 	hwctx->num_tiles = args->num_tiles;
 	hwctx->mem_size = args->mem_size;
 	hwctx->max_opc = args->max_opc;
+
+	guard(mutex)(&xdna->dev_lock);
+
+	if (!drm_dev_enter(dev, &idx)) {
+		ret = -ENODEV;
+		goto free_hwctx;
+	}
+
+	ret = xdna->dev_info->ops->hwctx_init(hwctx);
+	if (ret) {
+		XDNA_ERR(xdna, "Init hwctx failed, ret %d", ret);
+		goto dev_exit;
+	}
+
+	hwctx->name = kasprintf(GFP_KERNEL, "hwctx.%d.%d", client->pid, hwctx->fw_ctx_id);
+	if (!hwctx->name) {
+		ret = -ENOMEM;
+		goto fini_hwctx;
+	}
+
 	ret = xa_alloc_cyclic(&client->hwctx_xa, &hwctx->id, hwctx,
 			      XA_LIMIT(AMDXDNA_INVALID_CTX_HANDLE + 1, MAX_HWCTX_ID),
 			      &client->next_hwctxid, GFP_KERNEL);
 	if (ret < 0) {
 		XDNA_ERR(xdna, "Allocate hwctx ID failed, ret %d", ret);
-		goto free_hwctx;
-	}
-
-	hwctx->name = kasprintf(GFP_KERNEL, "hwctx.%d.%d", client->pid, hwctx->id);
-	if (!hwctx->name) {
-		ret = -ENOMEM;
-		goto rm_id;
-	}
-
-	mutex_lock(&xdna->dev_lock);
-	ret = xdna->dev_info->ops->hwctx_init(hwctx);
-	if (ret) {
-		mutex_unlock(&xdna->dev_lock);
-		XDNA_ERR(xdna, "Init hwctx failed, ret %d", ret);
 		goto free_name;
 	}
+
 	args->handle = hwctx->id;
 	args->syncobj_handle = hwctx->syncobj_hdl;
-	mutex_unlock(&xdna->dev_lock);
 
 	atomic64_set(&hwctx->job_submit_cnt, 0);
 	atomic64_set(&hwctx->job_free_cnt, 0);
@@ -214,12 +215,12 @@ int amdxdna_drm_create_hwctx_ioctl(struct drm_device *dev, void *data, struct dr
 
 free_name:
 	kfree(hwctx->name);
-rm_id:
-	xa_erase(&client->hwctx_xa, hwctx->id);
+fini_hwctx:
+	xdna->dev_info->ops->hwctx_fini(hwctx);
+dev_exit:
+	drm_dev_exit(idx);
 free_hwctx:
 	kfree(hwctx);
-exit:
-	drm_dev_exit(idx);
 	return ret;
 }
 
@@ -431,11 +432,6 @@ int amdxdna_cmd_submit(struct amdxdna_client *client,
 		goto unlock_srcu;
 	}
 
-	if (hwctx->status != HWCTX_STAT_READY) {
-		XDNA_ERR(xdna, "HW Context is not ready");
-		ret = -EINVAL;
-		goto unlock_srcu;
-	}
 
 	job->hwctx = hwctx;
 	job->mm = current->mm;

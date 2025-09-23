@@ -6,6 +6,7 @@
 #ifndef _AMDXDNA_PCI_DRV_H_
 #define _AMDXDNA_PCI_DRV_H_
 
+#include <drm/drm_print.h>
 #include <linux/workqueue.h>
 #include <linux/xarray.h>
 
@@ -99,6 +100,7 @@ struct amdxdna_dev {
 	struct amdxdna_fw_ver		fw_ver;
 	struct rw_semaphore		notifier_lock; /* for mmu notifier*/
 	struct workqueue_struct		*notifier_wq;
+	bool				rpm_on;
 };
 
 /*
