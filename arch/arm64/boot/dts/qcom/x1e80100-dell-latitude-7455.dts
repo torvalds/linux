@@ -38,6 +38,11 @@
 	};
 };
 
+&iris {
+	firmware-name = "qcom/x1e80100/dell/latitude-7455/qcvss8380.mbn";
+	status = "okay";
+};
+
 &remoteproc_adsp {
 	firmware-name = "qcom/x1e80100/dell/latitude-7455/qcadsp8380.mbn",
 			"qcom/x1e80100/dell/latitude-7455/adsp_dtbs.elf";
