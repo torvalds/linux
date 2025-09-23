@@ -8977,7 +8977,6 @@ F:	drivers/infiniband/hw/ocrdma/
 F:	include/uapi/rdma/ocrdma-abi.h
 
 EMULEX/BROADCOM EFCT FC/FCOE SCSI TARGET DRIVER
-M:	James Smart <james.smart@broadcom.com>
 M:	Ram Vegesna <ram.vegesna@broadcom.com>
 L:	linux-scsi@vger.kernel.org
 L:	target-devel@vger.kernel.org
@@ -8986,8 +8985,8 @@ W:	http://www.broadcom.com
 F:	drivers/scsi/elx/
 
 EMULEX/BROADCOM LPFC FC/FCOE SCSI DRIVER
-M:	James Smart <james.smart@broadcom.com>
-M:	Dick Kennedy <dick.kennedy@broadcom.com>
+M:	Justin Tee <justin.tee@broadcom.com>
+M:	Paul Ely <paul.ely@broadcom.com>
 L:	linux-scsi@vger.kernel.org
 S:	Supported
 W:	http://www.broadcom.com
@@ -18129,7 +18128,9 @@ F:	drivers/nvme/target/fabrics-cmd-auth.c
 F:	include/linux/nvme-auth.h
 
 NVM EXPRESS FC TRANSPORT DRIVERS
-M:	James Smart <james.smart@broadcom.com>
+M:	Justin Tee <justin.tee@broadcom.com>
+M:	Naresh Gottumukkala <nareshgottumukkala83@gmail.com>
+M:	Paul Ely <paul.ely@broadcom.com>
 L:	linux-nvme@lists.infradead.org
 S:	Supported
 F:	drivers/nvme/host/fc.c
