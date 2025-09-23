@@ -386,7 +386,7 @@ static int riic_init_hw(struct riic_dev *riic)
 	 */
 	total_ticks = DIV_ROUND_UP(rate, t->bus_freq_hz ?: 1);
 
-	for (cks = 0; cks < 7; cks++) {
+	for (cks = 0; cks <= 7; cks++) {
 		/*
 		 * 60% low time must be less than BRL + 2 + 1
 		 * BRL max register value is 0x1F.
