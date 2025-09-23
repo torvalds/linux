@@ -309,6 +309,40 @@ static bool cs35l63_volatile_reg(struct device *dev, unsigned int reg)
 	}
 }
 
+static const struct cs35l56_fw_reg cs35l56_fw_reg = {
+	.fw_ver = CS35L56_DSP1_FW_VER,
+	.halo_state = CS35L56_DSP1_HALO_STATE,
+	.pm_cur_stat = CS35L56_DSP1_PM_CUR_STATE,
+	.prot_sts = CS35L56_PROTECTION_STATUS,
+	.transducer_actual_ps = CS35L56_TRANSDUCER_ACTUAL_PS,
+	.user_mute = CS35L56_MAIN_RENDER_USER_MUTE,
+	.user_volume = CS35L56_MAIN_RENDER_USER_VOLUME,
+	.posture_number = CS35L56_MAIN_POSTURE_NUMBER,
+};
+
+static const struct cs35l56_fw_reg cs35l63_fw_reg = {
+	.fw_ver = CS35L63_DSP1_FW_VER,
+	.halo_state = CS35L63_DSP1_HALO_STATE,
+	.pm_cur_stat = CS35L63_DSP1_PM_CUR_STATE,
+	.prot_sts = CS35L63_PROTECTION_STATUS,
+	.transducer_actual_ps = CS35L63_TRANSDUCER_ACTUAL_PS,
+	.user_mute = CS35L63_MAIN_RENDER_USER_MUTE,
+	.user_volume = CS35L63_MAIN_RENDER_USER_VOLUME,
+	.posture_number = CS35L63_MAIN_POSTURE_NUMBER,
+};
+
+static void cs35l56_set_fw_reg_table(struct cs35l56_base *cs35l56_base)
+{
+	switch (cs35l56_base->type) {
+	default:
+		cs35l56_base->fw_reg = &cs35l56_fw_reg;
+		break;
+	case 0x63:
+		cs35l56_base->fw_reg = &cs35l63_fw_reg;
+		break;
+	}
+}
+
 int cs35l56_mbox_send(struct cs35l56_base *cs35l56_base, unsigned int command)
 {
 	unsigned int val;
@@ -979,6 +1013,7 @@ int cs35l56_hw_init(struct cs35l56_base *cs35l56_base)
 		return ret;
 	}
 	cs35l56_base->rev = revid & (CS35L56_AREVID_MASK | CS35L56_MTLREVID_MASK);
+	cs35l56_set_fw_reg_table(cs35l56_base);
 
 	ret = cs35l56_wait_for_firmware_boot(cs35l56_base);
 	if (ret)
@@ -1279,30 +1314,6 @@ const struct regmap_config cs35l63_regmap_sdw = {
 	.cache_type = REGCACHE_MAPLE,
 };
 EXPORT_SYMBOL_NS_GPL(cs35l63_regmap_sdw, "SND_SOC_CS35L56_SHARED");
-
-const struct cs35l56_fw_reg cs35l56_fw_reg = {
-	.fw_ver = CS35L56_DSP1_FW_VER,
-	.halo_state = CS35L56_DSP1_HALO_STATE,
-	.pm_cur_stat = CS35L56_DSP1_PM_CUR_STATE,
-	.prot_sts = CS35L56_PROTECTION_STATUS,
-	.transducer_actual_ps = CS35L56_TRANSDUCER_ACTUAL_PS,
-	.user_mute = CS35L56_MAIN_RENDER_USER_MUTE,
-	.user_volume = CS35L56_MAIN_RENDER_USER_VOLUME,
-	.posture_number = CS35L56_MAIN_POSTURE_NUMBER,
-};
-EXPORT_SYMBOL_NS_GPL(cs35l56_fw_reg, "SND_SOC_CS35L56_SHARED");
-
-const struct cs35l56_fw_reg cs35l63_fw_reg = {
-	.fw_ver = CS35L63_DSP1_FW_VER,
-	.halo_state = CS35L63_DSP1_HALO_STATE,
-	.pm_cur_stat = CS35L63_DSP1_PM_CUR_STATE,
-	.prot_sts = CS35L63_PROTECTION_STATUS,
-	.transducer_actual_ps = CS35L63_TRANSDUCER_ACTUAL_PS,
-	.user_mute = CS35L63_MAIN_RENDER_USER_MUTE,
-	.user_volume = CS35L63_MAIN_RENDER_USER_VOLUME,
-	.posture_number = CS35L63_MAIN_POSTURE_NUMBER,
-};
-EXPORT_SYMBOL_NS_GPL(cs35l63_fw_reg, "SND_SOC_CS35L56_SHARED");
 
 MODULE_DESCRIPTION("ASoC CS35L56 Shared");
 MODULE_AUTHOR("Richard Fitzgerald <rf@opensource.cirrus.com>");

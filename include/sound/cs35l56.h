@@ -337,9 +337,6 @@ extern const struct regmap_config cs35l56_regmap_sdw;
 extern const struct regmap_config cs35l63_regmap_i2c;
 extern const struct regmap_config cs35l63_regmap_sdw;
 
-extern const struct cs35l56_fw_reg cs35l56_fw_reg;
-extern const struct cs35l56_fw_reg cs35l63_fw_reg;
-
 extern const struct cirrus_amp_cal_controls cs35l56_calibration_controls;
 
 extern const char * const cs35l56_tx_input_texts[CS35L56_NUM_INPUT_SRC];
