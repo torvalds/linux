@@ -270,26 +270,26 @@ static bool ovl_fill_merge(struct dir_context *ctx, const char *name,
 
 static int ovl_check_whiteouts(const struct path *path, struct ovl_readdir_data *rdd)
 {
-	int err;
+	int err = 0;
 	struct dentry *dentry, *dir = path->dentry;
 	const struct cred *old_cred;
 
 	old_cred = ovl_override_creds(rdd->dentry->d_sb);
 
-	err = down_write_killable(&dir->d_inode->i_rwsem);
-	if (!err) {
-		while (rdd->first_maybe_whiteout) {
-			struct ovl_cache_entry *p =
-				rdd->first_maybe_whiteout;
-			rdd->first_maybe_whiteout = p->next_maybe_whiteout;
-			dentry = lookup_one(mnt_idmap(path->mnt),
-					    &QSTR_LEN(p->name, p->len), dir);
-			if (!IS_ERR(dentry)) {
-				p->is_whiteout = ovl_is_whiteout(dentry);
-				dput(dentry);
-			}
+	while (rdd->first_maybe_whiteout) {
+		struct ovl_cache_entry *p =
+			rdd->first_maybe_whiteout;
+		rdd->first_maybe_whiteout = p->next_maybe_whiteout;
+		dentry = lookup_one_positive_killable(mnt_idmap(path->mnt),
+						      &QSTR_LEN(p->name, p->len),
+						      dir);
+		if (!IS_ERR(dentry)) {
+			p->is_whiteout = ovl_is_whiteout(dentry);
+			dput(dentry);
+		} else if (PTR_ERR(dentry) == -EINTR) {
+			err = -EINTR;
+			break;
 		}
-		inode_unlock(dir->d_inode);
 	}
 	ovl_revert_creds(old_cred);
 

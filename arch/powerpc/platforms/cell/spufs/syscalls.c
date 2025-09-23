@@ -67,11 +67,11 @@ static long do_spu_create(const char __user *pathname, unsigned int flags,
 	struct dentry *dentry;
 	int ret;
 
-	dentry = user_path_create(AT_FDCWD, pathname, &path, LOOKUP_DIRECTORY);
+	dentry = start_creating_user_path(AT_FDCWD, pathname, &path, LOOKUP_DIRECTORY);
 	ret = PTR_ERR(dentry);
 	if (!IS_ERR(dentry)) {
 		ret = spufs_create(&path, dentry, flags, mode, neighbor);
-		done_path_create(&path, dentry);
+		end_creating_path(&path, dentry);
 	}
 
 	return ret;

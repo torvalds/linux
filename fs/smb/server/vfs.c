@@ -196,7 +196,7 @@ int ksmbd_vfs_create(struct ksmbd_work *work, const char *name, umode_t mode)
 		pr_err("File(%s): creation failed (err:%d)\n", name, err);
 	}
 
-	done_path_create(&path, dentry);
+	end_creating_path(&path, dentry);
 	return err;
 }
 
@@ -237,7 +237,7 @@ int ksmbd_vfs_mkdir(struct ksmbd_work *work, const char *name, umode_t mode)
 	if (!err && dentry != d)
 		ksmbd_vfs_inherit_owner(work, d_inode(path.dentry), d_inode(dentry));
 
-	done_path_create(&path, dentry);
+	end_creating_path(&path, dentry);
 	if (err)
 		pr_err("mkdir(%s): creation failed (err:%d)\n", name, err);
 	return err;
@@ -669,7 +669,7 @@ int ksmbd_vfs_link(struct ksmbd_work *work, const char *oldname,
 		ksmbd_debug(VFS, "vfs_link failed err %d\n", err);
 
 out3:
-	done_path_create(&newpath, dentry);
+	end_creating_path(&newpath, dentry);
 out2:
 	path_put(&oldpath);
 out1:
@@ -770,10 +770,9 @@ retry:
 		goto out4;
 	}
 
-	rd.old_mnt_idmap	= mnt_idmap(old_path->mnt),
+	rd.mnt_idmap		= mnt_idmap(old_path->mnt),
 	rd.old_parent		= old_parent,
 	rd.old_dentry		= old_child,
-	rd.new_mnt_idmap	= mnt_idmap(new_path.mnt),
 	rd.new_parent		= new_path.dentry,
 	rd.new_dentry		= new_dentry,
 	rd.flags		= flags,
@@ -1326,7 +1325,7 @@ struct dentry *ksmbd_vfs_kern_path_create(struct ksmbd_work *work,
 	if (!abs_name)
 		return ERR_PTR(-ENOMEM);
 
-	dent = kern_path_create(AT_FDCWD, abs_name, path, flags);
+	dent = start_creating_path(AT_FDCWD, abs_name, path, flags);
 	kfree(abs_name);
 	return dent;
 }
