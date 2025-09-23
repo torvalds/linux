@@ -3937,10 +3937,6 @@ static int __stmmac_open(struct net_device *dev,
 	u32 chan;
 	int ret;
 
-	ret = stmmac_init_phy(dev);
-	if (ret)
-		return ret;
-
 	for (int i = 0; i < MTL_MAX_TX_QUEUES; i++)
 		if (priv->dma_conf.tx_queue[i].tbs & STMMAC_TBS_EN)
 			dma_conf->tx_queue[i].tbs = priv->dma_conf.tx_queue[i].tbs;
@@ -3990,7 +3986,6 @@ irq_error:
 
 	stmmac_release_ptp(priv);
 init_error:
-	phylink_disconnect_phy(priv->phylink);
 	return ret;
 }
 
@@ -4010,17 +4005,27 @@ static int stmmac_open(struct net_device *dev)
 
 	ret = pm_runtime_resume_and_get(priv->device);
 	if (ret < 0)
-		goto err;
+		goto err_dma_resources;
+
+	ret = stmmac_init_phy(dev);
+	if (ret)
+		goto err_runtime_pm;
 
 	ret = __stmmac_open(dev, dma_conf);
-	if (ret) {
-		pm_runtime_put(priv->device);
-err:
-		free_dma_desc_resources(priv, dma_conf);
-	}
+	if (ret)
+		goto err_disconnect_phy;
 
 	kfree(dma_conf);
 
+	return ret;
+
+err_disconnect_phy:
+	phylink_disconnect_phy(priv->phylink);
+err_runtime_pm:
+	pm_runtime_put(priv->device);
+err_dma_resources:
+	free_dma_desc_resources(priv, dma_conf);
+	kfree(dma_conf);
 	return ret;
 }
 
@@ -4038,7 +4043,6 @@ static void __stmmac_release(struct net_device *dev)
 
 	/* Stop and disconnect the PHY */
 	phylink_stop(priv->phylink);
-	phylink_disconnect_phy(priv->phylink);
 
 	stmmac_disable_all_queues(priv);
 
@@ -4078,6 +4082,7 @@ static int stmmac_release(struct net_device *dev)
 
 	__stmmac_release(dev);
 
+	phylink_disconnect_phy(priv->phylink);
 	pm_runtime_put(priv->device);
 
 	return 0;
