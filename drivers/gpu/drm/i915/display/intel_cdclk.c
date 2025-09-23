@@ -3311,48 +3311,6 @@ static int intel_crtcs_calc_min_cdclk(struct intel_atomic_state *state,
 	return 0;
 }
 
-static int intel_modeset_calc_cdclk(struct intel_atomic_state *state);
-
-int intel_cdclk_atomic_check(struct intel_atomic_state *state)
-{
-	const struct intel_cdclk_state *old_cdclk_state;
-	struct intel_cdclk_state *new_cdclk_state;
-	bool need_cdclk_calc = false;
-	int ret;
-
-	ret = intel_cdclk_modeset_checks(state, &need_cdclk_calc);
-	if (ret)
-		return ret;
-
-	ret = intel_crtcs_calc_min_cdclk(state, &need_cdclk_calc);
-	if (ret)
-		return ret;
-
-	ret = intel_bw_calc_min_cdclk(state, &need_cdclk_calc);
-	if (ret)
-		return ret;
-
-	old_cdclk_state = intel_atomic_get_old_cdclk_state(state);
-	new_cdclk_state = intel_atomic_get_new_cdclk_state(state);
-
-	if (new_cdclk_state &&
-	    old_cdclk_state->force_min_cdclk != new_cdclk_state->force_min_cdclk) {
-		ret = intel_atomic_lock_global_state(&new_cdclk_state->base);
-		if (ret)
-			return ret;
-
-		need_cdclk_calc = true;
-	}
-
-	if (need_cdclk_calc) {
-		ret = intel_modeset_calc_cdclk(state);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
-}
-
 int intel_cdclk_state_set_joined_mbus(struct intel_atomic_state *state, bool joined_mbus)
 {
 	struct intel_cdclk_state *cdclk_state;
@@ -3499,6 +3457,46 @@ static int intel_modeset_calc_cdclk(struct intel_atomic_state *state)
 		    "New voltage level calculated to be logical %u, actual %u\n",
 		    new_cdclk_state->logical.voltage_level,
 		    new_cdclk_state->actual.voltage_level);
+
+	return 0;
+}
+
+int intel_cdclk_atomic_check(struct intel_atomic_state *state)
+{
+	const struct intel_cdclk_state *old_cdclk_state;
+	struct intel_cdclk_state *new_cdclk_state;
+	bool need_cdclk_calc = false;
+	int ret;
+
+	ret = intel_cdclk_modeset_checks(state, &need_cdclk_calc);
+	if (ret)
+		return ret;
+
+	ret = intel_crtcs_calc_min_cdclk(state, &need_cdclk_calc);
+	if (ret)
+		return ret;
+
+	ret = intel_bw_calc_min_cdclk(state, &need_cdclk_calc);
+	if (ret)
+		return ret;
+
+	old_cdclk_state = intel_atomic_get_old_cdclk_state(state);
+	new_cdclk_state = intel_atomic_get_new_cdclk_state(state);
+
+	if (new_cdclk_state &&
+	    old_cdclk_state->force_min_cdclk != new_cdclk_state->force_min_cdclk) {
+		ret = intel_atomic_lock_global_state(&new_cdclk_state->base);
+		if (ret)
+			return ret;
+
+		need_cdclk_calc = true;
+	}
+
+	if (need_cdclk_calc) {
+		ret = intel_modeset_calc_cdclk(state);
+		if (ret)
+			return ret;
+	}
 
 	return 0;
 }
