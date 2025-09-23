@@ -57,7 +57,6 @@
 #include "smc_stats.h"
 #include "smc_tracepoint.h"
 #include "smc_sysctl.h"
-#include "smc_loopback.h"
 #include "smc_inet.h"
 
 static DEFINE_MUTEX(smc_server_lgr_pending);	/* serialize link group
@@ -3591,16 +3590,10 @@ static int __init smc_init(void)
 		goto out_sock;
 	}
 
-	rc = smc_loopback_init();
-	if (rc) {
-		pr_err("%s: smc_loopback_init fails with %d\n", __func__, rc);
-		goto out_ib;
-	}
-
 	rc = tcp_register_ulp(&smc_ulp_ops);
 	if (rc) {
 		pr_err("%s: tcp_ulp_register fails with %d\n", __func__, rc);
-		goto out_lo;
+		goto out_ib;
 	}
 	rc = smc_inet_init();
 	if (rc) {
@@ -3611,8 +3604,6 @@ static int __init smc_init(void)
 	return 0;
 out_ulp:
 	tcp_unregister_ulp(&smc_ulp_ops);
-out_lo:
-	smc_loopback_exit();
 out_ib:
 	smc_ib_unregister_client();
 out_sock:
@@ -3651,7 +3642,6 @@ static void __exit smc_exit(void)
 	tcp_unregister_ulp(&smc_ulp_ops);
 	sock_unregister(PF_SMC);
 	smc_core_exit();
-	smc_loopback_exit();
 	smc_ib_unregister_client();
 	smc_ism_exit();
 	destroy_workqueue(smc_close_wq);

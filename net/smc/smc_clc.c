@@ -916,7 +916,7 @@ int smc_clc_send_proposal(struct smc_sock *smc, struct smc_init_info *ini)
 		/* add SMC-D specifics */
 		if (ini->ism_dev[0]) {
 			smcd = ini->ism_dev[0];
-			smcd->ops->get_local_gid(smcd, &smcd_gid);
+			copy_to_smcdgid(&smcd_gid, &smcd->dibs->gid);
 			pclc_smcd->ism.gid = htonll(smcd_gid.gid);
 			pclc_smcd->ism.chid =
 				htons(smc_ism_get_chid(ini->ism_dev[0]));
@@ -966,7 +966,7 @@ int smc_clc_send_proposal(struct smc_sock *smc, struct smc_init_info *ini)
 		if (ini->ism_offered_cnt) {
 			for (i = 1; i <= ini->ism_offered_cnt; i++) {
 				smcd = ini->ism_dev[i];
-				smcd->ops->get_local_gid(smcd, &smcd_gid);
+				copy_to_smcdgid(&smcd_gid, &smcd->dibs->gid);
 				gidchids[entry].chid =
 					htons(smc_ism_get_chid(ini->ism_dev[i]));
 				gidchids[entry].gid = htonll(smcd_gid.gid);
@@ -1059,7 +1059,7 @@ smcd_clc_prep_confirm_accept(struct smc_connection *conn,
 	/* SMC-D specific settings */
 	memcpy(clc->hdr.eyecatcher, SMCD_EYECATCHER,
 	       sizeof(SMCD_EYECATCHER));
-	smcd->ops->get_local_gid(smcd, &smcd_gid);
+	copy_to_smcdgid(&smcd_gid, &smcd->dibs->gid);
 	clc->hdr.typev1 = SMC_TYPE_D;
 	clc->d0.gid = htonll(smcd_gid.gid);
 	clc->d0.token = htonll(conn->rmb_desc->token);
