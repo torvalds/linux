@@ -153,14 +153,20 @@ print_syscall_enter(struct trace_iterator *iter, int flags,
 		if (trace_seq_has_overflowed(s))
 			goto end;
 
+		if (i)
+			trace_seq_puts(s, ", ");
+
 		/* parameter types */
 		if (tr && tr->trace_flags & TRACE_ITER_VERBOSE)
 			trace_seq_printf(s, "%s ", entry->types[i]);
 
 		/* parameter values */
-		trace_seq_printf(s, "%s: %lx%s", entry->args[i],
-				 trace->args[i],
-				 i == entry->nb_args - 1 ? "" : ", ");
+		if (trace->args[i] < 10)
+			trace_seq_printf(s, "%s: %lu", entry->args[i],
+					 trace->args[i]);
+		else
+			trace_seq_printf(s, "%s: 0x%lx", entry->args[i],
+					 trace->args[i]);
 	}
 
 	trace_seq_putc(s, ')');
