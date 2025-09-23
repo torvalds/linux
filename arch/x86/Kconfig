@@ -127,8 +127,8 @@ config X86
 	select ARCH_SUPPORTS_PAGE_TABLE_CHECK	if X86_64
 	select ARCH_SUPPORTS_NUMA_BALANCING	if X86_64
 	select ARCH_SUPPORTS_KMAP_LOCAL_FORCE_MAP	if NR_CPUS <= 4096
-	select ARCH_SUPPORTS_CFI_CLANG		if X86_64
-	select ARCH_USES_CFI_TRAPS		if X86_64 && CFI_CLANG
+	select ARCH_SUPPORTS_CFI		if X86_64
+	select ARCH_USES_CFI_TRAPS		if X86_64 && CFI
 	select ARCH_SUPPORTS_LTO_CLANG
 	select ARCH_SUPPORTS_LTO_CLANG_THIN
 	select ARCH_SUPPORTS_RT
@@ -2396,11 +2396,11 @@ config FUNCTION_PADDING_CFI
 	default  3 if FUNCTION_ALIGNMENT_8B
 	default  0
 
-# Basically: FUNCTION_ALIGNMENT - 5*CFI_CLANG
+# Basically: FUNCTION_ALIGNMENT - 5*CFI
 # except Kconfig can't do arithmetic :/
 config FUNCTION_PADDING_BYTES
 	int
-	default FUNCTION_PADDING_CFI if CFI_CLANG
+	default FUNCTION_PADDING_CFI if CFI
 	default FUNCTION_ALIGNMENT
 
 config CALL_PADDING
@@ -2410,7 +2410,7 @@ config CALL_PADDING
 
 config FINEIBT
 	def_bool y
-	depends on X86_KERNEL_IBT && CFI_CLANG && MITIGATION_RETPOLINE
+	depends on X86_KERNEL_IBT && CFI && MITIGATION_RETPOLINE
 	select CALL_PADDING
 
 config FINEIBT_BHI
@@ -2427,7 +2427,7 @@ config CALL_THUNKS
 
 config PREFIX_SYMBOLS
 	def_bool y
-	depends on CALL_PADDING && !CFI_CLANG
+	depends on CALL_PADDING && !CFI
 
 menuconfig CPU_MITIGATIONS
 	bool "Mitigations for CPU vulnerabilities"

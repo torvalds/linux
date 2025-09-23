@@ -185,7 +185,7 @@ static inline void emit_bti(u32 insn, struct jit_ctx *ctx)
 
 static inline void emit_kcfi(u32 hash, struct jit_ctx *ctx)
 {
-	if (IS_ENABLED(CONFIG_CFI_CLANG))
+	if (IS_ENABLED(CONFIG_CFI))
 		emit_u32_data(hash, ctx);
 }
 

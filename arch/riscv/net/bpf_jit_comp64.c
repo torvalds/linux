@@ -18,7 +18,7 @@
 #define RV_MAX_REG_ARGS 8
 #define RV_FENTRY_NINSNS 2
 #define RV_FENTRY_NBYTES (RV_FENTRY_NINSNS * 4)
-#define RV_KCFI_NINSNS (IS_ENABLED(CONFIG_CFI_CLANG) ? 1 : 0)
+#define RV_KCFI_NINSNS (IS_ENABLED(CONFIG_CFI) ? 1 : 0)
 /* imm that allows emit_imm to emit max count insns */
 #define RV_MAX_COUNT_IMM 0x7FFF7FF7FF7FF7FF
 
@@ -469,7 +469,7 @@ static int emit_call(u64 addr, bool fixed_addr, struct rv_jit_context *ctx)
 
 static inline void emit_kcfi(u32 hash, struct rv_jit_context *ctx)
 {
-	if (IS_ENABLED(CONFIG_CFI_CLANG))
+	if (IS_ENABLED(CONFIG_CFI))
 		emit(hash, ctx);
 }
 

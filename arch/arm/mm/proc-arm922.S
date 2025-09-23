@@ -182,7 +182,7 @@ SYM_FUNC_END(arm922_flush_user_cache_range)
  *	- end	- virtual end address
  */
 SYM_TYPED_FUNC_START(arm922_coherent_kern_range)
-#ifdef CONFIG_CFI_CLANG /* Fallthrough if !CFI */
+#ifdef CONFIG_CFI /* Fallthrough if !CFI */
 	b	arm922_coherent_user_range
 #endif
 SYM_FUNC_END(arm922_coherent_kern_range)

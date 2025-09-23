@@ -1015,7 +1015,7 @@ int bug_brk_handler(struct pt_regs *regs, unsigned long esr)
 	return DBG_HOOK_HANDLED;
 }
 
-#ifdef CONFIG_CFI_CLANG
+#ifdef CONFIG_CFI
 int cfi_brk_handler(struct pt_regs *regs, unsigned long esr)
 {
 	unsigned long target;
@@ -1039,7 +1039,7 @@ int cfi_brk_handler(struct pt_regs *regs, unsigned long esr)
 	arm64_skip_faulting_instruction(regs, AARCH64_INSN_SIZE);
 	return DBG_HOOK_HANDLED;
 }
-#endif /* CONFIG_CFI_CLANG */
+#endif /* CONFIG_CFI */
 
 int reserved_fault_brk_handler(struct pt_regs *regs, unsigned long esr)
 {

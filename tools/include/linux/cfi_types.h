@@ -8,7 +8,7 @@
 #ifdef __ASSEMBLY__
 #include <linux/linkage.h>
 
-#ifdef CONFIG_CFI_CLANG
+#ifdef CONFIG_CFI
 /*
  * Use the __kcfi_typeid_<function> type identifier symbol to
  * annotate indirectly called assembly functions. The compiler emits
@@ -29,12 +29,12 @@
 #define SYM_TYPED_START(name, linkage, align...)	\
 	SYM_TYPED_ENTRY(name, linkage, align)
 
-#else /* CONFIG_CFI_CLANG */
+#else /* CONFIG_CFI */
 
 #define SYM_TYPED_START(name, linkage, align...)	\
 	SYM_START(name, linkage, align)
 
-#endif /* CONFIG_CFI_CLANG */
+#endif /* CONFIG_CFI */
 
 #ifndef SYM_TYPED_FUNC_START
 #define SYM_TYPED_FUNC_START(name) 			\
