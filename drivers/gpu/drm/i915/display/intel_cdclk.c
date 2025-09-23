@@ -2837,10 +2837,10 @@ static int intel_crtc_compute_min_cdclk(const struct intel_crtc_state *crtc_stat
 	return min_cdclk;
 }
 
-int intel_cdclk_update_crtc_min_cdclk(struct intel_atomic_state *state,
-				      struct intel_crtc *crtc,
-				      int old_min_cdclk, int new_min_cdclk,
-				      bool *need_cdclk_calc)
+static int intel_cdclk_update_crtc_min_cdclk(struct intel_atomic_state *state,
+					     struct intel_crtc *crtc,
+					     int old_min_cdclk, int new_min_cdclk,
+					     bool *need_cdclk_calc)
 {
 	struct intel_display *display = to_intel_display(state);
 	struct intel_cdclk_state *cdclk_state;
@@ -3281,6 +3281,27 @@ static int intel_cdclk_modeset_checks(struct intel_atomic_state *state,
 	return 0;
 }
 
+static int intel_crtcs_calc_min_cdclk(struct intel_atomic_state *state,
+				      bool *need_cdclk_calc)
+{
+	const struct intel_crtc_state *old_crtc_state;
+	const struct intel_crtc_state *new_crtc_state;
+	struct intel_crtc *crtc;
+	int i, ret;
+
+	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
+					    new_crtc_state, i) {
+		ret = intel_cdclk_update_crtc_min_cdclk(state, crtc,
+							intel_crtc_compute_min_cdclk(old_crtc_state),
+							intel_crtc_compute_min_cdclk(new_crtc_state),
+							need_cdclk_calc);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 int intel_cdclk_atomic_check(struct intel_atomic_state *state,
 			     bool *need_cdclk_calc)
 {
@@ -3300,11 +3321,12 @@ int intel_cdclk_atomic_check(struct intel_atomic_state *state,
 	 * planes are part of the state. We can now compute the minimum cdclk
 	 * for each plane.
 	 */
-	for_each_new_intel_plane_in_state(state, plane, plane_state, i) {
-		ret = intel_plane_calc_min_cdclk(state, plane, need_cdclk_calc);
-		if (ret)
-			return ret;
-	}
+	for_each_new_intel_plane_in_state(state, plane, plane_state, i)
+		intel_plane_calc_min_cdclk(state, plane);
+
+	ret = intel_crtcs_calc_min_cdclk(state, need_cdclk_calc);
+	if (ret)
+		return ret;
 
 	ret = intel_bw_calc_min_cdclk(state, need_cdclk_calc);
 	if (ret)

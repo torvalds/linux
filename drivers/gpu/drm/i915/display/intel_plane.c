@@ -291,34 +291,21 @@ intel_plane_relative_data_rate(const struct intel_crtc_state *crtc_state,
 				   rel_data_rate);
 }
 
-int intel_plane_calc_min_cdclk(struct intel_atomic_state *state,
-			       struct intel_plane *plane,
-			       bool *need_cdclk_calc)
+void intel_plane_calc_min_cdclk(struct intel_atomic_state *state,
+				struct intel_plane *plane)
 {
 	const struct intel_plane_state *plane_state =
 		intel_atomic_get_new_plane_state(state, plane);
 	struct intel_crtc *crtc = to_intel_crtc(plane_state->hw.crtc);
-	const struct intel_crtc_state *old_crtc_state;
 	struct intel_crtc_state *new_crtc_state;
-	int ret;
 
 	if (!plane_state->uapi.visible || !plane->min_cdclk)
-		return 0;
+		return;
 
-	old_crtc_state = intel_atomic_get_old_crtc_state(state, crtc);
 	new_crtc_state = intel_atomic_get_new_crtc_state(state, crtc);
 
 	new_crtc_state->min_cdclk[plane->id] =
 		plane->min_cdclk(new_crtc_state, plane_state);
-
-	ret = intel_cdclk_update_crtc_min_cdclk(state, crtc,
-						old_crtc_state->min_cdclk[plane->id],
-						new_crtc_state->min_cdclk[plane->id],
-						need_cdclk_calc);
-	if (ret)
-		return ret;
-
-	return 0;
 }
 
 static void intel_plane_clear_hw_state(struct intel_plane_state *plane_state)
