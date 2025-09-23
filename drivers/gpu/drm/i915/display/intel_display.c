@@ -5653,6 +5653,23 @@ static int hsw_mode_set_planes_workaround(struct intel_atomic_state *state)
 	return 0;
 }
 
+u8 intel_calc_enabled_pipes(struct intel_atomic_state *state,
+			    u8 enabled_pipes)
+{
+	const struct intel_crtc_state *crtc_state;
+	struct intel_crtc *crtc;
+	int i;
+
+	for_each_new_intel_crtc_in_state(state, crtc, crtc_state, i) {
+		if (crtc_state->hw.enable)
+			enabled_pipes |= BIT(crtc->pipe);
+		else
+			enabled_pipes &= ~BIT(crtc->pipe);
+	}
+
+	return enabled_pipes;
+}
+
 u8 intel_calc_active_pipes(struct intel_atomic_state *state,
 			   u8 active_pipes)
 {
