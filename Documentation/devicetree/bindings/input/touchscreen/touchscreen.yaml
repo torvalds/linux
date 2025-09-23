@@ -206,6 +206,10 @@ properties:
 
         unevaluatedProperties: false
 
+  debounce-delay-us:
+    description: Minimum duration in microseconds a signal must remain stable
+      to be considered valid.
+
 dependencies:
   touchscreen-size-x: [ touchscreen-size-y ]
   touchscreen-size-y: [ touchscreen-size-x ]
