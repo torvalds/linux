@@ -341,6 +341,9 @@ static ssize_t rng_current_store(struct device *dev,
 
 	if (sysfs_streq(buf, "")) {
 		err = enable_best_rng();
+	} else if (sysfs_streq(buf, "none")) {
+		cur_rng_set_by_user = 1;
+		drop_current_rng();
 	} else {
 		list_for_each_entry(rng, &rng_list, list) {
 			if (sysfs_streq(rng->name, buf)) {
@@ -392,7 +395,7 @@ static ssize_t rng_available_show(struct device *dev,
 		strlcat(buf, rng->name, PAGE_SIZE);
 		strlcat(buf, " ", PAGE_SIZE);
 	}
-	strlcat(buf, "\n", PAGE_SIZE);
+	strlcat(buf, "none\n", PAGE_SIZE);
 	mutex_unlock(&rng_mutex);
 
 	return strlen(buf);
@@ -544,8 +547,8 @@ int hwrng_register(struct hwrng *rng)
 	/* Adjust quality field to always have a proper value */
 	rng->quality = min_t(u16, min_t(u16, default_quality, 1024), rng->quality ?: 1024);
 
-	if (!current_rng ||
-	    (!cur_rng_set_by_user && rng->quality > current_rng->quality)) {
+	if (!cur_rng_set_by_user &&
+	    (!current_rng || rng->quality > current_rng->quality)) {
 		/*
 		 * Set new rng as current as the new rng source
 		 * provides better entropy quality and was not
