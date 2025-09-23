@@ -402,7 +402,7 @@ static int dwc_pcie_pmu_validate_group(struct perf_event *event)
 {
 	struct perf_event *sibling, *leader = event->group_leader;
 	DECLARE_BITMAP(val_lane_events, 2 * DWC_PCIE_LANE_MAX_EVENTS_PER_GROUP);
-	bool time_event;
+	bool time_event = false;
 	int type;
 
 	type = DWC_PCIE_EVENT_TYPE(leader);
