@@ -111,6 +111,8 @@
 #define AD7124_FILTER_SINGLE_CYCLE	BIT(16)
 #define AD7124_FILTER_FS		GENMASK(10, 0)
 
+#define AD7124_CFG_SLOT_UNASSIGNED	~0U
+
 #define AD7124_MAX_CONFIGS	8
 #define AD7124_MAX_CHANNELS	16
 
@@ -176,14 +178,13 @@ enum ad7124_filter_type {
 };
 
 struct ad7124_channel_config {
-	bool live;
 	unsigned int cfg_slot;
 	unsigned int requested_odr;
 	unsigned int requested_odr_micro;
 	/*
 	 * Following fields are used to compare for equality. If you
 	 * make adaptations in it, you most likely also have to adapt
-	 * ad7124_find_similar_live_cfg(), too.
+	 * ad7124_config_equal(), too.
 	 */
 	struct_group(config_props,
 		enum ad7124_ref_sel refsel;
@@ -215,14 +216,13 @@ struct ad7124_state {
 	unsigned int adc_control;
 	unsigned int num_channels;
 	struct mutex cfgs_lock; /* lock for configs access */
-	unsigned long cfg_slots_status; /* bitmap with slot status (1 means it is used) */
+	u8 cfg_slot_use_count[AD7124_MAX_CONFIGS];
 
 	/*
 	 * Stores the power-on reset value for the GAIN(x) registers which are
 	 * needed for measurements at gain 1 (i.e. CONFIG(x).PGA == 0)
 	 */
 	unsigned int gain_default;
-	DECLARE_KFIFO(live_cfgs_fifo, struct ad7124_channel_config *, AD7124_MAX_CONFIGS);
 	bool enable_single_cycle;
 };
 
@@ -367,9 +367,6 @@ static void ad7124_set_channel_odr(struct ad7124_state *st, unsigned int channel
 		  cfg->requested_odr_micro * factor / MICRO;
 	odr_sel_bits = clamp(DIV_ROUND_CLOSEST(fclk, divisor), 1, 2047);
 
-	if (odr_sel_bits != st->channels[channel].cfg.odr_sel_bits)
-		st->channels[channel].cfg.live = false;
-
 	st->channels[channel].cfg.odr_sel_bits = odr_sel_bits;
 }
 
@@ -404,61 +401,6 @@ static int ad7124_get_3db_filter_factor(struct ad7124_state *st,
 	}
 }
 
-static struct ad7124_channel_config *ad7124_find_similar_live_cfg(struct ad7124_state *st,
-								  struct ad7124_channel_config *cfg)
-{
-	struct ad7124_channel_config *cfg_aux;
-	int i;
-
-	/*
-	 * This is just to make sure that the comparison is adapted after
-	 * struct ad7124_channel_config was changed.
-	 */
-	static_assert(sizeof_field(struct ad7124_channel_config, config_props) ==
-		      sizeof(struct {
-				     enum ad7124_ref_sel refsel;
-				     bool bipolar;
-				     bool buf_positive;
-				     bool buf_negative;
-				     unsigned int vref_mv;
-				     unsigned int pga_bits;
-				     unsigned int odr_sel_bits;
-				     enum ad7124_filter_type filter_type;
-				     unsigned int calibration_offset;
-				     unsigned int calibration_gain;
-			     }));
-
-	for (i = 0; i < st->num_channels; i++) {
-		cfg_aux = &st->channels[i].cfg;
-
-		if (cfg_aux->live &&
-		    cfg->refsel == cfg_aux->refsel &&
-		    cfg->bipolar == cfg_aux->bipolar &&
-		    cfg->buf_positive == cfg_aux->buf_positive &&
-		    cfg->buf_negative == cfg_aux->buf_negative &&
-		    cfg->vref_mv == cfg_aux->vref_mv &&
-		    cfg->pga_bits == cfg_aux->pga_bits &&
-		    cfg->odr_sel_bits == cfg_aux->odr_sel_bits &&
-		    cfg->filter_type == cfg_aux->filter_type &&
-		    cfg->calibration_offset == cfg_aux->calibration_offset &&
-		    cfg->calibration_gain == cfg_aux->calibration_gain)
-			return cfg_aux;
-	}
-
-	return NULL;
-}
-
-static int ad7124_find_free_config_slot(struct ad7124_state *st)
-{
-	unsigned int free_cfg_slot;
-
-	free_cfg_slot = find_first_zero_bit(&st->cfg_slots_status, AD7124_MAX_CONFIGS);
-	if (free_cfg_slot == AD7124_MAX_CONFIGS)
-		return -1;
-
-	return free_cfg_slot;
-}
-
 /* Only called during probe, so dev_err_probe() can be used */
 static int ad7124_init_config_vref(struct ad7124_state *st, struct ad7124_channel_config *cfg)
 {
@@ -487,6 +429,21 @@ static int ad7124_init_config_vref(struct ad7124_state *st, struct ad7124_channe
 	}
 }
 
+static bool ad7124_config_equal(struct ad7124_channel_config *a,
+				struct ad7124_channel_config *b)
+{
+	return a->refsel == b->refsel &&
+	       a->bipolar == b->bipolar &&
+	       a->buf_positive == b->buf_positive &&
+	       a->buf_negative == b->buf_negative &&
+	       a->vref_mv == b->vref_mv &&
+	       a->pga_bits == b->pga_bits &&
+	       a->odr_sel_bits == b->odr_sel_bits &&
+	       a->filter_type == b->filter_type &&
+	       a->calibration_offset == b->calibration_offset &&
+	       a->calibration_gain == b->calibration_gain;
+}
+
 static int ad7124_write_config(struct ad7124_state *st, struct ad7124_channel_config *cfg,
 			       unsigned int cfg_slot)
 {
@@ -495,13 +452,13 @@ static int ad7124_write_config(struct ad7124_state *st, struct ad7124_channel_co
 	unsigned int post = 0;
 	int ret;
 
-	cfg->cfg_slot = cfg_slot;
-
-	ret = ad_sd_write_reg(&st->sd, AD7124_OFFSET(cfg->cfg_slot), 3, cfg->calibration_offset);
+	ret = ad_sd_write_reg(&st->sd, AD7124_OFFSET(cfg_slot), 3,
+			      cfg->calibration_offset);
 	if (ret)
 		return ret;
 
-	ret = ad_sd_write_reg(&st->sd, AD7124_GAIN(cfg->cfg_slot), 3, cfg->calibration_gain);
+	ret = ad_sd_write_reg(&st->sd, AD7124_GAIN(cfg_slot), 3,
+			      cfg->calibration_gain);
 	if (ret)
 		return ret;
 
@@ -511,7 +468,7 @@ static int ad7124_write_config(struct ad7124_state *st, struct ad7124_channel_co
 		(cfg->buf_negative ? AD7124_CONFIG_AIN_BUFM : 0) |
 		FIELD_PREP(AD7124_CONFIG_PGA, cfg->pga_bits);
 
-	ret = ad_sd_write_reg(&st->sd, AD7124_CONFIG(cfg->cfg_slot), 2, val);
+	ret = ad_sd_write_reg(&st->sd, AD7124_CONFIG(cfg_slot), 2, val);
 	if (ret < 0)
 		return ret;
 
@@ -564,7 +521,7 @@ static int ad7124_write_config(struct ad7124_state *st, struct ad7124_channel_co
 	 * was requested. It may only be disabled through debugfs for testing
 	 * purposes.
 	 */
-	return ad_sd_write_reg(&st->sd, AD7124_FILTER(cfg->cfg_slot), 3,
+	return ad_sd_write_reg(&st->sd, AD7124_FILTER(cfg_slot), 3,
 			       FIELD_PREP(AD7124_FILTER_FILTER, filter) |
 			       FIELD_PREP(AD7124_FILTER_REJ60, rej60) |
 			       FIELD_PREP(AD7124_FILTER_POST_FILTER, post) |
@@ -573,83 +530,86 @@ static int ad7124_write_config(struct ad7124_state *st, struct ad7124_channel_co
 			       FIELD_PREP(AD7124_FILTER_FS, cfg->odr_sel_bits));
 }
 
-static struct ad7124_channel_config *ad7124_pop_config(struct ad7124_state *st)
+/**
+ * ad7124_request_config_slot() - Request a config slot for a given config
+ * @st:		Driver instance
+ * @channel:	Channel to request a slot for
+ *
+ * Tries to find a matching config already in use, otherwise finds a free
+ * slot. If this function returns successfully, the use count for the slot is
+ * increased and the slot number is stored in cfg->cfg_slot.
+ *
+ * The slot must be released again with ad7124_release_config_slot() when no
+ * longer needed.
+ *
+ * Returns: 0 if a slot was successfully assigned, -EUSERS if no slot is
+ * available or other error if SPI communication fails.
+ */
+static int ad7124_request_config_slot(struct ad7124_state *st, u8 channel)
 {
-	struct ad7124_channel_config *lru_cfg;
-	struct ad7124_channel_config *cfg;
-	int ret;
-	int i;
+	unsigned int other, slot;
+	int last_used_slot = -1;
 
-	/*
-	 * Pop least recently used config from the fifo
-	 * in order to make room for the new one
-	 */
-	ret = kfifo_get(&st->live_cfgs_fifo, &lru_cfg);
-	if (ret <= 0)
-		return NULL;
+	/* Find another channel with a matching config, if any. */
+	for (other = 0; other < st->num_channels; other++) {
+		if (other == channel)
+			continue;
 
-	lru_cfg->live = false;
+		if (st->channels[other].cfg.cfg_slot == AD7124_CFG_SLOT_UNASSIGNED)
+			continue;
 
-	/* mark slot as free */
-	assign_bit(lru_cfg->cfg_slot, &st->cfg_slots_status, 0);
+		last_used_slot = max_t(int, last_used_slot,
+				       st->channels[other].cfg.cfg_slot);
 
-	/* invalidate all other configs that pointed to this one */
-	for (i = 0; i < st->num_channels; i++) {
-		cfg = &st->channels[i].cfg;
+		if (!ad7124_config_equal(&st->channels[other].cfg,
+					 &st->channels[channel].cfg))
+			continue;
 
-		if (cfg->cfg_slot == lru_cfg->cfg_slot)
-			cfg->live = false;
+		/* Found a match, re-use that slot. */
+		slot = st->channels[other].cfg.cfg_slot;
+		st->cfg_slot_use_count[slot]++;
+		st->channels[channel].cfg.cfg_slot = slot;
+
+		return 0;
 	}
 
-	return lru_cfg;
+	/* No match, use next free slot. */
+	slot = last_used_slot + 1;
+	if (slot >= AD7124_MAX_CONFIGS)
+		return -EUSERS;
+
+	st->cfg_slot_use_count[slot]++;
+	st->channels[channel].cfg.cfg_slot = slot;
+
+	return ad7124_write_config(st, &st->channels[channel].cfg, slot);
 }
 
-static int ad7124_push_config(struct ad7124_state *st, struct ad7124_channel_config *cfg)
+static void ad7124_release_config_slot(struct ad7124_state *st, u8 channel)
 {
-	struct ad7124_channel_config *lru_cfg;
-	int free_cfg_slot;
+	unsigned int slot = st->channels[channel].cfg.cfg_slot;
 
-	free_cfg_slot = ad7124_find_free_config_slot(st);
-	if (free_cfg_slot >= 0) {
-		/* push the new config in configs queue */
-		kfifo_put(&st->live_cfgs_fifo, cfg);
-	} else {
-		/* pop one config to make room for the new one */
-		lru_cfg = ad7124_pop_config(st);
-		if (!lru_cfg)
-			return -EINVAL;
+	/*
+	 * All of these conditions can happen at probe when all channels are
+	 * disabled. Otherwise, they should not happen normally.
+	 */
+	if (channel >= st->num_channels || slot == AD7124_CFG_SLOT_UNASSIGNED ||
+	    st->cfg_slot_use_count[slot] == 0)
+		return;
 
-		/* push the new config in configs queue */
-		free_cfg_slot = lru_cfg->cfg_slot;
-		kfifo_put(&st->live_cfgs_fifo, cfg);
-	}
-
-	/* mark slot as used */
-	assign_bit(free_cfg_slot, &st->cfg_slots_status, 1);
-
-	return ad7124_write_config(st, cfg, free_cfg_slot);
+	st->cfg_slot_use_count[slot]--;
+	st->channels[channel].cfg.cfg_slot = AD7124_CFG_SLOT_UNASSIGNED;
 }
 
 static int ad7124_prepare_read(struct ad7124_state *st, int address)
 {
 	struct ad7124_channel_config *cfg = &st->channels[address].cfg;
-	struct ad7124_channel_config *live_cfg;
+	int ret;
 
-	/*
-	 * Before doing any reads assign the channel a configuration.
-	 * Check if channel's config is on the device
-	 */
-	if (!cfg->live) {
-		/* check if config matches another one */
-		live_cfg = ad7124_find_similar_live_cfg(st, cfg);
-		if (!live_cfg)
-			ad7124_push_config(st, cfg);
-		else
-			cfg->cfg_slot = live_cfg->cfg_slot;
-	}
+	ret = ad7124_request_config_slot(st, address);
+	if (ret)
+		return ret;
 
 	/* point channel to the config slot and enable */
-	cfg->live = true;
 	return ad_sd_write_reg(&st->sd, AD7124_CHANNEL(address), 2,
 			       st->channels[address].ain |
 			       FIELD_PREP(AD7124_CHANNEL_SETUP, cfg->cfg_slot) |
@@ -691,6 +651,8 @@ static int ad7124_append_status(struct ad_sigma_delta *sd, bool append)
 static int ad7124_disable_one(struct ad_sigma_delta *sd, unsigned int chan)
 {
 	struct ad7124_state *st = container_of(sd, struct ad7124_state, sd);
+
+	ad7124_release_config_slot(st, chan);
 
 	/* The relevant thing here is that AD7124_CHANNEL_ENABLE is cleared. */
 	return ad_sd_write_reg(&st->sd, AD7124_CHANNEL(chan), 2, 0);
@@ -913,9 +875,6 @@ static int ad7124_write_raw(struct iio_dev *indio_dev,
 		gain = DIV_ROUND_CLOSEST(res, val2);
 		res = ad7124_find_closest_match(ad7124_gain, ARRAY_SIZE(ad7124_gain), gain);
 
-		if (st->channels[chan->address].cfg.pga_bits != res)
-			st->channels[chan->address].cfg.live = false;
-
 		st->channels[chan->address].cfg.pga_bits = res;
 		return 0;
 	default:
@@ -1058,7 +1017,11 @@ static int ad7124_syscalib_locked(struct ad7124_state *st, const struct iio_chan
 		if (ret < 0)
 			return ret;
 
-		ret = ad_sd_read_reg(&st->sd, AD7124_OFFSET(ch->cfg.cfg_slot), 3,
+		/*
+		 * Making the assumption that a single conversion will always
+		 * use configuration slot 0 for the OFFSET/GAIN registers.
+		 */
+		ret = ad_sd_read_reg(&st->sd, AD7124_OFFSET(0), 3,
 				     &ch->cfg.calibration_offset);
 		if (ret < 0)
 			return ret;
@@ -1073,7 +1036,7 @@ static int ad7124_syscalib_locked(struct ad7124_state *st, const struct iio_chan
 		if (ret < 0)
 			return ret;
 
-		ret = ad_sd_read_reg(&st->sd, AD7124_GAIN(ch->cfg.cfg_slot), 3,
+		ret = ad_sd_read_reg(&st->sd, AD7124_GAIN(0), 3,
 				     &ch->cfg.calibration_gain);
 		if (ret < 0)
 			return ret;
@@ -1164,7 +1127,6 @@ static int ad7124_set_filter_type_attr(struct iio_dev *dev,
 
 	guard(mutex)(&st->cfgs_lock);
 
-	cfg->live = false;
 	cfg->filter_type = value;
 	ad7124_set_channel_odr(st, chan->address);
 
@@ -1484,13 +1446,14 @@ static int ad7124_setup(struct ad7124_state *st)
 	if (ret)
 		return ret;
 
-	INIT_KFIFO(st->live_cfgs_fifo);
 	for (i = 0; i < st->num_channels; i++) {
 		struct ad7124_channel_config *cfg = &st->channels[i].cfg;
 
 		ret = ad7124_init_config_vref(st, cfg);
 		if (ret < 0)
 			return ret;
+
+		cfg->cfg_slot = AD7124_CFG_SLOT_UNASSIGNED;
 
 		/* Default filter type on the ADC after reset. */
 		cfg->filter_type = AD7124_FILTER_TYPE_SINC4;
@@ -1551,7 +1514,7 @@ static int __ad7124_calibrate_all(struct ad7124_state *st, struct iio_dev *indio
 			 * ad_sigma_delta_set_channel() -> ad7124_set_channel()
 			 * -> ad7124_prepare_read().
 			 */
-			ret = ad_sd_read_reg(&st->sd, AD7124_GAIN(st->channels[i].cfg.cfg_slot), 3,
+			ret = ad_sd_read_reg(&st->sd, AD7124_GAIN(0), 3,
 					     &st->channels[i].cfg.calibration_gain);
 			if (ret < 0)
 				return ret;
@@ -1561,7 +1524,11 @@ static int __ad7124_calibrate_all(struct ad7124_state *st, struct iio_dev *indio
 		if (ret < 0)
 			return ret;
 
-		ret = ad_sd_read_reg(&st->sd, AD7124_OFFSET(st->channels[i].cfg.cfg_slot), 3,
+		/*
+		 * Making the assumption that a single conversion will always
+		 * use configuration slot 0 for the OFFSET/GAIN registers.
+		 */
+		ret = ad_sd_read_reg(&st->sd, AD7124_OFFSET(0), 3,
 				     &st->channels[i].cfg.calibration_offset);
 		if (ret < 0)
 			return ret;
