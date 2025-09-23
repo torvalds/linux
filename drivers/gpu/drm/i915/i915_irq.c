@@ -931,8 +931,7 @@ static irqreturn_t i915_irq_handler(int irq, void *arg)
 
 		ret = IRQ_HANDLED;
 
-		if (HAS_HOTPLUG(display) &&
-		    iir & I915_DISPLAY_PORT_INTERRUPT)
+		if (iir & I915_DISPLAY_PORT_INTERRUPT)
 			hotplug_status = i9xx_hpd_irq_ack(display);
 
 		/* Call regardless, as some status bits might not be

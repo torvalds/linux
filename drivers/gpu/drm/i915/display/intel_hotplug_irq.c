@@ -420,6 +420,9 @@ u32 i9xx_hpd_irq_ack(struct intel_display *display)
 	u32 hotplug_status = 0, hotplug_status_mask;
 	int i;
 
+	if (!HAS_HOTPLUG(display))
+		return 0;
+
 	if (display->platform.g4x ||
 	    display->platform.valleyview || display->platform.cherryview)
 		hotplug_status_mask = HOTPLUG_INT_STATUS_G4X |
