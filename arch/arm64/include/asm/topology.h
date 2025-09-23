@@ -36,6 +36,9 @@ void update_freq_counters_refs(void);
 #define arch_scale_hw_pressure topology_get_hw_pressure
 #define arch_update_hw_pressure	topology_update_hw_pressure
 
+#undef arch_cpu_is_threaded
+#define arch_cpu_is_threaded() (read_cpuid_mpidr() & MPIDR_MT_BITMASK)
+
 #include <asm-generic/topology.h>
 
 #endif /* _ASM_ARM_TOPOLOGY_H */
