@@ -1405,12 +1405,10 @@ int intel_bw_calc_min_cdclk(struct intel_atomic_state *state,
 	struct intel_display *display = to_intel_display(state);
 	struct intel_bw_state *new_bw_state = NULL;
 	const struct intel_bw_state *old_bw_state = NULL;
-	const struct intel_cdclk_state *cdclk_state;
 	const struct intel_crtc_state *old_crtc_state;
 	const struct intel_crtc_state *new_crtc_state;
-	int old_min_cdclk, new_min_cdclk;
 	struct intel_crtc *crtc;
-	int i;
+	int ret, i;
 
 	if (DISPLAY_VER(display) < 9)
 		return 0;
@@ -1443,39 +1441,12 @@ int intel_bw_calc_min_cdclk(struct intel_atomic_state *state,
 			return ret;
 	}
 
-	old_min_cdclk = intel_bw_min_cdclk(display, old_bw_state);
-	new_min_cdclk = intel_bw_min_cdclk(display, new_bw_state);
-
-	/*
-	 * No need to check against the cdclk state if
-	 * the min cdclk doesn't increase.
-	 *
-	 * Ie. we only ever increase the cdclk due to bandwidth
-	 * requirements. This can reduce back and forth
-	 * display blinking due to constant cdclk changes.
-	 */
-	if (new_min_cdclk <= old_min_cdclk)
-		return 0;
-
-	cdclk_state = intel_atomic_get_cdclk_state(state);
-	if (IS_ERR(cdclk_state))
-		return PTR_ERR(cdclk_state);
-
-	/*
-	 * No need to recalculate the cdclk state if
-	 * the min cdclk doesn't increase.
-	 *
-	 * Ie. we only ever increase the cdclk due to bandwidth
-	 * requirements. This can reduce back and forth
-	 * display blinking due to constant cdclk changes.
-	 */
-	if (new_min_cdclk <= intel_cdclk_bw_min_cdclk(cdclk_state))
-		return 0;
-
-	drm_dbg_kms(display->drm,
-		    "new bandwidth min cdclk (%d kHz) > old min cdclk (%d kHz)\n",
-		    new_min_cdclk, intel_cdclk_bw_min_cdclk(cdclk_state));
-	*need_cdclk_calc = true;
+	ret = intel_cdclk_update_bw_min_cdclk(state,
+					      intel_bw_min_cdclk(display, old_bw_state),
+					      intel_bw_min_cdclk(display, new_bw_state),
+					      need_cdclk_calc);
+	if (ret)
+		return ret;
 
 	return 0;
 }
