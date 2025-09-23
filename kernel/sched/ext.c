@@ -151,24 +151,7 @@ static __printf(4, 5) void scx_exit(struct scx_sched *sch,
 	va_end(args);
 }
 
-static __printf(3, 4) void scx_kf_exit(enum scx_exit_kind kind, s64 exit_code,
-				       const char *fmt, ...)
-{
-	struct scx_sched *sch;
-	va_list args;
-
-	rcu_read_lock();
-	sch = rcu_dereference(scx_root);
-	if (sch) {
-		va_start(args, fmt);
-		scx_vexit(sch, kind, exit_code, fmt, args);
-		va_end(args);
-	}
-	rcu_read_unlock();
-}
-
 #define scx_error(sch, fmt, args...)	scx_exit((sch), SCX_EXIT_ERROR, 0, fmt, ##args)
-#define scx_kf_error(fmt, args...)	scx_kf_exit(SCX_EXIT_ERROR, 0, fmt, ##args)
 
 #define SCX_HAS_OP(sch, op)	test_bit(SCX_OP_IDX(op), (sch)->has_op)
 
@@ -329,11 +312,11 @@ do {										\
 })
 
 /* @mask is constant, always inline to cull unnecessary branches */
-static __always_inline bool scx_kf_allowed(u32 mask)
+static __always_inline bool scx_kf_allowed(struct scx_sched *sch, u32 mask)
 {
 	if (unlikely(!(current->scx.kf_mask & mask))) {
-		scx_kf_error("kfunc with mask 0x%x called from an operation only allowing 0x%x",
-			     mask, current->scx.kf_mask);
+		scx_error(sch, "kfunc with mask 0x%x called from an operation only allowing 0x%x",
+			  mask, current->scx.kf_mask);
 		return false;
 	}
 
@@ -346,13 +329,13 @@ static __always_inline bool scx_kf_allowed(u32 mask)
 	 */
 	if (unlikely(highest_bit(mask) == SCX_KF_CPU_RELEASE &&
 		     (current->scx.kf_mask & higher_bits(SCX_KF_CPU_RELEASE)))) {
-		scx_kf_error("cpu_release kfunc called from a nested operation");
+		scx_error(sch, "cpu_release kfunc called from a nested operation");
 		return false;
 	}
 
 	if (unlikely(highest_bit(mask) == SCX_KF_DISPATCH &&
 		     (current->scx.kf_mask & higher_bits(SCX_KF_DISPATCH)))) {
-		scx_kf_error("dispatch kfunc called from a nested operation");
+		scx_error(sch, "dispatch kfunc called from a nested operation");
 		return false;
 	}
 
@@ -360,15 +343,16 @@ static __always_inline bool scx_kf_allowed(u32 mask)
 }
 
 /* see SCX_CALL_OP_TASK() */
-static __always_inline bool scx_kf_allowed_on_arg_tasks(u32 mask,
+static __always_inline bool scx_kf_allowed_on_arg_tasks(struct scx_sched *sch,
+							u32 mask,
 							struct task_struct *p)
 {
-	if (!scx_kf_allowed(mask))
+	if (!scx_kf_allowed(sch, mask))
 		return false;
 
 	if (unlikely((p != current->scx.kf_tasks[0] &&
 		      p != current->scx.kf_tasks[1]))) {
-		scx_kf_error("called on a task not being operated on");
+		scx_error(sch, "called on a task not being operated on");
 		return false;
 	}
 
@@ -1115,7 +1099,8 @@ static struct scx_dispatch_q *find_dsq_for_dispatch(struct scx_sched *sch,
 	return dsq;
 }
 
-static void mark_direct_dispatch(struct task_struct *ddsp_task,
+static void mark_direct_dispatch(struct scx_sched *sch,
+				 struct task_struct *ddsp_task,
 				 struct task_struct *p, u64 dsq_id,
 				 u64 enq_flags)
 {
@@ -1129,10 +1114,10 @@ static void mark_direct_dispatch(struct task_struct *ddsp_task,
 	/* @p must match the task on the enqueue path */
 	if (unlikely(p != ddsp_task)) {
 		if (IS_ERR(ddsp_task))
-			scx_kf_error("%s[%d] already direct-dispatched",
+			scx_error(sch, "%s[%d] already direct-dispatched",
 				  p->comm, p->pid);
 		else
-			scx_kf_error("scheduling for %s[%d] but trying to direct-dispatch %s[%d]",
+			scx_error(sch, "scheduling for %s[%d] but trying to direct-dispatch %s[%d]",
 				  ddsp_task->comm, ddsp_task->pid,
 				  p->comm, p->pid);
 		return;
@@ -5243,18 +5228,18 @@ void __init init_sched_ext_class(void)
 static bool scx_dsq_insert_preamble(struct scx_sched *sch, struct task_struct *p,
 				    u64 enq_flags)
 {
-	if (!scx_kf_allowed(SCX_KF_ENQUEUE | SCX_KF_DISPATCH))
+	if (!scx_kf_allowed(sch, SCX_KF_ENQUEUE | SCX_KF_DISPATCH))
 		return false;
 
 	lockdep_assert_irqs_disabled();
 
 	if (unlikely(!p)) {
-		scx_kf_error("called with NULL task");
+		scx_error(sch, "called with NULL task");
 		return false;
 	}
 
 	if (unlikely(enq_flags & __SCX_ENQ_INTERNAL_MASK)) {
-		scx_kf_error("invalid enq_flags 0x%llx", enq_flags);
+		scx_error(sch, "invalid enq_flags 0x%llx", enq_flags);
 		return false;
 	}
 
@@ -5269,12 +5254,12 @@ static void scx_dsq_insert_commit(struct scx_sched *sch, struct task_struct *p,
 
 	ddsp_task = __this_cpu_read(direct_dispatch_task);
 	if (ddsp_task) {
-		mark_direct_dispatch(ddsp_task, p, dsq_id, enq_flags);
+		mark_direct_dispatch(sch, ddsp_task, p, dsq_id, enq_flags);
 		return;
 	}
 
 	if (unlikely(dspc->cursor >= scx_dsp_max_batch)) {
-		scx_kf_error("dispatch buffer overflow");
+		scx_error(sch, "dispatch buffer overflow");
 		return;
 	}
 
@@ -5410,7 +5395,8 @@ static bool scx_dsq_move(struct bpf_iter_scx_dsq_kern *kit,
 	bool in_balance;
 	unsigned long flags;
 
-	if (!scx_kf_allowed_if_unlocked() && !scx_kf_allowed(SCX_KF_DISPATCH))
+	if (!scx_kf_allowed_if_unlocked() &&
+	    !scx_kf_allowed(sch, SCX_KF_DISPATCH))
 		return false;
 
 	/*
@@ -5495,7 +5481,15 @@ __bpf_kfunc_start_defs();
  */
 __bpf_kfunc u32 scx_bpf_dispatch_nr_slots(void)
 {
-	if (!scx_kf_allowed(SCX_KF_DISPATCH))
+	struct scx_sched *sch;
+
+	guard(rcu)();
+
+	sch = rcu_dereference(scx_root);
+	if (unlikely(!sch))
+		return 0;
+
+	if (!scx_kf_allowed(sch, SCX_KF_DISPATCH))
 		return 0;
 
 	return scx_dsp_max_batch - __this_cpu_read(scx_dsp_ctx->cursor);
@@ -5510,14 +5504,21 @@ __bpf_kfunc u32 scx_bpf_dispatch_nr_slots(void)
 __bpf_kfunc void scx_bpf_dispatch_cancel(void)
 {
 	struct scx_dsp_ctx *dspc = this_cpu_ptr(scx_dsp_ctx);
+	struct scx_sched *sch;
 
-	if (!scx_kf_allowed(SCX_KF_DISPATCH))
+	guard(rcu)();
+
+	sch = rcu_dereference(scx_root);
+	if (unlikely(!sch))
+		return;
+
+	if (!scx_kf_allowed(sch, SCX_KF_DISPATCH))
 		return;
 
 	if (dspc->cursor > 0)
 		dspc->cursor--;
 	else
-		scx_kf_error("dispatch buffer underflow");
+		scx_error(sch, "dispatch buffer underflow");
 }
 
 /**
@@ -5540,7 +5541,7 @@ __bpf_kfunc bool scx_bpf_dsq_move_to_local(u64 dsq_id)
 	struct scx_dsp_ctx *dspc = this_cpu_ptr(scx_dsp_ctx);
 	struct scx_dispatch_q *dsq;
 
-	if (!scx_kf_allowed(SCX_KF_DISPATCH))
+	if (!scx_kf_allowed(sch, SCX_KF_DISPATCH))
 		return false;
 
 	flush_dispatch_buf(sch, dspc->rq);
@@ -5687,12 +5688,18 @@ __bpf_kfunc_start_defs();
  */
 __bpf_kfunc u32 scx_bpf_reenqueue_local(void)
 {
+	struct scx_sched *sch;
 	LIST_HEAD(tasks);
 	u32 nr_enqueued = 0;
 	struct rq *rq;
 	struct task_struct *p, *n;
 
-	if (!scx_kf_allowed(SCX_KF_CPU_RELEASE))
+	guard(rcu)();
+	sch = rcu_dereference(scx_root);
+	if (unlikely(!sch))
+		return 0;
+
+	if (!scx_kf_allowed(sch, SCX_KF_CPU_RELEASE))
 		return 0;
 
 	rq = cpu_rq(smp_processor_id());
@@ -5837,7 +5844,7 @@ static void scx_kick_cpu(struct scx_sched *sch, s32 cpu, u64 flags)
 		struct rq *target_rq = cpu_rq(cpu);
 
 		if (unlikely(flags & (SCX_KICK_PREEMPT | SCX_KICK_WAIT)))
-			scx_kf_error("PREEMPT/WAIT cannot be used with SCX_KICK_IDLE");
+			scx_error(sch, "PREEMPT/WAIT cannot be used with SCX_KICK_IDLE");
 
 		if (raw_spin_rq_trylock(target_rq)) {
 			if (can_skip_idle_kick(target_rq)) {
@@ -6070,20 +6077,20 @@ static s32 __bstr_format(struct scx_sched *sch, u64 *data_buf, char *line_buf,
 
 	if (data__sz % 8 || data__sz > MAX_BPRINTF_VARARGS * 8 ||
 	    (data__sz && !data)) {
-		scx_kf_error("invalid data=%p and data__sz=%u", (void *)data, data__sz);
+		scx_error(sch, "invalid data=%p and data__sz=%u", (void *)data, data__sz);
 		return -EINVAL;
 	}
 
 	ret = copy_from_kernel_nofault(data_buf, data, data__sz);
 	if (ret < 0) {
-		scx_kf_error("failed to read data fields (%d)", ret);
+		scx_error(sch, "failed to read data fields (%d)", ret);
 		return ret;
 	}
 
 	ret = bpf_bprintf_prepare(fmt, UINT_MAX, data_buf, data__sz / 8,
 				  &bprintf_data);
 	if (ret < 0) {
-		scx_kf_error("format preparation failed (%d)", ret);
+		scx_error(sch, "format preparation failed (%d)", ret);
 		return ret;
 	}
 
@@ -6091,7 +6098,7 @@ static s32 __bstr_format(struct scx_sched *sch, u64 *data_buf, char *line_buf,
 			  bprintf_data.bin_args);
 	bpf_bprintf_cleanup(&bprintf_data);
 	if (ret < 0) {
-		scx_kf_error("(\"%s\", %p, %u) failed to format", fmt, data, data__sz);
+		scx_error(sch, "(\"%s\", %p, %u) failed to format", fmt, data, data__sz);
 		return ret;
 	}
 
@@ -6127,7 +6134,7 @@ __bpf_kfunc void scx_bpf_exit_bstr(s64 exit_code, char *fmt,
 	sch = rcu_dereference_bh(scx_root);
 	if (likely(sch) &&
 	    bstr_format(sch, &scx_exit_bstr_buf, fmt, data, data__sz) >= 0)
-		scx_kf_exit(SCX_EXIT_UNREG_BPF, exit_code, "%s", scx_exit_bstr_buf.line);
+		scx_exit(sch, SCX_EXIT_UNREG_BPF, exit_code, "%s", scx_exit_bstr_buf.line);
 	raw_spin_unlock_irqrestore(&scx_exit_bstr_buf_lock, flags);
 }
 
@@ -6150,7 +6157,7 @@ __bpf_kfunc void scx_bpf_error_bstr(char *fmt, unsigned long long *data,
 	sch = rcu_dereference_bh(scx_root);
 	if (likely(sch) &&
 	    bstr_format(sch, &scx_exit_bstr_buf, fmt, data, data__sz) >= 0)
-		scx_kf_exit(SCX_EXIT_ERROR_BPF, 0, "%s", scx_exit_bstr_buf.line);
+		scx_exit(sch, SCX_EXIT_ERROR_BPF, 0, "%s", scx_exit_bstr_buf.line);
 	raw_spin_unlock_irqrestore(&scx_exit_bstr_buf_lock, flags);
 }
 
@@ -6181,7 +6188,7 @@ __bpf_kfunc void scx_bpf_dump_bstr(char *fmt, unsigned long long *data,
 		return;
 
 	if (raw_smp_processor_id() != dd->cpu) {
-		scx_kf_error("scx_bpf_dump() must only be called from ops.dump() and friends");
+		scx_error(sch, "scx_bpf_dump() must only be called from ops.dump() and friends");
 		return;
 	}
 
@@ -6285,7 +6292,7 @@ __bpf_kfunc void scx_bpf_cpuperf_set(s32 cpu, u32 perf)
 		return;
 
 	if (unlikely(perf > SCX_CPUPERF_ONE)) {
-		scx_kf_error("Invalid cpuperf target %u for CPU %d", perf, cpu);
+		scx_error(sch, "Invalid cpuperf target %u for CPU %d", perf, cpu);
 		return;
 	}
 
@@ -6298,7 +6305,7 @@ __bpf_kfunc void scx_bpf_cpuperf_set(s32 cpu, u32 perf)
 		 * to the corresponding CPU to prevent ABBA deadlocks.
 		 */
 		if (locked_rq && rq != locked_rq) {
-			scx_kf_error("Invalid target CPU %d", cpu);
+			scx_error(sch, "Invalid target CPU %d", cpu);
 			return;
 		}
 
@@ -6422,16 +6429,20 @@ __bpf_kfunc struct rq *scx_bpf_cpu_rq(s32 cpu)
  */
 __bpf_kfunc struct rq *scx_bpf_locked_rq(void)
 {
+	struct scx_sched *sch;
 	struct rq *rq;
 
-	preempt_disable();
+	guard(preempt)();
+
+	sch = rcu_dereference_sched(scx_root);
+	if (unlikely(!sch))
+		return NULL;
+
 	rq = scx_locked_rq();
 	if (!rq) {
-		preempt_enable();
-		scx_kf_error("accessing rq without holding rq lock");
+		scx_error(sch, "accessing rq without holding rq lock");
 		return NULL;
 	}
-	preempt_enable();
 
 	return rq;
 }
@@ -6474,8 +6485,15 @@ __bpf_kfunc struct cgroup *scx_bpf_task_cgroup(struct task_struct *p)
 {
 	struct task_group *tg = p->sched_task_group;
 	struct cgroup *cgrp = &cgrp_dfl_root.cgrp;
+	struct scx_sched *sch;
 
-	if (!scx_kf_allowed_on_arg_tasks(__SCX_KF_RQ_LOCKED, p))
+	guard(rcu)();
+
+	sch = rcu_dereference(scx_root);
+	if (unlikely(!sch))
+		goto out;
+
+	if (!scx_kf_allowed_on_arg_tasks(sch, __SCX_KF_RQ_LOCKED, p))
 		goto out;
 
 	cgrp = tg_cgrp(tg);
