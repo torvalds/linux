@@ -1,14 +1,17 @@
-// SPDX-License-Identifier: GPL-2.0 OR MIT
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
 /*
  * Copyright (C) 2024 Yangyu Chen <cyy@cyyself.name>
+ * Copyright (C) 2025 Hendrik Hamerlinck <hendrik.hamerlinck@hammernet.be>
  */
+
+/dts-v1/;
 
 #include "k1.dtsi"
 #include "k1-pinctrl.dtsi"
 
 / {
-	model = "Banana Pi BPI-F3";
-	compatible = "bananapi,bpi-f3", "spacemit,k1";
+	model = "OrangePi RV2";
+	compatible = "xunlong,orangepi-rv2", "spacemit,k1";
 
 	aliases {
 		serial0 = &uart0;
@@ -23,25 +26,11 @@
 
 		led1 {
 			label = "sys-led";
-			gpios = <&gpio K1_GPIO(96) GPIO_ACTIVE_HIGH>;
+			gpios = <&gpio K1_GPIO(96) GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "heartbeat";
 			default-state = "on";
 		};
 	};
-};
-
-&emmc {
-	bus-width = <8>;
-	mmc-hs400-1_8v;
-	mmc-hs400-enhanced-strobe;
-	non-removable;
-	no-sd;
-	no-sdio;
-	status = "okay";
-};
-
-&pdma {
-	status = "okay";
 };
 
 &uart0 {
