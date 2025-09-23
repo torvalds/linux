@@ -291,8 +291,8 @@ intel_plane_relative_data_rate(const struct intel_crtc_state *crtc_state,
 				   rel_data_rate);
 }
 
-void intel_plane_calc_min_cdclk(struct intel_atomic_state *state,
-				struct intel_plane *plane)
+static void intel_plane_calc_min_cdclk(struct intel_atomic_state *state,
+				       struct intel_plane *plane)
 {
 	const struct intel_plane_state *plane_state =
 		intel_atomic_get_new_plane_state(state, plane);
@@ -1699,6 +1699,9 @@ int intel_plane_atomic_check(struct intel_atomic_state *state)
 		if (ret)
 			return ret;
 	}
+
+	for_each_new_intel_plane_in_state(state, plane, plane_state, i)
+		intel_plane_calc_min_cdclk(state, plane);
 
 	return 0;
 }

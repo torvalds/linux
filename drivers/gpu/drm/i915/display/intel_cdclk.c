@@ -3307,22 +3307,11 @@ int intel_cdclk_atomic_check(struct intel_atomic_state *state,
 {
 	const struct intel_cdclk_state *old_cdclk_state;
 	struct intel_cdclk_state *new_cdclk_state;
-	struct intel_plane_state __maybe_unused *plane_state;
-	struct intel_plane *plane;
 	int ret;
-	int i;
 
 	ret = intel_cdclk_modeset_checks(state, need_cdclk_calc);
 	if (ret)
 		return ret;
-
-	/*
-	 * active_planes bitmask has been updated, and potentially affected
-	 * planes are part of the state. We can now compute the minimum cdclk
-	 * for each plane.
-	 */
-	for_each_new_intel_plane_in_state(state, plane, plane_state, i)
-		intel_plane_calc_min_cdclk(state, plane);
 
 	ret = intel_crtcs_calc_min_cdclk(state, need_cdclk_calc);
 	if (ret)
