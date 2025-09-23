@@ -61,5 +61,8 @@ void intel_crtc_wait_for_next_vblank(struct intel_crtc *crtc);
 bool intel_any_crtc_enable_changed(struct intel_atomic_state *state);
 bool intel_crtc_enable_changed(const struct intel_crtc_state *old_crtc_state,
 			       const struct intel_crtc_state *new_crtc_state);
+bool intel_any_crtc_active_changed(struct intel_atomic_state *state);
+bool intel_crtc_active_changed(const struct intel_crtc_state *old_crtc_state,
+			       const struct intel_crtc_state *new_crtc_state);
 
 #endif

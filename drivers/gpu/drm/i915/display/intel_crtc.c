@@ -774,3 +774,24 @@ bool intel_any_crtc_enable_changed(struct intel_atomic_state *state)
 
 	return false;
 }
+
+bool intel_crtc_active_changed(const struct intel_crtc_state *old_crtc_state,
+			       const struct intel_crtc_state *new_crtc_state)
+{
+	return old_crtc_state->hw.active != new_crtc_state->hw.active;
+}
+
+bool intel_any_crtc_active_changed(struct intel_atomic_state *state)
+{
+	const struct intel_crtc_state *old_crtc_state, *new_crtc_state;
+	struct intel_crtc *crtc;
+	int i;
+
+	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
+					    new_crtc_state, i) {
+		if (intel_crtc_active_changed(old_crtc_state, new_crtc_state))
+			return true;
+	}
+
+	return false;
+}
