@@ -905,7 +905,7 @@ int ethtool_net_get_ts_info_by_phc(struct net_device *dev,
 	int err;
 
 	if (!ops->get_ts_info)
-		return -ENODEV;
+		return -EOPNOTSUPP;
 
 	/* Does ptp comes from netdev */
 	ethtool_init_tsinfo(info);
@@ -973,7 +973,7 @@ int ethtool_get_ts_info_by_phc(struct net_device *dev,
 	int err;
 
 	err = ethtool_net_get_ts_info_by_phc(dev, info, hwprov_desc);
-	if (err == -ENODEV) {
+	if (err == -ENODEV || err == -EOPNOTSUPP) {
 		struct phy_device *phy;
 
 		phy = ethtool_phy_get_ts_info_by_phc(dev, info, hwprov_desc);

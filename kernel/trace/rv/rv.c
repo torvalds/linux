@@ -495,7 +495,7 @@ static void *available_monitors_next(struct seq_file *m, void *p, loff_t *pos)
  */
 static void *enabled_monitors_next(struct seq_file *m, void *p, loff_t *pos)
 {
-	struct rv_monitor *mon = p;
+	struct rv_monitor *mon = container_of(p, struct rv_monitor, list);
 
 	(*pos)++;
 
@@ -805,7 +805,7 @@ int rv_register_monitor(struct rv_monitor *monitor, struct rv_monitor *parent)
 
 	retval = create_monitor_dir(monitor, parent);
 	if (retval)
-		return retval;
+		goto out_unlock;
 
 	/* keep children close to the parent for easier visualisation */
 	if (parent)

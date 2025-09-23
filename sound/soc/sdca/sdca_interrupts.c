@@ -155,7 +155,7 @@ static irqreturn_t detected_mode_handler(int irq, void *data)
 							   SDCA_CTL_SELECTED_MODE_NAME);
 
 		if (!name)
-			return -ENOMEM;
+			return IRQ_NONE;
 
 		kctl = snd_soc_component_get_kcontrol(component, name);
 		if (!kctl) {

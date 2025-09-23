@@ -2770,6 +2770,22 @@ TEST_F(tls_err, poll_partial_rec_async)
 	}
 }
 
+/* Use OOB+large send to trigger copy mode due to memory pressure.
+ * OOB causes a short read.
+ */
+TEST_F(tls_err, oob_pressure)
+{
+	char buf[1<<16];
+	int i;
+
+	memrnd(buf, sizeof(buf));
+
+	EXPECT_EQ(send(self->fd2, buf, 5, MSG_OOB), 5);
+	EXPECT_EQ(send(self->fd2, buf, sizeof(buf), 0), sizeof(buf));
+	for (i = 0; i < 64; i++)
+		EXPECT_EQ(send(self->fd2, buf, 5, MSG_OOB), 5);
+}
+
 TEST(non_established) {
 	struct tls12_crypto_info_aes_gcm_256 tls12;
 	struct sockaddr_in addr;
