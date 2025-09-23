@@ -50,7 +50,7 @@
  * interrupt interval should be ~60us. Let's allow +/- 20us for frequency
  * deviations and interrupt latency.
  *
- * The data line must be samples after ~30us to 50us after the falling edge,
+ * The data line must be sampled after ~30us to 50us after the falling edge,
  * since the device updates the data line at the rising edge.
  *
  * ___            ______            ______            ______            ___
