@@ -62,12 +62,13 @@ static int wcd_get_micbias_val(struct device *dev, int micb_num, u32 *micb_mv)
 
 int wcd_dt_parse_micbias_info(struct wcd_common *common)
 {
-	int i;
+	int ret, i;
 
 	for (i = 0; i < common->max_bias; i++) {
-		common->micb_vout[i] = wcd_get_micbias_val(common->dev, i + 1, &common->micb_mv[i]);
-		if (common->micb_vout[i] < 0)
-			return -EINVAL;
+		ret = wcd_get_micbias_val(common->dev, i + 1, &common->micb_mv[i]);
+		if (ret < 0)
+			return ret;
+		common->micb_vout[i] = ret;
 	}
 
 	return 0;
