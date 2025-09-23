@@ -2844,8 +2844,13 @@ static int intel_cdclk_update_crtc_min_cdclk(struct intel_atomic_state *state,
 {
 	struct intel_display *display = to_intel_display(state);
 	struct intel_cdclk_state *cdclk_state;
+	bool allow_cdclk_decrease = intel_any_crtc_needs_modeset(state);
+	int ret;
 
-	if (new_min_cdclk <= old_min_cdclk)
+	if (new_min_cdclk == old_min_cdclk)
+		return 0;
+
+	if (!allow_cdclk_decrease && new_min_cdclk < old_min_cdclk)
 		return 0;
 
 	cdclk_state = intel_atomic_get_cdclk_state(state);
@@ -2854,8 +2859,17 @@ static int intel_cdclk_update_crtc_min_cdclk(struct intel_atomic_state *state,
 
 	old_min_cdclk = cdclk_state->min_cdclk[crtc->pipe];
 
-	if (new_min_cdclk <= old_min_cdclk)
+	if (new_min_cdclk == old_min_cdclk)
 		return 0;
+
+	if (!allow_cdclk_decrease && new_min_cdclk < old_min_cdclk)
+		return 0;
+
+	cdclk_state->min_cdclk[crtc->pipe] = new_min_cdclk;
+
+	ret = intel_atomic_lock_global_state(&cdclk_state->base);
+	if (ret)
+		return ret;
 
 	*need_cdclk_calc = true;
 
@@ -2922,27 +2936,8 @@ static int intel_compute_min_cdclk(struct intel_atomic_state *state)
 	struct intel_display *display = to_intel_display(state);
 	struct intel_cdclk_state *cdclk_state =
 		intel_atomic_get_new_cdclk_state(state);
-	struct intel_crtc *crtc;
-	struct intel_crtc_state *crtc_state;
-	int min_cdclk, i;
 	enum pipe pipe;
-
-	for_each_new_intel_crtc_in_state(state, crtc, crtc_state, i) {
-		int ret;
-
-		min_cdclk = intel_crtc_compute_min_cdclk(crtc_state);
-		if (min_cdclk < 0)
-			return min_cdclk;
-
-		if (cdclk_state->min_cdclk[crtc->pipe] == min_cdclk)
-			continue;
-
-		cdclk_state->min_cdclk[crtc->pipe] = min_cdclk;
-
-		ret = intel_atomic_lock_global_state(&cdclk_state->base);
-		if (ret)
-			return ret;
-	}
+	int min_cdclk;
 
 	min_cdclk = cdclk_state->force_min_cdclk;
 	min_cdclk = max(min_cdclk, cdclk_state->bw_min_cdclk);
