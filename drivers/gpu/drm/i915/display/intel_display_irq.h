@@ -61,6 +61,7 @@ void vlv_display_irq_reset(struct intel_display *display);
 void gen8_display_irq_reset(struct intel_display *display);
 void gen11_display_irq_reset(struct intel_display *display);
 
+u32 i9xx_display_irq_enable_mask(struct intel_display *display);
 void i915_display_irq_postinstall(struct intel_display *display);
 void i965_display_irq_postinstall(struct intel_display *display);
 void vlv_display_irq_postinstall(struct intel_display *display);

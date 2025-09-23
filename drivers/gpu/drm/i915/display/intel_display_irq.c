@@ -1900,6 +1900,22 @@ void i9xx_display_irq_reset(struct intel_display *display)
 	i9xx_pipestat_irq_reset(display);
 }
 
+u32 i9xx_display_irq_enable_mask(struct intel_display *display)
+{
+	u32 enable_mask;
+
+	enable_mask = I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |
+		I915_DISPLAY_PIPE_B_EVENT_INTERRUPT;
+
+	if (DISPLAY_VER(display) >= 3)
+		enable_mask |= I915_ASLE_INTERRUPT;
+
+	if (HAS_HOTPLUG(display))
+		enable_mask |= I915_DISPLAY_PORT_INTERRUPT;
+
+	return enable_mask;
+}
+
 void i915_display_irq_postinstall(struct intel_display *display)
 {
 	/*

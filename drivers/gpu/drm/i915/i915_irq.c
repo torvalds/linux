@@ -895,16 +895,8 @@ static void i915_irq_postinstall(struct drm_i915_private *dev_priv)
 
 	gen2_error_init(uncore, GEN2_ERROR_REGS, ~i9xx_error_mask(dev_priv));
 
-	enable_mask =
-		I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |
-		I915_DISPLAY_PIPE_B_EVENT_INTERRUPT |
+	enable_mask = i9xx_display_irq_enable_mask(display) |
 		I915_MASTER_ERROR_INTERRUPT;
-
-	if (DISPLAY_VER(display) >= 3)
-		enable_mask |= I915_ASLE_INTERRUPT;
-
-	if (HAS_HOTPLUG(display))
-		enable_mask |= I915_DISPLAY_PORT_INTERRUPT;
 
 	dev_priv->gen2_imr_mask = ~enable_mask;
 
@@ -1010,11 +1002,7 @@ static void i965_irq_postinstall(struct drm_i915_private *dev_priv)
 
 	gen2_error_init(uncore, GEN2_ERROR_REGS, ~i965_error_mask(dev_priv));
 
-	enable_mask =
-		I915_ASLE_INTERRUPT |
-		I915_DISPLAY_PORT_INTERRUPT |
-		I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |
-		I915_DISPLAY_PIPE_B_EVENT_INTERRUPT |
+	enable_mask = i9xx_display_irq_enable_mask(display) |
 		I915_MASTER_ERROR_INTERRUPT;
 
 	dev_priv->gen2_imr_mask = ~enable_mask;
