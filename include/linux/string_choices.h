@@ -17,6 +17,12 @@
 
 #include <linux/types.h>
 
+static inline const char *str_assert_deassert(bool v)
+{
+	return v ? "assert" : "deassert";
+}
+#define str_deassert_assert(v)		str_assert_deassert(!(v))
+
 static inline const char *str_enable_disable(bool v)
 {
 	return v ? "enable" : "disable";
