@@ -33,16 +33,16 @@ int cpufreq_frequency_table_cpuinfo(struct cpufreq_policy *policy)
 	struct cpufreq_frequency_table *pos, *table = policy->freq_table;
 	unsigned int min_freq = ~0;
 	unsigned int max_freq = 0;
-	unsigned int freq;
+	unsigned int freq, i;
 
-	cpufreq_for_each_valid_entry(pos, table) {
+	cpufreq_for_each_valid_entry_idx(pos, table, i) {
 		freq = pos->frequency;
 
 		if ((!cpufreq_boost_enabled() || !policy->boost_enabled)
 		    && (pos->flags & CPUFREQ_BOOST_FREQ))
 			continue;
 
-		pr_debug("table entry %u: %u kHz\n", (int)(pos - table), freq);
+		pr_debug("table entry %u: %u kHz\n", i, freq);
 		if (freq < min_freq)
 			min_freq = freq;
 		if (freq > max_freq)
@@ -126,7 +126,7 @@ int cpufreq_table_index_unsorted(struct cpufreq_policy *policy,
 	};
 	struct cpufreq_frequency_table *pos;
 	struct cpufreq_frequency_table *table = policy->freq_table;
-	unsigned int freq, diff, i = 0;
+	unsigned int freq, diff, i;
 	int index;
 
 	pr_debug("request for target %u kHz (relation: %u) for cpu %u\n",
