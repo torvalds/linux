@@ -797,7 +797,7 @@ static u64 intel_fbc_cfb_base_max(struct intel_display *display)
 
 static u64 intel_fbc_stolen_end(struct intel_display *display)
 {
-	struct drm_i915_private __maybe_unused *i915 = to_i915(display->drm);
+	struct drm_i915_private *i915 = to_i915(display->drm);
 	u64 end;
 
 	/* The FBC hardware for BDW/SKL doesn't have access to the stolen

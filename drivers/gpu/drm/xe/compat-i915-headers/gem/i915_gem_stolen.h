@@ -62,8 +62,15 @@ static inline void i915_gem_stolen_remove_node(struct xe_device *xe,
 	node->bo = NULL;
 }
 
-#define i915_gem_stolen_initialized(xe) (!!ttm_manager_type(&(xe)->ttm, XE_PL_STOLEN))
-#define i915_gem_stolen_node_allocated(node) (!!((node)->bo))
+static inline bool i915_gem_stolen_initialized(struct xe_device *xe)
+{
+	return ttm_manager_type(&xe->ttm, XE_PL_STOLEN);
+}
+
+static inline bool i915_gem_stolen_node_allocated(const struct intel_stolen_node *node)
+{
+	return node->bo;
+}
 
 static inline u32 i915_gem_stolen_node_offset(struct intel_stolen_node *node)
 {
@@ -74,12 +81,30 @@ static inline u32 i915_gem_stolen_node_offset(struct intel_stolen_node *node)
 }
 
 /* Used for < gen4. These are not supported by Xe */
-#define i915_gem_stolen_area_address(xe) (!WARN_ON(1))
-/* Used for gen9 specific WA. Gen9 is not supported by Xe */
-#define i915_gem_stolen_area_size(xe) (!WARN_ON(1))
+static inline u64 i915_gem_stolen_area_address(const struct xe_device *xe)
+{
+	WARN_ON(1);
 
-#define i915_gem_stolen_node_address(xe, node) (xe_ttm_stolen_gpu_offset(xe) + \
-					 i915_gem_stolen_node_offset(node))
-#define i915_gem_stolen_node_size(node) ((u64)((node)->bo->ttm.base.size))
+	return 0;
+}
+
+/* Used for gen9 specific WA. Gen9 is not supported by Xe */
+static inline u64 i915_gem_stolen_area_size(const struct xe_device *xe)
+{
+	WARN_ON(1);
+
+	return 0;
+}
+
+static inline u64 i915_gem_stolen_node_address(struct xe_device *xe,
+					       struct intel_stolen_node *node)
+{
+	return xe_ttm_stolen_gpu_offset(xe) + i915_gem_stolen_node_offset(node);
+}
+
+static inline u64 i915_gem_stolen_node_size(const struct intel_stolen_node *node)
+{
+	return node->bo->ttm.base.size;
+}
 
 #endif
