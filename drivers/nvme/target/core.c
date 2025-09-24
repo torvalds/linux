@@ -1903,6 +1903,8 @@ static void nvmet_subsys_free(struct kref *ref)
 	struct nvmet_subsys *subsys =
 		container_of(ref, struct nvmet_subsys, ref);
 
+	WARN_ON_ONCE(!list_empty(&subsys->ctrls));
+	WARN_ON_ONCE(!list_empty(&subsys->hosts));
 	WARN_ON_ONCE(!xa_empty(&subsys->namespaces));
 
 	nvmet_debugfs_subsys_free(subsys);
