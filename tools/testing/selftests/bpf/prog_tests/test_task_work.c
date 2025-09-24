@@ -55,8 +55,8 @@ static void task_work_run(const char *prog_name, const char *map_name)
 	struct task_work *skel;
 	struct bpf_program *prog;
 	struct bpf_map *map;
-	struct bpf_link *link;
-	int err, pe_fd = 0, pid, status, pipefd[2];
+	struct bpf_link *link = NULL;
+	int err, pe_fd = -1, pid, status, pipefd[2];
 	char user_string[] = "hello world";
 
 	if (!ASSERT_NEQ(pipe(pipefd), -1, "pipe"))
@@ -77,7 +77,11 @@ static void task_work_run(const char *prog_name, const char *map_name)
 		(void)num;
 		exit(0);
 	}
-	ASSERT_GT(pid, 0, "fork() failed");
+	if (!ASSERT_GT(pid, 0, "fork() failed")) {
+		close(pipefd[0]);
+		close(pipefd[1]);
+		return;
+	}
 
 	skel = task_work__open();
 	if (!ASSERT_OK_PTR(skel, "task_work__open"))
@@ -112,6 +116,8 @@ static void task_work_run(const char *prog_name, const char *map_name)
 	if (!ASSERT_OK_PTR(link, "attach_perf_event"))
 		goto cleanup;
 
+	/* perf event fd ownership is passed to bpf_link */
+	pe_fd = -1;
 	close(pipefd[0]);
 	write(pipefd[1], user_string, 1);
 	close(pipefd[1]);
@@ -126,8 +132,9 @@ static void task_work_run(const char *prog_name, const char *map_name)
 cleanup:
 	if (pe_fd >= 0)
 		close(pe_fd);
+	bpf_link__destroy(link);
 	task_work__destroy(skel);
-	if (pid) {
+	if (pid > 0) {
 		close(pipefd[0]);
 		write(pipefd[1], user_string, 1);
 		close(pipefd[1]);
