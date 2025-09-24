@@ -20,6 +20,7 @@
    lsm
    lsm-development
    sak
+   SCTP
    self-protection
    siphash
    tpm/index
@@ -29,6 +30,5 @@
 TODOLIST:
 * IMA-templates
 * keys/index
-* SCTP
 * secrets/index
 * ipe
