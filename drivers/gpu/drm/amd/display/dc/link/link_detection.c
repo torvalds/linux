@@ -270,6 +270,10 @@ static void read_scdc_caps(struct ddc_service *ddc_service,
 	uint8_t slave_address = HDMI_SCDC_ADDRESS;
 	uint8_t offset = HDMI_SCDC_MANUFACTURER_OUI;
 
+	if (ddc_service->link->local_sink &&
+		!ddc_service->link->local_sink->edid_caps.scdc_present)
+		return;
+
 	link_query_ddc_data(ddc_service, slave_address, &offset,
 			sizeof(offset), sink->scdc_caps.manufacturer_OUI.byte,
 			sizeof(sink->scdc_caps.manufacturer_OUI.byte));

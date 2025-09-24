@@ -212,6 +212,7 @@ struct dc_edid_caps {
 	bool edid_hdmi;
 	bool hdr_supported;
 	bool rr_capable;
+	bool scdc_present;
 
 	struct dc_panel_patch panel_patch;
 };
