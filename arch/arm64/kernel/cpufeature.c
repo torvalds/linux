@@ -86,6 +86,7 @@
 #include <asm/kvm_host.h>
 #include <asm/mmu.h>
 #include <asm/mmu_context.h>
+#include <asm/mmu.h>
 #include <asm/mte.h>
 #include <asm/hypervisor.h>
 #include <asm/processor.h>
@@ -2029,6 +2030,7 @@ static void __init kpti_install_ng_mappings(void)
 	if (arm64_use_ng_mappings)
 		return;
 
+	init_idmap_kpti_bbml2_flag();
 	stop_machine(__kpti_install_ng_mappings, NULL, cpu_online_mask);
 }
 
@@ -2219,7 +2221,7 @@ static bool hvhe_possible(const struct arm64_cpu_capabilities *entry,
 	return arm64_test_sw_feature_override(ARM64_SW_FEATURE_OVERRIDE_HVHE);
 }
 
-static bool has_bbml2_noabort(const struct arm64_cpu_capabilities *caps, int scope)
+bool cpu_supports_bbml2_noabort(void)
 {
 	/*
 	 * We want to allow usage of BBML2 in as wide a range of kernel contexts
@@ -2253,6 +2255,11 @@ static bool has_bbml2_noabort(const struct arm64_cpu_capabilities *caps, int sco
 	 */
 
 	return true;
+}
+
+static bool has_bbml2_noabort(const struct arm64_cpu_capabilities *caps, int scope)
+{
+	return cpu_supports_bbml2_noabort();
 }
 
 #ifdef CONFIG_ARM64_PAN
@@ -3930,6 +3937,7 @@ void __init setup_system_features(void)
 {
 	setup_system_capabilities();
 
+	linear_map_maybe_split_to_ptes();
 	kpti_install_ng_mappings();
 
 	sve_setup();
