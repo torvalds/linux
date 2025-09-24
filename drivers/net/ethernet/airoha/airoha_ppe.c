@@ -1243,12 +1243,11 @@ static int airoha_ppe_flush_sram_entries(struct airoha_ppe *ppe,
 
 static struct airoha_npu *airoha_ppe_npu_get(struct airoha_eth *eth)
 {
-	struct airoha_npu *npu = airoha_npu_get(eth->dev,
-						&eth->ppe->foe_stats_dma);
+	struct airoha_npu *npu = airoha_npu_get(eth->dev);
 
 	if (IS_ERR(npu)) {
 		request_module("airoha-npu");
-		npu = airoha_npu_get(eth->dev, &eth->ppe->foe_stats_dma);
+		npu = airoha_npu_get(eth->dev);
 	}
 
 	return npu;
@@ -1257,6 +1256,7 @@ static struct airoha_npu *airoha_ppe_npu_get(struct airoha_eth *eth)
 static int airoha_ppe_offload_setup(struct airoha_eth *eth)
 {
 	struct airoha_npu *npu = airoha_ppe_npu_get(eth);
+	struct airoha_ppe *ppe = eth->ppe;
 	int err;
 
 	if (IS_ERR(npu))
@@ -1266,12 +1266,19 @@ static int airoha_ppe_offload_setup(struct airoha_eth *eth)
 	if (err)
 		goto error_npu_put;
 
-	airoha_ppe_hw_init(eth->ppe);
-	err = airoha_ppe_flush_sram_entries(eth->ppe, npu);
+	if (PPE_STATS_NUM_ENTRIES) {
+		err = npu->ops.ppe_init_stats(npu, ppe->foe_stats_dma,
+					      PPE_STATS_NUM_ENTRIES);
+		if (err)
+			goto error_npu_put;
+	}
+
+	airoha_ppe_hw_init(ppe);
+	err = airoha_ppe_flush_sram_entries(ppe, npu);
 	if (err)
 		goto error_npu_put;
 
-	airoha_ppe_foe_flow_stats_reset(eth->ppe, npu);
+	airoha_ppe_foe_flow_stats_reset(ppe, npu);
 
 	rcu_assign_pointer(eth->npu, npu);
 	synchronize_rcu();

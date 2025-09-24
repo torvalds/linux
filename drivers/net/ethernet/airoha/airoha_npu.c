@@ -379,14 +379,12 @@ out:
 	return err;
 }
 
-static int airoha_npu_stats_setup(struct airoha_npu *npu,
-				  dma_addr_t foe_stats_addr)
+static int airoha_npu_ppe_stats_setup(struct airoha_npu *npu,
+				      dma_addr_t foe_stats_addr,
+				      u32 num_stats_entries)
 {
-	int err, size = PPE_STATS_NUM_ENTRIES * sizeof(*npu->stats);
+	int err, size = num_stats_entries * sizeof(*npu->stats);
 	struct ppe_mbox_data *ppe_data;
-
-	if (!size) /* flow stats are disabled */
-		return 0;
 
 	ppe_data = kzalloc(sizeof(*ppe_data), GFP_ATOMIC);
 	if (!ppe_data)
@@ -542,7 +540,7 @@ static void airoha_npu_wlan_irq_disable(struct airoha_npu *npu, int q)
 	regmap_clear_bits(npu->regmap, REG_IRQ_RXDONE(q), NPU_IRQ_RX_MASK(q));
 }
 
-struct airoha_npu *airoha_npu_get(struct device *dev, dma_addr_t *stats_addr)
+struct airoha_npu *airoha_npu_get(struct device *dev)
 {
 	struct platform_device *pdev;
 	struct device_node *np;
@@ -579,17 +577,6 @@ struct airoha_npu *airoha_npu_get(struct device *dev, dma_addr_t *stats_addr)
 			dev_name(dev));
 		npu = ERR_PTR(-EINVAL);
 		goto error_module_put;
-	}
-
-	if (stats_addr) {
-		int err;
-
-		err = airoha_npu_stats_setup(npu, *stats_addr);
-		if (err) {
-			dev_err(dev, "failed to allocate npu stats buffer\n");
-			npu = ERR_PTR(err);
-			goto error_module_put;
-		}
 	}
 
 	return npu;
@@ -643,6 +630,7 @@ static int airoha_npu_probe(struct platform_device *pdev)
 	npu->dev = dev;
 	npu->ops.ppe_init = airoha_npu_ppe_init;
 	npu->ops.ppe_deinit = airoha_npu_ppe_deinit;
+	npu->ops.ppe_init_stats = airoha_npu_ppe_stats_setup;
 	npu->ops.ppe_flush_sram_entries = airoha_npu_ppe_flush_sram_entries;
 	npu->ops.ppe_foe_commit_entry = airoha_npu_foe_commit_entry;
 	npu->ops.wlan_init_reserved_memory = airoha_npu_wlan_init_memory;

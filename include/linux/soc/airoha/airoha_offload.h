@@ -181,6 +181,8 @@ struct airoha_npu {
 	struct {
 		int (*ppe_init)(struct airoha_npu *npu);
 		int (*ppe_deinit)(struct airoha_npu *npu);
+		int (*ppe_init_stats)(struct airoha_npu *npu,
+				      dma_addr_t addr, u32 num_stats_entries);
 		int (*ppe_flush_sram_entries)(struct airoha_npu *npu,
 					      dma_addr_t foe_addr,
 					      int sram_num_entries);
@@ -206,7 +208,7 @@ struct airoha_npu {
 };
 
 #if (IS_BUILTIN(CONFIG_NET_AIROHA_NPU) || IS_MODULE(CONFIG_NET_AIROHA_NPU))
-struct airoha_npu *airoha_npu_get(struct device *dev, dma_addr_t *stats_addr);
+struct airoha_npu *airoha_npu_get(struct device *dev);
 void airoha_npu_put(struct airoha_npu *npu);
 
 static inline int airoha_npu_wlan_init_reserved_memory(struct airoha_npu *npu)
@@ -256,8 +258,7 @@ static inline void airoha_npu_wlan_disable_irq(struct airoha_npu *npu, int q)
 	npu->ops.wlan_disable_irq(npu, q);
 }
 #else
-static inline struct airoha_npu *airoha_npu_get(struct device *dev,
-						dma_addr_t *foe_stats_addr)
+static inline struct airoha_npu *airoha_npu_get(struct device *dev)
 {
 	return NULL;
 }
