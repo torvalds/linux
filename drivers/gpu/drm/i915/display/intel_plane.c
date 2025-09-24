@@ -45,7 +45,6 @@
 #include <drm/drm_panic.h>
 
 #include "gem/i915_gem_object.h"
-#include "i915_scheduler_types.h"
 #include "i9xx_plane_regs.h"
 #include "intel_cdclk.h"
 #include "intel_cursor.h"
@@ -1172,7 +1171,6 @@ static int
 intel_prepare_plane_fb(struct drm_plane *_plane,
 		       struct drm_plane_state *_new_plane_state)
 {
-	struct i915_sched_attr attr = { .priority = I915_PRIORITY_DISPLAY };
 	struct intel_plane *plane = to_intel_plane(_plane);
 	struct intel_display *display = to_intel_display(plane);
 	struct intel_plane_state *new_plane_state =
@@ -1221,8 +1219,7 @@ intel_prepare_plane_fb(struct drm_plane *_plane,
 		goto unpin_fb;
 
 	if (new_plane_state->uapi.fence) {
-		i915_gem_fence_wait_priority(new_plane_state->uapi.fence,
-					     &attr);
+		i915_gem_fence_wait_priority_display(new_plane_state->uapi.fence);
 
 		intel_display_rps_boost_after_vblank(new_plane_state->hw.crtc,
 						     new_plane_state->uapi.fence);

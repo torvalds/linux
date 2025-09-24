@@ -138,6 +138,13 @@ void i915_gem_fence_wait_priority(struct dma_fence *fence,
 	local_bh_enable(); /* kick the tasklets if queues were reprioritised */
 }
 
+void i915_gem_fence_wait_priority_display(struct dma_fence *fence)
+{
+	struct i915_sched_attr attr = { .priority = I915_PRIORITY_DISPLAY };
+
+	i915_gem_fence_wait_priority(fence, &attr);
+}
+
 int
 i915_gem_object_wait_priority(struct drm_i915_gem_object *obj,
 			      unsigned int flags,
