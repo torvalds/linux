@@ -13,6 +13,8 @@ use core::{
     ops::{self, Deref, DerefMut, Index},
 };
 
+pub mod parse_int;
+
 /// Byte string without UTF-8 validity guarantee.
 #[repr(transparent)]
 pub struct BStr([u8]);
