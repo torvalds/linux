@@ -546,3 +546,36 @@ void wx_get_ptp_stats(struct net_device *dev,
 	}
 }
 EXPORT_SYMBOL(wx_get_ptp_stats);
+
+static int wx_get_link_ksettings_vf(struct net_device *netdev,
+				    struct ethtool_link_ksettings *cmd)
+{
+	struct wx *wx = netdev_priv(netdev);
+
+	ethtool_link_ksettings_zero_link_mode(cmd, supported);
+	cmd->base.autoneg = AUTONEG_DISABLE;
+	cmd->base.port = PORT_NONE;
+	cmd->base.duplex = DUPLEX_FULL;
+	cmd->base.speed = wx->speed;
+
+	return 0;
+}
+
+static const struct ethtool_ops wx_ethtool_ops_vf = {
+	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
+				     ETHTOOL_COALESCE_TX_MAX_FRAMES_IRQ |
+				     ETHTOOL_COALESCE_USE_ADAPTIVE,
+	.get_drvinfo		= wx_get_drvinfo,
+	.get_link		= ethtool_op_get_link,
+	.get_ringparam		= wx_get_ringparam,
+	.get_msglevel		= wx_get_msglevel,
+	.get_coalesce		= wx_get_coalesce,
+	.get_ts_info		= ethtool_op_get_ts_info,
+	.get_link_ksettings	= wx_get_link_ksettings_vf,
+};
+
+void wx_set_ethtool_ops_vf(struct net_device *netdev)
+{
+	netdev->ethtool_ops = &wx_ethtool_ops_vf;
+}
+EXPORT_SYMBOL(wx_set_ethtool_ops_vf);

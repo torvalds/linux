@@ -14,6 +14,7 @@
 #include "../libwx/wx_mbx.h"
 #include "../libwx/wx_vf.h"
 #include "../libwx/wx_vf_common.h"
+#include "../libwx/wx_ethtool.h"
 #include "txgbevf_type.h"
 
 /* txgbevf_pci_tbl - PCI Device ID Table
@@ -239,6 +240,8 @@ static int txgbevf_probe(struct pci_dev *pdev,
 		goto err_pci_release_regions;
 	}
 
+	wx->driver_name = KBUILD_MODNAME;
+	wx_set_ethtool_ops_vf(netdev);
 	netdev->netdev_ops = &txgbevf_netdev_ops;
 
 	/* setup the private structure */
@@ -256,6 +259,7 @@ static int txgbevf_probe(struct pci_dev *pdev,
 	if (err)
 		goto err_free_sw_init;
 
+	wx_get_fw_version_vf(wx);
 	err = register_netdev(netdev);
 	if (err)
 		goto err_register;
