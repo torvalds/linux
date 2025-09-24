@@ -239,8 +239,6 @@ static struct notifier_block panic_exit_notifier = {
 
 void uml_finishsetup(void)
 {
-	cpu_tasks[0] = &init_task;
-
 	atomic_notifier_chain_register(&panic_notifier_list,
 				       &panic_exit_notifier);
 
