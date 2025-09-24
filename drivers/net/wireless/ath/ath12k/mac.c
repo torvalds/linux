@@ -4221,6 +4221,30 @@ static bool ath12k_mac_supports_tpc(struct ath12k *ar, struct ath12k_vif *ahvif,
 		chandef->chan->band == NL80211_BAND_6GHZ;
 }
 
+static void ath12k_wmi_vdev_params_up(struct ath12k *ar,
+				      struct ath12k_link_vif *arvif,
+				      struct ath12k_link_vif *tx_arvif,
+				      struct ieee80211_bss_conf *info, u16 aid)
+{
+	struct ath12k_wmi_vdev_up_params params = {
+		.vdev_id = arvif->vdev_id,
+		.aid = aid,
+		.bssid = arvif->bssid
+	};
+	int ret;
+
+	if (tx_arvif) {
+		params.tx_bssid = tx_arvif->bssid;
+		params.nontx_profile_idx = info->bssid_index;
+		params.nontx_profile_cnt = 1 << info->bssid_indicator;
+	}
+
+	ret = ath12k_wmi_vdev_up(arvif->ar, &params);
+	if (ret)
+		ath12k_warn(ar->ab, "failed to bring vdev up %d: %d\n",
+			    arvif->vdev_id, ret);
+}
+
 static void ath12k_mac_bss_info_changed(struct ath12k *ar,
 					struct ath12k_link_vif *arvif,
 					struct ieee80211_bss_conf *info,
@@ -4228,6 +4252,7 @@ static void ath12k_mac_bss_info_changed(struct ath12k *ar,
 {
 	struct ath12k_vif *ahvif = arvif->ahvif;
 	struct ieee80211_vif *vif = ath12k_ahvif_to_vif(ahvif);
+	struct ath12k_link_vif *tx_arvif;
 	struct cfg80211_chan_def def;
 	u32 param_id, param_value;
 	enum nl80211_band band;
@@ -4236,9 +4261,9 @@ static void ath12k_mac_bss_info_changed(struct ath12k *ar,
 	u32 preamble;
 	u16 hw_value;
 	u16 bitrate;
-	int ret;
 	u8 rateidx;
 	u32 rate;
+	int ret;
 
 	lockdep_assert_wiphy(ath12k_ar_to_hw(ar)->wiphy);
 
@@ -4271,11 +4296,40 @@ static void ath12k_mac_bss_info_changed(struct ath12k *ar,
 				   "Set burst beacon mode for VDEV: %d\n",
 				   arvif->vdev_id);
 
+		/* In MBSSID case, need to install transmitting VIF's template first */
+
 		ret = ath12k_mac_setup_bcn_tmpl(arvif);
 		if (ret)
 			ath12k_warn(ar->ab, "failed to update bcn template: %d\n",
 				    ret);
+
+		if (!arvif->is_csa_in_progress)
+			goto skip_vdev_up;
+
+		tx_arvif = ath12k_mac_get_tx_arvif(arvif, info);
+		if (tx_arvif && arvif != tx_arvif && tx_arvif->is_csa_in_progress)
+			/* skip non tx vif's */
+			goto skip_vdev_up;
+
+		ath12k_wmi_vdev_params_up(ar, arvif, tx_arvif, info, ahvif->aid);
+
+		arvif->is_csa_in_progress = false;
+
+		if (tx_arvif && arvif == tx_arvif) {
+			struct ath12k_link_vif *arvif_itr;
+
+			list_for_each_entry(arvif_itr, &ar->arvifs, list) {
+				if (!arvif_itr->is_csa_in_progress)
+					continue;
+
+				ath12k_wmi_vdev_params_up(ar, arvif, tx_arvif,
+							  info, ahvif->aid);
+				arvif_itr->is_csa_in_progress = false;
+			}
+		}
 	}
+
+skip_vdev_up:
 
 	if (changed & (BSS_CHANGED_BEACON_INFO | BSS_CHANGED_BEACON)) {
 		arvif->dtim_period = info->dtim_period;
@@ -10862,9 +10916,9 @@ ath12k_mac_update_vif_chan(struct ath12k *ar,
 			   int n_vifs)
 {
 	struct ath12k_wmi_vdev_up_params params = {};
-	struct ath12k_link_vif *arvif;
 	struct ieee80211_bss_conf *link_conf;
 	struct ath12k_base *ab = ar->ab;
+	struct ath12k_link_vif *arvif;
 	struct ieee80211_vif *vif;
 	struct ath12k_vif *ahvif;
 	u8 link_id;
@@ -10925,6 +10979,28 @@ ath12k_mac_update_vif_chan(struct ath12k *ar,
 			continue;
 		}
 
+		ret = ath12k_mac_update_peer_puncturing_width(arvif->ar, arvif,
+							      vifs[i].new_ctx->def);
+		if (ret) {
+			ath12k_warn(ar->ab,
+				    "failed to update puncturing bitmap %02x and width %d: %d\n",
+				    vifs[i].new_ctx->def.punctured,
+				    vifs[i].new_ctx->def.width, ret);
+			continue;
+		}
+
+		/* Defer VDEV bring-up during CSA to avoid installing stale
+		 * beacon templates. The beacon content is updated only
+		 * after CSA finalize, so we mark CSA in progress and skip
+		 * VDEV_UP for now. It will be handled later in
+		 * bss_info_changed().
+		 */
+		if (link_conf->csa_active &&
+		    arvif->ahvif->vdev_type == WMI_VDEV_TYPE_AP) {
+			arvif->is_csa_in_progress = true;
+			continue;
+		}
+
 		ret = ath12k_mac_setup_bcn_tmpl(arvif);
 		if (ret)
 			ath12k_warn(ab, "failed to update bcn tmpl during csa: %d\n",
@@ -10943,16 +11019,6 @@ ath12k_mac_update_vif_chan(struct ath12k *ar,
 		if (ret) {
 			ath12k_warn(ab, "failed to bring vdev up %d: %d\n",
 				    arvif->vdev_id, ret);
-			continue;
-		}
-
-		ret = ath12k_mac_update_peer_puncturing_width(arvif->ar, arvif,
-							      vifs[i].new_ctx->def);
-		if (ret) {
-			ath12k_warn(ar->ab,
-				    "failed to update puncturing bitmap %02x and width %d: %d\n",
-				    vifs[i].new_ctx->def.punctured,
-				    vifs[i].new_ctx->def.width, ret);
 			continue;
 		}
 	}
