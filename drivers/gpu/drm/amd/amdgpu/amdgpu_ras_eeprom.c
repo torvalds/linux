@@ -903,6 +903,33 @@ int amdgpu_ras_eeprom_update_record_num(struct amdgpu_ras_eeprom_control *contro
 	return ret;
 }
 
+static int amdgpu_ras_smu_eeprom_append(struct amdgpu_ras_eeprom_control *control)
+{
+	struct amdgpu_device *adev = to_amdgpu_device(control);
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+
+	if (!amdgpu_ras_smu_eeprom_supported(adev) || !con)
+		return 0;
+
+	control->ras_num_bad_pages = con->bad_page_num;
+
+	if (amdgpu_bad_page_threshold != 0 &&
+	    control->ras_num_bad_pages > con->bad_page_cnt_threshold) {
+		dev_warn(adev->dev,
+			"Saved bad pages %d reaches threshold value %d\n",
+			control->ras_num_bad_pages, con->bad_page_cnt_threshold);
+
+		if (adev->cper.enabled && amdgpu_cper_generate_bp_threshold_record(adev))
+			dev_warn(adev->dev, "fail to generate bad page threshold cper records\n");
+
+		if ((amdgpu_bad_page_threshold != -1) &&
+		    (amdgpu_bad_page_threshold != -2))
+			con->is_rma = true;
+	}
+
+	return 0;
+}
+
 /**
  * amdgpu_ras_eeprom_append -- append records to the EEPROM RAS table
  * @control: pointer to control structure
@@ -921,17 +948,14 @@ int amdgpu_ras_eeprom_append(struct amdgpu_ras_eeprom_control *control,
 			     const u32 num)
 {
 	struct amdgpu_device *adev = to_amdgpu_device(control);
-	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	int res, i;
 	uint64_t nps = AMDGPU_NPS1_PARTITION_MODE;
 
-	if (!__is_ras_eeprom_supported(adev) || !con)
+	if (!__is_ras_eeprom_supported(adev))
 		return 0;
 
-	if (amdgpu_ras_smu_eeprom_supported(adev)) {
-		control->ras_num_bad_pages = con->bad_page_num;
-		return 0;
-	}
+	if (amdgpu_ras_smu_eeprom_supported(adev))
+		return amdgpu_ras_smu_eeprom_append(control);
 
 	if (num == 0) {
 		dev_err(adev->dev, "will not append 0 records\n");
