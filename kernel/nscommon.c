@@ -46,8 +46,6 @@ static void ns_debug(struct ns_common *ns, const struct proc_ns_operations *ops)
 		VFS_WARN_ON_ONCE(ops != &utsns_operations);
 		break;
 #endif
-	default:
-		VFS_WARN_ON_ONCE(true);
 	}
 }
 #endif
