@@ -1021,12 +1021,8 @@ void get_cpu_cap(struct cpuinfo_x86 *c)
 		c->x86_capability[CPUID_8000_0001_EDX] = edx;
 	}
 
-	if (c->extended_cpuid_level >= 0x80000007) {
-		cpuid(0x80000007, &eax, &ebx, &ecx, &edx);
-
-		c->x86_capability[CPUID_8000_0007_EBX] = ebx;
-		c->x86_power = edx;
-	}
+	if (c->extended_cpuid_level >= 0x80000007)
+		c->x86_power = cpuid_edx(0x80000007);
 
 	if (c->extended_cpuid_level >= 0x80000008) {
 		cpuid(0x80000008, &eax, &ebx, &ecx, &edx);
