@@ -398,10 +398,11 @@ static void amdgpu_connector_add_common_modes(struct drm_encoder *encoder,
 	struct drm_display_mode *mode = NULL;
 	struct drm_display_mode *native_mode = &amdgpu_encoder->native_mode;
 	int i;
+	int n;
 	static const struct mode_size {
 		int w;
 		int h;
-	} common_modes[17] = {
+	} common_modes[] = {
 		{ 640,  480},
 		{ 720,  480},
 		{ 800,  600},
@@ -421,7 +422,9 @@ static void amdgpu_connector_add_common_modes(struct drm_encoder *encoder,
 		{1920, 1200}
 	};
 
-	for (i = 0; i < 17; i++) {
+	n = ARRAY_SIZE(common_modes);
+
+	for (i = 0; i < n; i++) {
 		if (amdgpu_encoder->devices & (ATOM_DEVICE_TV_SUPPORT)) {
 			if (common_modes[i].w > 1024 ||
 			    common_modes[i].h > 768)
