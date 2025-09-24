@@ -79,12 +79,6 @@ intel_vrr_check_modeset(struct intel_atomic_state *state)
 	}
 }
 
-static int intel_vrr_real_vblank_delay(const struct intel_crtc_state *crtc_state)
-{
-	return crtc_state->hw.adjusted_mode.crtc_vblank_start -
-		crtc_state->hw.adjusted_mode.crtc_vdisplay;
-}
-
 static int intel_vrr_extra_vblank_delay(struct intel_display *display)
 {
 	/*
@@ -102,7 +96,7 @@ int intel_vrr_vblank_delay(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
 
-	return intel_vrr_real_vblank_delay(crtc_state) +
+	return crtc_state->set_context_latency +
 		intel_vrr_extra_vblank_delay(display);
 }
 
@@ -263,7 +257,7 @@ static int intel_vrr_hw_value(const struct intel_crtc_state *crtc_state,
 	if (DISPLAY_VER(display) >= 13)
 		return value;
 	else
-		return value - intel_vrr_real_vblank_delay(crtc_state);
+		return value - crtc_state->set_context_latency;
 }
 
 /*
@@ -768,9 +762,9 @@ void intel_vrr_get_config(struct intel_crtc_state *crtc_state)
 
 		if (DISPLAY_VER(display) < 13) {
 			/* undo what intel_vrr_hw_value() does when writing the values */
-			crtc_state->vrr.flipline += intel_vrr_real_vblank_delay(crtc_state);
-			crtc_state->vrr.vmax += intel_vrr_real_vblank_delay(crtc_state);
-			crtc_state->vrr.vmin += intel_vrr_real_vblank_delay(crtc_state);
+			crtc_state->vrr.flipline += crtc_state->set_context_latency;
+			crtc_state->vrr.vmax += crtc_state->set_context_latency;
+			crtc_state->vrr.vmin += crtc_state->set_context_latency;
 
 			crtc_state->vrr.vmin += intel_vrr_vmin_flipline_offset(display);
 		}
