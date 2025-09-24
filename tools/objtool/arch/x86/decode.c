@@ -494,6 +494,12 @@ int arch_decode_instruction(struct objtool_file *file, const struct section *sec
 		break;
 
 	case 0x90:
+		if (rex_b) /* XCHG %r8, %rax */
+			break;
+
+		if (prefix == 0xf3) /* REP NOP := PAUSE */
+			break;
+
 		insn->type = INSN_NOP;
 		break;
 
@@ -547,13 +553,14 @@ int arch_decode_instruction(struct objtool_file *file, const struct section *sec
 
 		} else if (op2 == 0x0b || op2 == 0xb9) {
 
-			/* ud2 */
+			/* ud2, ud1 */
 			insn->type = INSN_BUG;
 
-		} else if (op2 == 0x0d || op2 == 0x1f) {
+		} else if (op2 == 0x1f) {
 
-			/* nopl/nopw */
-			insn->type = INSN_NOP;
+			/* 0f 1f /0 := NOPL */
+			if (modrm_reg == 0)
+				insn->type = INSN_NOP;
 
 		} else if (op2 == 0x1e) {
 
