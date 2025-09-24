@@ -189,7 +189,7 @@ static struct scx_dispatch_q *find_global_dsq(struct scx_sched *sch,
 
 static struct scx_dispatch_q *find_user_dsq(struct scx_sched *sch, u64 dsq_id)
 {
-	return rhashtable_lookup(&sch->dsq_hash, &dsq_id, dsq_hash_params);
+	return rhashtable_lookup_fast(&sch->dsq_hash, &dsq_id, dsq_hash_params);
 }
 
 /*
