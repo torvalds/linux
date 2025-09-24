@@ -1629,7 +1629,7 @@ static int rswitch_open(struct net_device *ndev)
 		rswitch_update_l2_offload(rdev->priv);
 
 	return 0;
-};
+}
 
 static int rswitch_stop(struct net_device *ndev)
 {
@@ -1664,7 +1664,7 @@ static int rswitch_stop(struct net_device *ndev)
 	}
 
 	return 0;
-};
+}
 
 static bool rswitch_ext_desc_set_info1(struct rswitch_device *rdev,
 				       struct sk_buff *skb,
