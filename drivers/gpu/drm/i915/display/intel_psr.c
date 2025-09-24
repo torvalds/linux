@@ -2360,12 +2360,12 @@ void intel_psr_trigger_frame_change_event(struct intel_dsb *dsb,
 }
 
 /**
- * intel_psr_min_vblank_delay - Minimum vblank delay needed by PSR
+ * intel_psr_min_set_context_latency - Minimum 'set context latency' lines needed by PSR
  * @crtc_state: the crtc state
  *
- * Return minimum vblank delay needed by PSR.
+ * Return minimum SCL lines/delay needed by PSR.
  */
-int intel_psr_min_vblank_delay(const struct intel_crtc_state *crtc_state)
+int intel_psr_min_set_context_latency(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
 

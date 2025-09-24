@@ -2369,7 +2369,7 @@ static int intel_crtc_vblank_delay(const struct intel_crtc_state *crtc_state)
 	if (!HAS_DSB(display))
 		return 0;
 
-	vblank_delay = max(vblank_delay, intel_psr_min_vblank_delay(crtc_state));
+	vblank_delay = max(vblank_delay, intel_psr_min_set_context_latency(crtc_state));
 
 	return vblank_delay;
 }
