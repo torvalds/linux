@@ -321,11 +321,13 @@ int __nolibc_printf(__nolibc_printf_cb cb, intptr_t state, size_t n, const char 
 				if (!outstr)
 					outstr="(null)";
 			}
-#ifndef NOLIBC_IGNORE_ERRNO
 			else if (c == 'm') {
+#ifdef NOLIBC_IGNORE_ERRNO
+				outstr = "unknown error";
+#else
 				outstr = strerror(errno);
-			}
 #endif /* NOLIBC_IGNORE_ERRNO */
+			}
 			else if (c == '%') {
 				/* queue it verbatim */
 				continue;
