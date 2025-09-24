@@ -537,10 +537,14 @@ static void pci_read_bridge_windows(struct pci_dev *bridge)
 	}
 	if (io) {
 		bridge->io_window = 1;
-		pci_read_bridge_io(bridge, &res, true);
+		pci_read_bridge_io(bridge,
+				   pci_resource_n(bridge, PCI_BRIDGE_IO_WINDOW),
+				   true);
 	}
 
-	pci_read_bridge_mmio(bridge, &res, true);
+	pci_read_bridge_mmio(bridge,
+			     pci_resource_n(bridge, PCI_BRIDGE_MEM_WINDOW),
+			     true);
 
 	/*
 	 * DECchip 21050 pass 2 errata: the bridge may miss an address
@@ -578,7 +582,10 @@ static void pci_read_bridge_windows(struct pci_dev *bridge)
 			bridge->pref_64_window = 1;
 	}
 
-	pci_read_bridge_mmio_pref(bridge, &res, true);
+	pci_read_bridge_mmio_pref(bridge,
+				  pci_resource_n(bridge,
+						 PCI_BRIDGE_PREF_MEM_WINDOW),
+				  true);
 }
 
 void pci_read_bridge_bases(struct pci_bus *child)
