@@ -434,8 +434,6 @@ static void amdgpu_connector_add_common_modes(struct drm_encoder *encoder,
 			     common_modes[i].h == native_mode->vdisplay))
 				continue;
 		}
-		if (common_modes[i].w < 320 || common_modes[i].h < 200)
-			continue;
 
 		mode = drm_cvt_mode(dev, common_modes[i].w, common_modes[i].h, 60, false, false, false);
 		if (!mode)
