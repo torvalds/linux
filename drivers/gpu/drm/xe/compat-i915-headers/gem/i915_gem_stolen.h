@@ -51,7 +51,8 @@ static inline int i915_gem_stolen_insert_node(struct xe_device *xe,
 					      u32 size, u32 align)
 {
 	/* Not used on xe */
-	BUG_ON(1);
+	WARN_ON(1);
+
 	return -ENODEV;
 }
 
