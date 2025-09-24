@@ -600,6 +600,7 @@ err_q:
 static void __ionic_destroy_rdma_adminq(struct ionic_ibdev *dev,
 					struct ionic_aq *aq)
 {
+	kfree(aq->q_wr);
 	ionic_queue_destroy(&aq->q, dev->lif_cfg.hwdev);
 	kfree(aq);
 }
