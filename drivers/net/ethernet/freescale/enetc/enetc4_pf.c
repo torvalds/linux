@@ -1030,7 +1030,7 @@ static int enetc4_pf_probe(struct pci_dev *pdev,
 	err = enetc_get_driver_data(si);
 	if (err)
 		return dev_err_probe(dev, err,
-				     "Could not get VF driver data\n");
+				     "Could not get PF driver data\n");
 
 	err = enetc4_pf_struct_init(si);
 	if (err)
