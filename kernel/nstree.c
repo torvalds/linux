@@ -4,6 +4,20 @@
 #include <linux/proc_ns.h>
 #include <linux/vfsdebug.h>
 
+/**
+ * struct ns_tree - Namespace tree
+ * @ns_tree: Rbtree of namespaces of a particular type
+ * @ns_list: Sequentially walkable list of all namespaces of this type
+ * @ns_tree_lock: Seqlock to protect the tree and list
+ * @type: type of namespaces in this tree
+ */
+struct ns_tree {
+       struct rb_root ns_tree;
+       struct list_head ns_list;
+       seqlock_t ns_tree_lock;
+       int type;
+};
+
 struct ns_tree mnt_ns_tree = {
 	.ns_tree = RB_ROOT,
 	.ns_list = LIST_HEAD_INIT(mnt_ns_tree.ns_list),

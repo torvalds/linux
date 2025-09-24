@@ -9,19 +9,6 @@
 #include <linux/rculist.h>
 #include <linux/cookie.h>
 
-/**
- * struct ns_tree - Namespace tree
- * @ns_tree: Rbtree of namespaces of a particular type
- * @ns_list: Sequentially walkable list of all namespaces of this type
- * @ns_tree_lock: Seqlock to protect the tree and list
- */
-struct ns_tree {
-	struct rb_root ns_tree;
-	struct list_head ns_list;
-	seqlock_t ns_tree_lock;
-	int type;
-};
-
 extern struct ns_tree cgroup_ns_tree;
 extern struct ns_tree ipc_ns_tree;
 extern struct ns_tree mnt_ns_tree;
