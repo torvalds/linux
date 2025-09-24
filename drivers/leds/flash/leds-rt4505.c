@@ -365,7 +365,7 @@ static int rt4505_probe(struct i2c_client *client)
 		return ret;
 	}
 
-	child = fwnode_get_next_available_child_node(client->dev.fwnode, NULL);
+	child = device_get_next_child_node(&client->dev, NULL);
 	if (!child) {
 		dev_err(priv->dev, "Failed to get child node\n");
 		return -EINVAL;
