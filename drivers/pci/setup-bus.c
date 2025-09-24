@@ -1317,6 +1317,7 @@ static void pbus_size_mem(struct pci_bus *bus, unsigned long type,
 	resource_size_t children_add_align = 0;
 	resource_size_t add_align = 0;
 	resource_size_t relaxed_align;
+	resource_size_t old_size;
 
 	if (!b_res)
 		return;
@@ -1387,20 +1388,24 @@ static void pbus_size_mem(struct pci_bus *bus, unsigned long type,
 		}
 	}
 
+	old_size = resource_size(b_res);
 	win_align = window_alignment(bus, b_res->flags);
 	min_align = calculate_mem_align(aligns, max_order);
 	min_align = max(min_align, win_align);
-	size0 = calculate_memsize(size, min_size, 0, 0, resource_size(b_res), min_align);
+	size0 = calculate_memsize(size, min_size, 0, 0, old_size, min_align);
 
-	if (size0)
+	if (size0) {
+		resource_set_range(b_res, min_align, size0);
 		b_res->flags &= ~IORESOURCE_DISABLED;
+	}
 
 	if (bus->self && size0 &&
 	    !pbus_upstream_space_available(bus, b_res, size0, min_align)) {
 		relaxed_align = 1ULL << (max_order + __ffs(SZ_1M));
 		relaxed_align = max(relaxed_align, win_align);
 		min_align = min(min_align, relaxed_align);
-		size0 = calculate_memsize(size, min_size, 0, 0, resource_size(b_res), win_align);
+		size0 = calculate_memsize(size, min_size, 0, 0, old_size, win_align);
+		resource_set_range(b_res, min_align, size0);
 		pci_info(bus->self, "bridge window %pR to %pR requires relaxed alignment rules\n",
 			 b_res, &bus->busn_res);
 	}
@@ -1408,7 +1413,7 @@ static void pbus_size_mem(struct pci_bus *bus, unsigned long type,
 	if (realloc_head && (add_size > 0 || children_add_size > 0)) {
 		add_align = max(min_align, add_align);
 		size1 = calculate_memsize(size, min_size, add_size, children_add_size,
-					  resource_size(b_res), add_align);
+					  old_size, add_align);
 
 		if (bus->self && size1 &&
 		    !pbus_upstream_space_available(bus, b_res, size1, add_align)) {
@@ -1416,7 +1421,7 @@ static void pbus_size_mem(struct pci_bus *bus, unsigned long type,
 			relaxed_align = max(relaxed_align, win_align);
 			min_align = min(min_align, relaxed_align);
 			size1 = calculate_memsize(size, min_size, add_size, children_add_size,
-						  resource_size(b_res), win_align);
+						  old_size, win_align);
 			pci_info(bus->self,
 				 "bridge window %pR to %pR requires relaxed alignment rules\n",
 				 b_res, &bus->busn_res);
