@@ -163,6 +163,8 @@ int main(int argc, char *argv[])
 	struct kvm_vm *vm;
 	uint64_t pfr0;
 
+	test_disable_default_vgic();
+
 	vm = vm_create_with_one_vcpu(&vcpu, NULL);
 	pfr0 = vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(SYS_ID_AA64PFR0_EL1));
 	__TEST_REQUIRE(FIELD_GET(ID_AA64PFR0_EL1_GIC, pfr0),
