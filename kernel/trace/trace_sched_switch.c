@@ -247,6 +247,8 @@ int trace_save_cmdline(struct task_struct *tsk)
 	if (!tsk->pid)
 		return 1;
 
+	BUILD_BUG_ON(!is_power_of_2(PID_MAX_DEFAULT));
+
 	tpid = tsk->pid & (PID_MAX_DEFAULT - 1);
 
 	/*
