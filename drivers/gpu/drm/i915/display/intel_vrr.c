@@ -807,3 +807,20 @@ void intel_vrr_get_config(struct intel_crtc_state *crtc_state)
 	if (crtc_state->vrr.enable)
 		crtc_state->mode_flags |= I915_MODE_FLAG_VRR;
 }
+
+int intel_vrr_safe_window_start(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_display *display = to_intel_display(crtc_state);
+
+	if (DISPLAY_VER(display) >= 30)
+		return crtc_state->hw.adjusted_mode.crtc_vdisplay -
+		       crtc_state->set_context_latency;
+	else
+		return crtc_state->hw.adjusted_mode.crtc_vdisplay;
+}
+
+int intel_vrr_vmin_safe_window_end(const struct intel_crtc_state *crtc_state)
+{
+	return intel_vrr_vmin_vblank_start(crtc_state) -
+	       crtc_state->set_context_latency;
+}
