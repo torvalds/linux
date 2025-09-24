@@ -63,11 +63,10 @@ static int __i915_gem_stolen_insert_node_in_range(struct drm_i915_private *i915,
 	return ret;
 }
 
-int i915_gem_stolen_insert_node_in_range(struct drm_i915_private *i915,
-					 struct intel_stolen_node *node, u64 size,
+int i915_gem_stolen_insert_node_in_range(struct intel_stolen_node *node, u64 size,
 					 unsigned int alignment, u64 start, u64 end)
 {
-	return __i915_gem_stolen_insert_node_in_range(i915, &node->node,
+	return __i915_gem_stolen_insert_node_in_range(node->i915, &node->node,
 						      size, alignment,
 						      start, end);
 }
@@ -82,11 +81,10 @@ static int __i915_gem_stolen_insert_node(struct drm_i915_private *i915,
 						      U64_MAX);
 }
 
-int i915_gem_stolen_insert_node(struct drm_i915_private *i915,
-				struct intel_stolen_node *node, u64 size,
+int i915_gem_stolen_insert_node(struct intel_stolen_node *node, u64 size,
 				unsigned int alignment)
 {
-	return __i915_gem_stolen_insert_node(i915, &node->node, size, alignment);
+	return __i915_gem_stolen_insert_node(node->i915, &node->node, size, alignment);
 }
 
 static void __i915_gem_stolen_remove_node(struct drm_i915_private *i915,
@@ -97,10 +95,9 @@ static void __i915_gem_stolen_remove_node(struct drm_i915_private *i915,
 	mutex_unlock(&i915->mm.stolen_lock);
 }
 
-void i915_gem_stolen_remove_node(struct drm_i915_private *i915,
-				 struct intel_stolen_node *node)
+void i915_gem_stolen_remove_node(struct intel_stolen_node *node)
 {
-	__i915_gem_stolen_remove_node(i915, &node->node);
+	__i915_gem_stolen_remove_node(node->i915, &node->node);
 }
 
 static bool valid_stolen_size(struct drm_i915_private *i915, struct resource *dsm)
@@ -1042,9 +1039,10 @@ u64 i915_gem_stolen_area_size(const struct drm_i915_private *i915)
 	return resource_size(&i915->dsm.stolen);
 }
 
-u64 i915_gem_stolen_node_address(const struct drm_i915_private *i915,
-				 const struct intel_stolen_node *node)
+u64 i915_gem_stolen_node_address(const struct intel_stolen_node *node)
 {
+	struct drm_i915_private *i915 = node->i915;
+
 	return i915->dsm.stolen.start + i915_gem_stolen_node_offset(node);
 }
 
