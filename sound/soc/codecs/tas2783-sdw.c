@@ -806,7 +806,7 @@ static void tas2783_fw_ready(const struct firmware *fmw, void *context)
 			offset += file_blk_size;
 		else
 			break;
-	};
+	}
 	mutex_unlock(&tas_dev->pde_lock);
 	tas2783_update_calibdata(tas_dev);
 
