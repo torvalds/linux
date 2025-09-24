@@ -19,7 +19,7 @@
 
 #define domain_to_rpmhpd(domain) container_of(domain, struct rpmhpd, pd)
 
-#define RPMH_ARC_MAX_LEVELS	16
+#define RPMH_ARC_MAX_LEVELS	32
 
 /**
  * struct rpmhpd - top level RPMh power domain resource data structure
@@ -595,6 +595,31 @@ static const struct rpmhpd_desc sm8750_desc = {
 	.num_pds = ARRAY_SIZE(sm8750_rpmhpds),
 };
 
+/* KAANAPALI RPMH powerdomains */
+static struct rpmhpd *kaanapali_rpmhpds[] = {
+	[RPMHPD_CX] = &cx,
+	[RPMHPD_CX_AO] = &cx_ao,
+	[RPMHPD_EBI] = &ebi,
+	[RPMHPD_GFX] = &gfx,
+	[RPMHPD_GMXC] = &gmxc,
+	[RPMHPD_LCX] = &lcx,
+	[RPMHPD_LMX] = &lmx,
+	[RPMHPD_MX] = &mx,
+	[RPMHPD_MX_AO] = &mx_ao,
+	[RPMHPD_MMCX] = &mmcx,
+	[RPMHPD_MMCX_AO] = &mmcx_ao,
+	[RPMHPD_MSS] = &mss,
+	[RPMHPD_MXC] = &mxc,
+	[RPMHPD_MXC_AO] = &mxc_ao,
+	[RPMHPD_NSP] = &nsp,
+	[RPMHPD_NSP2] = &nsp2,
+};
+
+static const struct rpmhpd_desc kaanapali_desc = {
+	.rpmhpds = kaanapali_rpmhpds,
+	.num_pds = ARRAY_SIZE(kaanapali_rpmhpds),
+};
+
 /* QDU1000/QRU1000 RPMH powerdomains */
 static struct rpmhpd *qdu1000_rpmhpds[] = {
 	[QDU1000_CX] = &cx,
@@ -767,6 +792,7 @@ static const struct rpmhpd_desc qcs615_desc = {
 
 static const struct of_device_id rpmhpd_match_table[] = {
 	{ .compatible = "qcom,glymur-rpmhpd", .data = &glymur_desc },
+	{ .compatible = "qcom,kaanapali-rpmhpd", .data = &kaanapali_desc },
 	{ .compatible = "qcom,milos-rpmhpd", .data = &milos_desc },
 	{ .compatible = "qcom,qcs615-rpmhpd", .data = &qcs615_desc },
 	{ .compatible = "qcom,qcs8300-rpmhpd", .data = &qcs8300_desc },
