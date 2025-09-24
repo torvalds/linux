@@ -12,7 +12,7 @@ struct drm_i915_private;
 struct drm_mm_node;
 struct drm_i915_gem_object;
 
-#define i915_stolen_fb drm_mm_node
+#define intel_stolen_node drm_mm_node
 
 int i915_gem_stolen_insert_node(struct drm_i915_private *i915,
 				struct drm_mm_node *node, u64 size,

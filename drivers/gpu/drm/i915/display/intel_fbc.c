@@ -102,7 +102,7 @@ struct intel_fbc {
 	struct mutex lock;
 	unsigned int busy_bits;
 
-	struct i915_stolen_fb compressed_fb, compressed_llb;
+	struct intel_stolen_node compressed_fb, compressed_llb;
 
 	enum intel_fbc_id id;
 

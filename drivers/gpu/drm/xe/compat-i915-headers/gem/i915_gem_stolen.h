@@ -12,12 +12,12 @@
 
 struct xe_bo;
 
-struct i915_stolen_fb {
+struct intel_stolen_node {
 	struct xe_bo *bo;
 };
 
 static inline int i915_gem_stolen_insert_node_in_range(struct xe_device *xe,
-						       struct i915_stolen_fb *fb,
+						       struct intel_stolen_node *fb,
 						       u32 size, u32 align,
 						       u32 start, u32 end)
 {
@@ -47,7 +47,7 @@ static inline int i915_gem_stolen_insert_node_in_range(struct xe_device *xe,
 }
 
 static inline int i915_gem_stolen_insert_node(struct xe_device *xe,
-					      struct i915_stolen_fb *fb,
+					      struct intel_stolen_node *fb,
 					      u32 size, u32 align)
 {
 	/* Not used on xe */
@@ -56,7 +56,7 @@ static inline int i915_gem_stolen_insert_node(struct xe_device *xe,
 }
 
 static inline void i915_gem_stolen_remove_node(struct xe_device *xe,
-					       struct i915_stolen_fb *fb)
+					       struct intel_stolen_node *fb)
 {
 	xe_bo_unpin_map_no_vm(fb->bo);
 	fb->bo = NULL;
@@ -65,7 +65,7 @@ static inline void i915_gem_stolen_remove_node(struct xe_device *xe,
 #define i915_gem_stolen_initialized(xe) (!!ttm_manager_type(&(xe)->ttm, XE_PL_STOLEN))
 #define i915_gem_stolen_node_allocated(fb) (!!((fb)->bo))
 
-static inline u32 i915_gem_stolen_node_offset(struct i915_stolen_fb *fb)
+static inline u32 i915_gem_stolen_node_offset(struct intel_stolen_node *fb)
 {
 	struct xe_res_cursor res;
 
