@@ -8,12 +8,9 @@
 
 #include <linux/types.h>
 
-struct xe_bo;
+struct drm_device;
+struct intel_stolen_node;
 struct xe_device;
-
-struct intel_stolen_node {
-	struct xe_bo *bo;
-};
 
 int i915_gem_stolen_insert_node_in_range(struct xe_device *xe,
 					 struct intel_stolen_node *node,
@@ -41,5 +38,9 @@ u64 i915_gem_stolen_node_address(struct xe_device *xe,
 				 struct intel_stolen_node *node);
 
 u64 i915_gem_stolen_node_size(const struct intel_stolen_node *node);
+
+struct intel_stolen_node *i915_gem_stolen_node_alloc(struct drm_device *drm);
+
+void i915_gem_stolen_node_free(const struct intel_stolen_node *node);
 
 #endif

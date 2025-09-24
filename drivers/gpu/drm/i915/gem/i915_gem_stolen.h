@@ -7,14 +7,11 @@
 #define __I915_GEM_STOLEN_H__
 
 #include <linux/types.h>
-#include <drm/drm_mm.h>
 
+struct drm_device;
 struct drm_i915_gem_object;
 struct drm_i915_private;
-
-struct intel_stolen_node {
-	struct drm_mm_node node;
-};
+struct intel_stolen_node;
 
 int i915_gem_stolen_insert_node(struct drm_i915_private *i915,
 				struct intel_stolen_node *node, u64 size,
@@ -50,5 +47,8 @@ u64 i915_gem_stolen_node_address(const struct drm_i915_private *i915,
 bool i915_gem_stolen_node_allocated(const struct intel_stolen_node *node);
 u64 i915_gem_stolen_node_offset(const struct intel_stolen_node *node);
 u64 i915_gem_stolen_node_size(const struct intel_stolen_node *node);
+
+struct intel_stolen_node *i915_gem_stolen_node_alloc(struct drm_device *drm);
+void i915_gem_stolen_node_free(const struct intel_stolen_node *node);
 
 #endif /* __I915_GEM_STOLEN_H__ */

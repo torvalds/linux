@@ -6,6 +6,10 @@
 #include "xe_ttm_stolen_mgr.h"
 #include "xe_validation.h"
 
+struct intel_stolen_node {
+	struct xe_bo *bo;
+};
+
 int i915_gem_stolen_insert_node_in_range(struct xe_device *xe,
 					 struct intel_stolen_node *node,
 					 u32 size, u32 align,
@@ -96,4 +100,20 @@ u64 i915_gem_stolen_node_address(struct xe_device *xe,
 u64 i915_gem_stolen_node_size(const struct intel_stolen_node *node)
 {
 	return node->bo->ttm.base.size;
+}
+
+struct intel_stolen_node *i915_gem_stolen_node_alloc(struct drm_device *drm)
+{
+	struct intel_stolen_node *node;
+
+	node = kzalloc(sizeof(*node), GFP_KERNEL);
+	if (!node)
+		return NULL;
+
+	return node;
+}
+
+void i915_gem_stolen_node_free(const struct intel_stolen_node *node)
+{
+	kfree(node);
 }

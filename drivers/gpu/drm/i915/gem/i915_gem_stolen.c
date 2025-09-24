@@ -24,6 +24,10 @@
 #include "intel_mchbar_regs.h"
 #include "intel_pci_config.h"
 
+struct intel_stolen_node {
+	struct drm_mm_node node;
+};
+
 /*
  * The BIOS typically reserves some of the system's memory for the exclusive
  * use of the integrated graphics. This memory is no longer available for
@@ -1056,4 +1060,20 @@ u64 i915_gem_stolen_node_offset(const struct intel_stolen_node *node)
 u64 i915_gem_stolen_node_size(const struct intel_stolen_node *node)
 {
 	return node->node.size;
+}
+
+struct intel_stolen_node *i915_gem_stolen_node_alloc(struct drm_device *drm)
+{
+	struct intel_stolen_node *node;
+
+	node = kzalloc(sizeof(*node), GFP_KERNEL);
+	if (!node)
+		return NULL;
+
+	return node;
+}
+
+void i915_gem_stolen_node_free(const struct intel_stolen_node *node)
+{
+	kfree(node);
 }
