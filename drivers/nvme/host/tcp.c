@@ -2250,6 +2250,9 @@ static int nvme_tcp_configure_admin_queue(struct nvme_ctrl *ctrl, bool new)
 	if (error)
 		goto out_cleanup_tagset;
 
+	if (ctrl->opts->concat && !ctrl->tls_pskid)
+		return 0;
+
 	error = nvme_enable_ctrl(ctrl);
 	if (error)
 		goto out_stop_queue;
