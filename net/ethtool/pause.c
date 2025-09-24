@@ -1,5 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
+/* See Documentation/networking/flow_control.rst for a high level description of
+ * the userspace interface.
+ */
+
 #include "netlink.h"
 #include "common.h"
 

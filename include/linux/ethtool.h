@@ -953,9 +953,48 @@ struct kernel_ethtool_ts_info {
  * @get_pause_stats: Report pause frame statistics. Drivers must not zero
  *	statistics which they don't report. The stats structure is initialized
  *	to ETHTOOL_STAT_NOT_SET indicating driver does not report statistics.
- * @get_pauseparam: Report pause parameters
- * @set_pauseparam: Set pause parameters.  Returns a negative error code
- *	or zero.
+ *
+ * @get_pauseparam: Report the configured policy for link-wide PAUSE
+ *      (IEEE 802.3 Annex 31B). Drivers must fill struct ethtool_pauseparam
+ *      such that:
+ *      @autoneg:
+ *              This refers to **Pause Autoneg** (IEEE 802.3 Annex 31B) only
+ *              and is independent of generic link autonegotiation configured
+ *              via ethtool -s.
+ *              true  -> the device follows the negotiated result of pause
+ *                       autonegotiation (Pause/Asym);
+ *              false -> the device uses a forced MAC state independent of
+ *                       negotiation.
+ *      @rx_pause/@tx_pause:
+ *              represent the desired policy (preferred configuration).
+ *              In autoneg mode they describe what is to be advertised;
+ *              in forced mode they describe the MAC state to apply.
+ *
+ *      Drivers (and/or frameworks) should persist this policy across link
+ *      changes and reapply appropriate MAC programming when link parameters
+ *      change.
+ *
+ * @set_pauseparam: Apply a policy for link-wide PAUSE (IEEE 802.3 Annex 31B).
+ *      If @autoneg is true:
+ *              Arrange for pause advertisement (Pause/Asym) based on
+ *              @rx_pause/@tx_pause and program the MAC to follow the
+ *              negotiated result (which may be symmetric, asymmetric, or off
+ *              depending on the link partner).
+ *      If @autoneg is false:
+ *              Do not rely on autonegotiation; force the MAC RX/TX pause
+ *              state directly per @rx_pause/@tx_pause.
+ *
+ *      Implementations that integrate with PHYLIB/PHYLINK should cooperate
+ *      with those frameworks for advertisement and resolution; MAC drivers are
+ *      still responsible for applying the required MAC state.
+ *
+ *      Return: 0 on success or a negative errno. Return -EOPNOTSUPP if
+ *      link-wide PAUSE is unsupported. If only symmetric pause is supported,
+ *      reject unsupported asymmetric requests with -EINVAL (or document any
+ *      coercion policy).
+ *
+ *      See also: Documentation/networking/flow_control.rst
+ *
  * @self_test: Run specified self-tests
  * @get_strings: Return a set of strings that describe the requested objects
  * @set_phys_id: Identify the physical devices, e.g. by flashing an LED

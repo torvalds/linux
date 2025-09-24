@@ -55,6 +55,7 @@ Contents:
    eql
    fib_trie
    filter
+   flow_control
    generic-hdlc
    generic_netlink
    ../netlink/specs/index

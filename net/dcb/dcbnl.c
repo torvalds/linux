@@ -27,6 +27,8 @@
  *
  * Priority-based Flow Control (PFC) - provides a flow control mechanism which
  *   can work independently for each 802.1p priority.
+ *   See Documentation/networking/flow_control.rst for a high level description
+ *   of the user space interface for Priority-based Flow Control (PFC).
  *
  * Congestion Notification - provides a mechanism for end-to-end congestion
  *   control for protocols which do not have built-in congestion management.

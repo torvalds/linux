@@ -864,7 +864,9 @@ attribute-sets:
 
   -
     name: pause-stat
+    doc: Statistics counters for link-wide PAUSE frames (IEEE 802.3 Annex 31B).
     attr-cnt-name: __ethtool-a-pause-stat-cnt
+    enum-name: ethtool-a-pause-stat
     attributes:
       -
         name: unspec
@@ -875,13 +877,17 @@ attribute-sets:
         type: pad
       -
         name: tx-frames
+        doc: Number of PAUSE frames transmitted.
         type: u64
       -
         name: rx-frames
+        doc: Number of PAUSE frames received.
         type: u64
   -
     name: pause
+    doc: Parameters for link-wide PAUSE (IEEE 802.3 Annex 31B).
     attr-cnt-name: __ethtool-a-pause-cnt
+    enum-name: ethtool-a-pause
     attributes:
       -
         name: unspec
@@ -893,19 +899,40 @@ attribute-sets:
         nested-attributes: header
       -
         name: autoneg
+        doc: |
+          Acts as a mode selector for the driver.
+          On GET: indicates the driver's behavior. If true, the driver will
+          respect the negotiated outcome; if false, the driver will use a
+          forced configuration.
+          On SET: if true, the driver configures the PHY's advertisement based
+          on the rx and tx attributes. If false, the driver forces the MAC
+          into the state defined by the rx and tx attributes.
         type: u8
       -
         name: rx
+        doc: |
+          Enable receiving PAUSE frames (pausing local TX).
+          On GET: reflects the currently preferred configuration state.
         type: u8
       -
         name: tx
+        doc: |
+          Enable transmitting PAUSE frames (pausing peer TX).
+          On GET: reflects the currently preferred configuration state.
         type: u8
       -
         name: stats
+        doc: |
+          Contains the pause statistics counters. The source of these
+          statistics is determined by stats-src.
         type: nest
         nested-attributes: pause-stat
       -
         name: stats-src
+        doc: |
+          Selects the source of the MAC statistics, values from
+          enum ethtool_mac_stats_src. This allows requesting statistics
+          from the individual components of the MAC Merge layer.
         type: u32
   -
     name: eee
