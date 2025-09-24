@@ -17,7 +17,7 @@ struct intel_stolen_node {
 };
 
 static inline int i915_gem_stolen_insert_node_in_range(struct xe_device *xe,
-						       struct intel_stolen_node *fb,
+						       struct intel_stolen_node *node,
 						       u32 size, u32 align,
 						       u32 start, u32 end)
 {
@@ -41,13 +41,13 @@ static inline int i915_gem_stolen_insert_node_in_range(struct xe_device *xe,
 		return err;
 	}
 
-	fb->bo = bo;
+	node->bo = bo;
 
 	return err;
 }
 
 static inline int i915_gem_stolen_insert_node(struct xe_device *xe,
-					      struct intel_stolen_node *fb,
+					      struct intel_stolen_node *node,
 					      u32 size, u32 align)
 {
 	/* Not used on xe */
@@ -56,20 +56,20 @@ static inline int i915_gem_stolen_insert_node(struct xe_device *xe,
 }
 
 static inline void i915_gem_stolen_remove_node(struct xe_device *xe,
-					       struct intel_stolen_node *fb)
+					       struct intel_stolen_node *node)
 {
-	xe_bo_unpin_map_no_vm(fb->bo);
-	fb->bo = NULL;
+	xe_bo_unpin_map_no_vm(node->bo);
+	node->bo = NULL;
 }
 
 #define i915_gem_stolen_initialized(xe) (!!ttm_manager_type(&(xe)->ttm, XE_PL_STOLEN))
-#define i915_gem_stolen_node_allocated(fb) (!!((fb)->bo))
+#define i915_gem_stolen_node_allocated(node) (!!((node)->bo))
 
-static inline u32 i915_gem_stolen_node_offset(struct intel_stolen_node *fb)
+static inline u32 i915_gem_stolen_node_offset(struct intel_stolen_node *node)
 {
 	struct xe_res_cursor res;
 
-	xe_res_first(fb->bo->ttm.resource, 0, 4096, &res);
+	xe_res_first(node->bo->ttm.resource, 0, 4096, &res);
 	return res.start;
 }
 
@@ -78,8 +78,8 @@ static inline u32 i915_gem_stolen_node_offset(struct intel_stolen_node *fb)
 /* Used for gen9 specific WA. Gen9 is not supported by Xe */
 #define i915_gem_stolen_area_size(xe) (!WARN_ON(1))
 
-#define i915_gem_stolen_node_address(xe, fb) (xe_ttm_stolen_gpu_offset(xe) + \
-					 i915_gem_stolen_node_offset(fb))
-#define i915_gem_stolen_node_size(fb) ((u64)((fb)->bo->ttm.base.size))
+#define i915_gem_stolen_node_address(xe, node) (xe_ttm_stolen_gpu_offset(xe) + \
+					 i915_gem_stolen_node_offset(node))
+#define i915_gem_stolen_node_size(node) ((u64)((node)->bo->ttm.base.size))
 
 #endif
