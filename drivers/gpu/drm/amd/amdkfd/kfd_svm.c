@@ -1737,12 +1737,15 @@ static int svm_range_validate_and_map(struct mm_struct *mm,
 			}
 
 			WRITE_ONCE(p->svms.faulting_task, current);
+			hmm_range = kzalloc(sizeof(*hmm_range), GFP_KERNEL);
 			r = amdgpu_hmm_range_get_pages(&prange->notifier, addr, npages,
 						       readonly, owner,
-						       &hmm_range);
+						       hmm_range);
 			WRITE_ONCE(p->svms.faulting_task, NULL);
-			if (r)
+			if (r) {
+				kfree(hmm_range);
 				pr_debug("failed %d to get svm range pages\n", r);
+			}
 		} else {
 			r = -EFAULT;
 		}

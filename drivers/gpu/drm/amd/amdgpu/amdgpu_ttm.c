@@ -706,10 +706,11 @@ struct amdgpu_ttm_tt {
  * memory and start HMM tracking CPU page table update
  *
  * Calling function must call amdgpu_ttm_tt_userptr_range_done() once and only
- * once afterwards to stop HMM tracking
+ * once afterwards to stop HMM tracking. Its the caller responsibility to ensure
+ * that range is a valid memory and it is freed too.
  */
 int amdgpu_ttm_tt_get_user_pages(struct amdgpu_bo *bo,
-				 struct hmm_range **range)
+				 struct hmm_range *range)
 {
 	struct ttm_tt *ttm = bo->tbo.ttm;
 	struct amdgpu_ttm_tt *gtt = ttm_to_amdgpu_ttm_tt(ttm);
@@ -718,9 +719,6 @@ int amdgpu_ttm_tt_get_user_pages(struct amdgpu_bo *bo,
 	struct mm_struct *mm;
 	bool readonly;
 	int r = 0;
-
-	/* Make sure get_user_pages_done() can cleanup gracefully */
-	*range = NULL;
 
 	mm = bo->notifier.mm;
 	if (unlikely(!mm)) {

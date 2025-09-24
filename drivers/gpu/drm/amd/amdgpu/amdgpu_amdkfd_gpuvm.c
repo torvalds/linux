@@ -1089,8 +1089,15 @@ static int init_user_pages(struct kgd_mem *mem, uint64_t user_addr,
 		return 0;
 	}
 
-	ret = amdgpu_ttm_tt_get_user_pages(bo, &range);
+	range = kzalloc(sizeof(*range), GFP_KERNEL);
+	if (unlikely(!range)) {
+		ret = -ENOMEM;
+		goto unregister_out;
+	}
+
+	ret = amdgpu_ttm_tt_get_user_pages(bo, range);
 	if (ret) {
+		kfree(range);
 		if (ret == -EAGAIN)
 			pr_debug("Failed to get user pages, try again\n");
 		else
@@ -2566,9 +2573,14 @@ static int update_invalid_user_pages(struct amdkfd_process_info *process_info,
 			}
 		}
 
+		mem->range = kzalloc(sizeof(*mem->range), GFP_KERNEL);
+		if (unlikely(!mem->range))
+			return -ENOMEM;
 		/* Get updated user pages */
-		ret = amdgpu_ttm_tt_get_user_pages(bo, &mem->range);
+		ret = amdgpu_ttm_tt_get_user_pages(bo, mem->range);
 		if (ret) {
+			kfree(mem->range);
+			mem->range = NULL;
 			pr_debug("Failed %d to get user pages\n", ret);
 
 			/* Return -EFAULT bad address error as success. It will

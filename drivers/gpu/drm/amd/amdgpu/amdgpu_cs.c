@@ -891,7 +891,11 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 		bool userpage_invalidated = false;
 		struct amdgpu_bo *bo = e->bo;
 
-		r = amdgpu_ttm_tt_get_user_pages(bo, &e->range);
+		e->range = kzalloc(sizeof(*e->range), GFP_KERNEL);
+		if (unlikely(!e->range))
+			return -ENOMEM;
+
+		r = amdgpu_ttm_tt_get_user_pages(bo, e->range);
 		if (r)
 			goto out_free_user_pages;
 

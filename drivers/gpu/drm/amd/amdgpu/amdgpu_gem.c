@@ -572,10 +572,14 @@ int amdgpu_gem_userptr_ioctl(struct drm_device *dev, void *data,
 		goto release_object;
 
 	if (args->flags & AMDGPU_GEM_USERPTR_VALIDATE) {
-		r = amdgpu_ttm_tt_get_user_pages(bo, &range);
-		if (r)
+		range = kzalloc(sizeof(*range), GFP_KERNEL);
+		if (unlikely(!range))
+			return -ENOMEM;
+		r = amdgpu_ttm_tt_get_user_pages(bo, range);
+		if (r) {
+			kfree(range);
 			goto release_object;
-
+		}
 		r = amdgpu_bo_reserve(bo, true);
 		if (r)
 			goto user_pages_done;
