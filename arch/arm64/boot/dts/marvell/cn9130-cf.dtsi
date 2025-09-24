@@ -152,11 +152,12 @@
 
 /* SRDS #0 - SATA on M.2 connector */
 &cp0_sata0 {
-	phys = <&cp0_comphy0 1>;
 	status = "okay";
 
-	/* only port 1 is available */
-	/delete-node/ sata-port@0;
+	sata-port@1 {
+		phys = <&cp0_comphy0 1>;
+		status = "okay";
+	};
 };
 
 /* microSD */
