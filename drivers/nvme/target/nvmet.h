@@ -284,7 +284,6 @@ struct nvmet_ctrl {
 	__le32			*changed_ns_list;
 	u32			nr_changed_ns;
 
-	char			subsysnqn[NVMF_NQN_FIELD_LEN];
 	char			hostnqn[NVMF_NQN_FIELD_LEN];
 
 	struct device		*p2p_client;
