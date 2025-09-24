@@ -51,3 +51,9 @@ KernelVersion:	4.7
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description:	(RW) Holds the trace ID that will appear in the trace stream
 		coming from this trace entity.
+
+What:           /sys/bus/coresight/devices/<memory_map>.stm/label
+Date:           Aug 2025
+KernelVersion   6.18
+Contact:        Mao Jinlong <quic_jinlmao@quicinc.com>
+Description:    (Read) Show hardware context information of device.
