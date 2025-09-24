@@ -462,7 +462,6 @@ out:
 
 const struct proc_ns_operations timens_operations = {
 	.name		= "time",
-	.type		= CLONE_NEWTIME,
 	.get		= timens_get,
 	.put		= timens_put,
 	.install	= timens_install,
@@ -472,7 +471,6 @@ const struct proc_ns_operations timens_operations = {
 const struct proc_ns_operations timens_for_children_operations = {
 	.name		= "time_for_children",
 	.real_ns_name	= "time",
-	.type		= CLONE_NEWTIME,
 	.get		= timens_for_children_get,
 	.put		= timens_put,
 	.install	= timens_install,
@@ -480,6 +478,7 @@ const struct proc_ns_operations timens_for_children_operations = {
 };
 
 struct time_namespace init_time_ns = {
+	.ns.ns_type	= ns_common_type(&init_time_ns),
 	.ns.__ns_ref	= REFCOUNT_INIT(3),
 	.user_ns	= &init_user_ns,
 	.ns.inum	= ns_init_inum(&init_time_ns),

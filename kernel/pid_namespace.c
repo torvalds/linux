@@ -443,7 +443,6 @@ static struct user_namespace *pidns_owner(struct ns_common *ns)
 
 const struct proc_ns_operations pidns_operations = {
 	.name		= "pid",
-	.type		= CLONE_NEWPID,
 	.get		= pidns_get,
 	.put		= pidns_put,
 	.install	= pidns_install,
@@ -454,7 +453,6 @@ const struct proc_ns_operations pidns_operations = {
 const struct proc_ns_operations pidns_for_children_operations = {
 	.name		= "pid_for_children",
 	.real_ns_name	= "pid",
-	.type		= CLONE_NEWPID,
 	.get		= pidns_for_children_get,
 	.put		= pidns_put,
 	.install	= pidns_install,

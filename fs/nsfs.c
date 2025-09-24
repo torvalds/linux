@@ -219,9 +219,9 @@ static long ns_ioctl(struct file *filp, unsigned int ioctl,
 			return -EINVAL;
 		return open_related_ns(ns, ns->ops->get_parent);
 	case NS_GET_NSTYPE:
-		return ns->ops->type;
+		return ns->ns_type;
 	case NS_GET_OWNER_UID:
-		if (ns->ops->type != CLONE_NEWUSER)
+		if (ns->ns_type != CLONE_NEWUSER)
 			return -EINVAL;
 		user_ns = container_of(ns, struct user_namespace, ns);
 		argp = (uid_t __user *) arg;
@@ -234,7 +234,7 @@ static long ns_ioctl(struct file *filp, unsigned int ioctl,
 	case NS_GET_PID_IN_PIDNS:
 		fallthrough;
 	case NS_GET_TGID_IN_PIDNS: {
-		if (ns->ops->type != CLONE_NEWPID)
+		if (ns->ns_type != CLONE_NEWPID)
 			return -EINVAL;
 
 		ret = -ESRCH;
@@ -273,7 +273,7 @@ static long ns_ioctl(struct file *filp, unsigned int ioctl,
 		return ret;
 	}
 	case NS_GET_MNTNS_ID:
-		if (ns->ops->type != CLONE_NEWNS)
+		if (ns->ns_type != CLONE_NEWNS)
 			return -EINVAL;
 		fallthrough;
 	case NS_GET_ID: {
@@ -293,7 +293,7 @@ static long ns_ioctl(struct file *filp, unsigned int ioctl,
 		struct mnt_ns_info __user *uinfo = (struct mnt_ns_info __user *)arg;
 		size_t usize = _IOC_SIZE(ioctl);
 
-		if (ns->ops->type != CLONE_NEWNS)
+		if (ns->ns_type != CLONE_NEWNS)
 			return -EINVAL;
 
 		if (!uinfo)
@@ -314,7 +314,7 @@ static long ns_ioctl(struct file *filp, unsigned int ioctl,
 		struct file *f __free(fput) = NULL;
 		size_t usize = _IOC_SIZE(ioctl);
 
-		if (ns->ops->type != CLONE_NEWNS)
+		if (ns->ns_type != CLONE_NEWNS)
 			return -EINVAL;
 
 		if (usize < MNT_NS_INFO_SIZE_VER0)
@@ -453,7 +453,7 @@ static int nsfs_encode_fh(struct inode *inode, u32 *fh, int *max_len,
 	}
 
 	fid->ns_id	= ns->ns_id;
-	fid->ns_type	= ns->ops->type;
+	fid->ns_type	= ns->ns_type;
 	fid->ns_inum	= inode->i_ino;
 	return FILEID_NSFS;
 }
@@ -489,14 +489,14 @@ static struct dentry *nsfs_fh_to_dentry(struct super_block *sb, struct fid *fh,
 			return NULL;
 
 		VFS_WARN_ON_ONCE(ns->ns_id != fid->ns_id);
-		VFS_WARN_ON_ONCE(ns->ops->type != fid->ns_type);
+		VFS_WARN_ON_ONCE(ns->ns_type != fid->ns_type);
 		VFS_WARN_ON_ONCE(ns->inum != fid->ns_inum);
 
 		if (!__ns_ref_get(ns))
 			return NULL;
 	}
 
-	switch (ns->ops->type) {
+	switch (ns->ns_type) {
 #ifdef CONFIG_CGROUPS
 	case CLONE_NEWCGROUP:
 		if (!current_in_namespace(to_cg_ns(ns)))

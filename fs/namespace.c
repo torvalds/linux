@@ -4927,7 +4927,7 @@ static int build_mount_idmapped(const struct mount_attr *attr, size_t usize,
 		return -EINVAL;
 
 	ns = get_proc_ns(file_inode(fd_file(f)));
-	if (ns->ops->type != CLONE_NEWUSER)
+	if (ns->ns_type != CLONE_NEWUSER)
 		return -EINVAL;
 
 	/*
@@ -5830,7 +5830,7 @@ static struct mnt_namespace *grab_requested_mnt_ns(const struct mnt_id_req *kreq
 			return ERR_PTR(-EINVAL);
 
 		ns = get_proc_ns(file_inode(fd_file(f)));
-		if (ns->ops->type != CLONE_NEWNS)
+		if (ns->ns_type != CLONE_NEWNS)
 			return ERR_PTR(-EINVAL);
 
 		mnt_ns = to_mnt_ns(ns);
@@ -6016,6 +6016,7 @@ struct mnt_namespace init_mnt_ns = {
 	.ns.ops		= &mntns_operations,
 	.user_ns	= &init_user_ns,
 	.ns.__ns_ref	= REFCOUNT_INIT(1),
+	.ns.ns_type	= ns_common_type(&init_mnt_ns),
 	.passive	= REFCOUNT_INIT(1),
 	.mounts		= RB_ROOT,
 	.poll		= __WAIT_QUEUE_HEAD_INITIALIZER(init_mnt_ns.poll),
@@ -6333,7 +6334,6 @@ static struct user_namespace *mntns_owner(struct ns_common *ns)
 
 const struct proc_ns_operations mntns_operations = {
 	.name		= "mnt",
-	.type		= CLONE_NEWNS,
 	.get		= mntns_get,
 	.put		= mntns_put,
 	.install	= mntns_install,

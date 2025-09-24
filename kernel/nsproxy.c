@@ -545,9 +545,9 @@ SYSCALL_DEFINE2(setns, int, fd, int, flags)
 
 	if (proc_ns_file(fd_file(f))) {
 		ns = get_proc_ns(file_inode(fd_file(f)));
-		if (flags && (ns->ops->type != flags))
+		if (flags && (ns->ns_type != flags))
 			err = -EINVAL;
-		flags = ns->ops->type;
+		flags = ns->ns_type;
 	} else if (!IS_ERR(pidfd_pid(fd_file(f)))) {
 		err = check_setns_flags(flags);
 	} else {

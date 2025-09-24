@@ -146,7 +146,6 @@ static struct user_namespace *utsns_owner(struct ns_common *ns)
 
 const struct proc_ns_operations utsns_operations = {
 	.name		= "uts",
-	.type		= CLONE_NEWUTS,
 	.get		= utsns_get,
 	.put		= utsns_put,
 	.install	= utsns_install,
