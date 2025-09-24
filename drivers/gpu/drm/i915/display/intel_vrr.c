@@ -92,14 +92,6 @@ static int intel_vrr_extra_vblank_delay(struct intel_display *display)
 	return DISPLAY_VER(display) < 13 ? 1 : 0;
 }
 
-int intel_vrr_vblank_delay(const struct intel_crtc_state *crtc_state)
-{
-	struct intel_display *display = to_intel_display(crtc_state);
-
-	return crtc_state->set_context_latency +
-		intel_vrr_extra_vblank_delay(display);
-}
-
 static int intel_vrr_vmin_flipline_offset(struct intel_display *display)
 {
 	/*
