@@ -377,14 +377,13 @@ static void i8xx_fbc_nuke(struct intel_fbc *fbc)
 static void i8xx_fbc_program_cfb(struct intel_fbc *fbc)
 {
 	struct intel_display *display = fbc->display;
-	struct drm_i915_private *i915 = to_i915(display->drm);
 
 	drm_WARN_ON(display->drm,
-		    range_end_overflows_t(u64, i915_gem_stolen_area_address(i915),
+		    range_end_overflows_t(u64, i915_gem_stolen_area_address(display->drm),
 					  i915_gem_stolen_node_offset(fbc->compressed_fb),
 					  U32_MAX));
 	drm_WARN_ON(display->drm,
-		    range_end_overflows_t(u64, i915_gem_stolen_area_address(i915),
+		    range_end_overflows_t(u64, i915_gem_stolen_area_address(display->drm),
 					  i915_gem_stolen_node_offset(fbc->compressed_llb),
 					  U32_MAX));
 	intel_de_write(display, FBC_CFB_BASE,
@@ -798,7 +797,6 @@ static u64 intel_fbc_cfb_base_max(struct intel_display *display)
 
 static u64 intel_fbc_stolen_end(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	u64 end;
 
 	/* The FBC hardware for BDW/SKL doesn't have access to the stolen
@@ -807,7 +805,7 @@ static u64 intel_fbc_stolen_end(struct intel_display *display)
 	 * underruns, even if that range is not reserved by the BIOS. */
 	if (display->platform.broadwell ||
 	    (DISPLAY_VER(display) == 9 && !display->platform.broxton))
-		end = i915_gem_stolen_area_size(i915) - 8 * 1024 * 1024;
+		end = i915_gem_stolen_area_size(display->drm) - 8 * 1024 * 1024;
 	else
 		end = U64_MAX;
 
@@ -861,7 +859,6 @@ static int intel_fbc_alloc_cfb(struct intel_fbc *fbc,
 			       unsigned int size, int min_limit)
 {
 	struct intel_display *display = fbc->display;
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	int ret;
 
 	drm_WARN_ON(display->drm,
@@ -893,7 +890,7 @@ err_llb:
 	if (i915_gem_stolen_node_allocated(fbc->compressed_llb))
 		i915_gem_stolen_remove_node(fbc->compressed_llb);
 err:
-	if (i915_gem_stolen_initialized(i915))
+	if (i915_gem_stolen_initialized(display->drm))
 		drm_info_once(display->drm,
 			      "not enough stolen space for compressed buffer (need %d more bytes), disabling. Hint: you may be able to increase stolen memory size in the BIOS to avoid this.\n", size);
 	return -ENOSPC;
@@ -1435,7 +1432,7 @@ static int intel_fbc_check_plane(struct intel_atomic_state *state,
 	if (!fbc)
 		return 0;
 
-	if (!i915_gem_stolen_initialized(i915)) {
+	if (!i915_gem_stolen_initialized(display->drm)) {
 		plane_state->no_fbc_reason = "stolen memory not initialised";
 		return 0;
 	}

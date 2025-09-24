@@ -1024,18 +1024,24 @@ bool i915_gem_object_is_stolen(const struct drm_i915_gem_object *obj)
 	return obj->ops == &i915_gem_object_stolen_ops;
 }
 
-bool i915_gem_stolen_initialized(const struct drm_i915_private *i915)
+bool i915_gem_stolen_initialized(struct drm_device *drm)
 {
+	struct drm_i915_private *i915 = to_i915(drm);
+
 	return drm_mm_initialized(&i915->mm.stolen);
 }
 
-u64 i915_gem_stolen_area_address(const struct drm_i915_private *i915)
+u64 i915_gem_stolen_area_address(struct drm_device *drm)
 {
+	struct drm_i915_private *i915 = to_i915(drm);
+
 	return i915->dsm.stolen.start;
 }
 
-u64 i915_gem_stolen_area_size(const struct drm_i915_private *i915)
+u64 i915_gem_stolen_area_size(struct drm_device *drm)
 {
+	struct drm_i915_private *i915 = to_i915(drm);
+
 	return resource_size(&i915->dsm.stolen);
 }
 

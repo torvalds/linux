@@ -56,8 +56,10 @@ void i915_gem_stolen_remove_node(struct intel_stolen_node *node)
 	node->bo = NULL;
 }
 
-bool i915_gem_stolen_initialized(struct xe_device *xe)
+bool i915_gem_stolen_initialized(struct drm_device *drm)
 {
+	struct xe_device *xe = to_xe_device(drm);
+
 	return ttm_manager_type(&xe->ttm, XE_PL_STOLEN);
 }
 
@@ -75,7 +77,7 @@ u32 i915_gem_stolen_node_offset(struct intel_stolen_node *node)
 }
 
 /* Used for < gen4. These are not supported by Xe */
-u64 i915_gem_stolen_area_address(const struct xe_device *xe)
+u64 i915_gem_stolen_area_address(struct drm_device *drm)
 {
 	WARN_ON(1);
 
@@ -83,7 +85,7 @@ u64 i915_gem_stolen_area_address(const struct xe_device *xe)
 }
 
 /* Used for gen9 specific WA. Gen9 is not supported by Xe */
-u64 i915_gem_stolen_area_size(const struct xe_device *xe)
+u64 i915_gem_stolen_area_size(struct drm_device *drm)
 {
 	WARN_ON(1);
 

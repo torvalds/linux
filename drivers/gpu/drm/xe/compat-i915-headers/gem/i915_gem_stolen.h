@@ -10,7 +10,6 @@
 
 struct drm_device;
 struct intel_stolen_node;
-struct xe_device;
 
 int i915_gem_stolen_insert_node_in_range(struct intel_stolen_node *node,
 					 u32 size, u32 align,
@@ -20,15 +19,15 @@ int i915_gem_stolen_insert_node(struct intel_stolen_node *node, u32 size, u32 al
 
 void i915_gem_stolen_remove_node(struct intel_stolen_node *node);
 
-bool i915_gem_stolen_initialized(struct xe_device *xe);
+bool i915_gem_stolen_initialized(struct drm_device *drm);
 
 bool i915_gem_stolen_node_allocated(const struct intel_stolen_node *node);
 
 u32 i915_gem_stolen_node_offset(struct intel_stolen_node *node);
 
-u64 i915_gem_stolen_area_address(const struct xe_device *xe);
+u64 i915_gem_stolen_area_address(struct drm_device *drm);
 
-u64 i915_gem_stolen_area_size(const struct xe_device *xe);
+u64 i915_gem_stolen_area_size(struct drm_device *drm);
 
 u64 i915_gem_stolen_node_address(struct intel_stolen_node *node);
 

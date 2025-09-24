@@ -34,9 +34,9 @@ bool i915_gem_object_is_stolen(const struct drm_i915_gem_object *obj);
 
 #define I915_GEM_STOLEN_BIAS SZ_128K
 
-bool i915_gem_stolen_initialized(const struct drm_i915_private *i915);
-u64 i915_gem_stolen_area_address(const struct drm_i915_private *i915);
-u64 i915_gem_stolen_area_size(const struct drm_i915_private *i915);
+bool i915_gem_stolen_initialized(struct drm_device *drm);
+u64 i915_gem_stolen_area_address(struct drm_device *drm);
+u64 i915_gem_stolen_area_size(struct drm_device *drm);
 
 u64 i915_gem_stolen_node_address(const struct intel_stolen_node *node);
 
