@@ -126,9 +126,9 @@ config FB_ACORN
 config FB_CLPS711X
 	tristate "CLPS711X LCD support"
 	depends on FB && (ARCH_CLPS711X || COMPILE_TEST)
+	depends on LCD_CLASS_DEVICE
 	select FB_IOMEM_HELPERS
 	select FB_MODE_HELPERS
-	select LCD_CLASS_DEVICE
 	select VIDEOMODE_HELPERS
 	help
 	  Say Y to enable the Framebuffer driver for the Cirrus Logic
@@ -150,7 +150,7 @@ config FB_IMX
 	tristate "Freescale i.MX1/21/25/27 LCD support"
 	depends on FB && HAVE_CLK && HAS_IOMEM
 	depends on ARCH_MXC || COMPILE_TEST
-	select LCD_CLASS_DEVICE
+	depends on LCD_CLASS_DEVICE
 	select FB_IOMEM_HELPERS
 	select FB_MODE_HELPERS
 	select VIDEOMODE_HELPERS
