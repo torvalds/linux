@@ -391,7 +391,7 @@ static int ktd202x_setup_led_rgb(struct ktd202x *chip, struct fwnode_handle *fwn
 	int i = 0;
 
 	num_channels = 0;
-	fwnode_for_each_available_child_node(fwnode, child)
+	fwnode_for_each_child_node(fwnode, child)
 		num_channels++;
 
 	if (!num_channels || num_channels > chip->num_leds)
@@ -401,7 +401,7 @@ static int ktd202x_setup_led_rgb(struct ktd202x *chip, struct fwnode_handle *fwn
 	if (!info)
 		return -ENOMEM;
 
-	fwnode_for_each_available_child_node(fwnode, child) {
+	fwnode_for_each_child_node(fwnode, child) {
 		u32 mono_color;
 		u32 reg;
 		int ret;

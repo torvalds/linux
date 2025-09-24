@@ -180,7 +180,7 @@ static int ncp5623_probe(struct i2c_client *client)
 		goto release_mc_node;
 	}
 
-	fwnode_for_each_available_child_node(mc_node, led_node) {
+	fwnode_for_each_child_node(mc_node, led_node) {
 		ret = fwnode_property_read_u32(led_node, "color", &color_index);
 		if (ret)
 			goto release_led_node;
