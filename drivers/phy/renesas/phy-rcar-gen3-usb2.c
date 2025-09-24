@@ -934,7 +934,7 @@ static void rcar_gen3_phy_usb2_remove(struct platform_device *pdev)
 		device_remove_file(&pdev->dev, &dev_attr_role);
 
 	pm_runtime_disable(&pdev->dev);
-};
+}
 
 static int rcar_gen3_phy_usb2_suspend(struct device *dev)
 {
