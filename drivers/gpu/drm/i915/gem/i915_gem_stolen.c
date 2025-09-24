@@ -36,9 +36,9 @@
  * for is a boon.
  */
 
-int i915_gem_stolen_insert_node_in_range(struct drm_i915_private *i915,
-					 struct drm_mm_node *node, u64 size,
-					 unsigned alignment, u64 start, u64 end)
+static int __i915_gem_stolen_insert_node_in_range(struct drm_i915_private *i915,
+						  struct drm_mm_node *node, u64 size,
+						  unsigned int alignment, u64 start, u64 end)
 {
 	int ret;
 
@@ -58,22 +58,44 @@ int i915_gem_stolen_insert_node_in_range(struct drm_i915_private *i915,
 	return ret;
 }
 
-int i915_gem_stolen_insert_node(struct drm_i915_private *i915,
-				struct drm_mm_node *node, u64 size,
-				unsigned alignment)
+int i915_gem_stolen_insert_node_in_range(struct drm_i915_private *i915,
+					 struct intel_stolen_node *node, u64 size,
+					 unsigned int alignment, u64 start, u64 end)
 {
-	return i915_gem_stolen_insert_node_in_range(i915, node,
-						    size, alignment,
-						    I915_GEM_STOLEN_BIAS,
-						    U64_MAX);
+	return __i915_gem_stolen_insert_node_in_range(i915, &node->node,
+						      size, alignment,
+						      start, end);
 }
 
-void i915_gem_stolen_remove_node(struct drm_i915_private *i915,
-				 struct drm_mm_node *node)
+static int __i915_gem_stolen_insert_node(struct drm_i915_private *i915,
+					 struct drm_mm_node *node, u64 size,
+					 unsigned int alignment)
+{
+	return __i915_gem_stolen_insert_node_in_range(i915, node,
+						      size, alignment,
+						      I915_GEM_STOLEN_BIAS,
+						      U64_MAX);
+}
+
+int i915_gem_stolen_insert_node(struct drm_i915_private *i915,
+				struct intel_stolen_node *node, u64 size,
+				unsigned int alignment)
+{
+	return __i915_gem_stolen_insert_node(i915, &node->node, size, alignment);
+}
+
+static void __i915_gem_stolen_remove_node(struct drm_i915_private *i915,
+					  struct drm_mm_node *node)
 {
 	mutex_lock(&i915->mm.stolen_lock);
 	drm_mm_remove_node(node);
 	mutex_unlock(&i915->mm.stolen_lock);
+}
+
+void i915_gem_stolen_remove_node(struct drm_i915_private *i915,
+				 struct intel_stolen_node *node)
+{
+	__i915_gem_stolen_remove_node(i915, &node->node);
 }
 
 static bool valid_stolen_size(struct drm_i915_private *i915, struct resource *dsm)
@@ -683,7 +705,7 @@ i915_gem_object_release_stolen(struct drm_i915_gem_object *obj)
 	struct drm_mm_node *stolen = fetch_and_zero(&obj->stolen);
 
 	GEM_BUG_ON(!stolen);
-	i915_gem_stolen_remove_node(i915, stolen);
+	__i915_gem_stolen_remove_node(i915, stolen);
 	kfree(stolen);
 
 	i915_gem_object_release_memory_region(obj);
@@ -772,8 +794,8 @@ static int _i915_gem_object_stolen_init(struct intel_memory_region *mem,
 		ret = drm_mm_reserve_node(&i915->mm.stolen, stolen);
 		mutex_unlock(&i915->mm.stolen_lock);
 	} else {
-		ret = i915_gem_stolen_insert_node(i915, stolen, size,
-						  mem->min_page_size);
+		ret = __i915_gem_stolen_insert_node(i915, stolen, size,
+						    mem->min_page_size);
 	}
 	if (ret)
 		goto err_free;
@@ -785,7 +807,7 @@ static int _i915_gem_object_stolen_init(struct intel_memory_region *mem,
 	return 0;
 
 err_remove:
-	i915_gem_stolen_remove_node(i915, stolen);
+	__i915_gem_stolen_remove_node(i915, stolen);
 err_free:
 	kfree(stolen);
 	return ret;
@@ -1016,22 +1038,22 @@ u64 i915_gem_stolen_area_size(const struct drm_i915_private *i915)
 }
 
 u64 i915_gem_stolen_node_address(const struct drm_i915_private *i915,
-				 const struct drm_mm_node *node)
+				 const struct intel_stolen_node *node)
 {
 	return i915->dsm.stolen.start + i915_gem_stolen_node_offset(node);
 }
 
-bool i915_gem_stolen_node_allocated(const struct drm_mm_node *node)
+bool i915_gem_stolen_node_allocated(const struct intel_stolen_node *node)
 {
-	return drm_mm_node_allocated(node);
+	return drm_mm_node_allocated(&node->node);
 }
 
-u64 i915_gem_stolen_node_offset(const struct drm_mm_node *node)
+u64 i915_gem_stolen_node_offset(const struct intel_stolen_node *node)
 {
-	return node->start;
+	return node->node.start;
 }
 
-u64 i915_gem_stolen_node_size(const struct drm_mm_node *node)
+u64 i915_gem_stolen_node_size(const struct intel_stolen_node *node)
 {
-	return node->size;
+	return node->node.size;
 }

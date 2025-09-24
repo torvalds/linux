@@ -7,22 +7,24 @@
 #define __I915_GEM_STOLEN_H__
 
 #include <linux/types.h>
+#include <drm/drm_mm.h>
 
-struct drm_i915_private;
-struct drm_mm_node;
 struct drm_i915_gem_object;
+struct drm_i915_private;
 
-#define intel_stolen_node drm_mm_node
+struct intel_stolen_node {
+	struct drm_mm_node node;
+};
 
 int i915_gem_stolen_insert_node(struct drm_i915_private *i915,
-				struct drm_mm_node *node, u64 size,
+				struct intel_stolen_node *node, u64 size,
 				unsigned alignment);
 int i915_gem_stolen_insert_node_in_range(struct drm_i915_private *i915,
-					 struct drm_mm_node *node, u64 size,
+					 struct intel_stolen_node *node, u64 size,
 					 unsigned alignment, u64 start,
 					 u64 end);
 void i915_gem_stolen_remove_node(struct drm_i915_private *i915,
-				 struct drm_mm_node *node);
+				 struct intel_stolen_node *node);
 struct intel_memory_region *
 i915_gem_stolen_smem_setup(struct drm_i915_private *i915, u16 type,
 			   u16 instance);
@@ -43,10 +45,10 @@ u64 i915_gem_stolen_area_address(const struct drm_i915_private *i915);
 u64 i915_gem_stolen_area_size(const struct drm_i915_private *i915);
 
 u64 i915_gem_stolen_node_address(const struct drm_i915_private *i915,
-				 const struct drm_mm_node *node);
+				 const struct intel_stolen_node *node);
 
-bool i915_gem_stolen_node_allocated(const struct drm_mm_node *node);
-u64 i915_gem_stolen_node_offset(const struct drm_mm_node *node);
-u64 i915_gem_stolen_node_size(const struct drm_mm_node *node);
+bool i915_gem_stolen_node_allocated(const struct intel_stolen_node *node);
+u64 i915_gem_stolen_node_offset(const struct intel_stolen_node *node);
+u64 i915_gem_stolen_node_size(const struct intel_stolen_node *node);
 
 #endif /* __I915_GEM_STOLEN_H__ */
