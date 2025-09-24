@@ -1,0 +1,86 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pinctrl/marvell,berlin2-soc-pinctrl.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Marvell Berlin pin-controller driver
+
+maintainers:
+  - Antoine Tenart <atenart@kernel.org>
+  - Jisheng Zhang <jszhang@kernel.org>
+
+description: >
+  Pin control registers are part of both chip controller and system controller
+  register sets. Pin controller nodes should be a sub-node of either the chip
+  controller or system controller node. The pins controlled are organized in
+  groups, so no actual pin information is needed.
+
+  A pin-controller node should contain subnodes representing the pin group
+  configurations, one per function. Each subnode has the group name and the
+  muxing function used.
+
+  Be aware the Marvell Berlin datasheets use the keyword 'mode' for what is
+  called a 'function' in the pin-controller subsystem.
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - marvell,berlin2-soc-pinctrl
+          - marvell,berlin2-system-pinctrl
+          - marvell,berlin2cd-soc-pinctrl
+          - marvell,berlin2cd-system-pinctrl
+          - marvell,berlin2q-soc-pinctrl
+          - marvell,berlin2q-system-pinctrl
+          - marvell,berlin4ct-avio-pinctrl
+          - marvell,berlin4ct-soc-pinctrl
+          - marvell,berlin4ct-system-pinctrl
+          - syna,as370-soc-pinctrl
+
+  reg:
+    maxItems: 1
+
+additionalProperties:
+  description: Pin group configuration subnodes.
+  type: object
+  $ref: /schemas/pinctrl/pinmux-node.yaml#
+  additionalProperties: false
+
+  properties:
+    groups:
+      description: List of pin group names.
+      $ref: /schemas/types.yaml#/definitions/string-array
+
+    function:
+      description: Function used to mux the group.
+      $ref: /schemas/types.yaml#/definitions/string
+
+  required:
+    - groups
+    - function
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - marvell,berlin4ct-avio-pinctrl
+              - marvell,berlin4ct-soc-pinctrl
+              - marvell,berlin4ct-system-pinctrl
+              - syna,as370-soc-pinctrl
+    then:
+      required:
+        - reg
+
+examples:
+  - |
+    pinctrl {
+        compatible = "marvell,berlin2q-system-pinctrl";
+
+        uart0-pmux {
+            groups = "GSM12";
+            function = "uart0";
+        };
+    };
