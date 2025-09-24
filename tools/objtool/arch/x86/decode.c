@@ -683,6 +683,10 @@ int arch_decode_instruction(struct objtool_file *file, const struct section *sec
 		insn->type = INSN_SYSRET;
 		break;
 
+	case 0xd6: /* udb */
+		insn->type = INSN_BUG;
+		break;
+
 	case 0xe0: /* loopne */
 	case 0xe1: /* loope */
 	case 0xe2: /* loop */
