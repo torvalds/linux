@@ -771,7 +771,7 @@ config SENSORS_GL520SM
 
 config SENSORS_GPD
 	tristate "GPD handhelds"
-	depends on X86
+	depends on X86 && DMI && HAS_IOPORT
 	help
 	  If you say yes here you get support for fan readings and
 	  control over GPD handheld devices.
