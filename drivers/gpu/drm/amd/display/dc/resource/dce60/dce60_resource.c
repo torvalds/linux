@@ -864,36 +864,6 @@ static void dce60_resource_destruct(struct dce110_resource_pool *pool)
 	}
 }
 
-static bool dce60_validate_surface_sets(
-		struct dc_state *context)
-{
-	int i;
-
-	for (i = 0; i < context->stream_count; i++) {
-		if (context->stream_status[i].plane_count == 0)
-			continue;
-
-		if (context->stream_status[i].plane_count > 1)
-			return false;
-
-		if (context->stream_status[i].plane_states[0]->format
-				>= SURFACE_PIXEL_FORMAT_VIDEO_BEGIN)
-			return false;
-	}
-
-	return true;
-}
-
-static enum dc_status dce60_validate_global(
-		struct dc *dc,
-		struct dc_state *context)
-{
-	if (!dce60_validate_surface_sets(context))
-		return DC_FAIL_SURFACE_VALIDATE;
-
-	return DC_OK;
-}
-
 static void dce60_destroy_resource_pool(struct resource_pool **pool)
 {
 	struct dce110_resource_pool *dce110_pool = TO_DCE110_RES_POOL(*pool);
@@ -910,7 +880,7 @@ static const struct resource_funcs dce60_res_pool_funcs = {
 	.validate_bandwidth = dce100_validate_bandwidth,
 	.validate_plane = dce100_validate_plane,
 	.add_stream_to_ctx = dce100_add_stream_to_ctx,
-	.validate_global = dce60_validate_global,
+	.validate_global = dce100_validate_global,
 	.find_first_free_match_stream_enc_for_link = dce100_find_first_free_match_stream_enc_for_link
 };
 

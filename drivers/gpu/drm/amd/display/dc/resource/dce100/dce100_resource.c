@@ -898,7 +898,7 @@ static bool dce100_validate_surface_sets(
 	return true;
 }
 
-static enum dc_status dce100_validate_global(
+enum dc_status dce100_validate_global(
 		struct dc  *dc,
 		struct dc_state *context)
 {

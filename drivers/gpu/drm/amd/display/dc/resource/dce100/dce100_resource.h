@@ -41,6 +41,10 @@ struct resource_pool *dce100_create_resource_pool(
 
 enum dc_status dce100_validate_plane(const struct dc_plane_state *plane_state, struct dc_caps *caps);
 
+enum dc_status dce100_validate_global(
+		struct dc  *dc,
+		struct dc_state *context);
+
 enum dc_status dce100_validate_bandwidth(
 		struct dc  *dc,
 		struct dc_state *context,
