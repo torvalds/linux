@@ -11,11 +11,11 @@
 struct drm_device;
 struct intel_stolen_node;
 
-int i915_gem_stolen_insert_node_in_range(struct intel_stolen_node *node,
-					 u32 size, u32 align,
-					 u32 start, u32 end);
+int i915_gem_stolen_insert_node_in_range(struct intel_stolen_node *node, u64 size,
+					 unsigned int align, u64 start, u64 end);
 
-int i915_gem_stolen_insert_node(struct intel_stolen_node *node, u32 size, u32 align);
+int i915_gem_stolen_insert_node(struct intel_stolen_node *node, u64 size,
+				unsigned int align);
 
 void i915_gem_stolen_remove_node(struct intel_stolen_node *node);
 

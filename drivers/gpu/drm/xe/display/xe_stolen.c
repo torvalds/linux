@@ -11,9 +11,8 @@ struct intel_stolen_node {
 	struct xe_bo *bo;
 };
 
-int i915_gem_stolen_insert_node_in_range(struct intel_stolen_node *node,
-					 u32 size, u32 align,
-					 u32 start, u32 end)
+int i915_gem_stolen_insert_node_in_range(struct intel_stolen_node *node, u64 size,
+					 unsigned int align, u64 start, u64 end)
 {
 	struct xe_device *xe = node->xe;
 
@@ -42,7 +41,7 @@ int i915_gem_stolen_insert_node_in_range(struct intel_stolen_node *node,
 	return err;
 }
 
-int i915_gem_stolen_insert_node(struct intel_stolen_node *node, u32 size, u32 align)
+int i915_gem_stolen_insert_node(struct intel_stolen_node *node, u64 size, unsigned int align)
 {
 	/* Not used on xe */
 	WARN_ON(1);
