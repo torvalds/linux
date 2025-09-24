@@ -35,7 +35,7 @@ void cpg_reg_modify(void __iomem *reg, u32 clear, u32 set)
 	val |= set;
 	writel(val, reg);
 	spin_unlock_irqrestore(&cpg_lock, flags);
-};
+}
 
 static int cpg_simple_notifier_call(struct notifier_block *nb,
 				    unsigned long action, void *data)
