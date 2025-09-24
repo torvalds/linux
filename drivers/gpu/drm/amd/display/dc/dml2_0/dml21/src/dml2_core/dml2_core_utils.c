@@ -306,6 +306,8 @@ void dml2_core_utils_print_mode_support_info(const struct dml2_core_internal_mod
 		DML_LOG_VERBOSE("DML: support: ExceededMALLSize = %d\n", support->ExceededMALLSize);
 	if (!fail_only || support->g6_temp_read_support == 0)
 		DML_LOG_VERBOSE("DML: support: g6_temp_read_support = %d\n", support->g6_temp_read_support);
+	if (!fail_only || (support->global_dram_clock_change_supported == 0 && support->global_dram_clock_change_support_required))
+		DML_LOG_VERBOSE("DML: support: dram_clock_change_support = %d\n", support->global_dram_clock_change_supported);
 	if (!fail_only || support->ImmediateFlipSupport == 0)
 		DML_LOG_VERBOSE("DML: support: ImmediateFlipSupport = %d\n", support->ImmediateFlipSupport);
 	if (!fail_only || support->LinkCapacitySupport == 0)
