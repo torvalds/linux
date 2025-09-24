@@ -17,33 +17,29 @@
 static void drbg_kcapi_symsetkey(struct crypto_aes_ctx *aesctx,
 				 const unsigned char *key,
 				 u8 keylen);
-static int drbg_kcapi_sym(struct crypto_aes_ctx *aesctx, unsigned char *outval,
-			  const struct drbg_string *in, u8 blocklen_bytes);
-
 static void drbg_kcapi_symsetkey(struct crypto_aes_ctx *aesctx,
 				 const unsigned char *key, u8 keylen)
 {
 	aes_expandkey(aesctx, key, keylen);
 }
 
-static int drbg_kcapi_sym(struct crypto_aes_ctx *aesctx, unsigned char *outval,
-			  const struct drbg_string *in, u8 blocklen_bytes)
+static void drbg_kcapi_sym(struct crypto_aes_ctx *aesctx,
+			   unsigned char *outval,
+			   const struct drbg_string *in, u8 blocklen_bytes)
 {
 	/* there is only component in *in */
 	BUG_ON(in->len < blocklen_bytes);
 	aes_encrypt(aesctx, outval, in->buf);
-	return 0;
 }
 
 /* BCC function for CTR DRBG as defined in 10.4.3 */
 
-static int drbg_ctr_bcc(struct crypto_aes_ctx *aesctx,
-			unsigned char *out, const unsigned char *key,
-			struct list_head *in,
-			u8 blocklen_bytes,
-			u8 keylen)
+static void drbg_ctr_bcc(struct crypto_aes_ctx *aesctx,
+			 unsigned char *out, const unsigned char *key,
+			 struct list_head *in,
+			 u8 blocklen_bytes,
+			 u8 keylen)
 {
-	int ret = 0;
 	struct drbg_string *curr = NULL;
 	struct drbg_string data;
 	short cnt = 0;
@@ -60,9 +56,7 @@ static int drbg_ctr_bcc(struct crypto_aes_ctx *aesctx,
 			/* 10.4.3 step 4.2 */
 			if (blocklen_bytes == cnt) {
 				cnt = 0;
-				ret = drbg_kcapi_sym(aesctx, out, &data, blocklen_bytes);
-				if (ret)
-					return ret;
+				drbg_kcapi_sym(aesctx, out, &data, blocklen_bytes);
 			}
 			out[cnt] ^= *pos;
 			pos++;
@@ -72,9 +66,7 @@ static int drbg_ctr_bcc(struct crypto_aes_ctx *aesctx,
 	}
 	/* 10.4.3 step 4.2 for last block */
 	if (cnt)
-		ret = drbg_kcapi_sym(aesctx, out, &data, blocklen_bytes);
-
-	return ret;
+		drbg_kcapi_sym(aesctx, out, &data, blocklen_bytes);
 }
 
 /*
@@ -124,7 +116,6 @@ int crypto_drbg_ctr_df(struct crypto_aes_ctx *aesctx,
 		       u8 blocklen_bytes,
 		       u8 statelen)
 {
-	int ret = -EFAULT;
 	unsigned char L_N[8];
 	/* S3 is input */
 	struct drbg_string S1, S2, S4, cipherin;
@@ -196,10 +187,8 @@ int crypto_drbg_ctr_df(struct crypto_aes_ctx *aesctx,
 		 */
 		drbg_cpu_to_be32(i, iv);
 		/* 10.4.2 step 9.2 -- BCC and concatenation with temp */
-		ret = drbg_ctr_bcc(aesctx, temp + templen, K, &bcc_list,
-				   blocklen_bytes, keylen);
-		if (ret)
-			goto out;
+		drbg_ctr_bcc(aesctx, temp + templen, K, &bcc_list,
+			     blocklen_bytes, keylen);
 		/* 10.4.2 step 9.3 */
 		i++;
 		templen += blocklen_bytes;
@@ -220,9 +209,7 @@ int crypto_drbg_ctr_df(struct crypto_aes_ctx *aesctx,
 		 * implicit as the key is only drbg_blocklen in size based on
 		 * the implementation of the cipher function callback
 		 */
-		ret = drbg_kcapi_sym(aesctx, X, &cipherin, blocklen_bytes);
-		if (ret)
-			goto out;
+		drbg_kcapi_sym(aesctx, X, &cipherin, blocklen_bytes);
 		blocklen = (blocklen_bytes <
 				(bytes_to_return - generated_len)) ?
 			    blocklen_bytes :
@@ -232,13 +219,10 @@ int crypto_drbg_ctr_df(struct crypto_aes_ctx *aesctx,
 		generated_len += blocklen;
 	}
 
-	ret = 0;
-
-out:
 	memset(iv, 0, blocklen_bytes);
 	memset(temp, 0, statelen + blocklen_bytes);
 	memset(pad, 0, blocklen_bytes);
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(crypto_drbg_ctr_df);
 
