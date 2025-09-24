@@ -7,6 +7,7 @@
 #include "xe_validation.h"
 
 struct intel_stolen_node {
+	struct xe_device *xe;
 	struct xe_bo *bo;
 };
 
@@ -104,11 +105,14 @@ u64 i915_gem_stolen_node_size(const struct intel_stolen_node *node)
 
 struct intel_stolen_node *i915_gem_stolen_node_alloc(struct drm_device *drm)
 {
+	struct xe_device *xe = to_xe_device(drm);
 	struct intel_stolen_node *node;
 
 	node = kzalloc(sizeof(*node), GFP_KERNEL);
 	if (!node)
 		return NULL;
+
+	node->xe = xe;
 
 	return node;
 }

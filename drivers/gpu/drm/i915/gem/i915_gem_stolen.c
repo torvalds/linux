@@ -25,6 +25,7 @@
 #include "intel_pci_config.h"
 
 struct intel_stolen_node {
+	struct drm_i915_private *i915;
 	struct drm_mm_node node;
 };
 
@@ -1064,11 +1065,14 @@ u64 i915_gem_stolen_node_size(const struct intel_stolen_node *node)
 
 struct intel_stolen_node *i915_gem_stolen_node_alloc(struct drm_device *drm)
 {
+	struct drm_i915_private *i915 = to_i915(drm);
 	struct intel_stolen_node *node;
 
 	node = kzalloc(sizeof(*node), GFP_KERNEL);
 	if (!node)
 		return NULL;
+
+	node->i915 = i915;
 
 	return node;
 }
