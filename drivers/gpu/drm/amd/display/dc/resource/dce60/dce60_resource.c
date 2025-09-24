@@ -864,47 +864,6 @@ static void dce60_resource_destruct(struct dce110_resource_pool *pool)
 	}
 }
 
-static enum dc_status dce60_validate_bandwidth(
-	struct dc *dc,
-	struct dc_state *context,
-	enum dc_validate_mode validate_mode)
-{
-	int i;
-	bool at_least_one_pipe = false;
-	struct dc_stream_state *stream = NULL;
-	const uint32_t max_pix_clk_khz = max(dc->clk_mgr->clks.max_supported_dispclk_khz, 400000);
-
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		stream = context->res_ctx.pipe_ctx[i].stream;
-		if (stream) {
-			at_least_one_pipe = true;
-
-			if (stream->timing.pix_clk_100hz >= max_pix_clk_khz * 10)
-				return DC_FAIL_BANDWIDTH_VALIDATE;
-		}
-	}
-
-	if (at_least_one_pipe) {
-		/* TODO implement when needed but for now hardcode max value*/
-		context->bw_ctx.bw.dce.dispclk_khz = 681000;
-		context->bw_ctx.bw.dce.yclk_khz = 250000 * MEMORY_TYPE_MULTIPLIER_CZ;
-	} else {
-		/* On DCE 6.0 and 6.4 the PLL0 is both the display engine clock and
-		 * the DP clock, and shouldn't be turned off. Just select the display
-		 * clock value from its low power mode.
-		 */
-		if (dc->ctx->dce_version == DCE_VERSION_6_0 ||
-			dc->ctx->dce_version == DCE_VERSION_6_4)
-			context->bw_ctx.bw.dce.dispclk_khz = 352000;
-		else
-			context->bw_ctx.bw.dce.dispclk_khz = 0;
-
-		context->bw_ctx.bw.dce.yclk_khz = 0;
-	}
-
-	return DC_OK;
-}
-
 static bool dce60_validate_surface_sets(
 		struct dc_state *context)
 {
@@ -948,7 +907,7 @@ static const struct resource_funcs dce60_res_pool_funcs = {
 	.destroy = dce60_destroy_resource_pool,
 	.link_enc_create = dce60_link_encoder_create,
 	.panel_cntl_create = dce60_panel_cntl_create,
-	.validate_bandwidth = dce60_validate_bandwidth,
+	.validate_bandwidth = dce100_validate_bandwidth,
 	.validate_plane = dce100_validate_plane,
 	.add_stream_to_ctx = dce100_add_stream_to_ctx,
 	.validate_global = dce60_validate_global,
