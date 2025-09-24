@@ -1495,7 +1495,7 @@ choice
 config CPU_BIG_ENDIAN
 	bool "Build big-endian kernel"
 	# https://github.com/llvm/llvm-project/commit/1379b150991f70a5782e9a143c2ba5308da1161c
-	depends on AS_IS_GNU || AS_VERSION >= 150000
+	depends on (AS_IS_GNU || AS_VERSION >= 150000) && BROKEN
 	help
 	  Say Y if you plan on running a kernel with a big-endian userspace.
 
@@ -2220,7 +2220,7 @@ config ARM64_HAFT
 
 endmenu # "ARMv8.9 architectural features"
 
-menu "v9.4 architectural features"
+menu "ARMv9.4 architectural features"
 
 config ARM64_GCS
 	bool "Enable support for Guarded Control Stack (GCS)"
@@ -2239,7 +2239,7 @@ config ARM64_GCS
 	  The feature is detected at runtime, and will remain disabled
 	  if the system does not implement the feature.
 
-endmenu # "v9.4 architectural features"
+endmenu # "ARMv9.4 architectural features"
 
 config ARM64_SVE
 	bool "ARM Scalable Vector Extension support"
