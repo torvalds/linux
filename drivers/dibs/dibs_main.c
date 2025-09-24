@@ -258,8 +258,8 @@ static int __init dibs_init(void)
 	max_client = 0;
 
 	dibs_class = class_create("dibs");
-	if (IS_ERR(&dibs_class))
-		return PTR_ERR(&dibs_class);
+	if (IS_ERR(dibs_class))
+		return PTR_ERR(dibs_class);
 
 	rc = dibs_loopback_init();
 	if (rc)
