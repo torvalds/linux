@@ -495,6 +495,7 @@ struct kfd_dev *kgd2kfd_probe(struct amdgpu_device *adev, bool vf)
 	mutex_init(&kfd->doorbell_mutex);
 
 	ida_init(&kfd->doorbell_ida);
+	atomic_set(&kfd->kfd_processes_count, 0);
 
 	return kfd;
 }
@@ -1492,6 +1493,15 @@ int kgd2kfd_check_and_lock_kfd(struct kfd_dev *kfd)
 	int r = 0, temp, idx;
 
 	mutex_lock(&kfd_processes_mutex);
+
+	/* kfd_processes_count is per kfd_dev, return -EBUSY without
+	 * further check
+	 */
+	if (!!atomic_read(&kfd->kfd_processes_count)) {
+		pr_debug("process_wq_release not finished\n");
+		r = -EBUSY;
+		goto out;
+	}
 
 	if (hash_empty(kfd_processes_table) && !kfd_is_locked(kfd))
 		goto out;

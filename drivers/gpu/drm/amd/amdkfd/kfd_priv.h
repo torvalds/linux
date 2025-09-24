@@ -382,6 +382,8 @@ struct kfd_dev {
 
 	/* for dynamic partitioning */
 	int kfd_dev_lock;
+
+	atomic_t kfd_processes_count;
 };
 
 enum kfd_mempool {
