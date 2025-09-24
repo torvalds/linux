@@ -135,7 +135,7 @@ static void adi_i3c_master_wr_to_tx_fifo(struct adi_i3c_master *master,
 
 	n = readl(master->regs + REG_SDO_FIFO_ROOM);
 	m = min(n, nbytes);
-	i3c_writel_fifo(master->regs + REG_SDO_FIFO, buf, nbytes);
+	i3c_writel_fifo(master->regs + REG_SDO_FIFO, buf, m);
 }
 
 static void adi_i3c_master_rd_from_rx_fifo(struct adi_i3c_master *master,
