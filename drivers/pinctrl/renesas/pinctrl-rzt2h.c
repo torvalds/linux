@@ -144,7 +144,7 @@ static void rzt2h_pinctrl_set_pfc_mode(struct rzt2h_pinctrl *pctrl,
 	/* Switch to Peripheral pin function with PMC register */
 	reg16 = rzt2h_pinctrl_readb(pctrl, port, PMC(port));
 	rzt2h_pinctrl_writeb(pctrl, port, reg16 | BIT(pin), PMC(port));
-};
+}
 
 static int rzt2h_pinctrl_set_mux(struct pinctrl_dev *pctldev,
 				 unsigned int func_selector,
@@ -182,7 +182,7 @@ static int rzt2h_pinctrl_set_mux(struct pinctrl_dev *pctldev,
 	}
 
 	return 0;
-};
+}
 
 static int rzt2h_map_add_config(struct pinctrl_map *map,
 				const char *group_or_pin,
