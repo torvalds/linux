@@ -299,6 +299,7 @@ enum bm_contention_outcome {
 };
 
 static enum bm_contention_outcome contend_for_bm(struct fw_card *card)
+__must_hold(&card->lock)
 {
 	int generation = card->generation;
 	int local_id = card->local_node->node_id;
@@ -311,7 +312,10 @@ static enum bm_contention_outcome contend_for_bm(struct fw_card *card)
 	bool keep_this_irm = false;
 	struct fw_node *irm_node;
 	struct fw_device *irm_device;
+	int irm_node_id;
 	int rcode;
+
+	lockdep_assert_held(&card->lock);
 
 	if (!grace) {
 		if (!is_next_generation(generation, card->bm_generation) || card->bm_abdicate)
@@ -338,9 +342,15 @@ static enum bm_contention_outcome contend_for_bm(struct fw_card *card)
 		return BM_CONTENTION_OUTCOME_IRM_COMPLIES_1394_1995_ONLY;
 	}
 
-	rcode = fw_run_transaction(card, TCODE_LOCK_COMPARE_SWAP, irm_node->node_id, generation,
+	irm_node_id = irm_node->node_id;
+
+	spin_unlock_irq(&card->lock);
+
+	rcode = fw_run_transaction(card, TCODE_LOCK_COMPARE_SWAP, irm_node_id, generation,
 				   SCODE_100, CSR_REGISTER_BASE + CSR_BUS_MANAGER_ID, data,
 				   sizeof(data));
+
+	spin_lock_irq(&card->lock);
 
 	switch (rcode) {
 	case RCODE_GENERATION:
@@ -352,12 +362,10 @@ static enum bm_contention_outcome contend_for_bm(struct fw_card *card)
 		int bm_id = be32_to_cpu(data[0]);
 
 		// Used by cdev layer for "struct fw_cdev_event_bus_reset".
-		scoped_guard(spinlock, &card->lock) {
-			if (bm_id != BUS_MANAGER_ID_NOT_REGISTERED)
-				card->bm_node_id = 0xffc0 & bm_id;
-			else
-				card->bm_node_id = local_id;
-		}
+		if (bm_id != BUS_MANAGER_ID_NOT_REGISTERED)
+			card->bm_node_id = 0xffc0 & bm_id;
+		else
+			card->bm_node_id = local_id;
 
 		if (bm_id != BUS_MANAGER_ID_NOT_REGISTERED)
 			return BM_CONTENTION_OUTCOME_IRM_HOLDS_ANOTHER_NODE_AS_BM;
@@ -389,8 +397,12 @@ static void bm_work(struct work_struct *work)
 	int expected_gap_count, generation;
 	bool stand_for_root = false;
 
-	if (card->local_node == NULL)
+	spin_lock_irq(&card->lock);
+
+	if (card->local_node == NULL) {
+		spin_unlock_irq(&card->lock);
 		return;
+	}
 
 	generation = card->generation;
 
@@ -405,6 +417,7 @@ static void bm_work(struct work_struct *work)
 
 		switch (result) {
 		case BM_CONTENTION_OUTCOME_WITHIN_WINDOW:
+			spin_unlock_irq(&card->lock);
 			fw_schedule_bm_work(card, msecs_to_jiffies(125));
 			return;
 		case BM_CONTENTION_OUTCOME_IRM_HAS_LINK_OFF:
@@ -415,10 +428,12 @@ static void bm_work(struct work_struct *work)
 			break;
 		case BM_CONTENTION_OUTCOME_AT_NEW_GENERATION:
 			// BM work has been rescheduled.
+			spin_unlock_irq(&card->lock);
 			return;
 		case BM_CONTENTION_OUTCOME_LOCAL_PROBLEM_AT_TRANSACTION:
 			// Let's try again later and hope that the local problem has gone away by
 			// then.
+			spin_unlock_irq(&card->lock);
 			fw_schedule_bm_work(card, msecs_to_jiffies(125));
 			return;
 		case BM_CONTENTION_OUTCOME_IRM_IS_NOT_CAPABLE_FOR_IRM:
@@ -428,7 +443,9 @@ static void bm_work(struct work_struct *work)
 		case BM_CONTENTION_OUTCOME_IRM_HOLDS_ANOTHER_NODE_AS_BM:
 			if (local_id == irm_id) {
 				// Only acts as IRM.
+				spin_unlock_irq(&card->lock);
 				allocate_broadcast_channel(card, generation);
+				spin_lock_irq(&card->lock);
 			}
 			fallthrough;
 		case BM_CONTENTION_OUTCOME_IRM_HOLDS_LOCAL_NODE_AS_BM:
@@ -469,6 +486,7 @@ static void bm_work(struct work_struct *work)
 				if (!root_device_is_running) {
 					// If we haven't probed this device yet, bail out now
 					// and let's try again once that's done.
+					spin_unlock_irq(&card->lock);
 					return;
 				} else if (!root_device->cmc) {
 					// Current root has an active link layer and we
@@ -504,6 +522,8 @@ static void bm_work(struct work_struct *work)
 	if (card->bm_retries++ < 5 && (card->gap_count != expected_gap_count || new_root_id != root_id)) {
 		int card_gap_count = card->gap_count;
 
+		spin_unlock_irq(&card->lock);
+
 		fw_notice(card, "phy config: new root=%x, gap_count=%d\n",
 			  new_root_id, expected_gap_count);
 		fw_send_phy_config(card, new_root_id, generation, expected_gap_count);
@@ -523,6 +543,8 @@ static void bm_work(struct work_struct *work)
 		/* Will allocate broadcast channel after the reset. */
 	} else {
 		struct fw_device *root_device = fw_node_get_device(root_node);
+
+		spin_unlock_irq(&card->lock);
 
 		if (root_device && root_device->cmc) {
 			// Make sure that the cycle master sends cycle start packets.
