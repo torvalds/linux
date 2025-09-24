@@ -1718,7 +1718,8 @@ fbnic_get_pause_stats(struct net_device *netdev,
 
 static void
 fbnic_get_fec_stats(struct net_device *netdev,
-		    struct ethtool_fec_stats *fec_stats)
+		    struct ethtool_fec_stats *fec_stats,
+		    struct ethtool_fec_hist *hist)
 {
 	struct fbnic_net *fbn = netdev_priv(netdev);
 	struct fbnic_phy_stats *phy_stats;
