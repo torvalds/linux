@@ -10794,6 +10794,7 @@ S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/vdubeyko/hfs.git
 F:	Documentation/filesystems/hfs.rst
 F:	fs/hfs/
+F:	include/linux/hfs_common.h
 
 HFSPLUS FILESYSTEM
 M:	Viacheslav Dubeyko <slava@dubeyko.com>
@@ -10804,6 +10805,7 @@ S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/vdubeyko/hfs.git
 F:	Documentation/filesystems/hfsplus.rst
 F:	fs/hfsplus/
+F:	include/linux/hfs_common.h
 
 HGA FRAMEBUFFER DRIVER
 M:	Ferenc Bakonyi <fero@drama.obuda.kando.hu>

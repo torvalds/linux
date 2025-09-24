@@ -64,7 +64,7 @@ static void hfsplus_init_header_node(struct inode *attr_file,
 	u32 used_bmp_bytes;
 	u64 tmp;
 
-	hfs_dbg(ATTR_MOD, "init_hdr_attr_file: clump %u, node_size %u\n",
+	hfs_dbg("clump %u, node_size %u\n",
 		clump_size, node_size);
 
 	/* The end of the node contains list of record offsets */
@@ -132,7 +132,7 @@ static int hfsplus_create_attributes_file(struct super_block *sb)
 	struct page *page;
 	int old_state = HFSPLUS_EMPTY_ATTR_TREE;
 
-	hfs_dbg(ATTR_MOD, "create_attr_file: ino %d\n", HFSPLUS_ATTR_CNID);
+	hfs_dbg("ino %d\n", HFSPLUS_ATTR_CNID);
 
 check_attr_tree_state_again:
 	switch (atomic_read(&sbi->attr_tree_state)) {

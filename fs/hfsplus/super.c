@@ -163,7 +163,7 @@ static int hfsplus_write_inode(struct inode *inode,
 {
 	int err;
 
-	hfs_dbg(INODE, "hfsplus_write_inode: %lu\n", inode->i_ino);
+	hfs_dbg("ino %lu\n", inode->i_ino);
 
 	err = hfsplus_ext_write_extent(inode);
 	if (err)
@@ -178,7 +178,7 @@ static int hfsplus_write_inode(struct inode *inode,
 
 static void hfsplus_evict_inode(struct inode *inode)
 {
-	hfs_dbg(INODE, "hfsplus_evict_inode: %lu\n", inode->i_ino);
+	hfs_dbg("ino %lu\n", inode->i_ino);
 	truncate_inode_pages_final(&inode->i_data);
 	clear_inode(inode);
 	if (HFSPLUS_IS_RSRC(inode)) {
@@ -197,7 +197,7 @@ static int hfsplus_sync_fs(struct super_block *sb, int wait)
 	if (!wait)
 		return 0;
 
-	hfs_dbg(SUPER, "hfsplus_sync_fs\n");
+	hfs_dbg("starting...\n");
 
 	/*
 	 * Explicitly write out the special metadata inodes.
@@ -228,6 +228,10 @@ static int hfsplus_sync_fs(struct super_block *sb, int wait)
 	vhdr->folder_count = cpu_to_be32(sbi->folder_count);
 	vhdr->file_count = cpu_to_be32(sbi->file_count);
 
+	hfs_dbg("free_blocks %u, next_cnid %u, folder_count %u, file_count %u\n",
+		sbi->free_blocks, sbi->next_cnid,
+		sbi->folder_count, sbi->file_count);
+
 	if (test_and_clear_bit(HFSPLUS_SB_WRITEBACKUP, &sbi->flags)) {
 		memcpy(sbi->s_backup_vhdr, sbi->s_vhdr, sizeof(*sbi->s_vhdr));
 		write_backup = 1;
@@ -252,6 +256,8 @@ out:
 
 	if (!test_bit(HFSPLUS_SB_NOBARRIER, &sbi->flags))
 		blkdev_issue_flush(sb->s_bdev);
+
+	hfs_dbg("finished: err %d\n", error);
 
 	return error;
 }
@@ -301,7 +307,7 @@ static void hfsplus_put_super(struct super_block *sb)
 {
 	struct hfsplus_sb_info *sbi = HFSPLUS_SB(sb);
 
-	hfs_dbg(SUPER, "hfsplus_put_super\n");
+	hfs_dbg("starting...\n");
 
 	cancel_delayed_work_sync(&sbi->sync_work);
 
@@ -323,6 +329,8 @@ static void hfsplus_put_super(struct super_block *sb)
 	kfree(sbi->s_vhdr_buf);
 	kfree(sbi->s_backup_vhdr_buf);
 	call_rcu(&sbi->rcu, delayed_free);
+
+	hfs_dbg("finished\n");
 }
 
 static int hfsplus_statfs(struct dentry *dentry, struct kstatfs *buf)

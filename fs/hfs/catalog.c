@@ -87,7 +87,7 @@ int hfs_cat_create(u32 cnid, struct inode *dir, const struct qstr *str, struct i
 	int entry_size;
 	int err;
 
-	hfs_dbg(CAT_MOD, "create_cat: %s,%u(%d)\n",
+	hfs_dbg("name %s, cnid %u, i_nlink %d\n",
 		str->name, cnid, inode->i_nlink);
 	if (dir->i_size >= HFS_MAX_VALENCE)
 		return -ENOSPC;
@@ -238,7 +238,7 @@ int hfs_correct_next_unused_CNID(struct super_block *sb, u32 cnid)
 	s64 leaf_tail;
 	s64 node_id;
 
-	hfs_dbg(CAT_MOD, "correct next unused CNID: cnid %u, next_id %lld\n",
+	hfs_dbg("cnid %u, next_id %lld\n",
 		cnid, atomic64_read(&HFS_SB(sb)->next_id));
 
 	if ((cnid + 1) < atomic64_read(&HFS_SB(sb)->next_id)) {
@@ -274,7 +274,7 @@ int hfs_correct_next_unused_CNID(struct super_block *sb, u32 cnid)
 				return -ENOENT;
 		}
 
-		hfs_dbg(CAT_MOD, "node_id %lld, leaf_tail %lld, leaf_head %lld\n",
+		hfs_dbg("node %lld, leaf_tail %lld, leaf_head %lld\n",
 			node_id, leaf_tail, leaf_head);
 
 		hfs_bnode_dump(node);
@@ -309,13 +309,13 @@ int hfs_correct_next_unused_CNID(struct super_block *sb, u32 cnid)
 
 			if (rec.type == HFS_CDR_DIR) {
 				found_cnid = be32_to_cpu(rec.dir.DirID);
-				hfs_dbg(CAT_MOD, "found_cnid %u\n", found_cnid);
+				hfs_dbg("found_cnid %u\n", found_cnid);
 				hfs_set_next_unused_CNID(sb, cnid, found_cnid);
 				hfs_bnode_put(node);
 				return 0;
 			} else if (rec.type == HFS_CDR_FIL) {
 				found_cnid = be32_to_cpu(rec.file.FlNum);
-				hfs_dbg(CAT_MOD, "found_cnid %u\n", found_cnid);
+				hfs_dbg("found_cnid %u\n", found_cnid);
 				hfs_set_next_unused_CNID(sb, cnid, found_cnid);
 				hfs_bnode_put(node);
 				return 0;
@@ -343,7 +343,7 @@ int hfs_cat_delete(u32 cnid, struct inode *dir, const struct qstr *str)
 	struct hfs_readdir_data *rd;
 	int res, type;
 
-	hfs_dbg(CAT_MOD, "delete_cat: %s,%u\n", str ? str->name : NULL, cnid);
+	hfs_dbg("name %s, cnid %u\n", str ? str->name : NULL, cnid);
 	sb = dir->i_sb;
 	res = hfs_find_init(HFS_SB(sb)->cat_tree, &fd);
 	if (res)
@@ -417,7 +417,7 @@ int hfs_cat_move(u32 cnid, struct inode *src_dir, const struct qstr *src_name,
 	int entry_size, type;
 	int err;
 
-	hfs_dbg(CAT_MOD, "rename_cat: %u - %lu,%s - %lu,%s\n",
+	hfs_dbg("cnid %u - (ino %lu, name %s) - (ino %lu, name %s)\n",
 		cnid, src_dir->i_ino, src_name->name,
 		dst_dir->i_ino, dst_name->name);
 	sb = src_dir->i_sb;
