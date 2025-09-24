@@ -512,6 +512,7 @@ pid_t gettid(void)
 	return sys_gettid();
 }
 
+#ifndef NOLIBC_NO_RUNTIME
 static unsigned long getauxval(unsigned long key);
 
 /*
@@ -523,7 +524,7 @@ int getpagesize(void)
 {
 	return __sysret((int)getauxval(AT_PAGESZ) ?: -ENOENT);
 }
-
+#endif /* NOLIBC_NO_RUNTIME */
 
 /*
  * uid_t getuid(void);

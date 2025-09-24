@@ -100,6 +100,7 @@ void free(void *ptr)
 	munmap(heap, heap->len);
 }
 
+#ifndef NOLIBC_NO_RUNTIME
 /* getenv() tries to find the environment variable named <name> in the
  * environment array pointed to by global variable "environ" which must be
  * declared as a char **, and must be terminated by a NULL (it is recommended
@@ -122,6 +123,7 @@ char *getenv(const char *name)
 	}
 	return NULL;
 }
+#endif /* NOLIBC_NO_RUNTIME */
 
 static __attribute__((unused))
 void *malloc(size_t len)
