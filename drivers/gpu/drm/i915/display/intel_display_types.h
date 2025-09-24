@@ -1341,6 +1341,9 @@ struct intel_crtc_state {
 
 	/* LOBF flag */
 	bool has_lobf;
+
+	/* W2 window or 'set context latency' lines */
+	u16 set_context_latency;
 };
 
 enum intel_pipe_crc_source {
