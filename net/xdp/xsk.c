@@ -618,11 +618,16 @@ static void xsk_destruct_skb(struct sk_buff *skb)
 	sock_wfree(skb);
 }
 
-static void xsk_set_destructor_arg(struct sk_buff *skb, u64 addr)
+static void xsk_skb_init_misc(struct sk_buff *skb, struct xdp_sock *xs,
+			      u64 addr)
 {
 	BUILD_BUG_ON(sizeof(struct xsk_addr_head) > sizeof(skb->cb));
 	INIT_LIST_HEAD(&XSKCB(skb)->addrs_list);
+	skb->dev = xs->dev;
+	skb->priority = READ_ONCE(xs->sk.sk_priority);
+	skb->mark = READ_ONCE(xs->sk.sk_mark);
 	XSKCB(skb)->num_descs = 0;
+	skb->destructor = xsk_destruct_skb;
 	skb_shinfo(skb)->destructor_arg = (void *)(uintptr_t)addr;
 }
 
@@ -673,7 +678,7 @@ static struct sk_buff *xsk_build_skb_zerocopy(struct xdp_sock *xs,
 
 		skb_reserve(skb, hr);
 
-		xsk_set_destructor_arg(skb, desc->addr);
+		xsk_skb_init_misc(skb, xs, desc->addr);
 	} else {
 		xsk_addr = kmem_cache_zalloc(xsk_tx_generic_cache, GFP_KERNEL);
 		if (!xsk_addr)
@@ -757,7 +762,7 @@ static struct sk_buff *xsk_build_skb(struct xdp_sock *xs,
 			if (unlikely(err))
 				goto free_err;
 
-			xsk_set_destructor_arg(skb, desc->addr);
+			xsk_skb_init_misc(skb, xs, desc->addr);
 		} else {
 			int nr_frags = skb_shinfo(skb)->nr_frags;
 			struct xsk_addr_node *xsk_addr;
@@ -826,14 +831,10 @@ static struct sk_buff *xsk_build_skb(struct xdp_sock *xs,
 
 			if (meta->flags & XDP_TXMD_FLAGS_LAUNCH_TIME)
 				skb->skb_mstamp_ns = meta->request.launch_time;
+			xsk_tx_metadata_to_compl(meta, &skb_shinfo(skb)->xsk_meta);
 		}
 	}
 
-	skb->dev = dev;
-	skb->priority = READ_ONCE(xs->sk.sk_priority);
-	skb->mark = READ_ONCE(xs->sk.sk_mark);
-	skb->destructor = xsk_destruct_skb;
-	xsk_tx_metadata_to_compl(meta, &skb_shinfo(skb)->xsk_meta);
 	xsk_inc_num_desc(skb);
 
 	return skb;
