@@ -21,8 +21,8 @@ struct pm_nl_pernet {
 	unsigned int		addrs;
 	unsigned int		stale_loss_cnt;
 	unsigned int		endp_signal_max;
+	unsigned int		endp_subflow_max;
 	unsigned int		limit_add_addr_accepted;
-	unsigned int		local_addr_max;
 	unsigned int		limit_extra_subflows;
 	unsigned int		next_id;
 	DECLARE_BITMAP(id_bitmap, MPTCP_PM_MAX_ADDR_ID + 1);
@@ -54,6 +54,14 @@ unsigned int mptcp_pm_get_endp_signal_max(const struct mptcp_sock *msk)
 }
 EXPORT_SYMBOL_GPL(mptcp_pm_get_endp_signal_max);
 
+unsigned int mptcp_pm_get_endp_subflow_max(const struct mptcp_sock *msk)
+{
+	struct pm_nl_pernet *pernet = pm_nl_get_pernet_from_msk(msk);
+
+	return READ_ONCE(pernet->endp_subflow_max);
+}
+EXPORT_SYMBOL_GPL(mptcp_pm_get_endp_subflow_max);
+
 unsigned int mptcp_pm_get_limit_add_addr_accepted(const struct mptcp_sock *msk)
 {
 	struct pm_nl_pernet *pernet = pm_nl_get_pernet_from_msk(msk);
@@ -69,14 +77,6 @@ unsigned int mptcp_pm_get_limit_extra_subflows(const struct mptcp_sock *msk)
 	return READ_ONCE(pernet->limit_extra_subflows);
 }
 EXPORT_SYMBOL_GPL(mptcp_pm_get_limit_extra_subflows);
-
-unsigned int mptcp_pm_get_local_addr_max(const struct mptcp_sock *msk)
-{
-	struct pm_nl_pernet *pernet = pm_nl_get_pernet_from_msk(msk);
-
-	return READ_ONCE(pernet->local_addr_max);
-}
-EXPORT_SYMBOL_GPL(mptcp_pm_get_local_addr_max);
 
 static bool lookup_subflow_by_daddr(const struct list_head *list,
 				    const struct mptcp_addr_info *daddr)
@@ -276,15 +276,15 @@ static void mptcp_pm_create_subflow_or_signal_addr(struct mptcp_sock *msk)
 	struct sock *sk = (struct sock *)msk;
 	unsigned int limit_extra_subflows;
 	bool signal_and_subflow = false;
+	unsigned int endp_subflow_max;
 	unsigned int endp_signal_max;
-	unsigned int local_addr_max;
 	struct pm_nl_pernet *pernet;
 	struct mptcp_pm_local local;
 
 	pernet = pm_nl_get_pernet(sock_net(sk));
 
 	endp_signal_max = mptcp_pm_get_endp_signal_max(msk);
-	local_addr_max = mptcp_pm_get_local_addr_max(msk);
+	endp_subflow_max = mptcp_pm_get_endp_subflow_max(msk);
 	limit_extra_subflows = mptcp_pm_get_limit_extra_subflows(msk);
 
 	/* do lazy endpoint usage accounting for the MPC subflows */
@@ -311,7 +311,7 @@ static void mptcp_pm_create_subflow_or_signal_addr(struct mptcp_sock *msk)
 	}
 
 	pr_debug("local %d:%d signal %d:%d subflows %d:%d\n",
-		 msk->pm.local_addr_used, local_addr_max,
+		 msk->pm.local_addr_used, endp_subflow_max,
 		 msk->pm.add_addr_signaled, endp_signal_max,
 		 msk->pm.extra_subflows, limit_extra_subflows);
 
@@ -352,7 +352,7 @@ static void mptcp_pm_create_subflow_or_signal_addr(struct mptcp_sock *msk)
 
 subflow:
 	/* check if should create a new subflow */
-	while (msk->pm.local_addr_used < local_addr_max &&
+	while (msk->pm.local_addr_used < endp_subflow_max &&
 	       msk->pm.extra_subflows < limit_extra_subflows) {
 		struct mptcp_addr_info addrs[MPTCP_PM_ADDR_MAX];
 		bool fullmesh;
@@ -458,7 +458,7 @@ fill_local_addresses_vec_c_flag(struct mptcp_sock *msk,
 				struct mptcp_addr_info *remote,
 				struct mptcp_pm_local *locals)
 {
-	unsigned int local_addr_max = mptcp_pm_get_local_addr_max(msk);
+	unsigned int endp_subflow_max = mptcp_pm_get_endp_subflow_max(msk);
 	struct pm_nl_pernet *pernet = pm_nl_get_pernet_from_msk(msk);
 	struct sock *sk = (struct sock *)msk;
 	unsigned int limit_extra_subflows;
@@ -469,7 +469,7 @@ fill_local_addresses_vec_c_flag(struct mptcp_sock *msk,
 	mptcp_local_address((struct sock_common *)msk, &mpc_addr);
 	limit_extra_subflows = mptcp_pm_get_limit_extra_subflows(msk);
 
-	while (msk->pm.local_addr_used < local_addr_max) {
+	while (msk->pm.local_addr_used < endp_subflow_max) {
 		local = &locals[i];
 
 		if (!select_local_address(pernet, msk, local))
@@ -706,8 +706,8 @@ find_next:
 		WRITE_ONCE(pernet->endp_signal_max, addr_max + 1);
 	}
 	if (entry->flags & MPTCP_PM_ADDR_FLAG_SUBFLOW) {
-		addr_max = pernet->local_addr_max;
-		WRITE_ONCE(pernet->local_addr_max, addr_max + 1);
+		addr_max = pernet->endp_subflow_max;
+		WRITE_ONCE(pernet->endp_subflow_max, addr_max + 1);
 	}
 
 	pernet->addrs++;
@@ -1105,8 +1105,8 @@ int mptcp_pm_nl_del_addr_doit(struct sk_buff *skb, struct genl_info *info)
 		WRITE_ONCE(pernet->endp_signal_max, addr_max - 1);
 	}
 	if (entry->flags & MPTCP_PM_ADDR_FLAG_SUBFLOW) {
-		addr_max = pernet->local_addr_max;
-		WRITE_ONCE(pernet->local_addr_max, addr_max - 1);
+		addr_max = pernet->endp_subflow_max;
+		WRITE_ONCE(pernet->endp_subflow_max, addr_max - 1);
 	}
 
 	pernet->addrs--;
@@ -1189,7 +1189,7 @@ static void __flush_addrs(struct list_head *list)
 static void __reset_counters(struct pm_nl_pernet *pernet)
 {
 	WRITE_ONCE(pernet->endp_signal_max, 0);
-	WRITE_ONCE(pernet->local_addr_max, 0);
+	WRITE_ONCE(pernet->endp_subflow_max, 0);
 	pernet->addrs = 0;
 }
 

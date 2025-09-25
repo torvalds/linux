@@ -1035,7 +1035,7 @@ void mptcp_pm_data_reset(struct mptcp_sock *msk)
 		 * pm->pm_type is set to MPTCP_PM_TYPE_KERNEL
 		 */
 		WRITE_ONCE(pm->work_pending,
-			   (!!mptcp_pm_get_local_addr_max(msk) &&
+			   (!!mptcp_pm_get_endp_subflow_max(msk) &&
 			    subflows_allowed) ||
 			   !!mptcp_pm_get_endp_signal_max(msk));
 		WRITE_ONCE(pm->accept_addr,
