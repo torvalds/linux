@@ -340,14 +340,13 @@ impl<Ctx: device::DeviceContext> AsRef<device::Device<Ctx>> for Interface<Ctx> {
     }
 }
 
-impl<Ctx: device::DeviceContext> AsRef<Device<Ctx>> for Interface<Ctx> {
-    fn as_ref(&self) -> &Device<Ctx> {
-        // SAFETY: `self.as_raw()` is valid by the type invariants. For a valid interface,
-        // the helper should always return a valid USB device pointer.
+impl<Ctx: device::DeviceContext> AsRef<Device> for Interface<Ctx> {
+    fn as_ref(&self) -> &Device {
+        // SAFETY: `self.as_raw()` is valid by the type invariants.
         let usb_dev = unsafe { bindings::interface_to_usbdev(self.as_raw()) };
 
-        // SAFETY: The helper returns a valid interface pointer that shares the
-        // same `DeviceContext`.
+        // SAFETY: For a valid `struct usb_interface` pointer, the above call to
+        // `interface_to_usbdev()` guarantees to return a valid pointer to a `struct usb_device`.
         unsafe { &*(usb_dev.cast()) }
     }
 }
