@@ -95,9 +95,7 @@ setup_prepare()
 	h3=${NETIFS[p6]}
 
 	adf_vrf_prepare
-
-	forwarding_enable
-	defer forwarding_restore
+	adf_forwarding_enable
 
 	host_create "$h1" 192.0.2.1/28 2001:db8:1::1/64
 	host_create "$h2" 192.0.2.2/28 2001:db8:1::2/64

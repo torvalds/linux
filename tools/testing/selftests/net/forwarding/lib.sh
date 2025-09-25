@@ -1023,6 +1023,12 @@ forwarding_restore()
 	sysctl_restore net.ipv4.conf.all.forwarding
 }
 
+adf_forwarding_enable()
+{
+	forwarding_enable
+	defer forwarding_restore
+}
+
 declare -A MTU_ORIG
 mtu_set()
 {

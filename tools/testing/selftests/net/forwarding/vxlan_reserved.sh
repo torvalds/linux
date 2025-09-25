@@ -87,9 +87,7 @@ setup_prepare()
 	rp2=${NETIFS[p4]}
 
 	adf_vrf_prepare
-
-	forwarding_enable
-	defer forwarding_restore
+	adf_forwarding_enable
 
 	h1_create
 	switch_create

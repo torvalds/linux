@@ -370,9 +370,7 @@ setup_prepare()
 	h3=${NETIFS[p6]}
 
 	adf_vrf_prepare
-
-	forwarding_enable
-	defer forwarding_restore
+	adf_forwarding_enable
 
 	adf_ip_link_add "v1$h2" type veth peer name "v2$h2"
 	adf_ip_link_add "v1$h3" type veth peer name "v2$h3"
