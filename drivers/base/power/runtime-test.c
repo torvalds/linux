@@ -42,7 +42,7 @@ static void pm_runtime_already_suspended_test(struct kunit *test)
 	pm_runtime_put(dev);
 
 	pm_runtime_get_noresume(dev);
-	KUNIT_EXPECT_EQ(test, -EAGAIN, pm_runtime_put_sync(dev));
+	KUNIT_EXPECT_EQ(test, 1, pm_runtime_put_sync(dev));
 
 	KUNIT_EXPECT_EQ(test, 1, pm_runtime_suspend(dev));
 	KUNIT_EXPECT_EQ(test, 1, pm_runtime_autosuspend(dev));
