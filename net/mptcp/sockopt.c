@@ -972,8 +972,8 @@ void mptcp_diag_fill_info(struct mptcp_sock *msk, struct mptcp_info *info)
 
 	/* The following limits only make sense for the in-kernel PM */
 	if (mptcp_pm_is_kernel(msk)) {
-		info->mptcpi_subflows_max =
-			mptcp_pm_get_subflows_max(msk);
+		info->mptcpi_limit_extra_subflows =
+			mptcp_pm_get_limit_extra_subflows(msk);
 		info->mptcpi_add_addr_signal_max =
 			mptcp_pm_get_add_addr_signal_max(msk);
 		info->mptcpi_add_addr_accepted_max =
