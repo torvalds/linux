@@ -18,7 +18,7 @@ struct pm_nl_pernet {
 	/* protects pernet updates */
 	spinlock_t		lock;
 	struct list_head	endp_list;
-	unsigned int		addrs;
+	unsigned int		endpoints;
 	unsigned int		stale_loss_cnt;
 	unsigned int		endp_signal_max;
 	unsigned int		endp_subflow_max;
@@ -636,7 +636,7 @@ static int mptcp_pm_nl_append_new_local_addr(struct pm_nl_pernet *pernet,
 	 */
 	if (pernet->next_id == MPTCP_PM_MAX_ADDR_ID)
 		pernet->next_id = 1;
-	if (pernet->addrs >= MPTCP_PM_ADDR_MAX) {
+	if (pernet->endpoints >= MPTCP_PM_ADDR_MAX) {
 		ret = -ERANGE;
 		goto out;
 	}
@@ -675,7 +675,7 @@ static int mptcp_pm_nl_append_new_local_addr(struct pm_nl_pernet *pernet,
 				goto out;
 			}
 
-			pernet->addrs--;
+			pernet->endpoints--;
 			entry->addr.id = cur->addr.id;
 			list_del_rcu(&cur->list);
 			del_entry = cur;
@@ -710,7 +710,7 @@ find_next:
 		WRITE_ONCE(pernet->endp_subflow_max, addr_max + 1);
 	}
 
-	pernet->addrs++;
+	pernet->endpoints++;
 	if (!entry->addr.port)
 		list_add_tail_rcu(&entry->list, &pernet->endp_list);
 	else
@@ -1109,7 +1109,7 @@ int mptcp_pm_nl_del_addr_doit(struct sk_buff *skb, struct genl_info *info)
 		WRITE_ONCE(pernet->endp_subflow_max, addr_max - 1);
 	}
 
-	pernet->addrs--;
+	pernet->endpoints--;
 	list_del_rcu(&entry->list);
 	__clear_bit(entry->addr.id, pernet->id_bitmap);
 	spin_unlock_bh(&pernet->lock);
@@ -1190,7 +1190,7 @@ static void __reset_counters(struct pm_nl_pernet *pernet)
 {
 	WRITE_ONCE(pernet->endp_signal_max, 0);
 	WRITE_ONCE(pernet->endp_subflow_max, 0);
-	pernet->addrs = 0;
+	pernet->endpoints = 0;
 }
 
 int mptcp_pm_nl_flush_addrs_doit(struct sk_buff *skb, struct genl_info *info)
