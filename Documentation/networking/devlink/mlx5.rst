@@ -385,6 +385,12 @@ Description of the vnic counters:
         amount of Interconnect Host Memory (ICM) consumed by the vnic in
         granularity of 4KB. ICM is host memory allocated by SW upon HCA request
         and is used for storing data structures that control HCA operation.
+- bar_uar_access
+        number of WRITE or READ access operations to the UAR on the PCIe BAR.
+- odp_local_triggered_page_fault
+        number of locally-triggered page-faults due to ODP.
+- odp_remote_triggered_page_fault
+        number of remotly-triggered page-faults due to ODP.
 
 User commands examples:
 

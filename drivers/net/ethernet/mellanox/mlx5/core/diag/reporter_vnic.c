@@ -107,6 +107,15 @@ void mlx5_reporter_vnic_diagnose_counters(struct mlx5_core_dev *dev,
 	}
 	if (MLX5_CAP_GEN(dev, nic_cap_reg))
 		mlx5_reporter_vnic_diagnose_counter_icm(dev, fmsg, vport_num, other_vport);
+	if (MLX5_CAP_GEN(dev, vnic_env_cnt_bar_uar_access))
+		devlink_fmsg_u32_pair_put(fmsg, "bar_uar_access",
+					  VNIC_ENV_GET(&vnic, bar_uar_access));
+	if (MLX5_CAP_GEN(dev, vnic_env_cnt_odp_page_fault)) {
+		devlink_fmsg_u32_pair_put(fmsg, "odp_local_triggered_page_fault",
+					  VNIC_ENV_GET(&vnic, odp_local_triggered_page_fault));
+		devlink_fmsg_u32_pair_put(fmsg, "odp_remote_triggered_page_fault",
+					  VNIC_ENV_GET(&vnic, odp_remote_triggered_page_fault));
+	}
 
 	devlink_fmsg_obj_nest_end(fmsg);
 	devlink_fmsg_pair_nest_end(fmsg);
