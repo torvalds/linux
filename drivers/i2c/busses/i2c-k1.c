@@ -3,6 +3,7 @@
  * Copyright (C) 2024-2025 Troy Mitchell <troymitchell988@gmail.com>
  */
 
+#include <linux/bitfield.h>
  #include <linux/clk.h>
  #include <linux/i2c.h>
  #include <linux/iopoll.h>
@@ -26,7 +27,8 @@
 #define SPACEMIT_CR_MODE_FAST    BIT(8)		/* bus mode (master operation) */
 /* Bit 9 is reserved */
 #define SPACEMIT_CR_UR           BIT(10)	/* unit reset */
-/* Bits 11-12 are reserved */
+#define SPACEMIT_CR_RSTREQ	 BIT(11)	/* i2c bus reset request */
+/* Bit 12 is reserved */
 #define SPACEMIT_CR_SCLE         BIT(13)	/* master clock enable */
 #define SPACEMIT_CR_IUE          BIT(14)	/* unit enable */
 /* Bits 15-17 are reserved */
@@ -78,6 +80,8 @@
 					SPACEMIT_SR_ALD)
 
 #define SPACEMIT_RCR_SDA_GLITCH_NOFIX		BIT(7)		/* bypass the SDA glitch fix */
+/* the cycles of SCL during bus reset */
+#define SPACEMIT_RCR_FIELD_RST_CYC		GENMASK(3, 0)
 
 /* SPACEMIT_IBMR register fields */
 #define SPACEMIT_BMR_SDA         BIT(0)		/* SDA line level */
@@ -90,6 +94,8 @@
 #define SPACEMIT_I2C_MAX_FAST_MODE_FREQ		400000	/* Hz */
 
 #define SPACEMIT_SR_ERR	(SPACEMIT_SR_BED | SPACEMIT_SR_RXOV | SPACEMIT_SR_ALD)
+
+#define SPACEMIT_BUS_RESET_CLK_CNT_MAX		9
 
 enum spacemit_i2c_state {
 	SPACEMIT_STATE_IDLE,
@@ -163,6 +169,7 @@ static int spacemit_i2c_handle_err(struct spacemit_i2c_dev *i2c)
 static void spacemit_i2c_conditionally_reset_bus(struct spacemit_i2c_dev *i2c)
 {
 	u32 status;
+	u8 clk_cnt;
 
 	/* if bus is locked, reset unit. 0: locked */
 	status = readl(i2c->base + SPACEMIT_IBMR);
@@ -171,6 +178,18 @@ static void spacemit_i2c_conditionally_reset_bus(struct spacemit_i2c_dev *i2c)
 
 	spacemit_i2c_reset(i2c);
 	usleep_range(10, 20);
+
+	for (clk_cnt = 0; clk_cnt < SPACEMIT_BUS_RESET_CLK_CNT_MAX; clk_cnt++) {
+		status = readl(i2c->base + SPACEMIT_IBMR);
+		if (status & SPACEMIT_BMR_SDA)
+			return;
+
+		/* There's nothing left to save here, we are about to exit */
+		writel(FIELD_PREP(SPACEMIT_RCR_FIELD_RST_CYC, 1),
+		       i2c->base + SPACEMIT_IRCR);
+		writel(SPACEMIT_CR_RSTREQ, i2c->base + SPACEMIT_ICR);
+		usleep_range(20, 30);
+	}
 
 	/* check sda again here */
 	status = readl(i2c->base + SPACEMIT_IBMR);
