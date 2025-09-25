@@ -16689,7 +16689,6 @@ F:	drivers/misc/mchp_pci1xxxx/mchp_pci1xxxx_gpio.c
 F:	drivers/misc/mchp_pci1xxxx/mchp_pci1xxxx_otpe2p.c
 
 MICROCHIP PCI1XXXX I2C DRIVER
-M:	Tharun Kumar P <tharunkumar.pasumarthi@microchip.com>
 M:	Kumaravel Thiagarajan <kumaravel.thiagarajan@microchip.com>
 M:	Microchip Linux Driver Support <UNGLinuxDriver@microchip.com>
 L:	linux-i2c@vger.kernel.org
@@ -16698,7 +16697,6 @@ F:	drivers/i2c/busses/i2c-mchp-pci1xxxx.c
 
 MICROCHIP PCIe UART DRIVER
 M:	Kumaravel Thiagarajan <kumaravel.thiagarajan@microchip.com>
-M:	Tharun Kumar P <tharunkumar.pasumarthi@microchip.com>
 L:	linux-serial@vger.kernel.org
 S:	Maintained
 F:	drivers/tty/serial/8250/8250_pci1xxxx.c
