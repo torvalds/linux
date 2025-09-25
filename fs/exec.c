@@ -1782,9 +1782,6 @@ static int do_execveat_common(int fd, struct filename *filename,
 	struct linux_binprm *bprm;
 	int retval;
 
-	if (IS_ERR(filename))
-		return PTR_ERR(filename);
-
 	/*
 	 * We move the actual failure in case of RLIMIT_NPROC excess from
 	 * set*uid() to execve() because too many poorly written programs
@@ -1862,7 +1859,6 @@ out_ret:
 int kernel_execve(const char *kernel_filename,
 		  const char *const *argv, const char *const *envp)
 {
-	struct filename *filename;
 	struct linux_binprm *bprm;
 	int fd = AT_FDCWD;
 	int retval;
@@ -1871,15 +1867,10 @@ int kernel_execve(const char *kernel_filename,
 	if (WARN_ON_ONCE(current->flags & PF_KTHREAD))
 		return -EINVAL;
 
-	filename = getname_kernel(kernel_filename);
-	if (IS_ERR(filename))
-		return PTR_ERR(filename);
-
+	CLASS(filename_kernel, filename)(kernel_filename);
 	bprm = alloc_bprm(fd, filename, 0);
-	if (IS_ERR(bprm)) {
-		retval = PTR_ERR(bprm);
-		goto out_ret;
-	}
+	if (IS_ERR(bprm))
+		return PTR_ERR(bprm);
 
 	retval = count_strings_kernel(argv);
 	if (WARN_ON_ONCE(retval == 0))
@@ -1913,8 +1904,6 @@ int kernel_execve(const char *kernel_filename,
 	retval = bprm_execve(bprm);
 out_free:
 	free_bprm(bprm);
-out_ret:
-	putname(filename);
 	return retval;
 }
 
