@@ -135,6 +135,17 @@ macro_rules! define_all_pci_vendors {
                 pub const $variant: Self = Self($binding as u16);
             )+
         }
+
+        impl fmt::Display for Vendor {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                match self {
+                    $(
+                        &Self::$variant => write!(f, stringify!($variant)),
+                    )+
+                    _ => <Self as fmt::Debug>::fmt(self, f),
+                }
+            }
+        }
     };
 }
 
@@ -157,13 +168,6 @@ impl fmt::Debug for Vendor {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "0x{:04x}", self.0)
-    }
-}
-
-impl fmt::Display for Vendor {
-    #[inline]
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        <Self as fmt::Debug>::fmt(self, f)
     }
 }
 
