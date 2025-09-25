@@ -751,7 +751,7 @@ ivpu_job_prepare_bos_for_submit(struct drm_file *file, struct ivpu_job *job, u32
 
 		job->bos[i] = to_ivpu_bo(obj);
 
-		ret = ivpu_bo_pin(job->bos[i]);
+		ret = ivpu_bo_bind(job->bos[i]);
 		if (ret)
 			return ret;
 	}
