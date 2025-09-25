@@ -1039,7 +1039,7 @@ void mptcp_pm_data_reset(struct mptcp_sock *msk)
 			    subflows_allowed) ||
 			   !!mptcp_pm_get_endp_signal_max(msk));
 		WRITE_ONCE(pm->accept_addr,
-			   !!mptcp_pm_get_add_addr_accept_max(msk) &&
+			   !!mptcp_pm_get_limit_add_addr_accepted(msk) &&
 			   subflows_allowed);
 		WRITE_ONCE(pm->accept_subflow, subflows_allowed);
 

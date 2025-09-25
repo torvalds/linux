@@ -976,8 +976,8 @@ void mptcp_diag_fill_info(struct mptcp_sock *msk, struct mptcp_info *info)
 			mptcp_pm_get_limit_extra_subflows(msk);
 		info->mptcpi_endp_signal_max =
 			mptcp_pm_get_endp_signal_max(msk);
-		info->mptcpi_add_addr_accepted_max =
-			mptcp_pm_get_add_addr_accept_max(msk);
+		info->mptcpi_limit_add_addr_accepted =
+			mptcp_pm_get_limit_add_addr_accepted(msk);
 		info->mptcpi_local_addr_max =
 			mptcp_pm_get_local_addr_max(msk);
 	}

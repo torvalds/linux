@@ -21,7 +21,7 @@ struct pm_nl_pernet {
 	unsigned int		addrs;
 	unsigned int		stale_loss_cnt;
 	unsigned int		endp_signal_max;
-	unsigned int		add_addr_accept_max;
+	unsigned int		limit_add_addr_accepted;
 	unsigned int		local_addr_max;
 	unsigned int		limit_extra_subflows;
 	unsigned int		next_id;
@@ -54,13 +54,13 @@ unsigned int mptcp_pm_get_endp_signal_max(const struct mptcp_sock *msk)
 }
 EXPORT_SYMBOL_GPL(mptcp_pm_get_endp_signal_max);
 
-unsigned int mptcp_pm_get_add_addr_accept_max(const struct mptcp_sock *msk)
+unsigned int mptcp_pm_get_limit_add_addr_accepted(const struct mptcp_sock *msk)
 {
 	struct pm_nl_pernet *pernet = pm_nl_get_pernet_from_msk(msk);
 
-	return READ_ONCE(pernet->add_addr_accept_max);
+	return READ_ONCE(pernet->limit_add_addr_accepted);
 }
-EXPORT_SYMBOL_GPL(mptcp_pm_get_add_addr_accept_max);
+EXPORT_SYMBOL_GPL(mptcp_pm_get_limit_add_addr_accepted);
 
 unsigned int mptcp_pm_get_limit_extra_subflows(const struct mptcp_sock *msk)
 {
@@ -547,16 +547,16 @@ static void mptcp_pm_nl_add_addr_received(struct mptcp_sock *msk)
 	struct mptcp_pm_local locals[MPTCP_PM_ADDR_MAX];
 	struct sock *sk = (struct sock *)msk;
 	unsigned int limit_extra_subflows;
-	unsigned int add_addr_accept_max;
+	unsigned int limit_add_addr_accepted;
 	struct mptcp_addr_info remote;
 	bool sf_created = false;
 	int i, nr;
 
-	add_addr_accept_max = mptcp_pm_get_add_addr_accept_max(msk);
+	limit_add_addr_accepted = mptcp_pm_get_limit_add_addr_accepted(msk);
 	limit_extra_subflows = mptcp_pm_get_limit_extra_subflows(msk);
 
 	pr_debug("accepted %d:%d remote family %d\n",
-		 msk->pm.add_addr_accepted, add_addr_accept_max,
+		 msk->pm.add_addr_accepted, limit_add_addr_accepted,
 		 msk->pm.remote.family);
 
 	remote = msk->pm.remote;
@@ -587,7 +587,7 @@ static void mptcp_pm_nl_add_addr_received(struct mptcp_sock *msk)
 		/* add_addr_accepted is not decr for ID 0 */
 		if (remote.id)
 			msk->pm.add_addr_accepted++;
-		if (msk->pm.add_addr_accepted >= add_addr_accept_max ||
+		if (msk->pm.add_addr_accepted >= limit_add_addr_accepted ||
 		    msk->pm.extra_subflows >= limit_extra_subflows)
 			WRITE_ONCE(msk->pm.accept_addr, false);
 	}
@@ -596,10 +596,13 @@ static void mptcp_pm_nl_add_addr_received(struct mptcp_sock *msk)
 void mptcp_pm_nl_rm_addr(struct mptcp_sock *msk, u8 rm_id)
 {
 	if (rm_id && WARN_ON_ONCE(msk->pm.add_addr_accepted == 0)) {
+		unsigned int limit_add_addr_accepted =
+			mptcp_pm_get_limit_add_addr_accepted(msk);
+
 		/* Note: if the subflow has been closed before, this
 		 * add_addr_accepted counter will not be decremented.
 		 */
-		if (--msk->pm.add_addr_accepted < mptcp_pm_get_add_addr_accept_max(msk))
+		if (--msk->pm.add_addr_accepted < limit_add_addr_accepted)
 			WRITE_ONCE(msk->pm.accept_addr, true);
 	}
 }
@@ -1282,7 +1285,7 @@ int mptcp_pm_nl_set_limits_doit(struct sk_buff *skb, struct genl_info *info)
 	int ret;
 
 	spin_lock_bh(&pernet->lock);
-	rcv_addrs = pernet->add_addr_accept_max;
+	rcv_addrs = pernet->limit_add_addr_accepted;
 	ret = parse_limit(info, MPTCP_PM_ATTR_RCV_ADD_ADDRS, &rcv_addrs);
 	if (ret)
 		goto unlock;
@@ -1292,7 +1295,7 @@ int mptcp_pm_nl_set_limits_doit(struct sk_buff *skb, struct genl_info *info)
 	if (ret)
 		goto unlock;
 
-	WRITE_ONCE(pernet->add_addr_accept_max, rcv_addrs);
+	WRITE_ONCE(pernet->limit_add_addr_accepted, rcv_addrs);
 	WRITE_ONCE(pernet->limit_extra_subflows, subflows);
 
 unlock:
@@ -1316,7 +1319,7 @@ int mptcp_pm_nl_get_limits_doit(struct sk_buff *skb, struct genl_info *info)
 		goto fail;
 
 	if (nla_put_u32(msg, MPTCP_PM_ATTR_RCV_ADD_ADDRS,
-			READ_ONCE(pernet->add_addr_accept_max)))
+			READ_ONCE(pernet->limit_add_addr_accepted)))
 		goto fail;
 
 	if (nla_put_u32(msg, MPTCP_PM_ATTR_SUBFLOWS,
