@@ -15,6 +15,7 @@
 #include <drm/drm_utils.h>
 
 #include "ivpu_drv.h"
+#include "ivpu_fw.h"
 #include "ivpu_gem.h"
 #include "ivpu_hw.h"
 #include "ivpu_mmu.h"
@@ -389,6 +390,21 @@ ivpu_bo_create(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx,
 err_put:
 	drm_gem_object_put(&bo->base.base);
 	return NULL;
+}
+
+struct ivpu_bo *ivpu_bo_create_runtime(struct ivpu_device *vdev, u64 addr, u64 size, u32 flags)
+{
+	struct ivpu_addr_range range;
+
+	if (!ivpu_is_within_range(addr, size, &vdev->hw->ranges.runtime)) {
+		ivpu_err(vdev, "Invalid runtime BO address 0x%llx size %llu\n", addr, size);
+		return NULL;
+	}
+
+	if (ivpu_hw_range_init(vdev, &range, addr, size))
+		return NULL;
+
+	return ivpu_bo_create(vdev, &vdev->gctx, &range, size, flags);
 }
 
 struct ivpu_bo *ivpu_bo_create_global(struct ivpu_device *vdev, u64 size, u32 flags)

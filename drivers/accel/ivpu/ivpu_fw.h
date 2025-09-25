@@ -19,10 +19,16 @@ struct ivpu_fw_info {
 	const struct firmware *file;
 	const char *name;
 	char version[FW_VERSION_STR_SIZE];
+	struct ivpu_bo *mem_bp;
+	struct ivpu_bo *mem_fw_ver;
 	struct ivpu_bo *mem;
 	struct ivpu_bo *mem_shave_nn;
 	struct ivpu_bo *mem_log_crit;
 	struct ivpu_bo *mem_log_verb;
+	u64 boot_params_addr;
+	u64 boot_params_size;
+	u64 fw_version_addr;
+	u64 fw_version_size;
 	u64 runtime_addr;
 	u32 runtime_size;
 	u64 image_load_offset;
@@ -42,6 +48,7 @@ struct ivpu_fw_info {
 	u64 last_heartbeat;
 };
 
+bool ivpu_is_within_range(u64 addr, size_t size, struct ivpu_addr_range *range);
 int ivpu_fw_init(struct ivpu_device *vdev);
 void ivpu_fw_fini(struct ivpu_device *vdev);
 void ivpu_fw_load(struct ivpu_device *vdev);

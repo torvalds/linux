@@ -568,7 +568,7 @@ void ivpu_mmu_context_init(struct ivpu_device *vdev, struct ivpu_mmu_context *ct
 	mutex_init(&ctx->lock);
 
 	if (!context_id) {
-		start = vdev->hw->ranges.global.start;
+		start = vdev->hw->ranges.runtime.start;
 		end = vdev->hw->ranges.shave.end;
 	} else {
 		start = min_t(u64, vdev->hw->ranges.user.start, vdev->hw->ranges.shave.start);
