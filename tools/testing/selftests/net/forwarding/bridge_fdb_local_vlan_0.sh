@@ -98,8 +98,7 @@ setup_prepare()
 	swp3=${NETIFS[p5]}
 	h3=${NETIFS[p6]}
 
-	vrf_prepare
-	defer vrf_cleanup
+	adf_vrf_prepare
 
 	forwarding_enable
 	defer forwarding_restore

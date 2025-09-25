@@ -149,8 +149,7 @@ setup_prepare()
 
 	h2_mac=$(mac_get $h2)
 
-	vrf_prepare
-	defer vrf_cleanup
+	adf_vrf_prepare
 
 	h1_create
 	h2_create

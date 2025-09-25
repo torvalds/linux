@@ -599,6 +599,12 @@ vrf_cleanup()
 	ip -4 rule del pref 32765
 }
 
+adf_vrf_prepare()
+{
+	vrf_prepare
+	defer vrf_cleanup
+}
+
 __last_tb_id=0
 declare -A __TB_IDS
 

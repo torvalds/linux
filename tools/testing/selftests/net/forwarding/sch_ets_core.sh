@@ -251,8 +251,7 @@ setup_prepare()
 	put=$swp2
 	hut=$h2
 
-	vrf_prepare
-	defer vrf_cleanup
+	adf_vrf_prepare
 
 	h1_create
 	h2_create

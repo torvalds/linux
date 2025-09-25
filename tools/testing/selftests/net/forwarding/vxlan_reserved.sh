@@ -88,8 +88,7 @@ setup_prepare()
 	rp1=${NETIFS[p3]}
 	rp2=${NETIFS[p4]}
 
-	vrf_prepare
-	defer vrf_cleanup
+	adf_vrf_prepare
 
 	forwarding_enable
 	defer forwarding_restore
