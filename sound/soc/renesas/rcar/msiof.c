@@ -193,6 +193,12 @@ static int msiof_hw_start(struct snd_soc_component *component,
 		msiof_write(priv, SIRMDR3, val);
 	}
 
+	/* SIFCTR */
+	if (is_play)
+		msiof_update(priv, SIFCTR, SIFCTR_TFWM, FIELD_PREP(SIFCTR_TFWM, SIFCTR_TFWM_1));
+	else
+		msiof_update(priv, SIFCTR, SIFCTR_RFWM, FIELD_PREP(SIFCTR_RFWM, SIFCTR_RFWM_1));
+
 	/* SIIER */
 	if (is_play)
 		val = SIIER_TDREQE | SIIER_TDMAE | SISTR_ERR_TX;
