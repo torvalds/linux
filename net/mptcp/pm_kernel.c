@@ -21,6 +21,7 @@ struct pm_nl_pernet {
 	u8			endpoints;
 	u8			endp_signal_max;
 	u8			endp_subflow_max;
+	u8			endp_laminar_max;
 	u8			limit_add_addr_accepted;
 	u8			limit_extra_subflows;
 	u8			next_id;
@@ -60,6 +61,14 @@ u8 mptcp_pm_get_endp_subflow_max(const struct mptcp_sock *msk)
 	return READ_ONCE(pernet->endp_subflow_max);
 }
 EXPORT_SYMBOL_GPL(mptcp_pm_get_endp_subflow_max);
+
+u8 mptcp_pm_get_endp_laminar_max(const struct mptcp_sock *msk)
+{
+	struct pm_nl_pernet *pernet = pm_nl_get_pernet_from_msk(msk);
+
+	return READ_ONCE(pernet->endp_laminar_max);
+}
+EXPORT_SYMBOL_GPL(mptcp_pm_get_endp_laminar_max);
 
 u8 mptcp_pm_get_limit_add_addr_accepted(const struct mptcp_sock *msk)
 {
@@ -459,6 +468,66 @@ fill_local_addresses_vec_fullmesh(struct mptcp_sock *msk,
 }
 
 static unsigned int
+fill_local_laminar_endp(struct mptcp_sock *msk, struct mptcp_addr_info *remote,
+			struct mptcp_pm_local *locals)
+{
+	struct pm_nl_pernet *pernet = pm_nl_get_pernet_from_msk(msk);
+	DECLARE_BITMAP(unavail_id, MPTCP_PM_MAX_ADDR_ID + 1);
+	struct mptcp_subflow_context *subflow;
+	struct sock *sk = (struct sock *)msk;
+	struct mptcp_pm_addr_entry *entry;
+	struct mptcp_pm_local *local;
+	int found = 0;
+
+	/* Forbid creation of new subflows matching existing ones, possibly
+	 * already created by 'subflow' endpoints
+	 */
+	bitmap_zero(unavail_id, MPTCP_PM_MAX_ADDR_ID + 1);
+	mptcp_for_each_subflow(msk, subflow) {
+		struct sock *ssk = mptcp_subflow_tcp_sock(subflow);
+
+		if ((1 << inet_sk_state_load(ssk)) &
+		    (TCPF_FIN_WAIT1 | TCPF_FIN_WAIT2 | TCPF_CLOSING |
+		     TCPF_CLOSE))
+			continue;
+
+		__set_bit(subflow_get_local_id(subflow), unavail_id);
+	}
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(entry, &pernet->endp_list, list) {
+		if (!(entry->flags & MPTCP_PM_ADDR_FLAG_LAMINAR))
+			continue;
+
+		if (!mptcp_pm_addr_families_match(sk, &entry->addr, remote))
+			continue;
+
+		if (test_bit(mptcp_endp_get_local_id(msk, &entry->addr),
+			     unavail_id))
+			continue;
+
+		local = &locals[0];
+		local->addr = entry->addr;
+		local->flags = entry->flags;
+		local->ifindex = entry->ifindex;
+
+		if (entry->flags & MPTCP_PM_ADDR_FLAG_SUBFLOW) {
+			__clear_bit(local->addr.id, msk->pm.id_avail_bitmap);
+
+			if (local->addr.id != msk->mpc_endpoint_id)
+				msk->pm.local_addr_used++;
+		}
+
+		msk->pm.extra_subflows++;
+		found = 1;
+		break;
+	}
+	rcu_read_unlock();
+
+	return found;
+}
+
+static unsigned int
 fill_local_addresses_vec_c_flag(struct mptcp_sock *msk,
 				struct mptcp_addr_info *remote,
 				struct mptcp_pm_local *locals)
@@ -531,6 +600,10 @@ fill_local_addresses_vec(struct mptcp_sock *msk, struct mptcp_addr_info *remote,
 	i = fill_local_addresses_vec_fullmesh(msk, remote, locals, c_flag_case);
 	if (i)
 		return i;
+
+	/* If there is at least one MPTCP endpoint with a laminar flag */
+	if (mptcp_pm_get_endp_laminar_max(msk))
+		return fill_local_laminar_endp(msk, remote, locals);
 
 	/* Special case: peer sets the C flag, accept one ADD_ADDR if default
 	 * limits are used -- accepting no ADD_ADDR -- and use subflow endpoints
@@ -706,6 +779,10 @@ find_next:
 	if (entry->flags & MPTCP_PM_ADDR_FLAG_SUBFLOW) {
 		addr_max = pernet->endp_subflow_max;
 		WRITE_ONCE(pernet->endp_subflow_max, addr_max + 1);
+	}
+	if (entry->flags & MPTCP_PM_ADDR_FLAG_LAMINAR) {
+		addr_max = pernet->endp_laminar_max;
+		WRITE_ONCE(pernet->endp_laminar_max, addr_max + 1);
 	}
 
 	pernet->endpoints++;
@@ -1100,6 +1177,10 @@ int mptcp_pm_nl_del_addr_doit(struct sk_buff *skb, struct genl_info *info)
 		addr_max = pernet->endp_subflow_max;
 		WRITE_ONCE(pernet->endp_subflow_max, addr_max - 1);
 	}
+	if (entry->flags & MPTCP_PM_ADDR_FLAG_LAMINAR) {
+		addr_max = pernet->endp_laminar_max;
+		WRITE_ONCE(pernet->endp_laminar_max, addr_max - 1);
+	}
 
 	pernet->endpoints--;
 	list_del_rcu(&entry->list);
@@ -1182,6 +1263,7 @@ static void __reset_counters(struct pm_nl_pernet *pernet)
 {
 	WRITE_ONCE(pernet->endp_signal_max, 0);
 	WRITE_ONCE(pernet->endp_subflow_max, 0);
+	WRITE_ONCE(pernet->endp_laminar_max, 0);
 	pernet->endpoints = 0;
 }
 

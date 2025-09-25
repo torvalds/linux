@@ -39,6 +39,7 @@
 #define MPTCP_PM_ADDR_FLAG_BACKUP		_BITUL(2)
 #define MPTCP_PM_ADDR_FLAG_FULLMESH		_BITUL(3)
 #define MPTCP_PM_ADDR_FLAG_IMPLICIT		_BITUL(4)
+#define MPTCP_PM_ADDR_FLAG_LAMINAR		_BITUL(5)
 
 struct mptcp_info {
 	__u8	mptcpi_subflows;
@@ -51,6 +52,7 @@ struct mptcp_info {
 	#define mptcpi_endp_signal_max mptcpi_add_addr_signal_max
 	__u8	mptcpi_add_addr_accepted_max;
 	#define mptcpi_limit_add_addr_accepted mptcpi_add_addr_accepted_max
+	/* 16-bit hole that can no longer be filled */
 	__u32	mptcpi_flags;
 	__u32	mptcpi_token;
 	__u64	mptcpi_write_seq;
@@ -60,13 +62,15 @@ struct mptcp_info {
 	__u8	mptcpi_local_addr_max;
 	#define mptcpi_endp_subflow_max mptcpi_local_addr_max
 	__u8	mptcpi_csum_enabled;
+	/* 8-bit hole that can no longer be filled */
 	__u32	mptcpi_retransmits;
 	__u64	mptcpi_bytes_retrans;
 	__u64	mptcpi_bytes_sent;
 	__u64	mptcpi_bytes_received;
 	__u64	mptcpi_bytes_acked;
 	__u8	mptcpi_subflows_total;
-	__u8	reserved[3];
+	__u8	mptcpi_endp_laminar_max;
+	__u8	reserved[2];
 	__u32	mptcpi_last_data_sent;
 	__u32	mptcpi_last_data_recv;
 	__u32	mptcpi_last_ack_recv;

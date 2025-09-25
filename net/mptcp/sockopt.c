@@ -980,6 +980,8 @@ void mptcp_diag_fill_info(struct mptcp_sock *msk, struct mptcp_info *info)
 			mptcp_pm_get_limit_add_addr_accepted(msk);
 		info->mptcpi_endp_subflow_max =
 			mptcp_pm_get_endp_subflow_max(msk);
+		info->mptcpi_endp_laminar_max =
+			mptcp_pm_get_endp_laminar_max(msk);
 	}
 
 	if (__mptcp_check_fallback(msk))
