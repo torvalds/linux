@@ -210,6 +210,14 @@ static const struct dmi_system_id awcc_dmi_table[] __initconst = {
 		.driver_data = &g_series_quirks,
 	},
 	{
+		.ident = "Dell Inc. G15 5530",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Dell G15 5530"),
+		},
+		.driver_data = &g_series_quirks,
+	},
+	{
 		.ident = "Dell Inc. G16 7630",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
