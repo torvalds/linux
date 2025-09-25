@@ -874,6 +874,7 @@ static int __trace_eprobe_create(int argc, const char *argv[])
 	 * Fetch args (no space):
 	 *  <name>=$<field>[:TYPE]
 	 */
+	const char *trlog __free(trace_probe_log_clear) = NULL;
 	const char *event = NULL, *group = EPROBE_EVENT_SYSTEM;
 	const char *sys_event = NULL, *sys_name = NULL;
 	struct trace_event_call *event_call;
@@ -887,7 +888,7 @@ static int __trace_eprobe_create(int argc, const char *argv[])
 	if (argc < 2 || argv[0][0] != 'e')
 		return -ECANCELED;
 
-	trace_probe_log_init("event_probe", argc, argv);
+	trlog = trace_probe_log_init("event_probe", argc, argv);
 
 	event = strchr(&argv[0][1], ':');
 	if (event) {
@@ -987,7 +988,6 @@ static int __trace_eprobe_create(int argc, const char *argv[])
 			goto error;
 		}
 	}
-	trace_probe_log_clear();
 	return ret;
 
 mem_error:
@@ -996,7 +996,6 @@ mem_error:
 parse_error:
 	ret = -EINVAL;
 error:
-	trace_probe_log_clear();
 	trace_event_probe_cleanup(ep);
 	return ret;
 }

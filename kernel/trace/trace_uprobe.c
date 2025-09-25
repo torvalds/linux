@@ -539,6 +539,7 @@ static int register_trace_uprobe(struct trace_uprobe *tu)
  */
 static int __trace_uprobe_create(int argc, const char **argv)
 {
+	const char *trlog __free(trace_probe_log_clear) = NULL;
 	const char *event = NULL, *group = UPROBE_EVENT_SYSTEM;
 	char *arg, *filename, *rctr, *rctr_end, *tmp;
 	unsigned long offset, ref_ctr_offset;
@@ -565,7 +566,7 @@ static int __trace_uprobe_create(int argc, const char **argv)
 	if (argc < 2)
 		return -ECANCELED;
 
-	trace_probe_log_init("trace_uprobe", argc, argv);
+	trlog = trace_probe_log_init("trace_uprobe", argc, argv);
 
 	if (argc - 2 > MAX_TRACE_ARGS) {
 		trace_probe_log_set_index(2);
@@ -597,7 +598,6 @@ static int __trace_uprobe_create(int argc, const char **argv)
 	if (ret) {
 		trace_probe_log_err(0, FILE_NOT_FOUND);
 		kfree(filename);
-		trace_probe_log_clear();
 		return ret;
 	}
 	if (!d_is_reg(path.dentry)) {
@@ -728,14 +728,12 @@ static int __trace_uprobe_create(int argc, const char **argv)
 error:
 	free_trace_uprobe(tu);
 out:
-	trace_probe_log_clear();
 	return ret;
 
 fail_mem:
 	ret = -ENOMEM;
 
 fail_address_parse:
-	trace_probe_log_clear();
 	path_put(&path);
 	kfree(filename);
 
