@@ -815,14 +815,8 @@ static struct file *do_open_execat(int fd, struct filename *name, int flags)
  */
 struct file *open_exec(const char *name)
 {
-	struct filename *filename = getname_kernel(name);
-	struct file *f = ERR_CAST(filename);
-
-	if (!IS_ERR(filename)) {
-		f = do_open_execat(AT_FDCWD, filename, 0);
-		putname(filename);
-	}
-	return f;
+	CLASS(filename_kernel, filename)(name);
+	return do_open_execat(AT_FDCWD, filename, 0);
 }
 EXPORT_SYMBOL(open_exec);
 
