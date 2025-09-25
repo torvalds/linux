@@ -7439,6 +7439,8 @@ u32 bpf_xdp_sock_convert_ctx_access(enum bpf_access_type type,
 				      offsetof(struct xdp_sock, FIELD)); \
 	} while (0)
 
+	BTF_TYPE_EMIT(struct bpf_xdp_sock);
+
 	switch (si->off) {
 	case offsetof(struct bpf_xdp_sock, queue_id):
 		BPF_XDP_SOCK_GET(queue_id);
