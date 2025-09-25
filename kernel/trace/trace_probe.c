@@ -215,7 +215,7 @@ void __trace_probe_log_err(int offset, int err_type)
 	p = command;
 	for (i = 0; i < trace_probe_log.argc; i++) {
 		len = strlen(trace_probe_log.argv[i]);
-		strcpy(p, trace_probe_log.argv[i]);
+		memcpy(p, trace_probe_log.argv[i], len);
 		p[len] = ' ';
 		p += len + 1;
 	}
