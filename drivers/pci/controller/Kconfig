@@ -146,7 +146,7 @@ config PCIE_HISI_ERR
 
 config PCI_IXP4XX
 	bool "Intel IXP4xx PCI controller"
-	depends on ARM && OF
+	depends on OF
 	depends on ARCH_IXP4XX || COMPILE_TEST
 	default ARCH_IXP4XX
 	help
