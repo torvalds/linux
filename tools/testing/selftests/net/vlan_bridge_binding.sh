@@ -207,13 +207,13 @@ test_binding_toggle_off()
 	do_test_binding_off : "on->off"
 }
 
-dfr_set_binding_on()
+adf_set_binding_on()
 {
 	set_vlans type vlan bridge_binding on
 	defer set_vlans type vlan bridge_binding off
 }
 
-dfr_set_binding_off()
+adf_set_binding_off()
 {
 	set_vlans type vlan bridge_binding off
 	defer set_vlans type vlan bridge_binding on
@@ -223,14 +223,14 @@ test_binding_toggle_on_when_lower_down()
 {
 	add_vlans bridge_binding off
 	set_vlans up
-	do_test_binding_on dfr_set_binding_on "off->on when lower down"
+	do_test_binding_on adf_set_binding_on "off->on when lower down"
 }
 
 test_binding_toggle_off_when_lower_down()
 {
 	add_vlans bridge_binding on
 	set_vlans up
-	do_test_binding_off dfr_set_binding_off "on->off when lower down"
+	do_test_binding_off adf_set_binding_off "on->off when lower down"
 }
 
 test_binding_toggle_on_when_upper_down()
