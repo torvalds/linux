@@ -238,15 +238,15 @@ static int msiof_hw_stop(struct snd_soc_component *component,
 		val = SIIER_RDREQE | SIIER_RDMAE | SISTR_ERR_RX;
 	msiof_update(priv, SIIER, val, 0);
 
-	/* Stop DMAC */
-	snd_dmaengine_pcm_trigger(substream, cmd);
-
 	/* SICTR */
 	if (is_play)
 		val = SICTR_TXE;
 	else
 		val = SICTR_RXE;
 	msiof_update_and_wait(priv, SICTR, val, 0, 0);
+
+	/* Stop DMAC */
+	snd_dmaengine_pcm_trigger(substream, cmd);
 
 	/* indicate error status if exist */
 	if (priv->err_syc[substream->stream] ||
