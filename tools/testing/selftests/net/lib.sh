@@ -605,7 +605,7 @@ adf_ip_link_set_down()
 	fi
 }
 
-ip_addr_add()
+adf_ip_addr_add()
 {
 	local name=$1; shift
 

@@ -67,7 +67,7 @@ switch_create()
 	adf_ip_link_set_up br1
 
 	adf_ip_link_set_up $rp1
-	ip_addr_add $rp1 192.0.2.17/28
+	adf_ip_addr_add $rp1 192.0.2.17/28
 	ip_route_add 192.0.2.32/28 nexthop via 192.0.2.18
 
 	adf_ip_link_set_master $swp1 br1

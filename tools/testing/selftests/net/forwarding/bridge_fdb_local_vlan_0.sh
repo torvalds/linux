@@ -82,8 +82,8 @@ switch_create()
 
 	adf_ip_link_set_up "$swp2"
 
-	ip_addr_add "$swp3" 192.0.2.17/28
-	ip_addr_add "$swp3" 2001:db8:2::1/64
+	adf_ip_addr_add "$swp3" 192.0.2.17/28
+	adf_ip_addr_add "$swp3" 2001:db8:2::1/64
 	adf_ip_link_set_up "$swp3"
 }
 
@@ -115,8 +115,8 @@ adf_bridge_configure()
 {
 	local dev
 
-	ip_addr_add br 192.0.2.3/28
-	ip_addr_add br 2001:db8:1::3/64
+	adf_ip_addr_add br 192.0.2.3/28
+	adf_ip_addr_add br 2001:db8:1::3/64
 
 	bridge_vlan_add dev br vid 1 pvid untagged self
 	bridge_vlan_add dev br vid 2 self

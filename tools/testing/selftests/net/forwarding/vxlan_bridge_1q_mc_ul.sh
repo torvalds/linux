@@ -124,11 +124,11 @@ h1_create()
 
 	adf_ip_link_add "$h1.10" master "v$h1" link "$h1" type vlan id 10
 	adf_ip_link_set_up "$h1.10"
-	ip_addr_add "$h1.10" 192.0.2.1/28
+	adf_ip_addr_add "$h1.10" 192.0.2.1/28
 
 	adf_ip_link_add "$h1.20" master "v$h1" link "$h1" type vlan id 20
 	adf_ip_link_set_up "$h1.20"
-	ip_addr_add "$h1.20" 2001:db8:1::1/64
+	adf_ip_addr_add "$h1.20" 2001:db8:1::1/64
 }
 
 install_capture()
@@ -216,8 +216,8 @@ switch_create()
 
 	# IPMR
 	adf_ip_link_add "$IPMR" up type dummy
-	ip_addr_add "$IPMR" 192.0.2.100/28
-	ip_addr_add "$IPMR" 2001:db8:4::1/64
+	adf_ip_addr_add "$IPMR" 192.0.2.100/28
+	adf_ip_addr_add "$IPMR" 2001:db8:4::1/64
 
 	# $swp1
 	adf_ip_link_set_up "$swp1"
@@ -227,13 +227,13 @@ switch_create()
 
 	# $swp2
 	adf_ip_link_set_up "$swp2"
-	ip_addr_add "$swp2" 192.0.2.33/28
-	ip_addr_add "$swp2" 2001:db8:2::1/64
+	adf_ip_addr_add "$swp2" 192.0.2.33/28
+	adf_ip_addr_add "$swp2" 2001:db8:2::1/64
 
 	# $swp3
 	adf_ip_link_set_up "$swp3"
-	ip_addr_add "$swp3" 192.0.2.65/28
-	ip_addr_add "$swp3" 2001:db8:3::1/64
+	adf_ip_addr_add "$swp3" 192.0.2.65/28
+	adf_ip_addr_add "$swp3" 2001:db8:3::1/64
 }
 
 vx_create()
@@ -291,8 +291,8 @@ ns_init_common()
 
 	# v2$h2 / v2$h3
 	adf_ip_link_set_up "$if_in"
-	ip_addr_add "$if_in" "$ipv4_in"
-	ip_addr_add "$if_in" "$ipv6_in"
+	adf_ip_addr_add "$if_in" "$ipv4_in"
+	adf_ip_addr_add "$if_in" "$ipv6_in"
 
 	# br1
 	adf_ip_link_add br1 type bridge vlan_filtering 1 \
@@ -317,12 +317,12 @@ ns_init_common()
 	# w2.10
 	adf_ip_link_add w2.10 master vw2 link w2 type vlan id 10
 	adf_ip_link_set_up w2.10
-	ip_addr_add w2.10 "$ipv4_host"
+	adf_ip_addr_add w2.10 "$ipv4_host"
 
 	# w2.20
 	adf_ip_link_add w2.20 master vw2 link w2 type vlan id 20
 	adf_ip_link_set_up w2.20
-	ip_addr_add w2.20 "$ipv6_host"
+	adf_ip_addr_add w2.20 "$ipv6_host"
 }
 export -f ns_init_common
 
@@ -720,7 +720,7 @@ ipv4_mcroute_fdb_oif0_sep()
 {
 	adf_install_sg_sep
 
-	ip_addr_add lo 192.0.2.120/28
+	adf_ip_addr_add lo 192.0.2.120/28
 	vx10_create_wait local 192.0.2.120 group "$GROUP4" dev "$IPMR" mcroute
 	bridge fdb del dev vx10 00:00:00:00:00:00
 	bridge fdb add dev vx10 00:00:00:00:00:00 self static dst "$GROUP4"
@@ -731,7 +731,7 @@ ipv4_mcroute_fdb_oif0_sep_rx()
 {
 	adf_install_sg_sep_rx lo
 
-	ip_addr_add lo 192.0.2.120/28
+	adf_ip_addr_add lo 192.0.2.120/28
 	vx10_create_wait local 192.0.2.120 group "$GROUP4" dev "$IPMR" mcroute
 	bridge fdb del dev vx10 00:00:00:00:00:00
 	bridge fdb add dev vx10 00:00:00:00:00:00 self static dst "$GROUP4"
@@ -742,7 +742,7 @@ ipv4_mcroute_fdb_sep_rx()
 {
 	adf_install_sg_sep_rx lo
 
-	ip_addr_add lo 192.0.2.120/28
+	adf_ip_addr_add lo 192.0.2.120/28
 	vx10_create_wait local 192.0.2.120 group "$GROUP4" dev "$IPMR" mcroute
 	bridge fdb del dev vx10 00:00:00:00:00:00
 	bridge fdb add \
@@ -754,7 +754,7 @@ ipv6_mcroute_fdb_sep_rx()
 {
 	adf_install_sg_sep_rx "X$IPMR"
 
-	ip_addr_add "X$IPMR" 2001:db8:5::1/64
+	adf_ip_addr_add "X$IPMR" 2001:db8:5::1/64
 	vx20_create_wait local 2001:db8:5::1 group "$GROUP6" dev "$IPMR" mcroute
 	bridge -6 fdb del dev vx20 00:00:00:00:00:00
 	bridge -6 fdb add dev vx20 00:00:00:00:00:00 \
