@@ -20,7 +20,7 @@ Description:
 		  rule format: action [condition ...]
 
 		  action: measure | dont_measure | appraise | dont_appraise |
-			  audit | hash | dont_hash
+			  audit | dont_audit | hash | dont_hash
 		  condition:= base | lsm  [option]
 			base:	[[func=] [mask=] [fsmagic=] [fsuuid=] [fsname=]
 				[uid=] [euid=] [gid=] [egid=]
