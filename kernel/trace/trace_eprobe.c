@@ -801,25 +801,6 @@ find_and_get_event(const char *system, const char *event_name)
 	return NULL;
 }
 
-static int trace_eprobe_tp_update_arg(struct trace_eprobe *ep, const char *argv[], int i)
-{
-	struct traceprobe_parse_context *ctx __free(traceprobe_parse_context) = NULL;
-	int ret;
-
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
-	if (!ctx)
-		return -ENOMEM;
-	ctx->event = ep->event;
-	ctx->flags = TPARG_FL_KERNEL | TPARG_FL_TEVENT;
-
-	ret = traceprobe_parse_probe_arg(&ep->tp, i, argv[i], ctx);
-	/* Handle symbols "@" */
-	if (!ret)
-		ret = traceprobe_update_arg(&ep->tp.args[i]);
-
-	return ret;
-}
-
 static int trace_eprobe_parse_filter(struct trace_eprobe *ep, int argc, const char *argv[])
 {
 	struct event_filter *dummy = NULL;
@@ -871,6 +852,7 @@ static int __trace_eprobe_create(int argc, const char *argv[])
 	 * Fetch args (no space):
 	 *  <name>=$<field>[:TYPE]
 	 */
+	struct traceprobe_parse_context *ctx __free(traceprobe_parse_context) = NULL;
 	struct trace_eprobe *ep __free(trace_event_probe_cleanup) = NULL;
 	const char *trlog __free(trace_probe_log_clear) = NULL;
 	const char *event = NULL, *group = EPROBE_EVENT_SYSTEM;
@@ -956,11 +938,21 @@ static int __trace_eprobe_create(int argc, const char *argv[])
 	} else
 		ep->filter_str = NULL;
 
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	if (!ctx)
+		return -ENOMEM;
+	ctx->event = ep->event;
+	ctx->flags = TPARG_FL_KERNEL | TPARG_FL_TEVENT;
+
 	argc -= 2; argv += 2;
 	/* parse arguments */
 	for (i = 0; i < argc; i++) {
 		trace_probe_log_set_index(i + 2);
-		ret = trace_eprobe_tp_update_arg(ep, argv, i);
+
+		ret = traceprobe_parse_probe_arg(&ep->tp, i, argv[i], ctx);
+		/* Handle symbols "@" */
+		if (!ret)
+			ret = traceprobe_update_arg(&ep->tp.args[i]);
 		if (ret)
 			return ret;
 	}

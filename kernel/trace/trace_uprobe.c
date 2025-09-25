@@ -541,6 +541,7 @@ DEFINE_FREE(free_trace_uprobe, struct trace_uprobe *, if (_T) free_trace_uprobe(
  */
 static int __trace_uprobe_create(int argc, const char **argv)
 {
+	struct traceprobe_parse_context *ctx __free(traceprobe_parse_context) = NULL;
 	struct trace_uprobe *tu __free(free_trace_uprobe) = NULL;
 	const char *trlog __free(trace_probe_log_clear) = NULL;
 	const char *event = NULL, *group = UPROBE_EVENT_SYSTEM;
@@ -698,14 +699,13 @@ static int __trace_uprobe_create(int argc, const char **argv)
 	memset(&path, 0, sizeof(path));
 	tu->filename = no_free_ptr(filename);
 
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	if (!ctx)
+		return -ENOMEM;
+	ctx->flags = (is_return ? TPARG_FL_RETURN : 0) | TPARG_FL_USER;
+
 	/* parse arguments */
 	for (i = 0; i < argc; i++) {
-		struct traceprobe_parse_context *ctx __free(traceprobe_parse_context)
-			= kzalloc(sizeof(*ctx), GFP_KERNEL);
-
-		if (!ctx)
-			return -ENOMEM;
-		ctx->flags = (is_return ? TPARG_FL_RETURN : 0) | TPARG_FL_USER;
 		trace_probe_log_set_index(i + 2);
 		ret = traceprobe_parse_probe_arg(&tu->tp, i, argv[i], ctx);
 		if (ret)
