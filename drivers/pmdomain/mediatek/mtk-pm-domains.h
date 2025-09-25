@@ -62,6 +62,7 @@ enum scpsys_bus_prot_block {
 	BUS_PROT_BLOCK_INFRA,
 	BUS_PROT_BLOCK_INFRA_NAO,
 	BUS_PROT_BLOCK_SMI,
+	BUS_PROT_BLOCK_SPM,
 	BUS_PROT_BLOCK_COUNT,
 };
 
@@ -143,6 +144,7 @@ enum scpsys_mtcmos_type {
  * struct scpsys_domain_data - scp domain data for power on/off flow
  * @name: The name of the power domain.
  * @sta_mask: The mask for power on/off status bit.
+ * @sta2nd_mask: The mask for second power on/off status bit.
  * @ctl_offs: The offset for main power control register.
  * @sram_pdn_bits: The mask for sram power control bits.
  * @sram_pdn_ack_bits: The mask for sram power control acked bits.
@@ -155,6 +157,7 @@ enum scpsys_mtcmos_type {
 struct scpsys_domain_data {
 	const char *name;
 	u32 sta_mask;
+	u32 sta2nd_mask;
 	int ctl_offs;
 	u32 sram_pdn_bits;
 	u32 sram_pdn_ack_bits;

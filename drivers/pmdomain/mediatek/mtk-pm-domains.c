@@ -27,6 +27,7 @@
 #include "mt8188-pm-domains.h"
 #include "mt8192-pm-domains.h"
 #include "mt8195-pm-domains.h"
+#include "mt8196-pm-domains.h"
 #include "mt8365-pm-domains.h"
 
 #define MTK_POLL_DELAY_US		10
@@ -81,13 +82,16 @@ struct scpsys {
 static bool scpsys_domain_is_on(struct scpsys_domain *pd)
 {
 	struct scpsys *scpsys = pd->scpsys;
-	u32 status, status2;
+	u32 mask = pd->data->sta_mask;
+	u32 status, status2, mask2;
+
+	mask2 = pd->data->sta2nd_mask ? pd->data->sta2nd_mask : mask;
 
 	regmap_read(scpsys->base, pd->data->pwr_sta_offs, &status);
-	status &= pd->data->sta_mask;
+	status &= mask;
 
 	regmap_read(scpsys->base, pd->data->pwr_sta2nd_offs, &status2);
-	status2 &= pd->data->sta_mask;
+	status2 &= mask2;
 
 	/* A domain is on when both status bits are set. */
 	return status && status2;
@@ -1149,6 +1153,14 @@ static const struct of_device_id scpsys_of_match[] = {
 	{
 		.compatible = "mediatek,mt8195-power-controller",
 		.data = &mt8195_scpsys_data,
+	},
+	{
+		.compatible = "mediatek,mt8196-power-controller",
+		.data = &mt8196_scpsys_data,
+	},
+	{
+		.compatible = "mediatek,mt8196-hwv-scp-power-controller",
+		.data = &mt8196_scpsys_hwv_data,
 	},
 	{
 		.compatible = "mediatek,mt8365-power-controller",
