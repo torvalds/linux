@@ -162,16 +162,16 @@ h2_create()
 
 	# br2
 	adf_ip_link_add br2 type bridge vlan_filtering 0 mcast_snooping 0
-	ip_link_set_master br2 "v$h2"
+	adf_ip_link_set_master br2 "v$h2"
 	ip_link_set_up br2
 
 	# $h2
-	ip_link_set_master "$h2" br2
+	adf_ip_link_set_master "$h2" br2
 	install_capture "$h2"
 
 	# v1$h2
 	ip_link_set_up "v1$h2"
-	ip_link_set_master "v1$h2" br2
+	adf_ip_link_set_master "v1$h2" br2
 }
 
 h3_create()
@@ -187,16 +187,16 @@ h3_create()
 
 	# br3
 	adf_ip_link_add br3 type bridge vlan_filtering 0 mcast_snooping 0
-	ip_link_set_master br3 "v$h3"
+	adf_ip_link_set_master br3 "v$h3"
 	ip_link_set_up br3
 
 	# $h3
-	ip_link_set_master "$h3" br3
+	adf_ip_link_set_master "$h3" br3
 	install_capture "$h3"
 
 	# v1$h3
 	ip_link_set_up "v1$h3"
-	ip_link_set_master "v1$h3" br3
+	adf_ip_link_set_master "v1$h3" br3
 }
 
 switch_create()
@@ -221,7 +221,7 @@ switch_create()
 
 	# $swp1
 	ip_link_set_up "$swp1"
-	ip_link_set_master "$swp1" br1
+	adf_ip_link_set_master "$swp1" br1
 	bridge_vlan_add vid 10 dev "$swp1"
 	bridge_vlan_add vid 20 dev "$swp1"
 
@@ -244,7 +244,7 @@ vx_create()
 	adf_ip_link_add "$name" up type vxlan dstport "$VXPORT" \
 		nolearning noudpcsum tos inherit ttl 16 \
 		"$@"
-	ip_link_set_master "$name" br1
+	adf_ip_link_set_master "$name" br1
 	bridge_vlan_add vid "$vid" dev "$name" pvid untagged
 }
 export -f vx_create
@@ -305,7 +305,7 @@ ns_init_common()
 
 	# w1
 	adf_ip_link_add w1 type veth peer name w2
-	ip_link_set_master w1 br1
+	adf_ip_link_set_master w1 br1
 	ip_link_set_up w1
 	bridge_vlan_add vid 10 dev w1
 	bridge_vlan_add vid 20 dev w1

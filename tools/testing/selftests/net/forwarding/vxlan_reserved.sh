@@ -70,7 +70,7 @@ switch_create()
 	ip_addr_add $rp1 192.0.2.17/28
 	ip_route_add 192.0.2.32/28 nexthop via 192.0.2.18
 
-	ip_link_set_master $swp1 br1
+	adf_ip_link_set_master $swp1 br1
 	ip_link_set_up $swp1
 }
 
@@ -203,7 +203,7 @@ vxlan_device_add()
 	adf_ip_link_add vx1 up type vxlan id 1000		\
 		local 192.0.2.17 dstport "$VXPORT"	\
 		nolearning noudpcsum tos inherit ttl 100 "$@"
-	ip_link_set_master vx1 br1
+	adf_ip_link_set_master vx1 br1
 }
 
 vxlan_all_reserved_bits()

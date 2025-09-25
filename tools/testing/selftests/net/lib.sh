@@ -551,7 +551,7 @@ adf_ip_link_add()
 		defer ip link del dev "$name"
 }
 
-ip_link_set_master()
+adf_ip_link_set_master()
 {
 	local member=$1; shift
 	local master=$1; shift

@@ -42,10 +42,10 @@ switch_create()
 		ageing_time "$LOW_AGEING_TIME"
 	ip_link_set_up br1
 
-	ip_link_set_master "$swp1" br1
+	adf_ip_link_set_master "$swp1" br1
 	ip_link_set_up "$swp1"
 
-	ip_link_set_master "$swp2" br1
+	adf_ip_link_set_master "$swp2" br1
 	ip_link_set_up "$swp2"
 }
 

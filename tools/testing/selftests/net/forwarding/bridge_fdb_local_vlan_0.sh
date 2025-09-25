@@ -123,7 +123,7 @@ adf_bridge_configure()
 	bridge_vlan_add dev br vid 3 self
 
 	for dev in "$swp1" "$swp2"; do
-		ip_link_set_master "$dev" br
+		adf_ip_link_set_master "$dev" br
 		bridge_vlan_add dev "$dev" vid 1 pvid untagged
 		bridge_vlan_add dev "$dev" vid 2
 		bridge_vlan_add dev "$dev" vid 3

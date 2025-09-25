@@ -24,7 +24,7 @@ setup_prepare()
 		adf_ip_link_add $port type veth peer name r$port
 		ip_link_set_up $port
 		ip_link_set_up r$port
-		ip_link_set_master $port br
+		adf_ip_link_set_master $port br
 	done
 
 	bridge_vlan_add vid 11 dev br self
