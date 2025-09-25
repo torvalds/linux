@@ -40,6 +40,39 @@ static enum power_supply_property max77705_charger_props[] = {
 	POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT,
 };
 
+static irqreturn_t max77705_aicl_irq(int irq, void *irq_drv_data)
+{
+	struct max77705_charger_data *chg = irq_drv_data;
+	unsigned int regval, irq_status;
+	int err;
+
+	err = regmap_read(chg->regmap, MAX77705_CHG_REG_INT_OK, &irq_status);
+	if (err < 0)
+		return IRQ_HANDLED;
+
+	// irq is fiered at the end of current decrease sequence too
+	// early check AICL_I bit to guard against that excess irq call
+	while (!(irq_status & BIT(MAX77705_AICL_I))) {
+		err = regmap_field_read(chg->rfield[MAX77705_CHG_CHGIN_LIM], &regval);
+		if (err < 0)
+			return IRQ_HANDLED;
+
+		regval--;
+
+		err = regmap_field_write(chg->rfield[MAX77705_CHG_CHGIN_LIM], regval);
+		if (err < 0)
+			return IRQ_HANDLED;
+
+		msleep(AICL_WORK_DELAY_MS);
+
+		err = regmap_read(chg->regmap, MAX77705_CHG_REG_INT_OK, &irq_status);
+		if (err < 0)
+			return IRQ_HANDLED;
+	}
+
+	return IRQ_HANDLED;
+}
+
 static irqreturn_t max77705_chgin_irq(int irq, void *irq_drv_data)
 {
 	struct max77705_charger_data *chg = irq_drv_data;
@@ -629,6 +662,15 @@ static int max77705_charger_probe(struct i2c_client *i2c)
 					"chgin-irq", chg);
 	if (ret) {
 		dev_err_probe(dev, ret, "Failed to Request chgin IRQ\n");
+		goto destroy_wq;
+	}
+
+	ret = devm_request_threaded_irq(dev, regmap_irq_get_virq(irq_data, MAX77705_AICL_I),
+					NULL, max77705_aicl_irq,
+					IRQF_TRIGGER_NONE,
+					"aicl-irq", chg);
+	if (ret) {
+		dev_err_probe(dev, ret, "Failed to Request aicl IRQ\n");
 		goto destroy_wq;
 	}
 
