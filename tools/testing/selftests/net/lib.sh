@@ -613,7 +613,7 @@ adf_ip_addr_add()
 		defer ip addr del dev "$name" "$@"
 }
 
-ip_route_add()
+adf_ip_route_add()
 {
 	ip route add "$@" && \
 		defer ip route del "$@"
