@@ -1,0 +1,124 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pinctrl/marvell,armada3710-xb-pinctrl.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Marvell Armada 37xx SoC pin and gpio controller
+
+maintainers:
+  - Gregory CLEMENT <gregory.clement@bootlin.com>
+  - Marek Behún <kabel@kernel.org>
+  - Miquel Raynal <miquel.raynal@bootlin.com>
+
+description: >
+  Each Armada 37xx SoC come with two pin and gpio controller one for the south
+  bridge and the other for the north bridge.
+
+  Inside this set of register the gpio latch allows exposing some configuration
+  of the SoC and especially the clock frequency of the xtal. Hence, this node is
+  a represent as syscon allowing sharing the register between multiple hardware
+  block.
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - marvell,armada3710-sb-pinctrl
+          - marvell,armada3710-nb-pinctrl
+      - const: syscon
+      - const: simple-mfd
+
+  reg:
+    items:
+      - description: pinctrl and GPIO controller registers
+      - description: interrupt controller registers
+
+  gpio:
+    description: GPIO controller subnode
+    type: object
+    additionalProperties: false
+
+    properties:
+      '#gpio-cells':
+        const: 2
+
+      gpio-controller: true
+
+      gpio-ranges:
+        description: Range of pins managed by the GPIO controller
+
+      '#interrupt-cells':
+        const: 2
+
+      interrupt-controller: true
+
+      interrupts:
+        description: List of interrupt specifiers for the GPIO controller
+
+    required:
+      - '#gpio-cells'
+      - gpio-ranges
+      - gpio-controller
+      - '#interrupt-cells'
+      - interrupt-controller
+      - interrupts
+
+  xtal-clk:
+    type: object
+    additionalProperties: false
+
+    properties:
+      compatible:
+        const: marvell,armada-3700-xtal-clock
+
+      '#clock-cells':
+        const: 0
+
+      clock-output-names: true
+
+patternProperties:
+  '-pins$':
+    $ref: pinmux-node.yaml#
+    additionalProperties: false
+
+    properties:
+      groups:
+        enum: [ emmc_nb, i2c1, i2c2, jtag, mii_col, onewire, pcie1,
+                pcie1_clkreq, pcie1_wakeup, pmic0, pmic1, ptp, ptp_clk,
+                ptp_trig, pwm0, pwm1, pwm2, pwm3, rgmii, sdio0, sdio_sb, smi,
+                spi_cs1, spi_cs2, spi_cs3, spi_quad, uart1, uart2,
+                usb2_drvvbus1, usb32_drvvbus ]
+
+      function:
+        enum: [ drvbus, emmc, gpio, i2c, jtag, led, mii, mii_err, onewire,
+                pcie, pmic, ptp, pwm, sdio, smi, spi, uart ]
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    pinctrl_sb: pinctrl@18800 {
+        compatible = "marvell,armada3710-sb-pinctrl", "syscon", "simple-mfd";
+        reg = <0x18800 0x100>, <0x18C00 0x20>;
+
+        gpio {
+            #gpio-cells = <2>;
+            gpio-ranges = <&pinctrl_sb 0 0 29>;
+            gpio-controller;
+            #interrupt-cells = <2>;
+            interrupt-controller;
+            interrupts =
+                <GIC_SPI 160 IRQ_TYPE_LEVEL_HIGH>,
+                <GIC_SPI 159 IRQ_TYPE_LEVEL_HIGH>,
+                <GIC_SPI 158 IRQ_TYPE_LEVEL_HIGH>,
+                <GIC_SPI 157 IRQ_TYPE_LEVEL_HIGH>,
+                <GIC_SPI 156 IRQ_TYPE_LEVEL_HIGH>;
+        };
+    };
