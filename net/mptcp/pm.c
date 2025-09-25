@@ -1037,7 +1037,7 @@ void mptcp_pm_data_reset(struct mptcp_sock *msk)
 		WRITE_ONCE(pm->work_pending,
 			   (!!mptcp_pm_get_local_addr_max(msk) &&
 			    subflows_allowed) ||
-			   !!mptcp_pm_get_add_addr_signal_max(msk));
+			   !!mptcp_pm_get_endp_signal_max(msk));
 		WRITE_ONCE(pm->accept_addr,
 			   !!mptcp_pm_get_add_addr_accept_max(msk) &&
 			   subflows_allowed);
