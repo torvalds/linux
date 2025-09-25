@@ -63,11 +63,10 @@ static bool is_string_insn(struct insn *insn)
 bool insn_has_rep_prefix(struct insn *insn)
 {
 	insn_byte_t p;
-	int i;
 
 	insn_get_prefixes(insn);
 
-	for_each_insn_prefix(insn, i, p) {
+	for_each_insn_prefix(insn, p) {
 		if (p == 0xf2 || p == 0xf3)
 			return true;
 	}
@@ -92,13 +91,13 @@ bool insn_has_rep_prefix(struct insn *insn)
 static int get_seg_reg_override_idx(struct insn *insn)
 {
 	int idx = INAT_SEG_REG_DEFAULT;
-	int num_overrides = 0, i;
+	int num_overrides = 0;
 	insn_byte_t p;
 
 	insn_get_prefixes(insn);
 
 	/* Look for any segment override prefixes. */
-	for_each_insn_prefix(insn, i, p) {
+	for_each_insn_prefix(insn, p) {
 		insn_attr_t attr;
 
 		attr = inat_get_opcode_attribute(p);
@@ -1701,7 +1700,6 @@ bool insn_is_nop(struct insn *insn)
 	u8 sib = 0, sib_scale, sib_index, sib_base;
 	u8 nrex, rex;
 	u8 p, rep = 0;
-	int i;
 
 	if ((nrex = insn->rex_prefix.nbytes)) {
 		rex = insn->rex_prefix.bytes[nrex-1];
@@ -1741,7 +1739,7 @@ bool insn_is_nop(struct insn *insn)
 		modrm_rm = sib_base;
 	}
 
-	for_each_insn_prefix(insn, i, p) {
+	for_each_insn_prefix(insn, p) {
 		if (p == 0xf3) /* REPE */
 			rep = 1;
 	}
@@ -1789,7 +1787,7 @@ bool insn_is_nop(struct insn *insn)
 		if (sib && (sib_scale != 0 || sib_index != 4)) /* (%reg, %eiz, 1) */
 			return false;
 
-		for_each_insn_prefix(insn, i, p) {
+		for_each_insn_prefix(insn, p) {
 			if (p != 0x3e) /* DS */
 				return false;
 		}

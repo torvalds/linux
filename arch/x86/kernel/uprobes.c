@@ -259,9 +259,8 @@ static volatile u32 good_2byte_insns[256 / 32] = {
 static bool is_prefix_bad(struct insn *insn)
 {
 	insn_byte_t p;
-	int i;
 
-	for_each_insn_prefix(insn, i, p) {
+	for_each_insn_prefix(insn, p) {
 		insn_attr_t attr;
 
 		attr = inat_get_opcode_attribute(p);
@@ -1404,7 +1403,6 @@ static int branch_setup_xol_ops(struct arch_uprobe *auprobe, struct insn *insn)
 {
 	u8 opc1 = OPCODE1(insn);
 	insn_byte_t p;
-	int i;
 
 	if (insn_is_nop(insn))
 		goto setup;
@@ -1437,7 +1435,7 @@ static int branch_setup_xol_ops(struct arch_uprobe *auprobe, struct insn *insn)
 	 * Intel and AMD behavior differ in 64-bit mode: Intel ignores 66 prefix.
 	 * No one uses these insns, reject any branch insns with such prefix.
 	 */
-	for_each_insn_prefix(insn, i, p) {
+	for_each_insn_prefix(insn, p) {
 		if (p == 0x66)
 			return -ENOTSUPP;
 	}
