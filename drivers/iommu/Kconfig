@@ -247,7 +247,7 @@ config SUN50I_IOMMU
 
 config TEGRA_IOMMU_SMMU
 	bool "NVIDIA Tegra SMMU Support"
-	depends on ARCH_TEGRA
+	depends on ARCH_TEGRA || COMPILE_TEST
 	depends on TEGRA_AHB
 	depends on TEGRA_MC
 	select IOMMU_API
