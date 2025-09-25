@@ -606,6 +606,8 @@ static void ivpu_fw_boot_params_print(struct ivpu_device *vdev, struct vpu_boot_
 		 boot_params->system_time_us);
 	ivpu_dbg(vdev, FW_BOOT, "boot_params.power_profile = 0x%x\n",
 		 boot_params->power_profile);
+	ivpu_dbg(vdev, FW_BOOT, "boot_params.vpu_uses_ecc_mca_signal = 0x%x\n",
+		 boot_params->vpu_uses_ecc_mca_signal);
 }
 
 void ivpu_fw_boot_params_setup(struct ivpu_device *vdev, struct vpu_boot_params *boot_params)
@@ -708,6 +710,8 @@ void ivpu_fw_boot_params_setup(struct ivpu_device *vdev, struct vpu_boot_params 
 	boot_params->d0i3_entry_vpu_ts = 0;
 	if (IVPU_WA(disable_d0i2))
 		boot_params->power_profile |= BIT(1);
+	boot_params->vpu_uses_ecc_mca_signal =
+		ivpu_hw_uses_ecc_mca_signal(vdev) ? VPU_BOOT_MCA_ECC_BOTH : 0;
 
 	boot_params->system_time_us = ktime_to_us(ktime_get_real());
 	wmb(); /* Flush WC buffers after writing bootparams */

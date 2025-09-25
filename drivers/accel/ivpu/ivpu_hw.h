@@ -63,6 +63,7 @@ void ivpu_irq_handlers_init(struct ivpu_device *vdev);
 void ivpu_hw_irq_enable(struct ivpu_device *vdev);
 void ivpu_hw_irq_disable(struct ivpu_device *vdev);
 irqreturn_t ivpu_hw_irq_handler(int irq, void *ptr);
+bool ivpu_hw_uses_ecc_mca_signal(struct ivpu_device *vdev);
 
 static inline u32 ivpu_hw_btrs_irq_handler(struct ivpu_device *vdev, int irq)
 {

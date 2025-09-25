@@ -8,6 +8,8 @@
 #include "ivpu_hw_btrs.h"
 #include "ivpu_hw_ip.h"
 
+#include <asm/msr-index.h>
+#include <asm/msr.h>
 #include <linux/dmi.h>
 #include <linux/fault-inject.h>
 #include <linux/pm_runtime.h>
@@ -21,6 +23,8 @@ MODULE_PARM_DESC(fail_hw, "<interval>,<probability>,<space>,<times>");
 #endif
 
 #define FW_SHARED_MEM_ALIGNMENT	SZ_512K /* VPU MTRR limitation */
+
+#define ECC_MCA_SIGNAL_ENABLE_MASK	0xff
 
 static char *platform_to_str(u32 platform)
 {
@@ -394,4 +398,23 @@ irqreturn_t ivpu_hw_irq_handler(int irq, void *ptr)
 
 	pm_runtime_mark_last_busy(vdev->drm.dev);
 	return IRQ_HANDLED;
+}
+
+bool ivpu_hw_uses_ecc_mca_signal(struct ivpu_device *vdev)
+{
+	unsigned long long msr_integrity_caps;
+	int ret;
+
+	if (ivpu_hw_ip_gen(vdev) < IVPU_HW_IP_50XX)
+		return false;
+
+	ret = rdmsrq_safe(MSR_INTEGRITY_CAPS, &msr_integrity_caps);
+	if (ret) {
+		ivpu_warn(vdev, "Error reading MSR_INTEGRITY_CAPS: %d", ret);
+		return false;
+	}
+
+	ivpu_dbg(vdev, MISC, "MSR_INTEGRITY_CAPS: 0x%llx\n", msr_integrity_caps);
+
+	return msr_integrity_caps & ECC_MCA_SIGNAL_ENABLE_MASK;
 }
