@@ -45,7 +45,8 @@ config MFD_ALTERA_A10SR
 
 config MFD_ALTERA_SYSMGR
 	bool "Altera SOCFPGA System Manager"
-	depends on ARCH_INTEL_SOCFPGA && OF
+	depends on ARCH_INTEL_SOCFPGA || COMPILE_TEST
+	depends on OF
 	select MFD_SYSCON
 	help
 	  Select this to get System Manager support for all Altera branded
