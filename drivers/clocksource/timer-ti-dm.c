@@ -31,6 +31,7 @@
 #include <linux/platform_data/dmtimer-omap.h>
 
 #include <clocksource/timer-ti-dm.h>
+#include <linux/delay.h>
 
 /*
  * timer errata flags
@@ -836,6 +837,48 @@ static int omap_dm_timer_set_match(struct omap_dm_timer *cookie, int enable,
 	return 0;
 }
 
+static int omap_dm_timer_set_cap(struct omap_dm_timer *cookie,
+					int autoreload, bool config_period)
+{
+	struct dmtimer *timer;
+	struct device *dev;
+	int rc;
+	u32 l;
+
+	timer = to_dmtimer(cookie);
+	if (unlikely(!timer))
+		return -EINVAL;
+
+	dev = &timer->pdev->dev;
+	rc = pm_runtime_resume_and_get(dev);
+	if (rc)
+		return rc;
+	/*
+	 *  1. Select autoreload mode. TIMER_TCLR[1] AR bit.
+	 *  2. TIMER_TCLR[14]: Sets the functionality of the TIMER IO pin.
+	 *  3. TIMER_TCLR[13] : Capture mode select bit.
+	 *  3. TIMER_TCLR[9-8] : Select transition capture mode.
+	 */
+
+	l = dmtimer_read(timer, OMAP_TIMER_CTRL_REG);
+
+	if (autoreload)
+		l |= OMAP_TIMER_CTRL_AR;
+
+	l |= OMAP_TIMER_CTRL_CAPTMODE | OMAP_TIMER_CTRL_GPOCFG;
+
+	if (config_period == true)
+		l |= OMAP_TIMER_CTRL_TCM_LOWTOHIGH; /* Time Period config */
+	else
+		l |= OMAP_TIMER_CTRL_TCM_BOTHEDGES; /* Duty Cycle config */
+
+	dmtimer_write(timer, OMAP_TIMER_CTRL_REG, l);
+
+	pm_runtime_put_sync(dev);
+
+	return 0;
+}
+
 static int omap_dm_timer_set_pwm(struct omap_dm_timer *cookie, int def_on,
 				 int toggle, int trigger, int autoreload)
 {
@@ -1023,21 +1066,90 @@ static unsigned int omap_dm_timer_read_counter(struct omap_dm_timer *cookie)
 	return __omap_dm_timer_read_counter(timer);
 }
 
+static inline unsigned int __omap_dm_timer_cap(struct dmtimer *timer, int idx)
+{
+	return idx == 0 ? dmtimer_read(timer, OMAP_TIMER_CAPTURE_REG) :
+			  dmtimer_read(timer, OMAP_TIMER_CAPTURE2_REG);
+}
+
 static int omap_dm_timer_write_counter(struct omap_dm_timer *cookie, unsigned int value)
 {
 	struct dmtimer *timer;
+	struct device *dev;
 
 	timer = to_dmtimer(cookie);
-	if (unlikely(!timer || !atomic_read(&timer->enabled))) {
-		pr_err("%s: timer not available or enabled.\n", __func__);
+	if (unlikely(!timer)) {
+		pr_err("%s: timer not available.\n", __func__);
 		return -EINVAL;
 	}
 
+	dev = &timer->pdev->dev;
+
+	pm_runtime_resume_and_get(dev);
 	dmtimer_write(timer, OMAP_TIMER_COUNTER_REG, value);
+	pm_runtime_put_sync(dev);
 
 	/* Save the context */
 	timer->context.tcrr = value;
 	return 0;
+}
+
+/**
+ * omap_dm_timer_cap_counter() - Calculate the high count or period count depending on the
+ * configuration.
+ * @cookie:Pointer to OMAP DM timer
+ * @is_period:Whether to configure timer in period or duty cycle mode
+ *
+ * Return high count or period count if timer is enabled else appropriate error.
+ */
+static unsigned int omap_dm_timer_cap_counter(struct omap_dm_timer *cookie,	bool is_period)
+{
+	struct dmtimer *timer;
+	unsigned int cap1 = 0;
+	unsigned int cap2 = 0;
+	u32 l, ret;
+
+	timer = to_dmtimer(cookie);
+	if (unlikely(!timer || !atomic_read(&timer->enabled))) {
+		pr_err("%s:timer is not available or enabled.%p\n", __func__, (void *)timer);
+		return -EINVAL;
+	}
+
+	/* Stop the timer */
+	omap_dm_timer_stop(cookie);
+
+	/* Clear the timer counter value to 0 */
+	ret = omap_dm_timer_write_counter(cookie, 0);
+	if (ret)
+		return ret;
+
+	/* Sets the timer capture configuration for period/duty cycle calculation */
+	ret = omap_dm_timer_set_cap(cookie, true, is_period);
+	if (ret) {
+		pr_err("%s: Failed to set timer capture configuration.\n", __func__);
+		return ret;
+	}
+	/* Start the timer */
+	omap_dm_timer_start(cookie);
+
+	/*
+	 * 1 sec delay is given so as to provide
+	 * enough time to capture low frequency signals.
+	 */
+	msleep(1000);
+
+	cap1 = __omap_dm_timer_cap(timer, 0);
+	cap2 = __omap_dm_timer_cap(timer, 1);
+
+	/*
+	 *  Clears the TCLR configuration.
+	 *  The start bit must be set to 1 as the timer is already in start mode.
+	 */
+	l = dmtimer_read(timer, OMAP_TIMER_CTRL_REG);
+	l &= ~(0xffff) | 0x1;
+	dmtimer_write(timer, OMAP_TIMER_CTRL_REG, l);
+
+	return (cap2-cap1);
 }
 
 static int __maybe_unused omap_dm_timer_runtime_suspend(struct device *dev)
@@ -1246,6 +1358,9 @@ static const struct omap_dm_timer_ops dmtimer_ops = {
 	.write_counter = omap_dm_timer_write_counter,
 	.read_status = omap_dm_timer_read_status,
 	.write_status = omap_dm_timer_write_status,
+	.set_cap = omap_dm_timer_set_cap,
+	.get_cap_status = omap_dm_timer_get_pwm_status,
+	.read_cap = omap_dm_timer_cap_counter,
 };
 
 static const struct dmtimer_platform_data omap3plus_pdata = {
