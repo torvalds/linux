@@ -118,15 +118,15 @@ adf_bridge_configure()
 	adf_ip_addr_add br 192.0.2.3/28
 	adf_ip_addr_add br 2001:db8:1::3/64
 
-	bridge_vlan_add dev br vid 1 pvid untagged self
-	bridge_vlan_add dev br vid 2 self
-	bridge_vlan_add dev br vid 3 self
+	adf_bridge_vlan_add dev br vid 1 pvid untagged self
+	adf_bridge_vlan_add dev br vid 2 self
+	adf_bridge_vlan_add dev br vid 3 self
 
 	for dev in "$swp1" "$swp2"; do
 		adf_ip_link_set_master "$dev" br
-		bridge_vlan_add dev "$dev" vid 1 pvid untagged
-		bridge_vlan_add dev "$dev" vid 2
-		bridge_vlan_add dev "$dev" vid 3
+		adf_bridge_vlan_add dev "$dev" vid 1 pvid untagged
+		adf_bridge_vlan_add dev "$dev" vid 2
+		adf_bridge_vlan_add dev "$dev" vid 3
 	done
 }
 

@@ -27,20 +27,20 @@ setup_prepare()
 		adf_ip_link_set_master $port br
 	done
 
-	bridge_vlan_add vid 11 dev br self
-	bridge_vlan_add vid 11 dev d1 master
+	adf_bridge_vlan_add vid 11 dev br self
+	adf_bridge_vlan_add vid 11 dev d1 master
 
-	bridge_vlan_add vid 12 dev br self
-	bridge_vlan_add vid 12 dev d2 master
+	adf_bridge_vlan_add vid 12 dev br self
+	adf_bridge_vlan_add vid 12 dev d2 master
 
-	bridge_vlan_add vid 13 dev br self
-	bridge_vlan_add vid 13 dev d1 master
-	bridge_vlan_add vid 13 dev d2 master
+	adf_bridge_vlan_add vid 13 dev br self
+	adf_bridge_vlan_add vid 13 dev d1 master
+	adf_bridge_vlan_add vid 13 dev d2 master
 
-	bridge_vlan_add vid 14 dev br self
-	bridge_vlan_add vid 14 dev d1 master
-	bridge_vlan_add vid 14 dev d2 master
-	bridge_vlan_add vid 14 dev d3 master
+	adf_bridge_vlan_add vid 14 dev br self
+	adf_bridge_vlan_add vid 14 dev d1 master
+	adf_bridge_vlan_add vid 14 dev d2 master
+	adf_bridge_vlan_add vid 14 dev d3 master
 }
 
 operstate_is()

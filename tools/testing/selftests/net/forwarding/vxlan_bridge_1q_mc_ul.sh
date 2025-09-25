@@ -222,8 +222,8 @@ switch_create()
 	# $swp1
 	adf_ip_link_set_up "$swp1"
 	adf_ip_link_set_master "$swp1" br1
-	bridge_vlan_add vid 10 dev "$swp1"
-	bridge_vlan_add vid 20 dev "$swp1"
+	adf_bridge_vlan_add vid 10 dev "$swp1"
+	adf_bridge_vlan_add vid 20 dev "$swp1"
 
 	# $swp2
 	adf_ip_link_set_up "$swp2"
@@ -245,7 +245,7 @@ vx_create()
 		nolearning noudpcsum tos inherit ttl 16 \
 		"$@"
 	adf_ip_link_set_master "$name" br1
-	bridge_vlan_add vid "$vid" dev "$name" pvid untagged
+	adf_bridge_vlan_add vid "$vid" dev "$name" pvid untagged
 }
 export -f vx_create
 
@@ -307,8 +307,8 @@ ns_init_common()
 	adf_ip_link_add w1 type veth peer name w2
 	adf_ip_link_set_master w1 br1
 	adf_ip_link_set_up w1
-	bridge_vlan_add vid 10 dev w1
-	bridge_vlan_add vid 20 dev w1
+	adf_bridge_vlan_add vid 10 dev w1
+	adf_bridge_vlan_add vid 20 dev w1
 
 	# w2
 	simple_if_init w2
