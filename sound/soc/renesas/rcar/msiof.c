@@ -46,6 +46,25 @@
  * Setup both direction (Playback/Capture) in the same time.
  */
 
+/*
+ * [NOTE-R/L]
+ *
+ * The data of Captured might be R/L opposite.
+ *
+ * This driver is assuming MSIOF is used as Clock/Frame Consumer Mode, and there is a case that some
+ * Codec (= Clock/Frame Provider) might output Clock/Frame before setup MSIOF. It depends on Codec
+ * driver implementation.
+ *
+ * MSIOF will capture data without checking SYNC signal Hi/Low (= R/L).
+ *
+ * This means, if MSIOF RXE bit was set as 1 in case of SYNC signal was Hi (= R) timing, it will
+ * start capture data since next SYNC low singla (= L). Because Linux assumes sound data is lined
+ * up as R->L->R->L->..., the data R/L will be opposite.
+ *
+ * The only solution in this case is start CLK/SYNC *after* MSIOF settings, but it depends when and
+ * how Codec driver start it.
+ */
+
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_dma.h>
