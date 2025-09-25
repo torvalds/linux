@@ -36,6 +36,16 @@
  * We need to use SW reset (= reset_control_xxx()) instead of TXRST/RXRST.
  */
 
+/*
+ * [NOTE-BOTH-SETTING]
+ *
+ * SITMDRn / SIRMDRn and some other registers should not be updated during working even though it
+ * was not related the target direction (for example, do TX settings during RX is working),
+ * otherwise it cause a FSERR.
+ *
+ * Setup both direction (Playback/Capture) in the same time.
+ */
+
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_dma.h>
@@ -165,39 +175,40 @@ static int msiof_hw_start(struct snd_soc_component *component,
 	/* Start DMAC */
 	snd_dmaengine_pcm_trigger(substream, cmd);
 
+	/*
+	 * setup both direction (Playback/Capture) in the same time.
+	 * see
+	 *	above [NOTE-BOTH-SETTING]
+	 */
+
 	/* SITMDRx */
-	if (is_play) {
-		val = SITMDR1_PCON |
-		      FIELD_PREP(SIMDR1_SYNCMD, SIMDR1_SYNCMD_LR) |
-		      SIMDR1_SYNCAC | SIMDR1_XXSTP;
-		if (msiof_flag_has(priv, MSIOF_FLAGS_NEED_DELAY))
-			val |= FIELD_PREP(SIMDR1_DTDL, 1);
+	val = SITMDR1_PCON | SIMDR1_SYNCAC | SIMDR1_XXSTP |
+		FIELD_PREP(SIMDR1_SYNCMD, SIMDR1_SYNCMD_LR);
+	if (msiof_flag_has(priv, MSIOF_FLAGS_NEED_DELAY))
+		val |= FIELD_PREP(SIMDR1_DTDL, 1);
 
-		msiof_write(priv, SITMDR1, val);
+	msiof_write(priv, SITMDR1, val);
 
-		val = FIELD_PREP(SIMDR2_BITLEN1, width - 1);
-		msiof_write(priv, SITMDR2, val | FIELD_PREP(SIMDR2_GRP, 1));
-		msiof_write(priv, SITMDR3, val);
-	}
+	val = FIELD_PREP(SIMDR2_BITLEN1, width - 1);
+	msiof_write(priv, SITMDR2, val | FIELD_PREP(SIMDR2_GRP, 1));
+	msiof_write(priv, SITMDR3, val);
+
 	/* SIRMDRx */
-	else {
-		val = FIELD_PREP(SIMDR1_SYNCMD, SIMDR1_SYNCMD_LR) |
-		      SIMDR1_SYNCAC;
-		if (msiof_flag_has(priv, MSIOF_FLAGS_NEED_DELAY))
-			val |= FIELD_PREP(SIMDR1_DTDL, 1);
+	val = SIMDR1_SYNCAC |
+		FIELD_PREP(SIMDR1_SYNCMD, SIMDR1_SYNCMD_LR);
+	if (msiof_flag_has(priv, MSIOF_FLAGS_NEED_DELAY))
+		val |= FIELD_PREP(SIMDR1_DTDL, 1);
 
-		msiof_write(priv, SIRMDR1, val);
+	msiof_write(priv, SIRMDR1, val);
 
-		val = FIELD_PREP(SIMDR2_BITLEN1, width - 1);
-		msiof_write(priv, SIRMDR2, val | FIELD_PREP(SIMDR2_GRP, 1));
-		msiof_write(priv, SIRMDR3, val);
-	}
+	val = FIELD_PREP(SIMDR2_BITLEN1, width - 1);
+	msiof_write(priv, SIRMDR2, val | FIELD_PREP(SIMDR2_GRP, 1));
+	msiof_write(priv, SIRMDR3, val);
 
 	/* SIFCTR */
-	if (is_play)
-		msiof_update(priv, SIFCTR, SIFCTR_TFWM, FIELD_PREP(SIFCTR_TFWM, SIFCTR_TFWM_1));
-	else
-		msiof_update(priv, SIFCTR, SIFCTR_RFWM, FIELD_PREP(SIFCTR_RFWM, SIFCTR_RFWM_1));
+	msiof_write(priv, SIFCTR,
+		    FIELD_PREP(SIFCTR_TFWM, SIFCTR_TFWM_1) |
+		    FIELD_PREP(SIFCTR_RFWM, SIFCTR_RFWM_1));
 
 	/* SIIER */
 	if (is_play)
@@ -214,10 +225,11 @@ static int msiof_hw_start(struct snd_soc_component *component,
 	msiof_update(priv, SISTR, val, val);
 
 	/* SICTR */
+	val = SICTR_TEDG | SICTR_REDG;
 	if (is_play)
-		val = SICTR_TXE | SICTR_TEDG;
+		val |= SICTR_TXE;
 	else
-		val = SICTR_RXE | SICTR_REDG;
+		val |= SICTR_RXE;
 	msiof_update_and_wait(priv, SICTR, val, val, val);
 
 	return 0;
