@@ -101,7 +101,7 @@ enum ras_error_type {
 };
 
 struct ras_core_context;
-struct ras_cmd_ioctl;
+struct ras_cmd_ctx;
 
 struct ras_cmd_mgr {
 	struct list_head head;
@@ -112,7 +112,7 @@ struct ras_cmd_mgr {
 struct ras_cmd_func_map {
 	uint32_t cmd_id;
 	int (*func)(struct ras_core_context *ras_core,
-			struct ras_cmd_ioctl *cmd, void *data);
+			struct ras_cmd_ctx *cmd, void *data);
 };
 
 struct ras_device_bdf {
@@ -133,7 +133,7 @@ struct ras_cmd_param {
 };
 
 #pragma pack(push, 8)
-struct ras_cmd_ioctl {
+struct ras_cmd_ctx {
 	uint32_t magic;
 	union {
 		struct {
@@ -414,7 +414,7 @@ struct ras_cmd_batch_trace_record_rsp {
 
 int ras_cmd_init(struct ras_core_context *ras_core);
 int ras_cmd_fini(struct ras_core_context *ras_core);
-int rascore_handle_cmd(struct ras_core_context *ras_core, struct ras_cmd_ioctl *cmd, void *data);
+int rascore_handle_cmd(struct ras_core_context *ras_core, struct ras_cmd_ctx *cmd, void *data);
 uint64_t ras_cmd_get_dev_handle(struct ras_core_context *ras_core);
 int ras_cmd_query_interface_info(struct ras_core_context *ras_core,
 	struct ras_query_interface_info_rsp *rsp);

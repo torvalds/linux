@@ -37,7 +37,7 @@
 #define AMDGPU_RAS_TYPE_VF       0x3
 
 static int amdgpu_ras_query_interface_info(struct ras_core_context *ras_core,
-			struct ras_cmd_ioctl *cmd)
+			struct ras_cmd_ctx *cmd)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)ras_core->dev;
 	struct ras_query_interface_info_rsp *output_data =
@@ -77,7 +77,7 @@ static struct ras_core_context *ras_cmd_get_ras_core(uint64_t dev_handle)
 }
 
 static int amdgpu_ras_get_devices_info(struct ras_core_context *ras_core,
-			struct ras_cmd_ioctl *cmd)
+			struct ras_cmd_ctx *cmd)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)ras_core->dev;
 	struct ras_cmd_devices_info_rsp *output_data =
@@ -146,7 +146,7 @@ static uint64_t local_addr_to_xgmi_global_addr(struct ras_core_context *ras_core
 }
 
 static int amdgpu_ras_inject_error(struct ras_core_context *ras_core,
-			struct ras_cmd_ioctl *cmd, void *data)
+			struct ras_cmd_ctx *cmd, void *data)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)ras_core->dev;
 	struct ras_cmd_inject_error_req *req =
@@ -189,7 +189,7 @@ static int amdgpu_ras_inject_error(struct ras_core_context *ras_core,
 }
 
 static int amdgpu_ras_get_ras_safe_fb_addr_ranges(struct ras_core_context *ras_core,
-	struct ras_cmd_ioctl *cmd, void *data)
+	struct ras_cmd_ctx *cmd, void *data)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)ras_core->dev;
 	struct ras_cmd_dev_handle *input_data =
@@ -259,7 +259,7 @@ static int ras_translate_fb_address(struct ras_core_context *ras_core,
 }
 
 static int amdgpu_ras_translate_fb_address(struct ras_core_context *ras_core,
-				struct ras_cmd_ioctl *cmd, void *data)
+				struct ras_cmd_ctx *cmd, void *data)
 {
 	struct ras_cmd_translate_fb_address_req *req_buff =
 			(struct ras_cmd_translate_fb_address_req *)cmd->input_buff_raw;
@@ -291,7 +291,7 @@ static struct ras_cmd_func_map amdgpu_ras_cmd_maps[] = {
 	{RAS_CMD__TRANSLATE_FB_ADDRESS, amdgpu_ras_translate_fb_address},
 };
 
-int amdgpu_ras_handle_cmd(struct ras_core_context *ras_core, struct ras_cmd_ioctl *cmd, void *data)
+int amdgpu_ras_handle_cmd(struct ras_core_context *ras_core, struct ras_cmd_ctx *cmd, void *data)
 {
 	struct ras_cmd_func_map *ras_cmd = NULL;
 	int i, res;
@@ -314,7 +314,7 @@ int amdgpu_ras_handle_cmd(struct ras_core_context *ras_core, struct ras_cmd_ioct
 int amdgpu_ras_cmd_ioctl_handler(struct ras_core_context *ras_core,
 			uint8_t *cmd_buf, uint32_t buf_size)
 {
-	struct ras_cmd_ioctl *cmd = (struct ras_cmd_ioctl *)cmd_buf;
+	struct ras_cmd_ctx *cmd = (struct ras_cmd_ctx *)cmd_buf;
 	struct ras_core_context *cmd_core = NULL;
 	struct ras_cmd_dev_handle *cmd_handle = NULL;
 	int timeout = 60;

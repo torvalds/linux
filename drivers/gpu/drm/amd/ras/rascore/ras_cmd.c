@@ -43,7 +43,7 @@ static int ras_cmd_remove_device(struct ras_core_context *ras_core)
 }
 
 static int ras_get_block_ecc_info(struct ras_core_context *ras_core,
-				struct ras_cmd_ioctl *cmd, void *data)
+				struct ras_cmd_ctx *cmd, void *data)
 {
 	struct ras_cmd_block_ecc_info_req *input_data =
 			(struct ras_cmd_block_ecc_info_req *)cmd->input_buff_raw;
@@ -119,7 +119,7 @@ static int ras_cmd_get_group_bad_pages(struct ras_core_context *ras_core,
 }
 
 static int ras_cmd_get_bad_pages(struct ras_core_context *ras_core,
-				struct ras_cmd_ioctl *cmd, void *data)
+				struct ras_cmd_ctx *cmd, void *data)
 {
 	struct ras_cmd_bad_pages_info_req *input_data =
 			(struct ras_cmd_bad_pages_info_req *)cmd->input_buff_raw;
@@ -141,7 +141,7 @@ static int ras_cmd_get_bad_pages(struct ras_core_context *ras_core,
 }
 
 static int ras_cmd_clear_bad_page_info(struct ras_core_context *ras_core,
-				struct ras_cmd_ioctl *cmd, void *data)
+				struct ras_cmd_ctx *cmd, void *data)
 {
 	if (cmd->input_size != sizeof(struct ras_cmd_dev_handle))
 		return RAS_CMD__ERROR_INVALID_INPUT_SIZE;
@@ -156,7 +156,7 @@ static int ras_cmd_clear_bad_page_info(struct ras_core_context *ras_core,
 }
 
 static int ras_cmd_reset_all_error_counts(struct ras_core_context *ras_core,
-				struct ras_cmd_ioctl *cmd, void *data)
+				struct ras_cmd_ctx *cmd, void *data)
 {
 	if (cmd->input_size != sizeof(struct ras_cmd_dev_handle))
 		return RAS_CMD__ERROR_INVALID_INPUT_SIZE;
@@ -171,7 +171,7 @@ static int ras_cmd_reset_all_error_counts(struct ras_core_context *ras_core,
 }
 
 static int ras_cmd_get_cper_snapshot(struct ras_core_context *ras_core,
-			struct ras_cmd_ioctl *cmd, void *data)
+			struct ras_cmd_ctx *cmd, void *data)
 {
 	struct ras_cmd_cper_snapshot_rsp *output_data =
 			(struct ras_cmd_cper_snapshot_rsp *)cmd->output_buff_raw;
@@ -193,7 +193,7 @@ static int ras_cmd_get_cper_snapshot(struct ras_core_context *ras_core,
 }
 
 static int ras_cmd_get_cper_records(struct ras_core_context *ras_core,
-			struct ras_cmd_ioctl *cmd, void *data)
+			struct ras_cmd_ctx *cmd, void *data)
 {
 	struct ras_cmd_cper_record_req *req =
 			(struct ras_cmd_cper_record_req *)cmd->input_buff_raw;
@@ -253,7 +253,7 @@ static int ras_cmd_get_cper_records(struct ras_core_context *ras_core,
 }
 
 static int ras_cmd_get_batch_trace_snapshot(struct ras_core_context *ras_core,
-	struct ras_cmd_ioctl *cmd, void *data)
+	struct ras_cmd_ctx *cmd, void *data)
 {
 	struct ras_cmd_batch_trace_snapshot_rsp *rsp =
 			(struct ras_cmd_batch_trace_snapshot_rsp *)cmd->output_buff_raw;
@@ -275,7 +275,7 @@ static int ras_cmd_get_batch_trace_snapshot(struct ras_core_context *ras_core,
 }
 
 static int ras_cmd_get_batch_trace_records(struct ras_core_context *ras_core,
-	struct ras_cmd_ioctl *cmd, void *data)
+	struct ras_cmd_ctx *cmd, void *data)
 {
 	struct ras_cmd_batch_trace_record_req *input_data =
 			(struct ras_cmd_batch_trace_record_req *)cmd->input_buff_raw;
@@ -400,7 +400,7 @@ static enum ras_ta_error_type __get_ras_ta_err_type(enum ras_ecc_err_type error)
 }
 
 static int ras_cmd_inject_error(struct ras_core_context *ras_core,
-			struct ras_cmd_ioctl *cmd, void *data)
+			struct ras_cmd_ctx *cmd, void *data)
 {
 	struct ras_cmd_inject_error_req *req =
 		(struct ras_cmd_inject_error_req *)cmd->input_buff_raw;
@@ -441,7 +441,7 @@ static struct ras_cmd_func_map ras_cmd_maps[] = {
 };
 
 int rascore_handle_cmd(struct ras_core_context *ras_core,
-		struct ras_cmd_ioctl *cmd, void *data)
+		struct ras_cmd_ctx *cmd, void *data)
 {
 	struct ras_cmd_func_map *ras_cmd = NULL;
 	int i;
