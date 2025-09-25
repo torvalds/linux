@@ -1,5 +1,68 @@
 [
     {
+        "BriefDescription": "Hit snoop reply with data, line invalidated.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x27",
+        "EventName": "CORE_SNOOP_RESPONSE.I_FWD_FE",
+        "PublicDescription": "Counts responses to snoops indicating the line will now be (I)nvalidated: removed from this core's cache, after the data is forwarded back to the requestor and indicating the data was found unmodified in the (FE) Forward or Exclusive State in this cores caches cache.  A single snoop response from the core counts on all hyperthreads of the core.",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x20"
+    },
+    {
+        "BriefDescription": "HitM snoop reply with data, line invalidated.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x27",
+        "EventName": "CORE_SNOOP_RESPONSE.I_FWD_M",
+        "PublicDescription": "Counts responses to snoops indicating the line will now be (I)nvalidated: removed from this core's caches, after the data is forwarded back to the requestor, and indicating the data was found modified(M) in this cores caches cache (aka HitM response).  A single snoop response from the core counts on all hyperthreads of the core.",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x10"
+    },
+    {
+        "BriefDescription": "Hit snoop reply without sending the data, line invalidated.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x27",
+        "EventName": "CORE_SNOOP_RESPONSE.I_HIT_FSE",
+        "PublicDescription": "Counts responses to snoops indicating the line will now be (I)nvalidated in this core's caches without forwarded back to the requestor. The line was in Forward, Shared or Exclusive (FSE) state in this cores caches.  A single snoop response from the core counts on all hyperthreads of the core.",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x2"
+    },
+    {
+        "BriefDescription": "Line not found snoop reply",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x27",
+        "EventName": "CORE_SNOOP_RESPONSE.MISS",
+        "PublicDescription": "Counts responses to snoops indicating that the data was not found (IHitI) in this core's caches. A single snoop response from the core counts on all hyperthreads of the Core.",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Hit snoop reply with data, line kept in Shared state.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x27",
+        "EventName": "CORE_SNOOP_RESPONSE.S_FWD_FE",
+        "PublicDescription": "Counts responses to snoops indicating the line may be kept on this core in the (S)hared state, after the data is forwarded back to the requestor, initially the data was found in the cache in the (FS) Forward or Shared state.  A single snoop response from the core counts on all hyperthreads of the core.",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x40"
+    },
+    {
+        "BriefDescription": "HitM snoop reply with data, line kept in Shared state",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x27",
+        "EventName": "CORE_SNOOP_RESPONSE.S_FWD_M",
+        "PublicDescription": "Counts responses to snoops indicating the line may be kept on this core in the (S)hared state, after the data is forwarded back to the requestor, initially the data was found in the cache in the (M)odified state.  A single snoop response from the core counts on all hyperthreads of the core.",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x8"
+    },
+    {
+        "BriefDescription": "Hit snoop reply without sending the data, line kept in Shared state.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x27",
+        "EventName": "CORE_SNOOP_RESPONSE.S_HIT_FSE",
+        "PublicDescription": "Counts responses to snoops indicating the line was kept on this core in the (S)hared state, and that the data was found unmodified but not forwarded back to the requestor, initially the data was found in the cache in the (FSE) Forward, Shared state or Exclusive state.  A single snoop response from the core counts on all hyperthreads of the core.",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x4"
+    },
+    {
         "BriefDescription": "L1D.HWPF_MISS",
         "Counter": "0,1,2,3",
         "EventCode": "0x51",
