@@ -22,7 +22,7 @@ bool ice_xsk_any_rx_ring_ena(struct ice_vsi *vsi);
 void ice_xsk_clean_rx_ring(struct ice_rx_ring *rx_ring);
 void ice_xsk_clean_xdp_ring(struct ice_tx_ring *xdp_ring);
 bool ice_xmit_zc(struct ice_tx_ring *xdp_ring, struct xsk_buff_pool *xsk_pool);
-int ice_realloc_zc_buf(struct ice_vsi *vsi, bool zc);
+int ice_realloc_rx_xdp_bufs(struct ice_rx_ring *rx_ring, bool pool_present);
 void ice_qvec_cfg_msix(struct ice_vsi *vsi, struct ice_q_vector *q_vector,
 		       u16 qid);
 void ice_qvec_toggle_napi(struct ice_vsi *vsi, struct ice_q_vector *q_vector,
@@ -77,8 +77,8 @@ static inline void ice_xsk_clean_rx_ring(struct ice_rx_ring *rx_ring) { }
 static inline void ice_xsk_clean_xdp_ring(struct ice_tx_ring *xdp_ring) { }
 
 static inline int
-ice_realloc_zc_buf(struct ice_vsi __always_unused *vsi,
-		   bool __always_unused zc)
+ice_realloc_rx_xdp_bufs(struct ice_rx_ring *rx_ring,
+			bool __always_unused pool_present)
 {
 	return 0;
 }
