@@ -7,7 +7,7 @@
 //
 
 /*
- * [NOTE]
+ * [NOTE-CLOCK-MODE]
  *
  * This driver doesn't support Clock/Frame Provider Mode
  *
@@ -121,7 +121,7 @@ static int msiof_hw_start(struct snd_soc_component *component,
 
 	/*
 	 * see
-	 *	[NOTE] on top of this driver
+	 *	[NOTE-CLOCK-MODE] on top of this driver
 	 */
 	/*
 	 * see
