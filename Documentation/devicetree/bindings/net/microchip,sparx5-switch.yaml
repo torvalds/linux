@@ -55,12 +55,14 @@ properties:
           - const: microchip,lan9691-switch
 
   reg:
+    minItems: 2
     items:
       - description: cpu target
       - description: devices target
       - description: general control block target
 
   reg-names:
+    minItems: 2
     items:
       - const: cpu
       - const: devices
@@ -167,6 +169,26 @@ required:
   - interrupts
   - interrupt-names
   - ethernet-ports
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - microchip,lan9691-switch
+    then:
+      properties:
+        reg:
+          minItems: 2
+        reg-names:
+          minItems: 2
+    else:
+      properties:
+        reg:
+          minItems: 3
+        reg-names:
+          minItems: 3
 
 additionalProperties: false
 
