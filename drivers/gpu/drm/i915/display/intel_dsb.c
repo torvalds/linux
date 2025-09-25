@@ -115,24 +115,6 @@ static bool pre_commit_is_vrr_active(struct intel_atomic_state *state,
 	return old_crtc_state->vrr.enable && !intel_crtc_vrr_disabling(state, crtc);
 }
 
-static int dsb_vblank_delay(struct intel_atomic_state *state,
-			    struct intel_crtc *crtc)
-{
-	const struct intel_crtc_state *crtc_state =
-		intel_pre_commit_crtc_state(state, crtc);
-
-	if (pre_commit_is_vrr_active(state, crtc))
-		/*
-		 * When the push is sent during vblank it will trigger
-		 * on the next scanline, hence we have up to one extra
-		 * scanline until the delayed vblank occurs after
-		 * TRANS_PUSH has been written.
-		 */
-		return crtc_state->set_context_latency + 1;
-	else
-		return intel_mode_vblank_delay(&crtc_state->hw.adjusted_mode);
-}
-
 static int dsb_vtotal(struct intel_atomic_state *state,
 		      struct intel_crtc *crtc)
 {
@@ -821,26 +803,37 @@ void intel_dsb_wait_for_delayed_vblank(struct intel_atomic_state *state,
 	struct intel_crtc *crtc = dsb->crtc;
 	const struct intel_crtc_state *crtc_state =
 		intel_pre_commit_crtc_state(state, crtc);
-	int usecs = intel_scanlines_to_usecs(&crtc_state->hw.adjusted_mode,
-					     dsb_vblank_delay(state, crtc));
+	const struct drm_display_mode *adjusted_mode =
+		&crtc_state->hw.adjusted_mode;
+	int wait_scanlines;
 
-	/*
-	 * If the push happened before the vmin decision boundary
-	 * we don't know how far we are from the undelayed vblank.
-	 * Wait until we're past the vmin safe window, at which
-	 * point we're SCL lines away from the delayed vblank.
-	 *
-	 * If the push happened after the vmin decision boundary
-	 * the hardware itself guarantees that we're SCL lines
-	 * away from the delayed vblank, and we won't be inside
-	 * the vmin safe window so this extra wait does nothing.
-	 */
-	if (pre_commit_is_vrr_active(state, crtc))
+	if (pre_commit_is_vrr_active(state, crtc)) {
+		/*
+		 * If the push happened before the vmin decision boundary
+		 * we don't know how far we are from the undelayed vblank.
+		 * Wait until we're past the vmin safe window, at which
+		 * point we're SCL lines away from the delayed vblank.
+		 *
+		 * If the push happened after the vmin decision boundary
+		 * the hardware itself guarantees that we're SCL lines
+		 * away from the delayed vblank, and we won't be inside
+		 * the vmin safe window so this extra wait does nothing.
+		 */
 		intel_dsb_wait_scanline_out(state, dsb,
 					    intel_vrr_safe_window_start(crtc_state),
 					    intel_vrr_vmin_safe_window_end(crtc_state));
+		/*
+		 * When the push is sent during vblank it will trigger
+		 * on the next scanline, hence we have up to one extra
+		 * scanline until the delayed vblank occurs after
+		 * TRANS_PUSH has been written.
+		 */
+		wait_scanlines = crtc_state->set_context_latency + 1;
+	} else {
+		wait_scanlines = intel_mode_vblank_delay(adjusted_mode);
+	}
 
-	intel_dsb_wait_usec(dsb, usecs);
+	intel_dsb_wait_usec(dsb, intel_scanlines_to_usecs(adjusted_mode, wait_scanlines));
 }
 
 /**
