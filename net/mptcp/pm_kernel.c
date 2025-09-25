@@ -19,7 +19,6 @@ struct pm_nl_pernet {
 	spinlock_t		lock;
 	struct list_head	endp_list;
 	unsigned int		endpoints;
-	unsigned int		stale_loss_cnt;
 	unsigned int		endp_signal_max;
 	unsigned int		endp_subflow_max;
 	unsigned int		limit_add_addr_accepted;
@@ -1469,7 +1468,6 @@ static int __net_init pm_nl_init_net(struct net *net)
 	/* Cit. 2 subflows ought to be enough for anybody. */
 	pernet->limit_extra_subflows = 2;
 	pernet->next_id = 1;
-	pernet->stale_loss_cnt = 4;
 	spin_lock_init(&pernet->lock);
 
 	/* No need to initialize other pernet fields, the struct is zeroed at
