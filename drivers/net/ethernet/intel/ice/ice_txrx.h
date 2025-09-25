@@ -27,71 +27,7 @@
 
 #define ICE_MAX_TXQ_PER_TXQG	128
 
-/* Attempt to maximize the headroom available for incoming frames. We use a 2K
- * buffer for MTUs <= 1500 and need 1536/1534 to store the data for the frame.
- * This leaves us with 512 bytes of room.  From that we need to deduct the
- * space needed for the shared info and the padding needed to IP align the
- * frame.
- *
- * Note: For cache line sizes 256 or larger this value is going to end
- *	 up negative.  In these cases we should fall back to the legacy
- *	 receive path.
- */
-#if (PAGE_SIZE < 8192)
-#define ICE_2K_TOO_SMALL_WITH_PADDING \
-	((unsigned int)(NET_SKB_PAD + ICE_RXBUF_1536) > \
-			SKB_WITH_OVERHEAD(ICE_RXBUF_2048))
-
-/**
- * ice_compute_pad - compute the padding
- * @rx_buf_len: buffer length
- *
- * Figure out the size of half page based on given buffer length and
- * then subtract the skb_shared_info followed by subtraction of the
- * actual buffer length; this in turn results in the actual space that
- * is left for padding usage
- */
-static inline int ice_compute_pad(int rx_buf_len)
-{
-	int half_page_size;
-
-	half_page_size = ALIGN(rx_buf_len, PAGE_SIZE / 2);
-	return SKB_WITH_OVERHEAD(half_page_size) - rx_buf_len;
-}
-
-/**
- * ice_skb_pad - determine the padding that we can supply
- *
- * Figure out the right Rx buffer size and based on that calculate the
- * padding
- */
-static inline int ice_skb_pad(void)
-{
-	int rx_buf_len;
-
-	/* If a 2K buffer cannot handle a standard Ethernet frame then
-	 * optimize padding for a 3K buffer instead of a 1.5K buffer.
-	 *
-	 * For a 3K buffer we need to add enough padding to allow for
-	 * tailroom due to NET_IP_ALIGN possibly shifting us out of
-	 * cache-line alignment.
-	 */
-	if (ICE_2K_TOO_SMALL_WITH_PADDING)
-		rx_buf_len = ICE_RXBUF_3072 + SKB_DATA_ALIGN(NET_IP_ALIGN);
-	else
-		rx_buf_len = ICE_RXBUF_1536;
-
-	/* if needed make room for NET_IP_ALIGN */
-	rx_buf_len -= NET_IP_ALIGN;
-
-	return ice_compute_pad(rx_buf_len);
-}
-
-#define ICE_SKB_PAD ice_skb_pad()
-#else
-#define ICE_2K_TOO_SMALL_WITH_PADDING false
 #define ICE_SKB_PAD (NET_SKB_PAD + NET_IP_ALIGN)
-#endif
 
 /* We are assuming that the cache line is always 64 Bytes here for ice.
  * In order to make sure that is a correct assumption there is a check in probe
@@ -202,7 +138,6 @@ struct ice_rx_buf {
 	struct page *page;
 	unsigned int page_offset;
 	unsigned int pgcnt;
-	unsigned int pagecnt_bias;
 };
 
 struct ice_q_stats {
@@ -368,7 +303,6 @@ struct ice_rx_ring {
 	struct ice_tx_ring *xdp_ring;
 	struct ice_rx_ring *next;	/* pointer to next ring in q_vector */
 	struct xsk_buff_pool *xsk_pool;
-	u16 max_frame;
 	u16 rx_buf_len;
 	dma_addr_t dma;			/* physical address of ring */
 	u8 dcb_tc;			/* Traffic class of ring */
@@ -475,14 +409,8 @@ struct ice_coalesce_stored {
 
 static inline unsigned int ice_rx_pg_order(struct ice_rx_ring *ring)
 {
-#if (PAGE_SIZE < 8192)
-	if (ring->rx_buf_len > (PAGE_SIZE / 2))
-		return 1;
-#endif
 	return 0;
 }
-
-#define ice_rx_pg_size(_ring) (PAGE_SIZE << ice_rx_pg_order(_ring))
 
 union ice_32b_rx_flex_desc;
 
