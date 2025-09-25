@@ -207,7 +207,7 @@ switch_create()
 	swp1_mac=$(mac_get "$swp1")
 	adf_ip_link_add br1 type bridge vlan_filtering 1 \
 			    vlan_default_pvid 0 mcast_snooping 0
-	ip_link_set_addr br1 "$swp1_mac"
+	adf_ip_link_set_addr br1 "$swp1_mac"
 	ip_link_set_up br1
 
 	# A dummy to force the IPv6 OIF=0 test to install a suitable MC route on

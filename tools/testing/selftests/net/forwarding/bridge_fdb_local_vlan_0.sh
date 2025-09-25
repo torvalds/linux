@@ -137,7 +137,7 @@ adf_bridge_create()
 	adf_ip_link_add br up type bridge vlan_default_pvid 0 "$@"
 	mac=$(mac_get br)
 	adf_bridge_configure
-	ip_link_set_addr br "$mac"
+	adf_ip_link_set_addr br "$mac"
 }
 
 check_fdb_local_vlan_0_support()
@@ -296,7 +296,7 @@ change_mac()
 	cur_mac=$(mac_get "$dev")
 
 	log_info "Change $dev MAC $cur_mac -> $mac"
-	ip_link_set_addr "$dev" "$mac"
+	adf_ip_link_set_addr "$dev" "$mac"
 	defer log_info "Change $dev MAC back"
 }
 
@@ -376,7 +376,7 @@ test_q_sharing()
 adf_addr_set_bridge_create()
 {
 	adf_ip_link_add br up type bridge vlan_filtering 0
-	ip_link_set_addr br "$(mac_get br)"
+	adf_ip_link_set_addr br "$(mac_get br)"
 	adf_bridge_configure
 }
 

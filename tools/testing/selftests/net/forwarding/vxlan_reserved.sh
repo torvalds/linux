@@ -63,7 +63,7 @@ switch_create()
 	adf_ip_link_add br1 type bridge vlan_filtering 0 mcast_snooping 0
 	# Make sure the bridge uses the MAC address of the local port and not
 	# that of the VxLAN's device.
-	ip_link_set_addr br1 $(mac_get $swp1)
+	adf_ip_link_set_addr br1 $(mac_get $swp1)
 	ip_link_set_up br1
 
 	ip_link_set_up $rp1

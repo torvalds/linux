@@ -560,7 +560,7 @@ adf_ip_link_set_master()
 		defer ip link set dev "$member" nomaster
 }
 
-ip_link_set_addr()
+adf_ip_link_set_addr()
 {
 	local name=$1; shift
 	local addr=$1; shift
