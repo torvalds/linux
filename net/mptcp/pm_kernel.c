@@ -377,116 +377,149 @@ static void mptcp_pm_nl_subflow_established(struct mptcp_sock *msk)
 	mptcp_pm_create_subflow_or_signal_addr(msk);
 }
 
-/* Fill all the local addresses into the array addrs[],
- * and return the array size.
- */
-static unsigned int fill_local_addresses_vec(struct mptcp_sock *msk,
-					     struct mptcp_addr_info *remote,
-					     struct mptcp_pm_local *locals)
+static unsigned int
+fill_local_addresses_vec_fullmesh(struct mptcp_sock *msk,
+				  struct mptcp_addr_info *remote,
+				  struct mptcp_pm_local *locals,
+				  bool c_flag_case)
 {
+	struct pm_nl_pernet *pernet = pm_nl_get_pernet_from_msk(msk);
+	unsigned int subflows_max = mptcp_pm_get_subflows_max(msk);
 	struct sock *sk = (struct sock *)msk;
 	struct mptcp_pm_addr_entry *entry;
 	struct mptcp_addr_info mpc_addr;
-	struct pm_nl_pernet *pernet;
-	unsigned int subflows_max;
-	bool c_flag_case;
+	struct mptcp_pm_local *local;
 	int i = 0;
-
-	pernet = pm_nl_get_pernet_from_msk(msk);
-	subflows_max = mptcp_pm_get_subflows_max(msk);
-	c_flag_case = remote->id && mptcp_pm_add_addr_c_flag_case(msk);
 
 	mptcp_local_address((struct sock_common *)msk, &mpc_addr);
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(entry, &pernet->local_addr_list, list) {
+		bool is_id0;
+
 		if (!(entry->flags & MPTCP_PM_ADDR_FLAG_FULLMESH))
 			continue;
 
 		if (!mptcp_pm_addr_families_match(sk, &entry->addr, remote))
 			continue;
 
-		if (msk->pm.subflows < subflows_max) {
-			bool is_id0;
+		local = &locals[i];
+		local->addr = entry->addr;
+		local->flags = entry->flags;
+		local->ifindex = entry->ifindex;
 
-			locals[i].addr = entry->addr;
-			locals[i].flags = entry->flags;
-			locals[i].ifindex = entry->ifindex;
+		is_id0 = mptcp_addresses_equal(&local->addr, &mpc_addr,
+					       local->addr.port);
 
-			is_id0 = mptcp_addresses_equal(&locals[i].addr,
-						       &mpc_addr,
-						       locals[i].addr.port);
+		if (c_flag_case &&
+		    (entry->flags & MPTCP_PM_ADDR_FLAG_SUBFLOW)) {
+			__clear_bit(local->addr.id, msk->pm.id_avail_bitmap);
 
-			if (c_flag_case &&
-			    (entry->flags & MPTCP_PM_ADDR_FLAG_SUBFLOW)) {
-				__clear_bit(locals[i].addr.id,
-					    msk->pm.id_avail_bitmap);
-
-				if (!is_id0)
-					msk->pm.local_addr_used++;
-			}
-
-			/* Special case for ID0: set the correct ID */
-			if (is_id0)
-				locals[i].addr.id = 0;
-
-			msk->pm.subflows++;
-			i++;
+			if (!is_id0)
+				msk->pm.local_addr_used++;
 		}
+
+		/* Special case for ID0: set the correct ID */
+		if (is_id0)
+			local->addr.id = 0;
+
+		msk->pm.subflows++;
+		i++;
+
+		if (msk->pm.subflows >= subflows_max)
+			break;
 	}
 	rcu_read_unlock();
+
+	return i;
+}
+
+static unsigned int
+fill_local_addresses_vec_c_flag(struct mptcp_sock *msk,
+				struct mptcp_addr_info *remote,
+				struct mptcp_pm_local *locals)
+{
+	unsigned int local_addr_max = mptcp_pm_get_local_addr_max(msk);
+	struct pm_nl_pernet *pernet = pm_nl_get_pernet_from_msk(msk);
+	unsigned int subflows_max = mptcp_pm_get_subflows_max(msk);
+	struct sock *sk = (struct sock *)msk;
+	struct mptcp_addr_info mpc_addr;
+	struct mptcp_pm_local *local;
+	int i = 0;
+
+	mptcp_local_address((struct sock_common *)msk, &mpc_addr);
+
+	while (msk->pm.local_addr_used < local_addr_max) {
+		local = &locals[i];
+
+		if (!select_local_address(pernet, msk, local))
+			break;
+
+		__clear_bit(local->addr.id, msk->pm.id_avail_bitmap);
+
+		if (!mptcp_pm_addr_families_match(sk, &local->addr, remote))
+			continue;
+
+		if (mptcp_addresses_equal(&local->addr, &mpc_addr,
+					  local->addr.port))
+			continue;
+
+		msk->pm.local_addr_used++;
+		msk->pm.subflows++;
+		i++;
+
+		if (msk->pm.subflows >= subflows_max)
+			break;
+	}
+
+	return i;
+}
+
+static unsigned int
+fill_local_address_any(struct mptcp_sock *msk, struct mptcp_addr_info *remote,
+		       struct mptcp_pm_local *local)
+{
+	struct sock *sk = (struct sock *)msk;
+
+	memset(local, 0, sizeof(*local));
+	local->addr.family =
+#if IS_ENABLED(CONFIG_MPTCP_IPV6)
+			remote->family == AF_INET6 &&
+			ipv6_addr_v4mapped(&remote->addr6) ? AF_INET :
+#endif
+			remote->family;
+
+	if (!mptcp_pm_addr_families_match(sk, &local->addr, remote))
+		return 0;
+
+	msk->pm.subflows++;
+
+	return 1;
+}
+
+/* Fill all the local addresses into the array addrs[],
+ * and return the array size.
+ */
+static unsigned int
+fill_local_addresses_vec(struct mptcp_sock *msk, struct mptcp_addr_info *remote,
+			 struct mptcp_pm_local *locals)
+{
+	bool c_flag_case = remote->id && mptcp_pm_add_addr_c_flag_case(msk);
+	int i;
+
+	/* If there is at least one MPTCP endpoint with a fullmesh flag */
+	i = fill_local_addresses_vec_fullmesh(msk, remote, locals, c_flag_case);
+	if (i)
+		return i;
 
 	/* Special case: peer sets the C flag, accept one ADD_ADDR if default
 	 * limits are used -- accepting no ADD_ADDR -- and use subflow endpoints
 	 */
-	if (!i && c_flag_case) {
-		unsigned int local_addr_max = mptcp_pm_get_local_addr_max(msk);
+	if (c_flag_case)
+		return fill_local_addresses_vec_c_flag(msk, remote, locals);
 
-		while (msk->pm.local_addr_used < local_addr_max &&
-		       msk->pm.subflows < subflows_max) {
-			struct mptcp_pm_local *local = &locals[i];
-
-			if (!select_local_address(pernet, msk, local))
-				break;
-
-			__clear_bit(local->addr.id, msk->pm.id_avail_bitmap);
-
-			if (!mptcp_pm_addr_families_match(sk, &local->addr,
-							  remote))
-				continue;
-
-			if (mptcp_addresses_equal(&local->addr, &mpc_addr,
-						  local->addr.port))
-				continue;
-
-			msk->pm.local_addr_used++;
-			msk->pm.subflows++;
-			i++;
-		}
-
-		return i;
-	}
-
-	/* If the array is empty, fill in the single
-	 * 'IPADDRANY' local address
-	 */
-	if (!i) {
-		memset(&locals[i], 0, sizeof(locals[i]));
-		locals[i].addr.family =
-#if IS_ENABLED(CONFIG_MPTCP_IPV6)
-			       remote->family == AF_INET6 &&
-			       ipv6_addr_v4mapped(&remote->addr6) ? AF_INET :
-#endif
-			       remote->family;
-
-		if (!mptcp_pm_addr_families_match(sk, &locals[i].addr, remote))
-			return 0;
-
-		msk->pm.subflows++;
-		i++;
-	}
-
-	return i;
+	/* No special case: fill in the single 'IPADDRANY' local address */
+	return fill_local_address_any(msk, remote, &locals[0]);
 }
 
 static void mptcp_pm_nl_add_addr_received(struct mptcp_sock *msk)
