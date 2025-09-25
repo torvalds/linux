@@ -100,8 +100,7 @@ host_create()
 	local dev=$1; shift
 	local host=$1; shift
 
-	simple_if_init $dev
-	defer simple_if_fini $dev
+	adf_simple_if_init $dev
 
 	mtu_set $dev 10000
 	defer mtu_restore $dev

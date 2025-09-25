@@ -717,6 +717,12 @@ simple_if_fini()
 	vrf_destroy $vrf_name
 }
 
+adf_simple_if_init()
+{
+	simple_if_init "$@"
+	defer simple_if_fini "$@"
+}
+
 tunnel_create()
 {
 	local name=$1; shift

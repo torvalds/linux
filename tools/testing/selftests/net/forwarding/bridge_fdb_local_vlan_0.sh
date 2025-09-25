@@ -44,18 +44,14 @@ host_create()
 	local ipv4=$1; shift
 	local ipv6=$1; shift
 
-	simple_if_init "$h" "$ipv4" "$ipv6"
-	defer simple_if_fini "$h" "$ipv4" "$ipv6"
-
+	adf_simple_if_init "$h" "$ipv4" "$ipv6"
 	adf_ip_route_add vrf "v$h" 192.0.2.16/28 nexthop via 192.0.2.3
 	adf_ip_route_add vrf "v$h" 2001:db8:2::/64 nexthop via 2001:db8:1::3
 }
 
 h3_create()
 {
-	simple_if_init "$h3" 192.0.2.18/28 2001:db8:2::2/64
-	defer simple_if_fini "$h3" 192.0.2.18/28 2001:db8:2::2/64
-
+	adf_simple_if_init "$h3" 192.0.2.18/28 2001:db8:2::2/64
 	adf_ip_route_add vrf "v$h3" 192.0.2.0/28 nexthop via 192.0.2.17
 	adf_ip_route_add vrf "v$h3" 2001:db8:1::/64 nexthop via 2001:db8:2::1
 

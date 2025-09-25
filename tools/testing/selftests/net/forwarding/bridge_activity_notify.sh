@@ -26,14 +26,12 @@ source lib.sh
 
 h1_create()
 {
-	simple_if_init "$h1" 192.0.2.1/28
-	defer simple_if_fini "$h1" 192.0.2.1/28
+	adf_simple_if_init "$h1" 192.0.2.1/28
 }
 
 h2_create()
 {
-	simple_if_init "$h2" 192.0.2.2/28
-	defer simple_if_fini "$h2" 192.0.2.2/28
+	adf_simple_if_init "$h2" 192.0.2.2/28
 }
 
 switch_create()

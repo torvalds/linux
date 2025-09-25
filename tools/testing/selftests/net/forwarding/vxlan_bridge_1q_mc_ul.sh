@@ -119,8 +119,7 @@ source lib.sh
 
 h1_create()
 {
-	simple_if_init "$h1"
-	defer simple_if_fini "$h1"
+	adf_simple_if_init "$h1"
 
 	adf_ip_link_add "$h1.10" master "v$h1" link "$h1" type vlan id 10
 	adf_ip_link_set_up "$h1.10"
@@ -311,8 +310,7 @@ ns_init_common()
 	adf_bridge_vlan_add vid 20 dev w1
 
 	# w2
-	simple_if_init w2
-	defer simple_if_fini w2
+	adf_simple_if_init w2
 
 	# w2.10
 	adf_ip_link_add w2.10 master vw2 link w2 type vlan id 10

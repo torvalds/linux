@@ -47,8 +47,7 @@ source lib.sh
 
 h1_create()
 {
-	simple_if_init $h1 192.0.2.1/28
-	defer simple_if_fini $h1 192.0.2.1/28
+	adf_simple_if_init $h1 192.0.2.1/28
 
 	tc qdisc add dev $h1 clsact
 	defer tc qdisc del dev $h1 clsact
@@ -76,8 +75,7 @@ switch_create()
 
 vrp2_create()
 {
-	simple_if_init $rp2 192.0.2.18/28
-	defer simple_if_fini $rp2 192.0.2.18/28
+	adf_simple_if_init $rp2 192.0.2.18/28
 }
 
 setup_prepare()
