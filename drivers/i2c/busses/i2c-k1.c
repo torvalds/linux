@@ -172,9 +172,9 @@ static void spacemit_i2c_conditionally_reset_bus(struct spacemit_i2c_dev *i2c)
 	spacemit_i2c_reset(i2c);
 	usleep_range(10, 20);
 
-	/* check scl status again */
+	/* check sda again here */
 	status = readl(i2c->base + SPACEMIT_IBMR);
-	if (!(status & SPACEMIT_BMR_SCL))
+	if (!(status & SPACEMIT_BMR_SDA))
 		dev_warn_ratelimited(i2c->dev, "unit reset failed\n");
 }
 
