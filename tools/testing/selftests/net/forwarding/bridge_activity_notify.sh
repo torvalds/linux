@@ -38,7 +38,7 @@ h2_create()
 
 switch_create()
 {
-	ip_link_add br1 type bridge vlan_filtering 0 mcast_snooping 0 \
+	adf_ip_link_add br1 type bridge vlan_filtering 0 mcast_snooping 0 \
 		ageing_time "$LOW_AGEING_TIME"
 	ip_link_set_up br1
 

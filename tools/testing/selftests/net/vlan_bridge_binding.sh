@@ -18,10 +18,10 @@ setup_prepare()
 {
 	local port
 
-	ip_link_add br up type bridge vlan_filtering 1
+	adf_ip_link_add br up type bridge vlan_filtering 1
 
 	for port in d1 d2 d3; do
-		ip_link_add $port type veth peer name r$port
+		adf_ip_link_add $port type veth peer name r$port
 		ip_link_set_up $port
 		ip_link_set_up r$port
 		ip_link_set_master $port br
@@ -74,7 +74,7 @@ add_one_vlan()
 	local link=$1; shift
 	local id=$1; shift
 
-	ip_link_add $link.$id link $link type vlan id $id "$@"
+	adf_ip_link_add $link.$id link $link type vlan id $id "$@"
 }
 
 add_vlans()

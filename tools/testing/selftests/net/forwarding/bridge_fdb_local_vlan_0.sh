@@ -134,7 +134,7 @@ adf_bridge_create()
 {
 	local mac
 
-	ip_link_add br up type bridge vlan_default_pvid 0 "$@"
+	adf_ip_link_add br up type bridge vlan_default_pvid 0 "$@"
 	mac=$(mac_get br)
 	adf_bridge_configure
 	ip_link_set_addr br "$mac"
@@ -142,8 +142,8 @@ adf_bridge_create()
 
 check_fdb_local_vlan_0_support()
 {
-	if ip_link_add XXbr up type bridge vlan_filtering 1 fdb_local_vlan_0 1 \
-		    &>/dev/null; then
+	if adf_ip_link_add XXbr up type bridge vlan_filtering 1 \
+			fdb_local_vlan_0 1 &>/dev/null; then
 		return 0
 	fi
 
@@ -375,7 +375,7 @@ test_q_sharing()
 
 adf_addr_set_bridge_create()
 {
-	ip_link_add br up type bridge vlan_filtering 0
+	adf_ip_link_add br up type bridge vlan_filtering 0
 	ip_link_set_addr br "$(mac_get br)"
 	adf_bridge_configure
 }

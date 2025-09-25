@@ -543,7 +543,7 @@ require_command()
 	fi
 }
 
-ip_link_add()
+adf_ip_link_add()
 {
 	local name=$1; shift
 

@@ -60,7 +60,7 @@ h1_create()
 
 switch_create()
 {
-	ip_link_add br1 type bridge vlan_filtering 0 mcast_snooping 0
+	adf_ip_link_add br1 type bridge vlan_filtering 0 mcast_snooping 0
 	# Make sure the bridge uses the MAC address of the local port and not
 	# that of the VxLAN's device.
 	ip_link_set_addr br1 $(mac_get $swp1)
@@ -200,7 +200,7 @@ vxlan_ping_do()
 
 vxlan_device_add()
 {
-	ip_link_add vx1 up type vxlan id 1000		\
+	adf_ip_link_add vx1 up type vxlan id 1000		\
 		local 192.0.2.17 dstport "$VXPORT"	\
 		nolearning noudpcsum tos inherit ttl 100 "$@"
 	ip_link_set_master vx1 br1
