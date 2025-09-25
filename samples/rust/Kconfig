@@ -85,7 +85,7 @@ config SAMPLE_RUST_DRIVER_PLATFORM
 
 config SAMPLE_RUST_DRIVER_USB
 	tristate "USB Driver"
-	depends on USB = y
+	depends on USB = y && BROKEN
 	help
 	  This option builds the Rust USB driver sample.
 
