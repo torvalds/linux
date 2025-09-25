@@ -98,7 +98,7 @@ down_netdevs()
 	local dev
 
 	for dev in "$@"; do
-		ip_link_set_down $dev
+		adf_ip_link_set_down $dev
 	done
 }
 

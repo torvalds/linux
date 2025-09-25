@@ -595,7 +595,7 @@ adf_ip_link_set_up()
 	fi
 }
 
-ip_link_set_down()
+adf_ip_link_set_down()
 {
 	local name=$1; shift
 
