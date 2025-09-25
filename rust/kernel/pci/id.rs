@@ -50,6 +50,17 @@ macro_rules! define_all_pci_classes {
                 pub const $variant: Self = Self(Self::to_24bit_class($binding));
             )+
         }
+
+        impl fmt::Display for Class {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                match self {
+                    $(
+                        &Self::$variant => write!(f, stringify!($variant)),
+                    )+
+                    _ => <Self as fmt::Debug>::fmt(self, f),
+                }
+            }
+        }
     };
 }
 
@@ -84,12 +95,6 @@ impl Class {
 impl fmt::Debug for Class {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "0x{:06x}", self.0)
-    }
-}
-
-impl fmt::Display for Class {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        <Self as fmt::Debug>::fmt(self, f)
     }
 }
 
