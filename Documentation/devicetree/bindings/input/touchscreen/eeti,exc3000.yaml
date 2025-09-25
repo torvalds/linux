@@ -16,12 +16,14 @@ properties:
       - const: eeti,exc80h60
       - const: eeti,exc80h84
       - const: eeti,egalax_ts # Do NOT use for new binding
+      - const: eeti,exc3000-i2c
+        deprecated: true
       - items:
           - enum:
               - eeti,exc81w32
           - const: eeti,exc80h84
   reg:
-    enum: [0x4, 0x2a]
+    enum: [0x4, 0xa, 0x2a]
   interrupts:
     maxItems: 1
   reset-gpios:
@@ -30,6 +32,12 @@ properties:
     maxItems: 1
   vdd-supply:
     description: Power supply regulator for the chip
+  attn-gpios:
+    deprecated: true
+    maxItems: 1
+    description: Phandle to a GPIO to check whether interrupt is still
+                 latched. This is necessary for platforms that lack
+                 support for level-triggered IRQs.
   touchscreen-size-x: true
   touchscreen-size-y: true
   touchscreen-inverted-x: true
@@ -51,13 +59,17 @@ allOf:
         compatible:
           not:
             contains:
-              const: eeti,egalax_ts
+              enum:
+                - eeti,egalax_ts
+                - eeti,exc3000-i2c
     then:
       properties:
         reg:
           const: 0x2a
 
         wakeup-gpios: false
+
+        attn-gpios: false
 
       required:
         - touchscreen-size-x
