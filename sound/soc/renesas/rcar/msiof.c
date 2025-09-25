@@ -338,6 +338,9 @@ static struct snd_soc_dai_driver msiof_dai_driver = {
 		.channels_max	= 2,
 	},
 	.ops = &msiof_dai_ops,
+	.symmetric_rate		= 1,
+	.symmetric_channels	= 1,
+	.symmetric_sample_bits	= 1,
 };
 
 static struct snd_pcm_hardware msiof_pcm_hardware = {
