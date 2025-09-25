@@ -7,7 +7,7 @@
 #ifdef CONFIG_DEBUG_VFS
 static void ns_debug(struct ns_common *ns, const struct proc_ns_operations *ops)
 {
-	switch (ns->ops->type) {
+	switch (ns->ns_type) {
 #ifdef CONFIG_CGROUPS
 	case CLONE_NEWCGROUP:
 		VFS_WARN_ON_ONCE(ops != &cgroupns_operations);
@@ -46,18 +46,17 @@ static void ns_debug(struct ns_common *ns, const struct proc_ns_operations *ops)
 		VFS_WARN_ON_ONCE(ops != &utsns_operations);
 		break;
 #endif
-	default:
-		VFS_WARN_ON_ONCE(true);
 	}
 }
 #endif
 
-int __ns_common_init(struct ns_common *ns, const struct proc_ns_operations *ops, int inum)
+int __ns_common_init(struct ns_common *ns, u32 ns_type, const struct proc_ns_operations *ops, int inum)
 {
 	refcount_set(&ns->__ns_ref, 1);
 	ns->stashed = NULL;
 	ns->ops = ops;
 	ns->ns_id = 0;
+	ns->ns_type = ns_type;
 	RB_CLEAR_NODE(&ns->ns_tree_node);
 	INIT_LIST_HEAD(&ns->ns_list_node);
 

@@ -85,6 +85,7 @@ struct pid_namespace init_pid_ns = {
 #if defined(CONFIG_SYSCTL) && defined(CONFIG_MEMFD_CREATE)
 	.memfd_noexec_scope = MEMFD_NOEXEC_SCOPE_EXEC,
 #endif
+	.ns.ns_type = ns_common_type(&init_pid_ns),
 };
 EXPORT_SYMBOL_GPL(init_pid_ns);
 

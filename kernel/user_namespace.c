@@ -1400,7 +1400,6 @@ static struct user_namespace *userns_owner(struct ns_common *ns)
 
 const struct proc_ns_operations userns_operations = {
 	.name		= "user",
-	.type		= CLONE_NEWUSER,
 	.get		= userns_get,
 	.put		= userns_put,
 	.install	= userns_install,

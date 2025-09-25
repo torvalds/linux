@@ -137,7 +137,6 @@ static struct user_namespace *cgroupns_owner(struct ns_common *ns)
 
 const struct proc_ns_operations cgroupns_operations = {
 	.name		= "cgroup",
-	.type		= CLONE_NEWCGROUP,
 	.get		= cgroupns_get,
 	.put		= cgroupns_put,
 	.install	= cgroupns_install,

@@ -248,7 +248,6 @@ static struct user_namespace *ipcns_owner(struct ns_common *ns)
 
 const struct proc_ns_operations ipcns_operations = {
 	.name		= "ipc",
-	.type		= CLONE_NEWIPC,
 	.get		= ipcns_get,
 	.put		= ipcns_put,
 	.install	= ipcns_install,

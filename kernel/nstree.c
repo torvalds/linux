@@ -4,6 +4,20 @@
 #include <linux/proc_ns.h>
 #include <linux/vfsdebug.h>
 
+/**
+ * struct ns_tree - Namespace tree
+ * @ns_tree: Rbtree of namespaces of a particular type
+ * @ns_list: Sequentially walkable list of all namespaces of this type
+ * @ns_tree_lock: Seqlock to protect the tree and list
+ * @type: type of namespaces in this tree
+ */
+struct ns_tree {
+       struct rb_root ns_tree;
+       struct list_head ns_list;
+       seqlock_t ns_tree_lock;
+       int type;
+};
+
 struct ns_tree mnt_ns_tree = {
 	.ns_tree = RB_ROOT,
 	.ns_list = LIST_HEAD_INIT(mnt_ns_tree.ns_list),
@@ -92,7 +106,7 @@ void __ns_tree_add_raw(struct ns_common *ns, struct ns_tree *ns_tree)
 
 	write_seqlock(&ns_tree->ns_tree_lock);
 
-	VFS_WARN_ON_ONCE(ns->ops->type != ns_tree->type);
+	VFS_WARN_ON_ONCE(ns->ns_type != ns_tree->type);
 
 	node = rb_find_add_rcu(&ns->ns_tree_node, &ns_tree->ns_tree, ns_cmp);
 	/*
@@ -114,7 +128,7 @@ void __ns_tree_remove(struct ns_common *ns, struct ns_tree *ns_tree)
 {
 	VFS_WARN_ON_ONCE(RB_EMPTY_NODE(&ns->ns_tree_node));
 	VFS_WARN_ON_ONCE(list_empty(&ns->ns_list_node));
-	VFS_WARN_ON_ONCE(ns->ops->type != ns_tree->type);
+	VFS_WARN_ON_ONCE(ns->ns_type != ns_tree->type);
 
 	write_seqlock(&ns_tree->ns_tree_lock);
 	rb_erase(&ns->ns_tree_node, &ns_tree->ns_tree);
@@ -183,7 +197,7 @@ struct ns_common *ns_tree_lookup_rcu(u64 ns_id, int ns_type)
 	if (!node)
 		return NULL;
 
-	VFS_WARN_ON_ONCE(node_to_ns(node)->ops->type != ns_type);
+	VFS_WARN_ON_ONCE(node_to_ns(node)->ns_type != ns_type);
 
 	return node_to_ns(node);
 }
@@ -211,7 +225,7 @@ struct ns_common *__ns_tree_adjoined_rcu(struct ns_common *ns,
 	if (list_is_head(list, &ns_tree->ns_list))
 		return ERR_PTR(-ENOENT);
 
-	VFS_WARN_ON_ONCE(list_entry_rcu(list, struct ns_common, ns_list_node)->ops->type != ns_tree->type);
+	VFS_WARN_ON_ONCE(list_entry_rcu(list, struct ns_common, ns_list_node)->ns_type != ns_tree->type);
 
 	return list_entry_rcu(list, struct ns_common, ns_list_node);
 }

@@ -4,6 +4,7 @@
 
 #include <linux/refcount.h>
 #include <linux/rbtree.h>
+#include <uapi/linux/sched.h>
 
 struct proc_ns_operations;
 
@@ -37,6 +38,7 @@ extern const struct proc_ns_operations timens_operations;
 extern const struct proc_ns_operations timens_for_children_operations;
 
 struct ns_common {
+	u32 ns_type;
 	struct dentry *stashed;
 	const struct proc_ns_operations *ops;
 	unsigned int inum;
@@ -51,7 +53,7 @@ struct ns_common {
 	};
 };
 
-int __ns_common_init(struct ns_common *ns, const struct proc_ns_operations *ops, int inum);
+int __ns_common_init(struct ns_common *ns, u32 ns_type, const struct proc_ns_operations *ops, int inum);
 void __ns_common_free(struct ns_common *ns);
 
 #define to_ns_common(__ns)                                    \
@@ -106,10 +108,28 @@ void __ns_common_free(struct ns_common *ns);
 		struct user_namespace *:   (IS_ENABLED(CONFIG_USER_NS) ? &userns_operations   : NULL), \
 		struct uts_namespace *:    (IS_ENABLED(CONFIG_UTS_NS)  ? &utsns_operations    : NULL))
 
-#define ns_common_init(__ns) \
-	__ns_common_init(to_ns_common(__ns), to_ns_operations(__ns), (((__ns) == ns_init_ns(__ns)) ? ns_init_inum(__ns) : 0))
+#define ns_common_type(__ns)                                \
+	_Generic((__ns),                                    \
+		struct cgroup_namespace *: CLONE_NEWCGROUP, \
+		struct ipc_namespace *:    CLONE_NEWIPC,    \
+		struct mnt_namespace *:    CLONE_NEWNS,     \
+		struct net *:              CLONE_NEWNET,    \
+		struct pid_namespace *:    CLONE_NEWPID,    \
+		struct time_namespace *:   CLONE_NEWTIME,   \
+		struct user_namespace *:   CLONE_NEWUSER,   \
+		struct uts_namespace *:    CLONE_NEWUTS)
 
-#define ns_common_init_inum(__ns, __inum) __ns_common_init(to_ns_common(__ns), to_ns_operations(__ns), __inum)
+#define ns_common_init(__ns)                     \
+	__ns_common_init(to_ns_common(__ns),     \
+			 ns_common_type(__ns),   \
+			 to_ns_operations(__ns), \
+			 (((__ns) == ns_init_ns(__ns)) ? ns_init_inum(__ns) : 0))
+
+#define ns_common_init_inum(__ns, __inum)        \
+	__ns_common_init(to_ns_common(__ns),     \
+			 ns_common_type(__ns),   \
+			 to_ns_operations(__ns), \
+			 __inum)
 
 #define ns_common_free(__ns) __ns_common_free(to_ns_common((__ns)))
 

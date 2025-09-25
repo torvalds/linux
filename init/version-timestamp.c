@@ -8,6 +8,7 @@
 #include <linux/utsname.h>
 
 struct uts_namespace init_uts_ns = {
+	.ns.ns_type = ns_common_type(&init_uts_ns),
 	.ns.__ns_ref = REFCOUNT_INIT(2),
 	.name = {
 		.sysname	= UTS_SYSNAME,

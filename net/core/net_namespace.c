@@ -1543,7 +1543,6 @@ static struct user_namespace *netns_owner(struct ns_common *ns)
 
 const struct proc_ns_operations netns_operations = {
 	.name		= "net",
-	.type		= CLONE_NEWNET,
 	.get		= netns_get,
 	.put		= netns_put,
 	.install	= netns_install,

@@ -33,6 +33,7 @@ struct ipc_namespace init_ipc_ns = {
 #ifdef CONFIG_IPC_NS
 	.ns.ops = &ipcns_operations,
 #endif
+	.ns.ns_type = ns_common_type(&init_ipc_ns),
 };
 
 struct msg_msgseg {
