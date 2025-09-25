@@ -159,72 +159,90 @@ select_signal_address(struct pm_nl_pernet *pernet, const struct mptcp_sock *msk,
 	return found;
 }
 
-/* Fill all the remote addresses into the array addrs[],
- * and return the array size.
- */
-static unsigned int fill_remote_addresses_vec(struct mptcp_sock *msk,
-					      struct mptcp_addr_info *local,
-					      bool fullmesh,
-					      struct mptcp_addr_info *addrs)
+static unsigned int
+fill_remote_addr(struct mptcp_sock *msk, struct mptcp_addr_info *local,
+		 struct mptcp_addr_info *addrs)
 {
 	bool deny_id0 = READ_ONCE(msk->pm.remote_deny_join_id0);
+	struct mptcp_addr_info remote = { 0 };
+	struct sock *sk = (struct sock *)msk;
+
+	if (deny_id0)
+		return 0;
+
+	mptcp_remote_address((struct sock_common *)sk, &remote);
+
+	if (!mptcp_pm_addr_families_match(sk, local, &remote))
+		return 0;
+
+	msk->pm.subflows++;
+	*addrs = remote;
+
+	return 1;
+}
+
+static unsigned int
+fill_remote_addresses_fullmesh(struct mptcp_sock *msk,
+			       struct mptcp_addr_info *local,
+			       struct mptcp_addr_info *addrs)
+{
+	bool deny_id0 = READ_ONCE(msk->pm.remote_deny_join_id0);
+	DECLARE_BITMAP(unavail_id, MPTCP_PM_MAX_ADDR_ID + 1);
 	struct sock *sk = (struct sock *)msk, *ssk;
 	struct mptcp_subflow_context *subflow;
-	struct mptcp_addr_info remote = { 0 };
 	unsigned int subflows_max;
 	int i = 0;
 
 	subflows_max = mptcp_pm_get_subflows_max(msk);
-	mptcp_remote_address((struct sock_common *)sk, &remote);
 
-	/* Non-fullmesh endpoint, fill in the single entry
-	 * corresponding to the primary MPC subflow remote address
+	/* Forbid creation of new subflows matching existing ones, possibly
+	 * already created by incoming ADD_ADDR
 	 */
-	if (!fullmesh) {
-		if (deny_id0)
-			return 0;
+	bitmap_zero(unavail_id, MPTCP_PM_MAX_ADDR_ID + 1);
+	mptcp_for_each_subflow(msk, subflow)
+		if (READ_ONCE(subflow->local_id) == local->id)
+			__set_bit(subflow->remote_id, unavail_id);
 
-		if (!mptcp_pm_addr_families_match(sk, local, &remote))
-			return 0;
+	mptcp_for_each_subflow(msk, subflow) {
+		ssk = mptcp_subflow_tcp_sock(subflow);
+		mptcp_remote_address((struct sock_common *)ssk, &addrs[i]);
+		addrs[i].id = READ_ONCE(subflow->remote_id);
+		if (deny_id0 && !addrs[i].id)
+			continue;
 
+		if (test_bit(addrs[i].id, unavail_id))
+			continue;
+
+		if (!mptcp_pm_addr_families_match(sk, local, &addrs[i]))
+			continue;
+
+		/* forbid creating multiple address towards this id */
+		__set_bit(addrs[i].id, unavail_id);
 		msk->pm.subflows++;
-		addrs[i++] = remote;
-	} else {
-		DECLARE_BITMAP(unavail_id, MPTCP_PM_MAX_ADDR_ID + 1);
+		i++;
 
-		/* Forbid creation of new subflows matching existing
-		 * ones, possibly already created by incoming ADD_ADDR
-		 */
-		bitmap_zero(unavail_id, MPTCP_PM_MAX_ADDR_ID + 1);
-		mptcp_for_each_subflow(msk, subflow)
-			if (READ_ONCE(subflow->local_id) == local->id)
-				__set_bit(subflow->remote_id, unavail_id);
-
-		mptcp_for_each_subflow(msk, subflow) {
-			ssk = mptcp_subflow_tcp_sock(subflow);
-			mptcp_remote_address((struct sock_common *)ssk, &addrs[i]);
-			addrs[i].id = READ_ONCE(subflow->remote_id);
-			if (deny_id0 && !addrs[i].id)
-				continue;
-
-			if (test_bit(addrs[i].id, unavail_id))
-				continue;
-
-			if (!mptcp_pm_addr_families_match(sk, local, &addrs[i]))
-				continue;
-
-			if (msk->pm.subflows < subflows_max) {
-				/* forbid creating multiple address towards
-				 * this id
-				 */
-				__set_bit(addrs[i].id, unavail_id);
-				msk->pm.subflows++;
-				i++;
-			}
-		}
+		if (msk->pm.subflows >= subflows_max)
+			break;
 	}
 
 	return i;
+}
+
+/* Fill all the remote addresses into the array addrs[],
+ * and return the array size.
+ */
+static unsigned int
+fill_remote_addresses_vec(struct mptcp_sock *msk, struct mptcp_addr_info *local,
+			  bool fullmesh, struct mptcp_addr_info *addrs)
+{
+	/* Non-fullmesh: fill in the single entry corresponding to the primary
+	 * MPC subflow remote address, and return 1, corresponding to 1 entry.
+	 */
+	if (!fullmesh)
+		return fill_remote_addr(msk, local, addrs);
+
+	/* Fullmesh endpoint: fill all possible remote addresses */
+	return fill_remote_addresses_fullmesh(msk, local, addrs);
 }
 
 static struct mptcp_pm_addr_entry *
