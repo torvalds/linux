@@ -22,8 +22,8 @@ setup_prepare()
 
 	for port in d1 d2 d3; do
 		adf_ip_link_add $port type veth peer name r$port
-		ip_link_set_up $port
-		ip_link_set_up r$port
+		adf_ip_link_set_up $port
+		adf_ip_link_set_up r$port
 		adf_ip_link_set_master $port br
 	done
 

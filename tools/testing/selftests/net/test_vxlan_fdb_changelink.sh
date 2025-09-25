@@ -75,7 +75,7 @@ test_change_mc_remote()
 	check_command netstat || return
 
 	adf_ip_link_add v1 up type veth peer name v2
-	ip_link_set_up v2
+	adf_ip_link_set_up v2
 
 	RET=0
 

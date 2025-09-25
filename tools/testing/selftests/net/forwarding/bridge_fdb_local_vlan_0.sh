@@ -78,13 +78,13 @@ h3_create()
 
 switch_create()
 {
-	ip_link_set_up "$swp1"
+	adf_ip_link_set_up "$swp1"
 
-	ip_link_set_up "$swp2"
+	adf_ip_link_set_up "$swp2"
 
 	ip_addr_add "$swp3" 192.0.2.17/28
 	ip_addr_add "$swp3" 2001:db8:2::1/64
-	ip_link_set_up "$swp3"
+	adf_ip_link_set_up "$swp3"
 }
 
 setup_prepare()

@@ -64,14 +64,14 @@ switch_create()
 	# Make sure the bridge uses the MAC address of the local port and not
 	# that of the VxLAN's device.
 	adf_ip_link_set_addr br1 $(mac_get $swp1)
-	ip_link_set_up br1
+	adf_ip_link_set_up br1
 
-	ip_link_set_up $rp1
+	adf_ip_link_set_up $rp1
 	ip_addr_add $rp1 192.0.2.17/28
 	ip_route_add 192.0.2.32/28 nexthop via 192.0.2.18
 
 	adf_ip_link_set_master $swp1 br1
-	ip_link_set_up $swp1
+	adf_ip_link_set_up $swp1
 }
 
 vrp2_create()

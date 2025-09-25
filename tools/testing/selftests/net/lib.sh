@@ -585,7 +585,7 @@ ip_link_is_up()
 	ip_link_has_flag "$1" UP
 }
 
-ip_link_set_up()
+adf_ip_link_set_up()
 {
 	local name=$1; shift
 

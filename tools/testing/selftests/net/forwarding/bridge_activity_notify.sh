@@ -40,13 +40,13 @@ switch_create()
 {
 	adf_ip_link_add br1 type bridge vlan_filtering 0 mcast_snooping 0 \
 		ageing_time "$LOW_AGEING_TIME"
-	ip_link_set_up br1
+	adf_ip_link_set_up br1
 
 	adf_ip_link_set_master "$swp1" br1
-	ip_link_set_up "$swp1"
+	adf_ip_link_set_up "$swp1"
 
 	adf_ip_link_set_master "$swp2" br1
-	ip_link_set_up "$swp2"
+	adf_ip_link_set_up "$swp2"
 }
 
 setup_prepare()
