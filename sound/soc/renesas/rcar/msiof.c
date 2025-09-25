@@ -65,6 +65,16 @@
  * how Codec driver start it.
  */
 
+/*
+ * [NOTE-FSERR]
+ *
+ * We can't remove all FSERR.
+ *
+ * Renesas have tried to minimize the occurrence of FSERR errors as much as possible, but
+ * unfortunately we cannot remove them completely, because MSIOF might setup its register during
+ * CLK/SYNC are inputed. It can be happen because MSIOF is working as Clock/Frame Consumer.
+ */
+
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_dma.h>
@@ -186,8 +196,13 @@ static int msiof_hw_start(struct snd_soc_component *component,
 
 	priv->count++;
 
-	/* reset errors */
-	priv->err_syc[substream->stream] =
+	/*
+	 * Reset errors. ignore 1st FSERR
+	 *
+	 * see
+	 *	[NOTE-FSERR]
+	 */
+	priv->err_syc[substream->stream] = -1;
 	priv->err_ovf[substream->stream] =
 	priv->err_udf[substream->stream] = 0;
 
@@ -278,6 +293,15 @@ static int msiof_hw_stop(struct snd_soc_component *component,
 
 	/* Stop DMAC */
 	snd_dmaengine_pcm_trigger(substream, cmd);
+
+	/*
+	 * Ignore 1st FSERR
+	 *
+	 * see
+	 *	[NOTE-FSERR]
+	 */
+	if (priv->err_syc[substream->stream] < 0)
+		priv->err_syc[substream->stream] = 0;
 
 	/* indicate error status if exist */
 	if (priv->err_syc[substream->stream] ||
