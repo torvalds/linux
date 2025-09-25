@@ -332,6 +332,7 @@ static void ivpu_gem_bo_free(struct drm_gem_object *obj)
 	drm_WARN_ON(&vdev->drm, bo->ctx);
 
 	drm_WARN_ON(obj->dev, refcount_read(&bo->base.pages_use_count) > 1);
+	drm_WARN_ON(obj->dev, bo->base.base.vma_node.vm_files.rb_node);
 	drm_gem_shmem_free(&bo->base);
 }
 
@@ -370,12 +371,16 @@ int ivpu_bo_create_ioctl(struct drm_device *dev, void *data, struct drm_file *fi
 		return PTR_ERR(bo);
 	}
 
+	drm_WARN_ON(&vdev->drm, bo->base.base.handle_count != 0);
+
 	ret = drm_gem_handle_create(file, &bo->base.base, &args->handle);
-	if (ret)
+	if (ret) {
 		ivpu_err(vdev, "Failed to create handle for BO: %pe (ctx %u size %llu flags 0x%x)",
 			 bo, file_priv->ctx.id, args->size, args->flags);
-	else
+	} else {
 		args->vpu_addr = bo->vpu_addr;
+		drm_WARN_ON(&vdev->drm, bo->base.base.handle_count != 1);
+	}
 
 	drm_gem_object_put(&bo->base.base);
 
