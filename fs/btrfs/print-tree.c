@@ -421,7 +421,7 @@ static void key_type_string(const struct btrfs_key *key, char *buf, int buf_size
 	if (key->type == 0 && key->objectid == BTRFS_FREE_SPACE_OBJECTID)
 		scnprintf(buf, buf_size, "UNTYPED");
 	else if (key_to_str[key->type])
-		scnprintf(buf, buf_size, key_to_str[key->type]);
+		scnprintf(buf, buf_size, "%s", key_to_str[key->type]);
 	else
 		scnprintf(buf, buf_size, "UNKNOWN.%d", key->type);
 }
