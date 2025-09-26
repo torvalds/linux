@@ -1725,6 +1725,11 @@ enum dmub_cmd_type {
 	DMUB_CMD__CURSOR_OFFLOAD = 92,
 
 	/**
+	 * Command type used for all SMART_POWER_HDR commands.
+	 */
+	DMUB_CMD__SMART_POWER_HDR = 93,
+
+	/**
 	 * Command type use for VBIOS shared commands.
 	 */
 	DMUB_CMD__VBIOS = 128,
@@ -4393,6 +4398,45 @@ enum replay_enable {
 };
 
 /**
+ * Data passed from driver to FW in a DMUB_CMD__SMART_POWER_HDR_ENABLE command.
+ */
+struct dmub_rb_cmd_smart_power_hdr_enable_data {
+	/**
+	 * SMART_POWER_HDR enable or disable.
+	 */
+	uint8_t enable;
+	/**
+	 * Panel Instance.
+	 * Panel isntance to identify which replay_state to use
+	 * Currently the support is only for 0 or 1
+	 */
+	uint8_t panel_inst;
+
+	uint16_t peak_nits;
+	/**
+	 * OTG HW instance.
+	 */
+	uint8_t otg_inst;
+	/**
+	 * DIG FE HW instance.
+	 */
+	uint8_t digfe_inst;
+	/**
+	 * DIG BE HW instance.
+	 */
+	uint8_t digbe_inst;
+	uint8_t debugcontrol;
+	/*
+	 * vertical interrupt trigger line
+	 */
+	uint32_t triggerline;
+
+	uint16_t fixed_max_cll;
+
+	uint8_t pad[2];
+};
+
+/**
  * Data passed from driver to FW in a DMUB_CMD__REPLAY_ENABLE command.
  */
 struct dmub_rb_cmd_replay_enable_data {
@@ -4723,6 +4767,58 @@ union dmub_replay_cmd_set {
 	 * Definition of DMUB_CMD__REPLAY_SET_GENERAL_CMD command data.
 	 */
 	struct dmub_cmd_replay_set_general_cmd_data set_general_cmd_data;
+};
+
+/**
+ * SMART POWER HDR command sub-types.
+ */
+enum dmub_cmd_smart_power_hdr_type {
+
+	/**
+	 * Enable/Disable SMART_POWER_HDR.
+	 */
+	DMUB_CMD__SMART_POWER_HDR_ENABLE = 1,
+	/**
+	 * Get current MaxCLL value if SMART POWER HDR is enabled.
+	 */
+	DMUB_CMD__SMART_POWER_HDR_GETMAXCLL = 2,
+};
+
+/**
+ * Definition of a DMUB_CMD__SMART_POWER_HDR command.
+ */
+struct dmub_rb_cmd_smart_power_hdr_enable {
+	/**
+	 * Command header.
+	 */
+	struct dmub_cmd_header header;
+
+	struct dmub_rb_cmd_smart_power_hdr_enable_data data;
+};
+
+struct dmub_cmd_smart_power_hdr_getmaxcll_input {
+	uint8_t panel_inst;
+	uint8_t pad[3];
+};
+
+struct dmub_cmd_smart_power_hdr_getmaxcll_output {
+	uint16_t current_max_cll;
+	uint8_t pad[2];
+};
+
+/**
+ * Definition of a DMUB_CMD__SMART_POWER_HDR command.
+ */
+struct dmub_rb_cmd_smart_power_hdr_getmaxcll {
+	struct dmub_cmd_header header; /**< Command header */
+	/**
+	 * Data passed from driver to FW in a DMUB_CMD__SMART_POWER_HDR_GETMAXCLL command.
+	 */
+	union dmub_cmd_smart_power_hdr_getmaxcll_data {
+		struct dmub_cmd_smart_power_hdr_getmaxcll_input input; /**< Input */
+		struct dmub_cmd_smart_power_hdr_getmaxcll_output output; /**< Output */
+		uint32_t output_raw; /**< Raw data output */
+	} data;
 };
 
 /**
@@ -6594,6 +6690,14 @@ union dmub_rb_cmd {
 	 * - DMUB_CMD__CURSOR_OFFLOAD_STREAM_UPDATE_DRR
 	 */
 	struct dmub_rb_cmd_cursor_offload_stream_cntl cursor_offload_stream_ctnl;
+	/**
+	 * Definition of a DMUB_CMD__SMART_POWER_HDR_ENABLE command.
+	 */
+	struct dmub_rb_cmd_smart_power_hdr_enable smart_power_hdr_enable;
+	/**
+	 * Definition of a DMUB_CMD__DMUB_CMD__SMART_POWER_HDR_GETMAXCLL command.
+	 */
+	struct dmub_rb_cmd_smart_power_hdr_getmaxcll smart_power_hdr_getmaxcll;
 };
 
 /**
