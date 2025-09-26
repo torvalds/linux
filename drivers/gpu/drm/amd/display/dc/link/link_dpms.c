@@ -2258,6 +2258,9 @@ static enum dc_status enable_link(
 		enable_link_lvds(pipe_ctx);
 		status = DC_OK;
 		break;
+	case SIGNAL_TYPE_RGB:
+		status = DC_OK;
+		break;
 	case SIGNAL_TYPE_VIRTUAL:
 		status = enable_link_virtual(pipe_ctx);
 		break;

@@ -862,6 +862,48 @@ static void verify_link_capability(struct dc_link *link, struct dc_sink *sink,
 		verify_link_capability_non_destructive(link);
 }
 
+/**
+ * link_detect_evaluate_edid_header() - Evaluate if an EDID header is acceptable.
+ *
+ * Evaluates an 8-byte EDID header to check if it's good enough
+ * for the purpose of determining whether a display is connected
+ * without reading the full EDID.
+ */
+static bool link_detect_evaluate_edid_header(uint8_t edid_header[8])
+{
+	int edid_header_score = 0;
+	int i;
+
+	for (i = 0; i < 8; ++i)
+		edid_header_score += edid_header[i] == ((i == 0 || i == 7) ? 0x00 : 0xff);
+
+	return edid_header_score >= 6;
+}
+
+/**
+ * link_detect_ddc_probe() - Probe the DDC to see if a display is connected.
+ *
+ * Detect whether a display is connected to DDC without reading full EDID.
+ * Reads only the EDID header (the first 8 bytes of EDID) from DDC and
+ * evaluates whether that matches.
+ */
+static bool link_detect_ddc_probe(struct dc_link *link)
+{
+	if (!link->ddc)
+		return false;
+
+	uint8_t edid_header[8] = {0};
+	bool ddc_probed = i2c_read(link->ddc, 0x50, edid_header, sizeof(edid_header));
+
+	if (!ddc_probed)
+		return false;
+
+	if (!link_detect_evaluate_edid_header(edid_header))
+		return false;
+
+	return true;
+}
+
 /*
  * detect_link_and_local_sink() - Detect if a sink is attached to a given link
  *
@@ -943,6 +985,12 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 		case SIGNAL_TYPE_DVI_DUAL_LINK: {
 			sink_caps.transaction_type = DDC_TRANSACTION_TYPE_I2C;
 			sink_caps.signal = SIGNAL_TYPE_DVI_DUAL_LINK;
+			break;
+		}
+
+		case SIGNAL_TYPE_RGB: {
+			sink_caps.transaction_type = DDC_TRANSACTION_TYPE_I2C;
+			sink_caps.signal = SIGNAL_TYPE_RGB;
 			break;
 		}
 
@@ -1139,8 +1187,16 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 				sink = prev_sink;
 				prev_sink = NULL;
 			}
-			query_hdcp_capability(sink->sink_signal, link);
+
+			if (!sink->edid_caps.analog)
+				query_hdcp_capability(sink->sink_signal, link);
 		}
+
+		/* DVI-I connector connected to analog display. */
+		if ((link->link_id.id == CONNECTOR_ID_DUAL_LINK_DVII ||
+		     link->link_id.id == CONNECTOR_ID_SINGLE_LINK_DVII) &&
+			sink->edid_caps.analog)
+			sink->sink_signal = SIGNAL_TYPE_RGB;
 
 		/* HDMI-DVI Dongle */
 		if (sink->sink_signal == SIGNAL_TYPE_HDMI_TYPE_A &&
@@ -1238,6 +1294,23 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 	return true;
 }
 
+/**
+ * link_detect_analog() - Determines if an analog sink is connected.
+ */
+static bool link_detect_analog(struct dc_link *link, enum dc_connection_type *type)
+{
+	/* Don't care about connectors that don't support an analog signal. */
+	ASSERT(dc_connector_supports_analog(link->link_id.id));
+
+	if (link_detect_ddc_probe(link)) {
+		*type = dc_connection_single;
+		return true;
+	}
+
+	*type = dc_connection_none;
+	return true;
+}
+
 /*
  * link_detect_connection_type() - Determine if there is a sink connected
  *
@@ -1253,6 +1326,17 @@ bool link_detect_connection_type(struct dc_link *link, enum dc_connection_type *
 		*type = dc_connection_single;
 		return true;
 	}
+
+	/* Ignore the HPD pin (if any) for analog connectors.
+	 * Instead rely on DDC.
+	 *
+	 * - VGA connectors don't have any HPD at all.
+	 * - Some DVI-A cables don't connect the HPD pin.
+	 * - Some DVI-A cables pull up the HPD pin.
+	 *   (So it's high even when no display is connected.)
+	 */
+	if (dc_connector_supports_analog(link->link_id.id))
+		return link_detect_analog(link, type);
 
 	if (link->connector_signal == SIGNAL_TYPE_EDP) {
 		/*in case it is not on*/
