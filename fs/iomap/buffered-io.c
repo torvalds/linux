@@ -375,10 +375,11 @@ static void iomap_bio_submit_read(struct iomap_read_folio_ctx *ctx)
 }
 
 static void iomap_bio_read_folio_range(const struct iomap_iter *iter,
-		struct iomap_read_folio_ctx *ctx, loff_t pos, size_t plen)
+		struct iomap_read_folio_ctx *ctx, size_t plen)
 {
 	struct folio *folio = ctx->cur_folio;
 	const struct iomap *iomap = &iter->iomap;
+	loff_t pos = iter->pos;
 	size_t poff = offset_in_folio(folio, pos);
 	loff_t length = iomap_length(iter);
 	sector_t sector;
@@ -506,7 +507,7 @@ static int iomap_read_folio_iter(struct iomap_iter *iter,
 	loff_t length = iomap_length(iter);
 	struct folio *folio = ctx->cur_folio;
 	size_t poff, plen;
-	loff_t count;
+	loff_t pos_diff;
 	int ret;
 
 	if (iomap->type == IOMAP_INLINE) {
@@ -524,12 +525,16 @@ static int iomap_read_folio_iter(struct iomap_iter *iter,
 		iomap_adjust_read_range(iter->inode, folio, &pos, length, &poff,
 				&plen);
 
-		count = pos - iter->pos + plen;
-		if (WARN_ON_ONCE(count > length))
+		pos_diff = pos - iter->pos;
+		if (WARN_ON_ONCE(pos_diff + plen > length))
 			return -EIO;
 
+		ret = iomap_iter_advance(iter, pos_diff);
+		if (ret)
+			return ret;
+
 		if (plen == 0)
-			return iomap_iter_advance(iter, count);
+			return 0;
 
 		/* zero post-eof blocks as the page may be mapped */
 		if (iomap_block_needs_zeroing(iter, pos)) {
@@ -539,13 +544,13 @@ static int iomap_read_folio_iter(struct iomap_iter *iter,
 			if (!*bytes_pending)
 				iomap_read_init(folio);
 			*bytes_pending += plen;
-			iomap_bio_read_folio_range(iter, ctx, pos, plen);
+			iomap_bio_read_folio_range(iter, ctx, plen);
 		}
 
-		ret = iomap_iter_advance(iter, count);
+		ret = iomap_iter_advance(iter, plen);
 		if (ret)
 			return ret;
-		length -= count;
+		length -= pos_diff + plen;
 		pos = iter->pos;
 	}
 	return 0;
