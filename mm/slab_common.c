@@ -510,6 +510,9 @@ void kmem_cache_destroy(struct kmem_cache *s)
 		rcu_barrier();
 	}
 
+	/* Wait for deferred work from kmalloc/kfree_nolock() */
+	defer_free_barrier();
+
 	cpus_read_lock();
 	mutex_lock(&slab_mutex);
 
