@@ -1187,6 +1187,7 @@ static void dccg35_update_dpp_dto(struct dccg *dccg, int dpp_inst,
 		/*we have this in hwss: disable_plane*/
 		//dccg35_set_dppclk_rcg(dccg, dpp_inst, true);
 	}
+	udelay(10);
 	dccg->pipe_dppclk_khz[dpp_inst] = req_dppclk;
 }
 
@@ -1676,7 +1677,7 @@ static void dccg35_dpp_root_clock_control(
 {
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
 
-	if (dccg->dpp_clock_gated[dpp_inst] == clock_on)
+	if (dccg->dpp_clock_gated[dpp_inst] != clock_on)
 		return;
 
 	if (clock_on) {
@@ -1696,6 +1697,9 @@ static void dccg35_dpp_root_clock_control(
 		/*we have this in hwss: disable_plane*/
 		//dccg35_set_dppclk_rcg(dccg, dpp_inst, true);
 	}
+
+	// wait for clock to fully ramp
+	udelay(10);
 
 	dccg->dpp_clock_gated[dpp_inst] = !clock_on;
 	DC_LOG_DEBUG("%s: dpp_inst(%d) clock_on = %d\n", __func__, dpp_inst, clock_on);
