@@ -451,6 +451,14 @@ static enum channel_id get_ddc_line(struct dc_link *link)
 	return channel;
 }
 
+static bool transmitter_supported(const enum transmitter transmitter)
+{
+	return transmitter != TRANSMITTER_UNKNOWN &&
+		transmitter != TRANSMITTER_NUTMEG_CRT &&
+		transmitter != TRANSMITTER_TRAVIS_CRT &&
+		transmitter != TRANSMITTER_TRAVIS_LCD;
+}
+
 static bool construct_phy(struct dc_link *link,
 			      const struct link_init_data *init_params)
 {
@@ -481,6 +489,17 @@ static bool construct_phy(struct dc_link *link,
 
 	link->link_id =
 		bios->funcs->get_connector_id(bios, init_params->connector_index);
+
+	/* Determine early if the link has any supported encoders,
+	 * so that we avoid initializing DDC and HPD, etc.
+	 */
+	bp_funcs->get_src_obj(bios, link->link_id, 0, &enc_init_data.encoder);
+	enc_init_data.transmitter = translate_encoder_to_transmitter(enc_init_data.encoder);
+
+	if (!transmitter_supported(enc_init_data.transmitter)) {
+		DC_LOG_WARNING("link_id %d has unsupported encoder\n", link->link_id.id);
+		return false;
+	}
 
 	link->ep_type = DISPLAY_ENDPOINT_PHY;
 
@@ -611,16 +630,12 @@ static bool construct_phy(struct dc_link *link,
 		dal_ddc_get_line(get_ddc_pin(link->ddc));
 
 	enc_init_data.ctx = dc_ctx;
-	bp_funcs->get_src_obj(dc_ctx->dc_bios, link->link_id, 0,
-			      &enc_init_data.encoder);
 	enc_init_data.connector = link->link_id;
 	enc_init_data.channel = get_ddc_line(link);
 	enc_init_data.hpd_source = get_hpd_line(link);
 
 	link->hpd_src = enc_init_data.hpd_source;
 
-	enc_init_data.transmitter =
-		translate_encoder_to_transmitter(enc_init_data.encoder);
 	link->link_enc =
 		link->dc->res_pool->funcs->link_enc_create(dc_ctx, &enc_init_data);
 
