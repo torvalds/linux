@@ -14,6 +14,8 @@ properties:
     enum:
       # MAXI MAX11801 Resistive touch screen controller with i2c interface
       - maxim,max11801
+      # Microchip AR1020 and AR1021 touchscreen interface (I2C)
+      - microchip,ar1021-i2c
 
   reg:
     maxItems: 1
