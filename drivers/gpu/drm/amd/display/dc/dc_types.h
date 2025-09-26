@@ -353,7 +353,8 @@ enum dc_connection_type {
 	dc_connection_none,
 	dc_connection_single,
 	dc_connection_mst_branch,
-	dc_connection_sst_branch
+	dc_connection_sst_branch,
+	dc_connection_dac_load
 };
 
 struct dc_csc_adjustments {

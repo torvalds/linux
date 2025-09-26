@@ -904,6 +904,37 @@ static bool link_detect_ddc_probe(struct dc_link *link)
 	return true;
 }
 
+/**
+ * link_detect_dac_load_detect() - Performs DAC load detection.
+ *
+ * Load detection can be used to detect the presence of an
+ * analog display when we can't read DDC. This causes a visible
+ * visual glitch so it should be used sparingly.
+ */
+static bool link_detect_dac_load_detect(struct dc_link *link)
+{
+	struct dc_bios *bios = link->ctx->dc_bios;
+	struct link_encoder *link_enc = link->link_enc;
+	enum engine_id engine_id = link_enc->preferred_engine;
+	enum dal_device_type device_type = DEVICE_TYPE_CRT;
+	enum bp_result bp_result;
+	uint32_t enum_id;
+
+	switch (engine_id) {
+	case ENGINE_ID_DACB:
+		enum_id = 2;
+		break;
+	case ENGINE_ID_DACA:
+	default:
+		engine_id = ENGINE_ID_DACA;
+		enum_id = 1;
+		break;
+	}
+
+	bp_result = bios->funcs->dac_load_detection(bios, engine_id, device_type, enum_id);
+	return bp_result == BP_RESULT_OK;
+}
+
 /*
  * detect_link_and_local_sink() - Detect if a sink is attached to a given link
  *
@@ -1118,7 +1149,30 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 			DC_LOG_ERROR("Partial EDID valid, abandon invalid blocks.\n");
 			break;
 		case EDID_NO_RESPONSE:
+			/* Analog connectors without EDID:
+			 * - old monitor that actually doesn't have EDID
+			 * - cheap DVI-A cable or adapter that doesn't connect DDC
+			 */
+			if (dc_connector_supports_analog(link->link_id.id)) {
+				/* If we didn't do DAC load detection yet, do it now
+				 * to verify there really is a display connected.
+				 */
+				if (link->type != dc_connection_dac_load &&
+					!link_detect_dac_load_detect(link)) {
+					if (prev_sink)
+						dc_sink_release(prev_sink);
+					link_disconnect_sink(link);
+					return false;
+				}
+
+				DC_LOG_INFO("%s detected analog display without EDID\n", __func__);
+				link->type = dc_connection_dac_load;
+				sink->edid_caps.analog = true;
+				break;
+			}
+
 			DC_LOG_ERROR("No EDID read.\n");
+
 			/*
 			 * Abort detection for non-DP connectors if we have
 			 * no EDID
@@ -1307,6 +1361,11 @@ static bool link_detect_analog(struct dc_link *link, enum dc_connection_type *ty
 		return true;
 	}
 
+	if (link_detect_dac_load_detect(link)) {
+		*type = dc_connection_dac_load;
+		return true;
+	}
+
 	*type = dc_connection_none;
 	return true;
 }
@@ -1328,7 +1387,7 @@ bool link_detect_connection_type(struct dc_link *link, enum dc_connection_type *
 	}
 
 	/* Ignore the HPD pin (if any) for analog connectors.
-	 * Instead rely on DDC.
+	 * Instead rely on DDC and DAC.
 	 *
 	 * - VGA connectors don't have any HPD at all.
 	 * - Some DVI-A cables don't connect the HPD pin.

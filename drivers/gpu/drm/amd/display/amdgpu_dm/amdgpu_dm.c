@@ -7248,6 +7248,16 @@ amdgpu_dm_connector_poll(struct amdgpu_dm_connector *aconnector, bool force)
 	enum dc_connection_type conn_type = dc_connection_none;
 	enum drm_connector_status status = connector_status_disconnected;
 
+	/* When we determined the connection using DAC load detection,
+	 * do NOT poll the connector do detect disconnect because
+	 * that would run DAC load detection again which can cause
+	 * visible visual glitches.
+	 *
+	 * Only allow to poll such a connector again when forcing.
+	 */
+	if (!force && link->local_sink && link->type == dc_connection_dac_load)
+		return connector->status;
+
 	mutex_lock(&aconnector->hpd_lock);
 
 	if (dc_link_detect_connection_type(aconnector->dc_link, &conn_type) &&
