@@ -274,7 +274,7 @@ struct gpio_regmap *gpio_regmap_register(const struct gpio_regmap_config *config
 	if (!chip->ngpio) {
 		ret = gpiochip_get_ngpios(chip, chip->parent);
 		if (ret)
-			return ERR_PTR(ret);
+			goto err_free_gpio;
 	}
 
 	/* if not set, assume there is only one register */
