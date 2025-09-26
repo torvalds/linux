@@ -20710,7 +20710,7 @@ F:	Documentation/devicetree/bindings/power/avs/qcom,cpr.yaml
 F:	drivers/pmdomain/qcom/cpr.c
 
 QUALCOMM CPUCP MAILBOX DRIVER
-M:	Sibi Sankar <quic_sibis@quicinc.com>
+M:	Sibi Sankar <sibi.sankar@oss.qualcomm.com>
 L:	linux-arm-msm@vger.kernel.org
 S:	Supported
 F:	Documentation/devicetree/bindings/mailbox/qcom,cpucp-mbox.yaml
