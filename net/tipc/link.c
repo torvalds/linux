@@ -495,11 +495,9 @@ bool tipc_link_create(struct net *net, char *if_name, int bearer_id,
 
 	/* Set link name for unicast links only */
 	if (peer_id) {
-		tipc_nodeid2string(self_str, tipc_own_id(net));
-		if (strlen(self_str) > 16)
+		if (tipc_nodeid2string(self_str, tipc_own_id(net)) > NODE_ID_LEN)
 			sprintf(self_str, "%x", self);
-		tipc_nodeid2string(peer_str, peer_id);
-		if (strlen(peer_str) > 16)
+		if (tipc_nodeid2string(peer_str, peer_id) > NODE_ID_LEN)
 			sprintf(peer_str, "%x", peer);
 	}
 	/* Peer i/f name will be completed by reset/activate message */
@@ -570,8 +568,7 @@ bool tipc_link_bc_create(struct net *net, u32 ownnode, u32 peer, u8 *peer_id,
 	if (peer_id) {
 		char peer_str[NODE_ID_STR_LEN] = {0,};
 
-		tipc_nodeid2string(peer_str, peer_id);
-		if (strlen(peer_str) > 16)
+		if (tipc_nodeid2string(peer_str, peer_id) > NODE_ID_LEN)
 			sprintf(peer_str, "%x", peer);
 		/* Broadcast receiver link name: "broadcast-link:<peer>" */
 		snprintf(l->name, sizeof(l->name), "%s:%s", tipc_bclink_name,
