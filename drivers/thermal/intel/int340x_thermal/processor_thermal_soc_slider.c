@@ -67,7 +67,8 @@ static int slider_def_balance_set(const char *arg, const struct kernel_param *kp
 
 	ret = kstrtou8(arg, 16, &slider_val);
 	if (!ret) {
-		if (slider_val > SOC_SLIDER_VALUE_MAXIMUM)
+		if (slider_val <= slider_values[SOC_POWER_SLIDER_PERFORMANCE] ||
+		    slider_val >= slider_values[SOC_POWER_SLIDER_POWERSAVE])
 			return -EINVAL;
 
 		slider_balanced_param = slider_val;
