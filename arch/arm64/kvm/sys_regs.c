@@ -2704,7 +2704,7 @@ static bool access_zcr_el2(struct kvm_vcpu *vcpu,
 
 	if (guest_hyp_sve_traps_enabled(vcpu)) {
 		kvm_inject_nested_sve_trap(vcpu);
-		return true;
+		return false;
 	}
 
 	if (!p->is_write) {
