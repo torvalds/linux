@@ -225,6 +225,7 @@ static const struct dce110_link_enc_registers link_enc_regs[] = {
 	link_regs(4),
 	link_regs(5),
 	link_regs(6),
+	{ .DAC_ENABLE = mmDAC_ENABLE },
 };
 
 #define stream_enc_regs(id)\
@@ -632,7 +633,20 @@ static struct link_encoder *dce100_link_encoder_create(
 		kzalloc(sizeof(struct dce110_link_encoder), GFP_KERNEL);
 	int link_regs_id;
 
-	if (!enc110 || enc_init_data->hpd_source >= ARRAY_SIZE(link_enc_hpd_regs))
+	if (!enc110)
+		return NULL;
+
+	if (enc_init_data->connector.id == CONNECTOR_ID_VGA) {
+		dce110_link_encoder_construct(enc110,
+			enc_init_data,
+			&link_enc_feature,
+			&link_enc_regs[ENGINE_ID_DACA],
+			NULL,
+			NULL);
+		return &enc110->base;
+	}
+
+	if (enc_init_data->hpd_source >= ARRAY_SIZE(link_enc_hpd_regs))
 		return NULL;
 
 	link_regs_id =
