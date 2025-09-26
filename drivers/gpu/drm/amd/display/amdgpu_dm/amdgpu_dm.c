@@ -3853,7 +3853,9 @@ void amdgpu_dm_update_connector_after_detect(
 	drm_dbg_kms(dev, "DCHPD: connector_id=%d: Old sink=%p New sink=%p\n",
 		    aconnector->connector_id, aconnector->dc_sink, sink);
 
-	guard(mutex)(&dev->mode_config.mutex);
+	/* When polling, DRM has already locked the mutex for us. */
+	if (!drm_kms_helper_is_poll_worker())
+		mutex_lock(&dev->mode_config.mutex);
 
 	/*
 	 * 1. Update status of the drm connector
@@ -3916,6 +3918,10 @@ void amdgpu_dm_update_connector_after_detect(
 	}
 
 	update_subconnector_property(aconnector);
+
+	/* When polling, the mutex will be unlocked for us by DRM. */
+	if (!drm_kms_helper_is_poll_worker())
+		mutex_unlock(&dev->mode_config.mutex);
 }
 
 static void handle_hpd_irq_helper(struct amdgpu_dm_connector *aconnector)
@@ -7227,11 +7233,62 @@ finish:
 }
 
 /**
+ * amdgpu_dm_connector_poll() - Poll a connector to see if it's connected to a display
+ *
+ * Used for connectors that don't support HPD (hotplug detection)
+ * to periodically checked whether the connector is connected to a display.
+ */
+static enum drm_connector_status
+amdgpu_dm_connector_poll(struct amdgpu_dm_connector *aconnector, bool force)
+{
+	struct drm_connector *connector = &aconnector->base;
+	struct drm_device *dev = connector->dev;
+	struct amdgpu_device *adev = drm_to_adev(dev);
+	struct dc_link *link = aconnector->dc_link;
+	enum dc_connection_type conn_type = dc_connection_none;
+	enum drm_connector_status status = connector_status_disconnected;
+
+	mutex_lock(&aconnector->hpd_lock);
+
+	if (dc_link_detect_connection_type(aconnector->dc_link, &conn_type) &&
+	    conn_type != dc_connection_none) {
+		mutex_lock(&adev->dm.dc_lock);
+
+		/* Only call full link detection when a sink isn't created yet,
+		 * ie. just when the display is plugged in, otherwise we risk flickering.
+		 */
+		if (link->local_sink ||
+			dc_link_detect(link, DETECT_REASON_HPD))
+			status = connector_status_connected;
+
+		mutex_unlock(&adev->dm.dc_lock);
+	}
+
+	if (connector->status != status) {
+		if (status == connector_status_disconnected) {
+			if (link->local_sink)
+				dc_sink_release(link->local_sink);
+
+			link->local_sink = NULL;
+			link->dpcd_sink_count = 0;
+			link->type = dc_connection_none;
+		}
+
+		amdgpu_dm_update_connector_after_detect(aconnector);
+	}
+
+	mutex_unlock(&aconnector->hpd_lock);
+	return status;
+}
+
+/**
  * amdgpu_dm_connector_detect() - Detect whether a DRM connector is connected to a display
  *
  * A connector is considered connected when it has a sink that is not NULL.
  * For connectors that support HPD (hotplug detection), the connection is
  * handled in the HPD interrupt.
+ * For connectors that may not support HPD, such as analog connectors,
+ * DRM will call this function repeatedly to poll them.
  *
  * Notes:
  * 1. This interface is NOT called in context of HPD irq.
@@ -7250,6 +7307,14 @@ amdgpu_dm_connector_detect(struct drm_connector *connector, bool force)
 		return connector_status_connected;
 	else if (aconnector->base.force == DRM_FORCE_OFF)
 		return connector_status_disconnected;
+
+	/* Poll analog connectors and only when either
+	 * disconnected or connected to an analog display.
+	 */
+	if (drm_kms_helper_is_poll_worker() &&
+		dc_connector_supports_analog(aconnector->dc_link->link_id.id) &&
+		(!aconnector->dc_sink || aconnector->dc_sink->edid_caps.analog))
+		return amdgpu_dm_connector_poll(aconnector, force);
 
 	return (aconnector->dc_sink ? connector_status_connected :
 			connector_status_disconnected);
@@ -8675,8 +8740,12 @@ void amdgpu_dm_connector_init_helper(struct amdgpu_display_manager *dm,
 			link->link_enc->features.dp_ycbcr420_supported ? true : false;
 		break;
 	case DRM_MODE_CONNECTOR_DVID:
-	case DRM_MODE_CONNECTOR_DVII:
 		aconnector->base.polled = DRM_CONNECTOR_POLL_HPD;
+		break;
+	case DRM_MODE_CONNECTOR_DVII:
+	case DRM_MODE_CONNECTOR_VGA:
+		aconnector->base.polled =
+			DRM_CONNECTOR_POLL_CONNECT | DRM_CONNECTOR_POLL_DISCONNECT;
 		break;
 	default:
 		break;
