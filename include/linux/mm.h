@@ -2742,7 +2742,7 @@ static inline void update_hiwater_rss(struct mm_struct *mm)
 	unsigned long _rss = get_mm_rss(mm);
 
 	if (data_race(mm->hiwater_rss) < _rss)
-		(mm)->hiwater_rss = _rss;
+		data_race(mm->hiwater_rss = _rss);
 }
 
 static inline void update_hiwater_vm(struct mm_struct *mm)
