@@ -4215,7 +4215,6 @@ bool amdgpu_device_asic_has_dc_support(struct pci_dev *pdev,
 #else
 		return false;
 #endif
-	case CHIP_BONAIRE:
 	case CHIP_KAVERI:
 	case CHIP_KABINI:
 	case CHIP_MULLINS:
