@@ -7364,6 +7364,9 @@ void kvm_mmu_invalidate_mmio_sptes(struct kvm *kvm, u64 gen)
 {
 	WARN_ON_ONCE(gen & KVM_MEMSLOT_GEN_UPDATE_IN_PROGRESS);
 
+	if (!enable_mmio_caching)
+		return;
+
 	gen &= MMIO_SPTE_GEN_MASK;
 
 	/*
