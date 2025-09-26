@@ -118,6 +118,9 @@
  * from scratch.
  */
 
+/* Counter of active nbcon emergency contexts. */
+static atomic_t nbcon_cpu_emergency_cnt = ATOMIC_INIT(0);
+
 /**
  * nbcon_state_set - Helper function to set the console state
  * @con:	Console to update
@@ -1163,6 +1166,16 @@ static bool nbcon_kthread_should_wakeup(struct console *con, struct nbcon_contex
 	if (kthread_should_stop())
 		return true;
 
+	/*
+	 * Block the kthread when the system is in an emergency or panic mode.
+	 * It increases the chance that these contexts would be able to show
+	 * the messages directly. And it reduces the risk of interrupted writes
+	 * where the context with a higher priority takes over the nbcon console
+	 * ownership in the middle of a message.
+	 */
+	if (unlikely(atomic_read(&nbcon_cpu_emergency_cnt)))
+		return false;
+
 	cookie = console_srcu_read_lock();
 
 	flags = console_srcu_read_flags(con);
@@ -1213,6 +1226,13 @@ wait_for_event:
 	do {
 		if (kthread_should_stop())
 			return 0;
+
+		/*
+		 * Block the kthread when the system is in an emergency or panic
+		 * mode. See nbcon_kthread_should_wakeup() for more details.
+		 */
+		if (unlikely(atomic_read(&nbcon_cpu_emergency_cnt)))
+			goto wait_for_event;
 
 		backlog = false;
 
@@ -1655,6 +1675,8 @@ void nbcon_cpu_emergency_enter(void)
 
 	preempt_disable();
 
+	atomic_inc(&nbcon_cpu_emergency_cnt);
+
 	cpu_emergency_nesting = nbcon_get_cpu_emergency_nesting();
 	(*cpu_emergency_nesting)++;
 }
@@ -1669,9 +1691,23 @@ void nbcon_cpu_emergency_exit(void)
 	unsigned int *cpu_emergency_nesting;
 
 	cpu_emergency_nesting = nbcon_get_cpu_emergency_nesting();
-
 	if (!WARN_ON_ONCE(*cpu_emergency_nesting == 0))
 		(*cpu_emergency_nesting)--;
+
+	/*
+	 * Wake up kthreads because there might be some pending messages
+	 * added by other CPUs with normal priority since the last flush
+	 * in the emergency context.
+	 */
+	if (!WARN_ON_ONCE(atomic_read(&nbcon_cpu_emergency_cnt) == 0)) {
+		if (atomic_dec_return(&nbcon_cpu_emergency_cnt) == 0) {
+			struct console_flush_type ft;
+
+			printk_get_console_flush_type(&ft);
+			if (ft.nbcon_offload)
+				nbcon_kthreads_wake();
+		}
+	}
 
 	preempt_enable();
 }
