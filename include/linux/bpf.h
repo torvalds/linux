@@ -32,7 +32,6 @@
 #include <linux/memcontrol.h>
 #include <linux/cfi.h>
 #include <asm/rqspinlock.h>
-#include <crypto/sha2.h>
 
 struct bpf_verifier_env;
 struct bpf_verifier_log;
