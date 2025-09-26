@@ -1173,7 +1173,8 @@ static bool nbcon_kthread_should_wakeup(struct console *con, struct nbcon_contex
 	 * where the context with a higher priority takes over the nbcon console
 	 * ownership in the middle of a message.
 	 */
-	if (unlikely(atomic_read(&nbcon_cpu_emergency_cnt)))
+	if (unlikely(atomic_read(&nbcon_cpu_emergency_cnt)) ||
+	    unlikely(panic_in_progress()))
 		return false;
 
 	cookie = console_srcu_read_lock();
@@ -1231,7 +1232,8 @@ wait_for_event:
 		 * Block the kthread when the system is in an emergency or panic
 		 * mode. See nbcon_kthread_should_wakeup() for more details.
 		 */
-		if (unlikely(atomic_read(&nbcon_cpu_emergency_cnt)))
+		if (unlikely(atomic_read(&nbcon_cpu_emergency_cnt)) ||
+		    unlikely(panic_in_progress()))
 			goto wait_for_event;
 
 		backlog = false;
