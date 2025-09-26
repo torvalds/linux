@@ -79,7 +79,7 @@ static struct dma_fence *vgem_fence_create(struct vgem_file *vfile,
 	dma_fence_init(&fence->base, &vgem_fence_ops, &fence->lock,
 		       dma_fence_context_alloc(1), 1);
 
-	timer_setup(&fence->timer, vgem_fence_timeout, 0);
+	timer_setup(&fence->timer, vgem_fence_timeout, TIMER_IRQSAFE);
 
 	/* We force the fence to expire within 10s to prevent driver hangs */
 	mod_timer(&fence->timer, jiffies + VGEM_FENCE_TIMEOUT);
