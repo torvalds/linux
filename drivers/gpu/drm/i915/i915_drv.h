@@ -174,6 +174,7 @@ struct i915_selftest_stash {
 struct drm_i915_private {
 	struct drm_device drm;
 
+	/* display device data, must be placed after drm device member */
 	struct intel_display *display;
 
 	/* FIXME: Device release actions should all be moved to drmm_ */

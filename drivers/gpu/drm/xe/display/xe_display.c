@@ -13,6 +13,7 @@
 #include <drm/drm_drv.h>
 #include <drm/drm_managed.h>
 #include <drm/drm_probe_helper.h>
+#include <drm/intel/display_member.h>
 #include <uapi/drm/xe_drm.h>
 
 #include "soc/intel_dram.h"
@@ -34,6 +35,9 @@
 #include "intel_opregion.h"
 #include "skl_watermark.h"
 #include "xe_module.h"
+
+/* Ensure drm and display members are placed properly. */
+INTEL_DISPLAY_MEMBER_STATIC_ASSERT(struct xe_device, drm, display);
 
 /* Xe device functions */
 

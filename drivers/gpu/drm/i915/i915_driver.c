@@ -46,6 +46,7 @@
 #include <drm/drm_ioctl.h>
 #include <drm/drm_managed.h>
 #include <drm/drm_probe_helper.h>
+#include <drm/intel/display_member.h>
 
 #include "display/i9xx_display_sr.h"
 #include "display/intel_bw.h"
@@ -736,6 +737,9 @@ static void i915_welcome_messages(struct drm_i915_private *dev_priv)
 		drm_info(&dev_priv->drm,
 			 "DRM_I915_DEBUG_RUNTIME_PM enabled\n");
 }
+
+/* Ensure drm and display members are placed properly. */
+INTEL_DISPLAY_MEMBER_STATIC_ASSERT(struct drm_i915_private, drm, display);
 
 static struct drm_i915_private *
 i915_driver_create(struct pci_dev *pdev, const struct pci_device_id *ent)
