@@ -4154,7 +4154,6 @@ static int process_dir_items_leaf(struct btrfs_trans_handle *trans,
 	for (int i = path->slots[0]; i < nritems; i++) {
 		struct btrfs_dir_item *di;
 		struct btrfs_key key;
-		int ret;
 
 		btrfs_item_key_to_cpu(src, &key, i);
 
@@ -4224,8 +4223,6 @@ static int process_dir_items_leaf(struct btrfs_trans_handle *trans,
 	}
 
 	if (batch_size > 0) {
-		int ret;
-
 		ret = flush_dir_items_batch(trans, inode, src, dst_path,
 					    batch_start, batch_size);
 		if (ret < 0)

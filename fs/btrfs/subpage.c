@@ -460,12 +460,12 @@ void btrfs_subpage_set_writeback(const struct btrfs_fs_info *fs_info,
 	if (!folio_test_dirty(folio)) {
 		struct address_space *mapping = folio_mapping(folio);
 		XA_STATE(xas, &mapping->i_pages, folio->index);
-		unsigned long flags;
+		unsigned long xa_flags;
 
-		xas_lock_irqsave(&xas, flags);
+		xas_lock_irqsave(&xas, xa_flags);
 		xas_load(&xas);
 		xas_clear_mark(&xas, PAGECACHE_TAG_TOWRITE);
-		xas_unlock_irqrestore(&xas, flags);
+		xas_unlock_irqrestore(&xas, xa_flags);
 	}
 	spin_unlock_irqrestore(&bfs->lock, flags);
 }
