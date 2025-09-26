@@ -886,8 +886,7 @@ static void group_free_queue(struct panthor_group *group, struct panthor_queue *
 	if (IS_ERR_OR_NULL(queue))
 		return;
 
-	if (queue->entity.fence_context)
-		drm_sched_entity_destroy(&queue->entity);
+	drm_sched_entity_destroy(&queue->entity);
 
 	if (queue->scheduler.ops)
 		drm_sched_fini(&queue->scheduler);
@@ -3557,11 +3556,6 @@ int panthor_group_destroy(struct panthor_file *pfile, u32 group_handle)
 	group = xa_erase(&gpool->xa, group_handle);
 	if (!group)
 		return -EINVAL;
-
-	for (u32 i = 0; i < group->queue_count; i++) {
-		if (group->queues[i])
-			drm_sched_entity_destroy(&group->queues[i]->entity);
-	}
 
 	mutex_lock(&sched->reset.lock);
 	mutex_lock(&sched->lock);
