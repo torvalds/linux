@@ -1046,6 +1046,13 @@ static int imx_rproc_sys_off_handler(struct sys_off_data *data)
 	return NOTIFY_DONE;
 }
 
+static void imx_rproc_destroy_workqueue(void *data)
+{
+	struct workqueue_struct *workqueue = data;
+
+	destroy_workqueue(workqueue);
+}
+
 static int imx_rproc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -1077,11 +1084,15 @@ static int imx_rproc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
+	ret = devm_add_action_or_reset(dev, imx_rproc_destroy_workqueue, priv->workqueue);
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to add devm destroy workqueue action\n");
+
 	INIT_WORK(&priv->rproc_work, imx_rproc_vq_work);
 
 	ret = imx_rproc_xtr_mbox_init(rproc, true);
 	if (ret)
-		goto err_put_wkq;
+		return ret;
 
 	ret = imx_rproc_addr_init(priv, pdev);
 	if (ret) {
@@ -1152,8 +1163,6 @@ err_put_scu:
 	imx_rproc_put_scu(rproc);
 err_put_mbox:
 	imx_rproc_free_mbox(rproc);
-err_put_wkq:
-	destroy_workqueue(priv->workqueue);
 
 	return ret;
 }
@@ -1171,7 +1180,6 @@ static void imx_rproc_remove(struct platform_device *pdev)
 	rproc_del(rproc);
 	imx_rproc_put_scu(rproc);
 	imx_rproc_free_mbox(rproc);
-	destroy_workqueue(priv->workqueue);
 }
 
 static const struct imx_rproc_plat_ops imx_rproc_ops_arm_smc = {
