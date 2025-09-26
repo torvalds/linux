@@ -60,12 +60,9 @@ struct meson_canvas *meson_canvas_get(struct device *dev)
 		return ERR_PTR(-ENODEV);
 
 	canvas_pdev = of_find_device_by_node(canvas_node);
-	if (!canvas_pdev) {
-		of_node_put(canvas_node);
-		return ERR_PTR(-EPROBE_DEFER);
-	}
-
 	of_node_put(canvas_node);
+	if (!canvas_pdev)
+		return ERR_PTR(-EPROBE_DEFER);
 
 	/*
 	 * If priv is NULL, it's probably because the canvas hasn't
