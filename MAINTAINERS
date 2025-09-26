@@ -1772,7 +1772,7 @@ F:	drivers/staging/iio/*/ad*
 X:	drivers/iio/*/adjd*
 
 ANALOGBITS PLL LIBRARIES
-M:	Paul Walmsley <paul.walmsley@sifive.com>
+M:	Paul Walmsley <pjw@kernel.org>
 M:	Samuel Holland <samuel.holland@sifive.com>
 S:	Supported
 F:	drivers/clk/analogbits/*
@@ -19296,7 +19296,7 @@ S:	Maintained
 F:	drivers/pci/controller/dwc/*layerscape*
 
 PCI DRIVER FOR FU740
-M:	Paul Walmsley <paul.walmsley@sifive.com>
+M:	Paul Walmsley <pjw@kernel.org>
 M:	Greentime Hu <greentime.hu@sifive.com>
 M:	Samuel Holland <samuel.holland@sifive.com>
 L:	linux-pci@vger.kernel.org
@@ -21656,7 +21656,7 @@ F:	Documentation/devicetree/bindings/timer/andestech,plmt0.yaml
 F:	arch/riscv/boot/dts/andes/
 
 RISC-V ARCHITECTURE
-M:	Paul Walmsley <paul.walmsley@sifive.com>
+M:	Paul Walmsley <pjw@kernel.org>
 M:	Palmer Dabbelt <palmer@dabbelt.com>
 M:	Albert Ou <aou@eecs.berkeley.edu>
 R:	Alexandre Ghiti <alex@ghiti.fr>
@@ -23108,7 +23108,7 @@ S:	Maintained
 F:	drivers/watchdog/simatic-ipc-wdt.c
 
 SIFIVE DRIVERS
-M:	Paul Walmsley <paul.walmsley@sifive.com>
+M:	Paul Walmsley <pjw@kernel.org>
 M:	Samuel Holland <samuel.holland@sifive.com>
 L:	linux-riscv@lists.infradead.org
 S:	Supported

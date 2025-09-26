@@ -942,6 +942,23 @@ static inline int pudp_test_and_clear_young(struct vm_area_struct *vma,
 	return ptep_test_and_clear_young(vma, address, (pte_t *)pudp);
 }
 
+#define __HAVE_ARCH_PUDP_HUGE_GET_AND_CLEAR
+static inline pud_t pudp_huge_get_and_clear(struct mm_struct *mm,
+					    unsigned long address,  pud_t *pudp)
+{
+#ifdef CONFIG_SMP
+	pud_t pud = __pud(xchg(&pudp->pud, 0));
+#else
+	pud_t pud = *pudp;
+
+	pud_clear(pudp);
+#endif
+
+	page_table_check_pud_clear(mm, pud);
+
+	return pud;
+}
+
 static inline int pud_young(pud_t pud)
 {
 	return pte_young(pud_pte(pud));
