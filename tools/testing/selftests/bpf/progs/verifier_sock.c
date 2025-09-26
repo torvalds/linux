@@ -1096,6 +1096,20 @@ int invalidate_xdp_pkt_pointers_from_global_func(struct xdp_md *x)
 	return XDP_PASS;
 }
 
+/* XDP packet changing kfunc calls invalidate packet pointers */
+SEC("xdp")
+__failure __msg("invalid mem access")
+int invalidate_xdp_pkt_pointers(struct xdp_md *x)
+{
+	int *p = (void *)(long)x->data;
+
+	if ((void *)(p + 1) > (void *)(long)x->data_end)
+		return XDP_DROP;
+	bpf_xdp_pull_data(x, 0);
+	*p = 42; /* this is unsafe */
+	return XDP_PASS;
+}
+
 __noinline
 int tail_call(struct __sk_buff *sk)
 {
