@@ -310,9 +310,9 @@ static int cppc_verify_policy(struct cpufreq_policy_data *policy)
 
 static unsigned int __cppc_cpufreq_get_transition_delay_us(unsigned int cpu)
 {
-	unsigned int transition_latency_ns = cppc_get_transition_latency(cpu);
+	int transition_latency_ns = cppc_get_transition_latency(cpu);
 
-	if (transition_latency_ns == CPUFREQ_ETERNAL)
+	if (transition_latency_ns < 0)
 		return CPUFREQ_DEFAULT_TRANSITION_LATENCY_NS / NSEC_PER_USEC;
 
 	return transition_latency_ns / NSEC_PER_USEC;
