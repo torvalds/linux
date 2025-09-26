@@ -687,7 +687,7 @@ finished:
 	}
 
 	for (i = 0; i < num_cmds; i++) {
-		char *buf = rsp_iov[i + i].iov_base;
+		char *buf = rsp_iov[i + 1].iov_base;
 
 		if (buf && resp_buftype[i + 1] != CIFS_NO_BUFFER)
 			rc = server->ops->map_error(buf, false);
@@ -1175,23 +1175,92 @@ int
 smb2_unlink(const unsigned int xid, struct cifs_tcon *tcon, const char *name,
 	    struct cifs_sb_info *cifs_sb, struct dentry *dentry)
 {
+	struct kvec open_iov[SMB2_CREATE_IOV_SIZE];
+	__le16 *utf16_path __free(kfree) = NULL;
+	int retries = 0, cur_sleep = 1;
+	struct TCP_Server_Info *server;
 	struct cifs_open_parms oparms;
+	struct smb2_create_req *creq;
 	struct inode *inode = NULL;
+	struct smb_rqst rqst[2];
+	struct kvec rsp_iov[2];
+	struct kvec close_iov;
+	int resp_buftype[2];
+	struct cifs_fid fid;
+	int flags = 0;
+	__u8 oplock;
 	int rc;
 
-	if (dentry)
-		inode = d_inode(dentry);
+	utf16_path = cifs_convert_path_to_utf16(name, cifs_sb);
+	if (!utf16_path)
+		return -ENOMEM;
 
-	oparms = CIFS_OPARMS(cifs_sb, tcon, name, DELETE,
-			     FILE_OPEN, OPEN_REPARSE_POINT, ACL_NO_MODE);
-	rc = smb2_compound_op(xid, tcon, cifs_sb, name, &oparms,
-			      NULL, &(int){SMB2_OP_UNLINK},
-			      1, NULL, NULL, NULL, dentry);
-	if (rc == -EINVAL) {
-		cifs_dbg(FYI, "invalid lease key, resending request without lease");
-		rc = smb2_compound_op(xid, tcon, cifs_sb, name, &oparms,
-				      NULL, &(int){SMB2_OP_UNLINK},
-				      1, NULL, NULL, NULL, NULL);
+	if (smb3_encryption_required(tcon))
+		flags |= CIFS_TRANSFORM_REQ;
+again:
+	oplock = SMB2_OPLOCK_LEVEL_NONE;
+	server = cifs_pick_channel(tcon->ses);
+
+	memset(rqst, 0, sizeof(rqst));
+	memset(resp_buftype, 0, sizeof(resp_buftype));
+	memset(rsp_iov, 0, sizeof(rsp_iov));
+
+	rqst[0].rq_iov = open_iov;
+	rqst[0].rq_nvec = ARRAY_SIZE(open_iov);
+
+	oparms = CIFS_OPARMS(cifs_sb, tcon, name, DELETE | FILE_READ_ATTRIBUTES,
+			     FILE_OPEN, CREATE_DELETE_ON_CLOSE |
+			     OPEN_REPARSE_POINT, ACL_NO_MODE);
+	oparms.fid = &fid;
+
+	if (dentry) {
+		inode = d_inode(dentry);
+		if (CIFS_I(inode)->lease_granted && server->ops->get_lease_key) {
+			oplock = SMB2_OPLOCK_LEVEL_LEASE;
+			server->ops->get_lease_key(inode, &fid);
+		}
+	}
+
+	rc = SMB2_open_init(tcon, server,
+			    &rqst[0], &oplock, &oparms, utf16_path);
+	if (rc)
+		goto err_free;
+	smb2_set_next_command(tcon, &rqst[0]);
+	creq = rqst[0].rq_iov[0].iov_base;
+	creq->ShareAccess = FILE_SHARE_DELETE_LE;
+
+	rqst[1].rq_iov = &close_iov;
+	rqst[1].rq_nvec = 1;
+
+	rc = SMB2_close_init(tcon, server, &rqst[1],
+			     COMPOUND_FID, COMPOUND_FID, false);
+	smb2_set_related(&rqst[1]);
+	if (rc)
+		goto err_free;
+
+	if (retries) {
+		for (int i = 0; i < ARRAY_SIZE(rqst);  i++)
+			smb2_set_replay(server, &rqst[i]);
+	}
+
+	rc = compound_send_recv(xid, tcon->ses, server, flags,
+				ARRAY_SIZE(rqst), rqst,
+				resp_buftype, rsp_iov);
+	SMB2_open_free(&rqst[0]);
+	SMB2_close_free(&rqst[1]);
+	free_rsp_buf(resp_buftype[0], rsp_iov[0].iov_base);
+	free_rsp_buf(resp_buftype[1], rsp_iov[1].iov_base);
+
+	if (is_replayable_error(rc) &&
+	    smb2_should_replay(tcon, &retries, &cur_sleep))
+		goto again;
+
+	/* Retry compound request without lease */
+	if (rc == -EINVAL && dentry) {
+		dentry = NULL;
+		retries = 0;
+		cur_sleep = 1;
+		goto again;
 	}
 	/*
 	 * If dentry (hence, inode) is NULL, lease break is going to
@@ -1199,6 +1268,14 @@ smb2_unlink(const unsigned int xid, struct cifs_tcon *tcon, const char *name,
 	 */
 	if (!rc && inode)
 		cifs_mark_open_handles_for_deleted_file(inode, name);
+
+	return rc;
+
+err_free:
+	SMB2_open_free(&rqst[0]);
+	SMB2_close_free(&rqst[1]);
+	free_rsp_buf(resp_buftype[0], rsp_iov[0].iov_base);
+	free_rsp_buf(resp_buftype[1], rsp_iov[1].iov_base);
 	return rc;
 }
 
