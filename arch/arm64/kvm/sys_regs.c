@@ -203,7 +203,6 @@ static void locate_register(const struct kvm_vcpu *vcpu, enum vcpu_sysreg reg,
 		MAPPED_EL2_SYSREG(AMAIR_EL2,   AMAIR_EL1,   NULL	     );
 		MAPPED_EL2_SYSREG(ELR_EL2,     ELR_EL1,	    NULL	     );
 		MAPPED_EL2_SYSREG(SPSR_EL2,    SPSR_EL1,    NULL	     );
-		MAPPED_EL2_SYSREG(ZCR_EL2,     ZCR_EL1,     NULL	     );
 		MAPPED_EL2_SYSREG(CONTEXTIDR_EL2, CONTEXTIDR_EL1, NULL	     );
 		MAPPED_EL2_SYSREG(SCTLR2_EL2,  SCTLR2_EL1,  NULL	     );
 	case CNTHCTL_EL2:
@@ -2709,14 +2708,13 @@ static bool access_zcr_el2(struct kvm_vcpu *vcpu,
 	}
 
 	if (!p->is_write) {
-		p->regval = vcpu_read_sys_reg(vcpu, ZCR_EL2);
+		p->regval = __vcpu_sys_reg(vcpu, ZCR_EL2);
 		return true;
 	}
 
 	vq = SYS_FIELD_GET(ZCR_ELx, LEN, p->regval) + 1;
 	vq = min(vq, vcpu_sve_max_vq(vcpu));
-	vcpu_write_sys_reg(vcpu, vq - 1, ZCR_EL2);
-
+	__vcpu_assign_sys_reg(vcpu, ZCR_EL2, vq - 1);
 	return true;
 }
 
