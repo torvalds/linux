@@ -115,7 +115,8 @@ void setup_dio_stream_attribute(struct pipe_ctx *pipe_ctx)
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct dc_link *link = stream->link;
 
-	if (!dc_is_virtual_signal(stream->signal))
+	if (!dc_is_virtual_signal(stream->signal) &&
+		!dc_is_rgb_signal(stream->signal))
 		stream_encoder->funcs->setup_stereo_sync(
 				stream_encoder,
 				pipe_ctx->stream_res.tg->inst,

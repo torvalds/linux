@@ -2371,7 +2371,8 @@ void link_set_dpms_off(struct pipe_ctx *pipe_ctx)
 			set_avmute(pipe_ctx, true);
 	}
 
-	dc->hwss.disable_audio_stream(pipe_ctx);
+	if (!dc_is_rgb_signal(pipe_ctx->stream->signal))
+		dc->hwss.disable_audio_stream(pipe_ctx);
 
 	update_psp_stream_config(pipe_ctx, true);
 	dc->hwss.blank_stream(pipe_ctx);
@@ -2656,7 +2657,8 @@ void link_set_dpms_on(
 		enable_stream_features(pipe_ctx);
 	update_psp_stream_config(pipe_ctx, false);
 
-	dc->hwss.enable_audio_stream(pipe_ctx);
+	if (!dc_is_rgb_signal(pipe_ctx->stream->signal))
+		dc->hwss.enable_audio_stream(pipe_ctx);
 
 	if (dc_is_hdmi_signal(pipe_ctx->stream->signal)) {
 		set_avmute(pipe_ctx, false);
