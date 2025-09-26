@@ -179,8 +179,10 @@ static int th1520_pd_reboot_init(struct device *dev,
 	struct auxiliary_device *adev;
 
 	adev = devm_auxiliary_device_create(dev, "reboot", aon_chan);
+	if (!adev)
+		return -ENODEV;
 
-	return PTR_ERR_OR_ZERO(adev);
+	return 0;
 }
 
 static int th1520_pd_probe(struct platform_device *pdev)
