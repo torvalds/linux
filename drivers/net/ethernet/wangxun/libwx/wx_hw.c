@@ -2449,8 +2449,7 @@ int wx_sw_init(struct wx *wx)
 		return err;
 	}
 	wx->rss_flags = WX_RSS_FIELD_IPV4 | WX_RSS_FIELD_IPV4_TCP |
-			WX_RSS_FIELD_IPV6 | WX_RSS_FIELD_IPV6_TCP |
-			WX_RSS_FIELD_IPV4_UDP | WX_RSS_FIELD_IPV6_UDP;
+			WX_RSS_FIELD_IPV6 | WX_RSS_FIELD_IPV6_TCP;
 
 	wx->mac_table = kcalloc(wx->mac.num_rar_entries,
 				sizeof(struct wx_mac_addr),
