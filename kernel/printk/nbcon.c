@@ -1527,10 +1527,10 @@ static int __nbcon_atomic_flush_pending_con(struct console *con, u64 stop_seq,
 	ctxt->prio			= nbcon_get_default_prio();
 	ctxt->allow_unsafe_takeover	= allow_unsafe_takeover;
 
-	if (!nbcon_context_try_acquire(ctxt, false))
-		return -EPERM;
-
 	while (nbcon_seq_read(con) < stop_seq) {
+		if (!nbcon_context_try_acquire(ctxt, false))
+			return -EPERM;
+
 		/*
 		 * nbcon_emit_next_record() returns false when the console was
 		 * handed over or taken over. In both cases the context is no
@@ -1538,6 +1538,8 @@ static int __nbcon_atomic_flush_pending_con(struct console *con, u64 stop_seq,
 		 */
 		if (!nbcon_emit_next_record(&wctxt, true))
 			return -EAGAIN;
+
+		nbcon_context_release(ctxt);
 
 		if (!ctxt->backlog) {
 			/* Are there reserved but not yet finalized records? */
@@ -1547,7 +1549,6 @@ static int __nbcon_atomic_flush_pending_con(struct console *con, u64 stop_seq,
 		}
 	}
 
-	nbcon_context_release(ctxt);
 	return err;
 }
 
