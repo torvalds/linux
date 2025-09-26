@@ -67,7 +67,9 @@ static ATOM_HPD_INT_RECORD *get_hpd_record(struct bios_parser *bp,
 	ATOM_OBJECT *object);
 static struct device_id device_type_from_device_id(uint16_t device_id);
 static uint32_t signal_to_ss_id(enum as_signal_type signal);
-static uint32_t get_support_mask_for_device_id(struct device_id device_id);
+static uint32_t get_support_mask_for_device_id(
+	enum dal_device_type device_type,
+	uint32_t enum_id);
 static ATOM_ENCODER_CAP_RECORD_V2 *get_encoder_cap_record(
 	struct bios_parser *bp,
 	ATOM_OBJECT *object);
@@ -888,7 +890,7 @@ static bool bios_parser_is_device_id_supported(
 {
 	struct bios_parser *bp = BP_FROM_DCB(dcb);
 
-	uint32_t mask = get_support_mask_for_device_id(id);
+	uint32_t mask = get_support_mask_for_device_id(id.device_type, id.enum_id);
 
 	return (le16_to_cpu(bp->object_info_tbl.v1_1->usDeviceSupport) & mask) != 0;
 }
@@ -2179,11 +2181,10 @@ static uint32_t signal_to_ss_id(enum as_signal_type signal)
 	return clk_id_ss;
 }
 
-static uint32_t get_support_mask_for_device_id(struct device_id device_id)
+static uint32_t get_support_mask_for_device_id(
+	enum dal_device_type device_type,
+	uint32_t enum_id)
 {
-	enum dal_device_type device_type = device_id.device_type;
-	uint32_t enum_id = device_id.enum_id;
-
 	switch (device_type) {
 	case DEVICE_TYPE_LCD:
 		switch (enum_id) {
