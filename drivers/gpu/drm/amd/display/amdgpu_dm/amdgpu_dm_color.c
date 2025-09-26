@@ -821,7 +821,7 @@ int amdgpu_dm_verify_lut3d_size(struct amdgpu_device *adev,
 	struct dm_plane_state *dm_plane_state = to_dm_plane_state(plane_state);
 	const struct drm_color_lut *shaper = NULL, *lut3d = NULL;
 	uint32_t exp_size, size, dim_size = MAX_COLOR_3DLUT_SIZE;
-	bool has_3dlut = adev->dm.dc->caps.color.dpp.hw_3d_lut;
+	bool has_3dlut = adev->dm.dc->caps.color.dpp.hw_3d_lut || adev->dm.dc->caps.color.mpc.preblend;
 
 	/* shaper LUT is only available if 3D LUT color caps */
 	exp_size = has_3dlut ? MAX_COLOR_LUT_ENTRIES : 0;
