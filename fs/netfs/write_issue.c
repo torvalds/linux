@@ -133,8 +133,7 @@ struct netfs_io_request *netfs_create_write_req(struct address_space *mapping,
 
 	return wreq;
 nomem:
-	wreq->error = -ENOMEM;
-	netfs_put_request(wreq, netfs_rreq_trace_put_failed);
+	netfs_put_failed_request(wreq);
 	return ERR_PTR(-ENOMEM);
 }
 
