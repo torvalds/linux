@@ -1285,7 +1285,7 @@ static s32 tas_sdw_probe(struct sdw_slave *peripheral,
 					      &tas_regmap,
 					      &tas2783_mbq_cfg);
 	if (IS_ERR(regmap))
-		return dev_err_probe(dev, PTR_ERR(tas_dev->regmap),
+		return dev_err_probe(dev, PTR_ERR(regmap),
 				     "Failed devm_regmap_init_sdw.");
 
 	/* keep in cache until the device is fully initialized */
