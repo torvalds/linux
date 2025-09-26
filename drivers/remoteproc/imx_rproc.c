@@ -1135,7 +1135,7 @@ static int imx_rproc_probe(struct platform_device *pdev)
 			return dev_err_probe(dev, ret, "pm_runtime get failed\n");
 	}
 
-	ret = rproc_add(rproc);
+	ret = devm_rproc_add(dev, rproc);
 	if (ret) {
 		dev_err(dev, "rproc_add failed\n");
 		goto err_put_pm;
@@ -1161,7 +1161,6 @@ static void imx_rproc_remove(struct platform_device *pdev)
 		pm_runtime_disable(priv->dev);
 		pm_runtime_put_noidle(priv->dev);
 	}
-	rproc_del(rproc);
 }
 
 static const struct imx_rproc_plat_ops imx_rproc_ops_arm_smc = {
