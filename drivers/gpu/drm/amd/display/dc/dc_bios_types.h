@@ -168,6 +168,7 @@ struct dc_vbios_funcs {
 };
 
 struct bios_registers {
+	uint32_t BIOS_SCRATCH_0;
 	uint32_t BIOS_SCRATCH_3;
 	uint32_t BIOS_SCRATCH_6;
 };
