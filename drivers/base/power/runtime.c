@@ -799,6 +799,8 @@ static int rpm_resume(struct device *dev, int rpmflags)
 		if (dev->power.runtime_status == RPM_ACTIVE &&
 		    dev->power.last_status == RPM_ACTIVE)
 			retval = 1;
+		else if (rpmflags & RPM_TRANSPARENT)
+			goto out;
 		else
 			retval = -EACCES;
 	}

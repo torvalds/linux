@@ -21,6 +21,7 @@
 #define RPM_GET_PUT		0x04	/* Increment/decrement the
 					    usage_count */
 #define RPM_AUTO		0x08	/* Use autosuspend_delay */
+#define RPM_TRANSPARENT	0x10	/* Succeed if runtime PM is disabled */
 
 /*
  * Use this for defining a set of PM operations to be used in all situations
@@ -512,6 +513,19 @@ static inline int pm_runtime_get_sync(struct device *dev)
 	return __pm_runtime_resume(dev, RPM_GET_PUT);
 }
 
+static inline int pm_runtime_get_active(struct device *dev, int rpmflags)
+{
+	int ret;
+
+	ret = __pm_runtime_resume(dev, RPM_GET_PUT | rpmflags);
+	if (ret < 0) {
+		pm_runtime_put_noidle(dev);
+		return ret;
+	}
+
+	return 0;
+}
+
 /**
  * pm_runtime_resume_and_get - Bump up usage counter of a device and resume it.
  * @dev: Target device.
@@ -522,15 +536,7 @@ static inline int pm_runtime_get_sync(struct device *dev)
  */
 static inline int pm_runtime_resume_and_get(struct device *dev)
 {
-	int ret;
-
-	ret = __pm_runtime_resume(dev, RPM_GET_PUT);
-	if (ret < 0) {
-		pm_runtime_put_noidle(dev);
-		return ret;
-	}
-
-	return 0;
+	return pm_runtime_get_active(dev, 0);
 }
 
 /**
@@ -609,6 +615,26 @@ static inline int pm_runtime_put_autosuspend(struct device *dev)
 	pm_runtime_mark_last_busy(dev);
 	return __pm_runtime_put_autosuspend(dev);
 }
+
+DEFINE_GUARD(pm_runtime_active, struct device *,
+	     pm_runtime_get_sync(_T), pm_runtime_put(_T));
+DEFINE_GUARD(pm_runtime_active_auto, struct device *,
+	     pm_runtime_get_sync(_T), pm_runtime_put_autosuspend(_T));
+/*
+ * Use the following guards with ACQUIRE()/ACQUIRE_ERR().
+ *
+ * The difference between the "_try" and "_try_enabled" variants is that the
+ * former do not produce an error when runtime PM is disabled for the given
+ * device.
+ */
+DEFINE_GUARD_COND(pm_runtime_active, _try,
+		  pm_runtime_get_active(_T, RPM_TRANSPARENT))
+DEFINE_GUARD_COND(pm_runtime_active, _try_enabled,
+		  pm_runtime_resume_and_get(_T))
+DEFINE_GUARD_COND(pm_runtime_active_auto, _try,
+		  pm_runtime_get_active(_T, RPM_TRANSPARENT))
+DEFINE_GUARD_COND(pm_runtime_active_auto, _try_enabled,
+		  pm_runtime_resume_and_get(_T))
 
 /**
  * pm_runtime_put_sync - Drop device usage counter and run "idle check" if 0.
