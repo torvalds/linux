@@ -2047,28 +2047,30 @@ void wx_store_rsskey(struct wx *wx)
 
 static void wx_setup_reta(struct wx *wx)
 {
-	u16 rss_i = wx->ring_feature[RING_F_RSS].indices;
-	u32 reta_entries = wx_rss_indir_tbl_entries(wx);
-	u32 i, j;
-
-	if (test_bit(WX_FLAG_SRIOV_ENABLED, wx->flags)) {
-		if (test_bit(WX_FLAG_MULTI_64_FUNC, wx->flags))
-			rss_i = rss_i < 2 ? 2 : rss_i;
-		else
-			rss_i = 1;
-	}
-
 	/* Fill out hash function seeds */
 	wx_store_rsskey(wx);
 
 	/* Fill out redirection table */
-	memset(wx->rss_indir_tbl, 0, sizeof(wx->rss_indir_tbl));
+	if (!netif_is_rxfh_configured(wx->netdev)) {
+		u16 rss_i = wx->ring_feature[RING_F_RSS].indices;
+		u32 reta_entries = wx_rss_indir_tbl_entries(wx);
+		u32 i, j;
 
-	for (i = 0, j = 0; i < reta_entries; i++, j++) {
-		if (j == rss_i)
-			j = 0;
+		memset(wx->rss_indir_tbl, 0, sizeof(wx->rss_indir_tbl));
 
-		wx->rss_indir_tbl[i] = j;
+		if (test_bit(WX_FLAG_SRIOV_ENABLED, wx->flags)) {
+			if (test_bit(WX_FLAG_MULTI_64_FUNC, wx->flags))
+				rss_i = rss_i < 2 ? 2 : rss_i;
+			else
+				rss_i = 1;
+		}
+
+		for (i = 0, j = 0; i < reta_entries; i++, j++) {
+			if (j == rss_i)
+				j = 0;
+
+			wx->rss_indir_tbl[i] = j;
+		}
 	}
 
 	wx_store_reta(wx);
@@ -2150,8 +2152,6 @@ static void wx_setup_mrqc(struct wx *wx)
 {
 	/* Disable indicating checksum in descriptor, enables RSS hash */
 	wr32m(wx, WX_PSR_CTL, WX_PSR_CTL_PCSD, WX_PSR_CTL_PCSD);
-
-	netdev_rss_key_fill(wx->rss_key, sizeof(wx->rss_key));
 
 	wx_config_rss_field(wx);
 	wx_enable_rss(wx, wx->rss_enabled);
