@@ -18,7 +18,6 @@
 			reg = <0x6100>, <0x6200>;
 			reg-names = "rtc", "alarm";
 			interrupts = <0x0 0x62 0x1 IRQ_TYPE_EDGE_RISING>;
-			allow-set-time;
 		};
 
 		pmm8620au_0_gpios: gpio@8800 {
