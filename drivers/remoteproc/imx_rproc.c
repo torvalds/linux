@@ -796,13 +796,9 @@ static void imx_rproc_free_mbox(void *data)
 	}
 }
 
-static void imx_rproc_put_scu(struct rproc *rproc)
+static void imx_rproc_put_scu(void *data)
 {
-	struct imx_rproc *priv = rproc->priv;
-	const struct imx_rproc_dcfg *dcfg = priv->dcfg;
-
-	if (dcfg->method != IMX_RPROC_SCU_API)
-		return;
+	struct imx_rproc *priv = data;
 
 	if (imx_sc_rm_is_resource_owned(priv->ipc_handle, priv->rsrc_id)) {
 		dev_pm_domain_detach_list(priv->pd_list);
@@ -943,6 +939,10 @@ static int imx_rproc_scu_api_detect_mode(struct rproc *rproc)
 		priv->core_index = 1;
 	else
 		priv->core_index = 0;
+
+	ret = devm_add_action_or_reset(dev, imx_rproc_put_scu, priv);
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to add action for put scu\n");
 
 	/*
 	 * If Mcore resource is not owned by Acore partition, It is kicked by ROM,
@@ -1103,7 +1103,7 @@ static int imx_rproc_probe(struct platform_device *pdev)
 
 	ret = imx_rproc_clk_enable(priv);
 	if (ret)
-		goto err_put_scu;
+		return dev_err_probe(dev, ret, "failed to enable clks\n");
 
 	if (rproc->state != RPROC_DETACHED)
 		rproc->auto_boot = of_property_read_bool(np, "fsl,auto-boot");
@@ -1118,27 +1118,21 @@ static int imx_rproc_probe(struct platform_device *pdev)
 		ret = devm_register_sys_off_handler(dev, SYS_OFF_MODE_POWER_OFF_PREPARE,
 						    SYS_OFF_PRIO_DEFAULT,
 						    imx_rproc_sys_off_handler, rproc);
-		if (ret) {
-			dev_err(dev, "register power off handler failure\n");
-			goto err_put_scu;
-		}
+		if (ret)
+			return dev_err_probe(dev, ret, "register power off handler failure\n");
 
 		ret = devm_register_sys_off_handler(dev, SYS_OFF_MODE_RESTART_PREPARE,
 						    SYS_OFF_PRIO_DEFAULT,
 						    imx_rproc_sys_off_handler, rproc);
-		if (ret) {
-			dev_err(dev, "register restart handler failure\n");
-			goto err_put_scu;
-		}
+		if (ret)
+			return dev_err_probe(dev, ret, "register restart handler failure\n");
 	}
 
 	if (dcfg->method == IMX_RPROC_SCU_API) {
 		pm_runtime_enable(dev);
 		ret = pm_runtime_resume_and_get(dev);
-		if (ret) {
-			dev_err(dev, "pm_runtime get failed: %d\n", ret);
-			goto err_put_scu;
-		}
+		if (ret)
+			return dev_err_probe(dev, ret, "pm_runtime get failed\n");
 	}
 
 	ret = rproc_add(rproc);
@@ -1154,8 +1148,6 @@ err_put_pm:
 		pm_runtime_disable(dev);
 		pm_runtime_put_noidle(dev);
 	}
-err_put_scu:
-	imx_rproc_put_scu(rproc);
 
 	return ret;
 }
@@ -1170,7 +1162,6 @@ static void imx_rproc_remove(struct platform_device *pdev)
 		pm_runtime_put_noidle(priv->dev);
 	}
 	rproc_del(rproc);
-	imx_rproc_put_scu(rproc);
 }
 
 static const struct imx_rproc_plat_ops imx_rproc_ops_arm_smc = {
