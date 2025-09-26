@@ -91,6 +91,9 @@ struct dc_vbios_funcs {
 		struct device_id id);
 	/* COMMANDS */
 
+	enum bp_result (*select_crtc_source)(
+		struct dc_bios *bios,
+		struct bp_crtc_source_select *bp_params);
 	enum bp_result (*encoder_control)(
 		struct dc_bios *bios,
 		struct bp_encoder_control *cntl);

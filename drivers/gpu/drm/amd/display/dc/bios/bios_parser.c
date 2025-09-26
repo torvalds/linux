@@ -736,6 +736,18 @@ static enum bp_result bios_parser_transmitter_control(
 	return bp->cmd_tbl.transmitter_control(bp, cntl);
 }
 
+static enum bp_result bios_parser_select_crtc_source(
+	struct dc_bios *dcb,
+	struct bp_crtc_source_select *bp_params)
+{
+	struct bios_parser *bp = BP_FROM_DCB(dcb);
+
+	if (!bp->cmd_tbl.select_crtc_source)
+		return BP_RESULT_FAILURE;
+
+	return bp->cmd_tbl.select_crtc_source(bp, bp_params);
+}
+
 static enum bp_result bios_parser_encoder_control(
 	struct dc_bios *dcb,
 	struct bp_encoder_control *cntl)
@@ -2845,6 +2857,8 @@ static const struct dc_vbios_funcs vbios_funcs = {
 	.is_device_id_supported = bios_parser_is_device_id_supported,
 
 	/* COMMANDS */
+	.select_crtc_source = bios_parser_select_crtc_source,
+
 	.encoder_control = bios_parser_encoder_control,
 
 	.transmitter_control = bios_parser_transmitter_control,
