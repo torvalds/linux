@@ -54,6 +54,7 @@ static void init_enable_spread_spectrum_on_ppll(struct bios_parser *bp);
 static void init_adjust_display_pll(struct bios_parser *bp);
 static void init_select_crtc_source(struct bios_parser *bp);
 static void init_dac_encoder_control(struct bios_parser *bp);
+static void init_dac_load_detection(struct bios_parser *bp);
 static void init_dac_output_control(struct bios_parser *bp);
 static void init_set_crtc_timing(struct bios_parser *bp);
 static void init_enable_crtc(struct bios_parser *bp);
@@ -72,6 +73,7 @@ void dal_bios_parser_init_cmd_tbl(struct bios_parser *bp)
 	init_adjust_display_pll(bp);
 	init_select_crtc_source(bp);
 	init_dac_encoder_control(bp);
+	init_dac_load_detection(bp);
 	init_dac_output_control(bp);
 	init_set_crtc_timing(bp);
 	init_enable_crtc(bp);
@@ -1897,6 +1899,96 @@ static enum bp_result dac2_encoder_control_v1(
 		dac_standard);
 
 	if (EXEC_BIOS_CMD_TABLE(DAC2EncoderControl, params))
+		result = BP_RESULT_OK;
+
+	return result;
+}
+
+/*******************************************************************************
+ ********************************************************************************
+ **
+ **                  DAC LOAD DETECTION
+ **
+ ********************************************************************************
+ *******************************************************************************/
+
+static enum bp_result dac_load_detection_v1(
+	struct bios_parser *bp,
+	struct bp_load_detection_parameters *bp_params);
+
+static enum bp_result dac_load_detection_v3(
+	struct bios_parser *bp,
+	struct bp_load_detection_parameters *bp_params);
+
+static void init_dac_load_detection(struct bios_parser *bp)
+{
+	switch (BIOS_CMD_TABLE_PARA_REVISION(DAC_LoadDetection)) {
+	case 1:
+	case 2:
+		bp->cmd_tbl.dac_load_detection = dac_load_detection_v1;
+		break;
+	case 3:
+	default:
+		bp->cmd_tbl.dac_load_detection = dac_load_detection_v3;
+		break;
+	}
+}
+
+static void dac_load_detect_prepare_params(
+	struct _DAC_LOAD_DETECTION_PS_ALLOCATION *params,
+	enum engine_id engine_id,
+	uint16_t device_id,
+	uint8_t misc)
+{
+	uint8_t dac_type = ENGINE_ID_DACA;
+
+	if (engine_id == ENGINE_ID_DACB)
+		dac_type = ATOM_DAC_B;
+
+	params->sDacload.usDeviceID = cpu_to_le16(device_id);
+	params->sDacload.ucDacType = dac_type;
+	params->sDacload.ucMisc = misc;
+}
+
+static enum bp_result dac_load_detection_v1(
+	struct bios_parser *bp,
+	struct bp_load_detection_parameters *bp_params)
+{
+	enum bp_result result = BP_RESULT_FAILURE;
+	DAC_LOAD_DETECTION_PS_ALLOCATION params;
+
+	dac_load_detect_prepare_params(
+		&params,
+		bp_params->engine_id,
+		bp_params->device_id,
+		0);
+
+	if (EXEC_BIOS_CMD_TABLE(DAC_LoadDetection, params))
+		result = BP_RESULT_OK;
+
+	return result;
+}
+
+static enum bp_result dac_load_detection_v3(
+	struct bios_parser *bp,
+	struct bp_load_detection_parameters *bp_params)
+{
+	enum bp_result result = BP_RESULT_FAILURE;
+	DAC_LOAD_DETECTION_PS_ALLOCATION params;
+
+	uint8_t misc = 0;
+
+	if (bp_params->device_id == ATOM_DEVICE_CV_SUPPORT ||
+	    bp_params->device_id == ATOM_DEVICE_TV1_SUPPORT)
+		misc = DAC_LOAD_MISC_YPrPb;
+
+	dac_load_detect_prepare_params(
+		&params,
+		bp_params->engine_id,
+		bp_params->device_id,
+		misc);
+
+	if (EXEC_BIOS_CMD_TABLE(DAC_LoadDetection, params))
 		result = BP_RESULT_OK;
 
 	return result;

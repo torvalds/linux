@@ -162,6 +162,11 @@ struct bp_transmitter_control {
 	bool single_pll_mode;
 };
 
+struct bp_load_detection_parameters {
+	enum engine_id engine_id;
+	uint16_t device_id;
+};
+
 struct bp_hw_crtc_timing_parameters {
 	enum controller_id controller_id;
 	/* horizontal part */
