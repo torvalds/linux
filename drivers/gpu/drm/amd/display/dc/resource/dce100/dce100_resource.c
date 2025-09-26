@@ -375,6 +375,7 @@ static const struct bios_registers bios_regs = {
 static const struct resource_caps res_cap = {
 	.num_timing_generator = 6,
 	.num_audio = 6,
+	.num_analog_stream_encoder = 1,
 	.num_stream_encoder = 6,
 	.num_pll = 3,
 	.num_ddc = 6,
@@ -485,6 +486,11 @@ static struct stream_encoder *dce100_stream_encoder_create(
 
 	if (!enc110)
 		return NULL;
+
+	if (eng_id == ENGINE_ID_DACA || eng_id == ENGINE_ID_DACB) {
+		dce110_analog_stream_encoder_construct(enc110, ctx, ctx->dc_bios, eng_id);
+		return &enc110->base;
+	}
 
 	dce110_stream_encoder_construct(enc110, ctx, ctx->dc_bios, eng_id,
 					&stream_enc_regs[eng_id], &se_shift, &se_mask);

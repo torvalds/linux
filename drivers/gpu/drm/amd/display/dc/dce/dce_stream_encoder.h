@@ -708,6 +708,11 @@ void dce110_stream_encoder_construct(
 	const struct dce_stream_encoder_shift *se_shift,
 	const struct dce_stream_encoder_mask *se_mask);
 
+void dce110_analog_stream_encoder_construct(
+	struct dce110_stream_encoder *enc110,
+	struct dc_context *ctx,
+	struct dc_bios *bp,
+	enum engine_id eng_id);
 
 void dce110_se_audio_mute_control(
 	struct stream_encoder *enc, bool mute);
