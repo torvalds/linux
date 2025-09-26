@@ -4,6 +4,7 @@
 #include "idpf.h"
 #include "idpf_virtchnl.h"
 #include "xdp.h"
+#include "xsk.h"
 
 static int idpf_rxq_for_each(const struct idpf_vport *vport,
 			     int (*fn)(struct idpf_rx_queue *rxq, void *arg),
@@ -45,7 +46,6 @@ static int __idpf_xdp_rxq_info_init(struct idpf_rx_queue *rxq, void *arg)
 {
 	const struct idpf_vport *vport = rxq->q_vector->vport;
 	bool split = idpf_is_queue_model_split(vport->rxq_model);
-	const struct page_pool *pp;
 	int err;
 
 	err = __xdp_rxq_info_reg(&rxq->xdp_rxq, vport->netdev, rxq->idx,
@@ -54,8 +54,18 @@ static int __idpf_xdp_rxq_info_init(struct idpf_rx_queue *rxq, void *arg)
 	if (err)
 		return err;
 
-	pp = split ? rxq->bufq_sets[0].bufq.pp : rxq->pp;
-	xdp_rxq_info_attach_page_pool(&rxq->xdp_rxq, pp);
+	if (idpf_queue_has(XSK, rxq)) {
+		err = xdp_rxq_info_reg_mem_model(&rxq->xdp_rxq,
+						 MEM_TYPE_XSK_BUFF_POOL,
+						 rxq->pool);
+		if (err)
+			goto unreg;
+	} else {
+		const struct page_pool *pp;
+
+		pp = split ? rxq->bufq_sets[0].bufq.pp : rxq->pp;
+		xdp_rxq_info_attach_page_pool(&rxq->xdp_rxq, pp);
+	}
 
 	if (!split)
 		return 0;
@@ -64,6 +74,16 @@ static int __idpf_xdp_rxq_info_init(struct idpf_rx_queue *rxq, void *arg)
 	rxq->num_xdp_txq = vport->num_xdp_txq;
 
 	return 0;
+
+unreg:
+	xdp_rxq_info_unreg(&rxq->xdp_rxq);
+
+	return err;
+}
+
+int idpf_xdp_rxq_info_init(struct idpf_rx_queue *rxq)
+{
+	return __idpf_xdp_rxq_info_init(rxq, NULL);
 }
 
 int idpf_xdp_rxq_info_init_all(const struct idpf_vport *vport)
@@ -78,10 +98,17 @@ static int __idpf_xdp_rxq_info_deinit(struct idpf_rx_queue *rxq, void *arg)
 		rxq->num_xdp_txq = 0;
 	}
 
-	xdp_rxq_info_detach_mem_model(&rxq->xdp_rxq);
+	if (!idpf_queue_has(XSK, rxq))
+		xdp_rxq_info_detach_mem_model(&rxq->xdp_rxq);
+
 	xdp_rxq_info_unreg(&rxq->xdp_rxq);
 
 	return 0;
+}
+
+void idpf_xdp_rxq_info_deinit(struct idpf_rx_queue *rxq, u32 model)
+{
+	__idpf_xdp_rxq_info_deinit(rxq, (void *)(size_t)model);
 }
 
 void idpf_xdp_rxq_info_deinit_all(const struct idpf_vport *vport)
@@ -214,7 +241,7 @@ static int idpf_xdp_parse_cqe(const struct idpf_splitq_4b_tx_compl_desc *desc,
 	return upper_16_bits(val);
 }
 
-static u32 idpf_xdpsq_poll(struct idpf_tx_queue *xdpsq, u32 budget)
+u32 idpf_xdpsq_poll(struct idpf_tx_queue *xdpsq, u32 budget)
 {
 	struct idpf_compl_queue *cq = xdpsq->complq;
 	u32 tx_ntc = xdpsq->next_to_clean;
@@ -373,7 +400,9 @@ void idpf_xdp_set_features(const struct idpf_vport *vport)
 	if (!idpf_is_queue_model_split(vport->rxq_model))
 		return;
 
-	libeth_xdp_set_features_noredir(vport->netdev, &idpf_xdpmo);
+	libeth_xdp_set_features_noredir(vport->netdev, &idpf_xdpmo,
+					idpf_get_max_tx_bufs(vport->adapter),
+					libeth_xsktmo);
 }
 
 static int idpf_xdp_setup_prog(struct idpf_vport *vport,
@@ -441,6 +470,9 @@ int idpf_xdp(struct net_device *dev, struct netdev_bpf *xdp)
 	switch (xdp->command) {
 	case XDP_SETUP_PROG:
 		ret = idpf_xdp_setup_prog(vport, xdp);
+		break;
+	case XDP_SETUP_XSK_POOL:
+		ret = idpf_xsk_pool_setup(vport, xdp);
 		break;
 	default:
 notsupp:
