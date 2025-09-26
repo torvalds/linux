@@ -441,6 +441,7 @@ static enum bp_result get_firmware_info_v1_4(
 		le32_to_cpu(firmware_info->ulMinPixelClockPLL_Output) * 10;
 	info->pll_info.max_output_pxl_clk_pll_frequency =
 		le32_to_cpu(firmware_info->ulMaxPixelClockPLL_Output) * 10;
+	info->max_pixel_clock = le16_to_cpu(firmware_info->usMaxPixelClock) * 10;
 
 	if (firmware_info->usFirmwareCapability.sbfAccess.MemoryClockSS_Support)
 		/* Since there is no information on the SS, report conservative
@@ -497,6 +498,7 @@ static enum bp_result get_firmware_info_v2_1(
 	info->external_clock_source_frequency_for_dp =
 		le16_to_cpu(firmwareInfo->usUniphyDPModeExtClkFreq) * 10;
 	info->min_allowed_bl_level = firmwareInfo->ucMinAllowedBL_Level;
+	info->max_pixel_clock = le16_to_cpu(firmwareInfo->usMaxPixelClock) * 10;
 
 	/* There should be only one entry in the SS info table for Memory Clock
 	 */
