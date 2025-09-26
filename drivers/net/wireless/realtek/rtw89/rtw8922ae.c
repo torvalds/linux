@@ -17,6 +17,7 @@ static const struct rtw89_pci_ssid_quirk rtw8922a_pci_ssid_quirks[] = {
 
 static const struct rtw89_pci_info rtw8922a_pci_info = {
 	.gen_def		= &rtw89_pci_gen_be,
+	.isr_def		= &rtw89_pci_isr_be,
 	.txbd_trunc_mode	= MAC_AX_BD_TRUNC,
 	.rxbd_trunc_mode	= MAC_AX_BD_TRUNC,
 	.rxbd_mode		= MAC_AX_RXBD_PKT,
@@ -34,6 +35,8 @@ static const struct rtw89_pci_info rtw8922a_pci_info = {
 	.rx_ring_eq_is_full	= true,
 	.check_rx_tag		= true,
 	.no_rxbd_fs		= true,
+	.group_bd_addr		= false,
+	.rpp_fmt_size		= sizeof(struct rtw89_pci_rpp_fmt),
 
 	.init_cfg_reg		= R_BE_HAXI_INIT_CFG1,
 	.txhci_en_bit		= B_BE_TXDMA_EN,
@@ -61,6 +64,7 @@ static const struct rtw89_pci_info rtw8922a_pci_info = {
 
 	.ltr_set		= rtw89_pci_ltr_set_v2,
 	.fill_txaddr_info	= rtw89_pci_fill_txaddr_info_v1,
+	.parse_rpp		= rtw89_pci_parse_rpp,
 	.config_intr_mask	= rtw89_pci_config_intr_mask_v2,
 	.enable_intr		= rtw89_pci_enable_intr_v2,
 	.disable_intr		= rtw89_pci_disable_intr_v2,
