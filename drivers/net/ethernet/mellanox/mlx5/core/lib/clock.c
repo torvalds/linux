@@ -1365,9 +1365,9 @@ static void mlx5_init_clock_dev(struct mlx5_core_dev *mdev)
 	clock->ptp = ptp_clock_register(&clock->ptp_info,
 					clock->shared ? NULL : &mdev->pdev->dev);
 	if (IS_ERR(clock->ptp)) {
-		mlx5_core_warn(mdev, "%sptp_clock_register failed %ld\n",
+		mlx5_core_warn(mdev, "%sptp_clock_register failed %pe\n",
 			       clock->shared ? "shared clock " : "",
-			       PTR_ERR(clock->ptp));
+			       clock->ptp);
 		clock->ptp = NULL;
 	}
 

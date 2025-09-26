@@ -1729,8 +1729,8 @@ static int setup_modify_header(struct mlx5e_ipsec *ipsec, int type, u32 val, u8 
 
 	modify_hdr = mlx5_modify_header_alloc(mdev, ns_type, num_of_actions, action);
 	if (IS_ERR(modify_hdr)) {
-		mlx5_core_err(mdev, "Failed to allocate modify_header %ld\n",
-			      PTR_ERR(modify_hdr));
+		mlx5_core_err(mdev, "Failed to allocate modify_header %pe\n",
+			      modify_hdr);
 		return PTR_ERR(modify_hdr);
 	}
 

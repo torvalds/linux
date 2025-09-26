@@ -561,8 +561,8 @@ void mlx5e_reporter_tx_create(struct mlx5e_priv *priv)
 						       priv);
 	if (IS_ERR(reporter)) {
 		netdev_warn(priv->netdev,
-			    "Failed to create tx reporter, err = %ld\n",
-			    PTR_ERR(reporter));
+			    "Failed to create tx reporter, err = %pe\n",
+			    reporter);
 		return;
 	}
 	priv->tx_reporter = reporter;
