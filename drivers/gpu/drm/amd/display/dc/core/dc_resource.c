@@ -446,6 +446,14 @@ bool resource_construct(
 				DC_ERR("DC: failed to create stream_encoder!\n");
 			pool->stream_enc_count++;
 		}
+
+		for (i = 0; i < caps->num_analog_stream_encoder; i++) {
+			pool->stream_enc[caps->num_stream_encoder + i] =
+				create_funcs->create_stream_encoder(ENGINE_ID_DACA + i, ctx);
+			if (pool->stream_enc[caps->num_stream_encoder + i] == NULL)
+				DC_ERR("DC: failed to create analog stream_encoder %d!\n", i);
+			pool->stream_enc_count++;
+		}
 	}
 
 	pool->hpo_dp_stream_enc_count = 0;

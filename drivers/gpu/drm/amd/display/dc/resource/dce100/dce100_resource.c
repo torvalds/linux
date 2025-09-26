@@ -954,6 +954,10 @@ struct stream_encoder *dce100_find_first_free_match_stream_enc_for_link(
 	int i;
 	int j = -1;
 	struct dc_link *link = stream->link;
+	enum engine_id preferred_engine = link->link_enc->preferred_engine;
+
+	if (dc_is_rgb_signal(stream->signal))
+		preferred_engine = link->link_enc->analog_engine;
 
 	for (i = 0; i < pool->stream_enc_count; i++) {
 		if (!res_ctx->is_stream_enc_acquired[i] &&
@@ -962,8 +966,7 @@ struct stream_encoder *dce100_find_first_free_match_stream_enc_for_link(
 			 * in daisy chain use case
 			 */
 			j = i;
-			if (pool->stream_enc[i]->id ==
-					link->link_enc->preferred_engine)
+			if (pool->stream_enc[i]->id == preferred_engine)
 				return pool->stream_enc[i];
 		}
 	}

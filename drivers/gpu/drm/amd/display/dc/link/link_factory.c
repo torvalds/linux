@@ -451,12 +451,44 @@ static enum channel_id get_ddc_line(struct dc_link *link)
 	return channel;
 }
 
+static enum engine_id find_analog_engine(struct dc_link *link)
+{
+	struct dc_bios *bp = link->ctx->dc_bios;
+	struct graphics_object_id encoder = {0};
+	enum bp_result bp_result = BP_RESULT_OK;
+	int i;
+
+	for (i = 0; i < 3; i++) {
+		bp_result = bp->funcs->get_src_obj(bp, link->link_id, i, &encoder);
+
+		if (bp_result != BP_RESULT_OK)
+			return ENGINE_ID_UNKNOWN;
+
+		switch (encoder.id) {
+		case ENCODER_ID_INTERNAL_DAC1:
+		case ENCODER_ID_INTERNAL_KLDSCP_DAC1:
+			return ENGINE_ID_DACA;
+		case ENCODER_ID_INTERNAL_DAC2:
+		case ENCODER_ID_INTERNAL_KLDSCP_DAC2:
+			return ENGINE_ID_DACB;
+		}
+	}
+
+	return ENGINE_ID_UNKNOWN;
+}
+
 static bool transmitter_supported(const enum transmitter transmitter)
 {
 	return transmitter != TRANSMITTER_UNKNOWN &&
 		transmitter != TRANSMITTER_NUTMEG_CRT &&
 		transmitter != TRANSMITTER_TRAVIS_CRT &&
 		transmitter != TRANSMITTER_TRAVIS_LCD;
+}
+
+static bool analog_engine_supported(const enum engine_id engine_id)
+{
+	return engine_id == ENGINE_ID_DACA ||
+		engine_id == ENGINE_ID_DACB;
 }
 
 static bool construct_phy(struct dc_link *link,
@@ -495,8 +527,10 @@ static bool construct_phy(struct dc_link *link,
 	 */
 	bp_funcs->get_src_obj(bios, link->link_id, 0, &enc_init_data.encoder);
 	enc_init_data.transmitter = translate_encoder_to_transmitter(enc_init_data.encoder);
+	enc_init_data.analog_engine = find_analog_engine(link);
 
-	if (!transmitter_supported(enc_init_data.transmitter)) {
+	if (!transmitter_supported(enc_init_data.transmitter) &&
+		!analog_engine_supported(enc_init_data.analog_engine)) {
 		DC_LOG_WARNING("link_id %d has unsupported encoder\n", link->link_id.id);
 		return false;
 	}
