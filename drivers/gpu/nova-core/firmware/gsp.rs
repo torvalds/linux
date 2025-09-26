@@ -202,8 +202,7 @@ impl GspFirmware {
                 let mut level0_data = kvec![0u8; GSP_PAGE_SIZE]?;
 
                 // Fill level 1 page entry.
-                #[allow(clippy::useless_conversion)]
-                let level1_entry = u64::from(level1.iter().next().unwrap().dma_address());
+                let level1_entry = level1.iter().next().unwrap().dma_address();
                 let dst = &mut level0_data[..size_of_val(&level1_entry)];
                 dst.copy_from_slice(&level1_entry.to_le_bytes());
 
