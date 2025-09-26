@@ -1114,6 +1114,16 @@ static void dccg35_trigger_dio_fifo_resync(struct dccg *dccg)
 	if (dispclk_rdivider_value != 0)
 		REG_UPDATE(DENTIST_DISPCLK_CNTL, DENTIST_DISPCLK_WDIVIDER, dispclk_rdivider_value);
 }
+static void dccg35_wait_for_dentist_change_done(
+	struct dccg *dccg)
+{
+	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+
+	uint32_t dentist_dispclk_value = REG_READ(DENTIST_DISPCLK_CNTL);
+
+	REG_WRITE(DENTIST_DISPCLK_CNTL, dentist_dispclk_value);
+	REG_WAIT(DENTIST_DISPCLK_CNTL, DENTIST_DISPCLK_CHG_DONE, 1, 50, 2000);
+}
 
 static void dcn35_set_dppclk_enable(struct dccg *dccg,
 				 uint32_t dpp_inst, uint32_t enable)
@@ -1300,6 +1310,8 @@ static void dccg35_set_pixel_rate_div(
 		BREAK_TO_DEBUGGER();
 		return;
 	}
+	if (otg_inst < 4)
+		dccg35_wait_for_dentist_change_done(dccg);
 }
 
 static void dccg35_set_dtbclk_p_src(
