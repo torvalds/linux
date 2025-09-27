@@ -708,7 +708,7 @@ void tmigr_cpu_activate(void)
 /*
  * Returns true, if there is nothing to be propagated to the next level
  *
- * @data->firstexp is set to expiry of first gobal event of the (top level of
+ * @data->firstexp is set to expiry of first global event of the (top level of
  * the) hierarchy, but only when hierarchy is completely idle.
  *
  * The child and group states need to be read under the lock, to prevent a race

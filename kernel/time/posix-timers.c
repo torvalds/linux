@@ -1242,7 +1242,7 @@ SYSCALL_DEFINE2(clock_adjtime, const clockid_t, which_clock,
  *    sys_clock_settime(). The kernel internal timekeeping is always using
  *    nanoseconds precision independent of the clocksource device which is
  *    used to read the time from. The resolution of that device only
- *    affects the presicion of the time returned by sys_clock_gettime().
+ *    affects the precision of the time returned by sys_clock_gettime().
  *
  * Returns:
  *	0		Success. @tp contains the resolution
