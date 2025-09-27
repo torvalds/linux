@@ -1034,8 +1034,8 @@ static bool hybrid_register_perf_domain(unsigned int cpu)
 	if (!cpu_dev)
 		return false;
 
-	if (em_dev_register_perf_domain(cpu_dev, HYBRID_EM_STATE_COUNT, &cb,
-					cpumask_of(cpu), false))
+	if (em_dev_register_pd_no_update(cpu_dev, HYBRID_EM_STATE_COUNT, &cb,
+					 cpumask_of(cpu), false))
 		return false;
 
 	cpudata->pd_registered = true;
@@ -2793,6 +2793,7 @@ static const struct x86_cpu_id intel_pstate_cpu_oob_ids[] __initconst = {
 	X86_MATCH(INTEL_GRANITERAPIDS_X,	core_funcs),
 	X86_MATCH(INTEL_ATOM_CRESTMONT,		core_funcs),
 	X86_MATCH(INTEL_ATOM_CRESTMONT_X,	core_funcs),
+	X86_MATCH(INTEL_ATOM_DARKMONT_X,	core_funcs),
 	{}
 };
 #endif

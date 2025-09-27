@@ -1420,7 +1420,7 @@ udp_hash_entries - INTEGER
 	A negative value means the networking namespace does not own its
 	hash buckets and shares the initial networking namespace's one.
 
-udp_child_ehash_entries - INTEGER
+udp_child_hash_entries - INTEGER
 	Control the number of hash buckets for UDP sockets in the child
 	networking namespace, which must be set before clone() or unshare().
 

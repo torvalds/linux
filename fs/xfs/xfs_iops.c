@@ -616,7 +616,8 @@ xfs_get_atomic_write_min(
 	 * write of exactly one single fsblock if the bdev will make that
 	 * guarantee for us.
 	 */
-	if (xfs_inode_can_hw_atomic_write(ip) || xfs_can_sw_atomic_write(mp))
+	if (xfs_inode_can_hw_atomic_write(ip) ||
+	    xfs_inode_can_sw_atomic_write(ip))
 		return mp->m_sb.sb_blocksize;
 
 	return 0;
@@ -633,7 +634,7 @@ xfs_get_atomic_write_max(
 	 * write of exactly one single fsblock if the bdev will make that
 	 * guarantee for us.
 	 */
-	if (!xfs_can_sw_atomic_write(mp)) {
+	if (!xfs_inode_can_sw_atomic_write(ip)) {
 		if (xfs_inode_can_hw_atomic_write(ip))
 			return mp->m_sb.sb_blocksize;
 		return 0;

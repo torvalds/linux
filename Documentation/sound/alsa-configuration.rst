@@ -2253,8 +2253,15 @@ device_setup
     Default: 0x0000 
 ignore_ctl_error
     Ignore any USB-controller regarding mixer interface (default: no)
+    ``ignore_ctl_error=1`` may help when you get an error at accessing
+    the mixer element such as URB error -22.  This happens on some
+    buggy USB device or the controller.  This workaround corresponds to
+    the ``quirk_flags`` bit 14, too.
 autoclock
     Enable auto-clock selection for UAC2 devices (default: yes)
+lowlatency
+    Enable low latency playback mode (default: yes).
+    Could disable it to switch back to the old mode if face a regression.
 quirk_alias
     Quirk alias list, pass strings like ``0123abcd:5678beef``, which
     applies the existing quirk for the device 5678:beef to a new
@@ -2284,6 +2291,11 @@ delayed_register
     The driver prints a message like "Found post-registration device
     assignment: 1234abcd:04" for such a device, so that user can
     notice the need.
+skip_validation
+    Skip unit descriptor validation (default: no).
+    The option is used to ignore the validation errors with the hexdump
+    of the unit descriptor instead of a driver probe error, so that we
+    can check its details.
 quirk_flags
     Contains the bit flags for various device specific workarounds.
     Applied to the corresponding card index.
@@ -2307,6 +2319,16 @@ quirk_flags
         * bit 16: Set up the interface at first like UAC1
         * bit 17: Apply the generic implicit feedback sync mode
         * bit 18: Don't apply implicit feedback sync mode
+        * bit 19: Don't closed interface during setting sample rate
+        * bit 20: Force an interface reset whenever stopping & restarting
+          a stream
+        * bit 21: Do not set PCM rate (frequency) when only one rate is
+          available for the given endpoint.
+        * bit 22: Set the fixed resolution 16 for Mic Capture Volume
+        * bit 23: Set the fixed resolution 384 for Mic Capture Volume
+        * bit 24: Set minimum volume control value as mute for devices
+          where the lowest playback value represents muted state instead
+          of minimum audible volume
 
 This module supports multiple devices, autoprobe and hotplugging.
 
@@ -2314,10 +2336,9 @@ NB: ``nrpacks`` parameter can be modified dynamically via sysfs.
 Don't put the value over 20.  Changing via sysfs has no sanity
 check.
 
-NB: ``ignore_ctl_error=1`` may help when you get an error at accessing
-the mixer element such as URB error -22.  This happens on some
-buggy USB device or the controller.  This workaround corresponds to
-the ``quirk_flags`` bit 14, too.
+NB: ``ignore_ctl_error=1`` just provides a quick way to work around the
+issues.  If you have a buggy device that requires these quirks, please
+report it to the upstream.
 
 NB: ``quirk_alias`` option is provided only for testing / development.
 If you want to have a proper support, contact to upstream for

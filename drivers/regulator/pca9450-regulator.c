@@ -40,7 +40,6 @@ struct pca9450 {
 	struct device *dev;
 	struct regmap *regmap;
 	struct gpio_desc *sd_vsel_gpio;
-	struct notifier_block restart_nb;
 	enum pca9450_chip_type type;
 	unsigned int rcnt;
 	int irq;
@@ -1100,10 +1099,9 @@ static irqreturn_t pca9450_irq_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int pca9450_i2c_restart_handler(struct notifier_block *nb,
-				unsigned long action, void *data)
+static int pca9450_i2c_restart_handler(struct sys_off_data *data)
 {
-	struct pca9450 *pca9450 = container_of(nb, struct pca9450, restart_nb);
+	struct pca9450 *pca9450 = data->cb_data;
 	struct i2c_client *i2c = container_of(pca9450->dev, struct i2c_client, dev);
 
 	dev_dbg(&i2c->dev, "Restarting device..\n");
@@ -1261,10 +1259,9 @@ static int pca9450_i2c_probe(struct i2c_client *i2c)
 	pca9450->sd_vsel_fixed_low =
 		of_property_read_bool(ldo5->dev.of_node, "nxp,sd-vsel-fixed-low");
 
-	pca9450->restart_nb.notifier_call = pca9450_i2c_restart_handler;
-	pca9450->restart_nb.priority = PCA9450_RESTART_HANDLER_PRIORITY;
-
-	if (register_restart_handler(&pca9450->restart_nb))
+	if (devm_register_sys_off_handler(&i2c->dev, SYS_OFF_MODE_RESTART,
+					  PCA9450_RESTART_HANDLER_PRIORITY,
+					  pca9450_i2c_restart_handler, pca9450))
 		dev_warn(&i2c->dev, "Failed to register restart handler\n");
 
 	dev_info(&i2c->dev, "%s probed.\n",

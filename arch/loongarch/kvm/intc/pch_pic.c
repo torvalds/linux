@@ -195,6 +195,11 @@ static int kvm_pch_pic_read(struct kvm_vcpu *vcpu,
 		return -EINVAL;
 	}
 
+	if (addr & (len - 1)) {
+		kvm_err("%s: pch pic not aligned addr %llx len %d\n", __func__, addr, len);
+		return -EINVAL;
+	}
+
 	/* statistics of pch pic reading */
 	vcpu->stat.pch_pic_read_exits++;
 	ret = loongarch_pch_pic_read(s, addr, len, val);
@@ -302,6 +307,11 @@ static int kvm_pch_pic_write(struct kvm_vcpu *vcpu,
 		return -EINVAL;
 	}
 
+	if (addr & (len - 1)) {
+		kvm_err("%s: pch pic not aligned addr %llx len %d\n", __func__, addr, len);
+		return -EINVAL;
+	}
+
 	/* statistics of pch pic writing */
 	vcpu->stat.pch_pic_write_exits++;
 	ret = loongarch_pch_pic_write(s, addr, len, val);
@@ -338,6 +348,7 @@ static int kvm_pch_pic_regs_access(struct kvm_device *dev,
 				struct kvm_device_attr *attr,
 				bool is_write)
 {
+	char buf[8];
 	int addr, offset, len = 8, ret = 0;
 	void __user *data;
 	void *p = NULL;
@@ -387,16 +398,22 @@ static int kvm_pch_pic_regs_access(struct kvm_device *dev,
 		return -EINVAL;
 	}
 
-	spin_lock(&s->lock);
-	/* write or read value according to is_write */
 	if (is_write) {
-		if (copy_from_user(p, data, len))
-			ret = -EFAULT;
-	} else {
-		if (copy_to_user(data, p, len))
-			ret = -EFAULT;
+		if (copy_from_user(buf, data, len))
+			return -EFAULT;
 	}
+
+	spin_lock(&s->lock);
+	if (is_write)
+		memcpy(p, buf, len);
+	else
+		memcpy(buf, p, len);
 	spin_unlock(&s->lock);
+
+	if (!is_write) {
+		if (copy_to_user(data, buf, len))
+			return -EFAULT;
+	}
 
 	return ret;
 }

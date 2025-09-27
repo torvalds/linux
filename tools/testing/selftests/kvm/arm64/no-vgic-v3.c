@@ -54,7 +54,7 @@ static void guest_code(void)
 	 * Check that we advertise that ID_AA64PFR0_EL1.GIC == 0, having
 	 * hidden the feature at runtime without any other userspace action.
 	 */
-	__GUEST_ASSERT(FIELD_GET(ARM64_FEATURE_MASK(ID_AA64PFR0_EL1_GIC),
+	__GUEST_ASSERT(FIELD_GET(ID_AA64PFR0_EL1_GIC,
 				 read_sysreg(id_aa64pfr0_el1)) == 0,
 		       "GICv3 wrongly advertised");
 
@@ -165,7 +165,7 @@ int main(int argc, char *argv[])
 
 	vm = vm_create_with_one_vcpu(&vcpu, NULL);
 	pfr0 = vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(SYS_ID_AA64PFR0_EL1));
-	__TEST_REQUIRE(FIELD_GET(ARM64_FEATURE_MASK(ID_AA64PFR0_EL1_GIC), pfr0),
+	__TEST_REQUIRE(FIELD_GET(ID_AA64PFR0_EL1_GIC, pfr0),
 		       "GICv3 not supported.");
 	kvm_vm_free(vm);
 

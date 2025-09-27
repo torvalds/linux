@@ -111,7 +111,8 @@ void change_mnt_propagation(struct mount *mnt, int type)
 		return;
 	}
 	if (IS_MNT_SHARED(mnt)) {
-		m = propagation_source(mnt);
+		if (type == MS_SLAVE || !hlist_empty(&mnt->mnt_slave_list))
+			m = propagation_source(mnt);
 		if (list_empty(&mnt->mnt_share)) {
 			mnt_release_group_id(mnt);
 		} else {
@@ -637,10 +638,11 @@ void propagate_umount(struct list_head *set)
 	}
 
 	// now to_umount consists of all acceptable candidates
-	// deal with reparenting of remaining overmounts on those
+	// deal with reparenting of surviving overmounts on those
 	list_for_each_entry(m, &to_umount, mnt_list) {
-		if (m->overmount)
-			reparent(m->overmount);
+		struct mount *over = m->overmount;
+		if (over && !will_be_unmounted(over))
+			reparent(over);
 	}
 
 	// and fold them into the set

@@ -211,8 +211,8 @@ static int
 dpll_msg_add_clock_quality_level(struct sk_buff *msg, struct dpll_device *dpll,
 				 struct netlink_ext_ack *extack)
 {
+	DECLARE_BITMAP(qls, DPLL_CLOCK_QUALITY_LEVEL_MAX + 1) = { 0 };
 	const struct dpll_device_ops *ops = dpll_device_ops(dpll);
-	DECLARE_BITMAP(qls, DPLL_CLOCK_QUALITY_LEVEL_MAX) = { 0 };
 	enum dpll_clock_quality_level ql;
 	int ret;
 
@@ -221,7 +221,7 @@ dpll_msg_add_clock_quality_level(struct sk_buff *msg, struct dpll_device *dpll,
 	ret = ops->clock_quality_level_get(dpll, dpll_priv(dpll), qls, extack);
 	if (ret)
 		return ret;
-	for_each_set_bit(ql, qls, DPLL_CLOCK_QUALITY_LEVEL_MAX)
+	for_each_set_bit(ql, qls, DPLL_CLOCK_QUALITY_LEVEL_MAX + 1)
 		if (nla_put_u32(msg, DPLL_A_CLOCK_QUALITY_LEVEL, ql))
 			return -EMSGSIZE;
 

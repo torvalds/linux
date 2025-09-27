@@ -446,9 +446,6 @@ TEST_F(coredump, socket_detect_userspace_client)
 		if (info.coredump_mask & PIDFD_COREDUMPED)
 			goto out;
 
-		if (read(fd_coredump, &c, 1) < 1)
-			goto out;
-
 		exit_code = EXIT_SUCCESS;
 out:
 		if (fd_peer_pidfd >= 0)

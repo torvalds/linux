@@ -72,7 +72,7 @@
 	};
 
 	vcc_cam_avdd: regulator-vcc-cam-avdd {
-		compatible  = "regulator-fixed";
+		compatible = "regulator-fixed";
 		regulator-name = "vcc_cam_avdd";
 		gpio = <&gpio3 RK_PC0 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default";
@@ -83,7 +83,7 @@
 	};
 
 	vcc_cam_dovdd: regulator-vcc-cam-dovdd {
-		compatible  = "regulator-fixed";
+		compatible = "regulator-fixed";
 		regulator-name = "vcc_cam_dovdd";
 		gpio = <&gpio3 RK_PC1 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default";
@@ -94,7 +94,7 @@
 	};
 
 	vcc_cam_dvdd: regulator-vcc-cam-dvdd {
-		compatible  = "regulator-fixed";
+		compatible = "regulator-fixed";
 		regulator-name = "vcc_cam_dvdd";
 		gpio = <&gpio3 RK_PC5 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
@@ -106,7 +106,7 @@
 	};
 
 	vcc_lens_afvdd: regulator-vcc-lens-afvdd {
-		compatible  = "regulator-fixed";
+		compatible = "regulator-fixed";
 		regulator-name = "vcc_lens_afvdd";
 		gpio = <&gpio3 RK_PB2 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default";

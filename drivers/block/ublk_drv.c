@@ -235,10 +235,11 @@ struct ublk_device {
 
 	struct completion	completion;
 	unsigned int		nr_queues_ready;
-	unsigned int		nr_privileged_daemon;
+	bool 			unprivileged_daemons;
 	struct mutex cancel_mutex;
 	bool canceling;
 	pid_t 	ublksrv_tgid;
+	struct delayed_work	exit_work;
 };
 
 /* header of ublk_params */
@@ -1389,7 +1390,7 @@ static blk_status_t ublk_prep_req(struct ublk_queue *ubq, struct request *rq,
 {
 	blk_status_t res;
 
-	if (unlikely(ubq->fail_io))
+	if (unlikely(READ_ONCE(ubq->fail_io)))
 		return BLK_STS_TARGET;
 
 	/* With recovery feature enabled, force_abort is set in
@@ -1401,7 +1402,8 @@ static blk_status_t ublk_prep_req(struct ublk_queue *ubq, struct request *rq,
 	 * Note: force_abort is guaranteed to be seen because it is set
 	 * before request queue is unqiuesced.
 	 */
-	if (ublk_nosrv_should_queue_io(ubq) && unlikely(ubq->force_abort))
+	if (ublk_nosrv_should_queue_io(ubq) &&
+	    unlikely(READ_ONCE(ubq->force_abort)))
 		return BLK_STS_IOERR;
 
 	if (check_cancel && unlikely(ubq->canceling))
@@ -1550,7 +1552,7 @@ static void ublk_reset_ch_dev(struct ublk_device *ub)
 	/* set to NULL, otherwise new tasks cannot mmap io_cmd_buf */
 	ub->mm = NULL;
 	ub->nr_queues_ready = 0;
-	ub->nr_privileged_daemon = 0;
+	ub->unprivileged_daemons = false;
 	ub->ublksrv_tgid = -1;
 }
 
@@ -1594,11 +1596,61 @@ static void ublk_set_canceling(struct ublk_device *ub, bool canceling)
 		ublk_get_queue(ub, i)->canceling = canceling;
 }
 
-static int ublk_ch_release(struct inode *inode, struct file *filp)
+static bool ublk_check_and_reset_active_ref(struct ublk_device *ub)
 {
-	struct ublk_device *ub = filp->private_data;
+	int i, j;
+
+	if (!(ub->dev_info.flags & (UBLK_F_SUPPORT_ZERO_COPY |
+					UBLK_F_AUTO_BUF_REG)))
+		return false;
+
+	for (i = 0; i < ub->dev_info.nr_hw_queues; i++) {
+		struct ublk_queue *ubq = ublk_get_queue(ub, i);
+
+		for (j = 0; j < ubq->q_depth; j++) {
+			struct ublk_io *io = &ubq->ios[j];
+			unsigned int refs = refcount_read(&io->ref) +
+				io->task_registered_buffers;
+
+			/*
+			 * UBLK_REFCOUNT_INIT or zero means no active
+			 * reference
+			 */
+			if (refs != UBLK_REFCOUNT_INIT && refs != 0)
+				return true;
+
+			/* reset to zero if the io hasn't active references */
+			refcount_set(&io->ref, 0);
+			io->task_registered_buffers = 0;
+		}
+	}
+	return false;
+}
+
+static void ublk_ch_release_work_fn(struct work_struct *work)
+{
+	struct ublk_device *ub =
+		container_of(work, struct ublk_device, exit_work.work);
 	struct gendisk *disk;
 	int i;
+
+	/*
+	 * For zero-copy and auto buffer register modes, I/O references
+	 * might not be dropped naturally when the daemon is killed, but
+	 * io_uring guarantees that registered bvec kernel buffers are
+	 * unregistered finally when freeing io_uring context, then the
+	 * active references are dropped.
+	 *
+	 * Wait until active references are dropped for avoiding use-after-free
+	 *
+	 * registered buffer may be unregistered in io_ring's release hander,
+	 * so have to wait by scheduling work function for avoiding the two
+	 * file release dependency.
+	 */
+	if (ublk_check_and_reset_active_ref(ub)) {
+		schedule_delayed_work(&ub->exit_work, 1);
+		return;
+	}
 
 	/*
 	 * disk isn't attached yet, either device isn't live, or it has
@@ -1644,7 +1696,6 @@ static int ublk_ch_release(struct inode *inode, struct file *filp)
 	 * Transition the device to the nosrv state. What exactly this
 	 * means depends on the recovery flags
 	 */
-	blk_mq_quiesce_queue(disk->queue);
 	if (ublk_nosrv_should_stop_dev(ub)) {
 		/*
 		 * Allow any pending/future I/O to pass through quickly
@@ -1652,8 +1703,7 @@ static int ublk_ch_release(struct inode *inode, struct file *filp)
 		 * waits for all pending I/O to complete
 		 */
 		for (i = 0; i < ub->dev_info.nr_hw_queues; i++)
-			ublk_get_queue(ub, i)->force_abort = true;
-		blk_mq_unquiesce_queue(disk->queue);
+			WRITE_ONCE(ublk_get_queue(ub, i)->force_abort, true);
 
 		ublk_stop_dev_unlocked(ub);
 	} else {
@@ -1663,9 +1713,8 @@ static int ublk_ch_release(struct inode *inode, struct file *filp)
 		} else {
 			ub->dev_info.state = UBLK_S_DEV_FAIL_IO;
 			for (i = 0; i < ub->dev_info.nr_hw_queues; i++)
-				ublk_get_queue(ub, i)->fail_io = true;
+				WRITE_ONCE(ublk_get_queue(ub, i)->fail_io, true);
 		}
-		blk_mq_unquiesce_queue(disk->queue);
 	}
 unlock:
 	mutex_unlock(&ub->mutex);
@@ -1675,6 +1724,23 @@ unlock:
 	ublk_reset_ch_dev(ub);
 out:
 	clear_bit(UB_STATE_OPEN, &ub->state);
+
+	/* put the reference grabbed in ublk_ch_release() */
+	ublk_put_device(ub);
+}
+
+static int ublk_ch_release(struct inode *inode, struct file *filp)
+{
+	struct ublk_device *ub = filp->private_data;
+
+	/*
+	 * Grab ublk device reference, so it won't be gone until we are
+	 * really released from work function.
+	 */
+	ublk_get_device(ub);
+
+	INIT_DELAYED_WORK(&ub->exit_work, ublk_ch_release_work_fn);
+	schedule_delayed_work(&ub->exit_work, 0);
 	return 0;
 }
 
@@ -1980,12 +2046,10 @@ static void ublk_mark_io_ready(struct ublk_device *ub, struct ublk_queue *ubq)
 	__must_hold(&ub->mutex)
 {
 	ubq->nr_io_ready++;
-	if (ublk_queue_ready(ubq)) {
+	if (ublk_queue_ready(ubq))
 		ub->nr_queues_ready++;
-
-		if (capable(CAP_SYS_ADMIN))
-			ub->nr_privileged_daemon++;
-	}
+	if (!ub->unprivileged_daemons && !capable(CAP_SYS_ADMIN))
+		ub->unprivileged_daemons = true;
 
 	if (ub->nr_queues_ready == ub->dev_info.nr_hw_queues) {
 		/* now we are ready for handling ublk io request */
@@ -2880,8 +2944,8 @@ static int ublk_ctrl_start_dev(struct ublk_device *ub,
 
 	ublk_apply_params(ub);
 
-	/* don't probe partitions if any one ubq daemon is un-trusted */
-	if (ub->nr_privileged_daemon != ub->nr_queues_ready)
+	/* don't probe partitions if any daemon task is un-trusted */
+	if (ub->unprivileged_daemons)
 		set_bit(GD_SUPPRESS_PART_SCAN, &disk->state);
 
 	ublk_get_device(ub);

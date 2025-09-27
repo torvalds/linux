@@ -134,7 +134,7 @@ ns4=""
 TEST_GROUP=""
 
 # This function is used in the cleanup trap
-#shellcheck disable=SC2317
+#shellcheck disable=SC2317,SC2329
 cleanup()
 {
 	rm -f "$cin_disconnect"
@@ -209,6 +209,11 @@ if $checksum; then
 	for i in "$ns1" "$ns2" "$ns3" "$ns4";do
 		ip netns exec $i sysctl -q net.mptcp.checksum_enabled=1
 	done
+fi
+
+if $capture; then
+	rndh="${ns1:4}"
+	mptcp_lib_pr_info "Packet capture files will have this prefix: ${rndh}-"
 fi
 
 set_ethtool_flags() {
@@ -361,7 +366,6 @@ do_transfer()
 
 	if $capture; then
 		local capuser
-		local rndh="${connector_ns:4}"
 		if [ -z $SUDO_USER ] ; then
 			capuser=""
 		else

@@ -47,21 +47,19 @@ properties:
     const: 0
 
   clocks:
+    minItems: 1
     maxItems: 3
-    description: Reference clocks for CP110; MG clock, MG Core clock, AXI clock
 
   clock-names:
-    items:
-      - const: mg_clk
-      - const: mg_core_clk
-      - const: axi_clk
+    minItems: 1
+    maxItems: 3
 
   marvell,system-controller:
     description: Phandle to the Marvell system controller (CP110 only)
     $ref: /schemas/types.yaml#/definitions/phandle
 
 patternProperties:
-  '^phy@[0-2]$':
+  '^phy@[0-5]$':
     description: A COMPHY lane child node
     type: object
     additionalProperties: false
@@ -69,9 +67,13 @@ patternProperties:
     properties:
       reg:
         description: COMPHY lane number
+        maximum: 5
 
       '#phy-cells':
         const: 1
+
+      connector:
+        type: object
 
     required:
       - reg
@@ -91,13 +93,24 @@ allOf:
 
     then:
       properties:
-        clocks: false
-        clock-names: false
+        clocks:
+          maxItems: 1
+        clock-names:
+          const: xtal
 
       required:
         - reg-names
 
     else:
+      properties:
+        clocks:
+          minItems: 3
+        clock-names:
+          items:
+            - const: mg_clk
+            - const: mg_core_clk
+            - const: axi_clk
+
       required:
         - marvell,system-controller
 

@@ -110,8 +110,12 @@ struct debuginfo *debuginfo__new(const char *path)
 	if (!dso)
 		goto out;
 
-	/* Set the build id for DSO_BINARY_TYPE__BUILDID_DEBUGINFO */
-	if (is_regular_file(path) && filename__read_build_id(path, &bid) > 0)
+	/*
+	 * Set the build id for DSO_BINARY_TYPE__BUILDID_DEBUGINFO. Don't block
+	 * incase the path isn't for a regular file.
+	 */
+	assert(!dso__has_build_id(dso));
+	if (filename__read_build_id(path, &bid, /*block=*/false) > 0)
 		dso__set_build_id(dso, &bid);
 
 	for (type = distro_dwarf_types;

@@ -28,8 +28,8 @@ struct vgic_global kvm_vgic_global_state __ro_after_init = {
  *     kvm->arch.config_lock (mutex)
  *       its->cmd_lock (mutex)
  *         its->its_lock (mutex)
- *           vgic_cpu->ap_list_lock		must be taken with IRQs disabled
- *             vgic_dist->lpi_xa.xa_lock	must be taken with IRQs disabled
+ *           vgic_dist->lpi_xa.xa_lock
+ *             vgic_cpu->ap_list_lock		must be taken with IRQs disabled
  *               vgic_irq->irq_lock		must be taken with IRQs disabled
  *
  * As the ap_list_lock might be taken from the timer interrupt handler,
@@ -71,7 +71,7 @@ static struct vgic_irq *vgic_get_lpi(struct kvm *kvm, u32 intid)
 	rcu_read_lock();
 
 	irq = xa_load(&dist->lpi_xa, intid);
-	if (!vgic_try_get_irq_kref(irq))
+	if (!vgic_try_get_irq_ref(irq))
 		irq = NULL;
 
 	rcu_read_unlock();
@@ -114,37 +114,66 @@ struct vgic_irq *vgic_get_vcpu_irq(struct kvm_vcpu *vcpu, u32 intid)
 	return vgic_get_irq(vcpu->kvm, intid);
 }
 
-/*
- * We can't do anything in here, because we lack the kvm pointer to
- * lock and remove the item from the lpi_list. So we keep this function
- * empty and use the return value of kref_put() to trigger the freeing.
- */
-static void vgic_irq_release(struct kref *ref)
+static void vgic_release_lpi_locked(struct vgic_dist *dist, struct vgic_irq *irq)
 {
+	lockdep_assert_held(&dist->lpi_xa.xa_lock);
+	__xa_erase(&dist->lpi_xa, irq->intid);
+	kfree_rcu(irq, rcu);
+}
+
+static __must_check bool __vgic_put_irq(struct kvm *kvm, struct vgic_irq *irq)
+{
+	if (irq->intid < VGIC_MIN_LPI)
+		return false;
+
+	return refcount_dec_and_test(&irq->refcount);
+}
+
+static __must_check bool vgic_put_irq_norelease(struct kvm *kvm, struct vgic_irq *irq)
+{
+	if (!__vgic_put_irq(kvm, irq))
+		return false;
+
+	irq->pending_release = true;
+	return true;
 }
 
 void vgic_put_irq(struct kvm *kvm, struct vgic_irq *irq)
 {
 	struct vgic_dist *dist = &kvm->arch.vgic;
-	unsigned long flags;
 
-	if (irq->intid < VGIC_MIN_LPI)
+	if (irq->intid >= VGIC_MIN_LPI)
+		might_lock(&dist->lpi_xa.xa_lock);
+
+	if (!__vgic_put_irq(kvm, irq))
 		return;
 
-	if (!kref_put(&irq->refcount, vgic_irq_release))
-		return;
+	xa_lock(&dist->lpi_xa);
+	vgic_release_lpi_locked(dist, irq);
+	xa_unlock(&dist->lpi_xa);
+}
 
-	xa_lock_irqsave(&dist->lpi_xa, flags);
-	__xa_erase(&dist->lpi_xa, irq->intid);
-	xa_unlock_irqrestore(&dist->lpi_xa, flags);
+static void vgic_release_deleted_lpis(struct kvm *kvm)
+{
+	struct vgic_dist *dist = &kvm->arch.vgic;
+	unsigned long intid;
+	struct vgic_irq *irq;
 
-	kfree_rcu(irq, rcu);
+	xa_lock(&dist->lpi_xa);
+
+	xa_for_each(&dist->lpi_xa, intid, irq) {
+		if (irq->pending_release)
+			vgic_release_lpi_locked(dist, irq);
+	}
+
+	xa_unlock(&dist->lpi_xa);
 }
 
 void vgic_flush_pending_lpis(struct kvm_vcpu *vcpu)
 {
 	struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
 	struct vgic_irq *irq, *tmp;
+	bool deleted = false;
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&vgic_cpu->ap_list_lock, flags);
@@ -155,11 +184,14 @@ void vgic_flush_pending_lpis(struct kvm_vcpu *vcpu)
 			list_del(&irq->ap_list);
 			irq->vcpu = NULL;
 			raw_spin_unlock(&irq->irq_lock);
-			vgic_put_irq(vcpu->kvm, irq);
+			deleted |= vgic_put_irq_norelease(vcpu->kvm, irq);
 		}
 	}
 
 	raw_spin_unlock_irqrestore(&vgic_cpu->ap_list_lock, flags);
+
+	if (deleted)
+		vgic_release_deleted_lpis(vcpu->kvm);
 }
 
 void vgic_irq_set_phys_pending(struct vgic_irq *irq, bool pending)
@@ -399,7 +431,7 @@ retry:
 	 * now in the ap_list. This is safe as the caller must already hold a
 	 * reference on the irq.
 	 */
-	vgic_get_irq_kref(irq);
+	vgic_get_irq_ref(irq);
 	list_add_tail(&irq->ap_list, &vcpu->arch.vgic_cpu.ap_list_head);
 	irq->vcpu = vcpu;
 
@@ -630,6 +662,7 @@ static void vgic_prune_ap_list(struct kvm_vcpu *vcpu)
 {
 	struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
 	struct vgic_irq *irq, *tmp;
+	bool deleted_lpis = false;
 
 	DEBUG_SPINLOCK_BUG_ON(!irqs_disabled());
 
@@ -657,12 +690,12 @@ retry:
 
 			/*
 			 * This vgic_put_irq call matches the
-			 * vgic_get_irq_kref in vgic_queue_irq_unlock,
+			 * vgic_get_irq_ref in vgic_queue_irq_unlock,
 			 * where we added the LPI to the ap_list. As
 			 * we remove the irq from the list, we drop
 			 * also drop the refcount.
 			 */
-			vgic_put_irq(vcpu->kvm, irq);
+			deleted_lpis |= vgic_put_irq_norelease(vcpu->kvm, irq);
 			continue;
 		}
 
@@ -725,6 +758,9 @@ retry:
 	}
 
 	raw_spin_unlock(&vgic_cpu->ap_list_lock);
+
+	if (unlikely(deleted_lpis))
+		vgic_release_deleted_lpis(vcpu->kvm);
 }
 
 static inline void vgic_fold_lr_state(struct kvm_vcpu *vcpu)
@@ -818,7 +854,7 @@ static void vgic_flush_lr_state(struct kvm_vcpu *vcpu)
 		 * the AP list has been sorted already.
 		 */
 		if (multi_sgi && irq->priority > prio) {
-			_raw_spin_unlock(&irq->irq_lock);
+			raw_spin_unlock(&irq->irq_lock);
 			break;
 		}
 

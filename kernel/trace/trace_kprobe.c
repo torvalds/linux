@@ -908,6 +908,8 @@ static int trace_kprobe_create_internal(int argc, const char *argv[],
 			return -EINVAL;
 		}
 		buf = kmemdup(&argv[0][1], len + 1, GFP_KERNEL);
+		if (!buf)
+			return -ENOMEM;
 		buf[len] = '\0';
 		ret = kstrtouint(buf, 0, &maxactive);
 		if (ret || !maxactive) {
