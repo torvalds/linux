@@ -336,16 +336,14 @@ struct snd_dec_ape {
  * @mapping_family: Order and meaning of output channels. Only values 0 and 1
  * are expected; values 2..255 are not recommended for playback.
  *
- * Optional channel mapping table. Describes mapping of opus streams to decoded
- * channels.
- * @struct snd_dec_opus_ch_map
- *	@stream_count: Number of streams encoded in each Ogg packet.
- *	@coupled_count: Number of streams whose decoders are used for two
- *		channels.
- *	@channel_map: describes which decoded channel to be used for each one.
- *		See RFC doc for details.
- *		This supports only mapping families 0 and 1, therefore max
- *		number of channels is 8.
+ * @chan_map: Optional channel mapping table. Describes mapping of opus streams
+ *            to decoded channels. Fields:
+ * @chan_map.stream_count: Number of streams encoded in each Ogg packet.
+ * @chan_map.coupled_count: Number of streams whose decoders are used
+ *                          for two channels.
+ * @chan_map.channel_map: Which decoded channel to be used for each one.
+ *                        Supports only mapping families 0 and 1,
+ *                        max number of channels is 8.
  *
  * These options were extracted from RFC7845 Section 5.
  */
