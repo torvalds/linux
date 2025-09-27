@@ -48,11 +48,11 @@ elif [[ ! "$ip_versions" =~ ^ipv[46]$ ]]; then
 fi
 
 ktap_print_header
-ktap_set_plan 2
+ktap_set_plan $(echo $ip_versions | wc -w)
 
 for ip_version in $ip_versions; do
 	unshare -n packetdrill ${ip_args[$ip_version]} ${optargs[@]} $script > /dev/null \
-	    && ktap_test_pass $ip_version || $failfunc $ip_version
+		&& ktap_test_pass $ip_version || $failfunc $ip_version
 done
 
 ktap_finished
