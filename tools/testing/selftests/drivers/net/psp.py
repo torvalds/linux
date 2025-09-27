@@ -12,7 +12,7 @@ import time
 
 from lib.py import defer
 from lib.py import ksft_run, ksft_exit, ksft_pr
-from lib.py import ksft_true, ksft_eq, ksft_ne, ksft_raises
+from lib.py import ksft_true, ksft_eq, ksft_ne, ksft_gt, ksft_raises
 from lib.py import KsftSkipEx
 from lib.py import NetDrvEpEnv, PSPFamily, NlError
 from lib.py import bkg, rand_port, wait_port_listen
@@ -34,6 +34,13 @@ def _send_with_ack(cfg, msg):
 def _remote_read_len(cfg):
     cfg.comm_sock.send(b'read len\0')
     return int(cfg.comm_sock.recv(1024)[:-1].decode('utf-8'))
+
+
+def _make_clr_conn(cfg, ipver=None):
+    _send_with_ack(cfg, b'conn clr\0')
+    remote_addr = cfg.remote_addr_v[ipver] if ipver else cfg.remote_addr
+    s = socket.create_connection((remote_addr, cfg.comm_port), )
+    return s
 
 
 def _make_psp_conn(cfg, version=0, ipver=None):
@@ -181,6 +188,156 @@ def dev_rotate_spi(cfg):
     ksft_ne(top_a, top_b)
 
 
+def assoc_basic(cfg):
+    """ Test creating associations """
+    _init_psp_dev(cfg)
+
+    with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as s:
+        assoc = cfg.pspnl.rx_assoc({"version": 0,
+                                  "dev-id": cfg.psp_dev_id,
+                                  "sock-fd": s.fileno()})
+        ksft_eq(assoc['dev-id'], cfg.psp_dev_id)
+        ksft_gt(assoc['rx-key']['spi'], 0)
+        ksft_eq(len(assoc['rx-key']['key']), 16)
+
+        assoc = cfg.pspnl.tx_assoc({"dev-id": cfg.psp_dev_id,
+                                  "version": 0,
+                                  "tx-key": assoc['rx-key'],
+                                  "sock-fd": s.fileno()})
+        ksft_eq(len(assoc), 0)
+        s.close()
+
+
+def assoc_bad_dev(cfg):
+    """ Test creating associations with bad device ID """
+    _init_psp_dev(cfg)
+
+    with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as s:
+        with ksft_raises(NlError) as cm:
+            cfg.pspnl.rx_assoc({"version": 0,
+                              "dev-id": cfg.psp_dev_id + 1234567,
+                              "sock-fd": s.fileno()})
+        ksft_eq(cm.exception.nl_msg.error, -errno.ENODEV)
+
+
+def assoc_sk_only_conn(cfg):
+    """ Test creating associations based on socket """
+    _init_psp_dev(cfg)
+
+    with _make_clr_conn(cfg) as s:
+        assoc = cfg.pspnl.rx_assoc({"version": 0,
+                                  "sock-fd": s.fileno()})
+        ksft_eq(assoc['dev-id'], cfg.psp_dev_id)
+        cfg.pspnl.tx_assoc({"version": 0,
+                          "tx-key": assoc['rx-key'],
+                          "sock-fd": s.fileno()})
+        _close_conn(cfg, s)
+
+
+def assoc_sk_only_mismatch(cfg):
+    """ Test creating associations based on socket (dev mismatch) """
+    _init_psp_dev(cfg)
+
+    with _make_clr_conn(cfg) as s:
+        with ksft_raises(NlError) as cm:
+            cfg.pspnl.rx_assoc({"version": 0,
+                              "dev-id": cfg.psp_dev_id + 1234567,
+                              "sock-fd": s.fileno()})
+        the_exception = cm.exception
+        ksft_eq(the_exception.nl_msg.extack['bad-attr'], ".dev-id")
+        ksft_eq(the_exception.nl_msg.error, -errno.EINVAL)
+
+
+def assoc_sk_only_mismatch_tx(cfg):
+    """ Test creating associations based on socket (dev mismatch) """
+    _init_psp_dev(cfg)
+
+    with _make_clr_conn(cfg) as s:
+        with ksft_raises(NlError) as cm:
+            assoc = cfg.pspnl.rx_assoc({"version": 0,
+                                      "sock-fd": s.fileno()})
+            cfg.pspnl.tx_assoc({"version": 0,
+                              "tx-key": assoc['rx-key'],
+                              "dev-id": cfg.psp_dev_id + 1234567,
+                              "sock-fd": s.fileno()})
+        the_exception = cm.exception
+        ksft_eq(the_exception.nl_msg.extack['bad-attr'], ".dev-id")
+        ksft_eq(the_exception.nl_msg.error, -errno.EINVAL)
+
+
+def assoc_sk_only_unconn(cfg):
+    """ Test creating associations based on socket (unconnected, should fail) """
+    _init_psp_dev(cfg)
+
+    with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as s:
+        with ksft_raises(NlError) as cm:
+            cfg.pspnl.rx_assoc({"version": 0,
+                              "sock-fd": s.fileno()})
+        the_exception = cm.exception
+        ksft_eq(the_exception.nl_msg.extack['miss-type'], "dev-id")
+        ksft_eq(the_exception.nl_msg.error, -errno.EINVAL)
+
+
+def assoc_version_mismatch(cfg):
+    """ Test creating associations where Rx and Tx PSP versions do not match """
+    _init_psp_dev(cfg)
+
+    versions = list(cfg.psp_info['psp-versions-cap'])
+    if len(versions) < 2:
+        raise KsftSkipEx("Not enough PSP versions supported by the device for the test")
+
+    # Translate versions to integers
+    versions = [cfg.pspnl.consts["version"].entries[v].value for v in versions]
+
+    with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as s:
+        rx = cfg.pspnl.rx_assoc({"version": versions[0],
+                                 "dev-id": cfg.psp_dev_id,
+                                 "sock-fd": s.fileno()})
+
+        for version in versions[1:]:
+            with ksft_raises(NlError) as cm:
+                cfg.pspnl.tx_assoc({"dev-id": cfg.psp_dev_id,
+                                    "version": version,
+                                    "tx-key": rx['rx-key'],
+                                    "sock-fd": s.fileno()})
+            the_exception = cm.exception
+            ksft_eq(the_exception.nl_msg.error, -errno.EINVAL)
+
+
+def assoc_twice(cfg):
+    """ Test reusing Tx assoc for two sockets """
+    _init_psp_dev(cfg)
+
+    def rx_assoc_check(s):
+        assoc = cfg.pspnl.rx_assoc({"version": 0,
+                                  "dev-id": cfg.psp_dev_id,
+                                  "sock-fd": s.fileno()})
+        ksft_eq(assoc['dev-id'], cfg.psp_dev_id)
+        ksft_gt(assoc['rx-key']['spi'], 0)
+        ksft_eq(len(assoc['rx-key']['key']), 16)
+
+        return assoc
+
+    with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as s:
+        assoc = rx_assoc_check(s)
+        tx = cfg.pspnl.tx_assoc({"dev-id": cfg.psp_dev_id,
+                               "version": 0,
+                               "tx-key": assoc['rx-key'],
+                               "sock-fd": s.fileno()})
+        ksft_eq(len(tx), 0)
+
+        # Use the same Tx assoc second time
+        with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as s2:
+            rx_assoc_check(s2)
+            tx = cfg.pspnl.tx_assoc({"dev-id": cfg.psp_dev_id,
+                                   "version": 0,
+                                   "tx-key": assoc['rx-key'],
+                                   "sock-fd": s2.fileno()})
+            ksft_eq(len(tx), 0)
+
+        s.close()
+
+
 def _data_basic_send(cfg, version, ipver):
     """ Test basic data send """
     _init_psp_dev(cfg)
@@ -252,7 +409,8 @@ def main() -> None:
                     for ipver in ("4", "6")
                 ]
 
-                ksft_run(cases=cases, globs=globals(), case_pfx={"dev_",}, args=(cfg, ))
+                ksft_run(cases=cases, globs=globals(),
+                         case_pfx={"dev_", "assoc_"}, args=(cfg, ))
 
                 cfg.comm_sock.send(b"exit\0")
                 cfg.comm_sock.close()
