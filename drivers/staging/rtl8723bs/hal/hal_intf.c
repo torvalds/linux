@@ -115,11 +115,6 @@ void rtw_hal_set_hwreg_with_buf(struct adapter *padapter, u8 variable, u8 *pbuf,
 	SetHwRegWithBuf8723B(padapter, variable, pbuf, len);
 }
 
-u8 rtw_hal_set_def_var(struct adapter *padapter, enum hal_def_variable eVariable, void *pValue)
-{
-	return SetHalDefVar8723BSDIO(padapter, eVariable, pValue);
-}
-
 u8 rtw_hal_get_def_var(struct adapter *padapter, enum hal_def_variable eVariable, void *pValue)
 {
 	return GetHalDefVar8723BSDIO(padapter, eVariable, pValue);

@@ -1236,12 +1236,3 @@ u8 GetHalDefVar8723BSDIO(
 
 	return bResult;
 }
-
-/*  */
-/* 	Description: */
-/* 		Change default setting of specified variable. */
-/*  */
-u8 SetHalDefVar8723BSDIO(struct adapter *Adapter, enum hal_def_variable eVariable, void *pValue)
-{
-	return SetHalDefVar8723B(Adapter, eVariable, pValue);
-}
