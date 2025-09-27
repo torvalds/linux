@@ -57,8 +57,7 @@ source qos_lib.sh
 
 h1_create()
 {
-	simple_if_init $h1
-	defer simple_if_fini $h1
+	adf_simple_if_init $h1
 
 	mtu_set $h1 10000
 	defer mtu_restore $h1
@@ -70,8 +69,7 @@ h1_create()
 
 h2_create()
 {
-	simple_if_init $h2
-	defer simple_if_fini $h2
+	adf_simple_if_init $h2
 
 	mtu_set $h2 10000
 	defer mtu_restore $h2
@@ -83,8 +81,7 @@ h2_create()
 
 h3_create()
 {
-	simple_if_init $h3
-	defer simple_if_fini $h3
+	adf_simple_if_init $h3
 
 	mtu_set $h3 10000
 	defer mtu_restore $h3
@@ -225,8 +222,7 @@ setup_prepare()
 
 	h3mac=$(mac_get $h3)
 
-	vrf_prepare
-	defer vrf_cleanup
+	adf_vrf_prepare
 
 	h1_create
 	h2_create

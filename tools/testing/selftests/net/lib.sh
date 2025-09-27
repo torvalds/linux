@@ -543,7 +543,7 @@ require_command()
 	fi
 }
 
-ip_link_add()
+adf_ip_link_add()
 {
 	local name=$1; shift
 
@@ -551,7 +551,7 @@ ip_link_add()
 		defer ip link del dev "$name"
 }
 
-ip_link_set_master()
+adf_ip_link_set_master()
 {
 	local member=$1; shift
 	local master=$1; shift
@@ -560,7 +560,7 @@ ip_link_set_master()
 		defer ip link set dev "$member" nomaster
 }
 
-ip_link_set_addr()
+adf_ip_link_set_addr()
 {
 	local name=$1; shift
 	local addr=$1; shift
@@ -585,7 +585,7 @@ ip_link_is_up()
 	ip_link_has_flag "$1" UP
 }
 
-ip_link_set_up()
+adf_ip_link_set_up()
 {
 	local name=$1; shift
 
@@ -595,7 +595,7 @@ ip_link_set_up()
 	fi
 }
 
-ip_link_set_down()
+adf_ip_link_set_down()
 {
 	local name=$1; shift
 
@@ -605,7 +605,7 @@ ip_link_set_down()
 	fi
 }
 
-ip_addr_add()
+adf_ip_addr_add()
 {
 	local name=$1; shift
 
@@ -613,13 +613,13 @@ ip_addr_add()
 		defer ip addr del dev "$name" "$@"
 }
 
-ip_route_add()
+adf_ip_route_add()
 {
 	ip route add "$@" && \
 		defer ip route del "$@"
 }
 
-bridge_vlan_add()
+adf_bridge_vlan_add()
 {
 	bridge vlan add "$@" && \
 		defer bridge vlan del "$@"

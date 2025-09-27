@@ -599,6 +599,12 @@ vrf_cleanup()
 	ip -4 rule del pref 32765
 }
 
+adf_vrf_prepare()
+{
+	vrf_prepare
+	defer vrf_cleanup
+}
+
 __last_tb_id=0
 declare -A __TB_IDS
 
@@ -709,6 +715,12 @@ simple_if_fini()
 
 	__simple_if_fini $if_name "${array[@]}"
 	vrf_destroy $vrf_name
+}
+
+adf_simple_if_init()
+{
+	simple_if_init "$@"
+	defer simple_if_fini "$@"
 }
 
 tunnel_create()
@@ -1009,6 +1021,12 @@ forwarding_restore()
 {
 	sysctl_restore net.ipv6.conf.all.forwarding
 	sysctl_restore net.ipv4.conf.all.forwarding
+}
+
+adf_forwarding_enable()
+{
+	forwarding_enable
+	defer forwarding_restore
 }
 
 declare -A MTU_ORIG

@@ -26,27 +26,25 @@ source lib.sh
 
 h1_create()
 {
-	simple_if_init "$h1" 192.0.2.1/28
-	defer simple_if_fini "$h1" 192.0.2.1/28
+	adf_simple_if_init "$h1" 192.0.2.1/28
 }
 
 h2_create()
 {
-	simple_if_init "$h2" 192.0.2.2/28
-	defer simple_if_fini "$h2" 192.0.2.2/28
+	adf_simple_if_init "$h2" 192.0.2.2/28
 }
 
 switch_create()
 {
-	ip_link_add br1 type bridge vlan_filtering 0 mcast_snooping 0 \
+	adf_ip_link_add br1 type bridge vlan_filtering 0 mcast_snooping 0 \
 		ageing_time "$LOW_AGEING_TIME"
-	ip_link_set_up br1
+	adf_ip_link_set_up br1
 
-	ip_link_set_master "$swp1" br1
-	ip_link_set_up "$swp1"
+	adf_ip_link_set_master "$swp1" br1
+	adf_ip_link_set_up "$swp1"
 
-	ip_link_set_master "$swp2" br1
-	ip_link_set_up "$swp2"
+	adf_ip_link_set_master "$swp2" br1
+	adf_ip_link_set_up "$swp2"
 }
 
 setup_prepare()
@@ -57,8 +55,7 @@ setup_prepare()
 	swp2=${NETIFS[p3]}
 	h2=${NETIFS[p4]}
 
-	vrf_prepare
-	defer vrf_cleanup
+	adf_vrf_prepare
 
 	h1_create
 	h2_create

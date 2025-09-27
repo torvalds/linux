@@ -44,20 +44,16 @@ host_create()
 	local ipv4=$1; shift
 	local ipv6=$1; shift
 
-	simple_if_init "$h" "$ipv4" "$ipv6"
-	defer simple_if_fini "$h" "$ipv4" "$ipv6"
-
-	ip_route_add vrf "v$h" 192.0.2.16/28 nexthop via 192.0.2.3
-	ip_route_add vrf "v$h" 2001:db8:2::/64 nexthop via 2001:db8:1::3
+	adf_simple_if_init "$h" "$ipv4" "$ipv6"
+	adf_ip_route_add vrf "v$h" 192.0.2.16/28 nexthop via 192.0.2.3
+	adf_ip_route_add vrf "v$h" 2001:db8:2::/64 nexthop via 2001:db8:1::3
 }
 
 h3_create()
 {
-	simple_if_init "$h3" 192.0.2.18/28 2001:db8:2::2/64
-	defer simple_if_fini "$h3" 192.0.2.18/28 2001:db8:2::2/64
-
-	ip_route_add vrf "v$h3" 192.0.2.0/28 nexthop via 192.0.2.17
-	ip_route_add vrf "v$h3" 2001:db8:1::/64 nexthop via 2001:db8:2::1
+	adf_simple_if_init "$h3" 192.0.2.18/28 2001:db8:2::2/64
+	adf_ip_route_add vrf "v$h3" 192.0.2.0/28 nexthop via 192.0.2.17
+	adf_ip_route_add vrf "v$h3" 2001:db8:1::/64 nexthop via 2001:db8:2::1
 
 	tc qdisc add dev "$h3" clsact
 	defer tc qdisc del dev "$h3" clsact
@@ -78,13 +74,13 @@ h3_create()
 
 switch_create()
 {
-	ip_link_set_up "$swp1"
+	adf_ip_link_set_up "$swp1"
 
-	ip_link_set_up "$swp2"
+	adf_ip_link_set_up "$swp2"
 
-	ip_addr_add "$swp3" 192.0.2.17/28
-	ip_addr_add "$swp3" 2001:db8:2::1/64
-	ip_link_set_up "$swp3"
+	adf_ip_addr_add "$swp3" 192.0.2.17/28
+	adf_ip_addr_add "$swp3" 2001:db8:2::1/64
+	adf_ip_link_set_up "$swp3"
 }
 
 setup_prepare()
@@ -98,11 +94,8 @@ setup_prepare()
 	swp3=${NETIFS[p5]}
 	h3=${NETIFS[p6]}
 
-	vrf_prepare
-	defer vrf_cleanup
-
-	forwarding_enable
-	defer forwarding_restore
+	adf_vrf_prepare
+	adf_forwarding_enable
 
 	host_create "$h1" 192.0.2.1/28 2001:db8:1::1/64
 	host_create "$h2" 192.0.2.2/28 2001:db8:1::2/64
@@ -115,18 +108,18 @@ adf_bridge_configure()
 {
 	local dev
 
-	ip_addr_add br 192.0.2.3/28
-	ip_addr_add br 2001:db8:1::3/64
+	adf_ip_addr_add br 192.0.2.3/28
+	adf_ip_addr_add br 2001:db8:1::3/64
 
-	bridge_vlan_add dev br vid 1 pvid untagged self
-	bridge_vlan_add dev br vid 2 self
-	bridge_vlan_add dev br vid 3 self
+	adf_bridge_vlan_add dev br vid 1 pvid untagged self
+	adf_bridge_vlan_add dev br vid 2 self
+	adf_bridge_vlan_add dev br vid 3 self
 
 	for dev in "$swp1" "$swp2"; do
-		ip_link_set_master "$dev" br
-		bridge_vlan_add dev "$dev" vid 1 pvid untagged
-		bridge_vlan_add dev "$dev" vid 2
-		bridge_vlan_add dev "$dev" vid 3
+		adf_ip_link_set_master "$dev" br
+		adf_bridge_vlan_add dev "$dev" vid 1 pvid untagged
+		adf_bridge_vlan_add dev "$dev" vid 2
+		adf_bridge_vlan_add dev "$dev" vid 3
 	done
 }
 
@@ -134,16 +127,16 @@ adf_bridge_create()
 {
 	local mac
 
-	ip_link_add br up type bridge vlan_default_pvid 0 "$@"
+	adf_ip_link_add br up type bridge vlan_default_pvid 0 "$@"
 	mac=$(mac_get br)
 	adf_bridge_configure
-	ip_link_set_addr br "$mac"
+	adf_ip_link_set_addr br "$mac"
 }
 
 check_fdb_local_vlan_0_support()
 {
-	if ip_link_add XXbr up type bridge vlan_filtering 1 fdb_local_vlan_0 1 \
-		    &>/dev/null; then
+	if adf_ip_link_add XXbr up type bridge vlan_filtering 1 \
+			fdb_local_vlan_0 1 &>/dev/null; then
 		return 0
 	fi
 
@@ -296,7 +289,7 @@ change_mac()
 	cur_mac=$(mac_get "$dev")
 
 	log_info "Change $dev MAC $cur_mac -> $mac"
-	ip_link_set_addr "$dev" "$mac"
+	adf_ip_link_set_addr "$dev" "$mac"
 	defer log_info "Change $dev MAC back"
 }
 
@@ -375,8 +368,8 @@ test_q_sharing()
 
 adf_addr_set_bridge_create()
 {
-	ip_link_add br up type bridge vlan_filtering 0
-	ip_link_set_addr br "$(mac_get br)"
+	adf_ip_link_add br up type bridge vlan_filtering 0
+	adf_ip_link_set_addr br "$(mac_get br)"
 	adf_bridge_configure
 }
 
