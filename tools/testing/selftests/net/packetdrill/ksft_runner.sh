@@ -9,6 +9,7 @@ declare -A ip_args=(
 		--gateway_ip=192.168.0.1
 		--netmask_ip=255.255.0.0
 		--remote_ip=192.0.2.1
+		-D TFO_COOKIE=3021b9d889017eeb
 		-D CMSG_LEVEL_IP=SOL_IP
 		-D CMSG_TYPE_RECVERR=IP_RECVERR"
 	[ipv6]="--ip_version=ipv6
@@ -16,6 +17,7 @@ declare -A ip_args=(
 		--local_ip=fd3d:0a0b:17d6::1
 		--gateway_ip=fd3d:0a0b:17d6:8888::1
 		--remote_ip=fd3d:fa7b:d17d::1
+		-D TFO_COOKIE=c1d1e9742a47a9bc
 		-D CMSG_LEVEL_IP=SOL_IPV6
 		-D CMSG_TYPE_RECVERR=IPV6_RECVERR"
 )
