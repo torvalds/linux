@@ -17,7 +17,6 @@
 #include <linux/workqueue.h>
 
 #include "sfp.h"
-#include "swphy.h"
 
 enum {
 	GPIO_MODDEF0,
