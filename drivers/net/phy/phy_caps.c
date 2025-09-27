@@ -70,7 +70,7 @@ static int speed_duplex_to_capa(int speed, unsigned int duplex)
  *	    unexpected linkmode setting that requires LINK_CAPS update.
  *
  */
-int phy_caps_init(void)
+int __init phy_caps_init(void)
 {
 	const struct link_mode_info *linkmode;
 	int i, capa;
