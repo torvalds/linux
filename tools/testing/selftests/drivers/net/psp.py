@@ -431,6 +431,45 @@ def data_send_disconnect(cfg):
         s.close()
 
 
+def _data_mss_adjust(cfg, ipver):
+    _init_psp_dev(cfg)
+
+    # First figure out what the MSS would be without any adjustments
+    s = _make_clr_conn(cfg, ipver)
+    s.send(b"0123456789abcdef" * 1024)
+    _check_data_rx(cfg, 16 * 1024)
+    mss = s.getsockopt(socket.IPPROTO_TCP, socket.TCP_MAXSEG)
+    _close_conn(cfg, s)
+
+    s = _make_psp_conn(cfg, 0, ipver)
+    try:
+        rx_assoc = cfg.pspnl.rx_assoc({"version": 0,
+                                     "dev-id": cfg.psp_dev_id,
+                                     "sock-fd": s.fileno()})
+        rx = rx_assoc['rx-key']
+        tx = _spi_xchg(s, rx)
+
+        rxmss = s.getsockopt(socket.IPPROTO_TCP, socket.TCP_MAXSEG)
+        ksft_eq(mss, rxmss)
+
+        cfg.pspnl.tx_assoc({"dev-id": cfg.psp_dev_id,
+                          "version": 0,
+                          "tx-key": tx,
+                          "sock-fd": s.fileno()})
+
+        txmss = s.getsockopt(socket.IPPROTO_TCP, socket.TCP_MAXSEG)
+        ksft_eq(mss, txmss + 40)
+
+        data_len = _send_careful(cfg, s, 100)
+        _check_data_rx(cfg, data_len)
+        _check_data_outq(s, 0)
+
+        txmss = s.getsockopt(socket.IPPROTO_TCP, socket.TCP_MAXSEG)
+        ksft_eq(mss, txmss + 40)
+    finally:
+        _close_psp_conn(cfg, s)
+
+
 def data_stale_key(cfg):
     """ Test send on a double-rotated key """
     _init_psp_dev(cfg)
@@ -470,6 +509,15 @@ def psp_ip_ver_test_builder(name, test_func, psp_ver, ipver):
     return test_case
 
 
+def ipver_test_builder(name, test_func, ipver):
+    """Build test cases for each IP version"""
+    def test_case(cfg):
+        cfg.require_ipver(ipver)
+        test_case.__name__ = f"{name}_ip{ipver}"
+        test_func(cfg, ipver)
+    return test_case
+
+
 def main() -> None:
     """ Ksft boiler plate main """
 
@@ -495,6 +543,10 @@ def main() -> None:
                         "data_basic_send", _data_basic_send, version, ipver
                     )
                     for version in range(0, 4)
+                    for ipver in ("4", "6")
+                ]
+                cases += [
+                    ipver_test_builder("data_mss_adjust", _data_mss_adjust, ipver)
                     for ipver in ("4", "6")
                 ]
 
