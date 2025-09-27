@@ -248,15 +248,15 @@ static inline bool ptr_ring_empty_bh(struct ptr_ring *r)
  */
 static inline void __ptr_ring_zero_tail(struct ptr_ring *r, int consumer_head)
 {
-	int head = consumer_head - 1;
+	int head = consumer_head;
 
 	/* Zero out entries in the reverse order: this way we touch the
 	 * cache line that producer might currently be reading the last;
 	 * producer won't make progress and touch other cache lines
 	 * besides the first one until we write out all entries.
 	 */
-	while (likely(head >= r->consumer_tail))
-		r->queue[head--] = NULL;
+	while (likely(head > r->consumer_tail))
+		r->queue[--head] = NULL;
 
 	r->consumer_tail = consumer_head;
 }
