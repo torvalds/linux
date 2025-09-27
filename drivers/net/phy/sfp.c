@@ -220,6 +220,8 @@ static const enum gpiod_flags gpio_flags[] = {
  */
 #define SFP_EEPROM_BLOCK_SIZE	16
 
+#define SFP_POLL_INTERVAL	msecs_to_jiffies(100)
+
 struct sff_data {
 	unsigned int gpios;
 	bool (*module_supported)(const struct sfp_eeprom_id *id);
@@ -297,6 +299,11 @@ struct sfp {
 	struct dentry *debugfs_dir;
 #endif
 };
+
+static void sfp_schedule_poll(struct sfp *sfp)
+{
+	mod_delayed_work(system_percpu_wq, &sfp->poll, SFP_POLL_INTERVAL);
+}
 
 static bool sff_module_supported(const struct sfp_eeprom_id *id)
 {
@@ -585,8 +592,6 @@ static const struct sfp_quirk *sfp_lookup_quirk(const struct sfp_eeprom_id *id)
 
 	return NULL;
 }
-
-static unsigned long poll_jiffies;
 
 static unsigned int sfp_gpio_get_state(struct sfp *sfp)
 {
@@ -910,7 +915,7 @@ static void sfp_soft_start_poll(struct sfp *sfp)
 
 	if (sfp->state_soft_mask & (SFP_F_LOS | SFP_F_TX_FAULT) &&
 	    !sfp->need_poll)
-		mod_delayed_work(system_percpu_wq, &sfp->poll, poll_jiffies);
+		sfp_schedule_poll(sfp);
 	mutex_unlock(&sfp->st_mutex);
 }
 
@@ -3007,7 +3012,7 @@ static void sfp_poll(struct work_struct *work)
 	// it's unimportant if we race while reading this.
 	if (sfp->state_soft_mask & (SFP_F_LOS | SFP_F_TX_FAULT) ||
 	    sfp->need_poll)
-		mod_delayed_work(system_percpu_wq, &sfp->poll, poll_jiffies);
+		sfp_schedule_poll(sfp);
 }
 
 static struct sfp *sfp_alloc(struct device *dev)
@@ -3177,7 +3182,7 @@ static int sfp_probe(struct platform_device *pdev)
 	}
 
 	if (sfp->need_poll)
-		mod_delayed_work(system_percpu_wq, &sfp->poll, poll_jiffies);
+		sfp_schedule_poll(sfp);
 
 	/* We could have an issue in cases no Tx disable pin is available or
 	 * wired as modules using a laser as their light source will continue to
@@ -3244,19 +3249,7 @@ static struct platform_driver sfp_driver = {
 	},
 };
 
-static int sfp_init(void)
-{
-	poll_jiffies = msecs_to_jiffies(100);
-
-	return platform_driver_register(&sfp_driver);
-}
-module_init(sfp_init);
-
-static void sfp_exit(void)
-{
-	platform_driver_unregister(&sfp_driver);
-}
-module_exit(sfp_exit);
+module_platform_driver(sfp_driver);
 
 MODULE_ALIAS("platform:sfp");
 MODULE_AUTHOR("Russell King");
