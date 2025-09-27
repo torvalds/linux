@@ -172,21 +172,6 @@ int __wrap_devm_cxl_endpoint_decoders_setup(struct cxl_port *port)
 }
 EXPORT_SYMBOL_NS_GPL(__wrap_devm_cxl_endpoint_decoders_setup, "CXL");
 
-int __wrap_devm_cxl_port_enumerate_dports(struct cxl_port *port)
-{
-	int rc, index;
-	struct cxl_mock_ops *ops = get_cxl_mock_ops(&index);
-
-	if (ops && ops->is_mock_port(port->uport_dev))
-		rc = ops->devm_cxl_port_enumerate_dports(port);
-	else
-		rc = devm_cxl_port_enumerate_dports(port);
-	put_cxl_mock_ops(index);
-
-	return rc;
-}
-EXPORT_SYMBOL_NS_GPL(__wrap_devm_cxl_port_enumerate_dports, "CXL");
-
 int __wrap_cxl_await_media_ready(struct cxl_dev_state *cxlds)
 {
 	int rc, index;
