@@ -697,8 +697,12 @@ static int ni_usb_read(struct gpib_board *board, u8 *buffer, size_t length,
 		 */
 		break;
 	case NIUSB_ATN_STATE_ERROR:
-		retval = -EIO;
-		dev_err(&usb_dev->dev, "read when ATN set\n");
+		if (status.ibsta & DCAS) {
+			retval = -EINTR;
+		} else {
+			retval = -EIO;
+			dev_dbg(&usb_dev->dev, "read when ATN set stat: 0x%06x\n", status.ibsta);
+		}
 		break;
 	case NIUSB_ADDRESSING_ERROR:
 		retval = -EIO;
