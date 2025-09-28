@@ -381,7 +381,7 @@ static const struct amd_ip_funcs __maybe_unused ras_v1_0_ip_funcs = {
 	.hw_fini = amdgpu_ras_mgr_hw_fini,
 };
 
-int amdgpu_enable_unified_ras(struct amdgpu_device *adev, bool enable)
+int amdgpu_enable_uniras(struct amdgpu_device *adev, bool enable)
 {
 	struct amdgpu_ras_mgr *ras_mgr = amdgpu_ras_mgr_get_context(adev);
 
@@ -395,7 +395,7 @@ int amdgpu_enable_unified_ras(struct amdgpu_device *adev, bool enable)
 	return ras_core_set_status(ras_mgr->ras_core, enable);
 }
 
-bool amdgpu_unified_ras_enabled(struct amdgpu_device *adev)
+bool amdgpu_uniras_enabled(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras_mgr *ras_mgr = amdgpu_ras_mgr_get_context(adev);
 

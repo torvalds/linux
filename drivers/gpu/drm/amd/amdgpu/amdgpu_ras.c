@@ -41,6 +41,7 @@
 #include "atom.h"
 #include "amdgpu_reset.h"
 #include "amdgpu_psp.h"
+#include "amdgpu_ras_mgr.h"
 
 #ifdef CONFIG_X86_MCE_AMD
 #include <asm/mce.h>
@@ -2241,6 +2242,11 @@ void amdgpu_ras_interrupt_fatal_error_handler(struct amdgpu_device *adev)
 	    amdgpu_ras_is_err_state(adev, AMDGPU_RAS_BLOCK__ANY))
 		return;
 
+	if (amdgpu_uniras_enabled(adev)) {
+		amdgpu_ras_mgr_handle_fatal_interrupt(adev, NULL);
+		return;
+	}
+
 	if (adev->nbio.ras &&
 	    adev->nbio.ras->handle_ras_controller_intr_no_bifring)
 		adev->nbio.ras->handle_ras_controller_intr_no_bifring(adev);
@@ -2410,6 +2416,16 @@ int amdgpu_ras_interrupt_dispatch(struct amdgpu_device *adev,
 {
 	struct ras_manager *obj;
 	struct ras_ih_data *data;
+
+	if (amdgpu_uniras_enabled(adev)) {
+		struct ras_ih_info ih_info;
+
+		memset(&ih_info, 0, sizeof(ih_info));
+		ih_info.block = info->head.block;
+		memcpy(&ih_info.iv_entry, info->entry, sizeof(struct amdgpu_iv_entry));
+
+		return amdgpu_ras_mgr_handle_controller_interrupt(adev, &ih_info);
+	}
 
 	obj = amdgpu_ras_find_obj(adev, &info->head);
 	if (!obj)

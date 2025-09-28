@@ -56,8 +56,8 @@ struct amdgpu_ras_mgr {
 
 struct amdgpu_ras_mgr *amdgpu_ras_mgr_get_context(
 			struct amdgpu_device *adev);
-int amdgpu_enable_unified_ras(struct amdgpu_device *adev, bool enable);
-bool amdgpu_unified_ras_enabled(struct amdgpu_device *adev);
+int amdgpu_enable_uniras(struct amdgpu_device *adev, bool enable);
+bool amdgpu_uniras_enabled(struct amdgpu_device *adev);
 int amdgpu_ras_mgr_handle_fatal_interrupt(struct amdgpu_device *adev, void *data);
 int amdgpu_ras_mgr_handle_controller_interrupt(struct amdgpu_device *adev, void *data);
 int amdgpu_ras_mgr_handle_consumer_interrupt(struct amdgpu_device *adev, void *data);
