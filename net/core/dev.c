@@ -6726,7 +6726,7 @@ static void skb_defer_free_flush(struct softnet_data *sd)
 	spin_lock(&sd->defer_lock);
 	skb = sd->defer_list;
 	sd->defer_list = NULL;
-	sd->defer_count = 0;
+	atomic_set(&sd->defer_count, 0);
 	spin_unlock(&sd->defer_lock);
 
 	while (skb != NULL) {
