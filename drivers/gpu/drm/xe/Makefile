@@ -174,6 +174,7 @@ xe-$(CONFIG_PCI_IOV) += \
 	xe_lmtt_ml.o \
 	xe_pci_sriov.o \
 	xe_sriov_pf.o \
+	xe_sriov_pf_debugfs.o \
 	xe_sriov_pf_service.o
 
 # include helpers for tests even when XE is built-in
