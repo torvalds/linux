@@ -639,14 +639,14 @@ static int ipc4_ssp_dai_config_pcm_params_match(struct snd_sof_dev *sdev,
 
 		if (params_rate(params) == le32_to_cpu(hw_config->fsync_rate) &&
 		    params_width(params) == le32_to_cpu(hw_config->tdm_slot_width) &&
-		    params_channels(params) == le32_to_cpu(hw_config->tdm_slots)) {
+		    params_channels(params) <= le32_to_cpu(hw_config->tdm_slots)) {
 			current_config = le32_to_cpu(hw_config->id);
 			partial_match = false;
 			/* best match found */
 			break;
 		} else if (current_config < 0 &&
 			   params_rate(params) == le32_to_cpu(hw_config->fsync_rate) &&
-			   params_channels(params) == le32_to_cpu(hw_config->tdm_slots)) {
+			   params_channels(params) <= le32_to_cpu(hw_config->tdm_slots)) {
 			current_config = le32_to_cpu(hw_config->id);
 			partial_match = true;
 			/* keep looking for better match */
