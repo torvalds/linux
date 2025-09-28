@@ -106,46 +106,6 @@ static const struct drm_info_list pf_info[] = {
  *      :   ├── pf
  *          :   ├── tile0
  *              :   ├── gt0
- *                  :   ├── ggtt_available
- *                      ├── ggtt_provisioned
- */
-
-static const struct drm_info_list pf_ggtt_info[] = {
-	{
-		"ggtt_available",
-		.show = xe_gt_debugfs_simple_show,
-		.data = xe_gt_sriov_pf_config_print_available_ggtt,
-	},
-	{
-		"ggtt_provisioned",
-		.show = xe_gt_debugfs_simple_show,
-		.data = xe_gt_sriov_pf_config_print_ggtt,
-	},
-};
-
-/*
- *      /sys/kernel/debug/dri/BDF/
- *      ├── sriov
- *      :   ├── pf
- *          :   ├── tile0
- *              :   ├── gt0
- *                  :   ├── lmem_provisioned
- */
-
-static const struct drm_info_list pf_lmem_info[] = {
-	{
-		"lmem_provisioned",
-		.show = xe_gt_debugfs_simple_show,
-		.data = xe_gt_sriov_pf_config_print_lmem,
-	},
-};
-
-/*
- *      /sys/kernel/debug/dri/BDF/
- *      ├── sriov
- *      :   ├── pf
- *          :   ├── tile0
- *              :   ├── gt0
  *                  :   ├── reset_engine
  *                      ├── sample_period
  *                      ├── sched_if_idle
@@ -199,9 +159,7 @@ static void pf_add_policy_attrs(struct xe_gt *gt, struct dentry *parent)
  *      :   ├── pf
  *          │   ├── tile0
  *          │   :   ├── gt0
- *          │       :   ├── ggtt_spare
- *          │           ├── lmem_spare
- *          │           ├── doorbells_spare
+ *          │       :   ├── doorbells_spare
  *          │           ├── contexts_spare
  *          │           ├── exec_quantum_ms
  *          │           ├── preempt_timeout_us
@@ -209,9 +167,7 @@ static void pf_add_policy_attrs(struct xe_gt *gt, struct dentry *parent)
  *          ├── vf1
  *          :   ├── tile0
  *              :   ├── gt0
- *                  :   ├── ggtt_quota
- *                      ├── lmem_quota
- *                      ├── doorbells_quota
+ *                  :   ├── doorbells_quota
  *                      ├── contexts_quota
  *                      ├── exec_quantum_ms
  *                      ├── preempt_timeout_us
@@ -249,8 +205,6 @@ static int CONFIG##_get(void *data, u64 *val)					\
 										\
 DEFINE_DEBUGFS_ATTRIBUTE(CONFIG##_fops, CONFIG##_get, CONFIG##_set, FORMAT)
 
-DEFINE_SRIOV_GT_CONFIG_DEBUGFS_ATTRIBUTE(ggtt, u64, "%llu\n");
-DEFINE_SRIOV_GT_CONFIG_DEBUGFS_ATTRIBUTE(lmem, u64, "%llu\n");
 DEFINE_SRIOV_GT_CONFIG_DEBUGFS_ATTRIBUTE(ctxs, u32, "%llu\n");
 DEFINE_SRIOV_GT_CONFIG_DEBUGFS_ATTRIBUTE(dbs, u32, "%llu\n");
 DEFINE_SRIOV_GT_CONFIG_DEBUGFS_ATTRIBUTE(exec_quantum, u32, "%llu\n");
@@ -331,13 +285,6 @@ static void pf_add_config_attrs(struct xe_gt *gt, struct dentry *parent, unsigne
 	xe_gt_assert(gt, gt == extract_gt(parent));
 	xe_gt_assert(gt, vfid == extract_vfid(parent));
 
-	if (xe_gt_is_main_type(gt)) {
-		debugfs_create_file_unsafe(vfid ? "ggtt_quota" : "ggtt_spare",
-					   0644, parent, parent, &ggtt_fops);
-		if (xe_device_has_lmtt(gt_to_xe(gt)))
-			debugfs_create_file_unsafe(vfid ? "lmem_quota" : "lmem_spare",
-						   0644, parent, parent, &lmem_fops);
-	}
 	debugfs_create_file_unsafe(vfid ? "doorbells_quota" : "doorbells_spare",
 				   0644, parent, parent, &dbs_fops);
 	debugfs_create_file_unsafe(vfid ? "contexts_quota" : "contexts_spare",
@@ -558,6 +505,28 @@ static const struct file_operations config_blob_ops = {
 	.llseek		= default_llseek,
 };
 
+static void pf_add_compat_attrs(struct xe_gt *gt, struct dentry *dent, unsigned int vfid)
+{
+	struct xe_device *xe = gt_to_xe(gt);
+
+	if (!xe_gt_is_main_type(gt))
+		return;
+
+	if (vfid) {
+		debugfs_create_symlink("ggtt_quota", dent, "../ggtt_quota");
+		if (xe_device_has_lmtt(xe))
+			debugfs_create_symlink("lmem_quota", dent, "../vram_quota");
+	} else {
+		debugfs_create_symlink("ggtt_spare", dent, "../ggtt_spare");
+		debugfs_create_symlink("ggtt_available", dent, "../ggtt_available");
+		debugfs_create_symlink("ggtt_provisioned", dent, "../ggtt_provisioned");
+		if (xe_device_has_lmtt(xe)) {
+			debugfs_create_symlink("lmem_spare", dent, "../vram_spare");
+			debugfs_create_symlink("lmem_provisioned", dent, "../vram_provisioned");
+		}
+	}
+}
+
 static void pf_populate_gt(struct xe_gt *gt, struct dentry *dent, unsigned int vfid)
 {
 	struct xe_device *xe = gt_to_xe(gt);
@@ -583,17 +552,10 @@ static void pf_populate_gt(struct xe_gt *gt, struct dentry *dent, unsigned int v
 		pf_add_policy_attrs(gt, dent);
 
 		drm_debugfs_create_files(pf_info, ARRAY_SIZE(pf_info), dent, minor);
-
-		if (xe_gt_is_main_type(gt)) {
-			drm_debugfs_create_files(pf_ggtt_info,
-						 ARRAY_SIZE(pf_ggtt_info),
-						 dent, minor);
-			if (xe_device_has_lmtt(xe))
-				drm_debugfs_create_files(pf_lmem_info,
-							 ARRAY_SIZE(pf_lmem_info),
-							 dent, minor);
-		}
 	}
+
+	/* for backward compatibility only */
+	pf_add_compat_attrs(gt, dent, vfid);
 }
 
 /**
