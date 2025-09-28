@@ -6,7 +6,9 @@
 #include <linux/debugfs.h>
 #include <drm/drm_debugfs.h>
 
+#include "xe_device.h"
 #include "xe_device_types.h"
+#include "xe_gt_sriov_pf_debugfs.h"
 #include "xe_tile_sriov_pf_debugfs.h"
 #include "xe_sriov.h"
 
@@ -49,6 +51,15 @@ static unsigned int extract_vfid(struct dentry *d)
 	void *pp = extract_priv(d->d_parent);
 
 	return pp == extract_xe(d) ? PFID : (uintptr_t)pp;
+}
+
+static void pf_populate_tile(struct xe_tile *tile, struct dentry *dent, unsigned int vfid)
+{
+	struct xe_gt *gt;
+	unsigned int id;
+
+	for_each_gt_on_tile(gt, tile, id)
+		xe_gt_sriov_pf_debugfs_populate(gt, dent, vfid);
 }
 
 /**
@@ -95,4 +106,6 @@ void xe_tile_sriov_pf_debugfs_populate(struct xe_tile *tile, struct dentry *pare
 	xe_tile_assert(tile, extract_tile(dent) == tile);
 	xe_tile_assert(tile, extract_vfid(dent) == vfid);
 	xe_tile_assert(tile, extract_xe(dent) == xe);
+
+	pf_populate_tile(tile, dent, vfid);
 }

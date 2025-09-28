@@ -25,12 +25,22 @@
 #include "xe_sriov_pf.h"
 
 /*
- *      /sys/kernel/debug/dri/0/
- *      ├── gt0		# d_inode->i_private = gt
- *      │   ├── pf	# d_inode->i_private = gt
- *      │   ├── vf1	# d_inode->i_private = VFID(1)
- *      :   :
- *      │   ├── vfN	# d_inode->i_private = VFID(N)
+ *      /sys/kernel/debug/dri/BDF/
+ *      ├── sriov		# d_inode->i_private = (xe_device*)
+ *      │   ├── pf		# d_inode->i_private = (xe_device*)
+ *      │   │   ├── tile0	# d_inode->i_private = (xe_tile*)
+ *      │   │   │   ├── gt0	# d_inode->i_private = (xe_gt*)
+ *      │   │   │   ├── gt1	# d_inode->i_private = (xe_gt*)
+ *      │   │   ├── tile1
+ *      │   │   │   :
+ *      │   ├── vf1		# d_inode->i_private = VFID(1)
+ *      │   │   ├── tile0	# d_inode->i_private = (xe_tile*)
+ *      │   │   │   ├── gt0	# d_inode->i_private = (xe_gt*)
+ *      │   │   │   ├── gt1	# d_inode->i_private = (xe_gt*)
+ *      │   │   ├── tile1
+ *      │   │   │   :
+ *      :   :
+ *      │   ├── vfN		# d_inode->i_private = VFID(N)
  */
 
 static void *extract_priv(struct dentry *d)
@@ -40,26 +50,31 @@ static void *extract_priv(struct dentry *d)
 
 static struct xe_gt *extract_gt(struct dentry *d)
 {
-	return extract_priv(d->d_parent);
+	return extract_priv(d);
+}
+
+static struct xe_device *extract_xe(struct dentry *d)
+{
+	return extract_priv(d->d_parent->d_parent->d_parent);
 }
 
 static unsigned int extract_vfid(struct dentry *d)
 {
-	return extract_priv(d) == extract_gt(d) ? PFID : (uintptr_t)extract_priv(d);
+	void *priv = extract_priv(d->d_parent->d_parent);
+
+	return priv == extract_xe(d) ? PFID : (uintptr_t)priv;
 }
 
 /*
- *      /sys/kernel/debug/dri/0/
- *      ├── gt0
- *      │   ├── pf
- *      │   │   ├── contexts_provisioned
- *      │   │   ├── doorbells_provisioned
- *      │   │   ├── runtime_registers
- *      │   │   ├── negotiated_versions
- *      │   │   ├── adverse_events
- *      ├── gt1
- *      │   ├── pf
- *      │   │   ├── ...
+ *      /sys/kernel/debug/dri/BDF/
+ *      ├── sriov
+ *      :   ├── pf
+ *          :   ├── tile0
+ *              :   ├── gt0
+ *                  :   ├── contexts_provisioned
+ *                      ├── doorbells_provisioned
+ *                      ├── runtime_registers
+ *                      ├── adverse_events
  */
 
 static const struct drm_info_list pf_info[] = {
@@ -86,11 +101,13 @@ static const struct drm_info_list pf_info[] = {
 };
 
 /*
- *      /sys/kernel/debug/dri/0/
- *      ├── gt0
- *      │   ├── pf
- *      │   │   ├── ggtt_available
- *      │   │   ├── ggtt_provisioned
+ *      /sys/kernel/debug/dri/BDF/
+ *      ├── sriov
+ *      :   ├── pf
+ *          :   ├── tile0
+ *              :   ├── gt0
+ *                  :   ├── ggtt_available
+ *                      ├── ggtt_provisioned
  */
 
 static const struct drm_info_list pf_ggtt_info[] = {
@@ -107,10 +124,12 @@ static const struct drm_info_list pf_ggtt_info[] = {
 };
 
 /*
- *      /sys/kernel/debug/dri/0/
- *      ├── gt0
- *      │   ├── pf
- *      │   │   ├── lmem_provisioned
+ *      /sys/kernel/debug/dri/BDF/
+ *      ├── sriov
+ *      :   ├── pf
+ *          :   ├── tile0
+ *              :   ├── gt0
+ *                  :   ├── lmem_provisioned
  */
 
 static const struct drm_info_list pf_lmem_info[] = {
@@ -122,12 +141,14 @@ static const struct drm_info_list pf_lmem_info[] = {
 };
 
 /*
- *      /sys/kernel/debug/dri/0/
- *      ├── gt0
- *      │   ├── pf
- *      │   │   ├── reset_engine
- *      │   │   ├── sample_period
- *      │   │   ├── sched_if_idle
+ *      /sys/kernel/debug/dri/BDF/
+ *      ├── sriov
+ *      :   ├── pf
+ *          :   ├── tile0
+ *              :   ├── gt0
+ *                  :   ├── reset_engine
+ *                      ├── sample_period
+ *                      ├── sched_if_idle
  */
 
 #define DEFINE_SRIOV_GT_POLICY_DEBUGFS_ATTRIBUTE(POLICY, TYPE, FORMAT)		\
@@ -173,24 +194,28 @@ static void pf_add_policy_attrs(struct xe_gt *gt, struct dentry *parent)
 }
 
 /*
- *      /sys/kernel/debug/dri/0/
- *      ├── gt0
- *      │   ├── pf
- *      │   │   ├── ggtt_spare
- *      │   │   ├── lmem_spare
- *      │   │   ├── doorbells_spare
- *      │   │   ├── contexts_spare
- *      │   │   ├── exec_quantum_ms
- *      │   │   ├── preempt_timeout_us
- *      │   │   ├── sched_priority
- *      │   ├── vf1
- *      │   │   ├── ggtt_quota
- *      │   │   ├── lmem_quota
- *      │   │   ├── doorbells_quota
- *      │   │   ├── contexts_quota
- *      │   │   ├── exec_quantum_ms
- *      │   │   ├── preempt_timeout_us
- *      │   │   ├── sched_priority
+ *      /sys/kernel/debug/dri/BDF/
+ *      ├── sriov
+ *      :   ├── pf
+ *          │   ├── tile0
+ *          │   :   ├── gt0
+ *          │       :   ├── ggtt_spare
+ *          │           ├── lmem_spare
+ *          │           ├── doorbells_spare
+ *          │           ├── contexts_spare
+ *          │           ├── exec_quantum_ms
+ *          │           ├── preempt_timeout_us
+ *          │           ├── sched_priority
+ *          ├── vf1
+ *          :   ├── tile0
+ *              :   ├── gt0
+ *                  :   ├── ggtt_quota
+ *                      ├── lmem_quota
+ *                      ├── doorbells_quota
+ *                      ├── contexts_quota
+ *                      ├── exec_quantum_ms
+ *                      ├── preempt_timeout_us
+ *                      ├── sched_priority
  */
 
 #define DEFINE_SRIOV_GT_CONFIG_DEBUGFS_ATTRIBUTE(CONFIG, TYPE, FORMAT)		\
@@ -233,22 +258,26 @@ DEFINE_SRIOV_GT_CONFIG_DEBUGFS_ATTRIBUTE(preempt_timeout, u32, "%llu\n");
 DEFINE_SRIOV_GT_CONFIG_DEBUGFS_ATTRIBUTE(sched_priority, u32, "%llu\n");
 
 /*
- *      /sys/kernel/debug/dri/0/
- *      ├── gt0
- *      │   ├── pf
- *      │   │   ├── threshold_cat_error_count
- *      │   │   ├── threshold_doorbell_time_us
- *      │   │   ├── threshold_engine_reset_count
- *      │   │   ├── threshold_guc_time_us
- *      │   │   ├── threshold_irq_time_us
- *      │   │   ├── threshold_page_fault_count
- *      │   ├── vf1
- *      │   │   ├── threshold_cat_error_count
- *      │   │   ├── threshold_doorbell_time_us
- *      │   │   ├── threshold_engine_reset_count
- *      │   │   ├── threshold_guc_time_us
- *      │   │   ├── threshold_irq_time_us
- *      │   │   ├── threshold_page_fault_count
+ *      /sys/kernel/debug/dri/BDF/
+ *      ├── sriov
+ *      :   ├── pf
+ *          │   ├── tile0
+ *          │   :   ├── gt0
+ *          │       :   ├── threshold_cat_error_count
+ *          │           ├── threshold_doorbell_time_us
+ *          │           ├── threshold_engine_reset_count
+ *          │           ├── threshold_guc_time_us
+ *          │           ├── threshold_irq_time_us
+ *          │           ├── threshold_page_fault_count
+ *          ├── vf1
+ *          :   ├── tile0
+ *              :   ├── gt0
+ *                  :   ├── threshold_cat_error_count
+ *                      ├── threshold_doorbell_time_us
+ *                      ├── threshold_engine_reset_count
+ *                      ├── threshold_guc_time_us
+ *                      ├── threshold_irq_time_us
+ *                      ├── threshold_page_fault_count
  */
 
 static int set_threshold(void *data, u64 val, enum xe_guc_klv_threshold_index index)
@@ -329,10 +358,12 @@ static void pf_add_config_attrs(struct xe_gt *gt, struct dentry *parent, unsigne
 }
 
 /*
- *      /sys/kernel/debug/dri/0/
- *      ├── gt0
- *      │   ├── vf1
- *      │   │   ├── control { stop, pause, resume }
+ *      /sys/kernel/debug/dri/BDF/
+ *      ├── sriov
+ *      :   ├── vf1
+ *          :   ├── tile0
+ *              :   ├── gt0
+ *                  :   ├── control { stop, pause, resume }
  */
 
 static const struct {
@@ -409,11 +440,14 @@ static const struct file_operations control_ops = {
 };
 
 /*
- *      /sys/kernel/debug/dri/0/
- *      ├── gt0
- *      │   ├── vf1
- *      │   │   ├── guc_state
+ *      /sys/kernel/debug/dri/BDF/
+ *      ├── sriov
+ *      :   ├── vf1
+ *          :   ├── tile0
+ *              :   ├── gt0
+ *                  :   ├── guc_state
  */
+
 static ssize_t guc_state_read(struct file *file, char __user *buf,
 			      size_t count, loff_t *pos)
 {
@@ -447,11 +481,14 @@ static const struct file_operations guc_state_ops = {
 };
 
 /*
- *      /sys/kernel/debug/dri/0/
- *      ├── gt0
- *      │   ├── vf1
- *      │   │   ├── config_blob
+ *      /sys/kernel/debug/dri/BDF/
+ *      ├── sriov
+ *      :   ├── vf1
+ *          :   ├── tile0
+ *              :   ├── gt0
+ *                  :   ├── config_blob
  */
+
 static ssize_t config_blob_read(struct file *file, char __user *buf,
 				size_t count, loff_t *pos)
 {
@@ -521,73 +558,121 @@ static const struct file_operations config_blob_ops = {
 	.llseek		= default_llseek,
 };
 
-/**
- * xe_gt_sriov_pf_debugfs_register - Register SR-IOV PF specific entries in GT debugfs.
- * @gt: the &xe_gt to register
- * @root: the &dentry that represents the GT directory
- *
- * Register SR-IOV PF entries that are GT related and must be shown under GT debugfs.
- */
-void xe_gt_sriov_pf_debugfs_register(struct xe_gt *gt, struct dentry *root)
+static void pf_populate_gt(struct xe_gt *gt, struct dentry *dent, unsigned int vfid)
 {
 	struct xe_device *xe = gt_to_xe(gt);
 	struct drm_minor *minor = xe->drm.primary;
-	int n, totalvfs = xe_sriov_pf_get_totalvfs(xe);
-	struct dentry *pfdentry;
-	struct dentry *vfdentry;
-	char buf[14]; /* should be enough up to "vf%u\0" for 2^32 - 1 */
 
-	xe_gt_assert(gt, IS_SRIOV_PF(xe));
-	xe_gt_assert(gt, root->d_inode->i_private == gt);
+	if (vfid) {
+		pf_add_config_attrs(gt, dent, vfid);
 
-	/*
-	 *      /sys/kernel/debug/dri/0/
-	 *      ├── gt0
-	 *      │   ├── pf
-	 */
-	pfdentry = debugfs_create_dir("pf", root);
-	if (IS_ERR(pfdentry))
-		return;
-	pfdentry->d_inode->i_private = gt;
-
-	drm_debugfs_create_files(pf_info, ARRAY_SIZE(pf_info), pfdentry, minor);
-	if (xe_gt_is_main_type(gt)) {
-		drm_debugfs_create_files(pf_ggtt_info,
-					 ARRAY_SIZE(pf_ggtt_info),
-					 pfdentry, minor);
-		if (xe_device_has_lmtt(gt_to_xe(gt)))
-			drm_debugfs_create_files(pf_lmem_info,
-						 ARRAY_SIZE(pf_lmem_info),
-						 pfdentry, minor);
-	}
-
-	pf_add_policy_attrs(gt, pfdentry);
-	pf_add_config_attrs(gt, pfdentry, PFID);
-
-	for (n = 1; n <= totalvfs; n++) {
-		/*
-		 *      /sys/kernel/debug/dri/0/
-		 *      ├── gt0
-		 *      │   ├── vf1
-		 *      │   ├── vf2
-		 */
-		snprintf(buf, sizeof(buf), "vf%u", n);
-		vfdentry = debugfs_create_dir(buf, root);
-		if (IS_ERR(vfdentry))
-			break;
-		vfdentry->d_inode->i_private = (void *)(uintptr_t)n;
-
-		pf_add_config_attrs(gt, vfdentry, VFID(n));
-		debugfs_create_file("control", 0600, vfdentry, NULL, &control_ops);
+		debugfs_create_file("control", 0600, dent, NULL, &control_ops);
 
 		/* for testing/debugging purposes only! */
 		if (IS_ENABLED(CONFIG_DRM_XE_DEBUG)) {
 			debugfs_create_file("guc_state",
 					    IS_ENABLED(CONFIG_DRM_XE_DEBUG_SRIOV) ? 0600 : 0400,
-					    vfdentry, NULL, &guc_state_ops);
+					    dent, NULL, &guc_state_ops);
 			debugfs_create_file("config_blob",
 					    IS_ENABLED(CONFIG_DRM_XE_DEBUG_SRIOV) ? 0600 : 0400,
-					    vfdentry, NULL, &config_blob_ops);
+					    dent, NULL, &config_blob_ops);
+		}
+
+	} else {
+		pf_add_config_attrs(gt, dent, PFID);
+		pf_add_policy_attrs(gt, dent);
+
+		drm_debugfs_create_files(pf_info, ARRAY_SIZE(pf_info), dent, minor);
+
+		if (xe_gt_is_main_type(gt)) {
+			drm_debugfs_create_files(pf_ggtt_info,
+						 ARRAY_SIZE(pf_ggtt_info),
+						 dent, minor);
+			if (xe_device_has_lmtt(xe))
+				drm_debugfs_create_files(pf_lmem_info,
+							 ARRAY_SIZE(pf_lmem_info),
+							 dent, minor);
 		}
 	}
+}
+
+/**
+ * xe_gt_sriov_pf_debugfs_populate() - Create SR-IOV GT-level debugfs directories and files.
+ * @gt: the &xe_gt to register
+ * @parent: the parent &dentry that represents a &xe_tile
+ * @vfid: the VF identifier
+ *
+ * Add to the @parent directory new debugfs directory that will represent a @gt and
+ * populate it with GT files that are related to the SR-IOV @vfid function.
+ *
+ * This function can only be called on PF.
+ */
+void xe_gt_sriov_pf_debugfs_populate(struct xe_gt *gt, struct dentry *parent, unsigned int vfid)
+{
+	struct dentry *dent;
+	char name[8]; /* should be enough up to "gt%u\0" for 2^8 - 1 */
+
+	xe_gt_assert(gt, IS_SRIOV_PF(gt_to_xe(gt)));
+	xe_gt_assert(gt, extract_priv(parent) == gt->tile);
+	xe_gt_assert(gt, extract_priv(parent->d_parent) == gt_to_xe(gt) ||
+		     (uintptr_t)extract_priv(parent->d_parent) == vfid);
+
+	/*
+	 *      /sys/kernel/debug/dri/BDF/
+	 *      ├── sriov
+	 *      │   ├── pf
+	 *      │   │   ├── tile0		# parent
+	 *      │   │   │   ├── gt0		# d_inode->i_private = (xe_gt*)
+	 *      │   │   │   ├── gt1
+	 *      │   │   :   :
+	 *      │   ├── vf1
+	 *      │   │   ├── tile0		# parent
+	 *      │   │   │   ├── gt0		# d_inode->i_private = (xe_gt*)
+	 *      │   │   │   ├── gt1
+	 *      │   :   :   :
+	 */
+	snprintf(name, sizeof(name), "gt%u", gt->info.id);
+	dent = debugfs_create_dir(name, parent);
+	if (IS_ERR(dent))
+		return;
+	dent->d_inode->i_private = gt;
+
+	xe_gt_assert(gt, extract_gt(dent) == gt);
+	xe_gt_assert(gt, extract_vfid(dent) == vfid);
+
+	pf_populate_gt(gt, dent, vfid);
+}
+
+static void pf_add_links(struct xe_gt *gt, struct dentry *dent)
+{
+	unsigned int totalvfs = xe_gt_sriov_pf_get_totalvfs(gt);
+	unsigned int vfid;
+	char name[16];		/* should be more than enough for "vf%u\0" and VFID(UINT_MAX) */
+	char symlink[64];	/* should be more enough for "../../sriov/vf%u/tile%u/gt%u\0" */
+
+	for (vfid = 0; vfid <= totalvfs; vfid++) {
+		if (vfid)
+			snprintf(name, sizeof(name), "vf%u", vfid);
+		else
+			snprintf(name, sizeof(name), "pf");
+		snprintf(symlink, sizeof(symlink), "../../sriov/%s/tile%u/gt%u",
+			 name, gt->tile->id, gt->info.id);
+		debugfs_create_symlink(name, dent, symlink);
+	}
+}
+
+/**
+ * xe_gt_sriov_pf_debugfs_register - Register SR-IOV PF specific entries in GT debugfs.
+ * @gt: the &xe_gt to register
+ * @dent: the &dentry that represents the GT directory
+ *
+ * Instead of actual files, create symlinks for PF and each VF to their GT specific
+ * attributes that should be already exposed in the dedicated debugfs SR-IOV tree.
+ */
+void xe_gt_sriov_pf_debugfs_register(struct xe_gt *gt, struct dentry *dent)
+{
+	xe_gt_assert(gt, IS_SRIOV_PF(gt_to_xe(gt)));
+	xe_gt_assert(gt, dent->d_inode->i_private == gt);
+
+	pf_add_links(gt, dent);
 }
