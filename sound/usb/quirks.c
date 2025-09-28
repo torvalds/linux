@@ -2521,7 +2521,7 @@ void snd_usb_apply_flag_dbg(const char *reason,
 	}
 }
 
-void snd_usb_init_quirk_flags(struct snd_usb_audio *chip)
+void snd_usb_init_quirk_flags_table(struct snd_usb_audio *chip)
 {
 	const struct usb_audio_quirk_flags_table *p;
 
@@ -2533,5 +2533,93 @@ void snd_usb_init_quirk_flags(struct snd_usb_audio *chip)
 			chip->quirk_flags |= p->flags;
 			return;
 		}
+	}
+}
+
+void snd_usb_init_quirk_flags_parse_string(struct snd_usb_audio *chip,
+					   const char *str)
+{
+	u16 chip_vid = USB_ID_VENDOR(chip->usb_id);
+	u16 chip_pid = USB_ID_PRODUCT(chip->usb_id);
+	u32 mask_flags, unmask_flags, bit;
+	char *p, *field, *flag;
+	bool is_unmask;
+	u16 vid, pid;
+
+	char *val __free(kfree) = kstrdup(str, GFP_KERNEL);
+
+	if (!val)
+		return;
+
+	for (p = val; p && *p;) {
+		/* Each entry consists of VID:PID:flags */
+		field = strsep(&p, ":");
+		if (!field)
+			break;
+
+		if (strcmp(field, "*") == 0)
+			vid = 0;
+		else if (kstrtou16(field, 16, &vid))
+			break;
+
+		field = strsep(&p, ":");
+		if (!field)
+			break;
+
+		if (strcmp(field, "*") == 0)
+			pid = 0;
+		else if (kstrtou16(field, 16, &pid))
+			break;
+
+		field = strsep(&p, ";");
+		if (!field || !*field)
+			break;
+
+		if ((vid != 0 && vid != chip_vid) ||
+		    (pid != 0 && pid != chip_pid))
+			continue;
+
+		/* Collect the flags */
+		mask_flags = 0;
+		unmask_flags = 0;
+		while (field && *field) {
+			flag = strsep(&field, "|");
+
+			if (!flag)
+				break;
+
+			if (*flag == '!') {
+				is_unmask = true;
+				flag++;
+			} else {
+				is_unmask = false;
+			}
+
+			if (!kstrtou32(flag, 16, &bit)) {
+				if (is_unmask)
+					unmask_flags |= bit;
+				else
+					mask_flags |= bit;
+
+				break;
+			}
+
+			bit = snd_usb_quirk_flags_from_name(flag);
+
+			if (bit) {
+				if (is_unmask)
+					unmask_flags |= bit;
+				else
+					mask_flags |= bit;
+			} else {
+				pr_warn("snd_usb_audio: unknown flag %s while parsing param quirk_flags\n",
+					flag);
+			}
+		}
+
+		chip->quirk_flags &= ~unmask_flags;
+		chip->quirk_flags |= mask_flags;
+		snd_usb_apply_flag_dbg("module param", chip,
+				       chip->quirk_flags);
 	}
 }
