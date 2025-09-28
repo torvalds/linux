@@ -6,12 +6,14 @@
 #include <linux/debugfs.h>
 #include <drm/drm_debugfs.h>
 
+#include "xe_device.h"
 #include "xe_device_types.h"
 #include "xe_sriov_pf.h"
 #include "xe_sriov_pf_debugfs.h"
 #include "xe_sriov_pf_helpers.h"
 #include "xe_sriov_pf_service.h"
 #include "xe_sriov_printk.h"
+#include "xe_tile_sriov_pf_debugfs.h"
 
 static int simple_show(struct seq_file *m, void *data)
 {
@@ -35,6 +37,15 @@ static void pf_populate_pf(struct xe_device *xe, struct dentry *pfdent)
 	struct drm_minor *minor = xe->drm.primary;
 
 	drm_debugfs_create_files(debugfs_list, ARRAY_SIZE(debugfs_list), pfdent, minor);
+}
+
+static void pf_populate_with_tiles(struct xe_device *xe, struct dentry *dent, unsigned int vfid)
+{
+	struct xe_tile *tile;
+	unsigned int id;
+
+	for_each_tile(tile, xe, id)
+		xe_tile_sriov_pf_debugfs_populate(tile, dent, vfid);
 }
 
 /**
@@ -76,6 +87,7 @@ void xe_sriov_pf_debugfs_register(struct xe_device *xe, struct dentry *root)
 	pfdent->d_inode->i_private = xe;
 
 	pf_populate_pf(xe, pfdent);
+	pf_populate_with_tiles(xe, pfdent, PFID);
 
 	/*
 	 *      /sys/kernel/debug/dri/BDF/
@@ -90,5 +102,7 @@ void xe_sriov_pf_debugfs_register(struct xe_device *xe, struct dentry *root)
 		if (IS_ERR(vfdent))
 			return;
 		vfdent->d_inode->i_private = (void *)(uintptr_t)VFID(n);
+
+		pf_populate_with_tiles(xe, vfdent, VFID(n));
 	}
 }
