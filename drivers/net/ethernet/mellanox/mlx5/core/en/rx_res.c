@@ -55,6 +55,7 @@ static int mlx5e_rx_res_rss_init_def(struct mlx5e_rx_res *res,
 {
 	bool inner_ft_support = res->features & MLX5E_RX_RES_FEATURE_INNER_FT;
 	struct mlx5e_rss_init_params init_params;
+	struct mlx5e_rss_params rss_params;
 	struct mlx5e_rss *rss;
 
 	if (WARN_ON(res->rss[0]))
@@ -67,8 +68,12 @@ static int mlx5e_rx_res_rss_init_def(struct mlx5e_rx_res *res,
 		.max_nch = res->max_nch,
 	};
 
-	rss = mlx5e_rss_init(res->mdev, inner_ft_support, res->drop_rqn,
-			     &init_params);
+	rss_params = (struct mlx5e_rss_params) {
+		.inner_ft_support = inner_ft_support,
+		.drop_rqn = res->drop_rqn,
+	};
+
+	rss = mlx5e_rss_init(res->mdev, &rss_params, &init_params);
 	if (IS_ERR(rss))
 		return PTR_ERR(rss);
 
@@ -83,6 +88,7 @@ int mlx5e_rx_res_rss_init(struct mlx5e_rx_res *res, u32 rss_idx, unsigned int in
 {
 	bool inner_ft_support = res->features & MLX5E_RX_RES_FEATURE_INNER_FT;
 	struct mlx5e_rss_init_params init_params;
+	struct mlx5e_rss_params rss_params;
 	struct mlx5e_rss *rss;
 
 	if (WARN_ON_ONCE(res->rss[rss_idx]))
@@ -95,8 +101,12 @@ int mlx5e_rx_res_rss_init(struct mlx5e_rx_res *res, u32 rss_idx, unsigned int in
 		.max_nch = res->max_nch,
 	};
 
-	rss = mlx5e_rss_init(res->mdev, inner_ft_support, res->drop_rqn,
-			     &init_params);
+	rss_params = (struct mlx5e_rss_params) {
+		.inner_ft_support = inner_ft_support,
+		.drop_rqn = res->drop_rqn,
+	};
+
+	rss = mlx5e_rss_init(res->mdev, &rss_params, &init_params);
 	if (IS_ERR(rss))
 		return PTR_ERR(rss);
 
