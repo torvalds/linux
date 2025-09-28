@@ -734,7 +734,7 @@ struct batadv_bcast_duplist_entry {
 	u8 orig[ETH_ALEN];
 
 	/** @crc: crc32 checksum of broadcast payload */
-	__be32 crc;
+	u32 crc;
 
 	/** @entrytime: time when the broadcast packet was received */
 	unsigned long entrytime;
