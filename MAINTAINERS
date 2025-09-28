@@ -16690,7 +16690,6 @@ F:	drivers/misc/mchp_pci1xxxx/mchp_pci1xxxx_gpio.c
 F:	drivers/misc/mchp_pci1xxxx/mchp_pci1xxxx_otpe2p.c
 
 MICROCHIP PCI1XXXX I2C DRIVER
-M:	Tharun Kumar P <tharunkumar.pasumarthi@microchip.com>
 M:	Kumaravel Thiagarajan <kumaravel.thiagarajan@microchip.com>
 M:	Microchip Linux Driver Support <UNGLinuxDriver@microchip.com>
 L:	linux-i2c@vger.kernel.org
@@ -16699,7 +16698,6 @@ F:	drivers/i2c/busses/i2c-mchp-pci1xxxx.c
 
 MICROCHIP PCIe UART DRIVER
 M:	Kumaravel Thiagarajan <kumaravel.thiagarajan@microchip.com>
-M:	Tharun Kumar P <tharunkumar.pasumarthi@microchip.com>
 L:	linux-serial@vger.kernel.org
 S:	Maintained
 F:	drivers/tty/serial/8250/8250_pci1xxxx.c
@@ -20776,8 +20774,8 @@ S:	Supported
 F:	drivers/dma/qcom/hidma*
 
 QUALCOMM I2C QCOM GENI DRIVER
-M:	Mukesh Kumar Savaliya <quic_msavaliy@quicinc.com>
-M:	Viken Dadhaniya <quic_vdadhani@quicinc.com>
+M:	Mukesh Kumar Savaliya <mukesh.savaliya@oss.qualcomm.com>
+M:	Viken Dadhaniya <viken.dadhaniya@oss.qualcomm.com>
 L:	linux-i2c@vger.kernel.org
 L:	linux-arm-msm@vger.kernel.org
 S:	Maintained
@@ -23712,6 +23710,12 @@ W:	https://linuxtv.org
 Q:	http://patchwork.linuxtv.org/project/linux-media/list/
 F:	drivers/media/dvb-frontends/sp2*
 
+SPACEMIT K1 I2C DRIVER
+M:	Troy Mitchell <troy.mitchell@linux.spacemit.com>
+S:	Maintained
+F:	Documentation/devicetree/bindings/i2c/spacemit,k1-i2c.yaml
+F:	drivers/i2c/busses/i2c-k1.c
+
 SPANISH DOCUMENTATION
 M:	Carlos Bilbao <carlos.bilbao@kernel.org>
 R:	Avadhut Naik <avadhut.naik@amd.com>
@@ -24484,9 +24488,8 @@ F:	Documentation/devicetree/bindings/media/snps,dw-hdmi-rx.yaml
 F:	drivers/media/platform/synopsys/hdmirx/*
 
 SYNOPSYS DESIGNWARE I2C DRIVER
-M:	Jarkko Nikula <jarkko.nikula@linux.intel.com>
+M:	Mika Westerberg <mika.westerberg@linux.intel.com>
 R:	Andy Shevchenko <andriy.shevchenko@linux.intel.com>
-R:	Mika Westerberg <mika.westerberg@linux.intel.com>
 R:	Jan Dabros <jsd@semihalf.com>
 L:	linux-i2c@vger.kernel.org
 S:	Supported

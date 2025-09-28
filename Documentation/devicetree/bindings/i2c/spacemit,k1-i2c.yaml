@@ -9,6 +9,9 @@ title: I2C controller embedded in SpacemiT's K1 SoC
 maintainers:
   - Troy Mitchell <troymitchell988@gmail.com>
 
+allOf:
+  - $ref: /schemas/i2c/i2c-controller.yaml#
+
 properties:
   compatible:
     const: spacemit,k1-i2c
