@@ -126,6 +126,13 @@ static const struct dmi_system_id dmi_table[] = {
 	},
 	{
 		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "AOKZOE"),
+			DMI_EXACT_MATCH(DMI_BOARD_NAME, "AOKZOE A1X"),
+		},
+		.driver_data = (void *)oxp_fly,
+	},
+	{
+		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "AYANEO"),
 			DMI_MATCH(DMI_BOARD_NAME, "AYANEO 2"),
 		},
@@ -303,6 +310,13 @@ static const struct dmi_system_id dmi_table[] = {
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "ONE-NETBOOK"),
 			DMI_EXACT_MATCH(DMI_BOARD_NAME, "ONEXPLAYER X1Pro"),
+		},
+		.driver_data = (void *)oxp_x1,
+	},
+	{
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "ONE-NETBOOK"),
+			DMI_EXACT_MATCH(DMI_BOARD_NAME, "ONEXPLAYER X1Pro EVA-02"),
 		},
 		.driver_data = (void *)oxp_x1,
 	},

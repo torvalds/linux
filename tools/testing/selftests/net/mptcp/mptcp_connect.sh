@@ -211,6 +211,11 @@ if $checksum; then
 	done
 fi
 
+if $capture; then
+	rndh="${ns1:4}"
+	mptcp_lib_pr_info "Packet capture files will have this prefix: ${rndh}-"
+fi
+
 set_ethtool_flags() {
 	local ns="$1"
 	local dev="$2"
@@ -361,7 +366,6 @@ do_transfer()
 
 	if $capture; then
 		local capuser
-		local rndh="${connector_ns:4}"
 		if [ -z $SUDO_USER ] ; then
 			capuser=""
 		else

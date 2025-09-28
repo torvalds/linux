@@ -151,6 +151,16 @@ err_lrc:
 	return err;
 }
 
+static void __xe_exec_queue_fini(struct xe_exec_queue *q)
+{
+	int i;
+
+	q->ops->fini(q);
+
+	for (i = 0; i < q->width; ++i)
+		xe_lrc_put(q->lrc[i]);
+}
+
 struct xe_exec_queue *xe_exec_queue_create(struct xe_device *xe, struct xe_vm *vm,
 					   u32 logical_mask, u16 width,
 					   struct xe_hw_engine *hwe, u32 flags,
@@ -181,11 +191,13 @@ struct xe_exec_queue *xe_exec_queue_create(struct xe_device *xe, struct xe_vm *v
 	if (xe_exec_queue_uses_pxp(q)) {
 		err = xe_pxp_exec_queue_add(xe->pxp, q);
 		if (err)
-			goto err_post_alloc;
+			goto err_post_init;
 	}
 
 	return q;
 
+err_post_init:
+	__xe_exec_queue_fini(q);
 err_post_alloc:
 	__xe_exec_queue_free(q);
 	return ERR_PTR(err);
@@ -283,13 +295,11 @@ void xe_exec_queue_destroy(struct kref *ref)
 			xe_exec_queue_put(eq);
 	}
 
-	q->ops->fini(q);
+	q->ops->destroy(q);
 }
 
 void xe_exec_queue_fini(struct xe_exec_queue *q)
 {
-	int i;
-
 	/*
 	 * Before releasing our ref to lrc and xef, accumulate our run ticks
 	 * and wakeup any waiters.
@@ -298,9 +308,7 @@ void xe_exec_queue_fini(struct xe_exec_queue *q)
 	if (q->xef && atomic_dec_and_test(&q->xef->exec_queue.pending_removal))
 		wake_up_var(&q->xef->exec_queue.pending_removal);
 
-	for (i = 0; i < q->width; ++i)
-		xe_lrc_put(q->lrc[i]);
-
+	__xe_exec_queue_fini(q);
 	__xe_exec_queue_free(q);
 }
 

@@ -268,6 +268,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_TAS2770
 	imply SND_SOC_TAS2780
 	imply SND_SOC_TAS2781_I2C
+	imply SND_SOC_TAS2783_SDW
 	imply SND_SOC_TAS5086
 	imply SND_SOC_TAS571X
 	imply SND_SOC_TAS5720
@@ -2096,6 +2097,19 @@ config SND_SOC_TAS2781_I2C
 	  Note the TAS2781 driver implements a flexible and configurable
 	  algo coefficient setting, for one, two or even multiple TAS2781
 	  chips.
+
+config SND_SOC_TAS2783_SDW
+	tristate "Texas Instruments TAS2783 speaker amplifier (sdw)"
+	depends on SOUNDWIRE
+	depends on EFI
+	select REGMAP_SOUNDWIRE
+	select REGMAP_SOUNDWIRE_MBQ
+	select CRC32
+	help
+	  Enable support for Texas Instruments TAS2783A Digital input
+	  mono Class-D and DSP-inside audio power amplifiers. TAS2783
+	  driver implements a flexible and configurable algorithm
+	  cofficient setting, for one, two or multiple TAS2783 chips.
 
 config SND_SOC_TAS5086
 	tristate "Texas Instruments TAS5086 speaker amplifier"

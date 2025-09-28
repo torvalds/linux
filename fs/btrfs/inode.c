@@ -3885,10 +3885,6 @@ static int btrfs_read_locked_inode(struct btrfs_inode *inode, struct btrfs_path 
 	bool filled = false;
 	int first_xattr_slot;
 
-	ret = btrfs_init_file_extent_tree(inode);
-	if (ret)
-		goto out;
-
 	ret = btrfs_fill_inode(inode, &rdev);
 	if (!ret)
 		filled = true;
@@ -3920,8 +3916,6 @@ static int btrfs_read_locked_inode(struct btrfs_inode *inode, struct btrfs_path 
 	i_uid_write(vfs_inode, btrfs_inode_uid(leaf, inode_item));
 	i_gid_write(vfs_inode, btrfs_inode_gid(leaf, inode_item));
 	btrfs_i_size_write(inode, btrfs_inode_size(leaf, inode_item));
-	btrfs_inode_set_file_extent_range(inode, 0,
-			round_up(i_size_read(vfs_inode), fs_info->sectorsize));
 
 	inode_set_atime(vfs_inode, btrfs_timespec_sec(leaf, &inode_item->atime),
 			btrfs_timespec_nsec(leaf, &inode_item->atime));
@@ -3953,6 +3947,11 @@ static int btrfs_read_locked_inode(struct btrfs_inode *inode, struct btrfs_path 
 	btrfs_set_inode_mapping_order(inode);
 
 cache_index:
+	ret = btrfs_init_file_extent_tree(inode);
+	if (ret)
+		goto out;
+	btrfs_inode_set_file_extent_range(inode, 0,
+			round_up(i_size_read(vfs_inode), fs_info->sectorsize));
 	/*
 	 * If we were modified in the current generation and evicted from memory
 	 * and then re-read we need to do a full sync since we don't have any

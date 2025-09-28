@@ -1124,10 +1124,23 @@ static int octep_set_features(struct net_device *dev, netdev_features_t features
 	return err;
 }
 
+static bool octep_is_vf_valid(struct octep_device *oct, int vf)
+{
+	if (vf >= CFG_GET_ACTIVE_VFS(oct->conf)) {
+		netdev_err(oct->netdev, "Invalid VF ID %d\n", vf);
+		return false;
+	}
+
+	return true;
+}
+
 static int octep_get_vf_config(struct net_device *dev, int vf,
 			       struct ifla_vf_info *ivi)
 {
 	struct octep_device *oct = netdev_priv(dev);
+
+	if (!octep_is_vf_valid(oct, vf))
+		return -EINVAL;
 
 	ivi->vf = vf;
 	ether_addr_copy(ivi->mac, oct->vf_info[vf].mac_addr);
@@ -1142,6 +1155,9 @@ static int octep_set_vf_mac(struct net_device *dev, int vf, u8 *mac)
 {
 	struct octep_device *oct = netdev_priv(dev);
 	int err;
+
+	if (!octep_is_vf_valid(oct, vf))
+		return -EINVAL;
 
 	if (!is_valid_ether_addr(mac)) {
 		dev_err(&oct->pdev->dev, "Invalid  MAC Address %pM\n", mac);

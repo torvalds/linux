@@ -904,38 +904,6 @@ static int kvm_init_ipa_range(struct kvm_s2_mmu *mmu, unsigned long type)
 	return 0;
 }
 
-/*
- * Assume that @pgt is valid and unlinked from the KVM MMU to free the
- * page-table without taking the kvm_mmu_lock and without performing any
- * TLB invalidations.
- *
- * Also, the range of addresses can be large enough to cause need_resched
- * warnings, for instance on CONFIG_PREEMPT_NONE kernels. Hence, invoke
- * cond_resched() periodically to prevent hogging the CPU for a long time
- * and schedule something else, if required.
- */
-static void stage2_destroy_range(struct kvm_pgtable *pgt, phys_addr_t addr,
-				   phys_addr_t end)
-{
-	u64 next;
-
-	do {
-		next = stage2_range_addr_end(addr, end);
-		KVM_PGT_FN(kvm_pgtable_stage2_destroy_range)(pgt, addr,
-								next - addr);
-		if (next != end)
-			cond_resched();
-	} while (addr = next, addr != end);
-}
-
-static void kvm_stage2_destroy(struct kvm_pgtable *pgt)
-{
-	unsigned int ia_bits = VTCR_EL2_IPA(pgt->mmu->vtcr);
-
-	stage2_destroy_range(pgt, 0, BIT(ia_bits));
-	KVM_PGT_FN(kvm_pgtable_stage2_destroy_pgd)(pgt);
-}
-
 /**
  * kvm_init_stage2_mmu - Initialise a S2 MMU structure
  * @kvm:	The pointer to the KVM structure
@@ -1012,7 +980,7 @@ int kvm_init_stage2_mmu(struct kvm *kvm, struct kvm_s2_mmu *mmu, unsigned long t
 	return 0;
 
 out_destroy_pgtable:
-	kvm_stage2_destroy(pgt);
+	KVM_PGT_FN(kvm_pgtable_stage2_destroy)(pgt);
 out_free_pgtable:
 	kfree(pgt);
 	return err;
@@ -1106,10 +1074,14 @@ void kvm_free_stage2_pgd(struct kvm_s2_mmu *mmu)
 		mmu->pgt = NULL;
 		free_percpu(mmu->last_vcpu_ran);
 	}
+
+	if (kvm_is_nested_s2_mmu(kvm, mmu))
+		kvm_init_nested_s2_mmu(mmu);
+
 	write_unlock(&kvm->mmu_lock);
 
 	if (pgt) {
-		kvm_stage2_destroy(pgt);
+		KVM_PGT_FN(kvm_pgtable_stage2_destroy)(pgt);
 		kfree(pgt);
 	}
 }
@@ -1540,11 +1512,6 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 	write_fault = kvm_is_write_fault(vcpu);
 	exec_fault = kvm_vcpu_trap_is_exec_fault(vcpu);
 	VM_BUG_ON(write_fault && exec_fault);
-
-	if (fault_is_perm && !write_fault && !exec_fault) {
-		kvm_err("Unexpected L2 read permission error\n");
-		return -EFAULT;
-	}
 
 	if (!is_protected_kvm_enabled())
 		memcache = &vcpu->arch.mmu_page_cache;

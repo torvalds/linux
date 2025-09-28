@@ -747,6 +747,7 @@ static void ipsec_rx_create_attr_set(struct mlx5e_ipsec *ipsec,
 	attr->family = family;
 	attr->prio = MLX5E_NIC_PRIO;
 	attr->pol_level = MLX5E_ACCEL_FS_POL_FT_LEVEL;
+	attr->pol_miss_level = MLX5E_ACCEL_FS_POL_MISS_FT_LEVEL;
 	attr->sa_level = MLX5E_ACCEL_FS_ESP_FT_LEVEL;
 	attr->status_level = MLX5E_ACCEL_FS_ESP_FT_ERR_LEVEL;
 	attr->chains_ns = MLX5_FLOW_NAMESPACE_KERNEL;
@@ -833,7 +834,7 @@ static int ipsec_rx_chains_create_miss(struct mlx5e_ipsec *ipsec,
 
 	ft_attr.max_fte = 1;
 	ft_attr.autogroup.max_num_groups = 1;
-	ft_attr.level = attr->pol_level;
+	ft_attr.level = attr->pol_miss_level;
 	ft_attr.prio = attr->prio;
 
 	ft = mlx5_create_auto_grouped_flow_table(attr->ns, &ft_attr);
