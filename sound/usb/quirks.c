@@ -2443,6 +2443,84 @@ static const struct usb_audio_quirk_flags_table quirk_flags_table[] = {
 	{} /* terminator */
 };
 
+#define QUIRK_STRING_ENTRY(x) \
+	[QUIRK_TYPE_ ## x] = __stringify(x)
+
+static const char *const snd_usb_audio_quirk_flag_names[] = {
+	QUIRK_STRING_ENTRY(GET_SAMPLE_RATE),
+	QUIRK_STRING_ENTRY(SHARE_MEDIA_DEVICE),
+	QUIRK_STRING_ENTRY(ALIGN_TRANSFER),
+	QUIRK_STRING_ENTRY(TX_LENGTH),
+	QUIRK_STRING_ENTRY(PLAYBACK_FIRST),
+	QUIRK_STRING_ENTRY(SKIP_CLOCK_SELECTOR),
+	QUIRK_STRING_ENTRY(IGNORE_CLOCK_SOURCE),
+	QUIRK_STRING_ENTRY(ITF_USB_DSD_DAC),
+	QUIRK_STRING_ENTRY(CTL_MSG_DELAY),
+	QUIRK_STRING_ENTRY(CTL_MSG_DELAY_1M),
+	QUIRK_STRING_ENTRY(CTL_MSG_DELAY_5M),
+	QUIRK_STRING_ENTRY(IFACE_DELAY),
+	QUIRK_STRING_ENTRY(VALIDATE_RATES),
+	QUIRK_STRING_ENTRY(DISABLE_AUTOSUSPEND),
+	QUIRK_STRING_ENTRY(IGNORE_CTL_ERROR),
+	QUIRK_STRING_ENTRY(DSD_RAW),
+	QUIRK_STRING_ENTRY(SET_IFACE_FIRST),
+	QUIRK_STRING_ENTRY(GENERIC_IMPLICIT_FB),
+	QUIRK_STRING_ENTRY(SKIP_IMPLICIT_FB),
+	QUIRK_STRING_ENTRY(IFACE_SKIP_CLOSE),
+	QUIRK_STRING_ENTRY(FORCE_IFACE_RESET),
+	QUIRK_STRING_ENTRY(FIXED_RATE),
+	QUIRK_STRING_ENTRY(MIC_RES_16),
+	QUIRK_STRING_ENTRY(MIC_RES_384),
+	QUIRK_STRING_ENTRY(MIXER_PLAYBACK_MIN_MUTE),
+	QUIRK_STRING_ENTRY(MIXER_CAPTURE_MIN_MUTE),
+	NULL
+};
+
+const char *snd_usb_quirk_flag_find_name(unsigned long index)
+{
+	if (index >= ARRAY_SIZE(snd_usb_audio_quirk_flag_names))
+		return NULL;
+
+	return snd_usb_audio_quirk_flag_names[index];
+}
+
+u32 snd_usb_quirk_flags_from_name(const char *name)
+{
+	int i;
+
+	if (!name || !*name)
+		return 0;
+
+	for (i = 0; snd_usb_audio_quirk_flag_names[i]; i++) {
+		if (strcasecmp(name, snd_usb_audio_quirk_flag_names[i]) == 0)
+			return BIT_U32(i);
+	}
+
+	return 0;
+}
+
+void snd_usb_apply_flag_dbg(const char *reason,
+			    struct snd_usb_audio *chip,
+			    unsigned long flag)
+{
+	unsigned long bit;
+
+	for_each_set_bit(bit, &flag, BYTES_TO_BITS(sizeof(flag))) {
+		const char *name = snd_usb_audio_quirk_flag_names[bit];
+
+		if (name)
+			usb_audio_dbg(chip,
+				      "From %s apply quirk flag %s for device %04x:%04x\n",
+				      reason, name, USB_ID_VENDOR(chip->usb_id),
+				      USB_ID_PRODUCT(chip->usb_id));
+		else
+			usb_audio_warn(chip,
+				       "From %s apply unknown quirk flag 0x%lx for device %04x:%04x\n",
+				       reason, bit, USB_ID_VENDOR(chip->usb_id),
+				       USB_ID_PRODUCT(chip->usb_id));
+	}
+}
+
 void snd_usb_init_quirk_flags(struct snd_usb_audio *chip)
 {
 	const struct usb_audio_quirk_flags_table *p;
@@ -2451,10 +2529,7 @@ void snd_usb_init_quirk_flags(struct snd_usb_audio *chip)
 		if (chip->usb_id == p->id ||
 		    (!USB_ID_PRODUCT(p->id) &&
 		     USB_ID_VENDOR(chip->usb_id) == USB_ID_VENDOR(p->id))) {
-			usb_audio_dbg(chip,
-				      "Set quirk_flags 0x%x for device %04x:%04x\n",
-				      p->flags, USB_ID_VENDOR(chip->usb_id),
-				      USB_ID_PRODUCT(chip->usb_id));
+			snd_usb_apply_flag_dbg("builtin table", chip, p->flags);
 			chip->quirk_flags |= p->flags;
 			return;
 		}
