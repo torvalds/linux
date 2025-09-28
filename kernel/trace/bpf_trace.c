@@ -900,7 +900,7 @@ const struct bpf_func_proto bpf_send_signal_thread_proto = {
 	.arg1_type	= ARG_ANYTHING,
 };
 
-BPF_CALL_3(bpf_d_path, struct path *, path, char *, buf, u32, sz)
+BPF_CALL_3(bpf_d_path, const struct path *, path, char *, buf, u32, sz)
 {
 	struct path copy;
 	long len;

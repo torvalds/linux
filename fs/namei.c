@@ -2673,7 +2673,7 @@ static int path_lookupat(struct nameidata *nd, unsigned flags, struct path *path
 }
 
 int filename_lookup(int dfd, struct filename *name, unsigned flags,
-		    struct path *path, struct path *root)
+		    struct path *path, const struct path *root)
 {
 	int retval;
 	struct nameidata nd;
@@ -4170,7 +4170,7 @@ struct dentry *kern_path_create(int dfd, const char *pathname,
 }
 EXPORT_SYMBOL(kern_path_create);
 
-void done_path_create(struct path *path, struct dentry *dentry)
+void done_path_create(const struct path *path, struct dentry *dentry)
 {
 	if (!IS_ERR(dentry))
 		dput(dentry);

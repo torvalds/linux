@@ -402,7 +402,7 @@ static struct svc_export *svc_export_update(struct svc_export *new,
 					    struct svc_export *old);
 static struct svc_export *svc_export_lookup(struct svc_export *);
 
-static int check_export(struct path *path, int *flags, unsigned char *uuid)
+static int check_export(const struct path *path, int *flags, unsigned char *uuid)
 {
 	struct inode *inode = d_inode(path->dentry);
 
@@ -1181,7 +1181,7 @@ denied:
  * use exp_get_by_name() or exp_find().
  */
 struct svc_export *
-rqst_exp_get_by_name(struct svc_rqst *rqstp, struct path *path)
+rqst_exp_get_by_name(struct svc_rqst *rqstp, const struct path *path)
 {
 	struct svc_export *gssexp, *exp = ERR_PTR(-ENOENT);
 	struct nfsd_net *nn = net_generic(SVC_NET(rqstp), nfsd_net_id);

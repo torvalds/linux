@@ -847,7 +847,7 @@ static int pidfs_export_permission(struct handle_to_path_ctx *ctx,
 	return 0;
 }
 
-static struct file *pidfs_export_open(struct path *path, unsigned int oflags)
+static struct file *pidfs_export_open(const struct path *path, unsigned int oflags)
 {
 	/*
 	 * Clear O_LARGEFILE as open_by_handle_at() forces it and raise
