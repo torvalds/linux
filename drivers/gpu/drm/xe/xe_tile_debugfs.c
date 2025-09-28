@@ -17,7 +17,7 @@ static struct xe_tile *node_to_tile(struct drm_info_node *node)
 }
 
 /**
- * tile_debugfs_simple_show - A show callback for struct drm_info_list
+ * xe_tile_debugfs_simple_show() - A show callback for struct drm_info_list
  * @m: the &seq_file
  * @data: data used by the drm debugfs helpers
  *
@@ -58,7 +58,7 @@ static struct xe_tile *node_to_tile(struct drm_info_node *node)
  *
  * Return: 0 on success or a negative error code on failure.
  */
-static int tile_debugfs_simple_show(struct seq_file *m, void *data)
+int xe_tile_debugfs_simple_show(struct seq_file *m, void *data)
 {
 	struct drm_printer p = drm_seq_file_printer(m);
 	struct drm_info_node *node = m->private;
@@ -69,7 +69,7 @@ static int tile_debugfs_simple_show(struct seq_file *m, void *data)
 }
 
 /**
- * tile_debugfs_show_with_rpm - A show callback for struct drm_info_list
+ * xe_tile_debugfs_show_with_rpm() - A show callback for struct drm_info_list
  * @m: the &seq_file
  * @data: data used by the drm debugfs helpers
  *
@@ -77,7 +77,7 @@ static int tile_debugfs_simple_show(struct seq_file *m, void *data)
  *
  * Return: 0 on success or a negative error code on failure.
  */
-static int tile_debugfs_show_with_rpm(struct seq_file *m, void *data)
+int xe_tile_debugfs_show_with_rpm(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = m->private;
 	struct xe_tile *tile = node_to_tile(node);
@@ -85,7 +85,7 @@ static int tile_debugfs_show_with_rpm(struct seq_file *m, void *data)
 	int ret;
 
 	xe_pm_runtime_get(xe);
-	ret = tile_debugfs_simple_show(m, data);
+	ret = xe_tile_debugfs_simple_show(m, data);
 	xe_pm_runtime_put(xe);
 
 	return ret;
@@ -106,8 +106,8 @@ static int sa_info(struct xe_tile *tile, struct drm_printer *p)
 
 /* only for debugfs files which can be safely used on the VF */
 static const struct drm_info_list vf_safe_debugfs_list[] = {
-	{ "ggtt", .show = tile_debugfs_show_with_rpm, .data = ggtt },
-	{ "sa_info", .show = tile_debugfs_show_with_rpm, .data = sa_info },
+	{ "ggtt", .show = xe_tile_debugfs_show_with_rpm, .data = ggtt },
+	{ "sa_info", .show = xe_tile_debugfs_show_with_rpm, .data = sa_info },
 };
 
 /**
