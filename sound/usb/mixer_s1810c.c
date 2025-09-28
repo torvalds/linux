@@ -147,12 +147,7 @@ snd_s1810c_send_ctl_packet(struct usb_device *dev, u32 a,
 	pkt.b = b;
 	pkt.c = c;
 	pkt.d = d;
-	/*
-	 * Value for settings 0/1 for this
-	 * output channel is always 0 (probably because
-	 * there is no ADAT output on 1810c)
-	 */
-	pkt.e = (c == 4) ? 0 : e;
+	pkt.e = e;
 
 	ret = snd_usb_ctl_msg(dev, usb_sndctrlpipe(dev, 0),
 			      SC1810C_CMD_REQ,
