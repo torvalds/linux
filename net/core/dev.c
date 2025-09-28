@@ -6717,22 +6717,16 @@ EXPORT_SYMBOL(napi_complete_done);
 
 static void skb_defer_free_flush(struct softnet_data *sd)
 {
+	struct llist_node *free_list;
 	struct sk_buff *skb, *next;
 
-	/* Paired with WRITE_ONCE() in skb_attempt_defer_free() */
-	if (!READ_ONCE(sd->defer_list))
+	if (llist_empty(&sd->defer_list))
 		return;
+	atomic_long_set(&sd->defer_count, 0);
+	free_list = llist_del_all(&sd->defer_list);
 
-	spin_lock(&sd->defer_lock);
-	skb = sd->defer_list;
-	sd->defer_list = NULL;
-	atomic_set(&sd->defer_count, 0);
-	spin_unlock(&sd->defer_lock);
-
-	while (skb != NULL) {
-		next = skb->next;
+	llist_for_each_entry_safe(skb, next, free_list, ll_node) {
 		napi_consume_skb(skb, 1);
-		skb = next;
 	}
 }
 
@@ -12995,7 +12989,7 @@ static int __init net_dev_init(void)
 		sd->cpu = i;
 #endif
 		INIT_CSD(&sd->defer_csd, trigger_rx_softirq, sd);
-		spin_lock_init(&sd->defer_lock);
+		init_llist_head(&sd->defer_list);
 
 		gro_init(&sd->backlog.gro);
 		sd->backlog.poll = process_backlog;
