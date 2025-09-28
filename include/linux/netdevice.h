@@ -3536,10 +3536,6 @@ struct softnet_data {
 
 	struct numa_drop_counters drop_counters;
 
-	/* Another possibly contended cache line */
-	struct llist_head	defer_list ____cacheline_aligned_in_smp;
-	atomic_long_t		defer_count;
-
 	int			defer_ipi_scheduled ____cacheline_aligned_in_smp;
 	call_single_data_t	defer_csd;
 };
