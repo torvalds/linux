@@ -377,20 +377,6 @@ static unsigned long roclk_recalc_rate(struct clk_hw *hw,
 static int roclk_determine_rate(struct clk_hw *hw,
 				struct clk_rate_request *req)
 {
-	u32 rotrim, rodiv;
-
-	/* calculate dividers for new rate */
-	roclk_calc_div_trim(req->rate, req->best_parent_rate, &rodiv, &rotrim);
-
-	/* caclulate new rate (rounding) based on new rodiv & rotrim */
-	req->rate = roclk_calc_rate(req->best_parent_rate, rodiv, rotrim);
-
-	return 0;
-}
-
-static int roclk_determine_rate(struct clk_hw *hw,
-				struct clk_rate_request *req)
-{
 	struct clk_hw *parent_clk, *best_parent_clk = NULL;
 	unsigned int i, delta, best_delta = -1;
 	unsigned long parent_rate, best_parent_rate = 0;
@@ -398,6 +384,8 @@ static int roclk_determine_rate(struct clk_hw *hw,
 
 	/* find a parent which can generate nearest clkrate >= rate */
 	for (i = 0; i < clk_hw_get_num_parents(hw); i++) {
+		u32 rotrim, rodiv;
+
 		/* get parent */
 		parent_clk = clk_hw_get_parent_by_index(hw, i);
 		if (!parent_clk)
@@ -408,7 +396,12 @@ static int roclk_determine_rate(struct clk_hw *hw,
 		if (req->rate > parent_rate)
 			continue;
 
-		nearest_rate = roclk_round_rate(hw, req->rate, &parent_rate);
+		/* calculate dividers for new rate */
+		roclk_calc_div_trim(req->rate, req->best_parent_rate, &rodiv, &rotrim);
+
+		/* caclulate new rate (rounding) based on new rodiv & rotrim */
+		nearest_rate = roclk_calc_rate(req->best_parent_rate, rodiv, rotrim);
+
 		delta = abs(nearest_rate - req->rate);
 		if ((nearest_rate >= req->rate) && (delta < best_delta)) {
 			best_parent_clk = parent_clk;
