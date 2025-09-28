@@ -371,7 +371,7 @@ static void emit_sys_close_blob(struct bpf_gen *gen, int blob_off)
 	__emit_sys_close(gen);
 }
 
-static int compute_sha_udpate_offsets(struct bpf_gen *gen);
+static void compute_sha_update_offsets(struct bpf_gen *gen);
 
 int bpf_gen__finish(struct bpf_gen *gen, int nr_progs, int nr_maps)
 {
@@ -399,11 +399,8 @@ int bpf_gen__finish(struct bpf_gen *gen, int nr_progs, int nr_maps)
 			      blob_fd_array_off(gen, i));
 	emit(gen, BPF_MOV64_IMM(BPF_REG_0, 0));
 	emit(gen, BPF_EXIT_INSN());
-	if (OPTS_GET(gen->opts, gen_hash, false)) {
-		gen->error = compute_sha_udpate_offsets(gen);
-		if (gen->error)
-			return gen->error;
-	}
+	if (OPTS_GET(gen->opts, gen_hash, false))
+		compute_sha_update_offsets(gen);
 
 	pr_debug("gen: finish %s\n", errstr(gen->error));
 	if (!gen->error) {
@@ -457,17 +454,13 @@ void bpf_gen__free(struct bpf_gen *gen)
 	_val;							\
 })
 
-static int compute_sha_udpate_offsets(struct bpf_gen *gen)
+static void compute_sha_update_offsets(struct bpf_gen *gen)
 {
 	__u64 sha[SHA256_DWORD_SIZE];
 	__u64 sha_dw;
-	int i, err;
+	int i;
 
-	err = libbpf_sha256(gen->data_start, gen->data_cur - gen->data_start, sha, SHA256_DIGEST_LENGTH);
-	if (err < 0) {
-		pr_warn("sha256 computation of the metadata failed");
-		return err;
-	}
+	libbpf_sha256(gen->data_start, gen->data_cur - gen->data_start, (__u8 *)sha);
 	for (i = 0; i < SHA256_DWORD_SIZE; i++) {
 		struct bpf_insn *insn =
 			(struct bpf_insn *)(gen->insn_start + gen->hash_insn_offset[i]);
@@ -475,7 +468,6 @@ static int compute_sha_udpate_offsets(struct bpf_gen *gen)
 		insn[0].imm = (__u32)sha_dw;
 		insn[1].imm = sha_dw >> 32;
 	}
-	return 0;
 }
 
 void bpf_gen__load_btf(struct bpf_gen *gen, const void *btf_raw_data,

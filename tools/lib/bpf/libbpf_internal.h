@@ -739,5 +739,5 @@ int probe_fd(int fd);
 #define SHA256_DIGEST_LENGTH 32
 #define SHA256_DWORD_SIZE SHA256_DIGEST_LENGTH / sizeof(__u64)
 
-int libbpf_sha256(const void *data, size_t data_sz, void *sha_out, size_t sha_out_sz);
+void libbpf_sha256(const void *data, size_t len, __u8 out[SHA256_DIGEST_LENGTH]);
 #endif /* __LIBBPF_LIBBPF_INTERNAL_H */
