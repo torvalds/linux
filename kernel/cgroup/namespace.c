@@ -47,7 +47,7 @@ void free_cgroup_ns(struct cgroup_namespace *ns)
 }
 EXPORT_SYMBOL(free_cgroup_ns);
 
-struct cgroup_namespace *copy_cgroup_ns(unsigned long flags,
+struct cgroup_namespace *copy_cgroup_ns(u64 flags,
 					struct user_namespace *user_ns,
 					struct cgroup_namespace *old_ns)
 {

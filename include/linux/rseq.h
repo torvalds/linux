@@ -65,7 +65,7 @@ static inline void rseq_migrate(struct task_struct *t)
  * If parent process has a registered restartable sequences area, the
  * child inherits. Unregister rseq for a clone with CLONE_VM set.
  */
-static inline void rseq_fork(struct task_struct *t, unsigned long clone_flags)
+static inline void rseq_fork(struct task_struct *t, u64 clone_flags)
 {
 	if (clone_flags & CLONE_VM) {
 		t->rseq = NULL;
@@ -107,7 +107,7 @@ static inline void rseq_preempt(struct task_struct *t)
 static inline void rseq_migrate(struct task_struct *t)
 {
 }
-static inline void rseq_fork(struct task_struct *t, unsigned long clone_flags)
+static inline void rseq_fork(struct task_struct *t, u64 clone_flags)
 {
 }
 static inline void rseq_execve(struct task_struct *t)

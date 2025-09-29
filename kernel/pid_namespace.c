@@ -171,7 +171,7 @@ static void destroy_pid_namespace_work(struct work_struct *work)
 	} while (ns != &init_pid_ns && refcount_dec_and_test(&ns->ns.count));
 }
 
-struct pid_namespace *copy_pid_ns(unsigned long flags,
+struct pid_namespace *copy_pid_ns(u64 flags,
 	struct user_namespace *user_ns, struct pid_namespace *old_ns)
 {
 	if (!(flags & CLONE_NEWPID))
