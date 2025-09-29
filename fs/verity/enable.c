@@ -284,9 +284,9 @@ static int enable_verity(struct file *filp,
 		/* Successfully enabled verity */
 
 		/*
-		 * Readers can start using ->i_verity_info immediately, so it
-		 * can't be rolled back once set.  So don't set it until just
-		 * after the filesystem has successfully enabled verity.
+		 * Readers can start using the inode's verity info immediately,
+		 * so it can't be rolled back once set.  So don't set it until
+		 * just after the filesystem has successfully enabled verity.
 		 */
 		fsverity_set_info(inode, vi);
 	}

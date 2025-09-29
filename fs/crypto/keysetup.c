@@ -642,15 +642,16 @@ fscrypt_setup_encryption_info(struct inode *inode,
 		goto out;
 
 	/*
-	 * For existing inodes, multiple tasks may race to set ->i_crypt_info.
-	 * So use cmpxchg_release().  This pairs with the smp_load_acquire() in
-	 * fscrypt_get_inode_info().  I.e., here we publish ->i_crypt_info with
-	 * a RELEASE barrier so that other tasks can ACQUIRE it.
+	 * For existing inodes, multiple tasks may race to set the inode's
+	 * fscrypt info pointer.  So use cmpxchg_release().  This pairs with the
+	 * smp_load_acquire() in fscrypt_get_inode_info().  I.e., publish the
+	 * pointer with a RELEASE barrier so that other tasks can ACQUIRE it.
 	 */
-	if (cmpxchg_release(&inode->i_crypt_info, NULL, crypt_info) == NULL) {
+	if (cmpxchg_release(fscrypt_inode_info_addr(inode), NULL, crypt_info) ==
+	    NULL) {
 		/*
-		 * We won the race and set ->i_crypt_info to our crypt_info.
-		 * Now link it into the master key's inode list.
+		 * We won the race and set the inode's fscrypt info to our
+		 * crypt_info.  Now link it into the master key's inode list.
 		 */
 		if (mk) {
 			crypt_info->ci_master_key = mk;
@@ -681,13 +682,13 @@ out:
  *		       %false unless the operation being performed is needed in
  *		       order for files (or directories) to be deleted.
  *
- * Set up ->i_crypt_info, if it hasn't already been done.
+ * Set up the inode's encryption key, if it hasn't already been done.
  *
- * Note: unless ->i_crypt_info is already set, this isn't %GFP_NOFS-safe.  So
+ * Note: unless the key setup was already done, this isn't %GFP_NOFS-safe.  So
  * generally this shouldn't be called from within a filesystem transaction.
  *
- * Return: 0 if ->i_crypt_info was set or was already set, *or* if the
- *	   encryption key is unavailable.  (Use fscrypt_has_encryption_key() to
+ * Return: 0 if the key is now set up, *or* if it couldn't be set up because the
+ *	   needed master key is absent.  (Use fscrypt_has_encryption_key() to
  *	   distinguish these cases.)  Also can return another -errno code.
  */
 int fscrypt_get_encryption_info(struct inode *inode, bool allow_unsupported)
@@ -741,9 +742,9 @@ int fscrypt_get_encryption_info(struct inode *inode, bool allow_unsupported)
  *	   ->i_ino doesn't need to be set yet.
  * @encrypt_ret: (output) set to %true if the new inode will be encrypted
  *
- * If the directory is encrypted, set up its ->i_crypt_info in preparation for
+ * If the directory is encrypted, set up its encryption key in preparation for
  * encrypting the name of the new file.  Also, if the new inode will be
- * encrypted, set up its ->i_crypt_info and set *encrypt_ret=true.
+ * encrypted, set up its encryption key too and set *encrypt_ret=true.
  *
  * This isn't %GFP_NOFS-safe, and therefore it should be called before starting
  * any filesystem transaction to create the inode.  For this reason, ->i_ino
@@ -752,8 +753,8 @@ int fscrypt_get_encryption_info(struct inode *inode, bool allow_unsupported)
  * This doesn't persist the new inode's encryption context.  That still needs to
  * be done later by calling fscrypt_set_context().
  *
- * Return: 0 on success, -ENOKEY if the encryption key is missing, or another
- *	   -errno code
+ * Return: 0 on success, -ENOKEY if a key needs to be set up for @dir or @inode
+ *	   but the needed master key is absent, or another -errno code
  */
 int fscrypt_prepare_new_inode(struct inode *dir, struct inode *inode,
 			      bool *encrypt_ret)
@@ -800,8 +801,16 @@ EXPORT_SYMBOL_GPL(fscrypt_prepare_new_inode);
  */
 void fscrypt_put_encryption_info(struct inode *inode)
 {
-	put_crypt_info(inode->i_crypt_info);
-	inode->i_crypt_info = NULL;
+	/*
+	 * Ideally we'd start with a lightweight IS_ENCRYPTED() check here
+	 * before proceeding to retrieve and check the pointer.  However, during
+	 * inode creation, the fscrypt_inode_info is set before S_ENCRYPTED.  If
+	 * an error occurs, it needs to be cleaned up regardless.
+	 */
+	struct fscrypt_inode_info **ci_addr = fscrypt_inode_info_addr(inode);
+
+	put_crypt_info(*ci_addr);
+	*ci_addr = NULL;
 }
 EXPORT_SYMBOL(fscrypt_put_encryption_info);
 

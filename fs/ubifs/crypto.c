@@ -88,6 +88,8 @@ int ubifs_decrypt(const struct inode *inode, struct ubifs_data_node *dn,
 }
 
 const struct fscrypt_operations ubifs_crypt_operations = {
+	.inode_info_offs	= (int)offsetof(struct ubifs_inode, i_crypt_info) -
+				  (int)offsetof(struct ubifs_inode, vfs_inode),
 	.legacy_key_prefix	= "ubifs:",
 	.get_context		= ubifs_crypt_get_context,
 	.set_context		= ubifs_crypt_set_context,
