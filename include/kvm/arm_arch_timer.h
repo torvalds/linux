@@ -128,7 +128,7 @@ void kvm_timer_init_vhe(void);
 #define vcpu_hptimer(v)	(&(v)->arch.timer_cpu.timers[TIMER_HPTIMER])
 
 #define arch_timer_ctx_index(ctx)	((ctx) - vcpu_timer((ctx)->vcpu)->timers)
-
+#define timer_context_to_vcpu(ctx)	((ctx)->vcpu)
 #define timer_vm_data(ctx)		(&(ctx)->vcpu->kvm->arch.timer_data)
 #define timer_irq(ctx)			(timer_vm_data(ctx)->ppi[arch_timer_ctx_index(ctx)])
 
