@@ -128,4 +128,6 @@ int disasm_line__scnprintf(struct disasm_line *dl, char *bf, size_t size,
 
 int symbol__disassemble(struct symbol *sym, struct annotate_args *args);
 
+char *expand_tabs(char *line, char **storage, size_t *storage_len);
+
 #endif /* __PERF_UTIL_DISASM_H */
