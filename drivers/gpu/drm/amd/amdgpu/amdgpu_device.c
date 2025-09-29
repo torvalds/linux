@@ -7157,28 +7157,35 @@ void amdgpu_pci_resume(struct pci_dev *pdev)
 
 static void amdgpu_device_cache_switch_state(struct amdgpu_device *adev)
 {
-	struct pci_dev *parent = pci_upstream_bridge(adev->pdev);
+	struct pci_dev *swus, *swds;
 	int r;
 
-	if (!parent || parent->vendor != PCI_VENDOR_ID_ATI)
+	swds = pci_upstream_bridge(adev->pdev);
+	if (!swds || swds->vendor != PCI_VENDOR_ID_ATI ||
+	    pci_pcie_type(swds) != PCI_EXP_TYPE_DOWNSTREAM)
+		return;
+	swus = pci_upstream_bridge(swds);
+	if (!swus ||
+	    (swus->vendor != PCI_VENDOR_ID_ATI &&
+	     swus->vendor != PCI_VENDOR_ID_AMD) ||
+	    pci_pcie_type(swus) != PCI_EXP_TYPE_UPSTREAM)
 		return;
 
 	/* If already saved, return */
 	if (adev->pcie_reset_ctx.swus)
 		return;
 	/* Upstream bridge is ATI, assume it's SWUS/DS architecture */
-	r = pci_save_state(parent);
+	r = pci_save_state(swds);
 	if (r)
 		return;
-	adev->pcie_reset_ctx.swds_pcistate = pci_store_saved_state(parent);
+	adev->pcie_reset_ctx.swds_pcistate = pci_store_saved_state(swds);
 
-	parent = pci_upstream_bridge(parent);
-	r = pci_save_state(parent);
+	r = pci_save_state(swus);
 	if (r)
 		return;
-	adev->pcie_reset_ctx.swus_pcistate = pci_store_saved_state(parent);
+	adev->pcie_reset_ctx.swus_pcistate = pci_store_saved_state(swus);
 
-	adev->pcie_reset_ctx.swus = parent;
+	adev->pcie_reset_ctx.swus = swus;
 }
 
 static void amdgpu_device_load_switch_state(struct amdgpu_device *adev)
