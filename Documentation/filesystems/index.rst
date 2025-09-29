@@ -72,7 +72,6 @@ Documentation for filesystem implementations.
    afs
    autofs
    autofs-mount-control
-   bcachefs/index
    befs
    bfs
    btrfs
