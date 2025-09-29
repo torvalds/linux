@@ -6362,11 +6362,6 @@ nfs4_open_delegation(struct svc_rqst *rqstp, struct nfsd4_open *open,
 	return;
 out_no_deleg:
 	open->op_delegate_type = OPEN_DELEGATE_NONE;
-	if (open->op_claim_type == NFS4_OPEN_CLAIM_PREVIOUS &&
-	    open->op_delegate_type != OPEN_DELEGATE_NONE) {
-		dprintk("NFSD: WARNING: refusing delegation reclaim\n");
-		open->op_recall = true;
-	}
 
 	/* 4.1 client asking for a delegation? */
 	if (open->op_deleg_want)
