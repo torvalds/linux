@@ -265,7 +265,7 @@ static void amdgpu_vm_bo_reset_state_machine(struct amdgpu_vm *vm)
 		vm_bo->moved = true;
 	spin_unlock(&vm->invalidated_lock);
 
-	amdgpu_vm_assert_locked(vm_bo->vm);
+	amdgpu_vm_assert_locked(vm);
 	list_for_each_entry_safe(vm_bo, tmp, &vm->idle, vm_status) {
 		struct amdgpu_bo *bo = vm_bo->bo;
 
