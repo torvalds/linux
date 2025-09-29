@@ -24,6 +24,7 @@
 #endif
 #ifdef CONFIG_CIFS_SMB_DIRECT
 #include "smbdirect.h"
+#include "../common/smbdirect/smbdirect_pdu.h"
 #endif
 #include "cifs_swn.h"
 #include "cached_dir.h"
@@ -456,57 +457,55 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 		sc = &server->smbd_conn->socket;
 		sp = &sc->parameters;
 
-		seq_printf(m, "\nSMBDirect (in hex) protocol version: %x "
-			"transport status: %x",
-			server->smbd_conn->protocol,
-			server->smbd_conn->socket.status);
-		seq_printf(m, "\nConn receive_credit_max: %x "
-			"send_credit_target: %x max_send_size: %x",
+		seq_printf(m, "\nSMBDirect protocol version: 0x%x "
+			"transport status: %s (%u)",
+			SMBDIRECT_V1,
+			smbdirect_socket_status_string(sc->status),
+			sc->status);
+		seq_printf(m, "\nConn receive_credit_max: %u "
+			"send_credit_target: %u max_send_size: %u",
 			sp->recv_credit_max,
 			sp->send_credit_target,
 			sp->max_send_size);
-		seq_printf(m, "\nConn max_fragmented_recv_size: %x "
-			"max_fragmented_send_size: %x max_receive_size:%x",
+		seq_printf(m, "\nConn max_fragmented_recv_size: %u "
+			"max_fragmented_send_size: %u max_receive_size:%u",
 			sp->max_fragmented_recv_size,
 			sp->max_fragmented_send_size,
 			sp->max_recv_size);
-		seq_printf(m, "\nConn keep_alive_interval: %x "
-			"max_readwrite_size: %x rdma_readwrite_threshold: %x",
+		seq_printf(m, "\nConn keep_alive_interval: %u "
+			"max_readwrite_size: %u rdma_readwrite_threshold: %u",
 			sp->keepalive_interval_msec * 1000,
 			sp->max_read_write_size,
-			server->smbd_conn->rdma_readwrite_threshold);
-		seq_printf(m, "\nDebug count_get_receive_buffer: %x "
-			"count_put_receive_buffer: %x count_send_empty: %x",
-			server->smbd_conn->count_get_receive_buffer,
-			server->smbd_conn->count_put_receive_buffer,
-			server->smbd_conn->count_send_empty);
-		seq_printf(m, "\nRead Queue count_reassembly_queue: %x "
-			"count_enqueue_reassembly_queue: %x "
-			"count_dequeue_reassembly_queue: %x "
-			"reassembly_data_length: %x "
-			"reassembly_queue_length: %x",
-			server->smbd_conn->count_reassembly_queue,
-			server->smbd_conn->count_enqueue_reassembly_queue,
-			server->smbd_conn->count_dequeue_reassembly_queue,
+			server->rdma_readwrite_threshold);
+		seq_printf(m, "\nDebug count_get_receive_buffer: %llu "
+			"count_put_receive_buffer: %llu count_send_empty: %llu",
+			sc->statistics.get_receive_buffer,
+			sc->statistics.put_receive_buffer,
+			sc->statistics.send_empty);
+		seq_printf(m, "\nRead Queue "
+			"count_enqueue_reassembly_queue: %llu "
+			"count_dequeue_reassembly_queue: %llu "
+			"reassembly_data_length: %u "
+			"reassembly_queue_length: %u",
+			sc->statistics.enqueue_reassembly_queue,
+			sc->statistics.dequeue_reassembly_queue,
 			sc->recv_io.reassembly.data_length,
 			sc->recv_io.reassembly.queue_length);
-		seq_printf(m, "\nCurrent Credits send_credits: %x "
-			"receive_credits: %x receive_credit_target: %x",
-			atomic_read(&server->smbd_conn->send_credits),
-			atomic_read(&server->smbd_conn->receive_credits),
-			server->smbd_conn->receive_credit_target);
-		seq_printf(m, "\nPending send_pending: %x ",
-			atomic_read(&server->smbd_conn->send_pending));
-		seq_printf(m, "\nReceive buffers count_receive_queue: %x ",
-			server->smbd_conn->count_receive_queue);
-		seq_printf(m, "\nMR responder_resources: %x "
-			"max_frmr_depth: %x mr_type: %x",
-			server->smbd_conn->responder_resources,
-			server->smbd_conn->max_frmr_depth,
-			server->smbd_conn->mr_type);
-		seq_printf(m, "\nMR mr_ready_count: %x mr_used_count: %x",
-			atomic_read(&server->smbd_conn->mr_ready_count),
-			atomic_read(&server->smbd_conn->mr_used_count));
+		seq_printf(m, "\nCurrent Credits send_credits: %u "
+			"receive_credits: %u receive_credit_target: %u",
+			atomic_read(&sc->send_io.credits.count),
+			atomic_read(&sc->recv_io.credits.count),
+			sc->recv_io.credits.target);
+		seq_printf(m, "\nPending send_pending: %u ",
+			atomic_read(&sc->send_io.pending.count));
+		seq_printf(m, "\nMR responder_resources: %u "
+			"max_frmr_depth: %u mr_type: 0x%x",
+			sp->responder_resources,
+			sp->max_frmr_depth,
+			sc->mr_io.type);
+		seq_printf(m, "\nMR mr_ready_count: %u mr_used_count: %u",
+			atomic_read(&sc->mr_io.ready.count),
+			atomic_read(&sc->mr_io.used.count));
 skip_rdma:
 #endif
 		seq_printf(m, "\nNumber of credits: %d,%d,%d Dialect 0x%x",

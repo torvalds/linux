@@ -814,6 +814,13 @@ struct TCP_Server_Info {
 	unsigned int	max_read;
 	unsigned int	max_write;
 	unsigned int	min_offload;
+	/*
+	 * If payload is less than or equal to the threshold,
+	 * use RDMA send/recv to send upper layer I/O.
+	 * If payload is more than the threshold,
+	 * use RDMA read/write through memory registration for I/O.
+	 */
+	unsigned int	rdma_readwrite_threshold;
 	unsigned int	retrans;
 	struct {
 		bool requested; /* "compress" mount option set*/
@@ -1540,7 +1547,7 @@ struct cifs_io_subrequest {
 	struct kvec			iov[2];
 	struct TCP_Server_Info		*server;
 #ifdef CONFIG_CIFS_SMB_DIRECT
-	struct smbd_mr			*mr;
+	struct smbdirect_mr_io		*mr;
 #endif
 	struct cifs_credits		credits;
 };
