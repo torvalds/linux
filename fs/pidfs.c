@@ -440,7 +440,7 @@ static bool pidfs_ioctl_valid(unsigned int cmd)
 		 * erronously mistook the file descriptor for a pidfd.
 		 * This is not perfect but will catch most cases.
 		 */
-		return (_IOC_TYPE(cmd) == _IOC_TYPE(PIDFD_GET_INFO));
+		return extensible_ioctl_valid(cmd, PIDFD_GET_INFO, PIDFD_INFO_SIZE_VER0);
 	}
 
 	return false;

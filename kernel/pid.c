@@ -71,13 +71,13 @@ static int pid_max_max = PID_MAX_LIMIT;
  * the scheme scales to up to 4 million PIDs, runtime.
  */
 struct pid_namespace init_pid_ns = {
-	.ns.count = REFCOUNT_INIT(2),
+	.ns.__ns_ref = REFCOUNT_INIT(2),
 	.idr = IDR_INIT(init_pid_ns.idr),
 	.pid_allocated = PIDNS_ADDING,
 	.level = 0,
 	.child_reaper = &init_task,
 	.user_ns = &init_user_ns,
-	.ns.inum = PROC_PID_INIT_INO,
+	.ns.inum = ns_init_inum(&init_pid_ns),
 #ifdef CONFIG_PID_NS
 	.ns.ops = &pidns_operations,
 #endif
@@ -85,6 +85,7 @@ struct pid_namespace init_pid_ns = {
 #if defined(CONFIG_SYSCTL) && defined(CONFIG_MEMFD_CREATE)
 	.memfd_noexec_scope = MEMFD_NOEXEC_SCOPE_EXEC,
 #endif
+	.ns.ns_type = ns_common_type(&init_pid_ns),
 };
 EXPORT_SYMBOL_GPL(init_pid_ns);
 

@@ -143,7 +143,7 @@ static int proc_parse_pidns_param(struct fs_context *fc,
 	if (!proc_ns_file(ns_filp))
 		return invalfc(fc, "pidns argument is not an nsfs file");
 	ns = get_proc_ns(file_inode(ns_filp));
-	if (ns->ops->type != CLONE_NEWPID)
+	if (ns->ns_type != CLONE_NEWPID)
 		return invalfc(fc, "pidns argument is not a pidns file");
 	target = container_of(ns, struct pid_namespace, ns);
 
