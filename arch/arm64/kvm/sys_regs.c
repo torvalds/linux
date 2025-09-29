@@ -1605,9 +1605,35 @@ static int arch_timer_set_user(struct kvm_vcpu *vcpu,
 	case SYS_CNTHP_CTL_EL2:
 		val &= ~ARCH_TIMER_CTRL_IT_STAT;
 		break;
+	case SYS_CNTVCT_EL0:
+		if (!test_bit(KVM_ARCH_FLAG_VM_COUNTER_OFFSET, &vcpu->kvm->arch.flags))
+			timer_set_offset(vcpu_vtimer(vcpu), kvm_phys_timer_read() - val);
+		return 0;
+	case SYS_CNTPCT_EL0:
+		if (!test_bit(KVM_ARCH_FLAG_VM_COUNTER_OFFSET, &vcpu->kvm->arch.flags))
+			timer_set_offset(vcpu_ptimer(vcpu), kvm_phys_timer_read() - val);
+		return 0;
 	}
 
 	__vcpu_assign_sys_reg(vcpu, rd->reg, val);
+	return 0;
+}
+
+static int arch_timer_get_user(struct kvm_vcpu *vcpu,
+			       const struct sys_reg_desc *rd,
+			       u64 *val)
+{
+	switch (reg_to_encoding(rd)) {
+	case SYS_CNTVCT_EL0:
+		*val = kvm_phys_timer_read() - timer_get_offset(vcpu_vtimer(vcpu));
+		break;
+	case SYS_CNTPCT_EL0:
+		*val = kvm_phys_timer_read() - timer_get_offset(vcpu_ptimer(vcpu));
+		break;
+	default:
+		*val = __vcpu_sys_reg(vcpu, rd->reg);
+	}
+
 	return 0;
 }
 
@@ -2539,7 +2565,7 @@ static bool bad_redir_trap(struct kvm_vcpu *vcpu,
 
 #define TIMER_REG(name, vis)					   \
 	SYS_REG_USER_FILTER(name, access_arch_timer, reset_val, 0, \
-			    NULL, arch_timer_set_user, vis)
+			    arch_timer_get_user, arch_timer_set_user, vis)
 
 /*
  * Since reset() callback and field val are not used for idregs, they will be
@@ -3506,8 +3532,10 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	AMU_AMEVTYPER1_EL0(14),
 	AMU_AMEVTYPER1_EL0(15),
 
-	{ SYS_DESC(SYS_CNTPCT_EL0), access_arch_timer },
-	{ SYS_DESC(SYS_CNTVCT_EL0), access_arch_timer },
+	{ SYS_DESC(SYS_CNTPCT_EL0), .access = access_arch_timer,
+	  .get_user = arch_timer_get_user, .set_user = arch_timer_set_user },
+	{ SYS_DESC(SYS_CNTVCT_EL0), .access = access_arch_timer,
+	  .get_user = arch_timer_get_user, .set_user = arch_timer_set_user },
 	{ SYS_DESC(SYS_CNTPCTSS_EL0), access_arch_timer },
 	{ SYS_DESC(SYS_CNTVCTSS_EL0), access_arch_timer },
 	{ SYS_DESC(SYS_CNTP_TVAL_EL0), access_arch_timer },

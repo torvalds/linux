@@ -592,19 +592,12 @@ static unsigned long num_core_regs(const struct kvm_vcpu *vcpu)
 }
 
 static const u64 timer_reg_list[] = {
-	KVM_REG_ARM_TIMER_CNT,
-	KVM_REG_ARM_PTIMER_CNT,
 };
 
 #define NUM_TIMER_REGS ARRAY_SIZE(timer_reg_list)
 
 static bool is_timer_reg(u64 index)
 {
-	switch (index) {
-	case KVM_REG_ARM_TIMER_CNT:
-	case KVM_REG_ARM_PTIMER_CNT:
-		return true;
-	}
 	return false;
 }
 
