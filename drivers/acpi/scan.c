@@ -2704,6 +2704,7 @@ void __init acpi_scan_init(void)
 	acpi_memory_hotplug_init();
 	acpi_watchdog_init();
 	acpi_pnp_init();
+	acpi_power_resources_init();
 	acpi_int340x_thermal_init();
 	acpi_init_lpit();
 
