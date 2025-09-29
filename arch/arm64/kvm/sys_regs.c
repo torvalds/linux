@@ -1594,6 +1594,23 @@ static bool access_arch_timer(struct kvm_vcpu *vcpu,
 	return true;
 }
 
+static int arch_timer_set_user(struct kvm_vcpu *vcpu,
+			       const struct sys_reg_desc *rd,
+			       u64 val)
+{
+	switch (reg_to_encoding(rd)) {
+	case SYS_CNTV_CTL_EL0:
+	case SYS_CNTP_CTL_EL0:
+	case SYS_CNTHV_CTL_EL2:
+	case SYS_CNTHP_CTL_EL2:
+		val &= ~ARCH_TIMER_CTRL_IT_STAT;
+		break;
+	}
+
+	__vcpu_assign_sys_reg(vcpu, rd->reg, val);
+	return 0;
+}
+
 static s64 kvm_arm64_ftr_safe_value(u32 id, const struct arm64_ftr_bits *ftrp,
 				    s64 new, s64 cur)
 {
@@ -2496,14 +2513,19 @@ static bool bad_redir_trap(struct kvm_vcpu *vcpu,
 			"trap of EL2 register redirected to EL1");
 }
 
-#define EL2_REG_FILTERED(name, acc, rst, v, filter) {	\
+#define SYS_REG_USER_FILTER(name, acc, rst, v, gu, su, filter) { \
 	SYS_DESC(SYS_##name),			\
 	.access = acc,				\
 	.reset = rst,				\
 	.reg = name,				\
+	.get_user = gu,				\
+	.set_user = su,				\
 	.visibility = filter,			\
 	.val = v,				\
 }
+
+#define EL2_REG_FILTERED(name, acc, rst, v, filter)	\
+	SYS_REG_USER_FILTER(name, acc, rst, v, NULL, NULL, filter)
 
 #define EL2_REG(name, acc, rst, v)			\
 	EL2_REG_FILTERED(name, acc, rst, v, el2_visibility)
@@ -2514,6 +2536,10 @@ static bool bad_redir_trap(struct kvm_vcpu *vcpu,
 #define EL2_REG_VNCR_GICv3(name)			\
 	EL2_REG_VNCR_FILT(name, hidden_visibility)
 #define EL2_REG_REDIR(name, rst, v)	EL2_REG(name, bad_redir_trap, rst, v)
+
+#define TIMER_REG(name, vis)					   \
+	SYS_REG_USER_FILTER(name, access_arch_timer, reset_val, 0, \
+			    NULL, arch_timer_set_user, vis)
 
 /*
  * Since reset() callback and field val are not used for idregs, they will be
@@ -3485,11 +3511,11 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	{ SYS_DESC(SYS_CNTPCTSS_EL0), access_arch_timer },
 	{ SYS_DESC(SYS_CNTVCTSS_EL0), access_arch_timer },
 	{ SYS_DESC(SYS_CNTP_TVAL_EL0), access_arch_timer },
-	{ SYS_DESC(SYS_CNTP_CTL_EL0), access_arch_timer },
+	TIMER_REG(CNTP_CTL_EL0, NULL),
 	{ SYS_DESC(SYS_CNTP_CVAL_EL0), access_arch_timer },
 
 	{ SYS_DESC(SYS_CNTV_TVAL_EL0), access_arch_timer },
-	{ SYS_DESC(SYS_CNTV_CTL_EL0), access_arch_timer },
+	TIMER_REG(CNTV_CTL_EL0, NULL),
 	{ SYS_DESC(SYS_CNTV_CVAL_EL0), access_arch_timer },
 
 	/* PMEVCNTRn_EL0 */
@@ -3688,11 +3714,11 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	EL2_REG_VNCR(CNTVOFF_EL2, reset_val, 0),
 	EL2_REG(CNTHCTL_EL2, access_rw, reset_val, 0),
 	{ SYS_DESC(SYS_CNTHP_TVAL_EL2), access_arch_timer },
-	EL2_REG(CNTHP_CTL_EL2, access_arch_timer, reset_val, 0),
+	TIMER_REG(CNTHP_CTL_EL2, el2_visibility),
 	EL2_REG(CNTHP_CVAL_EL2, access_arch_timer, reset_val, 0),
 
 	{ SYS_DESC(SYS_CNTHV_TVAL_EL2), access_arch_timer, .visibility = cnthv_visibility },
-	EL2_REG_FILTERED(CNTHV_CTL_EL2, access_arch_timer, reset_val, 0, cnthv_visibility),
+	TIMER_REG(CNTHV_CTL_EL2, cnthv_visibility),
 	EL2_REG_FILTERED(CNTHV_CVAL_EL2, access_arch_timer, reset_val, 0, cnthv_visibility),
 
 	{ SYS_DESC(SYS_CNTKCTL_EL12), access_cntkctl_el12 },
