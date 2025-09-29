@@ -5,7 +5,6 @@
  * Copyright 2025 Google LLC
  */
 #include <asm/fpu/api.h>
-#include <crypto/internal/simd.h>
 #include <linux/static_call.h>
 
 DEFINE_STATIC_CALL(sha256_blocks_x86, sha256_blocks_generic);
@@ -16,7 +15,7 @@ DEFINE_STATIC_CALL(sha256_blocks_x86, sha256_blocks_generic);
 	static void c_fn(struct sha256_block_state *state, const u8 *data, \
 			 size_t nblocks)                                   \
 	{                                                                  \
-		if (likely(crypto_simd_usable())) {                        \
+		if (likely(irq_fpu_usable())) {                            \
 			kernel_fpu_begin();                                \
 			asm_fn(state, data, nblocks);                      \
 			kernel_fpu_end();                                  \
@@ -37,7 +36,7 @@ static void sha256_blocks(struct sha256_block_state *state,
 }
 
 #define sha256_mod_init_arch sha256_mod_init_arch
-static inline void sha256_mod_init_arch(void)
+static void sha256_mod_init_arch(void)
 {
 	if (boot_cpu_has(X86_FEATURE_SHA_NI)) {
 		static_call_update(sha256_blocks_x86, sha256_blocks_ni);
