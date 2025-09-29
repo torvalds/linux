@@ -149,7 +149,7 @@ static void timer_set_cval(struct arch_timer_context *ctxt, u64 cval)
 static void timer_set_offset(struct arch_timer_context *ctxt, u64 offset)
 {
 	if (!ctxt->offset.vm_offset) {
-		WARN(offset, "timer %ld\n", arch_timer_ctx_index(ctxt));
+		WARN(offset, "timer %d\n", arch_timer_ctx_index(ctxt));
 		return;
 	}
 
@@ -1064,7 +1064,7 @@ static void timer_context_init(struct kvm_vcpu *vcpu, int timerid)
 	struct arch_timer_context *ctxt = vcpu_get_timer(vcpu, timerid);
 	struct kvm *kvm = vcpu->kvm;
 
-	ctxt->vcpu = vcpu;
+	ctxt->timer_id = timerid;
 
 	if (timerid == TIMER_VTIMER)
 		ctxt->offset.vm_offset = &kvm->arch.timer_data.voffset;

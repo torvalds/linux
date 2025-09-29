@@ -51,8 +51,6 @@ struct arch_timer_vm_data {
 };
 
 struct arch_timer_context {
-	struct kvm_vcpu			*vcpu;
-
 	/* Emulated Timer (may be unused) */
 	struct hrtimer			hrtimer;
 	u64				ns_frac;
@@ -70,6 +68,9 @@ struct arch_timer_context {
 	struct {
 		bool			level;
 	} irq;
+
+	/* Who am I? */
+	enum kvm_arch_timers		timer_id;
 
 	/* Duplicated state from arch_timer.c for convenience */
 	u32				host_timer_irq;
@@ -127,9 +128,9 @@ void kvm_timer_init_vhe(void);
 #define vcpu_hvtimer(v)	(&(v)->arch.timer_cpu.timers[TIMER_HVTIMER])
 #define vcpu_hptimer(v)	(&(v)->arch.timer_cpu.timers[TIMER_HPTIMER])
 
-#define arch_timer_ctx_index(ctx)	((ctx) - vcpu_timer((ctx)->vcpu)->timers)
-#define timer_context_to_vcpu(ctx)	((ctx)->vcpu)
-#define timer_vm_data(ctx)		(&(ctx)->vcpu->kvm->arch.timer_data)
+#define arch_timer_ctx_index(ctx)	((ctx)->timer_id)
+#define timer_context_to_vcpu(ctx)	container_of((ctx), struct kvm_vcpu, arch.timer_cpu.timers[(ctx)->timer_id])
+#define timer_vm_data(ctx)		(&(timer_context_to_vcpu(ctx)->kvm->arch.timer_data))
 #define timer_irq(ctx)			(timer_vm_data(ctx)->ppi[arch_timer_ctx_index(ctx)])
 
 u64 kvm_arm_timer_read_sysreg(struct kvm_vcpu *vcpu,
