@@ -1738,7 +1738,7 @@ static int svm_range_validate_and_map(struct mm_struct *mm,
 
 			WRITE_ONCE(p->svms.faulting_task, current);
 			r = amdgpu_hmm_range_get_pages(&prange->notifier, addr, npages,
-						       readonly, owner, NULL,
+						       readonly, owner,
 						       &hmm_range);
 			WRITE_ONCE(p->svms.faulting_task, NULL);
 			if (r)

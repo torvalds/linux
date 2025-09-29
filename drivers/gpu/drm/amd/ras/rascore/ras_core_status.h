@@ -1,5 +1,6 @@
+/* SPDX-License-Identifier: MIT */
 /*
- * Copyright 2017 Advanced Micro Devices, Inc.
+ * Copyright 2025 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,35 +20,18 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- * Authors: Christian König
  */
-#ifndef __AMDGPU_MN_H__
-#define __AMDGPU_MN_H__
 
-#include <linux/types.h>
-#include <linux/hmm.h>
-#include <linux/rwsem.h>
-#include <linux/workqueue.h>
-#include <linux/interval_tree.h>
-#include <linux/mmu_notifier.h>
+#ifndef __RAS_CORE_STATUS_H__
+#define __RAS_CORE_STATUS_H__
 
-int amdgpu_hmm_range_get_pages(struct mmu_interval_notifier *notifier,
-			       uint64_t start, uint64_t npages, bool readonly,
-			       void *owner,
-			       struct hmm_range **phmm_range);
-bool amdgpu_hmm_range_get_pages_done(struct hmm_range *hmm_range);
-
-#if defined(CONFIG_HMM_MIRROR)
-int amdgpu_hmm_register(struct amdgpu_bo *bo, unsigned long addr);
-void amdgpu_hmm_unregister(struct amdgpu_bo *bo);
-#else
-static inline int amdgpu_hmm_register(struct amdgpu_bo *bo, unsigned long addr)
-{
-	DRM_WARN_ONCE("HMM_MIRROR kernel config option is not enabled, "
-		      "add CONFIG_ZONE_DEVICE=y in config file to fix this\n");
-	return -ENODEV;
-}
-static inline void amdgpu_hmm_unregister(struct amdgpu_bo *bo) {}
-#endif
-
+#define RAS_CORE_OK                       0
+#define RAS_CORE_NOT_SUPPORTED            248
+#define RAS_CORE_FAIL_ERROR_QUERY         249
+#define RAS_CORE_FAIL_ERROR_INJECTION     250
+#define RAS_CORE_FAIL_FATAL_RECOVERY      251
+#define RAS_CORE_FAIL_POISON_CONSUMPTION  252
+#define RAS_CORE_FAIL_POISON_CREATION     253
+#define RAS_CORE_FAIL_NO_VALID_BANKS      254
+#define RAS_CORE_GPU_IN_MODE1_RESET       255
 #endif

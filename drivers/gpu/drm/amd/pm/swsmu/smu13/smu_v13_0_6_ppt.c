@@ -353,6 +353,9 @@ static void smu_v13_0_12_init_caps(struct smu_context *smu)
 		smu_v13_0_6_cap_set(smu, SMU_CAP(PLDM_VERSION));
 	}
 
+	if (fw_ver > 0x04560900)
+		smu_v13_0_6_cap_set(smu, SMU_CAP(VCN_RESET));
+
 	if (fw_ver >= 0x04560700) {
 		if (fw_ver >= 0x04560900) {
 			smu_v13_0_6_cap_set(smu, SMU_CAP(TEMP_METRICS));
