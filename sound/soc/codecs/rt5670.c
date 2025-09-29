@@ -1153,25 +1153,29 @@ static SOC_ENUM_SINGLE_DECL(rt5670_dac1r_enum, RT5670_AD_DA_MIXER,
 static const struct snd_kcontrol_new rt5670_dac1r_mux =
 	SOC_DAPM_ENUM("DAC1 R source", rt5670_dac1r_enum);
 
-/*DAC2 L/R source*/ /* MX-1B [6:4] [2:0] */
-/* TODO Use SOC_VALUE_ENUM_SINGLE_DECL */
-static const char * const rt5670_dac12_src[] = {
-	"IF1 DAC", "IF2 DAC", "IF3 DAC", "TxDC DAC",
-	"Bass", "VAD_ADC", "IF4 DAC"
-};
+/* DAC2 L source*/ /* MX-1B [6:4] */
+static const char *const rt5670_dac12_src[] = {
+	"IF1 DAC", "IF2 DAC", "TxDC DAC", "VAD_ADC"
+}; /* VAD_ADC or TxDP_ADC_R */
 
-static SOC_ENUM_SINGLE_DECL(rt5670_dac2l_enum, RT5670_DAC_CTRL,
-	RT5670_DAC2_L_SEL_SFT, rt5670_dac12_src);
+static const unsigned int rt5670_dac12_values[] = { 0, 1, 3, 5 };
+
+static SOC_VALUE_ENUM_SINGLE_DECL(rt5670_dac2l_enum, RT5670_DAC_CTRL,
+				  RT5670_DAC2_L_SEL_SFT, RT5670_DAC2_L_SEL_MASK,
+				  rt5670_dac12_src, rt5670_dac12_values);
 
 static const struct snd_kcontrol_new rt5670_dac_l2_mux =
 	SOC_DAPM_ENUM("DAC2 L source", rt5670_dac2l_enum);
 
-static const char * const rt5670_dacr2_src[] = {
-	"IF1 DAC", "IF2 DAC", "IF3 DAC", "TxDC DAC", "TxDP ADC", "IF4 DAC"
-};
+/*DAC2 R source*/ /* MX-1B [2:0] */
+static const char *const rt5670_dacr2_src[] = { "IF1 DAC", "IF2 DAC",
+						"TxDC DAC", "TxDP ADC" };
 
-static SOC_ENUM_SINGLE_DECL(rt5670_dac2r_enum, RT5670_DAC_CTRL,
-	RT5670_DAC2_R_SEL_SFT, rt5670_dacr2_src);
+static const unsigned int rt5670_dacr2_values[] = { 0, 1, 3, 4 };
+
+static SOC_VALUE_ENUM_SINGLE_DECL(rt5670_dac2r_enum, RT5670_DAC_CTRL,
+				  RT5670_DAC2_R_SEL_SFT, RT5670_DAC2_R_SEL_MASK,
+				  rt5670_dacr2_src, rt5670_dacr2_values);
 
 static const struct snd_kcontrol_new rt5670_dac_r2_mux =
 	SOC_DAPM_ENUM("DAC2 R source", rt5670_dac2r_enum);
