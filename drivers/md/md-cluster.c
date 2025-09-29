@@ -979,7 +979,7 @@ err:
 	lockres_free(cinfo->resync_lockres);
 	lockres_free(cinfo->bitmap_lockres);
 	if (cinfo->lockspace)
-		dlm_release_lockspace(cinfo->lockspace, 2);
+		dlm_release_lockspace(cinfo->lockspace, DLM_RELEASE_NORMAL);
 	mddev->cluster_info = NULL;
 	kfree(cinfo);
 	return ret;
@@ -1042,7 +1042,7 @@ static int leave(struct mddev *mddev)
 	lockres_free(cinfo->resync_lockres);
 	lockres_free(cinfo->bitmap_lockres);
 	unlock_all_bitmaps(mddev);
-	dlm_release_lockspace(cinfo->lockspace, 2);
+	dlm_release_lockspace(cinfo->lockspace, DLM_RELEASE_NORMAL);
 	kfree(cinfo);
 	return 0;
 }

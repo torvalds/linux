@@ -1418,7 +1418,7 @@ static int gdlm_mount(struct gfs2_sbd *sdp, const char *table)
 	return 0;
 
 fail_release:
-	dlm_release_lockspace(ls->ls_dlm, 2);
+	dlm_release_lockspace(ls->ls_dlm, DLM_RELEASE_NORMAL);
 fail_free:
 	free_recover_size(ls);
 fail:
@@ -1456,7 +1456,7 @@ static void gdlm_unmount(struct gfs2_sbd *sdp)
 release:
 	down_write(&ls->ls_sem);
 	if (ls->ls_dlm) {
-		dlm_release_lockspace(ls->ls_dlm, 2);
+		dlm_release_lockspace(ls->ls_dlm, DLM_RELEASE_NORMAL);
 		ls->ls_dlm = NULL;
 	}
 	up_write(&ls->ls_sem);
