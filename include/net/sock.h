@@ -395,6 +395,7 @@ struct sock {
 
 	atomic_t		sk_drops;
 	__s32			sk_peek_off;
+	struct sk_buff_head	sk_error_queue;
 	struct sk_buff_head	sk_receive_queue;
 	/*
 	 * The backlog queue is special, it is always used with
@@ -412,7 +413,6 @@ struct sock {
 	} sk_backlog;
 #define sk_rmem_alloc sk_backlog.rmem_alloc
 
-	struct sk_buff_head	sk_error_queue;
 	__cacheline_group_end(sock_write_rx);
 
 	__cacheline_group_begin(sock_read_rx);
