@@ -340,8 +340,8 @@ of those. Caller makes sure async writeback cannot be running for the inode whil
 
 ->drop_inode() returns int now; it's called on final iput() with
 inode->i_lock held and it returns true if filesystems wants the inode to be
-dropped.  As before, generic_drop_inode() is still the default and it's been
-updated appropriately.  generic_delete_inode() is also alive and it consists
+dropped.  As before, inode_generic_drop() is still the default and it's been
+updated appropriately.  inode_just_drop() is also alive and it consists
 simply of return 1.  Note that all actual eviction work is done by caller after
 ->drop_inode() returns.
 

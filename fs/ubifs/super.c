@@ -335,7 +335,7 @@ static int ubifs_write_inode(struct inode *inode, struct writeback_control *wbc)
 
 static int ubifs_drop_inode(struct inode *inode)
 {
-	int drop = generic_drop_inode(inode);
+	int drop = inode_generic_drop(inode);
 
 	if (!drop)
 		drop = fscrypt_drop_inode(inode);

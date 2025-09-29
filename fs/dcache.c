@@ -2509,8 +2509,8 @@ static inline unsigned start_dir_add(struct inode *dir)
 {
 	preempt_disable_nested();
 	for (;;) {
-		unsigned n = dir->i_dir_seq;
-		if (!(n & 1) && cmpxchg(&dir->i_dir_seq, n, n + 1) == n)
+		unsigned n = READ_ONCE(dir->i_dir_seq);
+		if (!(n & 1) && try_cmpxchg(&dir->i_dir_seq, &n, n + 1))
 			return n;
 		cpu_relax();
 	}

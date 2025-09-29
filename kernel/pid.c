@@ -680,7 +680,7 @@ static int pid_table_root_permissions(struct ctl_table_header *head,
 		container_of(head->set, struct pid_namespace, set);
 	int mode = table->mode;
 
-	if (ns_capable(pidns->user_ns, CAP_SYS_ADMIN) ||
+	if (ns_capable_noaudit(pidns->user_ns, CAP_SYS_ADMIN) ||
 	    uid_eq(current_euid(), make_kuid(pidns->user_ns, 0)))
 		mode = (mode & S_IRWXU) >> 6;
 	else if (in_egroup_p(make_kgid(pidns->user_ns, 0)))

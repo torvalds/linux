@@ -1891,7 +1891,7 @@ static struct dentry *ffs_sb_create_file(struct super_block *sb,
 /* Super block */
 static const struct super_operations ffs_sb_operations = {
 	.statfs =	simple_statfs,
-	.drop_inode =	generic_delete_inode,
+	.drop_inode =	inode_just_drop,
 };
 
 struct ffs_sb_fill_data {

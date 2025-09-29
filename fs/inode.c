@@ -1838,11 +1838,11 @@ int insert_inode_locked4(struct inode *inode, unsigned long hashval,
 EXPORT_SYMBOL(insert_inode_locked4);
 
 
-int generic_delete_inode(struct inode *inode)
+int inode_just_drop(struct inode *inode)
 {
 	return 1;
 }
-EXPORT_SYMBOL(generic_delete_inode);
+EXPORT_SYMBOL(inode_just_drop);
 
 /*
  * Called when we're dropping the last reference
@@ -1866,7 +1866,7 @@ static void iput_final(struct inode *inode)
 	if (op->drop_inode)
 		drop = op->drop_inode(inode);
 	else
-		drop = generic_drop_inode(inode);
+		drop = inode_generic_drop(inode);
 
 	if (!drop &&
 	    !(inode->i_state & I_DONTCACHE) &&
@@ -2189,7 +2189,7 @@ static int __remove_privs(struct mnt_idmap *idmap,
 	return notify_change(idmap, dentry, &newattrs, NULL);
 }
 
-int file_remove_privs_flags(struct file *file, unsigned int flags)
+static int file_remove_privs_flags(struct file *file, unsigned int flags)
 {
 	struct dentry *dentry = file_dentry(file);
 	struct inode *inode = file_inode(file);
@@ -2214,7 +2214,6 @@ int file_remove_privs_flags(struct file *file, unsigned int flags)
 		inode_has_no_xattr(inode);
 	return error;
 }
-EXPORT_SYMBOL_GPL(file_remove_privs_flags);
 
 /**
  * file_remove_privs - remove special file privileges (suid, capabilities)
@@ -2519,21 +2518,28 @@ void __init inode_init(void)
 void init_special_inode(struct inode *inode, umode_t mode, dev_t rdev)
 {
 	inode->i_mode = mode;
-	if (S_ISCHR(mode)) {
+	switch (inode->i_mode & S_IFMT) {
+	case S_IFCHR:
 		inode->i_fop = &def_chr_fops;
 		inode->i_rdev = rdev;
-	} else if (S_ISBLK(mode)) {
+		break;
+	case S_IFBLK:
 		if (IS_ENABLED(CONFIG_BLOCK))
 			inode->i_fop = &def_blk_fops;
 		inode->i_rdev = rdev;
-	} else if (S_ISFIFO(mode))
+		break;
+	case S_IFIFO:
 		inode->i_fop = &pipefifo_fops;
-	else if (S_ISSOCK(mode))
-		;	/* leave it no_open_fops */
-	else
+		break;
+	case S_IFSOCK:
+		/* leave it no_open_fops */
+		break;
+	default:
 		printk(KERN_DEBUG "init_special_inode: bogus i_mode (%o) for"
 				  " inode %s:%lu\n", mode, inode->i_sb->s_id,
 				  inode->i_ino);
+		break;
+	}
 }
 EXPORT_SYMBOL(init_special_inode);
 
@@ -2914,7 +2920,7 @@ EXPORT_SYMBOL(mode_strip_sgid);
  */
 void dump_inode(struct inode *inode, const char *reason)
 {
-       pr_warn("%s encountered for inode %px", reason, inode);
+	pr_warn("%s encountered for inode %px (%s)\n", reason, inode, inode->i_sb->s_type->name);
 }
 
 EXPORT_SYMBOL(dump_inode);

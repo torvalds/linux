@@ -7973,7 +7973,7 @@ int btrfs_drop_inode(struct inode *inode)
 	if (btrfs_root_refs(&root->root_item) == 0)
 		return 1;
 	else
-		return generic_drop_inode(inode);
+		return inode_generic_drop(inode);
 }
 
 static void init_once(void *foo)
