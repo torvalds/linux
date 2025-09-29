@@ -758,6 +758,10 @@ static __u64 el2_regs[] = {
 	SYS_REG(VSESR_EL2),
 };
 
+static __u64 el2_e2h0_regs[] = {
+	/* Empty */
+};
+
 #define BASE_SUBLIST \
 	{ "base", .regs = base_regs, .regs_n = ARRAY_SIZE(base_regs), }
 #define VREGS_SUBLIST \
@@ -791,6 +795,15 @@ static __u64 el2_regs[] = {
 		.feature	= KVM_ARM_VCPU_HAS_EL2,		\
 		.regs		= el2_regs,			\
 		.regs_n		= ARRAY_SIZE(el2_regs),		\
+	}
+#define EL2_E2H0_SUBLIST					\
+	EL2_SUBLIST,						\
+	{							\
+		.name 		= "EL2 E2H0",			\
+		.capability	= KVM_CAP_ARM_EL2_E2H0,		\
+		.feature	= KVM_ARM_VCPU_HAS_EL2_E2H0,	\
+		.regs		= el2_e2h0_regs,		\
+		.regs_n		= ARRAY_SIZE(el2_e2h0_regs),	\
 	}
 
 static struct vcpu_reg_list vregs_config = {
@@ -900,6 +913,65 @@ static struct vcpu_reg_list el2_pauth_pmu_config = {
 	},
 };
 
+static struct vcpu_reg_list el2_e2h0_vregs_config = {
+	.sublists = {
+	BASE_SUBLIST,
+	EL2_E2H0_SUBLIST,
+	VREGS_SUBLIST,
+	{0},
+	},
+};
+
+static struct vcpu_reg_list el2_e2h0_vregs_pmu_config = {
+	.sublists = {
+	BASE_SUBLIST,
+	EL2_E2H0_SUBLIST,
+	VREGS_SUBLIST,
+	PMU_SUBLIST,
+	{0},
+	},
+};
+
+static struct vcpu_reg_list el2_e2h0_sve_config = {
+	.sublists = {
+	BASE_SUBLIST,
+	EL2_E2H0_SUBLIST,
+	SVE_SUBLIST,
+	{0},
+	},
+};
+
+static struct vcpu_reg_list el2_e2h0_sve_pmu_config = {
+	.sublists = {
+	BASE_SUBLIST,
+	EL2_E2H0_SUBLIST,
+	SVE_SUBLIST,
+	PMU_SUBLIST,
+	{0},
+	},
+};
+
+static struct vcpu_reg_list el2_e2h0_pauth_config = {
+	.sublists = {
+	BASE_SUBLIST,
+	EL2_E2H0_SUBLIST,
+	VREGS_SUBLIST,
+	PAUTH_SUBLIST,
+	{0},
+	},
+};
+
+static struct vcpu_reg_list el2_e2h0_pauth_pmu_config = {
+	.sublists = {
+	BASE_SUBLIST,
+	EL2_E2H0_SUBLIST,
+	VREGS_SUBLIST,
+	PAUTH_SUBLIST,
+	PMU_SUBLIST,
+	{0},
+	},
+};
+
 struct vcpu_reg_list *vcpu_configs[] = {
 	&vregs_config,
 	&vregs_pmu_config,
@@ -914,5 +986,12 @@ struct vcpu_reg_list *vcpu_configs[] = {
 	&el2_sve_pmu_config,
 	&el2_pauth_config,
 	&el2_pauth_pmu_config,
+
+	&el2_e2h0_vregs_config,
+	&el2_e2h0_vregs_pmu_config,
+	&el2_e2h0_sve_config,
+	&el2_e2h0_sve_pmu_config,
+	&el2_e2h0_pauth_config,
+	&el2_e2h0_pauth_pmu_config,
 };
 int vcpu_configs_n = ARRAY_SIZE(vcpu_configs);
