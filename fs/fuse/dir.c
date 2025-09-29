@@ -699,7 +699,7 @@ static int get_security_context(struct dentry *entry, umode_t mode,
 		fctx->size = lsmctx.len;
 		ptr += sizeof(*fctx);
 
-		strcpy(ptr, name);
+		strscpy(ptr, name, namelen);
 		ptr += namelen;
 
 		memcpy(ptr, lsmctx.context, lsmctx.len);
