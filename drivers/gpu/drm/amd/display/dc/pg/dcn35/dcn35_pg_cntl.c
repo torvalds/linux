@@ -79,16 +79,12 @@ void pg_cntl35_dsc_pg_control(struct pg_cntl *pg_cntl, unsigned int dsc_inst, bo
 	uint32_t power_gate = power_on ? 0 : 1;
 	uint32_t pwr_status = power_on ? 0 : 2;
 	uint32_t org_ip_request_cntl = 0;
-	bool block_enabled;
+	bool block_enabled = false;
+	bool skip_pg = pg_cntl->ctx->dc->debug.ignore_pg ||
+		       pg_cntl->ctx->dc->debug.disable_dsc_power_gate ||
+		       pg_cntl->ctx->dc->idle_optimizations_allowed;
 
-	/*need to enable dscclk regardless DSC_PG*/
-	if (pg_cntl->ctx->dc->res_pool->dccg->funcs->enable_dsc && power_on)
-		pg_cntl->ctx->dc->res_pool->dccg->funcs->enable_dsc(
-				pg_cntl->ctx->dc->res_pool->dccg, dsc_inst);
-
-	if (pg_cntl->ctx->dc->debug.ignore_pg ||
-		pg_cntl->ctx->dc->debug.disable_dsc_power_gate ||
-		pg_cntl->ctx->dc->idle_optimizations_allowed)
+	if (skip_pg && !power_on)
 		return;
 
 	block_enabled = pg_cntl35_dsc_pg_status(pg_cntl, dsc_inst);
@@ -111,7 +107,7 @@ void pg_cntl35_dsc_pg_control(struct pg_cntl *pg_cntl, unsigned int dsc_inst, bo
 
 		REG_WAIT(DOMAIN16_PG_STATUS,
 				DOMAIN_PGFSM_PWR_STATUS, pwr_status,
-				1, 1000);
+				1, 10000);
 		break;
 	case 1: /* DSC1 */
 		REG_UPDATE(DOMAIN17_PG_CONFIG,
@@ -119,7 +115,7 @@ void pg_cntl35_dsc_pg_control(struct pg_cntl *pg_cntl, unsigned int dsc_inst, bo
 
 		REG_WAIT(DOMAIN17_PG_STATUS,
 				DOMAIN_PGFSM_PWR_STATUS, pwr_status,
-				1, 1000);
+				1, 10000);
 		break;
 	case 2: /* DSC2 */
 		REG_UPDATE(DOMAIN18_PG_CONFIG,
@@ -127,7 +123,7 @@ void pg_cntl35_dsc_pg_control(struct pg_cntl *pg_cntl, unsigned int dsc_inst, bo
 
 		REG_WAIT(DOMAIN18_PG_STATUS,
 				DOMAIN_PGFSM_PWR_STATUS, pwr_status,
-				1, 1000);
+				1, 10000);
 		break;
 	case 3: /* DSC3 */
 		REG_UPDATE(DOMAIN19_PG_CONFIG,
@@ -135,7 +131,7 @@ void pg_cntl35_dsc_pg_control(struct pg_cntl *pg_cntl, unsigned int dsc_inst, bo
 
 		REG_WAIT(DOMAIN19_PG_STATUS,
 				DOMAIN_PGFSM_PWR_STATUS, pwr_status,
-				1, 1000);
+				1, 10000);
 		break;
 	default:
 		BREAK_TO_DEBUGGER();
@@ -144,12 +140,6 @@ void pg_cntl35_dsc_pg_control(struct pg_cntl *pg_cntl, unsigned int dsc_inst, bo
 
 	if (dsc_inst < MAX_PIPES)
 		pg_cntl->pg_pipe_res_enable[PG_DSC][dsc_inst] = power_on;
-
-	if (pg_cntl->ctx->dc->res_pool->dccg->funcs->disable_dsc && !power_on) {
-		/*this is to disable dscclk*/
-		pg_cntl->ctx->dc->res_pool->dccg->funcs->disable_dsc(
-			pg_cntl->ctx->dc->res_pool->dccg, dsc_inst);
-	}
 }
 
 static bool pg_cntl35_hubp_dpp_pg_status(struct pg_cntl *pg_cntl, unsigned int hubp_dpp_inst)
@@ -189,11 +179,12 @@ void pg_cntl35_hubp_dpp_pg_control(struct pg_cntl *pg_cntl, unsigned int hubp_dp
 	uint32_t pwr_status = power_on ? 0 : 2;
 	uint32_t org_ip_request_cntl;
 	bool block_enabled;
+	bool skip_pg = pg_cntl->ctx->dc->debug.ignore_pg ||
+		       pg_cntl->ctx->dc->debug.disable_hubp_power_gate ||
+		       pg_cntl->ctx->dc->debug.disable_dpp_power_gate ||
+		       pg_cntl->ctx->dc->idle_optimizations_allowed;
 
-	if (pg_cntl->ctx->dc->debug.ignore_pg ||
-		pg_cntl->ctx->dc->debug.disable_hubp_power_gate ||
-		pg_cntl->ctx->dc->debug.disable_dpp_power_gate ||
-		pg_cntl->ctx->dc->idle_optimizations_allowed)
+	if (skip_pg && !power_on)
 		return;
 
 	block_enabled = pg_cntl35_hubp_dpp_pg_status(pg_cntl, hubp_dpp_inst);
@@ -213,22 +204,22 @@ void pg_cntl35_hubp_dpp_pg_control(struct pg_cntl *pg_cntl, unsigned int hubp_dp
 	case 0:
 		/* DPP0 & HUBP0 */
 		REG_UPDATE(DOMAIN0_PG_CONFIG, DOMAIN_POWER_GATE, power_gate);
-		REG_WAIT(DOMAIN0_PG_STATUS, DOMAIN_PGFSM_PWR_STATUS, pwr_status, 1, 1000);
+		REG_WAIT(DOMAIN0_PG_STATUS, DOMAIN_PGFSM_PWR_STATUS, pwr_status, 1, 10000);
 		break;
 	case 1:
 		/* DPP1 & HUBP1 */
 		REG_UPDATE(DOMAIN1_PG_CONFIG, DOMAIN_POWER_GATE, power_gate);
-		REG_WAIT(DOMAIN1_PG_STATUS, DOMAIN_PGFSM_PWR_STATUS, pwr_status, 1, 1000);
+		REG_WAIT(DOMAIN1_PG_STATUS, DOMAIN_PGFSM_PWR_STATUS, pwr_status, 1, 10000);
 		break;
 	case 2:
 		/* DPP2 & HUBP2 */
 		REG_UPDATE(DOMAIN2_PG_CONFIG, DOMAIN_POWER_GATE, power_gate);
-		REG_WAIT(DOMAIN2_PG_STATUS, DOMAIN_PGFSM_PWR_STATUS, pwr_status, 1, 1000);
+		REG_WAIT(DOMAIN2_PG_STATUS, DOMAIN_PGFSM_PWR_STATUS, pwr_status, 1, 10000);
 		break;
 	case 3:
 		/* DPP3 & HUBP3 */
 		REG_UPDATE(DOMAIN3_PG_CONFIG, DOMAIN_POWER_GATE, power_gate);
-		REG_WAIT(DOMAIN3_PG_STATUS, DOMAIN_PGFSM_PWR_STATUS, pwr_status, 1, 1000);
+		REG_WAIT(DOMAIN3_PG_STATUS, DOMAIN_PGFSM_PWR_STATUS, pwr_status, 1, 10000);
 		break;
 	default:
 		BREAK_TO_DEBUGGER();
@@ -501,6 +492,36 @@ void pg_cntl35_init_pg_status(struct pg_cntl *pg_cntl)
 	pg_cntl->pg_res_enable[PG_DWB] = block_enabled;
 }
 
+static void pg_cntl35_print_pg_status(struct pg_cntl *pg_cntl, const char *debug_func, const char *debug_log)
+{
+	int i = 0;
+	bool block_enabled = false;
+
+	DC_LOG_DEBUG("%s: %s", debug_func, debug_log);
+
+	DC_LOG_DEBUG("PG_CNTL status:\n");
+
+	block_enabled = pg_cntl35_io_clk_status(pg_cntl);
+	DC_LOG_DEBUG("ONO0=%d (DCCG, DIO, DCIO)\n", block_enabled ? 1 : 0);
+
+	block_enabled = pg_cntl35_mem_status(pg_cntl);
+	DC_LOG_DEBUG("ONO1=%d (DCHUBBUB, DCHVM, DCHUBBUBMEM)\n", block_enabled ? 1 : 0);
+
+	block_enabled = pg_cntl35_plane_otg_status(pg_cntl);
+	DC_LOG_DEBUG("ONO2=%d (MPC, OPP, OPTC, DWB)\n", block_enabled ? 1 : 0);
+
+	block_enabled = pg_cntl35_hpo_pg_status(pg_cntl);
+	DC_LOG_DEBUG("ONO3=%d (HPO)\n", block_enabled ? 1 : 0);
+
+	for (i = 0; i < pg_cntl->ctx->dc->res_pool->pipe_count; i++) {
+		block_enabled = pg_cntl35_hubp_dpp_pg_status(pg_cntl, i);
+		DC_LOG_DEBUG("ONO%d=%d (DCHUBP%d, DPP%d)\n", 4 + i * 2, block_enabled ? 1 : 0, i, i);
+
+		block_enabled = pg_cntl35_dsc_pg_status(pg_cntl, i);
+		DC_LOG_DEBUG("ONO%d=%d (DSC%d)\n", 5 + i * 2, block_enabled ? 1 : 0, i);
+	}
+}
+
 static const struct pg_cntl_funcs pg_cntl35_funcs = {
 	.init_pg_status = pg_cntl35_init_pg_status,
 	.dsc_pg_control = pg_cntl35_dsc_pg_control,
@@ -511,7 +532,8 @@ static const struct pg_cntl_funcs pg_cntl35_funcs = {
 	.mpcc_pg_control = pg_cntl35_mpcc_pg_control,
 	.opp_pg_control = pg_cntl35_opp_pg_control,
 	.optc_pg_control = pg_cntl35_optc_pg_control,
-	.dwb_pg_control = pg_cntl35_dwb_pg_control
+	.dwb_pg_control = pg_cntl35_dwb_pg_control,
+	.print_pg_status = pg_cntl35_print_pg_status
 };
 
 struct pg_cntl *pg_cntl35_create(

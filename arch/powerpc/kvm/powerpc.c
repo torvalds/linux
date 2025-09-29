@@ -69,7 +69,7 @@ int kvm_arch_vcpu_should_kick(struct kvm_vcpu *vcpu)
 
 /*
  * Common checks before entering the guest world.  Call with interrupts
- * disabled.
+ * enabled.
  *
  * returns:
  *

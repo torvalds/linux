@@ -186,7 +186,6 @@ static int cpu_map_bpf_prog_run_xdp(struct bpf_cpu_map_entry *rcpu,
 	struct xdp_buff xdp;
 	int i, nframes = 0;
 
-	xdp_set_return_frame_no_direct();
 	xdp.rxq = &rxq;
 
 	for (i = 0; i < n; i++) {
@@ -231,7 +230,6 @@ static int cpu_map_bpf_prog_run_xdp(struct bpf_cpu_map_entry *rcpu,
 		}
 	}
 
-	xdp_clear_return_frame_no_direct();
 	stats->pass += nframes;
 
 	return nframes;
@@ -255,6 +253,7 @@ static void cpu_map_bpf_prog_run(struct bpf_cpu_map_entry *rcpu, void **frames,
 
 	rcu_read_lock();
 	bpf_net_ctx = bpf_net_ctx_set(&__bpf_net_ctx);
+	xdp_set_return_frame_no_direct();
 
 	ret->xdp_n = cpu_map_bpf_prog_run_xdp(rcpu, frames, ret->xdp_n, stats);
 	if (unlikely(ret->skb_n))
@@ -264,6 +263,7 @@ static void cpu_map_bpf_prog_run(struct bpf_cpu_map_entry *rcpu, void **frames,
 	if (stats->redirect)
 		xdp_do_flush();
 
+	xdp_clear_return_frame_no_direct();
 	bpf_net_ctx_clear(bpf_net_ctx);
 	rcu_read_unlock();
 

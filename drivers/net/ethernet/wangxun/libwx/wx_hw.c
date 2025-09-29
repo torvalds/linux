@@ -2078,10 +2078,6 @@ static void wx_setup_mrqc(struct wx *wx)
 {
 	u32 rss_field = 0;
 
-	/* VT, and RSS do not coexist at the same time */
-	if (test_bit(WX_FLAG_VMDQ_ENABLED, wx->flags))
-		return;
-
 	/* Disable indicating checksum in descriptor, enables RSS hash */
 	wr32m(wx, WX_PSR_CTL, WX_PSR_CTL_PCSD, WX_PSR_CTL_PCSD);
 

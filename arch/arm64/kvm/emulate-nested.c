@@ -2833,7 +2833,7 @@ int kvm_inject_nested_sea(struct kvm_vcpu *vcpu, bool iabt, u64 addr)
 			     iabt ? ESR_ELx_EC_IABT_LOW : ESR_ELx_EC_DABT_LOW);
 	esr |= ESR_ELx_FSC_EXTABT | ESR_ELx_IL;
 
-	vcpu_write_sys_reg(vcpu, FAR_EL2, addr);
+	vcpu_write_sys_reg(vcpu, addr, FAR_EL2);
 
 	if (__vcpu_sys_reg(vcpu, SCTLR2_EL2) & SCTLR2_EL1_EASE)
 		return kvm_inject_nested(vcpu, esr, except_type_serror);

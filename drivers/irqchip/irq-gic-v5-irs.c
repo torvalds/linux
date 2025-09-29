@@ -5,6 +5,7 @@
 
 #define pr_fmt(fmt)	"GICv5 IRS: " fmt
 
+#include <linux/kmemleak.h>
 #include <linux/log2.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -117,6 +118,7 @@ static int __init gicv5_irs_init_ist_linear(struct gicv5_irs_chip_data *irs_data
 		kfree(ist);
 		return ret;
 	}
+	kmemleak_ignore(ist);
 
 	return 0;
 }
@@ -232,6 +234,7 @@ int gicv5_irs_iste_alloc(const u32 lpi)
 		kfree(l2ist);
 		return ret;
 	}
+	kmemleak_ignore(l2ist);
 
 	/*
 	 * Make sure we invalidate the cache line pulled before the IRS
@@ -623,12 +626,14 @@ static int __init gicv5_irs_of_init_affinity(struct device_node *node,
 		int cpu;
 
 		cpu_node = of_parse_phandle(node, "cpus", i);
-		if (WARN_ON(!cpu_node))
+		if (!cpu_node) {
+			pr_warn(FW_BUG "Erroneous CPU node phandle\n");
 			continue;
+		}
 
 		cpu = of_cpu_node_to_id(cpu_node);
 		of_node_put(cpu_node);
-		if (WARN_ON(cpu < 0))
+		if (cpu < 0)
 			continue;
 
 		if (iaffids[i] & ~iaffid_mask) {

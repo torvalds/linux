@@ -278,7 +278,7 @@ static int bpf_crypto_crypt(const struct bpf_crypto_ctx *ctx,
 	siv_len = siv ? __bpf_dynptr_size(siv) : 0;
 	src_len = __bpf_dynptr_size(src);
 	dst_len = __bpf_dynptr_size(dst);
-	if (!src_len || !dst_len)
+	if (!src_len || !dst_len || src_len > dst_len)
 		return -EINVAL;
 
 	if (siv_len != ctx->siv_len)
