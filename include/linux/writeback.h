@@ -196,6 +196,13 @@ static inline void wait_on_inode(struct inode *inode)
 		       !(READ_ONCE(inode->i_state) & I_NEW));
 }
 
+static inline xa_mark_t wbc_to_tag(struct writeback_control *wbc)
+{
+	if (wbc->sync_mode == WB_SYNC_ALL || wbc->tagged_writepages)
+		return PAGECACHE_TAG_TOWRITE;
+	return PAGECACHE_TAG_DIRTY;
+}
+
 #ifdef CONFIG_CGROUP_WRITEBACK
 
 #include <linux/cgroup.h>
