@@ -27,6 +27,9 @@ struct cached_dirents {
 	struct mutex de_mutex;
 	loff_t pos;		 /* Expected ctx->pos */
 	struct list_head entries;
+	/* accounting for cached entries in this directory */
+	unsigned long entries_count;
+	unsigned long bytes_used;
 };
 
 struct cached_fid {
@@ -62,7 +65,13 @@ struct cached_fids {
 	struct list_head dying;
 	struct work_struct invalidation_work;
 	struct delayed_work laundromat_work;
+	/* aggregate accounting for all cached dirents under this tcon */
+	atomic_long_t total_dirents_entries;
+	atomic64_t total_dirents_bytes;
 };
+
+/* Module-wide directory cache accounting (defined in cifsfs.c) */
+extern atomic64_t cifs_dircache_bytes_used; /* bytes across all mounts */
 
 extern struct cached_fids *init_cached_dirs(void);
 extern void free_cached_dirs(struct cached_fids *cfids);

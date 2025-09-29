@@ -697,6 +697,21 @@ static void free_cached_dir(struct cached_fid *cfid)
 		kfree(dirent);
 	}
 
+	/* adjust tcon-level counters and reset per-dir accounting */
+	if (cfid->cfids) {
+		if (cfid->dirents.entries_count)
+			atomic_long_sub((long)cfid->dirents.entries_count,
+					&cfid->cfids->total_dirents_entries);
+		if (cfid->dirents.bytes_used) {
+			atomic64_sub((long long)cfid->dirents.bytes_used,
+					&cfid->cfids->total_dirents_bytes);
+			atomic64_sub((long long)cfid->dirents.bytes_used,
+					&cifs_dircache_bytes_used);
+		}
+	}
+	cfid->dirents.entries_count = 0;
+	cfid->dirents.bytes_used = 0;
+
 	kfree(cfid->path);
 	cfid->path = NULL;
 	kfree(cfid);
@@ -791,6 +806,9 @@ struct cached_fids *init_cached_dirs(void)
 	INIT_DELAYED_WORK(&cfids->laundromat_work, cfids_laundromat_worker);
 	queue_delayed_work(cfid_put_wq, &cfids->laundromat_work,
 			   dir_cache_timeout * HZ);
+
+	atomic_long_set(&cfids->total_dirents_entries, 0);
+	atomic64_set(&cfids->total_dirents_bytes, 0);
 
 	return cfids;
 }
