@@ -107,9 +107,6 @@ void kvm_timer_vcpu_terminate(struct kvm_vcpu *vcpu);
 
 void kvm_timer_init_vm(struct kvm *kvm);
 
-u64 kvm_arm_timer_get_reg(struct kvm_vcpu *, u64 regid);
-int kvm_arm_timer_set_reg(struct kvm_vcpu *, u64 regid, u64 value);
-
 int kvm_arm_timer_set_attr(struct kvm_vcpu *vcpu, struct kvm_device_attr *attr);
 int kvm_arm_timer_get_attr(struct kvm_vcpu *vcpu, struct kvm_device_attr *attr);
 int kvm_arm_timer_has_attr(struct kvm_vcpu *vcpu, struct kvm_device_attr *attr);

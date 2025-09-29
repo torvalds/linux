@@ -1112,49 +1112,6 @@ void kvm_timer_cpu_down(void)
 		disable_percpu_irq(host_ptimer_irq);
 }
 
-int kvm_arm_timer_set_reg(struct kvm_vcpu *vcpu, u64 regid, u64 value)
-{
-	struct arch_timer_context *timer;
-
-	switch (regid) {
-	case KVM_REG_ARM_TIMER_CTL:
-		timer = vcpu_vtimer(vcpu);
-		kvm_arm_timer_write(vcpu, timer, TIMER_REG_CTL, value);
-		break;
-	case KVM_REG_ARM_TIMER_CNT:
-		if (!test_bit(KVM_ARCH_FLAG_VM_COUNTER_OFFSET,
-			      &vcpu->kvm->arch.flags)) {
-			timer = vcpu_vtimer(vcpu);
-			timer_set_offset(timer, kvm_phys_timer_read() - value);
-		}
-		break;
-	case KVM_REG_ARM_TIMER_CVAL:
-		timer = vcpu_vtimer(vcpu);
-		kvm_arm_timer_write(vcpu, timer, TIMER_REG_CVAL, value);
-		break;
-	case KVM_REG_ARM_PTIMER_CTL:
-		timer = vcpu_ptimer(vcpu);
-		kvm_arm_timer_write(vcpu, timer, TIMER_REG_CTL, value);
-		break;
-	case KVM_REG_ARM_PTIMER_CNT:
-		if (!test_bit(KVM_ARCH_FLAG_VM_COUNTER_OFFSET,
-			      &vcpu->kvm->arch.flags)) {
-			timer = vcpu_ptimer(vcpu);
-			timer_set_offset(timer, kvm_phys_timer_read() - value);
-		}
-		break;
-	case KVM_REG_ARM_PTIMER_CVAL:
-		timer = vcpu_ptimer(vcpu);
-		kvm_arm_timer_write(vcpu, timer, TIMER_REG_CVAL, value);
-		break;
-
-	default:
-		return -1;
-	}
-
-	return 0;
-}
-
 static u64 read_timer_ctl(struct arch_timer_context *timer)
 {
 	/*
@@ -1169,31 +1126,6 @@ static u64 read_timer_ctl(struct arch_timer_context *timer)
 		ctl |= ARCH_TIMER_CTRL_IT_STAT;
 
 	return ctl;
-}
-
-u64 kvm_arm_timer_get_reg(struct kvm_vcpu *vcpu, u64 regid)
-{
-	switch (regid) {
-	case KVM_REG_ARM_TIMER_CTL:
-		return kvm_arm_timer_read(vcpu,
-					  vcpu_vtimer(vcpu), TIMER_REG_CTL);
-	case KVM_REG_ARM_TIMER_CNT:
-		return kvm_arm_timer_read(vcpu,
-					  vcpu_vtimer(vcpu), TIMER_REG_CNT);
-	case KVM_REG_ARM_TIMER_CVAL:
-		return kvm_arm_timer_read(vcpu,
-					  vcpu_vtimer(vcpu), TIMER_REG_CVAL);
-	case KVM_REG_ARM_PTIMER_CTL:
-		return kvm_arm_timer_read(vcpu,
-					  vcpu_ptimer(vcpu), TIMER_REG_CTL);
-	case KVM_REG_ARM_PTIMER_CNT:
-		return kvm_arm_timer_read(vcpu,
-					  vcpu_ptimer(vcpu), TIMER_REG_CNT);
-	case KVM_REG_ARM_PTIMER_CVAL:
-		return kvm_arm_timer_read(vcpu,
-					  vcpu_ptimer(vcpu), TIMER_REG_CVAL);
-	}
-	return (u64)-1;
 }
 
 static u64 kvm_arm_timer_read(struct kvm_vcpu *vcpu,
