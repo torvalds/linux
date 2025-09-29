@@ -348,9 +348,20 @@ static __u64 base_regs[] = {
 	KVM_REG_ARM_FW_FEAT_BMAP_REG(1),	/* KVM_REG_ARM_STD_HYP_BMAP */
 	KVM_REG_ARM_FW_FEAT_BMAP_REG(2),	/* KVM_REG_ARM_VENDOR_HYP_BMAP */
 	KVM_REG_ARM_FW_FEAT_BMAP_REG(3),	/* KVM_REG_ARM_VENDOR_HYP_BMAP_2 */
-	ARM64_SYS_REG(3, 3, 14, 3, 1),	/* CNTV_CTL_EL0 */
-	ARM64_SYS_REG(3, 3, 14, 3, 2),	/* CNTV_CVAL_EL0 */
-	ARM64_SYS_REG(3, 3, 14, 0, 2),
+
+	/*
+	 * EL0 Virtual Timer Registers
+	 *
+	 * WARNING:
+	 * KVM_REG_ARM_TIMER_CVAL and KVM_REG_ARM_TIMER_CNT are not defined
+	 * with the appropriate register encodings.  Their values have been
+	 * accidentally swapped.  As this is set API, the definitions here
+	 * must be used, rather than ones derived from the encodings.
+	 */
+	KVM_ARM64_SYS_REG(SYS_CNTV_CTL_EL0),
+	KVM_REG_ARM_TIMER_CVAL,
+	KVM_REG_ARM_TIMER_CNT,
+
 	ARM64_SYS_REG(3, 0, 0, 0, 0),	/* MIDR_EL1 */
 	ARM64_SYS_REG(3, 0, 0, 0, 6),	/* REVIDR_EL1 */
 	ARM64_SYS_REG(3, 1, 0, 0, 1),	/* CLIDR_EL1 */
