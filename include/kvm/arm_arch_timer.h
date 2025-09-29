@@ -179,4 +179,14 @@ static inline u64 timer_get_offset(struct arch_timer_context *ctxt)
 	return offset;
 }
 
+static inline void timer_set_offset(struct arch_timer_context *ctxt, u64 offset)
+{
+	if (!ctxt->offset.vm_offset) {
+		WARN(offset, "timer %d\n", arch_timer_ctx_index(ctxt));
+		return;
+	}
+
+	WRITE_ONCE(*ctxt->offset.vm_offset, offset);
+}
+
 #endif

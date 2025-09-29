@@ -146,16 +146,6 @@ static void timer_set_cval(struct arch_timer_context *ctxt, u64 cval)
 	}
 }
 
-static void timer_set_offset(struct arch_timer_context *ctxt, u64 offset)
-{
-	if (!ctxt->offset.vm_offset) {
-		WARN(offset, "timer %d\n", arch_timer_ctx_index(ctxt));
-		return;
-	}
-
-	WRITE_ONCE(*ctxt->offset.vm_offset, offset);
-}
-
 u64 kvm_phys_timer_read(void)
 {
 	return timecounter->cc->read(timecounter->cc);
