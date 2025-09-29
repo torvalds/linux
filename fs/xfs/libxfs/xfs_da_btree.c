@@ -565,7 +565,7 @@ xfs_da3_split(
 
 	trace_xfs_da_split(state->args);
 
-	if (XFS_TEST_ERROR(false, state->mp, XFS_ERRTAG_DA_LEAF_SPLIT))
+	if (XFS_TEST_ERROR(state->mp, XFS_ERRTAG_DA_LEAF_SPLIT))
 		return -EIO;
 
 	/*

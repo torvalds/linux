@@ -149,9 +149,18 @@ xfs_bmbt_to_iomap(
 		iomap->bdev = target->bt_bdev;
 	iomap->flags = iomap_flags;
 
-	if (xfs_ipincount(ip) &&
-	    (ip->i_itemp->ili_fsync_fields & ~XFS_ILOG_TIMESTAMP))
-		iomap->flags |= IOMAP_F_DIRTY;
+	/*
+	 * If the inode is dirty for datasync purposes, let iomap know so it
+	 * doesn't elide the IO completion journal flushes on O_DSYNC IO.
+	 */
+	if (ip->i_itemp) {
+		struct xfs_inode_log_item *iip = ip->i_itemp;
+
+		spin_lock(&iip->ili_lock);
+		if (iip->ili_datasync_seq)
+			iomap->flags |= IOMAP_F_DIRTY;
+		spin_unlock(&iip->ili_lock);
+	}
 
 	iomap->validity_cookie = sequence_cookie;
 	return 0;
@@ -1554,7 +1563,7 @@ xfs_zoned_buffered_write_iomap_begin(
 		return error;
 
 	if (XFS_IS_CORRUPT(mp, !xfs_ifork_has_extents(&ip->i_df)) ||
-	    XFS_TEST_ERROR(false, mp, XFS_ERRTAG_BMAPIFORMAT)) {
+	    XFS_TEST_ERROR(mp, XFS_ERRTAG_BMAPIFORMAT)) {
 		xfs_bmap_mark_sick(ip, XFS_DATA_FORK);
 		error = -EFSCORRUPTED;
 		goto out_unlock;
@@ -1728,7 +1737,7 @@ xfs_buffered_write_iomap_begin(
 		return error;
 
 	if (XFS_IS_CORRUPT(mp, !xfs_ifork_has_extents(&ip->i_df)) ||
-	    XFS_TEST_ERROR(false, mp, XFS_ERRTAG_BMAPIFORMAT)) {
+	    XFS_TEST_ERROR(mp, XFS_ERRTAG_BMAPIFORMAT)) {
 		xfs_bmap_mark_sick(ip, XFS_DATA_FORK);
 		error = -EFSCORRUPTED;
 		goto out_unlock;
