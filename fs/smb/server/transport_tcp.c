@@ -266,6 +266,8 @@ static int ksmbd_kthread_fn(void *p)
 				max_ip_conns++;
 #endif
 			if (server_conf.max_ip_connections <= max_ip_conns) {
+				pr_info_ratelimited("Maximum IP connections exceeded (%u/%u)\n",
+						    max_ip_conns, server_conf.max_ip_connections);
 				ret = -EAGAIN;
 				break;
 			}
