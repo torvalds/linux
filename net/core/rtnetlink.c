@@ -478,7 +478,7 @@ static int rtnl_unregister(int protocol, int msgtype)
  * rtnl_unregister_all - Unregister all rtnetlink message type of a protocol
  * @protocol : Protocol family or PF_UNSPEC
  *
- * Identical to calling rtnl_unregster() for all registered message types
+ * Identical to calling rtnl_unregister() for all registered message types
  * of a certain protocol family.
  */
 void rtnl_unregister_all(int protocol)
