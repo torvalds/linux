@@ -666,7 +666,7 @@ static int get_security_context(struct dentry *entry, umode_t mode,
 	u32 total_len = sizeof(*header);
 	int err, nr_ctx = 0;
 	const char *name = NULL;
-	size_t namelen;
+	size_t namesize;
 
 	err = security_dentry_init_security(entry, mode, &entry->d_name,
 					    &name, &lsmctx);
@@ -677,12 +677,12 @@ static int get_security_context(struct dentry *entry, umode_t mode,
 
 	if (lsmctx.len) {
 		nr_ctx = 1;
-		namelen = strlen(name) + 1;
+		namesize = strlen(name) + 1;
 		err = -EIO;
-		if (WARN_ON(namelen > XATTR_NAME_MAX + 1 ||
+		if (WARN_ON(namesize > XATTR_NAME_MAX + 1 ||
 		    lsmctx.len > S32_MAX))
 			goto out_err;
-		total_len += FUSE_REC_ALIGN(sizeof(*fctx) + namelen +
+		total_len += FUSE_REC_ALIGN(sizeof(*fctx) + namesize +
 					    lsmctx.len);
 	}
 
@@ -699,8 +699,8 @@ static int get_security_context(struct dentry *entry, umode_t mode,
 		fctx->size = lsmctx.len;
 		ptr += sizeof(*fctx);
 
-		strscpy(ptr, name, namelen);
-		ptr += namelen;
+		strscpy(ptr, name, namesize);
+		ptr += namesize;
 
 		memcpy(ptr, lsmctx.context, lsmctx.len);
 	}
