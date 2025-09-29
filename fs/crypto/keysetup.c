@@ -253,11 +253,8 @@ static int setup_per_mode_enc_key(struct fscrypt_inode_info *ci,
 		       sizeof(sb->s_uuid));
 		hkdf_infolen += sizeof(sb->s_uuid);
 	}
-	err = fscrypt_hkdf_expand(&mk->mk_secret.hkdf,
-				  hkdf_context, hkdf_info, hkdf_infolen,
-				  mode_key, mode->keysize);
-	if (err)
-		goto out_unlock;
+	fscrypt_hkdf_expand(&mk->mk_secret.hkdf, hkdf_context, hkdf_info,
+			    hkdf_infolen, mode_key, mode->keysize);
 	err = fscrypt_prepare_key(prep_key, mode_key, ci);
 	memzero_explicit(mode_key, mode->keysize);
 	if (err)
@@ -278,36 +275,25 @@ out_unlock:
  * as a pair of 64-bit words.  Therefore, on big endian CPUs we have to do an
  * endianness swap in order to get the same results as on little endian CPUs.
  */
-static int fscrypt_derive_siphash_key(const struct fscrypt_master_key *mk,
-				      u8 context, const u8 *info,
-				      unsigned int infolen, siphash_key_t *key)
+static void fscrypt_derive_siphash_key(const struct fscrypt_master_key *mk,
+				       u8 context, const u8 *info,
+				       unsigned int infolen, siphash_key_t *key)
 {
-	int err;
-
-	err = fscrypt_hkdf_expand(&mk->mk_secret.hkdf, context, info, infolen,
-				  (u8 *)key, sizeof(*key));
-	if (err)
-		return err;
-
+	fscrypt_hkdf_expand(&mk->mk_secret.hkdf, context, info, infolen,
+			    (u8 *)key, sizeof(*key));
 	BUILD_BUG_ON(sizeof(*key) != 16);
 	BUILD_BUG_ON(ARRAY_SIZE(key->key) != 2);
 	le64_to_cpus(&key->key[0]);
 	le64_to_cpus(&key->key[1]);
-	return 0;
 }
 
-int fscrypt_derive_dirhash_key(struct fscrypt_inode_info *ci,
-			       const struct fscrypt_master_key *mk)
+void fscrypt_derive_dirhash_key(struct fscrypt_inode_info *ci,
+				const struct fscrypt_master_key *mk)
 {
-	int err;
-
-	err = fscrypt_derive_siphash_key(mk, HKDF_CONTEXT_DIRHASH_KEY,
-					 ci->ci_nonce, FSCRYPT_FILE_NONCE_SIZE,
-					 &ci->ci_dirhash_key);
-	if (err)
-		return err;
+	fscrypt_derive_siphash_key(mk, HKDF_CONTEXT_DIRHASH_KEY,
+				   ci->ci_nonce, FSCRYPT_FILE_NONCE_SIZE,
+				   &ci->ci_dirhash_key);
 	ci->ci_dirhash_key_initialized = true;
-	return 0;
 }
 
 void fscrypt_hash_inode_number(struct fscrypt_inode_info *ci,
@@ -338,17 +324,12 @@ static int fscrypt_setup_iv_ino_lblk_32_key(struct fscrypt_inode_info *ci,
 		if (mk->mk_ino_hash_key_initialized)
 			goto unlock;
 
-		err = fscrypt_derive_siphash_key(mk,
-						 HKDF_CONTEXT_INODE_HASH_KEY,
-						 NULL, 0, &mk->mk_ino_hash_key);
-		if (err)
-			goto unlock;
+		fscrypt_derive_siphash_key(mk, HKDF_CONTEXT_INODE_HASH_KEY,
+					   NULL, 0, &mk->mk_ino_hash_key);
 		/* pairs with smp_load_acquire() above */
 		smp_store_release(&mk->mk_ino_hash_key_initialized, true);
 unlock:
 		mutex_unlock(&fscrypt_mode_key_setup_mutex);
-		if (err)
-			return err;
 	}
 
 	/*
@@ -402,13 +383,10 @@ static int fscrypt_setup_v2_file_key(struct fscrypt_inode_info *ci,
 	} else {
 		u8 derived_key[FSCRYPT_MAX_RAW_KEY_SIZE];
 
-		err = fscrypt_hkdf_expand(&mk->mk_secret.hkdf,
-					  HKDF_CONTEXT_PER_FILE_ENC_KEY,
-					  ci->ci_nonce, FSCRYPT_FILE_NONCE_SIZE,
-					  derived_key, ci->ci_mode->keysize);
-		if (err)
-			return err;
-
+		fscrypt_hkdf_expand(&mk->mk_secret.hkdf,
+				    HKDF_CONTEXT_PER_FILE_ENC_KEY,
+				    ci->ci_nonce, FSCRYPT_FILE_NONCE_SIZE,
+				    derived_key, ci->ci_mode->keysize);
 		err = fscrypt_set_per_file_enc_key(ci, derived_key);
 		memzero_explicit(derived_key, ci->ci_mode->keysize);
 	}
@@ -416,11 +394,8 @@ static int fscrypt_setup_v2_file_key(struct fscrypt_inode_info *ci,
 		return err;
 
 	/* Derive a secret dirhash key for directories that need it. */
-	if (need_dirhash_key) {
-		err = fscrypt_derive_dirhash_key(ci, mk);
-		if (err)
-			return err;
-	}
+	if (need_dirhash_key)
+		fscrypt_derive_dirhash_key(ci, mk);
 
 	return 0;
 }
