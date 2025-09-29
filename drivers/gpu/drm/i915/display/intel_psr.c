@@ -956,15 +956,16 @@ static u32 intel_psr2_get_tp_time(struct intel_dp *intel_dp)
 	return val;
 }
 
-static int psr2_block_count_lines(struct intel_dp *intel_dp)
+static int
+psr2_block_count_lines(u8 io_wake_lines, u8 fast_wake_lines)
 {
-	return intel_dp->alpm_parameters.io_wake_lines < 9 &&
-		intel_dp->alpm_parameters.fast_wake_lines < 9 ? 8 : 12;
+	return io_wake_lines < 9 && fast_wake_lines < 9 ? 8 : 12;
 }
 
 static int psr2_block_count(struct intel_dp *intel_dp)
 {
-	return psr2_block_count_lines(intel_dp) / 4;
+	return psr2_block_count_lines(intel_dp->psr.io_wake_lines,
+				      intel_dp->psr.fast_wake_lines) / 4;
 }
 
 static u8 frames_before_su_entry(struct intel_dp *intel_dp)
@@ -1059,20 +1060,20 @@ static void hsw_activate_psr2(struct intel_dp *intel_dp)
 		 */
 		int tmp;
 
-		tmp = map[intel_dp->alpm_parameters.io_wake_lines -
+		tmp = map[intel_dp->psr.io_wake_lines -
 			  TGL_EDP_PSR2_IO_BUFFER_WAKE_MIN_LINES];
 		val |= TGL_EDP_PSR2_IO_BUFFER_WAKE(tmp + TGL_EDP_PSR2_IO_BUFFER_WAKE_MIN_LINES);
 
-		tmp = map[intel_dp->alpm_parameters.fast_wake_lines - TGL_EDP_PSR2_FAST_WAKE_MIN_LINES];
+		tmp = map[intel_dp->psr.fast_wake_lines - TGL_EDP_PSR2_FAST_WAKE_MIN_LINES];
 		val |= TGL_EDP_PSR2_FAST_WAKE(tmp + TGL_EDP_PSR2_FAST_WAKE_MIN_LINES);
 	} else if (DISPLAY_VER(display) >= 20) {
-		val |= LNL_EDP_PSR2_IO_BUFFER_WAKE(intel_dp->alpm_parameters.io_wake_lines);
+		val |= LNL_EDP_PSR2_IO_BUFFER_WAKE(intel_dp->psr.io_wake_lines);
 	} else if (DISPLAY_VER(display) >= 12) {
-		val |= TGL_EDP_PSR2_IO_BUFFER_WAKE(intel_dp->alpm_parameters.io_wake_lines);
-		val |= TGL_EDP_PSR2_FAST_WAKE(intel_dp->alpm_parameters.fast_wake_lines);
+		val |= TGL_EDP_PSR2_IO_BUFFER_WAKE(intel_dp->psr.io_wake_lines);
+		val |= TGL_EDP_PSR2_FAST_WAKE(intel_dp->psr.fast_wake_lines);
 	} else if (DISPLAY_VER(display) >= 9) {
-		val |= EDP_PSR2_IO_BUFFER_WAKE(intel_dp->alpm_parameters.io_wake_lines);
-		val |= EDP_PSR2_FAST_WAKE(intel_dp->alpm_parameters.fast_wake_lines);
+		val |= EDP_PSR2_IO_BUFFER_WAKE(intel_dp->psr.io_wake_lines);
+		val |= EDP_PSR2_FAST_WAKE(intel_dp->psr.fast_wake_lines);
 	}
 
 	if (intel_dp->psr.req_psr2_sdp_prior_scanline)
@@ -1370,11 +1371,12 @@ static bool wake_lines_fit_into_vblank(struct intel_dp *intel_dp,
 	int wake_lines;
 
 	if (aux_less)
-		wake_lines = intel_dp->alpm_parameters.aux_less_wake_lines;
+		wake_lines = crtc_state->alpm_state.aux_less_wake_lines;
 	else
 		wake_lines = DISPLAY_VER(display) < 20 ?
-			psr2_block_count_lines(intel_dp) :
-			intel_dp->alpm_parameters.io_wake_lines;
+			psr2_block_count_lines(crtc_state->alpm_state.io_wake_lines,
+					       crtc_state->alpm_state.fast_wake_lines) :
+			crtc_state->alpm_state.io_wake_lines;
 
 	if (crtc_state->req_psr2_sdp_prior_scanline)
 		vblank -= 1;
@@ -1387,7 +1389,7 @@ static bool wake_lines_fit_into_vblank(struct intel_dp *intel_dp,
 }
 
 static bool alpm_config_valid(struct intel_dp *intel_dp,
-			      const struct intel_crtc_state *crtc_state,
+			      struct intel_crtc_state *crtc_state,
 			      bool aux_less)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
@@ -1592,7 +1594,7 @@ static bool _psr_compute_config(struct intel_dp *intel_dp,
 
 static bool
 _panel_replay_compute_config(struct intel_dp *intel_dp,
-			     const struct intel_crtc_state *crtc_state,
+			     struct intel_crtc_state *crtc_state,
 			     const struct drm_connector_state *conn_state)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
@@ -2022,6 +2024,8 @@ static void intel_psr_enable_locked(struct intel_dp *intel_dp,
 		crtc_state->req_psr2_sdp_prior_scanline;
 	intel_dp->psr.active_non_psr_pipes = crtc_state->active_non_psr_pipes;
 	intel_dp->psr.pkg_c_latency_used = crtc_state->pkg_c_latency_used;
+	intel_dp->psr.io_wake_lines = crtc_state->alpm_state.io_wake_lines;
+	intel_dp->psr.fast_wake_lines = crtc_state->alpm_state.fast_wake_lines;
 
 	if (!psr_interrupt_error_check(intel_dp))
 		return;
