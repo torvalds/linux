@@ -7,6 +7,8 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/bitrev.h>
+#include <linux/crc-ccitt.h>
 #include <linux/errno.h>
 #include <linux/gpio/consumer.h>
 #include <linux/kernel.h>
@@ -58,6 +60,7 @@ enum {
 	H5_TX_ACK_REQ,		/* Pending ack to send */
 	H5_WAKEUP_DISABLE,	/* Device cannot wake host */
 	H5_HW_FLOW_CONTROL,	/* Use HW flow control */
+	H5_CRC,			/* Use CRC */
 };
 
 struct h5 {
@@ -141,8 +144,8 @@ static void h5_link_control(struct hci_uart *hu, const void *data, size_t len)
 
 static u8 h5_cfg_field(struct h5 *h5)
 {
-	/* Sliding window size (first 3 bits) */
-	return h5->tx_win & 0x07;
+	/* Sliding window size (first 3 bits) and CRC request (fifth bit). */
+	return (h5->tx_win & 0x07) | 0x10;
 }
 
 static void h5_timed_event(struct timer_list *t)
@@ -361,8 +364,10 @@ static void h5_handle_internal_rx(struct hci_uart *hu)
 		h5_link_control(hu, conf_rsp, 2);
 		h5_link_control(hu, conf_req, 3);
 	} else if (memcmp(data, conf_rsp, 2) == 0) {
-		if (H5_HDR_LEN(hdr) > 2)
+		if (H5_HDR_LEN(hdr) > 2) {
 			h5->tx_win = (data[2] & 0x07);
+			assign_bit(H5_CRC, &h5->flags, data[2] & 0x10);
+		}
 		BT_DBG("Three-wire init complete. tx_win %u", h5->tx_win);
 		h5->state = H5_ACTIVE;
 		hci_uart_init_ready(hu);
@@ -426,7 +431,24 @@ static void h5_complete_rx_pkt(struct hci_uart *hu)
 
 static int h5_rx_crc(struct hci_uart *hu, unsigned char c)
 {
-	h5_complete_rx_pkt(hu);
+	struct h5 *h5 = hu->priv;
+	const unsigned char *hdr = h5->rx_skb->data;
+	u16 crc;
+	__be16 crc_be;
+
+	crc = crc_ccitt(0xffff, hdr, 4 + H5_HDR_LEN(hdr));
+	crc = bitrev16(crc);
+
+	crc_be = cpu_to_be16(crc);
+
+	if (memcmp(&crc_be, hdr + 4 + H5_HDR_LEN(hdr), 2) != 0) {
+		bt_dev_err(hu->hdev, "Received packet with invalid CRC");
+		h5_reset_rx(h5);
+	} else {
+		/* Remove CRC bytes */
+		skb_trim(h5->rx_skb, 4 + H5_HDR_LEN(hdr));
+		h5_complete_rx_pkt(hu);
+	}
 
 	return 0;
 }
@@ -557,6 +579,7 @@ static void h5_reset_rx(struct h5 *h5)
 	h5->rx_func = h5_rx_delimiter;
 	h5->rx_pending = 0;
 	clear_bit(H5_RX_ESC, &h5->flags);
+	clear_bit(H5_CRC, &h5->flags);
 }
 
 static int h5_recv(struct hci_uart *hu, const void *data, int count)
@@ -687,6 +710,7 @@ static struct sk_buff *h5_prepare_pkt(struct hci_uart *hu, u8 pkt_type,
 	struct h5 *h5 = hu->priv;
 	struct sk_buff *nskb;
 	u8 hdr[4];
+	u16 crc;
 	int i;
 
 	if (!valid_packet_type(pkt_type)) {
@@ -714,6 +738,7 @@ static struct sk_buff *h5_prepare_pkt(struct hci_uart *hu, u8 pkt_type,
 	/* Reliable packet? */
 	if (pkt_type == HCI_ACLDATA_PKT || pkt_type == HCI_COMMAND_PKT) {
 		hdr[0] |= 1 << 7;
+		hdr[0] |= (test_bit(H5_CRC, &h5->flags) && 1) << 6;
 		hdr[0] |= h5->tx_seq;
 		h5->tx_seq = (h5->tx_seq + 1) % 8;
 	}
@@ -732,6 +757,15 @@ static struct sk_buff *h5_prepare_pkt(struct hci_uart *hu, u8 pkt_type,
 
 	for (i = 0; i < len; i++)
 		h5_slip_one_byte(nskb, data[i]);
+
+	if (H5_HDR_CRC(hdr)) {
+		crc = crc_ccitt(0xffff, hdr, 4);
+		crc = crc_ccitt(crc, data, len);
+		crc = bitrev16(crc);
+
+		h5_slip_one_byte(nskb, (crc >> 8) & 0xff);
+		h5_slip_one_byte(nskb, crc & 0xff);
+	}
 
 	h5_slip_delim(nskb);
 
