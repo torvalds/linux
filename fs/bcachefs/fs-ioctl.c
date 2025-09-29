@@ -255,7 +255,7 @@ static long bch2_ioctl_subvolume_create(struct bch_fs *c, struct file *filp,
 		snapshot_src = inode_inum(to_bch_ei(src_path.dentry->d_inode));
 	}
 
-	dst_dentry = user_path_create(arg.dirfd,
+	dst_dentry = start_creating_user_path(arg.dirfd,
 			(const char __user *)(unsigned long)arg.dst_ptr,
 			&dst_path, lookup_flags);
 	error = PTR_ERR_OR_ZERO(dst_dentry);
@@ -314,7 +314,7 @@ static long bch2_ioctl_subvolume_create(struct bch_fs *c, struct file *filp,
 	d_instantiate(dst_dentry, &inode->v);
 	fsnotify_mkdir(dir, dst_dentry);
 err3:
-	done_path_create(&dst_path, dst_dentry);
+	end_creating_path(&dst_path, dst_dentry);
 err2:
 	if (arg.src_ptr)
 		path_put(&src_path);
@@ -334,7 +334,7 @@ static long bch2_ioctl_subvolume_destroy(struct bch_fs *c, struct file *filp,
 	if (arg.flags)
 		return -EINVAL;
 
-	victim = user_path_locked_at(arg.dirfd, name, &path);
+	victim = start_removing_user_path_at(arg.dirfd, name, &path);
 	if (IS_ERR(victim))
 		return PTR_ERR(victim);
 
@@ -351,9 +351,7 @@ static long bch2_ioctl_subvolume_destroy(struct bch_fs *c, struct file *filp,
 		d_invalidate(victim);
 	}
 err:
-	inode_unlock(dir);
-	dput(victim);
-	path_put(&path);
+	end_removing_path(&path, victim);
 	return ret;
 }
 

@@ -442,7 +442,7 @@ static int bpf_obj_do_pin(int path_fd, const char __user *pathname, void *raw,
 	umode_t mode;
 	int ret;
 
-	dentry = user_path_create(path_fd, pathname, &path, 0);
+	dentry = start_creating_user_path(path_fd, pathname, &path, 0);
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
 
@@ -471,7 +471,7 @@ static int bpf_obj_do_pin(int path_fd, const char __user *pathname, void *raw,
 		ret = -EPERM;
 	}
 out:
-	done_path_create(&path, dentry);
+	end_creating_path(&path, dentry);
 	return ret;
 }
 
