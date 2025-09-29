@@ -267,7 +267,7 @@ static inline int parity8(u8 val)
  * The result is not defined if no bits are set, so check that @word
  * is non-zero before calling this.
  */
-static inline unsigned int __ffs64(u64 word)
+static inline __attribute_const__ unsigned int __ffs64(u64 word)
 {
 #if BITS_PER_LONG == 32
 	if (((u32)word) == 0UL)
