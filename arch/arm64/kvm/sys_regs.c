@@ -3512,11 +3512,11 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	{ SYS_DESC(SYS_CNTVCTSS_EL0), access_arch_timer },
 	{ SYS_DESC(SYS_CNTP_TVAL_EL0), access_arch_timer },
 	TIMER_REG(CNTP_CTL_EL0, NULL),
-	{ SYS_DESC(SYS_CNTP_CVAL_EL0), access_arch_timer },
+	TIMER_REG(CNTP_CVAL_EL0, NULL),
 
 	{ SYS_DESC(SYS_CNTV_TVAL_EL0), access_arch_timer },
 	TIMER_REG(CNTV_CTL_EL0, NULL),
-	{ SYS_DESC(SYS_CNTV_CVAL_EL0), access_arch_timer },
+	TIMER_REG(CNTV_CVAL_EL0, NULL),
 
 	/* PMEVCNTRn_EL0 */
 	PMU_PMEVCNTR_EL0(0),
@@ -3715,11 +3715,11 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	EL2_REG(CNTHCTL_EL2, access_rw, reset_val, 0),
 	{ SYS_DESC(SYS_CNTHP_TVAL_EL2), access_arch_timer },
 	TIMER_REG(CNTHP_CTL_EL2, el2_visibility),
-	EL2_REG(CNTHP_CVAL_EL2, access_arch_timer, reset_val, 0),
+	TIMER_REG(CNTHP_CVAL_EL2, el2_visibility),
 
 	{ SYS_DESC(SYS_CNTHV_TVAL_EL2), access_arch_timer, .visibility = cnthv_visibility },
 	TIMER_REG(CNTHV_CTL_EL2, cnthv_visibility),
-	EL2_REG_FILTERED(CNTHV_CVAL_EL2, access_arch_timer, reset_val, 0, cnthv_visibility),
+	TIMER_REG(CNTHV_CVAL_EL2, cnthv_visibility),
 
 	{ SYS_DESC(SYS_CNTKCTL_EL12), access_cntkctl_el12 },
 
