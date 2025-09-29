@@ -12,7 +12,7 @@ use crate::{
     clk::Hertz,
     cpumask::{Cpumask, CpumaskVar},
     device::Device,
-    error::{code::*, from_err_ptr, from_result, to_result, Error, Result, VTABLE_DEFAULT_ERROR},
+    error::{code::*, from_err_ptr, from_result, to_result, Result, VTABLE_DEFAULT_ERROR},
     ffi::c_ulong,
     prelude::*,
     str::CString,
@@ -501,11 +501,8 @@ impl<T: ConfigOps + Default> Config<T> {
         // requirements. The OPP core guarantees not to access fields of [`Config`] after this call
         // and so we don't need to save a copy of them for future use.
         let ret = unsafe { bindings::dev_pm_opp_set_config(dev.as_raw(), &mut config) };
-        if ret < 0 {
-            Err(Error::from_errno(ret))
-        } else {
-            Ok(ConfigToken(ret))
-        }
+
+        to_result(ret).map(|()| ConfigToken(ret))
     }
 
     /// Config's clk callback.
@@ -714,11 +711,8 @@ impl Table {
         // SAFETY: The requirements are satisfied by the existence of [`Device`] and its safety
         // requirements.
         let ret = unsafe { bindings::dev_pm_opp_get_opp_count(self.dev.as_raw()) };
-        if ret < 0 {
-            Err(Error::from_errno(ret))
-        } else {
-            Ok(ret as u32)
-        }
+
+        to_result(ret).map(|()| ret as u32)
     }
 
     /// Returns max clock latency (in nanoseconds) of the [`OPP`]s in the [`Table`].
