@@ -213,7 +213,6 @@ static void h5_peer_reset(struct hci_uart *hu)
 static int h5_open(struct hci_uart *hu)
 {
 	struct h5 *h5;
-	const unsigned char sync[] = { 0x01, 0x7e };
 
 	BT_DBG("hu %p", hu);
 
@@ -243,9 +242,11 @@ static int h5_open(struct hci_uart *hu)
 
 	set_bit(HCI_UART_INIT_PENDING, &hu->hdev_flags);
 
-	/* Send initial sync request */
-	h5_link_control(hu, sync, sizeof(sync));
-	mod_timer(&h5->timer, jiffies + H5_SYNC_TIMEOUT);
+	/*
+	 * Wait one jiffy because the UART layer won't set HCI_UART_PROTO_READY,
+	 * which allows us to send link packets, until this function returns.
+	 */
+	mod_timer(&h5->timer, jiffies + 1);
 
 	return 0;
 }
