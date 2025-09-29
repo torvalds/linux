@@ -29,6 +29,8 @@ void srcline__tree_delete(struct rb_root_cached *tree);
 extern char *srcline__unknown;
 #define SRCLINE_UNKNOWN srcline__unknown
 
+#define MAX_INLINE_NEST 1024
+
 struct inline_list {
 	struct symbol		*symbol;
 	char			*srcline;

@@ -17,11 +17,11 @@
 #include "capstone.h"
 #include "debug.h"
 #include "disasm.h"
-#include "disasm_bpf.h"
 #include "dso.h"
 #include "dwarf-regs.h"
 #include "env.h"
 #include "evsel.h"
+#include "libbfd.h"
 #include "llvm.h"
 #include "map.h"
 #include "maps.h"
@@ -1478,6 +1478,23 @@ char *expand_tabs(char *line, char **storage, size_t *storage_len)
 	*storage = new_line;
 	*storage_len = new_storage_len;
 	return new_line;
+}
+
+static int symbol__disassemble_bpf_image(struct symbol *sym, struct annotate_args *args)
+{
+	struct annotation *notes = symbol__annotation(sym);
+	struct disasm_line *dl;
+
+	args->offset = -1;
+	args->line = strdup("to be implemented");
+	args->line_nr = 0;
+	args->fileloc = NULL;
+	dl = disasm_line__new(args);
+	if (dl)
+		annotation_line__add(&dl->al, &notes->src->source);
+
+	zfree(&args->line);
+	return 0;
 }
 
 static int symbol__disassemble_objdump(const char *filename, struct symbol *sym,
