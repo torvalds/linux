@@ -879,9 +879,11 @@ void dc_stream_log(const struct dc *dc, const struct dc_stream_state *stream)
 			stream->sink->sink_signal != SIGNAL_TYPE_NONE) {
 
 			DC_LOG_DC(
-					"\tdispname: %s signal: %x\n",
+					"\tsignal: %x dispname: %s manufacturer_id: 0x%x product_id: 0x%x\n",
+					stream->signal,
 					stream->sink->edid_caps.display_name,
-					stream->signal);
+					stream->sink->edid_caps.manufacturer_id,
+					stream->sink->edid_caps.product_id);
 		}
 	}
 }
