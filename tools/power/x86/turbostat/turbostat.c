@@ -1890,7 +1890,7 @@ int pmt_telemdir_sort(const struct dirent **a, const struct dirent **b)
 	sscanf((*a)->d_name, "telem%u", &aidx);
 	sscanf((*b)->d_name, "telem%u", &bidx);
 
-	return aidx >= bidx;
+	return (aidx > bidx) ? 1 : (aidx < bidx) ? -1 : 0;
 }
 
 const struct dirent *pmt_diriter_next(struct pmt_diriter_t *iter)
