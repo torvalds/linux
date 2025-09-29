@@ -49,7 +49,7 @@ void intel_alpm_init(struct intel_dp *intel_dp)
 		return;
 
 	intel_dp->alpm_dpcd = dpcd;
-	mutex_init(&intel_dp->alpm_parameters.lock);
+	mutex_init(&intel_dp->alpm.lock);
 }
 
 static int get_silence_period_symbols(const struct intel_crtc_state *crtc_state)
@@ -257,12 +257,12 @@ void intel_alpm_lobf_compute_config(struct intel_dp *intel_dp,
 	int waketime_in_lines, first_sdp_position;
 	int context_latency, guardband;
 
-	if (intel_dp->alpm_parameters.lobf_disable_debug) {
+	if (intel_dp->alpm.lobf_disable_debug) {
 		drm_dbg_kms(display->drm, "LOBF is disabled by debug flag\n");
 		return;
 	}
 
-	if (intel_dp->alpm_parameters.sink_alpm_error)
+	if (intel_dp->alpm.sink_alpm_error)
 		return;
 
 	if (!intel_dp_is_edp(intel_dp))
@@ -312,7 +312,7 @@ static void lnl_alpm_configure(struct intel_dp *intel_dp,
 					  !crtc_state->has_lobf))
 		return;
 
-	mutex_lock(&intel_dp->alpm_parameters.lock);
+	mutex_lock(&intel_dp->alpm.lock);
 	/*
 	 * Panel Replay on eDP is always using ALPM aux less. I.e. no need to
 	 * check panel support at this point.
@@ -350,14 +350,14 @@ static void lnl_alpm_configure(struct intel_dp *intel_dp,
 	alpm_ctl |= ALPM_CTL_ALPM_ENTRY_CHECK(crtc_state->alpm_state.check_entry_lines);
 
 	intel_de_write(display, ALPM_CTL(display, cpu_transcoder), alpm_ctl);
-	mutex_unlock(&intel_dp->alpm_parameters.lock);
+	mutex_unlock(&intel_dp->alpm.lock);
 }
 
 void intel_alpm_configure(struct intel_dp *intel_dp,
 			  const struct intel_crtc_state *crtc_state)
 {
 	lnl_alpm_configure(intel_dp, crtc_state);
-	intel_dp->alpm_parameters.transcoder = crtc_state->cpu_transcoder;
+	intel_dp->alpm.transcoder = crtc_state->cpu_transcoder;
 }
 
 void intel_alpm_port_configure(struct intel_dp *intel_dp,
@@ -420,10 +420,10 @@ void intel_alpm_pre_plane_update(struct intel_atomic_state *state,
 			continue;
 
 		if (old_crtc_state->has_lobf) {
-			mutex_lock(&intel_dp->alpm_parameters.lock);
+			mutex_lock(&intel_dp->alpm.lock);
 			intel_de_write(display, ALPM_CTL(display, cpu_transcoder), 0);
 			drm_dbg_kms(display->drm, "Link off between frames (LOBF) disabled\n");
-			mutex_unlock(&intel_dp->alpm_parameters.lock);
+			mutex_unlock(&intel_dp->alpm.lock);
 		}
 	}
 }
@@ -517,7 +517,7 @@ i915_edp_lobf_debug_get(void *data, u64 *val)
 	struct intel_connector *connector = data;
 	struct intel_dp *intel_dp = enc_to_intel_dp(connector->encoder);
 
-	*val = intel_dp->alpm_parameters.lobf_disable_debug;
+	*val = intel_dp->alpm.lobf_disable_debug;
 
 	return 0;
 }
@@ -528,7 +528,7 @@ i915_edp_lobf_debug_set(void *data, u64 val)
 	struct intel_connector *connector = data;
 	struct intel_dp *intel_dp = enc_to_intel_dp(connector->encoder);
 
-	intel_dp->alpm_parameters.lobf_disable_debug = val;
+	intel_dp->alpm.lobf_disable_debug = val;
 
 	return 0;
 }
@@ -556,12 +556,12 @@ void intel_alpm_lobf_debugfs_add(struct intel_connector *connector)
 void intel_alpm_disable(struct intel_dp *intel_dp)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
-	enum transcoder cpu_transcoder = intel_dp->alpm_parameters.transcoder;
+	enum transcoder cpu_transcoder = intel_dp->alpm.transcoder;
 
 	if (DISPLAY_VER(display) < 20 || !intel_dp->alpm_dpcd)
 		return;
 
-	mutex_lock(&intel_dp->alpm_parameters.lock);
+	mutex_lock(&intel_dp->alpm.lock);
 
 	intel_de_rmw(display, ALPM_CTL(display, cpu_transcoder),
 		     ALPM_CTL_ALPM_ENABLE | ALPM_CTL_LOBF_ENABLE |
@@ -572,7 +572,7 @@ void intel_alpm_disable(struct intel_dp *intel_dp)
 		     PORT_ALPM_CTL_ALPM_AUX_LESS_ENABLE, 0);
 
 	drm_dbg_kms(display->drm, "Disabling ALPM\n");
-	mutex_unlock(&intel_dp->alpm_parameters.lock);
+	mutex_unlock(&intel_dp->alpm.lock);
 }
 
 bool intel_alpm_get_error(struct intel_dp *intel_dp)
