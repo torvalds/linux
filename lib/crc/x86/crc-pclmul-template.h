@@ -12,7 +12,6 @@
 
 #include <asm/cpufeatures.h>
 #include <asm/simd.h>
-#include <crypto/internal/simd.h>
 #include <linux/static_call.h>
 #include "crc-pclmul-consts.h"
 
@@ -57,7 +56,7 @@ static inline bool have_avx512(void)
 #define CRC_PCLMUL(crc, p, len, prefix, consts, have_pclmulqdq)		\
 do {									\
 	if ((len) >= 16 && static_branch_likely(&(have_pclmulqdq)) &&	\
-	    crypto_simd_usable()) {					\
+	    likely(irq_fpu_usable())) {					\
 		const void *consts_ptr;					\
 									\
 		consts_ptr = (consts).fold_across_128_bits_consts;	\
