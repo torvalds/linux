@@ -216,6 +216,11 @@ struct amdgpu_dm_backlight_caps {
 	 */
 	bool aux_support;
 	/**
+	 * @brightness_mask: After deriving brightness, OR it with this mask.
+	 * Workaround for panels with issues with certain brightness values.
+	 */
+	u32 brightness_mask;
+	/**
 	 * @ac_level: the default brightness if booted on AC
 	 */
 	u8 ac_level;
@@ -626,6 +631,13 @@ struct amdgpu_display_manager {
 	u32 actual_brightness[AMDGPU_DM_MAX_NUM_EDP];
 
 	/**
+	 * @restore_backlight:
+	 *
+	 * Flag to indicate whether to restore backlight after modeset.
+	 */
+	bool restore_backlight;
+
+	/**
 	 * @aux_hpd_discon_quirk:
 	 *
 	 * quirk for hpd discon while aux is on-going.
@@ -794,6 +806,7 @@ struct amdgpu_dm_connector {
 
 	bool fake_enable;
 	bool force_yuv420_output;
+	bool force_yuv422_output;
 	struct dsc_preferred_settings dsc_settings;
 	union dp_downstream_port_present mst_downstream_port_present;
 	/* Cached display modes */

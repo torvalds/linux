@@ -39,7 +39,8 @@
  *   Register Immediate commands) once when initializing the device and saved in
  *   the default context. That default context is then used on every context
  *   creation to have a "primed golden context", i.e. a context image that
- *   already contains the changes needed to all the registers.
+ *   already contains the changes needed to all the registers. See
+ *   drivers/gpu/drm/xe/xe_lrc.c for default context handling.
  *
  * - Engine workarounds: the list of these WAs is applied whenever the specific
  *   engine is reset. It's also possible that a set of engine classes share a
@@ -48,10 +49,10 @@
  *   them need to keeep the workaround programming: the approach taken in the
  *   driver is to tie those workarounds to the first compute/render engine that
  *   is registered.  When executing with GuC submission, engine resets are
- *   outside of kernel driver control, hence the list of registers involved in
+ *   outside of kernel driver control, hence the list of registers involved is
  *   written once, on engine initialization, and then passed to GuC, that
  *   saves/restores their values before/after the reset takes place. See
- *   ``drivers/gpu/drm/xe/xe_guc_ads.c`` for reference.
+ *   drivers/gpu/drm/xe/xe_guc_ads.c for reference.
  *
  * - GT workarounds: the list of these WAs is applied whenever these registers
  *   revert to their default values: on GPU reset, suspend/resume [1]_, etc.
@@ -66,21 +67,39 @@
  *   hardware on every HW context restore. These buffers are created and
  *   programmed in the default context so the hardware always go through those
  *   programming sequences when switching contexts. The support for workaround
- *   batchbuffers is enabled these hardware mechanisms:
+ *   batchbuffers is enabled via these hardware mechanisms:
  *
- *   #. INDIRECT_CTX: A batchbuffer and an offset are provided in the default
- *      context, pointing the hardware to jump to that location when that offset
- *      is reached in the context restore. Workaround batchbuffer in the driver
- *      currently uses this mechanism for all platforms.
+ *   #. INDIRECT_CTX (also known as **mid context restore bb**): A batchbuffer
+ *      and an offset are provided in the default context, pointing the hardware
+ *      to jump to that location when that offset is reached in the context
+ *      restore.  When a context is being restored, this is executed after the
+ *      ring context, in the middle (or beginning) of the engine context image.
  *
- *   #. BB_PER_CTX_PTR: A batchbuffer is provided in the default context,
- *      pointing the hardware to a buffer to continue executing after the
- *      engine registers are restored in a context restore sequence. This is
- *      currently not used in the driver.
+ *   #. BB_PER_CTX_PTR (also known as **post context restore bb**): A
+ *      batchbuffer is provided in the default context, pointing the hardware to
+ *      a buffer to continue executing after the engine registers are restored
+ *      in a context restore sequence.
+ *
+ *   Below is the timeline for a context restore sequence:
+ *
+ *   .. code::
+ *
+ *                        INDIRECT_CTX_OFFSET
+ *                   |----------->|
+ *      .------------.------------.-------------.------------.--------------.-----------.
+ *      |Ring        | Engine     | Mid-context | Engine     | Post-context | Ring      |
+ *      |Restore     | Restore (1)| BB Restore  | Restore (2)| BB Restore   | Execution |
+ *      `------------'------------'-------------'------------'--------------'-----------'
  *
  * - Other/OOB:  There are WAs that, due to their nature, cannot be applied from
  *   a central place. Those are peppered around the rest of the code, as needed.
- *   Workarounds related to the display IP are the main example.
+ *   There's a central place to control which workarounds are enabled:
+ *   drivers/gpu/drm/xe/xe_wa_oob.rules for GT workarounds and
+ *   drivers/gpu/drm/xe/xe_device_wa_oob.rules for device/SoC workarounds.
+ *   These files only record which workarounds are enabled: during early device
+ *   initialization those rules are evaluated and recorded by the driver. Then
+ *   later the driver checks with ``XE_GT_WA()`` and ``XE_DEVICE_WA()`` to
+ *   implement them.
  *
  * .. [1] Technically, some registers are powercontext saved & restored, so they
  *    survive a suspend/resume. In practice, writing them again is not too
@@ -612,6 +631,13 @@ static const struct xe_rtp_entry_sr engine_was[] = {
 		       FUNC(xe_rtp_match_first_render_or_compute)),
 	  XE_RTP_ACTIONS(SET(TDL_TSL_CHICKEN, RES_CHK_SPR_DIS))
 	},
+	{ XE_RTP_NAME("18041344222"),
+	  XE_RTP_RULES(GRAPHICS_VERSION_RANGE(2001, 2002),
+		       FUNC(xe_rtp_match_first_render_or_compute),
+		       FUNC(xe_rtp_match_not_sriov_vf),
+		       FUNC(xe_rtp_match_gt_has_discontiguous_dss_groups)),
+	  XE_RTP_ACTIONS(SET(TDL_CHICKEN, EUSTALL_PERF_SAMPLING_DISABLE))
+	},
 
 	/* Xe2_LPM */
 
@@ -671,6 +697,13 @@ static const struct xe_rtp_entry_sr engine_was[] = {
 	{ XE_RTP_NAME("14021402888"),
 	  XE_RTP_RULES(GRAPHICS_VERSION(3003), FUNC(xe_rtp_match_first_render_or_compute)),
 	  XE_RTP_ACTIONS(SET(HALF_SLICE_CHICKEN7, CLEAR_OPTIMIZATION_DISABLE))
+	},
+	{ XE_RTP_NAME("18041344222"),
+	  XE_RTP_RULES(GRAPHICS_VERSION_RANGE(3000, 3001),
+		       FUNC(xe_rtp_match_first_render_or_compute),
+		       FUNC(xe_rtp_match_not_sriov_vf),
+		       FUNC(xe_rtp_match_gt_has_discontiguous_dss_groups)),
+	  XE_RTP_ACTIONS(SET(TDL_CHICKEN, EUSTALL_PERF_SAMPLING_DISABLE))
 	},
 };
 
@@ -878,6 +911,10 @@ static const struct xe_rtp_entry_sr lrc_was[] = {
 			 SET(VFLSKPD,
 			     DIS_PARTIAL_AUTOSTRIP |
 			     DIS_AUTOSTRIP))
+	},
+	{ XE_RTP_NAME("22021007897"),
+	  XE_RTP_RULES(GRAPHICS_VERSION_RANGE(3000, 3003), ENGINE_CLASS(RENDER)),
+	  XE_RTP_ACTIONS(SET(COMMON_SLICE_CHICKEN4, SBE_PUSH_CONSTANT_BEHIND_FIX_ENABLE))
 	},
 };
 

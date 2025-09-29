@@ -7,15 +7,19 @@
 use kernel::{
     bindings,
     device::Core,
-    dma::{CoherentAllocation, Device, DmaMask},
-    pci,
+    dma::{CoherentAllocation, DataDirection, Device, DmaMask},
+    page, pci,
     prelude::*,
+    scatterlist::{Owned, SGTable},
     types::ARef,
 };
 
+#[pin_data(PinnedDrop)]
 struct DmaSampleDriver {
     pdev: ARef<pci::Device>,
     ca: CoherentAllocation<MyStruct>,
+    #[pin]
+    sgt: SGTable<Owned<VVec<u8>>>,
 }
 
 const TEST_VALUES: [(u32, u32); 5] = [
@@ -70,21 +74,30 @@ impl pci::Driver for DmaSampleDriver {
             kernel::dma_write!(ca[i] = MyStruct::new(value.0, value.1))?;
         }
 
-        let drvdata = KBox::new(
-            Self {
+        let size = 4 * page::PAGE_SIZE;
+        let pages = VVec::with_capacity(size, GFP_KERNEL)?;
+
+        let sgt = SGTable::new(pdev.as_ref(), pages, DataDirection::ToDevice, GFP_KERNEL);
+
+        let drvdata = KBox::pin_init(
+            try_pin_init!(Self {
                 pdev: pdev.into(),
                 ca,
-            },
+                sgt <- sgt,
+            }),
             GFP_KERNEL,
         )?;
 
-        Ok(drvdata.into())
+        Ok(drvdata)
     }
 }
 
-impl Drop for DmaSampleDriver {
-    fn drop(&mut self) {
-        dev_info!(self.pdev.as_ref(), "Unload DMA test driver.\n");
+#[pinned_drop]
+impl PinnedDrop for DmaSampleDriver {
+    fn drop(self: Pin<&mut Self>) {
+        let dev = self.pdev.as_ref();
+
+        dev_info!(dev, "Unload DMA test driver.\n");
 
         for (i, value) in TEST_VALUES.into_iter().enumerate() {
             let val0 = kernel::dma_read!(self.ca[i].h);
@@ -98,6 +111,10 @@ impl Drop for DmaSampleDriver {
             if let Ok(val1) = val1 {
                 assert_eq!(val1, value.1);
             }
+        }
+
+        for (i, entry) in self.sgt.iter().enumerate() {
+            dev_info!(dev, "Entry[{}]: DMA address: {:#x}", i, entry.dma_address());
         }
     }
 }

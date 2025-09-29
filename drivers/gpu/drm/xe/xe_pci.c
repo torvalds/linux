@@ -334,6 +334,7 @@ static const struct xe_device_desc bmg_desc = {
 	.has_mbx_power_limits = true,
 	.has_gsc_nvm = 1,
 	.has_heci_cscfi = 1,
+	.has_late_bind = true,
 	.has_sriov = true,
 	.max_gt_per_tile = 2,
 	.needs_scratch = true,
@@ -511,6 +512,26 @@ static void read_gmdid(struct xe_device *xe, enum xe_gmdid_type type, u32 *ver, 
 	*revid = REG_FIELD_GET(GMD_ID_REVID, val);
 }
 
+static const struct xe_ip *find_graphics_ip(unsigned int verx100)
+{
+	KUNIT_STATIC_STUB_REDIRECT(find_graphics_ip, verx100);
+
+	for (int i = 0; i < ARRAY_SIZE(graphics_ips); i++)
+		if (graphics_ips[i].verx100 == verx100)
+			return &graphics_ips[i];
+	return NULL;
+}
+
+static const struct xe_ip *find_media_ip(unsigned int verx100)
+{
+	KUNIT_STATIC_STUB_REDIRECT(find_media_ip, verx100);
+
+	for (int i = 0; i < ARRAY_SIZE(media_ips); i++)
+		if (media_ips[i].verx100 == verx100)
+			return &media_ips[i];
+	return NULL;
+}
+
 /*
  * Read IP version from hardware and select graphics/media IP descriptors
  * based on the result.
@@ -528,14 +549,7 @@ static void handle_gmdid(struct xe_device *xe,
 
 	read_gmdid(xe, GMDID_GRAPHICS, &ver, graphics_revid);
 
-	for (int i = 0; i < ARRAY_SIZE(graphics_ips); i++) {
-		if (ver == graphics_ips[i].verx100) {
-			*graphics_ip = &graphics_ips[i];
-
-			break;
-		}
-	}
-
+	*graphics_ip = find_graphics_ip(ver);
 	if (!*graphics_ip) {
 		drm_err(&xe->drm, "Hardware reports unknown graphics version %u.%02u\n",
 			ver / 100, ver % 100);
@@ -546,14 +560,7 @@ static void handle_gmdid(struct xe_device *xe,
 	if (ver == 0)
 		return;
 
-	for (int i = 0; i < ARRAY_SIZE(media_ips); i++) {
-		if (ver == media_ips[i].verx100) {
-			*media_ip = &media_ips[i];
-
-			break;
-		}
-	}
-
+	*media_ip = find_media_ip(ver);
 	if (!*media_ip) {
 		drm_err(&xe->drm, "Hardware reports unknown media version %u.%02u\n",
 			ver / 100, ver % 100);
@@ -582,6 +589,7 @@ static int xe_info_init_early(struct xe_device *xe,
 	xe->info.has_gsc_nvm = desc->has_gsc_nvm;
 	xe->info.has_heci_gscfi = desc->has_heci_gscfi;
 	xe->info.has_heci_cscfi = desc->has_heci_cscfi;
+	xe->info.has_late_bind = desc->has_late_bind;
 	xe->info.has_llc = desc->has_llc;
 	xe->info.has_pxp = desc->has_pxp;
 	xe->info.has_sriov = desc->has_sriov;

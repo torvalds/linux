@@ -191,7 +191,7 @@ typedef enum {
 
 #define SMU_METRICS_TABLE_VERSION 0x14
 
-#define SMU_SYSTEM_METRICS_TABLE_VERSION 0x0
+#define SMU_SYSTEM_METRICS_TABLE_VERSION 0x1
 
 typedef struct __attribute__((packed, aligned(4))) {
   uint64_t AccumulationCounter;
@@ -304,7 +304,12 @@ typedef struct {
   int16_t  SystemTemperatures[SYSTEM_TEMP_MAX_ENTRIES];     // Signed integer temperature value in Celsius, unused fields are set to 0xFFFF
   int16_t  NodeTemperatures[NODE_TEMP_MAX_TEMP_ENTRIES];    // Signed integer temperature value in Celsius, unused fields are set to 0xFFFF
   int16_t  VrTemperatures[SVI_MAX_TEMP_ENTRIES];            // Signed integer temperature value in Celsius
-  int16_t  spare[3];
+  int16_t  spare[7];
+
+  //NPM: NODE POWER MANAGEMENT
+  uint32_t NodePowerLimit;
+  uint32_t NodePower;
+  uint32_t GlobalPPTResidencyAcc;
 } SystemMetricsTable_t;
 #pragma pack(pop)
 
@@ -359,6 +364,9 @@ typedef struct {
 
   // General info
   uint32_t pldmVersion[2];
+
+  //Node Power Limit
+  uint32_t MaxNodePowerLimit;
 } StaticMetricsTable_t;
 #pragma pack(pop)
 

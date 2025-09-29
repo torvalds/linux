@@ -55,7 +55,7 @@ struct aux_payload;
 struct set_config_cmd_payload;
 struct dmub_notification;
 
-#define DC_VER "3.2.348"
+#define DC_VER "3.2.350"
 
 /**
  * MAX_SURFACES - representative of the upper bound of surfaces that can be piped to a single CRTC
@@ -1157,6 +1157,7 @@ struct dc_debug_options {
 	bool enable_hblank_borrow;
 	bool force_subvp_df_throttle;
 	uint32_t acpi_transition_bitmasks[MAX_PIPES];
+	bool enable_pg_cntl_debug_logs;
 	unsigned int auxless_alpm_lfps_setup_ns;
 	unsigned int auxless_alpm_lfps_period_ns;
 	unsigned int auxless_alpm_lfps_silence_ns;

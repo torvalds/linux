@@ -103,7 +103,7 @@ struct drm_gpuva {
 	} va;
 
 	/**
-	 * @gem: structure containing the &drm_gem_object and it's offset
+	 * @gem: structure containing the &drm_gem_object and its offset
 	 */
 	struct {
 		/**
@@ -197,9 +197,19 @@ enum drm_gpuvm_flags {
 	DRM_GPUVM_RESV_PROTECTED = BIT(0),
 
 	/**
+	 * @DRM_GPUVM_IMMEDIATE_MODE: use the locking scheme for GEMs designed
+	 * for modifying the GPUVM during the fence signalling path
+	 *
+	 * When set, gpuva.lock is used to protect gpuva.list in all GEM
+	 * objects associated with this GPUVM. Otherwise, the GEMs dma-resv is
+	 * used.
+	 */
+	DRM_GPUVM_IMMEDIATE_MODE = BIT(1),
+
+	/**
 	 * @DRM_GPUVM_USERBITS: user defined bits
 	 */
-	DRM_GPUVM_USERBITS = BIT(1),
+	DRM_GPUVM_USERBITS = BIT(2),
 };
 
 /**
@@ -367,6 +377,19 @@ static inline bool
 drm_gpuvm_resv_protected(struct drm_gpuvm *gpuvm)
 {
 	return gpuvm->flags & DRM_GPUVM_RESV_PROTECTED;
+}
+
+/**
+ * drm_gpuvm_immediate_mode() - indicates whether &DRM_GPUVM_IMMEDIATE_MODE is
+ * set
+ * @gpuvm: the &drm_gpuvm
+ *
+ * Returns: true if &DRM_GPUVM_IMMEDIATE_MODE is set, false otherwise.
+ */
+static inline bool
+drm_gpuvm_immediate_mode(struct drm_gpuvm *gpuvm)
+{
+	return gpuvm->flags & DRM_GPUVM_IMMEDIATE_MODE;
 }
 
 /**
@@ -742,9 +765,10 @@ drm_gpuvm_bo_gem_evict(struct drm_gem_object *obj, bool evict)
 {
 	struct drm_gpuvm_bo *vm_bo;
 
-	drm_gem_gpuva_assert_lock_held(obj);
-	drm_gem_for_each_gpuvm_bo(vm_bo, obj)
+	drm_gem_for_each_gpuvm_bo(vm_bo, obj) {
+		drm_gem_gpuva_assert_lock_held(vm_bo->vm, obj);
 		drm_gpuvm_bo_evict(vm_bo, evict);
+	}
 }
 
 void drm_gpuvm_bo_extobj_add(struct drm_gpuvm_bo *vm_bo);
@@ -834,7 +858,7 @@ struct drm_gpuva_op_map {
 	} va;
 
 	/**
-	 * @gem: structure containing the &drm_gem_object and it's offset
+	 * @gem: structure containing the &drm_gem_object and its offset
 	 */
 	struct {
 		/**
@@ -1195,11 +1219,11 @@ struct drm_gpuvm_ops {
 
 	/**
 	 * @sm_step_unmap: called from &drm_gpuvm_sm_map and
-	 * &drm_gpuvm_sm_unmap to unmap an existent mapping
+	 * &drm_gpuvm_sm_unmap to unmap an existing mapping
 	 *
-	 * This callback is called when existent mapping needs to be unmapped.
+	 * This callback is called when existing mapping needs to be unmapped.
 	 * This is the case when either a newly requested mapping encloses an
-	 * existent mapping or an unmap of an existent mapping is requested.
+	 * existing mapping or an unmap of an existing mapping is requested.
 	 *
 	 * The &priv pointer matches the one the driver passed to
 	 * &drm_gpuvm_sm_map or &drm_gpuvm_sm_unmap, respectively.

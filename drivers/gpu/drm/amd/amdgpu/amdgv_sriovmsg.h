@@ -405,12 +405,17 @@ struct amd_sriov_ras_cper_dump {
 	uint32_t buf[];
 };
 
+struct amd_sriov_ras_chk_criti {
+	uint32_t hit;
+};
+
 struct amdsriov_ras_telemetry {
 	struct amd_sriov_ras_telemetry_header header;
 
 	union {
 		struct amd_sriov_ras_telemetry_error_count error_count;
 		struct amd_sriov_ras_cper_dump cper_dump;
+		struct amd_sriov_ras_chk_criti chk_criti;
 	} body;
 };
 

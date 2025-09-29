@@ -42,8 +42,8 @@
  * dc_link_exports.c or other dc files implement dc.h
  *
  * DC to Link:
- * dc_link_exports.c or other dc files include link.h
- * link_factory.c implements link.h
+ * dc_link_exports.c or other dc files include link_service.h
+ * link_factory.c implements link_service.h
  *
  * Link sub-component to Link sub-component:
  * link_factory.c includes --> link_xxx.h
@@ -73,7 +73,7 @@
  * 2. Implement your function in the suitable link_xxx.c file.
  * 3. Assign the function to link_service in link_factory.c
  * 4. NEVER include link_xxx.h headers outside link component.
- * 5. NEVER include link.h on DM side.
+ * 5. NEVER include link_service.h on DM side.
  */
 #include "core_types.h"
 

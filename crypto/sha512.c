@@ -50,6 +50,19 @@ static int __crypto_sha512_import(struct __sha512_ctx *ctx, const void *in)
 	return 0;
 }
 
+static int __crypto_sha512_export_core(const struct __sha512_ctx *ctx,
+				       void *out)
+{
+	memcpy(out, ctx, offsetof(struct __sha512_ctx, buf));
+	return 0;
+}
+
+static int __crypto_sha512_import_core(struct __sha512_ctx *ctx, const void *in)
+{
+	memcpy(ctx, in, offsetof(struct __sha512_ctx, buf));
+	return 0;
+}
+
 /* SHA-384 */
 
 const u8 sha384_zero_message_hash[SHA384_DIGEST_SIZE] = {
@@ -98,6 +111,16 @@ static int crypto_sha384_export(struct shash_desc *desc, void *out)
 static int crypto_sha384_import(struct shash_desc *desc, const void *in)
 {
 	return __crypto_sha512_import(&SHA384_CTX(desc)->ctx, in);
+}
+
+static int crypto_sha384_export_core(struct shash_desc *desc, void *out)
+{
+	return __crypto_sha512_export_core(&SHA384_CTX(desc)->ctx, out);
+}
+
+static int crypto_sha384_import_core(struct shash_desc *desc, const void *in)
+{
+	return __crypto_sha512_import_core(&SHA384_CTX(desc)->ctx, in);
 }
 
 /* SHA-512 */
@@ -152,6 +175,16 @@ static int crypto_sha512_import(struct shash_desc *desc, const void *in)
 	return __crypto_sha512_import(&SHA512_CTX(desc)->ctx, in);
 }
 
+static int crypto_sha512_export_core(struct shash_desc *desc, void *out)
+{
+	return __crypto_sha512_export_core(&SHA512_CTX(desc)->ctx, out);
+}
+
+static int crypto_sha512_import_core(struct shash_desc *desc, const void *in)
+{
+	return __crypto_sha512_import_core(&SHA512_CTX(desc)->ctx, in);
+}
+
 /* HMAC-SHA384 */
 
 #define HMAC_SHA384_KEY(tfm) ((struct hmac_sha384_key *)crypto_shash_ctx(tfm))
@@ -202,6 +235,21 @@ static int crypto_hmac_sha384_import(struct shash_desc *desc, const void *in)
 
 	ctx->ctx.ostate = HMAC_SHA384_KEY(desc->tfm)->key.ostate;
 	return __crypto_sha512_import(&ctx->ctx.sha_ctx, in);
+}
+
+static int crypto_hmac_sha384_export_core(struct shash_desc *desc, void *out)
+{
+	return __crypto_sha512_export_core(&HMAC_SHA384_CTX(desc)->ctx.sha_ctx,
+					   out);
+}
+
+static int crypto_hmac_sha384_import_core(struct shash_desc *desc,
+					  const void *in)
+{
+	struct hmac_sha384_ctx *ctx = HMAC_SHA384_CTX(desc);
+
+	ctx->ctx.ostate = HMAC_SHA384_KEY(desc->tfm)->key.ostate;
+	return __crypto_sha512_import_core(&ctx->ctx.sha_ctx, in);
 }
 
 /* HMAC-SHA512 */
@@ -256,6 +304,21 @@ static int crypto_hmac_sha512_import(struct shash_desc *desc, const void *in)
 	return __crypto_sha512_import(&ctx->ctx.sha_ctx, in);
 }
 
+static int crypto_hmac_sha512_export_core(struct shash_desc *desc, void *out)
+{
+	return __crypto_sha512_export_core(&HMAC_SHA512_CTX(desc)->ctx.sha_ctx,
+					   out);
+}
+
+static int crypto_hmac_sha512_import_core(struct shash_desc *desc,
+					  const void *in)
+{
+	struct hmac_sha512_ctx *ctx = HMAC_SHA512_CTX(desc);
+
+	ctx->ctx.ostate = HMAC_SHA512_KEY(desc->tfm)->key.ostate;
+	return __crypto_sha512_import_core(&ctx->ctx.sha_ctx, in);
+}
+
 /* Algorithm definitions */
 
 static struct shash_alg algs[] = {
@@ -272,6 +335,8 @@ static struct shash_alg algs[] = {
 		.digest			= crypto_sha384_digest,
 		.export			= crypto_sha384_export,
 		.import			= crypto_sha384_import,
+		.export_core		= crypto_sha384_export_core,
+		.import_core		= crypto_sha384_import_core,
 		.descsize		= sizeof(struct sha384_ctx),
 		.statesize		= SHA512_SHASH_STATE_SIZE,
 	},
@@ -288,6 +353,8 @@ static struct shash_alg algs[] = {
 		.digest			= crypto_sha512_digest,
 		.export			= crypto_sha512_export,
 		.import			= crypto_sha512_import,
+		.export_core		= crypto_sha512_export_core,
+		.import_core		= crypto_sha512_import_core,
 		.descsize		= sizeof(struct sha512_ctx),
 		.statesize		= SHA512_SHASH_STATE_SIZE,
 	},
@@ -306,6 +373,8 @@ static struct shash_alg algs[] = {
 		.digest			= crypto_hmac_sha384_digest,
 		.export			= crypto_hmac_sha384_export,
 		.import			= crypto_hmac_sha384_import,
+		.export_core		= crypto_hmac_sha384_export_core,
+		.import_core		= crypto_hmac_sha384_import_core,
 		.descsize		= sizeof(struct hmac_sha384_ctx),
 		.statesize		= SHA512_SHASH_STATE_SIZE,
 	},
@@ -324,6 +393,8 @@ static struct shash_alg algs[] = {
 		.digest			= crypto_hmac_sha512_digest,
 		.export			= crypto_hmac_sha512_export,
 		.import			= crypto_hmac_sha512_import,
+		.export_core		= crypto_hmac_sha512_export_core,
+		.import_core		= crypto_hmac_sha512_import_core,
 		.descsize		= sizeof(struct hmac_sha512_ctx),
 		.statesize		= SHA512_SHASH_STATE_SIZE,
 	},

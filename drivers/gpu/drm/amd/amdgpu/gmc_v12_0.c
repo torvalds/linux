@@ -337,7 +337,7 @@ static void gmc_v12_0_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
 	int vmid, i;
 
 	if (adev->enable_uni_mes && adev->mes.ring[AMDGPU_MES_SCHED_PIPE].sched.ready &&
-	    (adev->mes.sched_version & AMDGPU_MES_VERSION_MASK) >= 0x81) {
+	    (adev->mes.sched_version & AMDGPU_MES_VERSION_MASK) >= 0x83) {
 		struct mes_inv_tlbs_pasid_input input = {0};
 		input.pasid = pasid;
 		input.flush_type = flush_type;
@@ -521,6 +521,7 @@ static void gmc_v12_0_get_vm_pte(struct amdgpu_device *adev,
 		*flags &= ~AMDGPU_PTE_NOALLOC;
 
 	if (vm_flags & AMDGPU_VM_PAGE_PRT) {
+		*flags |= AMDGPU_PTE_PRT_GFX12;
 		*flags |= AMDGPU_PTE_SNOOPED;
 		*flags |= AMDGPU_PTE_SYSTEM;
 		*flags |= AMDGPU_PTE_IS_PTE;
@@ -893,8 +894,7 @@ static int gmc_v12_0_gart_enable(struct amdgpu_device *adev)
 	/* Flush HDP after it is initialized */
 	amdgpu_device_flush_hdp(adev, NULL);
 
-	value = (amdgpu_vm_fault_stop == AMDGPU_VM_FAULT_STOP_ALWAYS) ?
-		false : true;
+	value = amdgpu_vm_fault_stop != AMDGPU_VM_FAULT_STOP_ALWAYS;
 
 	adev->mmhub.funcs->set_fault_enable_default(adev, value);
 	gmc_v12_0_flush_gpu_tlb(adev, 0, AMDGPU_MMHUB0(0), 0);

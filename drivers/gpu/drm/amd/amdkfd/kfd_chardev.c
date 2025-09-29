@@ -521,15 +521,10 @@ static int kfd_ioctl_set_cu_mask(struct file *filp, struct kfd_process *p,
 		cu_mask_size = sizeof(uint32_t) * (max_num_cus/32);
 	}
 
-	minfo.cu_mask.ptr = kzalloc(cu_mask_size, GFP_KERNEL);
-	if (!minfo.cu_mask.ptr)
-		return -ENOMEM;
-
-	retval = copy_from_user(minfo.cu_mask.ptr, cu_mask_ptr, cu_mask_size);
-	if (retval) {
+	minfo.cu_mask.ptr = memdup_user(cu_mask_ptr, cu_mask_size);
+	if (IS_ERR(minfo.cu_mask.ptr)) {
 		pr_debug("Could not copy CU mask from userspace");
-		retval = -EFAULT;
-		goto out;
+		return PTR_ERR(minfo.cu_mask.ptr);
 	}
 
 	mutex_lock(&p->mutex);
@@ -538,7 +533,6 @@ static int kfd_ioctl_set_cu_mask(struct file *filp, struct kfd_process *p,
 
 	mutex_unlock(&p->mutex);
 
-out:
 	kfree(minfo.cu_mask.ptr);
 	return retval;
 }
@@ -2571,8 +2565,8 @@ static int criu_restore(struct file *filep,
 	pr_debug("CRIU restore (num_devices:%u num_bos:%u num_objects:%u priv_data_size:%llu)\n",
 		 args->num_devices, args->num_bos, args->num_objects, args->priv_data_size);
 
-	if (!args->bos || !args->devices || !args->priv_data || !args->priv_data_size ||
-	    !args->num_devices || !args->num_bos)
+	if ((args->num_bos > 0 && !args->bos) || !args->devices || !args->priv_data ||
+	    !args->priv_data_size || !args->num_devices)
 		return -EINVAL;
 
 	mutex_lock(&p->mutex);

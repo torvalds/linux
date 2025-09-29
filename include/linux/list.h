@@ -637,6 +637,20 @@ static inline void list_splice_tail_init(struct list_head *list,
 })
 
 /**
+ * list_last_entry_or_null - get the last element from a list
+ * @ptr:	the list head to take the element from.
+ * @type:	the type of the struct this is embedded in.
+ * @member:	the name of the list_head within the struct.
+ *
+ * Note that if the list is empty, it returns NULL.
+ */
+#define list_last_entry_or_null(ptr, type, member) ({ \
+	struct list_head *head__ = (ptr); \
+	struct list_head *pos__ = READ_ONCE(head__->prev); \
+	pos__ != head__ ? list_entry(pos__, type, member) : NULL; \
+})
+
+/**
  * list_next_entry - get the next element in list
  * @pos:	the type * to cursor
  * @member:	the name of the list_head within the struct.

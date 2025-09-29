@@ -504,7 +504,7 @@ static int init_acpi(struct device *dev)
 
 	dev_set_drvdata(dev, &hsmp_pdev->sock[sock_ind]);
 
-	return ret;
+	return 0;
 }
 
 static const struct bin_attribute  hsmp_metric_tbl_attr = {

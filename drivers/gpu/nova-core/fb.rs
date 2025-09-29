@@ -4,7 +4,7 @@ use core::ops::Range;
 
 use kernel::prelude::*;
 use kernel::sizes::*;
-use kernel::types::ARef;
+use kernel::sync::aref::ARef;
 use kernel::{dev_warn, device};
 
 use crate::dma::DmaObject;

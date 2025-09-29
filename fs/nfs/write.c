@@ -153,20 +153,10 @@ nfs_page_set_inode_ref(struct nfs_page *req, struct inode *inode)
 	}
 }
 
-static int
-nfs_cancel_remove_inode(struct nfs_page *req, struct inode *inode)
+static void nfs_cancel_remove_inode(struct nfs_page *req, struct inode *inode)
 {
-	int ret;
-
-	if (!test_bit(PG_REMOVE, &req->wb_flags))
-		return 0;
-	ret = nfs_page_group_lock(req);
-	if (ret)
-		return ret;
 	if (test_and_clear_bit(PG_REMOVE, &req->wb_flags))
 		nfs_page_set_inode_ref(req, inode);
-	nfs_page_group_unlock(req);
-	return 0;
 }
 
 /**
@@ -247,59 +237,17 @@ static void nfs_mapping_set_error(struct folio *folio, int error)
 }
 
 /*
- * nfs_page_group_search_locked
- * @head - head request of page group
- * @page_offset - offset into page
+ * nfs_page_covers_folio
+ * @req: struct nfs_page
  *
- * Search page group with head @head to find a request that contains the
- * page offset @page_offset.
- *
- * Returns a pointer to the first matching nfs request, or NULL if no
- * match is found.
- *
- * Must be called with the page group lock held
- */
-static struct nfs_page *
-nfs_page_group_search_locked(struct nfs_page *head, unsigned int page_offset)
-{
-	struct nfs_page *req;
-
-	req = head;
-	do {
-		if (page_offset >= req->wb_pgbase &&
-		    page_offset < (req->wb_pgbase + req->wb_bytes))
-			return req;
-
-		req = req->wb_this_page;
-	} while (req != head);
-
-	return NULL;
-}
-
-/*
- * nfs_page_group_covers_page
- * @head - head request of page group
- *
- * Return true if the page group with head @head covers the whole page,
- * returns false otherwise
+ * Return true if the request covers the whole folio.
+ * Note that the caller should ensure all subrequests have been joined
  */
 static bool nfs_page_group_covers_page(struct nfs_page *req)
 {
 	unsigned int len = nfs_folio_length(nfs_page_to_folio(req));
-	struct nfs_page *tmp;
-	unsigned int pos = 0;
 
-	nfs_page_group_lock(req);
-
-	for (;;) {
-		tmp = nfs_page_group_search_locked(req->wb_head, pos);
-		if (!tmp)
-			break;
-		pos = tmp->wb_pgbase + tmp->wb_bytes;
-	}
-
-	nfs_page_group_unlock(req);
-	return pos >= len;
+	return req->wb_pgbase == 0 && req->wb_bytes == len;
 }
 
 /* We can set the PG_uptodate flag if we see that a write request
@@ -585,19 +533,18 @@ retry:
 		}
 	}
 
+	ret = nfs_page_group_lock(head);
+	if (ret < 0)
+		goto out_unlock;
+
 	/* Ensure that nobody removed the request before we locked it */
 	if (head != folio->private) {
+		nfs_page_group_unlock(head);
 		nfs_unlock_and_release_request(head);
 		goto retry;
 	}
 
-	ret = nfs_cancel_remove_inode(head, inode);
-	if (ret < 0)
-		goto out_unlock;
-
-	ret = nfs_page_group_lock(head);
-	if (ret < 0)
-		goto out_unlock;
+	nfs_cancel_remove_inode(head, inode);
 
 	/* lock each request in the page group */
 	for (subreq = head->wb_this_page;
@@ -786,7 +733,8 @@ static void nfs_inode_remove_request(struct nfs_page *req)
 {
 	struct nfs_inode *nfsi = NFS_I(nfs_page_to_inode(req));
 
-	if (nfs_page_group_sync_on_bit(req, PG_REMOVE)) {
+	nfs_page_group_lock(req);
+	if (nfs_page_group_sync_on_bit_locked(req, PG_REMOVE)) {
 		struct folio *folio = nfs_page_to_folio(req->wb_head);
 		struct address_space *mapping = folio->mapping;
 
@@ -798,6 +746,7 @@ static void nfs_inode_remove_request(struct nfs_page *req)
 		}
 		spin_unlock(&mapping->i_private_lock);
 	}
+	nfs_page_group_unlock(req);
 
 	if (test_and_clear_bit(PG_INODE_REF, &req->wb_flags)) {
 		atomic_long_dec(&nfsi->nrequests);
@@ -2054,6 +2003,7 @@ int nfs_wb_folio_cancel(struct inode *inode, struct folio *folio)
 		 * release it */
 		nfs_inode_remove_request(req);
 		nfs_unlock_and_release_request(req);
+		folio_cancel_dirty(folio);
 	}
 
 	return ret;

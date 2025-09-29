@@ -142,7 +142,6 @@ int iris_hfi_queue_cmd_write(struct iris_core *core, void *pkt, u32 pkt_size)
 	}
 	mutex_unlock(&core->lock);
 
-	pm_runtime_mark_last_busy(core->dev);
 	pm_runtime_put_autosuspend(core->dev);
 
 	return 0;

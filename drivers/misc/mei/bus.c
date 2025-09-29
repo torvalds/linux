@@ -615,6 +615,19 @@ u8 mei_cldev_ver(const struct mei_cl_device *cldev)
 EXPORT_SYMBOL_GPL(mei_cldev_ver);
 
 /**
+ * mei_cldev_mtu - max message that client can send and receive
+ *
+ * @cldev: mei client device
+ *
+ * Return: mtu or 0 if client is not connected
+ */
+size_t mei_cldev_mtu(const struct mei_cl_device *cldev)
+{
+	return mei_cl_mtu(cldev->cl);
+}
+EXPORT_SYMBOL_GPL(mei_cldev_mtu);
+
+/**
  * mei_cldev_enabled - check whether the device is enabled
  *
  * @cldev: mei client device

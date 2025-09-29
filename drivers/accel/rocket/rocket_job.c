@@ -222,7 +222,7 @@ static int rocket_job_push(struct rocket_job *job)
 err_unlock:
 	drm_gem_unlock_reservations(bos, job->in_bo_count + job->out_bo_count, &acquire_ctx);
 err:
-	kfree(bos);
+	kvfree(bos);
 
 	return ret;
 }
@@ -422,7 +422,7 @@ static irqreturn_t rocket_job_irq_handler(int irq, void *data)
 	u32 raw_status = rocket_pc_readl(core, INTERRUPT_RAW_STATUS);
 
 	WARN_ON(raw_status & PC_INTERRUPT_RAW_STATUS_DMA_READ_ERROR);
-	WARN_ON(raw_status & PC_INTERRUPT_RAW_STATUS_DMA_READ_ERROR);
+	WARN_ON(raw_status & PC_INTERRUPT_RAW_STATUS_DMA_WRITE_ERROR);
 
 	if (!(raw_status & PC_INTERRUPT_RAW_STATUS_DPU_0 ||
 	      raw_status & PC_INTERRUPT_RAW_STATUS_DPU_1))
@@ -496,7 +496,8 @@ void rocket_job_fini(struct rocket_core *core)
 int rocket_job_open(struct rocket_file_priv *rocket_priv)
 {
 	struct rocket_device *rdev = rocket_priv->rdev;
-	struct drm_gpu_scheduler **scheds = kmalloc_array(rdev->num_cores, sizeof(scheds),
+	struct drm_gpu_scheduler **scheds = kmalloc_array(rdev->num_cores,
+							  sizeof(*scheds),
 							  GFP_KERNEL);
 	unsigned int core;
 	int ret;
@@ -630,7 +631,7 @@ int rocket_ioctl_submit(struct drm_device *dev, void *data, struct drm_file *fil
 		rocket_ioctl_submit_job(dev, file, &jobs[i]);
 
 exit:
-	kfree(jobs);
+	kvfree(jobs);
 
 	return ret;
 }

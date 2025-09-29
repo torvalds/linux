@@ -31,7 +31,7 @@
 // We need this includes for WATERMARKS_* defines
 #include "clk_mgr/dcn32/dcn32_smu13_driver_if.h"
 #include "dcn30/dcn30_resource.h"
-#include "link.h"
+#include "link_service.h"
 #include "dc_state_priv.h"
 
 #define DC_LOGGER_INIT(logger)

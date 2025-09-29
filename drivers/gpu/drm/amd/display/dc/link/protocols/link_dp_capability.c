@@ -2195,6 +2195,12 @@ void detect_edp_sink_caps(struct dc_link *link)
 			DP_EDP_MSO_LINK_CAPABILITIES,
 			(uint8_t *)&link->dpcd_caps.mso_cap_sst_links_supported,
 			sizeof(link->dpcd_caps.mso_cap_sst_links_supported));
+	/*
+	 * Read eDP general capability 2
+	 */
+	core_link_read_dpcd(link, DP_EDP_GENERAL_CAP_2,
+			(uint8_t *)&link->dpcd_caps.dp_edp_general_cap_2,
+			sizeof(link->dpcd_caps.dp_edp_general_cap_2));
 }
 
 bool dp_get_max_link_enc_cap(const struct dc_link *link, struct dc_link_settings *max_link_enc_cap)

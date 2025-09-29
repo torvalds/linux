@@ -68,7 +68,6 @@ void amdgpu_cper_entry_fill_hdr(struct amdgpu_device *adev,
 	hdr->error_severity		= sev;
 
 	hdr->valid_bits.platform_id	= 1;
-	hdr->valid_bits.partition_id	= 1;
 	hdr->valid_bits.timestamp	= 1;
 
 	amdgpu_cper_get_timestamp(&hdr->timestamp);
@@ -174,7 +173,7 @@ int amdgpu_cper_entry_fill_runtime_section(struct amdgpu_device *adev,
 	struct cper_sec_nonstd_err *section;
 	bool poison;
 
-	poison = (sev == CPER_SEV_NON_FATAL_CORRECTED) ? false : true;
+	poison = sev != CPER_SEV_NON_FATAL_CORRECTED;
 	section_desc = (struct cper_sec_desc *)((uint8_t *)hdr + SEC_DESC_OFFSET(idx));
 	section = (struct cper_sec_nonstd_err *)((uint8_t *)hdr +
 		   NONSTD_SEC_OFFSET(hdr->sec_cnt, idx));
@@ -220,7 +219,10 @@ int amdgpu_cper_entry_fill_bad_page_threshold_section(struct amdgpu_device *adev
 	section->hdr.valid_bits.err_context_cnt = 1;
 
 	section->info.error_type = RUNTIME;
+	section->info.valid_bits.ms_chk = 1;
 	section->info.ms_chk_bits.err_type_valid = 1;
+	section->info.ms_chk_bits.err_type = 1;
+	section->info.ms_chk_bits.pcc = 1;
 	section->ctx.reg_ctx_type = CPER_CTX_TYPE_CRASH;
 	section->ctx.reg_arr_size = sizeof(section->ctx.reg_dump);
 

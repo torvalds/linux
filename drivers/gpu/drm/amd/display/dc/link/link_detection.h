@@ -25,7 +25,7 @@
 
 #ifndef __DC_LINK_DETECTION_H__
 #define __DC_LINK_DETECTION_H__
-#include "link.h"
+#include "link_service.h"
 bool link_detect(struct dc_link *link, enum dc_detect_reason reason);
 bool link_detect_connection_type(struct dc_link *link,
 		enum dc_connection_type *type);

@@ -3222,6 +3222,10 @@ D: AIC5800 IEEE 1394, RAW I/O on 1394
 D: Starter of Linux1394 effort
 S: ask per mail for current address
 
+N: Boris Pismenny
+E: borisp@mellanox.com
+D: Kernel TLS implementation and offload support.
+
 N: Nicolas Pitre
 E: nico@fluxnic.net
 D: StrongARM SA1100 support integrator & hacker
@@ -4167,6 +4171,9 @@ D: Driver for Interphase ATM (i)Chip SAR adapter card family (x575, x525, x531).
 S: 1513 Brewster Dr.
 S: Carrollton, TX 75010
 S: USA
+
+N: Dave Watson
+D: Kernel TLS implementation.
 
 N: Tim Waugh
 E: tim@cyberelk.net

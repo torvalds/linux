@@ -12,8 +12,10 @@
 use super::{flags::*, AllocError, Allocator, Flags};
 use core::alloc::Layout;
 use core::cmp;
+use core::marker::PhantomData;
 use core::ptr;
 use core::ptr::NonNull;
+use kernel::page;
 
 /// The userspace allocator based on libc.
 pub struct Cmalloc;
@@ -21,6 +23,44 @@ pub struct Cmalloc;
 pub type Kmalloc = Cmalloc;
 pub type Vmalloc = Kmalloc;
 pub type KVmalloc = Kmalloc;
+
+impl Cmalloc {
+    /// Returns a [`Layout`] that makes [`Kmalloc`] fulfill the requested size and alignment of
+    /// `layout`.
+    pub fn aligned_layout(layout: Layout) -> Layout {
+        // Note that `layout.size()` (after padding) is guaranteed to be a multiple of
+        // `layout.align()` which together with the slab guarantees means that `Kmalloc` will return
+        // a properly aligned object (see comments in `kmalloc()` for more information).
+        layout.pad_to_align()
+    }
+}
+
+pub struct VmallocPageIter<'a> {
+    _p: PhantomData<page::BorrowedPage<'a>>,
+}
+
+impl<'a> Iterator for VmallocPageIter<'a> {
+    type Item = page::BorrowedPage<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        None
+    }
+}
+
+impl<'a> VmallocPageIter<'a> {
+    #[allow(clippy::missing_safety_doc)]
+    pub unsafe fn new(_buf: NonNull<u8>, _size: usize) -> Self {
+        Self { _p: PhantomData }
+    }
+
+    pub fn size(&self) -> usize {
+        0
+    }
+
+    pub fn page_count(&self) -> usize {
+        0
+    }
+}
 
 extern "C" {
     #[link_name = "aligned_alloc"]

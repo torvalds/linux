@@ -271,32 +271,37 @@ out:
 	return ret;
 }
 
+static int submit_lock_objects_vmbind(struct msm_gem_submit *submit)
+{
+	unsigned flags = DRM_EXEC_INTERRUPTIBLE_WAIT | DRM_EXEC_IGNORE_DUPLICATES;
+	struct drm_exec *exec = &submit->exec;
+	int ret = 0;
+
+	drm_exec_init(&submit->exec, flags, submit->nr_bos);
+
+	drm_exec_until_all_locked (&submit->exec) {
+		ret = drm_gpuvm_prepare_vm(submit->vm, exec, 1);
+		drm_exec_retry_on_contention(exec);
+		if (ret)
+			break;
+
+		ret = drm_gpuvm_prepare_objects(submit->vm, exec, 1);
+		drm_exec_retry_on_contention(exec);
+		if (ret)
+			break;
+	}
+
+	return ret;
+}
+
 /* This is where we make sure all the bo's are reserved and pin'd: */
 static int submit_lock_objects(struct msm_gem_submit *submit)
 {
 	unsigned flags = DRM_EXEC_INTERRUPTIBLE_WAIT;
-	struct drm_exec *exec = &submit->exec;
-	int ret;
+	int ret = 0;
 
-	if (msm_context_is_vmbind(submit->queue->ctx)) {
-		flags |= DRM_EXEC_IGNORE_DUPLICATES;
-
-		drm_exec_init(&submit->exec, flags, submit->nr_bos);
-
-		drm_exec_until_all_locked (&submit->exec) {
-			ret = drm_gpuvm_prepare_vm(submit->vm, exec, 1);
-			drm_exec_retry_on_contention(exec);
-			if (ret)
-				return ret;
-
-			ret = drm_gpuvm_prepare_objects(submit->vm, exec, 1);
-			drm_exec_retry_on_contention(exec);
-			if (ret)
-				return ret;
-		}
-
-		return 0;
-	}
+	if (msm_context_is_vmbind(submit->queue->ctx))
+		return submit_lock_objects_vmbind(submit);
 
 	drm_exec_init(&submit->exec, flags, submit->nr_bos);
 
@@ -305,17 +310,17 @@ static int submit_lock_objects(struct msm_gem_submit *submit)
 					drm_gpuvm_resv_obj(submit->vm));
 		drm_exec_retry_on_contention(&submit->exec);
 		if (ret)
-			return ret;
+			break;
 		for (unsigned i = 0; i < submit->nr_bos; i++) {
 			struct drm_gem_object *obj = submit->bos[i].obj;
 			ret = drm_exec_prepare_obj(&submit->exec, obj, 1);
 			drm_exec_retry_on_contention(&submit->exec);
 			if (ret)
-				return ret;
+				break;
 		}
 	}
 
-	return 0;
+	return ret;
 }
 
 static int submit_fence_sync(struct msm_gem_submit *submit)
@@ -514,14 +519,15 @@ out:
  */
 static void submit_cleanup(struct msm_gem_submit *submit, bool error)
 {
+	if (error)
+		submit_unpin_objects(submit);
+
 	if (submit->exec.objects)
 		drm_exec_fini(&submit->exec);
 
-	if (error) {
-		submit_unpin_objects(submit);
-		/* job wasn't enqueued to scheduler, so early retirement: */
+	/* if job wasn't enqueued to scheduler, early retirement: */
+	if (error)
 		msm_submit_retire(submit);
-	}
 }
 
 void msm_submit_retire(struct msm_gem_submit *submit)
@@ -769,12 +775,8 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 
 	if (ret == 0 && args->flags & MSM_SUBMIT_FENCE_FD_OUT) {
 		sync_file = sync_file_create(submit->user_fence);
-		if (!sync_file) {
+		if (!sync_file)
 			ret = -ENOMEM;
-		} else {
-			fd_install(out_fence_fd, sync_file->file);
-			args->fence_fd = out_fence_fd;
-		}
 	}
 
 	if (ret)
@@ -812,10 +814,14 @@ out:
 out_unlock:
 	mutex_unlock(&queue->lock);
 out_post_unlock:
-	if (ret && (out_fence_fd >= 0)) {
-		put_unused_fd(out_fence_fd);
+	if (ret) {
+		if (out_fence_fd >= 0)
+			put_unused_fd(out_fence_fd);
 		if (sync_file)
 			fput(sync_file->file);
+	} else if (sync_file) {
+		fd_install(out_fence_fd, sync_file->file);
+		args->fence_fd = out_fence_fd;
 	}
 
 	if (!IS_ERR_OR_NULL(submit)) {

@@ -317,13 +317,17 @@ static inline int amdgpu_dm_crtc_set_vblank(struct drm_crtc *crtc, bool enable)
 			dc->config.disable_ips != DMUB_IPS_DISABLE_ALL &&
 			sr_supported && vblank->config.disable_immediate)
 			drm_crtc_vblank_restore(crtc);
+	}
 
-		/* vblank irq on -> Only need vupdate irq in vrr mode */
-		if (amdgpu_dm_crtc_vrr_active(acrtc_state))
-			rc = amdgpu_dm_crtc_set_vupdate_irq(crtc, true);
-	} else {
-		/* vblank irq off -> vupdate irq off */
-		rc = amdgpu_dm_crtc_set_vupdate_irq(crtc, false);
+	if (dc_supports_vrr(dm->dc->ctx->dce_version)) {
+		if (enable) {
+			/* vblank irq on -> Only need vupdate irq in vrr mode */
+			if (amdgpu_dm_crtc_vrr_active(acrtc_state))
+				rc = amdgpu_dm_crtc_set_vupdate_irq(crtc, true);
+		} else {
+			/* vblank irq off -> vupdate irq off */
+			rc = amdgpu_dm_crtc_set_vupdate_irq(crtc, false);
+		}
 	}
 
 	if (rc)

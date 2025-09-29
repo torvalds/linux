@@ -137,7 +137,7 @@ const struct cmn2asic_msg_mapping smu_v13_0_12_message_map[SMU_MSG_MAX_COUNT] = 
 	MSG_MAP(SetThrottlingPolicy,                 PPSMC_MSG_SetThrottlingPolicy,             0),
 	MSG_MAP(ResetSDMA,                           PPSMC_MSG_ResetSDMA,                       0),
 	MSG_MAP(GetStaticMetricsTable,               PPSMC_MSG_GetStaticMetricsTable,           1),
-	MSG_MAP(GetSystemMetricsTable,               PPSMC_MSG_GetSystemMetricsTable,           0),
+	MSG_MAP(GetSystemMetricsTable,               PPSMC_MSG_GetSystemMetricsTable,           1),
 };
 
 int smu_v13_0_12_tables_init(struct smu_context *smu)
@@ -148,6 +148,12 @@ int smu_v13_0_12_tables_init(struct smu_context *smu)
 	struct smu_table *tables = smu_table->tables;
 	struct smu_table_cache *cache;
 	int ret;
+
+	ret = smu_table_cache_init(smu, SMU_TABLE_PMFW_SYSTEM_METRICS,
+				   smu_v13_0_12_get_system_metrics_size(), 5);
+
+	if (ret)
+		return ret;
 
 	ret = smu_table_cache_init(smu, SMU_TABLE_BASEBOARD_TEMP_METRICS,
 				   sizeof(*baseboard_temp_metrics), 50);
@@ -162,6 +168,7 @@ int smu_v13_0_12_tables_init(struct smu_context *smu)
 	ret = smu_table_cache_init(smu, SMU_TABLE_GPUBOARD_TEMP_METRICS,
 				   sizeof(*gpuboard_temp_metrics), 50);
 	if (ret) {
+		smu_table_cache_fini(smu, SMU_TABLE_PMFW_SYSTEM_METRICS);
 		smu_table_cache_fini(smu, SMU_TABLE_BASEBOARD_TEMP_METRICS);
 		return ret;
 	}
@@ -176,6 +183,7 @@ void smu_v13_0_12_tables_fini(struct smu_context *smu)
 {
 	smu_table_cache_fini(smu, SMU_TABLE_BASEBOARD_TEMP_METRICS);
 	smu_table_cache_fini(smu, SMU_TABLE_GPUBOARD_TEMP_METRICS);
+	smu_table_cache_fini(smu, SMU_TABLE_PMFW_SYSTEM_METRICS);
 }
 
 static int smu_v13_0_12_get_enabled_mask(struct smu_context *smu,
@@ -222,8 +230,12 @@ static int smu_v13_0_12_fru_get_product_info(struct smu_context *smu,
 
 int smu_v13_0_12_get_max_metrics_size(void)
 {
-	return max3(sizeof(StaticMetricsTable_t), sizeof(MetricsTable_t),
-		   sizeof(SystemMetricsTable_t));
+	return max(sizeof(StaticMetricsTable_t), sizeof(MetricsTable_t));
+}
+
+size_t smu_v13_0_12_get_system_metrics_size(void)
+{
+	return sizeof(SystemMetricsTable_t);
 }
 
 static void smu_v13_0_12_init_xgmi_data(struct smu_context *smu,
@@ -329,6 +341,9 @@ int smu_v13_0_12_setup_driver_pptable(struct smu_context *smu)
 			static_metrics->pldmVersion[0] != 0xFFFFFFFF)
 			smu->adev->firmware.pldm_version =
 				static_metrics->pldmVersion[0];
+		if (smu_v13_0_6_cap_supported(smu, SMU_CAP(NPM_METRICS)))
+			pptable->MaxNodePowerLimit =
+				SMUQ10_ROUND(static_metrics->MaxNodePowerLimit);
 		smu_v13_0_12_init_xgmi_data(smu, static_metrics);
 		pptable->Init = true;
 	}
@@ -414,13 +429,17 @@ int smu_v13_0_12_get_smu_metrics_data(struct smu_context *smu,
 	return 0;
 }
 
-static int smu_v13_0_12_get_system_metrics_table(struct smu_context *smu,
-						 void *metrics_table)
+static int smu_v13_0_12_get_system_metrics_table(struct smu_context *smu)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
-	uint32_t table_size = smu_table->tables[SMU_TABLE_SMU_METRICS].size;
 	struct smu_table *table = &smu_table->driver_table;
+	struct smu_table *tables = smu_table->tables;
+	struct smu_table *sys_table;
 	int ret;
+
+	sys_table = &tables[SMU_TABLE_PMFW_SYSTEM_METRICS];
+	if (smu_table_cache_is_valid(sys_table))
+		return 0;
 
 	ret = smu_cmn_send_smc_msg(smu, SMU_MSG_GetSystemMetricsTable, NULL);
 	if (ret) {
@@ -430,10 +449,9 @@ static int smu_v13_0_12_get_system_metrics_table(struct smu_context *smu,
 	}
 
 	amdgpu_asic_invalidate_hdp(smu->adev, NULL);
-	memcpy(smu_table->metrics_table, table->cpu_addr, table_size);
-
-	if (metrics_table)
-		memcpy(metrics_table, smu_table->metrics_table, sizeof(SystemMetricsTable_t));
+	smu_table_cache_update_time(sys_table, jiffies);
+	memcpy(sys_table->cache.buffer, table->cpu_addr,
+	       smu_v13_0_12_get_system_metrics_size());
 
 	return 0;
 }
@@ -565,16 +583,60 @@ static bool smu_v13_0_12_is_temp_metrics_supported(struct smu_context *smu,
 	return false;
 }
 
+int smu_v13_0_12_get_npm_data(struct smu_context *smu,
+			      enum amd_pp_sensors sensor,
+			      uint32_t *value)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+	struct PPTable_t *pptable =
+		(struct PPTable_t *)smu_table->driver_pptable;
+	struct smu_table *tables = smu_table->tables;
+	SystemMetricsTable_t *metrics;
+	struct smu_table *sys_table;
+	int ret;
+
+	if (!smu_v13_0_6_cap_supported(smu, SMU_CAP(NPM_METRICS)))
+		return -EOPNOTSUPP;
+
+	if (sensor == AMDGPU_PP_SENSOR_MAXNODEPOWERLIMIT) {
+		*value = pptable->MaxNodePowerLimit;
+		return 0;
+	}
+
+	ret = smu_v13_0_12_get_system_metrics_table(smu);
+	if (ret)
+		return ret;
+
+	sys_table = &tables[SMU_TABLE_PMFW_SYSTEM_METRICS];
+	metrics = (SystemMetricsTable_t *)sys_table->cache.buffer;
+
+	switch (sensor) {
+	case AMDGPU_PP_SENSOR_NODEPOWERLIMIT:
+		*value = SMUQ10_ROUND(metrics->NodePowerLimit);
+		break;
+	case AMDGPU_PP_SENSOR_NODEPOWER:
+		*value = SMUQ10_ROUND(metrics->NodePower);
+		break;
+	case AMDGPU_PP_SENSOR_GPPTRESIDENCY:
+		*value = SMUQ10_ROUND(metrics->GlobalPPTResidencyAcc);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return ret;
+}
+
 static ssize_t smu_v13_0_12_get_temp_metrics(struct smu_context *smu,
 					     enum smu_temp_metric_type type, void *table)
 {
 	struct amdgpu_baseboard_temp_metrics_v1_0 *baseboard_temp_metrics;
 	struct amdgpu_gpuboard_temp_metrics_v1_0 *gpuboard_temp_metrics;
 	struct smu_table_context *smu_table = &smu->smu_table;
-	SystemMetricsTable_t *metrics =
-		(SystemMetricsTable_t *)smu_table->metrics_table;
-
+	struct smu_table *tables = smu_table->tables;
+	SystemMetricsTable_t *metrics;
 	struct smu_table *data_table;
+	struct smu_table *sys_table;
 	int ret, sensor_type;
 	u32 idx, sensors;
 	ssize_t size;
@@ -596,10 +658,12 @@ static ssize_t smu_v13_0_12_get_temp_metrics(struct smu_context *smu,
 		size = sizeof(*baseboard_temp_metrics);
 	}
 
-	ret = smu_v13_0_12_get_system_metrics_table(smu, NULL);
+	ret = smu_v13_0_12_get_system_metrics_table(smu);
 	if (ret)
 		return ret;
 
+	sys_table = &tables[SMU_TABLE_PMFW_SYSTEM_METRICS];
+	metrics = (SystemMetricsTable_t *)sys_table->cache.buffer;
 	smu_table_cache_update_time(data_table, jiffies);
 
 	if (type == SMU_TEMP_METRIC_GPUBOARD) {

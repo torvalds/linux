@@ -140,8 +140,8 @@ config CRYPTO_LIB_CHACHA20POLY1305
 config CRYPTO_LIB_SHA1
 	tristate
 	help
-	  The SHA-1 library functions.  Select this if your module uses any of
-	  the functions from <crypto/sha1.h>.
+	  The SHA-1 and HMAC-SHA1 library functions.  Select this if your module
+	  uses any of the functions from <crypto/sha1.h>.
 
 config CRYPTO_LIB_SHA1_ARCH
 	bool
@@ -157,9 +157,9 @@ config CRYPTO_LIB_SHA1_ARCH
 config CRYPTO_LIB_SHA256
 	tristate
 	help
-	  Enable the SHA-256 library interface. This interface may be fulfilled
-	  by either the generic implementation or an arch-specific one, if one
-	  is available and enabled.
+	  The SHA-224, SHA-256, HMAC-SHA224, and HMAC-SHA256 library functions.
+	  Select this if your module uses any of these functions from
+	  <crypto/sha2.h>.
 
 config CRYPTO_LIB_SHA256_ARCH
 	bool

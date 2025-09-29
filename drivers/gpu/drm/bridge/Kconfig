@@ -120,8 +120,7 @@ config DRM_ITE_IT6505
 	select DRM_DISPLAY_DP_AUX_BUS
 	select DRM_KMS_HELPER
 	select EXTCON
-	select CRYPTO
-	select CRYPTO_HASH
+	select CRYPTO_LIB_SHA1
 	select REGMAP_I2C
 	help
 	  ITE IT6505 DisplayPort bridge chip driver.
