@@ -9,6 +9,8 @@ declare -A ip_args=(
 		--gateway_ip=192.168.0.1
 		--netmask_ip=255.255.0.0
 		--remote_ip=192.0.2.1
+		-D TFO_COOKIE=3021b9d889017eeb
+		-D TFO_COOKIE_ZERO=b7c12350a90dc8f5
 		-D CMSG_LEVEL_IP=SOL_IP
 		-D CMSG_TYPE_RECVERR=IP_RECVERR"
 	[ipv6]="--ip_version=ipv6
@@ -16,6 +18,8 @@ declare -A ip_args=(
 		--local_ip=fd3d:0a0b:17d6::1
 		--gateway_ip=fd3d:0a0b:17d6:8888::1
 		--remote_ip=fd3d:fa7b:d17d::1
+		-D TFO_COOKIE=c1d1e9742a47a9bc
+		-D TFO_COOKIE_ZERO=82af1a8f9a205c34
 		-D CMSG_LEVEL_IP=SOL_IPV6
 		-D CMSG_TYPE_RECVERR=IPV6_RECVERR"
 )
@@ -48,11 +52,11 @@ elif [[ ! "$ip_versions" =~ ^ipv[46]$ ]]; then
 fi
 
 ktap_print_header
-ktap_set_plan 2
+ktap_set_plan $(echo $ip_versions | wc -w)
 
 for ip_version in $ip_versions; do
 	unshare -n packetdrill ${ip_args[$ip_version]} ${optargs[@]} $script > /dev/null \
-	    && ktap_test_pass $ip_version || $failfunc $ip_version
+		&& ktap_test_pass $ip_version || $failfunc $ip_version
 done
 
 ktap_finished
