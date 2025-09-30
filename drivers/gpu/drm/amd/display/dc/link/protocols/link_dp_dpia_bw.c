@@ -273,17 +273,28 @@ bool link_dpia_enable_usb4_dp_bw_alloc_mode(struct dc_link *link)
  */
 void link_dp_dpia_handle_bw_alloc_status(struct dc_link *link, uint8_t status)
 {
-	link->dpia_bw_alloc_config.estimated_bw = get_estimated_bw(link);
-
 	if (status & DP_TUNNELING_BW_REQUEST_SUCCEEDED) {
 		DC_LOG_DEBUG("%s: BW Allocation request succeeded on link(%d)",
 				__func__, link->link_index);
-	} else if (status & DP_TUNNELING_BW_REQUEST_FAILED) {
+	}
+
+	if (status & DP_TUNNELING_BW_REQUEST_FAILED) {
 		DC_LOG_DEBUG("%s: BW Allocation request failed on link(%d)  allocated/estimated BW=%d",
 				__func__, link->link_index, link->dpia_bw_alloc_config.estimated_bw);
 
 		link_dpia_send_bw_alloc_request(link, link->dpia_bw_alloc_config.estimated_bw);
-	} else if (status & DP_TUNNELING_ESTIMATED_BW_CHANGED) {
+	}
+
+	if (status & DP_TUNNELING_BW_ALLOC_CAP_CHANGED) {
+		link->dpia_bw_alloc_config.bw_granularity = get_bw_granularity(link);
+
+		DC_LOG_DEBUG("%s: Granularity changed on link(%d)  new granularity=%d",
+				__func__, link->link_index, link->dpia_bw_alloc_config.bw_granularity);
+	}
+
+	if (status & DP_TUNNELING_ESTIMATED_BW_CHANGED) {
+		link->dpia_bw_alloc_config.estimated_bw = get_estimated_bw(link);
+
 		DC_LOG_DEBUG("%s: Estimated BW changed on link(%d)  new estimated BW=%d",
 				__func__, link->link_index, link->dpia_bw_alloc_config.estimated_bw);
 	}
