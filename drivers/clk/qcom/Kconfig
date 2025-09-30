@@ -531,6 +531,7 @@ config QCM_DISPCC_2290
 
 config QCS_DISPCC_615
 	tristate "QCS615 Display Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	select QCS_GCC_615
 	help
 	  Support for the display clock controller on Qualcomm Technologies, Inc
@@ -586,6 +587,7 @@ config QCS_GCC_615
 
 config QCS_GPUCC_615
 	tristate "QCS615 Graphics clock controller"
+	depends on ARM64 || COMPILE_TEST
 	select QCS_GCC_615
 	help
 	  Support for the graphics clock controller on QCS615 devices.
@@ -594,6 +596,7 @@ config QCS_GPUCC_615
 
 config QCS_VIDEOCC_615
 	tristate "QCS615 Video Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	select QCS_GCC_615
 	help
 	  Support for the video clock controller on QCS615 devices.
