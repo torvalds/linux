@@ -4342,17 +4342,31 @@ EXPORT_SYMBOL(security_secid_to_secctx);
  * security_lsmprop_to_secctx() - Convert a lsm_prop to a secctx
  * @prop: lsm specific information
  * @cp: the LSM context
+ * @lsmid: which security module to report
  *
  * Convert a @prop entry to security context.  If @cp is NULL the
  * length of the result will be returned. This does mean that the
  * length could change between calls to check the length and the
  * next call which actually allocates and returns the @cp.
  *
+ * @lsmid identifies which LSM should supply the context.
+ * A value of LSM_ID_UNDEF indicates that the first LSM suppling
+ * the hook should be used. This is used in cases where the
+ * ID of the supplying LSM is unambiguous.
+ *
  * Return: Return length of data on success, error on failure.
  */
-int security_lsmprop_to_secctx(struct lsm_prop *prop, struct lsm_context *cp)
+int security_lsmprop_to_secctx(struct lsm_prop *prop, struct lsm_context *cp,
+			       int lsmid)
 {
-	return call_int_hook(lsmprop_to_secctx, prop, cp);
+	struct lsm_static_call *scall;
+
+	lsm_for_each_hook(scall, lsmprop_to_secctx) {
+		if (lsmid != LSM_ID_UNDEF && lsmid != scall->hl->lsmid->id)
+			continue;
+		return scall->hl->hook.lsmprop_to_secctx(prop, cp);
+	}
+	return LSM_RET_DEFAULT(lsmprop_to_secctx);
 }
 EXPORT_SYMBOL(security_lsmprop_to_secctx);
 
