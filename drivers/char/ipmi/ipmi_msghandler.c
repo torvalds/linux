@@ -3450,6 +3450,10 @@ static int __scan_channels(struct ipmi_smi *intf,
 		intf->channels_ready = false;
 	}
 
+	/* Skip channel scan if channels are already marked ready */
+	if (intf->channels_ready)
+		return 0;
+
 	if (ipmi_version_major(id) > 1
 			|| (ipmi_version_major(id) == 1
 			    && ipmi_version_minor(id) >= 5)) {
