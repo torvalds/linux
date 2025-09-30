@@ -157,7 +157,7 @@ defined(CONFIG_AUTOFDO_CLANG) || defined(CONFIG_PROPELLER_CLANG)
 #define PATCHABLE_DISCARDS	*(__patchable_function_entries)
 #endif
 
-#ifndef CONFIG_ARCH_SUPPORTS_CFI_CLANG
+#ifndef CONFIG_ARCH_SUPPORTS_CFI
 /*
  * Simply points to ftrace_stub, but with the proper protocol.
  * Defined by the linker script in linux/vmlinux.lds.h

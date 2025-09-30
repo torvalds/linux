@@ -113,7 +113,7 @@ extern bhi_thunk __bhi_args_end[];
 
 struct pt_regs;
 
-#ifdef CONFIG_CFI_CLANG
+#ifdef CONFIG_CFI
 enum bug_trap_type handle_cfi_failure(struct pt_regs *regs);
 #define __bpfcall
 
@@ -157,7 +157,7 @@ static inline int cfi_get_func_arity(void *func)
 {
 	return 0;
 }
-#endif /* CONFIG_CFI_CLANG */
+#endif /* CONFIG_CFI */
 
 #if HAS_KERNEL_IBT == 1
 #define CFI_NOSEAL(x)	asm(IBT_NOSEAL(__stringify(x)))

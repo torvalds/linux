@@ -2908,7 +2908,7 @@ config FORTIFY_KUNIT_TEST
 config LONGEST_SYM_KUNIT_TEST
 	tristate "Test the longest symbol possible" if !KUNIT_ALL_TESTS
 	depends on KUNIT && KPROBES
-	depends on !PREFIX_SYMBOLS && !CFI_CLANG && !GCOV_KERNEL
+	depends on !PREFIX_SYMBOLS && !CFI && !GCOV_KERNEL
 	default KUNIT_ALL_TESTS
 	help
 	  Tests the longest symbol possible

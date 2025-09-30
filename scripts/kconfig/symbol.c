@@ -214,6 +214,11 @@ static void sym_calc_visibility(struct symbol *sym)
 	struct property *prop;
 	tristate tri;
 
+	if (sym->flags & SYMBOL_TRANS) {
+		sym->visible = yes;
+		return;
+	}
+
 	/* any prompt visible? */
 	tri = no;
 	for_all_prompts(sym, prop) {
@@ -526,7 +531,7 @@ void sym_calc_value(struct symbol *sym)
 		}
 	}
 
-	if (sym_is_choice(sym))
+	if (sym_is_choice(sym) || sym->flags & SYMBOL_TRANS)
 		sym->flags &= ~SYMBOL_WRITE;
 }
 

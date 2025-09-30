@@ -867,22 +867,26 @@ config PROPELLER_CLANG
 
 	  If unsure, say N.
 
-config ARCH_SUPPORTS_CFI_CLANG
+config ARCH_SUPPORTS_CFI
 	bool
 	help
-	  An architecture should select this option if it can support Clang's
-	  Control-Flow Integrity (CFI) checking.
+	  An architecture should select this option if it can support Kernel
+	  Control-Flow Integrity (CFI) checking (-fsanitize=kcfi).
 
 config ARCH_USES_CFI_TRAPS
 	bool
+	help
+	  An architecture should select this option if it requires the
+	  .kcfi_traps section for KCFI trap handling.
 
-config CFI_CLANG
-	bool "Use Clang's Control Flow Integrity (CFI)"
-	depends on ARCH_SUPPORTS_CFI_CLANG
+config CFI
+	bool "Use Kernel Control Flow Integrity (kCFI)"
+	default CFI_CLANG
+	depends on ARCH_SUPPORTS_CFI
 	depends on $(cc-option,-fsanitize=kcfi)
 	help
-	  This option enables Clang's forward-edge Control Flow Integrity
-	  (CFI) checking, where the compiler injects a runtime check to each
+	  This option enables forward-edge Control Flow Integrity (CFI)
+	  checking, where the compiler injects a runtime check to each
 	  indirect function call to ensure the target is a valid function with
 	  the correct static type. This restricts possible call targets and
 	  makes it more difficult for an attacker to exploit bugs that allow
@@ -891,10 +895,16 @@ config CFI_CLANG
 
 	    https://clang.llvm.org/docs/ControlFlowIntegrity.html
 
+config CFI_CLANG
+	bool
+	transitional
+	help
+	  Transitional config for CFI_CLANG to CFI migration.
+
 config CFI_ICALL_NORMALIZE_INTEGERS
 	bool "Normalize CFI tags for integers"
-	depends on CFI_CLANG
-	depends on HAVE_CFI_ICALL_NORMALIZE_INTEGERS_CLANG
+	depends on CFI
+	depends on HAVE_CFI_ICALL_NORMALIZE_INTEGERS
 	help
 	  This option normalizes the CFI tags for integer types so that all
 	  integer types of the same size and signedness receive the same CFI
@@ -907,7 +917,7 @@ config CFI_ICALL_NORMALIZE_INTEGERS
 
 	  This option is necessary for using CFI with Rust. If unsure, say N.
 
-config HAVE_CFI_ICALL_NORMALIZE_INTEGERS_CLANG
+config HAVE_CFI_ICALL_NORMALIZE_INTEGERS
 	def_bool y
 	depends on $(cc-option,-fsanitize=kcfi -fsanitize-cfi-icall-experimental-normalize-integers)
 	# With GCOV/KASAN we need this fix: https://github.com/llvm/llvm-project/pull/104826
@@ -915,7 +925,7 @@ config HAVE_CFI_ICALL_NORMALIZE_INTEGERS_CLANG
 
 config HAVE_CFI_ICALL_NORMALIZE_INTEGERS_RUSTC
 	def_bool y
-	depends on HAVE_CFI_ICALL_NORMALIZE_INTEGERS_CLANG
+	depends on HAVE_CFI_ICALL_NORMALIZE_INTEGERS
 	depends on RUSTC_VERSION >= 107900
 	# With GCOV/KASAN we need this fix: https://github.com/rust-lang/rust/pull/129373
 	depends on (RUSTC_LLVM_VERSION >= 190103 && RUSTC_VERSION >= 108200) || \
@@ -923,7 +933,7 @@ config HAVE_CFI_ICALL_NORMALIZE_INTEGERS_RUSTC
 
 config CFI_PERMISSIVE
 	bool "Use CFI in permissive mode"
-	depends on CFI_CLANG
+	depends on CFI
 	help
 	  When selected, Control Flow Integrity (CFI) violations result in a
 	  warning instead of a kernel panic. This option should only be used

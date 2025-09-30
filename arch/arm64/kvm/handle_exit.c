@@ -545,7 +545,7 @@ void __noreturn __cold nvhe_hyp_panic_handler(u64 esr, u64 spsr,
 			kvm_err("nVHE hyp BUG at: %s:%u!\n", file, line);
 		else
 			print_nvhe_hyp_panic("BUG", panic_addr);
-	} else if (IS_ENABLED(CONFIG_CFI_CLANG) && esr_is_cfi_brk(esr)) {
+	} else if (IS_ENABLED(CONFIG_CFI) && esr_is_cfi_brk(esr)) {
 		kvm_nvhe_report_cfi_failure(panic_addr);
 	} else if (IS_ENABLED(CONFIG_UBSAN_KVM_EL2) &&
 		   ESR_ELx_EC(esr) == ESR_ELx_EC_BRK64 &&

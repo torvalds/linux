@@ -14,7 +14,7 @@
  * Use a latched RB-tree for __module_address(); this allows us to use
  * RCU lookups of the address from any context.
  *
- * This is conditional on PERF_EVENTS || TRACING || CFI_CLANG because those can
+ * This is conditional on PERF_EVENTS || TRACING || CFI because those can
  * really hit __module_address() hard by doing a lot of stack unwinding;
  * potentially from NMI context.
  */
