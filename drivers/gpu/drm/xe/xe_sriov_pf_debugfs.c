@@ -8,12 +8,40 @@
 
 #include "xe_device.h"
 #include "xe_device_types.h"
+#include "xe_pm.h"
 #include "xe_sriov_pf.h"
+#include "xe_sriov_pf_control.h"
 #include "xe_sriov_pf_debugfs.h"
 #include "xe_sriov_pf_helpers.h"
 #include "xe_sriov_pf_service.h"
 #include "xe_sriov_printk.h"
 #include "xe_tile_sriov_pf_debugfs.h"
+
+/*
+ *      /sys/kernel/debug/dri/BDF/
+ *      ├── sriov		# d_inode->i_private = (xe_device*)
+ *      │   ├── pf		# d_inode->i_private = (xe_device*)
+ *      │   ├── vf1		# d_inode->i_private = VFID(1)
+ *      :   :
+ *      │   ├── vfN		# d_inode->i_private = VFID(N)
+ */
+
+static void *extract_priv(struct dentry *d)
+{
+	return d->d_inode->i_private;
+}
+
+static struct xe_device *extract_xe(struct dentry *d)
+{
+	return extract_priv(d->d_parent);
+}
+
+static unsigned int extract_vfid(struct dentry *d)
+{
+	void *p = extract_priv(d);
+
+	return p == extract_xe(d) ? PFID : (uintptr_t)p;
+}
 
 static int simple_show(struct seq_file *m, void *data)
 {
@@ -37,6 +65,70 @@ static void pf_populate_pf(struct xe_device *xe, struct dentry *pfdent)
 	struct drm_minor *minor = xe->drm.primary;
 
 	drm_debugfs_create_files(debugfs_list, ARRAY_SIZE(debugfs_list), pfdent, minor);
+}
+
+/*
+ *      /sys/kernel/debug/dri/BDF/
+ *      ├── sriov
+ *      │   ├── vf1
+ *      │   │   ├── pause
+ *      │   │   ├── reset
+ *      │   │   ├── resume
+ *      │   │   ├── stop
+ *      │   │   :
+ *      │   ├── vf2
+ *      │   │   ├── ...
+ */
+
+static ssize_t from_file_write_to_vf_call(struct file *file, const char __user *userbuf,
+					  size_t count, loff_t *ppos,
+					  int (*call)(struct xe_device *, unsigned int))
+{
+	struct dentry *dent = file_dentry(file)->d_parent;
+	struct xe_device *xe = extract_xe(dent);
+	unsigned int vfid = extract_vfid(dent);
+	bool yes;
+	int ret;
+
+	if (*ppos)
+		return -EINVAL;
+	ret = kstrtobool_from_user(userbuf, count, &yes);
+	if (ret < 0)
+		return ret;
+	if (yes) {
+		xe_pm_runtime_get(xe);
+		ret = call(xe, vfid);
+		xe_pm_runtime_put(xe);
+	}
+	if (ret < 0)
+		return ret;
+	return count;
+}
+
+#define DEFINE_VF_CONTROL_ATTRIBUTE(OP)						\
+static int OP##_show(struct seq_file *s, void *unused)				\
+{										\
+	return 0;								\
+}										\
+static ssize_t OP##_write(struct file *file, const char __user *userbuf,	\
+			  size_t count, loff_t *ppos)				\
+{										\
+	return from_file_write_to_vf_call(file, userbuf, count, ppos,		\
+					  xe_sriov_pf_control_##OP);		\
+}										\
+DEFINE_SHOW_STORE_ATTRIBUTE(OP)
+
+DEFINE_VF_CONTROL_ATTRIBUTE(pause_vf);
+DEFINE_VF_CONTROL_ATTRIBUTE(resume_vf);
+DEFINE_VF_CONTROL_ATTRIBUTE(stop_vf);
+DEFINE_VF_CONTROL_ATTRIBUTE(reset_vf);
+
+static void pf_populate_vf(struct xe_device *xe, struct dentry *vfdent)
+{
+	debugfs_create_file("pause", 0200, vfdent, xe, &pause_vf_fops);
+	debugfs_create_file("resume", 0200, vfdent, xe, &resume_vf_fops);
+	debugfs_create_file("stop", 0200, vfdent, xe, &stop_vf_fops);
+	debugfs_create_file("reset", 0200, vfdent, xe, &reset_vf_fops);
 }
 
 static void pf_populate_with_tiles(struct xe_device *xe, struct dentry *dent, unsigned int vfid)
@@ -103,6 +195,7 @@ void xe_sriov_pf_debugfs_register(struct xe_device *xe, struct dentry *root)
 			return;
 		vfdent->d_inode->i_private = (void *)(uintptr_t)VFID(n);
 
+		pf_populate_vf(xe, vfdent);
 		pf_populate_with_tiles(xe, vfdent, VFID(n));
 	}
 }
