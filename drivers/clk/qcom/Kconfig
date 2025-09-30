@@ -1448,6 +1448,7 @@ config SA_VIDEOCC_8775P
 
 config SM_VIDEOCC_6350
 	tristate "SM6350 Video Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	select SM_GCC_6350
 	select QCOM_GDSC
 	help
