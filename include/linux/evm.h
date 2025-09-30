@@ -18,6 +18,8 @@ extern enum integrity_status evm_verifyxattr(struct dentry *dentry,
 					     const char *xattr_name,
 					     void *xattr_value,
 					     size_t xattr_value_len);
+int evm_fix_hmac(struct dentry *dentry, const char *xattr_name,
+		 const char *xattr_value, size_t xattr_value_len);
 int evm_inode_init_security(struct inode *inode, struct inode *dir,
 			    const struct qstr *qstr, struct xattr *xattrs,
 			    int *xattr_count);
@@ -50,6 +52,12 @@ static inline enum integrity_status evm_verifyxattr(struct dentry *dentry,
 						    size_t xattr_value_len)
 {
 	return INTEGRITY_UNKNOWN;
+}
+
+static inline int evm_fix_hmac(struct dentry *dentry, const char *xattr_name,
+			       const char *xattr_value, size_t xattr_value_len)
+{
+	return -EOPNOTSUPP;
 }
 #endif
 

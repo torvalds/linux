@@ -591,6 +591,11 @@ out:
 		     xattr_value->type != EVM_IMA_XATTR_DIGSIG)) {
 			if (!ima_fix_xattr(dentry, iint))
 				status = INTEGRITY_PASS;
+		} else if (status == INTEGRITY_NOLABEL) {
+			if (!evm_fix_hmac(dentry, XATTR_NAME_IMA,
+					  (const char *)xattr_value,
+					  xattr_len))
+				status = INTEGRITY_PASS;
 		}
 
 		/*

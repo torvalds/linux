@@ -796,6 +796,34 @@ bool evm_revalidate_status(const char *xattr_name)
 }
 
 /**
+ * evm_fix_hmac - Calculate the HMAC and add it to security.evm for fix mode
+ * @dentry: pointer to the affected dentry which doesn't yet have security.evm
+ *          xattr
+ * @xattr_name: pointer to the affected extended attribute name
+ * @xattr_value: pointer to the new extended attribute value
+ * @xattr_value_len: pointer to the new extended attribute value length
+ *
+ * Expects to be called with i_mutex locked.
+ *
+ * Return: 0 on success, -EPERM/-ENOMEM/-EOPNOTSUPP on failure
+ */
+int evm_fix_hmac(struct dentry *dentry, const char *xattr_name,
+		 const char *xattr_value, size_t xattr_value_len)
+
+{
+	if (!evm_fixmode || !evm_revalidate_status((xattr_name)))
+		return -EPERM;
+
+	if (!(evm_initialized & EVM_INIT_HMAC))
+		return -EPERM;
+
+	if (is_unsupported_hmac_fs(dentry))
+		return -EOPNOTSUPP;
+
+	return evm_update_evmxattr(dentry, xattr_name, xattr_value, xattr_value_len);
+}
+
+/**
  * evm_inode_post_setxattr - update 'security.evm' to reflect the changes
  * @dentry: pointer to the affected dentry
  * @xattr_name: pointer to the affected extended attribute name
