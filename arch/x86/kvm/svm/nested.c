@@ -1798,17 +1798,15 @@ static int svm_set_nested_state(struct kvm_vcpu *vcpu,
 	if (kvm_state->size < sizeof(*kvm_state) + KVM_STATE_NESTED_SVM_VMCB_SIZE)
 		return -EINVAL;
 
-	ret  = -ENOMEM;
-	ctl  = kzalloc(sizeof(*ctl),  GFP_KERNEL);
-	save = kzalloc(sizeof(*save), GFP_KERNEL);
-	if (!ctl || !save)
-		goto out_free;
+	ctl = memdup_user(&user_vmcb->control, sizeof(*ctl));
+	if (IS_ERR(ctl))
+		return PTR_ERR(ctl);
 
-	ret = -EFAULT;
-	if (copy_from_user(ctl, &user_vmcb->control, sizeof(*ctl)))
-		goto out_free;
-	if (copy_from_user(save, &user_vmcb->save, sizeof(*save)))
-		goto out_free;
+	save = memdup_user(&user_vmcb->save, sizeof(*save));
+	if (IS_ERR(save)) {
+		kfree(ctl);
+		return PTR_ERR(save);
+	}
 
 	ret = -EINVAL;
 	__nested_copy_vmcb_control_to_cache(vcpu, &ctl_cached, ctl);
