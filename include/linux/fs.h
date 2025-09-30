@@ -3378,11 +3378,9 @@ static inline bool is_zero_ino(ino_t ino)
 	return (u32)ino == 0;
 }
 
-/*
- * inode->i_lock must be held
- */
 static inline void __iget(struct inode *inode)
 {
+	lockdep_assert_held(&inode->i_lock);
 	atomic_inc(&inode->i_count);
 }
 
