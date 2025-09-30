@@ -676,6 +676,8 @@ struct dml2_display_cfg_programming {
 			unsigned int PrefetchMode[DML2_MAX_PLANES]; // LEGACY_ONLY
 			bool ROBUrgencyAvoidance;
 			double LowestPrefetchMargin;
+
+			unsigned int pstate_recout_reduction_lines[DML2_MAX_PLANES];
 		} misc;
 
 		struct dml2_mode_support_info mode_support_info;
