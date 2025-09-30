@@ -503,6 +503,7 @@ config COMMON_CLK_SP7021
 
 config COMMON_CLK_RPMI
 	tristate "Clock driver based on RISC-V RPMI"
+	depends on RISCV || COMPILE_TEST
 	depends on MAILBOX
 	default RISCV
 	help
