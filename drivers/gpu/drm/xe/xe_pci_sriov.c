@@ -17,6 +17,7 @@
 #include "xe_pm.h"
 #include "xe_sriov.h"
 #include "xe_sriov_pf.h"
+#include "xe_sriov_pf_control.h"
 #include "xe_sriov_pf_helpers.h"
 #include "xe_sriov_printk.h"
 
@@ -60,13 +61,10 @@ static void pf_unprovision_vfs(struct xe_device *xe, unsigned int num_vfs)
 
 static void pf_reset_vfs(struct xe_device *xe, unsigned int num_vfs)
 {
-	struct xe_gt *gt;
-	unsigned int id;
 	unsigned int n;
 
-	for_each_gt(gt, xe, id)
-		for (n = 1; n <= num_vfs; n++)
-			xe_gt_sriov_pf_control_trigger_flr(gt, n);
+	for (n = 1; n <= num_vfs; n++)
+		xe_sriov_pf_control_reset_vf(xe, n);
 }
 
 static struct pci_dev *xe_pci_pf_get_vf_dev(struct xe_device *xe, unsigned int vf_id)
