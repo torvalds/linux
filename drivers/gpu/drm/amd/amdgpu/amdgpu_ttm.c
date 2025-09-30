@@ -754,38 +754,6 @@ out_unlock:
 	return r;
 }
 
-/* amdgpu_ttm_tt_discard_user_pages - Discard range and pfn array allocations
- */
-void amdgpu_ttm_tt_discard_user_pages(struct ttm_tt *ttm,
-				      struct hmm_range *range)
-{
-	struct amdgpu_ttm_tt *gtt = (void *)ttm;
-
-	if (gtt && gtt->userptr && range)
-		amdgpu_hmm_range_get_pages_done(range);
-}
-
-/*
- * amdgpu_ttm_tt_get_user_pages_done - stop HMM track the CPU page table change
- * Check if the pages backing this ttm range have been invalidated
- *
- * Returns: true if pages are still valid
- */
-bool amdgpu_ttm_tt_get_user_pages_done(struct ttm_tt *ttm,
-				       struct hmm_range *range)
-{
-	struct amdgpu_ttm_tt *gtt = ttm_to_amdgpu_ttm_tt(ttm);
-
-	if (!gtt || !gtt->userptr || !range)
-		return false;
-
-	DRM_DEBUG_DRIVER("user_pages_done 0x%llx pages 0x%x\n",
-		gtt->userptr, ttm->num_pages);
-
-	WARN_ONCE(!range->hmm_pfns, "No user pages to check\n");
-
-	return !amdgpu_hmm_range_get_pages_done(range);
-}
 #endif
 
 /*

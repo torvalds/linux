@@ -1737,13 +1737,13 @@ static int svm_range_validate_and_map(struct mm_struct *mm,
 			}
 
 			WRITE_ONCE(p->svms.faulting_task, current);
-			hmm_range = kzalloc(sizeof(*hmm_range), GFP_KERNEL);
+			hmm_range = amdgpu_hmm_range_alloc();
 			r = amdgpu_hmm_range_get_pages(&prange->notifier, addr, npages,
 						       readonly, owner,
 						       hmm_range);
 			WRITE_ONCE(p->svms.faulting_task, NULL);
 			if (r) {
-				kfree(hmm_range);
+				amdgpu_hmm_range_free(hmm_range);
 				pr_debug("failed %d to get svm range pages\n", r);
 			}
 		} else {
@@ -1764,10 +1764,13 @@ static int svm_range_validate_and_map(struct mm_struct *mm,
 		 * Overrride return value to TRY AGAIN only if prior returns
 		 * were successful
 		 */
-		if (hmm_range && amdgpu_hmm_range_get_pages_done(hmm_range) && !r) {
+		if (hmm_range && !amdgpu_hmm_range_valid(hmm_range) && !r) {
 			pr_debug("hmm update the range, need validate again\n");
 			r = -EAGAIN;
 		}
+		/* Free the hmm range */
+		amdgpu_hmm_range_free(hmm_range);
+
 
 		if (!r && !list_empty(&prange->child_list)) {
 			pr_debug("range split by unmap in parallel, validate again\n");

@@ -226,14 +226,25 @@ out_free_range:
 	return r;
 }
 
-bool amdgpu_hmm_range_get_pages_done(struct hmm_range *hmm_range)
+bool amdgpu_hmm_range_valid(struct hmm_range *hmm_range)
 {
-	bool r;
+	if (!hmm_range)
+		return false;
 
-	r = mmu_interval_read_retry(hmm_range->notifier,
-				    hmm_range->notifier_seq);
+	return !mmu_interval_read_retry(hmm_range->notifier,
+					hmm_range->notifier_seq);
+}
+
+struct hmm_range *amdgpu_hmm_range_alloc(void)
+{
+	return kzalloc(sizeof(struct hmm_range), GFP_KERNEL);
+}
+
+void amdgpu_hmm_range_free(struct hmm_range *hmm_range)
+{
+	if (!hmm_range)
+		return;
+
 	kvfree(hmm_range->hmm_pfns);
 	kfree(hmm_range);
-
-	return r;
 }

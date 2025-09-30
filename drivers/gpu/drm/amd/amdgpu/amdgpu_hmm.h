@@ -35,9 +35,11 @@ int amdgpu_hmm_range_get_pages(struct mmu_interval_notifier *notifier,
 			       uint64_t start, uint64_t npages, bool readonly,
 			       void *owner,
 			       struct hmm_range *hmm_range);
-bool amdgpu_hmm_range_get_pages_done(struct hmm_range *hmm_range);
 
 #if defined(CONFIG_HMM_MIRROR)
+bool amdgpu_hmm_range_valid(struct hmm_range *hmm_range);
+struct hmm_range *amdgpu_hmm_range_alloc(void);
+void amdgpu_hmm_range_free(struct hmm_range *hmm_range);
 int amdgpu_hmm_register(struct amdgpu_bo *bo, unsigned long addr);
 void amdgpu_hmm_unregister(struct amdgpu_bo *bo);
 #else
@@ -47,7 +49,20 @@ static inline int amdgpu_hmm_register(struct amdgpu_bo *bo, unsigned long addr)
 		      "add CONFIG_ZONE_DEVICE=y in config file to fix this\n");
 	return -ENODEV;
 }
+
 static inline void amdgpu_hmm_unregister(struct amdgpu_bo *bo) {}
+
+static inline bool amdgpu_hmm_range_valid(struct hmm_range *hmm_range)
+{
+	return false;
+}
+
+static inline struct hmm_range *amdgpu_hmm_range_alloc(void)
+{
+	return NULL;
+}
+
+static inline void amdgpu_hmm_range_free(struct hmm_range *hmm_range) {}
 #endif
 
 #endif
