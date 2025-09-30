@@ -54,6 +54,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include <string.h>
 #include <stdio.h>
 #include <sys/utsname.h>
@@ -104,6 +105,7 @@ struct ksft_count {
 
 static struct ksft_count ksft_cnt;
 static unsigned int ksft_plan;
+static bool ksft_debug_enabled;
 
 static inline unsigned int ksft_test_num(void)
 {
@@ -172,6 +174,18 @@ static inline __printf(1, 2) void ksft_print_msg(const char *msg, ...)
 	printf("# ");
 	errno = saved_errno;
 	vprintf(msg, args);
+	va_end(args);
+}
+
+static inline void ksft_print_dbg_msg(const char *msg, ...)
+{
+	va_list args;
+
+	if (!ksft_debug_enabled)
+		return;
+
+	va_start(args, msg);
+	ksft_print_msg(msg, args);
 	va_end(args);
 }
 
