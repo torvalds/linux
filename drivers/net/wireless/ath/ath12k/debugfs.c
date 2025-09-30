@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include "core.h"
@@ -1177,6 +1177,9 @@ static ssize_t ath12k_debugfs_dump_device_dp_stats(struct file *file,
 
 		len += scnprintf(buf + len, size - len, "\n");
 	}
+
+	len += scnprintf(buf + len, size - len, "\nREO excep MSDU buf type:%u\n",
+			 device_stats->reo_excep_msdu_buf_type);
 
 	len += scnprintf(buf + len, size - len, "\nRx WBM REL SRC Errors:\n");
 

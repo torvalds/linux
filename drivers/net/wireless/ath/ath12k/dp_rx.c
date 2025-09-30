@@ -3790,6 +3790,8 @@ static int ath12k_dp_h_msdu_buffer_type(struct ath12k_base *ab,
 	struct sk_buff *msdu;
 	u64 desc_va;
 
+	ab->device_stats.reo_excep_msdu_buf_type++;
+
 	desc_va = (u64)le32_to_cpu(desc->buf_va_hi) << 32 |
 		  le32_to_cpu(desc->buf_va_lo);
 	desc_info = (struct ath12k_rx_desc_info *)(uintptr_t)desc_va;
