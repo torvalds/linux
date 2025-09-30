@@ -61,7 +61,7 @@
 
 extern void register_refined_jiffies(long clock_tick_rate);
 
-/* TICK_USEC is the time between ticks in usec assuming SHIFTED_HZ */
+/* TICK_USEC is the time between ticks in usec */
 #define TICK_USEC ((USEC_PER_SEC + HZ/2) / HZ)
 
 /* USER_TICK_USEC is the time between ticks in usec assuming fake USER_HZ */
