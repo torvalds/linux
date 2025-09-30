@@ -375,7 +375,7 @@ enum {
 	ETHTOOL_A_COALESCE_MAX = (__ETHTOOL_A_COALESCE_CNT - 1)
 };
 
-enum ethtool_a_pause_stat {
+enum {
 	ETHTOOL_A_PAUSE_STAT_UNSPEC,
 	ETHTOOL_A_PAUSE_STAT_PAD,
 	ETHTOOL_A_PAUSE_STAT_TX_FRAMES,
@@ -385,7 +385,7 @@ enum ethtool_a_pause_stat {
 	ETHTOOL_A_PAUSE_STAT_MAX = (__ETHTOOL_A_PAUSE_STAT_CNT - 1)
 };
 
-enum ethtool_a_pause {
+enum {
 	ETHTOOL_A_PAUSE_UNSPEC,
 	ETHTOOL_A_PAUSE_HEADER,
 	ETHTOOL_A_PAUSE_AUTONEG,

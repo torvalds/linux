@@ -343,8 +343,16 @@ Some of the interface modes are described below:
 Pause frames / flow control
 ===========================
 
-For detailed link-wide PAUSE and PFC behavior and configuration, see
-flow_control.rst.
+The PHY does not participate directly in flow control/pause frames except by
+making sure that the SUPPORTED_Pause and SUPPORTED_AsymPause bits are set in
+MII_ADVERTISE to indicate towards the link partner that the Ethernet MAC
+controller supports such a thing. Since flow control/pause frames generation
+involves the Ethernet MAC driver, it is recommended that this driver takes care
+of properly indicating advertisement and support for such features by setting
+the SUPPORTED_Pause and SUPPORTED_AsymPause bits accordingly. This can be done
+either before or after phy_connect() and/or as a result of implementing the
+ethtool::set_pauseparam feature.
+
 
 Keeping Close Tabs on the PAL
 =============================
