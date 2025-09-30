@@ -24,6 +24,7 @@
 #include <linux/filter.h>
 #include <sys/prctl.h>
 #include <sys/ptrace.h>
+#include <sys/time.h>
 #include <sys/user.h>
 #include <linux/prctl.h>
 #include <linux/ptrace.h>
@@ -3547,6 +3548,10 @@ static void signal_handler(int signal)
 		perror("write from signal");
 }
 
+static void signal_handler_nop(int signal)
+{
+}
+
 TEST(user_notification_signal)
 {
 	pid_t pid;
@@ -4817,6 +4822,132 @@ TEST(user_notification_wait_killable_fatal)
 	EXPECT_EQ(waitpid(pid, &status, 0), pid);
 	EXPECT_EQ(true, WIFSIGNALED(status));
 	EXPECT_EQ(SIGTERM, WTERMSIG(status));
+}
+
+/* Ensure signals after the reply do not interrupt */
+TEST(user_notification_wait_killable_after_reply)
+{
+	int i, max_iter = 100000;
+	int listener, status;
+	int pipe_fds[2];
+	pid_t pid;
+	long ret;
+
+	ret = prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
+	ASSERT_EQ(0, ret)
+	{
+		TH_LOG("Kernel does not support PR_SET_NO_NEW_PRIVS!");
+	}
+
+	listener = user_notif_syscall(
+		__NR_dup, SECCOMP_FILTER_FLAG_NEW_LISTENER |
+			  SECCOMP_FILTER_FLAG_WAIT_KILLABLE_RECV);
+	ASSERT_GE(listener, 0);
+
+	/*
+	 * Used to count invocations. One token is transferred from the child
+	 * to the parent per syscall invocation, the parent tries to take
+	 * one token per successful RECV. If the syscall is restarted after
+	 * RECV the parent will try to get two tokens while the child only
+	 * provided one.
+	 */
+	ASSERT_EQ(pipe(pipe_fds), 0);
+
+	pid = fork();
+	ASSERT_GE(pid, 0);
+
+	if (pid == 0) {
+		struct sigaction new_action = {
+			.sa_handler = signal_handler_nop,
+			.sa_flags = SA_RESTART,
+		};
+		struct itimerval timer = {
+			.it_value = { .tv_usec = 1000 },
+			.it_interval = { .tv_usec = 1000 },
+		};
+		char c = 'a';
+
+		close(pipe_fds[0]);
+
+		/* Setup the sigaction with SA_RESTART */
+		if (sigaction(SIGALRM, &new_action, NULL)) {
+			perror("sigaction");
+			exit(1);
+		}
+
+		/*
+		 * Kill with SIGALRM repeatedly, to try to hit the race when
+		 * handling the syscall.
+		 */
+		if (setitimer(ITIMER_REAL, &timer, NULL) < 0)
+			perror("setitimer");
+
+		for (i = 0; i < max_iter; ++i) {
+			int fd;
+
+			/* Send one token per iteration to catch repeats. */
+			if (write(pipe_fds[1], &c, sizeof(c)) != 1) {
+				perror("write");
+				exit(1);
+			}
+
+			fd = syscall(__NR_dup, 0);
+			if (fd < 0) {
+				perror("dup");
+				exit(1);
+			}
+			close(fd);
+		}
+
+		exit(0);
+	}
+
+	close(pipe_fds[1]);
+
+	for (i = 0; i < max_iter; ++i) {
+		struct seccomp_notif req = {};
+		struct seccomp_notif_addfd addfd = {};
+		struct pollfd pfd = {
+			.fd = pipe_fds[0],
+			.events = POLLIN,
+		};
+		char c;
+
+		/*
+		 * Try to receive one token. If it failed, one child syscall
+		 * was restarted after RECV and needed to be handled twice.
+		 */
+		ASSERT_EQ(poll(&pfd, 1, 1000), 1)
+			kill(pid, SIGKILL);
+
+		ASSERT_EQ(read(pipe_fds[0], &c, sizeof(c)), 1)
+			kill(pid, SIGKILL);
+
+		/*
+		 * Get the notification, reply to it as fast as possible to test
+		 * whether the child wrongly skips going into the non-preemptible
+		 * (TASK_KILLABLE) state.
+		 */
+		do
+			ret = ioctl(listener, SECCOMP_IOCTL_NOTIF_RECV, &req);
+		while (ret < 0 && errno == ENOENT); /* Accept interruptions before RECV */
+		ASSERT_EQ(ret, 0)
+			kill(pid, SIGKILL);
+
+		addfd.id = req.id;
+		addfd.flags = SECCOMP_ADDFD_FLAG_SEND;
+		addfd.srcfd = 0;
+		ASSERT_GE(ioctl(listener, SECCOMP_IOCTL_NOTIF_ADDFD, &addfd), 0)
+			kill(pid, SIGKILL);
+	}
+
+	/*
+	 * Wait for the process to exit, and make sure the process terminated
+	 * with a zero exit code..
+	 */
+	EXPECT_EQ(waitpid(pid, &status, 0), pid);
+	EXPECT_EQ(true, WIFEXITED(status));
+	EXPECT_EQ(0, WEXITSTATUS(status));
 }
 
 struct tsync_vs_thread_leader_args {
