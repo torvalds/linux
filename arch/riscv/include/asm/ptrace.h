@@ -10,7 +10,7 @@
 #include <asm/csr.h>
 #include <linux/compiler.h>
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 struct pt_regs {
 	unsigned long epc;
@@ -180,6 +180,6 @@ static __always_inline bool regs_irqs_disabled(struct pt_regs *regs)
 	return !(regs->status & SR_PIE);
 }
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* _ASM_RISCV_PTRACE_H */

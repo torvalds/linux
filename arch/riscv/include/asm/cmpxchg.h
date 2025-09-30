@@ -14,6 +14,7 @@
 #include <asm/insn-def.h>
 #include <asm/cpufeature-macros.h>
 #include <asm/processor.h>
+#include <asm/errata_list.h>
 
 #define __arch_xchg_masked(sc_sfx, swap_sfx, prepend, sc_append,		\
 			   swap_append, r, p, n)				\
@@ -438,7 +439,7 @@ static __always_inline void __cmpwait(volatile void *ptr,
 	return;
 
 no_zawrs:
-	asm volatile(RISCV_PAUSE : : : "memory");
+	ALT_RISCV_PAUSE();
 }
 
 #define __cmpwait_relaxed(ptr, val) \
