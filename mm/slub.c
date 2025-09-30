@@ -2152,7 +2152,8 @@ int alloc_slab_obj_exts(struct slab *slab, struct kmem_cache *s,
 		return 0;
 	}
 
-	kmemleak_not_leak(vec);
+	if (allow_spin)
+		kmemleak_not_leak(vec);
 	return 0;
 }
 
