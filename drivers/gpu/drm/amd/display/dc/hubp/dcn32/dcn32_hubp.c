@@ -118,29 +118,7 @@ void hubp32_cursor_set_attributes(
 	uint32_t cursor_width = ((attr->width + 63) / 64) * 64;
 	uint32_t cursor_height = attr->height;
 	uint32_t cursor_size = cursor_width * cursor_height;
-
-	hubp->curs_attr = *attr;
-
-	REG_UPDATE(CURSOR_SURFACE_ADDRESS_HIGH,
-			CURSOR_SURFACE_ADDRESS_HIGH, attr->address.high_part);
-	REG_UPDATE(CURSOR_SURFACE_ADDRESS,
-			CURSOR_SURFACE_ADDRESS, attr->address.low_part);
-
-	REG_UPDATE_2(CURSOR_SIZE,
-			CURSOR_WIDTH, attr->width,
-			CURSOR_HEIGHT, attr->height);
-
-	REG_UPDATE_4(CURSOR_CONTROL,
-			CURSOR_MODE, attr->color_format,
-			CURSOR_2X_MAGNIFY, attr->attribute_flags.bits.ENABLE_MAGNIFICATION,
-			CURSOR_PITCH, hw_pitch,
-			CURSOR_LINES_PER_CHUNK, lpc);
-
-	REG_SET_2(CURSOR_SETTINGS, 0,
-			/* no shift of the cursor HDL schedule */
-			CURSOR0_DST_Y_OFFSET, 0,
-			 /* used to shift the cursor chunk request deadline */
-			CURSOR0_CHUNK_HDL_ADJUST, 3);
+	bool use_mall_for_cursor;
 
 	switch (attr->color_format) {
 	case CURSOR_MODE_MONO:
@@ -158,11 +136,49 @@ void hubp32_cursor_set_attributes(
 		cursor_size *= 8;
 		break;
 	}
+	use_mall_for_cursor = cursor_size > 16384 ? 1 : 0;
 
-	if (cursor_size > 16384)
-		REG_UPDATE(DCHUBP_MALL_CONFIG, USE_MALL_FOR_CURSOR, true);
-	else
-		REG_UPDATE(DCHUBP_MALL_CONFIG, USE_MALL_FOR_CURSOR, false);
+	hubp->curs_attr = *attr;
+
+	if (!hubp->cursor_offload) {
+		REG_UPDATE(CURSOR_SURFACE_ADDRESS_HIGH,
+				CURSOR_SURFACE_ADDRESS_HIGH, attr->address.high_part);
+		REG_UPDATE(CURSOR_SURFACE_ADDRESS,
+				CURSOR_SURFACE_ADDRESS, attr->address.low_part);
+
+		REG_UPDATE_2(CURSOR_SIZE,
+				CURSOR_WIDTH, attr->width,
+				CURSOR_HEIGHT, attr->height);
+
+		REG_UPDATE_4(CURSOR_CONTROL,
+				CURSOR_MODE, attr->color_format,
+				CURSOR_2X_MAGNIFY, attr->attribute_flags.bits.ENABLE_MAGNIFICATION,
+				CURSOR_PITCH, hw_pitch,
+				CURSOR_LINES_PER_CHUNK, lpc);
+
+		REG_SET_2(CURSOR_SETTINGS, 0,
+				/* no shift of the cursor HDL schedule */
+				CURSOR0_DST_Y_OFFSET, 0,
+				 /* used to shift the cursor chunk request deadline */
+				CURSOR0_CHUNK_HDL_ADJUST, 3);
+
+		REG_UPDATE(DCHUBP_MALL_CONFIG, USE_MALL_FOR_CURSOR, use_mall_for_cursor);
+	}
+	hubp->att.SURFACE_ADDR_HIGH  = attr->address.high_part;
+	hubp->att.SURFACE_ADDR       = attr->address.low_part;
+	hubp->att.size.bits.width    = attr->width;
+	hubp->att.size.bits.height   = attr->height;
+	hubp->att.cur_ctl.bits.mode  = attr->color_format;
+
+	hubp->cur_rect.w = attr->width;
+	hubp->cur_rect.h = attr->height;
+
+	hubp->att.cur_ctl.bits.pitch = hw_pitch;
+	hubp->att.cur_ctl.bits.line_per_chunk = lpc;
+	hubp->att.cur_ctl.bits.cur_2x_magnify = attr->attribute_flags.bits.ENABLE_MAGNIFICATION;
+	hubp->att.settings.bits.dst_y_offset  = 0;
+	hubp->att.settings.bits.chunk_hdl_adjust = 3;
+	hubp->use_mall_for_cursor = use_mall_for_cursor;
 }
 void hubp32_init(struct hubp *hubp)
 {

@@ -132,6 +132,7 @@ struct hubp {
 	struct cursor_position_cache_hubp  pos;
 	struct cursor_attribute_cache_hubp att;
 	struct cursor_rect cur_rect;
+	bool use_mall_for_cursor;
 };
 
 struct surface_flip_registers {
