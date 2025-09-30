@@ -91,7 +91,6 @@ static enum trans_regime compute_translation_regime(struct kvm_vcpu *vcpu, u32 o
 	case OP_AT_S1E2W:
 	case OP_AT_S1E2A:
 		return vcpu_el2_e2h_is_set(vcpu) ? TR_EL20 : TR_EL2;
-		break;
 	default:
 		return (vcpu_el2_e2h_is_set(vcpu) &&
 			vcpu_el2_tge_is_set(vcpu)) ? TR_EL20 : TR_EL10;
