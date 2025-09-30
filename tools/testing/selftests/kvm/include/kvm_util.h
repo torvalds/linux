@@ -1273,4 +1273,6 @@ bool vm_is_gpa_protected(struct kvm_vm *vm, vm_paddr_t paddr);
 
 uint32_t guest_get_vcpuid(void);
 
+bool kvm_arch_has_default_irqchip(void);
+
 #endif /* SELFTEST_KVM_UTIL_H */

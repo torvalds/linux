@@ -2344,3 +2344,8 @@ bool vm_is_gpa_protected(struct kvm_vm *vm, vm_paddr_t paddr)
 	pg = paddr >> vm->page_shift;
 	return sparsebit_is_set(region->protected_phy_pages, pg);
 }
+
+__weak bool kvm_arch_has_default_irqchip(void)
+{
+	return false;
+}
