@@ -170,10 +170,6 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	if (ret)
 		return ret;
 
-	ret = pkvm_init_host_vm(kvm);
-	if (ret)
-		goto err_unshare_kvm;
-
 	if (!zalloc_cpumask_var(&kvm->arch.supported_cpus, GFP_KERNEL_ACCOUNT)) {
 		ret = -ENOMEM;
 		goto err_unshare_kvm;
@@ -183,6 +179,16 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	ret = kvm_init_stage2_mmu(kvm, &kvm->arch.mmu, type);
 	if (ret)
 		goto err_free_cpumask;
+
+	if (is_protected_kvm_enabled()) {
+		/*
+		 * If any failures occur after this is successful, make sure to
+		 * call __pkvm_unreserve_vm to unreserve the VM in hyp.
+		 */
+		ret = pkvm_init_host_vm(kvm);
+		if (ret)
+			goto err_free_cpumask;
+	}
 
 	kvm_vgic_early_init(kvm);
 
@@ -2317,8 +2323,9 @@ static int __init init_subsystems(void)
 	}
 
 	if (kvm_mode == KVM_MODE_NV &&
-	   !(vgic_present && kvm_vgic_global_state.type == VGIC_V3)) {
-		kvm_err("NV support requires GICv3, giving up\n");
+		!(vgic_present && (kvm_vgic_global_state.type == VGIC_V3 ||
+				   kvm_vgic_global_state.has_gcie_v3_compat))) {
+		kvm_err("NV support requires GICv3 or GICv5 with legacy support, giving up\n");
 		err = -EINVAL;
 		goto out;
 	}

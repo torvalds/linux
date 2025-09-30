@@ -15,7 +15,7 @@ int vgic_v5_probe(const struct gic_kvm_info *info)
 	u64 ich_vtr_el2;
 	int ret;
 
-	if (!info->has_gcie_v3_compat)
+	if (!cpus_have_final_cap(ARM64_HAS_GICV5_LEGACY))
 		return -ENODEV;
 
 	kvm_vgic_global_state.type = VGIC_V5;

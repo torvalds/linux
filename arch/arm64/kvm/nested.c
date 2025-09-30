@@ -349,7 +349,7 @@ static void vtcr_to_walk_info(u64 vtcr, struct s2_walk_info *wi)
 	wi->sl = FIELD_GET(VTCR_EL2_SL0_MASK, vtcr);
 	/* Global limit for now, should eventually be per-VM */
 	wi->max_oa_bits = min(get_kvm_ipa_limit(),
-			      ps_to_output_size(FIELD_GET(VTCR_EL2_PS_MASK, vtcr)));
+			      ps_to_output_size(FIELD_GET(VTCR_EL2_PS_MASK, vtcr), false));
 }
 
 int kvm_walk_nested_s2(struct kvm_vcpu *vcpu, phys_addr_t gipa,
@@ -1491,9 +1491,16 @@ u64 limit_nv_id_reg(struct kvm *kvm, u32 reg, u64 val)
 
 	case SYS_ID_AA64PFR1_EL1:
 		/* Only support BTI, SSBS, CSV2_frac */
-		val &= (ID_AA64PFR1_EL1_BT	|
-			ID_AA64PFR1_EL1_SSBS	|
-			ID_AA64PFR1_EL1_CSV2_frac);
+		val &= ~(ID_AA64PFR1_EL1_PFAR		|
+			 ID_AA64PFR1_EL1_MTEX		|
+			 ID_AA64PFR1_EL1_THE		|
+			 ID_AA64PFR1_EL1_GCS		|
+			 ID_AA64PFR1_EL1_MTE_frac	|
+			 ID_AA64PFR1_EL1_NMI		|
+			 ID_AA64PFR1_EL1_SME		|
+			 ID_AA64PFR1_EL1_RES0		|
+			 ID_AA64PFR1_EL1_MPAM_frac	|
+			 ID_AA64PFR1_EL1_MTE);
 		break;
 
 	case SYS_ID_AA64MMFR0_EL1:
@@ -1546,12 +1553,11 @@ u64 limit_nv_id_reg(struct kvm *kvm, u32 reg, u64 val)
 		break;
 
 	case SYS_ID_AA64MMFR1_EL1:
-		val &= (ID_AA64MMFR1_EL1_HCX	|
-			ID_AA64MMFR1_EL1_PAN	|
-			ID_AA64MMFR1_EL1_LO	|
-			ID_AA64MMFR1_EL1_HPDS	|
-			ID_AA64MMFR1_EL1_VH	|
-			ID_AA64MMFR1_EL1_VMIDBits);
+		val &= ~(ID_AA64MMFR1_EL1_CMOW		|
+			 ID_AA64MMFR1_EL1_nTLBPA	|
+			 ID_AA64MMFR1_EL1_ETS		|
+			 ID_AA64MMFR1_EL1_XNX		|
+			 ID_AA64MMFR1_EL1_HAFDBS);
 		/* FEAT_E2H0 implies no VHE */
 		if (test_bit(KVM_ARM_VCPU_HAS_EL2_E2H0, kvm->arch.vcpu_features))
 			val &= ~ID_AA64MMFR1_EL1_VH;
@@ -1593,14 +1599,22 @@ u64 limit_nv_id_reg(struct kvm *kvm, u32 reg, u64 val)
 
 	case SYS_ID_AA64DFR0_EL1:
 		/* Only limited support for PMU, Debug, BPs, WPs, and HPMN0 */
-		val &= (ID_AA64DFR0_EL1_PMUVer	|
-			ID_AA64DFR0_EL1_WRPs	|
-			ID_AA64DFR0_EL1_BRPs	|
-			ID_AA64DFR0_EL1_DebugVer|
-			ID_AA64DFR0_EL1_HPMN0);
+		val &= ~(ID_AA64DFR0_EL1_ExtTrcBuff	|
+			 ID_AA64DFR0_EL1_BRBE		|
+			 ID_AA64DFR0_EL1_MTPMU		|
+			 ID_AA64DFR0_EL1_TraceBuffer	|
+			 ID_AA64DFR0_EL1_TraceFilt	|
+			 ID_AA64DFR0_EL1_PMSVer		|
+			 ID_AA64DFR0_EL1_CTX_CMPs	|
+			 ID_AA64DFR0_EL1_SEBEP		|
+			 ID_AA64DFR0_EL1_PMSS		|
+			 ID_AA64DFR0_EL1_TraceVer);
 
-		/* Cap Debug to ARMv8.1 */
-		val = ID_REG_LIMIT_FIELD_ENUM(val, ID_AA64DFR0_EL1, DebugVer, VHE);
+		/*
+		 * FEAT_Debugv8p9 requires support for extended breakpoints /
+		 * watchpoints.
+		 */
+		val = ID_REG_LIMIT_FIELD_ENUM(val, ID_AA64DFR0_EL1, DebugVer, V8P8);
 		break;
 	}
 
@@ -1824,4 +1838,34 @@ void kvm_nested_sync_hwstate(struct kvm_vcpu *vcpu)
 	 */
 	if (unlikely(vcpu_test_and_clear_flag(vcpu, NESTED_SERROR_PENDING)))
 		kvm_inject_serror_esr(vcpu, vcpu_get_vsesr(vcpu));
+}
+
+/*
+ * KVM unconditionally sets most of these traps anyway but use an allowlist
+ * to document the guest hypervisor traps that may take precedence and guard
+ * against future changes to the non-nested trap configuration.
+ */
+#define NV_MDCR_GUEST_INCLUDE	(MDCR_EL2_TDE	|	\
+				 MDCR_EL2_TDA	|	\
+				 MDCR_EL2_TDRA	|	\
+				 MDCR_EL2_TTRF	|	\
+				 MDCR_EL2_TPMS	|	\
+				 MDCR_EL2_TPM	|	\
+				 MDCR_EL2_TPMCR	|	\
+				 MDCR_EL2_TDCC	|	\
+				 MDCR_EL2_TDOSA)
+
+void kvm_nested_setup_mdcr_el2(struct kvm_vcpu *vcpu)
+{
+	u64 guest_mdcr = __vcpu_sys_reg(vcpu, MDCR_EL2);
+
+	/*
+	 * In yet another example where FEAT_NV2 is fscking broken, accesses
+	 * to MDSCR_EL1 are redirected to the VNCR despite having an effect
+	 * at EL2. Use a big hammer to apply sanity.
+	 */
+	if (is_hyp_ctxt(vcpu))
+		vcpu->arch.mdcr_el2 |= MDCR_EL2_TDA;
+	else
+		vcpu->arch.mdcr_el2 |= (guest_mdcr & NV_MDCR_GUEST_INCLUDE);
 }

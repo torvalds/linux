@@ -517,7 +517,7 @@ struct kvm_vm *__vm_create(struct vm_shape shape, uint32_t nr_runnable_vcpus,
 	guest_rng = new_guest_random_state(guest_random_seed);
 	sync_global_to_guest(vm, guest_rng);
 
-	kvm_arch_vm_post_create(vm);
+	kvm_arch_vm_post_create(vm, nr_runnable_vcpus);
 
 	return vm;
 }
@@ -555,6 +555,7 @@ struct kvm_vm *__vm_create_with_vcpus(struct vm_shape shape, uint32_t nr_vcpus,
 	for (i = 0; i < nr_vcpus; ++i)
 		vcpus[i] = vm_vcpu_add(vm, i, guest_code);
 
+	kvm_arch_vm_finalize_vcpus(vm);
 	return vm;
 }
 
@@ -805,6 +806,8 @@ void kvm_vm_release(struct kvm_vm *vmp)
 
 	/* Free cached stats metadata and close FD */
 	kvm_stats_release(&vmp->stats);
+
+	kvm_arch_vm_release(vmp);
 }
 
 static void __vm_mem_region_delete(struct kvm_vm *vm,
@@ -2330,7 +2333,15 @@ void kvm_get_stat(struct kvm_binary_stats *stats, const char *name,
 	TEST_FAIL("Unable to find stat '%s'", name);
 }
 
-__weak void kvm_arch_vm_post_create(struct kvm_vm *vm)
+__weak void kvm_arch_vm_post_create(struct kvm_vm *vm, unsigned int nr_vcpus)
+{
+}
+
+__weak void kvm_arch_vm_finalize_vcpus(struct kvm_vm *vm)
+{
+}
+
+__weak void kvm_arch_vm_release(struct kvm_vm *vm)
 {
 }
 
