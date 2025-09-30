@@ -20,9 +20,6 @@ extern int __read_mostly pt_mode;
 #define PT_MODE_SYSTEM		0
 #define PT_MODE_HOST_GUEST	1
 
-#define PMU_CAP_FW_WRITES	(1ULL << 13)
-#define PMU_CAP_LBR_FMT		0x3f
-
 struct nested_vmx_msrs {
 	/*
 	 * We only store the "true" versions of the VMX capability MSRs. We

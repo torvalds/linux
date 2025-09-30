@@ -164,9 +164,6 @@ module_param(kvmclock_periodic_sync, bool, 0444);
 static u32 __read_mostly tsc_tolerance_ppm = 250;
 module_param(tsc_tolerance_ppm, uint, 0644);
 
-static bool __read_mostly vector_hashing = true;
-module_param(vector_hashing, bool, 0444);
-
 bool __read_mostly enable_vmware_backdoor = false;
 module_param(enable_vmware_backdoor, bool, 0444);
 EXPORT_SYMBOL_GPL(enable_vmware_backdoor);
@@ -367,6 +364,7 @@ static const u32 msrs_to_save_pmu[] = {
 	MSR_AMD64_PERF_CNTR_GLOBAL_CTL,
 	MSR_AMD64_PERF_CNTR_GLOBAL_STATUS,
 	MSR_AMD64_PERF_CNTR_GLOBAL_STATUS_CLR,
+	MSR_AMD64_PERF_CNTR_GLOBAL_STATUS_SET,
 };
 
 static u32 msrs_to_save[ARRAY_SIZE(msrs_to_save_base) +
@@ -1579,10 +1577,10 @@ EXPORT_SYMBOL_GPL(kvm_get_dr);
 
 int kvm_emulate_rdpmc(struct kvm_vcpu *vcpu)
 {
-	u32 ecx = kvm_rcx_read(vcpu);
+	u32 pmc = kvm_rcx_read(vcpu);
 	u64 data;
 
-	if (kvm_pmu_rdpmc(vcpu, ecx, &data)) {
+	if (kvm_pmu_rdpmc(vcpu, pmc, &data)) {
 		kvm_inject_gp(vcpu, 0);
 		return 1;
 	}
@@ -1905,8 +1903,8 @@ static int kvm_set_msr_ignored_check(struct kvm_vcpu *vcpu,
  * Returns 0 on success, non-0 otherwise.
  * Assumes vcpu_load() was already called.
  */
-int __kvm_get_msr(struct kvm_vcpu *vcpu, u32 index, u64 *data,
-		  bool host_initiated)
+static int __kvm_get_msr(struct kvm_vcpu *vcpu, u32 index, u64 *data,
+			 bool host_initiated)
 {
 	struct msr_data msr;
 	int ret;
@@ -1932,6 +1930,16 @@ int __kvm_get_msr(struct kvm_vcpu *vcpu, u32 index, u64 *data,
 	return ret;
 }
 
+int kvm_msr_write(struct kvm_vcpu *vcpu, u32 index, u64 data)
+{
+	return __kvm_set_msr(vcpu, index, data, true);
+}
+
+int kvm_msr_read(struct kvm_vcpu *vcpu, u32 index, u64 *data)
+{
+	return __kvm_get_msr(vcpu, index, data, true);
+}
+
 static int kvm_get_msr_ignored_check(struct kvm_vcpu *vcpu,
 				     u32 index, u64 *data, bool host_initiated)
 {
@@ -1939,33 +1947,36 @@ static int kvm_get_msr_ignored_check(struct kvm_vcpu *vcpu,
 				 __kvm_get_msr);
 }
 
-int kvm_get_msr_with_filter(struct kvm_vcpu *vcpu, u32 index, u64 *data)
+int __kvm_emulate_msr_read(struct kvm_vcpu *vcpu, u32 index, u64 *data)
+{
+	return kvm_get_msr_ignored_check(vcpu, index, data, false);
+}
+EXPORT_SYMBOL_GPL(__kvm_emulate_msr_read);
+
+int __kvm_emulate_msr_write(struct kvm_vcpu *vcpu, u32 index, u64 data)
+{
+	return kvm_set_msr_ignored_check(vcpu, index, data, false);
+}
+EXPORT_SYMBOL_GPL(__kvm_emulate_msr_write);
+
+int kvm_emulate_msr_read(struct kvm_vcpu *vcpu, u32 index, u64 *data)
 {
 	if (!kvm_msr_allowed(vcpu, index, KVM_MSR_FILTER_READ))
 		return KVM_MSR_RET_FILTERED;
-	return kvm_get_msr_ignored_check(vcpu, index, data, false);
-}
-EXPORT_SYMBOL_GPL(kvm_get_msr_with_filter);
 
-int kvm_set_msr_with_filter(struct kvm_vcpu *vcpu, u32 index, u64 data)
+	return __kvm_emulate_msr_read(vcpu, index, data);
+}
+EXPORT_SYMBOL_GPL(kvm_emulate_msr_read);
+
+int kvm_emulate_msr_write(struct kvm_vcpu *vcpu, u32 index, u64 data)
 {
 	if (!kvm_msr_allowed(vcpu, index, KVM_MSR_FILTER_WRITE))
 		return KVM_MSR_RET_FILTERED;
-	return kvm_set_msr_ignored_check(vcpu, index, data, false);
-}
-EXPORT_SYMBOL_GPL(kvm_set_msr_with_filter);
 
-int kvm_get_msr(struct kvm_vcpu *vcpu, u32 index, u64 *data)
-{
-	return kvm_get_msr_ignored_check(vcpu, index, data, false);
+	return __kvm_emulate_msr_write(vcpu, index, data);
 }
-EXPORT_SYMBOL_GPL(kvm_get_msr);
+EXPORT_SYMBOL_GPL(kvm_emulate_msr_write);
 
-int kvm_set_msr(struct kvm_vcpu *vcpu, u32 index, u64 data)
-{
-	return kvm_set_msr_ignored_check(vcpu, index, data, false);
-}
-EXPORT_SYMBOL_GPL(kvm_set_msr);
 
 static void complete_userspace_rdmsr(struct kvm_vcpu *vcpu)
 {
@@ -1994,6 +2005,15 @@ static int complete_fast_msr_access(struct kvm_vcpu *vcpu)
 static int complete_fast_rdmsr(struct kvm_vcpu *vcpu)
 {
 	complete_userspace_rdmsr(vcpu);
+	return complete_fast_msr_access(vcpu);
+}
+
+static int complete_fast_rdmsr_imm(struct kvm_vcpu *vcpu)
+{
+	if (!vcpu->run->msr.error)
+		kvm_register_write(vcpu, vcpu->arch.cui_rdmsr_imm_reg,
+				   vcpu->run->msr.data);
+
 	return complete_fast_msr_access(vcpu);
 }
 
@@ -2031,55 +2051,82 @@ static int kvm_msr_user_space(struct kvm_vcpu *vcpu, u32 index,
 	return 1;
 }
 
-int kvm_emulate_rdmsr(struct kvm_vcpu *vcpu)
+static int __kvm_emulate_rdmsr(struct kvm_vcpu *vcpu, u32 msr, int reg,
+			       int (*complete_rdmsr)(struct kvm_vcpu *))
 {
-	u32 ecx = kvm_rcx_read(vcpu);
 	u64 data;
 	int r;
 
-	r = kvm_get_msr_with_filter(vcpu, ecx, &data);
+	r = kvm_emulate_msr_read(vcpu, msr, &data);
 
 	if (!r) {
-		trace_kvm_msr_read(ecx, data);
+		trace_kvm_msr_read(msr, data);
 
-		kvm_rax_write(vcpu, data & -1u);
-		kvm_rdx_write(vcpu, (data >> 32) & -1u);
+		if (reg < 0) {
+			kvm_rax_write(vcpu, data & -1u);
+			kvm_rdx_write(vcpu, (data >> 32) & -1u);
+		} else {
+			kvm_register_write(vcpu, reg, data);
+		}
 	} else {
 		/* MSR read failed? See if we should ask user space */
-		if (kvm_msr_user_space(vcpu, ecx, KVM_EXIT_X86_RDMSR, 0,
-				       complete_fast_rdmsr, r))
+		if (kvm_msr_user_space(vcpu, msr, KVM_EXIT_X86_RDMSR, 0,
+				       complete_rdmsr, r))
 			return 0;
-		trace_kvm_msr_read_ex(ecx);
+		trace_kvm_msr_read_ex(msr);
 	}
 
 	return kvm_x86_call(complete_emulated_msr)(vcpu, r);
 }
+
+int kvm_emulate_rdmsr(struct kvm_vcpu *vcpu)
+{
+	return __kvm_emulate_rdmsr(vcpu, kvm_rcx_read(vcpu), -1,
+				   complete_fast_rdmsr);
+}
 EXPORT_SYMBOL_GPL(kvm_emulate_rdmsr);
 
-int kvm_emulate_wrmsr(struct kvm_vcpu *vcpu)
+int kvm_emulate_rdmsr_imm(struct kvm_vcpu *vcpu, u32 msr, int reg)
 {
-	u32 ecx = kvm_rcx_read(vcpu);
-	u64 data = kvm_read_edx_eax(vcpu);
+	vcpu->arch.cui_rdmsr_imm_reg = reg;
+
+	return __kvm_emulate_rdmsr(vcpu, msr, reg, complete_fast_rdmsr_imm);
+}
+EXPORT_SYMBOL_GPL(kvm_emulate_rdmsr_imm);
+
+static int __kvm_emulate_wrmsr(struct kvm_vcpu *vcpu, u32 msr, u64 data)
+{
 	int r;
 
-	r = kvm_set_msr_with_filter(vcpu, ecx, data);
-
+	r = kvm_emulate_msr_write(vcpu, msr, data);
 	if (!r) {
-		trace_kvm_msr_write(ecx, data);
+		trace_kvm_msr_write(msr, data);
 	} else {
 		/* MSR write failed? See if we should ask user space */
-		if (kvm_msr_user_space(vcpu, ecx, KVM_EXIT_X86_WRMSR, data,
+		if (kvm_msr_user_space(vcpu, msr, KVM_EXIT_X86_WRMSR, data,
 				       complete_fast_msr_access, r))
 			return 0;
 		/* Signal all other negative errors to userspace */
 		if (r < 0)
 			return r;
-		trace_kvm_msr_write_ex(ecx, data);
+		trace_kvm_msr_write_ex(msr, data);
 	}
 
 	return kvm_x86_call(complete_emulated_msr)(vcpu, r);
 }
+
+int kvm_emulate_wrmsr(struct kvm_vcpu *vcpu)
+{
+	return __kvm_emulate_wrmsr(vcpu, kvm_rcx_read(vcpu),
+				   kvm_read_edx_eax(vcpu));
+}
 EXPORT_SYMBOL_GPL(kvm_emulate_wrmsr);
+
+int kvm_emulate_wrmsr_imm(struct kvm_vcpu *vcpu, u32 msr, int reg)
+{
+	return __kvm_emulate_wrmsr(vcpu, msr, kvm_register_read(vcpu, reg));
+}
+EXPORT_SYMBOL_GPL(kvm_emulate_wrmsr_imm);
 
 int kvm_emulate_as_nop(struct kvm_vcpu *vcpu)
 {
@@ -2092,6 +2139,15 @@ int kvm_emulate_invd(struct kvm_vcpu *vcpu)
 	return kvm_emulate_as_nop(vcpu);
 }
 EXPORT_SYMBOL_GPL(kvm_emulate_invd);
+
+fastpath_t handle_fastpath_invd(struct kvm_vcpu *vcpu)
+{
+	if (!kvm_emulate_invd(vcpu))
+		return EXIT_FASTPATH_EXIT_USERSPACE;
+
+	return EXIT_FASTPATH_REENTER_GUEST;
+}
+EXPORT_SYMBOL_GPL(handle_fastpath_invd);
 
 int kvm_handle_invalid_op(struct kvm_vcpu *vcpu)
 {
@@ -2140,74 +2196,41 @@ static inline bool kvm_vcpu_exit_request(struct kvm_vcpu *vcpu)
 	       kvm_request_pending(vcpu) || xfer_to_guest_mode_work_pending();
 }
 
-/*
- * The fast path for frequent and performance sensitive wrmsr emulation,
- * i.e. the sending of IPI, sending IPI early in the VM-Exit flow reduces
- * the latency of virtual IPI by avoiding the expensive bits of transitioning
- * from guest to host, e.g. reacquiring KVM's SRCU lock. In contrast to the
- * other cases which must be called after interrupts are enabled on the host.
- */
-static int handle_fastpath_set_x2apic_icr_irqoff(struct kvm_vcpu *vcpu, u64 data)
+static fastpath_t __handle_fastpath_wrmsr(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 {
-	if (!lapic_in_kernel(vcpu) || !apic_x2apic_mode(vcpu->arch.apic))
-		return 1;
-
-	if (((data & APIC_SHORT_MASK) == APIC_DEST_NOSHORT) &&
-	    ((data & APIC_DEST_MASK) == APIC_DEST_PHYSICAL) &&
-	    ((data & APIC_MODE_MASK) == APIC_DM_FIXED) &&
-	    ((u32)(data >> 32) != X2APIC_BROADCAST))
-		return kvm_x2apic_icr_write(vcpu->arch.apic, data);
-
-	return 1;
-}
-
-static int handle_fastpath_set_tscdeadline(struct kvm_vcpu *vcpu, u64 data)
-{
-	if (!kvm_can_use_hv_timer(vcpu))
-		return 1;
-
-	kvm_set_lapic_tscdeadline_msr(vcpu, data);
-	return 0;
-}
-
-fastpath_t handle_fastpath_set_msr_irqoff(struct kvm_vcpu *vcpu)
-{
-	u32 msr = kvm_rcx_read(vcpu);
-	u64 data;
-	fastpath_t ret;
-	bool handled;
-
-	kvm_vcpu_srcu_read_lock(vcpu);
-
 	switch (msr) {
 	case APIC_BASE_MSR + (APIC_ICR >> 4):
-		data = kvm_read_edx_eax(vcpu);
-		handled = !handle_fastpath_set_x2apic_icr_irqoff(vcpu, data);
+		if (!lapic_in_kernel(vcpu) || !apic_x2apic_mode(vcpu->arch.apic) ||
+		    kvm_x2apic_icr_write_fast(vcpu->arch.apic, data))
+			return EXIT_FASTPATH_NONE;
 		break;
 	case MSR_IA32_TSC_DEADLINE:
-		data = kvm_read_edx_eax(vcpu);
-		handled = !handle_fastpath_set_tscdeadline(vcpu, data);
+		kvm_set_lapic_tscdeadline_msr(vcpu, data);
 		break;
 	default:
-		handled = false;
-		break;
+		return EXIT_FASTPATH_NONE;
 	}
 
-	if (handled) {
-		if (!kvm_skip_emulated_instruction(vcpu))
-			ret = EXIT_FASTPATH_EXIT_USERSPACE;
-		else
-			ret = EXIT_FASTPATH_REENTER_GUEST;
-		trace_kvm_msr_write(msr, data);
-	} else {
-		ret = EXIT_FASTPATH_NONE;
-	}
+	trace_kvm_msr_write(msr, data);
 
-	kvm_vcpu_srcu_read_unlock(vcpu);
+	if (!kvm_skip_emulated_instruction(vcpu))
+		return EXIT_FASTPATH_EXIT_USERSPACE;
 
-	return ret;
+	return EXIT_FASTPATH_REENTER_GUEST;
 }
-EXPORT_SYMBOL_GPL(handle_fastpath_set_msr_irqoff);
+
+fastpath_t handle_fastpath_wrmsr(struct kvm_vcpu *vcpu)
+{
+	return __handle_fastpath_wrmsr(vcpu, kvm_rcx_read(vcpu),
+				       kvm_read_edx_eax(vcpu));
+}
+EXPORT_SYMBOL_GPL(handle_fastpath_wrmsr);
+
+fastpath_t handle_fastpath_wrmsr_imm(struct kvm_vcpu *vcpu, u32 msr, int reg)
+{
+	return __handle_fastpath_wrmsr(vcpu, msr, kvm_register_read(vcpu, reg));
+}
+EXPORT_SYMBOL_GPL(handle_fastpath_wrmsr_imm);
 
 /*
  * Adapt set_msr() to msr_io()'s calling convention
@@ -6778,7 +6801,11 @@ static int kvm_vm_ioctl_set_msr_filter(struct kvm *kvm,
 
 	kvm_free_msr_filter(old_filter);
 
-	kvm_make_all_cpus_request(kvm, KVM_REQ_MSR_FILTER_CHANGED);
+	/*
+	 * Recalc MSR intercepts as userspace may want to intercept accesses to
+	 * MSRs that KVM would otherwise pass through to the guest.
+	 */
+	kvm_make_all_cpus_request(kvm, KVM_REQ_RECALC_INTERCEPTS);
 
 	return 0;
 }
@@ -6971,6 +6998,15 @@ set_identity_unlock:
 
 		r = -EEXIST;
 		if (irqchip_in_kernel(kvm))
+			goto create_irqchip_unlock;
+
+		/*
+		 * Disallow an in-kernel I/O APIC if the VM has protected EOIs,
+		 * i.e. if KVM can't intercept EOIs and thus can't properly
+		 * emulate level-triggered interrupts.
+		 */
+		r = -ENOTTY;
+		if (kvm->arch.has_protected_eoi)
 			goto create_irqchip_unlock;
 
 		r = -EINVAL;
@@ -7360,6 +7396,7 @@ static void kvm_probe_msr_to_save(u32 msr_index)
 	case MSR_AMD64_PERF_CNTR_GLOBAL_CTL:
 	case MSR_AMD64_PERF_CNTR_GLOBAL_STATUS:
 	case MSR_AMD64_PERF_CNTR_GLOBAL_STATUS_CLR:
+	case MSR_AMD64_PERF_CNTR_GLOBAL_STATUS_SET:
 		if (!kvm_cpu_cap_has(X86_FEATURE_PERFMON_V2))
 			return;
 		break;
@@ -8360,7 +8397,7 @@ static int emulator_get_msr_with_filter(struct x86_emulate_ctxt *ctxt,
 	struct kvm_vcpu *vcpu = emul_to_vcpu(ctxt);
 	int r;
 
-	r = kvm_get_msr_with_filter(vcpu, msr_index, pdata);
+	r = kvm_emulate_msr_read(vcpu, msr_index, pdata);
 	if (r < 0)
 		return X86EMUL_UNHANDLEABLE;
 
@@ -8383,7 +8420,7 @@ static int emulator_set_msr_with_filter(struct x86_emulate_ctxt *ctxt,
 	struct kvm_vcpu *vcpu = emul_to_vcpu(ctxt);
 	int r;
 
-	r = kvm_set_msr_with_filter(vcpu, msr_index, data);
+	r = kvm_emulate_msr_write(vcpu, msr_index, data);
 	if (r < 0)
 		return X86EMUL_UNHANDLEABLE;
 
@@ -8403,7 +8440,7 @@ static int emulator_set_msr_with_filter(struct x86_emulate_ctxt *ctxt,
 static int emulator_get_msr(struct x86_emulate_ctxt *ctxt,
 			    u32 msr_index, u64 *pdata)
 {
-	return kvm_get_msr(emul_to_vcpu(ctxt), msr_index, pdata);
+	return __kvm_emulate_msr_read(emul_to_vcpu(ctxt), msr_index, pdata);
 }
 
 static int emulator_check_rdpmc_early(struct x86_emulate_ctxt *ctxt, u32 pmc)
@@ -8475,11 +8512,6 @@ static void emulator_set_nmi_mask(struct x86_emulate_ctxt *ctxt, bool masked)
 static bool emulator_is_smm(struct x86_emulate_ctxt *ctxt)
 {
 	return is_smm(emul_to_vcpu(ctxt));
-}
-
-static bool emulator_is_guest_mode(struct x86_emulate_ctxt *ctxt)
-{
-	return is_guest_mode(emul_to_vcpu(ctxt));
 }
 
 #ifndef CONFIG_KVM_SMM
@@ -8565,7 +8597,6 @@ static const struct x86_emulate_ops emulate_ops = {
 	.guest_cpuid_is_intel_compatible = emulator_guest_cpuid_is_intel_compatible,
 	.set_nmi_mask        = emulator_set_nmi_mask,
 	.is_smm              = emulator_is_smm,
-	.is_guest_mode       = emulator_is_guest_mode,
 	.leave_smm           = emulator_leave_smm,
 	.triple_fault        = emulator_triple_fault,
 	.set_xcr             = emulator_set_xcr,
@@ -8871,7 +8902,7 @@ int kvm_skip_emulated_instruction(struct kvm_vcpu *vcpu)
 	if (unlikely(!r))
 		return 0;
 
-	kvm_pmu_trigger_event(vcpu, kvm_pmu_eventsel.INSTRUCTIONS_RETIRED);
+	kvm_pmu_instruction_retired(vcpu);
 
 	/*
 	 * rflags is the old, "raw" value of the flags.  The new value has
@@ -9150,7 +9181,14 @@ restart:
 		ctxt->exception.address = 0;
 	}
 
-	r = x86_emulate_insn(ctxt);
+	/*
+	 * Check L1's instruction intercepts when emulating instructions for
+	 * L2, unless KVM is re-emulating a previously decoded instruction,
+	 * e.g. to complete userspace I/O, in which case KVM has already
+	 * checked the intercepts.
+	 */
+	r = x86_emulate_insn(ctxt, is_guest_mode(vcpu) &&
+				   !(emulation_type & EMULTYPE_NO_DECODE));
 
 	if (r == EMULATION_INTERCEPTED)
 		return 1;
@@ -9205,9 +9243,9 @@ writeback:
 		 */
 		if (!ctxt->have_exception ||
 		    exception_type(ctxt->exception.vector) == EXCPT_TRAP) {
-			kvm_pmu_trigger_event(vcpu, kvm_pmu_eventsel.INSTRUCTIONS_RETIRED);
+			kvm_pmu_instruction_retired(vcpu);
 			if (ctxt->is_branch)
-				kvm_pmu_trigger_event(vcpu, kvm_pmu_eventsel.BRANCH_INSTRUCTIONS_RETIRED);
+				kvm_pmu_branch_retired(vcpu);
 			kvm_rip_write(vcpu, ctxt->eip);
 			if (r && (ctxt->tf || (vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP)))
 				r = kvm_vcpu_do_singlestep(vcpu);
@@ -10803,13 +10841,8 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 		if (kvm_check_request(KVM_REQ_APF_READY, vcpu))
 			kvm_check_async_pf_completion(vcpu);
 
-		/*
-		 * Recalc MSR intercepts as userspace may want to intercept
-		 * accesses to MSRs that KVM would otherwise pass through to
-		 * the guest.
-		 */
-		if (kvm_check_request(KVM_REQ_MSR_FILTER_CHANGED, vcpu))
-			kvm_x86_call(recalc_msr_intercepts)(vcpu);
+		if (kvm_check_request(KVM_REQ_RECALC_INTERCEPTS, vcpu))
+			kvm_x86_call(recalc_intercepts)(vcpu);
 
 		if (kvm_check_request(KVM_REQ_UPDATE_CPU_DIRTY_LOGGING, vcpu))
 			kvm_x86_call(update_cpu_dirty_logging)(vcpu);
@@ -11310,13 +11343,7 @@ EXPORT_SYMBOL_GPL(kvm_emulate_halt);
 
 fastpath_t handle_fastpath_hlt(struct kvm_vcpu *vcpu)
 {
-	int ret;
-
-	kvm_vcpu_srcu_read_lock(vcpu);
-	ret = kvm_emulate_halt(vcpu);
-	kvm_vcpu_srcu_read_unlock(vcpu);
-
-	if (!ret)
+	if (!kvm_emulate_halt(vcpu))
 		return EXIT_FASTPATH_EXIT_USERSPACE;
 
 	if (kvm_vcpu_running(vcpu))
@@ -12395,6 +12422,41 @@ void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
 	kvfree(vcpu->arch.cpuid_entries);
 }
 
+static void kvm_xstate_reset(struct kvm_vcpu *vcpu, bool init_event)
+{
+	struct fpstate *fpstate = vcpu->arch.guest_fpu.fpstate;
+	u64 xfeatures_mask;
+	int i;
+
+	/*
+	 * Guest FPU state is zero allocated and so doesn't need to be manually
+	 * cleared on RESET, i.e. during vCPU creation.
+	 */
+	if (!init_event || !fpstate)
+		return;
+
+	/*
+	 * On INIT, only select XSTATE components are zeroed, most components
+	 * are unchanged.  Currently, the only components that are zeroed and
+	 * supported by KVM are MPX related.
+	 */
+	xfeatures_mask = (kvm_caps.supported_xcr0 | kvm_caps.supported_xss) &
+			 (XFEATURE_MASK_BNDREGS | XFEATURE_MASK_BNDCSR);
+	if (!xfeatures_mask)
+		return;
+
+	BUILD_BUG_ON(sizeof(xfeatures_mask) * BITS_PER_BYTE <= XFEATURE_MAX);
+
+	/*
+	 * All paths that lead to INIT are required to load the guest's FPU
+	 * state (because most paths are buried in KVM_RUN).
+	 */
+	kvm_put_guest_fpu(vcpu);
+	for_each_set_bit(i, (unsigned long *)&xfeatures_mask, XFEATURE_MAX)
+		fpstate_clear_xstate_component(fpstate, i);
+	kvm_load_guest_fpu(vcpu);
+}
+
 void kvm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 {
 	struct kvm_cpuid_entry2 *cpuid_0x1;
@@ -12452,22 +12514,7 @@ void kvm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 	kvm_async_pf_hash_reset(vcpu);
 	vcpu->arch.apf.halted = false;
 
-	if (vcpu->arch.guest_fpu.fpstate && kvm_mpx_supported()) {
-		struct fpstate *fpstate = vcpu->arch.guest_fpu.fpstate;
-
-		/*
-		 * All paths that lead to INIT are required to load the guest's
-		 * FPU state (because most paths are buried in KVM_RUN).
-		 */
-		if (init_event)
-			kvm_put_guest_fpu(vcpu);
-
-		fpstate_clear_xstate_component(fpstate, XFEATURE_BNDREGS);
-		fpstate_clear_xstate_component(fpstate, XFEATURE_BNDCSR);
-
-		if (init_event)
-			kvm_load_guest_fpu(vcpu);
-	}
+	kvm_xstate_reset(vcpu, init_event);
 
 	if (!init_event) {
 		vcpu->arch.smbase = 0x30000;
@@ -12479,7 +12526,7 @@ void kvm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 						  MSR_IA32_MISC_ENABLE_BTS_UNAVAIL;
 
 		__kvm_set_xcr(vcpu, 0, XFEATURE_MASK_FP);
-		__kvm_set_msr(vcpu, MSR_IA32_XSS, 0, true);
+		kvm_msr_write(vcpu, MSR_IA32_XSS, 0);
 	}
 
 	/* All GPRs except RDX (handled below) are zeroed on RESET/INIT. */
@@ -13525,11 +13572,6 @@ bool kvm_arch_has_noncoherent_dma(struct kvm *kvm)
 	return atomic_read(&kvm->arch.noncoherent_dma_count);
 }
 EXPORT_SYMBOL_GPL(kvm_arch_has_noncoherent_dma);
-
-bool kvm_vector_hashing_enabled(void)
-{
-	return vector_hashing;
-}
 
 bool kvm_arch_no_poll(struct kvm_vcpu *vcpu)
 {

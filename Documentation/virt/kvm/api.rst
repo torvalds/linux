@@ -3075,6 +3075,12 @@ This IOCTL replaces the obsolete KVM_GET_PIT.
 Sets the state of the in-kernel PIT model. Only valid after KVM_CREATE_PIT2.
 See KVM_GET_PIT2 for details on struct kvm_pit_state2.
 
+.. Tip::
+  ``KVM_SET_PIT2`` strictly adheres to the spec of Intel 8254 PIT.  For example,
+  a ``count`` value of 0 in ``struct kvm_pit_channel_state`` is interpreted as
+  65536, which is the maximum count value. Refer to `Intel 8254 programmable
+  interval timer <https://www.scs.stanford.edu/10wi-cs140/pintos/specs/8254.pdf>`_.
+
 This IOCTL replaces the obsolete KVM_SET_PIT.
 
 

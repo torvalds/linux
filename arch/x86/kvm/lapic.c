@@ -74,6 +74,10 @@ module_param(lapic_timer_advance, bool, 0444);
 #define LAPIC_TIMER_ADVANCE_NS_MAX     5000
 /* step-by-step approximation to mitigate fluctuation */
 #define LAPIC_TIMER_ADVANCE_ADJUST_STEP 8
+
+static bool __read_mostly vector_hashing_enabled = true;
+module_param_named(vector_hashing, vector_hashing_enabled, bool, 0444);
+
 static int kvm_lapic_msr_read(struct kvm_lapic *apic, u32 reg, u64 *data);
 static int kvm_lapic_msr_write(struct kvm_lapic *apic, u32 reg, u64 data);
 
@@ -130,7 +134,7 @@ static bool kvm_can_post_timer_interrupt(struct kvm_vcpu *vcpu)
 		(kvm_mwait_in_guest(vcpu->kvm) || kvm_hlt_in_guest(vcpu->kvm));
 }
 
-bool kvm_can_use_hv_timer(struct kvm_vcpu *vcpu)
+static bool kvm_can_use_hv_timer(struct kvm_vcpu *vcpu)
 {
 	return kvm_x86_ops.set_hv_timer
 	       && !(kvm_mwait_in_guest(vcpu->kvm) ||
@@ -1063,19 +1067,12 @@ bool kvm_apic_match_dest(struct kvm_vcpu *vcpu, struct kvm_lapic *source,
 }
 EXPORT_SYMBOL_GPL(kvm_apic_match_dest);
 
-int kvm_vector_to_index(u32 vector, u32 dest_vcpus,
-		       const unsigned long *bitmap, u32 bitmap_size)
+static int kvm_vector_to_index(u32 vector, u32 dest_vcpus,
+			       const unsigned long *bitmap, u32 bitmap_size)
 {
-	u32 mod;
-	int i, idx = -1;
+	int idx = find_nth_bit(bitmap, bitmap_size, vector % dest_vcpus);
 
-	mod = vector % dest_vcpus;
-
-	for (i = 0; i <= mod; i++) {
-		idx = find_next_bit(bitmap, bitmap_size, idx + 1);
-		BUG_ON(idx == bitmap_size);
-	}
-
+	BUG_ON(idx >= bitmap_size);
 	return idx;
 }
 
@@ -1104,6 +1101,16 @@ static bool kvm_apic_is_broadcast_dest(struct kvm *kvm, struct kvm_lapic **src,
 	}
 
 	return false;
+}
+
+static bool kvm_lowest_prio_delivery(struct kvm_lapic_irq *irq)
+{
+	return (irq->delivery_mode == APIC_DM_LOWEST || irq->msi_redir_hint);
+}
+
+static int kvm_apic_compare_prio(struct kvm_vcpu *vcpu1, struct kvm_vcpu *vcpu2)
+{
+	return vcpu1->arch.apic_arb_prio - vcpu2->arch.apic_arb_prio;
 }
 
 /* Return true if the interrupt can be handled by using *bitmap as index mask
@@ -1149,7 +1156,7 @@ static inline bool kvm_apic_map_get_dest_lapic(struct kvm *kvm,
 	if (!kvm_lowest_prio_delivery(irq))
 		return true;
 
-	if (!kvm_vector_hashing_enabled()) {
+	if (!vector_hashing_enabled) {
 		lowest = -1;
 		for_each_set_bit(i, bitmap, 16) {
 			if (!(*dst)[i])
@@ -1256,6 +1263,63 @@ bool kvm_intr_is_single_vcpu_fast(struct kvm *kvm, struct kvm_lapic_irq *irq,
 
 	rcu_read_unlock();
 	return ret;
+}
+
+int kvm_irq_delivery_to_apic(struct kvm *kvm, struct kvm_lapic *src,
+			     struct kvm_lapic_irq *irq, struct dest_map *dest_map)
+{
+	int r = -1;
+	struct kvm_vcpu *vcpu, *lowest = NULL;
+	unsigned long i, dest_vcpu_bitmap[BITS_TO_LONGS(KVM_MAX_VCPUS)];
+	unsigned int dest_vcpus = 0;
+
+	if (kvm_irq_delivery_to_apic_fast(kvm, src, irq, &r, dest_map))
+		return r;
+
+	if (irq->dest_mode == APIC_DEST_PHYSICAL &&
+	    irq->dest_id == 0xff && kvm_lowest_prio_delivery(irq)) {
+		pr_info("apic: phys broadcast and lowest prio\n");
+		irq->delivery_mode = APIC_DM_FIXED;
+	}
+
+	memset(dest_vcpu_bitmap, 0, sizeof(dest_vcpu_bitmap));
+
+	kvm_for_each_vcpu(i, vcpu, kvm) {
+		if (!kvm_apic_present(vcpu))
+			continue;
+
+		if (!kvm_apic_match_dest(vcpu, src, irq->shorthand,
+					irq->dest_id, irq->dest_mode))
+			continue;
+
+		if (!kvm_lowest_prio_delivery(irq)) {
+			if (r < 0)
+				r = 0;
+			r += kvm_apic_set_irq(vcpu, irq, dest_map);
+		} else if (kvm_apic_sw_enabled(vcpu->arch.apic)) {
+			if (!vector_hashing_enabled) {
+				if (!lowest)
+					lowest = vcpu;
+				else if (kvm_apic_compare_prio(vcpu, lowest) < 0)
+					lowest = vcpu;
+			} else {
+				__set_bit(i, dest_vcpu_bitmap);
+				dest_vcpus++;
+			}
+		}
+	}
+
+	if (dest_vcpus != 0) {
+		int idx = kvm_vector_to_index(irq->vector, dest_vcpus,
+					dest_vcpu_bitmap, KVM_MAX_VCPUS);
+
+		lowest = kvm_get_vcpu(kvm, idx);
+	}
+
+	if (lowest)
+		r = kvm_apic_set_irq(lowest, irq, dest_map);
+
+	return r;
 }
 
 /*
@@ -1401,11 +1465,6 @@ void kvm_bitmap_or_dest_vcpus(struct kvm *kvm, struct kvm_lapic_irq *irq,
 	rcu_read_unlock();
 }
 
-int kvm_apic_compare_prio(struct kvm_vcpu *vcpu1, struct kvm_vcpu *vcpu2)
-{
-	return vcpu1->arch.apic_arb_prio - vcpu2->arch.apic_arb_prio;
-}
-
 static bool kvm_ioapic_handles_vector(struct kvm_lapic *apic, int vector)
 {
 	return test_bit(vector, apic->vcpu->arch.ioapic_handled_vectors);
@@ -1483,24 +1542,30 @@ void kvm_apic_set_eoi_accelerated(struct kvm_vcpu *vcpu, int vector)
 }
 EXPORT_SYMBOL_GPL(kvm_apic_set_eoi_accelerated);
 
+static void kvm_icr_to_lapic_irq(struct kvm_lapic *apic, u32 icr_low,
+				 u32 icr_high, struct kvm_lapic_irq *irq)
+{
+	/* KVM has no delay and should always clear the BUSY/PENDING flag. */
+	WARN_ON_ONCE(icr_low & APIC_ICR_BUSY);
+
+	irq->vector = icr_low & APIC_VECTOR_MASK;
+	irq->delivery_mode = icr_low & APIC_MODE_MASK;
+	irq->dest_mode = icr_low & APIC_DEST_MASK;
+	irq->level = (icr_low & APIC_INT_ASSERT) != 0;
+	irq->trig_mode = icr_low & APIC_INT_LEVELTRIG;
+	irq->shorthand = icr_low & APIC_SHORT_MASK;
+	irq->msi_redir_hint = false;
+	if (apic_x2apic_mode(apic))
+		irq->dest_id = icr_high;
+	else
+		irq->dest_id = GET_XAPIC_DEST_FIELD(icr_high);
+}
+
 void kvm_apic_send_ipi(struct kvm_lapic *apic, u32 icr_low, u32 icr_high)
 {
 	struct kvm_lapic_irq irq;
 
-	/* KVM has no delay and should always clear the BUSY/PENDING flag. */
-	WARN_ON_ONCE(icr_low & APIC_ICR_BUSY);
-
-	irq.vector = icr_low & APIC_VECTOR_MASK;
-	irq.delivery_mode = icr_low & APIC_MODE_MASK;
-	irq.dest_mode = icr_low & APIC_DEST_MASK;
-	irq.level = (icr_low & APIC_INT_ASSERT) != 0;
-	irq.trig_mode = icr_low & APIC_INT_LEVELTRIG;
-	irq.shorthand = icr_low & APIC_SHORT_MASK;
-	irq.msi_redir_hint = false;
-	if (apic_x2apic_mode(apic))
-		irq.dest_id = icr_high;
-	else
-		irq.dest_id = GET_XAPIC_DEST_FIELD(icr_high);
+	kvm_icr_to_lapic_irq(apic, icr_low, icr_high, &irq);
 
 	trace_kvm_apic_ipi(icr_low, irq.dest_id);
 
@@ -2435,7 +2500,7 @@ EXPORT_SYMBOL_GPL(kvm_lapic_set_eoi);
 
 #define X2APIC_ICR_RESERVED_BITS (GENMASK_ULL(31, 20) | GENMASK_ULL(17, 16) | BIT(13))
 
-int kvm_x2apic_icr_write(struct kvm_lapic *apic, u64 data)
+static int __kvm_x2apic_icr_write(struct kvm_lapic *apic, u64 data, bool fast)
 {
 	if (data & X2APIC_ICR_RESERVED_BITS)
 		return 1;
@@ -2450,7 +2515,20 @@ int kvm_x2apic_icr_write(struct kvm_lapic *apic, u64 data)
 	 */
 	data &= ~APIC_ICR_BUSY;
 
-	kvm_apic_send_ipi(apic, (u32)data, (u32)(data >> 32));
+	if (fast) {
+		struct kvm_lapic_irq irq;
+		int ignored;
+
+		kvm_icr_to_lapic_irq(apic, (u32)data, (u32)(data >> 32), &irq);
+
+		if (!kvm_irq_delivery_to_apic_fast(apic->vcpu->kvm, apic, &irq,
+						   &ignored, NULL))
+			return -EWOULDBLOCK;
+
+		trace_kvm_apic_ipi((u32)data, irq.dest_id);
+	} else {
+		kvm_apic_send_ipi(apic, (u32)data, (u32)(data >> 32));
+	}
 	if (kvm_x86_ops.x2apic_icr_is_split) {
 		kvm_lapic_set_reg(apic, APIC_ICR, data);
 		kvm_lapic_set_reg(apic, APIC_ICR2, data >> 32);
@@ -2459,6 +2537,16 @@ int kvm_x2apic_icr_write(struct kvm_lapic *apic, u64 data)
 	}
 	trace_kvm_apic_write(APIC_ICR, data);
 	return 0;
+}
+
+static int kvm_x2apic_icr_write(struct kvm_lapic *apic, u64 data)
+{
+	return __kvm_x2apic_icr_write(apic, data, false);
+}
+
+int kvm_x2apic_icr_write_fast(struct kvm_lapic *apic, u64 data)
+{
+	return __kvm_x2apic_icr_write(apic, data, true);
 }
 
 static u64 kvm_x2apic_icr_read(struct kvm_lapic *apic)
@@ -2661,24 +2749,21 @@ void kvm_apic_update_apicv(struct kvm_vcpu *vcpu)
 int kvm_alloc_apic_access_page(struct kvm *kvm)
 {
 	void __user *hva;
-	int ret = 0;
 
-	mutex_lock(&kvm->slots_lock);
+	guard(mutex)(&kvm->slots_lock);
+
 	if (kvm->arch.apic_access_memslot_enabled ||
 	    kvm->arch.apic_access_memslot_inhibited)
-		goto out;
+		return 0;
 
 	hva = __x86_set_memory_region(kvm, APIC_ACCESS_PAGE_PRIVATE_MEMSLOT,
 				      APIC_DEFAULT_PHYS_BASE, PAGE_SIZE);
-	if (IS_ERR(hva)) {
-		ret = PTR_ERR(hva);
-		goto out;
-	}
+	if (IS_ERR(hva))
+		return PTR_ERR(hva);
 
 	kvm->arch.apic_access_memslot_enabled = true;
-out:
-	mutex_unlock(&kvm->slots_lock);
-	return ret;
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(kvm_alloc_apic_access_page);
 
