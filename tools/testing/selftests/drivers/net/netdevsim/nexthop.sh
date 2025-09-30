@@ -1053,6 +1053,6 @@ trap cleanup EXIT
 
 setup_prepare
 
-tests_run
+xfail_on_slow tests_run
 
 exit $EXIT_STATUS

@@ -779,6 +779,25 @@ xfs_set_max_atomic_write_opt(
 		return -EINVAL;
 	}
 
+	if (xfs_has_reflink(mp))
+		goto set_limit;
+
+	if (new_max_fsbs == 1) {
+		if (mp->m_ddev_targp->bt_awu_max ||
+		    (mp->m_rtdev_targp && mp->m_rtdev_targp->bt_awu_max)) {
+		} else {
+			xfs_warn(mp,
+ "cannot support atomic writes of size %lluk with no reflink or HW support",
+				new_max_bytes >> 10);
+			return -EINVAL;
+		}
+	} else {
+		xfs_warn(mp,
+ "cannot support atomic writes of size %lluk with no reflink support",
+				new_max_bytes >> 10);
+		return -EINVAL;
+	}
+
 set_limit:
 	error = xfs_calc_atomic_write_reservation(mp, new_max_fsbs);
 	if (error) {

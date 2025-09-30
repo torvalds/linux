@@ -95,12 +95,8 @@ struct g2h_fence {
 
 static void g2h_fence_init(struct g2h_fence *g2h_fence, u32 *response_buffer)
 {
+	memset(g2h_fence, 0, sizeof(*g2h_fence));
 	g2h_fence->response_buffer = response_buffer;
-	g2h_fence->response_data = 0;
-	g2h_fence->response_len = 0;
-	g2h_fence->fail = false;
-	g2h_fence->retry = false;
-	g2h_fence->done = false;
 	g2h_fence->seqno = ~0x0;
 }
 

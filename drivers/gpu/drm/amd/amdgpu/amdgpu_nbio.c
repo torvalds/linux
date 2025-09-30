@@ -55,7 +55,8 @@ u64 amdgpu_nbio_get_pcie_replay_count(struct amdgpu_device *adev)
 
 bool amdgpu_nbio_is_replay_cnt_supported(struct amdgpu_device *adev)
 {
-	if (amdgpu_sriov_vf(adev) || !adev->asic_funcs->get_pcie_replay_count ||
+	if (amdgpu_sriov_vf(adev) || !adev->asic_funcs ||
+	    !adev->asic_funcs->get_pcie_replay_count ||
 	    (!adev->nbio.funcs || !adev->nbio.funcs->get_pcie_replay_count))
 		return false;
 

@@ -253,7 +253,7 @@ static int timbgpio_probe(struct platform_device *pdev)
 	gc->direction_input = timbgpio_gpio_direction_input;
 	gc->get = timbgpio_gpio_get;
 	gc->direction_output = timbgpio_gpio_direction_output;
-	gc->set_rv = timbgpio_gpio_set;
+	gc->set = timbgpio_gpio_set;
 	gc->to_irq = (irq >= 0 && tgpio->irq_base > 0) ? timbgpio_to_irq : NULL;
 	gc->dbg_show = NULL;
 	gc->base = pdata->gpio_base;

@@ -177,7 +177,7 @@ static bool nfs_uuid_put(nfs_uuid_t *nfs_uuid)
 			/* nfs_close_local_fh() is doing the
 			 * close and we must wait. until it unlinks
 			 */
-			wait_var_event_spinlock(nfl,
+			wait_var_event_spinlock(nfs_uuid,
 						list_first_entry_or_null(
 							&nfs_uuid->files,
 							struct nfs_file_localio,
@@ -198,8 +198,7 @@ static bool nfs_uuid_put(nfs_uuid_t *nfs_uuid)
 		/* Now we can allow racing nfs_close_local_fh() to
 		 * skip the locking.
 		 */
-		RCU_INIT_POINTER(nfl->nfs_uuid, NULL);
-		wake_up_var_locked(&nfl->nfs_uuid, &nfs_uuid->lock);
+		store_release_wake_up(&nfl->nfs_uuid, RCU_INITIALIZER(NULL));
 	}
 
 	/* Remove client from nn->local_clients */
@@ -243,15 +242,20 @@ void nfs_localio_invalidate_clients(struct list_head *nn_local_clients,
 }
 EXPORT_SYMBOL_GPL(nfs_localio_invalidate_clients);
 
-static void nfs_uuid_add_file(nfs_uuid_t *nfs_uuid, struct nfs_file_localio *nfl)
+static int nfs_uuid_add_file(nfs_uuid_t *nfs_uuid, struct nfs_file_localio *nfl)
 {
+	int ret = 0;
+
 	/* Add nfl to nfs_uuid->files if it isn't already */
 	spin_lock(&nfs_uuid->lock);
-	if (list_empty(&nfl->list)) {
+	if (rcu_access_pointer(nfs_uuid->net) == NULL) {
+		ret = -ENXIO;
+	} else if (list_empty(&nfl->list)) {
 		rcu_assign_pointer(nfl->nfs_uuid, nfs_uuid);
 		list_add_tail(&nfl->list, &nfs_uuid->files);
 	}
 	spin_unlock(&nfs_uuid->lock);
+	return ret;
 }
 
 /*
@@ -285,11 +289,13 @@ struct nfsd_file *nfs_open_local_fh(nfs_uuid_t *uuid,
 	}
 	rcu_read_unlock();
 	/* We have an implied reference to net thanks to nfsd_net_try_get */
-	localio = nfs_to->nfsd_open_local_fh(net, uuid->dom, rpc_clnt,
-					     cred, nfs_fh, pnf, fmode);
+	localio = nfs_to->nfsd_open_local_fh(net, uuid->dom, rpc_clnt, cred,
+					     nfs_fh, pnf, fmode);
+	if (!IS_ERR(localio) && nfs_uuid_add_file(uuid, nfl) < 0) {
+		/* Delete the cached file when racing with nfs_uuid_put() */
+		nfs_to_nfsd_file_put_local(pnf);
+	}
 	nfs_to_nfsd_net_put(net);
-	if (!IS_ERR(localio))
-		nfs_uuid_add_file(uuid, nfl);
 
 	return localio;
 }
@@ -314,7 +320,7 @@ void nfs_close_local_fh(struct nfs_file_localio *nfl)
 		rcu_read_unlock();
 		return;
 	}
-	if (list_empty(&nfs_uuid->files)) {
+	if (list_empty(&nfl->list)) {
 		/* nfs_uuid_put() has started closing files, wait for it
 		 * to finished
 		 */
@@ -338,7 +344,7 @@ void nfs_close_local_fh(struct nfs_file_localio *nfl)
 	 */
 	spin_lock(&nfs_uuid->lock);
 	list_del_init(&nfl->list);
-	wake_up_var_locked(&nfl->nfs_uuid, &nfs_uuid->lock);
+	wake_up_var_locked(nfs_uuid, &nfs_uuid->lock);
 	spin_unlock(&nfs_uuid->lock);
 }
 EXPORT_SYMBOL_GPL(nfs_close_local_fh);

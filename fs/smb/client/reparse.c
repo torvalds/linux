@@ -38,7 +38,7 @@ int create_reparse_symlink(const unsigned int xid, struct inode *inode,
 				struct dentry *dentry, struct cifs_tcon *tcon,
 				const char *full_path, const char *symname)
 {
-	switch (get_cifs_symlink_type(CIFS_SB(inode->i_sb))) {
+	switch (cifs_symlink_type(CIFS_SB(inode->i_sb))) {
 	case CIFS_SYMLINK_TYPE_NATIVE:
 		return create_native_symlink(xid, inode, dentry, tcon, full_path, symname);
 	case CIFS_SYMLINK_TYPE_NFS:

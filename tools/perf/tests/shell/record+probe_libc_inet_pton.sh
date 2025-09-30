@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # probe libc's inet_pton & backtrace it with ping (exclusive)
 
 # Installs a probe on libc's inet_pton function, that will use uprobes,
@@ -18,12 +18,13 @@
 libc=$(grep -w libc /proc/self/maps | head -1 | sed -r 's/.*[[:space:]](\/.*)/\1/g')
 nm -Dg $libc 2>/dev/null | grep -F -q inet_pton || exit 254
 
-event_pattern='probe_libc:inet_pton(\_[[:digit:]]+)?'
+event_pattern='probe_libc:inet_pton(_[[:digit:]]+)?'
 
 add_libc_inet_pton_event() {
 
 	event_name=$(perf probe -f -x $libc -a inet_pton 2>&1 | tail -n +2 | head -n -5 | \
-			grep -P -o "$event_pattern(?=[[:space:]]\(on inet_pton in $libc\))")
+			awk -v ep="$event_pattern" -v l="$libc" '$0 ~ ep && $0 ~ \
+			("\\(on inet_pton in " l "\\)") {print $1}')
 
 	if [ $? -ne 0 ] || [ -z "$event_name" ] ; then
 		printf "FAIL: could not add event\n"

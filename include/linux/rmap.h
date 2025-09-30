@@ -449,6 +449,28 @@ static inline void __folio_rmap_sanity_checks(const struct folio *folio,
 	default:
 		VM_WARN_ON_ONCE(true);
 	}
+
+	/*
+	 * Anon folios must have an associated live anon_vma as long as they're
+	 * mapped into userspace.
+	 * Note that the atomic_read() mainly does two things:
+	 *
+	 * 1. In KASAN builds with CONFIG_SLUB_RCU_DEBUG, it causes KASAN to
+	 *    check that the associated anon_vma has not yet been freed (subject
+	 *    to KASAN's usual limitations). This check will pass if the
+	 *    anon_vma's refcount has already dropped to 0 but an RCU grace
+	 *    period hasn't passed since then.
+	 * 2. If the anon_vma has not yet been freed, it checks that the
+	 *    anon_vma still has a nonzero refcount (as opposed to being in the
+	 *    middle of an RCU delay for getting freed).
+	 */
+	if (folio_test_anon(folio) && !folio_test_ksm(folio)) {
+		unsigned long mapping = (unsigned long)folio->mapping;
+		struct anon_vma *anon_vma;
+
+		anon_vma = (void *)(mapping - FOLIO_MAPPING_ANON);
+		VM_WARN_ON_FOLIO(atomic_read(&anon_vma->refcount) == 0, folio);
+	}
 }
 
 /*

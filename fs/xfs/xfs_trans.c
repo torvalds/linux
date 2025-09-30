@@ -253,8 +253,8 @@ xfs_trans_alloc(
 	 * by doing GFP_KERNEL allocations inside sb_start_intwrite().
 	 */
 retry:
-	WARN_ON(mp->m_super->s_writers.frozen == SB_FREEZE_COMPLETE);
 	tp = __xfs_trans_alloc(mp, flags);
+	WARN_ON(mp->m_super->s_writers.frozen == SB_FREEZE_COMPLETE);
 	error = xfs_trans_reserve(tp, resp, blocks, rtextents);
 	if (error == -ENOSPC && want_retry) {
 		xfs_trans_cancel(tp);

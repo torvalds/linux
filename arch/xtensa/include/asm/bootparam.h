@@ -27,7 +27,7 @@
 #define BP_TAG_FIRST		0x7B0B  /* first tag with a version number */
 #define BP_TAG_LAST 		0x7E0B	/* last tag */
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 /* All records are aligned to 4 bytes */
 

@@ -295,7 +295,7 @@ static void pdc2027x_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	}
 
 	/* Set the PIO timing registers using value table for 133MHz */
-	ata_port_dbg(ap, "Set pio regs... \n");
+	ata_port_dbg(ap, "Set PIO regs...\n");
 
 	ctcr0 = ioread32(dev_mmio(ap, adev, PDC_CTCR0));
 	ctcr0 &= 0xffff0000;
@@ -308,7 +308,7 @@ static void pdc2027x_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	ctcr1 |= (pdc2027x_pio_timing_tbl[pio].value2 << 24);
 	iowrite32(ctcr1, dev_mmio(ap, adev, PDC_CTCR1));
 
-	ata_port_dbg(ap, "Set to pio mode[%u] \n", pio);
+	ata_port_dbg(ap, "Set to PIO mode[%u]\n", pio);
 }
 
 /**
@@ -341,7 +341,7 @@ static void pdc2027x_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 			iowrite32(ctcr1 & ~(1 << 7), dev_mmio(ap, adev, PDC_CTCR1));
 		}
 
-		ata_port_dbg(ap, "Set udma regs... \n");
+		ata_port_dbg(ap, "Set UDMA regs...\n");
 
 		ctcr1 = ioread32(dev_mmio(ap, adev, PDC_CTCR1));
 		ctcr1 &= 0xff000000;
@@ -350,14 +350,14 @@ static void pdc2027x_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 			(pdc2027x_udma_timing_tbl[udma_mode].value2 << 16);
 		iowrite32(ctcr1, dev_mmio(ap, adev, PDC_CTCR1));
 
-		ata_port_dbg(ap, "Set to udma mode[%u] \n", udma_mode);
+		ata_port_dbg(ap, "Set to UDMA mode[%u]\n", udma_mode);
 
 	} else  if ((dma_mode >= XFER_MW_DMA_0) &&
 		   (dma_mode <= XFER_MW_DMA_2)) {
 		/* Set the MDMA timing registers with value table for 133MHz */
 		unsigned int mdma_mode = dma_mode & 0x07;
 
-		ata_port_dbg(ap, "Set mdma regs... \n");
+		ata_port_dbg(ap, "Set MDMA regs...\n");
 		ctcr0 = ioread32(dev_mmio(ap, adev, PDC_CTCR0));
 
 		ctcr0 &= 0x0000ffff;
@@ -366,7 +366,7 @@ static void pdc2027x_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 
 		iowrite32(ctcr0, dev_mmio(ap, adev, PDC_CTCR0));
 
-		ata_port_dbg(ap, "Set to mdma mode[%u] \n", mdma_mode);
+		ata_port_dbg(ap, "Set to MDMA mode[%u]\n", mdma_mode);
 	} else {
 		ata_port_err(ap, "Unknown dma mode [%u] ignored\n", dma_mode);
 	}

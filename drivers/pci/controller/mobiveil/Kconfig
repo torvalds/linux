@@ -9,6 +9,7 @@ config PCIE_MOBIVEIL
 config PCIE_MOBIVEIL_HOST
 	bool
 	depends on PCI_MSI
+	select IRQ_MSI_LIB
 	select PCIE_MOBIVEIL
 
 config PCIE_LAYERSCAPE_GEN4

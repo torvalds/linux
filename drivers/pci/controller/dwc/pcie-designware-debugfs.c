@@ -814,14 +814,14 @@ static bool dw_pcie_ptm_context_update_visible(void *drvdata)
 {
 	struct dw_pcie *pci = drvdata;
 
-	return (pci->mode == DW_PCIE_EP_TYPE) ? true : false;
+	return pci->mode == DW_PCIE_EP_TYPE;
 }
 
 static bool dw_pcie_ptm_context_valid_visible(void *drvdata)
 {
 	struct dw_pcie *pci = drvdata;
 
-	return (pci->mode == DW_PCIE_RC_TYPE) ? true : false;
+	return pci->mode == DW_PCIE_RC_TYPE;
 }
 
 static bool dw_pcie_ptm_local_clock_visible(void *drvdata)
@@ -834,38 +834,38 @@ static bool dw_pcie_ptm_master_clock_visible(void *drvdata)
 {
 	struct dw_pcie *pci = drvdata;
 
-	return (pci->mode == DW_PCIE_EP_TYPE) ? true : false;
+	return pci->mode == DW_PCIE_EP_TYPE;
 }
 
 static bool dw_pcie_ptm_t1_visible(void *drvdata)
 {
 	struct dw_pcie *pci = drvdata;
 
-	return (pci->mode == DW_PCIE_EP_TYPE) ? true : false;
+	return pci->mode == DW_PCIE_EP_TYPE;
 }
 
 static bool dw_pcie_ptm_t2_visible(void *drvdata)
 {
 	struct dw_pcie *pci = drvdata;
 
-	return (pci->mode == DW_PCIE_RC_TYPE) ? true : false;
+	return pci->mode == DW_PCIE_RC_TYPE;
 }
 
 static bool dw_pcie_ptm_t3_visible(void *drvdata)
 {
 	struct dw_pcie *pci = drvdata;
 
-	return (pci->mode == DW_PCIE_RC_TYPE) ? true : false;
+	return pci->mode == DW_PCIE_RC_TYPE;
 }
 
 static bool dw_pcie_ptm_t4_visible(void *drvdata)
 {
 	struct dw_pcie *pci = drvdata;
 
-	return (pci->mode == DW_PCIE_EP_TYPE) ? true : false;
+	return pci->mode == DW_PCIE_EP_TYPE;
 }
 
-const struct pcie_ptm_ops dw_pcie_ptm_ops = {
+static const struct pcie_ptm_ops dw_pcie_ptm_ops = {
 	.check_capability = dw_pcie_ptm_check_capability,
 	.context_update_write = dw_pcie_ptm_context_update_write,
 	.context_update_read = dw_pcie_ptm_context_update_read,

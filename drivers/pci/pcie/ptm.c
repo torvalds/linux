@@ -507,7 +507,7 @@ struct pci_ptm_debugfs *pcie_ptm_create_debugfs(struct device *dev, void *pdata,
 	if (!ops->check_capability)
 		return NULL;
 
-	/* Check for PTM capability before creating debugfs attrbutes */
+	/* Check for PTM capability before creating debugfs attributes */
 	ret = ops->check_capability(pdata);
 	if (!ret) {
 		dev_dbg(dev, "PTM capability not present\n");

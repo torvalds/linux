@@ -41,7 +41,7 @@
 
 #define NO_SYSCALL (-1)
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <asm/coprocessor.h>
 #include <asm/core.h>
@@ -106,11 +106,11 @@ static inline unsigned long regs_return_value(struct pt_regs *regs)
 int do_syscall_trace_enter(struct pt_regs *regs);
 void do_syscall_trace_leave(struct pt_regs *regs);
 
-#else	/* __ASSEMBLY__ */
+#else	/* __ASSEMBLER__ */
 
 # include <asm/asm-offsets.h>
 #define PT_REGS_OFFSET	  (KERNEL_STACK_SIZE - PT_USER_SIZE)
 
-#endif	/* !__ASSEMBLY__ */
+#endif	/* !__ASSEMBLER__ */
 
 #endif	/* _XTENSA_PTRACE_H */

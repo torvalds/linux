@@ -96,6 +96,8 @@ enum nfs_param {
 	Opt_wsize,
 	Opt_write,
 	Opt_xprtsec,
+	Opt_cert_serial,
+	Opt_privkey_serial,
 };
 
 enum {
@@ -221,6 +223,8 @@ static const struct fs_parameter_spec nfs_fs_parameters[] = {
 	fsparam_enum  ("write",		Opt_write, nfs_param_enums_write),
 	fsparam_u32   ("wsize",		Opt_wsize),
 	fsparam_string("xprtsec",	Opt_xprtsec),
+	fsparam_s32("cert_serial",	Opt_cert_serial),
+	fsparam_s32("privkey_serial",	Opt_privkey_serial),
 	{}
 };
 
@@ -551,6 +555,32 @@ static int nfs_parse_version_string(struct fs_context *fc,
 	return 0;
 }
 
+#ifdef CONFIG_KEYS
+static int nfs_tls_key_verify(key_serial_t key_id)
+{
+	struct key *key = key_lookup(key_id);
+	int error = 0;
+
+	if (IS_ERR(key)) {
+		pr_err("key id %08x not found\n", key_id);
+		return PTR_ERR(key);
+	}
+	if (test_bit(KEY_FLAG_REVOKED, &key->flags) ||
+	    test_bit(KEY_FLAG_INVALIDATED, &key->flags)) {
+		pr_err("key id %08x revoked\n", key_id);
+		error = -EKEYREVOKED;
+	}
+
+	key_put(key);
+	return error;
+}
+#else
+static inline int nfs_tls_key_verify(key_serial_t key_id)
+{
+	return -ENOENT;
+}
+#endif /* CONFIG_KEYS */
+
 /*
  * Parse a single mount parameter.
  */
@@ -806,6 +836,18 @@ static int nfs_fs_context_parse_param(struct fs_context *fc,
 		ret = nfs_parse_xprtsec_policy(fc, param);
 		if (ret < 0)
 			return ret;
+		break;
+	case Opt_cert_serial:
+		ret = nfs_tls_key_verify(result.int_32);
+		if (ret < 0)
+			return ret;
+		ctx->xprtsec.cert_serial = result.int_32;
+		break;
+	case Opt_privkey_serial:
+		ret = nfs_tls_key_verify(result.int_32);
+		if (ret < 0)
+			return ret;
+		ctx->xprtsec.privkey_serial = result.int_32;
 		break;
 
 	case Opt_proto:

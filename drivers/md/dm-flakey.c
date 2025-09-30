@@ -215,16 +215,19 @@ static int parse_features(struct dm_arg_set *as, struct flakey_c *fc,
 	}
 
 	if (test_bit(DROP_WRITES, &fc->flags) &&
-	    (fc->corrupt_bio_rw == WRITE || fc->random_write_corrupt)) {
+	    ((fc->corrupt_bio_byte && fc->corrupt_bio_rw == WRITE) ||
+	     fc->random_write_corrupt)) {
 		ti->error = "drop_writes is incompatible with random_write_corrupt or corrupt_bio_byte with the WRITE flag set";
 		return -EINVAL;
 
 	} else if (test_bit(ERROR_WRITES, &fc->flags) &&
-		   (fc->corrupt_bio_rw == WRITE || fc->random_write_corrupt)) {
+		   ((fc->corrupt_bio_byte && fc->corrupt_bio_rw == WRITE) ||
+		    fc->random_write_corrupt)) {
 		ti->error = "error_writes is incompatible with random_write_corrupt or corrupt_bio_byte with the WRITE flag set";
 		return -EINVAL;
 	} else if (test_bit(ERROR_READS, &fc->flags) &&
-		   (fc->corrupt_bio_rw == READ || fc->random_read_corrupt)) {
+		   ((fc->corrupt_bio_byte && fc->corrupt_bio_rw == READ) ||
+		    fc->random_read_corrupt)) {
 		ti->error = "error_reads is incompatible with random_read_corrupt or corrupt_bio_byte with the READ flag set";
 		return -EINVAL;
 	}

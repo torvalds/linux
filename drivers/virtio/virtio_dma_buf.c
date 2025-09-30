@@ -36,6 +36,8 @@ EXPORT_SYMBOL(virtio_dma_buf_export);
 
 /**
  * virtio_dma_buf_attach - mandatory attach callback for virtio dma-bufs
+ * @dma_buf: [in] buffer to attach
+ * @attach: [in] attachment structure
  */
 int virtio_dma_buf_attach(struct dma_buf *dma_buf,
 			  struct dma_buf_attachment *attach)

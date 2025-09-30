@@ -95,17 +95,17 @@ cifs_find_mid(struct TCP_Server_Info *server, char *buffer)
 	struct smb_hdr *buf = (struct smb_hdr *)buffer;
 	struct mid_q_entry *mid;
 
-	spin_lock(&server->mid_lock);
+	spin_lock(&server->mid_queue_lock);
 	list_for_each_entry(mid, &server->pending_mid_q, qhead) {
 		if (compare_mid(mid->mid, buf) &&
 		    mid->mid_state == MID_REQUEST_SUBMITTED &&
 		    le16_to_cpu(mid->command) == buf->Command) {
 			kref_get(&mid->refcount);
-			spin_unlock(&server->mid_lock);
+			spin_unlock(&server->mid_queue_lock);
 			return mid;
 		}
 	}
-	spin_unlock(&server->mid_lock);
+	spin_unlock(&server->mid_queue_lock);
 	return NULL;
 }
 
@@ -169,10 +169,9 @@ cifs_get_next_mid(struct TCP_Server_Info *server)
 	__u16 last_mid, cur_mid;
 	bool collision, reconnect = false;
 
-	spin_lock(&server->mid_lock);
-
+	spin_lock(&server->mid_counter_lock);
 	/* mid is 16 bit only for CIFS/SMB */
-	cur_mid = (__u16)((server->CurrentMid) & 0xffff);
+	cur_mid = (__u16)((server->current_mid) & 0xffff);
 	/* we do not want to loop forever */
 	last_mid = cur_mid;
 	cur_mid++;
@@ -198,6 +197,7 @@ cifs_get_next_mid(struct TCP_Server_Info *server)
 			cur_mid++;
 
 		num_mids = 0;
+		spin_lock(&server->mid_queue_lock);
 		list_for_each_entry(mid_entry, &server->pending_mid_q, qhead) {
 			++num_mids;
 			if (mid_entry->mid == cur_mid &&
@@ -207,6 +207,7 @@ cifs_get_next_mid(struct TCP_Server_Info *server)
 				break;
 			}
 		}
+		spin_unlock(&server->mid_queue_lock);
 
 		/*
 		 * if we have more than 32k mids in the list, then something
@@ -223,12 +224,12 @@ cifs_get_next_mid(struct TCP_Server_Info *server)
 
 		if (!collision) {
 			mid = (__u64)cur_mid;
-			server->CurrentMid = mid;
+			server->current_mid = mid;
 			break;
 		}
 		cur_mid++;
 	}
-	spin_unlock(&server->mid_lock);
+	spin_unlock(&server->mid_counter_lock);
 
 	if (reconnect) {
 		cifs_signal_cifsd_for_reconnect(server, false);
@@ -1272,7 +1273,7 @@ cifs_make_node(unsigned int xid, struct inode *inode,
 		 */
 		return cifs_sfu_make_node(xid, inode, dentry, tcon,
 					  full_path, mode, dev);
-	} else if (le32_to_cpu(tcon->fsAttrInfo.Attributes) & FILE_SUPPORTS_REPARSE_POINTS) {
+	} else if (CIFS_REPARSE_SUPPORT(tcon)) {
 		/*
 		 * mknod via reparse points requires server support for
 		 * storing reparse points, which is available since

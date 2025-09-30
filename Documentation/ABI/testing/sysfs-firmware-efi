@@ -36,3 +36,10 @@ Description:	Displays the content of the Runtime Configuration Interface
 		Table version 2 on Dell EMC PowerEdge systems in binary format
 Users:		It is used by Dell EMC OpenManage Server Administrator tool to
 		populate BIOS setup page.
+
+What:		/sys/firmware/efi/ovmf_debug_log
+Date:		July 2025
+Contact:	Gerd Hoffmann <kraxel@redhat.com>, linux-efi@vger.kernel.org
+Description:	Displays the content of the OVMF debug log buffer.  The file is
+		only present in case the firmware supports logging to a memory
+		buffer.

@@ -17,7 +17,7 @@
 //!
 //! C header: [`include/linux/configfs.h`](srctree/include/linux/configfs.h)
 //!
-//! # Example
+//! # Examples
 //!
 //! ```ignore
 //! use kernel::alloc::flags;
@@ -151,7 +151,7 @@ impl<Data> Subsystem<Data> {
         data: impl PinInit<Data, Error>,
     ) -> impl PinInit<Self, Error> {
         try_pin_init!(Self {
-            subsystem <- pin_init::zeroed().chain(
+            subsystem <- pin_init::init_zeroed().chain(
                 |place: &mut Opaque<bindings::configfs_subsystem>| {
                     // SAFETY: We initialized the required fields of `place.group` above.
                     unsafe {
@@ -261,7 +261,7 @@ impl<Data> Group<Data> {
         data: impl PinInit<Data, Error>,
     ) -> impl PinInit<Self, Error> {
         try_pin_init!(Self {
-            group <- pin_init::zeroed().chain(|v: &mut Opaque<bindings::config_group>| {
+            group <- pin_init::init_zeroed().chain(|v: &mut Opaque<bindings::config_group>| {
                 let place = v.get();
                 let name = name.as_bytes_with_nul().as_ptr();
                 // SAFETY: It is safe to initialize a group once it has been zeroed.
@@ -279,7 +279,7 @@ impl<Data> Group<Data> {
 // within the `group` field.
 unsafe impl<Data> HasGroup<Data> for Group<Data> {
     unsafe fn group(this: *const Self) -> *const bindings::config_group {
-        Opaque::raw_get(
+        Opaque::cast_into(
             // SAFETY: By impl and function safety requirements this field
             // projection is within bounds of the allocation.
             unsafe { &raw const (*this).group },
@@ -426,7 +426,7 @@ where
     };
 
     const fn vtable_ptr() -> *const bindings::configfs_group_operations {
-        &Self::VTABLE as *const bindings::configfs_group_operations
+        &Self::VTABLE
     }
 }
 
@@ -464,7 +464,7 @@ where
     };
 
     const fn vtable_ptr() -> *const bindings::configfs_item_operations {
-        &Self::VTABLE as *const bindings::configfs_item_operations
+        &Self::VTABLE
     }
 }
 
@@ -476,7 +476,7 @@ impl<Data> ItemOperationsVTable<Subsystem<Data>, Data> {
     };
 
     const fn vtable_ptr() -> *const bindings::configfs_item_operations {
-        &Self::VTABLE as *const bindings::configfs_item_operations
+        &Self::VTABLE
     }
 }
 
@@ -561,7 +561,7 @@ where
         let data: &Data = unsafe { get_group_data(c_group) };
 
         // SAFETY: By function safety requirements, `page` is writable for `PAGE_SIZE`.
-        let ret = O::show(data, unsafe { &mut *(page as *mut [u8; PAGE_SIZE]) });
+        let ret = O::show(data, unsafe { &mut *(page.cast::<[u8; PAGE_SIZE]>()) });
 
         match ret {
             Ok(size) => size as isize,
@@ -717,11 +717,7 @@ impl<const N: usize, Data> AttributeList<N, Data> {
 
         // SAFETY: By function safety requirements, we have exclusive access to
         // `self` and the reference created below will be exclusive.
-        unsafe {
-            (&mut *self.0.get())[I] = (attribute as *const Attribute<ID, O, Data>)
-                .cast_mut()
-                .cast()
-        };
+        unsafe { (&mut *self.0.get())[I] = core::ptr::from_ref(attribute).cast_mut().cast() };
     }
 }
 
@@ -761,9 +757,7 @@ macro_rules! impl_item_type {
                         ct_owner: owner.as_ptr(),
                         ct_group_ops: GroupOperationsVTable::<Data, Child>::vtable_ptr().cast_mut(),
                         ct_item_ops: ItemOperationsVTable::<$tpe, Data>::vtable_ptr().cast_mut(),
-                        ct_attrs: (attributes as *const AttributeList<N, Data>)
-                            .cast_mut()
-                            .cast(),
+                        ct_attrs: core::ptr::from_ref(attributes).cast_mut().cast(),
                         ct_bin_attrs: core::ptr::null_mut(),
                     }),
                     _p: PhantomData,
@@ -780,9 +774,7 @@ macro_rules! impl_item_type {
                         ct_owner: owner.as_ptr(),
                         ct_group_ops: core::ptr::null_mut(),
                         ct_item_ops: ItemOperationsVTable::<$tpe, Data>::vtable_ptr().cast_mut(),
-                        ct_attrs: (attributes as *const AttributeList<N, Data>)
-                            .cast_mut()
-                            .cast(),
+                        ct_attrs: core::ptr::from_ref(attributes).cast_mut().cast(),
                         ct_bin_attrs: core::ptr::null_mut(),
                     }),
                     _p: PhantomData,

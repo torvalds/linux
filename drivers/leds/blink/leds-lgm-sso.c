@@ -471,7 +471,7 @@ static int sso_gpio_gc_init(struct device *dev, struct sso_led_priv *priv)
 	gc->get_direction       = sso_gpio_get_dir;
 	gc->direction_output    = sso_gpio_dir_out;
 	gc->get                 = sso_gpio_get;
-	gc->set_rv              = sso_gpio_set;
+	gc->set                 = sso_gpio_set;
 
 	gc->label               = "lgm-sso";
 	gc->base                = -1;

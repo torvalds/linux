@@ -21,17 +21,17 @@
  * type.
  *
  * Type encoding:
- * 00 - Blocked on mutex        (BLOCKER_TYPE_MUTEX)
- * 01 - Blocked on semaphore    (BLOCKER_TYPE_SEM)
- * 10 - Blocked on rt-mutex     (BLOCKER_TYPE_RTMUTEX)
- * 11 - Blocked on rw-semaphore (BLOCKER_TYPE_RWSEM)
+ * 00 - Blocked on mutex			(BLOCKER_TYPE_MUTEX)
+ * 01 - Blocked on semaphore			(BLOCKER_TYPE_SEM)
+ * 10 - Blocked on rw-semaphore as READER	(BLOCKER_TYPE_RWSEM_READER)
+ * 11 - Blocked on rw-semaphore as WRITER	(BLOCKER_TYPE_RWSEM_WRITER)
  */
-#define BLOCKER_TYPE_MUTEX      0x00UL
-#define BLOCKER_TYPE_SEM        0x01UL
-#define BLOCKER_TYPE_RTMUTEX    0x02UL
-#define BLOCKER_TYPE_RWSEM      0x03UL
+#define BLOCKER_TYPE_MUTEX		0x00UL
+#define BLOCKER_TYPE_SEM		0x01UL
+#define BLOCKER_TYPE_RWSEM_READER	0x02UL
+#define BLOCKER_TYPE_RWSEM_WRITER	0x03UL
 
-#define BLOCKER_TYPE_MASK       0x03UL
+#define BLOCKER_TYPE_MASK		0x03UL
 
 #ifdef CONFIG_DETECT_HUNG_TASK_BLOCKER
 static inline void hung_task_set_blocker(void *lock, unsigned long type)

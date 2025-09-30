@@ -1,11 +1,28 @@
 // SPDX-License-Identifier: GPL-2.0
+#include "actions.h"
 #include "osnoise.h"
+
+/*
+ * Define timerlat tracing mode.
+ *
+ * There are three tracing modes:
+ * - tracefs-only, used when BPF is unavailable.
+ * - BPF-only, used when BPF is available and neither trace saving nor
+ * auto-analysis are enabled.
+ * - mixed mode, used when BPF is available and either trace saving or
+ * auto-analysis is enabled (which rely on sample collection through
+ * tracefs).
+ */
+enum timerlat_tracing_mode {
+	TRACING_MODE_BPF,
+	TRACING_MODE_TRACEFS,
+	TRACING_MODE_MIXED,
+};
 
 struct timerlat_params {
 	/* Common params */
 	char			*cpus;
 	cpu_set_t		monitored_cpus;
-	char			*trace_output;
 	char			*cgroup_name;
 	unsigned long long	runtime;
 	long long		stop_us;
@@ -30,6 +47,11 @@ struct timerlat_params {
 	cpu_set_t		hk_cpu_set;
 	struct sched_attr	sched_param;
 	struct trace_events	*events;
+	enum timerlat_tracing_mode mode;
+
+	struct actions threshold_actions;
+	struct actions end_actions;
+
 	union {
 		struct {
 			/* top only */

@@ -943,7 +943,7 @@ int pci_msix_write_tph_tag(struct pci_dev *pdev, unsigned int index, u16 tag)
 	/*
 	 * This is a horrible hack, but short of implementing a PCI
 	 * specific interrupt chip callback and a huge pile of
-	 * infrastructure, this is the minor nuissance. It provides the
+	 * infrastructure, this is the minor nuisance. It provides the
 	 * protection against concurrent operations on this entry and keeps
 	 * the control word cache in sync.
 	 */

@@ -167,12 +167,13 @@ static void cs42l43_hp_ilimit_clear_work(struct work_struct *work)
 	snd_soc_dapm_mutex_unlock(dapm);
 }
 
-static void cs42l43_hp_ilimit_work(struct work_struct *work)
+static irqreturn_t cs42l43_hp_ilimit(int irq, void *data)
 {
-	struct cs42l43_codec *priv = container_of(work, struct cs42l43_codec,
-						  hp_ilimit_work);
+	struct cs42l43_codec *priv = data;
 	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(priv->component);
 	struct cs42l43 *cs42l43 = priv->core;
+
+	dev_dbg(priv->dev, "headphone ilimit IRQ\n");
 
 	snd_soc_dapm_mutex_lock(dapm);
 
@@ -183,7 +184,7 @@ static void cs42l43_hp_ilimit_work(struct work_struct *work)
 
 		priv->hp_ilimit_count++;
 		snd_soc_dapm_mutex_unlock(dapm);
-		return;
+		return IRQ_HANDLED;
 	}
 
 	dev_err(priv->dev, "Disabling headphone for %dmS, due to frequent current limit\n",
@@ -218,15 +219,6 @@ static void cs42l43_hp_ilimit_work(struct work_struct *work)
 	priv->hp_ilimited = false;
 
 	snd_soc_dapm_mutex_unlock(dapm);
-}
-
-static irqreturn_t cs42l43_hp_ilimit(int irq, void *data)
-{
-	struct cs42l43_codec *priv = data;
-
-	dev_dbg(priv->dev, "headphone ilimit IRQ\n");
-
-	queue_work(system_long_wq, &priv->hp_ilimit_work);
 
 	return IRQ_HANDLED;
 }
@@ -2158,10 +2150,7 @@ static void cs42l43_component_remove(struct snd_soc_component *component)
 
 	cancel_delayed_work_sync(&priv->bias_sense_timeout);
 	cancel_delayed_work_sync(&priv->tip_sense_work);
-	cancel_delayed_work_sync(&priv->button_press_work);
-	cancel_work_sync(&priv->button_release_work);
 
-	cancel_work_sync(&priv->hp_ilimit_work);
 	cancel_delayed_work_sync(&priv->hp_ilimit_clear_work);
 
 	priv->component = NULL;
@@ -2313,10 +2302,7 @@ static int cs42l43_codec_probe(struct platform_device *pdev)
 
 	INIT_DELAYED_WORK(&priv->tip_sense_work, cs42l43_tip_sense_work);
 	INIT_DELAYED_WORK(&priv->bias_sense_timeout, cs42l43_bias_sense_timeout);
-	INIT_DELAYED_WORK(&priv->button_press_work, cs42l43_button_press_work);
 	INIT_DELAYED_WORK(&priv->hp_ilimit_clear_work, cs42l43_hp_ilimit_clear_work);
-	INIT_WORK(&priv->button_release_work, cs42l43_button_release_work);
-	INIT_WORK(&priv->hp_ilimit_work, cs42l43_hp_ilimit_work);
 
 	pm_runtime_set_autosuspend_delay(priv->dev, 100);
 	pm_runtime_use_autosuspend(priv->dev);

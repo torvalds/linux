@@ -1,0 +1,84 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pci/apm,xgene-pcie.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: AppliedMicro X-Gene PCIe interface
+
+maintainers:
+  - Toan Le <toan@os.amperecomputing.com>
+
+allOf:
+  - $ref: /schemas/pci/pci-host-bridge.yaml#
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - const: apm,xgene-storm-pcie
+          - const: apm,xgene-pcie
+      - items:
+          - const: apm,xgene-pcie
+
+  reg:
+    items:
+      - description: Controller configuration registers
+      - description: PCI configuration space registers
+
+  reg-names:
+    items:
+      - const: csr
+      - const: cfg
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    items:
+      - const: pcie
+
+  dma-coherent: true
+
+  msi-parent:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - reg-names
+  - '#interrupt-cells'
+  - interrupt-map-mask
+  - interrupt-map
+  - clocks
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    bus {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        pcie@1f2b0000 {
+            compatible = "apm,xgene-storm-pcie", "apm,xgene-pcie";
+            device_type = "pci";
+            #interrupt-cells = <1>;
+            #size-cells = <2>;
+            #address-cells = <3>;
+            reg = <0x00 0x1f2b0000 0x0 0x00010000>, /* Controller registers */
+                  <0xe0 0xd0000000 0x0 0x00040000>; /* PCI config space */
+            reg-names = "csr", "cfg";
+            ranges = <0x01000000 0x00 0x00000000 0xe0 0x10000000 0x00 0x00010000>, /* io */
+                    <0x02000000 0x00 0x80000000 0xe1 0x80000000 0x00 0x80000000>; /* mem */
+            dma-ranges = <0x42000000 0x80 0x00000000 0x80 0x00000000 0x00 0x80000000>,
+                        <0x42000000 0x00 0x00000000 0x00 0x00000000 0x80 0x00000000>;
+            interrupt-map-mask = <0x0 0x0 0x0 0x7>;
+            interrupt-map = <0x0 0x0 0x0 0x1 &gic 0x0 0xc2 0x1>,
+                            <0x0 0x0 0x0 0x2 &gic 0x0 0xc3 0x1>,
+                            <0x0 0x0 0x0 0x3 &gic 0x0 0xc4 0x1>,
+                            <0x0 0x0 0x0 0x4 &gic 0x0 0xc5 0x1>;
+            dma-coherent;
+            clocks = <&pcie0clk 0>;
+        };
+    };

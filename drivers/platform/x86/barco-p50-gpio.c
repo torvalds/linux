@@ -316,7 +316,7 @@ static int p50_gpio_probe(struct platform_device *pdev)
 	p50->gc.base = -1;
 	p50->gc.get_direction = p50_gpio_get_direction;
 	p50->gc.get = p50_gpio_get;
-	p50->gc.set_rv = p50_gpio_set;
+	p50->gc.set = p50_gpio_set;
 
 
 	/* reset mbox */

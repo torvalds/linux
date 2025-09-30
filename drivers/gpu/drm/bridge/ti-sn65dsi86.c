@@ -1836,7 +1836,7 @@ static int ti_sn_gpio_probe(struct auxiliary_device *adev,
 	pdata->gchip.direction_input = ti_sn_bridge_gpio_direction_input;
 	pdata->gchip.direction_output = ti_sn_bridge_gpio_direction_output;
 	pdata->gchip.get = ti_sn_bridge_gpio_get;
-	pdata->gchip.set_rv = ti_sn_bridge_gpio_set;
+	pdata->gchip.set = ti_sn_bridge_gpio_set;
 	pdata->gchip.can_sleep = true;
 	pdata->gchip.names = ti_sn_bridge_gpio_names;
 	pdata->gchip.ngpio = SN_NUM_GPIOS;

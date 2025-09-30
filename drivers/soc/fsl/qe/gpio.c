@@ -321,8 +321,8 @@ static int __init qe_add_gpiochips(void)
 		gc->direction_input = qe_gpio_dir_in;
 		gc->direction_output = qe_gpio_dir_out;
 		gc->get = qe_gpio_get;
-		gc->set_rv = qe_gpio_set;
-		gc->set_multiple_rv = qe_gpio_set_multiple;
+		gc->set = qe_gpio_set;
+		gc->set_multiple = qe_gpio_set_multiple;
 
 		ret = of_mm_gpiochip_add_data(np, mm_gc, qe_gc);
 		if (ret)

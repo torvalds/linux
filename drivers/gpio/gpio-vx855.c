@@ -216,7 +216,7 @@ static void vx855gpio_gpio_setup(struct vx855_gpio *vg)
 	c->direction_input = vx855gpio_direction_input;
 	c->direction_output = vx855gpio_direction_output;
 	c->get = vx855gpio_get;
-	c->set_rv = vx855gpio_set;
+	c->set = vx855gpio_set;
 	c->set_config = vx855gpio_set_config;
 	c->dbg_show = NULL;
 	c->base = 0;

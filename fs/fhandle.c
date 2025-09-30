@@ -402,7 +402,7 @@ static long do_handle_open(int mountdirfd, struct file_handle __user *ufh,
 	if (retval)
 		return retval;
 
-	CLASS(get_unused_fd, fd)(O_CLOEXEC);
+	CLASS(get_unused_fd, fd)(open_flag);
 	if (fd < 0)
 		return fd;
 

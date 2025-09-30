@@ -49,7 +49,7 @@ struct Inner<T: Send> {
 /// [`Devres`] users should make sure to simply free the corresponding backing resource in `T`'s
 /// [`Drop`] implementation.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```no_run
 /// # use kernel::{bindings, device::{Bound, Device}, devres::Devres, io::{Io, IoRaw}};
@@ -66,19 +66,19 @@ struct Inner<T: Send> {
 ///     unsafe fn new(paddr: usize) -> Result<Self>{
 ///         // SAFETY: By the safety requirements of this function [`paddr`, `paddr` + `SIZE`) is
 ///         // valid for `ioremap`.
-///         let addr = unsafe { bindings::ioremap(paddr as _, SIZE as _) };
+///         let addr = unsafe { bindings::ioremap(paddr as bindings::phys_addr_t, SIZE) };
 ///         if addr.is_null() {
 ///             return Err(ENOMEM);
 ///         }
 ///
-///         Ok(IoMem(IoRaw::new(addr as _, SIZE)?))
+///         Ok(IoMem(IoRaw::new(addr as usize, SIZE)?))
 ///     }
 /// }
 ///
 /// impl<const SIZE: usize> Drop for IoMem<SIZE> {
 ///     fn drop(&mut self) {
 ///         // SAFETY: `self.0.addr()` is guaranteed to be properly mapped by `Self::new`.
-///         unsafe { bindings::iounmap(self.0.addr() as _); };
+///         unsafe { bindings::iounmap(self.0.addr() as *mut c_void); };
 ///     }
 /// }
 ///
@@ -115,10 +115,11 @@ pub struct Devres<T: Send> {
     /// Contains all the fields shared with [`Self::callback`].
     // TODO: Replace with `UnsafePinned`, once available.
     //
-    // Subsequently, the `drop_in_place()` in `Devres::drop` and the explicit `Send` and `Sync'
-    // impls can be removed.
+    // Subsequently, the `drop_in_place()` in `Devres::drop` and `Devres::new` as well as the
+    // explicit `Send` and `Sync' impls can be removed.
     #[pin]
     inner: Opaque<Inner<T>>,
+    _add_action: (),
 }
 
 impl<T: Send> Devres<T> {
@@ -140,7 +141,15 @@ impl<T: Send> Devres<T> {
             dev: dev.into(),
             callback,
             // INVARIANT: `inner` is properly initialized.
-            inner <- {
+            inner <- Opaque::pin_init(try_pin_init!(Inner {
+                    devm <- Completion::new(),
+                    revoke <- Completion::new(),
+                    data <- Revocable::new(data),
+            })),
+            // TODO: Replace with "initializer code blocks" [1] once available.
+            //
+            // [1] https://github.com/Rust-for-Linux/pin-init/pull/69
+            _add_action: {
                 // SAFETY: `this` is a valid pointer to uninitialized memory.
                 let inner = unsafe { &raw mut (*this.as_ptr()).inner };
 
@@ -152,13 +161,13 @@ impl<T: Send> Devres<T> {
                 //    live at least as long as the returned `impl PinInit<Self, Error>`.
                 to_result(unsafe {
                     bindings::devm_add_action(dev.as_raw(), Some(callback), inner.cast())
-                })?;
+                }).inspect_err(|_| {
+                    let inner = Opaque::cast_into(inner);
 
-                Opaque::pin_init(try_pin_init!(Inner {
-                    devm <- Completion::new(),
-                    revoke <- Completion::new(),
-                    data <- Revocable::new(data),
-                }))
+                    // SAFETY: `inner` is a valid pointer to an `Inner<T>` and valid for both reads
+                    // and writes.
+                    unsafe { core::ptr::drop_in_place(inner) };
+                })?;
             },
         })
     }
@@ -219,7 +228,7 @@ impl<T: Send> Devres<T> {
     /// An error is returned if `dev` does not match the same [`Device`] this [`Devres`] instance
     /// has been created with.
     ///
-    /// # Example
+    /// # Examples
     ///
     /// ```no_run
     /// # #![cfg(CONFIG_PCI)]

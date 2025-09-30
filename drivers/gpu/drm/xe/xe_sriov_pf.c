@@ -9,6 +9,7 @@
 
 #include "xe_assert.h"
 #include "xe_device.h"
+#include "xe_gt_sriov_pf.h"
 #include "xe_module.h"
 #include "xe_sriov.h"
 #include "xe_sriov_pf.h"
@@ -98,6 +99,32 @@ int xe_sriov_pf_init_early(struct xe_device *xe)
 		return err;
 
 	xe_sriov_pf_service_init(xe);
+
+	return 0;
+}
+
+/**
+ * xe_sriov_pf_wait_ready() - Wait until PF is ready to operate.
+ * @xe: the &xe_device to test
+ *
+ * This function can only be called on PF.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_sriov_pf_wait_ready(struct xe_device *xe)
+{
+	struct xe_gt *gt;
+	unsigned int id;
+	int err;
+
+	if (xe_device_wedged(xe))
+		return -ECANCELED;
+
+	for_each_gt(gt, xe, id) {
+		err = xe_gt_sriov_pf_wait_ready(gt);
+		if (err)
+			return err;
+	}
 
 	return 0;
 }

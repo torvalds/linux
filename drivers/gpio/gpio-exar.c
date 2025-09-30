@@ -211,7 +211,7 @@ static int gpio_exar_probe(struct platform_device *pdev)
 	exar_gpio->gpio_chip.direction_input = exar_direction_input;
 	exar_gpio->gpio_chip.get_direction = exar_get_direction;
 	exar_gpio->gpio_chip.get = exar_get_value;
-	exar_gpio->gpio_chip.set_rv = exar_set_value;
+	exar_gpio->gpio_chip.set = exar_set_value;
 	exar_gpio->gpio_chip.base = -1;
 	exar_gpio->gpio_chip.ngpio = ngpios;
 	exar_gpio->index = index;

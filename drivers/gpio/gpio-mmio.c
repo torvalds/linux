@@ -367,7 +367,7 @@ static int bgpio_dir_out_err(struct gpio_chip *gc, unsigned int gpio,
 static int bgpio_simple_dir_out(struct gpio_chip *gc, unsigned int gpio,
 				int val)
 {
-	gc->set_rv(gc, gpio, val);
+	gc->set(gc, gpio, val);
 
 	return bgpio_dir_return(gc, gpio, true);
 }
@@ -432,14 +432,14 @@ static int bgpio_dir_out_dir_first(struct gpio_chip *gc, unsigned int gpio,
 				   int val)
 {
 	bgpio_dir_out(gc, gpio, val);
-	gc->set_rv(gc, gpio, val);
+	gc->set(gc, gpio, val);
 	return bgpio_dir_return(gc, gpio, true);
 }
 
 static int bgpio_dir_out_val_first(struct gpio_chip *gc, unsigned int gpio,
 				   int val)
 {
-	gc->set_rv(gc, gpio, val);
+	gc->set(gc, gpio, val);
 	bgpio_dir_out(gc, gpio, val);
 	return bgpio_dir_return(gc, gpio, true);
 }
@@ -528,18 +528,18 @@ static int bgpio_setup_io(struct gpio_chip *gc,
 	if (set && clr) {
 		gc->reg_set = set;
 		gc->reg_clr = clr;
-		gc->set_rv = bgpio_set_with_clear;
-		gc->set_multiple_rv = bgpio_set_multiple_with_clear;
+		gc->set = bgpio_set_with_clear;
+		gc->set_multiple = bgpio_set_multiple_with_clear;
 	} else if (set && !clr) {
 		gc->reg_set = set;
-		gc->set_rv = bgpio_set_set;
-		gc->set_multiple_rv = bgpio_set_multiple_set;
+		gc->set = bgpio_set_set;
+		gc->set_multiple = bgpio_set_multiple_set;
 	} else if (flags & BGPIOF_NO_OUTPUT) {
-		gc->set_rv = bgpio_set_none;
-		gc->set_multiple_rv = NULL;
+		gc->set = bgpio_set_none;
+		gc->set_multiple = NULL;
 	} else {
-		gc->set_rv = bgpio_set;
-		gc->set_multiple_rv = bgpio_set_multiple;
+		gc->set = bgpio_set;
+		gc->set_multiple = bgpio_set_multiple;
 	}
 
 	if (!(flags & BGPIOF_UNREADABLE_REG_SET) &&
@@ -676,7 +676,7 @@ int bgpio_init(struct gpio_chip *gc, struct device *dev,
 	}
 
 	gc->bgpio_data = gc->read_reg(gc->reg_dat);
-	if (gc->set_rv == bgpio_set_set &&
+	if (gc->set == bgpio_set_set &&
 			!(flags & BGPIOF_UNREADABLE_REG_SET))
 		gc->bgpio_data = gc->read_reg(gc->reg_set);
 

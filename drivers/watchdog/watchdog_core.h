@@ -24,8 +24,14 @@
  *	This material is provided "AS-IS" and at no charge.
  */
 
-#include <linux/hrtimer.h>
+#include <linux/cdev.h>
+#include <linux/device.h>
+#include <linux/hrtimer_types.h>
+#include <linux/init.h>
 #include <linux/kthread.h>
+#include <linux/mutex_types.h>
+#include <linux/types.h>
+#include <linux/watchdog.h>
 
 #define MAX_DOGS	32	/* Maximum number of watchdog devices */
 

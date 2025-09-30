@@ -459,7 +459,7 @@ calc:
 
 void amdgpu_cper_ring_write(struct amdgpu_ring *ring, void *src, int count)
 {
-	u64 pos, wptr_old, rptr = *ring->rptr_cpu_addr & ring->ptr_mask;
+	u64 pos, wptr_old, rptr;
 	int rec_cnt_dw = count >> 2;
 	u32 chunk, ent_sz;
 	u8 *s = (u8 *)src;
@@ -472,9 +472,11 @@ void amdgpu_cper_ring_write(struct amdgpu_ring *ring, void *src, int count)
 		return;
 	}
 
-	wptr_old = ring->wptr;
-
 	mutex_lock(&ring->adev->cper.ring_lock);
+
+	wptr_old = ring->wptr;
+	rptr = *ring->rptr_cpu_addr & ring->ptr_mask;
+
 	while (count) {
 		ent_sz = amdgpu_cper_ring_get_ent_sz(ring, ring->wptr);
 		chunk = umin(ent_sz, count);

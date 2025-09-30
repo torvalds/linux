@@ -307,7 +307,7 @@ macro_rules! register {
         pub(crate) fn [<set_ $field>](mut self, value: $to_type) -> Self {
             const MASK: u32 = $name::[<$field:upper _MASK>];
             const SHIFT: u32 = $name::[<$field:upper _SHIFT>];
-            let value = ((value as u32) << SHIFT) & MASK;
+            let value = (u32::from(value) << SHIFT) & MASK;
             self.0 = (self.0 & !MASK) | value;
 
             self

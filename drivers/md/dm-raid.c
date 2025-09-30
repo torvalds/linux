@@ -14,7 +14,6 @@
 #include "raid5.h"
 #include "raid10.h"
 #include "md-bitmap.h"
-#include "dm-core.h"
 
 #include <linux/device-mapper.h>
 
@@ -439,7 +438,7 @@ static bool rs_is_reshapable(struct raid_set *rs)
 /* Return true, if raid set in @rs is recovering */
 static bool rs_is_recovering(struct raid_set *rs)
 {
-	return rs->md.recovery_cp < rs->md.dev_sectors;
+	return rs->md.resync_offset < rs->md.dev_sectors;
 }
 
 /* Return true, if raid set in @rs is reshaping */
@@ -769,7 +768,7 @@ static struct raid_set *raid_set_alloc(struct dm_target *ti, struct raid_type *r
 	rs->md.layout = raid_type->algorithm;
 	rs->md.new_layout = rs->md.layout;
 	rs->md.delta_disks = 0;
-	rs->md.recovery_cp = MaxSector;
+	rs->md.resync_offset = MaxSector;
 
 	for (i = 0; i < raid_devs; i++)
 		md_rdev_init(&rs->dev[i].rdev);
@@ -913,7 +912,7 @@ static int parse_dev_params(struct raid_set *rs, struct dm_arg_set *as)
 		rs->md.external = 0;
 		rs->md.persistent = 1;
 		rs->md.major_version = 2;
-	} else if (rebuild && !rs->md.recovery_cp) {
+	} else if (rebuild && !rs->md.resync_offset) {
 		/*
 		 * Without metadata, we will not be able to tell if the array
 		 * is in-sync or not - we must assume it is not.  Therefore,
@@ -1696,20 +1695,20 @@ static void rs_setup_recovery(struct raid_set *rs, sector_t dev_sectors)
 {
 	/* raid0 does not recover */
 	if (rs_is_raid0(rs))
-		rs->md.recovery_cp = MaxSector;
+		rs->md.resync_offset = MaxSector;
 	/*
 	 * A raid6 set has to be recovered either
 	 * completely or for the grown part to
 	 * ensure proper parity and Q-Syndrome
 	 */
 	else if (rs_is_raid6(rs))
-		rs->md.recovery_cp = dev_sectors;
+		rs->md.resync_offset = dev_sectors;
 	/*
 	 * Other raid set types may skip recovery
 	 * depending on the 'nosync' flag.
 	 */
 	else
-		rs->md.recovery_cp = test_bit(__CTR_FLAG_NOSYNC, &rs->ctr_flags)
+		rs->md.resync_offset = test_bit(__CTR_FLAG_NOSYNC, &rs->ctr_flags)
 				     ? MaxSector : dev_sectors;
 }
 
@@ -2144,7 +2143,7 @@ static void super_sync(struct mddev *mddev, struct md_rdev *rdev)
 	sb->events = cpu_to_le64(mddev->events);
 
 	sb->disk_recovery_offset = cpu_to_le64(rdev->recovery_offset);
-	sb->array_resync_offset = cpu_to_le64(mddev->recovery_cp);
+	sb->array_resync_offset = cpu_to_le64(mddev->resync_offset);
 
 	sb->level = cpu_to_le32(mddev->level);
 	sb->layout = cpu_to_le32(mddev->layout);
@@ -2335,18 +2334,18 @@ static int super_init_validation(struct raid_set *rs, struct md_rdev *rdev)
 	}
 
 	if (!test_bit(__CTR_FLAG_NOSYNC, &rs->ctr_flags))
-		mddev->recovery_cp = le64_to_cpu(sb->array_resync_offset);
+		mddev->resync_offset = le64_to_cpu(sb->array_resync_offset);
 
 	/*
 	 * During load, we set FirstUse if a new superblock was written.
 	 * There are two reasons we might not have a superblock:
 	 * 1) The raid set is brand new - in which case, all of the
 	 *    devices must have their In_sync bit set.	Also,
-	 *    recovery_cp must be 0, unless forced.
+	 *    resync_offset must be 0, unless forced.
 	 * 2) This is a new device being added to an old raid set
 	 *    and the new device needs to be rebuilt - in which
 	 *    case the In_sync bit will /not/ be set and
-	 *    recovery_cp must be MaxSector.
+	 *    resync_offset must be MaxSector.
 	 * 3) This is/are a new device(s) being added to an old
 	 *    raid set during takeover to a higher raid level
 	 *    to provide capacity for redundancy or during reshape
@@ -2391,8 +2390,8 @@ static int super_init_validation(struct raid_set *rs, struct md_rdev *rdev)
 			      new_devs > 1 ? "s" : "");
 			return -EINVAL;
 		} else if (!test_bit(__CTR_FLAG_REBUILD, &rs->ctr_flags) && rs_is_recovering(rs)) {
-			DMERR("'rebuild' specified while raid set is not in-sync (recovery_cp=%llu)",
-			      (unsigned long long) mddev->recovery_cp);
+			DMERR("'rebuild' specified while raid set is not in-sync (resync_offset=%llu)",
+			      (unsigned long long) mddev->resync_offset);
 			return -EINVAL;
 		} else if (rs_is_reshaping(rs)) {
 			DMERR("'rebuild' specified while raid set is being reshaped (reshape_position=%llu)",
@@ -2531,6 +2530,10 @@ static int analyse_superblocks(struct dm_target *ti, struct raid_set *rs)
 	int r;
 	struct md_rdev *rdev, *freshest;
 	struct mddev *mddev = &rs->md;
+
+	/* Respect resynchronization requested with "sync" argument. */
+	if (test_bit(__CTR_FLAG_SYNC, &rs->ctr_flags))
+		set_bit(MD_ARRAY_FIRST_USE, &mddev->flags);
 
 	freshest = NULL;
 	rdev_for_each(rdev, mddev) {
@@ -2697,11 +2700,11 @@ static int rs_adjust_data_offsets(struct raid_set *rs)
 	}
 out:
 	/*
-	 * Raise recovery_cp in case data_offset != 0 to
+	 * Raise resync_offset in case data_offset != 0 to
 	 * avoid false recovery positives in the constructor.
 	 */
-	if (rs->md.recovery_cp < rs->md.dev_sectors)
-		rs->md.recovery_cp += rs->dev[0].rdev.data_offset;
+	if (rs->md.resync_offset < rs->md.dev_sectors)
+		rs->md.resync_offset += rs->dev[0].rdev.data_offset;
 
 	/* Adjust data offsets on all rdevs but on any raid4/5/6 journal device */
 	rdev_for_each(rdev, &rs->md) {
@@ -2756,7 +2759,7 @@ static int rs_setup_takeover(struct raid_set *rs)
 	}
 
 	clear_bit(MD_ARRAY_FIRST_USE, &mddev->flags);
-	mddev->recovery_cp = MaxSector;
+	mddev->resync_offset = MaxSector;
 
 	while (d--) {
 		rdev = &rs->dev[d].rdev;
@@ -2764,7 +2767,7 @@ static int rs_setup_takeover(struct raid_set *rs)
 		if (test_bit(d, (void *) rs->rebuild_disks)) {
 			clear_bit(In_sync, &rdev->flags);
 			clear_bit(Faulty, &rdev->flags);
-			mddev->recovery_cp = rdev->recovery_offset = 0;
+			mddev->resync_offset = rdev->recovery_offset = 0;
 			/* Bitmap has to be created when we do an "up" takeover */
 			set_bit(MD_ARRAY_FIRST_USE, &mddev->flags);
 		}
@@ -3222,7 +3225,7 @@ size_check:
 			if (r)
 				goto bad;
 
-			rs_setup_recovery(rs, rs->md.recovery_cp < rs->md.dev_sectors ? rs->md.recovery_cp : rs->md.dev_sectors);
+			rs_setup_recovery(rs, rs->md.resync_offset < rs->md.dev_sectors ? rs->md.resync_offset : rs->md.dev_sectors);
 		} else {
 			/* This is no size change or it is shrinking, update size and record in superblocks */
 			r = rs_set_dev_and_array_sectors(rs, rs->ti->len, false);
@@ -3305,7 +3308,7 @@ size_check:
 
 	/* Disable/enable discard support on raid set. */
 	configure_discard_support(rs);
-	rs->md.dm_gendisk = ti->table->md->disk;
+	rs->md.dm_gendisk = dm_disk(dm_table_get_md(ti->table));
 
 	mddev_unlock(&rs->md);
 	return 0;
@@ -3446,7 +3449,7 @@ static sector_t rs_get_progress(struct raid_set *rs, unsigned long recovery,
 
 	} else {
 		if (state == st_idle && !test_bit(MD_RECOVERY_INTR, &recovery))
-			r = mddev->recovery_cp;
+			r = mddev->resync_offset;
 		else
 			r = mddev->curr_resync_completed;
 
@@ -4074,9 +4077,9 @@ static int raid_preresume(struct dm_target *ti)
 	}
 
 	/* Check for any resize/reshape on @rs and adjust/initiate */
-	if (mddev->recovery_cp && mddev->recovery_cp < MaxSector) {
+	if (mddev->resync_offset && mddev->resync_offset < MaxSector) {
 		set_bit(MD_RECOVERY_REQUESTED, &mddev->recovery);
-		mddev->resync_min = mddev->recovery_cp;
+		mddev->resync_min = mddev->resync_offset;
 		if (test_bit(RT_FLAG_RS_GROW, &rs->runtime_flags))
 			mddev->resync_max_sectors = mddev->dev_sectors;
 	}

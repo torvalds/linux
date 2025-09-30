@@ -360,7 +360,6 @@ static int ocfs2_control_do_setnode_msg(struct file *file,
 					struct ocfs2_control_message_setn *msg)
 {
 	long nodenum;
-	char *ptr = NULL;
 	struct ocfs2_control_private *p = file->private_data;
 
 	if (ocfs2_control_get_handshake_state(file) !=
@@ -375,8 +374,7 @@ static int ocfs2_control_do_setnode_msg(struct file *file,
 		return -EINVAL;
 	msg->space = msg->newline = '\0';
 
-	nodenum = simple_strtol(msg->nodestr, &ptr, 16);
-	if (!ptr || *ptr)
+	if (kstrtol(msg->nodestr, 16, &nodenum))
 		return -EINVAL;
 
 	if ((nodenum == LONG_MIN) || (nodenum == LONG_MAX) ||
@@ -391,7 +389,6 @@ static int ocfs2_control_do_setversion_msg(struct file *file,
 					   struct ocfs2_control_message_setv *msg)
 {
 	long major, minor;
-	char *ptr = NULL;
 	struct ocfs2_control_private *p = file->private_data;
 	struct ocfs2_protocol_version *max =
 		&ocfs2_user_plugin.sp_max_proto;
@@ -409,11 +406,9 @@ static int ocfs2_control_do_setversion_msg(struct file *file,
 		return -EINVAL;
 	msg->space1 = msg->space2 = msg->newline = '\0';
 
-	major = simple_strtol(msg->major, &ptr, 16);
-	if (!ptr || *ptr)
+	if (kstrtol(msg->major, 16, &major))
 		return -EINVAL;
-	minor = simple_strtol(msg->minor, &ptr, 16);
-	if (!ptr || *ptr)
+	if (kstrtol(msg->minor, 16, &minor))
 		return -EINVAL;
 
 	/*
@@ -441,7 +436,6 @@ static int ocfs2_control_do_down_msg(struct file *file,
 				     struct ocfs2_control_message_down *msg)
 {
 	long nodenum;
-	char *p = NULL;
 
 	if (ocfs2_control_get_handshake_state(file) !=
 	    OCFS2_CONTROL_HANDSHAKE_VALID)
@@ -456,8 +450,7 @@ static int ocfs2_control_do_down_msg(struct file *file,
 		return -EINVAL;
 	msg->space1 = msg->space2 = msg->newline = '\0';
 
-	nodenum = simple_strtol(msg->nodestr, &p, 16);
-	if (!p || *p)
+	if (kstrtol(msg->nodestr, 16, &nodenum))
 		return -EINVAL;
 
 	if ((nodenum == LONG_MIN) || (nodenum == LONG_MAX) ||

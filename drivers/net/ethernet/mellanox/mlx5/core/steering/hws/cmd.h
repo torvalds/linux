@@ -36,6 +36,7 @@ struct mlx5hws_cmd_set_fte_attr {
 struct mlx5hws_cmd_ft_create_attr {
 	u8 type;
 	u8 level;
+	u16 uid;
 	bool rtc_valid;
 	bool decap_en;
 	bool reformat_en;

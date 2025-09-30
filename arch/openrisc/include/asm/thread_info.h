@@ -17,7 +17,7 @@
 
 #ifdef __KERNEL__
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #include <asm/types.h>
 #include <asm/processor.h>
 #endif
@@ -38,7 +38,7 @@
  * - if the contents of this structure are changed, the assembly constants
  *   must also be changed
  */
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 struct thread_info {
 	struct task_struct	*task;		/* main task structure */
@@ -58,7 +58,7 @@ struct thread_info {
  *
  * preempt_count needs to be 1 initially, until the scheduler is functional.
  */
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #define INIT_THREAD_INFO(tsk)				\
 {							\
 	.task		= &tsk,				\
@@ -75,7 +75,7 @@ register struct thread_info *current_thread_info_reg asm("r10");
 #define get_thread_info(ti) get_task_struct((ti)->task)
 #define put_thread_info(ti) put_task_struct((ti)->task)
 
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 
 /*
  * thread information flags

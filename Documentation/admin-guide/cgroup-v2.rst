@@ -435,8 +435,8 @@ both cgroups.
 Controlling Controllers
 -----------------------
 
-Availablity
-~~~~~~~~~~~
+Availability
+~~~~~~~~~~~~
 
 A controller is available in a cgroup when it is supported by the kernel (i.e.,
 compiled in, not disabled and not attached to a v1 hierarchy) and listed in the

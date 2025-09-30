@@ -5,6 +5,7 @@
 #include <linux/string.h>
 #include <linux/bitfield.h>
 #include <linux/unaligned.h>
+#include <linux/string_choices.h>
 
 #include <ufs/ufs.h>
 #include <ufs/unipro.h>
@@ -1516,7 +1517,7 @@ static ssize_t _name##_show(struct device *dev,				\
 		ret = -EINVAL;						\
 		goto out;						\
 	}								\
-	ret = sysfs_emit(buf, "%s\n", flag ? "true" : "false");		\
+	ret = sysfs_emit(buf, "%s\n", str_true_false(flag));		\
 out:									\
 	up(&hba->host_sem);						\
 	return ret;							\

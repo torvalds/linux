@@ -55,10 +55,10 @@ test_vlan0_del_crash_01() {
 	ip netns exec ${NETNS} ip link add bond0 type bond mode 0
 	ip netns exec ${NETNS} ip link add link bond0 name vlan0 type vlan id 0 protocol 802.1q
 	ip netns exec ${NETNS} ethtool -K bond0 rx-vlan-filter off
-	ip netns exec ${NETNS} ifconfig bond0 up
+	ip netns exec ${NETNS} ip link set dev bond0 up
 	ip netns exec ${NETNS} ethtool -K bond0 rx-vlan-filter on
-	ip netns exec ${NETNS} ifconfig bond0 down
-	ip netns exec ${NETNS} ifconfig bond0 up
+	ip netns exec ${NETNS} ip link set dev bond0 down
+	ip netns exec ${NETNS} ip link set dev bond0 up
 	ip netns exec ${NETNS} ip link del vlan0 || fail "Please check vlan HW filter function"
 	cleanup
 }
@@ -68,11 +68,11 @@ test_vlan0_del_crash_02() {
 	setup
 	ip netns exec ${NETNS} ip link add bond0 type bond mode 0
 	ip netns exec ${NETNS} ethtool -K bond0 rx-vlan-filter off
-	ip netns exec ${NETNS} ifconfig bond0 up
+	ip netns exec ${NETNS} ip link set dev bond0 up
 	ip netns exec ${NETNS} ethtool -K bond0 rx-vlan-filter on
 	ip netns exec ${NETNS} ip link add link bond0 name vlan0 type vlan id 0 protocol 802.1q
-	ip netns exec ${NETNS} ifconfig bond0 down
-	ip netns exec ${NETNS} ifconfig bond0 up
+	ip netns exec ${NETNS} ip link set dev bond0 down
+	ip netns exec ${NETNS} ip link set dev bond0 up
 	ip netns exec ${NETNS} ip link del vlan0 || fail "Please check vlan HW filter function"
 	cleanup
 }
@@ -84,9 +84,9 @@ test_vlan0_del_crash_03() {
 	ip netns exec ${NETNS} ip link add bond0 type bond mode 0
 	ip netns exec ${NETNS} ip link add link bond0 name vlan0 type vlan id 0 protocol 802.1q
 	ip netns exec ${NETNS} ethtool -K bond0 rx-vlan-filter off
-	ip netns exec ${NETNS} ifconfig bond0 up
+	ip netns exec ${NETNS} ip link set dev bond0 up
 	ip netns exec ${NETNS} ethtool -K bond0 rx-vlan-filter on
-	ip netns exec ${NETNS} ifconfig bond0 down
+	ip netns exec ${NETNS} ip link set dev bond0 down
 	ip netns exec ${NETNS} ip link del vlan0 || fail "Please check vlan HW filter function"
 	cleanup
 }

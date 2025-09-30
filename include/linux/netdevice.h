@@ -2071,6 +2071,8 @@ enum netdev_reg_state {
  *	@max_pacing_offload_horizon: max EDT offload horizon in nsec.
  *	@napi_config: An array of napi_config structures containing per-NAPI
  *		      settings.
+ *	@num_napi_configs:	number of allocated NAPI config structs,
+ *		always >= max(num_rx_queues, num_tx_queues).
  *	@gro_flush_timeout:	timeout for GRO layer in NAPI
  *	@napi_defer_hard_irqs:	If not zero, provides a counter that would
  *				allow to avoid NIC hard IRQ, on busy queues.
@@ -2482,8 +2484,9 @@ struct net_device {
 
 	u64			max_pacing_offload_horizon;
 	struct napi_config	*napi_config;
-	unsigned long		gro_flush_timeout;
+	u32			num_napi_configs;
 	u32			napi_defer_hard_irqs;
+	unsigned long		gro_flush_timeout;
 
 	/**
 	 * @up: copy of @state's IFF_UP, but safe to read with just @lock.

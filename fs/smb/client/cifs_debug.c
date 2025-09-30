@@ -60,7 +60,7 @@ void cifs_dump_mids(struct TCP_Server_Info *server)
 		return;
 
 	cifs_dbg(VFS, "Dump pending requests:\n");
-	spin_lock(&server->mid_lock);
+	spin_lock(&server->mid_queue_lock);
 	list_for_each_entry(mid_entry, &server->pending_mid_q, qhead) {
 		cifs_dbg(VFS, "State: %d Cmd: %d Pid: %d Cbdata: %p Mid %llu\n",
 			 mid_entry->mid_state,
@@ -83,7 +83,7 @@ void cifs_dump_mids(struct TCP_Server_Info *server)
 				mid_entry->resp_buf, 62);
 		}
 	}
-	spin_unlock(&server->mid_lock);
+	spin_unlock(&server->mid_queue_lock);
 #endif /* CONFIG_CIFS_DEBUG2 */
 }
 
@@ -412,6 +412,7 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 	spin_lock(&cifs_tcp_ses_lock);
 	list_for_each_entry(server, &cifs_tcp_ses_list, tcp_ses_list) {
 #ifdef CONFIG_CIFS_SMB_DIRECT
+		struct smbdirect_socket *sc;
 		struct smbdirect_socket_parameters *sp;
 #endif
 
@@ -436,7 +437,8 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 			seq_printf(m, "\nSMBDirect transport not available");
 			goto skip_rdma;
 		}
-		sp = &server->smbd_conn->socket.parameters;
+		sc = &server->smbd_conn->socket;
+		sp = &sc->parameters;
 
 		seq_printf(m, "\nSMBDirect (in hex) protocol version: %x "
 			"transport status: %x",
@@ -465,15 +467,13 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 		seq_printf(m, "\nRead Queue count_reassembly_queue: %x "
 			"count_enqueue_reassembly_queue: %x "
 			"count_dequeue_reassembly_queue: %x "
-			"fragment_reassembly_remaining: %x "
 			"reassembly_data_length: %x "
 			"reassembly_queue_length: %x",
 			server->smbd_conn->count_reassembly_queue,
 			server->smbd_conn->count_enqueue_reassembly_queue,
 			server->smbd_conn->count_dequeue_reassembly_queue,
-			server->smbd_conn->fragment_reassembly_remaining,
-			server->smbd_conn->reassembly_data_length,
-			server->smbd_conn->reassembly_queue_length);
+			sc->recv_io.reassembly.data_length,
+			sc->recv_io.reassembly.queue_length);
 		seq_printf(m, "\nCurrent Credits send_credits: %x "
 			"receive_credits: %x receive_credit_target: %x",
 			atomic_read(&server->smbd_conn->send_credits),
@@ -481,10 +481,8 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 			server->smbd_conn->receive_credit_target);
 		seq_printf(m, "\nPending send_pending: %x ",
 			atomic_read(&server->smbd_conn->send_pending));
-		seq_printf(m, "\nReceive buffers count_receive_queue: %x "
-			"count_empty_packet_queue: %x",
-			server->smbd_conn->count_receive_queue,
-			server->smbd_conn->count_empty_packet_queue);
+		seq_printf(m, "\nReceive buffers count_receive_queue: %x ",
+			server->smbd_conn->count_receive_queue);
 		seq_printf(m, "\nMR responder_resources: %x "
 			"max_frmr_depth: %x mr_type: %x",
 			server->smbd_conn->responder_resources,
@@ -672,7 +670,7 @@ skip_rdma:
 
 				seq_printf(m, "\n\tServer ConnectionId: 0x%llx",
 					   chan_server->conn_id);
-				spin_lock(&chan_server->mid_lock);
+				spin_lock(&chan_server->mid_queue_lock);
 				list_for_each_entry(mid_entry, &chan_server->pending_mid_q, qhead) {
 					seq_printf(m, "\n\t\tState: %d com: %d pid: %d cbdata: %p mid %llu",
 						   mid_entry->mid_state,
@@ -681,7 +679,7 @@ skip_rdma:
 						   mid_entry->callback_data,
 						   mid_entry->mid);
 				}
-				spin_unlock(&chan_server->mid_lock);
+				spin_unlock(&chan_server->mid_queue_lock);
 			}
 			spin_unlock(&ses->chan_lock);
 			seq_puts(m, "\n--\n");

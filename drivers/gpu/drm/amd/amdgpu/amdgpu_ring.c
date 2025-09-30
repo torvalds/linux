@@ -719,6 +719,7 @@ static void amdgpu_ring_to_mqd_prop(struct amdgpu_ring *ring,
 	prop->eop_gpu_addr = ring->eop_gpu_addr;
 	prop->use_doorbell = ring->use_doorbell;
 	prop->doorbell_index = ring->doorbell_index;
+	prop->kernel_queue = true;
 
 	/* map_queues packet doesn't need activate the queue,
 	 * so only kiq need set this field.

@@ -451,6 +451,13 @@
 #define LOONGARCH_CSR_KS6		0x36
 #define LOONGARCH_CSR_KS7		0x37
 #define LOONGARCH_CSR_KS8		0x38
+#define LOONGARCH_CSR_KS9		0x39
+#define LOONGARCH_CSR_KS10		0x3a
+#define LOONGARCH_CSR_KS11		0x3b
+#define LOONGARCH_CSR_KS12		0x3c
+#define LOONGARCH_CSR_KS13		0x3d
+#define LOONGARCH_CSR_KS14		0x3e
+#define LOONGARCH_CSR_KS15		0x3f
 
 /* Exception allocated KS0, KS1 and KS2 statically */
 #define EXCEPTION_KS0			LOONGARCH_CSR_KS0

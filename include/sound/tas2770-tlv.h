@@ -14,10 +14,10 @@
 #ifndef __TAS2770_TLV_H__
 #define __TAS2770_TLV_H__
 
-#define TAS2770_DVC_LEVEL		TASDEVICE_REG(0x0, 0x0, 0x17)
+#define TAS2770_DVC_LEVEL		TASDEVICE_REG(0x0, 0x0, 0x05)
 #define TAS2770_AMP_LEVEL		TASDEVICE_REG(0x0, 0x0, 0x03)
 
-static const __maybe_unused DECLARE_TLV_DB_SCALE(tas2770_dvc_tlv, 1650, 50, 0);
+static const __maybe_unused DECLARE_TLV_DB_SCALE(tas2770_dvc_tlv, -10000, 50, 0);
 static const __maybe_unused DECLARE_TLV_DB_SCALE(tas2770_amp_tlv, 1100, 50, 0);
 
 #endif

@@ -437,7 +437,7 @@ static int ljca_gpio_probe(struct auxiliary_device *auxdev,
 	ljca_gpio->gc.direction_output = ljca_gpio_direction_output;
 	ljca_gpio->gc.get_direction = ljca_gpio_get_direction;
 	ljca_gpio->gc.get = ljca_gpio_get_value;
-	ljca_gpio->gc.set_rv = ljca_gpio_set_value;
+	ljca_gpio->gc.set = ljca_gpio_set_value;
 	ljca_gpio->gc.set_config = ljca_gpio_set_config;
 	ljca_gpio->gc.init_valid_mask = ljca_gpio_init_valid_mask;
 	ljca_gpio->gc.can_sleep = true;

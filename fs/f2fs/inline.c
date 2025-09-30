@@ -33,9 +33,9 @@ bool f2fs_may_inline_data(struct inode *inode)
 	return !f2fs_post_read_required(inode);
 }
 
-static bool inode_has_blocks(struct inode *inode, struct page *ipage)
+static bool inode_has_blocks(struct inode *inode, struct folio *ifolio)
 {
-	struct f2fs_inode *ri = F2FS_INODE(ipage);
+	struct f2fs_inode *ri = F2FS_INODE(ifolio);
 	int i;
 
 	if (F2FS_HAS_BLOCKS(inode))
@@ -48,12 +48,12 @@ static bool inode_has_blocks(struct inode *inode, struct page *ipage)
 	return false;
 }
 
-bool f2fs_sanity_check_inline_data(struct inode *inode, struct page *ipage)
+bool f2fs_sanity_check_inline_data(struct inode *inode, struct folio *ifolio)
 {
 	if (!f2fs_has_inline_data(inode))
 		return false;
 
-	if (inode_has_blocks(inode, ipage))
+	if (inode_has_blocks(inode, ifolio))
 		return false;
 
 	if (!support_inline_data(inode))
@@ -150,7 +150,7 @@ int f2fs_convert_inline_folio(struct dnode_of_data *dn, struct folio *folio)
 		.type = DATA,
 		.op = REQ_OP_WRITE,
 		.op_flags = REQ_SYNC | REQ_PRIO,
-		.page = &folio->page,
+		.folio = folio,
 		.encrypted_page = NULL,
 		.io_type = FS_DATA_IO,
 	};
@@ -206,7 +206,7 @@ int f2fs_convert_inline_folio(struct dnode_of_data *dn, struct folio *folio)
 
 	/* clear inline data and flag after data writeback */
 	f2fs_truncate_inline_inode(dn->inode, dn->inode_folio, 0);
-	clear_page_private_inline(&dn->inode_folio->page);
+	folio_clear_f2fs_inline(dn->inode_folio);
 clear_out:
 	stat_dec_inline_inode(dn->inode);
 	clear_inode_flag(dn->inode, FI_INLINE_DATA);
@@ -286,7 +286,7 @@ int f2fs_write_inline_data(struct inode *inode, struct folio *folio)
 	set_inode_flag(inode, FI_APPEND_WRITE);
 	set_inode_flag(inode, FI_DATA_EXIST);
 
-	clear_page_private_inline(&ifolio->page);
+	folio_clear_f2fs_inline(ifolio);
 	f2fs_folio_put(ifolio, 1);
 	return 0;
 }
@@ -305,8 +305,8 @@ int f2fs_recover_inline_data(struct inode *inode, struct folio *nfolio)
 	 *    x       o  -> remove data blocks, and then recover inline_data
 	 *    x       x  -> recover data blocks
 	 */
-	if (IS_INODE(&nfolio->page))
-		ri = F2FS_INODE(&nfolio->page);
+	if (IS_INODE(nfolio))
+		ri = F2FS_INODE(nfolio);
 
 	if (f2fs_has_inline_data(inode) &&
 			ri && (ri->i_inline & F2FS_INLINE_DATA)) {
@@ -825,7 +825,7 @@ int f2fs_inline_data_fiemap(struct inode *inode,
 
 	byteaddr = (__u64)ni.blk_addr << inode->i_sb->s_blocksize_bits;
 	byteaddr += (char *)inline_data_addr(inode, ifolio) -
-					(char *)F2FS_INODE(&ifolio->page);
+					(char *)F2FS_INODE(ifolio);
 	err = fiemap_fill_next_extent(fieinfo, start, byteaddr, ilen, flags);
 	trace_f2fs_fiemap(inode, start, byteaddr, ilen, flags, err);
 out:

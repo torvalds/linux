@@ -17,8 +17,15 @@ struct record_opts;
 struct evlist;
 struct target;
 
+struct bpf_metadata {
+	union perf_event *event;
+	char		 **prog_names;
+	__u64		 nr_prog_names;
+};
+
 struct bpf_prog_info_node {
 	struct perf_bpil		*info_linear;
+	struct bpf_metadata		*metadata;
 	struct rb_node			rb_node;
 };
 
@@ -36,6 +43,7 @@ int evlist__add_bpf_sb_event(struct evlist *evlist, struct perf_env *env);
 void __bpf_event__print_bpf_prog_info(struct bpf_prog_info *info,
 				      struct perf_env *env,
 				      FILE *fp);
+void bpf_metadata_free(struct bpf_metadata *metadata);
 #else
 static inline int machine__process_bpf(struct machine *machine __maybe_unused,
 				       union perf_event *event __maybe_unused,
@@ -53,6 +61,11 @@ static inline int evlist__add_bpf_sb_event(struct evlist *evlist __maybe_unused,
 static inline void __bpf_event__print_bpf_prog_info(struct bpf_prog_info *info __maybe_unused,
 						    struct perf_env *env __maybe_unused,
 						    FILE *fp __maybe_unused)
+{
+
+}
+
+static inline void bpf_metadata_free(struct bpf_metadata *metadata __maybe_unused)
 {
 
 }

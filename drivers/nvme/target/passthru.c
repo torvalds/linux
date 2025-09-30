@@ -533,6 +533,8 @@ u16 nvmet_parse_passthru_admin_cmd(struct nvmet_req *req)
 		case NVME_FEAT_HOST_ID:
 			req->execute = nvmet_execute_get_features;
 			return NVME_SC_SUCCESS;
+		case NVME_FEAT_FDP:
+			return nvmet_setup_passthru_command(req);
 		default:
 			return nvmet_passthru_get_set_features(req);
 		}

@@ -11,6 +11,7 @@
 #include <linux/align.h>
 #include <linux/bitfield.h>
 #include <linux/irqchip/chained_irq.h>
+#include <linux/irqchip/irq-msi-lib.h>
 #include <linux/irqdomain.h>
 #include <linux/msi.h>
 #include <linux/pci_regs.h>
@@ -134,39 +135,38 @@ static const struct irq_domain_ops msi_domain_ops = {
 	.free	= plda_irq_msi_domain_free,
 };
 
-static struct irq_chip plda_msi_irq_chip = {
-	.name = "PLDA PCIe MSI",
-	.irq_ack = irq_chip_ack_parent,
-	.irq_mask = pci_msi_mask_irq,
-	.irq_unmask = pci_msi_unmask_irq,
-};
+#define PLDA_MSI_FLAGS_REQUIRED (MSI_FLAG_USE_DEF_DOM_OPS	| \
+				 MSI_FLAG_USE_DEF_CHIP_OPS	| \
+				 MSI_FLAG_NO_AFFINITY)
+#define PLDA_MSI_FLAGS_SUPPORTED (MSI_GENERIC_FLAGS_MASK	| \
+				  MSI_FLAG_PCI_MSIX)
 
-static struct msi_domain_info plda_msi_domain_info = {
-	.flags = MSI_FLAG_USE_DEF_DOM_OPS | MSI_FLAG_USE_DEF_CHIP_OPS |
-		 MSI_FLAG_NO_AFFINITY | MSI_FLAG_PCI_MSIX,
-	.chip = &plda_msi_irq_chip,
+static const struct msi_parent_ops plda_msi_parent_ops = {
+	.required_flags		= PLDA_MSI_FLAGS_REQUIRED,
+	.supported_flags	= PLDA_MSI_FLAGS_SUPPORTED,
+	.chip_flags		= MSI_CHIP_FLAG_SET_ACK,
+	.bus_select_token	= DOMAIN_BUS_PCI_MSI,
+	.prefix			= "PLDA-",
+	.init_dev_msi_info	= msi_lib_init_dev_msi_info,
 };
 
 static int plda_allocate_msi_domains(struct plda_pcie_rp *port)
 {
 	struct device *dev = port->dev;
-	struct fwnode_handle *fwnode = of_fwnode_handle(dev->of_node);
 	struct plda_msi *msi = &port->msi;
 
 	mutex_init(&port->msi.lock);
 
-	msi->dev_domain = irq_domain_create_linear(NULL, msi->num_vectors, &msi_domain_ops, port);
+	struct irq_domain_info info = {
+		.fwnode		= dev_fwnode(dev),
+		.ops		= &msi_domain_ops,
+		.host_data	= port,
+		.size		= msi->num_vectors,
+	};
+
+	msi->dev_domain = msi_create_parent_irq_domain(&info, &plda_msi_parent_ops);
 	if (!msi->dev_domain) {
 		dev_err(dev, "failed to create IRQ domain\n");
-		return -ENOMEM;
-	}
-
-	msi->msi_domain = pci_msi_create_irq_domain(fwnode,
-						    &plda_msi_domain_info,
-						    msi->dev_domain);
-	if (!msi->msi_domain) {
-		dev_err(dev, "failed to create MSI domain\n");
-		irq_domain_remove(msi->dev_domain);
 		return -ENOMEM;
 	}
 
@@ -563,7 +563,6 @@ static void plda_pcie_irq_domain_deinit(struct plda_pcie_rp *pcie)
 	irq_set_chained_handler_and_data(pcie->msi_irq, NULL, NULL);
 	irq_set_chained_handler_and_data(pcie->intx_irq, NULL, NULL);
 
-	irq_domain_remove(pcie->msi.msi_domain);
 	irq_domain_remove(pcie->msi.dev_domain);
 
 	irq_domain_remove(pcie->intx_domain);

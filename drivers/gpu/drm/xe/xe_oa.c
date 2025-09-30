@@ -1941,7 +1941,7 @@ static int xe_oa_assign_hwe(struct xe_oa *oa, struct xe_oa_open_param *param)
 
 	/* If not provided, OA unit defaults to OA unit 0 as per uapi */
 	if (!param->oa_unit)
-		param->oa_unit = &xe_device_get_gt(oa->xe, 0)->oa.oa_unit[0];
+		param->oa_unit = &xe_root_mmio_gt(oa->xe)->oa.oa_unit[0];
 
 	/* When we have an exec_q, get hwe from the exec_q */
 	if (param->exec_q) {

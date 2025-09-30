@@ -164,7 +164,7 @@ static int ltc4306_gpio_init(struct ltc4306 *data)
 	data->gpiochip.direction_input = ltc4306_gpio_direction_input;
 	data->gpiochip.direction_output = ltc4306_gpio_direction_output;
 	data->gpiochip.get = ltc4306_gpio_get;
-	data->gpiochip.set_rv = ltc4306_gpio_set;
+	data->gpiochip.set = ltc4306_gpio_set;
 	data->gpiochip.set_config = ltc4306_gpio_set_config;
 	data->gpiochip.owner = THIS_MODULE;
 

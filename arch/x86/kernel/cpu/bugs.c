@@ -386,7 +386,6 @@ static bool __init should_mitigate_vuln(unsigned int bug)
 
 	case X86_BUG_SPECTRE_V2:
 	case X86_BUG_RETBLEED:
-	case X86_BUG_SRSO:
 	case X86_BUG_L1TF:
 	case X86_BUG_ITS:
 		return cpu_attack_vector_mitigated(CPU_MITIGATE_USER_KERNEL) ||
@@ -1069,10 +1068,8 @@ static void __init gds_select_mitigation(void)
 	if (gds_mitigation == GDS_MITIGATION_AUTO) {
 		if (should_mitigate_vuln(X86_BUG_GDS))
 			gds_mitigation = GDS_MITIGATION_FULL;
-		else {
+		else
 			gds_mitigation = GDS_MITIGATION_OFF;
-			return;
-		}
 	}
 
 	/* No microcode */
@@ -3184,8 +3181,18 @@ static void __init srso_select_mitigation(void)
 	}
 
 	if (srso_mitigation == SRSO_MITIGATION_AUTO) {
-		if (should_mitigate_vuln(X86_BUG_SRSO)) {
+		/*
+		 * Use safe-RET if user->kernel or guest->host protection is
+		 * required.  Otherwise the 'microcode' mitigation is sufficient
+		 * to protect the user->user and guest->guest vectors.
+		 */
+		if (cpu_attack_vector_mitigated(CPU_MITIGATE_GUEST_HOST) ||
+		    (cpu_attack_vector_mitigated(CPU_MITIGATE_USER_KERNEL) &&
+		     !boot_cpu_has(X86_FEATURE_SRSO_USER_KERNEL_NO))) {
 			srso_mitigation = SRSO_MITIGATION_SAFE_RET;
+		} else if (cpu_attack_vector_mitigated(CPU_MITIGATE_USER_USER) ||
+			   cpu_attack_vector_mitigated(CPU_MITIGATE_GUEST_GUEST)) {
+			srso_mitigation = SRSO_MITIGATION_MICROCODE;
 		} else {
 			srso_mitigation = SRSO_MITIGATION_NONE;
 			return;

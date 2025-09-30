@@ -1037,11 +1037,6 @@ int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
 	int base = 0;
 	int ret;
 
-	/* Only allow one set() and one set_multiple(). */
-	if ((gc->set && gc->set_rv) ||
-	    (gc->set_multiple && gc->set_multiple_rv))
-		return -EINVAL;
-
 	/*
 	 * First: allocate and populate the internal stat container, and
 	 * set up the struct device.
@@ -2891,19 +2886,14 @@ static int gpiochip_set(struct gpio_chip *gc, unsigned int offset, int value)
 
 	lockdep_assert_held(&gc->gpiodev->srcu);
 
-	if (WARN_ON(unlikely(!gc->set && !gc->set_rv)))
+	if (WARN_ON(unlikely(!gc->set)))
 		return -EOPNOTSUPP;
 
-	if (gc->set_rv) {
-		ret = gc->set_rv(gc, offset, value);
-		if (ret > 0)
-			ret = -EBADE;
+	ret = gc->set(gc, offset, value);
+	if (ret > 0)
+		ret = -EBADE;
 
-		return ret;
-	}
-
-	gc->set(gc, offset, value);
-	return 0;
+	return ret;
 }
 
 static int gpiod_direction_output_raw_commit(struct gpio_desc *desc, int value)
@@ -2919,7 +2909,7 @@ static int gpiod_direction_output_raw_commit(struct gpio_desc *desc, int value)
 	 * output-only, but if there is then not even a .set() operation it
 	 * is pretty tricky to drive the output line.
 	 */
-	if (!guard.gc->set && !guard.gc->set_rv && !guard.gc->direction_output) {
+	if (!guard.gc->set && !guard.gc->direction_output) {
 		gpiod_warn(desc,
 			   "%s: missing set() and direction_output() operations\n",
 			   __func__);
@@ -3665,17 +3655,12 @@ static int gpiochip_set_multiple(struct gpio_chip *gc,
 
 	lockdep_assert_held(&gc->gpiodev->srcu);
 
-	if (gc->set_multiple_rv) {
-		ret = gc->set_multiple_rv(gc, mask, bits);
+	if (gc->set_multiple) {
+		ret = gc->set_multiple(gc, mask, bits);
 		if (ret > 0)
 			ret = -EBADE;
 
 		return ret;
-	}
-
-	if (gc->set_multiple) {
-		gc->set_multiple(gc, mask, bits);
-		return 0;
 	}
 
 	/* set outputs if the corresponding mask bit is set */

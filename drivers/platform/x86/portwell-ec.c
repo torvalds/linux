@@ -86,7 +86,7 @@ static int pwec_gpio_get(struct gpio_chip *chip, unsigned int offset)
 	return pwec_read(PORTWELL_GPIO_VAL_REG) & BIT(offset) ? 1 : 0;
 }
 
-static int pwec_gpio_set_rv(struct gpio_chip *chip, unsigned int offset, int val)
+static int pwec_gpio_set(struct gpio_chip *chip, unsigned int offset, int val)
 {
 	u8 tmp = pwec_read(PORTWELL_GPIO_VAL_REG);
 
@@ -130,7 +130,7 @@ static struct gpio_chip pwec_gpio_chip = {
 	.direction_input = pwec_gpio_direction_input,
 	.direction_output = pwec_gpio_direction_output,
 	.get = pwec_gpio_get,
-	.set_rv = pwec_gpio_set_rv,
+	.set = pwec_gpio_set,
 	.base = -1,
 	.ngpio = PORTWELL_GPIO_PINS,
 };

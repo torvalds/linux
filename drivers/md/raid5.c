@@ -3740,7 +3740,7 @@ static int want_replace(struct stripe_head *sh, int disk_idx)
 	    && !test_bit(Faulty, &rdev->flags)
 	    && !test_bit(In_sync, &rdev->flags)
 	    && (rdev->recovery_offset <= sh->sector
-		|| rdev->mddev->recovery_cp <= sh->sector))
+		|| rdev->mddev->resync_offset <= sh->sector))
 		rv = 1;
 	return rv;
 }
@@ -3832,7 +3832,7 @@ static int need_this_block(struct stripe_head *sh, struct stripe_head_state *s,
 	 * is missing/faulty, then we need to read everything we can.
 	 */
 	if (!force_rcw &&
-	    sh->sector < sh->raid_conf->mddev->recovery_cp)
+	    sh->sector < sh->raid_conf->mddev->resync_offset)
 		/* reconstruct-write isn't being forced */
 		return 0;
 	for (i = 0; i < s->failed && i < 2; i++) {
@@ -4097,7 +4097,7 @@ static int handle_stripe_dirtying(struct r5conf *conf,
 				  int disks)
 {
 	int rmw = 0, rcw = 0, i;
-	sector_t recovery_cp = conf->mddev->recovery_cp;
+	sector_t resync_offset = conf->mddev->resync_offset;
 
 	/* Check whether resync is now happening or should start.
 	 * If yes, then the array is dirty (after unclean shutdown or
@@ -4107,14 +4107,14 @@ static int handle_stripe_dirtying(struct r5conf *conf,
 	 * generate correct data from the parity.
 	 */
 	if (conf->rmw_level == PARITY_DISABLE_RMW ||
-	    (recovery_cp < MaxSector && sh->sector >= recovery_cp &&
+	    (resync_offset < MaxSector && sh->sector >= resync_offset &&
 	     s->failed == 0)) {
 		/* Calculate the real rcw later - for now make it
 		 * look like rcw is cheaper
 		 */
 		rcw = 1; rmw = 2;
-		pr_debug("force RCW rmw_level=%u, recovery_cp=%llu sh->sector=%llu\n",
-			 conf->rmw_level, (unsigned long long)recovery_cp,
+		pr_debug("force RCW rmw_level=%u, resync_offset=%llu sh->sector=%llu\n",
+			 conf->rmw_level, (unsigned long long)resync_offset,
 			 (unsigned long long)sh->sector);
 	} else for (i = disks; i--; ) {
 		/* would I have to read this buffer for read_modify_write */
@@ -4770,14 +4770,14 @@ static void analyse_stripe(struct stripe_head *sh, struct stripe_head_state *s)
 	if (test_bit(STRIPE_SYNCING, &sh->state)) {
 		/* If there is a failed device being replaced,
 		 *     we must be recovering.
-		 * else if we are after recovery_cp, we must be syncing
+		 * else if we are after resync_offset, we must be syncing
 		 * else if MD_RECOVERY_REQUESTED is set, we also are syncing.
 		 * else we can only be replacing
 		 * sync and recovery both need to read all devices, and so
 		 * use the same flag.
 		 */
 		if (do_recovery ||
-		    sh->sector >= conf->mddev->recovery_cp ||
+		    sh->sector >= conf->mddev->resync_offset ||
 		    test_bit(MD_RECOVERY_REQUESTED, &(conf->mddev->recovery)))
 			s->syncing = 1;
 		else
@@ -7780,7 +7780,7 @@ static int raid5_run(struct mddev *mddev)
 	int first = 1;
 	int ret = -EIO;
 
-	if (mddev->recovery_cp != MaxSector)
+	if (mddev->resync_offset != MaxSector)
 		pr_notice("md/raid:%s: not clean -- starting background reconstruction\n",
 			  mdname(mddev));
 
@@ -7921,7 +7921,7 @@ static int raid5_run(struct mddev *mddev)
 				mdname(mddev));
 			mddev->ro = 1;
 			set_disk_ro(mddev->gendisk, 1);
-		} else if (mddev->recovery_cp == MaxSector)
+		} else if (mddev->resync_offset == MaxSector)
 			set_bit(MD_JOURNAL_CLEAN, &mddev->flags);
 	}
 
@@ -7988,7 +7988,7 @@ static int raid5_run(struct mddev *mddev)
 	mddev->resync_max_sectors = mddev->dev_sectors;
 
 	if (mddev->degraded > dirty_parity_disks &&
-	    mddev->recovery_cp != MaxSector) {
+	    mddev->resync_offset != MaxSector) {
 		if (test_bit(MD_HAS_PPL, &mddev->flags))
 			pr_crit("md/raid:%s: starting dirty degraded array with PPL.\n",
 				mdname(mddev));
@@ -8328,8 +8328,8 @@ static int raid5_resize(struct mddev *mddev, sector_t sectors)
 
 	md_set_array_sectors(mddev, newsize);
 	if (sectors > mddev->dev_sectors &&
-	    mddev->recovery_cp > mddev->dev_sectors) {
-		mddev->recovery_cp = mddev->dev_sectors;
+	    mddev->resync_offset > mddev->dev_sectors) {
+		mddev->resync_offset = mddev->dev_sectors;
 		set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
 	}
 	mddev->dev_sectors = sectors;
@@ -8423,7 +8423,7 @@ static int raid5_start_reshape(struct mddev *mddev)
 		return -EINVAL;
 
 	/* raid5 can't handle concurrent reshape and recovery */
-	if (mddev->recovery_cp < MaxSector)
+	if (mddev->resync_offset < MaxSector)
 		return -EBUSY;
 	for (i = 0; i < conf->raid_disks; i++)
 		if (conf->disks[i].replacement)
@@ -8648,7 +8648,7 @@ static void *raid45_takeover_raid0(struct mddev *mddev, int level)
 	mddev->raid_disks += 1;
 	mddev->delta_disks = 1;
 	/* make sure it will be not marked as dirty */
-	mddev->recovery_cp = MaxSector;
+	mddev->resync_offset = MaxSector;
 
 	return setup_conf(mddev);
 }

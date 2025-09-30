@@ -816,7 +816,7 @@ struct hid_usage_id {
  * zero from them.
  */
 struct hid_driver {
-	char *name;
+	const char *name;
 	const struct hid_device_id *id_table;
 
 	struct list_head dyn_list;

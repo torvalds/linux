@@ -426,10 +426,9 @@ static struct nft_pipapo_elem *pipapo_get(const struct nft_pipapo_match *m,
 
 	local_bh_disable();
 
-	if (unlikely(!raw_cpu_ptr(m->scratch)))
-		goto out;
-
 	scratch = *raw_cpu_ptr(m->scratch);
+	if (unlikely(!scratch))
+		goto out;
 
 	map_index = scratch->map_index;
 

@@ -23,6 +23,35 @@ allOf:
       properties:
         power-domains: false
 
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: fsl,imx23-dma-apbx
+    then:
+      properties:
+        interrupt-names:
+          items:
+            - const: audio-adc
+            - const: audio-dac
+            - const: spdif-tx
+            - const: i2c
+            - const: saif0
+            - const: empty0
+            - const: auart0-rx
+            - const: auart0-tx
+            - const: auart1-rx
+            - const: auart1-tx
+            - const: saif1
+            - const: empty1
+            - const: empty2
+            - const: empty3
+            - const: empty4
+            - const: empty5
+    else:
+      properties:
+        interrupt-names: false
+
 properties:
   compatible:
     oneOf:
@@ -51,6 +80,10 @@ properties:
     maxItems: 1
 
   interrupts:
+    minItems: 4
+    maxItems: 16
+
+  interrupt-names:
     minItems: 4
     maxItems: 16
 

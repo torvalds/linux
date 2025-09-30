@@ -52,34 +52,89 @@ const volatile unsigned int min_latency;
 const volatile unsigned int max_latency;
 const volatile unsigned int bucket_num = NUM_BUCKET;
 
-SEC("kprobe/func")
-int BPF_PROG(func_begin)
+static bool can_record(void)
 {
-	__u64 key, now;
-
-	if (!enabled)
-		return 0;
-
-	key = bpf_get_current_pid_tgid();
-
 	if (has_cpu) {
 		__u32 cpu = bpf_get_smp_processor_id();
 		__u8 *ok;
 
 		ok = bpf_map_lookup_elem(&cpu_filter, &cpu);
 		if (!ok)
-			return 0;
+			return false;
 	}
 
 	if (has_task) {
-		__u32 pid = key & 0xffffffff;
+		__u32 pid = bpf_get_current_pid_tgid();
 		__u8 *ok;
 
 		ok = bpf_map_lookup_elem(&task_filter, &pid);
 		if (!ok)
-			return 0;
+			return false;
+	}
+	return true;
+}
+
+static void update_latency(__s64 delta)
+{
+	__u64 val = delta;
+	__u32 key = 0;
+	__u64 *hist;
+	__u64 cmp_base = use_nsec ? 1 : 1000;
+
+	if (delta < 0)
+		return;
+
+	if (bucket_range != 0) {
+		val = delta / cmp_base;
+
+		if (min_latency > 0) {
+			if (val > min_latency)
+				val -= min_latency;
+			else
+				goto do_lookup;
+		}
+
+		// Less than 1 unit (ms or ns), or, in the future,
+		// than the min latency desired.
+		if (val > 0) { // 1st entry: [ 1 unit .. bucket_range units )
+			key = val / bucket_range + 1;
+			if (key >= bucket_num)
+				key = bucket_num - 1;
+		}
+
+		goto do_lookup;
+	}
+	// calculate index using delta
+	for (key = 0; key < (bucket_num - 1); key++) {
+		if (delta < (cmp_base << key))
+			break;
 	}
 
+do_lookup:
+	hist = bpf_map_lookup_elem(&latency, &key);
+	if (!hist)
+		return;
+
+	__sync_fetch_and_add(hist, 1);
+
+	__sync_fetch_and_add(&total, delta); // always in nsec
+	__sync_fetch_and_add(&count, 1);
+
+	if (delta > max)
+		max = delta;
+	if (delta < min)
+		min = delta;
+}
+
+SEC("kprobe/func")
+int BPF_PROG(func_begin)
+{
+	__u64 key, now;
+
+	if (!enabled || !can_record())
+		return 0;
+
+	key = bpf_get_current_pid_tgid();
 	now = bpf_ktime_get_ns();
 
 	// overwrite timestamp for nested functions
@@ -92,7 +147,6 @@ int BPF_PROG(func_end)
 {
 	__u64 tid;
 	__u64 *start;
-	__u64 cmp_base = use_nsec ? 1 : 1000;
 
 	if (!enabled)
 		return 0;
@@ -101,56 +155,44 @@ int BPF_PROG(func_end)
 
 	start = bpf_map_lookup_elem(&functime, &tid);
 	if (start) {
-		__s64 delta = bpf_ktime_get_ns() - *start;
-		__u64 val = delta;
-		__u32 key = 0;
-		__u64 *hist;
-
+		update_latency(bpf_ktime_get_ns() - *start);
 		bpf_map_delete_elem(&functime, &tid);
+	}
 
-		if (delta < 0)
-			return 0;
+	return 0;
+}
 
-		if (bucket_range != 0) {
-			val = delta / cmp_base;
+SEC("raw_tp")
+int BPF_PROG(event_begin)
+{
+	__u64 key, now;
 
-			if (min_latency > 0) {
-				if (val > min_latency)
-					val -= min_latency;
-				else
-					goto do_lookup;
-			}
+	if (!enabled || !can_record())
+		return 0;
 
-			// Less than 1 unit (ms or ns), or, in the future,
-			// than the min latency desired.
-			if (val > 0) { // 1st entry: [ 1 unit .. bucket_range units )
-				key = val / bucket_range + 1;
-				if (key >= bucket_num)
-					key = bucket_num - 1;
-			}
+	key = bpf_get_current_pid_tgid();
+	now = bpf_ktime_get_ns();
 
-			goto do_lookup;
-		}
-		// calculate index using delta
-		for (key = 0; key < (bucket_num - 1); key++) {
-			if (delta < (cmp_base << key))
-				break;
-		}
+	// overwrite timestamp for nested events
+	bpf_map_update_elem(&functime, &key, &now, BPF_ANY);
+	return 0;
+}
 
-do_lookup:
-		hist = bpf_map_lookup_elem(&latency, &key);
-		if (!hist)
-			return 0;
+SEC("raw_tp")
+int BPF_PROG(event_end)
+{
+	__u64 tid;
+	__u64 *start;
 
-		__sync_fetch_and_add(hist, 1);
+	if (!enabled)
+		return 0;
 
-		__sync_fetch_and_add(&total, delta); // always in nsec
-		__sync_fetch_and_add(&count, 1);
+	tid = bpf_get_current_pid_tgid();
 
-		if (delta > max)
-			max = delta;
-		if (delta < min)
-			min = delta;
+	start = bpf_map_lookup_elem(&functime, &tid);
+	if (start) {
+		update_latency(bpf_ktime_get_ns() - *start);
+		bpf_map_delete_elem(&functime, &tid);
 	}
 
 	return 0;

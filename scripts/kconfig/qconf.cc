@@ -37,6 +37,12 @@ QAction *ConfigMainWindow::saveAction;
 ConfigSettings::ConfigSettings()
 	: QSettings("kernel.org", "qconf")
 {
+	beginGroup("/kconfig/qconf");
+}
+
+ConfigSettings::~ConfigSettings()
+{
+	endGroup();
 }
 
 /**
@@ -92,7 +98,6 @@ void ConfigItem::updateMenu(void)
 {
 	ConfigList* list;
 	struct symbol* sym;
-	struct property *prop;
 	QString prompt;
 	int type;
 	tristate expr;
@@ -105,11 +110,10 @@ void ConfigItem::updateMenu(void)
 	}
 
 	sym = menu->sym;
-	prop = menu->prompt;
 	prompt = menu_get_prompt(menu);
 
-	if (prop) switch (prop->type) {
-	case P_MENU:
+	switch (menu->type) {
+	case M_MENU:
 		if (list->mode == singleMode) {
 			/* a menuconfig entry is displayed differently
 			 * depending whether it's at the view root or a child.
@@ -123,9 +127,15 @@ void ConfigItem::updateMenu(void)
 			setIcon(promptColIdx, QIcon());
 		}
 		goto set_prompt;
-	case P_COMMENT:
+	case M_COMMENT:
 		setIcon(promptColIdx, QIcon());
 		prompt = "*** " + prompt + " ***";
+		goto set_prompt;
+	case M_CHOICE:
+		setIcon(promptColIdx, QIcon());
+		sym = sym_calc_choice(menu);
+		if (sym)
+			setText(dataColIdx, sym->name);
 		goto set_prompt;
 	default:
 		;
@@ -188,7 +198,11 @@ void ConfigItem::testUpdateMenu(void)
 	if (!menu)
 		return;
 
-	sym_calc_value(menu->sym);
+	if (menu->type == M_CHOICE)
+		sym_calc_choice(menu);
+	else
+		sym_calc_value(menu->sym);
+
 	if (menu->flags & MENU_CHANGED) {
 		/* the menu entry changed, so update all list items */
 		menu->flags &= ~MENU_CHANGED;
@@ -478,7 +492,7 @@ void ConfigList::updateListAllForAll()
 	while (it.hasNext()) {
 		ConfigList *list = it.next();
 
-		list->updateList();
+		list->updateListAll();
 	}
 }
 
@@ -569,7 +583,7 @@ void ConfigList::setParentMenu(void)
 	oldroot = rootEntry;
 	if (rootEntry == &rootmenu)
 		return;
-	setRootMenu(menu_get_parent_menu(rootEntry->parent));
+	setRootMenu(menu_get_menu_or_parent_menu(rootEntry->parent));
 
 	QTreeWidgetItemIterator it(this);
 	while (*it) {
@@ -1532,7 +1546,7 @@ void ConfigMainWindow::setMenuLink(struct menu *menu)
 	switch (configList->mode) {
 	case singleMode:
 		list = configList;
-		parent = menu_get_parent_menu(menu);
+		parent = menu_get_menu_or_parent_menu(menu);
 		if (!parent)
 			return;
 		list->setRootMenu(parent);
@@ -1543,7 +1557,7 @@ void ConfigMainWindow::setMenuLink(struct menu *menu)
 			configList->clearSelection();
 			list = configList;
 		} else {
-			parent = menu_get_parent_menu(menu->parent);
+			parent = menu_get_menu_or_parent_menu(menu->parent);
 			if (!parent)
 				return;
 
@@ -1821,7 +1835,6 @@ int main(int ac, char** av)
 	configApp = new QApplication(ac, av);
 
 	configSettings = new ConfigSettings();
-	configSettings->beginGroup("/kconfig/qconf");
 	v = new ConfigMainWindow();
 
 	//zconfdump(stdout);
@@ -1829,7 +1842,6 @@ int main(int ac, char** av)
 	v->show();
 	configApp->exec();
 
-	configSettings->endGroup();
 	delete configSettings;
 	delete v;
 	delete configApp;

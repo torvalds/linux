@@ -4,6 +4,8 @@
  */
 #include <linux/sizes.h>
 #include <linux/uaccess.h>
+#include <linux/set_memory.h>
+#include <linux/stop_machine.h>
 
 #include <asm/cacheflush.h>
 #include <asm/inst.h>
@@ -218,6 +220,50 @@ int larch_insn_patch_text(void *addr, u32 insn)
 	return ret;
 }
 
+struct insn_copy {
+	void *dst;
+	void *src;
+	size_t len;
+	unsigned int cpu;
+};
+
+static int text_copy_cb(void *data)
+{
+	int ret = 0;
+	struct insn_copy *copy = data;
+
+	if (smp_processor_id() == copy->cpu) {
+		ret = copy_to_kernel_nofault(copy->dst, copy->src, copy->len);
+		if (ret)
+			pr_err("%s: operation failed\n", __func__);
+	}
+
+	flush_icache_range((unsigned long)copy->dst, (unsigned long)copy->dst + copy->len);
+
+	return ret;
+}
+
+int larch_insn_text_copy(void *dst, void *src, size_t len)
+{
+	int ret = 0;
+	size_t start, end;
+	struct insn_copy copy = {
+		.dst = dst,
+		.src = src,
+		.len = len,
+		.cpu = smp_processor_id(),
+	};
+
+	start = round_down((size_t)dst, PAGE_SIZE);
+	end   = round_up((size_t)dst + len, PAGE_SIZE);
+
+	set_memory_rw(start, (end - start) / PAGE_SIZE);
+	ret = stop_machine(text_copy_cb, &copy, cpu_online_mask);
+	set_memory_rox(start, (end - start) / PAGE_SIZE);
+
+	return ret;
+}
+
 u32 larch_insn_gen_nop(void)
 {
 	return INSN_NOP;
@@ -319,6 +365,34 @@ u32 larch_insn_gen_lu52id(enum loongarch_gpr rd, enum loongarch_gpr rj, int imm)
 	}
 
 	emit_lu52id(&insn, rd, rj, imm);
+
+	return insn.word;
+}
+
+u32 larch_insn_gen_beq(enum loongarch_gpr rd, enum loongarch_gpr rj, int imm)
+{
+	union loongarch_instruction insn;
+
+	if ((imm & 3) || imm < -SZ_128K || imm >= SZ_128K) {
+		pr_warn("The generated beq instruction is out of range.\n");
+		return INSN_BREAK;
+	}
+
+	emit_beq(&insn, rj, rd, imm >> 2);
+
+	return insn.word;
+}
+
+u32 larch_insn_gen_bne(enum loongarch_gpr rd, enum loongarch_gpr rj, int imm)
+{
+	union loongarch_instruction insn;
+
+	if ((imm & 3) || imm < -SZ_128K || imm >= SZ_128K) {
+		pr_warn("The generated bne instruction is out of range.\n");
+		return INSN_BREAK;
+	}
+
+	emit_bne(&insn, rj, rd, imm >> 2);
 
 	return insn.word;
 }

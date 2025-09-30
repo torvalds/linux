@@ -26,6 +26,7 @@
 #include <linux/kernel_read_file.h>
 #include <linux/syscalls.h>
 #include <linux/vmalloc.h>
+#include <linux/dma-map-ops.h>
 #include "kexec_internal.h"
 
 #ifdef CONFIG_KEXEC_SIG
@@ -253,6 +254,8 @@ kimage_file_prepare_segments(struct kimage *image, int kernel_fd, int initrd_fd,
 		ret = 0;
 	}
 
+	image->no_cma = !!(flags & KEXEC_FILE_NO_CMA);
+
 	if (cmdline_len) {
 		image->cmdline_buf = memdup_user(cmdline_ptr, cmdline_len);
 		if (IS_ERR(image->cmdline_buf)) {
@@ -434,7 +437,7 @@ SYSCALL_DEFINE5(kexec_file_load, int, kernel_fd, int, initrd_fd,
 			      i, ksegment->buf, ksegment->bufsz, ksegment->mem,
 			      ksegment->memsz);
 
-		ret = kimage_load_segment(image, &image->segment[i]);
+		ret = kimage_load_segment(image, i);
 		if (ret)
 			goto out;
 	}
@@ -663,6 +666,43 @@ static int kexec_walk_resources(struct kexec_buf *kbuf,
 		return walk_system_ram_res(0, ULONG_MAX, kbuf, func);
 }
 
+static int kexec_alloc_contig(struct kexec_buf *kbuf)
+{
+	size_t nr_pages = kbuf->memsz >> PAGE_SHIFT;
+	unsigned long mem;
+	struct page *p;
+
+	/* User space disabled CMA allocations, bail out. */
+	if (kbuf->image->no_cma)
+		return -EPERM;
+
+	/* Skip CMA logic for crash kernel */
+	if (kbuf->image->type == KEXEC_TYPE_CRASH)
+		return -EPERM;
+
+	p = dma_alloc_from_contiguous(NULL, nr_pages, get_order(kbuf->buf_align), true);
+	if (!p)
+		return -ENOMEM;
+
+	pr_debug("allocated %zu DMA pages at 0x%lx", nr_pages, page_to_boot_pfn(p));
+
+	mem = page_to_boot_pfn(p) << PAGE_SHIFT;
+
+	if (kimage_is_destination_range(kbuf->image, mem, mem + kbuf->memsz)) {
+		/* Our region is already in use by a statically defined one. Bail out. */
+		pr_debug("CMA overlaps existing mem: 0x%lx+0x%lx\n", mem, kbuf->memsz);
+		dma_release_from_contiguous(NULL, p, nr_pages);
+		return -EBUSY;
+	}
+
+	kbuf->mem = page_to_boot_pfn(p) << PAGE_SHIFT;
+	kbuf->cma = p;
+
+	arch_kexec_post_alloc_pages(page_address(p), (int)nr_pages, 0);
+
+	return 0;
+}
+
 /**
  * kexec_locate_mem_hole - find free memory for the purgatory or the next kernel
  * @kbuf:	Parameters for the memory search.
@@ -686,6 +726,13 @@ int kexec_locate_mem_hole(struct kexec_buf *kbuf)
 	ret = kho_locate_mem_hole(kbuf, locate_mem_hole_callback);
 	if (ret <= 0)
 		return ret;
+
+	/*
+	 * Try to find a free physically contiguous block of memory first. With that, we
+	 * can avoid any copying at kexec time.
+	 */
+	if (!kexec_alloc_contig(kbuf))
+		return 0;
 
 	if (!IS_ENABLED(CONFIG_ARCH_KEEP_MEMBLOCK))
 		ret = kexec_walk_resources(kbuf, locate_mem_hole_callback);
@@ -732,6 +779,7 @@ int kexec_add_buffer(struct kexec_buf *kbuf)
 	/* Ensure minimum alignment needed for segments. */
 	kbuf->memsz = ALIGN(kbuf->memsz, PAGE_SIZE);
 	kbuf->buf_align = max(kbuf->buf_align, PAGE_SIZE);
+	kbuf->cma = NULL;
 
 	/* Walk the RAM ranges and allocate a suitable range for the buffer */
 	ret = arch_kexec_locate_mem_hole(kbuf);
@@ -744,6 +792,7 @@ int kexec_add_buffer(struct kexec_buf *kbuf)
 	ksegment->bufsz = kbuf->bufsz;
 	ksegment->mem = kbuf->mem;
 	ksegment->memsz = kbuf->memsz;
+	kbuf->image->segment_cma[kbuf->image->nr_segments] = kbuf->cma;
 	kbuf->image->nr_segments++;
 	return 0;
 }

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Check Arm64 callgraphs are complete in fp mode
 # SPDX-License-Identifier: GPL-2.0
 

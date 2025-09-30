@@ -70,7 +70,7 @@ static int txx9_gpio_dir_out(struct gpio_chip *chip, unsigned int offset,
 
 static struct gpio_chip txx9_gpio_chip = {
 	.get = txx9_gpio_get,
-	.set_rv = txx9_gpio_set,
+	.set = txx9_gpio_set,
 	.direction_input = txx9_gpio_dir_in,
 	.direction_output = txx9_gpio_dir_out,
 	.label = "TXx9",
