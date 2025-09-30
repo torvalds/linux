@@ -1229,6 +1229,9 @@ It is not possible to read back a pending external abort (injected via
 KVM_SET_VCPU_EVENTS or otherwise) because such an exception is always delivered
 directly to the virtual CPU).
 
+Calling this ioctl on a vCPU that hasn't been initialized will return
+-ENOEXEC.
+
 ::
 
   struct kvm_vcpu_events {
@@ -1309,6 +1312,8 @@ exceptions by manipulating individual registers using the KVM_SET_ONE_REG API.
 
 See KVM_GET_VCPU_EVENTS for the data structure.
 
+Calling this ioctl on a vCPU that hasn't been initialized will return
+-ENOEXEC.
 
 4.33 KVM_GET_DEBUGREGS
 ----------------------
