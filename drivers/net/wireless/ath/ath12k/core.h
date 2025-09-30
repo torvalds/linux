@@ -35,6 +35,7 @@
 #include "debugfs_htt_stats.h"
 #include "coredump.h"
 #include "cmn_defs.h"
+#include "dp_cmn.h"
 
 #define SM(_v, _f) (((_v) << _f##_LSB) & _f##_MASK)
 
@@ -306,16 +307,9 @@ struct ath12k_link_vif {
 	u32 vdev_id;
 	u32 beacon_interval;
 	u32 dtim_period;
-	u16 ast_hash;
-	u16 ast_idx;
-	u16 tcl_metadata;
-	u8 hal_addr_search_flags;
-	u8 search_type;
 
 	struct ath12k *ar;
 
-	int bank_id;
-	u8 vdev_id_check_en;
 	bool beacon_prot;
 
 	struct wmi_wmm_params_all_arg wmm_params;
@@ -354,6 +348,8 @@ struct ath12k_link_vif {
 };
 
 struct ath12k_vif {
+	struct ath12k_dp_vif dp_vif;
+
 	enum wmi_vdev_type vdev_type;
 	enum wmi_vdev_subtype vdev_subtype;
 	struct ieee80211_vif *vif;
@@ -377,10 +373,7 @@ struct ath12k_vif {
 	} u;
 
 	u32 aid;
-	u32 key_cipher;
-	u8 tx_encap_type;
 	bool ps;
-	atomic_t mcbc_gsn;
 
 	struct ath12k_link_vif deflink;
 	struct ath12k_link_vif __rcu *link[ATH12K_NUM_MAX_LINKS];

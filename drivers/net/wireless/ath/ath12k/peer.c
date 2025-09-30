@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022, 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include "core.h"
@@ -318,6 +318,8 @@ int ath12k_peer_create(struct ath12k *ar, struct ath12k_link_vif *arvif,
 		       struct ath12k_wmi_peer_create_arg *arg)
 {
 	struct ieee80211_vif *vif = ath12k_ahvif_to_vif(arvif->ahvif);
+	struct ath12k_vif *ahvif = arvif->ahvif;
+	struct ath12k_dp_link_vif *dp_link_vif;
 	struct ath12k_link_sta *arsta;
 	u8 link_id = arvif->link_id;
 	struct ath12k_peer *peer;
@@ -326,6 +328,8 @@ int ath12k_peer_create(struct ath12k *ar, struct ath12k_link_vif *arvif,
 	int ret;
 
 	lockdep_assert_wiphy(ath12k_ar_to_hw(ar)->wiphy);
+
+	dp_link_vif = ath12k_dp_vif_to_dp_link_vif(&ahvif->dp_vif, link_id);
 
 	if (ar->num_peers > (ar->max_num_peers - 1)) {
 		ath12k_warn(ar->ab,
@@ -384,8 +388,8 @@ int ath12k_peer_create(struct ath12k *ar, struct ath12k_link_vif *arvif,
 	peer->sta = sta;
 
 	if (vif->type == NL80211_IFTYPE_STATION) {
-		arvif->ast_hash = peer->ast_hash;
-		arvif->ast_idx = peer->hw_peer_id;
+		dp_link_vif->ast_hash = peer->ast_hash;
+		dp_link_vif->ast_idx = peer->hw_peer_id;
 	}
 
 	if (vif->type == NL80211_IFTYPE_AP)

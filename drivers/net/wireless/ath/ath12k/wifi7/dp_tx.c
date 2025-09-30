@@ -70,6 +70,8 @@ int ath12k_wifi7_dp_tx(struct ath12k *ar, struct ath12k_link_vif *arvif,
 	struct hal_srng *tcl_ring;
 	struct ieee80211_hdr *hdr = (void *)skb->data;
 	struct ath12k_vif *ahvif = arvif->ahvif;
+	struct ath12k_dp_vif *dp_vif = &ahvif->dp_vif;
+	struct ath12k_dp_link_vif *dp_link_vif;
 	struct dp_tx_ring *tx_ring;
 	u8 pool_id;
 	u8 hal_ring_id;
@@ -113,10 +115,12 @@ tcl_ring_sel:
 	if (!tx_desc)
 		return -ENOMEM;
 
-	ti.bank_id = arvif->bank_id;
-	ti.meta_data_flags = arvif->tcl_metadata;
+	dp_link_vif = ath12k_dp_vif_to_dp_link_vif(&ahvif->dp_vif, arvif->link_id);
 
-	if (ahvif->tx_encap_type == HAL_TCL_ENCAP_TYPE_RAW &&
+	ti.bank_id = dp_link_vif->bank_id;
+	ti.meta_data_flags = dp_link_vif->tcl_metadata;
+
+	if (dp_vif->tx_encap_type == HAL_TCL_ENCAP_TYPE_RAW &&
 	    test_bit(ATH12K_FLAG_HW_CRYPTO_DISABLED, &ar->ab->dev_flags)) {
 		if (skb_cb->flags & ATH12K_SKB_CIPHER_SET) {
 			ti.encrypt_type =
@@ -142,18 +146,18 @@ tcl_ring_sel:
 	}
 
 	ti.encap_type = ath12k_dp_tx_get_encap_type(ab, skb);
-	ti.addr_search_flags = arvif->hal_addr_search_flags;
-	ti.search_type = arvif->search_type;
+	ti.addr_search_flags = dp_link_vif->hal_addr_search_flags;
+	ti.search_type = dp_link_vif->search_type;
 	ti.type = HAL_TCL_DESC_TYPE_BUFFER;
 	ti.pkt_offset = 0;
-	ti.lmac_id = ar->lmac_id;
+	ti.lmac_id = dp_link_vif->lmac_id;
 
-	ti.vdev_id = arvif->vdev_id;
+	ti.vdev_id = dp_link_vif->vdev_id;
 	if (gsn_valid)
 		ti.vdev_id += HTT_TX_MLO_MCAST_HOST_REINJECT_BASE_VDEV_ID;
 
-	ti.bss_ast_hash = arvif->ast_hash;
-	ti.bss_ast_idx = arvif->ast_idx;
+	ti.bss_ast_hash = dp_link_vif->ast_hash;
+	ti.bss_ast_idx = dp_link_vif->ast_idx;
 	ti.dscp_tid_tbl_idx = 0;
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL &&
@@ -251,11 +255,10 @@ skip_htt_meta:
 	}
 
 	tx_desc->skb = skb;
-	tx_desc->mac_id = ar->pdev_idx;
+	tx_desc->mac_id = dp_link_vif->pdev_idx;
 	ti.desc_id = tx_desc->desc_id;
 	ti.data_len = skb->len;
 	skb_cb->paddr = ti.paddr;
-	skb_cb->vif = ahvif->vif;
 	skb_cb->ar = ar;
 
 	if (msdu_ext_desc) {

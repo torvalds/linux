@@ -14,6 +14,32 @@ struct ath12k_dp_hw_group {
 	struct ath12k_dp *dp[ATH12K_MAX_DEVICES];
 };
 
+struct ath12k_dp_link_vif {
+	u32 vdev_id;
+	u8 search_type;
+	u8 hal_addr_search_flags;
+	u8 pdev_idx;
+	u8 lmac_id;
+	u16 ast_idx;
+	u16 ast_hash;
+	u16 tcl_metadata;
+	u8 vdev_id_check_en;
+	int bank_id;
+};
+
+struct ath12k_dp_vif {
+	u8 tx_encap_type;
+	u32 key_cipher;
+	atomic_t mcbc_gsn;
+	struct ath12k_dp_link_vif dp_link_vif[ATH12K_NUM_MAX_LINKS];
+};
+
+static inline struct ath12k_dp_link_vif *
+ath12k_dp_vif_to_dp_link_vif(struct ath12k_dp_vif *dp_vif, u8 link_id)
+{
+	return &dp_vif->dp_link_vif[link_id];
+}
+
 void ath12k_dp_cmn_device_deinit(struct ath12k_dp *dp);
 int ath12k_dp_cmn_device_init(struct ath12k_dp *dp);
 void ath12k_dp_cmn_hw_group_unassign(struct ath12k_dp *dp,

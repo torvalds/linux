@@ -338,18 +338,23 @@ u32 ath12k_dp_tx_get_vdev_bank_config(struct ath12k_base *ab,
 				      struct ath12k_link_vif *arvif)
 {
 	u32 bank_config = 0;
+	u8 link_id = arvif->link_id;
 	struct ath12k_vif *ahvif = arvif->ahvif;
+	struct ath12k_dp_vif *dp_vif = &ahvif->dp_vif;
+	struct ath12k_dp_link_vif *dp_link_vif;
+
+	dp_link_vif = ath12k_dp_vif_to_dp_link_vif(dp_vif, link_id);
 
 	/* Only valid for raw frames with HW crypto enabled.
 	 * With SW crypto, mac80211 sets key per packet
 	 */
-	if (ahvif->tx_encap_type == HAL_TCL_ENCAP_TYPE_RAW &&
+	if (dp_vif->tx_encap_type == HAL_TCL_ENCAP_TYPE_RAW &&
 	    test_bit(ATH12K_FLAG_HW_CRYPTO_DISABLED, &ab->dev_flags))
 		bank_config |=
-			u32_encode_bits(ath12k_dp_tx_get_encrypt_type(ahvif->key_cipher),
+			u32_encode_bits(ath12k_dp_tx_get_encrypt_type(dp_vif->key_cipher),
 					HAL_TX_BANK_CONFIG_ENCRYPT_TYPE);
 
-	bank_config |= u32_encode_bits(ahvif->tx_encap_type,
+	bank_config |= u32_encode_bits(dp_vif->tx_encap_type,
 					HAL_TX_BANK_CONFIG_ENCAP_TYPE);
 	bank_config |= u32_encode_bits(0, HAL_TX_BANK_CONFIG_SRC_BUFFER_SWAP) |
 			u32_encode_bits(0, HAL_TX_BANK_CONFIG_LINK_META_SWAP) |
@@ -361,15 +366,16 @@ u32 ath12k_dp_tx_get_vdev_bank_config(struct ath12k_base *ab,
 	else
 		bank_config |= u32_encode_bits(0, HAL_TX_BANK_CONFIG_INDEX_LOOKUP_EN);
 
-	bank_config |= u32_encode_bits(arvif->hal_addr_search_flags & HAL_TX_ADDRX_EN,
-					HAL_TX_BANK_CONFIG_ADDRX_EN) |
-			u32_encode_bits(!!(arvif->hal_addr_search_flags &
+	bank_config |= u32_encode_bits(dp_link_vif->hal_addr_search_flags &
+				       HAL_TX_ADDRX_EN,
+				       HAL_TX_BANK_CONFIG_ADDRX_EN) |
+			u32_encode_bits(!!(dp_link_vif->hal_addr_search_flags &
 					HAL_TX_ADDRY_EN),
 					HAL_TX_BANK_CONFIG_ADDRY_EN);
 
 	bank_config |= u32_encode_bits(ieee80211_vif_is_mesh(ahvif->vif) ? 3 : 0,
 					HAL_TX_BANK_CONFIG_MESH_EN) |
-			u32_encode_bits(arvif->vdev_id_check_en,
+			u32_encode_bits(dp_link_vif->vdev_id_check_en,
 					HAL_TX_BANK_CONFIG_VDEV_ID_CHECK_EN);
 
 	bank_config |= u32_encode_bits(0, HAL_TX_BANK_CONFIG_DSCP_TIP_MAP_ID);
@@ -938,15 +944,21 @@ out:
 
 static void ath12k_dp_update_vdev_search(struct ath12k_link_vif *arvif)
 {
+	u8 link_id = arvif->link_id;
+	struct ath12k_vif *ahvif = arvif->ahvif;
+	struct ath12k_dp_link_vif *dp_link_vif;
+
+	dp_link_vif = ath12k_dp_vif_to_dp_link_vif(&ahvif->dp_vif, link_id);
+
 	switch (arvif->ahvif->vdev_type) {
 	case WMI_VDEV_TYPE_STA:
-		arvif->hal_addr_search_flags = HAL_TX_ADDRY_EN;
-		arvif->search_type = HAL_TX_ADDR_SEARCH_INDEX;
+		dp_link_vif->hal_addr_search_flags = HAL_TX_ADDRY_EN;
+		dp_link_vif->search_type = HAL_TX_ADDR_SEARCH_DEFAULT;
 		break;
 	case WMI_VDEV_TYPE_AP:
 	case WMI_VDEV_TYPE_IBSS:
-		arvif->hal_addr_search_flags = HAL_TX_ADDRX_EN;
-		arvif->search_type = HAL_TX_ADDR_SEARCH_DEFAULT;
+		dp_link_vif->hal_addr_search_flags = HAL_TX_ADDRX_EN;
+		dp_link_vif->search_type = HAL_TX_ADDR_SEARCH_DEFAULT;
 		break;
 	case WMI_VDEV_TYPE_MONITOR:
 	default:
@@ -957,22 +969,29 @@ static void ath12k_dp_update_vdev_search(struct ath12k_link_vif *arvif)
 void ath12k_dp_vdev_tx_attach(struct ath12k *ar, struct ath12k_link_vif *arvif)
 {
 	struct ath12k_base *ab = ar->ab;
+	struct ath12k_vif *ahvif = arvif->ahvif;
+	u8 link_id = arvif->link_id;
+	int bank_id;
+	struct ath12k_dp_link_vif *dp_link_vif;
 
-	arvif->tcl_metadata |= u32_encode_bits(1, HTT_TCL_META_DATA_TYPE) |
-			       u32_encode_bits(arvif->vdev_id,
-					       HTT_TCL_META_DATA_VDEV_ID) |
-			       u32_encode_bits(ar->pdev->pdev_id,
-					       HTT_TCL_META_DATA_PDEV_ID);
+	dp_link_vif = ath12k_dp_vif_to_dp_link_vif(&ahvif->dp_vif, link_id);
+
+	dp_link_vif->tcl_metadata |= u32_encode_bits(1, HTT_TCL_META_DATA_TYPE) |
+				     u32_encode_bits(arvif->vdev_id,
+						     HTT_TCL_META_DATA_VDEV_ID) |
+				     u32_encode_bits(ar->pdev->pdev_id,
+						     HTT_TCL_META_DATA_PDEV_ID);
 
 	/* set HTT extension valid bit to 0 by default */
-	arvif->tcl_metadata &= ~HTT_TCL_META_DATA_VALID_HTT;
+	dp_link_vif->tcl_metadata &= ~HTT_TCL_META_DATA_VALID_HTT;
 
 	ath12k_dp_update_vdev_search(arvif);
-	arvif->vdev_id_check_en = true;
-	arvif->bank_id = ath12k_dp_tx_get_bank_profile(ab, arvif, ath12k_ab_to_dp(ab));
+	dp_link_vif->vdev_id_check_en = true;
+	bank_id = ath12k_dp_tx_get_bank_profile(ab, arvif, ath12k_ab_to_dp(ab));
+	dp_link_vif->bank_id = bank_id;
 
 	/* TODO: error path for bank id failure */
-	if (arvif->bank_id == DP_INVALID_BANK_ID) {
+	if (bank_id == DP_INVALID_BANK_ID) {
 		ath12k_err(ar->ab, "Failed to initialize DP TX Banks");
 		return;
 	}
