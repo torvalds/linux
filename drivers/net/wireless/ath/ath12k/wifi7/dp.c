@@ -13,10 +13,11 @@
 #include "dp.h"
 #include "dp_tx.h"
 
-int ath12k_wifi7_dp_service_srng(struct ath12k_base *ab,
-				 struct ath12k_ext_irq_grp *irq_grp,
-				 int budget)
+static int ath12k_wifi7_dp_service_srng(struct ath12k_dp *dp,
+					struct ath12k_ext_irq_grp *irq_grp,
+					int budget)
 {
+	struct ath12k_base *ab = dp->ab;
 	struct napi_struct *napi = &irq_grp->napi;
 	int grp_id = irq_grp->grp_id;
 	int work_done = 0;
@@ -134,6 +135,10 @@ done:
 	return tot_work_done;
 }
 
+static struct ath12k_dp_arch_ops ath12k_wifi7_dp_arch_ops = {
+	.service_srng = ath12k_wifi7_dp_service_srng,
+};
+
 /* TODO: remove export once this file is built with wifi7 ko */
 struct ath12k_dp *ath12k_wifi7_dp_device_alloc(struct ath12k_base *ab)
 {
@@ -147,6 +152,8 @@ struct ath12k_dp *ath12k_wifi7_dp_device_alloc(struct ath12k_base *ab)
 	dp->ab = ab;
 	dp->dev = ab->dev;
 	dp->hw_params = ab->hw_params;
+
+	dp->ops = &ath12k_wifi7_dp_arch_ops;
 
 	return dp;
 }

@@ -367,6 +367,15 @@ struct ath12k_link_stats {
 	u32 tx_desc_type[HAL_TCL_DESC_TYPE_MAX];
 };
 
+/* DP arch ops to communicate from common module
+ * to arch specific module
+ */
+struct ath12k_dp_arch_ops {
+	int (*service_srng)(struct ath12k_dp *dp,
+			    struct ath12k_ext_irq_grp *irq_grp,
+			    int budget);
+};
+
 struct ath12k_dp {
 	struct ath12k_base *ab;
 	u32 mon_dest_ring_stuck_cnt;
@@ -430,6 +439,8 @@ struct ath12k_dp {
 
 	struct ath12k_hw_group *ag;
 	u8 device_id;
+
+	struct ath12k_dp_arch_ops *ops;
 };
 
 static inline void ath12k_dp_get_mac_addr(u32 addr_l32, u16 addr_h16, u8 *addr)
@@ -442,6 +453,13 @@ static inline struct ath12k_dp *
 ath12k_dp_hw_grp_to_dp(struct ath12k_dp_hw_group *dp_hw_grp, u8 device_id)
 {
 	return dp_hw_grp->dp[device_id];
+}
+
+static inline int
+ath12k_dp_service_srng(struct ath12k_dp *dp, struct ath12k_ext_irq_grp *irq_grp,
+		       int budget)
+{
+	return dp->ops->service_srng(dp, irq_grp, budget);
 }
 
 void ath12k_dp_vdev_tx_attach(struct ath12k *ar, struct ath12k_link_vif *arvif);

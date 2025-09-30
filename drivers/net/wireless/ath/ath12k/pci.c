@@ -479,10 +479,11 @@ static int ath12k_pci_ext_grp_napi_poll(struct napi_struct *napi, int budget)
 						struct ath12k_ext_irq_grp,
 						napi);
 	struct ath12k_base *ab = irq_grp->ab;
+	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
 	int work_done;
 	int i;
 
-	work_done = ath12k_wifi7_dp_service_srng(ab, irq_grp, budget);
+	work_done = ath12k_dp_service_srng(dp, irq_grp, budget);
 	if (work_done < budget) {
 		napi_complete_done(napi, work_done);
 		for (i = 0; i < irq_grp->num_irq; i++)
