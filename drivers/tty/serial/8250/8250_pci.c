@@ -165,7 +165,15 @@ static int
 setup_port(struct serial_private *priv, struct uart_8250_port *port,
 	   u8 bar, unsigned int offset, int regshift)
 {
-	return serial8250_pci_setup_port(priv->dev, port, bar, offset, regshift);
+	void __iomem *iomem = NULL;
+
+	if (pci_resource_flags(priv->dev, bar) & IORESOURCE_MEM) {
+		iomem = pcim_iomap(priv->dev, bar, 0);
+		if (!iomem)
+			return -ENOMEM;
+	}
+
+	return serial8250_pci_setup_port(priv->dev, port, bar, offset, regshift, iomem);
 }
 
 /*

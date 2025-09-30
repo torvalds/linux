@@ -503,7 +503,7 @@ static int default_setup(struct exar8250 *priv, struct pci_dev *pcidev,
 	unsigned char status;
 	int err;
 
-	err = serial8250_pci_setup_port(pcidev, port, 0, offset, board->reg_shift);
+	err = serial8250_pci_setup_port(pcidev, port, 0, offset, board->reg_shift, priv->virt);
 	if (err)
 		return err;
 
@@ -831,7 +831,7 @@ static int cti_port_setup_common(struct exar8250 *priv,
 	port->port.port_id = idx;
 	port->port.uartclk = priv->osc_freq;
 
-	ret = serial8250_pci_setup_port(pcidev, port, 0, offset, 0);
+	ret = serial8250_pci_setup_port(pcidev, port, 0, offset, 0, priv->virt);
 	if (ret)
 		return ret;
 
