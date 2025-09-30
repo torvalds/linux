@@ -142,7 +142,9 @@ allOf:
       required:
         - orientation-switch
     then:
-      $ref: /schemas/usb/usb-switch.yaml#
+      allOf:
+        - $ref: /schemas/usb/usb-switch.yaml#
+        - $ref: /schemas/usb/usb-switch-ports.yaml#
 
 unevaluatedProperties: false
 
