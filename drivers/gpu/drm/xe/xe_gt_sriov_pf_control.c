@@ -271,12 +271,19 @@ static bool pf_expect_vf_not_state(struct xe_gt *gt, unsigned int vfid,
 	return result;
 }
 
+static void pf_track_vf_state(struct xe_gt *gt, unsigned int vfid,
+			      enum xe_gt_sriov_control_bits bit,
+			      const char *what)
+{
+	xe_gt_sriov_dbg_verbose(gt, "VF%u state %s(%d) %s\n",
+				vfid, control_bit_to_string(bit), bit, what);
+}
+
 static bool pf_enter_vf_state(struct xe_gt *gt, unsigned int vfid,
 			      enum xe_gt_sriov_control_bits bit)
 {
 	if (!test_and_set_bit(bit, pf_peek_vf_state(gt, vfid))) {
-		xe_gt_sriov_dbg_verbose(gt, "VF%u state %s(%d) enter\n",
-					vfid, control_bit_to_string(bit), bit);
+		pf_track_vf_state(gt, vfid, bit, "enter");
 		return true;
 	}
 	return false;
@@ -286,8 +293,7 @@ static bool pf_exit_vf_state(struct xe_gt *gt, unsigned int vfid,
 			     enum xe_gt_sriov_control_bits bit)
 {
 	if (test_and_clear_bit(bit, pf_peek_vf_state(gt, vfid))) {
-		xe_gt_sriov_dbg_verbose(gt, "VF%u state %s(%d) exit\n",
-					vfid, control_bit_to_string(bit), bit);
+		pf_track_vf_state(gt, vfid, bit, "exit");
 		return true;
 	}
 	return false;
