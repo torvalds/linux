@@ -819,10 +819,10 @@ void scx_idle_disable(void)
  * Helpers that can be called from the BPF scheduler.
  */
 
-static int validate_node(int node)
+static int validate_node(struct scx_sched *sch, int node)
 {
 	if (!static_branch_likely(&scx_builtin_idle_per_node)) {
-		scx_kf_error("per-node idle tracking is disabled");
+		scx_error(sch, "per-node idle tracking is disabled");
 		return -EOPNOTSUPP;
 	}
 
@@ -832,13 +832,13 @@ static int validate_node(int node)
 
 	/* Make sure node is in a valid range */
 	if (node < 0 || node >= nr_node_ids) {
-		scx_kf_error("invalid node %d", node);
+		scx_error(sch, "invalid node %d", node);
 		return -EINVAL;
 	}
 
 	/* Make sure the node is part of the set of possible nodes */
 	if (!node_possible(node)) {
-		scx_kf_error("unavailable node %d", node);
+		scx_error(sch, "unavailable node %d", node);
 		return -EINVAL;
 	}
 
@@ -847,12 +847,12 @@ static int validate_node(int node)
 
 __bpf_kfunc_start_defs();
 
-static bool check_builtin_idle_enabled(void)
+static bool check_builtin_idle_enabled(struct scx_sched *sch)
 {
 	if (static_branch_likely(&scx_builtin_idle_enabled))
 		return true;
 
-	scx_kf_error("built-in idle tracking is disabled");
+	scx_error(sch, "built-in idle tracking is disabled");
 	return false;
 }
 
@@ -882,17 +882,18 @@ static bool is_bpf_migration_disabled(const struct task_struct *p)
 		return p->migration_disabled;
 }
 
-static s32 select_cpu_from_kfunc(struct task_struct *p, s32 prev_cpu, u64 wake_flags,
+static s32 select_cpu_from_kfunc(struct scx_sched *sch, struct task_struct *p,
+				 s32 prev_cpu, u64 wake_flags,
 				 const struct cpumask *allowed, u64 flags)
 {
 	struct rq *rq;
 	struct rq_flags rf;
 	s32 cpu;
 
-	if (!kf_cpu_valid(prev_cpu, NULL))
+	if (!ops_cpu_valid(sch, prev_cpu, NULL))
 		return -EINVAL;
 
-	if (!check_builtin_idle_enabled())
+	if (!check_builtin_idle_enabled(sch))
 		return -EBUSY;
 
 	/*
@@ -905,7 +906,7 @@ static s32 select_cpu_from_kfunc(struct task_struct *p, s32 prev_cpu, u64 wake_f
 	if (scx_kf_allowed_if_unlocked()) {
 		rq = task_rq_lock(p, &rf);
 	} else {
-		if (!scx_kf_allowed(SCX_KF_SELECT_CPU | SCX_KF_ENQUEUE))
+		if (!scx_kf_allowed(sch, SCX_KF_SELECT_CPU | SCX_KF_ENQUEUE))
 			return -EPERM;
 		rq = scx_locked_rq();
 	}
@@ -948,9 +949,13 @@ static s32 select_cpu_from_kfunc(struct task_struct *p, s32 prev_cpu, u64 wake_f
  */
 __bpf_kfunc int scx_bpf_cpu_node(s32 cpu)
 {
-	if (!kf_cpu_valid(cpu, NULL))
-		return NUMA_NO_NODE;
+	struct scx_sched *sch;
 
+	guard(rcu)();
+
+	sch = rcu_dereference(scx_root);
+	if (unlikely(!sch) || !ops_cpu_valid(sch, cpu, NULL))
+		return NUMA_NO_NODE;
 	return cpu_to_node(cpu);
 }
 
@@ -972,15 +977,21 @@ __bpf_kfunc int scx_bpf_cpu_node(s32 cpu)
 __bpf_kfunc s32 scx_bpf_select_cpu_dfl(struct task_struct *p, s32 prev_cpu,
 				       u64 wake_flags, bool *is_idle)
 {
+	struct scx_sched *sch;
 	s32 cpu;
 
-	cpu = select_cpu_from_kfunc(p, prev_cpu, wake_flags, NULL, 0);
+	guard(rcu)();
+
+	sch = rcu_dereference(scx_root);
+	if (unlikely(!sch))
+		return -ENODEV;
+
+	cpu = select_cpu_from_kfunc(sch, p, prev_cpu, wake_flags, NULL, 0);
 	if (cpu >= 0) {
 		*is_idle = true;
 		return cpu;
 	}
 	*is_idle = false;
-
 	return prev_cpu;
 }
 
@@ -1007,7 +1018,16 @@ __bpf_kfunc s32 scx_bpf_select_cpu_dfl(struct task_struct *p, s32 prev_cpu,
 __bpf_kfunc s32 scx_bpf_select_cpu_and(struct task_struct *p, s32 prev_cpu, u64 wake_flags,
 				       const struct cpumask *cpus_allowed, u64 flags)
 {
-	return select_cpu_from_kfunc(p, prev_cpu, wake_flags, cpus_allowed, flags);
+	struct scx_sched *sch;
+
+	guard(rcu)();
+
+	sch = rcu_dereference(scx_root);
+	if (unlikely(!sch))
+		return -ENODEV;
+
+	return select_cpu_from_kfunc(sch, p, prev_cpu, wake_flags,
+				     cpus_allowed, flags);
 }
 
 /**
@@ -1021,7 +1041,15 @@ __bpf_kfunc s32 scx_bpf_select_cpu_and(struct task_struct *p, s32 prev_cpu, u64 
  */
 __bpf_kfunc const struct cpumask *scx_bpf_get_idle_cpumask_node(int node)
 {
-	node = validate_node(node);
+	struct scx_sched *sch;
+
+	guard(rcu)();
+
+	sch = rcu_dereference(scx_root);
+	if (unlikely(!sch))
+		return cpu_none_mask;
+
+	node = validate_node(sch, node);
 	if (node < 0)
 		return cpu_none_mask;
 
@@ -1037,12 +1065,20 @@ __bpf_kfunc const struct cpumask *scx_bpf_get_idle_cpumask_node(int node)
  */
 __bpf_kfunc const struct cpumask *scx_bpf_get_idle_cpumask(void)
 {
+	struct scx_sched *sch;
+
+	guard(rcu)();
+
+	sch = rcu_dereference(scx_root);
+	if (unlikely(!sch))
+		return cpu_none_mask;
+
 	if (static_branch_unlikely(&scx_builtin_idle_per_node)) {
-		scx_kf_error("SCX_OPS_BUILTIN_IDLE_PER_NODE enabled");
+		scx_error(sch, "SCX_OPS_BUILTIN_IDLE_PER_NODE enabled");
 		return cpu_none_mask;
 	}
 
-	if (!check_builtin_idle_enabled())
+	if (!check_builtin_idle_enabled(sch))
 		return cpu_none_mask;
 
 	return idle_cpumask(NUMA_NO_NODE)->cpu;
@@ -1060,7 +1096,15 @@ __bpf_kfunc const struct cpumask *scx_bpf_get_idle_cpumask(void)
  */
 __bpf_kfunc const struct cpumask *scx_bpf_get_idle_smtmask_node(int node)
 {
-	node = validate_node(node);
+	struct scx_sched *sch;
+
+	guard(rcu)();
+
+	sch = rcu_dereference(scx_root);
+	if (unlikely(!sch))
+		return cpu_none_mask;
+
+	node = validate_node(sch, node);
 	if (node < 0)
 		return cpu_none_mask;
 
@@ -1080,12 +1124,20 @@ __bpf_kfunc const struct cpumask *scx_bpf_get_idle_smtmask_node(int node)
  */
 __bpf_kfunc const struct cpumask *scx_bpf_get_idle_smtmask(void)
 {
+	struct scx_sched *sch;
+
+	guard(rcu)();
+
+	sch = rcu_dereference(scx_root);
+	if (unlikely(!sch))
+		return cpu_none_mask;
+
 	if (static_branch_unlikely(&scx_builtin_idle_per_node)) {
-		scx_kf_error("SCX_OPS_BUILTIN_IDLE_PER_NODE enabled");
+		scx_error(sch, "SCX_OPS_BUILTIN_IDLE_PER_NODE enabled");
 		return cpu_none_mask;
 	}
 
-	if (!check_builtin_idle_enabled())
+	if (!check_builtin_idle_enabled(sch))
 		return cpu_none_mask;
 
 	if (sched_smt_active())
@@ -1121,10 +1173,18 @@ __bpf_kfunc void scx_bpf_put_idle_cpumask(const struct cpumask *idle_mask)
  */
 __bpf_kfunc bool scx_bpf_test_and_clear_cpu_idle(s32 cpu)
 {
-	if (!check_builtin_idle_enabled())
+	struct scx_sched *sch;
+
+	guard(rcu)();
+
+	sch = rcu_dereference(scx_root);
+	if (unlikely(!sch))
 		return false;
 
-	if (!kf_cpu_valid(cpu, NULL))
+	if (!check_builtin_idle_enabled(sch))
+		return false;
+
+	if (!ops_cpu_valid(sch, cpu, NULL))
 		return false;
 
 	return scx_idle_test_and_clear_cpu(cpu);
@@ -1152,7 +1212,15 @@ __bpf_kfunc bool scx_bpf_test_and_clear_cpu_idle(s32 cpu)
 __bpf_kfunc s32 scx_bpf_pick_idle_cpu_node(const struct cpumask *cpus_allowed,
 					   int node, u64 flags)
 {
-	node = validate_node(node);
+	struct scx_sched *sch;
+
+	guard(rcu)();
+
+	sch = rcu_dereference(scx_root);
+	if (unlikely(!sch))
+		return -ENODEV;
+
+	node = validate_node(sch, node);
 	if (node < 0)
 		return node;
 
@@ -1184,12 +1252,20 @@ __bpf_kfunc s32 scx_bpf_pick_idle_cpu_node(const struct cpumask *cpus_allowed,
 __bpf_kfunc s32 scx_bpf_pick_idle_cpu(const struct cpumask *cpus_allowed,
 				      u64 flags)
 {
+	struct scx_sched *sch;
+
+	guard(rcu)();
+
+	sch = rcu_dereference(scx_root);
+	if (unlikely(!sch))
+		return -ENODEV;
+
 	if (static_branch_maybe(CONFIG_NUMA, &scx_builtin_idle_per_node)) {
-		scx_kf_error("per-node idle tracking is enabled");
+		scx_error(sch, "per-node idle tracking is enabled");
 		return -EBUSY;
 	}
 
-	if (!check_builtin_idle_enabled())
+	if (!check_builtin_idle_enabled(sch))
 		return -EBUSY;
 
 	return scx_pick_idle_cpu(cpus_allowed, NUMA_NO_NODE, flags);
@@ -1219,9 +1295,16 @@ __bpf_kfunc s32 scx_bpf_pick_idle_cpu(const struct cpumask *cpus_allowed,
 __bpf_kfunc s32 scx_bpf_pick_any_cpu_node(const struct cpumask *cpus_allowed,
 					  int node, u64 flags)
 {
+	struct scx_sched *sch;
 	s32 cpu;
 
-	node = validate_node(node);
+	guard(rcu)();
+
+	sch = rcu_dereference(scx_root);
+	if (unlikely(!sch))
+		return -ENODEV;
+
+	node = validate_node(sch, node);
 	if (node < 0)
 		return node;
 
@@ -1259,10 +1342,17 @@ __bpf_kfunc s32 scx_bpf_pick_any_cpu_node(const struct cpumask *cpus_allowed,
 __bpf_kfunc s32 scx_bpf_pick_any_cpu(const struct cpumask *cpus_allowed,
 				     u64 flags)
 {
+	struct scx_sched *sch;
 	s32 cpu;
 
+	guard(rcu)();
+
+	sch = rcu_dereference(scx_root);
+	if (unlikely(!sch))
+		return -ENODEV;
+
 	if (static_branch_maybe(CONFIG_NUMA, &scx_builtin_idle_per_node)) {
-		scx_kf_error("per-node idle tracking is enabled");
+		scx_error(sch, "per-node idle tracking is enabled");
 		return -EBUSY;
 	}
 
