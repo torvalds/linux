@@ -1206,6 +1206,7 @@ struct pci_bus *pci_create_root_bus(struct device *parent, int bus,
 				    struct pci_ops *ops, void *sysdata,
 				    struct list_head *resources);
 int pci_host_probe(struct pci_host_bridge *bridge);
+void pci_probe_flush_workqueue(void);
 int pci_bus_insert_busn_res(struct pci_bus *b, int bus, int busmax);
 int pci_bus_update_busn_res_end(struct pci_bus *b, int busmax);
 void pci_bus_release_busn_res(struct pci_bus *b);
@@ -2078,6 +2079,8 @@ static inline int pci_has_flag(int flag) { return 0; }
 				_PCI_NOP(o, dword, u32 x)
 _PCI_NOP_ALL(read, *)
 _PCI_NOP_ALL(write,)
+
+static inline void pci_probe_flush_workqueue(void) { }
 
 static inline struct pci_dev *pci_get_device(unsigned int vendor,
 					     unsigned int device,

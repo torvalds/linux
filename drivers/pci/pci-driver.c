@@ -337,6 +337,8 @@ static int local_pci_probe(struct drv_dev_and_id *ddi)
 	return 0;
 }
 
+static struct workqueue_struct *pci_probe_wq;
+
 struct pci_probe_arg {
 	struct drv_dev_and_id *ddi;
 	struct work_struct work;
@@ -407,7 +409,11 @@ static int pci_call_probe(struct pci_driver *drv, struct pci_dev *dev,
 		cpu = cpumask_any_and(cpumask_of_node(node),
 				      wq_domain_mask);
 		if (cpu < nr_cpu_ids) {
-			schedule_work_on(cpu, &arg.work);
+			struct workqueue_struct *wq = pci_probe_wq;
+
+			if (WARN_ON_ONCE(!wq))
+				wq = system_percpu_wq;
+			queue_work_on(cpu, wq, &arg.work);
 			rcu_read_unlock();
 			flush_work(&arg.work);
 			error = arg.ret;
@@ -423,6 +429,11 @@ out:
 	dev->is_probed = 0;
 	cpu_hotplug_enable();
 	return error;
+}
+
+void pci_probe_flush_workqueue(void)
+{
+	flush_workqueue(pci_probe_wq);
 }
 
 /**
@@ -1761,6 +1772,10 @@ const struct bus_type pcie_port_bus_type = {
 static int __init pci_driver_init(void)
 {
 	int ret;
+
+	pci_probe_wq = alloc_workqueue("sync_wq", WQ_PERCPU, 0);
+	if (!pci_probe_wq)
+		return -ENOMEM;
 
 	ret = bus_register(&pci_bus_type);
 	if (ret)
