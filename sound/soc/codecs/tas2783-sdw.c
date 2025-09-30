@@ -693,7 +693,6 @@ static s32 tas2783_update_calibdata(struct tas2783_prv *tas_dev)
 
 	tmp_val = (u32 *)tas_dev->cali_data.data;
 	attr = 0;
-	i = 0;
 
 	/*
 	 * In some cases, the calibration is performed in Windows,
