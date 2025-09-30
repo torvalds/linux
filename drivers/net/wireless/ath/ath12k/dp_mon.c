@@ -2436,7 +2436,8 @@ ath12k_dp_mon_parse_status_buf(struct ath12k *ar,
 			       const struct dp_mon_packet_info *packet_info)
 {
 	struct ath12k_base *ab = ar->ab;
-	struct dp_rxdma_mon_ring *buf_ring = &ab->dp.rxdma_mon_buf_ring;
+	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
+	struct dp_rxdma_mon_ring *buf_ring = &dp->rxdma_mon_buf_ring;
 	struct sk_buff *msdu;
 	int buf_id;
 	u32 offset;
@@ -3748,7 +3749,7 @@ int ath12k_dp_mon_srng_process(struct ath12k *ar, int *budget,
 	struct ath12k_pdev_dp *pdev_dp = &ar->dp;
 	struct ath12k_mon_data *pmon = (struct ath12k_mon_data *)&pdev_dp->mon_data;
 	struct hal_rx_mon_ppdu_info *ppdu_info = &pmon->mon_ppdu_info;
-	struct ath12k_dp *dp = &ab->dp;
+	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
 	struct hal_mon_dest_desc *mon_dst_desc;
 	struct sk_buff *skb;
 	struct ath12k_skb_rxcb *rxcb;
@@ -3928,7 +3929,7 @@ static int ath12k_dp_rx_reap_mon_status_ring(struct ath12k_base *ab, int mac_id,
 	u8 rbm;
 
 	ar = ab->pdevs[ath12k_hw_mac_id_to_pdev_id(ab->hw_params, mac_id)].ar;
-	dp = &ab->dp;
+	dp = ath12k_ab_to_dp(ab);
 	pmon = &ar->dp.mon_data;
 	srng_id = ath12k_hw_mac_id_to_srng_id(ab->hw_params, mac_id);
 	rx_ring = &dp->rx_mon_status_refill_ring[srng_id];
@@ -4062,6 +4063,8 @@ ath12k_dp_rx_mon_mpdu_pop(struct ath12k *ar, int mac_id,
 			  u32 *npackets, u32 *ppdu_id)
 {
 	struct ath12k_mon_data *pmon = (struct ath12k_mon_data *)&ar->dp.mon_data;
+	struct ath12k_base *ab = ar->ab;
+	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
 	struct ath12k_buffer_addr *p_buf_addr_info, *p_last_buf_addr_info;
 	u32 msdu_ppdu_id = 0, msdu_cnt = 0, total_len = 0, frag_len = 0;
 	u32 rx_buf_size, rx_pkt_offset, sw_cookie;
@@ -4113,8 +4116,8 @@ ath12k_dp_rx_mon_mpdu_pop(struct ath12k *ar, int mac_id,
 
 		desc_bank = u32_get_bits(sw_cookie, DP_LINK_DESC_BANK_MASK);
 		msdu_link_desc =
-			ar->ab->dp.link_desc_banks[desc_bank].vaddr +
-			(paddr - ar->ab->dp.link_desc_banks[desc_bank].paddr);
+			dp->link_desc_banks[desc_bank].vaddr +
+			(paddr - dp->link_desc_banks[desc_bank].paddr);
 
 		ath12k_hal_rx_msdu_list_get(ar, msdu_link_desc, &msdu_list,
 					    &num_msdus);
@@ -4252,8 +4255,8 @@ static void ath12k_dp_rx_mon_dest_process(struct ath12k *ar, int mac_id,
 	struct ath12k_pdev_mon_stats *rx_mon_stats;
 	u32 ppdu_id, rx_bufs_used = 0, ring_id;
 	u32 mpdu_rx_bufs_used, npackets = 0;
-	struct ath12k_dp *dp = &ar->ab->dp;
 	struct ath12k_base *ab = ar->ab;
+	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
 	void *ring_entry, *mon_dst_srng;
 	struct dp_mon_mpdu *tmp_mpdu;
 	LIST_HEAD(rx_desc_used_list);

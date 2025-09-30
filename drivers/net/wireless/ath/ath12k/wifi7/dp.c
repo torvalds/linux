@@ -120,7 +120,7 @@ int ath12k_wifi7_dp_service_srng(struct ath12k_base *ab,
 		ath12k_wifi7_dp_rx_process_reo_status(ab);
 
 	if (ab->hw_params->ring_mask->host2rxdma[grp_id]) {
-		struct ath12k_dp *dp = &ab->dp;
+		struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
 		struct dp_rxdma_ring *rx_ring = &dp->rx_refill_buf_ring;
 		LIST_HEAD(list);
 

@@ -437,7 +437,7 @@ void ath12k_dp_tx_put_bank_profile(struct ath12k_dp *dp, u8 bank_id)
 
 static void ath12k_dp_deinit_bank_profiles(struct ath12k_base *ab)
 {
-	struct ath12k_dp *dp = &ab->dp;
+	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
 
 	kfree(dp->bank_profiles);
 	dp->bank_profiles = NULL;
@@ -445,7 +445,7 @@ static void ath12k_dp_deinit_bank_profiles(struct ath12k_base *ab)
 
 static int ath12k_dp_init_bank_profiles(struct ath12k_base *ab)
 {
-	struct ath12k_dp *dp = &ab->dp;
+	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
 	u32 num_tcl_banks = ab->hw_params->num_tcl_banks;
 	int i;
 
@@ -468,7 +468,7 @@ static int ath12k_dp_init_bank_profiles(struct ath12k_base *ab)
 
 static void ath12k_dp_srng_common_cleanup(struct ath12k_base *ab)
 {
-	struct ath12k_dp *dp = &ab->dp;
+	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
 	int i;
 
 	ath12k_dp_srng_cleanup(ab, &dp->reo_status_ring);
@@ -485,7 +485,7 @@ static void ath12k_dp_srng_common_cleanup(struct ath12k_base *ab)
 
 static int ath12k_dp_srng_common_setup(struct ath12k_base *ab)
 {
-	struct ath12k_dp *dp = &ab->dp;
+	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
 	const struct ath12k_hal_tcl_to_wbm_rbm_map *map;
 	struct hal_srng *srng;
 	int i, ret, tx_comp_ring_num;
@@ -591,7 +591,7 @@ err:
 
 static void ath12k_dp_scatter_idle_link_desc_cleanup(struct ath12k_base *ab)
 {
-	struct ath12k_dp *dp = &ab->dp;
+	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
 	struct hal_wbm_idle_scatter_list *slist = dp->scatter_list;
 	int i;
 
@@ -611,7 +611,7 @@ static int ath12k_dp_scatter_idle_link_desc_setup(struct ath12k_base *ab,
 						  u32 n_link_desc,
 						  u32 last_bank_sz)
 {
-	struct ath12k_dp *dp = &ab->dp;
+	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
 	struct dp_link_desc_bank *link_desc_banks = dp->link_desc_banks;
 	struct hal_wbm_idle_scatter_list *slist = dp->scatter_list;
 	u32 n_entries_per_buf;
@@ -705,7 +705,7 @@ static int ath12k_dp_link_desc_bank_alloc(struct ath12k_base *ab,
 					  int n_link_desc_bank,
 					  int last_bank_sz)
 {
-	struct ath12k_dp *dp = &ab->dp;
+	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
 	int i;
 	int ret = 0;
 	int desc_sz = DP_LINK_DESC_ALLOC_SIZE_THRESH;
@@ -753,7 +753,7 @@ void ath12k_dp_link_desc_cleanup(struct ath12k_base *ab,
 
 static int ath12k_wbm_idle_ring_setup(struct ath12k_base *ab, u32 *n_link_desc)
 {
-	struct ath12k_dp *dp = &ab->dp;
+	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
 	u32 n_mpdu_link_desc, n_mpdu_queue_desc;
 	u32 n_tx_msdu_link_desc, n_rx_msdu_link_desc;
 	int ret = 0;
@@ -792,6 +792,7 @@ int ath12k_dp_link_desc_setup(struct ath12k_base *ab,
 			      u32 ring_type, struct hal_srng *srng,
 			      u32 n_link_desc)
 {
+	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
 	u32 tot_mem_sz;
 	u32 n_link_desc_bank, last_bank_sz;
 	u32 entry_sz, align_bytes, n_entries;
@@ -799,7 +800,7 @@ int ath12k_dp_link_desc_setup(struct ath12k_base *ab,
 	u32 paddr;
 	int i, ret;
 	u32 cookie;
-	enum hal_rx_buf_return_buf_manager rbm = ab->dp.idle_link_rbm;
+	enum hal_rx_buf_return_buf_manager rbm = dp->idle_link_rbm;
 
 	tot_mem_sz = n_link_desc * HAL_LINK_DESC_SIZE;
 	tot_mem_sz += HAL_LINK_DESC_ALIGN;
@@ -967,7 +968,7 @@ void ath12k_dp_vdev_tx_attach(struct ath12k *ar, struct ath12k_link_vif *arvif)
 
 	ath12k_dp_update_vdev_search(arvif);
 	arvif->vdev_id_check_en = true;
-	arvif->bank_id = ath12k_dp_tx_get_bank_profile(ab, arvif, &ab->dp);
+	arvif->bank_id = ath12k_dp_tx_get_bank_profile(ab, arvif, ath12k_ab_to_dp(ab));
 
 	/* TODO: error path for bank id failure */
 	if (arvif->bank_id == DP_INVALID_BANK_ID) {
@@ -980,7 +981,7 @@ static void ath12k_dp_cc_cleanup(struct ath12k_base *ab)
 {
 	struct ath12k_rx_desc_info *desc_info;
 	struct ath12k_tx_desc_info *tx_desc_info, *tmp1;
-	struct ath12k_dp *dp = &ab->dp;
+	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
 	struct ath12k_skb_cb *skb_cb;
 	struct sk_buff *skb;
 	struct ath12k *ar;
@@ -1103,7 +1104,7 @@ static void ath12k_dp_cc_cleanup(struct ath12k_base *ab)
 
 static void ath12k_dp_reoq_lut_cleanup(struct ath12k_base *ab)
 {
-	struct ath12k_dp *dp = &ab->dp;
+	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
 
 	if (!ab->hw_params->reoq_lut_support)
 		return;
@@ -1131,7 +1132,7 @@ static void ath12k_dp_reoq_lut_cleanup(struct ath12k_base *ab)
 
 void ath12k_dp_free(struct ath12k_base *ab)
 {
-	struct ath12k_dp *dp = &ab->dp;
+	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
 	int i;
 
 	if (!dp->ab)
@@ -1154,7 +1155,8 @@ void ath12k_dp_free(struct ath12k_base *ab)
 
 	ath12k_dp_rx_free(ab);
 	/* Deinit any SOC level resource */
-	dp->ab = NULL;
+	kfree(ab->dp);
+	ab->dp = NULL;
 }
 
 void ath12k_dp_cc_config(struct ath12k_base *ab)
@@ -1218,7 +1220,7 @@ static u32 ath12k_dp_cc_cookie_gen(u16 ppt_idx, u16 spt_idx)
 static inline void *ath12k_dp_cc_get_desc_addr_ptr(struct ath12k_base *ab,
 						   u16 ppt_idx, u16 spt_idx)
 {
-	struct ath12k_dp *dp = &ab->dp;
+	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
 
 	return dp->spt_info[ppt_idx].vaddr + spt_idx;
 }
@@ -1226,7 +1228,7 @@ static inline void *ath12k_dp_cc_get_desc_addr_ptr(struct ath12k_base *ab,
 struct ath12k_rx_desc_info *ath12k_dp_get_rx_desc(struct ath12k_base *ab,
 						  u32 cookie)
 {
-	struct ath12k_dp *dp = &ab->dp;
+	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
 	struct ath12k_rx_desc_info **desc_addr_ptr;
 	u16 start_ppt_idx, end_ppt_idx, ppt_idx, spt_idx;
 
@@ -1272,7 +1274,7 @@ struct ath12k_tx_desc_info *ath12k_dp_get_tx_desc(struct ath12k_base *ab,
 
 static int ath12k_dp_cc_desc_init(struct ath12k_base *ab)
 {
-	struct ath12k_dp *dp = &ab->dp;
+	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
 	struct ath12k_rx_desc_info *rx_descs, **rx_desc_addr;
 	struct ath12k_tx_desc_info *tx_descs, **tx_desc_addr;
 	u32 num_rx_spt_pages = ATH12K_NUM_RX_SPT_PAGES(ab);
@@ -1401,7 +1403,7 @@ void ath12k_dp_partner_cc_init(struct ath12k_base *ab)
 		if (ag->ab[i] == ab)
 			continue;
 
-		ath12k_dp_cmem_init(ab, &ag->ab[i]->dp, ATH12K_DP_RX_DESC);
+		ath12k_dp_cmem_init(ab, ath12k_ab_to_dp(ag->ab[i]), ATH12K_DP_RX_DESC);
 	}
 }
 
@@ -1412,7 +1414,7 @@ static u32 ath12k_dp_get_num_spt_pages(struct ath12k_base *ab)
 
 static int ath12k_dp_cc_init(struct ath12k_base *ab)
 {
-	struct ath12k_dp *dp = &ab->dp;
+	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
 	int i, ret = 0;
 
 	INIT_LIST_HEAD(&dp->rx_desc_free_list);
@@ -1498,7 +1500,7 @@ static int ath12k_dp_alloc_reoq_lut(struct ath12k_base *ab,
 
 static int ath12k_dp_reoq_lut_setup(struct ath12k_base *ab)
 {
-	struct ath12k_dp *dp = &ab->dp;
+	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
 	u32 val;
 	int ret;
 
@@ -1564,13 +1566,19 @@ ath12k_dp_get_idle_link_rbm(struct ath12k_base *ab)
 
 int ath12k_dp_alloc(struct ath12k_base *ab)
 {
-	struct ath12k_dp *dp = &ab->dp;
+	struct ath12k_dp *dp;
 	struct hal_srng *srng = NULL;
 	size_t size = 0;
 	u32 n_link_desc = 0;
 	int ret;
 	int i;
 
+	/* TODO: align dp later if cache alignment becomes a bottleneck */
+	dp = kzalloc(sizeof(*dp), GFP_KERNEL);
+	if (!dp)
+		return -ENOMEM;
+
+	ab->dp = dp;
 	dp->ab = ab;
 
 	INIT_LIST_HEAD(&dp->reo_cmd_list);
@@ -1583,7 +1591,7 @@ int ath12k_dp_alloc(struct ath12k_base *ab)
 	ret = ath12k_wbm_idle_ring_setup(ab, &n_link_desc);
 	if (ret) {
 		ath12k_warn(ab, "failed to setup wbm_idle_ring: %d\n", ret);
-		return ret;
+		goto fail_dp_free;
 	}
 
 	srng = &ab->hal.srng_list[dp->wbm_idle_ring.ring_id];
@@ -1592,7 +1600,7 @@ int ath12k_dp_alloc(struct ath12k_base *ab)
 					HAL_WBM_IDLE_LINK, srng, n_link_desc);
 	if (ret) {
 		ath12k_warn(ab, "failed to setup link desc: %d\n", ret);
-		return ret;
+		goto fail_dp_free;
 	}
 
 	ret = ath12k_dp_cc_init(ab);
@@ -1664,6 +1672,10 @@ fail_hw_cc_cleanup:
 fail_link_desc_cleanup:
 	ath12k_dp_link_desc_cleanup(ab, dp->link_desc_banks,
 				    HAL_WBM_IDLE_LINK, &dp->wbm_idle_ring);
+
+fail_dp_free:
+	kfree(ab->dp);
+	ab->dp = NULL;
 
 	return ret;
 }

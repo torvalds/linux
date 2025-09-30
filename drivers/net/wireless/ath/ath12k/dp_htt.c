@@ -582,7 +582,7 @@ exit:
 void ath12k_dp_htt_htc_t2h_msg_handler(struct ath12k_base *ab,
 				       struct sk_buff *skb)
 {
-	struct ath12k_dp *dp = &ab->dp;
+	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
 	struct htt_resp_msg *resp = (struct htt_resp_msg *)skb->data;
 	enum htt_t2h_msg_type type;
 	u16 peer_id;
@@ -734,6 +734,7 @@ ath12k_dp_tx_get_ring_id_type(struct ath12k_base *ab,
 int ath12k_dp_tx_htt_srng_setup(struct ath12k_base *ab, u32 ring_id,
 				int mac_id, enum hal_ring_type ring_type)
 {
+	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
 	struct htt_srng_setup_cmd *cmd;
 	struct hal_srng *srng = &ab->hal.srng_list[ring_id];
 	struct hal_srng_params params;
@@ -835,7 +836,7 @@ int ath12k_dp_tx_htt_srng_setup(struct ath12k_base *ab, u32 ring_id,
 		   "ring_id:%d, ring_type:%d, intr_info:0x%x, flags:0x%x\n",
 		   ring_id, ring_type, cmd->intr_info, cmd->info2);
 
-	ret = ath12k_htc_send(&ab->htc, ab->dp.eid, skb);
+	ret = ath12k_htc_send(&ab->htc, dp->eid, skb);
 	if (ret)
 		goto err_free;
 
@@ -849,7 +850,7 @@ err_free:
 
 int ath12k_dp_tx_htt_h2t_ver_req_msg(struct ath12k_base *ab)
 {
-	struct ath12k_dp *dp = &ab->dp;
+	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
 	struct sk_buff *skb;
 	struct htt_ver_req_cmd *cmd;
 	int len = sizeof(*cmd);
@@ -901,7 +902,7 @@ int ath12k_dp_tx_htt_h2t_ver_req_msg(struct ath12k_base *ab)
 int ath12k_dp_tx_htt_h2t_ppdu_stats_req(struct ath12k *ar, u32 mask)
 {
 	struct ath12k_base *ab = ar->ab;
-	struct ath12k_dp *dp = &ab->dp;
+	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
 	struct sk_buff *skb;
 	struct htt_ppdu_stats_cfg_cmd *cmd;
 	int len = sizeof(*cmd);
@@ -938,6 +939,7 @@ int ath12k_dp_tx_htt_rx_filter_setup(struct ath12k_base *ab, u32 ring_id,
 				     int rx_buf_size,
 				     struct htt_rx_ring_tlv_filter *tlv_filter)
 {
+	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
 	struct htt_rx_ring_selection_cfg_cmd *cmd;
 	struct hal_srng *srng = &ab->hal.srng_list[ring_id];
 	struct hal_srng_params params;
@@ -1070,7 +1072,7 @@ int ath12k_dp_tx_htt_rx_filter_setup(struct ath12k_base *ab, u32 ring_id,
 					 HTT_RX_RING_SELECTION_CFG_RX_MSDU_END_MASK);
 	}
 
-	ret = ath12k_htc_send(&ab->htc, ab->dp.eid, skb);
+	ret = ath12k_htc_send(&ab->htc, dp->eid, skb);
 	if (ret)
 		goto err_free;
 
@@ -1088,7 +1090,7 @@ ath12k_dp_tx_htt_h2t_ext_stats_req(struct ath12k *ar, u8 type,
 				   u64 cookie)
 {
 	struct ath12k_base *ab = ar->ab;
-	struct ath12k_dp *dp = &ab->dp;
+	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
 	struct sk_buff *skb;
 	struct htt_ext_stats_cfg_cmd *cmd;
 	int len = sizeof(*cmd);
@@ -1144,6 +1146,7 @@ int ath12k_dp_tx_htt_monitor_mode_ring_config(struct ath12k *ar, bool reset)
 int ath12k_dp_tx_htt_rx_monitor_mode_ring_config(struct ath12k *ar, bool reset)
 {
 	struct ath12k_base *ab = ar->ab;
+	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
 	struct htt_rx_ring_tlv_filter tlv_filter = {};
 	int ret, ring_id, i;
 
@@ -1207,7 +1210,7 @@ int ath12k_dp_tx_htt_rx_monitor_mode_ring_config(struct ath12k *ar, bool reset)
 
 	if (!reset) {
 		for (i = 0; i < ab->hw_params->num_rxdma_per_pdev; i++) {
-			ring_id = ab->dp.rx_mac_buf_ring[i].ring_id;
+			ring_id = dp->rx_mac_buf_ring[i].ring_id;
 			ret = ath12k_dp_tx_htt_rx_filter_setup(ar->ab, ring_id,
 							       i,
 							       HAL_RXDMA_BUF,
@@ -1223,7 +1226,7 @@ int ath12k_dp_tx_htt_rx_monitor_mode_ring_config(struct ath12k *ar, bool reset)
 	}
 
 	for (i = 0; i < ab->hw_params->num_rxdma_per_pdev; i++) {
-		ring_id = ab->dp.rx_mon_status_refill_ring[i].refill_buf_ring.ring_id;
+		ring_id = dp->rx_mon_status_refill_ring[i].refill_buf_ring.ring_id;
 		if (!reset) {
 			tlv_filter.rx_filter =
 				HTT_RX_MON_FILTER_TLV_FLAGS_MON_STATUS_RING;
@@ -1250,6 +1253,7 @@ int ath12k_dp_tx_htt_tx_filter_setup(struct ath12k_base *ab, u32 ring_id,
 				     int tx_buf_size,
 				     struct htt_tx_ring_tlv_filter *htt_tlv_filter)
 {
+	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
 	struct htt_tx_ring_selection_cfg_cmd *cmd;
 	struct hal_srng *srng = &ab->hal.srng_list[ring_id];
 	struct hal_srng_params params;
@@ -1342,7 +1346,7 @@ int ath12k_dp_tx_htt_tx_filter_setup(struct ath12k_base *ab, u32 ring_id,
 	cmd->tlv_filter_mask_in3 =
 		cpu_to_le32(htt_tlv_filter->tx_mon_upstream_tlv_flags2);
 
-	ret = ath12k_htc_send(&ab->htc, ab->dp.eid, skb);
+	ret = ath12k_htc_send(&ab->htc, dp->eid, skb);
 	if (ret)
 		goto err_free;
 

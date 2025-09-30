@@ -1053,7 +1053,7 @@ struct ath12k_base {
 
 	struct ath12k_htc htc;
 
-	struct ath12k_dp dp;
+	struct ath12k_dp *dp;
 
 	void __iomem *mem;
 	unsigned long mem_len;
@@ -1512,6 +1512,16 @@ static inline s32 ath12k_pdev_get_noise_floor(struct ath12k *ar)
 	lockdep_assert_held(&ar->data_lock);
 
 	return ar->rssi_info.noise_floor;
+}
+
+/* The @ab->dp NULL check or assertion is intentionally omitted because
+ * @ab->dp is guaranteed to be non-NULL after a successful probe and
+ * remains valid until teardown. Invoking this before allocation or
+ * after teardown is considered invalid usage.
+ */
+static inline struct ath12k_dp *ath12k_ab_to_dp(struct ath12k_base *ab)
+{
+	return ab->dp;
 }
 
 #endif /* _CORE_H_ */

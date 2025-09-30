@@ -10203,8 +10203,8 @@ err_vdev_del:
 	idr_for_each(&ar->txmgmt_idr,
 		     ath12k_mac_vif_txmgmt_idr_remove, vif);
 
-	ath12k_mac_vif_unref(&ab->dp, vif);
-	ath12k_dp_tx_put_bank_profile(&ab->dp, arvif->bank_id);
+	ath12k_mac_vif_unref(ath12k_ab_to_dp(ab), vif);
+	ath12k_dp_tx_put_bank_profile(ath12k_ab_to_dp(ab), arvif->bank_id);
 
 	/* Recalc txpower for remaining vdev */
 	ath12k_mac_txpower_recalc(ar);
