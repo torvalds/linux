@@ -558,7 +558,9 @@ ath12k_wifi7_dp_rx_process_received_packets(struct ath12k_base *ab,
 					    struct sk_buff_head *msdu_list,
 					    int ring_id)
 {
-	struct ath12k_hw_group *ag = ab->ag;
+	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
+	struct ath12k_hw_group *ag = dp->ag;
+	struct ath12k_dp_hw_group *dp_hw_grp = &ag->dp_hw_grp;
 	struct ieee80211_rx_status rx_status = {};
 	struct ath12k_skb_rxcb *rxcb;
 	struct sk_buff *msdu;
@@ -566,6 +568,7 @@ ath12k_wifi7_dp_rx_process_received_packets(struct ath12k_base *ab,
 	struct ath12k_hw_link *hw_links = ag->hw_links;
 	struct ath12k_base *partner_ab;
 	struct hal_rx_desc_data rx_info;
+	struct ath12k_dp *partner_dp;
 	u8 hw_link_id, pdev_id;
 	int ret;
 
@@ -580,10 +583,11 @@ ath12k_wifi7_dp_rx_process_received_packets(struct ath12k_base *ab,
 	while ((msdu = __skb_dequeue(msdu_list))) {
 		rxcb = ATH12K_SKB_RXCB(msdu);
 		hw_link_id = rxcb->hw_link_id;
-		partner_ab = ath12k_ag_to_ab(ag,
-					     hw_links[hw_link_id].device_id);
-		pdev_id = ath12k_hw_mac_id_to_pdev_id(partner_ab->hw_params,
+		partner_dp = ath12k_dp_hw_grp_to_dp(dp_hw_grp,
+						    hw_links[hw_link_id].device_id);
+		pdev_id = ath12k_hw_mac_id_to_pdev_id(partner_dp->hw_params,
 						      hw_links[hw_link_id].pdev_idx);
+		partner_ab = partner_dp->ab;
 		ar = partner_ab->pdevs[pdev_id].ar;
 		if (!rcu_dereference(partner_ab->pdevs_active[pdev_id])) {
 			dev_kfree_skb_any(msdu);
@@ -612,12 +616,13 @@ ath12k_wifi7_dp_rx_process_received_packets(struct ath12k_base *ab,
 int ath12k_wifi7_dp_rx_process(struct ath12k_base *ab, int ring_id,
 			       struct napi_struct *napi, int budget)
 {
-	struct ath12k_hw_group *ag = ab->ag;
+	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
+	struct ath12k_hw_group *ag = dp->ag;
+	struct ath12k_dp_hw_group *dp_hw_grp = &ag->dp_hw_grp;
 	struct list_head rx_desc_used_list[ATH12K_MAX_DEVICES];
 	struct ath12k_hw_link *hw_links = ag->hw_links;
 	int num_buffs_reaped[ATH12K_MAX_DEVICES] = {};
 	struct ath12k_rx_desc_info *desc_info;
-	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
 	struct dp_rxdma_ring *rx_ring = &dp->rx_refill_buf_ring;
 	struct hal_reo_dest_ring *desc;
 	struct ath12k_dp *partner_dp;
@@ -660,8 +665,8 @@ try_again:
 		desc_info = (struct ath12k_rx_desc_info *)((unsigned long)desc_va);
 
 		device_id = hw_links[hw_link_id].device_id;
-		partner_ab = ath12k_ag_to_ab(ag, device_id);
-		if (unlikely(!partner_ab)) {
+		partner_dp = ath12k_dp_hw_grp_to_dp(dp_hw_grp, device_id);
+		if (unlikely(!partner_dp)) {
 			if (desc_info->skb) {
 				dev_kfree_skb_any(desc_info->skb);
 				desc_info->skb = NULL;
@@ -669,6 +674,7 @@ try_again:
 
 			continue;
 		}
+		partner_ab = partner_dp->ab;
 
 		/* retry manual desc retrieval */
 		if (!desc_info) {
@@ -755,8 +761,8 @@ try_again:
 		if (!num_buffs_reaped[device_id])
 			continue;
 
-		partner_ab = ath12k_ag_to_ab(ag, device_id);
-		partner_dp = ath12k_ab_to_dp(partner_ab);
+		partner_dp = ath12k_dp_hw_grp_to_dp(dp_hw_grp, device_id);
+		partner_ab = partner_dp->ab;
 		rx_ring = &partner_dp->rx_refill_buf_ring;
 
 		ath12k_dp_rx_bufs_replenish(partner_ab, rx_ring,
@@ -1290,8 +1296,9 @@ exit:
 int ath12k_wifi7_dp_rx_process_err(struct ath12k_base *ab, struct napi_struct *napi,
 				   int budget)
 {
-	struct ath12k_hw_group *ag = ab->ag;
 	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
+	struct ath12k_hw_group *ag = dp->ag;
+	struct ath12k_dp_hw_group *dp_hw_grp = &ag->dp_hw_grp;
 	struct ath12k_dp *partner_dp;
 	struct list_head rx_desc_used_list[ATH12K_MAX_DEVICES];
 	u32 msdu_cookies[HAL_NUM_RX_MSDUS_PER_LINK_DESC];
@@ -1346,8 +1353,8 @@ int ath12k_wifi7_dp_rx_process_err(struct ath12k_base *ab, struct napi_struct *n
 		hw_link_id = le32_get_bits(reo_desc->info0,
 					   HAL_REO_DEST_RING_INFO0_SRC_LINK_ID);
 		device_id = hw_links[hw_link_id].device_id;
-		partner_ab = ath12k_ag_to_ab(ag, device_id);
-		partner_dp = ath12k_ab_to_dp(partner_ab);
+		partner_dp = ath12k_dp_hw_grp_to_dp(dp_hw_grp, device_id);
+		partner_ab = partner_dp->ab;
 
 		pdev_id = ath12k_hw_mac_id_to_pdev_id(partner_ab->hw_params,
 						      hw_links[hw_link_id].pdev_idx);
@@ -1418,8 +1425,8 @@ exit:
 		if (!num_buffs_reaped[device_id])
 			continue;
 
-		partner_ab = ath12k_ag_to_ab(ag, device_id);
-		partner_dp = ath12k_ab_to_dp(partner_ab);
+		partner_dp = ath12k_dp_hw_grp_to_dp(dp_hw_grp, device_id);
+		partner_ab = partner_dp->ab;
 		rx_ring = &partner_dp->rx_refill_buf_ring;
 
 		ath12k_dp_rx_bufs_replenish(partner_ab, rx_ring,
@@ -1686,9 +1693,10 @@ int ath12k_wifi7_dp_rx_process_wbm_err(struct ath12k_base *ab,
 				       struct napi_struct *napi, int budget)
 {
 	struct list_head rx_desc_used_list[ATH12K_MAX_DEVICES];
-	struct ath12k_hw_group *ag = ab->ag;
 	struct ath12k *ar;
 	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
+	struct ath12k_hw_group *ag = dp->ag;
+	struct ath12k_dp_hw_group *dp_hw_grp = &ag->dp_hw_grp;
 	struct ath12k_dp *partner_dp;
 	struct dp_rxdma_ring *rx_ring;
 	struct hal_rx_wbm_rel_info err_info;
@@ -1751,8 +1759,8 @@ int ath12k_wifi7_dp_rx_process_wbm_err(struct ath12k_base *ab,
 		desc_info->skb = NULL;
 
 		device_id = desc_info->device_id;
-		partner_ab = ath12k_ag_to_ab(ag, device_id);
-		if (unlikely(!partner_ab)) {
+		partner_dp = ath12k_dp_hw_grp_to_dp(dp_hw_grp, device_id);
+		if (unlikely(!partner_dp)) {
 			dev_kfree_skb_any(msdu);
 
 			/* In any case continuation bit is set
@@ -1762,10 +1770,12 @@ int ath12k_wifi7_dp_rx_process_wbm_err(struct ath12k_base *ab,
 			continue;
 		}
 
+		partner_ab = partner_dp->ab;
+
 		list_add_tail(&desc_info->list, &rx_desc_used_list[device_id]);
 
 		rxcb = ATH12K_SKB_RXCB(msdu);
-		dma_unmap_single(partner_ab->dev, rxcb->paddr,
+		dma_unmap_single(partner_dp->dev, rxcb->paddr,
 				 msdu->len + skb_tailroom(msdu),
 				 DMA_FROM_DEVICE);
 
@@ -1839,8 +1849,7 @@ int ath12k_wifi7_dp_rx_process_wbm_err(struct ath12k_base *ab,
 		if (!num_buffs_reaped[device_id])
 			continue;
 
-		partner_ab = ath12k_ag_to_ab(ag, device_id);
-		partner_dp = ath12k_ab_to_dp(partner_ab);
+		partner_dp = ath12k_dp_hw_grp_to_dp(dp_hw_grp, device_id);
 		rx_ring = &partner_dp->rx_refill_buf_ring;
 
 		ath12k_dp_rx_bufs_replenish(ab, rx_ring,
@@ -1854,8 +1863,8 @@ int ath12k_wifi7_dp_rx_process_wbm_err(struct ath12k_base *ab,
 		hw_link_id = rxcb->hw_link_id;
 
 		device_id = hw_links[hw_link_id].device_id;
-		partner_ab = ath12k_ag_to_ab(ag, device_id);
-		if (unlikely(!partner_ab)) {
+		partner_dp = ath12k_dp_hw_grp_to_dp(dp_hw_grp, device_id);
+		if (unlikely(!partner_dp)) {
 			ath12k_dbg(ab, ATH12K_DBG_DATA,
 				   "Unable to process WBM error msdu due to invalid hw link id %d device id %d\n",
 				   hw_link_id, device_id);
@@ -1863,8 +1872,9 @@ int ath12k_wifi7_dp_rx_process_wbm_err(struct ath12k_base *ab,
 			continue;
 		}
 
-		pdev_id = ath12k_hw_mac_id_to_pdev_id(partner_ab->hw_params,
+		pdev_id = ath12k_hw_mac_id_to_pdev_id(partner_dp->hw_params,
 						      hw_links[hw_link_id].pdev_idx);
+		partner_ab = partner_dp->ab;
 		ar = partner_ab->pdevs[pdev_id].ar;
 
 		if (!ar || !rcu_dereference(ar->ab->pdevs_active[pdev_id])) {

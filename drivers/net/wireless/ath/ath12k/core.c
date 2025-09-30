@@ -1993,6 +1993,8 @@ exit:
 	ag->ab[ab->device_id] = ab;
 	ab->ag = ag;
 
+	ath12k_dp_cmn_hw_group_assign(ath12k_ab_to_dp(ab), ag);
+
 	ath12k_dbg(ab, ATH12K_DBG_BOOT, "wsi group-id %d num-devices %d index %d",
 		   ag->id, ag->num_devices, wsi->index);
 
@@ -2019,6 +2021,8 @@ void ath12k_core_hw_group_unassign(struct ath12k_base *ab)
 		mutex_unlock(&ag->mutex);
 		return;
 	}
+
+	ath12k_dp_cmn_hw_group_unassign(ath12k_ab_to_dp(ab), ag);
 
 	ag->ab[device_id] = NULL;
 	ab->ag = NULL;

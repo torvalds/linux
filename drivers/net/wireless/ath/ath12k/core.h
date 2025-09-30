@@ -34,6 +34,7 @@
 #include "wow.h"
 #include "debugfs_htt_stats.h"
 #include "coredump.h"
+#include "cmn_defs.h"
 
 #define SM(_v, _f) (((_v) << _f##_LSB) & _f##_MASK)
 
@@ -64,8 +65,6 @@
 #define ATH12K_RECONFIGURE_TIMEOUT_HZ		(10 * HZ)
 #define ATH12K_RECOVER_START_TIMEOUT_HZ		(20 * HZ)
 
-#define ATH12K_MAX_DEVICES 3
-#define ATH12K_GROUP_MAX_RADIO (ATH12K_MAX_DEVICES * MAX_RADIOS)
 #define ATH12K_INVALID_GROUP_ID  0xFF
 #define ATH12K_INVALID_DEVICE_ID 0xFF
 
@@ -980,6 +979,11 @@ struct ath12k_hw_link {
  * wiphy, protected with struct ath12k_hw_group::mutex.
  */
 struct ath12k_hw_group {
+	/* Keep dp_hw_grp as the first member to allow efficient
+	 * usage of cache lines for DP fields
+	 */
+	struct ath12k_dp_hw_group dp_hw_grp;
+	struct ath12k_hw_link hw_links[ATH12K_GROUP_MAX_RADIO];
 	struct list_head list;
 	u8 id;
 	u8 num_devices;
@@ -1002,7 +1006,6 @@ struct ath12k_hw_group {
 	bool mlo_capable;
 	struct device_node *wsi_node[ATH12K_MAX_DEVICES];
 	struct ath12k_mlo_memory mlo_mem;
-	struct ath12k_hw_link hw_links[ATH12K_GROUP_MAX_RADIO];
 	bool hw_link_id_init_done;
 };
 

@@ -11,6 +11,7 @@
 #include "wifi7/hal_rx.h"
 #include "hw.h"
 #include "dp_htt.h"
+#include "dp_cmn.h"
 
 #define MAX_RXDMA_PER_PDEV     2
 
@@ -426,12 +427,21 @@ struct ath12k_dp {
 	struct ath12k_reo_q_addr_lut ml_reoq_lut;
 	const struct ath12k_hw_params *hw_params;
 	struct device *dev;
+
+	struct ath12k_hw_group *ag;
+	u8 device_id;
 };
 
 static inline void ath12k_dp_get_mac_addr(u32 addr_l32, u16 addr_h16, u8 *addr)
 {
 	memcpy(addr, &addr_l32, 4);
 	memcpy(addr + 4, &addr_h16, ETH_ALEN - 4);
+}
+
+static inline struct ath12k_dp *
+ath12k_dp_hw_grp_to_dp(struct ath12k_dp_hw_group *dp_hw_grp, u8 device_id)
+{
+	return dp_hw_grp->dp[device_id];
 }
 
 void ath12k_dp_vdev_tx_attach(struct ath12k *ar, struct ath12k_link_vif *arvif);
