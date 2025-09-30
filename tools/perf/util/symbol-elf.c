@@ -873,13 +873,17 @@ out:
 
 #ifdef HAVE_LIBBFD_BUILDID_SUPPORT
 
-static int read_build_id(const char *filename, struct build_id *bid)
+static int read_build_id(const char *filename, struct build_id *bid, bool block)
 {
 	size_t size = sizeof(bid->data);
-	int err = -1;
+	int err = -1, fd;
 	bfd *abfd;
 
-	abfd = bfd_openr(filename, NULL);
+	fd = open(filename, block ? O_RDONLY : (O_RDONLY | O_NONBLOCK));
+	if (fd < 0)
+		return -1;
+
+	abfd = bfd_fdopenr(filename, /*target=*/NULL, fd);
 	if (!abfd)
 		return -1;
 

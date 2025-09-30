@@ -112,6 +112,8 @@ struct ksmbd_file {
 	bool				is_durable;
 	bool				is_persistent;
 	bool				is_resilient;
+
+	bool                            is_posix_ctxt;
 };
 
 static inline void set_ctx_actor(struct dir_context *ctx,

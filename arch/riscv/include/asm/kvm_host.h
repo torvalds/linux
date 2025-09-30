@@ -21,6 +21,7 @@
 #include <asm/kvm_vcpu_fp.h>
 #include <asm/kvm_vcpu_insn.h>
 #include <asm/kvm_vcpu_sbi.h>
+#include <asm/kvm_vcpu_sbi_fwft.h>
 #include <asm/kvm_vcpu_timer.h>
 #include <asm/kvm_vcpu_pmu.h>
 
@@ -262,6 +263,9 @@ struct kvm_vcpu_arch {
 
 	/* Performance monitoring context */
 	struct kvm_pmu pmu_context;
+
+	/* Firmware feature SBI extension context */
+	struct kvm_sbi_fwft fwft_context;
 
 	/* 'static' configurations which are set only once */
 	struct kvm_vcpu_config cfg;
