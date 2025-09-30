@@ -2092,7 +2092,7 @@ static void iwl_txq_gen1_update_byte_cnt_tbl(struct iwl_trans *trans,
 		break;
 	}
 
-	if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_9000 &&
+	if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_7000 &&
 	    trans->mac_cfg->device_family < IWL_DEVICE_FAMILY_AX210)
 		len = DIV_ROUND_UP(len, 4);
 

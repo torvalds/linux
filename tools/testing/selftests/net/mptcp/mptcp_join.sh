@@ -8,7 +8,7 @@
 
 # ShellCheck incorrectly believes that most of the code here is unreachable
 # because it's invoked by variable name, see how the "tests" array is used
-#shellcheck disable=SC2317
+#shellcheck disable=SC2317,SC2329
 
 . "$(dirname "${0}")/mptcp_lib.sh"
 

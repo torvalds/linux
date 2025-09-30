@@ -654,7 +654,7 @@ static void icssg_prueth_hsr_fdb_add_del(struct prueth_emac *emac,
 
 static int icssg_prueth_hsr_add_mcast(struct net_device *ndev, const u8 *addr)
 {
-	struct net_device *real_dev;
+	struct net_device *real_dev, *port_dev;
 	struct prueth_emac *emac;
 	u8 vlan_id, i;
 
@@ -663,11 +663,15 @@ static int icssg_prueth_hsr_add_mcast(struct net_device *ndev, const u8 *addr)
 
 	if (is_hsr_master(real_dev)) {
 		for (i = HSR_PT_SLAVE_A; i < HSR_PT_INTERLINK; i++) {
-			emac = netdev_priv(hsr_get_port_ndev(real_dev, i));
-			if (!emac)
+			port_dev = hsr_get_port_ndev(real_dev, i);
+			emac = netdev_priv(port_dev);
+			if (!emac) {
+				dev_put(port_dev);
 				return -EINVAL;
+			}
 			icssg_prueth_hsr_fdb_add_del(emac, addr, vlan_id,
 						     true);
+			dev_put(port_dev);
 		}
 	} else {
 		emac = netdev_priv(real_dev);
@@ -679,7 +683,7 @@ static int icssg_prueth_hsr_add_mcast(struct net_device *ndev, const u8 *addr)
 
 static int icssg_prueth_hsr_del_mcast(struct net_device *ndev, const u8 *addr)
 {
-	struct net_device *real_dev;
+	struct net_device *real_dev, *port_dev;
 	struct prueth_emac *emac;
 	u8 vlan_id, i;
 
@@ -688,11 +692,15 @@ static int icssg_prueth_hsr_del_mcast(struct net_device *ndev, const u8 *addr)
 
 	if (is_hsr_master(real_dev)) {
 		for (i = HSR_PT_SLAVE_A; i < HSR_PT_INTERLINK; i++) {
-			emac = netdev_priv(hsr_get_port_ndev(real_dev, i));
-			if (!emac)
+			port_dev = hsr_get_port_ndev(real_dev, i);
+			emac = netdev_priv(port_dev);
+			if (!emac) {
+				dev_put(port_dev);
 				return -EINVAL;
+			}
 			icssg_prueth_hsr_fdb_add_del(emac, addr, vlan_id,
 						     false);
+			dev_put(port_dev);
 		}
 	} else {
 		emac = netdev_priv(real_dev);

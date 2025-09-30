@@ -2455,7 +2455,7 @@ struct vfsmount *clone_private_mount(const struct path *path)
 			return ERR_PTR(-EINVAL);
 	}
 
-        if (!ns_capable(old_mnt->mnt_ns->user_ns, CAP_SYS_ADMIN))
+	if (!ns_capable(old_mnt->mnt_ns->user_ns, CAP_SYS_ADMIN))
 		return ERR_PTR(-EPERM);
 
 	if (__has_locked_children(old_mnt, path->dentry))

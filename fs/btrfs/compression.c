@@ -1616,25 +1616,29 @@ out:
 }
 
 /*
- * Convert the compression suffix (eg. after "zlib" starting with ":") to
- * level, unrecognized string will set the default level. Negative level
- * numbers are allowed.
+ * Convert the compression suffix (eg. after "zlib" starting with ":") to level.
+ *
+ * If the resulting level exceeds the algo's supported levels, it will be clamped.
+ *
+ * Return <0 if no valid string can be found.
+ * Return 0 if everything is fine.
  */
-int btrfs_compress_str2level(unsigned int type, const char *str)
+int btrfs_compress_str2level(unsigned int type, const char *str, int *level_ret)
 {
 	int level = 0;
 	int ret;
 
-	if (!type)
+	if (!type) {
+		*level_ret = btrfs_compress_set_level(type, level);
 		return 0;
+	}
 
 	if (str[0] == ':') {
 		ret = kstrtoint(str + 1, 10, &level);
 		if (ret)
-			level = 0;
+			return ret;
 	}
 
-	level = btrfs_compress_set_level(type, level);
-
-	return level;
+	*level_ret = btrfs_compress_set_level(type, level);
+	return 0;
 }

@@ -315,6 +315,11 @@ static int tas2563_save_calibration(struct tas2781_hda *h)
 	unsigned int attr;
 	int ret, i, j, k;
 
+	if (!efi_rt_services_supported(EFI_RT_SUPPORTED_GET_VARIABLE)) {
+		dev_err(p->dev, "%s: NO EFI FOUND!\n", __func__);
+		return -EINVAL;
+	}
+
 	cd->cali_dat_sz_per_dev = TAS2563_CAL_DATA_SIZE * TASDEV_CALIB_N;
 
 	/* extra byte for each device is the device number */

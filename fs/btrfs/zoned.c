@@ -2582,9 +2582,9 @@ again:
 			spin_lock(&space_info->lock);
 			space_info->total_bytes -= bg->length;
 			space_info->disk_total -= bg->length * factor;
+			space_info->disk_total -= bg->zone_unusable;
 			/* There is no allocation ever happened. */
 			ASSERT(bg->used == 0);
-			ASSERT(bg->zone_unusable == 0);
 			/* No super block in a block group on the zoned setup. */
 			ASSERT(bg->bytes_super == 0);
 			spin_unlock(&space_info->lock);

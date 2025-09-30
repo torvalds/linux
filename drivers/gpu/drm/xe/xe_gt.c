@@ -41,6 +41,7 @@
 #include "xe_gt_topology.h"
 #include "xe_guc_exec_queue_types.h"
 #include "xe_guc_pc.h"
+#include "xe_guc_submit.h"
 #include "xe_hw_fence.h"
 #include "xe_hw_engine_class_sysfs.h"
 #include "xe_irq.h"
@@ -97,7 +98,7 @@ void xe_gt_sanitize(struct xe_gt *gt)
 	 * FIXME: if xe_uc_sanitize is called here, on TGL driver will not
 	 * reload
 	 */
-	gt->uc.guc.submission_state.enabled = false;
+	xe_guc_submit_disable(&gt->uc.guc);
 }
 
 static void xe_gt_enable_host_l2_vram(struct xe_gt *gt)

@@ -67,6 +67,8 @@ struct phylink {
 	struct timer_list link_poll;
 
 	struct mutex state_mutex;
+	/* Serialize updates to pl->phydev with phylink_resolve() */
+	struct mutex phydev_mutex;
 	struct phylink_link_state phy_state;
 	unsigned int phy_ib_mode;
 	struct work_struct resolve;
@@ -1432,6 +1434,7 @@ static void phylink_get_fixed_state(struct phylink *pl,
 static void phylink_mac_initial_config(struct phylink *pl, bool force_restart)
 {
 	struct phylink_link_state link_state;
+	struct phy_device *phy = pl->phydev;
 
 	switch (pl->req_link_an_mode) {
 	case MLO_AN_PHY:
@@ -1455,7 +1458,11 @@ static void phylink_mac_initial_config(struct phylink *pl, bool force_restart)
 	link_state.link = false;
 
 	phylink_apply_manual_flow(pl, &link_state);
+	if (phy)
+		mutex_lock(&phy->lock);
 	phylink_major_config(pl, force_restart, &link_state);
+	if (phy)
+		mutex_unlock(&phy->lock);
 }
 
 static const char *phylink_pause_to_str(int pause)
@@ -1591,8 +1598,13 @@ static void phylink_resolve(struct work_struct *w)
 	struct phylink_link_state link_state;
 	bool mac_config = false;
 	bool retrigger = false;
+	struct phy_device *phy;
 	bool cur_link_state;
 
+	mutex_lock(&pl->phydev_mutex);
+	phy = pl->phydev;
+	if (phy)
+		mutex_lock(&phy->lock);
 	mutex_lock(&pl->state_mutex);
 	cur_link_state = phylink_link_is_up(pl);
 
@@ -1626,11 +1638,11 @@ static void phylink_resolve(struct work_struct *w)
 		/* If we have a phy, the "up" state is the union of both the
 		 * PHY and the MAC
 		 */
-		if (pl->phydev)
+		if (phy)
 			link_state.link &= pl->phy_state.link;
 
 		/* Only update if the PHY link is up */
-		if (pl->phydev && pl->phy_state.link) {
+		if (phy && pl->phy_state.link) {
 			/* If the interface has changed, force a link down
 			 * event if the link isn't already down, and re-resolve.
 			 */
@@ -1694,6 +1706,9 @@ static void phylink_resolve(struct work_struct *w)
 		queue_work(system_power_efficient_wq, &pl->resolve);
 	}
 	mutex_unlock(&pl->state_mutex);
+	if (phy)
+		mutex_unlock(&phy->lock);
+	mutex_unlock(&pl->phydev_mutex);
 }
 
 static void phylink_run_resolve(struct phylink *pl)
@@ -1829,6 +1844,7 @@ struct phylink *phylink_create(struct phylink_config *config,
 	if (!pl)
 		return ERR_PTR(-ENOMEM);
 
+	mutex_init(&pl->phydev_mutex);
 	mutex_init(&pl->state_mutex);
 	INIT_WORK(&pl->resolve, phylink_resolve);
 
@@ -2089,6 +2105,7 @@ static int phylink_bringup_phy(struct phylink *pl, struct phy_device *phy,
 		     dev_name(&phy->mdio.dev), phy->drv->name, irq_str);
 	kfree(irq_str);
 
+	mutex_lock(&pl->phydev_mutex);
 	mutex_lock(&phy->lock);
 	mutex_lock(&pl->state_mutex);
 	pl->phydev = phy;
@@ -2134,6 +2151,7 @@ static int phylink_bringup_phy(struct phylink *pl, struct phy_device *phy,
 
 	mutex_unlock(&pl->state_mutex);
 	mutex_unlock(&phy->lock);
+	mutex_unlock(&pl->phydev_mutex);
 
 	phylink_dbg(pl,
 		    "phy: %s setting supported %*pb advertising %*pb\n",
@@ -2312,6 +2330,7 @@ void phylink_disconnect_phy(struct phylink *pl)
 
 	ASSERT_RTNL();
 
+	mutex_lock(&pl->phydev_mutex);
 	phy = pl->phydev;
 	if (phy) {
 		mutex_lock(&phy->lock);
@@ -2321,8 +2340,11 @@ void phylink_disconnect_phy(struct phylink *pl)
 		pl->mac_tx_clk_stop = false;
 		mutex_unlock(&pl->state_mutex);
 		mutex_unlock(&phy->lock);
-		flush_work(&pl->resolve);
+	}
+	mutex_unlock(&pl->phydev_mutex);
 
+	if (phy) {
+		flush_work(&pl->resolve);
 		phy_disconnect(phy);
 	}
 }

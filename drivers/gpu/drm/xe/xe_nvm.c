@@ -35,6 +35,10 @@ static const struct intel_dg_nvm_region regions[INTEL_DG_NVM_REGIONS] = {
 
 static void xe_nvm_release_dev(struct device *dev)
 {
+	struct auxiliary_device *aux = container_of(dev, struct auxiliary_device, dev);
+	struct intel_dg_nvm_dev *nvm = container_of(aux, struct intel_dg_nvm_dev, aux_dev);
+
+	kfree(nvm);
 }
 
 static bool xe_nvm_non_posted_erase(struct xe_device *xe)
@@ -162,6 +166,5 @@ void xe_nvm_fini(struct xe_device *xe)
 
 	auxiliary_device_delete(&nvm->aux_dev);
 	auxiliary_device_uninit(&nvm->aux_dev);
-	kfree(nvm);
 	xe->nvm = NULL;
 }
