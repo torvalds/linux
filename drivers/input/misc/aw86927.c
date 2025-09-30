@@ -759,8 +759,7 @@ static int aw86927_probe(struct i2c_client *client)
 	/* Software reset */
 	err = regmap_write(haptics->regmap, AW86927_RSTCFG_REG, AW86927_RSTCFG_SOFTRST);
 	if (err)
-		return dev_err_probe(haptics->dev, PTR_ERR(haptics->regmap),
-					"Failed Software reset\n");
+		return dev_err_probe(haptics->dev, err,	"Failed Software reset\n");
 
 	/* Wait ~3ms until I2C is accessible */
 	usleep_range(3000, 3500);
