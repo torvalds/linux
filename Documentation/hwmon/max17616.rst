@@ -1,0 +1,62 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+Kernel driver max17616
+======================
+
+Supported chips:
+
+  * Analog Devices MAX17616/MAX17616A
+
+    Prefix: 'max17616'
+
+    Addresses scanned: -
+
+    Datasheet: https://www.analog.com/media/en/technical-documentation/data-sheets/max17616-max17616a.pdf
+
+Author:
+
+  - Kim Seer Paller <kimseer.paller@analog.com>
+
+
+Description
+-----------
+
+This driver supports hardware monitoring for Analog Devices MAX17616/MAX17616A
+Current-Limiter with OV/Surge, UV, Reverse Polarity, Loss of Ground Protection
+with PMBus Interface.
+
+The MAX17616/MAX17616A is a 3V to 80V, 7A current-limiter with overvoltage,
+surge, undervoltage, reverse polarity, and loss of ground protection. Through
+the PMBus interface, the device can monitor input/output voltages, output current
+and temperature.
+
+The driver is a client driver to the core PMBus driver. Please see
+Documentation/hwmon/pmbus.rst for details on PMBus client drivers.
+
+Usage Notes
+-----------
+
+This driver does not auto-detect devices. You will have to instantiate
+the devices explicitly. Please see Documentation/i2c/instantiating-devices.rst
+for details.
+
+Platform data support
+---------------------
+
+The driver supports standard PMBus driver platform data.
+
+Sysfs entries
+-------------
+
+================= ========================================
+in1_label         "vin"
+in1_input         Measured input voltage
+in1_alarm	  Input voltage alarm
+in2_label	  "vout1"
+in2_input	  Measured output voltage
+curr1_label	  "iout1"
+curr1_input	  Measured output current.
+curr1_alarm	  Output current alarm
+temp1_input       Measured temperature
+temp1_alarm       Chip temperature alarm
+================= ========================================
