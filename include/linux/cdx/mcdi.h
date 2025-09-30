@@ -11,16 +11,7 @@
 #include <linux/kref.h>
 #include <linux/rpmsg.h>
 
-#include "bitfield.h"
-#include "mc_cdx_pcol.h"
-
-#ifdef DEBUG
-#define CDX_WARN_ON_ONCE_PARANOID(x) WARN_ON_ONCE(x)
-#define CDX_WARN_ON_PARANOID(x) WARN_ON(x)
-#else
-#define CDX_WARN_ON_ONCE_PARANOID(x) do {} while (0)
-#define CDX_WARN_ON_PARANOID(x) do {} while (0)
-#endif
+#include "linux/cdx/bitfield.h"
 
 /**
  * enum cdx_mcdi_mode - MCDI transaction mode
@@ -35,8 +26,6 @@ enum cdx_mcdi_mode {
 #define MCDI_RPC_TIMEOUT	(10 * HZ)
 #define MCDI_RPC_LONG_TIMEOU	(60 * HZ)
 #define MCDI_RPC_POST_RST_TIME	(10 * HZ)
-
-#define MCDI_BUF_LEN (8 + MCDI_CTL_SDU_LEN_MAX)
 
 /**
  * enum cdx_mcdi_cmd_state - State for an individual MCDI command
@@ -180,24 +169,12 @@ struct cdx_mcdi_data {
 	u32 fn_flags;
 };
 
-static inline struct cdx_mcdi_iface *cdx_mcdi_if(struct cdx_mcdi *cdx)
-{
-	return cdx->mcdi ? &cdx->mcdi->iface : NULL;
-}
-
-int cdx_mcdi_init(struct cdx_mcdi *cdx);
 void cdx_mcdi_finish(struct cdx_mcdi *cdx);
-
+int cdx_mcdi_init(struct cdx_mcdi *cdx);
 void cdx_mcdi_process_cmd(struct cdx_mcdi *cdx, struct cdx_dword *outbuf, int len);
 int cdx_mcdi_rpc(struct cdx_mcdi *cdx, unsigned int cmd,
 		 const struct cdx_dword *inbuf, size_t inlen,
 		 struct cdx_dword *outbuf, size_t outlen, size_t *outlen_actual);
-int cdx_mcdi_rpc_async(struct cdx_mcdi *cdx, unsigned int cmd,
-		       const struct cdx_dword *inbuf, size_t inlen,
-		       cdx_mcdi_async_completer *complete,
-		       unsigned long cookie);
-int cdx_mcdi_wait_for_quiescence(struct cdx_mcdi *cdx,
-				 unsigned int timeout_jiffies);
 
 /*
  * We expect that 16- and 32-bit fields in MCDI requests and responses
@@ -215,28 +192,8 @@ int cdx_mcdi_wait_for_quiescence(struct cdx_mcdi *cdx,
 #define _MCDI_DWORD(_buf, _field)					\
 	((_buf) + (_MCDI_CHECK_ALIGN(MC_CMD_ ## _field ## _OFST, 4) >> 2))
 
-#define MCDI_BYTE(_buf, _field)						\
-	((void)BUILD_BUG_ON_ZERO(MC_CMD_ ## _field ## _LEN != 1),	\
-	 *MCDI_PTR(_buf, _field))
-#define MCDI_WORD(_buf, _field)						\
-	((void)BUILD_BUG_ON_ZERO(MC_CMD_ ## _field ## _LEN != 2),	\
-	 le16_to_cpu(*(__force const __le16 *)MCDI_PTR(_buf, _field)))
 #define MCDI_SET_DWORD(_buf, _field, _value)				\
 	CDX_POPULATE_DWORD_1(*_MCDI_DWORD(_buf, _field), CDX_DWORD, _value)
 #define MCDI_DWORD(_buf, _field)					\
 	CDX_DWORD_FIELD(*_MCDI_DWORD(_buf, _field), CDX_DWORD)
-#define MCDI_POPULATE_DWORD_1(_buf, _field, _name1, _value1)		\
-	CDX_POPULATE_DWORD_1(*_MCDI_DWORD(_buf, _field),		\
-			     MC_CMD_ ## _name1, _value1)
-#define MCDI_SET_QWORD(_buf, _field, _value)				\
-	do {								\
-		CDX_POPULATE_DWORD_1(_MCDI_DWORD(_buf, _field)[0],	\
-				     CDX_DWORD, (u32)(_value));	\
-		CDX_POPULATE_DWORD_1(_MCDI_DWORD(_buf, _field)[1],	\
-				     CDX_DWORD, (u64)(_value) >> 32);	\
-	} while (0)
-#define MCDI_QWORD(_buf, _field)					\
-	(CDX_DWORD_FIELD(_MCDI_DWORD(_buf, _field)[0], CDX_DWORD) |	\
-	(u64)CDX_DWORD_FIELD(_MCDI_DWORD(_buf, _field)[1], CDX_DWORD) << 32)
-
 #endif /* CDX_MCDI_H */

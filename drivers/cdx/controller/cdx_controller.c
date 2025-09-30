@@ -14,7 +14,7 @@
 #include "cdx_controller.h"
 #include "../cdx.h"
 #include "mcdi_functions.h"
-#include "mcdi.h"
+#include "mcdid.h"
 
 static unsigned int cdx_mcdi_rpc_timeout(struct cdx_mcdi *cdx, unsigned int cmd)
 {

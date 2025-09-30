@@ -353,6 +353,12 @@ properties:
     $ref: /schemas/types.yaml#/definitions/phandle
     description: Link to Mediatek Cache Coherent Interconnect
 
+  edac-enabled:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      A72 CPUs support Error Detection And Correction (EDAC) on their L1 and
+      L2 caches. This flag marks this function as usable.
+
   qcom,saw:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:
@@ -399,6 +405,17 @@ properties:
 allOf:
   - $ref: /schemas/cpu.yaml#
   - $ref: /schemas/opp/opp-v1.yaml#
+  - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              const: arm,cortex-a72
+    then:
+      # Allow edac-enabled only for Cortex A72
+      properties:
+        edac-enabled: false
+
   - if:
       # If the enable-method property contains one of those values
       properties:

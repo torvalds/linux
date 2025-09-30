@@ -8,7 +8,8 @@
 #ifndef CDX_MCDI_FUNCTIONS_H
 #define CDX_MCDI_FUNCTIONS_H
 
-#include "mcdi.h"
+#include <linux/cdx/mcdi.h>
+#include "mcdid.h"
 #include "../cdx.h"
 
 /**
