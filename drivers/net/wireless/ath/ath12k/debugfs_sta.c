@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
- * Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <linux/vmalloc.h>
@@ -335,3 +335,4 @@ void ath12k_debugfs_link_sta_op_add(struct ieee80211_hw *hw,
 				    &fops_reset_rx_stats);
 	}
 }
+EXPORT_SYMBOL(ath12k_debugfs_link_sta_op_add);

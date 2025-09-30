@@ -1242,6 +1242,11 @@ struct ath12k_base {
 	const struct ath12k_mem_profile_based_param *profile_param;
 	enum ath12k_qmi_mem_mode target_mem_mode;
 
+	/* FIXME: Define this field in a ag equivalent object available
+	 * during the initial phase of probe later.
+	 */
+	const struct ieee80211_ops *ath12k_ops;
+
 	/* must be last */
 	u8 drv_priv[] __aligned(sizeof(void *));
 };

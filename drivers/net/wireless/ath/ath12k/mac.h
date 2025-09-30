@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #ifndef ATH12K_MAC_H
@@ -193,4 +193,130 @@ void ath12k_mac_update_freq_range(struct ath12k *ar,
 void ath12k_mac_fill_reg_tpc_info(struct ath12k *ar,
 				  struct ath12k_link_vif *arvif,
 				  struct ieee80211_chanctx_conf *ctx);
+void ath12k_mac_op_tx(struct ieee80211_hw *hw,
+		      struct ieee80211_tx_control *control,
+		      struct sk_buff *skb);
+int ath12k_mac_op_start(struct ieee80211_hw *hw);
+void ath12k_mac_op_stop(struct ieee80211_hw *hw, bool suspend);
+void
+ath12k_mac_op_reconfig_complete(struct ieee80211_hw *hw,
+				enum ieee80211_reconfig_type reconfig_type);
+int ath12k_mac_op_add_interface(struct ieee80211_hw *hw,
+				struct ieee80211_vif *vif);
+void ath12k_mac_op_remove_interface(struct ieee80211_hw *hw,
+				    struct ieee80211_vif *vif);
+void ath12k_mac_op_update_vif_offload(struct ieee80211_hw *hw,
+				      struct ieee80211_vif *vif);
+int ath12k_mac_op_config(struct ieee80211_hw *hw, int radio_idx, u32 changed);
+void ath12k_mac_op_link_info_changed(struct ieee80211_hw *hw,
+				     struct ieee80211_vif *vif,
+				     struct ieee80211_bss_conf *info,
+				     u64 changed);
+void ath12k_mac_op_vif_cfg_changed(struct ieee80211_hw *hw,
+				   struct ieee80211_vif *vif,
+				   u64 changed);
+int
+ath12k_mac_op_change_vif_links
+			(struct ieee80211_hw *hw,
+			 struct ieee80211_vif *vif,
+			 u16 old_links, u16 new_links,
+			 struct ieee80211_bss_conf *ol[IEEE80211_MLD_MAX_NUM_LINKS]);
+void ath12k_mac_op_configure_filter(struct ieee80211_hw *hw,
+				    unsigned int changed_flags,
+				    unsigned int *total_flags,
+				    u64 multicast);
+int ath12k_mac_op_hw_scan(struct ieee80211_hw *hw,
+			  struct ieee80211_vif *vif,
+			  struct ieee80211_scan_request *hw_req);
+void ath12k_mac_op_cancel_hw_scan(struct ieee80211_hw *hw,
+				  struct ieee80211_vif *vif);
+int ath12k_mac_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
+			  struct ieee80211_vif *vif, struct ieee80211_sta *sta,
+			  struct ieee80211_key_conf *key);
+void ath12k_mac_op_set_rekey_data(struct ieee80211_hw *hw,
+				  struct ieee80211_vif *vif,
+				  struct cfg80211_gtk_rekey_data *data);
+int ath12k_mac_op_sta_state(struct ieee80211_hw *hw,
+			    struct ieee80211_vif *vif,
+			    struct ieee80211_sta *sta,
+			    enum ieee80211_sta_state old_state,
+			    enum ieee80211_sta_state new_state);
+int ath12k_mac_op_sta_set_txpwr(struct ieee80211_hw *hw,
+				struct ieee80211_vif *vif,
+				struct ieee80211_sta *sta);
+void ath12k_mac_op_link_sta_rc_update(struct ieee80211_hw *hw,
+				      struct ieee80211_vif *vif,
+				      struct ieee80211_link_sta *link_sta,
+				      u32 changed);
+int ath12k_mac_op_conf_tx(struct ieee80211_hw *hw,
+			  struct ieee80211_vif *vif,
+			  unsigned int link_id, u16 ac,
+			  const struct ieee80211_tx_queue_params *params);
+int ath12k_mac_op_set_antenna(struct ieee80211_hw *hw, int radio_idx,
+			      u32 tx_ant, u32 rx_ant);
+int ath12k_mac_op_get_antenna(struct ieee80211_hw *hw, int radio_idx,
+			      u32 *tx_ant, u32 *rx_ant);
+int ath12k_mac_op_ampdu_action(struct ieee80211_hw *hw,
+			       struct ieee80211_vif *vif,
+			       struct ieee80211_ampdu_params *params);
+int ath12k_mac_op_add_chanctx(struct ieee80211_hw *hw,
+			      struct ieee80211_chanctx_conf *ctx);
+void ath12k_mac_op_remove_chanctx(struct ieee80211_hw *hw,
+				  struct ieee80211_chanctx_conf *ctx);
+void ath12k_mac_op_change_chanctx(struct ieee80211_hw *hw,
+				  struct ieee80211_chanctx_conf *ctx,
+				  u32 changed);
+int
+ath12k_mac_op_assign_vif_chanctx(struct ieee80211_hw *hw,
+				 struct ieee80211_vif *vif,
+				 struct ieee80211_bss_conf *link_conf,
+				 struct ieee80211_chanctx_conf *ctx);
+void
+ath12k_mac_op_unassign_vif_chanctx(struct ieee80211_hw *hw,
+				   struct ieee80211_vif *vif,
+				   struct ieee80211_bss_conf *link_conf,
+				   struct ieee80211_chanctx_conf *ctx);
+int
+ath12k_mac_op_switch_vif_chanctx(struct ieee80211_hw *hw,
+				 struct ieee80211_vif_chanctx_switch *vifs,
+				 int n_vifs,
+				 enum ieee80211_chanctx_switch_mode mode);
+int ath12k_mac_op_set_rts_threshold(struct ieee80211_hw *hw,
+				    int radio_idx, u32 value);
+int ath12k_mac_op_set_frag_threshold(struct ieee80211_hw *hw,
+				     int radio_idx, u32 value);
+int
+ath12k_mac_op_set_bitrate_mask(struct ieee80211_hw *hw,
+			       struct ieee80211_vif *vif,
+			       const struct cfg80211_bitrate_mask *mask);
+int ath12k_mac_op_get_survey(struct ieee80211_hw *hw, int idx,
+			     struct survey_info *survey);
+void ath12k_mac_op_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			 u32 queues, bool drop);
+void ath12k_mac_op_sta_statistics(struct ieee80211_hw *hw,
+				  struct ieee80211_vif *vif,
+				  struct ieee80211_sta *sta,
+				  struct station_info *sinfo);
+void ath12k_mac_op_link_sta_statistics(struct ieee80211_hw *hw,
+				       struct ieee80211_vif *vif,
+				       struct ieee80211_link_sta *link_sta,
+				       struct link_station_info *link_sinfo);
+int ath12k_mac_op_remain_on_channel(struct ieee80211_hw *hw,
+				    struct ieee80211_vif *vif,
+				    struct ieee80211_channel *chan,
+				    int duration,
+				    enum ieee80211_roc_type type);
+int ath12k_mac_op_cancel_remain_on_channel(struct ieee80211_hw *hw,
+					   struct ieee80211_vif *vif);
+int ath12k_mac_op_change_sta_links(struct ieee80211_hw *hw,
+				   struct ieee80211_vif *vif,
+				   struct ieee80211_sta *sta,
+				   u16 old_links, u16 new_links);
+bool ath12k_mac_op_can_activate_links(struct ieee80211_hw *hw,
+				      struct ieee80211_vif *vif,
+				      u16 active_links);
+int ath12k_mac_op_get_txpower(struct ieee80211_hw *hw,
+			      struct ieee80211_vif *vif,
+			      unsigned int link_id,
+			      int *dbm);
 #endif
