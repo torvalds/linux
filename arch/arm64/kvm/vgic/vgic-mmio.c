@@ -1091,7 +1091,7 @@ int vgic_register_dist_iodev(struct kvm *kvm, gpa_t dist_base_address,
 		len = vgic_v3_init_dist_iodev(io_device);
 		break;
 	default:
-		BUG_ON(1);
+		BUG();
 	}
 
 	io_device->base_addr = dist_base_address;

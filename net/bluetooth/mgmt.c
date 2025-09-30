@@ -3892,8 +3892,11 @@ static void set_name_complete(struct hci_dev *hdev, void *data, int err)
 
 static int set_name_sync(struct hci_dev *hdev, void *data)
 {
+	struct mgmt_pending_cmd *cmd = data;
+	struct mgmt_cp_set_local_name *cp = cmd->param;
+
 	if (lmp_bredr_capable(hdev)) {
-		hci_update_name_sync(hdev);
+		hci_update_name_sync(hdev, cp->name);
 		hci_update_eir_sync(hdev);
 	}
 
@@ -9705,7 +9708,9 @@ void mgmt_device_disconnected(struct hci_dev *hdev, bdaddr_t *bdaddr,
 	if (!mgmt_connected)
 		return;
 
-	if (link_type != ACL_LINK && link_type != LE_LINK)
+	if (link_type != ACL_LINK &&
+	    link_type != LE_LINK  &&
+	    link_type != BIS_LINK)
 		return;
 
 	bacpy(&ev.addr.bdaddr, bdaddr);

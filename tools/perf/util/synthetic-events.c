@@ -401,7 +401,7 @@ static void perf_record_mmap2__read_build_id(struct perf_record_mmap2 *event,
 	nsi = nsinfo__new(event->pid);
 	nsinfo__mountns_enter(nsi, &nc);
 
-	rc = filename__read_build_id(event->filename, &bid) > 0 ? 0 : -1;
+	rc = filename__read_build_id(event->filename, &bid, /*block=*/false) > 0 ? 0 : -1;
 
 	nsinfo__mountns_exit(&nc);
 	nsinfo__put(nsi);

@@ -1187,7 +1187,7 @@ static void sve_write_sve(pid_t child, struct test_config *config)
 	if (!vl)
 		return;
 
-	iov.iov_len = SVE_PT_SVE_OFFSET + SVE_PT_SVE_SIZE(vq, SVE_PT_REGS_SVE);
+	iov.iov_len = SVE_PT_SIZE(vq, SVE_PT_REGS_SVE);
 	iov.iov_base = malloc(iov.iov_len);
 	if (!iov.iov_base) {
 		ksft_print_msg("Failed allocating %lu byte SVE write buffer\n",
@@ -1234,8 +1234,7 @@ static void sve_write_fpsimd(pid_t child, struct test_config *config)
 	if (!vl)
 		return;
 
-	iov.iov_len = SVE_PT_SVE_OFFSET + SVE_PT_SVE_SIZE(vq,
-							  SVE_PT_REGS_FPSIMD);
+	iov.iov_len = SVE_PT_SIZE(vq, SVE_PT_REGS_FPSIMD);
 	iov.iov_base = malloc(iov.iov_len);
 	if (!iov.iov_base) {
 		ksft_print_msg("Failed allocating %lu byte SVE write buffer\n",
