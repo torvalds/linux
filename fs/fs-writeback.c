@@ -201,6 +201,19 @@ static void wb_queue_work(struct bdi_writeback *wb,
 	spin_unlock_irq(&wb->work_lock);
 }
 
+static bool wb_wait_for_completion_cb(struct wb_completion *done)
+{
+	unsigned long waited_secs = (jiffies - done->wait_start) / HZ;
+
+	done->progress_stamp = jiffies;
+	if (waited_secs > sysctl_hung_task_timeout_secs)
+		pr_info("INFO: The task %s:%d has been waiting for writeback "
+			"completion for more than %lu seconds.",
+			current->comm, current->pid, waited_secs);
+
+	return !atomic_read(&done->cnt);
+}
+
 /**
  * wb_wait_for_completion - wait for completion of bdi_writeback_works
  * @done: target wb_completion
@@ -213,9 +226,9 @@ static void wb_queue_work(struct bdi_writeback *wb,
  */
 void wb_wait_for_completion(struct wb_completion *done)
 {
+	done->wait_start = jiffies;
 	atomic_dec(&done->cnt);		/* put down the initial count */
-	wait_event(*done->waitq,
-		   ({ done->progress_stamp = jiffies; !atomic_read(&done->cnt); }));
+	wait_event(*done->waitq, wb_wait_for_completion_cb(done));
 }
 
 #ifdef CONFIG_CGROUP_WRITEBACK
