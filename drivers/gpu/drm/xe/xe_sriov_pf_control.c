@@ -113,5 +113,10 @@ int xe_sriov_pf_control_reset_vf(struct xe_device *xe, unsigned int vfid)
 		result = result ? -EUCLEAN : err;
 	}
 
+	for_each_gt(gt, xe, id) {
+		err = xe_gt_sriov_pf_control_wait_flr(gt, vfid);
+		result = result ? -EUCLEAN : err;
+	}
+
 	return result;
 }

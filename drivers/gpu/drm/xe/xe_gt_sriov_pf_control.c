@@ -1173,10 +1173,30 @@ static void pf_enter_vf_flr_guc_done(struct xe_gt *gt, unsigned int vfid)
  */
 int xe_gt_sriov_pf_control_trigger_flr(struct xe_gt *gt, unsigned int vfid)
 {
+	pf_enter_vf_flr_wip(gt, vfid);
+
+	return 0;
+}
+
+/**
+ * xe_gt_sriov_pf_control_wait_flr() - Wait for a VF FLR to complete.
+ * @gt: the &xe_gt
+ * @vfid: the VF identifier
+ *
+ * This function is for PF only.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_gt_sriov_pf_control_wait_flr(struct xe_gt *gt, unsigned int vfid)
+{
 	unsigned long timeout = pf_get_default_timeout(XE_GT_SRIOV_STATE_FLR_WIP);
 	int err;
 
-	pf_enter_vf_flr_wip(gt, vfid);
+	if (pf_check_vf_state(gt, vfid, XE_GT_SRIOV_STATE_FLR_FAILED))
+		return -EIO;
+
+	if (!pf_check_vf_state(gt, vfid, XE_GT_SRIOV_STATE_FLR_WIP))
+		return 0;
 
 	err = pf_wait_vf_wip_done(gt, vfid, timeout);
 	if (err) {
