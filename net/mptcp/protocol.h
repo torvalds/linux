@@ -341,8 +341,8 @@ struct mptcp_sock {
 	struct mptcp_pm_data	pm;
 	struct mptcp_sched_ops	*sched;
 	struct {
-		u32	space;	/* bytes copied in last measurement window */
-		u32	copied; /* bytes copied in this measurement window */
+		int	space;	/* bytes copied in last measurement window */
+		int	copied; /* bytes copied in this measurement window */
 		u64	time;	/* start time of measurement window */
 		u64	rtt_us; /* last maximum rtt of subflows */
 	} rcvq_space;

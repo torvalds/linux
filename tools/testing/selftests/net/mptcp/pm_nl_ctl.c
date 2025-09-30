@@ -830,6 +830,8 @@ int add_addr(int fd, int pm_family, int argc, char *argv[])
 					flags |= MPTCP_PM_ADDR_FLAG_SUBFLOW;
 				else if (!strcmp(tok, "signal"))
 					flags |= MPTCP_PM_ADDR_FLAG_SIGNAL;
+				else if (!strcmp(tok, "laminar"))
+					flags |= MPTCP_PM_ADDR_FLAG_LAMINAR;
 				else if (!strcmp(tok, "backup"))
 					flags |= MPTCP_PM_ADDR_FLAG_BACKUP;
 				else if (!strcmp(tok, "fullmesh"))
@@ -1014,6 +1016,13 @@ static void print_addr(struct rtattr *attrs, int len)
 			if (flags & MPTCP_PM_ADDR_FLAG_SUBFLOW) {
 				printf("subflow");
 				flags &= ~MPTCP_PM_ADDR_FLAG_SUBFLOW;
+				if (flags)
+					printf(",");
+			}
+
+			if (flags & MPTCP_PM_ADDR_FLAG_LAMINAR) {
+				printf("laminar");
+				flags &= ~MPTCP_PM_ADDR_FLAG_LAMINAR;
 				if (flags)
 					printf(",");
 			}
