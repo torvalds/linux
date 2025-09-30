@@ -769,7 +769,7 @@ static loff_t lseek_page_owner(struct file *file, loff_t offset, int orig)
 	return file->f_pos;
 }
 
-static void init_pages_in_zone(pg_data_t *pgdat, struct zone *zone)
+static void init_pages_in_zone(struct zone *zone)
 {
 	unsigned long pfn = zone->zone_start_pfn;
 	unsigned long end_pfn = zone_end_pfn(zone);
@@ -836,28 +836,15 @@ ext_put_continue:
 	}
 
 	pr_info("Node %d, zone %8s: page owner found early allocated %lu pages\n",
-		pgdat->node_id, zone->name, count);
-}
-
-static void init_zones_in_node(pg_data_t *pgdat)
-{
-	struct zone *zone;
-	struct zone *node_zones = pgdat->node_zones;
-
-	for (zone = node_zones; zone - node_zones < MAX_NR_ZONES; ++zone) {
-		if (!populated_zone(zone))
-			continue;
-
-		init_pages_in_zone(pgdat, zone);
-	}
+		zone->zone_pgdat->node_id, zone->name, count);
 }
 
 static void init_early_allocated_pages(void)
 {
-	pg_data_t *pgdat;
+	struct zone *zone;
 
-	for_each_online_pgdat(pgdat)
-		init_zones_in_node(pgdat);
+	for_each_populated_zone(zone)
+		init_pages_in_zone(zone);
 }
 
 static const struct file_operations page_owner_fops = {
