@@ -3226,6 +3226,24 @@ static int smu_v13_0_6_reset_vcn(struct smu_context *smu, uint32_t inst_mask)
 	return ret;
 }
 
+static int smu_v13_0_6_ras_send_msg(struct smu_context *smu, enum smu_message_type msg, uint32_t param, uint32_t *read_arg)
+{
+	int ret;
+
+	switch (msg) {
+	case SMU_MSG_QueryValidMcaCount:
+	case SMU_MSG_QueryValidMcaCeCount:
+	case SMU_MSG_McaBankDumpDW:
+	case SMU_MSG_McaBankCeDumpDW:
+	case SMU_MSG_ClearMcaOnRead:
+		ret = smu_cmn_send_smc_msg_with_param(smu, msg, param, read_arg);
+		break;
+	default:
+		ret = -EPERM;
+	}
+
+	return ret;
+}
 
 static int smu_v13_0_6_post_init(struct smu_context *smu)
 {
@@ -3921,6 +3939,7 @@ static const struct pptable_funcs smu_v13_0_6_ppt_funcs = {
 	.reset_sdma = smu_v13_0_6_reset_sdma,
 	.dpm_reset_vcn = smu_v13_0_6_reset_vcn,
 	.post_init = smu_v13_0_6_post_init,
+	.ras_send_msg = smu_v13_0_6_ras_send_msg,
 };
 
 void smu_v13_0_6_set_ppt_funcs(struct smu_context *smu)

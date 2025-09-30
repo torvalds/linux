@@ -612,6 +612,17 @@ bool is_support_cclk_dpm(struct amdgpu_device *adev)
 	return true;
 }
 
+int amdgpu_smu_ras_send_msg(struct amdgpu_device *adev, enum smu_message_type msg,
+			    uint32_t param, uint32_t *read_arg)
+{
+	struct smu_context *smu = adev->powerplay.pp_handle;
+	int ret = -EOPNOTSUPP;
+
+	if (smu->ppt_funcs && smu->ppt_funcs->ras_send_msg)
+		ret = smu->ppt_funcs->ras_send_msg(smu, msg, param, read_arg);
+
+	return ret;
+}
 
 static int smu_sys_get_pp_table(void *handle,
 				char **table)
