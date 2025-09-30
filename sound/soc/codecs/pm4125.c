@@ -691,7 +691,7 @@ static int pm4125_codec_enable_adc(struct snd_soc_dapm_widget *w,
 						      0x00);
 		pm4125_global_mbias_disable(component);
 		break;
-	};
+	}
 
 	return 0;
 }
@@ -756,7 +756,7 @@ static int pm4125_micbias_control(struct snd_soc_component *component, int micb_
 		dev_err(component->dev, "%s: Invalid micbias number: %d\n",
 			__func__, micb_num);
 		return -EINVAL;
-	};
+	}
 
 	switch (req) {
 	case MICB_PULLUP_ENABLE:
@@ -799,7 +799,7 @@ static int pm4125_micbias_control(struct snd_soc_component *component, int micb_
 			pm4125_global_mbias_disable(component);
 		}
 		break;
-	};
+	}
 
 	return 0;
 }
