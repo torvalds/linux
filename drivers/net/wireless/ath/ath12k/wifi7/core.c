@@ -9,8 +9,32 @@
 #include "../pci.h"
 #include "pci.h"
 #include "ahb.h"
+#include "core.h"
+#include "dp.h"
+#include "../debug.h"
 
 static int ahb_err, pci_err;
+
+int ath12k_wifi7_arch_init(struct ath12k_base *ab)
+{
+	struct ath12k_dp *dp;
+
+	dp = ath12k_wifi7_dp_device_alloc(ab);
+	if (!dp) {
+		ath12k_err(ab, "dp alloc failed");
+		return -EINVAL;
+	}
+
+	ab->dp = dp;
+
+	return 0;
+}
+
+void ath12k_wifi7_arch_deinit(struct ath12k_base *ab)
+{
+	ath12k_wifi7_dp_device_free(ab->dp);
+	ab->dp = NULL;
+}
 
 static int ath12k_wifi7_init(void)
 {

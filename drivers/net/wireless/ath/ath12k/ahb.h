@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 #ifndef ATH12K_AHB_H
 #define ATH12K_AHB_H
@@ -46,6 +46,8 @@ struct ath12k_base;
 
 struct ath12k_ahb_device_family_ops {
 	int (*probe)(struct platform_device *pdev);
+	int (*arch_init)(struct ath12k_base *ab);
+	void (*arch_deinit)(struct ath12k_base *ab);
 };
 
 struct ath12k_ahb {

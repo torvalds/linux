@@ -1620,12 +1620,24 @@ static int ath12k_pci_probe(struct pci_dev *pdev,
 		goto err_free_irq;
 	}
 
+	/* Invoke arch_init here so that arch-specific init operations
+	 * can utilize already initialized ab fields, such as HAL SRNGs.
+	 */
+	ret = ab_pci->device_family_ops->arch_init(ab);
+	if (ret) {
+		ath12k_err(ab, "PCI arch_init failed %d\n", ret);
+		goto err_pci_msi_free;
+	}
+
 	ret = ath12k_core_init(ab);
 	if (ret) {
 		ath12k_err(ab, "failed to init core: %d\n", ret);
-		goto err_free_irq;
+		goto err_deinit_arch;
 	}
 	return 0;
+
+err_deinit_arch:
+	ab_pci->device_family_ops->arch_deinit(ab);
 
 err_free_irq:
 	/* __free_irq() expects the caller to have cleared the affinity hint */
@@ -1685,6 +1697,9 @@ qmi_fail:
 
 	ath12k_hal_srng_deinit(ab);
 	ath12k_ce_free_pipes(ab);
+
+	ab_pci->device_family_ops->arch_deinit(ab);
+
 	ath12k_core_free(ab);
 }
 
@@ -1781,7 +1796,8 @@ int ath12k_pci_register_driver(const enum ath12k_device_family device_id,
 	if (device_id >= ATH12K_DEVICE_FAMILY_MAX)
 		return -EINVAL;
 
-	if (!driver || !driver->ops.probe)
+	if (!driver || !driver->ops.probe ||
+	    !driver->ops.arch_init || !driver->ops.arch_deinit)
 		return -EINVAL;
 
 	if (ath12k_pci_family_drivers[device_id]) {

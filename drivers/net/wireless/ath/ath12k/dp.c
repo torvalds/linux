@@ -13,6 +13,7 @@
 #include "wifi7/dp_rx.h"
 #include "peer.h"
 #include "dp_mon.h"
+#include "dp_cmn.h"
 
 enum ath12k_dp_desc_type {
 	ATH12K_DP_TX_DESC,
@@ -1130,7 +1131,7 @@ static void ath12k_dp_reoq_lut_cleanup(struct ath12k_base *ab)
 	}
 }
 
-void ath12k_dp_free(struct ath12k_base *ab)
+static void ath12k_dp_cleanup(struct ath12k_base *ab)
 {
 	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
 	int i;
@@ -1155,8 +1156,6 @@ void ath12k_dp_free(struct ath12k_base *ab)
 
 	ath12k_dp_rx_free(ab);
 	/* Deinit any SOC level resource */
-	kfree(ab->dp);
-	ab->dp = NULL;
 }
 
 void ath12k_dp_cc_config(struct ath12k_base *ab)
@@ -1564,7 +1563,7 @@ ath12k_dp_get_idle_link_rbm(struct ath12k_base *ab)
 	}
 }
 
-int ath12k_dp_alloc(struct ath12k_base *ab)
+static int ath12k_dp_setup(struct ath12k_base *ab)
 {
 	struct ath12k_dp *dp;
 	struct hal_srng *srng = NULL;
@@ -1573,12 +1572,7 @@ int ath12k_dp_alloc(struct ath12k_base *ab)
 	int ret;
 	int i;
 
-	/* TODO: align dp later if cache alignment becomes a bottleneck */
-	dp = kzalloc(sizeof(*dp), GFP_KERNEL);
-	if (!dp)
-		return -ENOMEM;
-
-	ab->dp = dp;
+	dp = ath12k_ab_to_dp(ab);
 	dp->ab = ab;
 
 	INIT_LIST_HEAD(&dp->reo_cmd_list);
@@ -1591,7 +1585,7 @@ int ath12k_dp_alloc(struct ath12k_base *ab)
 	ret = ath12k_wbm_idle_ring_setup(ab, &n_link_desc);
 	if (ret) {
 		ath12k_warn(ab, "failed to setup wbm_idle_ring: %d\n", ret);
-		goto fail_dp_free;
+		return ret;
 	}
 
 	srng = &ab->hal.srng_list[dp->wbm_idle_ring.ring_id];
@@ -1600,7 +1594,7 @@ int ath12k_dp_alloc(struct ath12k_base *ab)
 					HAL_WBM_IDLE_LINK, srng, n_link_desc);
 	if (ret) {
 		ath12k_warn(ab, "failed to setup link desc: %d\n", ret);
-		goto fail_dp_free;
+		return ret;
 	}
 
 	ret = ath12k_dp_cc_init(ab);
@@ -1673,9 +1667,21 @@ fail_link_desc_cleanup:
 	ath12k_dp_link_desc_cleanup(ab, dp->link_desc_banks,
 				    HAL_WBM_IDLE_LINK, &dp->wbm_idle_ring);
 
-fail_dp_free:
-	kfree(ab->dp);
-	ab->dp = NULL;
-
 	return ret;
+}
+
+void ath12k_dp_cmn_device_deinit(struct ath12k_dp *dp)
+{
+	ath12k_dp_cleanup(dp->ab);
+}
+
+int ath12k_dp_cmn_device_init(struct ath12k_dp *dp)
+{
+	int ret;
+
+	ret = ath12k_dp_setup(dp->ab);
+	if (ret)
+		return ret;
+
+	return 0;
 }

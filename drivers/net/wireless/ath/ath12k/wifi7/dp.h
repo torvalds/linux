@@ -7,8 +7,15 @@
 #ifndef ATH12K_DP_WIFI7_H
 #define ATH12K_DP_WIFI7_H
 
+#include "../dp_cmn.h"
 #include "hw.h"
+
+struct ath12k_base;
+struct ath12k_dp;
 
 int ath12k_wifi7_dp_service_srng(struct ath12k_base *ab,
 				 struct ath12k_ext_irq_grp *irq_grp, int budget);
+struct ath12k_dp *ath12k_wifi7_dp_device_alloc(struct ath12k_base *ab);
+void ath12k_wifi7_dp_device_free(struct ath12k_dp *dp);
+
 #endif

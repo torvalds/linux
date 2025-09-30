@@ -13,6 +13,8 @@
 #include "../mhi.h"
 #include "hw.h"
 #include "../hal.h"
+#include "dp.h"
+#include "core.h"
 
 #define QCN9274_DEVICE_ID		0x1109
 #define WCN7850_DEVICE_ID		0x1107
@@ -163,6 +165,8 @@ static struct ath12k_pci_driver ath12k_wifi7_pci_driver = {
 	.id_table = ath12k_wifi7_pci_id_table,
 	.ops.probe = ath12k_wifi7_pci_probe,
 	.reg_base = &ath12k_wifi7_reg_base,
+	.ops.arch_init = ath12k_wifi7_arch_init,
+	.ops.arch_deinit = ath12k_wifi7_arch_deinit,
 };
 
 int ath12k_wifi7_pci_init(void)

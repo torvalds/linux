@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2019-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 #ifndef ATH12K_PCI_H
 #define ATH12K_PCI_H
@@ -97,6 +97,8 @@ struct ath12k_pci_ops {
 
 struct ath12k_pci_device_family_ops {
 	int (*probe)(struct pci_dev *pdev, const struct pci_device_id *pci_dev);
+	int (*arch_init)(struct ath12k_base *ab);
+	void (*arch_deinit)(struct ath12k_base *ab);
 };
 
 struct ath12k_pci_reg_base {

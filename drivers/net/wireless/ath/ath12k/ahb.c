@@ -1088,13 +1088,25 @@ static int ath12k_ahb_probe(struct platform_device *pdev)
 		goto err_rproc_deconfigure;
 	}
 
-	ret = ath12k_core_init(ab);
+	/* Invoke arch_init here so that arch-specific init operations
+	 * can utilize already initialized ab fields, such as HAL SRNGs.
+	 */
+	ret = ab_ahb->device_family_ops->arch_init(ab);
 	if (ret) {
-		ath12k_err(ab, "failed to init core: %d\n", ret);
+		ath12k_err(ab, "AHB arch_init failed %d\n", ret);
 		goto err_rproc_deconfigure;
 	}
 
+	ret = ath12k_core_init(ab);
+	if (ret) {
+		ath12k_err(ab, "failed to init core: %d\n", ret);
+		goto err_deinit_arch;
+	}
+
 	return 0;
+
+err_deinit_arch:
+	ab_ahb->device_family_ops->arch_deinit(ab);
 
 err_rproc_deconfigure:
 	ath12k_ahb_deconfigure_rproc(ab);
@@ -1134,11 +1146,13 @@ static void ath12k_ahb_remove_prepare(struct ath12k_base *ab)
 static void ath12k_ahb_free_resources(struct ath12k_base *ab)
 {
 	struct platform_device *pdev = ab->pdev;
+	struct ath12k_ahb *ab_ahb = ath12k_ab_to_ahb(ab);
 
 	ath12k_hal_srng_deinit(ab);
 	ath12k_ce_free_pipes(ab);
 	ath12k_ahb_resource_deinit(ab);
 	ath12k_ahb_deconfigure_rproc(ab);
+	ab_ahb->device_family_ops->arch_deinit(ab);
 	ath12k_core_free(ab);
 	platform_set_drvdata(pdev, NULL);
 }
@@ -1167,7 +1181,8 @@ int ath12k_ahb_register_driver(const enum ath12k_device_family device_id,
 	if (device_id >= ATH12K_DEVICE_FAMILY_MAX)
 		return -EINVAL;
 
-	if (!driver || !driver->ops.probe)
+	if (!driver || !driver->ops.probe ||
+	    !driver->ops.arch_init || !driver->ops.arch_deinit)
 		return -EINVAL;
 
 	if (ath12k_ahb_family_drivers[device_id]) {
