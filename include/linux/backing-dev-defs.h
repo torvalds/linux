@@ -63,6 +63,7 @@ enum wb_reason {
 struct wb_completion {
 	atomic_t		cnt;
 	wait_queue_head_t	*waitq;
+	unsigned long progress_stamp;	/* The jiffies when slow progress is detected */
 };
 
 #define __WB_COMPLETION_INIT(_waitq)	\

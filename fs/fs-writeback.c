@@ -14,6 +14,7 @@
  *		Additions for address_space-based writeback
  */
 
+#include <linux/sched/sysctl.h>
 #include <linux/kernel.h>
 #include <linux/export.h>
 #include <linux/spinlock.h>
@@ -213,7 +214,8 @@ static void wb_queue_work(struct bdi_writeback *wb,
 void wb_wait_for_completion(struct wb_completion *done)
 {
 	atomic_dec(&done->cnt);		/* put down the initial count */
-	wait_event(*done->waitq, !atomic_read(&done->cnt));
+	wait_event(*done->waitq,
+		   ({ done->progress_stamp = jiffies; !atomic_read(&done->cnt); }));
 }
 
 #ifdef CONFIG_CGROUP_WRITEBACK
@@ -2013,6 +2015,12 @@ static long writeback_sb_inodes(struct super_block *sb,
 		 * evict_inode() will wait so the inode cannot be freed.
 		 */
 		__writeback_single_inode(inode, &wbc);
+
+		/* Report progress to inform the hung task detector of the progress. */
+		if (work->done && work->done->progress_stamp &&
+		   (jiffies - work->done->progress_stamp) > HZ *
+		   sysctl_hung_task_timeout_secs / 2)
+			wake_up_all(work->done->waitq);
 
 		wbc_detach_inode(&wbc);
 		work->nr_pages -= write_chunk - wbc.nr_to_write;
