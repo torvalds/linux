@@ -971,7 +971,7 @@ void btrfs_free_ref_tree_range(struct btrfs_fs_info *fs_info, u64 start,
 int btrfs_build_ref_tree(struct btrfs_fs_info *fs_info)
 {
 	struct btrfs_root *extent_root;
-	struct btrfs_path *path;
+	BTRFS_PATH_AUTO_FREE(path);
 	struct extent_buffer *eb;
 	int tree_block_level = 0;
 	u64 bytenr = 0, num_bytes = 0;
@@ -1021,6 +1021,5 @@ int btrfs_build_ref_tree(struct btrfs_fs_info *fs_info)
 		btrfs_free_ref_cache(fs_info);
 		btrfs_clear_opt(fs_info->mount_opt, REF_VERIFY);
 	}
-	btrfs_free_path(path);
 	return ret;
 }

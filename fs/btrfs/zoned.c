@@ -274,7 +274,7 @@ static int btrfs_get_dev_zones(struct btrfs_device *device, u64 pos,
 		return ret;
 	}
 	*nr_zones = ret;
-	if (!ret)
+	if (unlikely(!ret))
 		return -EIO;
 
 	/* Populate cache */
@@ -315,7 +315,7 @@ static int calculate_emulated_zone_size(struct btrfs_fs_info *fs_info)
 		if (ret < 0)
 			return ret;
 		/* No dev extents at all? Not good */
-		if (ret > 0)
+		if (unlikely(ret > 0))
 			return -EUCLEAN;
 	}
 
@@ -503,7 +503,7 @@ int btrfs_get_dev_zone_info(struct btrfs_device *device, bool populate_cache)
 		sector = zones[nr_zones - 1].start + zones[nr_zones - 1].len;
 	}
 
-	if (nreported != zone_info->nr_zones) {
+	if (unlikely(nreported != zone_info->nr_zones)) {
 		btrfs_err(device->fs_info,
 				 "inconsistent number of zones on %s (%u/%u)",
 				 rcu_dereference(device->name), nreported,
@@ -513,7 +513,7 @@ int btrfs_get_dev_zone_info(struct btrfs_device *device, bool populate_cache)
 	}
 
 	if (max_active_zones) {
-		if (nactive > max_active_zones) {
+		if (unlikely(nactive > max_active_zones)) {
 			if (bdev_max_active_zones(bdev) == 0) {
 				max_active_zones = 0;
 				zone_info->max_active_zones = 0;
@@ -550,7 +550,7 @@ validate:
 		if (ret)
 			goto out;
 
-		if (nr_zones != BTRFS_NR_SB_LOG_ZONES) {
+		if (unlikely(nr_zones != BTRFS_NR_SB_LOG_ZONES)) {
 			btrfs_err(device->fs_info,
 	"zoned: failed to read super block log zone info at devid %llu zone %u",
 					 device->devid, sb_zone);
@@ -568,7 +568,7 @@ validate:
 
 		ret = sb_write_pointer(device->bdev,
 				       &zone_info->sb_zones[sb_pos], &sb_wp);
-		if (ret != -ENOENT && ret) {
+		if (unlikely(ret != -ENOENT && ret)) {
 			btrfs_err(device->fs_info,
 			"zoned: super block log zone corrupted devid %llu zone %u",
 					 device->devid, sb_zone);
@@ -901,7 +901,7 @@ int btrfs_sb_log_location_bdev(struct block_device *bdev, int mirror, int rw,
 				  zones);
 	if (ret < 0)
 		return ret;
-	if (ret != BTRFS_NR_SB_LOG_ZONES)
+	if (unlikely(ret != BTRFS_NR_SB_LOG_ZONES))
 		return -EIO;
 
 	return sb_log_location(bdev, zones, rw, bytenr_ret);
@@ -1253,7 +1253,7 @@ static int calculate_alloc_pointer(struct btrfs_block_group *cache,
 	root = btrfs_extent_root(fs_info, key.objectid);
 	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 	/* We should not find the exact match */
-	if (!ret)
+	if (unlikely(!ret))
 		ret = -EUCLEAN;
 	if (ret < 0)
 		return ret;
@@ -1274,8 +1274,8 @@ static int calculate_alloc_pointer(struct btrfs_block_group *cache,
 	else
 		length = fs_info->nodesize;
 
-	if (!(found_key.objectid >= cache->start &&
-	       found_key.objectid + length <= cache->start + cache->length)) {
+	if (unlikely(!(found_key.objectid >= cache->start &&
+		       found_key.objectid + length <= cache->start + cache->length))) {
 		return -EUCLEAN;
 	}
 	*offset_ret = found_key.objectid + length - cache->start;
@@ -1357,7 +1357,7 @@ static int btrfs_load_zone_info(struct btrfs_fs_info *fs_info, int zone_idx,
 		return 0;
 	}
 
-	if (zone.type == BLK_ZONE_TYPE_CONVENTIONAL) {
+	if (unlikely(zone.type == BLK_ZONE_TYPE_CONVENTIONAL)) {
 		btrfs_err(fs_info,
 		"zoned: unexpected conventional zone %llu on device %s (devid %llu)",
 			zone.start << SECTOR_SHIFT, rcu_dereference(device->name),
@@ -1399,7 +1399,7 @@ static int btrfs_load_block_group_single(struct btrfs_block_group *bg,
 					 struct zone_info *info,
 					 unsigned long *active)
 {
-	if (info->alloc_offset == WP_MISSING_DEV) {
+	if (unlikely(info->alloc_offset == WP_MISSING_DEV)) {
 		btrfs_err(bg->fs_info,
 			"zoned: cannot recover write pointer for zone %llu",
 			info->physical);
@@ -1428,13 +1428,13 @@ static int btrfs_load_block_group_dup(struct btrfs_block_group *bg,
 
 	bg->zone_capacity = min_not_zero(zone_info[0].capacity, zone_info[1].capacity);
 
-	if (zone_info[0].alloc_offset == WP_MISSING_DEV) {
+	if (unlikely(zone_info[0].alloc_offset == WP_MISSING_DEV)) {
 		btrfs_err(bg->fs_info,
 			  "zoned: cannot recover write pointer for zone %llu",
 			  zone_info[0].physical);
 		return -EIO;
 	}
-	if (zone_info[1].alloc_offset == WP_MISSING_DEV) {
+	if (unlikely(zone_info[1].alloc_offset == WP_MISSING_DEV)) {
 		btrfs_err(bg->fs_info,
 			  "zoned: cannot recover write pointer for zone %llu",
 			  zone_info[1].physical);
@@ -1447,14 +1447,14 @@ static int btrfs_load_block_group_dup(struct btrfs_block_group *bg,
 	if (zone_info[1].alloc_offset == WP_CONVENTIONAL)
 		zone_info[1].alloc_offset = last_alloc;
 
-	if (zone_info[0].alloc_offset != zone_info[1].alloc_offset) {
+	if (unlikely(zone_info[0].alloc_offset != zone_info[1].alloc_offset)) {
 		btrfs_err(bg->fs_info,
 			  "zoned: write pointer offset mismatch of zones in DUP profile");
 		return -EIO;
 	}
 
 	if (test_bit(0, active) != test_bit(1, active)) {
-		if (!btrfs_zone_activate(bg))
+		if (unlikely(!btrfs_zone_activate(bg)))
 			return -EIO;
 	} else if (test_bit(0, active)) {
 		set_bit(BLOCK_GROUP_FLAG_ZONE_IS_ACTIVE, &bg->runtime_flags);
@@ -1489,16 +1489,16 @@ static int btrfs_load_block_group_raid1(struct btrfs_block_group *bg,
 		if (zone_info[i].alloc_offset == WP_CONVENTIONAL)
 			zone_info[i].alloc_offset = last_alloc;
 
-		if ((zone_info[0].alloc_offset != zone_info[i].alloc_offset) &&
-		    !btrfs_test_opt(fs_info, DEGRADED)) {
+		if (unlikely((zone_info[0].alloc_offset != zone_info[i].alloc_offset) &&
+			     !btrfs_test_opt(fs_info, DEGRADED))) {
 			btrfs_err(fs_info,
 			"zoned: write pointer offset mismatch of zones in %s profile",
 				  btrfs_bg_type_to_raid_name(map->type));
 			return -EIO;
 		}
 		if (test_bit(0, active) != test_bit(i, active)) {
-			if (!btrfs_test_opt(fs_info, DEGRADED) &&
-			    !btrfs_zone_activate(bg)) {
+			if (unlikely(!btrfs_test_opt(fs_info, DEGRADED) &&
+				     !btrfs_zone_activate(bg))) {
 				return -EIO;
 			}
 		} else {
@@ -1554,7 +1554,7 @@ static int btrfs_load_block_group_raid0(struct btrfs_block_group *bg,
 		}
 
 		if (test_bit(0, active) != test_bit(i, active)) {
-			if (!btrfs_zone_activate(bg))
+			if (unlikely(!btrfs_zone_activate(bg)))
 				return -EIO;
 		} else {
 			if (test_bit(0, active))
@@ -1586,7 +1586,7 @@ static int btrfs_load_block_group_raid10(struct btrfs_block_group *bg,
 			continue;
 
 		if (test_bit(0, active) != test_bit(i, active)) {
-			if (!btrfs_zone_activate(bg))
+			if (unlikely(!btrfs_zone_activate(bg)))
 				return -EIO;
 		} else {
 			if (test_bit(0, active))
@@ -1643,7 +1643,7 @@ int btrfs_load_block_group_zone_info(struct btrfs_block_group *cache, bool new)
 		return 0;
 
 	/* Sanity check */
-	if (!IS_ALIGNED(length, fs_info->zone_size)) {
+	if (unlikely(!IS_ALIGNED(length, fs_info->zone_size))) {
 		btrfs_err(fs_info,
 		"zoned: block group %llu len %llu unaligned to zone size %llu",
 			  logical, length, fs_info->zone_size);
@@ -1756,7 +1756,7 @@ out:
 		return -EINVAL;
 	}
 
-	if (cache->alloc_offset > cache->zone_capacity) {
+	if (unlikely(cache->alloc_offset > cache->zone_capacity)) {
 		btrfs_err(fs_info,
 "zoned: invalid write pointer %llu (larger than zone capacity %llu) in block group %llu",
 			  cache->alloc_offset, cache->zone_capacity,
@@ -2087,7 +2087,7 @@ static int read_zone_info(struct btrfs_fs_info *fs_info, u64 logical,
 
 	ret = btrfs_map_block(fs_info, BTRFS_MAP_GET_READ_MIRRORS, logical,
 			      &mapped_length, &bioc, NULL, NULL);
-	if (ret || !bioc || mapped_length < PAGE_SIZE) {
+	if (unlikely(ret || !bioc || mapped_length < PAGE_SIZE)) {
 		ret = -EIO;
 		goto out_put_bioc;
 	}
@@ -2145,7 +2145,7 @@ int btrfs_sync_zone_write_pointer(struct btrfs_device *tgt_dev, u64 logical,
 	if (physical_pos == wp)
 		return 0;
 
-	if (physical_pos > wp)
+	if (unlikely(physical_pos > wp))
 		return -EUCLEAN;
 
 	length = wp - physical_pos;
@@ -2464,16 +2464,17 @@ bool btrfs_can_activate_zone(struct btrfs_fs_devices *fs_devices, u64 flags)
 	return ret;
 }
 
-void btrfs_zone_finish_endio(struct btrfs_fs_info *fs_info, u64 logical, u64 length)
+int btrfs_zone_finish_endio(struct btrfs_fs_info *fs_info, u64 logical, u64 length)
 {
 	struct btrfs_block_group *block_group;
 	u64 min_alloc_bytes;
 
 	if (!btrfs_is_zoned(fs_info))
-		return;
+		return 0;
 
 	block_group = btrfs_lookup_block_group(fs_info, logical);
-	ASSERT(block_group);
+	if (WARN_ON_ONCE(!block_group))
+		return -ENOENT;
 
 	/* No MIXED_BG on zoned btrfs. */
 	if (block_group->flags & BTRFS_BLOCK_GROUP_DATA)
@@ -2490,16 +2491,21 @@ void btrfs_zone_finish_endio(struct btrfs_fs_info *fs_info, u64 logical, u64 len
 
 out:
 	btrfs_put_block_group(block_group);
+	return 0;
 }
 
 static void btrfs_zone_finish_endio_workfn(struct work_struct *work)
 {
+	int ret;
 	struct btrfs_block_group *bg =
 		container_of(work, struct btrfs_block_group, zone_finish_work);
 
 	wait_on_extent_buffer_writeback(bg->last_eb);
 	free_extent_buffer(bg->last_eb);
-	btrfs_zone_finish_endio(bg->fs_info, bg->start, bg->length);
+	ret = do_zone_finish(bg, true);
+	if (ret)
+		btrfs_handle_fs_error(bg->fs_info, ret,
+				      "Failed to finish block-group's zone");
 	btrfs_put_block_group(bg);
 }
 
