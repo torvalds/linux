@@ -8,11 +8,7 @@
 //!
 //! Reference: <https://www.kernel.org/doc/html/latest/security/credentials.html>
 
-use crate::{
-    bindings,
-    task::Kuid,
-    types::{AlwaysRefCounted, Opaque},
-};
+use crate::{bindings, sync::aref::AlwaysRefCounted, task::Kuid, types::Opaque};
 
 /// Wraps the kernel's `struct cred`.
 ///
