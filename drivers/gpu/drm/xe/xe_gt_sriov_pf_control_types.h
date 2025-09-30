@@ -18,6 +18,7 @@
  * @XE_GT_SRIOV_STATE_FLR_SEND_START: indicates that the PF wants to send a FLR START command.
  * @XE_GT_SRIOV_STATE_FLR_WAIT_GUC: indicates that the PF awaits for a response from the GuC.
  * @XE_GT_SRIOV_STATE_FLR_GUC_DONE: indicates that the PF has received a response from the GuC.
+ * @XE_GT_SRIOV_STATE_FLR_SYNC: indicates that the PF awaits to synchronize with other GuCs.
  * @XE_GT_SRIOV_STATE_FLR_RESET_CONFIG: indicates that the PF needs to clear VF's resources.
  * @XE_GT_SRIOV_STATE_FLR_RESET_DATA: indicates that the PF needs to clear VF's data.
  * @XE_GT_SRIOV_STATE_FLR_RESET_MMIO: indicates that the PF needs to reset VF's registers.
@@ -47,6 +48,7 @@ enum xe_gt_sriov_control_bits {
 	XE_GT_SRIOV_STATE_FLR_SEND_START,
 	XE_GT_SRIOV_STATE_FLR_WAIT_GUC,
 	XE_GT_SRIOV_STATE_FLR_GUC_DONE,
+	XE_GT_SRIOV_STATE_FLR_SYNC,
 	XE_GT_SRIOV_STATE_FLR_RESET_CONFIG,
 	XE_GT_SRIOV_STATE_FLR_RESET_DATA,
 	XE_GT_SRIOV_STATE_FLR_RESET_MMIO,
