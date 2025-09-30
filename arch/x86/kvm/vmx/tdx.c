@@ -2002,6 +2002,8 @@ static int tdx_handle_ept_violation(struct kvm_vcpu *vcpu)
 	 * handle retries locally in their EPT violation handlers.
 	 */
 	while (1) {
+		struct kvm_memory_slot *slot;
+
 		ret = __vmx_handle_ept_violation(vcpu, gpa, exit_qual);
 
 		if (ret != RET_PF_RETRY || !local_retry)
@@ -2014,6 +2016,15 @@ static int tdx_handle_ept_violation(struct kvm_vcpu *vcpu)
 			ret = -EIO;
 			break;
 		}
+
+		/*
+		 * Bail if the memslot is invalid, i.e. is being deleted, as
+		 * faulting in will never succeed and this task needs to drop
+		 * SRCU in order to let memslot deletion complete.
+		 */
+		slot = kvm_vcpu_gfn_to_memslot(vcpu, gpa_to_gfn(gpa));
+		if (slot && slot->flags & KVM_MEMSLOT_INVALID)
+			break;
 
 		cond_resched();
 	}
