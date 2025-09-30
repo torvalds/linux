@@ -616,7 +616,7 @@ int xe_gt_sriov_pf_control_pause_vf(struct xe_gt *gt, unsigned int vfid)
 	}
 
 	if (pf_expect_vf_state(gt, vfid, XE_GT_SRIOV_STATE_PAUSED)) {
-		xe_gt_sriov_info(gt, "VF%u paused!\n", vfid);
+		xe_gt_sriov_dbg(gt, "VF%u paused!\n", vfid);
 		return 0;
 	}
 
@@ -755,7 +755,7 @@ int xe_gt_sriov_pf_control_resume_vf(struct xe_gt *gt, unsigned int vfid)
 		return err;
 
 	if (pf_expect_vf_state(gt, vfid, XE_GT_SRIOV_STATE_RESUMED)) {
-		xe_gt_sriov_info(gt, "VF%u resumed!\n", vfid);
+		xe_gt_sriov_dbg(gt, "VF%u resumed!\n", vfid);
 		return 0;
 	}
 
@@ -896,7 +896,7 @@ int xe_gt_sriov_pf_control_stop_vf(struct xe_gt *gt, unsigned int vfid)
 		return err;
 
 	if (pf_expect_vf_state(gt, vfid, XE_GT_SRIOV_STATE_STOPPED)) {
-		xe_gt_sriov_info(gt, "VF%u stopped!\n", vfid);
+		xe_gt_sriov_dbg(gt, "VF%u stopped!\n", vfid);
 		return 0;
 	}
 

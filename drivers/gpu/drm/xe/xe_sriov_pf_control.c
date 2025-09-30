@@ -6,6 +6,7 @@
 #include "xe_device.h"
 #include "xe_gt_sriov_pf_control.h"
 #include "xe_sriov_pf_control.h"
+#include "xe_sriov_printk.h"
 
 /**
  * xe_sriov_pf_control_pause_vf() - Pause a VF on all GTs.
@@ -28,7 +29,11 @@ int xe_sriov_pf_control_pause_vf(struct xe_device *xe, unsigned int vfid)
 		result = result ? -EUCLEAN : err;
 	}
 
-	return result;
+	if (result)
+		return result;
+
+	xe_sriov_info(xe, "VF%u paused!\n", vfid);
+	return 0;
 }
 
 /**
@@ -52,7 +57,11 @@ int xe_sriov_pf_control_resume_vf(struct xe_device *xe, unsigned int vfid)
 		result = result ? -EUCLEAN : err;
 	}
 
-	return result;
+	if (result)
+		return result;
+
+	xe_sriov_info(xe, "VF%u resumed!\n", vfid);
+	return 0;
 }
 
 /**
@@ -76,7 +85,11 @@ int xe_sriov_pf_control_stop_vf(struct xe_device *xe, unsigned int vfid)
 		result = result ? -EUCLEAN : err;
 	}
 
-	return result;
+	if (result)
+		return result;
+
+	xe_sriov_info(xe, "VF%u stopped!\n", vfid);
+	return 0;
 }
 
 /**
