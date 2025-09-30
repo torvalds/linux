@@ -68,7 +68,7 @@ static struct ras_core_context *ras_cmd_get_ras_core(uint64_t dev_handle)
 	if (!dev_handle || (dev_handle == RAS_CMD_DEV_HANDLE_MAGIC))
 		return NULL;
 
-	ras_core = (struct ras_core_context *)(dev_handle ^ RAS_CMD_DEV_HANDLE_MAGIC);
+	ras_core = (struct ras_core_context *)(uintptr_t)(dev_handle ^ RAS_CMD_DEV_HANDLE_MAGIC);
 
 	if (ras_cmd_get_dev_handle(ras_core) == dev_handle)
 		return ras_core;

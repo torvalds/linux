@@ -68,8 +68,7 @@ int ras_core_convert_timestamp_to_time(struct ras_core_context *ras_core,
 	int seconds_per_minute = 60;
 	int days, remaining_seconds;
 
-	days = timestamp / seconds_per_day;
-	remaining_seconds = timestamp % seconds_per_day;
+	days = div64_u64_rem(timestamp, seconds_per_day, (uint64_t *)&remaining_seconds);
 
 	/* utc_timestamp follows the Unix epoch */
 	year = 1970;

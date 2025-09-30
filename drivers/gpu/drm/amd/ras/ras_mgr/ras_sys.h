@@ -27,6 +27,7 @@
 #include <linux/stdarg.h>
 #include <linux/printk.h>
 #include <linux/dev_printk.h>
+#include <linux/mempool.h>
 #include "amdgpu.h"
 
 #define RAS_DEV_ERR(device, fmt, ...)                                               \

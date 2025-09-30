@@ -350,7 +350,7 @@ static int aca_banks_update(struct ras_core_context *ras_core,
 	struct aca_bank_ecc bank_ecc;
 	struct ras_log_batch_tag *batch_tag = NULL;
 	u32 count = 0;
-	int ret;
+	int ret = 0;
 	int i;
 
 	mutex_lock(&ras_core->ras_aca.bank_op_lock);

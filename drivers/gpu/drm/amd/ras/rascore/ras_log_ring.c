@@ -67,7 +67,7 @@ static int ras_log_ring_add_data(struct ras_core_context *ras_core,
 {
 	struct ras_log_ring *log_ring = &ras_core->ras_log_ring;
 	unsigned long flags = 0;
-	int ret;
+	int ret = 0;
 
 	if (batch_tag && (batch_tag->sub_seqno >= MAX_RECORD_PER_BATCH)) {
 		RAS_DEV_ERR(ras_core->dev,
@@ -200,7 +200,7 @@ struct ras_log_batch_tag *ras_log_ring_create_batch_tag(struct ras_core_context 
 {
 	struct ras_log_ring *log_ring = &ras_core->ras_log_ring;
 	struct ras_log_batch_tag *batch_tag;
-	unsigned long flags;
+	unsigned long flags = 0;
 
 	batch_tag = kzalloc(sizeof(*batch_tag), GFP_KERNEL);
 	if (!batch_tag)

@@ -173,7 +173,7 @@ static uint32_t __get_ring_frame_slot(struct ras_core_context *ras_core)
 
 	ras_ring_wptr_dw = psp->ip_func->psp_ras_ring_wptr_get(ras_core);
 
-	return (ras_ring_wptr_dw << 2) / sizeof(struct psp_gfx_rb_frame);
+	return div64_u64((ras_ring_wptr_dw << 2), sizeof(struct psp_gfx_rb_frame));
 }
 
 static int __set_ring_frame_slot(struct ras_core_context *ras_core,
@@ -200,7 +200,7 @@ static int write_frame_to_ras_psp_ring(struct ras_core_context *ras_core,
 		return -ENOMEM;
 
 	max_frame_slot =
-		ring_mem->mem_size / sizeof(struct psp_gfx_rb_frame);
+		div64_u64(ring_mem->mem_size, sizeof(struct psp_gfx_rb_frame));
 
 	rb_frame =
 		(struct psp_gfx_rb_frame *)ring_mem->mem_cpu_addr;

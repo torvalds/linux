@@ -32,7 +32,7 @@ static int ras_cmd_add_device(struct ras_core_context *ras_core)
 {
 	INIT_LIST_HEAD(&ras_core->ras_cmd.head);
 	ras_core->ras_cmd.ras_core = ras_core;
-	ras_core->ras_cmd.dev_handle = (uint64_t)ras_core ^ RAS_CMD_DEV_HANDLE_MAGIC;
+	ras_core->ras_cmd.dev_handle = (uintptr_t)ras_core ^ RAS_CMD_DEV_HANDLE_MAGIC;
 	return 0;
 }
 
@@ -212,11 +212,6 @@ static int ras_cmd_get_cper_records(struct ras_core_context *ras_core,
 	if (!req->buf_size || !req->buf_ptr || !req->cper_num)
 		return RAS_CMD__ERROR_INVALID_INPUT_DATA;
 
-	if (!access_ok((void *)req->buf_ptr, req->buf_size)) {
-		RAS_DEV_ERR(ras_core->dev, "Invalid cper buffer memory!\n");
-		return RAS_CMD__ERROR_INVALID_INPUT_DATA;
-	}
-
 	buffer = kzalloc(req->buf_size, GFP_KERNEL);
 	if (!buffer)
 		return RAS_CMD__ERROR_GENERIC;
@@ -240,7 +235,7 @@ static int ras_cmd_get_cper_records(struct ras_core_context *ras_core,
 	}
 
 	if ((ret && (ret != -ENOMEM)) ||
-		copy_to_user((void *)req->buf_ptr, buffer, offset)) {
+		copy_to_user(u64_to_user_ptr(req->buf_ptr), buffer, offset)) {
 		kfree(buffer);
 		return RAS_CMD__ERROR_GENERIC;
 	}

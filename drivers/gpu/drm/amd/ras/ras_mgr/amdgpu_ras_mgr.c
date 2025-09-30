@@ -373,7 +373,7 @@ struct amdgpu_ras_mgr *amdgpu_ras_mgr_get_context(struct amdgpu_device *adev)
 	return (struct amdgpu_ras_mgr *)adev->psp.ras_context.ras->ras_mgr;
 }
 
-static const struct amd_ip_funcs ras_v1_0_ip_funcs = {
+static const struct amd_ip_funcs __maybe_unused ras_v1_0_ip_funcs = {
 	.name = "ras_v1_0",
 	.sw_init = amdgpu_ras_mgr_sw_init,
 	.sw_fini = amdgpu_ras_mgr_sw_fini,

@@ -504,6 +504,7 @@ struct ras_critical_region {
 };
 
 struct amdgpu_ras {
+	void *ras_mgr;
 	/* ras infrastructure */
 	/* for ras itself. */
 	uint32_t features;

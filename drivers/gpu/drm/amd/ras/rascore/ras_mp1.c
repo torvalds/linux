@@ -52,7 +52,7 @@ int ras_mp1_get_bank_count(struct ras_core_context *ras_core,
 }
 
 int ras_mp1_dump_bank(struct ras_core_context *ras_core,
-		enum ras_err_type type, u32 idx, u32 reg_idx, u64 *val)
+		u32 type, u32 idx, u32 reg_idx, u64 *val)
 {
 	struct ras_mp1 *mp1 = &ras_core->ras_mp1;
 
