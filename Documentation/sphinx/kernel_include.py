@@ -87,6 +87,8 @@ import os.path
 import re
 import sys
 
+from difflib import get_close_matches
+
 from docutils import io, nodes, statemachine
 from docutils.statemachine import ViewList
 from docutils.parsers.rst import Directive, directives
@@ -401,8 +403,8 @@ class KernelInclude(Directive):
 # ==============================================================================
 
 reported = set()
-
 DOMAIN_INFO = {}
+all_refs = {}
 
 def fill_domain_info(env):
     """
@@ -419,47 +421,43 @@ def fill_domain_info(env):
             # Ignore domains that we can't retrieve object types, if any
             pass
 
+    for domain in DOMAIN_INFO.keys():
+        domain_obj = env.get_domain(domain)
+        for name, dispname, objtype, docname, anchor, priority in domain_obj.get_objects():
+            ref_name = name.lower()
+
+            if domain == "c":
+                if '.' in ref_name:
+                    ref_name = ref_name.split(".")[-1]
+
+            if not ref_name in all_refs:
+                all_refs[ref_name] = []
+
+            all_refs[ref_name].append(f"\t{domain}:{objtype}:`{name}` (from {docname})")
+
 def get_suggestions(app, env, node,
                     original_target, original_domain, original_reftype):
     """Check if target exists in the other domain or with different reftypes."""
     original_target = original_target.lower()
 
     # Remove namespace if present
-    if '.' in original_target:
-        original_target = original_target.split(".")[-1]
-
-    targets = set([
-        original_target,
-        original_target.replace("-", "_"),
-        original_target.replace("_", "-"),
-    ])
-
-    # Propose some suggestions, if possible
-    # The code below checks not only variants of the target, but also it
-    # works when .. c:namespace:: targets setting a different C namespace
-    # is in place
+    if original_domain == "c":
+        if '.' in original_target:
+            original_target = original_target.split(".")[-1]
 
     suggestions = []
-    for target in sorted(targets):
-        for domain in DOMAIN_INFO.keys():
-            domain_obj = env.get_domain(domain)
-            for name, dispname, objtype, docname, anchor, priority in domain_obj.get_objects():
-                lower_name = name.lower()
 
-                if domain == "c":
-                    # Check if name belongs to a different C namespace
-                    match = RE_SPLIT_DOMAIN.match(name)
-                    if match:
-                        if target != match.group(2).lower():
-                            continue
-                    else:
-                        if target !=  lower_name:
-                            continue
-                else:
-                    if target != lower_name:
-                        continue
+    # If name exists, propose exact name match on different domains
+    if original_target in all_refs:
+        return all_refs[original_target]
 
-                suggestions.append(f"\t{domain}:{objtype}:`{name}` (from {docname})")
+    # If not found, get a close match, using difflib.
+    # Such method is based on Ratcliff-Obershelp Algorithm, which seeks
+    # for a close match within a certain distance. We're using the defaults
+    # here, e.g. cutoff=0.6, proposing 3 alternatives
+    matches = get_close_matches(original_target, all_refs.keys())
+    for match in matches:
+        suggestions += all_refs[match]
 
     return suggestions
 
