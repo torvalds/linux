@@ -614,6 +614,9 @@ static inline int pm_runtime_put_autosuspend(struct device *dev)
 	return __pm_runtime_put_autosuspend(dev);
 }
 
+DEFINE_GUARD(pm_runtime_noresume, struct device *,
+	     pm_runtime_get_noresume(_T), pm_runtime_put_noidle(_T));
+
 DEFINE_GUARD(pm_runtime_active, struct device *,
 	     pm_runtime_get_sync(_T), pm_runtime_put(_T));
 DEFINE_GUARD(pm_runtime_active_auto, struct device *,
