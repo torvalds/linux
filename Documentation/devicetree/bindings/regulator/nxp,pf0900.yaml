@@ -1,0 +1,163 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/regulator/nxp,pf0900.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NXP PF0900 Power Management Integrated Circuit regulators
+
+maintainers:
+  - Joy Zou <joy.zou@nxp.com>
+
+description:
+  The PF0900 is a power management integrated circuit (PMIC) optimized
+  for high performance i.MX9x based applications. It features five high
+  efficiency buck converters, three linear and one vaon regulators. It
+  provides low quiescent current in Standby and low power off Modes.
+
+properties:
+  compatible:
+    enum:
+      - nxp,pf0900
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  regulators:
+    type: object
+    additionalProperties: false
+
+    properties:
+      vaon:
+        type: object
+        $ref: regulator.yaml#
+        unevaluatedProperties: false
+
+    patternProperties:
+      "^ldo[1-3]$":
+        type: object
+        $ref: regulator.yaml#
+        unevaluatedProperties: false
+
+      "^sw[1-5]$":
+        type: object
+        $ref: regulator.yaml#
+        unevaluatedProperties: false
+
+  nxp,i2c-crc-enable:
+    type: boolean
+    description:
+      The CRC enabled during register read/write. Controlled by customer
+      unviewable fuse bits OTP_I2C_CRC_EN. Check chip part number.
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - regulators
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        pmic@8 {
+            compatible = "nxp,pf0900";
+            reg = <0x08>;
+            interrupt-parent = <&pcal6524>;
+            interrupts = <89 IRQ_TYPE_LEVEL_LOW>;
+            nxp,i2c-crc-enable;
+
+            regulators {
+                vaon {
+                    regulator-name = "VAON";
+                    regulator-min-microvolt = <1800000>;
+                    regulator-max-microvolt = <3300000>;
+                    regulator-boot-on;
+                    regulator-always-on;
+                };
+
+                sw1 {
+                    regulator-name = "SW1";
+                    regulator-min-microvolt = <500000>;
+                    regulator-max-microvolt = <3300000>;
+                    regulator-boot-on;
+                    regulator-always-on;
+                    regulator-ramp-delay = <1950>;
+                    regulator-state-mem {
+                        regulator-on-in-suspend;
+                        regulator-suspend-max-microvolt = <650000>;
+                        regulator-suspend-min-microvolt = <650000>;
+                    };
+                };
+
+                sw2 {
+                    regulator-name = "SW2";
+                    regulator-min-microvolt = <300000>;
+                    regulator-max-microvolt = <3300000>;
+                    regulator-boot-on;
+                    regulator-always-on;
+                    regulator-ramp-delay = <1950>;
+                };
+
+                sw3 {
+                    regulator-name = "SW3";
+                    regulator-min-microvolt = <300000>;
+                    regulator-max-microvolt = <3300000>;
+                    regulator-boot-on;
+                    regulator-always-on;
+                    regulator-ramp-delay = <1950>;
+                };
+
+                sw4 {
+                    regulator-name = "SW4";
+                    regulator-min-microvolt = <300000>;
+                    regulator-max-microvolt = <3300000>;
+                    regulator-boot-on;
+                    regulator-always-on;
+                    regulator-ramp-delay = <1950>;
+                };
+
+                sw5 {
+                    regulator-name = "SW5";
+                    regulator-min-microvolt = <300000>;
+                    regulator-max-microvolt = <3300000>;
+                    regulator-boot-on;
+                    regulator-always-on;
+                    regulator-ramp-delay = <1950>;
+                };
+
+                ldo1 {
+                    regulator-name = "LDO1";
+                    regulator-min-microvolt = <750000>;
+                    regulator-max-microvolt = <3300000>;
+                    regulator-boot-on;
+                    regulator-always-on;
+                };
+
+                ldo2 {
+                    regulator-name = "LDO2";
+                    regulator-min-microvolt = <650000>;
+                    regulator-max-microvolt = <3300000>;
+                    regulator-boot-on;
+                    regulator-always-on;
+                };
+
+                ldo3 {
+                    regulator-name = "LDO3";
+                    regulator-min-microvolt = <650000>;
+                    regulator-max-microvolt = <3300000>;
+                    regulator-boot-on;
+                    regulator-always-on;
+                };
+            };
+        };
+     };
