@@ -140,8 +140,40 @@ class ParseDataStructs:
 
         self.symbols = {}
 
+        self.ignore = []
+        self.replace = []
+
         for symbol_type in self.DEF_SYMBOL_TYPES:
             self.symbols[symbol_type] = {}
+
+    def read_exceptions(self, fname: str):
+        if not fname:
+            return
+
+        name = os.path.basename(fname)
+
+        with open(fname, "r", encoding="utf-8", errors="backslashreplace") as f:
+            for ln, line in enumerate(f):
+                ln += 1
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+
+                # ignore rules
+                match = re.match(r"^ignore\s+(\w+)\s+(\S+)", line)
+
+                if match:
+                    self.ignore.append((ln, match.group(1), match.group(2)))
+                    continue
+
+                # replace rules
+                match = re.match(r"^replace\s+(\S+)\s+(\S+)\s+(\S+)", line)
+                if match:
+                    self.replace.append((ln, match.group(1), match.group(2),
+                                         match.group(3)))
+                    continue
+
+                sys.exit(f"{name}:{ln}: invalid line: {line}")
 
     def store_type(self, ln, symbol_type: str, symbol: str,
                    ref_name: str = None, replace_underscores: bool = True):
@@ -277,75 +309,60 @@ class ParseDataStructs:
                         self.store_type(line_no, "struct", match.group(1))
                         break
 
+    def apply_exceptions(self):
+        """
+        Process exceptions file with rules to ignore or replace references.
+        """
+
+        # Handle ignore rules
+        for ln, c_type, symbol in self.ignore:
+            if c_type not in self.DEF_SYMBOL_TYPES:
+                sys.exit(f"{name}:{ln}: {c_type} is invalid")
+
+            d = self.symbols[c_type]
+            if symbol in d:
+                del d[symbol]
+
+        # Handle replace rules
+        for ln, c_type, old, new in self.replace:
+            if c_type not in self.DEF_SYMBOL_TYPES:
+                sys.exit(f"{name}:{ln}: {c_type} is invalid")
+
+            reftype = None
+
+            # Parse reference type when the type is specified
+
+            match = re.match(r"^\:c\:(data|func|macro|type)\:\`(.+)\`", new)
+            if match:
+                reftype = f":c:{match.group(1)}"
+                new = match.group(2)
+            else:
+                match = re.search(r"(\:ref)\:\`(.+)\`", new)
+                if match:
+                    reftype = match.group(1)
+                    new = match.group(2)
+
+            # If the replacement rule doesn't have a type, get default
+            if not reftype:
+                reftype = self.DEF_SYMBOL_TYPES[c_type].get("ref_type")
+                if not reftype:
+                    reftype = self.DEF_SYMBOL_TYPES[c_type].get("real_type")
+
+            new_ref = f"{reftype}:`{old} <{new}>`"
+
+            # Change self.symbols to use the replacement rule
+            if old in self.symbols[c_type]:
+                (_, ln) = self.symbols[c_type][old]
+                self.symbols[c_type][old] = (new_ref, ln)
+            else:
+                print(f"{name}:{ln}: Warning: can't find {old} {c_type}")
+
     def process_exceptions(self, fname: str):
         """
         Process exceptions file with rules to ignore or replace references.
         """
-        if not fname:
-            return
-
-        name = os.path.basename(fname)
-
-        with open(fname, "r", encoding="utf-8", errors="backslashreplace") as f:
-            for ln, line in enumerate(f):
-                ln += 1
-                line = line.strip()
-                if not line or line.startswith("#"):
-                    continue
-
-                # Handle ignore rules
-                match = re.match(r"^ignore\s+(\w+)\s+(\S+)", line)
-                if match:
-                    c_type = match.group(1)
-                    symbol = match.group(2)
-
-                    if c_type not in self.DEF_SYMBOL_TYPES:
-                        sys.exit(f"{name}:{ln}: {c_type} is invalid")
-
-                    d = self.symbols[c_type]
-                    if symbol in d:
-                        del d[symbol]
-
-                    continue
-
-                # Handle replace rules
-                match = re.match(r"^replace\s+(\S+)\s+(\S+)\s+(\S+)", line)
-                if not match:
-                    sys.exit(f"{name}:{ln}: invalid line: {line}")
-
-                c_type, old, new = match.groups()
-
-                if c_type not in self.DEF_SYMBOL_TYPES:
-                    sys.exit(f"{name}:{ln}: {c_type} is invalid")
-
-                reftype = None
-
-                # Parse reference type when the type is specified
-
-                match = re.match(r"^\:c\:(data|func|macro|type)\:\`(.+)\`", new)
-                if match:
-                    reftype = f":c:{match.group(1)}"
-                    new = match.group(2)
-                else:
-                    match = re.search(r"(\:ref)\:\`(.+)\`", new)
-                    if match:
-                        reftype = match.group(1)
-                        new = match.group(2)
-
-                # If the replacement rule doesn't have a type, get default
-                if not reftype:
-                    reftype = self.DEF_SYMBOL_TYPES[c_type].get("ref_type")
-                    if not reftype:
-                        reftype = self.DEF_SYMBOL_TYPES[c_type].get("real_type")
-
-                new_ref = f"{reftype}:`{old} <{new}>`"
-
-                # Change self.symbols to use the replacement rule
-                if old in self.symbols[c_type]:
-                    (_, ln) = self.symbols[c_type][old]
-                    self.symbols[c_type][old] = (new_ref, ln)
-                else:
-                    print(f"{name}:{ln}: Warning: can't find {old} {c_type}")
+        self.read_exceptions(fname)
+        self.apply_exceptions()
 
     def debug_print(self):
         """
