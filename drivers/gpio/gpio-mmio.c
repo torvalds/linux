@@ -57,6 +57,7 @@ o        `                     ~~~~\___/~~~~    ` controller in FPGA is ,.`
 #include <linux/types.h>
 
 #include <linux/gpio/driver.h>
+#include <linux/gpio/generic.h>
 
 #include "gpiolib.h"
 
@@ -124,20 +125,23 @@ static unsigned long bgpio_read32be(void __iomem *reg)
 
 static unsigned long bgpio_line2mask(struct gpio_chip *gc, unsigned int line)
 {
-	if (gc->be_bits)
-		return BIT(gc->bgpio_bits - 1 - line);
+	struct gpio_generic_chip *chip = to_gpio_generic_chip(gc);
+
+	if (chip->be_bits)
+		return BIT(chip->bits - 1 - line);
 	return BIT(line);
 }
 
 static int bgpio_get_set(struct gpio_chip *gc, unsigned int gpio)
 {
+	struct gpio_generic_chip *chip = to_gpio_generic_chip(gc);
 	unsigned long pinmask = bgpio_line2mask(gc, gpio);
-	bool dir = !!(gc->bgpio_dir & pinmask);
+	bool dir = !!(chip->sdir & pinmask);
 
 	if (dir)
-		return !!(gc->read_reg(gc->reg_set) & pinmask);
-	else
-		return !!(gc->read_reg(gc->reg_dat) & pinmask);
+		return !!(chip->read_reg(chip->reg_set) & pinmask);
+
+	return !!(chip->read_reg(chip->reg_dat) & pinmask);
 }
 
 /*
@@ -147,26 +151,28 @@ static int bgpio_get_set(struct gpio_chip *gc, unsigned int gpio)
 static int bgpio_get_set_multiple(struct gpio_chip *gc, unsigned long *mask,
 				  unsigned long *bits)
 {
-	unsigned long get_mask = 0;
-	unsigned long set_mask = 0;
+	struct gpio_generic_chip *chip = to_gpio_generic_chip(gc);
+	unsigned long get_mask = 0, set_mask = 0;
 
 	/* Make sure we first clear any bits that are zero when we read the register */
 	*bits &= ~*mask;
 
-	set_mask = *mask & gc->bgpio_dir;
-	get_mask = *mask & ~gc->bgpio_dir;
+	set_mask = *mask & chip->sdir;
+	get_mask = *mask & ~chip->sdir;
 
 	if (set_mask)
-		*bits |= gc->read_reg(gc->reg_set) & set_mask;
+		*bits |= chip->read_reg(chip->reg_set) & set_mask;
 	if (get_mask)
-		*bits |= gc->read_reg(gc->reg_dat) & get_mask;
+		*bits |= chip->read_reg(chip->reg_dat) & get_mask;
 
 	return 0;
 }
 
 static int bgpio_get(struct gpio_chip *gc, unsigned int gpio)
 {
-	return !!(gc->read_reg(gc->reg_dat) & bgpio_line2mask(gc, gpio));
+	struct gpio_generic_chip *chip = to_gpio_generic_chip(gc);
+
+	return !!(chip->read_reg(chip->reg_dat) & bgpio_line2mask(gc, gpio));
 }
 
 /*
@@ -175,9 +181,11 @@ static int bgpio_get(struct gpio_chip *gc, unsigned int gpio)
 static int bgpio_get_multiple(struct gpio_chip *gc, unsigned long *mask,
 			      unsigned long *bits)
 {
+	struct gpio_generic_chip *chip = to_gpio_generic_chip(gc);
+
 	/* Make sure we first clear any bits that are zero when we read the register */
 	*bits &= ~*mask;
-	*bits |= gc->read_reg(gc->reg_dat) & *mask;
+	*bits |= chip->read_reg(chip->reg_dat) & *mask;
 	return 0;
 }
 
@@ -187,6 +195,7 @@ static int bgpio_get_multiple(struct gpio_chip *gc, unsigned long *mask,
 static int bgpio_get_multiple_be(struct gpio_chip *gc, unsigned long *mask,
 				 unsigned long *bits)
 {
+	struct gpio_generic_chip *chip = to_gpio_generic_chip(gc);
 	unsigned long readmask = 0;
 	unsigned long val;
 	int bit;
@@ -199,7 +208,7 @@ static int bgpio_get_multiple_be(struct gpio_chip *gc, unsigned long *mask,
 		readmask |= bgpio_line2mask(gc, bit);
 
 	/* Read the register */
-	val = gc->read_reg(gc->reg_dat) & readmask;
+	val = chip->read_reg(chip->reg_dat) & readmask;
 
 	/*
 	 * Mirror the result into the "bits" result, this will give line 0
@@ -218,19 +227,20 @@ static int bgpio_set_none(struct gpio_chip *gc, unsigned int gpio, int val)
 
 static int bgpio_set(struct gpio_chip *gc, unsigned int gpio, int val)
 {
+	struct gpio_generic_chip *chip = to_gpio_generic_chip(gc);
 	unsigned long mask = bgpio_line2mask(gc, gpio);
 	unsigned long flags;
 
-	raw_spin_lock_irqsave(&gc->bgpio_lock, flags);
+	raw_spin_lock_irqsave(&chip->lock, flags);
 
 	if (val)
-		gc->bgpio_data |= mask;
+		chip->sdata |= mask;
 	else
-		gc->bgpio_data &= ~mask;
+		chip->sdata &= ~mask;
 
-	gc->write_reg(gc->reg_dat, gc->bgpio_data);
+	chip->write_reg(chip->reg_dat, chip->sdata);
 
-	raw_spin_unlock_irqrestore(&gc->bgpio_lock, flags);
+	raw_spin_unlock_irqrestore(&chip->lock, flags);
 
 	return 0;
 }
@@ -238,31 +248,32 @@ static int bgpio_set(struct gpio_chip *gc, unsigned int gpio, int val)
 static int bgpio_set_with_clear(struct gpio_chip *gc, unsigned int gpio,
 				int val)
 {
+	struct gpio_generic_chip *chip = to_gpio_generic_chip(gc);
 	unsigned long mask = bgpio_line2mask(gc, gpio);
 
 	if (val)
-		gc->write_reg(gc->reg_set, mask);
+		chip->write_reg(chip->reg_set, mask);
 	else
-		gc->write_reg(gc->reg_clr, mask);
+		chip->write_reg(chip->reg_clr, mask);
 
 	return 0;
 }
 
 static int bgpio_set_set(struct gpio_chip *gc, unsigned int gpio, int val)
 {
-	unsigned long mask = bgpio_line2mask(gc, gpio);
-	unsigned long flags;
+	struct gpio_generic_chip *chip = to_gpio_generic_chip(gc);
+	unsigned long mask = bgpio_line2mask(gc, gpio), flags;
 
-	raw_spin_lock_irqsave(&gc->bgpio_lock, flags);
+	raw_spin_lock_irqsave(&chip->lock, flags);
 
 	if (val)
-		gc->bgpio_data |= mask;
+		chip->sdata |= mask;
 	else
-		gc->bgpio_data &= ~mask;
+		chip->sdata &= ~mask;
 
-	gc->write_reg(gc->reg_set, gc->bgpio_data);
+	chip->write_reg(chip->reg_set, chip->sdata);
 
-	raw_spin_unlock_irqrestore(&gc->bgpio_lock, flags);
+	raw_spin_unlock_irqrestore(&chip->lock, flags);
 
 	return 0;
 }
@@ -272,12 +283,13 @@ static void bgpio_multiple_get_masks(struct gpio_chip *gc,
 				     unsigned long *set_mask,
 				     unsigned long *clear_mask)
 {
+	struct gpio_generic_chip *chip = to_gpio_generic_chip(gc);
 	int i;
 
 	*set_mask = 0;
 	*clear_mask = 0;
 
-	for_each_set_bit(i, mask, gc->bgpio_bits) {
+	for_each_set_bit(i, mask, chip->bits) {
 		if (test_bit(i, bits))
 			*set_mask |= bgpio_line2mask(gc, i);
 		else
@@ -290,25 +302,27 @@ static void bgpio_set_multiple_single_reg(struct gpio_chip *gc,
 					  unsigned long *bits,
 					  void __iomem *reg)
 {
-	unsigned long flags;
-	unsigned long set_mask, clear_mask;
+	struct gpio_generic_chip *chip = to_gpio_generic_chip(gc);
+	unsigned long flags, set_mask, clear_mask;
 
-	raw_spin_lock_irqsave(&gc->bgpio_lock, flags);
+	raw_spin_lock_irqsave(&chip->lock, flags);
 
 	bgpio_multiple_get_masks(gc, mask, bits, &set_mask, &clear_mask);
 
-	gc->bgpio_data |= set_mask;
-	gc->bgpio_data &= ~clear_mask;
+	chip->sdata |= set_mask;
+	chip->sdata &= ~clear_mask;
 
-	gc->write_reg(reg, gc->bgpio_data);
+	chip->write_reg(reg, chip->sdata);
 
-	raw_spin_unlock_irqrestore(&gc->bgpio_lock, flags);
+	raw_spin_unlock_irqrestore(&chip->lock, flags);
 }
 
 static int bgpio_set_multiple(struct gpio_chip *gc, unsigned long *mask,
 			       unsigned long *bits)
 {
-	bgpio_set_multiple_single_reg(gc, mask, bits, gc->reg_dat);
+	struct gpio_generic_chip *chip = to_gpio_generic_chip(gc);
+
+	bgpio_set_multiple_single_reg(gc, mask, bits, chip->reg_dat);
 
 	return 0;
 }
@@ -316,7 +330,9 @@ static int bgpio_set_multiple(struct gpio_chip *gc, unsigned long *mask,
 static int bgpio_set_multiple_set(struct gpio_chip *gc, unsigned long *mask,
 				  unsigned long *bits)
 {
-	bgpio_set_multiple_single_reg(gc, mask, bits, gc->reg_set);
+	struct gpio_generic_chip *chip = to_gpio_generic_chip(gc);
+
+	bgpio_set_multiple_single_reg(gc, mask, bits, chip->reg_set);
 
 	return 0;
 }
@@ -325,21 +341,24 @@ static int bgpio_set_multiple_with_clear(struct gpio_chip *gc,
 					 unsigned long *mask,
 					 unsigned long *bits)
 {
+	struct gpio_generic_chip *chip = to_gpio_generic_chip(gc);
 	unsigned long set_mask, clear_mask;
 
 	bgpio_multiple_get_masks(gc, mask, bits, &set_mask, &clear_mask);
 
 	if (set_mask)
-		gc->write_reg(gc->reg_set, set_mask);
+		chip->write_reg(chip->reg_set, set_mask);
 	if (clear_mask)
-		gc->write_reg(gc->reg_clr, clear_mask);
+		chip->write_reg(chip->reg_clr, clear_mask);
 
 	return 0;
 }
 
 static int bgpio_dir_return(struct gpio_chip *gc, unsigned int gpio, bool dir_out)
 {
-	if (!gc->bgpio_pinctrl)
+	struct gpio_generic_chip *chip = to_gpio_generic_chip(gc);
+
+	if (!chip->pinctrl)
 		return 0;
 
 	if (dir_out)
@@ -374,39 +393,42 @@ static int bgpio_simple_dir_out(struct gpio_chip *gc, unsigned int gpio,
 
 static int bgpio_dir_in(struct gpio_chip *gc, unsigned int gpio)
 {
+	struct gpio_generic_chip *chip = to_gpio_generic_chip(gc);
 	unsigned long flags;
 
-	raw_spin_lock_irqsave(&gc->bgpio_lock, flags);
+	raw_spin_lock_irqsave(&chip->lock, flags);
 
-	gc->bgpio_dir &= ~bgpio_line2mask(gc, gpio);
+	chip->sdir &= ~bgpio_line2mask(gc, gpio);
 
-	if (gc->reg_dir_in)
-		gc->write_reg(gc->reg_dir_in, ~gc->bgpio_dir);
-	if (gc->reg_dir_out)
-		gc->write_reg(gc->reg_dir_out, gc->bgpio_dir);
+	if (chip->reg_dir_in)
+		chip->write_reg(chip->reg_dir_in, ~chip->sdir);
+	if (chip->reg_dir_out)
+		chip->write_reg(chip->reg_dir_out, chip->sdir);
 
-	raw_spin_unlock_irqrestore(&gc->bgpio_lock, flags);
+	raw_spin_unlock_irqrestore(&chip->lock, flags);
 
 	return bgpio_dir_return(gc, gpio, false);
 }
 
 static int bgpio_get_dir(struct gpio_chip *gc, unsigned int gpio)
 {
+	struct gpio_generic_chip *chip = to_gpio_generic_chip(gc);
+
 	/* Return 0 if output, 1 if input */
-	if (gc->bgpio_dir_unreadable) {
-		if (gc->bgpio_dir & bgpio_line2mask(gc, gpio))
+	if (chip->dir_unreadable) {
+		if (chip->sdir & bgpio_line2mask(gc, gpio))
 			return GPIO_LINE_DIRECTION_OUT;
 		return GPIO_LINE_DIRECTION_IN;
 	}
 
-	if (gc->reg_dir_out) {
-		if (gc->read_reg(gc->reg_dir_out) & bgpio_line2mask(gc, gpio))
+	if (chip->reg_dir_out) {
+		if (chip->read_reg(chip->reg_dir_out) & bgpio_line2mask(gc, gpio))
 			return GPIO_LINE_DIRECTION_OUT;
 		return GPIO_LINE_DIRECTION_IN;
 	}
 
-	if (gc->reg_dir_in)
-		if (!(gc->read_reg(gc->reg_dir_in) & bgpio_line2mask(gc, gpio)))
+	if (chip->reg_dir_in)
+		if (!(chip->read_reg(chip->reg_dir_in) & bgpio_line2mask(gc, gpio)))
 			return GPIO_LINE_DIRECTION_OUT;
 
 	return GPIO_LINE_DIRECTION_IN;
@@ -414,18 +436,19 @@ static int bgpio_get_dir(struct gpio_chip *gc, unsigned int gpio)
 
 static void bgpio_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
 {
+	struct gpio_generic_chip *chip = to_gpio_generic_chip(gc);
 	unsigned long flags;
 
-	raw_spin_lock_irqsave(&gc->bgpio_lock, flags);
+	raw_spin_lock_irqsave(&chip->lock, flags);
 
-	gc->bgpio_dir |= bgpio_line2mask(gc, gpio);
+	chip->sdir |= bgpio_line2mask(gc, gpio);
 
-	if (gc->reg_dir_in)
-		gc->write_reg(gc->reg_dir_in, ~gc->bgpio_dir);
-	if (gc->reg_dir_out)
-		gc->write_reg(gc->reg_dir_out, gc->bgpio_dir);
+	if (chip->reg_dir_in)
+		chip->write_reg(chip->reg_dir_in, ~chip->sdir);
+	if (chip->reg_dir_out)
+		chip->write_reg(chip->reg_dir_out, chip->sdir);
 
-	raw_spin_unlock_irqrestore(&gc->bgpio_lock, flags);
+	raw_spin_unlock_irqrestore(&chip->lock, flags);
 }
 
 static int bgpio_dir_out_dir_first(struct gpio_chip *gc, unsigned int gpio,
@@ -445,31 +468,30 @@ static int bgpio_dir_out_val_first(struct gpio_chip *gc, unsigned int gpio,
 }
 
 static int bgpio_setup_accessors(struct device *dev,
-				 struct gpio_chip *gc,
+				 struct gpio_generic_chip *chip,
 				 bool byte_be)
 {
-
-	switch (gc->bgpio_bits) {
+	switch (chip->bits) {
 	case 8:
-		gc->read_reg	= bgpio_read8;
-		gc->write_reg	= bgpio_write8;
+		chip->read_reg	= bgpio_read8;
+		chip->write_reg	= bgpio_write8;
 		break;
 	case 16:
 		if (byte_be) {
-			gc->read_reg	= bgpio_read16be;
-			gc->write_reg	= bgpio_write16be;
+			chip->read_reg	= bgpio_read16be;
+			chip->write_reg	= bgpio_write16be;
 		} else {
-			gc->read_reg	= bgpio_read16;
-			gc->write_reg	= bgpio_write16;
+			chip->read_reg	= bgpio_read16;
+			chip->write_reg	= bgpio_write16;
 		}
 		break;
 	case 32:
 		if (byte_be) {
-			gc->read_reg	= bgpio_read32be;
-			gc->write_reg	= bgpio_write32be;
+			chip->read_reg	= bgpio_read32be;
+			chip->write_reg	= bgpio_write32be;
 		} else {
-			gc->read_reg	= bgpio_read32;
-			gc->write_reg	= bgpio_write32;
+			chip->read_reg	= bgpio_read32;
+			chip->write_reg	= bgpio_write32;
 		}
 		break;
 #if BITS_PER_LONG >= 64
@@ -479,13 +501,13 @@ static int bgpio_setup_accessors(struct device *dev,
 				"64 bit big endian byte order unsupported\n");
 			return -EINVAL;
 		} else {
-			gc->read_reg	= bgpio_read64;
-			gc->write_reg	= bgpio_write64;
+			chip->read_reg	= bgpio_read64;
+			chip->write_reg	= bgpio_write64;
 		}
 		break;
 #endif /* BITS_PER_LONG >= 64 */
 	default:
-		dev_err(dev, "unsupported data width %u bits\n", gc->bgpio_bits);
+		dev_err(dev, "unsupported data width %u bits\n", chip->bits);
 		return -EINVAL;
 	}
 
@@ -514,27 +536,25 @@ static int bgpio_setup_accessors(struct device *dev,
  *	- an input direction register (named "dirin") where a 1 bit indicates
  *	the GPIO is an input.
  */
-static int bgpio_setup_io(struct gpio_chip *gc,
-			  void __iomem *dat,
-			  void __iomem *set,
-			  void __iomem *clr,
-			  unsigned long flags)
+static int bgpio_setup_io(struct gpio_generic_chip *chip,
+			  const struct gpio_generic_chip_config *cfg)
 {
+	struct gpio_chip *gc = &chip->gc;
 
-	gc->reg_dat = dat;
-	if (!gc->reg_dat)
+	chip->reg_dat = cfg->dat;
+	if (!chip->reg_dat)
 		return -EINVAL;
 
-	if (set && clr) {
-		gc->reg_set = set;
-		gc->reg_clr = clr;
+	if (cfg->set && cfg->clr) {
+		chip->reg_set = cfg->set;
+		chip->reg_clr = cfg->clr;
 		gc->set = bgpio_set_with_clear;
 		gc->set_multiple = bgpio_set_multiple_with_clear;
-	} else if (set && !clr) {
-		gc->reg_set = set;
+	} else if (cfg->set && !cfg->clr) {
+		chip->reg_set = cfg->set;
 		gc->set = bgpio_set_set;
 		gc->set_multiple = bgpio_set_multiple_set;
-	} else if (flags & BGPIOF_NO_OUTPUT) {
+	} else if (cfg->flags & GPIO_GENERIC_NO_OUTPUT) {
 		gc->set = bgpio_set_none;
 		gc->set_multiple = NULL;
 	} else {
@@ -542,10 +562,10 @@ static int bgpio_setup_io(struct gpio_chip *gc,
 		gc->set_multiple = bgpio_set_multiple;
 	}
 
-	if (!(flags & BGPIOF_UNREADABLE_REG_SET) &&
-	    (flags & BGPIOF_READ_OUTPUT_REG_SET)) {
+	if (!(cfg->flags & GPIO_GENERIC_UNREADABLE_REG_SET) &&
+	    (cfg->flags & GPIO_GENERIC_READ_OUTPUT_REG_SET)) {
 		gc->get = bgpio_get_set;
-		if (!gc->be_bits)
+		if (!chip->be_bits)
 			gc->get_multiple = bgpio_get_set_multiple;
 		/*
 		 * We deliberately avoid assigning the ->get_multiple() call
@@ -556,7 +576,7 @@ static int bgpio_setup_io(struct gpio_chip *gc,
 		 */
 	} else {
 		gc->get = bgpio_get;
-		if (gc->be_bits)
+		if (chip->be_bits)
 			gc->get_multiple = bgpio_get_multiple_be;
 		else
 			gc->get_multiple = bgpio_get_multiple;
@@ -565,27 +585,27 @@ static int bgpio_setup_io(struct gpio_chip *gc,
 	return 0;
 }
 
-static int bgpio_setup_direction(struct gpio_chip *gc,
-				 void __iomem *dirout,
-				 void __iomem *dirin,
-				 unsigned long flags)
+static int bgpio_setup_direction(struct gpio_generic_chip *chip,
+				 const struct gpio_generic_chip_config *cfg)
 {
-	if (dirout || dirin) {
-		gc->reg_dir_out = dirout;
-		gc->reg_dir_in = dirin;
-		if (flags & BGPIOF_NO_SET_ON_INPUT)
+	struct gpio_chip *gc = &chip->gc;
+
+	if (cfg->dirout || cfg->dirin) {
+		chip->reg_dir_out = cfg->dirout;
+		chip->reg_dir_in = cfg->dirin;
+		if (cfg->flags & GPIO_GENERIC_NO_SET_ON_INPUT)
 			gc->direction_output = bgpio_dir_out_dir_first;
 		else
 			gc->direction_output = bgpio_dir_out_val_first;
 		gc->direction_input = bgpio_dir_in;
 		gc->get_direction = bgpio_get_dir;
 	} else {
-		if (flags & BGPIOF_NO_OUTPUT)
+		if (cfg->flags & GPIO_GENERIC_NO_OUTPUT)
 			gc->direction_output = bgpio_dir_out_err;
 		else
 			gc->direction_output = bgpio_simple_dir_out;
 
-		if (flags & BGPIOF_NO_INPUT)
+		if (cfg->flags & GPIO_GENERIC_NO_INPUT)
 			gc->direction_input = bgpio_dir_in_err;
 		else
 			gc->direction_input = bgpio_simple_dir_in;
@@ -594,117 +614,101 @@ static int bgpio_setup_direction(struct gpio_chip *gc,
 	return 0;
 }
 
-static int bgpio_request(struct gpio_chip *chip, unsigned gpio_pin)
+static int bgpio_request(struct gpio_chip *gc, unsigned int gpio_pin)
 {
-	if (gpio_pin >= chip->ngpio)
+	struct gpio_generic_chip *chip = to_gpio_generic_chip(gc);
+
+	if (gpio_pin >= gc->ngpio)
 		return -EINVAL;
 
-	if (chip->bgpio_pinctrl)
-		return gpiochip_generic_request(chip, gpio_pin);
+	if (chip->pinctrl)
+		return gpiochip_generic_request(gc, gpio_pin);
 
 	return 0;
 }
 
 /**
- * bgpio_init() - Initialize generic GPIO accessor functions
- * @gc: the GPIO chip to set up
- * @dev: the parent device of the new GPIO chip (compulsory)
- * @sz: the size (width) of the MMIO registers in bytes, typically 1, 2 or 4
- * @dat: MMIO address for the register to READ the value of the GPIO lines, it
- *	is expected that a 1 in the corresponding bit in this register means the
- *	line is asserted
- * @set: MMIO address for the register to SET the value of the GPIO lines, it is
- *	expected that we write the line with 1 in this register to drive the GPIO line
- *	high.
- * @clr: MMIO address for the register to CLEAR the value of the GPIO lines, it is
- *	expected that we write the line with 1 in this register to drive the GPIO line
- *	low. It is allowed to leave this address as NULL, in that case the SET register
- *	will be assumed to also clear the GPIO lines, by actively writing the line
- *	with 0.
- * @dirout: MMIO address for the register to set the line as OUTPUT. It is assumed
- *	that setting a line to 1 in this register will turn that line into an
- *	output line. Conversely, setting the line to 0 will turn that line into
- *	an input.
- * @dirin: MMIO address for the register to set this line as INPUT. It is assumed
- *	that setting a line to 1 in this register will turn that line into an
- *	input line. Conversely, setting the line to 0 will turn that line into
- *	an output.
- * @flags: Different flags that will affect the behaviour of the device, such as
- *	endianness etc.
+ * gpio_generic_chip_init() - Initialize a generic GPIO chip.
+ * @chip: Generic GPIO chip to set up.
+ * @cfg: Generic GPIO chip configuration.
+ *
+ * Returns 0 on success, negative error number on failure.
  */
-int bgpio_init(struct gpio_chip *gc, struct device *dev,
-	       unsigned long sz, void __iomem *dat, void __iomem *set,
-	       void __iomem *clr, void __iomem *dirout, void __iomem *dirin,
-	       unsigned long flags)
+int gpio_generic_chip_init(struct gpio_generic_chip *chip,
+			   const struct gpio_generic_chip_config *cfg)
 {
+	struct gpio_chip *gc = &chip->gc;
+	unsigned long flags = cfg->flags;
+	struct device *dev = cfg->dev;
 	int ret;
 
-	if (!is_power_of_2(sz))
+	if (!is_power_of_2(cfg->sz))
 		return -EINVAL;
 
-	gc->bgpio_bits = sz * 8;
-	if (gc->bgpio_bits > BITS_PER_LONG)
+	chip->bits = cfg->sz * 8;
+	if (chip->bits > BITS_PER_LONG)
 		return -EINVAL;
 
-	raw_spin_lock_init(&gc->bgpio_lock);
+	raw_spin_lock_init(&chip->lock);
 	gc->parent = dev;
 	gc->label = dev_name(dev);
 	gc->base = -1;
 	gc->request = bgpio_request;
-	gc->be_bits = !!(flags & BGPIOF_BIG_ENDIAN);
+	chip->be_bits = !!(flags & GPIO_GENERIC_BIG_ENDIAN);
 
 	ret = gpiochip_get_ngpios(gc, dev);
 	if (ret)
-		gc->ngpio = gc->bgpio_bits;
+		gc->ngpio = chip->bits;
 
-	ret = bgpio_setup_io(gc, dat, set, clr, flags);
+	ret = bgpio_setup_io(chip, cfg);
 	if (ret)
 		return ret;
 
-	ret = bgpio_setup_accessors(dev, gc, flags & BGPIOF_BIG_ENDIAN_BYTE_ORDER);
+	ret = bgpio_setup_accessors(dev, chip,
+				    flags & GPIO_GENERIC_BIG_ENDIAN_BYTE_ORDER);
 	if (ret)
 		return ret;
 
-	ret = bgpio_setup_direction(gc, dirout, dirin, flags);
+	ret = bgpio_setup_direction(chip, cfg);
 	if (ret)
 		return ret;
 
-	if (flags & BGPIOF_PINCTRL_BACKEND) {
-		gc->bgpio_pinctrl = true;
+	if (flags & GPIO_GENERIC_PINCTRL_BACKEND) {
+		chip->pinctrl = true;
 		/* Currently this callback is only used for pincontrol */
 		gc->free = gpiochip_generic_free;
 	}
 
-	gc->bgpio_data = gc->read_reg(gc->reg_dat);
+	chip->sdata = chip->read_reg(chip->reg_dat);
 	if (gc->set == bgpio_set_set &&
-			!(flags & BGPIOF_UNREADABLE_REG_SET))
-		gc->bgpio_data = gc->read_reg(gc->reg_set);
+			!(flags & GPIO_GENERIC_UNREADABLE_REG_SET))
+		chip->sdata = chip->read_reg(chip->reg_set);
 
-	if (flags & BGPIOF_UNREADABLE_REG_DIR)
-		gc->bgpio_dir_unreadable = true;
+	if (flags & GPIO_GENERIC_UNREADABLE_REG_DIR)
+		chip->dir_unreadable = true;
 
 	/*
 	 * Inspect hardware to find initial direction setting.
 	 */
-	if ((gc->reg_dir_out || gc->reg_dir_in) &&
-	    !(flags & BGPIOF_UNREADABLE_REG_DIR)) {
-		if (gc->reg_dir_out)
-			gc->bgpio_dir = gc->read_reg(gc->reg_dir_out);
-		else if (gc->reg_dir_in)
-			gc->bgpio_dir = ~gc->read_reg(gc->reg_dir_in);
+	if ((chip->reg_dir_out || chip->reg_dir_in) &&
+	    !(flags & GPIO_GENERIC_UNREADABLE_REG_DIR)) {
+		if (chip->reg_dir_out)
+			chip->sdir = chip->read_reg(chip->reg_dir_out);
+		else if (chip->reg_dir_in)
+			chip->sdir = ~chip->read_reg(chip->reg_dir_in);
 		/*
 		 * If we have two direction registers, synchronise
 		 * input setting to output setting, the library
 		 * can not handle a line being input and output at
 		 * the same time.
 		 */
-		if (gc->reg_dir_out && gc->reg_dir_in)
-			gc->write_reg(gc->reg_dir_in, ~gc->bgpio_dir);
+		if (chip->reg_dir_out && chip->reg_dir_in)
+			chip->write_reg(chip->reg_dir_in, ~chip->sdir);
 	}
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(bgpio_init);
+EXPORT_SYMBOL_GPL(gpio_generic_chip_init);
 
 #if IS_ENABLED(CONFIG_GPIO_GENERIC_PLATFORM)
 
@@ -730,12 +734,15 @@ static const struct of_device_id bgpio_of_match[] = {
 	{ .compatible = "brcm,bcm6345-gpio" },
 	{ .compatible = "wd,mbl-gpio" },
 	{ .compatible = "ni,169445-nand-gpio" },
+	{ .compatible = "intel,ixp4xx-expansion-bus-mmio-gpio" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, bgpio_of_match);
 
 static int bgpio_pdev_probe(struct platform_device *pdev)
 {
+	struct gpio_generic_chip_config config;
+	struct gpio_generic_chip *gen_gc;
 	struct device *dev = &pdev->dev;
 	struct resource *r;
 	void __iomem *dat;
@@ -747,7 +754,6 @@ static int bgpio_pdev_probe(struct platform_device *pdev)
 	unsigned long flags = 0;
 	unsigned int base;
 	int err;
-	struct gpio_chip *gc;
 	const char *label;
 
 	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dat");
@@ -776,23 +782,34 @@ static int bgpio_pdev_probe(struct platform_device *pdev)
 	if (IS_ERR(dirin))
 		return PTR_ERR(dirin);
 
-	gc = devm_kzalloc(&pdev->dev, sizeof(*gc), GFP_KERNEL);
-	if (!gc)
+	gen_gc = devm_kzalloc(&pdev->dev, sizeof(*gen_gc), GFP_KERNEL);
+	if (!gen_gc)
 		return -ENOMEM;
 
 	if (device_is_big_endian(dev))
-		flags |= BGPIOF_BIG_ENDIAN_BYTE_ORDER;
+		flags |= GPIO_GENERIC_BIG_ENDIAN_BYTE_ORDER;
 
 	if (device_property_read_bool(dev, "no-output"))
-		flags |= BGPIOF_NO_OUTPUT;
+		flags |= GPIO_GENERIC_NO_OUTPUT;
 
-	err = bgpio_init(gc, dev, sz, dat, set, clr, dirout, dirin, flags);
+	config = (struct gpio_generic_chip_config) {
+		.dev = dev,
+		.sz = sz,
+		.dat = dat,
+		.set = set,
+		.clr = clr,
+		.dirout = dirout,
+		.dirin = dirin,
+		.flags = flags,
+	};
+
+	err = gpio_generic_chip_init(gen_gc, &config);
 	if (err)
 		return err;
 
 	err = device_property_read_string(dev, "label", &label);
 	if (!err)
-		gc->label = label;
+		gen_gc->gc.label = label;
 
 	/*
 	 * This property *must not* be used in device-tree sources, it's only
@@ -800,11 +817,11 @@ static int bgpio_pdev_probe(struct platform_device *pdev)
 	 */
 	err = device_property_read_u32(dev, "gpio-mmio,base", &base);
 	if (!err && base <= INT_MAX)
-		gc->base = base;
+		gen_gc->gc.base = base;
 
-	platform_set_drvdata(pdev, gc);
+	platform_set_drvdata(pdev, &gen_gc->gc);
 
-	return devm_gpiochip_add_data(&pdev->dev, gc, NULL);
+	return devm_gpiochip_add_data(&pdev->dev, &gen_gc->gc, NULL);
 }
 
 static const struct platform_device_id bgpio_id_table[] = {

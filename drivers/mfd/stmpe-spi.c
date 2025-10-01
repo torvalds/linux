@@ -156,3 +156,4 @@ module_exit(stmpe_exit);
 
 MODULE_DESCRIPTION("STMPE MFD SPI Interface Driver");
 MODULE_AUTHOR("Viresh Kumar <vireshk@kernel.org>");
+MODULE_LICENSE("GPL v2");

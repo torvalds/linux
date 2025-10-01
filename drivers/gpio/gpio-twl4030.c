@@ -597,9 +597,7 @@ no_irqs:
 
 		ret = devm_add_action_or_reset(&pdev->dev, gpio_twl4030_power_off_action, d);
 		if (ret)
-			return dev_err_probe(&pdev->dev, ret,
-					     "failed to install power off handler\n");
-
+			return ret;
 	}
 
 	return 0;
