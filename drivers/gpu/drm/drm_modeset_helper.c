@@ -203,10 +203,10 @@ int drm_mode_config_helper_suspend(struct drm_device *dev)
 	if (dev->mode_config.poll_enabled)
 		drm_kms_helper_poll_disable(dev);
 
-	drm_client_dev_suspend(dev, false);
+	drm_client_dev_suspend(dev);
 	state = drm_atomic_helper_suspend(dev);
 	if (IS_ERR(state)) {
-		drm_client_dev_resume(dev, false);
+		drm_client_dev_resume(dev);
 
 		/*
 		 * Don't enable polling if it was never initialized
@@ -252,7 +252,7 @@ int drm_mode_config_helper_resume(struct drm_device *dev)
 		DRM_ERROR("Failed to resume (%d)\n", ret);
 	dev->mode_config.suspend_state = NULL;
 
-	drm_client_dev_resume(dev, false);
+	drm_client_dev_resume(dev);
 
 	/*
 	 * Don't enable polling if it is not initialized
