@@ -1588,8 +1588,8 @@ static const struct i915_power_well_desc_list xe2lpd_power_wells[] = {
 	I915_PW_DESCRIPTORS(icl_power_wells_pw_1),
 	I915_PW_DESCRIPTORS(xe2lpd_power_wells_dcoff),
 	I915_PW_DESCRIPTORS(xelpdp_power_wells_main),
-	I915_PW_DESCRIPTORS(xelpdp_power_wells_aux),
 	I915_PW_DESCRIPTORS(xe2lpd_power_wells_pica),
+	I915_PW_DESCRIPTORS(xelpdp_power_wells_aux),
 };
 
 /*
@@ -1710,8 +1710,8 @@ static const struct i915_power_well_desc_list xe3lpd_power_wells[] = {
 	I915_PW_DESCRIPTORS(icl_power_wells_pw_1),
 	I915_PW_DESCRIPTORS(xe3lpd_power_wells_dcoff),
 	I915_PW_DESCRIPTORS(xe3lpd_power_wells_main),
-	I915_PW_DESCRIPTORS(xelpdp_power_wells_aux),
 	I915_PW_DESCRIPTORS(xe2lpd_power_wells_pica),
+	I915_PW_DESCRIPTORS(xelpdp_power_wells_aux),
 };
 
 static const struct i915_power_well_desc wcl_power_wells_main[] = {
@@ -1768,8 +1768,8 @@ static const struct i915_power_well_desc_list wcl_power_wells[] = {
 	I915_PW_DESCRIPTORS(icl_power_wells_pw_1),
 	I915_PW_DESCRIPTORS(xe3lpd_power_wells_dcoff),
 	I915_PW_DESCRIPTORS(wcl_power_wells_main),
-	I915_PW_DESCRIPTORS(wcl_power_wells_aux),
 	I915_PW_DESCRIPTORS(xe2lpd_power_wells_pica),
+	I915_PW_DESCRIPTORS(wcl_power_wells_aux),
 };
 
 static void init_power_well_domains(const struct i915_power_well_instance *inst,
