@@ -1491,14 +1491,17 @@ static struct fwnode_handle *acpi_graph_get_next_endpoint(
 	if (!port)
 		return NULL;
 
-	endpoint = acpi_get_next_subnode(port, prev);
-	while (!endpoint) {
-		port = acpi_get_next_subnode(fwnode, port);
-		if (!port)
+	do {
+		endpoint = acpi_get_next_subnode(port, prev);
+		if (endpoint)
 			break;
-		if (is_acpi_graph_node(port, "port"))
-			endpoint = acpi_get_next_subnode(port, NULL);
-	}
+
+		prev = NULL;
+
+		do {
+			port = acpi_get_next_subnode(fwnode, port);
+		} while (port && !is_acpi_graph_node(port, "port"));
+	} while (port);
 
 	/*
 	 * The names of the endpoint nodes begin with "endpoint@" followed by
