@@ -142,7 +142,7 @@ static void subtest_basic_usdt(bool optimized)
 		goto cleanup;
 #endif
 
-	alled = TRIGGER(1);
+	called = TRIGGER(1);
 
 	ASSERT_EQ(bss->usdt0_called, called, "usdt0_called");
 	ASSERT_EQ(bss->usdt3_called, called, "usdt3_called");
