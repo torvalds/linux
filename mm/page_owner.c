@@ -47,6 +47,7 @@ static DEFINE_SPINLOCK(stack_list_lock);
 
 #define STACK_PRINT_FLAG_STACK		0x1
 #define STACK_PRINT_FLAG_PAGES		0x2
+#define STACK_PRINT_FLAG_HANDLE		0x4
 
 struct stack_print_ctx {
 	struct stack *stack;
@@ -924,6 +925,8 @@ static int stack_print(struct seq_file *m, void *v)
 		for (i = 0; i < nr_entries; i++)
 			seq_printf(m, " %pS\n", (void *)entries[i]);
 	}
+	if (ctx->flags & STACK_PRINT_FLAG_HANDLE)
+		seq_printf(m, "handle: %d\n", stack_record->handle.handle);
 	if (ctx->flags & STACK_PRINT_FLAG_PAGES)
 		seq_printf(m, "nr_base_pages: %d\n\n", nr_base_pages);
 
@@ -993,6 +996,10 @@ static int __init pageowner_init(void)
 	dir = debugfs_create_dir("page_owner_stacks", NULL);
 	debugfs_create_file("show_stacks", 0400, dir,
 			    (void *)(STACK_PRINT_FLAG_STACK |
+				     STACK_PRINT_FLAG_PAGES),
+			    &page_owner_stack_operations);
+	debugfs_create_file("show_handles", 0400, dir,
+			    (void *)(STACK_PRINT_FLAG_HANDLE |
 				     STACK_PRINT_FLAG_PAGES),
 			    &page_owner_stack_operations);
 	debugfs_create_file("count_threshold", 0600, dir, NULL,
