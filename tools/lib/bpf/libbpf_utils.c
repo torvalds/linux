@@ -13,7 +13,6 @@
 #include <errno.h>
 #include <inttypes.h>
 #include <linux/kernel.h>
-#include <linux/unaligned.h>
 
 #include "libbpf.h"
 #include "libbpf_internal.h"
@@ -149,6 +148,16 @@ const char *libbpf_errstr(int err)
 	}
 }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpacked"
+struct __packed_u32 { __u32 __val; } __attribute__((packed));
+#pragma GCC diagnostic pop
+
+#define get_unaligned_be32(p) be32_to_cpu((((struct __packed_u32 *)(p))->__val))
+#define put_unaligned_be32(v, p) do {							\
+	((struct __packed_u32 *)(p))->__val = cpu_to_be32(v);				\
+} while (0)
+
 #define SHA256_BLOCK_LENGTH 64
 #define Ch(x, y, z) (((x) & (y)) ^ (~(x) & (z)))
 #define Maj(x, y, z) (((x) & (y)) ^ ((x) & (z)) ^ ((y) & (z)))
@@ -232,7 +241,7 @@ void libbpf_sha256(const void *data, size_t len, __u8 out[SHA256_DIGEST_LENGTH])
 
 	memcpy(final_data, data + len - final_len, final_len);
 	final_data[final_len] = 0x80;
-	final_len = round_up(final_len + 9, SHA256_BLOCK_LENGTH);
+	final_len = roundup(final_len + 9, SHA256_BLOCK_LENGTH);
 	memcpy(&final_data[final_len - 8], &bitcount, 8);
 
 	sha256_blocks(state, final_data, final_len / SHA256_BLOCK_LENGTH);
