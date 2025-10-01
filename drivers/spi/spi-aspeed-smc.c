@@ -7,6 +7,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
@@ -96,7 +97,6 @@ struct aspeed_spi {
 	const struct aspeed_spi_data	*data;
 
 	void __iomem		*regs;
-	void __iomem		*ahb_base;
 	u32			 ahb_base_phy;
 	u32			 ahb_window_size;
 	u32			 num_cs;
@@ -395,6 +395,13 @@ static int aspeed_spi_set_window(struct aspeed_spi *aspi)
 	size_t window_size;
 
 	for (cs = 0; cs < aspi->data->max_cs; cs++) {
+		if (aspi->chips[cs].ahb_base) {
+			iounmap(aspi->chips[cs].ahb_base);
+			aspi->chips[cs].ahb_base = NULL;
+		}
+	}
+
+	for (cs = 0; cs < aspi->data->max_cs; cs++) {
 		seg_reg = seg_reg_base + cs * 4;
 		seg_val_backup = readl(seg_reg);
 
@@ -425,12 +432,28 @@ static int aspeed_spi_set_window(struct aspeed_spi *aspi)
 		else
 			dev_dbg(dev, "CE%d window closed\n", cs);
 
-		aspi->chips[cs].ahb_base = aspi->ahb_base + offset;
 		offset += window_size;
 		if (offset > aspi->ahb_window_size) {
 			dev_err(dev, "CE%d offset value 0x%llx is too large.\n",
 				cs, (u64)offset);
 			return -ENOSPC;
+		}
+
+		/*
+		 * No need to map the address deocding range when
+		 * - window size is 0.
+		 * - the CS is unused.
+		 */
+		if (window_size == 0 || cs >= aspi->num_cs)
+			continue;
+
+		aspi->chips[cs].ahb_base =
+			devm_ioremap(aspi->dev, start, window_size);
+		if (!aspi->chips[cs].ahb_base) {
+			dev_err(aspi->dev,
+				"Fail to remap window [0x%.9llx - 0x%.9llx]\n",
+				(u64)start, (u64)end - 1);
+			return -ENOMEM;
 		}
 	}
 
@@ -447,7 +470,9 @@ static int aspeed_spi_chip_set_default_window(struct aspeed_spi *aspi)
 
 	/* No segment registers for the AST2400 SPI controller */
 	if (aspi->data == &ast2400_spi_data) {
-		aspi->chips[0].ahb_base = aspi->ahb_base;
+		aspi->chips[0].ahb_base = devm_ioremap(aspi->dev,
+						       aspi->ahb_base_phy,
+						       aspi->ahb_window_size);
 		aspi->chips[0].ahb_window_size = aspi->ahb_window_size;
 		return 0;
 	}
@@ -839,10 +864,10 @@ static int aspeed_spi_probe(struct platform_device *pdev)
 	if (IS_ERR(aspi->regs))
 		return PTR_ERR(aspi->regs);
 
-	aspi->ahb_base = devm_platform_get_and_ioremap_resource(pdev, 1, &res);
-	if (IS_ERR(aspi->ahb_base)) {
-		dev_err(dev, "missing AHB mapping window\n");
-		return PTR_ERR(aspi->ahb_base);
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	if (IS_ERR(res)) {
+		dev_err(dev, "missing AHB memory\n");
+		return PTR_ERR(res);
 	}
 
 	aspi->ahb_window_size = resource_size(res);
