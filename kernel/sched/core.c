@@ -5845,19 +5845,6 @@ static void prev_balance(struct rq *rq, struct task_struct *prev,
 	const struct sched_class *start_class = prev->sched_class;
 	const struct sched_class *class;
 
-#ifdef CONFIG_SCHED_CLASS_EXT
-	/*
-	 * SCX requires a balance() call before every pick_task() including when
-	 * waking up from SCHED_IDLE. If @start_class is below SCX, start from
-	 * SCX instead. Also, set a flag to detect missing balance() call.
-	 */
-	if (scx_enabled()) {
-		rq->scx.flags |= SCX_RQ_BAL_PENDING;
-		if (sched_class_above(&ext_sched_class, start_class))
-			start_class = &ext_sched_class;
-	}
-#endif
-
 	/*
 	 * We must do the balancing pass before put_prev_task(), such
 	 * that when we release the rq->lock the task is in the same

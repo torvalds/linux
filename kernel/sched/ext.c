@@ -2013,7 +2013,7 @@ static int balance_one(struct rq *rq, struct task_struct *prev)
 
 	lockdep_assert_rq_held(rq);
 	rq->scx.flags |= SCX_RQ_IN_BALANCE;
-	rq->scx.flags &= ~(SCX_RQ_BAL_PENDING | SCX_RQ_BAL_KEEP);
+	rq->scx.flags &= ~SCX_RQ_BAL_KEEP;
 
 	if ((sch->ops.flags & SCX_OPS_HAS_CPU_PREEMPT) &&
 	    unlikely(rq->scx.cpu_released)) {
@@ -2117,40 +2117,6 @@ no_tasks:
 has_tasks:
 	rq->scx.flags &= ~SCX_RQ_IN_BALANCE;
 	return true;
-}
-
-static int balance_scx(struct rq *rq, struct task_struct *prev,
-		       struct rq_flags *rf)
-{
-	int ret;
-
-	rq_unpin_lock(rq, rf);
-
-	ret = balance_one(rq, prev);
-
-#ifdef CONFIG_SCHED_SMT
-	/*
-	 * When core-sched is enabled, this ops.balance() call will be followed
-	 * by pick_task_scx() on this CPU and the SMT siblings. Balance the
-	 * siblings too.
-	 */
-	if (sched_core_enabled(rq)) {
-		const struct cpumask *smt_mask = cpu_smt_mask(cpu_of(rq));
-		int scpu;
-
-		for_each_cpu_andnot(scpu, smt_mask, cpumask_of(cpu_of(rq))) {
-			struct rq *srq = cpu_rq(scpu);
-			struct task_struct *sprev = srq->curr;
-
-			WARN_ON_ONCE(__rq_lockp(rq) != __rq_lockp(srq));
-			update_rq_clock(srq);
-			balance_one(srq, sprev);
-		}
-	}
-#endif
-	rq_repin_lock(rq, rf);
-
-	return ret;
 }
 
 static void process_ddsp_deferred_locals(struct rq *rq)
@@ -2335,38 +2301,19 @@ static struct task_struct *first_local_task(struct rq *rq)
 static struct task_struct *pick_task_scx(struct rq *rq, struct rq_flags *rf)
 {
 	struct task_struct *prev = rq->curr;
+	bool keep_prev, kick_idle = false;
 	struct task_struct *p;
-	bool keep_prev = rq->scx.flags & SCX_RQ_BAL_KEEP;
-	bool kick_idle = false;
 
-	/*
-	 * WORKAROUND:
-	 *
-	 * %SCX_RQ_BAL_KEEP should be set iff $prev is on SCX as it must just
-	 * have gone through balance_scx(). Unfortunately, there currently is a
-	 * bug where fair could say yes on balance() but no on pick_task(),
-	 * which then ends up calling pick_task_scx() without preceding
-	 * balance_scx().
-	 *
-	 * Keep running @prev if possible and avoid stalling from entering idle
-	 * without balancing.
-	 *
-	 * Once fair is fixed, remove the workaround and trigger WARN_ON_ONCE()
-	 * if pick_task_scx() is called without preceding balance_scx().
-	 */
-	if (unlikely(rq->scx.flags & SCX_RQ_BAL_PENDING)) {
-		if (prev->scx.flags & SCX_TASK_QUEUED) {
-			keep_prev = true;
-		} else {
-			keep_prev = false;
-			kick_idle = true;
-		}
-	} else if (unlikely(keep_prev &&
-			    prev->sched_class != &ext_sched_class)) {
-		/*
-		 * Can happen while enabling as SCX_RQ_BAL_PENDING assertion is
-		 * conditional on scx_enabled() and may have been skipped.
-		 */
+	rq_modified_clear(rq);
+	rq_unpin_lock(rq, rf);
+	balance_one(rq, prev);
+	rq_repin_lock(rq, rf);
+	if (rq_modified_above(rq, &ext_sched_class))
+		return RETRY_TASK;
+
+	keep_prev = rq->scx.flags & SCX_RQ_BAL_KEEP;
+	if (unlikely(keep_prev &&
+		     prev->sched_class != &ext_sched_class)) {
 		WARN_ON_ONCE(scx_enable_state() == SCX_ENABLED);
 		keep_prev = false;
 	}
@@ -3243,7 +3190,6 @@ DEFINE_SCHED_CLASS(ext) = {
 
 	.wakeup_preempt		= wakeup_preempt_scx,
 
-	.balance		= balance_scx,
 	.pick_task		= pick_task_scx,
 
 	.put_prev_task		= put_prev_task_scx,
