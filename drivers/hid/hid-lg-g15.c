@@ -26,6 +26,9 @@
 #define LG_G510_FEATURE_BACKLIGHT_RGB	0x05
 #define LG_G510_FEATURE_POWER_ON_RGB	0x06
 
+#define LG_G510_INPUT_MACRO_KEYS	0x03
+#define LG_G510_INPUT_KBD_BACKLIGHT	0x04
+
 #define LG_G13_INPUT_REPORT		0x01
 #define LG_G13_FEATURE_M_KEYS_LEDS	0x05
 #define LG_G13_FEATURE_BACKLIGHT_RGB	0x07
@@ -422,6 +425,20 @@ static int lg_g510_get_initial_led_brightness(struct lg_g15_data *g15, int i)
 		g15->leds[i].blue  = 255;
 		g15->leds[i].brightness = 0;
 	}
+
+	if (i)
+		return 0;
+
+	ret = hid_hw_raw_request(g15->hdev, LG_G510_INPUT_KBD_BACKLIGHT,
+				 g15->transfer_buf, 2,
+				 HID_INPUT_REPORT, HID_REQ_GET_REPORT);
+	if (ret != 2) {
+		/* This can happen when a KVM switch is used, so only warn. */
+		hid_warn(g15->hdev, "Error getting backlight state: %d\n", ret);
+		return 0;
+	}
+
+	g15->backlight_disabled = g15->transfer_buf[1] & 0x04;
 
 	return 0;
 }
@@ -849,14 +866,24 @@ static int lg_g510_event(struct lg_g15_data *g15, u8 *data)
 
 static int lg_g510_leds_event(struct lg_g15_data *g15, u8 *data)
 {
+	struct lg_g15_led *g15_led = &g15->leds[LG_G15_KBD_BRIGHTNESS];
 	bool backlight_disabled;
+
+	backlight_disabled = data[1] & 0x04;
+	if (backlight_disabled == g15->backlight_disabled)
+		return 0;
+
+	led_classdev_notify_brightness_hw_changed(
+		&g15_led->mcdev.led_cdev,
+		backlight_disabled ? 0 : g15_led->brightness);
+
+	g15->backlight_disabled = backlight_disabled;
 
 	/*
 	 * The G510 ignores backlight updates when the backlight is turned off
 	 * through the light toggle button on the keyboard, to work around this
 	 * we queue a workitem to sync values when the backlight is turned on.
 	 */
-	backlight_disabled = data[1] & 0x04;
 	if (!backlight_disabled)
 		schedule_work(&g15->work);
 
@@ -892,9 +919,9 @@ static int lg_g15_raw_event(struct hid_device *hdev, struct hid_report *report,
 		break;
 	case LG_G510:
 	case LG_G510_USB_AUDIO:
-		if (data[0] == 0x03 && size == 5)
+		if (data[0] == LG_G510_INPUT_MACRO_KEYS && size == 5)
 			return lg_g510_event(g15, data);
-		if (data[0] == 0x04 && size == 2)
+		if (data[0] == LG_G510_INPUT_KBD_BACKLIGHT && size == 2)
 			return lg_g510_leds_event(g15, data);
 		break;
 	}
@@ -933,6 +960,8 @@ static void lg_g15_setup_led_rgb(struct lg_g15_data *g15, int index)
 			lg_g510_kbd_led_set;
 		gled->mcdev.led_cdev.brightness_get =
 			lg_g510_kbd_led_get;
+		if (index == LG_G15_KBD_BRIGHTNESS)
+			g15->leds[index].mcdev.led_cdev.flags = LED_BRIGHT_HW_CHANGED;
 	}
 	gled->mcdev.led_cdev.max_brightness = 255;
 	gled->mcdev.num_colors = 3;
