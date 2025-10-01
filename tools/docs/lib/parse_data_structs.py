@@ -53,11 +53,19 @@ class ParseDataStructs:
 
         replace <type> <old_symbol> <new_reference>
 
-    Replaces how old_symbol with a new reference. The new_reference can be:
+       Replaces how old_symbol with a new reference. The new_reference can be:
+
         - A simple symbol name;
         - A full Sphinx reference.
 
-    On both cases, <type> can be:
+    3. Namespace rules
+
+        namespace <namespace>
+
+       Sets C namespace to be used during cross-reference generation. Can
+       be overridden by replace rules.
+
+    On ignore and replace rules, <type> can be:
         - ioctl: for defines that end with _IO*, e.g. ioctl definitions
         - define: for other defines
         - symbol: for symbols defined within enums;
@@ -71,6 +79,8 @@ class ParseDataStructs:
         ignore ioctl VIDIOC_ENUM_FMT
         replace ioctl VIDIOC_DQBUF vidioc_qbuf
         replace define V4L2_EVENT_MD_FL_HAVE_FRAME_SEQ :c:type:`v4l2_event_motion_det`
+
+        namespace MC
     """
 
     # Parser regexes with multiple ways to capture enums and structs
@@ -140,6 +150,7 @@ class ParseDataStructs:
 
         self.symbols = {}
 
+        self.namespace = None
         self.ignore = []
         self.replace = []
 
@@ -171,6 +182,11 @@ class ParseDataStructs:
                 if match:
                     self.replace.append((ln, match.group(1), match.group(2),
                                          match.group(3)))
+                    continue
+
+                match = re.match(r"^namespace\s+(\S+)", line)
+                if match:
+                    self.namespace = match.group(1)
                     continue
 
                 sys.exit(f"{name}:{ln}: invalid line: {line}")
@@ -237,18 +253,23 @@ class ParseDataStructs:
         ref_type = defs.get("ref_type")
 
         # Determine ref_link based on symbol type
-        if ref_type:
-            if symbol_type == "enum":
-                ref_link = f"{ref_type}:`{symbol}`"
-            else:
-                if not ref_name:
-                    ref_name = symbol.lower()
+        if ref_type or self.namespace:
+            if not ref_name:
+                ref_name = symbol.lower()
 
-                # c-type references don't support hash
-                if ref_type == ":ref" and replace_underscores:
-                    ref_name = ref_name.replace("_", "-")
+            # c-type references don't support hash
+            if ref_type == ":ref" and replace_underscores:
+                ref_name = ref_name.replace("_", "-")
 
+            # C domain references may have namespaces
+            if ref_type.startswith(":c:"):
+                if self.namespace:
+                    ref_name = f"{self.namespace}.{ref_name}"
+
+            if ref_type:
                 ref_link = f"{ref_type}:`{symbol} <{ref_name}>`"
+            else:
+                ref_link = f"`{symbol} <{ref_name}>`"
         else:
             ref_link = symbol
 
