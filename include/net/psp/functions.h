@@ -34,7 +34,7 @@ unsigned int psp_key_size(u32 version);
 void psp_sk_assoc_free(struct sock *sk);
 void psp_twsk_init(struct inet_timewait_sock *tw, const struct sock *sk);
 void psp_twsk_assoc_free(struct inet_timewait_sock *tw);
-void psp_reply_set_decrypted(struct sk_buff *skb);
+void psp_reply_set_decrypted(const struct sock *sk, struct sk_buff *skb);
 
 static inline struct psp_assoc *psp_sk_assoc(const struct sock *sk)
 {
@@ -160,7 +160,7 @@ static inline void
 psp_twsk_init(struct inet_timewait_sock *tw, const struct sock *sk) { }
 static inline void psp_twsk_assoc_free(struct inet_timewait_sock *tw) { }
 static inline void
-psp_reply_set_decrypted(struct sk_buff *skb) { }
+psp_reply_set_decrypted(const struct sock *sk, struct sk_buff *skb) { }
 
 static inline struct psp_assoc *psp_sk_assoc(const struct sock *sk)
 {
