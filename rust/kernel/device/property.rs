@@ -11,6 +11,7 @@ use crate::{
     alloc::KVec,
     bindings,
     error::{to_result, Result},
+    fmt,
     prelude::*,
     str::{CStr, CString},
     types::{ARef, Opaque},
@@ -68,16 +69,16 @@ impl FwNode {
         unsafe { bindings::is_of_node(self.as_raw()) }
     }
 
-    /// Returns an object that implements [`Display`](core::fmt::Display) for
+    /// Returns an object that implements [`Display`](fmt::Display) for
     /// printing the name of a node.
     ///
     /// This is an alternative to the default `Display` implementation, which
     /// prints the full path.
-    pub fn display_name(&self) -> impl core::fmt::Display + '_ {
+    pub fn display_name(&self) -> impl fmt::Display + '_ {
         struct FwNodeDisplayName<'a>(&'a FwNode);
 
-        impl core::fmt::Display for FwNodeDisplayName<'_> {
-            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        impl fmt::Display for FwNodeDisplayName<'_> {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
                 // SAFETY: `self` is valid by its type invariant.
                 let name = unsafe { bindings::fwnode_get_name(self.0.as_raw()) };
                 if name.is_null() {
@@ -87,7 +88,7 @@ impl FwNode {
                 // - `fwnode_get_name` returns null or a valid C string.
                 // - `name` was checked to be non-null.
                 let name = unsafe { CStr::from_char_ptr(name) };
-                write!(f, "{name}")
+                fmt::Display::fmt(name, f)
             }
         }
 
@@ -351,8 +352,8 @@ impl FwNodeReferenceArgs {
     }
 }
 
-impl core::fmt::Debug for FwNodeReferenceArgs {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+impl fmt::Debug for FwNodeReferenceArgs {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{:?}", self.as_slice())
     }
 }
@@ -377,8 +378,8 @@ enum Node<'a> {
     Owned(ARef<FwNode>),
 }
 
-impl core::fmt::Display for FwNode {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+impl fmt::Display for FwNode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // The logic here is the same as the one in lib/vsprintf.c
         // (fwnode_full_name_string).
 
@@ -413,9 +414,9 @@ impl core::fmt::Display for FwNode {
                 // SAFETY: `fwnode_get_name_prefix` returns null or a
                 // valid C string.
                 let prefix = unsafe { CStr::from_char_ptr(prefix) };
-                write!(f, "{prefix}")?;
+                fmt::Display::fmt(prefix, f)?;
             }
-            write!(f, "{}", fwnode.display_name())?;
+            fmt::Display::fmt(&fwnode.display_name(), f)?;
         }
 
         Ok(())

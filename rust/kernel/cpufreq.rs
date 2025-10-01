@@ -27,7 +27,6 @@ use crate::clk::Clk;
 use core::{
     cell::UnsafeCell,
     marker::PhantomData,
-    mem::MaybeUninit,
     ops::{Deref, DerefMut},
     pin::Pin,
     ptr,
@@ -1013,12 +1012,11 @@ impl<T: Driver> Registration<T> {
         } else {
             None
         },
-        // SAFETY: All zeros is a valid value for `bindings::cpufreq_driver`.
-        ..unsafe { MaybeUninit::zeroed().assume_init() }
+        ..pin_init::zeroed()
     };
 
     const fn copy_name(name: &'static CStr) -> [c_char; CPUFREQ_NAME_LEN] {
-        let src = name.as_bytes_with_nul();
+        let src = name.to_bytes_with_nul();
         let mut dst = [0; CPUFREQ_NAME_LEN];
 
         build_assert!(src.len() <= CPUFREQ_NAME_LEN);
