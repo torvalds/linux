@@ -1613,6 +1613,15 @@ static vm_fault_t dmirror_devmem_fault(struct vm_fault *vmf)
 	nr = 1 << order;
 
 	/*
+	 * When folios are partially mapped, we can't rely on the folio
+	 * order of vmf->page as the folio might not be fully split yet
+	 */
+	if (vmf->pte) {
+		order = 0;
+		nr = 1;
+	}
+
+	/*
 	 * Consider a per-cpu cache of src and dst pfns, but with
 	 * large number of cpus that might not scale well.
 	 */
