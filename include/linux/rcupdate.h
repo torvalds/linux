@@ -962,6 +962,20 @@ static inline notrace void rcu_read_unlock_sched_notrace(void)
 	preempt_enable_notrace();
 }
 
+static __always_inline void rcu_read_lock_dont_migrate(void)
+{
+	if (IS_ENABLED(CONFIG_PREEMPT_RCU))
+		migrate_disable();
+	rcu_read_lock();
+}
+
+static inline void rcu_read_unlock_migrate(void)
+{
+	rcu_read_unlock();
+	if (IS_ENABLED(CONFIG_PREEMPT_RCU))
+		migrate_enable();
+}
+
 /**
  * RCU_INIT_POINTER() - initialize an RCU protected pointer
  * @p: The pointer to be initialized.

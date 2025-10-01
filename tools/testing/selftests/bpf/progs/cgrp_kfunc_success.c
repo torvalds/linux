@@ -221,3 +221,15 @@ int BPF_PROG(test_cgrp_from_id, struct cgroup *cgrp, const char *path)
 
 	return 0;
 }
+
+SEC("syscall")
+int test_cgrp_from_id_ns(void *ctx)
+{
+	struct cgroup *cg;
+
+	cg = bpf_cgroup_from_id(1);
+	if (!cg)
+		return 42;
+	bpf_cgroup_release(cg);
+	return 0;
+}

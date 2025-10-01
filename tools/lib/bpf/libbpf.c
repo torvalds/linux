@@ -35,6 +35,7 @@
 #include <linux/perf_event.h>
 #include <linux/bpf_perf_event.h>
 #include <linux/ring_buffer.h>
+#include <linux/unaligned.h>
 #include <sys/epoll.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
@@ -496,6 +497,7 @@ struct bpf_program {
 	__u32 line_info_rec_size;
 	__u32 line_info_cnt;
 	__u32 prog_flags;
+	__u8  hash[SHA256_DIGEST_LENGTH];
 };
 
 struct bpf_struct_ops {
@@ -575,6 +577,7 @@ struct bpf_map {
 	bool autocreate;
 	bool autoattach;
 	__u64 map_extra;
+	struct bpf_program *excl_prog;
 };
 
 enum extern_type {
@@ -1013,34 +1016,32 @@ find_struct_ops_kern_types(struct bpf_object *obj, const char *tname_raw,
 	const struct btf_member *kern_data_member;
 	struct btf *btf = NULL;
 	__s32 kern_vtype_id, kern_type_id;
-	char tname[256];
+	char tname[192], stname[256];
 	__u32 i;
 
 	snprintf(tname, sizeof(tname), "%.*s",
 		 (int)bpf_core_essential_name_len(tname_raw), tname_raw);
 
-	kern_type_id = find_ksym_btf_id(obj, tname, BTF_KIND_STRUCT,
-					&btf, mod_btf);
-	if (kern_type_id < 0) {
-		pr_warn("struct_ops init_kern: struct %s is not found in kernel BTF\n",
-			tname);
-		return kern_type_id;
-	}
-	kern_type = btf__type_by_id(btf, kern_type_id);
+	snprintf(stname, sizeof(stname), "%s%s", STRUCT_OPS_VALUE_PREFIX, tname);
 
-	/* Find the corresponding "map_value" type that will be used
-	 * in map_update(BPF_MAP_TYPE_STRUCT_OPS).  For example,
-	 * find "struct bpf_struct_ops_tcp_congestion_ops" from the
-	 * btf_vmlinux.
+	/* Look for the corresponding "map_value" type that will be used
+	 * in map_update(BPF_MAP_TYPE_STRUCT_OPS) first, figure out the btf
+	 * and the mod_btf.
+	 * For example, find "struct bpf_struct_ops_tcp_congestion_ops".
 	 */
-	kern_vtype_id = find_btf_by_prefix_kind(btf, STRUCT_OPS_VALUE_PREFIX,
-						tname, BTF_KIND_STRUCT);
+	kern_vtype_id = find_ksym_btf_id(obj, stname, BTF_KIND_STRUCT, &btf, mod_btf);
 	if (kern_vtype_id < 0) {
-		pr_warn("struct_ops init_kern: struct %s%s is not found in kernel BTF\n",
-			STRUCT_OPS_VALUE_PREFIX, tname);
+		pr_warn("struct_ops init_kern: struct %s is not found in kernel BTF\n", stname);
 		return kern_vtype_id;
 	}
 	kern_vtype = btf__type_by_id(btf, kern_vtype_id);
+
+	kern_type_id = btf__find_by_name_kind(btf, tname, BTF_KIND_STRUCT);
+	if (kern_type_id < 0) {
+		pr_warn("struct_ops init_kern: struct %s is not found in kernel BTF\n", tname);
+		return kern_type_id;
+	}
+	kern_type = btf__type_by_id(btf, kern_type_id);
 
 	/* Find "struct tcp_congestion_ops" from
 	 * struct bpf_struct_ops_tcp_congestion_ops {
@@ -1054,8 +1055,8 @@ find_struct_ops_kern_types(struct bpf_object *obj, const char *tname_raw,
 			break;
 	}
 	if (i == btf_vlen(kern_vtype)) {
-		pr_warn("struct_ops init_kern: struct %s data is not found in struct %s%s\n",
-			tname, STRUCT_OPS_VALUE_PREFIX, tname);
+		pr_warn("struct_ops init_kern: struct %s data is not found in struct %s\n",
+			tname, stname);
 		return -EINVAL;
 	}
 
@@ -4485,6 +4486,44 @@ bpf_object__section_to_libbpf_map_type(const struct bpf_object *obj, int shndx)
 	}
 }
 
+static int bpf_prog_compute_hash(struct bpf_program *prog)
+{
+	struct bpf_insn *purged;
+	int i, err = 0;
+
+	purged = calloc(prog->insns_cnt, BPF_INSN_SZ);
+	if (!purged)
+		return -ENOMEM;
+
+	/* If relocations have been done, the map_fd needs to be
+	 * discarded for the digest calculation.
+	 */
+	for (i = 0; i < prog->insns_cnt; i++) {
+		purged[i] = prog->insns[i];
+		if (purged[i].code == (BPF_LD | BPF_IMM | BPF_DW) &&
+		    (purged[i].src_reg == BPF_PSEUDO_MAP_FD ||
+		     purged[i].src_reg == BPF_PSEUDO_MAP_VALUE)) {
+			purged[i].imm = 0;
+			i++;
+			if (i >= prog->insns_cnt ||
+			    prog->insns[i].code != 0 ||
+			    prog->insns[i].dst_reg != 0 ||
+			    prog->insns[i].src_reg != 0 ||
+			    prog->insns[i].off != 0) {
+				err = -EINVAL;
+				goto out;
+			}
+			purged[i] = prog->insns[i];
+			purged[i].imm = 0;
+		}
+	}
+	libbpf_sha256(purged, prog->insns_cnt * sizeof(struct bpf_insn),
+		      prog->hash);
+out:
+	free(purged);
+	return err;
+}
+
 static int bpf_program__record_reloc(struct bpf_program *prog,
 				     struct reloc_desc *reloc_desc,
 				     __u32 insn_idx, const char *sym_name,
@@ -5093,6 +5132,16 @@ static bool map_is_reuse_compat(const struct bpf_map *map, int map_fd)
 		return false;
 	}
 
+	/*
+	 * bpf_get_map_info_by_fd() for DEVMAP will always return flags with
+	 * BPF_F_RDONLY_PROG set, but it generally is not set at map creation time.
+	 * Thus, ignore the BPF_F_RDONLY_PROG flag in the flags returned from
+	 * bpf_get_map_info_by_fd() when checking for compatibility with an
+	 * existing DEVMAP.
+	 */
+	if (map->def.type == BPF_MAP_TYPE_DEVMAP || map->def.type == BPF_MAP_TYPE_DEVMAP_HASH)
+		map_info.map_flags &= ~BPF_F_RDONLY_PROG;
+
 	return (map_info.type == map->def.type &&
 		map_info.key_size == map->def.key_size &&
 		map_info.value_size == map->def.value_size &&
@@ -5224,6 +5273,14 @@ static int bpf_object__create_map(struct bpf_object *obj, struct bpf_map *map, b
 	create_attr.token_fd = obj->token_fd;
 	if (obj->token_fd)
 		create_attr.map_flags |= BPF_F_TOKEN_FD;
+	if (map->excl_prog) {
+		err = bpf_prog_compute_hash(map->excl_prog);
+		if (err)
+			return err;
+
+		create_attr.excl_prog_hash = map->excl_prog->hash;
+		create_attr.excl_prog_hash_size = SHA256_DIGEST_LENGTH;
+	}
 
 	if (bpf_map__is_struct_ops(map)) {
 		create_attr.btf_vmlinux_value_type_id = map->btf_vmlinux_value_type_id;
@@ -10514,6 +10571,27 @@ int bpf_map__set_inner_map_fd(struct bpf_map *map, int fd)
 	return 0;
 }
 
+int bpf_map__set_exclusive_program(struct bpf_map *map, struct bpf_program *prog)
+{
+	if (map_is_created(map)) {
+		pr_warn("exclusive programs must be set before map creation\n");
+		return libbpf_err(-EINVAL);
+	}
+
+	if (map->obj != prog->obj) {
+		pr_warn("excl_prog and map must be from the same bpf object\n");
+		return libbpf_err(-EINVAL);
+	}
+
+	map->excl_prog = prog;
+	return 0;
+}
+
+struct bpf_program *bpf_map__exclusive_program(struct bpf_map *map)
+{
+	return map->excl_prog;
+}
+
 static struct bpf_map *
 __bpf_map__iter(const struct bpf_map *m, const struct bpf_object *obj, int i)
 {
@@ -14206,4 +14284,101 @@ void bpf_object__destroy_skeleton(struct bpf_object_skeleton *s)
 	free(s->maps);
 	free(s->progs);
 	free(s);
+}
+
+static inline __u32 ror32(__u32 v, int bits)
+{
+	return (v >> bits) | (v << (32 - bits));
+}
+
+#define SHA256_BLOCK_LENGTH 64
+#define Ch(x, y, z) (((x) & (y)) ^ (~(x) & (z)))
+#define Maj(x, y, z) (((x) & (y)) ^ ((x) & (z)) ^ ((y) & (z)))
+#define Sigma_0(x) (ror32((x), 2) ^ ror32((x), 13) ^ ror32((x), 22))
+#define Sigma_1(x) (ror32((x), 6) ^ ror32((x), 11) ^ ror32((x), 25))
+#define sigma_0(x) (ror32((x), 7) ^ ror32((x), 18) ^ ((x) >> 3))
+#define sigma_1(x) (ror32((x), 17) ^ ror32((x), 19) ^ ((x) >> 10))
+
+static const __u32 sha256_K[64] = {
+	0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1,
+	0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
+	0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786,
+	0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+	0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147,
+	0x06ca6351, 0x14292967, 0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13,
+	0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85, 0xa2bfe8a1, 0xa81a664b,
+	0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+	0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a,
+	0x5b9cca4f, 0x682e6ff3, 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208,
+	0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
+};
+
+#define SHA256_ROUND(i, a, b, c, d, e, f, g, h)                                \
+	{                                                                      \
+		__u32 tmp = h + Sigma_1(e) + Ch(e, f, g) + sha256_K[i] + w[i]; \
+		d += tmp;                                                      \
+		h = tmp + Sigma_0(a) + Maj(a, b, c);                           \
+	}
+
+static void sha256_blocks(__u32 state[8], const __u8 *data, size_t nblocks)
+{
+	while (nblocks--) {
+		__u32 a = state[0];
+		__u32 b = state[1];
+		__u32 c = state[2];
+		__u32 d = state[3];
+		__u32 e = state[4];
+		__u32 f = state[5];
+		__u32 g = state[6];
+		__u32 h = state[7];
+		__u32 w[64];
+		int i;
+
+		for (i = 0; i < 16; i++)
+			w[i] = get_unaligned_be32(&data[4 * i]);
+		for (; i < ARRAY_SIZE(w); i++)
+			w[i] = sigma_1(w[i - 2]) + w[i - 7] +
+			       sigma_0(w[i - 15]) + w[i - 16];
+		for (i = 0; i < ARRAY_SIZE(w); i += 8) {
+			SHA256_ROUND(i + 0, a, b, c, d, e, f, g, h);
+			SHA256_ROUND(i + 1, h, a, b, c, d, e, f, g);
+			SHA256_ROUND(i + 2, g, h, a, b, c, d, e, f);
+			SHA256_ROUND(i + 3, f, g, h, a, b, c, d, e);
+			SHA256_ROUND(i + 4, e, f, g, h, a, b, c, d);
+			SHA256_ROUND(i + 5, d, e, f, g, h, a, b, c);
+			SHA256_ROUND(i + 6, c, d, e, f, g, h, a, b);
+			SHA256_ROUND(i + 7, b, c, d, e, f, g, h, a);
+		}
+		state[0] += a;
+		state[1] += b;
+		state[2] += c;
+		state[3] += d;
+		state[4] += e;
+		state[5] += f;
+		state[6] += g;
+		state[7] += h;
+		data += SHA256_BLOCK_LENGTH;
+	}
+}
+
+void libbpf_sha256(const void *data, size_t len, __u8 out[SHA256_DIGEST_LENGTH])
+{
+	__u32 state[8] = { 0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
+			   0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19 };
+	const __be64 bitcount = cpu_to_be64((__u64)len * 8);
+	__u8 final_data[2 * SHA256_BLOCK_LENGTH] = { 0 };
+	size_t final_len = len % SHA256_BLOCK_LENGTH;
+	int i;
+
+	sha256_blocks(state, data, len / SHA256_BLOCK_LENGTH);
+
+	memcpy(final_data, data + len - final_len, final_len);
+	final_data[final_len] = 0x80;
+	final_len = round_up(final_len + 9, SHA256_BLOCK_LENGTH);
+	memcpy(&final_data[final_len - 8], &bitcount, 8);
+
+	sha256_blocks(state, final_data, final_len / SHA256_BLOCK_LENGTH);
+
+	for (i = 0; i < ARRAY_SIZE(state); i++)
+		put_unaligned_be32(state[i], &out[4 * i]);
 }

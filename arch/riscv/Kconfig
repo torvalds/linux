@@ -708,7 +708,6 @@ config TOOLCHAIN_HAS_ZACAS
 
 config RISCV_ISA_ZACAS
 	bool "Zacas extension support for atomic CAS"
-	depends on TOOLCHAIN_HAS_ZACAS
 	depends on RISCV_ALTERNATIVE
 	default y
 	help

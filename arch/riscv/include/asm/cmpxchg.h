@@ -134,6 +134,7 @@
 ({										\
 	if (IS_ENABLED(CONFIG_RISCV_ISA_ZABHA) &&				\
 	    IS_ENABLED(CONFIG_RISCV_ISA_ZACAS) &&				\
+	    IS_ENABLED(CONFIG_TOOLCHAIN_HAS_ZACAS) &&				\
 	    riscv_has_extension_unlikely(RISCV_ISA_EXT_ZABHA) &&		\
 	    riscv_has_extension_unlikely(RISCV_ISA_EXT_ZACAS)) {		\
 		r = o;								\
@@ -181,6 +182,7 @@
 		       r, p, co, o, n)					\
 ({									\
 	if (IS_ENABLED(CONFIG_RISCV_ISA_ZACAS) &&			\
+	    IS_ENABLED(CONFIG_TOOLCHAIN_HAS_ZACAS) &&			\
 	    riscv_has_extension_unlikely(RISCV_ISA_EXT_ZACAS)) {	\
 		r = o;							\
 									\
@@ -316,7 +318,7 @@
 	arch_cmpxchg_release((ptr), (o), (n));				\
 })
 
-#if defined(CONFIG_64BIT) && defined(CONFIG_RISCV_ISA_ZACAS)
+#if defined(CONFIG_64BIT) && defined(CONFIG_RISCV_ISA_ZACAS) && defined(CONFIG_TOOLCHAIN_HAS_ZACAS)
 
 #define system_has_cmpxchg128()        riscv_has_extension_unlikely(RISCV_ISA_EXT_ZACAS)
 
@@ -352,7 +354,7 @@ union __u128_halves {
 #define arch_cmpxchg128_local(ptr, o, n)					\
 	__arch_cmpxchg128((ptr), (o), (n), "")
 
-#endif /* CONFIG_64BIT && CONFIG_RISCV_ISA_ZACAS */
+#endif /* CONFIG_64BIT && CONFIG_RISCV_ISA_ZACAS && CONFIG_TOOLCHAIN_HAS_ZACAS */
 
 #ifdef CONFIG_RISCV_ISA_ZAWRS
 /*
