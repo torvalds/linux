@@ -83,6 +83,19 @@ struct regulator_supply_alias {
 	const char *alias_supply;
 };
 
+/*
+ * Work item used to forward regulator events.
+ *
+ * @work: workqueue entry
+ * @rdev: regulator device to notify (consumer receiving the forwarded event)
+ * @event: event code to be forwarded
+ */
+struct regulator_event_work {
+	struct work_struct work;
+	struct regulator_dev *rdev;
+	unsigned long event;
+};
+
 static int _regulator_is_enabled(struct regulator_dev *rdev);
 static int _regulator_disable(struct regulator *regulator);
 static int _regulator_get_error_flags(struct regulator_dev *rdev, unsigned int *flags);
@@ -1659,6 +1672,104 @@ static int set_machine_constraints(struct regulator_dev *rdev)
 }
 
 /**
+ * regulator_event_work_fn - process a deferred regulator event
+ * @work: work_struct queued by the notifier
+ *
+ * Calls the regulator's notifier chain in process context while holding
+ * the rdev lock, then releases the device reference.
+ */
+static void regulator_event_work_fn(struct work_struct *work)
+{
+	struct regulator_event_work *rew =
+		container_of(work, struct regulator_event_work, work);
+	struct regulator_dev *rdev = rew->rdev;
+	int ret;
+
+	regulator_lock(rdev);
+	ret = regulator_notifier_call_chain(rdev, rew->event, NULL);
+	regulator_unlock(rdev);
+	if (ret == NOTIFY_BAD)
+		dev_err(rdev_get_dev(rdev), "failed to forward regulator event\n");
+
+	put_device(rdev_get_dev(rdev));
+	kfree(rew);
+}
+
+/**
+ * regulator_event_forward_notifier - notifier callback for supply events
+ * @nb:    notifier block embedded in the regulator
+ * @event: regulator event code
+ * @data:  unused
+ *
+ * Packages the event into a work item and schedules it in process context.
+ * Takes a reference on @rdev->dev to pin the regulator until the work
+ * completes (see put_device() in the worker).
+ *
+ * Return: NOTIFY_OK on success, NOTIFY_DONE for events that are not forwarded.
+ */
+static int regulator_event_forward_notifier(struct notifier_block *nb,
+					    unsigned long event,
+					    void __always_unused *data)
+{
+	struct regulator_dev *rdev = container_of(nb, struct regulator_dev,
+						  supply_fwd_nb);
+	struct regulator_event_work *rew;
+
+	switch (event) {
+	case REGULATOR_EVENT_UNDER_VOLTAGE:
+		break;
+	default:
+		/* Only forward allowed events downstream. */
+		return NOTIFY_DONE;
+	}
+
+	rew = kmalloc(sizeof(*rew), GFP_ATOMIC);
+	if (!rew)
+		return NOTIFY_DONE;
+
+	get_device(rdev_get_dev(rdev));
+	rew->rdev = rdev;
+	rew->event = event;
+	INIT_WORK(&rew->work, regulator_event_work_fn);
+
+	queue_work(system_highpri_wq, &rew->work);
+
+	return NOTIFY_OK;
+}
+
+/**
+ * register_regulator_event_forwarding - enable supply event forwarding
+ * @rdev: regulator device
+ *
+ * Registers a notifier on the regulator's supply so that supply events
+ * are forwarded to the consumer regulator via the deferred work handler.
+ *
+ * Return: 0 on success, -EALREADY if already enabled, or a negative error code.
+ */
+static int register_regulator_event_forwarding(struct regulator_dev *rdev)
+{
+	int ret;
+
+	if (!rdev->supply)
+		return 0; /* top-level regulator: nothing to forward */
+
+	if (rdev->supply_fwd_nb.notifier_call)
+		return -EALREADY;
+
+	rdev->supply_fwd_nb.notifier_call = regulator_event_forward_notifier;
+
+	ret = regulator_register_notifier(rdev->supply, &rdev->supply_fwd_nb);
+	if (ret) {
+		dev_err(&rdev->dev, "failed to register supply notifier: %pe\n",
+			ERR_PTR(ret));
+		rdev->supply_fwd_nb.notifier_call = NULL;
+		return ret;
+	}
+
+	return 0;
+}
+
+/**
  * set_supply - set regulator supply regulator
  * @rdev: regulator (locked)
  * @supply_rdev: supply regulator (locked))
@@ -2143,6 +2254,16 @@ static int regulator_resolve_supply(struct regulator_dev *rdev)
 		put_device(&r->dev);
 		goto out;
 	}
+
+	/*
+	 * Automatically register for event forwarding from the new supply.
+	 * This creates the downstream propagation link for events like
+	 * under-voltage.
+	 */
+	ret = register_regulator_event_forwarding(rdev);
+	if (ret < 0)
+		rdev_warn(rdev, "Failed to register event forwarding: %pe\n",
+			  ERR_PTR(ret));
 
 	regulator_unlock_two(rdev, r, &ww_ctx);
 
@@ -6031,6 +6152,9 @@ void regulator_unregister(struct regulator_dev *rdev)
 		return;
 
 	if (rdev->supply) {
+		regulator_unregister_notifier(rdev->supply,
+					      &rdev->supply_fwd_nb);
+
 		while (rdev->use_count--)
 			regulator_disable(rdev->supply);
 		regulator_put(rdev->supply);
