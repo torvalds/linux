@@ -481,6 +481,8 @@ static inline bool folio_test_pmd_mappable(struct folio *folio)
 
 vm_fault_t do_huge_pmd_numa_page(struct vm_fault *vmf);
 
+vm_fault_t do_huge_pmd_device_private(struct vm_fault *vmf);
+
 extern struct folio *huge_zero_folio;
 extern unsigned long huge_zero_pfn;
 
@@ -658,6 +660,11 @@ static inline spinlock_t *pud_trans_huge_lock(pud_t *pud,
 }
 
 static inline vm_fault_t do_huge_pmd_numa_page(struct vm_fault *vmf)
+{
+	return 0;
+}
+
+static inline vm_fault_t do_huge_pmd_device_private(struct vm_fault *vmf)
 {
 	return 0;
 }
