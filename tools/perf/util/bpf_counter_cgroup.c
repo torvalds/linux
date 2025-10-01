@@ -13,6 +13,7 @@
 #include <linux/zalloc.h>
 #include <linux/perf_event.h>
 #include <api/fs/fs.h>
+#include <bpf/bpf.h>
 #include <perf/bpf_perf.h>
 
 #include "affinity.h"
