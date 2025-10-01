@@ -661,7 +661,7 @@ static void *worker_trigger(void *arg)
 		rounds++;
 	}
 
-	printf("tid %d trigger rounds: %lu\n", gettid(), rounds);
+	printf("tid %ld trigger rounds: %lu\n", sys_gettid(), rounds);
 	return NULL;
 }
 
@@ -704,7 +704,7 @@ static void *worker_attach(void *arg)
 		rounds++;
 	}
 
-	printf("tid %d attach rounds: %lu hits: %d\n", gettid(), rounds, skel->bss->executed);
+	printf("tid %ld attach rounds: %lu hits: %d\n", sys_gettid(), rounds, skel->bss->executed);
 	uprobe_syscall_executed__destroy(skel);
 	free(ref);
 	return NULL;
