@@ -650,7 +650,7 @@ class SphinxBuilder:
             if not sphinxbuild and target != "mandocs":
                 sys.exit(f"Error: {self.sphinxbuild} not found in PATH.\n")
 
-        if builder == "latex":
+        if target == "pdfdocs":
             if not self.pdflatex_cmd and not self.latexmk_cmd:
                 sys.exit("Error: pdflatex or latexmk required for PDF generation")
 
