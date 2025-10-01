@@ -916,7 +916,8 @@ static int stack_print(struct seq_file *m, void *v)
 
 	nr_base_pages = refcount_read(&stack_record->count) - 1;
 
-	if (nr_base_pages < 1 || nr_base_pages < page_owner_pages_threshold)
+	if (ctx->flags & STACK_PRINT_FLAG_PAGES &&
+	    (nr_base_pages < 1 || nr_base_pages < page_owner_pages_threshold))
 		return 0;
 
 	if (ctx->flags & STACK_PRINT_FLAG_STACK) {
@@ -928,7 +929,8 @@ static int stack_print(struct seq_file *m, void *v)
 	if (ctx->flags & STACK_PRINT_FLAG_HANDLE)
 		seq_printf(m, "handle: %d\n", stack_record->handle.handle);
 	if (ctx->flags & STACK_PRINT_FLAG_PAGES)
-		seq_printf(m, "nr_base_pages: %d\n\n", nr_base_pages);
+		seq_printf(m, "nr_base_pages: %d\n", nr_base_pages);
+	seq_putc(m, '\n');
 
 	return 0;
 }
@@ -1001,6 +1003,10 @@ static int __init pageowner_init(void)
 	debugfs_create_file("show_handles", 0400, dir,
 			    (void *)(STACK_PRINT_FLAG_HANDLE |
 				     STACK_PRINT_FLAG_PAGES),
+			    &page_owner_stack_operations);
+	debugfs_create_file("show_stacks_handles", 0400, dir,
+			    (void *)(STACK_PRINT_FLAG_STACK |
+				     STACK_PRINT_FLAG_HANDLE),
 			    &page_owner_stack_operations);
 	debugfs_create_file("count_threshold", 0600, dir, NULL,
 			    &proc_page_owner_threshold);
