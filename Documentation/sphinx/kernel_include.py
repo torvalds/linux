@@ -214,14 +214,16 @@ class KernelInclude(Directive):
         - a TOC table containing cross references.
         """
         parser = ParseDataStructs()
-        parser.parse_file(path)
 
         if 'exception-file' in self.options:
             source_dir = os.path.dirname(os.path.abspath(
                 self.state_machine.input_lines.source(
                     self.lineno - self.state_machine.input_offset - 1)))
             exceptions_file = os.path.join(source_dir, self.options['exception-file'])
-            parser.process_exceptions(exceptions_file)
+        else:
+            exceptions_file = None
+
+        parser.parse_file(path, exceptions_file)
 
         # Store references on a symbol dict to be used at check time
         if 'warn-broken' in self.options:
