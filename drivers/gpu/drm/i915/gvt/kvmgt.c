@@ -1369,8 +1369,8 @@ static long intel_vgpu_ioctl(struct vfio_device *vfio_dev, unsigned int cmd,
 			ret = vfio_set_irqs_validate_and_prepare(&hdr, max,
 						VFIO_PCI_NUM_IRQS, &data_size);
 			if (ret) {
-				gvt_vgpu_err("intel:vfio_set_irqs_validate_and_prepare failed\n");
-				return -EINVAL;
+				gvt_vgpu_err("vfio_set_irqs_validate_and_prepare failed\n");
+				return ret;
 			}
 
 			data = memdup_user((void __user *)(arg + minsz),
