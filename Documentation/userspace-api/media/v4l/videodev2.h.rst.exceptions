@@ -1,5 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0
 
+# All symbols are mapped inside V4L C domain namespace
+namespace V4L
+
 # Ignore header name
 ignore define _UAPI__LINUX_VIDEODEV2_H
 

@@ -2,10 +2,12 @@
 
 .. _videodev:
 
-*******************************
-Video For Linux Two Header File
-*******************************
+***************************************
+Video For Linux Two Header uAPI Symbols
+***************************************
 
 .. kernel-include:: include/uapi/linux/videodev2.h
     :generate-cross-refs:
     :exception-file: videodev2.h.rst.exceptions
+    :toc:
+    :warn-broken:

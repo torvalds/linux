@@ -105,6 +105,7 @@ logger = logging.getLogger(__name__)
 RE_DOMAIN_REF = re.compile(r'\\ :(ref|c:type|c:func):`([^<`]+)(?:<([^>]+)>)?`\\')
 RE_SIMPLE_REF = re.compile(r'`([^`]+)`')
 RE_LINENO_REF = re.compile(r'^\s*-\s+LINENO_(\d+):\s+(.*)')
+RE_SPLIT_DOMAIN = re.compile(r"(.*)\.(.*)")
 
 def ErrorString(exc):  # Shamelessly stolen from docutils
     return f'{exc.__class__.__name}: {exc}'
@@ -399,6 +400,67 @@ class KernelInclude(Directive):
 
 reported = set()
 
+DOMAIN_INFO = {}
+
+def fill_domain_info(env):
+    """
+    Get supported reference types for each Sphinx domain and C namespaces
+    """
+    if DOMAIN_INFO:
+        return
+
+    for domain_name, domain_instance in env.domains.items():
+        try:
+            object_types = list(domain_instance.object_types.keys())
+            DOMAIN_INFO[domain_name] = object_types
+        except AttributeError:
+            # Ignore domains that we can't retrieve object types, if any
+            pass
+
+def get_suggestions(app, env, node,
+                    original_target, original_domain, original_reftype):
+    """Check if target exists in the other domain or with different reftypes."""
+    original_target = original_target.lower()
+
+    # Remove namespace if present
+    if '.' in original_target:
+        original_target = original_target.split(".")[-1]
+
+    targets = set([
+        original_target,
+        original_target.replace("-", "_"),
+        original_target.replace("_", "-"),
+    ])
+
+    # Propose some suggestions, if possible
+    # The code below checks not only variants of the target, but also it
+    # works when .. c:namespace:: targets setting a different C namespace
+    # is in place
+
+    suggestions = []
+    for target in sorted(targets):
+        for domain in DOMAIN_INFO.keys():
+            domain_obj = env.get_domain(domain)
+            for name, dispname, objtype, docname, anchor, priority in domain_obj.get_objects():
+                lower_name = name.lower()
+
+                if domain == "c":
+                    # Check if name belongs to a different C namespace
+                    match = RE_SPLIT_DOMAIN.match(name)
+                    if match:
+                        if target != match.group(2).lower():
+                            continue
+                    else:
+                        if target !=  lower_name:
+                            continue
+                else:
+                    if target != lower_name:
+                        continue
+
+                suggestions.append(f"\t{domain}:{objtype}:`{name}` (from {docname})")
+
+    return suggestions
+
 def check_missing_refs(app, env, node, contnode):
     """Check broken refs for the files it creates xrefs"""
     if not node.source:
@@ -414,17 +476,23 @@ def check_missing_refs(app, env, node, contnode):
     if node.source not in xref_files:
         return None
 
+    fill_domain_info(env)
+
     target = node.get('reftarget', '')
     domain = node.get('refdomain', 'std')
     reftype = node.get('reftype', '')
 
-    msg = f"can't link to: {domain}:{reftype}:: {target}"
+    msg = f"Invalid xref: {domain}:{reftype}:`{target}`"
 
     # Don't duplicate warnings
     data = (node.source, msg)
     if data in reported:
         return None
     reported.add(data)
+
+    suggestions = get_suggestions(app, env, node, target, domain, reftype)
+    if suggestions:
+        msg += ". Possible alternatives:\n" + '\n'.join(suggestions)
 
     logger.warning(msg, location=node, type='ref', subtype='missing')
 
