@@ -18,10 +18,12 @@ struct can_transceiver_data {
 #define CAN_TRANSCEIVER_STB_PRESENT	BIT(0)
 #define CAN_TRANSCEIVER_EN_PRESENT	BIT(1)
 #define CAN_TRANSCEIVER_DUAL_CH		BIT(2)
+#define CAN_TRANSCEIVER_SILENT_PRESENT	BIT(3)
 };
 
 struct can_transceiver_phy {
 	struct phy *generic_phy;
+	struct gpio_desc *silent_gpio;
 	struct gpio_desc *standby_gpio;
 	struct gpio_desc *enable_gpio;
 	struct can_transceiver_priv *priv;
@@ -47,6 +49,7 @@ static int can_transceiver_phy_power_on(struct phy *phy)
 			return ret;
 		}
 	}
+	gpiod_set_value_cansleep(can_transceiver_phy->silent_gpio, 0);
 	gpiod_set_value_cansleep(can_transceiver_phy->standby_gpio, 0);
 	gpiod_set_value_cansleep(can_transceiver_phy->enable_gpio, 1);
 
@@ -59,6 +62,7 @@ static int can_transceiver_phy_power_off(struct phy *phy)
 	struct can_transceiver_phy *can_transceiver_phy = phy_get_drvdata(phy);
 	struct can_transceiver_priv *priv = can_transceiver_phy->priv;
 
+	gpiod_set_value_cansleep(can_transceiver_phy->silent_gpio, 1);
 	gpiod_set_value_cansleep(can_transceiver_phy->standby_gpio, 1);
 	gpiod_set_value_cansleep(can_transceiver_phy->enable_gpio, 0);
 	if (priv->mux_state)
@@ -85,6 +89,14 @@ static const struct can_transceiver_data tja1048_drvdata = {
 	.flags = CAN_TRANSCEIVER_STB_PRESENT | CAN_TRANSCEIVER_DUAL_CH,
 };
 
+static const struct can_transceiver_data tja1051_drvdata = {
+	.flags = CAN_TRANSCEIVER_SILENT_PRESENT | CAN_TRANSCEIVER_EN_PRESENT,
+};
+
+static const struct can_transceiver_data tja1057_drvdata = {
+	.flags = CAN_TRANSCEIVER_SILENT_PRESENT,
+};
+
 static const struct of_device_id can_transceiver_phy_ids[] = {
 	{
 		.compatible = "ti,tcan1042",
@@ -97,6 +109,14 @@ static const struct of_device_id can_transceiver_phy_ids[] = {
 	{
 		.compatible = "nxp,tja1048",
 		.data = &tja1048_drvdata
+	},
+	{
+		.compatible = "nxp,tja1051",
+		.data = &tja1051_drvdata
+	},
+	{
+		.compatible = "nxp,tja1057",
+		.data = &tja1057_drvdata
 	},
 	{
 		.compatible = "nxp,tjr1443",
@@ -144,6 +164,7 @@ static int can_transceiver_phy_probe(struct platform_device *pdev)
 	const struct can_transceiver_data *drvdata;
 	const struct of_device_id *match;
 	struct phy *phy;
+	struct gpio_desc *silent_gpio;
 	struct gpio_desc *standby_gpio;
 	struct gpio_desc *enable_gpio;
 	struct mux_state *mux_state;
@@ -203,7 +224,16 @@ static int can_transceiver_phy_probe(struct platform_device *pdev)
 			can_transceiver_phy->enable_gpio = enable_gpio;
 		}
 
+		if (drvdata->flags & CAN_TRANSCEIVER_SILENT_PRESENT) {
+			silent_gpio = devm_gpiod_get_index_optional(dev, "silent", i,
+								    GPIOD_OUT_LOW);
+			if (IS_ERR(silent_gpio))
+				return PTR_ERR(silent_gpio);
+			can_transceiver_phy->silent_gpio = silent_gpio;
+		}
+
 		phy_set_drvdata(can_transceiver_phy->generic_phy, can_transceiver_phy);
+
 	}
 
 	phy_provider = devm_of_phy_provider_register(dev, can_transceiver_phy_xlate);
