@@ -45,6 +45,10 @@ static struct stack failure_stack;
 static struct stack *stack_list;
 static DEFINE_SPINLOCK(stack_list_lock);
 
+struct stack_print_ctx {
+	struct stack *stack;
+};
+
 static bool page_owner_enabled __initdata;
 DEFINE_STATIC_KEY_FALSE(page_owner_inited);
 
@@ -859,6 +863,7 @@ static const struct file_operations proc_page_owner_operations = {
 static void *stack_start(struct seq_file *m, loff_t *ppos)
 {
 	struct stack *stack;
+	struct stack_print_ctx *ctx = m->private;
 
 	if (*ppos == -1UL)
 		return NULL;
@@ -870,9 +875,9 @@ static void *stack_start(struct seq_file *m, loff_t *ppos)
 		 * value of stack_list.
 		 */
 		stack = smp_load_acquire(&stack_list);
-		m->private = stack;
+		ctx->stack = stack;
 	} else {
-		stack = m->private;
+		stack = ctx->stack;
 	}
 
 	return stack;
@@ -881,10 +886,11 @@ static void *stack_start(struct seq_file *m, loff_t *ppos)
 static void *stack_next(struct seq_file *m, void *v, loff_t *ppos)
 {
 	struct stack *stack = v;
+	struct stack_print_ctx *ctx = m->private;
 
 	stack = stack->next;
 	*ppos = stack ? *ppos + 1 : -1UL;
-	m->private = stack;
+	ctx->stack = stack;
 
 	return stack;
 }
@@ -929,7 +935,10 @@ static const struct seq_operations page_owner_stack_op = {
 
 static int page_owner_stack_open(struct inode *inode, struct file *file)
 {
-	return seq_open_private(file, &page_owner_stack_op, 0);
+	int ret = seq_open_private(file, &page_owner_stack_op,
+				   sizeof(struct stack_print_ctx));
+
+	return ret;
 }
 
 static const struct file_operations page_owner_stack_operations = {
