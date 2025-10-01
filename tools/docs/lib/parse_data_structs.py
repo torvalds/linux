@@ -214,7 +214,7 @@ class ParseDataStructs:
 
             # Parse reference type when the type is specified
 
-            match = re.match(r"^\:c\:(data|func|macro|type)\:\`(.+)\`", new)
+            match = re.match(r"^\:c\:(\w+)\:\`(.+)\`", new)
             if match:
                 reftype = f":c:{match.group(1)}"
                 new = match.group(2)
