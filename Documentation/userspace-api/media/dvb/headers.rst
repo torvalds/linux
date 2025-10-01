@@ -24,6 +24,7 @@ Demux
     :generate-cross-refs:
     :exception-file: dmx.h.rst.exceptions
     :toc:
+    :warn-broken:
 
 Conditional Access
 ==================
