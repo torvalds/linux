@@ -397,15 +397,9 @@ class ParseDataStructs:
 
     def gen_toc(self):
         """
-        Create a TOC table pointing to each symbol from the header
+        Create a list of symbols to be part of a TOC contents table
         """
         text = []
-
-        # Add header
-        text.append(".. contents:: Table of Contents")
-        text.append("   :depth: 2")
-        text.append("   :local:")
-        text.append("")
 
         # Sort symbol types per description
         symbol_descriptions = []
