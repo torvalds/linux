@@ -630,10 +630,11 @@ class ManFormat(OutputFormat):
         """Adds a tail for all man pages"""
 
         # SEE ALSO section
+        self.data += f'.SH "SEE ALSO"' + "\n.PP\n"
+        self.data += (f"Kernel file \\fB{args.fname}\\fR\n")
         if len(self.symbols) >= 2:
             cur_name = self.arg_name(args, name)
 
-            self.data += f'.SH "SEE ALSO"' + "\n.PP\n"
             related = []
             for arg in self.symbols:
                 out_name = self.arg_name(arg, arg.name)

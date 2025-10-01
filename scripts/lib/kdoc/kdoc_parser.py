@@ -254,8 +254,9 @@ SECTION_DEFAULT = "Description"  # default section
 
 class KernelEntry:
 
-    def __init__(self, config, ln):
+    def __init__(self, config, fname, ln):
         self.config = config
+        self.fname = fname
 
         self._contents = []
         self.prototype = ""
@@ -422,7 +423,8 @@ class KernelDoc:
         The actual output and output filters will be handled elsewhere
         """
 
-        item = KdocItem(name, dtype, self.entry.declaration_start_line, **args)
+        item = KdocItem(name, self.fname, dtype,
+                        self.entry.declaration_start_line, **args)
         item.warnings = self.entry.warnings
 
         # Drop empty sections
@@ -445,7 +447,7 @@ class KernelDoc:
         variables used by the state machine.
         """
 
-        self.entry = KernelEntry(self.config, ln)
+        self.entry = KernelEntry(self.config, self.fname, ln)
 
         # State flags
         self.state = state.NORMAL
