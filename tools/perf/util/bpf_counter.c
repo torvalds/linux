@@ -336,6 +336,7 @@ static int bpf_program_profiler__install_pe(struct evsel *evsel, int cpu_map_idx
 {
 	struct bpf_prog_profiler_bpf *skel;
 	struct bpf_counter *counter;
+	int cpu = perf_cpu_map__cpu(evsel->core.cpus, cpu_map_idx).cpu;
 	int ret;
 
 	list_for_each_entry(counter, &evsel->bpf_counter_list, list) {
@@ -343,7 +344,7 @@ static int bpf_program_profiler__install_pe(struct evsel *evsel, int cpu_map_idx
 		assert(skel != NULL);
 
 		ret = bpf_map_update_elem(bpf_map__fd(skel->maps.events),
-					  &cpu_map_idx, &fd, BPF_ANY);
+					  &cpu, &fd, BPF_ANY);
 		if (ret)
 			return ret;
 	}
@@ -451,7 +452,6 @@ static int bperf_check_target(struct evsel *evsel,
 	return 0;
 }
 
-static	struct perf_cpu_map *all_cpu_map;
 static __u32 filter_entry_cnt;
 
 static int bperf_reload_leader_program(struct evsel *evsel, int attr_map_fd,
@@ -495,7 +495,7 @@ static int bperf_reload_leader_program(struct evsel *evsel, int attr_map_fd,
 	 * following evsel__open_per_cpu call
 	 */
 	evsel->leader_skel = skel;
-	evsel__open_per_cpu(evsel, all_cpu_map, -1);
+	evsel__open(evsel, evsel->core.cpus, evsel->core.threads);
 
 out:
 	bperf_leader_bpf__destroy(skel);
@@ -532,12 +532,6 @@ static int bperf__load(struct evsel *evsel, struct target *target)
 
 	if (bperf_check_target(evsel, target, &filter_type, &filter_entry_cnt))
 		return -1;
-
-	if (!all_cpu_map) {
-		all_cpu_map = perf_cpu_map__new_online_cpus();
-		if (!all_cpu_map)
-			return -1;
-	}
 
 	evsel->bperf_leader_prog_fd = -1;
 	evsel->bperf_leader_link_fd = -1;
@@ -656,9 +650,10 @@ out:
 static int bperf__install_pe(struct evsel *evsel, int cpu_map_idx, int fd)
 {
 	struct bperf_leader_bpf *skel = evsel->leader_skel;
+	int cpu = perf_cpu_map__cpu(evsel->core.cpus, cpu_map_idx).cpu;
 
 	return bpf_map_update_elem(bpf_map__fd(skel->maps.events),
-				   &cpu_map_idx, &fd, BPF_ANY);
+				   &cpu, &fd, BPF_ANY);
 }
 
 /*
@@ -667,13 +662,12 @@ static int bperf__install_pe(struct evsel *evsel, int cpu_map_idx, int fd)
  */
 static int bperf_sync_counters(struct evsel *evsel)
 {
-	int num_cpu, i, cpu;
+	struct perf_cpu cpu;
+	int idx;
 
-	num_cpu = perf_cpu_map__nr(all_cpu_map);
-	for (i = 0; i < num_cpu; i++) {
-		cpu = perf_cpu_map__cpu(all_cpu_map, i).cpu;
-		bperf_trigger_reading(evsel->bperf_leader_prog_fd, cpu);
-	}
+	perf_cpu_map__for_each_cpu(cpu, idx, evsel->core.cpus)
+		bperf_trigger_reading(evsel->bperf_leader_prog_fd, cpu.cpu);
+
 	return 0;
 }
 
