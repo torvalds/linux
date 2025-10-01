@@ -15,6 +15,7 @@ Frontend
     :generate-cross-refs:
     :exception-file: frontend.h.rst.exceptions
     :toc:
+    :warn-broken:
 
 Demux
 =====
@@ -31,6 +32,7 @@ Conditional Access
     :generate-cross-refs:
     :exception-file: ca.h.rst.exceptions
     :toc:
+    :warn-broken:
 
 Network
 =======
@@ -39,4 +41,5 @@ Network
     :generate-cross-refs:
     :exception-file: net.h.rst.exceptions
     :toc:
+    :warn-broken:
 
