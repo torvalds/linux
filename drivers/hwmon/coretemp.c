@@ -122,29 +122,29 @@ static const struct tjmax tjmax_table[] = {
 };
 
 struct tjmax_model {
-	u8 model;
-	u8 mask;
+	u32 vfm;
+	u8 stepping_mask;
 	int tjmax;
 };
 
 #define ANY 0xff
 
 static const struct tjmax_model tjmax_model_table[] = {
-	{ 0x1c, 10, 100000 },	/* D4xx, K4xx, N4xx, D5xx, K5xx, N5xx */
-	{ 0x1c, ANY, 90000 },	/* Z5xx, N2xx, possibly others
-				 * Note: Also matches 230 and 330,
-				 * which are covered by tjmax_table
-				 */
-	{ 0x26, ANY, 90000 },	/* Atom Tunnel Creek (Exx), Lincroft (Z6xx)
-				 * Note: TjMax for E6xxT is 110C, but CPU type
-				 * is undetectable by software
-				 */
-	{ 0x27, ANY, 90000 },	/* Atom Medfield (Z2460) */
-	{ 0x35, ANY, 90000 },	/* Atom Clover Trail/Cloverview (Z27x0) */
-	{ 0x36, ANY, 100000 },	/* Atom Cedar Trail/Cedarview (N2xxx, D2xxx)
-				 * Also matches S12x0 (stepping 9), covered by
-				 * PCI table
-				 */
+	{ INTEL_ATOM_BONNELL,	      10,  100000 },	/* D4xx, K4xx, N4xx, D5xx, K5xx, N5xx */
+	{ INTEL_ATOM_BONNELL,	      ANY, 90000 },	/* Z5xx, N2xx, possibly others
+							 * Note: Also matches 230 and 330,
+							 * which are covered by tjmax_table
+							 */
+	{ INTEL_ATOM_BONNELL_MID,     ANY, 90000 },	/* Atom Tunnel Creek (Exx), Lincroft (Z6xx)
+							 * Note: TjMax for E6xxT is 110C, but CPU type
+							 * is undetectable by software
+							 */
+	{ INTEL_ATOM_SALTWELL_MID,    ANY, 90000 },	/* Atom Medfield (Z2460) */
+	{ INTEL_ATOM_SALTWELL_TABLET, ANY, 90000 },	/* Atom Clover Trail/Cloverview (Z27x0) */
+	{ INTEL_ATOM_SALTWELL,	      ANY, 100000 },	/* Atom Cedar Trail/Cedarview (N2xxx, D2xxx)
+							 * Also matches S12x0 (stepping 9), covered by
+							 * PCI table
+							 */
 };
 
 static bool is_pkg_temp_data(struct temp_data *tdata)
@@ -180,6 +180,11 @@ static int adjust_tjmax(struct cpuinfo_x86 *c, u32 id, struct device *dev)
 	}
 	pci_dev_put(host_bridge);
 
+	/*
+	 * This is literally looking for "CPU  XXX" in the model string.
+	 * Not checking it against the model as well. Just purely a
+	 * string search.
+	 */
 	for (i = 0; i < ARRAY_SIZE(tjmax_table); i++) {
 		if (strstr(c->x86_model_id, tjmax_table[i].id))
 			return tjmax_table[i].tjmax;
@@ -187,17 +192,18 @@ static int adjust_tjmax(struct cpuinfo_x86 *c, u32 id, struct device *dev)
 
 	for (i = 0; i < ARRAY_SIZE(tjmax_model_table); i++) {
 		const struct tjmax_model *tm = &tjmax_model_table[i];
-		if (c->x86_model == tm->model &&
-		    (tm->mask == ANY || c->x86_stepping == tm->mask))
+		if (c->x86_vfm == tm->vfm &&
+		    (tm->stepping_mask == ANY ||
+		     tm->stepping_mask == c->x86_stepping))
 			return tm->tjmax;
 	}
 
 	/* Early chips have no MSR for TjMax */
 
-	if (c->x86_model == 0xf && c->x86_stepping < 4)
+	if (c->x86_vfm == INTEL_CORE2_MEROM && c->x86_stepping < 4)
 		usemsr_ee = 0;
 
-	if (c->x86_model > 0xe && usemsr_ee) {
+	if (c->x86_vfm > INTEL_CORE_YONAH && usemsr_ee) {
 		u8 platform_id;
 
 		/*
@@ -211,7 +217,8 @@ static int adjust_tjmax(struct cpuinfo_x86 *c, u32 id, struct device *dev)
 				 "Unable to access MSR 0x17, assuming desktop"
 				 " CPU\n");
 			usemsr_ee = 0;
-		} else if (c->x86_model < 0x17 && !(eax & 0x10000000)) {
+		} else if (c->x86_vfm < INTEL_CORE2_PENRYN &&
+			   !(eax & 0x10000000)) {
 			/*
 			 * Trust bit 28 up to Penryn, I could not find any
 			 * documentation on that; if you happen to know
@@ -226,7 +233,7 @@ static int adjust_tjmax(struct cpuinfo_x86 *c, u32 id, struct device *dev)
 			 * Mobile Penryn CPU seems to be platform ID 7 or 5
 			 * (guesswork)
 			 */
-			if (c->x86_model == 0x17 &&
+			if (c->x86_vfm == INTEL_CORE2_PENRYN &&
 			    (platform_id == 5 || platform_id == 7)) {
 				/*
 				 * If MSR EE bit is set, set it to 90 degrees C,
@@ -258,18 +265,6 @@ static int adjust_tjmax(struct cpuinfo_x86 *c, u32 id, struct device *dev)
 	return tjmax;
 }
 
-static bool cpu_has_tjmax(struct cpuinfo_x86 *c)
-{
-	u8 model = c->x86_model;
-
-	return model > 0xe &&
-	       model != 0x1c &&
-	       model != 0x26 &&
-	       model != 0x27 &&
-	       model != 0x35 &&
-	       model != 0x36;
-}
-
 static int get_tjmax(struct temp_data *tdata, struct device *dev)
 {
 	struct cpuinfo_x86 *c = &cpu_data(tdata->cpu);
@@ -287,8 +282,7 @@ static int get_tjmax(struct temp_data *tdata, struct device *dev)
 	 */
 	err = rdmsr_safe_on_cpu(tdata->cpu, MSR_IA32_TEMPERATURE_TARGET, &eax, &edx);
 	if (err) {
-		if (cpu_has_tjmax(c))
-			dev_warn(dev, "Unable to read TjMax from CPU %u\n", tdata->cpu);
+		dev_warn_once(dev, "Unable to read TjMax from CPU %u\n", tdata->cpu);
 	} else {
 		val = (eax >> 16) & 0xff;
 		if (val)
@@ -460,7 +454,7 @@ static int chk_ucode_version(unsigned int cpu)
 	 * Readings might stop update when processor visited too deep sleep,
 	 * fixed for stepping D0 (6EC).
 	 */
-	if (c->x86_model == 0xe && c->x86_stepping < 0xc && c->microcode < 0x39) {
+	if (c->x86_vfm == INTEL_CORE_YONAH && c->x86_stepping < 0xc && c->microcode < 0x39) {
 		pr_err("Errata AE18 not fixed, update BIOS or microcode of the CPU!\n");
 		return -ENODEV;
 	}
@@ -580,7 +574,7 @@ static int create_core_data(struct platform_device *pdev, unsigned int cpu,
 	 * MSR_IA32_TEMPERATURE_TARGET register. Atoms don't have the register
 	 * at all.
 	 */
-	if (c->x86_model > 0xe && c->x86_model != 0x1c)
+	if (c->x86_vfm > INTEL_CORE_YONAH && c->x86_vfm != INTEL_ATOM_BONNELL)
 		if (get_ttarget(tdata, &pdev->dev) >= 0)
 			tdata->attr_size++;
 
@@ -793,7 +787,9 @@ static int __init coretemp_init(void)
 	/*
 	 * CPUID.06H.EAX[0] indicates whether the CPU has thermal
 	 * sensors. We check this bit only, all the early CPUs
-	 * without thermal sensors will be filtered out.
+	 * without thermal sensors will be filtered out. This
+	 * includes all the Family 5 and Family 15 (Pentium 4)
+	 * models, since they never set the CPUID bit.
 	 */
 	if (!x86_match_cpu(coretemp_ids))
 		return -ENODEV;

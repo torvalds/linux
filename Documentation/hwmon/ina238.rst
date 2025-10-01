@@ -5,6 +5,24 @@ Kernel driver ina238
 
 Supported chips:
 
+  * Texas Instruments INA228
+
+    Prefix: 'ina228'
+
+    Addresses: I2C 0x40 - 0x4f
+
+    Datasheet:
+	https://www.ti.com/lit/gpn/ina228
+
+  * Texas Instruments INA237
+
+    Prefix: 'ina237'
+
+    Addresses: I2C 0x40 - 0x4f
+
+    Datasheet:
+	https://www.ti.com/lit/gpn/ina237
+
   * Texas Instruments INA238
 
     Prefix: 'ina238'
@@ -13,6 +31,16 @@ Supported chips:
 
     Datasheet:
 	https://www.ti.com/lit/gpn/ina238
+
+  * Texas Instruments INA700
+
+    Datasheet:
+	https://www.ti.com/product/ina700
+
+  * Texas Instruments INA780
+
+    Datasheet:
+	https://www.ti.com/product/ina780a
 
   * Silergy SQ52206
 
@@ -29,10 +57,20 @@ The INA238 is a current shunt, power and temperature monitor with an I2C
 interface. It includes a number of programmable functions including alerts,
 conversion rate, sample averaging and selectable shunt voltage accuracy.
 
-The shunt value in micro-ohms can be set via platform data or device tree at
-compile-time or via the shunt_resistor attribute in sysfs at run-time. Please
-refer to the Documentation/devicetree/bindings/hwmon/ti,ina2xx.yaml for bindings
-if the device tree is used.
+The shunt value in micro-ohms can be set via device properties, either from
+platform code or from device tree data. Please refer to
+Documentation/devicetree/bindings/hwmon/ti,ina2xx.yaml for bindings if
+device tree is used.
+
+INA237 is a functionally equivalent variant of INA238 with slightly
+different accuracy. INA228 is another variant of INA238 with higher ADC
+resolution. This chip also reports the energy.
+
+INA700 and INA780 are variants of the chip series with built-in shunt resistor.
+They also report the energy.
+
+SQ52206 is a mostly compatible chip from Sylergy. It reports the energy
+as well as the peak power consumption.
 
 Sysfs entries
 -------------
@@ -53,19 +91,19 @@ in1_max_alarm		Maximum shunt voltage alarm
 power1_input		Power measurement (uW)
 power1_max		Maximum power threshold (uW)
 power1_max_alarm	Maximum power alarm
+power1_input_highest	Peak Power (uW)
+				(SQ52206 only)
 
 curr1_input		Current measurement (mA)
+curr1_min		Minimum current threshold (mA)
+curr1_min_alarm		Minimum current alarm
+curr1_max		Maximum current threshold (mA)
+curr1_max_alarm		Maximum current alarm
+
+energy1_input		Energy measurement (uJ)
+				(SQ52206, INA237, and INA780 only)
 
 temp1_input		Die temperature measurement (mC)
 temp1_max		Maximum die temperature threshold (mC)
 temp1_max_alarm		Maximum die temperature alarm
-======================= =======================================================
-
-Additional sysfs entries for sq52206
-------------------------------------
-
-======================= =======================================================
-energy1_input		Energy measurement (uJ)
-
-power1_input_highest	Peak Power (uW)
 ======================= =======================================================

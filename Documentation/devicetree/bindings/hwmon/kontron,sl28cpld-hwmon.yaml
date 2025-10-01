@@ -16,6 +16,7 @@ description: |
 properties:
   compatible:
     enum:
+      - kontron,sa67mcu-hwmon
       - kontron,sl28cpld-fan
 
   reg:
