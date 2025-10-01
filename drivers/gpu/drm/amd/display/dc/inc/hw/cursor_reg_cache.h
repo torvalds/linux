@@ -57,9 +57,9 @@ struct cursor_attribute_cache_hubp {
 	} size;
 	union    reg_cursor_settings_cfg {
 		struct {
-			uint32_t     dst_y_offset: 8;
-			uint32_t chunk_hdl_adjust: 2;
-			uint32_t         reserved: 22;
+			uint32_t              dst_y_offset: 8;
+			uint32_t          chunk_hdl_adjust: 2;
+			uint32_t                  reserved: 22;
 		} bits;
 		uint32_t raw;
 	} settings;
