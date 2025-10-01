@@ -108,8 +108,9 @@ unsigned long nouveau_dmem_page_addr(struct page *page)
 	return chunk->bo->offset + off;
 }
 
-static void nouveau_dmem_page_free(struct page *page)
+static void nouveau_dmem_folio_free(struct folio *folio)
 {
+	struct page *page = &folio->page;
 	struct nouveau_dmem_chunk *chunk = nouveau_page_to_chunk(page);
 	struct nouveau_dmem *dmem = chunk->drm->dmem;
 
@@ -220,7 +221,7 @@ done:
 }
 
 static const struct dev_pagemap_ops nouveau_dmem_pagemap_ops = {
-	.page_free		= nouveau_dmem_page_free,
+	.folio_free		= nouveau_dmem_folio_free,
 	.migrate_to_ram		= nouveau_dmem_migrate_to_ram,
 };
 

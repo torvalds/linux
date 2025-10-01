@@ -289,8 +289,8 @@ void *memremap_pages(struct dev_pagemap *pgmap, int nid)
 			WARN(1, "Missing migrate_to_ram method\n");
 			return ERR_PTR(-EINVAL);
 		}
-		if (!pgmap->ops->page_free) {
-			WARN(1, "Missing page_free method\n");
+		if (!pgmap->ops->folio_free) {
+			WARN(1, "Missing folio_free method\n");
 			return ERR_PTR(-EINVAL);
 		}
 		if (!pgmap->owner) {
@@ -299,8 +299,8 @@ void *memremap_pages(struct dev_pagemap *pgmap, int nid)
 		}
 		break;
 	case MEMORY_DEVICE_COHERENT:
-		if (!pgmap->ops->page_free) {
-			WARN(1, "Missing page_free method\n");
+		if (!pgmap->ops->folio_free) {
+			WARN(1, "Missing folio_free method\n");
 			return ERR_PTR(-EINVAL);
 		}
 		if (!pgmap->owner) {
@@ -453,9 +453,9 @@ void free_zone_device_folio(struct folio *folio)
 	switch (pgmap->type) {
 	case MEMORY_DEVICE_PRIVATE:
 	case MEMORY_DEVICE_COHERENT:
-		if (WARN_ON_ONCE(!pgmap->ops || !pgmap->ops->page_free))
+		if (WARN_ON_ONCE(!pgmap->ops || !pgmap->ops->folio_free))
 			break;
-		pgmap->ops->page_free(&folio->page);
+		pgmap->ops->folio_free(folio);
 		percpu_ref_put_many(&folio->pgmap->ref, nr);
 		break;
 
@@ -472,9 +472,9 @@ void free_zone_device_folio(struct folio *folio)
 		break;
 
 	case MEMORY_DEVICE_PCI_P2PDMA:
-		if (WARN_ON_ONCE(!pgmap->ops || !pgmap->ops->page_free))
+		if (WARN_ON_ONCE(!pgmap->ops || !pgmap->ops->folio_free))
 			break;
-		pgmap->ops->page_free(folio_page(folio, 0));
+		pgmap->ops->folio_free(folio);
 		break;
 	}
 }

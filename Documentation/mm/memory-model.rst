@@ -165,7 +165,7 @@ The users of `ZONE_DEVICE` are:
 * pmem: Map platform persistent memory to be used as a direct-I/O target
   via DAX mappings.
 
-* hmm: Extend `ZONE_DEVICE` with `->page_fault()` and `->page_free()`
+* hmm: Extend `ZONE_DEVICE` with `->page_fault()` and `->folio_free()`
   event callbacks to allow a device-driver to coordinate memory management
   events related to device-memory, typically GPU memory. See
   Documentation/mm/hmm.rst.

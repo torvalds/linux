@@ -1374,8 +1374,9 @@ static const struct file_operations dmirror_fops = {
 	.owner		= THIS_MODULE,
 };
 
-static void dmirror_devmem_free(struct page *page)
+static void dmirror_devmem_free(struct folio *folio)
 {
+	struct page *page = &folio->page;
 	struct page *rpage = BACKING_PAGE(page);
 	struct dmirror_device *mdevice;
 
@@ -1438,7 +1439,7 @@ static vm_fault_t dmirror_devmem_fault(struct vm_fault *vmf)
 }
 
 static const struct dev_pagemap_ops dmirror_devmem_ops = {
-	.page_free	= dmirror_devmem_free,
+	.folio_free	= dmirror_devmem_free,
 	.migrate_to_ram	= dmirror_devmem_fault,
 };
 

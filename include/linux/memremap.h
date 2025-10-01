@@ -77,11 +77,11 @@ enum memory_type {
 
 struct dev_pagemap_ops {
 	/*
-	 * Called once the page refcount reaches 0.  The reference count will be
+	 * Called once the folio refcount reaches 0.  The reference count will be
 	 * reset to one by the core code after the method is called to prepare
-	 * for handing out the page again.
+	 * for handing out the folio again.
 	 */
-	void (*page_free)(struct page *page);
+	void (*folio_free)(struct folio *folio);
 
 	/*
 	 * Used for private (un-addressable) device memory only.  Must migrate

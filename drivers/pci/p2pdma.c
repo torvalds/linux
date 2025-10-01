@@ -200,8 +200,9 @@ static const struct attribute_group p2pmem_group = {
 	.name = "p2pmem",
 };
 
-static void p2pdma_page_free(struct page *page)
+static void p2pdma_folio_free(struct folio *folio)
 {
+	struct page *page = &folio->page;
 	struct pci_p2pdma_pagemap *pgmap = to_p2p_pgmap(page_pgmap(page));
 	/* safe to dereference while a reference is held to the percpu ref */
 	struct pci_p2pdma *p2pdma =
@@ -214,7 +215,7 @@ static void p2pdma_page_free(struct page *page)
 }
 
 static const struct dev_pagemap_ops p2pdma_pgmap_ops = {
-	.page_free = p2pdma_page_free,
+	.folio_free = p2pdma_folio_free,
 };
 
 static void pci_p2pdma_release(void *data)
