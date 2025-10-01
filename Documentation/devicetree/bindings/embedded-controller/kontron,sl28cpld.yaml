@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/mfd/kontron,sl28cpld.yaml#
+$id: http://devicetree.org/schemas/embedded-controller/kontron,sl28cpld.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Kontron's sl28cpld board management controller
@@ -16,7 +16,12 @@ description: |
 
 properties:
   compatible:
-    const: kontron,sl28cpld
+    oneOf:
+      - items:
+          - enum:
+              - kontron,sa67mcu
+          - const: kontron,sl28cpld
+      - const: kontron,sl28cpld
 
   reg:
     description:

@@ -1117,24 +1117,6 @@ EXPORT_SYMBOL_NS_GPL(cs42l43_dev_probe, "MFD_CS42L43");
 static int cs42l43_suspend(struct device *dev)
 {
 	struct cs42l43 *cs42l43 = dev_get_drvdata(dev);
-	static const struct reg_sequence mask_all[] = {
-		{ CS42L43_DECIM_MASK,			0xFFFFFFFF, },
-		{ CS42L43_EQ_MIX_MASK,			0xFFFFFFFF, },
-		{ CS42L43_ASP_MASK,			0xFFFFFFFF, },
-		{ CS42L43_PLL_MASK,			0xFFFFFFFF, },
-		{ CS42L43_SOFT_MASK,			0xFFFFFFFF, },
-		{ CS42L43_SWIRE_MASK,			0xFFFFFFFF, },
-		{ CS42L43_MSM_MASK,			0xFFFFFFFF, },
-		{ CS42L43_ACC_DET_MASK,			0xFFFFFFFF, },
-		{ CS42L43_I2C_TGT_MASK,			0xFFFFFFFF, },
-		{ CS42L43_SPI_MSTR_MASK,		0xFFFFFFFF, },
-		{ CS42L43_SW_TO_SPI_BRIDGE_MASK,	0xFFFFFFFF, },
-		{ CS42L43_OTP_MASK,			0xFFFFFFFF, },
-		{ CS42L43_CLASS_D_AMP_MASK,		0xFFFFFFFF, },
-		{ CS42L43_GPIO_INT_MASK,		0xFFFFFFFF, },
-		{ CS42L43_ASRC_MASK,			0xFFFFFFFF, },
-		{ CS42L43_HPOUT_MASK,			0xFFFFFFFF, },
-	};
 	int ret;
 
 	ret = pm_runtime_resume_and_get(dev);
@@ -1143,13 +1125,7 @@ static int cs42l43_suspend(struct device *dev)
 		return ret;
 	}
 
-	/* The IRQs will be re-enabled on resume by the cache sync */
-	ret = regmap_multi_reg_write_bypassed(cs42l43->regmap,
-					      mask_all, ARRAY_SIZE(mask_all));
-	if (ret) {
-		dev_err(cs42l43->dev, "Failed to mask IRQs: %d\n", ret);
-		return ret;
-	}
+	disable_irq(cs42l43->irq);
 
 	ret = pm_runtime_force_suspend(dev);
 	if (ret) {
@@ -1163,8 +1139,6 @@ static int cs42l43_suspend(struct device *dev)
 	ret = cs42l43_power_down(cs42l43);
 	if (ret)
 		return ret;
-
-	disable_irq(cs42l43->irq);
 
 	return 0;
 }
@@ -1196,13 +1170,13 @@ static int cs42l43_resume(struct device *dev)
 	if (ret)
 		return ret;
 
-	enable_irq(cs42l43->irq);
-
 	ret = pm_runtime_force_resume(dev);
 	if (ret) {
 		dev_err(cs42l43->dev, "Failed to force resume: %d\n", ret);
 		return ret;
 	}
+
+	enable_irq(cs42l43->irq);
 
 	return 0;
 }
