@@ -2569,6 +2569,8 @@ static int task_is_throttled_rt(struct task_struct *p, int cpu)
 
 DEFINE_SCHED_CLASS(rt) = {
 
+	.queue_mask		= 4,
+
 	.enqueue_task		= enqueue_task_rt,
 	.dequeue_task		= dequeue_task_rt,
 	.yield_task		= yield_task_rt,

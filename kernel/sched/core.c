@@ -2089,6 +2089,7 @@ void enqueue_task(struct rq *rq, struct task_struct *p, int flags)
 	 */
 	uclamp_rq_inc(rq, p, flags);
 
+	rq->queue_mask |= p->sched_class->queue_mask;
 	p->sched_class->enqueue_task(rq, p, flags);
 
 	psi_enqueue(p, flags);
@@ -2121,6 +2122,7 @@ inline bool dequeue_task(struct rq *rq, struct task_struct *p, int flags)
 	 * and mark the task ->sched_delayed.
 	 */
 	uclamp_rq_dec(rq, p);
+	rq->queue_mask |= p->sched_class->queue_mask;
 	return p->sched_class->dequeue_task(rq, p, flags);
 }
 

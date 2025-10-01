@@ -521,6 +521,8 @@ static void update_curr_idle(struct rq *rq)
  */
 DEFINE_SCHED_CLASS(idle) = {
 
+	.queue_mask		= 0,
+
 	/* no enqueue/yield_task for idle tasks */
 
 	/* dequeue is not valid, we print a debug message there: */

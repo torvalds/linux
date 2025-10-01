@@ -3234,6 +3234,8 @@ static void scx_cgroup_unlock(void) {}
  *   their current sched_class. Call them directly from sched core instead.
  */
 DEFINE_SCHED_CLASS(ext) = {
+	.queue_mask		= 1,
+
 	.enqueue_task		= enqueue_task_scx,
 	.dequeue_task		= dequeue_task_scx,
 	.yield_task		= yield_task_scx,
