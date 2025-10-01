@@ -47,10 +47,8 @@ static int can_transceiver_phy_power_on(struct phy *phy)
 			return ret;
 		}
 	}
-	if (can_transceiver_phy->standby_gpio)
-		gpiod_set_value_cansleep(can_transceiver_phy->standby_gpio, 0);
-	if (can_transceiver_phy->enable_gpio)
-		gpiod_set_value_cansleep(can_transceiver_phy->enable_gpio, 1);
+	gpiod_set_value_cansleep(can_transceiver_phy->standby_gpio, 0);
+	gpiod_set_value_cansleep(can_transceiver_phy->enable_gpio, 1);
 
 	return 0;
 }
@@ -61,10 +59,8 @@ static int can_transceiver_phy_power_off(struct phy *phy)
 	struct can_transceiver_phy *can_transceiver_phy = phy_get_drvdata(phy);
 	struct can_transceiver_priv *priv = can_transceiver_phy->priv;
 
-	if (can_transceiver_phy->standby_gpio)
-		gpiod_set_value_cansleep(can_transceiver_phy->standby_gpio, 1);
-	if (can_transceiver_phy->enable_gpio)
-		gpiod_set_value_cansleep(can_transceiver_phy->enable_gpio, 0);
+	gpiod_set_value_cansleep(can_transceiver_phy->standby_gpio, 1);
+	gpiod_set_value_cansleep(can_transceiver_phy->enable_gpio, 0);
 	if (priv->mux_state)
 		mux_state_deselect(priv->mux_state);
 
