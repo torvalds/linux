@@ -422,7 +422,7 @@ class ParseDataStructs:
 
             # Sort symbols alphabetically
             for symbol, (ref, ln) in sorted(refs.items()):
-                text.append(f"* {ref}: line #{ln}")
+                text.append(f"- LINENO_{ln}: {ref}")
 
             text.append("")  # Add empty line between categories
 

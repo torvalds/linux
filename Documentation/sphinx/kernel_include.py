@@ -104,6 +104,7 @@ logger = logging.getLogger(__name__)
 
 RE_DOMAIN_REF = re.compile(r'\\ :(ref|c:type|c:func):`([^<`]+)(?:<([^>]+)>)?`\\')
 RE_SIMPLE_REF = re.compile(r'`([^`]+)`')
+RE_LINENO_REF = re.compile(r'^\s*-\s+LINENO_(\d+):\s+(.*)')
 
 def ErrorString(exc):  # Shamelessly stolen from docutils
     return f'{exc.__class__.__name}: {exc}'
@@ -242,23 +243,32 @@ class KernelInclude(Directive):
         # TOC output is a ReST file, not a literal. So, we can add line
         # numbers
 
-        rawtext = parser.gen_toc()
-
-        include_lines = statemachine.string2lines(rawtext, tab_width,
-                                                  convert_whitespace=True)
-
-        # Append line numbers data
-
         startline = self.options.get('start-line', None)
+        endline = self.options.get('end-line', None)
+
+        relpath = os.path.relpath(path, srctree)
 
         result = ViewList()
-        if startline and startline > 0:
-            offset = startline - 1
-        else:
-            offset = 0
+        for line in parser.gen_toc().split("\n"):
+            match = RE_LINENO_REF.match(line)
+            if not match:
+                result.append(line, path)
+                continue
 
-        for ln, line in enumerate(include_lines, start=offset):
-            result.append(line, path, ln)
+            ln, ref = match.groups()
+            ln = int(ln)
+
+            # Filter line range if needed
+            if startline and (ln < startline):
+                continue
+
+            if endline and (ln > endline):
+                continue
+
+            # Sphinx numerates starting with zero, but text editors
+            # and other tools start from one
+            realln = ln + 1
+            result.append(f"- {ref}: {relpath}#{realln}", path, ln)
 
         self.state_machine.insert_input(result, path)
 
