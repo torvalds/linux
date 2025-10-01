@@ -57,7 +57,7 @@ properties:
   # latter case. We choose to use the XOR logic for GPIO CD and WP
   # lines.  This means, the two properties are "superimposed," for
   # example leaving the GPIO_ACTIVE_LOW flag clear and specifying the
-  # respective *-inverted property property results in a
+  # respective *-inverted property results in a
   # double-inversion and actually means the "normal" line polarity is
   # in effect.
   wp-inverted:
@@ -272,7 +272,7 @@ properties:
       mmc-pwrseq-simple.yaml. But now it\'s reused as a tunable delay
       waiting for I/O signalling and card power supply to be stable,
       regardless of whether pwrseq-simple is used. Default to 10ms if
-      no available.
+      not available.
     default: 10
 
   supports-cqe:

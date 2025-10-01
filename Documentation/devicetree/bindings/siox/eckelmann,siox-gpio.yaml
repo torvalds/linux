@@ -1,0 +1,48 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/siox/eckelmann,siox-gpio.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Eckelmann SIOX GPIO bus
+
+maintainers:
+  - Frank Li <Frank.Li@nxp.com>
+
+properties:
+  compatible:
+    const: eckelmann,siox-gpio
+
+  din-gpios:
+    maxItems: 1
+
+  dout-gpios:
+    maxItems: 1
+
+  dclk-gpios:
+    maxItems: 1
+
+  dld-gpios:
+    maxItems: 1
+
+required:
+  - compatible
+  - din-gpios
+  - dout-gpios
+  - dclk-gpios
+  - dld-gpios
+
+additionalProperties: false
+
+examples:
+  - |
+    siox {
+        compatible = "eckelmann,siox-gpio";
+        pinctrl-names = "default";
+        pinctrl-0 = <&pinctrl_siox>;
+
+        din-gpios = <&gpio6 11 0>;
+        dout-gpios = <&gpio6 8 0>;
+        dclk-gpios = <&gpio6 9 0>;
+        dld-gpios = <&gpio6 10 0>;
+    };

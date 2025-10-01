@@ -1,0 +1,66 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mailbox/brcm,iproc-pdc-mbox.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Broadcom iProc PDC mailbox
+
+maintainers:
+  - Ray Jui <rjui@broadcom.com>
+  - Scott Branden <sbranden@broadcom.com>
+
+description:
+  The PDC driver manages data transfer to and from various offload engines on
+  some Broadcom SoCs. An SoC may have multiple PDC hardware blocks. There is one
+  device tree entry per block. On some chips, the PDC functionality is handled
+  by the FA2 (Northstar Plus).
+
+properties:
+  compatible:
+    enum:
+      - brcm,iproc-pdc-mbox
+      - brcm,iproc-fa2-mbox
+
+  reg:
+    maxItems: 1
+
+  dma-coherent: true
+
+  interrupts:
+    maxItems: 1
+
+  '#mbox-cells':
+    const: 1
+
+  brcm,rx-status-len:
+    description:
+      Length of metadata preceding received frames, in bytes.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  brcm,use-bcm-hdr:
+    type: boolean
+    description:
+      Present if a BCM header precedes each frame.
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - '#mbox-cells'
+  - brcm,rx-status-len
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    mailbox0@612c0000 {
+        compatible = "brcm,iproc-pdc-mbox";
+        reg = <0x612c0000 0x445>;
+        interrupts = <GIC_SPI 187 IRQ_TYPE_LEVEL_HIGH>;
+        #mbox-cells = <1>;
+        brcm,rx-status-len = <32>;
+        brcm,use-bcm-hdr;
+    };

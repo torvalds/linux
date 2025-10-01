@@ -1881,7 +1881,7 @@ F:	arch/arm64/boot/dts/apm/
 APPLIED MICRO (APM) X-GENE SOC EDAC
 M:	Khuong Dinh <khuong@os.amperecomputing.com>
 S:	Supported
-F:	Documentation/devicetree/bindings/edac/apm-xgene-edac.txt
+F:	Documentation/devicetree/bindings/edac/apm,xgene-edac.yaml
 F:	drivers/edac/xgene_edac.c
 
 APPLIED MICRO (APM) X-GENE SOC ETHERNET (V2) DRIVER
@@ -1904,7 +1904,7 @@ APPLIED MICRO (APM) X-GENE SOC PMU
 M:	Khuong Dinh <khuong@os.amperecomputing.com>
 S:	Supported
 F:	Documentation/admin-guide/perf/xgene-pmu.rst
-F:	Documentation/devicetree/bindings/perf/apm-xgene-pmu.txt
+F:	Documentation/devicetree/bindings/perf/apm,xgene-pmu.yaml
 F:	drivers/perf/xgene_pmu.c
 
 APPLIED MICRO QT2025 PHY DRIVER
@@ -2632,7 +2632,7 @@ F:	Documentation/devicetree/bindings/firmware/cznic,turris-mox-rwtm.txt
 F:	Documentation/devicetree/bindings/firmware/cznic,turris-omnia-mcu.yaml
 F:	Documentation/devicetree/bindings/interrupt-controller/marvell,mpic.yaml
 F:	Documentation/devicetree/bindings/leds/cznic,turris-omnia-leds.yaml
-F:	Documentation/devicetree/bindings/watchdog/armada-37xx-wdt.txt
+F:	Documentation/devicetree/bindings/watchdog/marvell,armada-3700-wdt.yaml
 F:	drivers/bus/moxtet.c
 F:	drivers/firmware/turris-mox-rwtm.c
 F:	drivers/gpio/gpio-moxtet.c
@@ -2840,8 +2840,8 @@ M:	Gregory Clement <gregory.clement@bootlin.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gclement/mvebu.git
-F:	Documentation/devicetree/bindings/arm/marvell/marvell,dove.txt
-F:	Documentation/devicetree/bindings/arm/marvell/marvell,orion5x.txt
+F:	Documentation/devicetree/bindings/arm/marvell/marvell,dove.yaml
+F:	Documentation/devicetree/bindings/arm/marvell/marvell,orion5x.yaml
 F:	Documentation/devicetree/bindings/soc/dove/
 F:	arch/arm/boot/dts/marvell/dove*
 F:	arch/arm/boot/dts/marvell/orion5x*
@@ -5556,7 +5556,7 @@ CAVIUM THUNDERX2 ARM64 SOC
 M:	Robert Richter <rric@kernel.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Odd Fixes
-F:	Documentation/devicetree/bindings/arm/cavium-thunder2.txt
+F:	Documentation/devicetree/bindings/arm/bcm/brcm,vulcan-soc.yaml
 F:	arch/arm64/boot/dts/cavium/thunder2-99xx*
 
 CBS/ETF/TAPRIO QDISCS
@@ -7579,7 +7579,7 @@ M:	Joel Stanley <joel@jms.id.au>
 L:	linux-aspeed@lists.ozlabs.org (moderated for non-subscribers)
 S:	Supported
 T:	git https://gitlab.freedesktop.org/drm/misc/kernel.git
-F:	Documentation/devicetree/bindings/gpu/aspeed-gfx.txt
+F:	Documentation/devicetree/bindings/gpu/aspeed,ast2400-gfx.yaml
 F:	drivers/gpu/drm/aspeed/
 
 DRM DRIVER FOR AST SERVER GRAPHICS CHIPS
@@ -8751,7 +8751,7 @@ F:	drivers/edac/armada_xp_*
 EDAC-AST2500
 M:	Stefan Schaeckeler <sschaeck@cisco.com>
 S:	Supported
-F:	Documentation/devicetree/bindings/edac/aspeed-sdram-edac.txt
+F:	Documentation/devicetree/bindings/edac/aspeed,ast2400-sdram-edac.yaml
 F:	drivers/edac/aspeed_edac.c
 
 EDAC-BLUEFIELD
@@ -10025,6 +10025,7 @@ R:	Ninad Palsule <ninad@linux.ibm.com>
 L:	linux-fsi@lists.ozlabs.org
 S:	Supported
 Q:	http://patchwork.ozlabs.org/project/linux-fsi/list/
+F:	Documentation/devicetree/bindings/fsi/
 F:	drivers/fsi/
 F:	include/linux/fsi*.h
 F:	include/trace/events/fsi*.h
@@ -15650,7 +15651,7 @@ M:	Andrew-CT Chen <andrew-ct.chen@mediatek.com>
 M:	Yunfei Dong <yunfei.dong@mediatek.com>
 S:	Supported
 F:	Documentation/devicetree/bindings/media/mediatek,vcodec*.yaml
-F:	Documentation/devicetree/bindings/media/mediatek-vpu.txt
+F:	Documentation/devicetree/bindings/media/mediatek,mt8173-vpu.yaml
 F:	drivers/media/platform/mediatek/vcodec/
 F:	drivers/media/platform/mediatek/vpu/
 

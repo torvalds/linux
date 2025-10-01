@@ -95,7 +95,7 @@ II. For kernel maintainers
      For subsystem bindings (anything affecting more than a single device),
      getting a devicetree maintainer to review it is required.
 
-  3) For a series going though multiple trees, the binding patch should be
+  3) For a series going through multiple trees, the binding patch should be
      kept with the driver using the binding.
 
   4) The DTS files should however never be applied via driver subsystem tree,
