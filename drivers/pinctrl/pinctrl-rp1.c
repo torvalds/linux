@@ -1440,7 +1440,7 @@ static int rp1_pinconf_set(struct pinctrl_dev *pctldev, unsigned int offset,
 			rp1_output_enable(pin, arg);
 			break;
 
-		case PIN_CONFIG_OUTPUT:
+		case PIN_CONFIG_LEVEL:
 			rp1_set_value(pin, arg);
 			rp1_set_dir(pin, RP1_DIR_OUTPUT);
 			rp1_set_fsel(pin, RP1_FSEL_GPIO);
@@ -1623,12 +1623,94 @@ MODULE_DEVICE_TABLE(of, rp1_pinctrl_match);
 
 static struct rp1_pinctrl rp1_pinctrl_data = {};
 
-static const struct regmap_config rp1_pinctrl_regmap_cfg = {
+static const struct regmap_range rp1_gpio_reg_ranges[] = {
+	/* BANK 0 */
+	regmap_reg_range(0x2004, 0x20dc),
+	regmap_reg_range(0x3004, 0x30dc),
+	regmap_reg_range(0x0004, 0x00dc),
+	regmap_reg_range(0x0124, 0x0124),
+	regmap_reg_range(0x211c, 0x211c),
+	regmap_reg_range(0x311c, 0x311c),
+	/* BANK 1 */
+	regmap_reg_range(0x6004, 0x602c),
+	regmap_reg_range(0x7004, 0x702c),
+	regmap_reg_range(0x4004, 0x402c),
+	regmap_reg_range(0x4124, 0x4124),
+	regmap_reg_range(0x611c, 0x611c),
+	regmap_reg_range(0x711c, 0x711c),
+	/* BANK 2 */
+	regmap_reg_range(0xa004, 0xa09c),
+	regmap_reg_range(0xb004, 0xb09c),
+	regmap_reg_range(0x8004, 0x809c),
+	regmap_reg_range(0x8124, 0x8124),
+	regmap_reg_range(0xa11c, 0xa11c),
+	regmap_reg_range(0xb11c, 0xb11c),
+};
+
+static const struct regmap_range rp1_rio_reg_ranges[] = {
+	/* BANK 0 */
+	regmap_reg_range(0x2000, 0x2004),
+	regmap_reg_range(0x3000, 0x3004),
+	regmap_reg_range(0x0004, 0x0008),
+	/* BANK 1 */
+	regmap_reg_range(0x6000, 0x6004),
+	regmap_reg_range(0x7000, 0x7004),
+	regmap_reg_range(0x4004, 0x4008),
+	/* BANK 2 */
+	regmap_reg_range(0xa000, 0xa004),
+	regmap_reg_range(0xb000, 0xb004),
+	regmap_reg_range(0x8004, 0x8008),
+};
+
+static const struct regmap_range rp1_pads_reg_ranges[] = {
+	/* BANK 0 */
+	regmap_reg_range(0x0004, 0x0070),
+	/* BANK 1 */
+	regmap_reg_range(0x4004, 0x4018),
+	/* BANK 2 */
+	regmap_reg_range(0x8004, 0x8050),
+};
+
+static const struct regmap_access_table rp1_gpio_reg_table = {
+	.yes_ranges = rp1_gpio_reg_ranges,
+	.n_yes_ranges = ARRAY_SIZE(rp1_gpio_reg_ranges),
+};
+
+static const struct regmap_access_table rp1_rio_reg_table = {
+	.yes_ranges = rp1_rio_reg_ranges,
+	.n_yes_ranges = ARRAY_SIZE(rp1_rio_reg_ranges),
+};
+
+static const struct regmap_access_table rp1_pads_reg_table = {
+	.yes_ranges = rp1_pads_reg_ranges,
+	.n_yes_ranges = ARRAY_SIZE(rp1_pads_reg_ranges),
+};
+
+static const struct regmap_config rp1_pinctrl_gpio_regmap_cfg = {
 	.reg_bits = 32,
 	.val_bits = 32,
 	.reg_stride = 4,
-	.fast_io = true,
-	.name = "rp1-pinctrl",
+	.rd_table = &rp1_gpio_reg_table,
+	.name = "rp1-gpio",
+	.max_register = 0xb11c,
+};
+
+static const struct regmap_config rp1_pinctrl_rio_regmap_cfg = {
+	.reg_bits = 32,
+	.val_bits = 32,
+	.reg_stride = 4,
+	.rd_table = &rp1_rio_reg_table,
+	.name = "rp1-rio",
+	.max_register = 0xb004,
+};
+
+static const struct regmap_config rp1_pinctrl_pads_regmap_cfg = {
+	.reg_bits = 32,
+	.val_bits = 32,
+	.reg_stride = 4,
+	.rd_table = &rp1_pads_reg_table,
+	.name = "rp1-pads",
+	.max_register = 0x8050,
 };
 
 static int rp1_gen_regfield(struct device *dev,
@@ -1685,17 +1767,17 @@ static int rp1_pinctrl_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, PTR_ERR(pc->pads_base), "could not get PADS IO memory\n");
 
 	gpio_regmap = devm_regmap_init_mmio(dev, pc->gpio_base,
-					    &rp1_pinctrl_regmap_cfg);
+					    &rp1_pinctrl_gpio_regmap_cfg);
 	if (IS_ERR(gpio_regmap))
 		return dev_err_probe(dev, PTR_ERR(gpio_regmap), "could not init GPIO regmap\n");
 
 	rio_regmap = devm_regmap_init_mmio(dev, pc->rio_base,
-					   &rp1_pinctrl_regmap_cfg);
+					   &rp1_pinctrl_rio_regmap_cfg);
 	if (IS_ERR(rio_regmap))
 		return dev_err_probe(dev, PTR_ERR(rio_regmap), "could not init RIO regmap\n");
 
 	pads_regmap = devm_regmap_init_mmio(dev, pc->pads_base,
-					    &rp1_pinctrl_regmap_cfg);
+					    &rp1_pinctrl_pads_regmap_cfg);
 	if (IS_ERR(pads_regmap))
 		return dev_err_probe(dev, PTR_ERR(pads_regmap), "could not init PADS regmap\n");
 

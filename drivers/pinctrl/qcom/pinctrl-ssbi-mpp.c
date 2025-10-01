@@ -337,7 +337,7 @@ static int pm8xxx_pin_config_get(struct pinctrl_dev *pctldev,
 	case PIN_CONFIG_INPUT_ENABLE:
 		arg = pin->input;
 		break;
-	case PIN_CONFIG_OUTPUT:
+	case PIN_CONFIG_LEVEL:
 		arg = pin->output_value;
 		break;
 	case PIN_CONFIG_POWER_SOURCE:
@@ -392,7 +392,7 @@ static int pm8xxx_pin_config_set(struct pinctrl_dev *pctldev,
 		case PIN_CONFIG_INPUT_ENABLE:
 			pin->input = true;
 			break;
-		case PIN_CONFIG_OUTPUT:
+		case PIN_CONFIG_LEVEL:
 			pin->output = true;
 			pin->output_value = !!arg;
 			break;

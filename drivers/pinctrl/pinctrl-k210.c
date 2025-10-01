@@ -551,7 +551,7 @@ static int k210_pinconf_set_param(struct pinctrl_dev *pctldev,
 		else
 			val &= ~K210_PC_ST;
 		break;
-	case PIN_CONFIG_OUTPUT:
+	case PIN_CONFIG_LEVEL:
 		k210_pinmux_set_pin_function(pctldev, pin, K210_PCF_CONSTANT);
 		val = readl(&pdata->fpioa->pins[pin]);
 		val |= K210_PC_MODE_OUT;
