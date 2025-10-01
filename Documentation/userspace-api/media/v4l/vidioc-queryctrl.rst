@@ -15,6 +15,8 @@ VIDIOC_QUERYCTRL - VIDIOC_QUERY_EXT_CTRL - VIDIOC_QUERYMENU - Enumerate controls
 Synopsis
 ========
 
+.. c:macro:: VIDIOC_QUERY_CTRL
+
 ``int ioctl(int fd, int VIDIOC_QUERYCTRL, struct v4l2_queryctrl *argp)``
 
 .. c:macro:: VIDIOC_QUERY_EXT_CTRL
