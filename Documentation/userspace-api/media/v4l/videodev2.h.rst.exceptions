@@ -18,6 +18,7 @@ ignore define _UAPI__LINUX_VIDEODEV2_H
 ignore symbol V4L2_BUF_TYPE_PRIVATE
 ignore symbol V4L2_TUNER_DIGITAL_TV
 ignore symbol V4L2_COLORSPACE_BT878
+ignore struct __kernel_v4l2_timeval
 
 # Documented enum v4l2_field
 replace symbol V4L2_FIELD_ALTERNATE :c:type:`V4L.v4l2_field`
