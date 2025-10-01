@@ -143,7 +143,7 @@ class ParseDataStructs:
         for symbol_type in self.DEF_SYMBOL_TYPES:
             self.symbols[symbol_type] = {}
 
-    def store_type(self, symbol_type: str, symbol: str,
+    def store_type(self, ln, symbol_type: str, symbol: str,
                    ref_name: str = None, replace_underscores: bool = True):
         """
         Stores a new symbol at self.symbols under symbol_type.
@@ -172,7 +172,7 @@ class ParseDataStructs:
         else:
             ref_link = symbol
 
-        self.symbols[symbol_type][symbol] = f"{prefix}{ref_link}{suffix}"
+        self.symbols[symbol_type][symbol] = (f"{prefix}{ref_link}{suffix}", ln)
 
     def store_line(self, line):
         """Stores a line at self.data, properly indented"""
@@ -240,20 +240,20 @@ class ParseDataStructs:
                 if is_enum:
                     match = re.match(r"^\s*([_\w][\w\d_]+)\s*[\,=]?", line)
                     if match:
-                        self.store_type("symbol", match.group(1))
+                        self.store_type(line_no, "symbol", match.group(1))
                     if "}" in line:
                         is_enum = False
                     continue
 
                 match = re.match(r"^\s*#\s*define\s+([\w_]+)\s+_IO", line)
                 if match:
-                    self.store_type("ioctl", match.group(1),
+                    self.store_type(line_no, "ioctl", match.group(1),
                                     replace_underscores=False)
                     continue
 
                 match = re.match(r"^\s*#\s*define\s+([\w_]+)(\s+|$)", line)
                 if match:
-                    self.store_type("define", match.group(1))
+                    self.store_type(line_no, "define", match.group(1))
                     continue
 
                 match = re.match(r"^\s*typedef\s+([_\w][\w\d_]+)\s+(.*)\s+([_\w][\w\d_]+);",
@@ -261,20 +261,20 @@ class ParseDataStructs:
                 if match:
                     name = match.group(2).strip()
                     symbol = match.group(3)
-                    self.store_type("typedef", symbol, ref_name=name)
+                    self.store_type(line_no, "typedef", symbol, ref_name=name)
                     continue
 
                 for re_enum in self.RE_ENUMS:
                     match = re_enum.match(line)
                     if match:
-                        self.store_type("enum", match.group(1))
+                        self.store_type(line_no, "enum", match.group(1))
                         is_enum = True
                         break
 
                 for re_struct in self.RE_STRUCTS:
                     match = re_struct.match(line)
                     if match:
-                        self.store_type("struct", match.group(1))
+                        self.store_type(line_no, "struct", match.group(1))
                         break
 
     def process_exceptions(self, fname: str):
@@ -342,7 +342,8 @@ class ParseDataStructs:
 
                 # Change self.symbols to use the replacement rule
                 if old in self.symbols[c_type]:
-                    self.symbols[c_type][old] = new_ref
+                    (_, ln) = self.symbols[c_type][old]
+                    self.symbols[c_type][old] = (new_ref, ln)
                 else:
                     print(f"{name}:{ln}: Warning: can't find {old} {c_type}")
 
@@ -360,8 +361,8 @@ class ParseDataStructs:
 
             print(f"{c_type}:")
 
-            for symbol, ref in sorted(refs.items()):
-                print(f"  {symbol} -> {ref}")
+            for symbol, (ref, ln) in sorted(refs.items()):
+                print(f"  #{ln:<5d} {symbol} -> {ref}")
 
             print()
 
@@ -384,7 +385,7 @@ class ParseDataStructs:
 
         # Process all reference types
         for ref_dict in self.symbols.values():
-            for symbol, replacement in ref_dict.items():
+            for symbol, (replacement, _) in ref_dict.items():
                 symbol = re.escape(re.sub(r"([\_\`\*\<\>\&\\\\:\/])", r"\\\1", symbol))
                 text = re.sub(fr'{start_delim}{symbol}{end_delim}',
                               fr'\1{replacement}\2', text)
@@ -420,8 +421,8 @@ class ParseDataStructs:
             text.append("")
 
             # Sort symbols alphabetically
-            for symbol, ref in sorted(refs.items()):
-                text.append(f"* :{ref}:")
+            for symbol, (ref, ln) in sorted(refs.items()):
+                text.append(f"* {ref}: line #{ln}")
 
             text.append("")  # Add empty line between categories
 
