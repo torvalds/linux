@@ -8,6 +8,7 @@
 #include <drm/drm_managed.h>
 
 #include "xe_assert.h"
+#include "xe_configfs.h"
 #include "xe_device.h"
 #include "xe_gt_sriov_pf.h"
 #include "xe_module.h"
@@ -19,6 +20,8 @@
 
 static unsigned int wanted_max_vfs(struct xe_device *xe)
 {
+	if (IS_ENABLED(CONFIG_CONFIGFS_FS))
+		return xe_configfs_get_max_vfs(to_pci_dev(xe->drm.dev));
 	return xe_modparam.max_vfs;
 }
 
