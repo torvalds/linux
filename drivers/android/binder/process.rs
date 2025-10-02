@@ -1346,10 +1346,6 @@ impl Process {
                 .alloc
                 .take_for_each(|offset, size, debug_id, odata| {
                     let ptr = offset + address;
-                    pr_warn!(
-                        "{}: removing orphan mapping {offset}:{size}\n",
-                        self.pid_in_current_ns()
-                    );
                     let mut alloc =
                         Allocation::new(self.clone(), debug_id, offset, size, ptr, false);
                     if let Some(data) = odata {
