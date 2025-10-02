@@ -28,6 +28,29 @@
 #include "xe_vm.h"
 #include "xe_pxp.h"
 
+/**
+ * DOC: Execution Queue
+ *
+ * An Execution queue is an interface for the HW context of execution.
+ * The user creates an execution queue, submits the GPU jobs through those
+ * queues and in the end destroys them.
+ *
+ * Execution queues can also be created by XeKMD itself for driver internal
+ * operations like object migration etc.
+ *
+ * An execution queue is associated with a specified HW engine or a group of
+ * engines (belonging to the same tile and engine class) and any GPU job
+ * submitted on the queue will be run on one of these engines.
+ *
+ * An execution queue is tied to an address space (VM). It holds a reference
+ * of the associated VM and the underlying Logical Ring Context/s (LRC/s)
+ * until the queue is destroyed.
+ *
+ * The execution queue sits on top of the submission backend. It opaquely
+ * handles the GuC and Execlist backends whichever the platform uses, and
+ * the ring operations the different engine classes support.
+ */
+
 enum xe_exec_queue_sched_prop {
 	XE_EXEC_QUEUE_JOB_TIMEOUT = 0,
 	XE_EXEC_QUEUE_TIMESLICE = 1,
