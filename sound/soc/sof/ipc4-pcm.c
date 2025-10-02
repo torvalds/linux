@@ -59,6 +59,8 @@ struct sof_ipc4_pcm_stream_priv {
  */
 #define DELAY_BOUNDARY		U32_MAX
 
+#define DELAY_MAX		(DELAY_BOUNDARY >> 1)
+
 static inline struct sof_ipc4_timestamp_info *
 sof_ipc4_sps_to_time_info(struct snd_sof_pcm_stream *sps)
 {
@@ -1265,6 +1267,13 @@ static int sof_ipc4_pcm_pointer(struct snd_soc_component *component,
 		time_info->delay = DELAY_BOUNDARY - tail_cnt + head_cnt;
 	else
 		time_info->delay = head_cnt - tail_cnt;
+
+	if (time_info->delay > DELAY_MAX) {
+		spcm_dbg_ratelimited(spcm, substream->stream,
+				     "inaccurate delay, host %llu dai_cnt %llu",
+				     host_cnt, dai_cnt);
+		time_info->delay = 0;
+	}
 
 	/*
 	 * Convert the host byte counter to PCM pointer which wraps in buffer
