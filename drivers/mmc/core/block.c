@@ -349,10 +349,10 @@ static umode_t mmc_disk_attrs_is_visible(struct kobject *kobj,
 	if (a == &dev_attr_ro_lock_until_next_power_on.attr &&
 	    (md->area_type & MMC_BLK_DATA_AREA_BOOT) &&
 	    md->queue.card->ext_csd.boot_ro_lockable) {
-		mode = S_IRUGO;
+		mode = 0444;
 		if (!(md->queue.card->ext_csd.boot_ro_lock &
 				EXT_CSD_BOOT_WP_B_PWR_WP_DIS))
-			mode |= S_IWUSR;
+			mode |= 0200;
 	}
 
 	mmc_blk_put(md);
@@ -3191,7 +3191,7 @@ static void mmc_blk_add_debugfs(struct mmc_card *card, struct mmc_blk_data *md)
 
 	if (mmc_card_mmc(card)) {
 		md->ext_csd_dentry =
-			debugfs_create_file("ext_csd", S_IRUSR, root, card,
+			debugfs_create_file("ext_csd", 0400, root, card,
 					    &mmc_dbg_ext_csd_fops);
 	}
 }

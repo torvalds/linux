@@ -175,12 +175,12 @@ static void dw_mci_init_debugfs(struct dw_mci_slot *slot)
 	if (!root)
 		return;
 
-	debugfs_create_file("regs", S_IRUSR, root, host, &dw_mci_regs_fops);
-	debugfs_create_file("req", S_IRUSR, root, slot, &dw_mci_req_fops);
-	debugfs_create_u32("state", S_IRUSR, root, &host->state);
-	debugfs_create_xul("pending_events", S_IRUSR, root,
+	debugfs_create_file("regs", 0400, root, host, &dw_mci_regs_fops);
+	debugfs_create_file("req", 0400, root, slot, &dw_mci_req_fops);
+	debugfs_create_u32("state", 0400, root, &host->state);
+	debugfs_create_xul("pending_events", 0400, root,
 			   &host->pending_events);
-	debugfs_create_xul("completed_events", S_IRUSR, root,
+	debugfs_create_xul("completed_events", 0400, root,
 			   &host->completed_events);
 #ifdef CONFIG_FAULT_INJECTION
 	fault_create_debugfs_attr("fail_data_crc", root, &host->fail_data_crc);

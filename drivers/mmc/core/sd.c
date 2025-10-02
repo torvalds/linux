@@ -744,7 +744,7 @@ static ssize_t mmc_dsr_show(struct device *dev, struct device_attribute *attr,
 	return sysfs_emit(buf, "0x%x\n", 0x404);
 }
 
-static DEVICE_ATTR(dsr, S_IRUGO, mmc_dsr_show, NULL);
+static DEVICE_ATTR(dsr, 0444, mmc_dsr_show, NULL);
 
 MMC_DEV_ATTR(vendor, "0x%04x\n", card->cis.vendor);
 MMC_DEV_ATTR(device, "0x%04x\n", card->cis.device);

@@ -145,17 +145,17 @@
 #define MAX_NR_SG	16
 
 static unsigned rw_threshold = 32;
-module_param(rw_threshold, uint, S_IRUGO);
+module_param(rw_threshold, uint, 0444);
 MODULE_PARM_DESC(rw_threshold,
 		"Read/Write threshold. Default = 32");
 
 static unsigned poll_threshold = 128;
-module_param(poll_threshold, uint, S_IRUGO);
+module_param(poll_threshold, uint, 0444);
 MODULE_PARM_DESC(poll_threshold,
 		 "Polling transaction size threshold. Default = 128");
 
 static unsigned poll_loopcount = 32;
-module_param(poll_loopcount, uint, S_IRUGO);
+module_param(poll_loopcount, uint, 0444);
 MODULE_PARM_DESC(poll_loopcount,
 		 "Maximum polling loop count. Default = 32");
 

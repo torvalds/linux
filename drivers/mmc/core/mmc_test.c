@@ -3212,12 +3212,12 @@ static int mmc_test_register_dbgfs_file(struct mmc_card *card)
 
 	mutex_lock(&mmc_test_lock);
 
-	ret = __mmc_test_register_dbgfs_file(card, "test", S_IWUSR | S_IRUGO,
+	ret = __mmc_test_register_dbgfs_file(card, "test", 0644,
 		&mmc_test_fops_test);
 	if (ret)
 		goto err;
 
-	ret = __mmc_test_register_dbgfs_file(card, "testlist", S_IRUGO,
+	ret = __mmc_test_register_dbgfs_file(card, "testlist", 0444,
 		&mtf_testlist_fops);
 	if (ret)
 		goto err;
