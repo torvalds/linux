@@ -121,7 +121,6 @@ struct evsel {
 	bool			forced_leader;
 	bool			cmdline_group_boundary;
 	bool			reset_group;
-	bool			errored;
 	bool			needs_auxtrace_mmap;
 	bool			default_metricgroup; /* A member of the Default metricgroup */
 	bool			needs_uniquify;
