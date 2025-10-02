@@ -32,8 +32,11 @@
 #include "controller_trace.h"
 
 /* DSP lock helpers */
-#define dsp_lock(dev)		snd_hdac_dsp_lock(azx_stream(dev))
-#define dsp_unlock(dev)		snd_hdac_dsp_unlock(azx_stream(dev))
+#ifdef CONFIG_SND_HDA_DSP_LOADER
+#define guard_dsp_lock(dev)	guard(snd_hdac_dsp_lock)(azx_stream(dev))
+#else
+#define guard_dsp_lock(dev)	do {} while (0)
+#endif
 #define dsp_is_locked(dev)	snd_hdac_stream_is_locked(azx_stream(dev))
 
 /* assign a stream for the PCM */
@@ -93,12 +96,12 @@ static int azx_pcm_close(struct snd_pcm_substream *substream)
 	struct azx_dev *azx_dev = get_azx_dev(substream);
 
 	trace_azx_pcm_close(chip, azx_dev);
-	mutex_lock(&chip->open_mutex);
-	azx_release_device(azx_dev);
-	if (hinfo->ops.close)
-		hinfo->ops.close(hinfo, apcm->codec, substream);
-	snd_hda_power_down(apcm->codec);
-	mutex_unlock(&chip->open_mutex);
+	scoped_guard(mutex, &chip->open_mutex) {
+		azx_release_device(azx_dev);
+		if (hinfo->ops.close)
+			hinfo->ops.close(hinfo, apcm->codec, substream);
+		snd_hda_power_down(apcm->codec);
+	}
 	snd_hda_codec_pcm_put(apcm->info);
 	return 0;
 }
@@ -110,14 +113,11 @@ static int azx_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct azx *chip = apcm->chip;
 	struct azx_dev *azx_dev = get_azx_dev(substream);
 	struct hdac_stream *hdas = azx_stream(azx_dev);
-	int ret = 0;
 
 	trace_azx_pcm_hw_params(chip, azx_dev);
-	dsp_lock(azx_dev);
-	if (dsp_is_locked(azx_dev)) {
-		ret = -EBUSY;
-		goto unlock;
-	}
+	guard_dsp_lock(azx_dev);
+	if (dsp_is_locked(azx_dev))
+		return -EBUSY;
 
 	/* Set up BDLEs here, return -ENOMEM if too many BDLEs are required */
 	hdas->bufsize = params_buffer_bytes(hw_params);
@@ -127,11 +127,9 @@ static int azx_pcm_hw_params(struct snd_pcm_substream *substream,
 		(hw_params->info & SNDRV_PCM_INFO_NO_PERIOD_WAKEUP) &&
 		(hw_params->flags & SNDRV_PCM_HW_PARAMS_NO_PERIOD_WAKEUP);
 	if (snd_hdac_stream_setup_periods(hdas) < 0)
-		ret = -ENOMEM;
+		return -ENOMEM;
 
-unlock:
-	dsp_unlock(azx_dev);
-	return ret;
+	return 0;
 }
 
 static int azx_pcm_hw_free(struct snd_pcm_substream *substream)
@@ -141,14 +139,13 @@ static int azx_pcm_hw_free(struct snd_pcm_substream *substream)
 	struct hda_pcm_stream *hinfo = to_hda_pcm_stream(substream);
 
 	/* reset BDL address */
-	dsp_lock(azx_dev);
+	guard_dsp_lock(azx_dev);
 	if (!dsp_is_locked(azx_dev))
 		snd_hdac_stream_cleanup(azx_stream(azx_dev));
 
 	snd_hda_codec_cleanup(apcm->codec, hinfo, substream);
 
 	azx_stream(azx_dev)->prepared = 0;
-	dsp_unlock(azx_dev);
 	return 0;
 }
 
@@ -166,11 +163,9 @@ static int azx_pcm_prepare(struct snd_pcm_substream *substream)
 	unsigned short ctls = spdif ? spdif->ctls : 0;
 
 	trace_azx_pcm_prepare(chip, azx_dev);
-	dsp_lock(azx_dev);
-	if (dsp_is_locked(azx_dev)) {
-		err = -EBUSY;
-		goto unlock;
-	}
+	guard_dsp_lock(azx_dev);
+	if (dsp_is_locked(azx_dev))
+		return -EBUSY;
 
 	snd_hdac_stream_reset(azx_stream(azx_dev));
 	bits = snd_hdac_stream_format_bits(runtime->format, SNDRV_PCM_SUBFORMAT_STD, hinfo->maxbps);
@@ -180,13 +175,12 @@ static int azx_pcm_prepare(struct snd_pcm_substream *substream)
 		dev_err(chip->card->dev,
 			"invalid format_val, rate=%d, ch=%d, format=%d\n",
 			runtime->rate, runtime->channels, runtime->format);
-		err = -EINVAL;
-		goto unlock;
+		return -EINVAL;
 	}
 
 	err = snd_hdac_stream_set_params(azx_stream(azx_dev), format_val);
 	if (err < 0)
-		goto unlock;
+		return err;
 
 	snd_hdac_stream_setup(azx_stream(azx_dev), false);
 
@@ -197,12 +191,11 @@ static int azx_pcm_prepare(struct snd_pcm_substream *substream)
 		stream_tag -= chip->capture_streams;
 	err = snd_hda_codec_prepare(apcm->codec, hinfo, stream_tag,
 				     azx_dev->core.format_val, substream);
+	if (err < 0)
+		return err;
 
- unlock:
-	if (!err)
-		azx_stream(azx_dev)->prepared = 1;
-	dsp_unlock(azx_dev);
-	return err;
+	azx_stream(azx_dev)->prepared = 1;
+	return 0;
 }
 
 static int azx_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
@@ -252,31 +245,29 @@ static int azx_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 		snd_pcm_trigger_done(s, substream);
 	}
 
-	spin_lock(&bus->reg_lock);
+	scoped_guard(spinlock, &bus->reg_lock) {
+		/* first, set SYNC bits of corresponding streams */
+		snd_hdac_stream_sync_trigger(hstr, true, sbits, sync_reg);
 
-	/* first, set SYNC bits of corresponding streams */
-	snd_hdac_stream_sync_trigger(hstr, true, sbits, sync_reg);
-
-	snd_pcm_group_for_each_entry(s, substream) {
-		if (s->pcm->card != substream->pcm->card)
-			continue;
-		azx_dev = get_azx_dev(s);
-		if (start) {
-			azx_dev->insufficient = 1;
-			snd_hdac_stream_start(azx_stream(azx_dev));
-		} else {
-			snd_hdac_stream_stop(azx_stream(azx_dev));
+		snd_pcm_group_for_each_entry(s, substream) {
+			if (s->pcm->card != substream->pcm->card)
+				continue;
+			azx_dev = get_azx_dev(s);
+			if (start) {
+				azx_dev->insufficient = 1;
+				snd_hdac_stream_start(azx_stream(azx_dev));
+			} else {
+				snd_hdac_stream_stop(azx_stream(azx_dev));
+			}
 		}
 	}
-	spin_unlock(&bus->reg_lock);
 
 	snd_hdac_stream_sync(hstr, start, sbits);
 
-	spin_lock(&bus->reg_lock);
+	guard(spinlock)(&bus->reg_lock);
 	/* reset SYNC bits */
 	snd_hdac_stream_sync_trigger(hstr, false, sbits, sync_reg);
 	snd_hdac_stream_timecounter_init(hstr, sbits, start);
-	spin_unlock(&bus->reg_lock);
 	return 0;
 }
 
@@ -971,19 +962,18 @@ int snd_hda_codec_load_dsp_prepare(struct hda_codec *codec, unsigned int format,
 
 	azx_dev = azx_get_dsp_loader_dev(chip);
 	hstr = azx_stream(azx_dev);
-	spin_lock_irq(&bus->reg_lock);
-	if (hstr->opened) {
-		chip->saved_azx_dev = *azx_dev;
-		saved = true;
+	scoped_guard(spinlock_irq, &bus->reg_lock) {
+		if (hstr->opened) {
+			chip->saved_azx_dev = *azx_dev;
+			saved = true;
+		}
 	}
-	spin_unlock_irq(&bus->reg_lock);
 
 	err = snd_hdac_dsp_prepare(hstr, format, byte_size, bufp);
 	if (err < 0) {
-		spin_lock_irq(&bus->reg_lock);
+		guard(spinlock_irq)(&bus->reg_lock);
 		if (saved)
 			*azx_dev = chip->saved_azx_dev;
-		spin_unlock_irq(&bus->reg_lock);
 		return err;
 	}
 
@@ -1014,11 +1004,10 @@ void snd_hda_codec_load_dsp_cleanup(struct hda_codec *codec,
 		return;
 
 	snd_hdac_dsp_cleanup(hstr, dmab);
-	spin_lock_irq(&bus->reg_lock);
+	guard(spinlock_irq)(&bus->reg_lock);
 	if (hstr->opened)
 		*azx_dev = chip->saved_azx_dev;
 	hstr->locked = false;
-	spin_unlock_irq(&bus->reg_lock);
 }
 EXPORT_SYMBOL_GPL(snd_hda_codec_load_dsp_cleanup);
 #endif /* CONFIG_SND_HDA_DSP_LOADER */
@@ -1079,10 +1068,10 @@ irqreturn_t azx_interrupt(int irq, void *dev_id)
 		if (!pm_runtime_active(chip->card->dev))
 			return IRQ_NONE;
 
-	spin_lock(&bus->reg_lock);
+	guard(spinlock)(&bus->reg_lock);
 
 	if (chip->disabled)
-		goto unlock;
+		return IRQ_NONE;
 
 	do {
 		status = azx_readl(chip, INTSTS);
@@ -1114,9 +1103,6 @@ irqreturn_t azx_interrupt(int irq, void *dev_id)
 		}
 	} while (active && ++repeat < 10);
 
- unlock:
-	spin_unlock(&bus->reg_lock);
-
 	return IRQ_RETVAL(handled);
 }
 EXPORT_SYMBOL_GPL(azx_interrupt);
@@ -1136,12 +1122,12 @@ static int probe_codec(struct azx *chip, int addr)
 	int err;
 	unsigned int res = -1;
 
-	mutex_lock(&bus->cmd_mutex);
-	chip->probing = 1;
-	azx_send_cmd(bus, cmd);
-	err = azx_get_response(bus, addr, &res);
-	chip->probing = 0;
-	mutex_unlock(&bus->cmd_mutex);
+	scoped_guard(mutex, &bus->cmd_mutex) {
+		chip->probing = 1;
+		azx_send_cmd(bus, cmd);
+		err = azx_get_response(bus, addr, &res);
+		chip->probing = 0;
+	}
 	if (err < 0 || res == -1)
 		return -EIO;
 	dev_dbg(chip->card->dev, "codec #%d probed OK\n", addr);

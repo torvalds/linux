@@ -45,13 +45,30 @@ struct sof_state_event_entry {
 	struct list_head list;
 };
 
+/**
+ * struct sof_client_dev_entry - client device entry for internal management use
+ * @sdev:	pointer to SOF core device struct
+ * @list:	item in SOF core client dev list
+ * @client_dev: SOF client device
+ */
+struct sof_client_dev_entry {
+	struct snd_sof_dev *sdev;
+	struct list_head list;
+
+	struct sof_client_dev client_dev;
+};
+
+#define cdev_to_centry(cdev) \
+	container_of(cdev, struct sof_client_dev_entry, client_dev)
+
 static void sof_client_auxdev_release(struct device *dev)
 {
 	struct auxiliary_device *auxdev = to_auxiliary_dev(dev);
 	struct sof_client_dev *cdev = auxiliary_dev_to_sof_client_dev(auxdev);
+	struct sof_client_dev_entry *centry = cdev_to_centry(cdev);
 
 	kfree(cdev->auxdev.dev.platform_data);
-	kfree(cdev);
+	kfree(centry);
 }
 
 static int sof_client_dev_add_data(struct sof_client_dev *cdev, const void *data,
@@ -208,15 +225,18 @@ void sof_unregister_clients(struct snd_sof_dev *sdev)
 int sof_client_dev_register(struct snd_sof_dev *sdev, const char *name, u32 id,
 			    const void *data, size_t size)
 {
+	struct sof_client_dev_entry *centry;
 	struct auxiliary_device *auxdev;
 	struct sof_client_dev *cdev;
 	int ret;
 
-	cdev = kzalloc(sizeof(*cdev), GFP_KERNEL);
-	if (!cdev)
+	centry = kzalloc(sizeof(*centry), GFP_KERNEL);
+	if (!centry)
 		return -ENOMEM;
 
-	cdev->sdev = sdev;
+	cdev = &centry->client_dev;
+
+	centry->sdev = sdev;
 	auxdev = &cdev->auxdev;
 	auxdev->name = name;
 	auxdev->dev.parent = sdev->dev;
@@ -246,7 +266,7 @@ int sof_client_dev_register(struct snd_sof_dev *sdev, const char *name, u32 id,
 
 	/* add to list of SOF client devices */
 	mutex_lock(&sdev->ipc_client_mutex);
-	list_add(&cdev->list, &sdev->ipc_client_list);
+	list_add(&centry->list, &sdev->ipc_client_list);
 	mutex_unlock(&sdev->ipc_client_mutex);
 
 	return 0;
@@ -255,7 +275,7 @@ err_dev_init:
 	kfree(cdev->auxdev.dev.platform_data);
 
 err_dev_add_data:
-	kfree(cdev);
+	kfree(centry);
 
 	return ret;
 }
@@ -263,7 +283,7 @@ EXPORT_SYMBOL_NS_GPL(sof_client_dev_register, "SND_SOC_SOF_CLIENT");
 
 void sof_client_dev_unregister(struct snd_sof_dev *sdev, const char *name, u32 id)
 {
-	struct sof_client_dev *cdev;
+	struct sof_client_dev_entry *centry;
 
 	mutex_lock(&sdev->ipc_client_mutex);
 
@@ -271,9 +291,11 @@ void sof_client_dev_unregister(struct snd_sof_dev *sdev, const char *name, u32 i
 	 * sof_client_auxdev_release() will be invoked to free up memory
 	 * allocations through put_device()
 	 */
-	list_for_each_entry(cdev, &sdev->ipc_client_list, list) {
+	list_for_each_entry(centry, &sdev->ipc_client_list, list) {
+		struct sof_client_dev *cdev = &centry->client_dev;
+
 		if (!strcmp(cdev->auxdev.name, name) && cdev->auxdev.id == id) {
-			list_del(&cdev->list);
+			list_del(&centry->list);
 			auxiliary_device_delete(&cdev->auxdev);
 			auxiliary_device_uninit(&cdev->auxdev);
 			break;
@@ -287,15 +309,17 @@ EXPORT_SYMBOL_NS_GPL(sof_client_dev_unregister, "SND_SOC_SOF_CLIENT");
 int sof_client_ipc_tx_message(struct sof_client_dev *cdev, void *ipc_msg,
 			      void *reply_data, size_t reply_bytes)
 {
-	if (cdev->sdev->pdata->ipc_type == SOF_IPC_TYPE_3) {
+	struct snd_sof_dev *sdev = sof_client_dev_to_sof_dev(cdev);
+
+	if (sdev->pdata->ipc_type == SOF_IPC_TYPE_3) {
 		struct sof_ipc_cmd_hdr *hdr = ipc_msg;
 
-		return sof_ipc_tx_message(cdev->sdev->ipc, ipc_msg, hdr->size,
+		return sof_ipc_tx_message(sdev->ipc, ipc_msg, hdr->size,
 					  reply_data, reply_bytes);
-	} else if (cdev->sdev->pdata->ipc_type == SOF_IPC_TYPE_4) {
+	} else if (sdev->pdata->ipc_type == SOF_IPC_TYPE_4) {
 		struct sof_ipc4_msg *msg = ipc_msg;
 
-		return sof_ipc_tx_message(cdev->sdev->ipc, ipc_msg, msg->data_size,
+		return sof_ipc_tx_message(sdev->ipc, ipc_msg, msg->data_size,
 					  reply_data, reply_bytes);
 	}
 
@@ -305,16 +329,18 @@ EXPORT_SYMBOL_NS_GPL(sof_client_ipc_tx_message, "SND_SOC_SOF_CLIENT");
 
 int sof_client_ipc_rx_message(struct sof_client_dev *cdev, void *ipc_msg, void *msg_buf)
 {
+	struct snd_sof_dev *sdev = sof_client_dev_to_sof_dev(cdev);
+
 	if (IS_ENABLED(CONFIG_SND_SOC_SOF_IPC3) &&
-	    cdev->sdev->pdata->ipc_type == SOF_IPC_TYPE_3) {
+	    sdev->pdata->ipc_type == SOF_IPC_TYPE_3) {
 		struct sof_ipc_cmd_hdr *hdr = ipc_msg;
 
 		if (hdr->size < sizeof(hdr)) {
-			dev_err(cdev->sdev->dev, "The received message size is invalid\n");
+			dev_err(sdev->dev, "The received message size is invalid\n");
 			return -EINVAL;
 		}
 
-		sof_ipc3_do_rx_work(cdev->sdev, ipc_msg, msg_buf);
+		sof_ipc3_do_rx_work(sdev, ipc_msg, msg_buf);
 		return 0;
 	}
 
@@ -325,16 +351,17 @@ EXPORT_SYMBOL_NS_GPL(sof_client_ipc_rx_message, "SND_SOC_SOF_CLIENT");
 int sof_client_ipc_set_get_data(struct sof_client_dev *cdev, void *ipc_msg,
 				bool set)
 {
-	if (cdev->sdev->pdata->ipc_type == SOF_IPC_TYPE_3) {
+	struct snd_sof_dev *sdev = sof_client_dev_to_sof_dev(cdev);
+
+	if (sdev->pdata->ipc_type == SOF_IPC_TYPE_3) {
 		struct sof_ipc_cmd_hdr *hdr = ipc_msg;
 
-		return sof_ipc_set_get_data(cdev->sdev->ipc, ipc_msg, hdr->size,
-					    set);
-	} else if (cdev->sdev->pdata->ipc_type == SOF_IPC_TYPE_4) {
+		return sof_ipc_set_get_data(sdev->ipc, ipc_msg, hdr->size, set);
+	} else if (sdev->pdata->ipc_type == SOF_IPC_TYPE_4) {
 		struct sof_ipc4_msg *msg = ipc_msg;
 
-		return sof_ipc_set_get_data(cdev->sdev->ipc, ipc_msg,
-					    msg->data_size, set);
+		return sof_ipc_set_get_data(sdev->ipc, ipc_msg, msg->data_size,
+					    set);
 	}
 
 	return -EINVAL;
@@ -344,7 +371,7 @@ EXPORT_SYMBOL_NS_GPL(sof_client_ipc_set_get_data, "SND_SOC_SOF_CLIENT");
 #ifdef CONFIG_SND_SOC_SOF_IPC4
 struct sof_ipc4_fw_module *sof_client_ipc4_find_module(struct sof_client_dev *c, const guid_t *uuid)
 {
-	struct snd_sof_dev *sdev = c->sdev;
+	struct snd_sof_dev *sdev = sof_client_dev_to_sof_dev(c);
 
 	if (sdev->pdata->ipc_type == SOF_IPC_TYPE_4)
 		return sof_ipc4_find_module_by_uuid(sdev, uuid);
@@ -353,16 +380,31 @@ struct sof_ipc4_fw_module *sof_client_ipc4_find_module(struct sof_client_dev *c,
 	return NULL;
 }
 EXPORT_SYMBOL_NS_GPL(sof_client_ipc4_find_module, "SND_SOC_SOF_CLIENT");
+
+struct snd_sof_widget *sof_client_ipc4_find_swidget_by_id(struct sof_client_dev *cdev,
+							  u32 module_id, int instance_id)
+{
+	struct snd_sof_dev *sdev = sof_client_dev_to_sof_dev(cdev);
+
+	if (sdev->pdata->ipc_type == SOF_IPC_TYPE_4)
+		return sof_ipc4_find_swidget_by_ids(sdev, module_id, instance_id);
+	dev_err(sdev->dev, "Only supported with IPC4\n");
+
+	return NULL;
+}
+EXPORT_SYMBOL_NS_GPL(sof_client_ipc4_find_swidget_by_id, "SND_SOC_SOF_CLIENT");
 #endif
 
 int sof_suspend_clients(struct snd_sof_dev *sdev, pm_message_t state)
 {
 	const struct auxiliary_driver *adrv;
-	struct sof_client_dev *cdev;
+	struct sof_client_dev_entry *centry;
 
 	mutex_lock(&sdev->ipc_client_mutex);
 
-	list_for_each_entry(cdev, &sdev->ipc_client_list, list) {
+	list_for_each_entry(centry, &sdev->ipc_client_list, list) {
+		struct sof_client_dev *cdev = &centry->client_dev;
+
 		/* Skip devices without loaded driver */
 		if (!cdev->auxdev.dev.driver)
 			continue;
@@ -381,11 +423,13 @@ EXPORT_SYMBOL_NS_GPL(sof_suspend_clients, "SND_SOC_SOF_CLIENT");
 int sof_resume_clients(struct snd_sof_dev *sdev)
 {
 	const struct auxiliary_driver *adrv;
-	struct sof_client_dev *cdev;
+	struct sof_client_dev_entry *centry;
 
 	mutex_lock(&sdev->ipc_client_mutex);
 
-	list_for_each_entry(cdev, &sdev->ipc_client_list, list) {
+	list_for_each_entry(centry, &sdev->ipc_client_list, list) {
+		struct sof_client_dev *cdev = &centry->client_dev;
+
 		/* Skip devices without loaded driver */
 		if (!cdev->auxdev.dev.driver)
 			continue;
@@ -403,14 +447,18 @@ EXPORT_SYMBOL_NS_GPL(sof_resume_clients, "SND_SOC_SOF_CLIENT");
 
 struct dentry *sof_client_get_debugfs_root(struct sof_client_dev *cdev)
 {
-	return cdev->sdev->debugfs_root;
+	struct snd_sof_dev *sdev = sof_client_dev_to_sof_dev(cdev);
+
+	return sdev->debugfs_root;
 }
 EXPORT_SYMBOL_NS_GPL(sof_client_get_debugfs_root, "SND_SOC_SOF_CLIENT");
 
 /* DMA buffer allocation in client drivers must use the core SOF device */
 struct device *sof_client_get_dma_dev(struct sof_client_dev *cdev)
 {
-	return cdev->sdev->dev;
+	struct snd_sof_dev *sdev = sof_client_dev_to_sof_dev(cdev);
+
+	return sdev->dev;
 }
 EXPORT_SYMBOL_NS_GPL(sof_client_get_dma_dev, "SND_SOC_SOF_CLIENT");
 
@@ -498,10 +546,10 @@ int sof_client_register_ipc_rx_handler(struct sof_client_dev *cdev,
 	if (!callback)
 		return -EINVAL;
 
-	if (cdev->sdev->pdata->ipc_type == SOF_IPC_TYPE_3) {
+	if (sdev->pdata->ipc_type == SOF_IPC_TYPE_3) {
 		if (!(ipc_msg_type & SOF_GLB_TYPE_MASK))
 			return -EINVAL;
-	} else if (cdev->sdev->pdata->ipc_type == SOF_IPC_TYPE_4) {
+	} else if (sdev->pdata->ipc_type == SOF_IPC_TYPE_4) {
 		if (!(ipc_msg_type & SOF_IPC4_NOTIFICATION_TYPE_MASK))
 			return -EINVAL;
 	} else {
@@ -611,3 +659,11 @@ enum sof_fw_state sof_client_get_fw_state(struct sof_client_dev *cdev)
 	return sdev->fw_state;
 }
 EXPORT_SYMBOL_NS_GPL(sof_client_get_fw_state, "SND_SOC_SOF_CLIENT");
+
+struct snd_sof_dev *sof_client_dev_to_sof_dev(struct sof_client_dev *cdev)
+{
+	struct sof_client_dev_entry *centry = cdev_to_centry(cdev);
+
+	return centry->sdev;
+}
+EXPORT_SYMBOL_NS_GPL(sof_client_dev_to_sof_dev, "SND_SOC_SOF_CLIENT");

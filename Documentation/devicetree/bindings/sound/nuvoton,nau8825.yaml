@@ -9,6 +9,20 @@ title: NAU8825 audio CODEC
 maintainers:
   - John Hsu <KCHSU0@nuvoton.com>
 
+description: |
+  NAU8825 audio CODEC
+
+  Pins on the device (for linking into audio routes):
+
+    Outputs:
+      * HPOL    : Headphone Left Output
+      * HPOR    : Headphone Right Output
+      * MICBIAS : Microphone Bias Output
+
+    Inputs:
+      * MICP    : Analog Microphone Positive Input
+      * MICN    : Analog Microphone Negative Input
+
 allOf:
   - $ref: dai-common.yaml#
 

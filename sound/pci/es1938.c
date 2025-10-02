@@ -237,11 +237,9 @@ MODULE_DEVICE_TABLE(pci, snd_es1938_ids);
  * -----------------------------------------------------------------*/
 static void snd_es1938_mixer_write(struct es1938 *chip, unsigned char reg, unsigned char val)
 {
-	unsigned long flags;
-	spin_lock_irqsave(&chip->mixer_lock, flags);
+	guard(spinlock_irqsave)(&chip->mixer_lock);
 	outb(reg, SLSB_REG(chip, MIXERADDR));
 	outb(val, SLSB_REG(chip, MIXERDATA));
-	spin_unlock_irqrestore(&chip->mixer_lock, flags);
 	dev_dbg(chip->card->dev, "Mixer reg %02x set to %02x\n", reg, val);
 }
 
@@ -251,11 +249,10 @@ static void snd_es1938_mixer_write(struct es1938 *chip, unsigned char reg, unsig
 static int snd_es1938_mixer_read(struct es1938 *chip, unsigned char reg)
 {
 	int data;
-	unsigned long flags;
-	spin_lock_irqsave(&chip->mixer_lock, flags);
+
+	guard(spinlock_irqsave)(&chip->mixer_lock);
 	outb(reg, SLSB_REG(chip, MIXERADDR));
 	data = inb(SLSB_REG(chip, MIXERDATA));
-	spin_unlock_irqrestore(&chip->mixer_lock, flags);
 	dev_dbg(chip->card->dev, "Mixer reg %02x now is %02x\n", reg, data);
 	return data;
 }
@@ -266,9 +263,9 @@ static int snd_es1938_mixer_read(struct es1938 *chip, unsigned char reg)
 static int snd_es1938_mixer_bits(struct es1938 *chip, unsigned char reg,
 				 unsigned char mask, unsigned char val)
 {
-	unsigned long flags;
 	unsigned char old, new, oval;
-	spin_lock_irqsave(&chip->mixer_lock, flags);
+
+	guard(spinlock_irqsave)(&chip->mixer_lock);
 	outb(reg, SLSB_REG(chip, MIXERADDR));
 	old = inb(SLSB_REG(chip, MIXERDATA));
 	oval = old & mask;
@@ -279,7 +276,6 @@ static int snd_es1938_mixer_bits(struct es1938 *chip, unsigned char reg,
 			"Mixer reg %02x was %02x, set to %02x\n",
 			   reg, old, new);
 	}
-	spin_unlock_irqrestore(&chip->mixer_lock, flags);
 	return oval;
 }
 
@@ -322,11 +318,9 @@ static int snd_es1938_get_byte(struct es1938 *chip)
  * -----------------------------------------------------------------*/
 static void snd_es1938_write(struct es1938 *chip, unsigned char reg, unsigned char val)
 {
-	unsigned long flags;
-	spin_lock_irqsave(&chip->reg_lock, flags);
+	guard(spinlock_irqsave)(&chip->reg_lock);
 	snd_es1938_write_cmd(chip, reg);
 	snd_es1938_write_cmd(chip, val);
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
 	dev_dbg(chip->card->dev, "Reg %02x set to %02x\n", reg, val);
 }
 
@@ -336,12 +330,11 @@ static void snd_es1938_write(struct es1938 *chip, unsigned char reg, unsigned ch
 static unsigned char snd_es1938_read(struct es1938 *chip, unsigned char reg)
 {
 	unsigned char val;
-	unsigned long flags;
-	spin_lock_irqsave(&chip->reg_lock, flags);
+
+	guard(spinlock_irqsave)(&chip->reg_lock);
 	snd_es1938_write_cmd(chip, ESS_CMD_READREG);
 	snd_es1938_write_cmd(chip, reg);
 	val = snd_es1938_get_byte(chip);
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
 	dev_dbg(chip->card->dev, "Reg %02x now is %02x\n", reg, val);
 	return val;
 }
@@ -352,9 +345,9 @@ static unsigned char snd_es1938_read(struct es1938 *chip, unsigned char reg)
 static int snd_es1938_bits(struct es1938 *chip, unsigned char reg, unsigned char mask,
 			   unsigned char val)
 {
-	unsigned long flags;
 	unsigned char old, new, oval;
-	spin_lock_irqsave(&chip->reg_lock, flags);
+
+	guard(spinlock_irqsave)(&chip->reg_lock);
 	snd_es1938_write_cmd(chip, ESS_CMD_READREG);
 	snd_es1938_write_cmd(chip, reg);
 	old = snd_es1938_get_byte(chip);
@@ -366,7 +359,6 @@ static int snd_es1938_bits(struct es1938 *chip, unsigned char reg, unsigned char
 		dev_dbg(chip->card->dev, "Reg %02x was %02x, set to %02x\n",
 			   reg, old, new);
 	}
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
 	return oval;
 }
 

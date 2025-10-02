@@ -288,7 +288,7 @@ static int byt_wm5102_init(struct snd_soc_pcm_runtime *runtime)
 	const struct snd_soc_dapm_route *custom_map = NULL;
 	int ret, jack_type, num_routes = 0;
 
-	card->dapm.idle_bias_off = true;
+	card->dapm.idle_bias = false;
 
 	ret = snd_soc_add_card_controls(card, byt_wm5102_controls,
 					ARRAY_SIZE(byt_wm5102_controls));

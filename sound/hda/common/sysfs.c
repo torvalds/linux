@@ -81,12 +81,12 @@ static ssize_t pin_configs_show(struct hda_codec *codec,
 {
 	const struct hda_pincfg *pin;
 	int i, len = 0;
-	mutex_lock(&codec->user_mutex);
+
+	guard(mutex)(&codec->user_mutex);
 	snd_array_for_each(list, i, pin) {
 		len += sysfs_emit_at(buf, len, "0x%02x 0x%08x\n",
 				     pin->nid, pin->cfg);
 	}
-	mutex_unlock(&codec->user_mutex);
 	return len;
 }
 
@@ -129,21 +129,18 @@ static int reconfig_codec(struct hda_codec *codec)
 {
 	int err;
 
-	snd_hda_power_up(codec);
+	CLASS(snd_hda_power, pm)(codec);
 	codec_info(codec, "hda-codec: reconfiguring\n");
 	err = snd_hda_codec_reset(codec);
 	if (err < 0) {
 		codec_err(codec,
 			   "The codec is being used, can't reconfigure.\n");
-		goto error;
+		return err;
 	}
 	err = device_reprobe(hda_codec_dev(codec));
 	if (err < 0)
-		goto error;
-	err = snd_card_register(codec->card);
- error:
-	snd_hda_power_down(codec);
-	return err;
+		return err;
+	return snd_card_register(codec->card);
 }
 
 /*
@@ -218,12 +215,12 @@ static ssize_t init_verbs_show(struct device *dev,
 	struct hda_codec *codec = dev_get_drvdata(dev);
 	const struct hda_verb *v;
 	int i, len = 0;
-	mutex_lock(&codec->user_mutex);
+
+	guard(mutex)(&codec->user_mutex);
 	snd_array_for_each(&codec->init_verbs, i, v) {
 		len += sysfs_emit_at(buf, len, "0x%02x 0x%03x 0x%04x\n",
 				     v->nid, v->verb, v->param);
 	}
-	mutex_unlock(&codec->user_mutex);
 	return len;
 }
 
@@ -236,16 +233,13 @@ static int parse_init_verbs(struct hda_codec *codec, const char *buf)
 		return -EINVAL;
 	if (!nid || !verb)
 		return -EINVAL;
-	mutex_lock(&codec->user_mutex);
+	guard(mutex)(&codec->user_mutex);
 	v = snd_array_new(&codec->init_verbs);
-	if (!v) {
-		mutex_unlock(&codec->user_mutex);
+	if (!v)
 		return -ENOMEM;
-	}
 	v->nid = nid;
 	v->verb = verb;
 	v->param = param;
-	mutex_unlock(&codec->user_mutex);
 	return 0;
 }
 
@@ -267,12 +261,12 @@ static ssize_t hints_show(struct device *dev,
 	struct hda_codec *codec = dev_get_drvdata(dev);
 	const struct hda_hint *hint;
 	int i, len = 0;
-	mutex_lock(&codec->user_mutex);
+
+	guard(mutex)(&codec->user_mutex);
 	snd_array_for_each(&codec->hints, i, hint) {
 		len += sysfs_emit_at(buf, len, "%s = %s\n",
 				     hint->key, hint->val);
 	}
-	mutex_unlock(&codec->user_mutex);
 	return len;
 }
 
@@ -305,9 +299,9 @@ static void remove_trail_spaces(char *str)
 
 static int parse_hints(struct hda_codec *codec, const char *buf)
 {
-	char *key, *val;
+	char *key __free(kfree) = NULL;
+	char *val;
 	struct hda_hint *hint;
-	int err = 0;
 
 	buf = skip_spaces(buf);
 	if (!*buf || *buf == '#' || *buf == '\n')
@@ -319,39 +313,29 @@ static int parse_hints(struct hda_codec *codec, const char *buf)
 		return -ENOMEM;
 	/* extract key and val */
 	val = strchr(key, '=');
-	if (!val) {
-		kfree(key);
+	if (!val)
 		return -EINVAL;
-	}
 	*val++ = 0;
 	val = skip_spaces(val);
 	remove_trail_spaces(key);
 	remove_trail_spaces(val);
-	mutex_lock(&codec->user_mutex);
+	guard(mutex)(&codec->user_mutex);
 	hint = get_hint(codec, key);
 	if (hint) {
 		/* replace */
 		kfree(hint->key);
-		hint->key = key;
-		hint->val = val;
-		goto unlock;
+		goto replace;
 	}
 	/* allocate a new hint entry */
 	if (codec->hints.used >= MAX_HINTS)
-		hint = NULL;
-	else
-		hint = snd_array_new(&codec->hints);
-	if (hint) {
-		hint->key = key;
-		hint->val = val;
-	} else {
-		err = -ENOMEM;
-	}
- unlock:
-	mutex_unlock(&codec->user_mutex);
-	if (err)
-		kfree(key);
-	return err;
+		return -ENOMEM;
+	hint = snd_array_new(&codec->hints);
+	if (!hint)
+		return -ENOMEM;
+ replace:
+	hint->key = no_free_ptr(key);
+	hint->val = val;
+	return 0;
 }
 
 static ssize_t hints_store(struct device *dev,
@@ -375,16 +359,14 @@ static ssize_t user_pin_configs_show(struct device *dev,
 
 static int parse_user_pin_configs(struct hda_codec *codec, const char *buf)
 {
-	int nid, cfg, err;
+	int nid, cfg;
 
 	if (sscanf(buf, "%i %i", &nid, &cfg) != 2)
 		return -EINVAL;
 	if (!nid)
 		return -EINVAL;
-	mutex_lock(&codec->user_mutex);
-	err = snd_hda_add_pincfg(codec, &codec->user_pins, nid, cfg);
-	mutex_unlock(&codec->user_mutex);
-	return err;
+	guard(mutex)(&codec->user_mutex);
+	return snd_hda_add_pincfg(codec, &codec->user_pins, nid, cfg);
 }
 
 static ssize_t user_pin_configs_store(struct device *dev,
@@ -432,26 +414,19 @@ EXPORT_SYMBOL_GPL(snd_hda_get_hint);
 int snd_hda_get_bool_hint(struct hda_codec *codec, const char *key)
 {
 	const char *p;
-	int ret;
 
-	mutex_lock(&codec->user_mutex);
+	guard(mutex)(&codec->user_mutex);
 	p = snd_hda_get_hint(codec, key);
 	if (!p || !*p)
-		ret = -ENOENT;
-	else {
-		switch (toupper(*p)) {
-		case 'T': /* true */
-		case 'Y': /* yes */
-		case '1':
-			ret = 1;
-			break;
-		default:
-			ret = 0;
-			break;
-		}
+		return -ENOENT;
+	switch (toupper(*p)) {
+	case 'T': /* true */
+	case 'Y': /* yes */
+	case '1':
+		return 1;
+	default:
+		return 0;
 	}
-	mutex_unlock(&codec->user_mutex);
-	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_hda_get_bool_hint);
 
@@ -469,20 +444,17 @@ int snd_hda_get_int_hint(struct hda_codec *codec, const char *key, int *valp)
 {
 	const char *p;
 	unsigned long val;
-	int ret;
 
-	mutex_lock(&codec->user_mutex);
+	guard(mutex)(&codec->user_mutex);
 	p = snd_hda_get_hint(codec, key);
 	if (!p)
-		ret = -ENOENT;
+		return -ENOENT;
 	else if (kstrtoul(p, 0, &val))
-		ret = -EINVAL;
+		return -EINVAL;
 	else {
 		*valp = val;
-		ret = 0;
+		return 0;
 	}
-	mutex_unlock(&codec->user_mutex);
-	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_hda_get_int_hint);
 #endif /* CONFIG_SND_HDA_RECONFIG */
