@@ -817,8 +817,6 @@ void dcn35_enable_plane(struct dc *dc, struct pipe_ctx *pipe_ctx,
 			       struct dc_state *context)
 {
 	struct dpp *dpp = pipe_ctx->plane_res.dpp;
-	struct dccg *dccg = dc->res_pool->dccg;
-
 
 	/* enable DCFCLK current DCHUB */
 	pipe_ctx->plane_res.hubp->funcs->hubp_clk_cntl(pipe_ctx->plane_res.hubp, true);
@@ -826,7 +824,6 @@ void dcn35_enable_plane(struct dc *dc, struct pipe_ctx *pipe_ctx,
 	/* initialize HUBP on power up */
 	pipe_ctx->plane_res.hubp->funcs->hubp_init(pipe_ctx->plane_res.hubp);
 	/*make sure DPPCLK is on*/
-	dccg->funcs->dccg_root_gate_disable_control(dccg, dpp->inst, true);
 	dpp->funcs->dpp_dppclk_control(dpp, false, true);
 	/* make sure OPP_PIPE_CLOCK_EN = 1 */
 	pipe_ctx->stream_res.opp->funcs->opp_pipe_clock_control(
@@ -860,7 +857,6 @@ void dcn35_plane_atomic_disable(struct dc *dc, struct pipe_ctx *pipe_ctx)
 {
 	struct hubp *hubp = pipe_ctx->plane_res.hubp;
 	struct dpp *dpp = pipe_ctx->plane_res.dpp;
-	struct dccg *dccg = dc->res_pool->dccg;
 
 
 	dc->hwss.wait_for_mpcc_disconnect(dc, dc->res_pool, pipe_ctx);
@@ -879,7 +875,6 @@ void dcn35_plane_atomic_disable(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	hubp->funcs->hubp_clk_cntl(hubp, false);
 
 	dpp->funcs->dpp_dppclk_control(dpp, false, false);
-	dccg->funcs->dccg_root_gate_disable_control(dccg, dpp->inst, false);
 
 	hubp->power_gated = true;
 

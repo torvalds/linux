@@ -1184,8 +1184,7 @@ static void dccg35_update_dpp_dto(struct dccg *dccg, int dpp_inst,
 		dcn35_set_dppclk_enable(dccg, dpp_inst, true);
 	} else {
 		dcn35_set_dppclk_enable(dccg, dpp_inst, false);
-		/*we have this in hwss: disable_plane*/
-		//dccg35_set_dppclk_rcg(dccg, dpp_inst, true);
+		dccg35_set_dppclk_rcg(dccg, dpp_inst, true);
 	}
 	udelay(10);
 	dccg->pipe_dppclk_khz[dpp_inst] = req_dppclk;
@@ -1695,7 +1694,7 @@ static void dccg35_dpp_root_clock_control(
 			  DPPCLK0_DTO_PHASE, 0,
 			  DPPCLK0_DTO_MODULO, 1);
 		/*we have this in hwss: disable_plane*/
-		//dccg35_set_dppclk_rcg(dccg, dpp_inst, true);
+		dccg35_set_dppclk_rcg(dccg, dpp_inst, true);
 	}
 
 	// wait for clock to fully ramp
