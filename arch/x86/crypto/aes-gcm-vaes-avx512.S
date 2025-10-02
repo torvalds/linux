@@ -268,7 +268,7 @@
 // The number of key powers initialized is NUM_H_POWERS, and they are stored in
 // the order H^NUM_H_POWERS to H^1.  The zeroized padding blocks after the key
 // powers themselves are also initialized.
-.macro	_aes_gcm_precompute
+SYM_FUNC_START(aes_gcm_precompute_vaes_avx512)
 
 	// Function arguments
 	.set	KEY,		%rdi
@@ -361,16 +361,16 @@
 	// Repeatedly multiply [H^(i+3), H^(i+2), H^(i+1), H^i] by
 	// [H^4, H^4, H^4, H^4] to get [H^(i+7), H^(i+6), H^(i+5), H^(i+4)].
 	mov		$3, %eax
-.Lprecompute_next\@:
+.Lprecompute_next:
 	sub		$64, POWERS_PTR
 	_ghash_mul	H_INC, H_CUR, H_CUR, GFPOLY, %zmm0, %zmm1, %zmm2
 	vmovdqu8	H_CUR, (POWERS_PTR)
 	dec		%eax
-	jnz		.Lprecompute_next\@
+	jnz		.Lprecompute_next
 
 	vzeroupper	// This is needed after using ymm or zmm registers.
 	RET
-.endm
+SYM_FUNC_END(aes_gcm_precompute_vaes_avx512)
 
 // XOR together the 128-bit lanes of \src (whose low lane is \src_xmm) and store
 // the result in \dst_xmm.  This implicitly zeroizes the other lanes of dst.
@@ -462,6 +462,94 @@
 			GHASHDATA0_XMM, GHASHDATA1_XMM, GHASHDATA2_XMM
 .endif
 .endm
+
+// void aes_gcm_aad_update_vaes_avx512(const struct aes_gcm_key_vaes_avx512 *key,
+//				       u8 ghash_acc[16],
+//				       const u8 *aad, int aadlen);
+//
+// This function processes the AAD (Additional Authenticated Data) in GCM.
+// Using the key |key|, it updates the GHASH accumulator |ghash_acc| with the
+// data given by |aad| and |aadlen|.  |key->ghash_key_powers| must have been
+// initialized.  On the first call, |ghash_acc| must be all zeroes.  |aadlen|
+// must be a multiple of 16, except on the last call where it can be any length.
+// The caller must do any buffering needed to ensure this.
+//
+// AES-GCM is almost always used with small amounts of AAD, less than 32 bytes.
+// Therefore, for AAD processing we currently only provide this implementation
+// which uses 256-bit vectors (ymm registers) and only has a 1x-wide loop.  This
+// keeps the code size down, and it enables some micro-optimizations, e.g. using
+// VEX-coded instructions instead of EVEX-coded to save some instruction bytes.
+// To optimize for large amounts of AAD, we could implement a 4x-wide loop and
+// provide a version using 512-bit vectors, but that doesn't seem to be useful.
+SYM_FUNC_START(aes_gcm_aad_update_vaes_avx512)
+
+	// Function arguments
+	.set	KEY,		%rdi
+	.set	GHASH_ACC_PTR,	%rsi
+	.set	AAD,		%rdx
+	.set	AADLEN,		%ecx
+	.set	AADLEN64,	%rcx	// Zero-extend AADLEN before using!
+
+	// Additional local variables.
+	// %rax, %ymm0-%ymm3, and %k1 are used as temporary registers.
+	.set	BSWAP_MASK,	%ymm4
+	.set	GFPOLY,		%ymm5
+	.set	GHASH_ACC,	%ymm6
+	.set	GHASH_ACC_XMM,	%xmm6
+	.set	H_POW1,		%ymm7
+
+	// Load some constants.
+	vbroadcasti128	.Lbswap_mask(%rip), BSWAP_MASK
+	vbroadcasti128	.Lgfpoly(%rip), GFPOLY
+
+	// Load the GHASH accumulator.
+	vmovdqu		(GHASH_ACC_PTR), GHASH_ACC_XMM
+
+	// Update GHASH with 32 bytes of AAD at a time.
+	//
+	// Pre-subtracting 32 from AADLEN saves an instruction from the loop and
+	// also ensures that at least one write always occurs to AADLEN,
+	// zero-extending it and allowing AADLEN64 to be used later.
+	sub		$32, AADLEN
+	jl		.Laad_loop_1x_done
+	vmovdqu8	OFFSETOFEND_H_POWERS-32(KEY), H_POW1	// [H^2, H^1]
+.Laad_loop_1x:
+	vmovdqu		(AAD), %ymm0
+	vpshufb		BSWAP_MASK, %ymm0, %ymm0
+	vpxor		%ymm0, GHASH_ACC, GHASH_ACC
+	_ghash_mul	H_POW1, GHASH_ACC, GHASH_ACC, GFPOLY, \
+			%ymm0, %ymm1, %ymm2
+	vextracti128	$1, GHASH_ACC, %xmm0
+	vpxor		%xmm0, GHASH_ACC_XMM, GHASH_ACC_XMM
+	add		$32, AAD
+	sub		$32, AADLEN
+	jge		.Laad_loop_1x
+.Laad_loop_1x_done:
+	add		$32, AADLEN
+	jz		.Laad_done
+
+	// Update GHASH with the remaining 1 <= AADLEN < 32 bytes of AAD.
+	mov		$-1, %eax
+	bzhi		AADLEN, %eax, %eax
+	kmovd		%eax, %k1
+	vmovdqu8	(AAD), %ymm0{%k1}{z}
+	neg		AADLEN64
+	and		$~15, AADLEN64  // -round_up(AADLEN, 16)
+	vmovdqu8	OFFSETOFEND_H_POWERS(KEY,AADLEN64), H_POW1
+	vpshufb		BSWAP_MASK, %ymm0, %ymm0
+	vpxor		%ymm0, GHASH_ACC, GHASH_ACC
+	_ghash_mul	H_POW1, GHASH_ACC, GHASH_ACC, GFPOLY, \
+			%ymm0, %ymm1, %ymm2
+	vextracti128	$1, GHASH_ACC, %xmm0
+	vpxor		%xmm0, GHASH_ACC_XMM, GHASH_ACC_XMM
+
+.Laad_done:
+	// Store the updated GHASH accumulator back to memory.
+	vmovdqu		GHASH_ACC_XMM, (GHASH_ACC_PTR)
+
+	vzeroupper	// This is needed after using ymm or zmm registers.
+	RET
+SYM_FUNC_END(aes_gcm_aad_update_vaes_avx512)
 
 // Do one non-last round of AES encryption on the blocks in %zmm[0-3] using the
 // round key that has been broadcast to all 128-bit lanes of \round_key.
@@ -1001,103 +1089,12 @@
 	RET
 .endm
 
-SYM_FUNC_START(aes_gcm_precompute_vaes_avx512)
-	_aes_gcm_precompute
-SYM_FUNC_END(aes_gcm_precompute_vaes_avx512)
 SYM_FUNC_START(aes_gcm_enc_update_vaes_avx512)
 	_aes_gcm_update	1
 SYM_FUNC_END(aes_gcm_enc_update_vaes_avx512)
 SYM_FUNC_START(aes_gcm_dec_update_vaes_avx512)
 	_aes_gcm_update	0
 SYM_FUNC_END(aes_gcm_dec_update_vaes_avx512)
-
-// void aes_gcm_aad_update_vaes_avx512(const struct aes_gcm_key_vaes_avx512 *key,
-//				       u8 ghash_acc[16],
-//				       const u8 *aad, int aadlen);
-//
-// This function processes the AAD (Additional Authenticated Data) in GCM.
-// Using the key |key|, it updates the GHASH accumulator |ghash_acc| with the
-// data given by |aad| and |aadlen|.  |key->ghash_key_powers| must have been
-// initialized.  On the first call, |ghash_acc| must be all zeroes.  |aadlen|
-// must be a multiple of 16, except on the last call where it can be any length.
-// The caller must do any buffering needed to ensure this.
-//
-// AES-GCM is almost always used with small amounts of AAD, less than 32 bytes.
-// Therefore, for AAD processing we currently only provide this implementation
-// which uses 256-bit vectors (ymm registers) and only has a 1x-wide loop.  This
-// keeps the code size down, and it enables some micro-optimizations, e.g. using
-// VEX-coded instructions instead of EVEX-coded to save some instruction bytes.
-// To optimize for large amounts of AAD, we could implement a 4x-wide loop and
-// provide a version using 512-bit vectors, but that doesn't seem to be useful.
-SYM_FUNC_START(aes_gcm_aad_update_vaes_avx512)
-
-	// Function arguments
-	.set	KEY,		%rdi
-	.set	GHASH_ACC_PTR,	%rsi
-	.set	AAD,		%rdx
-	.set	AADLEN,		%ecx
-	.set	AADLEN64,	%rcx	// Zero-extend AADLEN before using!
-
-	// Additional local variables.
-	// %rax, %ymm0-%ymm3, and %k1 are used as temporary registers.
-	.set	BSWAP_MASK,	%ymm4
-	.set	GFPOLY,		%ymm5
-	.set	GHASH_ACC,	%ymm6
-	.set	GHASH_ACC_XMM,	%xmm6
-	.set	H_POW1,		%ymm7
-
-	// Load some constants.
-	vbroadcasti128	.Lbswap_mask(%rip), BSWAP_MASK
-	vbroadcasti128	.Lgfpoly(%rip), GFPOLY
-
-	// Load the GHASH accumulator.
-	vmovdqu		(GHASH_ACC_PTR), GHASH_ACC_XMM
-
-	// Update GHASH with 32 bytes of AAD at a time.
-	//
-	// Pre-subtracting 32 from AADLEN saves an instruction from the loop and
-	// also ensures that at least one write always occurs to AADLEN,
-	// zero-extending it and allowing AADLEN64 to be used later.
-	sub		$32, AADLEN
-	jl		.Laad_loop_1x_done
-	vmovdqu8	OFFSETOFEND_H_POWERS-32(KEY), H_POW1	// [H^2, H^1]
-.Laad_loop_1x:
-	vmovdqu		(AAD), %ymm0
-	vpshufb		BSWAP_MASK, %ymm0, %ymm0
-	vpxor		%ymm0, GHASH_ACC, GHASH_ACC
-	_ghash_mul	H_POW1, GHASH_ACC, GHASH_ACC, GFPOLY, \
-			%ymm0, %ymm1, %ymm2
-	vextracti128	$1, GHASH_ACC, %xmm0
-	vpxor		%xmm0, GHASH_ACC_XMM, GHASH_ACC_XMM
-	add		$32, AAD
-	sub		$32, AADLEN
-	jge		.Laad_loop_1x
-.Laad_loop_1x_done:
-	add		$32, AADLEN
-	jz		.Laad_done
-
-	// Update GHASH with the remaining 1 <= AADLEN < 32 bytes of AAD.
-	mov		$-1, %eax
-	bzhi		AADLEN, %eax, %eax
-	kmovd		%eax, %k1
-	vmovdqu8	(AAD), %ymm0{%k1}{z}
-	neg		AADLEN64
-	and		$~15, AADLEN64  // -round_up(AADLEN, 16)
-	vmovdqu8	OFFSETOFEND_H_POWERS(KEY,AADLEN64), H_POW1
-	vpshufb		BSWAP_MASK, %ymm0, %ymm0
-	vpxor		%ymm0, GHASH_ACC, GHASH_ACC
-	_ghash_mul	H_POW1, GHASH_ACC, GHASH_ACC, GFPOLY, \
-			%ymm0, %ymm1, %ymm2
-	vextracti128	$1, GHASH_ACC, %xmm0
-	vpxor		%xmm0, GHASH_ACC_XMM, GHASH_ACC_XMM
-
-.Laad_done:
-	// Store the updated GHASH accumulator back to memory.
-	vmovdqu		GHASH_ACC_XMM, (GHASH_ACC_PTR)
-
-	vzeroupper	// This is needed after using ymm or zmm registers.
-	RET
-SYM_FUNC_END(aes_gcm_aad_update_vaes_avx512)
 
 SYM_FUNC_START(aes_gcm_enc_final_vaes_avx512)
 	_aes_gcm_final	1
