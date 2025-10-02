@@ -48,6 +48,7 @@ static inline enum mod_hdcp_status check_receiver_id_list_ready(struct mod_hdcp 
 static inline enum mod_hdcp_status check_hdcp2_capable(struct mod_hdcp *hdcp)
 {
 	enum mod_hdcp_status status;
+	struct mod_hdcp_trace *trace = &hdcp->connection.trace;
 
 	if (is_dp_hdcp(hdcp))
 		status = (hdcp->auth.msg.hdcp2.rxcaps_dp[0] == HDCP_2_2_RX_CAPS_VERSION_VAL) &&
@@ -55,9 +56,14 @@ static inline enum mod_hdcp_status check_hdcp2_capable(struct mod_hdcp *hdcp)
 				MOD_HDCP_STATUS_SUCCESS :
 				MOD_HDCP_STATUS_HDCP2_NOT_CAPABLE;
 	else
-		status = (hdcp->auth.msg.hdcp2.hdcp2version_hdmi & HDCP_2_2_HDMI_SUPPORT_MASK) ?
-				MOD_HDCP_STATUS_SUCCESS :
-				MOD_HDCP_STATUS_HDCP2_NOT_CAPABLE;
+		status = (hdcp->auth.msg.hdcp2.hdcp2version_hdmi
+				 & HDCP_2_2_HDMI_SUPPORT_MASK)
+				? MOD_HDCP_STATUS_SUCCESS
+				: MOD_HDCP_STATUS_HDCP2_NOT_CAPABLE;
+
+	if (status == MOD_HDCP_STATUS_SUCCESS)
+		trace->hdcp2.attempt_count++;
+
 	return status;
 }
 
@@ -201,10 +207,17 @@ static inline uint8_t get_device_count(struct mod_hdcp *hdcp)
 
 static enum mod_hdcp_status check_device_count(struct mod_hdcp *hdcp)
 {
+	struct mod_hdcp_trace *trace = &hdcp->connection.trace;
+
 	/* Avoid device count == 0 to do authentication */
 	if (get_device_count(hdcp) == 0)
 		return MOD_HDCP_STATUS_HDCP1_DEVICE_COUNT_MISMATCH_FAILURE;
 
+	trace->hdcp2.downstream_device_count = get_device_count(hdcp);
+	trace->hdcp2.hdcp1_device_downstream =
+			HDCP_2_2_HDCP1_DEVICE_CONNECTED(hdcp->auth.msg.hdcp2.rx_id_list[2]);
+	trace->hdcp2.hdcp2_legacy_device_downstream =
+			HDCP_2_2_HDCP_2_0_REP_CONNECTED(hdcp->auth.msg.hdcp2.rx_id_list[2]);
 	/* Some MST display may choose to report the internal panel as an HDCP RX.   */
 	/* To update this condition with 1(because the immediate repeater's internal */
 	/* panel is possibly not included in DEVICE_COUNT) + get_device_count(hdcp). */
