@@ -49,12 +49,12 @@
 //
 // -----------------------------------------------------------------------------
 //
-// This is similar to aes-gcm-avx10-x86_64.S, but it uses AVX2 instead of
-// AVX512.  This means it can only use 16 vector registers instead of 32, the
-// maximum vector length is 32 bytes, and some instructions such as vpternlogd
-// and masked loads/stores are unavailable.  However, it is able to run on CPUs
-// that have VAES without AVX512, namely AMD Zen 3 (including "Milan" server
-// CPUs), various Intel client CPUs such as Alder Lake, and Intel Sierra Forest.
+// This is similar to aes-gcm-vaes-avx512.S, but it uses AVX2 instead of AVX512.
+// This means it can only use 16 vector registers instead of 32, the maximum
+// vector length is 32 bytes, and some instructions such as vpternlogd and
+// masked loads/stores are unavailable.  However, it is able to run on CPUs that
+// have VAES without AVX512, namely AMD Zen 3 (including "Milan" server CPUs),
+// various Intel client CPUs such as Alder Lake, and Intel Sierra Forest.
 //
 // This implementation also uses Karatsuba multiplication instead of schoolbook
 // multiplication for GHASH in its main loop.  This does not help much on Intel,

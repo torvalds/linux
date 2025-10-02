@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: Apache-2.0 OR BSD-2-Clause */
 //
-// VAES and VPCLMULQDQ optimized AES-GCM for x86_64
+// AES-GCM implementation for x86_64 CPUs that support the following CPU
+// features: VAES && VPCLMULQDQ && AVX512BW && AVX512VL && BMI2
 //
 // Copyright 2024 Google LLC
 //
@@ -45,41 +46,6 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
-//
-//------------------------------------------------------------------------------
-//
-// This file implements AES-GCM (Galois/Counter Mode) for x86_64 CPUs that
-// support VAES (vector AES), VPCLMULQDQ (vector carryless multiplication), and
-// either AVX512 or AVX10.  Some of the functions, notably the encryption and
-// decryption update functions which are the most performance-critical, are
-// provided in two variants generated from a macro: one using 256-bit vectors
-// (suffix: vaes_avx10_256) and one using 512-bit vectors (vaes_avx10_512).  The
-// other, "shared" functions (vaes_avx10) use at most 256-bit vectors.
-//
-// The functions that use 512-bit vectors are intended for CPUs that support
-// 512-bit vectors *and* where using them doesn't cause significant
-// downclocking.  They require the following CPU features:
-//
-//	VAES && VPCLMULQDQ && BMI2 && ((AVX512BW && AVX512VL) || AVX10/512)
-//
-// The other functions require the following CPU features:
-//
-//	VAES && VPCLMULQDQ && BMI2 && ((AVX512BW && AVX512VL) || AVX10/256)
-//
-// All functions use the "System V" ABI.  The Windows ABI is not supported.
-//
-// Note that we use "avx10" in the names of the functions as a shorthand to
-// really mean "AVX10 or a certain set of AVX512 features".  Due to Intel's
-// introduction of AVX512 and then its replacement by AVX10, there doesn't seem
-// to be a simple way to name things that makes sense on all CPUs.
-//
-// Note that the macros that support both 256-bit and 512-bit vectors could
-// fairly easily be changed to support 128-bit too.  However, this would *not*
-// be sufficient to allow the code to run on CPUs without AVX512 or AVX10,
-// because the code heavily uses several features of these extensions other than
-// the vector length: the increase in the number of SIMD registers from 16 to
-// 32, masking support, and new instructions such as vpternlogd (which can do a
-// three-argument XOR).  These features are very useful for AES-GCM.
 
 #include <linux/linkage.h>
 
@@ -312,7 +278,7 @@
 	vpternlogd	$0x96, \t0, \mi, \hi
 .endm
 
-// void aes_gcm_precompute_##suffix(struct aes_gcm_key_avx10 *key);
+// void aes_gcm_precompute_vaes_avx512(struct aes_gcm_key_vaes_avx512 *key);
 //
 // Given the expanded AES key |key->aes_key|, this function derives the GHASH
 // subkey and initializes |key->ghash_key_powers| with powers of it.
@@ -588,9 +554,9 @@
 	vmovdqu8	GHASHDATA3, 3*VL(DST)
 .endm
 
-// void aes_gcm_{enc,dec}_update_##suffix(const struct aes_gcm_key_avx10 *key,
-//					  const u32 le_ctr[4], u8 ghash_acc[16],
-//					  const u8 *src, u8 *dst, int datalen);
+// void aes_gcm_{enc,dec}_update_vaes_avx512(const struct aes_gcm_key_vaes_avx512 *key,
+//					     const u32 le_ctr[4], u8 ghash_acc[16],
+//					     const u8 *src, u8 *dst, int datalen);
 //
 // This macro generates a GCM encryption or decryption update function with the
 // above prototype (with \enc selecting which one).  This macro supports both
@@ -944,14 +910,14 @@
 	RET
 .endm
 
-// void aes_gcm_enc_final_vaes_avx10(const struct aes_gcm_key_avx10 *key,
-//				     const u32 le_ctr[4], u8 ghash_acc[16],
-//				     u64 total_aadlen, u64 total_datalen);
-// bool aes_gcm_dec_final_vaes_avx10(const struct aes_gcm_key_avx10 *key,
-//				     const u32 le_ctr[4],
-//				     const u8 ghash_acc[16],
-//				     u64 total_aadlen, u64 total_datalen,
-//				     const u8 tag[16], int taglen);
+// void aes_gcm_enc_final_vaes_avx512(const struct aes_gcm_key_vaes_avx512 *key,
+//				      const u32 le_ctr[4], u8 ghash_acc[16],
+//				      u64 total_aadlen, u64 total_datalen);
+// bool aes_gcm_dec_final_vaes_avx512(const struct aes_gcm_key_vaes_avx512 *key,
+//				      const u32 le_ctr[4],
+//				      const u8 ghash_acc[16],
+//				      u64 total_aadlen, u64 total_datalen,
+//				      const u8 tag[16], int taglen);
 //
 // This macro generates one of the above two functions (with \enc selecting
 // which one).  Both functions finish computing the GCM authentication tag by
@@ -1082,19 +1048,19 @@
 .endm
 
 _set_veclen 64
-SYM_FUNC_START(aes_gcm_precompute_vaes_avx10_512)
+SYM_FUNC_START(aes_gcm_precompute_vaes_avx512)
 	_aes_gcm_precompute
-SYM_FUNC_END(aes_gcm_precompute_vaes_avx10_512)
-SYM_FUNC_START(aes_gcm_enc_update_vaes_avx10_512)
+SYM_FUNC_END(aes_gcm_precompute_vaes_avx512)
+SYM_FUNC_START(aes_gcm_enc_update_vaes_avx512)
 	_aes_gcm_update	1
-SYM_FUNC_END(aes_gcm_enc_update_vaes_avx10_512)
-SYM_FUNC_START(aes_gcm_dec_update_vaes_avx10_512)
+SYM_FUNC_END(aes_gcm_enc_update_vaes_avx512)
+SYM_FUNC_START(aes_gcm_dec_update_vaes_avx512)
 	_aes_gcm_update	0
-SYM_FUNC_END(aes_gcm_dec_update_vaes_avx10_512)
+SYM_FUNC_END(aes_gcm_dec_update_vaes_avx512)
 
-// void aes_gcm_aad_update_vaes_avx10(const struct aes_gcm_key_avx10 *key,
-//				      u8 ghash_acc[16],
-//				      const u8 *aad, int aadlen);
+// void aes_gcm_aad_update_vaes_avx512(const struct aes_gcm_key_vaes_avx512 *key,
+//				       u8 ghash_acc[16],
+//				       const u8 *aad, int aadlen);
 //
 // This function processes the AAD (Additional Authenticated Data) in GCM.
 // Using the key |key|, it updates the GHASH accumulator |ghash_acc| with the
@@ -1110,7 +1076,7 @@ SYM_FUNC_END(aes_gcm_dec_update_vaes_avx10_512)
 // VEX-coded instructions instead of EVEX-coded to save some instruction bytes.
 // To optimize for large amounts of AAD, we could implement a 4x-wide loop and
 // provide a version using 512-bit vectors, but that doesn't seem to be useful.
-SYM_FUNC_START(aes_gcm_aad_update_vaes_avx10)
+SYM_FUNC_START(aes_gcm_aad_update_vaes_avx512)
 
 	// Function arguments
 	.set	KEY,		%rdi
@@ -1178,11 +1144,11 @@ SYM_FUNC_START(aes_gcm_aad_update_vaes_avx10)
 
 	vzeroupper	// This is needed after using ymm or zmm registers.
 	RET
-SYM_FUNC_END(aes_gcm_aad_update_vaes_avx10)
+SYM_FUNC_END(aes_gcm_aad_update_vaes_avx512)
 
-SYM_FUNC_START(aes_gcm_enc_final_vaes_avx10)
+SYM_FUNC_START(aes_gcm_enc_final_vaes_avx512)
 	_aes_gcm_final	1
-SYM_FUNC_END(aes_gcm_enc_final_vaes_avx10)
-SYM_FUNC_START(aes_gcm_dec_final_vaes_avx10)
+SYM_FUNC_END(aes_gcm_enc_final_vaes_avx512)
+SYM_FUNC_START(aes_gcm_dec_final_vaes_avx512)
 	_aes_gcm_final	0
-SYM_FUNC_END(aes_gcm_dec_final_vaes_avx10)
+SYM_FUNC_END(aes_gcm_dec_final_vaes_avx512)

@@ -61,15 +61,15 @@
 // for the *_aesni functions or AVX for the *_aesni_avx ones.  (But it seems
 // there are no CPUs that support AES-NI without also PCLMULQDQ and SSE4.1.)
 //
-// The design generally follows that of aes-gcm-avx10-x86_64.S, and that file is
+// The design generally follows that of aes-gcm-vaes-avx512.S, and that file is
 // more thoroughly commented.  This file has the following notable changes:
 //
 //    - The vector length is fixed at 128-bit, i.e. xmm registers.  This means
 //      there is only one AES block (and GHASH block) per register.
 //
-//    - Without AVX512 / AVX10, only 16 SIMD registers are available instead of
-//      32.  We work around this by being much more careful about using
-//      registers, relying heavily on loads to load values as they are needed.
+//    - Without AVX512, only 16 SIMD registers are available instead of 32.  We
+//      work around this by being much more careful about using registers,
+//      relying heavily on loads to load values as they are needed.
 //
 //    - Masking is not available either.  We work around this by implementing
 //      partial block loads and stores using overlapping scalar loads and stores
@@ -90,8 +90,8 @@
 //      multiplication instead of schoolbook multiplication.  This saves one
 //      pclmulqdq instruction per block, at the cost of one 64-bit load, one
 //      pshufd, and 0.25 pxors per block.  (This is without the three-argument
-//      XOR support that would be provided by AVX512 / AVX10, which would be
-//      more beneficial to schoolbook than Karatsuba.)
+//      XOR support that would be provided by AVX512, which would be more
+//      beneficial to schoolbook than Karatsuba.)
 //
 //      As a rough approximation, we can assume that Karatsuba multiplication is
 //      faster than schoolbook multiplication in this context if one pshufd and
