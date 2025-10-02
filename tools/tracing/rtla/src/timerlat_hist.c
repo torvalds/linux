@@ -840,11 +840,8 @@ static struct common_params
 			{0, 0, 0, 0}
 		};
 
-		/* getopt_long stores the option index here. */
-		int option_index = 0;
-
 		c = getopt_long(argc, argv, "a:c:C::b:d:e:E:DhH:i:knp:P:s:t::T:uU0123456:7:8:9\1\2:\3:",
-				 long_options, &option_index);
+				 long_options, NULL);
 
 		/* detect the end of the options. */
 		if (c == -1)
