@@ -332,6 +332,9 @@ void dw_spi_update_config(struct dw_spi *dws, struct spi_device *spi,
 
 	dw_writel(dws, DW_SPI_CTRLR0, cr0);
 
+	if (spi_controller_is_target(dws->ctlr))
+		return;
+
 	if (cfg->tmode == DW_SPI_CTRLR0_TMOD_EPROMREAD ||
 	    cfg->tmode == DW_SPI_CTRLR0_TMOD_RO)
 		dw_writel(dws, DW_SPI_CTRLR1, cfg->ndf ? cfg->ndf - 1 : 0);
@@ -462,8 +465,7 @@ static int dw_spi_transfer_one(struct spi_controller *ctlr,
 	return 1;
 }
 
-static void dw_spi_handle_err(struct spi_controller *ctlr,
-			      struct spi_message *msg)
+static inline void dw_spi_abort(struct spi_controller *ctlr)
 {
 	struct dw_spi *dws = spi_controller_get_devdata(ctlr);
 
@@ -471,6 +473,19 @@ static void dw_spi_handle_err(struct spi_controller *ctlr,
 		dws->dma_ops->dma_stop(dws);
 
 	dw_spi_reset_chip(dws);
+}
+
+static void dw_spi_handle_err(struct spi_controller *ctlr,
+			      struct spi_message *msg)
+{
+	dw_spi_abort(ctlr);
+}
+
+static int dw_spi_target_abort(struct spi_controller *ctlr)
+{
+	dw_spi_abort(ctlr);
+
+	return 0;
 }
 
 static int dw_spi_adjust_mem_op_size(struct spi_mem *mem, struct spi_mem_op *op)
@@ -834,18 +849,23 @@ static void dw_spi_hw_init(struct device *dev, struct dw_spi *dws)
 			DW_SPI_GET_BYTE(dws->ver, 1));
 	}
 
-	/*
-	 * Try to detect the number of native chip-selects if the platform
-	 * driver didn't set it up. There can be up to 16 lines configured.
-	 */
-	if (!dws->num_cs) {
-		u32 ser;
+	if (spi_controller_is_target(dws->ctlr)) {
+		/* There is only one CS input signal in target mode */
+		dws->num_cs = 1;
+	} else {
+		/*
+		 * Try to detect the number of native chip-selects if the platform
+		 * driver didn't set it up. There can be up to 16 lines configured.
+		 */
+		if (!dws->num_cs) {
+			u32 ser;
 
-		dw_writel(dws, DW_SPI_SER, 0xffff);
-		ser = dw_readl(dws, DW_SPI_SER);
-		dw_writel(dws, DW_SPI_SER, 0);
+			dw_writel(dws, DW_SPI_SER, 0xffff);
+			ser = dw_readl(dws, DW_SPI_SER);
+			dw_writel(dws, DW_SPI_SER, 0);
 
-		dws->num_cs = hweight16(ser);
+			dws->num_cs = hweight16(ser);
+		}
 	}
 
 	/*
@@ -901,12 +921,18 @@ static const struct spi_controller_mem_caps dw_spi_mem_caps = {
 int dw_spi_add_controller(struct device *dev, struct dw_spi *dws)
 {
 	struct spi_controller *ctlr;
+	bool target;
 	int ret;
 
 	if (!dws)
 		return -EINVAL;
 
-	ctlr = spi_alloc_host(dev, 0);
+	target = device_property_read_bool(dev, "spi-slave");
+	if (target)
+		ctlr = spi_alloc_target(dev, 0);
+	else
+		ctlr = spi_alloc_host(dev, 0);
+
 	if (!ctlr)
 		return -ENOMEM;
 
@@ -929,8 +955,7 @@ int dw_spi_add_controller(struct device *dev, struct dw_spi *dws)
 
 	dw_spi_init_mem_ops(dws);
 
-	ctlr->use_gpio_descriptors = true;
-	ctlr->mode_bits = SPI_CPOL | SPI_CPHA | SPI_LOOP;
+	ctlr->mode_bits = SPI_CPOL | SPI_CPHA;
 	if (dws->caps & DW_SPI_CAP_DFS32)
 		ctlr->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 32);
 	else
@@ -939,19 +964,26 @@ int dw_spi_add_controller(struct device *dev, struct dw_spi *dws)
 	ctlr->num_chipselect = dws->num_cs;
 	ctlr->setup = dw_spi_setup;
 	ctlr->cleanup = dw_spi_cleanup;
-	if (dws->set_cs)
-		ctlr->set_cs = dws->set_cs;
-	else
-		ctlr->set_cs = dw_spi_set_cs;
 	ctlr->transfer_one = dw_spi_transfer_one;
 	ctlr->handle_err = dw_spi_handle_err;
-	if (dws->mem_ops.exec_op) {
-		ctlr->mem_ops = &dws->mem_ops;
-		ctlr->mem_caps = &dw_spi_mem_caps;
-	}
-	ctlr->max_speed_hz = dws->max_freq;
-	ctlr->flags = SPI_CONTROLLER_GPIO_SS;
 	ctlr->auto_runtime_pm = true;
+
+	if (!target) {
+		ctlr->use_gpio_descriptors = true;
+		ctlr->mode_bits |= SPI_LOOP;
+		if (dws->set_cs)
+			ctlr->set_cs = dws->set_cs;
+		else
+			ctlr->set_cs = dw_spi_set_cs;
+		if (dws->mem_ops.exec_op) {
+			ctlr->mem_ops = &dws->mem_ops;
+			ctlr->mem_caps = &dw_spi_mem_caps;
+		}
+		ctlr->max_speed_hz = dws->max_freq;
+		ctlr->flags = SPI_CONTROLLER_GPIO_SS;
+	} else {
+		ctlr->target_abort = dw_spi_target_abort;
+	}
 
 	/* Get default rx sample delay */
 	device_property_read_u32(dev, "rx-sample-delay-ns",
