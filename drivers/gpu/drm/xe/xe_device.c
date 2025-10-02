@@ -45,6 +45,7 @@
 #include "xe_hwmon.h"
 #include "xe_i2c.h"
 #include "xe_irq.h"
+#include "xe_late_bind_fw.h"
 #include "xe_mmio.h"
 #include "xe_module.h"
 #include "xe_nvm.h"
@@ -54,6 +55,7 @@
 #include "xe_pcode.h"
 #include "xe_pm.h"
 #include "xe_pmu.h"
+#include "xe_psmi.h"
 #include "xe_pxp.h"
 #include "xe_query.h"
 #include "xe_shrinker.h"
@@ -63,7 +65,9 @@
 #include "xe_ttm_stolen_mgr.h"
 #include "xe_ttm_sys_mgr.h"
 #include "xe_vm.h"
+#include "xe_vm_madvise.h"
 #include "xe_vram.h"
+#include "xe_vram_types.h"
 #include "xe_vsec.h"
 #include "xe_wait_user_fence.h"
 #include "xe_wa.h"
@@ -200,6 +204,9 @@ static const struct drm_ioctl_desc xe_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(XE_WAIT_USER_FENCE, xe_wait_user_fence_ioctl,
 			  DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(XE_OBSERVATION, xe_observation_ioctl, DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(XE_MADVISE, xe_vm_madvise_ioctl, DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(XE_VM_QUERY_MEM_RANGE_ATTRS, xe_vm_query_vmas_attrs_ioctl,
+			  DRM_RENDER_ALLOW),
 };
 
 static long xe_drm_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
@@ -451,6 +458,8 @@ struct xe_device *xe_device_create(struct pci_dev *pdev,
 	if (err)
 		goto err;
 
+	xe_validation_device_init(&xe->val);
+
 	init_waitqueue_head(&xe->ufence_wq);
 
 	init_rwsem(&xe->usm.lock);
@@ -524,7 +533,7 @@ static bool xe_driver_flr_disabled(struct xe_device *xe)
  * re-init and saving/restoring (or re-populating) the wiped memory. Since we
  * perform the FLR as the very last action before releasing access to the HW
  * during the driver release flow, we don't attempt recovery at all, because
- * if/when a new instance of i915 is bound to the device it will do a full
+ * if/when a new instance of Xe is bound to the device it will do a full
  * re-init anyway.
  */
 static void __xe_driver_flr(struct xe_device *xe)
@@ -688,6 +697,21 @@ static void sriov_update_device_info(struct xe_device *xe)
 	}
 }
 
+static int xe_device_vram_alloc(struct xe_device *xe)
+{
+	struct xe_vram_region *vram;
+
+	if (!IS_DGFX(xe))
+		return 0;
+
+	vram = drmm_kzalloc(&xe->drm, sizeof(*vram), GFP_KERNEL);
+	if (!vram)
+		return -ENOMEM;
+
+	xe->mem.vram = vram;
+	return 0;
+}
+
 /**
  * xe_device_probe_early: Device early probe
  * @xe: xe device instance
@@ -722,7 +746,7 @@ int xe_device_probe_early(struct xe_device *xe)
 		 * possible, but still return the previous error for error
 		 * propagation
 		 */
-		err = xe_survivability_mode_enable(xe);
+		err = xe_survivability_mode_boot_enable(xe);
 		if (err)
 			return err;
 
@@ -734,6 +758,10 @@ int xe_device_probe_early(struct xe_device *xe)
 		return err;
 
 	xe->wedged.mode = xe_modparam.wedged_mode;
+
+	err = xe_device_vram_alloc(xe);
+	if (err)
+		return err;
 
 	return 0;
 }
@@ -863,7 +891,7 @@ int xe_device_probe(struct xe_device *xe)
 	}
 
 	if (xe->tiles->media_gt &&
-	    XE_WA(xe->tiles->media_gt, 15015404425_disable))
+	    XE_GT_WA(xe->tiles->media_gt, 15015404425_disable))
 		XE_DEVICE_WA_DISABLE(xe, 15015404425);
 
 	err = xe_devcoredump_init(xe);
@@ -876,6 +904,10 @@ int xe_device_probe(struct xe_device *xe)
 	if (err)
 		return err;
 
+	err = xe_late_bind_init(&xe->late_bind);
+	if (err)
+		return err;
+
 	err = xe_oa_init(xe);
 	if (err)
 		return err;
@@ -885,6 +917,10 @@ int xe_device_probe(struct xe_device *xe)
 		return err;
 
 	err = xe_pxp_init(xe);
+	if (err)
+		return err;
+
+	err = xe_psmi_init(xe);
 	if (err)
 		return err;
 
@@ -920,6 +956,10 @@ int xe_device_probe(struct xe_device *xe)
 		xe_gt_sanitize_freq(gt);
 
 	xe_vsec_init(xe);
+
+	err = xe_sriov_init_late(xe);
+	if (err)
+		goto err_unregister_display;
 
 	return devm_add_action_or_reset(xe->drm.dev, xe_device_sanitize, xe);
 
@@ -1019,7 +1059,7 @@ void xe_device_l2_flush(struct xe_device *xe)
 
 	gt = xe_root_mmio_gt(xe);
 
-	if (!XE_WA(gt, 16023588340))
+	if (!XE_GT_WA(gt, 16023588340))
 		return;
 
 	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
@@ -1063,7 +1103,7 @@ void xe_device_td_flush(struct xe_device *xe)
 		return;
 
 	root_gt = xe_root_mmio_gt(xe);
-	if (XE_WA(root_gt, 16023588340)) {
+	if (XE_GT_WA(root_gt, 16023588340)) {
 		/* A transient flush is not sufficient: flush the L2 */
 		xe_device_l2_flush(xe);
 	} else {
@@ -1134,11 +1174,63 @@ static void xe_device_wedged_fini(struct drm_device *drm, void *arg)
 }
 
 /**
+ * DOC: Xe Device Wedging
+ *
+ * Xe driver uses drm device wedged uevent as documented in Documentation/gpu/drm-uapi.rst.
+ * When device is in wedged state, every IOCTL will be blocked and GT cannot be
+ * used. Certain critical errors like gt reset failure, firmware failures can cause
+ * the device to be wedged. The default recovery method for a wedged state
+ * is rebind/bus-reset.
+ *
+ * Another recovery method is vendor-specific. Below are the cases that send
+ * ``WEDGED=vendor-specific`` recovery method in drm device wedged uevent.
+ *
+ * Case: Firmware Flash
+ * --------------------
+ *
+ * Identification Hint
+ * +++++++++++++++++++
+ *
+ * ``WEDGED=vendor-specific`` drm device wedged uevent with
+ * :ref:`Runtime Survivability mode <xe-survivability-mode>` is used to notify
+ * admin/userspace consumer about the need for a firmware flash.
+ *
+ * Recovery Procedure
+ * ++++++++++++++++++
+ *
+ * Once ``WEDGED=vendor-specific`` drm device wedged uevent is received, follow
+ * the below steps
+ *
+ * - Check Runtime Survivability mode sysfs.
+ *   If enabled, firmware flash is required to recover the device.
+ *
+ *   /sys/bus/pci/devices/<device>/survivability_mode
+ *
+ * - Admin/userpsace consumer can use firmware flashing tools like fwupd to flash
+ *   firmware and restore device to normal operation.
+ */
+
+/**
+ * xe_device_set_wedged_method - Set wedged recovery method
+ * @xe: xe device instance
+ * @method: recovery method to set
+ *
+ * Set wedged recovery method to be sent in drm wedged uevent.
+ */
+void xe_device_set_wedged_method(struct xe_device *xe, unsigned long method)
+{
+	xe->wedged.method = method;
+}
+
+/**
  * xe_device_declare_wedged - Declare device wedged
  * @xe: xe device instance
  *
- * This is a final state that can only be cleared with a module
- * re-probe (unbind + bind).
+ * This is a final state that can only be cleared with the recovery method
+ * specified in the drm wedged uevent. The method can be set using
+ * xe_device_set_wedged_method before declaring the device as wedged. If no method
+ * is set, reprobe (unbind/re-bind) will be sent by default.
+ *
  * In this state every IOCTL will be blocked so the GT cannot be used.
  * In general it will be called upon any critical error such as gt reset
  * failure or guc loading failure. Userspace will be notified of this state
@@ -1172,13 +1264,18 @@ void xe_device_declare_wedged(struct xe_device *xe)
 			"IOCTLs and executions are blocked. Only a rebind may clear the failure\n"
 			"Please file a _new_ bug report at https://gitlab.freedesktop.org/drm/xe/kernel/issues/new\n",
 			dev_name(xe->drm.dev));
-
-		/* Notify userspace of wedged device */
-		drm_dev_wedged_event(&xe->drm,
-				     DRM_WEDGE_RECOVERY_REBIND | DRM_WEDGE_RECOVERY_BUS_RESET,
-				     NULL);
 	}
 
 	for_each_gt(gt, xe, id)
 		xe_gt_declare_wedged(gt);
+
+	if (xe_device_wedged(xe)) {
+		/* If no wedge recovery method is set, use default */
+		if (!xe->wedged.method)
+			xe_device_set_wedged_method(xe, DRM_WEDGE_RECOVERY_REBIND |
+						    DRM_WEDGE_RECOVERY_BUS_RESET);
+
+		/* Notify userspace of wedged device */
+		drm_dev_wedged_event(&xe->drm, xe->wedged.method, NULL);
+	}
 }

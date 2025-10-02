@@ -225,19 +225,6 @@ intel_dp_aux_hdr_set_aux_backlight(const struct drm_connector_state *conn_state,
 			connector->base.base.id, connector->base.name);
 }
 
-static bool
-intel_dp_in_hdr_mode(const struct drm_connector_state *conn_state)
-{
-	struct hdr_output_metadata *hdr_metadata;
-
-	if (!conn_state->hdr_output_metadata)
-		return false;
-
-	hdr_metadata = conn_state->hdr_output_metadata->data;
-
-	return hdr_metadata->hdmi_metadata_type1.eotf == HDMI_EOTF_SMPTE_ST2084;
-}
-
 static void
 intel_dp_aux_hdr_set_backlight(const struct drm_connector_state *conn_state, u32 level)
 {
@@ -520,9 +507,6 @@ static void intel_dp_aux_vesa_disable_backlight(const struct drm_connector_state
 	struct intel_connector *connector = to_intel_connector(old_conn_state->connector);
 	struct intel_panel *panel = &connector->panel;
 	struct intel_dp *intel_dp = enc_to_intel_dp(connector->encoder);
-
-	if (panel->backlight.edp.vesa.luminance_control_support)
-		return;
 
 	drm_edp_backlight_disable(&intel_dp->aux, &panel->backlight.edp.vesa.info);
 

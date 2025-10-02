@@ -26,7 +26,7 @@
 #ifndef __DC_LINK_DP_CAPABILITY_H__
 #define __DC_LINK_DP_CAPABILITY_H__
 
-#include "link.h"
+#include "link_service.h"
 
 bool detect_dp_sink_caps(struct dc_link *link);
 
@@ -107,5 +107,11 @@ bool dp_verify_link_cap_with_retries(
 uint32_t link_bw_kbps_from_raw_frl_link_rate_data(uint8_t bw);
 
 bool dp_overwrite_extended_receiver_cap(struct dc_link *link);
+
+uint8_t dp_get_lttpr_count(struct dc_link *link);
+
+void edp_get_alpm_support(struct dc_link *link,
+	bool *auxless_support,
+	bool *auxwake_support);
 
 #endif /* __DC_LINK_DP_CAPABILITY_H__ */

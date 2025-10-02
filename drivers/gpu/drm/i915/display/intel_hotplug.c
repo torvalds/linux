@@ -28,6 +28,7 @@
 
 #include "i915_drv.h"
 #include "i915_irq.h"
+#include "i915_utils.h"
 #include "intel_connector.h"
 #include "intel_display_power.h"
 #include "intel_display_core.h"
@@ -971,8 +972,6 @@ void intel_hpd_cancel_work(struct intel_display *display)
 
 	spin_lock_irq(&display->irq.lock);
 
-	drm_WARN_ON(display->drm, get_blocked_hpd_pin_mask(display));
-
 	display->hotplug.long_hpd_pin_mask = 0;
 	display->hotplug.short_hpd_pin_mask = 0;
 	display->hotplug.event_bits = 0;
@@ -1333,12 +1332,12 @@ static const struct file_operations i915_hpd_short_storm_ctl_fops = {
 
 void intel_hpd_debugfs_register(struct intel_display *display)
 {
-	struct drm_minor *minor = display->drm->primary;
+	struct dentry *debugfs_root = display->drm->debugfs_root;
 
-	debugfs_create_file("i915_hpd_storm_ctl", 0644, minor->debugfs_root,
+	debugfs_create_file("i915_hpd_storm_ctl", 0644, debugfs_root,
 			    display, &i915_hpd_storm_ctl_fops);
-	debugfs_create_file("i915_hpd_short_storm_ctl", 0644, minor->debugfs_root,
+	debugfs_create_file("i915_hpd_short_storm_ctl", 0644, debugfs_root,
 			    display, &i915_hpd_short_storm_ctl_fops);
-	debugfs_create_bool("i915_ignore_long_hpd", 0644, minor->debugfs_root,
+	debugfs_create_bool("i915_ignore_long_hpd", 0644, debugfs_root,
 			    &display->hotplug.ignore_long_hpd);
 }

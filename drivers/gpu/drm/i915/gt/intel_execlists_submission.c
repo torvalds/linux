@@ -106,14 +106,18 @@
  * preemption, but just sampling the new tail pointer).
  *
  */
+
 #include <linux/interrupt.h>
 #include <linux/string_helpers.h>
 
+#include "gen8_engine_cs.h"
 #include "i915_drv.h"
+#include "i915_list_util.h"
 #include "i915_reg.h"
+#include "i915_timer_util.h"
 #include "i915_trace.h"
 #include "i915_vgpu.h"
-#include "gen8_engine_cs.h"
+#include "i915_wait_util.h"
 #include "intel_breadcrumbs.h"
 #include "intel_context.h"
 #include "intel_engine_heartbeat.h"

@@ -1034,7 +1034,6 @@ static void dce_v6_0_program_watermarks(struct amdgpu_device *adev,
 
 	/* save values for DPM */
 	amdgpu_crtc->line_time = line_time;
-	amdgpu_crtc->wm_high = latency_watermark_a;
 
 	/* Save number of lines the linebuffer leads before the scanout */
 	amdgpu_crtc->lb_vblank_lead_lines = lb_vblank_lead_lines;

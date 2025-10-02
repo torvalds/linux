@@ -3,11 +3,14 @@
 //! Implementation of [`Vec`].
 
 use super::{
-    allocator::{KVmalloc, Kmalloc, Vmalloc},
+    allocator::{KVmalloc, Kmalloc, Vmalloc, VmallocPageIter},
     layout::ArrayLayout,
     AllocError, Allocator, Box, Flags,
 };
-use crate::fmt;
+use crate::{
+    fmt,
+    page::AsPageIter,
+};
 use core::{
     borrow::{Borrow, BorrowMut},
     marker::PhantomData,
@@ -1024,6 +1027,43 @@ where
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter_mut()
+    }
+}
+
+/// # Examples
+///
+/// ```
+/// # use kernel::prelude::*;
+/// use kernel::alloc::allocator::VmallocPageIter;
+/// use kernel::page::{AsPageIter, PAGE_SIZE};
+///
+/// let mut vec = VVec::<u8>::new();
+///
+/// assert!(vec.page_iter().next().is_none());
+///
+/// vec.reserve(PAGE_SIZE, GFP_KERNEL)?;
+///
+/// let page = vec.page_iter().next().expect("At least one page should be available.\n");
+///
+/// // SAFETY: There is no concurrent read or write to the same page.
+/// unsafe { page.fill_zero_raw(0, PAGE_SIZE)? };
+/// # Ok::<(), Error>(())
+/// ```
+impl<T> AsPageIter for VVec<T> {
+    type Iter<'a>
+        = VmallocPageIter<'a>
+    where
+        T: 'a;
+
+    fn page_iter(&mut self) -> Self::Iter<'_> {
+        let ptr = self.ptr.cast();
+        let size = self.layout.size();
+
+        // SAFETY:
+        // - `ptr` is a valid pointer to the beginning of a `Vmalloc` allocation.
+        // - `ptr` is guaranteed to be valid for the lifetime of `'a`.
+        // - `size` is the size of the `Vmalloc` allocation `ptr` points to.
+        unsafe { VmallocPageIter::new(ptr, size) }
     }
 }
 

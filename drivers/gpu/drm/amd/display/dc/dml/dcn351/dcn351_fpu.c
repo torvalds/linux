@@ -10,7 +10,7 @@
 #include "dml/dcn35/dcn35_fpu.h"
 #include "dml/dml_inline_defs.h"
 
-#include "link.h"
+#include "link_service.h"
 
 #define DC_LOGGER_INIT(logger)
 

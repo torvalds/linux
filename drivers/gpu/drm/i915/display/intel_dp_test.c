@@ -6,7 +6,6 @@
 #include <drm/display/drm_dp.h>
 #include <drm/display/drm_dp_helper.h>
 #include <drm/drm_edid.h>
-#include <drm/drm_file.h>
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 
@@ -753,13 +752,12 @@ static const struct {
 
 void intel_dp_test_debugfs_register(struct intel_display *display)
 {
-	struct drm_minor *minor = display->drm->primary;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(intel_display_debugfs_files); i++) {
 		debugfs_create_file(intel_display_debugfs_files[i].name,
 				    0644,
-				    minor->debugfs_root,
+				    display->drm->debugfs_root,
 				    display,
 				    intel_display_debugfs_files[i].fops);
 	}

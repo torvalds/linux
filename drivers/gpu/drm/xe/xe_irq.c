@@ -18,6 +18,7 @@
 #include "xe_gt.h"
 #include "xe_guc.h"
 #include "xe_hw_engine.h"
+#include "xe_hw_error.h"
 #include "xe_i2c.h"
 #include "xe_memirq.h"
 #include "xe_mmio.h"
@@ -468,6 +469,7 @@ static irqreturn_t dg1_irq_handler(int irq, void *arg)
 		xe_mmio_write32(mmio, GFX_MSTR_IRQ, master_ctl);
 
 		gt_irq_handler(tile, master_ctl, intr_dw, identity);
+		xe_hw_error_irq_handler(tile, master_ctl);
 
 		/*
 		 * Display interrupts (including display backlight operations
@@ -755,6 +757,8 @@ int xe_irq_install(struct xe_device *xe)
 	unsigned int irq_flags = PCI_IRQ_MSI;
 	int nvec = 1;
 	int err;
+
+	xe_hw_error_init(xe);
 
 	xe_irq_reset(xe);
 

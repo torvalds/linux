@@ -421,6 +421,71 @@
  */
 
 /**
+ * DOC: Madvise Logic - Splitting and Traversal
+ *
+ * This logic handles GPU VA range updates by generating remap and map operations
+ * without performing unmaps or merging existing mappings.
+ *
+ * 1) The requested range lies entirely within a single drm_gpuva. The logic splits
+ * the existing mapping at the start and end boundaries and inserts a new map.
+ *
+ * ::
+ *              a      start    end     b
+ *         pre: |-----------------------|
+ *                     drm_gpuva1
+ *
+ *              a      start    end     b
+ *         new: |-----|=========|-------|
+ *               remap   map      remap
+ *
+ * one REMAP and one MAP : Same behaviour as SPLIT and MERGE
+ *
+ * 2) The requested range spans multiple drm_gpuva regions. The logic traverses
+ * across boundaries, remapping the start and end segments, and inserting two
+ * map operations to cover the full range.
+ *
+ * ::           a       start      b              c        end       d
+ *         pre: |------------------|--------------|------------------|
+ *                    drm_gpuva1      drm_gpuva2         drm_gpuva3
+ *
+ *              a       start      b              c        end       d
+ *         new: |-------|==========|--------------|========|---------|
+ *                remap1   map1       drm_gpuva2    map2     remap2
+ *
+ * two REMAPS and two MAPS
+ *
+ * 3) Either start or end lies within a drm_gpuva. A single remap and map operation
+ * are generated to update the affected portion.
+ *
+ *
+ * ::           a/start            b              c        end       d
+ *         pre: |------------------|--------------|------------------|
+ *                    drm_gpuva1      drm_gpuva2         drm_gpuva3
+ *
+ *              a/start            b              c        end       d
+ *         new: |------------------|--------------|========|---------|
+ *                drm_gpuva1         drm_gpuva2     map1     remap1
+ *
+ * ::           a       start      b              c/end              d
+ *         pre: |------------------|--------------|------------------|
+ *                    drm_gpuva1      drm_gpuva2         drm_gpuva3
+ *
+ *              a       start      b              c/end              d
+ *         new: |-------|==========|--------------|------------------|
+ *                remap1   map1       drm_gpuva2        drm_gpuva3
+ *
+ * one REMAP and one MAP
+ *
+ * 4) Both start and end align with existing drm_gpuva boundaries. No operations
+ * are needed as the range is already covered.
+ *
+ * 5) No existing drm_gpuvas. No operations.
+ *
+ * Unlike drm_gpuvm_sm_map_ops_create, this logic avoids unmaps and merging,
+ * focusing solely on remap and map operations for efficient traversal and update.
+ */
+
+/**
  * DOC: Locking
  *
  * In terms of managing &drm_gpuva entries DRM GPUVM does not take care of
@@ -432,8 +497,7 @@
  * DRM GPUVM also does not take care of the locking of the backing
  * &drm_gem_object buffers GPU VA lists and &drm_gpuvm_bo abstractions by
  * itself; drivers are responsible to enforce mutual exclusion using either the
- * GEMs dma_resv lock or alternatively a driver specific external lock. For the
- * latter see also drm_gem_gpuva_set_lock().
+ * GEMs dma_resv lock or the GEMs gpuva.lock mutex.
  *
  * However, DRM GPUVM contains lockdep checks to ensure callers of its API hold
  * the corresponding lock whenever the &drm_gem_objects GPU VA list is accessed
@@ -486,13 +550,18 @@
  *				  u64 addr, u64 range,
  *				  struct drm_gem_object *obj, u64 offset)
  *	{
+ *		struct drm_gpuvm_map_req map_req = {
+ *		        .map.va.addr = addr,
+ *	                .map.va.range = range,
+ *	                .map.gem.obj = obj,
+ *	                .map.gem.offset = offset,
+ *	           };
  *		struct drm_gpuva_ops *ops;
  *		struct drm_gpuva_op *op
  *		struct drm_gpuvm_bo *vm_bo;
  *
  *		driver_lock_va_space();
- *		ops = drm_gpuvm_sm_map_ops_create(gpuvm, addr, range,
- *						  obj, offset);
+ *		ops = drm_gpuvm_sm_map_ops_create(gpuvm, &map_req);
  *		if (IS_ERR(ops))
  *			return PTR_ERR(ops);
  *
@@ -1512,7 +1581,7 @@ drm_gpuvm_bo_destroy(struct kref *kref)
 	drm_gpuvm_bo_list_del(vm_bo, extobj, lock);
 	drm_gpuvm_bo_list_del(vm_bo, evict, lock);
 
-	drm_gem_gpuva_assert_lock_held(obj);
+	drm_gem_gpuva_assert_lock_held(gpuvm, obj);
 	list_del(&vm_bo->list.entry.gem);
 
 	if (ops && ops->vm_bo_free)
@@ -1533,7 +1602,8 @@ drm_gpuvm_bo_destroy(struct kref *kref)
  * If the reference count drops to zero, the &gpuvm_bo is destroyed, which
  * includes removing it from the GEMs gpuva list. Hence, if a call to this
  * function can potentially let the reference count drop to zero the caller must
- * hold the dma-resv or driver specific GEM gpuva lock.
+ * hold the lock that the GEM uses for its gpuva list (either the GEM's
+ * dma-resv or gpuva.lock mutex).
  *
  * This function may only be called from non-atomic context.
  *
@@ -1557,7 +1627,7 @@ __drm_gpuvm_bo_find(struct drm_gpuvm *gpuvm,
 {
 	struct drm_gpuvm_bo *vm_bo;
 
-	drm_gem_gpuva_assert_lock_held(obj);
+	drm_gem_gpuva_assert_lock_held(gpuvm, obj);
 	drm_gem_for_each_gpuvm_bo(vm_bo, obj)
 		if (vm_bo->vm == gpuvm)
 			return vm_bo;
@@ -1616,7 +1686,7 @@ drm_gpuvm_bo_obtain(struct drm_gpuvm *gpuvm,
 	if (!vm_bo)
 		return ERR_PTR(-ENOMEM);
 
-	drm_gem_gpuva_assert_lock_held(obj);
+	drm_gem_gpuva_assert_lock_held(gpuvm, obj);
 	list_add_tail(&vm_bo->list.entry.gem, &obj->gpuva.list);
 
 	return vm_bo;
@@ -1652,7 +1722,7 @@ drm_gpuvm_bo_obtain_prealloc(struct drm_gpuvm_bo *__vm_bo)
 		return vm_bo;
 	}
 
-	drm_gem_gpuva_assert_lock_held(obj);
+	drm_gem_gpuva_assert_lock_held(gpuvm, obj);
 	list_add_tail(&__vm_bo->list.entry.gem, &obj->gpuva.list);
 
 	return __vm_bo;
@@ -1824,8 +1894,7 @@ EXPORT_SYMBOL_GPL(drm_gpuva_remove);
  * reference of the latter is taken.
  *
  * This function expects the caller to protect the GEM's GPUVA list against
- * concurrent access using either the GEMs dma_resv lock or a driver specific
- * lock set through drm_gem_gpuva_set_lock().
+ * concurrent access using either the GEM's dma-resv or gpuva.lock mutex.
  */
 void
 drm_gpuva_link(struct drm_gpuva *va, struct drm_gpuvm_bo *vm_bo)
@@ -1840,7 +1909,7 @@ drm_gpuva_link(struct drm_gpuva *va, struct drm_gpuvm_bo *vm_bo)
 
 	va->vm_bo = drm_gpuvm_bo_get(vm_bo);
 
-	drm_gem_gpuva_assert_lock_held(obj);
+	drm_gem_gpuva_assert_lock_held(gpuvm, obj);
 	list_add_tail(&va->gem.entry, &vm_bo->list.gpuva);
 }
 EXPORT_SYMBOL_GPL(drm_gpuva_link);
@@ -1860,8 +1929,7 @@ EXPORT_SYMBOL_GPL(drm_gpuva_link);
  * the latter is dropped.
  *
  * This function expects the caller to protect the GEM's GPUVA list against
- * concurrent access using either the GEMs dma_resv lock or a driver specific
- * lock set through drm_gem_gpuva_set_lock().
+ * concurrent access using either the GEM's dma-resv or gpuva.lock mutex.
  */
 void
 drm_gpuva_unlink(struct drm_gpuva *va)
@@ -1872,7 +1940,7 @@ drm_gpuva_unlink(struct drm_gpuva *va)
 	if (unlikely(!obj))
 		return;
 
-	drm_gem_gpuva_assert_lock_held(obj);
+	drm_gem_gpuva_assert_lock_held(va->vm, obj);
 	list_del_init(&va->gem.entry);
 
 	va->vm_bo = NULL;
@@ -2054,16 +2122,18 @@ EXPORT_SYMBOL_GPL(drm_gpuva_unmap);
 
 static int
 op_map_cb(const struct drm_gpuvm_ops *fn, void *priv,
-	  u64 addr, u64 range,
-	  struct drm_gem_object *obj, u64 offset)
+	  const struct drm_gpuvm_map_req *req)
 {
 	struct drm_gpuva_op op = {};
 
+	if (!req)
+		return 0;
+
 	op.op = DRM_GPUVA_OP_MAP;
-	op.map.va.addr = addr;
-	op.map.va.range = range;
-	op.map.gem.obj = obj;
-	op.map.gem.offset = offset;
+	op.map.va.addr = req->map.va.addr;
+	op.map.va.range = req->map.va.range;
+	op.map.gem.obj = req->map.gem.obj;
+	op.map.gem.offset = req->map.gem.offset;
 
 	return fn->sm_step_map(&op, priv);
 }
@@ -2088,9 +2158,12 @@ op_remap_cb(const struct drm_gpuvm_ops *fn, void *priv,
 
 static int
 op_unmap_cb(const struct drm_gpuvm_ops *fn, void *priv,
-	    struct drm_gpuva *va, bool merge)
+	    struct drm_gpuva *va, bool merge, bool madvise)
 {
 	struct drm_gpuva_op op = {};
+
+	if (madvise)
+		return 0;
 
 	op.op = DRM_GPUVA_OP_UNMAP;
 	op.unmap.va = va;
@@ -2102,10 +2175,15 @@ op_unmap_cb(const struct drm_gpuvm_ops *fn, void *priv,
 static int
 __drm_gpuvm_sm_map(struct drm_gpuvm *gpuvm,
 		   const struct drm_gpuvm_ops *ops, void *priv,
-		   u64 req_addr, u64 req_range,
-		   struct drm_gem_object *req_obj, u64 req_offset)
+		   const struct drm_gpuvm_map_req *req,
+		   bool madvise)
 {
+	struct drm_gem_object *req_obj = req->map.gem.obj;
+	const struct drm_gpuvm_map_req *op_map = madvise ? NULL : req;
 	struct drm_gpuva *va, *next;
+	u64 req_offset = req->map.gem.offset;
+	u64 req_range = req->map.va.range;
+	u64 req_addr = req->map.va.addr;
 	u64 req_end = req_addr + req_range;
 	int ret;
 
@@ -2120,19 +2198,22 @@ __drm_gpuvm_sm_map(struct drm_gpuvm *gpuvm,
 		u64 end = addr + range;
 		bool merge = !!va->gem.obj;
 
+		if (madvise && obj)
+			continue;
+
 		if (addr == req_addr) {
 			merge &= obj == req_obj &&
 				 offset == req_offset;
 
 			if (end == req_end) {
-				ret = op_unmap_cb(ops, priv, va, merge);
+				ret = op_unmap_cb(ops, priv, va, merge, madvise);
 				if (ret)
 					return ret;
 				break;
 			}
 
 			if (end < req_end) {
-				ret = op_unmap_cb(ops, priv, va, merge);
+				ret = op_unmap_cb(ops, priv, va, merge, madvise);
 				if (ret)
 					return ret;
 				continue;
@@ -2153,6 +2234,9 @@ __drm_gpuvm_sm_map(struct drm_gpuvm *gpuvm,
 				ret = op_remap_cb(ops, priv, NULL, &n, &u);
 				if (ret)
 					return ret;
+
+				if (madvise)
+					op_map = req;
 				break;
 			}
 		} else if (addr < req_addr) {
@@ -2173,6 +2257,9 @@ __drm_gpuvm_sm_map(struct drm_gpuvm *gpuvm,
 				ret = op_remap_cb(ops, priv, &p, NULL, &u);
 				if (ret)
 					return ret;
+
+				if (madvise)
+					op_map = req;
 				break;
 			}
 
@@ -2180,6 +2267,18 @@ __drm_gpuvm_sm_map(struct drm_gpuvm *gpuvm,
 				ret = op_remap_cb(ops, priv, &p, NULL, &u);
 				if (ret)
 					return ret;
+
+				if (madvise) {
+					struct drm_gpuvm_map_req map_req = {
+						.map.va.addr =  req_addr,
+						.map.va.range = end - req_addr,
+					};
+
+					ret = op_map_cb(ops, priv, &map_req);
+					if (ret)
+						return ret;
+				}
+
 				continue;
 			}
 
@@ -2195,6 +2294,9 @@ __drm_gpuvm_sm_map(struct drm_gpuvm *gpuvm,
 				ret = op_remap_cb(ops, priv, &p, &n, &u);
 				if (ret)
 					return ret;
+
+				if (madvise)
+					op_map = req;
 				break;
 			}
 		} else if (addr > req_addr) {
@@ -2203,16 +2305,18 @@ __drm_gpuvm_sm_map(struct drm_gpuvm *gpuvm,
 					   (addr - req_addr);
 
 			if (end == req_end) {
-				ret = op_unmap_cb(ops, priv, va, merge);
+				ret = op_unmap_cb(ops, priv, va, merge, madvise);
 				if (ret)
 					return ret;
+
 				break;
 			}
 
 			if (end < req_end) {
-				ret = op_unmap_cb(ops, priv, va, merge);
+				ret = op_unmap_cb(ops, priv, va, merge, madvise);
 				if (ret)
 					return ret;
+
 				continue;
 			}
 
@@ -2231,14 +2335,20 @@ __drm_gpuvm_sm_map(struct drm_gpuvm *gpuvm,
 				ret = op_remap_cb(ops, priv, NULL, &n, &u);
 				if (ret)
 					return ret;
+
+				if (madvise) {
+					struct drm_gpuvm_map_req map_req = {
+						.map.va.addr =  addr,
+						.map.va.range = req_end - addr,
+					};
+
+					return op_map_cb(ops, priv, &map_req);
+				}
 				break;
 			}
 		}
 	}
-
-	return op_map_cb(ops, priv,
-			 req_addr, req_range,
-			 req_obj, req_offset);
+	return op_map_cb(ops, priv, op_map);
 }
 
 static int
@@ -2290,7 +2400,7 @@ __drm_gpuvm_sm_unmap(struct drm_gpuvm *gpuvm,
 			if (ret)
 				return ret;
 		} else {
-			ret = op_unmap_cb(ops, priv, va, false);
+			ret = op_unmap_cb(ops, priv, va, false, false);
 			if (ret)
 				return ret;
 		}
@@ -2303,10 +2413,7 @@ __drm_gpuvm_sm_unmap(struct drm_gpuvm *gpuvm,
  * drm_gpuvm_sm_map() - calls the &drm_gpuva_op split/merge steps
  * @gpuvm: the &drm_gpuvm representing the GPU VA space
  * @priv: pointer to a driver private data structure
- * @req_addr: the start address of the new mapping
- * @req_range: the range of the new mapping
- * @req_obj: the &drm_gem_object to map
- * @req_offset: the offset within the &drm_gem_object
+ * @req: ptr to struct drm_gpuvm_map_req
  *
  * This function iterates the given range of the GPU VA space. It utilizes the
  * &drm_gpuvm_ops to call back into the driver providing the split and merge
@@ -2333,8 +2440,7 @@ __drm_gpuvm_sm_unmap(struct drm_gpuvm *gpuvm,
  */
 int
 drm_gpuvm_sm_map(struct drm_gpuvm *gpuvm, void *priv,
-		 u64 req_addr, u64 req_range,
-		 struct drm_gem_object *req_obj, u64 req_offset)
+		 const struct drm_gpuvm_map_req *req)
 {
 	const struct drm_gpuvm_ops *ops = gpuvm->ops;
 
@@ -2343,9 +2449,7 @@ drm_gpuvm_sm_map(struct drm_gpuvm *gpuvm, void *priv,
 		       ops->sm_step_unmap)))
 		return -EINVAL;
 
-	return __drm_gpuvm_sm_map(gpuvm, ops, priv,
-				  req_addr, req_range,
-				  req_obj, req_offset);
+	return __drm_gpuvm_sm_map(gpuvm, ops, priv, req, false);
 }
 EXPORT_SYMBOL_GPL(drm_gpuvm_sm_map);
 
@@ -2421,10 +2525,7 @@ static const struct drm_gpuvm_ops lock_ops = {
  * @gpuvm: the &drm_gpuvm representing the GPU VA space
  * @exec: the &drm_exec locking context
  * @num_fences: for newly mapped objects, the # of fences to reserve
- * @req_addr: the start address of the range to unmap
- * @req_range: the range of the mappings to unmap
- * @req_obj: the &drm_gem_object to map
- * @req_offset: the offset within the &drm_gem_object
+ * @req: ptr to drm_gpuvm_map_req struct
  *
  * This function locks (drm_exec_lock_obj()) objects that will be unmapped/
  * remapped, and locks+prepares (drm_exec_prepare_object()) objects that
@@ -2445,9 +2546,7 @@ static const struct drm_gpuvm_ops lock_ops = {
  *                    ret = drm_gpuvm_sm_unmap_exec_lock(gpuvm, &exec, op->addr, op->range);
  *                    break;
  *                case DRIVER_OP_MAP:
- *                    ret = drm_gpuvm_sm_map_exec_lock(gpuvm, &exec, num_fences,
- *                                                     op->addr, op->range,
- *                                                     obj, op->obj_offset);
+ *                    ret = drm_gpuvm_sm_map_exec_lock(gpuvm, &exec, num_fences, &req);
  *                    break;
  *                }
  *
@@ -2478,18 +2577,17 @@ static const struct drm_gpuvm_ops lock_ops = {
 int
 drm_gpuvm_sm_map_exec_lock(struct drm_gpuvm *gpuvm,
 			   struct drm_exec *exec, unsigned int num_fences,
-			   u64 req_addr, u64 req_range,
-			   struct drm_gem_object *req_obj, u64 req_offset)
+			   struct drm_gpuvm_map_req *req)
 {
+	struct drm_gem_object *req_obj = req->map.gem.obj;
+
 	if (req_obj) {
 		int ret = drm_exec_prepare_obj(exec, req_obj, num_fences);
 		if (ret)
 			return ret;
 	}
 
-	return __drm_gpuvm_sm_map(gpuvm, &lock_ops, exec,
-				  req_addr, req_range,
-				  req_obj, req_offset);
+	return __drm_gpuvm_sm_map(gpuvm, &lock_ops, exec, req, false);
 
 }
 EXPORT_SYMBOL_GPL(drm_gpuvm_sm_map_exec_lock);
@@ -2608,13 +2706,42 @@ static const struct drm_gpuvm_ops gpuvm_list_ops = {
 	.sm_step_unmap = drm_gpuva_sm_step,
 };
 
+static struct drm_gpuva_ops *
+__drm_gpuvm_sm_map_ops_create(struct drm_gpuvm *gpuvm,
+			      const struct drm_gpuvm_map_req *req,
+			      bool madvise)
+{
+	struct drm_gpuva_ops *ops;
+	struct {
+		struct drm_gpuvm *vm;
+		struct drm_gpuva_ops *ops;
+	} args;
+	int ret;
+
+	ops = kzalloc(sizeof(*ops), GFP_KERNEL);
+	if (unlikely(!ops))
+		return ERR_PTR(-ENOMEM);
+
+	INIT_LIST_HEAD(&ops->list);
+
+	args.vm = gpuvm;
+	args.ops = ops;
+
+	ret = __drm_gpuvm_sm_map(gpuvm, &gpuvm_list_ops, &args, req, madvise);
+	if (ret)
+		goto err_free_ops;
+
+	return ops;
+
+err_free_ops:
+	drm_gpuva_ops_free(gpuvm, ops);
+	return ERR_PTR(ret);
+}
+
 /**
  * drm_gpuvm_sm_map_ops_create() - creates the &drm_gpuva_ops to split and merge
  * @gpuvm: the &drm_gpuvm representing the GPU VA space
- * @req_addr: the start address of the new mapping
- * @req_range: the range of the new mapping
- * @req_obj: the &drm_gem_object to map
- * @req_offset: the offset within the &drm_gem_object
+ * @req: map request arguments
  *
  * This function creates a list of operations to perform splitting and merging
  * of existing mapping(s) with the newly requested one.
@@ -2642,38 +2769,48 @@ static const struct drm_gpuvm_ops gpuvm_list_ops = {
  */
 struct drm_gpuva_ops *
 drm_gpuvm_sm_map_ops_create(struct drm_gpuvm *gpuvm,
-			    u64 req_addr, u64 req_range,
-			    struct drm_gem_object *req_obj, u64 req_offset)
+			    const struct drm_gpuvm_map_req *req)
 {
-	struct drm_gpuva_ops *ops;
-	struct {
-		struct drm_gpuvm *vm;
-		struct drm_gpuva_ops *ops;
-	} args;
-	int ret;
-
-	ops = kzalloc(sizeof(*ops), GFP_KERNEL);
-	if (unlikely(!ops))
-		return ERR_PTR(-ENOMEM);
-
-	INIT_LIST_HEAD(&ops->list);
-
-	args.vm = gpuvm;
-	args.ops = ops;
-
-	ret = __drm_gpuvm_sm_map(gpuvm, &gpuvm_list_ops, &args,
-				 req_addr, req_range,
-				 req_obj, req_offset);
-	if (ret)
-		goto err_free_ops;
-
-	return ops;
-
-err_free_ops:
-	drm_gpuva_ops_free(gpuvm, ops);
-	return ERR_PTR(ret);
+	return __drm_gpuvm_sm_map_ops_create(gpuvm, req, false);
 }
 EXPORT_SYMBOL_GPL(drm_gpuvm_sm_map_ops_create);
+
+/**
+ * drm_gpuvm_madvise_ops_create() - creates the &drm_gpuva_ops to split
+ * @gpuvm: the &drm_gpuvm representing the GPU VA space
+ * @req: map request arguments
+ *
+ * This function creates a list of operations to perform splitting
+ * of existent mapping(s) at start or end, based on the request map.
+ *
+ * The list can be iterated with &drm_gpuva_for_each_op and must be processed
+ * in the given order. It can contain map and remap operations, but it
+ * also can be empty if no operation is required, e.g. if the requested mapping
+ * already exists is the exact same way.
+ *
+ * There will be no unmap operations, a maximum of two remap operations and two
+ * map operations. The two map operations correspond to: one from start to the
+ * end of drm_gpuvaX, and another from the start of drm_gpuvaY to end.
+ *
+ * Note that before calling this function again with another mapping request it
+ * is necessary to update the &drm_gpuvm's view of the GPU VA space. The
+ * previously obtained operations must be either processed or abandoned. To
+ * update the &drm_gpuvm's view of the GPU VA space drm_gpuva_insert(),
+ * drm_gpuva_destroy_locked() and/or drm_gpuva_destroy_unlocked() should be
+ * used.
+ *
+ * After the caller finished processing the returned &drm_gpuva_ops, they must
+ * be freed with &drm_gpuva_ops_free.
+ *
+ * Returns: a pointer to the &drm_gpuva_ops on success, an ERR_PTR on failure
+ */
+struct drm_gpuva_ops *
+drm_gpuvm_madvise_ops_create(struct drm_gpuvm *gpuvm,
+			     const struct drm_gpuvm_map_req *req)
+{
+	return __drm_gpuvm_sm_map_ops_create(gpuvm, req, true);
+}
+EXPORT_SYMBOL_GPL(drm_gpuvm_madvise_ops_create);
 
 /**
  * drm_gpuvm_sm_unmap_ops_create() - creates the &drm_gpuva_ops to split on
@@ -2804,8 +2941,8 @@ EXPORT_SYMBOL_GPL(drm_gpuvm_prefetch_ops_create);
  * After the caller finished processing the returned &drm_gpuva_ops, they must
  * be freed with &drm_gpuva_ops_free.
  *
- * It is the callers responsibility to protect the GEMs GPUVA list against
- * concurrent access using the GEMs dma_resv lock.
+ * This function expects the caller to protect the GEM's GPUVA list against
+ * concurrent access using either the GEM's dma-resv or gpuva.lock mutex.
  *
  * Returns: a pointer to the &drm_gpuva_ops on success, an ERR_PTR on failure
  */
@@ -2817,7 +2954,7 @@ drm_gpuvm_bo_unmap_ops_create(struct drm_gpuvm_bo *vm_bo)
 	struct drm_gpuva *va;
 	int ret;
 
-	drm_gem_gpuva_assert_lock_held(vm_bo->obj);
+	drm_gem_gpuva_assert_lock_held(vm_bo->vm, vm_bo->obj);
 
 	ops = kzalloc(sizeof(*ops), GFP_KERNEL);
 	if (!ops)

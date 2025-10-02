@@ -48,7 +48,7 @@
 #include "dcn31/dcn31_clk_mgr.h"
 
 #include "dc_dmub_srv.h"
-#include "link.h"
+#include "link_service.h"
 #include "dcn314_smu.h"
 
 
@@ -77,6 +77,7 @@ static const struct IP_BASE CLK_BASE = { { { { 0x00016C00, 0x02401800, 0, 0, 0, 
 #undef DC_LOGGER
 #define DC_LOGGER \
 	clk_mgr->base.base.ctx->logger
+
 #define regCLK1_CLK_PLL_REQ			0x0237
 #define regCLK1_CLK_PLL_REQ_BASE_IDX		0
 
@@ -87,8 +88,70 @@ static const struct IP_BASE CLK_BASE = { { { { 0x00016C00, 0x02401800, 0, 0, 0, 
 #define CLK1_CLK_PLL_REQ__PllSpineDiv_MASK	0x0000F000L
 #define CLK1_CLK_PLL_REQ__FbMult_frac_MASK	0xFFFF0000L
 
+#define regCLK1_CLK0_DFS_CNTL				0x0269
+#define regCLK1_CLK0_DFS_CNTL_BASE_IDX		0
+#define regCLK1_CLK1_DFS_CNTL				0x026c
+#define regCLK1_CLK1_DFS_CNTL_BASE_IDX		0
+#define regCLK1_CLK2_DFS_CNTL				0x026f
+#define regCLK1_CLK2_DFS_CNTL_BASE_IDX		0
+#define regCLK1_CLK3_DFS_CNTL				0x0272
+#define regCLK1_CLK3_DFS_CNTL_BASE_IDX		0
+#define regCLK1_CLK4_DFS_CNTL				0x0275
+#define regCLK1_CLK4_DFS_CNTL_BASE_IDX		0
+#define regCLK1_CLK5_DFS_CNTL				0x0278
+#define regCLK1_CLK5_DFS_CNTL_BASE_IDX		0
+
+#define regCLK1_CLK0_CURRENT_CNT			0x02fb
+#define regCLK1_CLK0_CURRENT_CNT_BASE_IDX	0
+#define regCLK1_CLK1_CURRENT_CNT			0x02fc
+#define regCLK1_CLK1_CURRENT_CNT_BASE_IDX	0
+#define regCLK1_CLK2_CURRENT_CNT			0x02fd
+#define regCLK1_CLK2_CURRENT_CNT_BASE_IDX	0
+#define regCLK1_CLK3_CURRENT_CNT			0x02fe
+#define regCLK1_CLK3_CURRENT_CNT_BASE_IDX	0
+#define regCLK1_CLK4_CURRENT_CNT			0x02ff
+#define regCLK1_CLK4_CURRENT_CNT_BASE_IDX	0
+#define regCLK1_CLK5_CURRENT_CNT			0x0300
+#define regCLK1_CLK5_CURRENT_CNT_BASE_IDX	0
+
+#define regCLK1_CLK0_BYPASS_CNTL			0x028a
+#define regCLK1_CLK0_BYPASS_CNTL_BASE_IDX	0
+#define regCLK1_CLK1_BYPASS_CNTL			0x0293
+#define regCLK1_CLK1_BYPASS_CNTL_BASE_IDX	0
 #define regCLK1_CLK2_BYPASS_CNTL			0x029c
 #define regCLK1_CLK2_BYPASS_CNTL_BASE_IDX	0
+#define regCLK1_CLK3_BYPASS_CNTL			0x02a5
+#define regCLK1_CLK3_BYPASS_CNTL_BASE_IDX	0
+#define regCLK1_CLK4_BYPASS_CNTL			0x02ae
+#define regCLK1_CLK4_BYPASS_CNTL_BASE_IDX	0
+#define regCLK1_CLK5_BYPASS_CNTL			0x02b7
+#define regCLK1_CLK5_BYPASS_CNTL_BASE_IDX	0
+
+#define regCLK1_CLK0_DS_CNTL				0x0283
+#define regCLK1_CLK0_DS_CNTL_BASE_IDX		0
+#define regCLK1_CLK1_DS_CNTL				0x028c
+#define regCLK1_CLK1_DS_CNTL_BASE_IDX		0
+#define regCLK1_CLK2_DS_CNTL				0x0295
+#define regCLK1_CLK2_DS_CNTL_BASE_IDX		0
+#define regCLK1_CLK3_DS_CNTL				0x029e
+#define regCLK1_CLK3_DS_CNTL_BASE_IDX		0
+#define regCLK1_CLK4_DS_CNTL				0x02a7
+#define regCLK1_CLK4_DS_CNTL_BASE_IDX		0
+#define regCLK1_CLK5_DS_CNTL				0x02b0
+#define regCLK1_CLK5_DS_CNTL_BASE_IDX		0
+
+#define regCLK1_CLK0_ALLOW_DS				0x0284
+#define regCLK1_CLK0_ALLOW_DS_BASE_IDX		0
+#define regCLK1_CLK1_ALLOW_DS				0x028d
+#define regCLK1_CLK1_ALLOW_DS_BASE_IDX		0
+#define regCLK1_CLK2_ALLOW_DS				0x0296
+#define regCLK1_CLK2_ALLOW_DS_BASE_IDX		0
+#define regCLK1_CLK3_ALLOW_DS				0x029f
+#define regCLK1_CLK3_ALLOW_DS_BASE_IDX		0
+#define regCLK1_CLK4_ALLOW_DS				0x02a8
+#define regCLK1_CLK4_ALLOW_DS_BASE_IDX		0
+#define regCLK1_CLK5_ALLOW_DS				0x02b1
+#define regCLK1_CLK5_ALLOW_DS_BASE_IDX		0
 
 #define CLK1_CLK2_BYPASS_CNTL__CLK2_BYPASS_SEL__SHIFT	0x0
 #define CLK1_CLK2_BYPASS_CNTL__CLK2_BYPASS_DIV__SHIFT	0x10
@@ -185,6 +248,8 @@ void dcn314_init_clocks(struct clk_mgr *clk_mgr)
 {
 	struct clk_mgr_internal *clk_mgr_int = TO_CLK_MGR_INTERNAL(clk_mgr);
 	uint32_t ref_dtbclk = clk_mgr->clks.ref_dtbclk_khz;
+	struct clk_mgr_dcn314 *clk_mgr_dcn314 = TO_CLK_MGR_DCN314(clk_mgr_int);
+	struct clk_log_info log_info = {0};
 
 	memset(&(clk_mgr->clks), 0, sizeof(struct dc_clocks));
 	// Assumption is that boot state always supports pstate
@@ -200,6 +265,9 @@ void dcn314_init_clocks(struct clk_mgr *clk_mgr)
 			dce_adjust_dp_ref_freq_for_ss(clk_mgr_int, clk_mgr->dprefclk_khz);
 	else
 		clk_mgr->dp_dto_source_clock_in_khz = clk_mgr->dprefclk_khz;
+
+	dcn314_dump_clk_registers(&clk_mgr->boot_snapshot, &clk_mgr_dcn314->base.base, &log_info);
+	clk_mgr->clks.dispclk_khz =  clk_mgr->boot_snapshot.dispclk * 1000;
 }
 
 void dcn314_update_clocks(struct clk_mgr *clk_mgr_base,
@@ -217,6 +285,8 @@ void dcn314_update_clocks(struct clk_mgr *clk_mgr_base,
 
 	if (dc->work_arounds.skip_clock_update)
 		return;
+
+	display_count = dcn314_get_active_display_cnt_wa(dc, context);
 
 	/*
 	 * if it is safe to lower, but we are already in the lower state, we don't have to do anything
@@ -236,7 +306,6 @@ void dcn314_update_clocks(struct clk_mgr *clk_mgr_base,
 		}
 		/* check that we're not already in lower */
 		if (clk_mgr_base->clks.pwr_state != DCN_PWR_STATE_LOW_POWER) {
-			display_count = dcn314_get_active_display_cnt_wa(dc, context);
 			/* if we can go lower, go lower */
 			if (display_count == 0) {
 				union display_idle_optimization_u idle_info = { 0 };
@@ -293,11 +362,19 @@ void dcn314_update_clocks(struct clk_mgr *clk_mgr_base,
 		update_dppclk = true;
 	}
 
-	if (should_set_clock(safe_to_lower, new_clocks->dispclk_khz, clk_mgr_base->clks.dispclk_khz)) {
+	if (should_set_clock(safe_to_lower, new_clocks->dispclk_khz, clk_mgr_base->clks.dispclk_khz) &&
+	    (new_clocks->dispclk_khz > 0 || (safe_to_lower && display_count == 0))) {
+		int requested_dispclk_khz = new_clocks->dispclk_khz;
+
 		dcn314_disable_otg_wa(clk_mgr_base, context, safe_to_lower, true);
 
+		/* Clamp the requested clock to PMFW based on their limit. */
+		if (dc->debug.min_disp_clk_khz > 0 && requested_dispclk_khz < dc->debug.min_disp_clk_khz)
+			requested_dispclk_khz = dc->debug.min_disp_clk_khz;
+
+		dcn314_smu_set_dispclk(clk_mgr, requested_dispclk_khz);
 		clk_mgr_base->clks.dispclk_khz = new_clocks->dispclk_khz;
-		dcn314_smu_set_dispclk(clk_mgr, clk_mgr_base->clks.dispclk_khz);
+
 		dcn314_disable_otg_wa(clk_mgr_base, context, safe_to_lower, false);
 
 		update_dispclk = true;
@@ -385,10 +462,65 @@ bool dcn314_are_clock_states_equal(struct dc_clocks *a,
 	return true;
 }
 
-static void dcn314_dump_clk_registers(struct clk_state_registers_and_bypass *regs_and_bypass,
+
+static void dcn314_dump_clk_registers_internal(struct dcn35_clk_internal *internal, struct clk_mgr *clk_mgr_base)
+{
+	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
+
+	// read dtbclk
+	internal->CLK1_CLK4_CURRENT_CNT = REG_READ(CLK1_CLK4_CURRENT_CNT);
+	internal->CLK1_CLK4_BYPASS_CNTL = REG_READ(CLK1_CLK4_BYPASS_CNTL);
+
+	// read dcfclk
+	internal->CLK1_CLK3_CURRENT_CNT = REG_READ(CLK1_CLK3_CURRENT_CNT);
+	internal->CLK1_CLK3_BYPASS_CNTL = REG_READ(CLK1_CLK3_BYPASS_CNTL);
+
+	// read dcf deep sleep divider
+	internal->CLK1_CLK3_DS_CNTL = REG_READ(CLK1_CLK3_DS_CNTL);
+	internal->CLK1_CLK3_ALLOW_DS = REG_READ(CLK1_CLK3_ALLOW_DS);
+
+	// read dppclk
+	internal->CLK1_CLK1_CURRENT_CNT = REG_READ(CLK1_CLK1_CURRENT_CNT);
+	internal->CLK1_CLK1_BYPASS_CNTL = REG_READ(CLK1_CLK1_BYPASS_CNTL);
+
+	// read dprefclk
+	internal->CLK1_CLK2_CURRENT_CNT = REG_READ(CLK1_CLK2_CURRENT_CNT);
+	internal->CLK1_CLK2_BYPASS_CNTL = REG_READ(CLK1_CLK2_BYPASS_CNTL);
+
+	// read dispclk
+	internal->CLK1_CLK0_CURRENT_CNT = REG_READ(CLK1_CLK0_CURRENT_CNT);
+	internal->CLK1_CLK0_BYPASS_CNTL = REG_READ(CLK1_CLK0_BYPASS_CNTL);
+}
+
+void dcn314_dump_clk_registers(struct clk_state_registers_and_bypass *regs_and_bypass,
 		struct clk_mgr *clk_mgr_base, struct clk_log_info *log_info)
 {
-	return;
+
+	struct dcn35_clk_internal internal = {0};
+
+	dcn314_dump_clk_registers_internal(&internal, clk_mgr_base);
+
+	regs_and_bypass->dcfclk = internal.CLK1_CLK3_CURRENT_CNT / 10;
+	regs_and_bypass->dcf_deep_sleep_divider = internal.CLK1_CLK3_DS_CNTL / 10;
+	regs_and_bypass->dcf_deep_sleep_allow = internal.CLK1_CLK3_ALLOW_DS;
+	regs_and_bypass->dprefclk = internal.CLK1_CLK2_CURRENT_CNT / 10;
+	regs_and_bypass->dispclk = internal.CLK1_CLK0_CURRENT_CNT / 10;
+	regs_and_bypass->dppclk = internal.CLK1_CLK1_CURRENT_CNT / 10;
+	regs_and_bypass->dtbclk = internal.CLK1_CLK4_CURRENT_CNT / 10;
+
+	regs_and_bypass->dppclk_bypass = internal.CLK1_CLK1_BYPASS_CNTL & 0x0007;
+	if (regs_and_bypass->dppclk_bypass < 0 || regs_and_bypass->dppclk_bypass > 4)
+		regs_and_bypass->dppclk_bypass = 0;
+	regs_and_bypass->dcfclk_bypass = internal.CLK1_CLK3_BYPASS_CNTL & 0x0007;
+	if (regs_and_bypass->dcfclk_bypass < 0 || regs_and_bypass->dcfclk_bypass > 4)
+		regs_and_bypass->dcfclk_bypass = 0;
+	regs_and_bypass->dispclk_bypass = internal.CLK1_CLK0_BYPASS_CNTL & 0x0007;
+	if (regs_and_bypass->dispclk_bypass < 0 || regs_and_bypass->dispclk_bypass > 4)
+		regs_and_bypass->dispclk_bypass = 0;
+	regs_and_bypass->dprefclk_bypass = internal.CLK1_CLK2_BYPASS_CNTL & 0x0007;
+	if (regs_and_bypass->dprefclk_bypass < 0 || regs_and_bypass->dprefclk_bypass > 4)
+		regs_and_bypass->dprefclk_bypass = 0;
+
 }
 
 static struct clk_bw_params dcn314_bw_params = {

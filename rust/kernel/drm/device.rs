@@ -11,7 +11,8 @@ use crate::{
     error::from_err_ptr,
     error::Result,
     prelude::*,
-    types::{ARef, AlwaysRefCounted, Opaque},
+    sync::aref::{ARef, AlwaysRefCounted},
+    types::Opaque,
 };
 use core::{alloc::Layout, mem, ops::Deref, ptr, ptr::NonNull};
 

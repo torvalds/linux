@@ -926,10 +926,10 @@ static void avivo_get_fb_ref_div(unsigned nom, unsigned den, unsigned post_div,
 				 unsigned *fb_div, unsigned *ref_div)
 {
 	/* limit reference * post divider to a maximum */
-	ref_div_max = max(min(100 / post_div, ref_div_max), 1u);
+	ref_div_max = clamp(100 / post_div, 1u, ref_div_max);
 
 	/* get matching reference and feedback divider */
-	*ref_div = min(max(den/post_div, 1u), ref_div_max);
+	*ref_div = clamp(den / post_div, 1u, ref_div_max);
 	*fb_div = DIV_ROUND_CLOSEST(nom * *ref_div * post_div, den);
 
 	/* limit fb divider to its maximum */

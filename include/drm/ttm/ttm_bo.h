@@ -466,6 +466,8 @@ pgprot_t ttm_io_prot(struct ttm_buffer_object *bo, struct ttm_resource *res,
 void ttm_bo_tt_destroy(struct ttm_buffer_object *bo);
 int ttm_bo_populate(struct ttm_buffer_object *bo,
 		    struct ttm_operation_ctx *ctx);
+int ttm_bo_setup_export(struct ttm_buffer_object *bo,
+			struct ttm_operation_ctx *ctx);
 
 /* Driver LRU walk helpers initially targeted for shrinking. */
 

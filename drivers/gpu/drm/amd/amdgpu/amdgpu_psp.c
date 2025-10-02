@@ -666,6 +666,10 @@ static const char *psp_gfx_cmd_name(enum psp_gfx_cmd_id cmd_id)
 		return "FB_FW_RESERV_ADDR";
 	case GFX_CMD_ID_FB_FW_RESERV_EXT_ADDR:
 		return "FB_FW_RESERV_EXT_ADDR";
+	case GFX_CMD_ID_SRIOV_SPATIAL_PART:
+		return "SPATIAL_PARTITION";
+	case GFX_CMD_ID_FB_NPS_MODE:
+		return "NPS_MODE_CHANGE";
 	default:
 		return "UNKNOWN CMD";
 	}
@@ -877,9 +881,7 @@ static int psp_tmr_init(struct psp_context *psp)
 		pptr = amdgpu_sriov_vf(psp->adev) ? &tmr_buf : NULL;
 		ret = amdgpu_bo_create_kernel(psp->adev, tmr_size,
 					      PSP_TMR_ALIGNMENT,
-					      AMDGPU_HAS_VRAM(psp->adev) ?
-					      AMDGPU_GEM_DOMAIN_VRAM :
-					      AMDGPU_GEM_DOMAIN_GTT,
+					      AMDGPU_GEM_DOMAIN_GTT | AMDGPU_GEM_DOMAIN_VRAM,
 					      &psp->tmr_bo, &psp->tmr_mc_addr,
 					      pptr);
 	}

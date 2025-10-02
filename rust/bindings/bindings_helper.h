@@ -49,6 +49,7 @@
 #include <linux/cred.h>
 #include <linux/debugfs.h>
 #include <linux/device/faux.h>
+#include <linux/dma-direction.h>
 #include <linux/dma-mapping.h>
 #include <linux/errname.h>
 #include <linux/ethtool.h>
@@ -60,6 +61,7 @@
 #include <linux/jiffies.h>
 #include <linux/jump_label.h>
 #include <linux/mdio.h>
+#include <linux/mm.h>
 #include <linux/miscdevice.h>
 #include <linux/of_device.h>
 #include <linux/pci.h>

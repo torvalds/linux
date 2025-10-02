@@ -37,7 +37,7 @@
 #include "link_enc_cfg.h"
 #include "dc_dmub_srv.h"
 #include "dal_asic_id.h"
-#include "link.h"
+#include "link_service.h"
 
 #define CTX \
 	enc10->base.ctx

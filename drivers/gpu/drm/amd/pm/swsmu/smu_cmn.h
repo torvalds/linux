@@ -65,6 +65,32 @@
 		header->structure_size = sizeof(*tmp);                     \
 	} while (0)
 
+#define smu_cmn_init_baseboard_temp_metrics(ptr, fr, cr)                        \
+	do {                                                                    \
+		typecheck(struct amdgpu_baseboard_temp_metrics_v##fr##_##cr *,  \
+			  (ptr));                                               \
+		struct amdgpu_baseboard_temp_metrics_v##fr##_##cr *tmp = (ptr); \
+		struct metrics_table_header *header =                           \
+			(struct metrics_table_header *)tmp;                     \
+		memset(header, 0xFF, sizeof(*tmp));                             \
+		header->format_revision = fr;                                   \
+		header->content_revision = cr;                                  \
+		header->structure_size = sizeof(*tmp);                          \
+	} while (0)
+
+#define smu_cmn_init_gpuboard_temp_metrics(ptr, fr, cr)                         \
+	do {                                                                    \
+		typecheck(struct amdgpu_gpuboard_temp_metrics_v##fr##_##cr *,   \
+			  (ptr));                                               \
+		struct amdgpu_gpuboard_temp_metrics_v##fr##_##cr *tmp = (ptr);  \
+		struct metrics_table_header *header =                           \
+			(struct metrics_table_header *)tmp;                     \
+		memset(header, 0xFF, sizeof(*tmp));                             \
+		header->format_revision = fr;                                   \
+		header->content_revision = cr;                                  \
+		header->structure_size = sizeof(*tmp);                          \
+	} while (0)
+
 extern const int link_speed[];
 
 /* Helper to Convert from PCIE Gen 1/2/3/4/5/6 to 0.1 GT/s speed units */

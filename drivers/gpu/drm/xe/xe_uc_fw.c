@@ -115,8 +115,8 @@ struct fw_blobs_by_type {
 #define XE_GT_TYPE_ANY XE_GT_TYPE_UNINITIALIZED
 
 #define XE_GUC_FIRMWARE_DEFS(fw_def, mmp_ver, major_ver)					\
-	fw_def(PANTHERLAKE,	GT_TYPE_ANY,	major_ver(xe,	guc,	ptl,	70, 47, 0))	\
-	fw_def(BATTLEMAGE,	GT_TYPE_ANY,	major_ver(xe,	guc,	bmg,	70, 45, 2))	\
+	fw_def(PANTHERLAKE,	GT_TYPE_ANY,	major_ver(xe,	guc,	ptl,	70, 49, 4))	\
+	fw_def(BATTLEMAGE,	GT_TYPE_ANY,	major_ver(xe,	guc,	bmg,	70, 49, 4))	\
 	fw_def(LUNARLAKE,	GT_TYPE_ANY,	major_ver(xe,	guc,	lnl,	70, 45, 2))	\
 	fw_def(METEORLAKE,	GT_TYPE_ANY,	major_ver(i915,	guc,	mtl,	70, 44, 1))	\
 	fw_def(DG2,		GT_TYPE_ANY,	major_ver(i915,	guc,	dg2,	70, 45, 2))	\
@@ -328,7 +328,7 @@ static void uc_fw_fini(struct drm_device *drm, void *arg)
 	xe_uc_fw_change_status(uc_fw, XE_UC_FIRMWARE_SELECTED);
 }
 
-static int guc_read_css_info(struct xe_uc_fw *uc_fw, struct uc_css_header *css)
+static int guc_read_css_info(struct xe_uc_fw *uc_fw, struct uc_css_guc_info *guc_info)
 {
 	struct xe_gt *gt = uc_fw_to_gt(uc_fw);
 	struct xe_uc_fw_version *release = &uc_fw->versions.found[XE_UC_FW_VER_RELEASE];
@@ -343,11 +343,12 @@ static int guc_read_css_info(struct xe_uc_fw *uc_fw, struct uc_css_header *css)
 		return -EINVAL;
 	}
 
-	compatibility->major = FIELD_GET(CSS_SW_VERSION_UC_MAJOR, css->submission_version);
-	compatibility->minor = FIELD_GET(CSS_SW_VERSION_UC_MINOR, css->submission_version);
-	compatibility->patch = FIELD_GET(CSS_SW_VERSION_UC_PATCH, css->submission_version);
+	compatibility->major = FIELD_GET(CSS_SW_VERSION_UC_MAJOR, guc_info->submission_version);
+	compatibility->minor = FIELD_GET(CSS_SW_VERSION_UC_MINOR, guc_info->submission_version);
+	compatibility->patch = FIELD_GET(CSS_SW_VERSION_UC_PATCH, guc_info->submission_version);
 
-	uc_fw->private_data_size = css->private_data_size;
+	uc_fw->build_type = FIELD_GET(CSS_UKERNEL_INFO_BUILDTYPE, guc_info->ukernel_info);
+	uc_fw->private_data_size = guc_info->private_data_size;
 
 	return 0;
 }
@@ -416,8 +417,8 @@ static int parse_css_header(struct xe_uc_fw *uc_fw, const void *fw_data, size_t 
 	css = (struct uc_css_header *)fw_data;
 
 	/* Check integrity of size values inside CSS header */
-	size = (css->header_size_dw - css->key_size_dw - css->modulus_size_dw -
-		css->exponent_size_dw) * sizeof(u32);
+	size = (css->header_size_dw - css->rsa_info.key_size_dw - css->rsa_info.modulus_size_dw -
+		css->rsa_info.exponent_size_dw) * sizeof(u32);
 	if (unlikely(size != sizeof(struct uc_css_header))) {
 		drm_warn(&xe->drm,
 			 "%s firmware %s: unexpected header size: %zu != %zu\n",
@@ -430,7 +431,7 @@ static int parse_css_header(struct xe_uc_fw *uc_fw, const void *fw_data, size_t 
 	uc_fw->ucode_size = (css->size_dw - css->header_size_dw) * sizeof(u32);
 
 	/* now RSA */
-	uc_fw->rsa_size = css->key_size_dw * sizeof(u32);
+	uc_fw->rsa_size = css->rsa_info.key_size_dw * sizeof(u32);
 
 	/* At least, it should have header, uCode and RSA. Size of all three. */
 	size = sizeof(struct uc_css_header) + uc_fw->ucode_size +
@@ -443,12 +444,12 @@ static int parse_css_header(struct xe_uc_fw *uc_fw, const void *fw_data, size_t 
 	}
 
 	/* Get version numbers from the CSS header */
-	release->major = FIELD_GET(CSS_SW_VERSION_UC_MAJOR, css->sw_version);
-	release->minor = FIELD_GET(CSS_SW_VERSION_UC_MINOR, css->sw_version);
-	release->patch = FIELD_GET(CSS_SW_VERSION_UC_PATCH, css->sw_version);
+	release->major = FIELD_GET(CSS_SW_VERSION_UC_MAJOR, css->guc_info.sw_version);
+	release->minor = FIELD_GET(CSS_SW_VERSION_UC_MINOR, css->guc_info.sw_version);
+	release->patch = FIELD_GET(CSS_SW_VERSION_UC_PATCH, css->guc_info.sw_version);
 
 	if (uc_fw->type == XE_UC_FW_TYPE_GUC)
-		return guc_read_css_info(uc_fw, css);
+		return guc_read_css_info(uc_fw, &css->guc_info);
 
 	return 0;
 }

@@ -18,11 +18,13 @@
 #include "xe_device.h"
 #include "xe_ggtt.h"
 #include "xe_gt.h"
-#include "xe_guc.h"
+#include "xe_gt_idle.h"
 #include "xe_i2c.h"
 #include "xe_irq.h"
+#include "xe_late_bind_fw.h"
 #include "xe_pcode.h"
 #include "xe_pxp.h"
+#include "xe_sriov_vf_ccs.h"
 #include "xe_trace.h"
 #include "xe_vm.h"
 #include "xe_wa.h"
@@ -128,6 +130,8 @@ int xe_pm_suspend(struct xe_device *xe)
 	if (err)
 		goto err;
 
+	xe_late_bind_wait_for_worker_completion(&xe->late_bind);
+
 	for_each_gt(gt, xe, id)
 		xe_gt_suspend_prepare(gt);
 
@@ -177,6 +181,9 @@ int xe_pm_resume(struct xe_device *xe)
 	drm_dbg(&xe->drm, "Resuming device\n");
 	trace_xe_pm_resume(xe, __builtin_return_address(0));
 
+	for_each_gt(gt, xe, id)
+		xe_gt_idle_disable_c6(gt);
+
 	for_each_tile(tile, xe, id)
 		xe_wa_apply_tile_workarounds(tile);
 
@@ -208,6 +215,11 @@ int xe_pm_resume(struct xe_device *xe)
 		goto err;
 
 	xe_pxp_pm_resume(xe->pxp);
+
+	if (IS_VF_CCS_READY(xe))
+		xe_sriov_vf_ccs_register_context(xe);
+
+	xe_late_bind_fw_load(&xe->late_bind);
 
 	drm_dbg(&xe->drm, "Device resumed\n");
 	return 0;
@@ -243,6 +255,10 @@ static bool xe_pm_pci_d3cold_capable(struct xe_device *xe)
 static void xe_pm_runtime_init(struct xe_device *xe)
 {
 	struct device *dev = xe->drm.dev;
+
+	/* Our current VFs do not support RPM. so, disable it */
+	if (IS_SRIOV_VF(xe))
+		return;
 
 	/*
 	 * Disable the system suspend direct complete optimization.
@@ -388,6 +404,10 @@ err_unregister:
 static void xe_pm_runtime_fini(struct xe_device *xe)
 {
 	struct device *dev = xe->drm.dev;
+
+	/* Our current VFs do not support RPM. so, disable it */
+	if (IS_SRIOV_VF(xe))
+		return;
 
 	pm_runtime_get_sync(dev);
 	pm_runtime_forbid(dev);
@@ -547,6 +567,9 @@ int xe_pm_runtime_resume(struct xe_device *xe)
 
 	xe_rpm_lockmap_acquire(xe);
 
+	for_each_gt(gt, xe, id)
+		xe_gt_idle_disable_c6(gt);
+
 	if (xe->d3cold.allowed) {
 		err = xe_pcode_ready(xe, true);
 		if (err)
@@ -579,6 +602,12 @@ int xe_pm_runtime_resume(struct xe_device *xe)
 	}
 
 	xe_pxp_pm_resume(xe->pxp);
+
+	if (IS_VF_CCS_READY(xe))
+		xe_sriov_vf_ccs_register_context(xe);
+
+	if (xe->d3cold.allowed)
+		xe_late_bind_fw_load(&xe->late_bind);
 
 out:
 	xe_rpm_lockmap_release(xe);
