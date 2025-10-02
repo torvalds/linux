@@ -12,6 +12,7 @@
 #include <linux/uio.h>
 #include <linux/types.h>
 #include <linux/mutex.h>
+#include <linux/dibs.h>
 
 #include "smc.h"
 
@@ -47,7 +48,8 @@ int smc_ism_get_vlan(struct smcd_dev *dev, unsigned short vlan_id);
 int smc_ism_put_vlan(struct smcd_dev *dev, unsigned short vlan_id);
 int smc_ism_register_dmb(struct smc_link_group *lgr, int buf_size,
 			 struct smc_buf_desc *dmb_desc);
-int smc_ism_unregister_dmb(struct smcd_dev *dev, struct smc_buf_desc *dmb_desc);
+void smc_ism_unregister_dmb(struct smcd_dev *dev,
+			    struct smc_buf_desc *dmb_desc);
 bool smc_ism_support_dmb_nocopy(struct smcd_dev *smcd);
 int smc_ism_attach_dmb(struct smcd_dev *dev, u64 token,
 		       struct smc_buf_desc *dmb_desc);
@@ -67,7 +69,9 @@ static inline int smc_ism_write(struct smcd_dev *smcd, u64 dmb_tok,
 {
 	int rc;
 
-	rc = smcd->ops->move_data(smcd, dmb_tok, idx, sf, offset, data, len);
+	rc = smcd->dibs->ops->move_data(smcd->dibs, dmb_tok, idx, sf, offset,
+				       data, len);
+
 	return rc < 0 ? rc : 0;
 }
 
@@ -84,14 +88,36 @@ static inline bool __smc_ism_is_emulated(u16 chid)
 
 static inline bool smc_ism_is_emulated(struct smcd_dev *smcd)
 {
-	u16 chid = smcd->ops->get_chid(smcd);
+	u16 chid = smcd->dibs->ops->get_fabric_id(smcd->dibs);
 
 	return __smc_ism_is_emulated(chid);
 }
 
-static inline bool smc_ism_is_loopback(struct smcd_dev *smcd)
+static inline bool smc_ism_is_loopback(struct dibs_dev *dibs)
 {
-	return (smcd->ops->get_chid(smcd) == 0xFFFF);
+	return (dibs->ops->get_fabric_id(dibs) == DIBS_LOOPBACK_FABRIC);
+}
+
+static inline void copy_to_smcdgid(struct smcd_gid *sgid, uuid_t *dibs_gid)
+{
+	__be64 temp;
+
+	memcpy(&temp, dibs_gid, sizeof(sgid->gid));
+	sgid->gid = ntohll(temp);
+	memcpy(&temp, (uint8_t *)dibs_gid + sizeof(sgid->gid),
+	       sizeof(sgid->gid_ext));
+	sgid->gid_ext = ntohll(temp);
+}
+
+static inline void copy_to_dibsgid(uuid_t *dibs_gid, struct smcd_gid *sgid)
+{
+	__be64 temp;
+
+	temp = htonll(sgid->gid);
+	memcpy(dibs_gid, &temp, sizeof(sgid->gid));
+	temp = htonll(sgid->gid_ext);
+	memcpy((uint8_t *)dibs_gid + sizeof(sgid->gid), &temp,
+	       sizeof(sgid->gid_ext));
 }
 
 #endif

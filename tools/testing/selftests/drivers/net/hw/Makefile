@@ -15,9 +15,11 @@ TEST_PROGS = \
 	iou-zcrx.py \
 	irq.py \
 	loopback.sh \
+	nic_timestamp.py \
 	pp_alloc_fail.py \
 	rss_api.py \
 	rss_ctx.py \
+	rss_flow_label.py \
 	rss_input_xfrm.py \
 	tso.py \
 	xsk_reconfig.py \

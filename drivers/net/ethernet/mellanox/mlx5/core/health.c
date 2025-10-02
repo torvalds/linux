@@ -669,21 +669,34 @@ static void mlx5_fw_fatal_reporter_err_work(struct work_struct *work)
 	}
 }
 
+#define MLX5_FW_REPORTER_ECPF_GRACEFUL_PERIOD 180000
+#define MLX5_FW_REPORTER_PF_GRACEFUL_PERIOD 60000
+#define MLX5_FW_REPORTER_VF_GRACEFUL_PERIOD 30000
+#define MLX5_FW_REPORTER_DEFAULT_GRACEFUL_PERIOD \
+	MLX5_FW_REPORTER_VF_GRACEFUL_PERIOD
+
+static
+const struct devlink_health_reporter_ops mlx5_fw_fatal_reporter_ecpf_ops = {
+		.name = "fw_fatal",
+		.recover = mlx5_fw_fatal_reporter_recover,
+		.dump = mlx5_fw_fatal_reporter_dump,
+		.default_graceful_period =
+			MLX5_FW_REPORTER_ECPF_GRACEFUL_PERIOD,
+};
+
 static const struct devlink_health_reporter_ops mlx5_fw_fatal_reporter_pf_ops = {
 		.name = "fw_fatal",
 		.recover = mlx5_fw_fatal_reporter_recover,
 		.dump = mlx5_fw_fatal_reporter_dump,
+		.default_graceful_period = MLX5_FW_REPORTER_PF_GRACEFUL_PERIOD,
 };
 
 static const struct devlink_health_reporter_ops mlx5_fw_fatal_reporter_ops = {
 		.name = "fw_fatal",
 		.recover = mlx5_fw_fatal_reporter_recover,
+		.default_graceful_period =
+			MLX5_FW_REPORTER_DEFAULT_GRACEFUL_PERIOD,
 };
-
-#define MLX5_FW_REPORTER_ECPF_GRACEFUL_PERIOD 180000
-#define MLX5_FW_REPORTER_PF_GRACEFUL_PERIOD 60000
-#define MLX5_FW_REPORTER_VF_GRACEFUL_PERIOD 30000
-#define MLX5_FW_REPORTER_DEFAULT_GRACEFUL_PERIOD MLX5_FW_REPORTER_VF_GRACEFUL_PERIOD
 
 void mlx5_fw_reporters_create(struct mlx5_core_dev *dev)
 {
@@ -691,35 +704,29 @@ void mlx5_fw_reporters_create(struct mlx5_core_dev *dev)
 	struct mlx5_core_health *health = &dev->priv.health;
 	const struct devlink_health_reporter_ops *fw_ops;
 	struct devlink *devlink = priv_to_devlink(dev);
-	u64 grace_period;
 
-	fw_fatal_ops = &mlx5_fw_fatal_reporter_pf_ops;
 	fw_ops = &mlx5_fw_reporter_pf_ops;
 	if (mlx5_core_is_ecpf(dev)) {
-		grace_period = MLX5_FW_REPORTER_ECPF_GRACEFUL_PERIOD;
+		fw_fatal_ops = &mlx5_fw_fatal_reporter_ecpf_ops;
 	} else if (mlx5_core_is_pf(dev)) {
-		grace_period = MLX5_FW_REPORTER_PF_GRACEFUL_PERIOD;
+		fw_fatal_ops = &mlx5_fw_fatal_reporter_pf_ops;
 	} else {
 		/* VF or SF */
-		grace_period = MLX5_FW_REPORTER_DEFAULT_GRACEFUL_PERIOD;
 		fw_fatal_ops = &mlx5_fw_fatal_reporter_ops;
 		fw_ops = &mlx5_fw_reporter_ops;
 	}
 
-	health->fw_reporter =
-		devl_health_reporter_create(devlink, fw_ops, 0, dev);
+	health->fw_reporter = devl_health_reporter_create(devlink, fw_ops, dev);
 	if (IS_ERR(health->fw_reporter))
-		mlx5_core_warn(dev, "Failed to create fw reporter, err = %ld\n",
-			       PTR_ERR(health->fw_reporter));
+		mlx5_core_warn(dev, "Failed to create fw reporter, err = %pe\n",
+			       health->fw_reporter);
 
-	health->fw_fatal_reporter =
-		devl_health_reporter_create(devlink,
-					    fw_fatal_ops,
-					    grace_period,
-					    dev);
+	health->fw_fatal_reporter = devl_health_reporter_create(devlink,
+								fw_fatal_ops,
+								dev);
 	if (IS_ERR(health->fw_fatal_reporter))
-		mlx5_core_warn(dev, "Failed to create fw fatal reporter, err = %ld\n",
-			       PTR_ERR(health->fw_fatal_reporter));
+		mlx5_core_warn(dev, "Failed to create fw fatal reporter, err = %pe\n",
+			       health->fw_fatal_reporter);
 }
 
 static void mlx5_fw_reporters_destroy(struct mlx5_core_dev *dev)

@@ -151,16 +151,14 @@ struct mlx5_flow_steering {
 	struct mlx5_flow_root_namespace *root_ns;
 	struct mlx5_flow_root_namespace *fdb_root_ns;
 	struct mlx5_flow_namespace	**fdb_sub_ns;
-	struct mlx5_flow_root_namespace **esw_egress_root_ns;
-	struct mlx5_flow_root_namespace **esw_ingress_root_ns;
+	struct xarray			esw_egress_root_ns;
+	struct xarray			esw_ingress_root_ns;
 	struct mlx5_flow_root_namespace	*sniffer_tx_root_ns;
 	struct mlx5_flow_root_namespace	*sniffer_rx_root_ns;
 	struct mlx5_flow_root_namespace	*rdma_rx_root_ns;
 	struct mlx5_flow_root_namespace	*rdma_tx_root_ns;
 	struct mlx5_flow_root_namespace	*egress_root_ns;
 	struct mlx5_flow_root_namespace	*port_sel_root_ns;
-	int esw_egress_acl_vports;
-	int esw_ingress_acl_vports;
 	struct mlx5_flow_root_namespace **rdma_transport_rx_root_ns;
 	struct mlx5_flow_root_namespace **rdma_transport_tx_root_ns;
 	int rdma_transport_rx_vports;
@@ -379,10 +377,14 @@ void mlx5_fs_core_free(struct mlx5_core_dev *dev);
 int mlx5_fs_core_init(struct mlx5_core_dev *dev);
 void mlx5_fs_core_cleanup(struct mlx5_core_dev *dev);
 
-int mlx5_fs_egress_acls_init(struct mlx5_core_dev *dev, int total_vports);
-void mlx5_fs_egress_acls_cleanup(struct mlx5_core_dev *dev);
-int mlx5_fs_ingress_acls_init(struct mlx5_core_dev *dev, int total_vports);
-void mlx5_fs_ingress_acls_cleanup(struct mlx5_core_dev *dev);
+int mlx5_fs_vport_egress_acl_ns_add(struct mlx5_flow_steering *steering,
+				    u16 vport_idx);
+int mlx5_fs_vport_ingress_acl_ns_add(struct mlx5_flow_steering *steering,
+				     u16 vport_idx);
+void mlx5_fs_vport_egress_acl_ns_remove(struct mlx5_flow_steering *steering,
+					int vport_idx);
+void mlx5_fs_vport_ingress_acl_ns_remove(struct mlx5_flow_steering *steering,
+					 int vport_idx);
 
 u32 mlx5_fs_get_capabilities(struct mlx5_core_dev *dev, enum mlx5_flow_namespace_type type);
 

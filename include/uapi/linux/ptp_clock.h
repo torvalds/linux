@@ -248,6 +248,10 @@ struct ptp_pin_desc {
 	_IOWR(PTP_CLK_MAGIC, 18, struct ptp_sys_offset_extended)
 #define PTP_MASK_CLEAR_ALL  _IO(PTP_CLK_MAGIC, 19)
 #define PTP_MASK_EN_SINGLE  _IOW(PTP_CLK_MAGIC, 20, unsigned int)
+#define PTP_SYS_OFFSET_PRECISE_CYCLES \
+	_IOWR(PTP_CLK_MAGIC, 21, struct ptp_sys_offset_precise)
+#define PTP_SYS_OFFSET_EXTENDED_CYCLES \
+	_IOWR(PTP_CLK_MAGIC, 22, struct ptp_sys_offset_extended)
 
 struct ptp_extts_event {
 	struct ptp_clock_time t; /* Time event occurred. */

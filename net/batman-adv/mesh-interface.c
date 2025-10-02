@@ -37,6 +37,7 @@
 #include <linux/string.h>
 #include <linux/types.h>
 #include <net/netlink.h>
+#include <net/rtnetlink.h>
 #include <uapi/linux/batadv_packet.h>
 #include <uapi/linux/batman_adv.h>
 
@@ -46,7 +47,6 @@
 #include "gateway_client.h"
 #include "hard-interface.h"
 #include "multicast.h"
-#include "network-coding.h"
 #include "send.h"
 #include "translation-table.h"
 
@@ -802,8 +802,6 @@ static int batadv_meshif_init_late(struct net_device *dev)
 
 	bat_priv->primary_if = NULL;
 
-	batadv_nc_init_bat_priv(bat_priv);
-
 	if (!bat_priv->algo_ops) {
 		ret = batadv_algo_select(bat_priv, batadv_routing_algo);
 		if (ret < 0)
@@ -946,17 +944,6 @@ static const struct {
 	{ "dat_put_tx" },
 	{ "dat_put_rx" },
 	{ "dat_cached_reply_tx" },
-#endif
-#ifdef CONFIG_BATMAN_ADV_NC
-	{ "nc_code" },
-	{ "nc_code_bytes" },
-	{ "nc_recode" },
-	{ "nc_recode_bytes" },
-	{ "nc_buffer" },
-	{ "nc_decode" },
-	{ "nc_decode_bytes" },
-	{ "nc_decode_failed" },
-	{ "nc_sniffed" },
 #endif
 };
 

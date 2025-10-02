@@ -11,7 +11,9 @@
 #include <linux/bitops.h>
 
 #include <net/dsfield.h>
+#include <net/flow.h>
 #include <net/gro_cells.h>
+#include <net/inet_dscp.h>
 #include <net/inet_ecn.h>
 #include <net/netns/generic.h>
 #include <net/rtnetlink.h>
@@ -362,7 +364,7 @@ static inline void ip_tunnel_init_flow(struct flowi4 *fl4,
 
 	fl4->daddr = daddr;
 	fl4->saddr = saddr;
-	fl4->flowi4_tos = tos;
+	fl4->flowi4_dscp = inet_dsfield_to_dscp(tos);
 	fl4->flowi4_proto = proto;
 	fl4->fl4_gre_key = key;
 	fl4->flowi4_mark = mark;

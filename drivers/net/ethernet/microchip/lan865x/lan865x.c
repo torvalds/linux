@@ -326,6 +326,8 @@ static const struct net_device_ops lan865x_netdev_ops = {
 	.ndo_start_xmit		= lan865x_send_packet,
 	.ndo_set_rx_mode	= lan865x_set_multicast_list,
 	.ndo_set_mac_address	= lan865x_set_mac_address,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_eth_ioctl          = phy_do_ioctl_running,
 };
 
 static int lan865x_probe(struct spi_device *spi)

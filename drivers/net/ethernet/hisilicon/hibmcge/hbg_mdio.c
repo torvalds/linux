@@ -278,8 +278,7 @@ int hbg_mdio_init(struct hbg_priv *priv)
 
 	mdio_bus = devm_mdiobus_alloc(dev);
 	if (!mdio_bus)
-		return dev_err_probe(dev, -ENOMEM,
-				     "failed to alloc MDIO bus\n");
+		return -ENOMEM;
 
 	mdio_bus->parent = dev;
 	mdio_bus->priv = priv;

@@ -47,6 +47,26 @@ static int ptp_disable_pinfunc(struct ptp_clock_info *ops,
 	return err;
 }
 
+void ptp_disable_all_events(struct ptp_clock *ptp)
+{
+	struct ptp_clock_info *info = ptp->info;
+	unsigned int i;
+
+	mutex_lock(&ptp->pincfg_mux);
+	/* Disable any pins that may raise EXTTS events */
+	for (i = 0; i < info->n_pins; i++)
+		if (info->pin_config[i].func == PTP_PF_EXTTS)
+			ptp_disable_pinfunc(info, info->pin_config[i].func,
+					    info->pin_config[i].chan);
+
+	/* Disable the PPS event if the driver has PPS support */
+	if (info->pps) {
+		struct ptp_clock_request req = { .type = PTP_CLK_REQ_PPS };
+		info->enable(info, &req, 0);
+	}
+	mutex_unlock(&ptp->pincfg_mux);
+}
+
 int ptp_set_pinfunc(struct ptp_clock *ptp, unsigned int pin,
 		    enum ptp_pin_function func, unsigned int chan)
 {
@@ -91,12 +111,18 @@ int ptp_set_pinfunc(struct ptp_clock *ptp, unsigned int pin,
 		return -EOPNOTSUPP;
 	}
 
-	/* Disable whatever function was previously assigned. */
+	/* Disable whichever pin was previously assigned to this function and
+	 * channel.
+	 */
 	if (pin1) {
 		ptp_disable_pinfunc(info, func, chan);
 		pin1->func = PTP_PF_NONE;
 		pin1->chan = 0;
 	}
+
+	/* Disable whatever function was previously assigned to the requested
+	 * pin.
+	 */
 	ptp_disable_pinfunc(info, pin2->func, pin2->chan);
 	pin2->func = func;
 	pin2->chan = chan;
@@ -285,17 +311,21 @@ static long ptp_enable_pps(struct ptp_clock *ptp, bool enable)
 		return ops->enable(ops, &req, enable);
 }
 
-static long ptp_sys_offset_precise(struct ptp_clock *ptp, void __user *arg)
+typedef int (*ptp_crosststamp_fn)(struct ptp_clock_info *,
+				  struct system_device_crosststamp *);
+
+static long ptp_sys_offset_precise(struct ptp_clock *ptp, void __user *arg,
+				   ptp_crosststamp_fn crosststamp_fn)
 {
 	struct ptp_sys_offset_precise precise_offset;
 	struct system_device_crosststamp xtstamp;
 	struct timespec64 ts;
 	int err;
 
-	if (!ptp->info->getcrosststamp)
+	if (!crosststamp_fn)
 		return -EOPNOTSUPP;
 
-	err = ptp->info->getcrosststamp(ptp->info, &xtstamp);
+	err = crosststamp_fn(ptp->info, &xtstamp);
 	if (err)
 		return err;
 
@@ -313,12 +343,17 @@ static long ptp_sys_offset_precise(struct ptp_clock *ptp, void __user *arg)
 	return copy_to_user(arg, &precise_offset, sizeof(precise_offset)) ? -EFAULT : 0;
 }
 
-static long ptp_sys_offset_extended(struct ptp_clock *ptp, void __user *arg)
+typedef int (*ptp_gettimex_fn)(struct ptp_clock_info *,
+			       struct timespec64 *,
+			       struct ptp_system_timestamp *);
+
+static long ptp_sys_offset_extended(struct ptp_clock *ptp, void __user *arg,
+				    ptp_gettimex_fn gettimex_fn)
 {
 	struct ptp_sys_offset_extended *extoff __free(kfree) = NULL;
 	struct ptp_system_timestamp sts;
 
-	if (!ptp->info->gettimex64)
+	if (!gettimex_fn)
 		return -EOPNOTSUPP;
 
 	extoff = memdup_user(arg, sizeof(*extoff));
@@ -346,7 +381,7 @@ static long ptp_sys_offset_extended(struct ptp_clock *ptp, void __user *arg)
 		struct timespec64 ts;
 		int err;
 
-		err = ptp->info->gettimex64(ptp->info, &ts, &sts);
+		err = gettimex_fn(ptp->info, &ts, &sts);
 		if (err)
 			return err;
 
@@ -497,11 +532,13 @@ long ptp_ioctl(struct posix_clock_context *pccontext, unsigned int cmd,
 
 	case PTP_SYS_OFFSET_PRECISE:
 	case PTP_SYS_OFFSET_PRECISE2:
-		return ptp_sys_offset_precise(ptp, argptr);
+		return ptp_sys_offset_precise(ptp, argptr,
+					      ptp->info->getcrosststamp);
 
 	case PTP_SYS_OFFSET_EXTENDED:
 	case PTP_SYS_OFFSET_EXTENDED2:
-		return ptp_sys_offset_extended(ptp, argptr);
+		return ptp_sys_offset_extended(ptp, argptr,
+					       ptp->info->gettimex64);
 
 	case PTP_SYS_OFFSET:
 	case PTP_SYS_OFFSET2:
@@ -523,6 +560,13 @@ long ptp_ioctl(struct posix_clock_context *pccontext, unsigned int cmd,
 	case PTP_MASK_EN_SINGLE:
 		return ptp_mask_en_single(pccontext->private_clkdata, argptr);
 
+	case PTP_SYS_OFFSET_PRECISE_CYCLES:
+		return ptp_sys_offset_precise(ptp, argptr,
+					      ptp->info->getcrosscycles);
+
+	case PTP_SYS_OFFSET_EXTENDED_CYCLES:
+		return ptp_sys_offset_extended(ptp, argptr,
+					       ptp->info->getcyclesx64);
 	default:
 		return -ENOTTY;
 	}

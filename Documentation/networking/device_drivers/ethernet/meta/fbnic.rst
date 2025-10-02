@@ -69,6 +69,25 @@ On host boot the latest UEFI driver is always used, no explicit activation
 is required. Firmware activation is required to run new control firmware. cmrt
 firmware can only be activated by power cycling the NIC.
 
+Health reporters
+----------------
+
+fw reporter
+~~~~~~~~~~~
+
+The ``fw`` health reporter tracks FW crashes. Dumping the reporter will
+show the core dump of the most recent FW crash, and if no FW crash has
+happened since power cycle - a snapshot of the FW memory. Diagnose callback
+shows FW uptime based on the most recently received heartbeat message
+(the crashes are detected by checking if uptime goes down).
+
+otp reporter
+~~~~~~~~~~~~
+
+OTP memory ("fuses") are used for secure boot and anti-rollback
+protection. The OTP memory is ECC protected, ECC errors indicate
+either manufacturing defect or part deteriorating with age.
+
 Statistics
 ----------
 
@@ -160,3 +179,14 @@ behavior and potential performance bottlenecks.
 	  credit exhaustion
         - ``pcie_ob_rd_no_np_cred``: Read requests dropped due to non-posted
 	  credit exhaustion
+
+XDP Length Error:
+~~~~~~~~~~~~~~~~~
+
+For XDP programs without frags support, fbnic tries to make sure that MTU fits
+into a single buffer. If an oversized frame is received and gets fragmented,
+it is dropped and the following netlink counters are updated
+
+   - ``rx-length``: number of frames dropped due to lack of fragmentation
+     support in the attached XDP program
+   - ``rx-errors``: total number of packets with errors received on the interface

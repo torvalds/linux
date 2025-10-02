@@ -420,7 +420,6 @@ static int xdp_adjst_tail_grow_data(struct xdp_md *ctx, __u16 offset)
 
 static int xdp_adjst_tail(struct xdp_md *ctx, __u16 port)
 {
-	void *data = (void *)(long)ctx->data;
 	struct udphdr *udph = NULL;
 	__s32 *adjust_offset, *val;
 	__u32 key, hdr_len;
@@ -432,7 +431,8 @@ static int xdp_adjst_tail(struct xdp_md *ctx, __u16 port)
 	if (!udph)
 		return XDP_PASS;
 
-	hdr_len = (void *)udph - data + sizeof(struct udphdr);
+	hdr_len = (void *)udph - (void *)(long)ctx->data +
+		  sizeof(struct udphdr);
 	key = XDP_ADJST_OFFSET;
 	adjust_offset = bpf_map_lookup_elem(&map_xdp_setup, &key);
 	if (!adjust_offset)
@@ -572,8 +572,6 @@ static int xdp_adjst_head_grow_data(struct xdp_md *ctx, __u64 hdr_len,
 
 static int xdp_head_adjst(struct xdp_md *ctx, __u16 port)
 {
-	void *data_end = (void *)(long)ctx->data_end;
-	void *data = (void *)(long)ctx->data;
 	struct udphdr *udph_ptr = NULL;
 	__u32 key, size, hdr_len;
 	__s32 *val;
@@ -584,7 +582,8 @@ static int xdp_head_adjst(struct xdp_md *ctx, __u16 port)
 	if (!udph_ptr)
 		return XDP_PASS;
 
-	hdr_len = (void *)udph_ptr - data + sizeof(struct udphdr);
+	hdr_len = (void *)udph_ptr - (void *)(long)ctx->data +
+		  sizeof(struct udphdr);
 
 	key = XDP_ADJST_OFFSET;
 	val = bpf_map_lookup_elem(&map_xdp_setup, &key);

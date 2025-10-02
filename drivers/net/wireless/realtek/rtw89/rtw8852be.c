@@ -11,6 +11,7 @@
 
 static const struct rtw89_pci_info rtw8852b_pci_info = {
 	.gen_def		= &rtw89_pci_gen_ax,
+	.isr_def		= &rtw89_pci_isr_ax,
 	.txbd_trunc_mode	= MAC_AX_BD_TRUNC,
 	.rxbd_trunc_mode	= MAC_AX_BD_TRUNC,
 	.rxbd_mode		= MAC_AX_RXBD_PKT,
@@ -28,6 +29,8 @@ static const struct rtw89_pci_info rtw8852b_pci_info = {
 	.rx_ring_eq_is_full	= false,
 	.check_rx_tag		= false,
 	.no_rxbd_fs		= false,
+	.group_bd_addr		= false,
+	.rpp_fmt_size		= sizeof(struct rtw89_pci_rpp_fmt),
 
 	.init_cfg_reg		= R_AX_PCIE_INIT_CFG1,
 	.txhci_en_bit		= B_AX_TXHCI_EN,
@@ -57,6 +60,7 @@ static const struct rtw89_pci_info rtw8852b_pci_info = {
 
 	.ltr_set		= rtw89_pci_ltr_set,
 	.fill_txaddr_info	= rtw89_pci_fill_txaddr_info,
+	.parse_rpp		= rtw89_pci_parse_rpp,
 	.config_intr_mask	= rtw89_pci_config_intr_mask,
 	.enable_intr		= rtw89_pci_enable_intr,
 	.disable_intr		= rtw89_pci_disable_intr,

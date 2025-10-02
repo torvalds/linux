@@ -1394,9 +1394,8 @@ static int ef4_probe_interrupts(struct ef4_nic *efx)
 			if (n_channels > extra_channels)
 				n_channels -= extra_channels;
 			if (ef4_separate_tx_channels) {
-				efx->n_tx_channels = min(max(n_channels / 2,
-							     1U),
-							 efx->max_tx_channels);
+				efx->n_tx_channels = clamp(n_channels / 2, 1U,
+							   efx->max_tx_channels);
 				efx->n_rx_channels = max(n_channels -
 							 efx->n_tx_channels,
 							 1U);

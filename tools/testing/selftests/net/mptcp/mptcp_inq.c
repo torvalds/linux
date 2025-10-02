@@ -502,6 +502,7 @@ static int server(int unixfd)
 
 	process_one_client(r, unixfd);
 
+	close(fd);
 	return 0;
 }
 
@@ -580,8 +581,12 @@ int main(int argc, char *argv[])
 		die_perror("pipe");
 
 	s = xfork();
-	if (s == 0)
-		return server(unixfds[1]);
+	if (s == 0) {
+		close(unixfds[0]);
+		ret = server(unixfds[1]);
+		close(unixfds[1]);
+		return ret;
+	}
 
 	close(unixfds[1]);
 

@@ -52,7 +52,6 @@
 #include "hash.h"
 #include "log.h"
 #include "netlink.h"
-#include "network-coding.h"
 #include "originator.h"
 #include "routing.h"
 #include "send.h"
@@ -1405,10 +1404,6 @@ batadv_iv_ogm_process_per_outif(const struct sk_buff *skb, int ogm_offset,
 
 	if (!orig_neigh_node)
 		goto out;
-
-	/* Update nc_nodes of the originator */
-	batadv_nc_update_nc_node(bat_priv, orig_node, orig_neigh_node,
-				 ogm_packet, is_single_hop_neigh);
 
 	orig_neigh_router = batadv_orig_router_get(orig_neigh_node,
 						   if_outgoing);

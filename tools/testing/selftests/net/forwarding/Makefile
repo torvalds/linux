@@ -1,8 +1,11 @@
 # SPDX-License-Identifier: GPL-2.0+ OR MIT
 
-TEST_PROGS = bridge_fdb_learning_limit.sh \
+TEST_PROGS = \
+	bridge_activity_notify.sh \
+	bridge_fdb_learning_limit.sh \
 	bridge_igmp.sh \
 	bridge_locked_port.sh \
+	bridge_fdb_local_vlan_0.sh \
 	bridge_mdb.sh \
 	bridge_mdb_host.sh \
 	bridge_mdb_max.sh \

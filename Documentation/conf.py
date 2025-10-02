@@ -42,6 +42,15 @@ exclude_patterns = []
 dyn_include_patterns = []
 dyn_exclude_patterns = ["output"]
 
+# Currently, only netlink/specs has a parser for yaml.
+# Prefer using include patterns if available, as it is faster
+if has_include_patterns:
+    dyn_include_patterns.append("netlink/specs/*.yaml")
+else:
+    dyn_exclude_patterns.append("netlink/*.yaml")
+    dyn_exclude_patterns.append("devicetree/bindings/**.yaml")
+    dyn_exclude_patterns.append("core-api/kho/bindings/**.yaml")
+
 # Properly handle include/exclude patterns
 # ----------------------------------------
 
@@ -102,12 +111,12 @@ extensions = [
     "kernel_include",
     "kfigure",
     "maintainers_include",
+    "parser_yaml",
     "rstFlatTable",
     "sphinx.ext.autosectionlabel",
     "sphinx.ext.ifconfig",
     "translations",
 ]
-
 # Since Sphinx version 3, the C function parser is more pedantic with regards
 # to type checking. Due to that, having macros at c:function cause problems.
 # Those needed to be escaped by using c_id_attributes[] array
@@ -204,10 +213,11 @@ else:
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["sphinx/templates"]
 
-# The suffix(es) of source filenames.
-# You can specify multiple suffix as a list of string:
-# source_suffix = ['.rst', '.md']
-source_suffix = '.rst'
+# The suffixes of source filenames that will be automatically parsed
+source_suffix = {
+    ".rst": "restructuredtext",
+    ".yaml": "yaml",
+}
 
 # The encoding of source files.
 # source_encoding = 'utf-8-sig'

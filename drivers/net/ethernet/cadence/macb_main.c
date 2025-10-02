@@ -36,6 +36,7 @@
 #include <linux/reset.h>
 #include <linux/firmware/xlnx-zynqmp.h>
 #include <linux/inetdevice.h>
+#include <net/pkt_sched.h>
 #include "macb.h"
 
 /* This structure is only used for MACB on SiFive FU540 devices */
@@ -51,14 +52,10 @@ struct sifive_fu540_macb_mgmt {
 #define DEFAULT_RX_RING_SIZE	512 /* must be power of 2 */
 #define MIN_RX_RING_SIZE	64
 #define MAX_RX_RING_SIZE	8192
-#define RX_RING_BYTES(bp)	(macb_dma_desc_get_size(bp)	\
-				 * (bp)->rx_ring_size)
 
 #define DEFAULT_TX_RING_SIZE	512 /* must be power of 2 */
 #define MIN_TX_RING_SIZE	64
 #define MAX_TX_RING_SIZE	4096
-#define TX_RING_BYTES(bp)	(macb_dma_desc_get_size(bp)	\
-				 * (bp)->tx_ring_size)
 
 /* level of occupied TX descriptors under which we wake up TX process */
 #define MACB_TX_WAKEUP_THRESH(bp)	(3 * (bp)->tx_ring_size / 4)
@@ -278,9 +275,9 @@ static void macb_set_hwaddr(struct macb *bp)
 	u32 bottom;
 	u16 top;
 
-	bottom = cpu_to_le32(*((u32 *)bp->dev->dev_addr));
+	bottom = get_unaligned_le32(bp->dev->dev_addr);
 	macb_or_gem_writel(bp, SA1B, bottom);
-	top = cpu_to_le16(*((u16 *)(bp->dev->dev_addr + 4)));
+	top = get_unaligned_le16(bp->dev->dev_addr + 4);
 	macb_or_gem_writel(bp, SA1T, top);
 
 	if (gem_has_ptp(bp)) {
@@ -495,19 +492,19 @@ static void macb_init_buffers(struct macb *bp)
 	struct macb_queue *queue;
 	unsigned int q;
 
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
+	/* Single register for all queues' high 32 bits. */
+	if (bp->hw_dma_cap & HW_DMA_CAP_64B) {
+		macb_writel(bp, RBQPH,
+			    upper_32_bits(bp->queues[0].rx_ring_dma));
+		macb_writel(bp, TBQPH,
+			    upper_32_bits(bp->queues[0].tx_ring_dma));
+	}
+#endif
+
 	for (q = 0, queue = bp->queues; q < bp->num_queues; ++q, ++queue) {
 		queue_writel(queue, RBQP, lower_32_bits(queue->rx_ring_dma));
-#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
-		if (bp->hw_dma_cap & HW_DMA_CAP_64B)
-			queue_writel(queue, RBQPH,
-				     upper_32_bits(queue->rx_ring_dma));
-#endif
 		queue_writel(queue, TBQP, lower_32_bits(queue->tx_ring_dma));
-#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
-		if (bp->hw_dma_cap & HW_DMA_CAP_64B)
-			queue_writel(queue, TBQPH,
-				     upper_32_bits(queue->tx_ring_dma));
-#endif
 	}
 }
 
@@ -1166,10 +1163,6 @@ static void macb_tx_error_task(struct work_struct *work)
 
 	/* Reinitialize the TX desc queue */
 	queue_writel(queue, TBQP, lower_32_bits(queue->tx_ring_dma));
-#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
-	if (bp->hw_dma_cap & HW_DMA_CAP_64B)
-		queue_writel(queue, TBQPH, upper_32_bits(queue->tx_ring_dma));
-#endif
 	/* Make TX ring reflect state of hardware */
 	queue->tx_head = 0;
 	queue->tx_tail = 0;
@@ -2474,35 +2467,42 @@ static void macb_free_rx_buffers(struct macb *bp)
 	}
 }
 
+static unsigned int macb_tx_ring_size_per_queue(struct macb *bp)
+{
+	return macb_dma_desc_get_size(bp) * bp->tx_ring_size + bp->tx_bd_rd_prefetch;
+}
+
+static unsigned int macb_rx_ring_size_per_queue(struct macb *bp)
+{
+	return macb_dma_desc_get_size(bp) * bp->rx_ring_size + bp->rx_bd_rd_prefetch;
+}
+
 static void macb_free_consistent(struct macb *bp)
 {
+	struct device *dev = &bp->pdev->dev;
 	struct macb_queue *queue;
 	unsigned int q;
-	int size;
+	size_t size;
 
 	if (bp->rx_ring_tieoff) {
-		dma_free_coherent(&bp->pdev->dev, macb_dma_desc_get_size(bp),
+		dma_free_coherent(dev, macb_dma_desc_get_size(bp),
 				  bp->rx_ring_tieoff, bp->rx_ring_tieoff_dma);
 		bp->rx_ring_tieoff = NULL;
 	}
 
 	bp->macbgem_ops.mog_free_rx_buffers(bp);
 
+	size = bp->num_queues * macb_tx_ring_size_per_queue(bp);
+	dma_free_coherent(dev, size, bp->queues[0].tx_ring, bp->queues[0].tx_ring_dma);
+
+	size = bp->num_queues * macb_rx_ring_size_per_queue(bp);
+	dma_free_coherent(dev, size, bp->queues[0].rx_ring, bp->queues[0].rx_ring_dma);
+
 	for (q = 0, queue = bp->queues; q < bp->num_queues; ++q, ++queue) {
 		kfree(queue->tx_skb);
 		queue->tx_skb = NULL;
-		if (queue->tx_ring) {
-			size = TX_RING_BYTES(bp) + bp->tx_bd_rd_prefetch;
-			dma_free_coherent(&bp->pdev->dev, size,
-					  queue->tx_ring, queue->tx_ring_dma);
-			queue->tx_ring = NULL;
-		}
-		if (queue->rx_ring) {
-			size = RX_RING_BYTES(bp) + bp->rx_bd_rd_prefetch;
-			dma_free_coherent(&bp->pdev->dev, size,
-					  queue->rx_ring, queue->rx_ring_dma);
-			queue->rx_ring = NULL;
-		}
+		queue->tx_ring = NULL;
+		queue->rx_ring = NULL;
 	}
 }
 
@@ -2544,35 +2544,45 @@ static int macb_alloc_rx_buffers(struct macb *bp)
 
 static int macb_alloc_consistent(struct macb *bp)
 {
+	struct device *dev = &bp->pdev->dev;
+	dma_addr_t tx_dma, rx_dma;
 	struct macb_queue *queue;
 	unsigned int q;
-	int size;
+	void *tx, *rx;
+	size_t size;
+
+	/*
+	 * Upper 32-bits of Tx/Rx DMA descriptor for each queues much match!
+	 * We cannot enforce this guarantee, the best we can do is do a single
+	 * allocation and hope it will land into alloc_pages() that guarantees
+	 * natural alignment of physical addresses.
+	 */
+
+	size = bp->num_queues * macb_tx_ring_size_per_queue(bp);
+	tx = dma_alloc_coherent(dev, size, &tx_dma, GFP_KERNEL);
+	if (!tx || upper_32_bits(tx_dma) != upper_32_bits(tx_dma + size - 1))
+		goto out_err;
+	netdev_dbg(bp->dev, "Allocated %zu bytes for %u TX rings at %08lx (mapped %p)\n",
+		   size, bp->num_queues, (unsigned long)tx_dma, tx);
+
+	size = bp->num_queues * macb_rx_ring_size_per_queue(bp);
+	rx = dma_alloc_coherent(dev, size, &rx_dma, GFP_KERNEL);
+	if (!rx || upper_32_bits(rx_dma) != upper_32_bits(rx_dma + size - 1))
+		goto out_err;
+	netdev_dbg(bp->dev, "Allocated %zu bytes for %u RX rings at %08lx (mapped %p)\n",
+		   size, bp->num_queues, (unsigned long)rx_dma, rx);
 
 	for (q = 0, queue = bp->queues; q < bp->num_queues; ++q, ++queue) {
-		size = TX_RING_BYTES(bp) + bp->tx_bd_rd_prefetch;
-		queue->tx_ring = dma_alloc_coherent(&bp->pdev->dev, size,
-						    &queue->tx_ring_dma,
-						    GFP_KERNEL);
-		if (!queue->tx_ring)
-			goto out_err;
-		netdev_dbg(bp->dev,
-			   "Allocated TX ring for queue %u of %d bytes at %08lx (mapped %p)\n",
-			   q, size, (unsigned long)queue->tx_ring_dma,
-			   queue->tx_ring);
+		queue->tx_ring = tx + macb_tx_ring_size_per_queue(bp) * q;
+		queue->tx_ring_dma = tx_dma + macb_tx_ring_size_per_queue(bp) * q;
+
+		queue->rx_ring = rx + macb_rx_ring_size_per_queue(bp) * q;
+		queue->rx_ring_dma = rx_dma + macb_rx_ring_size_per_queue(bp) * q;
 
 		size = bp->tx_ring_size * sizeof(struct macb_tx_skb);
 		queue->tx_skb = kmalloc(size, GFP_KERNEL);
 		if (!queue->tx_skb)
 			goto out_err;
-
-		size = RX_RING_BYTES(bp) + bp->rx_bd_rd_prefetch;
-		queue->rx_ring = dma_alloc_coherent(&bp->pdev->dev, size,
-						 &queue->rx_ring_dma, GFP_KERNEL);
-		if (!queue->rx_ring)
-			goto out_err;
-		netdev_dbg(bp->dev,
-			   "Allocated RX ring of %d bytes at %08lx (mapped %p)\n",
-			   size, (unsigned long)queue->rx_ring_dma, queue->rx_ring);
 	}
 	if (bp->macbgem_ops.mog_alloc_rx_buffers(bp))
 		goto out_err;
@@ -4088,6 +4098,223 @@ static void macb_restore_features(struct macb *bp)
 	macb_set_rxflow_feature(bp, features);
 }
 
+static int macb_taprio_setup_replace(struct net_device *ndev,
+				     struct tc_taprio_qopt_offload *conf)
+{
+	u64 total_on_time = 0, start_time_sec = 0, start_time = conf->base_time;
+	u32 configured_queues = 0, speed = 0, start_time_nsec;
+	struct macb_queue_enst_config *enst_queue;
+	struct tc_taprio_sched_entry *entry;
+	struct macb *bp = netdev_priv(ndev);
+	struct ethtool_link_ksettings kset;
+	struct macb_queue *queue;
+	size_t i;
+	int err;
+
+	if (conf->num_entries > bp->num_queues) {
+		netdev_err(ndev, "Too many TAPRIO entries: %zu > %d queues\n",
+			   conf->num_entries, bp->num_queues);
+		return -EINVAL;
+	}
+
+	if (conf->base_time < 0) {
+		netdev_err(ndev, "Invalid base_time: must be 0 or positive, got %lld\n",
+			   conf->base_time);
+		return -ERANGE;
+	}
+
+	/* Get the current link speed */
+	err = phylink_ethtool_ksettings_get(bp->phylink, &kset);
+	if (unlikely(err)) {
+		netdev_err(ndev, "Failed to get link settings: %d\n", err);
+		return err;
+	}
+
+	speed = kset.base.speed;
+	if (unlikely(speed <= 0)) {
+		netdev_err(ndev, "Invalid speed: %d\n", speed);
+		return -EINVAL;
+	}
+
+	enst_queue = kcalloc(conf->num_entries, sizeof(*enst_queue), GFP_KERNEL);
+	if (unlikely(!enst_queue))
+		return -ENOMEM;
+
+	/* Pre-validate all entries before making any hardware changes */
+	for (i = 0; i < conf->num_entries; i++) {
+		entry = &conf->entries[i];
+
+		if (entry->command != TC_TAPRIO_CMD_SET_GATES) {
+			netdev_err(ndev, "Entry %zu: unsupported command %d\n",
+				   i, entry->command);
+			err = -EOPNOTSUPP;
+			goto cleanup;
+		}
+
+		/* Validate gate_mask: must be nonzero, single queue, and within range */
+		if (!is_power_of_2(entry->gate_mask)) {
+			netdev_err(ndev, "Entry %zu: gate_mask 0x%x is not a power of 2 (only one queue per entry allowed)\n",
+				   i, entry->gate_mask);
+			err = -EINVAL;
+			goto cleanup;
+		}
+
+		/* gate_mask must not select queues outside the valid queue_mask */
+		if (entry->gate_mask & ~bp->queue_mask) {
+			netdev_err(ndev, "Entry %zu: gate_mask 0x%x exceeds queue range (max_queues=%d)\n",
+				   i, entry->gate_mask, bp->num_queues);
+			err = -EINVAL;
+			goto cleanup;
+		}
+
+		/* Check for start time limits */
+		start_time_sec = start_time;
+		start_time_nsec = do_div(start_time_sec, NSEC_PER_SEC);
+		if (start_time_sec > GENMASK(GEM_START_TIME_SEC_SIZE - 1, 0)) {
+			netdev_err(ndev, "Entry %zu: Start time %llu s exceeds hardware limit\n",
+				   i, start_time_sec);
+			err = -ERANGE;
+			goto cleanup;
+		}
+
+		/* Check for on time limit */
+		if (entry->interval > enst_max_hw_interval(speed)) {
+			netdev_err(ndev, "Entry %zu: interval %u ns exceeds hardware limit %llu ns\n",
+				   i, entry->interval, enst_max_hw_interval(speed));
+			err = -ERANGE;
+			goto cleanup;
+		}
+
+		/* Check for off time limit*/
+		if ((conf->cycle_time - entry->interval) > enst_max_hw_interval(speed)) {
+			netdev_err(ndev, "Entry %zu: off_time %llu ns exceeds hardware limit %llu ns\n",
+				   i, conf->cycle_time - entry->interval,
+				   enst_max_hw_interval(speed));
+			err = -ERANGE;
+			goto cleanup;
+		}
+
+		enst_queue[i].queue_id = order_base_2(entry->gate_mask);
+		enst_queue[i].start_time_mask =
+			(start_time_sec << GEM_START_TIME_SEC_OFFSET) |
+			start_time_nsec;
+		enst_queue[i].on_time_bytes =
+			enst_ns_to_hw_units(entry->interval, speed);
+		enst_queue[i].off_time_bytes =
+			enst_ns_to_hw_units(conf->cycle_time - entry->interval, speed);
+
+		configured_queues |= entry->gate_mask;
+		total_on_time += entry->interval;
+		start_time += entry->interval;
+	}
+
+	/* Check total interval doesn't exceed cycle time */
+	if (total_on_time > conf->cycle_time) {
+		netdev_err(ndev, "Total ON %llu ns exceeds cycle time %llu ns\n",
+			   total_on_time, conf->cycle_time);
+		err = -EINVAL;
+		goto cleanup;
+	}
+
+	netdev_dbg(ndev, "TAPRIO setup: %zu entries, base_time=%lld ns, cycle_time=%llu ns\n",
+		   conf->num_entries, conf->base_time, conf->cycle_time);
+
+	/* All validations passed - proceed with hardware configuration */
+	scoped_guard(spinlock_irqsave, &bp->lock) {
+		/* Disable ENST queues if running before configuring */
+		gem_writel(bp, ENST_CONTROL,
+			   bp->queue_mask << GEM_ENST_DISABLE_QUEUE_OFFSET);
+
+		for (i = 0; i < conf->num_entries; i++) {
+			queue = &bp->queues[enst_queue[i].queue_id];
+			/* Configure queue timing registers */
+			queue_writel(queue, ENST_START_TIME,
+				     enst_queue[i].start_time_mask);
+			queue_writel(queue, ENST_ON_TIME,
+				     enst_queue[i].on_time_bytes);
+			queue_writel(queue, ENST_OFF_TIME,
+				     enst_queue[i].off_time_bytes);
+		}
+
+		/* Enable ENST for all configured queues in one write */
+		gem_writel(bp, ENST_CONTROL, configured_queues);
+	}
+
+	netdev_info(ndev, "TAPRIO configuration completed successfully: %zu entries, %d queues configured\n",
+		    conf->num_entries, hweight32(configured_queues));
+
+cleanup:
+	kfree(enst_queue);
+	return err;
+}
+
+static void macb_taprio_destroy(struct net_device *ndev)
+{
+	struct macb *bp = netdev_priv(ndev);
+	struct macb_queue *queue;
+	u32 enst_disable_mask;
+	unsigned int q;
+
+	netdev_reset_tc(ndev);
+	enst_disable_mask = bp->queue_mask << GEM_ENST_DISABLE_QUEUE_OFFSET;
+
+	scoped_guard(spinlock_irqsave, &bp->lock) {
+		/* Single disable command for all queues */
+		gem_writel(bp, ENST_CONTROL, enst_disable_mask);
+
+		/* Clear all queue ENST registers in batch */
+		for (q = 0, queue = bp->queues; q < bp->num_queues; ++q, ++queue) {
+			queue_writel(queue, ENST_START_TIME, 0);
+			queue_writel(queue, ENST_ON_TIME, 0);
+			queue_writel(queue, ENST_OFF_TIME, 0);
+		}
+	}
+	netdev_info(ndev, "TAPRIO destroy: All gates disabled\n");
+}
+
+static int macb_setup_taprio(struct net_device *ndev,
+			     struct tc_taprio_qopt_offload *taprio)
+{
+	struct macb *bp = netdev_priv(ndev);
+	int err = 0;
+
+	if (unlikely(!(ndev->hw_features & NETIF_F_HW_TC)))
+		return -EOPNOTSUPP;
+
+	/* Check if Device is in runtime suspend */
+	if (unlikely(pm_runtime_suspended(&bp->pdev->dev))) {
+		netdev_err(ndev, "Device is in runtime suspend\n");
+		return -EOPNOTSUPP;
+	}
+
+	switch (taprio->cmd) {
+	case TAPRIO_CMD_REPLACE:
+		err = macb_taprio_setup_replace(ndev, taprio);
+		break;
+	case TAPRIO_CMD_DESTROY:
+		macb_taprio_destroy(ndev);
+		break;
+	default:
+		err = -EOPNOTSUPP;
+	}
+
+	return err;
+}
+
+static int macb_setup_tc(struct net_device *dev, enum tc_setup_type type,
+			 void *type_data)
+{
+	if (!dev || !type_data)
+		return -EINVAL;
+
+	switch (type) {
+	case TC_SETUP_QDISC_TAPRIO:
+		return macb_setup_taprio(dev, type_data);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static const struct net_device_ops macb_netdev_ops = {
 	.ndo_open		= macb_open,
 	.ndo_stop		= macb_close,
@@ -4105,6 +4332,7 @@ static const struct net_device_ops macb_netdev_ops = {
 	.ndo_features_check	= macb_features_check,
 	.ndo_hwtstamp_set	= macb_hwtstamp_set,
 	.ndo_hwtstamp_get	= macb_hwtstamp_get,
+	.ndo_setup_tc		= macb_setup_tc,
 };
 
 /* Configure peripheral capabilities according to device tree
@@ -4309,12 +4537,6 @@ static int macb_init(struct platform_device *pdev)
 			queue->TBQP = GEM_TBQP(hw_q - 1);
 			queue->RBQP = GEM_RBQP(hw_q - 1);
 			queue->RBQS = GEM_RBQS(hw_q - 1);
-#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
-			if (bp->hw_dma_cap & HW_DMA_CAP_64B) {
-				queue->TBQPH = GEM_TBQPH(hw_q - 1);
-				queue->RBQPH = GEM_RBQPH(hw_q - 1);
-			}
-#endif
 		} else {
 			/* queue0 uses legacy registers */
 			queue->ISR  = MACB_ISR;
@@ -4323,13 +4545,11 @@ static int macb_init(struct platform_device *pdev)
 			queue->IMR  = MACB_IMR;
 			queue->TBQP = MACB_TBQP;
 			queue->RBQP = MACB_RBQP;
-#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
-			if (bp->hw_dma_cap & HW_DMA_CAP_64B) {
-				queue->TBQPH = MACB_TBQPH;
-				queue->RBQPH = MACB_RBQPH;
-			}
-#endif
 		}
+
+		queue->ENST_START_TIME = GEM_ENST_START_TIME(hw_q);
+		queue->ENST_ON_TIME = GEM_ENST_ON_TIME(hw_q);
+		queue->ENST_OFF_TIME = GEM_ENST_OFF_TIME(hw_q);
 
 		/* get irq: here we use the linux queue index, not the hardware
 		 * queue index. the queue irq definitions in the device tree
@@ -4383,6 +4603,10 @@ static int macb_init(struct platform_device *pdev)
 		dev->hw_features |= NETIF_F_HW_CSUM | NETIF_F_RXCSUM;
 	if (bp->caps & MACB_CAPS_SG_DISABLED)
 		dev->hw_features &= ~NETIF_F_SG;
+	/* Enable HW_TC if hardware supports QBV */
+	if (bp->caps & MACB_CAPS_QBV)
+		dev->hw_features |= NETIF_F_HW_TC;
+
 	dev->features = dev->hw_features;
 
 	/* Check RX Flow Filters support.
@@ -4826,36 +5050,45 @@ static unsigned long fu540_macb_tx_recalc_rate(struct clk_hw *hw,
 	return mgmt->rate;
 }
 
-static long fu540_macb_tx_round_rate(struct clk_hw *hw, unsigned long rate,
-				     unsigned long *parent_rate)
+static int fu540_macb_tx_determine_rate(struct clk_hw *hw,
+					struct clk_rate_request *req)
 {
-	if (WARN_ON(rate < 2500000))
-		return 2500000;
-	else if (rate == 2500000)
-		return 2500000;
-	else if (WARN_ON(rate < 13750000))
-		return 2500000;
-	else if (WARN_ON(rate < 25000000))
-		return 25000000;
-	else if (rate == 25000000)
-		return 25000000;
-	else if (WARN_ON(rate < 75000000))
-		return 25000000;
-	else if (WARN_ON(rate < 125000000))
-		return 125000000;
-	else if (rate == 125000000)
-		return 125000000;
+	if (WARN_ON(req->rate < 2500000))
+		req->rate = 2500000;
+	else if (req->rate == 2500000)
+		req->rate = 2500000;
+	else if (WARN_ON(req->rate < 13750000))
+		req->rate = 2500000;
+	else if (WARN_ON(req->rate < 25000000))
+		req->rate = 25000000;
+	else if (req->rate == 25000000)
+		req->rate = 25000000;
+	else if (WARN_ON(req->rate < 75000000))
+		req->rate = 25000000;
+	else if (WARN_ON(req->rate < 125000000))
+		req->rate = 125000000;
+	else if (req->rate == 125000000)
+		req->rate = 125000000;
+	else if (WARN_ON(req->rate > 125000000))
+		req->rate = 125000000;
+	else
+		req->rate = 125000000;
 
-	WARN_ON(rate > 125000000);
-
-	return 125000000;
+	return 0;
 }
 
 static int fu540_macb_tx_set_rate(struct clk_hw *hw, unsigned long rate,
 				  unsigned long parent_rate)
 {
-	rate = fu540_macb_tx_round_rate(hw, rate, &parent_rate);
-	if (rate != 125000000)
+	struct clk_rate_request req;
+	int ret;
+
+	clk_hw_init_rate_request(hw, &req, rate);
+	ret = fu540_macb_tx_determine_rate(hw, &req);
+	if (ret != 0)
+		return ret;
+
+	if (req.rate != 125000000)
 		iowrite32(1, mgmt->reg);
 	else
 		iowrite32(0, mgmt->reg);
@@ -4866,7 +5099,7 @@ static int fu540_macb_tx_set_rate(struct clk_hw *hw, unsigned long rate,
 
 static const struct clk_ops fu540_c000_ops = {
 	.recalc_rate = fu540_macb_tx_recalc_rate,
-	.round_rate = fu540_macb_tx_round_rate,
+	.determine_rate = fu540_macb_tx_determine_rate,
 	.set_rate = fu540_macb_tx_set_rate,
 };
 
@@ -5127,13 +5360,25 @@ static const struct macb_config sama7g5_emac_config = {
 
 static const struct macb_config versal_config = {
 	.caps = MACB_CAPS_GIGABIT_MODE_AVAILABLE | MACB_CAPS_JUMBO |
-		MACB_CAPS_GEM_HAS_PTP | MACB_CAPS_BD_RD_PREFETCH | MACB_CAPS_NEED_TSUCLK |
-		MACB_CAPS_QUEUE_DISABLE,
+		MACB_CAPS_GEM_HAS_PTP | MACB_CAPS_BD_RD_PREFETCH |
+		MACB_CAPS_NEED_TSUCLK | MACB_CAPS_QUEUE_DISABLE |
+		MACB_CAPS_QBV,
 	.dma_burst_length = 16,
 	.clk_init = macb_clk_init,
 	.init = init_reset_optional,
 	.jumbo_max_len = 10240,
 	.usrio = &macb_default_usrio,
+};
+
+static const struct macb_config raspberrypi_rp1_config = {
+	.caps = MACB_CAPS_GIGABIT_MODE_AVAILABLE | MACB_CAPS_CLK_HW_CHG |
+		MACB_CAPS_JUMBO |
+		MACB_CAPS_GEM_HAS_PTP,
+	.dma_burst_length = 16,
+	.clk_init = macb_clk_init,
+	.init = macb_init,
+	.usrio = &macb_default_usrio,
+	.jumbo_max_len = 10240,
 };
 
 static const struct of_device_id macb_dt_ids[] = {
@@ -5156,6 +5401,7 @@ static const struct of_device_id macb_dt_ids[] = {
 	{ .compatible = "microchip,mpfs-macb", .data = &mpfs_config },
 	{ .compatible = "microchip,sama7g5-gem", .data = &sama7g5_gem_config },
 	{ .compatible = "microchip,sama7g5-emac", .data = &sama7g5_emac_config },
+	{ .compatible = "raspberrypi,rp1-gem", .data = &raspberrypi_rp1_config },
 	{ .compatible = "xlnx,zynqmp-gem", .data = &zynqmp_config},
 	{ .compatible = "xlnx,zynq-gem", .data = &zynq_config },
 	{ .compatible = "xlnx,versal-gem", .data = &versal_config},
@@ -5452,6 +5698,11 @@ static int __maybe_unused macb_suspend(struct device *dev)
 		 */
 		tmp = macb_readl(bp, NCR);
 		macb_writel(bp, NCR, tmp & ~(MACB_BIT(TE) | MACB_BIT(RE)));
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
+		if (!(bp->caps & MACB_CAPS_QUEUE_DISABLE))
+			macb_writel(bp, RBQPH,
+				    upper_32_bits(bp->rx_ring_tieoff_dma));
+#endif
 		for (q = 0, queue = bp->queues; q < bp->num_queues;
 		     ++q, ++queue) {
 			/* Disable RX queues */
@@ -5461,10 +5712,6 @@ static int __maybe_unused macb_suspend(struct device *dev)
 				/* Tie off RX queues */
 				queue_writel(queue, RBQP,
 					     lower_32_bits(bp->rx_ring_tieoff_dma));
-#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
-				queue_writel(queue, RBQPH,
-					     upper_32_bits(bp->rx_ring_tieoff_dma));
-#endif
 			}
 			/* Disable all interrupts */
 			queue_writel(queue, IDR, -1);

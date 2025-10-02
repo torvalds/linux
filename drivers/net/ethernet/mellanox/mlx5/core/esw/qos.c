@@ -971,8 +971,9 @@ esw_qos_vport_tc_enable(struct mlx5_vport *vport, enum sched_node_type type,
 		max_level = 1 << MLX5_CAP_QOS(vport_node->esw->dev,
 					      log_esw_max_sched_depth);
 		if (new_level > max_level) {
-			NL_SET_ERR_MSG_MOD(extack,
-					   "TC arbitration on leafs is not supported beyond max scheduling depth");
+			NL_SET_ERR_MSG_FMT_MOD(extack,
+					       "TC arbitration on leafs is not supported beyond max depth %d",
+					       max_level);
 			return -EOPNOTSUPP;
 		}
 	}
@@ -1444,8 +1445,9 @@ static int esw_qos_node_enable_tc_arbitration(struct mlx5_esw_sched_node *node,
 	new_level = node->level + 1;
 	max_level = 1 << MLX5_CAP_QOS(node->esw->dev, log_esw_max_sched_depth);
 	if (new_level > max_level) {
-		NL_SET_ERR_MSG_MOD(extack,
-				   "TC arbitration on nodes is not supported beyond max scheduling depth");
+		NL_SET_ERR_MSG_FMT_MOD(extack,
+				       "TC arbitration on nodes is not supported beyond max depth %d",
+				       max_level);
 		return -EOPNOTSUPP;
 	}
 
@@ -1997,8 +1999,9 @@ mlx5_esw_qos_node_validate_set_parent(struct mlx5_esw_sched_node *node,
 
 	max_level = 1 << MLX5_CAP_QOS(node->esw->dev, log_esw_max_sched_depth);
 	if (new_level > max_level) {
-		NL_SET_ERR_MSG_MOD(extack,
-				   "Node hierarchy depth exceeds the maximum supported level");
+		NL_SET_ERR_MSG_FMT_MOD(extack,
+				       "Node hierarchy depth %d exceeds the maximum supported level %d",
+				       new_level, max_level);
 		return -EOPNOTSUPP;
 	}
 

@@ -138,8 +138,8 @@ void mlx5e_hv_vhca_stats_create(struct mlx5e_priv *priv)
 	if (IS_ERR_OR_NULL(agent)) {
 		if (IS_ERR(agent))
 			netdev_warn(priv->netdev,
-				    "Failed to create hv vhca stats agent, err = %ld\n",
-				    PTR_ERR(agent));
+				    "Failed to create hv vhca stats agent, err = %pe\n",
+				    agent);
 
 		kvfree(priv->stats_agent.buf);
 		return;
