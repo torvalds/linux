@@ -5224,7 +5224,9 @@ int amdgpu_device_suspend(struct drm_device *dev, bool notify_clients)
 		return r;
 
 	amdgpu_amdkfd_suspend(adev, !amdgpu_sriov_vf(adev) && !adev->in_runpm);
-	amdgpu_userq_suspend(adev);
+	r = amdgpu_userq_suspend(adev);
+	if (r)
+		return r;
 
 	r = amdgpu_device_evict_resources(adev);
 	if (r)
