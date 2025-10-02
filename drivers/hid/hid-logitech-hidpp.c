@@ -969,7 +969,8 @@ static int hidpp_root_get_protocol_version(struct hidpp_device *hidpp)
 	}
 
 	/* the device might not be connected */
-	if (ret == HIDPP_ERROR_RESOURCE_ERROR)
+	if (ret == HIDPP_ERROR_RESOURCE_ERROR ||
+	    ret == HIDPP_ERROR_UNKNOWN_DEVICE)
 		return -EIO;
 
 	if (ret > 0) {
