@@ -357,21 +357,21 @@ u32 hfsplus_calc_btree_clump_size(u32 block_size, u32 node_size, u64 sectors,
 struct hfs_btree *hfs_btree_open(struct super_block *sb, u32 id);
 void hfs_btree_close(struct hfs_btree *tree);
 int hfs_btree_write(struct hfs_btree *tree);
-int hfs_bmap_reserve(struct hfs_btree *tree, int rsvd_nodes);
+int hfs_bmap_reserve(struct hfs_btree *tree, u32 rsvd_nodes);
 struct hfs_bnode *hfs_bmap_alloc(struct hfs_btree *tree);
 void hfs_bmap_free(struct hfs_bnode *node);
 
 /* bnode.c */
-void hfs_bnode_read(struct hfs_bnode *node, void *buf, int off, int len);
-u16 hfs_bnode_read_u16(struct hfs_bnode *node, int off);
-u8 hfs_bnode_read_u8(struct hfs_bnode *node, int off);
-void hfs_bnode_read_key(struct hfs_bnode *node, void *key, int off);
-void hfs_bnode_write(struct hfs_bnode *node, void *buf, int off, int len);
-void hfs_bnode_write_u16(struct hfs_bnode *node, int off, u16 data);
-void hfs_bnode_clear(struct hfs_bnode *node, int off, int len);
-void hfs_bnode_copy(struct hfs_bnode *dst_node, int dst,
-		    struct hfs_bnode *src_node, int src, int len);
-void hfs_bnode_move(struct hfs_bnode *node, int dst, int src, int len);
+void hfs_bnode_read(struct hfs_bnode *node, void *buf, u32 off, u32 len);
+u16 hfs_bnode_read_u16(struct hfs_bnode *node, u32 off);
+u8 hfs_bnode_read_u8(struct hfs_bnode *node, u32 off);
+void hfs_bnode_read_key(struct hfs_bnode *node, void *key, u32 off);
+void hfs_bnode_write(struct hfs_bnode *node, void *buf, u32 off, u32 len);
+void hfs_bnode_write_u16(struct hfs_bnode *node, u32 off, u16 data);
+void hfs_bnode_clear(struct hfs_bnode *node, u32 off, u32 len);
+void hfs_bnode_copy(struct hfs_bnode *dst_node, u32 dst,
+		    struct hfs_bnode *src_node, u32 src, u32 len);
+void hfs_bnode_move(struct hfs_bnode *node, u32 dst, u32 src, u32 len);
 void hfs_bnode_dump(struct hfs_bnode *node);
 void hfs_bnode_unlink(struct hfs_bnode *node);
 struct hfs_bnode *hfs_bnode_findhash(struct hfs_btree *tree, u32 cnid);
@@ -386,7 +386,7 @@ bool hfs_bnode_need_zeroout(struct hfs_btree *tree);
 /* brec.c */
 u16 hfs_brec_lenoff(struct hfs_bnode *node, u16 rec, u16 *off);
 u16 hfs_brec_keylen(struct hfs_bnode *node, u16 rec);
-int hfs_brec_insert(struct hfs_find_data *fd, void *entry, int entry_len);
+int hfs_brec_insert(struct hfs_find_data *fd, void *entry, u32 entry_len);
 int hfs_brec_remove(struct hfs_find_data *fd);
 
 /* bfind.c */
@@ -399,7 +399,7 @@ int hfs_find_rec_by_key(struct hfs_bnode *bnode, struct hfs_find_data *fd,
 int __hfs_brec_find(struct hfs_bnode *bnode, struct hfs_find_data *fd,
 		    search_strategy_t rec_found);
 int hfs_brec_find(struct hfs_find_data *fd, search_strategy_t do_key_compare);
-int hfs_brec_read(struct hfs_find_data *fd, void *rec, int rec_len);
+int hfs_brec_read(struct hfs_find_data *fd, void *rec, u32 rec_len);
 int hfs_brec_goto(struct hfs_find_data *fd, int cnt);
 
 /* catalog.c */
@@ -549,14 +549,14 @@ hfsplus_btree_lock_class(struct hfs_btree *tree)
 }
 
 static inline
-bool is_bnode_offset_valid(struct hfs_bnode *node, int off)
+bool is_bnode_offset_valid(struct hfs_bnode *node, u32 off)
 {
 	bool is_valid = off < node->tree->node_size;
 
 	if (!is_valid) {
 		pr_err("requested invalid offset: "
 		       "NODE: id %u, type %#x, height %u, "
-		       "node_size %u, offset %d\n",
+		       "node_size %u, offset %u\n",
 		       node->this, node->type, node->height,
 		       node->tree->node_size, off);
 	}
@@ -565,7 +565,7 @@ bool is_bnode_offset_valid(struct hfs_bnode *node, int off)
 }
 
 static inline
-int check_and_correct_requested_length(struct hfs_bnode *node, int off, int len)
+u32 check_and_correct_requested_length(struct hfs_bnode *node, u32 off, u32 len)
 {
 	unsigned int node_size;
 
@@ -575,12 +575,12 @@ int check_and_correct_requested_length(struct hfs_bnode *node, int off, int len)
 	node_size = node->tree->node_size;
 
 	if ((off + len) > node_size) {
-		int new_len = (int)node_size - off;
+		u32 new_len = node_size - off;
 
 		pr_err("requested length has been corrected: "
 		       "NODE: id %u, type %#x, height %u, "
-		       "node_size %u, offset %d, "
-		       "requested_len %d, corrected_len %d\n",
+		       "node_size %u, offset %u, "
+		       "requested_len %u, corrected_len %u\n",
 		       node->this, node->type, node->height,
 		       node->tree->node_size, off, len, new_len);
 
