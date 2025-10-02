@@ -10,6 +10,8 @@
 #include "atomic.c"
 #include "auxiliary.c"
 #include "barrier.c"
+#include "bitmap.c"
+#include "bitops.c"
 #include "blk.c"
 #include "bug.c"
 #include "build_assert.c"
