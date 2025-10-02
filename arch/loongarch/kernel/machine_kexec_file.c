@@ -21,6 +21,7 @@
 #include <asm/bootinfo.h>
 
 const struct kexec_file_ops * const kexec_file_loaders[] = {
+	&kexec_efi_ops,
 	NULL
 };
 

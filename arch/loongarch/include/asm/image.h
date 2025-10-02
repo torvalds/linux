@@ -33,6 +33,20 @@ struct loongarch_image_header {
 	uint32_t pe_header;
 };
 
+/*
+ * loongarch_header_check_dos_sig - Helper to check the header
+ *
+ * Returns true (non-zero) if 'MZ' signature is found.
+ */
+
+static inline int loongarch_header_check_dos_sig(const struct loongarch_image_header *h)
+{
+	if (!h)
+		return 0;
+
+	return (h->dos_sig[0] == 'M' && h->dos_sig[1] == 'Z');
+}
+
 #endif /* __ASSEMBLER__ */
 
 #endif /* __ASM_IMAGE_H */
