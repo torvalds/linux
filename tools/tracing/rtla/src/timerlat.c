@@ -213,7 +213,8 @@ void timerlat_analyze(struct osnoise_tool *tool, bool stopped)
 void timerlat_free(struct osnoise_tool *tool)
 {
 	struct timerlat_params *params = to_timerlat_params(tool->params);
-	int nr_cpus, i;
+	int nr_cpus = sysconf(_SC_NPROCESSORS_CONF);
+	int i;
 
 	timerlat_aa_destroy();
 	if (dma_latency_fd >= 0)

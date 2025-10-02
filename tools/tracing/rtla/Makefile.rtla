@@ -18,7 +18,7 @@ export CC AR STRIP PKG_CONFIG LD_SO_CONF_PATH LDCONFIG
 FOPTS		:= -flto=auto -ffat-lto-objects -fexceptions -fstack-protector-strong	\
 		-fasynchronous-unwind-tables -fstack-clash-protection
 WOPTS		:= -O -Wall -Werror=format-security -Wp,-D_FORTIFY_SOURCE=2		\
-		-Wp,-D_GLIBCXX_ASSERTIONS -Wno-maybe-uninitialized
+		-Wp,-D_GLIBCXX_ASSERTIONS
 
 ifeq ($(CC),clang)
   FOPTS		:= $(filter-out -flto=auto -ffat-lto-objects, $(FOPTS))
