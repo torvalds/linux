@@ -83,7 +83,6 @@ FEATURE_TESTS_BASIC :=                  \
         libpython                       \
         libslang                        \
         libtraceevent                   \
-        libtracefs                      \
         libcpupower                     \
         pthread-attr-setaffinity-np     \
         pthread-barrier     		\
