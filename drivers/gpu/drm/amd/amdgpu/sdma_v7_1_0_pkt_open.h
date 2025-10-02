@@ -3445,23 +3445,23 @@
 #define SDMA_PKT_PTEPDE_COPY_HEADER_sub_op_shift  8
 #define SDMA_PKT_PTEPDE_COPY_HEADER_SUB_OP(x) (((x) & SDMA_PKT_PTEPDE_COPY_HEADER_sub_op_mask) << SDMA_PKT_PTEPDE_COPY_HEADER_sub_op_shift)
 
-/*define for tmz field*/
-#define SDMA_PKT_PTEPDE_COPY_HEADER_tmz_offset 0
-#define SDMA_PKT_PTEPDE_COPY_HEADER_tmz_mask   0x00000001
-#define SDMA_PKT_PTEPDE_COPY_HEADER_tmz_shift  18
-#define SDMA_PKT_PTEPDE_COPY_HEADER_TMZ(x) (((x) & SDMA_PKT_PTEPDE_COPY_HEADER_tmz_mask) << SDMA_PKT_PTEPDE_COPY_HEADER_tmz_shift)
+/*define for mtype field*/
+#define SDMA_PKT_PTEPDE_COPY_HEADER_mtype_offset 0
+#define SDMA_PKT_PTEPDE_COPY_HEADER_mtype_mask   0x00000003
+#define SDMA_PKT_PTEPDE_COPY_HEADER_mtype_shift  16
+#define SDMA_PKT_PTEPDE_COPY_HEADER_MTYPE(x) (((x) & SDMA_PKT_PTEPDE_COPY_HEADER_mtype_mask) << SDMA_PKT_PTEPDE_COPY_HEADER_mtype_shift)
 
-/*define for cpv field*/
-#define SDMA_PKT_PTEPDE_COPY_HEADER_cpv_offset 0
-#define SDMA_PKT_PTEPDE_COPY_HEADER_cpv_mask   0x00000001
-#define SDMA_PKT_PTEPDE_COPY_HEADER_cpv_shift  28
-#define SDMA_PKT_PTEPDE_COPY_HEADER_CPV(x) (((x) & SDMA_PKT_PTEPDE_COPY_HEADER_cpv_mask) << SDMA_PKT_PTEPDE_COPY_HEADER_cpv_shift)
+/*define for snoop field*/
+#define SDMA_PKT_PTEPDE_COPY_HEADER_snoop_offset 0
+#define SDMA_PKT_PTEPDE_COPY_HEADER_snoop_mask   0x00000001
+#define SDMA_PKT_PTEPDE_COPY_HEADER_snoop_shift  22
+#define SDMA_PKT_PTEPDE_COPY_HEADER_SNOOP(x) (((x) & SDMA_PKT_PTEPDE_COPY_HEADER_snoop_mask) << SDMA_PKT_PTEPDE_COPY_HEADER_snoop_shift)
 
-/*define for ptepde_op field*/
-#define SDMA_PKT_PTEPDE_COPY_HEADER_ptepde_op_offset 0
-#define SDMA_PKT_PTEPDE_COPY_HEADER_ptepde_op_mask   0x00000001
-#define SDMA_PKT_PTEPDE_COPY_HEADER_ptepde_op_shift  31
-#define SDMA_PKT_PTEPDE_COPY_HEADER_PTEPDE_OP(x) (((x) & SDMA_PKT_PTEPDE_COPY_HEADER_ptepde_op_mask) << SDMA_PKT_PTEPDE_COPY_HEADER_ptepde_op_shift)
+/*define for scope field*/
+#define SDMA_PKT_PTEPDE_COPY_HEADER_scope_offset 0
+#define SDMA_PKT_PTEPDE_COPY_HEADER_scope_mask   0x00000003
+#define SDMA_PKT_PTEPDE_COPY_HEADER_scope_shift  24
+#define SDMA_PKT_PTEPDE_COPY_HEADER_SCOPE(x) (((x) & SDMA_PKT_PTEPDE_COPY_HEADER_scope_mask) << SDMA_PKT_PTEPDE_COPY_HEADER_scope_shift)
 
 /*define for SRC_ADDR_LO word*/
 /*define for src_addr_31_0 field*/

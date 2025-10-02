@@ -1155,7 +1155,16 @@ static void sdma_v7_1_vm_set_pte_pde(struct amdgpu_ib *ib,
 				     uint32_t incr, uint64_t flags)
 {
 	/* for physically contiguous pages (vram) */
-	ib->ptr[ib->length_dw++] = SDMA_PKT_COPY_LINEAR_HEADER_OP(SDMA_OP_PTEPDE);
+	u32 header = SDMA_PKT_COPY_LINEAR_HEADER_OP(SDMA_OP_PTEPDE);
+
+	if (amdgpu_mtype_local)
+		header |= SDMA_PKT_PTEPDE_COPY_HEADER_MTYPE(0x3);
+	else
+		header |= (SDMA_PKT_PTEPDE_COPY_HEADER_MTYPE(0x2) |
+			   SDMA_PKT_PTEPDE_COPY_HEADER_SNOOP(0x1) |
+			   SDMA_PKT_PTEPDE_COPY_HEADER_SCOPE(0x3));
+
+	ib->ptr[ib->length_dw++] = header;
 	ib->ptr[ib->length_dw++] = lower_32_bits(pe); /* dst addr */
 	ib->ptr[ib->length_dw++] = upper_32_bits(pe);
 	ib->ptr[ib->length_dw++] = lower_32_bits(flags); /* mask */
