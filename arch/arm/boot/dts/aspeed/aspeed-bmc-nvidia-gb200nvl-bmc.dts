@@ -126,6 +126,17 @@
 			gpio = <&sgpiom0 154 GPIO_ACTIVE_LOW>;
 		};
 	};
+
+	standby_power_regulator: standby-power-regulator {
+		status = "okay";
+		compatible = "regulator-fixed";
+		regulator-name = "standby_power";
+		gpio = <&gpio0 ASPEED_GPIO(M, 3) GPIO_ACTIVE_HIGH>;
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		enable-active-high;
+		regulator-always-on;
+	};
 };
 
 // Enable Primary flash on FMC for bring up activity
@@ -216,6 +227,30 @@
 	status = "okay";
 };
 
+&mdio0 {
+	status = "okay";
+	ethphy0: ethernet-phy@0 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <0>;
+	};
+};
+
+&mdio3 {
+	status = "okay";
+	ethphy3: ethernet-phy@2 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <2>;
+	};
+};
+
+&mac0 {
+	status = "okay";
+	pinctrl-names = "default";
+	phy-mode = "rgmii-id";
+	phy-handle = <&ethphy3>;
+	pinctrl-0 = <&pinctrl_rgmii1_default>;
+};
+
 &mac2 {
 	status = "okay";
 	phy-mode = "rmii";
@@ -247,7 +282,7 @@
 };
 
 &sgpiom0 {
-	status="okay";
+	status = "okay";
 	ngpios = <128>;
 	gpio-line-names =
 		"","",
@@ -411,7 +446,7 @@
 
 // I2C4
 &i2c3 {
-	status = "disabled";
+	status = "okay";
 };
 
 // I2C5
@@ -431,6 +466,7 @@
 		#interrupt-cells = <2>;
 		interrupt-parent = <&gpio1>;
 		interrupts = <ASPEED_GPIO(B, 6) IRQ_TYPE_LEVEL_LOW>;
+		vcc-supply = <&standby_power_regulator>;
 		gpio-line-names =
 			"RTC_MUX_SEL-O",
 			"PCI_MUX_SEL-O",
@@ -464,6 +500,7 @@
 		#size-cells = <0>;
 		reg = <0x71>;
 		i2c-mux-idle-disconnect;
+		vdd-supply = <&standby_power_regulator>;
 
 		imux16: i2c@0 {
 			#address-cells = <1>;
@@ -528,6 +565,7 @@
 		#size-cells = <0>;
 		reg = <0x72>;
 		i2c-mux-idle-disconnect;
+		vdd-supply = <&standby_power_regulator>;
 
 		imux20: i2c@0 {
 			#address-cells = <1>;
@@ -545,6 +583,7 @@
 				reg = <0x21>;
 				gpio-controller;
 				#gpio-cells = <2>;
+				vcc-supply = <&standby_power_regulator>;
 				gpio-line-names =
 					"RST_CX_0_L-O",
 					"RST_CX_1_L-O",
@@ -584,6 +623,7 @@
 		#size-cells = <0>;
 		reg = <0x73>;
 		i2c-mux-idle-disconnect;
+		vdd-supply = <&standby_power_regulator>;
 
 		imux24: i2c@0 {
 			#address-cells = <1>;
@@ -602,6 +642,7 @@
 				#size-cells = <0>;
 				reg = <0x70>;
 				i2c-mux-idle-disconnect;
+				vdd-supply = <&standby_power_regulator>;
 
 				i2c25mux0: i2c@0 {
 					#address-cells = <1>;
@@ -648,6 +689,7 @@
 		#size-cells = <0>;
 		reg = <0x75>;
 		i2c-mux-idle-disconnect;
+		vdd-supply = <&standby_power_regulator>;
 
 		imux28: i2c@0 {
 			#address-cells = <1>;
@@ -712,6 +754,7 @@
 		#size-cells = <0>;
 		reg = <0x76>;
 		i2c-mux-idle-disconnect;
+		vdd-supply = <&standby_power_regulator>;
 
 		imux32: i2c@0 {
 			#address-cells = <1>;
@@ -729,6 +772,7 @@
 				reg = <0x21>;
 				gpio-controller;
 				#gpio-cells = <2>;
+				vcc-supply = <&standby_power_regulator>;
 				gpio-line-names =
 					"SEC_RST_CX_0_L-O",
 					"SEC_RST_CX_1_L-O",
@@ -768,6 +812,7 @@
 		#size-cells = <0>;
 		reg = <0x77>;
 		i2c-mux-idle-disconnect;
+		vdd-supply = <&standby_power_regulator>;
 
 		imux36: i2c@0 {
 			#address-cells = <1>;
@@ -862,6 +907,7 @@
 		#interrupt-cells = <2>;
 		interrupt-parent = <&gpio1>;
 		interrupts = <ASPEED_GPIO(B, 6) IRQ_TYPE_LEVEL_LOW>;
+		vcc-supply = <&standby_power_regulator>;
 		gpio-line-names =
 			"FPGA_THERM_OVERT_L-I",
 			"FPGA_READY_BMC-I",
@@ -891,6 +937,7 @@
 		#interrupt-cells = <2>;
 		interrupt-parent = <&gpio1>;
 		interrupts = <ASPEED_GPIO(B, 6) IRQ_TYPE_LEVEL_LOW>;
+		vcc-supply = <&standby_power_regulator>;
 		gpio-line-names =
 			"SEC_FPGA_THERM_OVERT_L-I",
 			"SEC_FPGA_READY_BMC-I",
@@ -949,6 +996,7 @@
 		#interrupt-cells = <2>;
 		interrupt-parent = <&gpio1>;
 		interrupts = <ASPEED_GPIO(B, 6) IRQ_TYPE_LEVEL_LOW>;
+		vcc-supply = <&standby_power_regulator>;
 		gpio-line-names =
 			"IOB_PRSNT_L",
 			"IOB_DP_HPD",
@@ -1014,6 +1062,7 @@
 		#size-cells = <0>;
 		reg = <0x77>;
 		i2c-mux-idle-disconnect;
+		vdd-supply = <&standby_power_regulator>;
 
 		e1si2c0: i2c@0 {
 			#address-cells = <1>;
@@ -1054,6 +1103,7 @@
 		#size-cells = <0>;
 		reg = <0x77>;
 		i2c-mux-idle-disconnect;
+		vdd-supply = <&standby_power_regulator>;
 
 		e1si2c4: i2c@0 {
 			#address-cells = <1>;
@@ -1100,7 +1150,7 @@
 		/*J0-J7*/ "", "", "", "", "", "", "", "",
 		/*K0-K7*/ "", "", "", "", "", "", "", "",
 		/*L0-L7*/ "", "", "", "", "", "", "", "",
-		/*M0-M7*/ "PCIE_EP_RST_EN-O", "BMC_FRU_WP-O", "HMC_RESET_L-O", "STBY_POWER_EN-O",
+		/*M0-M7*/ "PCIE_EP_RST_EN-O", "BMC_FRU_WP-O", "FPGA_RST_L-O", "STBY_POWER_EN-O",
 					"STBY_POWER_PG-I", "PCIE_EP_RST_L-O", "", "",
 		/*N0-N7*/ "", "", "", "", "", "", "", "",
 		/*O0-O7*/ "", "", "", "", "", "", "", "",

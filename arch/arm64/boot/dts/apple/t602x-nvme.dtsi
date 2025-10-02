@@ -1,0 +1,42 @@
+// SPDX-License-Identifier: GPL-2.0+ OR MIT
+/*
+ * NVMe related devices for Apple T602x SoCs.
+ *
+ * Copyright The Asahi Linux Contributors
+ */
+
+	DIE_NODE(ans_mbox): mbox@347408000 {
+		compatible = "apple,t6020-asc-mailbox", "apple,asc-mailbox-v4";
+		reg = <0x3 0x47408000 0x0 0x4000>;
+		interrupt-parent = <&aic>;
+		interrupts = <AIC_IRQ DIE_NO 1169 IRQ_TYPE_LEVEL_HIGH>,
+			<AIC_IRQ DIE_NO 1170 IRQ_TYPE_LEVEL_HIGH>,
+			<AIC_IRQ DIE_NO 1171 IRQ_TYPE_LEVEL_HIGH>,
+			<AIC_IRQ DIE_NO 1172 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "send-empty", "send-not-empty",
+			"recv-empty", "recv-not-empty";
+		power-domains = <&DIE_NODE(ps_ans2)>;
+		#mbox-cells = <0>;
+	};
+
+	DIE_NODE(sart): sart@34bc50000 {
+		compatible = "apple,t6020-sart", "apple,t6000-sart";
+		reg = <0x3 0x4bc50000 0x0 0x10000>;
+		power-domains = <&DIE_NODE(ps_ans2)>;
+	};
+
+	DIE_NODE(nvme): nvme@34bcc0000 {
+		compatible = "apple,t6020-nvme-ans2", "apple,t8103-nvme-ans2";
+		reg = <0x3 0x4bcc0000 0x0 0x40000>, <0x3 0x47400000 0x0 0x4000>;
+		reg-names = "nvme", "ans";
+		interrupt-parent = <&aic>;
+		/* The NVME interrupt is always routed to die 0 */
+		interrupts = <AIC_IRQ 0 1832 IRQ_TYPE_LEVEL_HIGH>;
+		mboxes = <&DIE_NODE(ans_mbox)>;
+		apple,sart = <&DIE_NODE(sart)>;
+		power-domains = <&DIE_NODE(ps_ans2)>,
+			<&DIE_NODE(ps_apcie_st_sys)>,
+			<&DIE_NODE(ps_apcie_st1_sys)>;
+		power-domain-names = "ans", "apcie0", "apcie1";
+		resets = <&DIE_NODE(ps_ans2)>;
+	};

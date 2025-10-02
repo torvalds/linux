@@ -450,7 +450,7 @@
 		reg = <0>;
 		compatible = "infineon,slb9670", "tcg,tpm_tis-spi";
 		spi-max-frequency = <10000000>;
-		pinctrl-names  = "default";
+		pinctrl-names = "default";
 		pinctrl-0 = <&cp1_tpm_irq_pins>;
 		interrupt-parent = <&cp1_gpio1>;
 		interrupts = <17 IRQ_TYPE_LEVEL_LOW>;

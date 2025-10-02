@@ -40,6 +40,13 @@ config ARCH_APPLE
 	  This enables support for Apple's in-house ARM SoC family, such
 	  as the Apple M1.
 
+config ARCH_ARTPEC
+	bool "Axis Communications ARTPEC SoC Family"
+	depends on ARCH_EXYNOS
+	select ARM_GIC
+	help
+	   This enables support for the ARMv8 based ARTPEC SoC Family.
+
 config ARCH_AXIADO
 	bool "Axiado SoC Family"
 	select GPIOLIB

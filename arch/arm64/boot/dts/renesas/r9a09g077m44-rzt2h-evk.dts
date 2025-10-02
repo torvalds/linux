@@ -1,0 +1,184 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/*
+ * Device Tree Source for the RZ/T2H EVK board
+ *
+ * Copyright (C) 2025 Renesas Electronics Corp.
+ */
+
+/dts-v1/;
+
+#include "r9a09g077m44.dtsi"
+
+/*
+ * SD0 can be connected to either eMMC (IC49) or SD card slot CN31
+ * Lets by default enable the eMMC, note we need the below SW settings
+ * for eMMC.
+ * SW2[1] = ON; SW2[2] = ON
+ *
+ * To enable SD card and disable eMMC on SDHI0 disable the below macro
+ * and set the below switch setting:
+ * SW2[1] = OFF; SW2[2] = ON
+ */
+#define SD0_EMMC	1
+#define SD0_SD		(!SD0_EMMC)
+
+/*
+ * P17_4 = SD1_CD; SW2[3] = ON
+ * P08_5 = SD1_PWEN; SW2[3] = ON
+ * P08_6 = SD1_IOVS; SW2[3] = ON; SW5[3] = OFF; SW5[4] = ON
+ */
+#define SD1_MICRO_SD	1
+
+/*
+ * USB Pin Configuration:
+ *
+ * This board is equipped with three USB connectors: Type-A (CN80), Mini-B
+ * (CN79), and Micro-AB (CN33). The RZ/T2H SoC has a single USB channel, so
+ * either the USB host interface or the USB function interface can be used,
+ * but not both simultaneously when using the CN79 and CN80 connectors.
+ *
+ * By default, the Type-A (CN80) and Mini-B (CN79) connectors are enabled.
+ * Configure the switches as follows:
+ *   - P00_0 - P00_2 (control signals for USB power supply): SW1[5] = ON
+ *   - USB_VBUSIN (used for USB function): SW7[7] = OFF; SW7[8] = ON
+ *   - USB_VBUSEN (used for USB_HF_VBUSEN): SW7[9] = OFF; SW7[10] = ON
+ *
+ * To enable the Micro-AB (CN33) USB OTG connector, set the following macro
+ * to 1 and configure the switches as follows:
+ *   - P00_0 - P00_2 (control signals for USB power supply): SW1[5] = ON
+ *   - USB_VBUSIN (used for USB OTG): SW7[7] = ON; SW7[8] = OFF
+ *   - USB_VBUSEN (used for USB_OTG_VBUSEN): SW7[9] = ON; SW7[10] = OFF
+ */
+#define USB_OTG		0
+
+#include "rzt2h-n2h-evk-common.dtsi"
+
+/ {
+	model = "Renesas RZ/T2H EVK Board based on r9a09g077m44";
+	compatible = "renesas,rzt2h-evk", "renesas,r9a09g077m44", "renesas,r9a09g077";
+
+	leds {
+		compatible = "gpio-leds";
+
+		led-0 {
+			/* SW8-9: ON, SW8-10: OFF */
+			gpios = <&pinctrl RZT2H_GPIO(23, 1) GPIO_ACTIVE_HIGH>;
+			color = <LED_COLOR_ID_GREEN>;
+			function = LED_FUNCTION_DEBUG;
+			function-enumerator = <0>;
+		};
+
+		led-1 {
+			/* SW5-1: OFF, SW5-2: ON */
+			gpios = <&pinctrl RZT2H_GPIO(32, 2) GPIO_ACTIVE_HIGH>;
+			color = <LED_COLOR_ID_GREEN>;
+			function = LED_FUNCTION_DEBUG;
+			function-enumerator = <1>;
+		};
+
+		led-2 {
+			gpios = <&pinctrl RZT2H_GPIO(6, 7) GPIO_ACTIVE_HIGH>;
+			color = <LED_COLOR_ID_YELLOW>;
+			function = LED_FUNCTION_DEBUG;
+			function-enumerator = <2>;
+		};
+
+#if (!SD1_MICRO_SD)
+		led-3 {
+			/* SW2-3: OFF */
+			gpios = <&pinctrl RZT2H_GPIO(8, 5) GPIO_ACTIVE_HIGH>;
+			color = <LED_COLOR_ID_RED>;
+			function = LED_FUNCTION_DEBUG;
+			function-enumerator = <3>;
+		};
+#endif
+
+		led-4 {
+			/* SW8-3: ON, SW8-4: OFF */
+			gpios = <&pinctrl RZT2H_GPIO(18, 0) GPIO_ACTIVE_HIGH>;
+			color = <LED_COLOR_ID_GREEN>;
+			function = LED_FUNCTION_DEBUG;
+			function-enumerator = <4>;
+		};
+
+		led-5 {
+			/* SW8-1: ON, SW8-2: OFF */
+			gpios = <&pinctrl RZT2H_GPIO(18, 1) GPIO_ACTIVE_HIGH>;
+			color = <LED_COLOR_ID_RED>;
+			function = LED_FUNCTION_DEBUG;
+			function-enumerator = <5>;
+		};
+
+		led-6 {
+			/* SW5-9: OFF, SW5-10: ON */
+			gpios = <&pinctrl RZT2H_GPIO(22, 7) GPIO_ACTIVE_HIGH>;
+			color = <LED_COLOR_ID_GREEN>;
+			function = LED_FUNCTION_DEBUG;
+			function-enumerator = <6>;
+		};
+
+		led-7 {
+			/* SW5-7: OFF, SW5-8: ON */
+			gpios = <&pinctrl RZT2H_GPIO(23, 0) GPIO_ACTIVE_HIGH>;
+			color = <LED_COLOR_ID_GREEN>;
+			function = LED_FUNCTION_DEBUG;
+			function-enumerator = <7>;
+		};
+
+		led-8 {
+			/* SW7-5: OFF, SW7-6: ON */
+			gpios = <&pinctrl RZT2H_GPIO(23, 5) GPIO_ACTIVE_HIGH>;
+			color = <LED_COLOR_ID_GREEN>;
+			function = LED_FUNCTION_DEBUG;
+			function-enumerator = <8>;
+		};
+	};
+};
+
+&i2c0 {
+	pinctrl-0 = <&i2c0_pins>;
+	pinctrl-names = "default";
+	clock-frequency = <400000>;
+	status = "okay";
+};
+
+&i2c1 {
+	pinctrl-0 = <&i2c1_pins>;
+	pinctrl-names = "default";
+	clock-frequency = <400000>;
+	status = "okay";
+};
+
+&pinctrl {
+	/*
+	 * I2C0 Pin Configuration:
+	 * ------------------------
+	 * Signal | Pin     | SW6
+	 * -------|---------|--------------
+	 * SCL    | P23_3   | 7: ON, 8: OFF
+	 * SDA    | P23_4   | 9: ON, 10: OFF
+	 */
+	i2c0_pins: i2c0-pins {
+		pinmux = <RZT2H_PORT_PINMUX(23, 3, 0x17)>,
+			 <RZT2H_PORT_PINMUX(23, 4, 0x17)>;
+	};
+
+	i2c1_pins: i2c1-pins {
+		pinmux = <RZT2H_PORT_PINMUX(5, 0, 0x17)>, /* SDA */
+			 <RZT2H_PORT_PINMUX(4, 7, 0x17)>; /* SCL */
+	};
+
+#if USB_OTG
+	usb-exicen-hog {
+		gpio-hog;
+		gpios = <RZT2H_GPIO(0, 2) GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "usb_exicen_a";
+	};
+#endif
+
+	usb_pins: usb-pins {
+		pinmux = <RZT2H_PORT_PINMUX(0, 0, 0x13)>, /* VBUSEN */
+			 <RZT2H_PORT_PINMUX(0, 1, 0x13)>; /* OVRCUR */
+	};
+};
