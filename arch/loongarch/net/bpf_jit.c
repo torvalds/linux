@@ -527,13 +527,11 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx, bool ext
 			emit_zext_32(ctx, dst, is32);
 			break;
 		case 8:
-			move_reg(ctx, t1, src);
-			emit_insn(ctx, extwb, dst, t1);
+			emit_insn(ctx, extwb, dst, src);
 			emit_zext_32(ctx, dst, is32);
 			break;
 		case 16:
-			move_reg(ctx, t1, src);
-			emit_insn(ctx, extwh, dst, t1);
+			emit_insn(ctx, extwh, dst, src);
 			emit_zext_32(ctx, dst, is32);
 			break;
 		case 32:
