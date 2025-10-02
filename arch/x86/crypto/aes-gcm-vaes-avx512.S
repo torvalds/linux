@@ -262,12 +262,8 @@
 
 // void aes_gcm_precompute_vaes_avx512(struct aes_gcm_key_vaes_avx512 *key);
 //
-// Given the expanded AES key |key->aes_key|, this function derives the GHASH
-// subkey and initializes |key->ghash_key_powers| with powers of it.
-//
-// The number of key powers initialized is NUM_H_POWERS, and they are stored in
-// the order H^NUM_H_POWERS to H^1.  The zeroized padding blocks after the key
-// powers themselves are also initialized.
+// Given the expanded AES key |key->base.aes_key|, derive the GHASH subkey and
+// initialize |key->h_powers| and |key->padding|.
 SYM_FUNC_START(aes_gcm_precompute_vaes_avx512)
 
 	// Function arguments
@@ -469,10 +465,9 @@ SYM_FUNC_END(aes_gcm_precompute_vaes_avx512)
 //
 // This function processes the AAD (Additional Authenticated Data) in GCM.
 // Using the key |key|, it updates the GHASH accumulator |ghash_acc| with the
-// data given by |aad| and |aadlen|.  |key->ghash_key_powers| must have been
-// initialized.  On the first call, |ghash_acc| must be all zeroes.  |aadlen|
-// must be a multiple of 16, except on the last call where it can be any length.
-// The caller must do any buffering needed to ensure this.
+// data given by |aad| and |aadlen|.  On the first call, |ghash_acc| must be all
+// zeroes.  |aadlen| must be a multiple of 16, except on the last call where it
+// can be any length.  The caller must do any buffering needed to ensure this.
 //
 // AES-GCM is almost always used with small amounts of AAD, less than 32 bytes.
 // Therefore, for AAD processing we currently only provide this implementation
@@ -622,12 +617,12 @@ SYM_FUNC_END(aes_gcm_aad_update_vaes_avx512)
 // any length.  The caller must do any buffering needed to ensure this.  Both
 // in-place and out-of-place en/decryption are supported.
 //
-// |le_ctr| must give the current counter in little-endian format.  For a new
-// message, the low word of the counter must be 2.  This function loads the
-// counter from |le_ctr| and increments the loaded counter as needed, but it
-// does *not* store the updated counter back to |le_ctr|.  The caller must
-// update |le_ctr| if any more data segments follow.  Internally, only the low
-// 32-bit word of the counter is incremented, following the GCM standard.
+// |le_ctr| must give the current counter in little-endian format.  This
+// function loads the counter from |le_ctr| and increments the loaded counter as
+// needed, but it does *not* store the updated counter back to |le_ctr|.  The
+// caller must update |le_ctr| if any more data segments follow.  Internally,
+// only the low 32-bit word of the counter is incremented, following the GCM
+// standard.
 .macro	_aes_gcm_update	enc
 
 	// Function arguments
