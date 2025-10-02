@@ -12,7 +12,6 @@
 #include "xe_gt_sriov_printk.h"
 #include "xe_gt_sriov_vf.h"
 #include "xe_guc.h"
-#include "xe_guc_ct.h"
 #include "xe_guc_submit.h"
 #include "xe_irq.h"
 #include "xe_lrc.h"
@@ -334,7 +333,6 @@ static int gt_vf_post_migration_fixups(struct xe_gt *gt)
 		err = xe_guc_contexts_hwsp_rebase(&gt->uc.guc, buf);
 		if (err)
 			goto out;
-		xe_guc_ct_fixup_messages_with_ggtt(&gt->uc.guc.ct, shift);
 	}
 
 out:
