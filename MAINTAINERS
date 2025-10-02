@@ -7261,10 +7261,11 @@ F:	include/linux/dmaengine.h
 F:	include/linux/of_dma.h
 
 DMA MAPPING BENCHMARK
-M:	Xiang Chen <chenxiang66@hisilicon.com>
+M:	Barry Song <baohua@kernel.org>
+M:	Qinxin Xia <xiaqinxin@huawei.com>
 L:	iommu@lists.linux.dev
 F:	kernel/dma/map_benchmark.c
-F:	tools/testing/selftests/dma/
+F:	tools/dma/
 
 DMA MAPPING HELPERS
 M:	Marek Szyprowski <m.szyprowski@samsung.com>
