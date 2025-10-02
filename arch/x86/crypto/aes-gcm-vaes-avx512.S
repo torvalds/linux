@@ -260,6 +260,19 @@
 	vpternlogd	$0x96, \t0, \mi, \hi
 .endm
 
+// This is a specialized version of _ghash_mul that computes \a * \a, i.e. it
+// squares \a.  It skips computing MI = (a_L * a_H) + (a_H * a_L) = 0.
+.macro	_ghash_square	a, dst, gfpoly, t0, t1
+	vpclmulqdq	$0x00, \a, \a, \t0	  // LO = a_L * a_L
+	vpclmulqdq	$0x11, \a, \a, \dst	  // HI = a_H * a_H
+	vpclmulqdq	$0x01, \t0, \gfpoly, \t1  // LO_L*(x^63 + x^62 + x^57)
+	vpshufd		$0x4e, \t0, \t0		  // Swap halves of LO
+	vpxord		\t0, \t1, \t1		  // Fold LO into MI
+	vpclmulqdq	$0x01, \t1, \gfpoly, \t0  // MI_L*(x^63 + x^62 + x^57)
+	vpshufd		$0x4e, \t1, \t1		  // Swap halves of MI
+	vpternlogd	$0x96, \t0, \t1, \dst	  // Fold MI into HI
+.endm
+
 // void aes_gcm_precompute_vaes_avx512(struct aes_gcm_key_vaes_avx512 *key);
 //
 // Given the expanded AES key |key->base.aes_key|, derive the GHASH subkey and
@@ -337,8 +350,7 @@ SYM_FUNC_START(aes_gcm_precompute_vaes_avx512)
 	// special needs to be done to make this happen, though: H^1 * H^1 would
 	// end up with two factors of x^-1, but the multiplication consumes one.
 	// So the product H^2 ends up with the desired one factor of x^-1.
-	_ghash_mul	H_CUR_XMM, H_CUR_XMM, H_INC_XMM, GFPOLY_XMM, \
-			%xmm0, %xmm1, %xmm2
+	_ghash_square	H_CUR_XMM, H_INC_XMM, GFPOLY_XMM, %xmm0, %xmm1
 
 	// Create H_CUR_YMM = [H^2, H^1] and H_INC_YMM = [H^2, H^2].
 	vinserti128	$1, H_CUR_XMM, H_INC_YMM, H_CUR_YMM
