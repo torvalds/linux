@@ -150,6 +150,7 @@ const char *libbpf_errstr(int err)
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpacked"
+#pragma GCC diagnostic ignored "-Wattributes"
 struct __packed_u32 { __u32 __val; } __attribute__((packed));
 #pragma GCC diagnostic pop
 
