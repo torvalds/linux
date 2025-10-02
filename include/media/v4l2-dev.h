@@ -320,8 +320,8 @@ struct video_device {
 	typeof(__entity) __me_vdev_ent = __entity;			\
 									\
 	__me_vdev_ent ?							\
-		container_of(__me_vdev_ent,  struct video_device, entity) : \
-		NULL;							\
+		container_of_const(__me_vdev_ent,  struct video_device, \
+				   entity) : NULL;			\
 })
 
 /**
@@ -330,7 +330,7 @@ struct video_device {
  *
  * @cd: pointer to &struct device
  */
-#define to_video_device(cd) container_of(cd, struct video_device, dev)
+#define to_video_device(cd) container_of_const(cd, struct video_device, dev)
 
 /**
  * __video_register_device - register video4linux devices
