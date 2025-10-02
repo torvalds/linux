@@ -349,17 +349,14 @@ static ssize_t disable_late_binding_set(struct file *f, const char __user *ubuf,
 {
 	struct xe_device *xe = file_inode(f)->i_private;
 	struct xe_late_bind *late_bind = &xe->late_bind;
-	u32 uval;
-	ssize_t ret;
+	bool val;
+	int ret;
 
-	ret = kstrtouint_from_user(ubuf, size, sizeof(uval), &uval);
+	ret = kstrtobool_from_user(ubuf, size, &val);
 	if (ret)
 		return ret;
 
-	if (uval > 1)
-		return -EINVAL;
-
-	late_bind->disable = !!uval;
+	late_bind->disable = val;
 	return size;
 }
 
