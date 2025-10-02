@@ -148,6 +148,33 @@ static int mpl3115_read_raw(struct iio_dev *indio_dev,
 	return -EINVAL;
 }
 
+static int mpl3115_fill_trig_buffer(struct iio_dev *indio_dev, u8 *buffer)
+{
+	struct mpl3115_data *data = iio_priv(indio_dev);
+	int ret, pos = 0;
+
+	ret = mpl3115_request(data);
+	if (ret < 0)
+		return ret;
+
+	if (test_bit(0, indio_dev->active_scan_mask)) {
+		ret = i2c_smbus_read_i2c_block_data(data->client,
+			MPL3115_OUT_PRESS, 3, &buffer[pos]);
+		if (ret < 0)
+			return ret;
+		pos += 4;
+	}
+
+	if (test_bit(1, indio_dev->active_scan_mask)) {
+		ret = i2c_smbus_read_i2c_block_data(data->client,
+			MPL3115_OUT_TEMP, 2, &buffer[pos]);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
 static irqreturn_t mpl3115_trigger_handler(int irq, void *p)
 {
 	struct iio_poll_func *pf = p;
@@ -161,34 +188,13 @@ static irqreturn_t mpl3115_trigger_handler(int irq, void *p)
 	 * use a simple structure definition to express this data layout.
 	 */
 	u8 buffer[16] __aligned(8) = { };
-	int ret, pos = 0;
+	int ret;
 
 	mutex_lock(&data->lock);
-	ret = mpl3115_request(data);
-	if (ret < 0) {
-		mutex_unlock(&data->lock);
-		goto done;
-	}
-
-	if (test_bit(0, indio_dev->active_scan_mask)) {
-		ret = i2c_smbus_read_i2c_block_data(data->client,
-			MPL3115_OUT_PRESS, 3, &buffer[pos]);
-		if (ret < 0) {
-			mutex_unlock(&data->lock);
-			goto done;
-		}
-		pos += 4;
-	}
-
-	if (test_bit(1, indio_dev->active_scan_mask)) {
-		ret = i2c_smbus_read_i2c_block_data(data->client,
-			MPL3115_OUT_TEMP, 2, &buffer[pos]);
-		if (ret < 0) {
-			mutex_unlock(&data->lock);
-			goto done;
-		}
-	}
+	ret = mpl3115_fill_trig_buffer(indio_dev, buffer);
 	mutex_unlock(&data->lock);
+	if (ret)
+		goto done;
 
 	iio_push_to_buffers_with_ts(indio_dev, buffer, sizeof(buffer),
 				    iio_get_time_ns(indio_dev));
