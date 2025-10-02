@@ -633,6 +633,15 @@ config CPU_HAS_PREFETCH
 config ARCH_SUPPORTS_KEXEC
 	def_bool y
 
+config ARCH_SUPPORTS_KEXEC_FILE
+	def_bool 64BIT
+
+config ARCH_SELECTS_KEXEC_FILE
+	def_bool 64BIT
+	depends on KEXEC_FILE
+	select RELOCATABLE
+	select HAVE_IMA_KEXEC if IMA
+
 config ARCH_SUPPORTS_CRASH_DUMP
 	def_bool y
 
