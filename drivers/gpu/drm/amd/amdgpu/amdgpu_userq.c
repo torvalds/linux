@@ -1076,27 +1076,25 @@ int amdgpu_userq_suspend(struct amdgpu_device *adev)
 	struct amdgpu_usermode_queue *queue;
 	struct amdgpu_userq_mgr *uqm, *tmp;
 	int queue_id;
-	int ret = 0, r;
+	int r;
 
 	if (!ip_mask)
 		return 0;
 
-	mutex_lock(&adev->userq_mutex);
+	guard(mutex)(&adev->userq_mutex);
 	list_for_each_entry_safe(uqm, tmp, &adev->userq_mgr_list, list) {
 		cancel_delayed_work_sync(&uqm->resume_work);
-		mutex_lock(&uqm->userq_mutex);
+		guard(mutex)(&uqm->userq_mutex);
 		idr_for_each_entry(&uqm->userq_idr, queue, queue_id) {
 			if (adev->in_s0ix)
 				r = amdgpu_userq_preempt_helper(uqm, queue);
 			else
 				r = amdgpu_userq_unmap_helper(uqm, queue);
 			if (r)
-				ret = r;
+				return r;
 		}
-		mutex_unlock(&uqm->userq_mutex);
 	}
-	mutex_unlock(&adev->userq_mutex);
-	return ret;
+	return 0;
 }
 
 int amdgpu_userq_resume(struct amdgpu_device *adev)
@@ -1105,26 +1103,25 @@ int amdgpu_userq_resume(struct amdgpu_device *adev)
 	struct amdgpu_usermode_queue *queue;
 	struct amdgpu_userq_mgr *uqm, *tmp;
 	int queue_id;
-	int ret = 0, r;
+	int r;
 
 	if (!ip_mask)
 		return 0;
 
-	mutex_lock(&adev->userq_mutex);
+	guard(mutex)(&adev->userq_mutex);
 	list_for_each_entry_safe(uqm, tmp, &adev->userq_mgr_list, list) {
-		mutex_lock(&uqm->userq_mutex);
+		guard(mutex)(&uqm->userq_mutex);
 		idr_for_each_entry(&uqm->userq_idr, queue, queue_id) {
 			if (adev->in_s0ix)
 				r = amdgpu_userq_restore_helper(uqm, queue);
 			else
 				r = amdgpu_userq_map_helper(uqm, queue);
 			if (r)
-				ret = r;
+				return r;
 		}
-		mutex_unlock(&uqm->userq_mutex);
 	}
-	mutex_unlock(&adev->userq_mutex);
-	return ret;
+
+	return 0;
 }
 
 int amdgpu_userq_stop_sched_for_enforce_isolation(struct amdgpu_device *adev,
