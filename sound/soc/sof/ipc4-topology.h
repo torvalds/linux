@@ -263,6 +263,8 @@ struct sof_ipc4_dma_stream_ch_map {
 #define SOF_IPC4_DMA_METHOD_HDA   1
 #define SOF_IPC4_DMA_METHOD_GPDMA 2 /* defined for consistency but not used */
 
+#define SOF_IPC4_CHAIN_DMA_BUF_SIZE_MS 2
+
 /**
  * struct sof_ipc4_dma_config: DMA configuration
  * @dma_method: HDAudio or GPDMA

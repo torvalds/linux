@@ -1108,7 +1108,7 @@ static int sof_ipc4_get_stream_start_offset(struct snd_sof_dev *sdev,
 		return -EINVAL;
 	} else if (host_copier->data.gtw_cfg.node_id == SOF_IPC4_CHAIN_DMA_NODE_ID) {
 		/*
-		 * While the firmware does not supports time_info reporting for
+		 * While the firmware does not support time_info reporting for
 		 * streams using ChainDMA, it is granted that ChainDMA can only
 		 * be used on Host+Link pairs where the link position is
 		 * accessible from the host side.
@@ -1116,10 +1116,16 @@ static int sof_ipc4_get_stream_start_offset(struct snd_sof_dev *sdev,
 		 * Enable delay calculation in case of ChainDMA via host
 		 * accessible registers.
 		 *
-		 * The ChainDMA uses 2x 1ms ping-pong buffer, dai side starts
-		 * when 1ms data is available
+		 * The ChainDMA prefills the link DMA with a preamble
+		 * of zero samples. Set the stream start offset based
+		 * on size of the preamble (driver provided fifo size
+		 * multiplied by 2.5). We add 1ms of margin as the FW
+		 * will align the buffer size to DMA hardware
+		 * alignment that is not known to host.
 		 */
-		time_info->stream_start_offset = substream->runtime->rate / MSEC_PER_SEC;
+		int pre_ms = SOF_IPC4_CHAIN_DMA_BUF_SIZE_MS * 5 / 2 + 1;
+
+		time_info->stream_start_offset = pre_ms * substream->runtime->rate / MSEC_PER_SEC;
 		goto out;
 	}
 
