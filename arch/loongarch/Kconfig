@@ -639,6 +639,7 @@ config ARCH_SUPPORTS_KEXEC_FILE
 config ARCH_SELECTS_KEXEC_FILE
 	def_bool 64BIT
 	depends on KEXEC_FILE
+	select KEXEC_ELF
 	select RELOCATABLE
 	select HAVE_IMA_KEXEC if IMA
 
