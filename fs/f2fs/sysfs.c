@@ -1845,6 +1845,7 @@ static int __maybe_unused donation_list_seq_show(struct seq_file *seq,
 				(loff_t)(fi->donate_end + 1) << (PAGE_SHIFT - 10),
 				(loff_t)inode->i_mapping->nrpages << (PAGE_SHIFT - 10));
 next:
+		dput(dentry);
 		inode_unlock_shared(inode);
 		iput(inode);
 	}
