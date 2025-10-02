@@ -46,6 +46,7 @@ obj-$(CONFIG_CRYPTO_AES_NI_INTEL) += aesni-intel.o
 aesni-intel-y := aesni-intel_asm.o aesni-intel_glue.o
 aesni-intel-$(CONFIG_64BIT) += aes-ctr-avx-x86_64.o \
 			       aes-gcm-aesni-x86_64.o \
+			       aes-gcm-vaes-avx2.o \
 			       aes-xts-avx-x86_64.o \
 			       aes-gcm-avx10-x86_64.o
 
