@@ -322,7 +322,7 @@ retry_open:
 		list_for_each_entry(parent_cfid, &tcon->cfids->entries, entry) {
 			if (parent_cfid->dentry == direntry->d_parent) {
 				cifs_dbg(FYI, "found a parent cached file handle\n");
-				if (parent_cfid->has_lease && parent_cfid->time) {
+				if (is_valid_cached_dir(parent_cfid)) {
 					lease_flags
 						|= SMB2_LEASE_FLAG_PARENT_LEASE_KEY_SET_LE;
 					memcpy(fid->parent_lease_key,
