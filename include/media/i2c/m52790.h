@@ -2,7 +2,7 @@
 /*
     m52790.h - definition for m52790 inputs and outputs
 
-    Copyright (C) 2007 Hans Verkuil (hverkuil@xs4all.nl)
+    Copyright (C) 2007 Hans Verkuil (hverkuil@kernel.org)
 
 */
 

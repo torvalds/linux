@@ -42,13 +42,13 @@ ssize_t vivid_radio_rx_read(struct file *file, char __user *buf,
 	if (mutex_lock_interruptible(&dev->mutex))
 		return -ERESTARTSYS;
 	if (dev->radio_rx_rds_owner &&
-	    file->private_data != dev->radio_rx_rds_owner) {
+	    file_to_v4l2_fh(file) != dev->radio_rx_rds_owner) {
 		mutex_unlock(&dev->mutex);
 		return -EBUSY;
 	}
 	if (dev->radio_rx_rds_owner == NULL) {
 		vivid_radio_rds_init(dev);
-		dev->radio_rx_rds_owner = file->private_data;
+		dev->radio_rx_rds_owner = file_to_v4l2_fh(file);
 	}
 
 retry:
@@ -133,7 +133,7 @@ __poll_t vivid_radio_rx_poll(struct file *file, struct poll_table_struct *wait)
 	return EPOLLIN | EPOLLRDNORM | v4l2_ctrl_poll(file, wait);
 }
 
-int vivid_radio_rx_enum_freq_bands(struct file *file, void *fh, struct v4l2_frequency_band *band)
+int vivid_radio_rx_enum_freq_bands(struct file *file, void *priv, struct v4l2_frequency_band *band)
 {
 	if (band->tuner != 0)
 		return -EINVAL;
@@ -145,7 +145,7 @@ int vivid_radio_rx_enum_freq_bands(struct file *file, void *fh, struct v4l2_freq
 	return 0;
 }
 
-int vivid_radio_rx_s_hw_freq_seek(struct file *file, void *fh, const struct v4l2_hw_freq_seek *a)
+int vivid_radio_rx_s_hw_freq_seek(struct file *file, void *priv, const struct v4l2_hw_freq_seek *a)
 {
 	struct vivid_dev *dev = video_drvdata(file);
 	unsigned low, high;
@@ -214,7 +214,7 @@ int vivid_radio_rx_s_hw_freq_seek(struct file *file, void *fh, const struct v4l2
 	return 0;
 }
 
-int vivid_radio_rx_g_tuner(struct file *file, void *fh, struct v4l2_tuner *vt)
+int vivid_radio_rx_g_tuner(struct file *file, void *priv, struct v4l2_tuner *vt)
 {
 	struct vivid_dev *dev = video_drvdata(file);
 	int delta = 800;
@@ -267,7 +267,7 @@ int vivid_radio_rx_g_tuner(struct file *file, void *fh, struct v4l2_tuner *vt)
 	return 0;
 }
 
-int vivid_radio_rx_s_tuner(struct file *file, void *fh, const struct v4l2_tuner *vt)
+int vivid_radio_rx_s_tuner(struct file *file, void *priv, const struct v4l2_tuner *vt)
 {
 	struct vivid_dev *dev = video_drvdata(file);
 

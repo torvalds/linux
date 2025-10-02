@@ -1236,7 +1236,7 @@ static int vidioc_g_fbuf(struct file *file, void *fh,
 	return 0;
 }
 
-static int vidioc_enum_output(struct file *file, void *priv_fh,
+static int vidioc_enum_output(struct file *file, void *priv,
 			      struct v4l2_output *out)
 {
 	if (out->index)
@@ -1246,13 +1246,13 @@ static int vidioc_enum_output(struct file *file, void *priv_fh,
 	return 0;
 }
 
-static int vidioc_g_output(struct file *file, void *priv_fh, unsigned int *i)
+static int vidioc_g_output(struct file *file, void *priv, unsigned int *i)
 {
 	*i = 0;
 	return 0;
 }
 
-static int vidioc_s_output(struct file *file, void *priv_fh, unsigned int i)
+static int vidioc_s_output(struct file *file, void *priv, unsigned int i)
 {
 	return i ? -EINVAL : 0;
 }

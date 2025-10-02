@@ -83,11 +83,6 @@ static struct cedrus_format cedrus_formats[] = {
 
 #define CEDRUS_FORMATS_COUNT	ARRAY_SIZE(cedrus_formats)
 
-static inline struct cedrus_ctx *cedrus_file2ctx(struct file *file)
-{
-	return container_of(file->private_data, struct cedrus_ctx, fh);
-}
-
 static struct cedrus_format *cedrus_find_format(struct cedrus_ctx *ctx,
 						u32 pixelformat, u32 directions)
 {

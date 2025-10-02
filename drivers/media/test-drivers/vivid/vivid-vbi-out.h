@@ -13,9 +13,9 @@ int vidioc_g_fmt_vbi_out(struct file *file, void *priv,
 					struct v4l2_format *f);
 int vidioc_s_fmt_vbi_out(struct file *file, void *priv,
 					struct v4l2_format *f);
-int vidioc_g_fmt_sliced_vbi_out(struct file *file, void *fh, struct v4l2_format *fmt);
-int vidioc_try_fmt_sliced_vbi_out(struct file *file, void *fh, struct v4l2_format *fmt);
-int vidioc_s_fmt_sliced_vbi_out(struct file *file, void *fh, struct v4l2_format *fmt);
+int vidioc_g_fmt_sliced_vbi_out(struct file *file, void *priv, struct v4l2_format *fmt);
+int vidioc_try_fmt_sliced_vbi_out(struct file *file, void *priv, struct v4l2_format *fmt);
+int vidioc_s_fmt_sliced_vbi_out(struct file *file, void *priv, struct v4l2_format *fmt);
 
 extern const struct vb2_ops vivid_vbi_out_qops;
 

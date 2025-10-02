@@ -245,7 +245,7 @@ static int zoran_set_input(struct zoran *zr, int input)
  *   ioctl routine
  */
 
-static int zoran_querycap(struct file *file, void *__fh, struct v4l2_capability *cap)
+static int zoran_querycap(struct file *file, void *fh, struct v4l2_capability *cap)
 {
 	struct zoran *zr = video_drvdata(file);
 
@@ -278,7 +278,7 @@ static int zoran_enum_fmt(struct zoran *zr, struct v4l2_fmtdesc *fmt, int flag)
 	return -EINVAL;
 }
 
-static int zoran_enum_fmt_vid_cap(struct file *file, void *__fh,
+static int zoran_enum_fmt_vid_cap(struct file *file, void *fh,
 				  struct v4l2_fmtdesc *f)
 {
 	struct zoran *zr = video_drvdata(file);
@@ -286,7 +286,7 @@ static int zoran_enum_fmt_vid_cap(struct file *file, void *__fh,
 	return zoran_enum_fmt(zr, f, ZORAN_FORMAT_CAPTURE);
 }
 
-static int zoran_g_fmt_vid_out(struct file *file, void *__fh,
+static int zoran_g_fmt_vid_out(struct file *file, void *fh,
 			       struct v4l2_format *fmt)
 {
 	struct zoran *zr = video_drvdata(file);
@@ -308,13 +308,13 @@ static int zoran_g_fmt_vid_out(struct file *file, void *__fh,
 	return 0;
 }
 
-static int zoran_g_fmt_vid_cap(struct file *file, void *__fh,
+static int zoran_g_fmt_vid_cap(struct file *file, void *fh,
 			       struct v4l2_format *fmt)
 {
 	struct zoran *zr = video_drvdata(file);
 
 	if (zr->map_mode != ZORAN_MAP_MODE_RAW)
-		return zoran_g_fmt_vid_out(file, __fh, fmt);
+		return zoran_g_fmt_vid_out(file, fh, fmt);
 	fmt->fmt.pix.width = zr->v4l_settings.width;
 	fmt->fmt.pix.height = zr->v4l_settings.height;
 	fmt->fmt.pix.sizeimage = zr->buffer_size;
@@ -328,7 +328,7 @@ static int zoran_g_fmt_vid_cap(struct file *file, void *__fh,
 	return 0;
 }
 
-static int zoran_try_fmt_vid_out(struct file *file, void *__fh,
+static int zoran_try_fmt_vid_out(struct file *file, void *fh,
 				 struct v4l2_format *fmt)
 {
 	struct zoran *zr = video_drvdata(file);
@@ -391,7 +391,7 @@ static int zoran_try_fmt_vid_out(struct file *file, void *__fh,
 	return res;
 }
 
-static int zoran_try_fmt_vid_cap(struct file *file, void *__fh,
+static int zoran_try_fmt_vid_cap(struct file *file, void *fh,
 				 struct v4l2_format *fmt)
 {
 	struct zoran *zr = video_drvdata(file);
@@ -399,7 +399,7 @@ static int zoran_try_fmt_vid_cap(struct file *file, void *__fh,
 	int i;
 
 	if (fmt->fmt.pix.pixelformat == V4L2_PIX_FMT_MJPEG)
-		return zoran_try_fmt_vid_out(file, __fh, fmt);
+		return zoran_try_fmt_vid_out(file, fh, fmt);
 
 	for (i = 0; i < NUM_FORMATS; i++)
 		if (zoran_formats[i].fourcc == fmt->fmt.pix.pixelformat)
@@ -427,7 +427,7 @@ static int zoran_try_fmt_vid_cap(struct file *file, void *__fh,
 	return 0;
 }
 
-static int zoran_s_fmt_vid_out(struct file *file, void *__fh,
+static int zoran_s_fmt_vid_out(struct file *file, void *fh,
 			       struct v4l2_format *fmt)
 {
 	struct zoran *zr = video_drvdata(file);
@@ -507,11 +507,10 @@ static int zoran_s_fmt_vid_out(struct file *file, void *__fh,
 	return res;
 }
 
-static int zoran_s_fmt_vid_cap(struct file *file, void *__fh,
+static int zoran_s_fmt_vid_cap(struct file *file, void *fh,
 			       struct v4l2_format *fmt)
 {
 	struct zoran *zr = video_drvdata(file);
-	struct zoran_fh *fh = __fh;
 	int i;
 	int res = 0;
 
@@ -556,7 +555,7 @@ static int zoran_s_fmt_vid_cap(struct file *file, void *__fh,
 	return res;
 }
 
-static int zoran_g_std(struct file *file, void *__fh, v4l2_std_id *std)
+static int zoran_g_std(struct file *file, void *fh, v4l2_std_id *std)
 {
 	struct zoran *zr = video_drvdata(file);
 
@@ -564,7 +563,7 @@ static int zoran_g_std(struct file *file, void *__fh, v4l2_std_id *std)
 	return 0;
 }
 
-static int zoran_s_std(struct file *file, void *__fh, v4l2_std_id std)
+static int zoran_s_std(struct file *file, void *fh, v4l2_std_id std)
 {
 	struct zoran *zr = video_drvdata(file);
 	int res = 0;
@@ -579,7 +578,7 @@ static int zoran_s_std(struct file *file, void *__fh, v4l2_std_id std)
 	return res;
 }
 
-static int zoran_enum_input(struct file *file, void *__fh,
+static int zoran_enum_input(struct file *file, void *fh,
 			    struct v4l2_input *inp)
 {
 	struct zoran *zr = video_drvdata(file);
@@ -596,7 +595,7 @@ static int zoran_enum_input(struct file *file, void *__fh,
 	return 0;
 }
 
-static int zoran_g_input(struct file *file, void *__fh, unsigned int *input)
+static int zoran_g_input(struct file *file, void *fh, unsigned int *input)
 {
 	struct zoran *zr = video_drvdata(file);
 
@@ -605,7 +604,7 @@ static int zoran_g_input(struct file *file, void *__fh, unsigned int *input)
 	return 0;
 }
 
-static int zoran_s_input(struct file *file, void *__fh, unsigned int input)
+static int zoran_s_input(struct file *file, void *fh, unsigned int input)
 {
 	struct zoran *zr = video_drvdata(file);
 	int res;
@@ -618,7 +617,7 @@ static int zoran_s_input(struct file *file, void *__fh, unsigned int input)
 }
 
 /* cropping (sub-frame capture) */
-static int zoran_g_selection(struct file *file, void *__fh, struct v4l2_selection *sel)
+static int zoran_g_selection(struct file *file, void *fh, struct v4l2_selection *sel)
 {
 	struct zoran *zr = video_drvdata(file);
 
@@ -653,7 +652,7 @@ static int zoran_g_selection(struct file *file, void *__fh, struct v4l2_selectio
 	return 0;
 }
 
-static int zoran_s_selection(struct file *file, void *__fh, struct v4l2_selection *sel)
+static int zoran_s_selection(struct file *file, void *fh, struct v4l2_selection *sel)
 {
 	struct zoran *zr = video_drvdata(file);
 	struct zoran_jpg_settings settings;

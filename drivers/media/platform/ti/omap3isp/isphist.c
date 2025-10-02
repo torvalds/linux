@@ -456,7 +456,7 @@ static const struct ispstat_ops hist_ops = {
 static const struct v4l2_subdev_core_ops hist_subdev_core_ops = {
 	.ioctl = hist_ioctl,
 	.subscribe_event = omap3isp_stat_subscribe_event,
-	.unsubscribe_event = omap3isp_stat_unsubscribe_event,
+	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
 };
 
 static const struct v4l2_subdev_video_ops hist_subdev_video_ops = {
