@@ -1081,17 +1081,6 @@
 	RET
 .endm
 
-_set_veclen 32
-SYM_FUNC_START(aes_gcm_precompute_vaes_avx10_256)
-	_aes_gcm_precompute
-SYM_FUNC_END(aes_gcm_precompute_vaes_avx10_256)
-SYM_FUNC_START(aes_gcm_enc_update_vaes_avx10_256)
-	_aes_gcm_update	1
-SYM_FUNC_END(aes_gcm_enc_update_vaes_avx10_256)
-SYM_FUNC_START(aes_gcm_dec_update_vaes_avx10_256)
-	_aes_gcm_update	0
-SYM_FUNC_END(aes_gcm_dec_update_vaes_avx10_256)
-
 _set_veclen 64
 SYM_FUNC_START(aes_gcm_precompute_vaes_avx10_512)
 	_aes_gcm_precompute
