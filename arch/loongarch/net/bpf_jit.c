@@ -1502,11 +1502,10 @@ static int __arch_prepare_bpf_trampoline(struct jit_ctx *ctx, struct bpf_tramp_i
 	stack_size += 16;
 
 	save_ret = flags & (BPF_TRAMP_F_CALL_ORIG | BPF_TRAMP_F_RET_FENTRY_RET);
-	if (save_ret) {
-		/* Save BPF R0 and A0 */
-		stack_size += 16;
-		retval_off = stack_size;
-	}
+	if (save_ret)
+		stack_size += 16; /* Save BPF R0 and A0 */
+
+	retval_off = stack_size;
 
 	/* Room of trampoline frame to store args */
 	nargs = m->nr_args;
