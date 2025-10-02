@@ -398,11 +398,11 @@ static int do_proc_douintvec_conv(unsigned long *lvalp,
 
 static const char proc_wspace_sep[] = { ' ', '\t', '\n' };
 
-static int __do_proc_dointvec(const struct ctl_table *table, int write,
-			      void *buffer, size_t *lenp, loff_t *ppos,
-			      int (*conv)(bool *negp, unsigned long *lvalp,
-					  int *valp, int write,
-					  const struct ctl_table *table))
+
+static int do_proc_dointvec(const struct ctl_table *table, int write,
+		  void *buffer, size_t *lenp, loff_t *ppos,
+		  int (*conv)(bool *negp, unsigned long *lvalp, int *valp,
+			      int write, const struct ctl_table *table))
 {
 	int *i, vleft, first = 1, err = 0;
 	size_t left;
@@ -470,14 +470,6 @@ out:
 	return err;
 }
 
-static int do_proc_dointvec(const struct ctl_table *table, int write,
-		  void *buffer, size_t *lenp, loff_t *ppos,
-		  int (*conv)(bool *negp, unsigned long *lvalp, int *valp,
-			      int write, const struct ctl_table *table))
-{
-	return __do_proc_dointvec(table, write, buffer, lenp, ppos, conv);
-}
-
 static int do_proc_douintvec_w(const struct ctl_table *table, void *buffer,
 			       size_t *lenp, loff_t *ppos,
 			       int (*conv)(unsigned long *lvalp,
@@ -526,7 +518,6 @@ out_free:
 
 	return 0;
 
-	/* This is in keeping with old __do_proc_dointvec() */
 bail_early:
 	*ppos += *lenp;
 	return err;
@@ -562,11 +553,10 @@ out:
 	return err;
 }
 
-static int __do_proc_douintvec(const struct ctl_table *table, int write,
-			       void *buffer, size_t *lenp, loff_t *ppos,
-			       int (*conv)(unsigned long *lvalp,
-					   unsigned int *valp, int write,
-					   const struct ctl_table *table))
+int do_proc_douintvec(const struct ctl_table *table, int write, void *buffer,
+		      size_t *lenp, loff_t *ppos,
+		      int (*conv)(unsigned long *lvalp, unsigned int *valp,
+				  int write, const struct ctl_table *table))
 {
 	unsigned int vleft;
 
@@ -592,15 +582,6 @@ static int __do_proc_douintvec(const struct ctl_table *table, int write,
 	if (write)
 		return do_proc_douintvec_w(table, buffer, lenp, ppos, conv);
 	return do_proc_douintvec_r(table, buffer, lenp, ppos, conv);
-}
-
-int do_proc_douintvec(const struct ctl_table *table, int write,
-		      void *buffer, size_t *lenp, loff_t *ppos,
-		      int (*conv)(unsigned long *lvalp,
-				  unsigned int *valp, int write,
-				  const struct ctl_table *table))
-{
-	return __do_proc_douintvec(table, write, buffer, lenp, ppos, conv);
 }
 
 /**
@@ -831,9 +812,10 @@ int proc_dou8vec_minmax(const struct ctl_table *table, int write,
 }
 EXPORT_SYMBOL_GPL(proc_dou8vec_minmax);
 
-static int __do_proc_doulongvec_minmax(const struct ctl_table *table,
-		int write, void *buffer, size_t *lenp, loff_t *ppos,
-		unsigned long convmul, unsigned long convdiv)
+static int do_proc_doulongvec_minmax(const struct ctl_table *table, int write,
+				     void *buffer, size_t *lenp, loff_t *ppos,
+				     unsigned long convmul,
+				     unsigned long convdiv)
 {
 	unsigned long *i, *min, *max;
 	int vleft, first = 1, err = 0;
@@ -902,14 +884,6 @@ static int __do_proc_doulongvec_minmax(const struct ctl_table *table,
 out:
 	*ppos += *lenp;
 	return err;
-}
-
-static int do_proc_doulongvec_minmax(const struct ctl_table *table, int write,
-		void *buffer, size_t *lenp, loff_t *ppos, unsigned long convmul,
-		unsigned long convdiv)
-{
-	return __do_proc_doulongvec_minmax(table, write, buffer, lenp, ppos,
-					   convmul, convdiv);
 }
 
 /**
