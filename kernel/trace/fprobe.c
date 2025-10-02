@@ -847,4 +847,4 @@ static int __init fprobe_initcall(void)
 	rhltable_init(&fprobe_ip_table, &fprobe_rht_params);
 	return 0;
 }
-late_initcall(fprobe_initcall);
+core_initcall(fprobe_initcall);
