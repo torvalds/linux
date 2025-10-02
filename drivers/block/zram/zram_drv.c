@@ -1085,7 +1085,7 @@ static int read_from_bdev_sync(struct zram *zram, struct page *page,
 	work.entry = entry;
 
 	INIT_WORK_ONSTACK(&work.work, zram_sync_read);
-	queue_work(system_unbound_wq, &work.work);
+	queue_work(system_dfl_wq, &work.work);
 	flush_work(&work.work);
 	destroy_work_on_stack(&work.work);
 

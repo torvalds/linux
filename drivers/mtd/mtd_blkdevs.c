@@ -246,9 +246,9 @@ unlock:
 	blktrans_dev_put(dev);
 }
 
-static int blktrans_getgeo(struct block_device *bdev, struct hd_geometry *geo)
+static int blktrans_getgeo(struct gendisk *disk, struct hd_geometry *geo)
 {
-	struct mtd_blktrans_dev *dev = bdev->bd_disk->private_data;
+	struct mtd_blktrans_dev *dev = disk->private_data;
 	int ret = -ENXIO;
 
 	mutex_lock(&dev->lock);

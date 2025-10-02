@@ -954,7 +954,7 @@ static DEF_SCSI_QCMD(imm_queuecommand)
  * be done in sd.c.  Even if it gets fixed there, this will still
  * work.
  */
-static int imm_biosparam(struct scsi_device *sdev, struct block_device *dev,
+static int imm_biosparam(struct scsi_device *sdev, struct gendisk *unused,
 			 sector_t capacity, int ip[])
 {
 	ip[0] = 0x40;

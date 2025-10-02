@@ -3955,9 +3955,11 @@ static int __load_dirty_region_bitmap(struct raid_set *rs)
 	    !test_and_set_bit(RT_FLAG_RS_BITMAP_LOADED, &rs->runtime_flags)) {
 		struct mddev *mddev = &rs->md;
 
-		r = mddev->bitmap_ops->load(mddev);
-		if (r)
-			DMERR("Failed to load bitmap");
+		if (md_bitmap_enabled(mddev, false)) {
+			r = mddev->bitmap_ops->load(mddev);
+			if (r)
+				DMERR("Failed to load bitmap");
+		}
 	}
 
 	return r;
@@ -4072,10 +4074,12 @@ static int raid_preresume(struct dm_target *ti)
 	       mddev->bitmap_info.chunksize != to_bytes(rs->requested_bitmap_chunk_sectors)))) {
 		int chunksize = to_bytes(rs->requested_bitmap_chunk_sectors) ?: mddev->bitmap_info.chunksize;
 
-		r = mddev->bitmap_ops->resize(mddev, mddev->dev_sectors,
-					      chunksize, false);
-		if (r)
-			DMERR("Failed to resize bitmap");
+		if (md_bitmap_enabled(mddev, false)) {
+			r = mddev->bitmap_ops->resize(mddev, mddev->dev_sectors,
+						      chunksize);
+			if (r)
+				DMERR("Failed to resize bitmap");
+		}
 	}
 
 	/* Check for any resize/reshape on @rs and adjust/initiate */
