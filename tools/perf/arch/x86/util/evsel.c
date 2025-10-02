@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include "util/evlist.h"
 #include "util/evsel.h"
+#include "util/evsel_config.h"
 #include "util/env.h"
 #include "util/pmu.h"
 #include "util/pmus.h"
@@ -69,6 +70,57 @@ int arch_evsel__hw_name(struct evsel *evsel, char *bf, size_t size)
 	return scnprintf(bf, size, "%s/%s/",
 			 evsel->pmu ? evsel->pmu->name : "cpu",
 			 event_name);
+}
+
+void arch_evsel__apply_ratio_to_prev(struct evsel *evsel,
+				struct perf_event_attr *attr)
+{
+	struct perf_event_attr *prev_attr = NULL;
+	struct evsel *evsel_prev = NULL;
+	const char *name = "acr_mask";
+	int evsel_idx = 0;
+	__u64 ev_mask, pr_ev_mask;
+
+	if (!perf_pmu__has_format(evsel->pmu, name)) {
+		pr_err("'%s' does not have acr_mask format support\n", evsel->pmu->name);
+		return;
+	}
+	if (perf_pmu__format_type(evsel->pmu, name) !=
+			PERF_PMU_FORMAT_VALUE_CONFIG2) {
+		pr_err("'%s' does not have config2 format support\n", evsel->pmu->name);
+		return;
+	}
+
+	evsel_prev = evsel__prev(evsel);
+	if (!evsel_prev) {
+		pr_err("Previous event does not exist.\n");
+		return;
+	}
+
+	prev_attr = &evsel_prev->core.attr;
+
+	if (prev_attr->config2) {
+		pr_err("'%s' has set config2 (acr_mask?) already, configuration not supported\n", evsel_prev->name);
+		return;
+	}
+
+	/*
+	 * acr_mask (config2) is calculated using the event's index in
+	 * the event group. The first event will use the index of the
+	 * second event as its mask (e.g., 0x2), indicating that the
+	 * second event counter will be reset and a sample taken for
+	 * the first event if its counter overflows. The second event
+	 * will use the mask consisting of the first and second bits
+	 * (e.g., 0x3), meaning both counters will be reset if the
+	 * second event counter overflows.
+	 */
+
+	evsel_idx = evsel__group_idx(evsel);
+	ev_mask = 1ull << evsel_idx;
+	pr_ev_mask = 1ull << (evsel_idx - 1);
+
+	prev_attr->config2 = ev_mask;
+	attr->config2 = ev_mask | pr_ev_mask;
 }
 
 static void ibs_l3miss_warn(void)
