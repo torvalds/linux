@@ -42,6 +42,7 @@ static inline bool peers(const struct mount *m1, const struct mount *m2)
 }
 
 void change_mnt_propagation(struct mount *, int);
+void bulk_make_private(struct list_head *);
 int propagate_mnt(struct mount *, struct mountpoint *, struct mount *,
 		struct hlist_head *);
 void propagate_umount(struct list_head *);
