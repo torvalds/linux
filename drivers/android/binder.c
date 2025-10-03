@@ -2418,10 +2418,10 @@ err_fd_not_accepted:
 
 /**
  * struct binder_ptr_fixup - data to be fixed-up in target buffer
- * @offset	offset in target buffer to fixup
- * @skip_size	bytes to skip in copy (fixup will be written later)
- * @fixup_data	data to write at fixup offset
- * @node	list node
+ * @offset:      offset in target buffer to fixup
+ * @skip_size:   bytes to skip in copy (fixup will be written later)
+ * @fixup_data:  data to write at fixup offset
+ * @node:        list node
  *
  * This is used for the pointer fixup list (pf) which is created and consumed
  * during binder_transaction() and is only accessed locally. No
@@ -2438,10 +2438,10 @@ struct binder_ptr_fixup {
 
 /**
  * struct binder_sg_copy - scatter-gather data to be copied
- * @offset		offset in target buffer
- * @sender_uaddr	user address in source buffer
- * @length		bytes to copy
- * @node		list node
+ * @offset:        offset in target buffer
+ * @sender_uaddr:  user address in source buffer
+ * @length:        bytes to copy
+ * @node:          list node
  *
  * This is used for the sg copy list (sgc) which is created and consumed
  * during binder_transaction() and is only accessed locally. No
@@ -4063,14 +4063,15 @@ binder_freeze_notification_done(struct binder_proc *proc,
 
 /**
  * binder_free_buf() - free the specified buffer
- * @proc:	binder proc that owns buffer
- * @buffer:	buffer to be freed
- * @is_failure:	failed to send transaction
+ * @proc:       binder proc that owns buffer
+ * @thread:     binder thread performing the buffer release
+ * @buffer:     buffer to be freed
+ * @is_failure: failed to send transaction
  *
- * If buffer for an async transaction, enqueue the next async
+ * If the buffer is for an async transaction, enqueue the next async
  * transaction from the node.
  *
- * Cleanup buffer and free it.
+ * Cleanup the buffer and free it.
  */
 static void
 binder_free_buf(struct binder_proc *proc,
