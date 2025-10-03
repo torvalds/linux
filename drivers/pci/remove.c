@@ -140,6 +140,7 @@ static void pci_remove_bus_device(struct pci_dev *dev)
  */
 void pci_stop_and_remove_bus_device(struct pci_dev *dev)
 {
+	lockdep_assert_held(&pci_rescan_remove_lock);
 	pci_stop_bus_device(dev);
 	pci_remove_bus_device(dev);
 }
