@@ -226,14 +226,14 @@ static u8 vram_bo_flag_to_tile_id(struct xe_device *xe, u32 vram_bo_flag)
 	return __ffs(vram_bo_flag >> (__ffs(XE_BO_FLAG_VRAM0) - 1)) - 1;
 }
 
-static u32 bo_vram_flags_to_vram_placement(struct xe_device *xe, u32 vram_flag,
+static u32 bo_vram_flags_to_vram_placement(struct xe_device *xe, u32 bo_flags, u32 vram_flag,
 					   enum ttm_bo_type type)
 {
 	u8 tile_id = vram_bo_flag_to_tile_id(xe, vram_flag);
 
 	xe_assert(xe, tile_id < xe->info.tile_count);
 
-	if (type == ttm_bo_type_kernel)
+	if (type == ttm_bo_type_kernel && !(bo_flags & XE_BO_FLAG_FORCE_USER_VRAM))
 		return xe->tiles[tile_id].mem.kernel_vram->placement;
 	else
 		return xe->tiles[tile_id].mem.vram->placement;
@@ -276,7 +276,7 @@ static void try_add_vram(struct xe_device *xe, struct xe_bo *bo,
 	u32 vram_flag;
 
 	for_each_set_bo_vram_flag(vram_flag, bo_flags) {
-		u32 pl = bo_vram_flags_to_vram_placement(xe, vram_flag, type);
+		u32 pl = bo_vram_flags_to_vram_placement(xe, bo_flags, vram_flag, type);
 
 		add_vram(xe, bo, bo->placements, bo_flags, pl, c);
 	}
@@ -2275,7 +2275,7 @@ static int __xe_bo_fixed_placement(struct xe_device *xe,
 	if (flags & XE_BO_FLAG_STOLEN)
 		place->mem_type = XE_PL_STOLEN;
 	else
-		place->mem_type = bo_vram_flags_to_vram_placement(xe, vram_flag, type);
+		place->mem_type = bo_vram_flags_to_vram_placement(xe, flags, vram_flag, type);
 
 	bo->placement = (struct ttm_placement) {
 		.num_placement = 1,
