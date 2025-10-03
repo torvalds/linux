@@ -1801,10 +1801,8 @@ static const struct mtk_pin_reg_calc mt8196_reg_cals[PINCTRL_PIN_REG_MAX] = {
 };
 
 static const char * const mt8196_pinctrl_register_base_names[] = {
-	"iocfg0", "iocfg_rt", "iocfg_rm1", "iocfg_rm2",
-	"iocfg_rb", "iocfg_bm1", "iocfg_bm2", "iocfg_bm3",
-	"iocfg_lt", "iocfg_lm1", "iocfg_lm2", "iocfg_lb1",
-	"iocfg_lb2", "iocfg_tm1", "iocfg_tm2", "iocfg_tm3",
+	"base", "rt", "rm1", "rm2", "rb", "bm1", "bm2", "bm3",
+	"lt", "lm1", "lm2", "lb1", "lb2", "tm1", "tm2", "tm3",
 };
 
 static const struct mtk_eint_hw mt8196_eint_hw = {
