@@ -1087,7 +1087,7 @@ static bool all_timings_support_drr(const struct dml2_pmo_instance *pmo,
 
 			/* check required stretch is allowed */
 			if (stream_descriptor->timing.drr_config.max_instant_vtotal_delta > 0 &&
-					stream_pstate_meta->method_drr.stretched_vtotal - stream_pstate_meta->nom_vtotal > stream_descriptor->timing.drr_config.max_instant_vtotal_delta) {
+					stream_pstate_meta->method_drr.stretched_vtotal - stream_pstate_meta->nom_vtotal > (int)stream_descriptor->timing.drr_config.max_instant_vtotal_delta) {
 				return false;
 			}
 		}
@@ -1669,15 +1669,15 @@ static int get_vactive_pstate_margin(const struct display_configuation_with_meta
 	return min_vactive_margin_us;
 }
 
-static unsigned int get_vactive_det_fill_latency_delay_us(const struct display_configuation_with_meta *display_cfg, int plane_mask)
+static int get_vactive_det_fill_latency_delay_us(const struct display_configuation_with_meta *display_cfg, int plane_mask)
 {
 	unsigned char i;
-	unsigned int max_vactive_fill_us = 0;
+	int max_vactive_fill_us = 0;
 
 	for (i = 0; i < DML2_MAX_PLANES; i++) {
 		if (is_bit_set_in_bitfield(plane_mask, i)) {
-			if (display_cfg->mode_support_result.cfg_support_info.plane_support_info[i].dram_change_vactive_det_fill_delay_us > max_vactive_fill_us)
-				max_vactive_fill_us = display_cfg->mode_support_result.cfg_support_info.plane_support_info[i].dram_change_vactive_det_fill_delay_us;
+			if (display_cfg->mode_support_result.cfg_support_info.plane_support_info[i].vactive_det_fill_delay_us[dml2_pstate_type_uclk] > max_vactive_fill_us)
+				max_vactive_fill_us = display_cfg->mode_support_result.cfg_support_info.plane_support_info[i].vactive_det_fill_delay_us[dml2_pstate_type_uclk];
 		}
 	}
 
@@ -2095,7 +2095,7 @@ static void setup_planes_for_vactive_by_mask(struct display_configuation_with_me
 			display_config->stage3.pstate_switch_modes[plane_index] = dml2_pstate_method_vactive;
 
 			if (!pmo->options->disable_vactive_det_fill_bw_pad) {
-				display_config->display_config.plane_descriptors[plane_index].overrides.max_vactive_det_fill_delay_us =
+				display_config->display_config.plane_descriptors[plane_index].overrides.max_vactive_det_fill_delay_us[dml2_pstate_type_uclk] =
 					(unsigned int)math_floor(pmo->scratch.pmo_dcn4.stream_pstate_meta[stream_index].method_vactive.max_vactive_det_fill_delay_us);
 			}
 		}
@@ -2116,7 +2116,7 @@ static void setup_planes_for_vactive_drr_by_mask(struct display_configuation_wit
 			display_config->stage3.pstate_switch_modes[plane_index] = dml2_pstate_method_fw_vactive_drr;
 
 			if (!pmo->options->disable_vactive_det_fill_bw_pad) {
-				display_config->display_config.plane_descriptors[plane_index].overrides.max_vactive_det_fill_delay_us =
+				display_config->display_config.plane_descriptors[plane_index].overrides.max_vactive_det_fill_delay_us[dml2_pstate_type_uclk] =
 					(unsigned int)math_floor(pmo->scratch.pmo_dcn4.stream_pstate_meta[stream_index].method_vactive.max_vactive_det_fill_delay_us);
 			}
 		}

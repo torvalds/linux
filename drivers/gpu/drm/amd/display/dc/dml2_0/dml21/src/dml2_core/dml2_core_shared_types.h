@@ -593,7 +593,7 @@ struct dml2_core_internal_mode_support {
 	double VActiveLatencyHidingMargin[DML2_MAX_PLANES];
 	double VActiveLatencyHidingUs[DML2_MAX_PLANES];
 	unsigned int MaxVStartupLines[DML2_MAX_PLANES];
-	double dram_change_vactive_det_fill_delay_us[DML2_MAX_PLANES];
+	double pstate_vactive_det_fill_delay_us[dml2_pstate_type_count][DML2_MAX_PLANES];
 
 	unsigned int num_mcaches_l[DML2_MAX_PLANES];
 	unsigned int mcache_row_bytes_l[DML2_MAX_PLANES];
@@ -623,8 +623,8 @@ struct dml2_core_internal_mode_support {
 	unsigned int dpte_row_bytes_per_row_l[DML2_MAX_PLANES];
 	unsigned int dpte_row_bytes_per_row_c[DML2_MAX_PLANES];
 
-	unsigned int pstate_bytes_required_l[DML2_MAX_PLANES];
-	unsigned int pstate_bytes_required_c[DML2_MAX_PLANES];
+	unsigned int pstate_bytes_required_l[dml2_pstate_type_count][DML2_MAX_PLANES];
+	unsigned int pstate_bytes_required_c[dml2_pstate_type_count][DML2_MAX_PLANES];
 	unsigned int cursor_bytes_per_chunk[DML2_MAX_PLANES];
 	unsigned int cursor_bytes_per_line[DML2_MAX_PLANES];
 
@@ -1138,8 +1138,8 @@ struct dml2_core_calcs_mode_support_locals {
 	unsigned int cursor_bytes[DML2_MAX_PLANES];
 	bool stream_visited[DML2_MAX_PLANES];
 
-	unsigned int pstate_bytes_required_l[DML2_MAX_PLANES];
-	unsigned int pstate_bytes_required_c[DML2_MAX_PLANES];
+	unsigned int pstate_bytes_required_l[dml2_pstate_type_count][DML2_MAX_PLANES];
+	unsigned int pstate_bytes_required_c[dml2_pstate_type_count][DML2_MAX_PLANES];
 
 	double prefetch_sw_bytes[DML2_MAX_PLANES];
 	double Tpre_rounded[DML2_MAX_PLANES];
@@ -1230,8 +1230,8 @@ struct dml2_core_calcs_mode_programming_locals {
 	double Tr0_trips_flip_rounded[DML2_MAX_PLANES];
 	unsigned int per_pipe_flip_bytes[DML2_MAX_PLANES];
 
-	unsigned int pstate_bytes_required_l[DML2_MAX_PLANES];
-	unsigned int pstate_bytes_required_c[DML2_MAX_PLANES];
+	unsigned int pstate_bytes_required_l[dml2_pstate_type_count][DML2_MAX_PLANES];
+	unsigned int pstate_bytes_required_c[dml2_pstate_type_count][DML2_MAX_PLANES];
 
 	double prefetch_sw_bytes[DML2_MAX_PLANES];
 	double Tpre_rounded[DML2_MAX_PLANES];
@@ -2253,7 +2253,7 @@ struct dml2_core_calcs_calculate_bytes_to_fetch_required_to_hide_latency_params 
 	unsigned int *swath_width_c;
 	unsigned int *swath_height_l;
 	unsigned int *swath_height_c;
-	double latency_to_hide_us;
+	double latency_to_hide_us[DML2_MAX_PLANES];
 
 	/* outputs */
 	unsigned int *bytes_required_l;

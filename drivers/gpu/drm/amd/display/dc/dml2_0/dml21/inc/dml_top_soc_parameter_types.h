@@ -191,7 +191,7 @@ struct dml2_ip_capabilities {
 	unsigned int subvp_prefetch_end_to_mall_start_us;
 	unsigned int subvp_fw_processing_delay;
 	unsigned int max_vactive_det_fill_delay_us;
-	unsigned int ppt_max_allow_delay_ns;
+	unsigned int ppt_max_allow_delay_us;
 	unsigned int temp_read_max_allow_delay_us;
 	unsigned int dummy_pstate_max_allow_delay_us;
 	/* FAMS2 delays */

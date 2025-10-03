@@ -195,14 +195,6 @@ struct dml2_mcache_surface_allocation {
 	} informative;
 };
 
-enum dml2_pstate_type {
-	dml2_pstate_type_uclk,
-	dml2_pstate_type_ppt,
-	dml2_pstate_type_temp_read,
-	dml2_pstate_type_dummy_pstate,
-	dml2_pstate_type_count
-};
-
 enum dml2_pstate_method {
 	dml2_pstate_method_na = 0,
 	/* hw exclusive modes */
