@@ -973,7 +973,8 @@ union dmub_fw_boot_options {
 		uint32_t disable_sldo_opt: 1; /**< 1 to disable SLDO optimizations */
 		uint32_t lower_hbr3_phy_ssc: 1; /**< 1 to lower hbr3 phy ssc to 0.125 percent */
 		uint32_t override_hbr3_pll_vco: 1; /**< 1 to override the hbr3 pll vco to 0 */
-		uint32_t reserved : 5; /**< reserved */
+		uint32_t disable_dpia_bw_allocation: 1; /**< 1 to disable the USB4 DPIA BW allocation */
+		uint32_t reserved : 4; /**< reserved */
 	} bits; /**< boot bits */
 	uint32_t all; /**< 32-bit access to bits */
 };
