@@ -2517,8 +2517,14 @@ static struct platform_device *pci_pwrctrl_create_device(struct pci_bus *bus, in
 	struct device_node *np;
 
 	np = of_pci_find_child_device(dev_of_node(&bus->dev), devfn);
-	if (!np || of_find_device_by_node(np))
+	if (!np)
 		return NULL;
+
+	pdev = of_find_device_by_node(np);
+	if (pdev) {
+		put_device(&pdev->dev);
+		goto err_put_of_node;
+	}
 
 	/*
 	 * First check whether the pwrctrl device really needs to be created or
@@ -2527,17 +2533,24 @@ static struct platform_device *pci_pwrctrl_create_device(struct pci_bus *bus, in
 	 */
 	if (!of_pci_supply_present(np)) {
 		pr_debug("PCI/pwrctrl: Skipping OF node: %s\n", np->name);
-		return NULL;
+		goto err_put_of_node;
 	}
 
 	/* Now create the pwrctrl device */
 	pdev = of_platform_device_create(np, NULL, &host->dev);
 	if (!pdev) {
 		pr_err("PCI/pwrctrl: Failed to create pwrctrl device for node: %s\n", np->name);
-		return NULL;
+		goto err_put_of_node;
 	}
 
+	of_node_put(np);
+
 	return pdev;
+
+err_put_of_node:
+	of_node_put(np);
+
+	return NULL;
 }
 #else
 static struct platform_device *pci_pwrctrl_create_device(struct pci_bus *bus, int devfn)
