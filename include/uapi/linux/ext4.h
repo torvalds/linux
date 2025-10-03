@@ -33,6 +33,8 @@
 #define EXT4_IOC_CHECKPOINT		_IOW('f', 43, __u32)
 #define EXT4_IOC_GETFSUUID		_IOR('f', 44, struct fsuuid)
 #define EXT4_IOC_SETFSUUID		_IOW('f', 44, struct fsuuid)
+#define EXT4_IOC_GET_TUNE_SB_PARAM	_IOR('f', 45, struct ext4_tune_sb_params)
+#define EXT4_IOC_SET_TUNE_SB_PARAM	_IOW('f', 46, struct ext4_tune_sb_params)
 
 #define EXT4_IOC_SHUTDOWN _IOR('X', 125, __u32)
 
@@ -107,6 +109,57 @@ struct ext4_new_group_input {
 	__u16 reserved_blocks;	/* Number of reserved blocks in this group */
 	__u16 unused;
 };
+
+struct ext4_tune_sb_params {
+	__u32 set_flags;
+	__u32 checkinterval;
+	__u16 errors_behavior;
+	__u16 mnt_count;
+	__u16 max_mnt_count;
+	__u16 raid_stride;
+	__u64 last_check_time;
+	__u64 reserved_blocks;
+	__u64 blocks_count;
+	__u32 default_mnt_opts;
+	__u32 reserved_uid;
+	__u32 reserved_gid;
+	__u32 raid_stripe_width;
+	__u16 encoding;
+	__u16 encoding_flags;
+	__u8  def_hash_alg;
+	__u8  pad_1;
+	__u16 pad_2;
+	__u32 feature_compat;
+	__u32 feature_incompat;
+	__u32 feature_ro_compat;
+	__u32 set_feature_compat_mask;
+	__u32 set_feature_incompat_mask;
+	__u32 set_feature_ro_compat_mask;
+	__u32 clear_feature_compat_mask;
+	__u32 clear_feature_incompat_mask;
+	__u32 clear_feature_ro_compat_mask;
+	__u8  mount_opts[64];
+	__u8  pad[64];
+};
+
+#define EXT4_TUNE_FL_ERRORS_BEHAVIOR	0x00000001
+#define EXT4_TUNE_FL_MNT_COUNT		0x00000002
+#define EXT4_TUNE_FL_MAX_MNT_COUNT	0x00000004
+#define EXT4_TUNE_FL_CHECKINTRVAL	0x00000008
+#define EXT4_TUNE_FL_LAST_CHECK_TIME	0x00000010
+#define EXT4_TUNE_FL_RESERVED_BLOCKS	0x00000020
+#define EXT4_TUNE_FL_RESERVED_UID	0x00000040
+#define EXT4_TUNE_FL_RESERVED_GID	0x00000080
+#define EXT4_TUNE_FL_DEFAULT_MNT_OPTS	0x00000100
+#define EXT4_TUNE_FL_DEF_HASH_ALG	0x00000200
+#define EXT4_TUNE_FL_RAID_STRIDE	0x00000400
+#define EXT4_TUNE_FL_RAID_STRIPE_WIDTH	0x00000800
+#define EXT4_TUNE_FL_MOUNT_OPTS		0x00001000
+#define EXT4_TUNE_FL_FEATURES		0x00002000
+#define EXT4_TUNE_FL_EDIT_FEATURES	0x00004000
+#define EXT4_TUNE_FL_FORCE_FSCK		0x00008000
+#define EXT4_TUNE_FL_ENCODING		0x00010000
+#define EXT4_TUNE_FL_ENCODING_FLAGS	0x00020000
 
 /*
  * Returned by EXT4_IOC_GET_ES_CACHE as an additional possible flag.
