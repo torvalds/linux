@@ -239,7 +239,7 @@ static void afs_edit_init_block(union afs_xdr_dir_block *meta,
  * The caller must hold the inode locked.
  */
 void afs_edit_dir_add(struct afs_vnode *vnode,
-		      struct qstr *name, struct afs_fid *new_fid,
+		      const struct qstr *name, struct afs_fid *new_fid,
 		      enum afs_edit_dir_reason why)
 {
 	union afs_xdr_dir_block *meta, *block;
@@ -391,7 +391,7 @@ error:
  * The caller must hold the inode locked.
  */
 void afs_edit_dir_remove(struct afs_vnode *vnode,
-			 struct qstr *name, enum afs_edit_dir_reason why)
+			 const struct qstr *name, enum afs_edit_dir_reason why)
 {
 	union afs_xdr_dir_block *meta, *block, *pblock;
 	union afs_xdr_dirent *de, *pde;

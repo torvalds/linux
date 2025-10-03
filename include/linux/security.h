@@ -391,7 +391,7 @@ int security_dentry_init_security(struct dentry *dentry, int mode,
 				  const char **xattr_name,
 				  struct lsm_context *lsmcxt);
 int security_dentry_create_files_as(struct dentry *dentry, int mode,
-					struct qstr *name,
+					const struct qstr *name,
 					const struct cred *old,
 					struct cred *new);
 int security_path_notify(const struct path *path, u64 mask,
@@ -872,7 +872,7 @@ static inline int security_dentry_init_security(struct dentry *dentry,
 }
 
 static inline int security_dentry_create_files_as(struct dentry *dentry,
-						  int mode, struct qstr *name,
+						  int mode, const struct qstr *name,
 						  const struct cred *old,
 						  struct cred *new)
 {

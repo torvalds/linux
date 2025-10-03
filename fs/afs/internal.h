@@ -1099,9 +1099,9 @@ int afs_single_writepages(struct address_space *mapping,
 /*
  * dir_edit.c
  */
-extern void afs_edit_dir_add(struct afs_vnode *, struct qstr *, struct afs_fid *,
+extern void afs_edit_dir_add(struct afs_vnode *, const struct qstr *, struct afs_fid *,
 			     enum afs_edit_dir_reason);
-extern void afs_edit_dir_remove(struct afs_vnode *, struct qstr *, enum afs_edit_dir_reason);
+extern void afs_edit_dir_remove(struct afs_vnode *, const struct qstr *, enum afs_edit_dir_reason);
 void afs_edit_dir_update(struct afs_vnode *vnode, const struct qstr *name,
 			 struct afs_vnode *new_dvnode, enum afs_edit_dir_reason why);
 void afs_mkdir_init_dir(struct afs_vnode *dvnode, struct afs_vnode *parent_vnode);
@@ -1114,7 +1114,7 @@ bool afs_dir_init_iter(struct afs_dir_iter *iter, const struct qstr *name);
 union afs_xdr_dir_block *afs_dir_find_block(struct afs_dir_iter *iter, size_t block);
 int afs_dir_search_bucket(struct afs_dir_iter *iter, const struct qstr *name,
 			  struct afs_fid *_fid);
-int afs_dir_search(struct afs_vnode *dvnode, struct qstr *name,
+int afs_dir_search(struct afs_vnode *dvnode, const struct qstr *name,
 		   struct afs_fid *_fid, afs_dataversion_t *_dir_version);
 
 /*

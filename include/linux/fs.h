@@ -3716,7 +3716,8 @@ int generic_ci_d_compare(const struct dentry *dentry, unsigned int len,
  *   happens when a directory is casefolded and the filesystem is strict
  *   about its encoding.
  */
-static inline bool generic_ci_validate_strict_name(struct inode *dir, struct qstr *name)
+static inline bool generic_ci_validate_strict_name(struct inode *dir,
+						   const struct qstr *name)
 {
 	if (!IS_CASEFOLDED(dir) || !sb_has_strict_encoding(dir->i_sb))
 		return true;
@@ -3731,7 +3732,8 @@ static inline bool generic_ci_validate_strict_name(struct inode *dir, struct qst
 	return !utf8_validate(dir->i_sb->s_encoding, name);
 }
 #else
-static inline bool generic_ci_validate_strict_name(struct inode *dir, struct qstr *name)
+static inline bool generic_ci_validate_strict_name(struct inode *dir,
+						   const struct qstr *name)
 {
 	return true;
 }
