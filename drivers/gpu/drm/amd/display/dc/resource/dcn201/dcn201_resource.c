@@ -629,7 +629,7 @@ static struct dpp *dcn201_dpp_create(
 	uint32_t inst)
 {
 	struct dcn201_dpp *dpp =
-		kzalloc(sizeof(struct dcn201_dpp), GFP_ATOMIC);
+		kzalloc(sizeof(struct dcn201_dpp), GFP_KERNEL);
 
 	if (!dpp)
 		return NULL;
@@ -646,7 +646,7 @@ static struct input_pixel_processor *dcn201_ipp_create(
 	struct dc_context *ctx, uint32_t inst)
 {
 	struct dcn10_ipp *ipp =
-		kzalloc(sizeof(struct dcn10_ipp), GFP_ATOMIC);
+		kzalloc(sizeof(struct dcn10_ipp), GFP_KERNEL);
 
 	if (!ipp) {
 		return NULL;
@@ -662,7 +662,7 @@ static struct output_pixel_processor *dcn201_opp_create(
 	struct dc_context *ctx, uint32_t inst)
 {
 	struct dcn201_opp *opp =
-		kzalloc(sizeof(struct dcn201_opp), GFP_ATOMIC);
+		kzalloc(sizeof(struct dcn201_opp), GFP_KERNEL);
 
 	if (!opp) {
 		return NULL;
@@ -677,7 +677,7 @@ static struct dce_aux *dcn201_aux_engine_create(struct dc_context *ctx,
 						uint32_t inst)
 {
 	struct aux_engine_dce110 *aux_engine =
-		kzalloc(sizeof(struct aux_engine_dce110), GFP_ATOMIC);
+		kzalloc(sizeof(struct aux_engine_dce110), GFP_KERNEL);
 
 	if (!aux_engine)
 		return NULL;
@@ -710,7 +710,7 @@ static struct dce_i2c_hw *dcn201_i2c_hw_create(struct dc_context *ctx,
 					       uint32_t inst)
 {
 	struct dce_i2c_hw *dce_i2c_hw =
-		kzalloc(sizeof(struct dce_i2c_hw), GFP_ATOMIC);
+		kzalloc(sizeof(struct dce_i2c_hw), GFP_KERNEL);
 
 	if (!dce_i2c_hw)
 		return NULL;
@@ -723,8 +723,7 @@ static struct dce_i2c_hw *dcn201_i2c_hw_create(struct dc_context *ctx,
 
 static struct mpc *dcn201_mpc_create(struct dc_context *ctx, uint32_t num_mpcc)
 {
-	struct dcn201_mpc *mpc201 = kzalloc(sizeof(struct dcn201_mpc),
-					    GFP_ATOMIC);
+	struct dcn201_mpc *mpc201 = kzalloc(sizeof(struct dcn201_mpc), GFP_KERNEL);
 
 	if (!mpc201)
 		return NULL;
@@ -740,8 +739,7 @@ static struct mpc *dcn201_mpc_create(struct dc_context *ctx, uint32_t num_mpcc)
 
 static struct hubbub *dcn201_hubbub_create(struct dc_context *ctx)
 {
-	struct dcn20_hubbub *hubbub = kzalloc(sizeof(struct dcn20_hubbub),
-					  GFP_ATOMIC);
+	struct dcn20_hubbub *hubbub = kzalloc(sizeof(struct dcn20_hubbub), GFP_KERNEL);
 
 	if (!hubbub)
 		return NULL;
@@ -759,7 +757,7 @@ static struct timing_generator *dcn201_timing_generator_create(
 		uint32_t instance)
 {
 	struct optc *tgn10 =
-		kzalloc(sizeof(struct optc), GFP_ATOMIC);
+		kzalloc(sizeof(struct optc), GFP_KERNEL);
 
 	if (!tgn10)
 		return NULL;
@@ -793,7 +791,7 @@ static struct link_encoder *dcn201_link_encoder_create(
 	const struct encoder_init_data *enc_init_data)
 {
 	struct dcn20_link_encoder *enc20 =
-		kzalloc(sizeof(struct dcn20_link_encoder), GFP_ATOMIC);
+		kzalloc(sizeof(struct dcn20_link_encoder), GFP_KERNEL);
 	struct dcn10_link_encoder *enc10;
 
 	if (!enc20 || enc_init_data->hpd_source >= ARRAY_SIZE(link_enc_hpd_regs))
@@ -821,7 +819,7 @@ static struct clock_source *dcn201_clock_source_create(
 	bool dp_clk_src)
 {
 	struct dce110_clk_src *clk_src =
-		kzalloc(sizeof(struct dce110_clk_src), GFP_ATOMIC);
+		kzalloc(sizeof(struct dce110_clk_src), GFP_KERNEL);
 
 	if (!clk_src)
 		return NULL;
@@ -856,7 +854,7 @@ static struct stream_encoder *dcn201_stream_encoder_create(
 	struct dc_context *ctx)
 {
 	struct dcn10_stream_encoder *enc1 =
-		kzalloc(sizeof(struct dcn10_stream_encoder), GFP_ATOMIC);
+		kzalloc(sizeof(struct dcn10_stream_encoder), GFP_KERNEL);
 
 	if (!enc1)
 		return NULL;
@@ -883,7 +881,7 @@ static const struct dce_hwseq_mask hwseq_mask = {
 static struct dce_hwseq *dcn201_hwseq_create(
 	struct dc_context *ctx)
 {
-	struct dce_hwseq *hws = kzalloc(sizeof(struct dce_hwseq), GFP_ATOMIC);
+	struct dce_hwseq *hws = kzalloc(sizeof(struct dce_hwseq), GFP_KERNEL);
 
 	if (hws) {
 		hws->ctx = ctx;
@@ -983,7 +981,7 @@ static struct hubp *dcn201_hubp_create(
 	uint32_t inst)
 {
 	struct dcn201_hubp *hubp201 =
-		kzalloc(sizeof(struct dcn201_hubp), GFP_ATOMIC);
+		kzalloc(sizeof(struct dcn201_hubp), GFP_KERNEL);
 
 	if (!hubp201)
 		return NULL;
@@ -1303,7 +1301,7 @@ struct resource_pool *dcn201_create_resource_pool(
 		struct dc *dc)
 {
 	struct dcn201_resource_pool *pool =
-		kzalloc(sizeof(struct dcn201_resource_pool), GFP_ATOMIC);
+		kzalloc(sizeof(struct dcn201_resource_pool), GFP_KERNEL);
 
 	if (!pool)
 		return NULL;
