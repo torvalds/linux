@@ -418,8 +418,8 @@ static int rtl_ecc_probe(struct platform_device *pdev)
 
 	rtlc->buf = dma_alloc_noncoherent(dev, RTL_ECC_DMA_SIZE, &rtlc->buf_dma,
 					  DMA_BIDIRECTIONAL, GFP_KERNEL);
-	if (IS_ERR(rtlc->buf))
-		return PTR_ERR(rtlc->buf);
+	if (!rtlc->buf)
+		return -ENOMEM;
 
 	rtlc->dev = dev;
 	rtlc->engine.dev = dev;
