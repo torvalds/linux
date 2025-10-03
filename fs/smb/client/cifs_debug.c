@@ -240,14 +240,18 @@ static int cifs_debug_files_proc_show(struct seq_file *m, void *v)
 	struct cifs_ses *ses;
 	struct cifs_tcon *tcon;
 	struct cifsFileInfo *cfile;
+	struct inode *inode;
+	struct cifsInodeInfo *cinode;
+	char lease[4];
+	int n;
 
 	seq_puts(m, "# Version:1\n");
 	seq_puts(m, "# Format:\n");
 	seq_puts(m, "# <tree id> <ses id> <persistent fid> <flags> <count> <pid> <uid>");
 #ifdef CONFIG_CIFS_DEBUG2
-	seq_printf(m, " <filename> <mid>\n");
+	seq_puts(m, " <filename> <lease> <mid>\n");
 #else
-	seq_printf(m, " <filename>\n");
+	seq_puts(m, " <filename> <lease>\n");
 #endif /* CIFS_DEBUG2 */
 	spin_lock(&cifs_tcp_ses_lock);
 	list_for_each_entry(server, &cifs_tcp_ses_list, tcp_ses_list) {
@@ -267,11 +271,30 @@ static int cifs_debug_files_proc_show(struct seq_file *m, void *v)
 						cfile->pid,
 						from_kuid(&init_user_ns, cfile->uid),
 						cfile->dentry);
+
+					/* Append lease/oplock caching state as RHW letters */
+					inode = d_inode(cfile->dentry);
+					n = 0;
+					if (inode) {
+						cinode = CIFS_I(inode);
+						if (CIFS_CACHE_READ(cinode))
+							lease[n++] = 'R';
+						if (CIFS_CACHE_HANDLE(cinode))
+							lease[n++] = 'H';
+						if (CIFS_CACHE_WRITE(cinode))
+							lease[n++] = 'W';
+					}
+					lease[n] = '\0';
+					seq_puts(m, " ");
+					if (n)
+						seq_printf(m, "%s", lease);
+					else
+						seq_puts(m, "NONE");
+
 #ifdef CONFIG_CIFS_DEBUG2
-					seq_printf(m, " %llu\n", cfile->fid.mid);
-#else
+					seq_printf(m, " %llu", cfile->fid.mid);
+#endif /* CONFIG_CIFS_DEBUG2 */
 					seq_printf(m, "\n");
-#endif /* CIFS_DEBUG2 */
 				}
 				spin_unlock(&tcon->open_file_lock);
 			}
@@ -308,7 +331,10 @@ static int cifs_debug_dirs_proc_show(struct seq_file *m, void *v)
 				if (!cfids)
 					continue;
 				spin_lock(&cfids->cfid_list_lock); /* check lock ordering */
-				seq_printf(m, "Num entries: %d\n", cfids->num_entries);
+				seq_printf(m, "Num entries: %d, cached_dirents: %lu entries, %llu bytes\n",
+						cfids->num_entries,
+						(unsigned long)atomic_long_read(&cfids->total_dirents_entries),
+						(unsigned long long)atomic64_read(&cfids->total_dirents_bytes));
 				list_for_each_entry(cfid, &cfids->entries, entry) {
 					seq_printf(m, "0x%x 0x%llx 0x%llx     %s",
 						tcon->tid,
@@ -319,6 +345,9 @@ static int cifs_debug_dirs_proc_show(struct seq_file *m, void *v)
 						seq_printf(m, "\tvalid file info");
 					if (cfid->dirents.is_valid)
 						seq_printf(m, ", valid dirents");
+					if (!list_empty(&cfid->dirents.entries))
+						seq_printf(m, ", dirents: %lu entries, %lu bytes",
+						cfid->dirents.entries_count, cfid->dirents.bytes_used);
 					seq_printf(m, "\n");
 				}
 				spin_unlock(&cfids->cfid_list_lock);

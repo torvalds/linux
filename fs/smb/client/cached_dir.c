@@ -36,9 +36,8 @@ static struct cached_fid *find_or_create_cached_dir(struct cached_fids *cfids,
 			 * fully cached or it may be in the process of
 			 * being deleted due to a lease break.
 			 */
-			if (!cfid->time || !cfid->has_lease) {
+			if (!is_valid_cached_dir(cfid))
 				return NULL;
-			}
 			kref_get(&cfid->refcount);
 			return cfid;
 		}
@@ -194,7 +193,7 @@ replay_again:
 	 * Otherwise, it is either a new entry or laundromat worker removed it
 	 * from @cfids->entries.  Caller will put last reference if the latter.
 	 */
-	if (cfid->has_lease && cfid->time) {
+	if (is_valid_cached_dir(cfid)) {
 		cfid->last_access_time = jiffies;
 		spin_unlock(&cfids->cfid_list_lock);
 		*ret_cfid = cfid;
@@ -233,7 +232,7 @@ replay_again:
 			list_for_each_entry(parent_cfid, &cfids->entries, entry) {
 				if (parent_cfid->dentry == dentry->d_parent) {
 					cifs_dbg(FYI, "found a parent cached file handle\n");
-					if (parent_cfid->has_lease && parent_cfid->time) {
+					if (is_valid_cached_dir(parent_cfid)) {
 						lease_flags
 							|= SMB2_LEASE_FLAG_PARENT_LEASE_KEY_SET_LE;
 						memcpy(pfid->parent_lease_key,
@@ -417,12 +416,18 @@ int open_cached_dir_by_dentry(struct cifs_tcon *tcon,
 	if (cfids == NULL)
 		return -EOPNOTSUPP;
 
+	if (!dentry)
+		return -ENOENT;
+
 	spin_lock(&cfids->cfid_list_lock);
 	list_for_each_entry(cfid, &cfids->entries, entry) {
-		if (dentry && cfid->dentry == dentry) {
+		if (cfid->dentry == dentry) {
+			if (!is_valid_cached_dir(cfid))
+				break;
 			cifs_dbg(FYI, "found a cached file handle by dentry\n");
 			kref_get(&cfid->refcount);
 			*ret_cfid = cfid;
+			cfid->last_access_time = jiffies;
 			spin_unlock(&cfids->cfid_list_lock);
 			return 0;
 		}
@@ -522,10 +527,9 @@ void close_all_cached_dirs(struct cifs_sb_info *cifs_sb)
 				spin_unlock(&cifs_sb->tlink_tree_lock);
 				goto done;
 			}
-			spin_lock(&cfid->fid_lock);
+
 			tmp_list->dentry = cfid->dentry;
 			cfid->dentry = NULL;
-			spin_unlock(&cfid->fid_lock);
 
 			list_add_tail(&tmp_list->entry, &entry);
 		}
@@ -608,14 +612,9 @@ static void cached_dir_put_work(struct work_struct *work)
 {
 	struct cached_fid *cfid = container_of(work, struct cached_fid,
 					       put_work);
-	struct dentry *dentry;
-
-	spin_lock(&cfid->fid_lock);
-	dentry = cfid->dentry;
+	dput(cfid->dentry);
 	cfid->dentry = NULL;
-	spin_unlock(&cfid->fid_lock);
 
-	dput(dentry);
 	queue_work(serverclose_wq, &cfid->close_work);
 }
 
@@ -673,7 +672,6 @@ static struct cached_fid *init_cached_dir(const char *path)
 	INIT_LIST_HEAD(&cfid->entry);
 	INIT_LIST_HEAD(&cfid->dirents.entries);
 	mutex_init(&cfid->dirents.de_mutex);
-	spin_lock_init(&cfid->fid_lock);
 	kref_init(&cfid->refcount);
 	return cfid;
 }
@@ -696,6 +694,21 @@ static void free_cached_dir(struct cached_fid *cfid)
 		kfree(dirent->name);
 		kfree(dirent);
 	}
+
+	/* adjust tcon-level counters and reset per-dir accounting */
+	if (cfid->cfids) {
+		if (cfid->dirents.entries_count)
+			atomic_long_sub((long)cfid->dirents.entries_count,
+					&cfid->cfids->total_dirents_entries);
+		if (cfid->dirents.bytes_used) {
+			atomic64_sub((long long)cfid->dirents.bytes_used,
+					&cfid->cfids->total_dirents_bytes);
+			atomic64_sub((long long)cfid->dirents.bytes_used,
+					&cifs_dircache_bytes_used);
+		}
+	}
+	cfid->dirents.entries_count = 0;
+	cfid->dirents.bytes_used = 0;
 
 	kfree(cfid->path);
 	cfid->path = NULL;
@@ -725,7 +738,6 @@ static void cfids_laundromat_worker(struct work_struct *work)
 {
 	struct cached_fids *cfids;
 	struct cached_fid *cfid, *q;
-	struct dentry *dentry;
 	LIST_HEAD(entry);
 
 	cfids = container_of(work, struct cached_fids, laundromat_work.work);
@@ -752,12 +764,9 @@ static void cfids_laundromat_worker(struct work_struct *work)
 	list_for_each_entry_safe(cfid, q, &entry, entry) {
 		list_del(&cfid->entry);
 
-		spin_lock(&cfid->fid_lock);
-		dentry = cfid->dentry;
+		dput(cfid->dentry);
 		cfid->dentry = NULL;
-		spin_unlock(&cfid->fid_lock);
 
-		dput(dentry);
 		if (cfid->is_open) {
 			spin_lock(&cifs_tcp_ses_lock);
 			++cfid->tcon->tc_count;
@@ -791,6 +800,9 @@ struct cached_fids *init_cached_dirs(void)
 	INIT_DELAYED_WORK(&cfids->laundromat_work, cfids_laundromat_worker);
 	queue_delayed_work(cfid_put_wq, &cfids->laundromat_work,
 			   dir_cache_timeout * HZ);
+
+	atomic_long_set(&cfids->total_dirents_entries, 0);
+	atomic64_set(&cfids->total_dirents_bytes, 0);
 
 	return cfids;
 }
