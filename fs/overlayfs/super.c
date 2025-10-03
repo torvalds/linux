@@ -404,7 +404,7 @@ static int ovl_check_namelen(const struct path *path, struct ovl_fs *ofs,
 	return err;
 }
 
-static int ovl_lower_dir(const char *name, struct path *path,
+static int ovl_lower_dir(const char *name, const struct path *path,
 			 struct ovl_fs *ofs, int *stack_depth)
 {
 	int fh_type;

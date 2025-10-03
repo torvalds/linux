@@ -79,7 +79,7 @@ __bpf_kfunc void bpf_put_file(struct file *file)
  * pathname in *buf*, including the NUL termination character. On error, a
  * negative integer is returned.
  */
-__bpf_kfunc int bpf_path_d_path(struct path *path, char *buf, size_t buf__sz)
+__bpf_kfunc int bpf_path_d_path(const struct path *path, char *buf, size_t buf__sz)
 {
 	int len;
 	char *ret;

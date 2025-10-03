@@ -219,7 +219,7 @@ extern void bpf_put_file(struct file *file) __ksym;
  *	including the NULL termination character, stored in the supplied
  *	buffer. On error, a negative integer is returned.
  */
-extern int bpf_path_d_path(struct path *path, char *buf, size_t buf__sz) __ksym;
+extern int bpf_path_d_path(const struct path *path, char *buf, size_t buf__sz) __ksym;
 
 /* This macro must be used to mark the exception callback corresponding to the
  * main program. For example:

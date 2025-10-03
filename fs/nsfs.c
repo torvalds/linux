@@ -571,7 +571,7 @@ static int nsfs_export_permission(struct handle_to_path_ctx *ctx,
 	return 0;
 }
 
-static struct file *nsfs_export_open(struct path *path, unsigned int oflags)
+static struct file *nsfs_export_open(const struct path *path, unsigned int oflags)
 {
 	return file_open_root(path, "", oflags, 0);
 }

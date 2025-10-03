@@ -242,7 +242,7 @@ static int ovl_verify_area(loff_t pos, loff_t pos2, loff_t len, loff_t totlen)
 	return 0;
 }
 
-static int ovl_sync_file(struct path *path)
+static int ovl_sync_file(const struct path *path)
 {
 	struct file *new_file;
 	int err;
