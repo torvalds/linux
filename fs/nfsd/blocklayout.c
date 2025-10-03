@@ -88,9 +88,10 @@ nfsd4_block_proc_layoutget(struct svc_rqst *rqstp, struct inode *inode,
 		const struct svc_fh *fhp, struct nfsd4_layoutget *args)
 {
 	struct nfsd4_layout_seg *seg = &args->lg_seg;
+	struct pnfs_block_layout *bl;
 	struct pnfs_block_extent *bex;
 	u64 length;
-	u32 block_size = i_blocksize(inode);
+	u32 nr_extents_max = 1, block_size = i_blocksize(inode);
 	__be32 nfserr;
 
 	if (locks_in_grace(SVC_NET(rqstp)))
@@ -103,15 +104,32 @@ nfsd4_block_proc_layoutget(struct svc_rqst *rqstp, struct inode *inode,
 	}
 
 	/*
+	 * RFC 8881, section 3.3.17:
+	 *   The layout4 data type defines a layout for a file.
+	 *
+	 * RFC 8881, section 18.43.3:
+	 *   The loga_maxcount field specifies the maximum layout size
+	 *   (in bytes) that the client can handle. If the size of the
+	 *   layout structure exceeds the size specified by maxcount,
+	 *   the metadata server will return the NFS4ERR_TOOSMALL error.
+	 */
+	nfserr = nfserr_toosmall;
+	if (args->lg_maxcount < PNFS_BLOCK_LAYOUT4_SIZE +
+				PNFS_BLOCK_EXTENT_SIZE)
+		goto out_error;
+
+	/*
 	 * Some clients barf on non-zero block numbers for NONE or INVALID
 	 * layouts, so make sure to zero the whole structure.
 	 */
 	nfserr = nfserrno(-ENOMEM);
-	bex = kzalloc(sizeof(*bex), GFP_KERNEL);
-	if (!bex)
+	bl = kzalloc(struct_size(bl, extents, nr_extents_max), GFP_KERNEL);
+	if (!bl)
 		goto out_error;
-	args->lg_content = bex;
+	bl->nr_extents = nr_extents_max;
+	args->lg_content = bl;
 
+	bex = &bl->extents[0];
 	nfserr = nfsd4_block_map_extent(inode, fhp, seg->offset, seg->length,
 			seg->iomode, args->lg_minlength, bex);
 	if (nfserr != nfs_ok)
