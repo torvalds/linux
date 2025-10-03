@@ -84,6 +84,7 @@ static void test_fault_sigbus(int fd, size_t accessible_size, size_t map_size)
 	mem = kvm_mmap(map_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd);
 
 	TEST_EXPECT_SIGBUS(memset(mem, val, map_size));
+	TEST_EXPECT_SIGBUS((void)READ_ONCE(mem[accessible_size]));
 
 	for (i = 0; i < accessible_size; i++)
 		TEST_ASSERT_EQ(READ_ONCE(mem[i]), val);
