@@ -1671,7 +1671,7 @@ typedef int (*mid_receive_t)(struct TCP_Server_Info *server,
  * - it will be called by cifsd, with no locks held
  * - the mid will be removed from any lists
  */
-typedef void (*mid_callback_t)(struct mid_q_entry *mid);
+typedef void (*mid_callback_t)(struct TCP_Server_Info *srv, struct mid_q_entry *mid);
 
 /*
  * This is the protopyte for mid handle function. This is called once the mid
@@ -1683,8 +1683,7 @@ typedef int (*mid_handle_t)(struct TCP_Server_Info *server,
 /* one of these for every pending CIFS request to the server */
 struct mid_q_entry {
 	struct list_head qhead;	/* mids waiting on reply from this server */
-	struct kref refcount;
-	struct TCP_Server_Info *server;	/* server corresponding to this mid */
+	refcount_t refcount;
 	__u64 mid;		/* multiplex id */
 	__u16 credits;		/* number of credits consumed by this mid */
 	__u16 credits_received;	/* number of credits from the response */
@@ -2109,7 +2108,7 @@ extern __u32 cifs_lock_secret;
 
 extern mempool_t *cifs_sm_req_poolp;
 extern mempool_t *cifs_req_poolp;
-extern mempool_t *cifs_mid_poolp;
+extern mempool_t cifs_mid_pool;
 extern mempool_t cifs_io_request_pool;
 extern mempool_t cifs_io_subrequest_pool;
 
@@ -2356,9 +2355,10 @@ static inline bool cifs_netbios_name(const char *name, size_t namelen)
  * Execute mid callback atomically - ensures callback runs exactly once
  * and prevents sleeping in atomic context.
  */
-static inline void mid_execute_callback(struct mid_q_entry *mid)
+static inline void mid_execute_callback(struct TCP_Server_Info *server,
+					struct mid_q_entry *mid)
 {
-	void (*callback)(struct mid_q_entry *mid);
+	mid_callback_t callback;
 
 	spin_lock(&mid->mid_lock);
 	callback = mid->callback;
@@ -2366,7 +2366,7 @@ static inline void mid_execute_callback(struct mid_q_entry *mid)
 	spin_unlock(&mid->mid_lock);
 
 	if (callback)
-		callback(mid);
+		callback(server, mid);
 }
 
 #define CIFS_REPARSE_SUPPORT(tcon) \

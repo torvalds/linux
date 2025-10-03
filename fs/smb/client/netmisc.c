@@ -889,7 +889,8 @@ map_smb_to_linux_error(char *buf, bool logErr)
 }
 
 int
-map_and_check_smb_error(struct mid_q_entry *mid, bool logErr)
+map_and_check_smb_error(struct TCP_Server_Info *server,
+			struct mid_q_entry *mid, bool logErr)
 {
 	int rc;
 	struct smb_hdr *smb = (struct smb_hdr *)mid->resp_buf;
@@ -904,7 +905,7 @@ map_and_check_smb_error(struct mid_q_entry *mid, bool logErr)
 		if (class == ERRSRV && code == ERRbaduid) {
 			cifs_dbg(FYI, "Server returned 0x%x, reconnecting session...\n",
 				code);
-			cifs_signal_cifsd_for_reconnect(mid->server, false);
+			cifs_signal_cifsd_for_reconnect(server, false);
 		}
 	}
 

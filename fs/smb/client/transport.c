@@ -32,24 +32,21 @@
 #include "compress.h"
 
 void
-cifs_wake_up_task(struct mid_q_entry *mid)
+cifs_wake_up_task(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 {
 	if (mid->mid_state == MID_RESPONSE_RECEIVED)
 		mid->mid_state = MID_RESPONSE_READY;
 	wake_up_process(mid->callback_data);
 }
 
-void __release_mid(struct kref *refcount)
+void __release_mid(struct TCP_Server_Info *server, struct mid_q_entry *midEntry)
 {
-	struct mid_q_entry *midEntry =
-			container_of(refcount, struct mid_q_entry, refcount);
 #ifdef CONFIG_CIFS_STATS2
-	__le16 command = midEntry->server->vals->lock_cmd;
+	__le16 command = server->vals->lock_cmd;
 	__u16 smb_cmd = le16_to_cpu(midEntry->command);
 	unsigned long now;
 	unsigned long roundtrip_time;
 #endif
-	struct TCP_Server_Info *server = midEntry->server;
 
 	if (midEntry->resp_buf && (midEntry->wait_cancelled) &&
 	    (midEntry->mid_state == MID_RESPONSE_RECEIVED ||
@@ -116,20 +113,21 @@ void __release_mid(struct kref *refcount)
 #endif
 	put_task_struct(midEntry->creator);
 
-	mempool_free(midEntry, cifs_mid_poolp);
+	mempool_free(midEntry, &cifs_mid_pool);
 }
 
 void
-delete_mid(struct mid_q_entry *mid)
+delete_mid(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 {
-	spin_lock(&mid->server->mid_queue_lock);
-	if (mid->deleted_from_q == false) {
+	spin_lock(&server->mid_queue_lock);
+
+	if (!mid->deleted_from_q) {
 		list_del_init(&mid->qhead);
 		mid->deleted_from_q = true;
 	}
-	spin_unlock(&mid->server->mid_queue_lock);
+	spin_unlock(&server->mid_queue_lock);
 
-	release_mid(mid);
+	release_mid(server, mid);
 }
 
 /*
@@ -727,7 +725,7 @@ cifs_call_async(struct TCP_Server_Info *server, struct smb_rqst *rqst,
 	if (rc < 0) {
 		revert_current_mid(server, mid->credits);
 		server->sequence_number -= 2;
-		delete_mid(mid);
+		delete_mid(server, mid);
 	}
 
 	cifs_server_unlock(server);
@@ -777,14 +775,13 @@ int cifs_sync_mid_result(struct mid_q_entry *mid, struct TCP_Server_Info *server
 	spin_unlock(&server->mid_queue_lock);
 
 sync_mid_done:
-	release_mid(mid);
+	release_mid(server, mid);
 	return rc;
 }
 
 static void
-cifs_compound_callback(struct mid_q_entry *mid)
+cifs_compound_callback(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 {
-	struct TCP_Server_Info *server = mid->server;
 	struct cifs_credits credits = {
 		.value = server->ops->get_credits(mid),
 		.instance = server->reconnect_instance,
@@ -797,17 +794,17 @@ cifs_compound_callback(struct mid_q_entry *mid)
 }
 
 static void
-cifs_compound_last_callback(struct mid_q_entry *mid)
+cifs_compound_last_callback(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 {
-	cifs_compound_callback(mid);
-	cifs_wake_up_task(mid);
+	cifs_compound_callback(server, mid);
+	cifs_wake_up_task(server, mid);
 }
 
 static void
-cifs_cancelled_callback(struct mid_q_entry *mid)
+cifs_cancelled_callback(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 {
-	cifs_compound_callback(mid);
-	release_mid(mid);
+	cifs_compound_callback(server, mid);
+	release_mid(server, mid);
 }
 
 /*
@@ -941,7 +938,7 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 		if (IS_ERR(mid[i])) {
 			revert_current_mid(server, i);
 			for (j = 0; j < i; j++)
-				delete_mid(mid[j]);
+				delete_mid(server, mid[j]);
 			cifs_server_unlock(server);
 
 			/* Update # of requests on wire to server */
@@ -1096,7 +1093,7 @@ out:
 	 */
 	for (i = 0; i < num_rqst; i++) {
 		if (!cancelled_mid[i])
-			delete_mid(mid[i]);
+			delete_mid(server, mid[i]);
 	}
 
 	return rc;
@@ -1145,7 +1142,7 @@ __cifs_readv_discard(struct TCP_Server_Info *server, struct mid_q_entry *mid,
 	int length;
 
 	length = cifs_discard_remaining_data(server);
-	dequeue_mid(mid, malformed);
+	dequeue_mid(server, mid, malformed);
 	mid->resp_buf = server->smallbuf;
 	server->smallbuf = NULL;
 	return length;
@@ -1283,7 +1280,7 @@ cifs_readv_receive(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	if (server->total_read < buflen)
 		return cifs_readv_discard(server, mid);
 
-	dequeue_mid(mid, false);
+	dequeue_mid(server, mid, false);
 	mid->resp_buf = server->smallbuf;
 	server->smallbuf = NULL;
 	return length;

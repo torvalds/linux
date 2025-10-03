@@ -82,9 +82,9 @@ extern char *cifs_build_path_to_root(struct smb3_fs_context *ctx,
 				     int add_treename);
 extern char *build_wildcard_path_from_dentry(struct dentry *direntry);
 char *cifs_build_devname(char *nodename, const char *prepath);
-extern void delete_mid(struct mid_q_entry *mid);
-void __release_mid(struct kref *refcount);
-extern void cifs_wake_up_task(struct mid_q_entry *mid);
+void delete_mid(struct TCP_Server_Info *server, struct mid_q_entry *mid);
+void __release_mid(struct TCP_Server_Info *server, struct mid_q_entry *mid);
+void cifs_wake_up_task(struct TCP_Server_Info *server, struct mid_q_entry *mid);
 extern int cifs_handle_standard(struct TCP_Server_Info *server,
 				struct mid_q_entry *mid);
 extern char *smb3_fs_context_fullpath(const struct smb3_fs_context *ctx,
@@ -180,7 +180,8 @@ extern int decode_negTokenInit(unsigned char *security_blob, int length,
 extern int cifs_convert_address(struct sockaddr *dst, const char *src, int len);
 extern void cifs_set_port(struct sockaddr *addr, const unsigned short int port);
 extern int map_smb_to_linux_error(char *buf, bool logErr);
-extern int map_and_check_smb_error(struct mid_q_entry *mid, bool logErr);
+extern int map_and_check_smb_error(struct TCP_Server_Info *server,
+				   struct mid_q_entry *mid, bool logErr);
 unsigned int header_assemble(struct smb_hdr *buffer, char smb_command,
 			     const struct cifs_tcon *treeCon, int word_count
 			     /* length of fixed section word count in two byte units  */);
@@ -263,7 +264,7 @@ extern unsigned int setup_special_mode_ACE(struct smb_ace *pace,
 					   __u64 nmode);
 extern unsigned int setup_special_user_owner_ACE(struct smb_ace *pace);
 
-extern void dequeue_mid(struct mid_q_entry *mid, bool malformed);
+void dequeue_mid(struct TCP_Server_Info *server, struct mid_q_entry *mid, bool malformed);
 extern int cifs_read_from_socket(struct TCP_Server_Info *server, char *buf,
 			         unsigned int to_read);
 extern ssize_t cifs_discard_from_socket(struct TCP_Server_Info *server,
@@ -767,9 +768,15 @@ static inline bool dfs_src_pathname_equal(const char *s1, const char *s2)
 	return true;
 }
 
-static inline void release_mid(struct mid_q_entry *mid)
+static inline void smb_get_mid(struct mid_q_entry *mid)
 {
-	kref_put(&mid->refcount, __release_mid);
+	refcount_inc(&mid->refcount);
+}
+
+static inline void release_mid(struct TCP_Server_Info *server, struct mid_q_entry *mid)
+{
+	if (refcount_dec_and_test(&mid->refcount))
+		__release_mid(server, mid);
 }
 
 static inline void cifs_free_open_info(struct cifs_open_info_data *data)
