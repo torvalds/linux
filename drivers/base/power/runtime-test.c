@@ -14,7 +14,7 @@ static void pm_runtime_depth_test(struct kunit *test)
 {
 	struct device *dev = kunit_device_register(test, DEVICE_NAME);
 
-	KUNIT_ASSERT_PTR_NE(test, NULL, dev);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dev);
 
 	pm_runtime_enable(dev);
 
@@ -32,7 +32,7 @@ static void pm_runtime_already_suspended_test(struct kunit *test)
 {
 	struct device *dev = kunit_device_register(test, DEVICE_NAME);
 
-	KUNIT_ASSERT_PTR_NE(test, NULL, dev);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dev);
 
 	pm_runtime_enable(dev);
 	KUNIT_EXPECT_TRUE(test, pm_runtime_suspended(dev));
@@ -70,7 +70,7 @@ static void pm_runtime_idle_test(struct kunit *test)
 {
 	struct device *dev = kunit_device_register(test, DEVICE_NAME);
 
-	KUNIT_ASSERT_PTR_NE(test, NULL, dev);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dev);
 
 	pm_runtime_enable(dev);
 
@@ -91,7 +91,7 @@ static void pm_runtime_disabled_test(struct kunit *test)
 {
 	struct device *dev = kunit_device_register(test, DEVICE_NAME);
 
-	KUNIT_ASSERT_PTR_NE(test, NULL, dev);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dev);
 
 	/* Never called pm_runtime_enable() */
 	KUNIT_EXPECT_FALSE(test, pm_runtime_enabled(dev));
@@ -131,7 +131,7 @@ static void pm_runtime_error_test(struct kunit *test)
 {
 	struct device *dev = kunit_device_register(test, DEVICE_NAME);
 
-	KUNIT_ASSERT_PTR_NE(test, NULL, dev);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dev);
 
 	pm_runtime_enable(dev);
 	KUNIT_EXPECT_TRUE(test, pm_runtime_suspended(dev));
@@ -214,7 +214,7 @@ static void pm_runtime_probe_active_test(struct kunit *test)
 {
 	struct device *dev = kunit_device_register(test, DEVICE_NAME);
 
-	KUNIT_ASSERT_PTR_NE(test, NULL, dev);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dev);
 
 	KUNIT_EXPECT_TRUE(test, pm_runtime_status_suspended(dev));
 
