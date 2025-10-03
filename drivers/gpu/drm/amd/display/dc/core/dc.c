@@ -3419,7 +3419,7 @@ static void update_seamless_boot_flags(struct dc *dc,
 	}
 }
 
-static bool full_update_required(struct dc *dc,
+static bool full_update_required_weak(struct dc *dc,
 		struct dc_surface_update *srf_updates,
 		int surface_count,
 		struct dc_stream_update *stream_update,
@@ -3472,8 +3472,10 @@ static bool update_planes_and_stream_state(struct dc *dc,
 	context = dc->current_state;
 	update_type = dc_check_update_surfaces_for_stream(
 			dc, srf_updates, surface_count, stream_update, stream_status);
-	if (full_update_required(dc, srf_updates, surface_count, stream_update, stream))
+
+	if (full_update_required_weak(dc, srf_updates, surface_count, stream_update, stream))
 		update_type = UPDATE_TYPE_FULL;
+
 	/* It is possible to receive a flip for one plane while there are multiple flip_immediate planes in the same stream.
 	 * E.g. Desktop and MPO plane are flip_immediate but only the MPO plane received a flip
 	 * Force the other flip_immediate planes to flip so GSL doesn't wait for a flip that won't come.
@@ -5047,18 +5049,42 @@ bool fast_nonaddr_updates_exist(struct dc_fast_update *fast_update, int surface_
 	return false;
 }
 
+static bool full_update_required_weak(struct dc *dc,
+		struct dc_surface_update *srf_updates,
+		int surface_count,
+		struct dc_stream_update *stream_update,
+		struct dc_stream_state *stream)
+{
+	const struct dc_state *context = dc->current_state;
+	if (srf_updates)
+		for (int i = 0; i < surface_count; i++)
+			if (!is_surface_in_context(context, srf_updates[i].surface))
+				return true;
+
+	if (stream) {
+		const struct dc_stream_status *stream_status = dc_stream_get_status(stream);
+		if (stream_status == NULL || stream_status->plane_count != surface_count)
+			return true;
+	}
+	if (dc->idle_optimizations_allowed)
+		return true;
+
+	if (dc_can_clear_cursor_limit(dc))
+		return true;
+
+	return false;
+}
+
 static bool full_update_required(struct dc *dc,
 		struct dc_surface_update *srf_updates,
 		int surface_count,
 		struct dc_stream_update *stream_update,
 		struct dc_stream_state *stream)
 {
+	if (full_update_required_weak(dc, srf_updates, surface_count, stream_update, stream))
+		return true;
 
-	int i;
-	struct dc_stream_status *stream_status;
-	const struct dc_state *context = dc->current_state;
-
-	for (i = 0; i < surface_count; i++) {
+	for (int i = 0; i < surface_count; i++) {
 		if (srf_updates &&
 				(srf_updates[i].plane_info ||
 				srf_updates[i].scaling_info ||
@@ -5074,8 +5100,7 @@ static bool full_update_required(struct dc *dc,
 				srf_updates[i].flip_addr->address.tmz_surface != srf_updates[i].surface->address.tmz_surface) ||
 				(srf_updates[i].cm2_params &&
 				 (srf_updates[i].cm2_params->component_settings.shaper_3dlut_setting != srf_updates[i].surface->mcm_shaper_3dlut_setting ||
-				  srf_updates[i].cm2_params->component_settings.lut1d_enable != srf_updates[i].surface->mcm_lut1d_enable)) ||
-				!is_surface_in_context(context, srf_updates[i].surface)))
+				  srf_updates[i].cm2_params->component_settings.lut1d_enable != srf_updates[i].surface->mcm_lut1d_enable))))
 			return true;
 	}
 
@@ -5109,17 +5134,6 @@ static bool full_update_required(struct dc *dc,
 			stream_update->crtc_timing_adjust ||
 			stream_update->scaler_sharpener_update ||
 			stream_update->hw_cursor_req))
-		return true;
-
-	if (stream) {
-		stream_status = dc_stream_get_status(stream);
-		if (stream_status == NULL || stream_status->plane_count != surface_count)
-			return true;
-	}
-	if (dc->idle_optimizations_allowed)
-		return true;
-
-	if (dc_can_clear_cursor_limit(dc))
 		return true;
 
 	return false;
