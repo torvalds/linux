@@ -1297,3 +1297,15 @@ Several functions are renamed:
 -  user_path_create -> start_creating_user_path
 -  user_path_locked_at -> start_removing_user_path_at
 -  done_path_create -> end_creating_path
+
+---
+
+**mandatory**
+
+Calling conventions for vfs_parse_fs_string() have changed; it does *not*
+take length anymore (value ? strlen(value) : 0 is used).  If you want
+a different length, use
+
+	vfs_parse_fs_qstr(fc, key, &QSTR_LEN(value, len))
+
+instead.

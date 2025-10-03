@@ -10211,8 +10211,7 @@ static struct vfsmount *trace_automount(struct dentry *mntpt, void *ingore)
 
 	pr_warn("NOTICE: Automounting of tracing to debugfs is deprecated and will be removed in 2030\n");
 
-	ret = vfs_parse_fs_string(fc, "source",
-				  "tracefs", strlen("tracefs"));
+	ret = vfs_parse_fs_string(fc, "source", "tracefs");
 	if (!ret)
 		mnt = fc_mount(fc);
 	else
