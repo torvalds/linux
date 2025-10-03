@@ -165,11 +165,9 @@ static unsigned long *alloc_bitmap(u32 bitmap_size)
 
 	/*
 	 * GFP_NOFS doesn't work with kvmalloc(), but we really can't recurse
-	 * into the filesystem as the free space bitmap can be modified in the
-	 * critical section of a transaction commit.
-	 *
-	 * TODO: push the memalloc_nofs_{save,restore}() to the caller where we
-	 * know that recursion is unsafe.
+	 * into the filesystem here. All callers hold a transaction handle
+	 * open, so if a GFP_KERNEL allocation recurses into the filesystem
+	 * and triggers a transaction commit, we would deadlock.
 	 */
 	nofs_flag = memalloc_nofs_save();
 	ret = kvzalloc(bitmap_rounded_size, GFP_KERNEL);
