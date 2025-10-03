@@ -2226,7 +2226,7 @@ int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 	if (!intel_fb->frontbuffer)
 		return -ENOMEM;
 
-	ret = intel_fb_bo_framebuffer_init(fb, obj, mode_cmd);
+	ret = intel_fb_bo_framebuffer_init(obj, mode_cmd);
 	if (ret)
 		goto err_frontbuffer_put;
 
