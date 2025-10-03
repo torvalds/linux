@@ -6438,6 +6438,11 @@ specified via KVM_CREATE_GUEST_MEMFD.  Currently defined flags:
   ============================ ================================================
   GUEST_MEMFD_FLAG_MMAP        Enable using mmap() on the guest_memfd file
                                descriptor.
+  GUEST_MEMFD_FLAG_INIT_SHARED Make all memory in the file shared during
+                               KVM_CREATE_GUEST_MEMFD (memory files created
+                               without INIT_SHARED will be marked private).
+                               Shared memory can be faulted into host userspace
+                               page tables. Private memory cannot.
   ============================ ================================================
 
 When the KVM MMU performs a PFN lookup to service a guest fault and the backing

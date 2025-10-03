@@ -4930,7 +4930,8 @@ static int kvm_vm_ioctl_check_extension_generic(struct kvm *kvm, long arg)
 		return 1;
 	case KVM_CAP_GUEST_MEMFD_FLAGS:
 		if (!kvm || kvm_arch_supports_gmem_mmap(kvm))
-			return GUEST_MEMFD_FLAG_MMAP;
+			return GUEST_MEMFD_FLAG_MMAP |
+			       GUEST_MEMFD_FLAG_INIT_SHARED;
 
 		return 0;
 #endif
