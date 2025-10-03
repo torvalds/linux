@@ -20,8 +20,16 @@
  * using the generic single-entry routines.
  */
 
+/**
+ * LIST_HEAD_INIT - initialize a &struct list_head's links to point to itself
+ * @name: name of the list_head
+ */
 #define LIST_HEAD_INIT(name) { &(name), &(name) }
 
+/**
+ * LIST_HEAD - definition of a &struct list_head with initialization values
+ * @name: name of the list_head
+ */
 #define LIST_HEAD(name) \
 	struct list_head name = LIST_HEAD_INIT(name)
 

@@ -159,7 +159,6 @@ static int digsig_verify_rsa(struct key *key,
 
 	len = mlen;
 	head = len - l;
-	memset(out1, 0, head);
 	memcpy(out1 + head, p, l);
 
 	kfree(p);
