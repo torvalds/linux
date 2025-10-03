@@ -774,6 +774,9 @@ static void dw_pcie_link_set_max_link_width(struct dw_pcie *pci, u32 num_lanes)
 	case 8:
 		plc |= PORT_LINK_MODE_8_LANES;
 		break;
+	case 16:
+		plc |= PORT_LINK_MODE_16_LANES;
+		break;
 	default:
 		dev_err(pci->dev, "num-lanes %u: invalid value\n", num_lanes);
 		return;
