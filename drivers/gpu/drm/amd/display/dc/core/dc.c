@@ -5376,7 +5376,8 @@ bool dc_update_planes_and_stream(struct dc *dc,
 	 * specially handle compatibility problems with transitions among those
 	 * features as they are now transparent to the new sequence.
 	 */
-	if (dc->ctx->dce_version >= DCN_VERSION_4_01)
+	if (dc->ctx->dce_version >= DCN_VERSION_4_01 || dc->ctx->dce_version == DCN_VERSION_3_2 ||
+			dc->ctx->dce_version == DCN_VERSION_3_21)
 		ret = update_planes_and_stream_v3(dc, srf_updates,
 				surface_count, stream, stream_update);
 	else
