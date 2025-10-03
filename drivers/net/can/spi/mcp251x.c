@@ -1270,7 +1270,6 @@ static const struct net_device_ops mcp251x_netdev_ops = {
 	.ndo_open = mcp251x_open,
 	.ndo_stop = mcp251x_stop,
 	.ndo_start_xmit = mcp251x_hard_start_xmit,
-	.ndo_change_mtu = can_change_mtu,
 };
 
 static const struct ethtool_ops mcp251x_ethtool_ops = {

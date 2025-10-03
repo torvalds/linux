@@ -1715,7 +1715,6 @@ static const struct net_device_ops mcp251xfd_netdev_ops = {
 	.ndo_stop = mcp251xfd_stop,
 	.ndo_start_xmit	= mcp251xfd_start_xmit,
 	.ndo_eth_ioctl = can_eth_ioctl_hwts,
-	.ndo_change_mtu = can_change_mtu,
 };
 
 static void

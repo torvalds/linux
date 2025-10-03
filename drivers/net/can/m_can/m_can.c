@@ -2148,7 +2148,6 @@ static const struct net_device_ops m_can_netdev_ops = {
 	.ndo_open = m_can_open,
 	.ndo_stop = m_can_close,
 	.ndo_start_xmit = m_can_start_xmit,
-	.ndo_change_mtu = can_change_mtu,
 };
 
 static int m_can_get_coalesce(struct net_device *dev,

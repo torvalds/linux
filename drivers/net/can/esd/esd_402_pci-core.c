@@ -86,7 +86,6 @@ static const struct net_device_ops pci402_acc_netdev_ops = {
 	.ndo_open = acc_open,
 	.ndo_stop = acc_close,
 	.ndo_start_xmit = acc_start_xmit,
-	.ndo_change_mtu = can_change_mtu,
 	.ndo_eth_ioctl = can_eth_ioctl_hwts,
 };
 

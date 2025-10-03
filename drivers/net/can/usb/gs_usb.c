@@ -1101,7 +1101,6 @@ static const struct net_device_ops gs_usb_netdev_ops = {
 	.ndo_open = gs_can_open,
 	.ndo_stop = gs_can_close,
 	.ndo_start_xmit = gs_can_start_xmit,
-	.ndo_change_mtu = can_change_mtu,
 	.ndo_eth_ioctl = gs_can_eth_ioctl,
 };
 

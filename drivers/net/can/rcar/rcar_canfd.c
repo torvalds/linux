@@ -1818,7 +1818,6 @@ static const struct net_device_ops rcar_canfd_netdev_ops = {
 	.ndo_open = rcar_canfd_open,
 	.ndo_stop = rcar_canfd_close,
 	.ndo_start_xmit = rcar_canfd_start_xmit,
-	.ndo_change_mtu = can_change_mtu,
 };
 
 static const struct ethtool_ops rcar_canfd_ethtool_ops = {

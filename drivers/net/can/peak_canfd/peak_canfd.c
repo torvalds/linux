@@ -773,7 +773,6 @@ static const struct net_device_ops peak_canfd_netdev_ops = {
 	.ndo_stop = peak_canfd_close,
 	.ndo_eth_ioctl = peak_eth_ioctl,
 	.ndo_start_xmit = peak_canfd_start_xmit,
-	.ndo_change_mtu = can_change_mtu,
 };
 
 static int peak_get_ts_info(struct net_device *dev,

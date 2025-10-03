@@ -904,7 +904,6 @@ static const struct net_device_ops kvaser_pciefd_netdev_ops = {
 	.ndo_stop = kvaser_pciefd_stop,
 	.ndo_eth_ioctl = can_eth_ioctl_hwts,
 	.ndo_start_xmit = kvaser_pciefd_start_xmit,
-	.ndo_change_mtu = can_change_mtu,
 };
 
 static int kvaser_pciefd_set_phys_id(struct net_device *netdev,

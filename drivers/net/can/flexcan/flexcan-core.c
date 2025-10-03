@@ -1867,7 +1867,6 @@ static const struct net_device_ops flexcan_netdev_ops = {
 	.ndo_open	= flexcan_open,
 	.ndo_stop	= flexcan_close,
 	.ndo_start_xmit	= flexcan_start_xmit,
-	.ndo_change_mtu = can_change_mtu,
 };
 
 static int register_flexcandev(struct net_device *dev)
