@@ -22,10 +22,6 @@
 # include "test-libelf.c"
 #undef main
 
-#define main main_test_get_current_dir_name
-# include "test-get_current_dir_name.c"
-#undef main
-
 #define main main_test_gettid
 # include "test-gettid.c"
 #undef main
@@ -155,7 +151,6 @@ int main(int argc, char *argv[])
 	main_test_libpython();
 	main_test_hello();
 	main_test_libelf();
-	main_test_get_current_dir_name();
 	main_test_gettid();
 	main_test_glibc();
 	main_test_libdw();

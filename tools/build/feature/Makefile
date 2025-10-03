@@ -8,7 +8,6 @@ FILES=                                          \
          test-libdw.bin                         \
          test-eventfd.bin                       \
          test-fortify-source.bin                \
-         test-get_current_dir_name.bin          \
          test-glibc.bin                         \
          test-gtk2.bin                          \
          test-gtk2-infobar.bin                  \
@@ -145,9 +144,6 @@ $(OUTPUT)test-libelf.bin:
 	$(BUILD) -lelf
 
 $(OUTPUT)test-eventfd.bin:
-	$(BUILD)
-
-$(OUTPUT)test-get_current_dir_name.bin:
 	$(BUILD)
 
 $(OUTPUT)test-glibc.bin:
