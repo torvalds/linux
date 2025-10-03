@@ -469,7 +469,7 @@ static int ls2k_bmc_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		return ret;
 
 	ddata = devm_kzalloc(&dev->dev, sizeof(*ddata), GFP_KERNEL);
-	if (IS_ERR(ddata)) {
+	if (!ddata) {
 		ret = -ENOMEM;
 		goto disable_pci;
 	}
