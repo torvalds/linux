@@ -262,19 +262,17 @@ static void test_guest_memfd_flags(struct kvm_vm *vm, uint64_t valid_flags)
 
 static void test_guest_memfd(unsigned long vm_type)
 {
-	uint64_t flags = 0;
 	struct kvm_vm *vm;
 	size_t total_size;
 	size_t page_size;
+	uint64_t flags;
 	int fd;
 
 	page_size = getpagesize();
 	total_size = page_size * 4;
 
 	vm = vm_create_barebones_type(vm_type);
-
-	if (vm_check_cap(vm, KVM_CAP_GUEST_MEMFD_MMAP))
-		flags |= GUEST_MEMFD_FLAG_MMAP;
+	flags = vm_check_cap(vm, KVM_CAP_GUEST_MEMFD_FLAGS);
 
 	test_create_guest_memfd_multiple(vm);
 	test_create_guest_memfd_invalid_sizes(vm, flags, page_size);
@@ -328,13 +326,14 @@ static void test_guest_memfd_guest(void)
 	size_t size;
 	int fd, i;
 
-	if (!kvm_has_cap(KVM_CAP_GUEST_MEMFD_MMAP))
+	if (!kvm_check_cap(KVM_CAP_GUEST_MEMFD_FLAGS))
 		return;
 
 	vm = __vm_create_shape_with_one_vcpu(VM_SHAPE_DEFAULT, &vcpu, 1, guest_code);
 
-	TEST_ASSERT(vm_check_cap(vm, KVM_CAP_GUEST_MEMFD_MMAP),
-		    "Default VM type should always support guest_memfd mmap()");
+	TEST_ASSERT(vm_check_cap(vm, KVM_CAP_GUEST_MEMFD_FLAGS) & GUEST_MEMFD_FLAG_MMAP,
+		    "Default VM type should support MMAP, supported flags = 0x%x",
+		    vm_check_cap(vm, KVM_CAP_GUEST_MEMFD_FLAGS));
 
 	size = vm->page_size;
 	fd = vm_create_guest_memfd(vm, size, GUEST_MEMFD_FLAG_MMAP);

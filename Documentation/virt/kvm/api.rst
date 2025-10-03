@@ -6432,9 +6432,13 @@ most one mapping per page, i.e. binding multiple memory regions to a single
 guest_memfd range is not allowed (any number of memory regions can be bound to
 a single guest_memfd file, but the bound ranges must not overlap).
 
-When the capability KVM_CAP_GUEST_MEMFD_MMAP is supported, the 'flags' field
-supports GUEST_MEMFD_FLAG_MMAP.  Setting this flag on guest_memfd creation
-enables mmap() and faulting of guest_memfd memory to host userspace.
+The capability KVM_CAP_GUEST_MEMFD_FLAGS enumerates the `flags` that can be
+specified via KVM_CREATE_GUEST_MEMFD.  Currently defined flags:
+
+  ============================ ================================================
+  GUEST_MEMFD_FLAG_MMAP        Enable using mmap() on the guest_memfd file
+                               descriptor.
+  ============================ ================================================
 
 When the KVM MMU performs a PFN lookup to service a guest fault and the backing
 guest_memfd has the GUEST_MEMFD_FLAG_MMAP set, then the fault will always be
