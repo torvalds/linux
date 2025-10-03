@@ -1137,7 +1137,7 @@ static int pl35x_nand_probe(struct platform_device *pdev)
 	struct device *smc_dev = pdev->dev.parent;
 	struct amba_device *smc_amba = to_amba_device(smc_dev);
 	struct pl35x_nandc *nfc;
-	u32 ret;
+	int ret;
 
 	nfc = devm_kzalloc(&pdev->dev, sizeof(*nfc), GFP_KERNEL);
 	if (!nfc)
