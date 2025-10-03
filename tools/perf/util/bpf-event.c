@@ -288,9 +288,7 @@ static void format_btf_variable(struct btf *btf, char *buf, size_t buf_size,
 		.sz = sizeof(struct btf_dump_type_data_opts),
 		.skip_names = 1,
 		.compact = 1,
-#if LIBBPF_CURRENT_VERSION_GEQ(1, 7)
 		.emit_strings = 1,
-#endif
 	};
 	struct btf_dump *d;
 	size_t btf_size;
