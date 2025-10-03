@@ -14,8 +14,6 @@
 #include <linux/bitmap.h>
 #include <linux/falloc.h>
 #include <linux/sizes.h>
-#include <setjmp.h>
-#include <signal.h>
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -77,17 +75,8 @@ static void test_mmap_supported(int fd, size_t total_size)
 	kvm_munmap(mem, total_size);
 }
 
-static sigjmp_buf jmpbuf;
-void fault_sigbus_handler(int signum)
-{
-	siglongjmp(jmpbuf, 1);
-}
-
 static void test_fault_overflow(int fd, size_t total_size)
 {
-	struct sigaction sa_old, sa_new = {
-		.sa_handler = fault_sigbus_handler,
-	};
 	size_t map_size = total_size * 4;
 	const char val = 0xaa;
 	char *mem;
@@ -95,12 +84,7 @@ static void test_fault_overflow(int fd, size_t total_size)
 
 	mem = kvm_mmap(map_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd);
 
-	sigaction(SIGBUS, &sa_new, &sa_old);
-	if (sigsetjmp(jmpbuf, 1) == 0) {
-		memset(mem, 0xaa, map_size);
-		TEST_ASSERT(false, "memset() should have triggered SIGBUS.");
-	}
-	sigaction(SIGBUS, &sa_old, NULL);
+	TEST_EXPECT_SIGBUS(memset(mem, val, map_size));
 
 	for (i = 0; i < total_size; i++)
 		TEST_ASSERT_EQ(READ_ONCE(mem[i]), val);
