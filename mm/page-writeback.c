@@ -2990,25 +2990,22 @@ bool __folio_end_writeback(struct folio *folio)
 
 	if (mapping && mapping_use_writeback_tags(mapping)) {
 		struct inode *inode = mapping->host;
-		struct backing_dev_info *bdi = inode_to_bdi(inode);
+		struct bdi_writeback *wb;
 		unsigned long flags;
 
 		xa_lock_irqsave(&mapping->i_pages, flags);
 		ret = folio_xor_flags_has_waiters(folio, 1 << PG_writeback);
 		__xa_clear_mark(&mapping->i_pages, folio->index,
 					PAGECACHE_TAG_WRITEBACK);
-		if (bdi->capabilities & BDI_CAP_WRITEBACK_ACCT) {
-			struct bdi_writeback *wb = inode_to_wb(inode);
 
-			wb_stat_mod(wb, WB_WRITEBACK, -nr);
-			__wb_writeout_add(wb, nr);
-			if (!mapping_tagged(mapping, PAGECACHE_TAG_WRITEBACK))
-				wb_inode_writeback_end(wb);
+		wb = inode_to_wb(inode);
+		wb_stat_mod(wb, WB_WRITEBACK, -nr);
+		__wb_writeout_add(wb, nr);
+		if (!mapping_tagged(mapping, PAGECACHE_TAG_WRITEBACK)) {
+			wb_inode_writeback_end(wb);
+			if (mapping->host)
+				sb_clear_inode_writeback(mapping->host);
 		}
-
-		if (mapping->host && !mapping_tagged(mapping,
-						     PAGECACHE_TAG_WRITEBACK))
-			sb_clear_inode_writeback(mapping->host);
 
 		xa_unlock_irqrestore(&mapping->i_pages, flags);
 	} else {
@@ -3034,7 +3031,7 @@ void __folio_start_writeback(struct folio *folio, bool keep_write)
 	if (mapping && mapping_use_writeback_tags(mapping)) {
 		XA_STATE(xas, &mapping->i_pages, folio->index);
 		struct inode *inode = mapping->host;
-		struct backing_dev_info *bdi = inode_to_bdi(inode);
+		struct bdi_writeback *wb;
 		unsigned long flags;
 		bool on_wblist;
 
@@ -3045,21 +3042,19 @@ void __folio_start_writeback(struct folio *folio, bool keep_write)
 		on_wblist = mapping_tagged(mapping, PAGECACHE_TAG_WRITEBACK);
 
 		xas_set_mark(&xas, PAGECACHE_TAG_WRITEBACK);
-		if (bdi->capabilities & BDI_CAP_WRITEBACK_ACCT) {
-			struct bdi_writeback *wb = inode_to_wb(inode);
-
-			wb_stat_mod(wb, WB_WRITEBACK, nr);
-			if (!on_wblist)
-				wb_inode_writeback_start(wb);
+		wb = inode_to_wb(inode);
+		wb_stat_mod(wb, WB_WRITEBACK, nr);
+		if (!on_wblist) {
+			wb_inode_writeback_start(wb);
+			/*
+			 * We can come through here when swapping anonymous
+			 * folios, so we don't necessarily have an inode to
+			 * track for sync.
+			 */
+			if (mapping->host)
+				sb_mark_inode_writeback(mapping->host);
 		}
 
-		/*
-		 * We can come through here when swapping anonymous
-		 * folios, so we don't necessarily have an inode to
-		 * track for sync.
-		 */
-		if (mapping->host && !on_wblist)
-			sb_mark_inode_writeback(mapping->host);
 		if (!folio_test_dirty(folio))
 			xas_clear_mark(&xas, PAGECACHE_TAG_DIRTY);
 		if (!keep_write)

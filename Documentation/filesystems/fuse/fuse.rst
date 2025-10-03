@@ -1,8 +1,8 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-====
-FUSE
-====
+=============
+FUSE Overview
+=============
 
 Definitions
 ===========
@@ -128,6 +128,20 @@ For each connection the following files exist within this directory:
 	  Writing anything into this file will abort the filesystem
 	  connection.  This means that all waiting requests will be aborted an
 	  error returned for all aborted and new requests.
+
+        max_background
+          The maximum number of background requests that can be outstanding
+          at a time. When the number of background requests reaches this limit,
+          further requests will be blocked until some are completed, potentially
+          causing I/O operations to stall.
+
+        congestion_threshold
+          The threshold of background requests at which the kernel considers
+          the filesystem to be congested. When the number of background requests
+          exceeds this value, the kernel will skip asynchronous readahead
+          operations, reducing read-ahead optimizations but preserving essential
+          I/O, as well as suspending non-synchronous writeback operations
+          (WB_SYNC_NONE), delaying page cache flushing to the filesystem.
 
 Only the owner of the mount may read or write these files.
 
