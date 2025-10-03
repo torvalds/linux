@@ -23,7 +23,6 @@ perf-util-y += evsel_fprintf.o
 perf-util-y += perf_event_attr_fprintf.o
 perf-util-y += evswitch.o
 perf-util-y += find_bit.o
-perf-util-y += get_current_dir_name.o
 perf-util-y += levenshtein.o
 perf-util-$(CONFIG_LIBBFD) += libbfd.o
 perf-util-y += llvm.o
