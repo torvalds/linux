@@ -485,7 +485,7 @@ static const struct inode_operations kvm_gmem_iops = {
 	.setattr	= kvm_gmem_setattr,
 };
 
-bool __weak kvm_arch_supports_gmem_mmap(struct kvm *kvm)
+bool __weak kvm_arch_supports_gmem_init_shared(struct kvm *kvm)
 {
 	return true;
 }
@@ -549,13 +549,8 @@ int kvm_gmem_create(struct kvm *kvm, struct kvm_create_guest_memfd *args)
 {
 	loff_t size = args->size;
 	u64 flags = args->flags;
-	u64 valid_flags = 0;
 
-	if (kvm_arch_supports_gmem_mmap(kvm))
-		valid_flags |= GUEST_MEMFD_FLAG_MMAP |
-			       GUEST_MEMFD_FLAG_INIT_SHARED;
-
-	if (flags & ~valid_flags)
+	if (flags & ~kvm_gmem_get_supported_flags(kvm))
 		return -EINVAL;
 
 	if (size <= 0 || !PAGE_ALIGNED(size))
