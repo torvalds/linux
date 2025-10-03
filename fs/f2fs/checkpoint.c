@@ -1442,6 +1442,34 @@ u64 f2fs_get_sectors_written(struct f2fs_sb_info *sbi)
 	return get_sectors_written(sbi->sb->s_bdev);
 }
 
+static inline void stat_cp_time(struct cp_control *cpc, enum cp_time type)
+{
+	cpc->stats.times[type] = ktime_get();
+}
+
+static inline void check_cp_time(struct f2fs_sb_info *sbi, struct cp_control *cpc)
+{
+	unsigned long long sb_diff, cur_diff;
+	enum cp_time ct;
+
+	sb_diff = (u64)ktime_ms_delta(sbi->cp_stats.times[CP_TIME_END],
+					sbi->cp_stats.times[CP_TIME_START]);
+	cur_diff = (u64)ktime_ms_delta(cpc->stats.times[CP_TIME_END],
+					cpc->stats.times[CP_TIME_START]);
+
+	if (cur_diff > sb_diff) {
+		sbi->cp_stats = cpc->stats;
+		if (cur_diff < CP_LONG_LATENCY_THRESHOLD)
+			return;
+
+		f2fs_warn(sbi, "checkpoint was blocked for %llu ms", cur_diff);
+		for (ct = CP_TIME_START; ct < CP_TIME_MAX - 1; ct++)
+			f2fs_warn(sbi, "Step#%d: %llu ms", ct,
+				(u64)ktime_ms_delta(cpc->stats.times[ct + 1],
+						cpc->stats.times[ct]));
+	}
+}
+
 static int do_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 {
 	struct f2fs_checkpoint *ckpt = F2FS_CKPT(sbi);
@@ -1458,6 +1486,8 @@ static int do_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 
 	/* Flush all the NAT/SIT pages */
 	f2fs_sync_meta_pages(sbi, META, LONG_MAX, FS_CP_META_IO);
+
+	stat_cp_time(cpc, CP_TIME_SYNC_META);
 
 	/* start to update checkpoint, cp ver is already updated previously */
 	ckpt->elapsed_time = cpu_to_le64(get_mtime(sbi, true));
@@ -1555,20 +1585,26 @@ static int do_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 
 	/* Here, we have one bio having CP pack except cp pack 2 page */
 	f2fs_sync_meta_pages(sbi, META, LONG_MAX, FS_CP_META_IO);
+	stat_cp_time(cpc, CP_TIME_SYNC_CP_META);
+
 	/* Wait for all dirty meta pages to be submitted for IO */
 	f2fs_wait_on_all_pages(sbi, F2FS_DIRTY_META);
+	stat_cp_time(cpc, CP_TIME_WAIT_DIRTY_META);
 
 	/* wait for previous submitted meta pages writeback */
 	f2fs_wait_on_all_pages(sbi, F2FS_WB_CP_DATA);
+	stat_cp_time(cpc, CP_TIME_WAIT_CP_DATA);
 
 	/* flush all device cache */
 	err = f2fs_flush_device_cache(sbi);
 	if (err)
 		return err;
+	stat_cp_time(cpc, CP_TIME_FLUSH_DEVICE);
 
 	/* barrier and flush checkpoint cp pack 2 page if it can */
 	commit_checkpoint(sbi, ckpt, start_blk);
 	f2fs_wait_on_all_pages(sbi, F2FS_WB_CP_DATA);
+	stat_cp_time(cpc, CP_TIME_WAIT_LAST_CP);
 
 	/*
 	 * invalidate intermediate page cache borrowed from meta inode which are
@@ -1613,6 +1649,8 @@ int f2fs_write_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 	unsigned long long ckpt_ver;
 	int err = 0;
 
+	stat_cp_time(cpc, CP_TIME_START);
+
 	if (f2fs_readonly(sbi->sb) || f2fs_hw_is_readonly(sbi))
 		return -EROFS;
 
@@ -1623,6 +1661,8 @@ int f2fs_write_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 	}
 	if (cpc->reason != CP_RESIZE)
 		f2fs_down_write(&sbi->cp_global_sem);
+
+	stat_cp_time(cpc, CP_TIME_LOCK);
 
 	if (!is_sbi_flag_set(sbi, SBI_IS_DIRTY) &&
 		((cpc->reason & CP_FASTBOOT) || (cpc->reason & CP_SYNC) ||
@@ -1638,6 +1678,8 @@ int f2fs_write_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 	err = block_operations(sbi);
 	if (err)
 		goto out;
+
+	stat_cp_time(cpc, CP_TIME_OP_LOCK);
 
 	trace_f2fs_write_checkpoint(sbi->sb, cpc->reason, "finish block_ops");
 
@@ -1678,6 +1720,8 @@ int f2fs_write_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 
 	f2fs_flush_sit_entries(sbi, cpc);
 
+	stat_cp_time(cpc, CP_TIME_FLUSH_META);
+
 	/* save inmem log status */
 	f2fs_save_inmem_curseg(sbi);
 
@@ -1695,6 +1739,8 @@ int f2fs_write_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 	stat_inc_cp_count(sbi);
 stop:
 	unblock_operations(sbi);
+	stat_cp_time(cpc, CP_TIME_END);
+	check_cp_time(sbi, cpc);
 
 	if (cpc->reason & CP_RECOVERY)
 		f2fs_notice(sbi, "checkpoint: version = %llx", ckpt_ver);
@@ -1778,6 +1824,7 @@ static void __checkpoint_and_complete_reqs(struct f2fs_sb_info *sbi)
 	llist_for_each_entry_safe(req, next, dispatch_list, llnode) {
 		diff = (u64)ktime_ms_delta(ktime_get(), req->queue_time);
 		req->ret = ret;
+		req->delta_time = diff;
 		complete(&req->wait);
 
 		sum_diff += diff;
@@ -1872,6 +1919,12 @@ int f2fs_issue_checkpoint(struct f2fs_sb_info *sbi)
 		wait_for_completion(&req.wait);
 	else
 		flush_remained_ckpt_reqs(sbi, &req);
+
+	if (unlikely(req.delta_time >= CP_LONG_LATENCY_THRESHOLD)) {
+		f2fs_warn_ratelimited(sbi,
+			"blocked on checkpoint for %u ms", cprc->peak_time);
+		dump_stack();
+	}
 
 	return req.ret;
 }
