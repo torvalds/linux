@@ -368,44 +368,44 @@ static void proc_put_char(void **buf, size_t *size, char c)
 	}
 }
 
-static int do_proc_dointvec_conv(bool *negp, unsigned long *lvalp,
-				 int *valp, int dir,
+static int do_proc_dointvec_conv(bool *negp, unsigned long *u_ptr,
+				 int *k_ptr, int dir,
 				 const struct ctl_table *table)
 {
 	if (SYSCTL_USER_TO_KERN(dir)) {
 		if (*negp) {
-			if (*lvalp > (unsigned long) INT_MAX + 1)
+			if (*u_ptr > (unsigned long) INT_MAX + 1)
 				return -EINVAL;
-			WRITE_ONCE(*valp, -*lvalp);
+			WRITE_ONCE(*k_ptr, -*u_ptr);
 		} else {
-			if (*lvalp > (unsigned long) INT_MAX)
+			if (*u_ptr > (unsigned long) INT_MAX)
 				return -EINVAL;
-			WRITE_ONCE(*valp, *lvalp);
+			WRITE_ONCE(*k_ptr, *u_ptr);
 		}
 	} else {
-		int val = READ_ONCE(*valp);
+		int val = READ_ONCE(*k_ptr);
 		if (val < 0) {
 			*negp = true;
-			*lvalp = -(unsigned long)val;
+			*u_ptr = -(unsigned long)val;
 		} else {
 			*negp = false;
-			*lvalp = (unsigned long)val;
+			*u_ptr = (unsigned long)val;
 		}
 	}
 	return 0;
 }
 
-static int do_proc_douintvec_conv(unsigned long *lvalp,
-				  unsigned int *valp, int dir,
+static int do_proc_douintvec_conv(unsigned long *u_ptr,
+				  unsigned int *k_ptr, int dir,
 				  const struct ctl_table *table)
 {
 	if (SYSCTL_USER_TO_KERN(dir)) {
-		if (*lvalp > UINT_MAX)
+		if (*u_ptr > UINT_MAX)
 			return -EINVAL;
-		WRITE_ONCE(*valp, *lvalp);
+		WRITE_ONCE(*k_ptr, *u_ptr);
 	} else {
-		unsigned int val = READ_ONCE(*valp);
-		*lvalp = (unsigned long)val;
+		unsigned int val = READ_ONCE(*k_ptr);
+		*u_ptr = (unsigned long)val;
 	}
 	return 0;
 }
@@ -415,7 +415,7 @@ static const char proc_wspace_sep[] = { ' ', '\t', '\n' };
 
 static int do_proc_dointvec(const struct ctl_table *table, int dir,
 		  void *buffer, size_t *lenp, loff_t *ppos,
-		  int (*conv)(bool *negp, unsigned long *lvalp, int *valp,
+		  int (*conv)(bool *negp, unsigned long *u_ptr, int *k_ptr,
 			      int dir, const struct ctl_table *table))
 {
 	int *i, vleft, first = 1, err = 0;
@@ -487,8 +487,8 @@ out:
 
 static int do_proc_douintvec_w(const struct ctl_table *table, void *buffer,
 			       size_t *lenp, loff_t *ppos,
-			       int (*conv)(unsigned long *lvalp,
-					   unsigned int *valp, int dir,
+			       int (*conv)(unsigned long *u_ptr,
+					   unsigned int *k_ptr, int dir,
 					   const struct ctl_table *table))
 {
 	unsigned long lval;
@@ -540,8 +540,8 @@ bail_early:
 
 static int do_proc_douintvec_r(const struct ctl_table *table, void *buffer,
 			       size_t *lenp, loff_t *ppos,
-			       int (*conv)(unsigned long *lvalp,
-					   unsigned int *valp, int dir,
+			       int (*conv)(unsigned long *u_ptr,
+					   unsigned int *k_ptr, int dir,
 					   const struct ctl_table *table))
 {
 	unsigned long lval;
@@ -570,7 +570,7 @@ out:
 
 int do_proc_douintvec(const struct ctl_table *table, int dir, void *buffer,
 		      size_t *lenp, loff_t *ppos,
-		      int (*conv)(unsigned long *lvalp, unsigned int *valp,
+		      int (*conv)(unsigned long *u_ptr, unsigned int *k_ptr,
 				  int dir, const struct ctl_table *table))
 {
 	unsigned int vleft;
@@ -679,18 +679,18 @@ int proc_douintvec(const struct ctl_table *table, int dir, void *buffer,
 				 do_proc_douintvec_conv);
 }
 
-static int do_proc_dointvec_minmax_conv(bool *negp, unsigned long *lvalp,
-					int *valp, int dir,
+static int do_proc_dointvec_minmax_conv(bool *negp, unsigned long *u_ptr,
+					int *k_ptr, int dir,
 					const struct ctl_table *table)
 {
 	int tmp, ret, *min, *max;
 	/*
-	 * If writing, first do so via a temporary local int so we can
-	 * bounds-check it before touching *valp.
+	 * If writing to a kernel variable, first do so via a temporary
+	 * local int so we can bounds-check it before touching *k_ptr.
 	 */
-	int *ip = SYSCTL_USER_TO_KERN(dir) ? &tmp : valp;
+	int *ip = SYSCTL_USER_TO_KERN(dir) ? &tmp : k_ptr;
 
-	ret = do_proc_dointvec_conv(negp, lvalp, ip, dir, table);
+	ret = do_proc_dointvec_conv(negp, u_ptr, ip, dir, table);
 	if (ret)
 		return ret;
 
@@ -699,7 +699,7 @@ static int do_proc_dointvec_minmax_conv(bool *negp, unsigned long *lvalp,
 		max = (int *) table->extra2;
 		if ((min && *min > tmp) || (max && *max < tmp))
 			return -EINVAL;
-		WRITE_ONCE(*valp, tmp);
+		WRITE_ONCE(*k_ptr, tmp);
 	}
 
 	return 0;
@@ -729,16 +729,16 @@ int proc_dointvec_minmax(const struct ctl_table *table, int dir,
 				do_proc_dointvec_minmax_conv);
 }
 
-static int do_proc_douintvec_minmax_conv(unsigned long *lvalp,
-					 unsigned int *valp, int dir,
+static int do_proc_douintvec_minmax_conv(unsigned long *u_ptr,
+					 unsigned int *k_ptr, int dir,
 					 const struct ctl_table *table)
 {
 	int ret;
 	unsigned int tmp, *min, *max;
 	/* When writing to the kernel use a temp local uint for bounds-checking */
-	unsigned int *up = SYSCTL_USER_TO_KERN(dir) ? &tmp : valp;
+	unsigned int *up = SYSCTL_USER_TO_KERN(dir) ? &tmp : k_ptr;
 
-	ret = do_proc_douintvec_conv(lvalp, up, dir, table);
+	ret = do_proc_douintvec_conv(u_ptr, up, dir, table);
 	if (ret)
 		return ret;
 
@@ -748,7 +748,7 @@ static int do_proc_douintvec_minmax_conv(unsigned long *lvalp,
 		if ((min && *min > tmp) || (max && *max < tmp))
 			return -ERANGE;
 
-		WRITE_ONCE(*valp, tmp);
+		WRITE_ONCE(*k_ptr, tmp);
 	}
 
 	return 0;
@@ -953,19 +953,19 @@ int proc_doulongvec_ms_jiffies_minmax(const struct ctl_table *table, int dir,
 }
 
 
-static int do_proc_dointvec_jiffies_conv(bool *negp, unsigned long *lvalp,
-					 int *valp, int dir,
+static int do_proc_dointvec_jiffies_conv(bool *negp, unsigned long *u_ptr,
+					 int *k_ptr, int dir,
 					 const struct ctl_table *table)
 {
 	if (SYSCTL_USER_TO_KERN(dir)) {
-		if (*lvalp > INT_MAX / HZ)
+		if (*u_ptr > INT_MAX / HZ)
 			return 1;
 		if (*negp)
-			WRITE_ONCE(*valp, -*lvalp * HZ);
+			WRITE_ONCE(*k_ptr, -*u_ptr * HZ);
 		else
-			WRITE_ONCE(*valp, *lvalp * HZ);
+			WRITE_ONCE(*k_ptr, *u_ptr * HZ);
 	} else {
-		int val = READ_ONCE(*valp);
+		int val = READ_ONCE(*k_ptr);
 		unsigned long lval;
 		if (val < 0) {
 			*negp = true;
@@ -974,21 +974,21 @@ static int do_proc_dointvec_jiffies_conv(bool *negp, unsigned long *lvalp,
 			*negp = false;
 			lval = (unsigned long)val;
 		}
-		*lvalp = lval / HZ;
+		*u_ptr = lval / HZ;
 	}
 	return 0;
 }
 
-static int do_proc_dointvec_userhz_jiffies_conv(bool *negp, unsigned long *lvalp,
-						int *valp, int dir,
+static int do_proc_dointvec_userhz_jiffies_conv(bool *negp, unsigned long *u_ptr,
+						int *k_ptr, int dir,
 						const struct ctl_table *table)
 {
 	if (SYSCTL_USER_TO_KERN(dir)) {
-		if (USER_HZ < HZ && *lvalp > (LONG_MAX / HZ) * USER_HZ)
+		if (USER_HZ < HZ && (LONG_MAX / HZ) * USER_HZ < *u_ptr)
 			return 1;
-		*valp = clock_t_to_jiffies(*negp ? -*lvalp : *lvalp);
+		*k_ptr = clock_t_to_jiffies(*negp ? -*u_ptr : *u_ptr);
 	} else {
-		int val = *valp;
+		int val = *k_ptr;
 		unsigned long lval;
 		if (val < 0) {
 			*negp = true;
@@ -997,23 +997,23 @@ static int do_proc_dointvec_userhz_jiffies_conv(bool *negp, unsigned long *lvalp
 			*negp = false;
 			lval = (unsigned long)val;
 		}
-		*lvalp = jiffies_to_clock_t(lval);
+		*u_ptr = jiffies_to_clock_t(lval);
 	}
 	return 0;
 }
 
-static int do_proc_dointvec_ms_jiffies_conv(bool *negp, unsigned long *lvalp,
-					    int *valp, int dir,
+static int do_proc_dointvec_ms_jiffies_conv(bool *negp, unsigned long *u_ptr,
+					    int *k_ptr, int dir,
 					    const struct ctl_table *table)
 {
 	if (SYSCTL_USER_TO_KERN(dir)) {
-		unsigned long jif = msecs_to_jiffies(*negp ? -*lvalp : *lvalp);
+		unsigned long jif = msecs_to_jiffies(*negp ? -*u_ptr : *u_ptr);
 
 		if (jif > INT_MAX)
 			return 1;
-		WRITE_ONCE(*valp, (int)jif);
+		WRITE_ONCE(*k_ptr, (int)jif);
 	} else {
-		int val = READ_ONCE(*valp);
+		int val = READ_ONCE(*k_ptr);
 		unsigned long lval;
 		if (val < 0) {
 			*negp = true;
@@ -1022,23 +1022,23 @@ static int do_proc_dointvec_ms_jiffies_conv(bool *negp, unsigned long *lvalp,
 			*negp = false;
 			lval = (unsigned long)val;
 		}
-		*lvalp = jiffies_to_msecs(lval);
+		*u_ptr = jiffies_to_msecs(lval);
 	}
 	return 0;
 }
 
-static int do_proc_dointvec_ms_jiffies_minmax_conv(bool *negp, unsigned long *lvalp,
-						int *valp, int dir,
+static int do_proc_dointvec_ms_jiffies_minmax_conv(bool *negp, unsigned long *u_ptr,
+						int *k_ptr, int dir,
 						const struct ctl_table *table)
 {
 	int tmp, ret, *min, *max;
 	/*
-	 * If writing, first do so via a temporary local int so we can
-	 * bounds-check it before touching *valp.
+	 * If writing to a kernel var, first do so via a temporary local
+	 * int so we can bounds-check it before touching *k_ptr.
 	 */
-	int *ip = SYSCTL_USER_TO_KERN(dir) ? &tmp : valp;
+	int *ip = SYSCTL_USER_TO_KERN(dir) ? &tmp : k_ptr;
 
-	ret = do_proc_dointvec_ms_jiffies_conv(negp, lvalp, ip, dir, table);
+	ret = do_proc_dointvec_ms_jiffies_conv(negp, u_ptr, ip, dir, table);
 	if (ret)
 		return ret;
 
@@ -1047,7 +1047,7 @@ static int do_proc_dointvec_ms_jiffies_minmax_conv(bool *negp, unsigned long *lv
 		max = (int *) table->extra2;
 		if ((min && *min > tmp) || (max && *max < tmp))
 			return -EINVAL;
-		*valp = tmp;
+		*k_ptr = tmp;
 	}
 	return 0;
 }
