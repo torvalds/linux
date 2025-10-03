@@ -30,6 +30,7 @@
 #include <linux/msi.h>
 #include <linux/of.h>
 #include <linux/aperture.h>
+#include <linux/unaligned.h>
 #include "pci.h"
 
 #ifndef ARCH_PCI_DEV_GROUPS
@@ -718,6 +719,22 @@ static ssize_t boot_vga_show(struct device *dev, struct device_attribute *attr,
 			     IORESOURCE_ROM_SHADOW));
 }
 static DEVICE_ATTR_RO(boot_vga);
+
+static ssize_t serial_number_show(struct device *dev,
+				  struct device_attribute *attr, char *buf)
+{
+	struct pci_dev *pci_dev = to_pci_dev(dev);
+	u64 dsn;
+	u8 bytes[8];
+
+	dsn = pci_get_dsn(pci_dev);
+	if (!dsn)
+		return -EIO;
+
+	put_unaligned_be64(dsn, bytes);
+	return sysfs_emit(buf, "%8phD\n", bytes);
+}
+static DEVICE_ATTR_ADMIN_RO(serial_number);
 
 static ssize_t pci_read_config(struct file *filp, struct kobject *kobj,
 			       const struct bin_attribute *bin_attr, char *buf,
@@ -1729,6 +1746,7 @@ late_initcall(pci_sysfs_init);
 
 static struct attribute *pci_dev_dev_attrs[] = {
 	&dev_attr_boot_vga.attr,
+	&dev_attr_serial_number.attr,
 	NULL,
 };
 
@@ -1739,6 +1757,9 @@ static umode_t pci_dev_attrs_are_visible(struct kobject *kobj,
 	struct pci_dev *pdev = to_pci_dev(dev);
 
 	if (a == &dev_attr_boot_vga.attr && pci_is_vga(pdev))
+		return a->mode;
+
+	if (a == &dev_attr_serial_number.attr && pci_get_dsn(pdev))
 		return a->mode;
 
 	return 0;
