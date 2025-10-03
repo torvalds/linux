@@ -3,6 +3,7 @@
  * PCI detection and setup code
  */
 
+#include <linux/array_size.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/init.h>
@@ -1912,16 +1913,16 @@ static int pci_intx_mask_broken(struct pci_dev *dev)
 
 static void early_dump_pci_device(struct pci_dev *pdev)
 {
-	u32 value[256 / 4];
+	u32 value[PCI_CFG_SPACE_SIZE / sizeof(u32)];
 	int i;
 
 	pci_info(pdev, "config space:\n");
 
-	for (i = 0; i < 256; i += 4)
-		pci_read_config_dword(pdev, i, &value[i / 4]);
+	for (i = 0; i < ARRAY_SIZE(value); i++)
+		pci_read_config_dword(pdev, i * sizeof(u32), &value[i]);
 
 	print_hex_dump(KERN_INFO, "", DUMP_PREFIX_OFFSET, 16, 1,
-		       value, 256, false);
+		       value, ARRAY_SIZE(value) * sizeof(u32), false);
 }
 
 static const char *pci_type_str(struct pci_dev *dev)
@@ -1985,8 +1986,8 @@ int pci_setup_device(struct pci_dev *dev)
 	dev->sysdata = dev->bus->sysdata;
 	dev->dev.parent = dev->bus->bridge;
 	dev->dev.bus = &pci_bus_type;
-	dev->hdr_type = hdr_type & 0x7f;
-	dev->multifunction = !!(hdr_type & 0x80);
+	dev->hdr_type = FIELD_GET(PCI_HEADER_TYPE_MASK, hdr_type);
+	dev->multifunction = FIELD_GET(PCI_HEADER_TYPE_MFD, hdr_type);
 	dev->error_state = pci_channel_io_normal;
 	set_pcie_port_type(dev);
 
@@ -3045,14 +3046,14 @@ static unsigned int pci_scan_child_bus_extend(struct pci_bus *bus,
 {
 	unsigned int used_buses, normal_bridges = 0, hotplug_bridges = 0;
 	unsigned int start = bus->busn_res.start;
-	unsigned int devfn, cmax, max = start;
+	unsigned int devnr, cmax, max = start;
 	struct pci_dev *dev;
 
 	dev_dbg(&bus->dev, "scanning bus\n");
 
 	/* Go find them, Rover! */
-	for (devfn = 0; devfn < 256; devfn += 8)
-		pci_scan_slot(bus, devfn);
+	for (devnr = 0; devnr < PCI_MAX_NR_DEVS; devnr++)
+		pci_scan_slot(bus, PCI_DEVFN(devnr, 0));
 
 	/* Reserve buses for SR-IOV capability */
 	used_buses = pci_iov_bus_range(bus);

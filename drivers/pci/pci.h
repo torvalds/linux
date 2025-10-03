@@ -8,6 +8,7 @@ struct pcie_tlp_log;
 
 /* Number of possible devfns: 0.0 to 1f.7 inclusive */
 #define MAX_NR_DEVFNS 256
+#define PCI_MAX_NR_DEVS	32
 
 #define MAX_NR_LANES 16
 
