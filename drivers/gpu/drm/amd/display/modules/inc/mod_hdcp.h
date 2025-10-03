@@ -98,6 +98,7 @@ enum mod_hdcp_status {
 	MOD_HDCP_STATUS_HDCP2_REAUTH_LINK_INTEGRITY_FAILURE,
 	MOD_HDCP_STATUS_HDCP2_DEVICE_COUNT_MISMATCH_FAILURE,
 	MOD_HDCP_STATUS_UNSUPPORTED_PSP_VER_FAILURE,
+	MOD_HDCP_STATUS_HDCP2_LOCALITY_COMBO_READ_FAILURE,
 };
 
 struct mod_hdcp_displayport {
@@ -214,8 +215,9 @@ struct mod_hdcp_link_adjustment_hdcp2 {
 	uint8_t force_type		: 2;
 	uint8_t force_no_stored_km	: 1;
 	uint8_t increase_h_prime_timeout: 1;
-	uint8_t force_sw_locality_check : 1;
-	uint8_t reserved		: 2;
+	uint8_t use_fw_locality_check 	: 1;
+	uint8_t use_sw_locality_fallback: 1;
+	uint8_t reserved		: 1;
 };
 
 struct mod_hdcp_link_adjustment {
@@ -317,10 +319,6 @@ struct mod_hdcp_display_query {
 struct mod_hdcp_config {
 	struct mod_hdcp_psp psp;
 	struct mod_hdcp_ddc ddc;
-	struct {
-		uint8_t lc_enable_sw_fallback : 1;
-		uint8_t reserved : 7;
-	} debug;
 	uint8_t index;
 };
 
