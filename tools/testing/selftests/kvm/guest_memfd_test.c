@@ -268,18 +268,8 @@ do {									\
 	close(fd);							\
 } while (0)
 
-static void test_guest_memfd(unsigned long vm_type)
+static void __test_guest_memfd(struct kvm_vm *vm, uint64_t flags)
 {
-	struct kvm_vm *vm;
-	uint64_t flags;
-
-	vm = vm_create_barebones_type(vm_type);
-	flags = vm_check_cap(vm, KVM_CAP_GUEST_MEMFD_FLAGS);
-
-	/* This test doesn't yet support testing mmap() on private memory. */
-	if (!(flags & GUEST_MEMFD_FLAG_INIT_SHARED))
-		flags &= ~GUEST_MEMFD_FLAG_MMAP;
-
 	test_create_guest_memfd_multiple(vm);
 	test_create_guest_memfd_invalid_sizes(vm, flags);
 
@@ -295,8 +285,23 @@ static void test_guest_memfd(unsigned long vm_type)
 	gmem_test(file_size, vm, flags);
 	gmem_test(fallocate, vm, flags);
 	gmem_test(invalid_punch_hole, vm, flags);
+}
+
+static void test_guest_memfd(unsigned long vm_type)
+{
+	struct kvm_vm *vm = vm_create_barebones_type(vm_type);
+	uint64_t flags;
 
 	test_guest_memfd_flags(vm);
+
+	__test_guest_memfd(vm, 0);
+
+	flags = vm_check_cap(vm, KVM_CAP_GUEST_MEMFD_FLAGS);
+
+	/* MMAP should always be supported if INIT_SHARED is supported. */
+	if (flags & GUEST_MEMFD_FLAG_INIT_SHARED)
+		__test_guest_memfd(vm, GUEST_MEMFD_FLAG_MMAP |
+				       GUEST_MEMFD_FLAG_INIT_SHARED);
 
 	kvm_vm_free(vm);
 }
