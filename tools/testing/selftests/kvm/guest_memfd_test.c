@@ -75,9 +75,8 @@ static void test_mmap_supported(int fd, size_t total_size)
 	kvm_munmap(mem, total_size);
 }
 
-static void test_fault_overflow(int fd, size_t total_size)
+static void test_fault_sigbus(int fd, size_t accessible_size, size_t map_size)
 {
-	size_t map_size = total_size * 4;
 	const char val = 0xaa;
 	char *mem;
 	size_t i;
@@ -86,10 +85,20 @@ static void test_fault_overflow(int fd, size_t total_size)
 
 	TEST_EXPECT_SIGBUS(memset(mem, val, map_size));
 
-	for (i = 0; i < total_size; i++)
+	for (i = 0; i < accessible_size; i++)
 		TEST_ASSERT_EQ(READ_ONCE(mem[i]), val);
 
 	kvm_munmap(mem, map_size);
+}
+
+static void test_fault_overflow(int fd, size_t total_size)
+{
+	test_fault_sigbus(fd, total_size, total_size * 4);
+}
+
+static void test_fault_private(int fd, size_t total_size)
+{
+	test_fault_sigbus(fd, 0, total_size);
 }
 
 static void test_mmap_not_supported(int fd, size_t total_size)
@@ -260,9 +269,14 @@ static void __test_guest_memfd(struct kvm_vm *vm, uint64_t flags)
 	gmem_test(file_read_write, vm, flags);
 
 	if (flags & GUEST_MEMFD_FLAG_MMAP) {
-		gmem_test(mmap_supported, vm, flags);
+		if (flags & GUEST_MEMFD_FLAG_INIT_SHARED) {
+			gmem_test(mmap_supported, vm, flags);
+			gmem_test(fault_overflow, vm, flags);
+		} else {
+			gmem_test(fault_private, vm, flags);
+		}
+
 		gmem_test(mmap_cow, vm, flags);
-		gmem_test(fault_overflow, vm, flags);
 	} else {
 		gmem_test(mmap_not_supported, vm, flags);
 	}
@@ -282,6 +296,8 @@ static void test_guest_memfd(unsigned long vm_type)
 	__test_guest_memfd(vm, 0);
 
 	flags = vm_check_cap(vm, KVM_CAP_GUEST_MEMFD_FLAGS);
+	if (flags & GUEST_MEMFD_FLAG_MMAP)
+		__test_guest_memfd(vm, GUEST_MEMFD_FLAG_MMAP);
 
 	/* MMAP should always be supported if INIT_SHARED is supported. */
 	if (flags & GUEST_MEMFD_FLAG_INIT_SHARED)
