@@ -1102,6 +1102,7 @@ static void svc_clean_up_xprts(struct svc_serv *serv, struct net *net)
  * svc_xprt_destroy_all - Destroy transports associated with @serv
  * @serv: RPC service to be shut down
  * @net: target network namespace
+ * @unregister: true if it is OK to unregister the destroyed xprts
  *
  * Server threads may still be running (especially in the case where the
  * service is still running in other network namespaces).
@@ -1114,7 +1115,8 @@ static void svc_clean_up_xprts(struct svc_serv *serv, struct net *net)
  * threads, we may need to wait a little while and then check again to
  * see if they're done.
  */
-void svc_xprt_destroy_all(struct svc_serv *serv, struct net *net)
+void svc_xprt_destroy_all(struct svc_serv *serv, struct net *net,
+			  bool unregister)
 {
 	int delay = 0;
 
@@ -1124,6 +1126,9 @@ void svc_xprt_destroy_all(struct svc_serv *serv, struct net *net)
 		svc_clean_up_xprts(serv, net);
 		msleep(delay++);
 	}
+
+	if (unregister)
+		svc_rpcb_cleanup(serv, net);
 }
 EXPORT_SYMBOL_GPL(svc_xprt_destroy_all);
 

@@ -288,16 +288,16 @@ xdr_set_scratch_buffer(struct xdr_stream *xdr, void *buf, size_t buflen)
 }
 
 /**
- * xdr_set_scratch_page - Attach a scratch buffer for decoding data
+ * xdr_set_scratch_folio - Attach a scratch buffer for decoding data
  * @xdr: pointer to xdr_stream struct
- * @page: an anonymous page
+ * @page: an anonymous folio
  *
  * See xdr_set_scratch_buffer().
  */
 static inline void
-xdr_set_scratch_page(struct xdr_stream *xdr, struct page *page)
+xdr_set_scratch_folio(struct xdr_stream *xdr, struct folio *folio)
 {
-	xdr_set_scratch_buffer(xdr, page_address(page), PAGE_SIZE);
+	xdr_set_scratch_buffer(xdr, folio_address(folio), folio_size(folio));
 }
 
 /**
