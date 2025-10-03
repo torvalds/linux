@@ -182,6 +182,7 @@ enum board_family {
 	family_amd_500_series,
 	family_amd_600_series,
 	family_amd_800_series,
+	family_amd_trx_50,
 	family_amd_wrx_90,
 	family_intel_200_series,
 	family_intel_300_series,
@@ -292,6 +293,15 @@ static const struct ec_sensor_info sensors_family_amd_800[] = {
 		EC_SENSOR("T_Sensor", hwmon_temp, 1, 0x00, 0x36),
 	[ec_sensor_fan_cpu_opt] =
 		EC_SENSOR("CPU_Opt", hwmon_fan, 2, 0x00, 0xb0),
+};
+
+static const struct ec_sensor_info sensors_family_amd_trx_50[] = {
+	[ec_sensor_fan_vrmw_hs] =
+		EC_SENSOR("VRMW HS", hwmon_fan, 2, 0x00, 0xb4),
+	[ec_sensor_fan_vrme_hs] =
+		EC_SENSOR("VRME HS", hwmon_fan, 2, 0x00, 0xbc),
+	[ec_sensor_temp_t_sensor] =
+		EC_SENSOR("T_Sensor", hwmon_temp, 1, 0x01, 0x04),
 };
 
 static const struct ec_sensor_info sensors_family_amd_wrx_90[] = {
@@ -533,6 +543,13 @@ static const struct ec_board_info board_info_pro_art_x870E_creator_wifi = {
 	.family = family_amd_800_series,
 };
 
+static const struct ec_board_info board_info_pro_ws_trx50_sage_wifi = {
+	/* Board also has a nct6798 */
+	.sensors = SENSOR_TEMP_T_SENSOR | SENSOR_FAN_VRME_HS | SENSOR_FAN_VRMW_HS,
+	.mutex_path = ASUS_HW_ACCESS_MUTEX_RMTW_ASMX,
+	.family = family_amd_trx_50,
+};
+
 static const struct ec_board_info board_info_pro_ws_wrx90e_sage_se = {
 	/* Board also has a nct6798 with 7 more fans and temperatures */
 	.sensors = SENSOR_TEMP_CPU_PACKAGE | SENSOR_TEMP_T_SENSOR |
@@ -739,6 +756,8 @@ static const struct dmi_system_id dmi_table[] = {
 					&board_info_pro_art_x670E_creator_wifi),
 	DMI_EXACT_MATCH_ASUS_BOARD_NAME("ProArt X870E-CREATOR WIFI",
 					&board_info_pro_art_x870E_creator_wifi),
+	DMI_EXACT_MATCH_ASUS_BOARD_NAME("Pro WS TRX50-SAGE WIFI",
+					&board_info_pro_ws_trx50_sage_wifi),
 	DMI_EXACT_MATCH_ASUS_BOARD_NAME("Pro WS WRX90E-SAGE SE",
 					&board_info_pro_ws_wrx90e_sage_se),
 	DMI_EXACT_MATCH_ASUS_BOARD_NAME("Pro WS X570-ACE",
@@ -1273,6 +1292,9 @@ static int asus_ec_probe(struct platform_device *pdev)
 		break;
 	case family_amd_800_series:
 		ec_data->sensors_info = sensors_family_amd_800;
+		break;
+	case family_amd_trx_50:
+		ec_data->sensors_info = sensors_family_amd_trx_50;
 		break;
 	case family_amd_wrx_90:
 		ec_data->sensors_info = sensors_family_amd_wrx_90;
