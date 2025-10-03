@@ -14377,7 +14377,7 @@ lpfc_sli_prep_dev_for_perm_failure(struct lpfc_hba *phba)
  * as desired.
  *
  * Return codes
- * 	PCI_ERS_RESULT_CAN_RECOVER - can be recovered with reset_link
+ *	PCI_ERS_RESULT_CAN_RECOVER - can be recovered without reset
  * 	PCI_ERS_RESULT_NEED_RESET - need to reset before recovery
  * 	PCI_ERS_RESULT_DISCONNECT - device could not be recovered
  **/

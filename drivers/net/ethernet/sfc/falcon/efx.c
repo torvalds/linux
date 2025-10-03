@@ -3128,9 +3128,6 @@ out:
 
 /* For simplicity and reliability, we always require a slot reset and try to
  * reset the hardware when a pci error affecting the device is detected.
- * We leave both the link_reset and mmio_enabled callback unimplemented:
- * with our request for slot reset the mmio_enabled callback will never be
- * called, and the link_reset callback is not used by AER or EEH mechanisms.
  */
 static const struct pci_error_handlers ef4_err_handlers = {
 	.error_detected = ef4_io_error_detected,
