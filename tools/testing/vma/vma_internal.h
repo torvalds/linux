@@ -21,6 +21,7 @@
 
 #include <stdlib.h>
 
+#include <linux/atomic.h>
 #include <linux/list.h>
 #include <linux/maple_tree.h>
 #include <linux/mm.h>
@@ -250,6 +251,14 @@ struct mutex {};
 #define DEFINE_MUTEX(mutexname) \
 	struct mutex mutexname = {}
 
+#define DECLARE_BITMAP(name, bits) \
+	unsigned long name[BITS_TO_LONGS(bits)]
+
+#define NUM_MM_FLAG_BITS (64)
+typedef struct {
+	__private DECLARE_BITMAP(__mm_flags, NUM_MM_FLAG_BITS);
+} mm_flags_t;
+
 struct mm_struct {
 	struct maple_tree mm_mt;
 	int map_count;			/* number of VMAs */
@@ -261,7 +270,7 @@ struct mm_struct {
 
 	unsigned long def_flags;
 
-	unsigned long flags; /* Must use atomic bitops to access */
+	mm_flags_t flags; /* Must use mm_flags_* helpers to access */
 };
 
 struct vm_area_struct;
@@ -275,13 +284,14 @@ struct vm_area_struct;
  */
 struct vm_area_desc {
 	/* Immutable state. */
-	struct mm_struct *mm;
+	const struct mm_struct *const mm;
+	struct file *const file; /* May vary from vm_file in stacked callers. */
 	unsigned long start;
 	unsigned long end;
 
 	/* Mutable fields. Populated with initial state. */
 	pgoff_t pgoff;
-	struct file *file;
+	struct file *vm_file;
 	vm_flags_t vm_flags;
 	pgprot_t page_prot;
 
@@ -468,13 +478,21 @@ struct vm_operations_struct {
 	struct mempolicy *(*get_policy)(struct vm_area_struct *vma,
 					unsigned long addr, pgoff_t *ilx);
 #endif
+#ifdef CONFIG_FIND_NORMAL_PAGE
 	/*
-	 * Called by vm_normal_page() for special PTEs to find the
-	 * page for @addr.  This is useful if the default behavior
-	 * (using pte_page()) would not find the correct page.
+	 * Called by vm_normal_page() for special PTEs in @vma at @addr. This
+	 * allows for returning a "normal" page from vm_normal_page() even
+	 * though the PTE indicates that the "struct page" either does not exist
+	 * or should not be touched: "special".
+	 *
+	 * Do not add new users: this really only works when a "normal" page
+	 * was mapped, but then the PTE got changed to something weird (+
+	 * marked special) that would not make pte_pfn() identify the originally
+	 * inserted page.
 	 */
-	struct page *(*find_special_page)(struct vm_area_struct *vma,
-					  unsigned long addr);
+	struct page *(*find_normal_page)(struct vm_area_struct *vma,
+					 unsigned long addr);
+#endif /* CONFIG_FIND_NORMAL_PAGE */
 };
 
 struct vm_unmapped_area_info {
@@ -1157,8 +1175,8 @@ static inline bool capable(int cap)
 	return true;
 }
 
-static inline bool mlock_future_ok(struct mm_struct *mm, vm_flags_t vm_flags,
-			unsigned long bytes)
+static inline bool mlock_future_ok(const struct mm_struct *mm,
+		vm_flags_t vm_flags, unsigned long bytes)
 {
 	unsigned long locked_pages, limit_pages;
 
@@ -1200,6 +1218,13 @@ static inline void userfaultfd_unmap_complete(struct mm_struct *mm,
 {
 }
 
+# define ACCESS_PRIVATE(p, member) ((p)->member)
+
+static inline bool mm_flags_test(int flag, const struct mm_struct *mm)
+{
+	return test_bit(flag, ACCESS_PRIVATE(&mm->flags, __mm_flags));
+}
+
 /*
  * Denies creating a writable executable mapping or gaining executable permissions.
  *
@@ -1230,7 +1255,7 @@ static inline void userfaultfd_unmap_complete(struct mm_struct *mm,
 static inline bool map_deny_write_exec(unsigned long old, unsigned long new)
 {
 	/* If MDWE is disabled, we have nothing to deny. */
-	if (!test_bit(MMF_HAS_MDWE, &current->mm->flags))
+	if (mm_flags_test(MMF_HAS_MDWE, current->mm))
 		return false;
 
 	/* If the new VMA is not executable, we have nothing to deny. */
@@ -1250,15 +1275,8 @@ static inline bool map_deny_write_exec(unsigned long old, unsigned long new)
 
 static inline int mapping_map_writable(struct address_space *mapping)
 {
-	int c = atomic_read(&mapping->i_mmap_writable);
-
-	/* Derived from the raw_atomic_inc_unless_negative() implementation. */
-	do {
-		if (c < 0)
-			return -EPERM;
-	} while (!__sync_bool_compare_and_swap(&mapping->i_mmap_writable, c, c+1));
-
-	return 0;
+	return atomic_inc_unless_negative(&mapping->i_mmap_writable) ?
+		0 : -EPERM;
 }
 
 static inline unsigned long move_page_tables(struct pagetable_move_control *pmc)
@@ -1308,21 +1326,34 @@ static inline void free_anon_vma_name(struct vm_area_struct *vma)
 static inline void set_vma_from_desc(struct vm_area_struct *vma,
 		struct vm_area_desc *desc);
 
-static inline struct vm_area_desc *vma_to_desc(struct vm_area_struct *vma,
-		struct vm_area_desc *desc);
-
-static int compat_vma_mmap_prepare(struct file *file,
-		struct vm_area_struct *vma)
+static inline int __compat_vma_mmap_prepare(const struct file_operations *f_op,
+		struct file *file, struct vm_area_struct *vma)
 {
-	struct vm_area_desc desc;
+	struct vm_area_desc desc = {
+		.mm = vma->vm_mm,
+		.file = vma->vm_file,
+		.start = vma->vm_start,
+		.end = vma->vm_end,
+
+		.pgoff = vma->vm_pgoff,
+		.vm_file = vma->vm_file,
+		.vm_flags = vma->vm_flags,
+		.page_prot = vma->vm_page_prot,
+	};
 	int err;
 
-	err = file->f_op->mmap_prepare(vma_to_desc(vma, &desc));
+	err = f_op->mmap_prepare(&desc);
 	if (err)
 		return err;
 	set_vma_from_desc(vma, &desc);
 
 	return 0;
+}
+
+static inline int compat_vma_mmap_prepare(struct file *file,
+		struct vm_area_struct *vma)
+{
+	return __compat_vma_mmap_prepare(file->f_op, file, vma);
 }
 
 /* Did the driver provide valid mmap hook configuration? */

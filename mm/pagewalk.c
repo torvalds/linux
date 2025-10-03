@@ -914,23 +914,23 @@ struct folio *folio_walk_start(struct folio_walk *fw,
 		fw->pudp = pudp;
 		fw->pud = pud;
 
+		if (pud_none(pud)) {
+			spin_unlock(ptl);
+			goto not_found;
+		} else if (pud_present(pud) && !pud_leaf(pud)) {
+			spin_unlock(ptl);
+			goto pmd_table;
+		} else if (pud_present(pud)) {
+			page = vm_normal_page_pud(vma, addr, pud);
+			if (page)
+				goto found;
+		}
 		/*
 		 * TODO: FW_MIGRATION support for PUD migration entries
 		 * once there are relevant users.
 		 */
-		if (!pud_present(pud) || pud_special(pud)) {
-			spin_unlock(ptl);
-			goto not_found;
-		} else if (!pud_leaf(pud)) {
-			spin_unlock(ptl);
-			goto pmd_table;
-		}
-		/*
-		 * TODO: vm_normal_page_pud() will be handy once we want to
-		 * support PUD mappings in VM_PFNMAP|VM_MIXEDMAP VMAs.
-		 */
-		page = pud_page(pud);
-		goto found;
+		spin_unlock(ptl);
+		goto not_found;
 	}
 
 pmd_table:
@@ -1016,7 +1016,7 @@ not_found:
 found:
 	if (expose_page)
 		/* Note: Offset from the mapped page, not the folio start. */
-		fw->page = nth_page(page, (addr & (entry_size - 1)) >> PAGE_SHIFT);
+		fw->page = page + ((addr & (entry_size - 1)) >> PAGE_SHIFT);
 	else
 		fw->page = NULL;
 	fw->ptl = ptl;

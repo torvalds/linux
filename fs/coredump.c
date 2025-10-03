@@ -1103,8 +1103,10 @@ void vfs_coredump(const kernel_siginfo_t *siginfo)
 		 * We must use the same mm->flags while dumping core to avoid
 		 * inconsistency of bit flags, since this flag is not protected
 		 * by any locks.
+		 *
+		 * Note that we only care about MMF_DUMP* flags.
 		 */
-		.mm_flags = mm->flags,
+		.mm_flags = __mm_flags_get_dumpable(mm),
 		.vma_meta = NULL,
 		.cpu = raw_smp_processor_id(),
 	};

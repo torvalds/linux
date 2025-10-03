@@ -939,9 +939,9 @@ static inline void kvmppc_mmu_flush_icache(kvm_pfn_t pfn)
 
 	/* Clear i-cache for new pages */
 	folio = page_folio(pfn_to_page(pfn));
-	if (!test_bit(PG_dcache_clean, &folio->flags)) {
+	if (!test_bit(PG_dcache_clean, &folio->flags.f)) {
 		flush_dcache_icache_folio(folio);
-		set_bit(PG_dcache_clean, &folio->flags);
+		set_bit(PG_dcache_clean, &folio->flags.f);
 	}
 }
 

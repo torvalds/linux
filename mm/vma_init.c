@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 /*
- * Functions for initialisaing, allocating, freeing and duplicating VMAs. Shared
+ * Functions for initializing, allocating, freeing and duplicating VMAs. Shared
  * between CONFIG_MMU and non-CONFIG_MMU kernel configurations.
  */
 

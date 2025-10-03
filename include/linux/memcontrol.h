@@ -908,7 +908,13 @@ unsigned long mem_cgroup_get_zone_lru_size(struct lruvec *lruvec,
 	return READ_ONCE(mz->lru_zone_size[zone_idx][lru]);
 }
 
-void mem_cgroup_handle_over_high(gfp_t gfp_mask);
+void __mem_cgroup_handle_over_high(gfp_t gfp_mask);
+
+static inline void mem_cgroup_handle_over_high(gfp_t gfp_mask)
+{
+	if (unlikely(current->memcg_nr_pages_over_high))
+		__mem_cgroup_handle_over_high(gfp_mask);
+}
 
 unsigned long mem_cgroup_get_max(struct mem_cgroup *memcg);
 
@@ -1060,6 +1066,8 @@ extern int mem_cgroup_init(void);
 #else /* CONFIG_MEMCG */
 
 #define MEM_CGROUP_ID_SHIFT	0
+
+#define root_mem_cgroup		(NULL)
 
 static inline struct mem_cgroup *folio_memcg(struct folio *folio)
 {

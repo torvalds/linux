@@ -32,9 +32,10 @@
 
 #include <sys/socket.h>
 
+#include "../../kselftest.h"
+
 /* defines to make checkpatch happy */
 #define strscpy strncpy
-#define __always_unused __attribute__((__unused__))
 
 /* libnl < 3.5.0 does not set the NLA_F_NESTED on its own, therefore we
  * have to explicitly do it to prevent the kernel from failing upon
