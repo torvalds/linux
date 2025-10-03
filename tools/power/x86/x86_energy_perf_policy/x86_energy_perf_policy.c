@@ -95,6 +95,9 @@ unsigned int bdx_highest_ratio;
 #define PATH_TO_CPU "/sys/devices/system/cpu/"
 #define SYSFS_PATH_MAX 255
 
+/* keep Default as a linux path */
+static int use_android_msr_path;
+
 /*
  * maintain compatibility with original implementation, but don't document it:
  */
@@ -678,16 +681,41 @@ void err_on_hypervisor(void)
 		    "not supported on this virtual machine");
 }
 
+static void probe_msr_path_format(void)
+{
+	struct stat sb;
+	char test_path[32];
+
+	/* Test standard Linux path */
+	sprintf(test_path, "/dev/cpu/%d/msr", base_cpu);
+	if (stat(test_path, &sb) == 0) {
+		use_android_msr_path = 0;
+		return;
+	}
+
+	/* Test Android-style path */
+	sprintf(test_path, "/dev/msr%d", base_cpu);
+	if (stat(test_path, &sb) == 0) {
+		use_android_msr_path = 1;
+		return;
+	}
+
+	/* If neither exists, keep the default Linux format */
+	use_android_msr_path = 0;
+}
+
 int get_msr(int cpu, int offset, unsigned long long *msr)
 {
 	int retval;
 	char pathname[32];
 	int fd;
 
-	sprintf(pathname, "/dev/cpu/%d/msr", cpu);
+	sprintf(pathname, use_android_msr_path ? "/dev/msr%d" : "/dev/cpu/%d/msr", cpu);
 	fd = open(pathname, O_RDONLY);
 	if (fd < 0)
-		err(-1, "%s open failed, try chown or chmod +r /dev/cpu/*/msr, or run as root", pathname);
+		err(-1, "%s open failed, try chown or chmod +r %s, or run as root",
+		   pathname, use_android_msr_path ? "/dev/msr*" : "/dev/cpu/*/msr");
+
 
 	retval = pread(fd, msr, sizeof(*msr), offset);
 	if (retval != sizeof(*msr)) {
@@ -708,10 +736,11 @@ int put_msr(int cpu, int offset, unsigned long long new_msr)
 	int retval;
 	int fd;
 
-	sprintf(pathname, "/dev/cpu/%d/msr", cpu);
+	sprintf(pathname, use_android_msr_path ? "/dev/msr%d" : "/dev/cpu/%d/msr", cpu);
 	fd = open(pathname, O_RDWR);
 	if (fd < 0)
-		err(-1, "%s open failed, try chown or chmod +r /dev/cpu/*/msr, or run as root", pathname);
+		err(-1, "%s open failed, try chown or chmod +r %s, or run as root",
+		   pathname, use_android_msr_path ? "/dev/msr*" : "/dev/cpu/*/msr");
 
 	retval = pwrite(fd, &new_msr, sizeof(new_msr), offset);
 	if (retval != sizeof(new_msr))
@@ -1427,10 +1456,15 @@ void probe_dev_msr(void)
 	struct stat sb;
 	char pathname[32];
 
-	sprintf(pathname, "/dev/cpu/%d/msr", base_cpu);
-	if (stat(pathname, &sb))
-		if (system("/sbin/modprobe msr > /dev/null 2>&1"))
-			err(-5, "no /dev/cpu/0/msr, Try \"# modprobe msr\" ");
+	sprintf(pathname, use_android_msr_path ? "/dev/msr%d" : "/dev/cpu/%d/msr", base_cpu);
+	if (stat(pathname, &sb)) {
+		if (system("/sbin/modprobe msr > /dev/null 2>&1")) {
+			if (use_android_msr_path)
+				err(-5, "no /dev/msr0, Try \"# modprobe msr\" ");
+			else
+				err(-5, "no /dev/cpu/0/msr, Try \"# modprobe msr\" ");
+		}
+	}
 }
 
 static void get_cpuid_or_exit(unsigned int leaf,
@@ -1547,6 +1581,10 @@ void parse_cpuid(void)
 int main(int argc, char **argv)
 {
 	set_base_cpu();
+
+	/* probe MSR path */
+	probe_msr_path_format();
+
 	probe_dev_msr();
 	init_data_structures();
 
