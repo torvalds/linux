@@ -40,15 +40,20 @@ static void test_file_read_write(int fd, size_t total_size)
 		    "pwrite on a guest_mem fd should fail");
 }
 
+static void test_mmap_cow(int fd, size_t size)
+{
+	void *mem;
+
+	mem = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
+	TEST_ASSERT(mem == MAP_FAILED, "Copy-on-write not allowed by guest_memfd.");
+}
+
 static void test_mmap_supported(int fd, size_t total_size)
 {
 	const char val = 0xaa;
 	char *mem;
 	size_t i;
 	int ret;
-
-	mem = mmap(NULL, total_size, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
-	TEST_ASSERT(mem == MAP_FAILED, "Copy-on-write not allowed by guest_memfd.");
 
 	mem = kvm_mmap(total_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd);
 
@@ -272,6 +277,7 @@ static void __test_guest_memfd(struct kvm_vm *vm, uint64_t flags)
 
 	if (flags & GUEST_MEMFD_FLAG_MMAP) {
 		gmem_test(mmap_supported, vm, flags);
+		gmem_test(mmap_cow, vm, flags);
 		gmem_test(fault_overflow, vm, flags);
 	} else {
 		gmem_test(mmap_not_supported, vm, flags);
