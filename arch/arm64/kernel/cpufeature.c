@@ -2550,6 +2550,15 @@ test_has_mpam_hcr(const struct arm64_cpu_capabilities *entry, int scope)
 	return idr & MPAMIDR_EL1_HAS_HCR;
 }
 
+static bool
+test_has_gicv5_legacy(const struct arm64_cpu_capabilities *entry, int scope)
+{
+	if (!this_cpu_has_cap(ARM64_HAS_GICV5_CPUIF))
+		return false;
+
+	return !!(read_sysreg_s(SYS_ICC_IDR0_EL1) & ICC_IDR0_EL1_GCIE_LEGACY);
+}
+
 static const struct arm64_cpu_capabilities arm64_features[] = {
 	{
 		.capability = ARM64_ALWAYS_BOOT,
@@ -3166,6 +3175,12 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.capability = ARM64_HAS_GICV5_CPUIF,
 		.matches = has_cpuid_feature,
 		ARM64_CPUID_FIELDS(ID_AA64PFR2_EL1, GCIE, IMP)
+	},
+	{
+		.desc = "GICv5 Legacy vCPU interface",
+		.type = ARM64_CPUCAP_EARLY_LOCAL_CPU_FEATURE,
+		.capability = ARM64_HAS_GICV5_LEGACY,
+		.matches = test_has_gicv5_legacy,
 	},
 	{},
 };

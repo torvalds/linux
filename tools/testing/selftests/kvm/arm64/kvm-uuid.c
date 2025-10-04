@@ -25,7 +25,7 @@ static void guest_code(void)
 {
 	struct arm_smccc_res res = {};
 
-	smccc_hvc(ARM_SMCCC_VENDOR_HYP_CALL_UID_FUNC_ID, 0, 0, 0, 0, 0, 0, 0, &res);
+	do_smccc(ARM_SMCCC_VENDOR_HYP_CALL_UID_FUNC_ID, 0, 0, 0, 0, 0, 0, 0, &res);
 
 	__GUEST_ASSERT(res.a0 == ARM_SMCCC_VENDOR_HYP_UID_KVM_REG_0 &&
 		       res.a1 == ARM_SMCCC_VENDOR_HYP_UID_KVM_REG_1 &&

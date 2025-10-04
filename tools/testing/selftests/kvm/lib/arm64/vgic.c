@@ -15,6 +15,17 @@
 #include "gic.h"
 #include "gic_v3.h"
 
+bool kvm_supports_vgic_v3(void)
+{
+	struct kvm_vm *vm = vm_create_barebones();
+	int r;
+
+	r = __kvm_test_create_device(vm, KVM_DEV_TYPE_ARM_VGIC_V3);
+	kvm_vm_free(vm);
+
+	return !r;
+}
+
 /*
  * vGIC-v3 default host setup
  *
@@ -30,24 +41,11 @@
  * redistributor regions of the guest. Since it depends on the number of
  * vCPUs for the VM, it must be called after all the vCPUs have been created.
  */
-int vgic_v3_setup(struct kvm_vm *vm, unsigned int nr_vcpus, uint32_t nr_irqs)
+int __vgic_v3_setup(struct kvm_vm *vm, unsigned int nr_vcpus, uint32_t nr_irqs)
 {
 	int gic_fd;
 	uint64_t attr;
-	struct list_head *iter;
-	unsigned int nr_gic_pages, nr_vcpus_created = 0;
-
-	TEST_ASSERT(nr_vcpus, "Number of vCPUs cannot be empty");
-
-	/*
-	 * Make sure that the caller is infact calling this
-	 * function after all the vCPUs are added.
-	 */
-	list_for_each(iter, &vm->vcpus)
-		nr_vcpus_created++;
-	TEST_ASSERT(nr_vcpus == nr_vcpus_created,
-			"Number of vCPUs requested (%u) doesn't match with the ones created for the VM (%u)",
-			nr_vcpus, nr_vcpus_created);
+	unsigned int nr_gic_pages;
 
 	/* Distributor setup */
 	gic_fd = __kvm_create_device(vm, KVM_DEV_TYPE_ARM_VGIC_V3);
@@ -55,9 +53,6 @@ int vgic_v3_setup(struct kvm_vm *vm, unsigned int nr_vcpus, uint32_t nr_irqs)
 		return gic_fd;
 
 	kvm_device_attr_set(gic_fd, KVM_DEV_ARM_VGIC_GRP_NR_IRQS, 0, &nr_irqs);
-
-	kvm_device_attr_set(gic_fd, KVM_DEV_ARM_VGIC_GRP_CTRL,
-			    KVM_DEV_ARM_VGIC_CTRL_INIT, NULL);
 
 	attr = GICD_BASE_GPA;
 	kvm_device_attr_set(gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
@@ -73,10 +68,39 @@ int vgic_v3_setup(struct kvm_vm *vm, unsigned int nr_vcpus, uint32_t nr_irqs)
 						KVM_VGIC_V3_REDIST_SIZE * nr_vcpus);
 	virt_map(vm, GICR_BASE_GPA, GICR_BASE_GPA, nr_gic_pages);
 
-	kvm_device_attr_set(gic_fd, KVM_DEV_ARM_VGIC_GRP_CTRL,
-			    KVM_DEV_ARM_VGIC_CTRL_INIT, NULL);
-
 	return gic_fd;
+}
+
+void __vgic_v3_init(int fd)
+{
+	kvm_device_attr_set(fd, KVM_DEV_ARM_VGIC_GRP_CTRL,
+			    KVM_DEV_ARM_VGIC_CTRL_INIT, NULL);
+}
+
+int vgic_v3_setup(struct kvm_vm *vm, unsigned int nr_vcpus, uint32_t nr_irqs)
+{
+	unsigned int nr_vcpus_created = 0;
+	struct list_head *iter;
+	int fd;
+
+	TEST_ASSERT(nr_vcpus, "Number of vCPUs cannot be empty");
+
+	/*
+	 * Make sure that the caller is infact calling this
+	 * function after all the vCPUs are added.
+	 */
+	list_for_each(iter, &vm->vcpus)
+		nr_vcpus_created++;
+	TEST_ASSERT(nr_vcpus == nr_vcpus_created,
+		    "Number of vCPUs requested (%u) doesn't match with the ones created for the VM (%u)",
+		    nr_vcpus, nr_vcpus_created);
+
+	fd = __vgic_v3_setup(vm, nr_vcpus, nr_irqs);
+	if (fd < 0)
+		return fd;
+
+	__vgic_v3_init(fd);
+	return fd;
 }
 
 /* should only work for level sensitive interrupts */
