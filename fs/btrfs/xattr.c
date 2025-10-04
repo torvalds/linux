@@ -29,9 +29,8 @@ int btrfs_getxattr(const struct inode *inode, const char *name,
 {
 	struct btrfs_dir_item *di;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
-	struct btrfs_path *path;
+	BTRFS_PATH_AUTO_FREE(path);
 	struct extent_buffer *leaf;
-	int ret = 0;
 	unsigned long data_ptr;
 
 	path = btrfs_alloc_path();
@@ -41,26 +40,19 @@ int btrfs_getxattr(const struct inode *inode, const char *name,
 	/* lookup the xattr by name */
 	di = btrfs_lookup_xattr(NULL, root, path, btrfs_ino(BTRFS_I(inode)),
 			name, strlen(name), 0);
-	if (!di) {
-		ret = -ENODATA;
-		goto out;
-	} else if (IS_ERR(di)) {
-		ret = PTR_ERR(di);
-		goto out;
-	}
+	if (!di)
+		return -ENODATA;
+	if (IS_ERR(di))
+		return PTR_ERR(di);
 
 	leaf = path->nodes[0];
 	/* if size is 0, that means we want the size of the attr */
-	if (!size) {
-		ret = btrfs_dir_data_len(leaf, di);
-		goto out;
-	}
+	if (!size)
+		return btrfs_dir_data_len(leaf, di);
 
 	/* now get the data out of our dir_item */
-	if (btrfs_dir_data_len(leaf, di) > size) {
-		ret = -ERANGE;
-		goto out;
-	}
+	if (btrfs_dir_data_len(leaf, di) > size)
+		return -ERANGE;
 
 	/*
 	 * The way things are packed into the leaf is like this
@@ -73,11 +65,7 @@ int btrfs_getxattr(const struct inode *inode, const char *name,
 				   btrfs_dir_name_len(leaf, di));
 	read_extent_buffer(leaf, buffer, data_ptr,
 			   btrfs_dir_data_len(leaf, di));
-	ret = btrfs_dir_data_len(leaf, di);
-
-out:
-	btrfs_free_path(path);
-	return ret;
+	return btrfs_dir_data_len(leaf, di);
 }
 
 int btrfs_setxattr(struct btrfs_trans_handle *trans, struct inode *inode,
@@ -278,7 +266,7 @@ ssize_t btrfs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 	struct btrfs_key key;
 	struct inode *inode = d_inode(dentry);
 	struct btrfs_root *root = BTRFS_I(inode)->root;
-	struct btrfs_path *path;
+	BTRFS_PATH_AUTO_FREE(path);
 	int iter_ret = 0;
 	int ret = 0;
 	size_t total_size = 0, size_left = size;
@@ -353,8 +341,6 @@ next:
 		ret = iter_ret;
 	else
 		ret = total_size;
-
-	btrfs_free_path(path);
 
 	return ret;
 }
