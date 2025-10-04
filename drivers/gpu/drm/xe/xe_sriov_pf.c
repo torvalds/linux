@@ -104,6 +104,31 @@ int xe_sriov_pf_init_early(struct xe_device *xe)
 }
 
 /**
+ * xe_sriov_pf_init_late() - Late initialization of the SR-IOV PF.
+ * @xe: the &xe_device to initialize
+ *
+ * This function can only be called on PF.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_sriov_pf_init_late(struct xe_device *xe)
+{
+	struct xe_gt *gt;
+	unsigned int id;
+	int err;
+
+	xe_assert(xe, IS_SRIOV_PF(xe));
+
+	for_each_gt(gt, xe, id) {
+		err = xe_gt_sriov_pf_init(gt);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+/**
  * xe_sriov_pf_wait_ready() - Wait until PF is ready to operate.
  * @xe: the &xe_device to test
  *

@@ -573,10 +573,8 @@ static int gt_init_with_all_forcewake(struct xe_gt *gt)
 	if (IS_SRIOV_PF(gt_to_xe(gt)) && xe_gt_is_main_type(gt))
 		xe_lmtt_init_hw(&gt_to_tile(gt)->sriov.pf.lmtt);
 
-	if (IS_SRIOV_PF(gt_to_xe(gt))) {
-		xe_gt_sriov_pf_init(gt);
+	if (IS_SRIOV_PF(gt_to_xe(gt)))
 		xe_gt_sriov_pf_init_hw(gt);
-	}
 
 	xe_force_wake_put(gt_to_fw(gt), fw_ref);
 

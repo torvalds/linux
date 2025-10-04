@@ -167,6 +167,8 @@ const char *xe_sriov_function_name(unsigned int n, char *buf, size_t size)
  */
 int xe_sriov_init_late(struct xe_device *xe)
 {
+	if (IS_SRIOV_PF(xe))
+		return xe_sriov_pf_init_late(xe);
 	if (IS_SRIOV_VF(xe))
 		return xe_sriov_vf_init_late(xe);
 
