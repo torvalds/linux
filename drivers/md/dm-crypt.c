@@ -1747,7 +1747,7 @@ static void crypt_free_buffer_pages(struct crypt_config *cc, struct bio *clone)
 		bio_for_each_folio_all(fi, clone) {
 			if (folio_test_large(fi.folio)) {
 				percpu_counter_sub(&cc->n_allocated_pages,
-						1 << folio_order(fi.folio));
+						folio_nr_pages(fi.folio));
 				folio_put(fi.folio);
 			} else {
 				mempool_free(&fi.folio->page, &cc->page_pool);
