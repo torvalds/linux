@@ -167,13 +167,13 @@ struct ufs_pm_lvl_states {
  * @task_tag: Task tag of the command
  * @lun: LUN of the command
  * @intr_cmd: Interrupt command (doesn't participate in interrupt aggregation)
+ * @req_abort_skip: skip request abort task flag
  * @issue_time_stamp: time stamp for debug purposes (CLOCK_MONOTONIC)
  * @issue_time_stamp_local_clock: time stamp for debug purposes (local_clock)
  * @compl_time_stamp: time stamp for statistics (CLOCK_MONOTONIC)
  * @compl_time_stamp_local_clock: time stamp for debug purposes (local_clock)
  * @crypto_key_slot: the key slot to use for inline crypto (-1 if none)
  * @data_unit_num: the data unit number for the first block for inline crypto
- * @req_abort_skip: skip request abort task flag
  */
 struct ufshcd_lrb {
 	struct utp_transfer_req_desc *utr_descriptor_ptr;
@@ -193,6 +193,7 @@ struct ufshcd_lrb {
 	int task_tag;
 	u8 lun; /* UPIU LUN id field is only 8-bit wide */
 	bool intr_cmd;
+	bool req_abort_skip;
 	ktime_t issue_time_stamp;
 	u64 issue_time_stamp_local_clock;
 	ktime_t compl_time_stamp;
@@ -201,8 +202,6 @@ struct ufshcd_lrb {
 	int crypto_key_slot;
 	u64 data_unit_num;
 #endif
-
-	bool req_abort_skip;
 };
 
 /**
@@ -795,30 +794,6 @@ struct ufs_hba_monitor {
 };
 
 /**
- * struct ufshcd_res_info_t - MCQ related resource regions
- *
- * @name: resource name
- * @resource: pointer to resource region
- * @base: register base address
- */
-struct ufshcd_res_info {
-	const char *name;
-	struct resource *resource;
-	void __iomem *base;
-};
-
-enum ufshcd_res {
-	RES_UFS,
-	RES_MCQ,
-	RES_MCQ_SQD,
-	RES_MCQ_SQIS,
-	RES_MCQ_CQD,
-	RES_MCQ_CQIS,
-	RES_MCQ_VS,
-	RES_MAX,
-};
-
-/**
  * struct ufshcd_mcq_opr_info_t - Operation and Runtime registers
  *
  * @offset: Doorbell Address Offset
@@ -963,6 +938,7 @@ enum ufshcd_mcq_opr {
  * @ufs_rtc_update_work: A work for UFS RTC periodic update
  * @pm_qos_req: PM QoS request handle
  * @pm_qos_enabled: flag to check if pm qos is enabled
+ * @pm_qos_mutex: synchronizes PM QoS request and status updates
  * @critical_health_count: count of critical health exceptions
  * @dev_lvl_exception_count: count of device level exceptions since last reset
  * @dev_lvl_exception_id: vendor specific information about the
@@ -1127,7 +1103,6 @@ struct ufs_hba {
 	bool lsdb_sup;
 	bool mcq_enabled;
 	bool mcq_esi_enabled;
-	struct ufshcd_res_info res[RES_MAX];
 	void __iomem *mcq_base;
 	struct ufs_hw_queue *uhq;
 	struct ufs_hw_queue *dev_cmd_queue;
@@ -1136,6 +1111,8 @@ struct ufs_hba {
 	struct delayed_work ufs_rtc_update_work;
 	struct pm_qos_request pm_qos_req;
 	bool pm_qos_enabled;
+	/* synchronizes PM QoS request and status updates */
+	struct mutex pm_qos_mutex;
 
 	int critical_health_count;
 	atomic_t dev_lvl_exception_count;
@@ -1318,6 +1295,7 @@ static inline void ufshcd_rmwl(struct ufs_hba *hba, u32 mask, u32 val, u32 reg)
 
 void ufshcd_enable_irq(struct ufs_hba *hba);
 void ufshcd_disable_irq(struct ufs_hba *hba);
+void ufshcd_enable_intr(struct ufs_hba *hba, u32 intrs);
 int ufshcd_alloc_host(struct device *, struct ufs_hba **);
 int ufshcd_hba_enable(struct ufs_hba *hba);
 int ufshcd_init(struct ufs_hba *, void __iomem *, unsigned int);
@@ -1508,5 +1486,6 @@ int __ufshcd_write_ee_control(struct ufs_hba *hba, u32 ee_ctrl_mask);
 int ufshcd_write_ee_control(struct ufs_hba *hba);
 int ufshcd_update_ee_control(struct ufs_hba *hba, u16 *mask,
 			     const u16 *other_mask, u16 set, u16 clr);
+void ufshcd_force_error_recovery(struct ufs_hba *hba);
 
 #endif /* End of Header */

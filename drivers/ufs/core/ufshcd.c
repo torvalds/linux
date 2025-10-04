@@ -45,11 +45,6 @@
 				 UTP_TASK_REQ_COMPL |\
 				 UFSHCD_ERROR_MASK)
 
-#define UFSHCD_ENABLE_MCQ_INTRS	(UTP_TASK_REQ_COMPL |\
-				 UFSHCD_ERROR_MASK |\
-				 MCQ_CQ_EVENT_STATUS)
-
-
 /* UIC command timeout, unit: ms */
 enum {
 	UIC_CMD_TIMEOUT_DEFAULT	= 500,
@@ -316,6 +311,9 @@ static const struct ufs_dev_quirk ufs_fixups[] = {
 	{ .wmanufacturerid = UFS_VENDOR_TOSHIBA,
 	  .model = "THGLF2G9D8KBADG",
 	  .quirk = UFS_DEVICE_QUIRK_PA_TACTIVATE },
+	{ .wmanufacturerid = UFS_VENDOR_TOSHIBA,
+	  .model = "THGJFJT1E45BATP",
+	  .quirk = UFS_DEVICE_QUIRK_NO_TIMESTAMP_SUPPORT },
 	{}
 };
 
@@ -369,7 +367,7 @@ EXPORT_SYMBOL_GPL(ufshcd_disable_irq);
  * @hba: per adapter instance
  * @intrs: interrupt bits
  */
-static void ufshcd_enable_intr(struct ufs_hba *hba, u32 intrs)
+void ufshcd_enable_intr(struct ufs_hba *hba, u32 intrs)
 {
 	u32 old_val = ufshcd_readl(hba, REG_INTERRUPT_ENABLE);
 	u32 new_val = old_val | intrs;
@@ -606,10 +604,12 @@ void ufshcd_print_tr(struct ufs_hba *hba, int tag, bool pr_prdt)
 
 	lrbp = &hba->lrb[tag];
 
-	dev_err(hba->dev, "UPIU[%d] - issue time %lld us\n",
-			tag, div_u64(lrbp->issue_time_stamp_local_clock, 1000));
-	dev_err(hba->dev, "UPIU[%d] - complete time %lld us\n",
-			tag, div_u64(lrbp->compl_time_stamp_local_clock, 1000));
+	if (hba->monitor.enabled) {
+		dev_err(hba->dev, "UPIU[%d] - issue time %lld us\n", tag,
+			div_u64(lrbp->issue_time_stamp_local_clock, 1000));
+		dev_err(hba->dev, "UPIU[%d] - complete time %lld us\n", tag,
+			div_u64(lrbp->compl_time_stamp_local_clock, 1000));
+	}
 	dev_err(hba->dev,
 		"UPIU[%d] - Transfer Request Descriptor phys@0x%llx\n",
 		tag, (u64)lrbp->utrd_dma_addr);
@@ -1045,6 +1045,7 @@ EXPORT_SYMBOL_GPL(ufshcd_is_hba_active);
  */
 void ufshcd_pm_qos_init(struct ufs_hba *hba)
 {
+	guard(mutex)(&hba->pm_qos_mutex);
 
 	if (hba->pm_qos_enabled)
 		return;
@@ -1061,6 +1062,8 @@ void ufshcd_pm_qos_init(struct ufs_hba *hba)
  */
 void ufshcd_pm_qos_exit(struct ufs_hba *hba)
 {
+	guard(mutex)(&hba->pm_qos_mutex);
+
 	if (!hba->pm_qos_enabled)
 		return;
 
@@ -1075,6 +1078,8 @@ void ufshcd_pm_qos_exit(struct ufs_hba *hba)
  */
 static void ufshcd_pm_qos_update(struct ufs_hba *hba, bool on)
 {
+	guard(mutex)(&hba->pm_qos_mutex);
+
 	if (!hba->pm_qos_enabled)
 		return;
 
@@ -2230,10 +2235,12 @@ static void ufshcd_exit_clk_gating(struct ufs_hba *hba)
 static void ufshcd_clk_scaling_start_busy(struct ufs_hba *hba)
 {
 	bool queue_resume_work = false;
-	ktime_t curr_t = ktime_get();
+	ktime_t curr_t;
 
 	if (!ufshcd_is_clkscaling_supported(hba))
 		return;
+
+	curr_t = ktime_get();
 
 	guard(spinlock_irqsave)(&hba->clk_scaling.lock);
 
@@ -2354,10 +2361,12 @@ void ufshcd_send_command(struct ufs_hba *hba, unsigned int task_tag,
 	struct ufshcd_lrb *lrbp = &hba->lrb[task_tag];
 	unsigned long flags;
 
-	lrbp->issue_time_stamp = ktime_get();
-	lrbp->issue_time_stamp_local_clock = local_clock();
-	lrbp->compl_time_stamp = ktime_set(0, 0);
-	lrbp->compl_time_stamp_local_clock = 0;
+	if (hba->monitor.enabled) {
+		lrbp->issue_time_stamp = ktime_get();
+		lrbp->issue_time_stamp_local_clock = local_clock();
+		lrbp->compl_time_stamp = ktime_set(0, 0);
+		lrbp->compl_time_stamp_local_clock = 0;
+	}
 	ufshcd_add_command_trace(hba, task_tag, UFS_CMD_SEND);
 	if (lrbp->cmd)
 		ufshcd_clk_scaling_start_busy(hba);
@@ -5622,8 +5631,10 @@ void ufshcd_compl_one_cqe(struct ufs_hba *hba, int task_tag,
 	enum utp_ocs ocs;
 
 	lrbp = &hba->lrb[task_tag];
-	lrbp->compl_time_stamp = ktime_get();
-	lrbp->compl_time_stamp_local_clock = local_clock();
+	if (hba->monitor.enabled) {
+		lrbp->compl_time_stamp = ktime_get();
+		lrbp->compl_time_stamp_local_clock = local_clock();
+	}
 	cmd = lrbp->cmd;
 	if (cmd) {
 		if (unlikely(ufshcd_should_inform_monitor(hba, lrbp)))
@@ -6457,13 +6468,14 @@ void ufshcd_schedule_eh_work(struct ufs_hba *hba)
 	}
 }
 
-static void ufshcd_force_error_recovery(struct ufs_hba *hba)
+void ufshcd_force_error_recovery(struct ufs_hba *hba)
 {
 	spin_lock_irq(hba->host->host_lock);
 	hba->force_reset = true;
 	ufshcd_schedule_eh_work(hba);
 	spin_unlock_irq(hba->host->host_lock);
 }
+EXPORT_SYMBOL_GPL(ufshcd_force_error_recovery);
 
 static void ufshcd_clk_scaling_allow(struct ufs_hba *hba, bool allow)
 {
@@ -8786,7 +8798,8 @@ static void ufshcd_set_timestamp_attr(struct ufs_hba *hba)
 	struct ufs_dev_info *dev_info = &hba->dev_info;
 	struct utp_upiu_query_v4_0 *upiu_data;
 
-	if (dev_info->wspecversion < 0x400)
+	if (dev_info->wspecversion < 0x400 ||
+	    hba->dev_quirks & UFS_DEVICE_QUIRK_NO_TIMESTAMP_SUPPORT)
 		return;
 
 	ufshcd_dev_man_lock(hba);
@@ -8913,16 +8926,11 @@ err:
 static void ufshcd_config_mcq(struct ufs_hba *hba)
 {
 	int ret;
-	u32 intrs;
 
 	ret = ufshcd_mcq_vops_config_esi(hba);
 	hba->mcq_esi_enabled = !ret;
 	dev_info(hba->dev, "ESI %sconfigured\n", ret ? "is not " : "");
 
-	intrs = UFSHCD_ENABLE_MCQ_INTRS;
-	if (hba->quirks & UFSHCD_QUIRK_MCQ_BROKEN_INTR)
-		intrs &= ~MCQ_CQ_EVENT_STATUS;
-	ufshcd_enable_intr(hba, intrs);
 	ufshcd_mcq_make_queues_operational(hba);
 	ufshcd_mcq_config_mac(hba, hba->nutrs);
 
@@ -10756,6 +10764,10 @@ int ufshcd_init(struct ufs_hba *hba, void __iomem *mmio_base, unsigned int irq)
 	mutex_init(&hba->ee_ctrl_mutex);
 
 	mutex_init(&hba->wb_mutex);
+
+	/* Initialize mutex for PM QoS request synchronization */
+	mutex_init(&hba->pm_qos_mutex);
+
 	init_rwsem(&hba->clk_scaling_lock);
 
 	ufshcd_init_clk_gating(hba);
