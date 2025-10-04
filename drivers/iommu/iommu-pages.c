@@ -80,7 +80,7 @@ EXPORT_SYMBOL_GPL(iommu_alloc_pages_node_sz);
 static void __iommu_free_desc(struct ioptdesc *iopt)
 {
 	struct folio *folio = ioptdesc_folio(iopt);
-	const unsigned long pgcnt = 1UL << folio_order(folio);
+	const unsigned long pgcnt = folio_nr_pages(folio);
 
 	mod_node_page_state(folio_pgdat(folio), NR_IOMMU_PAGES, -pgcnt);
 	lruvec_stat_mod_folio(folio, NR_SECONDARY_PAGETABLE, -pgcnt);
