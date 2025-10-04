@@ -2159,6 +2159,20 @@ DMA Buffer files
 where 'size' is the size of the DMA buffer in bytes. 'count' is the file count of
 the DMA buffer file. 'exp_name' is the name of the DMA buffer exporter.
 
+VFIO Device files
+~~~~~~~~~~~~~~~~~
+
+::
+
+	pos:    0
+	flags:  02000002
+	mnt_id: 17
+	ino:    5122
+	vfio-device-syspath: /sys/devices/pci0000:e0/0000:e0:01.1/0000:e1:00.0/0000:e2:05.0/0000:e8:00.0
+
+where 'vfio-device-syspath' is the sysfs path corresponding to the VFIO device
+file.
+
 3.9	/proc/<pid>/map_files - Information about memory mapped files
 ---------------------------------------------------------------------
 This directory contains symbolic links which represent memory mapped files
