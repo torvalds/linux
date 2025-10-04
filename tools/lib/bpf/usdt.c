@@ -20,7 +20,6 @@
 #include "libbpf_common.h"
 #include "libbpf_internal.h"
 #include "hashmap.h"
-#include "str_error.h"
 
 /* libbpf's USDT support consists of BPF-side state/code and user-space
  * state/code working together in concert. BPF-side parts are defined in

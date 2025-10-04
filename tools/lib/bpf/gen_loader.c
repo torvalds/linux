@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <asm/byteorder.h>
 #include <linux/filter.h>
 #include <sys/param.h>
 #include "btf.h"
@@ -13,8 +14,6 @@
 #include "hashmap.h"
 #include "bpf_gen_internal.h"
 #include "skel_internal.h"
-#include <asm/byteorder.h>
-#include "str_error.h"
 
 #define MAX_USED_MAPS	64
 #define MAX_USED_PROGS	32

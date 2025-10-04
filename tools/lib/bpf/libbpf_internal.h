@@ -172,6 +172,16 @@ do {				\
 #define pr_info(fmt, ...)	__pr(LIBBPF_INFO, fmt, ##__VA_ARGS__)
 #define pr_debug(fmt, ...)	__pr(LIBBPF_DEBUG, fmt, ##__VA_ARGS__)
 
+/**
+ * @brief **libbpf_errstr()** returns string corresponding to numeric errno
+ * @param err negative numeric errno
+ * @return pointer to string representation of the errno, that is invalidated
+ * upon the next call.
+ */
+const char *libbpf_errstr(int err);
+
+#define errstr(err) libbpf_errstr(err)
+
 #ifndef __has_builtin
 #define __has_builtin(x) 0
 #endif
@@ -710,6 +720,11 @@ struct bpf_link * usdt_manager_attach_usdt(struct usdt_manager *man,
 static inline bool is_pow_of_2(size_t x)
 {
 	return x && (x & (x - 1)) == 0;
+}
+
+static inline __u32 ror32(__u32 v, int bits)
+{
+	return (v >> bits) | (v << (32 - bits));
 }
 
 #define PROG_LOAD_ATTEMPTS 5

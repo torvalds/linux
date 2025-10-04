@@ -732,7 +732,7 @@ int bpf_get_addrs(unsigned long **addrsp, size_t *cntp, bool kernel)
 
 		if (cnt == max_cnt) {
 			max_cnt += inc_cnt;
-			tmp_addrs = realloc(addrs, max_cnt);
+			tmp_addrs = realloc(addrs, max_cnt * sizeof(long));
 			if (!tmp_addrs) {
 				err = -ENOMEM;
 				goto error;
