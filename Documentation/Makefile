@@ -60,8 +60,8 @@ ifeq ($(HAVE_LATEXMK),1)
 endif #HAVE_LATEXMK
 
 # Internal variables.
-PAPEROPT_a4     = -D latex_paper_size=a4
-PAPEROPT_letter = -D latex_paper_size=letter
+PAPEROPT_a4     = -D latex_elements.papersize=a4paper
+PAPEROPT_letter = -D latex_elements.papersize=letterpaper
 ALLSPHINXOPTS   = -D kerneldoc_srctree=$(srctree) -D kerneldoc_bin=$(KERNELDOC)
 ALLSPHINXOPTS   += $(PAPEROPT_$(PAPER)) $(SPHINXOPTS)
 ifneq ($(wildcard $(srctree)/.config),)
@@ -87,7 +87,7 @@ loop_cmd = $(echo-cmd) $(cmd_$(1)) || exit;
 PYTHONPYCACHEPREFIX ?= $(abspath $(BUILDDIR)/__pycache__)
 
 quiet_cmd_sphinx = SPHINX  $@ --> file://$(abspath $(BUILDDIR)/$3/$4)
-      cmd_sphinx = $(MAKE) BUILDDIR=$(abspath $(BUILDDIR)) $(build)=Documentation/userspace-api/media $2 && \
+      cmd_sphinx = \
 	PYTHONPYCACHEPREFIX="$(PYTHONPYCACHEPREFIX)" \
 	BUILDDIR=$(abspath $(BUILDDIR)) SPHINX_CONF=$(abspath $(src)/$5/$(SPHINX_CONF)) \
 	$(PYTHON3) $(srctree)/scripts/jobserver-exec \
@@ -107,6 +107,9 @@ quiet_cmd_sphinx = SPHINX  $@ --> file://$(abspath $(BUILDDIR)/$3/$4)
 htmldocs:
 	@$(srctree)/scripts/sphinx-pre-install --version-check
 	@+$(foreach var,$(SPHINXDIRS),$(call loop_cmd,sphinx,html,$(var),,$(var)))
+
+htmldocs-redirects: $(srctree)/Documentation/.renames.txt
+	@tools/docs/gen-redirects.py --output $(BUILDDIR) < $<
 
 # If Rust support is available and .config exists, add rustdoc generated contents.
 # If there are any, the errors from this make rustdoc will be displayed but
@@ -171,11 +174,11 @@ refcheckdocs:
 
 cleandocs:
 	$(Q)rm -rf $(BUILDDIR)
-	$(Q)$(MAKE) BUILDDIR=$(abspath $(BUILDDIR)) $(build)=Documentation/userspace-api/media clean
 
 dochelp:
 	@echo  ' Linux kernel internal documentation in different formats from ReST:'
 	@echo  '  htmldocs        - HTML'
+	@echo  '  htmldocs-redirects - generate HTML redirects for moved pages'
 	@echo  '  texinfodocs     - Texinfo'
 	@echo  '  infodocs        - Info'
 	@echo  '  latexdocs       - LaTeX'

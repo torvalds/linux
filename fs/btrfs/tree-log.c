@@ -5829,7 +5829,7 @@ struct btrfs_dir_list {
  * See process_dir_items_leaf() for details about why it is needed.
  * This is a recursive operation - if an existing dentry corresponds to a
  * directory, that directory's new entries are logged too (same behaviour as
- * ext3/4, xfs, f2fs, reiserfs, nilfs2). Note that when logging the inodes
+ * ext3/4, xfs, f2fs, nilfs2). Note that when logging the inodes
  * the dentries point to we do not acquire their VFS lock, otherwise lockdep
  * complains about the following circular lock dependency / possible deadlock:
  *

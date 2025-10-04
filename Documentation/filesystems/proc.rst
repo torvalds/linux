@@ -61,19 +61,6 @@ Preface
 0.1 Introduction/Credits
 ------------------------
 
-This documentation is  part of a soon (or  so we hope) to be  released book on
-the SuSE  Linux distribution. As  there is  no complete documentation  for the
-/proc file system and we've used  many freely available sources to write these
-chapters, it  seems only fair  to give the work  back to the  Linux community.
-This work is  based on the 2.2.*  kernel version and the  upcoming 2.4.*. I'm
-afraid it's still far from complete, but we  hope it will be useful. As far as
-we know, it is the first 'all-in-one' document about the /proc file system. It
-is focused  on the Intel  x86 hardware,  so if you  are looking for  PPC, ARM,
-SPARC, AXP, etc., features, you probably  won't find what you are looking for.
-It also only covers IPv4 networking, not IPv6 nor other protocols - sorry. But
-additions and patches  are welcome and will  be added to this  document if you
-mail them to Bodo.
-
 We'd like  to  thank Alan Cox, Rik van Riel, and Alexey Kuznetsov and a lot of
 other people for help compiling this documentation. We'd also like to extend a
 special thank  you to Andi Kleen for documentation, which we relied on heavily
@@ -81,16 +68,8 @@ to create  this  document,  as well as the additional information he provided.
 Thanks to  everybody  else  who contributed source or docs to the Linux kernel
 and helped create a great piece of software... :)
 
-If you  have  any comments, corrections or additions, please don't hesitate to
-contact Bodo  Bauer  at  bb@ricochet.net.  We'll  be happy to add them to this
-document.
-
 The   latest   version    of   this   document   is    available   online   at
 https://www.kernel.org/doc/html/latest/filesystems/proc.html
-
-If  the above  direction does  not works  for you,  you could  try the  kernel
-mailing  list  at  linux-kernel@vger.kernel.org  and/or try  to  reach  me  at
-comandante@zaralinux.com.
 
 0.2 Legal Stuff
 ---------------

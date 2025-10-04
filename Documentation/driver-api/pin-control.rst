@@ -1202,22 +1202,24 @@ default state like this:
 	{
 		/* Allocate a state holder named "foo" etc */
 		struct foo_state *foo = ...;
+		int ret;
 
 		foo->p = devm_pinctrl_get(&device);
 		if (IS_ERR(foo->p)) {
-			/* FIXME: clean up "foo" here */
-			return PTR_ERR(foo->p);
+			ret = PTR_ERR(foo->p);
+			foo->p = NULL;
+			return ret;
 		}
 
 		foo->s = pinctrl_lookup_state(foo->p, PINCTRL_STATE_DEFAULT);
 		if (IS_ERR(foo->s)) {
-			/* FIXME: clean up "foo" here */
+			devm_pinctrl_put(foo->p);
 			return PTR_ERR(foo->s);
 		}
 
 		ret = pinctrl_select_state(foo->p, foo->s);
 		if (ret < 0) {
-			/* FIXME: clean up "foo" here */
+			devm_pinctrl_put(foo->p);
 			return ret;
 		}
 	}

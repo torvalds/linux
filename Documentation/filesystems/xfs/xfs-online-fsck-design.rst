@@ -454,7 +454,7 @@ filesystem so that it can apply pending filesystem updates to the staging
 information.
 Once the scan is done, the owning object is re-locked, the live data is used to
 write a new ondisk structure, and the repairs are committed atomically.
-The hooks are disabled and the staging staging area is freed.
+The hooks are disabled and the staging area is freed.
 Finally, the storage from the old data structure are carefully reaped.
 
 Introducing concurrency helps online repair avoid various locking problems, but
@@ -475,7 +475,7 @@ operation, which may cause application failure or an unplanned filesystem
 shutdown.
 
 Inspiration for the secondary metadata repair strategy was drawn from section
-2.4 of Srinivasan above, and sections 2 ("NSF: Inded Build Without Side-File")
+2.4 of Srinivasan above, and sections 2 ("NSF: Index Build Without Side-File")
 and 3.1.1 ("Duplicate Key Insert Problem") in C. Mohan, `"Algorithms for
 Creating Indexes for Very Large Tables Without Quiescing Updates"
 <https://dl.acm.org/doi/10.1145/130283.130337>`_, 1992.
@@ -2185,7 +2185,7 @@ The chapter about :ref:`secondary metadata<secondary_metadata>` mentioned that
 checking and repairing of secondary metadata commonly requires coordination
 between a live metadata scan of the filesystem and writer threads that are
 updating that metadata.
-Keeping the scan data up to date requires requires the ability to propagate
+Keeping the scan data up to date requires the ability to propagate
 metadata updates from the filesystem into the data being collected by the scan.
 This *can* be done by appending concurrent updates into a separate log file and
 applying them before writing the new metadata to disk, but this leads to
@@ -4179,7 +4179,7 @@ When the exchange is initiated, the sequence of operations is as follows:
    This will be discussed in more detail in subsequent sections.
 
 If the filesystem goes down in the middle of an operation, log recovery will
-find the most recent unfinished maping exchange log intent item and restart
+find the most recent unfinished mapping exchange log intent item and restart
 from there.
 This is how atomic file mapping exchanges guarantees that an outside observer
 will either see the old broken structure or the new one, and never a mismash of
