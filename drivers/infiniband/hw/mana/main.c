@@ -273,9 +273,8 @@ int mana_ib_create_queue(struct mana_ib_dev *mdev, u64 addr, u32 size,
 
 	umem = ib_umem_get(&mdev->ib_dev, addr, size, IB_ACCESS_LOCAL_WRITE);
 	if (IS_ERR(umem)) {
-		err = PTR_ERR(umem);
-		ibdev_dbg(&mdev->ib_dev, "Failed to get umem, %d\n", err);
-		return err;
+		ibdev_dbg(&mdev->ib_dev, "Failed to get umem, %pe\n", umem);
+		return PTR_ERR(umem);
 	}
 
 	err = mana_ib_create_zero_offset_dma_region(mdev, umem, &queue->gdma_region);

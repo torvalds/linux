@@ -9705,6 +9705,8 @@ static int __bnxt_hwrm_func_qcaps(struct bnxt *bp)
 	flags_ext3 = le32_to_cpu(resp->flags_ext3);
 	if (flags_ext3 & FUNC_QCAPS_RESP_FLAGS_EXT3_ROCE_VF_DYN_ALLOC_SUPPORT)
 		bp->fw_cap |= BNXT_FW_CAP_ROCE_VF_DYN_ALLOC_SUPPORT;
+	if (flags_ext3 & FUNC_QCAPS_RESP_FLAGS_EXT3_MIRROR_ON_ROCE_SUPPORTED)
+		bp->fw_cap |= BNXT_FW_CAP_MIRROR_ON_ROCE;
 
 	bp->tx_push_thresh = 0;
 	if ((flags & FUNC_QCAPS_RESP_FLAGS_PUSH_MODE_SUPPORTED) &&
