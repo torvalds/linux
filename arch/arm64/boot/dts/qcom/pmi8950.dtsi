@@ -55,6 +55,14 @@
 				qcom,pre-scaling = <1 1>;
 				label = "chg_temp";
 			};
+
+			channel@e {
+				reg = <VADC_GND_REF>;
+			};
+
+			channel@f {
+				reg = <VADC_VDD_VADC>;
+			};
 		};
 
 		pmi8950_mpps: mpps@a000 {
