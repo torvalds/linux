@@ -688,4 +688,6 @@ config DM_AUDIT
 
 source "drivers/md/dm-vdo/Kconfig"
 
+source "drivers/md/dm-pcache/Kconfig"
+
 endif # MD
