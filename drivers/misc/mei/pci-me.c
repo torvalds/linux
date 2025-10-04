@@ -143,7 +143,7 @@ static inline void mei_me_unset_pm_domain(struct mei_device *dev) {}
 
 static int mei_me_read_fws(const struct mei_device *dev, int where, u32 *val)
 {
-	struct pci_dev *pdev = to_pci_dev(dev->dev);
+	struct pci_dev *pdev = to_pci_dev(dev->parent);
 
 	return pci_read_config_dword(pdev, where, val);
 }
@@ -238,18 +238,18 @@ static int mei_me_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto end;
 	}
 
+	err = mei_register(dev, &pdev->dev);
+	if (err)
+		goto release_irq;
+
 	if (mei_start(dev)) {
 		dev_err(&pdev->dev, "init hw failure.\n");
 		err = -ENODEV;
-		goto release_irq;
+		goto deregister;
 	}
 
 	pm_runtime_set_autosuspend_delay(&pdev->dev, MEI_ME_RPM_TIMEOUT);
 	pm_runtime_use_autosuspend(&pdev->dev);
-
-	err = mei_register(dev, &pdev->dev);
-	if (err)
-		goto stop;
 
 	pci_set_drvdata(pdev, dev);
 
@@ -280,8 +280,8 @@ static int mei_me_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	return 0;
 
-stop:
-	mei_stop(dev);
+deregister:
+	mei_deregister(dev);
 release_irq:
 	mei_cancel_work(dev);
 	mei_disable_interrupts(dev);
@@ -475,7 +475,7 @@ static int mei_me_pm_runtime_resume(struct device *device)
  */
 static inline void mei_me_set_pm_domain(struct mei_device *dev)
 {
-	struct pci_dev *pdev  = to_pci_dev(dev->dev);
+	struct pci_dev *pdev  = to_pci_dev(dev->parent);
 
 	if (pdev->dev.bus && pdev->dev.bus->pm) {
 		dev->pg_domain.ops = *pdev->dev.bus->pm;
@@ -496,7 +496,7 @@ static inline void mei_me_set_pm_domain(struct mei_device *dev)
 static inline void mei_me_unset_pm_domain(struct mei_device *dev)
 {
 	/* stop using pm callbacks if any */
-	dev_pm_domain_set(dev->dev, NULL);
+	dev_pm_domain_set(dev->parent, NULL);
 }
 
 static const struct dev_pm_ops mei_me_pm_ops = {

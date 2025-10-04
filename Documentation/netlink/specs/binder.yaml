@@ -1,0 +1,93 @@
+# SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
+#
+# Copyright 2025 Google LLC
+#
+---
+name: binder
+protocol: genetlink
+uapi-header: linux/android/binder_netlink.h
+doc: Binder interface over generic netlink
+
+attribute-sets:
+  -
+    name: report
+    doc: |
+      Attributes included within a transaction failure report. The elements
+      correspond directly with the specific transaction that failed, along
+      with the error returned to the sender e.g. BR_DEAD_REPLY.
+
+    attributes:
+      -
+        name: error
+        type: u32
+        doc: The enum binder_driver_return_protocol returned to the sender.
+      -
+        name: context
+        type: string
+        doc: The binder context where the transaction occurred.
+      -
+        name: from-pid
+        type: u32
+        doc: The PID of the sender process.
+      -
+        name: from-tid
+        type: u32
+        doc: The TID of the sender thread.
+      -
+        name: to-pid
+        type: u32
+        doc: |
+          The PID of the recipient process. This attribute may not be present
+          if the target could not be determined.
+      -
+        name: to-tid
+        type: u32
+        doc: |
+          The TID of the recipient thread. This attribute may not be present
+          if the target could not be determined.
+      -
+        name: is-reply
+        type: flag
+        doc: When present, indicates the failed transaction is a reply.
+      -
+        name: flags
+        type: u32
+        doc: The bitmask of enum transaction_flags from the transaction.
+      -
+        name: code
+        type: u32
+        doc: The application-defined code from the transaction.
+      -
+        name: data-size
+        type: u32
+        doc: The transaction payload size in bytes.
+
+operations:
+  list:
+    -
+      name: report
+      doc: |
+        A multicast event sent to userspace subscribers to notify them about
+        binder transaction failures. The generated report provides the full
+        details of the specific transaction that failed. The intention is for
+        programs to monitor these events and react to the failures as needed.
+
+      attribute-set: report
+      mcgrp: report
+      event:
+        attributes:
+          - error
+          - context
+          - from-pid
+          - from-tid
+          - to-pid
+          - to-tid
+          - is-reply
+          - flags
+          - code
+          - data-size
+
+mcast-groups:
+  list:
+    -
+      name: report

@@ -370,7 +370,6 @@ static int mpu3050_read_raw(struct iio_dev *indio_dev,
 
 out_read_raw_unlock:
 	mutex_unlock(&mpu3050->lock);
-	pm_runtime_mark_last_busy(mpu3050->dev);
 	pm_runtime_put_autosuspend(mpu3050->dev);
 
 	return ret;
@@ -662,7 +661,6 @@ static int mpu3050_buffer_postdisable(struct iio_dev *indio_dev)
 {
 	struct mpu3050 *mpu3050 = iio_priv(indio_dev);
 
-	pm_runtime_mark_last_busy(mpu3050->dev);
 	pm_runtime_put_autosuspend(mpu3050->dev);
 
 	return 0;
@@ -976,7 +974,6 @@ static int mpu3050_drdy_trigger_set_state(struct iio_trigger *trig,
 		if (ret)
 			dev_err(mpu3050->dev, "error resetting FIFO\n");
 
-		pm_runtime_mark_last_busy(mpu3050->dev);
 		pm_runtime_put_autosuspend(mpu3050->dev);
 		mpu3050->hw_irq_trigger = false;
 

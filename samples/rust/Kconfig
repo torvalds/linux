@@ -105,6 +105,17 @@ config SAMPLE_RUST_DRIVER_PLATFORM
 
 	  If unsure, say N.
 
+config SAMPLE_RUST_DRIVER_USB
+	tristate "USB Driver"
+	depends on USB = y && BROKEN
+	help
+	  This option builds the Rust USB driver sample.
+
+	  To compile this as a module, choose M here:
+	  the module will be called rust_driver_usb.
+
+	  If unsure, say N.
+
 config SAMPLE_RUST_DRIVER_FAUX
 	tristate "Faux Driver"
 	help
