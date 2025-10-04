@@ -2096,7 +2096,7 @@ static inline struct f2fs_super_block *F2FS_RAW_SUPER(struct f2fs_sb_info *sbi)
 static inline struct f2fs_super_block *F2FS_SUPER_BLOCK(struct folio *folio,
 								pgoff_t index)
 {
-	pgoff_t idx_in_folio = index % (1 << folio_order(folio));
+	pgoff_t idx_in_folio = index % folio_nr_pages(folio);
 
 	return (struct f2fs_super_block *)
 		(page_address(folio_page(folio, idx_in_folio)) +
