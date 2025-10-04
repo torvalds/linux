@@ -436,15 +436,19 @@ static const struct file_operations guc_state_ops = {
  *                  :   ├── config_blob
  */
 
-static ssize_t config_blob_read(struct file *file, char __user *buf,
-				size_t count, loff_t *pos)
+struct config_blob_data {
+	size_t size;
+	u8 blob[];
+};
+
+static int config_blob_open(struct inode *inode, struct file *file)
 {
 	struct dentry *dent = file_dentry(file);
 	struct dentry *parent = dent->d_parent;
 	struct xe_gt *gt = extract_gt(parent);
 	unsigned int vfid = extract_vfid(parent);
+	struct config_blob_data *cbd;
 	ssize_t ret;
-	void *tmp;
 
 	ret = xe_gt_sriov_pf_config_save(gt, vfid, NULL, 0);
 	if (!ret)
@@ -452,16 +456,27 @@ static ssize_t config_blob_read(struct file *file, char __user *buf,
 	if (ret < 0)
 		return ret;
 
-	tmp = kzalloc(ret, GFP_KERNEL);
-	if (!tmp)
+	cbd = kzalloc(struct_size(cbd, blob, ret), GFP_KERNEL);
+	if (!cbd)
 		return -ENOMEM;
 
-	ret = xe_gt_sriov_pf_config_save(gt, vfid, tmp, ret);
-	if (ret > 0)
-		ret = simple_read_from_buffer(buf, count, pos, tmp, ret);
+	ret = xe_gt_sriov_pf_config_save(gt, vfid, cbd->blob, ret);
+	if (ret < 0) {
+		kfree(cbd);
+		return ret;
+	}
 
-	kfree(tmp);
-	return ret;
+	cbd->size = ret;
+	file->private_data = cbd;
+	return nonseekable_open(inode, file);
+}
+
+static ssize_t config_blob_read(struct file *file, char __user *buf,
+				size_t count, loff_t *pos)
+{
+	struct config_blob_data *cbd = file->private_data;
+
+	return simple_read_from_buffer(buf, count, pos, cbd->blob, cbd->size);
 }
 
 static ssize_t config_blob_write(struct file *file, const char __user *buf,
@@ -498,11 +513,18 @@ static ssize_t config_blob_write(struct file *file, const char __user *buf,
 	return ret;
 }
 
+static int config_blob_release(struct inode *inode, struct file *file)
+{
+	kfree(file->private_data);
+	return 0;
+}
+
 static const struct file_operations config_blob_ops = {
 	.owner		= THIS_MODULE,
+	.open		= config_blob_open,
 	.read		= config_blob_read,
 	.write		= config_blob_write,
-	.llseek		= default_llseek,
+	.release	= config_blob_release,
 };
 
 static void pf_add_compat_attrs(struct xe_gt *gt, struct dentry *dent, unsigned int vfid)
