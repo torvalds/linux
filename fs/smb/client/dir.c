@@ -678,7 +678,6 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 	const char *full_path;
 	void *page;
 	int retry_count = 0;
-	struct cached_fid *cfid = NULL;
 
 	xid = get_xid();
 
@@ -717,6 +716,8 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 	if (d_really_is_positive(direntry)) {
 		cifs_dbg(FYI, "non-NULL inode in lookup\n");
 	} else {
+		struct cached_fid *cfid = NULL;
+
 		cifs_dbg(FYI, "NULL inode in lookup\n");
 
 		/*
@@ -785,15 +786,13 @@ static int
 cifs_d_revalidate(struct inode *dir, const struct qstr *name,
 		  struct dentry *direntry, unsigned int flags)
 {
-	struct inode *inode = NULL;
-	struct cached_fid *cfid;
-	int rc;
-
 	if (flags & LOOKUP_RCU)
 		return -ECHILD;
 
 	if (d_really_is_positive(direntry)) {
-		inode = d_inode(direntry);
+		int rc;
+		struct inode *inode = d_inode(direntry);
+
 		if ((flags & LOOKUP_REVAL) && !CIFS_CACHE_READ(CIFS_I(inode)))
 			CIFS_I(inode)->time = 0; /* force reval */
 
@@ -836,6 +835,7 @@ cifs_d_revalidate(struct inode *dir, const struct qstr *name,
 	} else {
 		struct cifs_sb_info *cifs_sb = CIFS_SB(dir->i_sb);
 		struct cifs_tcon *tcon = cifs_sb_master_tcon(cifs_sb);
+		struct cached_fid *cfid;
 
 		if (!open_cached_dir_by_dentry(tcon, direntry->d_parent, &cfid)) {
 			/*
