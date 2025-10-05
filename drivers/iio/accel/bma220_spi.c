@@ -28,10 +28,17 @@ static const struct acpi_device_id bma220_acpi_id[] = {
 };
 MODULE_DEVICE_TABLE(spi, bma220_spi_id);
 
+static const struct of_device_id bma220_of_spi_match[] = {
+	{ .compatible = "bosch,bma220" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, bma220_of_spi_match);
+
 static struct spi_driver bma220_spi_driver = {
 	.driver = {
 		.name = "bma220_spi",
 		.pm = pm_sleep_ptr(&bma220_pm_ops),
+		.of_match_table = bma220_of_spi_match,
 		.acpi_match_table = bma220_acpi_id,
 	},
 	.probe =            bma220_spi_probe,
