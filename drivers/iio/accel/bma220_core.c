@@ -94,13 +94,23 @@
 
 #define BMA220_DEVICE_NAME			"bma220"
 
+#define BMA220_COF_1000Hz			0x0
+#define BMA220_COF_500Hz			0x1
+#define BMA220_COF_250Hz			0x2
+#define BMA220_COF_125Hz			0x3
+#define BMA220_COF_64Hz				0x4
+#define BMA220_COF_32Hz				0x5
+
 #define BMA220_ACCEL_CHANNEL(index, reg, axis) {			\
 	.type = IIO_ACCEL,						\
 	.address = reg,							\
 	.modified = 1,							\
 	.channel2 = IIO_MOD_##axis,					\
 	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),			\
-	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),		\
+	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE) |		\
+	    BIT(IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY),		\
+	.info_mask_shared_by_type_available = BIT(IIO_CHAN_INFO_SCALE) |\
+	    BIT(IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY),		\
 	.scan_index = index,						\
 	.scan_type = {							\
 		.sign = 's',						\
@@ -124,6 +134,7 @@ static const int bma220_scale_table[][2] = {
 struct bma220_data {
 	struct regmap *regmap;
 	struct mutex lock;
+	u8 lpf_3dB_freq_idx;
 	u8 range_idx;
 	struct iio_trigger *trig;
 	struct {
@@ -138,6 +149,16 @@ static const struct iio_chan_spec bma220_channels[] = {
 	BMA220_ACCEL_CHANNEL(1, BMA220_REG_ACCEL_Y, Y),
 	BMA220_ACCEL_CHANNEL(2, BMA220_REG_ACCEL_Z, Z),
 	IIO_CHAN_SOFT_TIMESTAMP(3),
+};
+
+/* Available cut-off frequencies of the low pass filter in Hz. */
+static const int bma220_lpf_3dB_freq_Hz_table[] = {
+	[BMA220_COF_1000Hz] = 1000,
+	[BMA220_COF_500Hz] = 500,
+	[BMA220_COF_250Hz] = 250,
+	[BMA220_COF_125Hz] = 125,
+	[BMA220_COF_64Hz] = 64,
+	[BMA220_COF_32Hz] = 32,
 };
 
 static const unsigned long bma220_accel_scan_masks[] = {
@@ -254,6 +275,10 @@ static int bma220_read_raw(struct iio_dev *indio_dev,
 		*val = bma220_scale_table[index][0];
 		*val2 = bma220_scale_table[index][1];
 		return IIO_VAL_INT_PLUS_MICRO;
+	case IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY:
+		index = data->lpf_3dB_freq_idx;
+		*val = bma220_lpf_3dB_freq_Hz_table[index];
+		return IIO_VAL_INT;
 	}
 
 	return -EINVAL;
@@ -266,6 +291,18 @@ static int bma220_find_match_2dt(const int (*tbl)[2], const int n,
 
 	for (i = 0; i < n; i++) {
 		if (tbl[i][0] == val && tbl[i][1] == val2)
+			return i;
+	}
+
+	return -EINVAL;
+}
+
+static int bma220_find_match(const int *arr, const int n, const int val)
+{
+	int i;
+
+	for (i = 0; i < n; i++) {
+		if (arr[i] == val)
 			return i;
 	}
 
@@ -298,6 +335,21 @@ static int bma220_write_raw(struct iio_dev *indio_dev,
 		data->range_idx = index;
 
 		return 0;
+	case IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY:
+		index = bma220_find_match(bma220_lpf_3dB_freq_Hz_table,
+					  ARRAY_SIZE(bma220_lpf_3dB_freq_Hz_table),
+					  val);
+		if (index < 0)
+			return -EINVAL;
+
+		ret = regmap_update_bits(data->regmap, BMA220_REG_FILTER,
+					 BMA220_FILTER_MASK,
+					 FIELD_PREP(BMA220_FILTER_MASK, index));
+		if (ret < 0)
+			return ret;
+		data->lpf_3dB_freq_idx = index;
+
+		return 0;
 	}
 
 	return -EINVAL;
@@ -313,6 +365,11 @@ static int bma220_read_avail(struct iio_dev *indio_dev,
 		*vals = (int *)bma220_scale_table;
 		*type = IIO_VAL_INT_PLUS_MICRO;
 		*length = ARRAY_SIZE(bma220_scale_table) * 2;
+		return IIO_AVAIL_LIST;
+	case IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY:
+		*vals = (const int *)bma220_lpf_3dB_freq_Hz_table;
+		*type = IIO_VAL_INT;
+		*length = ARRAY_SIZE(bma220_lpf_3dB_freq_Hz_table);
 		return IIO_AVAIL_LIST;
 	default:
 		return -EINVAL;
