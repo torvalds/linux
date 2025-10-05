@@ -21859,6 +21859,7 @@ L:	linux-iio@vger.kernel.org
 L:	linux-renesas-soc@vger.kernel.org
 S:	Supported
 F:	Documentation/devicetree/bindings/iio/adc/renesas,r9a09g077-adc.yaml
+F:	drivers/iio/adc/rzt2h_adc.c
 
 RENESAS RTCA-3 RTC DRIVER
 M:	Claudiu Beznea <claudiu.beznea.uj@bp.renesas.com>
