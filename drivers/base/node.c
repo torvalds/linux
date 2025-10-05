@@ -819,12 +819,9 @@ int unregister_cpu_under_node(unsigned int cpu, unsigned int nid)
 
 #ifdef CONFIG_MEMORY_HOTPLUG
 static void do_register_memory_block_under_node(int nid,
-						struct memory_block *mem_blk,
-						enum meminit_context context)
+						struct memory_block *mem_blk)
 {
 	int ret;
-
-	memory_block_add_nid(mem_blk, nid, context);
 
 	ret = sysfs_create_link_nowarn(&node_devices[nid]->dev.kobj,
 				       &mem_blk->dev.kobj,
@@ -853,7 +850,7 @@ static int register_mem_block_under_node_hotplug(struct memory_block *mem_blk,
 {
 	int nid = *(int *)arg;
 
-	do_register_memory_block_under_node(nid, mem_blk, MEMINIT_HOTPLUG);
+	do_register_memory_block_under_node(nid, mem_blk);
 	return 0;
 }
 
@@ -893,7 +890,8 @@ static void register_memory_blocks_under_nodes(void)
 			if (!mem)
 				continue;
 
-			do_register_memory_block_under_node(nid, mem, MEMINIT_EARLY);
+			memory_block_add_nid_early(mem, nid);
+			do_register_memory_block_under_node(nid, mem);
 			put_device(&mem->dev);
 		}
 

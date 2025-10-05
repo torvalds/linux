@@ -2921,7 +2921,7 @@ int __ksm_enter(struct mm_struct *mm)
 
 void __ksm_exit(struct mm_struct *mm)
 {
-	struct ksm_mm_slot *mm_slot;
+	struct ksm_mm_slot *mm_slot = NULL;
 	struct mm_slot *slot;
 	int easy_to_free = 0;
 
@@ -2936,19 +2936,20 @@ void __ksm_exit(struct mm_struct *mm)
 
 	spin_lock(&ksm_mmlist_lock);
 	slot = mm_slot_lookup(mm_slots_hash, mm);
-	if (slot) {
-		mm_slot = mm_slot_entry(slot, struct ksm_mm_slot, slot);
-		if (ksm_scan.mm_slot != mm_slot) {
-			if (!mm_slot->rmap_list) {
-				hash_del(&slot->hash);
-				list_del(&slot->mm_node);
-				easy_to_free = 1;
-			} else {
-				list_move(&slot->mm_node,
-					  &ksm_scan.mm_slot->slot.mm_node);
-			}
-		}
+	if (!slot)
+		goto unlock;
+	mm_slot = mm_slot_entry(slot, struct ksm_mm_slot, slot);
+	if (ksm_scan.mm_slot == mm_slot)
+		goto unlock;
+	if (!mm_slot->rmap_list) {
+		hash_del(&slot->hash);
+		list_del(&slot->mm_node);
+		easy_to_free = 1;
+	} else {
+		list_move(&slot->mm_node,
+			  &ksm_scan.mm_slot->slot.mm_node);
 	}
+unlock:
 	spin_unlock(&ksm_mmlist_lock);
 
 	if (easy_to_free) {
