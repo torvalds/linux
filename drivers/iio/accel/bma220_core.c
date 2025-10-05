@@ -173,6 +173,24 @@ const struct regmap_config bma220_spi_regmap_config = {
 };
 EXPORT_SYMBOL_NS_GPL(bma220_spi_regmap_config, "IIO_BOSCH_BMA220");
 
+/*
+ * Based on the datasheet the memory map differs between the SPI and the I2C
+ * implementations. I2C register addresses are simply shifted to the left
+ * by 1 bit yet the register size remains unchanged.
+ * This driver employs the SPI memory map to correlate register names to
+ * addresses regardless of the bus type.
+ */
+
+const struct regmap_config bma220_i2c_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+	.reg_shift = -1,
+	.max_register = BMA220_REG_SOFTRESET,
+	.cache_type = REGCACHE_NONE,
+	.writeable_reg = bma220_is_writable_reg,
+};
+EXPORT_SYMBOL_NS_GPL(bma220_i2c_regmap_config, "IIO_BOSCH_BMA220");
+
 static irqreturn_t bma220_trigger_handler(int irq, void *p)
 {
 	int ret;
