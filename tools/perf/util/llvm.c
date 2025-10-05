@@ -7,6 +7,7 @@
 #include "namespaces.h"
 #include "srcline.h"
 #include "symbol.h"
+#include <errno.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <linux/zalloc.h>
@@ -147,7 +148,7 @@ int symbol__disassemble_llvm(const char *filename, struct symbol *sym,
 	buf = dso__read_symbol(dso, filename, map, sym,
 			       &code_buf, &buf_len, &is_64bit);
 	if (buf == NULL)
-		return -1;
+		return errno;
 
 	init_llvm();
 	if (arch__is(args->arch, "x86")) {
