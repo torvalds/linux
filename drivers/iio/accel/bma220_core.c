@@ -29,12 +29,15 @@
 #define BMA220_REG_ACCEL_Z			0x04
 #define BMA220_REG_RANGE			0x11
 #define BMA220_REG_SUSPEND			0x18
+#define BMA220_REG_SOFTRESET			0x19
 
 #define BMA220_CHIP_ID				0xDD
 #define BMA220_READ_MASK			BIT(7)
 #define BMA220_RANGE_MASK			GENMASK(1, 0)
 #define BMA220_SUSPEND_SLEEP			0xFF
 #define BMA220_SUSPEND_WAKE			0x00
+#define BMA220_RESET_MODE			0xFF
+#define BMA220_NONRESET_MODE			0x00
 
 #define BMA220_DEVICE_NAME			"bma220"
 
@@ -203,6 +206,31 @@ static const struct iio_info bma220_info = {
 	.read_avail		= bma220_read_avail,
 };
 
+static int bma220_reset(struct spi_device *spi, bool up)
+{
+	int ret;
+	unsigned int i;
+
+	/*
+	 * The chip can be reset by a simple register read.
+	 * We need up to 2 register reads of the softreset register
+	 * to make sure that the device is in the desired state.
+	 */
+	for (i = 0; i < 2; i++) {
+		ret = bma220_read_reg(spi, BMA220_REG_SOFTRESET);
+		if (ret < 0)
+			return ret;
+
+		if (up && ret == BMA220_RESET_MODE)
+			return 0;
+
+		if (!up && ret == BMA220_NONRESET_MODE)
+			return 0;
+	}
+
+	return -EBUSY;
+}
+
 static int bma220_power(struct spi_device *spi, bool up)
 {
 	int ret;
@@ -247,14 +275,14 @@ static int bma220_init(struct spi_device *spi)
 	if (ret != BMA220_CHIP_ID)
 		dev_info(dev, "Unknown chip found: 0x%02x\n", ret);
 
-	/* Make sure the chip is powered on */
-	ret = bma220_read_reg(spi, BMA220_REG_SUSPEND);
-	if (ret == BMA220_SUSPEND_WAKE)
-		ret = bma220_read_reg(spi, BMA220_REG_SUSPEND);
-	if (ret < 0)
-		return ret;
-	if (ret == BMA220_SUSPEND_WAKE)
-		return -EBUSY;
+	/* Make sure the chip is powered on and config registers are reset */
+	ret = bma220_power(spi, true);
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to power-on chip\n");
+
+	ret = bma220_reset(spi, true);
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to soft reset chip\n");
 
 	return 0;
 }
