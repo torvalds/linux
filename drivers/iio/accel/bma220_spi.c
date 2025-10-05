@@ -258,8 +258,9 @@ static int bma220_probe(struct spi_device *spi)
 	int ret;
 	struct iio_dev *indio_dev;
 	struct bma220_data *data;
+	struct device *dev = &spi->dev;
 
-	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*data));
+	indio_dev = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!indio_dev)
 		return -ENOMEM;
 
@@ -278,19 +279,19 @@ static int bma220_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	ret = devm_add_action_or_reset(&spi->dev, bma220_deinit, spi);
+	ret = devm_add_action_or_reset(dev, bma220_deinit, spi);
 	if (ret)
 		return ret;
 
-	ret = devm_iio_triggered_buffer_setup(&spi->dev, indio_dev,
+	ret = devm_iio_triggered_buffer_setup(dev, indio_dev,
 					      iio_pollfunc_store_time,
 					      bma220_trigger_handler, NULL);
 	if (ret < 0) {
-		dev_err(&spi->dev, "iio triggered buffer setup failed\n");
+		dev_err(dev, "iio triggered buffer setup failed\n");
 		return ret;
 	}
 
-	return devm_iio_device_register(&spi->dev, indio_dev);
+	return devm_iio_device_register(dev, indio_dev);
 }
 
 static int bma220_suspend(struct device *dev)
