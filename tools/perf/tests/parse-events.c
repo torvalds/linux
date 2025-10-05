@@ -41,22 +41,7 @@ static int num_core_entries(struct evlist *evlist)
 	return 1;
 }
 
-static bool test_config(const struct evsel *evsel, __u64 expected_config)
-{
-	__u32 type = evsel->core.attr.type;
-	__u64 config = evsel->core.attr.config;
-
-	if (type == PERF_TYPE_HARDWARE || type == PERF_TYPE_HW_CACHE) {
-		/*
-		 * HARDWARE and HW_CACHE events encode the PMU's extended type
-		 * in the top 32-bits. Mask in order to ignore.
-		 */
-		config &= PERF_HW_EVENT_MASK;
-	}
-	return config == expected_config;
-}
-
-static bool test_perf_config(const struct perf_evsel *evsel, __u64 expected_config)
+static bool test_hw_config(const struct perf_evsel *evsel, __u64 expected_config)
 {
 	return (evsel->attr.config & PERF_HW_EVENT_MASK) == expected_config;
 }
@@ -129,7 +114,7 @@ static int test__checkevent_raw(struct evlist *evlist)
 		struct perf_pmu *pmu __maybe_unused = NULL;
 		bool type_matched = false;
 
-		TEST_ASSERT_VAL("wrong config", test_perf_config(evsel, 0x1a));
+		TEST_ASSERT_VAL("wrong config", test_hw_config(evsel, 0x1a));
 		TEST_ASSERT_VAL("event not parsed as raw type",
 				evsel->attr.type == PERF_TYPE_RAW);
 #if defined(__aarch64__)
@@ -215,7 +200,7 @@ static int test__checkevent_genhw(struct evlist *evlist)
 
 	perf_evlist__for_each_entry(&evlist->core, evsel) {
 		TEST_ASSERT_VAL("wrong type", PERF_TYPE_HW_CACHE == evsel->attr.type);
-		TEST_ASSERT_VAL("wrong config", test_perf_config(evsel, 1 << 16));
+		TEST_ASSERT_VAL("wrong config", test_hw_config(evsel, 1 << 16));
 	}
 	return TEST_OK;
 }
@@ -596,7 +581,7 @@ static int test__checkevent_pmu(struct evlist *evlist)
 
 	TEST_ASSERT_VAL("wrong number of entries", 1 == evlist->core.nr_entries);
 	TEST_ASSERT_VAL("wrong type", core_pmu->type == evsel->core.attr.type);
-	TEST_ASSERT_VAL("wrong config",    test_config(evsel, 10));
+	TEST_ASSERT_VAL("wrong config",    test_hw_config(&evsel->core, 10));
 	TEST_ASSERT_VAL("wrong config1",    1 == evsel->core.attr.config1);
 	TEST_ASSERT_VAL("wrong config2",    3 == evsel->core.attr.config2);
 	TEST_ASSERT_VAL("wrong config3",    0 == evsel->core.attr.config3);
