@@ -14,16 +14,15 @@
 #include "xe_device.h"
 #include "xe_device_types.h"
 #include "xe_gt.h"
-#include "xe_gt_printk.h"
 #include "xe_guc.h"
 #include "xe_hw_engine.h"
 #include "xe_map.h"
 #include "xe_memirq.h"
+#include "xe_tile_printk.h"
 
 #define memirq_assert(m, condition)	xe_tile_assert(memirq_to_tile(m), condition)
 #define memirq_printk(m, _level, _fmt, ...)			\
-	drm_##_level(&memirq_to_xe(m)->drm, "MEMIRQ%u: " _fmt,	\
-		     memirq_to_tile(m)->id, ##__VA_ARGS__)
+	xe_tile_##_level(memirq_to_tile(m), "MEMIRQ: " _fmt, ##__VA_ARGS__)
 
 #ifdef CONFIG_DRM_XE_DEBUG_MEMIRQ
 #define memirq_debug(m, _fmt, ...)	memirq_printk(m, dbg, _fmt, ##__VA_ARGS__)
