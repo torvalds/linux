@@ -23,6 +23,7 @@
 #include <linux/iio/buffer.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
+#include <linux/iio/trigger.h>
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/triggered_buffer.h>
 
@@ -124,6 +125,7 @@ struct bma220_data {
 	struct regmap *regmap;
 	struct mutex lock;
 	u8 range_idx;
+	struct iio_trigger *trig;
 	struct {
 		s8 chans[3];
 		/* Ensure timestamp is naturally aligned. */
@@ -191,6 +193,22 @@ const struct regmap_config bma220_i2c_regmap_config = {
 	.writeable_reg = bma220_is_writable_reg,
 };
 EXPORT_SYMBOL_NS_GPL(bma220_i2c_regmap_config, "IIO_BOSCH_BMA220");
+
+static int bma220_data_rdy_trigger_set_state(struct iio_trigger *trig,
+					     bool state)
+{
+	struct iio_dev *indio_dev = iio_trigger_get_drvdata(trig);
+	struct bma220_data *data = iio_priv(indio_dev);
+
+	return regmap_update_bits(data->regmap, BMA220_REG_IE0,
+				  BMA220_INT_EN_DRDY_MSK,
+				  FIELD_PREP(BMA220_INT_EN_DRDY_MSK, state));
+}
+
+static const struct iio_trigger_ops bma220_trigger_ops = {
+	.set_trigger_state = &bma220_data_rdy_trigger_set_state,
+	.validate_device = &iio_trigger_validate_own_device,
+};
 
 static irqreturn_t bma220_trigger_handler(int irq, void *p)
 {
@@ -414,6 +432,23 @@ static void bma220_deinit(void *data_ptr)
 			 ERR_PTR(ret));
 }
 
+static irqreturn_t bma220_irq_handler(int irq, void *private)
+{
+	struct iio_dev *indio_dev = private;
+	struct bma220_data *data = iio_priv(indio_dev);
+	int ret;
+	unsigned int bma220_reg_if1;
+
+	ret = regmap_read(data->regmap, BMA220_REG_IF1, &bma220_reg_if1);
+	if (ret)
+		return IRQ_NONE;
+
+	if (FIELD_GET(BMA220_IF_DRDY, bma220_reg_if1))
+		iio_trigger_poll_nested(data->trig);
+
+	return IRQ_HANDLED;
+}
+
 int bma220_common_probe(struct device *dev, struct regmap *regmap, int irq)
 {
 	int ret;
@@ -441,6 +476,29 @@ int bma220_common_probe(struct device *dev, struct regmap *regmap, int irq)
 	indio_dev->channels = bma220_channels;
 	indio_dev->num_channels = ARRAY_SIZE(bma220_channels);
 	indio_dev->available_scan_masks = bma220_accel_scan_masks;
+
+	if (irq > 0) {
+		data->trig = devm_iio_trigger_alloc(dev, "%s-dev%d",
+						    indio_dev->name,
+						    iio_device_id(indio_dev));
+		if (!data->trig)
+			return -ENOMEM;
+
+		data->trig->ops = &bma220_trigger_ops;
+		iio_trigger_set_drvdata(data->trig, indio_dev);
+
+		ret = devm_iio_trigger_register(dev, data->trig);
+		if (ret)
+			return dev_err_probe(dev, ret,
+					     "iio trigger register fail\n");
+		indio_dev->trig = iio_trigger_get(data->trig);
+		ret = devm_request_threaded_irq(dev, irq, NULL,
+						&bma220_irq_handler, IRQF_ONESHOT,
+						indio_dev->name, indio_dev);
+		if (ret)
+			return dev_err_probe(dev, ret,
+					     "request irq %d failed\n", irq);
+	}
 
 	ret = devm_add_action_or_reset(dev, bma220_deinit, data);
 	if (ret)
