@@ -200,8 +200,8 @@ static int cifs_do_create(struct inode *inode, struct dentry *direntry, unsigned
 
 	full_path = build_path_from_dentry(direntry, page);
 	if (IS_ERR(full_path)) {
-		free_dentry_path(page);
-		return PTR_ERR(full_path);
+		rc = PTR_ERR(full_path);
+		goto out;
 	}
 
 	/* If we're caching, we need to be able to fill in around partial writes. */
