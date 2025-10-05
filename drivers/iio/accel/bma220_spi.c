@@ -202,10 +202,15 @@ static const struct iio_info bma220_info = {
 static int bma220_init(struct spi_device *spi)
 {
 	int ret;
+	struct device *dev = &spi->dev;
 
 	ret = bma220_read_reg(spi, BMA220_REG_ID);
+	if (ret < 0)
+		return dev_err_probe(dev, ret,
+				     "Failed to read chip id register\n");
+
 	if (ret != BMA220_CHIP_ID)
-		return -ENODEV;
+		dev_info(dev, "Unknown chip found: 0x%02x\n", ret);
 
 	/* Make sure the chip is powered on */
 	ret = bma220_read_reg(spi, BMA220_REG_SUSPEND);
