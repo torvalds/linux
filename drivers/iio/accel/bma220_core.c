@@ -222,11 +222,23 @@ static int bma220_read_raw(struct iio_dev *indio_dev,
 	return -EINVAL;
 }
 
+static int bma220_find_match_2dt(const int (*tbl)[2], const int n,
+				 const int val, const int val2)
+{
+	int i;
+
+	for (i = 0; i < n; i++) {
+		if (tbl[i][0] == val && tbl[i][1] == val2)
+			return i;
+	}
+
+	return -EINVAL;
+}
+
 static int bma220_write_raw(struct iio_dev *indio_dev,
 			    struct iio_chan_spec const *chan,
 			    int val, int val2, long mask)
 {
-	int i;
 	int ret;
 	int index = -1;
 	struct bma220_data *data = iio_priv(indio_dev);
@@ -235,12 +247,9 @@ static int bma220_write_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_SCALE:
-		for (i = 0; i < ARRAY_SIZE(bma220_scale_table); i++)
-			if (val == bma220_scale_table[i][0] &&
-			    val2 == bma220_scale_table[i][1]) {
-				index = i;
-				break;
-			}
+		index = bma220_find_match_2dt(bma220_scale_table,
+					      ARRAY_SIZE(bma220_scale_table),
+					      val, val2);
 		if (index < 0)
 			return -EINVAL;
 
