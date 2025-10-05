@@ -7,6 +7,7 @@
 
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
+#include <linux/regmap.h>
 #include <linux/types.h>
 #include <linux/spi/spi.h>
 
@@ -14,7 +15,14 @@
 
 static int bma220_spi_probe(struct spi_device *spi)
 {
-	return bma220_common_probe(spi);
+	struct regmap *regmap;
+
+	regmap = devm_regmap_init_spi(spi, &bma220_spi_regmap_config);
+	if (IS_ERR(regmap))
+		return dev_err_probe(&spi->dev, PTR_ERR(regmap),
+				     "failed to create regmap\n");
+
+	return bma220_common_probe(&spi->dev, regmap, spi->irq);
 }
 
 static const struct spi_device_id bma220_spi_id[] = {
