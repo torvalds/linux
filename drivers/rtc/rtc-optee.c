@@ -712,7 +712,7 @@ static int optee_rtc_suspend(struct device *dev)
 	return 0;
 }
 
-DEFINE_SIMPLE_DEV_PM_OPS(optee_rtc_pm_ops, optee_rtc_suspend, NULL);
+static DEFINE_SIMPLE_DEV_PM_OPS(optee_rtc_pm_ops, optee_rtc_suspend, NULL);
 
 static const struct tee_client_device_id optee_rtc_id_table[] = {
 	{UUID_INIT(0xf389f8c8, 0x845f, 0x496c,
