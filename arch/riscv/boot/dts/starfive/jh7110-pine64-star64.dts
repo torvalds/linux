@@ -44,6 +44,19 @@
 	status = "okay";
 };
 
+&mmc0_pins {
+	 rst-pins {
+		pinmux = <GPIOMUX(62, GPOUT_SYS_SDIO0_RST,
+				      GPOEN_ENABLE,
+				      GPI_NONE)>;
+		bias-pull-up;
+		drive-strength = <12>;
+		input-disable;
+		input-schmitt-disable;
+		slew-rate = <0>;
+	};
+};
+
 &pcie1 {
 	status = "okay";
 };
