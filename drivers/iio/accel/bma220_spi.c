@@ -223,7 +223,7 @@ static int bma220_power(struct spi_device *spi, bool up)
 {
 	int i, ret;
 
-	/**
+	/*
 	 * The chip can be suspended/woken up by a simple register read.
 	 * So, we need up to 2 register reads of the suspend register
 	 * to make sure that the device is in the desired state.
