@@ -12,6 +12,8 @@ PMU_EVENTS_C	=  $(OUTPUT)pmu-events/pmu-events.c
 METRIC_TEST_LOG	=  $(OUTPUT)pmu-events/metric_test.log
 TEST_EMPTY_PMU_EVENTS_C = $(OUTPUT)pmu-events/test-empty-pmu-events.c
 EMPTY_PMU_EVENTS_TEST_LOG = $(OUTPUT)pmu-events/empty-pmu-events.log
+LEGACY_CACHE_PY	=  pmu-events/make_legacy_cache.py
+LEGACY_CACHE_JSON = $(OUTPUT)pmu-events/arch/common/common/legacy-cache.json
 
 ifeq ($(JEVENTS_ARCH),)
 JEVENTS_ARCH=$(SRCARCH)
@@ -33,7 +35,11 @@ $(OUTPUT)pmu-events/arch/%: pmu-events/arch/%
 	$(call rule_mkdir)
 	$(Q)$(call echo-cmd,gen)cp $< $@
 
-GEN_JSON = $(patsubst %,$(OUTPUT)%,$(JSON))
+$(LEGACY_CACHE_JSON): $(LEGACY_CACHE_PY)
+	$(call rule_mkdir)
+	$(Q)$(call echo-cmd,gen)$(PYTHON) $(LEGACY_CACHE_PY) > $@
+
+GEN_JSON = $(patsubst %,$(OUTPUT)%,$(JSON)) $(LEGACY_CACHE_JSON)
 
 $(METRIC_TEST_LOG): $(METRIC_TEST_PY) $(METRIC_PY)
 	$(call rule_mkdir)

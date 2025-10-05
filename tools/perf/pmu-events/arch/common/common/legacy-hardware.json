@@ -1,0 +1,72 @@
+[
+  {
+    "EventName": "cpu-cycles",
+    "BriefDescription": "Total cycles. Be wary of what happens during CPU frequency scaling [This event is an alias of cycles].",
+    "LegacyConfigCode": "0"
+  },
+  {
+    "EventName": "cycles",
+    "BriefDescription": "Total cycles. Be wary of what happens during CPU frequency scaling [This event is an alias of cpu-cycles].",
+    "LegacyConfigCode": "0"
+  },
+  {
+    "EventName": "instructions",
+    "BriefDescription": "Retired instructions. Be careful, these can be affected by various issues, most notably hardware interrupt counts.",
+    "LegacyConfigCode": "1"
+  },
+  {
+    "EventName": "cache-references",
+    "BriefDescription": "Cache accesses. Usually this indicates Last Level Cache accesses but this may vary depending on your CPU.  This may include prefetches and coherency messages; again this depends on the design of your CPU.",
+    "LegacyConfigCode": "2"
+  },
+  {
+    "EventName": "cache-misses",
+    "BriefDescription": "Cache misses. Usually this indicates Last Level Cache misses; this is intended to be used in conjunction with the PERF_COUNT_HW_CACHE_REFERENCES event to calculate cache miss rates.",
+    "LegacyConfigCode": "3"
+  },
+  {
+    "EventName": "branches",
+    "BriefDescription": "Retired branch instructions [This event is an alias of branch-instructions].",
+    "LegacyConfigCode": "4"
+  },
+  {
+    "EventName": "branch-instructions",
+    "BriefDescription": "Retired branch instructions [This event is an alias of branches].",
+    "LegacyConfigCode": "4"
+  },
+  {
+    "EventName": "branch-misses",
+    "BriefDescription": "Mispredicted branch instructions.",
+    "LegacyConfigCode": "5"
+  },
+  {
+    "EventName": "bus-cycles",
+    "BriefDescription": "Bus cycles, which can be different from total cycles.",
+    "LegacyConfigCode": "6"
+  },
+  {
+    "EventName": "stalled-cycles-frontend",
+    "BriefDescription": "Stalled cycles during issue [This event is an alias of idle-cycles-frontend].",
+    "LegacyConfigCode": "7"
+  },
+  {
+    "EventName": "idle-cycles-frontend",
+    "BriefDescription": "Stalled cycles during issue [This event is an alias of stalled-cycles-fronted].",
+    "LegacyConfigCode": "7"
+  },
+  {
+    "EventName": "stalled-cycles-backend",
+    "BriefDescription": "Stalled cycles during retirement [This event is an alias of idle-cycles-backend].",
+    "LegacyConfigCode": "8"
+  },
+  {
+    "EventName": "idle-cycles-backend",
+    "BriefDescription": "Stalled cycles during retirement [This event is an alias of stalled-cycles-backend].",
+    "LegacyConfigCode": "8"
+  },
+  {
+    "EventName": "ref-cycles",
+    "BriefDescription": "Total cycles; not affected by CPU frequency scaling.",
+    "LegacyConfigCode": "9"
+  }
+]
