@@ -70,11 +70,6 @@ int llvm__addr2line(const char *dso_name __maybe_unused, u64 addr __maybe_unused
 #endif
 }
 
-void dso__free_a2l_llvm(struct dso *dso __maybe_unused)
-{
-	/* Nothing to free. */
-}
-
 #ifdef HAVE_LIBLLVM_SUPPORT
 static void init_llvm(void)
 {

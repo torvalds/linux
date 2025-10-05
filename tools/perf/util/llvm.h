@@ -15,9 +15,6 @@ int llvm__addr2line(const char *dso_name, u64 addr,
 		bool unwind_inlines, struct inline_node *node,
 		struct symbol *sym);
 
-
-void dso__free_a2l_llvm(struct dso *dso);
-
 int symbol__disassemble_llvm(const char *filename, struct symbol *sym,
 			     struct annotate_args *args);
 
