@@ -141,6 +141,31 @@ static struct amdgpu_video_codecs sriov_vcn_4_0_0_video_codecs_decode_vcn1 = {
 	.codec_array = sriov_vcn_4_0_0_video_codecs_decode_array_vcn1,
 };
 
+static const struct amdgpu_video_codec_info vcn_5_3_0_video_codecs_encode_array_vcn0[] = {
+        {codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG4_AVC, 4096, 4096, 0)},
+        {codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_HEVC, 8192, 4352, 0)},
+        {codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_AV1, 8192, 4352, 0)},
+};
+
+static const struct amdgpu_video_codecs vcn_5_3_0_video_codecs_encode_vcn0 = {
+        .codec_count = ARRAY_SIZE(vcn_5_3_0_video_codecs_encode_array_vcn0),
+        .codec_array = vcn_5_3_0_video_codecs_encode_array_vcn0,
+};
+
+static const struct amdgpu_video_codec_info vcn_5_3_0_video_codecs_decode_array_vcn0[] = {
+        {codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG4_AVC, 4096, 4096, 52)},
+        {codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_HEVC, 8192, 4352, 186)},
+        {codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_JPEG, 16384, 16384, 0)},
+        {codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_VP9, 8192, 4352, 0)},
+        {codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_AV1, 8192, 4352, 0)},
+};
+
+static const struct amdgpu_video_codecs vcn_5_3_0_video_codecs_decode_vcn0 = {
+        .codec_count = ARRAY_SIZE(vcn_5_3_0_video_codecs_decode_array_vcn0),
+        .codec_array = vcn_5_3_0_video_codecs_decode_array_vcn0,
+};
+
+
 static int soc21_query_video_codecs(struct amdgpu_device *adev, bool encode,
 				 const struct amdgpu_video_codecs **codecs)
 {
@@ -184,6 +209,12 @@ static int soc21_query_video_codecs(struct amdgpu_device *adev, bool encode,
 			*codecs = &vcn_4_0_0_video_codecs_encode_vcn0;
 		else
 			*codecs = &vcn_4_0_0_video_codecs_decode_vcn0;
+		return 0;
+	case IP_VERSION(5, 3, 0):
+		if (encode)
+			*codecs = &vcn_5_3_0_video_codecs_encode_vcn0;
+		else
+			*codecs = &vcn_5_3_0_video_codecs_decode_vcn0;
 		return 0;
 	default:
 		return -EINVAL;
@@ -800,9 +831,11 @@ static int soc21_common_early_init(struct amdgpu_ip_block *ip_block)
 		adev->external_rev_id = adev->rev_id + 0x50;
 		break;
 	case IP_VERSION(11, 5, 4):
-               adev->cg_flags = 0;
-               adev->pg_flags = 0;
-               adev->external_rev_id = adev->rev_id + 0x1;
+		adev->cg_flags = AMD_CG_SUPPORT_VCN_MGCG |
+			AMD_CG_SUPPORT_JPEG_MGCG;
+		adev->pg_flags = AMD_PG_SUPPORT_VCN |
+			AMD_PG_SUPPORT_JPEG;
+		adev->external_rev_id = adev->rev_id + 0x1;
                break;
 	default:
 		/* FIXME: not supported yet */
