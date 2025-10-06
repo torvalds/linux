@@ -282,7 +282,7 @@ static int iris_hfi_gen1_queue_input_buffer(struct iris_inst *inst, struct iris_
 		com_ip_pkt.shdr.session_id = inst->session_id;
 		com_ip_pkt.time_stamp_hi = upper_32_bits(buf->timestamp);
 		com_ip_pkt.time_stamp_lo = lower_32_bits(buf->timestamp);
-		com_ip_pkt.flags = buf->flags;
+		com_ip_pkt.flags = 0;
 		com_ip_pkt.mark_target = 0;
 		com_ip_pkt.mark_data = 0;
 		com_ip_pkt.offset = buf->data_offset;
