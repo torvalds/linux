@@ -678,6 +678,7 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 	const char *full_path;
 	void *page;
 	int retry_count = 0;
+	struct dentry *de;
 
 	xid = get_xid();
 
@@ -689,16 +690,15 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 	cifs_sb = CIFS_SB(parent_dir_inode->i_sb);
 	tlink = cifs_sb_tlink(cifs_sb);
 	if (IS_ERR(tlink)) {
-		free_xid(xid);
-		return ERR_CAST(tlink);
+		de = ERR_CAST(tlink);
+		goto free_xid;
 	}
 	pTcon = tlink_tcon(tlink);
 
 	rc = check_name(direntry, pTcon);
 	if (unlikely(rc)) {
-		cifs_put_tlink(tlink);
-		free_xid(xid);
-		return ERR_PTR(rc);
+		de = ERR_PTR(rc);
+		goto put_tlink;
 	}
 
 	/* can not grab the rename sem here since it would
@@ -707,10 +707,8 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 	page = alloc_dentry_path();
 	full_path = build_path_from_dentry(direntry, page);
 	if (IS_ERR(full_path)) {
-		cifs_put_tlink(tlink);
-		free_xid(xid);
-		free_dentry_path(page);
-		return ERR_CAST(full_path);
+		de = ERR_CAST(full_path);
+		goto free_dentry_path;
 	}
 
 	if (d_really_is_positive(direntry)) {
@@ -776,10 +774,14 @@ again:
 	}
 
 out:
+	de = d_splice_alias(newInode, direntry);
+free_dentry_path:
 	free_dentry_path(page);
+put_tlink:
 	cifs_put_tlink(tlink);
+free_xid:
 	free_xid(xid);
-	return d_splice_alias(newInode, direntry);
+	return de;
 }
 
 static int
