@@ -412,25 +412,27 @@ static long sp_pll_calc_div(struct sp_pll *clk, unsigned long rate)
 	return fbdiv;
 }
 
-static long sp_pll_round_rate(struct clk_hw *hw, unsigned long rate,
-			      unsigned long *prate)
+static int sp_pll_determine_rate(struct clk_hw *hw,
+				 struct clk_rate_request *req)
 {
 	struct sp_pll *clk = to_sp_pll(hw);
 	long ret;
 
-	if (rate == *prate) {
-		ret = *prate; /* bypass */
+	if (req->rate == req->best_parent_rate) {
+		ret = req->best_parent_rate; /* bypass */
 	} else if (clk->div_width == DIV_A) {
-		ret = plla_round_rate(clk, rate);
+		ret = plla_round_rate(clk, req->rate);
 	} else if (clk->div_width == DIV_TV) {
-		ret = plltv_div(clk, rate);
+		ret = plltv_div(clk, req->rate);
 		if (ret < 0)
-			ret = *prate;
+			ret = req->best_parent_rate;
 	} else {
-		ret = sp_pll_calc_div(clk, rate) * clk->brate;
+		ret = sp_pll_calc_div(clk, req->rate) * clk->brate;
 	}
 
-	return ret;
+	req->rate = ret;
+
+	return 0;
 }
 
 static unsigned long sp_pll_recalc_rate(struct clk_hw *hw,
@@ -535,7 +537,7 @@ static const struct clk_ops sp_pll_ops = {
 	.enable = sp_pll_enable,
 	.disable = sp_pll_disable,
 	.is_enabled = sp_pll_is_enabled,
-	.round_rate = sp_pll_round_rate,
+	.determine_rate = sp_pll_determine_rate,
 	.recalc_rate = sp_pll_recalc_rate,
 	.set_rate = sp_pll_set_rate
 };
