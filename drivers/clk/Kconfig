@@ -364,6 +364,7 @@ config COMMON_CLK_LOCHNAGAR
 config COMMON_CLK_NPCM8XX
 	tristate "Clock driver for the NPCM8XX SoC Family"
 	depends on ARCH_NPCM || COMPILE_TEST
+	select AUXILIARY_BUS
 	help
 	  This driver supports the clocks on the Nuvoton BMC NPCM8XX SoC Family,
 	  all the clocks are initialized by the bootloader, so this driver

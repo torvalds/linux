@@ -486,9 +486,10 @@ static const struct ep93xx_gate ep93xx_uarts[] = {
 static int ep93xx_uart_clock_init(struct ep93xx_clk_priv *priv)
 {
 	struct clk_parent_data parent_data = { };
-	unsigned int i, idx, ret, clk_uart_div;
+	unsigned int i, idx, clk_uart_div;
 	struct ep93xx_clk *clk;
 	u32 val;
+	int ret;
 
 	regmap_read(priv->map, EP93XX_SYSCON_PWRCNT, &val);
 	if (val & EP93XX_SYSCON_PWRCNT_UARTBAUD)

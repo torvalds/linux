@@ -68,7 +68,6 @@ static const struct regmap_config lpc32xx_scb_regmap_config = {
 	.reg_stride = 4,
 	.val_format_endian = REGMAP_ENDIAN_LITTLE,
 	.max_register = 0x114,
-	.fast_io = true,
 };
 
 static struct regmap *clk_regmap;
