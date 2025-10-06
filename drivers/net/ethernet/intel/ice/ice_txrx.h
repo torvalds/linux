@@ -255,6 +255,9 @@ struct ice_rx_ring {
 	};
 
 	/* CL2 - 2nd cacheline starts here */
+	struct libeth_fqe *hdr_fqes;
+	struct page_pool *hdr_pp;
+
 	union {
 		struct libeth_xdp_buff_stash xdp;
 		struct libeth_xdp_buff *xsk;
@@ -273,6 +276,8 @@ struct ice_rx_ring {
 	/* used in interrupt processing */
 	u16 next_to_use;
 	u16 next_to_clean;
+
+	u32 hdr_truesize;
 	u32 truesize;
 
 	/* stats structs */
@@ -284,6 +289,7 @@ struct ice_rx_ring {
 	struct ice_tx_ring *xdp_ring;
 	struct ice_rx_ring *next;	/* pointer to next ring in q_vector */
 	struct xsk_buff_pool *xsk_pool;
+	u16 rx_hdr_len;
 	u16 rx_buf_len;
 	dma_addr_t dma;			/* physical address of ring */
 	u8 dcb_tc;			/* Traffic class of ring */
@@ -396,6 +402,7 @@ static inline unsigned int ice_rx_pg_order(struct ice_rx_ring *ring)
 union ice_32b_rx_flex_desc;
 
 void ice_init_ctrl_rx_descs(struct ice_rx_ring *rx_ring, u32 num_descs);
+void ice_rxq_pp_destroy(struct ice_rx_ring *rq);
 bool ice_alloc_rx_bufs(struct ice_rx_ring *rxr, unsigned int cleaned_count);
 netdev_tx_t ice_start_xmit(struct sk_buff *skb, struct net_device *netdev);
 u16

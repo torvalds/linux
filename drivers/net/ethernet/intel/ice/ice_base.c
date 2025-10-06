@@ -524,8 +524,29 @@ static int ice_setup_rx_ctx(struct ice_rx_ring *ring)
 	else
 		rlan_ctx.l2tsel = 1;
 
-	rlan_ctx.dtype = ICE_RX_DTYPE_NO_SPLIT;
-	rlan_ctx.hsplit_0 = ICE_RLAN_RX_HSPLIT_0_NO_SPLIT;
+	if (ring->hdr_pp) {
+		rlan_ctx.hbuf = ring->rx_hdr_len >> ICE_RLAN_CTX_HBUF_S;
+		rlan_ctx.dtype = ICE_RX_DTYPE_HEADER_SPLIT;
+
+		/*
+		 * If the frame is TCP/UDP/SCTP, it will be split by the
+		 * payload.
+		 * If not, but it's an IPv4/IPv6 frame, it will be split by
+		 * the IP header.
+		 * If not IP, it will be split by the Ethernet header.
+		 *
+		 * In any case, the header buffer will never be left empty.
+		 */
+		rlan_ctx.hsplit_0 = ICE_RLAN_RX_HSPLIT_0_SPLIT_L2 |
+				    ICE_RLAN_RX_HSPLIT_0_SPLIT_IP |
+				    ICE_RLAN_RX_HSPLIT_0_SPLIT_TCP_UDP |
+				    ICE_RLAN_RX_HSPLIT_0_SPLIT_SCTP;
+	} else {
+		rlan_ctx.hbuf = 0;
+		rlan_ctx.dtype = ICE_RX_DTYPE_NO_SPLIT;
+		rlan_ctx.hsplit_0 = ICE_RLAN_RX_HSPLIT_0_NO_SPLIT;
+	}
+
 	rlan_ctx.hsplit_1 = ICE_RLAN_RX_HSPLIT_1_NO_SPLIT;
 
 	/* This controls whether VLAN is stripped from inner headers
@@ -581,6 +602,53 @@ static int ice_setup_rx_ctx(struct ice_rx_ring *ring)
 	return 0;
 }
 
+static int ice_rxq_pp_create(struct ice_rx_ring *rq)
+{
+	struct libeth_fq fq = {
+		.count		= rq->count,
+		.nid		= NUMA_NO_NODE,
+		.hsplit		= rq->vsi->hsplit,
+		.xdp		= ice_is_xdp_ena_vsi(rq->vsi),
+		.buf_len	= LIBIE_MAX_RX_BUF_LEN,
+	};
+	int err;
+
+	err = libeth_rx_fq_create(&fq, &rq->q_vector->napi);
+	if (err)
+		return err;
+
+	rq->pp = fq.pp;
+	rq->rx_fqes = fq.fqes;
+	rq->truesize = fq.truesize;
+	rq->rx_buf_len = fq.buf_len;
+
+	if (!fq.hsplit)
+		return 0;
+
+	fq = (struct libeth_fq){
+		.count		= rq->count,
+		.type		= LIBETH_FQE_HDR,
+		.nid		= NUMA_NO_NODE,
+		.xdp		= ice_is_xdp_ena_vsi(rq->vsi),
+	};
+
+	err = libeth_rx_fq_create(&fq, &rq->q_vector->napi);
+	if (err)
+		goto destroy;
+
+	rq->hdr_pp = fq.pp;
+	rq->hdr_fqes = fq.fqes;
+	rq->hdr_truesize = fq.truesize;
+	rq->rx_hdr_len = fq.buf_len;
+
+	return 0;
+
+destroy:
+	ice_rxq_pp_destroy(rq);
+
+	return err;
+}
+
 /**
  * ice_vsi_cfg_rxq - Configure an Rx queue
  * @ring: the ring being configured
@@ -589,12 +657,6 @@ static int ice_setup_rx_ctx(struct ice_rx_ring *ring)
  */
 static int ice_vsi_cfg_rxq(struct ice_rx_ring *ring)
 {
-	struct libeth_fq fq = {
-		.count		= ring->count,
-		.nid		= NUMA_NO_NODE,
-		.xdp		= ice_is_xdp_ena_vsi(ring->vsi),
-		.buf_len	= LIBIE_MAX_RX_BUF_LEN,
-	};
 	struct device *dev = ice_pf_to_dev(ring->vsi->back);
 	u32 num_bufs = ICE_DESC_UNUSED(ring);
 	u32 rx_buf_len;
@@ -636,14 +698,9 @@ static int ice_vsi_cfg_rxq(struct ice_rx_ring *ring)
 			dev_info(dev, "Registered XDP mem model MEM_TYPE_XSK_BUFF_POOL on Rx ring %d\n",
 				 ring->q_index);
 		} else {
-			err = libeth_rx_fq_create(&fq, &ring->q_vector->napi);
+			err = ice_rxq_pp_create(ring);
 			if (err)
 				return err;
-
-			ring->pp = fq.pp;
-			ring->rx_fqes = fq.fqes;
-			ring->truesize = fq.truesize;
-			ring->rx_buf_len = fq.buf_len;
 
 			if (!xdp_rxq_info_is_reg(&ring->xdp_rxq)) {
 				err = __xdp_rxq_info_reg(&ring->xdp_rxq, ring->netdev,
@@ -699,9 +756,7 @@ static int ice_vsi_cfg_rxq(struct ice_rx_ring *ring)
 	return 0;
 
 err_destroy_fq:
-	libeth_rx_fq_destroy(&fq);
-	ring->rx_fqes = NULL;
-	ring->pp = NULL;
+	ice_rxq_pp_destroy(ring);
 
 	return err;
 }

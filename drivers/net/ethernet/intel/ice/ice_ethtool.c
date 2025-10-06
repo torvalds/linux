@@ -3151,6 +3151,10 @@ ice_get_ringparam(struct net_device *netdev, struct ethtool_ringparam *ring,
 	ring->rx_jumbo_max_pending = 0;
 	ring->rx_mini_pending = 0;
 	ring->rx_jumbo_pending = 0;
+
+	kernel_ring->tcp_data_split = vsi->hsplit ?
+				      ETHTOOL_TCP_DATA_SPLIT_ENABLED :
+				      ETHTOOL_TCP_DATA_SPLIT_DISABLED;
 }
 
 static int
@@ -3167,6 +3171,7 @@ ice_set_ringparam(struct net_device *netdev, struct ethtool_ringparam *ring,
 	int i, timeout = 50, err = 0;
 	struct ice_hw *hw = &pf->hw;
 	u16 new_rx_cnt, new_tx_cnt;
+	bool hsplit;
 
 	if (ring->tx_pending > ICE_MAX_NUM_DESC_BY_MAC(hw) ||
 	    ring->tx_pending < ICE_MIN_NUM_DESC ||
@@ -3192,9 +3197,12 @@ ice_set_ringparam(struct net_device *netdev, struct ethtool_ringparam *ring,
 		netdev_info(netdev, "Requested Rx descriptor count rounded up to %d\n",
 			    new_rx_cnt);
 
+	hsplit = kernel_ring->tcp_data_split == ETHTOOL_TCP_DATA_SPLIT_ENABLED;
+
 	/* if nothing to do return success */
 	if (new_tx_cnt == vsi->tx_rings[0]->count &&
-	    new_rx_cnt == vsi->rx_rings[0]->count) {
+	    new_rx_cnt == vsi->rx_rings[0]->count &&
+	    hsplit == vsi->hsplit) {
 		netdev_dbg(netdev, "Nothing to change, descriptor count is same as requested\n");
 		return 0;
 	}
@@ -3224,6 +3232,8 @@ ice_set_ringparam(struct net_device *netdev, struct ethtool_ringparam *ring,
 				vsi->xdp_rings[i]->count = new_tx_cnt;
 		vsi->num_tx_desc = (u16)new_tx_cnt;
 		vsi->num_rx_desc = (u16)new_rx_cnt;
+		vsi->hsplit = hsplit;
+
 		netdev_dbg(netdev, "Link is down, descriptor count change happens when link is brought up\n");
 		goto done;
 	}
@@ -3330,6 +3340,8 @@ rx_unwind:
 	}
 
 process_link:
+	vsi->hsplit = hsplit;
+
 	/* Bring interface down, copy in the new ring info, then restore the
 	 * interface. if VSI is up, bring it down and then back up
 	 */
@@ -4811,6 +4823,7 @@ static const struct ethtool_ops ice_ethtool_ops = {
 				     ETHTOOL_COALESCE_USE_ADAPTIVE |
 				     ETHTOOL_COALESCE_RX_USECS_HIGH,
 	.supported_input_xfrm	= RXH_XFRM_SYM_XOR,
+	.supported_ring_params	= ETHTOOL_RING_USE_TCP_DATA_SPLIT,
 	.get_link_ksettings	= ice_get_link_ksettings,
 	.set_link_ksettings	= ice_set_link_ksettings,
 	.get_fec_stats		= ice_get_fec_stats,

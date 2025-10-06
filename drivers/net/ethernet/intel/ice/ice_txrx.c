@@ -508,16 +508,34 @@ err:
 	return -ENOMEM;
 }
 
+void ice_rxq_pp_destroy(struct ice_rx_ring *rq)
+{
+	struct libeth_fq fq = {
+		.fqes	= rq->rx_fqes,
+		.pp	= rq->pp,
+	};
+
+	libeth_rx_fq_destroy(&fq);
+	rq->rx_fqes = NULL;
+	rq->pp = NULL;
+
+	if (!rq->hdr_pp)
+		return;
+
+	fq.fqes = rq->hdr_fqes;
+	fq.pp = rq->hdr_pp;
+
+	libeth_rx_fq_destroy(&fq);
+	rq->hdr_fqes = NULL;
+	rq->hdr_pp = NULL;
+}
+
 /**
  * ice_clean_rx_ring - Free Rx buffers
  * @rx_ring: ring to be cleaned
  */
 void ice_clean_rx_ring(struct ice_rx_ring *rx_ring)
 {
-	struct libeth_fq fq = {
-		.fqes	= rx_ring->rx_fqes,
-		.pp	= rx_ring->pp,
-	};
 	u32 size;
 
 	if (rx_ring->xsk_pool) {
@@ -533,9 +551,10 @@ void ice_clean_rx_ring(struct ice_rx_ring *rx_ring)
 
 	/* Free all the Rx ring sk_buffs */
 	for (u32 i = rx_ring->next_to_clean; i != rx_ring->next_to_use; ) {
-		const struct libeth_fqe *rx_fqes = &rx_ring->rx_fqes[i];
+		libeth_rx_recycle_slow(rx_ring->rx_fqes[i].netmem);
 
-		libeth_rx_recycle_slow(rx_fqes->netmem);
+		if (rx_ring->hdr_pp)
+			libeth_rx_recycle_slow(rx_ring->hdr_fqes[i].netmem);
 
 		if (unlikely(++i == rx_ring->count))
 			i = 0;
@@ -547,12 +566,9 @@ void ice_clean_rx_ring(struct ice_rx_ring *rx_ring)
 		xdp_rxq_info_unreg(&rx_ring->xdp_rxq);
 	}
 
-	libeth_rx_fq_destroy(&fq);
-	rx_ring->rx_fqes = NULL;
-	rx_ring->pp = NULL;
+	ice_rxq_pp_destroy(rx_ring);
 
 rx_skip_free:
-
 	/* Zero out the descriptor ring */
 	size = ALIGN(rx_ring->count * sizeof(union ice_32byte_rx_desc),
 		     PAGE_SIZE);
@@ -806,6 +822,12 @@ void ice_init_ctrl_rx_descs(struct ice_rx_ring *rx_ring, u32 count)
  */
 bool ice_alloc_rx_bufs(struct ice_rx_ring *rx_ring, unsigned int cleaned_count)
 {
+	const struct libeth_fq_fp hdr_fq = {
+		.pp		= rx_ring->hdr_pp,
+		.fqes		= rx_ring->hdr_fqes,
+		.truesize	= rx_ring->hdr_truesize,
+		.count		= rx_ring->count,
+	};
 	const struct libeth_fq_fp fq = {
 		.pp		= rx_ring->pp,
 		.fqes		= rx_ring->rx_fqes,
@@ -836,6 +858,20 @@ bool ice_alloc_rx_bufs(struct ice_rx_ring *rx_ring, unsigned int cleaned_count)
 		 */
 		rx_desc->read.pkt_addr = cpu_to_le64(addr);
 
+		if (!hdr_fq.pp)
+			goto next;
+
+		addr = libeth_rx_alloc(&hdr_fq, ntu);
+		if (addr == DMA_MAPPING_ERROR) {
+			rx_ring->ring_stats->rx_stats.alloc_page_failed++;
+
+			libeth_rx_recycle_slow(fq.fqes[ntu].netmem);
+			break;
+		}
+
+		rx_desc->read.hdr_addr = cpu_to_le64(addr);
+
+next:
 		rx_desc++;
 		ntu++;
 		if (unlikely(ntu == rx_ring->count)) {
@@ -933,14 +969,16 @@ static int ice_clean_rx_irq(struct ice_rx_ring *rx_ring, int budget)
 		unsigned int size;
 		u16 stat_err_bits;
 		u16 vlan_tci;
+		bool rxe;
 
 		/* get the Rx desc from Rx ring based on 'next_to_clean' */
 		rx_desc = ICE_RX_DESC(rx_ring, ntc);
 
-		/* status_error_len will always be zero for unused descriptors
-		 * because it's cleared in cleanup, and overlaps with hdr_addr
-		 * which is always zero because packet split isn't used, if the
-		 * hardware wrote DD then it will be non-zero
+		/*
+		 * The DD bit will always be zero for unused descriptors
+		 * because it's cleared in cleanup or when setting the DMA
+		 * address of the header buffer, which never uses the DD bit.
+		 * If the hardware wrote the descriptor, it will be non-zero.
 		 */
 		stat_err_bits = BIT(ICE_RX_FLEX_DESC_STATUS0_DD_S);
 		if (!ice_test_staterr(rx_desc->wb.status_error0, stat_err_bits))
@@ -954,12 +992,27 @@ static int ice_clean_rx_irq(struct ice_rx_ring *rx_ring, int budget)
 
 		ice_trace(clean_rx_irq, rx_ring, rx_desc);
 
+		stat_err_bits = BIT(ICE_RX_FLEX_DESC_STATUS0_HBO_S) |
+				BIT(ICE_RX_FLEX_DESC_STATUS0_RXE_S);
+		rxe = ice_test_staterr(rx_desc->wb.status_error0,
+				       stat_err_bits);
+
+		if (!rx_ring->hdr_pp)
+			goto payload;
+
+		size = le16_get_bits(rx_desc->wb.hdr_len_sph_flex_flags1,
+				     ICE_RX_FLEX_DESC_HDR_LEN_M);
+		if (unlikely(rxe))
+			size = 0;
+
+		rx_buf = &rx_ring->hdr_fqes[ntc];
+		libeth_xdp_process_buff(xdp, rx_buf, size);
+		rx_buf->netmem = 0;
+
+payload:
 		size = le16_to_cpu(rx_desc->wb.pkt_len) &
 			ICE_RX_FLX_DESC_PKT_LEN_M;
-
-		stat_err_bits = BIT(ICE_RX_FLEX_DESC_STATUS0_RXE_S);
-		if (unlikely(ice_test_staterr(rx_desc->wb.status_error0,
-					      stat_err_bits)))
+		if (unlikely(rxe))
 			size = 0;
 
 		/* retrieve a buffer from the ring */
