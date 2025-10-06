@@ -2,12 +2,13 @@
 /*
  * Shared descriptors for aead, skcipher algorithms
  *
- * Copyright 2016-2019 NXP
+ * Copyright 2016-2019, 2025 NXP
  */
 
 #include "compat.h"
 #include "desc_constr.h"
 #include "caamalg_desc.h"
+#include <soc/fsl/caam-blob.h>
 
 /*
  * For aead functions, read payload and write payload,
@@ -1364,6 +1365,84 @@ static inline void skcipher_append_src_dst(u32 *desc)
 	append_seq_fifo_store(desc, 0, FIFOST_TYPE_MESSAGE_DATA | KEY_VLF);
 }
 
+void cnstr_desc_skcipher_enc_dec(u32 * const desc, struct alginfo *cdata,
+				 dma_addr_t src, dma_addr_t dst, unsigned int data_sz,
+				 unsigned int in_options, unsigned int out_options,
+				 unsigned int ivsize, const bool encrypt)
+{
+	u32 options = cdata->algtype | OP_ALG_AS_INIT;
+
+	if (encrypt)
+		options |= OP_ALG_ENCRYPT;
+	else
+		options |= OP_ALG_DECRYPT;
+
+	init_job_desc(desc, 0);
+
+	append_jump(desc, JUMP_JSL | JUMP_TYPE_LOCAL |
+			       JUMP_COND_NOP | JUMP_TEST_ALL | 1);
+
+	append_key(desc, cdata->protected_key_dma, cdata->plain_keylen,
+		   CLASS_1 | KEY_DEST_CLASS_REG | cdata->key_cmd_opt);
+
+	append_seq_in_ptr(desc, src, data_sz, in_options);
+
+	append_seq_out_ptr(desc, dst, data_sz, out_options);
+
+	/* Load IV, if there is one */
+	if (ivsize)
+		append_seq_load(desc, ivsize, LDST_SRCDST_BYTE_CONTEXT |
+				LDST_CLASS_1_CCB);
+
+	append_operation(desc, options);
+
+	skcipher_append_src_dst(desc);
+
+	/* Store IV */
+	if (ivsize)
+		append_seq_store(desc, ivsize, LDST_SRCDST_BYTE_CONTEXT |
+				 LDST_CLASS_1_CCB);
+
+	print_hex_dump_debug("skcipher_enc_dec job desc@" __stringify(__LINE__)": ",
+			     DUMP_PREFIX_ADDRESS, 16, 4, desc, desc_bytes(desc),
+			     1);
+}
+EXPORT_SYMBOL(cnstr_desc_skcipher_enc_dec);
+
+void cnstr_desc_protected_blob_decap(u32 * const desc, struct alginfo *cdata,
+				     dma_addr_t next_desc_addr)
+{
+	u32 protected_store;
+
+	init_job_desc(desc, 0);
+
+	/* Load key modifier */
+	append_load_as_imm(desc, KEYMOD, sizeof(KEYMOD) - 1,
+			   LDST_CLASS_2_CCB | LDST_SRCDST_BYTE_KEY);
+
+	append_seq_in_ptr_intlen(desc, cdata->key_dma,
+				 cdata->plain_keylen + CAAM_BLOB_OVERHEAD, 0);
+
+	append_seq_out_ptr_intlen(desc, cdata->protected_key_dma,
+				  cdata->plain_keylen, 0);
+
+	protected_store = OP_PCLID_BLOB | OP_PCL_BLOB_BLACK;
+	if ((cdata->key_cmd_opt >> KEY_EKT_OFFSET) & 1)
+		protected_store |= OP_PCL_BLOB_EKT;
+
+	append_operation(desc, OP_TYPE_DECAP_PROTOCOL | protected_store);
+
+	if (next_desc_addr) {
+		append_jump(desc, JUMP_TYPE_NONLOCAL | JUMP_TEST_ALL);
+		append_ptr(desc, next_desc_addr);
+	}
+
+	print_hex_dump_debug("protected blob decap job desc@" __stringify(__LINE__) ":",
+			     DUMP_PREFIX_ADDRESS, 16, 4, desc,
+			     desc_bytes(desc), 1);
+}
+EXPORT_SYMBOL(cnstr_desc_protected_blob_decap);
+
 /**
  * cnstr_shdsc_skcipher_encap - skcipher encapsulation shared descriptor
  * @desc: pointer to buffer used for descriptor construction
@@ -1391,7 +1470,8 @@ void cnstr_shdsc_skcipher_encap(u32 * const desc, struct alginfo *cdata,
 
 	/* Load class1 key only */
 	append_key_as_imm(desc, cdata->key_virt, cdata->keylen,
-			  cdata->keylen, CLASS_1 | KEY_DEST_CLASS_REG);
+			  cdata->plain_keylen, CLASS_1 | KEY_DEST_CLASS_REG
+					       | cdata->key_cmd_opt);
 
 	/* Load nonce into CONTEXT1 reg */
 	if (is_rfc3686) {
@@ -1466,7 +1546,8 @@ void cnstr_shdsc_skcipher_decap(u32 * const desc, struct alginfo *cdata,
 
 	/* Load class1 key only */
 	append_key_as_imm(desc, cdata->key_virt, cdata->keylen,
-			  cdata->keylen, CLASS_1 | KEY_DEST_CLASS_REG);
+			  cdata->plain_keylen, CLASS_1 | KEY_DEST_CLASS_REG
+					       | cdata->key_cmd_opt);
 
 	/* Load nonce into CONTEXT1 reg */
 	if (is_rfc3686) {
