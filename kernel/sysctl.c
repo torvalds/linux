@@ -368,31 +368,65 @@ static void proc_put_char(void **buf, size_t *size, char c)
 	}
 }
 
+#define SYSCTL_USER_TO_KERN_INT_CONV(name, u_ptr_op)		\
+int sysctl_user_to_kern_int_conv##name(const bool *negp,	\
+				       const unsigned long *u_ptr,\
+				       int *k_ptr)		\
+{								\
+	unsigned long u = u_ptr_op(*u_ptr);			\
+	if (*negp) {						\
+		if (u > (unsigned long) INT_MAX + 1)		\
+			return -EINVAL;				\
+		WRITE_ONCE(*k_ptr, -u);				\
+	} else {						\
+		if (u > (unsigned long) INT_MAX)		\
+			return -EINVAL;				\
+		WRITE_ONCE(*k_ptr, u);				\
+	}							\
+	return 0;						\
+}
+
+#define SYSCTL_KERN_TO_USER_INT_CONV(name, k_ptr_op)		\
+int sysctl_kern_to_user_int_conv##name(bool *negp,		\
+				       unsigned long *u_ptr,	\
+				       const int *k_ptr)	\
+{								\
+	int val = READ_ONCE(*k_ptr);				\
+	if (val < 0) {						\
+		*negp = true;					\
+		*u_ptr = -k_ptr_op((unsigned long)val);		\
+	} else {						\
+		*negp = false;					\
+		*u_ptr = k_ptr_op((unsigned long)val);		\
+	}							\
+	return 0;						\
+}
+
+#define SYSCTL_CONV_IDENTITY(val) val
+#define SYSCTL_CONV_MULT_HZ(val) ((val) * HZ)
+#define SYSCTL_CONV_DIV_HZ(val) ((val) / HZ)
+
+static SYSCTL_USER_TO_KERN_INT_CONV(, SYSCTL_CONV_IDENTITY)
+static SYSCTL_KERN_TO_USER_INT_CONV(, SYSCTL_CONV_IDENTITY)
+
+static SYSCTL_USER_TO_KERN_INT_CONV(_hz, SYSCTL_CONV_MULT_HZ)
+static SYSCTL_KERN_TO_USER_INT_CONV(_hz, SYSCTL_CONV_DIV_HZ)
+
+static SYSCTL_USER_TO_KERN_INT_CONV(_userhz, clock_t_to_jiffies)
+static SYSCTL_KERN_TO_USER_INT_CONV(_userhz, jiffies_to_clock_t)
+
+static SYSCTL_USER_TO_KERN_INT_CONV(_ms, msecs_to_jiffies)
+static SYSCTL_KERN_TO_USER_INT_CONV(_ms, jiffies_to_msecs)
+
 static int do_proc_dointvec_conv(bool *negp, unsigned long *u_ptr,
 				 int *k_ptr, int dir,
 				 const struct ctl_table *table)
 {
 	if (SYSCTL_USER_TO_KERN(dir)) {
-		if (*negp) {
-			if (*u_ptr > (unsigned long) INT_MAX + 1)
-				return -EINVAL;
-			WRITE_ONCE(*k_ptr, -*u_ptr);
-		} else {
-			if (*u_ptr > (unsigned long) INT_MAX)
-				return -EINVAL;
-			WRITE_ONCE(*k_ptr, *u_ptr);
-		}
-	} else {
-		int val = READ_ONCE(*k_ptr);
-		if (val < 0) {
-			*negp = true;
-			*u_ptr = -(unsigned long)val;
-		} else {
-			*negp = false;
-			*u_ptr = (unsigned long)val;
-		}
+		return sysctl_user_to_kern_int_conv(negp, u_ptr, k_ptr);
 	}
-	return 0;
+
+	return sysctl_kern_to_user_int_conv(negp, u_ptr, k_ptr);
 }
 
 static int do_proc_douintvec_conv(unsigned long *u_ptr,
@@ -952,31 +986,14 @@ int proc_doulongvec_ms_jiffies_minmax(const struct ctl_table *table, int dir,
 					 lenp, ppos, HZ, 1000l);
 }
 
-
 static int do_proc_dointvec_jiffies_conv(bool *negp, unsigned long *u_ptr,
 					 int *k_ptr, int dir,
 					 const struct ctl_table *table)
 {
 	if (SYSCTL_USER_TO_KERN(dir)) {
-		if (*u_ptr > INT_MAX / HZ)
-			return 1;
-		if (*negp)
-			WRITE_ONCE(*k_ptr, -*u_ptr * HZ);
-		else
-			WRITE_ONCE(*k_ptr, *u_ptr * HZ);
-	} else {
-		int val = READ_ONCE(*k_ptr);
-		unsigned long lval;
-		if (val < 0) {
-			*negp = true;
-			lval = -(unsigned long)val;
-		} else {
-			*negp = false;
-			lval = (unsigned long)val;
-		}
-		*u_ptr = lval / HZ;
+		return sysctl_user_to_kern_int_conv_hz(negp, u_ptr, k_ptr);
 	}
-	return 0;
+	return sysctl_kern_to_user_int_conv_hz(negp, u_ptr, k_ptr);
 }
 
 static int do_proc_dointvec_userhz_jiffies_conv(bool *negp, unsigned long *u_ptr,
@@ -984,22 +1001,11 @@ static int do_proc_dointvec_userhz_jiffies_conv(bool *negp, unsigned long *u_ptr
 						const struct ctl_table *table)
 {
 	if (SYSCTL_USER_TO_KERN(dir)) {
-		if (USER_HZ < HZ && (LONG_MAX / HZ) * USER_HZ < *u_ptr)
-			return 1;
-		*k_ptr = clock_t_to_jiffies(*negp ? -*u_ptr : *u_ptr);
-	} else {
-		int val = *k_ptr;
-		unsigned long lval;
-		if (val < 0) {
-			*negp = true;
-			lval = -(unsigned long)val;
-		} else {
-			*negp = false;
-			lval = (unsigned long)val;
-		}
-		*u_ptr = jiffies_to_clock_t(lval);
+		if (USER_HZ < HZ)
+			return -EINVAL;
+		return sysctl_user_to_kern_int_conv_userhz(negp, u_ptr, k_ptr);
 	}
-	return 0;
+	return sysctl_kern_to_user_int_conv_userhz(negp, u_ptr, k_ptr);
 }
 
 static int do_proc_dointvec_ms_jiffies_conv(bool *negp, unsigned long *u_ptr,
@@ -1007,24 +1013,9 @@ static int do_proc_dointvec_ms_jiffies_conv(bool *negp, unsigned long *u_ptr,
 					    const struct ctl_table *table)
 {
 	if (SYSCTL_USER_TO_KERN(dir)) {
-		unsigned long jif = msecs_to_jiffies(*negp ? -*u_ptr : *u_ptr);
-
-		if (jif > INT_MAX)
-			return 1;
-		WRITE_ONCE(*k_ptr, (int)jif);
-	} else {
-		int val = READ_ONCE(*k_ptr);
-		unsigned long lval;
-		if (val < 0) {
-			*negp = true;
-			lval = -(unsigned long)val;
-		} else {
-			*negp = false;
-			lval = (unsigned long)val;
-		}
-		*u_ptr = jiffies_to_msecs(lval);
+		return sysctl_user_to_kern_int_conv_ms(negp, u_ptr, k_ptr);
 	}
-	return 0;
+	return sysctl_kern_to_user_int_conv_ms(negp, u_ptr, k_ptr);
 }
 
 static int do_proc_dointvec_ms_jiffies_minmax_conv(bool *negp, unsigned long *u_ptr,
