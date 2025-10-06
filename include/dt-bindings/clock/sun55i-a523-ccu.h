@@ -185,5 +185,6 @@
 #define CLK_FANOUT0		176
 #define CLK_FANOUT1		177
 #define CLK_FANOUT2		178
+#define CLK_NPU			179
 
 #endif /* _DT_BINDINGS_CLK_SUN55I_A523_CCU_H_ */
