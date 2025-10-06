@@ -194,7 +194,7 @@ else
   # paths are used instead.
   ifdef CROSS_COMPILE
     ifeq ($(PKG_CONFIG_LIBDIR)$(PKG_CONFIG_PATH)$(PKG_CONFIG_SYSROOT_DIR),)
-      CROSS_ARCH = $(shell $(CC) -dumpmachine)
+      CROSS_ARCH = $(notdir $(CROSS_COMPILE:%-=%))
       PKG_CONFIG_LIBDIR := /usr/local/$(CROSS_ARCH)/lib/pkgconfig/
       PKG_CONFIG_LIBDIR := $(PKG_CONFIG_LIBDIR):/usr/local/lib/$(CROSS_ARCH)/pkgconfig/
       PKG_CONFIG_LIBDIR := $(PKG_CONFIG_LIBDIR):/usr/lib/$(CROSS_ARCH)/pkgconfig/
