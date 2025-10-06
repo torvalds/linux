@@ -22,7 +22,7 @@ More details of the instructions can be found from the public data sheet.
 LP5521 has the internal program memory for running various LED patterns.
 There are two ways to run LED patterns.
 
-1) Legacy interface - enginex_mode and enginex_load
+1) sysfs interface - enginex_mode and enginex_load
    Control interface for the engines:
 
    x is 1 .. 3
