@@ -32,6 +32,8 @@
 #define DIMM_IDX_MAX_ON_ICXD	2
 #define CHAN_RANK_MAX_ON_SPR	8
 #define DIMM_IDX_MAX_ON_SPR	2
+#define CHAN_RANK_MAX_ON_EMR	8
+#define DIMM_IDX_MAX_ON_EMR	2
 
 #define CHAN_RANK_MAX		CHAN_RANK_MAX_ON_HSX
 #define DIMM_IDX_MAX		DIMM_IDX_MAX_ON_HSX
@@ -571,6 +573,12 @@ read_thresholds_spr(struct peci_dimmtemp *priv, int dimm_order, int chan_rank, u
 	return 0;
 }
 
+static int read_thresholds_emr(struct peci_dimmtemp *priv, int dimm_order,
+			       int chan_rank, u32 *data)
+{
+	return read_thresholds_spr(priv, dimm_order, chan_rank, data);
+}
+
 static const struct dimm_info dimm_hsx = {
 	.chan_rank_max	= CHAN_RANK_MAX_ON_HSX,
 	.dimm_idx_max	= DIMM_IDX_MAX_ON_HSX,
@@ -620,6 +628,13 @@ static const struct dimm_info dimm_spr = {
 	.read_thresholds = &read_thresholds_spr,
 };
 
+static const struct dimm_info dimm_emr = {
+	.chan_rank_max  = CHAN_RANK_MAX_ON_EMR,
+	.dimm_idx_max  = DIMM_IDX_MAX_ON_EMR,
+	.min_peci_revision = 0x40,
+	.read_thresholds = &read_thresholds_emr,
+};
+
 static const struct auxiliary_device_id peci_dimmtemp_ids[] = {
 	{
 		.name = "peci_cpu.dimmtemp.hsx",
@@ -648,6 +663,10 @@ static const struct auxiliary_device_id peci_dimmtemp_ids[] = {
 	{
 		.name = "peci_cpu.dimmtemp.spr",
 		.driver_data = (kernel_ulong_t)&dimm_spr,
+	},
+	{
+		.name = "peci_cpu.dimmtemp.emr",
+		.driver_data = (kernel_ulong_t)&dimm_emr,
 	},
 	{ }
 };
