@@ -6421,6 +6421,13 @@ void dc_get_underflow_debug_data_for_otg(struct dc *dc, int primary_otg_inst,
 		dc->hwss.get_underflow_debug_data(dc, tg, out_data);
 }
 
+void dc_get_power_feature_status(struct dc *dc, int primary_otg_inst,
+				struct power_features *out_data)
+{
+	out_data->uclk_p_state = dc->current_state->clk_mgr->clks.p_state_change_support;
+	out_data->fams = dc->current_state->bw_ctx.bw.dcn.clk.fw_based_mclk_switching;
+}
+
 void dc_log_preos_dmcub_info(const struct dc *dc)
 {
 	dc_dmub_srv_log_preos_dmcub_info(dc->ctx->dmub_srv);

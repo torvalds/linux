@@ -1865,6 +1865,18 @@ struct dc_underflow_debug_data {
 	struct dcn_dccg_reg_state *dccg_reg_state[MAX_PIPES];
 };
 
+struct power_features {
+	bool ips;
+	bool rcg;
+	bool replay;
+	bool dds;
+	bool sprs;
+	bool psr;
+	bool fams;
+	bool mpo;
+	bool uclk_p_state;
+};
+
 /*
  * Create a new surface with default parameters;
  */
@@ -2771,5 +2783,7 @@ bool dc_can_clear_cursor_limit(const struct dc *dc);
  * The results are stored in the provided out_data structure for further analysis or logging.
  */
 void dc_get_underflow_debug_data_for_otg(struct dc *dc, int primary_otg_inst, struct dc_underflow_debug_data *out_data);
+
+void dc_get_power_feature_status(struct dc *dc, int primary_otg_inst, struct power_features *out_data);
 
 #endif /* DC_INTERFACE_H_ */
