@@ -10,6 +10,36 @@ of a Trust Source for greater security, while Encrypted Keys can be used on any
 system. All user level blobs, are displayed and loaded in hex ASCII for
 convenience, and are integrity verified.
 
+Trusted Keys as Protected key
+=============================
+It is the secure way of keeping the keys in the kernel key-ring as Trusted-Key,
+such that:
+- Key-blob, an encrypted key-data, created to be stored, loaded and seen by
+            userspace.
+- Key-data, the plain-key text in the system memory, to be used by
+            kernel space only.
+
+Though key-data is not accessible to the user-space in plain-text, but it is in
+plain-text in system memory, when used in kernel space. Even though kernel-space
+attracts small surface attack, but with compromised kernel or side-channel
+attack accessing the system memory can lead to a chance of the key getting
+compromised/leaked.
+
+In order to protect the key in kernel space, the concept of "protected-keys" is
+introduced which will act as an added layer of protection. The key-data of the
+protected keys is encrypted with Key-Encryption-Key(KEK), and decrypted inside
+the trust source boundary. The plain-key text never available out-side in the
+system memory. Thus, any crypto operation that is to be executed using the
+protected key, can only be done by the trust source, which generated the
+key blob.
+
+Hence, if the protected-key is leaked or compromised, it is of no use to the
+hacker.
+
+Trusted keys as protected keys, with trust source having the capability of
+generating:
+
+- Key-Blob, to be loaded, stored and seen by user-space.
 
 Trust Source
 ============
@@ -252,11 +282,26 @@ in bytes. Trusted Keys can be 32 - 128 bytes (256 - 1024 bits).
 Trusted Keys usage: CAAM
 ------------------------
 
-Usage::
+Trusted Keys Usage::
 
     keyctl add trusted name "new keylen" ring
     keyctl add trusted name "load hex_blob" ring
     keyctl print keyid
+
+"keyctl print" returns an ASCII hex copy of the sealed key, which is in a
+CAAM-specific format.  The key length for new keys is always in bytes.
+Trusted Keys can be 32 - 128 bytes (256 - 1024 bits).
+
+Trusted Keys as Protected Keys Usage::
+
+    keyctl add trusted name "new keylen pk [options]" ring
+    keyctl add trusted name "load hex_blob [options]" ring
+    keyctl print keyid
+
+    where, 'pk' is used to direct trust source to generate protected key.
+
+    options:
+       key_enc_algo =      For CAAM, supported enc algo are ECB(2), CCM(1).
 
 "keyctl print" returns an ASCII hex copy of the sealed key, which is in a
 CAAM-specific format.  The key length for new keys is always in bytes.
@@ -331,6 +376,46 @@ append 'keyhandle=0x81000001' to statements between quotes, such as
 Load a trusted key from the saved blob::
 
     $ keyctl add trusted kmk "load `cat kmk.blob`" @u
+    268728824
+
+    $ keyctl print 268728824
+    0101000000000000000001005d01b7e3f4a6be5709930f3b70a743cbb42e0cc95e18e915
+    3f60da455bbf1144ad12e4f92b452f966929f6105fd29ca28e4d4d5a031d068478bacb0b
+    27351119f822911b0a11ba3d3498ba6a32e50dac7f32894dd890eb9ad578e4e292c83722
+    a52e56a097e6a68b3f56f7a52ece0cdccba1eb62cad7d817f6dc58898b3ac15f36026fec
+    d568bd4a706cb60bb37be6d8f1240661199d640b66fb0fe3b079f97f450b9ef9c22c6d5d
+    dd379f0facd1cd020281dfa3c70ba21a3fa6fc2471dc6d13ecf8298b946f65345faa5ef0
+    f1f8fff03ad0acb083725535636addb08d73dedb9832da198081e5deae84bfaf0409c22b
+    e4a8aea2b607ec96931e6f4d4fe563ba
+
+Create and save a trusted key as protected key named "kmk" of length 32 bytes.
+
+::
+
+    $ keyctl add trusted kmk "new 32 pk key_enc_algo=1" @u
+    440502848
+
+    $ keyctl show
+    Session Keyring
+           -3 --alswrv    500   500  keyring: _ses
+     97833714 --alswrv    500    -1   \_ keyring: _uid.500
+    440502848 --alswrv    500   500       \_ trusted: kmk
+
+    $ keyctl print 440502848
+    0101000000000000000001005d01b7e3f4a6be5709930f3b70a743cbb42e0cc95e18e915
+    3f60da455bbf1144ad12e4f92b452f966929f6105fd29ca28e4d4d5a031d068478bacb0b
+    27351119f822911b0a11ba3d3498ba6a32e50dac7f32894dd890eb9ad578e4e292c83722
+    a52e56a097e6a68b3f56f7a52ece0cdccba1eb62cad7d817f6dc58898b3ac15f36026fec
+    d568bd4a706cb60bb37be6d8f1240661199d640b66fb0fe3b079f97f450b9ef9c22c6d5d
+    dd379f0facd1cd020281dfa3c70ba21a3fa6fc2471dc6d13ecf8298b946f65345faa5ef0
+    f1f8fff03ad0acb083725535636addb08d73dedb9832da198081e5deae84bfaf0409c22b
+    e4a8aea2b607ec96931e6f4d4fe563ba
+
+    $ keyctl pipe 440502848 > kmk.blob
+
+Load a trusted key from the saved blob::
+
+    $ keyctl add trusted kmk "load `cat kmk.blob` key_enc_algo=1" @u
     268728824
 
     $ keyctl print 268728824
