@@ -1820,6 +1820,10 @@ static void amdgpu_ttm_pools_fini(struct amdgpu_device *adev)
  * PAGE_SIZE is <= AMDGPU_GPU_PAGE_SIZE (4K). The BO is created as a regular
  * GEM object (amdgpu_bo_create).
  *
+ * The BO is created as a normal GEM object via amdgpu_bo_create(), then
+ * reserved and pinned at the TTM level (ttm_bo_pin()) so it can never be
+ * migrated or evicted. No CPU mapping is established here.
+ *
  * Return:
  *  * 0 on success or intentional skip (feature not present/unsupported)
  *  * negative errno on allocation failure
@@ -1848,7 +1852,26 @@ static int amdgpu_ttm_mmio_remap_bo_init(struct amdgpu_device *adev)
 	if (r)
 		return r;
 
+	r = amdgpu_bo_reserve(adev->rmmio_remap.bo, true);
+	if (r)
+		goto err_unref;
+
+	/*
+	 * MMIO_REMAP is a fixed I/O placement (AMDGPU_PL_MMIO_REMAP).
+	 * Use TTM-level pin so the BO cannot be evicted/migrated,
+	 * independent of GEM domains. This
+	 * enforces the “fixed I/O window”
+	 */
+	ttm_bo_pin(&adev->rmmio_remap.bo->tbo);
+
+	amdgpu_bo_unreserve(adev->rmmio_remap.bo);
 	return 0;
+
+err_unref:
+	if (adev->rmmio_remap.bo)
+		amdgpu_bo_unref(&adev->rmmio_remap.bo);
+	adev->rmmio_remap.bo = NULL;
+	return r;
 }
 
 /**
@@ -1860,6 +1883,15 @@ static int amdgpu_ttm_mmio_remap_bo_init(struct amdgpu_device *adev)
  */
 static void amdgpu_ttm_mmio_remap_bo_fini(struct amdgpu_device *adev)
 {
+	struct amdgpu_bo *bo = adev->rmmio_remap.bo;
+
+	if (!bo)
+		return;   /* <-- safest early exit */
+
+	if (!amdgpu_bo_reserve(adev->rmmio_remap.bo, true)) {
+		ttm_bo_unpin(&adev->rmmio_remap.bo->tbo);
+		amdgpu_bo_unreserve(adev->rmmio_remap.bo);
+	}
 	amdgpu_bo_unref(&adev->rmmio_remap.bo);
 	adev->rmmio_remap.bo = NULL;
 }
