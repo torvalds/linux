@@ -10781,6 +10781,12 @@ struct sched_change_ctx *sched_change_begin(struct task_struct *p, unsigned int 
 	struct sched_change_ctx *ctx = this_cpu_ptr(&sched_change_ctx);
 	struct rq *rq = task_rq(p);
 
+	/*
+	 * Must exclusively use matched flags since this is both dequeue and
+	 * enqueue.
+	 */
+	WARN_ON_ONCE(flags & 0xFFFF0000);
+
 	lockdep_assert_rq_held(rq);
 
 	if (!(flags & DEQUEUE_NOCLOCK)) {
