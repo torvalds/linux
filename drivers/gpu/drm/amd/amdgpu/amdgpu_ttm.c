@@ -1063,6 +1063,86 @@ static void amdgpu_ttm_backend_destroy(struct ttm_device *bdev,
 }
 
 /**
+ * amdgpu_ttm_mmio_remap_alloc_sgt - build an sg_table for MMIO_REMAP I/O aperture
+ * @adev: amdgpu device providing the remap BAR base (adev->rmmio_remap.bus_addr)
+ * @res:  TTM resource of the BO to export; expected to live in AMDGPU_PL_MMIO_REMAP
+ * @dev:  importing device to map for (typically @attach->dev in dma-buf paths)
+ * @dir:  DMA data direction for the importer (passed to dma_map_resource())
+ * @sgt:  output; on success, set to a newly allocated sg_table describing the I/O span
+ *
+ * The HDP flush page (AMDGPU_PL_MMIO_REMAP) is a fixed hardware I/O window in a PCI
+ * BAR—there are no struct pages to back it. Importers still need a DMA address list,
+ * so we synthesize a minimal sg_table and populate it from dma_map_resource(), not
+ * from pages. Using the common amdgpu_res_cursor walker keeps the offset/size math
+ * consistent with other TTM/manager users.
+ *
+ * - @res is assumed to be a small, contiguous I/O region (typically a single 4 KiB
+ *   page) in AMDGPU_PL_MMIO_REMAP. Callers should validate placement before calling.
+ * - The sg entry is created with sg_set_page(sg, NULL, …) to reflect I/O space.
+ * - The mapping uses DMA_ATTR_SKIP_CPU_SYNC because this is MMIO, not cacheable RAM.
+ * - Peer reachability / p2pdma policy checks must be done by the caller.
+ *
+ * Return:
+ * * 0 on success, with *@sgt set to a valid table that must be freed via
+ *   amdgpu_ttm_mmio_remap_free_sgt().
+ * * -ENOMEM if allocation of the sg_table fails.
+ * * -EIO if dma_map_resource() fails.
+ *
+ */
+int amdgpu_ttm_mmio_remap_alloc_sgt(struct amdgpu_device *adev,
+				    struct ttm_resource *res,
+				    struct device *dev,
+				    enum dma_data_direction dir,
+				    struct sg_table **sgt)
+{
+	struct amdgpu_res_cursor cur;
+	dma_addr_t dma;
+	resource_size_t phys;
+	struct scatterlist *sg;
+	int r;
+
+	/* Walk the resource once; MMIO_REMAP is expected to be contiguous+small. */
+	amdgpu_res_first(res, 0, res->size, &cur);
+
+	/* Translate byte offset in the remap window into a host physical BAR address. */
+	phys = adev->rmmio_remap.bus_addr + cur.start;
+
+	/* Build a single-entry sg_table mapped as I/O (no struct page backing). */
+	*sgt = kzalloc(sizeof(**sgt), GFP_KERNEL);
+	if (!*sgt)
+		return -ENOMEM;
+	r = sg_alloc_table(*sgt, 1, GFP_KERNEL);
+	if (r) {
+		kfree(*sgt);
+		return r;
+	}
+	sg = (*sgt)->sgl;
+	sg_set_page(sg, NULL, cur.size, 0);  /* WHY: I/O space → no pages */
+
+	dma = dma_map_resource(dev, phys, cur.size, dir, DMA_ATTR_SKIP_CPU_SYNC);
+	if (dma_mapping_error(dev, dma)) {
+		sg_free_table(*sgt);
+		kfree(*sgt);
+		return -EIO;
+	}
+	sg_dma_address(sg) = dma;
+	sg_dma_len(sg) = cur.size;
+	return 0;
+}
+
+void amdgpu_ttm_mmio_remap_free_sgt(struct device *dev,
+				    enum dma_data_direction dir,
+				    struct sg_table *sgt)
+{
+	struct scatterlist *sg = sgt->sgl;
+
+	dma_unmap_resource(dev, sg_dma_address(sg), sg_dma_len(sg),
+			   dir, DMA_ATTR_SKIP_CPU_SYNC);
+	sg_free_table(sgt);
+	kfree(sgt);
+}
+
+/**
  * amdgpu_ttm_tt_create - Create a ttm_tt object for a given BO
  *
  * @bo: The buffer object to create a GTT ttm_tt object around
