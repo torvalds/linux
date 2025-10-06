@@ -359,6 +359,9 @@ int pci_assign_resource(struct pci_dev *dev, int resno)
 
 	res->flags &= ~IORESOURCE_UNSET;
 	res->flags &= ~IORESOURCE_STARTALIGN;
+	if (resno >= PCI_BRIDGE_RESOURCES && resno <= PCI_BRIDGE_RESOURCE_END)
+		res->flags &= ~IORESOURCE_DISABLED;
+
 	pci_info(dev, "%s %pR: assigned\n", res_name, res);
 	if (resno < PCI_BRIDGE_RESOURCES)
 		pci_update_resource(dev, resno);
@@ -406,20 +409,25 @@ int pci_reassign_resource(struct pci_dev *dev, int resno,
 	return 0;
 }
 
-void pci_release_resource(struct pci_dev *dev, int resno)
+int pci_release_resource(struct pci_dev *dev, int resno)
 {
 	struct resource *res = pci_resource_n(dev, resno);
 	const char *res_name = pci_resource_name(dev, resno);
+	int ret;
 
 	if (!res->parent)
-		return;
+		return 0;
 
 	pci_info(dev, "%s %pR: releasing\n", res_name, res);
 
-	release_resource(res);
+	ret = release_resource(res);
+	if (ret)
+		return ret;
 	res->end = resource_size(res) - 1;
 	res->start = 0;
 	res->flags |= IORESOURCE_UNSET;
+
+	return 0;
 }
 EXPORT_SYMBOL(pci_release_resource);
 
@@ -488,7 +496,7 @@ int pci_resize_resource(struct pci_dev *dev, int resno, int size)
 
 	/* Check if the new config works by trying to assign everything. */
 	if (dev->bus->self) {
-		ret = pci_reassign_bridge_resources(dev->bus->self, res->flags);
+		ret = pbus_reassign_bridge_resources(dev->bus, res);
 		if (ret)
 			goto error_resize;
 	}
@@ -522,22 +530,26 @@ int pci_enable_resources(struct pci_dev *dev, int mask)
 		if (pci_resource_is_optional(dev, i))
 			continue;
 
-		if (r->flags & IORESOURCE_UNSET) {
-			pci_err(dev, "%s %pR: not assigned; can't enable device\n",
-				r_name, r);
-			return -EINVAL;
+		if (i < PCI_BRIDGE_RESOURCES) {
+			if (r->flags & IORESOURCE_UNSET) {
+				pci_err(dev, "%s %pR: not assigned; can't enable device\n",
+					r_name, r);
+				return -EINVAL;
+			}
+
+			if (!r->parent) {
+				pci_err(dev, "%s %pR: not claimed; can't enable device\n",
+					r_name, r);
+				return -EINVAL;
+			}
 		}
 
-		if (!r->parent) {
-			pci_err(dev, "%s %pR: not claimed; can't enable device\n",
-				r_name, r);
-			return -EINVAL;
+		if (r->parent) {
+			if (r->flags & IORESOURCE_IO)
+				cmd |= PCI_COMMAND_IO;
+			if (r->flags & IORESOURCE_MEM)
+				cmd |= PCI_COMMAND_MEMORY;
 		}
-
-		if (r->flags & IORESOURCE_IO)
-			cmd |= PCI_COMMAND_IO;
-		if (r->flags & IORESOURCE_MEM)
-			cmd |= PCI_COMMAND_MEMORY;
 	}
 
 	if (cmd != old_cmd) {
