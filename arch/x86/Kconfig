@@ -1366,10 +1366,12 @@ config MICROCODE_DBG
 	default n
 	depends on MICROCODE
 	help
-	  Enable code which allows for debugging the microcode loader in
-	  a guest. Meaning the patch loading is simulated but everything else
+	  Enable code which allows to debug the microcode loader. When running
+	  in a guest the patch loading is simulated but everything else
 	  related to patch parsing and handling is done as on baremetal with
-	  the purpose of debugging solely the software side of things.
+	  the purpose of debugging solely the software side of things. On
+	  baremetal, it simply dumps additional debugging information during
+	  normal operation.
 
 	  You almost certainly want to say n here.
 
