@@ -2034,6 +2034,25 @@ static void iso_conn_ready(struct iso_conn *conn)
 	BT_DBG("conn %p", conn);
 
 	if (sk) {
+		/* Attempt to update source address in case of BIS Sender if
+		 * the advertisement is using a random address.
+		 */
+		if (conn->hcon->type == BIS_LINK &&
+		    conn->hcon->role == HCI_ROLE_MASTER &&
+		    !bacmp(&conn->hcon->dst, BDADDR_ANY)) {
+			struct hci_conn *bis = conn->hcon;
+			struct adv_info *adv;
+
+			adv = hci_find_adv_instance(bis->hdev,
+						    bis->iso_qos.bcast.bis);
+			if (adv && bacmp(&adv->random_addr, BDADDR_ANY)) {
+				lock_sock(sk);
+				iso_pi(sk)->src_type = BDADDR_LE_RANDOM;
+				bacpy(&iso_pi(sk)->src, &adv->random_addr);
+				release_sock(sk);
+			}
+		}
+
 		iso_sock_ready(conn->sk);
 	} else {
 		hcon = conn->hcon;
