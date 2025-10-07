@@ -5,6 +5,7 @@
 #include <linux/crypto.h>
 #include <linux/kbuild.h>
 #include <linux/audit.h>
+#include <linux/fs.h>
 #include <asm/mman.h>
 #include <asm/seccomp.h>
 
