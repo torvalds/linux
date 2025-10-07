@@ -374,9 +374,6 @@ baseboard_eeprom: &sip_eeprom {
 	phys = <&usbphyc_port1 0>;
 	phy-names = "usb2-phy";
 
-	vusb_d-supply = <&vdd_usb>;
-	vusb_a-supply = <&reg18>;
-
 	status = "okay";
 };
 
