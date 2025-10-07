@@ -18428,6 +18428,14 @@ S:	Maintained
 F:	drivers/video/fbdev/nvidia/
 F:	drivers/video/fbdev/riva/
 
+NVIDIA VRS RTC DRIVER
+M:	Shubhi Garg <shgarg@nvidia.com>
+L:	linux-tegra@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/rtc/nvidia,vrs-10.yaml
+F:	drivers/rtc/rtc-nvidia-vrs10.c
+F:	include/linux/rtc/rtc-nvidia-vrs10.h
+
 NVIDIA WMI EC BACKLIGHT DRIVER
 M:	Daniel Dadap <ddadap@nvidia.com>
 L:	platform-driver-x86@vger.kernel.org
