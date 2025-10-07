@@ -1789,6 +1789,16 @@ int qaic_perf_stats_bo_ioctl(struct drm_device *dev, void *data, struct drm_file
 			goto free_ent;
 		}
 		bo = to_qaic_bo(obj);
+		if (!bo->sliced) {
+			drm_gem_object_put(obj);
+			ret = -EINVAL;
+			goto free_ent;
+		}
+		if (bo->dbc->id != args->hdr.dbc_id) {
+			drm_gem_object_put(obj);
+			ret = -EINVAL;
+			goto free_ent;
+		}
 		/*
 		 * perf stats ioctl is called before wait ioctl is complete then
 		 * the latency information is invalid.
