@@ -51,8 +51,10 @@ void ast_device_init(struct ast_device *ast,
 		     enum ast_chip chip,
 		     enum ast_config_mode config_mode,
 		     void __iomem *regs,
-		     void __iomem *ioregs)
+		     void __iomem *ioregs,
+		     const struct ast_device_quirks *quirks)
 {
+	ast->quirks = quirks;
 	ast->chip = chip;
 	ast->config_mode = config_mode;
 	ast->regs = regs;
