@@ -1962,9 +1962,8 @@ void hwss_program_bias_and_scale(union block_sequence_params *params)
 	struct dc_bias_and_scale bns_params = plane_state->bias_and_scale;
 
 	//TODO :for CNVC set scale and bias registers if necessary
-	if (dpp->funcs->dpp_program_bias_and_scale) {
+	if (dpp->funcs->dpp_program_bias_and_scale)
 		dpp->funcs->dpp_program_bias_and_scale(dpp, &bns_params);
-	}
 }
 
 void hwss_power_on_mpc_mem_pwr(union block_sequence_params *params)
@@ -2121,6 +2120,7 @@ void hwss_wait_for_odm_update_pending_complete(struct dc *dc, struct dc_state *c
 void hwss_wait_for_no_pipes_pending(struct dc *dc, struct dc_state *context)
 {
 	int i;
+
 	for (i = 0; i < MAX_PIPES; i++) {
 		int count = 0;
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
@@ -2277,6 +2277,7 @@ void hwss_tg_set_dsc_config(union block_sequence_params *params)
 
 	if (params->tg_set_dsc_config_params.enable) {
 		struct dsc_optc_config *dsc_optc_cfg = params->tg_set_dsc_config_params.dsc_optc_cfg;
+
 		if (dsc_optc_cfg) {
 			bytes_per_pixel = dsc_optc_cfg->bytes_per_pixel;
 			slice_width = dsc_optc_cfg->slice_width;
@@ -2370,9 +2371,8 @@ void hwss_tg_wait_for_state(union block_sequence_params *params)
 	struct timing_generator *tg = params->tg_wait_for_state_params.tg;
 	enum crtc_state state = params->tg_wait_for_state_params.state;
 
-	if (tg->funcs->wait_for_state) {
+	if (tg->funcs->wait_for_state)
 		tg->funcs->wait_for_state(tg, state);
-	}
 }
 
 void hwss_tg_set_vtg_params(union block_sequence_params *params)
@@ -2381,9 +2381,8 @@ void hwss_tg_set_vtg_params(union block_sequence_params *params)
 	struct dc_crtc_timing *timing = params->tg_set_vtg_params_params.timing;
 	bool program_fp2 = params->tg_set_vtg_params_params.program_fp2;
 
-	if (tg->funcs->set_vtg_params) {
+	if (tg->funcs->set_vtg_params)
 		tg->funcs->set_vtg_params(tg, timing, program_fp2);
-	}
 }
 
 void hwss_tg_setup_vertical_interrupt2(union block_sequence_params *params)
@@ -2391,9 +2390,8 @@ void hwss_tg_setup_vertical_interrupt2(union block_sequence_params *params)
 	struct timing_generator *tg = params->tg_setup_vertical_interrupt2_params.tg;
 	int start_line = params->tg_setup_vertical_interrupt2_params.start_line;
 
-	if (tg->funcs->setup_vertical_interrupt2) {
+	if (tg->funcs->setup_vertical_interrupt2)
 		tg->funcs->setup_vertical_interrupt2(tg, start_line);
-	}
 }
 
 void hwss_dpp_set_hdr_multiplier(union block_sequence_params *params)
@@ -2401,9 +2399,8 @@ void hwss_dpp_set_hdr_multiplier(union block_sequence_params *params)
 	struct dpp *dpp = params->dpp_set_hdr_multiplier_params.dpp;
 	uint32_t hw_mult = params->dpp_set_hdr_multiplier_params.hw_mult;
 
-	if (dpp->funcs->dpp_set_hdr_multiplier) {
+	if (dpp->funcs->dpp_set_hdr_multiplier)
 		dpp->funcs->dpp_set_hdr_multiplier(dpp, hw_mult);
-	}
 }
 
 void hwss_program_det_size(union block_sequence_params *params)
@@ -2412,9 +2409,8 @@ void hwss_program_det_size(union block_sequence_params *params)
 	unsigned int hubp_inst = params->program_det_size_params.hubp_inst;
 	unsigned int det_buffer_size_kb = params->program_det_size_params.det_buffer_size_kb;
 
-	if (hubbub->funcs->program_det_size) {
+	if (hubbub->funcs->program_det_size)
 		hubbub->funcs->program_det_size(hubbub, hubp_inst, det_buffer_size_kb);
-	}
 }
 
 void hwss_program_det_segments(union block_sequence_params *params)
@@ -2423,9 +2419,8 @@ void hwss_program_det_segments(union block_sequence_params *params)
 	unsigned int hubp_inst = params->program_det_segments_params.hubp_inst;
 	unsigned int det_size = params->program_det_segments_params.det_size;
 
-	if (hubbub->funcs->program_det_segments) {
+	if (hubbub->funcs->program_det_segments)
 		hubbub->funcs->program_det_segments(hubbub, hubp_inst, det_size);
-	}
 }
 
 void hwss_opp_set_dyn_expansion(union block_sequence_params *params)
@@ -2435,9 +2430,8 @@ void hwss_opp_set_dyn_expansion(union block_sequence_params *params)
 	enum dc_color_depth color_depth = params->opp_set_dyn_expansion_params.color_depth;
 	enum signal_type signal = params->opp_set_dyn_expansion_params.signal;
 
-	if (opp->funcs->opp_set_dyn_expansion) {
+	if (opp->funcs->opp_set_dyn_expansion)
 		opp->funcs->opp_set_dyn_expansion(opp, color_space, color_depth, signal);
-	}
 }
 
 void hwss_opp_program_fmt(union block_sequence_params *params)
@@ -2446,9 +2440,8 @@ void hwss_opp_program_fmt(union block_sequence_params *params)
 	struct bit_depth_reduction_params *fmt_bit_depth = params->opp_program_fmt_params.fmt_bit_depth;
 	struct clamping_and_pixel_encoding_params *clamping = params->opp_program_fmt_params.clamping;
 
-	if (opp->funcs->opp_program_fmt) {
+	if (opp->funcs->opp_program_fmt)
 		opp->funcs->opp_program_fmt(opp, fmt_bit_depth, clamping);
-	}
 }
 
 void hwss_opp_program_bit_depth_reduction(union block_sequence_params *params)
@@ -2458,15 +2451,13 @@ void hwss_opp_program_bit_depth_reduction(union block_sequence_params *params)
 	struct pipe_ctx *pipe_ctx = params->opp_program_bit_depth_reduction_params.pipe_ctx;
 	struct bit_depth_reduction_params bit_depth_params;
 
-	if (use_default_params) {
+	if (use_default_params)
 		memset(&bit_depth_params, 0, sizeof(bit_depth_params));
-	} else {
+	else
 		resource_build_bit_depth_reduction_params(pipe_ctx->stream, &bit_depth_params);
-	}
 
-	if (opp->funcs->opp_program_bit_depth_reduction) {
+	if (opp->funcs->opp_program_bit_depth_reduction)
 		opp->funcs->opp_program_bit_depth_reduction(opp, &bit_depth_params);
-	}
 }
 
 void hwss_opp_set_disp_pattern_generator(union block_sequence_params *params)
@@ -2500,9 +2491,8 @@ void hwss_set_abm_level(union block_sequence_params *params)
 	struct abm *abm = params->set_abm_level_params.abm;
 	unsigned int abm_level = params->set_abm_level_params.abm_level;
 
-	if (abm->funcs->set_abm_level) {
+	if (abm->funcs->set_abm_level)
 		abm->funcs->set_abm_level(abm, abm_level);
-	}
 }
 
 void hwss_set_abm_immediate_disable(union block_sequence_params *params)
@@ -2510,9 +2500,8 @@ void hwss_set_abm_immediate_disable(union block_sequence_params *params)
 	struct dc *dc = params->set_abm_immediate_disable_params.dc;
 	struct pipe_ctx *pipe_ctx = params->set_abm_immediate_disable_params.pipe_ctx;
 
-	if (dc && dc->hwss.set_abm_immediate_disable) {
+	if (dc && dc->hwss.set_abm_immediate_disable)
 		dc->hwss.set_abm_immediate_disable(pipe_ctx);
-	}
 }
 
 void hwss_mpc_remove_mpcc(union block_sequence_params *params)
@@ -2793,34 +2782,29 @@ void hwss_hubp_init(union block_sequence_params *params)
 {
 	struct hubp *hubp = params->hubp_init_params.hubp;
 
-	if (hubp && hubp->funcs->hubp_init) {
+	if (hubp && hubp->funcs->hubp_init)
 		hubp->funcs->hubp_init(hubp);
-	}
 }
 
 void hwss_hubp_set_vm_system_aperture_settings(union block_sequence_params *params)
 {
 	struct hubp *hubp = params->hubp_set_vm_system_aperture_settings_params.hubp;
-	//struct vm_system_aperture_param *apt = &params->hubp_set_vm_system_aperture_settings_params.apt;
 	struct vm_system_aperture_param apt;
 
 	apt.sys_default = params->hubp_set_vm_system_aperture_settings_params.sys_default;
 	apt.sys_high = params->hubp_set_vm_system_aperture_settings_params.sys_high;
 	apt.sys_low = params->hubp_set_vm_system_aperture_settings_params.sys_low;
 
-	if (hubp && hubp->funcs->hubp_set_vm_system_aperture_settings) {
-		//hubp->funcs->hubp_set_vm_system_aperture_settings(hubp, apt);
+	if (hubp && hubp->funcs->hubp_set_vm_system_aperture_settings)
 		hubp->funcs->hubp_set_vm_system_aperture_settings(hubp, &apt);
-	}
 }
 
 void hwss_hubp_set_flip_int(union block_sequence_params *params)
 {
 	struct hubp *hubp = params->hubp_set_flip_int_params.hubp;
 
-	if (hubp && hubp->funcs->hubp_set_flip_int) {
+	if (hubp && hubp->funcs->hubp_set_flip_int)
 		hubp->funcs->hubp_set_flip_int(hubp);
-	}
 }
 
 void hwss_dpp_dppclk_control(union block_sequence_params *params)
@@ -3049,13 +3033,10 @@ void hwss_mpc_update_blending(union block_sequence_params *params)
 void hwss_mpc_assert_idle_mpcc(union block_sequence_params *params)
 {
 	struct mpc *mpc = params->mpc_assert_idle_mpcc_params.mpc;
-	//struct pipe_ctx *pipe_ctx = params->mpc_assert_idle_mpcc_params.pipe_ctx;
 	int mpcc_id = params->mpc_assert_idle_mpcc_params.mpcc_id;
 
 	if (mpc && mpc->funcs->wait_for_idle)
 		mpc->funcs->wait_for_idle(mpc, mpcc_id);
-
-	//pipe_ctx->stream_res.opp->mpcc_disconnect_pending[mpcc_id] = false;
 }
 
 void hwss_mpc_insert_plane(union block_sequence_params *params)
