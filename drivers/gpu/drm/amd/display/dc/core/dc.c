@@ -493,12 +493,13 @@ bool dc_stream_adjust_vmin_vmax(struct dc *dc,
 					1,
 					*adjust);
 			stream->adjust.timing_adjust_pending = false;
+
+			if (dc->hwss.notify_cursor_offload_drr_update)
+				dc->hwss.notify_cursor_offload_drr_update(dc, dc->current_state, stream);
+
 			return true;
 		}
 	}
-
-	if (dc->hwss.notify_cursor_offload_drr_update)
-		dc->hwss.notify_cursor_offload_drr_update(dc, dc->current_state, stream);
 
 	return false;
 }
