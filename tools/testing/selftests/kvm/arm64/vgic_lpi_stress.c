@@ -123,6 +123,7 @@ static void guest_setup_gic(void)
 static void guest_code(size_t nr_lpis)
 {
 	guest_setup_gic();
+	local_irq_enable();
 
 	GUEST_SYNC(0);
 
