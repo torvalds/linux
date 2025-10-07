@@ -262,6 +262,11 @@ struct amdgpu_virt_ras {
 
 DECLARE_ATTR_CAP_CLASS(amdgpu_virt, AMDGPU_VIRT_CAPS_LIST);
 
+struct amdgpu_virt_region {
+	uint32_t offset;
+	uint32_t size_kb;
+};
+
 /* GPU virtualization */
 struct amdgpu_virt {
 	uint32_t			caps;
@@ -288,6 +293,9 @@ struct amdgpu_virt {
 	struct amdgpu_virt_ras_err_handler_data *virt_eh_data;
 	bool ras_init_done;
 	uint32_t reg_access;
+
+	/* dynamic(v2) critical regions */
+	struct amdgpu_virt_region init_data_header;
 
 	/* vf2pf message */
 	struct delayed_work vf2pf_work;

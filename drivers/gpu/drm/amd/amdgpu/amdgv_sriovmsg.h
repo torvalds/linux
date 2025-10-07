@@ -66,6 +66,11 @@
 	(AMD_SRIOV_MSG_VBIOS_SIZE_KB_V1 + AMD_SRIOV_MSG_DATAEXCHANGE_SIZE_KB_V1 + \
 	 AMD_SRIOV_MSG_RAS_TELEMETRY_SIZE_KB_V1)
 
+enum amd_sriov_crit_region_version {
+	GPU_CRIT_REGION_V1 = 1,
+	GPU_CRIT_REGION_V2 = 2,
+};
+
 /*
  * PF2VF history log:
  * v1 defined in amdgim

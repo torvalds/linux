@@ -150,9 +150,10 @@ void amdgpu_virt_request_init_data(struct amdgpu_device *adev)
 		virt->ops->req_init_data(adev);
 
 	if (adev->virt.req_init_data_ver > 0)
-		DRM_INFO("host supports REQ_INIT_DATA handshake\n");
+		dev_info(adev->dev, "host supports REQ_INIT_DATA handshake of critical_region_version %d\n",
+				 adev->virt.req_init_data_ver);
 	else
-		DRM_WARN("host doesn't support REQ_INIT_DATA handshake\n");
+		dev_warn(adev->dev, "host doesn't support REQ_INIT_DATA handshake\n");
 }
 
 /**
