@@ -385,6 +385,9 @@ static inline struct file *kvm_gmem_get_file(struct kvm_memory_slot *slot)
 	return get_file_active(&slot->gmem.file);
 }
 
+DEFINE_CLASS(gmem_get_file, struct file *, if (_T) fput(_T),
+	     kvm_gmem_get_file(slot), struct kvm_memory_slot *slot);
+
 static bool kvm_gmem_supports_mmap(struct inode *inode)
 {
 	return GMEM_I(inode)->flags & GUEST_MEMFD_FLAG_MMAP;
@@ -710,13 +713,12 @@ void kvm_gmem_unbind(struct kvm_memory_slot *slot)
 	unsigned long start = slot->gmem.pgoff;
 	unsigned long end = start + slot->npages;
 	struct gmem_file *f;
-	struct file *file;
 
 	/*
 	 * Nothing to do if the underlying file was already closed (or is being
 	 * closed right now), kvm_gmem_release() invalidates all bindings.
 	 */
-	file = kvm_gmem_get_file(slot);
+	CLASS(gmem_get_file, file)(slot);
 	if (!file)
 		return;
 
@@ -731,8 +733,6 @@ void kvm_gmem_unbind(struct kvm_memory_slot *slot)
 	 */
 	WRITE_ONCE(slot->gmem.file, NULL);
 	filemap_invalidate_unlock(file->f_mapping);
-
-	fput(file);
 }
 
 /* Returns a locked folio on success.  */
@@ -778,19 +778,17 @@ int kvm_gmem_get_pfn(struct kvm *kvm, struct kvm_memory_slot *slot,
 		     int *max_order)
 {
 	pgoff_t index = kvm_gmem_get_index(slot, gfn);
-	struct file *file = kvm_gmem_get_file(slot);
 	struct folio *folio;
 	bool is_prepared = false;
 	int r = 0;
 
+	CLASS(gmem_get_file, file)(slot);
 	if (!file)
 		return -EFAULT;
 
 	folio = __kvm_gmem_get_pfn(file, slot, index, pfn, &is_prepared, max_order);
-	if (IS_ERR(folio)) {
-		r = PTR_ERR(folio);
-		goto out;
-	}
+	if (IS_ERR(folio))
+		return PTR_ERR(folio);
 
 	if (!is_prepared)
 		r = kvm_gmem_prepare_folio(kvm, slot, gfn, folio);
@@ -802,8 +800,6 @@ int kvm_gmem_get_pfn(struct kvm *kvm, struct kvm_memory_slot *slot,
 	else
 		folio_put(folio);
 
-out:
-	fput(file);
 	return r;
 }
 EXPORT_SYMBOL_FOR_KVM_INTERNAL(kvm_gmem_get_pfn);
@@ -812,7 +808,6 @@ EXPORT_SYMBOL_FOR_KVM_INTERNAL(kvm_gmem_get_pfn);
 long kvm_gmem_populate(struct kvm *kvm, gfn_t start_gfn, void __user *src, long npages,
 		       kvm_gmem_populate_cb post_populate, void *opaque)
 {
-	struct file *file;
 	struct kvm_memory_slot *slot;
 	void __user *p;
 
@@ -828,7 +823,7 @@ long kvm_gmem_populate(struct kvm *kvm, gfn_t start_gfn, void __user *src, long 
 	if (!kvm_slot_has_gmem(slot))
 		return -EINVAL;
 
-	file = kvm_gmem_get_file(slot);
+	CLASS(gmem_get_file, file)(slot);
 	if (!file)
 		return -EFAULT;
 
@@ -886,7 +881,6 @@ put_folio_and_exit:
 
 	filemap_invalidate_unlock(file->f_mapping);
 
-	fput(file);
 	return ret && !i ? ret : i;
 }
 EXPORT_SYMBOL_FOR_KVM_INTERNAL(kvm_gmem_populate);
