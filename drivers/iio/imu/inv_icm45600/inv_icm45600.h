@@ -5,6 +5,7 @@
 #define INV_ICM45600_H_
 
 #include <linux/bits.h>
+#include <linux/limits.h>
 #include <linux/mutex.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
@@ -13,6 +14,8 @@
 
 #include <linux/iio/common/inv_sensors_timestamp.h>
 #include <linux/iio/iio.h>
+
+#include "inv_icm45600_buffer.h"
 
 #define INV_ICM45600_REG_BANK_MASK	GENMASK(15, 8)
 #define INV_ICM45600_REG_ADDR_MASK	GENMASK(7, 0)
@@ -94,6 +97,8 @@ struct inv_icm45600_sensor_conf {
 	u8 filter;
 };
 
+#define INV_ICM45600_SENSOR_CONF_KEEP_VALUES { U8_MAX, U8_MAX, U8_MAX, U8_MAX }
+
 struct inv_icm45600_conf {
 	struct inv_icm45600_sensor_conf gyro;
 	struct inv_icm45600_sensor_conf accel;
@@ -122,6 +127,7 @@ struct inv_icm45600_chip_info {
  *  @indio_accel:	accelerometer IIO device.
  *  @chip_info:		chip driver data.
  *  @timestamp:		interrupt timestamps.
+ *  @fifo:		FIFO management structure.
  *  @buffer:		data transfer buffer aligned for DMA.
  */
 struct inv_icm45600_state {
@@ -138,6 +144,7 @@ struct inv_icm45600_state {
 		s64 gyro;
 		s64 accel;
 	} timestamp;
+	struct inv_icm45600_fifo fifo;
 	union {
 		u8 buff[2];
 		__le16 u16;
@@ -190,6 +197,7 @@ struct inv_icm45600_sensor_state {
 #define INV_ICM45600_FIFO_CONFIG0_MODE_BYPASS		0
 #define INV_ICM45600_FIFO_CONFIG0_MODE_STREAM		1
 #define INV_ICM45600_FIFO_CONFIG0_MODE_STOP_ON_FULL	2
+#define INV_ICM45600_FIFO_CONFIG0_FIFO_DEPTH_MASK	GENMASK(5, 0)
 #define INV_ICM45600_FIFO_CONFIG0_FIFO_DEPTH_MAX	0x1F
 
 #define INV_ICM45600_REG_FIFO_CONFIG2			0x0020
