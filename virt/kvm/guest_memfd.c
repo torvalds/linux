@@ -361,12 +361,10 @@ static vm_fault_t kvm_gmem_fault_user_mapping(struct vm_fault *vmf)
 
 	folio = kvm_gmem_get_folio(inode, vmf->pgoff);
 	if (IS_ERR(folio)) {
-		int err = PTR_ERR(folio);
-
-		if (err == -EAGAIN)
+		if (PTR_ERR(folio) == -EAGAIN)
 			return VM_FAULT_RETRY;
 
-		return vmf_error(err);
+		return vmf_error(PTR_ERR(folio));
 	}
 
 	if (WARN_ON_ONCE(folio_test_large(folio))) {
