@@ -320,12 +320,9 @@ static bool dispatch_highpri(bool from_timer)
 
 		if (tctx->highpri) {
 			/* exercise the set_*() and vtime interface too */
-			__COMPAT_scx_bpf_dsq_move_set_slice(
-				BPF_FOR_EACH_ITER, slice_ns * 2);
-			__COMPAT_scx_bpf_dsq_move_set_vtime(
-				BPF_FOR_EACH_ITER, highpri_seq++);
-			__COMPAT_scx_bpf_dsq_move_vtime(
-				BPF_FOR_EACH_ITER, p, HIGHPRI_DSQ, 0);
+			scx_bpf_dsq_move_set_slice(BPF_FOR_EACH_ITER, slice_ns * 2);
+			scx_bpf_dsq_move_set_vtime(BPF_FOR_EACH_ITER, highpri_seq++);
+			scx_bpf_dsq_move_vtime(BPF_FOR_EACH_ITER, p, HIGHPRI_DSQ, 0);
 		}
 	}
 
@@ -342,9 +339,8 @@ static bool dispatch_highpri(bool from_timer)
 		else
 			cpu = scx_bpf_pick_any_cpu(p->cpus_ptr, 0);
 
-		if (__COMPAT_scx_bpf_dsq_move(BPF_FOR_EACH_ITER, p,
-					      SCX_DSQ_LOCAL_ON | cpu,
-					      SCX_ENQ_PREEMPT)) {
+		if (scx_bpf_dsq_move(BPF_FOR_EACH_ITER, p, SCX_DSQ_LOCAL_ON | cpu,
+				     SCX_ENQ_PREEMPT)) {
 			if (cpu == this_cpu) {
 				dispatched = true;
 				__sync_fetch_and_add(&nr_expedited_local, 1);
