@@ -136,6 +136,97 @@ static const struct regmap_config inv_icm45600_regmap_config = {
 	.val_bits = 8,
 };
 
+/* These are the chip initial default configurations (default FS value is based on icm45686) */
+static const struct inv_icm45600_conf inv_icm45600_default_conf = {
+	.gyro = {
+		.mode = INV_ICM45600_SENSOR_MODE_OFF,
+		.fs = INV_ICM45686_GYRO_FS_2000DPS,
+		.odr = INV_ICM45600_ODR_800HZ_LN,
+		.filter = INV_ICM45600_GYRO_LP_AVG_SEL_8X,
+	},
+};
+
+static const struct inv_icm45600_conf inv_icm45686_default_conf = {
+	.gyro = {
+		.mode = INV_ICM45600_SENSOR_MODE_OFF,
+		.fs = INV_ICM45686_GYRO_FS_4000DPS,
+		.odr = INV_ICM45600_ODR_800HZ_LN,
+		.filter = INV_ICM45600_GYRO_LP_AVG_SEL_8X,
+	},
+};
+
+const struct inv_icm45600_chip_info inv_icm45605_chip_info = {
+	.whoami = INV_ICM45600_WHOAMI_ICM45605,
+	.name = "icm45605",
+	.conf = &inv_icm45600_default_conf,
+	.gyro_scales = (const int *)inv_icm45600_gyro_scale,
+	.gyro_scales_len = INV_ICM45600_GYRO_FS_MAX,
+};
+EXPORT_SYMBOL_NS_GPL(inv_icm45605_chip_info, "IIO_ICM45600");
+
+const struct inv_icm45600_chip_info inv_icm45606_chip_info = {
+	.whoami = INV_ICM45600_WHOAMI_ICM45606,
+	.name = "icm45606",
+	.conf = &inv_icm45600_default_conf,
+	.gyro_scales = (const int *)inv_icm45600_gyro_scale,
+	.gyro_scales_len = INV_ICM45600_GYRO_FS_MAX,
+};
+EXPORT_SYMBOL_NS_GPL(inv_icm45606_chip_info, "IIO_ICM45600");
+
+const struct inv_icm45600_chip_info inv_icm45608_chip_info = {
+	.whoami = INV_ICM45600_WHOAMI_ICM45608,
+	.name = "icm45608",
+	.conf = &inv_icm45600_default_conf,
+	.gyro_scales = (const int *)inv_icm45600_gyro_scale,
+	.gyro_scales_len = INV_ICM45600_GYRO_FS_MAX,
+};
+EXPORT_SYMBOL_NS_GPL(inv_icm45608_chip_info, "IIO_ICM45600");
+
+const struct inv_icm45600_chip_info inv_icm45634_chip_info = {
+	.whoami = INV_ICM45600_WHOAMI_ICM45634,
+	.name = "icm45634",
+	.conf = &inv_icm45600_default_conf,
+	.gyro_scales = (const int *)inv_icm45600_gyro_scale,
+	.gyro_scales_len = INV_ICM45600_GYRO_FS_MAX,
+};
+EXPORT_SYMBOL_NS_GPL(inv_icm45634_chip_info, "IIO_ICM45600");
+
+const struct inv_icm45600_chip_info inv_icm45686_chip_info = {
+	.whoami = INV_ICM45600_WHOAMI_ICM45686,
+	.name = "icm45686",
+	.conf = &inv_icm45686_default_conf,
+	.gyro_scales = (const int *)inv_icm45686_gyro_scale,
+	.gyro_scales_len = INV_ICM45686_GYRO_FS_MAX,
+};
+EXPORT_SYMBOL_NS_GPL(inv_icm45686_chip_info, "IIO_ICM45600");
+
+const struct inv_icm45600_chip_info inv_icm45687_chip_info = {
+	.whoami = INV_ICM45600_WHOAMI_ICM45687,
+	.name = "icm45687",
+	.conf = &inv_icm45686_default_conf,
+	.gyro_scales = (const int *)inv_icm45686_gyro_scale,
+	.gyro_scales_len = INV_ICM45686_GYRO_FS_MAX,
+};
+EXPORT_SYMBOL_NS_GPL(inv_icm45687_chip_info, "IIO_ICM45600");
+
+const struct inv_icm45600_chip_info inv_icm45688p_chip_info = {
+	.whoami = INV_ICM45600_WHOAMI_ICM45688P,
+	.name = "icm45688p",
+	.conf = &inv_icm45686_default_conf,
+	.gyro_scales = (const int *)inv_icm45686_gyro_scale,
+	.gyro_scales_len = INV_ICM45686_GYRO_FS_MAX,
+};
+EXPORT_SYMBOL_NS_GPL(inv_icm45688p_chip_info, "IIO_ICM45600");
+
+const struct inv_icm45600_chip_info inv_icm45689_chip_info = {
+	.whoami = INV_ICM45600_WHOAMI_ICM45689,
+	.name = "icm45689",
+	.conf = &inv_icm45686_default_conf,
+	.gyro_scales = (const int *)inv_icm45686_gyro_scale,
+	.gyro_scales_len = INV_ICM45686_GYRO_FS_MAX,
+};
+EXPORT_SYMBOL_NS_GPL(inv_icm45689_chip_info, "IIO_ICM45600");
+
 const struct iio_mount_matrix *
 inv_icm45600_get_mount_matrix(const struct iio_dev *indio_dev,
 			      const struct iio_chan_spec *chan)
@@ -465,11 +556,14 @@ static irqreturn_t inv_icm45600_irq_handler(int irq, void *_data)
 	/* Read the FIFO data. */
 	mask = INV_ICM45600_INT_STATUS_FIFO_THS | INV_ICM45600_INT_STATUS_FIFO_FULL;
 	if (status & mask) {
-		ret = inv_icm45600_buffer_fifo_read(st);
+		ret = inv_icm45600_buffer_fifo_read(st, 0);
 		if (ret) {
 			dev_err(dev, "FIFO read error %d\n", ret);
 			return IRQ_HANDLED;
 		}
+		ret = inv_icm45600_buffer_fifo_parse(st);
+		if (ret)
+			dev_err(dev, "FIFO parsing error %d\n", ret);
 	}
 
 	/* FIFO full warning. */
@@ -642,6 +736,10 @@ int inv_icm45600_core_probe(struct regmap *regmap, const struct inv_icm45600_chi
 	if (ret)
 		return ret;
 
+	st->indio_gyro = inv_icm45600_gyro_init(st);
+	if (IS_ERR(st->indio_gyro))
+		return PTR_ERR(st->indio_gyro);
+
 	ret = inv_icm45600_irq_init(st, irq, irq_type, open_drain);
 	if (ret)
 		return ret;
@@ -765,6 +863,85 @@ static int inv_icm45600_runtime_resume(struct device *dev)
 	guard(mutex)(&st->lock);
 
 	return inv_icm45600_enable_regulator_vddio(st);
+}
+
+static int _inv_icm45600_temp_read(struct inv_icm45600_state *st, s16 *temp)
+{
+	struct inv_icm45600_sensor_conf conf = INV_ICM45600_SENSOR_CONF_KEEP_VALUES;
+	int ret;
+
+	/* Make sure a sensor is on. */
+	if (st->conf.gyro.mode == INV_ICM45600_SENSOR_MODE_OFF &&
+	    st->conf.accel.mode == INV_ICM45600_SENSOR_MODE_OFF) {
+		conf.mode = INV_ICM45600_SENSOR_MODE_LOW_POWER;
+		ret = inv_icm45600_set_accel_conf(st, &conf, NULL);
+		if (ret)
+			return ret;
+	}
+
+	ret = regmap_bulk_read(st->map, INV_ICM45600_REG_TEMP_DATA,
+			       &st->buffer.u16, sizeof(st->buffer.u16));
+	if (ret)
+		return ret;
+
+	*temp = (s16)le16_to_cpup(&st->buffer.u16);
+	if (*temp == INV_ICM45600_DATA_INVALID)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int inv_icm45600_temp_read(struct inv_icm45600_state *st, s16 *temp)
+{
+	struct device *dev = regmap_get_device(st->map);
+	int ret;
+
+	ret = pm_runtime_resume_and_get(dev);
+	if (ret)
+		return ret;
+
+	scoped_guard(mutex, &st->lock)
+		ret = _inv_icm45600_temp_read(st, temp);
+
+	pm_runtime_put_autosuspend(dev);
+
+	return ret;
+}
+
+int inv_icm45600_temp_read_raw(struct iio_dev *indio_dev,
+			       struct iio_chan_spec const *chan,
+			       int *val, int *val2, long mask)
+{
+	struct inv_icm45600_state *st = iio_device_get_drvdata(indio_dev);
+	s16 temp;
+	int ret;
+
+	if (chan->type != IIO_TEMP)
+		return -EINVAL;
+
+	switch (mask) {
+	case IIO_CHAN_INFO_RAW:
+		ret = inv_icm45600_temp_read(st, &temp);
+		if (ret)
+			return ret;
+		*val = temp;
+		return IIO_VAL_INT;
+	/*
+	 * T°C = (temp / 128) + 25
+	 * Tm°C = 1000 * ((temp * 100 / 12800) + 25)
+	 * scale: 100000 / 13248 = 7.8125
+	 * offset: 25000
+	 */
+	case IIO_CHAN_INFO_SCALE:
+		*val = 7;
+		*val2 = 812500;
+		return IIO_VAL_INT_PLUS_MICRO;
+	case IIO_CHAN_INFO_OFFSET:
+		*val = 25000;
+		return IIO_VAL_INT;
+	default:
+		return -EINVAL;
+	}
 }
 
 EXPORT_NS_GPL_DEV_PM_OPS(inv_icm45600_pm_ops, IIO_ICM45600) = {

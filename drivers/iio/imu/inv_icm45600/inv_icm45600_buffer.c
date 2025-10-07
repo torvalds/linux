@@ -389,7 +389,8 @@ const struct iio_buffer_setup_ops inv_icm45600_buffer_ops = {
 	.postdisable = inv_icm45600_buffer_postdisable,
 };
 
-int inv_icm45600_buffer_fifo_read(struct inv_icm45600_state *st)
+int inv_icm45600_buffer_fifo_read(struct inv_icm45600_state *st,
+				  unsigned int max)
 {
 	const ssize_t packet_size = sizeof(struct inv_icm45600_fifo_2sensors_packet);
 	__le16 *raw_fifo_count;
@@ -417,6 +418,8 @@ int inv_icm45600_buffer_fifo_read(struct inv_icm45600_state *st)
 	fifo_nb = le16_to_cpup(raw_fifo_count);
 	if (fifo_nb == 0)
 		return 0;
+	if (max > 0 && fifo_nb > max)
+		fifo_nb = max;
 
 	/* Try to read all FIFO data in internal buffer. */
 	st->fifo.count = fifo_nb * packet_size;
@@ -443,6 +446,57 @@ int inv_icm45600_buffer_fifo_read(struct inv_icm45600_state *st)
 		if (accel && inv_icm45600_fifo_is_data_valid(accel))
 			st->fifo.nb.accel++;
 		st->fifo.nb.total++;
+	}
+
+	return 0;
+}
+
+int inv_icm45600_buffer_fifo_parse(struct inv_icm45600_state *st)
+{
+	struct inv_icm45600_sensor_state *gyro_st = iio_priv(st->indio_gyro);
+	struct inv_sensors_timestamp *ts;
+	int ret;
+
+	if (st->fifo.nb.total == 0)
+		return 0;
+
+	/* Handle gyroscope timestamp and FIFO data parsing. */
+	if (st->fifo.nb.gyro > 0) {
+		ts = &gyro_st->ts;
+		inv_sensors_timestamp_interrupt(ts, st->fifo.watermark.eff_gyro,
+						st->timestamp.gyro);
+		ret = inv_icm45600_gyro_parse_fifo(st->indio_gyro);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+int inv_icm45600_buffer_hwfifo_flush(struct inv_icm45600_state *st,
+				     unsigned int count)
+{
+	struct inv_icm45600_sensor_state *gyro_st = iio_priv(st->indio_gyro);
+	struct inv_sensors_timestamp *ts;
+	s64 gyro_ts, accel_ts;
+	int ret;
+
+	gyro_ts = iio_get_time_ns(st->indio_gyro);
+	accel_ts = iio_get_time_ns(st->indio_accel);
+
+	ret = inv_icm45600_buffer_fifo_read(st, count);
+	if (ret)
+		return ret;
+
+	if (st->fifo.nb.total == 0)
+		return 0;
+
+	if (st->fifo.nb.gyro > 0) {
+		ts = &gyro_st->ts;
+		inv_sensors_timestamp_interrupt(ts, st->fifo.nb.gyro, gyro_ts);
+		ret = inv_icm45600_gyro_parse_fifo(st->indio_gyro);
+		if (ret)
+			return ret;
 	}
 
 	return 0;

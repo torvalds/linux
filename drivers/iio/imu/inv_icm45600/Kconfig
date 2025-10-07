@@ -2,4 +2,6 @@
 
 config INV_ICM45600
 	tristate
+	select IIO_BUFFER
+	select IIO_KFIFO_BUF
 	select IIO_INV_SENSORS_TIMESTAMP

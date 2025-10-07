@@ -113,7 +113,21 @@ struct inv_icm45600_chip_info {
 	u8 whoami;
 	const char *name;
 	const struct inv_icm45600_conf *conf;
+	const int *gyro_scales;
+	const int gyro_scales_len;
 };
+
+extern const struct inv_icm45600_chip_info inv_icm45605_chip_info;
+extern const struct inv_icm45600_chip_info inv_icm45606_chip_info;
+extern const struct inv_icm45600_chip_info inv_icm45608_chip_info;
+extern const struct inv_icm45600_chip_info inv_icm45634_chip_info;
+extern const struct inv_icm45600_chip_info inv_icm45686_chip_info;
+extern const struct inv_icm45600_chip_info inv_icm45687_chip_info;
+extern const struct inv_icm45600_chip_info inv_icm45688p_chip_info;
+extern const struct inv_icm45600_chip_info inv_icm45689_chip_info;
+
+extern const int inv_icm45600_gyro_scale[][2];
+extern const int inv_icm45686_gyro_scale[][2];
 
 /**
  *  struct inv_icm45600_state - driver state variables
@@ -319,6 +333,26 @@ const struct iio_mount_matrix *
 inv_icm45600_get_mount_matrix(const struct iio_dev *indio_dev,
 			      const struct iio_chan_spec *chan);
 
+#define INV_ICM45600_TEMP_CHAN(_index)					\
+	{								\
+		.type = IIO_TEMP,					\
+		.info_mask_separate =					\
+			BIT(IIO_CHAN_INFO_RAW) |			\
+			BIT(IIO_CHAN_INFO_OFFSET) |			\
+			BIT(IIO_CHAN_INFO_SCALE),			\
+		.scan_index = _index,					\
+		.scan_type = {						\
+			.sign = 's',					\
+			.realbits = 16,					\
+			.storagebits = 16,				\
+			.endianness = IIO_LE,				\
+		},							\
+	}
+
+int inv_icm45600_temp_read_raw(struct iio_dev *indio_dev,
+			       struct iio_chan_spec const *chan,
+			       int *val, int *val2, long mask);
+
 u32 inv_icm45600_odr_to_period(enum inv_icm45600_odr odr);
 
 int inv_icm45600_set_accel_conf(struct inv_icm45600_state *st,
@@ -335,5 +369,9 @@ int inv_icm45600_debugfs_reg(struct iio_dev *indio_dev, unsigned int reg,
 int inv_icm45600_core_probe(struct regmap *regmap,
 				const struct inv_icm45600_chip_info *chip_info,
 				bool reset, inv_icm45600_bus_setup bus_setup);
+
+struct iio_dev *inv_icm45600_gyro_init(struct inv_icm45600_state *st);
+
+int inv_icm45600_gyro_parse_fifo(struct iio_dev *indio_dev);
 
 #endif
