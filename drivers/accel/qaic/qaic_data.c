@@ -644,8 +644,36 @@ static void qaic_free_object(struct drm_gem_object *obj)
 	kfree(bo);
 }
 
+static struct sg_table *qaic_get_sg_table(struct drm_gem_object *obj)
+{
+	struct qaic_bo *bo = to_qaic_bo(obj);
+	struct scatterlist *sg, *sg_in;
+	struct sg_table *sgt, *sgt_in;
+	int i;
+
+	sgt_in = bo->sgt;
+
+	sgt = kmalloc(sizeof(*sgt), GFP_KERNEL);
+	if (!sgt)
+		return ERR_PTR(-ENOMEM);
+
+	if (sg_alloc_table(sgt, sgt_in->orig_nents, GFP_KERNEL)) {
+		kfree(sgt);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	sg = sgt->sgl;
+	for_each_sgtable_sg(sgt_in, sg_in, i) {
+		memcpy(sg, sg_in, sizeof(*sg));
+		sg = sg_next(sg);
+	}
+
+	return sgt;
+}
+
 static const struct drm_gem_object_funcs qaic_gem_funcs = {
 	.free = qaic_free_object,
+	.get_sg_table = qaic_get_sg_table,
 	.print_info = qaic_gem_print_info,
 	.mmap = qaic_gem_object_mmap,
 	.vm_ops = &drm_vm_ops,
