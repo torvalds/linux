@@ -928,7 +928,10 @@ isp_video_set_param(struct file *file, void *fh, struct v4l2_streamparm *a)
 
 	if (a->parm.output.timeperframe.denominator == 0)
 		a->parm.output.timeperframe.denominator = 1;
+	if (a->parm.output.timeperframe.numerator == 0)
+		a->parm.output.timeperframe.numerator = 1;
 
+	a->parm.output.capability = V4L2_CAP_TIMEPERFRAME;
 	vfh->timeperframe = a->parm.output.timeperframe;
 
 	return 0;
@@ -1413,6 +1416,7 @@ static int isp_video_open(struct file *file)
 	handle->format.fmt.pix.colorspace = V4L2_COLORSPACE_SRGB;
 	isp_video_pix_to_mbus(&handle->format.fmt.pix, &fmt);
 	isp_video_mbus_to_pix(video, &fmt, &handle->format.fmt.pix);
+	handle->timeperframe.numerator = 1;
 	handle->timeperframe.denominator = 1;
 
 	handle->video = video;
@@ -1532,12 +1536,15 @@ int omap3isp_video_init(struct isp_video *video, const char *name)
 	video->video.vfl_type = VFL_TYPE_VIDEO;
 	video->video.release = video_device_release_empty;
 	video->video.ioctl_ops = &isp_video_ioctl_ops;
-	if (video->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
+	if (video->type == V4L2_BUF_TYPE_VIDEO_CAPTURE) {
 		video->video.device_caps = V4L2_CAP_VIDEO_CAPTURE
 					 | V4L2_CAP_STREAMING | V4L2_CAP_IO_MC;
-	else
+		v4l2_disable_ioctl(&video->video, VIDIOC_S_PARM);
+		v4l2_disable_ioctl(&video->video, VIDIOC_G_PARM);
+	} else {
 		video->video.device_caps = V4L2_CAP_VIDEO_OUTPUT
 					 | V4L2_CAP_STREAMING | V4L2_CAP_IO_MC;
+	}
 
 	video->pipe.stream_state = ISP_PIPELINE_STREAM_STOPPED;
 
