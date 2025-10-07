@@ -1008,6 +1008,14 @@ int amdgpu_virt_init_critical_region(struct amdgpu_device *adev)
 			init_data_hdr->bad_page_size_in_kb;
 	}
 
+	/* Validation for critical region info */
+	if (adev->virt.crit_regn_tbl[AMD_SRIOV_MSG_IPD_TABLE_ID].size_kb > DISCOVERY_TMR_SIZE) {
+		dev_err(adev->dev, "Invalid IP discovery size: 0x%x\n",
+				adev->virt.crit_regn_tbl[AMD_SRIOV_MSG_IPD_TABLE_ID].size_kb);
+		r = -EINVAL;
+		goto out;
+	}
+
 	/* reserved memory starts from crit region base offset with the size of 5MB */
 	adev->mman.fw_vram_usage_start_offset = adev->virt.crit_regn.offset;
 	adev->mman.fw_vram_usage_size = adev->virt.crit_regn.size_kb << 10;
@@ -1024,6 +1032,35 @@ out:
 	init_data_hdr = NULL;
 
 	return r;
+}
+
+int amdgpu_virt_get_dynamic_data_info(struct amdgpu_device *adev,
+	int data_id, uint8_t *binary, uint64_t *size)
+{
+	uint32_t data_offset = 0;
+	uint32_t data_size = 0;
+	enum amd_sriov_msg_table_id_enum data_table_id = data_id;
+
+	if (data_table_id >= AMD_SRIOV_MSG_MAX_TABLE_ID)
+		return -EINVAL;
+
+	data_offset = adev->virt.crit_regn_tbl[data_table_id].offset;
+	data_size = adev->virt.crit_regn_tbl[data_table_id].size_kb << 10;
+
+	/* Validate on input params */
+	if (!binary || !size || *size < (uint64_t)data_size)
+		return -EINVAL;
+
+	/* Proceed to copy the dynamic content */
+	amdgpu_device_vram_access(adev,
+			(uint64_t)data_offset, (uint32_t *)binary, data_size, false);
+	*size = (uint64_t)data_size;
+
+	dev_dbg(adev->dev,
+		"Got %s info from dynamic crit_region_table at offset 0x%x with size of 0x%x bytes.\n",
+		amdgpu_virt_dynamic_crit_table_name[data_id], data_offset, data_size);
+
+	return 0;
 }
 
 void amdgpu_virt_init(struct amdgpu_device *adev)

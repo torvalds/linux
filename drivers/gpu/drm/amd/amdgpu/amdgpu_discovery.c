@@ -304,10 +304,26 @@ static int amdgpu_discovery_read_binary_from_mem(struct amdgpu_device *adev,
 	 * then it is not required to be reserved.
 	 */
 	if (sz_valid) {
-		uint64_t pos = vram_size - DISCOVERY_TMR_OFFSET;
-		amdgpu_device_vram_access(adev, pos, (uint32_t *)binary,
-					  adev->discovery.size, false);
-		adev->discovery.reserve_tmr = true;
+		if (amdgpu_sriov_vf(adev) && adev->virt.is_dynamic_crit_regn_enabled) {
+			/* For SRIOV VFs with dynamic critical region enabled,
+			 * we will get the IPD binary via below call.
+			 * If dynamic critical is disabled, fall through to normal seq.
+			 */
+			if (amdgpu_virt_get_dynamic_data_info(adev,
+						AMD_SRIOV_MSG_IPD_TABLE_ID, binary,
+						(uint64_t *)&adev->discovery.size)) {
+				dev_err(adev->dev,
+						"failed to read discovery info from dynamic critical region.");
+				ret = -EINVAL;
+				goto exit;
+			}
+		} else {
+			uint64_t pos = vram_size - DISCOVERY_TMR_OFFSET;
+
+			amdgpu_device_vram_access(adev, pos, (uint32_t *)binary,
+					adev->discovery.size, false);
+			adev->discovery.reserve_tmr = true;
+		}
 	} else {
 		ret = amdgpu_discovery_read_binary_from_sysmem(adev, binary);
 	}
@@ -316,7 +332,7 @@ static int amdgpu_discovery_read_binary_from_mem(struct amdgpu_device *adev,
 		dev_err(adev->dev,
 			"failed to read discovery info from memory, vram size read: %llx",
 			vram_size);
-
+exit:
 	return ret;
 }
 
