@@ -165,6 +165,11 @@ to_ast_connector(struct drm_connector *connector)
  */
 
 struct ast_device_quirks {
+	/*
+	 * CRTC memory request threshold
+	 */
+	unsigned char crtc_mem_req_threshold_low;
+	unsigned char crtc_mem_req_threshold_high;
 };
 
 struct ast_device {

@@ -433,6 +433,8 @@ static void ast_2100_detect_widescreen(struct ast_device *ast)
 }
 
 static const struct ast_device_quirks ast_2100_device_quirks = {
+	.crtc_mem_req_threshold_low = 47,
+	.crtc_mem_req_threshold_high = 63,
 };
 
 struct drm_device *ast_2100_device_create(struct pci_dev *pdev,

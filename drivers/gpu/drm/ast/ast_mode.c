@@ -410,20 +410,11 @@ static void ast_set_color_reg(struct ast_device *ast,
 
 static void ast_set_crtthd_reg(struct ast_device *ast)
 {
-	/* Set Threshold */
-	if (IS_AST_GEN7(ast)) {
-		ast_set_index_reg(ast, AST_IO_VGACRI, 0xa7, 0xe0);
-		ast_set_index_reg(ast, AST_IO_VGACRI, 0xa6, 0xa0);
-	} else if (IS_AST_GEN6(ast) || IS_AST_GEN5(ast) || IS_AST_GEN4(ast)) {
-		ast_set_index_reg(ast, AST_IO_VGACRI, 0xa7, 0x78);
-		ast_set_index_reg(ast, AST_IO_VGACRI, 0xa6, 0x60);
-	} else if (IS_AST_GEN3(ast) || IS_AST_GEN2(ast)) {
-		ast_set_index_reg(ast, AST_IO_VGACRI, 0xa7, 0x3f);
-		ast_set_index_reg(ast, AST_IO_VGACRI, 0xa6, 0x2f);
-	} else {
-		ast_set_index_reg(ast, AST_IO_VGACRI, 0xa7, 0x2f);
-		ast_set_index_reg(ast, AST_IO_VGACRI, 0xa6, 0x1f);
-	}
+	u8 vgacra6 = ast->quirks->crtc_mem_req_threshold_low;
+	u8 vgacra7 = ast->quirks->crtc_mem_req_threshold_high;
+
+	ast_set_index_reg(ast, AST_IO_VGACRI, 0xa7, vgacra7);
+	ast_set_index_reg(ast, AST_IO_VGACRI, 0xa6, vgacra6);
 }
 
 static void ast_set_sync_reg(struct ast_device *ast,

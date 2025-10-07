@@ -212,6 +212,8 @@ void ast_2000_detect_tx_chip(struct ast_device *ast, bool need_post)
 }
 
 static const struct ast_device_quirks ast_2000_device_quirks = {
+	.crtc_mem_req_threshold_low = 31,
+	.crtc_mem_req_threshold_high = 47,
 };
 
 struct drm_device *ast_2000_device_create(struct pci_dev *pdev,
