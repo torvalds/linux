@@ -63,6 +63,7 @@ static const struct ast_device_quirks ast_2600_device_quirks = {
 	.crtc_mem_req_threshold_low = 160,
 	.crtc_mem_req_threshold_high = 224,
 	.crtc_hsync_precatch_needed = true,
+	.crtc_hsync_add4_needed = true,
 };
 
 struct drm_device *ast_2600_device_create(struct pci_dev *pdev,

@@ -288,8 +288,7 @@ static void ast_set_crtc_reg(struct ast_device *ast, struct drm_display_mode *mo
 	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xAC, 0x00, jregAC);
 	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xAD, 0x00, jregAD);
 
-	// Workaround for HSync Time non octave pixels (1920x1080@60Hz HSync 44 pixels);
-	if (IS_AST_GEN7(ast) && (mode->crtc_vdisplay == 1080))
+	if (ast->quirks->crtc_hsync_add4_needed && mode->crtc_vdisplay == 1080)
 		ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xFC, 0xFD, 0x02);
 	else
 		ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xFC, 0xFD, 0x00);

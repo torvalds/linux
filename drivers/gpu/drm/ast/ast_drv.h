@@ -176,6 +176,12 @@ struct ast_device_quirks {
 	 * by AST2500PreCatchCRT in VBIOS mode flags.
 	 */
 	bool crtc_hsync_precatch_needed;
+
+	/*
+	 * Workaround for modes with HSync Time that is not a multiple
+	 * of 8 (e.g., 1920x1080@60Hz, HSync +44 pixels).
+	 */
+	bool crtc_hsync_add4_needed;
 };
 
 struct ast_device {
