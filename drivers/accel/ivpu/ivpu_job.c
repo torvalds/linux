@@ -574,7 +574,11 @@ static int ivpu_job_signal_and_destroy(struct ivpu_device *vdev, u32 job_id, u32
 	if (!job)
 		return -ENOENT;
 
-	if (job_status == VPU_JSM_STATUS_MVNCI_CONTEXT_VIOLATION_HW) {
+	switch (job_status) {
+	case VPU_JSM_STATUS_PROCESSING_ERR:
+	case VPU_JSM_STATUS_ENGINE_RESET_REQUIRED_MIN ... VPU_JSM_STATUS_ENGINE_RESET_REQUIRED_MAX:
+	{
+		/* Trigger an engine reset */
 		guard(mutex)(&job->file_priv->lock);
 
 		if (job->file_priv->has_mmu_faults)
@@ -588,6 +592,10 @@ static int ivpu_job_signal_and_destroy(struct ivpu_device *vdev, u32 job_id, u32
 		job->file_priv->has_mmu_faults = true;
 		queue_work(system_wq, &vdev->context_abort_work);
 		return 0;
+	}
+	default:
+		/* Complete job with error status, engine reset not required */
+		break;
 	}
 
 	job = ivpu_job_remove_from_submitted_jobs(vdev, job_id);
