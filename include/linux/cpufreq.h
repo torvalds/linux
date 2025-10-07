@@ -26,12 +26,10 @@
  *********************************************************************/
 /*
  * Frequency values here are CPU kHz
- *
- * Maximum transition latency is in nanoseconds - if it's unknown,
- * CPUFREQ_ETERNAL shall be used.
  */
 
-#define CPUFREQ_ETERNAL			(-1)
+#define CPUFREQ_DEFAULT_TRANSITION_LATENCY_NS	NSEC_PER_MSEC
+
 #define CPUFREQ_NAME_LEN		16
 /* Print length for names. Extra 1 space for accommodating '\n' in prints */
 #define CPUFREQ_NAME_PLEN		(CPUFREQ_NAME_LEN + 1)
