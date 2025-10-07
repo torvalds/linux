@@ -263,8 +263,10 @@ static void calc_default_nr_vcpus(void)
 	TEST_ASSERT(!r, "sched_getaffinity failed, errno = %d (%s)",
 		    errno, strerror(errno));
 
-	nr_vcpus = CPU_COUNT(&possible_mask) * 3/4;
+	nr_vcpus = CPU_COUNT(&possible_mask);
 	TEST_ASSERT(nr_vcpus > 0, "Uh, no CPUs?");
+	if (nr_vcpus >= 2)
+		nr_vcpus = nr_vcpus * 3/4;
 }
 
 int main(int argc, char *argv[])
