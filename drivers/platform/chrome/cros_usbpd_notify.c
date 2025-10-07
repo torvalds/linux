@@ -6,6 +6,7 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/fwnode.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_data/cros_ec_proto.h>
@@ -15,6 +16,7 @@
 #define DRV_NAME "cros-usbpd-notify"
 #define DRV_NAME_PLAT_ACPI "cros-usbpd-notify-acpi"
 #define ACPI_DRV_NAME "GOOG0003"
+#define CREC_DRV_NAME "GOOG0004"
 
 static BLOCKING_NOTIFIER_HEAD(cros_usbpd_notifier_list);
 
@@ -98,8 +100,9 @@ static int cros_usbpd_notify_probe_acpi(struct platform_device *pdev)
 {
 	struct cros_usbpd_notify_data *pdnotify;
 	struct device *dev = &pdev->dev;
-	struct acpi_device *adev;
+	struct acpi_device *adev, *parent_adev;
 	struct cros_ec_device *ec_dev;
+	struct fwnode_handle *parent_fwnode;
 	acpi_status status;
 
 	adev = ACPI_COMPANION(dev);
@@ -114,8 +117,18 @@ static int cros_usbpd_notify_probe_acpi(struct platform_device *pdev)
 		/*
 		 * We continue even for older devices which don't have the
 		 * correct device heirarchy, namely, GOOG0003 is a child
-		 * of GOOG0004.
+		 * of GOOG0004. If GOOG0003 is a child of GOOG0004 and we
+		 * can't get a pointer to the Chrome EC device, defer the
+		 * probe function.
 		 */
+		parent_fwnode = fwnode_get_parent(dev->fwnode);
+		if (parent_fwnode) {
+			parent_adev = to_acpi_device_node(parent_fwnode);
+			if (parent_adev &&
+			    acpi_dev_hid_match(parent_adev, CREC_DRV_NAME)) {
+				return -EPROBE_DEFER;
+			}
+		}
 		dev_warn(dev, "Couldn't get Chrome EC device pointer.\n");
 	}
 
