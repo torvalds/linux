@@ -541,11 +541,11 @@ def get_hds_thresh(cfg):
         The HDS threshold value. If the threshold is not supported or an error occurs,
         a default value of 1500 is returned.
     """
-    netnl = cfg.netnl
+    ethnl = cfg.ethnl
     hds_thresh = 1500
 
     try:
-        rings = netnl.rings_get({'header': {'dev-index': cfg.ifindex}})
+        rings = ethnl.rings_get({'header': {'dev-index': cfg.ifindex}})
         if 'hds-thresh' not in rings:
             ksft_pr(f'hds-thresh not supported. Using default: {hds_thresh}')
             return hds_thresh
@@ -562,7 +562,7 @@ def _test_xdp_native_head_adjst(cfg, prog, pkt_sz_lst, offset_lst):
 
     Args:
         cfg: Configuration object containing network settings.
-        netnl: Network namespace or link object (not used in this function).
+        ethnl: Network namespace or link object (not used in this function).
 
     This function sets up the packet size and offset lists, then performs
     the head adjustment test by sending and receiving UDP packets.
@@ -681,7 +681,7 @@ def main():
     function to execute the tests.
     """
     with NetDrvEpEnv(__file__) as cfg:
-        cfg.netnl = EthtoolFamily()
+        cfg.ethnl = EthtoolFamily()
         ksft_run(
             [
                 test_xdp_native_pass_sb,
