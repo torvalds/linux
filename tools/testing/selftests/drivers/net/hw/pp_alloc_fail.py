@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-2.0
 
+"""
+Test driver resilience vs page pool allocation failures.
+"""
+
 import errno
 import time
 import os
@@ -13,7 +17,8 @@ from lib.py import cmd, tool, GenerateTraffic
 
 def _write_fail_config(config):
     for key, value in config.items():
-        with open("/sys/kernel/debug/fail_function/" + key, "w") as fp:
+        path = "/sys/kernel/debug/fail_function/"
+        with open(path + key, "w", encoding='ascii') as fp:
             fp.write(str(value) + "\n")
 
 
@@ -22,8 +27,7 @@ def _enable_pp_allocation_fail():
         raise KsftSkipEx("Kernel built without function error injection (or DebugFS)")
 
     if not os.path.exists("/sys/kernel/debug/fail_function/page_pool_alloc_netmems"):
-        with open("/sys/kernel/debug/fail_function/inject", "w") as fp:
-            fp.write("page_pool_alloc_netmems\n")
+        _write_fail_config({"inject": "page_pool_alloc_netmems"})
 
     _write_fail_config({
         "verbose": 0,
@@ -38,8 +42,7 @@ def _disable_pp_allocation_fail():
         return
 
     if os.path.exists("/sys/kernel/debug/fail_function/page_pool_alloc_netmems"):
-        with open("/sys/kernel/debug/fail_function/inject", "w") as fp:
-            fp.write("\n")
+        _write_fail_config({"inject": ""})
 
     _write_fail_config({
         "probability": 0,
@@ -48,6 +51,10 @@ def _disable_pp_allocation_fail():
 
 
 def test_pp_alloc(cfg, netdevnl):
+    """
+    Configure page pool allocation fail injection while traffic is running.
+    """
+
     def get_stats():
         return netdevnl.qstats_get({"ifindex": cfg.ifindex}, dump=True)[0]
 
@@ -105,7 +112,7 @@ def test_pp_alloc(cfg, netdevnl):
             else:
                 ksft_pr("ethtool -G change retval: did not succeed", new_g)
         else:
-                ksft_pr("ethtool -G change retval: did not try")
+            ksft_pr("ethtool -G change retval: did not try")
 
         time.sleep(0.1)
         check_traffic_flowing()
@@ -119,6 +126,7 @@ def test_pp_alloc(cfg, netdevnl):
 
 
 def main() -> None:
+    """ Ksft boiler plate main """
     netdevnl = NetdevFamily()
     with NetDrvEpEnv(__file__, nsim_test=False) as cfg:
 
