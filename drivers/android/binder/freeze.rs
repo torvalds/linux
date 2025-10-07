@@ -121,7 +121,7 @@ impl DeliverToRead for FreezeMessage {
             writer.write_payload(&self.cookie.0)?;
             Ok(true)
         } else {
-            let is_frozen = freeze.node.owner.inner.lock().is_frozen;
+            let is_frozen = freeze.node.owner.inner.lock().is_frozen.is_fully_frozen();
             if freeze.last_is_frozen == Some(is_frozen) {
                 return Ok(true);
             }
@@ -254,7 +254,7 @@ impl Process {
                 );
                 return Err(EINVAL);
             }
-            let is_frozen = freeze.node.owner.inner.lock().is_frozen;
+            let is_frozen = freeze.node.owner.inner.lock().is_frozen.is_fully_frozen();
             if freeze.is_clearing || freeze.last_is_frozen != Some(is_frozen) {
                 // Immediately send another FreezeMessage.
                 clear_msg = Some(FreezeMessage::init(alloc, cookie));
