@@ -3156,12 +3156,11 @@ cifs_setattr_unix(struct dentry *direntry, struct iattr *attrs)
 		if (rc != 0)
 			goto out;
 		/*
-		 * The man page of truncate says if the size changed,
-		 * then the st_ctime and st_mtime fields for the file
-		 * are updated.
+		 * Avoid setting timestamps on the server for ftruncate(2) to
+		 * prevent it from disabling automatic timestamp updates as per
+		 * MS-FSA 2.1.4.17.
 		 */
-		attrs->ia_ctime = attrs->ia_mtime = current_time(inode);
-		attrs->ia_valid |= ATTR_CTIME | ATTR_MTIME;
+		attrs->ia_valid &= ~(ATTR_CTIME | ATTR_MTIME);
 	}
 
 	/* skip mode change if it's just for clearing setuid/setgid */
@@ -3335,12 +3334,11 @@ cifs_setattr_nounix(struct dentry *direntry, struct iattr *attrs)
 		if (rc != 0)
 			goto cifs_setattr_exit;
 		/*
-		 * The man page of truncate says if the size changed,
-		 * then the st_ctime and st_mtime fields for the file
-		 * are updated.
+		 * Avoid setting timestamps on the server for ftruncate(2) to
+		 * prevent it from disabling automatic timestamp updates as per
+		 * MS-FSA 2.1.4.17.
 		 */
-		attrs->ia_ctime = attrs->ia_mtime = current_time(inode);
-		attrs->ia_valid |= ATTR_CTIME | ATTR_MTIME;
+		attrs->ia_valid &= ~(ATTR_CTIME | ATTR_MTIME);
 	}
 
 	if (attrs->ia_valid & ATTR_UID)
