@@ -245,8 +245,9 @@ impl Process {
                 );
                 return Err(EINVAL);
             }
-            if freeze.is_clearing {
-                // Immediately send another FreezeMessage for BR_CLEAR_FREEZE_NOTIFICATION_DONE.
+            let is_frozen = freeze.node.owner.inner.lock().is_frozen;
+            if freeze.is_clearing || freeze.last_is_frozen != Some(is_frozen) {
+                // Immediately send another FreezeMessage.
                 clear_msg = Some(FreezeMessage::init(alloc, cookie));
             }
             freeze.is_pending = false;
