@@ -73,7 +73,7 @@ int mt7915_run(struct ieee80211_hw *hw)
 	if (ret)
 		goto out;
 
-	ret = mt7915_mcu_set_sku_en(phy, true);
+	ret = mt7915_mcu_set_sku_en(phy);
 	if (ret)
 		goto out;
 

@@ -409,7 +409,7 @@ mt7915_tm_init(struct mt7915_phy *phy, bool en)
 	if (!test_bit(MT76_STATE_RUNNING, &phy->mt76->state))
 		return;
 
-	mt7915_mcu_set_sku_en(phy, !en);
+	mt7915_mcu_set_sku_en(phy);
 
 	mt7915_tm_mode_ctrl(dev, en);
 	mt7915_tm_reg_backup_restore(phy);
