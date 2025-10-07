@@ -75,7 +75,7 @@ int btrfs_dirty_folio(struct btrfs_inode *inode, struct folio *folio, loff_t pos
 	u64 num_bytes;
 	u64 start_pos;
 	u64 end_of_last_block;
-	u64 end_pos = pos + write_bytes;
+	const u64 end_pos = pos + write_bytes;
 	loff_t isize = i_size_read(&inode->vfs_inode);
 	unsigned int extra_bits = 0;
 
@@ -86,10 +86,9 @@ int btrfs_dirty_folio(struct btrfs_inode *inode, struct folio *folio, loff_t pos
 		extra_bits |= EXTENT_NORESERVE;
 
 	start_pos = round_down(pos, fs_info->sectorsize);
-	num_bytes = round_up(write_bytes + pos - start_pos,
-			     fs_info->sectorsize);
+	num_bytes = round_up(end_pos - start_pos, fs_info->sectorsize);
 	ASSERT(num_bytes <= U32_MAX);
-	ASSERT(folio_pos(folio) <= pos && folio_end(folio) >= pos + write_bytes);
+	ASSERT(folio_pos(folio) <= pos && folio_end(folio) >= end_pos);
 
 	end_of_last_block = start_pos + num_bytes - 1;
 
