@@ -141,7 +141,7 @@ class SphinxBuilder:
         #
         parser = argparse.ArgumentParser()
         parser.add_argument('-j', '--jobs', type=int)
-        parser.add_argument('-q', '--quiet', type=int)
+        parser.add_argument('-q', '--quiet', action='store_true')
 
         #
         # Other sphinx-build arguments go as-is, so place them
