@@ -2400,6 +2400,13 @@ void hidinput_disconnect(struct hid_device *hid)
 }
 EXPORT_SYMBOL_GPL(hidinput_disconnect);
 
+void hidinput_reset_resume(struct hid_device *hid)
+{
+	/* renegotiate host-device shared state after reset */
+	hidinput_change_resolution_multipliers(hid);
+}
+EXPORT_SYMBOL_GPL(hidinput_reset_resume);
+
 #ifdef CONFIG_HID_KUNIT_TEST
 #include "hid-input-test.c"
 #endif
