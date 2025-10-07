@@ -904,7 +904,7 @@ static void fbnic_fill_bdq(struct fbnic_ring *bdq)
 		netmem = page_pool_dev_alloc_netmems(bdq->page_pool);
 		if (!netmem) {
 			u64_stats_update_begin(&bdq->stats.syncp);
-			bdq->stats.rx.alloc_failed++;
+			bdq->stats.bdq.alloc_failed++;
 			u64_stats_update_end(&bdq->stats.syncp);
 
 			break;
@@ -1414,6 +1414,17 @@ void fbnic_aggregate_ring_rx_counters(struct fbnic_net *fbn,
 	BUILD_BUG_ON(sizeof(fbn->rx_stats.rx) / 8 != 4);
 }
 
+void fbnic_aggregate_ring_bdq_counters(struct fbnic_net *fbn,
+				       struct fbnic_ring *bdq)
+{
+	struct fbnic_queue_stats *stats = &bdq->stats;
+
+	/* Capture stats from queues before dissasociating them */
+	fbn->bdq_stats.bdq.alloc_failed += stats->bdq.alloc_failed;
+	/* Remember to add new stats here */
+	BUILD_BUG_ON(sizeof(fbn->rx_stats.bdq) / 8 != 1);
+}
+
 void fbnic_aggregate_ring_tx_counters(struct fbnic_net *fbn,
 				      struct fbnic_ring *txr)
 {
@@ -1486,6 +1497,15 @@ static void fbnic_remove_rx_ring(struct fbnic_net *fbn,
 	fbn->rx[rxr->q_idx] = NULL;
 }
 
+static void fbnic_remove_bdq_ring(struct fbnic_net *fbn,
+				  struct fbnic_ring *bdq)
+{
+	if (!(bdq->flags & FBNIC_RING_F_STATS))
+		return;
+
+	fbnic_aggregate_ring_bdq_counters(fbn, bdq);
+}
+
 static void fbnic_free_qt_page_pools(struct fbnic_q_triad *qt)
 {
 	page_pool_destroy(qt->sub0.page_pool);
@@ -1505,8 +1525,8 @@ static void fbnic_free_napi_vector(struct fbnic_net *fbn,
 	}
 
 	for (j = 0; j < nv->rxt_count; j++, i++) {
-		fbnic_remove_rx_ring(fbn, &nv->qt[i].sub0);
-		fbnic_remove_rx_ring(fbn, &nv->qt[i].sub1);
+		fbnic_remove_bdq_ring(fbn, &nv->qt[i].sub0);
+		fbnic_remove_bdq_ring(fbn, &nv->qt[i].sub1);
 		fbnic_remove_rx_ring(fbn, &nv->qt[i].cmpl);
 	}
 
@@ -1705,11 +1725,13 @@ static int fbnic_alloc_napi_vector(struct fbnic_dev *fbd, struct fbnic_net *fbn,
 	while (rxt_count) {
 		/* Configure header queue */
 		db = &uc_addr[FBNIC_QUEUE(rxq_idx) + FBNIC_QUEUE_BDQ_HPQ_TAIL];
-		fbnic_ring_init(&qt->sub0, db, 0, FBNIC_RING_F_CTX);
+		fbnic_ring_init(&qt->sub0, db, 0,
+				FBNIC_RING_F_CTX | FBNIC_RING_F_STATS);
 
 		/* Configure payload queue */
 		db = &uc_addr[FBNIC_QUEUE(rxq_idx) + FBNIC_QUEUE_BDQ_PPQ_TAIL];
-		fbnic_ring_init(&qt->sub1, db, 0, FBNIC_RING_F_CTX);
+		fbnic_ring_init(&qt->sub1, db, 0,
+				FBNIC_RING_F_CTX | FBNIC_RING_F_STATS);
 
 		/* Configure Rx completion queue */
 		db = &uc_addr[FBNIC_QUEUE(rxq_idx) + FBNIC_QUEUE_RCQ_HEAD];
@@ -2828,8 +2850,8 @@ static int fbnic_queue_start(struct net_device *dev, void *qmem, int idx)
 	real = container_of(fbn->rx[idx], struct fbnic_q_triad, cmpl);
 	nv = fbn->napi[idx % fbn->num_napi];
 
-	fbnic_aggregate_ring_rx_counters(fbn, &real->sub0);
-	fbnic_aggregate_ring_rx_counters(fbn, &real->sub1);
+	fbnic_aggregate_ring_bdq_counters(fbn, &real->sub0);
+	fbnic_aggregate_ring_bdq_counters(fbn, &real->sub1);
 	fbnic_aggregate_ring_rx_counters(fbn, &real->cmpl);
 
 	memcpy(real, qmem, sizeof(*real));
