@@ -17,6 +17,7 @@
 #include <linux/overflow.h>
 #include <linux/pci.h>
 #include <linux/scatterlist.h>
+#include <linux/sched/signal.h>
 #include <linux/types.h>
 #include <linux/uaccess.h>
 #include <linux/workqueue.h>
