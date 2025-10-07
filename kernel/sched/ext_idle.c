@@ -995,25 +995,55 @@ __bpf_kfunc s32 scx_bpf_select_cpu_dfl(struct task_struct *p, s32 prev_cpu,
 	return prev_cpu;
 }
 
+struct scx_bpf_select_cpu_and_args {
+	/* @p and @cpus_allowed can't be packed together as KF_RCU is not transitive */
+	s32			prev_cpu;
+	u64			wake_flags;
+	u64			flags;
+};
+
 /**
- * scx_bpf_select_cpu_and - Pick an idle CPU usable by task @p,
- *			    prioritizing those in @cpus_allowed
+ * __scx_bpf_select_cpu_and - Arg-wrapped CPU selection with cpumask
  * @p: task_struct to select a CPU for
- * @prev_cpu: CPU @p was on previously
- * @wake_flags: %SCX_WAKE_* flags
  * @cpus_allowed: cpumask of allowed CPUs
- * @flags: %SCX_PICK_IDLE* flags
+ * @args: struct containing the rest of the arguments
+ *       @args->prev_cpu: CPU @p was on previously
+ *       @args->wake_flags: %SCX_WAKE_* flags
+ *       @args->flags: %SCX_PICK_IDLE* flags
+ *
+ * Wrapper kfunc that takes arguments via struct to work around BPF's 5 argument
+ * limit. BPF programs should use scx_bpf_select_cpu_and() which is provided
+ * as an inline wrapper in common.bpf.h.
  *
  * Can be called from ops.select_cpu(), ops.enqueue(), or from an unlocked
  * context such as a BPF test_run() call, as long as built-in CPU selection
  * is enabled: ops.update_idle() is missing or %SCX_OPS_KEEP_BUILTIN_IDLE
  * is set.
  *
- * @p, @prev_cpu and @wake_flags match ops.select_cpu().
+ * @p, @args->prev_cpu and @args->wake_flags match ops.select_cpu().
  *
  * Returns the selected idle CPU, which will be automatically awakened upon
  * returning from ops.select_cpu() and can be used for direct dispatch, or
  * a negative value if no idle CPU is available.
+ */
+__bpf_kfunc s32
+__scx_bpf_select_cpu_and(struct task_struct *p, const struct cpumask *cpus_allowed,
+			 struct scx_bpf_select_cpu_and_args *args)
+{
+	struct scx_sched *sch;
+
+	guard(rcu)();
+
+	sch = rcu_dereference(scx_root);
+	if (unlikely(!sch))
+		return -ENODEV;
+
+	return select_cpu_from_kfunc(sch, p, args->prev_cpu, args->wake_flags,
+				     cpus_allowed, args->flags);
+}
+
+/*
+ * COMPAT: Will be removed in v6.22.
  */
 __bpf_kfunc s32 scx_bpf_select_cpu_and(struct task_struct *p, s32 prev_cpu, u64 wake_flags,
 				       const struct cpumask *cpus_allowed, u64 flags)
@@ -1383,6 +1413,7 @@ BTF_ID_FLAGS(func, scx_bpf_pick_idle_cpu_node, KF_RCU)
 BTF_ID_FLAGS(func, scx_bpf_pick_idle_cpu, KF_RCU)
 BTF_ID_FLAGS(func, scx_bpf_pick_any_cpu_node, KF_RCU)
 BTF_ID_FLAGS(func, scx_bpf_pick_any_cpu, KF_RCU)
+BTF_ID_FLAGS(func, __scx_bpf_select_cpu_and, KF_RCU)
 BTF_ID_FLAGS(func, scx_bpf_select_cpu_and, KF_RCU)
 BTF_ID_FLAGS(func, scx_bpf_select_cpu_dfl, KF_RCU)
 BTF_KFUNCS_END(scx_kfunc_ids_idle)

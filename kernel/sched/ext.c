@@ -5448,37 +5448,9 @@ __bpf_kfunc void scx_bpf_dsq_insert(struct task_struct *p, u64 dsq_id, u64 slice
 	scx_dsq_insert_commit(sch, p, dsq_id, enq_flags);
 }
 
-/**
- * scx_bpf_dsq_insert_vtime - Insert a task into the vtime priority queue of a DSQ
- * @p: task_struct to insert
- * @dsq_id: DSQ to insert into
- * @slice: duration @p can run for in nsecs, 0 to keep the current value
- * @vtime: @p's ordering inside the vtime-sorted queue of the target DSQ
- * @enq_flags: SCX_ENQ_*
- *
- * Insert @p into the vtime priority queue of the DSQ identified by @dsq_id.
- * Tasks queued into the priority queue are ordered by @vtime. All other aspects
- * are identical to scx_bpf_dsq_insert().
- *
- * @vtime ordering is according to time_before64() which considers wrapping. A
- * numerically larger vtime may indicate an earlier position in the ordering and
- * vice-versa.
- *
- * A DSQ can only be used as a FIFO or priority queue at any given time and this
- * function must not be called on a DSQ which already has one or more FIFO tasks
- * queued and vice-versa. Also, the built-in DSQs (SCX_DSQ_LOCAL and
- * SCX_DSQ_GLOBAL) cannot be used as priority queues.
- */
-__bpf_kfunc void scx_bpf_dsq_insert_vtime(struct task_struct *p, u64 dsq_id,
-					  u64 slice, u64 vtime, u64 enq_flags)
+static void scx_dsq_insert_vtime(struct scx_sched *sch, struct task_struct *p,
+				 u64 dsq_id, u64 slice, u64 vtime, u64 enq_flags)
 {
-	struct scx_sched *sch;
-
-	guard(rcu)();
-	sch = rcu_dereference(scx_root);
-	if (unlikely(!sch))
-		return;
-
 	if (!scx_dsq_insert_preamble(sch, p, enq_flags))
 		return;
 
@@ -5492,10 +5464,78 @@ __bpf_kfunc void scx_bpf_dsq_insert_vtime(struct task_struct *p, u64 dsq_id,
 	scx_dsq_insert_commit(sch, p, dsq_id, enq_flags | SCX_ENQ_DSQ_PRIQ);
 }
 
+struct scx_bpf_dsq_insert_vtime_args {
+	/* @p can't be packed together as KF_RCU is not transitive */
+	u64			dsq_id;
+	u64			slice;
+	u64			vtime;
+	u64			enq_flags;
+};
+
+/**
+ * __scx_bpf_dsq_insert_vtime - Arg-wrapped vtime DSQ insertion
+ * @p: task_struct to insert
+ * @args: struct containing the rest of the arguments
+ *       @args->dsq_id: DSQ to insert into
+ *       @args->slice: duration @p can run for in nsecs, 0 to keep the current value
+ *       @args->vtime: @p's ordering inside the vtime-sorted queue of the target DSQ
+ *       @args->enq_flags: SCX_ENQ_*
+ *
+ * Wrapper kfunc that takes arguments via struct to work around BPF's 5 argument
+ * limit. BPF programs should use scx_bpf_dsq_insert_vtime() which is provided
+ * as an inline wrapper in common.bpf.h.
+ *
+ * Insert @p into the vtime priority queue of the DSQ identified by
+ * @args->dsq_id. Tasks queued into the priority queue are ordered by
+ * @args->vtime. All other aspects are identical to scx_bpf_dsq_insert().
+ *
+ * @args->vtime ordering is according to time_before64() which considers
+ * wrapping. A numerically larger vtime may indicate an earlier position in the
+ * ordering and vice-versa.
+ *
+ * A DSQ can only be used as a FIFO or priority queue at any given time and this
+ * function must not be called on a DSQ which already has one or more FIFO tasks
+ * queued and vice-versa. Also, the built-in DSQs (SCX_DSQ_LOCAL and
+ * SCX_DSQ_GLOBAL) cannot be used as priority queues.
+ */
+__bpf_kfunc void
+__scx_bpf_dsq_insert_vtime(struct task_struct *p,
+			   struct scx_bpf_dsq_insert_vtime_args *args)
+{
+	struct scx_sched *sch;
+
+	guard(rcu)();
+
+	sch = rcu_dereference(scx_root);
+	if (unlikely(!sch))
+		return;
+
+	scx_dsq_insert_vtime(sch, p, args->dsq_id, args->slice, args->vtime,
+			     args->enq_flags);
+}
+
+/*
+ * COMPAT: Will be removed in v6.23.
+ */
+__bpf_kfunc void scx_bpf_dsq_insert_vtime(struct task_struct *p, u64 dsq_id,
+					  u64 slice, u64 vtime, u64 enq_flags)
+{
+	struct scx_sched *sch;
+
+	guard(rcu)();
+
+	sch = rcu_dereference(scx_root);
+	if (unlikely(!sch))
+		return;
+
+	scx_dsq_insert_vtime(sch, p, dsq_id, slice, vtime, enq_flags);
+}
+
 __bpf_kfunc_end_defs();
 
 BTF_KFUNCS_START(scx_kfunc_ids_enqueue_dispatch)
 BTF_ID_FLAGS(func, scx_bpf_dsq_insert, KF_RCU)
+BTF_ID_FLAGS(func, __scx_bpf_dsq_insert_vtime, KF_RCU)
 BTF_ID_FLAGS(func, scx_bpf_dsq_insert_vtime, KF_RCU)
 BTF_KFUNCS_END(scx_kfunc_ids_enqueue_dispatch)
 
