@@ -811,7 +811,7 @@ static int encode_message(struct qaic_device *qdev, struct manage_msg *user_msg,
 		}
 
 		if (ret)
-			break;
+			goto out;
 	}
 
 	if (user_len != user_msg->len)
