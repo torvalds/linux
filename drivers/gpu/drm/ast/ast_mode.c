@@ -370,12 +370,7 @@ static void ast_set_dclk_reg(struct ast_device *ast,
 			     struct drm_display_mode *mode,
 			     const struct ast_vbios_enhtable *vmode)
 {
-	const struct ast_vbios_dclk_info *clk_info;
-
-	if (IS_AST_GEN6(ast) || IS_AST_GEN7(ast))
-		clk_info = &ast_2500_dclk_table[vmode->dclk_index];
-	else
-		clk_info = &ast_2000_dclk_table[vmode->dclk_index];
+	const struct ast_vbios_dclk_info *clk_info = &ast->dclk_table[vmode->dclk_index];
 
 	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xc0, 0x00, clk_info->param1);
 	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xc1, 0x00, clk_info->param2);

@@ -174,6 +174,8 @@ struct ast_device {
 	enum ast_config_mode config_mode;
 	enum ast_chip chip;
 
+	const struct ast_vbios_dclk_info *dclk_table;
+
 	void __iomem	*vram;
 	unsigned long	vram_base;
 	unsigned long	vram_size;

@@ -78,6 +78,8 @@ struct drm_device *ast_2600_device_create(struct pci_dev *pdev,
 
 	ast_device_init(ast, chip, config_mode, regs, ioregs);
 
+	ast->dclk_table = ast_2500_dclk_table;
+
 	ast_2300_detect_tx_chip(ast);
 
 	switch (ast->tx_chip) {
