@@ -3012,6 +3012,7 @@ void cifs_setsize(struct inode *inode, loff_t offset)
 	spin_unlock(&inode->i_lock);
 	inode_set_mtime_to_ts(inode, inode_set_ctime_current(inode));
 	truncate_pagecache(inode, offset);
+	netfs_wait_for_outstanding_io(inode);
 }
 
 int cifs_file_set_size(const unsigned int xid, struct dentry *dentry,
