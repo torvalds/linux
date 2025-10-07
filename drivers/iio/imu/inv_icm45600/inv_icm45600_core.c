@@ -144,6 +144,12 @@ static const struct inv_icm45600_conf inv_icm45600_default_conf = {
 		.odr = INV_ICM45600_ODR_800HZ_LN,
 		.filter = INV_ICM45600_GYRO_LP_AVG_SEL_8X,
 	},
+	.accel = {
+		.mode = INV_ICM45600_SENSOR_MODE_OFF,
+		.fs = INV_ICM45686_ACCEL_FS_16G,
+		.odr = INV_ICM45600_ODR_800HZ_LN,
+		.filter = INV_ICM45600_ACCEL_LP_AVG_SEL_4X,
+	},
 };
 
 static const struct inv_icm45600_conf inv_icm45686_default_conf = {
@@ -153,12 +159,20 @@ static const struct inv_icm45600_conf inv_icm45686_default_conf = {
 		.odr = INV_ICM45600_ODR_800HZ_LN,
 		.filter = INV_ICM45600_GYRO_LP_AVG_SEL_8X,
 	},
+	.accel = {
+		.mode = INV_ICM45600_SENSOR_MODE_OFF,
+		.fs = INV_ICM45686_ACCEL_FS_32G,
+		.odr = INV_ICM45600_ODR_800HZ_LN,
+		.filter = INV_ICM45600_ACCEL_LP_AVG_SEL_4X,
+	},
 };
 
 const struct inv_icm45600_chip_info inv_icm45605_chip_info = {
 	.whoami = INV_ICM45600_WHOAMI_ICM45605,
 	.name = "icm45605",
 	.conf = &inv_icm45600_default_conf,
+	.accel_scales = (const int *)inv_icm45600_accel_scale,
+	.accel_scales_len = INV_ICM45600_ACCEL_FS_MAX,
 	.gyro_scales = (const int *)inv_icm45600_gyro_scale,
 	.gyro_scales_len = INV_ICM45600_GYRO_FS_MAX,
 };
@@ -168,6 +182,8 @@ const struct inv_icm45600_chip_info inv_icm45606_chip_info = {
 	.whoami = INV_ICM45600_WHOAMI_ICM45606,
 	.name = "icm45606",
 	.conf = &inv_icm45600_default_conf,
+	.accel_scales = (const int *)inv_icm45600_accel_scale,
+	.accel_scales_len = INV_ICM45600_ACCEL_FS_MAX,
 	.gyro_scales = (const int *)inv_icm45600_gyro_scale,
 	.gyro_scales_len = INV_ICM45600_GYRO_FS_MAX,
 };
@@ -177,6 +193,8 @@ const struct inv_icm45600_chip_info inv_icm45608_chip_info = {
 	.whoami = INV_ICM45600_WHOAMI_ICM45608,
 	.name = "icm45608",
 	.conf = &inv_icm45600_default_conf,
+	.accel_scales = (const int *)inv_icm45600_accel_scale,
+	.accel_scales_len = INV_ICM45600_ACCEL_FS_MAX,
 	.gyro_scales = (const int *)inv_icm45600_gyro_scale,
 	.gyro_scales_len = INV_ICM45600_GYRO_FS_MAX,
 };
@@ -186,6 +204,8 @@ const struct inv_icm45600_chip_info inv_icm45634_chip_info = {
 	.whoami = INV_ICM45600_WHOAMI_ICM45634,
 	.name = "icm45634",
 	.conf = &inv_icm45600_default_conf,
+	.accel_scales = (const int *)inv_icm45600_accel_scale,
+	.accel_scales_len = INV_ICM45600_ACCEL_FS_MAX,
 	.gyro_scales = (const int *)inv_icm45600_gyro_scale,
 	.gyro_scales_len = INV_ICM45600_GYRO_FS_MAX,
 };
@@ -195,6 +215,8 @@ const struct inv_icm45600_chip_info inv_icm45686_chip_info = {
 	.whoami = INV_ICM45600_WHOAMI_ICM45686,
 	.name = "icm45686",
 	.conf = &inv_icm45686_default_conf,
+	.accel_scales = (const int *)inv_icm45686_accel_scale,
+	.accel_scales_len = INV_ICM45686_ACCEL_FS_MAX,
 	.gyro_scales = (const int *)inv_icm45686_gyro_scale,
 	.gyro_scales_len = INV_ICM45686_GYRO_FS_MAX,
 };
@@ -204,6 +226,8 @@ const struct inv_icm45600_chip_info inv_icm45687_chip_info = {
 	.whoami = INV_ICM45600_WHOAMI_ICM45687,
 	.name = "icm45687",
 	.conf = &inv_icm45686_default_conf,
+	.accel_scales = (const int *)inv_icm45686_accel_scale,
+	.accel_scales_len = INV_ICM45686_ACCEL_FS_MAX,
 	.gyro_scales = (const int *)inv_icm45686_gyro_scale,
 	.gyro_scales_len = INV_ICM45686_GYRO_FS_MAX,
 };
@@ -213,6 +237,8 @@ const struct inv_icm45600_chip_info inv_icm45688p_chip_info = {
 	.whoami = INV_ICM45600_WHOAMI_ICM45688P,
 	.name = "icm45688p",
 	.conf = &inv_icm45686_default_conf,
+	.accel_scales = (const int *)inv_icm45686_accel_scale,
+	.accel_scales_len = INV_ICM45686_ACCEL_FS_MAX,
 	.gyro_scales = (const int *)inv_icm45686_gyro_scale,
 	.gyro_scales_len = INV_ICM45686_GYRO_FS_MAX,
 };
@@ -222,6 +248,8 @@ const struct inv_icm45600_chip_info inv_icm45689_chip_info = {
 	.whoami = INV_ICM45600_WHOAMI_ICM45689,
 	.name = "icm45689",
 	.conf = &inv_icm45686_default_conf,
+	.accel_scales = (const int *)inv_icm45686_accel_scale,
+	.accel_scales_len = INV_ICM45686_ACCEL_FS_MAX,
 	.gyro_scales = (const int *)inv_icm45686_gyro_scale,
 	.gyro_scales_len = INV_ICM45686_GYRO_FS_MAX,
 };
@@ -739,6 +767,10 @@ int inv_icm45600_core_probe(struct regmap *regmap, const struct inv_icm45600_chi
 	st->indio_gyro = inv_icm45600_gyro_init(st);
 	if (IS_ERR(st->indio_gyro))
 		return PTR_ERR(st->indio_gyro);
+
+	st->indio_accel = inv_icm45600_accel_init(st);
+	if (IS_ERR(st->indio_accel))
+		return PTR_ERR(st->indio_accel);
 
 	ret = inv_icm45600_irq_init(st, irq, irq_type, open_drain);
 	if (ret)

@@ -454,6 +454,7 @@ int inv_icm45600_buffer_fifo_read(struct inv_icm45600_state *st,
 int inv_icm45600_buffer_fifo_parse(struct inv_icm45600_state *st)
 {
 	struct inv_icm45600_sensor_state *gyro_st = iio_priv(st->indio_gyro);
+	struct inv_icm45600_sensor_state *accel_st = iio_priv(st->indio_accel);
 	struct inv_sensors_timestamp *ts;
 	int ret;
 
@@ -470,6 +471,16 @@ int inv_icm45600_buffer_fifo_parse(struct inv_icm45600_state *st)
 			return ret;
 	}
 
+	/* Handle accelerometer timestamp and FIFO data parsing. */
+	if (st->fifo.nb.accel > 0) {
+		ts = &accel_st->ts;
+		inv_sensors_timestamp_interrupt(ts, st->fifo.watermark.eff_accel,
+						st->timestamp.accel);
+		ret = inv_icm45600_accel_parse_fifo(st->indio_accel);
+		if (ret)
+			return ret;
+	}
+
 	return 0;
 }
 
@@ -477,6 +488,7 @@ int inv_icm45600_buffer_hwfifo_flush(struct inv_icm45600_state *st,
 				     unsigned int count)
 {
 	struct inv_icm45600_sensor_state *gyro_st = iio_priv(st->indio_gyro);
+	struct inv_icm45600_sensor_state *accel_st = iio_priv(st->indio_accel);
 	struct inv_sensors_timestamp *ts;
 	s64 gyro_ts, accel_ts;
 	int ret;
@@ -495,6 +507,14 @@ int inv_icm45600_buffer_hwfifo_flush(struct inv_icm45600_state *st,
 		ts = &gyro_st->ts;
 		inv_sensors_timestamp_interrupt(ts, st->fifo.nb.gyro, gyro_ts);
 		ret = inv_icm45600_gyro_parse_fifo(st->indio_gyro);
+		if (ret)
+			return ret;
+	}
+
+	if (st->fifo.nb.accel > 0) {
+		ts = &accel_st->ts;
+		inv_sensors_timestamp_interrupt(ts, st->fifo.nb.accel, accel_ts);
+		ret = inv_icm45600_accel_parse_fifo(st->indio_accel);
 		if (ret)
 			return ret;
 	}

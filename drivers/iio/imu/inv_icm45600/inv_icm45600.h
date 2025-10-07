@@ -113,6 +113,8 @@ struct inv_icm45600_chip_info {
 	u8 whoami;
 	const char *name;
 	const struct inv_icm45600_conf *conf;
+	const int *accel_scales;
+	const int accel_scales_len;
 	const int *gyro_scales;
 	const int gyro_scales_len;
 };
@@ -126,6 +128,8 @@ extern const struct inv_icm45600_chip_info inv_icm45687_chip_info;
 extern const struct inv_icm45600_chip_info inv_icm45688p_chip_info;
 extern const struct inv_icm45600_chip_info inv_icm45689_chip_info;
 
+extern const int inv_icm45600_accel_scale[][2];
+extern const int inv_icm45686_accel_scale[][2];
 extern const int inv_icm45600_gyro_scale[][2];
 extern const int inv_icm45686_gyro_scale[][2];
 
@@ -373,5 +377,9 @@ int inv_icm45600_core_probe(struct regmap *regmap,
 struct iio_dev *inv_icm45600_gyro_init(struct inv_icm45600_state *st);
 
 int inv_icm45600_gyro_parse_fifo(struct iio_dev *indio_dev);
+
+struct iio_dev *inv_icm45600_accel_init(struct inv_icm45600_state *st);
+
+int inv_icm45600_accel_parse_fifo(struct iio_dev *indio_dev);
 
 #endif
