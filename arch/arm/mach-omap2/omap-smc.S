@@ -32,7 +32,7 @@ ENTRY(_omap_smc1)
 ENDPROC(_omap_smc1)
 
 /**
- * u32 omap_smc2(u32 id, u32 falg, u32 pargs)
+ * u32 omap_smc2(u32 id, u32 flag, u32 pargs)
  * Low level common routine for secure HAL and PPA APIs.
  * @id: Application ID of HAL APIs
  * @flag: Flag to indicate the criticality of operation
