@@ -1525,4 +1525,8 @@ static inline struct ath12k_dp *ath12k_ab_to_dp(struct ath12k_base *ab)
 	return ab->dp;
 }
 
+static inline struct ath12k *ath12k_pdev_dp_to_ar(struct ath12k_pdev_dp *dp)
+{
+	return container_of(dp, struct ath12k, dp);
+}
 #endif /* _CORE_H_ */

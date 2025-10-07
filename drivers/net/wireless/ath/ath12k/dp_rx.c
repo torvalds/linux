@@ -740,7 +740,7 @@ struct sk_buff *ath12k_dp_rx_get_msdu_last_buf(struct sk_buff_head *msdu_list,
 	return NULL;
 }
 
-int ath12k_dp_rx_crypto_mic_len(struct ath12k *ar, enum hal_encrypt_type enctype)
+int ath12k_dp_rx_crypto_mic_len(struct ath12k_dp *dp, enum hal_encrypt_type enctype)
 {
 	switch (enctype) {
 	case HAL_ENCRYPT_TYPE_OPEN:
@@ -762,11 +762,11 @@ int ath12k_dp_rx_crypto_mic_len(struct ath12k *ar, enum hal_encrypt_type enctype
 		break;
 	}
 
-	ath12k_warn(ar->ab, "unsupported encryption type %d for mic len\n", enctype);
+	ath12k_warn(dp->ab, "unsupported encryption type %d for mic len\n", enctype);
 	return 0;
 }
 
-static int ath12k_dp_rx_crypto_param_len(struct ath12k *ar,
+static int ath12k_dp_rx_crypto_param_len(struct ath12k_pdev_dp *dp_pdev,
 					 enum hal_encrypt_type enctype)
 {
 	switch (enctype) {
@@ -790,11 +790,11 @@ static int ath12k_dp_rx_crypto_param_len(struct ath12k *ar,
 		break;
 	}
 
-	ath12k_warn(ar->ab, "unsupported encryption type %d\n", enctype);
+	ath12k_warn(dp_pdev->dp->ab, "unsupported encryption type %d\n", enctype);
 	return 0;
 }
 
-static int ath12k_dp_rx_crypto_icv_len(struct ath12k *ar,
+static int ath12k_dp_rx_crypto_icv_len(struct ath12k_pdev_dp *dp_pdev,
 				       enum hal_encrypt_type enctype)
 {
 	switch (enctype) {
@@ -815,15 +815,17 @@ static int ath12k_dp_rx_crypto_icv_len(struct ath12k *ar,
 		break;
 	}
 
-	ath12k_warn(ar->ab, "unsupported encryption type %d\n", enctype);
+	ath12k_warn(dp_pdev->dp->ab, "unsupported encryption type %d\n", enctype);
 	return 0;
 }
 
-static void ath12k_dp_rx_h_undecap_nwifi(struct ath12k *ar,
+static void ath12k_dp_rx_h_undecap_nwifi(struct ath12k_pdev_dp *dp_pdev,
 					 struct sk_buff *msdu,
 					 enum hal_encrypt_type enctype,
 					 struct hal_rx_desc_data *rx_info)
 {
+	struct ath12k_dp *dp = dp_pdev->dp;
+	struct ath12k_base *ab = dp->ab;
 	struct ath12k_skb_rxcb *rxcb = ATH12K_SKB_RXCB(msdu);
 	u8 decap_hdr[DP_MAX_NWIFI_HDR_LEN];
 	struct ieee80211_hdr *hdr;
@@ -854,8 +856,9 @@ static void ath12k_dp_rx_h_undecap_nwifi(struct ath12k *ar,
 
 	/* Rebuild crypto header for mac80211 use */
 	if (!(rx_info->rx_status->flag & RX_FLAG_IV_STRIPPED)) {
-		crypto_hdr = skb_push(msdu, ath12k_dp_rx_crypto_param_len(ar, enctype));
-		ath12k_dp_rx_desc_get_crypto_header(ar->ab,
+		crypto_hdr = skb_push(msdu,
+				      ath12k_dp_rx_crypto_param_len(dp_pdev, enctype));
+		ath12k_dp_rx_desc_get_crypto_header(ab,
 						    rxcb->rx_desc, crypto_hdr,
 						    enctype);
 	}
@@ -866,11 +869,13 @@ static void ath12k_dp_rx_h_undecap_nwifi(struct ath12k *ar,
 	memcpy(skb_push(msdu, hdr_len), decap_hdr, hdr_len);
 }
 
-static void ath12k_dp_rx_h_undecap_raw(struct ath12k *ar, struct sk_buff *msdu,
+static void ath12k_dp_rx_h_undecap_raw(struct ath12k_pdev_dp *dp_pdev,
+				       struct sk_buff *msdu,
 				       enum hal_encrypt_type enctype,
 				       struct ieee80211_rx_status *status,
 				       bool decrypted)
 {
+	struct ath12k_dp *dp = dp_pdev->dp;
 	struct ath12k_skb_rxcb *rxcb = ATH12K_SKB_RXCB(msdu);
 	struct ieee80211_hdr *hdr;
 	size_t hdr_len;
@@ -892,20 +897,20 @@ static void ath12k_dp_rx_h_undecap_raw(struct ath12k *ar, struct sk_buff *msdu,
 	/* Tail */
 	if (status->flag & RX_FLAG_IV_STRIPPED) {
 		skb_trim(msdu, msdu->len -
-			 ath12k_dp_rx_crypto_mic_len(ar, enctype));
+			 ath12k_dp_rx_crypto_mic_len(dp, enctype));
 
 		skb_trim(msdu, msdu->len -
-			 ath12k_dp_rx_crypto_icv_len(ar, enctype));
+			 ath12k_dp_rx_crypto_icv_len(dp_pdev, enctype));
 	} else {
 		/* MIC */
 		if (status->flag & RX_FLAG_MIC_STRIPPED)
 			skb_trim(msdu, msdu->len -
-				 ath12k_dp_rx_crypto_mic_len(ar, enctype));
+				 ath12k_dp_rx_crypto_mic_len(dp, enctype));
 
 		/* ICV */
 		if (status->flag & RX_FLAG_ICV_STRIPPED)
 			skb_trim(msdu, msdu->len -
-				 ath12k_dp_rx_crypto_icv_len(ar, enctype));
+				 ath12k_dp_rx_crypto_icv_len(dp_pdev, enctype));
 	}
 
 	/* MMIC */
@@ -917,21 +922,22 @@ static void ath12k_dp_rx_h_undecap_raw(struct ath12k *ar, struct sk_buff *msdu,
 	/* Head */
 	if (status->flag & RX_FLAG_IV_STRIPPED) {
 		hdr_len = ieee80211_hdrlen(hdr->frame_control);
-		crypto_len = ath12k_dp_rx_crypto_param_len(ar, enctype);
+		crypto_len = ath12k_dp_rx_crypto_param_len(dp_pdev, enctype);
 
 		memmove(msdu->data + crypto_len, msdu->data, hdr_len);
 		skb_pull(msdu, crypto_len);
 	}
 }
 
-static void ath12k_get_dot11_hdr_from_rx_desc(struct ath12k *ar,
+static void ath12k_get_dot11_hdr_from_rx_desc(struct ath12k_pdev_dp *dp_pdev,
 					      struct sk_buff *msdu,
 					      struct ath12k_skb_rxcb *rxcb,
 					      enum hal_encrypt_type enctype,
 					      struct hal_rx_desc_data *rx_info)
 {
 	struct hal_rx_desc *rx_desc = rxcb->rx_desc;
-	struct ath12k_base *ab = ar->ab;
+	struct ath12k_dp *dp = dp_pdev->dp;
+	struct ath12k_base *ab = dp->ab;
 	size_t hdr_len, crypto_len;
 	struct ieee80211_hdr hdr;
 	__le16 qos_ctl;
@@ -941,7 +947,7 @@ static void ath12k_get_dot11_hdr_from_rx_desc(struct ath12k *ar,
 	hdr_len = ieee80211_hdrlen(hdr.frame_control);
 
 	if (!(rx_info->rx_status->flag & RX_FLAG_IV_STRIPPED)) {
-		crypto_len = ath12k_dp_rx_crypto_param_len(ar, enctype);
+		crypto_len = ath12k_dp_rx_crypto_param_len(dp_pdev, enctype);
 		crypto_hdr = skb_push(msdu, crypto_len);
 		ath12k_dp_rx_desc_get_crypto_header(ab, rx_desc, crypto_hdr, enctype);
 	}
@@ -964,7 +970,7 @@ static void ath12k_get_dot11_hdr_from_rx_desc(struct ath12k *ar,
 	}
 }
 
-static void ath12k_dp_rx_h_undecap_eth(struct ath12k *ar,
+static void ath12k_dp_rx_h_undecap_eth(struct ath12k_pdev_dp *dp_pdev,
 				       struct sk_buff *msdu,
 				       enum hal_encrypt_type enctype,
 				       struct hal_rx_desc_data *rx_info)
@@ -983,7 +989,7 @@ static void ath12k_dp_rx_h_undecap_eth(struct ath12k *ar,
 	skb_pull(msdu, sizeof(*eth));
 	memcpy(skb_push(msdu, sizeof(rfc)), &rfc,
 	       sizeof(rfc));
-	ath12k_get_dot11_hdr_from_rx_desc(ar, msdu, rxcb, enctype, rx_info);
+	ath12k_get_dot11_hdr_from_rx_desc(dp_pdev, msdu, rxcb, enctype, rx_info);
 
 	/* original 802.11 header has a different DA and in
 	 * case of 4addr it may also have different SA
@@ -993,7 +999,7 @@ static void ath12k_dp_rx_h_undecap_eth(struct ath12k *ar,
 	ether_addr_copy(ieee80211_get_SA(hdr), sa);
 }
 
-void ath12k_dp_rx_h_undecap(struct ath12k *ar, struct sk_buff *msdu,
+void ath12k_dp_rx_h_undecap(struct ath12k_pdev_dp *dp_pdev, struct sk_buff *msdu,
 			    struct hal_rx_desc *rx_desc,
 			    enum hal_encrypt_type enctype,
 			    bool decrypted,
@@ -1003,10 +1009,10 @@ void ath12k_dp_rx_h_undecap(struct ath12k *ar, struct sk_buff *msdu,
 
 	switch (rx_info->decap_type) {
 	case DP_RX_DECAP_TYPE_NATIVE_WIFI:
-		ath12k_dp_rx_h_undecap_nwifi(ar, msdu, enctype, rx_info);
+		ath12k_dp_rx_h_undecap_nwifi(dp_pdev, msdu, enctype, rx_info);
 		break;
 	case DP_RX_DECAP_TYPE_RAW:
-		ath12k_dp_rx_h_undecap_raw(ar, msdu, enctype, rx_info->rx_status,
+		ath12k_dp_rx_h_undecap_raw(dp_pdev, msdu, enctype, rx_info->rx_status,
 					   decrypted);
 		break;
 	case DP_RX_DECAP_TYPE_ETHERNET2_DIX:
@@ -1015,7 +1021,7 @@ void ath12k_dp_rx_h_undecap(struct ath12k *ar, struct sk_buff *msdu,
 		/* mac80211 allows fast path only for authorized STA */
 		if (ehdr->h_proto == cpu_to_be16(ETH_P_PAE)) {
 			ATH12K_SKB_RXCB(msdu)->is_eapol = true;
-			ath12k_dp_rx_h_undecap_eth(ar, msdu, enctype, rx_info);
+			ath12k_dp_rx_h_undecap_eth(dp_pdev, msdu, enctype, rx_info);
 			break;
 		}
 
@@ -1023,7 +1029,7 @@ void ath12k_dp_rx_h_undecap(struct ath12k *ar, struct sk_buff *msdu,
 		 * remove eth header and add 802.11 header.
 		 */
 		if (ATH12K_SKB_RXCB(msdu)->is_mcbc && decrypted)
-			ath12k_dp_rx_h_undecap_eth(ar, msdu, enctype, rx_info);
+			ath12k_dp_rx_h_undecap_eth(dp_pdev, msdu, enctype, rx_info);
 		break;
 	case DP_RX_DECAP_TYPE_8023:
 		/* TODO: Handle undecap for these formats */
@@ -1052,18 +1058,22 @@ ath12k_dp_rx_h_find_peer(struct ath12k_base *ab, struct sk_buff *msdu,
 	return peer;
 }
 
-static void ath12k_dp_rx_h_rate(struct ath12k *ar, struct hal_rx_desc_data *rx_info)
+static void ath12k_dp_rx_h_rate(struct ath12k_pdev_dp *dp_pdev,
+				struct hal_rx_desc_data *rx_info)
 {
+	struct ath12k_dp *dp = dp_pdev->dp;
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_rx_status *rx_status = rx_info->rx_status;
 	enum rx_msdu_start_pkt_type pkt_type = rx_info->pkt_type;
 	u8 bw = rx_info->bw, sgi = rx_info->sgi;
 	u8 rate_mcs = rx_info->rate_mcs, nss = rx_info->nss;
 	bool is_cck;
+	struct ath12k *ar;
 
 	switch (pkt_type) {
 	case RX_MSDU_START_PKT_TYPE_11A:
 	case RX_MSDU_START_PKT_TYPE_11B:
+		ar = ath12k_pdev_dp_to_ar(dp_pdev);
 		is_cck = (pkt_type == RX_MSDU_START_PKT_TYPE_11B);
 		sband = &ar->mac.sbands[rx_status->band];
 		rx_status->rate_idx = ath12k_mac_hw_rate_to_idx(sband, rate_mcs,
@@ -1072,7 +1082,7 @@ static void ath12k_dp_rx_h_rate(struct ath12k *ar, struct hal_rx_desc_data *rx_i
 	case RX_MSDU_START_PKT_TYPE_11N:
 		rx_status->encoding = RX_ENC_HT;
 		if (rate_mcs > ATH12K_HT_MCS_MAX) {
-			ath12k_warn(ar->ab,
+			ath12k_warn(dp->ab,
 				    "Received with invalid mcs in HT mode %d\n",
 				     rate_mcs);
 			break;
@@ -1086,7 +1096,7 @@ static void ath12k_dp_rx_h_rate(struct ath12k *ar, struct hal_rx_desc_data *rx_i
 		rx_status->encoding = RX_ENC_VHT;
 		rx_status->rate_idx = rate_mcs;
 		if (rate_mcs > ATH12K_VHT_MCS_MAX) {
-			ath12k_warn(ar->ab,
+			ath12k_warn(dp->ab,
 				    "Received with invalid mcs in VHT mode %d\n",
 				     rate_mcs);
 			break;
@@ -1099,7 +1109,7 @@ static void ath12k_dp_rx_h_rate(struct ath12k *ar, struct hal_rx_desc_data *rx_i
 	case RX_MSDU_START_PKT_TYPE_11AX:
 		rx_status->rate_idx = rate_mcs;
 		if (rate_mcs > ATH12K_HE_MCS_MAX) {
-			ath12k_warn(ar->ab,
+			ath12k_warn(dp->ab,
 				    "Received with invalid mcs in HE mode %d\n",
 				    rate_mcs);
 			break;
@@ -1113,7 +1123,7 @@ static void ath12k_dp_rx_h_rate(struct ath12k *ar, struct hal_rx_desc_data *rx_i
 		rx_status->rate_idx = rate_mcs;
 
 		if (rate_mcs > ATH12K_EHT_MCS_MAX) {
-			ath12k_warn(ar->ab,
+			ath12k_warn(dp->ab,
 				    "Received with invalid mcs in EHT mode %d\n",
 				    rate_mcs);
 			break;
@@ -1129,7 +1139,8 @@ static void ath12k_dp_rx_h_rate(struct ath12k *ar, struct hal_rx_desc_data *rx_i
 	}
 }
 
-void ath12k_dp_rx_h_ppdu(struct ath12k *ar, struct hal_rx_desc_data *rx_info)
+void ath12k_dp_rx_h_ppdu(struct ath12k_pdev_dp *dp_pdev,
+			 struct hal_rx_desc_data *rx_info)
 {
 	struct ieee80211_rx_status *rx_status = rx_info->rx_status;
 	u8 channel_num;
@@ -1158,6 +1169,8 @@ void ath12k_dp_rx_h_ppdu(struct ath12k *ar, struct hal_rx_desc_data *rx_info)
 	} else if (channel_num >= 36 && channel_num <= 173) {
 		rx_status->band = NL80211_BAND_5GHZ;
 	} else {
+		struct ath12k *ar = ath12k_pdev_dp_to_ar(dp_pdev);
+
 		spin_lock_bh(&ar->data_lock);
 		channel = ar->rx_channel;
 		if (channel) {
@@ -1172,14 +1185,15 @@ void ath12k_dp_rx_h_ppdu(struct ath12k *ar, struct hal_rx_desc_data *rx_info)
 		rx_status->freq = ieee80211_channel_to_frequency(channel_num,
 								 rx_status->band);
 
-	ath12k_dp_rx_h_rate(ar, rx_info);
+	ath12k_dp_rx_h_rate(dp_pdev, rx_info);
 }
 
-void ath12k_dp_rx_deliver_msdu(struct ath12k *ar, struct napi_struct *napi,
+void ath12k_dp_rx_deliver_msdu(struct ath12k_pdev_dp *dp_pdev, struct napi_struct *napi,
 			       struct sk_buff *msdu,
 			       struct hal_rx_desc_data *rx_info)
 {
-	struct ath12k_base *ab = ar->ab;
+	struct ath12k_dp *dp = dp_pdev->dp;
+	struct ath12k_base *ab = dp->ab;
 	struct ieee80211_rx_status *rx_status;
 	struct ieee80211_sta *pubsta;
 	struct ath12k_peer *peer;
@@ -1244,7 +1258,7 @@ void ath12k_dp_rx_deliver_msdu(struct ath12k *ar, struct napi_struct *napi,
 	    !(is_mcbc && rx_status->flag & RX_FLAG_DECRYPTED))
 		rx_status->flag |= RX_FLAG_8023;
 
-	ieee80211_rx_napi(ath12k_ar_to_hw(ar), pubsta, msdu, napi);
+	ieee80211_rx_napi(ath12k_pdev_dp_to_hw(dp_pdev), pubsta, msdu, napi);
 }
 
 bool ath12k_dp_rx_check_nwifi_hdr_len_valid(struct ath12k_base *ab,
@@ -1390,13 +1404,14 @@ out:
 	return ret;
 }
 
-void ath12k_dp_rx_h_undecap_frag(struct ath12k *ar, struct sk_buff *msdu,
+void ath12k_dp_rx_h_undecap_frag(struct ath12k_pdev_dp *dp_pdev, struct sk_buff *msdu,
 				 enum hal_encrypt_type enctype, u32 flags)
 {
+	struct ath12k_dp *dp = dp_pdev->dp;
 	struct ieee80211_hdr *hdr;
 	size_t hdr_len;
 	size_t crypto_len;
-	u32 hal_rx_desc_sz = ar->ab->hal.hal_desc_sz;
+	u32 hal_rx_desc_sz = dp->ab->hal.hal_desc_sz;
 
 	if (!flags)
 		return;
@@ -1405,15 +1420,15 @@ void ath12k_dp_rx_h_undecap_frag(struct ath12k *ar, struct sk_buff *msdu,
 
 	if (flags & RX_FLAG_MIC_STRIPPED)
 		skb_trim(msdu, msdu->len -
-			 ath12k_dp_rx_crypto_mic_len(ar, enctype));
+			 ath12k_dp_rx_crypto_mic_len(dp, enctype));
 
 	if (flags & RX_FLAG_ICV_STRIPPED)
 		skb_trim(msdu, msdu->len -
-			 ath12k_dp_rx_crypto_icv_len(ar, enctype));
+			 ath12k_dp_rx_crypto_icv_len(dp_pdev, enctype));
 
 	if (flags & RX_FLAG_IV_STRIPPED) {
 		hdr_len = ieee80211_hdrlen(hdr->frame_control);
-		crypto_len = ath12k_dp_rx_crypto_param_len(ar, enctype);
+		crypto_len = ath12k_dp_rx_crypto_param_len(dp_pdev, enctype);
 
 		memmove(msdu->data + hal_rx_desc_sz + crypto_len,
 			msdu->data + hal_rx_desc_sz, hdr_len);
@@ -1449,12 +1464,12 @@ void ath12k_dp_rx_h_sort_frags(struct ath12k_base *ab,
 	__skb_queue_tail(frag_list, cur_frag);
 }
 
-u64 ath12k_dp_rx_h_get_pn(struct ath12k *ar, struct sk_buff *skb)
+u64 ath12k_dp_rx_h_get_pn(struct ath12k_dp *dp, struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr;
 	u64 pn = 0;
 	u8 *ehdr;
-	u32 hal_rx_desc_sz = ar->ab->hal.hal_desc_sz;
+	u32 hal_rx_desc_sz = dp->ab->hal.hal_desc_sz;
 
 	hdr = (struct ieee80211_hdr *)(skb->data + hal_rx_desc_sz);
 	ehdr = skb->data + hal_rx_desc_sz + ieee80211_hdrlen(hdr->frame_control);

@@ -888,7 +888,16 @@ fail_desc_bank_free:
 
 void ath12k_dp_pdev_free(struct ath12k_base *ab)
 {
+	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
+	struct ath12k *ar;
 	int i;
+
+	for (i = 0; i < ab->num_radios; i++) {
+		ar = ab->pdevs[i].ar;
+		rcu_assign_pointer(dp->dp_pdevs[ar->pdev_idx], NULL);
+	}
+
+	synchronize_rcu();
 
 	for (i = 0; i < ab->num_radios; i++)
 		ath12k_dp_rx_pdev_free(ab, i);
@@ -911,6 +920,8 @@ void ath12k_dp_hal_rx_desc_init(struct ath12k_base *ab)
 
 int ath12k_dp_pdev_alloc(struct ath12k_base *ab)
 {
+	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
+	struct ath12k_pdev_dp *dp_pdev;
 	struct ath12k *ar;
 	int ret;
 	int i;
@@ -922,6 +933,13 @@ int ath12k_dp_pdev_alloc(struct ath12k_base *ab)
 	/* TODO: Per-pdev rx ring unlike tx ring which is mapped to different AC's */
 	for (i = 0; i < ab->num_radios; i++) {
 		ar = ab->pdevs[i].ar;
+
+		dp_pdev = &ar->dp;
+
+		dp_pdev->hw = ar->ah->hw;
+		dp_pdev->dp = dp;
+		dp_pdev->hw_link_id = ar->hw_link_id;
+
 		ret = ath12k_dp_rx_pdev_alloc(ab, i);
 		if (ret) {
 			ath12k_warn(ab, "failed to allocate pdev rx for pdev_id :%d\n",
@@ -933,6 +951,11 @@ int ath12k_dp_pdev_alloc(struct ath12k_base *ab)
 			ath12k_warn(ab, "failed to initialize mon pdev %d\n", i);
 			goto err;
 		}
+	}
+
+	for (i = 0; i < ab->num_radios; i++) {
+		ar = ab->pdevs[i].ar;
+		rcu_assign_pointer(dp->dp_pdevs[ar->pdev_idx], &ar->dp);
 	}
 
 	return 0;

@@ -151,6 +151,11 @@ struct ath12k_pdev_dp {
 	u32 mac_id;
 	atomic_t num_tx_pending;
 	wait_queue_head_t tx_empty_waitq;
+
+	struct ath12k_dp *dp;
+	struct ieee80211_hw *hw;
+	u8 hw_link_id;
+
 	struct dp_srng rxdma_mon_dst_ring[MAX_RXDMA_PER_PDEV];
 	struct dp_srng tx_mon_dst_ring[MAX_RXDMA_PER_PDEV];
 
@@ -437,6 +442,21 @@ struct ath12k_dp {
 	const struct ath12k_hw_params *hw_params;
 	struct device *dev;
 
+	/* RCU on dp_pdevs[] provides a teardown synchronization mechanism,
+	 * ensuring in-flight data path readers complete before reclaim. Writers
+	 * update internal fields under their own synchronization, while readers of
+	 * internal fields may perform lockless read if occasional inconsistency
+	 * is acceptable or use additional synchronization for a coherent view.
+	 *
+	 * RCU is used for dp_pdevs[] at this stage to align with
+	 * ab->pdevs_active[]. However, if the teardown paths ensure quiescence,
+	 * both dp_pdevs[] and pdevs_active[] can be converted to plain pointers,
+	 * removing RCU synchronize overhead.
+	 *
+	 * TODO: evaluate removal of RCU from dp_pdevs in the future
+	 */
+	struct ath12k_pdev_dp __rcu *dp_pdevs[MAX_RADIOS];
+
 	struct ath12k_hw_group *ag;
 	u8 device_id;
 
@@ -460,6 +480,21 @@ ath12k_dp_service_srng(struct ath12k_dp *dp, struct ath12k_ext_irq_grp *irq_grp,
 		       int budget)
 {
 	return dp->ops->service_srng(dp, irq_grp, budget);
+}
+
+static inline struct ieee80211_hw *
+ath12k_pdev_dp_to_hw(struct ath12k_pdev_dp *pdev)
+{
+	return pdev->hw;
+}
+
+static inline struct ath12k_pdev_dp *
+ath12k_dp_to_pdev_dp(struct ath12k_dp *dp, u8 pdev_idx)
+{
+	RCU_LOCKDEP_WARN(!rcu_read_lock_held(),
+			 "ath12k dp to dp pdev called without rcu lock");
+
+	return rcu_dereference(dp->dp_pdevs[pdev_idx]);
 }
 
 void ath12k_dp_vdev_tx_attach(struct ath12k *ar, struct ath12k_link_vif *arvif);

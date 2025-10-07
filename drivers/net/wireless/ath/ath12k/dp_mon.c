@@ -1452,7 +1452,7 @@ ath12k_dp_mon_parse_status_msdu_end(struct ath12k_mon_data *pmon,
 }
 
 static enum hal_rx_mon_status
-ath12k_dp_mon_rx_parse_status_tlv(struct ath12k *ar,
+ath12k_dp_mon_rx_parse_status_tlv(struct ath12k_pdev_dp *dp_pdev,
 				  struct ath12k_mon_data *pmon,
 				  const struct hal_tlv_64_hdr *tlv)
 {
@@ -1725,8 +1725,7 @@ ath12k_dp_mon_rx_parse_status_tlv(struct ath12k *ar,
 }
 
 static void
-ath12k_dp_mon_fill_rx_stats_info(struct ath12k *ar,
-				 struct hal_rx_mon_ppdu_info *ppdu_info,
+ath12k_dp_mon_fill_rx_stats_info(struct hal_rx_mon_ppdu_info *ppdu_info,
 				 struct ieee80211_rx_status *rx_status)
 {
 	u32 center_freq = ppdu_info->freq;
@@ -1871,10 +1870,12 @@ void ath12k_dp_mon_next_link_desc_get(struct hal_rx_msdu_link *msdu_link,
 }
 
 static void
-ath12k_dp_mon_fill_rx_rate(struct ath12k *ar,
+ath12k_dp_mon_fill_rx_rate(struct ath12k_pdev_dp *dp_pdev,
 			   struct hal_rx_mon_ppdu_info *ppdu_info,
 			   struct ieee80211_rx_status *rx_status)
 {
+	struct ath12k_dp *dp = dp_pdev->dp;
+	struct ath12k_base *ab = dp->ab;
 	struct ieee80211_supported_band *sband;
 	enum rx_msdu_start_pkt_type pkt_type;
 	u8 rate_mcs, nss, sgi;
@@ -1890,6 +1891,8 @@ ath12k_dp_mon_fill_rx_rate(struct ath12k *ar,
 	case RX_MSDU_START_PKT_TYPE_11B:
 		is_cck = (pkt_type == RX_MSDU_START_PKT_TYPE_11B);
 		if (rx_status->band < NUM_NL80211_BANDS) {
+			struct ath12k *ar = ath12k_pdev_dp_to_ar(dp_pdev);
+
 			sband = &ar->mac.sbands[rx_status->band];
 			rx_status->rate_idx = ath12k_mac_hw_rate_to_idx(sband, rate_mcs,
 									is_cck);
@@ -1898,7 +1901,7 @@ ath12k_dp_mon_fill_rx_rate(struct ath12k *ar,
 	case RX_MSDU_START_PKT_TYPE_11N:
 		rx_status->encoding = RX_ENC_HT;
 		if (rate_mcs > ATH12K_HT_MCS_MAX) {
-			ath12k_warn(ar->ab,
+			ath12k_warn(ab,
 				    "Received with invalid mcs in HT mode %d\n",
 				     rate_mcs);
 			break;
@@ -1911,7 +1914,7 @@ ath12k_dp_mon_fill_rx_rate(struct ath12k *ar,
 		rx_status->encoding = RX_ENC_VHT;
 		rx_status->rate_idx = rate_mcs;
 		if (rate_mcs > ATH12K_VHT_MCS_MAX) {
-			ath12k_warn(ar->ab,
+			ath12k_warn(ab,
 				    "Received with invalid mcs in VHT mode %d\n",
 				     rate_mcs);
 			break;
@@ -1922,7 +1925,7 @@ ath12k_dp_mon_fill_rx_rate(struct ath12k *ar,
 	case RX_MSDU_START_PKT_TYPE_11AX:
 		rx_status->rate_idx = rate_mcs;
 		if (rate_mcs > ATH12K_HE_MCS_MAX) {
-			ath12k_warn(ar->ab,
+			ath12k_warn(ab,
 				    "Received with invalid mcs in HE mode %d\n",
 				    rate_mcs);
 			break;
@@ -1933,7 +1936,7 @@ ath12k_dp_mon_fill_rx_rate(struct ath12k *ar,
 	case RX_MSDU_START_PKT_TYPE_11BE:
 		rx_status->rate_idx = rate_mcs;
 		if (rate_mcs > ATH12K_EHT_MCS_MAX) {
-			ath12k_warn(ar->ab,
+			ath12k_warn(ab,
 				    "Received with invalid mcs in EHT mode %d\n",
 				    rate_mcs);
 			break;
@@ -1942,24 +1945,24 @@ ath12k_dp_mon_fill_rx_rate(struct ath12k *ar,
 		rx_status->he_gi = ath12k_he_gi_to_nl80211_he_gi(sgi);
 		break;
 	default:
-		ath12k_dbg(ar->ab, ATH12K_DBG_DATA,
+		ath12k_dbg(ab, ATH12K_DBG_DATA,
 			   "monitor receives invalid preamble type %d",
 			    pkt_type);
 		break;
 	}
 }
 
-static void ath12k_dp_mon_rx_msdus_set_payload(struct ath12k *ar,
+static void ath12k_dp_mon_rx_msdus_set_payload(struct ath12k_base *ab,
 					       struct sk_buff *head_msdu,
 					       struct sk_buff *tail_msdu)
 {
 	u32 rx_pkt_offset, l2_hdr_offset, total_offset;
 
-	rx_pkt_offset = ar->ab->hal.hal_desc_sz;
+	rx_pkt_offset = ab->hal.hal_desc_sz;
 	l2_hdr_offset =
-		ath12k_dp_rx_h_l3pad(ar->ab, (struct hal_rx_desc *)tail_msdu->data);
+		ath12k_dp_rx_h_l3pad(ab, (struct hal_rx_desc *)tail_msdu->data);
 
-	if (ar->ab->hw_params->rxdma1_enable)
+	if (ab->hw_params->rxdma1_enable)
 		total_offset = ATH12K_MON_RX_PKT_OFFSET;
 	else
 		total_offset = rx_pkt_offset + l2_hdr_offset;
@@ -1968,12 +1971,13 @@ static void ath12k_dp_mon_rx_msdus_set_payload(struct ath12k *ar,
 }
 
 static struct sk_buff *
-ath12k_dp_mon_rx_merg_msdus(struct ath12k *ar,
+ath12k_dp_mon_rx_merg_msdus(struct ath12k_pdev_dp *dp_pdev,
 			    struct dp_mon_mpdu *mon_mpdu,
 			    struct hal_rx_mon_ppdu_info *ppdu_info,
 			    struct ieee80211_rx_status *rxs)
 {
-	struct ath12k_base *ab = ar->ab;
+	struct ath12k_dp *dp = dp_pdev->dp;
+	struct ath12k_base *ab = dp->ab;
 	struct sk_buff *msdu, *mpdu_buf, *prev_buf, *head_frag_list;
 	struct sk_buff *head_msdu, *tail_msdu;
 	struct hal_rx_desc *rx_desc;
@@ -1990,11 +1994,13 @@ ath12k_dp_mon_rx_merg_msdus(struct ath12k *ar,
 	if (!head_msdu || !tail_msdu)
 		goto err_merge_fail;
 
-	ath12k_dp_mon_fill_rx_stats_info(ar, ppdu_info, rxs);
+	ath12k_dp_mon_fill_rx_stats_info(ppdu_info, rxs);
 
 	if (unlikely(rxs->band == NUM_NL80211_BANDS ||
-		     !ath12k_ar_to_hw(ar)->wiphy->bands[rxs->band])) {
-		ath12k_dbg(ar->ab, ATH12K_DBG_DATA,
+		     !ath12k_pdev_dp_to_hw(dp_pdev)->wiphy->bands[rxs->band])) {
+		struct ath12k *ar = ath12k_pdev_dp_to_ar(dp_pdev);
+
+		ath12k_dbg(ab, ATH12K_DBG_DATA,
 			   "sband is NULL for status band %d channel_num %d center_freq %d pdev_id %d\n",
 			   rxs->band, channel_num, ppdu_info->freq, ar->pdev_idx);
 
@@ -2012,17 +2018,17 @@ ath12k_dp_mon_rx_merg_msdus(struct ath12k *ar,
 		rxs->freq = ieee80211_channel_to_frequency(channel_num,
 							   rxs->band);
 
-	ath12k_dp_mon_fill_rx_rate(ar, ppdu_info, rxs);
+	ath12k_dp_mon_fill_rx_rate(dp_pdev, ppdu_info, rxs);
 
 	if (decap_format == DP_RX_DECAP_TYPE_RAW) {
-		ath12k_dp_mon_rx_msdus_set_payload(ar, head_msdu, tail_msdu);
+		ath12k_dp_mon_rx_msdus_set_payload(ab, head_msdu, tail_msdu);
 
 		prev_buf = head_msdu;
 		msdu = head_msdu->next;
 		head_frag_list = NULL;
 
 		while (msdu) {
-			ath12k_dp_mon_rx_msdus_set_payload(ar, head_msdu, tail_msdu);
+			ath12k_dp_mon_rx_msdus_set_payload(ab, head_msdu, tail_msdu);
 
 			if (!head_frag_list)
 				head_frag_list = msdu;
@@ -2057,7 +2063,7 @@ ath12k_dp_mon_rx_merg_msdus(struct ath12k *ar,
 		msdu = head_msdu;
 
 		while (msdu) {
-			ath12k_dp_mon_rx_msdus_set_payload(ar, head_msdu, tail_msdu);
+			ath12k_dp_mon_rx_msdus_set_payload(ab, head_msdu, tail_msdu);
 			if (qos_pkt) {
 				dest = skb_push(msdu, sizeof(__le16));
 				if (!dest)
@@ -2141,11 +2147,12 @@ ath12k_dp_mon_rx_update_radiotap_he_mu(struct hal_rx_mon_ppdu_info *rx_status,
 	rtap_buf[rtap_len] = rx_status->he_RU[3];
 }
 
-static void ath12k_dp_mon_update_radiotap(struct ath12k *ar,
+static void ath12k_dp_mon_update_radiotap(struct ath12k_pdev_dp *dp_pdev,
 					  struct hal_rx_mon_ppdu_info *ppduinfo,
 					  struct sk_buff *mon_skb,
 					  struct ieee80211_rx_status *rxs)
 {
+	struct ath12k *ar = ath12k_pdev_dp_to_ar(dp_pdev);
 	struct ieee80211_supported_band *sband;
 	s32 noise_floor;
 	u8 *ptr = NULL;
@@ -2234,6 +2241,9 @@ static void ath12k_dp_mon_update_radiotap(struct ath12k *ar,
 		rxs->encoding = RX_ENC_HT;
 		rxs->rate_idx = ppduinfo->rate;
 	} else {
+		struct ath12k *ar;
+
+		ar = ath12k_pdev_dp_to_ar(dp_pdev);
 		rxs->encoding = RX_ENC_LEGACY;
 		sband = &ar->mac.sbands[rxs->band];
 		rxs->rate_idx = ath12k_mac_hw_rate_to_idx(sband, ppduinfo->rate,
@@ -2243,11 +2253,14 @@ static void ath12k_dp_mon_update_radiotap(struct ath12k *ar,
 	rxs->mactime = ppduinfo->tsft;
 }
 
-static void ath12k_dp_mon_rx_deliver_msdu(struct ath12k *ar, struct napi_struct *napi,
+static void ath12k_dp_mon_rx_deliver_msdu(struct ath12k_pdev_dp *dp_pdev,
+					  struct napi_struct *napi,
 					  struct sk_buff *msdu,
 					  struct ieee80211_rx_status *status,
 					  u8 decap)
 {
+	struct ath12k_dp *dp = dp_pdev->dp;
+	struct ath12k_base *ab = dp->ab;
 	static const struct ieee80211_radiotap_he known = {
 		.data1 = cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA1_DATA_MCS_KNOWN |
 				     IEEE80211_RADIOTAP_HE_DATA1_BW_RU_ALLOC_KNOWN),
@@ -2272,11 +2285,11 @@ static void ath12k_dp_mon_rx_deliver_msdu(struct ath12k *ar, struct napi_struct 
 		status->flag |= RX_FLAG_RADIOTAP_HE;
 	}
 
-	ath12k_wifi7_dp_extract_rx_desc_data(ar->ab, &rx_info, rx_desc, rx_desc);
+	ath12k_wifi7_dp_extract_rx_desc_data(ab, &rx_info, rx_desc, rx_desc);
 
-	spin_lock_bh(&ar->ab->base_lock);
+	spin_lock_bh(&ab->base_lock);
 	rx_info.addr2_present = false;
-	peer = ath12k_dp_rx_h_find_peer(ar->ab, msdu, &rx_info);
+	peer = ath12k_dp_rx_h_find_peer(ab, msdu, &rx_info);
 	if (peer && peer->sta) {
 		pubsta = peer->sta;
 		if (pubsta->valid_links) {
@@ -2285,9 +2298,9 @@ static void ath12k_dp_mon_rx_deliver_msdu(struct ath12k *ar, struct napi_struct 
 		}
 	}
 
-	spin_unlock_bh(&ar->ab->base_lock);
+	spin_unlock_bh(&ab->base_lock);
 
-	ath12k_dbg(ar->ab, ATH12K_DBG_DATA,
+	ath12k_dbg(ab, ATH12K_DBG_DATA,
 		   "rx skb %p len %u peer %pM %u %s %s%s%s%s%s%s%s%s %srate_idx %u vht_nss %u freq %u band %u flag 0x%x fcs-err %i mic-err %i amsdu-more %i\n",
 		   msdu,
 		   msdu->len,
@@ -2311,7 +2324,7 @@ static void ath12k_dp_mon_rx_deliver_msdu(struct ath12k *ar, struct napi_struct 
 		   !!(status->flag & RX_FLAG_MMIC_ERROR),
 		   !!(status->flag & RX_FLAG_AMSDU_MORE));
 
-	ath12k_dbg_dump(ar->ab, ATH12K_DBG_DP_RX, NULL, "dp rx msdu: ",
+	ath12k_dbg_dump(ab, ATH12K_DBG_DP_RX, NULL, "dp rx msdu: ",
 			msdu->data, msdu->len);
 	rx_status = IEEE80211_SKB_RXCB(msdu);
 	*rx_status = *status;
@@ -2327,20 +2340,19 @@ static void ath12k_dp_mon_rx_deliver_msdu(struct ath12k *ar, struct napi_struct 
 	    !(is_mcbc && rx_status->flag & RX_FLAG_DECRYPTED))
 		rx_status->flag |= RX_FLAG_8023;
 
-	ieee80211_rx_napi(ath12k_ar_to_hw(ar), pubsta, msdu, napi);
+	ieee80211_rx_napi(ath12k_pdev_dp_to_hw(dp_pdev), pubsta, msdu, napi);
 }
 
-static int ath12k_dp_mon_rx_deliver(struct ath12k *ar,
+static int ath12k_dp_mon_rx_deliver(struct ath12k_pdev_dp *dp_pdev,
 				    struct dp_mon_mpdu *mon_mpdu,
 				    struct hal_rx_mon_ppdu_info *ppduinfo,
 				    struct napi_struct *napi)
 {
-	struct ath12k_pdev_dp *dp = &ar->dp;
 	struct sk_buff *mon_skb, *skb_next, *header;
-	struct ieee80211_rx_status *rxs = &dp->rx_status;
+	struct ieee80211_rx_status *rxs = &dp_pdev->rx_status;
 	u8 decap = DP_RX_DECAP_TYPE_RAW;
 
-	mon_skb = ath12k_dp_mon_rx_merg_msdus(ar, mon_mpdu, ppduinfo, rxs);
+	mon_skb = ath12k_dp_mon_rx_merg_msdus(dp_pdev, mon_mpdu, ppduinfo, rxs);
 	if (!mon_skb)
 		goto mon_deliver_fail;
 
@@ -2368,8 +2380,8 @@ static int ath12k_dp_mon_rx_deliver(struct ath12k *ar,
 		if (!(rxs->flag & RX_FLAG_ONLY_MONITOR))
 			decap = mon_mpdu->decap_format;
 
-		ath12k_dp_mon_update_radiotap(ar, ppduinfo, mon_skb, rxs);
-		ath12k_dp_mon_rx_deliver_msdu(ar, napi, mon_skb, rxs, decap);
+		ath12k_dp_mon_update_radiotap(dp_pdev, ppduinfo, mon_skb, rxs);
+		ath12k_dp_mon_rx_deliver_msdu(dp_pdev, napi, mon_skb, rxs, decap);
 		mon_skb = skb_next;
 	} while (mon_skb);
 	rxs->flag = 0;
@@ -2431,12 +2443,12 @@ ath12k_dp_mon_get_buf_len(struct hal_rx_msdu_desc_info *info,
 }
 
 static int
-ath12k_dp_mon_parse_status_buf(struct ath12k *ar,
+ath12k_dp_mon_parse_status_buf(struct ath12k_pdev_dp *dp_pdev,
 			       struct ath12k_mon_data *pmon,
 			       const struct dp_mon_packet_info *packet_info)
 {
-	struct ath12k_base *ab = ar->ab;
-	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
+	struct ath12k_dp *dp = dp_pdev->dp;
+	struct ath12k_base *ab = dp->ab;
 	struct dp_rxdma_mon_ring *buf_ring = &dp->rxdma_mon_buf_ring;
 	struct sk_buff *msdu;
 	int buf_id;
@@ -2477,7 +2489,7 @@ dest_replenish:
 }
 
 static int
-ath12k_dp_mon_parse_rx_dest_tlv(struct ath12k *ar,
+ath12k_dp_mon_parse_rx_dest_tlv(struct ath12k_pdev_dp *dp_pdev,
 				struct ath12k_mon_data *pmon,
 				enum hal_rx_mon_status hal_status,
 				const void *tlv_data)
@@ -2492,7 +2504,7 @@ ath12k_dp_mon_parse_rx_dest_tlv(struct ath12k *ar,
 			return -ENOMEM;
 		break;
 	case HAL_RX_MON_STATUS_BUF_ADDR:
-		return ath12k_dp_mon_parse_status_buf(ar, pmon, tlv_data);
+		return ath12k_dp_mon_parse_status_buf(dp_pdev, pmon, tlv_data);
 	case HAL_RX_MON_STATUS_MPDU_END:
 		/* If no MSDU then free empty MPDU */
 		if (pmon->mon_mpdu->tail) {
@@ -2515,9 +2527,10 @@ ath12k_dp_mon_parse_rx_dest_tlv(struct ath12k *ar,
 }
 
 static enum hal_rx_mon_status
-ath12k_dp_mon_parse_rx_dest(struct ath12k *ar, struct ath12k_mon_data *pmon,
+ath12k_dp_mon_parse_rx_dest(struct ath12k_pdev_dp *dp_pdev, struct ath12k_mon_data *pmon,
 			    struct sk_buff *skb)
 {
+	struct ath12k *ar = ath12k_pdev_dp_to_ar(dp_pdev);
 	struct hal_tlv_64_hdr *tlv;
 	struct ath12k_skb_rxcb *rxcb;
 	enum hal_rx_mon_status hal_status;
@@ -2539,10 +2552,11 @@ ath12k_dp_mon_parse_rx_dest(struct ath12k *ar, struct ath12k_mon_data *pmon,
 		else
 			tlv_len = le64_get_bits(tlv->tl, HAL_TLV_64_HDR_LEN);
 
-		hal_status = ath12k_dp_mon_rx_parse_status_tlv(ar, pmon, tlv);
+		hal_status = ath12k_dp_mon_rx_parse_status_tlv(dp_pdev, pmon, tlv);
 
 		if (ar->monitor_started && ar->ab->hw_params->rxdma1_enable &&
-		    ath12k_dp_mon_parse_rx_dest_tlv(ar, pmon, hal_status, tlv->value))
+		    ath12k_dp_mon_parse_rx_dest_tlv(dp_pdev, pmon, hal_status,
+						    tlv->value))
 			return HAL_RX_MON_STATUS_PPDU_DONE;
 
 		ptr += sizeof(*tlv) + tlv_len;
@@ -2565,7 +2579,7 @@ ath12k_dp_mon_parse_rx_dest(struct ath12k *ar, struct ath12k_mon_data *pmon,
 }
 
 enum hal_rx_mon_status
-ath12k_dp_mon_rx_parse_mon_status(struct ath12k *ar,
+ath12k_dp_mon_rx_parse_mon_status(struct ath12k_pdev_dp *dp_pdev,
 				  struct ath12k_mon_data *pmon,
 				  struct sk_buff *skb,
 				  struct napi_struct *napi)
@@ -2575,7 +2589,7 @@ ath12k_dp_mon_rx_parse_mon_status(struct ath12k *ar,
 	struct dp_mon_mpdu *mon_mpdu = pmon->mon_mpdu;
 	enum hal_rx_mon_status hal_status;
 
-	hal_status = ath12k_dp_mon_parse_rx_dest(ar, pmon, skb);
+	hal_status = ath12k_dp_mon_parse_rx_dest(dp_pdev, pmon, skb);
 	if (hal_status != HAL_RX_MON_STATUS_PPDU_DONE)
 		return hal_status;
 
@@ -2583,7 +2597,7 @@ ath12k_dp_mon_rx_parse_mon_status(struct ath12k *ar,
 		list_del(&mon_mpdu->list);
 
 		if (mon_mpdu->head && mon_mpdu->tail)
-			ath12k_dp_mon_rx_deliver(ar, mon_mpdu, ppdu_info, napi);
+			ath12k_dp_mon_rx_deliver(dp_pdev, mon_mpdu, ppdu_info, napi);
 
 		kfree(mon_mpdu);
 	}
@@ -3351,7 +3365,7 @@ ath12k_dp_mon_tx_status_get_num_user(u16 tlv_tag,
 }
 
 static void
-ath12k_dp_mon_tx_process_ppdu_info(struct ath12k *ar,
+ath12k_dp_mon_tx_process_ppdu_info(struct ath12k_pdev_dp *dp_pdev,
 				   struct napi_struct *napi,
 				   struct dp_mon_tx_ppdu_info *tx_ppdu_info)
 {
@@ -3362,7 +3376,7 @@ ath12k_dp_mon_tx_process_ppdu_info(struct ath12k *ar,
 		list_del(&mon_mpdu->list);
 
 		if (mon_mpdu->head)
-			ath12k_dp_mon_rx_deliver(ar, mon_mpdu,
+			ath12k_dp_mon_rx_deliver(dp_pdev, mon_mpdu,
 						 &tx_ppdu_info->rx_status, napi);
 
 		kfree(mon_mpdu);
@@ -3370,13 +3384,14 @@ ath12k_dp_mon_tx_process_ppdu_info(struct ath12k *ar,
 }
 
 enum hal_rx_mon_status
-ath12k_dp_mon_tx_parse_mon_status(struct ath12k *ar,
+ath12k_dp_mon_tx_parse_mon_status(struct ath12k_pdev_dp *dp_pdev,
 				  struct ath12k_mon_data *pmon,
 				  struct sk_buff *skb,
 				  struct napi_struct *napi,
 				  u32 ppdu_id)
 {
-	struct ath12k_base *ab = ar->ab;
+	struct ath12k_dp *dp = dp_pdev->dp;
+	struct ath12k_base *ab = dp->ab;
 	struct dp_mon_tx_ppdu_info *tx_prot_ppdu_info, *tx_data_ppdu_info;
 	struct hal_tlv_hdr *tlv;
 	u8 *ptr = skb->data;
@@ -3418,8 +3433,8 @@ ath12k_dp_mon_tx_parse_mon_status(struct ath12k *ar,
 			break;
 	} while (tlv_status != DP_MON_TX_FES_STATUS_END);
 
-	ath12k_dp_mon_tx_process_ppdu_info(ar, napi, tx_data_ppdu_info);
-	ath12k_dp_mon_tx_process_ppdu_info(ar, napi, tx_prot_ppdu_info);
+	ath12k_dp_mon_tx_process_ppdu_info(dp_pdev, napi, tx_data_ppdu_info);
+	ath12k_dp_mon_tx_process_ppdu_info(dp_pdev, napi, tx_prot_ppdu_info);
 
 	return tlv_status;
 }
@@ -3457,8 +3472,7 @@ ath12k_dp_mon_rx_update_peer_rate_table_stats(struct ath12k_rx_peer_stats *rx_st
 	stats->rx_rate[bw_idx][gi_idx][nss_idx][mcs_idx] += len;
 }
 
-static void ath12k_dp_mon_rx_update_peer_su_stats(struct ath12k *ar,
-						  struct ath12k_link_sta *arsta,
+static void ath12k_dp_mon_rx_update_peer_su_stats(struct ath12k_link_sta *arsta,
 						  struct hal_rx_mon_ppdu_info *ppdu_info)
 {
 	struct ath12k_rx_peer_stats *rx_stats = arsta->rx_stats;
@@ -3616,7 +3630,7 @@ void ath12k_dp_mon_rx_process_ulofdma(struct hal_rx_mon_ppdu_info *ppdu_info)
 }
 
 static void
-ath12k_dp_mon_rx_update_user_stats(struct ath12k *ar,
+ath12k_dp_mon_rx_update_user_stats(struct ath12k_base *ab,
 				   struct hal_rx_mon_ppdu_info *ppdu_info,
 				   u32 uid)
 {
@@ -3629,17 +3643,17 @@ ath12k_dp_mon_rx_update_user_stats(struct ath12k *ar,
 	if (user_stats->ast_index == 0 || user_stats->ast_index == 0xFFFF)
 		return;
 
-	peer = ath12k_peer_find_by_ast(ar->ab, user_stats->ast_index);
+	peer = ath12k_peer_find_by_ast(ab, user_stats->ast_index);
 
 	if (!peer) {
-		ath12k_warn(ar->ab, "peer ast idx %d can't be found\n",
+		ath12k_warn(ab, "peer ast idx %d can't be found\n",
 			    user_stats->ast_index);
 		return;
 	}
 
-	arsta = ath12k_peer_get_link_sta(ar->ab, peer);
+	arsta = ath12k_peer_get_link_sta(ab, peer);
 	if (!arsta) {
-		ath12k_warn(ar->ab, "link sta not found on peer %pM id %d\n",
+		ath12k_warn(ab, "link sta not found on peer %pM id %d\n",
 			    peer->addr, peer->peer_id);
 		return;
 	}
@@ -3722,7 +3736,7 @@ ath12k_dp_mon_rx_update_user_stats(struct ath12k *ar,
 }
 
 static void
-ath12k_dp_mon_rx_update_peer_mu_stats(struct ath12k *ar,
+ath12k_dp_mon_rx_update_peer_mu_stats(struct ath12k_base *ab,
 				      struct hal_rx_mon_ppdu_info *ppdu_info)
 {
 	u32 num_users, i;
@@ -3732,7 +3746,7 @@ ath12k_dp_mon_rx_update_peer_mu_stats(struct ath12k *ar,
 		num_users = HAL_MAX_UL_MU_USERS;
 
 	for (i = 0; i < num_users; i++)
-		ath12k_dp_mon_rx_update_user_stats(ar, ppdu_info, i);
+		ath12k_dp_mon_rx_update_user_stats(ab, ppdu_info, i);
 }
 
 static void
@@ -3742,14 +3756,13 @@ ath12k_dp_mon_rx_memset_ppdu_info(struct hal_rx_mon_ppdu_info *ppdu_info)
 	ppdu_info->peer_id = HAL_INVALID_PEERID;
 }
 
-int ath12k_dp_mon_srng_process(struct ath12k *ar, int *budget,
+int ath12k_dp_mon_srng_process(struct ath12k_pdev_dp *pdev_dp, int *budget,
 			       struct napi_struct *napi)
 {
-	struct ath12k_base *ab = ar->ab;
-	struct ath12k_pdev_dp *pdev_dp = &ar->dp;
+	struct ath12k_dp *dp = pdev_dp->dp;
+	struct ath12k_base *ab = dp->ab;
 	struct ath12k_mon_data *pmon = (struct ath12k_mon_data *)&pdev_dp->mon_data;
 	struct hal_rx_mon_ppdu_info *ppdu_info = &pmon->mon_ppdu_info;
-	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
 	struct hal_mon_dest_desc *mon_dst_desc;
 	struct sk_buff *skb;
 	struct ath12k_skb_rxcb *rxcb;
@@ -3762,7 +3775,7 @@ int ath12k_dp_mon_srng_process(struct ath12k *ar, int *budget,
 	u64 cookie;
 	int num_buffs_reaped = 0, srng_id, buf_id;
 	u32 hal_status, end_offset, info0, end_reason;
-	u8 pdev_idx = ath12k_hw_mac_id_to_pdev_id(ab->hw_params, ar->pdev_idx);
+	u8 pdev_idx = ath12k_hw_mac_id_to_pdev_id(ab->hw_params, pdev_dp->mac_id);
 
 	__skb_queue_head_init(&skb_list);
 	srng_id = ath12k_hw_mac_id_to_srng_id(ab->hw_params, pdev_idx);
@@ -3860,7 +3873,7 @@ move_next:
 		ath12k_dp_mon_rx_memset_ppdu_info(ppdu_info);
 
 	while ((skb = __skb_dequeue(&skb_list))) {
-		hal_status = ath12k_dp_mon_rx_parse_mon_status(ar, pmon, skb, napi);
+		hal_status = ath12k_dp_mon_rx_parse_mon_status(pdev_dp, pmon, skb, napi);
 		if (hal_status != HAL_RX_MON_STATUS_PPDU_DONE) {
 			ppdu_info->ppdu_continuation = true;
 			dev_kfree_skb_any(skb);
@@ -3881,21 +3894,21 @@ move_next:
 		}
 
 		if (ppdu_info->reception_type == HAL_RX_RECEPTION_TYPE_SU) {
-			arsta = ath12k_peer_get_link_sta(ar->ab, peer);
+			arsta = ath12k_peer_get_link_sta(ab, peer);
 			if (!arsta) {
-				ath12k_warn(ar->ab, "link sta not found on peer %pM id %d\n",
+				ath12k_warn(ab, "link sta not found on peer %pM id %d\n",
 					    peer->addr, peer->peer_id);
 				spin_unlock_bh(&ab->base_lock);
 				rcu_read_unlock();
 				dev_kfree_skb_any(skb);
 				continue;
 			}
-			ath12k_dp_mon_rx_update_peer_su_stats(ar, arsta,
+			ath12k_dp_mon_rx_update_peer_su_stats(arsta,
 							      ppdu_info);
 		} else if ((ppdu_info->fc_valid) &&
 			   (ppdu_info->ast_index != HAL_AST_IDX_INVALID)) {
 			ath12k_dp_mon_rx_process_ulofdma(ppdu_info);
-			ath12k_dp_mon_rx_update_peer_mu_stats(ar, ppdu_info);
+			ath12k_dp_mon_rx_update_peer_mu_stats(ab, ppdu_info);
 		}
 
 next_skb:
@@ -4329,7 +4342,7 @@ static void ath12k_dp_rx_mon_dest_process(struct ath12k *ar, int mac_id,
 			tmp_mpdu->tail = tail_msdu;
 			tmp_mpdu->err_bitmap = pmon->err_bitmap;
 			tmp_mpdu->decap_format = pmon->decap_format;
-			ath12k_dp_mon_rx_deliver(ar, tmp_mpdu,
+			ath12k_dp_mon_rx_deliver(&ar->dp, tmp_mpdu,
 						 &pmon->mon_ppdu_info, napi);
 			rx_mon_stats->dest_mpdu_done++;
 			kfree(tmp_mpdu);
@@ -4374,7 +4387,7 @@ __ath12k_dp_mon_process_ring(struct ath12k *ar, int mac_id,
 		memset(ppdu_info, 0, sizeof(*ppdu_info));
 		ppdu_info->peer_id = HAL_INVALID_PEERID;
 
-		hal_status = ath12k_dp_mon_parse_rx_dest(ar, pmon, skb);
+		hal_status = ath12k_dp_mon_parse_rx_dest(&ar->dp, pmon, skb);
 
 		if (ar->monitor_started &&
 		    pmon->mon_ppdu_status == DP_PPDU_STATUS_START &&
@@ -4396,17 +4409,33 @@ int ath12k_dp_mon_process_ring(struct ath12k_base *ab, int mac_id,
 			       struct napi_struct *napi, int budget,
 			       enum dp_monitor_mode monitor_mode)
 {
-	struct ath12k *ar = ath12k_ab_to_ar(ab, mac_id);
+	u8 pdev_idx = ath12k_hw_mac_id_to_pdev_id(ab->hw_params, mac_id);
+	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
+	struct ath12k_pdev_dp *dp_pdev;
+	struct ath12k *ar;
 	int num_buffs_reaped = 0;
+
+	rcu_read_lock();
+
+	dp_pdev = ath12k_dp_to_pdev_dp(dp, pdev_idx);
+	if (!dp_pdev) {
+		rcu_read_unlock();
+		return 0;
+	}
 
 	if (ab->hw_params->rxdma1_enable) {
 		if (monitor_mode == ATH12K_DP_RX_MONITOR_MODE)
-			num_buffs_reaped = ath12k_dp_mon_srng_process(ar, &budget, napi);
+			num_buffs_reaped = ath12k_dp_mon_srng_process(dp_pdev, &budget,
+								      napi);
 	} else {
+		ar = ath12k_pdev_dp_to_ar(dp_pdev);
+
 		if (ar->monitor_started)
 			num_buffs_reaped =
 				__ath12k_dp_mon_process_ring(ar, mac_id, napi, &budget);
 	}
+
+	rcu_read_unlock();
 
 	return num_buffs_reaped;
 }

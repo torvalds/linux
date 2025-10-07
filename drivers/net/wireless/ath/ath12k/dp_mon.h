@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2019-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #ifndef ATH12K_DP_MON_H
@@ -78,7 +78,7 @@ struct dp_mon_tx_ppdu_info {
 };
 
 enum hal_rx_mon_status
-ath12k_dp_mon_rx_parse_mon_status(struct ath12k *ar,
+ath12k_dp_mon_rx_parse_mon_status(struct ath12k_pdev_dp *dp_pdev,
 				  struct ath12k_mon_data *pmon,
 				  struct sk_buff *skb,
 				  struct napi_struct *napi);
@@ -97,11 +97,12 @@ ath12k_dp_mon_tx_status_get_num_user(u16 tlv_tag,
 				     struct hal_tlv_hdr *tx_tlv,
 				     u8 *num_users);
 enum hal_rx_mon_status
-ath12k_dp_mon_tx_parse_mon_status(struct ath12k *ar,
+ath12k_dp_mon_tx_parse_mon_status(struct ath12k_pdev_dp *dp_pdev,
 				  struct ath12k_mon_data *pmon,
 				  struct sk_buff *skb,
 				  struct napi_struct *napi,
 				  u32 ppdu_id);
 void ath12k_dp_mon_rx_process_ulofdma(struct hal_rx_mon_ppdu_info *ppdu_info);
-int ath12k_dp_mon_srng_process(struct ath12k *ar, int *budget, struct napi_struct *napi);
+int ath12k_dp_mon_srng_process(struct ath12k_pdev_dp *pdev_dp, int *budget,
+			       struct napi_struct *napi);
 #endif
