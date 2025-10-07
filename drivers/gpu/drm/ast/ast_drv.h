@@ -170,6 +170,12 @@ struct ast_device_quirks {
 	 */
 	unsigned char crtc_mem_req_threshold_low;
 	unsigned char crtc_mem_req_threshold_high;
+
+	/*
+	 * Adjust hsync values to load next scanline early. Signalled
+	 * by AST2500PreCatchCRT in VBIOS mode flags.
+	 */
+	bool crtc_hsync_precatch_needed;
 };
 
 struct ast_device {
