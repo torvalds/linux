@@ -5936,6 +5936,34 @@ static const struct btf_kfunc_id_set scx_kfunc_set_unlocked = {
 
 __bpf_kfunc_start_defs();
 
+/**
+ * scx_bpf_task_set_slice - Set task's time slice
+ * @p: task of interest
+ * @slice: time slice to set in nsecs
+ *
+ * Set @p's time slice to @slice. Returns %true on success, %false if the
+ * calling scheduler doesn't have authority over @p.
+ */
+__bpf_kfunc bool scx_bpf_task_set_slice(struct task_struct *p, u64 slice)
+{
+	p->scx.slice = slice;
+	return true;
+}
+
+/**
+ * scx_bpf_task_set_dsq_vtime - Set task's virtual time for DSQ ordering
+ * @p: task of interest
+ * @vtime: virtual time to set
+ *
+ * Set @p's virtual time to @vtime. Returns %true on success, %false if the
+ * calling scheduler doesn't have authority over @p.
+ */
+__bpf_kfunc bool scx_bpf_task_set_dsq_vtime(struct task_struct *p, u64 vtime)
+{
+	p->scx.dsq_vtime = vtime;
+	return true;
+}
+
 static void scx_kick_cpu(struct scx_sched *sch, s32 cpu, u64 flags)
 {
 	struct rq *this_rq;
@@ -6741,6 +6769,8 @@ __bpf_kfunc void scx_bpf_events(struct scx_event_stats *events,
 __bpf_kfunc_end_defs();
 
 BTF_KFUNCS_START(scx_kfunc_ids_any)
+BTF_ID_FLAGS(func, scx_bpf_task_set_slice, KF_RCU);
+BTF_ID_FLAGS(func, scx_bpf_task_set_dsq_vtime, KF_RCU);
 BTF_ID_FLAGS(func, scx_bpf_kick_cpu)
 BTF_ID_FLAGS(func, scx_bpf_dsq_nr_queued)
 BTF_ID_FLAGS(func, scx_bpf_destroy_dsq)
