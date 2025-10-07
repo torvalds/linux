@@ -135,6 +135,7 @@ pub mod pwm;
 pub mod rbtree;
 pub mod regulator;
 pub mod revocable;
+pub mod safety;
 pub mod scatterlist;
 pub mod security;
 pub mod seq_file;
