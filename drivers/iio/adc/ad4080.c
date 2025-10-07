@@ -167,6 +167,7 @@ struct ad4080_chip_info {
 	const unsigned int (*scale_table)[2];
 	const struct iio_chan_spec *channels;
 	unsigned int num_channels;
+	unsigned int lvds_cnv_clk_cnt_max;
 };
 
 struct ad4080_state {
@@ -414,23 +415,25 @@ static struct iio_chan_spec_ext_info ad4080_ext_info[] = {
 	{ }
 };
 
-static const struct iio_chan_spec ad4080_channel = {
-	.type = IIO_VOLTAGE,
-	.indexed = 1,
-	.channel = 0,
-	.info_mask_separate = BIT(IIO_CHAN_INFO_SCALE),
-	.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_SAMP_FREQ) |
-			BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO),
-	.info_mask_shared_by_all_available =
-			BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO),
-	.ext_info = ad4080_ext_info,
-	.scan_index = 0,
-	.scan_type = {
-		.sign = 's',
-		.realbits = 20,
-		.storagebits = 32,
-	},
-};
+#define AD4080_CHANNEL_DEFINE(bits, storage) {				\
+	.type = IIO_VOLTAGE,						\
+	.indexed = 1,							\
+	.channel = 0,							\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_SCALE),			\
+	.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_SAMP_FREQ) |	\
+			BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO),		\
+	.info_mask_shared_by_all_available =				\
+			BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO),		\
+	.ext_info = ad4080_ext_info,					\
+	.scan_index = 0,						\
+	.scan_type = {							\
+		.sign = 's',						\
+		.realbits = (bits),					\
+		.storagebits = (storage),				\
+	},								\
+}
+
+static const struct iio_chan_spec ad4080_channel = AD4080_CHANNEL_DEFINE(20, 32);
 
 static const struct ad4080_chip_info ad4080_chip_info = {
 	.name = "ad4080",
@@ -439,6 +442,7 @@ static const struct ad4080_chip_info ad4080_chip_info = {
 	.num_scales = ARRAY_SIZE(ad4080_scale_table),
 	.num_channels = 1,
 	.channels = &ad4080_channel,
+	.lvds_cnv_clk_cnt_max = AD4080_LVDS_CNV_CLK_CNT_MAX,
 };
 
 static int ad4080_setup(struct iio_dev *indio_dev)
@@ -465,7 +469,7 @@ static int ad4080_setup(struct iio_dev *indio_dev)
 		return ret;
 
 	id = le16_to_cpu(id_le);
-	if (id != AD4080_CHIP_ID)
+	if (id != st->info->product_id)
 		dev_info(dev, "Unrecognized CHIP_ID 0x%X\n", id);
 
 	ret = regmap_set_bits(st->regmap, AD4080_REG_GPIO_CONFIG_A,
@@ -491,7 +495,7 @@ static int ad4080_setup(struct iio_dev *indio_dev)
 				 AD4080_REG_ADC_DATA_INTF_CONFIG_B,
 				 AD4080_ADC_DATA_INTF_CONFIG_B_LVDS_CNV_CLK_CNT_MSK,
 				 FIELD_PREP(AD4080_ADC_DATA_INTF_CONFIG_B_LVDS_CNV_CLK_CNT_MSK,
-					    AD4080_LVDS_CNV_CLK_CNT_MAX));
+					    st->info->lvds_cnv_clk_cnt_max));
 	if (ret)
 		return ret;
 
