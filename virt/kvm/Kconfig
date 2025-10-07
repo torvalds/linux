@@ -87,7 +87,7 @@ config HAVE_KVM_VCPU_RUN_PID_CHANGE
 config HAVE_KVM_NO_POLL
        bool
 
-config KVM_XFER_TO_GUEST_WORK
+config VIRT_XFER_TO_GUEST_WORK
        bool
 
 config HAVE_KVM_PM_NOTIFIER

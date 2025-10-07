@@ -10390,7 +10390,7 @@ L:	linux-kernel@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git core/entry
 F:	include/linux/entry-common.h
-F:	include/linux/entry-kvm.h
+F:	include/linux/entry-virt.h
 F:	include/linux/irq-entry-common.h
 F:	kernel/entry/
 
@@ -11604,7 +11604,6 @@ F:	drivers/pci/controller/pci-hyperv-intf.c
 F:	drivers/pci/controller/pci-hyperv.c
 F:	drivers/scsi/storvsc_drv.c
 F:	drivers/uio/uio_hv_generic.c
-F:	drivers/video/fbdev/hyperv_fb.c
 F:	include/asm-generic/mshyperv.h
 F:	include/clocksource/hyperv_timer.h
 F:	include/hyperv/hvgdk.h
@@ -11617,6 +11616,16 @@ F:	include/net/mana
 F:	include/uapi/linux/hyperv.h
 F:	net/vmw_vsock/hyperv_transport.c
 F:	tools/hv/
+
+HYPER-V FRAMEBUFFER DRIVER
+M:	"K. Y. Srinivasan" <kys@microsoft.com>
+M:	Haiyang Zhang <haiyangz@microsoft.com>
+M:	Wei Liu <wei.liu@kernel.org>
+M:	Dexuan Cui <decui@microsoft.com>
+L:	linux-hyperv@vger.kernel.org
+S:	Obsolete
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/hyperv/linux.git
+F:	drivers/video/fbdev/hyperv_fb.c
 
 HYPERBUS SUPPORT
 M:	Vignesh Raghavendra <vigneshr@ti.com>
