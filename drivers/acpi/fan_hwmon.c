@@ -93,13 +93,12 @@ static umode_t acpi_fan_hwmon_is_visible(const void *drvdata, enum hwmon_sensor_
 static int acpi_fan_hwmon_read(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 			       int channel, long *val)
 {
-	struct acpi_device *adev = to_acpi_device(dev->parent);
 	struct acpi_fan *fan = dev_get_drvdata(dev);
 	struct acpi_fan_fps *fps;
 	struct acpi_fan_fst fst;
 	int ret;
 
-	ret = acpi_fan_get_fst(adev, &fst);
+	ret = acpi_fan_get_fst(fan->handle, &fst);
 	if (ret < 0)
 		return ret;
 

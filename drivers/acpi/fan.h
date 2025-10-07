@@ -49,6 +49,7 @@ struct acpi_fan_fst {
 };
 
 struct acpi_fan {
+	acpi_handle handle;
 	bool acpi4;
 	bool has_fst;
 	struct acpi_fan_fif fif;
@@ -59,7 +60,7 @@ struct acpi_fan {
 	struct device_attribute fine_grain_control;
 };
 
-int acpi_fan_get_fst(struct acpi_device *device, struct acpi_fan_fst *fst);
+int acpi_fan_get_fst(acpi_handle handle, struct acpi_fan_fst *fst);
 int acpi_fan_create_attributes(struct acpi_device *device);
 void acpi_fan_delete_attributes(struct acpi_device *device);
 
