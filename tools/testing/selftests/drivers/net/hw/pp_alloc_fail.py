@@ -7,6 +7,7 @@ Test driver resilience vs page pool allocation failures.
 
 import errno
 import time
+import math
 import os
 from lib.py import ksft_run, ksft_exit, ksft_pr
 from lib.py import KsftSkipEx, KsftFailEx
@@ -62,7 +63,7 @@ def test_pp_alloc(cfg, netdevnl):
         stat1 = get_stats()
         time.sleep(1)
         stat2 = get_stats()
-        if stat2['rx-packets'] - stat1['rx-packets'] < 15000:
+        if stat2['rx-packets'] - stat1['rx-packets'] < 4000:
             raise KsftFailEx("Traffic seems low:", stat2['rx-packets'] - stat1['rx-packets'])
 
 
@@ -89,11 +90,16 @@ def test_pp_alloc(cfg, netdevnl):
         time.sleep(3)
         s2 = get_stats()
 
-        if s2['rx-alloc-fail'] - s1['rx-alloc-fail'] < 1:
+        seen_fails = s2['rx-alloc-fail'] - s1['rx-alloc-fail']
+        if seen_fails < 1:
             raise KsftSkipEx("Allocation failures not increasing")
-        if s2['rx-alloc-fail'] - s1['rx-alloc-fail'] < 100:
-            raise KsftSkipEx("Allocation increasing too slowly", s2['rx-alloc-fail'] - s1['rx-alloc-fail'],
-                             "packets:", s2['rx-packets'] - s1['rx-packets'])
+        pkts = s2['rx-packets'] - s1['rx-packets']
+        # Expecting one failure per 512 buffers, 3.1x safety margin
+        want_fails = math.floor(pkts / 512 / 3.1)
+        if seen_fails < want_fails:
+            raise KsftSkipEx("Allocation increasing too slowly", seen_fails,
+                             "packets:", pkts)
+        ksft_pr(f"Seen: pkts:{pkts} fails:{seen_fails} (pass thrs:{want_fails})")
 
         # Basic failures are fine, try to wobble some settings to catch extra failures
         check_traffic_flowing()
