@@ -196,7 +196,7 @@ scx_bpf_select_cpu_and(struct task_struct *p, s32 prev_cpu, u64 wake_flags,
  * Inline wrapper that packs scalar arguments into a struct and calls
  * __scx_bpf_dsq_insert_vtime(). See __scx_bpf_dsq_insert_vtime() for details.
  */
-static inline void
+static inline bool
 scx_bpf_dsq_insert_vtime(struct task_struct *p, u64 dsq_id, u64 slice, u64 vtime,
 			 u64 enq_flags)
 {
@@ -208,10 +208,29 @@ scx_bpf_dsq_insert_vtime(struct task_struct *p, u64 dsq_id, u64 slice, u64 vtime
 			.enq_flags = enq_flags,
 		};
 
-		__scx_bpf_dsq_insert_vtime(p, &args);
+		return __scx_bpf_dsq_insert_vtime(p, &args);
 	} else {
 		scx_bpf_dsq_insert_vtime___compat(p, dsq_id, slice, vtime,
 						  enq_flags);
+		return true;
+	}
+}
+
+/*
+ * v6.19: scx_bpf_dsq_insert() now returns bool instead of void. Move
+ * scx_bpf_dsq_insert() decl to common.bpf.h and drop compat helper after v6.22.
+ */
+bool scx_bpf_dsq_insert___new(struct task_struct *p, u64 dsq_id, u64 slice, u64 enq_flags) __ksym __weak;
+void scx_bpf_dsq_insert___compat(struct task_struct *p, u64 dsq_id, u64 slice, u64 enq_flags) __ksym __weak;
+
+static inline bool
+scx_bpf_dsq_insert(struct task_struct *p, u64 dsq_id, u64 slice, u64 enq_flags)
+{
+	if (bpf_ksym_exists(scx_bpf_dsq_insert___new)) {
+		return scx_bpf_dsq_insert___new(p, dsq_id, slice, enq_flags);
+	} else {
+		scx_bpf_dsq_insert___compat(p, dsq_id, slice, enq_flags);
+		return true;
 	}
 }
 

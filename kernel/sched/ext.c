@@ -5426,8 +5426,12 @@ __bpf_kfunc_start_defs();
  * exhaustion. If zero, the current residual slice is maintained. If
  * %SCX_SLICE_INF, @p never expires and the BPF scheduler must kick the CPU with
  * scx_bpf_kick_cpu() to trigger scheduling.
+ *
+ * Returns %true on successful insertion, %false on failure. On the root
+ * scheduler, %false return triggers scheduler abort and the caller doesn't need
+ * to check the return value.
  */
-__bpf_kfunc void scx_bpf_dsq_insert(struct task_struct *p, u64 dsq_id, u64 slice,
+__bpf_kfunc bool scx_bpf_dsq_insert(struct task_struct *p, u64 dsq_id, u64 slice,
 				    u64 enq_flags)
 {
 	struct scx_sched *sch;
@@ -5435,10 +5439,10 @@ __bpf_kfunc void scx_bpf_dsq_insert(struct task_struct *p, u64 dsq_id, u64 slice
 	guard(rcu)();
 	sch = rcu_dereference(scx_root);
 	if (unlikely(!sch))
-		return;
+		return false;
 
 	if (!scx_dsq_insert_preamble(sch, p, enq_flags))
-		return;
+		return false;
 
 	if (slice)
 		p->scx.slice = slice;
@@ -5446,13 +5450,24 @@ __bpf_kfunc void scx_bpf_dsq_insert(struct task_struct *p, u64 dsq_id, u64 slice
 		p->scx.slice = p->scx.slice ?: 1;
 
 	scx_dsq_insert_commit(sch, p, dsq_id, enq_flags);
+
+	return true;
 }
 
-static void scx_dsq_insert_vtime(struct scx_sched *sch, struct task_struct *p,
+/*
+ * COMPAT: Will be removed in v6.23.
+ */
+__bpf_kfunc void scx_bpf_dsq_insert___compat(struct task_struct *p, u64 dsq_id,
+					     u64 slice, u64 enq_flags)
+{
+	scx_bpf_dsq_insert(p, dsq_id, slice, enq_flags);
+}
+
+static bool scx_dsq_insert_vtime(struct scx_sched *sch, struct task_struct *p,
 				 u64 dsq_id, u64 slice, u64 vtime, u64 enq_flags)
 {
 	if (!scx_dsq_insert_preamble(sch, p, enq_flags))
-		return;
+		return false;
 
 	if (slice)
 		p->scx.slice = slice;
@@ -5462,6 +5477,8 @@ static void scx_dsq_insert_vtime(struct scx_sched *sch, struct task_struct *p,
 	p->scx.dsq_vtime = vtime;
 
 	scx_dsq_insert_commit(sch, p, dsq_id, enq_flags | SCX_ENQ_DSQ_PRIQ);
+
+	return true;
 }
 
 struct scx_bpf_dsq_insert_vtime_args {
@@ -5497,8 +5514,12 @@ struct scx_bpf_dsq_insert_vtime_args {
  * function must not be called on a DSQ which already has one or more FIFO tasks
  * queued and vice-versa. Also, the built-in DSQs (SCX_DSQ_LOCAL and
  * SCX_DSQ_GLOBAL) cannot be used as priority queues.
+ *
+ * Returns %true on successful insertion, %false on failure. On the root
+ * scheduler, %false return triggers scheduler abort and the caller doesn't need
+ * to check the return value.
  */
-__bpf_kfunc void
+__bpf_kfunc bool
 __scx_bpf_dsq_insert_vtime(struct task_struct *p,
 			   struct scx_bpf_dsq_insert_vtime_args *args)
 {
@@ -5508,10 +5529,10 @@ __scx_bpf_dsq_insert_vtime(struct task_struct *p,
 
 	sch = rcu_dereference(scx_root);
 	if (unlikely(!sch))
-		return;
+		return false;
 
-	scx_dsq_insert_vtime(sch, p, args->dsq_id, args->slice, args->vtime,
-			     args->enq_flags);
+	return scx_dsq_insert_vtime(sch, p, args->dsq_id, args->slice,
+				    args->vtime, args->enq_flags);
 }
 
 /*
@@ -5535,6 +5556,7 @@ __bpf_kfunc_end_defs();
 
 BTF_KFUNCS_START(scx_kfunc_ids_enqueue_dispatch)
 BTF_ID_FLAGS(func, scx_bpf_dsq_insert, KF_RCU)
+BTF_ID_FLAGS(func, scx_bpf_dsq_insert___compat, KF_RCU)
 BTF_ID_FLAGS(func, __scx_bpf_dsq_insert_vtime, KF_RCU)
 BTF_ID_FLAGS(func, scx_bpf_dsq_insert_vtime, KF_RCU)
 BTF_KFUNCS_END(scx_kfunc_ids_enqueue_dispatch)
@@ -5789,8 +5811,9 @@ __bpf_kfunc void scx_bpf_dsq_move_set_vtime(struct bpf_iter_scx_dsq *it__iter,
  * Can be called from ops.dispatch() or any BPF context which doesn't hold a rq
  * lock (e.g. BPF timers or SYSCALL programs).
  *
- * Returns %true if @p has been consumed, %false if @p had already been consumed
- * or dequeued.
+ * Returns %true if @p has been consumed, %false if @p had already been
+ * consumed, dequeued, or, for sub-scheds, @dsq_id points to a disallowed local
+ * DSQ.
  */
 __bpf_kfunc bool scx_bpf_dsq_move(struct bpf_iter_scx_dsq *it__iter,
 				  struct task_struct *p, u64 dsq_id,
