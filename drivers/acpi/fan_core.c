@@ -347,7 +347,7 @@ static int acpi_fan_probe(struct platform_device *pdev)
 	}
 
 	if (fan->has_fst) {
-		result = devm_acpi_fan_create_hwmon(device);
+		result = devm_acpi_fan_create_hwmon(&pdev->dev);
 		if (result)
 			return result;
 
