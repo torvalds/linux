@@ -20,7 +20,7 @@ static int insert_normal_tree_ref(struct btrfs_root *root, u64 bytenr,
 	struct btrfs_extent_item *item;
 	struct btrfs_extent_inline_ref *iref;
 	struct btrfs_tree_block_info *block_info;
-	struct btrfs_path *path;
+	BTRFS_PATH_AUTO_FREE(path);
 	struct extent_buffer *leaf;
 	struct btrfs_key ins;
 	u32 size = sizeof(*item) + sizeof(*iref) + sizeof(*block_info);
@@ -41,7 +41,6 @@ static int insert_normal_tree_ref(struct btrfs_root *root, u64 bytenr,
 	ret = btrfs_insert_empty_item(&trans, root, path, &ins, size);
 	if (ret) {
 		test_err("couldn't insert ref %d", ret);
-		btrfs_free_path(path);
 		return ret;
 	}
 
@@ -61,7 +60,6 @@ static int insert_normal_tree_ref(struct btrfs_root *root, u64 bytenr,
 		btrfs_set_extent_inline_ref_type(leaf, iref, BTRFS_TREE_BLOCK_REF_KEY);
 		btrfs_set_extent_inline_ref_offset(leaf, iref, root_objectid);
 	}
-	btrfs_free_path(path);
 	return 0;
 }
 
@@ -70,7 +68,7 @@ static int add_tree_ref(struct btrfs_root *root, u64 bytenr, u64 num_bytes,
 {
 	struct btrfs_trans_handle trans;
 	struct btrfs_extent_item *item;
-	struct btrfs_path *path;
+	BTRFS_PATH_AUTO_FREE(path);
 	struct btrfs_key key;
 	u64 refs;
 	int ret;
@@ -90,7 +88,6 @@ static int add_tree_ref(struct btrfs_root *root, u64 bytenr, u64 num_bytes,
 	ret = btrfs_search_slot(&trans, root, &key, path, 0, 1);
 	if (ret) {
 		test_err("couldn't find extent ref");
-		btrfs_free_path(path);
 		return ret;
 	}
 
@@ -112,7 +109,6 @@ static int add_tree_ref(struct btrfs_root *root, u64 bytenr, u64 num_bytes,
 	ret = btrfs_insert_empty_item(&trans, root, path, &key, 0);
 	if (ret)
 		test_err("failed to insert backref");
-	btrfs_free_path(path);
 	return ret;
 }
 
@@ -121,7 +117,7 @@ static int remove_extent_item(struct btrfs_root *root, u64 bytenr,
 {
 	struct btrfs_trans_handle trans;
 	struct btrfs_key key;
-	struct btrfs_path *path;
+	BTRFS_PATH_AUTO_FREE(path);
 	int ret;
 
 	btrfs_init_dummy_trans(&trans, NULL);
@@ -139,11 +135,9 @@ static int remove_extent_item(struct btrfs_root *root, u64 bytenr,
 	ret = btrfs_search_slot(&trans, root, &key, path, -1, 1);
 	if (ret) {
 		test_err("didn't find our key %d", ret);
-		btrfs_free_path(path);
 		return ret;
 	}
 	btrfs_del_item(&trans, root, path);
-	btrfs_free_path(path);
 	return 0;
 }
 
@@ -152,7 +146,7 @@ static int remove_extent_ref(struct btrfs_root *root, u64 bytenr,
 {
 	struct btrfs_trans_handle trans;
 	struct btrfs_extent_item *item;
-	struct btrfs_path *path;
+	BTRFS_PATH_AUTO_FREE(path);
 	struct btrfs_key key;
 	u64 refs;
 	int ret;
@@ -172,7 +166,6 @@ static int remove_extent_ref(struct btrfs_root *root, u64 bytenr,
 	ret = btrfs_search_slot(&trans, root, &key, path, 0, 1);
 	if (ret) {
 		test_err("couldn't find extent ref");
-		btrfs_free_path(path);
 		return ret;
 	}
 
@@ -198,7 +191,6 @@ static int remove_extent_ref(struct btrfs_root *root, u64 bytenr,
 		return ret;
 	}
 	btrfs_del_item(&trans, root, path);
-	btrfs_free_path(path);
 	return ret;
 }
 
