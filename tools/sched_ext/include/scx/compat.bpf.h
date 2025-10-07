@@ -235,6 +235,30 @@ scx_bpf_dsq_insert(struct task_struct *p, u64 dsq_id, u64 slice, u64 enq_flags)
 }
 
 /*
+ * v6.19: scx_bpf_task_set_slice() and scx_bpf_task_set_dsq_vtime() added to for
+ * sub-sched authority checks. Drop the wrappers and move the decls to
+ * common.bpf.h after v6.22.
+ */
+bool scx_bpf_task_set_slice___new(struct task_struct *p, u64 slice) __ksym __weak;
+bool scx_bpf_task_set_dsq_vtime___new(struct task_struct *p, u64 vtime) __ksym __weak;
+
+static inline void scx_bpf_task_set_slice(struct task_struct *p, u64 slice)
+{
+	if (bpf_ksym_exists(scx_bpf_task_set_slice___new))
+		scx_bpf_task_set_slice___new(p, slice);
+	else
+		p->scx.slice = slice;
+}
+
+static inline void scx_bpf_task_set_dsq_vtime(struct task_struct *p, u64 vtime)
+{
+	if (bpf_ksym_exists(scx_bpf_task_set_dsq_vtime___new))
+		scx_bpf_task_set_dsq_vtime___new(p, vtime);
+	else
+		p->scx.dsq_vtime = vtime;
+}
+
+/*
  * Define sched_ext_ops. This may be expanded to define multiple variants for
  * backward compatibility. See compat.h::SCX_OPS_LOAD/ATTACH().
  */
