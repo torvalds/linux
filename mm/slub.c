@@ -7701,7 +7701,8 @@ void __kmem_cache_release(struct kmem_cache *s)
 		pcs_destroy(s);
 #ifndef CONFIG_SLUB_TINY
 #ifdef CONFIG_PREEMPT_RT
-	lockdep_unregister_key(&s->lock_key);
+	if (s->cpu_slab)
+		lockdep_unregister_key(&s->lock_key);
 #endif
 	free_percpu(s->cpu_slab);
 #endif
