@@ -1242,6 +1242,7 @@ static int fbnic_clean_rcq(struct fbnic_napi_vector *nv,
 	/* Walk the completion queue collecting the heads reported by NIC */
 	while (likely(packets < budget)) {
 		struct sk_buff *skb = ERR_PTR(-EINVAL);
+		u32 pkt_bytes;
 		u64 rcd;
 
 		if ((*raw_rcd & cpu_to_le64(FBNIC_RCD_DONE)) == done)
@@ -1272,37 +1273,38 @@ static int fbnic_clean_rcq(struct fbnic_napi_vector *nv,
 			/* We currently ignore the action table index */
 			break;
 		case FBNIC_RCD_TYPE_META:
-			if (unlikely(pkt->add_frag_failed))
-				skb = NULL;
-			else if (likely(!fbnic_rcd_metadata_err(rcd)))
+			if (likely(!fbnic_rcd_metadata_err(rcd) &&
+				   !pkt->add_frag_failed)) {
+				pkt_bytes = xdp_get_buff_len(&pkt->buff);
 				skb = fbnic_run_xdp(nv, pkt);
+			}
 
 			/* Populate skb and invalidate XDP */
 			if (!IS_ERR_OR_NULL(skb)) {
 				fbnic_populate_skb_fields(nv, rcd, skb, qt,
 							  &csum_complete,
 							  &csum_none);
-
-				packets++;
-				bytes += skb->len;
-
 				napi_gro_receive(&nv->napi, skb);
 			} else if (skb == ERR_PTR(-FBNIC_XDP_TX)) {
 				pkt_tail = nv->qt[0].sub1.tail;
-				bytes += xdp_get_buff_len(&pkt->buff);
+			} else if (PTR_ERR(skb) == -FBNIC_XDP_CONSUME) {
+				fbnic_put_pkt_buff(qt, pkt, 1);
 			} else {
-				if (!skb) {
+				if (!skb)
 					alloc_failed++;
-					dropped++;
-				} else if (skb == ERR_PTR(-FBNIC_XDP_LEN_ERR)) {
+
+				if (skb == ERR_PTR(-FBNIC_XDP_LEN_ERR))
 					length_errors++;
-				} else {
+				else
 					dropped++;
-				}
 
 				fbnic_put_pkt_buff(qt, pkt, 1);
+				goto next_dont_count;
 			}
 
+			packets++;
+			bytes += pkt_bytes;
+next_dont_count:
 			pkt->buff.data_hard_start = NULL;
 
 			break;
@@ -1319,8 +1321,6 @@ static int fbnic_clean_rcq(struct fbnic_napi_vector *nv,
 	u64_stats_update_begin(&rcq->stats.syncp);
 	rcq->stats.packets += packets;
 	rcq->stats.bytes += bytes;
-	/* Re-add ethernet header length (removed in fbnic_build_skb) */
-	rcq->stats.bytes += ETH_HLEN * packets;
 	rcq->stats.dropped += dropped;
 	rcq->stats.rx.alloc_failed += alloc_failed;
 	rcq->stats.rx.csum_complete += csum_complete;
