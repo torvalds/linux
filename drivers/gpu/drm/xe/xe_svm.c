@@ -67,11 +67,6 @@ void xe_svm_range_debug(struct xe_svm_range *range, const char *operation)
 	range_debug(range, operation);
 }
 
-static void *xe_svm_devm_owner(struct xe_device *xe)
-{
-	return xe;
-}
-
 static struct drm_gpusvm_range *
 xe_svm_range_alloc(struct drm_gpusvm *gpusvm)
 {
@@ -744,15 +739,14 @@ int xe_svm_init(struct xe_vm *vm)
 			  xe_svm_garbage_collector_work_func);
 
 		err = drm_gpusvm_init(&vm->svm.gpusvm, "Xe SVM", &vm->xe->drm,
-				      current->mm, xe_svm_devm_owner(vm->xe), 0,
-				      vm->size,
+				      current->mm, 0, vm->size,
 				      xe_modparam.svm_notifier_size * SZ_1M,
 				      &gpusvm_ops, fault_chunk_sizes,
 				      ARRAY_SIZE(fault_chunk_sizes));
 		drm_gpusvm_driver_set_lock(&vm->svm.gpusvm, &vm->lock);
 	} else {
 		err = drm_gpusvm_init(&vm->svm.gpusvm, "Xe SVM (simple)",
-				      &vm->xe->drm, NULL, NULL, 0, 0, 0, NULL,
+				      &vm->xe->drm, NULL, 0, 0, 0, NULL,
 				      NULL, 0);
 	}
 
@@ -1017,6 +1011,7 @@ static int __xe_svm_handle_pagefault(struct xe_vm *vm, struct xe_vma *vma,
 		.devmem_only = need_vram && devmem_possible,
 		.timeslice_ms = need_vram && devmem_possible ?
 			vm->xe->atomic_svm_timeslice_ms : 0,
+		.device_private_page_owner = xe_svm_devm_owner(vm->xe),
 	};
 	struct xe_validation_ctx vctx;
 	struct drm_exec exec;
