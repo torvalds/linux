@@ -1080,7 +1080,6 @@ static void *msg_xfer(struct qaic_device *qdev, struct wrapper_list *wrappers, u
 
 	list_for_each_entry(w, &wrappers->list, list) {
 		kref_get(&w->ref_count);
-		retry_count = 0;
 		ret = mhi_queue_buf(qdev->cntl_ch, DMA_TO_DEVICE, &w->msg, w->len,
 				    list_is_last(&w->list, &wrappers->list) ? MHI_EOT : MHI_CHAIN);
 		if (ret) {
