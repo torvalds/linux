@@ -982,8 +982,9 @@ int qaic_attach_slice_bo_ioctl(struct drm_device *dev, void *data, struct drm_fi
 	if (args->hdr.count == 0)
 		return -EINVAL;
 
-	arg_size = args->hdr.count * sizeof(*slice_ent);
-	if (arg_size / args->hdr.count != sizeof(*slice_ent))
+	if (check_mul_overflow((unsigned long)args->hdr.count,
+			       (unsigned long)sizeof(*slice_ent),
+			       &arg_size))
 		return -EINVAL;
 
 	if (!(args->hdr.dir == DMA_TO_DEVICE || args->hdr.dir == DMA_FROM_DEVICE))

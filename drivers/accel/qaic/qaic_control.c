@@ -656,8 +656,9 @@ static int encode_activate(struct qaic_device *qdev, void *trans, struct wrapper
 		return -EINVAL;
 
 	nelem = in_trans->queue_size;
-	size = (get_dbc_req_elem_size() + get_dbc_rsp_elem_size()) * nelem;
-	if (size / nelem != get_dbc_req_elem_size() + get_dbc_rsp_elem_size())
+	if (check_mul_overflow((u32)(get_dbc_req_elem_size() + get_dbc_rsp_elem_size()),
+			       nelem,
+			       &size))
 		return -EINVAL;
 
 	if (size + QAIC_DBC_Q_GAP + QAIC_DBC_Q_BUF_ALIGN < size)
