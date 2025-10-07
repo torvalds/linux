@@ -64,7 +64,7 @@ tapechar_setup_device(struct tape_device * device)
 {
 	char	device_name[20];
 
-	sprintf(device_name, "ntibm%i", device->first_minor / 2);
+	scnprintf(device_name, sizeof(device_name), "ntibm%i", device->first_minor / 2);
 	device->nt = register_tape_dev(
 		&device->cdev->dev,
 		MKDEV(tapechar_major, device->first_minor),
