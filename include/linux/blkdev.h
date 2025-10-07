@@ -1876,7 +1876,7 @@ static inline int bio_split_rw_at(struct bio *bio,
 static inline int bio_iov_iter_get_bdev_pages(struct bio *bio,
 		struct iov_iter *iter, struct block_device *bdev)
 {
-	return bio_iov_iter_get_pages_aligned(bio, iter,
+	return bio_iov_iter_get_pages(bio, iter,
 					bdev_logical_block_size(bdev) - 1);
 }
 
