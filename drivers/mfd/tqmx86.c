@@ -43,6 +43,8 @@
 #define TQMX86_REG_BOARD_ID_E40C2	15
 #define TQMX86_REG_BOARD_ID_130UC	16
 #define TQMX86_REG_BOARD_ID_E41S	19
+#define TQMX86_REG_BOARD_ID_CU1_HPCM	24
+#define TQMX86_REG_BOARD_ID_CU2_HPCM	25
 #define TQMX86_REG_BOARD_REV	0x01
 #define TQMX86_REG_IO_EXT_INT	0x06
 #define TQMX86_REG_IO_EXT_INT_NONE		0
@@ -165,6 +167,10 @@ static const char *tqmx86_board_id_to_name(u8 board_id, u8 sauc)
 		return "TQMx130UC";
 	case TQMX86_REG_BOARD_ID_E41S:
 		return "TQMxE41S";
+	case TQMX86_REG_BOARD_ID_CU1_HPCM:
+		return "TQMxCU1-HPCM";
+	case TQMX86_REG_BOARD_ID_CU2_HPCM:
+		return "TQMxCU2-HPCM";
 	default:
 		return "Unknown";
 	}
@@ -185,6 +191,8 @@ static int tqmx86_board_id_to_clk_rate(struct device *dev, u8 board_id)
 	case TQMX86_REG_BOARD_ID_E40C2:
 	case TQMX86_REG_BOARD_ID_130UC:
 	case TQMX86_REG_BOARD_ID_E41S:
+	case TQMX86_REG_BOARD_ID_CU1_HPCM:
+	case TQMX86_REG_BOARD_ID_CU2_HPCM:
 		return 24000;
 	case TQMX86_REG_BOARD_ID_E39MS:
 	case TQMX86_REG_BOARD_ID_E39C1:
