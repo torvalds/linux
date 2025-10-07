@@ -167,6 +167,8 @@ void fbnic_aggregate_ring_rx_counters(struct fbnic_net *fbn,
 				      struct fbnic_ring *rxr);
 void fbnic_aggregate_ring_tx_counters(struct fbnic_net *fbn,
 				      struct fbnic_ring *txr);
+void fbnic_aggregate_ring_xdp_counters(struct fbnic_net *fbn,
+				       struct fbnic_ring *xdpr);
 
 int fbnic_alloc_napi_vectors(struct fbnic_net *fbn);
 void fbnic_free_napi_vectors(struct fbnic_net *fbn);

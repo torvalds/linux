@@ -1433,8 +1433,8 @@ void fbnic_aggregate_ring_tx_counters(struct fbnic_net *fbn,
 	BUILD_BUG_ON(sizeof(fbn->tx_stats.twq) / 8 != 6);
 }
 
-static void fbnic_aggregate_ring_xdp_counters(struct fbnic_net *fbn,
-					      struct fbnic_ring *xdpr)
+void fbnic_aggregate_ring_xdp_counters(struct fbnic_net *fbn,
+				       struct fbnic_ring *xdpr)
 {
 	struct fbnic_queue_stats *stats = &xdpr->stats;
 
@@ -1442,9 +1442,7 @@ static void fbnic_aggregate_ring_xdp_counters(struct fbnic_net *fbn,
 		return;
 
 	/* Capture stats from queues before dissasociating them */
-	fbn->rx_stats.bytes += stats->bytes;
-	fbn->rx_stats.packets += stats->packets;
-	fbn->rx_stats.dropped += stats->dropped;
+	fbn->tx_stats.dropped += stats->dropped;
 	fbn->tx_stats.bytes += stats->bytes;
 	fbn->tx_stats.packets += stats->packets;
 }
