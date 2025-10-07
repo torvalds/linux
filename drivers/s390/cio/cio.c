@@ -113,7 +113,7 @@ cio_start_handle_notoper(struct subchannel *sch, __u8 lpm)
 	if (cio_update_schib(sch))
 		return -ENODEV;
 
-	sprintf(dbf_text, "no%s", dev_name(&sch->dev));
+	scnprintf(dbf_text, sizeof(dbf_text), "no%s", dev_name(&sch->dev));
 	CIO_TRACE_EVENT(0, dbf_text);
 	CIO_HEX_EVENT(0, &sch->schib, sizeof (struct schib));
 

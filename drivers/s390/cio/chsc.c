@@ -253,7 +253,7 @@ void chsc_chp_offline(struct chp_id chpid)
 	struct chp_link link;
 	char dbf_txt[15];
 
-	sprintf(dbf_txt, "chpr%x.%02x", chpid.cssid, chpid.id);
+	scnprintf(dbf_txt, sizeof(dbf_txt), "chpr%x.%02x", chpid.cssid, chpid.id);
 	CIO_TRACE_EVENT(2, dbf_txt);
 
 	if (chp_get_status(chpid) <= 0)
@@ -284,11 +284,11 @@ static void s390_process_res_acc(struct chp_link *link)
 {
 	char dbf_txt[15];
 
-	sprintf(dbf_txt, "accpr%x.%02x", link->chpid.cssid,
-		link->chpid.id);
+	scnprintf(dbf_txt, sizeof(dbf_txt), "accpr%x.%02x", link->chpid.cssid,
+		  link->chpid.id);
 	CIO_TRACE_EVENT( 2, dbf_txt);
 	if (link->fla != 0) {
-		sprintf(dbf_txt, "fla%x", link->fla);
+		scnprintf(dbf_txt, sizeof(dbf_txt), "fla%x", link->fla);
 		CIO_TRACE_EVENT( 2, dbf_txt);
 	}
 	/* Wait until previous actions have settled. */
@@ -757,7 +757,7 @@ void chsc_chp_online(struct chp_id chpid)
 	struct chp_link link;
 	char dbf_txt[15];
 
-	sprintf(dbf_txt, "cadd%x.%02x", chpid.cssid, chpid.id);
+	scnprintf(dbf_txt, sizeof(dbf_txt), "cadd%x.%02x", chpid.cssid, chpid.id);
 	CIO_TRACE_EVENT(2, dbf_txt);
 
 	if (chp_get_status(chpid) != 0) {
