@@ -106,7 +106,16 @@ impl DeliverToRead for FreezeMessage {
             return Ok(true);
         }
         if freeze.is_clearing {
-            _removed_listener = freeze_entry.remove_node();
+            kernel::warn_on!(freeze.num_cleared_duplicates != 0);
+            if freeze.num_pending_duplicates > 0 {
+                // The primary freeze listener was deleted, so convert a pending duplicate back
+                // into the primary one.
+                freeze.num_pending_duplicates -= 1;
+                freeze.is_pending = true;
+                freeze.is_clearing = true;
+            } else {
+                _removed_listener = freeze_entry.remove_node();
+            }
             drop(node_refs);
             writer.write_code(BR_CLEAR_FREEZE_NOTIFICATION_DONE)?;
             writer.write_payload(&self.cookie.0)?;
