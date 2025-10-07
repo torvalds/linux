@@ -9306,6 +9306,7 @@ int ath12k_mac_rfkill_enable_radio(struct ath12k *ar, bool enable)
 
 static void ath12k_mac_stop(struct ath12k *ar)
 {
+	struct ath12k_pdev_dp *dp_pdev = &ar->dp;
 	struct ath12k_hw *ah = ar->ah;
 	struct htt_ppdu_stats_info *ppdu_stats, *tmp;
 	struct ath12k_wmi_scan_chan_list_arg *arg;
@@ -9330,13 +9331,14 @@ static void ath12k_mac_stop(struct ath12k *ar)
 	ar->state_11d = ATH12K_11D_IDLE;
 	complete(&ar->completed_11d_scan);
 
-	spin_lock_bh(&ar->data_lock);
-
-	list_for_each_entry_safe(ppdu_stats, tmp, &ar->ppdu_stats_info, list) {
+	spin_lock_bh(&dp_pdev->ppdu_list_lock);
+	list_for_each_entry_safe(ppdu_stats, tmp, &dp_pdev->ppdu_stats_info, list) {
 		list_del(&ppdu_stats->list);
 		kfree(ppdu_stats);
 	}
+	spin_unlock_bh(&dp_pdev->ppdu_list_lock);
 
+	spin_lock_bh(&ar->data_lock);
 	while ((arg = list_first_entry_or_null(&ar->regd_channel_update_queue,
 					       struct ath12k_wmi_scan_chan_list_arg,
 					       list))) {
@@ -13998,8 +14000,9 @@ static void ath12k_mac_setup(struct ath12k *ar)
 	ar->vdev_id_11d_scan = ATH12K_11D_INVALID_VDEV_ID;
 
 	spin_lock_init(&ar->data_lock);
+	spin_lock_init(&ar->dp.ppdu_list_lock);
 	INIT_LIST_HEAD(&ar->arvifs);
-	INIT_LIST_HEAD(&ar->ppdu_stats_info);
+	INIT_LIST_HEAD(&ar->dp.ppdu_stats_info);
 
 	init_completion(&ar->vdev_setup_done);
 	init_completion(&ar->vdev_delete_done);

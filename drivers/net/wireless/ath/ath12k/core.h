@@ -654,23 +654,6 @@ struct ath12k_debug {
 	bool extd_rx_stats;
 };
 
-struct ath12k_per_peer_tx_stats {
-	u32 succ_bytes;
-	u32 retry_bytes;
-	u32 failed_bytes;
-	u32 duration;
-	u16 succ_pkts;
-	u16 retry_pkts;
-	u16 failed_pkts;
-	u16 ru_start;
-	u16 ru_tones;
-	u8 ba_fails;
-	u8 ppdu_type;
-	u32 mu_grpid;
-	u32 mu_pos;
-	bool is_ampdu;
-};
-
 struct ath12k_pdev_rssi_offsets {
 	s32 temp_offset;
 	s8 min_nf_dbm;
@@ -795,9 +778,6 @@ struct ath12k {
 	struct ath12k_wow wow;
 	struct completion target_suspend;
 	bool target_suspend_ack;
-	struct ath12k_per_peer_tx_stats peer_tx_stats;
-	struct list_head ppdu_stats_info;
-	u32 ppdu_stat_list_depth;
 
 	struct ath12k_per_peer_tx_stats cached_stats;
 	u32 last_ppdu_id;

@@ -34,6 +34,24 @@ struct ath12k_dp_vif {
 	struct ath12k_dp_link_vif dp_link_vif[ATH12K_NUM_MAX_LINKS];
 };
 
+/* TODO: Move this to a separate dp_stats file */
+struct ath12k_per_peer_tx_stats {
+	u32 succ_bytes;
+	u32 retry_bytes;
+	u32 failed_bytes;
+	u32 duration;
+	u16 succ_pkts;
+	u16 retry_pkts;
+	u16 failed_pkts;
+	u16 ru_start;
+	u16 ru_tones;
+	u8 ba_fails;
+	u8 ppdu_type;
+	u32 mu_grpid;
+	u32 mu_pos;
+	bool is_ampdu;
+};
+
 static inline struct ath12k_dp_link_vif *
 ath12k_dp_vif_to_dp_link_vif(struct ath12k_dp_vif *dp_vif, u8 link_id)
 {

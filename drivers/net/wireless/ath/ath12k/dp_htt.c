@@ -183,14 +183,15 @@ int ath12k_dp_htt_tlv_iter(struct ath12k_base *ab, const void *ptr, size_t len,
 }
 
 static void
-ath12k_update_per_peer_tx_stats(struct ath12k *ar,
+ath12k_update_per_peer_tx_stats(struct ath12k_pdev_dp *dp_pdev,
 				struct htt_ppdu_stats *ppdu_stats, u8 user)
 {
-	struct ath12k_base *ab = ar->ab;
+	struct ath12k_dp *dp = dp_pdev->dp;
+	struct ath12k_base *ab = dp->ab;
 	struct ath12k_peer *peer;
 	struct ath12k_link_sta *arsta;
 	struct htt_ppdu_stats_user_rate *user_rate;
-	struct ath12k_per_peer_tx_stats *peer_stats = &ar->peer_tx_stats;
+	struct ath12k_per_peer_tx_stats *peer_stats = &dp_pdev->peer_tx_stats;
 	struct htt_ppdu_user_stats *usr_stats = &ppdu_stats->user_stats[user];
 	struct htt_ppdu_stats_common *common = &ppdu_stats->common;
 	int ret;
@@ -360,34 +361,34 @@ ath12k_update_per_peer_tx_stats(struct ath12k *ar,
 	rcu_read_unlock();
 }
 
-static void ath12k_htt_update_ppdu_stats(struct ath12k *ar,
+static void ath12k_htt_update_ppdu_stats(struct ath12k_pdev_dp *dp_pdev,
 					 struct htt_ppdu_stats *ppdu_stats)
 {
 	u8 user;
 
 	for (user = 0; user < HTT_PPDU_STATS_MAX_USERS - 1; user++)
-		ath12k_update_per_peer_tx_stats(ar, ppdu_stats, user);
+		ath12k_update_per_peer_tx_stats(dp_pdev, ppdu_stats, user);
 }
 
 static
-struct htt_ppdu_stats_info *ath12k_dp_htt_get_ppdu_desc(struct ath12k *ar,
+struct htt_ppdu_stats_info *ath12k_dp_htt_get_ppdu_desc(struct ath12k_pdev_dp *dp_pdev,
 							u32 ppdu_id)
 {
 	struct htt_ppdu_stats_info *ppdu_info;
 
-	lockdep_assert_held(&ar->data_lock);
-	if (!list_empty(&ar->ppdu_stats_info)) {
-		list_for_each_entry(ppdu_info, &ar->ppdu_stats_info, list) {
+	lockdep_assert_held(&dp_pdev->ppdu_list_lock);
+	if (!list_empty(&dp_pdev->ppdu_stats_info)) {
+		list_for_each_entry(ppdu_info, &dp_pdev->ppdu_stats_info, list) {
 			if (ppdu_info->ppdu_id == ppdu_id)
 				return ppdu_info;
 		}
 
-		if (ar->ppdu_stat_list_depth > HTT_PPDU_DESC_MAX_DEPTH) {
-			ppdu_info = list_first_entry(&ar->ppdu_stats_info,
+		if (dp_pdev->ppdu_stat_list_depth > HTT_PPDU_DESC_MAX_DEPTH) {
+			ppdu_info = list_first_entry(&dp_pdev->ppdu_stats_info,
 						     typeof(*ppdu_info), list);
 			list_del(&ppdu_info->list);
-			ar->ppdu_stat_list_depth--;
-			ath12k_htt_update_ppdu_stats(ar, &ppdu_info->ppdu_stats);
+			dp_pdev->ppdu_stat_list_depth--;
+			ath12k_htt_update_ppdu_stats(dp_pdev, &ppdu_info->ppdu_stats);
 			kfree(ppdu_info);
 		}
 	}
@@ -396,8 +397,8 @@ struct htt_ppdu_stats_info *ath12k_dp_htt_get_ppdu_desc(struct ath12k *ar,
 	if (!ppdu_info)
 		return NULL;
 
-	list_add_tail(&ppdu_info->list, &ar->ppdu_stats_info);
-	ar->ppdu_stat_list_depth++;
+	list_add_tail(&ppdu_info->list, &dp_pdev->ppdu_stats_info);
+	dp_pdev->ppdu_stat_list_depth++;
 
 	return ppdu_info;
 }
@@ -435,14 +436,15 @@ static void ath12k_copy_to_bar(struct ath12k_peer *peer,
 static int ath12k_htt_pull_ppdu_stats(struct ath12k_base *ab,
 				      struct sk_buff *skb)
 {
+	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
 	struct ath12k_htt_ppdu_stats_msg *msg;
 	struct htt_ppdu_stats_info *ppdu_info;
 	struct ath12k_peer *peer = NULL;
 	struct htt_ppdu_user_stats *usr_stats = NULL;
 	u32 peer_id = 0;
-	struct ath12k *ar;
+	struct ath12k_pdev_dp *dp_pdev;
 	int ret, i;
-	u8 pdev_id;
+	u8 pdev_id, pdev_idx;
 	u32 ppdu_id, len;
 
 	msg = (struct ath12k_htt_ppdu_stats_msg *)skb->data;
@@ -457,17 +459,24 @@ static int ath12k_htt_pull_ppdu_stats(struct ath12k_base *ab,
 	pdev_id = le32_get_bits(msg->info, HTT_T2H_PPDU_STATS_INFO_PDEV_ID);
 	ppdu_id = le32_to_cpu(msg->ppdu_id);
 
+	pdev_idx = DP_HW2SW_MACID(pdev_id);
+	if (pdev_idx >= MAX_RADIOS) {
+		ath12k_warn(ab, "HTT PPDU STATS invalid pdev id %u", pdev_id);
+		return -EINVAL;
+	}
+
 	rcu_read_lock();
-	ar = ath12k_mac_get_ar_by_pdev_id(ab, pdev_id);
-	if (!ar) {
+
+	dp_pdev = ath12k_dp_to_pdev_dp(dp, pdev_idx);
+	if (!dp_pdev) {
 		ret = -EINVAL;
 		goto exit;
 	}
 
-	spin_lock_bh(&ar->data_lock);
-	ppdu_info = ath12k_dp_htt_get_ppdu_desc(ar, ppdu_id);
+	spin_lock_bh(&dp_pdev->ppdu_list_lock);
+	ppdu_info = ath12k_dp_htt_get_ppdu_desc(dp_pdev, ppdu_id);
 	if (!ppdu_info) {
-		spin_unlock_bh(&ar->data_lock);
+		spin_unlock_bh(&dp_pdev->ppdu_list_lock);
 		ret = -EINVAL;
 		goto exit;
 	}
@@ -477,13 +486,13 @@ static int ath12k_htt_pull_ppdu_stats(struct ath12k_base *ab,
 				     ath12k_htt_tlv_ppdu_stats_parse,
 				     (void *)ppdu_info);
 	if (ret) {
-		spin_unlock_bh(&ar->data_lock);
+		spin_unlock_bh(&dp_pdev->ppdu_list_lock);
 		ath12k_warn(ab, "Failed to parse tlv %d\n", ret);
 		goto exit;
 	}
 
 	if (ppdu_info->ppdu_stats.common.num_users >= HTT_PPDU_STATS_MAX_USERS) {
-		spin_unlock_bh(&ar->data_lock);
+		spin_unlock_bh(&dp_pdev->ppdu_list_lock);
 		ath12k_warn(ab,
 			    "HTT PPDU STATS event has unexpected num_users %u, should be smaller than %u\n",
 			    ppdu_info->ppdu_stats.common.num_users,
@@ -531,7 +540,7 @@ static int ath12k_htt_pull_ppdu_stats(struct ath12k_base *ab,
 		}
 	}
 
-	spin_unlock_bh(&ar->data_lock);
+	spin_unlock_bh(&dp_pdev->ppdu_list_lock);
 
 exit:
 	rcu_read_unlock();

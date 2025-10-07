@@ -156,6 +156,12 @@ struct ath12k_pdev_dp {
 	struct ieee80211_hw *hw;
 	u8 hw_link_id;
 
+	/* Protects ppdu stats */
+	spinlock_t ppdu_list_lock;
+	struct ath12k_per_peer_tx_stats peer_tx_stats;
+	struct list_head ppdu_stats_info;
+	u32 ppdu_stat_list_depth;
+
 	struct dp_srng rxdma_mon_dst_ring[MAX_RXDMA_PER_PDEV];
 	struct dp_srng tx_mon_dst_ring[MAX_RXDMA_PER_PDEV];
 
