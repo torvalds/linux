@@ -1649,8 +1649,8 @@ int psp_xgmi_get_topology_info(struct psp_context *psp,
 			amdgpu_ip_version(psp->adev, MP0_HWIP, 0) ==
 				IP_VERSION(13, 0, 14) ||
 			amdgpu_sriov_vf(psp->adev);
-		bool ta_port_num_support = amdgpu_sriov_vf(psp->adev) ? 0 :
-				psp->xgmi_context.xgmi_ta_caps & EXTEND_PEER_LINK_INFO_CMD_FLAG;
+		bool ta_port_num_support = psp->xgmi_context.xgmi_ta_caps & EXTEND_PEER_LINK_INFO_CMD_FLAG ||
+			amdgpu_sriov_xgmi_ta_ext_peer_link_en(psp->adev);
 
 		/* popluate the shared output buffer rather than the cmd input buffer
 		 * with node_ids as the input for GET_PEER_LINKS command execution.
