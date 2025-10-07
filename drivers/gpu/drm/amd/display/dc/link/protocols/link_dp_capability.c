@@ -357,7 +357,9 @@ bool dp_should_enable_fec(const struct dc_link *link)
 {
 	bool force_disable = false;
 
-	if (link->fec_state == dc_link_fec_enabled)
+	if (link->dc->debug.disable_fec)
+		force_disable = true;
+	else if (link->fec_state == dc_link_fec_enabled)
 		force_disable = false;
 	else if (link->connector_signal != SIGNAL_TYPE_DISPLAY_PORT_MST &&
 			link->local_sink &&
