@@ -22,9 +22,9 @@
 #include <linux/uaccess.h>
 #include <linux/unaligned.h>
 
-#define OCC_SRAM_BYTES		4096
-#define OCC_CMD_DATA_BYTES	4090
-#define OCC_RESP_DATA_BYTES	4089
+#define OCC_SRAM_BYTES		8192
+#define OCC_CMD_DATA_BYTES	8186
+#define OCC_RESP_DATA_BYTES	8185
 
 #define OCC_P9_SRAM_CMD_ADDR	0xFFFBE000
 #define OCC_P9_SRAM_RSP_ADDR	0xFFFBF000
@@ -86,7 +86,7 @@ static int occ_open(struct inode *inode, struct file *file)
 	if (!client)
 		return -ENOMEM;
 
-	client->buffer = (u8 *)__get_free_page(GFP_KERNEL);
+	client->buffer = kvmalloc(OCC_SRAM_BYTES, GFP_KERNEL);
 	if (!client->buffer) {
 		kfree(client);
 		return -ENOMEM;
@@ -96,10 +96,6 @@ static int occ_open(struct inode *inode, struct file *file)
 	mutex_init(&client->lock);
 	file->private_data = client;
 	get_device(occ->dev);
-
-	/* We allocate a 1-page buffer, make sure it all fits */
-	BUILD_BUG_ON((OCC_CMD_DATA_BYTES + 3) > PAGE_SIZE);
-	BUILD_BUG_ON((OCC_RESP_DATA_BYTES + 7) > PAGE_SIZE);
 
 	return 0;
 }
@@ -176,7 +172,7 @@ static ssize_t occ_write(struct file *file, const char __user *buf,
 	}
 
 	/* Submit command; 4 bytes before the data and 2 bytes after */
-	rlen = PAGE_SIZE;
+	rlen = OCC_SRAM_BYTES;
 	rc = fsi_occ_submit(client->occ->dev, cmd, data_length + 6, cmd,
 			    &rlen);
 	if (rc)
@@ -200,7 +196,7 @@ static int occ_release(struct inode *inode, struct file *file)
 	struct occ_client *client = file->private_data;
 
 	put_device(client->occ->dev);
-	free_page((unsigned long)client->buffer);
+	kvfree(client->buffer);
 	kfree(client);
 
 	return 0;
