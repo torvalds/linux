@@ -12,6 +12,10 @@
  * struct xe_tile_sriov_vf_selfconfig - VF configuration data.
  */
 struct xe_tile_sriov_vf_selfconfig {
+	/** @ggtt_base: assigned base offset of the GGTT region. */
+	u64 ggtt_base;
+	/** @ggtt_size: assigned size of the GGTT region. */
+	u64 ggtt_size;
 	/** @lmem_size: assigned size of the LMEM. */
 	u64 lmem_size;
 };

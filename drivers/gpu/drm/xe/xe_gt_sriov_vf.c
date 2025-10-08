@@ -438,12 +438,16 @@ u32 xe_gt_sriov_vf_gmdid(struct xe_gt *gt)
 
 static int vf_get_ggtt_info(struct xe_gt *gt)
 {
-	struct xe_gt_sriov_vf_selfconfig *config = &gt->sriov.vf.self_config;
+	struct xe_tile *tile = gt_to_tile(gt);
+	struct xe_ggtt *ggtt = tile->mem.ggtt;
 	struct xe_guc *guc = &gt->uc.guc;
-	u64 start, size;
+	u64 start, size, ggtt_size;
+	s64 shift;
 	int err;
 
 	xe_gt_assert(gt, IS_SRIOV_VF(gt_to_xe(gt)));
+
+	guard(mutex)(&ggtt->lock);
 
 	err = guc_action_query_single_klv64(guc, GUC_KLV_VF_CFG_GGTT_START_KEY, &start);
 	if (unlikely(err))
@@ -453,20 +457,30 @@ static int vf_get_ggtt_info(struct xe_gt *gt)
 	if (unlikely(err))
 		return err;
 
-	if (config->ggtt_size && config->ggtt_size != size) {
+	if (!size)
+		return -ENODATA;
+
+	ggtt_size = xe_tile_sriov_vf_ggtt(tile);
+	if (ggtt_size && ggtt_size != size) {
 		xe_gt_sriov_err(gt, "Unexpected GGTT reassignment: %lluK != %lluK\n",
-				size / SZ_1K, config->ggtt_size / SZ_1K);
+				size / SZ_1K, ggtt_size / SZ_1K);
 		return -EREMCHG;
 	}
 
 	xe_gt_sriov_dbg_verbose(gt, "GGTT %#llx-%#llx = %lluK\n",
 				start, start + size - 1, size / SZ_1K);
 
-	config->ggtt_shift = start - (s64)config->ggtt_base;
-	config->ggtt_base = start;
-	config->ggtt_size = size;
+	shift = start - (s64)xe_tile_sriov_vf_ggtt_base(tile);
+	xe_tile_sriov_vf_ggtt_base_store(tile, start);
+	xe_tile_sriov_vf_ggtt_store(tile, size);
 
-	return config->ggtt_size ? 0 : -ENODATA;
+	if (shift && shift != start) {
+		xe_gt_sriov_info(gt, "Shifting GGTT base by %lld to 0x%016llx\n",
+				 shift, start);
+		xe_tile_sriov_vf_fixup_ggtt_nodes_locked(gt_to_tile(gt), shift);
+	}
+
+	return 0;
 }
 
 static int vf_get_lmem_info(struct xe_gt *gt)
@@ -546,7 +560,9 @@ static void vf_cache_gmdid(struct xe_gt *gt)
  * xe_gt_sriov_vf_query_config - Query SR-IOV config data over MMIO.
  * @gt: the &xe_gt
  *
- * This function is for VF use only.
+ * This function is for VF use only. This function may shift the GGTT and is
+ * performed under GGTT lock, making this step visible to all GTs that share a
+ * GGTT.
  *
  * Return: 0 on success or a negative error code on failure.
  */
@@ -590,58 +606,6 @@ u16 xe_gt_sriov_vf_guc_ids(struct xe_gt *gt)
 	xe_gt_assert(gt, gt->sriov.vf.self_config.num_ctxs);
 
 	return gt->sriov.vf.self_config.num_ctxs;
-}
-
-/**
- * xe_gt_sriov_vf_ggtt - VF GGTT configuration.
- * @gt: the &xe_gt
- *
- * This function is for VF use only.
- *
- * Return: size of the GGTT assigned to VF.
- */
-u64 xe_gt_sriov_vf_ggtt(struct xe_gt *gt)
-{
-	xe_gt_assert(gt, IS_SRIOV_VF(gt_to_xe(gt)));
-	xe_gt_assert(gt, gt->sriov.vf.guc_version.major);
-	xe_gt_assert(gt, gt->sriov.vf.self_config.ggtt_size);
-
-	return gt->sriov.vf.self_config.ggtt_size;
-}
-
-/**
- * xe_gt_sriov_vf_ggtt_base - VF GGTT base offset.
- * @gt: the &xe_gt
- *
- * This function is for VF use only.
- *
- * Return: base offset of the GGTT assigned to VF.
- */
-u64 xe_gt_sriov_vf_ggtt_base(struct xe_gt *gt)
-{
-	xe_gt_assert(gt, IS_SRIOV_VF(gt_to_xe(gt)));
-	xe_gt_assert(gt, gt->sriov.vf.guc_version.major);
-	xe_gt_assert(gt, gt->sriov.vf.self_config.ggtt_size);
-
-	return gt->sriov.vf.self_config.ggtt_base;
-}
-
-/**
- * xe_gt_sriov_vf_ggtt_shift - Return shift in GGTT range due to VF migration
- * @gt: the &xe_gt struct instance
- *
- * This function is for VF use only.
- *
- * Return: The shift value; could be negative
- */
-s64 xe_gt_sriov_vf_ggtt_shift(struct xe_gt *gt)
-{
-	struct xe_gt_sriov_vf_selfconfig *config = &gt->sriov.vf.self_config;
-
-	xe_gt_assert(gt, IS_SRIOV_VF(gt_to_xe(gt)));
-	xe_gt_assert(gt, xe_gt_is_main_type(gt));
-
-	return config->ggtt_shift;
 }
 
 static int relay_action_handshake(struct xe_gt *gt, u32 *major, u32 *minor)
@@ -1053,19 +1017,20 @@ void xe_gt_sriov_vf_print_config(struct xe_gt *gt, struct drm_printer *p)
 
 	xe_gt_assert(gt, IS_SRIOV_VF(gt_to_xe(gt)));
 
-	drm_printf(p, "GGTT range:\t%#llx-%#llx\n",
-		   config->ggtt_base,
-		   config->ggtt_base + config->ggtt_size - 1);
+	if (xe_gt_is_main_type(gt)) {
+		u64 ggtt_size = xe_tile_sriov_vf_ggtt(gt_to_tile(gt));
+		u64 ggtt_base = xe_tile_sriov_vf_ggtt_base(gt_to_tile(gt));
 
-	string_get_size(config->ggtt_size, 1, STRING_UNITS_2, buf, sizeof(buf));
-	drm_printf(p, "GGTT size:\t%llu (%s)\n", config->ggtt_size, buf);
+		drm_printf(p, "GGTT range:\t%#llx-%#llx\n",
+			   ggtt_base, ggtt_base + ggtt_size - 1);
+		string_get_size(ggtt_size, 1, STRING_UNITS_2, buf, sizeof(buf));
+		drm_printf(p, "GGTT size:\t%llu (%s)\n", ggtt_size, buf);
 
-	drm_printf(p, "GGTT shift on last restore:\t%lld\n", config->ggtt_shift);
-
-	if (IS_DGFX(xe) && xe_gt_is_main_type(gt)) {
-		lmem_size = xe_tile_sriov_vf_lmem(gt_to_tile(gt));
-		string_get_size(lmem_size, 1, STRING_UNITS_2, buf, sizeof(buf));
-		drm_printf(p, "LMEM size:\t%llu (%s)\n", lmem_size, buf);
+		if (IS_DGFX(xe)) {
+			lmem_size = xe_tile_sriov_vf_lmem(gt_to_tile(gt));
+			string_get_size(lmem_size, 1, STRING_UNITS_2, buf, sizeof(buf));
+			drm_printf(p, "LMEM size:\t%llu (%s)\n", lmem_size, buf);
+		}
 	}
 
 	drm_printf(p, "GuC contexts:\t%u\n", config->num_ctxs);
@@ -1152,21 +1117,17 @@ static size_t post_migration_scratch_size(struct xe_device *xe)
 static int vf_post_migration_fixups(struct xe_gt *gt)
 {
 	void *buf = gt->sriov.vf.migration.scratch;
-	s64 shift;
 	int err;
 
+	/* xe_gt_sriov_vf_query_config will fixup the GGTT addresses */
 	err = xe_gt_sriov_vf_query_config(gt);
 	if (err)
 		return err;
 
-	shift = xe_gt_sriov_vf_ggtt_shift(gt);
-	if (shift) {
-		xe_tile_sriov_vf_fixup_ggtt_nodes(gt_to_tile(gt), shift);
-		xe_gt_sriov_vf_default_lrcs_hwsp_rebase(gt);
-		err = xe_guc_contexts_hwsp_rebase(&gt->uc.guc, buf);
-		if (err)
-			return err;
-	}
+	xe_gt_sriov_vf_default_lrcs_hwsp_rebase(gt);
+	err = xe_guc_contexts_hwsp_rebase(&gt->uc.guc, buf);
+	if (err)
+		return err;
 
 	return 0;
 }
