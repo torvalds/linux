@@ -2085,7 +2085,8 @@ static void pci_bus_distribute_available_resources(struct pci_bus *bus,
 	int i;
 
 	for (i = 0; i < PCI_P2P_BRIDGE_RESOURCE_NUM; i++) {
-		struct resource *res = pci_bus_resource_n(bus, i);
+		struct resource *res =
+			pci_resource_n(bridge, PCI_BRIDGE_RESOURCES + i);
 
 		available[i] = available_in[i];
 
@@ -2158,7 +2159,7 @@ static void pci_bus_distribute_available_resources(struct pci_bus *bus,
 			continue;
 
 		for (i = 0; i < PCI_P2P_BRIDGE_RESOURCE_NUM; i++) {
-			res = pci_bus_resource_n(bus, i);
+			res = pci_resource_n(dev, PCI_BRIDGE_RESOURCES + i);
 
 			/*
 			 * Make sure the split resource space is properly
