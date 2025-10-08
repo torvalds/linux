@@ -142,6 +142,11 @@ static void set_exec_queue_destroyed(struct xe_exec_queue *q)
 	atomic_or(EXEC_QUEUE_STATE_DESTROYED, &q->guc->state);
 }
 
+static void clear_exec_queue_destroyed(struct xe_exec_queue *q)
+{
+	atomic_and(~EXEC_QUEUE_STATE_DESTROYED, &q->guc->state);
+}
+
 static bool exec_queue_banned(struct xe_exec_queue *q)
 {
 	return atomic_read(&q->guc->state) & EXEC_QUEUE_STATE_BANNED;
@@ -222,7 +227,12 @@ static void set_exec_queue_extra_ref(struct xe_exec_queue *q)
 	atomic_or(EXEC_QUEUE_STATE_EXTRA_REF, &q->guc->state);
 }
 
-static bool __maybe_unused exec_queue_pending_resume(struct xe_exec_queue *q)
+static void clear_exec_queue_extra_ref(struct xe_exec_queue *q)
+{
+	atomic_and(~EXEC_QUEUE_STATE_EXTRA_REF, &q->guc->state);
+}
+
+static bool exec_queue_pending_resume(struct xe_exec_queue *q)
 {
 	return atomic_read(&q->guc->state) & EXEC_QUEUE_STATE_PENDING_RESUME;
 }
@@ -237,7 +247,7 @@ static void clear_exec_queue_pending_resume(struct xe_exec_queue *q)
 	atomic_and(~EXEC_QUEUE_STATE_PENDING_RESUME, &q->guc->state);
 }
 
-static bool __maybe_unused exec_queue_pending_tdr_exit(struct xe_exec_queue *q)
+static bool exec_queue_pending_tdr_exit(struct xe_exec_queue *q)
 {
 	return atomic_read(&q->guc->state) & EXEC_QUEUE_STATE_PENDING_TDR_EXIT;
 }
@@ -799,7 +809,7 @@ static void wq_item_append(struct xe_exec_queue *q)
 }
 
 #define RESUME_PENDING	~0x0ull
-static void submit_exec_queue(struct xe_exec_queue *q)
+static void submit_exec_queue(struct xe_exec_queue *q, struct xe_sched_job *job)
 {
 	struct xe_guc *guc = exec_queue_to_guc(q);
 	struct xe_lrc *lrc = q->lrc[0];
@@ -811,10 +821,13 @@ static void submit_exec_queue(struct xe_exec_queue *q)
 
 	xe_gt_assert(guc_to_gt(guc), exec_queue_registered(q));
 
-	if (xe_exec_queue_is_parallel(q))
-		wq_item_append(q);
-	else
-		xe_lrc_set_ring_tail(lrc, lrc->ring.tail);
+	if (!job->skip_emit || job->last_replay) {
+		if (xe_exec_queue_is_parallel(q))
+			wq_item_append(q);
+		else
+			xe_lrc_set_ring_tail(lrc, lrc->ring.tail);
+		job->last_replay = false;
+	}
 
 	if (exec_queue_suspended(q) && !xe_exec_queue_is_parallel(q))
 		return;
@@ -867,8 +880,10 @@ guc_exec_queue_run_job(struct drm_sched_job *drm_job)
 	if (!killed_or_banned_or_wedged && !xe_sched_job_is_error(job)) {
 		if (!exec_queue_registered(q))
 			register_exec_queue(q, GUC_CONTEXT_NORMAL);
-		q->ring_ops->emit_job(job);
-		submit_exec_queue(q);
+		if (!job->skip_emit)
+			q->ring_ops->emit_job(job);
+		submit_exec_queue(q, job);
+		job->skip_emit = false;
 	}
 
 	/*
@@ -1592,6 +1607,7 @@ static void __guc_exec_queue_process_msg_resume(struct xe_sched_msg *msg)
 #define RESUME		4
 #define OPCODE_MASK	0xf
 #define MSG_LOCKED	BIT(8)
+#define MSG_HEAD	BIT(9)
 
 static void guc_exec_queue_process_msg(struct xe_sched_msg *msg)
 {
@@ -1716,10 +1732,22 @@ static void guc_exec_queue_add_msg(struct xe_exec_queue *q, struct xe_sched_msg 
 	msg->private_data = q;
 
 	trace_xe_sched_msg_add(msg);
-	if (opcode & MSG_LOCKED)
+	if (opcode & MSG_HEAD)
+		xe_sched_add_msg_head(&q->guc->sched, msg);
+	else if (opcode & MSG_LOCKED)
 		xe_sched_add_msg_locked(&q->guc->sched, msg);
 	else
 		xe_sched_add_msg(&q->guc->sched, msg);
+}
+
+static void guc_exec_queue_try_add_msg_head(struct xe_exec_queue *q,
+					    struct xe_sched_msg *msg,
+					    u32 opcode)
+{
+	if (!list_empty(&msg->link))
+		return;
+
+	guc_exec_queue_add_msg(q, msg, opcode | MSG_LOCKED | MSG_HEAD);
 }
 
 static bool guc_exec_queue_try_add_msg(struct xe_exec_queue *q,
@@ -2009,6 +2037,105 @@ void xe_guc_submit_stop(struct xe_guc *guc)
 
 }
 
+static void guc_exec_queue_revert_pending_state_change(struct xe_exec_queue *q)
+{
+	bool pending_enable, pending_disable, pending_resume;
+
+	pending_enable = exec_queue_pending_enable(q);
+	pending_resume = exec_queue_pending_resume(q);
+
+	if (pending_enable && pending_resume)
+		q->guc->needs_resume = true;
+
+	if (pending_enable && !pending_resume &&
+	    !exec_queue_pending_tdr_exit(q)) {
+		clear_exec_queue_registered(q);
+		if (xe_exec_queue_is_lr(q))
+			xe_exec_queue_put(q);
+	}
+
+	if (pending_enable) {
+		clear_exec_queue_enabled(q);
+		clear_exec_queue_pending_resume(q);
+		clear_exec_queue_pending_tdr_exit(q);
+		clear_exec_queue_pending_enable(q);
+	}
+
+	if (exec_queue_destroyed(q) && exec_queue_registered(q)) {
+		clear_exec_queue_destroyed(q);
+		if (exec_queue_extra_ref(q))
+			xe_exec_queue_put(q);
+		else
+			q->guc->needs_cleanup = true;
+		clear_exec_queue_extra_ref(q);
+	}
+
+	pending_disable = exec_queue_pending_disable(q);
+
+	if (pending_disable && exec_queue_suspended(q)) {
+		clear_exec_queue_suspended(q);
+		q->guc->needs_suspend = true;
+	}
+
+	if (pending_disable) {
+		if (!pending_enable)
+			set_exec_queue_enabled(q);
+		clear_exec_queue_pending_disable(q);
+		clear_exec_queue_check_timeout(q);
+	}
+
+	q->guc->resume_time = 0;
+}
+
+/*
+ * This function is quite complex but only real way to ensure no state is lost
+ * during VF resume flows. The function scans the queue state, make adjustments
+ * as needed, and queues jobs / messages which replayed upon unpause.
+ */
+static void guc_exec_queue_pause(struct xe_guc *guc, struct xe_exec_queue *q)
+{
+	struct xe_gpu_scheduler *sched = &q->guc->sched;
+	struct xe_sched_job *job;
+	int i;
+
+	lockdep_assert_held(&guc->submission_state.lock);
+
+	/* Stop scheduling + flush any DRM scheduler operations */
+	xe_sched_submission_stop(sched);
+	if (xe_exec_queue_is_lr(q))
+		cancel_work_sync(&q->guc->lr_tdr);
+	else
+		cancel_delayed_work_sync(&sched->base.work_tdr);
+
+	guc_exec_queue_revert_pending_state_change(q);
+
+	if (xe_exec_queue_is_parallel(q)) {
+		struct xe_device *xe = guc_to_xe(guc);
+		struct iosys_map map = xe_lrc_parallel_map(q->lrc[0]);
+
+		/*
+		 * NOP existing WQ commands that may contain stale GGTT
+		 * addresses. These will be replayed upon unpause. The hardware
+		 * seems to get confused if the WQ head/tail pointers are
+		 * adjusted.
+		 */
+		for (i = 0; i < WQ_SIZE / sizeof(u32); ++i)
+			parallel_write(xe, map, wq[i],
+				       FIELD_PREP(WQ_TYPE_MASK, WQ_TYPE_NOOP) |
+				       FIELD_PREP(WQ_LEN_MASK, 0));
+	}
+
+	job = xe_sched_first_pending_job(sched);
+	if (job) {
+		/*
+		 * Adjust software tail so jobs submitted overwrite previous
+		 * position in ring buffer with new GGTT addresses.
+		 */
+		for (i = 0; i < q->width; ++i)
+			q->lrc[i]->ring.tail = job->ptrs[i].head;
+	}
+}
+
 /**
  * xe_guc_submit_pause - Stop further runs of submission tasks on given GuC.
  * @guc: the &xe_guc struct instance whose scheduler is to be disabled
@@ -2018,8 +2145,17 @@ void xe_guc_submit_pause(struct xe_guc *guc)
 	struct xe_exec_queue *q;
 	unsigned long index;
 
-	xa_for_each(&guc->submission_state.exec_queue_lookup, index, q)
-		xe_sched_submission_stop_async(&q->guc->sched);
+	xe_gt_assert(guc_to_gt(guc), vf_recovery(guc));
+
+	mutex_lock(&guc->submission_state.lock);
+	xa_for_each(&guc->submission_state.exec_queue_lookup, index, q) {
+		/* Prevent redundant attempts to stop parallel queues */
+		if (q->guc->id != index)
+			continue;
+
+		guc_exec_queue_pause(guc, q);
+	}
+	mutex_unlock(&guc->submission_state.lock);
 }
 
 static void guc_exec_queue_start(struct xe_exec_queue *q)
@@ -2076,11 +2212,97 @@ int xe_guc_submit_start(struct xe_guc *guc)
 	return 0;
 }
 
-static void guc_exec_queue_unpause(struct xe_exec_queue *q)
+static void guc_exec_queue_unpause_prepare(struct xe_guc *guc,
+					   struct xe_exec_queue *q)
 {
 	struct xe_gpu_scheduler *sched = &q->guc->sched;
+	struct drm_sched_job *s_job;
+	struct xe_sched_job *job = NULL;
 
+	list_for_each_entry(s_job, &sched->base.pending_list, list) {
+		job = to_xe_sched_job(s_job);
+
+		q->ring_ops->emit_job(job);
+		job->skip_emit = true;
+	}
+
+	if (job)
+		job->last_replay = true;
+}
+
+/**
+ * xe_guc_submit_unpause_prepare - Prepare unpause submission tasks on given GuC.
+ * @guc: the &xe_guc struct instance whose scheduler is to be prepared for unpause
+ */
+void xe_guc_submit_unpause_prepare(struct xe_guc *guc)
+{
+	struct xe_exec_queue *q;
+	unsigned long index;
+
+	xe_gt_assert(guc_to_gt(guc), vf_recovery(guc));
+
+	mutex_lock(&guc->submission_state.lock);
+	xa_for_each(&guc->submission_state.exec_queue_lookup, index, q) {
+		/* Prevent redundant attempts to stop parallel queues */
+		if (q->guc->id != index)
+			continue;
+
+		guc_exec_queue_unpause_prepare(guc, q);
+	}
+	mutex_unlock(&guc->submission_state.lock);
+}
+
+static void guc_exec_queue_replay_pending_state_change(struct xe_exec_queue *q)
+{
+	struct xe_gpu_scheduler *sched = &q->guc->sched;
+	struct xe_sched_msg *msg;
+
+	if (q->guc->needs_cleanup) {
+		msg = q->guc->static_msgs + STATIC_MSG_CLEANUP;
+
+		guc_exec_queue_add_msg(q, msg, CLEANUP);
+		q->guc->needs_cleanup = false;
+	}
+
+	if (q->guc->needs_suspend) {
+		msg = q->guc->static_msgs + STATIC_MSG_SUSPEND;
+
+		xe_sched_msg_lock(sched);
+		guc_exec_queue_try_add_msg_head(q, msg, SUSPEND);
+		xe_sched_msg_unlock(sched);
+
+		q->guc->needs_suspend = false;
+	}
+
+	/*
+	 * The resume must be in the message queue before the suspend as it is
+	 * not possible for a resume to be issued if a suspend pending is, but
+	 * the inverse is possible.
+	 */
+	if (q->guc->needs_resume) {
+		msg = q->guc->static_msgs + STATIC_MSG_RESUME;
+
+		xe_sched_msg_lock(sched);
+		guc_exec_queue_try_add_msg_head(q, msg, RESUME);
+		xe_sched_msg_unlock(sched);
+
+		q->guc->needs_resume = false;
+	}
+}
+
+static void guc_exec_queue_unpause(struct xe_guc *guc, struct xe_exec_queue *q)
+{
+	struct xe_gpu_scheduler *sched = &q->guc->sched;
+	bool needs_tdr = exec_queue_killed_or_banned_or_wedged(q);
+
+	lockdep_assert_held(&guc->submission_state.lock);
+
+	xe_sched_resubmit_jobs(sched);
+	guc_exec_queue_replay_pending_state_change(q);
 	xe_sched_submission_start(sched);
+	if (needs_tdr)
+		xe_guc_exec_queue_trigger_cleanup(q);
+	xe_sched_submission_resume_tdr(sched);
 }
 
 /**
@@ -2092,10 +2314,19 @@ void xe_guc_submit_unpause(struct xe_guc *guc)
 	struct xe_exec_queue *q;
 	unsigned long index;
 
-	xa_for_each(&guc->submission_state.exec_queue_lookup, index, q)
-		guc_exec_queue_unpause(q);
+	mutex_lock(&guc->submission_state.lock);
+	xa_for_each(&guc->submission_state.exec_queue_lookup, index, q) {
+		/*
+		 * Prevent redundant attempts to stop parallel queues, or queues
+		 * created after resfix done.
+		 */
+		if (q->guc->id != index ||
+		    !READ_ONCE(q->guc->sched.base.pause_submit))
+			continue;
 
-	wake_up_all(&guc->ct.wq);
+		guc_exec_queue_unpause(guc, q);
+	}
+	mutex_unlock(&guc->submission_state.lock);
 }
 
 /**
@@ -2110,6 +2341,10 @@ void xe_guc_submit_pause_abort(struct xe_guc *guc)
 	mutex_lock(&guc->submission_state.lock);
 	xa_for_each(&guc->submission_state.exec_queue_lookup, index, q) {
 		struct xe_gpu_scheduler *sched = &q->guc->sched;
+
+		/* Prevent redundant attempts to stop parallel queues */
+		if (q->guc->id != index)
+			continue;
 
 		xe_sched_submission_start(sched);
 		if (exec_queue_killed_or_banned_or_wedged(q))
@@ -2696,6 +2931,10 @@ int xe_guc_contexts_hwsp_rebase(struct xe_guc *guc, void *scratch)
 
 	mutex_lock(&guc->submission_state.lock);
 	xa_for_each(&guc->submission_state.exec_queue_lookup, index, q) {
+		/* Prevent redundant attempts to stop parallel queues */
+		if (q->guc->id != index)
+			continue;
+
 		err = xe_exec_queue_contexts_hwsp_rebase(q, scratch);
 		if (err)
 			break;
