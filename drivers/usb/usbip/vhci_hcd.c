@@ -1372,10 +1372,9 @@ static int vhci_hcd_probe(struct platform_device *pdev)
 	 * Our private data is also allocated automatically.
 	 */
 	hcd_hs = usb_create_hcd(&vhci_hc_driver, &pdev->dev, dev_name(&pdev->dev));
-	if (!hcd_hs) {
-		pr_err("create primary hcd failed\n");
-		return -ENOMEM;
-	}
+	if (!hcd_hs)
+		return dev_err_probe(&pdev->dev, -ENOMEM, "create primary hcd failed\n");
+
 	hcd_hs->has_tt = 1;
 
 	/*
@@ -1383,22 +1382,21 @@ static int vhci_hcd_probe(struct platform_device *pdev)
 	 * Call the driver's reset() and start() routines.
 	 */
 	ret = usb_add_hcd(hcd_hs, 0, 0);
-	if (ret != 0) {
-		pr_err("usb_add_hcd hs failed %d\n", ret);
+	if (ret) {
+		dev_err_probe(&pdev->dev, ret, "usb_add_hcd hs failed\n");
 		goto put_usb2_hcd;
 	}
 
 	hcd_ss = usb_create_shared_hcd(&vhci_hc_driver, &pdev->dev,
 				       dev_name(&pdev->dev), hcd_hs);
 	if (!hcd_ss) {
-		ret = -ENOMEM;
-		pr_err("create shared hcd failed\n");
+		ret = dev_err_probe(&pdev->dev, -ENOMEM, "create shared hcd failed\n");
 		goto remove_usb2_hcd;
 	}
 
 	ret = usb_add_hcd(hcd_ss, 0, 0);
 	if (ret) {
-		pr_err("usb_add_hcd ss failed %d\n", ret);
+		dev_err_probe(&pdev->dev, ret, "usb_add_hcd ss failed\n");
 		goto put_usb3_hcd;
 	}
 
