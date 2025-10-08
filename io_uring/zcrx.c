@@ -1079,6 +1079,7 @@ static ssize_t io_copy_page(struct io_copy_cache *cc, struct page *src_page,
 
 		cc->size -= n;
 		cc->offset += n;
+		src_offset += n;
 		len -= n;
 		copied += n;
 	}
