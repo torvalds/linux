@@ -924,7 +924,7 @@ R:	Pali Rohár <pali@kernel.org>
 F:	drivers/input/mouse/alps.*
 
 ALTERA MAILBOX DRIVER
-M:	Mun Yew Tham <mun.yew.tham@intel.com>
+M:	Tien Sung Ang <tiensung.ang@altera.com>
 S:	Maintained
 F:	drivers/mailbox/mailbox-altera.c
 
