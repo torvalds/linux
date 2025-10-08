@@ -1008,6 +1008,15 @@ int amdgpu_virt_init_critical_region(struct amdgpu_device *adev)
 			init_data_hdr->bad_page_size_in_kb;
 	}
 
+	/* reserved memory starts from crit region base offset with the size of 5MB */
+	adev->mman.fw_vram_usage_start_offset = adev->virt.crit_regn.offset;
+	adev->mman.fw_vram_usage_size = adev->virt.crit_regn.size_kb << 10;
+	dev_info(adev->dev,
+		"critical region v%d requested to reserve memory start at %08llx with %llu KB.\n",
+			init_data_hdr->version,
+			adev->mman.fw_vram_usage_start_offset,
+			adev->mman.fw_vram_usage_size >> 10);
+
 	adev->virt.is_dynamic_crit_regn_enabled = true;
 
 out:
