@@ -7,6 +7,7 @@
 #define _XE_GT_SRIOV_VF_TYPES_H_
 
 #include <linux/types.h>
+#include <linux/workqueue.h>
 #include "xe_uc_fw_types.h"
 
 /**
@@ -50,6 +51,12 @@ struct xe_gt_sriov_vf_runtime {
  * xe_gt_sriov_vf_migration - VF migration data.
  */
 struct xe_gt_sriov_vf_migration {
+	/** @migration: VF migration recovery worker */
+	struct work_struct worker;
+	/** @lock: Protects recovery_queued */
+	spinlock_t lock;
+	/** @recovery_queued: VF post migration recovery in queued */
+	bool recovery_queued;
 	/** @recovery_inprogress: VF post migration recovery in progress */
 	bool recovery_inprogress;
 };

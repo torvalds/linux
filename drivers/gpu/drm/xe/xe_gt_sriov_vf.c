@@ -25,11 +25,15 @@
 #include "xe_guc.h"
 #include "xe_guc_hxg_helpers.h"
 #include "xe_guc_relay.h"
+#include "xe_guc_submit.h"
+#include "xe_irq.h"
 #include "xe_lrc.h"
 #include "xe_memirq.h"
 #include "xe_mmio.h"
+#include "xe_pm.h"
 #include "xe_sriov.h"
 #include "xe_sriov_vf.h"
+#include "xe_tile_sriov_vf.h"
 #include "xe_uc_fw.h"
 #include "xe_wopcm.h"
 
@@ -308,13 +312,13 @@ static int guc_action_vf_notify_resfix_done(struct xe_guc *guc)
 }
 
 /**
- * xe_gt_sriov_vf_notify_resfix_done - Notify GuC about resource fixups apply completed.
+ * vf_notify_resfix_done - Notify GuC about resource fixups apply completed.
  * @gt: the &xe_gt struct instance linked to target GuC
  *
  * Returns: 0 if the operation completed successfully, or a negative error
  * code otherwise.
  */
-int xe_gt_sriov_vf_notify_resfix_done(struct xe_gt *gt)
+static int vf_notify_resfix_done(struct xe_gt *gt)
 {
 	struct xe_guc *guc = &gt->uc.guc;
 	int err;
@@ -756,13 +760,33 @@ failed:
  * xe_gt_sriov_vf_default_lrcs_hwsp_rebase - Update GGTT references in HWSP of default LRCs.
  * @gt: the &xe_gt struct instance
  */
-void xe_gt_sriov_vf_default_lrcs_hwsp_rebase(struct xe_gt *gt)
+static void xe_gt_sriov_vf_default_lrcs_hwsp_rebase(struct xe_gt *gt)
 {
 	struct xe_hw_engine *hwe;
 	enum xe_hw_engine_id id;
 
 	for_each_hw_engine(hwe, gt, id)
 		xe_default_lrc_update_memirq_regs_with_address(hwe);
+}
+
+static void vf_start_migration_recovery(struct xe_gt *gt)
+{
+	bool started;
+
+	xe_gt_assert(gt, IS_SRIOV_VF(gt_to_xe(gt)));
+
+	spin_lock(&gt->sriov.vf.migration.lock);
+
+	if (!gt->sriov.vf.migration.recovery_queued) {
+		gt->sriov.vf.migration.recovery_queued = true;
+		WRITE_ONCE(gt->sriov.vf.migration.recovery_inprogress, true);
+
+		started = queue_work(gt->ordered_wq, &gt->sriov.vf.migration.worker);
+		xe_gt_sriov_info(gt, "VF migration recovery %s\n", started ?
+				 "scheduled" : "already in progress");
+	}
+
+	spin_unlock(&gt->sriov.vf.migration.lock);
 }
 
 /**
@@ -779,15 +803,13 @@ void xe_gt_sriov_vf_migrated_event_handler(struct xe_gt *gt)
 	xe_gt_assert(gt, IS_SRIOV_VF(xe));
 	xe_gt_assert(gt, xe_gt_sriov_vf_recovery_pending(gt));
 
-	set_bit(gt->info.id, &xe->sriov.vf.migration.gt_flags);
-	/*
-	 * We need to be certain that if all flags were set, at least one
-	 * thread will notice that and schedule the recovery.
-	 */
-	smp_mb__after_atomic();
+	if (!xe_sriov_vf_migration_supported(xe)) {
+		xe_gt_sriov_err(gt, "migration not supported\n");
+		return;
+	}
 
 	xe_gt_sriov_info(gt, "ready for recovery after migration\n");
-	xe_sriov_vf_start_migration_recovery(xe);
+	vf_start_migration_recovery(gt);
 }
 
 static bool vf_is_negotiated(struct xe_gt *gt, u16 major, u16 minor)
@@ -1119,6 +1141,145 @@ void xe_gt_sriov_vf_print_version(struct xe_gt *gt, struct drm_printer *p)
 		   GUC_RELAY_VERSION_LATEST_MAJOR, GUC_RELAY_VERSION_LATEST_MINOR);
 	drm_printf(p, "\thandshake:\t%u.%u\n",
 		   pf_version->major, pf_version->minor);
+}
+
+static void vf_post_migration_shutdown(struct xe_gt *gt)
+{
+	int ret = 0;
+
+	spin_lock_irq(&gt->sriov.vf.migration.lock);
+	gt->sriov.vf.migration.recovery_queued = false;
+	spin_unlock_irq(&gt->sriov.vf.migration.lock);
+
+	xe_guc_submit_pause(&gt->uc.guc);
+	ret |= xe_guc_submit_reset_block(&gt->uc.guc);
+
+	if (ret)
+		xe_gt_sriov_info(gt, "migration recovery encountered ongoing reset\n");
+}
+
+static size_t post_migration_scratch_size(struct xe_device *xe)
+{
+	return max(xe_lrc_reg_size(xe), LRC_WA_BB_SIZE);
+}
+
+static int vf_post_migration_fixups(struct xe_gt *gt)
+{
+	s64 shift;
+	void *buf;
+	int err;
+
+	buf = kmalloc(post_migration_scratch_size(gt_to_xe(gt)), GFP_ATOMIC);
+	if (!buf)
+		return -ENOMEM;
+
+	err = xe_gt_sriov_vf_query_config(gt);
+	if (err)
+		goto out;
+
+	shift = xe_gt_sriov_vf_ggtt_shift(gt);
+	if (shift) {
+		xe_tile_sriov_vf_fixup_ggtt_nodes(gt_to_tile(gt), shift);
+		xe_gt_sriov_vf_default_lrcs_hwsp_rebase(gt);
+		err = xe_guc_contexts_hwsp_rebase(&gt->uc.guc, buf);
+		if (err)
+			goto out;
+	}
+
+out:
+	kfree(buf);
+	return err;
+}
+
+static void vf_post_migration_kickstart(struct xe_gt *gt)
+{
+	/*
+	 * Make sure interrupts on the new HW are properly set. The GuC IRQ
+	 * must be working at this point, since the recovery did started,
+	 * but the rest was not enabled using the procedure from spec.
+	 */
+	xe_irq_resume(gt_to_xe(gt));
+
+	xe_guc_submit_reset_unblock(&gt->uc.guc);
+	xe_guc_submit_unpause(&gt->uc.guc);
+}
+
+static int vf_post_migration_notify_resfix_done(struct xe_gt *gt)
+{
+	bool skip_resfix = false;
+
+	spin_lock_irq(&gt->sriov.vf.migration.lock);
+	if (gt->sriov.vf.migration.recovery_queued) {
+		skip_resfix = true;
+		xe_gt_sriov_dbg(gt, "another recovery imminent, resfix skipped\n");
+	} else {
+		WRITE_ONCE(gt->sriov.vf.migration.recovery_inprogress, false);
+	}
+	spin_unlock_irq(&gt->sriov.vf.migration.lock);
+
+	if (skip_resfix)
+		return -EAGAIN;
+
+	return vf_notify_resfix_done(gt);
+}
+
+static void vf_post_migration_recovery(struct xe_gt *gt)
+{
+	struct xe_device *xe = gt_to_xe(gt);
+	int err;
+
+	xe_gt_sriov_dbg(gt, "migration recovery in progress\n");
+
+	xe_pm_runtime_get(xe);
+	vf_post_migration_shutdown(gt);
+
+	if (!xe_sriov_vf_migration_supported(xe)) {
+		xe_gt_sriov_err(gt, "migration is not supported\n");
+		err = -ENOTRECOVERABLE;
+		goto fail;
+	}
+
+	err = vf_post_migration_fixups(gt);
+	if (err)
+		goto fail;
+
+	vf_post_migration_kickstart(gt);
+	err = vf_post_migration_notify_resfix_done(gt);
+	if (err && err != -EAGAIN)
+		goto fail;
+
+	xe_pm_runtime_put(xe);
+	xe_gt_sriov_notice(gt, "migration recovery ended\n");
+	return;
+fail:
+	xe_pm_runtime_put(xe);
+	xe_gt_sriov_err(gt, "migration recovery failed (%pe)\n", ERR_PTR(err));
+	xe_device_declare_wedged(xe);
+}
+
+static void migration_worker_func(struct work_struct *w)
+{
+	struct xe_gt *gt = container_of(w, struct xe_gt,
+					sriov.vf.migration.worker);
+
+	vf_post_migration_recovery(gt);
+}
+
+/**
+ * xe_gt_sriov_vf_init_early() - GT VF init early
+ * @gt: the &xe_gt
+ *
+ * Return 0 on success, errno on failure
+ */
+int xe_gt_sriov_vf_init_early(struct xe_gt *gt)
+{
+	if (!xe_sriov_vf_migration_supported(gt_to_xe(gt)))
+		return 0;
+
+	spin_lock_init(&gt->sriov.vf.migration.lock);
+	INIT_WORK(&gt->sriov.vf.migration.worker, migration_worker_func);
+
+	return 0;
 }
 
 /**
