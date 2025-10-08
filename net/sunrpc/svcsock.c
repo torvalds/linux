@@ -1062,9 +1062,10 @@ static ssize_t svc_tcp_read_marker(struct svc_sock *svsk,
 	return svc_sock_reclen(svsk);
 
 err_too_large:
-	net_notice_ratelimited("svc: %s %s RPC fragment too large: %d\n",
-			       __func__, svsk->sk_xprt.xpt_server->sv_name,
-			       svc_sock_reclen(svsk));
+	net_notice_ratelimited("svc: %s oversized RPC fragment (%u octets) from %pISpc\n",
+			       svsk->sk_xprt.xpt_server->sv_name,
+			       svc_sock_reclen(svsk),
+			       (struct sockaddr *)&svsk->sk_xprt.xpt_remote);
 	svc_xprt_deferred_close(&svsk->sk_xprt);
 err_short:
 	return -EAGAIN;
