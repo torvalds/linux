@@ -86,6 +86,26 @@ void hv_set_non_nested_msr(unsigned int reg, u64 value)
 }
 EXPORT_SYMBOL_GPL(hv_set_non_nested_msr);
 
+/*
+ * Get the SynIC register value from the paravisor.
+ */
+u64 hv_para_get_synic_register(unsigned int reg)
+{
+	if (WARN_ON(!ms_hyperv.paravisor_present || !hv_is_synic_msr(reg)))
+		return ~0ULL;
+	return native_read_msr(reg);
+}
+
+/*
+ * Set the SynIC register value with the paravisor.
+ */
+void hv_para_set_synic_register(unsigned int reg, u64 val)
+{
+	if (WARN_ON(!ms_hyperv.paravisor_present || !hv_is_synic_msr(reg)))
+		return;
+	native_write_msr(reg, val);
+}
+
 u64 hv_get_msr(unsigned int reg)
 {
 	if (hv_nested)
