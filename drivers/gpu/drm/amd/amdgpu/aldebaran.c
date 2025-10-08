@@ -88,6 +88,10 @@ static int aldebaran_mode2_suspend_ip(struct amdgpu_device *adev)
 	uint32_t ip_block;
 	int r, i;
 
+	/* Skip suspend of SDMA IP versions >= 4.4.2. They are multi-aid */
+	if (adev->aid_mask)
+		ip_block_mask &= ~BIT(AMD_IP_BLOCK_TYPE_SDMA);
+
 	amdgpu_device_set_pg_state(adev, AMD_PG_STATE_UNGATE);
 	amdgpu_device_set_cg_state(adev, AMD_CG_STATE_UNGATE);
 
