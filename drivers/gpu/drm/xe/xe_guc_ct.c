@@ -575,6 +575,16 @@ void xe_guc_ct_disable(struct xe_guc_ct *ct)
 }
 
 /**
+ * xe_guc_ct_flush_and_stop - Flush and stop all processing of G2H / H2G
+ * @ct: the &xe_guc_ct
+ */
+void xe_guc_ct_flush_and_stop(struct xe_guc_ct *ct)
+{
+	receive_g2h(ct);
+	xe_guc_ct_stop(ct);
+}
+
+/**
  * xe_guc_ct_stop - Set GuC to stopped state
  * @ct: the &xe_guc_ct
  *
