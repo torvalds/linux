@@ -161,7 +161,7 @@ struct __drm_planes_state {
 	struct drm_plane *ptr;
 
 	/**
-	 * @state:
+	 * @state_to_destroy:
 	 *
 	 * Used to track the @drm_plane_state we will need to free when
 	 * tearing down the associated &drm_atomic_state in
@@ -173,7 +173,7 @@ struct __drm_planes_state {
 	 * the same state than @new_state. After a commit, it points to
 	 * the same state than @old_state.
 	 */
-	struct drm_plane_state *state;
+	struct drm_plane_state *state_to_destroy;
 
 	struct drm_plane_state *old_state, *new_state;
 };
@@ -182,7 +182,7 @@ struct __drm_crtcs_state {
 	struct drm_crtc *ptr;
 
 	/**
-	 * @state:
+	 * @state_to_destroy:
 	 *
 	 * Used to track the @drm_crtc_state we will need to free when
 	 * tearing down the associated &drm_atomic_state in
@@ -194,7 +194,7 @@ struct __drm_crtcs_state {
 	 * the same state than @new_state. After a commit, it points to
 	 * the same state than @old_state.
 	 */
-	struct drm_crtc_state *state;
+	struct drm_crtc_state *state_to_destroy;
 
 	struct drm_crtc_state *old_state, *new_state;
 
@@ -216,7 +216,7 @@ struct __drm_connnectors_state {
 	struct drm_connector *ptr;
 
 	/**
-	 * @state:
+	 * @state_to_destroy:
 	 *
 	 * Used to track the @drm_connector_state we will need to free
 	 * when tearing down the associated &drm_atomic_state in
@@ -228,7 +228,7 @@ struct __drm_connnectors_state {
 	 * the same state than @new_state. After a commit, it points to
 	 * the same state than @old_state.
 	 */
-	struct drm_connector_state *state;
+	struct drm_connector_state *state_to_destroy;
 
 	struct drm_connector_state *old_state, *new_state;
 
@@ -393,7 +393,7 @@ struct __drm_private_objs_state {
 	struct drm_private_obj *ptr;
 
 	/**
-	 * @state:
+	 * @state_to_destroy:
 	 *
 	 * Used to track the @drm_private_state we will need to free
 	 * when tearing down the associated &drm_atomic_state in
@@ -405,7 +405,7 @@ struct __drm_private_objs_state {
 	 * the same state than @new_state. After a commit, it points to
 	 * the same state than @old_state.
 	 */
-	struct drm_private_state *state;
+	struct drm_private_state *state_to_destroy;
 
 	struct drm_private_state *old_state, *new_state;
 };
