@@ -471,10 +471,10 @@ static int vf_get_ggtt_info(struct xe_gt *gt)
 
 static int vf_get_lmem_info(struct xe_gt *gt)
 {
-	struct xe_gt_sriov_vf_selfconfig *config = &gt->sriov.vf.self_config;
+	struct xe_tile *tile = gt_to_tile(gt);
 	struct xe_guc *guc = &gt->uc.guc;
 	char size_str[10];
-	u64 size;
+	u64 size, lmem_size;
 	int err;
 
 	xe_gt_assert(gt, IS_SRIOV_VF(gt_to_xe(gt)));
@@ -483,18 +483,19 @@ static int vf_get_lmem_info(struct xe_gt *gt)
 	if (unlikely(err))
 		return err;
 
-	if (config->lmem_size && config->lmem_size != size) {
+	lmem_size = xe_tile_sriov_vf_lmem(tile);
+	if (lmem_size && lmem_size != size) {
 		xe_gt_sriov_err(gt, "Unexpected LMEM reassignment: %lluM != %lluM\n",
-				size / SZ_1M, config->lmem_size / SZ_1M);
+				size / SZ_1M, lmem_size / SZ_1M);
 		return -EREMCHG;
 	}
 
 	string_get_size(size, 1, STRING_UNITS_2, size_str, sizeof(size_str));
 	xe_gt_sriov_dbg_verbose(gt, "LMEM %lluM %s\n", size / SZ_1M, size_str);
 
-	config->lmem_size = size;
+	xe_tile_sriov_vf_lmem_store(tile, size);
 
-	return config->lmem_size ? 0 : -ENODATA;
+	return size ? 0 : -ENODATA;
 }
 
 static int vf_get_submission_cfg(struct xe_gt *gt)
@@ -589,23 +590,6 @@ u16 xe_gt_sriov_vf_guc_ids(struct xe_gt *gt)
 	xe_gt_assert(gt, gt->sriov.vf.self_config.num_ctxs);
 
 	return gt->sriov.vf.self_config.num_ctxs;
-}
-
-/**
- * xe_gt_sriov_vf_lmem - VF LMEM configuration.
- * @gt: the &xe_gt
- *
- * This function is for VF use only.
- *
- * Return: size of the LMEM assigned to VF.
- */
-u64 xe_gt_sriov_vf_lmem(struct xe_gt *gt)
-{
-	xe_gt_assert(gt, IS_SRIOV_VF(gt_to_xe(gt)));
-	xe_gt_assert(gt, gt->sriov.vf.guc_version.major);
-	xe_gt_assert(gt, gt->sriov.vf.self_config.lmem_size);
-
-	return gt->sriov.vf.self_config.lmem_size;
 }
 
 /**
@@ -1064,6 +1048,7 @@ void xe_gt_sriov_vf_print_config(struct xe_gt *gt, struct drm_printer *p)
 {
 	struct xe_gt_sriov_vf_selfconfig *config = &gt->sriov.vf.self_config;
 	struct xe_device *xe = gt_to_xe(gt);
+	u64 lmem_size;
 	char buf[10];
 
 	xe_gt_assert(gt, IS_SRIOV_VF(gt_to_xe(gt)));
@@ -1078,8 +1063,9 @@ void xe_gt_sriov_vf_print_config(struct xe_gt *gt, struct drm_printer *p)
 	drm_printf(p, "GGTT shift on last restore:\t%lld\n", config->ggtt_shift);
 
 	if (IS_DGFX(xe) && xe_gt_is_main_type(gt)) {
-		string_get_size(config->lmem_size, 1, STRING_UNITS_2, buf, sizeof(buf));
-		drm_printf(p, "LMEM size:\t%llu (%s)\n", config->lmem_size, buf);
+		lmem_size = xe_tile_sriov_vf_lmem(gt_to_tile(gt));
+		string_get_size(lmem_size, 1, STRING_UNITS_2, buf, sizeof(buf));
+		drm_printf(p, "LMEM size:\t%llu (%s)\n", lmem_size, buf);
 	}
 
 	drm_printf(p, "GuC contexts:\t%u\n", config->num_ctxs);

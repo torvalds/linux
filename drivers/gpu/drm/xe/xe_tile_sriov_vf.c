@@ -252,3 +252,36 @@ void xe_tile_sriov_vf_fixup_ggtt_nodes(struct xe_tile *tile, s64 shift)
 
 	mutex_unlock(&ggtt->lock);
 }
+
+/**
+ * xe_tile_sriov_vf_lmem - VF LMEM configuration.
+ * @tile: the &xe_tile
+ *
+ * This function is for VF use only.
+ *
+ * Return: size of the LMEM assigned to VF.
+ */
+u64 xe_tile_sriov_vf_lmem(struct xe_tile *tile)
+{
+	struct xe_tile_sriov_vf_selfconfig *config = &tile->sriov.vf.self_config;
+
+	xe_tile_assert(tile, IS_SRIOV_VF(tile_to_xe(tile)));
+
+	return config->lmem_size;
+}
+
+/**
+ * xe_tile_sriov_vf_lmem_store - Store VF LMEM configuration
+ * @tile: the &xe_tile
+ * @lmem_size: VF LMEM size to store
+ *
+ * This function is for VF use only.
+ */
+void xe_tile_sriov_vf_lmem_store(struct xe_tile *tile, u64 lmem_size)
+{
+	struct xe_tile_sriov_vf_selfconfig *config = &tile->sriov.vf.self_config;
+
+	xe_tile_assert(tile, IS_SRIOV_VF(tile_to_xe(tile)));
+
+	config->lmem_size = lmem_size;
+}

@@ -20,8 +20,6 @@ struct xe_gt_sriov_vf_selfconfig {
 	u64 ggtt_size;
 	/** @ggtt_shift: difference in ggtt_base on last migration */
 	s64 ggtt_shift;
-	/** @lmem_size: assigned size of the LMEM. */
-	u64 lmem_size;
 	/** @num_ctxs: assigned number of GuC submission context IDs. */
 	u16 num_ctxs;
 	/** @num_dbs: assigned number of GuC doorbells IDs. */
