@@ -63,7 +63,7 @@ config MTD_NAND_ECC_MEDIATEK
 
 config MTD_NAND_ECC_REALTEK
         tristate "Realtek RTL93xx hardware ECC engine"
-        depends on HAS_IOMEM
+        depends on HAS_IOMEM && HAS_DMA
         depends on MACH_REALTEK_RTL || COMPILE_TEST
         select MTD_NAND_ECC
         help
