@@ -26,6 +26,7 @@
 #include "xe_guc_hxg_helpers.h"
 #include "xe_guc_relay.h"
 #include "xe_lrc.h"
+#include "xe_memirq.h"
 #include "xe_mmio.h"
 #include "xe_sriov.h"
 #include "xe_sriov_vf.h"
@@ -776,6 +777,7 @@ void xe_gt_sriov_vf_migrated_event_handler(struct xe_gt *gt)
 	struct xe_device *xe = gt_to_xe(gt);
 
 	xe_gt_assert(gt, IS_SRIOV_VF(xe));
+	xe_gt_assert(gt, xe_gt_sriov_vf_recovery_pending(gt));
 
 	set_bit(gt->info.id, &xe->sriov.vf.migration.gt_flags);
 	/*
@@ -1117,4 +1119,30 @@ void xe_gt_sriov_vf_print_version(struct xe_gt *gt, struct drm_printer *p)
 		   GUC_RELAY_VERSION_LATEST_MAJOR, GUC_RELAY_VERSION_LATEST_MINOR);
 	drm_printf(p, "\thandshake:\t%u.%u\n",
 		   pf_version->major, pf_version->minor);
+}
+
+/**
+ * xe_gt_sriov_vf_recovery_pending() - VF post migration recovery pending
+ * @gt: the &xe_gt
+ *
+ * The return value of this function must be immediately visible upon vCPU
+ * unhalt and must persist until RESFIX_DONE is issued. This guarantee is
+ * currently implemented only for platforms that support memirq. If non-memirq
+ * platforms begin to support VF migration, this function will need to be
+ * updated accordingly.
+ *
+ * Return: True if VF post migration recovery is pending, False otherwise
+ */
+bool xe_gt_sriov_vf_recovery_pending(struct xe_gt *gt)
+{
+	struct xe_memirq *memirq = &gt_to_tile(gt)->memirq;
+
+	xe_gt_assert(gt, IS_SRIOV_VF(gt_to_xe(gt)));
+
+	/* early detection until recovery starts */
+	if (xe_device_uses_memirq(gt_to_xe(gt)) &&
+	    xe_memirq_guc_sw_int_0_irq_pending(memirq, &gt->uc.guc))
+		return true;
+
+	return READ_ONCE(gt->sriov.vf.migration.recovery_inprogress);
 }
