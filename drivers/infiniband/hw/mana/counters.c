@@ -32,7 +32,31 @@ static const struct rdma_stat_desc mana_ib_port_stats_desc[] = {
 	[MANA_IB_RATE_INC_EVENTS].name = "rate_inc_events",
 	[MANA_IB_NUM_QPS_RECOVERED].name = "num_qps_recovered",
 	[MANA_IB_CURRENT_RATE].name = "current_rate",
+	[MANA_IB_DUP_RX_REQ].name = "dup_rx_requests",
+	[MANA_IB_TX_BYTES].name = "tx_bytes",
+	[MANA_IB_RX_BYTES].name = "rx_bytes",
+	[MANA_IB_RX_SEND_REQ].name = "rx_send_requests",
+	[MANA_IB_RX_WRITE_REQ].name = "rx_write_requests",
+	[MANA_IB_RX_READ_REQ].name = "rx_read_requests",
+	[MANA_IB_TX_PKT].name = "tx_packets",
+	[MANA_IB_RX_PKT].name = "rx_packets",
 };
+
+static const struct rdma_stat_desc mana_ib_device_stats_desc[] = {
+	[MANA_IB_SENT_CNPS].name = "sent_cnps",
+	[MANA_IB_RECEIVED_ECNS].name = "received_ecns",
+	[MANA_IB_RECEIVED_CNP_COUNT].name = "received_cnp_count",
+	[MANA_IB_QP_CONGESTED_EVENTS].name = "qp_congested_events",
+	[MANA_IB_QP_RECOVERED_EVENTS].name = "qp_recovered_events",
+	[MANA_IB_DEV_RATE_INC_EVENTS].name = "rate_inc_events",
+};
+
+struct rdma_hw_stats *mana_ib_alloc_hw_device_stats(struct ib_device *ibdev)
+{
+	return rdma_alloc_hw_stats_struct(mana_ib_device_stats_desc,
+					  ARRAY_SIZE(mana_ib_device_stats_desc),
+					  RDMA_HW_STATS_DEFAULT_LIFESPAN);
+}
 
 struct rdma_hw_stats *mana_ib_alloc_hw_port_stats(struct ib_device *ibdev,
 						  u32 port_num)
@@ -42,8 +66,39 @@ struct rdma_hw_stats *mana_ib_alloc_hw_port_stats(struct ib_device *ibdev,
 					  RDMA_HW_STATS_DEFAULT_LIFESPAN);
 }
 
-int mana_ib_get_hw_stats(struct ib_device *ibdev, struct rdma_hw_stats *stats,
-			 u32 port_num, int index)
+static int mana_ib_get_hw_device_stats(struct ib_device *ibdev, struct rdma_hw_stats *stats)
+{
+	struct mana_ib_dev *mdev = container_of(ibdev, struct mana_ib_dev,
+						ib_dev);
+	struct mana_rnic_query_device_cntrs_resp resp = {};
+	struct mana_rnic_query_device_cntrs_req req = {};
+	int err;
+
+	mana_gd_init_req_hdr(&req.hdr, MANA_IB_QUERY_DEVICE_COUNTERS,
+			     sizeof(req), sizeof(resp));
+	req.hdr.dev_id = mdev->gdma_dev->dev_id;
+	req.adapter = mdev->adapter_handle;
+
+	err = mana_gd_send_request(mdev_to_gc(mdev), sizeof(req), &req,
+				   sizeof(resp), &resp);
+	if (err) {
+		ibdev_err(&mdev->ib_dev, "Failed to query device counters err %d",
+			  err);
+		return err;
+	}
+
+	stats->value[MANA_IB_SENT_CNPS] = resp.sent_cnps;
+	stats->value[MANA_IB_RECEIVED_ECNS] = resp.received_ecns;
+	stats->value[MANA_IB_RECEIVED_CNP_COUNT] = resp.received_cnp_count;
+	stats->value[MANA_IB_QP_CONGESTED_EVENTS] = resp.qp_congested_events;
+	stats->value[MANA_IB_QP_RECOVERED_EVENTS] = resp.qp_recovered_events;
+	stats->value[MANA_IB_DEV_RATE_INC_EVENTS] = resp.rate_inc_events;
+
+	return ARRAY_SIZE(mana_ib_device_stats_desc);
+}
+
+static int mana_ib_get_hw_port_stats(struct ib_device *ibdev, struct rdma_hw_stats *stats,
+				     u32 port_num)
 {
 	struct mana_ib_dev *mdev = container_of(ibdev, struct mana_ib_dev,
 						ib_dev);
@@ -53,6 +108,7 @@ int mana_ib_get_hw_stats(struct ib_device *ibdev, struct rdma_hw_stats *stats,
 
 	mana_gd_init_req_hdr(&req.hdr, MANA_IB_QUERY_VF_COUNTERS,
 			     sizeof(req), sizeof(resp));
+	req.hdr.resp.msg_version = GDMA_MESSAGE_V2;
 	req.hdr.dev_id = mdev->gdma_dev->dev_id;
 	req.adapter = mdev->adapter_handle;
 
@@ -101,5 +157,23 @@ int mana_ib_get_hw_stats(struct ib_device *ibdev, struct rdma_hw_stats *stats,
 	stats->value[MANA_IB_NUM_QPS_RECOVERED] = resp.num_qps_recovered;
 	stats->value[MANA_IB_CURRENT_RATE] = resp.current_rate;
 
+	stats->value[MANA_IB_DUP_RX_REQ] = resp.dup_rx_req;
+	stats->value[MANA_IB_TX_BYTES] = resp.tx_bytes;
+	stats->value[MANA_IB_RX_BYTES] = resp.rx_bytes;
+	stats->value[MANA_IB_RX_SEND_REQ] = resp.rx_send_req;
+	stats->value[MANA_IB_RX_WRITE_REQ] = resp.rx_write_req;
+	stats->value[MANA_IB_RX_READ_REQ] = resp.rx_read_req;
+	stats->value[MANA_IB_TX_PKT] = resp.tx_pkt;
+	stats->value[MANA_IB_RX_PKT] = resp.rx_pkt;
+
 	return ARRAY_SIZE(mana_ib_port_stats_desc);
+}
+
+int mana_ib_get_hw_stats(struct ib_device *ibdev, struct rdma_hw_stats *stats,
+			 u32 port_num, int index)
+{
+	if (!port_num)
+		return mana_ib_get_hw_device_stats(ibdev, stats);
+	else
+		return mana_ib_get_hw_port_stats(ibdev, stats, port_num);
 }

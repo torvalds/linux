@@ -119,7 +119,7 @@ static inline void gfs2_update_request_times(struct gfs2_glock *gl)
 static void gdlm_ast(void *arg)
 {
 	struct gfs2_glock *gl = arg;
-	unsigned ret = gl->gl_state;
+	unsigned ret;
 
 	/* If the glock is dead, we only react to a dlm_unlock() reply. */
 	if (__lockref_is_dead(&gl->gl_lockref) &&
@@ -139,13 +139,16 @@ static void gdlm_ast(void *arg)
 		gfs2_glock_free(gl);
 		return;
 	case -DLM_ECANCEL: /* Cancel while getting lock */
-		ret |= LM_OUT_CANCELED;
+		ret = LM_OUT_CANCELED;
 		goto out;
 	case -EAGAIN: /* Try lock fails */
+		ret = LM_OUT_TRY_AGAIN;
+		goto out;
 	case -EDEADLK: /* Deadlock detected */
+		ret = LM_OUT_DEADLOCK;
 		goto out;
 	case -ETIMEDOUT: /* Canceled due to timeout */
-		ret |= LM_OUT_ERROR;
+		ret = LM_OUT_ERROR;
 		goto out;
 	case 0: /* Success */
 		break;

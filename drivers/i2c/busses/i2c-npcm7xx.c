@@ -2470,11 +2470,11 @@ static const struct i2c_adapter_quirks npcm_i2c_quirks = {
 };
 
 static const struct i2c_algorithm npcm_i2c_algo = {
-	.master_xfer = npcm_i2c_master_xfer,
+	.xfer = npcm_i2c_master_xfer,
 	.functionality = npcm_i2c_functionality,
 #if IS_ENABLED(CONFIG_I2C_SLAVE)
-	.reg_slave	= npcm_i2c_reg_slave,
-	.unreg_slave	= npcm_i2c_unreg_slave,
+	.reg_slave = npcm_i2c_reg_slave,
+	.unreg_slave = npcm_i2c_unreg_slave,
 #endif
 };
 

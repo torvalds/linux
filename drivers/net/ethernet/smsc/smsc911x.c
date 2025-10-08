@@ -2350,7 +2350,7 @@ static void smsc911x_drv_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 }
 
-/* standard register acces */
+/* standard register access */
 static const struct smsc911x_ops standard_smsc911x_ops = {
 	.reg_read = __smsc911x_reg_read,
 	.reg_write = __smsc911x_reg_write,

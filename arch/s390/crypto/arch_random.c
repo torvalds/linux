@@ -6,6 +6,7 @@
  * Author(s): Harald Freudenberger
  */
 
+#include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/atomic.h>
 #include <linux/random.h>

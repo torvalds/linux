@@ -5588,9 +5588,6 @@ static int mvpp2_ethtool_get_rxnfc(struct net_device *dev,
 		return -EOPNOTSUPP;
 
 	switch (info->cmd) {
-	case ETHTOOL_GRXFH:
-		ret = mvpp2_ethtool_rxfh_get(port, info);
-		break;
 	case ETHTOOL_GRXRINGS:
 		info->data = port->nrxqs;
 		break;
@@ -5628,9 +5625,6 @@ static int mvpp2_ethtool_set_rxnfc(struct net_device *dev,
 		return -EOPNOTSUPP;
 
 	switch (info->cmd) {
-	case ETHTOOL_SRXFH:
-		ret = mvpp2_ethtool_rxfh_set(port, info);
-		break;
 	case ETHTOOL_SRXCLSRLINS:
 		ret = mvpp2_ethtool_cls_rule_ins(port, info);
 		break;
@@ -5747,6 +5741,29 @@ static int mvpp2_ethtool_set_rxfh(struct net_device *dev,
 	return mvpp2_modify_rxfh_context(dev, NULL, rxfh, extack);
 }
 
+static int mvpp2_ethtool_get_rxfh_fields(struct net_device *dev,
+					 struct ethtool_rxfh_fields *info)
+{
+	struct mvpp2_port *port = netdev_priv(dev);
+
+	if (!mvpp22_rss_is_supported(port))
+		return -EOPNOTSUPP;
+
+	return mvpp2_ethtool_rxfh_get(port, info);
+}
+
+static int mvpp2_ethtool_set_rxfh_fields(struct net_device *dev,
+					 const struct ethtool_rxfh_fields *info,
+					 struct netlink_ext_ack *extack)
+{
+	struct mvpp2_port *port = netdev_priv(dev);
+
+	if (!mvpp22_rss_is_supported(port))
+		return -EOPNOTSUPP;
+
+	return mvpp2_ethtool_rxfh_set(port, info);
+}
+
 static int mvpp2_ethtool_get_eee(struct net_device *dev,
 				 struct ethtool_keee *eee)
 {
@@ -5813,6 +5830,8 @@ static const struct ethtool_ops mvpp2_eth_tool_ops = {
 	.get_rxfh_indir_size	= mvpp2_ethtool_get_rxfh_indir_size,
 	.get_rxfh		= mvpp2_ethtool_get_rxfh,
 	.set_rxfh		= mvpp2_ethtool_set_rxfh,
+	.get_rxfh_fields	= mvpp2_ethtool_get_rxfh_fields,
+	.set_rxfh_fields	= mvpp2_ethtool_set_rxfh_fields,
 	.create_rxfh_context	= mvpp2_create_rxfh_context,
 	.modify_rxfh_context	= mvpp2_modify_rxfh_context,
 	.remove_rxfh_context	= mvpp2_remove_rxfh_context,

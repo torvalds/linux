@@ -583,7 +583,7 @@ static int ath6kl_commit_ch_switch(struct ath6kl_vif *vif, u16 channel)
 	switch (vif->nw_type) {
 	case AP_NETWORK:
 		/*
-		 * reconfigure any saved RSN IE capabilites in the beacon /
+		 * reconfigure any saved RSN IE capabilities in the beacon /
 		 * probe response to stay in sync with the supplicant.
 		 */
 		if (vif->rsn_capab &&

@@ -290,7 +290,7 @@ int dcn32_find_dummy_latency_index_for_fw_based_mclk_switch(struct dc *dc,
 			vba->DRAMClockChangeSupport[vlevel][context->bw_ctx.dml.vba.maxMpcComb] = temp_clock_change_support;
 		context->bw_ctx.dml.soc.dram_clock_change_latency_us =
 				dc->clk_mgr->bw_params->dummy_pstate_table[dummy_latency_index].dummy_pstate_latency_us;
-		dcn32_internal_validate_bw(dc, context, pipes, &pipe_cnt, &vlevel, false);
+		dcn32_internal_validate_bw(dc, context, pipes, &pipe_cnt, &vlevel, DC_VALIDATE_MODE_AND_PROGRAMMING);
 
 		/* for subvp + DRR case, if subvp pipes are still present we support pstate */
 		if (vba->DRAMClockChangeSupport[vlevel][vba->maxMpcComb] == dm_dram_clock_change_unsupported &&
@@ -1479,7 +1479,7 @@ static bool dcn32_full_validate_bw_helper(struct dc *dc,
 
 	/* Conditions for setting up phantom pipes for SubVP:
 	 * 1. Not force disable SubVP
-	 * 2. Full update (i.e. !fast_validate)
+	 * 2. Full update (i.e. DC_VALIDATE_MODE_AND_PROGRAMMING)
 	 * 3. Enough pipes are available to support SubVP (TODO: Which pipes will use VACTIVE / VBLANK / SUBVP?)
 	 * 4. Display configuration passes validation
 	 * 5. (Config doesn't support MCLK in VACTIVE/VBLANK || dc->debug.force_subvp_mclk_switch)
@@ -1517,7 +1517,8 @@ static bool dcn32_full_validate_bw_helper(struct dc *dc,
 
 			dc->res_pool->funcs->add_phantom_pipes(dc, context, pipes, *pipe_cnt, dc_pipe_idx);
 
-			*pipe_cnt = dc->res_pool->funcs->populate_dml_pipes(dc, context, pipes, false);
+			*pipe_cnt = dc->res_pool->funcs->populate_dml_pipes(dc, context, pipes,
+				DC_VALIDATE_MODE_AND_PROGRAMMING);
 			// Populate dppclk to trigger a recalculate in dml_get_voltage_level
 			// so the phantom pipe DLG params can be assigned correctly.
 			pipes[0].clks_cfg.dppclk_mhz = get_dppclk_calculated(&context->bw_ctx.dml, pipes, *pipe_cnt, 0);
@@ -1560,7 +1561,8 @@ static bool dcn32_full_validate_bw_helper(struct dc *dc,
 			dc_state_remove_phantom_streams_and_planes(dc, context);
 			dc_state_release_phantom_streams_and_planes(dc, context);
 			vba->DRAMClockChangeSupport[*vlevel][vba->maxMpcComb] = dm_dram_clock_change_unsupported;
-			*pipe_cnt = dc->res_pool->funcs->populate_dml_pipes(dc, context, pipes, false);
+			*pipe_cnt = dc->res_pool->funcs->populate_dml_pipes(dc, context, pipes,
+				DC_VALIDATE_MODE_AND_PROGRAMMING);
 
 			*vlevel = dml_get_voltage_level(&context->bw_ctx.dml, pipes, *pipe_cnt);
 			/* This may adjust vlevel and maxMpcComb */
@@ -2138,7 +2140,7 @@ bool dcn32_internal_validate_bw(struct dc *dc,
 				display_e2e_pipe_params_st *pipes,
 				int *pipe_cnt_out,
 				int *vlevel_out,
-				bool fast_validate)
+				enum dc_validate_mode validate_mode)
 {
 	bool out = false;
 	bool repopulate_pipes = false;
@@ -2162,7 +2164,7 @@ bool dcn32_internal_validate_bw(struct dc *dc,
 
 	for (i = 0; i < context->stream_count; i++)
 		resource_update_pipes_for_stream_with_slice_count(context, dc->current_state, dc->res_pool, context->streams[i], 1);
-	pipe_cnt = dc->res_pool->funcs->populate_dml_pipes(dc, context, pipes, fast_validate);
+	pipe_cnt = dc->res_pool->funcs->populate_dml_pipes(dc, context, pipes, validate_mode);
 
 	if (!pipe_cnt) {
 		out = true;
@@ -2172,13 +2174,13 @@ bool dcn32_internal_validate_bw(struct dc *dc,
 	dml_log_pipe_params(&context->bw_ctx.dml, pipes, pipe_cnt);
 	context->bw_ctx.dml.soc.max_vratio_pre = dcn32_determine_max_vratio_prefetch(dc, context);
 
-	if (!fast_validate) {
+	if (validate_mode == DC_VALIDATE_MODE_AND_PROGRAMMING) {
 		if (!dcn32_full_validate_bw_helper(dc, context, pipes, &vlevel, split, merge,
 			&pipe_cnt, &repopulate_pipes))
 			goto validate_fail;
 	}
 
-	if (fast_validate ||
+	if (validate_mode != DC_VALIDATE_MODE_AND_PROGRAMMING ||
 			(dc->debug.dml_disallow_alternate_prefetch_modes &&
 			(vlevel == context->bw_ctx.dml.soc.num_states ||
 				vba->DRAMClockChangeSupport[vlevel][vba->maxMpcComb] == dm_dram_clock_change_unsupported))) {
@@ -2195,7 +2197,7 @@ bool dcn32_internal_validate_bw(struct dc *dc,
 		context->bw_ctx.dml.soc.allow_for_pstate_or_stutter_in_vblank_final =
 			dm_prefetch_support_none;
 
-		context->bw_ctx.dml.validate_max_state = fast_validate;
+		context->bw_ctx.dml.validate_max_state = (validate_mode != DC_VALIDATE_MODE_AND_PROGRAMMING);
 		vlevel = dml_get_voltage_level(&context->bw_ctx.dml, pipes, pipe_cnt);
 
 		context->bw_ctx.dml.validate_max_state = false;
@@ -2247,7 +2249,7 @@ bool dcn32_internal_validate_bw(struct dc *dc,
 		int flag_vlevel = vlevel;
 		int i;
 
-		pipe_cnt = dc->res_pool->funcs->populate_dml_pipes(dc, context, pipes, fast_validate);
+		pipe_cnt = dc->res_pool->funcs->populate_dml_pipes(dc, context, pipes, validate_mode);
 		if (!dc->config.enable_windowed_mpo_odm)
 			dcn32_update_dml_pipes_odm_policy_based_on_context(dc, context, pipes);
 
@@ -2343,7 +2345,7 @@ void dcn32_calculate_wm_and_dlg_fpu(struct dc *dc, struct dc_state *context,
 		}
 		context->bw_ctx.dml.soc.dram_clock_change_latency_us =
 							dc->clk_mgr->bw_params->wm_table.nv_entries[WM_A].dml_input.pstate_latency_us;
-		dcn32_internal_validate_bw(dc, context, pipes, &pipe_cnt, &vlevel, false);
+		dcn32_internal_validate_bw(dc, context, pipes, &pipe_cnt, &vlevel, DC_VALIDATE_MODE_AND_PROGRAMMING);
 		maxMpcComb = context->bw_ctx.dml.vba.maxMpcComb;
 		if (is_subvp_p_drr) {
 			context->bw_ctx.dml.vba.DRAMClockChangeSupport[vlevel][maxMpcComb] = dm_dram_clock_change_vblank_w_mall_sub_vp;
@@ -2389,7 +2391,8 @@ void dcn32_calculate_wm_and_dlg_fpu(struct dc *dc, struct dc_state *context,
 				context->bw_ctx.dml.soc.fclk_change_latency_us =
 						dc->clk_mgr->bw_params->dummy_pstate_table[dummy_latency_index].dummy_pstate_latency_us;
 			}
-			dcn32_internal_validate_bw(dc, context, pipes, &pipe_cnt, &vlevel_temp, false);
+			dcn32_internal_validate_bw(dc, context, pipes, &pipe_cnt, &vlevel_temp,
+				DC_VALIDATE_MODE_AND_PROGRAMMING);
 			if (vlevel_temp < vlevel) {
 				vlevel = vlevel_temp;
 				maxMpcComb = context->bw_ctx.dml.vba.maxMpcComb;
@@ -2410,7 +2413,8 @@ void dcn32_calculate_wm_and_dlg_fpu(struct dc *dc, struct dc_state *context,
 						stream_status->fpo_in_use = false;
 				}
 				context->bw_ctx.dml.soc.fclk_change_latency_us = dc->clk_mgr->bw_params->wm_table.nv_entries[WM_A].dml_input.fclk_change_latency_us;
-				dcn32_internal_validate_bw(dc, context, pipes, &pipe_cnt, &vlevel, false);
+				dcn32_internal_validate_bw(dc, context, pipes, &pipe_cnt, &vlevel,
+					DC_VALIDATE_MODE_AND_PROGRAMMING);
 			}
 		}
 	}

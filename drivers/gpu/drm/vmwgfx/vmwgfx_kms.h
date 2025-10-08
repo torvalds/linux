@@ -399,6 +399,7 @@ int vmw_kms_readback(struct vmw_private *dev_priv,
 struct vmw_framebuffer *
 vmw_kms_new_framebuffer(struct vmw_private *dev_priv,
 			struct vmw_user_object *uo,
+			const struct drm_format_info *info,
 			const struct drm_mode_fb_cmd2 *mode_cmd);
 void vmw_guess_mode_timing(struct drm_display_mode *mode);
 void vmw_kms_update_implicit_fb(struct vmw_private *dev_priv);

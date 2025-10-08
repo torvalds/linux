@@ -39,7 +39,7 @@
 /* Max freq depends on speed grade */
 #define SI544_MIN_FREQ	    200000U
 
-/* Si544 Internal oscilator runs at 55.05 MHz */
+/* Si544 Internal oscillator runs at 55.05 MHz */
 #define FXO		  55050000U
 
 /* VCO range is 10.8 .. 12.1 GHz, max depends on speed grade */

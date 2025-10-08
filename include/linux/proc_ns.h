@@ -6,6 +6,7 @@
 #define _LINUX_PROC_NS_H
 
 #include <linux/ns_common.h>
+#include <uapi/linux/nsfs.h>
 
 struct pid_namespace;
 struct nsset;
@@ -39,13 +40,14 @@ extern const struct proc_ns_operations timens_for_children_operations;
  * We always define these enumerators
  */
 enum {
-	PROC_ROOT_INO		= 1,
-	PROC_IPC_INIT_INO	= 0xEFFFFFFFU,
-	PROC_UTS_INIT_INO	= 0xEFFFFFFEU,
-	PROC_USER_INIT_INO	= 0xEFFFFFFDU,
-	PROC_PID_INIT_INO	= 0xEFFFFFFCU,
-	PROC_CGROUP_INIT_INO	= 0xEFFFFFFBU,
-	PROC_TIME_INIT_INO	= 0xEFFFFFFAU,
+	PROC_IPC_INIT_INO	= IPC_NS_INIT_INO,
+	PROC_UTS_INIT_INO	= UTS_NS_INIT_INO,
+	PROC_USER_INIT_INO	= USER_NS_INIT_INO,
+	PROC_PID_INIT_INO	= PID_NS_INIT_INO,
+	PROC_CGROUP_INIT_INO	= CGROUP_NS_INIT_INO,
+	PROC_TIME_INIT_INO	= TIME_NS_INIT_INO,
+	PROC_NET_INIT_INO	= NET_NS_INIT_INO,
+	PROC_MNT_INIT_INO	= MNT_NS_INIT_INO,
 };
 
 #ifdef CONFIG_PROC_FS

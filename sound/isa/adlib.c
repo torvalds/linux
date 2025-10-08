@@ -61,8 +61,8 @@ static int snd_adlib_probe(struct device *dev, unsigned int n)
 		return -EBUSY;
 	}
 
-	strcpy(card->driver, DEV_NAME);
-	strcpy(card->shortname, CRD_NAME);
+	strscpy(card->driver, DEV_NAME);
+	strscpy(card->shortname, CRD_NAME);
 	sprintf(card->longname, CRD_NAME " at %#lx", port[n]);
 
 	error = snd_opl3_create(card, port[n], port[n] + 2, OPL3_HW_AUTO, 1, &opl3);

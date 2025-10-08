@@ -24,8 +24,8 @@
 static ssize_t
 name_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%s %s\n", dev_driver_string(dev->parent),
-		       dev_name(dev->parent));
+	return sysfs_emit(buf, "%s %s\n", dev_driver_string(dev->parent),
+			  dev_name(dev->parent));
 }
 static DEVICE_ATTR_RO(name);
 
@@ -39,7 +39,7 @@ date_show(struct device *dev, struct device_attribute *attr, char *buf)
 	if (retval)
 		return retval;
 
-	return sprintf(buf, "%ptRd\n", &tm);
+	return sysfs_emit(buf, "%ptRd\n", &tm);
 }
 static DEVICE_ATTR_RO(date);
 
@@ -53,7 +53,7 @@ time_show(struct device *dev, struct device_attribute *attr, char *buf)
 	if (retval)
 		return retval;
 
-	return sprintf(buf, "%ptRt\n", &tm);
+	return sysfs_emit(buf, "%ptRt\n", &tm);
 }
 static DEVICE_ATTR_RO(time);
 
@@ -64,21 +64,17 @@ since_epoch_show(struct device *dev, struct device_attribute *attr, char *buf)
 	struct rtc_time tm;
 
 	retval = rtc_read_time(to_rtc_device(dev), &tm);
-	if (retval == 0) {
-		time64_t time;
+	if (retval)
+		return retval;
 
-		time = rtc_tm_to_time64(&tm);
-		retval = sprintf(buf, "%lld\n", time);
-	}
-
-	return retval;
+	return sysfs_emit(buf, "%lld\n", rtc_tm_to_time64(&tm));
 }
 static DEVICE_ATTR_RO(since_epoch);
 
 static ssize_t
 max_user_freq_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", to_rtc_device(dev)->max_user_freq);
+	return sysfs_emit(buf, "%d\n", to_rtc_device(dev)->max_user_freq);
 }
 
 static ssize_t
@@ -118,9 +114,9 @@ hctosys_show(struct device *dev, struct device_attribute *attr, char *buf)
 	if (rtc_hctosys_ret == 0 &&
 	    strcmp(dev_name(&to_rtc_device(dev)->dev),
 		   CONFIG_RTC_HCTOSYS_DEVICE) == 0)
-		return sprintf(buf, "1\n");
+		return sysfs_emit(buf, "1\n");
 #endif
-	return sprintf(buf, "0\n");
+	return sysfs_emit(buf, "0\n");
 }
 static DEVICE_ATTR_RO(hctosys);
 
@@ -128,7 +124,6 @@ static ssize_t
 wakealarm_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	ssize_t retval;
-	time64_t alarm;
 	struct rtc_wkalrm alm;
 
 	/* Don't show disabled alarms.  For uniformity, RTC alarms are
@@ -140,12 +135,13 @@ wakealarm_show(struct device *dev, struct device_attribute *attr, char *buf)
 	 * alarms after they trigger, to ensure one-shot semantics.
 	 */
 	retval = rtc_read_alarm(to_rtc_device(dev), &alm);
-	if (retval == 0 && alm.enabled) {
-		alarm = rtc_tm_to_time64(&alm.time);
-		retval = sprintf(buf, "%lld\n", alarm);
-	}
+	if (retval)
+		return retval;
 
-	return retval;
+	if (alm.enabled)
+		return sysfs_emit(buf, "%lld\n", rtc_tm_to_time64(&alm.time));
+
+	return 0;
 }
 
 static ssize_t
@@ -222,10 +218,10 @@ offset_show(struct device *dev, struct device_attribute *attr, char *buf)
 	long offset;
 
 	retval = rtc_read_offset(to_rtc_device(dev), &offset);
-	if (retval == 0)
-		retval = sprintf(buf, "%ld\n", offset);
+	if (retval)
+		return retval;
 
-	return retval;
+	return sysfs_emit(buf, "%ld\n", offset);
 }
 
 static ssize_t
@@ -246,8 +242,8 @@ static DEVICE_ATTR_RW(offset);
 static ssize_t
 range_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "[%lld,%llu]\n", to_rtc_device(dev)->range_min,
-		       to_rtc_device(dev)->range_max);
+	return sysfs_emit(buf, "[%lld,%llu]\n", to_rtc_device(dev)->range_min,
+			  to_rtc_device(dev)->range_max);
 }
 static DEVICE_ATTR_RO(range);
 
@@ -302,11 +298,7 @@ static struct attribute_group rtc_attr_group = {
 	.is_visible	= rtc_attr_is_visible,
 	.attrs		= rtc_attrs,
 };
-
-static const struct attribute_group *rtc_attr_groups[] = {
-	&rtc_attr_group,
-	NULL
-};
+__ATTRIBUTE_GROUPS(rtc_attr);
 
 const struct attribute_group **rtc_get_dev_attribute_groups(void)
 {
@@ -318,16 +310,20 @@ int rtc_add_groups(struct rtc_device *rtc, const struct attribute_group **grps)
 	size_t old_cnt = 0, add_cnt = 0, new_cnt;
 	const struct attribute_group **groups, **old;
 
-	if (!grps)
+	if (grps) {
+		for (groups = grps; *groups; groups++)
+			add_cnt++;
+		/* No need to modify current groups if nothing new is provided */
+		if (add_cnt == 0)
+			return 0;
+	} else {
 		return -EINVAL;
+	}
 
 	groups = rtc->dev.groups;
 	if (groups)
 		for (; *groups; groups++)
 			old_cnt++;
-
-	for (groups = grps; *groups; groups++)
-		add_cnt++;
 
 	new_cnt = old_cnt + add_cnt + 1;
 	groups = devm_kcalloc(&rtc->dev, new_cnt, sizeof(*groups), GFP_KERNEL);

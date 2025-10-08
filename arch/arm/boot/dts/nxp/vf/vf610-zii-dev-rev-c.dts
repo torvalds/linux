@@ -311,7 +311,7 @@
 	 *    I/O14 - OPT1_TX_DIS
 	 *    I/O15 - OPT2_TX_DIS
 	 */
-	gpio6: sx1503@20 {
+	gpio6: pinctrl@20 {
 		compatible = "semtech,sx1503q";
 
 		pinctrl-names = "default";
@@ -429,7 +429,7 @@
 };
 
 &iomuxc {
-	pinctr_atzb_rf_233: pinctrl-atzb-rf-233 {
+	pinctr_atzb_rf_233: pinctrl-atzb-rf-233grp {
 		fsl,pins = <
 			VF610_PAD_PTB2__GPIO_24		0x31c2
 			VF610_PAD_PTE27__GPIO_132	0x33e2
@@ -437,7 +437,7 @@
 	};
 
 
-	pinctrl_sx1503_20: pinctrl-sx1503-20 {
+	pinctrl_sx1503_20: pinctrl-sx1503-20grp {
 		fsl,pins = <
 			VF610_PAD_PTB1__GPIO_23		0x219d
 		>;
@@ -450,7 +450,7 @@
 		>;
 	};
 
-	pinctrl_mdio_mux: pinctrl-mdio-mux {
+	pinctrl_mdio_mux: pinctrl-mdio-muxgrp {
 		fsl,pins = <
 			VF610_PAD_PTA18__GPIO_8		0x31c2
 			VF610_PAD_PTA19__GPIO_9		0x31c2
@@ -458,7 +458,7 @@
 		>;
 	};
 
-	pinctrl_fec0_phy_int: pinctrl-fec0-phy-int {
+	pinctrl_fec0_phy_int: pinctrl-fec0-phy-intgrp {
 		fsl,pins = <
 			VF610_PAD_PTB28__GPIO_98	0x219d
 		>;

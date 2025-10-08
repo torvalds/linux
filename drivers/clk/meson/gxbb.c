@@ -10,7 +10,6 @@
 #include <linux/platform_device.h>
 #include <linux/module.h>
 
-#include "gxbb.h"
 #include "clk-regmap.h"
 #include "clk-pll.h"
 #include "clk-mpll.h"
@@ -18,6 +17,104 @@
 #include "vid-pll-div.h"
 
 #include <dt-bindings/clock/gxbb-clkc.h>
+
+#define SCR				0x2c
+#define TIMEOUT_VALUE			0x3c
+
+#define HHI_GP0_PLL_CNTL		0x40
+#define HHI_GP0_PLL_CNTL2		0x44
+#define HHI_GP0_PLL_CNTL3		0x48
+#define HHI_GP0_PLL_CNTL4		0x4c
+#define	HHI_GP0_PLL_CNTL5		0x50
+#define	HHI_GP0_PLL_CNTL1		0x58
+
+#define HHI_XTAL_DIVN_CNTL		0xbc
+#define HHI_TIMER90K			0xec
+
+#define HHI_MEM_PD_REG0			0x100
+#define HHI_MEM_PD_REG1			0x104
+#define HHI_VPU_MEM_PD_REG1		0x108
+#define HHI_VIID_CLK_DIV		0x128
+#define HHI_VIID_CLK_CNTL		0x12c
+
+#define HHI_GCLK_MPEG0			0x140
+#define HHI_GCLK_MPEG1			0x144
+#define HHI_GCLK_MPEG2			0x148
+#define HHI_GCLK_OTHER			0x150
+#define HHI_GCLK_AO			0x154
+#define HHI_SYS_OSCIN_CNTL		0x158
+#define HHI_SYS_CPU_CLK_CNTL1		0x15c
+#define HHI_SYS_CPU_RESET_CNTL		0x160
+#define HHI_VID_CLK_DIV			0x164
+
+#define HHI_MPEG_CLK_CNTL		0x174
+#define HHI_AUD_CLK_CNTL		0x178
+#define HHI_VID_CLK_CNTL		0x17c
+#define HHI_AUD_CLK_CNTL2		0x190
+#define HHI_VID_CLK_CNTL2		0x194
+#define HHI_SYS_CPU_CLK_CNTL0		0x19c
+#define HHI_VID_PLL_CLK_DIV		0x1a0
+#define HHI_AUD_CLK_CNTL3		0x1a4
+#define HHI_MALI_CLK_CNTL		0x1b0
+#define HHI_VPU_CLK_CNTL		0x1bc
+
+#define HHI_HDMI_CLK_CNTL		0x1cc
+#define HHI_VDEC_CLK_CNTL		0x1e0
+#define HHI_VDEC2_CLK_CNTL		0x1e4
+#define HHI_VDEC3_CLK_CNTL		0x1e8
+#define HHI_VDEC4_CLK_CNTL		0x1ec
+#define HHI_HDCP22_CLK_CNTL		0x1f0
+#define HHI_VAPBCLK_CNTL		0x1f4
+
+#define HHI_VPU_CLKB_CNTL		0x20c
+#define HHI_USB_CLK_CNTL		0x220
+#define HHI_32K_CLK_CNTL		0x224
+#define HHI_GEN_CLK_CNTL		0x228
+
+#define HHI_PCM_CLK_CNTL		0x258
+#define HHI_NAND_CLK_CNTL		0x25c
+#define HHI_SD_EMMC_CLK_CNTL		0x264
+
+#define HHI_MPLL_CNTL			0x280
+#define HHI_MPLL_CNTL2			0x284
+#define HHI_MPLL_CNTL3			0x288
+#define HHI_MPLL_CNTL4			0x28c
+#define HHI_MPLL_CNTL5			0x290
+#define HHI_MPLL_CNTL6			0x294
+#define HHI_MPLL_CNTL7			0x298
+#define HHI_MPLL_CNTL8			0x29c
+#define HHI_MPLL_CNTL9			0x2a0
+#define HHI_MPLL_CNTL10			0x2a4
+
+#define HHI_MPLL3_CNTL0			0x2e0
+#define HHI_MPLL3_CNTL1			0x2e4
+#define HHI_VDAC_CNTL0			0x2f4
+#define HHI_VDAC_CNTL1			0x2f8
+
+#define HHI_SYS_PLL_CNTL		0x300
+#define HHI_SYS_PLL_CNTL2		0x304
+#define HHI_SYS_PLL_CNTL3		0x308
+#define HHI_SYS_PLL_CNTL4		0x30c
+#define HHI_SYS_PLL_CNTL5		0x310
+#define HHI_DPLL_TOP_I			0x318
+#define HHI_DPLL_TOP2_I			0x31c
+#define HHI_HDMI_PLL_CNTL		0x320
+#define HHI_HDMI_PLL_CNTL2		0x324
+#define HHI_HDMI_PLL_CNTL3		0x328
+#define HHI_HDMI_PLL_CNTL4		0x32c
+#define HHI_HDMI_PLL_CNTL5		0x330
+#define HHI_HDMI_PLL_CNTL6		0x334
+#define HHI_HDMI_PLL_CNTL_I		0x338
+#define HHI_HDMI_PLL_CNTL7		0x33c
+
+#define HHI_HDMI_PHY_CNTL0		0x3a0
+#define HHI_HDMI_PHY_CNTL1		0x3a4
+#define HHI_HDMI_PHY_CNTL2		0x3a8
+#define HHI_HDMI_PHY_CNTL3		0x3ac
+
+#define HHI_VID_LOCK_CLK_CNTL		0x3c8
+#define HHI_BT656_CLK_CNTL		0x3d4
+#define HHI_SAR_CLK_CNTL		0x3d8
 
 static const struct pll_params_table gxbb_gp0_pll_params_table[] = {
 	PLL_PARAMS(32, 1),
@@ -1335,7 +1432,7 @@ static const struct clk_parent_data gxbb_sd_emmc_clk0_parent_data[] = {
 	/*
 	 * Following these parent clocks, we should also have had mpll2, mpll3
 	 * and gp0_pll but these clocks are too precious to be used here. All
-	 * the necessary rates for MMC and NAND operation can be acheived using
+	 * the necessary rates for MMC and NAND operation can be achieved using
 	 * xtal or fclk_div clocks
 	 */
 };
@@ -3140,398 +3237,7 @@ static struct clk_hw *gxl_hw_clks[] = {
 	[CLKID_ACODEC]		    = &gxl_acodec.hw,
 };
 
-static struct clk_regmap *const gxbb_clk_regmaps[] = {
-	&gxbb_clk81,
-	&gxbb_ddr,
-	&gxbb_dos,
-	&gxbb_isa,
-	&gxbb_pl301,
-	&gxbb_periphs,
-	&gxbb_spicc,
-	&gxbb_i2c,
-	&gxbb_sar_adc,
-	&gxbb_smart_card,
-	&gxbb_rng0,
-	&gxbb_uart0,
-	&gxbb_sdhc,
-	&gxbb_stream,
-	&gxbb_async_fifo,
-	&gxbb_sdio,
-	&gxbb_abuf,
-	&gxbb_hiu_iface,
-	&gxbb_assist_misc,
-	&gxbb_spi,
-	&gxbb_i2s_spdif,
-	&gxbb_eth,
-	&gxbb_demux,
-	&gxbb_aiu_glue,
-	&gxbb_iec958,
-	&gxbb_i2s_out,
-	&gxbb_amclk,
-	&gxbb_aififo2,
-	&gxbb_mixer,
-	&gxbb_mixer_iface,
-	&gxbb_adc,
-	&gxbb_blkmv,
-	&gxbb_aiu,
-	&gxbb_uart1,
-	&gxbb_g2d,
-	&gxbb_usb0,
-	&gxbb_usb1,
-	&gxbb_reset,
-	&gxbb_nand,
-	&gxbb_dos_parser,
-	&gxbb_usb,
-	&gxbb_vdin1,
-	&gxbb_ahb_arb0,
-	&gxbb_efuse,
-	&gxbb_boot_rom,
-	&gxbb_ahb_data_bus,
-	&gxbb_ahb_ctrl_bus,
-	&gxbb_hdmi_intr_sync,
-	&gxbb_hdmi_pclk,
-	&gxbb_usb1_ddr_bridge,
-	&gxbb_usb0_ddr_bridge,
-	&gxbb_mmc_pclk,
-	&gxbb_dvin,
-	&gxbb_uart2,
-	&gxbb_sana,
-	&gxbb_vpu_intr,
-	&gxbb_sec_ahb_ahb3_bridge,
-	&gxbb_clk81_a53,
-	&gxbb_vclk2_venci0,
-	&gxbb_vclk2_venci1,
-	&gxbb_vclk2_vencp0,
-	&gxbb_vclk2_vencp1,
-	&gxbb_gclk_venci_int0,
-	&gxbb_gclk_vencp_int,
-	&gxbb_dac_clk,
-	&gxbb_aoclk_gate,
-	&gxbb_iec958_gate,
-	&gxbb_enc480p,
-	&gxbb_rng1,
-	&gxbb_gclk_venci_int1,
-	&gxbb_vclk2_venclmcc,
-	&gxbb_vclk2_vencl,
-	&gxbb_vclk_other,
-	&gxbb_edp,
-	&gxbb_ao_media_cpu,
-	&gxbb_ao_ahb_sram,
-	&gxbb_ao_ahb_bus,
-	&gxbb_ao_iface,
-	&gxbb_ao_i2c,
-	&gxbb_emmc_a,
-	&gxbb_emmc_b,
-	&gxbb_emmc_c,
-	&gxbb_sar_adc_clk,
-	&gxbb_mali_0,
-	&gxbb_mali_1,
-	&gxbb_cts_amclk,
-	&gxbb_cts_mclk_i958,
-	&gxbb_32k_clk,
-	&gxbb_sd_emmc_a_clk0,
-	&gxbb_sd_emmc_b_clk0,
-	&gxbb_sd_emmc_c_clk0,
-	&gxbb_vpu_0,
-	&gxbb_vpu_1,
-	&gxbb_vapb_0,
-	&gxbb_vapb_1,
-	&gxbb_vapb,
-	&gxbb_mpeg_clk_div,
-	&gxbb_sar_adc_clk_div,
-	&gxbb_mali_0_div,
-	&gxbb_mali_1_div,
-	&gxbb_cts_mclk_i958_div,
-	&gxbb_32k_clk_div,
-	&gxbb_sd_emmc_a_clk0_div,
-	&gxbb_sd_emmc_b_clk0_div,
-	&gxbb_sd_emmc_c_clk0_div,
-	&gxbb_vpu_0_div,
-	&gxbb_vpu_1_div,
-	&gxbb_vapb_0_div,
-	&gxbb_vapb_1_div,
-	&gxbb_mpeg_clk_sel,
-	&gxbb_sar_adc_clk_sel,
-	&gxbb_mali_0_sel,
-	&gxbb_mali_1_sel,
-	&gxbb_mali,
-	&gxbb_cts_amclk_sel,
-	&gxbb_cts_mclk_i958_sel,
-	&gxbb_cts_i958,
-	&gxbb_32k_clk_sel,
-	&gxbb_sd_emmc_a_clk0_sel,
-	&gxbb_sd_emmc_b_clk0_sel,
-	&gxbb_sd_emmc_c_clk0_sel,
-	&gxbb_vpu_0_sel,
-	&gxbb_vpu_1_sel,
-	&gxbb_vpu,
-	&gxbb_vapb_0_sel,
-	&gxbb_vapb_1_sel,
-	&gxbb_vapb_sel,
-	&gxbb_mpll0,
-	&gxbb_mpll1,
-	&gxbb_mpll2,
-	&gxbb_mpll0_div,
-	&gxbb_mpll1_div,
-	&gxbb_mpll2_div,
-	&gxbb_cts_amclk_div,
-	&gxbb_fixed_pll,
-	&gxbb_sys_pll,
-	&gxbb_mpll_prediv,
-	&gxbb_fclk_div2,
-	&gxbb_fclk_div3,
-	&gxbb_fclk_div4,
-	&gxbb_fclk_div5,
-	&gxbb_fclk_div7,
-	&gxbb_vdec_1_sel,
-	&gxbb_vdec_1_div,
-	&gxbb_vdec_1,
-	&gxbb_vdec_hevc_sel,
-	&gxbb_vdec_hevc_div,
-	&gxbb_vdec_hevc,
-	&gxbb_gen_clk_sel,
-	&gxbb_gen_clk_div,
-	&gxbb_gen_clk,
-	&gxbb_fixed_pll_dco,
-	&gxbb_sys_pll_dco,
-	&gxbb_gp0_pll,
-	&gxbb_vid_pll,
-	&gxbb_vid_pll_sel,
-	&gxbb_vid_pll_div,
-	&gxbb_vclk,
-	&gxbb_vclk_sel,
-	&gxbb_vclk_div,
-	&gxbb_vclk_input,
-	&gxbb_vclk_div1,
-	&gxbb_vclk_div2_en,
-	&gxbb_vclk_div4_en,
-	&gxbb_vclk_div6_en,
-	&gxbb_vclk_div12_en,
-	&gxbb_vclk2,
-	&gxbb_vclk2_sel,
-	&gxbb_vclk2_div,
-	&gxbb_vclk2_input,
-	&gxbb_vclk2_div1,
-	&gxbb_vclk2_div2_en,
-	&gxbb_vclk2_div4_en,
-	&gxbb_vclk2_div6_en,
-	&gxbb_vclk2_div12_en,
-	&gxbb_cts_enci,
-	&gxbb_cts_enci_sel,
-	&gxbb_cts_encp,
-	&gxbb_cts_encp_sel,
-	&gxbb_cts_vdac,
-	&gxbb_cts_vdac_sel,
-	&gxbb_hdmi_tx,
-	&gxbb_hdmi_tx_sel,
-	&gxbb_hdmi_sel,
-	&gxbb_hdmi_div,
-	&gxbb_hdmi,
-	&gxbb_gp0_pll_dco,
-	&gxbb_hdmi_pll,
-	&gxbb_hdmi_pll_od,
-	&gxbb_hdmi_pll_od2,
-	&gxbb_hdmi_pll_dco,
-};
-
-static struct clk_regmap *const gxl_clk_regmaps[] = {
-	&gxbb_clk81,
-	&gxbb_ddr,
-	&gxbb_dos,
-	&gxbb_isa,
-	&gxbb_pl301,
-	&gxbb_periphs,
-	&gxbb_spicc,
-	&gxbb_i2c,
-	&gxbb_sar_adc,
-	&gxbb_smart_card,
-	&gxbb_rng0,
-	&gxbb_uart0,
-	&gxbb_sdhc,
-	&gxbb_stream,
-	&gxbb_async_fifo,
-	&gxbb_sdio,
-	&gxbb_abuf,
-	&gxbb_hiu_iface,
-	&gxbb_assist_misc,
-	&gxbb_spi,
-	&gxbb_i2s_spdif,
-	&gxbb_eth,
-	&gxbb_demux,
-	&gxbb_aiu_glue,
-	&gxbb_iec958,
-	&gxbb_i2s_out,
-	&gxbb_amclk,
-	&gxbb_aififo2,
-	&gxbb_mixer,
-	&gxbb_mixer_iface,
-	&gxbb_adc,
-	&gxbb_blkmv,
-	&gxbb_aiu,
-	&gxbb_uart1,
-	&gxbb_g2d,
-	&gxbb_usb0,
-	&gxbb_usb1,
-	&gxbb_reset,
-	&gxbb_nand,
-	&gxbb_dos_parser,
-	&gxbb_usb,
-	&gxbb_vdin1,
-	&gxbb_ahb_arb0,
-	&gxbb_efuse,
-	&gxbb_boot_rom,
-	&gxbb_ahb_data_bus,
-	&gxbb_ahb_ctrl_bus,
-	&gxbb_hdmi_intr_sync,
-	&gxbb_hdmi_pclk,
-	&gxbb_usb1_ddr_bridge,
-	&gxbb_usb0_ddr_bridge,
-	&gxbb_mmc_pclk,
-	&gxbb_dvin,
-	&gxbb_uart2,
-	&gxbb_sana,
-	&gxbb_vpu_intr,
-	&gxbb_sec_ahb_ahb3_bridge,
-	&gxbb_clk81_a53,
-	&gxbb_vclk2_venci0,
-	&gxbb_vclk2_venci1,
-	&gxbb_vclk2_vencp0,
-	&gxbb_vclk2_vencp1,
-	&gxbb_gclk_venci_int0,
-	&gxbb_gclk_vencp_int,
-	&gxbb_dac_clk,
-	&gxbb_aoclk_gate,
-	&gxbb_iec958_gate,
-	&gxbb_enc480p,
-	&gxbb_rng1,
-	&gxbb_gclk_venci_int1,
-	&gxbb_vclk2_venclmcc,
-	&gxbb_vclk2_vencl,
-	&gxbb_vclk_other,
-	&gxbb_edp,
-	&gxbb_ao_media_cpu,
-	&gxbb_ao_ahb_sram,
-	&gxbb_ao_ahb_bus,
-	&gxbb_ao_iface,
-	&gxbb_ao_i2c,
-	&gxbb_emmc_a,
-	&gxbb_emmc_b,
-	&gxbb_emmc_c,
-	&gxbb_sar_adc_clk,
-	&gxbb_mali_0,
-	&gxbb_mali_1,
-	&gxbb_cts_amclk,
-	&gxbb_cts_mclk_i958,
-	&gxbb_32k_clk,
-	&gxbb_sd_emmc_a_clk0,
-	&gxbb_sd_emmc_b_clk0,
-	&gxbb_sd_emmc_c_clk0,
-	&gxbb_vpu_0,
-	&gxbb_vpu_1,
-	&gxbb_vapb_0,
-	&gxbb_vapb_1,
-	&gxbb_vapb,
-	&gxbb_mpeg_clk_div,
-	&gxbb_sar_adc_clk_div,
-	&gxbb_mali_0_div,
-	&gxbb_mali_1_div,
-	&gxbb_cts_mclk_i958_div,
-	&gxbb_32k_clk_div,
-	&gxbb_sd_emmc_a_clk0_div,
-	&gxbb_sd_emmc_b_clk0_div,
-	&gxbb_sd_emmc_c_clk0_div,
-	&gxbb_vpu_0_div,
-	&gxbb_vpu_1_div,
-	&gxbb_vapb_0_div,
-	&gxbb_vapb_1_div,
-	&gxbb_mpeg_clk_sel,
-	&gxbb_sar_adc_clk_sel,
-	&gxbb_mali_0_sel,
-	&gxbb_mali_1_sel,
-	&gxbb_mali,
-	&gxbb_cts_amclk_sel,
-	&gxbb_cts_mclk_i958_sel,
-	&gxbb_cts_i958,
-	&gxbb_32k_clk_sel,
-	&gxbb_sd_emmc_a_clk0_sel,
-	&gxbb_sd_emmc_b_clk0_sel,
-	&gxbb_sd_emmc_c_clk0_sel,
-	&gxbb_vpu_0_sel,
-	&gxbb_vpu_1_sel,
-	&gxbb_vpu,
-	&gxbb_vapb_0_sel,
-	&gxbb_vapb_1_sel,
-	&gxbb_vapb_sel,
-	&gxbb_mpll0,
-	&gxbb_mpll1,
-	&gxbb_mpll2,
-	&gxl_mpll0_div,
-	&gxbb_mpll1_div,
-	&gxbb_mpll2_div,
-	&gxbb_cts_amclk_div,
-	&gxbb_fixed_pll,
-	&gxbb_sys_pll,
-	&gxbb_mpll_prediv,
-	&gxbb_fclk_div2,
-	&gxbb_fclk_div3,
-	&gxbb_fclk_div4,
-	&gxbb_fclk_div5,
-	&gxbb_fclk_div7,
-	&gxbb_vdec_1_sel,
-	&gxbb_vdec_1_div,
-	&gxbb_vdec_1,
-	&gxbb_vdec_hevc_sel,
-	&gxbb_vdec_hevc_div,
-	&gxbb_vdec_hevc,
-	&gxbb_gen_clk_sel,
-	&gxbb_gen_clk_div,
-	&gxbb_gen_clk,
-	&gxbb_fixed_pll_dco,
-	&gxbb_sys_pll_dco,
-	&gxbb_gp0_pll,
-	&gxbb_vid_pll,
-	&gxbb_vid_pll_sel,
-	&gxbb_vid_pll_div,
-	&gxbb_vclk,
-	&gxbb_vclk_sel,
-	&gxbb_vclk_div,
-	&gxbb_vclk_input,
-	&gxbb_vclk_div1,
-	&gxbb_vclk_div2_en,
-	&gxbb_vclk_div4_en,
-	&gxbb_vclk_div6_en,
-	&gxbb_vclk_div12_en,
-	&gxbb_vclk2,
-	&gxbb_vclk2_sel,
-	&gxbb_vclk2_div,
-	&gxbb_vclk2_input,
-	&gxbb_vclk2_div1,
-	&gxbb_vclk2_div2_en,
-	&gxbb_vclk2_div4_en,
-	&gxbb_vclk2_div6_en,
-	&gxbb_vclk2_div12_en,
-	&gxbb_cts_enci,
-	&gxbb_cts_enci_sel,
-	&gxbb_cts_encp,
-	&gxbb_cts_encp_sel,
-	&gxbb_cts_vdac,
-	&gxbb_cts_vdac_sel,
-	&gxbb_hdmi_tx,
-	&gxbb_hdmi_tx_sel,
-	&gxbb_hdmi_sel,
-	&gxbb_hdmi_div,
-	&gxbb_hdmi,
-	&gxl_gp0_pll_dco,
-	&gxl_hdmi_pll,
-	&gxl_hdmi_pll_od,
-	&gxl_hdmi_pll_od2,
-	&gxl_hdmi_pll_dco,
-	&gxl_acodec,
-};
-
 static const struct meson_eeclkc_data gxbb_clkc_data = {
-	.regmap_clks = gxbb_clk_regmaps,
-	.regmap_clk_num = ARRAY_SIZE(gxbb_clk_regmaps),
 	.hw_clks = {
 		.hws = gxbb_hw_clks,
 		.num = ARRAY_SIZE(gxbb_hw_clks),
@@ -3539,8 +3245,6 @@ static const struct meson_eeclkc_data gxbb_clkc_data = {
 };
 
 static const struct meson_eeclkc_data gxl_clkc_data = {
-	.regmap_clks = gxl_clk_regmaps,
-	.regmap_clk_num = ARRAY_SIZE(gxl_clk_regmaps),
 	.hw_clks = {
 		.hws = gxl_hw_clks,
 		.num = ARRAY_SIZE(gxl_hw_clks),

@@ -1,0 +1,61 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/nvmem/nxp,lpc1857-eeprom.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NXP LPC18xx EEPROM memory
+
+maintainers:
+  - Frank Li <Frank.Li@nxp.com>
+
+properties:
+  compatible:
+    const: nxp,lpc1857-eeprom
+
+  reg:
+    maxItems: 2
+
+  reg-names:
+    items:
+      - const: reg
+      - const: mem
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    items:
+      - const: eeprom
+
+  interrupts:
+    maxItems: 1
+
+  resets:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - reg-names
+  - clocks
+  - clock-names
+  - interrupts
+  - resets
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/lpc18xx-ccu.h>
+
+    eeprom@4000e000 {
+        compatible = "nxp,lpc1857-eeprom";
+        reg = <0x4000e000 0x1000>,
+              <0x20040000 0x4000>;
+        reg-names = "reg", "mem";
+        clocks = <&ccu1 CLK_CPU_EEPROM>;
+        clock-names = "eeprom";
+        resets = <&rgu 27>;
+        interrupts = <4>;
+    };

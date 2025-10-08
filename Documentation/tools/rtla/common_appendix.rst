@@ -1,3 +1,14 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+EXIT STATUS
+===========
+
+::
+
+ 0  Passed: the test did not hit the stop tracing condition
+ 1  Error: invalid argument
+ 2  Failed: the test hit the stop tracing condition
+
 REPORTING BUGS
 ==============
 Report bugs to <linux-kernel@vger.kernel.org>

@@ -84,7 +84,7 @@ bool rtl92d_phy_rf6052_config(struct ieee80211_hw *hw)
 		rtlphy->num_total_rfpath = 2;
 
 	/* Single phy mode: use radio_a radio_b config path_A path_B */
-	/* seperately by MAC0, and MAC1 needn't configure RF; */
+	/* separately by MAC0, and MAC1 needn't configure RF; */
 	/* Dual PHY mode:MAC0 use radio_a config 1st phy path_A, */
 	/* MAC1 use radio_b config 2nd PHY path_A. */
 	/* DMDP,MAC0 on G band,MAC1 on A band. */

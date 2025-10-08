@@ -30,6 +30,20 @@
                 __##name##_req, (req))
 
 struct ahash_request;
+struct scatterlist;
+
+struct crypto_hash_walk {
+	const char *data;
+
+	unsigned int offset;
+	unsigned int flags;
+
+	struct page *pg;
+	unsigned int entrylen;
+
+	unsigned int total;
+	struct scatterlist *sg;
+};
 
 struct ahash_instance {
 	void (*free)(struct ahash_instance *inst);
@@ -61,6 +75,15 @@ struct crypto_shash_spawn {
 	struct crypto_spawn base;
 };
 
+int crypto_hash_walk_done(struct crypto_hash_walk *walk, int err);
+int crypto_hash_walk_first(struct ahash_request *req,
+			   struct crypto_hash_walk *walk);
+
+static inline int crypto_hash_walk_last(struct crypto_hash_walk *walk)
+{
+	return !(walk->entrylen | walk->total);
+}
+
 int crypto_register_ahash(struct ahash_alg *alg);
 void crypto_unregister_ahash(struct ahash_alg *alg);
 int crypto_register_ahashes(struct ahash_alg *algs, int count);
@@ -89,6 +112,12 @@ static inline bool crypto_hash_alg_needs_key(struct hash_alg_common *alg)
 {
 	return crypto_hash_alg_has_setkey(alg) &&
 		!(alg->base.cra_flags & CRYPTO_ALG_OPTIONAL_KEY);
+}
+
+static inline bool crypto_hash_no_export_core(struct crypto_ahash *tfm)
+{
+	return crypto_hash_alg_common(tfm)->base.cra_flags &
+	       CRYPTO_AHASH_ALG_NO_EXPORT_CORE;
 }
 
 int crypto_grab_ahash(struct crypto_ahash_spawn *spawn,
@@ -165,6 +194,13 @@ static inline void crypto_ahash_set_reqsize(struct crypto_ahash *tfm,
 					    unsigned int reqsize)
 {
 	tfm->reqsize = reqsize;
+}
+
+static inline bool crypto_ahash_tested(struct crypto_ahash *tfm)
+{
+	struct crypto_tfm *tfm_base = crypto_ahash_tfm(tfm);
+
+	return tfm_base->__crt_alg->cra_flags & CRYPTO_ALG_TESTED;
 }
 
 static inline void crypto_ahash_set_reqsize_dma(struct crypto_ahash *ahash,

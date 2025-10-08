@@ -552,38 +552,6 @@ EXPORT_SYMBOL(vpdma_submit_descs);
 
 static void dump_dtd(struct vpdma_dtd *dtd);
 
-void vpdma_update_dma_addr(struct vpdma_data *vpdma,
-	struct vpdma_desc_list *list, dma_addr_t dma_addr,
-	void *write_dtd, int drop, int idx)
-{
-	struct vpdma_dtd *dtd = list->buf.addr;
-	dma_addr_t write_desc_addr;
-	int offset;
-
-	dtd += idx;
-	vpdma_unmap_desc_buf(vpdma, &list->buf);
-
-	dtd->start_addr = dma_addr;
-
-	/* Calculate write address from the offset of write_dtd from start
-	 * of the list->buf
-	 */
-	offset = (void *)write_dtd - list->buf.addr;
-	write_desc_addr = list->buf.dma_addr + offset;
-
-	if (drop)
-		dtd->desc_write_addr = dtd_desc_write_addr(write_desc_addr,
-							   1, 1, 0);
-	else
-		dtd->desc_write_addr = dtd_desc_write_addr(write_desc_addr,
-							   1, 0, 0);
-
-	vpdma_map_desc_buf(vpdma, &list->buf);
-
-	dump_dtd(dtd);
-}
-EXPORT_SYMBOL(vpdma_update_dma_addr);
-
 void vpdma_set_max_size(struct vpdma_data *vpdma, int reg_addr,
 			u32 width, u32 height)
 {

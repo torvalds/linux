@@ -2,6 +2,7 @@
 /* Copyright (c) 2021, Microsoft Corporation. */
 
 #include <net/mana/gdma.h>
+#include <net/mana/mana.h>
 #include <net/mana/hw_channel.h>
 #include <linux/vmalloc.h>
 
@@ -879,7 +880,9 @@ int mana_hwc_send_request(struct hw_channel_context *hwc, u32 req_len,
 
 	if (!wait_for_completion_timeout(&ctx->comp_event,
 					 (msecs_to_jiffies(hwc->hwc_timeout)))) {
-		dev_err(hwc->dev, "HWC: Request timed out!\n");
+		if (hwc->hwc_timeout != 0)
+			dev_err(hwc->dev, "HWC: Request timed out!\n");
+
 		err = -ETIMEDOUT;
 		goto out;
 	}
@@ -890,8 +893,13 @@ int mana_hwc_send_request(struct hw_channel_context *hwc, u32 req_len,
 	}
 
 	if (ctx->status_code && ctx->status_code != GDMA_STATUS_MORE_ENTRIES) {
-		dev_err(hwc->dev, "HWC: Failed hw_channel req: 0x%x\n",
-			ctx->status_code);
+		if (ctx->status_code == GDMA_STATUS_CMD_UNSUPPORTED) {
+			err = -EOPNOTSUPP;
+			goto out;
+		}
+		if (req_msg->req.msg_type != MANA_QUERY_PHY_STAT)
+			dev_err(hwc->dev, "HWC: Failed hw_channel req: 0x%x\n",
+				ctx->status_code);
 		err = -EPROTO;
 		goto out;
 	}

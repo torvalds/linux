@@ -330,7 +330,7 @@ static int dmirror_fault(struct dmirror *dmirror, unsigned long start,
 {
 	struct mm_struct *mm = dmirror->notifier.mm;
 	unsigned long addr;
-	unsigned long pfns[64];
+	unsigned long pfns[32];
 	struct hmm_range range = {
 		.notifier = &dmirror->notifier,
 		.hmm_pfns = pfns,
@@ -879,8 +879,8 @@ static int dmirror_migrate_to_system(struct dmirror *dmirror,
 	unsigned long size = cmd->npages << PAGE_SHIFT;
 	struct mm_struct *mm = dmirror->notifier.mm;
 	struct vm_area_struct *vma;
-	unsigned long src_pfns[64] = { 0 };
-	unsigned long dst_pfns[64] = { 0 };
+	unsigned long src_pfns[32] = { 0 };
+	unsigned long dst_pfns[32] = { 0 };
 	struct migrate_vma args = { 0 };
 	unsigned long next;
 	int ret;
@@ -939,8 +939,8 @@ static int dmirror_migrate_to_device(struct dmirror *dmirror,
 	unsigned long size = cmd->npages << PAGE_SHIFT;
 	struct mm_struct *mm = dmirror->notifier.mm;
 	struct vm_area_struct *vma;
-	unsigned long src_pfns[64] = { 0 };
-	unsigned long dst_pfns[64] = { 0 };
+	unsigned long src_pfns[32] = { 0 };
+	unsigned long dst_pfns[32] = { 0 };
 	struct dmirror_bounce bounce;
 	struct migrate_vma args = { 0 };
 	unsigned long next;
@@ -1144,8 +1144,8 @@ static int dmirror_snapshot(struct dmirror *dmirror,
 	unsigned long size = cmd->npages << PAGE_SHIFT;
 	unsigned long addr;
 	unsigned long next;
-	unsigned long pfns[64];
-	unsigned char perm[64];
+	unsigned long pfns[32];
+	unsigned char perm[32];
 	char __user *uptr;
 	struct hmm_range range = {
 		.hmm_pfns = pfns,

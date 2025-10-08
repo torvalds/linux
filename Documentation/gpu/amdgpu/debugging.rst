@@ -85,3 +85,21 @@ UMR
 GPU debugging and diagnostics tool.  Please see the umr
 `documentation <https://umr.readthedocs.io/en/main/>`_ for more information
 about its capabilities.
+
+Debugging backlight brightness
+==============================
+Default backlight brightness is intended to be set via the policy advertised
+by the firmware.  Firmware will often provide different defaults for AC or DC.
+Furthermore, some userspace software will save backlight brightness during
+the previous boot and attempt to restore it.
+
+Some firmware also has support for a feature called "Custom Backlight Curves"
+where an input value for brightness is mapped along a linearly interpolated
+curve of brightness values that better match display characteristics.
+
+In the event of problems happening with backlight, there is a trace event
+that can be enabled at bootup to log every brightness change request.
+This can help isolate where the problem is. To enable the trace event add
+the following to the kernel command line:
+
+  tp_printk trace_event=amdgpu_dm:amdgpu_dm_brightness:mod:amdgpu trace_buf_size=1M

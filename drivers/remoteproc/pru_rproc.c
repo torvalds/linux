@@ -1055,7 +1055,7 @@ static int pru_rproc_probe(struct platform_device *pdev)
 		pru->mem_regions[i].pa = res->start;
 		pru->mem_regions[i].size = resource_size(res);
 
-		dev_dbg(dev, "memory %8s: pa %pa size 0x%zx va %pK\n",
+		dev_dbg(dev, "memory %8s: pa %pa size 0x%zx va %p\n",
 			mem_names[i], &pru->mem_regions[i].pa,
 			pru->mem_regions[i].size, pru->mem_regions[i].va);
 	}

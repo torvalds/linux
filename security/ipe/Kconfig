@@ -6,6 +6,7 @@
 menuconfig SECURITY_IPE
 	bool "Integrity Policy Enforcement (IPE)"
 	depends on SECURITY && SECURITYFS && AUDIT && AUDITSYSCALL
+	select CRYPTO_LIB_SHA256
 	select PKCS7_MESSAGE_PARSER
 	select SYSTEM_DATA_VERIFICATION
 	select IPE_PROP_DM_VERITY if DM_VERITY

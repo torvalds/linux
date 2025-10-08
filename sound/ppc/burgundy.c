@@ -665,7 +665,7 @@ int snd_pmac_burgundy_init(struct snd_pmac *chip)
 	/*
 	 * build burgundy mixers
 	 */
-	strcpy(chip->card->mixername, "PowerMac Burgundy");
+	strscpy(chip->card->mixername, "PowerMac Burgundy");
 
 	for (i = 0; i < ARRAY_SIZE(snd_pmac_burgundy_mixers); i++) {
 		err = snd_ctl_add(chip->card,

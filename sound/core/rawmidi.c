@@ -631,9 +631,9 @@ static int snd_rawmidi_info(struct snd_rawmidi_substream *substream,
 	info->flags = rmidi->info_flags;
 	if (substream->inactive)
 		info->flags |= SNDRV_RAWMIDI_INFO_STREAM_INACTIVE;
-	strcpy(info->id, rmidi->id);
-	strcpy(info->name, rmidi->name);
-	strcpy(info->subname, substream->name);
+	strscpy(info->id, rmidi->id);
+	strscpy(info->name, rmidi->name);
+	strscpy(info->subname, substream->name);
 	info->subdevices_count = substream->pstr->substream_count;
 	info->subdevices_avail = (substream->pstr->substream_count -
 				  substream->pstr->substream_opened);

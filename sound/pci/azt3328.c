@@ -412,25 +412,25 @@ snd_azf3328_ctrl_outl(const struct snd_azf3328 *chip, unsigned reg, u32 value)
 	outl(value, chip->ctrl_io + reg);
 }
 
-static inline void
+static inline void __maybe_unused
 snd_azf3328_game_outb(const struct snd_azf3328 *chip, unsigned reg, u8 value)
 {
 	outb(value, chip->game_io + reg);
 }
 
-static inline void
+static inline void __maybe_unused
 snd_azf3328_game_outw(const struct snd_azf3328 *chip, unsigned reg, u16 value)
 {
 	outw(value, chip->game_io + reg);
 }
 
-static inline u8
+static inline u8 __maybe_unused
 snd_azf3328_game_inb(const struct snd_azf3328 *chip, unsigned reg)
 {
 	return inb(chip->game_io + reg);
 }
 
-static inline u16
+static inline u16 __maybe_unused
 snd_azf3328_game_inw(const struct snd_azf3328 *chip, unsigned reg)
 {
 	return inw(chip->game_io + reg);
@@ -1188,7 +1188,7 @@ snd_azf3328_mixer_new(struct snd_azf3328 *chip)
 			return err;
 	}
 	snd_component_add(card, "AZF3328 mixer");
-	strcpy(card->mixername, "AZF3328 mixer");
+	strscpy(card->mixername, "AZF3328 mixer");
 
 	return 0;
 }
@@ -2095,7 +2095,7 @@ snd_azf3328_pcm(struct snd_azf3328 *chip)
 
 	pcm->private_data = chip;
 	pcm->info_flags = 0;
-	strcpy(pcm->name, chip->card->shortname);
+	strscpy(pcm->name, chip->card->shortname);
 	/* same pcm object for playback/capture (see snd_pcm_new() above) */
 	chip->pcm[AZF_CODEC_PLAYBACK] = pcm;
 	chip->pcm[AZF_CODEC_CAPTURE] = pcm;
@@ -2112,7 +2112,7 @@ snd_azf3328_pcm(struct snd_azf3328 *chip)
 
 	pcm->private_data = chip;
 	pcm->info_flags = 0;
-	strcpy(pcm->name, chip->card->shortname);
+	strscpy(pcm->name, chip->card->shortname);
 	chip->pcm[AZF_CODEC_I2S_OUT] = pcm;
 
 	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV, &chip->pci->dev,
@@ -2217,7 +2217,7 @@ snd_azf3328_timer(struct snd_azf3328 *chip, int device)
 	if (err < 0)
 		goto out;
 
-	strcpy(timer->name, "AZF3328 timer");
+	strscpy(timer->name, "AZF3328 timer");
 	timer->private_data = chip;
 	timer->hw = snd_azf3328_timer_hw;
 
@@ -2437,8 +2437,8 @@ __snd_azf3328_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 		return err;
 	chip = card->private_data;
 
-	strcpy(card->driver, "AZF3328");
-	strcpy(card->shortname, "Aztech AZF3328 (PCI168)");
+	strscpy(card->driver, "AZF3328");
+	strscpy(card->shortname, "Aztech AZF3328 (PCI168)");
 
 	err = snd_azf3328_create(card, pci, pci_id->driver_data);
 	if (err < 0)

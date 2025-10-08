@@ -258,6 +258,7 @@ struct hbg_stats {
 	u64 tx_dma_err_cnt;
 
 	u64 np_link_fail_cnt;
+	u64 reset_fail_cnt;
 };
 
 struct hbg_priv {

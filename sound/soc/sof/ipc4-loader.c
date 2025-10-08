@@ -236,7 +236,6 @@ static int sof_ipc4_load_library(struct snd_sof_dev *sdev, unsigned long lib_id,
 
 	ret = ipc4_data->load_library(sdev, fw_lib, false);
 
-	pm_runtime_mark_last_busy(sdev->dev);
 	err = pm_runtime_put_autosuspend(sdev->dev);
 	if (err < 0)
 		dev_err_ratelimited(sdev->dev, "%s: pm_runtime idle failed: %d\n",
@@ -494,6 +493,12 @@ int sof_ipc4_query_fw_configuration(struct snd_sof_dev *sdev)
 			break;
 		case SOF_IPC4_FW_CONTEXT_SAVE:
 			ipc4_data->fw_context_save = *tuple->value;
+			/*
+			 * Set the default libraries_restored value - if full
+			 * context save is supported then it means that
+			 * libraries are restored
+			 */
+			ipc4_data->libraries_restored = ipc4_data->fw_context_save;
 			break;
 		default:
 			break;

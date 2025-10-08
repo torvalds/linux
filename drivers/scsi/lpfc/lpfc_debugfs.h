@@ -322,6 +322,17 @@ enum {
 						 * discovery */
 #endif /* H_LPFC_DEBUG_FS */
 
+enum {
+	writeGuard = 1,
+	writeApp,
+	writeRef,
+	readGuard,
+	readApp,
+	readRef,
+	InjErrLBA,
+	InjErrNPortID,
+	InjErrWWPN,
+};
 
 /*
  * Driver debug utility routines outside of debugfs. The debug utility

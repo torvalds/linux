@@ -15,7 +15,7 @@ description: |
   Qualcomm display clock control module provides the clocks, resets and power
   domains on SM7150.
 
-  See also:: include/dt-bindings/clock/qcom,sm7150-dispcc.h
+  See also: include/dt-bindings/clock/qcom,sm7150-dispcc.h
 
 properties:
   compatible:

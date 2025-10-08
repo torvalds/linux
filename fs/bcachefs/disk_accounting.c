@@ -618,7 +618,9 @@ int bch2_gc_accounting_done(struct bch_fs *c)
 			for (unsigned j = 0; j < nr; j++)
 				src_v[j] -= dst_v[j];
 
-			if (fsck_err(trans, accounting_mismatch, "%s", buf.buf)) {
+			bch2_trans_unlock_long(trans);
+
+			if (fsck_err(c, accounting_mismatch, "%s", buf.buf)) {
 				percpu_up_write(&c->mark_lock);
 				ret = commit_do(trans, NULL, NULL, 0,
 						bch2_disk_accounting_mod(trans, &acc_k, src_v, nr, false));

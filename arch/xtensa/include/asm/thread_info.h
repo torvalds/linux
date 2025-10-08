@@ -16,7 +16,7 @@
 
 #define CURRENT_SHIFT KERNEL_STACK_SHIFT
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 # include <asm/processor.h>
 #endif
 
@@ -28,7 +28,7 @@
  *   must also be changed
  */
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #if XTENSA_HAVE_COPROCESSORS
 
@@ -80,7 +80,7 @@ struct thread_info {
  * macros/functions for gaining access to the thread information structure
  */
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #define INIT_THREAD_INFO(tsk)			\
 {						\
@@ -99,7 +99,7 @@ static __always_inline struct thread_info *current_thread_info(void)
 	return ti;
 }
 
-#else /* !__ASSEMBLY__ */
+#else /* !__ASSEMBLER__ */
 
 /* how to get the thread information struct from ASM */
 #define GET_THREAD_INFO(reg,sp) \

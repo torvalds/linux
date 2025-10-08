@@ -13,6 +13,7 @@
  *
  */
 
+#include <linux/export.h>
 
 #include "matroxfb_DAC1064.h"
 #include "matroxfb_misc.h"
@@ -43,11 +44,11 @@ static void DAC1064_calcclock(const struct matrox_fb_info *minfo,
 	unsigned int p;
 
 	DBG(__func__)
-	
+
 	/* only for devices older than G450 */
 
 	fvco = PLL_calcclock(minfo, freq, fmax, in, feed, &p);
-	
+
 	p = (1 << p) - 1;
 	if (fvco <= 100000)
 		;
@@ -169,7 +170,7 @@ static void g450_set_plls(struct matrox_fb_info *minfo)
 	struct matrox_hw_state *hw = &minfo->hw;
 	int pixelmnp;
 	int videomnp;
-	
+
 	c2_ctl = hw->crtc2.ctl & ~0x4007;	/* Clear PLL + enable for CRTC2 */
 	c2_ctl |= 0x0001;			/* Enable CRTC2 */
 	hw->DACreg[POS1064_XPWRCTRL] &= ~0x02;	/* Stop VIDEO PLL */
@@ -192,7 +193,7 @@ static void g450_set_plls(struct matrox_fb_info *minfo)
 		}
 		c2_ctl |=  0x0006;	/* Use video PLL */
 		hw->DACreg[POS1064_XPWRCTRL] |= 0x02;
-		
+
 		outDAC1064(minfo, M1064_XPWRCTRL, hw->DACreg[POS1064_XPWRCTRL]);
 		matroxfb_g450_setpll_cond(minfo, videomnp, M_VIDEO_PLL);
 	}
@@ -200,7 +201,7 @@ static void g450_set_plls(struct matrox_fb_info *minfo)
 	hw->DACreg[POS1064_XPIXCLKCTRL] &= ~M1064_XPIXCLKCTRL_PLL_UP;
 	if (pixelmnp >= 0) {
 		hw->DACreg[POS1064_XPIXCLKCTRL] |= M1064_XPIXCLKCTRL_PLL_UP;
-		
+
 		outDAC1064(minfo, M1064_XPIXCLKCTRL, hw->DACreg[POS1064_XPIXCLKCTRL]);
 		matroxfb_g450_setpll_cond(minfo, pixelmnp, M_PIXEL_PLL_C);
 	}
@@ -303,9 +304,9 @@ void DAC1064_global_init(struct matrox_fb_info *minfo)
 				   poweroff TMDS. But if we boot with DFP connected,
 				   TMDS generated clocks are used instead of ALL pixclocks
 				   available... If someone knows which register
-				   handles it, please reveal this secret to me... */			
+				   handles it, please reveal this secret to me... */
 				hw->DACreg[POS1064_XPWRCTRL] &= ~0x04;		/* Poweroff TMDS */
-#endif				
+#endif
 				break;
 		}
 		/* Now set timming related variables... */
@@ -728,14 +729,14 @@ static void g450_mclk_init(struct matrox_fb_info *minfo)
 	} else {
 		unsigned long flags;
 		unsigned int pwr;
-		
+
 		matroxfb_DAC_lock_irqsave(flags);
 		pwr = inDAC1064(minfo, M1064_XPWRCTRL) & ~0x02;
 		outDAC1064(minfo, M1064_XPWRCTRL, pwr);
 		matroxfb_DAC_unlock_irqrestore(flags);
 	}
 	matroxfb_g450_setclk(minfo, minfo->values.pll.system, M_SYSTEM_PLL);
-	
+
 	/* switch clocks to their real PLL source(s) */
 	pci_write_config_dword(minfo->pcidev, PCI_OPTION_REG, minfo->hw.MXoptionReg | 4);
 	pci_write_config_dword(minfo->pcidev, PCI_OPTION3_REG, minfo->values.reg.opt3);
@@ -748,15 +749,15 @@ static void g450_memory_init(struct matrox_fb_info *minfo)
 	/* disable memory refresh */
 	minfo->hw.MXoptionReg &= ~0x001F8000;
 	pci_write_config_dword(minfo->pcidev, PCI_OPTION_REG, minfo->hw.MXoptionReg);
-	
+
 	/* set memory interface parameters */
 	minfo->hw.MXoptionReg &= ~0x00207E00;
 	minfo->hw.MXoptionReg |= 0x00207E00 & minfo->values.reg.opt;
 	pci_write_config_dword(minfo->pcidev, PCI_OPTION_REG, minfo->hw.MXoptionReg);
 	pci_write_config_dword(minfo->pcidev, PCI_OPTION2_REG, minfo->values.reg.opt2);
-	
+
 	mga_outl(M_CTLWTST, minfo->values.reg.mctlwtst);
-	
+
 	/* first set up memory interface with disabled memory interface clocks */
 	pci_write_config_dword(minfo->pcidev, PCI_MEMMISC_REG, minfo->values.reg.memmisc & ~0x80000000U);
 	mga_outl(M_MEMRDBK, minfo->values.reg.memrdbk);
@@ -765,25 +766,25 @@ static void g450_memory_init(struct matrox_fb_info *minfo)
 	pci_write_config_dword(minfo->pcidev, PCI_MEMMISC_REG, minfo->values.reg.memmisc | 0x80000000U);
 
 	udelay(200);
-	
+
 	if (minfo->values.memory.ddr && (!minfo->values.memory.emrswen || !minfo->values.memory.dll)) {
 		mga_outl(M_MEMRDBK, minfo->values.reg.memrdbk & ~0x1000);
 	}
 	mga_outl(M_MACCESS, minfo->values.reg.maccess | 0x8000);
-	
+
 	udelay(200);
-	
+
 	minfo->hw.MXoptionReg |= 0x001F8000 & minfo->values.reg.opt;
 	pci_write_config_dword(minfo->pcidev, PCI_OPTION_REG, minfo->hw.MXoptionReg);
-	
+
 	/* value is written to memory chips only if old != new */
 	mga_outl(M_PLNWT, 0);
 	mga_outl(M_PLNWT, ~0);
-	
+
 	if (minfo->values.reg.mctlwtst != minfo->values.reg.mctlwtst_core) {
 		mga_outl(M_CTLWTST, minfo->values.reg.mctlwtst_core);
 	}
-	
+
 }
 
 static void g450_preinit(struct matrox_fb_info *minfo)
@@ -791,7 +792,7 @@ static void g450_preinit(struct matrox_fb_info *minfo)
 	u_int32_t c2ctl;
 	u_int8_t curctl;
 	u_int8_t c1ctl;
-	
+
 	/* minfo->hw.MXoptionReg = minfo->values.reg.opt; */
 	minfo->hw.MXoptionReg &= 0xC0000100;
 	minfo->hw.MXoptionReg |= 0x00000020;
@@ -805,7 +806,7 @@ static void g450_preinit(struct matrox_fb_info *minfo)
 	pci_write_config_dword(minfo->pcidev, PCI_OPTION_REG, minfo->hw.MXoptionReg);
 
 	/* Init system clocks */
-		
+
 	/* stop crtc2 */
 	c2ctl = mga_inl(M_C2CTL);
 	mga_outl(M_C2CTL, c2ctl & ~1);
@@ -818,20 +819,20 @@ static void g450_preinit(struct matrox_fb_info *minfo)
 
 	g450_mclk_init(minfo);
 	g450_memory_init(minfo);
-	
+
 	/* set legacy VGA clock sources for DOSEmu or VMware... */
 	matroxfb_g450_setclk(minfo, 25175, M_PIXEL_PLL_A);
 	matroxfb_g450_setclk(minfo, 28322, M_PIXEL_PLL_B);
 
 	/* restore crtc1 */
 	mga_setr(M_SEQ_INDEX, 1, c1ctl);
-	
+
 	/* restore cursor */
 	outDAC1064(minfo, M1064_XCURCTRL, curctl);
 
 	/* restore crtc2 */
 	mga_outl(M_C2CTL, c2ctl);
-	
+
 	return;
 }
 

@@ -328,10 +328,7 @@ xfs_zone_gc_query(
 	iter->rec_idx = 0;
 	iter->rec_count = 0;
 
-	error = xfs_trans_alloc_empty(mp, &tp);
-	if (error)
-		return error;
-
+	tp = xfs_trans_alloc_empty(mp);
 	xfs_rtgroup_lock(rtg, XFS_RTGLOCK_RMAP);
 	cur = xfs_rtrmapbt_init_cursor(tp, rtg);
 	error = xfs_rmap_query_range(cur, &ri_low, &ri_high,
@@ -533,8 +530,7 @@ xfs_zone_gc_steal_open(
 
 	spin_lock(&zi->zi_open_zones_lock);
 	list_for_each_entry(oz, &zi->zi_open_zones, oz_entry) {
-		if (!found ||
-		    oz->oz_write_pointer < found->oz_write_pointer)
+		if (!found || oz->oz_allocated < found->oz_allocated)
 			found = oz;
 	}
 
@@ -584,7 +580,7 @@ xfs_zone_gc_ensure_target(
 {
 	struct xfs_open_zone	*oz = mp->m_zone_info->zi_open_gc_zone;
 
-	if (!oz || oz->oz_write_pointer == rtg_blocks(oz->oz_rtg))
+	if (!oz || oz->oz_allocated == rtg_blocks(oz->oz_rtg))
 		return xfs_zone_gc_select_target(mp);
 	return oz;
 }
@@ -605,7 +601,7 @@ xfs_zone_gc_space_available(
 	oz = xfs_zone_gc_ensure_target(data->mp);
 	if (!oz)
 		return false;
-	return oz->oz_write_pointer < rtg_blocks(oz->oz_rtg) &&
+	return oz->oz_allocated < rtg_blocks(oz->oz_rtg) &&
 		xfs_zone_gc_scratch_available(data);
 }
 
@@ -647,7 +643,7 @@ xfs_zone_gc_alloc_blocks(
 	 */
 	spin_lock(&mp->m_sb_lock);
 	*count_fsb = min(*count_fsb,
-			rtg_blocks(oz->oz_rtg) - oz->oz_write_pointer);
+			rtg_blocks(oz->oz_rtg) - oz->oz_allocated);
 	*count_fsb = min3(*count_fsb,
 			mp->m_free[XC_FREE_RTEXTENTS].res_avail,
 			mp->m_free[XC_FREE_RTAVAILABLE].res_avail);
@@ -661,8 +657,8 @@ xfs_zone_gc_alloc_blocks(
 	*daddr = xfs_gbno_to_daddr(&oz->oz_rtg->rtg_group, 0);
 	*is_seq = bdev_zone_is_seq(mp->m_rtdev_targp->bt_bdev, *daddr);
 	if (!*is_seq)
-		*daddr += XFS_FSB_TO_BB(mp, oz->oz_write_pointer);
-	oz->oz_write_pointer += *count_fsb;
+		*daddr += XFS_FSB_TO_BB(mp, oz->oz_allocated);
+	oz->oz_allocated += *count_fsb;
 	atomic_inc(&oz->oz_ref);
 	return oz;
 }

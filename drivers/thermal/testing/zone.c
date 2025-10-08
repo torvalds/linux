@@ -381,7 +381,7 @@ static int tt_zone_get_temp(struct thermal_zone_device *tz, int *temp)
 	return 0;
 }
 
-static struct thermal_zone_device_ops tt_zone_ops = {
+static const struct thermal_zone_device_ops tt_zone_ops = {
 	.get_temp = tt_zone_get_temp,
 };
 

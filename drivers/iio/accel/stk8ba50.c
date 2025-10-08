@@ -42,7 +42,6 @@
 #define STK8BA50_ALL_CHANNEL_SIZE		6
 
 #define STK8BA50_DRIVER_NAME			"stk8ba50"
-#define STK8BA50_IRQ_NAME			"stk8ba50_event"
 
 #define STK8BA50_SCALE_AVAIL			"0.0384 0.0767 0.1534 0.3069"
 
@@ -436,7 +435,7 @@ static int stk8ba50_probe(struct i2c_client *client)
 						NULL,
 						IRQF_TRIGGER_RISING |
 						IRQF_ONESHOT,
-						STK8BA50_IRQ_NAME,
+						"stk8ba50_event",
 						indio_dev);
 		if (ret < 0) {
 			dev_err(&client->dev, "request irq %d failed\n",

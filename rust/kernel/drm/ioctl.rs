@@ -134,7 +134,7 @@ macro_rules! declare_drm_ioctls {
                             // FIXME: Currently there is nothing enforcing that the types of the
                             // dev/file match the current driver these ioctls are being declared
                             // for, and it's not clear how to enforce this within the type system.
-                            let dev = $crate::drm::device::Device::as_ref(raw_dev);
+                            let dev = $crate::drm::device::Device::from_raw(raw_dev);
                             // SAFETY: The ioctl argument has size `_IOC_SIZE(cmd)`, which we
                             // asserted above matches the size of this type, and all bit patterns of
                             // UAPI structs must be valid.
@@ -142,7 +142,7 @@ macro_rules! declare_drm_ioctls {
                                 &*(raw_data as *const $crate::types::Opaque<$crate::uapi::$struct>)
                             };
                             // SAFETY: This is just the DRM file structure
-                            let file = unsafe { $crate::drm::File::as_ref(raw_file) };
+                            let file = unsafe { $crate::drm::File::from_raw(raw_file) };
 
                             match $func(dev, data, file) {
                                 Err(e) => e.to_errno(),

@@ -6,6 +6,7 @@
 #include <linux/slab.h>
 #include <linux/cpuhotplug.h>
 #include <linux/minmax.h>
+#include <linux/export.h>
 #include <asm/mshyperv.h>
 
 /*

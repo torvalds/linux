@@ -10,3 +10,7 @@ obj-$(CONFIG_INTEL_PMT_TELEMETRY)	+= pmt_telemetry.o
 pmt_telemetry-y				:= telemetry.o
 obj-$(CONFIG_INTEL_PMT_CRASHLOG)	+= pmt_crashlog.o
 pmt_crashlog-y				:= crashlog.o
+obj-$(CONFIG_INTEL_PMT_DISCOVERY)	+= pmt_discovery.o
+pmt_discovery-y				:= discovery.o features.o
+obj-$(CONFIG_INTEL_PMT_KUNIT_TEST)	+= pmt-discovery-kunit.o
+pmt-discovery-kunit-y			:= discovery-kunit.o

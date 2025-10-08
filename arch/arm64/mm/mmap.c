@@ -81,7 +81,7 @@ static int __init adjust_protection_map(void)
 }
 arch_initcall(adjust_protection_map);
 
-pgprot_t vm_get_page_prot(unsigned long vm_flags)
+pgprot_t vm_get_page_prot(vm_flags_t vm_flags)
 {
 	ptdesc_t prot;
 

@@ -16,7 +16,7 @@
  * @busy: busy bit shift
  *
  * The mxs divider clock is a subclass of basic clk_divider with an
- * addtional busy bit.
+ * additional busy bit.
  */
 struct clk_div {
 	struct clk_divider divider;

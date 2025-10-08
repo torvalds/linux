@@ -679,7 +679,7 @@ int snd_pmac_pcm_new(struct snd_pmac *chip)
 
 	pcm->private_data = chip;
 	pcm->info_flags = SNDRV_PCM_INFO_JOINT_DUPLEX;
-	strcpy(pcm->name, chip->card->shortname);
+	strscpy(pcm->name, chip->card->shortname);
 	chip->pcm = pcm;
 
 	chip->formats_ok = SNDRV_PCM_FMTBIT_S16_BE;

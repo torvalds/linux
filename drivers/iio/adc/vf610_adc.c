@@ -28,9 +28,6 @@
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/triggered_buffer.h>
 
-/* This will be the driver name the kernel reports */
-#define DRIVER_NAME "vf610-adc"
-
 /* Vybrid/IMX ADC registers */
 #define VF610_REG_ADC_HC0		0x00
 #define VF610_REG_ADC_HC1		0x04
@@ -952,7 +949,7 @@ static DEFINE_SIMPLE_DEV_PM_OPS(vf610_adc_pm_ops, vf610_adc_suspend,
 static struct platform_driver vf610_adc_driver = {
 	.probe          = vf610_adc_probe,
 	.driver         = {
-		.name   = DRIVER_NAME,
+		.name   = "vf610-adc",
 		.of_match_table = vf610_adc_match,
 		.pm     = pm_sleep_ptr(&vf610_adc_pm_ops),
 	},

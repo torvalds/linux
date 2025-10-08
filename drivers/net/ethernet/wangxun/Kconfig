@@ -64,4 +64,39 @@ config TXGBE
 	  To compile this driver as a module, choose M here. The module
 	  will be called txgbe.
 
+config TXGBEVF
+	tristate "Wangxun(R) 10/25/40G Virtual Function Ethernet support"
+	depends on PCI
+	depends on PCI_MSI
+	depends on PTP_1588_CLOCK_OPTIONAL
+	select LIBWX
+	select PHYLINK
+	help
+	  This driver supports virtual functions for SP1000A, WX1820AL,
+	  WX5XXX, WX5XXXAL.
+
+	  This driver was formerly named txgbevf.
+
+	  More specific information on configuring the driver is in
+	  <file:Documentation/networking/device_drivers/ethernet/wangxun/txgbevf.rst>.
+
+	  To compile this driver as a module, choose M here. MSI-X interrupt
+	  support is required for this driver to work correctly.
+
+config NGBEVF
+	tristate "Wangxun(R) GbE Virtual Function Ethernet support"
+	depends on PCI_MSI
+	depends on PTP_1588_CLOCK_OPTIONAL
+	select LIBWX
+	help
+	  This driver supports virtual functions for WX1860, WX1860AL.
+
+	  This driver was formerly named ngbevf.
+
+	  More specific information on configuring the driver is in
+	  <file:Documentation/networking/device_drivers/ethernet/wangxun/ngbevf.rst>.
+
+	  To compile this driver as a module, choose M here. MSI-X interrupt
+	  support is required for this driver to work correctly.
+
 endif # NET_VENDOR_WANGXUN

@@ -27,12 +27,10 @@
 struct xdr_skb_reader {
 	struct sk_buff	*skb;
 	unsigned int	offset;
+	bool		need_checksum;
 	size_t		count;
 	__wsum		csum;
 };
-
-typedef size_t (*xdr_skb_read_actor)(struct xdr_skb_reader *desc, void *to,
-				     size_t len);
 
 /**
  * xdr_skb_read_bits - copy some data bits from skb to internal buffer
@@ -40,84 +38,49 @@ typedef size_t (*xdr_skb_read_actor)(struct xdr_skb_reader *desc, void *to,
  * @to: copy destination
  * @len: number of bytes to copy
  *
- * Possibly called several times to iterate over an sk_buff and copy
- * data out of it.
+ * Possibly called several times to iterate over an sk_buff and copy data out of
+ * it.
  */
 static size_t
 xdr_skb_read_bits(struct xdr_skb_reader *desc, void *to, size_t len)
 {
-	if (len > desc->count)
-		len = desc->count;
-	if (unlikely(skb_copy_bits(desc->skb, desc->offset, to, len)))
-		return 0;
+	len = min(len, desc->count);
+
+	if (desc->need_checksum) {
+		__wsum csum;
+
+		csum = skb_copy_and_csum_bits(desc->skb, desc->offset, to, len);
+		desc->csum = csum_block_add(desc->csum, csum, desc->offset);
+	} else {
+		if (unlikely(skb_copy_bits(desc->skb, desc->offset, to, len)))
+			return 0;
+	}
+
 	desc->count -= len;
 	desc->offset += len;
 	return len;
 }
 
-/**
- * xdr_skb_read_and_csum_bits - copy and checksum from skb to buffer
- * @desc: sk_buff copy helper
- * @to: copy destination
- * @len: number of bytes to copy
- *
- * Same as skb_read_bits, but calculate a checksum at the same time.
- */
-static size_t xdr_skb_read_and_csum_bits(struct xdr_skb_reader *desc, void *to, size_t len)
-{
-	unsigned int pos;
-	__wsum csum2;
-
-	if (len > desc->count)
-		len = desc->count;
-	pos = desc->offset;
-	csum2 = skb_copy_and_csum_bits(desc->skb, pos, to, len);
-	desc->csum = csum_block_add(desc->csum, csum2, pos);
-	desc->count -= len;
-	desc->offset += len;
-	return len;
-}
-
-/**
- * xdr_partial_copy_from_skb - copy data out of an skb
- * @xdr: target XDR buffer
- * @base: starting offset
- * @desc: sk_buff copy helper
- * @copy_actor: virtual method for copying data
- *
- */
 static ssize_t
-xdr_partial_copy_from_skb(struct xdr_buf *xdr, unsigned int base, struct xdr_skb_reader *desc, xdr_skb_read_actor copy_actor)
+xdr_partial_copy_from_skb(struct xdr_buf *xdr, struct xdr_skb_reader *desc)
 {
-	struct page	**ppage = xdr->pages;
-	unsigned int	len, pglen = xdr->page_len;
-	ssize_t		copied = 0;
-	size_t		ret;
+	struct page **ppage = xdr->pages + (xdr->page_base >> PAGE_SHIFT);
+	unsigned int poff = xdr->page_base & ~PAGE_MASK;
+	unsigned int pglen = xdr->page_len;
+	ssize_t copied = 0;
+	size_t ret;
 
-	len = xdr->head[0].iov_len;
-	if (base < len) {
-		len -= base;
-		ret = copy_actor(desc, (char *)xdr->head[0].iov_base + base, len);
-		copied += ret;
-		if (ret != len || !desc->count)
-			goto out;
-		base = 0;
-	} else
-		base -= len;
+	if (xdr->head[0].iov_len == 0)
+		return 0;
 
-	if (unlikely(pglen == 0))
-		goto copy_tail;
-	if (unlikely(base >= pglen)) {
-		base -= pglen;
-		goto copy_tail;
-	}
-	if (base || xdr->page_base) {
-		pglen -= base;
-		base += xdr->page_base;
-		ppage += base >> PAGE_SHIFT;
-		base &= ~PAGE_MASK;
-	}
-	do {
+	ret = xdr_skb_read_bits(desc, xdr->head[0].iov_base,
+				xdr->head[0].iov_len);
+	if (ret != xdr->head[0].iov_len || !desc->count)
+		return ret;
+	copied += ret;
+
+	while (pglen) {
+		unsigned int len = min(PAGE_SIZE - poff, pglen);
 		char *kaddr;
 
 		/* ACL likes to be lazy in allocating pages - ACLs
@@ -126,36 +89,29 @@ xdr_partial_copy_from_skb(struct xdr_buf *xdr, unsigned int base, struct xdr_skb
 			*ppage = alloc_page(GFP_NOWAIT | __GFP_NOWARN);
 			if (unlikely(*ppage == NULL)) {
 				if (copied == 0)
-					copied = -ENOMEM;
-				goto out;
+					return -ENOMEM;
+				return copied;
 			}
 		}
 
-		len = PAGE_SIZE;
 		kaddr = kmap_atomic(*ppage);
-		if (base) {
-			len -= base;
-			if (pglen < len)
-				len = pglen;
-			ret = copy_actor(desc, kaddr + base, len);
-			base = 0;
-		} else {
-			if (pglen < len)
-				len = pglen;
-			ret = copy_actor(desc, kaddr, len);
-		}
+		ret = xdr_skb_read_bits(desc, kaddr + poff, len);
 		flush_dcache_page(*ppage);
 		kunmap_atomic(kaddr);
+
 		copied += ret;
 		if (ret != len || !desc->count)
-			goto out;
+			return copied;
 		ppage++;
-	} while ((pglen -= len) != 0);
-copy_tail:
-	len = xdr->tail[0].iov_len;
-	if (base < len)
-		copied += copy_actor(desc, (char *)xdr->tail[0].iov_base + base, len - base);
-out:
+		pglen -= len;
+		poff = 0;
+	}
+
+	if (xdr->tail[0].iov_len) {
+		copied += xdr_skb_read_bits(desc, xdr->tail[0].iov_base,
+					xdr->tail[0].iov_len);
+	}
+
 	return copied;
 }
 
@@ -169,17 +125,22 @@ out:
  */
 int csum_partial_copy_to_xdr(struct xdr_buf *xdr, struct sk_buff *skb)
 {
-	struct xdr_skb_reader	desc;
+	struct xdr_skb_reader desc = {
+		.skb		= skb,
+		.count		= skb->len - desc.offset,
+	};
 
-	desc.skb = skb;
-	desc.offset = 0;
-	desc.count = skb->len - desc.offset;
+	if (skb_csum_unnecessary(skb)) {
+		if (xdr_partial_copy_from_skb(xdr, &desc) < 0)
+			return -1;
+		if (desc.count)
+			return -1;
+		return 0;
+	}
 
-	if (skb_csum_unnecessary(skb))
-		goto no_checksum;
-
+	desc.need_checksum = true;
 	desc.csum = csum_partial(skb->data, desc.offset, skb->csum);
-	if (xdr_partial_copy_from_skb(xdr, 0, &desc, xdr_skb_read_and_csum_bits) < 0)
+	if (xdr_partial_copy_from_skb(xdr, &desc) < 0)
 		return -1;
 	if (desc.offset != skb->len) {
 		__wsum csum2;
@@ -194,14 +155,7 @@ int csum_partial_copy_to_xdr(struct xdr_buf *xdr, struct sk_buff *skb)
 	    !skb->csum_complete_sw)
 		netdev_rx_csum_fault(skb->dev, skb);
 	return 0;
-no_checksum:
-	if (xdr_partial_copy_from_skb(xdr, 0, &desc, xdr_skb_read_bits) < 0)
-		return -1;
-	if (desc.count)
-		return -1;
-	return 0;
 }
-EXPORT_SYMBOL_GPL(csum_partial_copy_to_xdr);
 
 static inline int xprt_sendmsg(struct socket *sock, struct msghdr *msg,
 			       size_t seek)

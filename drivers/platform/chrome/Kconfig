@@ -286,7 +286,7 @@ config CROS_USBPD_NOTIFY
 	default MFD_CROS_EC_DEV
 	help
 	  If you say Y here, you get support for Type-C PD event notifications
-	  from the ChromeOS EC. On ACPI platorms this driver will bind to the
+	  from the ChromeOS EC. On ACPI platforms this driver will bind to the
 	  GOOG0003 ACPI device, and on platforms which don't have this device it
 	  will get initialized on ECs which support the feature
 	  EC_FEATURE_USB_PD.

@@ -290,6 +290,7 @@ static int s390_hmac_export(struct shash_desc *desc, void *out)
 	struct s390_kmac_sha2_ctx *ctx = shash_desc_ctx(desc);
 	unsigned int bs = crypto_shash_blocksize(desc->tfm);
 	unsigned int ds = bs / 2;
+	u64 lo = ctx->buflen[0];
 	union {
 		u8 *u8;
 		u64 *u64;
@@ -301,9 +302,10 @@ static int s390_hmac_export(struct shash_desc *desc, void *out)
 	else
 		memcpy(p.u8, ctx->param, ds);
 	p.u8 += ds;
-	put_unaligned(ctx->buflen[0], p.u64++);
+	lo += bs;
+	put_unaligned(lo, p.u64++);
 	if (ds == SHA512_DIGEST_SIZE)
-		put_unaligned(ctx->buflen[1], p.u64);
+		put_unaligned(ctx->buflen[1] + (lo < bs), p.u64);
 	return err;
 }
 
@@ -316,14 +318,16 @@ static int s390_hmac_import(struct shash_desc *desc, const void *in)
 		const u8 *u8;
 		const u64 *u64;
 	} p = { .u8 = in };
+	u64 lo;
 	int err;
 
 	err = s390_hmac_sha2_init(desc);
 	memcpy(ctx->param, p.u8, ds);
 	p.u8 += ds;
-	ctx->buflen[0] = get_unaligned(p.u64++);
+	lo = get_unaligned(p.u64++);
+	ctx->buflen[0] = lo - bs;
 	if (ds == SHA512_DIGEST_SIZE)
-		ctx->buflen[1] = get_unaligned(p.u64);
+		ctx->buflen[1] = get_unaligned(p.u64) - (lo < bs);
 	if (ctx->buflen[0] | ctx->buflen[1])
 		ctx->gr0.ikp = 1;
 	return err;

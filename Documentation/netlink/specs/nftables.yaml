@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
-
+---
 name: nftables
 protocol: netlink-raw
 protonum: 12
@@ -1205,7 +1205,9 @@ operations:
             - name
     -
       name: destroytable
-      doc: Delete an existing table with destroy semantics (ignoring ENOENT errors).
+      doc: |
+        Delete an existing table with destroy semantics (ignoring ENOENT
+        errors).
       attribute-set: table-attrs
       fixed-header: nfgenmsg
       do:
@@ -1249,7 +1251,9 @@ operations:
             - name
     -
       name: destroychain
-      doc: Delete an existing chain with destroy semantics (ignoring ENOENT errors).
+      doc: |
+        Delete an existing chain with destroy semantics (ignoring ENOENT
+        errors).
       attribute-set: chain-attrs
       fixed-header: nfgenmsg
       do:
@@ -1307,7 +1311,8 @@ operations:
             - name
     -
       name: destroyrule
-      doc: Delete an existing rule with destroy semantics (ignoring ENOENT errors).
+      doc: |
+        Delete an existing rule with destroy semantics (ignoring ENOENT errors).
       attribute-set: rule-attrs
       fixed-header: nfgenmsg
       do:
@@ -1351,7 +1356,8 @@ operations:
             - name
     -
       name: destroyset
-      doc: Delete an existing set with destroy semantics (ignoring ENOENT errors).
+      doc: |
+        Delete an existing set with destroy semantics (ignoring ENOENT errors).
       attribute-set: set-attrs
       fixed-header: nfgenmsg
       do:

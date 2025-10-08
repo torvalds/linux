@@ -134,7 +134,7 @@ static int logicvc_gpio_probe(struct platform_device *pdev)
 	logicvc->chip.ngpio = LOGICVC_CTRL_GPIO_BITS +
 			      LOGICVC_POWER_CTRL_GPIO_BITS;
 	logicvc->chip.get = logicvc_gpio_get;
-	logicvc->chip.set_rv = logicvc_gpio_set;
+	logicvc->chip.set = logicvc_gpio_set;
 	logicvc->chip.direction_output = logicvc_gpio_direction_output;
 
 	return devm_gpiochip_add_data(dev, &logicvc->chip, logicvc);

@@ -132,7 +132,7 @@ static int a6xx_crashdumper_init(struct msm_gpu *gpu,
 		struct a6xx_crashdumper *dumper)
 {
 	dumper->ptr = msm_gem_kernel_new(gpu->dev,
-		SZ_1M, MSM_BO_WC, gpu->aspace,
+		SZ_1M, MSM_BO_WC, gpu->vm,
 		&dumper->bo, &dumper->iova);
 
 	if (!IS_ERR(dumper->ptr))
@@ -158,7 +158,7 @@ static int a6xx_crashdumper_run(struct msm_gpu *gpu,
 	/* Make sure all pending memory writes are posted */
 	wmb();
 
-	gpu_write64(gpu, REG_A6XX_CP_CRASH_SCRIPT_BASE, dumper->iova);
+	gpu_write64(gpu, REG_A6XX_CP_CRASH_DUMP_SCRIPT_BASE, dumper->iova);
 
 	gpu_write(gpu, REG_A6XX_CP_CRASH_DUMP_CNTL, 1);
 
@@ -1619,7 +1619,7 @@ struct msm_gpu_state *a6xx_gpu_state_get(struct msm_gpu *gpu)
 			a7xx_get_clusters(gpu, a6xx_state, dumper);
 			a7xx_get_dbgahb_clusters(gpu, a6xx_state, dumper);
 
-			msm_gem_kernel_put(dumper->bo, gpu->aspace);
+			msm_gem_kernel_put(dumper->bo, gpu->vm);
 		}
 
 		a7xx_get_post_crashdumper_registers(gpu, a6xx_state);
@@ -1631,7 +1631,7 @@ struct msm_gpu_state *a6xx_gpu_state_get(struct msm_gpu *gpu)
 			a6xx_get_clusters(gpu, a6xx_state, dumper);
 			a6xx_get_dbgahb_clusters(gpu, a6xx_state, dumper);
 
-			msm_gem_kernel_put(dumper->bo, gpu->aspace);
+			msm_gem_kernel_put(dumper->bo, gpu->vm);
 		}
 	}
 

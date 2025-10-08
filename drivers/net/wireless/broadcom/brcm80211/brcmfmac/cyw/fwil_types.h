@@ -80,7 +80,7 @@ struct brcmf_mf_params_le {
 	u8 da[ETH_ALEN];
 	u8 bssid[ETH_ALEN];
 	__le32 packet_id;
-	u8 data[] __counted_by(len);
+	u8 data[] __counted_by_le(len);
 };
 
 #endif /* CYW_FWIL_TYPES_H_ */

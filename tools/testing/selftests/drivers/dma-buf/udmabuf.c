@@ -138,7 +138,7 @@ int main(int argc, char *argv[])
 	void *addr1, *addr2;
 
 	ksft_print_header();
-	ksft_set_plan(6);
+	ksft_set_plan(7);
 
 	devfd = open("/dev/udmabuf", O_RDWR);
 	if (devfd < 0) {
@@ -247,6 +247,24 @@ int main(int argc, char *argv[])
 		ksft_test_result_fail("%s: [FAIL,test-6]\n", TEST_PREFIX);
 	else
 		ksft_test_result_pass("%s: [PASS,test-6]\n", TEST_PREFIX);
+
+	close(buf);
+	close(memfd);
+
+	/* same test as above but we pin first before writing to memfd */
+	page_size = getpagesize() * 512; /* 2 MB */
+	size = MEMFD_SIZE * page_size;
+	memfd = create_memfd_with_seals(size, true);
+	buf = create_udmabuf_list(devfd, memfd, size);
+	addr2 = mmap_fd(buf, NUM_PAGES * NUM_ENTRIES * getpagesize());
+	addr1 = mmap_fd(memfd, size);
+	write_to_memfd(addr1, size, 'a');
+	write_to_memfd(addr1, size, 'b');
+	ret = compare_chunks(addr1, addr2, size);
+	if (ret < 0)
+		ksft_test_result_fail("%s: [FAIL,test-7]\n", TEST_PREFIX);
+	else
+		ksft_test_result_pass("%s: [PASS,test-7]\n", TEST_PREFIX);
 
 	close(buf);
 	close(memfd);

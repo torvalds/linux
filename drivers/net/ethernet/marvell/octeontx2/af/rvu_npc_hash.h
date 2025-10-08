@@ -139,9 +139,7 @@ static struct npc_mcam_kex_hash npc_mkex_hash_default __maybe_unused = {
 #define NPC_MCAM_DROP_RULE_MAX 30
 #define NPC_MCAM_SDP_DROP_RULE_IDX 0
 
-#define RVU_PFFUNC(pf, func)	\
-	((((pf) & RVU_PFVF_PF_MASK) << RVU_PFVF_PF_SHIFT) | \
-	(((func) & RVU_PFVF_FUNC_MASK) << RVU_PFVF_FUNC_SHIFT))
+#define RVU_PFFUNC(pdev, pf, func) rvu_make_pcifunc(pdev, pf, func)
 
 enum npc_exact_opc_type {
 	NPC_EXACT_OPC_MEM,

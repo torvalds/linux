@@ -417,8 +417,10 @@ static inline void btree_path_set_should_be_locked(struct btree_trans *trans, st
 	EBUG_ON(!btree_node_locked(path, path->level));
 	EBUG_ON(path->uptodate);
 
-	path->should_be_locked = true;
-	trace_btree_path_should_be_locked(trans, path);
+	if (!path->should_be_locked) {
+		path->should_be_locked = true;
+		trace_btree_path_should_be_locked(trans, path);
+	}
 }
 
 static inline void __btree_path_set_level_up(struct btree_trans *trans,

@@ -113,7 +113,7 @@ struct cxl_pmu_info {
 
 /*
  * All CPMU counters are discoverable via the Event Capabilities Registers.
- * Each Event Capability register contains a a VID / GroupID.
+ * Each Event Capability register contains a VID / GroupID.
  * A counter may then count any combination (by summing) of events in
  * that group which are in the Supported Events Bitmask.
  * However, there are some complexities to the scheme.
@@ -406,7 +406,7 @@ static struct attribute *cxl_pmu_event_attrs[] = {
 	CXL_PMU_EVENT_CXL_ATTR(s2m_bisnp_curblk,		CXL_PMU_GID_S2M_BISNP, BIT(4)),
 	CXL_PMU_EVENT_CXL_ATTR(s2m_bisnp_datblk,		CXL_PMU_GID_S2M_BISNP, BIT(5)),
 	CXL_PMU_EVENT_CXL_ATTR(s2m_bisnp_invblk,		CXL_PMU_GID_S2M_BISNP, BIT(6)),
-	/* CXL rev 3.1 Table 3-50 S2M NDR Opcopdes */
+	/* CXL rev 3.1 Table 3-50 S2M NDR Opcodes */
 	CXL_PMU_EVENT_CXL_ATTR(s2m_ndr_cmp,			CXL_PMU_GID_S2M_NDR, BIT(0)),
 	CXL_PMU_EVENT_CXL_ATTR(s2m_ndr_cmps,			CXL_PMU_GID_S2M_NDR, BIT(1)),
 	CXL_PMU_EVENT_CXL_ATTR(s2m_ndr_cmpe,			CXL_PMU_GID_S2M_NDR, BIT(2)),
@@ -627,7 +627,7 @@ static void cxl_pmu_event_start(struct perf_event *event, int flags)
 	hwc->state = 0;
 
 	/*
-	 * Currently only hdm filter control is implemnted, this code will
+	 * Currently only hdm filter control is implemented, this code will
 	 * want generalizing when more filters are added.
 	 */
 	if (info->filter_hdm) {
@@ -834,8 +834,8 @@ static int cxl_pmu_probe(struct device *dev)
 	if (rc)
 		return rc;
 
-	info->hw_events = devm_kcalloc(dev, sizeof(*info->hw_events),
-				       info->num_counters, GFP_KERNEL);
+	info->hw_events = devm_kcalloc(dev, info->num_counters,
+				       sizeof(*info->hw_events), GFP_KERNEL);
 	if (!info->hw_events)
 		return -ENOMEM;
 
@@ -873,7 +873,7 @@ static int cxl_pmu_probe(struct device *dev)
 		return rc;
 	irq = rc;
 
-	irq_name = devm_kasprintf(dev, GFP_KERNEL, "%s_overflow\n", dev_name);
+	irq_name = devm_kasprintf(dev, GFP_KERNEL, "%s_overflow", dev_name);
 	if (!irq_name)
 		return -ENOMEM;
 

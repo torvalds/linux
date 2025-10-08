@@ -19,6 +19,7 @@ enum pmic_id {
 	TPS6593,
 	LP8764,
 	TPS65224,
+	TPS652G1,
 };
 
 /* Macro to get page index from register address */

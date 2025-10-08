@@ -132,9 +132,6 @@ static int osd101t2587_panel_add(struct osd101t2587_panel *osd101t2587)
 	if (IS_ERR(osd101t2587->supply))
 		return PTR_ERR(osd101t2587->supply);
 
-	drm_panel_init(&osd101t2587->base, &osd101t2587->dsi->dev,
-		       &osd101t2587_panel_funcs, DRM_MODE_CONNECTOR_DSI);
-
 	ret = drm_panel_of_backlight(&osd101t2587->base);
 	if (ret)
 		return ret;
@@ -161,9 +158,12 @@ static int osd101t2587_panel_probe(struct mipi_dsi_device *dsi)
 			  MIPI_DSI_MODE_VIDEO_SYNC_PULSE |
 			  MIPI_DSI_MODE_NO_EOT_PACKET;
 
-	osd101t2587 = devm_kzalloc(&dsi->dev, sizeof(*osd101t2587), GFP_KERNEL);
-	if (!osd101t2587)
-		return -ENOMEM;
+	osd101t2587 = devm_drm_panel_alloc(&dsi->dev, __typeof(*osd101t2587), base,
+					   &osd101t2587_panel_funcs,
+					   DRM_MODE_CONNECTOR_DSI);
+
+	if (IS_ERR(osd101t2587))
+		return PTR_ERR(osd101t2587);
 
 	mipi_dsi_set_drvdata(dsi, osd101t2587);
 

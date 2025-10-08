@@ -1074,7 +1074,7 @@ struct ionic_rxq_sg_desc {
  *                    first IPv4 header.  If the receive packet
  *                    contains both a tunnel IPv4 header and a
  *                    transport IPv4 header, the device validates the
- *                    checksum for the both IPv4 headers.
+ *                    checksum for both IPv4 headers.
  *
  *                  IONIC_RXQ_COMP_CSUM_F_IP_BAD:
  *                    The IPv4 checksum calculated by the device did

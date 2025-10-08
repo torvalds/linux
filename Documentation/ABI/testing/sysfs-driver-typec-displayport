@@ -62,3 +62,13 @@ Description:
 			     by VESA DisplayPort Alt Mode on USB Type-C Standard.
 			- 0 when HPD’s logical state is low (HPD_Low) as defined by
 			     VESA DisplayPort Alt Mode on USB Type-C Standard.
+
+What:		/sys/bus/typec/devices/.../displayport/irq_hpd
+Date:		June 2025
+Contact:	RD Babiera <rdbabiera@google.com>
+Description:
+		IRQ_HPD events are sent over the USB PD protocol in Status Update and
+		Attention messages. IRQ_HPD can only be asserted when HPD is high,
+		and is asserted when an IRQ_HPD has been issued since the last Status
+		Update. This is a read only node that returns the number of IRQ events
+		raised in the driver's lifetime.

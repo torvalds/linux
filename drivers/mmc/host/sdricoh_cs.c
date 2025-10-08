@@ -403,9 +403,9 @@ static int sdricoh_init_mmc(struct pci_dev *pci_dev,
 	}
 	/* allocate privdata */
 	mmc = pcmcia_dev->priv =
-	    mmc_alloc_host(sizeof(struct sdricoh_host), &pcmcia_dev->dev);
+	    devm_mmc_alloc_host(&pcmcia_dev->dev, sizeof(*host));
 	if (!mmc) {
-		dev_err(dev, "mmc_alloc_host failed\n");
+		dev_err(dev, "devm_mmc_alloc_host failed\n");
 		result = -ENOMEM;
 		goto unmap_io;
 	}
@@ -431,7 +431,7 @@ static int sdricoh_init_mmc(struct pci_dev *pci_dev,
 	if (sdricoh_reset(host)) {
 		dev_dbg(dev, "could not reset\n");
 		result = -EIO;
-		goto free_host;
+		goto unmap_io;
 	}
 
 	result = mmc_add_host(mmc);
@@ -440,8 +440,6 @@ static int sdricoh_init_mmc(struct pci_dev *pci_dev,
 		dev_dbg(dev, "mmc host registered\n");
 		return 0;
 	}
-free_host:
-	mmc_free_host(mmc);
 unmap_io:
 	pci_iounmap(pci_dev, iobase);
 	return result;
@@ -483,10 +481,8 @@ static void sdricoh_pcmcia_detach(struct pcmcia_device *link)
 		mmc_remove_host(mmc);
 		pci_iounmap(host->pci_dev, host->iobase);
 		pci_dev_put(host->pci_dev);
-		mmc_free_host(mmc);
 	}
 	pcmcia_disable_device(link);
-
 }
 
 #ifdef CONFIG_PM

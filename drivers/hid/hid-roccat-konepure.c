@@ -62,7 +62,7 @@ static const struct bin_attribute *const konepure_bin_attrs[] = {
 };
 
 static const struct attribute_group konepure_group = {
-	.bin_attrs_new = konepure_bin_attrs,
+	.bin_attrs = konepure_bin_attrs,
 };
 
 static const struct attribute_group *konepure_groups[] = {

@@ -1395,9 +1395,9 @@ static struct ata_port_operations sata_fsl_ops = {
 
 	.freeze = sata_fsl_freeze,
 	.thaw = sata_fsl_thaw,
-	.softreset = sata_fsl_softreset,
-	.hardreset = sata_fsl_hardreset,
-	.pmp_softreset = sata_fsl_softreset,
+	.reset.softreset = sata_fsl_softreset,
+	.reset.hardreset = sata_fsl_hardreset,
+	.pmp_reset.softreset = sata_fsl_softreset,
 	.error_handler = sata_fsl_error_handler,
 	.post_internal_cmd = sata_fsl_post_internal_cmd,
 

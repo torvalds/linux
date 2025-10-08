@@ -40,28 +40,29 @@
 #define SMU_IH_INTERRUPT_CONTEXT_ID_FAN_ABNORMAL        0x8
 #define SMU_IH_INTERRUPT_CONTEXT_ID_FAN_RECOVERY        0x9
 
-#define smu_cmn_init_soft_gpu_metrics(ptr, frev, crev)         \
-	do {                                                   \
-		typecheck(struct gpu_metrics_v##frev##_##crev, \
-			  typeof(*(ptr)));                     \
-		struct metrics_table_header *header =          \
-			(struct metrics_table_header *)(ptr);  \
-		memset(header, 0xFF, sizeof(*(ptr)));          \
-		header->format_revision = frev;                \
-		header->content_revision = crev;               \
-		header->structure_size = sizeof(*(ptr));       \
+#define smu_cmn_init_soft_gpu_metrics(ptr, frev, crev)                   \
+	do {                                                             \
+		typecheck(struct gpu_metrics_v##frev##_##crev *, (ptr)); \
+		struct gpu_metrics_v##frev##_##crev *tmp = (ptr);        \
+		struct metrics_table_header *header =                    \
+			(struct metrics_table_header *)tmp;              \
+		memset(header, 0xFF, sizeof(*tmp));                      \
+		header->format_revision = frev;                          \
+		header->content_revision = crev;                         \
+		header->structure_size = sizeof(*tmp);                   \
 	} while (0)
 
-#define smu_cmn_init_partition_metrics(ptr, frev, crev)                     \
-	do {                                                                \
-		typecheck(struct amdgpu_partition_metrics_v##frev##_##crev, \
-			  typeof(*(ptr)));                                  \
-		struct metrics_table_header *header =                       \
-			(struct metrics_table_header *)(ptr);               \
-		memset(header, 0xFF, sizeof(*(ptr)));                       \
-		header->format_revision = frev;                             \
-		header->content_revision = crev;                            \
-		header->structure_size = sizeof(*(ptr));                    \
+#define smu_cmn_init_partition_metrics(ptr, fr, cr)                        \
+	do {                                                               \
+		typecheck(struct amdgpu_partition_metrics_v##fr##_##cr *,  \
+			  (ptr));                                          \
+		struct amdgpu_partition_metrics_v##fr##_##cr *tmp = (ptr); \
+		struct metrics_table_header *header =                      \
+			(struct metrics_table_header *)tmp;                \
+		memset(header, 0xFF, sizeof(*tmp));                        \
+		header->format_revision = fr;                              \
+		header->content_revision = cr;                             \
+		header->structure_size = sizeof(*tmp);                     \
 	} while (0)
 
 extern const int link_speed[];

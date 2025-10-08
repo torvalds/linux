@@ -110,13 +110,14 @@ static int emit_bb_start(u64 batch_addr, u32 ppgtt_flag, u32 *dw, int i)
 	return i;
 }
 
-static int emit_flush_invalidate(u32 *dw, int i)
+static int emit_flush_invalidate(u32 addr, u32 val, u32 *dw, int i)
 {
 	dw[i++] = MI_FLUSH_DW | MI_INVALIDATE_TLB | MI_FLUSH_DW_OP_STOREDW |
-		  MI_FLUSH_IMM_DW | MI_FLUSH_DW_STORE_INDEX;
-	dw[i++] = LRC_PPHWSP_FLUSH_INVAL_SCRATCH_ADDR;
+		  MI_FLUSH_IMM_DW;
+
+	dw[i++] = addr | MI_FLUSH_DW_USE_GTT;
 	dw[i++] = 0;
-	dw[i++] = 0;
+	dw[i++] = val;
 
 	return i;
 }
@@ -397,23 +398,20 @@ static void __emit_job_gen12_render_compute(struct xe_sched_job *job,
 static void emit_migration_job_gen12(struct xe_sched_job *job,
 				     struct xe_lrc *lrc, u32 seqno)
 {
+	u32 saddr = xe_lrc_start_seqno_ggtt_addr(lrc);
 	u32 dw[MAX_JOB_SIZE_DW], i = 0;
 
 	i = emit_copy_timestamp(lrc, dw, i);
 
-	i = emit_store_imm_ggtt(xe_lrc_start_seqno_ggtt_addr(lrc),
-				seqno, dw, i);
+	i = emit_store_imm_ggtt(saddr, seqno, dw, i);
 
 	dw[i++] = MI_ARB_ON_OFF | MI_ARB_DISABLE; /* Enabled again below */
 
 	i = emit_bb_start(job->ptrs[0].batch_addr, BIT(8), dw, i);
 
-	if (!IS_SRIOV_VF(gt_to_xe(job->q->gt))) {
-		/* XXX: Do we need this? Leaving for now. */
-		dw[i++] = preparser_disable(true);
-		i = emit_flush_invalidate(dw, i);
-		dw[i++] = preparser_disable(false);
-	}
+	dw[i++] = preparser_disable(true);
+	i = emit_flush_invalidate(saddr, seqno, dw, i);
+	dw[i++] = preparser_disable(false);
 
 	i = emit_bb_start(job->ptrs[1].batch_addr, BIT(8), dw, i);
 

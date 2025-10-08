@@ -194,11 +194,6 @@ static void init_state(struct dc *dc, struct dc_state *state)
 struct dc_state *dc_state_create(struct dc *dc, struct dc_state_create_params *params)
 {
 	struct dc_state *state;
-#ifdef CONFIG_DRM_AMD_DC_FP
-	struct dml2_configuration_options *dml2_opt = &dc->dml2_tmp;
-
-	memcpy(dml2_opt, &dc->dml2_options, sizeof(dc->dml2_options));
-#endif
 
 	state = kvzalloc(sizeof(struct dc_state), GFP_KERNEL);
 
@@ -211,14 +206,12 @@ struct dc_state *dc_state_create(struct dc *dc, struct dc_state_create_params *p
 
 #ifdef CONFIG_DRM_AMD_DC_FP
 	if (dc->debug.using_dml2) {
-		dml2_opt->use_clock_dc_limits = false;
-		if (!dml2_create(dc, dml2_opt, &state->bw_ctx.dml2)) {
+		if (!dml2_create(dc, &dc->dml2_options, &state->bw_ctx.dml2)) {
 			dc_state_release(state);
 			return NULL;
 		}
 
-		dml2_opt->use_clock_dc_limits = true;
-		if (!dml2_create(dc, dml2_opt, &state->bw_ctx.dml2_dc_power_source)) {
+		if (!dml2_create(dc, &dc->dml2_dc_power_options, &state->bw_ctx.dml2_dc_power_source)) {
 			dc_state_release(state);
 			return NULL;
 		}
@@ -433,6 +426,8 @@ enum dc_status dc_state_remove_stream(
 		dm_error("Context doesn't have stream %p !\n", stream);
 		return DC_ERROR_UNEXPECTED;
 	}
+
+	dc_stream_release_3dlut_for_stream(dc, stream);
 
 	dc_stream_release(state->streams[i]);
 	state->stream_count--;

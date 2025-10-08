@@ -642,18 +642,19 @@ static int ahci_imx_softreset(struct ata_link *link, unsigned int *class,
 	int ret;
 
 	if (imxpriv->type == AHCI_IMX53)
-		ret = ahci_pmp_retry_srst_ops.softreset(link, class, deadline);
+		ret = ahci_pmp_retry_srst_ops.reset.softreset(link, class,
+							      deadline);
 	else
-		ret = ahci_ops.softreset(link, class, deadline);
+		ret = ahci_ops.reset.softreset(link, class, deadline);
 
 	return ret;
 }
 
 static struct ata_port_operations ahci_imx_ops = {
-	.inherits	= &ahci_ops,
-	.host_stop	= ahci_imx_host_stop,
-	.error_handler	= ahci_imx_error_handler,
-	.softreset	= ahci_imx_softreset,
+	.inherits		= &ahci_ops,
+	.host_stop		= ahci_imx_host_stop,
+	.error_handler		= ahci_imx_error_handler,
+	.reset.softreset	= ahci_imx_softreset,
 };
 
 static const struct ata_port_info ahci_imx_port_info = {

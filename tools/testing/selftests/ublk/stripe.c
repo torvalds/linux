@@ -123,7 +123,8 @@ static inline enum io_uring_op stripe_to_uring_op(
 	assert(0);
 }
 
-static int stripe_queue_tgt_rw_io(struct ublk_queue *q, const struct ublksrv_io_desc *iod, int tag)
+static int stripe_queue_tgt_rw_io(struct ublk_thread *t, struct ublk_queue *q,
+				  const struct ublksrv_io_desc *iod, int tag)
 {
 	const struct stripe_conf *conf = get_chunk_shift(q);
 	unsigned auto_zc = (ublk_queue_use_auto_zc(q) != 0);
@@ -138,7 +139,7 @@ static int stripe_queue_tgt_rw_io(struct ublk_queue *q, const struct ublksrv_io_
 	io->private_data = s;
 	calculate_stripe_array(conf, iod, s, base);
 
-	ublk_io_alloc_sqes(ublk_get_io(q, tag), sqe, s->nr + extra);
+	ublk_io_alloc_sqes(t, sqe, s->nr + extra);
 
 	if (zc) {
 		io_uring_prep_buf_register(sqe[0], 0, tag, q->q_id, io->buf_index);
@@ -176,13 +177,14 @@ static int stripe_queue_tgt_rw_io(struct ublk_queue *q, const struct ublksrv_io_
 	return s->nr + zc;
 }
 
-static int handle_flush(struct ublk_queue *q, const struct ublksrv_io_desc *iod, int tag)
+static int handle_flush(struct ublk_thread *t, struct ublk_queue *q,
+			const struct ublksrv_io_desc *iod, int tag)
 {
 	const struct stripe_conf *conf = get_chunk_shift(q);
 	struct io_uring_sqe *sqe[NR_STRIPE];
 	int i;
 
-	ublk_io_alloc_sqes(ublk_get_io(q, tag), sqe, conf->nr_files);
+	ublk_io_alloc_sqes(t, sqe, conf->nr_files);
 	for (i = 0; i < conf->nr_files; i++) {
 		io_uring_prep_fsync(sqe[i], i + 1, IORING_FSYNC_DATASYNC);
 		io_uring_sqe_set_flags(sqe[i], IOSQE_FIXED_FILE);
@@ -191,7 +193,8 @@ static int handle_flush(struct ublk_queue *q, const struct ublksrv_io_desc *iod,
 	return conf->nr_files;
 }
 
-static int stripe_queue_tgt_io(struct ublk_queue *q, int tag)
+static int stripe_queue_tgt_io(struct ublk_thread *t, struct ublk_queue *q,
+			       int tag)
 {
 	const struct ublksrv_io_desc *iod = ublk_get_iod(q, tag);
 	unsigned ublk_op = ublksrv_get_op(iod);
@@ -199,7 +202,7 @@ static int stripe_queue_tgt_io(struct ublk_queue *q, int tag)
 
 	switch (ublk_op) {
 	case UBLK_IO_OP_FLUSH:
-		ret = handle_flush(q, iod, tag);
+		ret = handle_flush(t, q, iod, tag);
 		break;
 	case UBLK_IO_OP_WRITE_ZEROES:
 	case UBLK_IO_OP_DISCARD:
@@ -207,7 +210,7 @@ static int stripe_queue_tgt_io(struct ublk_queue *q, int tag)
 		break;
 	case UBLK_IO_OP_READ:
 	case UBLK_IO_OP_WRITE:
-		ret = stripe_queue_tgt_rw_io(q, iod, tag);
+		ret = stripe_queue_tgt_rw_io(t, q, iod, tag);
 		break;
 	default:
 		ret = -EINVAL;
@@ -218,17 +221,19 @@ static int stripe_queue_tgt_io(struct ublk_queue *q, int tag)
 	return ret;
 }
 
-static int ublk_stripe_queue_io(struct ublk_queue *q, int tag)
+static int ublk_stripe_queue_io(struct ublk_thread *t, struct ublk_queue *q,
+				int tag)
 {
-	int queued = stripe_queue_tgt_io(q, tag);
+	int queued = stripe_queue_tgt_io(t, q, tag);
 
-	ublk_queued_tgt_io(q, tag, queued);
+	ublk_queued_tgt_io(t, q, tag, queued);
 	return 0;
 }
 
-static void ublk_stripe_io_done(struct ublk_queue *q, int tag,
-		const struct io_uring_cqe *cqe)
+static void ublk_stripe_io_done(struct ublk_thread *t, struct ublk_queue *q,
+				const struct io_uring_cqe *cqe)
 {
+	unsigned tag = user_data_to_tag(cqe->user_data);
 	const struct ublksrv_io_desc *iod = ublk_get_iod(q, tag);
 	unsigned op = user_data_to_op(cqe->user_data);
 	struct ublk_io *io = ublk_get_io(q, tag);
@@ -257,13 +262,13 @@ static void ublk_stripe_io_done(struct ublk_queue *q, int tag,
 		}
 	}
 
-	if (ublk_completed_tgt_io(q, tag)) {
+	if (ublk_completed_tgt_io(t, q, tag)) {
 		int res = io->result;
 
 		if (!res)
 			res = iod->nr_sectors << 9;
 
-		ublk_complete_io(q, tag, res);
+		ublk_complete_io(t, q, tag, res);
 
 		free_stripe_array(io->private_data);
 		io->private_data = NULL;

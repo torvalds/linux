@@ -53,8 +53,6 @@ struct vcpu_vt {
 #ifdef CONFIG_X86_64
 	u64		msr_host_kernel_gs_base;
 #endif
-
-	unsigned long	host_debugctlmsr;
 };
 
 #ifdef CONFIG_KVM_INTEL_TDX

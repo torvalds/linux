@@ -13,6 +13,32 @@ Supported chips:
 
     Datasheet: https://www.analog.com/media/en/technical-documentation/data-sheets/ADP1050.pdf
 
+  * Analog Devices ADP1051
+
+    Prefix: 'adp1051'
+
+    Addresses scanned: I2C 0x70 - 0x77
+
+    Datasheet: https://www.analog.com/media/en/technical-documentation/data-sheets/ADP1051.pdf
+
+  * Analog Devices ADP1055
+
+    Prefix: 'adp1055'
+
+    Addresses scanned: I2C 0x4B - 0x77
+
+    Datasheet: https://www.analog.com/media/en/technical-documentation/data-sheets/ADP1055.pdf
+
+  * Analog Devices LTP8800-1A/-2/-4A
+
+    Prefix: 'ltp8800'
+
+    Addresses scanned: -
+
+    Datasheet: https://www.analog.com/media/en/technical-documentation/data-sheets/LTP8800-1A.pdf
+         https://www.analog.com/media/en/technical-documentation/data-sheets/LTP8800-2.pdf
+         https://www.analog.com/media/en/technical-documentation/data-sheets/LTP8800-4A.pdf
+
 Authors:
 
   - Radu Sabau <radu.sabau@analog.com>
@@ -21,14 +47,17 @@ Authors:
 Description
 -----------
 
-This driver supprts hardware monitoring for Analog Devices ADP1050 Digital
-Controller for Isolated Power Supply with PMBus interface.
+This driver supports hardware monitoring for Analog Devices ADP1050, ADP1051,
+and ADP1055 Digital Controller for Isolated Power Supply with PMBus interface,
+and the LTP8800 step-down μModule regulators.
 
-The ADP1050 is an advanced digital controller with a PMBus™
+The ADP1050, ADP1051, and ADP1055 are advanced digital controllers with PMBus™
 interface targeting high density, high efficiency dc-to-dc power
-conversion used to monitor system temperatures, voltages and currents.
-Through the PMBus interface, the device can monitor input/output voltages,
-input current and temperature.
+conversion used to monitor system temperatures, voltages and currents. The
+LTP8800 is a family of step-down μModule regulators that provides microprocessor
+core voltage from 54V power distribution architecture. Through the PMBus
+interface, the device can monitor input/output voltages, input current and
+temperature.
 
 Usage Notes
 -----------
@@ -49,16 +78,46 @@ Sysfs Attributes
 in1_label         "vin"
 in1_input         Measured input voltage
 in1_alarm	  Input voltage alarm
+in1_crit          Critical maximum input voltage
+in1_crit_alarm    Input voltage high alarm
+in1_lcrit         Critical minimum input voltage
+in1_lcrit_alarm   Input voltage critical low alarm
 in2_label	  "vout1"
 in2_input	  Measured output voltage
 in2_crit	  Critical maximum output voltage
 in2_crit_alarm    Output voltage high alarm
 in2_lcrit	  Critical minimum output voltage
 in2_lcrit_alarm	  Output voltage critical low alarm
+in2_max           Critical maximum output voltage
+in2_max_alarm     Output voltage critical max alarm
+in2_min           Critical minimum output voltage
+in2_min_alarm     Output voltage critical min alarm
 curr1_label	  "iin"
 curr1_input	  Measured input current.
 curr1_alarm	  Input current alarm
+curr1_crit        Critical maximum input current
+curr1_crit_alarm  Input current high alarm
+curr2_label       "iout1"
+curr2_input       Measured output current
+curr2_alarm	  Output current alarm
+curr2_crit        Critical maximum output current
+curr2_crit_alarm  Output current high alarm
+curr2_lcrit       Critical minimum output current
+curr2_lcrit_alarm Output current critical low alarm
+curr2_max         Critical maximum output current
+curr2_max_alarm   Output current critical max alarm
+power1_label      "pout1"
+power1_input      Measured output power
+power1_crit       Critical maximum output power
+power1_crit_alarm Output power high alarm
 temp1_input       Measured temperature
 temp1_crit	  Critical high temperature
 temp1_crit_alarm  Chip temperature critical high alarm
+temp1_max         Critical maximum temperature
+temp1_max_alarm   Temperature critical max alarm
+temp2_input       Measured temperature
+temp2_crit        Critical high temperature
+temp2_crit_alarm  Chip temperature critical high alarm
+temp2_max         Critical maximum temperature
+temp2_max_alarm   Temperature critical max alarm
 ================= ========================================

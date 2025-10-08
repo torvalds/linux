@@ -50,8 +50,11 @@ the number of lines exposed by this bank.
 
 **Attribute:** ``/config/gpio-sim/gpio-device/gpio-bankX/lineY/name``
 
-This group represents a single line at the offset Y. The 'name' attribute
-allows to set the line name as represented by the 'gpio-line-names' property.
+**Attribute:** ``/config/gpio-sim/gpio-device/gpio-bankX/lineY/valid``
+
+This group represents a single line at the offset Y. The ``valid`` attribute
+indicates whether the line can be used as GPIO. The ``name`` attribute allows
+to set the line name as represented by the 'gpio-line-names' property.
 
 **Item:** ``/config/gpio-sim/gpio-device/gpio-bankX/lineY/hog``
 

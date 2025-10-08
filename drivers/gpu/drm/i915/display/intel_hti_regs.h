@@ -6,7 +6,7 @@
 #ifndef __INTEL_HTI_REGS_H__
 #define __INTEL_HTI_REGS_H__
 
-#include "i915_reg_defs.h"
+#include "intel_display_reg_defs.h"
 
 #define HDPORT_STATE			_MMIO(0x45050)
 #define   HDPORT_DPLL_USED_MASK		REG_GENMASK(15, 12)

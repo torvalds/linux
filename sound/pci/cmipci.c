@@ -1868,7 +1868,7 @@ static int snd_cmipci_pcm_new(struct cmipci *cm, int device)
 
 	pcm->private_data = cm;
 	pcm->info_flags = 0;
-	strcpy(pcm->name, "C-Media PCI DAC/ADC");
+	strscpy(pcm->name, "C-Media PCI DAC/ADC");
 	cm->pcm = pcm;
 
 	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
@@ -1890,7 +1890,7 @@ static int snd_cmipci_pcm2_new(struct cmipci *cm, int device)
 
 	pcm->private_data = cm;
 	pcm->info_flags = 0;
-	strcpy(pcm->name, "C-Media PCI 2nd DAC");
+	strscpy(pcm->name, "C-Media PCI 2nd DAC");
 	cm->pcm2 = pcm;
 
 	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
@@ -1913,7 +1913,7 @@ static int snd_cmipci_pcm_spdif_new(struct cmipci *cm, int device)
 
 	pcm->private_data = cm;
 	pcm->info_flags = 0;
-	strcpy(pcm->name, "C-Media PCI IEC958");
+	strscpy(pcm->name, "C-Media PCI IEC958");
 	cm->pcm_spdif = pcm;
 
 	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
@@ -2633,7 +2633,7 @@ static int snd_cmipci_mixer_new(struct cmipci *cm, int pcm_spdif_device)
 
 	card = cm->card;
 
-	strcpy(card->mixername, "CMedia PCI");
+	strscpy(card->mixername, "CMedia PCI");
 
 	spin_lock_irq(&cm->reg_lock);
 	snd_cmipci_mixer_write(cm, 0x00, 0x00);		/* mixer reset */
@@ -3008,11 +3008,12 @@ static int snd_cmipci_create(struct snd_card *card, struct pci_dev *pci,
 	    pci->device != PCI_DEVICE_ID_CMEDIA_CM8338B)
 		query_chip(cm);
 	/* added -MCx suffix for chip supporting multi-channels */
-	if (cm->can_multi_ch)
-		sprintf(cm->card->driver + strlen(cm->card->driver),
-			"-MC%d", cm->max_channels);
-	else if (cm->can_ac3_sw)
-		strcpy(cm->card->driver + strlen(cm->card->driver), "-SWIEC");
+	if (cm->can_multi_ch) {
+		int l = strlen(cm->card->driver);
+		scnprintf(cm->card->driver + l, sizeof(cm->card->driver) - l,
+			  "-MC%d", cm->max_channels);
+	} else if (cm->can_ac3_sw)
+		strlcat(cm->card->driver, "-SWIEC", sizeof(cm->card->driver));
 
 	cm->dig_status = SNDRV_PCM_DEFAULT_CON_SPDIF;
 	cm->dig_pcm_status = SNDRV_PCM_DEFAULT_CON_SPDIF;
@@ -3216,14 +3217,14 @@ static int snd_cmipci_probe(struct pci_dev *pci,
 	switch (pci->device) {
 	case PCI_DEVICE_ID_CMEDIA_CM8738:
 	case PCI_DEVICE_ID_CMEDIA_CM8738B:
-		strcpy(card->driver, "CMI8738");
+		strscpy(card->driver, "CMI8738");
 		break;
 	case PCI_DEVICE_ID_CMEDIA_CM8338A:
 	case PCI_DEVICE_ID_CMEDIA_CM8338B:
-		strcpy(card->driver, "CMI8338");
+		strscpy(card->driver, "CMI8338");
 		break;
 	default:
-		strcpy(card->driver, "CMIPCI");
+		strscpy(card->driver, "CMIPCI");
 		break;
 	}
 

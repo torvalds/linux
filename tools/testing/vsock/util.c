@@ -7,6 +7,7 @@
  * Author: Stefan Hajnoczi <stefanha@redhat.com>
  */
 
+#include <ctype.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -16,12 +17,16 @@
 #include <unistd.h>
 #include <assert.h>
 #include <sys/epoll.h>
+#include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <linux/sockios.h>
 
 #include "timeout.h"
 #include "control.h"
 #include "util.h"
+
+#define KALLSYMS_PATH		"/proc/kallsyms"
+#define KALLSYMS_LINE_LEN	512
 
 /* Install signal handlers */
 void init_signals(void)
@@ -97,39 +102,52 @@ void vsock_wait_remote_close(int fd)
 	close(epollfd);
 }
 
+/* Wait until ioctl gives an expected int value.
+ * Return false if the op is not supported.
+ */
+bool vsock_ioctl_int(int fd, unsigned long op, int expected)
+{
+	int actual, ret;
+	char name[32];
+
+	snprintf(name, sizeof(name), "ioctl(%lu)", op);
+
+	timeout_begin(TIMEOUT);
+	do {
+		ret = ioctl(fd, op, &actual);
+		if (ret < 0) {
+			if (errno == EOPNOTSUPP || errno == ENOTTY)
+				break;
+
+			perror(name);
+			exit(EXIT_FAILURE);
+		}
+		timeout_check(name);
+	} while (actual != expected);
+	timeout_end();
+
+	return ret >= 0;
+}
+
 /* Wait until transport reports no data left to be sent.
  * Return false if transport does not implement the unsent_bytes() callback.
  */
 bool vsock_wait_sent(int fd)
 {
-	int ret, sock_bytes_unsent;
-
-	timeout_begin(TIMEOUT);
-	do {
-		ret = ioctl(fd, SIOCOUTQ, &sock_bytes_unsent);
-		if (ret < 0) {
-			if (errno == EOPNOTSUPP)
-				break;
-
-			perror("ioctl(SIOCOUTQ)");
-			exit(EXIT_FAILURE);
-		}
-		timeout_check("SIOCOUTQ");
-	} while (sock_bytes_unsent != 0);
-	timeout_end();
-
-	return !ret;
+	return vsock_ioctl_int(fd, SIOCOUTQ, 0);
 }
 
-/* Create socket <type>, bind to <cid, port> and return the file descriptor. */
-int vsock_bind(unsigned int cid, unsigned int port, int type)
+/* Create socket <type>, bind to <cid, port>.
+ * Return the file descriptor, or -1 on error.
+ */
+int vsock_bind_try(unsigned int cid, unsigned int port, int type)
 {
 	struct sockaddr_vm sa = {
 		.svm_family = AF_VSOCK,
 		.svm_cid = cid,
 		.svm_port = port,
 	};
-	int fd;
+	int fd, saved_errno;
 
 	fd = socket(AF_VSOCK, type, 0);
 	if (fd < 0) {
@@ -138,6 +156,22 @@ int vsock_bind(unsigned int cid, unsigned int port, int type)
 	}
 
 	if (bind(fd, (struct sockaddr *)&sa, sizeof(sa))) {
+		saved_errno = errno;
+		close(fd);
+		errno = saved_errno;
+		fd = -1;
+	}
+
+	return fd;
+}
+
+/* Create socket <type>, bind to <cid, port> and return the file descriptor. */
+int vsock_bind(unsigned int cid, unsigned int port, int type)
+{
+	int fd;
+
+	fd = vsock_bind_try(cid, port, type);
+	if (fd < 0) {
 		perror("bind");
 		exit(EXIT_FAILURE);
 	}
@@ -835,4 +869,56 @@ void enable_so_linger(int fd, int timeout)
 		perror("setsockopt(SO_LINGER)");
 		exit(EXIT_FAILURE);
 	}
+}
+
+static int __get_transports(void)
+{
+	char buf[KALLSYMS_LINE_LEN];
+	const char *ksym;
+	int ret = 0;
+	FILE *f;
+
+	f = fopen(KALLSYMS_PATH, "r");
+	if (!f) {
+		perror("Can't open " KALLSYMS_PATH);
+		exit(EXIT_FAILURE);
+	}
+
+	while (fgets(buf, sizeof(buf), f)) {
+		char *match;
+		int i;
+
+		assert(buf[strlen(buf) - 1] == '\n');
+
+		for (i = 0; i < TRANSPORT_NUM; ++i) {
+			if (ret & BIT(i))
+				continue;
+
+			/* Match should be followed by '\t' or '\n'.
+			 * See kallsyms.c:s_show().
+			 */
+			ksym = transport_ksyms[i];
+			match = strstr(buf, ksym);
+			if (match && isspace(match[strlen(ksym)])) {
+				ret |= BIT(i);
+				break;
+			}
+		}
+	}
+
+	fclose(f);
+	return ret;
+}
+
+/* Return integer with TRANSPORT_* bit set for every (known) registered vsock
+ * transport.
+ */
+int get_transports(void)
+{
+	static int tr = -1;
+
+	if (tr == -1)
+		tr = __get_transports();
+
+	return tr;
 }

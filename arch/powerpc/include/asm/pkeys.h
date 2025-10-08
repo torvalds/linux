@@ -30,9 +30,9 @@ extern u32 reserved_allocation_mask; /* bits set for reserved keys */
 #endif
 
 
-static inline u64 pkey_to_vmflag_bits(u16 pkey)
+static inline vm_flags_t pkey_to_vmflag_bits(u16 pkey)
 {
-	return (((u64)pkey << VM_PKEY_SHIFT) & ARCH_VM_PKEY_FLAGS);
+	return (((vm_flags_t)pkey << VM_PKEY_SHIFT) & ARCH_VM_PKEY_FLAGS);
 }
 
 static inline int vma_pkey(struct vm_area_struct *vma)

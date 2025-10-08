@@ -163,7 +163,7 @@ static inline unsigned int fl_mtu_bufsize(struct adapter *adapter,
  * for DMA, but this is of course never sent to the hardware and is only used
  * to prevent double unmappings.  All of the above requires that the Free List
  * Buffers which we allocate have the bottom 5 bits free (0) -- i.e. are
- * 32-byte or or a power of 2 greater in alignment.  Since the SGE's minimal
+ * 32-byte or a power of 2 greater in alignment.  Since the SGE's minimal
  * Free List Buffer alignment is 32 bytes, this works out for us ...
  */
 enum {

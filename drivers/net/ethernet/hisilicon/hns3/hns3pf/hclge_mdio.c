@@ -151,7 +151,7 @@ int hclge_mac_mdio_config(struct hclge_dev *hdev)
 
 	mdio_bus->parent = &hdev->pdev->dev;
 	mdio_bus->priv = hdev;
-	mdio_bus->phy_mask = ~(1 << mac->phy_addr);
+	mdio_bus->phy_mask = ~(1U << mac->phy_addr);
 	ret = mdiobus_register(mdio_bus);
 	if (ret) {
 		dev_err(mdio_bus->parent,

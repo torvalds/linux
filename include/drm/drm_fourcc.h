@@ -54,7 +54,6 @@
 #endif
 
 struct drm_device;
-struct drm_mode_fb_cmd2;
 
 /**
  * struct drm_format_info - information about a DRM format
@@ -309,7 +308,7 @@ const struct drm_format_info *__drm_format_info(u32 format);
 const struct drm_format_info *drm_format_info(u32 format);
 const struct drm_format_info *
 drm_get_format_info(struct drm_device *dev,
-		    const struct drm_mode_fb_cmd2 *mode_cmd);
+		    u32 pixel_format, u64 modifier);
 uint32_t drm_mode_legacy_fb_format(uint32_t bpp, uint32_t depth);
 uint32_t drm_driver_legacy_fb_format(struct drm_device *dev,
 				     uint32_t bpp, uint32_t depth);

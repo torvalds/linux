@@ -555,7 +555,7 @@ static int pruss_intc_probe(struct platform_device *pdev)
 
 	mutex_init(&intc->lock);
 
-	intc->domain = irq_domain_create_linear(of_fwnode_handle(dev->of_node), max_system_events,
+	intc->domain = irq_domain_create_linear(dev_fwnode(dev), max_system_events,
 						&pruss_intc_irq_domain_ops, intc);
 	if (!intc->domain)
 		return -ENOMEM;

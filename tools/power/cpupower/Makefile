@@ -73,6 +73,7 @@ sbindir ?=	/usr/sbin
 mandir ?=	/usr/man
 libdir ?=	/usr/lib
 libexecdir ?=	/usr/libexec
+unitdir ?=	/usr/lib/systemd/system
 includedir ?=	/usr/include
 localedir ?=	/usr/share/locale
 docdir ?=       /usr/share/doc/packages/cpupower
@@ -309,9 +310,9 @@ install-tools: $(OUTPUT)cpupower
 	$(INSTALL_DATA) cpupower-service.conf '$(DESTDIR)${confdir}'
 	$(INSTALL) -d $(DESTDIR)${libexecdir}
 	$(INSTALL_PROGRAM) cpupower.sh '$(DESTDIR)${libexecdir}/cpupower'
-	$(INSTALL) -d $(DESTDIR)${libdir}/systemd/system
-	sed 's|___CDIR___|${confdir}|; s|___LDIR___|${libexecdir}|' cpupower.service.in > '$(DESTDIR)${libdir}/systemd/system/cpupower.service'
-	$(SETPERM_DATA) '$(DESTDIR)${libdir}/systemd/system/cpupower.service'
+	$(INSTALL) -d $(DESTDIR)${unitdir}
+	sed 's|___CDIR___|${confdir}|; s|___LDIR___|${libexecdir}|' cpupower.service.in > '$(DESTDIR)${unitdir}/cpupower.service'
+	$(SETPERM_DATA) '$(DESTDIR)${unitdir}/cpupower.service'
 
 install-man:
 	$(INSTALL_DATA) -D man/cpupower.1 $(DESTDIR)${mandir}/man1/cpupower.1
@@ -348,7 +349,7 @@ uninstall:
 	- rm -f $(DESTDIR)${bindir}/utils/cpupower
 	- rm -f $(DESTDIR)${confdir}cpupower-service.conf
 	- rm -f $(DESTDIR)${libexecdir}/cpupower
-	- rm -f $(DESTDIR)${libdir}/systemd/system/cpupower.service
+	- rm -f $(DESTDIR)${unitdir}/cpupower.service
 	- rm -f $(DESTDIR)${mandir}/man1/cpupower.1
 	- rm -f $(DESTDIR)${mandir}/man1/cpupower-frequency-set.1
 	- rm -f $(DESTDIR)${mandir}/man1/cpupower-frequency-info.1

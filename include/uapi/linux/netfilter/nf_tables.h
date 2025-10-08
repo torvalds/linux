@@ -142,8 +142,6 @@ enum nf_tables_msg_types {
 	NFT_MSG_DESTROYOBJ,
 	NFT_MSG_DESTROYFLOWTABLE,
 	NFT_MSG_GETSETELEM_RESET,
-	NFT_MSG_NEWDEV,
-	NFT_MSG_DELDEV,
 	NFT_MSG_MAX,
 };
 
@@ -1786,18 +1784,10 @@ enum nft_synproxy_attributes {
  * enum nft_device_attributes - nf_tables device netlink attributes
  *
  * @NFTA_DEVICE_NAME: name of this device (NLA_STRING)
- * @NFTA_DEVICE_TABLE: table containing the flowtable or chain hooking into the device (NLA_STRING)
- * @NFTA_DEVICE_FLOWTABLE: flowtable hooking into the device (NLA_STRING)
- * @NFTA_DEVICE_CHAIN: chain hooking into the device (NLA_STRING)
- * @NFTA_DEVICE_SPEC: hook spec matching the device (NLA_STRING)
  */
 enum nft_devices_attributes {
 	NFTA_DEVICE_UNSPEC,
 	NFTA_DEVICE_NAME,
-	NFTA_DEVICE_TABLE,
-	NFTA_DEVICE_FLOWTABLE,
-	NFTA_DEVICE_CHAIN,
-	NFTA_DEVICE_SPEC,
 	__NFTA_DEVICE_MAX
 };
 #define NFTA_DEVICE_MAX		(__NFTA_DEVICE_MAX - 1)

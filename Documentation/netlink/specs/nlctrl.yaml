@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
-
+---
 name: nlctrl
 protocol: genetlink-legacy
 uapi-header: linux/genetlink.h
@@ -76,12 +76,12 @@ attribute-sets:
       -
         name: policy
         type: nest-type-value
-        type-value: [ policy-id, attr-id ]
+        type-value: [policy-id, attr-id]
         nested-attributes: policy-attrs
       -
         name: op-policy
         type: nest-type-value
-        type-value: [ op-id ]
+        type-value: [op-id]
         nested-attributes: op-policy-attrs
       -
         name: op

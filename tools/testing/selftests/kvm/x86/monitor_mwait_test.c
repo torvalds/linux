@@ -74,6 +74,7 @@ int main(int argc, char *argv[])
 	int testcase;
 	char test[80];
 
+	TEST_REQUIRE(this_cpu_has(X86_FEATURE_MWAIT));
 	TEST_REQUIRE(kvm_has_cap(KVM_CAP_DISABLE_QUIRKS2));
 
 	ksft_print_header();

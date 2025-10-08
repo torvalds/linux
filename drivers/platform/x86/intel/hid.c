@@ -54,6 +54,7 @@ static const struct acpi_device_id intel_hid_ids[] = {
 	{ "INTC107B" },
 	{ "INTC10CB" },
 	{ "INTC10CC" },
+	{ "INTC10F1" },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, intel_hid_ids);

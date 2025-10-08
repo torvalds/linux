@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
-
+---
 name: rt-neigh
 protocol: netlink-raw
 uapi-header: linux/rtnetlink.h
@@ -79,6 +79,7 @@ definitions:
     entries:
       - managed
       - locked
+      - ext-validated
   -
     name: rtm-type
     type: enum

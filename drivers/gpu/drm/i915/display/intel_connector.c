@@ -32,7 +32,6 @@
 
 #include "i915_drv.h"
 #include "i915_utils.h"
-#include "intel_backlight.h"
 #include "intel_connector.h"
 #include "intel_display_core.h"
 #include "intel_display_debugfs.h"
@@ -65,10 +64,10 @@ static void intel_connector_modeset_retry_work_fn(struct work_struct *work)
 
 void intel_connector_queue_modeset_retry_work(struct intel_connector *connector)
 {
-	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+	struct intel_display *display = to_intel_display(connector);
 
 	drm_connector_get(&connector->base);
-	if (!queue_work(i915->unordered_wq, &connector->modeset_retry_work))
+	if (!queue_work(display->wq.unordered, &connector->modeset_retry_work))
 		drm_connector_put(&connector->base);
 }
 
@@ -153,36 +152,36 @@ void intel_connector_destroy(struct drm_connector *connector)
 	kfree(connector);
 }
 
-int intel_connector_register(struct drm_connector *connector)
+int intel_connector_register(struct drm_connector *_connector)
 {
-	struct intel_connector *intel_connector = to_intel_connector(connector);
-	struct drm_i915_private *i915 = to_i915(connector->dev);
+	struct intel_connector *connector = to_intel_connector(_connector);
+	struct drm_i915_private *i915 = to_i915(_connector->dev);
 	int ret;
 
-	ret = intel_backlight_device_register(intel_connector);
+	ret = intel_panel_register(connector);
 	if (ret)
 		goto err;
 
 	if (i915_inject_probe_failure(i915)) {
 		ret = -EFAULT;
-		goto err_backlight;
+		goto err_panel;
 	}
 
-	intel_connector_debugfs_add(intel_connector);
+	intel_connector_debugfs_add(connector);
 
 	return 0;
 
-err_backlight:
-	intel_backlight_device_unregister(intel_connector);
+err_panel:
+	intel_panel_unregister(connector);
 err:
 	return ret;
 }
 
-void intel_connector_unregister(struct drm_connector *connector)
+void intel_connector_unregister(struct drm_connector *_connector)
 {
-	struct intel_connector *intel_connector = to_intel_connector(connector);
+	struct intel_connector *connector = to_intel_connector(_connector);
 
-	intel_backlight_device_unregister(intel_connector);
+	intel_panel_unregister(connector);
 }
 
 void intel_connector_attach_encoder(struct intel_connector *connector,
@@ -209,8 +208,7 @@ enum pipe intel_connector_get_pipe(struct intel_connector *connector)
 {
 	struct intel_display *display = to_intel_display(connector);
 
-	drm_WARN_ON(display->drm,
-		    !drm_modeset_is_locked(&display->drm->mode_config.connection_mutex));
+	drm_modeset_lock_assert_held(&display->drm->mode_config.connection_mutex);
 
 	if (!connector->base.state->crtc)
 		return INVALID_PIPE;

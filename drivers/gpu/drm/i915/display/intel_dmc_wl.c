@@ -7,9 +7,8 @@
 
 #include <drm/drm_print.h>
 
-#include "i915_drv.h"
-#include "i915_reg.h"
 #include "intel_de.h"
+#include "intel_display_regs.h"
 #include "intel_dmc_regs.h"
 #include "intel_dmc_wl.h"
 
@@ -155,12 +154,11 @@ static const struct intel_dmc_wl_range xe3lpd_dc3co_dmc_ranges[] = {
 
 static void __intel_dmc_wl_release(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	struct intel_dmc_wl *wl = &display->wl;
 
 	WARN_ON(refcount_read(&wl->refcount));
 
-	queue_delayed_work(i915->unordered_wq, &wl->work,
+	queue_delayed_work(display->wq.unordered, &wl->work,
 			   msecs_to_jiffies(DMC_WAKELOCK_HOLD_TIME));
 }
 

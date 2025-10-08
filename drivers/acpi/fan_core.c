@@ -102,7 +102,7 @@ match_fps:
 			break;
 	}
 	if (i == fan->fps_count) {
-		dev_dbg(&device->dev, "Invalid control value returned\n");
+		dev_dbg(&device->dev, "No matching fps control value\n");
 		return -EINVAL;
 	}
 

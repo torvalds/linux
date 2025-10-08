@@ -18,8 +18,8 @@
 	" *\n" \
 	" * This file was generated from rules: %s\n" \
 	" */\n" \
-	"#ifndef _GENERATED_XE_WA_OOB_\n" \
-	"#define _GENERATED_XE_WA_OOB_\n" \
+	"#ifndef _GENERATED_%s_\n" \
+	"#define _GENERATED_%s_\n" \
 	"\n" \
 	"enum {\n"
 
@@ -52,7 +52,7 @@ static char *strip(char *line, size_t linelen)
 }
 
 #define MAX_LINE_LEN 4096
-static int parse(FILE *input, FILE *csource, FILE *cheader)
+static int parse(FILE *input, FILE *csource, FILE *cheader, char *prefix)
 {
 	char line[MAX_LINE_LEN + 1];
 	char *name, *prev_name = NULL, *rules;
@@ -96,7 +96,7 @@ static int parse(FILE *input, FILE *csource, FILE *cheader)
 		}
 
 		if (name) {
-			fprintf(cheader, "\tXE_WA_OOB_%s = %u,\n", name, idx);
+			fprintf(cheader, "\t%s_%s = %u,\n", prefix, name, idx);
 
 			/* Close previous entry before starting a new one */
 			if (idx)
@@ -118,7 +118,33 @@ static int parse(FILE *input, FILE *csource, FILE *cheader)
 	if (idx)
 		fprintf(csource, ") },\n");
 
-	fprintf(cheader, "\t_XE_WA_OOB_COUNT = %u\n", idx);
+	fprintf(cheader, "\t_%s_COUNT = %u\n", prefix, idx);
+
+	return 0;
+}
+
+static int fn_to_prefix(const char *fn, char *prefix, size_t size)
+{
+	size_t len;
+
+	fn = basename(fn);
+	len = strlen(fn);
+
+	if (len > size - 1)
+		return -ENAMETOOLONG;
+
+	memcpy(prefix, fn, len + 1);
+
+	for (char *p = prefix; *p; p++) {
+		switch (*p) {
+		case '.':
+			*p = '\0';
+			return 0;
+		default:
+			*p = toupper(*p);
+			break;
+		}
+	}
 
 	return 0;
 }
@@ -141,12 +167,16 @@ int main(int argc, const char *argv[])
 		[ARGS_CHEADER] = { .fn = argv[3], .mode = "w" },
 	};
 	int ret = 1;
+	char prefix[128];
 
 	if (argc < 3) {
 		fprintf(stderr, "ERROR: wrong arguments\n");
 		print_usage(stderr, argv[0]);
 		return 1;
 	}
+
+	if (fn_to_prefix(args[ARGS_CHEADER].fn, prefix, sizeof(prefix)) < 0)
+		return 1;
 
 	for (int i = 0; i < _ARGS_COUNT; i++) {
 		args[i].f = fopen(args[i].fn, args[i].mode);
@@ -157,9 +187,10 @@ int main(int argc, const char *argv[])
 		}
 	}
 
-	fprintf(args[ARGS_CHEADER].f, HEADER, args[ARGS_INPUT].fn);
+	fprintf(args[ARGS_CHEADER].f, HEADER, args[ARGS_INPUT].fn, prefix, prefix);
+
 	ret = parse(args[ARGS_INPUT].f, args[ARGS_CSOURCE].f,
-		    args[ARGS_CHEADER].f);
+		    args[ARGS_CHEADER].f, prefix);
 	if (!ret)
 		fprintf(args[ARGS_CHEADER].f, FOOTER);
 

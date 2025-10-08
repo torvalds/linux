@@ -20,6 +20,7 @@
  * OF THIS SOFTWARE.
  */
 
+#include <linux/export.h>
 #include <linux/uaccess.h>
 
 #include <drm/drm_atomic.h>
@@ -28,6 +29,7 @@
 #include <drm/drm_device.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_print.h>
+#include <kunit/visibility.h>
 
 #include "drm_crtc_internal.h"
 
@@ -494,6 +496,7 @@ const char *drm_get_color_encoding_name(enum drm_color_encoding encoding)
 
 	return color_encoding_name[encoding];
 }
+EXPORT_SYMBOL_IF_KUNIT(drm_get_color_encoding_name);
 
 /**
  * drm_get_color_range_name - return a string for color range
@@ -509,6 +512,7 @@ const char *drm_get_color_range_name(enum drm_color_range range)
 
 	return color_range_name[range];
 }
+EXPORT_SYMBOL_IF_KUNIT(drm_get_color_range_name);
 
 /**
  * drm_plane_create_color_properties - color encoding related plane properties
@@ -630,3 +634,209 @@ int drm_color_lut_check(const struct drm_property_blob *lut, u32 tests)
 	return 0;
 }
 EXPORT_SYMBOL(drm_color_lut_check);
+
+/*
+ * Gamma-LUT programming
+ */
+
+/**
+ * drm_crtc_load_gamma_888 - Programs gamma ramp for RGB888-like formats
+ * @crtc: The displaying CRTC
+ * @lut: The gamma ramp to program
+ * @set_gamma: Callback for programming the hardware gamma LUT
+ *
+ * Programs the gamma ramp specified in @lut to hardware. The input gamma
+ * ramp must have 256 entries per color component.
+ */
+void drm_crtc_load_gamma_888(struct drm_crtc *crtc, const struct drm_color_lut *lut,
+			     drm_crtc_set_lut_func set_gamma)
+{
+	unsigned int i;
+
+	for (i = 0; i < 256; ++i)
+		set_gamma(crtc, i, lut[i].red, lut[i].green, lut[i].blue);
+}
+EXPORT_SYMBOL(drm_crtc_load_gamma_888);
+
+/**
+ * drm_crtc_load_gamma_565_from_888 - Programs gamma ramp for RGB565-like formats
+ * @crtc: The displaying CRTC
+ * @lut: The gamma ramp to program
+ * @set_gamma: Callback for programming the hardware gamma LUT
+ *
+ * Programs the gamma ramp specified in @lut to hardware. The input gamma
+ * ramp must have 256 entries per color component. The helper interpolates
+ * the individual color components to reduce the number of entries to 5/6/5.
+ */
+void drm_crtc_load_gamma_565_from_888(struct drm_crtc *crtc, const struct drm_color_lut *lut,
+				      drm_crtc_set_lut_func set_gamma)
+{
+	unsigned int i;
+	u16 r, g, b;
+
+	for (i = 0; i < 32; ++i) {
+		r = lut[i * 8 + i / 4].red;
+		g = lut[i * 4 + i / 16].green;
+		b = lut[i * 8 + i / 4].blue;
+		set_gamma(crtc, i, r, g, b);
+	}
+	/* Green has one more bit, so add padding with 0 for red and blue. */
+	for (i = 32; i < 64; ++i) {
+		g = lut[i * 4 + i / 16].green;
+		set_gamma(crtc, i, 0, g, 0);
+	}
+}
+EXPORT_SYMBOL(drm_crtc_load_gamma_565_from_888);
+
+/**
+ * drm_crtc_load_gamma_555_from_888 - Programs gamma ramp for RGB555-like formats
+ * @crtc: The displaying CRTC
+ * @lut: The gamma ramp to program
+ * @set_gamma: Callback for programming the hardware gamma LUT
+ *
+ * Programs the gamma ramp specified in @lut to hardware. The input gamma
+ * ramp must have 256 entries per color component. The helper interpolates
+ * the individual color components to reduce the number of entries to 5/5/5.
+ */
+void drm_crtc_load_gamma_555_from_888(struct drm_crtc *crtc, const struct drm_color_lut *lut,
+				      drm_crtc_set_lut_func set_gamma)
+{
+	unsigned int i;
+	u16 r, g, b;
+
+	for (i = 0; i < 32; ++i) {
+		r = lut[i * 8 + i / 4].red;
+		g = lut[i * 8 + i / 4].green;
+		b = lut[i * 8 + i / 4].blue;
+		set_gamma(crtc, i, r, g, b);
+	}
+}
+EXPORT_SYMBOL(drm_crtc_load_gamma_555_from_888);
+
+static void fill_gamma_888(struct drm_crtc *crtc, unsigned int i, u16 r, u16 g, u16 b,
+			   drm_crtc_set_lut_func set_gamma)
+{
+	r = (r << 8) | r;
+	g = (g << 8) | g;
+	b = (b << 8) | b;
+
+	set_gamma(crtc, i, r, g, b);
+}
+
+/**
+ * drm_crtc_fill_gamma_888 - Programs a default gamma ramp for RGB888-like formats
+ * @crtc: The displaying CRTC
+ * @set_gamma: Callback for programming the hardware gamma LUT
+ *
+ * Programs a default gamma ramp to hardware.
+ */
+void drm_crtc_fill_gamma_888(struct drm_crtc *crtc, drm_crtc_set_lut_func set_gamma)
+{
+	unsigned int i;
+
+	for (i = 0; i < 256; ++i)
+		fill_gamma_888(crtc, i, i, i, i, set_gamma);
+}
+EXPORT_SYMBOL(drm_crtc_fill_gamma_888);
+
+static void fill_gamma_565(struct drm_crtc *crtc, unsigned int i, u16 r, u16 g, u16 b,
+			   drm_crtc_set_lut_func set_gamma)
+{
+	r = (r << 11) | (r << 6) | (r << 1) | (r >> 4);
+	g = (g << 10) | (g << 4) | (g >> 2);
+	b = (b << 11) | (b << 6) | (b << 1) | (b >> 4);
+
+	set_gamma(crtc, i, r, g, b);
+}
+
+/**
+ * drm_crtc_fill_gamma_565 - Programs a default gamma ramp for RGB565-like formats
+ * @crtc: The displaying CRTC
+ * @set_gamma: Callback for programming the hardware gamma LUT
+ *
+ * Programs a default gamma ramp to hardware.
+ */
+void drm_crtc_fill_gamma_565(struct drm_crtc *crtc, drm_crtc_set_lut_func set_gamma)
+{
+	unsigned int i;
+
+	for (i = 0; i < 32; ++i)
+		fill_gamma_565(crtc, i, i, i, i, set_gamma);
+	/* Green has one more bit, so add padding with 0 for red and blue. */
+	for (i = 32; i < 64; ++i)
+		fill_gamma_565(crtc, i, 0, i, 0, set_gamma);
+}
+EXPORT_SYMBOL(drm_crtc_fill_gamma_565);
+
+static void fill_gamma_555(struct drm_crtc *crtc, unsigned int i, u16 r, u16 g, u16 b,
+			   drm_crtc_set_lut_func set_gamma)
+{
+	r = (r << 11) | (r << 6) | (r << 1) | (r >> 4);
+	g = (g << 11) | (g << 6) | (g << 1) | (g >> 4);
+	b = (b << 11) | (b << 6) | (b << 1) | (r >> 4);
+
+	set_gamma(crtc, i, r, g, b);
+}
+
+/**
+ * drm_crtc_fill_gamma_555 - Programs a default gamma ramp for RGB555-like formats
+ * @crtc: The displaying CRTC
+ * @set_gamma: Callback for programming the hardware gamma LUT
+ *
+ * Programs a default gamma ramp to hardware.
+ */
+void drm_crtc_fill_gamma_555(struct drm_crtc *crtc, drm_crtc_set_lut_func set_gamma)
+{
+	unsigned int i;
+
+	for (i = 0; i < 32; ++i)
+		fill_gamma_555(crtc, i, i, i, i, set_gamma);
+}
+EXPORT_SYMBOL(drm_crtc_fill_gamma_555);
+
+/*
+ * Color-LUT programming
+ */
+
+/**
+ * drm_crtc_load_palette_8 - Programs palette for C8-like formats
+ * @crtc: The displaying CRTC
+ * @lut: The palette to program
+ * @set_palette: Callback for programming the hardware palette
+ *
+ * Programs the palette specified in @lut to hardware. The input palette
+ * must have 256 entries per color component.
+ */
+void drm_crtc_load_palette_8(struct drm_crtc *crtc, const struct drm_color_lut *lut,
+			     drm_crtc_set_lut_func set_palette)
+{
+	unsigned int i;
+
+	for (i = 0; i < 256; ++i)
+		set_palette(crtc, i, lut[i].red, lut[i].green, lut[i].blue);
+}
+EXPORT_SYMBOL(drm_crtc_load_palette_8);
+
+static void fill_palette_8(struct drm_crtc *crtc, unsigned int i,
+			   drm_crtc_set_lut_func set_palette)
+{
+	u16 Y = (i << 8) | i; // relative luminance
+
+	set_palette(crtc, i, Y, Y, Y);
+}
+
+/**
+ * drm_crtc_fill_palette_8 - Programs a default palette for C8-like formats
+ * @crtc: The displaying CRTC
+ * @set_palette: Callback for programming the hardware gamma LUT
+ *
+ * Programs a default palette to hardware.
+ */
+void drm_crtc_fill_palette_8(struct drm_crtc *crtc, drm_crtc_set_lut_func set_palette)
+{
+	unsigned int i;
+
+	for (i = 0; i < 256; ++i)
+		fill_palette_8(crtc, i, set_palette);
+}
+EXPORT_SYMBOL(drm_crtc_fill_palette_8);

@@ -265,7 +265,7 @@ static int hsdk_pll_core_update_rate(struct hsdk_pll_clk *clk,
 		return -EINVAL;
 
 	/*
-	 * Program divider to div-by-1 if we succesfuly set core clock below
+	 * Program divider to div-by-1 if we successfully set core clock below
 	 * 500MHz threshold.
 	 */
 	if (rate <= CORE_IF_CLK_THRESHOLD_HZ)

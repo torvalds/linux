@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-only
-menu "SoC Audio for Freescale CPUs"
+menu "Freescale"
 
 comment "Common SoC Audio options for Freescale CPUs:"
 

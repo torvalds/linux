@@ -22,34 +22,6 @@
 
 static struct dentry *hfi1_dbg_root;
 
-/* wrappers to enforce srcu in seq file */
-ssize_t hfi1_seq_read(struct file *file, char __user *buf, size_t size,
-		      loff_t *ppos)
-{
-	struct dentry *d = file->f_path.dentry;
-	ssize_t r;
-
-	r = debugfs_file_get(d);
-	if (unlikely(r))
-		return r;
-	r = seq_read(file, buf, size, ppos);
-	debugfs_file_put(d);
-	return r;
-}
-
-loff_t hfi1_seq_lseek(struct file *file, loff_t offset, int whence)
-{
-	struct dentry *d = file->f_path.dentry;
-	loff_t r;
-
-	r = debugfs_file_get(d);
-	if (unlikely(r))
-		return r;
-	r = seq_lseek(file, offset, whence);
-	debugfs_file_put(d);
-	return r;
-}
-
 #define private2dd(file) (file_inode(file)->i_private)
 #define private2ppd(file) (file_inode(file)->i_private)
 

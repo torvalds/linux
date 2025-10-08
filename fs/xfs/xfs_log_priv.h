@@ -144,7 +144,7 @@ enum xlog_iclog_state {
 
 #define XLOG_COVER_OPS		5
 
-typedef struct xlog_ticket {
+struct xlog_ticket {
 	struct list_head	t_queue;	/* reserve/write queue */
 	struct task_struct	*t_task;	/* task that owns this ticket */
 	xlog_tid_t		t_tid;		/* transaction identifier */
@@ -155,7 +155,7 @@ typedef struct xlog_ticket {
 	char			t_cnt;		/* current unit count */
 	uint8_t			t_flags;	/* properties of reservation */
 	int			t_iclog_hdrs;	/* iclog hdrs in t_curr_res */
-} xlog_ticket_t;
+};
 
 /*
  * - A log record header is 512 bytes.  There is plenty of room to grow the

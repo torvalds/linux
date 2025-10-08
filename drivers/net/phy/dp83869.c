@@ -540,9 +540,8 @@ static const int dp83869_internal_delay[] = {250, 500, 750, 1000, 1250, 1500,
 
 static int dp83869_of_init(struct phy_device *phydev)
 {
+	struct device_node *of_node = phydev->mdio.dev.of_node;
 	struct dp83869_private *dp83869 = phydev->priv;
-	struct device *dev = &phydev->mdio.dev;
-	struct device_node *of_node = dev->of_node;
 	int delay_size = ARRAY_SIZE(dp83869_internal_delay);
 	int ret;
 
@@ -597,13 +596,13 @@ static int dp83869_of_init(struct phy_device *phydev)
 				 &dp83869->tx_fifo_depth))
 		dp83869->tx_fifo_depth = DP83869_PHYCR_FIFO_DEPTH_4_B_NIB;
 
-	dp83869->rx_int_delay = phy_get_internal_delay(phydev, dev,
+	dp83869->rx_int_delay = phy_get_internal_delay(phydev,
 						       &dp83869_internal_delay[0],
 						       delay_size, true);
 	if (dp83869->rx_int_delay < 0)
 		dp83869->rx_int_delay = DP83869_CLK_DELAY_DEF;
 
-	dp83869->tx_int_delay = phy_get_internal_delay(phydev, dev,
+	dp83869->tx_int_delay = phy_get_internal_delay(phydev,
 						       &dp83869_internal_delay[0],
 						       delay_size, false);
 	if (dp83869->tx_int_delay < 0)

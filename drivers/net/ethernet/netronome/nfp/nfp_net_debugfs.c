@@ -77,7 +77,7 @@ DEFINE_SHOW_ATTRIBUTE(nfp_rx_q);
 static int nfp_tx_q_show(struct seq_file *file, void *data);
 DEFINE_SHOW_ATTRIBUTE(nfp_tx_q);
 
-static int nfp_tx_q_show(struct seq_file *file, void *data)
+static int __nfp_tx_q_show(struct seq_file *file, void *data, bool is_xdp)
 {
 	struct nfp_net_r_vector *r_vec = file->private;
 	struct nfp_net_tx_ring *tx_ring;
@@ -86,10 +86,10 @@ static int nfp_tx_q_show(struct seq_file *file, void *data)
 
 	rtnl_lock();
 
-	if (debugfs_real_fops(file->file) == &nfp_tx_q_fops)
-		tx_ring = r_vec->tx_ring;
-	else
+	if (is_xdp)
 		tx_ring = r_vec->xdp_ring;
+	else
+		tx_ring = r_vec->tx_ring;
 	if (!r_vec->nfp_net || !tx_ring)
 		goto out;
 	nn = r_vec->nfp_net;
@@ -115,9 +115,14 @@ out:
 	return 0;
 }
 
+static int nfp_tx_q_show(struct seq_file *file, void *data)
+{
+	return __nfp_tx_q_show(file, data, false);
+}
+
 static int nfp_xdp_q_show(struct seq_file *file, void *data)
 {
-	return nfp_tx_q_show(file, data);
+	return __nfp_tx_q_show(file, data, true);
 }
 DEFINE_SHOW_ATTRIBUTE(nfp_xdp_q);
 

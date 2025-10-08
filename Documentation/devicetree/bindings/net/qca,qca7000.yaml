@@ -1,0 +1,109 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/qca,qca7000.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm QCA7000
+
+maintainers:
+  - Frank Li <Frank.Li@nxp.com>
+
+description: |
+  The QCA7000 is a serial-to-powerline bridge with a host interface which could
+  be configured either as SPI or UART slave. This configuration is done by
+  the QCA7000 firmware.
+
+  (a) Ethernet over SPI
+
+  In order to use the QCA7000 as SPI device it must be defined as a child of a
+  SPI master in the device tree.
+
+  (b) Ethernet over UART
+
+  In order to use the QCA7000 as UART slave it must be defined as a child of a
+  UART master in the device tree. It is possible to preconfigure the UART
+  settings of the QCA7000 firmware, but it's not possible to change them during
+  runtime
+
+properties:
+  compatible:
+    const: qca,qca7000
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  qca,legacy-mode:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      Set the SPI data transfer of the QCA7000 to legacy mode.
+      In this mode the SPI master must toggle the chip select
+      between each data word. In burst mode these gaps aren't
+      necessary, which is faster. This setting depends on how
+      the QCA7000 is setup via GPIO pin strapping. If the
+      property is missing the driver defaults to burst mode.
+
+allOf:
+  - $ref: ethernet-controller.yaml#
+
+  - if:
+      required:
+        - reg
+
+    then:
+      properties:
+        spi-cpha: true
+
+        spi-cpol: true
+
+        spi-max-frequency:
+          default: 8000000
+          maximum: 16000000
+          minimum: 1000000
+
+      allOf:
+        - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+    else:
+      properties:
+        current-speed:
+          default: 115200
+
+        qca,legacy-mode: false
+
+      allOf:
+        - $ref: /schemas/serial/serial-peripheral-props.yaml#
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    spi {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        ethernet@0 {
+            compatible = "qca,qca7000";
+            reg = <0x0>;
+            interrupt-parent = <&gpio3>;
+            interrupts = <25 IRQ_TYPE_EDGE_RISING>;
+            spi-cpha;
+            spi-cpol;
+            spi-max-frequency = <8000000>;
+            local-mac-address = [ a0 b0 c0 d0 e0 f0 ];
+        };
+    };
+
+  - |
+    serial {
+        ethernet {
+            compatible = "qca,qca7000";
+            local-mac-address = [ a0 b0 c0 d0 e0 f0 ];
+            current-speed = <38400>;
+        };
+    };

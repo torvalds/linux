@@ -1,0 +1,13 @@
+config DRM_IMX8_DC
+	tristate "Freescale i.MX8 Display Controller Graphics"
+	depends on DRM && COMMON_CLK && OF && (ARCH_MXC || COMPILE_TEST)
+	select DRM_CLIENT_SELECTION
+	select DRM_GEM_DMA_HELPER
+	select DRM_KMS_HELPER
+	select DRM_DISPLAY_HELPER
+	select DRM_BRIDGE_CONNECTOR
+	select GENERIC_IRQ_CHIP
+	select REGMAP
+	select REGMAP_MMIO
+	help
+	  enable Freescale i.MX8 Display Controller(DC) graphics support

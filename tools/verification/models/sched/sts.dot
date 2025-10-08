@@ -1,0 +1,38 @@
+digraph state_automaton {
+	center = true;
+	size = "7,11";
+	{node [shape = plaintext, style=invis, label=""] "__init_can_sched"};
+	{node [shape = doublecircle] "can_sched"};
+	{node [shape = circle] "can_sched"};
+	{node [shape = circle] "cant_sched"};
+	{node [shape = circle] "disable_to_switch"};
+	{node [shape = circle] "enable_to_exit"};
+	{node [shape = circle] "in_irq"};
+	{node [shape = circle] "scheduling"};
+	{node [shape = circle] "switching"};
+	"__init_can_sched" -> "can_sched";
+	"can_sched" [label = "can_sched", color = green3];
+	"can_sched" -> "cant_sched" [ label = "irq_disable" ];
+	"can_sched" -> "scheduling" [ label = "schedule_entry" ];
+	"cant_sched" [label = "cant_sched"];
+	"cant_sched" -> "can_sched" [ label = "irq_enable" ];
+	"cant_sched" -> "cant_sched" [ label = "irq_entry" ];
+	"disable_to_switch" [label = "disable_to_switch"];
+	"disable_to_switch" -> "enable_to_exit" [ label = "irq_enable" ];
+	"disable_to_switch" -> "in_irq" [ label = "irq_entry" ];
+	"disable_to_switch" -> "switching" [ label = "sched_switch" ];
+	"enable_to_exit" [label = "enable_to_exit"];
+	"enable_to_exit" -> "can_sched" [ label = "schedule_exit" ];
+	"enable_to_exit" -> "enable_to_exit" [ label = "irq_disable\nirq_entry\nirq_enable" ];
+	"in_irq" [label = "in_irq"];
+	"in_irq" -> "in_irq" [ label = "irq_entry" ];
+	"in_irq" -> "scheduling" [ label = "irq_enable" ];
+	"scheduling" [label = "scheduling"];
+	"scheduling" -> "disable_to_switch" [ label = "irq_disable" ];
+	"switching" [label = "switching"];
+	"switching" -> "enable_to_exit" [ label = "irq_enable" ];
+	{ rank = min ;
+		"__init_can_sched";
+		"can_sched";
+	}
+}

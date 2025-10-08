@@ -175,6 +175,10 @@ def tool(name, args, json=None, ns=None, host=None):
     return cmd_obj
 
 
+def bpftool(args, json=None, ns=None, host=None):
+    return tool('bpftool', args, json=json, ns=ns, host=host)
+
+
 def ip(args, json=None, ns=None, host=None):
     if ns:
         args = f'-netns {ns} ' + args
@@ -183,6 +187,41 @@ def ip(args, json=None, ns=None, host=None):
 
 def ethtool(args, json=None, ns=None, host=None):
     return tool('ethtool', args, json=json, ns=ns, host=host)
+
+
+def bpftrace(expr, json=None, ns=None, host=None, timeout=None):
+    """
+    Run bpftrace and return map data (if json=True).
+    The output of bpftrace is inconvenient, so the helper converts
+    to a dict indexed by map name, e.g.:
+     {
+       "@":     { ... },
+       "@map2": { ... },
+     }
+    """
+    cmd_arr = ['bpftrace']
+    # Throw in --quiet if json, otherwise the output has two objects
+    if json:
+        cmd_arr += ['-f', 'json', '-q']
+    if timeout:
+        expr += ' interval:s:' + str(timeout) + ' { exit(); }'
+    cmd_arr += ['-e', expr]
+    cmd_obj = cmd(cmd_arr, ns=ns, host=host, shell=False)
+    if json:
+        # bpftrace prints objects as lines
+        ret = {}
+        for l in cmd_obj.stdout.split('\n'):
+            if not l.strip():
+                continue
+            one = _json.loads(l)
+            if one.get('type') != 'map':
+                continue
+            for k, v in one["data"].items():
+                if k.startswith('@'):
+                    k = k.lstrip('@')
+                ret[k] = v
+        return ret
+    return cmd_obj
 
 
 def rand_port(type=socket.SOCK_STREAM):

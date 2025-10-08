@@ -78,7 +78,7 @@ static int task_set_syscall_user_dispatch(struct task_struct *task, unsigned lon
 		if (offset || len || selector)
 			return -EINVAL;
 		break;
-	case PR_SYS_DISPATCH_ON:
+	case PR_SYS_DISPATCH_EXCLUSIVE_ON:
 		/*
 		 * Validate the direct dispatcher region just for basic
 		 * sanity against overflow and a 0-sized dispatcher
@@ -87,30 +87,40 @@ static int task_set_syscall_user_dispatch(struct task_struct *task, unsigned lon
 		 */
 		if (offset && offset + len <= offset)
 			return -EINVAL;
-
+		break;
+	case PR_SYS_DISPATCH_INCLUSIVE_ON:
+		if (len == 0 || offset + len <= offset)
+			return -EINVAL;
 		/*
-		 * access_ok() will clear memory tags for tagged addresses
-		 * if current has memory tagging enabled.
-
-		 * To enable a tracer to set a tracees selector the
-		 * selector address must be untagged for access_ok(),
-		 * otherwise an untagged tracer will always fail to set a
-		 * tagged tracees selector.
+		 * Invert the range, the check in syscall_user_dispatch()
+		 * supports wrap-around.
 		 */
-		if (selector && !access_ok(untagged_addr(selector), sizeof(*selector)))
-			return -EFAULT;
-
+		offset = offset + len;
+		len = -len;
 		break;
 	default:
 		return -EINVAL;
 	}
+
+	/*
+	 * access_ok() will clear memory tags for tagged addresses
+	 * if current has memory tagging enabled.
+	 *
+	 * To enable a tracer to set a tracees selector the
+	 * selector address must be untagged for access_ok(),
+	 * otherwise an untagged tracer will always fail to set a
+	 * tagged tracees selector.
+	 */
+	if (mode != PR_SYS_DISPATCH_OFF && selector &&
+		!access_ok(untagged_addr(selector), sizeof(*selector)))
+		return -EFAULT;
 
 	task->syscall_dispatch.selector = selector;
 	task->syscall_dispatch.offset = offset;
 	task->syscall_dispatch.len = len;
 	task->syscall_dispatch.on_dispatch = false;
 
-	if (mode == PR_SYS_DISPATCH_ON)
+	if (mode != PR_SYS_DISPATCH_OFF)
 		set_task_syscall_work(task, SYSCALL_USER_DISPATCH);
 	else
 		clear_task_syscall_work(task, SYSCALL_USER_DISPATCH);

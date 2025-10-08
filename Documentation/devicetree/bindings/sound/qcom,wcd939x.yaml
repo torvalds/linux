@@ -45,6 +45,9 @@ properties:
       purpose of handling altmode muxing and orientation switching to detect and
       enable Audio Accessory Mode.
 
+  vdd-px-supply:
+    description: A reference to the 1.2V PX supply
+
 required:
   - compatible
 

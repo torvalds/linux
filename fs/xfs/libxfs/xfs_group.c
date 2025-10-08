@@ -163,7 +163,8 @@ xfs_group_free(
 
 	xfs_defer_drain_free(&xg->xg_intents_drain);
 #ifdef __KERNEL__
-	kfree(xg->xg_busy_extents);
+	if (xfs_group_has_extent_busy(xg->xg_mount, xg->xg_type))
+		kfree(xg->xg_busy_extents);
 #endif
 
 	if (uninit)
@@ -171,7 +172,8 @@ xfs_group_free(
 
 	/* drop the mount's active reference */
 	xfs_group_rele(xg);
-	XFS_IS_CORRUPT(mp, atomic_read(&xg->xg_active_ref) != 0);
+	XFS_IS_CORRUPT(mp, atomic_read(&xg->xg_active_ref) > 0);
+	XFS_IS_CORRUPT(mp, atomic_read(&xg->xg_active_ref) < 0);
 	kfree_rcu_mightsleep(xg);
 }
 
@@ -189,9 +191,11 @@ xfs_group_insert(
 	xg->xg_type = type;
 
 #ifdef __KERNEL__
-	xg->xg_busy_extents = xfs_extent_busy_alloc();
-	if (!xg->xg_busy_extents)
-		return -ENOMEM;
+	if (xfs_group_has_extent_busy(mp, type)) {
+		xg->xg_busy_extents = xfs_extent_busy_alloc();
+		if (!xg->xg_busy_extents)
+			return -ENOMEM;
+	}
 	spin_lock_init(&xg->xg_state_lock);
 	xfs_hooks_init(&xg->xg_rmap_update_hooks);
 #endif
@@ -210,7 +214,8 @@ xfs_group_insert(
 out_drain:
 	xfs_defer_drain_free(&xg->xg_intents_drain);
 #ifdef __KERNEL__
-	kfree(xg->xg_busy_extents);
+	if (xfs_group_has_extent_busy(xg->xg_mount, xg->xg_type))
+		kfree(xg->xg_busy_extents);
 #endif
 	return error;
 }

@@ -16,6 +16,7 @@ properties:
       - nvidia,tegra186-pmc
       - nvidia,tegra194-pmc
       - nvidia,tegra234-pmc
+      - nvidia,tegra264-pmc
 
   reg:
     minItems: 4

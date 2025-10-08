@@ -32,12 +32,10 @@
 
 #include <uapi/drm/i915_drm.h>
 
+#include <linux/pci.h>
 #include <linux/pm_qos.h>
 
 #include <drm/ttm/ttm_device.h>
-
-#include "display/intel_display_limits.h"
-#include "display/intel_display_core.h"
 
 #include "gem/i915_gem_context_types.h"
 #include "gem/i915_gem_shrinker.h"
@@ -62,11 +60,11 @@
 #include "intel_step.h"
 #include "intel_uncore.h"
 
+struct dram_info;
 struct drm_i915_clock_gating_funcs;
-struct vlv_s0ix_state;
+struct intel_display;
 struct intel_pxp;
-
-#define GEM_QUIRK_PIN_SWIZZLED_PAGES	BIT(0)
+struct vlv_s0ix_state;
 
 /* Data Stolen Memory (DSM) aka "i915 stolen memory" */
 struct i915_dsm {
@@ -177,7 +175,7 @@ struct i915_selftest_stash {
 struct drm_i915_private {
 	struct drm_device drm;
 
-	struct intel_display display;
+	struct intel_display *display;
 
 	/* FIXME: Device release actions should all be moved to drmm_ */
 	bool do_release;
@@ -224,12 +222,10 @@ struct drm_i915_private {
 
 	bool irqs_enabled;
 
-	/* LPT/WPT IOSF sideband protection */
-	struct mutex sbi_lock;
-
 	/* VLV/CHV IOSF sideband */
 	struct {
 		struct mutex lock; /* protect sideband access */
+		unsigned long locked_unit_mask;
 		struct pm_qos_request qos;
 	} vlv_iosf_sb;
 
@@ -285,25 +281,7 @@ struct drm_i915_private {
 	u32 suspend_count;
 	struct vlv_s0ix_state *vlv_s0ix_state;
 
-	struct dram_info {
-		bool wm_lv_0_adjust_needed;
-		u8 num_channels;
-		bool symmetric_memory;
-		enum intel_dram_type {
-			INTEL_DRAM_UNKNOWN,
-			INTEL_DRAM_DDR3,
-			INTEL_DRAM_DDR4,
-			INTEL_DRAM_LPDDR3,
-			INTEL_DRAM_LPDDR4,
-			INTEL_DRAM_DDR5,
-			INTEL_DRAM_LPDDR5,
-			INTEL_DRAM_GDDR,
-			INTEL_DRAM_GDDR_ECC,
-			__INTEL_DRAM_TYPE_MAX,
-		} type;
-		u8 num_qgv_points;
-		u8 num_psf_gv_points;
-	} dram_info;
+	const struct dram_info *dram_info;
 
 	struct intel_runtime_pm runtime_pm;
 
@@ -373,14 +351,6 @@ static inline struct intel_gt *to_gt(const struct drm_i915_private *i915)
 {
 	return i915->gt[0];
 }
-
-#define rb_to_uabi_engine(rb) \
-	rb_entry_safe(rb, struct intel_engine_cs, uabi_node)
-
-#define for_each_uabi_engine(engine__, i915__) \
-	for ((engine__) = rb_to_uabi_engine(rb_first(&(i915__)->uabi_engines));\
-	     (engine__); \
-	     (engine__) = rb_to_uabi_engine(rb_next(&(engine__)->uabi_node)))
 
 #define INTEL_INFO(i915)	((i915)->__info)
 #define RUNTIME_INFO(i915)	(&(i915)->__runtime)
@@ -589,29 +559,6 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 
 #define IS_GEN9_LP(i915)	(IS_BROXTON(i915) || IS_GEMINILAKE(i915))
 #define IS_GEN9_BC(i915)	(GRAPHICS_VER(i915) == 9 && !IS_GEN9_LP(i915))
-
-#define __HAS_ENGINE(engine_mask, id) ((engine_mask) & BIT(id))
-#define HAS_ENGINE(gt, id) __HAS_ENGINE((gt)->info.engine_mask, id)
-
-#define __ENGINE_INSTANCES_MASK(mask, first, count) ({			\
-	unsigned int first__ = (first);					\
-	unsigned int count__ = (count);					\
-	((mask) & GENMASK(first__ + count__ - 1, first__)) >> first__;	\
-})
-
-#define ENGINE_INSTANCES_MASK(gt, first, count) \
-	__ENGINE_INSTANCES_MASK((gt)->info.engine_mask, first, count)
-
-#define RCS_MASK(gt) \
-	ENGINE_INSTANCES_MASK(gt, RCS0, I915_MAX_RCS)
-#define BCS_MASK(gt) \
-	ENGINE_INSTANCES_MASK(gt, BCS0, I915_MAX_BCS)
-#define VDBOX_MASK(gt) \
-	ENGINE_INSTANCES_MASK(gt, VCS0, I915_MAX_VCS)
-#define VEBOX_MASK(gt) \
-	ENGINE_INSTANCES_MASK(gt, VECS0, I915_MAX_VECS)
-#define CCS_MASK(gt) \
-	ENGINE_INSTANCES_MASK(gt, CCS0, I915_MAX_CCS)
 
 #define HAS_MEDIA_RATIO_MODE(i915) (INTEL_INFO(i915)->has_media_ratio_mode)
 

@@ -1,0 +1,48 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/phy/hisilicon,hix5hd2-sata-phy.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: HiSilicon hix5hd2 SATA PHY
+
+maintainers:
+  - Jiancheng Xue <xuejiancheng@huawei.com>
+
+properties:
+  compatible:
+    const: hisilicon,hix5hd2-sata-phy
+
+  reg:
+    maxItems: 1
+
+  '#phy-cells':
+    const: 0
+
+  hisilicon,peripheral-syscon:
+    description: Phandle of syscon used to control peripheral
+    $ref: /schemas/types.yaml#/definitions/phandle
+
+  hisilicon,power-reg:
+    description: Offset and bit number within peripheral-syscon register controlling SATA power supply
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    items:
+      - description: Offset within peripheral-syscon register
+      - description: Bit number controlling SATA power supply
+
+required:
+  - compatible
+  - reg
+  - '#phy-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    phy@f9900000 {
+        compatible = "hisilicon,hix5hd2-sata-phy";
+        reg = <0xf9900000 0x10000>;
+        #phy-cells = <0>;
+        hisilicon,peripheral-syscon = <&peripheral_ctrl>;
+        hisilicon,power-reg = <0x8 10>;
+    };

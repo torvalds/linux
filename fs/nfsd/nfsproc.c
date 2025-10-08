@@ -575,7 +575,7 @@ static void nfsd_init_dirlist_pages(struct svc_rqst *rqstp,
 	buf->pages = rqstp->rq_next_page;
 	rqstp->rq_next_page++;
 
-	xdr_init_encode_pages(xdr, buf, buf->pages,  NULL);
+	xdr_init_encode_pages(xdr, buf);
 }
 
 /*

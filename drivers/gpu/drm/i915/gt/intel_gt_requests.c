@@ -250,11 +250,17 @@ void intel_gt_watchdog_work(struct work_struct *work)
 	llist_for_each_entry_safe(rq, rn, first, watchdog.link) {
 		if (!i915_request_completed(rq)) {
 			struct dma_fence *f = &rq->fence;
+			const char __rcu *timeline;
+			const char __rcu *driver;
 
+			rcu_read_lock();
+			driver = dma_fence_driver_name(f);
+			timeline = dma_fence_timeline_name(f);
 			pr_notice("Fence expiration time out i915-%s:%s:%llx!\n",
-				  f->ops->get_driver_name(f),
-				  f->ops->get_timeline_name(f),
+				  rcu_dereference(driver),
+				  rcu_dereference(timeline),
 				  f->seqno);
+			rcu_read_unlock();
 			i915_request_cancel(rq, -EINTR);
 		}
 		i915_request_put(rq);

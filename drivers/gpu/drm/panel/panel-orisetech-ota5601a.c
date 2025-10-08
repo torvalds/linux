@@ -237,9 +237,11 @@ static int ota5601a_probe(struct spi_device *spi)
 	struct ota5601a *panel;
 	int err;
 
-	panel = devm_kzalloc(dev, sizeof(*panel), GFP_KERNEL);
-	if (!panel)
-		return -ENOMEM;
+	panel = devm_drm_panel_alloc(dev, struct ota5601a, drm_panel,
+				     &ota5601a_funcs,
+				     DRM_MODE_CONNECTOR_DPI);
+	if (IS_ERR(panel))
+		return PTR_ERR(panel);
 
 	spi_set_drvdata(spi, panel);
 
@@ -272,9 +274,6 @@ static int ota5601a_probe(struct spi_device *spi)
 		dev_err(dev, "Failed to init regmap\n");
 		return PTR_ERR(panel->map);
 	}
-
-	drm_panel_init(&panel->drm_panel, dev, &ota5601a_funcs,
-		       DRM_MODE_CONNECTOR_DPI);
 
 	err = drm_panel_of_backlight(&panel->drm_panel);
 	if (err) {

@@ -10,6 +10,7 @@
 struct tcf_mpls_params {
 	int tcfm_action;
 	u32 tcfm_label;
+	int action; /* tcf_action */
 	u8 tcfm_tc;
 	u8 tcfm_ttl;
 	u8 tcfm_bos;
@@ -26,15 +27,6 @@ struct tcf_mpls {
 	struct tcf_mpls_params __rcu *mpls_p;
 };
 #define to_mpls(a) ((struct tcf_mpls *)a)
-
-static inline bool is_tcf_mpls(const struct tc_action *a)
-{
-#ifdef CONFIG_NET_CLS_ACT
-	if (a->ops && a->ops->id == TCA_ID_MPLS)
-		return true;
-#endif
-	return false;
-}
 
 static inline u32 tcf_mpls_action(const struct tc_action *a)
 {

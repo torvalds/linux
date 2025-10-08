@@ -9,6 +9,30 @@
 #include <linux/types.h>
 #include <linux/tracepoint.h>
 
+TRACE_EVENT(damos_esz,
+
+	TP_PROTO(unsigned int context_idx, unsigned int scheme_idx,
+		unsigned long esz),
+
+	TP_ARGS(context_idx, scheme_idx, esz),
+
+	TP_STRUCT__entry(
+		__field(unsigned int, context_idx)
+		__field(unsigned int, scheme_idx)
+		__field(unsigned long, esz)
+	),
+
+	TP_fast_assign(
+		__entry->context_idx = context_idx;
+		__entry->scheme_idx = scheme_idx;
+		__entry->esz = esz;
+	),
+
+	TP_printk("ctx_idx=%u scheme_idx=%u esz=%lu",
+			__entry->context_idx, __entry->scheme_idx,
+			__entry->esz)
+);
+
 TRACE_EVENT_CONDITION(damos_before_apply,
 
 	TP_PROTO(unsigned int context_idx, unsigned int scheme_idx,
@@ -46,6 +70,23 @@ TRACE_EVENT_CONDITION(damos_before_apply,
 			__entry->target_idx, __entry->nr_regions,
 			__entry->start, __entry->end,
 			__entry->nr_accesses, __entry->age)
+);
+
+TRACE_EVENT(damon_monitor_intervals_tune,
+
+	TP_PROTO(unsigned long sample_us),
+
+	TP_ARGS(sample_us),
+
+	TP_STRUCT__entry(
+		__field(unsigned long, sample_us)
+	),
+
+	TP_fast_assign(
+		__entry->sample_us = sample_us;
+	),
+
+	TP_printk("sample_us=%lu", __entry->sample_us)
 );
 
 TRACE_EVENT(damon_aggregated,

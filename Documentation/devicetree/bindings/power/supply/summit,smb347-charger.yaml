@@ -23,9 +23,7 @@ properties:
   interrupts:
     maxItems: 1
 
-  monitored-battery:
-    description: phandle to the battery node
-    $ref: /schemas/types.yaml#/definitions/phandle
+  monitored-battery: true
 
   summit,enable-usb-charging:
     type: boolean
@@ -94,6 +92,7 @@ properties:
     unevaluatedProperties: false
 
 allOf:
+  - $ref: power-supply.yaml#
   - if:
       properties:
         compatible:

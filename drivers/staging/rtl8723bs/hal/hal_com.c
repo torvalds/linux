@@ -569,19 +569,12 @@ void rtw_hal_update_sta_rate_mask(struct adapter *padapter, struct sta_info *pst
 	psta->init_rate = get_highest_rate_idx(tx_ra_bitmap)&0x3f;
 }
 
-void hw_var_port_switch(struct adapter *adapter)
-{
-}
-
 void SetHwReg(struct adapter *adapter, u8 variable, u8 *val)
 {
 	struct hal_com_data *hal_data = GET_HAL_DATA(adapter);
 	struct dm_odm_t *odm = &(hal_data->odmpriv);
 
 	switch (variable) {
-	case HW_VAR_PORT_SWITCH:
-		hw_var_port_switch(adapter);
-		break;
 	case HW_VAR_INIT_RTS_RATE:
 		rtw_warn_on(1);
 		break;

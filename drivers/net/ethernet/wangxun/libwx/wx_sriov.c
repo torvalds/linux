@@ -64,6 +64,7 @@ static void wx_sriov_clear_data(struct wx *wx)
 	wr32m(wx, WX_PSR_VM_CTL, WX_PSR_VM_CTL_POOL_MASK, 0);
 	wx->ring_feature[RING_F_VMDQ].offset = 0;
 
+	clear_bit(WX_FLAG_IRQ_VECTOR_SHARED, wx->flags);
 	clear_bit(WX_FLAG_SRIOV_ENABLED, wx->flags);
 	/* Disable VMDq flag so device will be set in NM mode */
 	if (wx->ring_feature[RING_F_VMDQ].limit == 1)
@@ -77,6 +78,9 @@ static int __wx_enable_sriov(struct wx *wx, u8 num_vfs)
 
 	set_bit(WX_FLAG_SRIOV_ENABLED, wx->flags);
 	dev_info(&wx->pdev->dev, "SR-IOV enabled with %d VFs\n", num_vfs);
+
+	if (num_vfs == 7 && wx->mac.type == wx_mac_em)
+		set_bit(WX_FLAG_IRQ_VECTOR_SHARED, wx->flags);
 
 	/* Enable VMDq flag so device will be set in VM mode */
 	set_bit(WX_FLAG_VMDQ_ENABLED, wx->flags);

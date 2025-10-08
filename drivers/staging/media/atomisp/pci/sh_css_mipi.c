@@ -185,17 +185,6 @@ mipi_init(void)
 		ref_count_mipi_allocation[i] = 0;
 }
 
-bool mipi_is_free(void)
-{
-	unsigned int i;
-
-	for (i = 0; i < N_CSI_PORTS; i++)
-		if (ref_count_mipi_allocation[i])
-			return false;
-
-	return true;
-}
-
 /*
  * @brief Calculate the required MIPI buffer sizes.
  * Based on the stream configuration, calculate the

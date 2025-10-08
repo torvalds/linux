@@ -9,6 +9,7 @@
  *
  */
 
+#include <linux/export.h>
 #include <linux/ctype.h>
 #include <linux/init.h>
 

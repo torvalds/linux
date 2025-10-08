@@ -121,7 +121,7 @@ static struct attribute *secvar_attrs[] = {
 
 static const struct attribute_group secvar_attr_group = {
 	.attrs = secvar_attrs,
-	.bin_attrs_new = secvar_bin_attrs,
+	.bin_attrs = secvar_bin_attrs,
 };
 __ATTRIBUTE_GROUPS(secvar_attr);
 

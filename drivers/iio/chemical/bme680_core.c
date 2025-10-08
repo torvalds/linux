@@ -158,7 +158,7 @@ const struct regmap_config bme680_regmap_config = {
 	.val_bits = 8,
 	.max_register = 0xef,
 	.volatile_table = &bme680_volatile_table,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 EXPORT_SYMBOL_NS(bme680_regmap_config, "IIO_BME680");
 

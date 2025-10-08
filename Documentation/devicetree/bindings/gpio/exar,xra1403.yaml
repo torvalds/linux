@@ -1,0 +1,75 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/gpio/exar,xra1403.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: XRA1403 16-bit GPIO Expander with Reset Input
+
+maintainers:
+  - Nandor Han <nandor.han@ge.com>
+
+description: >
+  The XRA1403 is an 16-bit GPIO expander with an SPI interface. Features
+  available:
+
+    - Individually programmable inputs:
+        - Internal pull-up resistors
+        - Polarity inversion
+        - Individual interrupt enable
+        - Rising edge and/or Falling edge interrupt
+        - Input filter
+    - Individually programmable outputs:
+        - Output Level Control
+        - Output Three-State Control
+
+properties:
+  compatible:
+    const: exar,xra1403
+
+  reg:
+    maxItems: 1
+
+  gpio-controller: true
+
+  '#gpio-cells':
+    const: 2
+
+  interrupt-controller: true
+
+  '#interrupt-cells':
+    const: 2
+
+  reset-gpios:
+    description: Control line for the device reset.
+
+required:
+  - compatible
+  - reg
+  - gpio-controller
+  - '#gpio-cells'
+
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    spi {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        gpio@2 {
+            compatible = "exar,xra1403";
+            reg = <2>;
+            spi-max-frequency = <1000000>;
+            gpio-controller;
+            #gpio-cells = <2>;
+            interrupt-controller;
+            #interrupt-cells = <2>;
+            reset-gpios = <&gpio3 6 GPIO_ACTIVE_LOW>;
+        };
+    };

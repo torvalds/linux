@@ -498,6 +498,8 @@ struct sof_ipc4_intel_mic_privacy_cap {
 #define SOF_IPC4_LOG_CORE_GET(x)		(((x) & SOF_IPC4_LOG_CORE_MASK) >> \
 						 SOF_IPC4_LOG_CORE_SHIFT)
 
+#define SOF_IPC4_FW_READY_LIB_RESTORED		BIT(15)
+
 /* Value of notification type field - must fit into 8 bits */
 enum sof_ipc4_notification_type {
 	/* Phrase detected (notification from WoV module) */

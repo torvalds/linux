@@ -84,6 +84,7 @@ static const struct hbg_ethtool_stats hbg_ethtool_stats_info[] = {
 			HBG_REG_TX_EXCESSIVE_LENGTH_DROP_ADDR),
 	HBG_STATS_I(tx_dma_err_cnt),
 	HBG_STATS_I(tx_timeout_cnt),
+	HBG_STATS_I(reset_fail_cnt),
 };
 
 static const struct hbg_ethtool_stats hbg_ethtool_rmon_stats_info[] = {

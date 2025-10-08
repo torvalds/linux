@@ -66,14 +66,6 @@
 # include "test-libslang.c"
 #undef main
 
-#define main main_test_libbfd
-# include "test-libbfd.c"
-#undef main
-
-#define main main_test_libbfd_buildid
-# include "test-libbfd-buildid.c"
-#undef main
-
 #define main main_test_backtrace
 # include "test-backtrace.c"
 #undef main
@@ -138,10 +130,6 @@
 # include "test-bpf.c"
 #undef main
 
-#define main main_test_libcrypto
-# include "test-libcrypto.c"
-#undef main
-
 #define main main_test_sdt
 # include "test-sdt.c"
 #undef main
@@ -156,14 +144,6 @@
 
 #define main main_test_reallocarray
 # include "test-reallocarray.c"
-#undef main
-
-#define main main_test_disassembler_four_args
-# include "test-disassembler-four-args.c"
-#undef main
-
-#define main main_test_disassembler_init_styled
-# include "test-disassembler-init-styled.c"
 #undef main
 
 #define main main_test_libzstd
@@ -193,8 +173,6 @@ int main(int argc, char *argv[])
 	main_test_libelf_gelf_getnote();
 	main_test_libelf_getshdrstrndx();
 	main_test_libslang();
-	main_test_libbfd();
-	main_test_libbfd_buildid();
 	main_test_backtrace();
 	main_test_libnuma();
 	main_test_numa_num_possible_cpus();
@@ -206,14 +184,12 @@ int main(int argc, char *argv[])
 	main_test_lzma();
 	main_test_get_cpuid();
 	main_test_bpf();
-	main_test_libcrypto();
 	main_test_scandirat();
 	main_test_sched_getcpu();
 	main_test_sdt();
 	main_test_setns();
 	main_test_libaio();
 	main_test_reallocarray();
-	main_test_disassembler_four_args();
 	main_test_libzstd();
 	main_test_libtraceevent();
 	main_test_libtracefs();

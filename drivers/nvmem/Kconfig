@@ -31,7 +31,6 @@ source "drivers/nvmem/layouts/Kconfig"
 config NVMEM_APPLE_EFUSES
 	tristate "Apple eFuse support"
 	depends on ARCH_APPLE || COMPILE_TEST
-	default ARCH_APPLE
 	help
 	  Say y here to enable support for reading eFuses on Apple SoCs
 	  such as the M1. These are e.g. used to store factory programmed

@@ -27,18 +27,29 @@ struct tree_mod_elem {
 	/* This is used for BTRFS_MOD_LOG_KEY* and BTRFS_MOD_LOG_ROOT_REPLACE. */
 	u64 generation;
 
-	/* Those are used for op == BTRFS_MOD_LOG_KEY_{REPLACE,REMOVE}. */
-	struct btrfs_disk_key key;
-	u64 blockptr;
+	union {
+		/*
+		 * This is used for the following op types:
+		 *
+		 *    BTRFS_MOD_LOG_KEY_REMOVE_WHILE_FREEING
+		 *    BTRFS_MOD_LOG_KEY_REMOVE_WHILE_MOVING
+		 *    BTRFS_MOD_LOG_KEY_REMOVE
+		 *    BTRFS_MOD_LOG_KEY_REPLACE
+		 */
+		struct {
+			struct btrfs_disk_key key;
+			u64 blockptr;
+		} slot_change;
 
-	/* This is used for op == BTRFS_MOD_LOG_MOVE_KEYS. */
-	struct {
-		int dst_slot;
-		int nr_items;
-	} move;
+		/* This is used for op == BTRFS_MOD_LOG_MOVE_KEYS. */
+		struct {
+			int dst_slot;
+			int nr_items;
+		} move;
 
-	/* This is used for op == BTRFS_MOD_LOG_ROOT_REPLACE. */
-	struct tree_mod_root old_root;
+		/* This is used for op == BTRFS_MOD_LOG_ROOT_REPLACE. */
+		struct tree_mod_root old_root;
+	};
 };
 
 /*
@@ -164,6 +175,30 @@ static noinline int tree_mod_log_insert(struct btrfs_fs_info *fs_info,
 	return 0;
 }
 
+static inline bool skip_eb_logging(const struct extent_buffer *eb)
+{
+	const u64 owner = btrfs_header_owner(eb);
+
+	if (btrfs_header_level(eb) == 0)
+		return true;
+
+	/*
+	 * Tree mod logging exists so that there's a consistent view of the
+	 * extents and backrefs of inodes even if while a task is iterating over
+	 * them other tasks are modifying subvolume trees and the extent tree
+	 * (including running delayed refs). So we only need to log extent
+	 * buffers from the extent tree and subvolume trees.
+	 */
+
+	if (owner == BTRFS_EXTENT_TREE_OBJECTID)
+		return false;
+
+	if (btrfs_is_fstree(owner))
+		return false;
+
+	return true;
+}
+
 /*
  * Determines if logging can be omitted. Returns true if it can. Otherwise, it
  * returns false with the tree_mod_log_lock acquired. The caller must hold
@@ -174,7 +209,7 @@ static bool tree_mod_dont_log(struct btrfs_fs_info *fs_info, const struct extent
 {
 	if (!test_bit(BTRFS_FS_TREE_MOD_LOG_USERS, &fs_info->flags))
 		return true;
-	if (eb && btrfs_header_level(eb) == 0)
+	if (eb && skip_eb_logging(eb))
 		return true;
 
 	write_lock(&fs_info->tree_mod_log_lock);
@@ -192,7 +227,7 @@ static bool tree_mod_need_log(const struct btrfs_fs_info *fs_info,
 {
 	if (!test_bit(BTRFS_FS_TREE_MOD_LOG_USERS, &fs_info->flags))
 		return false;
-	if (eb && btrfs_header_level(eb) == 0)
+	if (eb && skip_eb_logging(eb))
 		return false;
 
 	return true;
@@ -204,15 +239,17 @@ static struct tree_mod_elem *alloc_tree_mod_elem(const struct extent_buffer *eb,
 {
 	struct tree_mod_elem *tm;
 
+	/* Can't be one of these types, due to union in struct tree_mod_elem. */
+	ASSERT(op != BTRFS_MOD_LOG_MOVE_KEYS);
+	ASSERT(op != BTRFS_MOD_LOG_ROOT_REPLACE);
+
 	tm = kzalloc(sizeof(*tm), GFP_NOFS);
 	if (!tm)
 		return NULL;
 
 	tm->logical = eb->start;
-	if (op != BTRFS_MOD_LOG_KEY_ADD) {
-		btrfs_node_key(eb, &tm->key, slot);
-		tm->blockptr = btrfs_node_blockptr(eb, slot);
-	}
+	btrfs_node_key(eb, &tm->slot_change.key, slot);
+	tm->slot_change.blockptr = btrfs_node_blockptr(eb, slot);
 	tm->op = op;
 	tm->slot = slot;
 	tm->generation = btrfs_node_ptr_generation(eb, slot);
@@ -830,8 +867,8 @@ static void tree_mod_log_rewind(struct btrfs_fs_info *fs_info,
 			fallthrough;
 		case BTRFS_MOD_LOG_KEY_REMOVE_WHILE_MOVING:
 		case BTRFS_MOD_LOG_KEY_REMOVE:
-			btrfs_set_node_key(eb, &tm->key, tm->slot);
-			btrfs_set_node_blockptr(eb, tm->slot, tm->blockptr);
+			btrfs_set_node_key(eb, &tm->slot_change.key, tm->slot);
+			btrfs_set_node_blockptr(eb, tm->slot, tm->slot_change.blockptr);
 			btrfs_set_node_ptr_generation(eb, tm->slot,
 						      tm->generation);
 			n++;
@@ -840,8 +877,8 @@ static void tree_mod_log_rewind(struct btrfs_fs_info *fs_info,
 			break;
 		case BTRFS_MOD_LOG_KEY_REPLACE:
 			BUG_ON(tm->slot >= n);
-			btrfs_set_node_key(eb, &tm->key, tm->slot);
-			btrfs_set_node_blockptr(eb, tm->slot, tm->blockptr);
+			btrfs_set_node_key(eb, &tm->slot_change.key, tm->slot);
+			btrfs_set_node_blockptr(eb, tm->slot, tm->slot_change.blockptr);
 			btrfs_set_node_ptr_generation(eb, tm->slot,
 						      tm->generation);
 			break;

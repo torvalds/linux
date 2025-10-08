@@ -414,7 +414,7 @@ async_raid6_2data_recov(int disks, size_t bytes, int faila, int failb,
 		async_tx_quiesce(&submit->depend_tx);
 		for (i = 0; i < disks; i++)
 			if (blocks[i] == NULL)
-				ptrs[i] = (void *) raid6_empty_zero_page;
+				ptrs[i] = raid6_get_zero_page();
 			else
 				ptrs[i] = page_address(blocks[i]) + offs[i];
 
@@ -497,7 +497,7 @@ async_raid6_datap_recov(int disks, size_t bytes, int faila,
 		async_tx_quiesce(&submit->depend_tx);
 		for (i = 0; i < disks; i++)
 			if (blocks[i] == NULL)
-				ptrs[i] = (void*)raid6_empty_zero_page;
+				ptrs[i] = raid6_get_zero_page();
 			else
 				ptrs[i] = page_address(blocks[i]) + offs[i];
 

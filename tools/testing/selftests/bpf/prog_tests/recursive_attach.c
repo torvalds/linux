@@ -149,3 +149,70 @@ close_prog:
 	fentry_recursive_target__destroy(target_skel);
 	fentry_recursive__destroy(tracing_skel);
 }
+
+static void *fentry_target_test_run(void *arg)
+{
+	for (;;) {
+		int prog_fd = __atomic_load_n((int *)arg, __ATOMIC_SEQ_CST);
+		LIBBPF_OPTS(bpf_test_run_opts, topts);
+		int err;
+
+		if (prog_fd == -1)
+			break;
+		err = bpf_prog_test_run_opts(prog_fd, &topts);
+		if (!ASSERT_OK(err, "fentry_target test_run"))
+			break;
+	}
+
+	return NULL;
+}
+
+void test_fentry_attach_stress(void)
+{
+	struct fentry_recursive_target *target_skel = NULL;
+	struct fentry_recursive *tracing_skel = NULL;
+	struct bpf_program *prog;
+	int err, i, tgt_prog_fd;
+	pthread_t thread;
+
+	target_skel = fentry_recursive_target__open_and_load();
+	if (!ASSERT_OK_PTR(target_skel,
+			   "fentry_recursive_target__open_and_load"))
+		goto close_prog;
+	tgt_prog_fd = bpf_program__fd(target_skel->progs.fentry_target);
+	err = pthread_create(&thread, NULL,
+			     fentry_target_test_run, &tgt_prog_fd);
+	if (!ASSERT_OK(err, "bpf_program__set_attach_target"))
+		goto close_prog;
+
+	for (i = 0; i < 1000; i++) {
+		tracing_skel = fentry_recursive__open();
+		if (!ASSERT_OK_PTR(tracing_skel, "fentry_recursive__open"))
+			goto stop_thread;
+
+		prog = tracing_skel->progs.recursive_attach;
+		err = bpf_program__set_attach_target(prog, tgt_prog_fd,
+						     "fentry_target");
+		if (!ASSERT_OK(err, "bpf_program__set_attach_target"))
+			goto stop_thread;
+
+		err = fentry_recursive__load(tracing_skel);
+		if (!ASSERT_OK(err, "fentry_recursive__load"))
+			goto stop_thread;
+
+		err = fentry_recursive__attach(tracing_skel);
+		if (!ASSERT_OK(err, "fentry_recursive__attach"))
+			goto stop_thread;
+
+		fentry_recursive__destroy(tracing_skel);
+		tracing_skel = NULL;
+	}
+
+stop_thread:
+	__atomic_store_n(&tgt_prog_fd, -1, __ATOMIC_SEQ_CST);
+	err = pthread_join(thread, NULL);
+	ASSERT_OK(err, "pthread_join");
+close_prog:
+	fentry_recursive__destroy(tracing_skel);
+	fentry_recursive_target__destroy(target_skel);
+}

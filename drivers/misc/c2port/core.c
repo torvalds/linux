@@ -888,7 +888,7 @@ static size_t c2port_bin_attr_size(struct kobject *kobj,
 
 static const struct attribute_group c2port_group = {
 	.attrs = c2port_attrs,
-	.bin_attrs_new = c2port_bin_attrs,
+	.bin_attrs = c2port_bin_attrs,
 	.bin_size = c2port_bin_attr_size,
 };
 

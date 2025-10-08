@@ -20,6 +20,9 @@ properties:
   reg:
     maxItems: 1
 
+  interrupts:
+    maxItems: 1
+
   '#pse-cells':
     const: 1
 
@@ -27,10 +30,12 @@ properties:
     maxItems: 1
 
   channels:
-    description: each set of 8 ports can be assigned to one physical
-      channels or two for PoE4. This parameter describes the configuration
-      of the ports conversion matrix that establishes relationship between
-      the logical ports and the physical channels.
+    description: |
+      Defines the 8 physical delivery channels on the controller that can
+      be referenced by PSE PIs through their "pairsets" property. The actual
+      port matrix mapping is created when PSE PIs reference these channels in
+      their pairsets. For 4-pair operation, two channels from the same group
+      (0-3 or 4-7) must be referenced by a single PSE PI.
     type: object
     additionalProperties: false
 
@@ -62,9 +67,12 @@ unevaluatedProperties: false
 required:
   - compatible
   - reg
+  - interrupts
 
 examples:
   - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+
     i2c {
       #address-cells = <1>;
       #size-cells = <0>;
@@ -72,6 +80,8 @@ examples:
       ethernet-pse@20 {
         compatible = "ti,tps23881";
         reg = <0x20>;
+        interrupts = <8 IRQ_TYPE_LEVEL_HIGH>;
+        interrupt-parent = <&gpiog>;
 
         channels {
           #address-cells = <1>;

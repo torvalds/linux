@@ -3,7 +3,7 @@
  * SGI IP30 miscellaneous setup bits.
  *
  * Copyright (C) 2004-2007 Stanislaw Skowronek <skylark@unaligned.org>
- *               2007 Joshua Kinard <kumba@gentoo.org>
+ *               2007 Joshua Kinard <linux@kumba.dev>
  *               2009 Johannes Dickgreber <tanzy@gmx.de>
  */
 

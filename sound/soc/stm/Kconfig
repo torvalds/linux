@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-only
-menu "STMicroelectronics STM32 SOC audio support"
+menu "STMicroelectronics STM32"
 
 config SND_SOC_STM32_SAI
 	tristate "STM32 SAI interface (Serial Audio Interface) support"

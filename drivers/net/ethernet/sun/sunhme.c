@@ -451,7 +451,7 @@ static void happy_meal_tcvr_write(struct happy_meal *hp,
 /* Auto negotiation.  The scheme is very simple.  We have a timer routine
  * that keeps watching the auto negotiation process as it progresses.
  * The DP83840 is first told to start doing it's thing, we set up the time
- * and place the timer state machine in it's initial state.
+ * and place the timer state machine in its initial state.
  *
  * Here the timer peeks at the DP83840 status registers at each click to see
  * if the auto negotiation has completed, we assume here that the DP83840 PHY

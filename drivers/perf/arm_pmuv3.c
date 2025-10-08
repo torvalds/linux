@@ -25,6 +25,8 @@
 #include <linux/smp.h>
 #include <linux/nmi.h>
 
+#include "arm_brbe.h"
+
 /* ARMv8 Cortex-A53 specific event types. */
 #define ARMV8_A53_PERFCTR_PREF_LINEFILL				0xC2
 
@@ -438,7 +440,19 @@ static ssize_t threshold_max_show(struct device *dev,
 
 static DEVICE_ATTR_RO(threshold_max);
 
+static ssize_t branches_show(struct device *dev,
+			     struct device_attribute *attr, char *page)
+{
+	struct pmu *pmu = dev_get_drvdata(dev);
+	struct arm_pmu *cpu_pmu = container_of(pmu, struct arm_pmu, pmu);
+
+	return sysfs_emit(page, "%d\n", brbe_num_branch_records(cpu_pmu));
+}
+
+static DEVICE_ATTR_RO(branches);
+
 static struct attribute *armv8_pmuv3_caps_attrs[] = {
+	&dev_attr_branches.attr,
 	&dev_attr_slots.attr,
 	&dev_attr_bus_slots.attr,
 	&dev_attr_bus_width.attr,
@@ -446,9 +460,22 @@ static struct attribute *armv8_pmuv3_caps_attrs[] = {
 	NULL,
 };
 
+static umode_t caps_is_visible(struct kobject *kobj, struct attribute *attr, int i)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct pmu *pmu = dev_get_drvdata(dev);
+	struct arm_pmu *cpu_pmu = container_of(pmu, struct arm_pmu, pmu);
+
+	if (i == 0)
+		return brbe_num_branch_records(cpu_pmu) ? attr->mode : 0;
+
+	return attr->mode;
+}
+
 static const struct attribute_group armv8_pmuv3_caps_attr_group = {
 	.name = "caps",
 	.attrs = armv8_pmuv3_caps_attrs,
+	.is_visible = caps_is_visible,
 };
 
 /*
@@ -809,6 +836,7 @@ static void armv8pmu_disable_event(struct perf_event *event)
 static void armv8pmu_start(struct arm_pmu *cpu_pmu)
 {
 	struct perf_event_context *ctx;
+	struct pmu_hw_events *hw_events = this_cpu_ptr(cpu_pmu->hw_events);
 	int nr_user = 0;
 
 	ctx = perf_cpu_task_ctx();
@@ -822,14 +850,32 @@ static void armv8pmu_start(struct arm_pmu *cpu_pmu)
 
 	kvm_vcpu_pmu_resync_el0();
 
+	if (hw_events->branch_users)
+		brbe_enable(cpu_pmu);
+
 	/* Enable all counters */
 	armv8pmu_pmcr_write(armv8pmu_pmcr_read() | ARMV8_PMU_PMCR_E);
 }
 
 static void armv8pmu_stop(struct arm_pmu *cpu_pmu)
 {
+	struct pmu_hw_events *hw_events = this_cpu_ptr(cpu_pmu->hw_events);
+
+	if (hw_events->branch_users)
+		brbe_disable();
+
 	/* Disable all counters */
 	armv8pmu_pmcr_write(armv8pmu_pmcr_read() & ~ARMV8_PMU_PMCR_E);
+}
+
+static void read_branch_records(struct pmu_hw_events *cpuc,
+				struct perf_event *event,
+				struct perf_sample_data *data)
+{
+	struct perf_branch_stack *branch_stack = cpuc->branch_stack;
+
+	brbe_read_filtered_entries(branch_stack, event);
+	perf_sample_save_brstack(data, event, branch_stack, NULL);
 }
 
 static irqreturn_t armv8pmu_handle_irq(struct arm_pmu *cpu_pmu)
@@ -881,6 +927,9 @@ static irqreturn_t armv8pmu_handle_irq(struct arm_pmu *cpu_pmu)
 		perf_sample_data_init(&data, 0, hwc->last_period);
 		if (!armpmu_event_set_period(event))
 			continue;
+
+		if (has_branch_stack(event))
+			read_branch_records(cpuc, event, &data);
 
 		/*
 		 * Perf event overflow will queue the processing of the event as
@@ -938,7 +987,7 @@ static int armv8pmu_get_event_idx(struct pmu_hw_events *cpuc,
 
 	/* Always prefer to place a cycle counter into the cycle counter. */
 	if ((evtype == ARMV8_PMUV3_PERFCTR_CPU_CYCLES) &&
-	    !armv8pmu_event_get_threshold(&event->attr)) {
+	    !armv8pmu_event_get_threshold(&event->attr) && !has_branch_stack(event)) {
 		if (!test_and_set_bit(ARMV8_PMU_CYCLE_IDX, cpuc->used_mask))
 			return ARMV8_PMU_CYCLE_IDX;
 		else if (armv8pmu_event_is_64bit(event) &&
@@ -987,6 +1036,19 @@ static int armv8pmu_user_event_idx(struct perf_event *event)
 	return event->hw.idx + 1;
 }
 
+static void armv8pmu_sched_task(struct perf_event_pmu_context *pmu_ctx,
+				struct task_struct *task, bool sched_in)
+{
+	struct arm_pmu *armpmu = *this_cpu_ptr(&cpu_armpmu);
+	struct pmu_hw_events *hw_events = this_cpu_ptr(armpmu->hw_events);
+
+	if (!hw_events->branch_users)
+		return;
+
+	if (sched_in)
+		brbe_invalidate();
+}
+
 /*
  * Add an event filter to a given event.
  */
@@ -1002,6 +1064,13 @@ static int armv8pmu_set_event_filter(struct hw_perf_event *event,
 	if (attr->exclude_idle) {
 		pr_debug("ARM performance counters do not support mode exclusion\n");
 		return -EOPNOTSUPP;
+	}
+
+	if (has_branch_stack(perf_event)) {
+		if (!brbe_num_branch_records(cpu_pmu) || !brbe_branch_attr_valid(perf_event))
+			return -EOPNOTSUPP;
+
+		perf_event->attach_state |= PERF_ATTACH_SCHED_CB;
 	}
 
 	/*
@@ -1069,6 +1138,11 @@ static void armv8pmu_reset(void *info)
 
 	/* Clear the counters we flip at guest entry/exit */
 	kvm_clr_pmu_events(mask);
+
+	if (brbe_num_branch_records(cpu_pmu)) {
+		brbe_disable();
+		brbe_invalidate();
+	}
 
 	/*
 	 * Initialize & Reset PMNC. Request overflow interrupt for
@@ -1238,6 +1312,25 @@ static void __armv8pmu_probe_pmu(void *info)
 		cpu_pmu->reg_pmmir = read_pmmir();
 	else
 		cpu_pmu->reg_pmmir = 0;
+
+	brbe_probe(cpu_pmu);
+}
+
+static int branch_records_alloc(struct arm_pmu *armpmu)
+{
+	size_t size = struct_size_t(struct perf_branch_stack, entries,
+				    brbe_num_branch_records(armpmu));
+	int cpu;
+
+	for_each_cpu(cpu, &armpmu->supported_cpus) {
+		struct pmu_hw_events *events_cpu;
+
+		events_cpu = per_cpu_ptr(armpmu->hw_events, cpu);
+		events_cpu->branch_stack = kmalloc(size, GFP_KERNEL);
+		if (!events_cpu->branch_stack)
+			return -ENOMEM;
+	}
+	return 0;
 }
 
 static int armv8pmu_probe_pmu(struct arm_pmu *cpu_pmu)
@@ -1254,7 +1347,15 @@ static int armv8pmu_probe_pmu(struct arm_pmu *cpu_pmu)
 	if (ret)
 		return ret;
 
-	return probe.present ? 0 : -ENODEV;
+	if (!probe.present)
+		return -ENODEV;
+
+	if (brbe_num_branch_records(cpu_pmu)) {
+		ret = branch_records_alloc(cpu_pmu);
+		if (ret)
+			return ret;
+	}
+	return 0;
 }
 
 static void armv8pmu_disable_user_access_ipi(void *unused)
@@ -1313,6 +1414,8 @@ static int armv8_pmu_init(struct arm_pmu *cpu_pmu, char *name,
 	cpu_pmu->set_event_filter	= armv8pmu_set_event_filter;
 
 	cpu_pmu->pmu.event_idx		= armv8pmu_user_event_idx;
+	if (brbe_num_branch_records(cpu_pmu))
+		cpu_pmu->pmu.sched_task		= armv8pmu_sched_task;
 
 	cpu_pmu->name			= name;
 	cpu_pmu->map_event		= map_event;

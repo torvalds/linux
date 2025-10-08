@@ -64,10 +64,10 @@ properties:
       - description: Pixel clock for video port 0.
       - description: Pixel clock for video port 1.
       - description: Pixel clock for video port 2.
-      - description: Pixel clock for video port 3.
-      - description: Peripheral(vop grf/dsi) clock.
-      - description: Alternative pixel clock provided by HDMI0 PHY PLL.
-      - description: Alternative pixel clock provided by HDMI1 PHY PLL.
+      - {}
+      - {}
+      - {}
+      - {}
 
   clock-names:
     minItems: 5
@@ -77,10 +77,10 @@ properties:
       - const: dclk_vp0
       - const: dclk_vp1
       - const: dclk_vp2
-      - const: dclk_vp3
-      - const: pclk_vop
-      - const: pll_hdmiphy0
-      - const: pll_hdmiphy1
+      - {}
+      - {}
+      - {}
+      - {}
 
   rockchip,grf:
     $ref: /schemas/types.yaml#/definitions/phandle
@@ -175,10 +175,24 @@ allOf:
     then:
       properties:
         clocks:
-          maxItems: 5
+          minItems: 5
+          items:
+            - {}
+            - {}
+            - {}
+            - {}
+            - {}
+            - description: Alternative pixel clock provided by HDMI PHY PLL.
 
         clock-names:
-          maxItems: 5
+          minItems: 5
+          items:
+            - {}
+            - {}
+            - {}
+            - {}
+            - {}
+            - const: pll_hdmiphy0
 
         interrupts:
           minItems: 4
@@ -208,11 +222,29 @@ allOf:
       properties:
         clocks:
           minItems: 7
-          maxItems: 9
+          items:
+            - {}
+            - {}
+            - {}
+            - {}
+            - {}
+            - description: Pixel clock for video port 3.
+            - description: Peripheral(vop grf/dsi) clock.
+            - description: Alternative pixel clock provided by HDMI0 PHY PLL.
+            - description: Alternative pixel clock provided by HDMI1 PHY PLL.
 
         clock-names:
           minItems: 7
-          maxItems: 9
+          items:
+            - {}
+            - {}
+            - {}
+            - {}
+            - {}
+            - const: dclk_vp3
+            - const: pclk_vop
+            - const: pll_hdmiphy0
+            - const: pll_hdmiphy1
 
         interrupts:
           maxItems: 1

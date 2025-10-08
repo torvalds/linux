@@ -111,6 +111,17 @@ struct panfrost_compatible {
 	u8 gpu_quirks;
 };
 
+/**
+ * struct panfrost_device_debugfs - Device-wide DebugFS tracking structures
+ */
+struct panfrost_device_debugfs {
+	/** @gems_list: Device-wide list of GEM objects owned by at least one file. */
+	struct list_head gems_list;
+
+	/** @gems_lock: Serializes access to the device-wide list of GEM objects. */
+	struct mutex gems_lock;
+};
+
 struct panfrost_device {
 	struct device *dev;
 	struct drm_device *ddev;
@@ -164,6 +175,10 @@ struct panfrost_device {
 		atomic_t use_count;
 		spinlock_t lock;
 	} cycle_counter;
+
+#ifdef CONFIG_DEBUG_FS
+	struct panfrost_device_debugfs debugfs;
+#endif
 };
 
 struct panfrost_mmu {

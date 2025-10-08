@@ -436,32 +436,28 @@ static int tps65219_regulator_probe(struct platform_device *pdev)
 					     pmic->rdesc[i].name);
 	}
 
-	irq_data = devm_kmalloc(tps->dev, pmic->common_irq_size, GFP_KERNEL);
-	if (!irq_data)
-		return -ENOMEM;
-
 	for (i = 0; i < pmic->common_irq_size; ++i) {
 		irq_type = &pmic->common_irq_types[i];
 		irq = platform_get_irq_byname(pdev, irq_type->irq_name);
 		if (irq < 0)
 			return -EINVAL;
 
-		irq_data[i].dev = tps->dev;
-		irq_data[i].type = irq_type;
+		irq_data = devm_kmalloc(tps->dev, sizeof(*irq_data), GFP_KERNEL);
+		if (!irq_data)
+			return -ENOMEM;
+
+		irq_data->dev = tps->dev;
+		irq_data->type = irq_type;
 		error = devm_request_threaded_irq(tps->dev, irq, NULL,
 						  tps65219_regulator_irq_handler,
 						  IRQF_ONESHOT,
 						  irq_type->irq_name,
-						  &irq_data[i]);
+						  irq_data);
 		if (error)
 			return dev_err_probe(tps->dev, PTR_ERR(rdev),
 					     "Failed to request %s IRQ %d: %d\n",
 					     irq_type->irq_name, irq, error);
 	}
-
-	irq_data = devm_kmalloc(tps->dev, pmic->dev_irq_size, GFP_KERNEL);
-	if (!irq_data)
-		return -ENOMEM;
 
 	for (i = 0; i < pmic->dev_irq_size; ++i) {
 		irq_type = &pmic->irq_types[i];
@@ -469,13 +465,17 @@ static int tps65219_regulator_probe(struct platform_device *pdev)
 		if (irq < 0)
 			return -EINVAL;
 
-		irq_data[i].dev = tps->dev;
-		irq_data[i].type = irq_type;
+		irq_data = devm_kmalloc(tps->dev, sizeof(*irq_data), GFP_KERNEL);
+		if (!irq_data)
+			return -ENOMEM;
+
+		irq_data->dev = tps->dev;
+		irq_data->type = irq_type;
 		error = devm_request_threaded_irq(tps->dev, irq, NULL,
 						  tps65219_regulator_irq_handler,
 						  IRQF_ONESHOT,
 						  irq_type->irq_name,
-						  &irq_data[i]);
+						  irq_data);
 		if (error)
 			return dev_err_probe(tps->dev, PTR_ERR(rdev),
 					     "Failed to request %s IRQ %d: %d\n",

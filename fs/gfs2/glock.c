@@ -590,35 +590,31 @@ static void gfs2_demote_wake(struct gfs2_glock *gl)
 static void finish_xmote(struct gfs2_glock *gl, unsigned int ret)
 {
 	const struct gfs2_glock_operations *glops = gl->gl_ops;
-	struct gfs2_holder *gh;
-	unsigned state = ret & LM_OUT_ST_MASK;
 
-	trace_gfs2_glock_state_change(gl, state);
-	state_change(gl, state);
-	gh = find_first_waiter(gl);
+	if (!(ret & ~LM_OUT_ST_MASK)) {
+		unsigned state = ret & LM_OUT_ST_MASK;
+
+		trace_gfs2_glock_state_change(gl, state);
+		state_change(gl, state);
+	}
+
 
 	/* Demote to UN request arrived during demote to SH or DF */
 	if (test_bit(GLF_DEMOTE_IN_PROGRESS, &gl->gl_flags) &&
-	    state != LM_ST_UNLOCKED && gl->gl_demote_state == LM_ST_UNLOCKED)
+	    gl->gl_state != LM_ST_UNLOCKED &&
+	    gl->gl_demote_state == LM_ST_UNLOCKED)
 		gl->gl_target = LM_ST_UNLOCKED;
 
 	/* Check for state != intended state */
-	if (unlikely(state != gl->gl_target)) {
-		if (gh && (ret & LM_OUT_CANCELED))
-			gfs2_holder_wake(gh);
+	if (unlikely(gl->gl_state != gl->gl_target)) {
+		struct gfs2_holder *gh = find_first_waiter(gl);
+
 		if (gh && !test_bit(GLF_DEMOTE_IN_PROGRESS, &gl->gl_flags)) {
 			if (ret & LM_OUT_CANCELED) {
 				list_del_init(&gh->gh_list);
 				trace_gfs2_glock_queue(gh, 0);
+				gfs2_holder_wake(gh);
 				gl->gl_target = gl->gl_state;
-				gh = find_first_waiter(gl);
-				if (gh) {
-					gl->gl_target = gh->gh_state;
-					if (do_promote(gl))
-						goto out;
-					do_xmote(gl, gh, gl->gl_target);
-					return;
-				}
 				goto out;
 			}
 			/* Some error or failed "try lock" - report it */
@@ -629,7 +625,7 @@ static void finish_xmote(struct gfs2_glock *gl, unsigned int ret)
 				goto out;
 			}
 		}
-		switch(state) {
+		switch(gl->gl_state) {
 		/* Unlocked due to conversion deadlock, try again */
 		case LM_ST_UNLOCKED:
 			do_xmote(gl, gh, gl->gl_target);
@@ -640,8 +636,10 @@ static void finish_xmote(struct gfs2_glock *gl, unsigned int ret)
 			do_xmote(gl, gh, LM_ST_UNLOCKED);
 			break;
 		default: /* Everything else */
-			fs_err(gl->gl_name.ln_sbd, "wanted %u got %u\n",
-			       gl->gl_target, state);
+			fs_err(gl->gl_name.ln_sbd,
+			       "glock %u:%llu requested=%u ret=%u\n",
+			       gl->gl_name.ln_type, gl->gl_name.ln_number,
+			       gl->gl_req, ret);
 			GLOCK_BUG_ON(gl, 1);
 		}
 		return;
@@ -650,7 +648,7 @@ static void finish_xmote(struct gfs2_glock *gl, unsigned int ret)
 	/* Fast path - we got what we asked for */
 	if (test_and_clear_bit(GLF_DEMOTE_IN_PROGRESS, &gl->gl_flags))
 		gfs2_demote_wake(gl);
-	if (state != LM_ST_UNLOCKED) {
+	if (gl->gl_state != LM_ST_UNLOCKED) {
 		if (glops->go_xmote_bh) {
 			int rv;
 
@@ -802,7 +800,8 @@ skip_inval:
 			 * We skip telling dlm to do the locking, so we won't get a
 			 * reply that would otherwise clear GLF_LOCK. So we clear it here.
 			 */
-			clear_bit(GLF_LOCK, &gl->gl_flags);
+			if (!test_bit(GLF_CANCELING, &gl->gl_flags))
+				clear_bit(GLF_LOCK, &gl->gl_flags);
 			clear_bit(GLF_DEMOTE_IN_PROGRESS, &gl->gl_flags);
 			gfs2_glock_queue_work(gl, GL_GLOCK_DFT_HOLD);
 			return;

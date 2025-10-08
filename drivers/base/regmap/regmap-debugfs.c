@@ -470,10 +470,6 @@ static ssize_t regmap_cache_only_write_file(struct file *file,
 	if (err)
 		return count;
 
-	err = debugfs_file_get(file->f_path.dentry);
-	if (err)
-		return err;
-
 	map->lock(map->lock_arg);
 
 	if (new_val && !map->cache_only) {
@@ -486,7 +482,6 @@ static ssize_t regmap_cache_only_write_file(struct file *file,
 	map->cache_only = new_val;
 
 	map->unlock(map->lock_arg);
-	debugfs_file_put(file->f_path.dentry);
 
 	if (require_sync) {
 		err = regcache_sync(map);
@@ -517,10 +512,6 @@ static ssize_t regmap_cache_bypass_write_file(struct file *file,
 	if (err)
 		return count;
 
-	err = debugfs_file_get(file->f_path.dentry);
-	if (err)
-		return err;
-
 	map->lock(map->lock_arg);
 
 	if (new_val && !map->cache_bypass) {
@@ -532,7 +523,6 @@ static ssize_t regmap_cache_bypass_write_file(struct file *file,
 	map->cache_bypass = new_val;
 
 	map->unlock(map->lock_arg);
-	debugfs_file_put(file->f_path.dentry);
 
 	return count;
 }

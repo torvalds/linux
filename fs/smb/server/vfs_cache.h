@@ -44,6 +44,7 @@ struct ksmbd_lock {
 struct stream {
 	char *name;
 	ssize_t size;
+	loff_t pos;
 };
 
 struct ksmbd_inode {

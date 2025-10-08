@@ -18,6 +18,8 @@
 #include <kvm/iodev.h>
 #include "lapic.h"
 
+#ifdef CONFIG_KVM_IOAPIC
+
 #define PIC_NUM_PINS 16
 #define SELECT_PIC(irq) \
 	((irq) < 8 ? KVM_IRQCHIP_PIC_MASTER : KVM_IRQCHIP_PIC_SLAVE)
@@ -63,6 +65,34 @@ int kvm_pic_init(struct kvm *kvm);
 void kvm_pic_destroy(struct kvm *kvm);
 int kvm_pic_read_irq(struct kvm *kvm);
 void kvm_pic_update_irq(struct kvm_pic *s);
+int kvm_pic_set_irq(struct kvm_kernel_irq_routing_entry *e, struct kvm *kvm,
+		    int irq_source_id, int level, bool line_status);
+
+int kvm_setup_default_ioapic_and_pic_routing(struct kvm *kvm);
+
+int kvm_vm_ioctl_get_irqchip(struct kvm *kvm, struct kvm_irqchip *chip);
+int kvm_vm_ioctl_set_irqchip(struct kvm *kvm, struct kvm_irqchip *chip);
+
+static inline int irqchip_full(struct kvm *kvm)
+{
+	int mode = kvm->arch.irqchip_mode;
+
+	/* Matches smp_wmb() when setting irqchip_mode */
+	smp_rmb();
+	return mode == KVM_IRQCHIP_KERNEL;
+}
+#else /* CONFIG_KVM_IOAPIC */
+static __always_inline int irqchip_full(struct kvm *kvm)
+{
+	return false;
+}
+#endif
+
+static inline int pic_in_kernel(struct kvm *kvm)
+{
+	return irqchip_full(kvm);
+}
+
 
 static inline int irqchip_split(struct kvm *kvm)
 {
@@ -71,20 +101,6 @@ static inline int irqchip_split(struct kvm *kvm)
 	/* Matches smp_wmb() when setting irqchip_mode */
 	smp_rmb();
 	return mode == KVM_IRQCHIP_SPLIT;
-}
-
-static inline int irqchip_kernel(struct kvm *kvm)
-{
-	int mode = kvm->arch.irqchip_mode;
-
-	/* Matches smp_wmb() when setting irqchip_mode */
-	smp_rmb();
-	return mode == KVM_IRQCHIP_KERNEL;
-}
-
-static inline int pic_in_kernel(struct kvm *kvm)
-{
-	return irqchip_kernel(kvm);
 }
 
 static inline int irqchip_in_kernel(struct kvm *kvm)
@@ -105,7 +121,6 @@ void __kvm_migrate_timers(struct kvm_vcpu *vcpu);
 
 int apic_has_pending_timer(struct kvm_vcpu *vcpu);
 
-int kvm_setup_default_irq_routing(struct kvm *kvm);
 int kvm_irq_delivery_to_apic(struct kvm *kvm, struct kvm_lapic *src,
 			     struct kvm_lapic_irq *irq,
 			     struct dest_map *dest_map);

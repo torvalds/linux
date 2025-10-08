@@ -110,6 +110,81 @@
 		ranges;
 		compatible = "simple-bus";
 
+		i2c0: i2c@300000 {
+			compatible = "mobileye,eyeq5-i2c", "arm,primecell";
+			reg = <0 0x300000 0x0 0x1000>;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SHARED 1 IRQ_TYPE_LEVEL_HIGH>;
+			clock-frequency = <400000>; /* Fast mode */
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&olb 35>, <&olb EQ5C_PER_I2C>;
+			clock-names = "i2cclk", "apb_pclk";
+			resets = <&olb 0 13>;
+			i2c-transfer-timeout-us = <10000>;
+			mobileye,olb = <&olb 0>;
+		};
+
+		i2c1: i2c@400000 {
+			compatible = "mobileye,eyeq5-i2c", "arm,primecell";
+			reg = <0 0x400000 0x0 0x1000>;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SHARED 2 IRQ_TYPE_LEVEL_HIGH>;
+			clock-frequency = <400000>; /* Fast mode */
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&olb 35>, <&olb EQ5C_PER_I2C>;
+			clock-names = "i2cclk", "apb_pclk";
+			resets = <&olb 0 14>;
+			i2c-transfer-timeout-us = <10000>;
+			mobileye,olb = <&olb 1>;
+		};
+
+		i2c2: i2c@500000 {
+			compatible = "mobileye,eyeq5-i2c", "arm,primecell";
+			reg = <0 0x500000 0x0 0x1000>;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SHARED 3 IRQ_TYPE_LEVEL_HIGH>;
+			clock-frequency = <400000>; /* Fast mode */
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&olb 35>, <&olb EQ5C_PER_I2C>;
+			clock-names = "i2cclk", "apb_pclk";
+			resets = <&olb 0 15>;
+			i2c-transfer-timeout-us = <10000>;
+			mobileye,olb = <&olb 2>;
+		};
+
+		i2c3: i2c@600000 {
+			compatible = "mobileye,eyeq5-i2c", "arm,primecell";
+			reg = <0 0x600000 0x0 0x1000>;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SHARED 4 IRQ_TYPE_LEVEL_HIGH>;
+			clock-frequency = <400000>; /* Fast mode */
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&olb 35>, <&olb EQ5C_PER_I2C>;
+			clock-names = "i2cclk", "apb_pclk";
+			resets = <&olb 0 16>;
+			i2c-transfer-timeout-us = <10000>;
+			mobileye,olb = <&olb 3>;
+		};
+
+		i2c4: i2c@700000 {
+			compatible = "mobileye,eyeq5-i2c", "arm,primecell";
+			reg = <0 0x700000 0x0 0x1000>;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SHARED 5 IRQ_TYPE_LEVEL_HIGH>;
+			clock-frequency = <400000>; /* Fast mode */
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&olb 35>, <&olb EQ5C_PER_I2C>;
+			clock-names = "i2cclk", "apb_pclk";
+			resets = <&olb 0 17>;
+			i2c-transfer-timeout-us = <10000>;
+			mobileye,olb = <&olb 4>;
+		};
+
 		uart0: serial@800000 {
 			compatible = "arm,pl011", "arm,primecell";
 			reg = <0 0x800000 0x0 0x1000>;
@@ -177,6 +252,58 @@
 				interrupts = <GIC_LOCAL 1 IRQ_TYPE_NONE>;
 				clocks = <&olb EQ5C_CPU_CORE0>;
 			};
+		};
+
+		emmc: mmc@2200000 {
+			compatible = "mobileye,eyeq-sd4hc", "cdns,sd4hc";
+			reg = <0 0x2200000 0x0 0x1000>;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SHARED 10 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&olb EQ5C_PER_EMMC>;
+			bus-width = <8>;
+			max-frequency = <200000000>;
+			mmc-ddr-1_8v;
+			sd-uhs-ddr50;
+			mmc-hs200-1_8v;
+			mmc-hs400-1_8v;
+			mmc-hs400-enhanced-strobe;
+
+			cdns,phy-input-delay-legacy = <4>;
+			cdns,phy-input-delay-mmc-highspeed = <2>;
+			cdns,phy-input-delay-mmc-ddr = <3>;
+			cdns,phy-dll-delay-sdclk = <32>;
+			cdns,phy-dll-delay-sdclk-hsmmc = <32>;
+			cdns,phy-dll-delay-strobe = <32>;
+		};
+
+		gpio0: gpio@1400000 {
+			compatible = "mobileye,eyeq5-gpio";
+			reg = <0x0 0x1400000 0x0 0x1000>;
+			gpio-bank = <0>;
+			ngpios = <29>;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SHARED 14 IRQ_TYPE_LEVEL_HIGH>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges = <&olb 0 0 29>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			resets = <&olb 0 26>;
+		};
+
+		gpio1: gpio@1500000 {
+			compatible = "mobileye,eyeq5-gpio";
+			reg = <0x0 0x1500000 0x0 0x1000>;
+			gpio-bank = <1>;
+			ngpios = <23>;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SHARED 14 IRQ_TYPE_LEVEL_HIGH>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges = <&olb 0 29 23>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			resets = <&olb 0 26>;
 		};
 	};
 };

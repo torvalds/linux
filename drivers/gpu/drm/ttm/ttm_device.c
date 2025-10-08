@@ -28,6 +28,7 @@
 #define pr_fmt(fmt) "[TTM DEVICE] " fmt
 
 #include <linux/debugfs.h>
+#include <linux/export.h>
 #include <linux/mm.h>
 
 #include <drm/ttm/ttm_bo.h>
@@ -36,6 +37,7 @@
 #include <drm/ttm/ttm_placement.h>
 
 #include "ttm_module.h"
+#include "ttm_bo_internal.h"
 
 /*
  * ttm_global_mutex - protecting the global state
@@ -122,6 +124,28 @@ out:
 	mutex_unlock(&ttm_global_mutex);
 	return ret;
 }
+
+/**
+ * ttm_device_prepare_hibernation - move GTT BOs to shmem for hibernation.
+ *
+ * @bdev: A pointer to a struct ttm_device to prepare hibernation for.
+ *
+ * Return: 0 on success, negative number on failure.
+ */
+int ttm_device_prepare_hibernation(struct ttm_device *bdev)
+{
+	struct ttm_operation_ctx ctx = {
+		.interruptible = false,
+		.no_wait_gpu = false,
+	};
+	int ret;
+
+	do {
+		ret = ttm_device_swapout(bdev, &ctx, GFP_KERNEL);
+	} while (ret > 0);
+	return ret;
+}
+EXPORT_SYMBOL(ttm_device_prepare_hibernation);
 
 /*
  * A buffer object shrink method that tries to swap out the first

@@ -130,11 +130,9 @@ int inv_mpu_acpi_create_mux_client(struct i2c_client *client)
 
 	st->mux_client = NULL;
 	if (adev) {
-		struct i2c_board_info info;
+		struct i2c_board_info info = { };
 		struct i2c_client *mux_client;
 		int ret = -1;
-
-		memset(&info, 0, sizeof(info));
 
 		dmi_check_system(inv_mpu_dev_list);
 		switch (matched_product_name) {

@@ -86,7 +86,8 @@ static struct mtd_info *allocate_partition(struct mtd_info *parent,
 	 * parent conditional on that option. Note, this is a way to
 	 * distinguish between the parent and its partitions in sysfs.
 	 */
-	child->dev.parent = &parent->dev;
+	child->dev.parent = IS_ENABLED(CONFIG_MTD_PARTITIONED_MASTER) || mtd_is_partition(parent) ?
+			    &parent->dev : parent->dev.parent;
 	child->dev.of_node = part->of_node;
 	child->parent = parent;
 	child->part.offset = part->offset;
@@ -242,7 +243,7 @@ static int mtd_add_partition_attrs(struct mtd_info *new)
 }
 
 int mtd_add_partition(struct mtd_info *parent, const char *name,
-		      long long offset, long long length, struct mtd_info **out)
+		      long long offset, long long length)
 {
 	struct mtd_info *master = mtd_get_master(parent);
 	u64 parent_size = mtd_is_partition(parent) ?
@@ -275,14 +276,11 @@ int mtd_add_partition(struct mtd_info *parent, const char *name,
 	list_add_tail(&child->part.node, &parent->partitions);
 	mutex_unlock(&master->master.partitions_lock);
 
-	ret = add_mtd_device(child, true);
+	ret = add_mtd_device(child);
 	if (ret)
 		goto err_remove_part;
 
 	mtd_add_partition_attrs(child);
-
-	if (out)
-		*out = child;
 
 	return 0;
 
@@ -415,7 +413,7 @@ int add_mtd_partitions(struct mtd_info *parent,
 		list_add_tail(&child->part.node, &parent->partitions);
 		mutex_unlock(&master->master.partitions_lock);
 
-		ret = add_mtd_device(child, true);
+		ret = add_mtd_device(child);
 		if (ret) {
 			mutex_lock(&master->master.partitions_lock);
 			list_del(&child->part.node);
@@ -592,6 +590,9 @@ static int mtd_part_of_parse(struct mtd_info *master,
 	int ret, err = 0;
 
 	dev = &master->dev;
+	/* Use parent device (controller) if the top level MTD is not registered */
+	if (!IS_ENABLED(CONFIG_MTD_PARTITIONED_MASTER) && !mtd_is_partition(master))
+		dev = master->dev.parent;
 
 	np = mtd_get_of_node(master);
 	if (mtd_is_partition(master))
@@ -710,7 +711,6 @@ int parse_mtd_partitions(struct mtd_info *master, const char *const *types,
 		if (ret < 0 && !err)
 			err = ret;
 	}
-
 	return err;
 }
 

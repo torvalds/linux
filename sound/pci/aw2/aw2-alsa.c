@@ -281,8 +281,8 @@ static int snd_aw2_probe(struct pci_dev *pci,
 	/* init spinlock */
 	spin_lock_init(&chip->reg_lock);
 	/* (4) Define driver ID and name string */
-	strcpy(card->driver, "aw2");
-	strcpy(card->shortname, "Audiowerk2");
+	strscpy(card->driver, "aw2");
+	strscpy(card->shortname, "Audiowerk2");
 
 	sprintf(card->longname, "%s with SAA7146 irq %i",
 		card->shortname, chip->irq);
@@ -509,7 +509,7 @@ static int snd_aw2_new_pcm(struct aw2 *chip)
 	pcm_device = &chip->device_playback[NUM_STREAM_PLAYBACK_ANA];
 
 	/* Set PCM device name */
-	strcpy(pcm_playback_ana->name, "Analog playback");
+	strscpy(pcm_playback_ana->name, "Analog playback");
 	/* Associate private data to PCM device */
 	pcm_playback_ana->private_data = pcm_device;
 	/* set operators of PCM device */
@@ -541,7 +541,7 @@ static int snd_aw2_new_pcm(struct aw2 *chip)
 	pcm_device = &chip->device_playback[NUM_STREAM_PLAYBACK_DIG];
 
 	/* Set PCM device name */
-	strcpy(pcm_playback_num->name, "Digital playback");
+	strscpy(pcm_playback_num->name, "Digital playback");
 	/* Associate private data to PCM device */
 	pcm_playback_num->private_data = pcm_device;
 	/* set operators of PCM device */
@@ -574,7 +574,7 @@ static int snd_aw2_new_pcm(struct aw2 *chip)
 	pcm_device = &chip->device_capture[NUM_STREAM_CAPTURE_ANA];
 
 	/* Set PCM device name */
-	strcpy(pcm_capture->name, "Capture");
+	strscpy(pcm_capture->name, "Capture");
 	/* Associate private data to PCM device */
 	pcm_capture->private_data = pcm_device;
 	/* set operators of PCM device */

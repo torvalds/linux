@@ -45,4 +45,7 @@ static inline u64 clocksource_delta(u64 now, u64 last, u64 mask, u64 max_delta)
 unsigned long timekeeper_lock_irqsave(void);
 void timekeeper_unlock_irqrestore(unsigned long flags);
 
+/* NTP specific interface to access the current seconds value */
+long ktime_get_ntp_seconds(unsigned int id);
+
 #endif /* _TIMEKEEPING_INTERNAL_H */

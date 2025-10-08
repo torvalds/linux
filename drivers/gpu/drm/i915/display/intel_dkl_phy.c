@@ -25,7 +25,9 @@ dkl_phy_set_hip_idx(struct intel_display *display, struct intel_dkl_phy_reg reg)
 {
 	enum tc_port tc_port = DKL_REG_TC_PORT(reg);
 
-	drm_WARN_ON(display->drm, tc_port < TC_PORT_1 || tc_port >= I915_MAX_TC_PORTS);
+	if (drm_WARN_ON(display->drm,
+			tc_port < TC_PORT_1 || tc_port >= I915_MAX_TC_PORTS))
+		return;
 
 	intel_de_write(display,
 		       HIP_INDEX_REG(tc_port),

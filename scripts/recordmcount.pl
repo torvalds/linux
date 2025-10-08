@@ -359,7 +359,7 @@ if ($arch eq "x86_64") {
     $mcount_regex = "^\\s*([0-9a-fA-F]+):\\s*R_CKCORE_PCREL_JSR_IMM26BY2\\s+_mcount\$";
     $alignment = 2;
 } else {
-    die "Arch $arch is not supported with CONFIG_FTRACE_MCOUNT_RECORD";
+    die "Arch $arch is not supported with CONFIG_DYNAMIC_FTRACE";
 }
 
 my $text_found = 0;

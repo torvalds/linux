@@ -34,10 +34,10 @@ xlog_recover_dquot_ra_pass2(
 	if (mp->m_qflags == 0)
 		return;
 
-	recddq = item->ri_buf[1].i_addr;
+	recddq = item->ri_buf[1].iov_base;
 	if (recddq == NULL)
 		return;
-	if (item->ri_buf[1].i_len < sizeof(struct xfs_disk_dquot))
+	if (item->ri_buf[1].iov_len < sizeof(struct xfs_disk_dquot))
 		return;
 
 	type = recddq->d_type & XFS_DQTYPE_REC_MASK;
@@ -45,7 +45,7 @@ xlog_recover_dquot_ra_pass2(
 	if (log->l_quotaoffs_flag & type)
 		return;
 
-	dq_f = item->ri_buf[0].i_addr;
+	dq_f = item->ri_buf[0].iov_base;
 	ASSERT(dq_f);
 	ASSERT(dq_f->qlf_len == 1);
 
@@ -79,14 +79,14 @@ xlog_recover_dquot_commit_pass2(
 	if (mp->m_qflags == 0)
 		return 0;
 
-	recddq = item->ri_buf[1].i_addr;
+	recddq = item->ri_buf[1].iov_base;
 	if (recddq == NULL) {
 		xfs_alert(log->l_mp, "NULL dquot in %s.", __func__);
 		return -EFSCORRUPTED;
 	}
-	if (item->ri_buf[1].i_len < sizeof(struct xfs_disk_dquot)) {
-		xfs_alert(log->l_mp, "dquot too small (%d) in %s.",
-			item->ri_buf[1].i_len, __func__);
+	if (item->ri_buf[1].iov_len < sizeof(struct xfs_disk_dquot)) {
+		xfs_alert(log->l_mp, "dquot too small (%zd) in %s.",
+			item->ri_buf[1].iov_len, __func__);
 		return -EFSCORRUPTED;
 	}
 
@@ -108,7 +108,7 @@ xlog_recover_dquot_commit_pass2(
 	 * The other possibility, of course, is that the quota subsystem was
 	 * removed since the last mount - ENOSYS.
 	 */
-	dq_f = item->ri_buf[0].i_addr;
+	dq_f = item->ri_buf[0].iov_base;
 	ASSERT(dq_f);
 	fa = xfs_dquot_verify(mp, recddq, dq_f->qlf_id);
 	if (fa) {
@@ -147,7 +147,7 @@ xlog_recover_dquot_commit_pass2(
 		}
 	}
 
-	memcpy(ddq, recddq, item->ri_buf[1].i_len);
+	memcpy(ddq, recddq, item->ri_buf[1].iov_len);
 	if (xfs_has_crc(mp)) {
 		xfs_update_cksum((char *)dqb, sizeof(struct xfs_dqblk),
 				 XFS_DQUOT_CRC_OFF);
@@ -192,7 +192,7 @@ xlog_recover_quotaoff_commit_pass1(
 	struct xlog			*log,
 	struct xlog_recover_item	*item)
 {
-	struct xfs_qoff_logformat	*qoff_f = item->ri_buf[0].i_addr;
+	struct xfs_qoff_logformat	*qoff_f = item->ri_buf[0].iov_base;
 	ASSERT(qoff_f);
 
 	/*

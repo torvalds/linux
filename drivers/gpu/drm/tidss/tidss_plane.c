@@ -200,7 +200,7 @@ struct tidss_plane *tidss_plane_create(struct tidss_device *tidss,
 	struct tidss_plane *tplane;
 	enum drm_plane_type type;
 	u32 possible_crtcs;
-	u32 num_planes = tidss->feat->num_planes;
+	u32 num_planes = tidss->feat->num_vids;
 	u32 color_encodings = (BIT(DRM_COLOR_YCBCR_BT601) |
 			       BIT(DRM_COLOR_YCBCR_BT709));
 	u32 color_ranges = (BIT(DRM_COLOR_YCBCR_FULL_RANGE) |

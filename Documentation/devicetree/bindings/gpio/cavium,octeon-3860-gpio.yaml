@@ -1,0 +1,62 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/cavium,octeon-3860-gpio.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Cavium Octeon 3860 GPIO controller
+
+maintainers:
+  - Bartosz Golaszewski <brgl@bgdev.pl>
+
+properties:
+  compatible:
+    const: cavium,octeon-3860-gpio
+
+  reg:
+    maxItems: 1
+
+  gpio-controller: true
+
+  '#gpio-cells':
+    const: 2
+
+  interrupt-controller: true
+
+  '#interrupt-cells':
+    const: 2
+
+  interrupts:
+    maxItems: 16
+
+required:
+  - compatible
+  - reg
+  - gpio-controller
+  - '#gpio-cells'
+  - interrupt-controller
+  - '#interrupt-cells'
+  - interrupts
+
+additionalProperties: false
+
+examples:
+  - |
+    bus {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        gpio@1070000000800 {
+            compatible = "cavium,octeon-3860-gpio";
+            reg = <0x10700 0x00000800 0x0 0x100>;
+            gpio-controller;
+            #gpio-cells = <2>;
+            interrupt-controller;
+            #interrupt-cells = <2>;
+            /* The GPIO pin connect to 16 consecutive CUI bits */
+            interrupts = <0 16>, <0 17>, <0 18>, <0 19>,
+                        <0 20>, <0 21>, <0 22>, <0 23>,
+                        <0 24>, <0 25>, <0 26>, <0 27>,
+                        <0 28>, <0 29>, <0 30>, <0 31>;
+        };
+    };

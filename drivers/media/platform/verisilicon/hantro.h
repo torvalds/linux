@@ -323,6 +323,8 @@ struct hantro_postproc_regs {
 	struct hantro_reg output_fmt;
 	struct hantro_reg orig_width;
 	struct hantro_reg display_width;
+	struct hantro_reg input_width_ext;
+	struct hantro_reg input_height_ext;
 };
 
 struct hantro_vp9_decoded_buffer_info {

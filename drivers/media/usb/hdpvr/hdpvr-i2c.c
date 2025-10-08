@@ -124,32 +124,12 @@ static int hdpvr_transfer(struct i2c_adapter *i2c_adapter, struct i2c_msg *msgs,
 		else
 			retval = hdpvr_i2c_write(dev, 1, addr, msgs[0].buf,
 						 msgs[0].len);
-	} else if (num == 2) {
-		if (msgs[0].addr != msgs[1].addr) {
-			v4l2_warn(&dev->v4l2_dev, "refusing 2-phase i2c xfer with conflicting target addresses\n");
-			retval = -EINVAL;
-			goto out;
-		}
-
-		if ((msgs[0].flags & I2C_M_RD) || !(msgs[1].flags & I2C_M_RD)) {
-			v4l2_warn(&dev->v4l2_dev, "refusing complex xfer with r0=%d, r1=%d\n",
-				  msgs[0].flags & I2C_M_RD,
-				  msgs[1].flags & I2C_M_RD);
-			retval = -EINVAL;
-			goto out;
-		}
-
-		/*
-		 * Write followed by atomic read is the only complex xfer that
-		 * we actually support here.
-		 */
+	} else {
+		/* do write-then-read */
 		retval = hdpvr_i2c_read(dev, 1, addr, msgs[0].buf, msgs[0].len,
 					msgs[1].buf, msgs[1].len);
-	} else {
-		v4l2_warn(&dev->v4l2_dev, "refusing %d-phase i2c xfer\n", num);
 	}
 
-out:
 	mutex_unlock(&dev->i2c_mutex);
 
 	return retval ? retval : num;
@@ -165,10 +145,16 @@ static const struct i2c_algorithm hdpvr_algo = {
 	.functionality = hdpvr_functionality,
 };
 
+/* prevent invalid 0-length usb_control_msg and support only write-then-read */
+static const struct i2c_adapter_quirks hdpvr_quirks = {
+	.flags = I2C_AQ_NO_ZERO_LEN_READ | I2C_AQ_COMB_WRITE_THEN_READ,
+};
+
 static const struct i2c_adapter hdpvr_i2c_adapter_template = {
 	.name   = "Hauppauge HD PVR I2C",
 	.owner  = THIS_MODULE,
 	.algo   = &hdpvr_algo,
+	.quirks = &hdpvr_quirks,
 };
 
 static int hdpvr_activate_ir(struct hdpvr_device *dev)

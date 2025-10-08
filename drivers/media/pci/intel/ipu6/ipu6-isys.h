@@ -40,7 +40,7 @@ struct ipu6_bus_device;
 #define IPU6_ISYS_NUM_RECV_QUEUE 1
 
 #define IPU6_ISYS_MIN_WIDTH		2U
-#define IPU6_ISYS_MIN_HEIGHT		2U
+#define IPU6_ISYS_MIN_HEIGHT		1U
 #define IPU6_ISYS_MAX_WIDTH		4672U
 #define IPU6_ISYS_MAX_HEIGHT		3416U
 

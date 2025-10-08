@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
-#include <linux/export.h>
+#include <linux/string_choices.h>
 #include <linux/suspend.h>
 #include <linux/bcd.h>
 #include <linux/acpi.h>
@@ -30,17 +30,16 @@ acpi_system_wakeup_device_seq_show(struct seq_file *seq, void *offset)
 		if (!dev->wakeup.flags.valid)
 			continue;
 
-		seq_printf(seq, "%s\t  S%d\t",
+		seq_printf(seq, "%s\t  S%llu\t",
 			   dev->pnp.bus_id,
-			   (u32) dev->wakeup.sleep_state);
+			   dev->wakeup.sleep_state);
 
 		mutex_lock(&dev->physical_node_lock);
 
 		if (!dev->physical_node_count) {
 			seq_printf(seq, "%c%-8s\n",
 				dev->wakeup.flags.valid ? '*' : ' ',
-				device_may_wakeup(&dev->dev) ?
-					"enabled" : "disabled");
+				str_enabled_disabled(device_may_wakeup(&dev->dev)));
 		} else {
 			struct device *ldev;
 			list_for_each_entry(entry, &dev->physical_node_list,
@@ -55,9 +54,8 @@ acpi_system_wakeup_device_seq_show(struct seq_file *seq, void *offset)
 
 				seq_printf(seq, "%c%-8s  %s:%s\n",
 					dev->wakeup.flags.valid ? '*' : ' ',
-					(device_may_wakeup(&dev->dev) ||
-					device_may_wakeup(ldev)) ?
-					"enabled" : "disabled",
+					str_enabled_disabled(device_may_wakeup(ldev) ||
+							     device_may_wakeup(&dev->dev)),
 					ldev->bus ? ldev->bus->name :
 					"no-bus", dev_name(ldev));
 				put_device(ldev);
@@ -141,6 +139,5 @@ static const struct proc_ops acpi_system_wakeup_device_proc_ops = {
 void __init acpi_sleep_proc_init(void)
 {
 	/* 'wakeup device' [R/W] */
-	proc_create("wakeup", S_IFREG | S_IRUGO | S_IWUSR,
-		    acpi_root_dir, &acpi_system_wakeup_device_proc_ops);
+	proc_create("wakeup", 0644, acpi_root_dir, &acpi_system_wakeup_device_proc_ops);
 }

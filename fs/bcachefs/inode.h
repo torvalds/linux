@@ -254,6 +254,11 @@ static inline bool bch2_inode_casefold(struct bch_fs *c, const struct bch_inode_
 		: c->opts.casefold;
 }
 
+static inline bool bch2_inode_has_backpointer(const struct bch_inode_unpacked *bi)
+{
+	return bi->bi_dir || bi->bi_dir_offset;
+}
+
 /* i_nlink: */
 
 static inline unsigned nlink_bias(umode_t mode)

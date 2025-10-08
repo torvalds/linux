@@ -27,7 +27,6 @@
 #include <linux/iio/trigger_consumer.h>
 
 #define SX9500_DRIVER_NAME		"sx9500"
-#define SX9500_IRQ_NAME			"sx9500_event"
 
 /* Register definitions. */
 #define SX9500_REG_IRQ_SRC		0x00
@@ -938,7 +937,7 @@ static int sx9500_probe(struct i2c_client *client)
 		ret = devm_request_threaded_irq(&client->dev, client->irq,
 				sx9500_irq_handler, sx9500_irq_thread_handler,
 				IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
-				SX9500_IRQ_NAME, indio_dev);
+				"sx9500_event", indio_dev);
 		if (ret < 0)
 			return ret;
 

@@ -54,7 +54,7 @@ EXPORT_SYMBOL(baswap);
  * bt_to_errno() - Bluetooth error codes to standard errno
  * @code: Bluetooth error code to be converted
  *
- * This function takes a Bluetooth error code as input and convets
+ * This function takes a Bluetooth error code as input and converts
  * it to an equivalent Unix/standard errno value.
  *
  * Return:

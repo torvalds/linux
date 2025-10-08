@@ -143,5 +143,7 @@
 /*
  * HWCAP3 flags - for AT_HWCAP3
  */
+#define HWCAP3_MTE_FAR		(1UL << 0)
+#define HWCAP3_MTE_STORE_ONLY		(1UL << 1)
 
 #endif /* _UAPI__ASM_HWCAP_H */

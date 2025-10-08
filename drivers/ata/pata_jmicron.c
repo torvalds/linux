@@ -113,7 +113,7 @@ static const struct scsi_host_template jmicron_sht = {
 
 static struct ata_port_operations jmicron_ops = {
 	.inherits		= &ata_bmdma_port_ops,
-	.prereset		= jmicron_pre_reset,
+	.reset.prereset		= jmicron_pre_reset,
 };
 
 

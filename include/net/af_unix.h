@@ -47,6 +47,8 @@ struct unix_sock {
 #define peer_wait		peer_wq.wait
 	wait_queue_entry_t	peer_wake;
 	struct scm_stat		scm_stat;
+	int			inq_len;
+	bool			recvmsg_inq;
 #if IS_ENABLED(CONFIG_AF_UNIX_OOB)
 	struct sk_buff		*oob_skb;
 #endif

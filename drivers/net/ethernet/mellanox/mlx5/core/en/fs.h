@@ -18,7 +18,8 @@ enum {
 
 enum {
 	MLX5E_TC_PRIO = 0,
-	MLX5E_NIC_PRIO
+	MLX5E_PROMISC_PRIO,
+	MLX5E_NIC_PRIO,
 };
 
 struct mlx5e_flow_table {
@@ -68,9 +69,13 @@ struct mlx5e_l2_table {
 				 MLX5_HASH_FIELD_SEL_DST_IP   |\
 				 MLX5_HASH_FIELD_SEL_IPSEC_SPI)
 
-/* NIC prio FTS */
+/* NIC promisc FT level */
 enum {
 	MLX5E_PROMISC_FT_LEVEL,
+};
+
+/* NIC prio FTS */
+enum {
 	MLX5E_VLAN_FT_LEVEL,
 	MLX5E_L2_FT_LEVEL,
 	MLX5E_TTC_FT_LEVEL,

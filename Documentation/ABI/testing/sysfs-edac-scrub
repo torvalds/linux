@@ -49,6 +49,12 @@ Description:
 		(RO) Supported minimum scrub cycle duration in seconds
 		by the memory scrubber.
 
+		Device-based scrub: returns the minimum scrub cycle
+		supported by the memory device.
+
+		Region-based scrub: returns the max of minimum scrub cycles
+		supported by individual memory devices that back the region.
+
 What:		/sys/bus/edac/devices/<dev-name>/scrubX/max_cycle_duration
 Date:		March 2025
 KernelVersion:	6.15
@@ -56,6 +62,16 @@ Contact:	linux-edac@vger.kernel.org
 Description:
 		(RO) Supported maximum scrub cycle duration in seconds
 		by the memory scrubber.
+
+		Device-based scrub: returns the maximum scrub cycle supported
+		by the memory device.
+
+		Region-based scrub: returns the min of maximum scrub cycles
+		supported by individual memory devices that back the region.
+
+		If the memory device does not provide maximum scrub cycle
+		information, return the maximum supported value of the scrub
+		cycle field.
 
 What:		/sys/bus/edac/devices/<dev-name>/scrubX/current_cycle_duration
 Date:		March 2025

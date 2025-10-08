@@ -12,14 +12,15 @@ use core::{
     pin::Pin,
     sync::atomic::{AtomicBool, Ordering},
 };
+#[cfg(feature = "std")]
 use std::{
     sync::Arc,
-    thread::{self, park, sleep, Builder, Thread},
+    thread::{self, sleep, Builder, Thread},
     time::Duration,
 };
 
 use pin_init::*;
-#[expect(unused_attributes)]
+#[allow(unused_attributes)]
 #[path = "./linked_list.rs"]
 pub mod linked_list;
 use linked_list::*;
@@ -36,6 +37,7 @@ impl SpinLock {
             .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
             .is_err()
         {
+            #[cfg(feature = "std")]
             while self.inner.load(Ordering::Relaxed) {
                 thread::yield_now();
             }
@@ -94,7 +96,8 @@ impl<T> CMutex<T> {
             // println!("wait list length: {}", self.wait_list.size());
             while self.locked.get() {
                 drop(sguard);
-                park();
+                #[cfg(feature = "std")]
+                thread::park();
                 sguard = self.spin_lock.acquire();
             }
             // This does have an effect, as the ListHead inside wait_entry implements Drop!
@@ -131,8 +134,11 @@ impl<T> Drop for CMutexGuard<'_, T> {
         let sguard = self.mtx.spin_lock.acquire();
         self.mtx.locked.set(false);
         if let Some(list_field) = self.mtx.wait_list.next() {
-            let wait_entry = list_field.as_ptr().cast::<WaitEntry>();
-            unsafe { (*wait_entry).thread.unpark() };
+            let _wait_entry = list_field.as_ptr().cast::<WaitEntry>();
+            #[cfg(feature = "std")]
+            unsafe {
+                (*_wait_entry).thread.unpark()
+            };
         }
         drop(sguard);
     }
@@ -159,52 +165,61 @@ impl<T> DerefMut for CMutexGuard<'_, T> {
 struct WaitEntry {
     #[pin]
     wait_list: ListHead,
+    #[cfg(feature = "std")]
     thread: Thread,
 }
 
 impl WaitEntry {
     #[inline]
     fn insert_new(list: &ListHead) -> impl PinInit<Self> + '_ {
-        pin_init!(Self {
-            thread: thread::current(),
-            wait_list <- ListHead::insert_prev(list),
-        })
+        #[cfg(feature = "std")]
+        {
+            pin_init!(Self {
+                thread: thread::current(),
+                wait_list <- ListHead::insert_prev(list),
+            })
+        }
+        #[cfg(not(feature = "std"))]
+        {
+            pin_init!(Self {
+                wait_list <- ListHead::insert_prev(list),
+            })
+        }
     }
 }
 
-#[cfg(not(any(feature = "std", feature = "alloc")))]
-fn main() {}
-
-#[allow(dead_code)]
 #[cfg_attr(test, test)]
-#[cfg(any(feature = "std", feature = "alloc"))]
+#[allow(dead_code)]
 fn main() {
-    let mtx: Pin<Arc<CMutex<usize>>> = Arc::pin_init(CMutex::new(0)).unwrap();
-    let mut handles = vec![];
-    let thread_count = 20;
-    let workload = if cfg!(miri) { 100 } else { 1_000 };
-    for i in 0..thread_count {
-        let mtx = mtx.clone();
-        handles.push(
-            Builder::new()
-                .name(format!("worker #{i}"))
-                .spawn(move || {
-                    for _ in 0..workload {
-                        *mtx.lock() += 1;
-                    }
-                    println!("{i} halfway");
-                    sleep(Duration::from_millis((i as u64) * 10));
-                    for _ in 0..workload {
-                        *mtx.lock() += 1;
-                    }
-                    println!("{i} finished");
-                })
-                .expect("should not fail"),
-        );
+    #[cfg(feature = "std")]
+    {
+        let mtx: Pin<Arc<CMutex<usize>>> = Arc::pin_init(CMutex::new(0)).unwrap();
+        let mut handles = vec![];
+        let thread_count = 20;
+        let workload = if cfg!(miri) { 100 } else { 1_000 };
+        for i in 0..thread_count {
+            let mtx = mtx.clone();
+            handles.push(
+                Builder::new()
+                    .name(format!("worker #{i}"))
+                    .spawn(move || {
+                        for _ in 0..workload {
+                            *mtx.lock() += 1;
+                        }
+                        println!("{i} halfway");
+                        sleep(Duration::from_millis((i as u64) * 10));
+                        for _ in 0..workload {
+                            *mtx.lock() += 1;
+                        }
+                        println!("{i} finished");
+                    })
+                    .expect("should not fail"),
+            );
+        }
+        for h in handles {
+            h.join().expect("thread panicked");
+        }
+        println!("{:?}", &*mtx.lock());
+        assert_eq!(*mtx.lock(), workload * thread_count * 2);
     }
-    for h in handles {
-        h.join().expect("thread panicked");
-    }
-    println!("{:?}", &*mtx.lock());
-    assert_eq!(*mtx.lock(), workload * thread_count * 2);
 }

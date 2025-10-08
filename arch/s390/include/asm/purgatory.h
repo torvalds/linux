@@ -7,11 +7,11 @@
 
 #ifndef _S390_PURGATORY_H_
 #define _S390_PURGATORY_H_
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/purgatory.h>
 
 int verify_sha256_digest(void);
 
-#endif	/* __ASSEMBLY__ */
+#endif	/* __ASSEMBLER__ */
 #endif /* _S390_PURGATORY_H_ */

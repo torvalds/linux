@@ -7,8 +7,10 @@
  */
 
 #include <linux/bits.h>
+#include <linux/cleanup.h>
 #include <linux/delay.h>
 #include <linux/device.h>
+#include <linux/iopoll.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/property.h>
@@ -17,6 +19,7 @@
 
 #include <linux/spi/eeprom.h>
 #include <linux/spi/spi.h>
+#include <linux/spi/spi-mem.h>
 
 #include <linux/nvmem-provider.h>
 
@@ -35,13 +38,12 @@
 
 struct at25_data {
 	struct spi_eeprom	chip;
-	struct spi_device	*spi;
+	struct spi_mem		*spimem;
 	struct mutex		lock;
 	unsigned		addrlen;
 	struct nvmem_config	nvmem_config;
 	struct nvmem_device	*nvmem;
 	u8 sernum[FM25_SN_LEN];
-	u8 command[EE_MAXADDRLEN + 1];
 };
 
 #define	AT25_WREN	0x06		/* latch the write enable */
@@ -74,20 +76,29 @@ struct at25_data {
 
 #define	io_limit	PAGE_SIZE	/* bytes */
 
+/* Handle the address MSB as part of instruction byte */
+static u8 at25_instr(struct at25_data *at25, u8 instr, unsigned int off)
+{
+	if (!(at25->chip.flags & EE_INSTR_BIT3_IS_ADDR))
+		return instr;
+	if (off < BIT(at25->addrlen * 8))
+		return instr;
+	return instr | AT25_INSTR_BIT3;
+}
+
 static int at25_ee_read(void *priv, unsigned int offset,
 			void *val, size_t count)
 {
+	u8 *bounce __free(kfree) = kmalloc(min(count, io_limit), GFP_KERNEL);
 	struct at25_data *at25 = priv;
 	char *buf = val;
-	size_t max_chunk = spi_max_transfer_size(at25->spi);
 	unsigned int msg_offset = offset;
 	size_t bytes_left = count;
 	size_t segment;
-	u8			*cp;
-	ssize_t			status;
-	struct spi_transfer	t[2];
-	struct spi_message	m;
-	u8			instr;
+	int status;
+
+	if (!bounce)
+		return -ENOMEM;
 
 	if (unlikely(offset >= at25->chip.byte_len))
 		return -EINVAL;
@@ -97,87 +108,67 @@ static int at25_ee_read(void *priv, unsigned int offset,
 		return -EINVAL;
 
 	do {
-		segment = min(bytes_left, max_chunk);
-		cp = at25->command;
+		struct spi_mem_op op;
 
-		instr = AT25_READ;
-		if (at25->chip.flags & EE_INSTR_BIT3_IS_ADDR)
-			if (msg_offset >= BIT(at25->addrlen * 8))
-				instr |= AT25_INSTR_BIT3;
+		segment = min(bytes_left, io_limit);
 
-		mutex_lock(&at25->lock);
+		op = (struct spi_mem_op)SPI_MEM_OP(SPI_MEM_OP_CMD(at25_instr(at25, AT25_READ,
+									     msg_offset), 1),
+						   SPI_MEM_OP_ADDR(at25->addrlen, msg_offset, 1),
+						   SPI_MEM_OP_NO_DUMMY,
+						   SPI_MEM_OP_DATA_IN(segment, bounce, 1));
 
-		*cp++ = instr;
-
-		/* 8/16/24-bit address is written MSB first */
-		switch (at25->addrlen) {
-		default:	/* case 3 */
-			*cp++ = msg_offset >> 16;
-			fallthrough;
-		case 2:
-			*cp++ = msg_offset >> 8;
-			fallthrough;
-		case 1:
-		case 0:	/* can't happen: for better code generation */
-			*cp++ = msg_offset >> 0;
-		}
-
-		spi_message_init(&m);
-		memset(t, 0, sizeof(t));
-
-		t[0].tx_buf = at25->command;
-		t[0].len = at25->addrlen + 1;
-		spi_message_add_tail(&t[0], &m);
-
-		t[1].rx_buf = buf;
-		t[1].len = segment;
-		spi_message_add_tail(&t[1], &m);
-
-		status = spi_sync(at25->spi, &m);
-
-		mutex_unlock(&at25->lock);
-
+		status = spi_mem_adjust_op_size(at25->spimem, &op);
 		if (status)
 			return status;
+		segment = op.data.nbytes;
+
+		mutex_lock(&at25->lock);
+		status = spi_mem_exec_op(at25->spimem, &op);
+		mutex_unlock(&at25->lock);
+		if (status)
+			return status;
+		memcpy(buf, bounce, segment);
 
 		msg_offset += segment;
 		buf += segment;
 		bytes_left -= segment;
 	} while (bytes_left > 0);
 
-	dev_dbg(&at25->spi->dev, "read %zu bytes at %d\n",
+	dev_dbg(&at25->spimem->spi->dev, "read %zu bytes at %d\n",
 		count, offset);
 	return 0;
 }
 
-/* Read extra registers as ID or serial number */
+/*
+ * Read extra registers as ID or serial number
+ *
+ * Allow for the callers to provide @buf on stack (not necessary DMA-capable)
+ * by allocating a bounce buffer internally.
+ */
 static int fm25_aux_read(struct at25_data *at25, u8 *buf, uint8_t command,
 			 int len)
 {
+	u8 *bounce __free(kfree) = kmalloc(len, GFP_KERNEL);
+	struct spi_mem_op op;
 	int status;
-	struct spi_transfer t[2];
-	struct spi_message m;
 
-	spi_message_init(&m);
-	memset(t, 0, sizeof(t));
+	if (!bounce)
+		return -ENOMEM;
 
-	t[0].tx_buf = at25->command;
-	t[0].len = 1;
-	spi_message_add_tail(&t[0], &m);
+	op = (struct spi_mem_op)SPI_MEM_OP(SPI_MEM_OP_CMD(command, 1),
+					   SPI_MEM_OP_NO_ADDR,
+					   SPI_MEM_OP_NO_DUMMY,
+					   SPI_MEM_OP_DATA_IN(len, bounce, 1));
 
-	t[1].rx_buf = buf;
-	t[1].len = len;
-	spi_message_add_tail(&t[1], &m);
+	status = spi_mem_exec_op(at25->spimem, &op);
+	dev_dbg(&at25->spimem->spi->dev, "read %d aux bytes --> %d\n", len, status);
+	if (status)
+		return status;
 
-	mutex_lock(&at25->lock);
+	memcpy(buf, bounce, len);
 
-	at25->command[0] = command;
-
-	status = spi_sync(at25->spi, &m);
-	dev_dbg(&at25->spi->dev, "read %d aux bytes --> %d\n", len, status);
-
-	mutex_unlock(&at25->lock);
-	return status;
+	return 0;
 }
 
 static ssize_t sernum_show(struct device *dev, struct device_attribute *attr, char *buf)
@@ -195,14 +186,47 @@ static struct attribute *sernum_attrs[] = {
 };
 ATTRIBUTE_GROUPS(sernum);
 
+/*
+ * Poll Read Status Register with timeout
+ *
+ * Return:
+ * 0, if the chip is ready
+ * [positive] Status Register value as-is, if the chip is busy
+ * [negative] error code in case of read failure
+ */
+static int at25_wait_ready(struct at25_data *at25)
+{
+	u8 *bounce __free(kfree) = kmalloc(1, GFP_KERNEL);
+	struct spi_mem_op op;
+	int status;
+
+	if (!bounce)
+		return -ENOMEM;
+
+	op = (struct spi_mem_op)SPI_MEM_OP(SPI_MEM_OP_CMD(AT25_RDSR, 1),
+					   SPI_MEM_OP_NO_ADDR,
+					   SPI_MEM_OP_NO_DUMMY,
+					   SPI_MEM_OP_DATA_IN(1, bounce, 1));
+
+	read_poll_timeout(spi_mem_exec_op, status,
+			  status || !(bounce[0] & AT25_SR_nRDY), false,
+			  USEC_PER_MSEC, USEC_PER_MSEC * EE_TIMEOUT,
+			  at25->spimem, &op);
+	if (status < 0)
+		return status;
+	if (!(bounce[0] & AT25_SR_nRDY))
+		return 0;
+
+	return bounce[0];
+}
+
 static int at25_ee_write(void *priv, unsigned int off, void *val, size_t count)
 {
+	u8 *bounce __free(kfree) = kmalloc(min(count, io_limit), GFP_KERNEL);
 	struct at25_data *at25 = priv;
-	size_t maxsz = spi_max_transfer_size(at25->spi);
 	const char *buf = val;
-	int			status = 0;
-	unsigned		buf_size;
-	u8			*bounce;
+	unsigned int buf_size;
+	int status;
 
 	if (unlikely(off >= at25->chip.byte_len))
 		return -EFBIG;
@@ -211,11 +235,8 @@ static int at25_ee_write(void *priv, unsigned int off, void *val, size_t count)
 	if (unlikely(!count))
 		return -EINVAL;
 
-	/* Temp buffer starts with command and address */
 	buf_size = at25->chip.page_size;
-	if (buf_size > io_limit)
-		buf_size = io_limit;
-	bounce = kmalloc(buf_size + at25->addrlen + 1, GFP_KERNEL);
+
 	if (!bounce)
 		return -ENOMEM;
 
@@ -223,85 +244,64 @@ static int at25_ee_write(void *priv, unsigned int off, void *val, size_t count)
 	 * For write, rollover is within the page ... so we write at
 	 * most one page, then manually roll over to the next page.
 	 */
-	mutex_lock(&at25->lock);
+	guard(mutex)(&at25->lock);
 	do {
-		unsigned long	timeout, retries;
-		unsigned	segment;
-		unsigned	offset = off;
-		u8		*cp = bounce;
-		int		sr;
-		u8		instr;
+		struct spi_mem_op op = SPI_MEM_OP(SPI_MEM_OP_CMD(AT25_WREN, 1),
+						  SPI_MEM_OP_NO_ADDR,
+						  SPI_MEM_OP_NO_DUMMY,
+						  SPI_MEM_OP_NO_DATA);
+		unsigned int segment;
 
-		*cp = AT25_WREN;
-		status = spi_write(at25->spi, cp, 1);
+		status = spi_mem_exec_op(at25->spimem, &op);
 		if (status < 0) {
-			dev_dbg(&at25->spi->dev, "WREN --> %d\n", status);
-			break;
-		}
-
-		instr = AT25_WRITE;
-		if (at25->chip.flags & EE_INSTR_BIT3_IS_ADDR)
-			if (offset >= BIT(at25->addrlen * 8))
-				instr |= AT25_INSTR_BIT3;
-		*cp++ = instr;
-
-		/* 8/16/24-bit address is written MSB first */
-		switch (at25->addrlen) {
-		default:	/* case 3 */
-			*cp++ = offset >> 16;
-			fallthrough;
-		case 2:
-			*cp++ = offset >> 8;
-			fallthrough;
-		case 1:
-		case 0:	/* can't happen: for better code generation */
-			*cp++ = offset >> 0;
+			dev_dbg(&at25->spimem->spi->dev, "WREN --> %d\n", status);
+			return status;
 		}
 
 		/* Write as much of a page as we can */
-		segment = buf_size - (offset % buf_size);
+		segment = buf_size - (off % buf_size);
 		if (segment > count)
 			segment = count;
-		if (segment > maxsz)
-			segment = maxsz;
-		memcpy(cp, buf, segment);
-		status = spi_write(at25->spi, bounce,
-				segment + at25->addrlen + 1);
-		dev_dbg(&at25->spi->dev, "write %u bytes at %u --> %d\n",
-			segment, offset, status);
-		if (status < 0)
-			break;
+		if (segment > io_limit)
+			segment = io_limit;
+
+		op = (struct spi_mem_op)SPI_MEM_OP(SPI_MEM_OP_CMD(at25_instr(at25, AT25_WRITE, off),
+								  1),
+						   SPI_MEM_OP_ADDR(at25->addrlen, off, 1),
+						   SPI_MEM_OP_NO_DUMMY,
+						   SPI_MEM_OP_DATA_OUT(segment, bounce, 1));
+
+		status = spi_mem_adjust_op_size(at25->spimem, &op);
+		if (status)
+			return status;
+		segment = op.data.nbytes;
+
+		memcpy(bounce, buf, segment);
+
+		status = spi_mem_exec_op(at25->spimem, &op);
+		dev_dbg(&at25->spimem->spi->dev, "write %u bytes at %u --> %d\n",
+			segment, off, status);
+		if (status)
+			return status;
 
 		/*
 		 * REVISIT this should detect (or prevent) failed writes
 		 * to read-only sections of the EEPROM...
 		 */
 
-		/* Wait for non-busy status */
-		timeout = jiffies + msecs_to_jiffies(EE_TIMEOUT);
-		retries = 0;
-		do {
-
-			sr = spi_w8r8(at25->spi, AT25_RDSR);
-			if (sr < 0 || (sr & AT25_SR_nRDY)) {
-				dev_dbg(&at25->spi->dev,
-					"rdsr --> %d (%02x)\n", sr, sr);
-				/* at HZ=100, this is sloooow */
-				msleep(1);
-				continue;
-			}
-			if (!(sr & AT25_SR_nRDY))
-				break;
-		} while (retries++ < 3 || time_before_eq(jiffies, timeout));
-
-		if ((sr < 0) || (sr & AT25_SR_nRDY)) {
-			dev_err(&at25->spi->dev,
+		status = at25_wait_ready(at25);
+		if (status < 0) {
+			dev_err_probe(&at25->spimem->spi->dev, status,
+				      "Read Status Redister command failed\n");
+			return status;
+		}
+		if (status) {
+			dev_dbg(&at25->spimem->spi->dev,
+				"Status %02x\n", status);
+			dev_err(&at25->spimem->spi->dev,
 				"write %u bytes offset %u, timeout after %u msecs\n",
-				segment, offset,
-				jiffies_to_msecs(jiffies -
-					(timeout - EE_TIMEOUT)));
-			status = -ETIMEDOUT;
-			break;
+				segment, off, EE_TIMEOUT);
+			return -ETIMEDOUT;
 		}
 
 		off += segment;
@@ -310,9 +310,6 @@ static int at25_ee_write(void *priv, unsigned int off, void *val, size_t count)
 
 	} while (count > 0);
 
-	mutex_unlock(&at25->lock);
-
-	kfree(bounce);
 	return status;
 }
 
@@ -388,17 +385,33 @@ static int at25_fram_to_chip(struct device *dev, struct spi_eeprom *chip)
 
 	/* Get ID of chip */
 	fm25_aux_read(at25, id, FM25_RDID, FM25_ID_LEN);
+	/* There are inside-out FRAM variations, detect them and reverse the ID bytes */
+	if (id[6] == 0x7f && id[2] == 0xc2)
+		for (i = 0; i < ARRAY_SIZE(id) / 2; i++) {
+			u8 tmp = id[i];
+			int j = ARRAY_SIZE(id) - i - 1;
+
+			id[i] = id[j];
+			id[j] = tmp;
+		}
 	if (id[6] != 0xc2) {
 		dev_err(dev, "Error: no Cypress FRAM (id %02x)\n", id[6]);
 		return -ENODEV;
 	}
-	/* Set size found in ID */
-	if (id[7] < 0x21 || id[7] > 0x26) {
+
+	switch (id[7]) {
+	case 0x21 ... 0x26:
+		chip->byte_len = BIT(id[7] - 0x21 + 4) * 1024;
+		break;
+	case 0x2a ... 0x30:
+		/* CY15B116QN ... CY15B116QN */
+		chip->byte_len = BIT(((id[7] >> 1) & 0xf) + 13);
+		break;
+	default:
 		dev_err(dev, "Error: unsupported size (id %02x)\n", id[7]);
 		return -ENODEV;
 	}
 
-	chip->byte_len = BIT(id[7] - 0x21 + 4) * 1024;
 	if (chip->byte_len > 64 * 1024)
 		chip->flags |= EE_ADDR3;
 	else
@@ -429,31 +442,33 @@ static const struct spi_device_id at25_spi_ids[] = {
 };
 MODULE_DEVICE_TABLE(spi, at25_spi_ids);
 
-static int at25_probe(struct spi_device *spi)
+static int at25_probe(struct spi_mem *mem)
 {
-	struct at25_data	*at25 = NULL;
-	int			err;
-	int			sr;
+	struct spi_device *spi = mem->spi;
 	struct spi_eeprom *pdata;
+	struct at25_data *at25;
 	bool is_fram;
-
-	/*
-	 * Ping the chip ... the status register is pretty portable,
-	 * unlike probing manufacturer IDs. We do expect that system
-	 * firmware didn't write it in the past few milliseconds!
-	 */
-	sr = spi_w8r8(spi, AT25_RDSR);
-	if (sr < 0 || sr & AT25_SR_nRDY) {
-		dev_dbg(&spi->dev, "rdsr --> %d (%02x)\n", sr, sr);
-		return -ENXIO;
-	}
+	int err;
 
 	at25 = devm_kzalloc(&spi->dev, sizeof(*at25), GFP_KERNEL);
 	if (!at25)
 		return -ENOMEM;
 
+	at25->spimem = mem;
+
+	/*
+	 * Ping the chip ... the status register is pretty portable,
+	 * unlike probing manufacturer IDs.
+	 */
+	err = at25_wait_ready(at25);
+	if (err < 0)
+		return dev_err_probe(&spi->dev, err, "Read Status Register command failed\n");
+	if (err) {
+		dev_err(&spi->dev, "Not ready (%02x)\n", err);
+		return -ENXIO;
+	}
+
 	mutex_init(&at25->lock);
-	at25->spi = spi;
 	spi_set_drvdata(spi, at25);
 
 	is_fram = fwnode_device_is_compatible(dev_fwnode(&spi->dev), "cypress,fm25");
@@ -514,17 +529,19 @@ static int at25_probe(struct spi_device *spi)
 
 /*-------------------------------------------------------------------------*/
 
-static struct spi_driver at25_driver = {
-	.driver = {
-		.name		= "at25",
-		.of_match_table = at25_of_match,
-		.dev_groups	= sernum_groups,
+static struct spi_mem_driver at25_driver = {
+	.spidrv = {
+		.driver = {
+			.name		= "at25",
+			.of_match_table = at25_of_match,
+			.dev_groups	= sernum_groups,
+		},
+		.id_table	= at25_spi_ids,
 	},
 	.probe		= at25_probe,
-	.id_table	= at25_spi_ids,
 };
 
-module_spi_driver(at25_driver);
+module_spi_mem_driver(at25_driver);
 
 MODULE_DESCRIPTION("Driver for most SPI EEPROMs");
 MODULE_AUTHOR("David Brownell");

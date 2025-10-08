@@ -156,15 +156,16 @@ void translate_SPL_in_params_from_pipe_ctx(struct pipe_ctx *pipe_ctx, struct spl
 		spl_in->adaptive_sharpness.enable = true;
 		spl_in->adaptive_sharpness.sharpness_level = 0;
 	} else if (sharpness_setting == SHARPNESS_CUSTOM) {
-		spl_in->adaptive_sharpness.sharpness_range.sdr_rgb_min = 0;
-		spl_in->adaptive_sharpness.sharpness_range.sdr_rgb_max = 1750;
-		spl_in->adaptive_sharpness.sharpness_range.sdr_rgb_mid = 750;
-		spl_in->adaptive_sharpness.sharpness_range.sdr_yuv_min = 0;
-		spl_in->adaptive_sharpness.sharpness_range.sdr_yuv_max = 3500;
-		spl_in->adaptive_sharpness.sharpness_range.sdr_yuv_mid = 1500;
-		spl_in->adaptive_sharpness.sharpness_range.hdr_rgb_min = 0;
-		spl_in->adaptive_sharpness.sharpness_range.hdr_rgb_max = 2750;
-		spl_in->adaptive_sharpness.sharpness_range.hdr_rgb_mid = 1500;
+		/* SAT: read harpness_range from dc_plane_state */
+		spl_in->adaptive_sharpness.sharpness_range.sdr_rgb_min = plane_state->sharpness_range.sdr_rgb_min;
+		spl_in->adaptive_sharpness.sharpness_range.sdr_rgb_max = plane_state->sharpness_range.sdr_rgb_max;
+		spl_in->adaptive_sharpness.sharpness_range.sdr_rgb_mid = plane_state->sharpness_range.sdr_rgb_mid;
+		spl_in->adaptive_sharpness.sharpness_range.sdr_yuv_min = plane_state->sharpness_range.sdr_yuv_min;
+		spl_in->adaptive_sharpness.sharpness_range.sdr_yuv_max = plane_state->sharpness_range.sdr_yuv_max;
+		spl_in->adaptive_sharpness.sharpness_range.sdr_yuv_mid = plane_state->sharpness_range.sdr_yuv_mid;
+		spl_in->adaptive_sharpness.sharpness_range.hdr_rgb_min = plane_state->sharpness_range.hdr_rgb_min;
+		spl_in->adaptive_sharpness.sharpness_range.hdr_rgb_max = plane_state->sharpness_range.hdr_rgb_max;
+		spl_in->adaptive_sharpness.sharpness_range.hdr_rgb_mid = plane_state->sharpness_range.hdr_rgb_mid;
 
 		if (force_sharpness_level > 0) {
 			if (force_sharpness_level > 10)

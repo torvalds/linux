@@ -210,13 +210,6 @@ static void irq_restore_affinity_of_irq(struct irq_desc *desc, unsigned int cpu)
 	    !irq_data_get_irq_chip(data) || !cpumask_test_cpu(cpu, affinity))
 		return;
 
-	/*
-	 * Don't restore suspended interrupts here when a system comes back
-	 * from S3. They are reenabled via resume_device_irqs().
-	 */
-	if (desc->istate & IRQS_SUSPENDED)
-		return;
-
 	if (irqd_is_managed_and_shutdown(data))
 		irq_startup_managed(desc);
 

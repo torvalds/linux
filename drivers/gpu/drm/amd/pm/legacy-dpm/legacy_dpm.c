@@ -47,7 +47,7 @@
 #define amdgpu_dpm_check_state_equal(adev, cps, rps, equal) \
 		((adev)->powerplay.pp_funcs->check_state_equal((adev)->powerplay.pp_handle, (cps), (rps), (equal)))
 
-void amdgpu_dpm_print_class_info(u32 class, u32 class2)
+void amdgpu_dpm_dbg_print_class_info(struct amdgpu_device *adev, u32 class, u32 class2)
 {
 	const char *s;
 
@@ -66,71 +66,45 @@ void amdgpu_dpm_print_class_info(u32 class, u32 class2)
 		s = "performance";
 		break;
 	}
-	printk("\tui class: %s\n", s);
-	printk("\tinternal class:");
+	drm_dbg(adev_to_drm(adev), "\tui class: %s\n", s);
 	if (((class & ~ATOM_PPLIB_CLASSIFICATION_UI_MASK) == 0) &&
 	    (class2 == 0))
-		pr_cont(" none");
-	else {
-		if (class & ATOM_PPLIB_CLASSIFICATION_BOOT)
-			pr_cont(" boot");
-		if (class & ATOM_PPLIB_CLASSIFICATION_THERMAL)
-			pr_cont(" thermal");
-		if (class & ATOM_PPLIB_CLASSIFICATION_LIMITEDPOWERSOURCE)
-			pr_cont(" limited_pwr");
-		if (class & ATOM_PPLIB_CLASSIFICATION_REST)
-			pr_cont(" rest");
-		if (class & ATOM_PPLIB_CLASSIFICATION_FORCED)
-			pr_cont(" forced");
-		if (class & ATOM_PPLIB_CLASSIFICATION_3DPERFORMANCE)
-			pr_cont(" 3d_perf");
-		if (class & ATOM_PPLIB_CLASSIFICATION_OVERDRIVETEMPLATE)
-			pr_cont(" ovrdrv");
-		if (class & ATOM_PPLIB_CLASSIFICATION_UVDSTATE)
-			pr_cont(" uvd");
-		if (class & ATOM_PPLIB_CLASSIFICATION_3DLOW)
-			pr_cont(" 3d_low");
-		if (class & ATOM_PPLIB_CLASSIFICATION_ACPI)
-			pr_cont(" acpi");
-		if (class & ATOM_PPLIB_CLASSIFICATION_HD2STATE)
-			pr_cont(" uvd_hd2");
-		if (class & ATOM_PPLIB_CLASSIFICATION_HDSTATE)
-			pr_cont(" uvd_hd");
-		if (class & ATOM_PPLIB_CLASSIFICATION_SDSTATE)
-			pr_cont(" uvd_sd");
-		if (class2 & ATOM_PPLIB_CLASSIFICATION2_LIMITEDPOWERSOURCE_2)
-			pr_cont(" limited_pwr2");
-		if (class2 & ATOM_PPLIB_CLASSIFICATION2_ULV)
-			pr_cont(" ulv");
-		if (class2 & ATOM_PPLIB_CLASSIFICATION2_MVC)
-			pr_cont(" uvd_mvc");
-	}
-	pr_cont("\n");
+		drm_dbg(adev_to_drm(adev), "\tinternal class: none\n");
+	else
+		drm_dbg(adev_to_drm(adev), "\tinternal class: %s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
+			(class & ATOM_PPLIB_CLASSIFICATION_BOOT) ? " boot" : "",
+			(class & ATOM_PPLIB_CLASSIFICATION_THERMAL) ? " thermal" : "",
+			(class & ATOM_PPLIB_CLASSIFICATION_LIMITEDPOWERSOURCE) ? " limited_pwr" : "",
+			(class & ATOM_PPLIB_CLASSIFICATION_REST) ? " rest" : "",
+			(class & ATOM_PPLIB_CLASSIFICATION_FORCED) ? " forced" : "",
+			(class & ATOM_PPLIB_CLASSIFICATION_3DPERFORMANCE) ? " 3d_perf" : "",
+			(class & ATOM_PPLIB_CLASSIFICATION_OVERDRIVETEMPLATE) ? " ovrdrv" : "",
+			(class & ATOM_PPLIB_CLASSIFICATION_UVDSTATE) ? " uvd" : "",
+			(class & ATOM_PPLIB_CLASSIFICATION_3DLOW) ? " 3d_low" : "",
+			(class & ATOM_PPLIB_CLASSIFICATION_ACPI) ? " acpi" : "",
+			(class & ATOM_PPLIB_CLASSIFICATION_HD2STATE) ? " uvd_hd2" : "",
+			(class & ATOM_PPLIB_CLASSIFICATION_HDSTATE) ? " uvd_hd" : "",
+			(class & ATOM_PPLIB_CLASSIFICATION_SDSTATE) ? " uvd_sd" : "",
+			(class2 & ATOM_PPLIB_CLASSIFICATION2_LIMITEDPOWERSOURCE_2) ? " limited_pwr2" : "",
+			(class2 & ATOM_PPLIB_CLASSIFICATION2_ULV) ? " ulv" : "",
+			(class2 & ATOM_PPLIB_CLASSIFICATION2_MVC) ? " uvd_mvc" : "");
 }
 
-void amdgpu_dpm_print_cap_info(u32 caps)
+void amdgpu_dpm_dbg_print_cap_info(struct amdgpu_device *adev, u32 caps)
 {
-	printk("\tcaps:");
-	if (caps & ATOM_PPLIB_SINGLE_DISPLAY_ONLY)
-		pr_cont(" single_disp");
-	if (caps & ATOM_PPLIB_SUPPORTS_VIDEO_PLAYBACK)
-		pr_cont(" video");
-	if (caps & ATOM_PPLIB_DISALLOW_ON_DC)
-		pr_cont(" no_dc");
-	pr_cont("\n");
+	drm_dbg(adev_to_drm(adev), "\tcaps: %s%s%s\n",
+		(caps & ATOM_PPLIB_SINGLE_DISPLAY_ONLY) ? " single_disp" : "",
+		(caps & ATOM_PPLIB_SUPPORTS_VIDEO_PLAYBACK) ? " video" : "",
+		(caps & ATOM_PPLIB_DISALLOW_ON_DC) ? " no_dc" : "");
 }
 
-void amdgpu_dpm_print_ps_status(struct amdgpu_device *adev,
+void amdgpu_dpm_dbg_print_ps_status(struct amdgpu_device *adev,
 				struct amdgpu_ps *rps)
 {
-	printk("\tstatus:");
-	if (rps == adev->pm.dpm.current_ps)
-		pr_cont(" c");
-	if (rps == adev->pm.dpm.requested_ps)
-		pr_cont(" r");
-	if (rps == adev->pm.dpm.boot_ps)
-		pr_cont(" b");
-	pr_cont("\n");
+	drm_dbg(adev_to_drm(adev), "\tstatus:%s%s%s\n",
+		rps == adev->pm.dpm.current_ps ? " c" : "",
+		rps == adev->pm.dpm.requested_ps ? " r" : "",
+		rps == adev->pm.dpm.boot_ps ? " b" : "");
 }
 
 void amdgpu_pm_print_power_states(struct amdgpu_device *adev)
@@ -699,64 +673,64 @@ void amdgpu_add_thermal_controller(struct amdgpu_device *adev)
 			adev->pm.fan_max_rpm = controller->ucFanMaxRPM;
 		}
 		if (controller->ucType == ATOM_PP_THERMALCONTROLLER_RV6xx) {
-			DRM_INFO("Internal thermal controller %s fan control\n",
+			drm_info(adev_to_drm(adev), "Internal thermal controller %s fan control\n",
 				 (controller->ucFanParameters &
 				  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
 			adev->pm.int_thermal_type = THERMAL_TYPE_RV6XX;
 		} else if (controller->ucType == ATOM_PP_THERMALCONTROLLER_RV770) {
-			DRM_INFO("Internal thermal controller %s fan control\n",
+			drm_info(adev_to_drm(adev), "Internal thermal controller %s fan control\n",
 				 (controller->ucFanParameters &
 				  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
 			adev->pm.int_thermal_type = THERMAL_TYPE_RV770;
 		} else if (controller->ucType == ATOM_PP_THERMALCONTROLLER_EVERGREEN) {
-			DRM_INFO("Internal thermal controller %s fan control\n",
+			drm_info(adev_to_drm(adev), "Internal thermal controller %s fan control\n",
 				 (controller->ucFanParameters &
 				  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
 			adev->pm.int_thermal_type = THERMAL_TYPE_EVERGREEN;
 		} else if (controller->ucType == ATOM_PP_THERMALCONTROLLER_SUMO) {
-			DRM_INFO("Internal thermal controller %s fan control\n",
+			drm_info(adev_to_drm(adev), "Internal thermal controller %s fan control\n",
 				 (controller->ucFanParameters &
 				  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
 			adev->pm.int_thermal_type = THERMAL_TYPE_SUMO;
 		} else if (controller->ucType == ATOM_PP_THERMALCONTROLLER_NISLANDS) {
-			DRM_INFO("Internal thermal controller %s fan control\n",
+			drm_info(adev_to_drm(adev), "Internal thermal controller %s fan control\n",
 				 (controller->ucFanParameters &
 				  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
 			adev->pm.int_thermal_type = THERMAL_TYPE_NI;
 		} else if (controller->ucType == ATOM_PP_THERMALCONTROLLER_SISLANDS) {
-			DRM_INFO("Internal thermal controller %s fan control\n",
+			drm_info(adev_to_drm(adev), "Internal thermal controller %s fan control\n",
 				 (controller->ucFanParameters &
 				  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
 			adev->pm.int_thermal_type = THERMAL_TYPE_SI;
 		} else if (controller->ucType == ATOM_PP_THERMALCONTROLLER_CISLANDS) {
-			DRM_INFO("Internal thermal controller %s fan control\n",
+			drm_info(adev_to_drm(adev), "Internal thermal controller %s fan control\n",
 				 (controller->ucFanParameters &
 				  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
 			adev->pm.int_thermal_type = THERMAL_TYPE_CI;
 		} else if (controller->ucType == ATOM_PP_THERMALCONTROLLER_KAVERI) {
-			DRM_INFO("Internal thermal controller %s fan control\n",
+			drm_info(adev_to_drm(adev), "Internal thermal controller %s fan control\n",
 				 (controller->ucFanParameters &
 				  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
 			adev->pm.int_thermal_type = THERMAL_TYPE_KV;
 		} else if (controller->ucType == ATOM_PP_THERMALCONTROLLER_EXTERNAL_GPIO) {
-			DRM_INFO("External GPIO thermal controller %s fan control\n",
+			drm_info(adev_to_drm(adev), "External GPIO thermal controller %s fan control\n",
 				 (controller->ucFanParameters &
 				  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
 			adev->pm.int_thermal_type = THERMAL_TYPE_EXTERNAL_GPIO;
 		} else if (controller->ucType ==
 			   ATOM_PP_THERMALCONTROLLER_ADT7473_WITH_INTERNAL) {
-			DRM_INFO("ADT7473 with internal thermal controller %s fan control\n",
+			drm_info(adev_to_drm(adev), "ADT7473 with internal thermal controller %s fan control\n",
 				 (controller->ucFanParameters &
 				  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
 			adev->pm.int_thermal_type = THERMAL_TYPE_ADT7473_WITH_INTERNAL;
 		} else if (controller->ucType ==
 			   ATOM_PP_THERMALCONTROLLER_EMC2103_WITH_INTERNAL) {
-			DRM_INFO("EMC2103 with internal thermal controller %s fan control\n",
+			drm_info(adev_to_drm(adev), "EMC2103 with internal thermal controller %s fan control\n",
 				 (controller->ucFanParameters &
 				  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
 			adev->pm.int_thermal_type = THERMAL_TYPE_EMC2103_WITH_INTERNAL;
 		} else if (controller->ucType < ARRAY_SIZE(pp_lib_thermal_controller_names)) {
-			DRM_INFO("Possible %s thermal controller at 0x%02x %s fan control\n",
+			drm_info(adev_to_drm(adev), "Possible %s thermal controller at 0x%02x %s fan control\n",
 				 pp_lib_thermal_controller_names[controller->ucType],
 				 controller->ucI2cAddress >> 1,
 				 (controller->ucFanParameters &
@@ -772,7 +746,7 @@ void amdgpu_add_thermal_controller(struct amdgpu_device *adev)
 				i2c_new_client_device(&adev->pm.i2c_bus->adapter, &info);
 			}
 		} else {
-			DRM_INFO("Unknown thermal controller type %d at 0x%02x %s fan control\n",
+			drm_info(adev_to_drm(adev), "Unknown thermal controller type %d at 0x%02x %s fan control\n",
 				 controller->ucType,
 				 controller->ucI2cAddress >> 1,
 				 (controller->ucFanParameters &
@@ -943,9 +917,9 @@ static int amdgpu_dpm_change_power_state_locked(struct amdgpu_device *adev)
 		return -EINVAL;
 
 	if (amdgpu_dpm == 1 && pp_funcs->print_power_state) {
-		printk("switching from power state:\n");
+		drm_dbg(adev_to_drm(adev), "switching from power state\n");
 		amdgpu_dpm_print_power_state(adev, adev->pm.dpm.current_ps);
-		printk("switching to power state:\n");
+		drm_dbg(adev_to_drm(adev), "switching to power state\n");
 		amdgpu_dpm_print_power_state(adev, adev->pm.dpm.requested_ps);
 	}
 

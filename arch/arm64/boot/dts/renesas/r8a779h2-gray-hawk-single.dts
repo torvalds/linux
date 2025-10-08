@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/*
+ * Device Tree Source for the R-Car V4M-7 Gray Hawk Single board
+ *
+ * Copyright (C) 2025 Glider bv
+ */
+
+/dts-v1/;
+
+#include "r8a779h2.dtsi"
+#include "gray-hawk-single.dtsi"
+
+/ {
+	model = "Renesas Gray Hawk Single board based on r8a779h2";
+	compatible = "renesas,gray-hawk-single", "renesas,r8a779h2",
+		     "renesas,r8a779h0";
+};

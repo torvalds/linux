@@ -117,7 +117,6 @@ static int binderfs_binder_device_create(struct inode *ref_inode,
 	struct dentry *dentry, *root;
 	struct binder_device *device;
 	char *name = NULL;
-	size_t name_len;
 	struct inode *inode = NULL;
 	struct super_block *sb = ref_inode->i_sb;
 	struct binderfs_info *info = sb->s_fs_info;
@@ -161,9 +160,7 @@ static int binderfs_binder_device_create(struct inode *ref_inode,
 	inode->i_gid = info->root_gid;
 
 	req->name[BINDERFS_MAX_NAME] = '\0'; /* NUL-terminate */
-	name_len = strlen(req->name);
-	/* Make sure to include terminating NUL byte */
-	name = kmemdup(req->name, name_len + 1, GFP_KERNEL);
+	name = kstrdup(req->name, GFP_KERNEL);
 	if (!name)
 		goto err;
 
@@ -498,21 +495,6 @@ static struct dentry *binderfs_create_dentry(struct dentry *parent,
 	}
 
 	return dentry;
-}
-
-void binderfs_remove_file(struct dentry *dentry)
-{
-	struct inode *parent_inode;
-
-	parent_inode = d_inode(dentry->d_parent);
-	inode_lock(parent_inode);
-	if (simple_positive(dentry)) {
-		dget(dentry);
-		simple_unlink(parent_inode, dentry);
-		d_delete(dentry);
-		dput(dentry);
-	}
-	inode_unlock(parent_inode);
 }
 
 struct dentry *binderfs_create_file(struct dentry *parent, const char *name,

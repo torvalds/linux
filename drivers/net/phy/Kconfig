@@ -25,6 +25,9 @@ if PHYLIB
 config SWPHY
 	bool
 
+config PHY_PACKAGE
+	 tristate
+
 config LED_TRIGGER_PHY
 	bool "Support LED triggers for tracking link state"
 	depends on LEDS_TRIGGERS
@@ -157,6 +160,7 @@ config BCM54140_PHY
 	tristate "Broadcom BCM54140 PHY"
 	depends on HWMON || HWMON=n
 	select BCM_NET_PHYLIB
+	select PHY_PACKAGE
 	help
 	  Support the Broadcom BCM54140 Quad SGMII/QSGMII PHY.
 
@@ -292,6 +296,7 @@ source "drivers/net/phy/mediatek/Kconfig"
 config MICREL_PHY
 	tristate "Micrel PHYs"
 	depends on PTP_1588_CLOCK_OPTIONAL
+	select PHY_PACKAGE
 	help
 	  Supports the KSZ9021, VSC8201, KS8001 PHYs.
 
@@ -323,6 +328,7 @@ config MICROSEMI_PHY
 	depends on MACSEC || MACSEC=n
 	depends on PTP_1588_CLOCK_OPTIONAL || !NETWORK_PHY_TIMESTAMPING
 	select CRYPTO_LIB_AES if MACSEC
+	select PHY_PACKAGE
 	help
 	  Currently supports VSC8514, VSC8530, VSC8531, VSC8540 and VSC8541 PHYs
 

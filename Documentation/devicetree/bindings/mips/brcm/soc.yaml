@@ -92,29 +92,29 @@ additionalProperties: true
 
 examples:
   - |
-     / {
-         compatible = "brcm,bcm3368";
-         #address-cells = <1>;
-         #size-cells = <1>;
-         model = "Broadcom 3368";
+    / {
+        compatible = "brcm,bcm3368";
+        #address-cells = <1>;
+        #size-cells = <1>;
+        model = "Broadcom 3368";
 
-         cpus {
-           #address-cells = <1>;
-           #size-cells = <0>;
+        cpus {
+            #address-cells = <1>;
+            #size-cells = <0>;
 
-           mips-hpt-frequency = <150000000>;
+            mips-hpt-frequency = <150000000>;
 
-           cpu@0 {
-             compatible = "brcm,bmips4350";
-             device_type = "cpu";
-             reg = <0>;
-           };
+            cpu@0 {
+                compatible = "brcm,bmips4350";
+                device_type = "cpu";
+                reg = <0>;
+            };
 
-           cpu@1 {
-             compatible = "brcm,bmips4350";
-             device_type = "cpu";
-             reg = <1>;
-           };
-         };
-       };
+            cpu@1 {
+                compatible = "brcm,bmips4350";
+                device_type = "cpu";
+                reg = <1>;
+            };
+        };
+    };
 ...

@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+config RV_MON_STS
+	depends on RV
+	depends on TRACE_IRQFLAGS
+	depends on RV_MON_SCHED
+	default y
+	select DA_MON_EVENTS_IMPLICIT
+	bool "sts monitor"
+	help
+	  Monitor to ensure relationships between scheduler and task switches
+	   * the scheduler is called and returns with interrupts disabled
+	   * each call to the scheduler has up to one switch
+	   * switches only happen inside the scheduler
+	   * each call to the scheduler disables interrupts to switch
+	  This monitor is part of the sched monitors collection.
+
+	  For further information, see:
+	    Documentation/trace/rv/monitor_sched.rst

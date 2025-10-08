@@ -95,8 +95,11 @@ static void save_reset_user_access_state(struct user_access_state *ua_state)
 
 		ua_state->por_el0 = read_sysreg_s(SYS_POR_EL0);
 		write_sysreg_s(por_enable_all, SYS_POR_EL0);
-		/* Ensure that any subsequent uaccess observes the updated value */
-		isb();
+		/*
+		 * No ISB required as we can tolerate spurious Overlay faults -
+		 * the fault handler will check again based on the new value
+		 * of POR_EL0.
+		 */
 	}
 }
 

@@ -727,7 +727,7 @@ void dccg401_init(struct dccg *dccg)
 	}
 }
 
-void dccg401_set_dto_dscclk(struct dccg *dccg, uint32_t inst)
+void dccg401_set_dto_dscclk(struct dccg *dccg, uint32_t inst, uint32_t num_slices_h)
 {
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
 

@@ -270,6 +270,8 @@ configured for Unix Extensions (and the client has not disabled
 illegal Windows/NTFS/SMB characters to a remap range (this mount parameter
 is the default for SMB3). This remap (``mapposix``) range is also
 compatible with Mac (and "Services for Mac" on some older Windows).
+When POSIX Extensions for SMB 3.1.1 are negotiated, remapping is automatically
+disabled.
 
 CIFS VFS Mount Options
 ======================

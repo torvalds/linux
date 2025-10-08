@@ -9,13 +9,13 @@
 #include <drm/drm_device.h>
 #include <drm/drm_print.h>
 
-#include "i915_reg.h"
-#include "intel_crtc.h"
 #include "intel_cmtg.h"
 #include "intel_cmtg_regs.h"
+#include "intel_crtc.h"
 #include "intel_de.h"
 #include "intel_display_device.h"
 #include "intel_display_power.h"
+#include "intel_display_regs.h"
 
 /**
  * DOC: Common Primary Timing Generator (CMTG)

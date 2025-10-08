@@ -652,7 +652,7 @@ static int wx_ptp_set_timestamp_mode(struct wx *wx,
 	return 0;
 }
 
-static u64 wx_ptp_read(const struct cyclecounter *hw_cc)
+static u64 wx_ptp_read(struct cyclecounter *hw_cc)
 {
 	struct wx *wx = container_of(hw_cc, struct wx, hw_cc);
 

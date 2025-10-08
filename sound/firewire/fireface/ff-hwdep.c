@@ -197,7 +197,7 @@ int snd_ff_create_hwdep_devices(struct snd_ff *ff)
 	if (err < 0)
 		return err;
 
-	strcpy(hwdep->name, ff->card->driver);
+	strscpy(hwdep->name, ff->card->driver);
 	hwdep->iface = SNDRV_HWDEP_IFACE_FW_FIREFACE;
 	hwdep->ops = hwdep_ops;
 	hwdep->private_data = ff;

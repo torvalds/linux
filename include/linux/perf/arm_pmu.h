@@ -70,6 +70,11 @@ struct pmu_hw_events {
 	struct arm_pmu		*percpu_pmu;
 
 	int irq;
+
+	struct perf_branch_stack	*branch_stack;
+
+	/* Active events requesting branch records */
+	unsigned int		branch_users;
 };
 
 enum armpmu_attr_groups {
@@ -115,6 +120,7 @@ struct arm_pmu {
 	/* PMUv3 only */
 	int		pmuver;
 	u64		reg_pmmir;
+	u64		reg_brbidr;
 #define ARMV8_PMUV3_MAX_COMMON_EVENTS		0x40
 	DECLARE_BITMAP(pmceid_bitmap, ARMV8_PMUV3_MAX_COMMON_EVENTS);
 #define ARMV8_PMUV3_EXT_COMMON_EVENT_BASE	0x4000
@@ -125,6 +131,8 @@ struct arm_pmu {
 };
 
 #define to_arm_pmu(p) (container_of(p, struct arm_pmu, pmu))
+
+DECLARE_PER_CPU(struct arm_pmu *, cpu_armpmu);
 
 u64 armpmu_event_update(struct perf_event *event);
 

@@ -288,8 +288,12 @@ static int prueth_fw_offload_buffer_setup(struct prueth_emac *emac)
 	int i;
 
 	addr = lower_32_bits(prueth->msmcram.pa);
-	if (slice)
-		addr += PRUETH_NUM_BUF_POOLS * PRUETH_EMAC_BUF_POOL_SIZE;
+	if (slice) {
+		if (prueth->pdata.banked_ms_ram)
+			addr += MSMC_RAM_BANK_SIZE;
+		else
+			addr += PRUETH_SW_TOTAL_BUF_SIZE_PER_SLICE;
+	}
 
 	if (addr % SZ_64K) {
 		dev_warn(prueth->dev, "buffer pool needs to be 64KB aligned\n");
@@ -297,43 +301,66 @@ static int prueth_fw_offload_buffer_setup(struct prueth_emac *emac)
 	}
 
 	bpool_cfg = emac->dram.va + BUFFER_POOL_0_ADDR_OFFSET;
-	/* workaround for f/w bug. bpool 0 needs to be initialized */
-	for (i = 0; i <  PRUETH_NUM_BUF_POOLS; i++) {
+
+	/* Configure buffer pools for forwarding buffers
+	 * - used by firmware to store packets to be forwarded to other port
+	 * - 8 total pools per slice
+	 */
+	for (i = 0; i <  PRUETH_NUM_FWD_BUF_POOLS_PER_SLICE; i++) {
 		writel(addr, &bpool_cfg[i].addr);
-		writel(PRUETH_EMAC_BUF_POOL_SIZE, &bpool_cfg[i].len);
-		addr += PRUETH_EMAC_BUF_POOL_SIZE;
+		writel(PRUETH_SW_FWD_BUF_POOL_SIZE, &bpool_cfg[i].len);
+		addr += PRUETH_SW_FWD_BUF_POOL_SIZE;
 	}
 
-	if (!slice)
-		addr += PRUETH_NUM_BUF_POOLS * PRUETH_EMAC_BUF_POOL_SIZE;
-	else
-		addr += PRUETH_SW_NUM_BUF_POOLS_HOST * PRUETH_SW_BUF_POOL_SIZE_HOST;
+	/* Configure buffer pools for Local Injection buffers
+	 *  - used by firmware to store packets received from host core
+	 *  - 16 total pools per slice
+	 */
+	for (i = 0; i < PRUETH_NUM_LI_BUF_POOLS_PER_SLICE; i++) {
+		int cfg_idx = i + PRUETH_NUM_FWD_BUF_POOLS_PER_SLICE;
 
-	for (i = PRUETH_NUM_BUF_POOLS;
-	     i < 2 * PRUETH_SW_NUM_BUF_POOLS_HOST + PRUETH_NUM_BUF_POOLS;
-	     i++) {
-		/* The driver only uses first 4 queues per PRU so only initialize them */
-		if (i % PRUETH_SW_NUM_BUF_POOLS_HOST < PRUETH_SW_NUM_BUF_POOLS_PER_PRU) {
-			writel(addr, &bpool_cfg[i].addr);
-			writel(PRUETH_SW_BUF_POOL_SIZE_HOST, &bpool_cfg[i].len);
-			addr += PRUETH_SW_BUF_POOL_SIZE_HOST;
+		/* The driver only uses first 4 queues per PRU,
+		 * so only initialize buffer for them
+		 */
+		if ((i % PRUETH_NUM_LI_BUF_POOLS_PER_PORT_PER_SLICE)
+			 < PRUETH_SW_USED_LI_BUF_POOLS_PER_PORT_PER_SLICE) {
+			writel(addr, &bpool_cfg[cfg_idx].addr);
+			writel(PRUETH_SW_LI_BUF_POOL_SIZE,
+			       &bpool_cfg[cfg_idx].len);
+			addr += PRUETH_SW_LI_BUF_POOL_SIZE;
 		} else {
-			writel(0, &bpool_cfg[i].addr);
-			writel(0, &bpool_cfg[i].len);
+			writel(0, &bpool_cfg[cfg_idx].addr);
+			writel(0, &bpool_cfg[cfg_idx].len);
 		}
 	}
 
-	if (!slice)
-		addr += PRUETH_SW_NUM_BUF_POOLS_HOST * PRUETH_SW_BUF_POOL_SIZE_HOST;
-	else
-		addr += PRUETH_EMAC_RX_CTX_BUF_SIZE;
+	/* Express RX buffer queue
+	 *  - used by firmware to store express packets to be transmitted
+	 *    to the host core
+	 */
+	rxq_ctx = emac->dram.va + HOST_RX_Q_EXP_CONTEXT_OFFSET;
+	for (i = 0; i < 3; i++)
+		writel(addr, &rxq_ctx->start[i]);
 
+	addr += PRUETH_SW_HOST_EXP_BUF_POOL_SIZE;
+	writel(addr, &rxq_ctx->end);
+
+	/* Pre-emptible RX buffer queue
+	 *  - used by firmware to store preemptible packets to be transmitted
+	 *    to the host core
+	 */
 	rxq_ctx = emac->dram.va + HOST_RX_Q_PRE_CONTEXT_OFFSET;
 	for (i = 0; i < 3; i++)
 		writel(addr, &rxq_ctx->start[i]);
 
-	addr += PRUETH_EMAC_RX_CTX_BUF_SIZE;
-	writel(addr - SZ_2K, &rxq_ctx->end);
+	addr += PRUETH_SW_HOST_PRE_BUF_POOL_SIZE;
+	writel(addr, &rxq_ctx->end);
+
+	/* Set pointer for default dropped packet write
+	 *  - used by firmware to temporarily store packet to be dropped
+	 */
+	rxq_ctx = emac->dram.va + DEFAULT_MSMC_Q_OFFSET;
+	writel(addr, &rxq_ctx->start[0]);
 
 	return 0;
 }
@@ -347,13 +374,13 @@ static int prueth_emac_buffer_setup(struct prueth_emac *emac)
 	u32 addr;
 	int i;
 
-	/* Layout to have 64KB aligned buffer pool
-	 * |BPOOL0|BPOOL1|RX_CTX0|RX_CTX1|
-	 */
-
 	addr = lower_32_bits(prueth->msmcram.pa);
-	if (slice)
-		addr += PRUETH_NUM_BUF_POOLS * PRUETH_EMAC_BUF_POOL_SIZE;
+	if (slice) {
+		if (prueth->pdata.banked_ms_ram)
+			addr += MSMC_RAM_BANK_SIZE;
+		else
+			addr += PRUETH_EMAC_TOTAL_BUF_SIZE_PER_SLICE;
+	}
 
 	if (addr % SZ_64K) {
 		dev_warn(prueth->dev, "buffer pool needs to be 64KB aligned\n");
@@ -361,38 +388,65 @@ static int prueth_emac_buffer_setup(struct prueth_emac *emac)
 	}
 
 	bpool_cfg = emac->dram.va + BUFFER_POOL_0_ADDR_OFFSET;
-	/* workaround for f/w bug. bpool 0 needs to be initilalized */
-	writel(addr, &bpool_cfg[0].addr);
-	writel(0, &bpool_cfg[0].len);
 
-	for (i = PRUETH_EMAC_BUF_POOL_START;
-	     i < PRUETH_EMAC_BUF_POOL_START + PRUETH_NUM_BUF_POOLS;
-	     i++) {
-		writel(addr, &bpool_cfg[i].addr);
-		writel(PRUETH_EMAC_BUF_POOL_SIZE, &bpool_cfg[i].len);
-		addr += PRUETH_EMAC_BUF_POOL_SIZE;
+	/* Configure buffer pools for forwarding buffers
+	 *  - in mac mode - no forwarding so initialize all pools to 0
+	 *  - 8 total pools per slice
+	 */
+	for (i = 0; i <  PRUETH_NUM_FWD_BUF_POOLS_PER_SLICE; i++) {
+		writel(0, &bpool_cfg[i].addr);
+		writel(0, &bpool_cfg[i].len);
 	}
 
-	if (!slice)
-		addr += PRUETH_NUM_BUF_POOLS * PRUETH_EMAC_BUF_POOL_SIZE;
-	else
-		addr += PRUETH_EMAC_RX_CTX_BUF_SIZE * 2;
+	/* Configure buffer pools for Local Injection buffers
+	 *  - used by firmware to store packets received from host core
+	 *  - 16 total pools per slice
+	 */
+	bpool_cfg = emac->dram.va + BUFFER_POOL_0_ADDR_OFFSET;
+	for (i = 0; i < PRUETH_NUM_LI_BUF_POOLS_PER_SLICE; i++) {
+		int cfg_idx = i + PRUETH_NUM_FWD_BUF_POOLS_PER_SLICE;
 
-	/* Pre-emptible RX buffer queue */
-	rxq_ctx = emac->dram.va + HOST_RX_Q_PRE_CONTEXT_OFFSET;
-	for (i = 0; i < 3; i++)
-		writel(addr, &rxq_ctx->start[i]);
+		/* In EMAC mode, only first 4 buffers are used,
+		 * as 1 slice needs to handle only 1 port
+		 */
+		if (i < PRUETH_EMAC_USED_LI_BUF_POOLS_PER_PORT_PER_SLICE) {
+			writel(addr, &bpool_cfg[cfg_idx].addr);
+			writel(PRUETH_EMAC_LI_BUF_POOL_SIZE,
+			       &bpool_cfg[cfg_idx].len);
+			addr += PRUETH_EMAC_LI_BUF_POOL_SIZE;
+		} else {
+			writel(0, &bpool_cfg[cfg_idx].addr);
+			writel(0, &bpool_cfg[cfg_idx].len);
+		}
+	}
 
-	addr += PRUETH_EMAC_RX_CTX_BUF_SIZE;
-	writel(addr, &rxq_ctx->end);
-
-	/* Express RX buffer queue */
+	/* Express RX buffer queue
+	 *  - used by firmware to store express packets to be transmitted
+	 *    to host core
+	 */
 	rxq_ctx = emac->dram.va + HOST_RX_Q_EXP_CONTEXT_OFFSET;
 	for (i = 0; i < 3; i++)
 		writel(addr, &rxq_ctx->start[i]);
 
-	addr += PRUETH_EMAC_RX_CTX_BUF_SIZE;
+	addr += PRUETH_EMAC_HOST_EXP_BUF_POOL_SIZE;
 	writel(addr, &rxq_ctx->end);
+
+	/* Pre-emptible RX buffer queue
+	 *  - used by firmware to store preemptible packets to be transmitted
+	 *    to host core
+	 */
+	rxq_ctx = emac->dram.va + HOST_RX_Q_PRE_CONTEXT_OFFSET;
+	for (i = 0; i < 3; i++)
+		writel(addr, &rxq_ctx->start[i]);
+
+	addr += PRUETH_EMAC_HOST_PRE_BUF_POOL_SIZE;
+	writel(addr, &rxq_ctx->end);
+
+	/* Set pointer for default dropped packet write
+	 *  - used by firmware to temporarily store packet to be dropped
+	 */
+	rxq_ctx = emac->dram.va + DEFAULT_MSMC_Q_OFFSET;
+	writel(addr, &rxq_ctx->start[0]);
 
 	return 0;
 }

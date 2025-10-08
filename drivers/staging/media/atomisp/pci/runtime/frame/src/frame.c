@@ -4,15 +4,16 @@
  * Copyright (c) 2015, Intel Corporation.
  */
 
-#include "hmm.h"
+#include <linux/bitops.h>
+#include <linux/math.h>
 
-#include "ia_css_frame.h"
-#include <math_support.h>
 #include "assert_support.h"
+#include "atomisp_internal.h"
+#include "hmm.h"
 #include "ia_css_debug.h"
+#include "ia_css_frame.h"
 #include "isp.h"
 #include "sh_css_internal.h"
-#include "atomisp_internal.h"
 
 #define NV12_TILEY_TILE_WIDTH  128
 #define NV12_TILEY_TILE_HEIGHT  32
@@ -459,15 +460,16 @@ static void frame_init_single_plane(struct ia_css_frame *frame,
 	unsigned int stride;
 
 	stride = subpixels_per_line * bytes_per_pixel;
-	/* Frame height needs to be even number - needed by hw ISYS2401
-	   In case of odd number, round up to even.
-	   Images won't be impacted by this round up,
-	   only needed by jpeg/embedded data.
-	   As long as buffer allocation and release are using data_bytes,
-	   there won't be memory leak. */
-	frame->data_bytes = stride * CEIL_MUL2(height, 2);
+	/*
+	 * Frame height needs to be even number - needed by hw ISYS2401.
+	 * In case of odd number, round up to even.
+	 * Images won't be impacted by this round up,
+	 * only needed by jpeg/embedded data.
+	 * As long as buffer allocation and release are using data_bytes,
+	 * there won't be memory leak.
+	 */
+	frame->data_bytes = stride * round_up(height, 2);
 	frame_init_plane(plane, subpixels_per_line, stride, height, 0);
-	return;
 }
 
 static void frame_init_raw_single_plane(
@@ -486,7 +488,6 @@ static void frame_init_raw_single_plane(
 			  HIVE_ISP_DDR_WORD_BITS / bits_per_pixel);
 	frame->data_bytes = stride * height;
 	frame_init_plane(plane, subpixels_per_line, stride, height, 0);
-	return;
 }
 
 static void frame_init_nv_planes(struct ia_css_frame *frame,
@@ -690,7 +691,7 @@ ia_css_elems_bytes_from_info(const struct ia_css_frame_info *info)
 	if (info->format == IA_CSS_FRAME_FORMAT_RAW
 	    || (info->format == IA_CSS_FRAME_FORMAT_RAW_PACKED)) {
 		if (info->raw_bit_depth)
-			return CEIL_DIV(info->raw_bit_depth, 8);
+			return BITS_TO_BYTES(info->raw_bit_depth);
 		else
 			return 2; /* bytes per pixel */
 	}

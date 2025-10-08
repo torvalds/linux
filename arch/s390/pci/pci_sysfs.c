@@ -218,7 +218,7 @@ static struct attribute *zpci_dev_attrs[] = {
 
 const struct attribute_group zpci_attr_group = {
 	.attrs = zpci_dev_attrs,
-	.bin_attrs_new = zpci_bin_attrs,
+	.bin_attrs = zpci_bin_attrs,
 };
 
 static struct attribute *pfip_attrs[] = {

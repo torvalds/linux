@@ -14,7 +14,6 @@
 struct clps711x_chip {
 	void __iomem *pmpcon;
 	struct clk *clk;
-	spinlock_t lock;
 };
 
 static inline struct clps711x_chip *to_clps711x_chip(struct pwm_chip *chip)
@@ -42,7 +41,6 @@ static int clps711x_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	struct clps711x_chip *priv = to_clps711x_chip(chip);
 	/* PWM0 - bits 4..7, PWM1 - bits 8..11 */
 	u32 shift = (pwm->hwpwm + 1) * 4;
-	unsigned long flags;
 	u32 pmpcon, val;
 
 	if (state->polarity != PWM_POLARITY_NORMAL)
@@ -56,14 +54,10 @@ static int clps711x_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	else
 		val = 0;
 
-	spin_lock_irqsave(&priv->lock, flags);
-
 	pmpcon = readl(priv->pmpcon);
 	pmpcon &= ~(0xf << shift);
 	pmpcon |= val << shift;
 	writel(pmpcon, priv->pmpcon);
-
-	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return 0;
 }
@@ -92,8 +86,6 @@ static int clps711x_pwm_probe(struct platform_device *pdev)
 		return PTR_ERR(priv->clk);
 
 	chip->ops = &clps711x_pwm_ops;
-
-	spin_lock_init(&priv->lock);
 
 	return devm_pwmchip_add(&pdev->dev, chip);
 }

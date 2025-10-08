@@ -1112,7 +1112,7 @@ static int chv_gpio_get(struct gpio_chip *chip, unsigned int offset)
 	return !!(ctrl0 & CHV_PADCTRL0_GPIORXSTATE);
 }
 
-static void chv_gpio_set(struct gpio_chip *chip, unsigned int offset, int value)
+static int chv_gpio_set(struct gpio_chip *chip, unsigned int offset, int value)
 {
 	struct intel_pinctrl *pctrl = gpiochip_get_data(chip);
 	u32 ctrl0;
@@ -1127,6 +1127,8 @@ static void chv_gpio_set(struct gpio_chip *chip, unsigned int offset, int value)
 		ctrl0 &= ~CHV_PADCTRL0_GPIOTXSTATE;
 
 	chv_writel(pctrl, offset, CHV_PADCTRL0, ctrl0);
+
+	return 0;
 }
 
 static int chv_gpio_get_direction(struct gpio_chip *chip, unsigned int offset)

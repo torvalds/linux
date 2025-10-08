@@ -262,9 +262,13 @@ int mtk_soundcard_common_probe(struct platform_device *pdev)
 				soc_card_data->accdet = accdet_comp;
 			else
 				dev_err(&pdev->dev, "No sound component found from mediatek,accdet property\n");
+
+			put_device(&accdet_pdev->dev);
 		} else {
 			dev_err(&pdev->dev, "No device found from mediatek,accdet property\n");
 		}
+
+		of_node_put(accdet_node);
 	}
 
 	platform_node = of_parse_phandle(pdev->dev.of_node, "mediatek,platform", 0);

@@ -590,6 +590,7 @@ void ath10k_hw_fill_survey_time(struct ath10k *ar, struct survey_info *survey,
  * function monitors and modifies the corresponding MAC registers.
  */
 static void ath10k_hw_qca988x_set_coverage_class(struct ath10k *ar,
+						 int radio_idx,
 						 s16 value)
 {
 	u32 slottime_reg;

@@ -9,9 +9,11 @@
 #include "gve_utils.h"
 #include "gve_dqo.h"
 #include <net/ip.h>
+#include <linux/bpf.h>
 #include <linux/tcp.h>
 #include <linux/slab.h>
 #include <linux/skbuff.h>
+#include <net/xdp_sock_drv.h>
 
 /* Returns true if tx_bufs are available. */
 static bool gve_has_free_tx_qpl_bufs(struct gve_tx_ring *tx, int count)
@@ -110,6 +112,14 @@ static bool gve_has_pending_packet(struct gve_tx_ring *tx)
 	return false;
 }
 
+void gve_xdp_tx_flush_dqo(struct gve_priv *priv, u32 xdp_qid)
+{
+	u32 tx_qid = gve_xdp_tx_queue_id(priv, xdp_qid);
+	struct gve_tx_ring *tx = &priv->tx[tx_qid];
+
+	gve_tx_put_doorbell_dqo(priv, tx->q_resources, tx->dqo_tx.tail);
+}
+
 static struct gve_tx_pending_packet_dqo *
 gve_alloc_pending_packet(struct gve_tx_ring *tx)
 {
@@ -198,7 +208,8 @@ void gve_tx_stop_ring_dqo(struct gve_priv *priv, int idx)
 
 	gve_remove_napi(priv, ntfy_idx);
 	gve_clean_tx_done_dqo(priv, tx, /*napi=*/NULL);
-	netdev_tx_reset_queue(tx->netdev_txq);
+	if (tx->netdev_txq)
+		netdev_tx_reset_queue(tx->netdev_txq);
 	gve_tx_clean_pending_packets(tx);
 	gve_tx_remove_from_block(priv, idx);
 }
@@ -230,6 +241,9 @@ static void gve_tx_free_ring_dqo(struct gve_priv *priv, struct gve_tx_ring *tx,
 		dma_free_coherent(hdev, bytes, tx->dqo.tx_ring, tx->bus);
 		tx->dqo.tx_ring = NULL;
 	}
+
+	kvfree(tx->dqo.xsk_reorder_queue);
+	tx->dqo.xsk_reorder_queue = NULL;
 
 	kvfree(tx->dqo.pending_packets);
 	tx->dqo.pending_packets = NULL;
@@ -276,7 +290,8 @@ void gve_tx_start_ring_dqo(struct gve_priv *priv, int idx)
 
 	gve_tx_add_to_block(priv, idx);
 
-	tx->netdev_txq = netdev_get_tx_queue(priv->dev, idx);
+	if (idx < priv->tx_cfg.num_queues)
+		tx->netdev_txq = netdev_get_tx_queue(priv->dev, idx);
 	gve_add_napi(priv, ntfy_idx, gve_napi_poll_dqo);
 }
 
@@ -295,6 +310,7 @@ static int gve_tx_alloc_ring_dqo(struct gve_priv *priv,
 	memset(tx, 0, sizeof(*tx));
 	tx->q_num = idx;
 	tx->dev = hdev;
+	spin_lock_init(&tx->dqo_tx.xdp_lock);
 	atomic_set_release(&tx->dqo_compl.hw_tx_head, 0);
 
 	/* Queue sizes must be a power of 2 */
@@ -333,6 +349,17 @@ static int gve_tx_alloc_ring_dqo(struct gve_priv *priv,
 
 	tx->dqo.pending_packets[tx->dqo.num_pending_packets - 1].next = -1;
 	atomic_set_release(&tx->dqo_compl.free_pending_packets, -1);
+
+	/* Only alloc xsk pool for XDP queues */
+	if (idx >= cfg->qcfg->num_queues && cfg->num_xdp_rings) {
+		tx->dqo.xsk_reorder_queue =
+			kvcalloc(tx->dqo.complq_mask + 1,
+				 sizeof(tx->dqo.xsk_reorder_queue[0]),
+				 GFP_KERNEL);
+		if (!tx->dqo.xsk_reorder_queue)
+			goto err;
+	}
+
 	tx->dqo_compl.miss_completions.head = -1;
 	tx->dqo_compl.miss_completions.tail = -1;
 	tx->dqo_compl.timed_out_completions.head = -1;
@@ -439,12 +466,28 @@ static u32 num_avail_tx_slots(const struct gve_tx_ring *tx)
 	return tx->mask - num_used;
 }
 
+/* Checks if the requested number of slots are available in the ring */
+static bool gve_has_tx_slots_available(struct gve_tx_ring *tx, u32 slots_req)
+{
+	u32 num_avail = num_avail_tx_slots(tx);
+
+	slots_req += GVE_TX_MIN_DESC_PREVENT_CACHE_OVERLAP;
+
+	if (num_avail >= slots_req)
+		return true;
+
+	/* Update cached TX head pointer */
+	tx->dqo_tx.head = atomic_read_acquire(&tx->dqo_compl.hw_tx_head);
+
+	return num_avail_tx_slots(tx) >= slots_req;
+}
+
 static bool gve_has_avail_slots_tx_dqo(struct gve_tx_ring *tx,
 				       int desc_count, int buf_count)
 {
 	return gve_has_pending_packet(tx) &&
-		   num_avail_tx_slots(tx) >= desc_count &&
-		   gve_has_free_tx_qpl_bufs(tx, buf_count);
+		gve_has_tx_slots_available(tx, desc_count) &&
+		gve_has_free_tx_qpl_bufs(tx, buf_count);
 }
 
 /* Stops the queue if available descriptors is less than 'count'.
@@ -453,12 +496,6 @@ static bool gve_has_avail_slots_tx_dqo(struct gve_tx_ring *tx,
 static int gve_maybe_stop_tx_dqo(struct gve_tx_ring *tx,
 				 int desc_count, int buf_count)
 {
-	if (likely(gve_has_avail_slots_tx_dqo(tx, desc_count, buf_count)))
-		return 0;
-
-	/* Update cached TX head pointer */
-	tx->dqo_tx.head = atomic_read_acquire(&tx->dqo_compl.hw_tx_head);
-
 	if (likely(gve_has_avail_slots_tx_dqo(tx, desc_count, buf_count)))
 		return 0;
 
@@ -472,8 +509,6 @@ static int gve_maybe_stop_tx_dqo(struct gve_tx_ring *tx,
 	/* After stopping queue, check if we can transmit again in order to
 	 * avoid TOCTOU bug.
 	 */
-	tx->dqo_tx.head = atomic_read_acquire(&tx->dqo_compl.hw_tx_head);
-
 	if (likely(!gve_has_avail_slots_tx_dqo(tx, desc_count, buf_count)))
 		return -EBUSY;
 
@@ -500,11 +535,9 @@ static void gve_extract_tx_metadata_dqo(const struct sk_buff *skb,
 }
 
 static void gve_tx_fill_pkt_desc_dqo(struct gve_tx_ring *tx, u32 *desc_idx,
-				     struct sk_buff *skb, u32 len, u64 addr,
+				     bool enable_csum, u32 len, u64 addr,
 				     s16 compl_tag, bool eop, bool is_gso)
 {
-	const bool checksum_offload_en = skb->ip_summed == CHECKSUM_PARTIAL;
-
 	while (len > 0) {
 		struct gve_tx_pkt_desc_dqo *desc =
 			&tx->dqo.tx_ring[*desc_idx].pkt;
@@ -515,7 +548,7 @@ static void gve_tx_fill_pkt_desc_dqo(struct gve_tx_ring *tx, u32 *desc_idx,
 			.buf_addr = cpu_to_le64(addr),
 			.dtype = GVE_TX_PKT_DESC_DTYPE_DQO,
 			.end_of_packet = cur_eop,
-			.checksum_offload_enable = checksum_offload_en,
+			.checksum_offload_enable = enable_csum,
 			.compl_tag = cpu_to_le16(compl_tag),
 			.buf_size = cur_len,
 		};
@@ -612,6 +645,25 @@ gve_tx_fill_general_ctx_desc(struct gve_tx_general_context_desc_dqo *desc,
 	};
 }
 
+static void gve_tx_update_tail(struct gve_tx_ring *tx, u32 desc_idx)
+{
+	u32 last_desc_idx = (desc_idx - 1) & tx->mask;
+	u32 last_report_event_interval =
+			(last_desc_idx - tx->dqo_tx.last_re_idx) & tx->mask;
+
+	/* Commit the changes to our state */
+	tx->dqo_tx.tail = desc_idx;
+
+	/* Request a descriptor completion on the last descriptor of the
+	 * packet if we are allowed to by the HW enforced interval.
+	 */
+
+	if (unlikely(last_report_event_interval >= GVE_TX_MIN_RE_INTERVAL)) {
+		tx->dqo.tx_ring[last_desc_idx].pkt.report_event = true;
+		tx->dqo_tx.last_re_idx = last_desc_idx;
+	}
+}
+
 static int gve_tx_add_skb_no_copy_dqo(struct gve_tx_ring *tx,
 				      struct sk_buff *skb,
 				      struct gve_tx_pending_packet_dqo *pkt,
@@ -619,6 +671,7 @@ static int gve_tx_add_skb_no_copy_dqo(struct gve_tx_ring *tx,
 				      u32 *desc_idx,
 				      bool is_gso)
 {
+	bool enable_csum = skb->ip_summed == CHECKSUM_PARTIAL;
 	const struct skb_shared_info *shinfo = skb_shinfo(skb);
 	int i;
 
@@ -644,7 +697,7 @@ static int gve_tx_add_skb_no_copy_dqo(struct gve_tx_ring *tx,
 		dma_unmap_addr_set(pkt, dma[pkt->num_bufs], addr);
 		++pkt->num_bufs;
 
-		gve_tx_fill_pkt_desc_dqo(tx, desc_idx, skb, len, addr,
+		gve_tx_fill_pkt_desc_dqo(tx, desc_idx, enable_csum, len, addr,
 					 completion_tag,
 					 /*eop=*/shinfo->nr_frags == 0, is_gso);
 	}
@@ -664,7 +717,7 @@ static int gve_tx_add_skb_no_copy_dqo(struct gve_tx_ring *tx,
 					  dma[pkt->num_bufs], addr);
 		++pkt->num_bufs;
 
-		gve_tx_fill_pkt_desc_dqo(tx, desc_idx, skb, len, addr,
+		gve_tx_fill_pkt_desc_dqo(tx, desc_idx, enable_csum, len, addr,
 					 completion_tag, is_eop, is_gso);
 	}
 
@@ -709,6 +762,7 @@ static int gve_tx_add_skb_copy_dqo(struct gve_tx_ring *tx,
 				   u32 *desc_idx,
 				   bool is_gso)
 {
+	bool enable_csum = skb->ip_summed == CHECKSUM_PARTIAL;
 	u32 copy_offset = 0;
 	dma_addr_t dma_addr;
 	u32 copy_len;
@@ -730,7 +784,7 @@ static int gve_tx_add_skb_copy_dqo(struct gve_tx_ring *tx,
 		copy_offset += copy_len;
 		dma_sync_single_for_device(tx->dev, dma_addr,
 					   copy_len, DMA_TO_DEVICE);
-		gve_tx_fill_pkt_desc_dqo(tx, desc_idx, skb,
+		gve_tx_fill_pkt_desc_dqo(tx, desc_idx, enable_csum,
 					 copy_len,
 					 dma_addr,
 					 completion_tag,
@@ -768,6 +822,7 @@ static int gve_tx_add_skb_dqo(struct gve_tx_ring *tx,
 		return -ENOMEM;
 
 	pkt->skb = skb;
+	pkt->type = GVE_TX_PENDING_PACKET_DQO_SKB;
 	completion_tag = pkt - tx->dqo.pending_packets;
 
 	gve_extract_tx_metadata_dqo(skb, &metadata);
@@ -800,24 +855,7 @@ static int gve_tx_add_skb_dqo(struct gve_tx_ring *tx,
 
 	tx->dqo_tx.posted_packet_desc_cnt += pkt->num_bufs;
 
-	/* Commit the changes to our state */
-	tx->dqo_tx.tail = desc_idx;
-
-	/* Request a descriptor completion on the last descriptor of the
-	 * packet if we are allowed to by the HW enforced interval.
-	 */
-	{
-		u32 last_desc_idx = (desc_idx - 1) & tx->mask;
-		u32 last_report_event_interval =
-			(last_desc_idx - tx->dqo_tx.last_re_idx) & tx->mask;
-
-		if (unlikely(last_report_event_interval >=
-			     GVE_TX_MIN_RE_INTERVAL)) {
-			tx->dqo.tx_ring[last_desc_idx].pkt.report_event = true;
-			tx->dqo_tx.last_re_idx = last_desc_idx;
-		}
-	}
-
+	gve_tx_update_tail(tx, desc_idx);
 	return 0;
 
 err:
@@ -951,9 +989,8 @@ static int gve_try_tx_skb(struct gve_priv *priv, struct gve_tx_ring *tx,
 
 	/* Metadata + (optional TSO) + data descriptors. */
 	total_num_descs = 1 + skb_is_gso(skb) + num_buffer_descs;
-	if (unlikely(gve_maybe_stop_tx_dqo(tx, total_num_descs +
-			GVE_TX_MIN_DESC_PREVENT_CACHE_OVERLAP,
-			num_buffer_descs))) {
+	if (unlikely(gve_maybe_stop_tx_dqo(tx, total_num_descs,
+					   num_buffer_descs))) {
 		return -1;
 	}
 
@@ -968,6 +1005,38 @@ drop:
 	tx->dropped_pkt++;
 	dev_kfree_skb_any(skb);
 	return 0;
+}
+
+static void gve_xsk_reorder_queue_push_dqo(struct gve_tx_ring *tx,
+					   u16 completion_tag)
+{
+	u32 tail = atomic_read(&tx->dqo_tx.xsk_reorder_queue_tail);
+
+	tx->dqo.xsk_reorder_queue[tail] = completion_tag;
+	tail = (tail + 1) & tx->dqo.complq_mask;
+	atomic_set_release(&tx->dqo_tx.xsk_reorder_queue_tail, tail);
+}
+
+static struct gve_tx_pending_packet_dqo *
+gve_xsk_reorder_queue_head(struct gve_tx_ring *tx)
+{
+	u32 head = tx->dqo_compl.xsk_reorder_queue_head;
+
+	if (head == tx->dqo_compl.xsk_reorder_queue_tail) {
+		tx->dqo_compl.xsk_reorder_queue_tail =
+			atomic_read_acquire(&tx->dqo_tx.xsk_reorder_queue_tail);
+
+		if (head == tx->dqo_compl.xsk_reorder_queue_tail)
+			return NULL;
+	}
+
+	return &tx->dqo.pending_packets[tx->dqo.xsk_reorder_queue[head]];
+}
+
+static void gve_xsk_reorder_queue_pop_dqo(struct gve_tx_ring *tx)
+{
+	tx->dqo_compl.xsk_reorder_queue_head++;
+	tx->dqo_compl.xsk_reorder_queue_head &= tx->dqo.complq_mask;
 }
 
 /* Transmit a given skb and ring the doorbell. */
@@ -991,6 +1060,62 @@ netdev_tx_t gve_tx_dqo(struct sk_buff *skb, struct net_device *dev)
 
 	gve_tx_put_doorbell_dqo(priv, tx->q_resources, tx->dqo_tx.tail);
 	return NETDEV_TX_OK;
+}
+
+static bool gve_xsk_tx_dqo(struct gve_priv *priv, struct gve_tx_ring *tx,
+			   int budget)
+{
+	struct xsk_buff_pool *pool = tx->xsk_pool;
+	struct xdp_desc desc;
+	bool repoll = false;
+	int sent = 0;
+
+	spin_lock(&tx->dqo_tx.xdp_lock);
+	for (; sent < budget; sent++) {
+		struct gve_tx_pending_packet_dqo *pkt;
+		s16 completion_tag;
+		dma_addr_t addr;
+		u32 desc_idx;
+
+		if (unlikely(!gve_has_avail_slots_tx_dqo(tx, 1, 1))) {
+			repoll = true;
+			break;
+		}
+
+		if (!xsk_tx_peek_desc(pool, &desc))
+			break;
+
+		pkt = gve_alloc_pending_packet(tx);
+		pkt->type = GVE_TX_PENDING_PACKET_DQO_XSK;
+		pkt->num_bufs = 0;
+		completion_tag = pkt - tx->dqo.pending_packets;
+
+		addr = xsk_buff_raw_get_dma(pool, desc.addr);
+		xsk_buff_raw_dma_sync_for_device(pool, addr, desc.len);
+
+		desc_idx = tx->dqo_tx.tail;
+		gve_tx_fill_pkt_desc_dqo(tx, &desc_idx,
+					 true, desc.len,
+					 addr, completion_tag, true,
+					 false);
+		++pkt->num_bufs;
+		gve_tx_update_tail(tx, desc_idx);
+		tx->dqo_tx.posted_packet_desc_cnt += pkt->num_bufs;
+		gve_xsk_reorder_queue_push_dqo(tx, completion_tag);
+	}
+
+	if (sent) {
+		gve_tx_put_doorbell_dqo(priv, tx->q_resources, tx->dqo_tx.tail);
+		xsk_tx_release(pool);
+	}
+
+	spin_unlock(&tx->dqo_tx.xdp_lock);
+
+	u64_stats_update_begin(&tx->statss);
+	tx->xdp_xsk_sent += sent;
+	u64_stats_update_end(&tx->statss);
+
+	return (sent == budget) || repoll;
 }
 
 static void add_to_list(struct gve_tx_ring *tx, struct gve_index_list *list,
@@ -1107,16 +1232,35 @@ static void gve_handle_packet_completion(struct gve_priv *priv,
 		}
 	}
 	tx->dqo_tx.completed_packet_desc_cnt += pending_packet->num_bufs;
-	if (tx->dqo.qpl)
-		gve_free_tx_qpl_bufs(tx, pending_packet);
-	else
-		gve_unmap_packet(tx->dev, pending_packet);
 
-	*bytes += pending_packet->skb->len;
-	(*pkts)++;
-	napi_consume_skb(pending_packet->skb, is_napi);
-	pending_packet->skb = NULL;
-	gve_free_pending_packet(tx, pending_packet);
+	switch (pending_packet->type) {
+	case GVE_TX_PENDING_PACKET_DQO_SKB:
+		if (tx->dqo.qpl)
+			gve_free_tx_qpl_bufs(tx, pending_packet);
+		else
+			gve_unmap_packet(tx->dev, pending_packet);
+		(*pkts)++;
+		*bytes += pending_packet->skb->len;
+
+		napi_consume_skb(pending_packet->skb, is_napi);
+		pending_packet->skb = NULL;
+		gve_free_pending_packet(tx, pending_packet);
+		break;
+	case GVE_TX_PENDING_PACKET_DQO_XDP_FRAME:
+		gve_unmap_packet(tx->dev, pending_packet);
+		(*pkts)++;
+		*bytes += pending_packet->xdpf->len;
+
+		xdp_return_frame(pending_packet->xdpf);
+		pending_packet->xdpf = NULL;
+		gve_free_pending_packet(tx, pending_packet);
+		break;
+	case GVE_TX_PENDING_PACKET_DQO_XSK:
+		pending_packet->state = GVE_PACKET_STATE_XSK_COMPLETE;
+		break;
+	default:
+		WARN_ON_ONCE(1);
+	}
 }
 
 static void gve_handle_miss_completion(struct gve_priv *priv,
@@ -1213,8 +1357,34 @@ static void remove_timed_out_completions(struct gve_priv *priv,
 
 		remove_from_list(tx, &tx->dqo_compl.timed_out_completions,
 				 pending_packet);
+
+		/* Need to count XSK packets in xsk_tx_completed. */
+		if (pending_packet->type == GVE_TX_PENDING_PACKET_DQO_XSK)
+			pending_packet->state = GVE_PACKET_STATE_XSK_COMPLETE;
+		else
+			gve_free_pending_packet(tx, pending_packet);
+	}
+}
+
+static void gve_tx_process_xsk_completions(struct gve_tx_ring *tx)
+{
+	u32 num_xsks = 0;
+
+	while (true) {
+		struct gve_tx_pending_packet_dqo *pending_packet =
+			gve_xsk_reorder_queue_head(tx);
+
+		if (!pending_packet ||
+		    pending_packet->state != GVE_PACKET_STATE_XSK_COMPLETE)
+			break;
+
+		num_xsks++;
+		gve_xsk_reorder_queue_pop_dqo(tx);
 		gve_free_pending_packet(tx, pending_packet);
 	}
+
+	if (num_xsks)
+		xsk_tx_completed(tx->xsk_pool, num_xsks);
 }
 
 int gve_clean_tx_done_dqo(struct gve_priv *priv, struct gve_tx_ring *tx,
@@ -1287,12 +1457,16 @@ int gve_clean_tx_done_dqo(struct gve_priv *priv, struct gve_tx_ring *tx,
 		num_descs_cleaned++;
 	}
 
-	netdev_tx_completed_queue(tx->netdev_txq,
-				  pkt_compl_pkts + miss_compl_pkts,
-				  pkt_compl_bytes + miss_compl_bytes);
+	if (tx->netdev_txq)
+		netdev_tx_completed_queue(tx->netdev_txq,
+					  pkt_compl_pkts + miss_compl_pkts,
+					  pkt_compl_bytes + miss_compl_bytes);
 
 	remove_miss_completions(priv, tx);
 	remove_timed_out_completions(priv, tx);
+
+	if (tx->xsk_pool)
+		gve_tx_process_xsk_completions(tx);
 
 	u64_stats_update_begin(&tx->statss);
 	tx->bytes_done += pkt_compl_bytes + reinject_compl_bytes;
@@ -1324,4 +1498,112 @@ bool gve_tx_poll_dqo(struct gve_notify_block *block, bool do_clean)
 	/* Return true if we still have work. */
 	compl_desc = &tx->dqo.compl_ring[tx->dqo_compl.head];
 	return compl_desc->generation != tx->dqo_compl.cur_gen_bit;
+}
+
+bool gve_xsk_tx_poll_dqo(struct gve_notify_block *rx_block, int budget)
+{
+	struct gve_rx_ring *rx = rx_block->rx;
+	struct gve_priv *priv = rx->gve;
+	struct gve_tx_ring *tx;
+
+	tx = &priv->tx[gve_xdp_tx_queue_id(priv, rx->q_num)];
+	if (tx->xsk_pool)
+		return gve_xsk_tx_dqo(priv, tx, budget);
+
+	return 0;
+}
+
+bool gve_xdp_poll_dqo(struct gve_notify_block *block)
+{
+	struct gve_tx_compl_desc *compl_desc;
+	struct gve_tx_ring *tx = block->tx;
+	struct gve_priv *priv = block->priv;
+
+	gve_clean_tx_done_dqo(priv, tx, &block->napi);
+
+	/* Return true if we still have work. */
+	compl_desc = &tx->dqo.compl_ring[tx->dqo_compl.head];
+	return compl_desc->generation != tx->dqo_compl.cur_gen_bit;
+}
+
+int gve_xdp_xmit_one_dqo(struct gve_priv *priv, struct gve_tx_ring *tx,
+			 struct xdp_frame *xdpf)
+{
+	struct gve_tx_pending_packet_dqo *pkt;
+	u32 desc_idx = tx->dqo_tx.tail;
+	s16 completion_tag;
+	int num_descs = 1;
+	dma_addr_t addr;
+	int err;
+
+	if (unlikely(!gve_has_tx_slots_available(tx, num_descs)))
+		return -EBUSY;
+
+	pkt = gve_alloc_pending_packet(tx);
+	if (unlikely(!pkt))
+		return -EBUSY;
+
+	pkt->type = GVE_TX_PENDING_PACKET_DQO_XDP_FRAME;
+	pkt->num_bufs = 0;
+	pkt->xdpf = xdpf;
+	completion_tag = pkt - tx->dqo.pending_packets;
+
+	/* Generate Packet Descriptor */
+	addr = dma_map_single(tx->dev, xdpf->data, xdpf->len, DMA_TO_DEVICE);
+	err = dma_mapping_error(tx->dev, addr);
+	if (unlikely(err))
+		goto err;
+
+	dma_unmap_len_set(pkt, len[pkt->num_bufs], xdpf->len);
+	dma_unmap_addr_set(pkt, dma[pkt->num_bufs], addr);
+	pkt->num_bufs++;
+
+	gve_tx_fill_pkt_desc_dqo(tx, &desc_idx,
+				 false, xdpf->len,
+				 addr, completion_tag, true,
+				 false);
+
+	gve_tx_update_tail(tx, desc_idx);
+	return 0;
+
+err:
+	pkt->xdpf = NULL;
+	pkt->num_bufs = 0;
+	gve_free_pending_packet(tx, pkt);
+	return err;
+}
+
+int gve_xdp_xmit_dqo(struct net_device *dev, int n, struct xdp_frame **frames,
+		     u32 flags)
+{
+	struct gve_priv *priv = netdev_priv(dev);
+	struct gve_tx_ring *tx;
+	int i, err = 0, qid;
+
+	if (unlikely(flags & ~XDP_XMIT_FLAGS_MASK))
+		return -EINVAL;
+
+	qid = gve_xdp_tx_queue_id(priv,
+				  smp_processor_id() % priv->tx_cfg.num_xdp_queues);
+
+	tx = &priv->tx[qid];
+
+	spin_lock(&tx->dqo_tx.xdp_lock);
+	for (i = 0; i < n; i++) {
+		err = gve_xdp_xmit_one_dqo(priv, tx, frames[i]);
+		if (err)
+			break;
+	}
+
+	if (flags & XDP_XMIT_FLUSH)
+		gve_tx_put_doorbell_dqo(priv, tx->q_resources, tx->dqo_tx.tail);
+
+	spin_unlock(&tx->dqo_tx.xdp_lock);
+
+	u64_stats_update_begin(&tx->statss);
+	tx->xdp_xmit += n;
+	tx->xdp_xmit_errors += n - i;
+	u64_stats_update_end(&tx->statss);
+
+	return i ? i : err;
 }

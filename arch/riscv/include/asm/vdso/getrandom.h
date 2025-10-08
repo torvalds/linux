@@ -18,7 +18,7 @@ static __always_inline ssize_t getrandom_syscall(void *_buffer, size_t _len, uns
 	register unsigned int flags asm("a2") = _flags;
 
 	asm volatile ("ecall\n"
-		      : "+r" (ret)
+		      : "=r" (ret)
 		      : "r" (nr), "r" (buffer), "r" (len), "r" (flags)
 		      : "memory");
 

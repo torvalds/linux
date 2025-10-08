@@ -62,6 +62,7 @@
 	((GET_BITFIELD(reg, 0, 10) << 12) + 0x140000)
 
 #define I10NM_GNR_IMC_MMIO_OFFSET	0x24c000
+#define I10NM_GNR_D_IMC_MMIO_OFFSET	0x206000
 #define I10NM_GNR_IMC_MMIO_SIZE		0x4000
 #define I10NM_HBM_IMC_MMIO_SIZE		0x9000
 #define I10NM_DDR_IMC_CH_CNT(reg)	GET_BITFIELD(reg, 21, 24)
@@ -343,7 +344,7 @@ static void show_retry_rd_err_log(struct decoded_addr *res, char *msg,
 
 	status_mask = rrl->over_mask | rrl->uc_mask | rrl->v_mask;
 
-	n = snprintf(msg, len, " retry_rd_err_log[");
+	n = scnprintf(msg, len, " retry_rd_err_log[");
 	for (i = 0; i < rrl->set_num; i++) {
 		scrub = (rrl->modes[i] == FRE_SCRUB || rrl->modes[i] == LRE_SCRUB);
 		if (scrub_err != scrub)
@@ -355,9 +356,9 @@ static void show_retry_rd_err_log(struct decoded_addr *res, char *msg,
 			log = read_imc_reg(imc, ch, offset, width);
 
 			if (width == 4)
-				n += snprintf(msg + n, len - n, "%.8llx ", log);
+				n += scnprintf(msg + n, len - n, "%.8llx ", log);
 			else
-				n += snprintf(msg + n, len - n, "%.16llx ", log);
+				n += scnprintf(msg + n, len - n, "%.16llx ", log);
 
 			/* Clear RRL status if RRL in Linux control mode. */
 			if (retry_rd_err_log == 2 && !j && (log & status_mask))
@@ -367,10 +368,10 @@ static void show_retry_rd_err_log(struct decoded_addr *res, char *msg,
 
 	/* Move back one space. */
 	n--;
-	n += snprintf(msg + n, len - n, "]");
+	n += scnprintf(msg + n, len - n, "]");
 
 	if (len - n > 0) {
-		n += snprintf(msg + n, len - n, " correrrcnt[");
+		n += scnprintf(msg + n, len - n, " correrrcnt[");
 		for (i = 0; i < rrl->cecnt_num && len - n > 0; i++) {
 			offset = rrl->cecnt_offsets[i];
 			width = rrl->cecnt_widths[i];
@@ -378,20 +379,20 @@ static void show_retry_rd_err_log(struct decoded_addr *res, char *msg,
 
 			/* CPUs {ICX,SPR} encode two counters per 4-byte CORRERRCNT register. */
 			if (res_cfg->type <= SPR) {
-				n += snprintf(msg + n, len - n, "%.4llx %.4llx ",
+				n += scnprintf(msg + n, len - n, "%.4llx %.4llx ",
 					      corr & 0xffff, corr >> 16);
 			} else {
 			/* CPUs {GNR} encode one counter per CORRERRCNT register. */
 				if (width == 4)
-					n += snprintf(msg + n, len - n, "%.8llx ", corr);
+					n += scnprintf(msg + n, len - n, "%.8llx ", corr);
 				else
-					n += snprintf(msg + n, len - n, "%.16llx ", corr);
+					n += scnprintf(msg + n, len - n, "%.16llx ", corr);
 			}
 		}
 
 		/* Move back one space. */
 		n--;
-		n += snprintf(msg + n, len - n, "]");
+		n += scnprintf(msg + n, len - n, "]");
 	}
 }
 
@@ -687,6 +688,14 @@ static struct pci_dev *get_gnr_mdev(struct skx_dev *d, int logical_idx, int *phy
 	return NULL;
 }
 
+static u32 get_gnr_imc_mmio_offset(void)
+{
+	if (boot_cpu_data.x86_vfm == INTEL_GRANITERAPIDS_D)
+		return I10NM_GNR_D_IMC_MMIO_OFFSET;
+
+	return I10NM_GNR_IMC_MMIO_OFFSET;
+}
+
 /**
  * get_ddr_munit() - Get the resource of the i-th DDR memory controller.
  *
@@ -715,7 +724,7 @@ static struct pci_dev *get_ddr_munit(struct skx_dev *d, int i, u32 *offset, unsi
 			return NULL;
 
 		*offset = I10NM_GET_IMC_MMIO_OFFSET(reg) +
-			  I10NM_GNR_IMC_MMIO_OFFSET +
+			  get_gnr_imc_mmio_offset() +
 			  physical_idx * I10NM_GNR_IMC_MMIO_SIZE;
 		*size   = I10NM_GNR_IMC_MMIO_SIZE;
 
@@ -1030,6 +1039,7 @@ static const struct x86_cpu_id i10nm_cpuids[] = {
 	X86_MATCH_VFM(INTEL_SAPPHIRERAPIDS_X, &spr_cfg),
 	X86_MATCH_VFM(INTEL_EMERALDRAPIDS_X,  &spr_cfg),
 	X86_MATCH_VFM(INTEL_GRANITERAPIDS_X,  &gnr_cfg),
+	X86_MATCH_VFM(INTEL_GRANITERAPIDS_D,  &gnr_cfg),
 	X86_MATCH_VFM(INTEL_ATOM_CRESTMONT_X, &gnr_cfg),
 	X86_MATCH_VFM(INTEL_ATOM_CRESTMONT,   &gnr_cfg),
 	X86_MATCH_VFM(INTEL_ATOM_DARKMONT_X,  &gnr_cfg),

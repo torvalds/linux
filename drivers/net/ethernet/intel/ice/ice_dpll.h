@@ -8,6 +8,18 @@
 
 #define ICE_DPLL_RCLK_NUM_MAX	4
 
+/**
+ * enum ice_dpll_pin_sw - enumerate ice software pin indices:
+ * @ICE_DPLL_PIN_SW_1_IDX: index of first SW pin
+ * @ICE_DPLL_PIN_SW_2_IDX: index of second SW pin
+ * @ICE_DPLL_PIN_SW_NUM: number of SW pins in pair
+ */
+enum ice_dpll_pin_sw {
+	ICE_DPLL_PIN_SW_1_IDX,
+	ICE_DPLL_PIN_SW_2_IDX,
+	ICE_DPLL_PIN_SW_NUM
+};
+
 /** ice_dpll_pin - store info about pins
  * @pin: dpll pin structure
  * @pf: pointer to pf, which has registered the dpll_pin
@@ -19,6 +31,8 @@
  * @prop: pin properties
  * @freq: current frequency of a pin
  * @phase_adjust: current phase adjust value
+ * @phase_offset: monitored phase offset value
+ * @ref_sync: store id of reference sync pin
  */
 struct ice_dpll_pin {
 	struct dpll_pin *pin;
@@ -31,7 +45,14 @@ struct ice_dpll_pin {
 	struct dpll_pin_properties prop;
 	u32 freq;
 	s32 phase_adjust;
+	struct ice_dpll_pin *input;
+	struct ice_dpll_pin *output;
+	enum dpll_pin_direction direction;
+	s64 phase_offset;
 	u8 status;
+	u8 ref_sync;
+	bool active;
+	bool hidden;
 };
 
 /** ice_dpll - store info required for DPLL control
@@ -47,8 +68,10 @@ struct ice_dpll_pin {
  * @input_prio: priorities of each input
  * @dpll_state: current dpll sync state
  * @prev_dpll_state: last dpll sync state
+ * @phase_offset_monitor_period: period for phase offset monitor read frequency
  * @active_input: pointer to active input pin
  * @prev_input: pointer to previous active input pin
+ * @ops: holds the registered ops
  */
 struct ice_dpll {
 	struct dpll_device *dpll;
@@ -64,8 +87,10 @@ struct ice_dpll {
 	enum dpll_lock_status dpll_state;
 	enum dpll_lock_status prev_dpll_state;
 	enum dpll_mode mode;
+	u32 phase_offset_monitor_period;
 	struct dpll_pin *active_input;
 	struct dpll_pin *prev_input;
+	const struct dpll_device_ops *ops;
 };
 
 /** ice_dplls - store info required for CCU (clock controlling unit)
@@ -84,6 +109,7 @@ struct ice_dpll {
  * @clock_id: clock_id of dplls
  * @input_phase_adj_max: max phase adjust value for an input pins
  * @output_phase_adj_max: max phase adjust value for an output pins
+ * @periodic_counter: counter of periodic work executions
  */
 struct ice_dplls {
 	struct kthread_worker *kworker;
@@ -93,14 +119,19 @@ struct ice_dplls {
 	struct ice_dpll pps;
 	struct ice_dpll_pin *inputs;
 	struct ice_dpll_pin *outputs;
+	struct ice_dpll_pin sma[ICE_DPLL_PIN_SW_NUM];
+	struct ice_dpll_pin ufl[ICE_DPLL_PIN_SW_NUM];
 	struct ice_dpll_pin rclk;
 	u8 num_inputs;
 	u8 num_outputs;
-	int cgu_state_acq_err_num;
+	u8 sma_data;
 	u8 base_rclk_idx;
+	int cgu_state_acq_err_num;
 	u64 clock_id;
 	s32 input_phase_adj_max;
 	s32 output_phase_adj_max;
+	u32 periodic_counter;
+	bool generic;
 };
 
 #if IS_ENABLED(CONFIG_PTP_1588_CLOCK)

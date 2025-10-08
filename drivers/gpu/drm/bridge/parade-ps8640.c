@@ -636,9 +636,10 @@ static int ps8640_probe(struct i2c_client *client)
 	int ret;
 	u32 i;
 
-	ps_bridge = devm_kzalloc(dev, sizeof(*ps_bridge), GFP_KERNEL);
-	if (!ps_bridge)
-		return -ENOMEM;
+	ps_bridge = devm_drm_bridge_alloc(dev, struct ps8640, bridge,
+					  &ps8640_bridge_funcs);
+	if (IS_ERR(ps_bridge))
+		return PTR_ERR(ps_bridge);
 
 	mutex_init(&ps_bridge->aux_lock);
 
@@ -662,7 +663,6 @@ static int ps8640_probe(struct i2c_client *client)
 	if (IS_ERR(ps_bridge->gpio_reset))
 		return PTR_ERR(ps_bridge->gpio_reset);
 
-	ps_bridge->bridge.funcs = &ps8640_bridge_funcs;
 	ps_bridge->bridge.of_node = dev->of_node;
 	ps_bridge->bridge.type = DRM_MODE_CONNECTOR_eDP;
 

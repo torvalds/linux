@@ -41,6 +41,9 @@ error injection status::
 	#   <op> rx-clear  clear all rx error injections for <op>
 	#   <op> tx-clear  clear all tx error injections for <op>
 	#
+	# RX error injection settings:
+	#   rx-no-low-drive                    do not generate low-drive pulses
+	#
 	# RX error injection:
 	#   <op>[,<mode>] rx-nack              NACK the message instead of sending an ACK
 	#   <op>[,<mode>] rx-low-drive <bit>   force a low-drive condition at this bit position
@@ -53,6 +56,10 @@ error injection status::
 	#   tx-custom-low-usecs <usecs>        define the 'low' time for the custom pulse
 	#   tx-custom-high-usecs <usecs>       define the 'high' time for the custom pulse
 	#   tx-custom-pulse                    transmit the custom pulse once the bus is idle
+	#   tx-glitch-low-usecs <usecs>        define the 'low' time for the glitch pulse
+	#   tx-glitch-high-usecs <usecs>       define the 'high' time for the glitch pulse
+	#   tx-glitch-falling-edge             send the glitch pulse after every falling edge
+	#   tx-glitch-rising-edge              send the glitch pulse after every rising edge
 	#
 	# TX error injection:
 	#   <op>[,<mode>] tx-no-eom            don't set the EOM bit
@@ -193,6 +200,14 @@ Receive Messages
     This does not work if the remote CEC transmitter has logical address
     0 ('TV') since that will always win.
 
+``rx-no-low-drive``
+    The receiver will ignore situations that would normally generate a
+    Low Drive pulse (3.6 ms). This is typically done if a spurious pulse is
+    detected when receiving a message, and it indicates to the transmitter that
+    the message has to be retransmitted since the receiver got confused.
+    Disabling this is useful to test how other CEC devices handle glitches
+    by ensuring we will not be the one that generates a Low Drive.
+
 Transmit Messages
 -----------------
 
@@ -327,3 +342,30 @@ Custom Pulses
 
 ``tx-custom-pulse``
     Transmit a single custom pulse as soon as the CEC bus is idle.
+
+Glitch Pulses
+-------------
+
+This emulates what happens if the signal on the CEC line is seeing spurious
+pulses. Typically this happens after the falling or rising edge where there
+is a short voltage fluctuation that, if the CEC hardware doesn't do
+deglitching, can be seen as a spurious pulse and can cause a Low Drive
+condition or corrupt data.
+
+``tx-glitch-low-usecs <usecs>``
+    This defines the duration in microseconds that the glitch pulse pulls
+    the CEC line low. The default is 1 microsecond. The range is 0-100
+    microseconds. If 0, then no glitch pulse will be generated.
+
+``tx-glitch-high-usecs <usecs>``
+    This defines the duration in microseconds that the glitch pulse keeps the
+    CEC line high (unless another CEC adapter pulls it low in that time).
+    The default is 1 microseconds. The range is 0-100 microseconds. If 0, then
+    no glitch pulse will be generated.The total period of the glitch pulse is
+    ``tx-custom-low-usecs + tx-custom-high-usecs``.
+
+``tx-glitch-falling-edge``
+    Send the glitch pulse right after the falling edge.
+
+``tx-glitch-rising-edge``
+    Send the glitch pulse right after the rising edge.

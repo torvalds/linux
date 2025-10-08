@@ -59,7 +59,7 @@ struct isl76682_range {
 	u32				ir;
 };
 
-static struct isl76682_range isl76682_range_table[] = {
+static const struct isl76682_range isl76682_range_table[] = {
 	{ ISL76682_COMMAND_RANGE_LUX_1K, 15000, 10500 },
 	{ ISL76682_COMMAND_RANGE_LUX_4K, 60000, 42000 },
 	{ ISL76682_COMMAND_RANGE_LUX_16K, 240000, 168000 },

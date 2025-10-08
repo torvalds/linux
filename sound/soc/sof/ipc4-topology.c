@@ -145,6 +145,14 @@ static const struct sof_topology_token src_tokens[] = {
 		offsetof(struct sof_ipc4_src_data, sink_rate)},
 };
 
+/* ASRC */
+static const struct sof_topology_token asrc_tokens[] = {
+	{SOF_TKN_ASRC_RATE_OUT, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
+		offsetof(struct sof_ipc4_asrc_data, out_freq)},
+	{SOF_TKN_ASRC_OPERATION_MODE, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
+		offsetof(struct sof_ipc4_asrc_data, asrc_mode)},
+};
+
 static const struct sof_token_info ipc4_token_list[SOF_TOKEN_COUNT] = {
 	[SOF_DAI_TOKENS] = {"DAI tokens", dai_tokens, ARRAY_SIZE(dai_tokens)},
 	[SOF_PIPELINE_TOKENS] = {"Pipeline tokens", pipeline_tokens, ARRAY_SIZE(pipeline_tokens)},
@@ -166,6 +174,7 @@ static const struct sof_token_info ipc4_token_list[SOF_TOKEN_COUNT] = {
 		ipc4_audio_fmt_num_tokens, ARRAY_SIZE(ipc4_audio_fmt_num_tokens)},
 	[SOF_GAIN_TOKENS] = {"Gain tokens", gain_tokens, ARRAY_SIZE(gain_tokens)},
 	[SOF_SRC_TOKENS] = {"SRC tokens", src_tokens, ARRAY_SIZE(src_tokens)},
+	[SOF_ASRC_TOKENS] = {"ASRC tokens", asrc_tokens, ARRAY_SIZE(asrc_tokens)},
 };
 
 struct snd_sof_widget *sof_ipc4_find_swidget_by_ids(struct snd_sof_dev *sdev,
@@ -1045,6 +1054,50 @@ err:
 	return ret;
 }
 
+static int sof_ipc4_widget_setup_comp_asrc(struct snd_sof_widget *swidget)
+{
+	struct snd_soc_component *scomp = swidget->scomp;
+	struct snd_sof_pipeline *spipe = swidget->spipe;
+	struct sof_ipc4_asrc *asrc;
+	int ret;
+
+	dev_dbg(scomp->dev, "Updating IPC structure for %s\n", swidget->widget->name);
+
+	asrc = kzalloc(sizeof(*asrc), GFP_KERNEL);
+	if (!asrc)
+		return -ENOMEM;
+
+	swidget->private = asrc;
+
+	ret = sof_ipc4_get_audio_fmt(scomp, swidget, &asrc->available_fmt,
+				     &asrc->data.base_config);
+	if (ret)
+		goto err;
+
+	ret = sof_update_ipc_object(scomp, &asrc->data, SOF_ASRC_TOKENS, swidget->tuples,
+				    swidget->num_tuples, sizeof(*asrc), 1);
+	if (ret) {
+		dev_err(scomp->dev, "Parsing ASRC tokens failed\n");
+		goto err;
+	}
+
+	spipe->core_mask |= BIT(swidget->core);
+
+	dev_dbg(scomp->dev, "ASRC sink rate %d, mode 0x%08x\n",
+		asrc->data.out_freq, asrc->data.asrc_mode);
+
+	ret = sof_ipc4_widget_setup_msg(swidget, &asrc->msg);
+	if (ret)
+		goto err;
+
+	return 0;
+err:
+	sof_ipc4_free_audio_fmt(&asrc->available_fmt);
+	kfree(asrc);
+	swidget->private = NULL;
+	return ret;
+}
+
 static void sof_ipc4_widget_free_comp_src(struct snd_sof_widget *swidget)
 {
 	struct sof_ipc4_src *src = swidget->private;
@@ -1053,6 +1106,18 @@ static void sof_ipc4_widget_free_comp_src(struct snd_sof_widget *swidget)
 		return;
 
 	sof_ipc4_free_audio_fmt(&src->available_fmt);
+	kfree(swidget->private);
+	swidget->private = NULL;
+}
+
+static void sof_ipc4_widget_free_comp_asrc(struct snd_sof_widget *swidget)
+{
+	struct sof_ipc4_asrc *asrc = swidget->private;
+
+	if (!asrc)
+		return;
+
+	sof_ipc4_free_audio_fmt(&asrc->available_fmt);
 	kfree(swidget->private);
 	swidget->private = NULL;
 }
@@ -1873,10 +1938,10 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 			pipeline->msg.extension |= SOF_IPC4_GLB_EXT_CHAIN_DMA_FIFO_SIZE(fifo_size);
 
 			/*
-			 * Chain DMA does not support stream timestamping, set node_id to invalid
-			 * to skip the code in sof_ipc4_get_stream_start_offset().
+			 * Chain DMA does not support stream timestamping, but it
+			 * can use the host side registers for delay calculation.
 			 */
-			copier_data->gtw_cfg.node_id = SOF_IPC4_INVALID_NODE_ID;
+			copier_data->gtw_cfg.node_id = SOF_IPC4_CHAIN_DMA_NODE_ID;
 
 			return 0;
 		}
@@ -2817,6 +2882,16 @@ static int sof_ipc4_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget
 		msg = &src->msg;
 		break;
 	}
+	case snd_soc_dapm_asrc:
+	{
+		struct sof_ipc4_asrc *asrc = swidget->private;
+
+		ipc_size = sizeof(asrc->data);
+		ipc_data = &asrc->data;
+
+		msg = &asrc->msg;
+		break;
+	}
 	case snd_soc_dapm_effect:
 	{
 		struct sof_ipc4_process *process = swidget->private;
@@ -3503,6 +3578,15 @@ static enum sof_tokens src_token_list[] = {
 	SOF_COMP_EXT_TOKENS,
 };
 
+static enum sof_tokens asrc_token_list[] = {
+	SOF_COMP_TOKENS,
+	SOF_ASRC_TOKENS,
+	SOF_AUDIO_FMT_NUM_TOKENS,
+	SOF_IN_AUDIO_FORMAT_TOKENS,
+	SOF_OUT_AUDIO_FORMAT_TOKENS,
+	SOF_COMP_EXT_TOKENS,
+};
+
 static enum sof_tokens process_token_list[] = {
 	SOF_COMP_TOKENS,
 	SOF_AUDIO_FMT_NUM_TOKENS,
@@ -3547,6 +3631,10 @@ static const struct sof_ipc_tplg_widget_ops tplg_ipc4_widget_ops[SND_SOC_DAPM_TY
 	[snd_soc_dapm_src] = {sof_ipc4_widget_setup_comp_src, sof_ipc4_widget_free_comp_src,
 				src_token_list, ARRAY_SIZE(src_token_list),
 				NULL, sof_ipc4_prepare_src_module,
+				NULL},
+	[snd_soc_dapm_asrc] = {sof_ipc4_widget_setup_comp_asrc, sof_ipc4_widget_free_comp_asrc,
+				asrc_token_list, ARRAY_SIZE(asrc_token_list),
+				NULL, sof_ipc4_prepare_src_module, /* Common prepare with SRC */
 				NULL},
 	[snd_soc_dapm_effect] = {sof_ipc4_widget_setup_comp_process,
 				sof_ipc4_widget_free_comp_process,

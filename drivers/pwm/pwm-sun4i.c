@@ -21,7 +21,6 @@
 #include <linux/pwm.h>
 #include <linux/reset.h>
 #include <linux/slab.h>
-#include <linux/spinlock.h>
 #include <linux/time.h>
 
 #define PWM_CTRL_REG		0x0
@@ -85,7 +84,6 @@ struct sun4i_pwm_chip {
 	struct clk *clk;
 	struct reset_control *rst;
 	void __iomem *base;
-	spinlock_t ctrl_lock;
 	const struct sun4i_pwm_data *data;
 };
 
@@ -258,7 +256,6 @@ static int sun4i_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 		return ret;
 	}
 
-	spin_lock(&sun4ichip->ctrl_lock);
 	ctrl = sun4i_pwm_readl(sun4ichip, PWM_CTRL_REG);
 
 	if (sun4ichip->data->has_direct_mod_clk_output) {
@@ -266,7 +263,6 @@ static int sun4i_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 			ctrl |= BIT_CH(PWM_BYPASS, pwm->hwpwm);
 			/* We can skip other parameter */
 			sun4i_pwm_writel(sun4ichip, ctrl, PWM_CTRL_REG);
-			spin_unlock(&sun4ichip->ctrl_lock);
 			return 0;
 		}
 
@@ -297,8 +293,6 @@ static int sun4i_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	sun4i_pwm_writel(sun4ichip, ctrl, PWM_CTRL_REG);
 
-	spin_unlock(&sun4ichip->ctrl_lock);
-
 	if (state->enabled)
 		return 0;
 
@@ -309,12 +303,10 @@ static int sun4i_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	else
 		usleep_range(delay_us, delay_us * 2);
 
-	spin_lock(&sun4ichip->ctrl_lock);
 	ctrl = sun4i_pwm_readl(sun4ichip, PWM_CTRL_REG);
 	ctrl &= ~BIT_CH(PWM_CLK_GATING, pwm->hwpwm);
 	ctrl &= ~BIT_CH(PWM_EN, pwm->hwpwm);
 	sun4i_pwm_writel(sun4ichip, ctrl, PWM_CTRL_REG);
-	spin_unlock(&sun4ichip->ctrl_lock);
 
 	clk_disable_unprepare(sun4ichip->clk);
 
@@ -455,8 +447,6 @@ static int sun4i_pwm_probe(struct platform_device *pdev)
 	}
 
 	chip->ops = &sun4i_pwm_ops;
-
-	spin_lock_init(&sun4ichip->ctrl_lock);
 
 	ret = pwmchip_add(chip);
 	if (ret < 0) {

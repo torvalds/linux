@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/kexec.h>
 #include <linux/module.h>
+#include <linux/export.h>
 #include <linux/extable.h>
 #include <linux/mm.h>
 #include <linux/sched/mm.h>

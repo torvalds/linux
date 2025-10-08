@@ -118,15 +118,11 @@ $defs:
           ti,lvds-vod-swing-clock-microvolt:
             description: LVDS diferential output voltage <min max> for clock
               lanes in microvolts.
-            $ref: /schemas/types.yaml#/definitions/uint32-array
-            minItems: 2
             maxItems: 2
 
           ti,lvds-vod-swing-data-microvolt:
             description: LVDS diferential output voltage <min max> for data
               lanes in microvolts.
-            $ref: /schemas/types.yaml#/definitions/uint32-array
-            minItems: 2
             maxItems: 2
 
 allOf:

@@ -171,6 +171,7 @@ int cgx_set_fec(u64 fec, int cgx_id, int lmac_id);
 int cgx_get_fec_stats(void *cgxd, int lmac_id, struct cgx_fec_stats_rsp *rsp);
 int cgx_get_phy_fec_stats(void *cgxd, int lmac_id);
 int cgx_set_link_mode(void *cgxd, struct cgx_set_link_mode_args args,
+		      struct cgx_lmac_fwdata_s *linkmodes,
 		      int cgx_id, int lmac_id);
 u64 cgx_features_get(void *cgxd);
 struct mac_ops *get_mac_ops(void *cgxd);

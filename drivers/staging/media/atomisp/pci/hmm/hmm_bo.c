@@ -37,8 +37,6 @@ static int __bo_init(struct hmm_bo_device *bdev, struct hmm_buffer_object *bo,
 		     unsigned int pgnr)
 {
 	check_bodev_null_return(bdev, -EINVAL);
-	var_equal_return(hmm_bo_device_inited(bdev), 0, -EINVAL,
-			 "hmm_bo_device not inited yet.\n");
 	/* prevent zero size buffer object */
 	if (pgnr == 0) {
 		dev_err(atomisp_dev, "0 size buffer is not allowed.\n");
@@ -341,7 +339,6 @@ int hmm_bo_device_init(struct hmm_bo_device *bdev,
 	spin_lock_init(&bdev->list_lock);
 	mutex_init(&bdev->rbtree_mutex);
 
-	bdev->flag = HMM_BO_DEVICE_INITED;
 
 	INIT_LIST_HEAD(&bdev->entire_bo_list);
 	bdev->allocated_rbtree = RB_ROOT;
@@ -375,6 +372,8 @@ int hmm_bo_device_init(struct hmm_bo_device *bdev,
 	spin_unlock_irqrestore(&bdev->list_lock, flags);
 
 	__bo_insert_to_free_rbtree(&bdev->free_rbtree, bo);
+
+	bdev->flag = HMM_BO_DEVICE_INITED;
 
 	return 0;
 }

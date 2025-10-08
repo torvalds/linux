@@ -17,7 +17,7 @@ import time
 
 logger = logging.getLogger("hidtools.test.multitouch")
 
-KERNEL_MODULE = ("hid-multitouch", "hid_multitouch")
+KERNEL_MODULE = base.KernelModule("hid-multitouch", "hid_multitouch")
 
 
 def BIT(x):

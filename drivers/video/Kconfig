@@ -61,6 +61,23 @@ config HDMI
 
 endif # HAS_IOMEM
 
+config FIRMWARE_EDID
+	bool "Enable firmware EDID"
+	depends on X86
+	help
+	  This enables access to the EDID transferred from the firmware.
+	  On x86, this is from the VESA BIOS. DRM display drivers will
+	  be able to export the information to userspace.
+
+	  Also enable this if DDC/I2C transfers do not work for your driver
+	  and if you are using nvidiafb, i810fb or savagefb.
+
+	  In general, choosing Y for this option is safe.  If you
+	  experience extremely long delays while booting before you get
+	  something on your display, try setting this to N.  Matrox cards in
+	  combination with certain motherboards and monitors are known to
+	  suffer from this problem.
+
 if VT
 	source "drivers/video/console/Kconfig"
 endif
@@ -70,5 +87,6 @@ if FB_CORE || SGI_NEWPORT_CONSOLE
 
 endif
 
+source "drivers/gpu/trace/Kconfig"
 
 endmenu

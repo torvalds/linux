@@ -16,6 +16,7 @@
  */
 
 #include <linux/errno.h>
+#include <linux/export.h>
 #include <linux/fb.h>
 #include <linux/string.h>
 #include <linux/module.h>
@@ -236,7 +237,7 @@ int mac_vmode_to_var(int vmode, int cmode, struct fb_var_screeninfo *var)
 	case CMODE_8:
 	    var->bits_per_pixel = 8;
 	    var->red.offset = 0;
-	    var->red.length = 8;   
+	    var->red.length = 8;
 	    var->green.offset = 0;
 	    var->green.length = 8;
 	    var->blue.offset = 0;

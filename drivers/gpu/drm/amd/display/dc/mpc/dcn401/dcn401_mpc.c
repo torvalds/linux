@@ -294,7 +294,7 @@ void mpc401_program_3dlut_size(struct mpc *mpc, bool is_17x17x17, int mpcc_id)
 	REG_UPDATE(MPCC_MCM_3DLUT_MODE[mpcc_id], MPCC_MCM_3DLUT_SIZE, is_17x17x17 ? 0 : 1);
 }
 
-static void program_gamut_remap(
+void mpc_program_gamut_remap(
 	struct mpc *mpc,
 	unsigned int mpcc_id,
 	const uint16_t *regval,
@@ -426,7 +426,7 @@ void mpc401_set_gamut_remap(
 
 	if (adjust->gamut_adjust_type != GRAPHICS_GAMUT_ADJUST_TYPE_SW) {
 		/* Bypass / Disable if type is bypass or hw */
-		program_gamut_remap(mpc, mpcc_id, NULL,
+		mpc_program_gamut_remap(mpc, mpcc_id, NULL,
 			adjust->mpcc_gamut_remap_block_id, MPCC_GAMUT_REMAP_MODE_SELECT_0);
 	} else {
 		struct fixed31_32 arr_matrix[12];
@@ -460,12 +460,12 @@ void mpc401_set_gamut_remap(
 		else
 			mode_select = MPCC_GAMUT_REMAP_MODE_SELECT_2;
 
-		program_gamut_remap(mpc, mpcc_id, arr_reg_val,
+		mpc_program_gamut_remap(mpc, mpcc_id, arr_reg_val,
 			adjust->mpcc_gamut_remap_block_id, mode_select);
 	}
 }
 
-static void read_gamut_remap(struct mpc *mpc,
+void mpc_read_gamut_remap(struct mpc *mpc,
 	int mpcc_id,
 	uint16_t *regval,
 	enum mpcc_gamut_remap_id gamut_remap_block_id,
@@ -561,9 +561,9 @@ void mpc401_get_gamut_remap(struct mpc *mpc,
 	struct mpc_grph_gamut_adjustment *adjust)
 {
 	uint16_t arr_reg_val[12] = {0};
-	uint32_t mode_select;
+	uint32_t mode_select = MPCC_GAMUT_REMAP_MODE_SELECT_0;
 
-	read_gamut_remap(mpc, mpcc_id, arr_reg_val, adjust->mpcc_gamut_remap_block_id, &mode_select);
+	mpc_read_gamut_remap(mpc, mpcc_id, arr_reg_val, adjust->mpcc_gamut_remap_block_id, &mode_select);
 
 	if (mode_select == MPCC_GAMUT_REMAP_MODE_SELECT_0) {
 		adjust->gamut_adjust_type = GRAPHICS_GAMUT_ADJUST_TYPE_BYPASS;

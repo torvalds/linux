@@ -1168,8 +1168,11 @@ static int qede_set_phys_id(struct net_device *dev,
 	return 0;
 }
 
-static int qede_get_rss_flags(struct qede_dev *edev, struct ethtool_rxnfc *info)
+static int qede_get_rxfh_fields(struct net_device *dev,
+				struct ethtool_rxfh_fields *info)
 {
+	struct qede_dev *edev = netdev_priv(dev);
+
 	info->data = RXH_IP_SRC | RXH_IP_DST;
 
 	switch (info->flow_type) {
@@ -1206,9 +1209,6 @@ static int qede_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
 	case ETHTOOL_GRXRINGS:
 		info->data = QEDE_RSS_COUNT(edev);
 		break;
-	case ETHTOOL_GRXFH:
-		rc = qede_get_rss_flags(edev, info);
-		break;
 	case ETHTOOL_GRXCLSRLCNT:
 		info->rule_cnt = qede_get_arfs_filter_count(edev);
 		info->data = QEDE_RFS_MAX_FLTR;
@@ -1227,14 +1227,17 @@ static int qede_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
 	return rc;
 }
 
-static int qede_set_rss_flags(struct qede_dev *edev, struct ethtool_rxnfc *info)
+static int qede_set_rxfh_fields(struct net_device *dev,
+				const struct ethtool_rxfh_fields *info,
+				struct netlink_ext_ack *extack)
 {
 	struct qed_update_vport_params *vport_update_params;
+	struct qede_dev *edev = netdev_priv(dev);
 	u8 set_caps = 0, clr_caps = 0;
 	int rc = 0;
 
 	DP_VERBOSE(edev, QED_MSG_DEBUG,
-		   "Set rss flags command parameters: flow type = %d, data = %llu\n",
+		   "Set rss flags command parameters: flow type = %d, data = %u\n",
 		   info->flow_type, info->data);
 
 	switch (info->flow_type) {
@@ -1337,9 +1340,6 @@ static int qede_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info)
 	int rc;
 
 	switch (info->cmd) {
-	case ETHTOOL_SRXFH:
-		rc = qede_set_rss_flags(edev, info);
-		break;
 	case ETHTOOL_SRXCLSRLINS:
 		rc = qede_add_cls_rule(edev, info);
 		break;
@@ -2293,6 +2293,8 @@ static const struct ethtool_ops qede_ethtool_ops = {
 	.get_rxfh_key_size		= qede_get_rxfh_key_size,
 	.get_rxfh			= qede_get_rxfh,
 	.set_rxfh			= qede_set_rxfh,
+	.get_rxfh_fields		= qede_get_rxfh_fields,
+	.set_rxfh_fields		= qede_set_rxfh_fields,
 	.get_ts_info			= qede_get_ts_info,
 	.get_channels			= qede_get_channels,
 	.set_channels			= qede_set_channels,
@@ -2335,6 +2337,8 @@ static const struct ethtool_ops qede_vf_ethtool_ops = {
 	.get_rxfh_key_size		= qede_get_rxfh_key_size,
 	.get_rxfh			= qede_get_rxfh,
 	.set_rxfh			= qede_set_rxfh,
+	.get_rxfh_fields		= qede_get_rxfh_fields,
+	.set_rxfh_fields		= qede_set_rxfh_fields,
 	.get_channels			= qede_get_channels,
 	.set_channels			= qede_set_channels,
 	.get_per_queue_coalesce		= qede_get_per_coalesce,

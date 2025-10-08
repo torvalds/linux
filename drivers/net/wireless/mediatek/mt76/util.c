@@ -83,7 +83,7 @@ int mt76_get_min_avg_rssi(struct mt76_dev *dev, u8 phy_idx)
 			if (!(mask & 1))
 				continue;
 
-			wcid = rcu_dereference(dev->wcid[j]);
+			wcid = __mt76_wcid_ptr(dev, j);
 			if (!wcid || wcid->phy_idx != phy_idx)
 				continue;
 

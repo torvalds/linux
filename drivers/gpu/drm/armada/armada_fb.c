@@ -18,7 +18,9 @@ static const struct drm_framebuffer_funcs armada_fb_funcs = {
 };
 
 struct armada_framebuffer *armada_framebuffer_create(struct drm_device *dev,
-	const struct drm_mode_fb_cmd2 *mode, struct armada_gem_object *obj)
+						     const struct drm_format_info *info,
+						     const struct drm_mode_fb_cmd2 *mode,
+						     struct armada_gem_object *obj)
 {
 	struct armada_framebuffer *dfb;
 	uint8_t format, config;
@@ -64,7 +66,7 @@ struct armada_framebuffer *armada_framebuffer_create(struct drm_device *dev,
 	dfb->mod = config;
 	dfb->fb.obj[0] = &obj->obj;
 
-	drm_helper_mode_fill_fb_struct(dev, &dfb->fb, mode);
+	drm_helper_mode_fill_fb_struct(dev, &dfb->fb, info, mode);
 
 	ret = drm_framebuffer_init(dev, &dfb->fb, &armada_fb_funcs);
 	if (ret) {
@@ -84,9 +86,9 @@ struct armada_framebuffer *armada_framebuffer_create(struct drm_device *dev,
 }
 
 struct drm_framebuffer *armada_fb_create(struct drm_device *dev,
-	struct drm_file *dfile, const struct drm_mode_fb_cmd2 *mode)
+	struct drm_file *dfile, const struct drm_format_info *info,
+	const struct drm_mode_fb_cmd2 *mode)
 {
-	const struct drm_format_info *info = drm_get_format_info(dev, mode);
 	struct armada_gem_object *obj;
 	struct armada_framebuffer *dfb;
 	int ret;
@@ -122,7 +124,7 @@ struct drm_framebuffer *armada_fb_create(struct drm_device *dev,
 		goto err_unref;
 	}
 
-	dfb = armada_framebuffer_create(dev, mode, obj);
+	dfb = armada_framebuffer_create(dev, info, mode, obj);
 	if (IS_ERR(dfb)) {
 		ret = PTR_ERR(dfb);
 		goto err;

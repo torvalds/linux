@@ -28,6 +28,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <linux/export.h>
 #include <linux/slab.h>
 
 #include <drm/drm_auth.h>
@@ -95,7 +96,7 @@ int drm_getmagic(struct drm_device *dev, void *data, struct drm_file *file_priv)
 	struct drm_auth *auth = data;
 	int ret = 0;
 
-	mutex_lock(&dev->master_mutex);
+	guard(mutex)(&dev->master_mutex);
 	if (!file_priv->magic) {
 		ret = idr_alloc(&file_priv->master->magic_map, file_priv,
 				1, 0, GFP_KERNEL);
@@ -103,7 +104,6 @@ int drm_getmagic(struct drm_device *dev, void *data, struct drm_file *file_priv)
 			file_priv->magic = ret;
 	}
 	auth->magic = file_priv->magic;
-	mutex_unlock(&dev->master_mutex);
 
 	drm_dbg_core(dev, "%u\n", auth->magic);
 
@@ -118,13 +118,12 @@ int drm_authmagic(struct drm_device *dev, void *data,
 
 	drm_dbg_core(dev, "%u\n", auth->magic);
 
-	mutex_lock(&dev->master_mutex);
+	guard(mutex)(&dev->master_mutex);
 	file = idr_find(&file_priv->master->magic_map, auth->magic);
 	if (file) {
 		file->authenticated = 1;
 		idr_replace(&file_priv->master->magic_map, NULL, auth->magic);
 	}
-	mutex_unlock(&dev->master_mutex);
 
 	return file ? 0 : -EINVAL;
 }
@@ -248,41 +247,33 @@ int drm_setmaster_ioctl(struct drm_device *dev, void *data,
 {
 	int ret;
 
-	mutex_lock(&dev->master_mutex);
+	guard(mutex)(&dev->master_mutex);
 
 	ret = drm_master_check_perm(dev, file_priv);
 	if (ret)
-		goto out_unlock;
+		return ret;
 
 	if (drm_is_current_master_locked(file_priv))
-		goto out_unlock;
+		return ret;
 
-	if (dev->master) {
-		ret = -EBUSY;
-		goto out_unlock;
-	}
+	if (dev->master)
+		return -EBUSY;
 
-	if (!file_priv->master) {
-		ret = -EINVAL;
-		goto out_unlock;
-	}
+	if (!file_priv->master)
+		return -EINVAL;
 
-	if (!file_priv->is_master) {
-		ret = drm_new_set_master(dev, file_priv);
-		goto out_unlock;
-	}
+	if (!file_priv->is_master)
+		return drm_new_set_master(dev, file_priv);
 
 	if (file_priv->master->lessor != NULL) {
 		drm_dbg_lease(dev,
 			      "Attempt to set lessee %d as master\n",
 			      file_priv->master->lessee_id);
-		ret = -EINVAL;
-		goto out_unlock;
+		return -EINVAL;
 	}
 
 	drm_set_master(dev, file_priv, false);
-out_unlock:
-	mutex_unlock(&dev->master_mutex);
+
 	return ret;
 }
 
@@ -299,33 +290,27 @@ int drm_dropmaster_ioctl(struct drm_device *dev, void *data,
 {
 	int ret;
 
-	mutex_lock(&dev->master_mutex);
+	guard(mutex)(&dev->master_mutex);
 
 	ret = drm_master_check_perm(dev, file_priv);
 	if (ret)
-		goto out_unlock;
+		return ret;
 
-	if (!drm_is_current_master_locked(file_priv)) {
-		ret = -EINVAL;
-		goto out_unlock;
-	}
+	if (!drm_is_current_master_locked(file_priv))
+		return -EINVAL;
 
-	if (!dev->master) {
-		ret = -EINVAL;
-		goto out_unlock;
-	}
+	if (!dev->master)
+		return -EINVAL;
 
 	if (file_priv->master->lessor != NULL) {
 		drm_dbg_lease(dev,
 			      "Attempt to drop lessee %d as master\n",
 			      file_priv->master->lessee_id);
-		ret = -EINVAL;
-		goto out_unlock;
+		return -EINVAL;
 	}
 
 	drm_drop_master(dev, file_priv);
-out_unlock:
-	mutex_unlock(&dev->master_mutex);
+
 	return ret;
 }
 
@@ -337,7 +322,7 @@ int drm_master_open(struct drm_file *file_priv)
 	/* if there is no current master make this fd it, but do not create
 	 * any master object for render clients
 	 */
-	mutex_lock(&dev->master_mutex);
+	guard(mutex)(&dev->master_mutex);
 	if (!dev->master) {
 		ret = drm_new_set_master(dev, file_priv);
 	} else {
@@ -345,7 +330,6 @@ int drm_master_open(struct drm_file *file_priv)
 		file_priv->master = drm_master_get(dev->master);
 		spin_unlock(&file_priv->master_lookup_lock);
 	}
-	mutex_unlock(&dev->master_mutex);
 
 	return ret;
 }
@@ -355,7 +339,7 @@ void drm_master_release(struct drm_file *file_priv)
 	struct drm_device *dev = file_priv->minor->dev;
 	struct drm_master *master;
 
-	mutex_lock(&dev->master_mutex);
+	guard(mutex)(&dev->master_mutex);
 	master = file_priv->master;
 	if (file_priv->magic)
 		idr_remove(&file_priv->master->magic_map, file_priv->magic);
@@ -376,7 +360,6 @@ out:
 	/* drop the master reference held by the file priv */
 	if (file_priv->master)
 		drm_master_put(&file_priv->master);
-	mutex_unlock(&dev->master_mutex);
 }
 
 /**

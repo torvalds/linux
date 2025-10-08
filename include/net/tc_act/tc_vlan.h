@@ -26,15 +26,6 @@ struct tcf_vlan {
 };
 #define to_vlan(a) ((struct tcf_vlan *)a)
 
-static inline bool is_tcf_vlan(const struct tc_action *a)
-{
-#ifdef CONFIG_NET_CLS_ACT
-	if (a->ops && a->ops->id == TCA_ID_VLAN)
-		return true;
-#endif
-	return false;
-}
-
 static inline u32 tcf_vlan_action(const struct tc_action *a)
 {
 	u32 tcfv_action;

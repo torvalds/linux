@@ -8,6 +8,7 @@
 #include "gve_dqo.h"
 #include "gve_adminq.h"
 #include "gve_utils.h"
+#include <linux/bpf.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/skbuff.h>
@@ -15,6 +16,7 @@
 #include <net/ip6_checksum.h>
 #include <net/ipv6.h>
 #include <net/tcp.h>
+#include <net/xdp_sock_drv.h>
 
 static void gve_rx_free_hdr_bufs(struct gve_priv *priv, struct gve_rx_ring *rx)
 {
@@ -148,6 +150,10 @@ void gve_rx_free_ring_dqo(struct gve_priv *priv, struct gve_rx_ring *rx,
 			gve_free_to_page_pool(rx, bs, false);
 		else
 			gve_free_qpl_page_dqo(bs);
+		if (gve_buf_state_is_allocated(rx, bs) && bs->xsk_buff) {
+			xsk_buff_free(bs->xsk_buff);
+			bs->xsk_buff = NULL;
+		}
 	}
 
 	if (rx->dqo.qpl) {
@@ -236,9 +242,9 @@ int gve_rx_alloc_ring_dqo(struct gve_priv *priv,
 
 	rx->dqo.num_buf_states = cfg->raw_addressing ? buffer_queue_slots :
 		gve_get_rx_pages_per_qpl_dqo(cfg->ring_size);
-	rx->dqo.buf_states = kvcalloc(rx->dqo.num_buf_states,
-				      sizeof(rx->dqo.buf_states[0]),
-				      GFP_KERNEL);
+	rx->dqo.buf_states = kvcalloc_node(rx->dqo.num_buf_states,
+					   sizeof(rx->dqo.buf_states[0]),
+					   GFP_KERNEL, priv->numa_node);
 	if (!rx->dqo.buf_states)
 		return -ENOMEM;
 
@@ -437,6 +443,29 @@ static void gve_rx_skb_hash(struct sk_buff *skb,
 	skb_set_hash(skb, le32_to_cpu(compl_desc->hash), hash_type);
 }
 
+/* Expand the hardware timestamp to the full 64 bits of width, and add it to the
+ * skb.
+ *
+ * This algorithm works by using the passed hardware timestamp to generate a
+ * diff relative to the last read of the nic clock. This diff can be positive or
+ * negative, as it is possible that we have read the clock more recently than
+ * the hardware has received this packet. To detect this, we use the high bit of
+ * the diff, and assume that the read is more recent if the high bit is set. In
+ * this case we invert the process.
+ *
+ * Note that this means if the time delta between packet reception and the last
+ * clock read is greater than ~2 seconds, this will provide invalid results.
+ */
+static void gve_rx_skb_hwtstamp(struct gve_rx_ring *rx, u32 hwts)
+{
+	u64 last_read = READ_ONCE(rx->gve->last_sync_nic_counter);
+	struct sk_buff *skb = rx->ctx.skb_head;
+	u32 low = (u32)last_read;
+	s32 diff = hwts - low;
+
+	skb_hwtstamps(skb)->hwtstamp = ns_to_ktime(last_read + diff);
+}
+
 static void gve_rx_free_skb(struct napi_struct *napi, struct gve_rx_ring *rx)
 {
 	if (!rx->ctx.skb_head)
@@ -464,7 +493,7 @@ static int gve_rx_copy_ondemand(struct gve_rx_ring *rx,
 				struct gve_rx_buf_state_dqo *buf_state,
 				u16 buf_len)
 {
-	struct page *page = alloc_page(GFP_ATOMIC);
+	struct page *page = alloc_pages_node(rx->gve->numa_node, GFP_ATOMIC, 0);
 	int num_frags;
 
 	if (!page)
@@ -547,27 +576,146 @@ static int gve_rx_append_frags(struct napi_struct *napi,
 	return 0;
 }
 
+static int gve_xdp_tx_dqo(struct gve_priv *priv, struct gve_rx_ring *rx,
+			  struct xdp_buff *xdp)
+{
+	struct gve_tx_ring *tx;
+	struct xdp_frame *xdpf;
+	u32 tx_qid;
+	int err;
+
+	xdpf = xdp_convert_buff_to_frame(xdp);
+	if (unlikely(!xdpf)) {
+		if (rx->xsk_pool)
+			xsk_buff_free(xdp);
+		return -ENOSPC;
+	}
+
+	tx_qid = gve_xdp_tx_queue_id(priv, rx->q_num);
+	tx = &priv->tx[tx_qid];
+	spin_lock(&tx->dqo_tx.xdp_lock);
+	err = gve_xdp_xmit_one_dqo(priv, tx, xdpf);
+	spin_unlock(&tx->dqo_tx.xdp_lock);
+
+	return err;
+}
+
+static void gve_xsk_done_dqo(struct gve_priv *priv, struct gve_rx_ring *rx,
+			     struct xdp_buff *xdp, struct bpf_prog *xprog,
+			     int xdp_act)
+{
+	switch (xdp_act) {
+	case XDP_ABORTED:
+	case XDP_DROP:
+	default:
+		xsk_buff_free(xdp);
+		break;
+	case XDP_TX:
+		if (unlikely(gve_xdp_tx_dqo(priv, rx, xdp)))
+			goto err;
+		break;
+	case XDP_REDIRECT:
+		if (unlikely(xdp_do_redirect(priv->dev, xdp, xprog)))
+			goto err;
+		break;
+	}
+
+	u64_stats_update_begin(&rx->statss);
+	if ((u32)xdp_act < GVE_XDP_ACTIONS)
+		rx->xdp_actions[xdp_act]++;
+	u64_stats_update_end(&rx->statss);
+	return;
+
+err:
+	u64_stats_update_begin(&rx->statss);
+	if (xdp_act == XDP_TX)
+		rx->xdp_tx_errors++;
+	if (xdp_act == XDP_REDIRECT)
+		rx->xdp_redirect_errors++;
+	u64_stats_update_end(&rx->statss);
+}
+
 static void gve_xdp_done_dqo(struct gve_priv *priv, struct gve_rx_ring *rx,
 			     struct xdp_buff *xdp, struct bpf_prog *xprog,
 			     int xdp_act,
 			     struct gve_rx_buf_state_dqo *buf_state)
 {
-	u64_stats_update_begin(&rx->statss);
+	int err;
 	switch (xdp_act) {
 	case XDP_ABORTED:
 	case XDP_DROP:
 	default:
-		rx->xdp_actions[xdp_act]++;
+		gve_free_buffer(rx, buf_state);
 		break;
 	case XDP_TX:
-		rx->xdp_tx_errors++;
+		err = gve_xdp_tx_dqo(priv, rx, xdp);
+		if (unlikely(err))
+			goto err;
+		gve_reuse_buffer(rx, buf_state);
 		break;
 	case XDP_REDIRECT:
-		rx->xdp_redirect_errors++;
+		err = xdp_do_redirect(priv->dev, xdp, xprog);
+		if (unlikely(err))
+			goto err;
+		gve_reuse_buffer(rx, buf_state);
 		break;
 	}
+	u64_stats_update_begin(&rx->statss);
+	if ((u32)xdp_act < GVE_XDP_ACTIONS)
+		rx->xdp_actions[xdp_act]++;
+	u64_stats_update_end(&rx->statss);
+	return;
+err:
+	u64_stats_update_begin(&rx->statss);
+	if (xdp_act == XDP_TX)
+		rx->xdp_tx_errors++;
+	else if (xdp_act == XDP_REDIRECT)
+		rx->xdp_redirect_errors++;
 	u64_stats_update_end(&rx->statss);
 	gve_free_buffer(rx, buf_state);
+	return;
+}
+
+static int gve_rx_xsk_dqo(struct napi_struct *napi, struct gve_rx_ring *rx,
+			  struct gve_rx_buf_state_dqo *buf_state, int buf_len,
+			  struct bpf_prog *xprog)
+{
+	struct xdp_buff *xdp = buf_state->xsk_buff;
+	struct gve_priv *priv = rx->gve;
+	int xdp_act;
+
+	xdp->data_end = xdp->data + buf_len;
+	xsk_buff_dma_sync_for_cpu(xdp);
+
+	if (xprog) {
+		xdp_act = bpf_prog_run_xdp(xprog, xdp);
+		buf_len = xdp->data_end - xdp->data;
+		if (xdp_act != XDP_PASS) {
+			gve_xsk_done_dqo(priv, rx, xdp, xprog, xdp_act);
+			gve_free_buf_state(rx, buf_state);
+			return 0;
+		}
+	}
+
+	/* Copy the data to skb */
+	rx->ctx.skb_head = gve_rx_copy_data(priv->dev, napi,
+					    xdp->data, buf_len);
+	if (unlikely(!rx->ctx.skb_head)) {
+		xsk_buff_free(xdp);
+		gve_free_buf_state(rx, buf_state);
+		return -ENOMEM;
+	}
+	rx->ctx.skb_tail = rx->ctx.skb_head;
+
+	/* Free XSK buffer and Buffer state */
+	xsk_buff_free(xdp);
+	gve_free_buf_state(rx, buf_state);
+
+	/* Update Stats */
+	u64_stats_update_begin(&rx->statss);
+	rx->xdp_actions[XDP_PASS]++;
+	u64_stats_update_end(&rx->statss);
+	return 0;
 }
 
 /* Returns 0 if descriptor is completed successfully.
@@ -607,6 +755,10 @@ static int gve_rx_dqo(struct napi_struct *napi, struct gve_rx_ring *rx,
 
 	buf_len = compl_desc->packet_len;
 	hdr_len = compl_desc->header_len;
+
+	xprog = READ_ONCE(priv->xdp_prog);
+	if (buf_state->xsk_buff)
+		return gve_rx_xsk_dqo(napi, rx, buf_state, buf_len, xprog);
 
 	/* Page might have not been used for awhile and was likely last written
 	 * by a different thread.
@@ -658,7 +810,6 @@ static int gve_rx_dqo(struct napi_struct *napi, struct gve_rx_ring *rx,
 		return 0;
 	}
 
-	xprog = READ_ONCE(priv->xdp_prog);
 	if (xprog) {
 		struct xdp_buff xdp;
 		void *old_data;
@@ -767,6 +918,9 @@ static int gve_rx_complete_skb(struct gve_rx_ring *rx, struct napi_struct *napi,
 	if (feat & NETIF_F_RXCSUM)
 		gve_rx_skb_csum(rx->ctx.skb_head, desc, ptype);
 
+	if (rx->gve->ts_config.rx_filter == HWTSTAMP_FILTER_ALL)
+		gve_rx_skb_hwtstamp(rx, le32_to_cpu(desc->ts));
+
 	/* RSC packets must set gso_size otherwise the TCP stack will complain
 	 * that packets are larger than MTU.
 	 */
@@ -786,15 +940,26 @@ static int gve_rx_complete_skb(struct gve_rx_ring *rx, struct napi_struct *napi,
 
 int gve_rx_poll_dqo(struct gve_notify_block *block, int budget)
 {
-	struct napi_struct *napi = &block->napi;
-	netdev_features_t feat = napi->dev->features;
-
-	struct gve_rx_ring *rx = block->rx;
-	struct gve_rx_compl_queue_dqo *complq = &rx->dqo.complq;
-
+	struct gve_rx_compl_queue_dqo *complq;
+	struct napi_struct *napi;
+	netdev_features_t feat;
+	struct gve_rx_ring *rx;
+	struct gve_priv *priv;
+	u64 xdp_redirects;
 	u32 work_done = 0;
 	u64 bytes = 0;
+	u64 xdp_txs;
 	int err;
+
+	napi = &block->napi;
+	feat = napi->dev->features;
+
+	rx = block->rx;
+	priv = rx->gve;
+	complq = &rx->dqo.complq;
+
+	xdp_redirects = rx->xdp_actions[XDP_REDIRECT];
+	xdp_txs = rx->xdp_actions[XDP_TX];
 
 	while (work_done < budget) {
 		struct gve_rx_compl_desc_dqo *compl_desc =
@@ -868,6 +1033,12 @@ int gve_rx_poll_dqo(struct gve_notify_block *block, int budget)
 		rx->ctx.skb_head = NULL;
 		rx->ctx.skb_tail = NULL;
 	}
+
+	if (xdp_txs != rx->xdp_actions[XDP_TX])
+		gve_xdp_tx_flush_dqo(priv, rx->q_num);
+
+	if (xdp_redirects != rx->xdp_actions[XDP_REDIRECT])
+		xdp_do_flush();
 
 	gve_rx_post_buffers_dqo(rx);
 

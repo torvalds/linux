@@ -4,8 +4,8 @@
 #ifndef _FBNIC_NETDEV_H_
 #define _FBNIC_NETDEV_H_
 
-#include <linux/types.h>
 #include <linux/phylink.h>
+#include <linux/types.h>
 
 #include "fbnic_csr.h"
 #include "fbnic_rpc.h"
@@ -42,9 +42,8 @@ struct fbnic_net {
 	struct phylink_config phylink_config;
 	struct phylink_pcs phylink_pcs;
 
-	/* TBD: Remove these when phylink supports FEC and lane config */
+	u8 aui;
 	u8 fec;
-	u8 link_mode;
 
 	/* Cached top bits of the HW time counter for 40b -> 64b conversion */
 	u32 time_high;
@@ -67,7 +66,7 @@ struct fbnic_net {
 	struct fbnic_queue_stats rx_stats;
 	u64 link_down_events;
 
-	/* Time stampinn filter config */
+	/* Time stamping filter config */
 	struct kernel_hwtstamp_config hwtstamp_config;
 };
 
@@ -82,6 +81,7 @@ int fbnic_netdev_register(struct net_device *netdev);
 void fbnic_netdev_unregister(struct net_device *netdev);
 void fbnic_reset_queues(struct fbnic_net *fbn,
 			unsigned int tx, unsigned int rx);
+
 void fbnic_set_ethtool_ops(struct net_device *dev);
 
 int fbnic_ptp_setup(struct fbnic_dev *fbd);
@@ -93,5 +93,13 @@ void fbnic_time_stop(struct fbnic_net *fbn);
 void __fbnic_set_rx_mode(struct net_device *netdev);
 void fbnic_clear_rx_mode(struct net_device *netdev);
 
+void fbnic_phylink_get_pauseparam(struct net_device *netdev,
+				  struct ethtool_pauseparam *pause);
+int fbnic_phylink_set_pauseparam(struct net_device *netdev,
+				 struct ethtool_pauseparam *pause);
+int fbnic_phylink_ethtool_ksettings_get(struct net_device *netdev,
+					struct ethtool_link_ksettings *cmd);
+int fbnic_phylink_get_fecparam(struct net_device *netdev,
+			       struct ethtool_fecparam *fecparam);
 int fbnic_phylink_init(struct net_device *netdev);
 #endif /* _FBNIC_NETDEV_H_ */

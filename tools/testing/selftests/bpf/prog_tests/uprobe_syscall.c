@@ -251,7 +251,7 @@ static void test_uretprobe_syscall_call(void)
 		.retprobe = true,
 	);
 	struct uprobe_syscall_executed *skel;
-	int pid, status, err, go[2], c;
+	int pid, status, err, go[2], c = 0;
 
 	if (!ASSERT_OK(pipe(go), "pipe"))
 		return;

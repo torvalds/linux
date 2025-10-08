@@ -780,7 +780,7 @@ static int mlx5e_create_promisc_table(struct mlx5e_flow_steering *fs)
 	ft_attr.max_fte = MLX5E_PROMISC_TABLE_SIZE;
 	ft_attr.autogroup.max_num_groups = 1;
 	ft_attr.level = MLX5E_PROMISC_FT_LEVEL;
-	ft_attr.prio = MLX5E_NIC_PRIO;
+	ft_attr.prio = MLX5E_PROMISC_PRIO;
 
 	ft->t = mlx5_create_auto_grouped_flow_table(fs->ns, &ft_attr);
 	if (IS_ERR(ft->t)) {

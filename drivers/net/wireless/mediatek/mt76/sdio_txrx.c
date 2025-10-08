@@ -112,6 +112,7 @@ mt76s_rx_run_queue(struct mt76_dev *dev, enum mt76_rxq_id qid,
 
 	if (err < 0) {
 		dev_err(dev->dev, "sdio read data failed:%d\n", err);
+		atomic_set(&dev->bus_hung, true);
 		put_page(page);
 		return err;
 	}
@@ -234,9 +235,10 @@ static int __mt76s_xmit_queue(struct mt76_dev *dev, u8 *data, int len)
 	err = sdio_writesb(sdio->func, MCR_WTDR1, data, len);
 	sdio_release_host(sdio->func);
 
-	if (err)
+	if (err) {
 		dev_err(dev->dev, "sdio write failed: %d\n", err);
-
+		atomic_set(&dev->bus_hung, true);
+	}
 	return err;
 }
 

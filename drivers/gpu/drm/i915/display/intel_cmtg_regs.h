@@ -6,7 +6,7 @@
 #ifndef __INTEL_CMTG_REGS_H__
 #define __INTEL_CMTG_REGS_H__
 
-#include "i915_reg_defs.h"
+#include "intel_display_reg_defs.h"
 
 #define CMTG_CLK_SEL			_MMIO(0x46160)
 #define CMTG_CLK_SEL_A_MASK		REG_GENMASK(31, 29)

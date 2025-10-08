@@ -1118,7 +1118,7 @@ static int snd_vt1724_pcm_profi(struct snd_ice1712 *ice, int device)
 
 	pcm->private_data = ice;
 	pcm->info_flags = 0;
-	strcpy(pcm->name, "ICE1724");
+	strscpy(pcm->name, "ICE1724");
 
 	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
 				       &ice->pci->dev, 256*1024, 256*1024);
@@ -1313,7 +1313,7 @@ static int snd_vt1724_pcm_spdif(struct snd_ice1712 *ice, int device)
 
 	pcm->private_data = ice;
 	pcm->info_flags = 0;
-	strcpy(pcm->name, name);
+	strscpy(pcm->name, name);
 
 	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
 				       &ice->pci->dev, 256*1024, 256*1024);
@@ -1425,7 +1425,7 @@ static int snd_vt1724_pcm_indep(struct snd_ice1712 *ice, int device)
 
 	pcm->private_data = ice;
 	pcm->info_flags = 0;
-	strcpy(pcm->name, "ICE1724 Surround PCM");
+	strscpy(pcm->name, "ICE1724 Surround PCM");
 
 	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
 				       &ice->pci->dev, 256*1024, 256*1024);
@@ -1820,7 +1820,7 @@ static int snd_vt1724_pro_internal_clock_info(struct snd_kcontrol *kcontrol,
 		uinfo->value.enumerated.item = uinfo->value.enumerated.items - 1;
 	if (uinfo->value.enumerated.item >= hw_rates_count)
 		/* ext_clock items */
-		strcpy(uinfo->value.enumerated.name,
+		strscpy(uinfo->value.enumerated.name,
 				ice->ext_clock_names[
 				uinfo->value.enumerated.item - hw_rates_count]);
 	else
@@ -2545,8 +2545,8 @@ static int __snd_vt1724_probe(struct pci_dev *pci,
 		return err;
 	ice = card->private_data;
 
-	strcpy(card->driver, "ICE1724");
-	strcpy(card->shortname, "ICEnsemble ICE1724");
+	strscpy(card->driver, "ICE1724");
+	strscpy(card->shortname, "ICEnsemble ICE1724");
 
 	err = snd_vt1724_create(card, pci, model[dev]);
 	if (err < 0)
@@ -2557,9 +2557,9 @@ static int __snd_vt1724_probe(struct pci_dev *pci,
 
 	c = ice->card_info;
 	if (c) {
-		strcpy(card->shortname, c->name);
+		strscpy(card->shortname, c->name);
 		if (c->driver) /* specific driver? */
-			strcpy(card->driver, c->driver);
+			strscpy(card->driver, c->driver);
 		if (c->chip_init) {
 			err = c->chip_init(ice);
 			if (err < 0)
@@ -2637,7 +2637,7 @@ static int __snd_vt1724_probe(struct pci_dev *pci,
 				return err;
 			ice->rmidi[0] = rmidi;
 			rmidi->private_data = ice;
-			strcpy(rmidi->name, "ICE1724 MIDI");
+			strscpy(rmidi->name, "ICE1724 MIDI");
 			rmidi->info_flags = SNDRV_RAWMIDI_INFO_OUTPUT |
 					    SNDRV_RAWMIDI_INFO_INPUT |
 					    SNDRV_RAWMIDI_INFO_DUPLEX;

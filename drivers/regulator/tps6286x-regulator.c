@@ -19,13 +19,22 @@
 #define TPS6286X_CONTROL_FPWM	BIT(4)
 #define TPS6286X_CONTROL_SWEN	BIT(5)
 
+#define TPS6286X_STATUS		0x05
+
 #define TPS6286X_MIN_MV		400
 #define TPS6286X_MAX_MV		1675
 #define TPS6286X_STEP_MV	5
 
+static bool tps6286x_volatile_reg(struct device *dev, unsigned int reg)
+{
+	return reg == TPS6286X_STATUS;
+}
+
 static const struct regmap_config tps6286x_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
+	.cache_type = REGCACHE_MAPLE,
+	.volatile_reg = tps6286x_volatile_reg,
 };
 
 static int tps6286x_set_mode(struct regulator_dev *rdev, unsigned int mode)

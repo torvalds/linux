@@ -2,6 +2,7 @@
 /* Copyright (c) 2024 Google LLC. */
 
 #include <vmlinux.h>
+#include <errno.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 
@@ -79,6 +80,23 @@ int BPF_PROG(path_d_path_from_file_argument, struct file *file)
 	path = &file->f_path;
 	ret = bpf_path_d_path(path, buf, sizeof(buf));
 	__sink(ret);
+	return 0;
+}
+
+SEC("lsm.s/inode_rename")
+__success
+int BPF_PROG(inode_rename, struct inode *old_dir, struct dentry *old_dentry,
+	     struct inode *new_dir, struct dentry *new_dentry,
+	     unsigned int flags)
+{
+	struct inode *inode = new_dentry->d_inode;
+	ino_t ino;
+
+	if (!inode)
+		return 0;
+	ino = inode->i_ino;
+	if (ino == 0)
+		return -EACCES;
 	return 0;
 }
 

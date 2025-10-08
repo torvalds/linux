@@ -88,7 +88,7 @@
 #define	MMUDR_PAN	10			/* Physical address */
 #define	MMUDR_PAMASK	0xfffffc00		/* PA mask */
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 /*
  *	Simple access functions for the MMU registers. Nothing fancy

@@ -263,6 +263,14 @@ config EFI_COCO_SECRET
 	  virt/coco/efi_secret module to access the secrets, which in turn
 	  allows userspace programs to access the injected secrets.
 
+config OVMF_DEBUG_LOG
+	bool "Expose OVMF firmware debug log via sysfs"
+	depends on EFI
+	help
+	  Recent OVMF versions (edk2-stable202508 + newer) can write
+	  their debug log to a memory buffer.  This driver exposes the
+	  log content via sysfs (/sys/firmware/efi/ovmf_debug_log).
+
 config UNACCEPTED_MEMORY
 	bool
 	depends on EFI_STUB
@@ -286,7 +294,7 @@ config EFI_SBAT
 
 config EFI_SBAT_FILE
 	string "Embedded SBAT section file path"
-	depends on EFI_ZBOOT
+	depends on EFI_ZBOOT || (EFI_STUB && X86)
 	help
 	  SBAT section provides a way to improve SecureBoot revocations of UEFI
 	  binaries by introducing a generation-based mechanism. With SBAT, older

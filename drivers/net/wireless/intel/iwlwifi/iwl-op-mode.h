@@ -147,6 +147,8 @@ struct iwl_fw_error_dump_mode {
  *	Op_mode needs to reset its internal state because the device did not
  *	survive the system state transition. The firmware is no longer running,
  *	etc...
+ * @dump: Op_mode needs to collect the firmware dump upon this handler
+ *	being called.
  */
 struct iwl_op_mode_ops {
 	struct iwl_op_mode *(*start)(struct iwl_trans *trans,
@@ -174,6 +176,7 @@ struct iwl_op_mode_ops {
 			   enum iwl_fw_ini_time_point tp_id,
 			   union iwl_dbg_tlv_tp_data *tp_data);
 	void (*device_powered_off)(struct iwl_op_mode *op_mode);
+	void (*dump)(struct iwl_op_mode *op_mode);
 };
 
 int iwl_opmode_register(const char *name, const struct iwl_op_mode_ops *ops);
@@ -284,6 +287,13 @@ static inline void iwl_op_mode_device_powered_off(struct iwl_op_mode *op_mode)
 	if (!op_mode || !op_mode->ops || !op_mode->ops->device_powered_off)
 		return;
 	op_mode->ops->device_powered_off(op_mode);
+}
+
+static inline void iwl_op_mode_dump(struct iwl_op_mode *op_mode)
+{
+	if (!op_mode || !op_mode->ops || !op_mode->ops->dump)
+		return;
+	op_mode->ops->dump(op_mode);
 }
 
 #endif /* __iwl_op_mode_h__ */

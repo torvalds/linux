@@ -9,19 +9,14 @@
 #include "dsc/dscc_types.h"
 #include "dsc/rc_calc.h"
 
-#define MAX_THROUGHPUT_PER_DSC_100HZ 20000000
-#define MAX_DSC_UNIT_COMBINE 4
-
 static void dsc_write_to_registers(struct display_stream_compressor *dsc, const struct dsc_reg_values *reg_vals);
 
 /* Object I/F functions */
 //static void dsc401_get_enc_caps(struct dsc_enc_caps *dsc_enc_caps, int pixel_clock_100Hz);
 //static bool dsc401_get_packed_pps(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg, uint8_t *dsc_packed_pps);
-static void dsc401_wait_disconnect_pending_clear(struct display_stream_compressor *dsc);
-static void dsc401_get_enc_caps(struct dsc_enc_caps *dsc_enc_caps, int pixel_clock_100Hz);
+static void dsc401_get_single_enc_caps(struct dsc_enc_caps *dsc_enc_caps, unsigned int max_dscclk_khz);
 
 static const struct dsc_funcs dcn401_dsc_funcs = {
-	.dsc_get_enc_caps = dsc401_get_enc_caps,
 	.dsc_read_state = dsc401_read_state,
 	.dsc_validate_stream = dsc401_validate_stream,
 	.dsc_set_config = dsc401_set_config,
@@ -30,6 +25,7 @@ static const struct dsc_funcs dcn401_dsc_funcs = {
 	.dsc_disable = dsc401_disable,
 	.dsc_disconnect = dsc401_disconnect,
 	.dsc_wait_disconnect_pending_clear = dsc401_wait_disconnect_pending_clear,
+	.dsc_get_single_enc_caps = dsc401_get_single_enc_caps,
 };
 
 /* Macro definitios for REG_SET macros*/
@@ -66,22 +62,14 @@ void dsc401_construct(struct dcn401_dsc *dsc,
 	dsc->max_image_width = 5184;
 }
 
-static void dsc401_get_enc_caps(struct dsc_enc_caps *dsc_enc_caps, int pixel_clock_100Hz)
+static void dsc401_get_single_enc_caps(struct dsc_enc_caps *dsc_enc_caps, unsigned int max_dscclk_khz)
 {
-	int min_dsc_unit_required = (pixel_clock_100Hz + MAX_THROUGHPUT_PER_DSC_100HZ - 1) / MAX_THROUGHPUT_PER_DSC_100HZ;
-
 	dsc_enc_caps->dsc_version = 0x21; /* v1.2 - DP spec defined it in reverse order and we kept it */
 
-	/* 1 slice is only supported with 1 DSC unit */
-	dsc_enc_caps->slice_caps.bits.NUM_SLICES_1 = min_dsc_unit_required == 1 ? 1 : 0;
-	/* 2 slice is only supported with 1 or 2 DSC units */
-	dsc_enc_caps->slice_caps.bits.NUM_SLICES_2 = (min_dsc_unit_required == 1 || min_dsc_unit_required == 2) ? 1 : 0;
-	/* 3 slice is only supported with 1 DSC unit */
-	dsc_enc_caps->slice_caps.bits.NUM_SLICES_3 = min_dsc_unit_required == 1 ? 1 : 0;
+	dsc_enc_caps->slice_caps.bits.NUM_SLICES_1 = 1;
+	dsc_enc_caps->slice_caps.bits.NUM_SLICES_2 = 1;
+	dsc_enc_caps->slice_caps.bits.NUM_SLICES_3 = 1;
 	dsc_enc_caps->slice_caps.bits.NUM_SLICES_4 = 1;
-	dsc_enc_caps->slice_caps.bits.NUM_SLICES_8 = 1;
-	dsc_enc_caps->slice_caps.bits.NUM_SLICES_12 = 1;
-	dsc_enc_caps->slice_caps.bits.NUM_SLICES_16 = 1;
 
 	dsc_enc_caps->lb_bit_depth = 13;
 	dsc_enc_caps->is_block_pred_supported = true;
@@ -95,7 +83,7 @@ static void dsc401_get_enc_caps(struct dsc_enc_caps *dsc_enc_caps, int pixel_clo
 	dsc_enc_caps->color_depth.bits.COLOR_DEPTH_8_BPC = 1;
 	dsc_enc_caps->color_depth.bits.COLOR_DEPTH_10_BPC = 1;
 	dsc_enc_caps->color_depth.bits.COLOR_DEPTH_12_BPC = 1;
-	dsc_enc_caps->max_total_throughput_mps = MAX_THROUGHPUT_PER_DSC_100HZ * MAX_DSC_UNIT_COMBINE;
+	dsc_enc_caps->max_total_throughput_mps = max_dscclk_khz * 3 / 1000;
 
 	dsc_enc_caps->max_slice_width = 5184; /* (including 64 overlap pixels for eDP MSO mode) */
 	dsc_enc_caps->bpp_increment_div = 16; /* 1/16th of a bit */
@@ -191,7 +179,7 @@ void dsc401_disable(struct display_stream_compressor *dsc)
 		DSC_CLOCK_EN, 0);
 }
 
-static void dsc401_wait_disconnect_pending_clear(struct display_stream_compressor *dsc)
+void dsc401_wait_disconnect_pending_clear(struct display_stream_compressor *dsc)
 {
 	struct dcn401_dsc *dsc401 = TO_DCN401_DSC(dsc);
 

@@ -254,6 +254,16 @@ static inline void local_irq_disable(void)
 	asm volatile("msr daifset, #3" : : : "memory");
 }
 
+static inline void local_serror_enable(void)
+{
+	asm volatile("msr daifclr, #4" : : : "memory");
+}
+
+static inline void local_serror_disable(void)
+{
+	asm volatile("msr daifset, #4" : : : "memory");
+}
+
 /**
  * struct arm_smccc_res - Result from SMC/HVC call
  * @a0-a3 result values from registers 0 to 3

@@ -170,6 +170,33 @@ static int fbnic_dbg_ipo_dst_show(struct seq_file *s, void *v)
 }
 DEFINE_SHOW_ATTRIBUTE(fbnic_dbg_ipo_dst);
 
+static int fbnic_dbg_fw_log_show(struct seq_file *s, void *v)
+{
+	struct fbnic_dev *fbd = s->private;
+	struct fbnic_fw_log_entry *entry;
+	unsigned long flags;
+
+	if (!fbnic_fw_log_ready(fbd))
+		return -ENXIO;
+
+	spin_lock_irqsave(&fbd->fw_log.lock, flags);
+
+	list_for_each_entry_reverse(entry, &fbd->fw_log.entries, list) {
+		seq_printf(s, FBNIC_FW_LOG_FMT, entry->index,
+			   (entry->timestamp / (MSEC_PER_SEC * 60 * 60 * 24)),
+			   (entry->timestamp / (MSEC_PER_SEC * 60 * 60)) % 24,
+			   ((entry->timestamp / (MSEC_PER_SEC * 60) % 60)),
+			   ((entry->timestamp / MSEC_PER_SEC) % 60),
+			   (entry->timestamp % MSEC_PER_SEC),
+			   entry->msg);
+	}
+
+	spin_unlock_irqrestore(&fbd->fw_log.lock, flags);
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(fbnic_dbg_fw_log);
+
 static int fbnic_dbg_pcie_stats_show(struct seq_file *s, void *v)
 {
 	struct fbnic_dev *fbd = s->private;
@@ -222,6 +249,8 @@ void fbnic_dbg_fbd_init(struct fbnic_dev *fbd)
 			    &fbnic_dbg_ipo_src_fops);
 	debugfs_create_file("ipo_dst", 0400, fbd->dbg_fbd, fbd,
 			    &fbnic_dbg_ipo_dst_fops);
+	debugfs_create_file("fw_log", 0400, fbd->dbg_fbd, fbd,
+			    &fbnic_dbg_fw_log_fops);
 }
 
 void fbnic_dbg_fbd_exit(struct fbnic_dev *fbd)

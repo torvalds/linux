@@ -52,16 +52,19 @@ struct backing_file {
 	};
 };
 
-static inline struct backing_file *backing_file(struct file *f)
-{
-	return container_of(f, struct backing_file, file);
-}
+#define backing_file(f) container_of(f, struct backing_file, file)
 
-struct path *backing_file_user_path(struct file *f)
+struct path *backing_file_user_path(const struct file *f)
 {
 	return &backing_file(f)->user_path;
 }
 EXPORT_SYMBOL_GPL(backing_file_user_path);
+
+void backing_file_set_user_path(struct file *f, const struct path *path)
+{
+	backing_file(f)->user_path = *path;
+}
+EXPORT_SYMBOL_GPL(backing_file_set_user_path);
 
 static inline void file_free(struct file *f)
 {
@@ -196,7 +199,7 @@ static int init_file(struct file *f, int flags, const struct cred *cred)
 	file_ref_init(&f->f_ref, 1);
 	/*
 	 * Disable permission and pre-content events for all files by default.
-	 * They may be enabled later by file_set_fsnotify_mode_from_watchers().
+	 * They may be enabled later by fsnotify_open_perm_and_set_mode().
 	 */
 	file_set_fsnotify_mode(f, FMODE_NONOTIFY_PERM);
 	return 0;

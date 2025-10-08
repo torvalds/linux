@@ -82,42 +82,6 @@ void virtcrypto_devmgr_rm_dev(struct virtio_crypto *vcrypto_dev)
 }
 
 /*
- * virtcrypto_devmgr_get_first()
- *
- * Function returns the first virtio crypto device from the acceleration
- * framework.
- *
- * To be used by virtio crypto device specific drivers.
- *
- * Return: pointer to vcrypto_dev or NULL if not found.
- */
-struct virtio_crypto *virtcrypto_devmgr_get_first(void)
-{
-	struct virtio_crypto *dev = NULL;
-
-	mutex_lock(&table_lock);
-	if (!list_empty(&virtio_crypto_table))
-		dev = list_first_entry(&virtio_crypto_table,
-					struct virtio_crypto,
-				    list);
-	mutex_unlock(&table_lock);
-	return dev;
-}
-
-/*
- * virtcrypto_dev_in_use() - Check whether vcrypto_dev is currently in use
- * @vcrypto_dev: Pointer to virtio crypto device.
- *
- * To be used by virtio crypto device specific drivers.
- *
- * Return: 1 when device is in use, 0 otherwise.
- */
-int virtcrypto_dev_in_use(struct virtio_crypto *vcrypto_dev)
-{
-	return atomic_read(&vcrypto_dev->ref_count) != 0;
-}
-
-/*
  * virtcrypto_dev_get() - Increment vcrypto_dev reference count
  * @vcrypto_dev: Pointer to virtio crypto device.
  *

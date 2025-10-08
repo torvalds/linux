@@ -57,7 +57,7 @@ out:
 }
 EXPORT_SYMBOL_GPL(mt76x0_set_sar_specs);
 
-int mt76x0_config(struct ieee80211_hw *hw, u32 changed)
+int mt76x0_config(struct ieee80211_hw *hw, int radio_idx, u32 changed)
 {
 	struct mt76x02_dev *dev = hw->priv;
 

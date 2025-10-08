@@ -20,8 +20,6 @@
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/triggered_buffer.h>
 
-#define SCA3300_ALIAS "sca3300"
-
 #define SCA3300_CRC8_POLYNOMIAL 0x1d
 
 /* Device mode register */
@@ -674,7 +672,7 @@ MODULE_DEVICE_TABLE(spi, sca3300_ids);
 
 static struct spi_driver sca3300_driver = {
 	.driver   = {
-		.name		= SCA3300_ALIAS,
+		.name		= "sca3300",
 		.of_match_table = sca3300_dt_ids,
 	},
 	.probe	  = sca3300_probe,

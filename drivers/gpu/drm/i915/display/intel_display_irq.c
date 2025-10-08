@@ -9,14 +9,15 @@
 #include "i915_irq.h"
 #include "i915_reg.h"
 #include "icl_dsi_regs.h"
-#include "intel_atomic_plane.h"
 #include "intel_crtc.h"
 #include "intel_de.h"
 #include "intel_display_irq.h"
+#include "intel_display_regs.h"
 #include "intel_display_rpm.h"
 #include "intel_display_rps.h"
 #include "intel_display_trace.h"
 #include "intel_display_types.h"
+#include "intel_dmc.h"
 #include "intel_dmc_wl.h"
 #include "intel_dp_aux.h"
 #include "intel_dsb.h"
@@ -25,6 +26,7 @@
 #include "intel_gmbus.h"
 #include "intel_hotplug_irq.h"
 #include "intel_pipe_crc_regs.h"
+#include "intel_plane.h"
 #include "intel_pmdemand.h"
 #include "intel_psr.h"
 #include "intel_psr_regs.h"
@@ -1016,7 +1018,15 @@ static u32 gen8_de_port_aux_mask(struct intel_display *display)
 
 static u32 gen8_de_pipe_fault_mask(struct intel_display *display)
 {
-	if (DISPLAY_VER(display) >= 14)
+	if (DISPLAY_VER(display) >= 20)
+		return MTL_PLANE_ATS_FAULT |
+			GEN9_PIPE_CURSOR_FAULT |
+			GEN11_PIPE_PLANE5_FAULT |
+			GEN9_PIPE_PLANE4_FAULT |
+			GEN9_PIPE_PLANE3_FAULT |
+			GEN9_PIPE_PLANE2_FAULT |
+			GEN9_PIPE_PLANE1_FAULT;
+	else if (DISPLAY_VER(display) >= 14)
 		return MTL_PIPEDMC_ATS_FAULT |
 			MTL_PLANE_ATS_FAULT |
 			GEN12_PIPEDMC_FAULT |
@@ -1418,7 +1428,8 @@ void gen8_de_irq_handler(struct intel_display *display, u32 master_ctl)
 		iir = intel_de_read(display, GEN8_DE_PIPE_IIR(pipe));
 		if (!iir) {
 			drm_err_ratelimited(display->drm,
-					    "The master control interrupt lied (DE PIPE)!\n");
+					    "The master control interrupt lied (DE PIPE %c)!\n",
+					    pipe_name(pipe));
 			continue;
 		}
 
@@ -1440,6 +1451,9 @@ void gen8_de_irq_handler(struct intel_display *display, u32 master_ctl)
 			if (iir & GEN12_DSB_INT(INTEL_DSB_2))
 				intel_dsb_irq_handler(display, pipe, INTEL_DSB_2);
 		}
+
+		if (HAS_PIPEDMC(display) && iir & GEN12_PIPEDMC_INTERRUPT)
+			intel_pipedmc_irq_handler(display, pipe);
 
 		if (iir & GEN8_PIPE_CDCLK_CRC_DONE)
 			hsw_pipe_crc_irq_handler(display, pipe);
@@ -2257,6 +2271,10 @@ void gen8_de_irq_postinstall(struct intel_display *display)
 		de_pipe_masked |= GEN12_DSB_INT(INTEL_DSB_0) |
 			GEN12_DSB_INT(INTEL_DSB_1) |
 			GEN12_DSB_INT(INTEL_DSB_2);
+
+	/* TODO figure PIPEDMC interrupts for pre-LNL */
+	if (DISPLAY_VER(display) >= 20)
+		de_pipe_masked |= GEN12_PIPEDMC_INTERRUPT;
 
 	de_pipe_enables = de_pipe_masked |
 		GEN8_PIPE_VBLANK | GEN8_PIPE_FIFO_UNDERRUN |

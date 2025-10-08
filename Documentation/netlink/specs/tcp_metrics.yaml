@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
-
+---
 name: tcp_metrics
 
 protocol: genetlink-legacy
@@ -133,7 +133,7 @@ operations:
       doc: Retrieve metrics.
       attribute-set: tcp-metrics
 
-      dont-validate: [ strict, dump ]
+      dont-validate: [strict, dump]
 
       do:
         request: &sel_attrs
@@ -162,8 +162,8 @@ operations:
       doc: Delete metrics.
       attribute-set: tcp-metrics
 
-      dont-validate: [ strict, dump ]
-      flags: [ admin-perm ]
+      dont-validate: [strict, dump]
+      flags: [admin-perm]
 
       do:
         request: *sel_attrs

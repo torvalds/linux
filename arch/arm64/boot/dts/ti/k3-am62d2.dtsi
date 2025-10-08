@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: GPL-2.0-only OR MIT
+/*
+ * Device Tree Source for AM62D2 SoC family in Quad core configuration
+ *
+ * TRM: https://www.ti.com/lit/pdf/sprujd4
+ *
+ * Copyright (C) 2025 Texas Instruments Incorporated - https://www.ti.com/
+ */
+
+/dts-v1/;
+
+#include "k3-am62a7.dtsi"
+
+/ {
+	model = "Texas Instruments K3 AM62D SoC";
+	compatible = "ti,am62d2";
+};
+
+/delete-node/ &vpu;   /* Video Codec is disabled in AM62D2 SoC */
+/delete-node/ &e5010; /* JPEG Encoder is disabled in AM62D2 SoC */

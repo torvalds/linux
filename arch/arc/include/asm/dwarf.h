@@ -6,7 +6,7 @@
 #ifndef _ASM_ARC_DWARF_H
 #define _ASM_ARC_DWARF_H
 
-#ifdef __ASSEMBLY__
+#ifdef __ASSEMBLER__
 
 #ifdef ARC_DW2_UNWIND_AS_CFI
 
@@ -38,6 +38,6 @@
 
 #endif	/* !ARC_DW2_UNWIND_AS_CFI */
 
-#endif	/* __ASSEMBLY__ */
+#endif	/* __ASSEMBLER__ */
 
 #endif	/* _ASM_ARC_DWARF_H */

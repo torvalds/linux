@@ -46,6 +46,7 @@
 
 &dwc3_0 {
 	status = "okay";
+	bootph-all;
 };
 
 &usb0_phy {

@@ -908,8 +908,6 @@ void write_radio_reg(struct brcms_phy *pi, u16 addr, u16 val);
 
 void wlc_phyreg_enter(struct brcms_phy_pub *pih);
 void wlc_phyreg_exit(struct brcms_phy_pub *pih);
-void wlc_radioreg_enter(struct brcms_phy_pub *pih);
-void wlc_radioreg_exit(struct brcms_phy_pub *pih);
 
 void wlc_phy_read_table(struct brcms_phy *pi,
 			const struct phytbl_info *ptbl_info,
@@ -921,7 +919,6 @@ void wlc_phy_table_addr(struct brcms_phy *pi, uint tbl_id, uint tbl_offset,
 			u16 tblAddr, u16 tblDataHi, u16 tblDataLo);
 void wlc_phy_table_data_write(struct brcms_phy *pi, uint width, u32 val);
 
-void write_phy_channel_reg(struct brcms_phy *pi, uint val);
 void wlc_phy_txpower_update_shm(struct brcms_phy *pi);
 
 u8 wlc_phy_nbits(s32 value);
@@ -985,7 +982,6 @@ s8 wlc_lcnphy_tempsense_degree(struct brcms_phy *pi, bool mode);
 s8 wlc_lcnphy_vbatsense(struct brcms_phy *pi, bool mode);
 void wlc_phy_carrier_suppress_lcnphy(struct brcms_phy *pi);
 void wlc_lcnphy_crsuprs(struct brcms_phy *pi, int channel);
-void wlc_lcnphy_epa_switch(struct brcms_phy *pi, bool mode);
 void wlc_2064_vco_cal(struct brcms_phy *pi);
 
 void wlc_phy_txpower_recalc_target(struct brcms_phy *pi);
@@ -1031,7 +1027,6 @@ struct phy_iq_est {
 };
 
 void wlc_phy_stay_in_carriersearch_nphy(struct brcms_phy *pi, bool enable);
-void wlc_nphy_deaf_mode(struct brcms_phy *pi, bool mode);
 
 #define wlc_phy_write_table_nphy(pi, pti) \
 	wlc_phy_write_table(pi, pti, 0x72, 0x74, 0x73)
@@ -1115,10 +1110,4 @@ int wlc_phy_rssi_compute_nphy(struct brcms_phy *pi, struct d11rxhdr *rxh);
 #define NPHY_TESTPATTERN_BPHY_RFCS  1
 
 void wlc_phy_nphy_tkip_rifs_war(struct brcms_phy *pi, u8 rifs);
-
-void wlc_phy_get_pwrdet_offsets(struct brcms_phy *pi, s8 *cckoffset,
-				s8 *ofdmoffset);
-s8 wlc_phy_upd_rssi_offset(struct brcms_phy *pi, s8 rssi, u16 chanspec);
-
-bool wlc_phy_n_txpower_ipa_ison(struct brcms_phy *pih);
 #endif				/* _BRCM_PHY_INT_H_ */

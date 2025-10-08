@@ -181,7 +181,8 @@ struct gpio_desc *devm_fwnode_gpiod_get_index(struct device *dev,
 					      enum gpiod_flags flags,
 					      const char *label);
 
-bool gpiod_is_equal(struct gpio_desc *desc, struct gpio_desc *other);
+bool gpiod_is_equal(const struct gpio_desc *desc,
+		    const struct gpio_desc *other);
 
 #else /* CONFIG_GPIOLIB */
 
@@ -551,7 +552,7 @@ struct gpio_desc *devm_fwnode_gpiod_get_index(struct device *dev,
 }
 
 static inline bool
-gpiod_is_equal(struct gpio_desc *desc, struct gpio_desc *other)
+gpiod_is_equal(const struct gpio_desc *desc, const struct gpio_desc *other)
 {
 	WARN_ON(desc || other);
 	return false;

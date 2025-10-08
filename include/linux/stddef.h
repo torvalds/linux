@@ -93,4 +93,24 @@ enum {
 #define DECLARE_FLEX_ARRAY(TYPE, NAME) \
 	__DECLARE_FLEX_ARRAY(TYPE, NAME)
 
+/**
+ * TRAILING_OVERLAP() - Overlap a flexible-array member with trailing members.
+ *
+ * Creates a union between a flexible-array member (FAM) in a struct and a set
+ * of additional members that would otherwise follow it.
+ *
+ * @TYPE: Flexible structure type name, including "struct" keyword.
+ * @NAME: Name for a variable to define.
+ * @FAM: The flexible-array member within @TYPE
+ * @MEMBERS: Trailing overlapping members.
+ */
+#define TRAILING_OVERLAP(TYPE, NAME, FAM, MEMBERS)				\
+	union {									\
+		TYPE NAME;							\
+		struct {							\
+			unsigned char __offset_to_##FAM[offsetof(TYPE, FAM)];	\
+			MEMBERS							\
+		};								\
+	}
+
 #endif

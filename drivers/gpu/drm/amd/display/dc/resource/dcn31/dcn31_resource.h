@@ -39,7 +39,7 @@ struct dcn31_resource_pool {
 
 enum dc_status dcn31_validate_bandwidth(struct dc *dc,
 		struct dc_state *context,
-		bool fast_validate);
+		enum dc_validate_mode validate_mode);
 void dcn31_calculate_wm_and_dlg(
 		struct dc *dc, struct dc_state *context,
 		display_e2e_pipe_params_st *pipes,
@@ -48,7 +48,7 @@ void dcn31_calculate_wm_and_dlg(
 int dcn31_populate_dml_pipes_from_context(
 	struct dc *dc, struct dc_state *context,
 	display_e2e_pipe_params_st *pipes,
-	bool fast_validate);
+	enum dc_validate_mode validate_mode);
 void
 dcn31_populate_dml_writeback_from_context(struct dc *dc,
 					  struct resource_context *res_ctx,
@@ -65,6 +65,12 @@ struct resource_pool *dcn31_create_resource_pool(
 
 unsigned int dcn31_get_det_buffer_size(
 	const struct dc_state *context);
+
+enum dc_status dcn31_update_dc_state_for_encoder_switch(struct dc_link *link,
+	struct dc_link_settings *link_setting,
+	uint8_t pipe_count,
+	struct pipe_ctx *pipes,
+	struct audio_output *audio_output);
 
 /*temp: B0 specific before switch to dcn313 headers*/
 #ifndef regPHYPLLF_PIXCLK_RESYNC_CNTL

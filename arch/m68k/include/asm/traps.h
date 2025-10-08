@@ -11,7 +11,7 @@
 #ifndef _M68K_TRAPS_H
 #define _M68K_TRAPS_H
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/linkage.h>
 #include <asm/ptrace.h>
@@ -94,7 +94,7 @@ asmlinkage void bad_inthandler(void);
 
 #define VECOFF(vec) ((vec)<<2)
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 /* Status register bits */
 #define PS_T  (0x8000)
@@ -271,6 +271,6 @@ struct frame {
 asmlinkage void berr_040cleanup(struct frame *fp);
 #endif
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* _M68K_TRAPS_H */

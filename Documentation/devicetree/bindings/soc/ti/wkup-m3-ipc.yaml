@@ -121,13 +121,13 @@ examples:
         };
 
         wkup_m3_ipc@1324 {
-           compatible = "ti,am3352-wkup-m3-ipc";
-           reg = <0x1324 0x24>;
-           interrupts = <78>;
-           ti,rproc = <&wkup_m3>;
-           mboxes = <&am335x_mailbox &mbox_wkupm3>;
-           ti,vtt-gpio-pin = <7>;
-           firmware-name = "am335x-evm-scale-data.bin";
+            compatible = "ti,am3352-wkup-m3-ipc";
+            reg = <0x1324 0x24>;
+            interrupts = <78>;
+            ti,rproc = <&wkup_m3>;
+            mboxes = <&am335x_mailbox &mbox_wkupm3>;
+            ti,vtt-gpio-pin = <7>;
+            firmware-name = "am335x-evm-scale-data.bin";
         };
     };
 
@@ -155,20 +155,20 @@ examples:
             pinctrl-0 = <&ddr3_vtt_toggle_default>;
 
             ddr3_vtt_toggle_default: ddr_vtt_toggle_default {
-                 pinctrl-single,pins = <
+                pinctrl-single,pins = <
                     0x25C (DS0_PULL_UP_DOWN_EN | PIN_OUTPUT_PULLUP | DS0_FORCE_OFF_MODE | MUX_MODE7)
-                 >;
+                >;
             };
         };
 
         wkup_m3_ipc@1324 {
-           compatible = "ti,am4372-wkup-m3-ipc";
-           reg = <0x1324 0x24>;
-           interrupts = <78>;
-           ti,rproc = <&wkup_m3>;
-           mboxes = <&am437x_mailbox &mbox_wkupm3>;
-           ti,set-io-isolation;
-           firmware-name = "am43x-evm-scale-data.bin";
+            compatible = "ti,am4372-wkup-m3-ipc";
+            reg = <0x1324 0x24>;
+            interrupts = <78>;
+            ti,rproc = <&wkup_m3>;
+            mboxes = <&am437x_mailbox &mbox_wkupm3>;
+            ti,set-io-isolation;
+            firmware-name = "am43x-evm-scale-data.bin";
         };
     };
 

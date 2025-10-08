@@ -1,0 +1,536 @@
+<?xml version="1.0" standalone="no"?> <!--*- mode: xml -*-->
+
+<interface>
+
+<object class="GtkWindow" id="window1">
+  <property name="visible">True</property>
+  <property name="title" translatable="yes">Gtk Kernel Configurator</property>
+  <property name="type">GTK_WINDOW_TOPLEVEL</property>
+  <property name="window_position">GTK_WIN_POS_NONE</property>
+  <property name="modal">False</property>
+  <property name="default_width">640</property>
+  <property name="default_height">480</property>
+  <property name="resizable">True</property>
+  <property name="destroy_with_parent">False</property>
+  <property name="decorated">True</property>
+  <property name="skip_taskbar_hint">False</property>
+  <property name="skip_pager_hint">False</property>
+  <property name="type_hint">GDK_WINDOW_TYPE_HINT_NORMAL</property>
+  <property name="gravity">GDK_GRAVITY_NORTH_WEST</property>
+
+  <child>
+    <object class="GtkBox" id="vbox1">
+      <property name="orientation">vertical</property>
+      <property name="visible">True</property>
+      <property name="homogeneous">False</property>
+      <property name="spacing">0</property>
+
+      <child>
+	<object class="GtkMenuBar" id="menubar1">
+	  <property name="visible">True</property>
+
+	  <child>
+	    <object class="GtkMenuItem" id="file1">
+	      <property name="visible">True</property>
+	      <property name="label" translatable="yes">_File</property>
+	      <property name="use_underline">True</property>
+
+	      <child type="submenu">
+		<object class="GtkMenu" id="file1_menu">
+
+		  <child>
+		    <object class="GtkMenuItem" id="load1">
+		      <property name="visible">True</property>
+		      <property name="tooltip-text" translatable="yes">Load a config file</property>
+		      <property name="label" translatable="yes">_Load</property>
+		      <property name="use_underline">True</property>
+		      <accelerator key="L" modifiers="GDK_CONTROL_MASK" signal="activate"/>
+		    </object>
+		  </child>
+
+		  <child>
+		    <object class="GtkMenuItem" id="save1">
+		      <property name="visible">True</property>
+		      <property name="tooltip-text" translatable="yes">Save the config in .config</property>
+		      <property name="label" translatable="yes">_Save</property>
+		      <property name="use_underline">True</property>
+		      <accelerator key="S" modifiers="GDK_CONTROL_MASK" signal="activate"/>
+		    </object>
+		  </child>
+
+		  <child>
+		    <object class="GtkMenuItem" id="save_as1">
+		      <property name="visible">True</property>
+		      <property name="tooltip-text" translatable="yes">Save the config in a file</property>
+		      <property name="label" translatable="yes">Save _as</property>
+		      <property name="use_underline">True</property>
+		    </object>
+		  </child>
+
+		  <child>
+		    <object class="GtkSeparatorMenuItem" id="separator1">
+		      <property name="visible">True</property>
+		    </object>
+		  </child>
+
+		  <child>
+		    <object class="GtkMenuItem" id="quit1">
+		      <property name="visible">True</property>
+		      <property name="label" translatable="yes">_Quit</property>
+		      <property name="use_underline">True</property>
+		      <accelerator key="Q" modifiers="GDK_CONTROL_MASK" signal="activate"/>
+		    </object>
+		  </child>
+		</object>
+	      </child>
+	    </object>
+	  </child>
+
+	  <child>
+	    <object class="GtkMenuItem" id="options1">
+	      <property name="visible">True</property>
+	      <property name="label" translatable="yes">_Options</property>
+	      <property name="use_underline">True</property>
+
+	      <child type="submenu">
+		<object class="GtkMenu" id="options1_menu">
+
+		  <child>
+		    <object class="GtkCheckMenuItem" id="show_name1">
+		      <property name="visible">True</property>
+		      <property name="tooltip-text" translatable="yes">Show name</property>
+		      <property name="label" translatable="yes">Show _name</property>
+		      <property name="use_underline">True</property>
+		      <property name="active">False</property>
+		    </object>
+		  </child>
+
+		  <child>
+		    <object class="GtkCheckMenuItem" id="show_range1">
+		      <property name="visible">True</property>
+		      <property name="tooltip-text" translatable="yes">Show range (Y/M/N)</property>
+		      <property name="label" translatable="yes">Show _range</property>
+		      <property name="use_underline">True</property>
+		      <property name="active">False</property>
+		    </object>
+		  </child>
+
+		  <child>
+		    <object class="GtkCheckMenuItem" id="show_data1">
+		      <property name="visible">True</property>
+		      <property name="tooltip-text" translatable="yes">Show value of the option</property>
+		      <property name="label" translatable="yes">Show _data</property>
+		      <property name="use_underline">True</property>
+		      <property name="active">False</property>
+		    </object>
+		  </child>
+
+		  <child>
+		    <object class="GtkSeparatorMenuItem" id="separator2">
+		      <property name="visible">True</property>
+		    </object>
+		  </child>
+
+		  <child>
+		    <object class="GtkRadioMenuItem" id="set_option_mode1">
+		      <property name="visible">True</property>
+		      <property name="tooltip-text" translatable="yes">Show normal options</property>
+		      <property name="label" translatable="yes">Show normal options</property>
+		      <property name="use_underline">True</property>
+		      <property name="active">True</property>
+		    </object>
+		  </child>
+
+		  <child>
+		    <object class="GtkRadioMenuItem" id="set_option_mode2">
+		      <property name="visible">True</property>
+		      <property name="tooltip-text" translatable="yes">Show all options</property>
+		      <property name="label" translatable="yes">Show all _options</property>
+		      <property name="use_underline">True</property>
+		      <property name="active">False</property>
+		      <property name="group">set_option_mode1</property>
+		    </object>
+		  </child>
+
+		  <child>
+		    <object class="GtkRadioMenuItem" id="set_option_mode3">
+		      <property name="visible">True</property>
+		      <property name="tooltip-text" translatable="yes">Show all options with prompts</property>
+		      <property name="label" translatable="yes">Show all prompt options</property>
+		      <property name="use_underline">True</property>
+		      <property name="active">False</property>
+		      <property name="group">set_option_mode1</property>
+		    </object>
+		  </child>
+
+		</object>
+	      </child>
+	    </object>
+	  </child>
+
+	  <child>
+	    <object class="GtkMenuItem" id="help1">
+	      <property name="visible">True</property>
+	      <property name="label" translatable="yes">_Help</property>
+	      <property name="use_underline">True</property>
+
+	      <child type="submenu">
+		<object class="GtkMenu" id="help1_menu">
+
+		  <child>
+		    <object class="GtkMenuItem" id="introduction1">
+		      <property name="visible">True</property>
+		      <property name="label" translatable="yes">_Introduction</property>
+		      <property name="use_underline">True</property>
+		      <accelerator key="I" modifiers="GDK_CONTROL_MASK" signal="activate"/>
+		    </object>
+		  </child>
+
+		  <child>
+		    <object class="GtkMenuItem" id="about1">
+		      <property name="visible">True</property>
+		      <property name="label" translatable="yes">_About</property>
+		      <property name="use_underline">True</property>
+		      <accelerator key="A" modifiers="GDK_CONTROL_MASK" signal="activate"/>
+		    </object>
+		  </child>
+
+		  <child>
+		    <object class="GtkMenuItem" id="license1">
+		      <property name="visible">True</property>
+		      <property name="label" translatable="yes">_License</property>
+		      <property name="use_underline">True</property>
+		    </object>
+		  </child>
+		</object>
+	      </child>
+	    </object>
+	  </child>
+	</object>
+	<packing>
+	  <property name="padding">0</property>
+	  <property name="expand">False</property>
+	  <property name="fill">False</property>
+	</packing>
+      </child>
+
+      <child>
+	    <object class="GtkToolbar" id="toolbar1">
+	      <property name="visible">True</property>
+	      <property name="orientation">GTK_ORIENTATION_HORIZONTAL</property>
+	      <property name="toolbar_style">GTK_TOOLBAR_BOTH</property>
+	      <property name="show_arrow">True</property>
+
+	      <child>
+		<object class="GtkToolButton" id="button1">
+		  <property name="visible">True</property>
+		  <property name="tooltip-text" translatable="yes">Goes up one level (single view)</property>
+		  <property name="label" translatable="yes">Back</property>
+		  <property name="use_underline">True</property>
+		  <property name="stock_id">gtk-undo</property>
+		  <property name="visible_horizontal">True</property>
+		  <property name="visible_vertical">True</property>
+		  <property name="is_important">False</property>
+		</object>
+		<packing>
+		  <property name="expand">False</property>
+		  <property name="homogeneous">True</property>
+		</packing>
+	      </child>
+
+	      <child>
+		<object class="GtkToolItem" id="toolitem1">
+		  <property name="visible">True</property>
+		  <property name="visible_horizontal">True</property>
+		  <property name="visible_vertical">True</property>
+		  <property name="is_important">False</property>
+
+		  <child>
+		    <object class="GtkVSeparator" id="vseparator1">
+		      <property name="visible">True</property>
+		    </object>
+		  </child>
+		</object>
+		<packing>
+		  <property name="expand">False</property>
+		  <property name="homogeneous">False</property>
+		</packing>
+	      </child>
+
+	      <child>
+		<object class="GtkToolButton" id="button2">
+		  <property name="visible">True</property>
+		  <property name="tooltip-text" translatable="yes">Load a config file</property>
+		  <property name="label" translatable="yes">Load</property>
+		  <property name="use_underline">True</property>
+		  <property name="stock_id">gtk-open</property>
+		  <property name="visible_horizontal">True</property>
+		  <property name="visible_vertical">True</property>
+		  <property name="is_important">False</property>
+		</object>
+		<packing>
+		  <property name="expand">False</property>
+		  <property name="homogeneous">True</property>
+		</packing>
+	      </child>
+
+	      <child>
+		<object class="GtkToolButton" id="button3">
+		  <property name="visible">True</property>
+		  <property name="tooltip-text" translatable="yes">Save a config file</property>
+		  <property name="label" translatable="yes">Save</property>
+		  <property name="use_underline">True</property>
+		  <property name="stock_id">gtk-save</property>
+		  <property name="visible_horizontal">True</property>
+		  <property name="visible_vertical">True</property>
+		  <property name="is_important">False</property>
+		</object>
+		<packing>
+		  <property name="expand">False</property>
+		  <property name="homogeneous">True</property>
+		</packing>
+	      </child>
+
+	      <child>
+		<object class="GtkToolItem" id="toolitem2">
+		  <property name="visible">True</property>
+		  <property name="visible_horizontal">True</property>
+		  <property name="visible_vertical">True</property>
+		  <property name="is_important">False</property>
+
+		  <child>
+		    <object class="GtkVSeparator" id="vseparator2">
+		      <property name="visible">True</property>
+		    </object>
+		  </child>
+		</object>
+		<packing>
+		  <property name="expand">False</property>
+		  <property name="homogeneous">False</property>
+		</packing>
+	      </child>
+
+	      <child>
+		<object class="GtkToolButton" id="button4">
+		  <property name="visible">True</property>
+		  <property name="tooltip-text" translatable="yes">Single view</property>
+		  <property name="label" translatable="yes">Single</property>
+		  <property name="use_underline">True</property>
+		  <property name="stock_id">gtk-missing-image</property>
+		  <property name="visible_horizontal">True</property>
+		  <property name="visible_vertical">True</property>
+		  <property name="is_important">False</property>
+		</object>
+		<packing>
+		  <property name="expand">False</property>
+		  <property name="homogeneous">True</property>
+		</packing>
+	      </child>
+
+	      <child>
+		<object class="GtkToolButton" id="button5">
+		  <property name="visible">True</property>
+		  <property name="tooltip-text" translatable="yes">Split view</property>
+		  <property name="label" translatable="yes">Split</property>
+		  <property name="use_underline">True</property>
+		  <property name="stock_id">gtk-missing-image</property>
+		  <property name="visible_horizontal">True</property>
+		  <property name="visible_vertical">True</property>
+		  <property name="is_important">False</property>
+		</object>
+		<packing>
+		  <property name="expand">False</property>
+		  <property name="homogeneous">True</property>
+		</packing>
+	      </child>
+
+	      <child>
+		<object class="GtkToolButton" id="button6">
+		  <property name="visible">True</property>
+		  <property name="tooltip-text" translatable="yes">Full view</property>
+		  <property name="label" translatable="yes">Full</property>
+		  <property name="use_underline">True</property>
+		  <property name="stock_id">gtk-missing-image</property>
+		  <property name="visible_horizontal">True</property>
+		  <property name="visible_vertical">True</property>
+		  <property name="is_important">False</property>
+		</object>
+		<packing>
+		  <property name="expand">False</property>
+		  <property name="homogeneous">True</property>
+		</packing>
+	      </child>
+
+	      <child>
+		<object class="GtkToolItem" id="toolitem3">
+		  <property name="visible">True</property>
+		  <property name="visible_horizontal">True</property>
+		  <property name="visible_vertical">True</property>
+		  <property name="is_important">False</property>
+
+		  <child>
+		    <object class="GtkVSeparator" id="vseparator3">
+		      <property name="visible">True</property>
+		    </object>
+		  </child>
+		</object>
+		<packing>
+		  <property name="expand">False</property>
+		  <property name="homogeneous">False</property>
+		</packing>
+	      </child>
+
+	      <child>
+		<object class="GtkToolButton" id="button7">
+		  <property name="visible">True</property>
+		  <property name="tooltip-text" translatable="yes">Collapse the whole tree in the right frame</property>
+		  <property name="label" translatable="yes">Collapse</property>
+		  <property name="use_underline">True</property>
+		  <property name="stock_id">gtk-remove</property>
+		  <property name="visible_horizontal">True</property>
+		  <property name="visible_vertical">True</property>
+		  <property name="is_important">False</property>
+		</object>
+		<packing>
+		  <property name="expand">False</property>
+		  <property name="homogeneous">True</property>
+		</packing>
+	      </child>
+
+	      <child>
+		<object class="GtkToolButton" id="button8">
+		  <property name="visible">True</property>
+		  <property name="tooltip-text" translatable="yes">Expand the whole tree in the right frame</property>
+		  <property name="label" translatable="yes">Expand</property>
+		  <property name="use_underline">True</property>
+		  <property name="stock_id">gtk-add</property>
+		  <property name="visible_horizontal">True</property>
+		  <property name="visible_vertical">True</property>
+		  <property name="is_important">False</property>
+		</object>
+		<packing>
+		  <property name="expand">False</property>
+		  <property name="homogeneous">True</property>
+		</packing>
+	      </child>
+	    </object>
+	<packing>
+	  <property name="padding">0</property>
+	  <property name="expand">False</property>
+	  <property name="fill">False</property>
+	</packing>
+      </child>
+
+      <child>
+	<object class="GtkPaned" id="hpaned1">
+	  <property name="width_request">1</property>
+	  <property name="visible">True</property>
+	  <property name="can_focus">True</property>
+
+	  <child>
+	    <object class="GtkScrolledWindow" id="scrolledwindow1">
+	      <property name="visible">True</property>
+	      <property name="hscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
+	      <property name="vscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
+	      <property name="shadow_type">GTK_SHADOW_IN</property>
+	      <property name="window_placement">GTK_CORNER_TOP_LEFT</property>
+
+	      <child>
+		<object class="GtkTreeView" id="treeview1">
+		  <property name="visible">True</property>
+		  <property name="can_focus">True</property>
+		  <property name="headers_visible">True</property>
+		  <property name="rules_hint">False</property>
+		  <property name="reorderable">False</property>
+		  <property name="enable_search">False</property>
+		</object>
+	      </child>
+	    </object>
+	    <packing>
+	      <property name="shrink">True</property>
+	      <property name="resize">False</property>
+	    </packing>
+	  </child>
+
+	  <child>
+	    <object class="GtkPaned" id="vpaned1">
+	      <property name="orientation">vertical</property>
+	      <property name="visible">True</property>
+	      <property name="can_focus">True</property>
+
+	      <child>
+		<object class="GtkScrolledWindow" id="scrolledwindow2">
+		  <property name="visible">True</property>
+		  <property name="hscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
+		  <property name="vscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
+		  <property name="shadow_type">GTK_SHADOW_IN</property>
+		  <property name="window_placement">GTK_CORNER_TOP_LEFT</property>
+
+		  <child>
+		    <object class="GtkTreeView" id="treeview2">
+		      <property name="visible">True</property>
+		      <property name="can_focus">True</property>
+		      <property name="has_focus">True</property>
+		      <property name="headers_visible">True</property>
+		      <property name="rules_hint">False</property>
+		      <property name="reorderable">False</property>
+		      <property name="enable_search">False</property>
+		    </object>
+		  </child>
+		</object>
+		<packing>
+		  <property name="shrink">True</property>
+		  <property name="resize">False</property>
+		</packing>
+	      </child>
+
+	      <child>
+		<object class="GtkScrolledWindow" id="scrolledwindow3">
+		  <property name="visible">True</property>
+		  <property name="hscrollbar_policy">GTK_POLICY_NEVER</property>
+		  <property name="vscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
+		  <property name="shadow_type">GTK_SHADOW_IN</property>
+		  <property name="window_placement">GTK_CORNER_TOP_LEFT</property>
+
+		  <child>
+		    <object class="GtkTextView" id="textview3">
+		      <property name="visible">True</property>
+		      <property name="can_focus">True</property>
+		      <property name="editable">False</property>
+		      <property name="overwrite">False</property>
+		      <property name="accepts_tab">True</property>
+		      <property name="justification">GTK_JUSTIFY_LEFT</property>
+		      <property name="wrap_mode">GTK_WRAP_WORD</property>
+		      <property name="cursor_visible">True</property>
+		      <property name="pixels_above_lines">0</property>
+		      <property name="pixels_below_lines">0</property>
+		      <property name="pixels_inside_wrap">0</property>
+		      <property name="left_margin">0</property>
+		      <property name="right_margin">0</property>
+		      <property name="indent">0</property>
+		    </object>
+		  </child>
+		</object>
+		<packing>
+		  <property name="shrink">True</property>
+		  <property name="resize">True</property>
+		</packing>
+	      </child>
+	    </object>
+	    <packing>
+	      <property name="shrink">True</property>
+	      <property name="resize">True</property>
+	    </packing>
+	  </child>
+	</object>
+	<packing>
+	  <property name="padding">0</property>
+	  <property name="expand">True</property>
+	  <property name="fill">True</property>
+	</packing>
+      </child>
+    </object>
+  </child>
+</object>
+
+</interface>

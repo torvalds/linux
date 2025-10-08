@@ -32,12 +32,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu0_intc: interrupt-controller {
@@ -67,12 +68,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu1_intc: interrupt-controller {
@@ -102,12 +104,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu2_intc: interrupt-controller {
@@ -137,12 +140,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu3_intc: interrupt-controller {
@@ -172,12 +176,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu4_intc: interrupt-controller {
@@ -207,12 +212,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu5_intc: interrupt-controller {
@@ -242,12 +248,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu6_intc: interrupt-controller {
@@ -277,12 +284,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu7_intc: interrupt-controller {
@@ -312,12 +320,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu8_intc: interrupt-controller {
@@ -347,12 +356,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu9_intc: interrupt-controller {
@@ -382,12 +392,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu10_intc: interrupt-controller {
@@ -417,12 +428,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu11_intc: interrupt-controller {
@@ -452,12 +464,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu12_intc: interrupt-controller {
@@ -487,12 +500,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu13_intc: interrupt-controller {
@@ -522,12 +536,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu14_intc: interrupt-controller {
@@ -557,12 +572,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu15_intc: interrupt-controller {
@@ -592,12 +608,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu16_intc: interrupt-controller {
@@ -627,12 +644,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu17_intc: interrupt-controller {
@@ -662,12 +680,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu18_intc: interrupt-controller {
@@ -697,12 +716,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu19_intc: interrupt-controller {
@@ -732,12 +752,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu20_intc: interrupt-controller {
@@ -767,12 +788,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu21_intc: interrupt-controller {
@@ -802,12 +824,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu22_intc: interrupt-controller {
@@ -837,12 +860,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu23_intc: interrupt-controller {
@@ -872,12 +896,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu24_intc: interrupt-controller {
@@ -907,12 +932,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu25_intc: interrupt-controller {
@@ -942,12 +968,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu26_intc: interrupt-controller {
@@ -977,12 +1004,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu27_intc: interrupt-controller {
@@ -1012,12 +1040,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu28_intc: interrupt-controller {
@@ -1047,12 +1076,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu29_intc: interrupt-controller {
@@ -1082,12 +1112,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu30_intc: interrupt-controller {
@@ -1117,12 +1148,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu31_intc: interrupt-controller {
@@ -1152,12 +1184,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu32_intc: interrupt-controller {
@@ -1187,12 +1220,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu33_intc: interrupt-controller {
@@ -1222,12 +1256,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu34_intc: interrupt-controller {
@@ -1257,12 +1292,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu35_intc: interrupt-controller {
@@ -1292,12 +1328,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu36_intc: interrupt-controller {
@@ -1327,12 +1364,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu37_intc: interrupt-controller {
@@ -1362,12 +1400,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu38_intc: interrupt-controller {
@@ -1397,12 +1436,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu39_intc: interrupt-controller {
@@ -1432,12 +1472,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu40_intc: interrupt-controller {
@@ -1467,12 +1508,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu41_intc: interrupt-controller {
@@ -1502,12 +1544,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu42_intc: interrupt-controller {
@@ -1537,12 +1580,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu43_intc: interrupt-controller {
@@ -1572,12 +1616,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu44_intc: interrupt-controller {
@@ -1607,12 +1652,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu45_intc: interrupt-controller {
@@ -1642,12 +1688,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu46_intc: interrupt-controller {
@@ -1677,12 +1724,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu47_intc: interrupt-controller {
@@ -1712,12 +1760,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu48_intc: interrupt-controller {
@@ -1747,12 +1796,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu49_intc: interrupt-controller {
@@ -1782,12 +1832,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu50_intc: interrupt-controller {
@@ -1817,12 +1868,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu51_intc: interrupt-controller {
@@ -1852,12 +1904,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu52_intc: interrupt-controller {
@@ -1887,12 +1940,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu53_intc: interrupt-controller {
@@ -1922,12 +1976,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu54_intc: interrupt-controller {
@@ -1957,12 +2012,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu55_intc: interrupt-controller {
@@ -1992,12 +2048,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu56_intc: interrupt-controller {
@@ -2027,12 +2084,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu57_intc: interrupt-controller {
@@ -2062,12 +2120,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu58_intc: interrupt-controller {
@@ -2097,12 +2156,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu59_intc: interrupt-controller {
@@ -2132,12 +2192,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu60_intc: interrupt-controller {
@@ -2167,12 +2228,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu61_intc: interrupt-controller {
@@ -2202,12 +2264,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu62_intc: interrupt-controller {
@@ -2237,12 +2300,13 @@
 					       "zawrs", "zba", "zbb", "zbc",
 					       "zbs", "zca", "zcb", "zcd",
 					       "zfa", "zfbfmin", "zfh", "zfhmin",
-					       "zicbom", "zicbop", "zicboz",
+					       "zicbom", "zicbop", "zicboz", "ziccrse",
 					       "zicntr", "zicond","zicsr", "zifencei",
 					       "zihintntl", "zihintpause", "zihpm",
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu63_intc: interrupt-controller {
@@ -2712,6 +2776,97 @@
 			cache-sets = <4096>;
 			cache-unified;
 		};
+	};
+
+	pmu {
+		compatible = "riscv,pmu";
+		riscv,event-to-mhpmevent =
+			<0x00003 0x00000000 0x00000010>,
+			<0x00004 0x00000000 0x00000011>,
+			<0x00005 0x00000000 0x00000007>,
+			<0x00006 0x00000000 0x00000006>,
+			<0x00008 0x00000000 0x00000027>,
+			<0x00009 0x00000000 0x00000028>,
+			<0x10000 0x00000000 0x0000000c>,
+			<0x10001 0x00000000 0x0000000d>,
+			<0x10002 0x00000000 0x0000000e>,
+			<0x10003 0x00000000 0x0000000f>,
+			<0x10008 0x00000000 0x00000001>,
+			<0x10009 0x00000000 0x00000002>,
+			<0x10010 0x00000000 0x00000010>,
+			<0x10011 0x00000000 0x00000011>,
+			<0x10012 0x00000000 0x00000012>,
+			<0x10013 0x00000000 0x00000013>,
+			<0x10019 0x00000000 0x00000004>,
+			<0x10021 0x00000000 0x00000003>,
+			<0x10030 0x00000000 0x0000001c>,
+			<0x10031 0x00000000 0x0000001b>;
+		riscv,event-to-mhpmcounters =
+			<0x00003 0x00003 0xfffffff8>,
+			<0x00004 0x00004 0xfffffff8>,
+			<0x00005 0x00005 0xfffffff8>,
+			<0x00006 0x00006 0xfffffff8>,
+			<0x00007 0x00007 0xfffffff8>,
+			<0x00008 0x00008 0xfffffff8>,
+			<0x00009 0x00009 0xfffffff8>,
+			<0x0000a 0x0000a 0xfffffff8>,
+			<0x10000 0x10000 0xfffffff8>,
+			<0x10001 0x10001 0xfffffff8>,
+			<0x10002 0x10002 0xfffffff8>,
+			<0x10003 0x10003 0xfffffff8>,
+			<0x10008 0x10008 0xfffffff8>,
+			<0x10009 0x10009 0xfffffff8>,
+			<0x10010 0x10010 0xfffffff8>,
+			<0x10011 0x10011 0xfffffff8>,
+			<0x10012 0x10012 0xfffffff8>,
+			<0x10013 0x10013 0xfffffff8>,
+			<0x10019 0x10019 0xfffffff8>,
+			<0x10021 0x10021 0xfffffff8>,
+			<0x10030 0x10030 0xfffffff8>,
+			<0x10031 0x10031 0xfffffff8>;
+		riscv,raw-event-to-mhpmcounters =
+			<0x00000000 0x00000001 0xffffffff 0xffffffff 0xfffffff8>,
+			<0x00000000 0x00000002 0xffffffff 0xffffffff 0xfffffff8>,
+			<0x00000000 0x00000003 0xffffffff 0xffffffff 0xfffffff8>,
+			<0x00000000 0x00000004 0xffffffff 0xffffffff 0xfffffff8>,
+			<0x00000000 0x00000005 0xffffffff 0xffffffff 0xfffffff8>,
+			<0x00000000 0x00000006 0xffffffff 0xffffffff 0xfffffff8>,
+			<0x00000000 0x00000007 0xffffffff 0xffffffff 0xfffffff8>,
+			<0x00000000 0x00000008 0xffffffff 0xffffffff 0xfffffff8>,
+			<0x00000000 0x00000009 0xffffffff 0xffffffff 0xfffffff8>,
+			<0x00000000 0x0000000a 0xffffffff 0xffffffff 0xfffffff8>,
+			<0x00000000 0x0000000b 0xffffffff 0xffffffff 0xfffffff8>,
+			<0x00000000 0x0000000c 0xffffffff 0xffffffff 0xfffffff8>,
+			<0x00000000 0x0000000d 0xffffffff 0xffffffff 0xfffffff8>,
+			<0x00000000 0x0000000e 0xffffffff 0xffffffff 0xfffffff8>,
+			<0x00000000 0x0000000f 0xffffffff 0xffffffff 0xfffffff8>,
+			<0x00000000 0x00000010 0xffffffff 0xffffffff 0xfffffff8>,
+			<0x00000000 0x00000011 0xffffffff 0xffffffff 0xfffffff8>,
+			<0x00000000 0x00000012 0xffffffff 0xffffffff 0xfffffff8>,
+			<0x00000000 0x00000013 0xffffffff 0xffffffff 0xfffffff8>,
+			<0x00000000 0x00000014 0xffffffff 0xffffffff 0xfffffff8>,
+			<0x00000000 0x00000015 0xffffffff 0xffffffff 0xfffffff8>,
+			<0x00000000 0x00000016 0xffffffff 0xffffffff 0xfffffff8>,
+			<0x00000000 0x00000017 0xffffffff 0xffffffff 0xfffffff8>,
+			<0x00000000 0x00000018 0xffffffff 0xffffffff 0xfffffff8>,
+			<0x00000000 0x00000019 0xffffffff 0xffffffff 0xfffffff8>,
+			<0x00000000 0x0000001a 0xffffffff 0xffffffff 0xfffffff8>,
+			<0x00000000 0x0000001b 0xffffffff 0xffffffff 0xfffffff8>,
+			<0x00000000 0x0000001c 0xffffffff 0xffffffff 0xfffffff8>,
+			<0x00000000 0x0000001d 0xffffffff 0xffffffff 0xfffffff8>,
+			<0x00000000 0x0000001e 0xffffffff 0xffffffff 0xfffffff8>,
+			<0x00000000 0x0000001f 0xffffffff 0xffffffff 0xfffffff8>,
+			<0x00000000 0x00000020 0xffffffff 0xffffffff 0xfffffff8>,
+			<0x00000000 0x00000021 0xffffffff 0xffffffff 0xfffffff8>,
+			<0x00000000 0x00000022 0xffffffff 0xffffffff 0xfffffff8>,
+			<0x00000000 0x00000023 0xffffffff 0xffffffff 0xfffffff8>,
+			<0x00000000 0x00000024 0xffffffff 0xffffffff 0xfffffff8>,
+			<0x00000000 0x00000025 0xffffffff 0xffffffff 0xfffffff8>,
+			<0x00000000 0x00000026 0xffffffff 0xffffffff 0xfffffff8>,
+			<0x00000000 0x00000027 0xffffffff 0xffffffff 0xfffffff8>,
+			<0x00000000 0x00000028 0xffffffff 0xffffffff 0xfffffff8>,
+			<0x00000000 0x00000029 0xffffffff 0xffffffff 0xfffffff8>,
+			<0x00000000 0x0000002a 0xffffffff 0xffffffff 0xfffffff8>;
 	};
 
 	soc {

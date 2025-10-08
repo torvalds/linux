@@ -40,7 +40,7 @@ char digest[MAGIC_SIZE + SIZEOF_STRUCT_FSVERITY_DIGEST + SHA256_DIGEST_SIZE];
 __u32 monitored_pid;
 char sig[MAX_SIG_SIZE];
 __u32 sig_size;
-__u32 user_keyring_serial;
+__s32 user_keyring_serial;
 
 SEC("lsm.s/file_open")
 int BPF_PROG(test_file_open, struct file *f)

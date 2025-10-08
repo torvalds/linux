@@ -6686,7 +6686,7 @@ static void tg3_rx_data_free(struct tg3 *tp, struct ring_info *ri, u32 map_sz)
  * We only need to fill in the address because the other members
  * of the RX descriptor are invariant, see tg3_init_rings.
  *
- * Note the purposeful assymetry of cpu vs. chip accesses.  For
+ * Note the purposeful asymmetry of cpu vs. chip accesses.  For
  * posting buffers we only dirty the first cache line of the RX
  * descriptor (containing the address).  Whereas for the RX status
  * buffers the cpu only reads the last cacheline of the RX descriptor
@@ -10145,7 +10145,7 @@ static int tg3_reset_hw(struct tg3 *tp, bool reset_phy)
 	tp->grc_mode |= GRC_MODE_HOST_SENDBDS;
 
 	/* Pseudo-header checksum is done by hardware logic and not
-	 * the offload processers, so make the chip do the pseudo-
+	 * the offload processors, so make the chip do the pseudo-
 	 * header checksums on receive.  For transmit it is more
 	 * convenient to do the pseudo-header checksum in software
 	 * as Linux does that on transmit for us in all cases.
@@ -16610,7 +16610,7 @@ static int tg3_get_invariants(struct tg3 *tp, const struct pci_device_id *ent)
 
 			tg3_flag_set(tp, PCIX_TARGET_HWBUG);
 
-			/* The chip can have it's power management PCI config
+			/* The chip can have its power management PCI config
 			 * space registers clobbered due to this bug.
 			 * So explicitly force the chip into D0 here.
 			 */

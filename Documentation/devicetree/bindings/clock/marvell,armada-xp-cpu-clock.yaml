@@ -1,0 +1,44 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+---
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+$id: http://devicetree.org/schemas/clock/marvell,armada-xp-cpu-clock.yaml#
+
+title: Marvell EBU CPU Clock
+
+maintainers:
+  - Andrew Lunn <andrew@lunn.ch>
+  - Gregory Clement <gregory.clement@bootlin.com>
+
+properties:
+  compatible:
+    enum:
+      - marvell,armada-xp-cpu-clock
+      - marvell,mv98dx3236-cpu-clock
+
+  reg:
+    items:
+      - description: Clock complex registers
+      - description: PMU DFS registers
+
+  '#clock-cells':
+    const: 1
+
+  clocks:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - '#clock-cells'
+  - clocks
+
+additionalProperties: false
+
+examples:
+  - |
+    clock-controller@d0018700 {
+        #clock-cells = <1>;
+        compatible = "marvell,armada-xp-cpu-clock";
+        reg = <0xd0018700 0xa0>, <0x1c054 0x10>;
+        clocks = <&coreclk 1>;
+    };

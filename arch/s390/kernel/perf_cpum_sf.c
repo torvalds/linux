@@ -14,7 +14,6 @@
 #include <linux/percpu.h>
 #include <linux/pid.h>
 #include <linux/notifier.h>
-#include <linux/export.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/moduleparam.h>

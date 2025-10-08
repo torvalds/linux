@@ -395,7 +395,7 @@
 	 * back to one causes a power output glitch, so install a hog to keep
 	 * it at one as a failsafe to ensure nothing accidentally touches it.
 	 */
-	doom-guardrail {
+	doom-guardrail-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(E, 0) GPIO_ACTIVE_LOW>;
 		output-low;

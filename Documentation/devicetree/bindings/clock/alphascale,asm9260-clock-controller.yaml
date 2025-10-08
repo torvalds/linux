@@ -1,0 +1,49 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/alphascale,asm9260-clock-controller.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Alphascale Clock Controller
+
+maintainers:
+  - Oleksij Rempel <linux@rempel-privat.de>
+
+description: |
+  The ACC (Alphascale Clock Controller) is responsible for choosing proper
+  clock source, setting dividers and clock gates.
+
+  Simple one-cell clock specifier format is used, where the only cell is used
+  as an index of the clock inside the provider.
+  It is encouraged to use dt-binding for clock index definitions. SoC specific
+  dt-binding should be included to the device tree descriptor. For example
+  Alphascale ASM9260:
+
+  #include <dt-bindings/clock/alphascale,asm9260.h>
+
+  This binding contains two types of clock providers:
+
+    _AHB_ - AHB gate;
+    _SYS_ - adjustable clock source. Not all peripheral have _SYS_ clock provider.
+
+  All clock specific details can be found in the SoC documentation.
+
+properties:
+  compatible:
+    const: alphascale,asm9260-clock-controller
+
+  reg:
+    maxItems: 1
+
+  '#clock-cells':
+    const: 1
+
+  clocks:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - '#clock-cells'
+
+additionalProperties: false

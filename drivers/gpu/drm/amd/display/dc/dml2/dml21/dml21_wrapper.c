@@ -2,8 +2,6 @@
 //
 // Copyright 2024 Advanced Micro Devices, Inc.
 
-#include <linux/vmalloc.h>
-
 #include "dml2_internal_types.h"
 #include "dml_top.h"
 #include "dml2_core_dcn4_calcs.h"
@@ -37,15 +35,11 @@ static bool dml21_allocate_memory(struct dml2_context **dml_ctx)
 	return true;
 }
 
-static void dml21_apply_debug_options(const struct dc *in_dc, struct dml2_context *dml_ctx, const struct dml2_configuration_options *config)
+static void dml21_populate_configuration_options(const struct dc *in_dc,
+		struct dml2_context *dml_ctx,
+		const struct dml2_configuration_options *config)
 {
-	bool disable_fams2;
-	struct dml2_pmo_options *pmo_options = &dml_ctx->v21.dml_init.options.pmo_options;
-
-	/* ODM options */
-	pmo_options->disable_dyn_odm = !config->minimize_dispclk_using_odm;
-	pmo_options->disable_dyn_odm_for_multi_stream = true;
-	pmo_options->disable_dyn_odm_for_stream_with_svp = true;
+	dml_ctx->config = *config;
 
 	/* UCLK P-State options */
 	if (in_dc->debug.dml21_force_pstate_method) {
@@ -55,52 +49,20 @@ static void dml21_apply_debug_options(const struct dc *in_dc, struct dml2_contex
 	} else {
 		dml_ctx->config.pmo.force_pstate_method_enable = false;
 	}
-
-	pmo_options->disable_vblank = ((in_dc->debug.dml21_disable_pstate_method_mask >> 1) & 1);
-
-	/* NOTE: DRR and SubVP Require FAMS2 */
-	disable_fams2 = !in_dc->debug.fams2_config.bits.enable;
-	pmo_options->disable_svp = ((in_dc->debug.dml21_disable_pstate_method_mask >> 2) & 1) ||
-			in_dc->debug.force_disable_subvp ||
-			disable_fams2;
-	pmo_options->disable_drr_clamped = ((in_dc->debug.dml21_disable_pstate_method_mask >> 3) & 1) ||
-			disable_fams2;
-	pmo_options->disable_drr_var = ((in_dc->debug.dml21_disable_pstate_method_mask >> 4) & 1) ||
-			disable_fams2;
-	pmo_options->disable_fams2 = disable_fams2;
-
-	pmo_options->disable_drr_var_when_var_active = in_dc->debug.disable_fams_gaming == INGAME_FAMS_DISABLE ||
-			in_dc->debug.disable_fams_gaming == INGAME_FAMS_MULTI_DISP_CLAMPED_ONLY;
-	pmo_options->disable_drr_clamped_when_var_active = in_dc->debug.disable_fams_gaming == INGAME_FAMS_DISABLE;
 }
 
-static void dml21_init(const struct dc *in_dc, struct dml2_context **dml_ctx, const struct dml2_configuration_options *config)
+static void dml21_init(const struct dc *in_dc, struct dml2_context *dml_ctx, const struct dml2_configuration_options *config)
 {
-	switch (in_dc->ctx->dce_version) {
-	case DCN_VERSION_4_01:
-		(*dml_ctx)->v21.dml_init.options.project_id = dml2_project_dcn4x_stage2_auto_drr_svp;
-		break;
-	default:
-		(*dml_ctx)->v21.dml_init.options.project_id = dml2_project_invalid;
-	}
 
-	(*dml_ctx)->architecture = dml2_architecture_21;
+	dml_ctx->architecture = dml2_architecture_21;
 
-	/* Store configuration options */
-	(*dml_ctx)->config = *config;
+	dml21_populate_configuration_options(in_dc, dml_ctx, config);
 
 	DC_FP_START();
 
-	/*Initialize SOCBB and DCNIP params */
-	dml21_initialize_soc_bb_params(&(*dml_ctx)->v21.dml_init, config, in_dc);
-	dml21_initialize_ip_params(&(*dml_ctx)->v21.dml_init, config, in_dc);
-	dml21_apply_soc_bb_overrides(&(*dml_ctx)->v21.dml_init, config, in_dc);
+	dml21_populate_dml_init_params(&dml_ctx->v21.dml_init, config, in_dc);
 
-	/* apply debug overrides */
-	dml21_apply_debug_options(in_dc, *dml_ctx, config);
-
-	/*Initialize DML21 instance */
-	dml2_initialize_instance(&(*dml_ctx)->v21.dml_init);
+	dml2_initialize_instance(&dml_ctx->v21.dml_init);
 
 	DC_FP_END();
 }
@@ -111,7 +73,7 @@ bool dml21_create(const struct dc *in_dc, struct dml2_context **dml_ctx, const s
 	if (!dml21_allocate_memory(dml_ctx))
 		return false;
 
-	dml21_init(in_dc, dml_ctx, config);
+	dml21_init(in_dc, *dml_ctx, config);
 
 	return true;
 }
@@ -328,12 +290,13 @@ static bool dml21_check_mode_support(const struct dc *in_dc, struct dc_state *co
 	return true;
 }
 
-bool dml21_validate(const struct dc *in_dc, struct dc_state *context, struct dml2_context *dml_ctx, bool fast_validate)
+bool dml21_validate(const struct dc *in_dc, struct dc_state *context, struct dml2_context *dml_ctx,
+	enum dc_validate_mode validate_mode)
 {
 	bool out = false;
 
-	/* Use dml_validate_only for fast_validate path */
-	if (fast_validate)
+	/* Use dml21_check_mode_support for DC_VALIDATE_MODE_ONLY and DC_VALIDATE_MODE_AND_STATE_INDEX path */
+	if (validate_mode != DC_VALIDATE_MODE_AND_PROGRAMMING)
 		out = dml21_check_mode_support(in_dc, context, dml_ctx);
 	else
 		out = dml21_mode_check_and_programming(in_dc, context, dml_ctx);
@@ -496,7 +459,7 @@ bool dml21_create_copy(struct dml2_context **dst_dml_ctx,
 	return true;
 }
 
-void dml21_reinit(const struct dc *in_dc, struct dml2_context **dml_ctx, const struct dml2_configuration_options *config)
+void dml21_reinit(const struct dc *in_dc, struct dml2_context *dml_ctx, const struct dml2_configuration_options *config)
 {
 	dml21_init(in_dc, dml_ctx, config);
 }

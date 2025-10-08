@@ -18,6 +18,7 @@
 		     "fsl,imx93";
 
 	aliases {
+		ethernet1 = &eqos;
 		rtc0 = &i2c_rtc;
 		rtc1 = &bbnsm_rtc;
 	};

@@ -15,9 +15,6 @@
 #include <linux/pm_runtime.h>
 #include "mma9551_core.h"
 
-#define MMA9553_DRV_NAME			"mma9553"
-#define MMA9553_IRQ_NAME			"mma9553_event"
-
 /* Pedometer configuration registers (R/W) */
 #define MMA9553_REG_CONF_SLEEPMIN		0x00
 #define MMA9553_REG_CONF_SLEEPMAX		0x02
@@ -100,7 +97,7 @@ enum activity_level {
 	ACTIVITY_RUNNING,
 };
 
-static struct mma9553_event_info {
+static const struct mma9553_event_info {
 	enum iio_chan_type type;
 	enum iio_modifier mod;
 	enum iio_event_direction dir;
@@ -155,7 +152,7 @@ static struct mma9553_event_info {
 #define MMA9553_EVENTS_INFO_SIZE ARRAY_SIZE(mma9553_events_info)
 
 struct mma9553_event {
-	struct mma9553_event_info *info;
+	const struct mma9553_event_info *info;
 	bool enabled;
 };
 
@@ -1102,7 +1099,7 @@ static int mma9553_probe(struct i2c_client *client)
 						mma9553_irq_handler,
 						mma9553_event_handler,
 						IRQF_TRIGGER_RISING,
-						MMA9553_IRQ_NAME, indio_dev);
+						"mma9553_event", indio_dev);
 		if (ret < 0) {
 			dev_err(&client->dev, "request irq %d failed\n",
 				client->irq);
@@ -1230,7 +1227,7 @@ MODULE_DEVICE_TABLE(i2c, mma9553_id);
 
 static struct i2c_driver mma9553_driver = {
 	.driver = {
-		   .name = MMA9553_DRV_NAME,
+		   .name = "mma9553",
 		   .acpi_match_table = mma9553_acpi_match,
 		   .pm = pm_ptr(&mma9553_pm_ops),
 	},

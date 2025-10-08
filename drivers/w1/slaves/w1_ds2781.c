@@ -100,7 +100,7 @@ static const struct bin_attribute *const w1_ds2781_bin_attrs[] = {
 };
 
 static const struct attribute_group w1_ds2781_group = {
-	.bin_attrs_new = w1_ds2781_bin_attrs,
+	.bin_attrs = w1_ds2781_bin_attrs,
 };
 
 static const struct attribute_group *w1_ds2781_groups[] = {

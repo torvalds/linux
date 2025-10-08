@@ -148,7 +148,7 @@ static int lpc18xx_ccu_gate_endisable(struct clk_hw *hw, bool enable)
 		val |= LPC18XX_CCU_RUN;
 	} else {
 		/*
-		 * To safely disable a branch clock a squence of two separate
+		 * To safely disable a branch clock a sequence of two separate
 		 * writes must be used. First write should set the AUTO bit
 		 * and the next write should clear the RUN bit.
 		 */

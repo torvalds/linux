@@ -14,7 +14,7 @@ description: |
   Qualcomm global clock control module provides the clocks, resets and power
   domains on SM4450
 
-  See also:: include/dt-bindings/clock/qcom,sm4450-gcc.h
+  See also: include/dt-bindings/clock/qcom,sm4450-gcc.h
 
 properties:
   compatible:

@@ -84,7 +84,7 @@
 			status = "okay";
 		};
 
-		gmac: eth@e0800000 {
+		gmac: ethernet@e0800000 {
 			status = "okay";
 		};
 

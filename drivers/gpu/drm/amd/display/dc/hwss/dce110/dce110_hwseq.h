@@ -110,5 +110,9 @@ void dce110_enable_dp_link_output(
 		enum signal_type signal,
 		enum clock_source_id clock_source,
 		const struct dc_link_settings *link_settings);
+void build_audio_output(
+		struct dc_state *state,
+		const struct pipe_ctx *pipe_ctx,
+		struct audio_output *audio_output);
 #endif /* __DC_HWSS_DCE110_H__ */
 

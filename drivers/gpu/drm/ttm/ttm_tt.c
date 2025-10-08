@@ -33,6 +33,7 @@
 
 #include <linux/cc_platform.h>
 #include <linux/debugfs.h>
+#include <linux/export.h>
 #include <linux/file.h>
 #include <linux/module.h>
 #include <linux/sched.h>

@@ -14,12 +14,9 @@ allOf:
 
 properties:
   compatible:
-    oneOf:
-      - const: sophgo,sg2044-spifmc-nor
-      - items:
-          - enum:
-              - sophgo,sg2042-spifmc-nor
-          - const: sophgo,sg2044-spifmc-nor
+    enum:
+      - sophgo,sg2042-spifmc-nor
+      - sophgo,sg2044-spifmc-nor
 
   reg:
     maxItems: 1

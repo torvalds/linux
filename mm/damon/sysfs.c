@@ -811,11 +811,24 @@ static const struct kobj_type damon_sysfs_attrs_ktype = {
  * context directory
  */
 
-/* This should match with enum damon_ops_id */
-static const char * const damon_sysfs_ops_strs[] = {
-	"vaddr",
-	"fvaddr",
-	"paddr",
+struct damon_sysfs_ops_name {
+	enum damon_ops_id ops_id;
+	char *name;
+};
+
+static const struct damon_sysfs_ops_name damon_sysfs_ops_names[] = {
+	{
+		.ops_id = DAMON_OPS_VADDR,
+		.name = "vaddr",
+	},
+	{
+		.ops_id = DAMON_OPS_FVADDR,
+		.name = "fvaddr",
+	},
+	{
+		.ops_id = DAMON_OPS_PADDR,
+		.name = "paddr",
+	},
 };
 
 struct damon_sysfs_context {
@@ -934,14 +947,16 @@ static void damon_sysfs_context_rm_dirs(struct damon_sysfs_context *context)
 static ssize_t avail_operations_show(struct kobject *kobj,
 		struct kobj_attribute *attr, char *buf)
 {
-	enum damon_ops_id id;
 	int len = 0;
+	int i;
 
-	for (id = 0; id < NR_DAMON_OPS; id++) {
-		if (!damon_is_registered_ops(id))
+	for (i = 0; i < ARRAY_SIZE(damon_sysfs_ops_names); i++) {
+		const struct damon_sysfs_ops_name *ops_name;
+
+		ops_name = &damon_sysfs_ops_names[i];
+		if (!damon_is_registered_ops(ops_name->ops_id))
 			continue;
-		len += sysfs_emit_at(buf, len, "%s\n",
-				damon_sysfs_ops_strs[id]);
+		len += sysfs_emit_at(buf, len, "%s\n", ops_name->name);
 	}
 	return len;
 }
@@ -951,8 +966,16 @@ static ssize_t operations_show(struct kobject *kobj,
 {
 	struct damon_sysfs_context *context = container_of(kobj,
 			struct damon_sysfs_context, kobj);
+	int i;
 
-	return sysfs_emit(buf, "%s\n", damon_sysfs_ops_strs[context->ops_id]);
+	for (i = 0; i < ARRAY_SIZE(damon_sysfs_ops_names); i++) {
+		const struct damon_sysfs_ops_name *ops_name;
+
+		ops_name = &damon_sysfs_ops_names[i];
+		if (ops_name->ops_id == context->ops_id)
+			return sysfs_emit(buf, "%s\n", ops_name->name);
+	}
+	return -EINVAL;
 }
 
 static ssize_t operations_store(struct kobject *kobj,
@@ -960,11 +983,14 @@ static ssize_t operations_store(struct kobject *kobj,
 {
 	struct damon_sysfs_context *context = container_of(kobj,
 			struct damon_sysfs_context, kobj);
-	enum damon_ops_id id;
+	int i;
 
-	for (id = 0; id < NR_DAMON_OPS; id++) {
-		if (sysfs_streq(buf, damon_sysfs_ops_strs[id])) {
-			context->ops_id = id;
+	for (i = 0; i < ARRAY_SIZE(damon_sysfs_ops_names); i++) {
+		const struct damon_sysfs_ops_name *ops_name;
+
+		ops_name = &damon_sysfs_ops_names[i];
+		if (sysfs_streq(buf, ops_name->name)) {
+			context->ops_id = ops_name->ops_id;
 			return count;
 		}
 	}
@@ -1129,6 +1155,7 @@ struct damon_sysfs_kdamond {
 	struct kobject kobj;
 	struct damon_sysfs_contexts *contexts;
 	struct damon_ctx *damon_ctx;
+	unsigned int refresh_ms;
 };
 
 static struct damon_sysfs_kdamond *damon_sysfs_kdamond_alloc(void)
@@ -1161,16 +1188,6 @@ static void damon_sysfs_kdamond_rm_dirs(struct damon_sysfs_kdamond *kdamond)
 {
 	damon_sysfs_contexts_rm_dirs(kdamond->contexts);
 	kobject_put(&kdamond->contexts->kobj);
-}
-
-static bool damon_sysfs_ctx_running(struct damon_ctx *ctx)
-{
-	bool running;
-
-	mutex_lock(&ctx->kdamond_lock);
-	running = ctx->kdamond != NULL;
-	mutex_unlock(&ctx->kdamond_lock);
-	return running;
 }
 
 /*
@@ -1249,7 +1266,7 @@ static ssize_t state_show(struct kobject *kobj, struct kobj_attribute *attr,
 	if (!ctx)
 		running = false;
 	else
-		running = damon_sysfs_ctx_running(ctx);
+		running = damon_is_running(ctx);
 
 	return sysfs_emit(buf, "%s\n", running ?
 			damon_sysfs_cmd_strs[DAMON_SYSFS_CMD_ON] :
@@ -1277,18 +1294,6 @@ static int damon_sysfs_set_attrs(struct damon_ctx *ctx,
 		.max_nr_regions = sys_nr_regions->max,
 	};
 	return damon_set_attrs(ctx, &attrs);
-}
-
-static void damon_sysfs_destroy_targets(struct damon_ctx *ctx)
-{
-	struct damon_target *t, *next;
-	bool has_pid = damon_target_has_pid(ctx);
-
-	damon_for_each_target_safe(t, next, ctx) {
-		if (has_pid)
-			put_pid(t->pid);
-		damon_destroy_target(t);
-	}
 }
 
 static int damon_sysfs_set_regions(struct damon_target *t,
@@ -1325,7 +1330,6 @@ static int damon_sysfs_add_target(struct damon_sysfs_target *sys_target,
 		struct damon_ctx *ctx)
 {
 	struct damon_target *t = damon_new_target();
-	int err = -EINVAL;
 
 	if (!t)
 		return -ENOMEM;
@@ -1333,16 +1337,10 @@ static int damon_sysfs_add_target(struct damon_sysfs_target *sys_target,
 	if (damon_target_has_pid(ctx)) {
 		t->pid = find_get_pid(sys_target->pid);
 		if (!t->pid)
-			goto destroy_targets_out;
+			/* caller will destroy targets */
+			return -EINVAL;
 	}
-	err = damon_sysfs_set_regions(t, sys_target->regions);
-	if (err)
-		goto destroy_targets_out;
-	return 0;
-
-destroy_targets_out:
-	damon_sysfs_destroy_targets(ctx);
-	return err;
+	return damon_sysfs_set_regions(t, sys_target->regions);
 }
 
 static int damon_sysfs_add_targets(struct damon_ctx *ctx,
@@ -1362,21 +1360,6 @@ static int damon_sysfs_add_targets(struct damon_ctx *ctx,
 			return err;
 	}
 	return 0;
-}
-
-static void damon_sysfs_before_terminate(struct damon_ctx *ctx)
-{
-	struct damon_target *t, *next;
-
-	if (!damon_target_has_pid(ctx))
-		return;
-
-	mutex_lock(&ctx->kdamond_lock);
-	damon_for_each_target_safe(t, next, ctx) {
-		put_pid(t->pid);
-		damon_destroy_target(t);
-	}
-	mutex_unlock(&ctx->kdamond_lock);
 }
 
 /*
@@ -1403,7 +1386,7 @@ static inline bool damon_sysfs_kdamond_running(
 		struct damon_sysfs_kdamond *kdamond)
 {
 	return kdamond->damon_ctx &&
-		damon_sysfs_ctx_running(kdamond->damon_ctx);
+		damon_is_running(kdamond->damon_ctx);
 }
 
 static int damon_sysfs_apply_inputs(struct damon_ctx *ctx,
@@ -1450,13 +1433,11 @@ static int damon_sysfs_commit_input(void *data)
 	test_ctx = damon_new_ctx();
 	err = damon_commit_ctx(test_ctx, param_ctx);
 	if (err) {
-		damon_sysfs_destroy_targets(test_ctx);
 		damon_destroy_ctx(test_ctx);
 		goto out;
 	}
 	err = damon_commit_ctx(kdamond->damon_ctx, param_ctx);
 out:
-	damon_sysfs_destroy_targets(param_ctx);
 	damon_destroy_ctx(param_ctx);
 	return err;
 }
@@ -1525,9 +1506,34 @@ static struct damon_ctx *damon_sysfs_build_ctx(
 		return ERR_PTR(err);
 	}
 
-	ctx->callback.before_terminate = damon_sysfs_before_terminate;
 	return ctx;
 }
+
+static int damon_sysfs_repeat_call_fn(void *data)
+{
+	struct damon_sysfs_kdamond *sysfs_kdamond = data;
+	static unsigned long next_update_jiffies;
+
+	if (!sysfs_kdamond->refresh_ms)
+		return 0;
+	if (time_before(jiffies, next_update_jiffies))
+		return 0;
+	next_update_jiffies = jiffies +
+		msecs_to_jiffies(sysfs_kdamond->refresh_ms);
+
+	if (!mutex_trylock(&damon_sysfs_lock))
+		return 0;
+	damon_sysfs_upd_tuned_intervals(sysfs_kdamond);
+	damon_sysfs_upd_schemes_stats(sysfs_kdamond);
+	damon_sysfs_upd_schemes_effective_quotas(sysfs_kdamond);
+	mutex_unlock(&damon_sysfs_lock);
+	return 0;
+}
+
+static struct damon_call_control damon_sysfs_repeat_call_control = {
+	.fn = damon_sysfs_repeat_call_fn,
+	.repeat = true,
+};
 
 static int damon_sysfs_turn_damon_on(struct damon_sysfs_kdamond *kdamond)
 {
@@ -1553,6 +1559,9 @@ static int damon_sysfs_turn_damon_on(struct damon_sysfs_kdamond *kdamond)
 		return err;
 	}
 	kdamond->damon_ctx = ctx;
+
+	damon_sysfs_repeat_call_control.data = kdamond;
+	damon_call(ctx, &damon_sysfs_repeat_call_control);
 	return err;
 }
 
@@ -1711,6 +1720,30 @@ out:
 	return sysfs_emit(buf, "%d\n", pid);
 }
 
+static ssize_t refresh_ms_show(struct kobject *kobj,
+		struct kobj_attribute *attr, char *buf)
+{
+	struct damon_sysfs_kdamond *kdamond = container_of(kobj,
+			struct damon_sysfs_kdamond, kobj);
+
+	return sysfs_emit(buf, "%u\n", kdamond->refresh_ms);
+}
+
+static ssize_t refresh_ms_store(struct kobject *kobj,
+		struct kobj_attribute *attr, const char *buf, size_t count)
+{
+	struct damon_sysfs_kdamond *kdamond = container_of(kobj,
+			struct damon_sysfs_kdamond, kobj);
+	unsigned int nr;
+	int err = kstrtouint(buf, 0, &nr);
+
+	if (err)
+		return err;
+
+	kdamond->refresh_ms = nr;
+	return count;
+}
+
 static void damon_sysfs_kdamond_release(struct kobject *kobj)
 {
 	struct damon_sysfs_kdamond *kdamond = container_of(kobj,
@@ -1727,9 +1760,13 @@ static struct kobj_attribute damon_sysfs_kdamond_state_attr =
 static struct kobj_attribute damon_sysfs_kdamond_pid_attr =
 		__ATTR_RO_MODE(pid, 0400);
 
+static struct kobj_attribute damon_sysfs_kdamond_refresh_ms_attr =
+		__ATTR_RW_MODE(refresh_ms, 0600);
+
 static struct attribute *damon_sysfs_kdamond_attrs[] = {
 	&damon_sysfs_kdamond_state_attr.attr,
 	&damon_sysfs_kdamond_pid_attr.attr,
+	&damon_sysfs_kdamond_refresh_ms_attr.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(damon_sysfs_kdamond);

@@ -98,8 +98,8 @@ ct_card_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 	if (err < 0)
 		goto error;
 
-	strcpy(card->driver, "SB-XFi");
-	strcpy(card->shortname, "Creative X-Fi");
+	strscpy(card->driver, "SB-XFi");
+	strscpy(card->shortname, "Creative X-Fi");
 	snprintf(card->longname, sizeof(card->longname), "%s %s %s",
 		 card->shortname, atc->chip_name, atc->model_name);
 

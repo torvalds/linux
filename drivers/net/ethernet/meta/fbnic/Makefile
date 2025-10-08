@@ -12,6 +12,7 @@ fbnic-y := fbnic_csr.o \
 	   fbnic_devlink.o \
 	   fbnic_ethtool.o \
 	   fbnic_fw.o \
+	   fbnic_fw_log.o \
 	   fbnic_hw_stats.o \
 	   fbnic_hwmon.o \
 	   fbnic_irq.o \

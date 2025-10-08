@@ -10,11 +10,13 @@
 #ifndef __LINUX_MFD_DAVINCI_VOICECODEC_H_
 #define __LINUX_MFD_DAVINCI_VOICECODEC_H_
 
-#include <linux/kernel.h>
-#include <linux/platform_device.h>
+#include <linux/bits.h>
 #include <linux/mfd/core.h>
-#include <linux/platform_data/edma.h>
+#include <linux/types.h>
 
+struct clk;
+struct device;
+struct platform_device;
 struct regmap;
 
 /*

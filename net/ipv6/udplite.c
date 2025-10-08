@@ -59,7 +59,7 @@ struct proto udplitev6_prot = {
 	.rehash		   = udp_v6_rehash,
 	.get_port	   = udp_v6_get_port,
 
-	.memory_allocated  = &udp_memory_allocated,
+	.memory_allocated  = &net_aligned_data.udp_memory_allocated,
 	.per_cpu_fw_alloc  = &udp_memory_per_cpu_fw_alloc,
 
 	.sysctl_mem	   = sysctl_udp_mem,

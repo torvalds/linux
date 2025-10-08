@@ -19,7 +19,7 @@ struct debugfs_inode_info {
 		const struct debugfs_short_fops *short_fops;
 		debugfs_automount_t automount;
 	};
-	const void *aux;
+	void *aux;
 };
 
 static inline struct debugfs_inode_info *DEBUGFS_I(struct inode *inode)

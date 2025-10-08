@@ -1342,7 +1342,7 @@ static u32 mtk_i2c_functionality(struct i2c_adapter *adap)
 }
 
 static const struct i2c_algorithm mtk_i2c_algorithm = {
-	.master_xfer = mtk_i2c_transfer,
+	.xfer = mtk_i2c_transfer,
 	.functionality = mtk_i2c_functionality,
 };
 

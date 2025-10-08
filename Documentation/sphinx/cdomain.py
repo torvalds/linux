@@ -1,4 +1,5 @@
 # -*- coding: utf-8; mode: python -*-
+# SPDX-License-Identifier: GPL-2.0
 # pylint: disable=W0141,C0113,C0103,C0325
 """
     cdomain

@@ -7,6 +7,7 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/phy/phy.h>
+#include <dt-bindings/power/rockchip,rk3562-power.h>
 #include <dt-bindings/pinctrl/rockchip.h>
 #include <dt-bindings/reset/rockchip,rk3562-cru.h>
 #include <dt-bindings/soc/rockchip,boot-mode.h>
@@ -351,7 +352,7 @@
 			num-lanes = <1>;
 			phys = <&combphy PHY_TYPE_PCIE>;
 			phy-names = "pcie-phy";
-			power-domains = <&power 15>;
+			power-domains = <&power RK3562_PD_PHP>;
 			ranges = <0x01000000 0x0 0xfc100000 0x0 0xfc100000 0x0 0x100000
 				  0x02000000 0x0 0xfc200000 0x0 0xfc200000 0x0 0x1e00000
 				  0x03000000 0x3 0x00000000 0x3 0x00000000 0x0 0x40000000>;
@@ -667,48 +668,48 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 
-				power-domain@8 {
-					reg = <8>;
+				power-domain@RK3562_PD_GPU {
+					reg = <RK3562_PD_GPU>;
 					pm_qos = <&qos_gpu>;
 					#power-domain-cells = <0>;
 				};
 
-				power-domain@7 {
-					reg = <7>;
+				power-domain@RK3562_PD_NPU {
+					reg = <RK3562_PD_NPU>;
 					pm_qos = <&qos_npu>;
 					#power-domain-cells = <0>;
 				};
 
-				power-domain@11 {
-					reg = <11>;
+				power-domain@RK3562_PD_VDPU {
+					reg = <RK3562_PD_VDPU>;
 					pm_qos = <&qos_rkvdec>;
 					#power-domain-cells = <0>;
 				};
 
-				power-domain@12 {
-					reg = <12>;
+				power-domain@RK3562_PD_VI {
+					reg = <RK3562_PD_VI>;
 					pm_qos = <&qos_isp>,
 						 <&qos_vicap>;
 					#power-domain-cells = <1>;
 					#address-cells = <1>;
 					#size-cells = <0>;
 
-					power-domain@10 {
-						reg = <10>;
+					power-domain@RK3562_PD_VEPU {
+						reg = <RK3562_PD_VEPU>;
 						pm_qos = <&qos_vepu>;
 						#power-domain-cells = <0>;
 					};
 				};
 
-				power-domain@13 {
-					reg = <13>;
+				power-domain@RK3562_PD_VO {
+					reg = <RK3562_PD_VO>;
 					pm_qos = <&qos_vop>;
 					#power-domain-cells = <1>;
 					#address-cells = <1>;
 					#size-cells = <0>;
 
-					power-domain@14 {
-						reg = <14>;
+					power-domain@RK3562_PD_RGA {
+						reg = <RK3562_PD_RGA>;
 						pm_qos = <&qos_rga_rd>,
 							 <&qos_rga_wr>,
 							 <&qos_jpeg>;
@@ -716,8 +717,8 @@
 					};
 				};
 
-				power-domain@15 {
-					reg = <15>;
+				power-domain@RK3562_PD_PHP {
+					reg = <RK3562_PD_PHP>;
 					pm_qos = <&qos_pcie>,
 						 <&qos_usb3>;
 					#power-domain-cells = <0>;
@@ -737,7 +738,7 @@
 				     <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "job", "mmu", "gpu";
 			operating-points-v2 = <&gpu_opp_table>;
-			power-domains = <&power 8>;
+			power-domains = <&power RK3562_PD_GPU>;
 			#cooling-cells = <2>;
 			status = "disabled";
 		};

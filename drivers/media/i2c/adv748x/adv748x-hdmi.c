@@ -382,19 +382,9 @@ done:
 	return ret;
 }
 
-static int adv748x_hdmi_g_pixelaspect(struct v4l2_subdev *sd,
-				      struct v4l2_fract *aspect)
-{
-	aspect->numerator = 1;
-	aspect->denominator = 1;
-
-	return 0;
-}
-
 static const struct v4l2_subdev_video_ops adv748x_video_ops_hdmi = {
 	.g_input_status = adv748x_hdmi_g_input_status,
 	.s_stream = adv748x_hdmi_s_stream,
-	.g_pixelaspect = adv748x_hdmi_g_pixelaspect,
 };
 
 /* -----------------------------------------------------------------------------

@@ -13,6 +13,7 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/hashtable.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/ioport.h>
@@ -47,8 +48,8 @@ struct irq_info {
 	struct list_head	*head;
 };
 
-#define NR_IRQ_HASH		32	/* Can be adjusted later */
-static struct hlist_head irq_lists[NR_IRQ_HASH];
+#define IRQ_HASH_BITS		5	/* Can be adjusted later */
+static DEFINE_HASHTABLE(irq_lists, IRQ_HASH_BITS);
 static DEFINE_MUTEX(hash_mutex);	/* Used to walk the hash */
 
 /*
@@ -71,17 +72,12 @@ static irqreturn_t serial8250_interrupt(int irq, void *dev_id)
 	struct list_head *l, *end = NULL;
 	int pass_counter = 0, handled = 0;
 
-	pr_debug("%s(%d): start\n", __func__, irq);
-
 	spin_lock(&i->lock);
 
 	l = i->head;
 	do {
-		struct uart_8250_port *up;
-		struct uart_port *port;
-
-		up = list_entry(l, struct uart_8250_port, list);
-		port = &up->port;
+		struct uart_8250_port *up = list_entry(l, struct uart_8250_port, list);
+		struct uart_port *port = &up->port;
 
 		if (port->handle_irq(port)) {
 			handled = 1;
@@ -96,8 +92,6 @@ static irqreturn_t serial8250_interrupt(int irq, void *dev_id)
 	} while (l != end);
 
 	spin_unlock(&i->lock);
-
-	pr_debug("%s(%d): end\n", __func__, irq);
 
 	return IRQ_RETVAL(handled);
 }
@@ -129,31 +123,43 @@ static void serial_do_unlink(struct irq_info *i, struct uart_8250_port *up)
 	}
 }
 
-static int serial_link_irq_chain(struct uart_8250_port *up)
+/*
+ * Either:
+ * - find the corresponding info in the hashtable and return it, or
+ * - allocate a new one, add it to the hashtable and return it.
+ */
+static struct irq_info *serial_get_or_create_irq_info(const struct uart_8250_port *up)
 {
-	struct hlist_head *h;
 	struct irq_info *i;
-	int ret;
 
 	mutex_lock(&hash_mutex);
 
-	h = &irq_lists[up->port.irq % NR_IRQ_HASH];
-
-	hlist_for_each_entry(i, h, node)
+	hash_for_each_possible(irq_lists, i, node, up->port.irq)
 		if (i->irq == up->port.irq)
-			break;
+			goto unlock;
 
+	i = kzalloc(sizeof(*i), GFP_KERNEL);
 	if (i == NULL) {
-		i = kzalloc(sizeof(struct irq_info), GFP_KERNEL);
-		if (i == NULL) {
-			mutex_unlock(&hash_mutex);
-			return -ENOMEM;
-		}
-		spin_lock_init(&i->lock);
-		i->irq = up->port.irq;
-		hlist_add_head(&i->node, h);
+		i = ERR_PTR(-ENOMEM);
+		goto unlock;
 	}
+	spin_lock_init(&i->lock);
+	i->irq = up->port.irq;
+	hash_add(irq_lists, &i->node, i->irq);
+unlock:
 	mutex_unlock(&hash_mutex);
+
+	return i;
+}
+
+static int serial_link_irq_chain(struct uart_8250_port *up)
+{
+	struct irq_info *i;
+	int ret;
+
+	i = serial_get_or_create_irq_info(up);
+	if (IS_ERR(i))
+		return PTR_ERR(i);
 
 	spin_lock_irq(&i->lock);
 
@@ -178,13 +184,10 @@ static int serial_link_irq_chain(struct uart_8250_port *up)
 static void serial_unlink_irq_chain(struct uart_8250_port *up)
 {
 	struct irq_info *i;
-	struct hlist_head *h;
 
 	mutex_lock(&hash_mutex);
 
-	h = &irq_lists[up->port.irq % NR_IRQ_HASH];
-
-	hlist_for_each_entry(i, h, node)
+	hash_for_each_possible(irq_lists, i, node, up->port.irq)
 		if (i->irq == up->port.irq)
 			break;
 
@@ -714,139 +717,142 @@ int serial8250_register_8250_port(const struct uart_8250_port *up)
 		nr_uarts++;
 	}
 
+	/* Check if it is CIR already. We check this below again, see there why. */
+	if (uart->port.type == PORT_8250_CIR) {
+		ret = -ENODEV;
+		goto unlock;
+	}
+
+	if (uart->port.dev)
+		uart_remove_one_port(&serial8250_reg, &uart->port);
+
+	uart->port.ctrl_id	= up->port.ctrl_id;
+	uart->port.port_id	= up->port.port_id;
+	uart->port.iobase       = up->port.iobase;
+	uart->port.membase      = up->port.membase;
+	uart->port.irq          = up->port.irq;
+	uart->port.irqflags     = up->port.irqflags;
+	uart->port.uartclk      = up->port.uartclk;
+	uart->port.fifosize     = up->port.fifosize;
+	uart->port.regshift     = up->port.regshift;
+	uart->port.iotype       = up->port.iotype;
+	uart->port.flags        = up->port.flags | UPF_BOOT_AUTOCONF;
+	uart->bugs		= up->bugs;
+	uart->port.mapbase      = up->port.mapbase;
+	uart->port.mapsize      = up->port.mapsize;
+	uart->port.private_data = up->port.private_data;
+	uart->tx_loadsz		= up->tx_loadsz;
+	uart->capabilities	= up->capabilities;
+	uart->port.throttle	= up->port.throttle;
+	uart->port.unthrottle	= up->port.unthrottle;
+	uart->port.rs485_config	= up->port.rs485_config;
+	uart->port.rs485_supported = up->port.rs485_supported;
+	uart->port.rs485	= up->port.rs485;
+	uart->rs485_start_tx	= up->rs485_start_tx;
+	uart->rs485_stop_tx	= up->rs485_stop_tx;
+	uart->lsr_save_mask	= up->lsr_save_mask;
+	uart->dma		= up->dma;
+
+	/* Take tx_loadsz from fifosize if it wasn't set separately */
+	if (uart->port.fifosize && !uart->tx_loadsz)
+		uart->tx_loadsz = uart->port.fifosize;
+
+	if (up->port.dev) {
+		uart->port.dev = up->port.dev;
+		ret = uart_get_rs485_mode(&uart->port);
+		if (ret)
+			goto err;
+	}
+
+	if (up->port.flags & UPF_FIXED_TYPE)
+		uart->port.type = up->port.type;
+
+	/*
+	 * Only call mctrl_gpio_init(), if the device has no ACPI
+	 * companion device
+	 */
+	if (!has_acpi_companion(uart->port.dev)) {
+		struct mctrl_gpios *gpios = mctrl_gpio_init(&uart->port, 0);
+		if (IS_ERR(gpios)) {
+			ret = PTR_ERR(gpios);
+			goto err;
+		} else {
+			uart->gpios = gpios;
+		}
+	}
+
+	serial8250_set_defaults(uart);
+
+	/* Possibly override default I/O functions.  */
+	if (up->port.serial_in)
+		uart->port.serial_in = up->port.serial_in;
+	if (up->port.serial_out)
+		uart->port.serial_out = up->port.serial_out;
+	if (up->port.handle_irq)
+		uart->port.handle_irq = up->port.handle_irq;
+	/*  Possibly override set_termios call */
+	if (up->port.set_termios)
+		uart->port.set_termios = up->port.set_termios;
+	if (up->port.set_ldisc)
+		uart->port.set_ldisc = up->port.set_ldisc;
+	if (up->port.get_mctrl)
+		uart->port.get_mctrl = up->port.get_mctrl;
+	if (up->port.set_mctrl)
+		uart->port.set_mctrl = up->port.set_mctrl;
+	if (up->port.get_divisor)
+		uart->port.get_divisor = up->port.get_divisor;
+	if (up->port.set_divisor)
+		uart->port.set_divisor = up->port.set_divisor;
+	if (up->port.startup)
+		uart->port.startup = up->port.startup;
+	if (up->port.shutdown)
+		uart->port.shutdown = up->port.shutdown;
+	if (up->port.pm)
+		uart->port.pm = up->port.pm;
+	if (up->port.handle_break)
+		uart->port.handle_break = up->port.handle_break;
+	if (up->dl_read)
+		uart->dl_read = up->dl_read;
+	if (up->dl_write)
+		uart->dl_write = up->dl_write;
+
+	/* Check the type (again)! It might have changed by the port.type assignment above. */
 	if (uart->port.type != PORT_8250_CIR) {
-		struct mctrl_gpios *gpios;
+		if (uart_console_registered(&uart->port))
+			pm_runtime_get_sync(uart->port.dev);
 
-		if (uart->port.dev)
-			uart_remove_one_port(&serial8250_reg, &uart->port);
+		if (serial8250_isa_config != NULL)
+			serial8250_isa_config(0, &uart->port,
+					&uart->capabilities);
 
-		uart->port.ctrl_id	= up->port.ctrl_id;
-		uart->port.port_id	= up->port.port_id;
-		uart->port.iobase       = up->port.iobase;
-		uart->port.membase      = up->port.membase;
-		uart->port.irq          = up->port.irq;
-		uart->port.irqflags     = up->port.irqflags;
-		uart->port.uartclk      = up->port.uartclk;
-		uart->port.fifosize     = up->port.fifosize;
-		uart->port.regshift     = up->port.regshift;
-		uart->port.iotype       = up->port.iotype;
-		uart->port.flags        = up->port.flags | UPF_BOOT_AUTOCONF;
-		uart->bugs		= up->bugs;
-		uart->port.mapbase      = up->port.mapbase;
-		uart->port.mapsize      = up->port.mapsize;
-		uart->port.private_data = up->port.private_data;
-		uart->tx_loadsz		= up->tx_loadsz;
-		uart->capabilities	= up->capabilities;
-		uart->port.throttle	= up->port.throttle;
-		uart->port.unthrottle	= up->port.unthrottle;
-		uart->port.rs485_config	= up->port.rs485_config;
-		uart->port.rs485_supported = up->port.rs485_supported;
-		uart->port.rs485	= up->port.rs485;
-		uart->rs485_start_tx	= up->rs485_start_tx;
-		uart->rs485_stop_tx	= up->rs485_stop_tx;
-		uart->lsr_save_mask	= up->lsr_save_mask;
-		uart->dma		= up->dma;
+		serial8250_apply_quirks(uart);
+		ret = uart_add_one_port(&serial8250_reg,
+					&uart->port);
+		if (ret)
+			goto err;
 
-		/* Take tx_loadsz from fifosize if it wasn't set separately */
-		if (uart->port.fifosize && !uart->tx_loadsz)
-			uart->tx_loadsz = uart->port.fifosize;
+		ret = uart->port.line;
+	} else {
+		dev_info(uart->port.dev,
+			"skipping CIR port at 0x%lx / 0x%llx, IRQ %d\n",
+			uart->port.iobase,
+			(unsigned long long)uart->port.mapbase,
+			uart->port.irq);
 
-		if (up->port.dev) {
-			uart->port.dev = up->port.dev;
-			ret = uart_get_rs485_mode(&uart->port);
-			if (ret)
-				goto err;
-		}
+		ret = 0;
+	}
 
-		if (up->port.flags & UPF_FIXED_TYPE)
-			uart->port.type = up->port.type;
+	if (!uart->lsr_save_mask)
+		uart->lsr_save_mask = LSR_SAVE_FLAGS;	/* Use default LSR mask */
 
-		/*
-		 * Only call mctrl_gpio_init(), if the device has no ACPI
-		 * companion device
-		 */
-		if (!has_acpi_companion(uart->port.dev)) {
-			gpios = mctrl_gpio_init(&uart->port, 0);
-			if (IS_ERR(gpios)) {
-				ret = PTR_ERR(gpios);
-				goto err;
-			} else {
-				uart->gpios = gpios;
-			}
-		}
-
-		serial8250_set_defaults(uart);
-
-		/* Possibly override default I/O functions.  */
-		if (up->port.serial_in)
-			uart->port.serial_in = up->port.serial_in;
-		if (up->port.serial_out)
-			uart->port.serial_out = up->port.serial_out;
-		if (up->port.handle_irq)
-			uart->port.handle_irq = up->port.handle_irq;
-		/*  Possibly override set_termios call */
-		if (up->port.set_termios)
-			uart->port.set_termios = up->port.set_termios;
-		if (up->port.set_ldisc)
-			uart->port.set_ldisc = up->port.set_ldisc;
-		if (up->port.get_mctrl)
-			uart->port.get_mctrl = up->port.get_mctrl;
-		if (up->port.set_mctrl)
-			uart->port.set_mctrl = up->port.set_mctrl;
-		if (up->port.get_divisor)
-			uart->port.get_divisor = up->port.get_divisor;
-		if (up->port.set_divisor)
-			uart->port.set_divisor = up->port.set_divisor;
-		if (up->port.startup)
-			uart->port.startup = up->port.startup;
-		if (up->port.shutdown)
-			uart->port.shutdown = up->port.shutdown;
-		if (up->port.pm)
-			uart->port.pm = up->port.pm;
-		if (up->port.handle_break)
-			uart->port.handle_break = up->port.handle_break;
-		if (up->dl_read)
-			uart->dl_read = up->dl_read;
-		if (up->dl_write)
-			uart->dl_write = up->dl_write;
-
-		if (uart->port.type != PORT_8250_CIR) {
-			if (uart_console_registered(&uart->port))
-				pm_runtime_get_sync(uart->port.dev);
-
-			if (serial8250_isa_config != NULL)
-				serial8250_isa_config(0, &uart->port,
-						&uart->capabilities);
-
-			serial8250_apply_quirks(uart);
-			ret = uart_add_one_port(&serial8250_reg,
-						&uart->port);
-			if (ret)
-				goto err;
-
-			ret = uart->port.line;
-		} else {
-			dev_info(uart->port.dev,
-				"skipping CIR port at 0x%lx / 0x%llx, IRQ %d\n",
-				uart->port.iobase,
-				(unsigned long long)uart->port.mapbase,
-				uart->port.irq);
-
-			ret = 0;
-		}
-
-		if (!uart->lsr_save_mask)
-			uart->lsr_save_mask = LSR_SAVE_FLAGS;	/* Use default LSR mask */
-
-		/* Initialise interrupt backoff work if required */
-		if (up->overrun_backoff_time_ms > 0) {
-			uart->overrun_backoff_time_ms =
-				up->overrun_backoff_time_ms;
-			INIT_DELAYED_WORK(&uart->overrun_backoff,
-					serial_8250_overrun_backoff_work);
-		} else {
-			uart->overrun_backoff_time_ms = 0;
-		}
+	/* Initialise interrupt backoff work if required */
+	if (up->overrun_backoff_time_ms > 0) {
+		uart->overrun_backoff_time_ms =
+			up->overrun_backoff_time_ms;
+		INIT_DELAYED_WORK(&uart->overrun_backoff,
+				serial_8250_overrun_backoff_work);
+	} else {
+		uart->overrun_backoff_time_ms = 0;
 	}
 
 unlock:

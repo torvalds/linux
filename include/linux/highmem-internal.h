@@ -195,7 +195,7 @@ static inline void *kmap_local_page_try_from_panic(struct page *page)
 
 static inline void *kmap_local_folio(struct folio *folio, size_t offset)
 {
-	return page_address(&folio->page) + offset;
+	return folio_address(folio) + offset;
 }
 
 static inline void *kmap_local_page_prot(struct page *page, pgprot_t prot)

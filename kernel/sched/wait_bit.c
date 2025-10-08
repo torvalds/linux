@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
+#include <linux/sched/debug.h>
+#include "sched.h"
+
 /*
  * The implementation of the wait_bit*() and related waiting APIs:
  */

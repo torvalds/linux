@@ -13,7 +13,7 @@
 
 /*
  * This module shows how to create a simple subdirectory in sysfs called
- * /sys/kernel/kobject-example  In that directory, 3 files are created:
+ * /sys/kernel/kobject_example  In that directory, 3 files are created:
  * "foo", "baz", and "bar".  If an integer is written to these files, it can be
  * later read out of it.
  */
@@ -102,7 +102,7 @@ static struct attribute *attrs[] = {
  * created for the attributes with the directory being the name of the
  * attribute group.
  */
-static struct attribute_group attr_group = {
+static const struct attribute_group attr_group = {
 	.attrs = attrs,
 };
 

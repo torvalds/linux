@@ -160,6 +160,7 @@ config UML_RTC
 config UML_PCI
 	bool
 	select FORCE_PCI
+	select IRQ_MSI_LIB
 	select UML_IOMEM_EMULATION
 	select UML_DMA_EMULATION
 	select PCI_MSI

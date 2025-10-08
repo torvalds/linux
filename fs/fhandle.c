@@ -88,7 +88,7 @@ static long do_sys_name_to_handle(const struct path *path,
 		if (fh_flags & EXPORT_FH_CONNECTABLE) {
 			handle->handle_type |= FILEID_IS_CONNECTABLE;
 			if (d_is_dir(path->dentry))
-				fh_flags |= FILEID_IS_DIR;
+				handle->handle_type |= FILEID_IS_DIR;
 		}
 		retval = 0;
 	}
@@ -168,23 +168,28 @@ SYSCALL_DEFINE5(name_to_handle_at, int, dfd, const char __user *, name,
 	return err;
 }
 
-static int get_path_from_fd(int fd, struct path *root)
+static int get_path_anchor(int fd, struct path *root)
 {
-	if (fd == AT_FDCWD) {
-		struct fs_struct *fs = current->fs;
-		spin_lock(&fs->lock);
-		*root = fs->pwd;
-		path_get(root);
-		spin_unlock(&fs->lock);
-	} else {
+	if (fd >= 0) {
 		CLASS(fd, f)(fd);
 		if (fd_empty(f))
 			return -EBADF;
 		*root = fd_file(f)->f_path;
 		path_get(root);
+		return 0;
 	}
 
-	return 0;
+	if (fd == AT_FDCWD) {
+		get_fs_pwd(current->fs, root);
+		return 0;
+	}
+
+	if (fd == FD_PIDFS_ROOT) {
+		pidfs_get_root(root);
+		return 0;
+	}
+
+	return -EBADF;
 }
 
 static int vfs_dentry_acceptable(void *context, struct dentry *dentry)
@@ -323,13 +328,24 @@ static int handle_to_path(int mountdirfd, struct file_handle __user *ufh,
 {
 	int retval = 0;
 	struct file_handle f_handle;
-	struct file_handle *handle = NULL;
+	struct file_handle *handle __free(kfree) = NULL;
 	struct handle_to_path_ctx ctx = {};
 	const struct export_operations *eops;
 
-	retval = get_path_from_fd(mountdirfd, &ctx.root);
+	if (copy_from_user(&f_handle, ufh, sizeof(struct file_handle)))
+		return -EFAULT;
+
+	if ((f_handle.handle_bytes > MAX_HANDLE_SZ) ||
+	    (f_handle.handle_bytes == 0))
+		return -EINVAL;
+
+	if (f_handle.handle_type < 0 ||
+	    FILEID_USER_FLAGS(f_handle.handle_type) & ~FILEID_VALID_USER_FLAGS)
+		return -EINVAL;
+
+	retval = get_path_anchor(mountdirfd, &ctx.root);
 	if (retval)
-		goto out_err;
+		return retval;
 
 	eops = ctx.root.mnt->mnt_sb->s_export_op;
 	if (eops && eops->permission)
@@ -338,21 +354,6 @@ static int handle_to_path(int mountdirfd, struct file_handle __user *ufh,
 		retval = may_decode_fh(&ctx, o_flags);
 	if (retval)
 		goto out_path;
-
-	if (copy_from_user(&f_handle, ufh, sizeof(struct file_handle))) {
-		retval = -EFAULT;
-		goto out_path;
-	}
-	if ((f_handle.handle_bytes > MAX_HANDLE_SZ) ||
-	    (f_handle.handle_bytes == 0)) {
-		retval = -EINVAL;
-		goto out_path;
-	}
-	if (f_handle.handle_type < 0 ||
-	    FILEID_USER_FLAGS(f_handle.handle_type) & ~FILEID_VALID_USER_FLAGS) {
-		retval = -EINVAL;
-		goto out_path;
-	}
 
 	handle = kmalloc(struct_size(handle, f_handle, f_handle.handle_bytes),
 			 GFP_KERNEL);
@@ -366,7 +367,7 @@ static int handle_to_path(int mountdirfd, struct file_handle __user *ufh,
 			   &ufh->f_handle,
 			   f_handle.handle_bytes)) {
 		retval = -EFAULT;
-		goto out_handle;
+		goto out_path;
 	}
 
 	/*
@@ -384,11 +385,8 @@ static int handle_to_path(int mountdirfd, struct file_handle __user *ufh,
 	handle->handle_type &= ~FILEID_USER_FLAGS_MASK;
 	retval = do_handle_to_path(handle, path, &ctx);
 
-out_handle:
-	kfree(handle);
 out_path:
 	path_put(&ctx.root);
-out_err:
 	return retval;
 }
 

@@ -1203,7 +1203,7 @@ static int davinci_mmcsd_probe(struct platform_device *pdev)
 	if (!mem)
 		return -EBUSY;
 
-	mmc = mmc_alloc_host(sizeof(struct mmc_davinci_host), &pdev->dev);
+	mmc = devm_mmc_alloc_host(&pdev->dev, sizeof(*host));
 	if (!mmc)
 		return -ENOMEM;
 
@@ -1212,19 +1212,16 @@ static int davinci_mmcsd_probe(struct platform_device *pdev)
 
 	host->mem_res = mem;
 	host->base = devm_ioremap(&pdev->dev, mem->start, mem_size);
-	if (!host->base) {
-		ret = -ENOMEM;
-		goto ioremap_fail;
-	}
+	if (!host->base)
+		return -ENOMEM;
 
 	host->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(host->clk)) {
-		ret = PTR_ERR(host->clk);
-		goto clk_get_fail;
-	}
+	if (IS_ERR(host->clk))
+		return PTR_ERR(host->clk);
+
 	ret = clk_prepare_enable(host->clk);
 	if (ret)
-		goto clk_prepare_enable_fail;
+		return ret;
 
 	host->mmc_input_clk = clk_get_rate(host->clk);
 
@@ -1336,10 +1333,6 @@ cpu_freq_fail:
 parse_fail:
 dma_probe_defer:
 	clk_disable_unprepare(host->clk);
-clk_prepare_enable_fail:
-clk_get_fail:
-ioremap_fail:
-	mmc_free_host(mmc);
 
 	return ret;
 }
@@ -1352,7 +1345,6 @@ static void davinci_mmcsd_remove(struct platform_device *pdev)
 	mmc_davinci_cpufreq_deregister(host);
 	davinci_release_dma_channels(host);
 	clk_disable_unprepare(host->clk);
-	mmc_free_host(host->mmc);
 }
 
 #ifdef CONFIG_PM

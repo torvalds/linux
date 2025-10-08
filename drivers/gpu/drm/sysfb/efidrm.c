@@ -202,7 +202,7 @@ static struct efidrm_device *efidrm_device_create(struct drm_driver *drv,
 	drm_dbg(dev, "framebuffer format=%p4cc, size=%dx%d, stride=%d bytes\n",
 		&format->format, width, height, stride);
 
-#ifdef CONFIG_X86
+#if defined(CONFIG_FIRMWARE_EDID)
 	if (drm_edid_header_is_valid(edid_info.dummy) == 8)
 		sysfb->edid = edid_info.dummy;
 #endif
@@ -271,8 +271,8 @@ static struct efidrm_device *efidrm_device_create(struct drm_driver *drv,
 
 	/* Primary plane */
 
-	nformats = drm_fb_build_fourcc_list(dev, &format->format, 1,
-					    efi->formats, ARRAY_SIZE(efi->formats));
+	nformats = drm_sysfb_build_fourcc_list(dev, &format->format, 1,
+					       efi->formats, ARRAY_SIZE(efi->formats));
 
 	primary_plane = &efi->primary_plane;
 	ret = drm_universal_plane_init(dev, primary_plane, 0, &efidrm_primary_plane_funcs,

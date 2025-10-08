@@ -77,6 +77,7 @@
 static int  cfg_cork;
 static bool cfg_cork_mixed;
 static int  cfg_cpu		= -1;		/* default: pin to last cpu */
+static int  cfg_expect_zerocopy	= -1;
 static int  cfg_family		= PF_UNSPEC;
 static int  cfg_ifindex		= 1;
 static int  cfg_payload_len;
@@ -92,9 +93,9 @@ static socklen_t cfg_alen;
 static struct sockaddr_storage cfg_dst_addr;
 static struct sockaddr_storage cfg_src_addr;
 
+static int exitcode;
 static char payload[IP_MAXPACKET];
 static long packets, bytes, completions, expected_completions;
-static int  zerocopied = -1;
 static uint32_t next_completion;
 static uint32_t sends_since_notify;
 
@@ -444,11 +445,13 @@ static bool do_recv_completion(int fd, int domain)
 	next_completion = hi + 1;
 
 	zerocopy = !(serr->ee_code & SO_EE_CODE_ZEROCOPY_COPIED);
-	if (zerocopied == -1)
-		zerocopied = zerocopy;
-	else if (zerocopied != zerocopy) {
-		fprintf(stderr, "serr: inconsistent\n");
-		zerocopied = zerocopy;
+	if (cfg_expect_zerocopy != -1 &&
+	    cfg_expect_zerocopy != zerocopy) {
+		fprintf(stderr, "serr: ee_code: %u != expected %u\n",
+			zerocopy, cfg_expect_zerocopy);
+		exitcode = 1;
+		/* suppress repeated messages */
+		cfg_expect_zerocopy = zerocopy;
 	}
 
 	if (cfg_verbose >= 2)
@@ -571,7 +574,7 @@ static void do_tx(int domain, int type, int protocol)
 
 	fprintf(stderr, "tx=%lu (%lu MB) txc=%lu zc=%c\n",
 		packets, bytes >> 20, completions,
-		zerocopied == 1 ? 'y' : 'n');
+		cfg_zerocopy && cfg_expect_zerocopy == 1 ? 'y' : 'n');
 }
 
 static int do_setup_rx(int domain, int type, int protocol)
@@ -715,7 +718,7 @@ static void parse_opts(int argc, char **argv)
 
 	cfg_payload_len = max_payload_len;
 
-	while ((c = getopt(argc, argv, "46c:C:D:i:l:mp:rs:S:t:vz")) != -1) {
+	while ((c = getopt(argc, argv, "46c:C:D:i:l:mp:rs:S:t:vzZ:")) != -1) {
 		switch (c) {
 		case '4':
 			if (cfg_family != PF_UNSPEC)
@@ -770,6 +773,9 @@ static void parse_opts(int argc, char **argv)
 		case 'z':
 			cfg_zerocopy = true;
 			break;
+		case 'Z':
+			cfg_expect_zerocopy = !!atoi(optarg);
+			break;
 		}
 	}
 
@@ -817,5 +823,5 @@ int main(int argc, char **argv)
 	else
 		error(1, 0, "unknown cfg_test %s", cfg_test);
 
-	return 0;
+	return exitcode;
 }

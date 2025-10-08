@@ -100,6 +100,15 @@ properties:
               PMIC default "STANDBY" state voltage in uV. Only Buck1~3 have such
               dvs(dynamic voltage scaling) property.
 
+          regulator-allowed-modes:
+            description: |
+              Buck regulator operating modes allowed. Valid values below.
+              Users should use the macros from dt-bindings/regulator/nxp,pca9450-regulator.h
+                0 (PCA9450_BUCK_MODE_AUTO): Auto PFM/PWM mode
+                1 (PCA9450_BUCK_MODE_FORCE_PWM): Forced PWM mode
+            items:
+              enum: [ 0, 1 ]
+
         unevaluatedProperties: false
 
     additionalProperties: false
@@ -143,6 +152,7 @@ allOf:
 examples:
   - |
     #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/regulator/nxp,pca9450-regulator.h>
 
     i2c {
         #address-cells = <1>;
@@ -179,6 +189,8 @@ examples:
                     regulator-max-microvolt = <3400000>;
                     regulator-boot-on;
                     regulator-always-on;
+                    regulator-initial-mode = <PCA9450_BUCK_MODE_FORCE_PWM>;
+                    regulator-allowed-modes = <PCA9450_BUCK_MODE_FORCE_PWM>;
                 };
                 buck5: BUCK5 {
                     regulator-name = "BUCK5";
@@ -186,6 +198,8 @@ examples:
                     regulator-max-microvolt = <3400000>;
                     regulator-boot-on;
                     regulator-always-on;
+                    regulator-allowed-modes = <PCA9450_BUCK_MODE_AUTO
+                                               PCA9450_BUCK_MODE_FORCE_PWM>;
                 };
                 buck6: BUCK6 {
                     regulator-name = "BUCK6";

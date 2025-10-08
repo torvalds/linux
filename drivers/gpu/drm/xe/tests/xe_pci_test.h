@@ -12,15 +12,6 @@
 #include "xe_sriov_types.h"
 
 struct xe_device;
-struct xe_graphics_desc;
-struct xe_media_desc;
-
-typedef int (*xe_device_fn)(struct xe_device *);
-typedef void (*xe_graphics_fn)(const struct xe_graphics_desc *);
-typedef void (*xe_media_fn)(const struct xe_media_desc *);
-
-void xe_call_for_each_graphics_ip(xe_graphics_fn xe_fn);
-void xe_call_for_each_media_ip(xe_media_fn xe_fn);
 
 struct xe_pci_fake_data {
 	enum xe_sriov_mode sriov_mode;
@@ -34,6 +25,9 @@ struct xe_pci_fake_data {
 
 int xe_pci_fake_device_init(struct xe_device *xe);
 
+const void *xe_pci_graphics_ip_gen_param(const void *prev, char *desc);
+const void *xe_pci_media_ip_gen_param(const void *prev, char *desc);
+const void *xe_pci_id_gen_param(const void *prev, char *desc);
 const void *xe_pci_live_device_gen_param(const void *prev, char *desc);
 
 #endif

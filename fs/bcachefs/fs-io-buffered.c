@@ -674,7 +674,7 @@ int bch2_writepages(struct address_space *mapping, struct writeback_control *wbc
 
 /* buffered writes: */
 
-int bch2_write_begin(struct file *file, struct address_space *mapping,
+int bch2_write_begin(const struct kiocb *iocb, struct address_space *mapping,
 		     loff_t pos, unsigned len,
 		     struct folio **foliop, void **fsdata)
 {
@@ -757,7 +757,7 @@ err_unlock:
 	return bch2_err_class(ret);
 }
 
-int bch2_write_end(struct file *file, struct address_space *mapping,
+int bch2_write_end(const struct kiocb *iocb, struct address_space *mapping,
 		   loff_t pos, unsigned len, unsigned copied,
 		   struct folio *folio, void *fsdata)
 {

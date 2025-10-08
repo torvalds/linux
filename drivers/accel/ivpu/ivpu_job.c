@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2020-2024 Intel Corporation
+ * Copyright (C) 2020-2025 Intel Corporation
  */
 
 #include <drm/drm_file.h>
@@ -100,6 +100,43 @@ err_free_cmdq:
 	return NULL;
 }
 
+/**
+ * ivpu_cmdq_get_entry_count - Calculate the number of entries in the command queue.
+ * @cmdq: Pointer to the command queue structure.
+ *
+ * Returns the number of entries that can fit in the command queue memory.
+ */
+static inline u32 ivpu_cmdq_get_entry_count(struct ivpu_cmdq *cmdq)
+{
+	size_t size = ivpu_bo_size(cmdq->mem) - sizeof(struct vpu_job_queue_header);
+
+	return size / sizeof(struct vpu_job_queue_entry);
+}
+
+/**
+ * ivpu_cmdq_get_flags - Get command queue flags based on input flags and test mode.
+ * @vdev: Pointer to the ivpu device structure.
+ * @flags: Input flags to determine the command queue flags.
+ *
+ * Returns the calculated command queue flags, considering both the input flags
+ * and the current test mode settings.
+ */
+static u32 ivpu_cmdq_get_flags(struct ivpu_device *vdev, u32 flags)
+{
+	u32 cmdq_flags = 0;
+
+	if ((flags & DRM_IVPU_CMDQ_FLAG_TURBO) && (ivpu_hw_ip_gen(vdev) >= IVPU_HW_IP_40XX))
+		cmdq_flags |= VPU_JOB_QUEUE_FLAGS_TURBO_MODE;
+
+	/* Test mode can override the TURBO flag coming from the application */
+	if (ivpu_test_mode & IVPU_TEST_MODE_TURBO_ENABLE)
+		cmdq_flags |= VPU_JOB_QUEUE_FLAGS_TURBO_MODE;
+	if (ivpu_test_mode & IVPU_TEST_MODE_TURBO_DISABLE)
+		cmdq_flags &= ~VPU_JOB_QUEUE_FLAGS_TURBO_MODE;
+
+	return cmdq_flags;
+}
+
 static void ivpu_cmdq_free(struct ivpu_file_priv *file_priv, struct ivpu_cmdq *cmdq)
 {
 	ivpu_preemption_buffers_free(file_priv->vdev, file_priv, cmdq);
@@ -107,8 +144,7 @@ static void ivpu_cmdq_free(struct ivpu_file_priv *file_priv, struct ivpu_cmdq *c
 	kfree(cmdq);
 }
 
-static struct ivpu_cmdq *ivpu_cmdq_create(struct ivpu_file_priv *file_priv, u8 priority,
-					  bool is_legacy)
+static struct ivpu_cmdq *ivpu_cmdq_create(struct ivpu_file_priv *file_priv, u8 priority, u32 flags)
 {
 	struct ivpu_device *vdev = file_priv->vdev;
 	struct ivpu_cmdq *cmdq = NULL;
@@ -121,10 +157,6 @@ static struct ivpu_cmdq *ivpu_cmdq_create(struct ivpu_file_priv *file_priv, u8 p
 		ivpu_err(vdev, "Failed to allocate command queue\n");
 		return NULL;
 	}
-
-	cmdq->priority = priority;
-	cmdq->is_legacy = is_legacy;
-
 	ret = xa_alloc_cyclic(&file_priv->cmdq_xa, &cmdq->id, cmdq, file_priv->cmdq_limit,
 			      &file_priv->cmdq_id_next, GFP_KERNEL);
 	if (ret < 0) {
@@ -132,7 +164,15 @@ static struct ivpu_cmdq *ivpu_cmdq_create(struct ivpu_file_priv *file_priv, u8 p
 		goto err_free_cmdq;
 	}
 
-	ivpu_dbg(vdev, JOB, "Command queue %d created, ctx %d\n", cmdq->id, file_priv->ctx.id);
+	cmdq->entry_count = ivpu_cmdq_get_entry_count(cmdq);
+	cmdq->priority = priority;
+
+	cmdq->jobq = (struct vpu_job_queue *)ivpu_bo_vaddr(cmdq->mem);
+	cmdq->jobq->header.engine_idx = VPU_ENGINE_COMPUTE;
+	cmdq->jobq->header.flags = ivpu_cmdq_get_flags(vdev, flags);
+
+	ivpu_dbg(vdev, JOB, "Command queue %d created, ctx %d, flags 0x%08x\n",
+		 cmdq->id, file_priv->ctx.id, cmdq->jobq->header.flags);
 	return cmdq;
 
 err_free_cmdq:
@@ -188,25 +228,12 @@ static int ivpu_register_db(struct ivpu_file_priv *file_priv, struct ivpu_cmdq *
 	return ret;
 }
 
-static void ivpu_cmdq_jobq_init(struct ivpu_device *vdev, struct vpu_job_queue *jobq)
+static void ivpu_cmdq_jobq_reset(struct ivpu_device *vdev, struct vpu_job_queue *jobq)
 {
-	jobq->header.engine_idx = VPU_ENGINE_COMPUTE;
 	jobq->header.head = 0;
 	jobq->header.tail = 0;
 
-	if (ivpu_test_mode & IVPU_TEST_MODE_TURBO) {
-		ivpu_dbg(vdev, JOB, "Turbo mode enabled");
-		jobq->header.flags = VPU_JOB_QUEUE_FLAGS_TURBO_MODE;
-	}
-
 	wmb(); /* Flush WC buffer for jobq->header */
-}
-
-static inline u32 ivpu_cmdq_get_entry_count(struct ivpu_cmdq *cmdq)
-{
-	size_t size = ivpu_bo_size(cmdq->mem) - sizeof(struct vpu_job_queue_header);
-
-	return size / sizeof(struct vpu_job_queue_entry);
 }
 
 static int ivpu_cmdq_register(struct ivpu_file_priv *file_priv, struct ivpu_cmdq *cmdq)
@@ -219,10 +246,7 @@ static int ivpu_cmdq_register(struct ivpu_file_priv *file_priv, struct ivpu_cmdq
 	if (cmdq->db_id)
 		return 0;
 
-	cmdq->entry_count = ivpu_cmdq_get_entry_count(cmdq);
-	cmdq->jobq = (struct vpu_job_queue *)ivpu_bo_vaddr(cmdq->mem);
-
-	ivpu_cmdq_jobq_init(vdev, cmdq->jobq);
+	ivpu_cmdq_jobq_reset(vdev, cmdq->jobq);
 
 	if (vdev->fw->sched_mode == VPU_SCHEDULING_MODE_HW) {
 		ret = ivpu_hws_cmdq_init(file_priv, cmdq, VPU_ENGINE_COMPUTE, cmdq->priority);
@@ -291,9 +315,10 @@ static struct ivpu_cmdq *ivpu_cmdq_acquire_legacy(struct ivpu_file_priv *file_pr
 			break;
 
 	if (!cmdq) {
-		cmdq = ivpu_cmdq_create(file_priv, priority, true);
+		cmdq = ivpu_cmdq_create(file_priv, priority, 0);
 		if (!cmdq)
 			return NULL;
+		cmdq->is_legacy = true;
 	}
 
 	return cmdq;
@@ -891,7 +916,7 @@ int ivpu_cmdq_create_ioctl(struct drm_device *dev, void *data, struct drm_file *
 
 	mutex_lock(&file_priv->lock);
 
-	cmdq = ivpu_cmdq_create(file_priv, ivpu_job_to_jsm_priority(args->priority), false);
+	cmdq = ivpu_cmdq_create(file_priv, ivpu_job_to_jsm_priority(args->priority), args->flags);
 	if (cmdq)
 		args->cmdq_id = cmdq->id;
 

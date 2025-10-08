@@ -404,8 +404,6 @@ static void ushc_clean_up(struct ushc_data *ushc)
 	kfree(ushc->int_data);
 	kfree(ushc->cbw);
 	kfree(ushc->csw);
-
-	mmc_free_host(ushc->mmc);
 }
 
 static const struct mmc_host_ops ushc_ops = {
@@ -425,7 +423,7 @@ static int ushc_probe(struct usb_interface *intf, const struct usb_device_id *id
 	if (intf->cur_altsetting->desc.bNumEndpoints < 1)
 		return -ENODEV;
 
-	mmc = mmc_alloc_host(sizeof(struct ushc_data), &intf->dev);
+	mmc = devm_mmc_alloc_host(&intf->dev, sizeof(*ushc));
 	if (mmc == NULL)
 		return -ENOMEM;
 	ushc = mmc_priv(mmc);

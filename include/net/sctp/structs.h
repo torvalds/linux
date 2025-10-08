@@ -51,9 +51,9 @@
  * We should wean ourselves off this.
  */
 union sctp_addr {
+	struct sockaddr_inet sa;	/* Large enough for both address families */
 	struct sockaddr_in v4;
 	struct sockaddr_in6 v6;
-	struct sockaddr sa;
 };
 
 /* Forward declarations for data structures. */

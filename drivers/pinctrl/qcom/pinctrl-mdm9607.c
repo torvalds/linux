@@ -1059,7 +1059,6 @@ static struct platform_driver mdm9607_pinctrl_driver = {
 		.of_match_table = mdm9607_pinctrl_of_match,
 	},
 	.probe = mdm9607_pinctrl_probe,
-	.remove = msm_pinctrl_remove,
 };
 
 static int __init mdm9607_pinctrl_init(void)

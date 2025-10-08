@@ -4,7 +4,7 @@
 
 #include <asm/sun3mmu.h>
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #include <asm/virtconvert.h>
 #include <linux/linkage.h>
 
@@ -19,7 +19,7 @@
 #define PTOV(addr)	__va(addr)
 
 
-#endif	/* !__ASSEMBLY__ */
+#endif	/* !__ASSEMBLER__ */
 
 /* These need to be defined for compatibility although the sun3 doesn't use them */
 #define _PAGE_NOCACHE030 0x040
@@ -74,7 +74,7 @@
 /* We borrow bit 6 to store the exclusive marker in swap PTEs. */
 #define _PAGE_SWP_EXCLUSIVE	0x040
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 {
@@ -169,7 +169,7 @@ extern pgd_t kernel_pg_dir[PTRS_PER_PGD];
 #define __pte_to_swp_entry(pte)	((swp_entry_t) { pte_val(pte) })
 #define __swp_entry_to_pte(x)	((pte_t) { (x).val })
 
-static inline int pte_swp_exclusive(pte_t pte)
+static inline bool pte_swp_exclusive(pte_t pte)
 {
 	return pte_val(pte) & _PAGE_SWP_EXCLUSIVE;
 }
@@ -186,5 +186,5 @@ static inline pte_t pte_swp_clear_exclusive(pte_t pte)
 	return pte;
 }
 
-#endif	/* !__ASSEMBLY__ */
+#endif	/* !__ASSEMBLER__ */
 #endif	/* !_SUN3_PGTABLE_H */

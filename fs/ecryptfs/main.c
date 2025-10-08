@@ -20,6 +20,7 @@
 #include <linux/fs_context.h>
 #include <linux/fs_parser.h>
 #include <linux/fs_stack.h>
+#include <linux/sysfs.h>
 #include <linux/slab.h>
 #include <linux/magic.h>
 #include "ecryptfs_kernel.h"
@@ -471,7 +472,7 @@ static int ecryptfs_get_tree(struct fs_context *fc)
 	sbi = NULL;
 	s->s_op = &ecryptfs_sops;
 	s->s_xattr = ecryptfs_xattr_handlers;
-	s->s_d_op = &ecryptfs_dops;
+	set_default_d_op(s, &ecryptfs_dops);
 
 	err = "Reading sb failed";
 	rc = kern_path(fc->source, LOOKUP_FOLLOW | LOOKUP_DIRECTORY, &path);
@@ -764,7 +765,7 @@ static struct kobject *ecryptfs_kobj;
 static ssize_t version_show(struct kobject *kobj,
 			    struct kobj_attribute *attr, char *buff)
 {
-	return snprintf(buff, PAGE_SIZE, "%d\n", ECRYPTFS_VERSIONING_MASK);
+	return sysfs_emit(buff, "%d\n", ECRYPTFS_VERSIONING_MASK);
 }
 
 static struct kobj_attribute version_attr = __ATTR_RO(version);

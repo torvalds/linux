@@ -1622,6 +1622,7 @@ static inline bool rtw89_pci_ltr_is_err_reg_val(u32 val)
 
 extern const struct dev_pm_ops rtw89_pm_ops;
 extern const struct dev_pm_ops rtw89_pm_ops_be;
+extern const struct pci_error_handlers rtw89_pci_err_handler;
 extern const struct rtw89_pci_ch_dma_addr_set rtw89_pci_ch_dma_addr_set;
 extern const struct rtw89_pci_ch_dma_addr_set rtw89_pci_ch_dma_addr_set_v1;
 extern const struct rtw89_pci_ch_dma_addr_set rtw89_pci_ch_dma_addr_set_be;

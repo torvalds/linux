@@ -7,9 +7,6 @@
 #define _XE_SRIOV_TYPES_H_
 
 #include <linux/build_bug.h>
-#include <linux/mutex.h>
-#include <linux/types.h>
-#include <linux/workqueue_types.h>
 
 /**
  * VFID - Virtual Function Identifier
@@ -39,38 +36,5 @@ enum xe_sriov_mode {
 	XE_SRIOV_MODE_VF,
 };
 static_assert(XE_SRIOV_MODE_NONE);
-
-/**
- * struct xe_device_pf - Xe PF related data
- *
- * The data in this structure is valid only if driver is running in the
- * @XE_SRIOV_MODE_PF mode.
- */
-struct xe_device_pf {
-	/** @device_total_vfs: Maximum number of VFs supported by the device. */
-	u16 device_total_vfs;
-
-	/** @driver_max_vfs: Maximum number of VFs supported by the driver. */
-	u16 driver_max_vfs;
-
-	/** @master_lock: protects all VFs configurations across GTs */
-	struct mutex master_lock;
-};
-
-/**
- * struct xe_device_vf - Xe Virtual Function related data
- *
- * The data in this structure is valid only if driver is running in the
- * @XE_SRIOV_MODE_VF mode.
- */
-struct xe_device_vf {
-	/** @migration: VF Migration state data */
-	struct {
-		/** @migration.worker: VF migration recovery worker */
-		struct work_struct worker;
-		/** @migration.gt_flags: Per-GT request flags for VF migration recovery */
-		unsigned long gt_flags;
-	} migration;
-};
 
 #endif

@@ -33,6 +33,4 @@ static inline void CMOS_WRITE(unsigned char data, unsigned long addr)
 
 #define RTC_ALWAYS_BCD	0
 
-#define mc146818_decode_year(year) ((year) + 1980)
-
 #endif /* __ASM_MACH_JAZZ_MC146818RTC_H */

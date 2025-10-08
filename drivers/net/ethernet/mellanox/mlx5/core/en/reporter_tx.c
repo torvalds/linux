@@ -13,7 +13,6 @@ static const char * const sq_sw_state_type_name[] = {
 	[MLX5E_SQ_STATE_RECOVERING] = "recovering",
 	[MLX5E_SQ_STATE_IPSEC] = "ipsec",
 	[MLX5E_SQ_STATE_DIM] = "dim",
-	[MLX5E_SQ_STATE_VLAN_NEED_L2_INLINE] = "vlan_need_l2_inline",
 	[MLX5E_SQ_STATE_PENDING_XSK_TX] = "pending_xsk_tx",
 	[MLX5E_SQ_STATE_PENDING_TLS_RX_RESYNC] = "pending_tls_rx_resync",
 };
@@ -312,6 +311,30 @@ out:
 	mlx5e_health_fmsg_named_obj_nest_end(fmsg);
 }
 
+static void
+mlx5e_tx_reporter_diagnose_tis_config(struct devlink_health_reporter *reporter,
+				      struct devlink_fmsg *fmsg)
+{
+	struct mlx5e_priv *priv = devlink_health_reporter_priv(reporter);
+	u8 num_tc = mlx5e_get_dcb_num_tc(&priv->channels.params);
+	u32 tc, i, tisn;
+
+	devlink_fmsg_arr_pair_nest_start(fmsg, "TIS Config");
+	for (i = 0; i < mlx5e_get_num_lag_ports(priv->mdev); i++) {
+		for (tc = 0; tc < num_tc; tc++) {
+			tisn = mlx5e_profile_get_tisn(priv->mdev, priv,
+						      priv->profile, i, tc);
+
+			devlink_fmsg_obj_nest_start(fmsg);
+			devlink_fmsg_u32_pair_put(fmsg, "lag port", i);
+			devlink_fmsg_u32_pair_put(fmsg, "tc", tc);
+			devlink_fmsg_u32_pair_put(fmsg, "tisn", tisn);
+			devlink_fmsg_obj_nest_end(fmsg);
+		}
+	}
+	devlink_fmsg_arr_pair_nest_end(fmsg);
+}
+
 static int mlx5e_tx_reporter_diagnose(struct devlink_health_reporter *reporter,
 				      struct devlink_fmsg *fmsg,
 				      struct netlink_ext_ack *extack)
@@ -327,6 +350,7 @@ static int mlx5e_tx_reporter_diagnose(struct devlink_health_reporter *reporter,
 		goto unlock;
 
 	mlx5e_tx_reporter_diagnose_common_config(reporter, fmsg);
+	mlx5e_tx_reporter_diagnose_tis_config(reporter, fmsg);
 	devlink_fmsg_arr_pair_nest_start(fmsg, "SQs");
 
 	for (i = 0; i < priv->channels.num; i++) {

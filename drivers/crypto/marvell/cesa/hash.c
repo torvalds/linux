@@ -110,9 +110,12 @@ static inline void mv_cesa_ahash_dma_cleanup(struct ahash_request *req)
 static inline void mv_cesa_ahash_cleanup(struct ahash_request *req)
 {
 	struct mv_cesa_ahash_req *creq = ahash_request_ctx(req);
+	struct mv_cesa_engine *engine = creq->base.engine;
 
 	if (mv_cesa_req_get_type(&creq->base) == CESA_DMA_REQ)
 		mv_cesa_ahash_dma_cleanup(req);
+
+	atomic_sub(req->nbytes, &engine->load);
 }
 
 static void mv_cesa_ahash_last_cleanup(struct ahash_request *req)
@@ -362,16 +365,13 @@ static void mv_cesa_ahash_complete(struct crypto_async_request *req)
 	if (mv_cesa_req_get_type(&creq->base) == CESA_DMA_REQ &&
 	    (creq->base.chain.last->flags & CESA_TDMA_TYPE_MSK) ==
 	     CESA_TDMA_RESULT) {
-		__le32 *data = NULL;
+		const void *data;
 
 		/*
 		 * Result is already in the correct endianness when the SA is
 		 * used
 		 */
 		data = creq->base.chain.last->op->ctx.hash.hash;
-		for (i = 0; i < digsize / 4; i++)
-			creq->state[i] = le32_to_cpu(data[i]);
-
 		memcpy(ahashreq->result, data, digsize);
 	} else {
 		for (i = 0; i < digsize / 4; i++)
@@ -395,8 +395,6 @@ static void mv_cesa_ahash_complete(struct crypto_async_request *req)
 			}
 		}
 	}
-
-	atomic_sub(ahashreq->nbytes, &engine->load);
 }
 
 static void mv_cesa_ahash_prepare(struct crypto_async_request *req,

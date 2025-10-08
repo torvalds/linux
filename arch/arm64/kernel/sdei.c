@@ -34,10 +34,8 @@ unsigned long sdei_exit_mode;
 DECLARE_PER_CPU(unsigned long *, sdei_stack_normal_ptr);
 DECLARE_PER_CPU(unsigned long *, sdei_stack_critical_ptr);
 
-#ifdef CONFIG_VMAP_STACK
 DEFINE_PER_CPU(unsigned long *, sdei_stack_normal_ptr);
 DEFINE_PER_CPU(unsigned long *, sdei_stack_critical_ptr);
-#endif
 
 DECLARE_PER_CPU(unsigned long *, sdei_shadow_call_stack_normal_ptr);
 DECLARE_PER_CPU(unsigned long *, sdei_shadow_call_stack_critical_ptr);
@@ -65,8 +63,7 @@ static void free_sdei_stacks(void)
 {
 	int cpu;
 
-	if (!IS_ENABLED(CONFIG_VMAP_STACK))
-		return;
+	BUILD_BUG_ON(!IS_ENABLED(CONFIG_VMAP_STACK));
 
 	for_each_possible_cpu(cpu) {
 		_free_sdei_stack(&sdei_stack_normal_ptr, cpu);
@@ -91,8 +88,7 @@ static int init_sdei_stacks(void)
 	int cpu;
 	int err = 0;
 
-	if (!IS_ENABLED(CONFIG_VMAP_STACK))
-		return 0;
+	BUILD_BUG_ON(!IS_ENABLED(CONFIG_VMAP_STACK));
 
 	for_each_possible_cpu(cpu) {
 		err = _init_sdei_stack(&sdei_stack_normal_ptr, cpu);

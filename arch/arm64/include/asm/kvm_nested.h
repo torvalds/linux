@@ -80,6 +80,8 @@ extern void kvm_vcpu_load_hw_mmu(struct kvm_vcpu *vcpu);
 extern void kvm_vcpu_put_hw_mmu(struct kvm_vcpu *vcpu);
 
 extern void check_nested_vcpu_requests(struct kvm_vcpu *vcpu);
+extern void kvm_nested_flush_hwstate(struct kvm_vcpu *vcpu);
+extern void kvm_nested_sync_hwstate(struct kvm_vcpu *vcpu);
 
 struct kvm_s2_trans {
 	phys_addr_t output;

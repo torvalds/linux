@@ -282,8 +282,8 @@ static noinline void end_compressed_writeback(const struct compressed_bio *cb)
 {
 	struct inode *inode = &cb->bbio.inode->vfs_inode;
 	struct btrfs_fs_info *fs_info = inode_to_fs_info(inode);
-	unsigned long index = cb->start >> PAGE_SHIFT;
-	unsigned long end_index = (cb->start + cb->len - 1) >> PAGE_SHIFT;
+	pgoff_t index = cb->start >> PAGE_SHIFT;
+	const pgoff_t end_index = (cb->start + cb->len - 1) >> PAGE_SHIFT;
 	struct folio_batch fbatch;
 	int i;
 	int ret;
@@ -415,7 +415,7 @@ static noinline int add_ra_bio_pages(struct inode *inode,
 				     int *memstall, unsigned long *pflags)
 {
 	struct btrfs_fs_info *fs_info = inode_to_fs_info(inode);
-	unsigned long end_index;
+	pgoff_t end_index;
 	struct bio *orig_bio = &cb->orig_bbio->bio;
 	u64 cur = cb->orig_bbio->file_offset + orig_bio->bi_iter.bi_size;
 	u64 isize = i_size_read(inode);
@@ -446,8 +446,8 @@ static noinline int add_ra_bio_pages(struct inode *inode,
 	end_index = (i_size_read(inode) - 1) >> PAGE_SHIFT;
 
 	while (cur < compressed_end) {
-		u64 page_end;
-		u64 pg_index = cur >> PAGE_SHIFT;
+		pgoff_t page_end;
+		pgoff_t pg_index = cur >> PAGE_SHIFT;
 		u32 add_size;
 
 		if (pg_index > end_index)
@@ -789,8 +789,8 @@ static void btrfs_init_workspace_manager(int type)
 	 */
 	workspace = alloc_workspace(type, 0);
 	if (IS_ERR(workspace)) {
-		pr_warn(
-	"BTRFS: cannot preallocate compression workspace, will try later\n");
+		btrfs_warn(NULL,
+			   "cannot preallocate compression workspace, will try later");
 	} else {
 		atomic_set(&wsm->total_ws, 1);
 		wsm->free_ws = 1;
@@ -888,9 +888,9 @@ again:
 					/* once per minute */ 60 * HZ,
 					/* no burst */ 1);
 
-			if (__ratelimit(&_rs)) {
-				pr_warn("BTRFS: no compression workspaces, low memory, retrying\n");
-			}
+			if (__ratelimit(&_rs))
+				btrfs_warn(NULL,
+				"no compression workspaces, low memory, retrying");
 		}
 		goto again;
 	}
@@ -975,7 +975,7 @@ static int btrfs_compress_set_level(unsigned int type, int level)
 	if (level == 0)
 		level = ops->default_level;
 	else
-		level = min(max(level, ops->min_level), ops->max_level);
+		level = clamp(level, ops->min_level, ops->max_level);
 
 	return level;
 }
@@ -1482,7 +1482,7 @@ static void heuristic_collect_sample(struct inode *inode, u64 start, u64 end,
 				     struct heuristic_ws *ws)
 {
 	struct page *page;
-	u64 index, index_end;
+	pgoff_t index, index_end;
 	u32 i, curr_sample_pos;
 	u8 *in_data;
 

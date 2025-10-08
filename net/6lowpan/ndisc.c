@@ -20,9 +20,8 @@ static int lowpan_ndisc_parse_802154_options(const struct net_device *dev,
 	switch (nd_opt->nd_opt_len) {
 	case NDISC_802154_SHORT_ADDR_LENGTH:
 		if (ndopts->nd_802154_opt_array[nd_opt->nd_opt_type])
-			ND_PRINTK(2, warn,
-				  "%s: duplicated short addr ND6 option found: type=%d\n",
-				  __func__, nd_opt->nd_opt_type);
+			net_dbg_ratelimited("%s: duplicated short addr ND6 option found: type=%d\n",
+					    __func__, nd_opt->nd_opt_type);
 		else
 			ndopts->nd_802154_opt_array[nd_opt->nd_opt_type] = nd_opt;
 		return 1;
@@ -63,8 +62,7 @@ static void lowpan_ndisc_802154_update(struct neighbour *n, u32 flags,
 			lladdr_short = __ndisc_opt_addr_data(ndopts->nd_802154_opts_src_lladdr,
 							     IEEE802154_SHORT_ADDR_LEN, 0);
 			if (!lladdr_short) {
-				ND_PRINTK(2, warn,
-					  "NA: invalid short link-layer address length\n");
+				net_dbg_ratelimited("NA: invalid short link-layer address length\n");
 				return;
 			}
 		}
@@ -75,8 +73,7 @@ static void lowpan_ndisc_802154_update(struct neighbour *n, u32 flags,
 			lladdr_short = __ndisc_opt_addr_data(ndopts->nd_802154_opts_tgt_lladdr,
 							     IEEE802154_SHORT_ADDR_LEN, 0);
 			if (!lladdr_short) {
-				ND_PRINTK(2, warn,
-					  "NA: invalid short link-layer address length\n");
+				net_dbg_ratelimited("NA: invalid short link-layer address length\n");
 				return;
 			}
 		}
@@ -209,9 +206,8 @@ static void lowpan_ndisc_prefix_rcv_add_addr(struct net *net,
 						   sllao, tokenized, valid_lft,
 						   prefered_lft);
 		if (err)
-			ND_PRINTK(2, warn,
-				  "RA: could not add a short address based address for prefix: %pI6c\n",
-				  &pinfo->prefix);
+			net_dbg_ratelimited("RA: could not add a short address based address for prefix: %pI6c\n",
+					    &pinfo->prefix);
 	}
 }
 #endif

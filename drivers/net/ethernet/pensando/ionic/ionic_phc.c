@@ -290,7 +290,7 @@ static u64 ionic_hwstamp_read(struct ionic *ionic,
 	return (u64)tick_low | ((u64)tick_high << 32);
 }
 
-static u64 ionic_cc_read(const struct cyclecounter *cc)
+static u64 ionic_cc_read(struct cyclecounter *cc)
 {
 	struct ionic_phc *phc = container_of(cc, struct ionic_phc, cc);
 	struct ionic *ionic = phc->lif->ionic;

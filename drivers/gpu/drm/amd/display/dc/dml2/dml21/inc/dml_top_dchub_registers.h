@@ -46,6 +46,7 @@ struct dml2_display_dlg_regs {
 	uint32_t dst_y_delta_drq_limit;
 	uint32_t refcyc_per_vm_dmdata;
 	uint32_t dmdata_dl_delta;
+	uint32_t dst_y_svp_drq_limit;
 
 	// MRQ
 	uint32_t refcyc_per_meta_chunk_vblank_l;

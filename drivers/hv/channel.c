@@ -18,6 +18,7 @@
 #include <linux/uio.h>
 #include <linux/interrupt.h>
 #include <linux/set_memory.h>
+#include <linux/export.h>
 #include <asm/page.h>
 #include <asm/mshyperv.h>
 

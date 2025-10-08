@@ -187,14 +187,14 @@
 				     <26 IRQ_TYPE_LEVEL_HIGH>,
 				     <26 IRQ_TYPE_LEVEL_HIGH>,
 				     <26 IRQ_TYPE_LEVEL_HIGH>,
-				     <>,
+				     <0 IRQ_TYPE_NONE>,
 				     <26 IRQ_TYPE_LEVEL_HIGH>,
 				     <26 IRQ_TYPE_LEVEL_HIGH>,
 				     <26 IRQ_TYPE_LEVEL_HIGH>,
 				     <26 IRQ_TYPE_LEVEL_HIGH>,
 				     <26 IRQ_TYPE_LEVEL_HIGH>,
 				     <26 IRQ_TYPE_LEVEL_HIGH>,
-				     <26 IRQ_TYPE_LEVEL_HIGH>,
+				     <26 IRQ_TYPE_NONE>,
 				     <26 IRQ_TYPE_LEVEL_HIGH>,
 				     <26 IRQ_TYPE_LEVEL_HIGH>,
 				     <26 IRQ_TYPE_LEVEL_HIGH>,
@@ -209,13 +209,13 @@
 				     <27 IRQ_TYPE_LEVEL_HIGH>,
 				     <27 IRQ_TYPE_LEVEL_HIGH>,
 				     <27 IRQ_TYPE_LEVEL_HIGH>,
-				     <>,
+				     <0 IRQ_TYPE_NONE>,
 				     <27 IRQ_TYPE_LEVEL_HIGH>,
 				     <27 IRQ_TYPE_LEVEL_HIGH>,
 				     <27 IRQ_TYPE_LEVEL_HIGH>,
 				     <27 IRQ_TYPE_LEVEL_HIGH>,
-				     <>,
-				     <>,
+				     <0 IRQ_TYPE_NONE>,
+				     <0 IRQ_TYPE_NONE>,
 				     <27 IRQ_TYPE_LEVEL_HIGH>,
 				     <27 IRQ_TYPE_LEVEL_HIGH>,
 				     <27 IRQ_TYPE_LEVEL_HIGH>,
@@ -256,7 +256,7 @@
 			status = "disabled";
 		};
 
-		dma-controller@1fe00c10 {
+		apbdma1: dma-controller@1fe00c10 {
 			compatible = "loongson,ls2k1000-apbdma";
 			reg = <0x0 0x1fe00c10 0x0 0x8>;
 			interrupt-parent = <&liointc1>;
@@ -402,6 +402,18 @@
 			dmas = <&apbdma2 0>, <&apbdma3 0>;
 			dma-names = "tx", "rx";
 			#sound-dai-cells = <0>;
+			status = "disabled";
+		};
+
+		mmc: mmc@1fe2c000 {
+			compatible = "loongson,ls2k1000-mmc";
+			reg = <0 0x1fe2c000 0 0x68>,
+			      <0 0x1fe00438 0 0x8>;
+			interrupt-parent = <&liointc0>;
+			interrupts = <31 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk LOONGSON2_APB_CLK>;
+			dmas = <&apbdma1 0>;
+			dma-names = "rx-tx";
 			status = "disabled";
 		};
 

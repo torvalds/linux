@@ -351,7 +351,7 @@ static int sil_set_mode(struct ata_link *link, struct ata_device **r_failed)
 	u32 tmp, dev_mode[2] = { };
 	int rc;
 
-	rc = ata_do_set_mode(link, r_failed);
+	rc = ata_set_mode(link, r_failed);
 	if (rc)
 		return rc;
 

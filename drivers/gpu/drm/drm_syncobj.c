@@ -195,6 +195,7 @@
 #include <linux/anon_inodes.h>
 #include <linux/dma-fence-unwrap.h>
 #include <linux/eventfd.h>
+#include <linux/export.h>
 #include <linux/file.h>
 #include <linux/fs.h>
 #include <linux/sched/signal.h>

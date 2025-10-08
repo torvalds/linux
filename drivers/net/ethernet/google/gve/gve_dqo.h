@@ -37,6 +37,8 @@ netdev_features_t gve_features_check_dqo(struct sk_buff *skb,
 					 struct net_device *dev,
 					 netdev_features_t features);
 bool gve_tx_poll_dqo(struct gve_notify_block *block, bool do_clean);
+bool gve_xdp_poll_dqo(struct gve_notify_block *block);
+bool gve_xsk_tx_poll_dqo(struct gve_notify_block *block, int budget);
 int gve_rx_poll_dqo(struct gve_notify_block *block, int budget);
 int gve_tx_alloc_rings_dqo(struct gve_priv *priv,
 			   struct gve_tx_alloc_rings_cfg *cfg);
@@ -60,6 +62,7 @@ int gve_clean_tx_done_dqo(struct gve_priv *priv, struct gve_tx_ring *tx,
 			  struct napi_struct *napi);
 void gve_rx_post_buffers_dqo(struct gve_rx_ring *rx);
 void gve_rx_write_doorbell_dqo(const struct gve_priv *priv, int queue_idx);
+void gve_xdp_tx_flush_dqo(struct gve_priv *priv, u32 xdp_qid);
 
 static inline void
 gve_tx_put_doorbell_dqo(const struct gve_priv *priv,

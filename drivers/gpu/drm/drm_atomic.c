@@ -26,7 +26,7 @@
  * Daniel Vetter <daniel.vetter@ffwll.ch>
  */
 
-
+#include <linux/export.h>
 #include <linux/sync_file.h>
 
 #include <drm/drm_atomic.h>

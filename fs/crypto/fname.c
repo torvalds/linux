@@ -11,11 +11,13 @@
  * This has not yet undergone a rigorous security audit.
  */
 
-#include <linux/namei.h>
-#include <linux/scatterlist.h>
 #include <crypto/hash.h>
 #include <crypto/sha2.h>
 #include <crypto/skcipher.h>
+#include <linux/export.h>
+#include <linux/namei.h>
+#include <linux/scatterlist.h>
+
 #include "fscrypt_private.h"
 
 /*
@@ -92,13 +94,12 @@ static inline bool fscrypt_is_dot_dotdot(const struct qstr *str)
 int fscrypt_fname_encrypt(const struct inode *inode, const struct qstr *iname,
 			  u8 *out, unsigned int olen)
 {
-	struct skcipher_request *req = NULL;
-	DECLARE_CRYPTO_WAIT(wait);
 	const struct fscrypt_inode_info *ci = inode->i_crypt_info;
-	struct crypto_skcipher *tfm = ci->ci_enc_key.tfm;
+	struct crypto_sync_skcipher *tfm = ci->ci_enc_key.tfm;
+	SYNC_SKCIPHER_REQUEST_ON_STACK(req, tfm);
 	union fscrypt_iv iv;
 	struct scatterlist sg;
-	int res;
+	int err;
 
 	/*
 	 * Copy the filename to the output buffer for encrypting in-place and
@@ -109,28 +110,17 @@ int fscrypt_fname_encrypt(const struct inode *inode, const struct qstr *iname,
 	memcpy(out, iname->name, iname->len);
 	memset(out + iname->len, 0, olen - iname->len);
 
-	/* Initialize the IV */
 	fscrypt_generate_iv(&iv, 0, ci);
 
-	/* Set up the encryption request */
-	req = skcipher_request_alloc(tfm, GFP_NOFS);
-	if (!req)
-		return -ENOMEM;
-	skcipher_request_set_callback(req,
-			CRYPTO_TFM_REQ_MAY_BACKLOG | CRYPTO_TFM_REQ_MAY_SLEEP,
-			crypto_req_done, &wait);
+	skcipher_request_set_callback(
+		req, CRYPTO_TFM_REQ_MAY_BACKLOG | CRYPTO_TFM_REQ_MAY_SLEEP,
+		NULL, NULL);
 	sg_init_one(&sg, out, olen);
 	skcipher_request_set_crypt(req, &sg, &sg, olen, &iv);
-
-	/* Do the encryption */
-	res = crypto_wait_req(crypto_skcipher_encrypt(req), &wait);
-	skcipher_request_free(req);
-	if (res < 0) {
-		fscrypt_err(inode, "Filename encryption failed: %d", res);
-		return res;
-	}
-
-	return 0;
+	err = crypto_skcipher_encrypt(req);
+	if (err)
+		fscrypt_err(inode, "Filename encryption failed: %d", err);
+	return err;
 }
 EXPORT_SYMBOL_GPL(fscrypt_fname_encrypt);
 
@@ -148,34 +138,25 @@ static int fname_decrypt(const struct inode *inode,
 			 const struct fscrypt_str *iname,
 			 struct fscrypt_str *oname)
 {
-	struct skcipher_request *req = NULL;
-	DECLARE_CRYPTO_WAIT(wait);
-	struct scatterlist src_sg, dst_sg;
 	const struct fscrypt_inode_info *ci = inode->i_crypt_info;
-	struct crypto_skcipher *tfm = ci->ci_enc_key.tfm;
+	struct crypto_sync_skcipher *tfm = ci->ci_enc_key.tfm;
+	SYNC_SKCIPHER_REQUEST_ON_STACK(req, tfm);
 	union fscrypt_iv iv;
-	int res;
+	struct scatterlist src_sg, dst_sg;
+	int err;
 
-	/* Allocate request */
-	req = skcipher_request_alloc(tfm, GFP_NOFS);
-	if (!req)
-		return -ENOMEM;
-	skcipher_request_set_callback(req,
-		CRYPTO_TFM_REQ_MAY_BACKLOG | CRYPTO_TFM_REQ_MAY_SLEEP,
-		crypto_req_done, &wait);
-
-	/* Initialize IV */
 	fscrypt_generate_iv(&iv, 0, ci);
 
-	/* Create decryption request */
+	skcipher_request_set_callback(
+		req, CRYPTO_TFM_REQ_MAY_BACKLOG | CRYPTO_TFM_REQ_MAY_SLEEP,
+		NULL, NULL);
 	sg_init_one(&src_sg, iname->name, iname->len);
 	sg_init_one(&dst_sg, oname->name, oname->len);
 	skcipher_request_set_crypt(req, &src_sg, &dst_sg, iname->len, &iv);
-	res = crypto_wait_req(crypto_skcipher_decrypt(req), &wait);
-	skcipher_request_free(req);
-	if (res < 0) {
-		fscrypt_err(inode, "Filename decryption failed: %d", res);
-		return res;
+	err = crypto_skcipher_decrypt(req);
+	if (err) {
+		fscrypt_err(inode, "Filename decryption failed: %d", err);
+		return err;
 	}
 
 	oname->len = strnlen(oname->name, iname->len);

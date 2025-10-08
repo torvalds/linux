@@ -13,6 +13,24 @@
  */
 int max_lock_depth = 1024;
 
+static const struct ctl_table rtmutex_sysctl_table[] = {
+	{
+		.procname	= "max_lock_depth",
+		.data		= &max_lock_depth,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+};
+
+static int __init init_rtmutex_sysctl(void)
+{
+	register_sysctl_init("kernel", rtmutex_sysctl_table);
+	return 0;
+}
+
+subsys_initcall(init_rtmutex_sysctl);
+
 /*
  * Debug aware fast / slowpath lock,trylock,unlock
  *

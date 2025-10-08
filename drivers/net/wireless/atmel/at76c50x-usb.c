@@ -2002,7 +2002,7 @@ exit:
 	return 0;
 }
 
-static int at76_config(struct ieee80211_hw *hw, u32 changed)
+static int at76_config(struct ieee80211_hw *hw, int radio_idx, u32 changed)
 {
 	struct at76_priv *priv = hw->priv;
 

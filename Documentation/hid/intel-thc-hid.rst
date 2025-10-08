@@ -188,6 +188,34 @@ Control register.
 Reset line is controlled by BIOS (or EFI) through ACPI _RST method, driver needs to call this
 device ACPI _RST method to reset touch IC during initialization.
 
+2.3 Max input size control
+--------------------------
+
+This is a new feature introduced in Panther Lake platform, THC hardware allows driver to set
+a max input size for RxDMA. After this max size gets set and enabled, for every input report
+packet reading, THC hardware sequencer will first read incoming input packet size, then compare
+input packet size with the given max size:
+
+- if input packet size <= max size, THC continues using input packet size to finish the reading
+- if input packet size > max size, there is potential input data crash risk during
+  transferring, THC will use max size instead of input packet size for reading
+
+This feature is used to avoid data corruption which will cause RxDMA buffer overrun issue for
+I2C bus, and enhance whole system stability.
+
+2.4 Interrupt delay
+-------------------
+
+Because of MCU performance limitation, some touch devices cannot de-assert interrupt pin
+immediately after input data is transferred, which cause an interrupt toggle delay. But THC
+always detects next interrupt immediately after last input interrupt is handled. In this
+case, the delayed interrupt de-assertion will be recognized as a new interrupt signal by THC,
+and causes THC to start an input report reading spuriously.
+
+In order to avoid this situation, THC introduced interrupt delay new feature in Panther Lake
+platform, where THC allows driver to set an interrupt delay. After this feature is enabled,
+THC will delay this given time for next interrupt detection.
+
 3. High level concept
 =====================
 

@@ -254,7 +254,7 @@
 	/delete-property/dmas;
 	/delete-property/dma-names;
 
-	stusb1600@28 {
+	stusb1600: typec@28 {
 		compatible = "st,stusb1600";
 		reg = <0x28>;
 		interrupts = <11 IRQ_TYPE_LEVEL_LOW>;
@@ -515,6 +515,7 @@
 				remote-endpoint = <&cs42l51_tx_endpoint>;
 				dai-format = "i2s";
 				mclk-fs = <256>;
+				system-clock-direction-out;
 				dai-tdm-slot-num = <2>;
 				dai-tdm-slot-width = <32>;
 			};

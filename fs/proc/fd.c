@@ -352,18 +352,9 @@ static int proc_fd_getattr(struct mnt_idmap *idmap,
 			u32 request_mask, unsigned int query_flags)
 {
 	struct inode *inode = d_inode(path->dentry);
-	int rv = 0;
 
 	generic_fillattr(&nop_mnt_idmap, request_mask, inode, stat);
-
-	/* If it's a directory, put the number of open fds there */
-	if (S_ISDIR(inode->i_mode)) {
-		rv = proc_readfd_count(inode, &stat->size);
-		if (rv < 0)
-			return rv;
-	}
-
-	return rv;
+	return proc_readfd_count(inode, &stat->size);
 }
 
 const struct inode_operations proc_fd_inode_operations = {

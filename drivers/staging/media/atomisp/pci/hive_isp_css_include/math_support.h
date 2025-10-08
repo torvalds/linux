@@ -10,14 +10,9 @@
 /* Override the definition of max/min from Linux kernel */
 #include <linux/minmax.h>
 
-/* force a value to a lower even value */
-#define EVEN_FLOOR(x)        ((x) & ~1)
-
 #define CEIL_DIV(a, b)       (((b) != 0) ? ((a) + (b) - 1) / (b) : 0)
 #define CEIL_MUL(a, b)       (CEIL_DIV(a, b) * (b))
-#define CEIL_MUL2(a, b)      (((a) + (b) - 1) & ~((b) - 1))
 #define CEIL_SHIFT(a, b)     (((a) + (1 << (b)) - 1) >> (b))
-#define CEIL_SHIFT_MUL(a, b) (CEIL_SHIFT(a, b) << (b))
 
 /*
  * For SP and ISP, SDK provides the definition of OP_std_modadd.

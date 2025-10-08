@@ -9,27 +9,24 @@
 #include "fs.h"
 #include "accessors.h"
 
-static bool check_setget_bounds(const struct extent_buffer *eb,
-				const void *ptr, unsigned off, int size)
+static void __cold report_setget_bounds(const struct extent_buffer *eb,
+					const void *ptr, unsigned off, int size)
 {
-	const unsigned long member_offset = (unsigned long)ptr + off;
+	unsigned long member_offset = (unsigned long)ptr + off;
 
-	if (unlikely(member_offset + size > eb->len)) {
-		btrfs_warn(eb->fs_info,
-		"bad eb member %s: ptr 0x%lx start %llu member offset %lu size %d",
-			(member_offset > eb->len ? "start" : "end"),
-			(unsigned long)ptr, eb->start, member_offset, size);
-		return false;
-	}
-
-	return true;
+	btrfs_warn(eb->fs_info,
+		   "bad eb member %s: ptr 0x%lx start %llu member offset %lu size %d",
+		   (member_offset > eb->len ? "start" : "end"),
+		   (unsigned long)ptr, eb->start, member_offset, size);
 }
 
-void btrfs_init_map_token(struct btrfs_map_token *token, struct extent_buffer *eb)
+/* Copy bytes from @src1 and @src2 to @dest. */
+static __always_inline void memcpy_split_src(char *dest, const char *src1,
+					     const char *src2, const size_t len1,
+					     const size_t total)
 {
-	token->eb = eb;
-	token->kaddr = folio_address(eb->folios[0]);
-	token->offset = 0;
+	memcpy(dest, src1, len1);
+	memcpy(dest + len1, src2, total - len1);
 }
 
 /*
@@ -40,11 +37,6 @@ void btrfs_init_map_token(struct btrfs_map_token *token, struct extent_buffer *e
  * Generic helpers:
  * - btrfs_set_8 (for 8/16/32/64)
  * - btrfs_get_8 (for 8/16/32/64)
- *
- * Generic helpers with a token (cached address of the most recently accessed
- * page):
- * - btrfs_set_token_8 (for 8/16/32/64)
- * - btrfs_get_token_8 (for 8/16/32/64)
  *
  * The set/get functions handle data spanning two pages transparently, in case
  * metadata block size is larger than page.  Every pointer to metadata items is
@@ -57,118 +49,66 @@ void btrfs_init_map_token(struct btrfs_map_token *token, struct extent_buffer *e
  */
 
 #define DEFINE_BTRFS_SETGET_BITS(bits)					\
-u##bits btrfs_get_token_##bits(struct btrfs_map_token *token,		\
-			       const void *ptr, unsigned long off)	\
-{									\
-	const unsigned long member_offset = (unsigned long)ptr + off;	\
-	const unsigned long idx = get_eb_folio_index(token->eb, member_offset); \
-	const unsigned long oil = get_eb_offset_in_folio(token->eb,	\
-							 member_offset);\
-	const int unit_size = token->eb->folio_size;			\
-	const int unit_shift = token->eb->folio_shift;			\
-	const int size = sizeof(u##bits);				\
-	u8 lebytes[sizeof(u##bits)];					\
-	const int part = unit_size - oil;				\
-									\
-	ASSERT(token);							\
-	ASSERT(token->kaddr);						\
-	ASSERT(check_setget_bounds(token->eb, ptr, off, size));		\
-	if (token->offset <= member_offset &&				\
-	    member_offset + size <= token->offset + unit_size) {	\
-		return get_unaligned_le##bits(token->kaddr + oil);	\
-	}								\
-	token->kaddr = folio_address(token->eb->folios[idx]);		\
-	token->offset = idx << unit_shift;				\
-	if (INLINE_EXTENT_BUFFER_PAGES == 1 || oil + size <= unit_size) \
-		return get_unaligned_le##bits(token->kaddr + oil);	\
-									\
-	memcpy(lebytes, token->kaddr + oil, part);			\
-	token->kaddr = folio_address(token->eb->folios[idx + 1]);	\
-	token->offset = (idx + 1) << unit_shift;			\
-	memcpy(lebytes + part, token->kaddr, size - part);		\
-	return get_unaligned_le##bits(lebytes);				\
-}									\
 u##bits btrfs_get_##bits(const struct extent_buffer *eb,		\
 			 const void *ptr, unsigned long off)		\
 {									\
 	const unsigned long member_offset = (unsigned long)ptr + off;	\
 	const unsigned long idx = get_eb_folio_index(eb, member_offset);\
-	const unsigned long oil = get_eb_offset_in_folio(eb,		\
+	const unsigned long oif = get_eb_offset_in_folio(eb,		\
 							 member_offset);\
-	const int unit_size = eb->folio_size;				\
-	char *kaddr = folio_address(eb->folios[idx]);			\
-	const int size = sizeof(u##bits);				\
-	const int part = unit_size - oil;				\
+	char *kaddr = folio_address(eb->folios[idx]) + oif;		\
+	const int part = eb->folio_size - oif;				\
 	u8 lebytes[sizeof(u##bits)];					\
 									\
-	ASSERT(check_setget_bounds(eb, ptr, off, size));		\
-	if (INLINE_EXTENT_BUFFER_PAGES == 1 || oil + size <= unit_size)	\
-		return get_unaligned_le##bits(kaddr + oil);		\
+	if (unlikely(member_offset + sizeof(u##bits) > eb->len)) {	\
+		report_setget_bounds(eb, ptr, off, sizeof(u##bits));	\
+		return 0;						\
+	}								\
+	if (INLINE_EXTENT_BUFFER_PAGES == 1 || sizeof(u##bits) == 1 ||	\
+	    likely(sizeof(u##bits) <= part))				\
+		return get_unaligned_le##bits(kaddr);			\
 									\
-	memcpy(lebytes, kaddr + oil, part);				\
-	kaddr = folio_address(eb->folios[idx + 1]);			\
-	memcpy(lebytes + part, kaddr, size - part);			\
+	if (sizeof(u##bits) == 2) {					\
+		lebytes[0] = *kaddr;					\
+		kaddr = folio_address(eb->folios[idx + 1]);		\
+		lebytes[1] = *kaddr;					\
+	} else {							\
+		memcpy_split_src(lebytes, kaddr,			\
+				 folio_address(eb->folios[idx + 1]),	\
+				 part, sizeof(u##bits));		\
+	}								\
 	return get_unaligned_le##bits(lebytes);				\
-}									\
-void btrfs_set_token_##bits(struct btrfs_map_token *token,		\
-			    const void *ptr, unsigned long off,		\
-			    u##bits val)				\
-{									\
-	const unsigned long member_offset = (unsigned long)ptr + off;	\
-	const unsigned long idx = get_eb_folio_index(token->eb, member_offset); \
-	const unsigned long oil = get_eb_offset_in_folio(token->eb,	\
-							 member_offset);\
-	const int unit_size = token->eb->folio_size;			\
-	const int unit_shift = token->eb->folio_shift;			\
-	const int size = sizeof(u##bits);				\
-	u8 lebytes[sizeof(u##bits)];					\
-	const int part = unit_size - oil;				\
-									\
-	ASSERT(token);							\
-	ASSERT(token->kaddr);						\
-	ASSERT(check_setget_bounds(token->eb, ptr, off, size));		\
-	if (token->offset <= member_offset &&				\
-	    member_offset + size <= token->offset + unit_size) {	\
-		put_unaligned_le##bits(val, token->kaddr + oil);	\
-		return;							\
-	}								\
-	token->kaddr = folio_address(token->eb->folios[idx]);		\
-	token->offset = idx << unit_shift;				\
-	if (INLINE_EXTENT_BUFFER_PAGES == 1 ||				\
-	    oil + size <= unit_size) {					\
-		put_unaligned_le##bits(val, token->kaddr + oil);	\
-		return;							\
-	}								\
-	put_unaligned_le##bits(val, lebytes);				\
-	memcpy(token->kaddr + oil, lebytes, part);			\
-	token->kaddr = folio_address(token->eb->folios[idx + 1]);	\
-	token->offset = (idx + 1) << unit_shift;			\
-	memcpy(token->kaddr, lebytes + part, size - part);		\
 }									\
 void btrfs_set_##bits(const struct extent_buffer *eb, void *ptr,	\
 		      unsigned long off, u##bits val)			\
 {									\
 	const unsigned long member_offset = (unsigned long)ptr + off;	\
 	const unsigned long idx = get_eb_folio_index(eb, member_offset);\
-	const unsigned long oil = get_eb_offset_in_folio(eb,		\
+	const unsigned long oif = get_eb_offset_in_folio(eb,		\
 							 member_offset);\
-	const int unit_size = eb->folio_size;				\
-	char *kaddr = folio_address(eb->folios[idx]);			\
-	const int size = sizeof(u##bits);				\
-	const int part = unit_size - oil;				\
+	char *kaddr = folio_address(eb->folios[idx]) + oif;		\
+	const int part = eb->folio_size - oif;				\
 	u8 lebytes[sizeof(u##bits)];					\
 									\
-	ASSERT(check_setget_bounds(eb, ptr, off, size));		\
-	if (INLINE_EXTENT_BUFFER_PAGES == 1 ||				\
-	    oil + size <= unit_size) {					\
-		put_unaligned_le##bits(val, kaddr + oil);		\
+	if (unlikely(member_offset + sizeof(u##bits) > eb->len)) {	\
+		report_setget_bounds(eb, ptr, off, sizeof(u##bits));	\
 		return;							\
 	}								\
-									\
+	if (INLINE_EXTENT_BUFFER_PAGES == 1 || sizeof(u##bits) == 1 ||	\
+	    likely(sizeof(u##bits) <= part)) {				\
+		put_unaligned_le##bits(val, kaddr);			\
+		return;							\
+	}								\
 	put_unaligned_le##bits(val, lebytes);				\
-	memcpy(kaddr + oil, lebytes, part);				\
-	kaddr = folio_address(eb->folios[idx + 1]);			\
-	memcpy(kaddr, lebytes + part, size - part);			\
+	if (sizeof(u##bits) == 2) {					\
+		*kaddr = lebytes[0];					\
+		kaddr = folio_address(eb->folios[idx + 1]);		\
+		*kaddr = lebytes[1];					\
+	} else {							\
+		memcpy(kaddr, lebytes, part);				\
+		kaddr = folio_address(eb->folios[idx + 1]);		\
+		memcpy(kaddr, lebytes + part, sizeof(u##bits) - part);	\
+	}								\
 }
 
 DEFINE_BTRFS_SETGET_BITS(8)

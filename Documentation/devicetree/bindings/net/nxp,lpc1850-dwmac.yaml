@@ -1,0 +1,85 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/nxp,lpc1850-dwmac.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NXP LPC1850 GMAC ethernet controller
+
+maintainers:
+  - Frank Li <Frank.Li@nxp.com>
+
+# We need a select here so we don't match all nodes with 'snps,dwmac'
+select:
+  properties:
+    compatible:
+      contains:
+        enum:
+          - nxp,lpc1850-dwmac
+  required:
+    - compatible
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - nxp,lpc1850-dwmac
+      - const: snps,dwmac-3.611
+      - const: snps,dwmac
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    items:
+      - const: stmmaceth
+
+  interrupts:
+    maxItems: 1
+
+  interrupt-names:
+    items:
+      - const: macirq
+
+  resets:
+    maxItems: 1
+
+  reset-names:
+    items:
+      - const: stmmaceth
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+  - interrupts
+  - interrupt-names
+
+allOf:
+  - $ref: snps,dwmac.yaml#
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/lpc18xx-ccu.h>
+
+    ethernet@40010000 {
+        compatible = "nxp,lpc1850-dwmac", "snps,dwmac-3.611", "snps,dwmac";
+        reg = <0x40010000 0x2000>;
+        interrupts = <5>;
+        interrupt-names = "macirq";
+        clocks = <&ccu1 CLK_CPU_ETHERNET>;
+        clock-names = "stmmaceth";
+        resets = <&rgu 22>;
+        reset-names = "stmmaceth";
+        rx-fifo-depth = <256>;
+        tx-fifo-depth = <256>;
+        snps,pbl = <4>;
+        snps,force_thresh_dma_mode;
+        phy-mode = "rgmii-id";
+    };

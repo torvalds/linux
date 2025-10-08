@@ -1118,7 +1118,7 @@ struct sg_table *dma_buf_map_attachment(struct dma_buf_attachment *attach,
 		 * Catch exporters making buffers inaccessible even when
 		 * attachments preventing that exist.
 		 */
-		WARN_ON_ONCE(ret == EBUSY);
+		WARN_ON_ONCE(ret == -EBUSY);
 		if (ret)
 			return ERR_PTR(ret);
 	}

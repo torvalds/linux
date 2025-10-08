@@ -31,6 +31,7 @@
  * cause they are rather slow compared to alloc_pages+map.
  */
 
+#include <linux/export.h>
 #include <linux/module.h>
 #include <linux/dma-mapping.h>
 #include <linux/debugfs.h>
@@ -1132,7 +1133,9 @@ void ttm_pool_fini(struct ttm_pool *pool)
 }
 EXPORT_SYMBOL(ttm_pool_fini);
 
-/* As long as pages are available make sure to release at least one */
+/* Free average pool number of pages.  */
+#define TTM_SHRINKER_BATCH ((1 << (MAX_PAGE_ORDER / 2)) * NR_PAGE_ORDERS)
+
 static unsigned long ttm_pool_shrinker_scan(struct shrinker *shrink,
 					    struct shrink_control *sc)
 {
@@ -1140,9 +1143,12 @@ static unsigned long ttm_pool_shrinker_scan(struct shrinker *shrink,
 
 	do
 		num_freed += ttm_pool_shrink();
-	while (!num_freed && atomic_long_read(&allocated_pages));
+	while (num_freed < sc->nr_to_scan &&
+	       atomic_long_read(&allocated_pages));
 
-	return num_freed;
+	sc->nr_scanned = num_freed;
+
+	return num_freed ?: SHRINK_STOP;
 }
 
 /* Return the number of pages available or SHRINK_EMPTY if we have none */
@@ -1233,7 +1239,7 @@ int ttm_pool_debugfs(struct ttm_pool *pool, struct seq_file *m)
 {
 	unsigned int i;
 
-	if (!pool->use_dma_alloc) {
+	if (!pool->use_dma_alloc && pool->nid == NUMA_NO_NODE) {
 		seq_puts(m, "unused\n");
 		return 0;
 	}
@@ -1242,7 +1248,12 @@ int ttm_pool_debugfs(struct ttm_pool *pool, struct seq_file *m)
 
 	spin_lock(&shrinker_lock);
 	for (i = 0; i < TTM_NUM_CACHING_TYPES; ++i) {
-		seq_puts(m, "DMA ");
+		if (!ttm_pool_select_type(pool, i, 0))
+			continue;
+		if (pool->use_dma_alloc)
+			seq_puts(m, "DMA ");
+		else
+			seq_printf(m, "N%d ", pool->nid);
 		switch (i) {
 		case ttm_cached:
 			seq_puts(m, "\t:");
@@ -1266,10 +1277,15 @@ EXPORT_SYMBOL(ttm_pool_debugfs);
 /* Test the shrinker functions and dump the result */
 static int ttm_pool_debugfs_shrink_show(struct seq_file *m, void *data)
 {
-	struct shrink_control sc = { .gfp_mask = GFP_NOFS };
+	struct shrink_control sc = {
+		.gfp_mask = GFP_NOFS,
+		.nr_to_scan = TTM_SHRINKER_BATCH,
+	};
+	unsigned long count;
 
 	fs_reclaim_acquire(GFP_KERNEL);
-	seq_printf(m, "%lu/%lu\n", ttm_pool_shrinker_count(mm_shrinker, &sc),
+	count = ttm_pool_shrinker_count(mm_shrinker, &sc);
+	seq_printf(m, "%lu/%lu\n", count,
 		   ttm_pool_shrinker_scan(mm_shrinker, &sc));
 	fs_reclaim_release(GFP_KERNEL);
 
@@ -1324,6 +1340,7 @@ int ttm_pool_mgr_init(unsigned long num_pages)
 
 	mm_shrinker->count_objects = ttm_pool_shrinker_count;
 	mm_shrinker->scan_objects = ttm_pool_shrinker_scan;
+	mm_shrinker->batch = TTM_SHRINKER_BATCH;
 	mm_shrinker->seeks = 1;
 
 	shrinker_register(mm_shrinker);

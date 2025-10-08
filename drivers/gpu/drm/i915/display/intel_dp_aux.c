@@ -5,7 +5,6 @@
 
 #include <drm/drm_print.h>
 
-#include "i915_reg.h"
 #include "i915_utils.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
@@ -835,6 +834,8 @@ void intel_dp_aux_init(struct intel_dp *intel_dp)
 
 	intel_dp->aux.transfer = intel_dp_aux_transfer;
 	cpu_latency_qos_add_request(&intel_dp->pm_qos, PM_QOS_DEFAULT_VALUE);
+
+	intel_dp_dpcd_set_probe(intel_dp, true);
 }
 
 static enum aux_ch default_aux_ch(struct intel_encoder *encoder)

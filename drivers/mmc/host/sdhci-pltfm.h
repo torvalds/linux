@@ -97,7 +97,6 @@ static inline void sdhci_get_of_property(struct platform_device *pdev)
 extern struct sdhci_host *sdhci_pltfm_init(struct platform_device *pdev,
 					  const struct sdhci_pltfm_data *pdata,
 					  size_t priv_size);
-extern void sdhci_pltfm_free(struct platform_device *pdev);
 
 extern int sdhci_pltfm_init_and_add_host(struct platform_device *pdev,
 					 const struct sdhci_pltfm_data *pdata,

@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: GPL-2.0
+
+__CFLAGS_STACKPROTECTOR = $(call cc-option,-fstack-protector-all) $(call cc-option,-mstack-protector-guard=global)
+_CFLAGS_STACKPROTECTOR ?= $(call try-run, \
+	echo 'void foo(void) {}' | $(CC) -x c - -o - -S $(CLANG_CROSS_FLAGS) $(__CFLAGS_STACKPROTECTOR) | grep -q __stack_chk_guard, \
+	$(__CFLAGS_STACKPROTECTOR))
+_CFLAGS_SANITIZER ?= $(call cc-option,-fsanitize=undefined -fsanitize-trap=all)
+CFLAGS_NOLIBC_TEST  ?= -Os -fno-ident -fno-asynchronous-unwind-tables -std=c89 -W -Wall -Wextra \
+		$(call cc-option,-fno-stack-protector) $(call cc-option,-Wmissing-prototypes) \
+		$(_CFLAGS_STACKPROTECTOR) $(_CFLAGS_SANITIZER)

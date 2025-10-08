@@ -20,6 +20,8 @@
  * OF THIS SOFTWARE.
  */
 
+#include <linux/export.h>
+
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_client_event.h>
 #include <drm/drm_fourcc.h>
@@ -72,6 +74,7 @@ EXPORT_SYMBOL(drm_helper_move_panel_connectors_to_head);
  * drm_helper_mode_fill_fb_struct - fill out framebuffer metadata
  * @dev: DRM device
  * @fb: drm_framebuffer object to fill out
+ * @info: pixel format information
  * @mode_cmd: metadata from the userspace fb creation request
  *
  * This helper can be used in a drivers fb_create callback to pre-fill the fb's
@@ -79,12 +82,13 @@ EXPORT_SYMBOL(drm_helper_move_panel_connectors_to_head);
  */
 void drm_helper_mode_fill_fb_struct(struct drm_device *dev,
 				    struct drm_framebuffer *fb,
+				    const struct drm_format_info *info,
 				    const struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	int i;
 
 	fb->dev = dev;
-	fb->format = drm_get_format_info(dev, mode_cmd);
+	fb->format = info;
 	fb->width = mode_cmd->width;
 	fb->height = mode_cmd->height;
 	for (i = 0; i < 4; i++) {

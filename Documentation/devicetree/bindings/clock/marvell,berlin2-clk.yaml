@@ -1,0 +1,51 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/marvell,berlin2-clk.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Marvell Berlin Clock Controller
+
+maintainers:
+  - Jisheng Zhang <jszhang@kernel.org>
+
+description:
+  Clock related registers are spread among the chip control registers. Berlin
+  clock node should be a sub-node of the chip controller node. Marvell Berlin2
+  (BG2, BG2CD, BG2Q) SoCs share the same IP for PLLs and clocks, with some minor
+  differences in features and register layout.
+
+properties:
+  compatible:
+    enum:
+      - marvell,berlin2-clk
+      - marvell,berlin2q-clk
+
+  '#clock-cells':
+    const: 1
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    items:
+      - enum:
+          - refclk
+          - video_ext0
+
+required:
+  - compatible
+  - '#clock-cells'
+  - clocks
+  - clock-names
+
+additionalProperties: false
+
+examples:
+  - |
+    clock-controller {
+        compatible = "marvell,berlin2q-clk";
+        #clock-cells = <1>;
+        clocks = <&refclk>;
+        clock-names = "refclk";
+    };

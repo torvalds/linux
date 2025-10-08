@@ -36,6 +36,7 @@
 #include <drm/ttm/ttm_tt.h>
 #include <drm/ttm/ttm_resource.h>
 #include <linux/agp_backend.h>
+#include <linux/export.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/io.h>

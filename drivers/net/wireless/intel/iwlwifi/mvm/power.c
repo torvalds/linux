@@ -231,7 +231,6 @@ static void iwl_mvm_allow_uapsd_iterator(void *_data, u8 *mac,
 	switch (vif->type) {
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_ADHOC:
-	case NL80211_IFTYPE_NAN:
 		data->allow_uapsd = false;
 		break;
 	case NL80211_IFTYPE_STATION:

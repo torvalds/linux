@@ -1436,7 +1436,7 @@ static int snd_intel8x0_pcm1(struct intel8x0 *chip, int device,
 	if (rec->suffix)
 		sprintf(name, "Intel ICH - %s", rec->suffix);
 	else
-		strcpy(name, "Intel ICH");
+		strscpy(name, "Intel ICH");
 	err = snd_pcm_new(chip->card, name, device,
 			  rec->playback_ops ? 1 : 0,
 			  rec->capture_ops ? 1 : 0, &pcm);
@@ -1453,7 +1453,7 @@ static int snd_intel8x0_pcm1(struct intel8x0 *chip, int device,
 	if (rec->suffix)
 		sprintf(pcm->name, "%s - %s", chip->card->shortname, rec->suffix);
 	else
-		strcpy(pcm->name, chip->card->shortname);
+		strscpy(pcm->name, chip->card->shortname);
 	chip->pcm[device] = pcm;
 
 	snd_pcm_set_managed_buffer_all(pcm, intel8x0_dma_type(chip),
@@ -2249,7 +2249,7 @@ static int snd_intel8x0_mixer(struct intel8x0 *chip, int ac97_clock,
 			tmp |= chip->ac97_sdin[0] << ICH_DI1L_SHIFT;
 			for (i = 1; i < 4; i++) {
 				if (pcm->r[0].codec[i]) {
-					tmp |= chip->ac97_sdin[pcm->r[0].codec[1]->num] << ICH_DI2L_SHIFT;
+					tmp |= chip->ac97_sdin[pcm->r[0].codec[i]->num] << ICH_DI2L_SHIFT;
 					break;
 				}
 			}
@@ -3118,21 +3118,21 @@ static int __snd_intel8x0_probe(struct pci_dev *pci,
 	if (spdif_aclink < 0)
 		spdif_aclink = check_default_spdif_aclink(pci);
 
-	strcpy(card->driver, "ICH");
+	strscpy(card->driver, "ICH");
 	if (!spdif_aclink) {
 		switch (pci_id->driver_data) {
 		case DEVICE_NFORCE:
-			strcpy(card->driver, "NFORCE");
+			strscpy(card->driver, "NFORCE");
 			break;
 		case DEVICE_INTEL_ICH4:
-			strcpy(card->driver, "ICH4");
+			strscpy(card->driver, "ICH4");
 		}
 	}
 
-	strcpy(card->shortname, "Intel ICH");
+	strscpy(card->shortname, "Intel ICH");
 	for (name = shortnames; name->id; name++) {
 		if (pci->device == name->id) {
-			strcpy(card->shortname, name->s);
+			strscpy(card->shortname, name->s);
 			break;
 		}
 	}

@@ -188,7 +188,7 @@ static struct ata_port_operations pdc_sata_ops = {
 	.scr_read		= pdc_sata_scr_read,
 	.scr_write		= pdc_sata_scr_write,
 	.port_start		= pdc_sata_port_start,
-	.hardreset		= pdc_sata_hardreset,
+	.reset.hardreset	= pdc_sata_hardreset,
 };
 
 /* First-generation chips need a more restrictive ->check_atapi_dma op,
@@ -206,7 +206,7 @@ static struct ata_port_operations pdc_pata_ops = {
 	.freeze			= pdc_freeze,
 	.thaw			= pdc_thaw,
 	.port_start		= pdc_common_port_start,
-	.softreset		= pdc_pata_softreset,
+	.reset.softreset	= pdc_pata_softreset,
 };
 
 static const struct ata_port_info pdc_port_info[] = {

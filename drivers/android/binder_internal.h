@@ -81,7 +81,6 @@ extern bool is_binderfs_device(const struct inode *inode);
 extern struct dentry *binderfs_create_file(struct dentry *dir, const char *name,
 					   const struct file_operations *fops,
 					   void *data);
-extern void binderfs_remove_file(struct dentry *dentry);
 #else
 static inline bool is_binderfs_device(const struct inode *inode)
 {
@@ -94,7 +93,6 @@ static inline struct dentry *binderfs_create_file(struct dentry *dir,
 {
 	return NULL;
 }
-static inline void binderfs_remove_file(struct dentry *dentry) {}
 #endif
 
 #ifdef CONFIG_ANDROID_BINDERFS
@@ -591,5 +589,9 @@ void binder_add_device(struct binder_device *device);
  * @device: the binder device to remove from the global list
  */
 void binder_remove_device(struct binder_device *device);
+
+#if IS_ENABLED(CONFIG_KUNIT)
+vm_fault_t binder_vm_fault(struct vm_fault *vmf);
+#endif
 
 #endif /* _LINUX_BINDER_INTERNAL_H */

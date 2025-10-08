@@ -44,6 +44,8 @@ unsigned long _find_next_bit_le(const unsigned long *addr, unsigned
 				long size, unsigned long offset);
 #endif
 
+unsigned long find_random_bit(const unsigned long *addr, unsigned long size);
+
 #ifndef find_next_bit
 /**
  * find_next_bit - find the next set bit in a memory region
@@ -265,33 +267,6 @@ unsigned long find_nth_and_bit(const unsigned long *addr1, const unsigned long *
 	}
 
 	return __find_nth_and_bit(addr1, addr2, size, n);
-}
-
-/**
- * find_nth_andnot_bit - find N'th set bit in 2 memory regions,
- *			 flipping bits in 2nd region
- * @addr1: The 1st address to start the search at
- * @addr2: The 2nd address to start the search at
- * @size: The maximum number of bits to search
- * @n: The number of set bit, which position is needed, counting from 0
- *
- * Returns the bit number of the N'th set bit.
- * If no such, returns @size.
- */
-static __always_inline
-unsigned long find_nth_andnot_bit(const unsigned long *addr1, const unsigned long *addr2,
-				unsigned long size, unsigned long n)
-{
-	if (n >= size)
-		return size;
-
-	if (small_const_nbits(size)) {
-		unsigned long val =  *addr1 & (~*addr2) & GENMASK(size - 1, 0);
-
-		return val ? fns(val, n) : size;
-	}
-
-	return __find_nth_andnot_bit(addr1, addr2, size, n);
 }
 
 /**

@@ -605,7 +605,7 @@ static void aeq_elements_init(struct hinic_eq *eq, u32 init_val)
 /**
  * ceq_elements_init - Initialize all the elements in the ceq
  * @eq: the event queue
- * @init_val: value to init with it the elements
+ * @init_val: value to init the elements with
  **/
 static void ceq_elements_init(struct hinic_eq *eq, u32 init_val)
 {

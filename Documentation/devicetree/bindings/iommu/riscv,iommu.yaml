@@ -139,9 +139,9 @@ examples:
 
             /* The IOMMU programming interface uses slot 00:01.0 */
             iommu0: iommu@1,0 {
-               compatible = "pci1efd,edf1", "riscv,pci-iommu";
-               reg = <0x800 0 0 0 0>;
-               #iommu-cells = <1>;
+                compatible = "pci1efd,edf1", "riscv,pci-iommu";
+                reg = <0x800 0 0 0 0>;
+                #iommu-cells = <1>;
             };
         };
     };

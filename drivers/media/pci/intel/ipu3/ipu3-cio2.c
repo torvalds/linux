@@ -358,6 +358,8 @@ static int cio2_hw_init(struct cio2_device *cio2, struct cio2_queue *q)
 	static const int FBPT_WIDTH = DIV_ROUND_UP(CIO2_MAX_LOPS,
 					CIO2_FBPT_SUBENTRY_UNIT);
 	const u32 num_buffers1 = CIO2_MAX_BUFFERS - 1;
+	struct v4l2_subdev_state *state;
+	const struct v4l2_mbus_framefmt *format;
 	const struct ipu3_cio2_fmt *fmt;
 	void __iomem *const base = cio2->base;
 	u8 lanes, csi2bus = q->csi2.port;
@@ -365,7 +367,13 @@ static int cio2_hw_init(struct cio2_device *cio2, struct cio2_queue *q)
 	struct cio2_csi2_timing timing = { 0 };
 	int i, r;
 
-	fmt = cio2_find_format(NULL, &q->subdev_fmt.code);
+	state = v4l2_subdev_lock_and_get_active_state(&q->subdev);
+	format = v4l2_subdev_state_get_format(state, CIO2_PAD_SINK);
+
+	fmt = cio2_find_format(NULL, &format->code);
+
+	v4l2_subdev_unlock_state(state);
+
 	if (!fmt)
 		return -EINVAL;
 
@@ -1194,9 +1202,9 @@ static int cio2_subdev_subscribe_event(struct v4l2_subdev *sd,
 	return v4l2_event_subscribe(fh, sub, 0, NULL);
 }
 
-static int cio2_subdev_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
+static int cio2_subdev_init_state(struct v4l2_subdev *sd,
+				  struct v4l2_subdev_state *state)
 {
-	struct v4l2_mbus_framefmt *format;
 	const struct v4l2_mbus_framefmt fmt_default = {
 		.width = 1936,
 		.height = 1096,
@@ -1207,33 +1215,15 @@ static int cio2_subdev_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 		.quantization = V4L2_QUANTIZATION_DEFAULT,
 		.xfer_func = V4L2_XFER_FUNC_DEFAULT,
 	};
+	struct v4l2_mbus_framefmt *format;
 
-	/* Initialize try_fmt */
-	format = v4l2_subdev_state_get_format(fh->state, CIO2_PAD_SINK);
+	/* Initialize the format on the sink and source pads. */
+	format = v4l2_subdev_state_get_format(state, CIO2_PAD_SINK);
 	*format = fmt_default;
 
 	/* same as sink */
-	format = v4l2_subdev_state_get_format(fh->state, CIO2_PAD_SOURCE);
+	format = v4l2_subdev_state_get_format(state, CIO2_PAD_SOURCE);
 	*format = fmt_default;
-
-	return 0;
-}
-
-static int cio2_subdev_get_fmt(struct v4l2_subdev *sd,
-			       struct v4l2_subdev_state *sd_state,
-			       struct v4l2_subdev_format *fmt)
-{
-	struct cio2_queue *q = container_of(sd, struct cio2_queue, subdev);
-
-	mutex_lock(&q->subdev_lock);
-
-	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY)
-		fmt->format = *v4l2_subdev_state_get_format(sd_state,
-							    fmt->pad);
-	else
-		fmt->format = q->subdev_fmt;
-
-	mutex_unlock(&q->subdev_lock);
 
 	return 0;
 }
@@ -1242,7 +1232,6 @@ static int cio2_subdev_set_fmt(struct v4l2_subdev *sd,
 			       struct v4l2_subdev_state *sd_state,
 			       struct v4l2_subdev_format *fmt)
 {
-	struct cio2_queue *q = container_of(sd, struct cio2_queue, subdev);
 	struct v4l2_mbus_framefmt *mbus;
 	u32 mbus_code = fmt->format.code;
 	unsigned int i;
@@ -1252,12 +1241,7 @@ static int cio2_subdev_set_fmt(struct v4l2_subdev *sd,
 	 * source always propagates from sink
 	 */
 	if (fmt->pad == CIO2_PAD_SOURCE)
-		return cio2_subdev_get_fmt(sd, sd_state, fmt);
-
-	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY)
-		mbus = v4l2_subdev_state_get_format(sd_state, fmt->pad);
-	else
-		mbus = &q->subdev_fmt;
+		return v4l2_subdev_get_fmt(sd, sd_state, fmt);
 
 	fmt->format.code = formats[0].mbus_code;
 
@@ -1272,9 +1256,12 @@ static int cio2_subdev_set_fmt(struct v4l2_subdev *sd,
 	fmt->format.height = min(fmt->format.height, CIO2_IMAGE_MAX_HEIGHT);
 	fmt->format.field = V4L2_FIELD_NONE;
 
-	mutex_lock(&q->subdev_lock);
+	mbus = v4l2_subdev_state_get_format(sd_state, CIO2_PAD_SINK);
 	*mbus = fmt->format;
-	mutex_unlock(&q->subdev_lock);
+
+	/* Propagate the format to the source pad. */
+	mbus = v4l2_subdev_state_get_format(sd_state, CIO2_PAD_SOURCE);
+	*mbus = fmt->format;
 
 	return 0;
 }
@@ -1345,12 +1332,12 @@ static const struct v4l2_subdev_core_ops cio2_subdev_core_ops = {
 };
 
 static const struct v4l2_subdev_internal_ops cio2_subdev_internal_ops = {
-	.open = cio2_subdev_open,
+	.init_state = cio2_subdev_init_state,
 };
 
 static const struct v4l2_subdev_pad_ops cio2_subdev_pad_ops = {
 	.link_validate = v4l2_subdev_link_validate_default,
-	.get_fmt = cio2_subdev_get_fmt,
+	.get_fmt = v4l2_subdev_get_fmt,
 	.set_fmt = cio2_subdev_set_fmt,
 	.enum_mbus_code = cio2_subdev_enum_mbus_code,
 };
@@ -1502,28 +1489,18 @@ static int cio2_queue_init(struct cio2_device *cio2, struct cio2_queue *q)
 {
 	static const u32 default_width = 1936;
 	static const u32 default_height = 1096;
-	const struct ipu3_cio2_fmt dflt_fmt = formats[0];
 	struct device *dev = &cio2->pci_dev->dev;
 	struct video_device *vdev = &q->vdev;
 	struct vb2_queue *vbq = &q->vbq;
 	struct v4l2_subdev *subdev = &q->subdev;
-	struct v4l2_mbus_framefmt *fmt;
 	int r;
 
 	/* Initialize miscellaneous variables */
 	mutex_init(&q->lock);
-	mutex_init(&q->subdev_lock);
-
-	/* Initialize formats to default values */
-	fmt = &q->subdev_fmt;
-	fmt->width = default_width;
-	fmt->height = default_height;
-	fmt->code = dflt_fmt.mbus_code;
-	fmt->field = V4L2_FIELD_NONE;
 
 	q->format.width = default_width;
 	q->format.height = default_height;
-	q->format.pixelformat = dflt_fmt.fourcc;
+	q->format.pixelformat = formats[0].fourcc;
 	q->format.colorspace = V4L2_COLORSPACE_RAW;
 	q->format.field = V4L2_FIELD_NONE;
 	q->format.num_planes = 1;
@@ -1567,9 +1544,16 @@ static int cio2_queue_init(struct cio2_device *cio2, struct cio2_queue *q)
 		 CIO2_ENTITY_NAME " %td", q - cio2->queue);
 	subdev->entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
 	v4l2_set_subdevdata(subdev, cio2);
+
+	r = v4l2_subdev_init_finalize(subdev);
+	if (r) {
+		dev_err(dev, "failed to initialize subdev (%d)\n", r);
+		goto fail_subdev;
+	}
+
 	r = v4l2_device_register_subdev(&cio2->v4l2_dev, subdev);
 	if (r) {
-		dev_err(dev, "failed initialize subdev (%d)\n", r);
+		dev_err(dev, "failed to register subdev (%d)\n", r);
 		goto fail_subdev;
 	}
 
@@ -1626,7 +1610,6 @@ fail_vdev_media_entity:
 fail_subdev_media_entity:
 	cio2_fbpt_exit(q, dev);
 fail_fbpt:
-	mutex_destroy(&q->subdev_lock);
 	mutex_destroy(&q->lock);
 
 	return r;
@@ -1639,7 +1622,6 @@ static void cio2_queue_exit(struct cio2_device *cio2, struct cio2_queue *q)
 	v4l2_device_unregister_subdev(&q->subdev);
 	media_entity_cleanup(&q->subdev.entity);
 	cio2_fbpt_exit(q, &cio2->pci_dev->dev);
-	mutex_destroy(&q->subdev_lock);
 	mutex_destroy(&q->lock);
 }
 

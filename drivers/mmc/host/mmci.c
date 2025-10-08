@@ -2082,7 +2082,6 @@ static void mmci_enable_sdio_irq(struct mmc_host *mmc, int enable)
 	spin_unlock_irqrestore(&host->lock, flags);
 
 	if (!enable) {
-		pm_runtime_mark_last_busy(mmc_dev(mmc));
 		pm_runtime_put_autosuspend(mmc_dev(mmc));
 	}
 }
@@ -2223,7 +2222,7 @@ static int mmci_probe(struct amba_device *dev,
 			return -ENOMEM;
 	}
 
-	mmc = mmc_alloc_host(sizeof(struct mmci_host), &dev->dev);
+	mmc = devm_mmc_alloc_host(&dev->dev, sizeof(*host));
 	if (!mmc)
 		return -ENOMEM;
 
@@ -2234,7 +2233,7 @@ static int mmci_probe(struct amba_device *dev,
 
 	ret = mmci_of_parse(np, mmc);
 	if (ret)
-		goto host_free;
+		return ret;
 
 	/*
 	 * Some variant (STM32) doesn't have opendrain bit, nevertheless
@@ -2242,19 +2241,15 @@ static int mmci_probe(struct amba_device *dev,
 	 */
 	if (!variant->opendrain) {
 		host->pinctrl = devm_pinctrl_get(&dev->dev);
-		if (IS_ERR(host->pinctrl)) {
-			dev_err(&dev->dev, "failed to get pinctrl");
-			ret = PTR_ERR(host->pinctrl);
-			goto host_free;
-		}
+		if (IS_ERR(host->pinctrl))
+			return dev_err_probe(&dev->dev, PTR_ERR(host->pinctrl),
+					     "failed to get pinctrl\n");
 
 		host->pins_opendrain = pinctrl_lookup_state(host->pinctrl,
 							    MMCI_PINCTRL_STATE_OPENDRAIN);
-		if (IS_ERR(host->pins_opendrain)) {
-			dev_err(mmc_dev(mmc), "Can't select opendrain pins\n");
-			ret = PTR_ERR(host->pins_opendrain);
-			goto host_free;
-		}
+		if (IS_ERR(host->pins_opendrain))
+			return dev_err_probe(&dev->dev, PTR_ERR(host->pins_opendrain),
+					     "Can't select opendrain pins\n");
 	}
 
 	host->hw_designer = amba_manf(dev);
@@ -2263,14 +2258,12 @@ static int mmci_probe(struct amba_device *dev,
 	dev_dbg(mmc_dev(mmc), "revision = 0x%01x\n", host->hw_revision);
 
 	host->clk = devm_clk_get(&dev->dev, NULL);
-	if (IS_ERR(host->clk)) {
-		ret = PTR_ERR(host->clk);
-		goto host_free;
-	}
+	if (IS_ERR(host->clk))
+		return PTR_ERR(host->clk);
 
 	ret = clk_prepare_enable(host->clk);
 	if (ret)
-		goto host_free;
+		return ret;
 
 	if (variant->qcom_fifo)
 		host->get_rx_fifocnt = mmci_qcom_get_rx_fifocnt;
@@ -2491,8 +2484,6 @@ static int mmci_probe(struct amba_device *dev,
 
  clk_disable:
 	clk_disable_unprepare(host->clk);
- host_free:
-	mmc_free_host(mmc);
 	return ret;
 }
 
@@ -2522,7 +2513,6 @@ static void mmci_remove(struct amba_device *dev)
 
 		mmci_dma_release(host);
 		clk_disable_unprepare(host->clk);
-		mmc_free_host(mmc);
 	}
 }
 

@@ -493,7 +493,7 @@ out:
 static const struct bin_attribute image_data_attr = {
 	.attr = {.name = "image", .mode = 0200},
 	.size = MAX_IMAGE_SIZE,	/* Limit image size */
-	.write_new = image_data_write,
+	.write = image_data_write,
 };
 
 static struct kobj_attribute validate_attribute =

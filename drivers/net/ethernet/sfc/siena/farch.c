@@ -1708,7 +1708,7 @@ void efx_farch_dimension_resources(struct efx_nic *efx, unsigned sram_lim_qw)
 
 			if (efx->vf_count > vf_limit) {
 				netif_err(efx, probe, efx->net_dev,
-					  "Reducing VF count from from %d to %d\n",
+					  "Reducing VF count from %d to %d\n",
 					  efx->vf_count, vf_limit);
 				efx->vf_count = vf_limit;
 			}

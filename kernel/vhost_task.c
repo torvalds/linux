@@ -145,7 +145,7 @@ struct vhost_task *vhost_task_create(bool (*fn)(void *),
 	tsk = copy_process(NULL, 0, NUMA_NO_NODE, &args);
 	if (IS_ERR(tsk)) {
 		kfree(vtsk);
-		return ERR_PTR(PTR_ERR(tsk));
+		return ERR_CAST(tsk);
 	}
 
 	vtsk->task = tsk;

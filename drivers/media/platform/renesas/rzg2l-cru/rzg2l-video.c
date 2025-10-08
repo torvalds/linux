@@ -323,7 +323,7 @@ static int rzg2l_cru_initialize_image_conv(struct rzg2l_cru_dev *cru,
 	return 0;
 }
 
-bool rz3e_fifo_empty(struct rzg2l_cru_dev *cru)
+bool rzg3e_fifo_empty(struct rzg2l_cru_dev *cru)
 {
 	u32 amnfifopntr = rzg2l_cru_read(cru, AMnFIFOPNTR);
 
@@ -345,8 +345,6 @@ bool rzg2l_fifo_empty(struct rzg2l_cru_dev *cru)
 	amnfifopntr_w = amnfifopntr & AMnFIFOPNTR_FIFOWPNTR;
 	amnfifopntr_r_y =
 		(amnfifopntr & AMnFIFOPNTR_FIFORPNTR_Y) >> 16;
-	if (amnfifopntr_w == amnfifopntr_r_y)
-		return true;
 
 	return amnfifopntr_w == amnfifopntr_r_y;
 }
@@ -941,15 +939,7 @@ static void rzg2l_cru_format_align(struct rzg2l_cru_dev *cru,
 	v4l_bound_align_image(&pix->width, 320, info->max_width, 1,
 			      &pix->height, 240, info->max_height, 2, 0);
 
-	if (info->has_stride) {
-		u32 stride = clamp(pix->bytesperline, pix->width * fmt->bpp,
-				   RZG2L_CRU_STRIDE_MAX);
-		pix->bytesperline = round_up(stride, RZG2L_CRU_STRIDE_ALIGN);
-	} else {
-		pix->bytesperline = pix->width * fmt->bpp;
-	}
-
-	pix->sizeimage = pix->bytesperline * pix->height;
+	v4l2_fill_pixfmt(pix, pix->pixelformat, pix->width, pix->height);
 
 	dev_dbg(cru->dev, "Format %ux%u bpl: %u size: %u\n",
 		pix->width, pix->height, pix->bytesperline, pix->sizeimage);
@@ -1031,6 +1021,31 @@ static int rzg2l_cru_enum_fmt_vid_cap(struct file *file, void *priv,
 	return 0;
 }
 
+static int rzg2l_cru_enum_framesizes(struct file *file, void *fh,
+				     struct v4l2_frmsizeenum *fsize)
+{
+	struct rzg2l_cru_dev *cru = video_drvdata(file);
+	const struct rzg2l_cru_info *info = cru->info;
+	const struct rzg2l_cru_ip_format *fmt;
+
+	if (fsize->index)
+		return -EINVAL;
+
+	fmt = rzg2l_cru_ip_format_to_fmt(fsize->pixel_format);
+	if (!fmt)
+		return -EINVAL;
+
+	fsize->type = V4L2_FRMIVAL_TYPE_CONTINUOUS;
+	fsize->stepwise.min_width = RZG2L_CRU_MIN_INPUT_WIDTH;
+	fsize->stepwise.max_width = info->max_width;
+	fsize->stepwise.step_width = 1;
+	fsize->stepwise.min_height = RZG2L_CRU_MIN_INPUT_HEIGHT;
+	fsize->stepwise.max_height = info->max_height;
+	fsize->stepwise.step_height = 1;
+
+	return 0;
+}
+
 static const struct v4l2_ioctl_ops rzg2l_cru_ioctl_ops = {
 	.vidioc_querycap		= rzg2l_cru_querycap,
 	.vidioc_try_fmt_vid_cap		= rzg2l_cru_try_fmt_vid_cap,
@@ -1047,6 +1062,7 @@ static const struct v4l2_ioctl_ops rzg2l_cru_ioctl_ops = {
 	.vidioc_prepare_buf		= vb2_ioctl_prepare_buf,
 	.vidioc_streamon		= vb2_ioctl_streamon,
 	.vidioc_streamoff		= vb2_ioctl_streamoff,
+	.vidioc_enum_framesizes		= rzg2l_cru_enum_framesizes,
 };
 
 /* -----------------------------------------------------------------------------
@@ -1129,7 +1145,7 @@ static int rzg2l_cru_video_link_validate(struct media_link *link)
 	if (fmt.format.width != cru->format.width ||
 	    fmt.format.height != cru->format.height ||
 	    fmt.format.field != cru->format.field ||
-	    video_fmt->code != fmt.format.code)
+	    !rzg2l_cru_ip_fmt_supports_mbus_code(video_fmt, fmt.format.code))
 		return -EPIPE;
 
 	return 0;

@@ -230,7 +230,7 @@ EXPORT_SYMBOL(setattr_prepare);
  * @inode:	the inode to be truncated
  * @offset:	the new size to assign to the inode
  *
- * inode_newsize_ok must be called with i_mutex held.
+ * inode_newsize_ok must be called with i_rwsem held exclusively.
  *
  * inode_newsize_ok will check filesystem limits and ulimits to check that the
  * new inode size is within limits. inode_newsize_ok will also send SIGXFSZ
@@ -318,7 +318,7 @@ static void setattr_copy_mgtime(struct inode *inode, const struct iattr *attr)
  * @inode:	the inode to be updated
  * @attr:	the new attributes
  *
- * setattr_copy must be called with i_mutex held.
+ * setattr_copy must be called with i_rwsem held exclusively.
  *
  * setattr_copy updates the inode's metadata with that specified
  * in attr on idmapped mounts. Necessary permission checks to determine
@@ -403,13 +403,13 @@ EXPORT_SYMBOL(may_setattr);
  * @attr:	new attributes
  * @delegated_inode: returns inode, if the inode is delegated
  *
- * The caller must hold the i_mutex on the affected object.
+ * The caller must hold the i_rwsem exclusively on the affected object.
  *
  * If notify_change discovers a delegation in need of breaking,
  * it will return -EWOULDBLOCK and return a reference to the inode in
  * delegated_inode.  The caller should then break the delegation and
  * retry.  Because breaking a delegation may take a long time, the
- * caller should drop the i_mutex before doing so.
+ * caller should drop the i_rwsem before doing so.
  *
  * Alternatively, a caller may pass NULL for delegated_inode.  This may
  * be appropriate for callers that expect the underlying filesystem not
@@ -456,7 +456,7 @@ int notify_change(struct mnt_idmap *idmap, struct dentry *dentry,
 		if (S_ISLNK(inode->i_mode))
 			return -EOPNOTSUPP;
 
-		/* Flag setting protected by i_mutex */
+		/* Flag setting protected by i_rwsem */
 		if (is_sxid(attr->ia_mode))
 			inode->i_flags &= ~S_NOSEC;
 	}

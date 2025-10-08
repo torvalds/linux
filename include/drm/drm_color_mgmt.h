@@ -118,4 +118,31 @@ enum drm_color_lut_tests {
 };
 
 int drm_color_lut_check(const struct drm_property_blob *lut, u32 tests);
+
+/*
+ * Gamma-LUT programming
+ */
+
+typedef void (*drm_crtc_set_lut_func)(struct drm_crtc *, unsigned int, u16, u16, u16);
+
+void drm_crtc_load_gamma_888(struct drm_crtc *crtc, const struct drm_color_lut *lut,
+			     drm_crtc_set_lut_func set_gamma);
+void drm_crtc_load_gamma_565_from_888(struct drm_crtc *crtc, const struct drm_color_lut *lut,
+				      drm_crtc_set_lut_func set_gamma);
+void drm_crtc_load_gamma_555_from_888(struct drm_crtc *crtc, const struct drm_color_lut *lut,
+				      drm_crtc_set_lut_func set_gamma);
+
+void drm_crtc_fill_gamma_888(struct drm_crtc *crtc, drm_crtc_set_lut_func set_gamma);
+void drm_crtc_fill_gamma_565(struct drm_crtc *crtc, drm_crtc_set_lut_func set_gamma);
+void drm_crtc_fill_gamma_555(struct drm_crtc *crtc, drm_crtc_set_lut_func set_gamma);
+
+/*
+ * Color-LUT programming
+ */
+
+void drm_crtc_load_palette_8(struct drm_crtc *crtc, const struct drm_color_lut *lut,
+			     drm_crtc_set_lut_func set_palette);
+
+void drm_crtc_fill_palette_8(struct drm_crtc *crtc, drm_crtc_set_lut_func set_palette);
+
 #endif

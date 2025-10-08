@@ -1,0 +1,30 @@
+digraph state_automaton {
+	center = true;
+	size = "7,11";
+	{node [shape = plaintext, style=invis, label=""] "__init_runnable"};
+	{node [shape = doublecircle] "runnable"};
+	{node [shape = circle] "runnable"};
+	{node [shape = circle] "signal_wakeup"};
+	{node [shape = circle] "sleepable"};
+	{node [shape = circle] "sleeping"};
+	"__init_runnable" -> "runnable";
+	"runnable" [label = "runnable", color = green3];
+	"runnable" -> "runnable" [ label = "sched_set_state_runnable\nsched_wakeup\nsched_switch_in\nsched_switch_yield\nsched_switch_preempt\nsignal_deliver" ];
+	"runnable" -> "sleepable" [ label = "sched_set_state_sleepable" ];
+	"runnable" -> "sleeping" [ label = "sched_switch_blocking" ];
+	"signal_wakeup" [label = "signal_wakeup"];
+	"signal_wakeup" -> "runnable" [ label = "signal_deliver" ];
+	"signal_wakeup" -> "signal_wakeup" [ label = "sched_switch_in\nsched_switch_preempt\nsched_switch_yield\nsched_wakeup" ];
+	"signal_wakeup" -> "sleepable" [ label = "sched_set_state_sleepable" ];
+	"sleepable" [label = "sleepable"];
+	"sleepable" -> "runnable" [ label = "sched_set_state_runnable\nsched_wakeup" ];
+	"sleepable" -> "signal_wakeup" [ label = "sched_switch_yield" ];
+	"sleepable" -> "sleepable" [ label = "sched_set_state_sleepable\nsched_switch_in\nsched_switch_preempt\nsignal_deliver" ];
+	"sleepable" -> "sleeping" [ label = "sched_switch_suspend\nsched_switch_blocking" ];
+	"sleeping" [label = "sleeping"];
+	"sleeping" -> "runnable" [ label = "sched_wakeup" ];
+	{ rank = min ;
+		"__init_runnable";
+		"runnable";
+	}
+}

@@ -340,7 +340,7 @@ int snd_pcsp_new_pcm(struct snd_pcsp *chip)
 
 	chip->pcm->private_data = chip;
 	chip->pcm->info_flags = SNDRV_PCM_INFO_HALF_DUPLEX;
-	strcpy(chip->pcm->name, "pcsp");
+	strscpy(chip->pcm->name, "pcsp");
 
 	snd_pcm_set_managed_buffer_all(chip->pcm,
 				       SNDRV_DMA_TYPE_CONTINUOUS,

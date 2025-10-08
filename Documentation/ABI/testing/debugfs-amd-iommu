@@ -1,0 +1,131 @@
+What:		/sys/kernel/debug/iommu/amd/iommu<x>/mmio
+Date:		January 2025
+Contact:	Dheeraj Kumar Srivastava <dheerajkumar.srivastava@amd.com>
+Description:
+		This file provides read/write access for user input. Users specify the
+		MMIO register offset for iommu<x>, and the file outputs the corresponding
+		MMIO register value of iommu<x>
+
+		Example::
+
+		  $ echo "0x18" > /sys/kernel/debug/iommu/amd/iommu00/mmio
+		  $ cat /sys/kernel/debug/iommu/amd/iommu00/mmio
+
+		Output::
+
+		  Offset:0x18 Value:0x000c22000003f48d
+
+What:		/sys/kernel/debug/iommu/amd/iommu<x>/capability
+Date:		January 2025
+Contact:	Dheeraj Kumar Srivastava <dheerajkumar.srivastava@amd.com>
+Description:
+		This file provides read/write access for user input. Users specify the
+		capability register offset for iommu<x>, and the file outputs the
+		corresponding capability register value of iommu<x>.
+
+		Example::
+
+		  $ echo "0x10" > /sys/kernel/debug/iommu/amd/iommu00/capability
+		  $ cat /sys/kernel/debug/iommu/amd/iommu00/capability
+
+		Output::
+
+		  Offset:0x10 Value:0x00203040
+
+What:		/sys/kernel/debug/iommu/amd/iommu<x>/cmdbuf
+Date:		January 2025
+Contact:	Dheeraj Kumar Srivastava <dheerajkumar.srivastava@amd.com>
+Description:
+		This file is a read-only output file containing iommu<x> command
+		buffer entries.
+
+		Examples::
+
+		  $ cat /sys/kernel/debug/iommu/amd/iommu<x>/cmdbuf
+
+		Output::
+
+		  CMD Buffer Head Offset:339 Tail Offset:339
+		    0: 00835001 10000001 00003c00 00000000
+		    1: 00000000 30000005 fffff003 7fffffff
+		    2: 00835001 10000001 00003c01 00000000
+		    3: 00000000 30000005 fffff003 7fffffff
+		    4: 00835001 10000001 00003c02 00000000
+		    5: 00000000 30000005 fffff003 7fffffff
+		    6: 00835001 10000001 00003c03 00000000
+		    7: 00000000 30000005 fffff003 7fffffff
+		    8: 00835001 10000001 00003c04 00000000
+		    9: 00000000 30000005 fffff003 7fffffff
+		   10: 00835001 10000001 00003c05 00000000
+		   11: 00000000 30000005 fffff003 7fffffff
+		  [...]
+
+What:		/sys/kernel/debug/iommu/amd/devid
+Date:		January 2025
+Contact:	Dheeraj Kumar Srivastava <dheerajkumar.srivastava@amd.com>
+Description:
+		This file provides read/write access for user input. Users specify the
+		device ID, which can be used to dump IOMMU data structures such as the
+		interrupt remapping table and device table.
+
+		Example:
+
+		1.
+		  ::
+
+		    $ echo 0000:01:00.0 > /sys/kernel/debug/iommu/amd/devid
+		    $ cat /sys/kernel/debug/iommu/amd/devid
+
+		  Output::
+
+		    0000:01:00.0
+
+		2.
+		  ::
+
+		    $ echo 01:00.0 > /sys/kernel/debug/iommu/amd/devid
+		    $ cat /sys/kernel/debug/iommu/amd/devid
+
+		  Output::
+
+		    0000:01:00.0
+
+What:		/sys/kernel/debug/iommu/amd/devtbl
+Date:		January 2025
+Contact:	Dheeraj Kumar Srivastava <dheerajkumar.srivastava@amd.com>
+Description:
+		This file is a read-only output file containing the device table entry
+		for the device ID provided in /sys/kernel/debug/iommu/amd/devid.
+
+		Example::
+
+		  $ cat /sys/kernel/debug/iommu/amd/devtbl
+
+		Output::
+
+		  DeviceId             QWORD[3]         QWORD[2]         QWORD[1]         QWORD[0] iommu
+		  0000:01:00.0 0000000000000000 20000001373b8013 0000000000000038 6000000114d7b603 iommu3
+
+What:		/sys/kernel/debug/iommu/amd/irqtbl
+Date:		January 2025
+Contact:	Dheeraj Kumar Srivastava <dheerajkumar.srivastava@amd.com>
+Description:
+		This file is a read-only output file containing valid IRT table entries
+		for the device ID provided in /sys/kernel/debug/iommu/amd/devid.
+
+		Example::
+
+		  $ cat /sys/kernel/debug/iommu/amd/irqtbl
+
+		Output::
+
+		  DeviceId 0000:01:00.0
+		  IRT[0000] 0000000000000020 0000000000000241
+		  IRT[0001] 0000000000000020 0000000000000841
+		  IRT[0002] 0000000000000020 0000000000002041
+		  IRT[0003] 0000000000000020 0000000000008041
+		  IRT[0004] 0000000000000020 0000000000020041
+		  IRT[0005] 0000000000000020 0000000000080041
+		  IRT[0006] 0000000000000020 0000000000200041
+		  IRT[0007] 0000000000000020 0000000000800041
+		  [...]

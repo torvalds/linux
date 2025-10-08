@@ -116,12 +116,12 @@ struct aer_info {
 					PCI_ERR_ROOT_MULTI_COR_RCV |	\
 					PCI_ERR_ROOT_MULTI_UNCOR_RCV)
 
-static int pcie_aer_disable;
+static bool pcie_aer_disable;
 static pci_ers_result_t aer_root_reset(struct pci_dev *dev);
 
 void pci_no_aer(void)
 {
-	pcie_aer_disable = 1;
+	pcie_aer_disable = true;
 }
 
 bool pci_aer_available(void)
@@ -1039,7 +1039,8 @@ static int find_device_iter(struct pci_dev *dev, void *data)
 		/* List this device */
 		if (add_error_device(e_info, dev)) {
 			/* We cannot handle more... Stop iteration */
-			/* TODO: Should print error message here? */
+			pci_err(dev, "Exceeded max supported (%d) devices with errors logged\n",
+				AER_MAX_MULTI_ERR_DEVICES);
 			return 1;
 		}
 

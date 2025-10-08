@@ -4,6 +4,8 @@
 #ifndef _ICE_ADMINQ_CMD_H_
 #define _ICE_ADMINQ_CMD_H_
 
+#include <linux/net/intel/libie/adminq.h>
+
 /* This header file defines the Admin Queue commands, error codes and
  * descriptor format. It is shared between Firmware and Software.
  */
@@ -14,136 +16,28 @@
 
 #define ICE_RXQ_CTX_SIZE_DWORDS		8
 #define ICE_RXQ_CTX_SZ			(ICE_RXQ_CTX_SIZE_DWORDS * sizeof(u32))
-#define ICE_TXQ_CTX_SZ			22
 
 typedef struct __packed { u8 buf[ICE_RXQ_CTX_SZ]; } ice_rxq_ctx_buf_t;
+
+/* The Tx queue context is 40 bytes, and includes some internal state. The
+ * Admin Queue buffers don't include the internal state, so only include the
+ * first 22 bytes of the context.
+ */
+#define ICE_TXQ_CTX_SZ			22
+
 typedef struct __packed { u8 buf[ICE_TXQ_CTX_SZ]; } ice_txq_ctx_buf_t;
 
-struct ice_aqc_generic {
-	__le32 param0;
-	__le32 param1;
-	__le32 addr_high;
-	__le32 addr_low;
-};
+#define ICE_TXQ_CTX_FULL_SIZE_DWORDS	10
+#define ICE_TXQ_CTX_FULL_SZ \
+	(ICE_TXQ_CTX_FULL_SIZE_DWORDS * sizeof(u32))
 
-/* Get version (direct 0x0001) */
-struct ice_aqc_get_ver {
-	__le32 rom_ver;
-	__le32 fw_build;
-	u8 fw_branch;
-	u8 fw_major;
-	u8 fw_minor;
-	u8 fw_patch;
-	u8 api_branch;
-	u8 api_major;
-	u8 api_minor;
-	u8 api_patch;
-};
-
-/* Send driver version (indirect 0x0002) */
-struct ice_aqc_driver_ver {
-	u8 major_ver;
-	u8 minor_ver;
-	u8 build_ver;
-	u8 subbuild_ver;
-	u8 reserved[4];
-	__le32 addr_high;
-	__le32 addr_low;
-};
+typedef struct __packed { u8 buf[ICE_TXQ_CTX_FULL_SZ]; } ice_txq_ctx_buf_full_t;
 
 /* Queue Shutdown (direct 0x0003) */
 struct ice_aqc_q_shutdown {
 	u8 driver_unloading;
 #define ICE_AQC_DRIVER_UNLOADING	BIT(0)
 	u8 reserved[15];
-};
-
-/* Request resource ownership (direct 0x0008)
- * Release resource ownership (direct 0x0009)
- */
-struct ice_aqc_req_res {
-	__le16 res_id;
-#define ICE_AQC_RES_ID_NVM		1
-#define ICE_AQC_RES_ID_SDP		2
-#define ICE_AQC_RES_ID_CHNG_LOCK	3
-#define ICE_AQC_RES_ID_GLBL_LOCK	4
-	__le16 access_type;
-#define ICE_AQC_RES_ACCESS_READ		1
-#define ICE_AQC_RES_ACCESS_WRITE	2
-
-	/* Upon successful completion, FW writes this value and driver is
-	 * expected to release resource before timeout. This value is provided
-	 * in milliseconds.
-	 */
-	__le32 timeout;
-#define ICE_AQ_RES_NVM_READ_DFLT_TIMEOUT_MS	3000
-#define ICE_AQ_RES_NVM_WRITE_DFLT_TIMEOUT_MS	180000
-#define ICE_AQ_RES_CHNG_LOCK_DFLT_TIMEOUT_MS	1000
-#define ICE_AQ_RES_GLBL_LOCK_DFLT_TIMEOUT_MS	3000
-	/* For SDP: pin ID of the SDP */
-	__le32 res_number;
-	/* Status is only used for ICE_AQC_RES_ID_GLBL_LOCK */
-	__le16 status;
-#define ICE_AQ_RES_GLBL_SUCCESS		0
-#define ICE_AQ_RES_GLBL_IN_PROG		1
-#define ICE_AQ_RES_GLBL_DONE		2
-	u8 reserved[2];
-};
-
-/* Get function capabilities (indirect 0x000A)
- * Get device capabilities (indirect 0x000B)
- */
-struct ice_aqc_list_caps {
-	u8 cmd_flags;
-	u8 pf_index;
-	u8 reserved[2];
-	__le32 count;
-	__le32 addr_high;
-	__le32 addr_low;
-};
-
-/* Device/Function buffer entry, repeated per reported capability */
-struct ice_aqc_list_caps_elem {
-	__le16 cap;
-#define ICE_AQC_CAPS_VALID_FUNCTIONS			0x0005
-#define ICE_AQC_CAPS_SRIOV				0x0012
-#define ICE_AQC_CAPS_VF					0x0013
-#define ICE_AQC_CAPS_VSI				0x0017
-#define ICE_AQC_CAPS_DCB				0x0018
-#define ICE_AQC_CAPS_RSS				0x0040
-#define ICE_AQC_CAPS_RXQS				0x0041
-#define ICE_AQC_CAPS_TXQS				0x0042
-#define ICE_AQC_CAPS_MSIX				0x0043
-#define ICE_AQC_CAPS_FD					0x0045
-#define ICE_AQC_CAPS_1588				0x0046
-#define ICE_AQC_CAPS_MAX_MTU				0x0047
-#define ICE_AQC_CAPS_NVM_VER				0x0048
-#define ICE_AQC_CAPS_PENDING_NVM_VER			0x0049
-#define ICE_AQC_CAPS_OROM_VER				0x004A
-#define ICE_AQC_CAPS_PENDING_OROM_VER			0x004B
-#define ICE_AQC_CAPS_NET_VER				0x004C
-#define ICE_AQC_CAPS_PENDING_NET_VER			0x004D
-#define ICE_AQC_CAPS_RDMA				0x0051
-#define ICE_AQC_CAPS_SENSOR_READING			0x0067
-#define ICE_AQC_CAPS_PCIE_RESET_AVOIDANCE		0x0076
-#define ICE_AQC_CAPS_POST_UPDATE_RESET_RESTRICT		0x0077
-#define ICE_AQC_CAPS_NVM_MGMT				0x0080
-#define ICE_AQC_CAPS_TX_SCHED_TOPO_COMP_MODE		0x0085
-#define ICE_AQC_CAPS_NAC_TOPOLOGY			0x0087
-#define ICE_AQC_CAPS_FW_LAG_SUPPORT			0x0092
-#define ICE_AQC_BIT_ROCEV2_LAG				0x01
-#define ICE_AQC_BIT_SRIOV_LAG				0x02
-
-	u8 major_ver;
-	u8 minor_ver;
-	/* Number of resources described by this capability */
-	__le32 number;
-	/* Only meaningful for some types of resources */
-	__le32 logical_id;
-	/* Only meaningful for some types of resources */
-	__le32 phys_id;
-	__le64 rsvd1;
-	__le64 rsvd2;
 };
 
 /* Manage MAC address, read command - indirect (0x0107)
@@ -1672,6 +1566,7 @@ struct ice_aqc_get_port_options_elem {
 #define ICE_AQC_PORT_OPT_MAX_LANE_50G	6
 #define ICE_AQC_PORT_OPT_MAX_LANE_100G	7
 #define ICE_AQC_PORT_OPT_MAX_LANE_200G	8
+#define ICE_AQC_PORT_OPT_MAX_LANE_40G	9
 
 	u8 global_scid[2];
 	u8 phy_scid[2];
@@ -2272,6 +2167,22 @@ struct ice_aqc_get_pkg_info_resp {
 	struct ice_aqc_get_pkg_info pkg_info[];
 };
 
+#define ICE_CGU_INPUT_PHASE_OFFSET_BYTES	6
+
+struct ice_cgu_input_measure {
+	u8 phase_offset[ICE_CGU_INPUT_PHASE_OFFSET_BYTES];
+	__le32 freq;
+} __packed __aligned(sizeof(__le16));
+
+#define ICE_AQC_GET_CGU_IN_MEAS_DPLL_IDX_M	ICE_M(0xf, 0)
+
+/* Get CGU input measure command response data structure (indirect 0x0C59) */
+struct ice_aqc_get_cgu_input_measure {
+	u8 dpll_idx_opt;
+	u8 length;
+	u8 rsvd[6];
+};
+
 #define ICE_AQC_GET_CGU_MAX_PHASE_ADJ	GENMASK(30, 0)
 
 /* Get CGU abilities command response data structure (indirect 0x0C61) */
@@ -2287,6 +2198,8 @@ struct ice_aqc_get_cgu_abilities {
 	u8 cgu_part_num;
 	u8 rsvd[3];
 };
+
+#define ICE_AQC_CGU_IN_CFG_FLG2_REFSYNC_EN		BIT(7)
 
 /* Set CGU input config (direct 0x0C62) */
 struct ice_aqc_set_cgu_input_config {
@@ -2641,151 +2554,6 @@ struct ice_aqc_fw_log_cfg_resp {
 	u8 rsvd0;
 };
 
-/**
- * struct ice_aq_desc - Admin Queue (AQ) descriptor
- * @flags: ICE_AQ_FLAG_* flags
- * @opcode: AQ command opcode
- * @datalen: length in bytes of indirect/external data buffer
- * @retval: return value from firmware
- * @cookie_high: opaque data high-half
- * @cookie_low: opaque data low-half
- * @params: command-specific parameters
- *
- * Descriptor format for commands the driver posts on the Admin Transmit Queue
- * (ATQ). The firmware writes back onto the command descriptor and returns
- * the result of the command. Asynchronous events that are not an immediate
- * result of the command are written to the Admin Receive Queue (ARQ) using
- * the same descriptor format. Descriptors are in little-endian notation with
- * 32-bit words.
- */
-struct ice_aq_desc {
-	__le16 flags;
-	__le16 opcode;
-	__le16 datalen;
-	__le16 retval;
-	__le32 cookie_high;
-	__le32 cookie_low;
-	union {
-		u8 raw[16];
-		struct ice_aqc_generic generic;
-		struct ice_aqc_get_ver get_ver;
-		struct ice_aqc_driver_ver driver_ver;
-		struct ice_aqc_q_shutdown q_shutdown;
-		struct ice_aqc_req_res res_owner;
-		struct ice_aqc_manage_mac_read mac_read;
-		struct ice_aqc_manage_mac_write mac_write;
-		struct ice_aqc_clear_pxe clear_pxe;
-		struct ice_aqc_list_caps get_cap;
-		struct ice_aqc_get_phy_caps get_phy;
-		struct ice_aqc_set_phy_cfg set_phy;
-		struct ice_aqc_restart_an restart_an;
-		struct ice_aqc_set_phy_rec_clk_out set_phy_rec_clk_out;
-		struct ice_aqc_get_phy_rec_clk_out get_phy_rec_clk_out;
-		struct ice_aqc_get_sensor_reading get_sensor_reading;
-		struct ice_aqc_get_sensor_reading_resp get_sensor_reading_resp;
-		struct ice_aqc_gpio read_write_gpio;
-		struct ice_aqc_sff_eeprom read_write_sff_param;
-		struct ice_aqc_set_port_id_led set_port_id_led;
-		struct ice_aqc_get_port_options get_port_options;
-		struct ice_aqc_set_port_option set_port_option;
-		struct ice_aqc_get_sw_cfg get_sw_conf;
-		struct ice_aqc_set_port_params set_port_params;
-		struct ice_aqc_sw_rules sw_rules;
-		struct ice_aqc_add_get_recipe add_get_recipe;
-		struct ice_aqc_recipe_to_profile recipe_to_profile;
-		struct ice_aqc_get_topo get_topo;
-		struct ice_aqc_sched_elem_cmd sched_elem_cmd;
-		struct ice_aqc_query_txsched_res query_sched_res;
-		struct ice_aqc_query_port_ets port_ets;
-		struct ice_aqc_rl_profile rl_profile;
-		struct ice_aqc_nvm nvm;
-		struct ice_aqc_nvm_checksum nvm_checksum;
-		struct ice_aqc_nvm_pkg_data pkg_data;
-		struct ice_aqc_nvm_pass_comp_tbl pass_comp_tbl;
-		struct ice_aqc_pf_vf_msg virt;
-		struct ice_aqc_set_query_pfc_mode set_query_pfc_mode;
-		struct ice_aqc_lldp_get_mib lldp_get_mib;
-		struct ice_aqc_lldp_set_mib_change lldp_set_event;
-		struct ice_aqc_lldp_stop lldp_stop;
-		struct ice_aqc_lldp_start lldp_start;
-		struct ice_aqc_lldp_set_local_mib lldp_set_mib;
-		struct ice_aqc_lldp_stop_start_specific_agent lldp_agent_ctrl;
-		struct ice_aqc_lldp_filter_ctrl lldp_filter_ctrl;
-		struct ice_aqc_get_set_rss_lut get_set_rss_lut;
-		struct ice_aqc_get_set_rss_key get_set_rss_key;
-		struct ice_aqc_neigh_dev_req neigh_dev;
-		struct ice_aqc_add_txqs add_txqs;
-		struct ice_aqc_dis_txqs dis_txqs;
-		struct ice_aqc_cfg_txqs cfg_txqs;
-		struct ice_aqc_add_rdma_qset add_rdma_qset;
-		struct ice_aqc_add_get_update_free_vsi vsi_cmd;
-		struct ice_aqc_add_update_free_vsi_resp add_update_free_vsi_res;
-		struct ice_aqc_download_pkg download_pkg;
-		struct ice_aqc_set_cgu_input_config set_cgu_input_config;
-		struct ice_aqc_get_cgu_input_config get_cgu_input_config;
-		struct ice_aqc_set_cgu_output_config set_cgu_output_config;
-		struct ice_aqc_get_cgu_output_config get_cgu_output_config;
-		struct ice_aqc_get_cgu_dpll_status get_cgu_dpll_status;
-		struct ice_aqc_set_cgu_dpll_config set_cgu_dpll_config;
-		struct ice_aqc_set_cgu_ref_prio set_cgu_ref_prio;
-		struct ice_aqc_get_cgu_ref_prio get_cgu_ref_prio;
-		struct ice_aqc_get_cgu_info get_cgu_info;
-		struct ice_aqc_driver_shared_params drv_shared_params;
-		struct ice_aqc_fw_log fw_log;
-		struct ice_aqc_set_mac_lb set_mac_lb;
-		struct ice_aqc_alloc_free_res_cmd sw_res_ctrl;
-		struct ice_aqc_set_mac_cfg set_mac_cfg;
-		struct ice_aqc_set_event_mask set_event_mask;
-		struct ice_aqc_get_link_status get_link_status;
-		struct ice_aqc_event_lan_overflow lan_overflow;
-		struct ice_aqc_get_link_topo get_link_topo;
-		struct ice_aqc_set_health_status_cfg set_health_status_cfg;
-		struct ice_aqc_get_health_status get_health_status;
-		struct ice_aqc_dnl_call_command dnl_call;
-		struct ice_aqc_i2c read_write_i2c;
-		struct ice_aqc_read_i2c_resp read_i2c_resp;
-		struct ice_aqc_get_set_tx_topo get_set_tx_topo;
-	} params;
-};
-
-/* FW defined boundary for a large buffer, 4k >= Large buffer > 512 bytes */
-#define ICE_AQ_LG_BUF	512
-
-#define ICE_AQ_FLAG_DD_S	0
-#define ICE_AQ_FLAG_CMP_S	1
-#define ICE_AQ_FLAG_ERR_S	2
-#define ICE_AQ_FLAG_LB_S	9
-#define ICE_AQ_FLAG_RD_S	10
-#define ICE_AQ_FLAG_BUF_S	12
-#define ICE_AQ_FLAG_SI_S	13
-
-#define ICE_AQ_FLAG_DD		BIT(ICE_AQ_FLAG_DD_S)  /* 0x1    */
-#define ICE_AQ_FLAG_CMP		BIT(ICE_AQ_FLAG_CMP_S) /* 0x2    */
-#define ICE_AQ_FLAG_ERR		BIT(ICE_AQ_FLAG_ERR_S) /* 0x4    */
-#define ICE_AQ_FLAG_LB		BIT(ICE_AQ_FLAG_LB_S)  /* 0x200  */
-#define ICE_AQ_FLAG_RD		BIT(ICE_AQ_FLAG_RD_S)  /* 0x400  */
-#define ICE_AQ_FLAG_BUF		BIT(ICE_AQ_FLAG_BUF_S) /* 0x1000 */
-#define ICE_AQ_FLAG_SI		BIT(ICE_AQ_FLAG_SI_S)  /* 0x2000 */
-
-/* error codes */
-enum ice_aq_err {
-	ICE_AQ_RC_OK		= 0,  /* Success */
-	ICE_AQ_RC_EPERM		= 1,  /* Operation not permitted */
-	ICE_AQ_RC_ENOENT	= 2,  /* No such element */
-	ICE_AQ_RC_ENOMEM	= 9,  /* Out of memory */
-	ICE_AQ_RC_EBUSY		= 12, /* Device or resource busy */
-	ICE_AQ_RC_EEXIST	= 13, /* Object already exists */
-	ICE_AQ_RC_EINVAL	= 14, /* Invalid argument */
-	ICE_AQ_RC_ENOSPC	= 16, /* No space left or allocation failure */
-	ICE_AQ_RC_ENOSYS	= 17, /* Function not implemented */
-	ICE_AQ_RC_EMODE		= 21, /* Op not allowed in current dev mode */
-	ICE_AQ_RC_ENOSEC	= 24, /* Missing security manifest */
-	ICE_AQ_RC_EBADSIG	= 25, /* Bad RSA signature */
-	ICE_AQ_RC_ESVN		= 26, /* SVN number prohibits this package */
-	ICE_AQ_RC_EBADMAN	= 27, /* Manifest hash mismatch */
-	ICE_AQ_RC_EBADBUF	= 28, /* Buffer hash mismatches manifest */
-};
-
 /* Admin Queue command opcodes */
 enum ice_adminq_opc {
 	/* AQ commands */
@@ -2927,6 +2695,7 @@ enum ice_adminq_opc {
 	ice_aqc_opc_get_pkg_info_list			= 0x0C43,
 
 	/* 1588/SyncE commands/events */
+	ice_aqc_opc_get_cgu_input_measure		= 0x0C59,
 	ice_aqc_opc_get_cgu_abilities			= 0x0C61,
 	ice_aqc_opc_set_cgu_input_config		= 0x0C62,
 	ice_aqc_opc_get_cgu_input_config		= 0x0C63,

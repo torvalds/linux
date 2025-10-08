@@ -36,6 +36,7 @@ properties:
       - items:
           - enum:
               - google,gs101-hsi2c
+              - samsung,exynos2200-hsi2c
               - samsung,exynos850-hsi2c
           - const: samsung,exynosautov9-hsi2c
       - const: samsung,exynos5-hsi2c    # Exynos5250 and Exynos5420

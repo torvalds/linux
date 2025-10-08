@@ -124,7 +124,7 @@ static void free_engine_activity_buffers(struct engine_activity_buffer *buffer)
 static bool is_engine_activity_supported(struct xe_guc *guc)
 {
 	struct xe_uc_fw_version *version = &guc->fw.versions.found[XE_UC_FW_VER_COMPATIBILITY];
-	struct xe_uc_fw_version required = { 1, 14, 1 };
+	struct xe_uc_fw_version required = { .major = 1, .minor = 14, .patch = 1 };
 	struct xe_gt *gt = guc_to_gt(guc);
 
 	if (IS_SRIOV_VF(gt_to_xe(gt))) {

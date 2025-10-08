@@ -103,11 +103,14 @@ examples:
         clock-names = "msi", "ahb";
         power-domains = <&pd IMX_SC_R_DC_0>;
 
-        syscon@56221000 {
-            compatible = "fsl,imx8qxp-mipi-lvds-csr", "syscon", "simple-mfd";
+        bus@56221000 {
+            compatible = "simple-pm-bus", "syscon";
             reg = <0x56221000 0x1000>;
             clocks = <&mipi_lvds_0_di_mipi_lvds_regs_lpcg IMX_LPCG_CLK_4>;
             clock-names = "ipg";
+            #address-cells = <1>;
+            #size-cells = <1>;
+            ranges;
 
             pxl2dpi {
                 compatible = "fsl,imx8qxp-pxl2dpi";

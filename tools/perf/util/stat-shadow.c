@@ -635,14 +635,14 @@ void *perf_stat__print_shadow_stats_metricgroup(struct perf_stat_config *config,
 						int aggr_idx,
 						int *num,
 						void *from,
-						struct perf_stat_output_ctx *out,
-						struct rblist *metric_events)
+						struct perf_stat_output_ctx *out)
 {
 	struct metric_event *me;
 	struct metric_expr *mexp = from;
 	void *ctxp = out->ctx;
 	bool header_printed = false;
 	const char *name = NULL;
+	struct rblist *metric_events = &evsel->evlist->metric_events;
 
 	me = metricgroup__lookup(metric_events, evsel, false);
 	if (me == NULL)
@@ -683,8 +683,7 @@ void *perf_stat__print_shadow_stats_metricgroup(struct perf_stat_config *config,
 void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 				   struct evsel *evsel,
 				   double avg, int aggr_idx,
-				   struct perf_stat_output_ctx *out,
-				   struct rblist *metric_events)
+				   struct perf_stat_output_ctx *out)
 {
 	typedef void (*stat_print_function_t)(struct perf_stat_config *config,
 					const struct evsel *evsel,
@@ -735,7 +734,7 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 	}
 
 	perf_stat__print_shadow_stats_metricgroup(config, evsel, aggr_idx,
-						  &num, NULL, out, metric_events);
+						  &num, NULL, out);
 
 	if (num == 0) {
 		print_metric(config, ctxp, METRIC_THRESHOLD_UNKNOWN,
@@ -748,7 +747,6 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
  *				  if it's not running or not the metric event.
  */
 bool perf_stat__skip_metric_event(struct evsel *evsel,
-				  struct rblist *metric_events,
 				  u64 ena, u64 run)
 {
 	if (!evsel->default_metricgroup)
@@ -757,5 +755,5 @@ bool perf_stat__skip_metric_event(struct evsel *evsel,
 	if (!ena || !run)
 		return true;
 
-	return !metricgroup__lookup(metric_events, evsel, false);
+	return !metricgroup__lookup(&evsel->evlist->metric_events, evsel, false);
 }

@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0
+#include "qcom-msm8974-sony-xperia-rhine.dtsi"
+
+/* Togari uses a different touchscreen compared to other rhine devices */
+/delete-node/ &touchscreen;
+
+/ {
+	model = "Sony Xperia Z Ultra";
+	compatible = "sony,xperia-togari", "qcom,msm8974";
+	chassis-type = "handset";
+};
+
+&pm8941_l23 {
+	regulator-min-microvolt = <2600000>;
+	regulator-max-microvolt = <2600000>;
+};

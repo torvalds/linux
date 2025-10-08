@@ -45,6 +45,7 @@ properties:
       - items:
           - enum:
               - amd,mbv32
+              - amd,mbv64
               - andestech,ax45mp
               - canaan,k210
               - sifive,bullet0

@@ -153,6 +153,18 @@ config SND_SOC_INTEL_AVS_MACH_RT5514
 	   Say Y or m if you have such a device. This is a recommended option.
 	   If unsure select "N".
 
+config SND_SOC_INTEL_AVS_MACH_RT5640
+	tristate "rt5640 in I2S mode"
+	depends on I2C
+	depends on MFD_INTEL_LPSS || COMPILE_TEST
+	select SND_SOC_RT5640
+	help
+	  This adds support for ASoC machine board connecting AVS with RT5640,
+	  components representing Intel AudioDSP and Realtek 5640 codec respectively.
+	  The codec chip is present on I2C bus and the streaming occurs over I2S
+	  interface.
+	  Say Y or m if you have such a device.
+
 config SND_SOC_INTEL_AVS_MACH_RT5663
 	tristate "rt5663 in I2S mode"
 	depends on I2C

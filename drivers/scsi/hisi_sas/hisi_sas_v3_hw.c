@@ -2409,7 +2409,7 @@ static void slot_complete_v3_hw(struct hisi_hba *hisi_hba,
 
 		if (slot_err_v3_hw(hisi_hba, task, slot)) {
 			if (ts->stat != SAS_DATA_UNDERRUN)
-				dev_info(dev, "erroneous completion iptt=%d task=%pK dev id=%d addr=%016llx CQ hdr: 0x%x 0x%x 0x%x 0x%x Error info: 0x%x 0x%x 0x%x 0x%x\n",
+				dev_info(dev, "erroneous completion iptt=%d task=%p dev id=%d addr=%016llx CQ hdr: 0x%x 0x%x 0x%x 0x%x Error info: 0x%x 0x%x 0x%x 0x%x\n",
 					slot->idx, task, sas_dev->device_id,
 					SAS_ADDR(device->sas_addr),
 					dw0, dw1, complete_hdr->act, dw3,
@@ -2470,7 +2470,7 @@ out:
 	spin_lock_irqsave(&task->task_state_lock, flags);
 	if (task->task_state_flags & SAS_TASK_STATE_ABORTED) {
 		spin_unlock_irqrestore(&task->task_state_lock, flags);
-		dev_info(dev, "slot complete: task(%pK) aborted\n", task);
+		dev_info(dev, "slot complete: task(%p) aborted\n", task);
 		return;
 	}
 	task->task_state_flags |= SAS_TASK_STATE_DONE;
@@ -2481,7 +2481,7 @@ out:
 		spin_lock_irqsave(&device->done_lock, flags);
 		if (test_bit(SAS_HA_FROZEN, &ha->state)) {
 			spin_unlock_irqrestore(&device->done_lock, flags);
-			dev_info(dev, "slot complete: task(%pK) ignored\n",
+			dev_info(dev, "slot complete: task(%p) ignored\n",
 				 task);
 			return;
 		}

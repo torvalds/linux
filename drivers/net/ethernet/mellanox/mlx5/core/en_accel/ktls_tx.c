@@ -744,7 +744,7 @@ tx_post_resync_dump(struct mlx5e_txqsq *sq, skb_frag_t *frag, u32 tisn)
 	dseg->addr       = cpu_to_be64(dma_addr);
 	dseg->lkey       = sq->mkey_be;
 	dseg->byte_count = cpu_to_be32(fsz);
-	mlx5e_dma_push(sq, dma_addr, fsz, MLX5E_DMA_MAP_PAGE);
+	mlx5e_dma_push_netmem(sq, skb_frag_netmem(frag), dma_addr, fsz);
 
 	tx_fill_wi(sq, pi, MLX5E_KTLS_DUMP_WQEBBS, fsz, skb_frag_page(frag));
 	sq->pc += MLX5E_KTLS_DUMP_WQEBBS;

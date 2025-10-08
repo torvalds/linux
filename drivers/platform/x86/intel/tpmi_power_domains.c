@@ -228,8 +228,10 @@ static int __init tpmi_init(void)
 
 	domain_die_map = kcalloc(size_mul(topology_max_packages(), MAX_POWER_DOMAINS),
 				 sizeof(*domain_die_map), GFP_KERNEL);
-	if (!domain_die_map)
+	if (!domain_die_map) {
+		ret = -ENOMEM;
 		goto free_domain_mask;
+	}
 
 	ret = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN,
 				"platform/x86/tpmi_power_domains:online",

@@ -188,7 +188,7 @@ static int __snd_card_ymfpci_probe(struct pci_dev *pci,
 	default: model = str = "???"; break;
 	}
 
-	strcpy(card->driver, str);
+	strscpy(card->driver, str);
 	sprintf(card->shortname, "Yamaha %s (%s)", model, str);
 	sprintf(card->longname, "%s at 0x%lx, irq %i",
 		card->shortname,

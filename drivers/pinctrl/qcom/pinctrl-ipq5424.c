@@ -791,7 +791,6 @@ static struct platform_driver ipq5424_pinctrl_driver = {
 		.of_match_table = ipq5424_pinctrl_of_match,
 	},
 	.probe = ipq5424_pinctrl_probe,
-	.remove = msm_pinctrl_remove,
 };
 
 static int __init ipq5424_pinctrl_init(void)

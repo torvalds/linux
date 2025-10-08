@@ -236,10 +236,12 @@ static void dump_completed_IO(struct inode *inode, struct list_head *head)
 
 static bool ext4_io_end_defer_completion(ext4_io_end_t *io_end)
 {
-	if (io_end->flag & EXT4_IO_END_UNWRITTEN)
+	if (io_end->flag & EXT4_IO_END_UNWRITTEN &&
+	    !list_empty(&io_end->list_vec))
 		return true;
 	if (test_opt(io_end->inode->i_sb, DATA_ERR_ABORT) &&
-	    io_end->flag & EXT4_IO_END_FAILED)
+	    io_end->flag & EXT4_IO_END_FAILED &&
+	    !ext4_emergency_state(io_end->inode->i_sb))
 		return true;
 	return false;
 }
@@ -256,6 +258,7 @@ static void ext4_add_complete_io(ext4_io_end_t *io_end)
 	WARN_ON(!(io_end->flag & EXT4_IO_END_DEFER_COMPLETION));
 	WARN_ON(io_end->flag & EXT4_IO_END_UNWRITTEN &&
 		!io_end->handle && sbi->s_journal);
+	WARN_ON(!io_end->bio);
 
 	spin_lock_irqsave(&ei->i_completed_io_lock, flags);
 	wq = sbi->rsv_conversion_wq;
@@ -318,12 +321,9 @@ ext4_io_end_t *ext4_init_io_end(struct inode *inode, gfp_t flags)
 void ext4_put_io_end_defer(ext4_io_end_t *io_end)
 {
 	if (refcount_dec_and_test(&io_end->count)) {
-		if (io_end->flag & EXT4_IO_END_FAILED ||
-		    (io_end->flag & EXT4_IO_END_UNWRITTEN &&
-		     !list_empty(&io_end->list_vec))) {
-			ext4_add_complete_io(io_end);
-			return;
-		}
+		if (ext4_io_end_defer_completion(io_end))
+			return ext4_add_complete_io(io_end);
+
 		ext4_release_io_end(io_end);
 	}
 }

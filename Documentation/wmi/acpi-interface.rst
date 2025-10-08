@@ -36,7 +36,7 @@ Offset  Size (in bytes) Content
 
 The WMI object flags control whether the method or notification ID is used:
 
-- 0x1: Data block usage is expensive and must be explicitly enabled/disabled.
+- 0x1: Data block is expensive to collect.
 - 0x2: Data block contains WMI methods.
 - 0x4: Data block contains ASCIZ string.
 - 0x8: Data block describes a WMI event, use notification ID instead
@@ -83,14 +83,18 @@ event as hexadecimal value. Their first parameter is an integer with a value
 of 0 if the WMI event should be disabled, other values will enable
 the WMI event.
 
+Those ACPI methods are always called even for WMI events not registered as
+being expensive to collect to match the behavior of the Windows driver.
+
 WCxx ACPI methods
 -----------------
-Similar to the ``WExx`` ACPI methods, except that it controls data collection
-instead of events and thus the last two characters of the ACPI method name are
-the method ID of the data block to enable/disable.
+Similar to the ``WExx`` ACPI methods, except that instead of WMI events it controls
+data collection of data blocks registered as being expensive to collect. Thus the
+last two characters of the ACPI method name are the method ID of the data block
+to enable/disable.
 
 Those ACPI methods are also called before setting data blocks to match the
-behaviour of the Windows driver.
+behavior of the Windows driver.
 
 _WED ACPI method
 ----------------

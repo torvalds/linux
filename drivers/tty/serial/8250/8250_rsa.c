@@ -107,6 +107,102 @@ void univ8250_rsa_support(struct uart_ops *ops)
 module_param_hw_array(probe_rsa, ulong, ioport, &probe_rsa_count, 0444);
 MODULE_PARM_DESC(probe_rsa, "Probe I/O ports for RSA");
 
+/*
+ * Attempts to turn on the RSA FIFO.  Returns zero on failure.
+ * We set the port uart clock rate if we succeed.
+ */
+static int __rsa_enable(struct uart_8250_port *up)
+{
+	unsigned char mode;
+	int result;
+
+	mode = serial_in(up, UART_RSA_MSR);
+	result = mode & UART_RSA_MSR_FIFO;
+
+	if (!result) {
+		serial_out(up, UART_RSA_MSR, mode | UART_RSA_MSR_FIFO);
+		mode = serial_in(up, UART_RSA_MSR);
+		result = mode & UART_RSA_MSR_FIFO;
+	}
+
+	if (result)
+		up->port.uartclk = SERIAL_RSA_BAUD_BASE * 16;
+
+	return result;
+}
+
+/*
+ * If this is an RSA port, see if we can kick it up to the higher speed clock.
+ */
+void rsa_enable(struct uart_8250_port *up)
+{
+	if (up->port.type != PORT_RSA)
+		return;
+
+	if (up->port.uartclk != SERIAL_RSA_BAUD_BASE * 16) {
+		uart_port_lock_irq(&up->port);
+		__rsa_enable(up);
+		uart_port_unlock_irq(&up->port);
+	}
+	if (up->port.uartclk == SERIAL_RSA_BAUD_BASE * 16)
+		serial_out(up, UART_RSA_FRR, 0);
+}
+EXPORT_SYMBOL_GPL_FOR_MODULES(rsa_enable, "8250_base");
+
+/*
+ * Attempts to turn off the RSA FIFO and resets the RSA board back to 115kbps compat mode. It is
+ * unknown why interrupts were disabled in here. However, the caller is expected to preserve this
+ * behaviour by grabbing the spinlock before calling this function.
+ */
+void rsa_disable(struct uart_8250_port *up)
+{
+	unsigned char mode;
+	int result;
+
+	if (up->port.type != PORT_RSA)
+		return;
+
+	if (up->port.uartclk != SERIAL_RSA_BAUD_BASE * 16)
+		return;
+
+	uart_port_lock_irq(&up->port);
+	mode = serial_in(up, UART_RSA_MSR);
+	result = !(mode & UART_RSA_MSR_FIFO);
+
+	if (!result) {
+		serial_out(up, UART_RSA_MSR, mode & ~UART_RSA_MSR_FIFO);
+		mode = serial_in(up, UART_RSA_MSR);
+		result = !(mode & UART_RSA_MSR_FIFO);
+	}
+
+	if (result)
+		up->port.uartclk = SERIAL_RSA_BAUD_BASE_LO * 16;
+	uart_port_unlock_irq(&up->port);
+}
+EXPORT_SYMBOL_GPL_FOR_MODULES(rsa_disable, "8250_base");
+
+void rsa_autoconfig(struct uart_8250_port *up)
+{
+	/* Only probe for RSA ports if we got the region. */
+	if (up->port.type != PORT_16550A)
+		return;
+	if (!(up->probe & UART_PROBE_RSA))
+		return;
+
+	if (__rsa_enable(up))
+		up->port.type = PORT_RSA;
+}
+EXPORT_SYMBOL_GPL_FOR_MODULES(rsa_autoconfig, "8250_base");
+
+void rsa_reset(struct uart_8250_port *up)
+{
+	if (up->port.type != PORT_RSA)
+		return;
+
+	serial_out(up, UART_RSA_FRR, 0);
+}
+EXPORT_SYMBOL_GPL_FOR_MODULES(rsa_reset, "8250_base");
+
 #ifdef CONFIG_SERIAL_8250_DEPRECATED_OPTIONS
 #ifndef MODULE
 /*

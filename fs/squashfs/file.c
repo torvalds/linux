@@ -493,10 +493,9 @@ out:
 	return res;
 }
 
-static int squashfs_readahead_fragment(struct page **page,
+static int squashfs_readahead_fragment(struct inode *inode, struct page **page,
 	unsigned int pages, unsigned int expected, loff_t start)
 {
-	struct inode *inode = page[0]->mapping->host;
 	struct squashfs_cache_entry *buffer = squashfs_get_fragment(inode->i_sb,
 		squashfs_i(inode)->fragment_block,
 		squashfs_i(inode)->fragment_size);
@@ -605,8 +604,8 @@ static void squashfs_readahead(struct readahead_control *ractl)
 
 		if (start >> msblk->block_log == file_end &&
 				squashfs_i(inode)->fragment_block != SQUASHFS_INVALID_BLK) {
-			res = squashfs_readahead_fragment(pages, nr_pages,
-							  expected, start);
+			res = squashfs_readahead_fragment(inode, pages,
+					nr_pages, expected, start);
 			if (res)
 				goto skip_pages;
 			continue;

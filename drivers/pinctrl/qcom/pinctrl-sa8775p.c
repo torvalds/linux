@@ -1540,7 +1540,6 @@ static struct platform_driver sa8775p_pinctrl_driver = {
 		.of_match_table = sa8775p_pinctrl_of_match,
 	},
 	.probe = sa8775p_pinctrl_probe,
-	.remove = msm_pinctrl_remove,
 };
 
 static int __init sa8775p_pinctrl_init(void)

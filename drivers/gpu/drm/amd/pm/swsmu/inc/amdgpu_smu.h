@@ -402,6 +402,7 @@ struct smu_power_gate {
 	atomic_t vcn_gated[AMDGPU_MAX_VCN_INSTANCES];
 	atomic_t jpeg_gated;
 	atomic_t vpe_gated;
+	atomic_t isp_gated;
 	atomic_t umsch_mm_gated;
 };
 
@@ -1436,6 +1437,12 @@ struct pptable_funcs {
 	int (*dpm_set_vpe_enable)(struct smu_context *smu, bool enable);
 
 	/**
+	 * @dpm_set_isp_enable: Enable/disable ISP engine dynamic power
+	 *                       management.
+	 */
+	int (*dpm_set_isp_enable)(struct smu_context *smu, bool enable);
+
+	/**
 	 * @dpm_set_umsch_mm_enable: Enable/disable UMSCH engine dynamic power
 	 *                       management.
 	 */
@@ -1635,7 +1642,7 @@ int smu_write_watermarks_table(struct smu_context *smu);
 int smu_get_dpm_freq_range(struct smu_context *smu, enum smu_clk_type clk_type,
 			   uint32_t *min, uint32_t *max);
 
-int smu_set_soft_freq_range(struct smu_context *smu, enum smu_clk_type clk_type,
+int smu_set_soft_freq_range(struct smu_context *smu, enum pp_clock_type clk_type,
 			    uint32_t min, uint32_t max);
 
 int smu_set_gfx_power_up_by_imu(struct smu_context *smu);

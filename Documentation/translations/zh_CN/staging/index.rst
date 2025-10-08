@@ -13,6 +13,7 @@
 .. toctree::
    :maxdepth: 2
 
+   speculation
    xz
 
 TODOList:
@@ -21,6 +22,5 @@ TODOList:
 * lzo
 * remoteproc
 * rpmsg
-* speculation
 * static-keys
 * tee

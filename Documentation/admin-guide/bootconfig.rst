@@ -265,7 +265,7 @@ The final kernel cmdline will be the following::
 Config File Limitation
 ======================
 
-Currently the maximum config size size is 32KB and the total key-words (not
+Currently the maximum config size is 32KB and the total key-words (not
 key-value entries) must be under 1024 nodes.
 Note: this is not the number of entries but nodes, an entry must consume
 more than 2 nodes (a key-word and a value). So theoretically, it will be

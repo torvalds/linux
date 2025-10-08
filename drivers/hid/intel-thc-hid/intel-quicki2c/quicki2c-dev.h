@@ -7,12 +7,12 @@
 #include <linux/hid-over-i2c.h>
 #include <linux/workqueue.h>
 
-#define THC_LNL_DEVICE_ID_I2C_PORT1	0xA848
-#define THC_LNL_DEVICE_ID_I2C_PORT2	0xA84A
-#define THC_PTL_H_DEVICE_ID_I2C_PORT1	0xE348
-#define THC_PTL_H_DEVICE_ID_I2C_PORT2	0xE34A
-#define THC_PTL_U_DEVICE_ID_I2C_PORT1	0xE448
-#define THC_PTL_U_DEVICE_ID_I2C_PORT2	0xE44A
+#define PCI_DEVICE_ID_INTEL_THC_LNL_DEVICE_ID_I2C_PORT1		0xA848
+#define PCI_DEVICE_ID_INTEL_THC_LNL_DEVICE_ID_I2C_PORT2		0xA84A
+#define PCI_DEVICE_ID_INTEL_THC_PTL_H_DEVICE_ID_I2C_PORT1	0xE348
+#define PCI_DEVICE_ID_INTEL_THC_PTL_H_DEVICE_ID_I2C_PORT2	0xE34A
+#define PCI_DEVICE_ID_INTEL_THC_PTL_U_DEVICE_ID_I2C_PORT1	0xE448
+#define PCI_DEVICE_ID_INTEL_THC_PTL_U_DEVICE_ID_I2C_PORT2	0xE44A
 
 /* Packet size value, the unit is 16 bytes */
 #define MAX_PACKET_SIZE_VALUE_LNL			256
@@ -35,6 +35,12 @@
 #define QUICKI2C_DEFAULT_ACTIVE_LTR_VALUE	5
 #define QUICKI2C_DEFAULT_LP_LTR_VALUE		500
 #define QUICKI2C_RPM_TIMEOUT_MS			500
+
+/* PTL Max packet size detection capability is 255 Bytes */
+#define MAX_RX_DETECT_SIZE_PTL			255
+
+/* Default interrupt delay is 1ms, suitable for most devices */
+#define DEFAULT_INTERRUPT_DELAY_US		(1 * USEC_PER_MSEC)
 
 /*
  * THC uses runtime auto suspend to dynamically switch between THC active LTR
@@ -122,6 +128,16 @@ struct quicki2c_subip_acpi_config {
 	u64 HMSL;
 };
 
+/**
+ * struct quicki2c_ddata - Driver specific data for quicki2c device
+ * @max_detect_size: Identify max packet size detect for rx
+ * @interrupt_delay: Identify interrupt detect delay for rx
+ */
+struct quicki2c_ddata {
+	u32 max_detect_size;
+	u32 interrupt_delay;
+};
+
 struct device;
 struct pci_dev;
 struct thc_device;
@@ -130,15 +146,15 @@ struct acpi_device;
 
 /**
  * struct quicki2c_device -  THC QuickI2C device struct
- * @dev: point to kernel device
- * @pdev: point to PCI device
- * @thc_hw: point to THC device
- * @hid_dev: point to hid device
- * @acpi_dev: point to ACPI device
- * @driver_data: point to quicki2c specific driver data
+ * @dev: Point to kernel device
+ * @pdev: Point to PCI device
+ * @thc_hw: Point to THC device
+ * @hid_dev: Point to HID device
+ * @acpi_dev: Point to ACPI device
+ * @ddata: Point to QuickI2C platform specific driver data
  * @state: THC I2C device state
  * @mem_addr: MMIO memory address
- * @dev_desc: device descriptor for HIDI2C protocol
+ * @dev_desc: Device descriptor for HIDI2C protocol
  * @i2c_slave_addr: HIDI2C device slave address
  * @hid_desc_addr: Register address for retrieve HID device descriptor
  * @active_ltr_val: THC active LTR value
@@ -146,12 +162,12 @@ struct acpi_device;
  * @i2c_speed_mode: 0 - standard mode, 1 - fast mode, 2 - fast mode plus
  * @i2c_clock_hcnt: I2C CLK high period time (unit in cycle count)
  * @i2c_clock_lcnt: I2C CLK low period time (unit in cycle count)
- * @report_descriptor: store a copy of device report descriptor
- * @input_buf: store a copy of latest input report data
- * @report_buf: store a copy of latest input/output report packet from set/get feature
- * @report_len: the length of input/output report packet
- * @reset_ack_wq: workqueue for waiting reset response from device
- * @reset_ack: indicate reset response received or not
+ * @report_descriptor: Store a copy of device report descriptor
+ * @input_buf: Store a copy of latest input report data
+ * @report_buf: Store a copy of latest input/output report packet from set/get feature
+ * @report_len: The length of input/output report packet
+ * @reset_ack_wq: Workqueue for waiting reset response from device
+ * @reset_ack: Indicate reset response received or not
  */
 struct quicki2c_device {
 	struct device *dev;
@@ -159,6 +175,7 @@ struct quicki2c_device {
 	struct thc_device *thc_hw;
 	struct hid_device *hid_dev;
 	struct acpi_device *acpi_dev;
+	const struct quicki2c_ddata *ddata;
 	enum quicki2c_dev_state state;
 
 	void __iomem *mem_addr;

@@ -1,0 +1,222 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/memory-controllers/arm,pl172.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: ARM PL172/PL175/PL176 MultiPort Memory Controller
+
+maintainers:
+  - Frank Li <Frank.Li@nxp.com>
+
+# We need a select here so we don't match all nodes with 'arm,primecell'
+select:
+  properties:
+    compatible:
+      contains:
+        enum:
+          - arm,pl172
+          - arm,pl175
+          - arm,pl176
+  required:
+    - compatible
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - arm,pl172
+          - arm,pl175
+          - arm,pl176
+      - const: arm,primecell
+
+  reg:
+    maxItems: 1
+
+  '#address-cells':
+    const: 2
+
+  '#size-cells':
+    const: 1
+
+  ranges: true
+
+  clocks:
+    maxItems: 2
+
+  clock-names:
+    items:
+      - const: mpmcclk
+      - const: apb_pclk
+
+  clock-ranges: true
+
+  resets:
+    maxItems: 1
+
+patternProperties:
+  "^cs[0-9]$":
+    type: object
+    additionalProperties: false
+    patternProperties:
+      "^flash@[0-9],[0-9a-f]+$":
+        type: object
+        $ref: /schemas/mtd/mtd-physmap.yaml#
+        unevaluatedProperties: false
+
+      "^(gpio|sram)@[0-9],[0-9a-f]+$":
+        type: object
+        additionalProperties: true
+
+    properties:
+      '#address-cells':
+        const: 2
+
+      '#size-cells':
+        const: 1
+
+      ranges: true
+
+      clocks:
+        maxItems: 2
+
+      clock-ranges: true
+
+      mpmc,cs:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        description:
+          Chip select number. Indicates to the pl0172 driver
+          which chipselect is used for accessing the memory.
+
+      mpmc,memory-width:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        enum: [8, 16, 32]
+        description:
+          Width of the chip select memory. Must be equal to either 8, 16 or 32.
+
+      mpmc,async-page-mode:
+        $ref: /schemas/types.yaml#/definitions/flag
+        description:
+          Enable asynchronous page mode.
+
+      mpmc,cs-active-high:
+        $ref: /schemas/types.yaml#/definitions/flag
+        description:
+          Set chip select polarity to active high.
+
+      mpmc,byte-lane-low:
+        $ref: /schemas/types.yaml#/definitions/flag
+        description:
+          Set byte lane state to low.
+
+      mpmc,extended-wait:
+        $ref: /schemas/types.yaml#/definitions/flag
+        description:
+          Enable extended wait.
+
+      mpmc,buffer-enable:
+        $ref: /schemas/types.yaml#/definitions/flag
+        description:
+          Enable write buffer, option is not supported by
+          PL175 and PL176 controllers.
+
+      mpmc,write-protect:
+        $ref: /schemas/types.yaml#/definitions/flag
+        description:
+          Enable write protect.
+
+      mpmc,read-enable-delay:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        description:
+          Delay from chip select assertion to read
+          enable (RE signal) in nano seconds.
+
+      mpmc,write-enable-delay:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        description:
+          Delay from chip select assertion to write
+          enable (WE signal) in nano seconds.
+
+      mpmc,output-enable-delay:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        description:
+          Delay from chip select assertion to output
+          enable (OE signal) in nano seconds.
+
+      mpmc,write-access-delay:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        description:
+          Delay from chip select assertion to write
+          access in nano seconds.
+
+      mpmc,read-access-delay:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        description:
+          Delay from chip select assertion to read
+          access in nano seconds.
+
+      mpmc,page-mode-read-delay:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        description:
+          Delay for asynchronous page mode sequential
+          accesses in nano seconds.
+
+      mpmc,turn-round-delay:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        description:
+          Delay between access to memory banks in nano
+          seconds.
+
+required:
+  - compatible
+  - reg
+  - '#address-cells'
+  - '#size-cells'
+  - ranges
+  - clocks
+  - clock-names
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/lpc18xx-ccu.h>
+
+    memory-controller@40005000 {
+        compatible = "arm,pl172", "arm,primecell";
+        reg = <0x40005000 0x1000>;
+        clocks = <&ccu1 CLK_CPU_EMCDIV>, <&ccu1 CLK_CPU_EMC>;
+        clock-names = "mpmcclk", "apb_pclk";
+        #address-cells = <2>;
+        #size-cells = <1>;
+        ranges = <0 0 0x1c000000 0x1000000
+                  1 0 0x1d000000 0x1000000
+                  2 0 0x1e000000 0x1000000
+                  3 0 0x1f000000 0x1000000>;
+
+        cs0 {
+            #address-cells = <2>;
+            #size-cells = <1>;
+            ranges;
+
+            mpmc,cs = <0>;
+            mpmc,memory-width = <16>;
+            mpmc,byte-lane-low;
+            mpmc,write-enable-delay = <0>;
+            mpmc,output-enable-delay = <0>;
+            mpmc,read-enable-delay = <70>;
+            mpmc,page-mode-read-delay = <70>;
+
+            flash@0,0 {
+                compatible = "sst,sst39vf320", "cfi-flash";
+                reg = <0 0 0x400000>;
+                bank-width = <2>;
+                #address-cells = <1>;
+                #size-cells = <1>;
+                partition@0 {
+                    label = "data";
+                    reg = <0 0x400000>;
+                };
+            };
+        };
+    };

@@ -1269,42 +1269,6 @@ xrep_setup_xfbtree(
 }
 
 /*
- * Create a dummy transaction for use in a live update hook function.  This
- * function MUST NOT be called from regular repair code because the current
- * process' transaction is saved via the cookie.
- */
-int
-xrep_trans_alloc_hook_dummy(
-	struct xfs_mount	*mp,
-	void			**cookiep,
-	struct xfs_trans	**tpp)
-{
-	int			error;
-
-	*cookiep = current->journal_info;
-	current->journal_info = NULL;
-
-	error = xfs_trans_alloc_empty(mp, tpp);
-	if (!error)
-		return 0;
-
-	current->journal_info = *cookiep;
-	*cookiep = NULL;
-	return error;
-}
-
-/* Cancel a dummy transaction used by a live update hook function. */
-void
-xrep_trans_cancel_hook_dummy(
-	void			**cookiep,
-	struct xfs_trans	*tp)
-{
-	xfs_trans_cancel(tp);
-	current->journal_info = *cookiep;
-	*cookiep = NULL;
-}
-
-/*
  * See if this buffer can pass the given ->verify_struct() function.
  *
  * If the buffer already has ops attached and they're not the ones that were

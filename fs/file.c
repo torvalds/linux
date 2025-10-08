@@ -197,6 +197,21 @@ static struct fdtable *alloc_fdtable(unsigned int slots_wanted)
 			return ERR_PTR(-EMFILE);
 	}
 
+	/*
+	 * Check if the allocation size would exceed INT_MAX. kvmalloc_array()
+	 * and kvmalloc() will warn if the allocation size is greater than
+	 * INT_MAX, as filp_cachep objects are not __GFP_NOWARN.
+	 *
+	 * This can happen when sysctl_nr_open is set to a very high value and
+	 * a process tries to use a file descriptor near that limit. For example,
+	 * if sysctl_nr_open is set to 1073741816 (0x3ffffff8) - which is what
+	 * systemd typically sets it to - then trying to use a file descriptor
+	 * close to that value will require allocating a file descriptor table
+	 * that exceeds 8GB in size.
+	 */
+	if (unlikely(nr > INT_MAX / sizeof(struct file *)))
+		return ERR_PTR(-EMFILE);
+
 	fdt = kmalloc(sizeof(struct fdtable), GFP_KERNEL_ACCOUNT);
 	if (!fdt)
 		goto out;
@@ -1198,8 +1213,12 @@ bool file_seek_cur_needs_f_lock(struct file *file)
 	if (!(file->f_mode & FMODE_ATOMIC_POS) && !file->f_op->iterate_shared)
 		return false;
 
-	VFS_WARN_ON_ONCE((file_count(file) > 1) &&
-			 !mutex_is_locked(&file->f_pos_lock));
+	/*
+	 * Note that we are not guaranteed to be called after fdget_pos() on
+	 * this file obj, in which case the caller is expected to provide the
+	 * appropriate locking.
+	 */
+
 	return true;
 }
 

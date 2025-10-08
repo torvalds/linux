@@ -1,0 +1,92 @@
+[
+  {
+    "Unit": "software",
+    "EventName": "cpu-clock",
+    "BriefDescription": "Per-CPU high-resolution timer based event",
+    "ConfigCode": "0"
+  },
+  {
+    "Unit": "software",
+    "EventName": "task-clock",
+    "BriefDescription": "Per-task high-resolution timer based event",
+    "ConfigCode": "1"
+  },
+  {
+    "Unit": "software",
+    "EventName": "faults",
+    "BriefDescription": "Number of page faults [This event is an alias of page-faults]",
+    "ConfigCode": "2"
+  },
+  {
+    "Unit": "software",
+    "EventName": "page-faults",
+    "BriefDescription": "Number of page faults [This event is an alias of faults]",
+    "ConfigCode": "2"
+  },
+  {
+    "Unit": "software",
+    "EventName": "context-switches",
+    "BriefDescription": "Number of context switches [This event is an alias of cs]",
+    "ConfigCode": "3"
+  },
+  {
+    "Unit": "software",
+    "EventName": "cs",
+    "BriefDescription": "Number of context switches [This event is an alias of context-switches]",
+    "ConfigCode": "3"
+  },
+  {
+    "Unit": "software",
+    "EventName": "cpu-migrations",
+    "BriefDescription": "Number of times a process has migrated to a new CPU [This event is an alias of migrations]",
+    "ConfigCode": "4"
+  },
+  {
+    "Unit": "software",
+    "EventName": "migrations",
+    "BriefDescription": "Number of times a process has migrated to a new CPU [This event is an alias of cpu-migrations]",
+    "ConfigCode": "4"
+  },
+  {
+    "Unit": "software",
+    "EventName": "minor-faults",
+    "BriefDescription": "Number of minor page faults. Minor faults don't require I/O to handle",
+    "ConfigCode": "5"
+  },
+  {
+    "Unit": "software",
+    "EventName": "major-faults",
+    "BriefDescription": "Number of major page faults. Major faults require I/O to handle",
+    "ConfigCode": "6"
+  },
+  {
+    "Unit": "software",
+    "EventName": "alignment-faults",
+    "BriefDescription": "Number of kernel handled memory alignment faults",
+    "ConfigCode": "7"
+  },
+  {
+    "Unit": "software",
+    "EventName": "emulation-faults",
+    "BriefDescription": "Number of kernel handled unimplemented instruction faults handled through emulation",
+    "ConfigCode": "8"
+  },
+  {
+    "Unit": "software",
+    "EventName": "dummy",
+    "BriefDescription": "A placeholder event that doesn't count anything",
+    "ConfigCode": "9"
+  },
+  {
+    "Unit": "software",
+    "EventName": "bpf-output",
+    "BriefDescription": "An event used by BPF programs to write to the perf ring buffer",
+    "ConfigCode": "10"
+  },
+  {
+    "Unit": "software",
+    "EventName": "cgroup-switches",
+    "BriefDescription": "Number of context switches to a task in a different cgroup",
+    "ConfigCode": "11"
+  }
+]

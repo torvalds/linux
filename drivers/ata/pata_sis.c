@@ -552,7 +552,7 @@ static struct ata_port_operations sis_133_for_sata_ops = {
 
 static struct ata_port_operations sis_base_ops = {
 	.inherits		= &ata_bmdma_port_ops,
-	.prereset		= sis_pre_reset,
+	.reset.prereset		= sis_pre_reset,
 };
 
 static struct ata_port_operations sis_133_ops = {

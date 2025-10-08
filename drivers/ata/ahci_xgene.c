@@ -613,11 +613,11 @@ static irqreturn_t xgene_ahci_irq_intr(int irq, void *dev_instance)
 static struct ata_port_operations xgene_ahci_v1_ops = {
 	.inherits = &ahci_ops,
 	.host_stop = xgene_ahci_host_stop,
-	.hardreset = xgene_ahci_hardreset,
+	.reset.hardreset = xgene_ahci_hardreset,
+	.reset.softreset = xgene_ahci_softreset,
+	.pmp_reset.softreset = xgene_ahci_pmp_softreset,
 	.read_id = xgene_ahci_read_id,
 	.qc_issue = xgene_ahci_qc_issue,
-	.softreset = xgene_ahci_softreset,
-	.pmp_softreset = xgene_ahci_pmp_softreset
 };
 
 static const struct ata_port_info xgene_ahci_v1_port_info = {
@@ -630,7 +630,7 @@ static const struct ata_port_info xgene_ahci_v1_port_info = {
 static struct ata_port_operations xgene_ahci_v2_ops = {
 	.inherits = &ahci_ops,
 	.host_stop = xgene_ahci_host_stop,
-	.hardreset = xgene_ahci_hardreset,
+	.reset.hardreset = xgene_ahci_hardreset,
 	.read_id = xgene_ahci_read_id,
 };
 

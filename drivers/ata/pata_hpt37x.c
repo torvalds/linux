@@ -543,7 +543,7 @@ static struct ata_port_operations hpt370_port_ops = {
 	.cable_detect	= hpt37x_cable_detect,
 	.set_piomode	= hpt37x_set_piomode,
 	.set_dmamode	= hpt37x_set_dmamode,
-	.prereset	= hpt37x_pre_reset,
+	.reset.prereset	= hpt37x_pre_reset,
 };
 
 /*
@@ -567,7 +567,7 @@ static struct ata_port_operations hpt302_port_ops = {
 	.cable_detect	= hpt37x_cable_detect,
 	.set_piomode	= hpt37x_set_piomode,
 	.set_dmamode	= hpt37x_set_dmamode,
-	.prereset	= hpt37x_pre_reset,
+	.reset.prereset	= hpt37x_pre_reset,
 };
 
 /*

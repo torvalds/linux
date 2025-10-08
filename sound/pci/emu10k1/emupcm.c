@@ -1425,7 +1425,7 @@ int snd_emu10k1_pcm(struct snd_emu10k1 *emu, int device)
 
 	pcm->info_flags = 0;
 	pcm->dev_subclass = SNDRV_PCM_SUBCLASS_GENERIC_MIX;
-	strcpy(pcm->name, "ADC Capture/Standard PCM Playback");
+	strscpy(pcm->name, "ADC Capture/Standard PCM Playback");
 	emu->pcm = pcm;
 
 	/* playback substream can't use managed buffers due to alignment */
@@ -1457,7 +1457,7 @@ int snd_emu10k1_pcm_multi(struct snd_emu10k1 *emu, int device)
 
 	pcm->info_flags = 0;
 	pcm->dev_subclass = SNDRV_PCM_SUBCLASS_GENERIC_MIX;
-	strcpy(pcm->name, "Multichannel Playback");
+	strscpy(pcm->name, "Multichannel Playback");
 	emu->pcm_multi = pcm;
 
 	for (substream = pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream; substream; substream = substream->next)
@@ -1491,7 +1491,7 @@ int snd_emu10k1_pcm_mic(struct snd_emu10k1 *emu, int device)
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_emu10k1_capture_mic_ops);
 
 	pcm->info_flags = 0;
-	strcpy(pcm->name, "Mic Capture");
+	strscpy(pcm->name, "Mic Capture");
 	emu->pcm_mic = pcm;
 
 	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV, &emu->pci->dev,
@@ -1818,9 +1818,9 @@ int snd_emu10k1_pcm_efx(struct snd_emu10k1 *emu, int device)
 
 	pcm->info_flags = 0;
 	if (emu->audigy)
-		strcpy(pcm->name, "Multichannel Capture");
+		strscpy(pcm->name, "Multichannel Capture");
 	else
-		strcpy(pcm->name, "Multichannel Capture/PT Playback");
+		strscpy(pcm->name, "Multichannel Capture/PT Playback");
 	emu->pcm_efx = pcm;
 
 	if (!emu->card_capabilities->emu_model) {

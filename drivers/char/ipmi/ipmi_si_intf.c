@@ -2108,7 +2108,6 @@ static bool __init ipmi_smi_info_same(struct smi_info *e1, struct smi_info *e2)
 static int __init init_ipmi_si(void)
 {
 	struct smi_info *e, *e2;
-	enum ipmi_addr_src type = SI_INVALID;
 
 	if (initialized)
 		return 0;
@@ -2189,9 +2188,6 @@ static int __init init_ipmi_si(void)
 
 	initialized = true;
 	mutex_unlock(&smi_infos_lock);
-
-	if (type)
-		return 0;
 
 	mutex_lock(&smi_infos_lock);
 	if (unload_when_empty && list_empty(&smi_infos)) {

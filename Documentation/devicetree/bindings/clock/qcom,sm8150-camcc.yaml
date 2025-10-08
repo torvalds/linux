@@ -13,14 +13,11 @@ description: |
   Qualcomm camera clock control module provides the clocks, resets and
   power domains on SM8150.
 
-  See also:: include/dt-bindings/clock/qcom,sm8150-camcc.h
+  See also: include/dt-bindings/clock/qcom,sm8150-camcc.h
 
 properties:
   compatible:
     const: qcom,sm8150-camcc
-
-  reg:
-    maxItems: 1
 
   clocks:
     items:
@@ -37,26 +34,17 @@ properties:
     description:
       A phandle to an OPP node describing required MMCX performance point.
 
-  '#clock-cells':
-    const: 1
-
-  '#reset-cells':
-    const: 1
-
-  '#power-domain-cells':
-    const: 1
-
 required:
   - compatible
-  - reg
   - clocks
   - power-domains
   - required-opps
-  - '#clock-cells'
-  - '#reset-cells'
   - '#power-domain-cells'
 
-additionalProperties: false
+allOf:
+  - $ref: qcom,gcc.yaml#
+
+unevaluatedProperties: false
 
 examples:
   - |

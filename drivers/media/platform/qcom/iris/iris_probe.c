@@ -53,7 +53,7 @@ static int iris_init_power_domains(struct iris_core *core)
 	struct dev_pm_domain_attach_data iris_opp_pd_data = {
 		.pd_names = core->iris_platform_data->opp_pd_tbl,
 		.num_pd_names = core->iris_platform_data->opp_pd_tbl_size,
-		.pd_flags = PD_FLAG_DEV_LINK_ON,
+		.pd_flags = PD_FLAG_DEV_LINK_ON | PD_FLAG_REQUIRED_OPP,
 	};
 
 	ret = devm_pm_domain_attach_list(core->dev, &iris_pd_data, &core->pmdomain_tbl);

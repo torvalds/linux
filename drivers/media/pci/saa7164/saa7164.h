@@ -508,7 +508,6 @@ int saa7164_bus_get(struct saa7164_dev *dev, struct tmComResInfo* msg,
 int saa7164_cmd_send(struct saa7164_dev *dev,
 	u8 id, enum tmComResCmd command, u16 controlselector,
 	u16 size, void *buf);
-void saa7164_cmd_signal(struct saa7164_dev *dev, u8 seqno);
 int saa7164_irq_dequeue(struct saa7164_dev *dev);
 
 /* ----------------------------------------------------------- */
@@ -570,7 +569,6 @@ extern int saa7164_dvb_unregister(struct saa7164_port *port);
 extern struct saa7164_buffer *saa7164_buffer_alloc(
 	struct saa7164_port *port, u32 len);
 extern int saa7164_buffer_dealloc(struct saa7164_buffer *buf);
-extern void saa7164_buffer_display(struct saa7164_buffer *buf);
 extern int saa7164_buffer_activate(struct saa7164_buffer *buf, int i);
 extern int saa7164_buffer_cfg_port(struct saa7164_port *port);
 extern struct saa7164_user_buffer *saa7164_buffer_alloc_user(

@@ -95,4 +95,22 @@ config VHOST_CROSS_ENDIAN_LEGACY
 
 	  If unsure, say "N".
 
+config VHOST_ENABLE_FORK_OWNER_CONTROL
+	bool "Enable VHOST_ENABLE_FORK_OWNER_CONTROL"
+	default y
+	help
+	  This option enables two IOCTLs: VHOST_SET_FORK_FROM_OWNER and
+	  VHOST_GET_FORK_FROM_OWNER. These allow userspace applications
+	  to modify the vhost worker mode for vhost devices.
+
+	  Also expose module parameter 'fork_from_owner_default' to allow users
+	  to configure the default mode for vhost workers.
+
+	  By default, `VHOST_ENABLE_FORK_OWNER_CONTROL` is set to `y`,
+	  users can change the worker thread mode as needed.
+	  If this config is disabled (n),the related IOCTLs and parameters will
+	  be unavailable.
+
+	  If unsure, say "Y".
+
 endif

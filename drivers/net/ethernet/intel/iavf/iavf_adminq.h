@@ -9,7 +9,7 @@
 #include "iavf_adminq_cmd.h"
 
 #define IAVF_ADMINQ_DESC(R, i)   \
-	(&(((struct iavf_aq_desc *)((R).desc_buf.va))[i]))
+	(&(((struct libie_aq_desc *)((R).desc_buf.va))[i]))
 
 #define IAVF_ADMINQ_DESC_ALIGNMENT 4096
 
@@ -39,7 +39,7 @@ struct iavf_asq_cmd_details {
 	u16 flags_dis;
 	bool async;
 	bool postpone;
-	struct iavf_aq_desc *wb_desc;
+	struct libie_aq_desc *wb_desc;
 };
 
 #define IAVF_ADMINQ_DETAILS(R, i)   \
@@ -47,7 +47,7 @@ struct iavf_asq_cmd_details {
 
 /* ARQ event information */
 struct iavf_arq_event_info {
-	struct iavf_aq_desc desc;
+	struct libie_aq_desc desc;
 	u16 msg_len;
 	u16 buf_len;
 	u8 *msg_buf;
@@ -72,8 +72,8 @@ struct iavf_adminq_info {
 	struct mutex arq_mutex; /* Receive queue lock */
 
 	/* last status values on send and receive queues */
-	enum iavf_admin_queue_err asq_last_status;
-	enum iavf_admin_queue_err arq_last_status;
+	enum libie_aq_err asq_last_status;
+	enum libie_aq_err arq_last_status;
 };
 
 /**
@@ -123,6 +123,6 @@ static inline int iavf_aq_rc_to_posix(int aq_ret, int aq_rc)
 #define IAVF_AQ_LARGE_BUF	512
 #define IAVF_ASQ_CMD_TIMEOUT	250000  /* usecs */
 
-void iavf_fill_default_direct_cmd_desc(struct iavf_aq_desc *desc, u16 opcode);
+void iavf_fill_default_direct_cmd_desc(struct libie_aq_desc *desc, u16 opcode);
 
 #endif /* _IAVF_ADMINQ_H_ */

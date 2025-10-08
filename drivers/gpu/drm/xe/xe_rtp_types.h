@@ -110,12 +110,14 @@ struct xe_rtp_entry {
 };
 
 enum xe_rtp_process_type {
+	XE_RTP_PROCESS_TYPE_DEVICE,
 	XE_RTP_PROCESS_TYPE_GT,
 	XE_RTP_PROCESS_TYPE_ENGINE,
 };
 
 struct xe_rtp_process_ctx {
 	union {
+		struct xe_device *xe;
 		struct xe_gt *gt;
 		struct xe_hw_engine *hwe;
 	};

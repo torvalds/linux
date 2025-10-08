@@ -861,7 +861,7 @@ static int send_mbox_to_func(struct hinic_mbox_func_to_func *func_to_func,
 		 HINIC_MBOX_HEADER_SET(NOT_LAST_SEG, LAST) |
 		 HINIC_MBOX_HEADER_SET(direction, DIRECTION) |
 		 HINIC_MBOX_HEADER_SET(cmd, CMD) |
-		 /* The vf's offset to it's associated pf */
+		 /* The vf's offset to its associated pf */
 		 HINIC_MBOX_HEADER_SET(msg_info->msg_id, MSG_ID) |
 		 HINIC_MBOX_HEADER_SET(msg_info->status, STATUS) |
 		 HINIC_MBOX_HEADER_SET(hinic_global_func_id_hw(hwdev->hwif),

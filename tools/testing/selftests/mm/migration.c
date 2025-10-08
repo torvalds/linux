@@ -5,6 +5,8 @@
  */
 
 #include "../kselftest_harness.h"
+#include "thp_settings.h"
+
 #include <strings.h>
 #include <pthread.h>
 #include <numa.h>
@@ -14,6 +16,7 @@
 #include <sys/types.h>
 #include <signal.h>
 #include <time.h>
+#include "vm_util.h"
 
 #define TWOMEG		(2<<20)
 #define RUNTIME		(20)
@@ -101,15 +104,13 @@ int migrate(uint64_t *ptr, int n1, int n2)
 
 void *access_mem(void *ptr)
 {
-	volatile uint64_t y = 0;
-	volatile uint64_t *x = ptr;
-
 	while (1) {
 		pthread_testcancel();
-		y += *x;
-
-		/* Prevent the compiler from optimizing out the writes to y: */
-		asm volatile("" : "+r" (y));
+		/* Force a read from the memory pointed to by ptr. This ensures
+		 * the memory access actually happens and prevents the compiler
+		 * from optimizing away this entire loop.
+		 */
+		FORCE_READ((uint64_t *)ptr);
 	}
 
 	return NULL;
@@ -185,6 +186,9 @@ TEST_F_TIMEOUT(migration, private_anon_thp, 2*RUNTIME)
 	uint64_t *ptr;
 	int i;
 
+	if (!thp_is_enabled())
+		SKIP(return, "Transparent Hugepages not available");
+
 	if (self->nthreads < 2 || self->n1 < 0 || self->n2 < 0)
 		SKIP(return, "Not enough threads or NUMA nodes available");
 
@@ -213,6 +217,9 @@ TEST_F_TIMEOUT(migration, shared_anon_thp, 2*RUNTIME)
 	pid_t pid;
 	uint64_t *ptr;
 	int i;
+
+	if (!thp_is_enabled())
+		SKIP(return, "Transparent Hugepages not available");
 
 	if (self->nthreads < 2 || self->n1 < 0 || self->n2 < 0)
 		SKIP(return, "Not enough threads or NUMA nodes available");

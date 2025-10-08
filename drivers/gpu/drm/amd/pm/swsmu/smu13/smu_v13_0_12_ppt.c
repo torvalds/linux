@@ -187,8 +187,34 @@ int smu_v13_0_12_get_max_metrics_size(void)
 	return max(sizeof(StaticMetricsTable_t), sizeof(MetricsTable_t));
 }
 
+static void smu_v13_0_12_init_xgmi_data(struct smu_context *smu,
+					StaticMetricsTable_t *static_metrics)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+	uint16_t max_speed;
+	uint8_t max_width;
+	int ret;
+
+	if (smu_table->tables[SMU_TABLE_SMU_METRICS].version >= 0x13) {
+		max_width = (uint8_t)static_metrics->MaxXgmiWidth;
+		max_speed = (uint16_t)static_metrics->MaxXgmiBitrate;
+		ret = 0;
+	} else {
+		MetricsTable_t *metrics = (MetricsTable_t *)smu_table->metrics_table;
+
+		ret = smu_v13_0_6_get_metrics_table(smu, NULL, true);
+		if (!ret) {
+			max_width = (uint8_t)metrics->XgmiWidth;
+			max_speed = (uint16_t)metrics->XgmiBitrate;
+		}
+	}
+	if (!ret)
+		amgpu_xgmi_set_max_speed_width(smu->adev, max_speed, max_width);
+}
+
 int smu_v13_0_12_setup_driver_pptable(struct smu_context *smu)
 {
+	struct smu_13_0_dpm_context *dpm_context = smu->smu_dpm.dpm_context;
 	struct smu_table_context *smu_table = &smu->smu_table;
 	StaticMetricsTable_t *static_metrics = (StaticMetricsTable_t *)smu_table->metrics_table;
 	struct PPTable_t *pptable =
@@ -237,6 +263,18 @@ int smu_v13_0_12_setup_driver_pptable(struct smu_context *smu)
 		if (ret)
 			return ret;
 
+		if (smu_v13_0_6_cap_supported(smu, SMU_CAP(BOARD_VOLTAGE))) {
+			if (!static_metrics->InputTelemetryVoltageInmV) {
+				dev_warn(smu->adev->dev, "Invalid board voltage %d\n",
+						static_metrics->InputTelemetryVoltageInmV);
+			}
+			dpm_context->board_volt = static_metrics->InputTelemetryVoltageInmV;
+		}
+		if (smu_v13_0_6_cap_supported(smu, SMU_CAP(PLDM_VERSION)) &&
+			static_metrics->pldmVersion[0] != 0xFFFFFFFF)
+			smu->adev->firmware.pldm_version =
+				static_metrics->pldmVersion[0];
+		smu_v13_0_12_init_xgmi_data(smu, static_metrics);
 		pptable->Init = true;
 	}
 
@@ -263,7 +301,6 @@ int smu_v13_0_12_get_smu_metrics_data(struct smu_context *smu,
 	struct smu_table_context *smu_table = &smu->smu_table;
 	MetricsTable_t *metrics = (MetricsTable_t *)smu_table->metrics_table;
 	struct amdgpu_device *adev = smu->adev;
-	int ret = 0;
 	int xcc_id;
 
 	/* For clocks with multiple instances, only report the first one */
@@ -319,7 +356,7 @@ int smu_v13_0_12_get_smu_metrics_data(struct smu_context *smu,
 		break;
 	}
 
-	return ret;
+	return 0;
 }
 
 ssize_t smu_v13_0_12_get_xcp_metrics(struct smu_context *smu, struct amdgpu_xcp *xcp, void *table, void *smu_metrics)

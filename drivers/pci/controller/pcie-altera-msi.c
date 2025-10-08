@@ -9,6 +9,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/irqchip/chained_irq.h>
+#include <linux/irqchip/irq-msi-lib.h>
 #include <linux/irqdomain.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -29,7 +30,6 @@ struct altera_msi {
 	DECLARE_BITMAP(used, MAX_MSI_VECTORS);
 	struct mutex		lock;	/* protect "used" bitmap */
 	struct platform_device	*pdev;
-	struct irq_domain	*msi_domain;
 	struct irq_domain	*inner_domain;
 	void __iomem		*csr_base;
 	void __iomem		*vector_base;
@@ -74,18 +74,20 @@ static void altera_msi_isr(struct irq_desc *desc)
 	chained_irq_exit(chip, desc);
 }
 
-static struct irq_chip altera_msi_irq_chip = {
-	.name = "Altera PCIe MSI",
-	.irq_mask = pci_msi_mask_irq,
-	.irq_unmask = pci_msi_unmask_irq,
-};
+#define ALTERA_MSI_FLAGS_REQUIRED (MSI_FLAG_USE_DEF_DOM_OPS		| \
+				   MSI_FLAG_USE_DEF_CHIP_OPS		| \
+				   MSI_FLAG_NO_AFFINITY)
 
-static struct msi_domain_info altera_msi_domain_info = {
-	.flags	= MSI_FLAG_USE_DEF_DOM_OPS | MSI_FLAG_USE_DEF_CHIP_OPS |
-		  MSI_FLAG_NO_AFFINITY | MSI_FLAG_PCI_MSIX,
-	.chip	= &altera_msi_irq_chip,
-};
+#define ALTERA_MSI_FLAGS_SUPPORTED (MSI_GENERIC_FLAGS_MASK		| \
+				    MSI_FLAG_PCI_MSIX)
 
+static const struct msi_parent_ops altera_msi_parent_ops = {
+	.required_flags		= ALTERA_MSI_FLAGS_REQUIRED,
+	.supported_flags	= ALTERA_MSI_FLAGS_SUPPORTED,
+	.bus_select_token	= DOMAIN_BUS_PCI_MSI,
+	.prefix			= "Altera-",
+	.init_dev_msi_info	= msi_lib_init_dev_msi_info,
+};
 static void altera_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 {
 	struct altera_msi *msi = irq_data_get_irq_chip_data(data);
@@ -164,20 +166,16 @@ static const struct irq_domain_ops msi_domain_ops = {
 
 static int altera_allocate_domains(struct altera_msi *msi)
 {
-	struct fwnode_handle *fwnode = of_fwnode_handle(msi->pdev->dev.of_node);
+	struct irq_domain_info info = {
+		.fwnode		= dev_fwnode(&msi->pdev->dev),
+		.ops		= &msi_domain_ops,
+		.host_data	= msi,
+		.size		= msi->num_of_vectors,
+	};
 
-	msi->inner_domain = irq_domain_create_linear(NULL, msi->num_of_vectors,
-					     &msi_domain_ops, msi);
+	msi->inner_domain = msi_create_parent_irq_domain(&info, &altera_msi_parent_ops);
 	if (!msi->inner_domain) {
-		dev_err(&msi->pdev->dev, "failed to create IRQ domain\n");
-		return -ENOMEM;
-	}
-
-	msi->msi_domain = pci_msi_create_irq_domain(fwnode,
-				&altera_msi_domain_info, msi->inner_domain);
-	if (!msi->msi_domain) {
 		dev_err(&msi->pdev->dev, "failed to create MSI domain\n");
-		irq_domain_remove(msi->inner_domain);
 		return -ENOMEM;
 	}
 
@@ -186,7 +184,6 @@ static int altera_allocate_domains(struct altera_msi *msi)
 
 static void altera_free_domains(struct altera_msi *msi)
 {
-	irq_domain_remove(msi->msi_domain);
 	irq_domain_remove(msi->inner_domain);
 }
 

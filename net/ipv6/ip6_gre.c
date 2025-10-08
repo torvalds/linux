@@ -111,8 +111,32 @@ static u32 HASH_ADDR(const struct in6_addr *addr)
 #define tunnels_l	tunnels[1]
 #define tunnels_wc	tunnels[0]
 
-/* Given src, dst and key, find appropriate for input tunnel. */
+static bool ip6gre_tunnel_match(struct ip6_tnl *t, int dev_type, int link,
+				int *cand_score, struct ip6_tnl **ret)
+{
+	int score = 0;
 
+	if (t->dev->type != ARPHRD_IP6GRE &&
+	    t->dev->type != dev_type)
+		return false;
+
+	if (t->parms.link != link)
+		score |= 1;
+	if (t->dev->type != dev_type)
+		score |= 2;
+	if (score == 0) {
+		*ret = t;
+		return true;
+	}
+
+	if (score < *cand_score) {
+		*ret = t;
+		*cand_score = score;
+	}
+	return false;
+}
+
+/* Given src, dst and key, find appropriate for input tunnel. */
 static struct ip6_tnl *ip6gre_tunnel_lookup(struct net_device *dev,
 		const struct in6_addr *remote, const struct in6_addr *local,
 		__be32 key, __be16 gre_proto)
@@ -127,8 +151,8 @@ static struct ip6_tnl *ip6gre_tunnel_lookup(struct net_device *dev,
 			gre_proto == htons(ETH_P_ERSPAN) ||
 			gre_proto == htons(ETH_P_ERSPAN2)) ?
 		       ARPHRD_ETHER : ARPHRD_IP6GRE;
-	int score, cand_score = 4;
 	struct net_device *ndev;
+	int cand_score = 4;
 
 	for_each_ip_tunnel_rcu(t, ign->tunnels_r_l[h0 ^ h1]) {
 		if (!ipv6_addr_equal(local, &t->parms.laddr) ||
@@ -137,22 +161,8 @@ static struct ip6_tnl *ip6gre_tunnel_lookup(struct net_device *dev,
 		    !(t->dev->flags & IFF_UP))
 			continue;
 
-		if (t->dev->type != ARPHRD_IP6GRE &&
-		    t->dev->type != dev_type)
-			continue;
-
-		score = 0;
-		if (t->parms.link != link)
-			score |= 1;
-		if (t->dev->type != dev_type)
-			score |= 2;
-		if (score == 0)
-			return t;
-
-		if (score < cand_score) {
-			cand = t;
-			cand_score = score;
-		}
+		if (ip6gre_tunnel_match(t, dev_type, link, &cand_score, &cand))
+			return cand;
 	}
 
 	for_each_ip_tunnel_rcu(t, ign->tunnels_r[h0 ^ h1]) {
@@ -161,22 +171,8 @@ static struct ip6_tnl *ip6gre_tunnel_lookup(struct net_device *dev,
 		    !(t->dev->flags & IFF_UP))
 			continue;
 
-		if (t->dev->type != ARPHRD_IP6GRE &&
-		    t->dev->type != dev_type)
-			continue;
-
-		score = 0;
-		if (t->parms.link != link)
-			score |= 1;
-		if (t->dev->type != dev_type)
-			score |= 2;
-		if (score == 0)
-			return t;
-
-		if (score < cand_score) {
-			cand = t;
-			cand_score = score;
-		}
+		if (ip6gre_tunnel_match(t, dev_type, link, &cand_score, &cand))
+			return cand;
 	}
 
 	for_each_ip_tunnel_rcu(t, ign->tunnels_l[h1]) {
@@ -187,22 +183,8 @@ static struct ip6_tnl *ip6gre_tunnel_lookup(struct net_device *dev,
 		    !(t->dev->flags & IFF_UP))
 			continue;
 
-		if (t->dev->type != ARPHRD_IP6GRE &&
-		    t->dev->type != dev_type)
-			continue;
-
-		score = 0;
-		if (t->parms.link != link)
-			score |= 1;
-		if (t->dev->type != dev_type)
-			score |= 2;
-		if (score == 0)
-			return t;
-
-		if (score < cand_score) {
-			cand = t;
-			cand_score = score;
-		}
+		if (ip6gre_tunnel_match(t, dev_type, link, &cand_score, &cand))
+			return cand;
 	}
 
 	for_each_ip_tunnel_rcu(t, ign->tunnels_wc[h1]) {
@@ -210,22 +192,8 @@ static struct ip6_tnl *ip6gre_tunnel_lookup(struct net_device *dev,
 		    !(t->dev->flags & IFF_UP))
 			continue;
 
-		if (t->dev->type != ARPHRD_IP6GRE &&
-		    t->dev->type != dev_type)
-			continue;
-
-		score = 0;
-		if (t->parms.link != link)
-			score |= 1;
-		if (t->dev->type != dev_type)
-			score |= 2;
-		if (score == 0)
-			return t;
-
-		if (score < cand_score) {
-			cand = t;
-			cand_score = score;
-		}
+		if (ip6gre_tunnel_match(t, dev_type, link, &cand_score, &cand))
+			return cand;
 	}
 
 	if (cand)
@@ -1085,9 +1053,11 @@ static netdev_tx_t ip6erspan_tunnel_xmit(struct sk_buff *skb,
 			 htonl(atomic_fetch_inc(&t->o_seqno)));
 
 	/* TooBig packet may have updated dst->dev's mtu */
-	if (!t->parms.collect_md && dst && dst_mtu(dst) > dst->dev->mtu)
-		dst->ops->update_pmtu(dst, NULL, skb, dst->dev->mtu, false);
-
+	if (!t->parms.collect_md && dst) {
+		mtu = READ_ONCE(dst_dev(dst)->mtu);
+		if (dst_mtu(dst) > mtu)
+			dst->ops->update_pmtu(dst, NULL, skb, mtu, false);
+	}
 	err = ip6_tnl_xmit(skb, dev, dsfield, &fl6, encap_limit, &mtu,
 			   NEXTHDR_GRE);
 	if (err != 0) {

@@ -159,13 +159,16 @@ __failure_unpriv
 __naked void deducing_bounds_from_const_10(void)
 {
 	asm volatile ("					\
+	r6 = r1;					\
 	r0 = 0;						\
 	if r0 s<= 0 goto l0_%=;				\
-l0_%=:	/* Marks reg as unknown. */			\
-	r0 = -r0;					\
-	r0 -= r1;					\
+l0_%=: /* Marks r0 as unknown. */			\
+	call %[bpf_get_prandom_u32];			\
+	r0 -= r6;					\
 	exit;						\
-"	::: __clobber_all);
+"	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
 }
 
 char _license[] SEC("license") = "GPL";

@@ -502,6 +502,9 @@ void get_hdr_visual_confirm_color(
 void get_mpctree_visual_confirm_color(
 		struct pipe_ctx *pipe_ctx,
 		struct tg_color *color);
+void get_smartmux_visual_confirm_color(
+	struct dc *dc,
+	struct tg_color *color);
 void get_vabc_visual_confirm_color(
 	struct pipe_ctx *pipe_ctx,
 	struct tg_color *color);

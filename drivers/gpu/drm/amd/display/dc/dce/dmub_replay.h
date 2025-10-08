@@ -19,7 +19,7 @@ struct dmub_replay_funcs {
 	void (*replay_get_state)(struct dmub_replay *dmub, enum replay_state *state,
 		uint8_t panel_inst);
 	void (*replay_enable)(struct dmub_replay *dmub, bool enable, bool wait,
-		uint8_t panel_inst);
+		uint8_t panel_inst, struct dc_link *link);
 	bool (*replay_copy_settings)(struct dmub_replay *dmub, struct dc_link *link,
 		struct replay_context *replay_context, uint8_t panel_inst);
 	void (*replay_set_power_opt)(struct dmub_replay *dmub, unsigned int power_opt,

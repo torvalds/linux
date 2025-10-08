@@ -13,7 +13,7 @@ description: |
   Qualcomm display clock control module provides the clocks and power domains
   on SM6125.
 
-  See also:: include/dt-bindings/clock/qcom,dispcc-sm6125.h
+  See also: include/dt-bindings/clock/qcom,dispcc-sm6125.h
 
 properties:
   compatible:

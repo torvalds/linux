@@ -74,13 +74,19 @@ Overview of baseline design
    :doc: Locking
 
 .. kernel-doc:: drivers/gpu/drm/drm_gpusvm.c
-   :doc: Migration
-
-.. kernel-doc:: drivers/gpu/drm/drm_gpusvm.c
    :doc: Partial Unmapping of Ranges
 
 .. kernel-doc:: drivers/gpu/drm/drm_gpusvm.c
    :doc: Examples
+
+Overview of drm_pagemap design
+==============================
+
+.. kernel-doc:: drivers/gpu/drm/drm_pagemap.c
+   :doc: Overview
+
+.. kernel-doc:: drivers/gpu/drm/drm_pagemap.c
+   :doc: Migration
 
 Possible future design features
 ===============================

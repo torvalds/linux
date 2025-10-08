@@ -23,8 +23,16 @@ struct bch_fs;
 struct bch_hash_info;
 struct bch_inode_info;
 
+#ifdef CONFIG_UNICODE
 int bch2_casefold(struct btree_trans *, const struct bch_hash_info *,
 		  const struct qstr *, struct qstr *);
+#else
+static inline int bch2_casefold(struct btree_trans *trans, const struct bch_hash_info *info,
+				const struct qstr *str, struct qstr *out_cf)
+{
+	return -EOPNOTSUPP;
+}
+#endif
 
 static inline int bch2_maybe_casefold(struct btree_trans *trans,
 				      const struct bch_hash_info *info,
@@ -59,7 +67,8 @@ static inline void dirent_copy_target(struct bkey_i_dirent *dst,
 	dst->v.d_type = src.v->d_type;
 }
 
-int bch2_dirent_init_name(struct bkey_i_dirent *,
+int bch2_dirent_init_name(struct bch_fs *,
+			  struct bkey_i_dirent *,
 			  const struct bch_hash_info *,
 			  const struct qstr *,
 			  const struct qstr *);

@@ -1207,11 +1207,13 @@ static int smu_v14_0_0_print_clk_levels(struct smu_context *smu,
 
 static int smu_v14_0_0_set_soft_freq_limited_range(struct smu_context *smu,
 						   enum smu_clk_type clk_type,
-						   uint32_t min,
-						   uint32_t max)
+						   u32 min,
+						   u32 max,
+						   bool __always_unused automatic)
 {
-	enum smu_message_type msg_set_min, msg_set_max;
-	int ret = 0;
+	enum smu_message_type msg_set_min = SMU_MSG_MAX_COUNT;
+	enum smu_message_type msg_set_max = SMU_MSG_MAX_COUNT;
+	int ret = -EINVAL;
 
 	if (!smu_v14_0_0_clk_dpm_is_enabled(smu, clk_type))
 		return -EINVAL;
@@ -1240,16 +1242,23 @@ static int smu_v14_0_0_set_soft_freq_limited_range(struct smu_context *smu,
 		msg_set_min = SMU_MSG_SetHardMinVcn1;
 		msg_set_max = SMU_MSG_SetSoftMaxVcn1;
 		break;
+	case SMU_ISPICLK:
+		msg_set_min = SMU_MSG_SetHardMinIspiclkByFreq;
+		break;
+	case SMU_ISPXCLK:
+		msg_set_min = SMU_MSG_SetHardMinIspxclkByFreq;
+		break;
 	default:
 		return -EINVAL;
 	}
 
-	ret = smu_cmn_send_smc_msg_with_param(smu, msg_set_min, min, NULL);
-	if (ret)
-		return ret;
+	if (min && msg_set_min != SMU_MSG_MAX_COUNT)
+		ret = smu_cmn_send_smc_msg_with_param(smu, msg_set_min, min, NULL);
 
-	return smu_cmn_send_smc_msg_with_param(smu, msg_set_max,
-					       max, NULL);
+	if (max && msg_set_max != SMU_MSG_MAX_COUNT)
+		ret = smu_cmn_send_smc_msg_with_param(smu, msg_set_max, max, NULL);
+
+	return ret;
 }
 
 static int smu_v14_0_0_force_clk_levels(struct smu_context *smu,
@@ -1278,7 +1287,7 @@ static int smu_v14_0_0_force_clk_levels(struct smu_context *smu,
 		if (ret)
 			break;
 
-		ret = smu_v14_0_0_set_soft_freq_limited_range(smu, clk_type, min_freq, max_freq);
+		ret = smu_v14_0_0_set_soft_freq_limited_range(smu, clk_type, min_freq, max_freq, false);
 		break;
 	default:
 		ret = -EINVAL;
@@ -1426,7 +1435,8 @@ static int smu_v14_0_common_set_performance_level(struct smu_context *smu,
 		ret = smu_v14_0_0_set_soft_freq_limited_range(smu,
 							      SMU_SCLK,
 							      sclk_min,
-							      sclk_max);
+							      sclk_max,
+							      false);
 		if (ret)
 			return ret;
 
@@ -1438,7 +1448,8 @@ static int smu_v14_0_common_set_performance_level(struct smu_context *smu,
 		ret = smu_v14_0_0_set_soft_freq_limited_range(smu,
 							      SMU_FCLK,
 							      fclk_min,
-							      fclk_max);
+							      fclk_max,
+							      false);
 		if (ret)
 			return ret;
 	}
@@ -1447,7 +1458,8 @@ static int smu_v14_0_common_set_performance_level(struct smu_context *smu,
 		ret = smu_v14_0_0_set_soft_freq_limited_range(smu,
 							      SMU_SOCCLK,
 							      socclk_min,
-							      socclk_max);
+							      socclk_max,
+							      false);
 		if (ret)
 			return ret;
 	}
@@ -1456,7 +1468,8 @@ static int smu_v14_0_common_set_performance_level(struct smu_context *smu,
 		ret = smu_v14_0_0_set_soft_freq_limited_range(smu,
 							      SMU_VCLK,
 							      vclk_min,
-							      vclk_max);
+							      vclk_max,
+							      false);
 		if (ret)
 			return ret;
 	}
@@ -1465,7 +1478,8 @@ static int smu_v14_0_common_set_performance_level(struct smu_context *smu,
 		ret = smu_v14_0_0_set_soft_freq_limited_range(smu,
 							      SMU_VCLK1,
 							      vclk1_min,
-							      vclk1_max);
+							      vclk1_max,
+							      false);
 		if (ret)
 			return ret;
 	}
@@ -1474,7 +1488,8 @@ static int smu_v14_0_common_set_performance_level(struct smu_context *smu,
 		ret = smu_v14_0_0_set_soft_freq_limited_range(smu,
 							      SMU_DCLK,
 							      dclk_min,
-							      dclk_max);
+							      dclk_max,
+							      false);
 		if (ret)
 			return ret;
 	}
@@ -1483,7 +1498,8 @@ static int smu_v14_0_common_set_performance_level(struct smu_context *smu,
 		ret = smu_v14_0_0_set_soft_freq_limited_range(smu,
 							      SMU_DCLK1,
 							      dclk1_min,
-							      dclk1_max);
+							      dclk1_max,
+							      false);
 		if (ret)
 			return ret;
 	}
@@ -1531,6 +1547,14 @@ static int smu_v14_0_0_set_vpe_enable(struct smu_context *smu,
 	return smu_cmn_send_smc_msg_with_param(smu, enable ?
 					       SMU_MSG_PowerUpVpe : SMU_MSG_PowerDownVpe,
 					       0, NULL);
+}
+
+static int smu_v14_0_0_set_isp_enable(struct smu_context *smu,
+				      bool enable)
+{
+	return smu_cmn_send_smc_msg_with_param(smu, enable ?
+				      SMU_MSG_PowerUpIspByTile : SMU_MSG_PowerDownIspByTile,
+				      ISP_ALL_TILES_MASK, NULL);
 }
 
 static int smu_v14_0_0_set_umsch_mm_enable(struct smu_context *smu,
@@ -1662,6 +1686,7 @@ static const struct pptable_funcs smu_v14_0_0_ppt_funcs = {
 	.gfx_off_control = smu_v14_0_gfx_off_control,
 	.mode2_reset = smu_v14_0_0_mode2_reset,
 	.get_dpm_ultimate_freq = smu_v14_0_common_get_dpm_ultimate_freq,
+	.set_soft_freq_limited_range = smu_v14_0_0_set_soft_freq_limited_range,
 	.od_edit_dpm_table = smu_v14_0_od_edit_dpm_table,
 	.print_clk_levels = smu_v14_0_0_print_clk_levels,
 	.force_clk_levels = smu_v14_0_0_force_clk_levels,
@@ -1669,6 +1694,7 @@ static const struct pptable_funcs smu_v14_0_0_ppt_funcs = {
 	.set_fine_grain_gfx_freq_parameters = smu_v14_0_common_set_fine_grain_gfx_freq_parameters,
 	.set_gfx_power_up_by_imu = smu_v14_0_set_gfx_power_up_by_imu,
 	.dpm_set_vpe_enable = smu_v14_0_0_set_vpe_enable,
+	.dpm_set_isp_enable = smu_v14_0_0_set_isp_enable,
 	.dpm_set_umsch_mm_enable = smu_v14_0_0_set_umsch_mm_enable,
 	.get_dpm_clock_table = smu_v14_0_common_get_dpm_table,
 	.set_mall_enable = smu_v14_0_common_set_mall_enable,

@@ -39,6 +39,8 @@
 
 #define AMDGPU_XCP_NO_PARTITION (~0)
 
+#define AMDGPU_XCP_OPS_KFD	(1 << 0)
+
 struct amdgpu_fpriv;
 
 enum AMDGPU_XCP_IP_BLOCK {
@@ -144,10 +146,6 @@ struct amdgpu_xcp_mgr_funcs {
 	int (*suspend)(struct amdgpu_xcp_mgr *xcp_mgr, int xcp_id);
 	int (*prepare_resume)(struct amdgpu_xcp_mgr *xcp_mgr, int xcp_id);
 	int (*resume)(struct amdgpu_xcp_mgr *xcp_mgr, int xcp_id);
-	int (*select_scheds)(struct amdgpu_device *adev,
-				  u32 hw_ip, u32 hw_prio, struct amdgpu_fpriv *fpriv,
-				  unsigned int *num_scheds, struct drm_gpu_scheduler ***scheds);
-	int (*update_partition_sched_list)(struct amdgpu_device *adev);
 };
 
 int amdgpu_xcp_prepare_suspend(struct amdgpu_xcp_mgr *xcp_mgr, int xcp_id);
@@ -176,18 +174,17 @@ int amdgpu_xcp_open_device(struct amdgpu_device *adev,
 			   struct drm_file *file_priv);
 void amdgpu_xcp_release_sched(struct amdgpu_device *adev,
 			      struct amdgpu_ctx_entity *entity);
-
+int amdgpu_xcp_select_scheds(struct amdgpu_device *adev,
+			     u32 hw_ip, u32 hw_prio,
+			     struct amdgpu_fpriv *fpriv,
+			     unsigned int *num_scheds,
+			     struct drm_gpu_scheduler ***scheds);
+void amdgpu_xcp_update_supported_modes(struct amdgpu_xcp_mgr *xcp_mgr);
+int amdgpu_xcp_update_partition_sched_list(struct amdgpu_device *adev);
+int amdgpu_xcp_pre_partition_switch(struct amdgpu_xcp_mgr *xcp_mgr, u32 flags);
+int amdgpu_xcp_post_partition_switch(struct amdgpu_xcp_mgr *xcp_mgr, u32 flags);
 void amdgpu_xcp_sysfs_init(struct amdgpu_device *adev);
 void amdgpu_xcp_sysfs_fini(struct amdgpu_device *adev);
-
-#define amdgpu_xcp_select_scheds(adev, e, c, d, x, y) \
-	((adev)->xcp_mgr && (adev)->xcp_mgr->funcs && \
-	(adev)->xcp_mgr->funcs->select_scheds ? \
-	(adev)->xcp_mgr->funcs->select_scheds((adev), (e), (c), (d), (x), (y)) : -ENOENT)
-#define amdgpu_xcp_update_partition_sched_list(adev) \
-	((adev)->xcp_mgr && (adev)->xcp_mgr->funcs && \
-	(adev)->xcp_mgr->funcs->update_partition_sched_list ? \
-	(adev)->xcp_mgr->funcs->update_partition_sched_list(adev) : 0)
 
 static inline int amdgpu_xcp_get_num_xcp(struct amdgpu_xcp_mgr *xcp_mgr)
 {

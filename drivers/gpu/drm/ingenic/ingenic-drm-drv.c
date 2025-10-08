@@ -901,14 +901,15 @@ static void ingenic_drm_disable_vblank(struct drm_crtc *crtc)
 
 static struct drm_framebuffer *
 ingenic_drm_gem_fb_create(struct drm_device *drm, struct drm_file *file,
+			  const struct drm_format_info *info,
 			  const struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct ingenic_drm *priv = drm_device_get_priv(drm);
 
 	if (priv->soc_info->map_noncoherent)
-		return drm_gem_fb_create_with_dirty(drm, file, mode_cmd);
+		return drm_gem_fb_create_with_dirty(drm, file, info, mode_cmd);
 
-	return drm_gem_fb_create(drm, file, mode_cmd);
+	return drm_gem_fb_create(drm, file, info, mode_cmd);
 }
 
 static struct drm_gem_object *

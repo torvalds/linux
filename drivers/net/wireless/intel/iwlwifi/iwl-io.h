@@ -23,8 +23,13 @@ static inline void iwl_clear_bit(struct iwl_trans *trans, u32 reg, u32 mask)
 	iwl_trans_set_bits_mask(trans, reg, mask, 0);
 }
 
-int iwl_poll_bit(struct iwl_trans *trans, u32 addr,
-		 u32 bits, u32 mask, int timeout);
+int iwl_poll_bits_mask(struct iwl_trans *trans, u32 addr,
+		       u32 bits, u32 mask, int timeout);
+static inline int iwl_poll_bits(struct iwl_trans *trans, u32 addr, u32 bits,
+				int timeout)
+{
+	return iwl_poll_bits_mask(trans, addr, bits, bits, timeout);
+}
 int iwl_poll_direct_bit(struct iwl_trans *trans, u32 addr, u32 mask,
 			int timeout);
 

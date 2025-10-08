@@ -148,10 +148,10 @@ reserved during:
     only required to handle a split extent across leaf blocks.
 
 How to
-------
+~~~~~~
 
 Creating Filesystems with Atomic Write Support
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 First check the atomic write units supported by block device.
 See :ref:`atomic_write_bdev_support` for more details.
@@ -176,7 +176,7 @@ Where ``-b`` specifies the block size, ``-C`` specifies the cluster size in byte
 and ``-O bigalloc`` enables the bigalloc feature.
 
 Application Interface
-~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^
 
 Applications can use the ``pwritev2()`` system call with the ``RWF_ATOMIC`` flag
 to perform atomic writes:
@@ -204,7 +204,7 @@ writes are supported.
 .. _atomic_write_bdev_support:
 
 Hardware Support
-----------------
+~~~~~~~~~~~~~~~~
 
 The underlying storage device must support atomic write operations.
 Modern NVMe and SCSI devices often provide this capability.
@@ -217,7 +217,7 @@ Nonzero values for these attributes indicate that the device supports
 atomic writes.
 
 See Also
---------
+~~~~~~~~
 
 * :doc:`bigalloc` - Documentation on the bigalloc feature
 * :doc:`allocators` - Documentation on block allocation in ext4

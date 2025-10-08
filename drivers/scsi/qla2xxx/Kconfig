@@ -25,11 +25,7 @@ config SCSI_QLA_FC
 	  Upon request, the driver caches the firmware image until
 	  the driver is unloaded.
 
-	  Firmware images can be retrieved from:
-
-	        http://ldriver.qlogic.com/firmware/
-
-	  They are also included in the linux-firmware tree as well.
+	  Firmware images are included in the linux-firmware tree.
 
 config TCM_QLA2XXX
 	tristate "TCM_QLA2XXX fabric module for QLogic 24xx+ series target mode HBAs"

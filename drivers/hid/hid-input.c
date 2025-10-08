@@ -2343,7 +2343,7 @@ int hidinput_connect(struct hid_device *hid, unsigned int force)
 	}
 
 	if (list_empty(&hid->inputs)) {
-		hid_err(hid, "No inputs registered, leaving\n");
+		hid_dbg(hid, "No inputs registered, leaving\n");
 		goto out_unwind;
 	}
 

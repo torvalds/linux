@@ -228,7 +228,7 @@ out:
 
 /**
  * ecryptfs_write_begin
- * @file: The eCryptfs file
+ * @iocb: I/O control block for the eCryptfs file
  * @mapping: The eCryptfs object
  * @pos: The file offset at which to start writing
  * @len: Length of the write
@@ -239,7 +239,7 @@ out:
  *
  * Returns zero on success; non-zero otherwise
  */
-static int ecryptfs_write_begin(struct file *file,
+static int ecryptfs_write_begin(const struct kiocb *iocb,
 			struct address_space *mapping,
 			loff_t pos, unsigned len,
 			struct folio **foliop, void **fsdata)
@@ -322,7 +322,7 @@ static int ecryptfs_write_begin(struct file *file,
 	 * Note, this will increase i_size. */
 	if (index != 0) {
 		if (prev_page_end_size > i_size_read(mapping->host)) {
-			rc = ecryptfs_truncate(file->f_path.dentry,
+			rc = ecryptfs_truncate(iocb->ki_filp->f_path.dentry,
 					       prev_page_end_size);
 			if (rc) {
 				printk(KERN_ERR "%s: Error on attempt to "
@@ -429,7 +429,7 @@ int ecryptfs_write_inode_size_to_metadata(struct inode *ecryptfs_inode)
 
 /**
  * ecryptfs_write_end
- * @file: The eCryptfs file object
+ * @iocb: I/O control block for the eCryptfs file
  * @mapping: The eCryptfs object
  * @pos: The file position
  * @len: The length of the data (unused)
@@ -437,7 +437,7 @@ int ecryptfs_write_inode_size_to_metadata(struct inode *ecryptfs_inode)
  * @folio: The eCryptfs folio
  * @fsdata: The fsdata (unused)
  */
-static int ecryptfs_write_end(struct file *file,
+static int ecryptfs_write_end(const struct kiocb *iocb,
 			struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned copied,
 			struct folio *folio, void *fsdata)

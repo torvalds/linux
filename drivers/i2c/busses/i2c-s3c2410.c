@@ -800,9 +800,9 @@ static u32 s3c24xx_i2c_func(struct i2c_adapter *adap)
 
 /* i2c bus registration info */
 static const struct i2c_algorithm s3c24xx_i2c_algorithm = {
-	.master_xfer		= s3c24xx_i2c_xfer,
-	.master_xfer_atomic     = s3c24xx_i2c_xfer_atomic,
-	.functionality		= s3c24xx_i2c_func,
+	.xfer = s3c24xx_i2c_xfer,
+	.xfer_atomic = s3c24xx_i2c_xfer_atomic,
+	.functionality = s3c24xx_i2c_func,
 };
 
 /*
