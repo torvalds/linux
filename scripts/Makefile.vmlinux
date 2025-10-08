@@ -82,7 +82,7 @@ endif
 # ---------------------------------------------------------------------------
 
 remove-section-y                                   := .modinfo
-remove-section-$(CONFIG_ARCH_VMLINUX_NEEDS_RELOCS) += '.rel*'
+remove-section-$(CONFIG_ARCH_VMLINUX_NEEDS_RELOCS) += '.rel*' '!.rel*.dyn'
 
 remove-symbols := -w --strip-symbol='__mod_device_table__*'
 
