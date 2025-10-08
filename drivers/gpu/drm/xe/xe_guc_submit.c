@@ -851,30 +851,31 @@ guc_exec_queue_run_job(struct drm_sched_job *drm_job)
 	struct xe_sched_job *job = to_xe_sched_job(drm_job);
 	struct xe_exec_queue *q = job->q;
 	struct xe_guc *guc = exec_queue_to_guc(q);
-	struct dma_fence *fence = NULL;
-	bool lr = xe_exec_queue_is_lr(q);
+	bool lr = xe_exec_queue_is_lr(q), killed_or_banned_or_wedged =
+		exec_queue_killed_or_banned_or_wedged(q);
 
 	xe_gt_assert(guc_to_gt(guc), !(exec_queue_destroyed(q) || exec_queue_pending_disable(q)) ||
 		     exec_queue_banned(q) || exec_queue_suspended(q));
 
 	trace_xe_sched_job_run(job);
 
-	if (!exec_queue_killed_or_banned_or_wedged(q) && !xe_sched_job_is_error(job)) {
+	if (!killed_or_banned_or_wedged && !xe_sched_job_is_error(job)) {
 		if (!exec_queue_registered(q))
 			register_exec_queue(q, GUC_CONTEXT_NORMAL);
-		if (!lr)	/* LR jobs are emitted in the exec IOCTL */
-			q->ring_ops->emit_job(job);
+		q->ring_ops->emit_job(job);
 		submit_exec_queue(q);
 	}
 
-	if (lr) {
-		xe_sched_job_set_error(job, -EOPNOTSUPP);
-		dma_fence_put(job->fence);	/* Drop ref from xe_sched_job_arm */
-	} else {
-		fence = job->fence;
-	}
+	/*
+	 * We don't care about job-fence ordering in LR VMs because these fences
+	 * are never exported; they are used solely to keep jobs on the pending
+	 * list. Once a queue enters an error state, there's no need to track
+	 * them.
+	 */
+	if (killed_or_banned_or_wedged && lr)
+		xe_sched_job_set_error(job, -ECANCELED);
 
-	return fence;
+	return job->fence;
 }
 
 static void guc_exec_queue_free_job(struct drm_sched_job *drm_job)
@@ -916,7 +917,8 @@ static void disable_scheduling_deregister(struct xe_guc *guc,
 		xe_gt_warn(q->gt, "Pending enable/disable failed to respond\n");
 		xe_sched_submission_start(sched);
 		xe_gt_reset_async(q->gt);
-		xe_sched_tdr_queue_imm(sched);
+		if (!xe_exec_queue_is_lr(q))
+			xe_sched_tdr_queue_imm(sched);
 		return;
 	}
 
@@ -1008,6 +1010,7 @@ static void xe_guc_exec_queue_lr_cleanup(struct work_struct *w)
 	struct xe_exec_queue *q = ge->q;
 	struct xe_guc *guc = exec_queue_to_guc(q);
 	struct xe_gpu_scheduler *sched = &ge->sched;
+	struct xe_sched_job *job;
 	bool wedged = false;
 
 	xe_gt_assert(guc_to_gt(guc), xe_exec_queue_is_lr(q));
@@ -1058,7 +1061,16 @@ static void xe_guc_exec_queue_lr_cleanup(struct work_struct *w)
 	if (!exec_queue_killed(q) && !xe_lrc_ring_is_idle(q->lrc[0]))
 		xe_devcoredump(q, NULL, "LR job cleanup, guc_id=%d", q->guc->id);
 
+	xe_hw_fence_irq_stop(q->fence_irq);
+
 	xe_sched_submission_start(sched);
+
+	spin_lock(&sched->base.job_list_lock);
+	list_for_each_entry(job, &sched->base.pending_list, drm.list)
+		xe_sched_job_set_error(job, -ECANCELED);
+	spin_unlock(&sched->base.job_list_lock);
+
+	xe_hw_fence_irq_start(q->fence_irq);
 }
 
 #define ADJUST_FIVE_PERCENT(__t)	mul_u64_u32_div(__t, 105, 100)
@@ -1129,7 +1141,8 @@ static void enable_scheduling(struct xe_exec_queue *q)
 		xe_gt_warn(guc_to_gt(guc), "Schedule enable failed to respond");
 		set_exec_queue_banned(q);
 		xe_gt_reset_async(q->gt);
-		xe_sched_tdr_queue_imm(&q->guc->sched);
+		if (!xe_exec_queue_is_lr(q))
+			xe_sched_tdr_queue_imm(&q->guc->sched);
 	}
 }
 
@@ -1186,6 +1199,8 @@ guc_exec_queue_timedout_job(struct drm_sched_job *drm_job)
 	pid_t pid = -1;
 	int i = 0;
 	bool wedged = false, skip_timeout_check;
+
+	xe_gt_assert(guc_to_gt(guc), !xe_exec_queue_is_lr(q));
 
 	/*
 	 * TDR has fired before free job worker. Common if exec queue

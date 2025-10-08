@@ -124,7 +124,7 @@ int xe_exec_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	struct xe_validation_ctx ctx;
 	struct xe_sched_job *job;
 	struct xe_vm *vm;
-	bool write_locked, skip_retry = false;
+	bool write_locked;
 	int err = 0;
 	struct xe_hw_engine_group *group;
 	enum xe_hw_engine_group_execution_mode mode, previous_mode;
@@ -266,12 +266,6 @@ retry:
 		goto err_exec;
 	}
 
-	if (xe_exec_queue_is_lr(q) && xe_exec_queue_ring_full(q)) {
-		err = -EWOULDBLOCK;	/* Aliased to -EAGAIN */
-		skip_retry = true;
-		goto err_exec;
-	}
-
 	if (xe_exec_queue_uses_pxp(q)) {
 		err = xe_vm_validate_protected(q->vm);
 		if (err)
@@ -328,8 +322,6 @@ retry:
 		xe_sched_job_init_user_fence(job, &syncs[i]);
 	}
 
-	if (xe_exec_queue_is_lr(q))
-		q->ring_ops->emit_job(job);
 	if (!xe_vm_in_lr_mode(vm))
 		xe_exec_queue_last_fence_set(q, vm, &job->drm.s_fence->finished);
 	xe_sched_job_push(job);
@@ -355,7 +347,7 @@ err_exec:
 		xe_validation_ctx_fini(&ctx);
 err_unlock_list:
 	up_read(&vm->lock);
-	if (err == -EAGAIN && !skip_retry)
+	if (err == -EAGAIN)
 		goto retry;
 err_hw_exec_mode:
 	if (mode == EXEC_MODE_DMA_FENCE)

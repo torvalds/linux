@@ -850,25 +850,6 @@ bool xe_exec_queue_is_lr(struct xe_exec_queue *q)
 		!(q->flags & EXEC_QUEUE_FLAG_VM);
 }
 
-static s32 xe_exec_queue_num_job_inflight(struct xe_exec_queue *q)
-{
-	return q->lrc[0]->fence_ctx.next_seqno - xe_lrc_seqno(q->lrc[0]) - 1;
-}
-
-/**
- * xe_exec_queue_ring_full() - Whether an exec_queue's ring is full
- * @q: The exec_queue
- *
- * Return: True if the exec_queue's ring is full, false otherwise.
- */
-bool xe_exec_queue_ring_full(struct xe_exec_queue *q)
-{
-	struct xe_lrc *lrc = q->lrc[0];
-	s32 max_job = lrc->ring.size / MAX_JOB_SIZE_BYTES;
-
-	return xe_exec_queue_num_job_inflight(q) >= max_job;
-}
-
 /**
  * xe_exec_queue_is_idle() - Whether an exec_queue is idle.
  * @q: The exec_queue
