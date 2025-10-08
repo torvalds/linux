@@ -72,4 +72,13 @@ xe_guc_ct_send_block_no_fail(struct xe_guc_ct *ct, const u32 *action, u32 len)
 
 long xe_guc_ct_queue_proc_time_jiffies(struct xe_guc_ct *ct);
 
+/**
+ * xe_guc_ct_wake_waiters() - GuC CT wake up waiters
+ * @ct: GuC CT object
+ */
+static inline void xe_guc_ct_wake_waiters(struct xe_guc_ct *ct)
+{
+	wake_up_all(&ct->wq);
+}
+
 #endif
