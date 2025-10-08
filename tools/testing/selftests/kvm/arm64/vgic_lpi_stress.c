@@ -331,7 +331,7 @@ static void setup_vm(void)
 {
 	int i;
 
-	vcpus = malloc(test_data.nr_cpus * sizeof(struct kvm_vcpu));
+	vcpus = malloc(test_data.nr_cpus * sizeof(struct kvm_vcpu *));
 	TEST_ASSERT(vcpus, "Failed to allocate vCPU array");
 
 	vm = vm_create_with_vcpus(test_data.nr_cpus, guest_code, vcpus);
