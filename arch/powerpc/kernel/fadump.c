@@ -1747,6 +1747,9 @@ void __init fadump_setup_param_area(void)
 {
 	phys_addr_t range_start, range_end;
 
+	if (!fw_dump.fadump_enabled)
+		return;
+
 	if (!fw_dump.param_area_supported || fw_dump.dump_active)
 		return;
 
