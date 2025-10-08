@@ -1833,7 +1833,12 @@ static inline unsigned long memdesc_section(memdesc_flags_t mdf)
 {
 	return (mdf.f >> SECTIONS_PGSHIFT) & SECTIONS_MASK;
 }
-#endif
+#else /* !SECTION_IN_PAGE_FLAGS */
+static inline unsigned long memdesc_section(memdesc_flags_t mdf)
+{
+	return 0;
+}
+#endif /* SECTION_IN_PAGE_FLAGS */
 
 /**
  * folio_pfn - Return the Page Frame Number of a folio.
