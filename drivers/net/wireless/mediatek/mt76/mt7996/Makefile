@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: ISC
+# SPDX-License-Identifier: BSD-3-Clause-Clear
 
 obj-$(CONFIG_MT7996E) += mt7996e.o
 
