@@ -1005,6 +1005,14 @@ int proc_doulongvec_ms_jiffies_minmax(const struct ctl_table *table, int dir,
 					 lenp, ppos, HZ, 1000l);
 }
 
+int proc_dointvec_conv(const struct ctl_table *table, int dir, void *buffer,
+		       size_t *lenp, loff_t *ppos,
+		       int (*conv)(bool *negp, unsigned long *u_ptr, int *k_ptr,
+				   int dir, const struct ctl_table *table))
+{
+	return do_proc_dointvec(table, dir, buffer, lenp, ppos, conv);
+}
+
 /**
  * proc_dointvec_jiffies - read a vector of integers as seconds
  * @table: the sysctl table
@@ -1023,15 +1031,15 @@ int proc_doulongvec_ms_jiffies_minmax(const struct ctl_table *table, int dir,
 int proc_dointvec_jiffies(const struct ctl_table *table, int dir,
 			  void *buffer, size_t *lenp, loff_t *ppos)
 {
-	return do_proc_dointvec(table, dir, buffer, lenp, ppos,
-				do_proc_int_conv_jiffies);
+	return proc_dointvec_conv(table, dir, buffer, lenp, ppos,
+				  do_proc_int_conv_jiffies);
 }
 
 int proc_dointvec_ms_jiffies_minmax(const struct ctl_table *table, int dir,
 			  void *buffer, size_t *lenp, loff_t *ppos)
 {
-	return do_proc_dointvec(table, dir, buffer, lenp, ppos,
-			do_proc_int_conv_ms_jiffies_minmax);
+	return proc_dointvec_conv(table, dir, buffer, lenp, ppos,
+				  do_proc_int_conv_ms_jiffies_minmax);
 }
 
 /**
@@ -1054,8 +1062,8 @@ int proc_dointvec_userhz_jiffies(const struct ctl_table *table, int dir,
 {
 	if (SYSCTL_USER_TO_KERN(dir) && USER_HZ < HZ)
 		return -EINVAL;
-	return do_proc_dointvec(table, dir, buffer, lenp, ppos,
-				do_proc_int_conv_userhz_jiffies);
+	return proc_dointvec_conv(table, dir, buffer, lenp, ppos,
+				  do_proc_int_conv_userhz_jiffies);
 }
 
 /**
@@ -1076,8 +1084,8 @@ int proc_dointvec_userhz_jiffies(const struct ctl_table *table, int dir,
 int proc_dointvec_ms_jiffies(const struct ctl_table *table, int dir, void *buffer,
 		size_t *lenp, loff_t *ppos)
 {
-	return do_proc_dointvec(table, dir, buffer, lenp, ppos,
-				do_proc_int_conv_ms_jiffies);
+	return proc_dointvec_conv(table, dir, buffer, lenp, ppos,
+				  do_proc_int_conv_ms_jiffies);
 }
 
 /**
@@ -1303,6 +1311,14 @@ int proc_doulongvec_minmax(const struct ctl_table *table, int dir,
 
 int proc_doulongvec_ms_jiffies_minmax(const struct ctl_table *table, int dir,
 				      void *buffer, size_t *lenp, loff_t *ppos)
+{
+	return -ENOSYS;
+}
+
+int proc_dointvec_conv(const struct ctl_table *table, int dir, void *buffer,
+		       size_t *lenp, loff_t *ppos,
+		       int (*conv)(bool *negp, unsigned long *u_ptr, int *k_ptr,
+				   int dir, const struct ctl_table *table))
 {
 	return -ENOSYS;
 }
