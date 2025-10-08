@@ -318,6 +318,7 @@ struct dmub_srv_hw_params {
 	bool enable_non_transparent_setconfig;
 	bool lower_hbr3_phy_ssc;
 	bool override_hbr3_pll_vco;
+	bool disable_dpia_bw_allocation;
 };
 
 /**
