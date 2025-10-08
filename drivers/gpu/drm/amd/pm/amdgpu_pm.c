@@ -108,8 +108,9 @@ const char * const amdgpu_pp_profile_name[] = {
 static int amdgpu_pm_dev_state_check(struct amdgpu_device *adev, bool runpm)
 {
 	bool runpm_check = runpm ? adev->in_runpm : false;
+	bool full_init = (adev->init_lvl->level == AMDGPU_INIT_LEVEL_DEFAULT);
 
-	if (amdgpu_in_reset(adev))
+	if (amdgpu_in_reset(adev) || !full_init)
 		return -EBUSY;
 
 	if (adev->in_suspend && !runpm_check)
