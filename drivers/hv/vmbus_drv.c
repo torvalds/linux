@@ -57,6 +57,18 @@ int vmbus_irq;
 int vmbus_interrupt;
 
 /*
+ * If the Confidential VMBus is used, the data on the "wire" is not
+ * visible to either the host or the hypervisor.
+ */
+static bool is_confidential;
+
+bool vmbus_is_confidential(void)
+{
+	return is_confidential;
+}
+EXPORT_SYMBOL_GPL(vmbus_is_confidential);
+
+/*
  * The panic notifier below is responsible solely for unloading the
  * vmbus connection, which is necessary in a panic event.
  *
