@@ -14,6 +14,7 @@
 #include <linux/errno.h>
 #include <linux/interrupt.h>
 #include <linux/input.h>
+#include <linux/input/matrix_keypad.h>
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/kernel.h>
@@ -22,7 +23,6 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/types.h>
-#include <linux/platform_data/keyboard-spear.h>
 
 /* Keyboard Registers */
 #define MODE_CTL_REG	0x00
@@ -56,13 +56,12 @@ struct spear_kbd {
 	void __iomem *io_base;
 	struct clk *clk;
 	unsigned int irq;
-	unsigned int mode;
-	unsigned int suspended_rate;
+	u32 mode;
+	u32 suspended_rate;
+	u32 mode_ctl_reg;
 	unsigned short last_key;
 	unsigned short keycodes[NUM_ROWS * NUM_COLS];
-	bool rep;
 	bool irq_wake_enabled;
-	u32 mode_ctl_reg;
 };
 
 static irqreturn_t spear_kbd_interrupt(int irq, void *dev_id)
@@ -143,46 +142,8 @@ static void spear_kbd_close(struct input_dev *dev)
 	kbd->last_key = KEY_RESERVED;
 }
 
-#ifdef CONFIG_OF
-static int spear_kbd_parse_dt(struct platform_device *pdev,
-                                        struct spear_kbd *kbd)
-{
-	struct device_node *np = pdev->dev.of_node;
-	int error;
-	u32 val, suspended_rate;
-
-	if (!np) {
-		dev_err(&pdev->dev, "Missing DT data\n");
-		return -EINVAL;
-	}
-
-	if (of_property_read_bool(np, "autorepeat"))
-		kbd->rep = true;
-
-	if (of_property_read_u32(np, "suspended_rate", &suspended_rate))
-		kbd->suspended_rate = suspended_rate;
-
-	error = of_property_read_u32(np, "st,mode", &val);
-	if (error) {
-		dev_err(&pdev->dev, "DT: Invalid or missing mode\n");
-		return error;
-	}
-
-	kbd->mode = val;
-	return 0;
-}
-#else
-static inline int spear_kbd_parse_dt(struct platform_device *pdev,
-				     struct spear_kbd *kbd)
-{
-	return -ENOSYS;
-}
-#endif
-
 static int spear_kbd_probe(struct platform_device *pdev)
 {
-	struct kbd_platform_data *pdata = dev_get_platdata(&pdev->dev);
-	const struct matrix_keymap_data *keymap = pdata ? pdata->keymap : NULL;
 	struct spear_kbd *kbd;
 	struct input_dev *input_dev;
 	int irq;
@@ -198,6 +159,14 @@ static int spear_kbd_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
+	error = device_property_read_u32(&pdev->dev, "st,mode", &kbd->mode);
+	if (error) {
+		dev_err(&pdev->dev, "Invalid or missing mode\n");
+		return error;
+	}
+
+	device_property_read_u32(&pdev->dev, "suspended_rate", &kbd->suspended_rate);
+
 	input_dev = devm_input_allocate_device(&pdev->dev);
 	if (!input_dev) {
 		dev_err(&pdev->dev, "unable to allocate input device\n");
@@ -206,16 +175,6 @@ static int spear_kbd_probe(struct platform_device *pdev)
 
 	kbd->input = input_dev;
 	kbd->irq = irq;
-
-	if (!pdata) {
-		error = spear_kbd_parse_dt(pdev, kbd);
-		if (error)
-			return error;
-	} else {
-		kbd->mode = pdata->mode;
-		kbd->rep = pdata->rep;
-		kbd->suspended_rate = pdata->suspended_rate;
-	}
 
 	kbd->io_base = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(kbd->io_base))
@@ -234,21 +193,21 @@ static int spear_kbd_probe(struct platform_device *pdev)
 	input_dev->open = spear_kbd_open;
 	input_dev->close = spear_kbd_close;
 
-	error = matrix_keypad_build_keymap(keymap, NULL, NUM_ROWS, NUM_COLS,
+	error = matrix_keypad_build_keymap(NULL, NULL, NUM_ROWS, NUM_COLS,
 					   kbd->keycodes, input_dev);
 	if (error) {
 		dev_err(&pdev->dev, "Failed to build keymap\n");
 		return error;
 	}
 
-	if (kbd->rep)
+	if (device_property_read_bool(&pdev->dev, "autorepeat"))
 		__set_bit(EV_REP, input_dev->evbit);
 	input_set_capability(input_dev, EV_MSC, MSC_SCAN);
 
 	input_set_drvdata(input_dev, kbd);
 
 	error = devm_request_irq(&pdev->dev, irq, spear_kbd_interrupt, 0,
-			"keyboard", kbd);
+				 "keyboard", kbd);
 	if (error) {
 		dev_err(&pdev->dev, "request_irq failed\n");
 		return error;

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/input/touchscreen/ti.tsc2007.yaml#
+$id: http://devicetree.org/schemas/input/touchscreen/ti,tsc2007.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Texas Instruments tsc2007 touchscreen controller
@@ -25,6 +25,8 @@ properties:
   gpios: true
 
   pendown-gpio: true
+
+  wakeup-source: true
 
   ti,max-rt:
     $ref: /schemas/types.yaml#/definitions/uint32
