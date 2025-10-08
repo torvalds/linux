@@ -1134,6 +1134,11 @@ static int vf_post_migration_fixups(struct xe_gt *gt)
 	return 0;
 }
 
+static void vf_post_migration_rearm(struct xe_gt *gt)
+{
+	xe_guc_ct_restart(&gt->uc.guc.ct);
+}
+
 static void vf_post_migration_kickstart(struct xe_gt *gt)
 {
 	xe_guc_submit_unpause(&gt->uc.guc);
@@ -1184,6 +1189,8 @@ static void vf_post_migration_recovery(struct xe_gt *gt)
 	err = vf_post_migration_fixups(gt);
 	if (err)
 		goto fail;
+
+	vf_post_migration_rearm(gt);
 
 	err = vf_post_migration_notify_resfix_done(gt);
 	if (err && err != -EAGAIN)
