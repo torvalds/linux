@@ -1867,6 +1867,12 @@ static bool retrieve_link_cap(struct dc_link *link)
 	link->dpcd_caps.is_mst_capable = read_is_mst_supported(link);
 	DC_LOG_DC("%s: MST_Support: %s\n", __func__, str_yes_no(link->dpcd_caps.is_mst_capable));
 
+	/* Some MST docks seem to NAK I2C writes to segment pointer with mot=0. */
+	if (link->dpcd_caps.is_mst_capable)
+		link->wa_flags.dp_mot_reset_segment = true;
+	else
+		link->wa_flags.dp_mot_reset_segment = false;
+
 	get_active_converter_info(ds_port.byte, link);
 
 	dp_wa_power_up_0010FA(link, dpcd_data, sizeof(dpcd_data));
