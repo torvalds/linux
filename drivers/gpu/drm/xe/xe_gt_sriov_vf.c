@@ -482,6 +482,12 @@ static int vf_get_ggtt_info(struct xe_gt *gt)
 		xe_tile_sriov_vf_fixup_ggtt_nodes_locked(gt_to_tile(gt), shift);
 	}
 
+	if (xe_sriov_vf_migration_supported(gt_to_xe(gt))) {
+		WRITE_ONCE(gt->sriov.vf.migration.ggtt_need_fixes, false);
+		smp_wmb();	/* Ensure above write visible before wake */
+		wake_up_all(&gt->sriov.vf.migration.wq);
+	}
+
 	return 0;
 }
 
@@ -731,7 +737,8 @@ static void vf_start_migration_recovery(struct xe_gt *gt)
 	    !gt->sriov.vf.migration.recovery_teardown) {
 		gt->sriov.vf.migration.recovery_queued = true;
 		WRITE_ONCE(gt->sriov.vf.migration.recovery_inprogress, true);
-		smp_wmb();	/* Ensure above write visable before wake */
+		WRITE_ONCE(gt->sriov.vf.migration.ggtt_need_fixes, true);
+		smp_wmb();	/* Ensure above writes visable before wake */
 
 		xe_guc_ct_wake_waiters(&gt->uc.guc.ct);
 
@@ -1149,7 +1156,10 @@ static void vf_post_migration_abort(struct xe_gt *gt)
 {
 	spin_lock_irq(&gt->sriov.vf.migration.lock);
 	WRITE_ONCE(gt->sriov.vf.migration.recovery_inprogress, false);
+	WRITE_ONCE(gt->sriov.vf.migration.ggtt_need_fixes, false);
 	spin_unlock_irq(&gt->sriov.vf.migration.lock);
+
+	wake_up_all(&gt->sriov.vf.migration.wq);
 
 	xe_guc_submit_pause_abort(&gt->uc.guc);
 }
@@ -1259,6 +1269,7 @@ int xe_gt_sriov_vf_init_early(struct xe_gt *gt)
 	gt->sriov.vf.migration.scratch = buf;
 	spin_lock_init(&gt->sriov.vf.migration.lock);
 	INIT_WORK(&gt->sriov.vf.migration.worker, migration_worker_func);
+	init_waitqueue_head(&gt->sriov.vf.migration.wq);
 
 	return 0;
 }
@@ -1307,4 +1318,36 @@ bool xe_gt_sriov_vf_recovery_pending(struct xe_gt *gt)
 		return true;
 
 	return READ_ONCE(gt->sriov.vf.migration.recovery_inprogress);
+}
+
+static bool vf_valid_ggtt(struct xe_gt *gt)
+{
+	struct xe_memirq *memirq = &gt_to_tile(gt)->memirq;
+	bool irq_pending = xe_device_uses_memirq(gt_to_xe(gt)) &&
+		xe_memirq_guc_sw_int_0_irq_pending(memirq, &gt->uc.guc);
+
+	xe_gt_assert(gt, IS_SRIOV_VF(gt_to_xe(gt)));
+
+	if (irq_pending || READ_ONCE(gt->sriov.vf.migration.ggtt_need_fixes))
+		return false;
+
+	return true;
+}
+
+/**
+ * xe_gt_sriov_vf_wait_valid_ggtt() - VF wait for valid GGTT addresses
+ * @gt: the &xe_gt
+ */
+void xe_gt_sriov_vf_wait_valid_ggtt(struct xe_gt *gt)
+{
+	int ret;
+
+	if (!IS_SRIOV_VF(gt_to_xe(gt)) ||
+	    !xe_sriov_vf_migration_supported(gt_to_xe(gt)))
+		return;
+
+	ret = wait_event_interruptible_timeout(gt->sriov.vf.migration.wq,
+					       vf_valid_ggtt(gt),
+					       HZ * 5);
+	xe_gt_WARN_ON(gt, !ret);
 }
