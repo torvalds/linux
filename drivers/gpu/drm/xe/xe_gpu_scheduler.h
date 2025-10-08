@@ -77,17 +77,30 @@ static inline void xe_sched_add_pending_job(struct xe_gpu_scheduler *sched,
 	spin_unlock(&sched->base.job_list_lock);
 }
 
+/**
+ * xe_sched_first_pending_job() - Find first pending job which is unsignaled
+ * @sched: Xe GPU scheduler
+ *
+ * Return first unsignaled job in pending list or NULL
+ */
 static inline
 struct xe_sched_job *xe_sched_first_pending_job(struct xe_gpu_scheduler *sched)
 {
-	struct xe_sched_job *job;
+	struct xe_sched_job *job, *r_job = NULL;
 
 	spin_lock(&sched->base.job_list_lock);
-	job = list_first_entry_or_null(&sched->base.pending_list,
-				       struct xe_sched_job, drm.list);
+	list_for_each_entry(job, &sched->base.pending_list, drm.list) {
+		struct drm_sched_fence *s_fence = job->drm.s_fence;
+		struct dma_fence *hw_fence = s_fence->parent;
+
+		if (hw_fence && !dma_fence_is_signaled(hw_fence)) {
+			r_job = job;
+			break;
+		}
+	}
 	spin_unlock(&sched->base.job_list_lock);
 
-	return job;
+	return r_job;
 }
 
 static inline int
