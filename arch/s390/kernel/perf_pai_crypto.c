@@ -428,7 +428,7 @@ static size_t paicrypt_copy(struct pai_userdata *userdata, unsigned long *page,
 			outidx++;
 		}
 	}
-	return outidx * sizeof(struct pai_userdata);
+	return outidx * sizeof(*userdata);
 }
 
 static int paicrypt_push_sample(size_t rawsize, struct paicrypt_map *cpump,
