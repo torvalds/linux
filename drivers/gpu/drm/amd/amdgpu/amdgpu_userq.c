@@ -417,17 +417,6 @@ amdgpu_userq_get_doorbell_index(struct amdgpu_userq_mgr *uq_mgr,
 	case AMDGPU_HW_IP_DMA:
 		db_size = sizeof(u64);
 		break;
-
-	case AMDGPU_HW_IP_VCN_ENC:
-		db_size = sizeof(u32);
-		db_info->doorbell_offset += AMDGPU_NAVI10_DOORBELL64_VCN0_1 << 1;
-		break;
-
-	case AMDGPU_HW_IP_VPE:
-		db_size = sizeof(u32);
-		db_info->doorbell_offset += AMDGPU_NAVI10_DOORBELL64_VPE << 1;
-		break;
-
 	default:
 		drm_file_err(uq_mgr->file, "[Usermode queues] IP %d not support\n",
 			     db_info->queue_type);
