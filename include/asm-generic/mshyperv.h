@@ -62,6 +62,8 @@ struct ms_hyperv_info {
 		};
 	};
 	u64 shared_gpa_boundary;
+	bool msi_ext_dest_id;
+	bool confidential_vmbus_available;
 };
 extern struct ms_hyperv_info ms_hyperv;
 extern bool hv_nested;
