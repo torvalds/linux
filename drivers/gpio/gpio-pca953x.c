@@ -854,10 +854,13 @@ static void pca953x_irq_bus_sync_unlock(struct irq_data *d)
 	int level;
 
 	if (chip->driver_data & PCA_PCAL) {
+		DECLARE_BITMAP(latched_inputs, MAX_LINE);
 		guard(mutex)(&chip->i2c_lock);
 
-		/* Enable latch on interrupt-enabled inputs */
-		pca953x_write_regs(chip, PCAL953X_IN_LATCH, chip->irq_mask);
+		/* Enable latch on edge-triggered interrupt-enabled inputs */
+		bitmap_or(latched_inputs, chip->irq_trig_fall, chip->irq_trig_raise, gc->ngpio);
+		bitmap_and(latched_inputs, latched_inputs, chip->irq_mask, gc->ngpio);
+		pca953x_write_regs(chip, PCAL953X_IN_LATCH, latched_inputs);
 
 		bitmap_complement(irq_mask, chip->irq_mask, gc->ngpio);
 
