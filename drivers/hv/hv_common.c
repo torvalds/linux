@@ -721,6 +721,11 @@ void __weak hv_enable_coco_interrupt(unsigned int cpu, unsigned int vector, bool
 }
 EXPORT_SYMBOL_GPL(hv_enable_coco_interrupt);
 
+void __weak hv_para_set_sint_proxy(bool enable)
+{
+}
+EXPORT_SYMBOL_GPL(hv_para_set_sint_proxy);
+
 u64 __weak hv_para_get_synic_register(unsigned int reg)
 {
 	return ~0ULL;
