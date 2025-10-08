@@ -37,6 +37,8 @@
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_simple_kms_helper.h>
 #include <drm/drm_gem_atomic_helper.h>
+#include <drm/drm_vblank.h>
+#include <drm/drm_vblank_helper.h>
 
 #include "qxl_drv.h"
 #include "qxl_object.h"
@@ -382,7 +384,25 @@ static void qxl_crtc_update_monitors_config(struct drm_crtc *crtc,
 static void qxl_crtc_atomic_flush(struct drm_crtc *crtc,
 				  struct drm_atomic_state *state)
 {
+	struct drm_device *dev = crtc->dev;
+	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
+	struct drm_pending_vblank_event *event;
+
 	qxl_crtc_update_monitors_config(crtc, "flush");
+
+	spin_lock_irq(&dev->event_lock);
+
+	event = crtc_state->event;
+	crtc_state->event = NULL;
+
+	if (event) {
+		if (drm_crtc_vblank_get(crtc) == 0)
+			drm_crtc_arm_vblank_event(crtc, event);
+		else
+			drm_crtc_send_vblank_event(crtc, event);
+	}
+
+	spin_unlock_irq(&dev->event_lock);
 }
 
 static void qxl_crtc_destroy(struct drm_crtc *crtc)
@@ -401,6 +421,7 @@ static const struct drm_crtc_funcs qxl_crtc_funcs = {
 	.reset = drm_atomic_helper_crtc_reset,
 	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
+	DRM_CRTC_VBLANK_TIMER_FUNCS,
 };
 
 static int qxl_framebuffer_surface_dirty(struct drm_framebuffer *fb,
@@ -455,11 +476,15 @@ static void qxl_crtc_atomic_enable(struct drm_crtc *crtc,
 				   struct drm_atomic_state *state)
 {
 	qxl_crtc_update_monitors_config(crtc, "enable");
+
+	drm_crtc_vblank_on(crtc);
 }
 
 static void qxl_crtc_atomic_disable(struct drm_crtc *crtc,
 				    struct drm_atomic_state *state)
 {
+	drm_crtc_vblank_off(crtc);
+
 	qxl_crtc_update_monitors_config(crtc, "disable");
 }
 
@@ -1275,6 +1300,10 @@ int qxl_modeset_init(struct qxl_device *qdev)
 	}
 
 	qxl_display_read_client_monitors_config(qdev);
+
+	ret = drm_vblank_init(&qdev->ddev, qxl_num_crtc);
+	if (ret)
+		return ret;
 
 	drm_mode_config_reset(&qdev->ddev);
 	return 0;
