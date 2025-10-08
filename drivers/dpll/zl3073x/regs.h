@@ -67,6 +67,9 @@
  * Register Page 0, General
  **************************/
 
+#define ZL_REG_INFO				ZL_REG(0, 0x00, 1)
+#define ZL_INFO_READY				BIT(7)
+
 #define ZL_REG_ID				ZL_REG(0, 0x01, 2)
 #define ZL_REG_REVISION				ZL_REG(0, 0x03, 2)
 #define ZL_REG_FW_VER				ZL_REG(0, 0x05, 2)
