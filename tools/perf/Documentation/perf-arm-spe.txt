@@ -191,14 +191,20 @@ groups:
   36 branch
   0 remote-access
   900 memory
+  1800 instructions
 
 The arm_spe// and dummy:u events are implementation details and are expected to be empty.
 
-To get a full list of unique samples that are not sorted into groups, set the itrace option to
-generate 'instruction' samples. The period option is also taken into account, so set it to 1
-instruction unless you want to further downsample the already sampled SPE data:
+The instructions group contains the full list of unique samples that are not
+sorted into other groups. To generate only this group use --itrace=i1i.
 
-  perf report --itrace=i1i
+1i (1 instruction interval) signifies no further downsampling. Rather than an
+instruction interval, this generates a sample every n SPE samples. For example
+to generate the default set of events for every 100 SPE samples:
+
+  perf report --itrace==bxofmtMai100i
+
+Other period types, for example nanoseconds (ns) are not currently supported.
 
 Memory access details are also stored on the samples and this can be viewed with:
 
