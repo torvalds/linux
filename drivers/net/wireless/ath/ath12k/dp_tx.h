@@ -8,7 +8,6 @@
 #define ATH12K_DP_TX_H
 
 #include "core.h"
-#include "wifi7/hal_tx.h"
 
 struct ath12k_dp_htt_wbm_tx_status {
 	bool acked;

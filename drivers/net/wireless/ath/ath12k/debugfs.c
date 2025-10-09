@@ -967,7 +967,7 @@ static int ath12k_open_link_stats(struct inode *inode, struct file *file)
 				 "\nlink[%d] Tx Frame descriptor Encrypt Type = ",
 				 link_id);
 
-		for (i = 0; i < HAL_ENCRYPT_TYPE_MAX; i++) {
+		for (i = 0; i < DP_ENCRYPT_TYPE_MAX; i++) {
 			len += scnprintf(buf + len, buf_len - len,
 					 " %d:%d", i,
 					 linkstat.tx_encrypt_type[i]);

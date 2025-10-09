@@ -8,7 +8,6 @@
 
 #include <crypto/hash.h>
 #include "core.h"
-#include "wifi7/hal_rx_desc.h"
 #include "debug.h"
 
 #define DP_MAX_NWIFI_HDR_LEN	30

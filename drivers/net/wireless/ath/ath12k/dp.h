@@ -7,8 +7,6 @@
 #ifndef ATH12K_DP_H
 #define ATH12K_DP_H
 
-#include "wifi7/hal_desc.h"
-#include "wifi7/hal_rx.h"
 #include "hw.h"
 #include "dp_htt.h"
 #include "dp_cmn.h"
@@ -25,6 +23,10 @@ struct ath12k_ext_irq_grp;
 
 #define DP_MON_PURGE_TIMEOUT_MS     100
 #define DP_MON_SERVICE_BUDGET       128
+
+#define DP_ENCAP_TYPE_MAX	4
+#define DP_ENCRYPT_TYPE_MAX	12
+#define DP_DESC_TYPE_MAX	2
 
 struct dp_srng {
 	u32 *vaddr_unaligned;
@@ -373,9 +375,9 @@ struct ath12k_link_stats {
 	u32 tx_completed;
 	u32 tx_bcast_mcast;
 	u32 tx_dropped;
-	u32 tx_encap_type[HAL_TCL_ENCAP_TYPE_MAX];
-	u32 tx_encrypt_type[HAL_ENCRYPT_TYPE_MAX];
-	u32 tx_desc_type[HAL_TCL_DESC_TYPE_MAX];
+	u32 tx_encap_type[DP_ENCAP_TYPE_MAX];
+	u32 tx_encrypt_type[DP_ENCRYPT_TYPE_MAX];
+	u32 tx_desc_type[DP_DESC_TYPE_MAX];
 };
 
 /* DP arch ops to communicate from common module
@@ -385,6 +387,8 @@ struct ath12k_dp_arch_ops {
 	int (*service_srng)(struct ath12k_dp *dp,
 			    struct ath12k_ext_irq_grp *irq_grp,
 			    int budget);
+	u32 (*dp_tx_get_vdev_bank_config)(struct ath12k_base *ab,
+					  struct ath12k_link_vif *arvif);
 };
 
 struct ath12k_dp {

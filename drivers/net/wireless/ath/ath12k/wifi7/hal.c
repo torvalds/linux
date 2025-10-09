@@ -406,7 +406,7 @@ int ath12k_wifi7_hal_srng_update_shadow_config(struct ath12k_base *ab,
 	int shadow_cfg_idx = hal->num_shadow_reg_configured;
 	u32 target_reg;
 
-	if (shadow_cfg_idx >= HAL_SHADOW_NUM_REGS)
+	if (shadow_cfg_idx >= HAL_SHADOW_NUM_REGS_MAX)
 		return -EINVAL;
 
 	hal->num_shadow_reg_configured++;

@@ -8,6 +8,7 @@
 #define ATH12K_DP_MON_H
 
 #include "core.h"
+#include "wifi7/hal_desc.h"
 
 #define ATH12K_MON_RX_DOT11_OFFSET	5
 #define ATH12K_MON_RX_PKT_OFFSET	8

@@ -7,6 +7,10 @@
 #ifndef ATH12K_HAL_RX_H
 #define ATH12K_HAL_RX_H
 
+#include "hal_desc.h"
+
+struct hal_reo_status;
+
 struct hal_rx_wbm_rel_info {
 	u32 cookie;
 	enum hal_wbm_rel_src_module err_rel_src;

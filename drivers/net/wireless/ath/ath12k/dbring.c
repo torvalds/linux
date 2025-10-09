@@ -6,6 +6,7 @@
 
 #include "core.h"
 #include "debug.h"
+#include "hal.h"
 
 static int ath12k_dbring_bufs_replenish(struct ath12k *ar,
 					struct ath12k_dbring *ring,

@@ -4,13 +4,8 @@
  * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 #include <linux/dma-mapping.h>
-#include "wifi7/hal_tx.h"
-#include "wifi7/hal_rx.h"
 #include "debug.h"
-#include "wifi7/hal_desc.h"
 #include "hif.h"
-#include "wifi7/hal_qcn9274.h"
-#include "wifi7/hal_wcn7850.h"
 
 static void ath12k_hal_ce_dst_setup(struct ath12k_base *ab,
 				    struct hal_srng *srng, int ring_num)

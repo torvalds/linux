@@ -10,6 +10,7 @@
 #include "hal_tx.h"
 #include "hal_rx.h"
 #include "hal_desc.h"
+#include "hal.h"
 
 static
 void ath12k_wifi7_hal_reo_set_desc_hdr(struct hal_desc_header *hdr,

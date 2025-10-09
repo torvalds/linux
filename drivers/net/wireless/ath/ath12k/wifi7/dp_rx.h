@@ -8,6 +8,9 @@
 
 #include "../core.h"
 #include "../dp_rx.h"
+#include "hal_rx_desc.h"
+
+struct ath12k_hal_reo_cmd;
 
 int ath12k_wifi7_dp_rx_process_wbm_err(struct ath12k_base *ab,
 				       struct napi_struct *napi, int budget);

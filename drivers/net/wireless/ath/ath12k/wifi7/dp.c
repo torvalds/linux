@@ -138,6 +138,7 @@ done:
 
 static struct ath12k_dp_arch_ops ath12k_wifi7_dp_arch_ops = {
 	.service_srng = ath12k_wifi7_dp_service_srng,
+	.dp_tx_get_vdev_bank_config = ath12k_wifi7_dp_tx_get_vdev_bank_config,
 };
 
 /* TODO: remove export once this file is built with wifi7 ko */

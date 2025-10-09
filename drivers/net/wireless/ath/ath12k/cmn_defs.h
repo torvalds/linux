@@ -16,4 +16,5 @@
 /* Define 1 scan link for each radio for parallel scan purposes */
 #define ATH12K_NUM_MAX_LINKS (IEEE80211_MLD_MAX_NUM_LINKS + ATH12K_SCAN_MAX_LINKS)
 
+#define MAX_MU_GROUP_ID 64
 #endif

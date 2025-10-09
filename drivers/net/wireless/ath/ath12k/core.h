@@ -26,7 +26,7 @@
 #include "ce.h"
 #include "mac.h"
 #include "hw.h"
-#include "wifi7/hal_rx.h"
+#include "wifi7/hal_desc.h"
 #include "reg.h"
 #include "dbring.h"
 #include "fw.h"

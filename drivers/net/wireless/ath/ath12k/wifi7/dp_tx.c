@@ -9,6 +9,9 @@
 #include "../dp_tx.h"
 #include "../peer.h"
 #include "dp_tx.h"
+#include "hal_desc.h"
+#include "hal.h"
+#include "hal_tx.h"
 
 static void
 ath12k_wifi7_hal_tx_cmd_ext_desc_setup(struct ath12k_base *ab,
@@ -921,4 +924,53 @@ void ath12k_wifi7_dp_tx_completion_handler(struct ath12k_base *ab, int ring_id)
 						 tx_ring->tcl_data_ring_id);
 		rcu_read_unlock();
 	}
+}
+
+u32 ath12k_wifi7_dp_tx_get_vdev_bank_config(struct ath12k_base *ab,
+					    struct ath12k_link_vif *arvif)
+{
+	u32 bank_config = 0;
+	u8 link_id = arvif->link_id;
+	struct ath12k_vif *ahvif = arvif->ahvif;
+	struct ath12k_dp_vif *dp_vif = &ahvif->dp_vif;
+	struct ath12k_dp_link_vif *dp_link_vif;
+
+	dp_link_vif = ath12k_dp_vif_to_dp_link_vif(dp_vif, link_id);
+
+	/* Only valid for raw frames with HW crypto enabled.
+	 * With SW crypto, mac80211 sets key per packet
+	 */
+	if (dp_vif->tx_encap_type == HAL_TCL_ENCAP_TYPE_RAW &&
+	    test_bit(ATH12K_FLAG_HW_CRYPTO_DISABLED, &ab->dev_flags))
+		bank_config |=
+			u32_encode_bits(ath12k_dp_tx_get_encrypt_type(dp_vif->key_cipher),
+					HAL_TX_BANK_CONFIG_ENCRYPT_TYPE);
+
+	bank_config |= u32_encode_bits(dp_vif->tx_encap_type,
+					HAL_TX_BANK_CONFIG_ENCAP_TYPE);
+	bank_config |= u32_encode_bits(0, HAL_TX_BANK_CONFIG_SRC_BUFFER_SWAP) |
+			u32_encode_bits(0, HAL_TX_BANK_CONFIG_LINK_META_SWAP) |
+			u32_encode_bits(0, HAL_TX_BANK_CONFIG_EPD);
+
+	/* only valid if idx_lookup_override is not set in tcl_data_cmd */
+	if (ahvif->vdev_type == WMI_VDEV_TYPE_STA)
+		bank_config |= u32_encode_bits(1, HAL_TX_BANK_CONFIG_INDEX_LOOKUP_EN);
+	else
+		bank_config |= u32_encode_bits(0, HAL_TX_BANK_CONFIG_INDEX_LOOKUP_EN);
+
+	bank_config |= u32_encode_bits(dp_link_vif->hal_addr_search_flags &
+				       HAL_TX_ADDRX_EN,
+				       HAL_TX_BANK_CONFIG_ADDRX_EN) |
+			u32_encode_bits(!!(dp_link_vif->hal_addr_search_flags &
+					HAL_TX_ADDRY_EN),
+					HAL_TX_BANK_CONFIG_ADDRY_EN);
+
+	bank_config |= u32_encode_bits(ieee80211_vif_is_mesh(ahvif->vif) ? 3 : 0,
+					HAL_TX_BANK_CONFIG_MESH_EN) |
+			u32_encode_bits(dp_link_vif->vdev_id_check_en,
+					HAL_TX_BANK_CONFIG_VDEV_ID_CHECK_EN);
+
+	bank_config |= u32_encode_bits(0, HAL_TX_BANK_CONFIG_DSCP_TIP_MAP_ID);
+
+	return bank_config;
 }

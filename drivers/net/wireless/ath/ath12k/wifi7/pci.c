@@ -15,6 +15,7 @@
 #include "../hal.h"
 #include "dp.h"
 #include "core.h"
+#include "hal.h"
 
 #define QCN9274_DEVICE_ID		0x1109
 #define WCN7850_DEVICE_ID		0x1107

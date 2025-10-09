@@ -7,8 +7,8 @@
 #ifndef ATH12K_HAL_TX_H
 #define ATH12K_HAL_TX_H
 
+#include "../mac.h"
 #include "hal_desc.h"
-#include "../core.h"
 
 /* TODO: check all these data can be managed with struct ath12k_tx_desc_info for perf */
 struct hal_tx_info {

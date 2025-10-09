@@ -11,4 +11,6 @@ int ath12k_wifi7_dp_tx(struct ath12k_pdev_dp *dp_pdev, struct ath12k_link_vif *a
 		       struct sk_buff *skb, bool gsn_valid, int mcbc_gsn,
 		       bool is_mcast);
 void ath12k_wifi7_dp_tx_completion_handler(struct ath12k_base *ab, int ring_id);
+u32 ath12k_wifi7_dp_tx_get_vdev_bank_config(struct ath12k_base *ab,
+					    struct ath12k_link_vif *arvif);
 #endif
