@@ -96,6 +96,31 @@ void ath12k_hal_setup_link_idle_list(struct ath12k_base *ab,
 					      end_offset);
 }
 
+void ath12k_hal_reo_hw_setup(struct ath12k_base *ab, u32 ring_hash_map)
+{
+	ab->hal.hal_ops->reo_hw_setup(ab, ring_hash_map);
+}
+
+void ath12k_hal_reo_init_cmd_ring(struct ath12k_base *ab, struct hal_srng *srng)
+{
+	ab->hal.hal_ops->reo_init_cmd_ring(ab, srng);
+}
+
+void ath12k_hal_rx_buf_addr_info_set(struct ath12k_hal *hal,
+				     struct ath12k_buffer_addr *binfo,
+				     dma_addr_t paddr, u32 cookie, u8 manager)
+{
+	hal->hal_ops->rx_buf_addr_info_set(binfo, paddr, cookie, manager);
+}
+
+void ath12k_hal_rx_buf_addr_info_get(struct ath12k_hal *hal,
+				     struct ath12k_buffer_addr *binfo,
+				     dma_addr_t *paddr, u32 *msdu_cookies,
+				     u8 *rbm)
+{
+	hal->hal_ops->rx_buf_addr_info_get(binfo, paddr, msdu_cookies, rbm);
+}
+
 static int ath12k_hal_alloc_cont_rdp(struct ath12k_hal *hal)
 {
 	size_t size;

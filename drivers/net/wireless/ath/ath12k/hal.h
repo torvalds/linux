@@ -1729,15 +1729,17 @@ struct hal_ops {
 				     struct hal_wbm_idle_scatter_list *sbuf,
 				     u32 nsbufs, u32 tot_link_desc,
 				     u32 end_offset);
+	void (*reo_init_cmd_ring)(struct ath12k_base *ab,
+				  struct hal_srng *srng);
+	void (*reo_hw_setup)(struct ath12k_base *ab, u32 ring_hash_map);
+	void (*rx_buf_addr_info_set)(struct ath12k_buffer_addr *binfo,
+				     dma_addr_t paddr, u32 cookie, u8 manager);
+	void (*rx_buf_addr_info_get)(struct ath12k_buffer_addr *binfo,
+				     dma_addr_t *paddr, u32 *msdu_cookies,
+				     u8 *rbm);
 };
 
 u32 ath12k_wifi7_hal_reo_qdesc_size(u32 ba_window_size, u8 tid);
-void ath12k_wifi7_hal_reo_qdesc_setup(struct hal_rx_reo_queue *qdesc,
-				      int tid, u32 ba_window_size,
-				      u32 start_seq, enum hal_pn_type type);
-void ath12k_wifi7_hal_reo_init_cmd_ring(struct ath12k_base *ab,
-					struct hal_srng *srng);
-void ath12k_wifi7_hal_reo_hw_setup(struct ath12k_base *ab, u32 ring_hash_map);
 dma_addr_t ath12k_hal_srng_get_tp_addr(struct ath12k_base *ab,
 				       struct hal_srng *srng);
 dma_addr_t ath12k_hal_srng_get_hp_addr(struct ath12k_base *ab,
@@ -1806,4 +1808,13 @@ void ath12k_hal_reoq_lut_set_max_peerid(struct ath12k_base *ab);
 void ath12k_hal_write_reoq_lut_addr(struct ath12k_base *ab, dma_addr_t paddr);
 void
 ath12k_hal_write_ml_reoq_lut_addr(struct ath12k_base *ab, dma_addr_t paddr);
+void ath12k_hal_reo_init_cmd_ring(struct ath12k_base *ab, struct hal_srng *srng);
+void ath12k_hal_reo_hw_setup(struct ath12k_base *ab, u32 ring_hash_map);
+void ath12k_hal_rx_buf_addr_info_set(struct ath12k_hal *hal,
+				     struct ath12k_buffer_addr *binfo,
+				     dma_addr_t paddr, u32 cookie, u8 manager);
+void ath12k_hal_rx_buf_addr_info_get(struct ath12k_hal *hal,
+				     struct ath12k_buffer_addr *binfo,
+				     dma_addr_t *paddr, u32 *msdu_cookies,
+				     u8 *rbm);
 #endif

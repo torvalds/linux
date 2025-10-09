@@ -562,7 +562,7 @@ static int ath12k_dp_srng_common_setup(struct ath12k_base *ab)
 	}
 
 	srng = &ab->hal.srng_list[dp->reo_cmd_ring.ring_id];
-	ath12k_wifi7_hal_reo_init_cmd_ring(ab, srng);
+	ath12k_hal_reo_init_cmd_ring(ab, srng);
 
 	ret = ath12k_dp_srng_setup(ab, &dp->reo_status_ring, HAL_REO_STATUS,
 				   0, 0, DP_REO_STATUS_RING_SIZE);
@@ -586,7 +586,7 @@ static int ath12k_dp_srng_common_setup(struct ath12k_base *ab)
 			HAL_HASH_ROUTING_RING_SW3 << 24 |
 			HAL_HASH_ROUTING_RING_SW4 << 28;
 
-	ath12k_wifi7_hal_reo_hw_setup(ab, ring_hash_map);
+	ath12k_hal_reo_hw_setup(ab, ring_hash_map);
 
 	return 0;
 

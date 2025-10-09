@@ -145,7 +145,8 @@ int ath12k_dp_rx_bufs_replenish(struct ath12k_base *ab,
 
 		num_remain--;
 
-		ath12k_wifi7_hal_rx_buf_addr_info_set(desc, paddr, cookie, mgr);
+		ath12k_hal_rx_buf_addr_info_set(&ab->hal, desc, paddr, cookie,
+						mgr);
 	}
 
 	goto out;
