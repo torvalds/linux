@@ -311,4 +311,4 @@ int ipe_inode_setintegrity(const struct inode *inode,
 
 	return -EINVAL;
 }
-#endif /* CONFIG_CONFIG_IPE_PROP_FS_VERITY_BUILTIN_SIG */
+#endif /* CONFIG_IPE_PROP_FS_VERITY_BUILTIN_SIG */
