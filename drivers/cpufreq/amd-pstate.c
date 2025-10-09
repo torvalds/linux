@@ -118,7 +118,6 @@ static const char * const energy_perf_strings[] = {
 	[EPP_INDEX_BALANCE_PERFORMANCE] = "balance_performance",
 	[EPP_INDEX_BALANCE_POWERSAVE] = "balance_power",
 	[EPP_INDEX_POWERSAVE] = "power",
-	NULL
 };
 
 static unsigned int epp_values[] = {
@@ -1137,16 +1136,15 @@ static ssize_t show_amd_pstate_hw_prefcore(struct cpufreq_policy *policy,
 static ssize_t show_energy_performance_available_preferences(
 				struct cpufreq_policy *policy, char *buf)
 {
-	int i = 0;
-	int offset = 0;
+	int offset = 0, i;
 	struct amd_cpudata *cpudata = policy->driver_data;
 
 	if (cpudata->policy == CPUFREQ_POLICY_PERFORMANCE)
 		return sysfs_emit_at(buf, offset, "%s\n",
 				energy_perf_strings[EPP_INDEX_PERFORMANCE]);
 
-	while (energy_perf_strings[i] != NULL)
-		offset += sysfs_emit_at(buf, offset, "%s ", energy_perf_strings[i++]);
+	for (i = 0; i < ARRAY_SIZE(energy_perf_strings); i++)
+		offset += sysfs_emit_at(buf, offset, "%s ", energy_perf_strings[i]);
 
 	offset += sysfs_emit_at(buf, offset, "\n");
 
@@ -1157,15 +1155,10 @@ static ssize_t store_energy_performance_preference(
 		struct cpufreq_policy *policy, const char *buf, size_t count)
 {
 	struct amd_cpudata *cpudata = policy->driver_data;
-	char str_preference[21];
 	ssize_t ret;
 	u8 epp;
 
-	ret = sscanf(buf, "%20s", str_preference);
-	if (ret != 1)
-		return -EINVAL;
-
-	ret = match_string(energy_perf_strings, -1, str_preference);
+	ret = sysfs_match_string(energy_perf_strings, buf);
 	if (ret < 0)
 		return -EINVAL;
 
