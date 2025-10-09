@@ -97,6 +97,40 @@ out_err:
 	return r;
 }
 
+static void amdgpu_userq_buffer_va_list_del(struct amdgpu_bo_va_mapping *mapping,
+					    struct amdgpu_userq_va_cursor *va_cursor)
+{
+	atomic_set(&mapping->bo_va->userq_va_mapped, 0);
+	list_del(&va_cursor->list);
+	kfree(va_cursor);
+}
+
+static int amdgpu_userq_buffer_vas_list_cleanup(struct amdgpu_device *adev,
+						struct amdgpu_usermode_queue *queue)
+{
+	struct amdgpu_userq_va_cursor *va_cursor, *tmp;
+	struct amdgpu_bo_va_mapping *mapping;
+	int r;
+
+	r = amdgpu_bo_reserve(queue->vm->root.bo, false);
+	if (r)
+		return r;
+
+	list_for_each_entry_safe(va_cursor, tmp, &queue->userq_va_list, list) {
+		mapping = amdgpu_vm_bo_lookup_mapping(queue->vm, va_cursor->gpu_addr);
+		if (!mapping) {
+			r = -EINVAL;
+			goto err;
+		}
+		amdgpu_userq_buffer_va_list_del(mapping, va_cursor);
+		dev_dbg(adev->dev, "delete the userq:%p va:%llx\n",
+			queue, va_cursor->gpu_addr);
+	}
+err:
+	amdgpu_bo_unreserve(queue->vm->root.bo);
+	return r;
+}
+
 static int
 amdgpu_userq_preempt_helper(struct amdgpu_userq_mgr *uq_mgr,
 			  struct amdgpu_usermode_queue *queue)
@@ -202,6 +236,8 @@ amdgpu_userq_cleanup(struct amdgpu_userq_mgr *uq_mgr,
 	struct amdgpu_device *adev = uq_mgr->adev;
 	const struct amdgpu_userq_funcs *uq_funcs = adev->userq_funcs[queue->queue_type];
 
+	/* Drop the userq reference. */
+	amdgpu_userq_buffer_vas_list_cleanup(adev, queue);
 	uq_funcs->mqd_destroy(uq_mgr, queue);
 	amdgpu_userq_fence_driver_free(queue);
 	idr_remove(&uq_mgr->userq_idr, queue_id);
