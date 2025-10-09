@@ -578,6 +578,9 @@ static bool __unix_needs_revalidation(struct file *file, struct aa_label *label,
 		return false;
 	if (request & NET_PEER_MASK)
 		return false;
+	/* sock and sock->sk can be NULL for sockets being set up or torn down */
+	if (!sock || !sock->sk)
+		return false;
 	if (sock->sk->sk_family == PF_UNIX) {
 		struct aa_sk_ctx *ctx = aa_sock(sock->sk);
 
