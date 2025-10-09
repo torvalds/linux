@@ -337,7 +337,7 @@ static void gmc_v12_0_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
 	int vmid, i;
 
 	if (adev->enable_uni_mes && adev->mes.ring[AMDGPU_MES_SCHED_PIPE].sched.ready &&
-	    (adev->mes.sched_version & AMDGPU_MES_VERSION_MASK) >= 0x83) {
+	    (adev->mes.sched_version & AMDGPU_MES_VERSION_MASK) >= 0x84) {
 		struct mes_inv_tlbs_pasid_input input = {0};
 		input.pasid = pasid;
 		input.flush_type = flush_type;
