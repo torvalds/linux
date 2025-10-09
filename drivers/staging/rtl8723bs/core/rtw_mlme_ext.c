@@ -1062,7 +1062,7 @@ unsigned int OnAssocReq(struct adapter *padapter, union recv_frame *precv_frame)
 	/* update station supportRate */
 	pstat->bssratelen = supportRateNum;
 	memcpy(pstat->bssrateset, supportRate, supportRateNum);
-	UpdateBrateTblForSoftAP(pstat->bssrateset, pstat->bssratelen);
+	update_basic_rate_table_soft_ap(pstat->bssrateset, pstat->bssratelen);
 
 	/* check RSN/WPA/WPS */
 	pstat->dot8021xalg = 0;
@@ -1450,7 +1450,7 @@ unsigned int OnAssocRsp(struct adapter *padapter, union recv_frame *precv_frame)
 	pmlmeinfo->state |= WIFI_FW_ASSOC_SUCCESS;
 
 	/* Update Basic Rate Table for spec, 2010-12-28 , by thomas */
-	UpdateBrateTbl(padapter, pmlmeinfo->network.supported_rates);
+	update_basic_rate_table(padapter, pmlmeinfo->network.supported_rates);
 
 report_assoc_result:
 	if (res > 0)
