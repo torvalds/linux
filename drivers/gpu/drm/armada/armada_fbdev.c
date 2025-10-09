@@ -28,8 +28,6 @@ static void armada_fbdev_fb_destroy(struct fb_info *info)
 	fbh->fb->funcs->destroy(fbh->fb);
 
 	drm_client_release(&fbh->client);
-	drm_fb_helper_unprepare(fbh);
-	kfree(fbh);
 }
 
 static const struct fb_ops armada_fb_ops = {

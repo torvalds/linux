@@ -29,6 +29,16 @@ struct drm_client_funcs {
 	struct module *owner;
 
 	/**
+	 * @free:
+	 *
+	 * Called when the client gets unregistered. Implementations should
+	 * release all client-specific data and free the memory.
+	 *
+	 * This callback is optional.
+	 */
+	void (*free)(struct drm_client_dev *client);
+
+	/**
 	 * @unregister:
 	 *
 	 * Called when &drm_device is unregistered. The client should respond by
