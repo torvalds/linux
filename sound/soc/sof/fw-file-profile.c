@@ -266,6 +266,7 @@ static void sof_print_profile_info(struct snd_sof_dev *sdev,
 				   enum sof_ipc_type ipc_type,
 				   struct sof_loadable_file_profile *profile)
 {
+	struct snd_sof_pdata *plat_data = sdev->pdata;
 	struct device *dev = sdev->dev;
 
 	if (ipc_type != profile->ipc_type)
@@ -282,7 +283,12 @@ static void sof_print_profile_info(struct snd_sof_dev *sdev,
 
 	if (profile->fw_lib_path)
 		dev_info(dev, " Firmware lib path: %s\n", profile->fw_lib_path);
-	dev_info(dev, " Topology file:     %s/%s\n", profile->tplg_path, profile->tplg_name);
+
+	if (plat_data->machine->get_function_tplg_files && !plat_data->disable_function_topology)
+		dev_info(dev, " Topology file:     function topologies\n");
+	else
+		dev_info(dev, " Topology file:     %s/%s\n",
+			 profile->tplg_path, profile->tplg_name);
 }
 
 int sof_create_ipc_file_profile(struct snd_sof_dev *sdev,
