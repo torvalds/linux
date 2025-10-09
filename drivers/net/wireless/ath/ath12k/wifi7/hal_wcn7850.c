@@ -146,14 +146,7 @@ static const struct hal_srng_config hw_srng_config_template[] = {
 		.ring_dir = HAL_SRNG_DIR_DST,
 		.max_size = HAL_RXDMA_RING_MAX_SIZE_BE,
 	},
-	[HAL_RXDMA_MONITOR_BUF] = {
-		.start_ring_id = HAL_SRNG_SW2RXMON_BUF0,
-		.max_rings = 1,
-		.entry_size = sizeof(struct hal_mon_buf_ring) >> 2,
-		.mac_type = ATH12K_HAL_SRNG_PMAC,
-		.ring_dir = HAL_SRNG_DIR_SRC,
-		.max_size = HAL_RXDMA_RING_MAX_SIZE_BE,
-	},
+	[HAL_RXDMA_MONITOR_BUF] = {},
 	[HAL_RXDMA_MONITOR_STATUS] = {
 		.start_ring_id = HAL_SRNG_RING_ID_WMAC1_SW2RXDMA1_STATBUF,
 		.max_rings = 1,
@@ -171,46 +164,11 @@ static const struct hal_srng_config hw_srng_config_template[] = {
 		.ring_dir = HAL_SRNG_DIR_SRC,
 		.max_size = HAL_RXDMA_RING_MAX_SIZE_BE,
 	},
-	[HAL_PPE2TCL] = {
-		.start_ring_id = HAL_SRNG_RING_ID_PPE2TCL1,
-		.max_rings = 1,
-		.entry_size = sizeof(struct hal_tcl_entrance_from_ppe_ring) >> 2,
-		.mac_type = ATH12K_HAL_SRNG_PMAC,
-		.ring_dir = HAL_SRNG_DIR_SRC,
-		.max_size = HAL_SW2TCL1_RING_BASE_MSB_RING_SIZE,
-	},
-	[HAL_PPE_RELEASE] = {
-		.start_ring_id = HAL_SRNG_RING_ID_WBM_PPE_RELEASE,
-		.max_rings = 1,
-		.entry_size = sizeof(struct hal_wbm_release_ring) >> 2,
-		.mac_type = ATH12K_HAL_SRNG_PMAC,
-		.ring_dir = HAL_SRNG_DIR_SRC,
-		.max_size = HAL_WBM2PPE_RELEASE_RING_BASE_MSB_RING_SIZE,
-	},
-	[HAL_TX_MONITOR_BUF] = {
-		.start_ring_id = HAL_SRNG_RING_ID_WMAC1_SW2TXMON_BUF0,
-		.max_rings = 1,
-		.entry_size = sizeof(struct hal_mon_buf_ring) >> 2,
-		.mac_type = ATH12K_HAL_SRNG_PMAC,
-		.ring_dir = HAL_SRNG_DIR_SRC,
-		.max_size = HAL_RXDMA_RING_MAX_SIZE_BE,
-	},
-	[HAL_RXDMA_MONITOR_DST] = {
-		.start_ring_id = HAL_SRNG_RING_ID_WMAC1_SW2RXMON_BUF0,
-		.max_rings = 1,
-		.entry_size = sizeof(struct hal_mon_dest_desc) >> 2,
-		.mac_type = ATH12K_HAL_SRNG_PMAC,
-		.ring_dir = HAL_SRNG_DIR_DST,
-		.max_size = HAL_RXDMA_RING_MAX_SIZE_BE,
-	},
-	[HAL_TX_MONITOR_DST] = {
-		.start_ring_id = HAL_SRNG_RING_ID_WMAC1_TXMON2SW0_BUF0,
-		.max_rings = 1,
-		.entry_size = sizeof(struct hal_mon_dest_desc) >> 2,
-		.mac_type = ATH12K_HAL_SRNG_PMAC,
-		.ring_dir = HAL_SRNG_DIR_DST,
-		.max_size = HAL_RXDMA_RING_MAX_SIZE_BE,
-	}
+	[HAL_PPE2TCL] = {},
+	[HAL_PPE_RELEASE] = {},
+	[HAL_TX_MONITOR_BUF] = {},
+	[HAL_RXDMA_MONITOR_DST] = {},
+	[HAL_TX_MONITOR_DST] = {}
 };
 
 const struct ath12k_hw_regs wcn7850_regs = {
