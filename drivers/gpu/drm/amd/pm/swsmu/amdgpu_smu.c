@@ -2966,19 +2966,16 @@ static int smu_set_power_limit(void *handle, uint32_t limit_type, uint32_t limit
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
 		return -EOPNOTSUPP;
 
-	if (limit_type != SMU_DEFAULT_PPT_LIMIT)
-		if (smu->ppt_funcs->set_power_limit)
-			return smu->ppt_funcs->set_power_limit(smu, limit_type, limit);
-
-	if ((limit > smu->max_power_limit) || (limit < smu->min_power_limit)) {
-		dev_err(smu->adev->dev,
-			"New power limit (%d) is out of range [%d,%d]\n",
-			limit, smu->min_power_limit, smu->max_power_limit);
-		return -EINVAL;
+	if (limit_type == SMU_DEFAULT_PPT_LIMIT) {
+		if (!limit)
+			limit = smu->current_power_limit;
+		if ((limit > smu->max_power_limit) || (limit < smu->min_power_limit)) {
+			dev_err(smu->adev->dev,
+				"New power limit (%d) is out of range [%d,%d]\n",
+				limit, smu->min_power_limit, smu->max_power_limit);
+			return -EINVAL;
+		}
 	}
-
-	if (!limit)
-		limit = smu->current_power_limit;
 
 	if (smu->ppt_funcs->set_power_limit) {
 		ret = smu->ppt_funcs->set_power_limit(smu, limit_type, limit);
