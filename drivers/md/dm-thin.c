@@ -4383,11 +4383,8 @@ static void thin_postsuspend(struct dm_target *ti)
 {
 	struct thin_c *tc = ti->private;
 
-	/*
-	 * The dm_noflush_suspending flag has been cleared by now, so
-	 * unfortunately we must always run this.
-	 */
-	noflush_work(tc, do_noflush_stop);
+	if (dm_noflush_suspending(ti))
+		noflush_work(tc, do_noflush_stop);
 }
 
 static int thin_preresume(struct dm_target *ti)
