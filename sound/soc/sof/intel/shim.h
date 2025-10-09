@@ -186,6 +186,7 @@ struct sof_intel_dsp_desc {
 	u32 sdw_alh_base;
 	u32 d0i3_offset;
 	u32 quirks;
+	const char *platform;
 	enum sof_intel_hw_ip_version hw_ip_version;
 	int (*read_sdw_lcount)(struct snd_sof_dev *sdev);
 	void (*enable_sdw_irq)(struct snd_sof_dev *sdev, bool enable);
