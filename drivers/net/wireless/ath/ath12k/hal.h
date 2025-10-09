@@ -1702,6 +1702,11 @@ struct hal_ops {
 				       struct hal_srng *srng);
 	void (*srng_src_hw_init)(struct ath12k_base *ab, struct hal_srng *srng);
 	void (*srng_dst_hw_init)(struct ath12k_base *ab, struct hal_srng *srng);
+	int (*srng_update_shadow_config)(struct ath12k_base *ab,
+					 enum hal_ring_type ring_type,
+					 int ring_num);
+	int (*srng_get_ring_id)(struct ath12k_hal *hal, enum hal_ring_type type,
+				int ring_num, int mac_id);
 };
 
 u32 ath12k_wifi7_hal_reo_qdesc_size(u32 ba_window_size, u8 tid);

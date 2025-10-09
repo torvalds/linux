@@ -36,6 +36,21 @@ static void ath12k_hal_set_umac_srng_ptr_addr(struct ath12k_base *ab,
 	ab->hal.hal_ops->set_umac_srng_ptr_addr(ab, srng);
 }
 
+static int ath12k_hal_srng_get_ring_id(struct ath12k_hal *hal,
+				       enum hal_ring_type type,
+				       int ring_num, int mac_id)
+{
+	return hal->hal_ops->srng_get_ring_id(hal, type, ring_num, mac_id);
+}
+
+int ath12k_hal_srng_update_shadow_config(struct ath12k_base *ab,
+					 enum hal_ring_type ring_type,
+					 int ring_num)
+{
+	return ab->hal.hal_ops->srng_update_shadow_config(ab, ring_type,
+							  ring_num);
+}
+
 static int ath12k_hal_alloc_cont_rdp(struct ath12k_hal *hal)
 {
 	size_t size;
@@ -95,28 +110,6 @@ static void ath12k_hal_srng_hw_init(struct ath12k_base *ab,
 		ath12k_hal_srng_src_hw_init(ab, srng);
 	else
 		ath12k_hal_srng_dst_hw_init(ab, srng);
-}
-
-static int ath12k_hal_srng_get_ring_id(struct ath12k_base *ab,
-				       enum hal_ring_type type,
-				       int ring_num, int mac_id)
-{
-	struct hal_srng_config *srng_config = &ab->hal.srng_config[type];
-	int ring_id;
-
-	if (ring_num >= srng_config->max_rings) {
-		ath12k_warn(ab, "invalid ring number :%d\n", ring_num);
-		return -EINVAL;
-	}
-
-	ring_id = srng_config->start_ring_id + ring_num;
-	if (srng_config->mac_type == ATH12K_HAL_SRNG_PMAC)
-		ring_id += mac_id * HAL_SRNG_RINGS_PER_PMAC;
-
-	if (WARN_ON(ring_id >= HAL_SRNG_RING_ID_MAX))
-		return -EINVAL;
-
-	return ring_id;
 }
 
 int ath12k_hal_srng_get_entrysize(struct ath12k_base *ab, u32 ring_type)
@@ -619,7 +612,7 @@ int ath12k_hal_srng_setup(struct ath12k_base *ab, enum hal_ring_type type,
 	u32 idx;
 	int i;
 
-	ring_id = ath12k_hal_srng_get_ring_id(ab, type, ring_num, mac_id);
+	ring_id = ath12k_hal_srng_get_ring_id(hal, type, ring_num, mac_id);
 	if (ring_id < 0)
 		return ring_id;
 
@@ -704,68 +697,6 @@ int ath12k_hal_srng_setup(struct ath12k_base *ab, enum hal_ring_type type,
 	}
 
 	return ring_id;
-}
-
-static void ath12k_hal_srng_update_hp_tp_addr(struct ath12k_base *ab,
-					      int shadow_cfg_idx,
-					      enum hal_ring_type ring_type,
-					      int ring_num)
-{
-	struct hal_srng *srng;
-	struct ath12k_hal *hal = &ab->hal;
-	int ring_id;
-	struct hal_srng_config *srng_config = &hal->srng_config[ring_type];
-
-	ring_id = ath12k_hal_srng_get_ring_id(ab, ring_type, ring_num, 0);
-	if (ring_id < 0)
-		return;
-
-	srng = &hal->srng_list[ring_id];
-
-	if (srng_config->ring_dir == HAL_SRNG_DIR_DST)
-		srng->u.dst_ring.tp_addr = (u32 *)(HAL_SHADOW_REG(shadow_cfg_idx) +
-						   (unsigned long)ab->mem);
-	else
-		srng->u.src_ring.hp_addr = (u32 *)(HAL_SHADOW_REG(shadow_cfg_idx) +
-						   (unsigned long)ab->mem);
-}
-
-int ath12k_hal_srng_update_shadow_config(struct ath12k_base *ab,
-					 enum hal_ring_type ring_type,
-					 int ring_num)
-{
-	struct ath12k_hal *hal = &ab->hal;
-	struct hal_srng_config *srng_config = &hal->srng_config[ring_type];
-	int shadow_cfg_idx = hal->num_shadow_reg_configured;
-	u32 target_reg;
-
-	if (shadow_cfg_idx >= HAL_SHADOW_NUM_REGS)
-		return -EINVAL;
-
-	hal->num_shadow_reg_configured++;
-
-	target_reg = srng_config->reg_start[HAL_HP_OFFSET_IN_REG_START];
-	target_reg += srng_config->reg_size[HAL_HP_OFFSET_IN_REG_START] *
-		ring_num;
-
-	/* For destination ring, shadow the TP */
-	if (srng_config->ring_dir == HAL_SRNG_DIR_DST)
-		target_reg += HAL_OFFSET_FROM_HP_TO_TP;
-
-	hal->shadow_reg_addr[shadow_cfg_idx] = target_reg;
-
-	/* update hp/tp addr to hal structure*/
-	ath12k_hal_srng_update_hp_tp_addr(ab, shadow_cfg_idx, ring_type,
-					  ring_num);
-
-	ath12k_dbg(ab, ATH12K_DBG_HAL,
-		   "target_reg %x, shadow reg 0x%x shadow_idx 0x%x, ring_type %d, ring num %d",
-		  target_reg,
-		  HAL_SHADOW_REG(shadow_cfg_idx),
-		  shadow_cfg_idx,
-		  ring_type, ring_num);
-
-	return 0;
 }
 
 void ath12k_hal_srng_shadow_config(struct ath12k_base *ab)

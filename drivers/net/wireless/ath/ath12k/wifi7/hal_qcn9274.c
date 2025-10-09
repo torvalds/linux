@@ -1004,5 +1004,7 @@ const struct hal_ops hal_qcn9274_ops = {
 	.srng_src_hw_init = ath12k_wifi7_hal_srng_src_hw_init,
 	.srng_dst_hw_init = ath12k_wifi7_hal_srng_dst_hw_init,
 	.set_umac_srng_ptr_addr = ath12k_wifi7_hal_set_umac_srng_ptr_addr,
+	.srng_update_shadow_config = ath12k_wifi7_hal_srng_update_shadow_config,
+	.srng_get_ring_id = ath12k_wifi7_hal_srng_get_ring_id,
 };
 EXPORT_SYMBOL(hal_qcn9274_ops);
