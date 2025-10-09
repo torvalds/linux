@@ -563,7 +563,7 @@ static int ath12k_ahb_config_ext_irq(struct ath12k_base *ab)
 	u32 num_irq;
 
 	ring_mask = ab->hw_params->ring_mask;
-	hal_ops = ab->hw_params->hal_ops;
+	hal_ops = ab->hal.hal_ops;
 	for (i = 0; i < ATH12K_EXT_IRQ_GRP_NUM_MAX; i++) {
 		irq_grp = &ab->ext_irq_grp[i];
 		num_irq = 0;

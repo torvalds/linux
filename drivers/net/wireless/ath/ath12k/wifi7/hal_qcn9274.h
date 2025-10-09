@@ -12,6 +12,7 @@
 #include "../hal.h"
 #include "hal_rx.h"
 
+extern const struct hal_ops hal_qcn9274_ops;
 extern const struct ath12k_hal_tcl_to_wbm_rbm_map
 ath12k_hal_qcn9274_tcl_to_wbm_rbm_map[DP_TCL_NUM_RING_MAX];
 

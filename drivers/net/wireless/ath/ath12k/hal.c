@@ -1105,7 +1105,7 @@ int ath12k_hal_srng_init(struct ath12k_base *ab)
 {
 	int ret;
 
-	ret = ab->hw_params->hal_ops->create_srng_config(ab);
+	ret = ab->hal.hal_ops->create_srng_config(ab);
 	if (ret)
 		goto err_hal;
 
