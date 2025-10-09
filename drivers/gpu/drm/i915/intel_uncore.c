@@ -35,6 +35,7 @@
 #include "i915_reg.h"
 #include "i915_vgpu.h"
 #include "i915_wait_util.h"
+#include "i915_mmio_range.h"
 #include "intel_uncore_trace.h"
 
 #define FORCEWAKE_ACK_TIMEOUT_MS 50
@@ -999,7 +1000,7 @@ find_fw_domain(struct intel_uncore *uncore, u32 offset)
  * scanned for obvious mistakes or typos by the selftests.
  */
 
-static const struct i915_range gen8_shadowed_regs[] = {
+static const struct i915_mmio_range gen8_shadowed_regs[] = {
 	{ .start =  0x2030, .end =  0x2030 },
 	{ .start =  0xA008, .end =  0xA00C },
 	{ .start = 0x12030, .end = 0x12030 },
@@ -1007,7 +1008,7 @@ static const struct i915_range gen8_shadowed_regs[] = {
 	{ .start = 0x22030, .end = 0x22030 },
 };
 
-static const struct i915_range gen11_shadowed_regs[] = {
+static const struct i915_mmio_range gen11_shadowed_regs[] = {
 	{ .start =   0x2030, .end =   0x2030 },
 	{ .start =   0x2550, .end =   0x2550 },
 	{ .start =   0xA008, .end =   0xA00C },
@@ -1034,7 +1035,7 @@ static const struct i915_range gen11_shadowed_regs[] = {
 	{ .start = 0x1D8510, .end = 0x1D8550 },
 };
 
-static const struct i915_range gen12_shadowed_regs[] = {
+static const struct i915_mmio_range gen12_shadowed_regs[] = {
 	{ .start =   0x2030, .end =   0x2030 },
 	{ .start =   0x2510, .end =   0x2550 },
 	{ .start =   0xA008, .end =   0xA00C },
@@ -1078,7 +1079,7 @@ static const struct i915_range gen12_shadowed_regs[] = {
 	{ .start = 0x1F8510, .end = 0x1F8550 },
 };
 
-static const struct i915_range dg2_shadowed_regs[] = {
+static const struct i915_mmio_range dg2_shadowed_regs[] = {
 	{ .start =   0x2030, .end =   0x2030 },
 	{ .start =   0x2510, .end =   0x2550 },
 	{ .start =   0xA008, .end =   0xA00C },
@@ -1117,7 +1118,7 @@ static const struct i915_range dg2_shadowed_regs[] = {
 	{ .start = 0x1F8510, .end = 0x1F8550 },
 };
 
-static const struct i915_range mtl_shadowed_regs[] = {
+static const struct i915_mmio_range mtl_shadowed_regs[] = {
 	{ .start =   0x2030, .end =   0x2030 },
 	{ .start =   0x2510, .end =   0x2550 },
 	{ .start =   0xA008, .end =   0xA00C },
@@ -1135,7 +1136,7 @@ static const struct i915_range mtl_shadowed_regs[] = {
 	{ .start =  0x22510, .end =  0x22550 },
 };
 
-static const struct i915_range xelpmp_shadowed_regs[] = {
+static const struct i915_mmio_range xelpmp_shadowed_regs[] = {
 	{ .start = 0x1C0030, .end = 0x1C0030 },
 	{ .start = 0x1C0510, .end = 0x1C0550 },
 	{ .start = 0x1C8030, .end = 0x1C8030 },
@@ -1156,7 +1157,7 @@ static const struct i915_range xelpmp_shadowed_regs[] = {
 	{ .start = 0x38CFD4, .end = 0x38CFDC },
 };
 
-static int mmio_range_cmp(u32 key, const struct i915_range *range)
+static int mmio_range_cmp(u32 key, const struct i915_mmio_range *range)
 {
 	if (key < range->start)
 		return -1;
