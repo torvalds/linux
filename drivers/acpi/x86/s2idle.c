@@ -303,6 +303,9 @@ static void lpi_check_constraints(void)
 {
 	struct lpi_constraints *entry;
 
+	if (IS_ERR_OR_NULL(lpi_constraints_table))
+		return;
+
 	for_each_lpi_constraint(entry) {
 		struct acpi_device *adev = acpi_fetch_acpi_dev(entry->handle);
 
@@ -484,11 +487,6 @@ static int lps0_device_attach(struct acpi_device *adev,
 
 	lps0_device_handle = adev->handle;
 
-	if (acpi_s2idle_vendor_amd())
-		lpi_device_get_constraints_amd();
-	else
-		lpi_device_get_constraints();
-
 	/*
 	 * Use suspend-to-idle by default if ACPI_FADT_LOW_POWER_S0 is set in
 	 * the FADT and the default suspend mode was not set from the command
@@ -514,6 +512,25 @@ static struct acpi_scan_handler lps0_handler = {
 	.ids = lps0_device_ids,
 	.attach = lps0_device_attach,
 };
+
+static int acpi_s2idle_begin_lps0(void)
+{
+	if (pm_debug_messages_on && !lpi_constraints_table) {
+		if (acpi_s2idle_vendor_amd())
+			lpi_device_get_constraints_amd();
+		else
+			lpi_device_get_constraints();
+
+		/*
+		 * Try to retrieve the constraints only once because failures
+		 * to do so usually are sticky.
+		 */
+		if (!lpi_constraints_table)
+			lpi_constraints_table = ERR_PTR(-ENODATA);
+	}
+
+	return acpi_s2idle_begin();
+}
 
 static int acpi_s2idle_prepare_late_lps0(void)
 {
@@ -612,7 +629,7 @@ static void acpi_s2idle_restore_early_lps0(void)
 }
 
 static const struct platform_s2idle_ops acpi_s2idle_ops_lps0 = {
-	.begin = acpi_s2idle_begin,
+	.begin = acpi_s2idle_begin_lps0,
 	.prepare = acpi_s2idle_prepare,
 	.prepare_late = acpi_s2idle_prepare_late_lps0,
 	.check = acpi_s2idle_check_lps0,
