@@ -8,5 +8,4 @@
 #define ATH12K_HAL_WIFI7_H
 
 int ath12k_wifi7_hal_init(struct ath12k_base *ab);
-
 #endif

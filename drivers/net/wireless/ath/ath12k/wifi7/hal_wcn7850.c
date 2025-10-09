@@ -6,6 +6,8 @@
 
 #include "hal_desc.h"
 #include "hal_wcn7850.h"
+#include "hw.h"
+#include "hal.h"
 
 static const struct hal_srng_config hw_srng_config_template[] = {
 	/* TODO: max_rings can populated by querying HW capabilities */
@@ -208,6 +210,93 @@ static const struct hal_srng_config hw_srng_config_template[] = {
 		.ring_dir = HAL_SRNG_DIR_DST,
 		.max_size = HAL_RXDMA_RING_MAX_SIZE_BE,
 	}
+};
+
+const struct ath12k_hw_regs wcn7850_regs = {
+	/* SW2TCL(x) R0 ring configuration address */
+	.hal_tcl1_ring_id = 0x00000908,
+	.hal_tcl1_ring_misc = 0x00000910,
+	.hal_tcl1_ring_tp_addr_lsb = 0x0000091c,
+	.hal_tcl1_ring_tp_addr_msb = 0x00000920,
+	.hal_tcl1_ring_consumer_int_setup_ix0 = 0x00000930,
+	.hal_tcl1_ring_consumer_int_setup_ix1 = 0x00000934,
+	.hal_tcl1_ring_msi1_base_lsb = 0x00000948,
+	.hal_tcl1_ring_msi1_base_msb = 0x0000094c,
+	.hal_tcl1_ring_msi1_data = 0x00000950,
+	.hal_tcl_ring_base_lsb = 0x00000b58,
+	.hal_tcl1_ring_base_lsb = 0x00000900,
+	.hal_tcl1_ring_base_msb = 0x00000904,
+	.hal_tcl2_ring_base_lsb = 0x00000978,
+
+	/* TCL STATUS ring address */
+	.hal_tcl_status_ring_base_lsb = 0x00000d38,
+
+	.hal_wbm_idle_ring_base_lsb = 0x00000d3c,
+	.hal_wbm_idle_ring_misc_addr = 0x00000d4c,
+	.hal_wbm_r0_idle_list_cntl_addr = 0x00000240,
+	.hal_wbm_r0_idle_list_size_addr = 0x00000244,
+	.hal_wbm_scattered_ring_base_lsb = 0x00000250,
+	.hal_wbm_scattered_ring_base_msb = 0x00000254,
+	.hal_wbm_scattered_desc_head_info_ix0 = 0x00000260,
+	.hal_wbm_scattered_desc_head_info_ix1 = 0x00000264,
+	.hal_wbm_scattered_desc_tail_info_ix0 = 0x00000270,
+	.hal_wbm_scattered_desc_tail_info_ix1 = 0x00000274,
+	.hal_wbm_scattered_desc_ptr_hp_addr = 0x00000027c,
+
+	.hal_wbm_sw_release_ring_base_lsb = 0x0000037c,
+	.hal_wbm_sw1_release_ring_base_lsb = 0x00000284,
+	.hal_wbm0_release_ring_base_lsb = 0x00000e08,
+	.hal_wbm1_release_ring_base_lsb = 0x00000e80,
+
+	/* PCIe base address */
+	.pcie_qserdes_sysclk_en_sel = 0x01e0e0a8,
+	.pcie_pcs_osc_dtct_config_base = 0x01e0f45c,
+
+	/* PPE release ring address */
+	.hal_ppe_rel_ring_base = 0x0000043c,
+
+	/* REO DEST ring address */
+	.hal_reo2_ring_base = 0x0000055c,
+	.hal_reo1_misc_ctrl_addr = 0x00000b7c,
+	.hal_reo1_sw_cookie_cfg0 = 0x00000050,
+	.hal_reo1_sw_cookie_cfg1 = 0x00000054,
+	.hal_reo1_qdesc_lut_base0 = 0x00000058,
+	.hal_reo1_qdesc_lut_base1 = 0x0000005c,
+	.hal_reo1_ring_base_lsb = 0x000004e4,
+	.hal_reo1_ring_base_msb = 0x000004e8,
+	.hal_reo1_ring_id = 0x000004ec,
+	.hal_reo1_ring_misc = 0x000004f4,
+	.hal_reo1_ring_hp_addr_lsb = 0x000004f8,
+	.hal_reo1_ring_hp_addr_msb = 0x000004fc,
+	.hal_reo1_ring_producer_int_setup = 0x00000508,
+	.hal_reo1_ring_msi1_base_lsb = 0x0000052C,
+	.hal_reo1_ring_msi1_base_msb = 0x00000530,
+	.hal_reo1_ring_msi1_data = 0x00000534,
+	.hal_reo1_aging_thres_ix0 = 0x00000b08,
+	.hal_reo1_aging_thres_ix1 = 0x00000b0c,
+	.hal_reo1_aging_thres_ix2 = 0x00000b10,
+	.hal_reo1_aging_thres_ix3 = 0x00000b14,
+
+	/* REO Exception ring address */
+	.hal_reo2_sw0_ring_base = 0x000008a4,
+
+	/* REO Reinject ring address */
+	.hal_sw2reo_ring_base = 0x00000304,
+	.hal_sw2reo1_ring_base = 0x0000037c,
+
+	/* REO cmd ring address */
+	.hal_reo_cmd_ring_base = 0x0000028c,
+
+	/* REO status ring address */
+	.hal_reo_status_ring_base = 0x00000a84,
+
+	/* CE base address */
+	.hal_umac_ce0_src_reg_base = 0x01b80000,
+	.hal_umac_ce0_dest_reg_base = 0x01b81000,
+	.hal_umac_ce1_src_reg_base = 0x01b82000,
+	.hal_umac_ce1_dest_reg_base = 0x01b83000,
+
+	.gcc_gcc_pcie_hot_rst = 0x1e40304,
 };
 
 static inline
@@ -704,6 +793,14 @@ ath12k_hal_tcl_to_wbm_rbm_map_wcn7850[DP_TCL_NUM_RING_MAX] = {
 		.wbm_ring_num = 4,
 		.rbm_id = HAL_RX_BUF_RBM_SW4_BM,
 	},
+};
+
+const struct ath12k_hw_hal_params ath12k_hw_hal_params_wcn7850 = {
+	.rx_buf_rbm = HAL_RX_BUF_RBM_SW1_BM,
+	.wbm2sw_cc_enable = HAL_WBM_SW_COOKIE_CONV_CFG_WBM2SW0_EN |
+			    HAL_WBM_SW_COOKIE_CONV_CFG_WBM2SW2_EN |
+			    HAL_WBM_SW_COOKIE_CONV_CFG_WBM2SW3_EN |
+			    HAL_WBM_SW_COOKIE_CONV_CFG_WBM2SW4_EN,
 };
 
 const struct hal_ops hal_wcn7850_ops = {

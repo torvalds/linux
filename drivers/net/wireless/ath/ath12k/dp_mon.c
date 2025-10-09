@@ -2685,7 +2685,7 @@ int ath12k_dp_mon_status_bufs_replenish(struct ath12k_base *ab,
 					int req_entries)
 {
 	enum hal_rx_buf_return_buf_manager mgr =
-		ab->hw_params->hal_params->rx_buf_rbm;
+		ab->hal.hal_params->rx_buf_rbm;
 	int num_free, num_remain, buf_id;
 	struct ath12k_buffer_addr *desc;
 	struct hal_srng *srng;
@@ -4042,7 +4042,7 @@ static int ath12k_dp_rx_reap_mon_status_ring(struct ath12k_base *ab, int mac_id,
 move_next:
 		skb = ath12k_dp_rx_alloc_mon_status_buf(ab, rx_ring,
 							&buf_id);
-		hal_params = ab->hw_params->hal_params;
+		hal_params = ab->hal.hal_params;
 
 		if (!skb) {
 			ath12k_warn(ab, "failed to alloc buffer for status ring\n");

@@ -78,7 +78,7 @@ int ath12k_dp_rx_bufs_replenish(struct ath12k_base *ab,
 	dma_addr_t paddr;
 	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
 	struct ath12k_rx_desc_info *rx_desc;
-	enum hal_rx_buf_return_buf_manager mgr = ab->hw_params->hal_params->rx_buf_rbm;
+	enum hal_rx_buf_return_buf_manager mgr = ab->hal.hal_params->rx_buf_rbm;
 
 	req_entries = min(req_entries, rx_ring->bufs_max);
 
