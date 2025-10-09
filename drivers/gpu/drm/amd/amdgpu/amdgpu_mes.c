@@ -420,12 +420,17 @@ int amdgpu_mes_detect_and_reset_hung_queues(struct amdgpu_device *adev,
 		dev_err(adev->dev, "failed to detect and reset\n");
 	} else {
 		*hung_db_num = 0;
-		for (i = 0; i < adev->mes.hung_queue_db_array_size; i++) {
+		for (i = 0; i < adev->mes.hung_queue_hqd_info_offset; i++) {
 			if (db_array[i] != AMDGPU_MES_INVALID_DB_OFFSET) {
 				hung_db_array[i] = db_array[i];
 				*hung_db_num += 1;
 			}
 		}
+
+		/*
+		 * TODO: return HQD info for MES scheduled user compute queue reset cases
+		 * stored in hung_db_array hqd info offset to full array size
+		 */
 	}
 
 	return r;
