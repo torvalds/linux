@@ -74,10 +74,19 @@ required:
   - clocks
   - interrupts
   - power-domains
-  - resets
 
 allOf:
   - $ref: watchdog.yaml#
+
+  - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              const: renesas,r8a77980-wdt
+    then:
+      required:
+        - resets
 
 additionalProperties: false
 
