@@ -62,7 +62,7 @@ static __always_inline bool arch_test_bit(unsigned long nr, const volatile unsig
 		addr += (nr ^ (BITS_PER_LONG - BITS_PER_BYTE)) / BITS_PER_BYTE;
 		mask = 1UL << (nr & (BITS_PER_BYTE - 1));
 		asm volatile(
-			"	tm	%[addr],%[mask]\n"
+			"	tm	%[addr],%[mask]"
 			: "=@cc" (cc)
 			: [addr] "Q" (*addr), [mask] "I" (mask)
 			);
