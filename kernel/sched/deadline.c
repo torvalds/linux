@@ -405,7 +405,7 @@ static void __dl_clear_params(struct sched_dl_entity *dl_se);
  * up, and checks if the task is still in the "ACTIVE non contending"
  * state or not (in the second case, it updates running_bw).
  */
-static void task_non_contending(struct sched_dl_entity *dl_se)
+static void task_non_contending(struct sched_dl_entity *dl_se, bool dl_task)
 {
 	struct hrtimer *timer = &dl_se->inactive_timer;
 	struct rq *rq = rq_of_dl_se(dl_se);
@@ -444,10 +444,10 @@ static void task_non_contending(struct sched_dl_entity *dl_se)
 		} else {
 			struct task_struct *p = dl_task_of(dl_se);
 
-			if (dl_task(p))
+			if (dl_task)
 				sub_running_bw(dl_se, dl_rq);
 
-			if (!dl_task(p) || READ_ONCE(p->__state) == TASK_DEAD) {
+			if (!dl_task || READ_ONCE(p->__state) == TASK_DEAD) {
 				struct dl_bw *dl_b = dl_bw_of(task_cpu(p));
 
 				if (READ_ONCE(p->__state) == TASK_DEAD)
@@ -2045,7 +2045,7 @@ static void dequeue_dl_entity(struct sched_dl_entity *dl_se, int flags)
 	 * or "inactive")
 	 */
 	if (flags & DEQUEUE_SLEEP)
-		task_non_contending(dl_se);
+		task_non_contending(dl_se, true);
 }
 
 static void enqueue_task_dl(struct rq *rq, struct task_struct *p, int flags)
@@ -2970,7 +2970,7 @@ static void switched_from_dl(struct rq *rq, struct task_struct *p)
 	 * will reset the task parameters.
 	 */
 	if (task_on_rq_queued(p) && p->dl.dl_runtime)
-		task_non_contending(&p->dl);
+		task_non_contending(&p->dl, false);
 
 	/*
 	 * In case a task is setscheduled out from SCHED_DEADLINE we need to
