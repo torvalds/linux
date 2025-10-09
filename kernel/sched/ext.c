@@ -3471,7 +3471,9 @@ static void scx_sched_free_rcu_work(struct work_struct *work)
 	struct scx_dispatch_q *dsq;
 	int node;
 
+	irq_work_sync(&sch->error_irq_work);
 	kthread_stop(sch->helper->task);
+
 	free_percpu(sch->pcpu);
 
 	for_each_node_state(node, N_POSSIBLE)
