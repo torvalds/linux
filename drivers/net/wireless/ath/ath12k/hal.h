@@ -1032,81 +1032,81 @@ struct ath12k_hw_hal_params {
 };
 
 struct ath12k_hw_regs {
-	u32 hal_tcl1_ring_id;
-	u32 hal_tcl1_ring_misc;
-	u32 hal_tcl1_ring_tp_addr_lsb;
-	u32 hal_tcl1_ring_tp_addr_msb;
-	u32 hal_tcl1_ring_consumer_int_setup_ix0;
-	u32 hal_tcl1_ring_consumer_int_setup_ix1;
-	u32 hal_tcl1_ring_msi1_base_lsb;
-	u32 hal_tcl1_ring_msi1_base_msb;
-	u32 hal_tcl1_ring_msi1_data;
-	u32 hal_tcl_ring_base_lsb;
-	u32 hal_tcl1_ring_base_lsb;
-	u32 hal_tcl1_ring_base_msb;
-	u32 hal_tcl2_ring_base_lsb;
+	u32 tcl1_ring_id;
+	u32 tcl1_ring_misc;
+	u32 tcl1_ring_tp_addr_lsb;
+	u32 tcl1_ring_tp_addr_msb;
+	u32 tcl1_ring_consumer_int_setup_ix0;
+	u32 tcl1_ring_consumer_int_setup_ix1;
+	u32 tcl1_ring_msi1_base_lsb;
+	u32 tcl1_ring_msi1_base_msb;
+	u32 tcl1_ring_msi1_data;
+	u32 tcl_ring_base_lsb;
+	u32 tcl1_ring_base_lsb;
+	u32 tcl1_ring_base_msb;
+	u32 tcl2_ring_base_lsb;
 
-	u32 hal_tcl_status_ring_base_lsb;
+	u32 tcl_status_ring_base_lsb;
 
-	u32 hal_reo1_qdesc_addr;
-	u32 hal_reo1_qdesc_max_peerid;
+	u32 reo1_qdesc_addr;
+	u32 reo1_qdesc_max_peerid;
 
-	u32 hal_wbm_idle_ring_base_lsb;
-	u32 hal_wbm_idle_ring_misc_addr;
-	u32 hal_wbm_r0_idle_list_cntl_addr;
-	u32 hal_wbm_r0_idle_list_size_addr;
-	u32 hal_wbm_scattered_ring_base_lsb;
-	u32 hal_wbm_scattered_ring_base_msb;
-	u32 hal_wbm_scattered_desc_head_info_ix0;
-	u32 hal_wbm_scattered_desc_head_info_ix1;
-	u32 hal_wbm_scattered_desc_tail_info_ix0;
-	u32 hal_wbm_scattered_desc_tail_info_ix1;
-	u32 hal_wbm_scattered_desc_ptr_hp_addr;
+	u32 wbm_idle_ring_base_lsb;
+	u32 wbm_idle_ring_misc_addr;
+	u32 wbm_r0_idle_list_cntl_addr;
+	u32 wbm_r0_idle_list_size_addr;
+	u32 wbm_scattered_ring_base_lsb;
+	u32 wbm_scattered_ring_base_msb;
+	u32 wbm_scattered_desc_head_info_ix0;
+	u32 wbm_scattered_desc_head_info_ix1;
+	u32 wbm_scattered_desc_tail_info_ix0;
+	u32 wbm_scattered_desc_tail_info_ix1;
+	u32 wbm_scattered_desc_ptr_hp_addr;
 
-	u32 hal_wbm_sw_release_ring_base_lsb;
-	u32 hal_wbm_sw1_release_ring_base_lsb;
-	u32 hal_wbm0_release_ring_base_lsb;
-	u32 hal_wbm1_release_ring_base_lsb;
+	u32 wbm_sw_release_ring_base_lsb;
+	u32 wbm_sw1_release_ring_base_lsb;
+	u32 wbm0_release_ring_base_lsb;
+	u32 wbm1_release_ring_base_lsb;
 
 	u32 pcie_qserdes_sysclk_en_sel;
 	u32 pcie_pcs_osc_dtct_config_base;
 
-	u32 hal_umac_ce0_src_reg_base;
-	u32 hal_umac_ce0_dest_reg_base;
-	u32 hal_umac_ce1_src_reg_base;
-	u32 hal_umac_ce1_dest_reg_base;
+	u32 umac_ce0_src_reg_base;
+	u32 umac_ce0_dest_reg_base;
+	u32 umac_ce1_src_reg_base;
+	u32 umac_ce1_dest_reg_base;
 
-	u32 hal_ppe_rel_ring_base;
+	u32 ppe_rel_ring_base;
 
-	u32 hal_reo2_ring_base;
-	u32 hal_reo1_misc_ctrl_addr;
-	u32 hal_reo1_sw_cookie_cfg0;
-	u32 hal_reo1_sw_cookie_cfg1;
-	u32 hal_reo1_qdesc_lut_base0;
-	u32 hal_reo1_qdesc_lut_base1;
-	u32 hal_reo1_ring_base_lsb;
-	u32 hal_reo1_ring_base_msb;
-	u32 hal_reo1_ring_id;
-	u32 hal_reo1_ring_misc;
-	u32 hal_reo1_ring_hp_addr_lsb;
-	u32 hal_reo1_ring_hp_addr_msb;
-	u32 hal_reo1_ring_producer_int_setup;
-	u32 hal_reo1_ring_msi1_base_lsb;
-	u32 hal_reo1_ring_msi1_base_msb;
-	u32 hal_reo1_ring_msi1_data;
-	u32 hal_reo1_aging_thres_ix0;
-	u32 hal_reo1_aging_thres_ix1;
-	u32 hal_reo1_aging_thres_ix2;
-	u32 hal_reo1_aging_thres_ix3;
+	u32 reo2_ring_base;
+	u32 reo1_misc_ctrl_addr;
+	u32 reo1_sw_cookie_cfg0;
+	u32 reo1_sw_cookie_cfg1;
+	u32 reo1_qdesc_lut_base0;
+	u32 reo1_qdesc_lut_base1;
+	u32 reo1_ring_base_lsb;
+	u32 reo1_ring_base_msb;
+	u32 reo1_ring_id;
+	u32 reo1_ring_misc;
+	u32 reo1_ring_hp_addr_lsb;
+	u32 reo1_ring_hp_addr_msb;
+	u32 reo1_ring_producer_int_setup;
+	u32 reo1_ring_msi1_base_lsb;
+	u32 reo1_ring_msi1_base_msb;
+	u32 reo1_ring_msi1_data;
+	u32 reo1_aging_thres_ix0;
+	u32 reo1_aging_thres_ix1;
+	u32 reo1_aging_thres_ix2;
+	u32 reo1_aging_thres_ix3;
 
-	u32 hal_reo2_sw0_ring_base;
+	u32 reo2_sw0_ring_base;
 
-	u32 hal_sw2reo_ring_base;
-	u32 hal_sw2reo1_ring_base;
+	u32 sw2reo_ring_base;
+	u32 sw2reo1_ring_base;
 
-	u32 hal_reo_cmd_ring_base;
+	u32 reo_cmd_ring_base;
 
-	u32 hal_reo_status_ring_base;
+	u32 reo_status_ring_base;
 
 	u32 gcc_gcc_pcie_hot_rst;
 };

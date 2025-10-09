@@ -214,269 +214,269 @@ static const struct hal_srng_config hw_srng_config_template[] = {
 
 const struct ath12k_hw_regs qcn9274_v1_regs = {
 	/* SW2TCL(x) R0 ring configuration address */
-	.hal_tcl1_ring_id = 0x00000908,
-	.hal_tcl1_ring_misc = 0x00000910,
-	.hal_tcl1_ring_tp_addr_lsb = 0x0000091c,
-	.hal_tcl1_ring_tp_addr_msb = 0x00000920,
-	.hal_tcl1_ring_consumer_int_setup_ix0 = 0x00000930,
-	.hal_tcl1_ring_consumer_int_setup_ix1 = 0x00000934,
-	.hal_tcl1_ring_msi1_base_lsb = 0x00000948,
-	.hal_tcl1_ring_msi1_base_msb = 0x0000094c,
-	.hal_tcl1_ring_msi1_data = 0x00000950,
-	.hal_tcl_ring_base_lsb = 0x00000b58,
-	.hal_tcl1_ring_base_lsb = 0x00000900,
-	.hal_tcl1_ring_base_msb = 0x00000904,
-	.hal_tcl2_ring_base_lsb = 0x00000978,
+	.tcl1_ring_id = 0x00000908,
+	.tcl1_ring_misc = 0x00000910,
+	.tcl1_ring_tp_addr_lsb = 0x0000091c,
+	.tcl1_ring_tp_addr_msb = 0x00000920,
+	.tcl1_ring_consumer_int_setup_ix0 = 0x00000930,
+	.tcl1_ring_consumer_int_setup_ix1 = 0x00000934,
+	.tcl1_ring_msi1_base_lsb = 0x00000948,
+	.tcl1_ring_msi1_base_msb = 0x0000094c,
+	.tcl1_ring_msi1_data = 0x00000950,
+	.tcl_ring_base_lsb = 0x00000b58,
+	.tcl1_ring_base_lsb = 0x00000900,
+	.tcl1_ring_base_msb = 0x00000904,
+	.tcl2_ring_base_lsb = 0x00000978,
 
 	/* TCL STATUS ring address */
-	.hal_tcl_status_ring_base_lsb = 0x00000d38,
+	.tcl_status_ring_base_lsb = 0x00000d38,
 
-	.hal_wbm_idle_ring_base_lsb = 0x00000d0c,
-	.hal_wbm_idle_ring_misc_addr = 0x00000d1c,
-	.hal_wbm_r0_idle_list_cntl_addr = 0x00000210,
-	.hal_wbm_r0_idle_list_size_addr = 0x00000214,
-	.hal_wbm_scattered_ring_base_lsb = 0x00000220,
-	.hal_wbm_scattered_ring_base_msb = 0x00000224,
-	.hal_wbm_scattered_desc_head_info_ix0 = 0x00000230,
-	.hal_wbm_scattered_desc_head_info_ix1 = 0x00000234,
-	.hal_wbm_scattered_desc_tail_info_ix0 = 0x00000240,
-	.hal_wbm_scattered_desc_tail_info_ix1 = 0x00000244,
-	.hal_wbm_scattered_desc_ptr_hp_addr = 0x0000024c,
+	.wbm_idle_ring_base_lsb = 0x00000d0c,
+	.wbm_idle_ring_misc_addr = 0x00000d1c,
+	.wbm_r0_idle_list_cntl_addr = 0x00000210,
+	.wbm_r0_idle_list_size_addr = 0x00000214,
+	.wbm_scattered_ring_base_lsb = 0x00000220,
+	.wbm_scattered_ring_base_msb = 0x00000224,
+	.wbm_scattered_desc_head_info_ix0 = 0x00000230,
+	.wbm_scattered_desc_head_info_ix1 = 0x00000234,
+	.wbm_scattered_desc_tail_info_ix0 = 0x00000240,
+	.wbm_scattered_desc_tail_info_ix1 = 0x00000244,
+	.wbm_scattered_desc_ptr_hp_addr = 0x0000024c,
 
-	.hal_wbm_sw_release_ring_base_lsb = 0x0000034c,
-	.hal_wbm_sw1_release_ring_base_lsb = 0x000003c4,
-	.hal_wbm0_release_ring_base_lsb = 0x00000dd8,
-	.hal_wbm1_release_ring_base_lsb = 0x00000e50,
+	.wbm_sw_release_ring_base_lsb = 0x0000034c,
+	.wbm_sw1_release_ring_base_lsb = 0x000003c4,
+	.wbm0_release_ring_base_lsb = 0x00000dd8,
+	.wbm1_release_ring_base_lsb = 0x00000e50,
 
 	/* PCIe base address */
 	.pcie_qserdes_sysclk_en_sel = 0x01e0c0a8,
 	.pcie_pcs_osc_dtct_config_base = 0x01e0d45c,
 
 	/* PPE release ring address */
-	.hal_ppe_rel_ring_base = 0x0000043c,
+	.ppe_rel_ring_base = 0x0000043c,
 
 	/* REO DEST ring address */
-	.hal_reo2_ring_base = 0x0000055c,
-	.hal_reo1_misc_ctrl_addr = 0x00000b7c,
-	.hal_reo1_sw_cookie_cfg0 = 0x00000050,
-	.hal_reo1_sw_cookie_cfg1 = 0x00000054,
-	.hal_reo1_qdesc_lut_base0 = 0x00000058,
-	.hal_reo1_qdesc_lut_base1 = 0x0000005c,
-	.hal_reo1_ring_base_lsb = 0x000004e4,
-	.hal_reo1_ring_base_msb = 0x000004e8,
-	.hal_reo1_ring_id = 0x000004ec,
-	.hal_reo1_ring_misc = 0x000004f4,
-	.hal_reo1_ring_hp_addr_lsb = 0x000004f8,
-	.hal_reo1_ring_hp_addr_msb = 0x000004fc,
-	.hal_reo1_ring_producer_int_setup = 0x00000508,
-	.hal_reo1_ring_msi1_base_lsb = 0x0000052C,
-	.hal_reo1_ring_msi1_base_msb = 0x00000530,
-	.hal_reo1_ring_msi1_data = 0x00000534,
-	.hal_reo1_aging_thres_ix0 = 0x00000b08,
-	.hal_reo1_aging_thres_ix1 = 0x00000b0c,
-	.hal_reo1_aging_thres_ix2 = 0x00000b10,
-	.hal_reo1_aging_thres_ix3 = 0x00000b14,
+	.reo2_ring_base = 0x0000055c,
+	.reo1_misc_ctrl_addr = 0x00000b7c,
+	.reo1_sw_cookie_cfg0 = 0x00000050,
+	.reo1_sw_cookie_cfg1 = 0x00000054,
+	.reo1_qdesc_lut_base0 = 0x00000058,
+	.reo1_qdesc_lut_base1 = 0x0000005c,
+	.reo1_ring_base_lsb = 0x000004e4,
+	.reo1_ring_base_msb = 0x000004e8,
+	.reo1_ring_id = 0x000004ec,
+	.reo1_ring_misc = 0x000004f4,
+	.reo1_ring_hp_addr_lsb = 0x000004f8,
+	.reo1_ring_hp_addr_msb = 0x000004fc,
+	.reo1_ring_producer_int_setup = 0x00000508,
+	.reo1_ring_msi1_base_lsb = 0x0000052C,
+	.reo1_ring_msi1_base_msb = 0x00000530,
+	.reo1_ring_msi1_data = 0x00000534,
+	.reo1_aging_thres_ix0 = 0x00000b08,
+	.reo1_aging_thres_ix1 = 0x00000b0c,
+	.reo1_aging_thres_ix2 = 0x00000b10,
+	.reo1_aging_thres_ix3 = 0x00000b14,
 
 	/* REO Exception ring address */
-	.hal_reo2_sw0_ring_base = 0x000008a4,
+	.reo2_sw0_ring_base = 0x000008a4,
 
 	/* REO Reinject ring address */
-	.hal_sw2reo_ring_base = 0x00000304,
-	.hal_sw2reo1_ring_base = 0x0000037c,
+	.sw2reo_ring_base = 0x00000304,
+	.sw2reo1_ring_base = 0x0000037c,
 
 	/* REO cmd ring address */
-	.hal_reo_cmd_ring_base = 0x0000028c,
+	.reo_cmd_ring_base = 0x0000028c,
 
 	/* REO status ring address */
-	.hal_reo_status_ring_base = 0x00000a84,
+	.reo_status_ring_base = 0x00000a84,
 
 	/* CE base address */
-	.hal_umac_ce0_src_reg_base = 0x01b80000,
-	.hal_umac_ce0_dest_reg_base = 0x01b81000,
-	.hal_umac_ce1_src_reg_base = 0x01b82000,
-	.hal_umac_ce1_dest_reg_base = 0x01b83000,
+	.umac_ce0_src_reg_base = 0x01b80000,
+	.umac_ce0_dest_reg_base = 0x01b81000,
+	.umac_ce1_src_reg_base = 0x01b82000,
+	.umac_ce1_dest_reg_base = 0x01b83000,
 
 	.gcc_gcc_pcie_hot_rst = 0x1e38338,
 };
 
 const struct ath12k_hw_regs qcn9274_v2_regs = {
 	/* SW2TCL(x) R0 ring configuration address */
-	.hal_tcl1_ring_id = 0x00000908,
-	.hal_tcl1_ring_misc = 0x00000910,
-	.hal_tcl1_ring_tp_addr_lsb = 0x0000091c,
-	.hal_tcl1_ring_tp_addr_msb = 0x00000920,
-	.hal_tcl1_ring_consumer_int_setup_ix0 = 0x00000930,
-	.hal_tcl1_ring_consumer_int_setup_ix1 = 0x00000934,
-	.hal_tcl1_ring_msi1_base_lsb = 0x00000948,
-	.hal_tcl1_ring_msi1_base_msb = 0x0000094c,
-	.hal_tcl1_ring_msi1_data = 0x00000950,
-	.hal_tcl_ring_base_lsb = 0x00000b58,
-	.hal_tcl1_ring_base_lsb = 0x00000900,
-	.hal_tcl1_ring_base_msb = 0x00000904,
-	.hal_tcl2_ring_base_lsb = 0x00000978,
+	.tcl1_ring_id = 0x00000908,
+	.tcl1_ring_misc = 0x00000910,
+	.tcl1_ring_tp_addr_lsb = 0x0000091c,
+	.tcl1_ring_tp_addr_msb = 0x00000920,
+	.tcl1_ring_consumer_int_setup_ix0 = 0x00000930,
+	.tcl1_ring_consumer_int_setup_ix1 = 0x00000934,
+	.tcl1_ring_msi1_base_lsb = 0x00000948,
+	.tcl1_ring_msi1_base_msb = 0x0000094c,
+	.tcl1_ring_msi1_data = 0x00000950,
+	.tcl_ring_base_lsb = 0x00000b58,
+	.tcl1_ring_base_lsb = 0x00000900,
+	.tcl1_ring_base_msb = 0x00000904,
+	.tcl2_ring_base_lsb = 0x00000978,
 
 	/* TCL STATUS ring address */
-	.hal_tcl_status_ring_base_lsb = 0x00000d38,
+	.tcl_status_ring_base_lsb = 0x00000d38,
 
 	/* WBM idle link ring address */
-	.hal_wbm_idle_ring_base_lsb = 0x00000d3c,
-	.hal_wbm_idle_ring_misc_addr = 0x00000d4c,
-	.hal_wbm_r0_idle_list_cntl_addr = 0x00000240,
-	.hal_wbm_r0_idle_list_size_addr = 0x00000244,
-	.hal_wbm_scattered_ring_base_lsb = 0x00000250,
-	.hal_wbm_scattered_ring_base_msb = 0x00000254,
-	.hal_wbm_scattered_desc_head_info_ix0 = 0x00000260,
-	.hal_wbm_scattered_desc_head_info_ix1 = 0x00000264,
-	.hal_wbm_scattered_desc_tail_info_ix0 = 0x00000270,
-	.hal_wbm_scattered_desc_tail_info_ix1 = 0x00000274,
-	.hal_wbm_scattered_desc_ptr_hp_addr = 0x0000027c,
+	.wbm_idle_ring_base_lsb = 0x00000d3c,
+	.wbm_idle_ring_misc_addr = 0x00000d4c,
+	.wbm_r0_idle_list_cntl_addr = 0x00000240,
+	.wbm_r0_idle_list_size_addr = 0x00000244,
+	.wbm_scattered_ring_base_lsb = 0x00000250,
+	.wbm_scattered_ring_base_msb = 0x00000254,
+	.wbm_scattered_desc_head_info_ix0 = 0x00000260,
+	.wbm_scattered_desc_head_info_ix1 = 0x00000264,
+	.wbm_scattered_desc_tail_info_ix0 = 0x00000270,
+	.wbm_scattered_desc_tail_info_ix1 = 0x00000274,
+	.wbm_scattered_desc_ptr_hp_addr = 0x0000027c,
 
 	/* SW2WBM release ring address */
-	.hal_wbm_sw_release_ring_base_lsb = 0x0000037c,
-	.hal_wbm_sw1_release_ring_base_lsb = 0x000003f4,
+	.wbm_sw_release_ring_base_lsb = 0x0000037c,
+	.wbm_sw1_release_ring_base_lsb = 0x000003f4,
 
 	/* WBM2SW release ring address */
-	.hal_wbm0_release_ring_base_lsb = 0x00000e08,
-	.hal_wbm1_release_ring_base_lsb = 0x00000e80,
+	.wbm0_release_ring_base_lsb = 0x00000e08,
+	.wbm1_release_ring_base_lsb = 0x00000e80,
 
 	/* PCIe base address */
 	.pcie_qserdes_sysclk_en_sel = 0x01e0c0a8,
 	.pcie_pcs_osc_dtct_config_base = 0x01e0d45c,
 
 	/* PPE release ring address */
-	.hal_ppe_rel_ring_base = 0x0000046c,
+	.ppe_rel_ring_base = 0x0000046c,
 
 	/* REO DEST ring address */
-	.hal_reo2_ring_base = 0x00000578,
-	.hal_reo1_misc_ctrl_addr = 0x00000b9c,
-	.hal_reo1_sw_cookie_cfg0 = 0x0000006c,
-	.hal_reo1_sw_cookie_cfg1 = 0x00000070,
-	.hal_reo1_qdesc_lut_base0 = 0x00000074,
-	.hal_reo1_qdesc_lut_base1 = 0x00000078,
-	.hal_reo1_qdesc_addr = 0x0000007c,
-	.hal_reo1_qdesc_max_peerid = 0x00000088,
-	.hal_reo1_ring_base_lsb = 0x00000500,
-	.hal_reo1_ring_base_msb = 0x00000504,
-	.hal_reo1_ring_id = 0x00000508,
-	.hal_reo1_ring_misc = 0x00000510,
-	.hal_reo1_ring_hp_addr_lsb = 0x00000514,
-	.hal_reo1_ring_hp_addr_msb = 0x00000518,
-	.hal_reo1_ring_producer_int_setup = 0x00000524,
-	.hal_reo1_ring_msi1_base_lsb = 0x00000548,
-	.hal_reo1_ring_msi1_base_msb = 0x0000054C,
-	.hal_reo1_ring_msi1_data = 0x00000550,
-	.hal_reo1_aging_thres_ix0 = 0x00000B28,
-	.hal_reo1_aging_thres_ix1 = 0x00000B2C,
-	.hal_reo1_aging_thres_ix2 = 0x00000B30,
-	.hal_reo1_aging_thres_ix3 = 0x00000B34,
+	.reo2_ring_base = 0x00000578,
+	.reo1_misc_ctrl_addr = 0x00000b9c,
+	.reo1_sw_cookie_cfg0 = 0x0000006c,
+	.reo1_sw_cookie_cfg1 = 0x00000070,
+	.reo1_qdesc_lut_base0 = 0x00000074,
+	.reo1_qdesc_lut_base1 = 0x00000078,
+	.reo1_qdesc_addr = 0x0000007c,
+	.reo1_qdesc_max_peerid = 0x00000088,
+	.reo1_ring_base_lsb = 0x00000500,
+	.reo1_ring_base_msb = 0x00000504,
+	.reo1_ring_id = 0x00000508,
+	.reo1_ring_misc = 0x00000510,
+	.reo1_ring_hp_addr_lsb = 0x00000514,
+	.reo1_ring_hp_addr_msb = 0x00000518,
+	.reo1_ring_producer_int_setup = 0x00000524,
+	.reo1_ring_msi1_base_lsb = 0x00000548,
+	.reo1_ring_msi1_base_msb = 0x0000054C,
+	.reo1_ring_msi1_data = 0x00000550,
+	.reo1_aging_thres_ix0 = 0x00000B28,
+	.reo1_aging_thres_ix1 = 0x00000B2C,
+	.reo1_aging_thres_ix2 = 0x00000B30,
+	.reo1_aging_thres_ix3 = 0x00000B34,
 
 	/* REO Exception ring address */
-	.hal_reo2_sw0_ring_base = 0x000008c0,
+	.reo2_sw0_ring_base = 0x000008c0,
 
 	/* REO Reinject ring address */
-	.hal_sw2reo_ring_base = 0x00000320,
-	.hal_sw2reo1_ring_base = 0x00000398,
+	.sw2reo_ring_base = 0x00000320,
+	.sw2reo1_ring_base = 0x00000398,
 
 	/* REO cmd ring address */
-	.hal_reo_cmd_ring_base = 0x000002A8,
+	.reo_cmd_ring_base = 0x000002A8,
 
 	/* REO status ring address */
-	.hal_reo_status_ring_base = 0x00000aa0,
+	.reo_status_ring_base = 0x00000aa0,
 
 	/* CE base address */
-	.hal_umac_ce0_src_reg_base = 0x01b80000,
-	.hal_umac_ce0_dest_reg_base = 0x01b81000,
-	.hal_umac_ce1_src_reg_base = 0x01b82000,
-	.hal_umac_ce1_dest_reg_base = 0x01b83000,
+	.umac_ce0_src_reg_base = 0x01b80000,
+	.umac_ce0_dest_reg_base = 0x01b81000,
+	.umac_ce1_src_reg_base = 0x01b82000,
+	.umac_ce1_dest_reg_base = 0x01b83000,
 
 	.gcc_gcc_pcie_hot_rst = 0x1e38338,
 };
 
 const struct ath12k_hw_regs ipq5332_regs = {
 	/* SW2TCL(x) R0 ring configuration address */
-	.hal_tcl1_ring_id = 0x00000918,
-	.hal_tcl1_ring_misc = 0x00000920,
-	.hal_tcl1_ring_tp_addr_lsb = 0x0000092c,
-	.hal_tcl1_ring_tp_addr_msb = 0x00000930,
-	.hal_tcl1_ring_consumer_int_setup_ix0 = 0x00000940,
-	.hal_tcl1_ring_consumer_int_setup_ix1 = 0x00000944,
-	.hal_tcl1_ring_msi1_base_lsb = 0x00000958,
-	.hal_tcl1_ring_msi1_base_msb = 0x0000095c,
-	.hal_tcl1_ring_base_lsb = 0x00000910,
-	.hal_tcl1_ring_base_msb = 0x00000914,
-	.hal_tcl1_ring_msi1_data = 0x00000960,
-	.hal_tcl2_ring_base_lsb = 0x00000988,
-	.hal_tcl_ring_base_lsb = 0x00000b68,
+	.tcl1_ring_id = 0x00000918,
+	.tcl1_ring_misc = 0x00000920,
+	.tcl1_ring_tp_addr_lsb = 0x0000092c,
+	.tcl1_ring_tp_addr_msb = 0x00000930,
+	.tcl1_ring_consumer_int_setup_ix0 = 0x00000940,
+	.tcl1_ring_consumer_int_setup_ix1 = 0x00000944,
+	.tcl1_ring_msi1_base_lsb = 0x00000958,
+	.tcl1_ring_msi1_base_msb = 0x0000095c,
+	.tcl1_ring_base_lsb = 0x00000910,
+	.tcl1_ring_base_msb = 0x00000914,
+	.tcl1_ring_msi1_data = 0x00000960,
+	.tcl2_ring_base_lsb = 0x00000988,
+	.tcl_ring_base_lsb = 0x00000b68,
 
 	/* TCL STATUS ring address */
-	.hal_tcl_status_ring_base_lsb = 0x00000d48,
+	.tcl_status_ring_base_lsb = 0x00000d48,
 
 	/* REO DEST ring address */
-	.hal_reo2_ring_base = 0x00000578,
-	.hal_reo1_misc_ctrl_addr = 0x00000b9c,
-	.hal_reo1_sw_cookie_cfg0 = 0x0000006c,
-	.hal_reo1_sw_cookie_cfg1 = 0x00000070,
-	.hal_reo1_qdesc_lut_base0 = 0x00000074,
-	.hal_reo1_qdesc_lut_base1 = 0x00000078,
-	.hal_reo1_ring_base_lsb = 0x00000500,
-	.hal_reo1_ring_base_msb = 0x00000504,
-	.hal_reo1_ring_id = 0x00000508,
-	.hal_reo1_ring_misc = 0x00000510,
-	.hal_reo1_ring_hp_addr_lsb = 0x00000514,
-	.hal_reo1_ring_hp_addr_msb = 0x00000518,
-	.hal_reo1_ring_producer_int_setup = 0x00000524,
-	.hal_reo1_ring_msi1_base_lsb = 0x00000548,
-	.hal_reo1_ring_msi1_base_msb = 0x0000054C,
-	.hal_reo1_ring_msi1_data = 0x00000550,
-	.hal_reo1_aging_thres_ix0 = 0x00000B28,
-	.hal_reo1_aging_thres_ix1 = 0x00000B2C,
-	.hal_reo1_aging_thres_ix2 = 0x00000B30,
-	.hal_reo1_aging_thres_ix3 = 0x00000B34,
+	.reo2_ring_base = 0x00000578,
+	.reo1_misc_ctrl_addr = 0x00000b9c,
+	.reo1_sw_cookie_cfg0 = 0x0000006c,
+	.reo1_sw_cookie_cfg1 = 0x00000070,
+	.reo1_qdesc_lut_base0 = 0x00000074,
+	.reo1_qdesc_lut_base1 = 0x00000078,
+	.reo1_ring_base_lsb = 0x00000500,
+	.reo1_ring_base_msb = 0x00000504,
+	.reo1_ring_id = 0x00000508,
+	.reo1_ring_misc = 0x00000510,
+	.reo1_ring_hp_addr_lsb = 0x00000514,
+	.reo1_ring_hp_addr_msb = 0x00000518,
+	.reo1_ring_producer_int_setup = 0x00000524,
+	.reo1_ring_msi1_base_lsb = 0x00000548,
+	.reo1_ring_msi1_base_msb = 0x0000054C,
+	.reo1_ring_msi1_data = 0x00000550,
+	.reo1_aging_thres_ix0 = 0x00000B28,
+	.reo1_aging_thres_ix1 = 0x00000B2C,
+	.reo1_aging_thres_ix2 = 0x00000B30,
+	.reo1_aging_thres_ix3 = 0x00000B34,
 
 	/* REO Exception ring address */
-	.hal_reo2_sw0_ring_base = 0x000008c0,
+	.reo2_sw0_ring_base = 0x000008c0,
 
 	/* REO Reinject ring address */
-	.hal_sw2reo_ring_base = 0x00000320,
-	.hal_sw2reo1_ring_base = 0x00000398,
+	.sw2reo_ring_base = 0x00000320,
+	.sw2reo1_ring_base = 0x00000398,
 
 	/* REO cmd ring address */
-	.hal_reo_cmd_ring_base = 0x000002A8,
+	.reo_cmd_ring_base = 0x000002A8,
 
 	/* REO status ring address */
-	.hal_reo_status_ring_base = 0x00000aa0,
+	.reo_status_ring_base = 0x00000aa0,
 
 	/* WBM idle link ring address */
-	.hal_wbm_idle_ring_base_lsb = 0x00000d3c,
-	.hal_wbm_idle_ring_misc_addr = 0x00000d4c,
-	.hal_wbm_r0_idle_list_cntl_addr = 0x00000240,
-	.hal_wbm_r0_idle_list_size_addr = 0x00000244,
-	.hal_wbm_scattered_ring_base_lsb = 0x00000250,
-	.hal_wbm_scattered_ring_base_msb = 0x00000254,
-	.hal_wbm_scattered_desc_head_info_ix0 = 0x00000260,
-	.hal_wbm_scattered_desc_head_info_ix1   = 0x00000264,
-	.hal_wbm_scattered_desc_tail_info_ix0 = 0x00000270,
-	.hal_wbm_scattered_desc_tail_info_ix1 = 0x00000274,
-	.hal_wbm_scattered_desc_ptr_hp_addr = 0x0000027c,
+	.wbm_idle_ring_base_lsb = 0x00000d3c,
+	.wbm_idle_ring_misc_addr = 0x00000d4c,
+	.wbm_r0_idle_list_cntl_addr = 0x00000240,
+	.wbm_r0_idle_list_size_addr = 0x00000244,
+	.wbm_scattered_ring_base_lsb = 0x00000250,
+	.wbm_scattered_ring_base_msb = 0x00000254,
+	.wbm_scattered_desc_head_info_ix0 = 0x00000260,
+	.wbm_scattered_desc_head_info_ix1   = 0x00000264,
+	.wbm_scattered_desc_tail_info_ix0 = 0x00000270,
+	.wbm_scattered_desc_tail_info_ix1 = 0x00000274,
+	.wbm_scattered_desc_ptr_hp_addr = 0x0000027c,
 
 	/* SW2WBM release ring address */
-	.hal_wbm_sw_release_ring_base_lsb = 0x0000037c,
+	.wbm_sw_release_ring_base_lsb = 0x0000037c,
 
 	/* WBM2SW release ring address */
-	.hal_wbm0_release_ring_base_lsb = 0x00000e08,
-	.hal_wbm1_release_ring_base_lsb = 0x00000e80,
+	.wbm0_release_ring_base_lsb = 0x00000e08,
+	.wbm1_release_ring_base_lsb = 0x00000e80,
 
 	/* PPE release ring address */
-	.hal_ppe_rel_ring_base = 0x0000046c,
+	.ppe_rel_ring_base = 0x0000046c,
 
 	/* CE address */
-	.hal_umac_ce0_src_reg_base = 0x00740000 -
+	.umac_ce0_src_reg_base = 0x00740000 -
 		HAL_IPQ5332_CE_WFSS_REG_BASE,
-	.hal_umac_ce0_dest_reg_base = 0x00741000 -
+	.umac_ce0_dest_reg_base = 0x00741000 -
 		HAL_IPQ5332_CE_WFSS_REG_BASE,
-	.hal_umac_ce1_src_reg_base = 0x00742000 -
+	.umac_ce1_src_reg_base = 0x00742000 -
 		HAL_IPQ5332_CE_WFSS_REG_BASE,
-	.hal_umac_ce1_dest_reg_base = 0x00743000 -
+	.umac_ce1_dest_reg_base = 0x00743000 -
 		HAL_IPQ5332_CE_WFSS_REG_BASE,
 };
 
