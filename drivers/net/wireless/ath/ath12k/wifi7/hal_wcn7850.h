@@ -10,6 +10,9 @@
 #include "../hal.h"
 #include "hal_rx.h"
 
+extern const struct ath12k_hal_tcl_to_wbm_rbm_map
+ath12k_hal_wcn7850_tcl_to_wbm_rbm_map[DP_TCL_NUM_RING_MAX];
+
 u8 ath12k_hal_rx_desc_get_l3_pad_bytes_wcn7850(struct hal_rx_desc *desc);
 void ath12k_hal_rx_desc_copy_end_tlv_wcn7850(struct hal_rx_desc *fdesc,
 					     struct hal_rx_desc *ldesc);
