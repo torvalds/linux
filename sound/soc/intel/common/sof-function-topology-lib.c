@@ -133,4 +133,4 @@ int sof_sdw_get_tplg_files(struct snd_soc_card *card, const struct snd_soc_acpi_
 
 	return tplg_num;
 }
-
+EXPORT_SYMBOL_GPL(sof_sdw_get_tplg_files);
