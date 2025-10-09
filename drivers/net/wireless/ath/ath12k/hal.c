@@ -121,6 +121,17 @@ void ath12k_hal_rx_buf_addr_info_get(struct ath12k_hal *hal,
 	hal->hal_ops->rx_buf_addr_info_get(binfo, paddr, msdu_cookies, rbm);
 }
 
+void ath12k_hal_cc_config(struct ath12k_base *ab)
+{
+	ab->hal.hal_ops->cc_config(ab);
+}
+
+enum hal_rx_buf_return_buf_manager
+ath12k_hal_get_idle_link_rbm(struct ath12k_hal *hal, u8 device_id)
+{
+	return hal->hal_ops->get_idle_link_rbm(hal, device_id);
+}
+
 static int ath12k_hal_alloc_cont_rdp(struct ath12k_hal *hal)
 {
 	size_t size;

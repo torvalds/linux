@@ -630,3 +630,76 @@ void ath12k_wifi7_hal_write_ml_reoq_lut_addr(struct ath12k_base *ab,
 	ath12k_hif_write32(ab, HAL_SEQ_WCSS_UMAC_REO_REG +
 			   HAL_REO1_QDESC_LUT_BASE1(&ab->hal), paddr);
 }
+
+void ath12k_wifi7_hal_cc_config(struct ath12k_base *ab)
+{
+	u32 cmem_base = ab->qmi.dev_mem[ATH12K_QMI_DEVMEM_CMEM_INDEX].start;
+	u32 reo_base = HAL_SEQ_WCSS_UMAC_REO_REG;
+	u32 wbm_base = HAL_SEQ_WCSS_UMAC_WBM_REG;
+	u32 val = 0;
+	struct ath12k_hal *hal = &ab->hal;
+
+	if (ath12k_ftm_mode)
+		return;
+
+	ath12k_hif_write32(ab, reo_base + HAL_REO1_SW_COOKIE_CFG0(hal), cmem_base);
+
+	val |= u32_encode_bits(ATH12K_CMEM_ADDR_MSB,
+			       HAL_REO1_SW_COOKIE_CFG_CMEM_BASE_ADDR_MSB) |
+		u32_encode_bits(ATH12K_CC_PPT_MSB,
+				HAL_REO1_SW_COOKIE_CFG_COOKIE_PPT_MSB) |
+		u32_encode_bits(ATH12K_CC_SPT_MSB,
+				HAL_REO1_SW_COOKIE_CFG_COOKIE_SPT_MSB) |
+		u32_encode_bits(1, HAL_REO1_SW_COOKIE_CFG_ALIGN) |
+		u32_encode_bits(1, HAL_REO1_SW_COOKIE_CFG_ENABLE) |
+		u32_encode_bits(1, HAL_REO1_SW_COOKIE_CFG_GLOBAL_ENABLE);
+
+	ath12k_hif_write32(ab, reo_base + HAL_REO1_SW_COOKIE_CFG1(hal), val);
+
+	/* Enable HW CC for WBM */
+	ath12k_hif_write32(ab, wbm_base + HAL_WBM_SW_COOKIE_CFG0, cmem_base);
+
+	val = u32_encode_bits(ATH12K_CMEM_ADDR_MSB,
+			      HAL_WBM_SW_COOKIE_CFG_CMEM_BASE_ADDR_MSB) |
+		u32_encode_bits(ATH12K_CC_PPT_MSB,
+				HAL_WBM_SW_COOKIE_CFG_COOKIE_PPT_MSB) |
+		u32_encode_bits(ATH12K_CC_SPT_MSB,
+				HAL_WBM_SW_COOKIE_CFG_COOKIE_SPT_MSB) |
+		u32_encode_bits(1, HAL_WBM_SW_COOKIE_CFG_ALIGN);
+
+	ath12k_hif_write32(ab, wbm_base + HAL_WBM_SW_COOKIE_CFG1, val);
+
+	/* Enable conversion complete indication */
+	val = ath12k_hif_read32(ab, wbm_base + HAL_WBM_SW_COOKIE_CFG2);
+	val |= u32_encode_bits(1, HAL_WBM_SW_COOKIE_CFG_RELEASE_PATH_EN) |
+		u32_encode_bits(1, HAL_WBM_SW_COOKIE_CFG_ERR_PATH_EN) |
+		u32_encode_bits(1, HAL_WBM_SW_COOKIE_CFG_CONV_IND_EN);
+
+	ath12k_hif_write32(ab, wbm_base + HAL_WBM_SW_COOKIE_CFG2, val);
+
+	/* Enable Cookie conversion for WBM2SW Rings */
+	val = ath12k_hif_read32(ab, wbm_base + HAL_WBM_SW_COOKIE_CONVERT_CFG);
+	val |= u32_encode_bits(1, HAL_WBM_SW_COOKIE_CONV_CFG_GLOBAL_EN) |
+	       hal->hal_params->wbm2sw_cc_enable;
+
+	ath12k_hif_write32(ab, wbm_base + HAL_WBM_SW_COOKIE_CONVERT_CFG, val);
+}
+
+enum hal_rx_buf_return_buf_manager
+ath12k_wifi7_hal_get_idle_link_rbm(struct ath12k_hal *hal, u8 device_id)
+{
+	switch (device_id) {
+	case 0:
+		return HAL_RX_BUF_RBM_WBM_DEV0_IDLE_DESC_LIST;
+	case 1:
+		return HAL_RX_BUF_RBM_WBM_DEV1_IDLE_DESC_LIST;
+	case 2:
+		return HAL_RX_BUF_RBM_WBM_DEV2_IDLE_DESC_LIST;
+	default:
+		ath12k_warn(hal,
+			    "invalid %d device id, so choose default rbm\n",
+			    device_id);
+		WARN_ON(1);
+		return HAL_RX_BUF_RBM_WBM_DEV0_IDLE_DESC_LIST;
+	}
+}

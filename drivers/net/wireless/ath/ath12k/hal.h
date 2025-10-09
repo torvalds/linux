@@ -1737,6 +1737,9 @@ struct hal_ops {
 	void (*rx_buf_addr_info_get)(struct ath12k_buffer_addr *binfo,
 				     dma_addr_t *paddr, u32 *msdu_cookies,
 				     u8 *rbm);
+	void (*cc_config)(struct ath12k_base *ab);
+	enum hal_rx_buf_return_buf_manager
+		(*get_idle_link_rbm)(struct ath12k_hal *hal, u8 device_id);
 };
 
 u32 ath12k_wifi7_hal_reo_qdesc_size(u32 ba_window_size, u8 tid);
@@ -1817,4 +1820,7 @@ void ath12k_hal_rx_buf_addr_info_get(struct ath12k_hal *hal,
 				     struct ath12k_buffer_addr *binfo,
 				     dma_addr_t *paddr, u32 *msdu_cookies,
 				     u8 *rbm);
+void ath12k_hal_cc_config(struct ath12k_base *ab);
+enum hal_rx_buf_return_buf_manager
+ath12k_hal_get_idle_link_rbm(struct ath12k_hal *hal, u8 device_id);
 #endif
