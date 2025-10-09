@@ -1,0 +1,33 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# SMI330 IMU driver
+#
+
+config SMI330
+	tristate
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+
+config SMI330_I2C
+	tristate "Bosch SMI330 I2C driver"
+	depends on I2C
+	select SMI330
+	select REGMAP_I2C
+	help
+	  Enable support for the Bosch SMI330 6-Axis IMU connected to I2C
+	  interface.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called smi330_i2c.
+
+config SMI330_SPI
+	tristate "Bosch SMI330 SPI driver"
+	depends on SPI
+	select SMI330
+	select REGMAP_SPI
+	help
+	  Enable support for the Bosch SMI330 6-Axis IMU connected to SPI
+	  interface.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called smi330_spi.
