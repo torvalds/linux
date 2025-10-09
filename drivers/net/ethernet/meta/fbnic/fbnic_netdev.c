@@ -543,16 +543,20 @@ static const struct net_device_ops fbnic_netdev_ops = {
 static void fbnic_get_queue_stats_rx(struct net_device *dev, int idx,
 				     struct netdev_queue_stats_rx *rx)
 {
+	u64 bytes, packets, alloc_fail, alloc_fail_bdq;
 	struct fbnic_net *fbn = netdev_priv(dev);
 	struct fbnic_ring *rxr = fbn->rx[idx];
 	struct fbnic_dev *fbd = fbn->fbd;
 	struct fbnic_queue_stats *stats;
-	u64 bytes, packets, alloc_fail;
 	u64 csum_complete, csum_none;
+	struct fbnic_q_triad *qt;
 	unsigned int start;
 
 	if (!rxr)
 		return;
+
+	/* fbn->rx points to completion queues */
+	qt = container_of(rxr, struct fbnic_q_triad, cmpl);
 
 	stats = &rxr->stats;
 	do {
@@ -563,6 +567,20 @@ static void fbnic_get_queue_stats_rx(struct net_device *dev, int idx,
 		csum_complete = stats->rx.csum_complete;
 		csum_none = stats->rx.csum_none;
 	} while (u64_stats_fetch_retry(&stats->syncp, start));
+
+	stats = &qt->sub0.stats;
+	do {
+		start = u64_stats_fetch_begin(&stats->syncp);
+		alloc_fail_bdq = stats->bdq.alloc_failed;
+	} while (u64_stats_fetch_retry(&stats->syncp, start));
+	alloc_fail += alloc_fail_bdq;
+
+	stats = &qt->sub1.stats;
+	do {
+		start = u64_stats_fetch_begin(&stats->syncp);
+		alloc_fail_bdq = stats->bdq.alloc_failed;
+	} while (u64_stats_fetch_retry(&stats->syncp, start));
+	alloc_fail += alloc_fail_bdq;
 
 	rx->bytes = bytes;
 	rx->packets = packets;
@@ -641,7 +659,8 @@ static void fbnic_get_base_stats(struct net_device *dev,
 
 	rx->bytes = fbn->rx_stats.bytes;
 	rx->packets = fbn->rx_stats.packets;
-	rx->alloc_fail = fbn->rx_stats.rx.alloc_failed;
+	rx->alloc_fail = fbn->rx_stats.rx.alloc_failed +
+		fbn->bdq_stats.bdq.alloc_failed;
 	rx->csum_complete = fbn->rx_stats.rx.csum_complete;
 	rx->csum_none = fbn->rx_stats.rx.csum_none;
 }

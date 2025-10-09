@@ -904,7 +904,7 @@ static void fbnic_fill_bdq(struct fbnic_ring *bdq)
 		netmem = page_pool_dev_alloc_netmems(bdq->page_pool);
 		if (!netmem) {
 			u64_stats_update_begin(&bdq->stats.syncp);
-			bdq->stats.rx.alloc_failed++;
+			bdq->stats.bdq.alloc_failed++;
 			u64_stats_update_end(&bdq->stats.syncp);
 
 			break;
@@ -1242,6 +1242,7 @@ static int fbnic_clean_rcq(struct fbnic_napi_vector *nv,
 	/* Walk the completion queue collecting the heads reported by NIC */
 	while (likely(packets < budget)) {
 		struct sk_buff *skb = ERR_PTR(-EINVAL);
+		u32 pkt_bytes;
 		u64 rcd;
 
 		if ((*raw_rcd & cpu_to_le64(FBNIC_RCD_DONE)) == done)
@@ -1272,37 +1273,38 @@ static int fbnic_clean_rcq(struct fbnic_napi_vector *nv,
 			/* We currently ignore the action table index */
 			break;
 		case FBNIC_RCD_TYPE_META:
-			if (unlikely(pkt->add_frag_failed))
-				skb = NULL;
-			else if (likely(!fbnic_rcd_metadata_err(rcd)))
+			if (likely(!fbnic_rcd_metadata_err(rcd) &&
+				   !pkt->add_frag_failed)) {
+				pkt_bytes = xdp_get_buff_len(&pkt->buff);
 				skb = fbnic_run_xdp(nv, pkt);
+			}
 
 			/* Populate skb and invalidate XDP */
 			if (!IS_ERR_OR_NULL(skb)) {
 				fbnic_populate_skb_fields(nv, rcd, skb, qt,
 							  &csum_complete,
 							  &csum_none);
-
-				packets++;
-				bytes += skb->len;
-
 				napi_gro_receive(&nv->napi, skb);
 			} else if (skb == ERR_PTR(-FBNIC_XDP_TX)) {
 				pkt_tail = nv->qt[0].sub1.tail;
-				bytes += xdp_get_buff_len(&pkt->buff);
+			} else if (PTR_ERR(skb) == -FBNIC_XDP_CONSUME) {
+				fbnic_put_pkt_buff(qt, pkt, 1);
 			} else {
-				if (!skb) {
+				if (!skb)
 					alloc_failed++;
-					dropped++;
-				} else if (skb == ERR_PTR(-FBNIC_XDP_LEN_ERR)) {
+
+				if (skb == ERR_PTR(-FBNIC_XDP_LEN_ERR))
 					length_errors++;
-				} else {
+				else
 					dropped++;
-				}
 
 				fbnic_put_pkt_buff(qt, pkt, 1);
+				goto next_dont_count;
 			}
 
+			packets++;
+			bytes += pkt_bytes;
+next_dont_count:
 			pkt->buff.data_hard_start = NULL;
 
 			break;
@@ -1319,8 +1321,6 @@ static int fbnic_clean_rcq(struct fbnic_napi_vector *nv,
 	u64_stats_update_begin(&rcq->stats.syncp);
 	rcq->stats.packets += packets;
 	rcq->stats.bytes += bytes;
-	/* Re-add ethernet header length (removed in fbnic_build_skb) */
-	rcq->stats.bytes += ETH_HLEN * packets;
 	rcq->stats.dropped += dropped;
 	rcq->stats.rx.alloc_failed += alloc_failed;
 	rcq->stats.rx.csum_complete += csum_complete;
@@ -1414,6 +1414,17 @@ void fbnic_aggregate_ring_rx_counters(struct fbnic_net *fbn,
 	BUILD_BUG_ON(sizeof(fbn->rx_stats.rx) / 8 != 4);
 }
 
+void fbnic_aggregate_ring_bdq_counters(struct fbnic_net *fbn,
+				       struct fbnic_ring *bdq)
+{
+	struct fbnic_queue_stats *stats = &bdq->stats;
+
+	/* Capture stats from queues before dissasociating them */
+	fbn->bdq_stats.bdq.alloc_failed += stats->bdq.alloc_failed;
+	/* Remember to add new stats here */
+	BUILD_BUG_ON(sizeof(fbn->rx_stats.bdq) / 8 != 1);
+}
+
 void fbnic_aggregate_ring_tx_counters(struct fbnic_net *fbn,
 				      struct fbnic_ring *txr)
 {
@@ -1433,8 +1444,8 @@ void fbnic_aggregate_ring_tx_counters(struct fbnic_net *fbn,
 	BUILD_BUG_ON(sizeof(fbn->tx_stats.twq) / 8 != 6);
 }
 
-static void fbnic_aggregate_ring_xdp_counters(struct fbnic_net *fbn,
-					      struct fbnic_ring *xdpr)
+void fbnic_aggregate_ring_xdp_counters(struct fbnic_net *fbn,
+				       struct fbnic_ring *xdpr)
 {
 	struct fbnic_queue_stats *stats = &xdpr->stats;
 
@@ -1442,9 +1453,7 @@ static void fbnic_aggregate_ring_xdp_counters(struct fbnic_net *fbn,
 		return;
 
 	/* Capture stats from queues before dissasociating them */
-	fbn->rx_stats.bytes += stats->bytes;
-	fbn->rx_stats.packets += stats->packets;
-	fbn->rx_stats.dropped += stats->dropped;
+	fbn->tx_stats.dropped += stats->dropped;
 	fbn->tx_stats.bytes += stats->bytes;
 	fbn->tx_stats.packets += stats->packets;
 }
@@ -1488,6 +1497,15 @@ static void fbnic_remove_rx_ring(struct fbnic_net *fbn,
 	fbn->rx[rxr->q_idx] = NULL;
 }
 
+static void fbnic_remove_bdq_ring(struct fbnic_net *fbn,
+				  struct fbnic_ring *bdq)
+{
+	if (!(bdq->flags & FBNIC_RING_F_STATS))
+		return;
+
+	fbnic_aggregate_ring_bdq_counters(fbn, bdq);
+}
+
 static void fbnic_free_qt_page_pools(struct fbnic_q_triad *qt)
 {
 	page_pool_destroy(qt->sub0.page_pool);
@@ -1507,8 +1525,8 @@ static void fbnic_free_napi_vector(struct fbnic_net *fbn,
 	}
 
 	for (j = 0; j < nv->rxt_count; j++, i++) {
-		fbnic_remove_rx_ring(fbn, &nv->qt[i].sub0);
-		fbnic_remove_rx_ring(fbn, &nv->qt[i].sub1);
+		fbnic_remove_bdq_ring(fbn, &nv->qt[i].sub0);
+		fbnic_remove_bdq_ring(fbn, &nv->qt[i].sub1);
 		fbnic_remove_rx_ring(fbn, &nv->qt[i].cmpl);
 	}
 
@@ -1707,11 +1725,13 @@ static int fbnic_alloc_napi_vector(struct fbnic_dev *fbd, struct fbnic_net *fbn,
 	while (rxt_count) {
 		/* Configure header queue */
 		db = &uc_addr[FBNIC_QUEUE(rxq_idx) + FBNIC_QUEUE_BDQ_HPQ_TAIL];
-		fbnic_ring_init(&qt->sub0, db, 0, FBNIC_RING_F_CTX);
+		fbnic_ring_init(&qt->sub0, db, 0,
+				FBNIC_RING_F_CTX | FBNIC_RING_F_STATS);
 
 		/* Configure payload queue */
 		db = &uc_addr[FBNIC_QUEUE(rxq_idx) + FBNIC_QUEUE_BDQ_PPQ_TAIL];
-		fbnic_ring_init(&qt->sub1, db, 0, FBNIC_RING_F_CTX);
+		fbnic_ring_init(&qt->sub1, db, 0,
+				FBNIC_RING_F_CTX | FBNIC_RING_F_STATS);
 
 		/* Configure Rx completion queue */
 		db = &uc_addr[FBNIC_QUEUE(rxq_idx) + FBNIC_QUEUE_RCQ_HEAD];
@@ -2830,8 +2850,8 @@ static int fbnic_queue_start(struct net_device *dev, void *qmem, int idx)
 	real = container_of(fbn->rx[idx], struct fbnic_q_triad, cmpl);
 	nv = fbn->napi[idx % fbn->num_napi];
 
-	fbnic_aggregate_ring_rx_counters(fbn, &real->sub0);
-	fbnic_aggregate_ring_rx_counters(fbn, &real->sub1);
+	fbnic_aggregate_ring_bdq_counters(fbn, &real->sub0);
+	fbnic_aggregate_ring_bdq_counters(fbn, &real->sub1);
 	fbnic_aggregate_ring_rx_counters(fbn, &real->cmpl);
 
 	memcpy(real, qmem, sizeof(*real));
