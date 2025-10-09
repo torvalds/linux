@@ -1346,9 +1346,8 @@ int amd_pstate_update_status(const char *buf, size_t size)
 		return -EINVAL;
 
 	mode_idx = get_mode_idx_from_str(buf, size);
-
-	if (mode_idx < 0 || mode_idx >= AMD_PSTATE_MAX)
-		return -EINVAL;
+	if (mode_idx < 0)
+		return mode_idx;
 
 	if (mode_state_machine[cppc_state][mode_idx]) {
 		guard(mutex)(&amd_pstate_driver_lock);
