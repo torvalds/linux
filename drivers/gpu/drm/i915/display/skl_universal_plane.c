@@ -390,6 +390,13 @@ static int glk_plane_max_width(const struct drm_framebuffer *fb,
 	}
 }
 
+static int adl_plane_min_width(const struct drm_framebuffer *fb,
+			       int color_plane,
+			       unsigned int rotation)
+{
+	return 16 / fb->format->cpp[color_plane];
+}
+
 static int icl_plane_min_width(const struct drm_framebuffer *fb,
 			       int color_plane,
 			       unsigned int rotation)
@@ -2816,7 +2823,10 @@ skl_universal_plane_create(struct intel_display *display,
 		plane->max_height = icl_plane_max_height;
 		plane->min_cdclk = icl_plane_min_cdclk;
 	} else if (DISPLAY_VER(display) >= 11) {
-		plane->min_width = icl_plane_min_width;
+		if (DISPLAY_VER(display) >= 14 || display->platform.alderlake_p)
+			plane->min_width = adl_plane_min_width;
+		else
+			plane->min_width = icl_plane_min_width;
 		if (icl_is_hdr_plane(display, plane_id))
 			plane->max_width = icl_hdr_plane_max_width;
 		else
