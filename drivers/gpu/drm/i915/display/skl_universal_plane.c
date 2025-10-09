@@ -1860,6 +1860,14 @@ static int intel_plane_min_width(struct intel_plane *plane,
 		return 1;
 }
 
+static int intel_plane_min_height(struct intel_plane *plane,
+				  const struct drm_framebuffer *fb,
+				  int color_plane,
+				  unsigned int rotation)
+{
+	return 1;
+}
+
 static int intel_plane_max_width(struct intel_plane *plane,
 				 const struct drm_framebuffer *fb,
 				 int color_plane,
@@ -1991,6 +1999,7 @@ static int skl_check_main_surface(struct intel_plane_state *plane_state)
 	int w = drm_rect_width(&plane_state->uapi.src) >> 16;
 	int h = drm_rect_height(&plane_state->uapi.src) >> 16;
 	int min_width = intel_plane_min_width(plane, fb, 0, rotation);
+	int min_height = intel_plane_min_height(plane, fb, 0, rotation);
 	int max_width = intel_plane_max_width(plane, fb, 0, rotation);
 	int max_height = intel_plane_max_height(plane, fb, 0, rotation);
 	unsigned int alignment = plane->min_alignment(plane, fb, 0);
@@ -1998,11 +2007,11 @@ static int skl_check_main_surface(struct intel_plane_state *plane_state)
 	u32 offset;
 	int ret;
 
-	if (w > max_width || w < min_width || h > max_height || h < 1) {
+	if (w > max_width || w < min_width || h > max_height || h < min_height) {
 		drm_dbg_kms(display->drm,
-			    "[PLANE:%d:%s] requested Y/RGB source size %dx%d outside limits (min: %dx1 max: %dx%d)\n",
+			    "[PLANE:%d:%s] requested Y/RGB source size %dx%d outside limits (min: %dx%d max: %dx%d)\n",
 			    plane->base.base.id, plane->base.name,
-			    w, h, min_width, max_width, max_height);
+			    w, h, min_width, min_height, max_width, max_height);
 		return -EINVAL;
 	}
 
@@ -2063,6 +2072,7 @@ static int skl_check_nv12_aux_surface(struct intel_plane_state *plane_state)
 	int ccs_plane = intel_fb_is_ccs_modifier(fb->modifier) ?
 			skl_main_to_aux_plane(fb, uv_plane) : 0;
 	int min_width = intel_plane_min_width(plane, fb, uv_plane, rotation);
+	int min_height = intel_plane_min_height(plane, fb, uv_plane, rotation);
 	int max_width = intel_plane_max_width(plane, fb, uv_plane, rotation);
 	int max_height = intel_plane_max_height(plane, fb, uv_plane, rotation);
 	int x = plane_state->uapi.src.x1 >> 17;
@@ -2072,11 +2082,11 @@ static int skl_check_nv12_aux_surface(struct intel_plane_state *plane_state)
 	u32 offset;
 
 	/* FIXME not quite sure how/if these apply to the chroma plane */
-	if (w > max_width || w < min_width || h > max_height || h < 1) {
+	if (w > max_width || w < min_width || h > max_height || h < min_height) {
 		drm_dbg_kms(display->drm,
-			    "[PLANE:%d:%s] requested CbCr source size %dx%d outside limits (min: %dx1 max: %dx%d)\n",
+			    "[PLANE:%d:%s] requested CbCr source size %dx%d outside limits (min: %dx%d max: %dx%d)\n",
 			    plane->base.base.id, plane->base.name,
-			    w, h, min_width, max_width, max_height);
+			    w, h, min_width, min_height, max_width, max_height);
 		return -EINVAL;
 	}
 
