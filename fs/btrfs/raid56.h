@@ -124,6 +124,9 @@ struct btrfs_raid_bio {
 	 */
 	struct sector_ptr *stripe_sectors;
 
+	/* Each set bit means the corresponding sector in stripe_sectors[] is uptodate. */
+	unsigned long *stripe_uptodate_bitmap;
+
 	/* Allocated with real_stripes-many pointers for finish_*() calls */
 	void **finish_pointers;
 
