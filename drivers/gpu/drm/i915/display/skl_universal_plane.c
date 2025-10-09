@@ -2819,6 +2819,7 @@ skl_universal_plane_create(struct intel_display *display,
 	intel_fbc_add_plane(skl_plane_fbc(display, pipe, plane_id), plane);
 
 	if (DISPLAY_VER(display) >= 30) {
+		plane->min_width = adl_plane_min_width;
 		plane->max_width = xe3_plane_max_width;
 		plane->max_height = icl_plane_max_height;
 		plane->min_cdclk = icl_plane_min_cdclk;
