@@ -134,6 +134,12 @@ struct btrfs_stripe_hash_table {
 };
 
 /*
+ * The PFN may still be valid, but our paddrs should always be block size
+ * aligned, thus such -1 paddr is definitely not a valid one.
+ */
+#define INVALID_PADDR	(~(phys_addr_t)0)
+
+/*
  * A structure to present a sector inside a page, the length is fixed to
  * sectorsize;
  */
@@ -141,9 +147,10 @@ struct sector_ptr {
 	/*
 	 * Blocks from the bio list can still be highmem.
 	 * So here we use physical address to present a page and the offset inside it.
+	 *
+	 * If it's INVALID_PADDR then it's not set.
 	 */
 	phys_addr_t paddr;
-	bool has_paddr;
 	bool uptodate;
 };
 
@@ -263,7 +270,7 @@ static void cache_rbio_pages(struct btrfs_raid_bio *rbio)
 
 	for (i = 0; i < rbio->nr_sectors; i++) {
 		/* Some range not covered by bio (partial write), skip it */
-		if (!rbio->bio_sectors[i].has_paddr) {
+		if (rbio->bio_sectors[i].paddr == INVALID_PADDR) {
 			/*
 			 * Even if the sector is not covered by bio, if it is
 			 * a data sector it should still be uptodate as it is
@@ -335,7 +342,6 @@ static void index_stripe_sectors(struct btrfs_raid_bio *rbio)
 		if (!rbio->stripe_pages[page_index])
 			continue;
 
-		rbio->stripe_sectors[i].has_paddr = true;
 		rbio->stripe_sectors[i].paddr =
 			page_to_phys(rbio->stripe_pages[page_index]) +
 			offset_in_page(offset);
@@ -972,9 +978,9 @@ static struct sector_ptr *sector_in_rbio(struct btrfs_raid_bio *rbio,
 
 	spin_lock(&rbio->bio_list_lock);
 	sector = &rbio->bio_sectors[index];
-	if (sector->has_paddr || bio_list_only) {
+	if (sector->paddr != INVALID_PADDR || bio_list_only) {
 		/* Don't return sector without a valid page pointer */
-		if (!sector->has_paddr)
+		if (sector->paddr == INVALID_PADDR)
 			sector = NULL;
 		spin_unlock(&rbio->bio_list_lock);
 		return sector;
@@ -1031,6 +1037,10 @@ static struct btrfs_raid_bio *alloc_rbio(struct btrfs_fs_info *fs_info,
 		free_raid_bio_pointers(rbio);
 		kfree(rbio);
 		return ERR_PTR(-ENOMEM);
+	}
+	for (int i = 0; i < num_sectors; i++) {
+		rbio->stripe_sectors[i].paddr = INVALID_PADDR;
+		rbio->bio_sectors[i].paddr = INVALID_PADDR;
 	}
 
 	bio_list_init(&rbio->bio_list);
@@ -1152,7 +1162,7 @@ static int rbio_add_io_sector(struct btrfs_raid_bio *rbio,
 			   rbio, stripe_nr);
 	ASSERT_RBIO_SECTOR(sector_nr >= 0 && sector_nr < rbio->stripe_nsectors,
 			   rbio, sector_nr);
-	ASSERT(sector->has_paddr);
+	ASSERT(sector->paddr != INVALID_PADDR);
 
 	stripe = &rbio->bioc->stripes[stripe_nr];
 	disk_start = stripe->physical + sector_nr * sectorsize;
@@ -1216,7 +1226,6 @@ static void index_one_bio(struct btrfs_raid_bio *rbio, struct bio *bio)
 		unsigned int index = (offset >> sectorsize_bits);
 		struct sector_ptr *sector = &rbio->bio_sectors[index];
 
-		sector->has_paddr = true;
 		sector->paddr = paddr;
 		offset += sectorsize;
 	}
@@ -1299,7 +1308,7 @@ static void assert_rbio(struct btrfs_raid_bio *rbio)
 static inline void *kmap_local_sector(const struct sector_ptr *sector)
 {
 	/* The sector pointer must have a page mapped to it. */
-	ASSERT(sector->has_paddr);
+	ASSERT(sector->paddr != INVALID_PADDR);
 
 	return kmap_local_page(phys_to_page(sector->paddr)) +
 	       offset_in_page(sector->paddr);
@@ -1498,7 +1507,7 @@ static struct sector_ptr *find_stripe_sector(struct btrfs_raid_bio *rbio,
 	for (i = 0; i < rbio->nr_sectors; i++) {
 		struct sector_ptr *sector = &rbio->stripe_sectors[i];
 
-		if (sector->has_paddr && sector->paddr == paddr)
+		if (sector->paddr == paddr)
 			return sector;
 	}
 	return NULL;
@@ -1532,8 +1541,7 @@ static int get_bio_sector_nr(struct btrfs_raid_bio *rbio, struct bio *bio)
 	for (i = 0; i < rbio->nr_sectors; i++) {
 		if (rbio->stripe_sectors[i].paddr == bvec_paddr)
 			break;
-		if (rbio->bio_sectors[i].has_paddr &&
-		    rbio->bio_sectors[i].paddr == bvec_paddr)
+		if (rbio->bio_sectors[i].paddr == bvec_paddr)
 			break;
 	}
 	ASSERT(i < rbio->nr_sectors);
@@ -2317,7 +2325,7 @@ static bool need_read_stripe_sectors(struct btrfs_raid_bio *rbio)
 		 * thus this rbio can not be cached one, as cached one must
 		 * have all its data sectors present and uptodate.
 		 */
-		if (!sector->has_paddr || !sector->uptodate)
+		if (sector->paddr == INVALID_PADDR || !sector->uptodate)
 			return true;
 	}
 	return false;
@@ -2508,8 +2516,8 @@ static int finish_parity_scrub(struct btrfs_raid_bio *rbio)
 	int sectornr;
 	bool has_qstripe;
 	struct page *page;
-	struct sector_ptr p_sector = { 0 };
-	struct sector_ptr q_sector = { 0 };
+	struct sector_ptr p_sector = { .paddr = INVALID_PADDR };
+	struct sector_ptr q_sector = { .paddr = INVALID_PADDR };
 	struct bio_list bio_list;
 	int is_replace = 0;
 	int ret;
@@ -2542,7 +2550,6 @@ static int finish_parity_scrub(struct btrfs_raid_bio *rbio)
 	page = alloc_page(GFP_NOFS);
 	if (!page)
 		return -ENOMEM;
-	p_sector.has_paddr = true;
 	p_sector.paddr = page_to_phys(page);
 	p_sector.uptodate = 1;
 	page = NULL;
@@ -2552,10 +2559,9 @@ static int finish_parity_scrub(struct btrfs_raid_bio *rbio)
 		page = alloc_page(GFP_NOFS);
 		if (!page) {
 			__free_page(phys_to_page(p_sector.paddr));
-			p_sector.has_paddr = false;
+			p_sector.paddr = INVALID_PADDR;
 			return -ENOMEM;
 		}
-		q_sector.has_paddr = true;
 		q_sector.paddr = page_to_phys(page);
 		q_sector.uptodate = 1;
 		page = NULL;
@@ -2604,10 +2610,10 @@ static int finish_parity_scrub(struct btrfs_raid_bio *rbio)
 
 	kunmap_local(pointers[nr_data]);
 	__free_page(phys_to_page(p_sector.paddr));
-	p_sector.has_paddr = false;
-	if (q_sector.has_paddr) {
+	p_sector.paddr = INVALID_PADDR;
+	if (q_sector.paddr != INVALID_PADDR) {
 		__free_page(phys_to_page(q_sector.paddr));
-		q_sector.has_paddr = false;
+		q_sector.paddr = INVALID_PADDR;
 	}
 
 	/*
