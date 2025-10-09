@@ -302,8 +302,8 @@ static void drm_log_client_unregister(struct drm_client_dev *client)
 
 	mutex_lock(&dlog->lock);
 	drm_log_free_scanout(client);
-	drm_client_release(client);
 	mutex_unlock(&dlog->lock);
+	drm_client_release(client);
 	kfree(dlog);
 	drm_dbg(dev, "Unregistered with drm log\n");
 }
