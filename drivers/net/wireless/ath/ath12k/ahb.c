@@ -558,12 +558,10 @@ static int ath12k_ahb_config_ext_irq(struct ath12k_base *ab)
 {
 	const struct ath12k_hw_ring_mask *ring_mask;
 	struct ath12k_ext_irq_grp *irq_grp;
-	const struct hal_ops *hal_ops;
 	int i, j, irq, irq_idx, ret;
 	u32 num_irq;
 
 	ring_mask = ab->hw_params->ring_mask;
-	hal_ops = ab->hal.hal_ops;
 	for (i = 0; i < ATH12K_EXT_IRQ_GRP_NUM_MAX; i++) {
 		irq_grp = &ab->ext_irq_grp[i];
 		num_irq = 0;
@@ -583,7 +581,7 @@ static int ath12k_ahb_config_ext_irq(struct ath12k_base *ab)
 			 * tcl_to_wbm_rbm_map point to the same ring number.
 			 */
 			if (ring_mask->tx[i] &
-			    BIT(hal_ops->tcl_to_wbm_rbm_map[j].wbm_ring_num)) {
+			    BIT(ab->hal.tcl_to_wbm_rbm_map[j].wbm_ring_num)) {
 				irq_grp->irqs[num_irq++] =
 					wbm2host_tx_completions_ring1 - j;
 			}

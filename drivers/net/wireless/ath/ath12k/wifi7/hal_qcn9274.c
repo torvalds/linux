@@ -681,9 +681,28 @@ static int ath12k_hal_srng_create_config_qcn9274(struct ath12k_base *ab)
 	return 0;
 }
 
+const struct ath12k_hal_tcl_to_wbm_rbm_map
+ath12k_hal_tcl_to_wbm_rbm_map_qcn9274[DP_TCL_NUM_RING_MAX] = {
+	{
+		.wbm_ring_num = 0,
+		.rbm_id = HAL_RX_BUF_RBM_SW0_BM,
+	},
+	{
+		.wbm_ring_num = 1,
+		.rbm_id = HAL_RX_BUF_RBM_SW1_BM,
+	},
+	{
+		.wbm_ring_num = 2,
+		.rbm_id = HAL_RX_BUF_RBM_SW2_BM,
+	},
+	{
+		.wbm_ring_num = 4,
+		.rbm_id = HAL_RX_BUF_RBM_SW4_BM,
+	},
+};
+
 const struct hal_ops hal_qcn9274_ops = {
 	.create_srng_config = ath12k_hal_srng_create_config_qcn9274,
-	.tcl_to_wbm_rbm_map = ath12k_hal_qcn9274_tcl_to_wbm_rbm_map,
 	.rx_desc_set_msdu_len = ath12k_hal_rx_desc_set_msdu_len_qcn9274,
 	.rx_desc_get_dot11_hdr = ath12k_hal_rx_desc_get_dot11_hdr_qcn9274,
 	.rx_desc_get_crypto_header = ath12k_hal_rx_desc_get_crypto_hdr_qcn9274,

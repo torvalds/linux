@@ -142,7 +142,7 @@ static int ath12k_dp_srng_calculate_msi_group(struct ath12k_base *ab,
 			grp_mask = &ab->hw_params->ring_mask->rx_wbm_rel[0];
 			ring_num = 0;
 		} else {
-			map = ab->hal.hal_ops->tcl_to_wbm_rbm_map;
+			map = ab->hal.tcl_to_wbm_rbm_map;
 			for (i = 0; i < ab->hw_params->max_tx_ring; i++) {
 				if (ring_num == map[i].wbm_ring_num) {
 					ring_num = i;
@@ -508,7 +508,7 @@ static int ath12k_dp_srng_common_setup(struct ath12k_base *ab)
 	}
 
 	for (i = 0; i < ab->hw_params->max_tx_ring; i++) {
-		map = ab->hal.hal_ops->tcl_to_wbm_rbm_map;
+		map = ab->hal.tcl_to_wbm_rbm_map;
 		tx_comp_ring_num = map[i].wbm_ring_num;
 
 		ret = ath12k_dp_srng_setup(ab, &dp->tx_ring[i].tcl_data_ring,

@@ -1473,6 +1473,8 @@ struct ath12k_hal {
 	int num_shadow_reg_configured;
 
 	u32 hal_desc_sz;
+
+	const struct ath12k_hal_tcl_to_wbm_rbm_map *tcl_to_wbm_rbm_map;
 };
 
 /* Maps WBM ring number and Return Buffer Manager Id per TCL ring */
@@ -1582,11 +1584,11 @@ enum nl80211_he_ru_alloc ath12k_he_ru_tones_to_nl80211_he_ru_alloc(u16 ru_tones)
 struct ath12k_hw_version_map {
 	const struct hal_ops *hal_ops;
 	u32 hal_desc_sz;
+	const struct ath12k_hal_tcl_to_wbm_rbm_map *tcl_to_wbm_rbm_map;
 };
 
 struct hal_ops {
 	int (*create_srng_config)(struct ath12k_base *ab);
-	const struct ath12k_hal_tcl_to_wbm_rbm_map *tcl_to_wbm_rbm_map;
 	void (*rx_desc_set_msdu_len)(struct hal_rx_desc *desc, u16 len);
 	void (*rx_desc_get_dot11_hdr)(struct hal_rx_desc *desc,
 				      struct ieee80211_hdr *hdr);

@@ -12,42 +12,6 @@
 #include "wifi7/hal_qcn9274.h"
 #include "wifi7/hal_wcn7850.h"
 
-const struct ath12k_hal_tcl_to_wbm_rbm_map
-ath12k_hal_qcn9274_tcl_to_wbm_rbm_map[DP_TCL_NUM_RING_MAX] = {
-	{
-		.wbm_ring_num = 0,
-		.rbm_id = HAL_RX_BUF_RBM_SW0_BM,
-	},
-	{
-		.wbm_ring_num = 1,
-		.rbm_id = HAL_RX_BUF_RBM_SW1_BM,
-	},
-	{
-		.wbm_ring_num = 2,
-		.rbm_id = HAL_RX_BUF_RBM_SW2_BM,
-	},
-	{
-		.wbm_ring_num = 4,
-		.rbm_id = HAL_RX_BUF_RBM_SW4_BM,
-	}
-};
-
-const struct ath12k_hal_tcl_to_wbm_rbm_map
-ath12k_hal_wcn7850_tcl_to_wbm_rbm_map[DP_TCL_NUM_RING_MAX] = {
-	{
-		.wbm_ring_num = 0,
-		.rbm_id = HAL_RX_BUF_RBM_SW0_BM,
-	},
-	{
-		.wbm_ring_num = 2,
-		.rbm_id = HAL_RX_BUF_RBM_SW2_BM,
-	},
-	{
-		.wbm_ring_num = 4,
-		.rbm_id = HAL_RX_BUF_RBM_SW4_BM,
-	},
-};
-
 static unsigned int ath12k_hal_reo1_ring_id_offset(struct ath12k_base *ab)
 {
 	return HAL_REO1_RING_ID(ab) - HAL_REO1_RING_BASE_LSB(ab);
