@@ -179,10 +179,11 @@ bool io_waitid_remove_all(struct io_ring_ctx *ctx, struct io_uring_task *tctx,
 static inline bool io_waitid_drop_issue_ref(struct io_kiocb *req)
 {
 	struct io_waitid *iw = io_kiocb_to_cmd(req, struct io_waitid);
-	struct io_waitid_async *iwa = req->async_data;
 
 	if (!atomic_sub_return(1, &iw->refs))
 		return false;
+
+	io_waitid_remove_wq(req);
 
 	/*
 	 * Wakeup triggered, racing with us. It was prevented from
@@ -190,7 +191,6 @@ static inline bool io_waitid_drop_issue_ref(struct io_kiocb *req)
 	 */
 	req->io_task_work.func = io_waitid_cb;
 	io_req_task_work_add(req);
-	remove_wait_queue(iw->head, &iwa->wo.child_wait);
 	return true;
 }
 
@@ -245,6 +245,7 @@ static int io_waitid_wait(struct wait_queue_entry *wait, unsigned mode,
 		return 0;
 
 	list_del_init(&wait->entry);
+	iw->head = NULL;
 
 	/* cancel is in progress */
 	if (atomic_fetch_inc(&iw->refs) & IO_WAITID_REF_MASK)
@@ -271,6 +272,7 @@ int io_waitid_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	iw->which = READ_ONCE(sqe->len);
 	iw->upid = READ_ONCE(sqe->fd);
 	iw->options = READ_ONCE(sqe->file_index);
+	iw->head = NULL;
 	iw->infop = u64_to_user_ptr(READ_ONCE(sqe->addr2));
 	return 0;
 }
@@ -301,11 +303,16 @@ int io_waitid(struct io_kiocb *req, unsigned int issue_flags)
 	 * callback.
 	 */
 	io_ring_submit_lock(ctx, issue_flags);
+
+	/*
+	 * iw->head is valid under the ring lock, and as long as the request
+	 * is on the waitid_list where cancelations may find it.
+	 */
+	iw->head = &current->signal->wait_chldexit;
 	hlist_add_head(&req->hash_node, &ctx->waitid_list);
 
 	init_waitqueue_func_entry(&iwa->wo.child_wait, io_waitid_wait);
 	iwa->wo.child_wait.private = req->tctx->task;
-	iw->head = &current->signal->wait_chldexit;
 	add_wait_queue(iw->head, &iwa->wo.child_wait);
 
 	ret = __do_wait(&iwa->wo);
@@ -328,7 +335,7 @@ int io_waitid(struct io_kiocb *req, unsigned int issue_flags)
 	}
 
 	hlist_del_init(&req->hash_node);
-	remove_wait_queue(iw->head, &iwa->wo.child_wait);
+	io_waitid_remove_wq(req);
 	ret = io_waitid_finish(req, ret);
 
 	io_ring_submit_unlock(ctx, issue_flags);
