@@ -16,7 +16,6 @@
 #include "volumes.h"
 
 struct page;
-struct sector_ptr;
 struct btrfs_fs_info;
 
 enum btrfs_rbio_ops {
@@ -116,13 +115,10 @@ struct btrfs_raid_bio {
 	struct page **stripe_pages;
 
 	/* Pointers to the sectors in the bio_list, for faster lookup */
-	struct sector_ptr *bio_sectors;
+	phys_addr_t *bio_paddrs;
 
-	/*
-	 * For subpage support, we need to map each sector to above
-	 * stripe_pages.
-	 */
-	struct sector_ptr *stripe_sectors;
+	/* Pointers to the sectors in the stripe_pages[]. */
+	phys_addr_t *stripe_paddrs;
 
 	/* Each set bit means the corresponding sector in stripe_sectors[] is uptodate. */
 	unsigned long *stripe_uptodate_bitmap;
@@ -134,10 +130,6 @@ struct btrfs_raid_bio {
 	 * The bitmap recording where IO errors happened.
 	 * Each bit is corresponding to one sector in either bio_sectors[] or
 	 * stripe_sectors[] array.
-	 *
-	 * The reason we don't use another bit in sector_ptr is, we have two
-	 * arrays of sectors, and a lot of IO can use sectors in both arrays.
-	 * Thus making it much harder to iterate.
 	 */
 	unsigned long *error_bitmap;
 
