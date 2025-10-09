@@ -392,7 +392,7 @@ void smack_log(char *subject_label, char *object_label, int request,
 }
 #else /* #ifdef CONFIG_AUDIT */
 void smack_log(char *subject_label, char *object_label, int request,
-               int result, struct smk_audit_info *ad)
+	       int result, struct smk_audit_info *ad)
 {
 }
 #endif
