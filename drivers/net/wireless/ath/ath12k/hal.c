@@ -12,58 +12,57 @@
 #include "wifi7/hal_qcn9274.h"
 #include "wifi7/hal_wcn7850.h"
 
-static unsigned int ath12k_hal_reo1_ring_id_offset(struct ath12k_base *ab)
+static unsigned int ath12k_hal_reo1_ring_id_offset(struct ath12k_hal *hal)
 {
-	return HAL_REO1_RING_ID(ab) - HAL_REO1_RING_BASE_LSB(ab);
+	return HAL_REO1_RING_ID(hal) - HAL_REO1_RING_BASE_LSB(hal);
 }
 
-static unsigned int ath12k_hal_reo1_ring_msi1_base_lsb_offset(struct ath12k_base *ab)
+static unsigned int ath12k_hal_reo1_ring_msi1_base_lsb_offset(struct ath12k_hal *hal)
 {
-	return HAL_REO1_RING_MSI1_BASE_LSB(ab) - HAL_REO1_RING_BASE_LSB(ab);
+	return HAL_REO1_RING_MSI1_BASE_LSB(hal) - HAL_REO1_RING_BASE_LSB(hal);
 }
 
-static unsigned int ath12k_hal_reo1_ring_msi1_base_msb_offset(struct ath12k_base *ab)
+static unsigned int ath12k_hal_reo1_ring_msi1_base_msb_offset(struct ath12k_hal *hal)
 {
-	return HAL_REO1_RING_MSI1_BASE_MSB(ab) - HAL_REO1_RING_BASE_LSB(ab);
+	return HAL_REO1_RING_MSI1_BASE_MSB(hal) - HAL_REO1_RING_BASE_LSB(hal);
 }
 
-static unsigned int ath12k_hal_reo1_ring_msi1_data_offset(struct ath12k_base *ab)
+static unsigned int ath12k_hal_reo1_ring_msi1_data_offset(struct ath12k_hal *hal)
 {
-	return HAL_REO1_RING_MSI1_DATA(ab) - HAL_REO1_RING_BASE_LSB(ab);
+	return HAL_REO1_RING_MSI1_DATA(hal) - HAL_REO1_RING_BASE_LSB(hal);
 }
 
-static unsigned int ath12k_hal_reo1_ring_base_msb_offset(struct ath12k_base *ab)
+static unsigned int ath12k_hal_reo1_ring_base_msb_offset(struct ath12k_hal *hal)
 {
-	return HAL_REO1_RING_BASE_MSB(ab) - HAL_REO1_RING_BASE_LSB(ab);
+	return HAL_REO1_RING_BASE_MSB(hal) - HAL_REO1_RING_BASE_LSB(hal);
 }
 
-static unsigned int ath12k_hal_reo1_ring_producer_int_setup_offset(struct ath12k_base *ab)
+static unsigned int ath12k_hal_reo1_ring_producer_int_setup_offset(struct ath12k_hal *hal)
 {
-	return HAL_REO1_RING_PRODUCER_INT_SETUP(ab) - HAL_REO1_RING_BASE_LSB(ab);
+	return HAL_REO1_RING_PRODUCER_INT_SETUP(hal) - HAL_REO1_RING_BASE_LSB(hal);
 }
 
-static unsigned int ath12k_hal_reo1_ring_hp_addr_lsb_offset(struct ath12k_base *ab)
+static unsigned int ath12k_hal_reo1_ring_hp_addr_lsb_offset(struct ath12k_hal *hal)
 {
-	return HAL_REO1_RING_HP_ADDR_LSB(ab) - HAL_REO1_RING_BASE_LSB(ab);
+	return HAL_REO1_RING_HP_ADDR_LSB(hal) - HAL_REO1_RING_BASE_LSB(hal);
 }
 
-static unsigned int ath12k_hal_reo1_ring_hp_addr_msb_offset(struct ath12k_base *ab)
+static unsigned int ath12k_hal_reo1_ring_hp_addr_msb_offset(struct ath12k_hal *hal)
 {
-	return HAL_REO1_RING_HP_ADDR_MSB(ab) - HAL_REO1_RING_BASE_LSB(ab);
+	return HAL_REO1_RING_HP_ADDR_MSB(hal) - HAL_REO1_RING_BASE_LSB(hal);
 }
 
-static unsigned int ath12k_hal_reo1_ring_misc_offset(struct ath12k_base *ab)
+static unsigned int ath12k_hal_reo1_ring_misc_offset(struct ath12k_hal *hal)
 {
-	return HAL_REO1_RING_MISC(ab) - HAL_REO1_RING_BASE_LSB(ab);
+	return HAL_REO1_RING_MISC(hal) - HAL_REO1_RING_BASE_LSB(hal);
 }
 
-static int ath12k_hal_alloc_cont_rdp(struct ath12k_base *ab)
+static int ath12k_hal_alloc_cont_rdp(struct ath12k_hal *hal)
 {
-	struct ath12k_hal *hal = &ab->hal;
 	size_t size;
 
 	size = sizeof(u32) * HAL_SRNG_RING_ID_MAX;
-	hal->rdp.vaddr = dma_alloc_coherent(ab->dev, size, &hal->rdp.paddr,
+	hal->rdp.vaddr = dma_alloc_coherent(hal->dev, size, &hal->rdp.paddr,
 					    GFP_KERNEL);
 	if (!hal->rdp.vaddr)
 		return -ENOMEM;
@@ -71,27 +70,25 @@ static int ath12k_hal_alloc_cont_rdp(struct ath12k_base *ab)
 	return 0;
 }
 
-static void ath12k_hal_free_cont_rdp(struct ath12k_base *ab)
+static void ath12k_hal_free_cont_rdp(struct ath12k_hal *hal)
 {
-	struct ath12k_hal *hal = &ab->hal;
 	size_t size;
 
 	if (!hal->rdp.vaddr)
 		return;
 
 	size = sizeof(u32) * HAL_SRNG_RING_ID_MAX;
-	dma_free_coherent(ab->dev, size,
+	dma_free_coherent(hal->dev, size,
 			  hal->rdp.vaddr, hal->rdp.paddr);
 	hal->rdp.vaddr = NULL;
 }
 
-static int ath12k_hal_alloc_cont_wrp(struct ath12k_base *ab)
+static int ath12k_hal_alloc_cont_wrp(struct ath12k_hal *hal)
 {
-	struct ath12k_hal *hal = &ab->hal;
 	size_t size;
 
 	size = sizeof(u32) * (HAL_SRNG_NUM_PMAC_RINGS + HAL_SRNG_NUM_DMAC_RINGS);
-	hal->wrp.vaddr = dma_alloc_coherent(ab->dev, size, &hal->wrp.paddr,
+	hal->wrp.vaddr = dma_alloc_coherent(hal->dev, size, &hal->wrp.paddr,
 					    GFP_KERNEL);
 	if (!hal->wrp.vaddr)
 		return -ENOMEM;
@@ -99,16 +96,15 @@ static int ath12k_hal_alloc_cont_wrp(struct ath12k_base *ab)
 	return 0;
 }
 
-static void ath12k_hal_free_cont_wrp(struct ath12k_base *ab)
+static void ath12k_hal_free_cont_wrp(struct ath12k_hal *hal)
 {
-	struct ath12k_hal *hal = &ab->hal;
 	size_t size;
 
 	if (!hal->wrp.vaddr)
 		return;
 
 	size = sizeof(u32) * (HAL_SRNG_NUM_PMAC_RINGS + HAL_SRNG_NUM_DMAC_RINGS);
-	dma_free_coherent(ab->dev, size,
+	dma_free_coherent(hal->dev, size,
 			  hal->wrp.vaddr, hal->wrp.paddr);
 	hal->wrp.vaddr = NULL;
 }
@@ -143,17 +139,17 @@ static void ath12k_hal_srng_dst_hw_init(struct ath12k_base *ab,
 
 	if (srng->flags & HAL_SRNG_FLAGS_MSI_INTR) {
 		ath12k_hif_write32(ab, reg_base +
-				   ath12k_hal_reo1_ring_msi1_base_lsb_offset(ab),
+				   ath12k_hal_reo1_ring_msi1_base_lsb_offset(hal),
 				   srng->msi_addr);
 
 		val = u32_encode_bits(((u64)srng->msi_addr >> HAL_ADDR_MSB_REG_SHIFT),
 				      HAL_REO1_RING_MSI1_BASE_MSB_ADDR) |
 				      HAL_REO1_RING_MSI1_BASE_MSB_MSI1_ENABLE;
 		ath12k_hif_write32(ab, reg_base +
-				   ath12k_hal_reo1_ring_msi1_base_msb_offset(ab), val);
+				   ath12k_hal_reo1_ring_msi1_base_msb_offset(hal), val);
 
 		ath12k_hif_write32(ab,
-				   reg_base + ath12k_hal_reo1_ring_msi1_data_offset(ab),
+				   reg_base + ath12k_hal_reo1_ring_msi1_data_offset(hal),
 				   srng->msi_data);
 	}
 
@@ -163,11 +159,11 @@ static void ath12k_hal_srng_dst_hw_init(struct ath12k_base *ab,
 			      HAL_REO1_RING_BASE_MSB_RING_BASE_ADDR_MSB) |
 	      u32_encode_bits((srng->entry_size * srng->num_entries),
 			      HAL_REO1_RING_BASE_MSB_RING_SIZE);
-	ath12k_hif_write32(ab, reg_base + ath12k_hal_reo1_ring_base_msb_offset(ab), val);
+	ath12k_hif_write32(ab, reg_base + ath12k_hal_reo1_ring_base_msb_offset(hal), val);
 
 	val = u32_encode_bits(srng->ring_id, HAL_REO1_RING_ID_RING_ID) |
 	      u32_encode_bits(srng->entry_size, HAL_REO1_RING_ID_ENTRY_SIZE);
-	ath12k_hif_write32(ab, reg_base + ath12k_hal_reo1_ring_id_offset(ab), val);
+	ath12k_hif_write32(ab, reg_base + ath12k_hal_reo1_ring_id_offset(hal), val);
 
 	/* interrupt setup */
 	val = u32_encode_bits((srng->intr_timer_thres_us >> 3),
@@ -177,15 +173,15 @@ static void ath12k_hal_srng_dst_hw_init(struct ath12k_base *ab,
 				HAL_REO1_RING_PRDR_INT_SETUP_BATCH_COUNTER_THOLD);
 
 	ath12k_hif_write32(ab,
-			   reg_base + ath12k_hal_reo1_ring_producer_int_setup_offset(ab),
+			   reg_base + ath12k_hal_reo1_ring_producer_int_setup_offset(hal),
 			   val);
 
 	hp_addr = hal->rdp.paddr +
 		  ((unsigned long)srng->u.dst_ring.hp_addr -
 		   (unsigned long)hal->rdp.vaddr);
-	ath12k_hif_write32(ab, reg_base + ath12k_hal_reo1_ring_hp_addr_lsb_offset(ab),
+	ath12k_hif_write32(ab, reg_base + ath12k_hal_reo1_ring_hp_addr_lsb_offset(hal),
 			   hp_addr & HAL_ADDR_LSB_REG_MASK);
-	ath12k_hif_write32(ab, reg_base + ath12k_hal_reo1_ring_hp_addr_msb_offset(ab),
+	ath12k_hif_write32(ab, reg_base + ath12k_hal_reo1_ring_hp_addr_msb_offset(hal),
 			   hp_addr >> HAL_ADDR_MSB_REG_SHIFT);
 
 	/* Initialize head and tail pointers to indicate ring is empty */
@@ -204,7 +200,7 @@ static void ath12k_hal_srng_dst_hw_init(struct ath12k_base *ab,
 		val |= HAL_REO1_RING_MISC_MSI_SWAP;
 	val |= HAL_REO1_RING_MISC_SRNG_ENABLE;
 
-	ath12k_hif_write32(ab, reg_base + ath12k_hal_reo1_ring_misc_offset(ab), val);
+	ath12k_hif_write32(ab, reg_base + ath12k_hal_reo1_ring_misc_offset(hal), val);
 }
 
 static void ath12k_hal_srng_src_hw_init(struct ath12k_base *ab,
@@ -219,18 +215,18 @@ static void ath12k_hal_srng_src_hw_init(struct ath12k_base *ab,
 
 	if (srng->flags & HAL_SRNG_FLAGS_MSI_INTR) {
 		ath12k_hif_write32(ab, reg_base +
-				   HAL_TCL1_RING_MSI1_BASE_LSB_OFFSET(ab),
+				   HAL_TCL1_RING_MSI1_BASE_LSB_OFFSET(hal),
 				   srng->msi_addr);
 
 		val = u32_encode_bits(((u64)srng->msi_addr >> HAL_ADDR_MSB_REG_SHIFT),
 				      HAL_TCL1_RING_MSI1_BASE_MSB_ADDR) |
 				      HAL_TCL1_RING_MSI1_BASE_MSB_MSI1_ENABLE;
 		ath12k_hif_write32(ab, reg_base +
-				       HAL_TCL1_RING_MSI1_BASE_MSB_OFFSET(ab),
+				       HAL_TCL1_RING_MSI1_BASE_MSB_OFFSET(hal),
 				   val);
 
 		ath12k_hif_write32(ab, reg_base +
-				       HAL_TCL1_RING_MSI1_DATA_OFFSET(ab),
+				       HAL_TCL1_RING_MSI1_DATA_OFFSET(hal),
 				   srng->msi_data);
 	}
 
@@ -240,10 +236,10 @@ static void ath12k_hal_srng_src_hw_init(struct ath12k_base *ab,
 			      HAL_TCL1_RING_BASE_MSB_RING_BASE_ADDR_MSB) |
 	      u32_encode_bits((srng->entry_size * srng->num_entries),
 			      HAL_TCL1_RING_BASE_MSB_RING_SIZE);
-	ath12k_hif_write32(ab, reg_base + HAL_TCL1_RING_BASE_MSB_OFFSET(ab), val);
+	ath12k_hif_write32(ab, reg_base + HAL_TCL1_RING_BASE_MSB_OFFSET(hal), val);
 
 	val = u32_encode_bits(srng->entry_size, HAL_REO1_RING_ID_ENTRY_SIZE);
-	ath12k_hif_write32(ab, reg_base + HAL_TCL1_RING_ID_OFFSET(ab), val);
+	ath12k_hif_write32(ab, reg_base + HAL_TCL1_RING_ID_OFFSET(hal), val);
 
 	val = u32_encode_bits(srng->intr_timer_thres_us,
 			      HAL_TCL1_RING_CONSR_INT_SETUP_IX0_INTR_TMR_THOLD);
@@ -252,7 +248,7 @@ static void ath12k_hal_srng_src_hw_init(struct ath12k_base *ab,
 			       HAL_TCL1_RING_CONSR_INT_SETUP_IX0_BATCH_COUNTER_THOLD);
 
 	ath12k_hif_write32(ab,
-			   reg_base + HAL_TCL1_RING_CONSR_INT_SETUP_IX0_OFFSET(ab),
+			   reg_base + HAL_TCL1_RING_CONSR_INT_SETUP_IX0_OFFSET(hal),
 			   val);
 
 	val = 0;
@@ -261,7 +257,7 @@ static void ath12k_hal_srng_src_hw_init(struct ath12k_base *ab,
 				       HAL_TCL1_RING_CONSR_INT_SETUP_IX1_LOW_THOLD);
 	}
 	ath12k_hif_write32(ab,
-			   reg_base + HAL_TCL1_RING_CONSR_INT_SETUP_IX1_OFFSET(ab),
+			   reg_base + HAL_TCL1_RING_CONSR_INT_SETUP_IX1_OFFSET(hal),
 			   val);
 
 	if (srng->ring_id != HAL_SRNG_RING_ID_WBM_IDLE_LINK) {
@@ -269,10 +265,10 @@ static void ath12k_hal_srng_src_hw_init(struct ath12k_base *ab,
 			  ((unsigned long)srng->u.src_ring.tp_addr -
 			   (unsigned long)hal->rdp.vaddr);
 		ath12k_hif_write32(ab,
-				   reg_base + HAL_TCL1_RING_TP_ADDR_LSB_OFFSET(ab),
+				   reg_base + HAL_TCL1_RING_TP_ADDR_LSB_OFFSET(hal),
 				   tp_addr & HAL_ADDR_LSB_REG_MASK);
 		ath12k_hif_write32(ab,
-				   reg_base + HAL_TCL1_RING_TP_ADDR_MSB_OFFSET(ab),
+				   reg_base + HAL_TCL1_RING_TP_ADDR_MSB_OFFSET(hal),
 				   tp_addr >> HAL_ADDR_MSB_REG_SHIFT);
 	}
 
@@ -299,7 +295,7 @@ static void ath12k_hal_srng_src_hw_init(struct ath12k_base *ab,
 	if (srng->ring_id == HAL_SRNG_RING_ID_WBM_IDLE_LINK)
 		val |= HAL_TCL1_RING_MISC_MSI_RING_ID_DISABLE;
 
-	ath12k_hif_write32(ab, reg_base + HAL_TCL1_RING_MISC_OFFSET(ab), val);
+	ath12k_hif_write32(ab, reg_base + HAL_TCL1_RING_MISC_OFFSET(hal), val);
 }
 
 static void ath12k_hal_srng_hw_init(struct ath12k_base *ab,
@@ -719,6 +715,7 @@ void ath12k_hal_setup_link_idle_list(struct ath12k_base *ab,
 				     u32 nsbufs, u32 tot_link_desc,
 				     u32 end_offset)
 {
+	struct ath12k_hal *hal = &ab->hal;
 	struct ath12k_buffer_addr *link_addr;
 	int i;
 	u32 reg_scatter_buf_sz = HAL_WBM_IDLE_SCATTER_BUF_SIZE / 64;
@@ -744,20 +741,21 @@ void ath12k_hal_setup_link_idle_list(struct ath12k_base *ab,
 
 	ath12k_hif_write32(ab,
 			   HAL_SEQ_WCSS_UMAC_WBM_REG +
-			   HAL_WBM_R0_IDLE_LIST_CONTROL_ADDR(ab),
+			   HAL_WBM_R0_IDLE_LIST_CONTROL_ADDR(hal),
 			   val);
 
 	val = u32_encode_bits(reg_scatter_buf_sz * nsbufs,
 			      HAL_WBM_SCATTER_RING_SIZE_OF_IDLE_LINK_DESC_LIST);
 	ath12k_hif_write32(ab,
-			   HAL_SEQ_WCSS_UMAC_WBM_REG + HAL_WBM_R0_IDLE_LIST_SIZE_ADDR(ab),
+			   HAL_SEQ_WCSS_UMAC_WBM_REG +
+			   HAL_WBM_R0_IDLE_LIST_SIZE_ADDR(hal),
 			   val);
 
 	val = u32_encode_bits(sbuf[0].paddr & HAL_ADDR_LSB_REG_MASK,
 			      BUFFER_ADDR_INFO0_ADDR);
 	ath12k_hif_write32(ab,
 			   HAL_SEQ_WCSS_UMAC_WBM_REG +
-			   HAL_WBM_SCATTERED_RING_BASE_LSB(ab),
+			   HAL_WBM_SCATTERED_RING_BASE_LSB(hal),
 			   val);
 
 	val = u32_encode_bits(BASE_ADDR_MATCH_TAG_VAL,
@@ -766,14 +764,14 @@ void ath12k_hal_setup_link_idle_list(struct ath12k_base *ab,
 			      HAL_WBM_SCATTERED_DESC_MSB_BASE_ADDR_39_32);
 	ath12k_hif_write32(ab,
 			   HAL_SEQ_WCSS_UMAC_WBM_REG +
-			   HAL_WBM_SCATTERED_RING_BASE_MSB(ab),
+			   HAL_WBM_SCATTERED_RING_BASE_MSB(hal),
 			   val);
 
 	/* Setup head and tail pointers for the idle list */
 	val = u32_encode_bits(sbuf[nsbufs - 1].paddr, BUFFER_ADDR_INFO0_ADDR);
 	ath12k_hif_write32(ab,
 			   HAL_SEQ_WCSS_UMAC_WBM_REG +
-			   HAL_WBM_SCATTERED_DESC_PTR_HEAD_INFO_IX0(ab),
+			   HAL_WBM_SCATTERED_DESC_PTR_HEAD_INFO_IX0(hal),
 			   val);
 
 	val = u32_encode_bits(((u64)sbuf[nsbufs - 1].paddr >> HAL_ADDR_MSB_REG_SHIFT),
@@ -782,19 +780,19 @@ void ath12k_hal_setup_link_idle_list(struct ath12k_base *ab,
 			       HAL_WBM_SCATTERED_DESC_HEAD_P_OFFSET_IX1);
 	ath12k_hif_write32(ab,
 			   HAL_SEQ_WCSS_UMAC_WBM_REG +
-			   HAL_WBM_SCATTERED_DESC_PTR_HEAD_INFO_IX1(ab),
+			   HAL_WBM_SCATTERED_DESC_PTR_HEAD_INFO_IX1(hal),
 			   val);
 
 	val = u32_encode_bits(sbuf[0].paddr, BUFFER_ADDR_INFO0_ADDR);
 	ath12k_hif_write32(ab,
 			   HAL_SEQ_WCSS_UMAC_WBM_REG +
-			   HAL_WBM_SCATTERED_DESC_PTR_HEAD_INFO_IX0(ab),
+			   HAL_WBM_SCATTERED_DESC_PTR_HEAD_INFO_IX0(hal),
 			   val);
 
 	val = u32_encode_bits(sbuf[0].paddr, BUFFER_ADDR_INFO0_ADDR);
 	ath12k_hif_write32(ab,
 			   HAL_SEQ_WCSS_UMAC_WBM_REG +
-			   HAL_WBM_SCATTERED_DESC_PTR_TAIL_INFO_IX0(ab),
+			   HAL_WBM_SCATTERED_DESC_PTR_TAIL_INFO_IX0(hal),
 			   val);
 
 	val = u32_encode_bits(((u64)sbuf[0].paddr >> HAL_ADDR_MSB_REG_SHIFT),
@@ -802,13 +800,13 @@ void ath12k_hal_setup_link_idle_list(struct ath12k_base *ab,
 	      u32_encode_bits(0, HAL_WBM_SCATTERED_DESC_TAIL_P_OFFSET_IX1);
 	ath12k_hif_write32(ab,
 			   HAL_SEQ_WCSS_UMAC_WBM_REG +
-			   HAL_WBM_SCATTERED_DESC_PTR_TAIL_INFO_IX1(ab),
+			   HAL_WBM_SCATTERED_DESC_PTR_TAIL_INFO_IX1(hal),
 			   val);
 
 	val = 2 * tot_link_desc;
 	ath12k_hif_write32(ab,
 			   HAL_SEQ_WCSS_UMAC_WBM_REG +
-			   HAL_WBM_SCATTERED_DESC_PTR_HP_ADDR(ab),
+			   HAL_WBM_SCATTERED_DESC_PTR_HP_ADDR(hal),
 			   val);
 
 	/* Enable the SRNG */
@@ -816,7 +814,7 @@ void ath12k_hal_setup_link_idle_list(struct ath12k_base *ab,
 	      u32_encode_bits(1, HAL_WBM_IDLE_LINK_RING_MISC_RIND_ID_DISABLE);
 	ath12k_hif_write32(ab,
 			   HAL_SEQ_WCSS_UMAC_WBM_REG +
-			   HAL_WBM_IDLE_LINK_RING_MISC_ADDR(ab),
+			   HAL_WBM_IDLE_LINK_RING_MISC_ADDR(hal),
 			   val);
 }
 
@@ -1047,18 +1045,16 @@ void ath12k_hal_srng_shadow_update_hp_tp(struct ath12k_base *ab,
 		ath12k_hal_srng_access_end(ab, srng);
 }
 
-static void ath12k_hal_register_srng_lock_keys(struct ath12k_base *ab)
+static void ath12k_hal_register_srng_lock_keys(struct ath12k_hal *hal)
 {
-	struct ath12k_hal *hal = &ab->hal;
 	u32 ring_id;
 
 	for (ring_id = 0; ring_id < HAL_SRNG_RING_ID_MAX; ring_id++)
 		lockdep_register_key(&hal->srng_list[ring_id].lock_key);
 }
 
-static void ath12k_hal_unregister_srng_lock_keys(struct ath12k_base *ab)
+static void ath12k_hal_unregister_srng_lock_keys(struct ath12k_hal *hal)
 {
-	struct ath12k_hal *hal = &ab->hal;
 	u32 ring_id;
 
 	for (ring_id = 0; ring_id < HAL_SRNG_RING_ID_MAX; ring_id++)
@@ -1067,26 +1063,29 @@ static void ath12k_hal_unregister_srng_lock_keys(struct ath12k_base *ab)
 
 int ath12k_hal_srng_init(struct ath12k_base *ab)
 {
+	struct ath12k_hal *hal = &ab->hal;
 	int ret;
 
-	ret = ab->hal.hal_ops->create_srng_config(ab);
+	ret = hal->hal_ops->create_srng_config(hal);
 	if (ret)
 		goto err_hal;
 
-	ret = ath12k_hal_alloc_cont_rdp(ab);
+	hal->dev = ab->dev;
+
+	ret = ath12k_hal_alloc_cont_rdp(hal);
 	if (ret)
 		goto err_hal;
 
-	ret = ath12k_hal_alloc_cont_wrp(ab);
+	ret = ath12k_hal_alloc_cont_wrp(hal);
 	if (ret)
 		goto err_free_cont_rdp;
 
-	ath12k_hal_register_srng_lock_keys(ab);
+	ath12k_hal_register_srng_lock_keys(hal);
 
 	return 0;
 
 err_free_cont_rdp:
-	ath12k_hal_free_cont_rdp(ab);
+	ath12k_hal_free_cont_rdp(hal);
 
 err_hal:
 	return ret;
@@ -1096,9 +1095,9 @@ void ath12k_hal_srng_deinit(struct ath12k_base *ab)
 {
 	struct ath12k_hal *hal = &ab->hal;
 
-	ath12k_hal_unregister_srng_lock_keys(ab);
-	ath12k_hal_free_cont_rdp(ab);
-	ath12k_hal_free_cont_wrp(ab);
+	ath12k_hal_unregister_srng_lock_keys(hal);
+	ath12k_hal_free_cont_rdp(hal);
+	ath12k_hal_free_cont_wrp(hal);
 	kfree(hal->srng_config);
 	hal->srng_config = NULL;
 }

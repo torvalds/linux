@@ -915,6 +915,8 @@ void ath12k_wifi7_hal_reo_init_cmd_ring(struct ath12k_base *ab,
 
 void ath12k_wifi7_hal_reo_hw_setup(struct ath12k_base *ab, u32 ring_hash_map)
 {
+	struct ath12k_hal *hal = &ab->hal;
+
 	u32 reo_base = HAL_SEQ_WCSS_UMAC_REO_REG;
 	u32 val;
 
@@ -924,7 +926,7 @@ void ath12k_wifi7_hal_reo_hw_setup(struct ath12k_base *ab, u32 ring_hash_map)
 	       u32_encode_bits(1, HAL_REO1_GEN_ENABLE_AGING_FLUSH_ENABLE);
 	ath12k_hif_write32(ab, reo_base + HAL_REO1_GEN_ENABLE, val);
 
-	val = ath12k_hif_read32(ab, reo_base + HAL_REO1_MISC_CTRL_ADDR(ab));
+	val = ath12k_hif_read32(ab, reo_base + HAL_REO1_MISC_CTRL_ADDR(hal));
 
 	val &= ~(HAL_REO1_MISC_CTL_FRAG_DST_RING |
 		 HAL_REO1_MISC_CTL_BAR_DST_RING);
@@ -932,15 +934,15 @@ void ath12k_wifi7_hal_reo_hw_setup(struct ath12k_base *ab, u32 ring_hash_map)
 			       HAL_REO1_MISC_CTL_FRAG_DST_RING);
 	val |= u32_encode_bits(HAL_SRNG_RING_ID_REO2SW0,
 			       HAL_REO1_MISC_CTL_BAR_DST_RING);
-	ath12k_hif_write32(ab, reo_base + HAL_REO1_MISC_CTRL_ADDR(ab), val);
+	ath12k_hif_write32(ab, reo_base + HAL_REO1_MISC_CTRL_ADDR(hal), val);
 
-	ath12k_hif_write32(ab, reo_base + HAL_REO1_AGING_THRESH_IX_0(ab),
+	ath12k_hif_write32(ab, reo_base + HAL_REO1_AGING_THRESH_IX_0(hal),
 			   HAL_DEFAULT_BE_BK_VI_REO_TIMEOUT_USEC);
-	ath12k_hif_write32(ab, reo_base + HAL_REO1_AGING_THRESH_IX_1(ab),
+	ath12k_hif_write32(ab, reo_base + HAL_REO1_AGING_THRESH_IX_1(hal),
 			   HAL_DEFAULT_BE_BK_VI_REO_TIMEOUT_USEC);
-	ath12k_hif_write32(ab, reo_base + HAL_REO1_AGING_THRESH_IX_2(ab),
+	ath12k_hif_write32(ab, reo_base + HAL_REO1_AGING_THRESH_IX_2(hal),
 			   HAL_DEFAULT_BE_BK_VI_REO_TIMEOUT_USEC);
-	ath12k_hif_write32(ab, reo_base + HAL_REO1_AGING_THRESH_IX_3(ab),
+	ath12k_hif_write32(ab, reo_base + HAL_REO1_AGING_THRESH_IX_3(hal),
 			   HAL_DEFAULT_VO_REO_TIMEOUT_USEC);
 
 	ath12k_hif_write32(ab, reo_base + HAL_REO1_DEST_RING_CTRL_IX_2,
@@ -952,16 +954,17 @@ void ath12k_wifi7_hal_reo_hw_setup(struct ath12k_base *ab, u32 ring_hash_map)
 void ath12k_hal_reo_shared_qaddr_cache_clear(struct ath12k_base *ab)
 {
 	u32 val;
+	struct ath12k_hal *hal = &ab->hal;
 
 	lockdep_assert_held(&ab->base_lock);
 	val = ath12k_hif_read32(ab, HAL_SEQ_WCSS_UMAC_REO_REG +
-				HAL_REO1_QDESC_ADDR(ab));
+				HAL_REO1_QDESC_ADDR(hal));
 
 	val |= u32_encode_bits(1, HAL_REO_QDESC_ADDR_READ_CLEAR_QDESC_ARRAY);
 	ath12k_hif_write32(ab, HAL_SEQ_WCSS_UMAC_REO_REG +
-			   HAL_REO1_QDESC_ADDR(ab), val);
+			   HAL_REO1_QDESC_ADDR(hal), val);
 
 	val &= ~HAL_REO_QDESC_ADDR_READ_CLEAR_QDESC_ARRAY;
 	ath12k_hif_write32(ab, HAL_SEQ_WCSS_UMAC_REO_REG +
-			   HAL_REO1_QDESC_ADDR(ab), val);
+			   HAL_REO1_QDESC_ADDR(hal), val);
 }

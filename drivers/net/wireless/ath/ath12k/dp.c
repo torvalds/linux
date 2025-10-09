@@ -1150,7 +1150,7 @@ static void ath12k_dp_reoq_lut_cleanup(struct ath12k_base *ab)
 	if (dp->reoq_lut.vaddr_unaligned) {
 		ath12k_hif_write32(ab,
 				   HAL_SEQ_WCSS_UMAC_REO_REG +
-				   HAL_REO1_QDESC_LUT_BASE0(ab), 0);
+				   HAL_REO1_QDESC_LUT_BASE0(dp->hal), 0);
 		dma_free_coherent(ab->dev, dp->reoq_lut.size,
 				  dp->reoq_lut.vaddr_unaligned,
 				  dp->reoq_lut.paddr_unaligned);
@@ -1160,7 +1160,7 @@ static void ath12k_dp_reoq_lut_cleanup(struct ath12k_base *ab)
 	if (dp->ml_reoq_lut.vaddr_unaligned) {
 		ath12k_hif_write32(ab,
 				   HAL_SEQ_WCSS_UMAC_REO_REG +
-				   HAL_REO1_QDESC_LUT_BASE1(ab), 0);
+				   HAL_REO1_QDESC_LUT_BASE1(dp->hal), 0);
 		dma_free_coherent(ab->dev, dp->ml_reoq_lut.size,
 				  dp->ml_reoq_lut.vaddr_unaligned,
 				  dp->ml_reoq_lut.paddr_unaligned);
@@ -1201,11 +1201,12 @@ void ath12k_dp_cc_config(struct ath12k_base *ab)
 	u32 reo_base = HAL_SEQ_WCSS_UMAC_REO_REG;
 	u32 wbm_base = HAL_SEQ_WCSS_UMAC_WBM_REG;
 	u32 val = 0;
+	struct ath12k_hal *hal = &ab->hal;
 
 	if (ath12k_ftm_mode)
 		return;
 
-	ath12k_hif_write32(ab, reo_base + HAL_REO1_SW_COOKIE_CFG0(ab), cmem_base);
+	ath12k_hif_write32(ab, reo_base + HAL_REO1_SW_COOKIE_CFG0(hal), cmem_base);
 
 	val |= u32_encode_bits(ATH12K_CMEM_ADDR_MSB,
 			       HAL_REO1_SW_COOKIE_CFG_CMEM_BASE_ADDR_MSB) |
@@ -1217,7 +1218,7 @@ void ath12k_dp_cc_config(struct ath12k_base *ab)
 		u32_encode_bits(1, HAL_REO1_SW_COOKIE_CFG_ENABLE) |
 		u32_encode_bits(1, HAL_REO1_SW_COOKIE_CFG_GLOBAL_ENABLE);
 
-	ath12k_hif_write32(ab, reo_base + HAL_REO1_SW_COOKIE_CFG1(ab), val);
+	ath12k_hif_write32(ab, reo_base + HAL_REO1_SW_COOKIE_CFG1(hal), val);
 
 	/* Enable HW CC for WBM */
 	ath12k_hif_write32(ab, wbm_base + HAL_WBM_SW_COOKIE_CFG0, cmem_base);
@@ -1243,7 +1244,7 @@ void ath12k_dp_cc_config(struct ath12k_base *ab)
 	/* Enable Cookie conversion for WBM2SW Rings */
 	val = ath12k_hif_read32(ab, wbm_base + HAL_WBM_SW_COOKIE_CONVERT_CFG);
 	val |= u32_encode_bits(1, HAL_WBM_SW_COOKIE_CONV_CFG_GLOBAL_EN) |
-	       ab->hal.hal_params->wbm2sw_cc_enable;
+	       hal->hal_params->wbm2sw_cc_enable;
 
 	ath12k_hif_write32(ab, wbm_base + HAL_WBM_SW_COOKIE_CONVERT_CFG, val);
 }
@@ -1537,6 +1538,7 @@ static int ath12k_dp_alloc_reoq_lut(struct ath12k_base *ab,
 static int ath12k_dp_reoq_lut_setup(struct ath12k_base *ab)
 {
 	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
+	struct ath12k_hal *hal = dp->hal;
 	u32 val;
 	int ret;
 
@@ -1565,18 +1567,18 @@ static int ath12k_dp_reoq_lut_setup(struct ath12k_base *ab)
 	 * register only
 	 */
 
-	ath12k_hif_write32(ab, HAL_SEQ_WCSS_UMAC_REO_REG + HAL_REO1_QDESC_LUT_BASE0(ab),
+	ath12k_hif_write32(ab, HAL_SEQ_WCSS_UMAC_REO_REG + HAL_REO1_QDESC_LUT_BASE0(hal),
 			   dp->reoq_lut.paddr >> 8);
 
-	ath12k_hif_write32(ab, HAL_SEQ_WCSS_UMAC_REO_REG + HAL_REO1_QDESC_LUT_BASE1(ab),
+	ath12k_hif_write32(ab, HAL_SEQ_WCSS_UMAC_REO_REG + HAL_REO1_QDESC_LUT_BASE1(hal),
 			   dp->ml_reoq_lut.paddr >> 8);
 
-	val = ath12k_hif_read32(ab, HAL_SEQ_WCSS_UMAC_REO_REG + HAL_REO1_QDESC_ADDR(ab));
+	val = ath12k_hif_read32(ab, HAL_SEQ_WCSS_UMAC_REO_REG + HAL_REO1_QDESC_ADDR(hal));
 
-	ath12k_hif_write32(ab, HAL_SEQ_WCSS_UMAC_REO_REG + HAL_REO1_QDESC_ADDR(ab),
+	ath12k_hif_write32(ab, HAL_SEQ_WCSS_UMAC_REO_REG + HAL_REO1_QDESC_ADDR(hal),
 			   val | HAL_REO_QDESC_ADDR_READ_LUT_ENABLE);
 
-	ath12k_hif_write32(ab, HAL_SEQ_WCSS_UMAC_REO_REG + HAL_REO1_QDESC_MAX_PEERID(ab),
+	ath12k_hif_write32(ab, HAL_SEQ_WCSS_UMAC_REO_REG + HAL_REO1_QDESC_MAX_PEERID(hal),
 			   HAL_REO_QDESC_MAX_PEERID);
 
 	return 0;
