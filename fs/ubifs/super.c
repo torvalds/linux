@@ -114,7 +114,7 @@ struct inode *ubifs_iget(struct super_block *sb, unsigned long inum)
 	inode = iget_locked(sb, inum);
 	if (!inode)
 		return ERR_PTR(-ENOMEM);
-	if (!(inode->i_state & I_NEW))
+	if (!(inode_state_read_once(inode) & I_NEW))
 		return inode;
 	ui = ubifs_inode(inode);
 
