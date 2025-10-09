@@ -447,6 +447,7 @@ struct ath12k_dp {
 	struct ath12k_reo_q_addr_lut ml_reoq_lut;
 	const struct ath12k_hw_params *hw_params;
 	struct device *dev;
+	struct ath12k_hal *hal;
 
 	/* RCU on dp_pdevs[] provides a teardown synchronization mechanism,
 	 * ensuring in-flight data path readers complete before reclaim. Writers

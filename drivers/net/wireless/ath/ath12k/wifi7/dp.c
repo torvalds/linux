@@ -152,6 +152,7 @@ struct ath12k_dp *ath12k_wifi7_dp_device_alloc(struct ath12k_base *ab)
 	dp->ab = ab;
 	dp->dev = ab->dev;
 	dp->hw_params = ab->hw_params;
+	dp->hal = &ab->hal;
 
 	dp->ops = &ath12k_wifi7_dp_arch_ops;
 
