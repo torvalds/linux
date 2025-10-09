@@ -6454,6 +6454,8 @@ int rtl8xxxu_parse_rxdesc16(struct rtl8xxxu_priv *priv, struct sk_buff *skb)
 					rtl8xxxu_rx_update_rssi(priv,
 								rx_status,
 								hdr);
+			} else {
+				rx_status->flag |= RX_FLAG_NO_SIGNAL_VAL;
 			}
 
 			rx_status->mactime = rx_desc->tsfl;
@@ -6560,6 +6562,8 @@ int rtl8xxxu_parse_rxdesc24(struct rtl8xxxu_priv *priv, struct sk_buff *skb)
 					rtl8xxxu_rx_update_rssi(priv,
 								rx_status,
 								hdr);
+			} else {
+				rx_status->flag |= RX_FLAG_NO_SIGNAL_VAL;
 			}
 
 			rx_status->mactime = rx_desc->tsfl;
