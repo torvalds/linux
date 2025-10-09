@@ -401,17 +401,8 @@ static int icl_plane_min_width(const struct drm_framebuffer *fb,
 			       int color_plane,
 			       unsigned int rotation)
 {
-	int min_width;
-
-	min_width = 16 / fb->format->cpp[color_plane];
-
 	/* Wa_14011264657, Wa_14011050563: gen11+ */
-	if (intel_format_info_is_yuv_semiplanar(fb->format, fb->modifier))
-		min_width += 4;
-	else
-		min_width += 2;
-
-	return min_width;
+	return 16 / fb->format->cpp[color_plane] + 2;
 }
 
 static int xe3_plane_max_width(const struct drm_framebuffer *fb,
@@ -2071,6 +2062,7 @@ static int skl_check_nv12_aux_surface(struct intel_plane_state *plane_state)
 	int uv_plane = 1;
 	int ccs_plane = intel_fb_is_ccs_modifier(fb->modifier) ?
 			skl_main_to_aux_plane(fb, uv_plane) : 0;
+	int min_width = intel_plane_min_width(plane, fb, uv_plane, rotation);
 	int max_width = intel_plane_max_width(plane, fb, uv_plane, rotation);
 	int max_height = intel_plane_max_height(plane, fb, uv_plane, rotation);
 	int x = plane_state->uapi.src.x1 >> 17;
@@ -2080,11 +2072,11 @@ static int skl_check_nv12_aux_surface(struct intel_plane_state *plane_state)
 	u32 offset;
 
 	/* FIXME not quite sure how/if these apply to the chroma plane */
-	if (w > max_width || h > max_height) {
+	if (w > max_width || w < min_width || h > max_height || h < 1) {
 		drm_dbg_kms(display->drm,
-			    "[PLANE:%d:%s] CbCr source size %dx%d too big (limit %dx%d)\n",
+			    "[PLANE:%d:%s] requested CbCr source size %dx%d outside limits (min: %dx1 max: %dx%d)\n",
 			    plane->base.base.id, plane->base.name,
-			    w, h, max_width, max_height);
+			    w, h, min_width, max_width, max_height);
 		return -EINVAL;
 	}
 
