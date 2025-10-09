@@ -51,6 +51,11 @@ int ath12k_hal_srng_update_shadow_config(struct ath12k_base *ab,
 							  ring_num);
 }
 
+u32 ath12k_hal_ce_get_desc_size(struct ath12k_hal *hal, enum hal_ce_desc type)
+{
+	return hal->hal_ops->ce_get_desc_size(type);
+}
+
 static int ath12k_hal_alloc_cont_rdp(struct ath12k_hal *hal)
 {
 	size_t size;
@@ -185,40 +190,19 @@ dma_addr_t ath12k_hal_srng_get_tp_addr(struct ath12k_base *ab,
 			(unsigned long)ab->hal.wrp.vaddr);
 }
 
-u32 ath12k_hal_ce_get_desc_size(enum hal_ce_desc type)
+void ath12k_hal_ce_src_set_desc(struct ath12k_hal *hal,
+				struct hal_ce_srng_src_desc *desc,
+				dma_addr_t paddr, u32 len, u32 id,
+				u8 byte_swap_data)
 {
-	switch (type) {
-	case HAL_CE_DESC_SRC:
-		return sizeof(struct hal_ce_srng_src_desc);
-	case HAL_CE_DESC_DST:
-		return sizeof(struct hal_ce_srng_dest_desc);
-	case HAL_CE_DESC_DST_STATUS:
-		return sizeof(struct hal_ce_srng_dst_status_desc);
-	}
-
-	return 0;
+	hal->hal_ops->ce_src_set_desc(desc, paddr, len, id, byte_swap_data);
 }
 
-void ath12k_hal_ce_src_set_desc(struct hal_ce_srng_src_desc *desc, dma_addr_t paddr,
-				u32 len, u32 id, u8 byte_swap_data)
+void ath12k_hal_ce_dst_set_desc(struct ath12k_hal *hal,
+				struct hal_ce_srng_dest_desc *desc,
+				dma_addr_t paddr)
 {
-	desc->buffer_addr_low = cpu_to_le32(paddr & HAL_ADDR_LSB_REG_MASK);
-	desc->buffer_addr_info =
-		le32_encode_bits(((u64)paddr >> HAL_ADDR_MSB_REG_SHIFT),
-				 HAL_CE_SRC_DESC_ADDR_INFO_ADDR_HI) |
-		le32_encode_bits(byte_swap_data,
-				 HAL_CE_SRC_DESC_ADDR_INFO_BYTE_SWAP) |
-		le32_encode_bits(0, HAL_CE_SRC_DESC_ADDR_INFO_GATHER) |
-		le32_encode_bits(len, HAL_CE_SRC_DESC_ADDR_INFO_LEN);
-	desc->meta_info = le32_encode_bits(id, HAL_CE_SRC_DESC_META_INFO_DATA);
-}
-
-void ath12k_hal_ce_dst_set_desc(struct hal_ce_srng_dest_desc *desc, dma_addr_t paddr)
-{
-	desc->buffer_addr_low = cpu_to_le32(paddr & HAL_ADDR_LSB_REG_MASK);
-	desc->buffer_addr_info =
-		le32_encode_bits(((u64)paddr >> HAL_ADDR_MSB_REG_SHIFT),
-				 HAL_CE_DEST_DESC_ADDR_INFO_ADDR_HI);
+	hal->hal_ops->ce_dst_set_desc(desc, paddr);
 }
 
 u32 ath12k_hal_ce_dst_status_get_length(struct hal_ce_srng_dst_status_desc *desc)

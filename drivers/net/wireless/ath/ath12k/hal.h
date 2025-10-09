@@ -1707,6 +1707,12 @@ struct hal_ops {
 					 int ring_num);
 	int (*srng_get_ring_id)(struct ath12k_hal *hal, enum hal_ring_type type,
 				int ring_num, int mac_id);
+	u32 (*ce_get_desc_size)(enum hal_ce_desc type);
+	void (*ce_src_set_desc)(struct hal_ce_srng_src_desc *desc,
+				dma_addr_t paddr, u32 len, u32 id,
+				u8 byte_swap_data);
+	void (*ce_dst_set_desc)(struct hal_ce_srng_dest_desc *desc,
+				dma_addr_t paddr);
 };
 
 u32 ath12k_wifi7_hal_reo_qdesc_size(u32 ba_window_size, u8 tid);
@@ -1729,10 +1735,14 @@ dma_addr_t ath12k_hal_srng_get_hp_addr(struct ath12k_base *ab,
 void ath12k_hal_set_link_desc_addr(struct hal_wbm_link_desc *desc, u32 cookie,
 				   dma_addr_t paddr,
 				   enum hal_rx_buf_return_buf_manager rbm);
-u32 ath12k_hal_ce_get_desc_size(enum hal_ce_desc type);
-void ath12k_hal_ce_src_set_desc(struct hal_ce_srng_src_desc *desc, dma_addr_t paddr,
-				u32 len, u32 id, u8 byte_swap_data);
-void ath12k_hal_ce_dst_set_desc(struct hal_ce_srng_dest_desc *desc, dma_addr_t paddr);
+u32 ath12k_hal_ce_get_desc_size(struct ath12k_hal *hal, enum hal_ce_desc type);
+void ath12k_hal_ce_dst_set_desc(struct ath12k_hal *hal,
+				struct hal_ce_srng_dest_desc *desc,
+				dma_addr_t paddr);
+void ath12k_hal_ce_src_set_desc(struct ath12k_hal *hal,
+				struct hal_ce_srng_src_desc *desc,
+				dma_addr_t paddr, u32 len, u32 id,
+				u8 byte_swap_data);
 u32 ath12k_hal_ce_dst_status_get_length(struct hal_ce_srng_dst_status_desc *desc);
 int ath12k_hal_srng_get_entrysize(struct ath12k_base *ab, u32 ring_type);
 int ath12k_hal_srng_get_max_entries(struct ath12k_base *ab, u32 ring_type);

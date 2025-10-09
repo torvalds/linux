@@ -22,4 +22,10 @@ int ath12k_wifi7_hal_srng_update_shadow_config(struct ath12k_base *ab,
 int ath12k_wifi7_hal_srng_get_ring_id(struct ath12k_hal *hal,
 				      enum hal_ring_type type,
 				      int ring_num, int mac_id);
+u32 ath12k_wifi7_hal_ce_get_desc_size(enum hal_ce_desc type);
+void ath12k_wifi7_hal_ce_src_set_desc(struct hal_ce_srng_src_desc *desc,
+				      dma_addr_t paddr,
+				      u32 len, u32 id, u8 byte_swap_data);
+void ath12k_wifi7_hal_ce_dst_set_desc(struct hal_ce_srng_dest_desc *desc,
+				      dma_addr_t paddr);
 #endif

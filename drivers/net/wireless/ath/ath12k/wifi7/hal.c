@@ -382,6 +382,20 @@ void ath12k_wifi7_hal_srng_update_hp_tp_addr(struct ath12k_base *ab,
 						   (unsigned long)ab->mem);
 }
 
+u32 ath12k_wifi7_hal_ce_get_desc_size(enum hal_ce_desc type)
+{
+	switch (type) {
+	case HAL_CE_DESC_SRC:
+		return sizeof(struct hal_ce_srng_src_desc);
+	case HAL_CE_DESC_DST:
+		return sizeof(struct hal_ce_srng_dest_desc);
+	case HAL_CE_DESC_DST_STATUS:
+		return sizeof(struct hal_ce_srng_dst_status_desc);
+	}
+
+	return 0;
+}
+
 int ath12k_wifi7_hal_srng_update_shadow_config(struct ath12k_base *ab,
 					       enum hal_ring_type ring_type,
 					       int ring_num)
@@ -418,4 +432,28 @@ int ath12k_wifi7_hal_srng_update_shadow_config(struct ath12k_base *ab,
 		  ring_type, ring_num);
 
 	return 0;
+}
+
+void ath12k_wifi7_hal_ce_src_set_desc(struct hal_ce_srng_src_desc *desc,
+				      dma_addr_t paddr,
+				      u32 len, u32 id, u8 byte_swap_data)
+{
+	desc->buffer_addr_low = cpu_to_le32(paddr & HAL_ADDR_LSB_REG_MASK);
+	desc->buffer_addr_info =
+		le32_encode_bits(((u64)paddr >> HAL_ADDR_MSB_REG_SHIFT),
+				 HAL_CE_SRC_DESC_ADDR_INFO_ADDR_HI) |
+		le32_encode_bits(byte_swap_data,
+				 HAL_CE_SRC_DESC_ADDR_INFO_BYTE_SWAP) |
+		le32_encode_bits(0, HAL_CE_SRC_DESC_ADDR_INFO_GATHER) |
+		le32_encode_bits(len, HAL_CE_SRC_DESC_ADDR_INFO_LEN);
+	desc->meta_info = le32_encode_bits(id, HAL_CE_SRC_DESC_META_INFO_DATA);
+}
+
+void ath12k_wifi7_hal_ce_dst_set_desc(struct hal_ce_srng_dest_desc *desc,
+				      dma_addr_t paddr)
+{
+	desc->buffer_addr_low = cpu_to_le32(paddr & HAL_ADDR_LSB_REG_MASK);
+	desc->buffer_addr_info =
+		le32_encode_bits(((u64)paddr >> HAL_ADDR_MSB_REG_SHIFT),
+				 HAL_CE_DEST_DESC_ADDR_INFO_ADDR_HI);
 }

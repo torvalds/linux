@@ -821,5 +821,8 @@ const struct hal_ops hal_wcn7850_ops = {
 	.set_umac_srng_ptr_addr = ath12k_wifi7_hal_set_umac_srng_ptr_addr,
 	.srng_update_shadow_config = ath12k_wifi7_hal_srng_update_shadow_config,
 	.srng_get_ring_id = ath12k_wifi7_hal_srng_get_ring_id,
+	.ce_get_desc_size = ath12k_wifi7_hal_ce_get_desc_size,
+	.ce_src_set_desc = ath12k_wifi7_hal_ce_src_set_desc,
+	.ce_dst_set_desc = ath12k_wifi7_hal_ce_dst_set_desc,
 };
 EXPORT_SYMBOL(hal_wcn7850_ops);
