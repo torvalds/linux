@@ -3675,34 +3675,21 @@ err_out:
 	return -EFAULT;
 }
 
-/**
- * bpf_strnstr - Find the first substring in a length-limited string
- * @s1__ign: The string to be searched
- * @s2__ign: The string to search for
- * @len: the maximum number of characters to search
- *
- * Return:
- * * >=0      - Index of the first character of the first occurrence of @s2__ign
- *              within the first @len characters of @s1__ign
- * * %-ENOENT - @s2__ign not found in the first @len characters of @s1__ign
- * * %-EFAULT - Cannot read one of the strings
- * * %-E2BIG  - One of the strings is too large
- * * %-ERANGE - One of the strings is outside of kernel address space
- */
-__bpf_kfunc int bpf_strnstr(const char *s1__ign, const char *s2__ign, size_t len)
+static int __bpf_strnstr(const char *s1, const char *s2, size_t len,
+			 bool ignore_case)
 {
 	char c1, c2;
 	int i, j;
 
-	if (!copy_from_kernel_nofault_allowed(s1__ign, 1) ||
-	    !copy_from_kernel_nofault_allowed(s2__ign, 1)) {
+	if (!copy_from_kernel_nofault_allowed(s1, 1) ||
+	    !copy_from_kernel_nofault_allowed(s2, 1)) {
 		return -ERANGE;
 	}
 
 	guard(pagefault)();
 	for (i = 0; i < XATTR_SIZE_MAX; i++) {
 		for (j = 0; i + j <= len && j < XATTR_SIZE_MAX; j++) {
-			__get_kernel_nofault(&c2, s2__ign + j, char, err_out);
+			__get_kernel_nofault(&c2, s2 + j, char, err_out);
 			if (c2 == '\0')
 				return i;
 			/*
@@ -3712,7 +3699,13 @@ __bpf_kfunc int bpf_strnstr(const char *s1__ign, const char *s2__ign, size_t len
 			 */
 			if (i + j == len)
 				break;
-			__get_kernel_nofault(&c1, s1__ign + j, char, err_out);
+			__get_kernel_nofault(&c1, s1 + j, char, err_out);
+
+			if (ignore_case) {
+				c1 = tolower(c1);
+				c2 = tolower(c2);
+			}
+
 			if (c1 == '\0')
 				return -ENOENT;
 			if (c1 != c2)
@@ -3722,7 +3715,7 @@ __bpf_kfunc int bpf_strnstr(const char *s1__ign, const char *s2__ign, size_t len
 			return -E2BIG;
 		if (i + j == len)
 			return -ENOENT;
-		s1__ign++;
+		s1++;
 	}
 	return -E2BIG;
 err_out:
@@ -3744,8 +3737,69 @@ err_out:
  */
 __bpf_kfunc int bpf_strstr(const char *s1__ign, const char *s2__ign)
 {
-	return bpf_strnstr(s1__ign, s2__ign, XATTR_SIZE_MAX);
+	return __bpf_strnstr(s1__ign, s2__ign, XATTR_SIZE_MAX, false);
 }
+
+/**
+ * bpf_strcasestr - Find the first substring in a string, ignoring the case of
+ *                  the characters
+ * @s1__ign: The string to be searched
+ * @s2__ign: The string to search for
+ *
+ * Return:
+ * * >=0      - Index of the first character of the first occurrence of @s2__ign
+ *              within @s1__ign
+ * * %-ENOENT - @s2__ign is not a substring of @s1__ign
+ * * %-EFAULT - Cannot read one of the strings
+ * * %-E2BIG  - One of the strings is too large
+ * * %-ERANGE - One of the strings is outside of kernel address space
+ */
+__bpf_kfunc int bpf_strcasestr(const char *s1__ign, const char *s2__ign)
+{
+	return __bpf_strnstr(s1__ign, s2__ign, XATTR_SIZE_MAX, true);
+}
+
+/**
+ * bpf_strnstr - Find the first substring in a length-limited string
+ * @s1__ign: The string to be searched
+ * @s2__ign: The string to search for
+ * @len: the maximum number of characters to search
+ *
+ * Return:
+ * * >=0      - Index of the first character of the first occurrence of @s2__ign
+ *              within the first @len characters of @s1__ign
+ * * %-ENOENT - @s2__ign not found in the first @len characters of @s1__ign
+ * * %-EFAULT - Cannot read one of the strings
+ * * %-E2BIG  - One of the strings is too large
+ * * %-ERANGE - One of the strings is outside of kernel address space
+ */
+__bpf_kfunc int bpf_strnstr(const char *s1__ign, const char *s2__ign,
+			    size_t len)
+{
+	return __bpf_strnstr(s1__ign, s2__ign, len, false);
+}
+
+/**
+ * bpf_strncasestr - Find the first substring in a length-limited string,
+ *                   ignoring the case of the characters
+ * @s1__ign: The string to be searched
+ * @s2__ign: The string to search for
+ * @len: the maximum number of characters to search
+ *
+ * Return:
+ * * >=0      - Index of the first character of the first occurrence of @s2__ign
+ *              within the first @len characters of @s1__ign
+ * * %-ENOENT - @s2__ign not found in the first @len characters of @s1__ign
+ * * %-EFAULT - Cannot read one of the strings
+ * * %-E2BIG  - One of the strings is too large
+ * * %-ERANGE - One of the strings is outside of kernel address space
+ */
+__bpf_kfunc int bpf_strncasestr(const char *s1__ign, const char *s2__ign,
+				size_t len)
+{
+	return __bpf_strnstr(s1__ign, s2__ign, len, true);
+}
+
 #ifdef CONFIG_KEYS
 /**
  * bpf_lookup_user_key - lookup a key by its serial
@@ -4367,7 +4421,9 @@ BTF_ID_FLAGS(func, bpf_strnlen);
 BTF_ID_FLAGS(func, bpf_strspn);
 BTF_ID_FLAGS(func, bpf_strcspn);
 BTF_ID_FLAGS(func, bpf_strstr);
+BTF_ID_FLAGS(func, bpf_strcasestr);
 BTF_ID_FLAGS(func, bpf_strnstr);
+BTF_ID_FLAGS(func, bpf_strncasestr);
 #if defined(CONFIG_BPF_LSM) && defined(CONFIG_CGROUPS)
 BTF_ID_FLAGS(func, bpf_cgroup_read_xattr, KF_RCU)
 #endif
