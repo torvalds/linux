@@ -1135,7 +1135,7 @@ struct ath12k_hal {
 	} wrp;
 
 	struct device *dev;
-	const struct hal_ops *hal_ops;
+	const struct hal_ops *ops;
 	const struct ath12k_hw_regs *regs;
 	const struct ath12k_hw_hal_params *hal_params;
 	/* Available REO blocking resources bitmap */

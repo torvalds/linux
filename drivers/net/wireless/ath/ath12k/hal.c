@@ -10,76 +10,76 @@
 static void ath12k_hal_ce_dst_setup(struct ath12k_base *ab,
 				    struct hal_srng *srng, int ring_num)
 {
-	ab->hal.hal_ops->ce_dst_setup(ab, srng, ring_num);
+	ab->hal.ops->ce_dst_setup(ab, srng, ring_num);
 }
 
 static void ath12k_hal_srng_src_hw_init(struct ath12k_base *ab,
 					struct hal_srng *srng)
 {
-	ab->hal.hal_ops->srng_src_hw_init(ab, srng);
+	ab->hal.ops->srng_src_hw_init(ab, srng);
 }
 
 static void ath12k_hal_srng_dst_hw_init(struct ath12k_base *ab,
 					struct hal_srng *srng)
 {
-	ab->hal.hal_ops->srng_dst_hw_init(ab, srng);
+	ab->hal.ops->srng_dst_hw_init(ab, srng);
 }
 
 static void ath12k_hal_set_umac_srng_ptr_addr(struct ath12k_base *ab,
 					      struct hal_srng *srng)
 {
-	ab->hal.hal_ops->set_umac_srng_ptr_addr(ab, srng);
+	ab->hal.ops->set_umac_srng_ptr_addr(ab, srng);
 }
 
 static int ath12k_hal_srng_get_ring_id(struct ath12k_hal *hal,
 				       enum hal_ring_type type,
 				       int ring_num, int mac_id)
 {
-	return hal->hal_ops->srng_get_ring_id(hal, type, ring_num, mac_id);
+	return hal->ops->srng_get_ring_id(hal, type, ring_num, mac_id);
 }
 
 int ath12k_hal_srng_update_shadow_config(struct ath12k_base *ab,
 					 enum hal_ring_type ring_type,
 					 int ring_num)
 {
-	return ab->hal.hal_ops->srng_update_shadow_config(ab, ring_type,
+	return ab->hal.ops->srng_update_shadow_config(ab, ring_type,
 							  ring_num);
 }
 
 u32 ath12k_hal_ce_get_desc_size(struct ath12k_hal *hal, enum hal_ce_desc type)
 {
-	return hal->hal_ops->ce_get_desc_size(type);
+	return hal->ops->ce_get_desc_size(type);
 }
 
 void ath12k_hal_tx_set_dscp_tid_map(struct ath12k_base *ab, int id)
 {
-	ab->hal.hal_ops->tx_set_dscp_tid_map(ab, id);
+	ab->hal.ops->tx_set_dscp_tid_map(ab, id);
 }
 
 void ath12k_hal_tx_configure_bank_register(struct ath12k_base *ab,
 					   u32 bank_config, u8 bank_id)
 {
-	ab->hal.hal_ops->tx_configure_bank_register(ab, bank_config, bank_id);
+	ab->hal.ops->tx_configure_bank_register(ab, bank_config, bank_id);
 }
 
 void ath12k_hal_reoq_lut_addr_read_enable(struct ath12k_base *ab)
 {
-	ab->hal.hal_ops->reoq_lut_addr_read_enable(ab);
+	ab->hal.ops->reoq_lut_addr_read_enable(ab);
 }
 
 void ath12k_hal_reoq_lut_set_max_peerid(struct ath12k_base *ab)
 {
-	ab->hal.hal_ops->reoq_lut_set_max_peerid(ab);
+	ab->hal.ops->reoq_lut_set_max_peerid(ab);
 }
 
 void ath12k_hal_write_ml_reoq_lut_addr(struct ath12k_base *ab, dma_addr_t paddr)
 {
-	ab->hal.hal_ops->write_ml_reoq_lut_addr(ab, paddr);
+	ab->hal.ops->write_ml_reoq_lut_addr(ab, paddr);
 }
 
 void ath12k_hal_write_reoq_lut_addr(struct ath12k_base *ab, dma_addr_t paddr)
 {
-	ab->hal.hal_ops->write_reoq_lut_addr(ab, paddr);
+	ab->hal.ops->write_reoq_lut_addr(ab, paddr);
 }
 
 void ath12k_hal_setup_link_idle_list(struct ath12k_base *ab,
@@ -87,25 +87,25 @@ void ath12k_hal_setup_link_idle_list(struct ath12k_base *ab,
 				     u32 nsbufs, u32 tot_link_desc,
 				     u32 end_offset)
 {
-	ab->hal.hal_ops->setup_link_idle_list(ab, sbuf, nsbufs, tot_link_desc,
+	ab->hal.ops->setup_link_idle_list(ab, sbuf, nsbufs, tot_link_desc,
 					      end_offset);
 }
 
 void ath12k_hal_reo_hw_setup(struct ath12k_base *ab, u32 ring_hash_map)
 {
-	ab->hal.hal_ops->reo_hw_setup(ab, ring_hash_map);
+	ab->hal.ops->reo_hw_setup(ab, ring_hash_map);
 }
 
 void ath12k_hal_reo_init_cmd_ring(struct ath12k_base *ab, struct hal_srng *srng)
 {
-	ab->hal.hal_ops->reo_init_cmd_ring(ab, srng);
+	ab->hal.ops->reo_init_cmd_ring(ab, srng);
 }
 
 void ath12k_hal_rx_buf_addr_info_set(struct ath12k_hal *hal,
 				     struct ath12k_buffer_addr *binfo,
 				     dma_addr_t paddr, u32 cookie, u8 manager)
 {
-	hal->hal_ops->rx_buf_addr_info_set(binfo, paddr, cookie, manager);
+	hal->ops->rx_buf_addr_info_set(binfo, paddr, cookie, manager);
 }
 
 void ath12k_hal_rx_buf_addr_info_get(struct ath12k_hal *hal,
@@ -113,18 +113,18 @@ void ath12k_hal_rx_buf_addr_info_get(struct ath12k_hal *hal,
 				     dma_addr_t *paddr, u32 *msdu_cookies,
 				     u8 *rbm)
 {
-	hal->hal_ops->rx_buf_addr_info_get(binfo, paddr, msdu_cookies, rbm);
+	hal->ops->rx_buf_addr_info_get(binfo, paddr, msdu_cookies, rbm);
 }
 
 void ath12k_hal_cc_config(struct ath12k_base *ab)
 {
-	ab->hal.hal_ops->cc_config(ab);
+	ab->hal.ops->cc_config(ab);
 }
 
 enum hal_rx_buf_return_buf_manager
 ath12k_hal_get_idle_link_rbm(struct ath12k_hal *hal, u8 device_id)
 {
-	return hal->hal_ops->get_idle_link_rbm(hal, device_id);
+	return hal->ops->get_idle_link_rbm(hal, device_id);
 }
 
 static int ath12k_hal_alloc_cont_rdp(struct ath12k_hal *hal)
@@ -266,27 +266,27 @@ void ath12k_hal_ce_src_set_desc(struct ath12k_hal *hal,
 				dma_addr_t paddr, u32 len, u32 id,
 				u8 byte_swap_data)
 {
-	hal->hal_ops->ce_src_set_desc(desc, paddr, len, id, byte_swap_data);
+	hal->ops->ce_src_set_desc(desc, paddr, len, id, byte_swap_data);
 }
 
 void ath12k_hal_ce_dst_set_desc(struct ath12k_hal *hal,
 				struct hal_ce_srng_dest_desc *desc,
 				dma_addr_t paddr)
 {
-	hal->hal_ops->ce_dst_set_desc(desc, paddr);
+	hal->ops->ce_dst_set_desc(desc, paddr);
 }
 
 u32 ath12k_hal_ce_dst_status_get_length(struct ath12k_hal *hal,
 					struct hal_ce_srng_dst_status_desc *desc)
 {
-	return hal->hal_ops->ce_dst_status_get_length(desc);
+	return hal->ops->ce_dst_status_get_length(desc);
 }
 
 void ath12k_hal_set_link_desc_addr(struct ath12k_hal *hal,
 				   struct hal_wbm_link_desc *desc, u32 cookie,
 				   dma_addr_t paddr, int rbm)
 {
-	hal->hal_ops->set_link_desc_addr(desc, cookie, paddr, rbm);
+	hal->ops->set_link_desc_addr(desc, cookie, paddr, rbm);
 }
 
 void *ath12k_hal_srng_dst_peek(struct ath12k_base *ab, struct hal_srng *srng)
@@ -702,7 +702,7 @@ int ath12k_hal_srng_init(struct ath12k_base *ab)
 	struct ath12k_hal *hal = &ab->hal;
 	int ret;
 
-	ret = hal->hal_ops->create_srng_config(hal);
+	ret = hal->ops->create_srng_config(hal);
 	if (ret)
 		goto err_hal;
 
