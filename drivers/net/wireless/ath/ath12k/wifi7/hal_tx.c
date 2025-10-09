@@ -136,11 +136,3 @@ void ath12k_wifi7_hal_tx_set_dscp_tid_map(struct ath12k_base *ab, int id)
 			   HAL_TCL1_RING_CMN_CTRL_REG,
 			   ctrl_reg_val);
 }
-
-void ath12k_wifi7_hal_tx_configure_bank_register(struct ath12k_base *ab,
-						 u32 bank_config,
-						 u8 bank_id)
-{
-	ath12k_hif_write32(ab, HAL_TCL_SW_CONFIG_BANK_ADDR + 4 * bank_id,
-			   bank_config);
-}

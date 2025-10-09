@@ -425,8 +425,8 @@ inc_ref_and_return:
 	spin_unlock_bh(&dp->tx_bank_lock);
 
 	if (configure_register)
-		ath12k_wifi7_hal_tx_configure_bank_register(ab, bank_config,
-							    bank_id);
+		ath12k_hal_tx_configure_bank_register(ab,
+						      bank_config, bank_id);
 
 	ath12k_dbg(ab, ATH12K_DBG_DP_HTT, "dp_htt tcl bank_id %d input 0x%x match 0x%x num_users %u",
 		   bank_id, bank_config, dp->bank_profiles[bank_id].bank_config,
@@ -1149,9 +1149,7 @@ static void ath12k_dp_reoq_lut_cleanup(struct ath12k_base *ab)
 		return;
 
 	if (dp->reoq_lut.vaddr_unaligned) {
-		ath12k_hif_write32(ab,
-				   HAL_SEQ_WCSS_UMAC_REO_REG +
-				   HAL_REO1_QDESC_LUT_BASE0(dp->hal), 0);
+		ath12k_hal_write_reoq_lut_addr(ab, 0);
 		dma_free_coherent(ab->dev, dp->reoq_lut.size,
 				  dp->reoq_lut.vaddr_unaligned,
 				  dp->reoq_lut.paddr_unaligned);
@@ -1159,9 +1157,7 @@ static void ath12k_dp_reoq_lut_cleanup(struct ath12k_base *ab)
 	}
 
 	if (dp->ml_reoq_lut.vaddr_unaligned) {
-		ath12k_hif_write32(ab,
-				   HAL_SEQ_WCSS_UMAC_REO_REG +
-				   HAL_REO1_QDESC_LUT_BASE1(dp->hal), 0);
+		ath12k_hal_write_ml_reoq_lut_addr(ab, 0);
 		dma_free_coherent(ab->dev, dp->ml_reoq_lut.size,
 				  dp->ml_reoq_lut.vaddr_unaligned,
 				  dp->ml_reoq_lut.paddr_unaligned);
@@ -1539,8 +1535,6 @@ static int ath12k_dp_alloc_reoq_lut(struct ath12k_base *ab,
 static int ath12k_dp_reoq_lut_setup(struct ath12k_base *ab)
 {
 	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
-	struct ath12k_hal *hal = dp->hal;
-	u32 val;
 	int ret;
 
 	if (!ab->hw_params->reoq_lut_support)
@@ -1568,19 +1562,10 @@ static int ath12k_dp_reoq_lut_setup(struct ath12k_base *ab)
 	 * register only
 	 */
 
-	ath12k_hif_write32(ab, HAL_SEQ_WCSS_UMAC_REO_REG + HAL_REO1_QDESC_LUT_BASE0(hal),
-			   dp->reoq_lut.paddr >> 8);
-
-	ath12k_hif_write32(ab, HAL_SEQ_WCSS_UMAC_REO_REG + HAL_REO1_QDESC_LUT_BASE1(hal),
-			   dp->ml_reoq_lut.paddr >> 8);
-
-	val = ath12k_hif_read32(ab, HAL_SEQ_WCSS_UMAC_REO_REG + HAL_REO1_QDESC_ADDR(hal));
-
-	ath12k_hif_write32(ab, HAL_SEQ_WCSS_UMAC_REO_REG + HAL_REO1_QDESC_ADDR(hal),
-			   val | HAL_REO_QDESC_ADDR_READ_LUT_ENABLE);
-
-	ath12k_hif_write32(ab, HAL_SEQ_WCSS_UMAC_REO_REG + HAL_REO1_QDESC_MAX_PEERID(hal),
-			   HAL_REO_QDESC_MAX_PEERID);
+	ath12k_hal_write_reoq_lut_addr(ab, dp->reoq_lut.paddr >> 8);
+	ath12k_hal_write_ml_reoq_lut_addr(ab, dp->ml_reoq_lut.paddr >> 8);
+	ath12k_hal_reoq_lut_addr_read_enable(ab);
+	ath12k_hal_reoq_lut_set_max_peerid(ab);
 
 	return 0;
 }
@@ -1678,7 +1663,7 @@ static int ath12k_dp_setup(struct ath12k_base *ab)
 	}
 
 	for (i = 0; i < HAL_DSCP_TID_MAP_TBL_NUM_ENTRIES_MAX; i++)
-		ath12k_wifi7_hal_tx_set_dscp_tid_map(ab, i);
+		ath12k_hal_tx_set_dscp_tid_map(ab, i);
 
 	ret = ath12k_dp_rx_alloc(ab);
 	if (ret)

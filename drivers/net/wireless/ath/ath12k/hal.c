@@ -56,6 +56,46 @@ u32 ath12k_hal_ce_get_desc_size(struct ath12k_hal *hal, enum hal_ce_desc type)
 	return hal->hal_ops->ce_get_desc_size(type);
 }
 
+void ath12k_hal_tx_set_dscp_tid_map(struct ath12k_base *ab, int id)
+{
+	ab->hal.hal_ops->tx_set_dscp_tid_map(ab, id);
+}
+
+void ath12k_hal_tx_configure_bank_register(struct ath12k_base *ab,
+					   u32 bank_config, u8 bank_id)
+{
+	ab->hal.hal_ops->tx_configure_bank_register(ab, bank_config, bank_id);
+}
+
+void ath12k_hal_reoq_lut_addr_read_enable(struct ath12k_base *ab)
+{
+	ab->hal.hal_ops->reoq_lut_addr_read_enable(ab);
+}
+
+void ath12k_hal_reoq_lut_set_max_peerid(struct ath12k_base *ab)
+{
+	ab->hal.hal_ops->reoq_lut_set_max_peerid(ab);
+}
+
+void ath12k_hal_write_ml_reoq_lut_addr(struct ath12k_base *ab, dma_addr_t paddr)
+{
+	ab->hal.hal_ops->write_ml_reoq_lut_addr(ab, paddr);
+}
+
+void ath12k_hal_write_reoq_lut_addr(struct ath12k_base *ab, dma_addr_t paddr)
+{
+	ab->hal.hal_ops->write_reoq_lut_addr(ab, paddr);
+}
+
+void ath12k_hal_setup_link_idle_list(struct ath12k_base *ab,
+				     struct hal_wbm_idle_scatter_list *sbuf,
+				     u32 nsbufs, u32 tot_link_desc,
+				     u32 end_offset)
+{
+	ab->hal.hal_ops->setup_link_idle_list(ab, sbuf, nsbufs, tot_link_desc,
+					      end_offset);
+}
+
 static int ath12k_hal_alloc_cont_rdp(struct ath12k_hal *hal)
 {
 	size_t size;
@@ -465,114 +505,6 @@ void ath12k_hal_srng_access_end(struct ath12k_base *ab, struct hal_srng *srng)
 	}
 
 	srng->timestamp = jiffies;
-}
-
-void ath12k_hal_setup_link_idle_list(struct ath12k_base *ab,
-				     struct hal_wbm_idle_scatter_list *sbuf,
-				     u32 nsbufs, u32 tot_link_desc,
-				     u32 end_offset)
-{
-	struct ath12k_hal *hal = &ab->hal;
-	struct ath12k_buffer_addr *link_addr;
-	int i;
-	u32 reg_scatter_buf_sz = HAL_WBM_IDLE_SCATTER_BUF_SIZE / 64;
-	u32 val;
-
-	link_addr = (void *)sbuf[0].vaddr + HAL_WBM_IDLE_SCATTER_BUF_SIZE;
-
-	for (i = 1; i < nsbufs; i++) {
-		link_addr->info0 = cpu_to_le32(sbuf[i].paddr & HAL_ADDR_LSB_REG_MASK);
-
-		link_addr->info1 =
-			le32_encode_bits((u64)sbuf[i].paddr >> HAL_ADDR_MSB_REG_SHIFT,
-					 HAL_WBM_SCATTERED_DESC_MSB_BASE_ADDR_39_32) |
-			le32_encode_bits(BASE_ADDR_MATCH_TAG_VAL,
-					 HAL_WBM_SCATTERED_DESC_MSB_BASE_ADDR_MATCH_TAG);
-
-		link_addr = (void *)sbuf[i].vaddr +
-			     HAL_WBM_IDLE_SCATTER_BUF_SIZE;
-	}
-
-	val = u32_encode_bits(reg_scatter_buf_sz, HAL_WBM_SCATTER_BUFFER_SIZE) |
-	      u32_encode_bits(0x1, HAL_WBM_LINK_DESC_IDLE_LIST_MODE);
-
-	ath12k_hif_write32(ab,
-			   HAL_SEQ_WCSS_UMAC_WBM_REG +
-			   HAL_WBM_R0_IDLE_LIST_CONTROL_ADDR(hal),
-			   val);
-
-	val = u32_encode_bits(reg_scatter_buf_sz * nsbufs,
-			      HAL_WBM_SCATTER_RING_SIZE_OF_IDLE_LINK_DESC_LIST);
-	ath12k_hif_write32(ab,
-			   HAL_SEQ_WCSS_UMAC_WBM_REG +
-			   HAL_WBM_R0_IDLE_LIST_SIZE_ADDR(hal),
-			   val);
-
-	val = u32_encode_bits(sbuf[0].paddr & HAL_ADDR_LSB_REG_MASK,
-			      BUFFER_ADDR_INFO0_ADDR);
-	ath12k_hif_write32(ab,
-			   HAL_SEQ_WCSS_UMAC_WBM_REG +
-			   HAL_WBM_SCATTERED_RING_BASE_LSB(hal),
-			   val);
-
-	val = u32_encode_bits(BASE_ADDR_MATCH_TAG_VAL,
-			      HAL_WBM_SCATTERED_DESC_MSB_BASE_ADDR_MATCH_TAG) |
-	      u32_encode_bits((u64)sbuf[0].paddr >> HAL_ADDR_MSB_REG_SHIFT,
-			      HAL_WBM_SCATTERED_DESC_MSB_BASE_ADDR_39_32);
-	ath12k_hif_write32(ab,
-			   HAL_SEQ_WCSS_UMAC_WBM_REG +
-			   HAL_WBM_SCATTERED_RING_BASE_MSB(hal),
-			   val);
-
-	/* Setup head and tail pointers for the idle list */
-	val = u32_encode_bits(sbuf[nsbufs - 1].paddr, BUFFER_ADDR_INFO0_ADDR);
-	ath12k_hif_write32(ab,
-			   HAL_SEQ_WCSS_UMAC_WBM_REG +
-			   HAL_WBM_SCATTERED_DESC_PTR_HEAD_INFO_IX0(hal),
-			   val);
-
-	val = u32_encode_bits(((u64)sbuf[nsbufs - 1].paddr >> HAL_ADDR_MSB_REG_SHIFT),
-			      HAL_WBM_SCATTERED_DESC_MSB_BASE_ADDR_39_32) |
-	       u32_encode_bits((end_offset >> 2),
-			       HAL_WBM_SCATTERED_DESC_HEAD_P_OFFSET_IX1);
-	ath12k_hif_write32(ab,
-			   HAL_SEQ_WCSS_UMAC_WBM_REG +
-			   HAL_WBM_SCATTERED_DESC_PTR_HEAD_INFO_IX1(hal),
-			   val);
-
-	val = u32_encode_bits(sbuf[0].paddr, BUFFER_ADDR_INFO0_ADDR);
-	ath12k_hif_write32(ab,
-			   HAL_SEQ_WCSS_UMAC_WBM_REG +
-			   HAL_WBM_SCATTERED_DESC_PTR_HEAD_INFO_IX0(hal),
-			   val);
-
-	val = u32_encode_bits(sbuf[0].paddr, BUFFER_ADDR_INFO0_ADDR);
-	ath12k_hif_write32(ab,
-			   HAL_SEQ_WCSS_UMAC_WBM_REG +
-			   HAL_WBM_SCATTERED_DESC_PTR_TAIL_INFO_IX0(hal),
-			   val);
-
-	val = u32_encode_bits(((u64)sbuf[0].paddr >> HAL_ADDR_MSB_REG_SHIFT),
-			      HAL_WBM_SCATTERED_DESC_MSB_BASE_ADDR_39_32) |
-	      u32_encode_bits(0, HAL_WBM_SCATTERED_DESC_TAIL_P_OFFSET_IX1);
-	ath12k_hif_write32(ab,
-			   HAL_SEQ_WCSS_UMAC_WBM_REG +
-			   HAL_WBM_SCATTERED_DESC_PTR_TAIL_INFO_IX1(hal),
-			   val);
-
-	val = 2 * tot_link_desc;
-	ath12k_hif_write32(ab,
-			   HAL_SEQ_WCSS_UMAC_WBM_REG +
-			   HAL_WBM_SCATTERED_DESC_PTR_HP_ADDR(hal),
-			   val);
-
-	/* Enable the SRNG */
-	val = u32_encode_bits(1, HAL_WBM_IDLE_LINK_RING_MISC_SRNG_ENABLE) |
-	      u32_encode_bits(1, HAL_WBM_IDLE_LINK_RING_MISC_RIND_ID_DISABLE);
-	ath12k_hif_write32(ab,
-			   HAL_SEQ_WCSS_UMAC_WBM_REG +
-			   HAL_WBM_IDLE_LINK_RING_MISC_ADDR(hal),
-			   val);
 }
 
 int ath12k_hal_srng_setup(struct ath12k_base *ab, enum hal_ring_type type,

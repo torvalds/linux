@@ -7,6 +7,7 @@
 #include "hal_desc.h"
 #include "../hal.h"
 #include "hal.h"
+#include "hal_tx.h"
 #include "../debug.h"
 #include "../hif.h"
 #include "hal_qcn9274.h"
@@ -479,4 +480,153 @@ u32 ath12k_wifi7_hal_ce_dst_status_get_length(struct hal_ce_srng_dst_status_desc
 	desc->flags &= ~cpu_to_le32(HAL_CE_DST_STATUS_DESC_FLAGS_LEN);
 
 	return len;
+}
+
+void
+ath12k_wifi7_hal_setup_link_idle_list(struct ath12k_base *ab,
+				      struct hal_wbm_idle_scatter_list *sbuf,
+				      u32 nsbufs, u32 tot_link_desc,
+				      u32 end_offset)
+{
+	struct ath12k_hal *hal = &ab->hal;
+	struct ath12k_buffer_addr *link_addr;
+	int i;
+	u32 reg_scatter_buf_sz = HAL_WBM_IDLE_SCATTER_BUF_SIZE / 64;
+	u32 val;
+
+	link_addr = (void *)sbuf[0].vaddr + HAL_WBM_IDLE_SCATTER_BUF_SIZE;
+
+	for (i = 1; i < nsbufs; i++) {
+		link_addr->info0 = cpu_to_le32(sbuf[i].paddr & HAL_ADDR_LSB_REG_MASK);
+
+		link_addr->info1 =
+			le32_encode_bits((u64)sbuf[i].paddr >> HAL_ADDR_MSB_REG_SHIFT,
+					 HAL_WBM_SCATTERED_DESC_MSB_BASE_ADDR_39_32) |
+			le32_encode_bits(BASE_ADDR_MATCH_TAG_VAL,
+					 HAL_WBM_SCATTERED_DESC_MSB_BASE_ADDR_MATCH_TAG);
+
+		link_addr = (void *)sbuf[i].vaddr +
+			     HAL_WBM_IDLE_SCATTER_BUF_SIZE;
+	}
+
+	val = u32_encode_bits(reg_scatter_buf_sz, HAL_WBM_SCATTER_BUFFER_SIZE) |
+	      u32_encode_bits(0x1, HAL_WBM_LINK_DESC_IDLE_LIST_MODE);
+
+	ath12k_hif_write32(ab,
+			   HAL_SEQ_WCSS_UMAC_WBM_REG +
+			   HAL_WBM_R0_IDLE_LIST_CONTROL_ADDR(hal),
+			   val);
+
+	val = u32_encode_bits(reg_scatter_buf_sz * nsbufs,
+			      HAL_WBM_SCATTER_RING_SIZE_OF_IDLE_LINK_DESC_LIST);
+	ath12k_hif_write32(ab,
+			   HAL_SEQ_WCSS_UMAC_WBM_REG +
+			   HAL_WBM_R0_IDLE_LIST_SIZE_ADDR(hal),
+			   val);
+
+	val = u32_encode_bits(sbuf[0].paddr & HAL_ADDR_LSB_REG_MASK,
+			      BUFFER_ADDR_INFO0_ADDR);
+	ath12k_hif_write32(ab,
+			   HAL_SEQ_WCSS_UMAC_WBM_REG +
+			   HAL_WBM_SCATTERED_RING_BASE_LSB(hal),
+			   val);
+
+	val = u32_encode_bits(BASE_ADDR_MATCH_TAG_VAL,
+			      HAL_WBM_SCATTERED_DESC_MSB_BASE_ADDR_MATCH_TAG) |
+	      u32_encode_bits((u64)sbuf[0].paddr >> HAL_ADDR_MSB_REG_SHIFT,
+			      HAL_WBM_SCATTERED_DESC_MSB_BASE_ADDR_39_32);
+	ath12k_hif_write32(ab,
+			   HAL_SEQ_WCSS_UMAC_WBM_REG +
+			   HAL_WBM_SCATTERED_RING_BASE_MSB(hal),
+			   val);
+
+	/* Setup head and tail pointers for the idle list */
+	val = u32_encode_bits(sbuf[nsbufs - 1].paddr, BUFFER_ADDR_INFO0_ADDR);
+	ath12k_hif_write32(ab,
+			   HAL_SEQ_WCSS_UMAC_WBM_REG +
+			   HAL_WBM_SCATTERED_DESC_PTR_HEAD_INFO_IX0(hal),
+			   val);
+
+	val = u32_encode_bits(((u64)sbuf[nsbufs - 1].paddr >> HAL_ADDR_MSB_REG_SHIFT),
+			      HAL_WBM_SCATTERED_DESC_MSB_BASE_ADDR_39_32) |
+	       u32_encode_bits((end_offset >> 2),
+			       HAL_WBM_SCATTERED_DESC_HEAD_P_OFFSET_IX1);
+	ath12k_hif_write32(ab,
+			   HAL_SEQ_WCSS_UMAC_WBM_REG +
+			   HAL_WBM_SCATTERED_DESC_PTR_HEAD_INFO_IX1(hal),
+			   val);
+
+	val = u32_encode_bits(sbuf[0].paddr, BUFFER_ADDR_INFO0_ADDR);
+	ath12k_hif_write32(ab,
+			   HAL_SEQ_WCSS_UMAC_WBM_REG +
+			   HAL_WBM_SCATTERED_DESC_PTR_HEAD_INFO_IX0(hal),
+			   val);
+
+	val = u32_encode_bits(sbuf[0].paddr, BUFFER_ADDR_INFO0_ADDR);
+	ath12k_hif_write32(ab,
+			   HAL_SEQ_WCSS_UMAC_WBM_REG +
+			   HAL_WBM_SCATTERED_DESC_PTR_TAIL_INFO_IX0(hal),
+			   val);
+
+	val = u32_encode_bits(((u64)sbuf[0].paddr >> HAL_ADDR_MSB_REG_SHIFT),
+			      HAL_WBM_SCATTERED_DESC_MSB_BASE_ADDR_39_32) |
+	      u32_encode_bits(0, HAL_WBM_SCATTERED_DESC_TAIL_P_OFFSET_IX1);
+	ath12k_hif_write32(ab,
+			   HAL_SEQ_WCSS_UMAC_WBM_REG +
+			   HAL_WBM_SCATTERED_DESC_PTR_TAIL_INFO_IX1(hal),
+			   val);
+
+	val = 2 * tot_link_desc;
+	ath12k_hif_write32(ab, HAL_SEQ_WCSS_UMAC_WBM_REG +
+			   HAL_WBM_SCATTERED_DESC_PTR_HP_ADDR(hal),
+			   val);
+
+	/* Enable the SRNG */
+	val = u32_encode_bits(1, HAL_WBM_IDLE_LINK_RING_MISC_SRNG_ENABLE) |
+	      u32_encode_bits(1, HAL_WBM_IDLE_LINK_RING_MISC_RIND_ID_DISABLE);
+	ath12k_hif_write32(ab,
+			   HAL_SEQ_WCSS_UMAC_WBM_REG +
+			   HAL_WBM_IDLE_LINK_RING_MISC_ADDR(hal),
+			   val);
+}
+
+void ath12k_wifi7_hal_tx_configure_bank_register(struct ath12k_base *ab,
+						 u32 bank_config,
+						 u8 bank_id)
+{
+	ath12k_hif_write32(ab, HAL_TCL_SW_CONFIG_BANK_ADDR + 4 * bank_id,
+			   bank_config);
+}
+
+void ath12k_wifi7_hal_reoq_lut_addr_read_enable(struct ath12k_base *ab)
+{
+	struct ath12k_hal *hal = &ab->hal;
+
+	u32 val = ath12k_hif_read32(ab, HAL_SEQ_WCSS_UMAC_REO_REG +
+				    HAL_REO1_QDESC_ADDR(hal));
+
+	ath12k_hif_write32(ab, HAL_SEQ_WCSS_UMAC_REO_REG + HAL_REO1_QDESC_ADDR(hal),
+			   val | HAL_REO_QDESC_ADDR_READ_LUT_ENABLE);
+}
+
+void ath12k_wifi7_hal_reoq_lut_set_max_peerid(struct ath12k_base *ab)
+{
+	struct ath12k_hal *hal = &ab->hal;
+
+	ath12k_hif_write32(ab, HAL_SEQ_WCSS_UMAC_REO_REG + HAL_REO1_QDESC_MAX_PEERID(hal),
+			   HAL_REO_QDESC_MAX_PEERID);
+}
+
+void ath12k_wifi7_hal_write_reoq_lut_addr(struct ath12k_base *ab,
+					  dma_addr_t paddr)
+{
+	ath12k_hif_write32(ab, HAL_SEQ_WCSS_UMAC_REO_REG +
+			   HAL_REO1_QDESC_LUT_BASE0(&ab->hal), paddr);
+}
+
+void ath12k_wifi7_hal_write_ml_reoq_lut_addr(struct ath12k_base *ab,
+					     dma_addr_t paddr)
+{
+	ath12k_hif_write32(ab, HAL_SEQ_WCSS_UMAC_REO_REG +
+			   HAL_REO1_QDESC_LUT_BASE1(&ab->hal), paddr);
 }

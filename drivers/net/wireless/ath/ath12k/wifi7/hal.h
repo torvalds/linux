@@ -34,4 +34,15 @@ ath12k_wifi7_hal_set_link_desc_addr(struct hal_wbm_link_desc *desc,
 				    enum hal_rx_buf_return_buf_manager rbm);
 u32
 ath12k_wifi7_hal_ce_dst_status_get_length(struct hal_ce_srng_dst_status_desc *desc);
+void
+ath12k_wifi7_hal_setup_link_idle_list(struct ath12k_base *ab,
+				      struct hal_wbm_idle_scatter_list *sbuf,
+				      u32 nsbufs, u32 tot_link_desc,
+				      u32 end_offset);
+void ath12k_wifi7_hal_reoq_lut_addr_read_enable(struct ath12k_base *ab);
+void ath12k_wifi7_hal_reoq_lut_set_max_peerid(struct ath12k_base *ab);
+void ath12k_wifi7_hal_write_reoq_lut_addr(struct ath12k_base *ab,
+					  dma_addr_t paddr);
+void ath12k_wifi7_hal_write_ml_reoq_lut_addr(struct ath12k_base *ab,
+					     dma_addr_t paddr);
 #endif

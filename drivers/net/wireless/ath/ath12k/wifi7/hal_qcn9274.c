@@ -7,6 +7,7 @@
 #include "hal_qcn9274.h"
 #include "hw.h"
 #include "hal.h"
+#include "hal_tx.h"
 
 static const struct hal_srng_config hw_srng_config_template[] = {
 	/* TODO: max_rings can populated by querying HW capabilities */
@@ -1011,5 +1012,13 @@ const struct hal_ops hal_qcn9274_ops = {
 	.ce_dst_set_desc = ath12k_wifi7_hal_ce_dst_set_desc,
 	.ce_dst_status_get_length = ath12k_wifi7_hal_ce_dst_status_get_length,
 	.set_link_desc_addr = ath12k_wifi7_hal_set_link_desc_addr,
+	.tx_set_dscp_tid_map = ath12k_wifi7_hal_tx_set_dscp_tid_map,
+	.tx_configure_bank_register =
+				ath12k_wifi7_hal_tx_configure_bank_register,
+	.reoq_lut_addr_read_enable = ath12k_wifi7_hal_reoq_lut_addr_read_enable,
+	.reoq_lut_set_max_peerid = ath12k_wifi7_hal_reoq_lut_set_max_peerid,
+	.write_reoq_lut_addr = ath12k_wifi7_hal_write_reoq_lut_addr,
+	.write_ml_reoq_lut_addr = ath12k_wifi7_hal_write_ml_reoq_lut_addr,
+	.setup_link_idle_list = ath12k_wifi7_hal_setup_link_idle_list,
 };
 EXPORT_SYMBOL(hal_qcn9274_ops);
