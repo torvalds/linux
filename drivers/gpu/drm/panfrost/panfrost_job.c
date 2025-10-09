@@ -28,6 +28,10 @@
 #define job_write(dev, reg, data) writel(data, dev->iomem + (reg))
 #define job_read(dev, reg) readl(dev->iomem + (reg))
 
+const char * const panfrost_engine_names[] = {
+	"fragment", "vertex-tiler", "compute-only"
+};
+
 struct panfrost_queue_state {
 	struct drm_gpu_scheduler sched;
 	u64 fence_context;
@@ -846,11 +850,12 @@ int panfrost_job_init(struct panfrost_device *pfdev)
 		.num_rqs = DRM_SCHED_PRIORITY_COUNT,
 		.credit_limit = 2,
 		.timeout = msecs_to_jiffies(JOB_TIMEOUT_MS),
-		.name = "pan_js",
 		.dev = pfdev->dev,
 	};
 	struct panfrost_job_slot *js;
 	int ret, j;
+
+	BUILD_BUG_ON(ARRAY_SIZE(panfrost_engine_names) != NUM_JOB_SLOTS);
 
 	/* All GPUs have two entries per queue, but without jobchain
 	 * disambiguation stopping the right job in the close path is tricky,
@@ -887,6 +892,7 @@ int panfrost_job_init(struct panfrost_device *pfdev)
 
 	for (j = 0; j < NUM_JOB_SLOTS; j++) {
 		js->queue[j].fence_context = dma_fence_context_alloc(1);
+		args.name = panfrost_engine_names[j];
 
 		ret = drm_sched_init(&js->queue[j].sched, &args);
 		if (ret) {

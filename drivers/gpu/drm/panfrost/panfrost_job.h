@@ -53,6 +53,8 @@ struct panfrost_jm_ctx {
 	struct drm_sched_entity slot_entity[NUM_JOB_SLOTS];
 };
 
+extern const char * const panfrost_engine_names[];
+
 int panfrost_jm_ctx_create(struct drm_file *file,
 			   struct drm_panfrost_jm_ctx_create *args);
 int panfrost_jm_ctx_destroy(struct drm_file *file, u32 handle);
