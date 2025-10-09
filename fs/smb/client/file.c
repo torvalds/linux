@@ -2754,7 +2754,7 @@ int cifs_strict_fsync(struct file *file, loff_t start, loff_t end,
 	struct cifsFileInfo *smbfile = file->private_data;
 	struct inode *inode = file_inode(file);
 	unsigned int xid;
-	int rc = 0;
+	int rc;
 
 	rc = file_write_and_wait_range(file, start, end);
 	if (rc) {
@@ -2762,19 +2762,14 @@ int cifs_strict_fsync(struct file *file, loff_t start, loff_t end,
 		return rc;
 	}
 
-	xid = get_xid();
-
-	cifs_dbg(FYI, "Sync file - name: %pD datasync: 0x%x\n",
-		 file, datasync);
+	cifs_dbg(FYI, "%s: name=%pD datasync=0x%x\n", __func__, file, datasync);
 
 	if (!CIFS_CACHE_READ(CIFS_I(inode))) {
 		rc = cifs_zap_mapping(inode);
-		if (rc) {
-			cifs_dbg(FYI, "rc: %d during invalidate phase\n", rc);
-			rc = 0; /* don't care about it in fsync */
-		}
+		cifs_dbg(FYI, "%s: invalidate mapping: rc = %d\n", __func__, rc);
 	}
 
+	xid = get_xid();
 	rc = cifs_file_flush(xid, inode, smbfile);
 	free_xid(xid);
 	return rc;
