@@ -7910,14 +7910,14 @@ static int rtl8xxxu_probe(struct usb_interface *interface,
 		goto err_set_intfdata;
 	}
 
+	if (rtl8xxxu_debug & RTL8XXXU_DEBUG_EFUSE)
+		rtl8xxxu_dump_efuse(priv);
+
 	ret = priv->fops->parse_efuse(priv);
 	if (ret) {
 		dev_err(&udev->dev, "Fatal - failed to parse EFuse\n");
 		goto err_set_intfdata;
 	}
-
-	if (rtl8xxxu_debug & RTL8XXXU_DEBUG_EFUSE)
-		rtl8xxxu_dump_efuse(priv);
 
 	rtl8xxxu_print_chipinfo(priv);
 
