@@ -193,8 +193,6 @@ int dm_revalidate_zones(struct dm_table *t, struct request_queue *q)
 		return ret;
 	}
 
-	md->nr_zones = disk->nr_zones;
-
 	return 0;
 }
 
@@ -442,7 +440,6 @@ void dm_finalize_zone_settings(struct dm_table *t, struct queue_limits *lim)
 			set_bit(DMF_EMULATE_ZONE_APPEND, &md->flags);
 	} else {
 		clear_bit(DMF_EMULATE_ZONE_APPEND, &md->flags);
-		md->nr_zones = 0;
 		md->disk->nr_zones = 0;
 	}
 }
