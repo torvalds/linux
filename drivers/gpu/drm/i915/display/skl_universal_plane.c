@@ -2425,7 +2425,7 @@ static bool skl_plane_has_planar(struct intel_display *display,
 	if (display->platform.skylake || display->platform.broxton)
 		return false;
 
-	if (DISPLAY_VER(display) == 9 && pipe == PIPE_C)
+	if (pipe == PIPE_C)
 		return false;
 
 	if (plane_id != PLANE_1 && plane_id != PLANE_2)
@@ -2447,11 +2447,20 @@ static const u32 *skl_get_plane_formats(struct intel_display *display,
 	}
 }
 
+static bool glk_plane_has_planar(struct intel_display *display,
+				 enum pipe pipe, enum plane_id plane_id)
+{
+	if (plane_id != PLANE_1 && plane_id != PLANE_2)
+		return false;
+
+	return true;
+}
+
 static const u32 *glk_get_plane_formats(struct intel_display *display,
 					enum pipe pipe, enum plane_id plane_id,
 					int *num_formats)
 {
-	if (skl_plane_has_planar(display, pipe, plane_id)) {
+	if (glk_plane_has_planar(display, pipe, plane_id)) {
 		*num_formats = ARRAY_SIZE(glk_planar_formats);
 		return glk_planar_formats;
 	} else {
