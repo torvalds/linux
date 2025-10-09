@@ -240,11 +240,6 @@ smb2_find_smb_tcon(struct TCP_Server_Info *server, __u64 ses_id, __u32  tid)
 		return NULL;
 	}
 	tcon = smb2_find_smb_sess_tcon_unlocked(ses, tid);
-	if (!tcon) {
-		spin_unlock(&cifs_tcp_ses_lock);
-		cifs_put_smb_ses(ses);
-		return NULL;
-	}
 	spin_unlock(&cifs_tcp_ses_lock);
 	/* tcon already has a ref to ses, so we don't need ses anymore */
 	cifs_put_smb_ses(ses);
