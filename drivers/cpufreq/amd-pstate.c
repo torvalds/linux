@@ -65,8 +65,8 @@ static const char * const amd_pstate_mode_string[] = {
 	[AMD_PSTATE_PASSIVE]     = "passive",
 	[AMD_PSTATE_ACTIVE]      = "active",
 	[AMD_PSTATE_GUIDED]      = "guided",
-	NULL,
 };
+static_assert(ARRAY_SIZE(amd_pstate_mode_string) == AMD_PSTATE_MAX);
 
 const char *amd_pstate_get_mode_string(enum amd_pstate_mode mode)
 {
