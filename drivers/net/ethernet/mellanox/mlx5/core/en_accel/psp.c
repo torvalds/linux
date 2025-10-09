@@ -893,27 +893,27 @@ int mlx5e_psp_init(struct mlx5e_priv *priv)
 
 	if (!mlx5_is_psp_device(mdev)) {
 		mlx5_core_dbg(mdev, "PSP offload not supported\n");
-		return -EOPNOTSUPP;
+		return 0;
 	}
 
 	if (!MLX5_CAP_ETH(mdev, swp)) {
 		mlx5_core_dbg(mdev, "SWP not supported\n");
-		return -EOPNOTSUPP;
+		return 0;
 	}
 
 	if (!MLX5_CAP_ETH(mdev, swp_csum)) {
 		mlx5_core_dbg(mdev, "SWP checksum not supported\n");
-		return -EOPNOTSUPP;
+		return 0;
 	}
 
 	if (!MLX5_CAP_ETH(mdev, swp_csum_l4_partial)) {
 		mlx5_core_dbg(mdev, "SWP L4 partial checksum not supported\n");
-		return -EOPNOTSUPP;
+		return 0;
 	}
 
 	if (!MLX5_CAP_ETH(mdev, swp_lso)) {
 		mlx5_core_dbg(mdev, "PSP LSO not supported\n");
-		return -EOPNOTSUPP;
+		return 0;
 	}
 
 	psp = kzalloc(sizeof(*psp), GFP_KERNEL);

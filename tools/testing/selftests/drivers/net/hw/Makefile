@@ -32,8 +32,8 @@ TEST_FILES := \
 TEST_INCLUDES := \
 	$(wildcard lib/py/*.py ../lib/py/*.py) \
 	../../../net/lib.sh \
-	../../../net/forwarding/lib.sh \
 	../../../net/forwarding/ipip_lib.sh \
+	../../../net/forwarding/lib.sh \
 	../../../net/forwarding/tc_common.sh \
 	#
 
@@ -45,7 +45,11 @@ TEST_GEN_FILES += $(patsubst %.c,%.o,$(wildcard *.bpf.c))
 include ../../../lib.mk
 
 # YNL build
-YNL_GENS := ethtool netdev
+YNL_GENS := \
+	ethtool \
+	netdev \
+# end of YNL_GENS
+
 include ../../../net/ynl.mk
 
 include ../../../net/bpf.mk

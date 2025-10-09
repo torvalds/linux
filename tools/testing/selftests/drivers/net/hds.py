@@ -3,11 +3,12 @@
 
 import errno
 import os
+import random
 from typing import Union
 from lib.py import ksft_run, ksft_exit, ksft_eq, ksft_raises, KsftSkipEx
 from lib.py import CmdExitFailure, EthtoolFamily, NlError
 from lib.py import NetDrvEnv
-from lib.py import defer, ethtool, ip, random
+from lib.py import defer, ethtool, ip
 
 
 def _get_hds_mode(cfg, netnl) -> str:
