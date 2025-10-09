@@ -2428,10 +2428,7 @@ static bool skl_plane_has_planar(struct intel_display *display,
 	if (pipe == PIPE_C)
 		return false;
 
-	if (plane_id != PLANE_1 && plane_id != PLANE_2)
-		return false;
-
-	return true;
+	return plane_id == PLANE_1 || plane_id == PLANE_2;
 }
 
 static const u32 *skl_get_plane_formats(struct intel_display *display,
@@ -2450,10 +2447,7 @@ static const u32 *skl_get_plane_formats(struct intel_display *display,
 static bool glk_plane_has_planar(struct intel_display *display,
 				 enum pipe pipe, enum plane_id plane_id)
 {
-	if (plane_id != PLANE_1 && plane_id != PLANE_2)
-		return false;
-
-	return true;
+	return plane_id == PLANE_1 || plane_id == PLANE_2;
 }
 
 static const u32 *glk_get_plane_formats(struct intel_display *display,
@@ -2700,8 +2694,10 @@ skl_plane_disable_flip_done(struct intel_plane *plane)
 static bool skl_plane_has_rc_ccs(struct intel_display *display,
 				 enum pipe pipe, enum plane_id plane_id)
 {
-	return pipe != PIPE_C &&
-		(plane_id == PLANE_1 || plane_id == PLANE_2);
+	if (pipe == PIPE_C)
+		return false;
+
+	return plane_id == PLANE_1 || plane_id == PLANE_2;
 }
 
 static u8 skl_plane_caps(struct intel_display *display,
