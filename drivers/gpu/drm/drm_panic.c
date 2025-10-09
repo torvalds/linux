@@ -480,7 +480,7 @@ static int draw_line_with_wrap(struct drm_scanout_buffer *sb, const struct font_
 			       struct drm_panic_line *line, int yoffset, u32 fg_color)
 {
 	int chars_per_row = sb->width / font->width;
-	struct drm_rect r_txt = DRM_RECT_INIT(0, yoffset, sb->width, sb->height);
+	struct drm_rect r_txt = DRM_RECT_INIT(0, yoffset, sb->width, font->height);
 	struct drm_panic_line line_wrap;
 
 	if (line->len > chars_per_row) {
