@@ -70,8 +70,8 @@ static_assert(ARRAY_SIZE(amd_pstate_mode_string) == AMD_PSTATE_MAX);
 
 const char *amd_pstate_get_mode_string(enum amd_pstate_mode mode)
 {
-	if (mode < 0 || mode >= AMD_PSTATE_MAX)
-		return NULL;
+	if (mode < AMD_PSTATE_UNDEFINED || mode >= AMD_PSTATE_MAX)
+		mode = AMD_PSTATE_UNDEFINED;
 	return amd_pstate_mode_string[mode];
 }
 EXPORT_SYMBOL_GPL(amd_pstate_get_mode_string);
