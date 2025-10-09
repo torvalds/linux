@@ -12,6 +12,7 @@
 #include "dp_rx.h"
 #include "dp.h"
 #include "dp_tx.h"
+#include "hal.h"
 
 static int ath12k_wifi7_dp_service_srng(struct ath12k_dp *dp,
 					struct ath12k_ext_irq_grp *irq_grp,

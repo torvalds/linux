@@ -661,7 +661,7 @@ static int ath12k_dp_scatter_idle_link_desc_setup(struct ath12k_base *ab,
 		paddr = link_desc_banks[i].paddr;
 		while (n_entries) {
 			cookie = DP_LINK_DESC_COOKIE_SET(n_entries, i);
-			ath12k_hal_set_link_desc_addr(scatter_buf, cookie,
+			ath12k_hal_set_link_desc_addr(dp->hal, scatter_buf, cookie,
 						      paddr, rbm);
 			n_entries--;
 			paddr += HAL_LINK_DESC_SIZE;
@@ -868,7 +868,8 @@ int ath12k_dp_link_desc_setup(struct ath12k_base *ab,
 		while (n_entries &&
 		       (desc = ath12k_hal_srng_src_get_next_entry(ab, srng))) {
 			cookie = DP_LINK_DESC_COOKIE_SET(n_entries, i);
-			ath12k_hal_set_link_desc_addr(desc, cookie, paddr, rbm);
+			ath12k_hal_set_link_desc_addr(dp->hal, desc, cookie, paddr,
+						      rbm);
 			n_entries--;
 			paddr += HAL_LINK_DESC_SIZE;
 		}

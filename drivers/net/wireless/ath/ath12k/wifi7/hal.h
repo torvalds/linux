@@ -28,4 +28,10 @@ void ath12k_wifi7_hal_ce_src_set_desc(struct hal_ce_srng_src_desc *desc,
 				      u32 len, u32 id, u8 byte_swap_data);
 void ath12k_wifi7_hal_ce_dst_set_desc(struct hal_ce_srng_dest_desc *desc,
 				      dma_addr_t paddr);
+void
+ath12k_wifi7_hal_set_link_desc_addr(struct hal_wbm_link_desc *desc,
+				    u32 cookie, dma_addr_t paddr,
+				    enum hal_rx_buf_return_buf_manager rbm);
+u32
+ath12k_wifi7_hal_ce_dst_status_get_length(struct hal_ce_srng_dst_status_desc *desc);
 #endif

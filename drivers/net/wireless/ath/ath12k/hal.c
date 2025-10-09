@@ -205,27 +205,17 @@ void ath12k_hal_ce_dst_set_desc(struct ath12k_hal *hal,
 	hal->hal_ops->ce_dst_set_desc(desc, paddr);
 }
 
-u32 ath12k_hal_ce_dst_status_get_length(struct hal_ce_srng_dst_status_desc *desc)
+u32 ath12k_hal_ce_dst_status_get_length(struct ath12k_hal *hal,
+					struct hal_ce_srng_dst_status_desc *desc)
 {
-	u32 len;
-
-	len = le32_get_bits(desc->flags, HAL_CE_DST_STATUS_DESC_FLAGS_LEN);
-	desc->flags &= ~cpu_to_le32(HAL_CE_DST_STATUS_DESC_FLAGS_LEN);
-
-	return len;
+	return hal->hal_ops->ce_dst_status_get_length(desc);
 }
 
-void ath12k_hal_set_link_desc_addr(struct hal_wbm_link_desc *desc, u32 cookie,
-				   dma_addr_t paddr,
-				   enum hal_rx_buf_return_buf_manager rbm)
+void ath12k_hal_set_link_desc_addr(struct ath12k_hal *hal,
+				   struct hal_wbm_link_desc *desc, u32 cookie,
+				   dma_addr_t paddr, int rbm)
 {
-	desc->buf_addr_info.info0 = le32_encode_bits((paddr & HAL_ADDR_LSB_REG_MASK),
-						     BUFFER_ADDR_INFO0_ADDR);
-	desc->buf_addr_info.info1 =
-			le32_encode_bits(((u64)paddr >> HAL_ADDR_MSB_REG_SHIFT),
-					 BUFFER_ADDR_INFO1_ADDR) |
-			le32_encode_bits(rbm, BUFFER_ADDR_INFO1_RET_BUF_MGR) |
-			le32_encode_bits(cookie, BUFFER_ADDR_INFO1_SW_COOKIE);
+	hal->hal_ops->set_link_desc_addr(desc, cookie, paddr, rbm);
 }
 
 void *ath12k_hal_srng_dst_peek(struct ath12k_base *ab, struct hal_srng *srng)

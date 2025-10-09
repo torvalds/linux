@@ -1009,5 +1009,7 @@ const struct hal_ops hal_qcn9274_ops = {
 	.ce_get_desc_size = ath12k_wifi7_hal_ce_get_desc_size,
 	.ce_src_set_desc = ath12k_wifi7_hal_ce_src_set_desc,
 	.ce_dst_set_desc = ath12k_wifi7_hal_ce_dst_set_desc,
+	.ce_dst_status_get_length = ath12k_wifi7_hal_ce_dst_status_get_length,
+	.set_link_desc_addr = ath12k_wifi7_hal_set_link_desc_addr,
 };
 EXPORT_SYMBOL(hal_qcn9274_ops);
