@@ -15,12 +15,6 @@ properties:
     oneOf:
       - items:
           - enum:
-              - renesas,r7s72100-wdt     # RZ/A1
-              - renesas,r7s9210-wdt      # RZ/A2
-          - const: renesas,rza-wdt       # RZ/A
-
-      - items:
-          - enum:
               - renesas,r9a06g032-wdt    # RZ/N1D
           - const: renesas,rzn1-wdt      # RZ/N1
 
@@ -140,7 +134,6 @@ allOf:
             contains:
               enum:
                 - renesas,r9a09g077-wdt
-                - renesas,rza-wdt
                 - renesas,rzn1-wdt
     then:
       required:
