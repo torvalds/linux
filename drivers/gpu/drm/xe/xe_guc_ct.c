@@ -991,22 +991,15 @@ static void kick_reset(struct xe_guc_ct *ct)
 
 static int dequeue_one_g2h(struct xe_guc_ct *ct);
 
-static int guc_ct_send_locked(struct xe_guc_ct *ct, const u32 *action, u32 len,
-			      u32 g2h_len, u32 num_g2h,
-			      struct g2h_fence *g2h_fence)
+/*
+ * wait before retry of sending h2g message
+ * Return: true if ready for retry, false if the wait timeouted
+ */
+static bool guc_ct_send_wait_for_retry(struct xe_guc_ct *ct, u32 len,
+				       u32 g2h_len, struct g2h_fence *g2h_fence,
+				       unsigned int *sleep_period_ms)
 {
 	struct xe_device *xe = ct_to_xe(ct);
-	struct xe_gt *gt = ct_to_gt(ct);
-	unsigned int sleep_period_ms = 1;
-	int ret;
-
-	xe_gt_assert(gt, !g2h_len || !g2h_fence);
-	lockdep_assert_held(&ct->lock);
-	xe_device_assert_mem_access(ct_to_xe(ct));
-
-try_again:
-	ret = __guc_ct_send_locked(ct, action, len, g2h_len, num_g2h,
-				   g2h_fence);
 
 	/*
 	 * We wait to try to restore credits for about 1 second before bailing.
@@ -1015,24 +1008,22 @@ try_again:
 	 * the case of G2H we process any G2H in the channel, hopefully freeing
 	 * credits as we consume the G2H messages.
 	 */
-	if (unlikely(ret == -EBUSY &&
-		     !h2g_has_room(ct, len + GUC_CTB_HDR_LEN))) {
+	if (!h2g_has_room(ct, len + GUC_CTB_HDR_LEN)) {
 		struct guc_ctb *h2g = &ct->ctbs.h2g;
 
-		if (sleep_period_ms == 1024)
-			goto broken;
+		if (*sleep_period_ms == 1024)
+			return false;
 
 		trace_xe_guc_ct_h2g_flow_control(xe, h2g->info.head, h2g->info.tail,
 						 h2g->info.size,
 						 h2g->info.space,
 						 len + GUC_CTB_HDR_LEN);
-		msleep(sleep_period_ms);
-		sleep_period_ms <<= 1;
-
-		goto try_again;
-	} else if (unlikely(ret == -EBUSY)) {
+		msleep(*sleep_period_ms);
+		*sleep_period_ms <<= 1;
+	} else {
 		struct xe_device *xe = ct_to_xe(ct);
 		struct guc_ctb *g2h = &ct->ctbs.g2h;
+		int ret;
 
 		trace_xe_guc_ct_g2h_flow_control(xe, g2h->info.head,
 						 desc_read(xe, g2h, tail),
@@ -1046,7 +1037,7 @@ try_again:
 	(desc_read(ct_to_xe(ct), (&ct->ctbs.g2h), tail) != ct->ctbs.g2h.info.head)
 		if (!wait_event_timeout(ct->wq, !ct->g2h_outstanding ||
 					g2h_avail(ct), HZ))
-			goto broken;
+			return false;
 #undef g2h_avail
 
 		ret = dequeue_one_g2h(ct);
@@ -1054,9 +1045,32 @@ try_again:
 			if (ret != -ECANCELED)
 				xe_gt_err(ct_to_gt(ct), "CTB receive failed (%pe)",
 					  ERR_PTR(ret));
-			goto broken;
+			return false;
 		}
+	}
+	return true;
+}
 
+static int guc_ct_send_locked(struct xe_guc_ct *ct, const u32 *action, u32 len,
+			      u32 g2h_len, u32 num_g2h,
+			      struct g2h_fence *g2h_fence)
+{
+	struct xe_gt *gt = ct_to_gt(ct);
+	unsigned int sleep_period_ms = 1;
+	int ret;
+
+	xe_gt_assert(gt, !g2h_len || !g2h_fence);
+	lockdep_assert_held(&ct->lock);
+	xe_device_assert_mem_access(ct_to_xe(ct));
+
+try_again:
+	ret = __guc_ct_send_locked(ct, action, len, g2h_len, num_g2h,
+				   g2h_fence);
+
+	if (unlikely(ret == -EBUSY)) {
+		if (!guc_ct_send_wait_for_retry(ct, len, g2h_len, g2h_fence,
+						&sleep_period_ms))
+			goto broken;
 		goto try_again;
 	}
 
