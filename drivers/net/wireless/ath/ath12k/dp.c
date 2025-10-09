@@ -913,11 +913,6 @@ void ath12k_dp_pdev_pre_alloc(struct ath12k *ar)
 	/* TODO: Add any RXDMA setup required per pdev */
 }
 
-void ath12k_dp_hal_rx_desc_init(struct ath12k_base *ab)
-{
-	ab->hal.hal_desc_sz = ab->hw_params->hal_ops->rx_desc_get_desc_size();
-}
-
 int ath12k_dp_pdev_alloc(struct ath12k_base *ab)
 {
 	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);

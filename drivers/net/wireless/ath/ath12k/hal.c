@@ -1103,10 +1103,7 @@ static void ath12k_hal_unregister_srng_lock_keys(struct ath12k_base *ab)
 
 int ath12k_hal_srng_init(struct ath12k_base *ab)
 {
-	struct ath12k_hal *hal = &ab->hal;
 	int ret;
-
-	memset(hal, 0, sizeof(*hal));
 
 	ret = ab->hw_params->hal_ops->create_srng_config(ab);
 	if (ret)

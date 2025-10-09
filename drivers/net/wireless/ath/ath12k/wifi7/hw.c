@@ -23,6 +23,7 @@
 #include "../debugfs.h"
 #include "../debugfs_sta.h"
 #include "../testmode.h"
+#include "hal.h"
 
 static const guid_t wcn7850_uuid = GUID_INIT(0xf634f534, 0x6147, 0x11ec,
 					     0x90, 0xd6, 0x02, 0x42,
@@ -1123,6 +1124,8 @@ int ath12k_wifi7_hw_init(struct ath12k_base *ab)
 
 	ab->hw_params = hw_params;
 	ab->ath12k_ops = &ath12k_ops_wifi7;
+
+	ath12k_wifi7_hal_init(ab);
 
 	ath12k_info(ab, "Wi-Fi 7 Hardware name: %s\n", ab->hw_params->name);
 

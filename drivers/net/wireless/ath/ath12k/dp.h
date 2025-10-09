@@ -526,5 +526,4 @@ struct ath12k_rx_desc_info *ath12k_dp_get_rx_desc(struct ath12k_base *ab,
 						  u32 cookie);
 struct ath12k_tx_desc_info *ath12k_dp_get_tx_desc(struct ath12k_base *ab,
 						  u32 desc_id);
-void ath12k_dp_hal_rx_desc_init(struct ath12k_base *ab);
 #endif
