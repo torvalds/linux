@@ -1696,6 +1696,12 @@ struct hal_ops {
 	u32 (*rx_desc_get_mpdu_ppdu_id)(struct hal_rx_desc *desc);
 	u8 (*rx_desc_get_l3_pad_bytes)(struct hal_rx_desc *desc);
 	u8 *(*rx_desc_get_msdu_payload)(struct hal_rx_desc *desc);
+	void (*ce_dst_setup)(struct ath12k_base *ab,
+			     struct hal_srng *srng, int ring_num);
+	void (*set_umac_srng_ptr_addr)(struct ath12k_base *ab,
+				       struct hal_srng *srng);
+	void (*srng_src_hw_init)(struct ath12k_base *ab, struct hal_srng *srng);
+	void (*srng_dst_hw_init)(struct ath12k_base *ab, struct hal_srng *srng);
 };
 
 u32 ath12k_wifi7_hal_reo_qdesc_size(u32 ba_window_size, u8 tid);
