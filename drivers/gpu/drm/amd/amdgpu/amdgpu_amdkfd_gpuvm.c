@@ -1961,9 +1961,7 @@ int amdgpu_amdkfd_gpuvm_free_memory_of_gpu(
 	 */
 	if (size) {
 		if (!is_imported &&
-		   (mem->bo->preferred_domains == AMDGPU_GEM_DOMAIN_VRAM ||
-		   (adev->apu_prefer_gtt &&
-		    mem->bo->preferred_domains == AMDGPU_GEM_DOMAIN_GTT)))
+		   mem->alloc_flags & KFD_IOC_ALLOC_MEM_FLAGS_VRAM)
 			*size = bo_size;
 		else
 			*size = 0;
