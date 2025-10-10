@@ -27,6 +27,7 @@
 #include <linux/cleanup.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/fs_context.h>
 #include <linux/usb/composite.h>
 #include <linux/usb/func_utils.h>
 
@@ -376,8 +377,9 @@ out:
 	return ret;
 }
 
-static int p9_usbg_create(struct p9_client *client, const char *devname, char *args)
+static int p9_usbg_create(struct p9_client *client, struct fs_context *fc)
 {
+	const char *devname = fc->source;
 	struct f_usb9pfs_dev *dev;
 	struct f_usb9pfs *usb9pfs;
 	int ret = -ENOENT;

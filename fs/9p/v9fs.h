@@ -10,6 +10,9 @@
 
 #include <linux/backing-dev.h>
 #include <linux/netfs.h>
+#include <linux/fs_parser.h>
+#include <net/9p/client.h>
+#include <net/9p/transport.h>
 
 /**
  * enum p9_session_flags - option flags for each 9P session
@@ -163,11 +166,13 @@ static inline struct fscache_volume *v9fs_session_cache(struct v9fs_session_info
 #endif
 }
 
+extern const struct fs_parameter_spec v9fs_param_spec[];
 
+extern int v9fs_parse_param(struct fs_context *fc, struct fs_parameter *param);
 extern int v9fs_show_options(struct seq_file *m, struct dentry *root);
 
 struct p9_fid *v9fs_session_init(struct v9fs_session_info *v9ses,
-				 const char *dev_name, char *data);
+				 struct fs_context *fc);
 extern void v9fs_session_close(struct v9fs_session_info *v9ses);
 extern void v9fs_session_cancel(struct v9fs_session_info *v9ses);
 extern void v9fs_session_begin_cancel(struct v9fs_session_info *v9ses);

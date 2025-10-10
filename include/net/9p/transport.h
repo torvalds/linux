@@ -57,7 +57,7 @@ struct p9_trans_module {
 	bool supports_vmalloc;	/* can work with vmalloc'd buffers */
 	struct module *owner;
 	int (*create)(struct p9_client *client,
-		      const char *devname, char *args);
+		      struct fs_context *fc);
 	void (*close)(struct p9_client *client);
 	int (*request)(struct p9_client *client, struct p9_req_t *req);
 	int (*cancel)(struct p9_client *client, struct p9_req_t *req);

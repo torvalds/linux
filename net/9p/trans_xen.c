@@ -15,6 +15,7 @@
 
 #include <linux/module.h>
 #include <linux/spinlock.h>
+#include <linux/fs_context.h>
 #include <net/9p/9p.h>
 #include <net/9p/client.h>
 #include <net/9p/transport.h>
@@ -66,8 +67,9 @@ static int p9_xen_cancel(struct p9_client *client, struct p9_req_t *req)
 	return 1;
 }
 
-static int p9_xen_create(struct p9_client *client, const char *addr, char *args)
+static int p9_xen_create(struct p9_client *client, struct fs_context *fc)
 {
+	const char *addr = fc->source;
 	struct xen_9pfs_front_priv *priv;
 
 	if (addr == NULL)
