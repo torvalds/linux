@@ -4487,3 +4487,13 @@ void *__bpf_dynptr_data_rw(const struct bpf_dynptr_kern *ptr, u32 len)
 		return NULL;
 	return (void *)__bpf_dynptr_data(ptr, len);
 }
+
+void bpf_map_free_internal_structs(struct bpf_map *map, void *val)
+{
+	if (btf_record_has_field(map->record, BPF_TIMER))
+		bpf_obj_free_timer(map->record, val);
+	if (btf_record_has_field(map->record, BPF_WORKQUEUE))
+		bpf_obj_free_workqueue(map->record, val);
+	if (btf_record_has_field(map->record, BPF_TASK_WORK))
+		bpf_obj_free_task_work(map->record, val);
+}

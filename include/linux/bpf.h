@@ -663,6 +663,13 @@ int map_check_no_btf(const struct bpf_map *map,
 bool bpf_map_meta_equal(const struct bpf_map *meta0,
 			const struct bpf_map *meta1);
 
+static inline bool bpf_map_has_internal_structs(struct bpf_map *map)
+{
+	return btf_record_has_field(map->record, BPF_TIMER | BPF_WORKQUEUE | BPF_TASK_WORK);
+}
+
+void bpf_map_free_internal_structs(struct bpf_map *map, void *obj);
+
 extern const struct bpf_map_ops bpf_map_offload_ops;
 
 /* bpf_type_flag contains a set of flags that are applicable to the values of

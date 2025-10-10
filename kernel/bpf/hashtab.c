@@ -215,19 +215,6 @@ static bool htab_has_extra_elems(struct bpf_htab *htab)
 	return !htab_is_percpu(htab) && !htab_is_lru(htab) && !is_fd_htab(htab);
 }
 
-static void htab_free_internal_structs(struct bpf_htab *htab, struct htab_elem *elem)
-{
-	if (btf_record_has_field(htab->map.record, BPF_TIMER))
-		bpf_obj_free_timer(htab->map.record,
-				   htab_elem_value(elem, htab->map.key_size));
-	if (btf_record_has_field(htab->map.record, BPF_WORKQUEUE))
-		bpf_obj_free_workqueue(htab->map.record,
-				       htab_elem_value(elem, htab->map.key_size));
-	if (btf_record_has_field(htab->map.record, BPF_TASK_WORK))
-		bpf_obj_free_task_work(htab->map.record,
-				       htab_elem_value(elem, htab->map.key_size));
-}
-
 static void htab_free_prealloced_internal_structs(struct bpf_htab *htab)
 {
 	u32 num_entries = htab->map.max_entries;
@@ -240,7 +227,8 @@ static void htab_free_prealloced_internal_structs(struct bpf_htab *htab)
 		struct htab_elem *elem;
 
 		elem = get_htab_elem(htab, i);
-		htab_free_internal_structs(htab, elem);
+		bpf_map_free_internal_structs(&htab->map,
+					      htab_elem_value(elem, htab->map.key_size));
 		cond_resched();
 	}
 }
@@ -1509,8 +1497,9 @@ static void htab_free_malloced_internal_structs(struct bpf_htab *htab)
 		struct htab_elem *l;
 
 		hlist_nulls_for_each_entry(l, n, head, hash_node) {
-			/* We only free timer on uref dropping to zero */
-			htab_free_internal_structs(htab, l);
+			/* We only free internal structs on uref dropping to zero */
+			bpf_map_free_internal_structs(&htab->map,
+						      htab_elem_value(l, htab->map.key_size));
 		}
 		cond_resched_rcu();
 	}
@@ -1521,13 +1510,14 @@ static void htab_map_free_internal_structs(struct bpf_map *map)
 {
 	struct bpf_htab *htab = container_of(map, struct bpf_htab, map);
 
-	/* We only free timer and workqueue on uref dropping to zero */
-	if (btf_record_has_field(htab->map.record, BPF_TIMER | BPF_WORKQUEUE | BPF_TASK_WORK)) {
-		if (!htab_is_prealloc(htab))
-			htab_free_malloced_internal_structs(htab);
-		else
-			htab_free_prealloced_internal_structs(htab);
-	}
+	/* We only free internal structs on uref dropping to zero */
+	if (!bpf_map_has_internal_structs(map))
+		return;
+
+	if (htab_is_prealloc(htab))
+		htab_free_prealloced_internal_structs(htab);
+	else
+		htab_free_malloced_internal_structs(htab);
 }
 
 /* Called when map->refcnt goes to zero, either from workqueue or from syscall */
