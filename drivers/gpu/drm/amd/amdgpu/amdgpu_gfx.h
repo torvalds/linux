@@ -328,6 +328,8 @@ struct amdgpu_gfx_shadow_info {
 	u32 shadow_alignment;
 	u32 csa_size;
 	u32 csa_alignment;
+	u32 eop_size;
+	u32 eop_alignment;
 };
 
 struct amdgpu_gfx_funcs {
