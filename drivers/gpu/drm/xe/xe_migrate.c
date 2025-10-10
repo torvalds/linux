@@ -2176,7 +2176,9 @@ int xe_migrate_access_memory(struct xe_migrate *m, struct xe_bo *bo,
 		if (current_bytes & ~PAGE_MASK) {
 			int pitch = 4;
 
-			current_bytes = min_t(int, current_bytes, S16_MAX * pitch);
+			current_bytes = min_t(int, current_bytes,
+					      round_down(S16_MAX * pitch,
+							 XE_CACHELINE_BYTES));
 		}
 
 		__fence = xe_migrate_vram(m, current_bytes,
