@@ -2,9 +2,13 @@
 
         Set the |tool| tracer to run the sample threads in the cpu-list.
 
+        By default, the |tool| tracer runs the sample threads on all CPUs.
+
 **-H**, **--house-keeping** *cpu-list*
 
         Run rtla control threads only on the given cpu-list.
+
+        If omitted, rtla will attempt to auto-migrate its main thread to any CPU that is not running any workload threads.
 
 **-d**, **--duration** *time[s|m|h|d]*
 
@@ -56,6 +60,8 @@
 
 **--trace-buffer-size** *kB*
         Set the per-cpu trace buffer size in kB for the tracing output.
+
+        If not set, the default tracefs buffer size is used.
 
 **--on-threshold** *action*
 
