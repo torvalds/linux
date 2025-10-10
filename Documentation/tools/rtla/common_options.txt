@@ -67,7 +67,7 @@
         - *trace[,file=<filename>]*
 
           Saves trace output, optionally taking a filename. Alternative to -t/--trace.
-          Note that nlike -t/--trace, specifying this multiple times will result in
+          Note that unlike -t/--trace, specifying this multiple times will result in
           the trace being saved multiple times.
 
         - *signal,num=<sig>,pid=<pid>*
