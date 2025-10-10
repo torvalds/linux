@@ -165,26 +165,26 @@ struct ljca_match_ids_walk_data {
 };
 
 static const struct acpi_device_id ljca_gpio_hids[] = {
+	{ "INTC100B" },
 	{ "INTC1074" },
 	{ "INTC1096" },
-	{ "INTC100B" },
-	{ "INTC10D1" },
 	{ "INTC10B5" },
+	{ "INTC10D1" },
 	{},
 };
 
 static const struct acpi_device_id ljca_i2c_hids[] = {
+	{ "INTC100C" },
 	{ "INTC1075" },
 	{ "INTC1097" },
-	{ "INTC100C" },
 	{ "INTC10D2" },
 	{},
 };
 
 static const struct acpi_device_id ljca_spi_hids[] = {
+	{ "INTC100D" },
 	{ "INTC1091" },
 	{ "INTC1098" },
-	{ "INTC100D" },
 	{ "INTC10D3" },
 	{},
 };
