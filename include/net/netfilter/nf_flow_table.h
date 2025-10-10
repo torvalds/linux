@@ -222,6 +222,12 @@ struct nf_flow_route {
 struct flow_offload *flow_offload_alloc(struct nf_conn *ct);
 void flow_offload_free(struct flow_offload *flow);
 
+struct nft_flowtable;
+struct nft_pktinfo;
+int nft_flow_route(const struct nft_pktinfo *pkt, const struct nf_conn *ct,
+		   struct nf_flow_route *route, enum ip_conntrack_dir dir,
+		   struct nft_flowtable *ft);
+
 static inline int
 nf_flow_table_offload_add_cb(struct nf_flowtable *flow_table,
 			     flow_setup_cb_t *cb, void *cb_priv)
