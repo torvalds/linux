@@ -409,6 +409,24 @@ static int amdgpu_userq_metadata_info_compute(struct amdgpu_device *adev,
 	return ret;
 }
 
+static int amdgpu_userq_metadata_info_sdma(struct amdgpu_device *adev,
+					   struct drm_amdgpu_info *info,
+					   struct drm_amdgpu_info_uq_metadata_sdma *meta)
+{
+	int ret = -EOPNOTSUPP;
+
+	if (adev->sdma.get_csa_info) {
+		struct amdgpu_sdma_csa_info csa = {};
+
+		adev->sdma.get_csa_info(adev, &csa);
+		meta->csa_size = csa.size;
+		meta->csa_alignment = csa.alignment;
+		ret = 0;
+	}
+
+	return ret;
+}
+
 static int amdgpu_hw_ip_info(struct amdgpu_device *adev,
 			     struct drm_amdgpu_info *info,
 			     struct drm_amdgpu_info_hw_ip *result)
@@ -1383,6 +1401,14 @@ out:
 			return 0;
 		case AMDGPU_HW_IP_COMPUTE:
 			ret = amdgpu_userq_metadata_info_compute(adev, info, &meta_info.compute);
+			if (ret)
+				return ret;
+
+			ret = copy_to_user(out, &meta_info,
+						min((size_t)size, sizeof(meta_info))) ? -EFAULT : 0;
+			return 0;
+		case AMDGPU_HW_IP_DMA:
+			ret = amdgpu_userq_metadata_info_sdma(adev, info, &meta_info.sdma);
 			if (ret)
 				return ret;
 
