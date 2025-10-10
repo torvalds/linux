@@ -56,7 +56,7 @@
 **-u**, **--user-threads**
 
         Set timerlat to run without a workload, and then dispatches user-space workloads
-        to wait on the timerlat_fd. Once the workload is awakes, it goes to sleep again
+        to wait on the timerlat_fd. Once the workload is awakened, it goes to sleep again
         adding so the measurement for the kernel-to-user and user-to-kernel to the tracer
         output. **--user-threads** will be used unless the user specify **-k**.
 
