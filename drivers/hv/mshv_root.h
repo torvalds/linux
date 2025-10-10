@@ -303,6 +303,8 @@ int hv_call_unmap_stat_page(enum hv_stats_object_type type,
 int hv_call_modify_spa_host_access(u64 partition_id, struct page **pages,
 				   u64 page_struct_count, u32 host_access,
 				   u32 flags, u8 acquire);
+int hv_call_get_partition_property_ex(u64 partition_id, u64 property_code, u64 arg,
+				      void *property_value, size_t property_value_sz);
 
 extern struct mshv_root mshv_root;
 extern enum hv_scheduler_type hv_scheduler_type;

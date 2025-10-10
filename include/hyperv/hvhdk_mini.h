@@ -96,7 +96,33 @@ enum hv_partition_property_code {
 	HV_PARTITION_PROPERTY_XSAVE_STATES                      = 0x00060007,
 	HV_PARTITION_PROPERTY_MAX_XSAVE_DATA_SIZE		= 0x00060008,
 	HV_PARTITION_PROPERTY_PROCESSOR_CLOCK_FREQUENCY		= 0x00060009,
+
+	/* Extended properties with larger property values */
+	HV_PARTITION_PROPERTY_VMM_CAPABILITIES			= 0x00090007,
 };
+
+#define HV_PARTITION_VMM_CAPABILITIES_BANK_COUNT		1
+#define HV_PARTITION_VMM_CAPABILITIES_RESERVED_BITFIELD_COUNT	59
+
+struct hv_partition_property_vmm_capabilities {
+	u16 bank_count;
+	u16 reserved[3];
+	union {
+		u64 as_uint64[HV_PARTITION_VMM_CAPABILITIES_BANK_COUNT];
+		struct {
+			u64 map_gpa_preserve_adjustable: 1;
+			u64 vmm_can_provide_overlay_gpfn: 1;
+			u64 vp_affinity_property: 1;
+#if IS_ENABLED(CONFIG_ARM64)
+			u64 vmm_can_provide_gic_overlay_locations: 1;
+#else
+			u64 reservedbit3: 1;
+#endif
+			u64 assignable_synthetic_proc_features: 1;
+			u64 reserved0: HV_PARTITION_VMM_CAPABILITIES_RESERVED_BITFIELD_COUNT;
+		} __packed;
+	};
+} __packed;
 
 enum hv_snp_status {
 	HV_SNP_STATUS_NONE = 0,

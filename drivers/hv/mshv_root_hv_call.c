@@ -590,6 +590,37 @@ int hv_call_unmap_vp_state_page(u64 partition_id, u32 vp_index, u32 type,
 	return hv_result_to_errno(status);
 }
 
+int hv_call_get_partition_property_ex(u64 partition_id, u64 property_code,
+				      u64 arg, void *property_value,
+				      size_t property_value_sz)
+{
+	u64 status;
+	unsigned long flags;
+	struct hv_input_get_partition_property_ex *input;
+	struct hv_output_get_partition_property_ex *output;
+
+	local_irq_save(flags);
+	input = *this_cpu_ptr(hyperv_pcpu_input_arg);
+	output = *this_cpu_ptr(hyperv_pcpu_output_arg);
+
+	memset(input, 0, sizeof(*input));
+	input->partition_id = partition_id;
+	input->property_code = property_code;
+	input->arg = arg;
+	status = hv_do_hypercall(HVCALL_GET_PARTITION_PROPERTY_EX, input, output);
+
+	if (!hv_result_success(status)) {
+		local_irq_restore(flags);
+		hv_status_debug(status, "\n");
+		return hv_result_to_errno(status);
+	}
+	memcpy(property_value, &output->property_value, property_value_sz);
+
+	local_irq_restore(flags);
+
+	return 0;
+}
+
 int
 hv_call_clear_virtual_interrupt(u64 partition_id)
 {
