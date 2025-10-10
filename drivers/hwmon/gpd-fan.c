@@ -621,8 +621,8 @@ static int gpd_fan_probe(struct platform_device *pdev)
 
 	region = devm_request_region(dev, res->start,
 				     resource_size(res), DRIVER_NAME);
-	if (IS_ERR(region))
-		return dev_err_probe(dev, PTR_ERR(region),
+	if (!region)
+		return dev_err_probe(dev, -EBUSY,
 				     "Failed to request region\n");
 
 	hwdev = devm_hwmon_device_register_with_info(dev,
@@ -631,7 +631,7 @@ static int gpd_fan_probe(struct platform_device *pdev)
 						     &gpd_fan_chip_info,
 						     NULL);
 	if (IS_ERR(hwdev))
-		return dev_err_probe(dev, PTR_ERR(region),
+		return dev_err_probe(dev, PTR_ERR(hwdev),
 				     "Failed to register hwmon device\n");
 
 	return 0;
