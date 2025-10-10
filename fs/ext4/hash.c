@@ -268,7 +268,7 @@ static int __ext4fs_dirhash(const struct inode *dir, const char *name, int len,
 			combined_hash = fscrypt_fname_siphash(dir, &qname);
 		} else {
 			ext4_warning_inode(dir, "Siphash requires key");
-			return -1;
+			return -EINVAL;
 		}
 
 		hash = (__u32)(combined_hash >> 32);
