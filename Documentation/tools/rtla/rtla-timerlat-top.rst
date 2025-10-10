@@ -21,7 +21,7 @@ DESCRIPTION
 The **rtla timerlat top** displays a summary of the periodic output
 from the *timerlat* tracer. It also provides information for each
 operating system noise via the **osnoise:** tracepoints that can be
-seem with the option **-T**.
+seen with the option **-T**.
 
 OPTIONS
 =======
