@@ -391,6 +391,24 @@ static int amdgpu_userq_metadata_info_gfx(struct amdgpu_device *adev,
 	return ret;
 }
 
+static int amdgpu_userq_metadata_info_compute(struct amdgpu_device *adev,
+					      struct drm_amdgpu_info *info,
+					      struct drm_amdgpu_info_uq_metadata_compute *meta)
+{
+	int ret = -EOPNOTSUPP;
+
+	if (adev->gfx.funcs->get_gfx_shadow_info) {
+		struct amdgpu_gfx_shadow_info shadow = {};
+
+		adev->gfx.funcs->get_gfx_shadow_info(adev, &shadow, true);
+		meta->eop_size = shadow.eop_size;
+		meta->eop_alignment = shadow.eop_alignment;
+		ret = 0;
+	}
+
+	return ret;
+}
+
 static int amdgpu_hw_ip_info(struct amdgpu_device *adev,
 			     struct drm_amdgpu_info *info,
 			     struct drm_amdgpu_info_hw_ip *result)
@@ -1357,6 +1375,14 @@ out:
 		switch (info->query_hw_ip.type) {
 		case AMDGPU_HW_IP_GFX:
 			ret = amdgpu_userq_metadata_info_gfx(adev, info, &meta_info.gfx);
+			if (ret)
+				return ret;
+
+			ret = copy_to_user(out, &meta_info,
+						min((size_t)size, sizeof(meta_info))) ? -EFAULT : 0;
+			return 0;
+		case AMDGPU_HW_IP_COMPUTE:
+			ret = amdgpu_userq_metadata_info_compute(adev, info, &meta_info.compute);
 			if (ret)
 				return ret;
 
