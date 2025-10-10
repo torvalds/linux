@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2016-2022 NVIDIA Corporation
+ * Copyright (c) 2016-2025 NVIDIA Corporation
  *
  * Author: Thierry Reding <treding@nvidia.com>
  *	   Dipen Patel <dpatel@nvidia.com>
@@ -68,6 +68,30 @@
 #define TEGRA186_GPIO_INTERRUPT_CLEAR 0x14
 
 #define TEGRA186_GPIO_INTERRUPT_STATUS(x) (0x100 + (x) * 4)
+
+/* Tegra410 GPIOs implemented by the COMPUTE GPIO controller */
+#define TEGRA410_COMPUTE_GPIO_PORT_A 0
+#define TEGRA410_COMPUTE_GPIO_PORT_B 1
+#define TEGRA410_COMPUTE_GPIO_PORT_C 2
+#define TEGRA410_COMPUTE_GPIO_PORT_D 3
+#define TEGRA410_COMPUTE_GPIO_PORT_E 4
+
+/* Tegra410 GPIOs implemented by the SYSTEM GPIO controller */
+#define TEGRA410_SYSTEM_GPIO_PORT_A 0
+#define TEGRA410_SYSTEM_GPIO_PORT_B 1
+#define TEGRA410_SYSTEM_GPIO_PORT_C 2
+#define TEGRA410_SYSTEM_GPIO_PORT_D 3
+#define TEGRA410_SYSTEM_GPIO_PORT_E 4
+#define TEGRA410_SYSTEM_GPIO_PORT_I 5
+#define TEGRA410_SYSTEM_GPIO_PORT_J 6
+#define TEGRA410_SYSTEM_GPIO_PORT_K 7
+#define TEGRA410_SYSTEM_GPIO_PORT_L 8
+#define TEGRA410_SYSTEM_GPIO_PORT_M 9
+#define TEGRA410_SYSTEM_GPIO_PORT_N 10
+#define TEGRA410_SYSTEM_GPIO_PORT_P 11
+#define TEGRA410_SYSTEM_GPIO_PORT_Q 12
+#define TEGRA410_SYSTEM_GPIO_PORT_R 13
+#define TEGRA410_SYSTEM_GPIO_PORT_V 14
 
 struct tegra_gpio_port {
 	const char *name;
@@ -1267,6 +1291,54 @@ static const struct tegra_gpio_soc tegra256_main_soc = {
 	.has_vm_support = true,
 };
 
+#define TEGRA410_COMPUTE_GPIO_PORT(_name, _bank, _port, _pins)	\
+	TEGRA_GPIO_PORT(TEGRA410_COMPUTE, _name, _bank, _port, _pins)
+
+static const struct tegra_gpio_port tegra410_compute_ports[] = {
+	TEGRA410_COMPUTE_GPIO_PORT(A, 0, 0, 3),
+	TEGRA410_COMPUTE_GPIO_PORT(B, 1, 0, 8),
+	TEGRA410_COMPUTE_GPIO_PORT(C, 1, 1, 3),
+	TEGRA410_COMPUTE_GPIO_PORT(D, 2, 0, 8),
+	TEGRA410_COMPUTE_GPIO_PORT(E, 2, 1, 8),
+};
+
+static const struct tegra_gpio_soc tegra410_compute_soc = {
+	.num_ports = ARRAY_SIZE(tegra410_compute_ports),
+	.ports = tegra410_compute_ports,
+	.name = "tegra410-gpio-compute",
+	.num_irqs_per_bank = 8,
+	.instance = 0,
+};
+
+#define TEGRA410_SYSTEM_GPIO_PORT(_name, _bank, _port, _pins)	\
+	TEGRA_GPIO_PORT(TEGRA410_SYSTEM, _name, _bank, _port, _pins)
+
+static const struct tegra_gpio_port tegra410_system_ports[] = {
+	TEGRA410_SYSTEM_GPIO_PORT(A, 0, 0, 7),
+	TEGRA410_SYSTEM_GPIO_PORT(B, 0, 1, 8),
+	TEGRA410_SYSTEM_GPIO_PORT(C, 0, 2, 8),
+	TEGRA410_SYSTEM_GPIO_PORT(D, 0, 3, 8),
+	TEGRA410_SYSTEM_GPIO_PORT(E, 0, 4, 6),
+	TEGRA410_SYSTEM_GPIO_PORT(I, 1, 0, 8),
+	TEGRA410_SYSTEM_GPIO_PORT(J, 1, 1, 7),
+	TEGRA410_SYSTEM_GPIO_PORT(K, 1, 2, 7),
+	TEGRA410_SYSTEM_GPIO_PORT(L, 1, 3, 7),
+	TEGRA410_SYSTEM_GPIO_PORT(M, 2, 0, 7),
+	TEGRA410_SYSTEM_GPIO_PORT(N, 2, 1, 6),
+	TEGRA410_SYSTEM_GPIO_PORT(P, 2, 2, 8),
+	TEGRA410_SYSTEM_GPIO_PORT(Q, 2, 3, 3),
+	TEGRA410_SYSTEM_GPIO_PORT(R, 2, 4, 2),
+	TEGRA410_SYSTEM_GPIO_PORT(V, 1, 4, 2),
+};
+
+static const struct tegra_gpio_soc tegra410_system_soc = {
+	.num_ports = ARRAY_SIZE(tegra410_system_ports),
+	.ports = tegra410_system_ports,
+	.name = "tegra410-gpio-system",
+	.num_irqs_per_bank = 8,
+	.instance = 0,
+};
+
 static const struct of_device_id tegra186_gpio_of_match[] = {
 	{
 		.compatible = "nvidia,tegra186-gpio",
@@ -1302,6 +1374,8 @@ static const struct acpi_device_id  tegra186_gpio_acpi_match[] = {
 	{ .id = "NVDA0408", .driver_data = (kernel_ulong_t)&tegra194_aon_soc },
 	{ .id = "NVDA0508", .driver_data = (kernel_ulong_t)&tegra241_main_soc },
 	{ .id = "NVDA0608", .driver_data = (kernel_ulong_t)&tegra241_aon_soc },
+	{ .id = "NVDA0708", .driver_data = (kernel_ulong_t)&tegra410_compute_soc },
+	{ .id = "NVDA0808", .driver_data = (kernel_ulong_t)&tegra410_system_soc },
 	{}
 };
 MODULE_DEVICE_TABLE(acpi, tegra186_gpio_acpi_match);
