@@ -1057,7 +1057,7 @@ static int init_user_pages(struct kgd_mem *mem, uint64_t user_addr,
 	struct amdkfd_process_info *process_info = mem->process_info;
 	struct amdgpu_bo *bo = mem->bo;
 	struct ttm_operation_ctx ctx = { true, false };
-	struct hmm_range *range;
+	struct amdgpu_hmm_range *range;
 	int ret = 0;
 
 	mutex_lock(&process_info->lock);
@@ -1089,7 +1089,7 @@ static int init_user_pages(struct kgd_mem *mem, uint64_t user_addr,
 		return 0;
 	}
 
-	range = amdgpu_hmm_range_alloc();
+	range = amdgpu_hmm_range_alloc(NULL);
 	if (unlikely(!range)) {
 		ret = -ENOMEM;
 		goto unregister_out;
@@ -2573,7 +2573,7 @@ static int update_invalid_user_pages(struct amdkfd_process_info *process_info,
 			}
 		}
 
-		mem->range = amdgpu_hmm_range_alloc();
+		mem->range = amdgpu_hmm_range_alloc(NULL);
 		if (unlikely(!mem->range))
 			return -ENOMEM;
 		/* Get updated user pages */
