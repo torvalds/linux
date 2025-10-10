@@ -50,6 +50,11 @@ enum amdgpu_sdma_irq {
 
 #define NUM_SDMA(x) hweight32(x)
 
+struct amdgpu_sdma_csa_info {
+	u32 size;
+	u32 alignment;
+};
+
 struct amdgpu_sdma_funcs {
 	int (*stop_kernel_queue)(struct amdgpu_ring *ring);
 	int (*start_kernel_queue)(struct amdgpu_ring *ring);
@@ -139,6 +144,8 @@ struct amdgpu_sdma {
 	struct list_head	reset_callback_list;
 	bool			no_user_submission;
 	bool			disable_uq;
+	void (*get_csa_info)(struct amdgpu_device *adev,
+			     struct amdgpu_sdma_csa_info *csa_info);
 };
 
 /*

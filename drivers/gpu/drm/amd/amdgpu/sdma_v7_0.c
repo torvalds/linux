@@ -1253,6 +1253,17 @@ static void sdma_v7_0_ring_emit_reg_write_reg_wait(struct amdgpu_ring *ring,
 	amdgpu_ring_emit_reg_wait(ring, reg1, mask, mask);
 }
 
+/* all sizes are in bytes */
+#define SDMA7_CSA_SIZE       32
+#define SDMA7_CSA_ALIGNMENT  4
+
+static void sdma_v7_0_get_csa_info(struct amdgpu_device *adev,
+				   struct amdgpu_sdma_csa_info *csa_info)
+{
+	csa_info->size = SDMA7_CSA_SIZE;
+	csa_info->alignment = SDMA7_CSA_ALIGNMENT;
+}
+
 static int sdma_v7_0_early_init(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_device *adev = ip_block->adev;
@@ -1286,6 +1297,7 @@ static int sdma_v7_0_early_init(struct amdgpu_ip_block *ip_block)
 	sdma_v7_0_set_vm_pte_funcs(adev);
 	sdma_v7_0_set_irq_funcs(adev);
 	sdma_v7_0_set_mqd_funcs(adev);
+	adev->sdma.get_csa_info = &sdma_v7_0_get_csa_info;
 
 	return 0;
 }
