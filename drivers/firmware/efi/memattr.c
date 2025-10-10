@@ -19,19 +19,19 @@ unsigned long __ro_after_init efi_mem_attr_table = EFI_INVALID_TABLE_ADDR;
  * Reserve the memory associated with the Memory Attributes configuration
  * table, if it exists.
  */
-int __init efi_memattr_init(void)
+void __init efi_memattr_init(void)
 {
 	efi_memory_attributes_table_t *tbl;
 	unsigned long size;
 
 	if (efi_mem_attr_table == EFI_INVALID_TABLE_ADDR)
-		return 0;
+		return;
 
 	tbl = early_memremap(efi_mem_attr_table, sizeof(*tbl));
 	if (!tbl) {
 		pr_err("Failed to map EFI Memory Attributes table @ 0x%lx\n",
 		       efi_mem_attr_table);
-		return -ENOMEM;
+		return;
 	}
 
 	if (tbl->version > 2) {
@@ -61,7 +61,6 @@ int __init efi_memattr_init(void)
 
 unmap:
 	early_memunmap(tbl, sizeof(*tbl));
-	return 0;
 }
 
 /*
