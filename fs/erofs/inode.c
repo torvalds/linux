@@ -295,7 +295,7 @@ struct inode *erofs_iget(struct super_block *sb, erofs_nid_t nid)
 	if (!inode)
 		return ERR_PTR(-ENOMEM);
 
-	if (inode->i_state & I_NEW) {
+	if (inode_state_read_once(inode) & I_NEW) {
 		int err = erofs_fill_inode(inode);
 
 		if (err) {

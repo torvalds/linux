@@ -258,7 +258,7 @@ vxfs_iget(struct super_block *sbp, ino_t ino)
 	ip = iget_locked(sbp, ino);
 	if (!ip)
 		return ERR_PTR(-ENOMEM);
-	if (!(ip->i_state & I_NEW))
+	if (!(inode_state_read_once(ip) & I_NEW))
 		return ip;
 
 	vip = VXFS_INO(ip);

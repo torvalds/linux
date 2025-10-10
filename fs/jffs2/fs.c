@@ -265,7 +265,7 @@ struct inode *jffs2_iget(struct super_block *sb, unsigned long ino)
 	inode = iget_locked(sb, ino);
 	if (!inode)
 		return ERR_PTR(-ENOMEM);
-	if (!(inode->i_state & I_NEW))
+	if (!(inode_state_read_once(inode) & I_NEW))
 		return inode;
 
 	f = JFFS2_INODE_INFO(inode);
@@ -373,7 +373,7 @@ void jffs2_dirty_inode(struct inode *inode, int flags)
 {
 	struct iattr iattr;
 
-	if (!(inode->i_state & I_DIRTY_DATASYNC)) {
+	if (!(inode_state_read_once(inode) & I_DIRTY_DATASYNC)) {
 		jffs2_dbg(2, "%s(): not calling setattr() for ino #%lu\n",
 			  __func__, inode->i_ino);
 		return;

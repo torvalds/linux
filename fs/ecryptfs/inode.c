@@ -95,7 +95,7 @@ static struct inode *__ecryptfs_get_inode(struct inode *lower_inode,
 		iput(lower_inode);
 		return ERR_PTR(-EACCES);
 	}
-	if (!(inode->i_state & I_NEW))
+	if (!(inode_state_read_once(inode) & I_NEW))
 		iput(lower_inode);
 
 	return inode;
@@ -106,7 +106,7 @@ struct inode *ecryptfs_get_inode(struct inode *lower_inode,
 {
 	struct inode *inode = __ecryptfs_get_inode(lower_inode, sb);
 
-	if (!IS_ERR(inode) && (inode->i_state & I_NEW))
+	if (!IS_ERR(inode) && (inode_state_read_once(inode) & I_NEW))
 		unlock_new_inode(inode);
 
 	return inode;
@@ -364,7 +364,7 @@ static struct dentry *ecryptfs_lookup_interpose(struct dentry *dentry,
 		}
 	}
 
-	if (inode->i_state & I_NEW)
+	if (inode_state_read_once(inode) & I_NEW)
 		unlock_new_inode(inode);
 	return d_splice_alias(inode, dentry);
 }
