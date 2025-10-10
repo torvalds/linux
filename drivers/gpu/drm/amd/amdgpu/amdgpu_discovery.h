@@ -36,6 +36,7 @@ struct amdgpu_discovery_info {
 	struct ip_discovery_top *ip_top;
 	uint32_t size;
 	uint8_t *bin;
+	bool reserve_tmr;
 };
 
 void amdgpu_discovery_fini(struct amdgpu_device *adev);

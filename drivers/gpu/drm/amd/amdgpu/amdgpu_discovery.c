@@ -298,10 +298,15 @@ static int amdgpu_discovery_read_binary_from_mem(struct amdgpu_device *adev,
 	else
 		vram_size <<= 20;
 
+	/*
+	 * If in VRAM, discovery TMR is marked for reservation. If it is in system mem,
+	 * then it is not required to be reserved.
+	 */
 	if (sz_valid) {
 		uint64_t pos = vram_size - DISCOVERY_TMR_OFFSET;
 		amdgpu_device_vram_access(adev, pos, (uint32_t *)binary,
 					  adev->discovery.size, false);
+		adev->discovery.reserve_tmr = true;
 	} else {
 		ret = amdgpu_discovery_read_binary_from_sysmem(adev, binary);
 	}
@@ -418,8 +423,11 @@ static int amdgpu_discovery_verify_npsinfo(struct amdgpu_device *adev,
 
 static const char *amdgpu_discovery_get_fw_name(struct amdgpu_device *adev)
 {
-	if (amdgpu_discovery == 2)
+	if (amdgpu_discovery == 2) {
+		/* Assume there is valid discovery TMR in VRAM even if binary is sideloaded */
+		adev->discovery.reserve_tmr = true;
 		return "amdgpu/ip_discovery.bin";
+	}
 
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
