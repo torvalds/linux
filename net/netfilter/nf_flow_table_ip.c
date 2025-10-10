@@ -413,6 +413,25 @@ static int nf_flow_offload_forward(struct nf_flowtable_ctx *ctx,
 	return 1;
 }
 
+static int nf_flow_encap_push(struct sk_buff *skb,
+			      struct flow_offload_tuple *tuple)
+{
+	int i;
+
+	for (i = 0; i < tuple->encap_num; i++) {
+		switch (tuple->encap[i].proto) {
+		case htons(ETH_P_8021Q):
+		case htons(ETH_P_8021AD):
+			if (skb_vlan_push(skb, tuple->encap[i].proto,
+					  tuple->encap[i].id) < 0)
+				return -1;
+			break;
+		}
+	}
+
+	return 0;
+}
+
 unsigned int
 nf_flow_offload_ip_hook(void *priv, struct sk_buff *skb,
 			const struct nf_hook_state *state)
@@ -449,6 +468,9 @@ nf_flow_offload_ip_hook(void *priv, struct sk_buff *skb,
 
 	dir = tuplehash->tuple.dir;
 	flow = container_of(tuplehash, struct flow_offload, tuplehash[dir]);
+
+	if (nf_flow_encap_push(skb, &flow->tuplehash[!dir].tuple) < 0)
+		return NF_DROP;
 
 	switch (tuplehash->tuple.xmit_type) {
 	case FLOW_OFFLOAD_XMIT_NEIGH:
@@ -753,6 +775,9 @@ nf_flow_offload_ipv6_hook(void *priv, struct sk_buff *skb,
 
 	dir = tuplehash->tuple.dir;
 	flow = container_of(tuplehash, struct flow_offload, tuplehash[dir]);
+
+	if (nf_flow_encap_push(skb, &flow->tuplehash[!dir].tuple) < 0)
+		return NF_DROP;
 
 	switch (tuplehash->tuple.xmit_type) {
 	case FLOW_OFFLOAD_XMIT_NEIGH:
