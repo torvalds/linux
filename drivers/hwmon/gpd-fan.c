@@ -615,8 +615,8 @@ static int gpd_fan_probe(struct platform_device *pdev)
 	const struct device *hwdev;
 
 	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
-	if (IS_ERR(res))
-		return dev_err_probe(dev, PTR_ERR(res),
+	if (!res)
+		return dev_err_probe(dev, -EINVAL,
 				     "Failed to get platform resource\n");
 
 	region = devm_request_region(dev, res->start,
