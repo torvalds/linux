@@ -3120,9 +3120,8 @@ static void dw_mci_init_dma(struct dw_mci *host)
 			host->dma_64bit_address = 1;
 			dev_info(host->dev,
 				 "IDMAC supports 64-bit address mode.\n");
-			if (!dma_set_mask(host->dev, DMA_BIT_MASK(64)))
-				dma_set_coherent_mask(host->dev,
-						      DMA_BIT_MASK(64));
+			if (dma_set_mask_and_coherent(host->dev, DMA_BIT_MASK(64)))
+				dev_info(host->dev, "Fail to set 64-bit DMA mask");
 		} else {
 			/* host supports IDMAC in 32-bit address mode */
 			host->dma_64bit_address = 0;
