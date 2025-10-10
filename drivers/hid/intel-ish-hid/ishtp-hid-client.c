@@ -860,7 +860,7 @@ static int hid_ishtp_cl_reset(struct ishtp_cl_device *cl_device)
 	hid_ishtp_trace(client_data, "%s hid_ishtp_cl %p\n", __func__,
 			hid_ishtp_cl);
 
-	schedule_work(&client_data->work);
+	queue_work(ishtp_get_workqueue(cl_device), &client_data->work);
 
 	return 0;
 }
@@ -902,7 +902,7 @@ static int hid_ishtp_cl_resume(struct device *device)
 
 	hid_ishtp_trace(client_data, "%s hid_ishtp_cl %p\n", __func__,
 			hid_ishtp_cl);
-	schedule_work(&client_data->resume_work);
+	queue_work(ishtp_get_workqueue(cl_device), &client_data->resume_work);
 	return 0;
 }
 

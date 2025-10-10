@@ -628,7 +628,7 @@ static void	recv_ipc(struct ishtp_device *dev, uint32_t doorbell_val)
 		if (!ishtp_dev) {
 			ishtp_dev = dev;
 		}
-		schedule_work(&fw_reset_work);
+		queue_work(dev->unbound_wq, &fw_reset_work);
 		break;
 
 	case MNG_RESET_NOTIFY_ACK:
@@ -933,6 +933,21 @@ static const struct ishtp_hw_ops ish_hw_ops = {
 	.dma_no_cache_snooping = _dma_no_cache_snooping
 };
 
+static struct workqueue_struct *devm_ishtp_alloc_workqueue(struct device *dev)
+{
+	struct workqueue_struct *wq;
+
+	wq = alloc_workqueue("ishtp_unbound_%d", WQ_UNBOUND, 0, dev->id);
+	if (!wq)
+		return NULL;
+
+	if (devm_add_action_or_reset(dev, (void (*)(void *))destroy_workqueue,
+				     wq))
+		return NULL;
+
+	return wq;
+}
+
 /**
  * ish_dev_init() -Initialize ISH devoce
  * @pdev: PCI device
@@ -951,6 +966,10 @@ struct ishtp_device *ish_dev_init(struct pci_dev *pdev)
 			   sizeof(struct ishtp_device) + sizeof(struct ish_hw),
 			   GFP_KERNEL);
 	if (!dev)
+		return NULL;
+
+	dev->unbound_wq = devm_ishtp_alloc_workqueue(&pdev->dev);
+	if (!dev->unbound_wq)
 		return NULL;
 
 	dev->devc = &pdev->dev;

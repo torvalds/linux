@@ -87,6 +87,8 @@ bool ishtp_wait_resume(struct ishtp_device *dev);
 ishtp_print_log ishtp_trace_callback(struct ishtp_cl_device *cl_device);
 /* Get device pointer of PCI device for DMA acces */
 struct device *ishtp_get_pci_device(struct ishtp_cl_device *cl_device);
+/* Get the ISHTP workqueue */
+struct workqueue_struct *ishtp_get_workqueue(struct ishtp_cl_device *cl_device);
 
 struct ishtp_cl *ishtp_cl_allocate(struct ishtp_cl_device *cl_device);
 void ishtp_cl_free(struct ishtp_cl *cl);
