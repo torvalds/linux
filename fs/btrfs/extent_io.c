@@ -1691,13 +1691,13 @@ static noinline_for_stack int extent_writepage_io(struct btrfs_inode *inode,
 	bool submitted_io = false;
 	int found_error = 0;
 	const u64 folio_start = folio_pos(folio);
+	const u64 folio_end = folio_start + folio_size(folio);
 	const unsigned int blocks_per_folio = btrfs_blocks_per_folio(fs_info, folio);
 	u64 cur;
 	int bit;
 	int ret = 0;
 
-	ASSERT(start >= folio_start &&
-	       start + len <= folio_start + folio_size(folio));
+	ASSERT(start >= folio_start && start + len <= folio_end);
 
 	ret = btrfs_writepage_cow_fixup(folio);
 	if (ret == -EAGAIN) {
@@ -1724,6 +1724,23 @@ static noinline_for_stack int extent_writepage_io(struct btrfs_inode *inode,
 		cur = folio_pos(folio) + (bit << fs_info->sectorsize_bits);
 
 		if (cur >= i_size) {
+			struct btrfs_ordered_extent *ordered;
+			unsigned long flags;
+
+			ordered = btrfs_lookup_first_ordered_range(inode, cur,
+								   folio_end - cur);
+			/*
+			 * We have just run delalloc before getting here, so
+			 * there must be an ordered extent.
+			 */
+			ASSERT(ordered != NULL);
+			spin_lock_irqsave(&inode->ordered_tree_lock, flags);
+			set_bit(BTRFS_ORDERED_TRUNCATED, &ordered->flags);
+			ordered->truncated_len = min(ordered->truncated_len,
+						     cur - ordered->file_offset);
+			spin_unlock_irqrestore(&inode->ordered_tree_lock, flags);
+			btrfs_put_ordered_extent(ordered);
+
 			btrfs_mark_ordered_io_finished(inode, folio, cur,
 						       start + len - cur, true);
 			/*
