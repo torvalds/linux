@@ -839,7 +839,7 @@ static int match_free_decoder(struct device *dev, const void *data)
 }
 
 static bool region_res_match_cxl_range(const struct cxl_region_params *p,
-				       struct range *range)
+				       const struct range *range)
 {
 	if (!p->res)
 		return false;
