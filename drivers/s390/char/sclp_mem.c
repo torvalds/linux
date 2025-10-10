@@ -224,7 +224,7 @@ static ssize_t sclp_config_mem_store(struct kobject *kobj, struct kobj_attribute
 		__arch_set_page_nodat((void *)__va(addr), block_size >> PAGE_SHIFT);
 		rc = __add_memory(0, addr, block_size,
 				  sclp_mem->memmap_on_memory ?
-				  MHP_MEMMAP_ON_MEMORY | MHP_OFFLINE_INACCESSIBLE : MHP_NONE);
+				  MHP_MEMMAP_ON_MEMORY : MHP_NONE);
 		if (rc) {
 			sclp_mem_change_state(addr, block_size, 0);
 			goto out_unlock;
