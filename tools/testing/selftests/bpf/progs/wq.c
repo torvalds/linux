@@ -187,3 +187,20 @@ long test_call_lru_sleepable(void *ctx)
 
 	return test_elem_callback(&lru, &key, wq_callback);
 }
+
+SEC("tc")
+long test_map_no_btf(void *ctx)
+{
+	struct elem *val;
+	struct bpf_wq *wq;
+	int key = 42;
+
+	val = bpf_map_lookup_elem(&array, &key);
+	if (!val)
+		return -2;
+
+	wq = &val->w;
+	if (bpf_wq_init(wq, &array, 0) != 0)
+		return -3;
+	return 0;
+}
