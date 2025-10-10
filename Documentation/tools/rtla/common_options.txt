@@ -1,6 +1,6 @@
 **-c**, **--cpus** *cpu-list*
 
-        Set the osnoise tracer to run the sample threads in the cpu-list.
+        Set the |tool| tracer to run the sample threads in the cpu-list.
 
 **-H**, **--house-keeping** *cpu-list*
 
@@ -35,7 +35,7 @@
 
 **-P**, **--priority** *o:prio|r:prio|f:prio|d:runtime:period*
 
-        Set scheduling parameters to the osnoise tracer threads, the format to set the priority are:
+        Set scheduling parameters to the |tool| tracer threads, the format to set the priority are:
 
         - *o:prio* - use SCHED_OTHER with *prio*;
         - *r:prio* - use SCHED_RR with *prio*;
