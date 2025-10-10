@@ -814,7 +814,7 @@ intel_tile_width_bytes(const struct drm_framebuffer *fb, int color_plane)
 			return 64;
 		fallthrough;
 	case I915_FORMAT_MOD_Y_TILED:
-		if (DISPLAY_VER(display) == 2 || HAS_128_BYTE_Y_TILING(i915))
+		if (HAS_128_BYTE_Y_TILING(i915))
 			return 128;
 		else
 			return 512;
