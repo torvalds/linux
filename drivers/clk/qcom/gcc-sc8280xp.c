@@ -2224,7 +2224,6 @@ static struct clk_rcg2 gcc_usb3_sec_phy_aux_clk_src = {
 };
 
 static const struct freq_tbl ftbl_gcc_usb4_1_master_clk_src[] = {
-	F(85714286, P_GCC_GPLL0_OUT_EVEN, 3.5, 0, 0),
 	F(175000000, P_GCC_GPLL8_OUT_MAIN, 4, 0, 0),
 	F(350000000, P_GCC_GPLL8_OUT_MAIN, 2, 0, 0),
 	{ }
