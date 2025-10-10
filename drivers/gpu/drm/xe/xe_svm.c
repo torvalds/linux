@@ -1034,6 +1034,9 @@ retry:
 	if (err)
 		return err;
 
+	dpagemap = xe_vma_resolve_pagemap(vma, tile);
+	if (!dpagemap && !ctx.devmem_only)
+		ctx.device_private_page_owner = NULL;
 	range = xe_svm_range_find_or_insert(vm, fault_addr, vma, &ctx);
 
 	if (IS_ERR(range))
@@ -1054,7 +1057,6 @@ retry:
 
 	range_debug(range, "PAGE FAULT");
 
-	dpagemap = xe_vma_resolve_pagemap(vma, tile);
 	if (--migrate_try_count >= 0 &&
 	    xe_svm_range_needs_migrate_to_vram(range, vma, !!dpagemap || ctx.devmem_only)) {
 		ktime_t migrate_start = xe_svm_stats_ktime_get();
