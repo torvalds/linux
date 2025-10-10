@@ -9,7 +9,7 @@
 
 #define SDEI_STACK_SIZE		IRQ_STACK_SIZE
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/linkage.h>
 #include <linux/preempt.h>
@@ -49,5 +49,5 @@ unsigned long do_sdei_event(struct pt_regs *regs,
 unsigned long sdei_arch_get_entry_point(int conduit);
 #define sdei_arch_get_entry_point(x)	sdei_arch_get_entry_point(x)
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 #endif	/* __ASM_SDEI_H */

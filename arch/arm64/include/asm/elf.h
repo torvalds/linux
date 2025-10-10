@@ -133,7 +133,7 @@
 #define ELF_ET_DYN_BASE		(2 * DEFAULT_MAP_WINDOW_64 / 3)
 #endif /* CONFIG_ARM64_FORCE_52BIT */
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <uapi/linux/elf.h>
 #include <linux/bug.h>
@@ -293,6 +293,6 @@ static inline int arch_check_elf(void *ehdr, bool has_interp,
 	return 0;
 }
 
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 
 #endif

@@ -207,7 +207,7 @@
  */
 #define TRAMP_SWAPPER_OFFSET	(2 * PAGE_SIZE)
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/bitops.h>
 #include <linux/compiler.h>
@@ -422,7 +422,7 @@ static inline unsigned long virt_to_pfn(const void *kaddr)
 })
 
 void dump_mem_limit(void);
-#endif /* !ASSEMBLY */
+#endif /* !__ASSEMBLER__ */
 
 /*
  * Given that the GIC architecture permits ITS implementations that can only be

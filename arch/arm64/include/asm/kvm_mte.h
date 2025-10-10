@@ -5,7 +5,7 @@
 #ifndef __ASM_KVM_MTE_H
 #define __ASM_KVM_MTE_H
 
-#ifdef __ASSEMBLY__
+#ifdef __ASSEMBLER__
 
 #include <asm/sysreg.h>
 
@@ -62,5 +62,5 @@ alternative_else_nop_endif
 .endm
 
 #endif /* CONFIG_ARM64_MTE */
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 #endif /* __ASM_KVM_MTE_H */

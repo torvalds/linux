@@ -7,7 +7,7 @@
 
 #ifdef __aarch64__
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <asm/alternative.h>
 #include <asm/arch_timer.h>
@@ -96,7 +96,7 @@ static __always_inline const struct vdso_time_data *__arch_get_vdso_u_time_data(
 #define __arch_get_vdso_u_time_data __arch_get_vdso_u_time_data
 #endif /* IS_ENABLED(CONFIG_CC_IS_GCC) && IS_ENABLED(CONFIG_PAGE_SIZE_64KB) */
 
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 
 #else /* !__aarch64__ */
 

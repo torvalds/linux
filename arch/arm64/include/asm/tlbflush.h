@@ -8,7 +8,7 @@
 #ifndef __ASM_TLBFLUSH_H
 #define __ASM_TLBFLUSH_H
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/bitfield.h>
 #include <linux/mm_types.h>

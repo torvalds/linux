@@ -431,7 +431,7 @@
 #define ESR_ELx_IT_GCSPOPCX		6
 #define ESR_ELx_IT_GCSPOPX		7
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #include <asm/types.h>
 
 static inline unsigned long esr_brk_comment(unsigned long esr)
@@ -534,6 +534,6 @@ static inline bool esr_iss_is_eretab(unsigned long esr)
 }
 
 const char *esr_get_class_string(unsigned long esr);
-#endif /* __ASSEMBLY */
+#endif /* __ASSEMBLER__ */
 
 #endif /* __ASM_ESR_H */
