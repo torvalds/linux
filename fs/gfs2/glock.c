@@ -957,7 +957,7 @@ static struct gfs2_inode *gfs2_grab_existing_inode(struct gfs2_glock *gl)
 		ip = NULL;
 	spin_unlock(&gl->gl_lockref.lock);
 	if (ip) {
-		wait_on_inode(&ip->i_inode);
+		wait_on_new_inode(&ip->i_inode);
 		if (is_bad_inode(&ip->i_inode)) {
 			iput(&ip->i_inode);
 			ip = NULL;

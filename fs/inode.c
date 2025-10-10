@@ -558,6 +558,32 @@ struct wait_queue_head *inode_bit_waitqueue(struct wait_bit_queue_entry *wqe,
 }
 EXPORT_SYMBOL(inode_bit_waitqueue);
 
+void wait_on_new_inode(struct inode *inode)
+{
+	struct wait_bit_queue_entry wqe;
+	struct wait_queue_head *wq_head;
+
+	spin_lock(&inode->i_lock);
+	if (!(inode_state_read(inode) & I_NEW)) {
+		spin_unlock(&inode->i_lock);
+		return;
+	}
+
+	wq_head = inode_bit_waitqueue(&wqe, inode, __I_NEW);
+	for (;;) {
+		prepare_to_wait_event(wq_head, &wqe.wq_entry, TASK_UNINTERRUPTIBLE);
+		if (!(inode_state_read(inode) & I_NEW))
+			break;
+		spin_unlock(&inode->i_lock);
+		schedule();
+		spin_lock(&inode->i_lock);
+	}
+	finish_wait(wq_head, &wqe.wq_entry);
+	WARN_ON(inode_state_read(inode) & I_NEW);
+	spin_unlock(&inode->i_lock);
+}
+EXPORT_SYMBOL(wait_on_new_inode);
+
 /*
  * Add inode to LRU if needed (inode is unused and clean).
  *
@@ -1008,7 +1034,8 @@ static void __wait_on_freeing_inode(struct inode *inode, bool is_inode_hash_lock
 static struct inode *find_inode(struct super_block *sb,
 				struct hlist_head *head,
 				int (*test)(struct inode *, void *),
-				void *data, bool is_inode_hash_locked)
+				void *data, bool is_inode_hash_locked,
+				bool *isnew)
 {
 	struct inode *inode = NULL;
 
@@ -1035,6 +1062,7 @@ repeat:
 			return ERR_PTR(-ESTALE);
 		}
 		__iget(inode);
+		*isnew = !!(inode_state_read(inode) & I_NEW);
 		spin_unlock(&inode->i_lock);
 		rcu_read_unlock();
 		return inode;
@@ -1049,7 +1077,7 @@ repeat:
  */
 static struct inode *find_inode_fast(struct super_block *sb,
 				struct hlist_head *head, unsigned long ino,
-				bool is_inode_hash_locked)
+				bool is_inode_hash_locked, bool *isnew)
 {
 	struct inode *inode = NULL;
 
@@ -1076,6 +1104,7 @@ repeat:
 			return ERR_PTR(-ESTALE);
 		}
 		__iget(inode);
+		*isnew = !!(inode_state_read(inode) & I_NEW);
 		spin_unlock(&inode->i_lock);
 		rcu_read_unlock();
 		return inode;
@@ -1181,17 +1210,7 @@ void unlock_new_inode(struct inode *inode)
 	lockdep_annotate_inode_mutex_key(inode);
 	spin_lock(&inode->i_lock);
 	WARN_ON(!(inode_state_read(inode) & I_NEW));
-	/*
-	 * Pairs with smp_rmb in wait_on_inode().
-	 */
-	smp_wmb();
 	inode_state_clear(inode, I_NEW | I_CREATING);
-	/*
-	 * Pairs with the barrier in prepare_to_wait_event() to make sure
-	 * ___wait_var_event() either sees the bit cleared or
-	 * waitqueue_active() check in wake_up_var() sees the waiter.
-	 */
-	smp_mb();
 	inode_wake_up_bit(inode, __I_NEW);
 	spin_unlock(&inode->i_lock);
 }
@@ -1202,17 +1221,7 @@ void discard_new_inode(struct inode *inode)
 	lockdep_annotate_inode_mutex_key(inode);
 	spin_lock(&inode->i_lock);
 	WARN_ON(!(inode_state_read(inode) & I_NEW));
-	/*
-	 * Pairs with smp_rmb in wait_on_inode().
-	 */
-	smp_wmb();
 	inode_state_clear(inode, I_NEW);
-	/*
-	 * Pairs with the barrier in prepare_to_wait_event() to make sure
-	 * ___wait_var_event() either sees the bit cleared or
-	 * waitqueue_active() check in wake_up_var() sees the waiter.
-	 */
-	smp_mb();
 	inode_wake_up_bit(inode, __I_NEW);
 	spin_unlock(&inode->i_lock);
 	iput(inode);
@@ -1268,6 +1277,7 @@ EXPORT_SYMBOL(unlock_two_nondirectories);
  * @test:	callback used for comparisons between inodes
  * @set:	callback used to initialize a new struct inode
  * @data:	opaque data pointer to pass to @test and @set
+ * @isnew:	pointer to a bool which will indicate whether I_NEW is set
  *
  * Search for the inode specified by @hashval and @data in the inode cache,
  * and if present return it with an increased reference count. This is a
@@ -1286,12 +1296,13 @@ struct inode *inode_insert5(struct inode *inode, unsigned long hashval,
 {
 	struct hlist_head *head = inode_hashtable + hash(inode->i_sb, hashval);
 	struct inode *old;
+	bool isnew;
 
 	might_sleep();
 
 again:
 	spin_lock(&inode_hash_lock);
-	old = find_inode(inode->i_sb, head, test, data, true);
+	old = find_inode(inode->i_sb, head, test, data, true, &isnew);
 	if (unlikely(old)) {
 		/*
 		 * Uhhuh, somebody else created the same inode under us.
@@ -1300,7 +1311,8 @@ again:
 		spin_unlock(&inode_hash_lock);
 		if (IS_ERR(old))
 			return NULL;
-		wait_on_inode(old);
+		if (unlikely(isnew))
+			wait_on_new_inode(old);
 		if (unlikely(inode_unhashed(old))) {
 			iput(old);
 			goto again;
@@ -1391,15 +1403,17 @@ struct inode *iget5_locked_rcu(struct super_block *sb, unsigned long hashval,
 {
 	struct hlist_head *head = inode_hashtable + hash(sb, hashval);
 	struct inode *inode, *new;
+	bool isnew;
 
 	might_sleep();
 
 again:
-	inode = find_inode(sb, head, test, data, false);
+	inode = find_inode(sb, head, test, data, false, &isnew);
 	if (inode) {
 		if (IS_ERR(inode))
 			return NULL;
-		wait_on_inode(inode);
+		if (unlikely(isnew))
+			wait_on_new_inode(inode);
 		if (unlikely(inode_unhashed(inode))) {
 			iput(inode);
 			goto again;
@@ -1434,15 +1448,17 @@ struct inode *iget_locked(struct super_block *sb, unsigned long ino)
 {
 	struct hlist_head *head = inode_hashtable + hash(sb, ino);
 	struct inode *inode;
+	bool isnew;
 
 	might_sleep();
 
 again:
-	inode = find_inode_fast(sb, head, ino, false);
+	inode = find_inode_fast(sb, head, ino, false, &isnew);
 	if (inode) {
 		if (IS_ERR(inode))
 			return NULL;
-		wait_on_inode(inode);
+		if (unlikely(isnew))
+			wait_on_new_inode(inode);
 		if (unlikely(inode_unhashed(inode))) {
 			iput(inode);
 			goto again;
@@ -1456,7 +1472,7 @@ again:
 
 		spin_lock(&inode_hash_lock);
 		/* We released the lock, so.. */
-		old = find_inode_fast(sb, head, ino, true);
+		old = find_inode_fast(sb, head, ino, true, &isnew);
 		if (!old) {
 			inode->i_ino = ino;
 			spin_lock(&inode->i_lock);
@@ -1482,7 +1498,8 @@ again:
 		if (IS_ERR(old))
 			return NULL;
 		inode = old;
-		wait_on_inode(inode);
+		if (unlikely(isnew))
+			wait_on_new_inode(inode);
 		if (unlikely(inode_unhashed(inode))) {
 			iput(inode);
 			goto again;
@@ -1586,13 +1603,13 @@ EXPORT_SYMBOL(igrab);
  * Note2: @test is called with the inode_hash_lock held, so can't sleep.
  */
 struct inode *ilookup5_nowait(struct super_block *sb, unsigned long hashval,
-		int (*test)(struct inode *, void *), void *data)
+		int (*test)(struct inode *, void *), void *data, bool *isnew)
 {
 	struct hlist_head *head = inode_hashtable + hash(sb, hashval);
 	struct inode *inode;
 
 	spin_lock(&inode_hash_lock);
-	inode = find_inode(sb, head, test, data, true);
+	inode = find_inode(sb, head, test, data, true, isnew);
 	spin_unlock(&inode_hash_lock);
 
 	return IS_ERR(inode) ? NULL : inode;
@@ -1620,13 +1637,15 @@ struct inode *ilookup5(struct super_block *sb, unsigned long hashval,
 		int (*test)(struct inode *, void *), void *data)
 {
 	struct inode *inode;
+	bool isnew;
 
 	might_sleep();
 
 again:
-	inode = ilookup5_nowait(sb, hashval, test, data);
+	inode = ilookup5_nowait(sb, hashval, test, data, &isnew);
 	if (inode) {
-		wait_on_inode(inode);
+		if (unlikely(isnew))
+			wait_on_new_inode(inode);
 		if (unlikely(inode_unhashed(inode))) {
 			iput(inode);
 			goto again;
@@ -1648,16 +1667,18 @@ struct inode *ilookup(struct super_block *sb, unsigned long ino)
 {
 	struct hlist_head *head = inode_hashtable + hash(sb, ino);
 	struct inode *inode;
+	bool isnew;
 
 	might_sleep();
 
 again:
-	inode = find_inode_fast(sb, head, ino, false);
+	inode = find_inode_fast(sb, head, ino, false, &isnew);
 
 	if (inode) {
 		if (IS_ERR(inode))
 			return NULL;
-		wait_on_inode(inode);
+		if (unlikely(isnew))
+			wait_on_new_inode(inode);
 		if (unlikely(inode_unhashed(inode))) {
 			iput(inode);
 			goto again;
@@ -1800,6 +1821,7 @@ int insert_inode_locked(struct inode *inode)
 	struct super_block *sb = inode->i_sb;
 	ino_t ino = inode->i_ino;
 	struct hlist_head *head = inode_hashtable + hash(sb, ino);
+	bool isnew;
 
 	might_sleep();
 
@@ -1832,9 +1854,11 @@ int insert_inode_locked(struct inode *inode)
 			return -EBUSY;
 		}
 		__iget(old);
+		isnew = !!(inode_state_read(old) & I_NEW);
 		spin_unlock(&old->i_lock);
 		spin_unlock(&inode_hash_lock);
-		wait_on_inode(old);
+		if (isnew)
+			wait_on_new_inode(old);
 		if (unlikely(!inode_unhashed(old))) {
 			iput(old);
 			return -EBUSY;
