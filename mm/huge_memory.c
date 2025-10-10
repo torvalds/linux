@@ -3682,7 +3682,7 @@ static int __folio_split(struct folio *folio, unsigned int new_order,
 	bool is_anon = folio_test_anon(folio);
 	struct address_space *mapping = NULL;
 	struct anon_vma *anon_vma = NULL;
-	int order = folio_order(folio);
+	int old_order = folio_order(folio);
 	struct folio *new_folio, *next;
 	int nr_shmem_dropped = 0;
 	int remap_flags = 0;
@@ -3706,7 +3706,7 @@ static int __folio_split(struct folio *folio, unsigned int new_order,
 	if (!is_anon && !folio->mapping)
 		return -EBUSY;
 
-	if (new_order >= folio_order(folio))
+	if (new_order >= old_order)
 		return -EINVAL;
 
 	if (uniform_split && !uniform_split_supported(folio, new_order, true))
@@ -3764,7 +3764,7 @@ static int __folio_split(struct folio *folio, unsigned int new_order,
 
 		if (uniform_split) {
 			xas_set_order(&xas, folio->index, new_order);
-			xas_split_alloc(&xas, folio, folio_order(folio), gfp);
+			xas_split_alloc(&xas, folio, old_order, gfp);
 			if (xas_error(&xas)) {
 				ret = xas_error(&xas);
 				goto out;
@@ -3820,13 +3820,13 @@ static int __folio_split(struct folio *folio, unsigned int new_order,
 		struct lruvec *lruvec;
 		int expected_refs;
 
-		if (folio_order(folio) > 1 &&
+		if (old_order > 1 &&
 		    !list_empty(&folio->_deferred_list)) {
 			ds_queue->split_queue_len--;
 			if (folio_test_partially_mapped(folio)) {
 				folio_clear_partially_mapped(folio);
-				mod_mthp_stat(folio_order(folio),
-					      MTHP_STAT_NR_ANON_PARTIALLY_MAPPED, -1);
+				mod_mthp_stat(old_order,
+					MTHP_STAT_NR_ANON_PARTIALLY_MAPPED, -1);
 			}
 			/*
 			 * Reinitialize page_deferred_list after removing the
@@ -3954,7 +3954,7 @@ fail:
 	if (!ret && is_anon && !folio_is_device_private(folio))
 		remap_flags = RMP_USE_SHARED_ZEROPAGE;
 
-	remap_page(folio, 1 << order, remap_flags);
+	remap_page(folio, 1 << old_order, remap_flags);
 
 	/*
 	 * Unlock all after-split folios except the one containing
@@ -3985,9 +3985,9 @@ out_unlock:
 		i_mmap_unlock_read(mapping);
 out:
 	xas_destroy(&xas);
-	if (order == HPAGE_PMD_ORDER)
+	if (old_order == HPAGE_PMD_ORDER)
 		count_vm_event(!ret ? THP_SPLIT_PAGE : THP_SPLIT_PAGE_FAILED);
-	count_mthp_stat(order, !ret ? MTHP_STAT_SPLIT : MTHP_STAT_SPLIT_FAILED);
+	count_mthp_stat(old_order, !ret ? MTHP_STAT_SPLIT : MTHP_STAT_SPLIT_FAILED);
 	return ret;
 }
 
