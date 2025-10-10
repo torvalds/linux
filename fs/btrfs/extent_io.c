@@ -1698,7 +1698,9 @@ static noinline_for_stack int extent_writepage_io(struct btrfs_inode *inode,
 	int bit;
 	int ret = 0;
 
-	ASSERT(start >= folio_start && end <= folio_end);
+	ASSERT(start >= folio_start, "start=%llu folio_start=%llu", start, folio_start);
+	ASSERT(end <= folio_end, "start=%llu len=%u folio_start=%llu folio_size=%zu",
+	       start, len, folio_start, folio_size(folio));
 
 	ret = btrfs_writepage_cow_fixup(folio);
 	if (ret == -EAGAIN) {
