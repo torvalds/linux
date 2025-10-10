@@ -777,7 +777,6 @@ unsigned int
 intel_tile_width_bytes(const struct drm_framebuffer *fb, int color_plane)
 {
 	struct intel_display *display = to_intel_display(fb->dev);
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	unsigned int cpp = fb->format->cpp[color_plane];
 
 	switch (fb->modifier) {
@@ -814,7 +813,7 @@ intel_tile_width_bytes(const struct drm_framebuffer *fb, int color_plane)
 			return 64;
 		fallthrough;
 	case I915_FORMAT_MOD_Y_TILED:
-		if (HAS_128_BYTE_Y_TILING(i915))
+		if (HAS_128B_Y_TILING(display))
 			return 128;
 		else
 			return 512;

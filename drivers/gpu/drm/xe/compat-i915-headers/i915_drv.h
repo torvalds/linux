@@ -36,6 +36,5 @@ static inline struct drm_i915_private *to_i915(const struct drm_device *dev)
 #define IS_MOBILE(xe) (xe && 0)
 
 #define HAS_FLAT_CCS(xe) (xe_device_has_flat_ccs(xe))
-#define HAS_128_BYTE_Y_TILING(xe) (xe || 1)
 
 #endif
