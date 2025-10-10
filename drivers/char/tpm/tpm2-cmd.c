@@ -28,119 +28,56 @@ static struct tpm2_hash tpm2_hash_map[] = {
 
 int tpm2_get_timeouts(struct tpm_chip *chip)
 {
-	/* Fixed timeouts for TPM2 */
 	chip->timeout_a = msecs_to_jiffies(TPM2_TIMEOUT_A);
 	chip->timeout_b = msecs_to_jiffies(TPM2_TIMEOUT_B);
 	chip->timeout_c = msecs_to_jiffies(TPM2_TIMEOUT_C);
 	chip->timeout_d = msecs_to_jiffies(TPM2_TIMEOUT_D);
-
-	/* PTP spec timeouts */
-	chip->duration[TPM_SHORT] = msecs_to_jiffies(TPM2_DURATION_SHORT);
-	chip->duration[TPM_MEDIUM] = msecs_to_jiffies(TPM2_DURATION_MEDIUM);
-	chip->duration[TPM_LONG] = msecs_to_jiffies(TPM2_DURATION_LONG);
-
-	/* Key creation commands long timeouts */
-	chip->duration[TPM_LONG_LONG] =
-		msecs_to_jiffies(TPM2_DURATION_LONG_LONG);
-
 	chip->flags |= TPM_CHIP_FLAG_HAVE_TIMEOUTS;
-
 	return 0;
 }
 
-/**
- * tpm2_ordinal_duration_index() - returns an index to the chip duration table
- * @ordinal: TPM command ordinal.
- *
- * The function returns an index to the chip duration table
- * (enum tpm_duration), that describes the maximum amount of
- * time the chip could take to return the result for a  particular ordinal.
- *
- * The values of the MEDIUM, and LONG durations are taken
- * from the PC Client Profile (PTP) specification (750, 2000 msec)
- *
- * LONG_LONG is for commands that generates keys which empirically takes
- * a longer time on some systems.
- *
- * Return:
- * * TPM_MEDIUM
- * * TPM_LONG
- * * TPM_LONG_LONG
- * * TPM_UNDEFINED
+/*
+ * Contains the maximum durations in milliseconds for TPM2 commands.
  */
-static u8 tpm2_ordinal_duration_index(u32 ordinal)
-{
-	switch (ordinal) {
-	/* Startup */
-	case TPM2_CC_STARTUP:                 /* 144 */
-		return TPM_MEDIUM;
-
-	case TPM2_CC_SELF_TEST:               /* 143 */
-		return TPM_LONG;
-
-	case TPM2_CC_GET_RANDOM:              /* 17B */
-		return TPM_LONG;
-
-	case TPM2_CC_SEQUENCE_UPDATE:         /* 15C */
-		return TPM_MEDIUM;
-	case TPM2_CC_SEQUENCE_COMPLETE:       /* 13E */
-		return TPM_MEDIUM;
-	case TPM2_CC_EVENT_SEQUENCE_COMPLETE: /* 185 */
-		return TPM_MEDIUM;
-	case TPM2_CC_HASH_SEQUENCE_START:     /* 186 */
-		return TPM_MEDIUM;
-
-	case TPM2_CC_VERIFY_SIGNATURE:        /* 177 */
-		return TPM_LONG_LONG;
-
-	case TPM2_CC_PCR_EXTEND:              /* 182 */
-		return TPM_MEDIUM;
-
-	case TPM2_CC_HIERARCHY_CONTROL:       /* 121 */
-		return TPM_LONG;
-	case TPM2_CC_HIERARCHY_CHANGE_AUTH:   /* 129 */
-		return TPM_LONG;
-
-	case TPM2_CC_GET_CAPABILITY:          /* 17A */
-		return TPM_MEDIUM;
-
-	case TPM2_CC_NV_READ:                 /* 14E */
-		return TPM_LONG;
-
-	case TPM2_CC_CREATE_PRIMARY:          /* 131 */
-		return TPM_LONG_LONG;
-	case TPM2_CC_CREATE:                  /* 153 */
-		return TPM_LONG_LONG;
-	case TPM2_CC_CREATE_LOADED:           /* 191 */
-		return TPM_LONG_LONG;
-
-	default:
-		return TPM_UNDEFINED;
-	}
-}
+static const struct {
+	unsigned long ordinal;
+	unsigned long duration;
+} tpm2_ordinal_duration_map[] = {
+	{TPM2_CC_STARTUP, 750},
+	{TPM2_CC_SELF_TEST, 3000},
+	{TPM2_CC_GET_RANDOM, 2000},
+	{TPM2_CC_SEQUENCE_UPDATE, 750},
+	{TPM2_CC_SEQUENCE_COMPLETE, 750},
+	{TPM2_CC_EVENT_SEQUENCE_COMPLETE, 750},
+	{TPM2_CC_HASH_SEQUENCE_START, 750},
+	{TPM2_CC_VERIFY_SIGNATURE, 30000},
+	{TPM2_CC_PCR_EXTEND, 750},
+	{TPM2_CC_HIERARCHY_CONTROL, 2000},
+	{TPM2_CC_HIERARCHY_CHANGE_AUTH, 2000},
+	{TPM2_CC_GET_CAPABILITY, 750},
+	{TPM2_CC_NV_READ, 2000},
+	{TPM2_CC_CREATE_PRIMARY, 30000},
+	{TPM2_CC_CREATE, 30000},
+	{TPM2_CC_CREATE_LOADED, 30000},
+};
 
 /**
- * tpm2_calc_ordinal_duration() - calculate the maximum command duration
- * @chip:    TPM chip to use.
+ * tpm2_calc_ordinal_duration() - Calculate the maximum command duration
  * @ordinal: TPM command ordinal.
  *
- * The function returns the maximum amount of time the chip could take
- * to return the result for a particular ordinal in jiffies.
- *
- * Return: A maximal duration time for an ordinal in jiffies.
+ * Returns the maximum amount of time the chip is expected by kernel to
+ * take in jiffies.
  */
-unsigned long tpm2_calc_ordinal_duration(struct tpm_chip *chip, u32 ordinal)
+unsigned long tpm2_calc_ordinal_duration(u32 ordinal)
 {
-	unsigned int index;
+	int i;
 
-	index = tpm2_ordinal_duration_index(ordinal);
+	for (i = 0; i < ARRAY_SIZE(tpm2_ordinal_duration_map); i++)
+		if (ordinal == tpm2_ordinal_duration_map[i].ordinal)
+			return msecs_to_jiffies(tpm2_ordinal_duration_map[i].duration);
 
-	if (index != TPM_UNDEFINED)
-		return chip->duration[index];
-	else
-		return msecs_to_jiffies(TPM2_DURATION_DEFAULT);
+	return msecs_to_jiffies(TPM2_DURATION_DEFAULT);
 }
-
 
 struct tpm2_pcr_read_out {
 	__be32	update_cnt;
