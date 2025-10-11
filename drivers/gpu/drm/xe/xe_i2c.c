@@ -160,6 +160,11 @@ bool xe_i2c_present(struct xe_device *xe)
 	return xe->i2c && xe->i2c->ep.cookie == XE_I2C_EP_COOKIE_DEVICE;
 }
 
+static bool xe_i2c_irq_present(struct xe_device *xe)
+{
+	return xe->i2c && xe->i2c->adapter_irq;
+}
+
 /**
  * xe_i2c_irq_handler: Handler for I2C interrupts
  * @xe: xe device instance
@@ -170,7 +175,7 @@ bool xe_i2c_present(struct xe_device *xe)
  */
 void xe_i2c_irq_handler(struct xe_device *xe, u32 master_ctl)
 {
-	if (!xe->i2c || !xe->i2c->adapter_irq)
+	if (!xe_i2c_irq_present(xe))
 		return;
 
 	if (master_ctl & I2C_IRQ)
