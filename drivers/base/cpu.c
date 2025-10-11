@@ -305,7 +305,10 @@ static ssize_t nohz_full_show(struct device *dev,
 				    struct device_attribute *attr,
 				    char *buf)
 {
-	return sysfs_emit(buf, "%*pbl\n", cpumask_pr_args(tick_nohz_full_mask));
+	if (cpumask_available(tick_nohz_full_mask))
+		return sysfs_emit(buf, "%*pbl\n",
+				  cpumask_pr_args(tick_nohz_full_mask));
+	return sysfs_emit(buf, "\n");
 }
 static DEVICE_ATTR_RO(nohz_full);
 #endif
