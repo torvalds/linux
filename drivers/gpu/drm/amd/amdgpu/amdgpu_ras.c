@@ -1782,7 +1782,9 @@ int amdgpu_ras_query_error_count(struct amdgpu_device *adev,
 /* sysfs begin */
 
 static int amdgpu_ras_badpages_read(struct amdgpu_device *adev,
-		struct ras_badpage **bps, unsigned int *count);
+		struct ras_badpage *bps, uint32_t count, uint32_t start);
+static int amdgpu_uniras_badpages_read(struct amdgpu_device *adev,
+		struct ras_badpage *bps, uint32_t count, uint32_t start);
 
 static char *amdgpu_ras_badpage_flags_str(unsigned int flags)
 {
@@ -1840,19 +1842,50 @@ static ssize_t amdgpu_ras_sysfs_badpages_read(struct file *f,
 	unsigned int end = div64_ul(ppos + count - 1, element_size);
 	ssize_t s = 0;
 	struct ras_badpage *bps = NULL;
-	unsigned int bps_count = 0;
+	int bps_count = 0, i, status;
+	uint64_t address;
 
 	memset(buf, 0, count);
 
-	if (amdgpu_ras_badpages_read(adev, &bps, &bps_count))
+	bps_count = end - start;
+	bps = kmalloc_array(bps_count, sizeof(*bps), GFP_KERNEL);
+	if (!bps)
 		return 0;
 
-	for (; start < end && start < bps_count; start++)
+	memset(bps, 0, sizeof(*bps) * bps_count);
+
+	if (amdgpu_uniras_enabled(adev))
+		bps_count = amdgpu_uniras_badpages_read(adev, bps, bps_count, start);
+	else
+		bps_count = amdgpu_ras_badpages_read(adev, bps, bps_count, start);
+
+	if (bps_count <= 0) {
+		kfree(bps);
+		return 0;
+	}
+
+	for (i = 0; i < bps_count; i++) {
+		address = ((uint64_t)bps[i].bp) << AMDGPU_GPU_PAGE_SHIFT;
+		if (amdgpu_ras_check_critical_address(adev, address))
+			continue;
+
+		bps[i].size = AMDGPU_GPU_PAGE_SIZE;
+
+		status = amdgpu_vram_mgr_query_page_status(&adev->mman.vram_mgr,
+					address);
+		if (status == -EBUSY)
+			bps[i].flags = AMDGPU_RAS_RETIRE_PAGE_PENDING;
+		else if (status == -ENOENT)
+			bps[i].flags = AMDGPU_RAS_RETIRE_PAGE_FAULT;
+		else
+			bps[i].flags = AMDGPU_RAS_RETIRE_PAGE_RESERVED;
+
 		s += scnprintf(&buf[s], element_size + 1,
 				"0x%08x : 0x%08x : %1s\n",
-				bps[start].bp,
-				bps[start].size,
-				amdgpu_ras_badpage_flags_str(bps[start].flags));
+				bps[i].bp,
+				bps[i].size,
+				amdgpu_ras_badpage_flags_str(bps[i].flags));
+	}
 
 	kfree(bps);
 
@@ -2645,62 +2678,83 @@ static void amdgpu_ras_query_err_status(struct amdgpu_device *adev)
 	}
 }
 
-/* recovery begin */
-
-/* return 0 on success.
- * caller need free bps.
- */
 static int amdgpu_ras_badpages_read(struct amdgpu_device *adev,
-		struct ras_badpage **bps, unsigned int *count)
+		struct ras_badpage *bps, uint32_t count, uint32_t start)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct ras_err_handler_data *data;
-	int i = 0;
-	int ret = 0, status;
+	int r = 0;
+	uint32_t i;
 
 	if (!con || !con->eh_data || !bps || !count)
 		return -EINVAL;
 
 	mutex_lock(&con->recovery_lock);
 	data = con->eh_data;
-	if (!data || data->count == 0) {
-		*bps = NULL;
-		ret = -EINVAL;
-		goto out;
+	if (start < data->count) {
+		for (i = start; i < data->count; i++) {
+			if (!data->bps[i].ts)
+				continue;
+
+			bps[r].bp = data->bps[i].retired_page;
+			r++;
+			if (r >= count)
+				break;
+		}
 	}
-
-	*bps = kmalloc_array(data->count, sizeof(struct ras_badpage), GFP_KERNEL);
-	if (!*bps) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	for (; i < data->count; i++) {
-		if (!data->bps[i].ts)
-			continue;
-
-		(*bps)[i] = (struct ras_badpage){
-			.bp = data->bps[i].retired_page,
-			.size = AMDGPU_GPU_PAGE_SIZE,
-			.flags = AMDGPU_RAS_RETIRE_PAGE_RESERVED,
-		};
-
-		if (amdgpu_ras_check_critical_address(adev,
-			data->bps[i].retired_page << AMDGPU_GPU_PAGE_SHIFT))
-			continue;
-
-		status = amdgpu_vram_mgr_query_page_status(&adev->mman.vram_mgr,
-				data->bps[i].retired_page << AMDGPU_GPU_PAGE_SHIFT);
-		if (status == -EBUSY)
-			(*bps)[i].flags = AMDGPU_RAS_RETIRE_PAGE_PENDING;
-		else if (status == -ENOENT)
-			(*bps)[i].flags = AMDGPU_RAS_RETIRE_PAGE_FAULT;
-	}
-
-	*count = con->bad_page_num;
-out:
 	mutex_unlock(&con->recovery_lock);
-	return ret;
+
+	return r;
+}
+
+static int amdgpu_uniras_badpages_read(struct amdgpu_device *adev,
+		struct ras_badpage *bps, uint32_t count, uint32_t start)
+{
+	struct ras_cmd_bad_pages_info_req cmd_input;
+	struct ras_cmd_bad_pages_info_rsp *output;
+	uint32_t group, start_group, end_group;
+	uint32_t pos, pos_in_group;
+	int r = 0, i;
+
+	if (!bps || !count)
+		return -EINVAL;
+
+	output = kmalloc(sizeof(*output), GFP_KERNEL);
+	if (!output)
+		return -ENOMEM;
+
+	memset(&cmd_input, 0, sizeof(cmd_input));
+
+	start_group = start / RAS_CMD_MAX_BAD_PAGES_PER_GROUP;
+	end_group = (start + count + RAS_CMD_MAX_BAD_PAGES_PER_GROUP - 1) /
+				RAS_CMD_MAX_BAD_PAGES_PER_GROUP;
+
+	pos = start;
+	for (group = start_group; group < end_group; group++) {
+		memset(output, 0, sizeof(*output));
+		cmd_input.group_index = group;
+		if (amdgpu_ras_mgr_handle_ras_cmd(adev, RAS_CMD__GET_BAD_PAGES,
+			&cmd_input, sizeof(cmd_input), output, sizeof(*output)))
+			goto out;
+
+		if (pos >= output->bp_total_cnt)
+			goto out;
+
+		pos_in_group = pos - group * RAS_CMD_MAX_BAD_PAGES_PER_GROUP;
+		for (i = pos_in_group; i < output->bp_in_group; i++, pos++) {
+			if (!output->records[i].ts)
+				continue;
+
+			bps[r].bp = output->records[i].retired_page;
+			r++;
+			if (r >= count)
+				goto out;
+		}
+	}
+
+out:
+	kfree(output);
+	return r;
 }
 
 static void amdgpu_ras_set_fed_all(struct amdgpu_device *adev,
