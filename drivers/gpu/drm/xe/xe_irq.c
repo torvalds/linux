@@ -616,6 +616,7 @@ static void xe_irq_reset(struct xe_device *xe)
 	tile = xe_device_get_root_tile(xe);
 	mask_and_disable(tile, GU_MISC_IRQ_OFFSET);
 	xe_display_irq_reset(xe);
+	xe_i2c_irq_reset(xe);
 
 	/*
 	 * The tile's top-level status register should be the last one
@@ -657,6 +658,7 @@ static void xe_irq_postinstall(struct xe_device *xe)
 	}
 
 	xe_display_irq_postinstall(xe, xe_root_mmio_gt(xe));
+	xe_i2c_irq_postinstall(xe);
 
 	/*
 	 * ASLE backlight operations are reported via GUnit GSE interrupts

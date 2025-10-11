@@ -182,6 +182,26 @@ void xe_i2c_irq_handler(struct xe_device *xe, u32 master_ctl)
 		generic_handle_irq_safe(xe->i2c->adapter_irq);
 }
 
+void xe_i2c_irq_reset(struct xe_device *xe)
+{
+	struct xe_mmio *mmio = xe_root_tile_mmio(xe);
+
+	if (!xe_i2c_irq_present(xe))
+		return;
+
+	xe_mmio_rmw32(mmio, I2C_BRIDGE_PCICFGCTL, ACPI_INTR_EN, 0);
+}
+
+void xe_i2c_irq_postinstall(struct xe_device *xe)
+{
+	struct xe_mmio *mmio = xe_root_tile_mmio(xe);
+
+	if (!xe_i2c_irq_present(xe))
+		return;
+
+	xe_mmio_rmw32(mmio, I2C_BRIDGE_PCICFGCTL, 0, ACPI_INTR_EN);
+}
+
 static int xe_i2c_irq_map(struct irq_domain *h, unsigned int virq,
 			  irq_hw_number_t hw_irq_num)
 {
@@ -339,6 +359,7 @@ int xe_i2c_probe(struct xe_device *xe)
 	if (ret)
 		goto err_remove_irq;
 
+	xe_i2c_irq_postinstall(xe);
 	return devm_add_action_or_reset(drm_dev, xe_i2c_remove, i2c);
 
 err_remove_irq:
