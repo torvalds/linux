@@ -17,6 +17,7 @@
 #include <linux/string.h>
 #include <linux/unaligned.h>
 #include <linux/wordpart.h>
+#include "fips.h"
 
 static const struct sha512_block_state sha384_iv = {
 	.h = {
@@ -405,10 +406,26 @@ void hmac_sha512_usingrawkey(const u8 *raw_key, size_t raw_key_len,
 }
 EXPORT_SYMBOL_GPL(hmac_sha512_usingrawkey);
 
-#ifdef sha512_mod_init_arch
+#if defined(sha512_mod_init_arch) || defined(CONFIG_CRYPTO_FIPS)
 static int __init sha512_mod_init(void)
 {
+#ifdef sha512_mod_init_arch
 	sha512_mod_init_arch();
+#endif
+	if (fips_enabled) {
+		/*
+		 * FIPS cryptographic algorithm self-test.  As per the FIPS
+		 * Implementation Guidance, testing HMAC-SHA512 satisfies the
+		 * test requirement for SHA-384, SHA-512, and HMAC-SHA384 too.
+		 */
+		u8 mac[SHA512_DIGEST_SIZE];
+
+		hmac_sha512_usingrawkey(fips_test_key, sizeof(fips_test_key),
+					fips_test_data, sizeof(fips_test_data),
+					mac);
+		if (memcmp(fips_test_hmac_sha512_value, mac, sizeof(mac)) != 0)
+			panic("sha512: FIPS self-test failed\n");
+	}
 	return 0;
 }
 subsys_initcall(sha512_mod_init);

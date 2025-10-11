@@ -17,6 +17,7 @@
 #include <linux/string.h>
 #include <linux/unaligned.h>
 #include <linux/wordpart.h>
+#include "fips.h"
 
 static const struct sha256_block_state sha224_iv = {
 	.h = {
@@ -269,8 +270,8 @@ void sha256(const u8 *data, size_t len, u8 out[SHA256_DIGEST_SIZE])
 EXPORT_SYMBOL(sha256);
 
 /*
- * Pre-boot environment (as indicated by __DISABLE_EXPORTS being defined)
- * doesn't need either HMAC support or interleaved hashing support
+ * Pre-boot environments (as indicated by __DISABLE_EXPORTS being defined) just
+ * need the generic SHA-256 code.  Omit all other features from them.
  */
 #ifndef __DISABLE_EXPORTS
 
@@ -477,12 +478,27 @@ void hmac_sha256_usingrawkey(const u8 *raw_key, size_t raw_key_len,
 	hmac_sha256_final(&ctx, out);
 }
 EXPORT_SYMBOL_GPL(hmac_sha256_usingrawkey);
-#endif /* !__DISABLE_EXPORTS */
 
-#ifdef sha256_mod_init_arch
+#if defined(sha256_mod_init_arch) || defined(CONFIG_CRYPTO_FIPS)
 static int __init sha256_mod_init(void)
 {
+#ifdef sha256_mod_init_arch
 	sha256_mod_init_arch();
+#endif
+	if (fips_enabled) {
+		/*
+		 * FIPS cryptographic algorithm self-test.  As per the FIPS
+		 * Implementation Guidance, testing HMAC-SHA256 satisfies the
+		 * test requirement for SHA-224, SHA-256, and HMAC-SHA224 too.
+		 */
+		u8 mac[SHA256_DIGEST_SIZE];
+
+		hmac_sha256_usingrawkey(fips_test_key, sizeof(fips_test_key),
+					fips_test_data, sizeof(fips_test_data),
+					mac);
+		if (memcmp(fips_test_hmac_sha256_value, mac, sizeof(mac)) != 0)
+			panic("sha256: FIPS self-test failed\n");
+	}
 	return 0;
 }
 subsys_initcall(sha256_mod_init);
@@ -492,6 +508,8 @@ static void __exit sha256_mod_exit(void)
 }
 module_exit(sha256_mod_exit);
 #endif
+
+#endif /* !__DISABLE_EXPORTS */
 
 MODULE_DESCRIPTION("SHA-224, SHA-256, HMAC-SHA224, and HMAC-SHA256 library functions");
 MODULE_LICENSE("GPL");
