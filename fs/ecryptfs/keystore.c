@@ -11,7 +11,6 @@
  *              Trevor S. Highland <trevor.highland@gmail.com>
  */
 
-#include <crypto/hash.h>
 #include <crypto/skcipher.h>
 #include <linux/string.h>
 #include <linux/pagemap.h>
@@ -601,10 +600,7 @@ struct ecryptfs_write_tag_70_packet_silly_stack {
 	struct crypto_skcipher *skcipher_tfm;
 	struct skcipher_request *skcipher_req;
 	char iv[ECRYPTFS_MAX_IV_BYTES];
-	char hash[ECRYPTFS_TAG_70_DIGEST_SIZE];
-	char tmp_hash[ECRYPTFS_TAG_70_DIGEST_SIZE];
-	struct crypto_shash *hash_tfm;
-	struct shash_desc *hash_desc;
+	char hash[MD5_DIGEST_SIZE];
 };
 
 /*
@@ -741,51 +737,15 @@ ecryptfs_write_tag_70_packet(char *dest, size_t *remaining_bytes,
 		       "password tokens\n", __func__);
 		goto out_free_unlock;
 	}
-	s->hash_tfm = crypto_alloc_shash(ECRYPTFS_TAG_70_DIGEST, 0, 0);
-	if (IS_ERR(s->hash_tfm)) {
-			rc = PTR_ERR(s->hash_tfm);
-			printk(KERN_ERR "%s: Error attempting to "
-			       "allocate hash crypto context; rc = [%d]\n",
-			       __func__, rc);
-			goto out_free_unlock;
-	}
 
-	s->hash_desc = kmalloc(sizeof(*s->hash_desc) +
-			       crypto_shash_descsize(s->hash_tfm), GFP_KERNEL);
-	if (!s->hash_desc) {
-		rc = -ENOMEM;
-		goto out_release_free_unlock;
-	}
-
-	s->hash_desc->tfm = s->hash_tfm;
-
-	rc = crypto_shash_digest(s->hash_desc,
-				 (u8 *)s->auth_tok->token.password.session_key_encryption_key,
-				 s->auth_tok->token.password.session_key_encryption_key_bytes,
-				 s->hash);
-	if (rc) {
-		printk(KERN_ERR
-		       "%s: Error computing crypto hash; rc = [%d]\n",
-		       __func__, rc);
-		goto out_release_free_unlock;
-	}
+	md5(s->auth_tok->token.password.session_key_encryption_key,
+	    s->auth_tok->token.password.session_key_encryption_key_bytes,
+	    s->hash);
 	for (s->j = 0; s->j < (s->num_rand_bytes - 1); s->j++) {
 		s->block_aligned_filename[s->j] =
-			s->hash[(s->j % ECRYPTFS_TAG_70_DIGEST_SIZE)];
-		if ((s->j % ECRYPTFS_TAG_70_DIGEST_SIZE)
-		    == (ECRYPTFS_TAG_70_DIGEST_SIZE - 1)) {
-			rc = crypto_shash_digest(s->hash_desc, (u8 *)s->hash,
-						ECRYPTFS_TAG_70_DIGEST_SIZE,
-						s->tmp_hash);
-			if (rc) {
-				printk(KERN_ERR
-				       "%s: Error computing crypto hash; "
-				       "rc = [%d]\n", __func__, rc);
-				goto out_release_free_unlock;
-			}
-			memcpy(s->hash, s->tmp_hash,
-			       ECRYPTFS_TAG_70_DIGEST_SIZE);
-		}
+			s->hash[s->j % MD5_DIGEST_SIZE];
+		if ((s->j % MD5_DIGEST_SIZE) == (MD5_DIGEST_SIZE - 1))
+			md5(s->hash, MD5_DIGEST_SIZE, s->hash);
 		if (s->block_aligned_filename[s->j] == '\0')
 			s->block_aligned_filename[s->j] = ECRYPTFS_NON_NULL;
 	}
@@ -798,7 +758,7 @@ ecryptfs_write_tag_70_packet(char *dest, size_t *remaining_bytes,
 		       "convert filename memory to scatterlist; rc = [%d]. "
 		       "block_aligned_filename_size = [%zd]\n", __func__, rc,
 		       s->block_aligned_filename_size);
-		goto out_release_free_unlock;
+		goto out_free_unlock;
 	}
 	rc = virt_to_scatterlist(&dest[s->i], s->block_aligned_filename_size,
 				 s->dst_sg, 2);
@@ -807,7 +767,7 @@ ecryptfs_write_tag_70_packet(char *dest, size_t *remaining_bytes,
 		       "convert encrypted filename memory to scatterlist; "
 		       "rc = [%d]. block_aligned_filename_size = [%zd]\n",
 		       __func__, rc, s->block_aligned_filename_size);
-		goto out_release_free_unlock;
+		goto out_free_unlock;
 	}
 	/* The characters in the first block effectively do the job
 	 * of the IV here, so we just use 0's for the IV. Note the
@@ -825,7 +785,7 @@ ecryptfs_write_tag_70_packet(char *dest, size_t *remaining_bytes,
 		       rc,
 		       s->auth_tok->token.password.session_key_encryption_key,
 		       mount_crypt_stat->global_default_fn_cipher_key_bytes);
-		goto out_release_free_unlock;
+		goto out_free_unlock;
 	}
 	skcipher_request_set_crypt(s->skcipher_req, s->src_sg, s->dst_sg,
 				   s->block_aligned_filename_size, s->iv);
@@ -833,13 +793,11 @@ ecryptfs_write_tag_70_packet(char *dest, size_t *remaining_bytes,
 	if (rc) {
 		printk(KERN_ERR "%s: Error attempting to encrypt filename; "
 		       "rc = [%d]\n", __func__, rc);
-		goto out_release_free_unlock;
+		goto out_free_unlock;
 	}
 	s->i += s->block_aligned_filename_size;
 	(*packet_size) = s->i;
 	(*remaining_bytes) -= (*packet_size);
-out_release_free_unlock:
-	crypto_free_shash(s->hash_tfm);
 out_free_unlock:
 	kfree_sensitive(s->block_aligned_filename);
 out_unlock:
@@ -850,7 +808,6 @@ out:
 		key_put(auth_tok_key);
 	}
 	skcipher_request_free(s->skcipher_req);
-	kfree_sensitive(s->hash_desc);
 	kfree(s);
 	return rc;
 }

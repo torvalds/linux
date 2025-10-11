@@ -12,6 +12,7 @@
 
 #include <linux/dcache.h>
 #include <linux/file.h>
+#include <linux/fips.h>
 #include <linux/module.h>
 #include <linux/namei.h>
 #include <linux/skbuff.h>
@@ -451,6 +452,12 @@ static int ecryptfs_get_tree(struct fs_context *fc)
 	rc = ecryptfs_validate_options(fc);
 	if (rc) {
 		err = "Error validating options";
+		goto out;
+	}
+
+	if (fips_enabled) {
+		rc = -EINVAL;
+		err = "eCryptfs support is disabled due to FIPS";
 		goto out;
 	}
 
