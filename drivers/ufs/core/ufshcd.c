@@ -6684,6 +6684,14 @@ static void ufshcd_err_handler(struct work_struct *work)
 	}
 	spin_unlock_irqrestore(hba->host->host_lock, flags);
 
+	ufshcd_rpm_get_noresume(hba);
+	if (hba->pm_op_in_progress) {
+		ufshcd_link_recovery(hba);
+		ufshcd_rpm_put(hba);
+		return;
+	}
+	ufshcd_rpm_put(hba);
+
 	ufshcd_err_handling_prepare(hba);
 
 	spin_lock_irqsave(hba->host->host_lock, flags);
@@ -8488,6 +8496,8 @@ static int ufs_get_device_desc(struct ufs_hba *hba)
 	dev_info->hid_sup = get_unaligned_be32(desc_buf +
 				DEVICE_DESC_PARAM_EXT_UFS_FEATURE_SUP) &
 				UFS_DEV_HID_SUPPORT;
+
+	sysfs_update_group(&hba->dev->kobj, &ufs_sysfs_hid_group);
 
 	model_index = desc_buf[DEVICE_DESC_PARAM_PRDCT_NAME];
 
@@ -10677,6 +10687,9 @@ int ufshcd_init(struct ufs_hba *hba, void __iomem *mmio_base, unsigned int irq)
 	 */
 	spin_lock_init(&hba->clk_gating.lock);
 
+	/* Initialize mutex for PM QoS request synchronization */
+	mutex_init(&hba->pm_qos_mutex);
+
 	/*
 	 * Set the default power management level for runtime and system PM.
 	 * Host controller drivers can override them in their
@@ -10764,9 +10777,6 @@ int ufshcd_init(struct ufs_hba *hba, void __iomem *mmio_base, unsigned int irq)
 	mutex_init(&hba->ee_ctrl_mutex);
 
 	mutex_init(&hba->wb_mutex);
-
-	/* Initialize mutex for PM QoS request synchronization */
-	mutex_init(&hba->pm_qos_mutex);
 
 	init_rwsem(&hba->clk_scaling_lock);
 
