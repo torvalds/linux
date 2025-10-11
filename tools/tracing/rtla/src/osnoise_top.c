@@ -255,7 +255,7 @@ osnoise_print_stats(struct osnoise_tool *top)
 /*
  * osnoise_top_usage - prints osnoise top usage message
  */
-static void osnoise_top_usage(struct osnoise_params *params, char *usage)
+static void osnoise_top_usage(struct osnoise_params *params)
 {
 	int i;
 
@@ -294,9 +294,6 @@ static void osnoise_top_usage(struct osnoise_params *params, char *usage)
 		NULL,
 	};
 
-	if (usage)
-		fprintf(stderr, "%s\n", usage);
-
 	if (params->mode == MODE_OSNOISE) {
 		fprintf(stderr,
 			"rtla osnoise top: a per-cpu summary of the OS noise (version %s)\n",
@@ -315,9 +312,6 @@ static void osnoise_top_usage(struct osnoise_params *params, char *usage)
 
 	for (i = 0; msg[i]; i++)
 		fprintf(stderr, "%s\n", msg[i]);
-
-	if (usage)
-		exit(EXIT_FAILURE);
 
 	exit(EXIT_SUCCESS);
 }
@@ -398,7 +392,7 @@ struct common_params *osnoise_top_parse_args(int argc, char **argv)
 		case 'c':
 			retval = parse_cpu_set(optarg, &params->common.monitored_cpus);
 			if (retval)
-				osnoise_top_usage(params, "\nInvalid -c cpu list\n");
+				fatal("Invalid -c cpu list");
 			params->common.cpus = optarg;
 			break;
 		case 'C':
@@ -417,7 +411,7 @@ struct common_params *osnoise_top_parse_args(int argc, char **argv)
 		case 'd':
 			params->common.duration = parse_seconds_duration(optarg);
 			if (!params->common.duration)
-				osnoise_top_usage(params, "Invalid -d duration\n");
+				fatal("Invalid -d duration");
 			break;
 		case 'e':
 			tevent = trace_event_alloc(optarg);
@@ -431,7 +425,7 @@ struct common_params *osnoise_top_parse_args(int argc, char **argv)
 			break;
 		case 'h':
 		case '?':
-			osnoise_top_usage(params, NULL);
+			osnoise_top_usage(params);
 			break;
 		case 'H':
 			params->common.hk_cpus = 1;
@@ -442,12 +436,12 @@ struct common_params *osnoise_top_parse_args(int argc, char **argv)
 		case 'p':
 			params->period = get_llong_from_str(optarg);
 			if (params->period > 10000000)
-				osnoise_top_usage(params, "Period longer than 10 s\n");
+				fatal("Period longer than 10 s");
 			break;
 		case 'P':
 			retval = parse_prio(optarg, &params->common.sched_param);
 			if (retval == -1)
-				osnoise_top_usage(params, "Invalid -P priority");
+				fatal("Invalid -P priority");
 			params->common.set_sched = 1;
 			break;
 		case 'q':
@@ -456,7 +450,7 @@ struct common_params *osnoise_top_parse_args(int argc, char **argv)
 		case 'r':
 			params->runtime = get_llong_from_str(optarg);
 			if (params->runtime < 100)
-				osnoise_top_usage(params, "Runtime shorter than 100 us\n");
+				fatal("Runtime shorter than 100 us");
 			break;
 		case 's':
 			params->common.stop_us = get_llong_from_str(optarg);
@@ -484,7 +478,7 @@ struct common_params *osnoise_top_parse_args(int argc, char **argv)
 				if (retval)
 					fatal("Error adding trigger %s", optarg);
 			} else {
-				osnoise_top_usage(params, "--trigger requires a previous -e\n");
+				fatal("--trigger requires a previous -e");
 			}
 			break;
 		case '1': /* filter */
@@ -493,7 +487,7 @@ struct common_params *osnoise_top_parse_args(int argc, char **argv)
 				if (retval)
 					fatal("Error adding filter %s", optarg);
 			} else {
-				osnoise_top_usage(params, "--filter requires a previous -e\n");
+				fatal("--filter requires a previous -e");
 			}
 			break;
 		case '2':
@@ -515,7 +509,7 @@ struct common_params *osnoise_top_parse_args(int argc, char **argv)
 				fatal("Invalid action %s", optarg);
 			break;
 		default:
-			osnoise_top_usage(params, "Invalid option");
+			fatal("Invalid option");
 		}
 	}
 
