@@ -1773,7 +1773,7 @@ config RTC_DRV_MC13XXX
 	tristate "Freescale MC13xxx RTC"
 	help
 	  This enables support for the RTCs found on Freescale's PMICs
-	  MC13783 and MC13892.
+	  MC13783, MC13892 and MC34708.
 
 config RTC_DRV_MPC5121
 	tristate "Freescale MPC5121 built-in RTC"
