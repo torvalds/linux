@@ -57,6 +57,21 @@ void debug_msg(const char *fmt, ...)
 }
 
 /*
+ * fatal - print an error message and EOL to stderr and exit with ERROR
+ */
+void fatal(const char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	vfprintf(stderr, fmt, ap);
+	va_end(ap);
+	fprintf(stderr, "\n");
+
+	exit(ERROR);
+}
+
+/*
  * get_llong_from_str - get a long long int from a string
  */
 long long get_llong_from_str(char *start)
