@@ -301,12 +301,13 @@ static ssize_t print_cpus_isolated(struct device *dev,
 static DEVICE_ATTR(isolated, 0444, print_cpus_isolated, NULL);
 
 #ifdef CONFIG_NO_HZ_FULL
-static ssize_t print_cpus_nohz_full(struct device *dev,
-				    struct device_attribute *attr, char *buf)
+static ssize_t nohz_full_show(struct device *dev,
+				    struct device_attribute *attr,
+				    char *buf)
 {
 	return sysfs_emit(buf, "%*pbl\n", cpumask_pr_args(tick_nohz_full_mask));
 }
-static DEVICE_ATTR(nohz_full, 0444, print_cpus_nohz_full, NULL);
+static DEVICE_ATTR_RO(nohz_full);
 #endif
 
 #ifdef CONFIG_CRASH_HOTPLUG
