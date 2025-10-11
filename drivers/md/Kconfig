@@ -299,6 +299,7 @@ config DM_CRYPT
 	select CRYPTO
 	select CRYPTO_CBC
 	select CRYPTO_ESSIV
+	select CRYPTO_LIB_MD5 # needed by lmk IV mode
 	help
 	  This device-mapper target allows you to create a device that
 	  transparently encrypts the data on it. You'll need to activate
