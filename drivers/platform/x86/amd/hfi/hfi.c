@@ -505,7 +505,6 @@ static int amd_hfi_probe(struct platform_device *pdev)
 static struct platform_driver amd_hfi_driver = {
 	.driver = {
 		.name = AMD_HFI_DRIVER,
-		.owner = THIS_MODULE,
 		.pm = &amd_hfi_pm_ops,
 		.acpi_match_table = ACPI_PTR(amd_hfi_platform_match),
 	},
