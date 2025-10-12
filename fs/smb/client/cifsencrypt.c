@@ -693,9 +693,6 @@ void
 cifs_crypto_secmech_release(struct TCP_Server_Info *server)
 {
 	cifs_free_hash(&server->secmech.aes_cmac);
-	cifs_free_hash(&server->secmech.hmacsha256);
-	cifs_free_hash(&server->secmech.md5);
-	cifs_free_hash(&server->secmech.sha512);
 
 	if (server->secmech.enc) {
 		crypto_free_aead(server->secmech.enc);
