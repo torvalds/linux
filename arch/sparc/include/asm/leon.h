@@ -59,7 +59,7 @@
 #define ASI_LEON3_SYSCTRL_CFG_SNOOPING (1 << 27)
 #define ASI_LEON3_SYSCTRL_CFG_SSIZE(c) (1 << ((c >> 20) & 0xf))
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 /* do a physical address bypass write, i.e. for 0x80000000 */
 static inline void leon_store_reg(unsigned long paddr, unsigned long value)
@@ -132,7 +132,7 @@ static inline int sparc_leon3_cpuid(void)
 	return sparc_leon3_asr17() >> 28;
 }
 
-#endif /*!__ASSEMBLY__*/
+#endif /*!__ASSEMBLER__*/
 
 #ifdef CONFIG_SMP
 # define LEON3_IRQ_IPI_DEFAULT		13
@@ -194,7 +194,7 @@ static inline int sparc_leon3_cpuid(void)
 #define LEON2_CCR_DSETS_MASK 0x03000000UL
 #define LEON2_CFG_SSIZE_MASK 0x00007000UL
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 struct vm_area_struct;
 
 unsigned long leon_swprobe(unsigned long vaddr, unsigned long *paddr);
@@ -247,7 +247,7 @@ extern int leon_ipi_irq;
 
 #endif /* CONFIG_SMP */
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 /* macros used in leon_mm.c */
 #define PFN(x)           ((x) >> PAGE_SHIFT)

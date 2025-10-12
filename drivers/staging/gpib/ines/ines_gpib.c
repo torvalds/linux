@@ -152,7 +152,7 @@ static int ines_accel_read(struct gpib_board *board, u8 *buffer,
 
 	write_byte(nec_priv, INES_RFD_HLD_IMMEDIATE, AUXMR);
 
-	//clear in fifo
+	// clear in fifo
 	nec7210_set_reg_bits(nec_priv, ADMR, IN_FIFO_ENABLE_BIT, 0);
 	nec7210_set_reg_bits(nec_priv, ADMR, IN_FIFO_ENABLE_BIT, IN_FIFO_ENABLE_BIT);
 
@@ -225,7 +225,7 @@ static int ines_accel_write(struct gpib_board *board, u8 *buffer, size_t length,
 	unsigned int num_bytes, i;
 
 	*bytes_written = 0;
-	//clear out fifo
+	// clear out fifo
 	nec7210_set_reg_bits(nec_priv, ADMR, OUT_FIFO_ENABLE_BIT, 0);
 	nec7210_set_reg_bits(nec_priv, ADMR, OUT_FIFO_ENABLE_BIT, OUT_FIFO_ENABLE_BIT);
 

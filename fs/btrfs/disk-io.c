@@ -3397,7 +3397,7 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 
 	if (fs_info->sectorsize > PAGE_SIZE)
 		btrfs_warn(fs_info,
-			   "support for block size %u with page size %zu is experimental, some features may be missing",
+			   "support for block size %u with page size %lu is experimental, some features may be missing",
 			   fs_info->sectorsize, PAGE_SIZE);
 	/*
 	 * Handle the space caching options appropriately now that we have the

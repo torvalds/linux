@@ -6,6 +6,7 @@
 #include <linux/nmi.h>
 #include <linux/msi.h>
 #include <linux/io.h>
+#include <linux/static_call.h>
 #include <asm/nospec-branch.h>
 #include <asm/paravirt.h>
 #include <asm/msr.h>
@@ -39,16 +40,21 @@ static inline unsigned char hv_get_nmi_reason(void)
 	return 0;
 }
 
-#if IS_ENABLED(CONFIG_HYPERV)
-extern bool hyperv_paravisor_present;
+extern u64 hv_tdx_hypercall(u64 control, u64 param1, u64 param2);
+extern u64 hv_snp_hypercall(u64 control, u64 param1, u64 param2);
+extern u64 hv_std_hypercall(u64 control, u64 param1, u64 param2);
 
+#if IS_ENABLED(CONFIG_HYPERV)
 extern void *hv_hypercall_pg;
 
 extern union hv_ghcb * __percpu *hv_ghcb_pg;
 
 bool hv_isolation_type_snp(void);
 bool hv_isolation_type_tdx(void);
-u64 hv_tdx_hypercall(u64 control, u64 param1, u64 param2);
+
+#ifdef CONFIG_X86_64
+DECLARE_STATIC_CALL(hv_hypercall, hv_std_hypercall);
+#endif
 
 /*
  * DEFAULT INIT GPAT and SEGMENT LIMIT value in struct VMSA
@@ -65,37 +71,15 @@ static inline u64 hv_do_hypercall(u64 control, void *input, void *output)
 {
 	u64 input_address = input ? virt_to_phys(input) : 0;
 	u64 output_address = output ? virt_to_phys(output) : 0;
-	u64 hv_status;
 
 #ifdef CONFIG_X86_64
-	if (hv_isolation_type_tdx() && !hyperv_paravisor_present)
-		return hv_tdx_hypercall(control, input_address, output_address);
-
-	if (hv_isolation_type_snp() && !hyperv_paravisor_present) {
-		__asm__ __volatile__("mov %[output_address], %%r8\n"
-				     "vmmcall"
-				     : "=a" (hv_status), ASM_CALL_CONSTRAINT,
-				       "+c" (control), "+d" (input_address)
-				     : [output_address] "r" (output_address)
-				     : "cc", "memory", "r8", "r9", "r10", "r11");
-		return hv_status;
-	}
-
-	if (!hv_hypercall_pg)
-		return U64_MAX;
-
-	__asm__ __volatile__("mov %[output_address], %%r8\n"
-			     CALL_NOSPEC
-			     : "=a" (hv_status), ASM_CALL_CONSTRAINT,
-			       "+c" (control), "+d" (input_address)
-			     : [output_address] "r" (output_address),
-			       THUNK_TARGET(hv_hypercall_pg)
-			     : "cc", "memory", "r8", "r9", "r10", "r11");
+	return static_call_mod(hv_hypercall)(control, input_address, output_address);
 #else
 	u32 input_address_hi = upper_32_bits(input_address);
 	u32 input_address_lo = lower_32_bits(input_address);
 	u32 output_address_hi = upper_32_bits(output_address);
 	u32 output_address_lo = lower_32_bits(output_address);
+	u64 hv_status;
 
 	if (!hv_hypercall_pg)
 		return U64_MAX;
@@ -108,48 +92,30 @@ static inline u64 hv_do_hypercall(u64 control, void *input, void *output)
 			       "D"(output_address_hi), "S"(output_address_lo),
 			       THUNK_TARGET(hv_hypercall_pg)
 			     : "cc", "memory");
-#endif /* !x86_64 */
 	return hv_status;
+#endif /* !x86_64 */
 }
 
 /* Fast hypercall with 8 bytes of input and no output */
 static inline u64 _hv_do_fast_hypercall8(u64 control, u64 input1)
 {
+#ifdef CONFIG_X86_64
+	return static_call_mod(hv_hypercall)(control, input1, 0);
+#else
+	u32 input1_hi = upper_32_bits(input1);
+	u32 input1_lo = lower_32_bits(input1);
 	u64 hv_status;
 
-#ifdef CONFIG_X86_64
-	if (hv_isolation_type_tdx() && !hyperv_paravisor_present)
-		return hv_tdx_hypercall(control, input1, 0);
-
-	if (hv_isolation_type_snp() && !hyperv_paravisor_present) {
-		__asm__ __volatile__(
-				"vmmcall"
-				: "=a" (hv_status), ASM_CALL_CONSTRAINT,
-				"+c" (control), "+d" (input1)
-				:: "cc", "r8", "r9", "r10", "r11");
-	} else {
-		__asm__ __volatile__(CALL_NOSPEC
-				     : "=a" (hv_status), ASM_CALL_CONSTRAINT,
-				       "+c" (control), "+d" (input1)
-				     : THUNK_TARGET(hv_hypercall_pg)
-				     : "cc", "r8", "r9", "r10", "r11");
-	}
-#else
-	{
-		u32 input1_hi = upper_32_bits(input1);
-		u32 input1_lo = lower_32_bits(input1);
-
-		__asm__ __volatile__ (CALL_NOSPEC
-				      : "=A"(hv_status),
-					"+c"(input1_lo),
-					ASM_CALL_CONSTRAINT
-				      :	"A" (control),
-					"b" (input1_hi),
-					THUNK_TARGET(hv_hypercall_pg)
-				      : "cc", "edi", "esi");
-	}
-#endif
+	__asm__ __volatile__ (CALL_NOSPEC
+			      : "=A"(hv_status),
+			      "+c"(input1_lo),
+			      ASM_CALL_CONSTRAINT
+			      :	"A" (control),
+			      "b" (input1_hi),
+			      THUNK_TARGET(hv_hypercall_pg)
+			      : "cc", "edi", "esi");
 	return hv_status;
+#endif
 }
 
 static inline u64 hv_do_fast_hypercall8(u16 code, u64 input1)
@@ -162,45 +128,24 @@ static inline u64 hv_do_fast_hypercall8(u16 code, u64 input1)
 /* Fast hypercall with 16 bytes of input */
 static inline u64 _hv_do_fast_hypercall16(u64 control, u64 input1, u64 input2)
 {
+#ifdef CONFIG_X86_64
+	return static_call_mod(hv_hypercall)(control, input1, input2);
+#else
+	u32 input1_hi = upper_32_bits(input1);
+	u32 input1_lo = lower_32_bits(input1);
+	u32 input2_hi = upper_32_bits(input2);
+	u32 input2_lo = lower_32_bits(input2);
 	u64 hv_status;
 
-#ifdef CONFIG_X86_64
-	if (hv_isolation_type_tdx() && !hyperv_paravisor_present)
-		return hv_tdx_hypercall(control, input1, input2);
-
-	if (hv_isolation_type_snp() && !hyperv_paravisor_present) {
-		__asm__ __volatile__("mov %[input2], %%r8\n"
-				     "vmmcall"
-				     : "=a" (hv_status), ASM_CALL_CONSTRAINT,
-				       "+c" (control), "+d" (input1)
-				     : [input2] "r" (input2)
-				     : "cc", "r8", "r9", "r10", "r11");
-	} else {
-		__asm__ __volatile__("mov %[input2], %%r8\n"
-				     CALL_NOSPEC
-				     : "=a" (hv_status), ASM_CALL_CONSTRAINT,
-				       "+c" (control), "+d" (input1)
-				     : [input2] "r" (input2),
-				       THUNK_TARGET(hv_hypercall_pg)
-				     : "cc", "r8", "r9", "r10", "r11");
-	}
-#else
-	{
-		u32 input1_hi = upper_32_bits(input1);
-		u32 input1_lo = lower_32_bits(input1);
-		u32 input2_hi = upper_32_bits(input2);
-		u32 input2_lo = lower_32_bits(input2);
-
-		__asm__ __volatile__ (CALL_NOSPEC
-				      : "=A"(hv_status),
-					"+c"(input1_lo), ASM_CALL_CONSTRAINT
-				      :	"A" (control), "b" (input1_hi),
-					"D"(input2_hi), "S"(input2_lo),
-					THUNK_TARGET(hv_hypercall_pg)
-				      : "cc");
-	}
-#endif
+	__asm__ __volatile__ (CALL_NOSPEC
+			      : "=A"(hv_status),
+			      "+c"(input1_lo), ASM_CALL_CONSTRAINT
+			      :	"A" (control), "b" (input1_hi),
+			      "D"(input2_hi), "S"(input2_lo),
+			      THUNK_TARGET(hv_hypercall_pg)
+			      : "cc");
 	return hv_status;
+#endif
 }
 
 static inline u64 hv_do_fast_hypercall16(u16 code, u64 input1, u64 input2)

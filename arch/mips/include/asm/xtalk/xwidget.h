@@ -203,7 +203,7 @@ static const struct widget_ident __initconst widget_idents[] = {
  * widget target flush register are widget dependent thus will not be
  * defined here
  */
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 typedef u32 widgetreg_t;
 
 /* widget configuration registers */
@@ -274,6 +274,6 @@ typedef struct xwidget_hwid_s {
 	((hwid2)->mfg_num == XWIDGET_MFG_NUM_NONE) || \
 	((hwid1)->mfg_num == (hwid2)->mfg_num)))
 
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 
 #endif /* _ASM_XTALK_XWIDGET_H */

@@ -164,7 +164,7 @@ static inline __u64 perf_get_sample(struct bpf_perf_event_data_kern *kctx,
 		if (entry->part == 8) {
 			union perf_mem_data_src___new *data = (void *)&kctx->data->data_src;
 
-			if (bpf_core_field_exists(data->mem_hops))
+			if (__builtin_preserve_field_info(data->mem_hops, BPF_FIELD_EXISTS))
 				return data->mem_hops;
 
 			return 0;

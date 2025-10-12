@@ -56,19 +56,21 @@ static unsigned long clk_cpu_recalc_rate(struct clk_hw *hwclk,
 	return parent_rate / div;
 }
 
-static long clk_cpu_round_rate(struct clk_hw *hwclk, unsigned long rate,
-			       unsigned long *parent_rate)
+static int clk_cpu_determine_rate(struct clk_hw *hw,
+				  struct clk_rate_request *req)
 {
 	/* Valid ratio are 1:1, 1:2 and 1:3 */
 	u32 div;
 
-	div = *parent_rate / rate;
+	div = req->best_parent_rate / req->rate;
 	if (div == 0)
 		div = 1;
 	else if (div > 3)
 		div = 3;
 
-	return *parent_rate / div;
+	req->rate = req->best_parent_rate / div;
+
+	return 0;
 }
 
 static int clk_cpu_off_set_rate(struct clk_hw *hwclk, unsigned long rate,
@@ -159,7 +161,7 @@ static int clk_cpu_set_rate(struct clk_hw *hwclk, unsigned long rate,
 
 static const struct clk_ops cpu_ops = {
 	.recalc_rate = clk_cpu_recalc_rate,
-	.round_rate = clk_cpu_round_rate,
+	.determine_rate = clk_cpu_determine_rate,
 	.set_rate = clk_cpu_set_rate,
 };
 

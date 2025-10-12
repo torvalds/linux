@@ -68,6 +68,7 @@ struct fbnic_net {
 	/* Storage for stats after ring destruction */
 	struct fbnic_queue_stats tx_stats;
 	struct fbnic_queue_stats rx_stats;
+	struct fbnic_queue_stats bdq_stats;
 	u64 link_down_events;
 
 	/* Time stamping filter config */

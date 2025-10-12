@@ -1949,7 +1949,7 @@ static umode_t ufs_sysfs_hid_is_visible(struct kobject *kobj,
 	return	hba->dev_info.hid_sup ? attr->mode : 0;
 }
 
-static const struct attribute_group ufs_sysfs_hid_group = {
+const struct attribute_group ufs_sysfs_hid_group = {
 	.name = "hid",
 	.attrs = ufs_sysfs_hid,
 	.is_visible = ufs_sysfs_hid_is_visible,

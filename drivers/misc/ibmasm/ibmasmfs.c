@@ -525,15 +525,9 @@ static ssize_t remote_settings_file_write(struct file *file, const char __user *
 	if (*offset != 0)
 		return 0;
 
-	buff = kzalloc (count + 1, GFP_KERNEL);
-	if (!buff)
-		return -ENOMEM;
-
-
-	if (copy_from_user(buff, ubuff, count)) {
-		kfree(buff);
-		return -EFAULT;
-	}
+	buff = memdup_user_nul(ubuff, count);
+	if (IS_ERR(buff))
+		return PTR_ERR(buff);
 
 	value = simple_strtoul(buff, NULL, 10);
 	writel(value, address);

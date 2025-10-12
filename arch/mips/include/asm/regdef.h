@@ -103,7 +103,7 @@
 
 #endif /* _MIPS_SIM == _MIPS_SIM_ABI64 || _MIPS_SIM == _MIPS_SIM_NABI32 */
 
-#ifdef __ASSEMBLY__
+#ifdef __ASSEMBLER__
 #if _MIPS_SIM == _MIPS_SIM_ABI32
 
 /*
@@ -192,6 +192,6 @@
 #define ra	$31	/* return address */
 
 #endif /* _MIPS_SIM == _MIPS_SIM_ABI64 || _MIPS_SIM == _MIPS_SIM_NABI32 */
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* _ASM_REGDEF_H */

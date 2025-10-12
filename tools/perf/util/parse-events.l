@@ -5,16 +5,14 @@
 %option stack
 %option bison-locations
 %option yylineno
-%option reject
+%option noyywrap
 
 %{
 #include <errno.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
+#include <stdlib.h>
+#include <stdio.h>
 #include "parse-events.h"
 #include "parse-events-bison.h"
-#include "evsel.h"
 
 char *parse_events_get_text(yyscan_t yyscanner);
 YYSTYPE *parse_events_get_lval(yyscan_t yyscanner);
@@ -206,6 +204,7 @@ static int modifiers(struct parse_events_state *parse_state, yyscan_t scanner)
 		CASE('e', exclusive);
 		CASE('b', bpf);
 		CASE('R', retire_lat);
+		CASE('X', dont_regroup);
 		default:
 			return PE_ERROR;
 		}
@@ -221,10 +220,6 @@ do {							\
 	yylloc->first_column = yycolumn;		\
 	yycolumn += yyleng;				\
 } while (0);
-
-#define USER_REJECT		\
-	yycolumn -= yyleng;	\
-	REJECT
 
 %}
 
@@ -251,10 +246,10 @@ term_name	{name_start}[a-zA-Z0-9_*?.\[\]!\-:]*
 quoted_name	[\']{name_start}[a-zA-Z0-9_*?.\[\]!\-:,\.=]*[\']
 drv_cfg_term	[a-zA-Z0-9_\.]+(=[a-zA-Z0-9_*?\.:]+)?
 /*
- * If you add a modifier you need to update check_modifier().
+ * If you add a modifier you need to update modifiers().
  * Also, the letters in modifier_event must not be in modifier_bp.
  */
-modifier_event	[ukhpPGHSDIWebR]{1,16}
+modifier_event	[ukhpPGHSDIWebRX]{1,17}
 modifier_bp	[rwx]{1,3}
 lc_type 	(L1-dcache|l1-d|l1d|L1-data|L1-icache|l1-i|l1i|L1-instruction|LLC|L2|dTLB|d-tlb|Data-TLB|iTLB|i-tlb|Instruction-TLB|branch|branches|bpu|btb|bpc|node)
 lc_op_result	(load|loads|read|store|stores|write|prefetch|prefetches|speculative-read|speculative-load|refs|Reference|ops|access|misses|miss)
@@ -336,6 +331,7 @@ aux-action		{ return term(yyscanner, PARSE_EVENTS__TERM_TYPE_AUX_ACTION); }
 aux-sample-size		{ return term(yyscanner, PARSE_EVENTS__TERM_TYPE_AUX_SAMPLE_SIZE); }
 metric-id		{ return term(yyscanner, PARSE_EVENTS__TERM_TYPE_METRIC_ID); }
 cpu			{ return term(yyscanner, PARSE_EVENTS__TERM_TYPE_CPU); }
+ratio-to-prev		{ return term(yyscanner, PARSE_EVENTS__TERM_TYPE_RATIO_TO_PREV); }
 cpu-cycles|cycles				{ return hw_term(yyscanner, PERF_COUNT_HW_CPU_CYCLES); }
 stalled-cycles-frontend|idle-cycles-frontend	{ return hw_term(yyscanner, PERF_COUNT_HW_STALLED_CYCLES_FRONTEND); }
 stalled-cycles-backend|idle-cycles-backend	{ return hw_term(yyscanner, PERF_COUNT_HW_STALLED_CYCLES_BACKEND); }
@@ -423,8 +419,3 @@ r{num_raw_hex}		{ return str(yyscanner, PE_RAW); }
 .			{ }
 
 %%
-
-int parse_events_wrap(void *scanner __maybe_unused)
-{
-	return 1;
-}

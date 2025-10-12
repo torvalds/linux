@@ -146,6 +146,10 @@ static int kvm_vm_feature_has_attr(struct kvm *kvm, struct kvm_device_attr *attr
 		if (kvm_pvtime_supported())
 			return 0;
 		return -ENXIO;
+	case KVM_LOONGARCH_VM_FEAT_PTW:
+		if (cpu_has_ptw)
+			return 0;
+		return -ENXIO;
 	default:
 		return -ENXIO;
 	}

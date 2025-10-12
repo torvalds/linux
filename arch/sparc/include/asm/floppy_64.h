@@ -13,6 +13,7 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/dma-mapping.h>
+#include <linux/string.h>
 
 #include <asm/auxio.h>
 
@@ -615,7 +616,7 @@ static unsigned long __init sun_floppy_init(void)
 		sun_pci_fd_ebus_dma.callback = sun_pci_fd_dma_callback;
 		sun_pci_fd_ebus_dma.client_cookie = NULL;
 		sun_pci_fd_ebus_dma.irq = FLOPPY_IRQ;
-		strcpy(sun_pci_fd_ebus_dma.name, "floppy");
+		strscpy(sun_pci_fd_ebus_dma.name, "floppy");
 		if (ebus_dma_register(&sun_pci_fd_ebus_dma))
 			return 0;
 

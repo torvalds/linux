@@ -1316,7 +1316,7 @@ static int bio_iov_iter_align_down(struct bio *bio, struct iov_iter *iter,
 }
 
 /**
- * bio_iov_iter_get_pages_aligned - add user or kernel pages to a bio
+ * bio_iov_iter_get_pages - add user or kernel pages to a bio
  * @bio: bio to add pages to
  * @iter: iov iterator describing the region to be added
  * @len_align_mask: the mask to align the total size to, 0 for any length
@@ -1336,7 +1336,7 @@ static int bio_iov_iter_align_down(struct bio *bio, struct iov_iter *iter,
  * MM encounters an error pinning the requested pages, it stops. Error
  * is returned only if 0 pages could be pinned.
  */
-int bio_iov_iter_get_pages_aligned(struct bio *bio, struct iov_iter *iter,
+int bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter,
 			   unsigned len_align_mask)
 {
 	int ret = 0;
@@ -1360,7 +1360,6 @@ int bio_iov_iter_get_pages_aligned(struct bio *bio, struct iov_iter *iter,
 		return bio_iov_iter_align_down(bio, iter, len_align_mask);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(bio_iov_iter_get_pages_aligned);
 
 static void submit_bio_wait_endio(struct bio *bio)
 {

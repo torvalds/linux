@@ -266,7 +266,7 @@ static void mlx5_iowrite64_copy(struct mlx5_wc_sq *sq, __be32 mmio_wqe[16],
 	if (cpu_has_neon()) {
 		kernel_neon_begin();
 		asm volatile
-		(".arch_extension simd;\n\t"
+		(".arch_extension simd\n\t"
 		"ld1 {v0.16b, v1.16b, v2.16b, v3.16b}, [%0]\n\t"
 		"st1 {v0.16b, v1.16b, v2.16b, v3.16b}, [%1]"
 		:

@@ -1566,6 +1566,11 @@ struct cifsFileInfo *cifsFileInfo_get(struct cifsFileInfo *cifs_file);
 void _cifsFileInfo_put(struct cifsFileInfo *cifs_file, bool wait_oplock_hdlr,
 		       bool offload);
 void cifsFileInfo_put(struct cifsFileInfo *cifs_file);
+int cifs_file_flush(const unsigned int xid, struct inode *inode,
+		    struct cifsFileInfo *cfile);
+int cifs_file_set_size(const unsigned int xid, struct dentry *dentry,
+		       const char *full_path, struct cifsFileInfo *open_file,
+		       loff_t size);
 
 #define CIFS_CACHE_READ_FLG	1
 #define CIFS_CACHE_HANDLE_FLG	2

@@ -273,6 +273,7 @@ v3d_gem_init(struct drm_device *dev)
 		seqcount_init(&queue->stats.lock);
 
 		spin_lock_init(&queue->queue_lock);
+		spin_lock_init(&queue->fence_lock);
 	}
 
 	spin_lock_init(&v3d->mm_lock);

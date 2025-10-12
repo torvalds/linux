@@ -2,9 +2,12 @@ menu "VFIO support for FSL_MC bus devices"
 	depends on FSL_MC_BUS
 
 config VFIO_FSL_MC
-	tristate "VFIO support for QorIQ DPAA2 fsl-mc bus devices"
+	tristate "VFIO support for QorIQ DPAA2 fsl-mc bus devices (DEPRECATED)"
 	select EVENTFD
 	help
+	  The vfio-fsl-mc driver is deprecated and will be removed in a
+	  future kernel release.
+
 	  Driver to enable support for the VFIO QorIQ DPAA2 fsl-mc
 	  (Management Complex) devices. This is required to passthrough
 	  fsl-mc bus devices using the VFIO framework.
