@@ -27,16 +27,8 @@
 #include "../common/smb2status.h"
 #include "smb2glob.h"
 
-static int
-smb3_crypto_shash_allocate(struct TCP_Server_Info *server)
-{
-	struct cifs_secmech *p = &server->secmech;
-
-	return cifs_alloc_hash("cmac(aes)", &p->aes_cmac);
-}
-
 int
-smb311_crypto_shash_allocate(struct TCP_Server_Info *server)
+smb3_crypto_shash_allocate(struct TCP_Server_Info *server)
 {
 	struct cifs_secmech *p = &server->secmech;
 
