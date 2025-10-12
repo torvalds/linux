@@ -2619,44 +2619,41 @@ static void local_inv_done(struct ib_cq *cq, struct ib_wc *wc)
  * and we have to locally invalidate the buffer to prevent data is being
  * modified by remote peer after upper layer consumes it
  */
-void smbd_deregister_mr(struct smbdirect_mr_io *smbdirect_mr)
+void smbd_deregister_mr(struct smbdirect_mr_io *mr)
 {
-	struct ib_send_wr *wr;
-	struct smbdirect_socket *sc = smbdirect_mr->socket;
-	int rc = 0;
+	struct smbdirect_socket *sc = mr->socket;
 
-	if (smbdirect_mr->need_invalidate) {
+	if (mr->need_invalidate) {
+		struct ib_send_wr *wr = &mr->inv_wr;
+		int rc;
+
 		/* Need to finish local invalidation before returning */
-		wr = &smbdirect_mr->inv_wr;
 		wr->opcode = IB_WR_LOCAL_INV;
-		smbdirect_mr->cqe.done = local_inv_done;
-		wr->wr_cqe = &smbdirect_mr->cqe;
+		mr->cqe.done = local_inv_done;
+		wr->wr_cqe = &mr->cqe;
 		wr->num_sge = 0;
-		wr->ex.invalidate_rkey = smbdirect_mr->mr->rkey;
+		wr->ex.invalidate_rkey = mr->mr->rkey;
 		wr->send_flags = IB_SEND_SIGNALED;
 
-		init_completion(&smbdirect_mr->invalidate_done);
+		init_completion(&mr->invalidate_done);
 		rc = ib_post_send(sc->ib.qp, wr, NULL);
 		if (rc) {
 			log_rdma_mr(ERR, "ib_post_send failed rc=%x\n", rc);
 			smbd_disconnect_rdma_connection(sc);
 			goto done;
 		}
-		wait_for_completion(&smbdirect_mr->invalidate_done);
-		smbdirect_mr->need_invalidate = false;
+		wait_for_completion(&mr->invalidate_done);
+		mr->need_invalidate = false;
 	} else
 		/*
 		 * For remote invalidation, just set it to SMBDIRECT_MR_INVALIDATED
 		 * and defer to mr_recovery_work to recover the MR for next use
 		 */
-		smbdirect_mr->state = SMBDIRECT_MR_INVALIDATED;
+		mr->state = SMBDIRECT_MR_INVALIDATED;
 
-	if (smbdirect_mr->state == SMBDIRECT_MR_INVALIDATED) {
-		ib_dma_unmap_sg(
-			sc->ib.dev, smbdirect_mr->sgt.sgl,
-			smbdirect_mr->sgt.nents,
-			smbdirect_mr->dir);
-		smbdirect_mr->state = SMBDIRECT_MR_READY;
+	if (mr->state == SMBDIRECT_MR_INVALIDATED) {
+		ib_dma_unmap_sg(sc->ib.dev, mr->sgt.sgl, mr->sgt.nents, mr->dir);
+		mr->state = SMBDIRECT_MR_READY;
 		if (atomic_inc_return(&sc->mr_io.ready.count) == 1)
 			wake_up(&sc->mr_io.ready.wait_queue);
 	} else
