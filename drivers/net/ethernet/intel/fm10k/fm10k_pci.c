@@ -2423,12 +2423,6 @@ static pci_ers_result_t fm10k_io_slot_reset(struct pci_dev *pdev)
 	} else {
 		pci_set_master(pdev);
 		pci_restore_state(pdev);
-
-		/* After second error pci->state_saved is false, this
-		 * resets it so EEH doesn't break.
-		 */
-		pci_save_state(pdev);
-
 		pci_wake_from_d3(pdev, false);
 
 		result = PCI_ERS_RESULT_RECOVERED;
