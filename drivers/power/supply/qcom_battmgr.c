@@ -678,12 +678,7 @@ static int qcom_battmgr_set_charge_start_threshold(struct qcom_battmgr *battmgr,
 	u32 target_soc, delta_soc;
 	int ret;
 
-	if (start_soc < CHARGE_CTRL_START_THR_MIN ||
-	    start_soc > CHARGE_CTRL_START_THR_MAX) {
-		dev_err(battmgr->dev, "charge control start threshold exceed range: [%u - %u]\n",
-			CHARGE_CTRL_START_THR_MIN, CHARGE_CTRL_START_THR_MAX);
-		return -EINVAL;
-	}
+	start_soc = clamp(start_soc, CHARGE_CTRL_START_THR_MIN, CHARGE_CTRL_START_THR_MAX);
 
 	/*
 	 * If the new start threshold is larger than the old end threshold,
@@ -716,12 +711,7 @@ static int qcom_battmgr_set_charge_end_threshold(struct qcom_battmgr *battmgr, i
 	u32 delta_soc = CHARGE_CTRL_DELTA_SOC;
 	int ret;
 
-	if (end_soc < CHARGE_CTRL_END_THR_MIN ||
-	    end_soc > CHARGE_CTRL_END_THR_MAX) {
-		dev_err(battmgr->dev, "charge control end threshold exceed range: [%u - %u]\n",
-			CHARGE_CTRL_END_THR_MIN, CHARGE_CTRL_END_THR_MAX);
-		return -EINVAL;
-	}
+	end_soc = clamp(end_soc, CHARGE_CTRL_END_THR_MIN, CHARGE_CTRL_END_THR_MAX);
 
 	if (battmgr->info.charge_ctrl_start && end_soc > battmgr->info.charge_ctrl_start)
 		delta_soc = end_soc - battmgr->info.charge_ctrl_start;
