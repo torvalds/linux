@@ -402,6 +402,34 @@ int sysctl_kern_to_user_int_conv##name(bool *negp,		\
 	return 0;						\
 }
 
+/**
+ * To range check on a converted value, use a temp k_ptr
+ * When checking range, value should be within (tbl->extra1, tbl->extra2)
+ */
+#define SYSCTL_INT_CONV_CUSTOM(name, user_to_kern, kern_to_user,	\
+			       k_ptr_range_check)			\
+int do_proc_int_conv##name(bool *negp, unsigned long *u_ptr, int *k_ptr,\
+			   int dir, const struct ctl_table *tbl)	\
+{									\
+	if (SYSCTL_KERN_TO_USER(dir))					\
+		return kern_to_user(negp, u_ptr, k_ptr);		\
+									\
+	if (k_ptr_range_check) {					\
+		int tmp_k, ret;						\
+		if (!tbl)						\
+			return -EINVAL;					\
+		ret = user_to_kern(negp, u_ptr, &tmp_k);		\
+		if (ret)						\
+			return ret;					\
+		if ((tbl->extra1 && *(int *)tbl->extra1 > tmp_k) ||	\
+		    (tbl->extra2 && *(int *)tbl->extra2 < tmp_k))	\
+			return -EINVAL;					\
+		WRITE_ONCE(*k_ptr, tmp_k);				\
+	} else								\
+		return user_to_kern(negp, u_ptr, k_ptr);		\
+	return 0;							\
+}
+
 #define SYSCTL_CONV_IDENTITY(val) val
 #define SYSCTL_CONV_MULT_HZ(val) ((val) * HZ)
 #define SYSCTL_CONV_DIV_HZ(val) ((val) / HZ)
@@ -418,24 +446,21 @@ static SYSCTL_KERN_TO_USER_INT_CONV(_userhz, jiffies_to_clock_t)
 static SYSCTL_USER_TO_KERN_INT_CONV(_ms, msecs_to_jiffies)
 static SYSCTL_KERN_TO_USER_INT_CONV(_ms, jiffies_to_msecs)
 
-#define SYSCTL_INT_CONV_CUSTOM(name, user_to_kern, kern_to_user)	\
-int do_proc_int_conv##name(bool *negp, unsigned long *u_ptr, int *k_ptr,\
-			   int dir, const struct ctl_table *table)	\
-{									\
-	if (SYSCTL_USER_TO_KERN(dir))					\
-		return user_to_kern(negp, u_ptr, k_ptr);		\
-	return kern_to_user(negp, u_ptr, k_ptr);			\
-}
-
 static SYSCTL_INT_CONV_CUSTOM(, sysctl_user_to_kern_int_conv,
-			      sysctl_kern_to_user_int_conv)
+			      sysctl_kern_to_user_int_conv, false)
 static SYSCTL_INT_CONV_CUSTOM(_jiffies, sysctl_user_to_kern_int_conv_hz,
-			      sysctl_kern_to_user_int_conv_hz)
+			      sysctl_kern_to_user_int_conv_hz, false)
 static SYSCTL_INT_CONV_CUSTOM(_userhz_jiffies,
 			      sysctl_user_to_kern_int_conv_userhz,
-			      sysctl_kern_to_user_int_conv_userhz)
+			      sysctl_kern_to_user_int_conv_userhz, false)
 static SYSCTL_INT_CONV_CUSTOM(_ms_jiffies, sysctl_user_to_kern_int_conv_ms,
-			      sysctl_kern_to_user_int_conv_ms)
+			      sysctl_kern_to_user_int_conv_ms, false)
+
+static SYSCTL_INT_CONV_CUSTOM(_minmax, sysctl_user_to_kern_int_conv,
+			      sysctl_kern_to_user_int_conv, true)
+static SYSCTL_INT_CONV_CUSTOM(_ms_jiffies_minmax,
+			      sysctl_user_to_kern_int_conv_ms,
+			      sysctl_kern_to_user_int_conv_ms, true)
 
 static int do_proc_douintvec_conv(unsigned long *u_ptr,
 				  unsigned int *k_ptr, int dir,
@@ -721,32 +746,6 @@ int proc_douintvec(const struct ctl_table *table, int dir, void *buffer,
 				 do_proc_douintvec_conv);
 }
 
-static int do_proc_dointvec_minmax_conv(bool *negp, unsigned long *u_ptr,
-					int *k_ptr, int dir,
-					const struct ctl_table *table)
-{
-	int tmp, ret, *min, *max;
-	/*
-	 * If writing to a kernel variable, first do so via a temporary
-	 * local int so we can bounds-check it before touching *k_ptr.
-	 */
-	int *ip = SYSCTL_USER_TO_KERN(dir) ? &tmp : k_ptr;
-
-	ret = do_proc_int_conv(negp, u_ptr, ip, dir, table);
-	if (ret)
-		return ret;
-
-	if (SYSCTL_USER_TO_KERN(dir)) {
-		min = (int *) table->extra1;
-		max = (int *) table->extra2;
-		if ((min && *min > tmp) || (max && *max < tmp))
-			return -EINVAL;
-		WRITE_ONCE(*k_ptr, tmp);
-	}
-
-	return 0;
-}
-
 /**
  * proc_dointvec_minmax - read a vector of integers with min/max values
  * @table: the sysctl table
@@ -768,7 +767,7 @@ int proc_dointvec_minmax(const struct ctl_table *table, int dir,
 		  void *buffer, size_t *lenp, loff_t *ppos)
 {
 	return do_proc_dointvec(table, dir, buffer, lenp, ppos,
-				do_proc_dointvec_minmax_conv);
+				do_proc_int_conv_minmax);
 }
 
 static int do_proc_douintvec_minmax_conv(unsigned long *u_ptr,
@@ -994,31 +993,6 @@ int proc_doulongvec_ms_jiffies_minmax(const struct ctl_table *table, int dir,
 					 lenp, ppos, HZ, 1000l);
 }
 
-static int do_proc_dointvec_ms_jiffies_minmax_conv(bool *negp, unsigned long *u_ptr,
-						int *k_ptr, int dir,
-						const struct ctl_table *table)
-{
-	int tmp, ret, *min, *max;
-	/*
-	 * If writing to a kernel var, first do so via a temporary local
-	 * int so we can bounds-check it before touching *k_ptr.
-	 */
-	int *ip = SYSCTL_USER_TO_KERN(dir) ? &tmp : k_ptr;
-
-	ret = do_proc_int_conv_ms_jiffies(negp, u_ptr, ip, dir, table);
-	if (ret)
-		return ret;
-
-	if (SYSCTL_USER_TO_KERN(dir)) {
-		min = (int *) table->extra1;
-		max = (int *) table->extra2;
-		if ((min && *min > tmp) || (max && *max < tmp))
-			return -EINVAL;
-		*k_ptr = tmp;
-	}
-	return 0;
-}
-
 /**
  * proc_dointvec_jiffies - read a vector of integers as seconds
  * @table: the sysctl table
@@ -1045,7 +1019,7 @@ int proc_dointvec_ms_jiffies_minmax(const struct ctl_table *table, int dir,
 			  void *buffer, size_t *lenp, loff_t *ppos)
 {
 	return do_proc_dointvec(table, dir, buffer, lenp, ppos,
-			do_proc_dointvec_ms_jiffies_minmax_conv);
+			do_proc_int_conv_ms_jiffies_minmax);
 }
 
 /**
