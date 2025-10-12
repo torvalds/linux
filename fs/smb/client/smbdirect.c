@@ -2365,9 +2365,10 @@ static void destroy_mr_list(struct smbdirect_socket *sc)
 	spin_unlock_irqrestore(&sc->mr_io.all.lock, flags);
 
 	list_for_each_entry_safe(mr, tmp, &all_list, list) {
+		if (mr->mr)
+			ib_dereg_mr(mr->mr);
 		if (mr->sgt.nents)
 			ib_dma_unmap_sg(sc->ib.dev, mr->sgt.sgl, mr->sgt.nents, mr->dir);
-		ib_dereg_mr(mr->mr);
 		kfree(mr->sgt.sgl);
 		list_del(&mr->list);
 		kfree(mr);
