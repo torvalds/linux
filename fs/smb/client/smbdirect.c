@@ -1624,19 +1624,7 @@ void smbd_destroy(struct TCP_Server_Info *server)
 	log_rdma_event(INFO, "free receive buffers\n");
 	destroy_receive_buffers(sc);
 
-	/*
-	 * For performance reasons, memory registration and deregistration
-	 * are not locked by srv_mutex. It is possible some processes are
-	 * blocked on transport srv_mutex while holding memory registration.
-	 * Release the transport srv_mutex to allow them to hit the failure
-	 * path when sending data, and then release memory registrations.
-	 */
 	log_rdma_event(INFO, "freeing mr list\n");
-	while (atomic_read(&sc->mr_io.used.count)) {
-		cifs_server_unlock(server);
-		msleep(1000);
-		cifs_server_lock(server);
-	}
 	destroy_mr_list(sc);
 
 	ib_free_cq(sc->ib.send_cq);
@@ -2352,6 +2340,46 @@ static void smbd_mr_recovery_work(struct work_struct *work)
 	}
 }
 
+static void smbd_mr_disable_locked(struct smbdirect_mr_io *mr)
+{
+	struct smbdirect_socket *sc = mr->socket;
+
+	lockdep_assert_held(&mr->mutex);
+
+	if (mr->state == SMBDIRECT_MR_DISABLED)
+		return;
+
+	if (mr->mr)
+		ib_dereg_mr(mr->mr);
+	if (mr->sgt.nents)
+		ib_dma_unmap_sg(sc->ib.dev, mr->sgt.sgl, mr->sgt.nents, mr->dir);
+	kfree(mr->sgt.sgl);
+
+	mr->mr = NULL;
+	mr->sgt.sgl = NULL;
+	mr->sgt.nents = 0;
+
+	mr->state = SMBDIRECT_MR_DISABLED;
+}
+
+static void smbd_mr_free_locked(struct kref *kref)
+{
+	struct smbdirect_mr_io *mr =
+		container_of(kref, struct smbdirect_mr_io, kref);
+
+	lockdep_assert_held(&mr->mutex);
+
+	/*
+	 * smbd_mr_disable_locked() should already be called!
+	 */
+	if (WARN_ON_ONCE(mr->state != SMBDIRECT_MR_DISABLED))
+		smbd_mr_disable_locked(mr);
+
+	mutex_unlock(&mr->mutex);
+	mutex_destroy(&mr->mutex);
+	kfree(mr);
+}
+
 static void destroy_mr_list(struct smbdirect_socket *sc)
 {
 	struct smbdirect_mr_io *mr, *tmp;
@@ -2365,13 +2393,31 @@ static void destroy_mr_list(struct smbdirect_socket *sc)
 	spin_unlock_irqrestore(&sc->mr_io.all.lock, flags);
 
 	list_for_each_entry_safe(mr, tmp, &all_list, list) {
-		if (mr->mr)
-			ib_dereg_mr(mr->mr);
-		if (mr->sgt.nents)
-			ib_dma_unmap_sg(sc->ib.dev, mr->sgt.sgl, mr->sgt.nents, mr->dir);
-		kfree(mr->sgt.sgl);
+		mutex_lock(&mr->mutex);
+
+		smbd_mr_disable_locked(mr);
 		list_del(&mr->list);
-		kfree(mr);
+		mr->socket = NULL;
+
+		/*
+		 * No kref_put_mutex() as it's already locked.
+		 *
+		 * If smbd_mr_free_locked() is called
+		 * and the mutex is unlocked and mr is gone,
+		 * in that case kref_put() returned 1.
+		 *
+		 * If kref_put() returned 0 we know that
+		 * smbd_mr_free_locked() didn't
+		 * run. Not by us nor by anyone else, as we
+		 * still hold the mutex, so we need to unlock.
+		 *
+		 * If the mr is still registered it will
+		 * be dangling (detached from the connection
+		 * waiting for smbd_deregister_mr() to be
+		 * called in order to free the memory.
+		 */
+		if (!kref_put(&mr->kref, smbd_mr_free_locked))
+			mutex_unlock(&mr->mutex);
 	}
 }
 
@@ -2401,6 +2447,9 @@ static int allocate_mr_list(struct smbdirect_socket *sc)
 			ret = -ENOMEM;
 			goto kzalloc_mr_failed;
 		}
+
+		kref_init(&mr->kref);
+		mutex_init(&mr->mutex);
 
 		mr->mr = ib_alloc_mr(sc->ib.pd,
 				     sc->mr_io.type,
@@ -2434,6 +2483,7 @@ static int allocate_mr_list(struct smbdirect_socket *sc)
 kcalloc_sgl_failed:
 	ib_dereg_mr(mr->mr);
 ib_alloc_mr_failed:
+	mutex_destroy(&mr->mutex);
 	kfree(mr);
 kzalloc_mr_failed:
 	destroy_mr_list(sc);
@@ -2471,6 +2521,7 @@ again:
 	list_for_each_entry(ret, &sc->mr_io.all.list, list) {
 		if (ret->state == SMBDIRECT_MR_READY) {
 			ret->state = SMBDIRECT_MR_REGISTERED;
+			kref_get(&ret->kref);
 			spin_unlock_irqrestore(&sc->mr_io.all.lock, flags);
 			atomic_dec(&sc->mr_io.ready.count);
 			atomic_inc(&sc->mr_io.used.count);
@@ -2535,6 +2586,8 @@ struct smbdirect_mr_io *smbd_register_mr(struct smbd_connection *info,
 		return NULL;
 	}
 
+	mutex_lock(&mr->mutex);
+
 	mr->dir = writing ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
 	mr->need_invalidate = need_invalidate;
 	mr->sgt.nents = 0;
@@ -2578,8 +2631,16 @@ struct smbdirect_mr_io *smbd_register_mr(struct smbd_connection *info,
 	 * on the next ib_post_send when we actually send I/O to remote peer
 	 */
 	rc = ib_post_send(sc->ib.qp, &reg_wr->wr, NULL);
-	if (!rc)
+	if (!rc) {
+		/*
+		 * get_mr() gave us a reference
+		 * via kref_get(&mr->kref), we keep that and let
+		 * the caller use smbd_deregister_mr()
+		 * to remove it again.
+		 */
+		mutex_unlock(&mr->mutex);
 		return mr;
+	}
 
 	log_rdma_mr(ERR, "ib_post_send failed rc=%x reg_wr->key=%x\n",
 		rc, reg_wr->key);
@@ -2595,6 +2656,25 @@ dma_map_error:
 		wake_up(&sc->mr_io.cleanup.wait_queue);
 
 	smbd_disconnect_rdma_connection(sc);
+
+	/*
+	 * get_mr() gave us a reference
+	 * via kref_get(&mr->kref), we need to remove it again
+	 * on error.
+	 *
+	 * No kref_put_mutex() as it's already locked.
+	 *
+	 * If smbd_mr_free_locked() is called
+	 * and the mutex is unlocked and mr is gone,
+	 * in that case kref_put() returned 1.
+	 *
+	 * If kref_put() returned 0 we know that
+	 * smbd_mr_free_locked() didn't
+	 * run. Not by us nor by anyone else, as we
+	 * still hold the mutex, so we need to unlock.
+	 */
+	if (!kref_put(&mr->kref, smbd_mr_free_locked))
+		mutex_unlock(&mr->mutex);
 
 	return NULL;
 }
@@ -2624,6 +2704,15 @@ void smbd_deregister_mr(struct smbdirect_mr_io *mr)
 {
 	struct smbdirect_socket *sc = mr->socket;
 
+	mutex_lock(&mr->mutex);
+	if (mr->state == SMBDIRECT_MR_DISABLED)
+		goto put_kref;
+
+	if (sc->status != SMBDIRECT_SOCKET_CONNECTED) {
+		smbd_mr_disable_locked(mr);
+		goto put_kref;
+	}
+
 	if (mr->need_invalidate) {
 		struct ib_send_wr *wr = &mr->inv_wr;
 		int rc;
@@ -2640,6 +2729,7 @@ void smbd_deregister_mr(struct smbdirect_mr_io *mr)
 		rc = ib_post_send(sc->ib.qp, wr, NULL);
 		if (rc) {
 			log_rdma_mr(ERR, "ib_post_send failed rc=%x\n", rc);
+			smbd_mr_disable_locked(mr);
 			smbd_disconnect_rdma_connection(sc);
 			goto done;
 		}
@@ -2671,6 +2761,24 @@ void smbd_deregister_mr(struct smbdirect_mr_io *mr)
 done:
 	if (atomic_dec_and_test(&sc->mr_io.used.count))
 		wake_up(&sc->mr_io.cleanup.wait_queue);
+
+put_kref:
+	/*
+	 * No kref_put_mutex() as it's already locked.
+	 *
+	 * If smbd_mr_free_locked() is called
+	 * and the mutex is unlocked and mr is gone,
+	 * in that case kref_put() returned 1.
+	 *
+	 * If kref_put() returned 0 we know that
+	 * smbd_mr_free_locked() didn't
+	 * run. Not by us nor by anyone else, as we
+	 * still hold the mutex, so we need to unlock
+	 * and keep the mr in SMBDIRECT_MR_READY or
+	 * SMBDIRECT_MR_ERROR state.
+	 */
+	if (!kref_put(&mr->kref, smbd_mr_free_locked))
+		mutex_unlock(&mr->mutex);
 }
 
 static bool smb_set_sge(struct smb_extract_to_rdma *rdma,
