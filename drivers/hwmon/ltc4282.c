@@ -12,7 +12,6 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/hwmon.h>
-#include <linux/hwmon-sysfs.h>
 #include <linux/i2c.h>
 #include <linux/math.h>
 #include <linux/minmax.h>
@@ -541,7 +540,7 @@ static int ltc4282_read_power_byte(const struct ltc4282_state *st, u32 reg,
 	return 0;
 }
 
-static int ltc4282_read_energy(const struct ltc4282_state *st, u64 *val)
+static int ltc4282_read_energy(const struct ltc4282_state *st, s64 *val)
 {
 	u64 temp, energy;
 	__be64 raw;
@@ -617,6 +616,12 @@ static int ltc4282_read(struct device *dev, enum hwmon_sensor_types type,
 			*val = st->energy_en;
 		}
 		return 0;
+	case hwmon_energy64:
+		scoped_guard(mutex, &st->lock) {
+			if (st->energy_en)
+				return ltc4282_read_energy(st, (s64 *)val);
+		}
+		return -ENODATA;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -1078,6 +1083,9 @@ static umode_t ltc4282_is_visible(const void *data,
 	case hwmon_energy:
 		/* hwmon_energy_enable */
 		return 0644;
+	case hwmon_energy64:
+		/* hwmon_energy_input */
+		return 0444;
 	default:
 		return 0;
 	}
@@ -1104,24 +1112,6 @@ static int ltc4282_read_labels(struct device *dev,
 	default:
 		return -EOPNOTSUPP;
 	}
-}
-
-static ssize_t ltc4282_energy_show(struct device *dev,
-				   struct device_attribute *da, char *buf)
-{
-	struct ltc4282_state *st = dev_get_drvdata(dev);
-	u64 energy;
-	int ret;
-
-	guard(mutex)(&st->lock);
-	if (!st->energy_en)
-		return -ENODATA;
-
-	ret = ltc4282_read_energy(st, &energy);
-	if (ret < 0)
-		return ret;
-
-	return sysfs_emit(buf, "%llu\n", energy);
 }
 
 static const struct clk_ops ltc4282_ops = {
@@ -1588,6 +1578,8 @@ static const struct hwmon_channel_info * const ltc4282_info[] = {
 			   HWMON_P_RESET_HISTORY | HWMON_P_LABEL),
 	HWMON_CHANNEL_INFO(energy,
 			   HWMON_E_ENABLE),
+	HWMON_CHANNEL_INFO(energy64,
+			   HWMON_E_INPUT),
 	NULL
 };
 
@@ -1602,15 +1594,6 @@ static const struct hwmon_chip_info ltc4282_chip_info = {
 	.ops = &ltc4282_hwmon_ops,
 	.info = ltc4282_info,
 };
-
-/* energy attributes are 6bytes wide so we need u64 */
-static SENSOR_DEVICE_ATTR_RO(energy1_input, ltc4282_energy, 0);
-
-static struct attribute *ltc4282_attrs[] = {
-	&sensor_dev_attr_energy1_input.dev_attr.attr,
-	NULL
-};
-ATTRIBUTE_GROUPS(ltc4282);
 
 static int ltc4282_show_fault_log(void *arg, u64 *val, u32 mask)
 {
@@ -1718,8 +1701,7 @@ static int ltc4282_probe(struct i2c_client *i2c)
 
 	mutex_init(&st->lock);
 	hwmon = devm_hwmon_device_register_with_info(dev, "ltc4282", st,
-						     &ltc4282_chip_info,
-						     ltc4282_groups);
+						     &ltc4282_chip_info, NULL);
 	if (IS_ERR(hwmon))
 		return PTR_ERR(hwmon);
 
