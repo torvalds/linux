@@ -627,7 +627,7 @@ static int bma400_get_accel_oversampling_ratio(struct bma400_data *data)
 			return ret;
 		}
 
-		osr = (val & BMA400_ACC_CONFIG0_LP_OSR_MASK) >> BMA400_LP_OSR_SHIFT;
+		osr = FIELD_GET(BMA400_ACC_CONFIG0_LP_OSR_MASK, val);
 
 		data->oversampling_ratio = osr;
 		return 0;
@@ -638,7 +638,7 @@ static int bma400_get_accel_oversampling_ratio(struct bma400_data *data)
 			return ret;
 		}
 
-		osr = (val & BMA400_ACC_CONFIG1_NP_OSR_MASK) >> BMA400_NP_OSR_SHIFT;
+		osr = FIELD_GET(BMA400_ACC_CONFIG1_NP_OSR_MASK, val);
 
 		data->oversampling_ratio = osr;
 		return 0;
@@ -673,7 +673,7 @@ static int bma400_set_accel_oversampling_ratio(struct bma400_data *data,
 
 		ret = regmap_write(data->regmap, BMA400_ACC_CONFIG0_REG,
 				   (acc_config & ~BMA400_ACC_CONFIG0_LP_OSR_MASK) |
-				   (val << BMA400_LP_OSR_SHIFT));
+				   FIELD_PREP(BMA400_ACC_CONFIG0_LP_OSR_MASK, val));
 		if (ret) {
 			dev_err(data->dev, "Failed to write out OSR\n");
 			return ret;
@@ -689,7 +689,7 @@ static int bma400_set_accel_oversampling_ratio(struct bma400_data *data,
 
 		ret = regmap_write(data->regmap, BMA400_ACC_CONFIG1_REG,
 				   (acc_config & ~BMA400_ACC_CONFIG1_NP_OSR_MASK) |
-				   (val << BMA400_NP_OSR_SHIFT));
+				   FIELD_PREP(BMA400_ACC_CONFIG1_NP_OSR_MASK, val));
 		if (ret) {
 			dev_err(data->dev, "Failed to write out OSR\n");
 			return ret;
@@ -730,7 +730,7 @@ static int bma400_get_accel_scale(struct bma400_data *data)
 	if (ret)
 		return ret;
 
-	raw_scale = (val & BMA400_ACC_CONFIG1_ACC_RANGE_MASK) >> BMA400_ACC_RANGE_SHIFT;
+	raw_scale = FIELD_GET(BMA400_ACC_CONFIG1_ACC_RANGE_MASK, val);
 	if (raw_scale > BMA400_TWO_BITS_MASK)
 		return -EINVAL;
 
@@ -755,7 +755,7 @@ static int bma400_set_accel_scale(struct bma400_data *data, unsigned int val)
 
 	ret = regmap_write(data->regmap, BMA400_ACC_CONFIG1_REG,
 			   (acc_config & ~BMA400_ACC_CONFIG1_ACC_RANGE_MASK) |
-			   (raw << BMA400_ACC_RANGE_SHIFT));
+			   FIELD_PREP(BMA400_ACC_CONFIG1_ACC_RANGE_MASK, raw));
 	if (ret)
 		return ret;
 
