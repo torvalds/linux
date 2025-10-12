@@ -19,6 +19,7 @@
 #include <linux/mempool.h>
 #include <linux/highmem.h>
 #include <crypto/aead.h>
+#include <crypto/sha2.h>
 #include "cifsglob.h"
 #include "cifsproto.h"
 #include "smb2proto.h"
@@ -336,8 +337,8 @@ static int generate_key(struct cifs_ses *ses, struct kvec label,
 	__u8 L256[4] = {0, 0, 1, 0};
 	int rc = 0;
 	unsigned char prfhash[SMB2_HMACSHA256_SIZE];
-	unsigned char *hashptr = prfhash;
 	struct TCP_Server_Info *server = ses->server;
+	struct hmac_sha256_ctx hmac_ctx;
 
 	memset(prfhash, 0x0, SMB2_HMACSHA256_SIZE);
 	memset(key, 0x0, key_size);
@@ -345,67 +346,26 @@ static int generate_key(struct cifs_ses *ses, struct kvec label,
 	rc = smb3_crypto_shash_allocate(server);
 	if (rc) {
 		cifs_server_dbg(VFS, "%s: crypto alloc failed\n", __func__);
-		goto smb3signkey_ret;
+		return rc;
 	}
 
-	rc = crypto_shash_setkey(server->secmech.hmacsha256->tfm,
-		ses->auth_key.response, SMB2_NTLMV2_SESSKEY_SIZE);
-	if (rc) {
-		cifs_server_dbg(VFS, "%s: Could not set with session key\n", __func__);
-		goto smb3signkey_ret;
-	}
-
-	rc = crypto_shash_init(server->secmech.hmacsha256);
-	if (rc) {
-		cifs_server_dbg(VFS, "%s: Could not init sign hmac\n", __func__);
-		goto smb3signkey_ret;
-	}
-
-	rc = crypto_shash_update(server->secmech.hmacsha256, i, 4);
-	if (rc) {
-		cifs_server_dbg(VFS, "%s: Could not update with n\n", __func__);
-		goto smb3signkey_ret;
-	}
-
-	rc = crypto_shash_update(server->secmech.hmacsha256, label.iov_base, label.iov_len);
-	if (rc) {
-		cifs_server_dbg(VFS, "%s: Could not update with label\n", __func__);
-		goto smb3signkey_ret;
-	}
-
-	rc = crypto_shash_update(server->secmech.hmacsha256, &zero, 1);
-	if (rc) {
-		cifs_server_dbg(VFS, "%s: Could not update with zero\n", __func__);
-		goto smb3signkey_ret;
-	}
-
-	rc = crypto_shash_update(server->secmech.hmacsha256, context.iov_base, context.iov_len);
-	if (rc) {
-		cifs_server_dbg(VFS, "%s: Could not update with context\n", __func__);
-		goto smb3signkey_ret;
-	}
+	hmac_sha256_init_usingrawkey(&hmac_ctx, ses->auth_key.response,
+				     SMB2_NTLMV2_SESSKEY_SIZE);
+	hmac_sha256_update(&hmac_ctx, i, 4);
+	hmac_sha256_update(&hmac_ctx, label.iov_base, label.iov_len);
+	hmac_sha256_update(&hmac_ctx, &zero, 1);
+	hmac_sha256_update(&hmac_ctx, context.iov_base, context.iov_len);
 
 	if ((server->cipher_type == SMB2_ENCRYPTION_AES256_CCM) ||
 		(server->cipher_type == SMB2_ENCRYPTION_AES256_GCM)) {
-		rc = crypto_shash_update(server->secmech.hmacsha256, L256, 4);
+		hmac_sha256_update(&hmac_ctx, L256, 4);
 	} else {
-		rc = crypto_shash_update(server->secmech.hmacsha256, L128, 4);
+		hmac_sha256_update(&hmac_ctx, L128, 4);
 	}
-	if (rc) {
-		cifs_server_dbg(VFS, "%s: Could not update with L\n", __func__);
-		goto smb3signkey_ret;
-	}
+	hmac_sha256_final(&hmac_ctx, prfhash);
 
-	rc = crypto_shash_final(server->secmech.hmacsha256, hashptr);
-	if (rc) {
-		cifs_server_dbg(VFS, "%s: Could not generate sha256 hash\n", __func__);
-		goto smb3signkey_ret;
-	}
-
-	memcpy(key, hashptr, key_size);
-
-smb3signkey_ret:
-	return rc;
+	memcpy(key, prfhash, key_size);
+	return 0;
 }
 
 struct derivation {
