@@ -2385,10 +2385,9 @@ static void destroy_mr_list(struct smbdirect_socket *sc)
 static int allocate_mr_list(struct smbdirect_socket *sc)
 {
 	struct smbdirect_socket_parameters *sp = &sc->parameters;
-	int i;
-	struct smbdirect_mr_io *smbdirect_mr, *tmp;
-
-	INIT_WORK(&sc->mr_io.recovery_work, smbd_mr_recovery_work);
+	struct smbdirect_mr_io *mr;
+	int ret;
+	u32 i;
 
 	if (sp->responder_resources == 0) {
 		log_rdma_mr(ERR, "responder_resources negotiated as 0\n");
@@ -2397,42 +2396,48 @@ static int allocate_mr_list(struct smbdirect_socket *sc)
 
 	/* Allocate more MRs (2x) than hardware responder_resources */
 	for (i = 0; i < sp->responder_resources * 2; i++) {
-		smbdirect_mr = kzalloc(sizeof(*smbdirect_mr), GFP_KERNEL);
-		if (!smbdirect_mr)
-			goto cleanup_entries;
-		smbdirect_mr->mr = ib_alloc_mr(sc->ib.pd, sc->mr_io.type,
-					sp->max_frmr_depth);
-		if (IS_ERR(smbdirect_mr->mr)) {
+		mr = kzalloc(sizeof(*mr), GFP_KERNEL);
+		if (!mr) {
+			ret = -ENOMEM;
+			goto kzalloc_mr_failed;
+		}
+
+		mr->mr = ib_alloc_mr(sc->ib.pd,
+				     sc->mr_io.type,
+				     sp->max_frmr_depth);
+		if (IS_ERR(mr->mr)) {
+			ret = PTR_ERR(mr->mr);
 			log_rdma_mr(ERR, "ib_alloc_mr failed mr_type=%x max_frmr_depth=%x\n",
 				    sc->mr_io.type, sp->max_frmr_depth);
-			goto out;
+			goto ib_alloc_mr_failed;
 		}
-		smbdirect_mr->sgt.sgl = kcalloc(sp->max_frmr_depth,
-						sizeof(struct scatterlist),
-						GFP_KERNEL);
-		if (!smbdirect_mr->sgt.sgl) {
-			log_rdma_mr(ERR, "failed to allocate sgl\n");
-			ib_dereg_mr(smbdirect_mr->mr);
-			goto out;
-		}
-		smbdirect_mr->state = SMBDIRECT_MR_READY;
-		smbdirect_mr->socket = sc;
 
-		list_add_tail(&smbdirect_mr->list, &sc->mr_io.all.list);
+		mr->sgt.sgl = kcalloc(sp->max_frmr_depth,
+				      sizeof(struct scatterlist),
+				      GFP_KERNEL);
+		if (!mr->sgt.sgl) {
+			ret = -ENOMEM;
+			log_rdma_mr(ERR, "failed to allocate sgl\n");
+			goto kcalloc_sgl_failed;
+		}
+		mr->state = SMBDIRECT_MR_READY;
+		mr->socket = sc;
+
+		list_add_tail(&mr->list, &sc->mr_io.all.list);
 		atomic_inc(&sc->mr_io.ready.count);
 	}
+
+	INIT_WORK(&sc->mr_io.recovery_work, smbd_mr_recovery_work);
+
 	return 0;
 
-out:
-	kfree(smbdirect_mr);
-cleanup_entries:
-	list_for_each_entry_safe(smbdirect_mr, tmp, &sc->mr_io.all.list, list) {
-		list_del(&smbdirect_mr->list);
-		ib_dereg_mr(smbdirect_mr->mr);
-		kfree(smbdirect_mr->sgt.sgl);
-		kfree(smbdirect_mr);
-	}
-	return -ENOMEM;
+kcalloc_sgl_failed:
+	ib_dereg_mr(mr->mr);
+ib_alloc_mr_failed:
+	kfree(mr);
+kzalloc_mr_failed:
+	destroy_mr_list(sc);
+	return ret;
 }
 
 /*
