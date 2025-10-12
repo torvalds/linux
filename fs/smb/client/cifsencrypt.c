@@ -24,14 +24,34 @@
 #include <linux/iov_iter.h>
 #include <crypto/aead.h>
 #include <crypto/arc4.h>
+#include <crypto/sha2.h>
 
-static size_t cifs_shash_step(void *iter_base, size_t progress, size_t len,
-			      void *priv, void *priv2)
+static int cifs_sig_update(struct cifs_calc_sig_ctx *ctx,
+			   const u8 *data, size_t len)
 {
-	struct shash_desc *shash = priv;
+	if (ctx->hmac) {
+		hmac_sha256_update(ctx->hmac, data, len);
+		return 0;
+	}
+	return crypto_shash_update(ctx->shash, data, len);
+}
+
+static int cifs_sig_final(struct cifs_calc_sig_ctx *ctx, u8 *out)
+{
+	if (ctx->hmac) {
+		hmac_sha256_final(ctx->hmac, out);
+		return 0;
+	}
+	return crypto_shash_final(ctx->shash, out);
+}
+
+static size_t cifs_sig_step(void *iter_base, size_t progress, size_t len,
+			    void *priv, void *priv2)
+{
+	struct cifs_calc_sig_ctx *ctx = priv;
 	int ret, *pret = priv2;
 
-	ret = crypto_shash_update(shash, iter_base, len);
+	ret = cifs_sig_update(ctx, iter_base, len);
 	if (ret < 0) {
 		*pret = ret;
 		return len;
@@ -42,21 +62,20 @@ static size_t cifs_shash_step(void *iter_base, size_t progress, size_t len,
 /*
  * Pass the data from an iterator into a hash.
  */
-static int cifs_shash_iter(const struct iov_iter *iter, size_t maxsize,
-			   struct shash_desc *shash)
+static int cifs_sig_iter(const struct iov_iter *iter, size_t maxsize,
+			 struct cifs_calc_sig_ctx *ctx)
 {
 	struct iov_iter tmp_iter = *iter;
 	int err = -EIO;
 
-	if (iterate_and_advance_kernel(&tmp_iter, maxsize, shash, &err,
-				       cifs_shash_step) != maxsize)
+	if (iterate_and_advance_kernel(&tmp_iter, maxsize, ctx, &err,
+				       cifs_sig_step) != maxsize)
 		return err;
 	return 0;
 }
 
-int __cifs_calc_signature(struct smb_rqst *rqst,
-			  struct TCP_Server_Info *server, char *signature,
-			  struct shash_desc *shash)
+int __cifs_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server,
+			  char *signature, struct cifs_calc_sig_ctx *ctx)
 {
 	int i;
 	ssize_t rc;
@@ -82,8 +101,7 @@ int __cifs_calc_signature(struct smb_rqst *rqst,
 			return -EIO;
 		}
 
-		rc = crypto_shash_update(shash,
-					 iov[i].iov_base, iov[i].iov_len);
+		rc = cifs_sig_update(ctx, iov[i].iov_base, iov[i].iov_len);
 		if (rc) {
 			cifs_dbg(VFS, "%s: Could not update with payload\n",
 				 __func__);
@@ -91,11 +109,11 @@ int __cifs_calc_signature(struct smb_rqst *rqst,
 		}
 	}
 
-	rc = cifs_shash_iter(&rqst->rq_iter, iov_iter_count(&rqst->rq_iter), shash);
+	rc = cifs_sig_iter(&rqst->rq_iter, iov_iter_count(&rqst->rq_iter), ctx);
 	if (rc < 0)
 		return rc;
 
-	rc = crypto_shash_final(shash, signature);
+	rc = cifs_sig_final(ctx, signature);
 	if (rc)
 		cifs_dbg(VFS, "%s: Could not generate hash\n", __func__);
 
@@ -134,7 +152,9 @@ static int cifs_calc_signature(struct smb_rqst *rqst,
 		return rc;
 	}
 
-	return __cifs_calc_signature(rqst, server, signature, server->secmech.md5);
+	return __cifs_calc_signature(
+		rqst, server, signature,
+		&(struct cifs_calc_sig_ctx){ .shash = server->secmech.md5 });
 }
 
 /* must be called with server->srv_mutex held */

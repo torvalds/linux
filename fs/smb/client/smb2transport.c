@@ -254,10 +254,9 @@ smb2_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server,
 {
 	int rc;
 	unsigned char smb2_signature[SMB2_HMACSHA256_SIZE];
-	unsigned char *sigptr = smb2_signature;
 	struct kvec *iov = rqst->rq_iov;
 	struct smb2_hdr *shdr = (struct smb2_hdr *)iov[0].iov_base;
-	struct shash_desc *shash = NULL;
+	struct hmac_sha256_ctx hmac_ctx;
 	struct smb_rqst drqst;
 	__u64 sid = le64_to_cpu(shdr->SessionId);
 	u8 key[SMB2_NTLMV2_SESSKEY_SIZE];
@@ -272,30 +271,7 @@ smb2_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server,
 	memset(smb2_signature, 0x0, SMB2_HMACSHA256_SIZE);
 	memset(shdr->Signature, 0x0, SMB2_SIGNATURE_SIZE);
 
-	if (allocate_crypto) {
-		rc = cifs_alloc_hash("hmac(sha256)", &shash);
-		if (rc) {
-			cifs_server_dbg(VFS,
-					"%s: sha256 alloc failed\n", __func__);
-			goto out;
-		}
-	} else {
-		shash = server->secmech.hmacsha256;
-	}
-
-	rc = crypto_shash_setkey(shash->tfm, key, sizeof(key));
-	if (rc) {
-		cifs_server_dbg(VFS,
-				"%s: Could not update with response\n",
-				__func__);
-		goto out;
-	}
-
-	rc = crypto_shash_init(shash);
-	if (rc) {
-		cifs_server_dbg(VFS, "%s: Could not init sha256", __func__);
-		goto out;
-	}
+	hmac_sha256_init_usingrawkey(&hmac_ctx, key, sizeof(key));
 
 	/*
 	 * For SMB2+, __cifs_calc_signature() expects to sign only the actual
@@ -306,25 +282,17 @@ smb2_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server,
 	 */
 	drqst = *rqst;
 	if (drqst.rq_nvec >= 2 && iov[0].iov_len == 4) {
-		rc = crypto_shash_update(shash, iov[0].iov_base,
-					 iov[0].iov_len);
-		if (rc) {
-			cifs_server_dbg(VFS,
-					"%s: Could not update with payload\n",
-					__func__);
-			goto out;
-		}
+		hmac_sha256_update(&hmac_ctx, iov[0].iov_base, iov[0].iov_len);
 		drqst.rq_iov++;
 		drqst.rq_nvec--;
 	}
 
-	rc = __cifs_calc_signature(&drqst, server, sigptr, shash);
+	rc = __cifs_calc_signature(
+		&drqst, server, smb2_signature,
+		&(struct cifs_calc_sig_ctx){ .hmac = &hmac_ctx });
 	if (!rc)
-		memcpy(shdr->Signature, sigptr, SMB2_SIGNATURE_SIZE);
+		memcpy(shdr->Signature, smb2_signature, SMB2_SIGNATURE_SIZE);
 
-out:
-	if (allocate_crypto)
-		cifs_free_hash(&shash);
 	return rc;
 }
 
@@ -542,7 +510,6 @@ smb3_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server,
 {
 	int rc;
 	unsigned char smb3_signature[SMB2_CMACAES_SIZE];
-	unsigned char *sigptr = smb3_signature;
 	struct kvec *iov = rqst->rq_iov;
 	struct smb2_hdr *shdr = (struct smb2_hdr *)iov[0].iov_base;
 	struct shash_desc *shash = NULL;
@@ -603,9 +570,11 @@ smb3_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server,
 		drqst.rq_nvec--;
 	}
 
-	rc = __cifs_calc_signature(&drqst, server, sigptr, shash);
+	rc = __cifs_calc_signature(
+		&drqst, server, smb3_signature,
+		&(struct cifs_calc_sig_ctx){ .shash = shash });
 	if (!rc)
-		memcpy(shdr->Signature, sigptr, SMB2_SIGNATURE_SIZE);
+		memcpy(shdr->Signature, smb3_signature, SMB2_SIGNATURE_SIZE);
 
 out:
 	if (allocate_crypto)
