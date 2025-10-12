@@ -633,6 +633,7 @@ int cifs_create_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 			   const unsigned char *path, char *pbuf,
 			   unsigned int *pbytes_written);
 struct cifs_calc_sig_ctx {
+	struct md5_ctx *md5;
 	struct hmac_sha256_ctx *hmac;
 	struct shash_desc *shash;
 };

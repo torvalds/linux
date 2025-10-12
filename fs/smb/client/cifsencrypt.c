@@ -24,11 +24,16 @@
 #include <linux/iov_iter.h>
 #include <crypto/aead.h>
 #include <crypto/arc4.h>
+#include <crypto/md5.h>
 #include <crypto/sha2.h>
 
 static int cifs_sig_update(struct cifs_calc_sig_ctx *ctx,
 			   const u8 *data, size_t len)
 {
+	if (ctx->md5) {
+		md5_update(ctx->md5, data, len);
+		return 0;
+	}
 	if (ctx->hmac) {
 		hmac_sha256_update(ctx->hmac, data, len);
 		return 0;
@@ -38,6 +43,10 @@ static int cifs_sig_update(struct cifs_calc_sig_ctx *ctx,
 
 static int cifs_sig_final(struct cifs_calc_sig_ctx *ctx, u8 *out)
 {
+	if (ctx->md5) {
+		md5_final(ctx->md5, out);
+		return 0;
+	}
 	if (ctx->hmac) {
 		hmac_sha256_final(ctx->hmac, out);
 		return 0;
@@ -130,31 +139,22 @@ int __cifs_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server,
 static int cifs_calc_signature(struct smb_rqst *rqst,
 			struct TCP_Server_Info *server, char *signature)
 {
-	int rc;
+	struct md5_ctx ctx;
 
 	if (!rqst->rq_iov || !signature || !server)
 		return -EINVAL;
-
-	rc = cifs_alloc_hash("md5", &server->secmech.md5);
-	if (rc)
-		return -1;
-
-	rc = crypto_shash_init(server->secmech.md5);
-	if (rc) {
-		cifs_dbg(VFS, "%s: Could not init md5\n", __func__);
-		return rc;
+	if (fips_enabled) {
+		cifs_dbg(VFS,
+			 "MD5 signature support is disabled due to FIPS\n");
+		return -EOPNOTSUPP;
 	}
 
-	rc = crypto_shash_update(server->secmech.md5,
-		server->session_key.response, server->session_key.len);
-	if (rc) {
-		cifs_dbg(VFS, "%s: Could not update with response\n", __func__);
-		return rc;
-	}
+	md5_init(&ctx);
+	md5_update(&ctx, server->session_key.response, server->session_key.len);
 
 	return __cifs_calc_signature(
 		rqst, server, signature,
-		&(struct cifs_calc_sig_ctx){ .shash = server->secmech.md5 });
+		&(struct cifs_calc_sig_ctx){ .md5 = &ctx });
 }
 
 /* must be called with server->srv_mutex held */
