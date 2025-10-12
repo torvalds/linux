@@ -2517,9 +2517,8 @@ struct smbdirect_mr_io *smbd_register_mr(struct smbd_connection *info,
 {
 	struct smbdirect_socket *sc = &info->socket;
 	struct smbdirect_socket_parameters *sp = &sc->parameters;
-	struct smbdirect_mr_io *smbdirect_mr;
+	struct smbdirect_mr_io *mr;
 	int rc, num_pages;
-	enum dma_data_direction dir;
 	struct ib_reg_wr *reg_wr;
 
 	num_pages = iov_iter_npages(iter, sp->max_frmr_depth + 1);
@@ -2530,49 +2529,45 @@ struct smbdirect_mr_io *smbd_register_mr(struct smbd_connection *info,
 		return NULL;
 	}
 
-	smbdirect_mr = get_mr(sc);
-	if (!smbdirect_mr) {
+	mr = get_mr(sc);
+	if (!mr) {
 		log_rdma_mr(ERR, "get_mr returning NULL\n");
 		return NULL;
 	}
 
-	dir = writing ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
-	smbdirect_mr->dir = dir;
-	smbdirect_mr->need_invalidate = need_invalidate;
-	smbdirect_mr->sgt.nents = 0;
-	smbdirect_mr->sgt.orig_nents = 0;
+	mr->dir = writing ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
+	mr->need_invalidate = need_invalidate;
+	mr->sgt.nents = 0;
+	mr->sgt.orig_nents = 0;
 
 	log_rdma_mr(INFO, "num_pages=0x%x count=0x%zx depth=%u\n",
 		    num_pages, iov_iter_count(iter), sp->max_frmr_depth);
-	smbd_iter_to_mr(iter, &smbdirect_mr->sgt, sp->max_frmr_depth);
+	smbd_iter_to_mr(iter, &mr->sgt, sp->max_frmr_depth);
 
-	rc = ib_dma_map_sg(sc->ib.dev, smbdirect_mr->sgt.sgl,
-			   smbdirect_mr->sgt.nents, dir);
+	rc = ib_dma_map_sg(sc->ib.dev, mr->sgt.sgl, mr->sgt.nents, mr->dir);
 	if (!rc) {
 		log_rdma_mr(ERR, "ib_dma_map_sg num_pages=%x dir=%x rc=%x\n",
-			num_pages, dir, rc);
+			    num_pages, mr->dir, rc);
 		goto dma_map_error;
 	}
 
-	rc = ib_map_mr_sg(smbdirect_mr->mr, smbdirect_mr->sgt.sgl,
-			  smbdirect_mr->sgt.nents, NULL, PAGE_SIZE);
-	if (rc != smbdirect_mr->sgt.nents) {
+	rc = ib_map_mr_sg(mr->mr, mr->sgt.sgl, mr->sgt.nents, NULL, PAGE_SIZE);
+	if (rc != mr->sgt.nents) {
 		log_rdma_mr(ERR,
-			"ib_map_mr_sg failed rc = %d nents = %x\n",
-			rc, smbdirect_mr->sgt.nents);
+			    "ib_map_mr_sg failed rc = %d nents = %x\n",
+			    rc, mr->sgt.nents);
 		goto map_mr_error;
 	}
 
-	ib_update_fast_reg_key(smbdirect_mr->mr,
-		ib_inc_rkey(smbdirect_mr->mr->rkey));
-	reg_wr = &smbdirect_mr->wr;
+	ib_update_fast_reg_key(mr->mr, ib_inc_rkey(mr->mr->rkey));
+	reg_wr = &mr->wr;
 	reg_wr->wr.opcode = IB_WR_REG_MR;
-	smbdirect_mr->cqe.done = register_mr_done;
-	reg_wr->wr.wr_cqe = &smbdirect_mr->cqe;
+	mr->cqe.done = register_mr_done;
+	reg_wr->wr.wr_cqe = &mr->cqe;
 	reg_wr->wr.num_sge = 0;
 	reg_wr->wr.send_flags = IB_SEND_SIGNALED;
-	reg_wr->mr = smbdirect_mr->mr;
-	reg_wr->key = smbdirect_mr->mr->rkey;
+	reg_wr->mr = mr->mr;
+	reg_wr->key = mr->mr->rkey;
 	reg_wr->access = writing ?
 			IB_ACCESS_REMOTE_WRITE | IB_ACCESS_LOCAL_WRITE :
 			IB_ACCESS_REMOTE_READ;
@@ -2584,18 +2579,17 @@ struct smbdirect_mr_io *smbd_register_mr(struct smbd_connection *info,
 	 */
 	rc = ib_post_send(sc->ib.qp, &reg_wr->wr, NULL);
 	if (!rc)
-		return smbdirect_mr;
+		return mr;
 
 	log_rdma_mr(ERR, "ib_post_send failed rc=%x reg_wr->key=%x\n",
 		rc, reg_wr->key);
 
 	/* If all failed, attempt to recover this MR by setting it SMBDIRECT_MR_ERROR*/
 map_mr_error:
-	ib_dma_unmap_sg(sc->ib.dev, smbdirect_mr->sgt.sgl,
-			smbdirect_mr->sgt.nents, smbdirect_mr->dir);
+	ib_dma_unmap_sg(sc->ib.dev, mr->sgt.sgl, mr->sgt.nents, mr->dir);
 
 dma_map_error:
-	smbdirect_mr->state = SMBDIRECT_MR_ERROR;
+	mr->state = SMBDIRECT_MR_ERROR;
 	if (atomic_dec_and_test(&sc->mr_io.used.count))
 		wake_up(&sc->mr_io.cleanup.wait_queue);
 
