@@ -7662,12 +7662,12 @@ static int btrfs_truncate(struct btrfs_inode *inode, bool skip_writeback)
 	struct btrfs_block_rsv rsv;
 	int ret;
 	struct btrfs_trans_handle *trans;
-	u64 mask = fs_info->sectorsize - 1;
 	const u64 min_size = btrfs_calc_metadata_size(fs_info, 1);
 
 	if (!skip_writeback) {
 		ret = btrfs_wait_ordered_range(inode,
-					       inode->vfs_inode.i_size & (~mask),
+					       round_down(inode->vfs_inode.i_size,
+							  fs_info->sectorsize),
 					       (u64)-1);
 		if (ret)
 			return ret;
@@ -7733,7 +7733,7 @@ static int btrfs_truncate(struct btrfs_inode *inode, bool skip_writeback)
 	while (1) {
 		struct extent_state *cached_state = NULL;
 		const u64 new_size = inode->vfs_inode.i_size;
-		const u64 lock_start = ALIGN_DOWN(new_size, fs_info->sectorsize);
+		const u64 lock_start = round_down(new_size, fs_info->sectorsize);
 
 		control.new_size = new_size;
 		btrfs_lock_extent(&inode->io_tree, lock_start, (u64)-1, &cached_state);
@@ -7743,7 +7743,7 @@ static int btrfs_truncate(struct btrfs_inode *inode, bool skip_writeback)
 		 * block of the extent just the way it is.
 		 */
 		btrfs_drop_extent_map_range(inode,
-					    ALIGN(new_size, fs_info->sectorsize),
+					    round_up(new_size, fs_info->sectorsize),
 					    (u64)-1, false);
 
 		ret = btrfs_truncate_inode_items(trans, root, &control);
