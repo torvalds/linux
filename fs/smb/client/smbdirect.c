@@ -2612,7 +2612,7 @@ static void local_inv_done(struct ib_cq *cq, struct ib_wc *wc)
  * and we have to locally invalidate the buffer to prevent data is being
  * modified by remote peer after upper layer consumes it
  */
-int smbd_deregister_mr(struct smbdirect_mr_io *smbdirect_mr)
+void smbd_deregister_mr(struct smbdirect_mr_io *smbdirect_mr)
 {
 	struct ib_send_wr *wr;
 	struct smbdirect_socket *sc = smbdirect_mr->socket;
@@ -2662,8 +2662,6 @@ int smbd_deregister_mr(struct smbdirect_mr_io *smbdirect_mr)
 done:
 	if (atomic_dec_and_test(&sc->mr_io.used.count))
 		wake_up(&sc->mr_io.cleanup.wait_queue);
-
-	return rc;
 }
 
 static bool smb_set_sge(struct smb_extract_to_rdma *rdma,
