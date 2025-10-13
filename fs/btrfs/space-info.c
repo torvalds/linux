@@ -1031,10 +1031,10 @@ static bool need_preemptive_reclaim(const struct btrfs_space_info *space_info)
 		!test_bit(BTRFS_FS_STATE_REMOUNTING, &fs_info->fs_state));
 }
 
-static bool steal_from_global_rsv(struct btrfs_fs_info *fs_info,
-				  struct btrfs_space_info *space_info,
+static bool steal_from_global_rsv(struct btrfs_space_info *space_info,
 				  struct reserve_ticket *ticket)
 {
+	struct btrfs_fs_info *fs_info = space_info->fs_info;
 	struct btrfs_block_rsv *global_rsv = &fs_info->global_block_rsv;
 	u64 min_bytes;
 
@@ -1096,7 +1096,7 @@ static bool maybe_fail_all_tickets(struct btrfs_space_info *space_info)
 		ticket = list_first_entry(&space_info->tickets,
 					  struct reserve_ticket, list);
 
-		if (!aborted && steal_from_global_rsv(fs_info, space_info, ticket))
+		if (!aborted && steal_from_global_rsv(space_info, ticket))
 			return true;
 
 		if (!aborted && btrfs_test_opt(fs_info, ENOSPC_DEBUG))
@@ -1525,7 +1525,7 @@ static void priority_reclaim_metadata_space(struct btrfs_space_info *space_info,
 	if (BTRFS_FS_ERROR(fs_info)) {
 		ticket->error = BTRFS_FS_ERROR(fs_info);
 		remove_ticket(space_info, ticket);
-	} else if (!steal_from_global_rsv(fs_info, space_info, ticket)) {
+	} else if (!steal_from_global_rsv(space_info, ticket)) {
 		ticket->error = -ENOSPC;
 		remove_ticket(space_info, ticket);
 	}
