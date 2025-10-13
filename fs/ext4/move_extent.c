@@ -501,60 +501,36 @@ static int mext_check_validity(struct inode *orig_inode,
 		return -EOPNOTSUPP;
 	}
 
-	return 0;
-}
-
-/**
- * mext_check_arguments - Check whether move extent can be done
- *
- * @orig_inode:		original inode
- * @donor_inode:	donor inode
- * @orig_start:		logical start offset in block for orig
- * @donor_start:	logical start offset in block for donor
- * @len:		the number of blocks to be moved
- *
- * Check the arguments of ext4_move_extents() whether the files can be
- * exchanged with each other.
- * Return 0 on success, or a negative error value on failure.
- */
-static int
-mext_check_arguments(struct inode *orig_inode,
-		     struct inode *donor_inode, __u64 orig_start,
-		     __u64 donor_start, __u64 *len)
-{
-	__u64 orig_eof, donor_eof;
+	/* Ext4 move extent supports only extent based file */
+	if (!(ext4_test_inode_flag(orig_inode, EXT4_INODE_EXTENTS)) ||
+	    !(ext4_test_inode_flag(donor_inode, EXT4_INODE_EXTENTS))) {
+		ext4_msg(sb, KERN_ERR,
+			 "Online defrag not supported for non-extent files");
+		return -EOPNOTSUPP;
+	}
 
 	if (donor_inode->i_mode & (S_ISUID|S_ISGID)) {
-		ext4_debug("ext4 move extent: suid or sgid is set"
-			   " to donor file [ino:orig %lu, donor %lu]\n",
+		ext4_debug("ext4 move extent: suid or sgid is set to donor file [ino:orig %lu, donor %lu]\n",
 			   orig_inode->i_ino, donor_inode->i_ino);
 		return -EINVAL;
 	}
 
-	if (IS_IMMUTABLE(donor_inode) || IS_APPEND(donor_inode))
+	if (IS_IMMUTABLE(donor_inode) || IS_APPEND(donor_inode)) {
+		ext4_debug("ext4 move extent: donor should not be immutable or append file [ino:orig %lu, donor %lu]\n",
+			   orig_inode->i_ino, donor_inode->i_ino);
 		return -EPERM;
+	}
 
 	/* Ext4 move extent does not support swap files */
 	if (IS_SWAPFILE(orig_inode) || IS_SWAPFILE(donor_inode)) {
 		ext4_debug("ext4 move extent: The argument files should not be swap files [ino:orig %lu, donor %lu]\n",
-			orig_inode->i_ino, donor_inode->i_ino);
+			   orig_inode->i_ino, donor_inode->i_ino);
 		return -ETXTBSY;
 	}
 
 	if (ext4_is_quota_file(orig_inode) || ext4_is_quota_file(donor_inode)) {
 		ext4_debug("ext4 move extent: The argument files should not be quota files [ino:orig %lu, donor %lu]\n",
-			orig_inode->i_ino, donor_inode->i_ino);
-		return -EOPNOTSUPP;
-	}
-
-	/* Ext4 move extent supports only extent based file */
-	if (!(ext4_test_inode_flag(orig_inode, EXT4_INODE_EXTENTS))) {
-		ext4_debug("ext4 move extent: orig file is not extents "
-			"based file [ino:orig %lu]\n", orig_inode->i_ino);
-		return -EOPNOTSUPP;
-	} else if (!(ext4_test_inode_flag(donor_inode, EXT4_INODE_EXTENTS))) {
-		ext4_debug("ext4 move extent: donor file is not extents "
-			"based file [ino:donor %lu]\n", donor_inode->i_ino);
+			   orig_inode->i_ino, donor_inode->i_ino);
 		return -EOPNOTSUPP;
 	}
 
@@ -563,12 +539,25 @@ mext_check_arguments(struct inode *orig_inode,
 		return -EINVAL;
 	}
 
+	return 0;
+}
+
+/*
+ * Check the moving range of ext4_move_extents() whether the files can be
+ * exchanged with each other, and adjust the length to fit within the file
+ * size. Return 0 on success, or a negative error value on failure.
+ */
+static int mext_check_adjust_range(struct inode *orig_inode,
+				   struct inode *donor_inode, __u64 orig_start,
+				   __u64 donor_start, __u64 *len)
+{
+	__u64 orig_eof, donor_eof;
+
 	/* Start offset should be same */
 	if ((orig_start & ~(PAGE_MASK >> orig_inode->i_blkbits)) !=
 	    (donor_start & ~(PAGE_MASK >> orig_inode->i_blkbits))) {
-		ext4_debug("ext4 move extent: orig and donor's start "
-			"offsets are not aligned [ino:orig %lu, donor %lu]\n",
-			orig_inode->i_ino, donor_inode->i_ino);
+		ext4_debug("ext4 move extent: orig and donor's start offsets are not aligned [ino:orig %lu, donor %lu]\n",
+			   orig_inode->i_ino, donor_inode->i_ino);
 		return -EINVAL;
 	}
 
@@ -577,9 +566,9 @@ mext_check_arguments(struct inode *orig_inode,
 	    (*len > EXT_MAX_BLOCKS) ||
 	    (donor_start + *len >= EXT_MAX_BLOCKS) ||
 	    (orig_start + *len >= EXT_MAX_BLOCKS))  {
-		ext4_debug("ext4 move extent: Can't handle over [%u] blocks "
-			"[ino:orig %lu, donor %lu]\n", EXT_MAX_BLOCKS,
-			orig_inode->i_ino, donor_inode->i_ino);
+		ext4_debug("ext4 move extent: Can't handle over [%u] blocks [ino:orig %lu, donor %lu]\n",
+			   EXT_MAX_BLOCKS,
+			   orig_inode->i_ino, donor_inode->i_ino);
 		return -EINVAL;
 	}
 
@@ -594,9 +583,8 @@ mext_check_arguments(struct inode *orig_inode,
 	else if (donor_eof < donor_start + *len - 1)
 		*len = donor_eof - donor_start;
 	if (!*len) {
-		ext4_debug("ext4 move extent: len should not be 0 "
-			"[ino:orig %lu, donor %lu]\n", orig_inode->i_ino,
-			donor_inode->i_ino);
+		ext4_debug("ext4 move extent: len should not be 0 [ino:orig %lu, donor %lu]\n",
+			   orig_inode->i_ino, donor_inode->i_ino);
 		return -EINVAL;
 	}
 
@@ -629,12 +617,12 @@ ext4_move_extents(struct file *o_filp, struct file *d_filp, __u64 orig_blk,
 	ext4_lblk_t d_start = donor_blk;
 	int ret;
 
-	ret = mext_check_validity(orig_inode, donor_inode);
-	if (ret)
-		return ret;
-
 	/* Protect orig and donor inodes against a truncate */
 	lock_two_nondirectories(orig_inode, donor_inode);
+
+	ret = mext_check_validity(orig_inode, donor_inode);
+	if (ret)
+		goto unlock;
 
 	/* Wait for all existing dio workers */
 	inode_dio_wait(orig_inode);
@@ -642,9 +630,9 @@ ext4_move_extents(struct file *o_filp, struct file *d_filp, __u64 orig_blk,
 
 	/* Protect extent tree against block allocations via delalloc */
 	ext4_double_down_write_data_sem(orig_inode, donor_inode);
-	/* Check the filesystem environment whether move_extent can be done */
-	ret = mext_check_arguments(orig_inode, donor_inode, orig_blk,
-				    donor_blk, &len);
+	/* Check and adjust the specified move_extent range. */
+	ret = mext_check_adjust_range(orig_inode, donor_inode, orig_blk,
+				      donor_blk, &len);
 	if (ret)
 		goto out;
 	o_end = o_start + len;
@@ -725,6 +713,7 @@ out:
 
 	ext4_free_ext_path(path);
 	ext4_double_up_write_data_sem(orig_inode, donor_inode);
+unlock:
 	unlock_two_nondirectories(orig_inode, donor_inode);
 
 	return ret;
