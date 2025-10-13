@@ -494,7 +494,7 @@ static int renoir_set_fine_grain_gfx_freq_parameters(struct smu_context *smu)
 static int renoir_print_clk_levels(struct smu_context *smu,
 			enum smu_clk_type clk_type, char *buf)
 {
-	int i, idx, size = 0, ret = 0;
+	int i, idx, size = 0, ret = 0, start_offset = 0;
 	uint32_t cur_value = 0, value = 0, count = 0, min = 0, max = 0;
 	SmuMetrics_t metrics;
 	bool cur_value_match_level = false;
@@ -506,6 +506,7 @@ static int renoir_print_clk_levels(struct smu_context *smu,
 		return ret;
 
 	smu_cmn_get_sysfs_buf(&buf, &size);
+	start_offset = size;
 
 	switch (clk_type) {
 	case SMU_OD_RANGE:
@@ -550,7 +551,7 @@ static int renoir_print_clk_levels(struct smu_context *smu,
 			size += sysfs_emit_at(buf, size, "2: %uMhz %s\n", max,
 					i == 2 ? "*" : "");
 		}
-		return size;
+		return size - start_offset;
 	case SMU_SOCCLK:
 		count = NUM_SOCCLK_DPM_LEVELS;
 		cur_value = metrics.ClockFrequency[CLOCK_SOCCLK];
@@ -607,7 +608,7 @@ static int renoir_print_clk_levels(struct smu_context *smu,
 		break;
 	}
 
-	return size;
+	return size - start_offset;
 }
 
 static enum amd_pm_state_type renoir_get_current_power_state(struct smu_context *smu)
