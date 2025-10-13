@@ -253,7 +253,7 @@ static void fbnic_ptp_reset(struct fbnic_dev *fbd)
 
 void fbnic_time_init(struct fbnic_net *fbn)
 {
-	/* This is not really a statistic, but the lockng primitive fits
+	/* This is not really a statistic, but the locking primitive fits
 	 * our usecase perfectly, we need an atomic 8 bytes READ_ONCE() /
 	 * WRITE_ONCE() behavior.
 	 */
