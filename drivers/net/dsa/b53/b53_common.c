@@ -632,6 +632,25 @@ static void b53_port_set_learning(struct b53_device *dev, int port,
 	b53_write16(dev, B53_CTRL_PAGE, B53_DIS_LEARNING, reg);
 }
 
+static void b53_port_set_isolated(struct b53_device *dev, int port,
+				  bool isolated)
+{
+	u8 offset;
+	u16 reg;
+
+	if (is5325(dev))
+		offset = B53_PROTECTED_PORT_SEL_25;
+	else
+		offset = B53_PROTECTED_PORT_SEL;
+
+	b53_read16(dev, B53_CTRL_PAGE, offset, &reg);
+	if (isolated)
+		reg |= BIT(port);
+	else
+		reg &= ~BIT(port);
+	b53_write16(dev, B53_CTRL_PAGE, offset, reg);
+}
+
 static void b53_eee_enable_set(struct dsa_switch *ds, int port, bool enable)
 {
 	struct b53_device *dev = ds->priv;
@@ -652,6 +671,7 @@ int b53_setup_port(struct dsa_switch *ds, int port)
 	b53_port_set_ucast_flood(dev, port, true);
 	b53_port_set_mcast_flood(dev, port, true);
 	b53_port_set_learning(dev, port, false);
+	b53_port_set_isolated(dev, port, false);
 
 	/* Force all traffic to go to the CPU port to prevent the ASIC from
 	 * trying to forward to bridged ports on matching FDB entries, then
@@ -2318,7 +2338,7 @@ int b53_br_flags_pre(struct dsa_switch *ds, int port,
 		     struct netlink_ext_ack *extack)
 {
 	struct b53_device *dev = ds->priv;
-	unsigned long mask = (BR_FLOOD | BR_MCAST_FLOOD);
+	unsigned long mask = (BR_FLOOD | BR_MCAST_FLOOD | BR_ISOLATED);
 
 	if (!is5325(dev))
 		mask |= BR_LEARNING;
@@ -2343,6 +2363,9 @@ int b53_br_flags(struct dsa_switch *ds, int port,
 	if (flags.mask & BR_LEARNING)
 		b53_port_set_learning(ds->priv, port,
 				      !!(flags.val & BR_LEARNING));
+	if (flags.mask & BR_ISOLATED)
+		b53_port_set_isolated(ds->priv, port,
+				      !!(flags.val & BR_ISOLATED));
 
 	return 0;
 }
