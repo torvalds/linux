@@ -897,8 +897,7 @@ static void flush_space(struct btrfs_space_info *space_info, u64 num_bytes,
 	return;
 }
 
-static u64 btrfs_calc_reclaim_metadata_size(struct btrfs_fs_info *fs_info,
-					    const struct btrfs_space_info *space_info)
+static u64 btrfs_calc_reclaim_metadata_size(const struct btrfs_space_info *space_info)
 {
 	u64 used;
 	u64 avail;
@@ -1138,7 +1137,7 @@ static void do_async_reclaim_metadata_space(struct btrfs_space_info *space_info)
 		final_state = COMMIT_TRANS;
 
 	spin_lock(&space_info->lock);
-	to_reclaim = btrfs_calc_reclaim_metadata_size(fs_info, space_info);
+	to_reclaim = btrfs_calc_reclaim_metadata_size(space_info);
 	if (!to_reclaim) {
 		space_info->flush = false;
 		spin_unlock(&space_info->lock);
@@ -1156,8 +1155,7 @@ static void do_async_reclaim_metadata_space(struct btrfs_space_info *space_info)
 			spin_unlock(&space_info->lock);
 			return;
 		}
-		to_reclaim = btrfs_calc_reclaim_metadata_size(fs_info,
-							      space_info);
+		to_reclaim = btrfs_calc_reclaim_metadata_size(space_info);
 		if (last_tickets_id == space_info->tickets_id) {
 			flush_state++;
 		} else {
@@ -1493,7 +1491,7 @@ static void priority_reclaim_metadata_space(struct btrfs_space_info *space_info,
 	int flush_state = 0;
 
 	spin_lock(&space_info->lock);
-	to_reclaim = btrfs_calc_reclaim_metadata_size(fs_info, space_info);
+	to_reclaim = btrfs_calc_reclaim_metadata_size(space_info);
 	/*
 	 * This is the priority reclaim path, so to_reclaim could be >0 still
 	 * because we may have only satisfied the priority tickets and still
