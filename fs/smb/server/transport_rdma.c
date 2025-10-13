@@ -302,57 +302,9 @@ static void smb_direct_free_transport(struct ksmbd_transport *kt)
 static void free_transport(struct smb_direct_transport *t)
 {
 	struct smbdirect_socket *sc = &t->socket;
-	struct smbdirect_recv_io *recvmsg;
 
-	disable_work_sync(&sc->disconnect_work);
-	if (sc->status < SMBDIRECT_SOCKET_DISCONNECTING)
-		smbdirect_socket_cleanup_work(&sc->disconnect_work);
-	if (sc->status < SMBDIRECT_SOCKET_DISCONNECTED)
-		wait_event(sc->status_wait, sc->status == SMBDIRECT_SOCKET_DISCONNECTED);
+	smbdirect_socket_destroy_sync(sc);
 
-	/*
-	 * Wake up all waiters in all wait queues
-	 * in order to notice the broken connection.
-	 *
-	 * Most likely this was already called via
-	 * smbdirect_socket_cleanup_work(), but call it again...
-	 */
-	smbdirect_socket_wake_up_all(sc);
-
-	disable_work_sync(&sc->connect.work);
-	disable_work_sync(&sc->recv_io.posted.refill_work);
-	disable_delayed_work_sync(&sc->idle.timer_work);
-	disable_work_sync(&sc->idle.immediate_work);
-
-	if (sc->rdma.cm_id)
-		rdma_lock_handler(sc->rdma.cm_id);
-
-	if (sc->ib.qp)
-		ib_drain_qp(sc->ib.qp);
-
-	ksmbd_debug(RDMA, "drain the reassembly queue\n");
-	do {
-		unsigned long flags;
-
-		spin_lock_irqsave(&sc->recv_io.reassembly.lock, flags);
-		recvmsg = smbdirect_connection_reassembly_first_recv_io(sc);
-		if (recvmsg) {
-			list_del(&recvmsg->list);
-			spin_unlock_irqrestore(&sc->recv_io.reassembly.lock, flags);
-			smbdirect_connection_put_recv_io(recvmsg);
-		} else {
-			spin_unlock_irqrestore(&sc->recv_io.reassembly.lock, flags);
-		}
-	} while (recvmsg);
-	sc->recv_io.reassembly.data_length = 0;
-
-	smbdirect_connection_destroy_qp(sc);
-	if (sc->rdma.cm_id) {
-		rdma_unlock_handler(sc->rdma.cm_id);
-		rdma_destroy_id(sc->rdma.cm_id);
-	}
-
-	smbdirect_connection_destroy_mem_pools(sc);
 	ksmbd_conn_free(KSMBD_TRANS(t)->conn);
 }
 
