@@ -13,7 +13,7 @@ Contact: Eduardo Valentin <eduardo.valentin@nokia.com>
 Information about the Device
 ----------------------------
 
-This chip is a Silicon Labs product. It is a I2C device, currently on 0x63 address.
+This chip is a Silicon Labs product. It is an I2C device, currently on 0x63 address.
 Basically, it has transmission and signal noise level measurement features.
 
 The Si4713 integrates transmit functions for FM broadcast stereo transmission.
@@ -28,7 +28,7 @@ Users must comply with local regulations on radio frequency (RF) transmission.
 Device driver description
 -------------------------
 
-There are two modules to handle this device. One is a I2C device driver
+There are two modules to handle this device. One is an I2C device driver
 and the other is a platform driver.
 
 The I2C device driver exports a v4l2-subdev interface to the kernel.
@@ -113,7 +113,7 @@ Here is a summary of them:
 - acomp_attack_time - Sets the attack time for audio dynamic range control.
 - acomp_release_time - Sets the release time for audio dynamic range control.
 
-* Limiter setups audio deviation limiter feature. Once a over deviation occurs,
+* Limiter sets up the audio deviation limiter feature. Once an over deviation occurs,
   it is possible to adjust the front-end gain of the audio input and always
   prevent over deviation.
 

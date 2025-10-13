@@ -95,7 +95,6 @@ static const struct snmp_mib snmp4_ipstats_list[] = {
 	SNMP_MIB_ITEM("FragFails", IPSTATS_MIB_FRAGFAILS),
 	SNMP_MIB_ITEM("FragCreates", IPSTATS_MIB_FRAGCREATES),
 	SNMP_MIB_ITEM("OutTransmits", IPSTATS_MIB_OUTPKTS),
-	SNMP_MIB_SENTINEL
 };
 
 /* Following items are displayed in /proc/net/netstat */
@@ -119,7 +118,6 @@ static const struct snmp_mib snmp4_ipextstats_list[] = {
 	SNMP_MIB_ITEM("InECT0Pkts", IPSTATS_MIB_ECT0PKTS),
 	SNMP_MIB_ITEM("InCEPkts", IPSTATS_MIB_CEPKTS),
 	SNMP_MIB_ITEM("ReasmOverlaps", IPSTATS_MIB_REASM_OVERLAPS),
-	SNMP_MIB_SENTINEL
 };
 
 static const struct {
@@ -157,7 +155,6 @@ static const struct snmp_mib snmp4_tcp_list[] = {
 	SNMP_MIB_ITEM("InErrs", TCP_MIB_INERRS),
 	SNMP_MIB_ITEM("OutRsts", TCP_MIB_OUTRSTS),
 	SNMP_MIB_ITEM("InCsumErrors", TCP_MIB_CSUMERRORS),
-	SNMP_MIB_SENTINEL
 };
 
 static const struct snmp_mib snmp4_udp_list[] = {
@@ -170,7 +167,6 @@ static const struct snmp_mib snmp4_udp_list[] = {
 	SNMP_MIB_ITEM("InCsumErrors", UDP_MIB_CSUMERRORS),
 	SNMP_MIB_ITEM("IgnoredMulti", UDP_MIB_IGNOREDMULTI),
 	SNMP_MIB_ITEM("MemErrors", UDP_MIB_MEMERRORS),
-	SNMP_MIB_SENTINEL
 };
 
 static const struct snmp_mib snmp4_net_list[] = {
@@ -309,7 +305,6 @@ static const struct snmp_mib snmp4_net_list[] = {
 	SNMP_MIB_ITEM("TCPAOKeyNotFound", LINUX_MIB_TCPAOKEYNOTFOUND),
 	SNMP_MIB_ITEM("TCPAOGood", LINUX_MIB_TCPAOGOOD),
 	SNMP_MIB_ITEM("TCPAODroppedIcmps", LINUX_MIB_TCPAODROPPEDICMPS),
-	SNMP_MIB_SENTINEL
 };
 
 static void icmpmsg_put_line(struct seq_file *seq, unsigned long *vals,
@@ -389,14 +384,15 @@ static void icmp_put(struct seq_file *seq)
  */
 static int snmp_seq_show_ipstats(struct seq_file *seq, void *v)
 {
+	const int cnt = ARRAY_SIZE(snmp4_ipstats_list);
+	u64 buff64[ARRAY_SIZE(snmp4_ipstats_list)];
 	struct net *net = seq->private;
-	u64 buff64[IPSTATS_MIB_MAX];
 	int i;
 
-	memset(buff64, 0, IPSTATS_MIB_MAX * sizeof(u64));
+	memset(buff64, 0, sizeof(buff64));
 
 	seq_puts(seq, "Ip: Forwarding DefaultTTL");
-	for (i = 0; snmp4_ipstats_list[i].name; i++)
+	for (i = 0; i < cnt; i++)
 		seq_printf(seq, " %s", snmp4_ipstats_list[i].name);
 
 	seq_printf(seq, "\nIp: %d %d",
@@ -404,10 +400,10 @@ static int snmp_seq_show_ipstats(struct seq_file *seq, void *v)
 		   READ_ONCE(net->ipv4.sysctl_ip_default_ttl));
 
 	BUILD_BUG_ON(offsetof(struct ipstats_mib, mibs) != 0);
-	snmp_get_cpu_field64_batch(buff64, snmp4_ipstats_list,
-				   net->mib.ip_statistics,
-				   offsetof(struct ipstats_mib, syncp));
-	for (i = 0; snmp4_ipstats_list[i].name; i++)
+	snmp_get_cpu_field64_batch_cnt(buff64, snmp4_ipstats_list, cnt,
+				       net->mib.ip_statistics,
+				       offsetof(struct ipstats_mib, syncp));
+	for (i = 0; i < cnt; i++)
 		seq_printf(seq, " %llu", buff64[i]);
 
 	return 0;
@@ -415,20 +411,23 @@ static int snmp_seq_show_ipstats(struct seq_file *seq, void *v)
 
 static int snmp_seq_show_tcp_udp(struct seq_file *seq, void *v)
 {
+	const int udp_cnt = ARRAY_SIZE(snmp4_udp_list);
+	const int tcp_cnt = ARRAY_SIZE(snmp4_tcp_list);
 	unsigned long buff[TCPUDP_MIB_MAX];
 	struct net *net = seq->private;
 	int i;
 
-	memset(buff, 0, TCPUDP_MIB_MAX * sizeof(unsigned long));
+	memset(buff, 0, tcp_cnt * sizeof(unsigned long));
 
 	seq_puts(seq, "\nTcp:");
-	for (i = 0; snmp4_tcp_list[i].name; i++)
+	for (i = 0; i < tcp_cnt; i++)
 		seq_printf(seq, " %s", snmp4_tcp_list[i].name);
 
 	seq_puts(seq, "\nTcp:");
-	snmp_get_cpu_field_batch(buff, snmp4_tcp_list,
-				 net->mib.tcp_statistics);
-	for (i = 0; snmp4_tcp_list[i].name; i++) {
+	snmp_get_cpu_field_batch_cnt(buff, snmp4_tcp_list,
+				     tcp_cnt,
+				     net->mib.tcp_statistics);
+	for (i = 0; i < tcp_cnt; i++) {
 		/* MaxConn field is signed, RFC 2012 */
 		if (snmp4_tcp_list[i].entry == TCP_MIB_MAXCONN)
 			seq_printf(seq, " %ld", buff[i]);
@@ -436,27 +435,29 @@ static int snmp_seq_show_tcp_udp(struct seq_file *seq, void *v)
 			seq_printf(seq, " %lu", buff[i]);
 	}
 
-	memset(buff, 0, TCPUDP_MIB_MAX * sizeof(unsigned long));
+	memset(buff, 0, udp_cnt * sizeof(unsigned long));
 
-	snmp_get_cpu_field_batch(buff, snmp4_udp_list,
-				 net->mib.udp_statistics);
+	snmp_get_cpu_field_batch_cnt(buff, snmp4_udp_list,
+				     udp_cnt,
+				     net->mib.udp_statistics);
 	seq_puts(seq, "\nUdp:");
-	for (i = 0; snmp4_udp_list[i].name; i++)
+	for (i = 0; i < udp_cnt; i++)
 		seq_printf(seq, " %s", snmp4_udp_list[i].name);
 	seq_puts(seq, "\nUdp:");
-	for (i = 0; snmp4_udp_list[i].name; i++)
+	for (i = 0; i < udp_cnt; i++)
 		seq_printf(seq, " %lu", buff[i]);
 
-	memset(buff, 0, TCPUDP_MIB_MAX * sizeof(unsigned long));
+	memset(buff, 0, udp_cnt * sizeof(unsigned long));
 
 	/* the UDP and UDP-Lite MIBs are the same */
 	seq_puts(seq, "\nUdpLite:");
-	snmp_get_cpu_field_batch(buff, snmp4_udp_list,
-				 net->mib.udplite_statistics);
-	for (i = 0; snmp4_udp_list[i].name; i++)
+	snmp_get_cpu_field_batch_cnt(buff, snmp4_udp_list,
+				     udp_cnt,
+				     net->mib.udplite_statistics);
+	for (i = 0; i < udp_cnt; i++)
 		seq_printf(seq, " %s", snmp4_udp_list[i].name);
 	seq_puts(seq, "\nUdpLite:");
-	for (i = 0; snmp4_udp_list[i].name; i++)
+	for (i = 0; i < udp_cnt; i++)
 		seq_printf(seq, " %lu", buff[i]);
 
 	seq_putc(seq, '\n');
@@ -480,8 +481,8 @@ static int snmp_seq_show(struct seq_file *seq, void *v)
  */
 static int netstat_seq_show(struct seq_file *seq, void *v)
 {
-	const int ip_cnt = ARRAY_SIZE(snmp4_ipextstats_list) - 1;
-	const int tcp_cnt = ARRAY_SIZE(snmp4_net_list) - 1;
+	const int ip_cnt = ARRAY_SIZE(snmp4_ipextstats_list);
+	const int tcp_cnt = ARRAY_SIZE(snmp4_net_list);
 	struct net *net = seq->private;
 	unsigned long *buff;
 	int i;
@@ -494,8 +495,8 @@ static int netstat_seq_show(struct seq_file *seq, void *v)
 	buff = kzalloc(max(tcp_cnt * sizeof(long), ip_cnt * sizeof(u64)),
 		       GFP_KERNEL);
 	if (buff) {
-		snmp_get_cpu_field_batch(buff, snmp4_net_list,
-					 net->mib.net_statistics);
+		snmp_get_cpu_field_batch_cnt(buff, snmp4_net_list, tcp_cnt,
+					     net->mib.net_statistics);
 		for (i = 0; i < tcp_cnt; i++)
 			seq_printf(seq, " %lu", buff[i]);
 	} else {
@@ -513,7 +514,7 @@ static int netstat_seq_show(struct seq_file *seq, void *v)
 		u64 *buff64 = (u64 *)buff;
 
 		memset(buff64, 0, ip_cnt * sizeof(u64));
-		snmp_get_cpu_field64_batch(buff64, snmp4_ipextstats_list,
+		snmp_get_cpu_field64_batch_cnt(buff64, snmp4_ipextstats_list, ip_cnt,
 					   net->mib.ip_statistics,
 					   offsetof(struct ipstats_mib, syncp));
 		for (i = 0; i < ip_cnt; i++)

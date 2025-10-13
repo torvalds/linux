@@ -16,6 +16,7 @@ description: |
 
 allOf:
   - $ref: input.yaml#
+  - $ref: touchscreen/touchscreen.yaml#
 
 properties:
   compatible:
@@ -95,7 +96,7 @@ required:
   - reg
   - interrupts
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

@@ -68,7 +68,6 @@ static void ct_systimer_callback(struct timer_list *t)
 	struct ct_atc_pcm *apcm = ti->apcm;
 	unsigned int period_size = runtime->period_size;
 	unsigned int buffer_size = runtime->buffer_size;
-	unsigned long flags;
 	unsigned int position, dist, interval;
 
 	position = substream->ops->pointer(substream);
@@ -82,10 +81,9 @@ static void ct_systimer_callback(struct timer_list *t)
 	 * at 8kHz in 8-bit format or at 88kHz in 24-bit format. */
 	interval = ((period_size - (position % period_size))
 		   * HZ + (runtime->rate - 1)) / runtime->rate + HZ * 5 / 1000;
-	spin_lock_irqsave(&ti->lock, flags);
+	guard(spinlock_irqsave)(&ti->lock);
 	if (ti->running)
 		mod_timer(&ti->timer, jiffies + interval);
-	spin_unlock_irqrestore(&ti->lock, flags);
 }
 
 static void ct_systimer_init(struct ct_timer_instance *ti)
@@ -96,24 +94,19 @@ static void ct_systimer_init(struct ct_timer_instance *ti)
 static void ct_systimer_start(struct ct_timer_instance *ti)
 {
 	struct snd_pcm_runtime *runtime = ti->substream->runtime;
-	unsigned long flags;
 
-	spin_lock_irqsave(&ti->lock, flags);
+	guard(spinlock_irqsave)(&ti->lock);
 	ti->running = 1;
 	mod_timer(&ti->timer,
 		  jiffies + (runtime->period_size * HZ +
 			     (runtime->rate - 1)) / runtime->rate);
-	spin_unlock_irqrestore(&ti->lock, flags);
 }
 
 static void ct_systimer_stop(struct ct_timer_instance *ti)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&ti->lock, flags);
+	guard(spinlock_irqsave)(&ti->lock);
 	ti->running = 0;
 	timer_delete(&ti->timer);
-	spin_unlock_irqrestore(&ti->lock, flags);
 }
 
 static void ct_systimer_prepare(struct ct_timer_instance *ti)
@@ -229,25 +222,22 @@ static int ct_xfitimer_reprogram(struct ct_timer *atimer, int can_update)
 static void ct_xfitimer_check_period(struct ct_timer *atimer)
 {
 	struct ct_timer_instance *ti;
-	unsigned long flags;
 
-	spin_lock_irqsave(&atimer->list_lock, flags);
+	guard(spinlock_irqsave)(&atimer->list_lock);
 	list_for_each_entry(ti, &atimer->instance_head, instance_list) {
 		if (ti->running && ti->need_update) {
 			ti->need_update = 0;
 			ti->apcm->interrupt(ti->apcm);
 		}
 	}
-	spin_unlock_irqrestore(&atimer->list_lock, flags);
 }
 
 /* Handle timer-interrupt */
 static void ct_xfitimer_callback(struct ct_timer *atimer)
 {
 	int update;
-	unsigned long flags;
 
-	spin_lock_irqsave(&atimer->lock, flags);
+	guard(spinlock_irqsave)(&atimer->lock);
 	atimer->irq_handling = 1;
 	do {
 		update = ct_xfitimer_reprogram(atimer, 1);
@@ -257,7 +247,6 @@ static void ct_xfitimer_callback(struct ct_timer *atimer)
 		spin_lock(&atimer->lock);
 	} while (atimer->reprogram);
 	atimer->irq_handling = 0;
-	spin_unlock_irqrestore(&atimer->lock, flags);
 }
 
 static void ct_xfitimer_prepare(struct ct_timer_instance *ti)
@@ -271,45 +260,39 @@ static void ct_xfitimer_prepare(struct ct_timer_instance *ti)
 /* start/stop the timer */
 static void ct_xfitimer_update(struct ct_timer *atimer)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&atimer->lock, flags);
+	guard(spinlock_irqsave)(&atimer->lock);
 	if (atimer->irq_handling) {
 		/* reached from IRQ handler; let it handle later */
 		atimer->reprogram = 1;
-		spin_unlock_irqrestore(&atimer->lock, flags);
 		return;
 	}
 
 	ct_xfitimer_irq_stop(atimer);
 	ct_xfitimer_reprogram(atimer, 0);
-	spin_unlock_irqrestore(&atimer->lock, flags);
 }
 
 static void ct_xfitimer_start(struct ct_timer_instance *ti)
 {
 	struct ct_timer *atimer = ti->timer_base;
-	unsigned long flags;
 
-	spin_lock_irqsave(&atimer->lock, flags);
-	if (list_empty(&ti->running_list))
-		atimer->wc = ct_xfitimer_get_wc(atimer);
-	ti->running = 1;
-	ti->need_update = 0;
-	list_add(&ti->running_list, &atimer->running_head);
-	spin_unlock_irqrestore(&atimer->lock, flags);
+	scoped_guard(spinlock_irqsave, &atimer->lock) {
+		if (list_empty(&ti->running_list))
+			atimer->wc = ct_xfitimer_get_wc(atimer);
+		ti->running = 1;
+		ti->need_update = 0;
+		list_add(&ti->running_list, &atimer->running_head);
+	}
 	ct_xfitimer_update(atimer);
 }
 
 static void ct_xfitimer_stop(struct ct_timer_instance *ti)
 {
 	struct ct_timer *atimer = ti->timer_base;
-	unsigned long flags;
 
-	spin_lock_irqsave(&atimer->lock, flags);
-	list_del_init(&ti->running_list);
-	ti->running = 0;
-	spin_unlock_irqrestore(&atimer->lock, flags);
+	scoped_guard(spinlock_irqsave, &atimer->lock) {
+		list_del_init(&ti->running_list);
+		ti->running = 0;
+	}
 	ct_xfitimer_update(atimer);
 }
 
@@ -347,9 +330,9 @@ ct_timer_instance_new(struct ct_timer *atimer, struct ct_atc_pcm *apcm)
 	if (atimer->ops->init)
 		atimer->ops->init(ti);
 
-	spin_lock_irq(&atimer->list_lock);
-	list_add(&ti->instance_list, &atimer->instance_head);
-	spin_unlock_irq(&atimer->list_lock);
+	scoped_guard(spinlock_irq, &atimer->list_lock) {
+		list_add(&ti->instance_list, &atimer->instance_head);
+	}
 
 	return ti;
 }
@@ -382,9 +365,9 @@ void ct_timer_instance_free(struct ct_timer_instance *ti)
 	if (atimer->ops->free_instance)
 		atimer->ops->free_instance(ti);
 
-	spin_lock_irq(&atimer->list_lock);
-	list_del(&ti->instance_list);
-	spin_unlock_irq(&atimer->list_lock);
+	scoped_guard(spinlock_irq, &atimer->list_lock) {
+		list_del(&ti->instance_list);
+	}
 
 	kfree(ti);
 }

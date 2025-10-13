@@ -79,6 +79,10 @@ static void rts5227_fetch_vendor_settings(struct rtsx_pcr *pcr)
 	pcr->sd30_drive_sel_3v3 = rtsx_reg_to_sd30_drive_sel_3v3(reg);
 	if (rtsx_reg_check_reverse_socket(reg))
 		pcr->flags |= PCR_REVERSE_SOCKET;
+	if (rtsx_reg_check_cd_reverse(reg))
+		pcr->option.sd_cd_reverse_en = 1;
+	if (rtsx_reg_check_wp_reverse(reg))
+		pcr->option.sd_wp_reverse_en = 1;
 }
 
 static void rts5227_init_from_cfg(struct rtsx_pcr *pcr)
@@ -127,8 +131,10 @@ static int rts5227_extra_init_hw(struct rtsx_pcr *pcr)
 	/* Configure force_clock_req */
 	if (pcr->flags & PCR_REVERSE_SOCKET)
 		rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, PETXCFG, 0x30, 0x30);
-	else
-		rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, PETXCFG, 0x30, 0x00);
+	else {
+		rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, PETXCFG, 0x20, option->sd_cd_reverse_en << 5);
+		rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, PETXCFG, 0x10, option->sd_wp_reverse_en << 4);
+	}
 
 	if (CHK_PCI_PID(pcr, 0x522A))
 		rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, RTS522A_AUTOLOAD_CFG1,
@@ -350,6 +356,8 @@ void rts5227_init_params(struct rtsx_pcr *pcr)
 	pcr->ms_pull_ctl_disable_tbl = rts5227_ms_pull_ctl_disable_tbl;
 
 	pcr->reg_pm_ctrl3 = PM_CTRL3;
+	pcr->option.sd_cd_reverse_en = 0;
+	pcr->option.sd_wp_reverse_en = 0;
 }
 
 static int rts522a_optimize_phy(struct rtsx_pcr *pcr)
@@ -508,5 +516,4 @@ void rts522a_init_params(struct rtsx_pcr *pcr)
 		pcr->hw_param.interrupt_en |= SD_OC_INT_EN;
 	pcr->hw_param.ocp_glitch = SD_OCP_GLITCH_10M;
 	pcr->option.sd_800mA_ocp_thd = RTS522A_OCP_THD_800;
-
 }

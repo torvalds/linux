@@ -32,6 +32,7 @@ i915-y += \
 	i915_scatterlist.o \
 	i915_switcheroo.o \
 	i915_sysfs.o \
+	i915_timer_util.o \
 	i915_utils.o \
 	intel_clock_gating.o \
 	intel_cpu_info.o \
@@ -280,6 +281,7 @@ i915-y += \
 	display/intel_modeset_setup.o \
 	display/intel_modeset_verify.o \
 	display/intel_overlay.o \
+	display/intel_panic.o \
 	display/intel_pch.o \
 	display/intel_pch_display.o \
 	display/intel_pch_refclk.o \

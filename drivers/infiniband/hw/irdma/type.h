@@ -8,6 +8,8 @@
 #include "hmc.h"
 #include "uda.h"
 #include "ws.h"
+#include "virtchnl.h"
+
 #define IRDMA_DEBUG_ERR		"ERR"
 #define IRDMA_DEBUG_INIT	"INIT"
 #define IRDMA_DEBUG_DEV		"DEV"
@@ -95,12 +97,6 @@ enum irdma_term_mpa_errors {
 	MPA_REQ_RSP = 0x04,
 };
 
-enum irdma_qp_event_type {
-	IRDMA_QP_EVENT_CATASTROPHIC,
-	IRDMA_QP_EVENT_ACCESS_ERR,
-	IRDMA_QP_EVENT_REQ_ERR,
-};
-
 enum irdma_hw_stats_index {
 	/* gen1 - 32-bit */
 	IRDMA_HW_STAT_INDEX_IP4RXDISCARD	= 0,
@@ -154,12 +150,46 @@ enum irdma_hw_stats_index {
 	IRDMA_HW_STAT_INDEX_RXRPCNPIGNORED      = 44,
 	IRDMA_HW_STAT_INDEX_TXNPCNPSENT         = 45,
 	IRDMA_HW_STAT_INDEX_MAX_GEN_2		= 46,
+
+	/* gen3 */
+	IRDMA_HW_STAT_INDEX_RNR_SENT		= 46,
+	IRDMA_HW_STAT_INDEX_RNR_RCVD		= 47,
+	IRDMA_HW_STAT_INDEX_RDMAORDLMTCNT	= 48,
+	IRDMA_HW_STAT_INDEX_RDMAIRDLMTCNT	= 49,
+	IRDMA_HW_STAT_INDEX_RDMARXATS		= 50,
+	IRDMA_HW_STAT_INDEX_RDMATXATS		= 51,
+	IRDMA_HW_STAT_INDEX_NAKSEQERR		= 52,
+	IRDMA_HW_STAT_INDEX_NAKSEQERR_IMPLIED	= 53,
+	IRDMA_HW_STAT_INDEX_RTO			= 54,
+	IRDMA_HW_STAT_INDEX_RXOOOPKTS		= 55,
+	IRDMA_HW_STAT_INDEX_ICRCERR		= 56,
+
+	IRDMA_HW_STAT_INDEX_MAX_GEN_3		= 57,
 };
 
 enum irdma_feature_type {
 	IRDMA_FEATURE_FW_INFO = 0,
 	IRDMA_HW_VERSION_INFO = 1,
+	IRDMA_QP_MAX_INCR     = 2,
+	IRDMA_CQ_MAX_INCR     = 3,
+	IRDMA_CEQ_MAX_INCR    = 4,
+	IRDMA_SD_MAX_INCR     = 5,
+	IRDMA_MR_MAX_INCR     = 6,
+	IRDMA_Q1_MAX_INCR     = 7,
+	IRDMA_AH_MAX_INCR     = 8,
+	IRDMA_SRQ_MAX_INCR    = 9,
+	IRDMA_TIMER_MAX_INCR  = 10,
+	IRDMA_XF_MAX_INCR     = 11,
+	IRDMA_RRF_MAX_INCR    = 12,
+	IRDMA_PBLE_MAX_INCR   = 13,
+	IRDMA_OBJ_1           = 22,
+	IRDMA_OBJ_2           = 23,
+	IRDMA_ENDPT_TRK       = 24,
+	IRDMA_FTN_INLINE_MAX  = 25,
 	IRDMA_QSETS_MAX       = 26,
+	IRDMA_ASO	      = 27,
+	IRDMA_FTN_FLAGS	      = 32,
+	IRDMA_FTN_NOP         = 33,
 	IRDMA_MAX_FEATURES, /* Must be last entry */
 };
 
@@ -206,6 +236,7 @@ enum irdma_syn_rst_handling {
 enum irdma_queue_type {
 	IRDMA_QUEUE_TYPE_SQ_RQ = 0,
 	IRDMA_QUEUE_TYPE_CQP,
+	IRDMA_QUEUE_TYPE_SRQ,
 };
 
 struct irdma_sc_dev;
@@ -233,12 +264,22 @@ struct irdma_cqp_init_info {
 	__le64 *host_ctx;
 	u64 *scratch_array;
 	u32 sq_size;
+	struct irdma_ooo_cqp_op *ooo_op_array;
+	u32 pe_en_vf_cnt;
 	u16 hw_maj_ver;
 	u16 hw_min_ver;
 	u8 struct_ver;
 	u8 hmc_profile;
 	u8 ena_vf_count;
 	u8 ceqs_per_vf;
+	u8 ooisc_blksize;
+	u8 rrsp_blksize;
+	u8 q1_blksize;
+	u8 xmit_blksize;
+	u8 ts_override;
+	u8 ts_shift;
+	u8 en_fine_grained_timers;
+	u8 blksizes_valid;
 	bool en_datacenter_tcp:1;
 	bool disable_packed:1;
 	bool rocev2_rto_policy:1;
@@ -310,9 +351,21 @@ struct irdma_vsi_pestat {
 	spinlock_t lock; /* rdma stats lock */
 };
 
+struct irdma_mmio_region {
+	u8 __iomem *addr;
+	resource_size_t len;
+	resource_size_t offset;
+};
+
 struct irdma_hw {
-	u8 __iomem *hw_addr;
-	u8 __iomem *priv_hw_addr;
+	union {
+		u8 __iomem *hw_addr;
+		struct {
+			struct irdma_mmio_region rdma_reg; /* RDMA region */
+			struct irdma_mmio_region *io_regs; /* Non-RDMA MMIO regions */
+			u16 num_io_regions; /* Number of Non-RDMA MMIO regions */
+		};
+	};
 	struct device *device;
 	struct irdma_hmc_info hmc;
 };
@@ -351,7 +404,21 @@ struct irdma_cqp_quanta {
 	__le64 elem[IRDMA_CQP_WQE_SIZE];
 };
 
+struct irdma_ooo_cqp_op {
+	struct list_head list_entry;
+	u64 scratch;
+	u32 def_info;
+	u32 sw_def_info;
+	u32 wqe_idx;
+	bool deferred:1;
+};
+
 struct irdma_sc_cqp {
+	spinlock_t ooo_list_lock; /* protects list of pending completions */
+	struct list_head ooo_avail;
+	struct list_head ooo_pnd;
+	u32 last_def_cmpl_ticket;
+	u32 sw_def_cmpl_ticket;
 	u32 size;
 	u64 sq_pa;
 	u64 host_ctx_pa;
@@ -367,8 +434,10 @@ struct irdma_sc_cqp {
 	u64 *scratch_array;
 	u64 requested_ops;
 	atomic64_t completed_ops;
+	struct irdma_ooo_cqp_op *ooo_op_array;
 	u32 cqp_id;
 	u32 sq_size;
+	u32 pe_en_vf_cnt;
 	u32 hw_sq_size;
 	u16 hw_maj_ver;
 	u16 hw_min_ver;
@@ -378,6 +447,14 @@ struct irdma_sc_cqp {
 	u8 ena_vf_count;
 	u8 timeout_count;
 	u8 ceqs_per_vf;
+	u8 ooisc_blksize;
+	u8 rrsp_blksize;
+	u8 q1_blksize;
+	u8 xmit_blksize;
+	u8 ts_override;
+	u8 ts_shift;
+	u8 en_fine_grained_timers;
+	u8 blksizes_valid;
 	bool en_datacenter_tcp:1;
 	bool disable_packed:1;
 	bool rocev2_rto_policy:1;
@@ -397,6 +474,8 @@ struct irdma_sc_aeq {
 	u32 msix_idx;
 	u8 polarity;
 	bool virtual_map:1;
+	bool pasid_valid:1;
+	u32 pasid;
 };
 
 struct irdma_sc_ceq {
@@ -412,13 +491,15 @@ struct irdma_sc_ceq {
 	u8 tph_val;
 	u32 first_pm_pbl_idx;
 	u8 polarity;
-	struct irdma_sc_vsi *vsi;
+	u16 vsi_idx;
 	struct irdma_sc_cq **reg_cq;
 	u32 reg_cq_size;
 	spinlock_t req_cq_lock; /* protect access to reg_cq array */
 	bool virtual_map:1;
 	bool tph_en:1;
 	bool itr_no_expire:1;
+	bool pasid_valid:1;
+	u32 pasid;
 };
 
 struct irdma_sc_cq {
@@ -426,6 +507,7 @@ struct irdma_sc_cq {
 	u64 cq_pa;
 	u64 shadow_area_pa;
 	struct irdma_sc_dev *dev;
+	u16 vsi_idx;
 	struct irdma_sc_vsi *vsi;
 	void *pbl_list;
 	void *back_cq;
@@ -477,8 +559,13 @@ struct irdma_sc_qp {
 	bool virtual_map:1;
 	bool flush_sq:1;
 	bool flush_rq:1;
+	bool err_sq_idx_valid:1;
+	bool err_rq_idx_valid:1;
+	u32 err_sq_idx;
+	u32 err_rq_idx;
 	bool sq_flush_code:1;
 	bool rq_flush_code:1;
+	u32 pkt_limit;
 	enum irdma_flush_opcode flush_code;
 	enum irdma_qp_event_type event_type;
 	u8 term_flags;
@@ -489,13 +576,13 @@ struct irdma_sc_qp {
 struct irdma_stats_inst_info {
 	bool use_hmc_fcn_index;
 	u8 hmc_fn_id;
-	u8 stats_idx;
+	u16 stats_idx;
 };
 
 struct irdma_up_info {
 	u8 map[8];
 	u8 cnp_up_override;
-	u8 hmc_fcn_idx;
+	u16 hmc_fcn_idx;
 	bool use_vlan:1;
 	bool use_cnp_up_override:1;
 };
@@ -518,6 +605,8 @@ struct irdma_ws_node_info {
 struct irdma_hmc_fpm_misc {
 	u32 max_ceqs;
 	u32 max_sds;
+	u32 loc_mem_pages;
+	u8 ird;
 	u32 xf_block_size;
 	u32 q1_block_size;
 	u32 ht_multiplier;
@@ -526,6 +615,7 @@ struct irdma_hmc_fpm_misc {
 	u32 ooiscf_block_size;
 };
 
+#define IRDMA_VCHNL_MAX_MSG_SIZE 512
 #define IRDMA_LEAF_DEFAULT_REL_BW		64
 #define IRDMA_PARENT_DEFAULT_REL_BW		1
 
@@ -601,19 +691,28 @@ struct irdma_sc_dev {
 	u64 cqp_cmd_stats[IRDMA_MAX_CQP_OPS];
 	struct irdma_hw_attrs hw_attrs;
 	struct irdma_hmc_info *hmc_info;
+	struct irdma_vchnl_rdma_caps vc_caps;
+	u8 vc_recv_buf[IRDMA_VCHNL_MAX_MSG_SIZE];
+	u16 vc_recv_len;
 	struct irdma_sc_cqp *cqp;
 	struct irdma_sc_aeq *aeq;
 	struct irdma_sc_ceq *ceq[IRDMA_CEQ_MAX_COUNT];
 	struct irdma_sc_cq *ccq;
 	const struct irdma_irq_ops *irq_ops;
+	struct irdma_qos qos[IRDMA_MAX_USER_PRIORITY];
 	struct irdma_hmc_fpm_misc hmc_fpm_misc;
 	struct irdma_ws_node *ws_tree_root;
 	struct mutex ws_mutex; /* ws tree mutex */
+	u32 vchnl_ver;
 	u16 num_vfs;
-	u8 hmc_fn_id;
+	u16 hmc_fn_id;
 	u8 vf_id;
+	bool privileged:1;
 	bool vchnl_up:1;
 	bool ceq_valid:1;
+	bool is_pf:1;
+	u8 protocol_used;
+	struct mutex vchnl_mutex; /* mutex to synchronize RDMA virtual channel messages */
 	u8 pci_rev;
 	int (*ws_add)(struct irdma_sc_vsi *vsi, u8 user_pri);
 	void (*ws_remove)(struct irdma_sc_vsi *vsi, u8 user_pri);
@@ -630,6 +729,51 @@ struct irdma_modify_cq_info {
 	bool virtual_map:1;
 	bool check_overflow;
 	bool cq_resize:1;
+};
+
+struct irdma_srq_init_info {
+	struct irdma_sc_pd *pd;
+	struct irdma_sc_vsi *vsi;
+	u64 srq_pa;
+	u64 shadow_area_pa;
+	u32 first_pm_pbl_idx;
+	u32 pasid;
+	u32 srq_size;
+	u16 srq_limit;
+	u8 pasid_valid;
+	u8 wqe_size;
+	u8 leaf_pbl_size;
+	u8 virtual_map;
+	u8 tph_en;
+	u8 arm_limit_event;
+	u8 tph_value;
+	u8 pbl_chunk_size;
+	struct irdma_srq_uk_init_info srq_uk_init_info;
+};
+
+struct irdma_sc_srq {
+	struct irdma_sc_dev *dev;
+	struct irdma_sc_vsi *vsi;
+	struct irdma_sc_pd *pd;
+	struct irdma_srq_uk srq_uk;
+	void *back_srq;
+	u64 srq_pa;
+	u64 shadow_area_pa;
+	u32 first_pm_pbl_idx;
+	u32 pasid;
+	u32 hw_srq_size;
+	u16 srq_limit;
+	u8 pasid_valid;
+	u8 leaf_pbl_size;
+	u8 virtual_map;
+	u8 tph_en;
+	u8 arm_limit_event;
+	u8 tph_val;
+};
+
+struct irdma_modify_srq_info {
+	u16 srq_limit;
+	u8 arm_limit_event;
 };
 
 struct irdma_create_qp_info {
@@ -671,7 +815,8 @@ struct irdma_ccq_cqe_info {
 	u16 maj_err_code;
 	u16 min_err_code;
 	u8 op_code;
-	bool error;
+	bool error:1;
+	bool pending:1;
 };
 
 struct irdma_dcb_app_info {
@@ -720,7 +865,7 @@ struct irdma_vsi_init_info {
 
 struct irdma_vsi_stats_info {
 	struct irdma_vsi_pestat *pestat;
-	u8 fcn_id;
+	u16 fcn_id;
 	bool alloc_stats_inst;
 };
 
@@ -731,7 +876,8 @@ struct irdma_device_init_info {
 	__le64 *fpm_commit_buf;
 	struct irdma_hw *hw;
 	void __iomem *bar0;
-	u8 hmc_fn_id;
+	enum irdma_protocol_used protocol_used;
+	u16 hmc_fn_id;
 };
 
 struct irdma_ceq_init_info {
@@ -746,8 +892,8 @@ struct irdma_ceq_init_info {
 	bool itr_no_expire:1;
 	u8 pbl_chunk_size;
 	u8 tph_val;
+	u16 vsi_idx;
 	u32 first_pm_pbl_idx;
-	struct irdma_sc_vsi *vsi;
 	struct irdma_sc_cq **reg_cq;
 	u32 reg_cq_idx;
 };
@@ -807,6 +953,8 @@ struct irdma_udp_offload_info {
 	u32 cwnd;
 	u8 rexmit_thresh;
 	u8 rnr_nak_thresh;
+	u8 rnr_nak_tmr;
+	u8 min_rnr_timer;
 };
 
 struct irdma_roce_offload_info {
@@ -833,6 +981,7 @@ struct irdma_roce_offload_info {
 	bool dctcp_en:1;
 	bool fw_cc_enable:1;
 	bool use_stats_inst:1;
+	u8 local_ack_timeout;
 	u16 t_high;
 	u16 t_low;
 	u8 last_byte_sent;
@@ -933,8 +1082,10 @@ struct irdma_qp_host_ctx_info {
 	};
 	u32 send_cq_num;
 	u32 rcv_cq_num;
+	u32 srq_id;
 	u32 rem_endpoint_idx;
-	u8 stats_idx;
+	u16 stats_idx;
+	bool remote_atomics_en:1;
 	bool srq_valid:1;
 	bool tcp_info_valid:1;
 	bool iwarp_info_valid:1;
@@ -945,6 +1096,7 @@ struct irdma_qp_host_ctx_info {
 struct irdma_aeqe_info {
 	u64 compl_ctx;
 	u32 qp_cq_id;
+	u32 def_info;	/* only valid for DEF_CMPL */
 	u16 ae_id;
 	u16 wqe_idx;
 	u8 tcp_state;
@@ -953,9 +1105,11 @@ struct irdma_aeqe_info {
 	bool cq:1;
 	bool sq:1;
 	bool rq:1;
+	bool srq:1;
 	bool in_rdrsp_wr:1;
 	bool out_rdrsp:1;
 	bool aeqe_overflow:1;
+	bool err_rq_idx_valid:1;
 	u8 q2_data_written;
 	u8 ae_src;
 };
@@ -972,7 +1126,8 @@ struct irdma_allocate_stag_info {
 	bool use_hmc_fcn_index:1;
 	bool use_pf_rid:1;
 	bool all_memory:1;
-	u8 hmc_fcn_index;
+	bool remote_atomics_en:1;
+	u16 hmc_fcn_index;
 };
 
 struct irdma_mw_alloc_info {
@@ -1000,6 +1155,7 @@ struct irdma_reg_ns_stag_info {
 	u8 hmc_fcn_index;
 	bool use_pf_rid:1;
 	bool all_memory:1;
+	bool remote_atomics_en:1;
 };
 
 struct irdma_fast_reg_stag_info {
@@ -1023,6 +1179,7 @@ struct irdma_fast_reg_stag_info {
 	u8 hmc_fcn_index;
 	bool use_pf_rid:1;
 	bool defer_flag:1;
+	bool remote_atomics_en:1;
 };
 
 struct irdma_dealloc_stag_info {
@@ -1130,6 +1287,8 @@ struct irdma_cqp_manage_push_page_info {
 };
 
 struct irdma_qp_flush_info {
+	u32 err_sq_idx;
+	u32 err_rq_idx;
 	u16 sq_minor_code;
 	u16 sq_major_code;
 	u16 rq_minor_code;
@@ -1140,6 +1299,8 @@ struct irdma_qp_flush_info {
 	bool rq:1;
 	bool userflushcode:1;
 	bool generate_ae:1;
+	bool err_sq_idx_valid:1;
+	bool err_rq_idx_valid:1;
 };
 
 struct irdma_gen_ae_info {
@@ -1189,6 +1350,11 @@ void irdma_sc_pd_init(struct irdma_sc_dev *dev, struct irdma_sc_pd *pd, u32 pd_i
 void irdma_cfg_aeq(struct irdma_sc_dev *dev, u32 idx, bool enable);
 void irdma_check_cqp_progress(struct irdma_cqp_timeout *cqp_timeout,
 			      struct irdma_sc_dev *dev);
+void irdma_sc_cqp_def_cmpl_ae_handler(struct irdma_sc_dev *dev,
+				      struct irdma_aeqe_info *info,
+				      bool first, u64 *scratch,
+				      u32 *sw_def_info);
+u64 irdma_sc_cqp_cleanup_handler(struct irdma_sc_dev *dev);
 int irdma_sc_cqp_create(struct irdma_sc_cqp *cqp, u16 *maj_err, u16 *min_err);
 int irdma_sc_cqp_destroy(struct irdma_sc_cqp *cqp);
 int irdma_sc_cqp_init(struct irdma_sc_cqp *cqp,
@@ -1224,6 +1390,8 @@ void irdma_sc_cq_resize(struct irdma_sc_cq *cq, struct irdma_modify_cq_info *inf
 int irdma_sc_static_hmc_pages_allocated(struct irdma_sc_cqp *cqp, u64 scratch,
 					u8 hmc_fn_id, bool post_sq,
 					bool poll_registers);
+int irdma_sc_srq_init(struct irdma_sc_srq *srq,
+		      struct irdma_srq_init_info *info);
 
 void sc_vsi_update_stats(struct irdma_sc_vsi *vsi);
 struct cqp_info {
@@ -1467,6 +1635,23 @@ struct cqp_info {
 			struct irdma_dma_mem query_buff_mem;
 			u64 scratch;
 		} query_rdma;
+
+		struct {
+			struct irdma_sc_srq *srq;
+			u64 scratch;
+		} srq_create;
+
+		struct {
+			struct irdma_sc_srq *srq;
+			struct irdma_modify_srq_info info;
+			u64 scratch;
+		} srq_modify;
+
+		struct {
+			struct irdma_sc_srq *srq;
+			u64 scratch;
+		} srq_destroy;
+
 	} u;
 };
 

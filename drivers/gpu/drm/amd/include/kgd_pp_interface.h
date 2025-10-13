@@ -30,6 +30,12 @@ extern const struct amdgpu_ip_block_version smu_v12_0_ip_block;
 extern const struct amdgpu_ip_block_version smu_v13_0_ip_block;
 extern const struct amdgpu_ip_block_version smu_v14_0_ip_block;
 
+enum smu_temp_metric_type {
+	SMU_TEMP_METRIC_BASEBOARD,
+	SMU_TEMP_METRIC_GPUBOARD,
+	SMU_TEMP_METRIC_MAX,
+};
+
 enum smu_event_type {
 	SMU_EVENT_RESET_COMPLETE = 0,
 };
@@ -156,6 +162,10 @@ enum amd_pp_sensors {
 	AMDGPU_PP_SENSOR_PEAK_PSTATE_SCLK,
 	AMDGPU_PP_SENSOR_PEAK_PSTATE_MCLK,
 	AMDGPU_PP_SENSOR_VCN_LOAD,
+	AMDGPU_PP_SENSOR_NODEPOWERLIMIT,
+	AMDGPU_PP_SENSOR_NODEPOWER,
+	AMDGPU_PP_SENSOR_GPPTRESIDENCY,
+	AMDGPU_PP_SENSOR_MAXNODEPOWERLIMIT,
 };
 
 enum amd_pp_task {
@@ -496,6 +506,8 @@ struct amd_pm_funcs {
 	int (*set_df_cstate)(void *handle, enum pp_df_cstate state);
 	int (*set_xgmi_pstate)(void *handle, uint32_t pstate);
 	ssize_t (*get_gpu_metrics)(void *handle, void **table);
+	ssize_t (*get_temp_metrics)(void *handle, enum smu_temp_metric_type type, void *table);
+	bool (*temp_metrics_is_supported)(void *handle, enum smu_temp_metric_type type);
 	ssize_t (*get_xcp_metrics)(void *handle, int xcp_id, void *table);
 	ssize_t (*get_pm_metrics)(void *handle, void *pmmetrics, size_t size);
 	int (*set_watermarks_for_clock_ranges)(void *handle,
@@ -1593,6 +1605,79 @@ struct amdgpu_pm_metrics {
 	struct amdgpu_pmmetrics_header common_header;
 
 	uint8_t data[];
+};
+
+enum amdgpu_vr_temp {
+	AMDGPU_VDDCR_VDD0_TEMP,
+	AMDGPU_VDDCR_VDD1_TEMP,
+	AMDGPU_VDDCR_VDD2_TEMP,
+	AMDGPU_VDDCR_VDD3_TEMP,
+	AMDGPU_VDDCR_SOC_A_TEMP,
+	AMDGPU_VDDCR_SOC_C_TEMP,
+	AMDGPU_VDDCR_SOCIO_A_TEMP,
+	AMDGPU_VDDCR_SOCIO_C_TEMP,
+	AMDGPU_VDD_085_HBM_TEMP,
+	AMDGPU_VDDCR_11_HBM_B_TEMP,
+	AMDGPU_VDDCR_11_HBM_D_TEMP,
+	AMDGPU_VDD_USR_TEMP,
+	AMDGPU_VDDIO_11_E32_TEMP,
+	AMDGPU_VR_MAX_TEMP_ENTRIES,
+};
+
+enum amdgpu_system_temp {
+	AMDGPU_UBB_FPGA_TEMP,
+	AMDGPU_UBB_FRONT_TEMP,
+	AMDGPU_UBB_BACK_TEMP,
+	AMDGPU_UBB_OAM7_TEMP,
+	AMDGPU_UBB_IBC_TEMP,
+	AMDGPU_UBB_UFPGA_TEMP,
+	AMDGPU_UBB_OAM1_TEMP,
+	AMDGPU_OAM_0_1_HSC_TEMP,
+	AMDGPU_OAM_2_3_HSC_TEMP,
+	AMDGPU_OAM_4_5_HSC_TEMP,
+	AMDGPU_OAM_6_7_HSC_TEMP,
+	AMDGPU_UBB_FPGA_0V72_VR_TEMP,
+	AMDGPU_UBB_FPGA_3V3_VR_TEMP,
+	AMDGPU_RETIMER_0_1_2_3_1V2_VR_TEMP,
+	AMDGPU_RETIMER_4_5_6_7_1V2_VR_TEMP,
+	AMDGPU_RETIMER_0_1_0V9_VR_TEMP,
+	AMDGPU_RETIMER_4_5_0V9_VR_TEMP,
+	AMDGPU_RETIMER_2_3_0V9_VR_TEMP,
+	AMDGPU_RETIMER_6_7_0V9_VR_TEMP,
+	AMDGPU_OAM_0_1_2_3_3V3_VR_TEMP,
+	AMDGPU_OAM_4_5_6_7_3V3_VR_TEMP,
+	AMDGPU_IBC_HSC_TEMP,
+	AMDGPU_IBC_TEMP,
+	AMDGPU_SYSTEM_MAX_TEMP_ENTRIES = 32,
+};
+
+enum amdgpu_node_temp {
+	AMDGPU_RETIMER_X_TEMP,
+	AMDGPU_OAM_X_IBC_TEMP,
+	AMDGPU_OAM_X_IBC_2_TEMP,
+	AMDGPU_OAM_X_VDD18_VR_TEMP,
+	AMDGPU_OAM_X_04_HBM_B_VR_TEMP,
+	AMDGPU_OAM_X_04_HBM_D_VR_TEMP,
+	AMDGPU_NODE_MAX_TEMP_ENTRIES = 12,
+};
+
+struct amdgpu_gpuboard_temp_metrics_v1_0 {
+	struct metrics_table_header common_header;
+	uint16_t label_version;
+	uint16_t node_id;
+	uint64_t accumulation_counter;
+	/* Encoded temperature in Celcius, 24:31 is sensor id 0:23 is temp value */
+	uint32_t node_temp[AMDGPU_NODE_MAX_TEMP_ENTRIES];
+	uint32_t vr_temp[AMDGPU_VR_MAX_TEMP_ENTRIES];
+};
+
+struct amdgpu_baseboard_temp_metrics_v1_0 {
+	struct metrics_table_header common_header;
+	uint16_t label_version;
+	uint16_t node_id;
+	uint64_t accumulation_counter;
+	/* Encoded temperature in Celcius, 24:31 is sensor id 0:23 is temp value */
+	uint32_t system_temp[AMDGPU_SYSTEM_MAX_TEMP_ENTRIES];
 };
 
 struct amdgpu_partition_metrics_v1_0 {

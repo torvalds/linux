@@ -194,7 +194,6 @@ static int inv_mpu6050_set_enable(struct iio_dev *indio_dev, bool enable)
 		result = inv_mpu6050_prepare_fifo(st, false);
 		if (result)
 			goto error_power_off;
-		pm_runtime_mark_last_busy(pdev);
 		pm_runtime_put_autosuspend(pdev);
 	}
 

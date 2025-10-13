@@ -140,7 +140,8 @@ void dcn401_prepare_mcache_programming(struct dc *dc, struct dc_state *context);
 	SRI_ARR(UCLK_PSTATE_FORCE, HUBPREQ, id),                                 \
 	HUBP_3DLUT_FL_REG_LIST_DCN401(id),                                       \
 	SRI_ARR(DCSURF_VIEWPORT_MCACHE_SPLIT_COORDINATE, HUBP, id),              \
-	SRI_ARR(DCHUBP_MCACHEID_CONFIG, HUBP, id)
+	SRI_ARR(DCHUBP_MCACHEID_CONFIG, HUBP, id),								 \
+	SRI_ARR(HUBPRET_READ_LINE_VALUE, HUBPRET, id)
 
 /* ABM */
 #define ABM_DCN401_REG_LIST_RI(id)                                            \

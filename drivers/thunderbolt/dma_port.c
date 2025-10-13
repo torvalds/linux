@@ -197,6 +197,8 @@ static int dma_find_port(struct tb_switch *sw)
  *
  * The DMA control port is functional also when the switch is in safe
  * mode.
+ *
+ * Return: &struct tb_dma_port on success, %NULL otherwise.
  */
 struct tb_dma_port *dma_port_alloc(struct tb_switch *sw)
 {
@@ -354,6 +356,8 @@ static int dma_port_flash_write_block(void *data, unsigned int dwaddress,
  * @address: Address relative to the start of active region
  * @buf: Buffer where the data is read
  * @size: Size of the buffer
+ *
+ * Return: %0 on success, negative errno otherwise.
  */
 int dma_port_flash_read(struct tb_dma_port *dma, unsigned int address,
 			void *buf, size_t size)
@@ -372,6 +376,8 @@ int dma_port_flash_read(struct tb_dma_port *dma, unsigned int address,
  * Writes block of data to the non-active flash region of the switch. If
  * the address is given as %DMA_PORT_CSS_ADDRESS the block is written
  * using CSS command.
+ *
+ * Return: %0 on success, negative errno otherwise.
  */
 int dma_port_flash_write(struct tb_dma_port *dma, unsigned int address,
 			 const void *buf, size_t size)
@@ -393,6 +399,8 @@ int dma_port_flash_write(struct tb_dma_port *dma, unsigned int address,
  * dma_port_flash_update_auth_status() to get status of this command.
  * This is because if the switch in question is root switch the
  * thunderbolt host controller gets reset as well.
+ *
+ * Return: %0 on success, negative errno otherwise.
  */
 int dma_port_flash_update_auth(struct tb_dma_port *dma)
 {
@@ -410,12 +418,13 @@ int dma_port_flash_update_auth(struct tb_dma_port *dma)
  * @status: Status code of the operation
  *
  * The function checks if there is status available from the last update
- * auth command. Returns %0 if there is no status and no further
- * action is required. If there is status, %1 is returned instead and
- * @status holds the failure code.
+ * auth command.
  *
- * Negative return means there was an error reading status from the
- * switch.
+ * Return:
+ * * %0 - If there is no status and no further action is required.
+ * * %1 - If there is some status. @status holds the failure code.
+ * * Negative errno - An error occurred when reading status from the
+ *   switch.
  */
 int dma_port_flash_update_auth_status(struct tb_dma_port *dma, u32 *status)
 {
@@ -446,6 +455,8 @@ int dma_port_flash_update_auth_status(struct tb_dma_port *dma, u32 *status)
  * @dma: DMA control port
  *
  * Triggers power cycle to the switch.
+ *
+ * Return: %0 on success, negative errno otherwise.
  */
 int dma_port_power_cycle(struct tb_dma_port *dma)
 {

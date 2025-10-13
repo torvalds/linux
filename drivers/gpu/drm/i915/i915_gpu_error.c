@@ -685,6 +685,74 @@ static void err_print_guc_ctb(struct drm_i915_error_state_buf *m,
 		   ctb->head, ctb->tail, ctb->desc_offset, ctb->cmds_offset, ctb->size);
 }
 
+/* This list includes registers that are useful in debugging GuC hangs. */
+const struct {
+	u32 start;
+	u32 count;
+} guc_hw_reg_state[] = {
+	{ 0xc0b0, 2 },
+	{ 0xc000, 65 },
+	{ 0xc140, 1 },
+	{ 0xc180, 16 },
+	{ 0xc1dc, 10 },
+	{ 0xc300, 79 },
+	{ 0xc4b4, 47 },
+	{ 0xc574, 1 },
+	{ 0xc57c, 1 },
+	{ 0xc584, 11 },
+	{ 0xc5c0, 8 },
+	{ 0xc5e4, 1 },
+	{ 0xc5ec, 103 },
+	{ 0xc7c0, 1 },
+	{ 0xc0b0, 2 }
+};
+
+static u32 print_range_line(struct drm_i915_error_state_buf *m, u32 start, u32 *dump, u32 count)
+{
+	if (count >= 8) {
+		err_printf(m, "[0x%04x] 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x\n",
+			   start, dump[0], dump[1], dump[2], dump[3],
+			   dump[4], dump[5], dump[6], dump[7]);
+		return 8;
+	} else if (count >= 4) {
+		err_printf(m, "[0x%04x] 0x%08x 0x%08x 0x%08x 0x%08x\n",
+			   start, dump[0], dump[1], dump[2], dump[3]);
+		return 4;
+	} else if (count >= 2) {
+		err_printf(m, "[0x%04x] 0x%08x 0x%08x\n", start, dump[0], dump[1]);
+		return 2;
+	}
+
+	err_printf(m, "[0x%04x] 0x%08x\n", start, dump[0]);
+	return 1;
+}
+
+static void err_print_guc_hw_state(struct drm_i915_error_state_buf *m, u32 *hw_state)
+{
+	u32 total = 0;
+	int i;
+
+	if (!hw_state)
+		return;
+
+	err_printf(m, "GuC Register State:\n");
+
+	for (i = 0; i < ARRAY_SIZE(guc_hw_reg_state); i++) {
+		u32 entry = 0;
+
+		while (entry < guc_hw_reg_state[i].count) {
+			u32 start = guc_hw_reg_state[i].start + entry * sizeof(u32);
+			u32 count = guc_hw_reg_state[i].count - entry;
+			u32 *values = hw_state + total + entry;
+
+			entry += print_range_line(m, start, values, count);
+		}
+
+		GEM_BUG_ON(entry != guc_hw_reg_state[i].count);
+		total += entry;
+	}
+}
+
 static void err_print_uc(struct drm_i915_error_state_buf *m,
 			 const struct intel_uc_coredump *error_uc)
 {
@@ -693,6 +761,7 @@ static void err_print_uc(struct drm_i915_error_state_buf *m,
 	intel_uc_fw_dump(&error_uc->guc_fw, &p);
 	intel_uc_fw_dump(&error_uc->huc_fw, &p);
 	err_printf(m, "GuC timestamp: 0x%08x\n", error_uc->guc.timestamp);
+	err_print_guc_hw_state(m, error_uc->guc.hw_state);
 	intel_gpu_error_print_vma(m, NULL, error_uc->guc.vma_log);
 	err_printf(m, "GuC CTB fence: %d\n", error_uc->guc.last_fence);
 	err_print_guc_ctb(m, "Send", error_uc->guc.ctb + 0);
@@ -1025,6 +1094,7 @@ static void cleanup_uc(struct intel_uc_coredump *uc)
 	kfree(uc->huc_fw.file_wanted.path);
 	i915_vma_coredump_free(uc->guc.vma_log);
 	i915_vma_coredump_free(uc->guc.vma_ctb);
+	kfree(uc->guc.hw_state);
 
 	kfree(uc);
 }
@@ -1721,6 +1791,37 @@ static void gt_record_guc_ctb(struct intel_ctb_coredump *saved,
 	saved->cmds_offset = ((void *)ctb->cmds) - blob_ptr;
 }
 
+static u32 read_guc_state_reg(struct intel_uncore *uncore, int range, int count)
+{
+	GEM_BUG_ON(range >= ARRAY_SIZE(guc_hw_reg_state));
+	GEM_BUG_ON(count >= guc_hw_reg_state[range].count);
+
+	return intel_uncore_read(uncore,
+				 _MMIO(guc_hw_reg_state[range].start + count * sizeof(u32)));
+}
+
+static void gt_record_guc_hw_state(struct intel_uncore *uncore,
+				   struct intel_uc_coredump *error_uc)
+{
+	u32 *hw_state;
+	u32 count = 0;
+	int i, j;
+
+	for (i = 0; i < ARRAY_SIZE(guc_hw_reg_state); i++)
+		count += guc_hw_reg_state[i].count;
+
+	hw_state = kcalloc(count, sizeof(u32), ALLOW_FAIL);
+	if (!hw_state)
+		return;
+
+	count = 0;
+	for (i = 0; i < ARRAY_SIZE(guc_hw_reg_state); i++)
+		for (j = 0; j < guc_hw_reg_state[i].count; j++)
+			hw_state[count++] = read_guc_state_reg(uncore, i, j);
+
+	error_uc->guc.hw_state = hw_state;
+}
+
 static struct intel_uc_coredump *
 gt_record_uc(struct intel_gt_coredump *gt,
 	     struct i915_vma_compress *compress)
@@ -1755,6 +1856,7 @@ gt_record_uc(struct intel_gt_coredump *gt,
 			  uc->guc.ct.ctbs.send.desc, (struct intel_guc *)&uc->guc);
 	gt_record_guc_ctb(error_uc->guc.ctb + 1, &uc->guc.ct.ctbs.recv,
 			  uc->guc.ct.ctbs.send.desc, (struct intel_guc *)&uc->guc);
+	gt_record_guc_hw_state(gt->_gt->uncore, error_uc);
 
 	return error_uc;
 }
@@ -2445,11 +2547,11 @@ static const struct file_operations i915_error_state_fops = {
 
 void i915_gpu_error_debugfs_register(struct drm_i915_private *i915)
 {
-	struct drm_minor *minor = i915->drm.primary;
+	struct dentry *debugfs_root = i915->drm.debugfs_root;
 
-	debugfs_create_file("i915_error_state", 0644, minor->debugfs_root, i915,
+	debugfs_create_file("i915_error_state", 0644, debugfs_root, i915,
 			    &i915_error_state_fops);
-	debugfs_create_file("i915_gpu_info", 0644, minor->debugfs_root, i915,
+	debugfs_create_file("i915_gpu_info", 0644, debugfs_root, i915,
 			    &i915_gpu_info_fops);
 }
 

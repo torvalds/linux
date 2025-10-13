@@ -74,7 +74,7 @@ struct attribute_group psp_security_attr_group = {
 	.is_visible = psp_security_is_visible,
 };
 
-static int psp_poulate_hsti(struct psp_device *psp)
+static int psp_populate_hsti(struct psp_device *psp)
 {
 	struct hsti_request *req;
 	int ret;
@@ -84,11 +84,11 @@ static int psp_poulate_hsti(struct psp_device *psp)
 		return 0;
 
 	/* Allocate command-response buffer */
-	req = kzalloc(sizeof(*req), GFP_KERNEL | __GFP_ZERO);
+	req = kzalloc(sizeof(*req), GFP_KERNEL);
 	if (!req)
 		return -ENOMEM;
 
-	req->header.payload_size = sizeof(req);
+	req->header.payload_size = sizeof(*req);
 
 	ret = psp_send_platform_access_msg(PSP_CMD_HSTI_QUERY, (struct psp_request *)req);
 	if (ret)
@@ -114,7 +114,7 @@ int psp_init_hsti(struct psp_device *psp)
 	int ret;
 
 	if (PSP_FEATURE(psp, HSTI)) {
-		ret = psp_poulate_hsti(psp);
+		ret = psp_populate_hsti(psp);
 		if (ret)
 			return ret;
 	}

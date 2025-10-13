@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
+subdir-y += axis
 subdir-y += google
 
 dtb-$(CONFIG_ARCH_EXYNOS) += \

@@ -291,6 +291,32 @@ out:
 	return wc_index;
 }
 
+void mana_drain_gsi_sqs(struct mana_ib_dev *mdev)
+{
+	struct mana_ib_qp *qp = mana_get_qp_ref(mdev, MANA_GSI_QPN, false);
+	struct ud_sq_shadow_wqe *shadow_wqe;
+	struct mana_ib_cq *cq;
+	unsigned long flags;
+
+	if (!qp)
+		return;
+
+	cq = container_of(qp->ibqp.send_cq, struct mana_ib_cq, ibcq);
+
+	spin_lock_irqsave(&cq->cq_lock, flags);
+	while ((shadow_wqe = shadow_queue_get_next_to_complete(&qp->shadow_sq))
+			!= NULL) {
+		shadow_wqe->header.error_code = IB_WC_GENERAL_ERR;
+		shadow_queue_advance_next_to_complete(&qp->shadow_sq);
+	}
+	spin_unlock_irqrestore(&cq->cq_lock, flags);
+
+	if (cq->ibcq.comp_handler)
+		cq->ibcq.comp_handler(&cq->ibcq, cq->ibcq.cq_context);
+
+	mana_put_qp_ref(qp);
+}
+
 int mana_ib_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc)
 {
 	struct mana_ib_cq *cq = container_of(ibcq, struct mana_ib_cq, ibcq);

@@ -41,6 +41,7 @@ struct iris_inst;
 #define SIZE_SLIST_BUF_H265 (BIT(10))
 #define H265_DISPLAY_BUF_SIZE (3072)
 #define H265_NUM_FRM_INFO (48)
+#define SIZE_ONE_SLICE_BUF 256
 
 #define VP9_NUM_FRAME_INFO_BUF 32
 #define VP9_NUM_PROBABILITY_TABLE_BUF (VP9_NUM_FRAME_INFO_BUF + 4)
@@ -79,6 +80,26 @@ struct iris_inst;
 #define MAX_SE_NBR_CTRL_LCU64_LINE_BUFFER_SIZE	16
 #define MAX_PE_NBR_DATA_LCU64_LINE_BUFFER_SIZE	384
 #define MAX_FE_NBR_DATA_LUMA_LINE_BUFFER_SIZE	640
+
+#define SIZE_SLICE_CMD_BUFFER (ALIGN(20480, 256))
+#define SIZE_SPS_PPS_SLICE_HDR (2048 + 4096)
+#define SIZE_BSE_SLICE_CMD_BUF ((((8192 << 2) + 7) & (~7)) * 3)
+#define SIZE_LAMBDA_LUT (256 * 11)
+
+#define HFI_COL_FMT_NV12C_Y_TILE_HEIGHT (8)
+#define HFI_COL_FMT_NV12C_Y_TILE_WIDTH (32)
+#define HFI_COL_FMT_TP10C_Y_TILE_HEIGHT (4)
+#define HFI_COL_FMT_TP10C_Y_TILE_WIDTH (48)
+
+#define IRIS_METADATA_STRIDE_MULTIPLE 64
+#define IRIS_METADATA_HEIGHT_MULTIPLE 16
+
+#define HFI_BUFFER_ARP_ENC 204800
+
+#define MAX_WIDTH 4096
+#define MAX_HEIGHT 2304
+#define NUM_MBS_4K (DIV_ROUND_UP(MAX_WIDTH, 16) * DIV_ROUND_UP(MAX_HEIGHT, 16))
+#define NUM_MBS_720P	(((ALIGN(1280, 16)) >> 4) * ((ALIGN(736, 16)) >> 4))
 
 static inline u32 size_h264d_lb_fe_top_data(u32 frame_width)
 {
@@ -125,7 +146,8 @@ static inline u32 size_h264d_qp(u32 frame_width, u32 frame_height)
 	return DIV_ROUND_UP(frame_width, 64) * DIV_ROUND_UP(frame_height, 64) * 128;
 }
 
-int iris_vpu_buf_size(struct iris_inst *inst, enum iris_buffer_type buffer_type);
+u32 iris_vpu_buf_size(struct iris_inst *inst, enum iris_buffer_type buffer_type);
+u32 iris_vpu33_buf_size(struct iris_inst *inst, enum iris_buffer_type buffer_type);
 int iris_vpu_buf_count(struct iris_inst *inst, enum iris_buffer_type buffer_type);
 
 #endif

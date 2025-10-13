@@ -115,7 +115,7 @@ int vchiq_mmal_component_disable(struct vchiq_mmal_instance *instance,
 
 /* enable a mmal port
  *
- * enables a port and if a buffer callback provided enque buffer
+ * enables a port and, if a buffer callback provided, enqueues buffer
  * headers as appropriate for the port.
  */
 int vchiq_mmal_port_enable(struct vchiq_mmal_instance *instance,

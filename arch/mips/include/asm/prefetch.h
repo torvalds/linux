@@ -42,7 +42,7 @@
 #define Pref_WriteBackInvalidate	25
 #define Pref_PrepareForStore		30
 
-#ifdef __ASSEMBLY__
+#ifdef __ASSEMBLER__
 
 	.macro	__pref hint addr
 #ifdef CONFIG_CPU_HAS_PREFETCH

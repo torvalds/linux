@@ -14,11 +14,11 @@ LDLIBS+=-lpthread
 include ../../lib.mk
 
 $(OUTPUT)/basic-gcs: basic-gcs.c
-	$(CC) -g -fno-asynchronous-unwind-tables -fno-ident -s -Os -nostdlib \
-		-static -include ../../../../include/nolibc/nolibc.h \
+	$(CC) $(CFLAGS) -fno-asynchronous-unwind-tables -fno-ident -s -nostdlib -nostdinc \
+		-static -I../../../../include/nolibc -include ../../../../include/nolibc/nolibc.h \
 		-I../../../../../usr/include \
 		-std=gnu99 -I../.. -g \
-		-ffreestanding -Wall $^ -o $@ -lgcc
+		-ffreestanding $^ -o $@ -lgcc
 
 $(OUTPUT)/gcs-stress-thread: gcs-stress-thread.S
 	$(CC) -nostdlib $^ -o $@

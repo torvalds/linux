@@ -63,7 +63,7 @@ static int test_btf_dump_case(int n, struct btf_dump_test_case *t)
 
 	/* tests with t->known_ptr_sz have no "long" or "unsigned long" type,
 	 * so it's impossible to determine correct pointer size; but if they
-	 * do, it should be 8 regardless of host architecture, becaues BPF
+	 * do, it should be 8 regardless of host architecture, because BPF
 	 * target is always 64-bit
 	 */
 	if (!t->known_ptr_sz) {

@@ -1,0 +1,223 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/silabs,si5341.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Silicon Labs Si5340/1/2/4/5 programmable i2c clock generator
+
+maintainers:
+  - Mike Looijmans <mike.looijmans@topic.nl>
+
+description: >
+  Silicon Labs Si5340, Si5341 Si5342, Si5344 and Si5345 programmable i2c clock
+  generator.
+
+  Reference
+  [1] Si5341 Data Sheet
+      https://www.silabs.com/documents/public/data-sheets/Si5341-40-D-DataSheet.pdf
+  [2] Si5341 Reference Manual
+      https://www.silabs.com/documents/public/reference-manuals/Si5341-40-D-RM.pdf
+  [3] Si5345 Reference Manual
+      https://www.silabs.com/documents/public/reference-manuals/Si5345-44-42-D-RM.pdf
+
+  The Si5341 and Si5340 are programmable i2c clock generators with up to 10 output
+  clocks. The chip contains a PLL that sources 5 (or 4) multisynth clocks, which
+  in turn can be directed to any of the 10 (or 4) outputs through a divider.
+  The internal structure of the clock generators can be found in [2].
+  The Si5345 is similar to the Si5341 with the addition of fractional input
+  dividers and automatic input selection, as described in [3].
+  The Si5342 and Si5344 are smaller versions of the Si5345, with 2 or 4 outputs.
+
+  The driver can be used in "as is" mode, reading the current settings from the
+  chip at boot, in case you have a (pre-)programmed device. If the PLL is not
+  configured when the driver probes, it assumes the driver must fully initialize
+  it.
+
+  The device type, speed grade and revision are determined runtime by probing.
+
+properties:
+  compatible:
+    enum:
+      - silabs,si5340
+      - silabs,si5341
+      - silabs,si5342
+      - silabs,si5344
+      - silabs,si5345
+
+  reg:
+    maxItems: 1
+
+  "#clock-cells":
+    const: 2
+    description: >
+      The first value is "0" for outputs, "1" for synthesizers.
+
+      The second value is the output or synthesizer index.
+
+  "#address-cells":
+    const: 1
+
+  "#size-cells":
+    const: 0
+
+  clocks:
+    minItems: 1
+    maxItems: 4
+
+  clock-names:
+    minItems: 1
+    items:
+      - const: xtal
+      - const: in0
+      - const: in1
+      - const: in2
+
+  clock-output-names: true
+
+  interrupts:
+    maxItems: 1
+    description: Interrupt for INTRb pin
+
+  vdd-supply:
+    description: Regulator node for VDD
+
+  vdda-supply:
+    description: Regulator node for VDDA
+
+  vdds-supply:
+    description: Regulator node for VDDS
+
+  silabs,pll-m-num:
+    description:
+      Numerator for PLL feedback divider. Must be such that the PLL output is in
+      the valid range. For example, to create 14GHz from a 48MHz xtal, use
+      m-num=14000 and m-den=48. Only the fraction matters, using 3500 and 12
+      will deliver the exact same result. If these are not specified, and the
+      PLL is not yet programmed when the driver probes, the PLL will be set to
+      14GHz.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  silabs,pll-m-den:
+    description: Denominator for PLL feedback divider
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  silabs,reprogram:
+    description: Always perform soft-reset and reinitialize PLL
+    type: boolean
+
+  silabs,xaxb-ext-clk:
+    description: Use XA/XB pins as external reference clock
+    type: boolean
+
+  silabs,iovdd-33:
+    description: I2C lines use 3.3V thresholds
+    type: boolean
+
+patternProperties:
+  "^vddo[0-9]-supply$": true
+
+  "^out@[0-9]$":
+    description: >
+      Output-specific override nodes
+
+      Each of the clock outputs can be overwritten individually by using a child
+      node. If a child node for a clock output is not set, the configuration
+      remains unchanged.
+    type: object
+    additionalProperties: false
+
+    properties:
+      reg:
+        description: Number of clock output
+        maximum: 9
+
+      always-on:
+        description: Set to keep the clock output always running
+        type: boolean
+
+      silabs,format:
+        description: Output format
+        $ref: /schemas/types.yaml#/definitions/uint32
+        enum: [1, 2, 4]
+
+      silabs,common-mode:
+        description: Override output common mode
+        $ref: /schemas/types.yaml#/definitions/uint32
+
+      silabs,amplitude:
+        description: Override output amplitude
+        $ref: /schemas/types.yaml#/definitions/uint32
+
+      silabs,synth-master:
+        description: Allow dynamic multisynth rate control
+        type: boolean
+
+      silabs,disable-high:
+        description: Drive output HIGH when disabled
+        type: boolean
+
+    required:
+      - reg
+
+required:
+  - compatible
+  - reg
+  - "#clock-cells"
+  - "#address-cells"
+  - "#size-cells"
+  - clocks
+  - clock-names
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        clock-generator@74 {
+            reg = <0x74>;
+            compatible = "silabs,si5341";
+            #clock-cells = <2>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+            clocks = <&ref48>;
+            clock-names = "xtal";
+
+            silabs,pll-m-num = <14000>; /* PLL at 14.0 GHz */
+            silabs,pll-m-den = <48>;
+            silabs,reprogram; /* Chips are not programmed, always reset */
+
+            out@0 {
+                reg = <0>;
+                silabs,format = <1>; /* LVDS 3v3 */
+                silabs,common-mode = <3>;
+                silabs,amplitude = <3>;
+                silabs,synth-master;
+            };
+
+            /*
+              * Output 6 configuration:
+              *  LVDS 1v8
+              */
+            out@6 {
+                reg = <6>;
+                silabs,format = <1>; /* LVDS 1v8 */
+                silabs,common-mode = <13>;
+                silabs,amplitude = <3>;
+            };
+
+            /*
+              * Output 8 configuration:
+              *  HCSL 3v3
+              */
+            out@8 {
+                reg = <8>;
+                silabs,format = <2>;
+                silabs,common-mode = <11>;
+                silabs,amplitude = <3>;
+            };
+        };
+    };

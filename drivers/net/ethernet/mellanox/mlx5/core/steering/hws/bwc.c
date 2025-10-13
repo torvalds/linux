@@ -51,9 +51,6 @@ static void hws_bwc_matcher_init_attr(struct mlx5hws_bwc_matcher *bwc_matcher,
 				      u8 size_log_rx, u8 size_log_tx,
 				      struct mlx5hws_matcher_attr *attr)
 {
-	struct mlx5hws_bwc_matcher *first_matcher =
-		bwc_matcher->complex_first_bwc_matcher;
-
 	memset(attr, 0, sizeof(*attr));
 
 	attr->priority = priority;
@@ -66,9 +63,6 @@ static void hws_bwc_matcher_init_attr(struct mlx5hws_bwc_matcher *bwc_matcher,
 	attr->size[MLX5HWS_MATCHER_SIZE_TYPE_TX].rule.num_log = size_log_tx;
 	attr->resizable = true;
 	attr->max_num_of_at_attach = MLX5HWS_BWC_MATCHER_ATTACH_AT_NUM;
-
-	attr->isolated_matcher_end_ft_id =
-		first_matcher ? first_matcher->matcher->end_ft_id : 0;
 }
 
 static int
@@ -171,10 +165,16 @@ hws_bwc_matcher_move_all_simple(struct mlx5hws_bwc_matcher *bwc_matcher)
 
 static int hws_bwc_matcher_move_all(struct mlx5hws_bwc_matcher *bwc_matcher)
 {
-	if (!bwc_matcher->complex)
+	switch (bwc_matcher->matcher_type) {
+	case MLX5HWS_BWC_MATCHER_SIMPLE:
 		return hws_bwc_matcher_move_all_simple(bwc_matcher);
-
-	return mlx5hws_bwc_matcher_move_all_complex(bwc_matcher);
+	case MLX5HWS_BWC_MATCHER_COMPLEX_FIRST:
+		return mlx5hws_bwc_matcher_complex_move_first(bwc_matcher);
+	case MLX5HWS_BWC_MATCHER_COMPLEX_SUBMATCHER:
+		return mlx5hws_bwc_matcher_complex_move(bwc_matcher);
+	default:
+		return -EINVAL;
+	}
 }
 
 static int hws_bwc_matcher_move(struct mlx5hws_bwc_matcher *bwc_matcher)
@@ -249,6 +249,7 @@ int mlx5hws_bwc_matcher_create_simple(struct mlx5hws_bwc_matcher *bwc_matcher,
 				  bwc_matcher->tx_size.size_log,
 				  &attr);
 
+	bwc_matcher->matcher_type = MLX5HWS_BWC_MATCHER_SIMPLE;
 	bwc_matcher->priority = priority;
 
 	bwc_matcher->size_of_at_array = MLX5HWS_BWC_MATCHER_ATTACH_AT_NUM;
@@ -393,7 +394,7 @@ int mlx5hws_bwc_matcher_destroy(struct mlx5hws_bwc_matcher *bwc_matcher)
 			    "BWC matcher destroy: matcher still has %u RX and %u TX rules\n",
 			    rx_rules, tx_rules);
 
-	if (bwc_matcher->complex)
+	if (bwc_matcher->matcher_type == MLX5HWS_BWC_MATCHER_COMPLEX_FIRST)
 		mlx5hws_bwc_matcher_destroy_complex(bwc_matcher);
 	else
 		mlx5hws_bwc_matcher_destroy_simple(bwc_matcher);
@@ -651,7 +652,8 @@ int mlx5hws_bwc_rule_destroy_simple(struct mlx5hws_bwc_rule *bwc_rule)
 
 int mlx5hws_bwc_rule_destroy(struct mlx5hws_bwc_rule *bwc_rule)
 {
-	bool is_complex = !!bwc_rule->bwc_matcher->complex;
+	bool is_complex = bwc_rule->bwc_matcher->matcher_type ==
+			  MLX5HWS_BWC_MATCHER_COMPLEX_FIRST;
 	int ret = 0;
 
 	if (is_complex)
@@ -1147,7 +1149,7 @@ mlx5hws_bwc_rule_create(struct mlx5hws_bwc_matcher *bwc_matcher,
 
 	bwc_queue_idx = hws_bwc_gen_queue_idx(ctx);
 
-	if (bwc_matcher->complex)
+	if (bwc_matcher->matcher_type == MLX5HWS_BWC_MATCHER_COMPLEX_FIRST)
 		ret = mlx5hws_bwc_rule_create_complex(bwc_rule,
 						      params,
 						      flow_source,
@@ -1216,10 +1218,9 @@ int mlx5hws_bwc_rule_action_update(struct mlx5hws_bwc_rule *bwc_rule,
 		return -EINVAL;
 	}
 
-	/* For complex rule, the update should happen on the second matcher */
-	if (bwc_rule->isolated_bwc_rule)
-		return hws_bwc_rule_action_update(bwc_rule->isolated_bwc_rule,
-						  rule_actions);
-	else
-		return hws_bwc_rule_action_update(bwc_rule, rule_actions);
+	/* For complex rules, the update should happen on the last subrule. */
+	while (bwc_rule->next_subrule)
+		bwc_rule = bwc_rule->next_subrule;
+
+	return hws_bwc_rule_action_update(bwc_rule, rule_actions);
 }

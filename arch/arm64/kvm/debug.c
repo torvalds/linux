@@ -56,6 +56,9 @@ static void kvm_arm_setup_mdcr_el2(struct kvm_vcpu *vcpu)
 	if (!kvm_guest_owns_debug_regs(vcpu))
 		vcpu->arch.mdcr_el2 |= MDCR_EL2_TDA;
 
+	if (vcpu_has_nv(vcpu))
+		kvm_nested_setup_mdcr_el2(vcpu);
+
 	/* Write MDCR_EL2 directly if we're already at EL2 */
 	if (has_vhe())
 		write_sysreg(vcpu->arch.mdcr_el2, mdcr_el2);
@@ -243,29 +246,29 @@ void kvm_debug_handle_oslar(struct kvm_vcpu *vcpu, u64 val)
 	preempt_enable();
 }
 
+static bool skip_trbe_access(bool skip_condition)
+{
+	return (WARN_ON_ONCE(preemptible()) || skip_condition ||
+		is_protected_kvm_enabled() || !is_kvm_arm_initialised());
+}
+
 void kvm_enable_trbe(void)
 {
-	if (has_vhe() || is_protected_kvm_enabled() ||
-	    WARN_ON_ONCE(preemptible()))
-		return;
-
-	host_data_set_flag(TRBE_ENABLED);
+	if (!skip_trbe_access(has_vhe()))
+		host_data_set_flag(TRBE_ENABLED);
 }
 EXPORT_SYMBOL_GPL(kvm_enable_trbe);
 
 void kvm_disable_trbe(void)
 {
-	if (has_vhe() || is_protected_kvm_enabled() ||
-	    WARN_ON_ONCE(preemptible()))
-		return;
-
-	host_data_clear_flag(TRBE_ENABLED);
+	if (!skip_trbe_access(has_vhe()))
+		host_data_clear_flag(TRBE_ENABLED);
 }
 EXPORT_SYMBOL_GPL(kvm_disable_trbe);
 
 void kvm_tracing_set_el1_configuration(u64 trfcr_while_in_guest)
 {
-	if (is_protected_kvm_enabled() || WARN_ON_ONCE(preemptible()))
+	if (skip_trbe_access(false))
 		return;
 
 	if (has_vhe()) {

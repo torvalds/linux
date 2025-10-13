@@ -1029,11 +1029,33 @@ int dwc2_get_hwparams(struct dwc2_hsotg *hsotg)
 	return 0;
 }
 
+static int dwc2_limit_speed(struct dwc2_hsotg *hsotg)
+{
+	enum usb_device_speed usb_speed;
+
+	usb_speed = usb_get_maximum_speed(hsotg->dev);
+	switch (usb_speed) {
+	case USB_SPEED_LOW:
+		dev_err(hsotg->dev, "Maximum speed cannot be forced to low-speed\n");
+		return -EINVAL;
+	case USB_SPEED_FULL:
+		if (hsotg->params.speed == DWC2_SPEED_PARAM_LOW)
+			break;
+		hsotg->params.speed = DWC2_SPEED_PARAM_FULL;
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
 typedef void (*set_params_cb)(struct dwc2_hsotg *data);
 
 int dwc2_init_params(struct dwc2_hsotg *hsotg)
 {
 	set_params_cb set_params;
+	int ret;
 
 	dwc2_set_default_params(hsotg);
 	dwc2_get_device_properties(hsotg);
@@ -1050,6 +1072,10 @@ int dwc2_init_params(struct dwc2_hsotg *hsotg)
 			set_params(hsotg);
 		}
 	}
+
+	ret = dwc2_limit_speed(hsotg);
+	if (ret)
+		return ret;
 
 	dwc2_check_params(hsotg);
 

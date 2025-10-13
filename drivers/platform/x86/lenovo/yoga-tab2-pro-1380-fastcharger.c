@@ -255,6 +255,11 @@ static int yt2_1380_fc_pdev_probe(struct platform_device *pdev)
 	if (!serdev)
 		return -ENOMEM;
 
+	/* Propagate pdev-fwnode set by x86-android-tablets to serdev */
+	device_set_node(&serdev->dev, dev_fwnode(&pdev->dev));
+	/* The fwnode is a managed node, so it will be auto-put on serdev_device_put() */
+	fwnode_handle_get(dev_fwnode(&serdev->dev));
+
 	ret = serdev_device_add(serdev);
 	if (ret) {
 		serdev_device_put(serdev);

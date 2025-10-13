@@ -174,7 +174,7 @@ examples:
 
             channel@1 {
                 reg = <1>;
-                output-range-microvolt= <0 10000000>;
+                output-range-microvolt = <0 10000000>;
             };
         };
     };

@@ -37,7 +37,6 @@ static int snd_gf1_get_single(struct snd_kcontrol *kcontrol, struct snd_ctl_elem
 static int snd_gf1_put_single(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_gus_card *gus = snd_kcontrol_chip(kcontrol);
-	unsigned long flags;
 	int shift = kcontrol->private_value & 0xff;
 	int invert = (kcontrol->private_value >> 8) & 1;
 	int change;
@@ -47,13 +46,12 @@ static int snd_gf1_put_single(struct snd_kcontrol *kcontrol, struct snd_ctl_elem
 	if (invert)
 		nval ^= 1;
 	nval <<= shift;
-	spin_lock_irqsave(&gus->reg_lock, flags);
+	guard(spinlock_irqsave)(&gus->reg_lock);
 	oval = gus->mix_cntrl_reg;
 	nval = (oval & ~(1 << shift)) | nval;
 	change = nval != oval;
 	outb(gus->mix_cntrl_reg = nval, GUSP(gus, MIXCNTRLREG));
 	outb(gus->gf1.active_voice = 0, GUSP(gus, GF1PAGE));
-	spin_unlock_irqrestore(&gus->reg_lock, flags);
 	return change;
 }
 
@@ -75,14 +73,12 @@ static int snd_ics_info_double(struct snd_kcontrol *kcontrol, struct snd_ctl_ele
 static int snd_ics_get_double(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_gus_card *gus = snd_kcontrol_chip(kcontrol);
-	unsigned long flags;
 	int addr = kcontrol->private_value & 0xff;
 	unsigned char left, right;
 	
-	spin_lock_irqsave(&gus->reg_lock, flags);
+	guard(spinlock_irqsave)(&gus->reg_lock);
 	left = gus->gf1.ics_regs[addr][0];
 	right = gus->gf1.ics_regs[addr][1];
-	spin_unlock_irqrestore(&gus->reg_lock, flags);
 	ucontrol->value.integer.value[0] = left & 127;
 	ucontrol->value.integer.value[1] = right & 127;
 	return 0;
@@ -91,14 +87,13 @@ static int snd_ics_get_double(struct snd_kcontrol *kcontrol, struct snd_ctl_elem
 static int snd_ics_put_double(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_gus_card *gus = snd_kcontrol_chip(kcontrol);
-	unsigned long flags;
 	int addr = kcontrol->private_value & 0xff;
 	int change;
 	unsigned char val1, val2, oval1, oval2;
 	
 	val1 = ucontrol->value.integer.value[0] & 127;
 	val2 = ucontrol->value.integer.value[1] & 127;
-	spin_lock_irqsave(&gus->reg_lock, flags);
+	guard(spinlock_irqsave)(&gus->reg_lock);
 	oval1 = gus->gf1.ics_regs[addr][0];
 	oval2 = gus->gf1.ics_regs[addr][1];
 	change = val1 != oval1 || val2 != oval2;
@@ -116,7 +111,6 @@ static int snd_ics_put_double(struct snd_kcontrol *kcontrol, struct snd_ctl_elem
 	outb(2, GUSP(gus, MIXDATAPORT));
 	outb(addr | 3, GUSP(gus, MIXCNTRLPORT));
 	outb((unsigned char) val2, GUSP(gus, MIXDATAPORT));
-	spin_unlock_irqrestore(&gus->reg_lock, flags);
 	return change;
 }
 

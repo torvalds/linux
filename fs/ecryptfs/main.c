@@ -106,15 +106,14 @@ static int ecryptfs_init_lower_file(struct dentry *dentry,
 				    struct file **lower_file)
 {
 	const struct cred *cred = current_cred();
-	const struct path *path = ecryptfs_dentry_to_lower_path(dentry);
+	struct path path = ecryptfs_lower_path(dentry);
 	int rc;
 
-	rc = ecryptfs_privileged_open(lower_file, path->dentry, path->mnt,
-				      cred);
+	rc = ecryptfs_privileged_open(lower_file, path.dentry, path.mnt, cred);
 	if (rc) {
 		printk(KERN_ERR "Error opening lower file "
 		       "for lower_dentry [0x%p] and lower_mnt [0x%p]; "
-		       "rc = [%d]\n", path->dentry, path->mnt, rc);
+		       "rc = [%d]\n", path.dentry, path.mnt, rc);
 		(*lower_file) = NULL;
 	}
 	return rc;
@@ -437,7 +436,6 @@ static int ecryptfs_get_tree(struct fs_context *fc)
 	struct ecryptfs_fs_context *ctx = fc->fs_private;
 	struct ecryptfs_sb_info *sbi = fc->s_fs_info;
 	struct ecryptfs_mount_crypt_stat *mount_crypt_stat;
-	struct ecryptfs_dentry_info *root_info;
 	const char *err = "Getting sb failed";
 	struct inode *inode;
 	struct path path;
@@ -543,14 +541,8 @@ static int ecryptfs_get_tree(struct fs_context *fc)
 		goto out_free;
 	}
 
-	rc = -ENOMEM;
-	root_info = kmem_cache_zalloc(ecryptfs_dentry_info_cache, GFP_KERNEL);
-	if (!root_info)
-		goto out_free;
-
-	/* ->kill_sb() will take care of root_info */
-	ecryptfs_set_dentry_private(s->s_root, root_info);
-	root_info->lower_path = path;
+	ecryptfs_set_dentry_lower(s->s_root, path.dentry);
+	ecryptfs_superblock_to_private(s)->lower_mnt = path.mnt;
 
 	s->s_flags |= SB_ACTIVE;
 	fc->root = dget(s->s_root);
@@ -580,6 +572,7 @@ static void ecryptfs_kill_block_super(struct super_block *sb)
 	kill_anon_super(sb);
 	if (!sb_info)
 		return;
+	mntput(sb_info->lower_mnt);
 	ecryptfs_destroy_mount_crypt_stat(&sb_info->mount_crypt_stat);
 	kmem_cache_free(ecryptfs_sb_info_cache, sb_info);
 }
@@ -666,11 +659,6 @@ static struct ecryptfs_cache_info {
 		.cache = &ecryptfs_file_info_cache,
 		.name = "ecryptfs_file_cache",
 		.size = sizeof(struct ecryptfs_file_info),
-	},
-	{
-		.cache = &ecryptfs_dentry_info_cache,
-		.name = "ecryptfs_dentry_info_cache",
-		.size = sizeof(struct ecryptfs_dentry_info),
 	},
 	{
 		.cache = &ecryptfs_inode_info_cache,

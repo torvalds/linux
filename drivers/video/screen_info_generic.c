@@ -5,6 +5,8 @@
 #include <linux/screen_info.h>
 #include <linux/string.h>
 
+#include <video/pixel_format.h>
+
 static void resource_init_named(struct resource *r,
 				resource_size_t start, resource_size_t size,
 				const char *name, unsigned int flags)
@@ -180,3 +182,56 @@ u32 __screen_info_lfb_bits_per_pixel(const struct screen_info *si)
 	return bits_per_pixel;
 }
 EXPORT_SYMBOL(__screen_info_lfb_bits_per_pixel);
+
+static int __screen_info_lfb_pixel_format(const struct screen_info *si, struct pixel_format *f)
+{
+	u32 bits_per_pixel = __screen_info_lfb_bits_per_pixel(si);
+
+	if (bits_per_pixel > U8_MAX)
+		return -EINVAL;
+
+	f->bits_per_pixel = bits_per_pixel;
+
+	if (si->lfb_depth > 8) {
+		f->indexed = false;
+		f->alpha.offset = 0;
+		f->alpha.length = 0;
+		f->red.offset = si->red_pos;
+		f->red.length = si->red_size;
+		f->green.offset = si->green_pos;
+		f->green.length = si->green_size;
+		f->blue.offset = si->blue_pos;
+		f->blue.length = si->blue_size;
+	} else {
+		f->indexed = true;
+		f->index.offset = 0;
+		f->index.length = si->lfb_depth;
+	}
+
+	return 0;
+}
+
+/**
+ * screen_info_pixel_format - Returns the screen-info format as pixel-format description
+ *
+ * @si: the screen_info
+ * @f: pointer to return pixel-format description
+ *
+ * Returns:
+ * 0 on success, or a negative errno code otherwise.
+ */
+int screen_info_pixel_format(const struct screen_info *si, struct pixel_format *f)
+{
+	unsigned int type = screen_info_video_type(si);
+
+	/* TODO: Add support for additional types as needed. */
+	switch (type) {
+	case VIDEO_TYPE_VLFB:
+	case VIDEO_TYPE_EFI:
+		return __screen_info_lfb_pixel_format(si, f);
+	}
+
+	/* not supported */
+	return -EINVAL;
+}
+EXPORT_SYMBOL(screen_info_pixel_format);

@@ -153,7 +153,7 @@ void btrfs_add_inode_defrag(struct btrfs_inode *inode, u32 extent_thresh)
 }
 
 /*
- * Pick the defragable inode that we want, if it doesn't exist, we will get the
+ * Pick the defraggable inode that we want, if it doesn't exist, we will get the
  * next one.
  */
 static struct inode_defrag *btrfs_pick_defrag_inode(
@@ -924,7 +924,7 @@ again:
 			folio_put(folio);
 			goto again;
 		}
-		if (!folio_test_uptodate(folio)) {
+		if (unlikely(!folio_test_uptodate(folio))) {
 			folio_unlock(folio);
 			folio_put(folio);
 			return ERR_PTR(-EIO);

@@ -1188,6 +1188,10 @@ static int __init pci_base_init(void)
 	if (rc)
 		goto out_find;
 
+	rc = zpci_fw_sysfs_init();
+	if (rc)
+		goto out_find;
+
 	s390_pci_initialized = 1;
 	return 0;
 

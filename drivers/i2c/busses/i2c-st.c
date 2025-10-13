@@ -152,7 +152,7 @@ struct st_i2c_timings {
 /**
  * struct st_i2c_client - client specific data
  * @addr: 8-bit target addr, including r/w bit
- * @count: number of bytes to be transfered
+ * @count: number of bytes to be transferred
  * @xfered: number of bytes already transferred
  * @buf: data buffer
  * @result: result of the transfer

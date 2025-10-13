@@ -309,7 +309,7 @@ void gfs2_lm(struct gfs2_sbd *sdp, const char *fmt, ...)
 	va_end(args);
 }
 
-int gfs2_withdraw(struct gfs2_sbd *sdp)
+void gfs2_withdraw(struct gfs2_sbd *sdp)
 {
 	struct lm_lockstruct *ls = &sdp->sd_lockstruct;
 	const struct lm_lockops *lm = ls->ls_ops;
@@ -322,7 +322,7 @@ int gfs2_withdraw(struct gfs2_sbd *sdp)
 				wait_on_bit(&sdp->sd_flags,
 					    SDF_WITHDRAW_IN_PROG,
 					    TASK_UNINTERRUPTIBLE);
-				return -1;
+				return;
 			}
 			new = old | BIT(SDF_WITHDRAWN) | BIT(SDF_WITHDRAW_IN_PROG);
 		} while (unlikely(!try_cmpxchg(&sdp->sd_flags, &old, new)));
@@ -350,8 +350,6 @@ int gfs2_withdraw(struct gfs2_sbd *sdp)
 
 	if (sdp->sd_args.ar_errors == GFS2_ERRORS_PANIC)
 		panic("GFS2: fsid=%s: panic requested\n", sdp->sd_fsname);
-
-	return -1;
 }
 
 /*
@@ -473,46 +471,36 @@ void gfs2_consist_rgrpd_i(struct gfs2_rgrpd *rgd,
 
 /*
  * gfs2_meta_check_ii - Flag a magic number consistency error and withdraw
- * Returns: -1 if this call withdrew the machine,
- *          -2 if it was already withdrawn
  */
 
-int gfs2_meta_check_ii(struct gfs2_sbd *sdp, struct buffer_head *bh,
-		       const char *function, char *file,
-		       unsigned int line)
+void gfs2_meta_check_ii(struct gfs2_sbd *sdp, struct buffer_head *bh,
+			const char *function, char *file,
+			unsigned int line)
 {
-	int me;
-
 	gfs2_lm(sdp,
 		"fatal: invalid metadata block - "
 		"bh = %llu (bad magic number), "
 		"function = %s, file = %s, line = %u\n",
 		(unsigned long long)bh->b_blocknr,
 		function, file, line);
-	me = gfs2_withdraw(sdp);
-	return (me) ? -1 : -2;
+	gfs2_withdraw(sdp);
 }
 
 /*
  * gfs2_metatype_check_ii - Flag a metadata type consistency error and withdraw
- * Returns: -1 if this call withdrew the machine,
- *          -2 if it was already withdrawn
  */
 
-int gfs2_metatype_check_ii(struct gfs2_sbd *sdp, struct buffer_head *bh,
-			   u16 type, u16 t, const char *function,
-			   char *file, unsigned int line)
+void gfs2_metatype_check_ii(struct gfs2_sbd *sdp, struct buffer_head *bh,
+			    u16 type, u16 t, const char *function,
+			    char *file, unsigned int line)
 {
-	int me;
-
 	gfs2_lm(sdp,
 		"fatal: invalid metadata block - "
 		"bh = %llu (type: exp=%u, found=%u), "
 		"function = %s, file = %s, line = %u\n",
 		(unsigned long long)bh->b_blocknr, type, t,
 		function, file, line);
-	me = gfs2_withdraw(sdp);
-	return (me) ? -1 : -2;
+	gfs2_withdraw(sdp);
 }
 
 /*
@@ -521,14 +509,14 @@ int gfs2_metatype_check_ii(struct gfs2_sbd *sdp, struct buffer_head *bh,
  *          0 if it was already withdrawn
  */
 
-int gfs2_io_error_i(struct gfs2_sbd *sdp, const char *function, char *file,
-		    unsigned int line)
+void gfs2_io_error_i(struct gfs2_sbd *sdp, const char *function, char *file,
+		     unsigned int line)
 {
 	gfs2_lm(sdp,
 		"fatal: I/O error - "
 		"function = %s, file = %s, line = %u\n",
 		function, file, line);
-	return gfs2_withdraw(sdp);
+	gfs2_withdraw(sdp);
 }
 
 /*

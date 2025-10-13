@@ -45,11 +45,15 @@ properties:
     description:
       Disable CLKOUT clock, CLKOUT clock default is enabled after hardware reset.
 
-
   realtek,aldps-enable:
     type: boolean
     description:
       Enable ALDPS mode, ALDPS mode default is disabled after hardware reset.
+
+  wakeup-source:
+    type: boolean
+    description:
+      Enable Wake-on-LAN support for the RTL8211F PHY.
 
 unevaluatedProperties: false
 

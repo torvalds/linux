@@ -87,7 +87,7 @@ int hfs_cat_create(u32 cnid, struct inode *dir, const struct qstr *str, struct i
 	int entry_size;
 	int err;
 
-	hfs_dbg(CAT_MOD, "create_cat: %s,%u(%d)\n",
+	hfs_dbg("name %s, cnid %u, i_nlink %d\n",
 		str->name, cnid, inode->i_nlink);
 	if (dir->i_size >= HFS_MAX_VALENCE)
 		return -ENOSPC;
@@ -211,6 +211,124 @@ int hfs_cat_find_brec(struct super_block *sb, u32 cnid,
 	return hfs_brec_find(fd);
 }
 
+static inline
+void hfs_set_next_unused_CNID(struct super_block *sb,
+				u32 deleted_cnid, u32 found_cnid)
+{
+	if (found_cnid < HFS_FIRSTUSER_CNID) {
+		atomic64_cmpxchg(&HFS_SB(sb)->next_id,
+				 deleted_cnid + 1, HFS_FIRSTUSER_CNID);
+	} else {
+		atomic64_cmpxchg(&HFS_SB(sb)->next_id,
+				 deleted_cnid + 1, found_cnid + 1);
+	}
+}
+
+/*
+ * hfs_correct_next_unused_CNID()
+ *
+ * Correct the next unused CNID of Catalog Tree.
+ */
+static
+int hfs_correct_next_unused_CNID(struct super_block *sb, u32 cnid)
+{
+	struct hfs_btree *cat_tree;
+	struct hfs_bnode *node;
+	s64 leaf_head;
+	s64 leaf_tail;
+	s64 node_id;
+
+	hfs_dbg("cnid %u, next_id %lld\n",
+		cnid, atomic64_read(&HFS_SB(sb)->next_id));
+
+	if ((cnid + 1) < atomic64_read(&HFS_SB(sb)->next_id)) {
+		/* next ID should be unchanged */
+		return 0;
+	}
+
+	cat_tree = HFS_SB(sb)->cat_tree;
+	leaf_head = cat_tree->leaf_head;
+	leaf_tail = cat_tree->leaf_tail;
+
+	if (leaf_head > leaf_tail) {
+		pr_err("node is corrupted: leaf_head %lld, leaf_tail %lld\n",
+			leaf_head, leaf_tail);
+		return -ERANGE;
+	}
+
+	node = hfs_bnode_find(cat_tree, leaf_tail);
+	if (IS_ERR(node)) {
+		pr_err("fail to find leaf node: node ID %lld\n",
+			leaf_tail);
+		return -ENOENT;
+	}
+
+	node_id = leaf_tail;
+
+	do {
+		int i;
+
+		if (node_id != leaf_tail) {
+			node = hfs_bnode_find(cat_tree, node_id);
+			if (IS_ERR(node))
+				return -ENOENT;
+		}
+
+		hfs_dbg("node %lld, leaf_tail %lld, leaf_head %lld\n",
+			node_id, leaf_tail, leaf_head);
+
+		hfs_bnode_dump(node);
+
+		for (i = node->num_recs - 1; i >= 0; i--) {
+			hfs_cat_rec rec;
+			u16 off, len, keylen;
+			int entryoffset;
+			int entrylength;
+			u32 found_cnid;
+
+			len = hfs_brec_lenoff(node, i, &off);
+			keylen = hfs_brec_keylen(node, i);
+			if (keylen == 0) {
+				pr_err("fail to get the keylen: "
+					"node_id %lld, record index %d\n",
+					node_id, i);
+				return -EINVAL;
+			}
+
+			entryoffset = off + keylen;
+			entrylength = len - keylen;
+
+			if (entrylength > sizeof(rec)) {
+				pr_err("unexpected record length: "
+					"entrylength %d\n",
+					entrylength);
+				return -EINVAL;
+			}
+
+			hfs_bnode_read(node, &rec, entryoffset, entrylength);
+
+			if (rec.type == HFS_CDR_DIR) {
+				found_cnid = be32_to_cpu(rec.dir.DirID);
+				hfs_dbg("found_cnid %u\n", found_cnid);
+				hfs_set_next_unused_CNID(sb, cnid, found_cnid);
+				hfs_bnode_put(node);
+				return 0;
+			} else if (rec.type == HFS_CDR_FIL) {
+				found_cnid = be32_to_cpu(rec.file.FlNum);
+				hfs_dbg("found_cnid %u\n", found_cnid);
+				hfs_set_next_unused_CNID(sb, cnid, found_cnid);
+				hfs_bnode_put(node);
+				return 0;
+			}
+		}
+
+		hfs_bnode_put(node);
+
+		node_id = node->prev;
+	} while (node_id >= leaf_head);
+
+	return -ENOENT;
+}
 
 /*
  * hfs_cat_delete()
@@ -225,7 +343,7 @@ int hfs_cat_delete(u32 cnid, struct inode *dir, const struct qstr *str)
 	struct hfs_readdir_data *rd;
 	int res, type;
 
-	hfs_dbg(CAT_MOD, "delete_cat: %s,%u\n", str ? str->name : NULL, cnid);
+	hfs_dbg("name %s, cnid %u\n", str ? str->name : NULL, cnid);
 	sb = dir->i_sb;
 	res = hfs_find_init(HFS_SB(sb)->cat_tree, &fd);
 	if (res)
@@ -271,6 +389,11 @@ int hfs_cat_delete(u32 cnid, struct inode *dir, const struct qstr *str)
 	dir->i_size--;
 	inode_set_mtime_to_ts(dir, inode_set_ctime_current(dir));
 	mark_inode_dirty(dir);
+
+	res = hfs_correct_next_unused_CNID(sb, cnid);
+	if (res)
+		goto out;
+
 	res = 0;
 out:
 	hfs_find_exit(&fd);
@@ -294,7 +417,7 @@ int hfs_cat_move(u32 cnid, struct inode *src_dir, const struct qstr *src_name,
 	int entry_size, type;
 	int err;
 
-	hfs_dbg(CAT_MOD, "rename_cat: %u - %lu,%s - %lu,%s\n",
+	hfs_dbg("cnid %u - (ino %lu, name %s) - (ino %lu, name %s)\n",
 		cnid, src_dir->i_ino, src_name->name,
 		dst_dir->i_ino, dst_name->name);
 	sb = src_dir->i_sb;

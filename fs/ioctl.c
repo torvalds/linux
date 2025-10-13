@@ -41,7 +41,7 @@
  *
  * Returns 0 on success, -errno on error.
  */
-int vfs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+static int vfs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	int error = -ENOTTY;
 
@@ -54,7 +54,6 @@ int vfs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
  out:
 	return error;
 }
-EXPORT_SYMBOL(vfs_ioctl);
 
 static int ioctl_fibmap(struct file *filp, int __user *p)
 {
@@ -426,7 +425,7 @@ static int ioctl_file_dedupe_range(struct file *file,
 		goto out;
 	}
 
-	size = offsetof(struct file_dedupe_range, info[count]);
+	size = struct_size(same, info, count);
 	if (size > PAGE_SIZE) {
 		ret = -ENOMEM;
 		goto out;

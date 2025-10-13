@@ -327,7 +327,7 @@ next_slot:
 						    args->start - extent_offset,
 						    0, false);
 				ret = btrfs_inc_extent_ref(trans, &ref);
-				if (ret) {
+				if (unlikely(ret)) {
 					btrfs_abort_transaction(trans, ret);
 					break;
 				}
@@ -426,7 +426,7 @@ delete_extent_item:
 						    key.offset - extent_offset,
 						    0, false);
 				ret = btrfs_free_extent(trans, &ref);
-				if (ret) {
+				if (unlikely(ret)) {
 					btrfs_abort_transaction(trans, ret);
 					break;
 				}
@@ -443,7 +443,7 @@ delete_extent_item:
 
 			ret = btrfs_del_items(trans, root, path, del_slot,
 					      del_nr);
-			if (ret) {
+			if (unlikely(ret)) {
 				btrfs_abort_transaction(trans, ret);
 				break;
 			}
@@ -587,21 +587,20 @@ again:
 
 	leaf = path->nodes[0];
 	btrfs_item_key_to_cpu(leaf, &key, path->slots[0]);
-	if (key.objectid != ino ||
-	    key.type != BTRFS_EXTENT_DATA_KEY) {
+	if (unlikely(key.objectid != ino || key.type != BTRFS_EXTENT_DATA_KEY)) {
 		ret = -EINVAL;
 		btrfs_abort_transaction(trans, ret);
 		goto out;
 	}
 	fi = btrfs_item_ptr(leaf, path->slots[0],
 			    struct btrfs_file_extent_item);
-	if (btrfs_file_extent_type(leaf, fi) != BTRFS_FILE_EXTENT_PREALLOC) {
+	if (unlikely(btrfs_file_extent_type(leaf, fi) != BTRFS_FILE_EXTENT_PREALLOC)) {
 		ret = -EINVAL;
 		btrfs_abort_transaction(trans, ret);
 		goto out;
 	}
 	extent_end = key.offset + btrfs_file_extent_num_bytes(leaf, fi);
-	if (key.offset > start || extent_end < end) {
+	if (unlikely(key.offset > start || extent_end < end)) {
 		ret = -EINVAL;
 		btrfs_abort_transaction(trans, ret);
 		goto out;
@@ -676,7 +675,7 @@ again:
 			btrfs_release_path(path);
 			goto again;
 		}
-		if (ret < 0) {
+		if (unlikely(ret < 0)) {
 			btrfs_abort_transaction(trans, ret);
 			goto out;
 		}
@@ -704,7 +703,7 @@ again:
 		ref.ref_root = btrfs_root_id(root);
 		btrfs_init_data_ref(&ref, ino, orig_offset, 0, false);
 		ret = btrfs_inc_extent_ref(trans, &ref);
-		if (ret) {
+		if (unlikely(ret)) {
 			btrfs_abort_transaction(trans, ret);
 			goto out;
 		}
@@ -712,7 +711,7 @@ again:
 		if (split == start) {
 			key.offset = start;
 		} else {
-			if (start != key.offset) {
+			if (unlikely(start != key.offset)) {
 				ret = -EINVAL;
 				btrfs_abort_transaction(trans, ret);
 				goto out;
@@ -744,7 +743,7 @@ again:
 		del_slot = path->slots[0] + 1;
 		del_nr++;
 		ret = btrfs_free_extent(trans, &ref);
-		if (ret) {
+		if (unlikely(ret)) {
 			btrfs_abort_transaction(trans, ret);
 			goto out;
 		}
@@ -762,7 +761,7 @@ again:
 		del_slot = path->slots[0];
 		del_nr++;
 		ret = btrfs_free_extent(trans, &ref);
-		if (ret) {
+		if (unlikely(ret)) {
 			btrfs_abort_transaction(trans, ret);
 			goto out;
 		}
@@ -783,7 +782,7 @@ again:
 						extent_end - key.offset);
 
 		ret = btrfs_del_items(trans, root, path, del_slot, del_nr);
-		if (ret < 0) {
+		if (unlikely(ret < 0)) {
 			btrfs_abort_transaction(trans, ret);
 			goto out;
 		}
@@ -815,7 +814,7 @@ static int prepare_uptodate_folio(struct inode *inode, struct folio *folio, u64 
 	if (ret)
 		return ret;
 	folio_lock(folio);
-	if (!folio_test_uptodate(folio)) {
+	if (unlikely(!folio_test_uptodate(folio))) {
 		folio_unlock(folio);
 		return -EIO;
 	}
@@ -970,7 +969,7 @@ lock_and_cleanup_extent_if_need(struct btrfs_inode *inode, struct folio *folio,
  * Return:
  * > 0          If we can nocow, and updates @write_bytes.
  *  0           If we can't do a nocow write.
- * -EAGAIN      If we can't do a nocow write because snapshoting of the inode's
+ * -EAGAIN      If we can't do a nocow write because snapshotting of the inode's
  *              root is in progress or because we are in a non-blocking IO
  *              context and need to block (@nowait is true).
  * < 0          If an error happened.
@@ -2460,9 +2459,9 @@ int btrfs_replace_file_extents(struct btrfs_inode *inode,
 			 * got EOPNOTSUPP via prealloc then we messed up and
 			 * need to abort.
 			 */
-			if (ret &&
-			    (ret != -EOPNOTSUPP ||
-			     (extent_info && extent_info->is_new_extent)))
+			if (unlikely(ret &&
+				     (ret != -EOPNOTSUPP ||
+				      (extent_info && extent_info->is_new_extent))))
 				btrfs_abort_transaction(trans, ret);
 			break;
 		}
@@ -2473,7 +2472,7 @@ int btrfs_replace_file_extents(struct btrfs_inode *inode,
 		    cur_offset < ino_size) {
 			ret = fill_holes(trans, inode, path, cur_offset,
 					 drop_args.drop_end);
-			if (ret) {
+			if (unlikely(ret)) {
 				/*
 				 * If we failed then we didn't insert our hole
 				 * entries for the area we dropped, so now the
@@ -2493,7 +2492,7 @@ int btrfs_replace_file_extents(struct btrfs_inode *inode,
 			ret = btrfs_inode_clear_file_extent_range(inode,
 					cur_offset,
 					drop_args.drop_end - cur_offset);
-			if (ret) {
+			if (unlikely(ret)) {
 				/*
 				 * We couldn't clear our area, so we could
 				 * presumably adjust up and corrupt the fs, so
@@ -2512,7 +2511,7 @@ int btrfs_replace_file_extents(struct btrfs_inode *inode,
 			ret = btrfs_insert_replace_extent(trans, inode,	path,
 					extent_info, replace_len,
 					drop_args.bytes_found);
-			if (ret) {
+			if (unlikely(ret)) {
 				btrfs_abort_transaction(trans, ret);
 				break;
 			}
@@ -2607,7 +2606,7 @@ int btrfs_replace_file_extents(struct btrfs_inode *inode,
 	    cur_offset < drop_args.drop_end) {
 		ret = fill_holes(trans, inode, path, cur_offset,
 				 drop_args.drop_end);
-		if (ret) {
+		if (unlikely(ret)) {
 			/* Same comment as above. */
 			btrfs_abort_transaction(trans, ret);
 			goto out_trans;
@@ -2616,7 +2615,7 @@ int btrfs_replace_file_extents(struct btrfs_inode *inode,
 		/* See the comment in the loop above for the reasoning here. */
 		ret = btrfs_inode_clear_file_extent_range(inode, cur_offset,
 					drop_args.drop_end - cur_offset);
-		if (ret) {
+		if (unlikely(ret)) {
 			btrfs_abort_transaction(trans, ret);
 			goto out_trans;
 		}
@@ -2626,7 +2625,7 @@ int btrfs_replace_file_extents(struct btrfs_inode *inode,
 		ret = btrfs_insert_replace_extent(trans, inode, path,
 				extent_info, extent_info->data_len,
 				drop_args.bytes_found);
-		if (ret) {
+		if (unlikely(ret)) {
 			btrfs_abort_transaction(trans, ret);
 			goto out_trans;
 		}
@@ -3345,7 +3344,7 @@ static bool find_delalloc_subrange(struct btrfs_inode *inode, u64 start, u64 end
 	 * We could also use the extent map tree to find such delalloc that is
 	 * being flushed, but using the ordered extents tree is more efficient
 	 * because it's usually much smaller as ordered extents are removed from
-	 * the tree once they complete. With the extent maps, we mau have them
+	 * the tree once they complete. With the extent maps, we may have them
 	 * in the extent map tree for a very long time, and they were either
 	 * created by previous writes or loaded by read operations.
 	 */

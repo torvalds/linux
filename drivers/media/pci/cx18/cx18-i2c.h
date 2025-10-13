@@ -4,7 +4,7 @@
  *
  *  Derived from ivtv-i2c.h
  *
- *  Copyright (C) 2007  Hans Verkuil <hverkuil@xs4all.nl>
+ *  Copyright (C) 2007  Hans Verkuil <hverkuil@kernel.org>
  */
 
 int cx18_i2c_register(struct cx18 *cx, unsigned idx);

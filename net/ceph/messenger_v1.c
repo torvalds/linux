@@ -169,10 +169,9 @@ static void prepare_message_data(struct ceph_msg *msg, u32 data_len)
  * Prepare footer for currently outgoing message, and finish things
  * off.  Assumes out_kvec* are already valid.. we just add on to the end.
  */
-static void prepare_write_message_footer(struct ceph_connection *con)
+static void prepare_write_message_footer(struct ceph_connection *con,
+					 struct ceph_msg *m)
 {
-	struct ceph_msg *m = con->out_msg;
-
 	m->footer.flags |= CEPH_MSG_FOOTER_COMPLETE;
 
 	dout("prepare_write_message_footer %p\n", con);
@@ -192,9 +191,9 @@ static void prepare_write_message_footer(struct ceph_connection *con)
 /*
  * Prepare headers for the next outgoing message.
  */
-static void prepare_write_message(struct ceph_connection *con)
+static void prepare_write_message(struct ceph_connection *con,
+				  struct ceph_msg *m)
 {
-	struct ceph_msg *m;
 	u32 crc;
 
 	con_out_kvec_reset(con);
@@ -209,9 +208,6 @@ static void prepare_write_message(struct ceph_connection *con)
 		con_out_kvec_add(con, sizeof(con->v1.out_temp_ack),
 			&con->v1.out_temp_ack);
 	}
-
-	ceph_con_get_out_msg(con);
-	m = con->out_msg;
 
 	dout("prepare_write_message %p seq %lld type %d len %d+%d+%zd\n",
 	     m, con->out_seq, le16_to_cpu(m->hdr.type),
@@ -231,31 +227,31 @@ static void prepare_write_message(struct ceph_connection *con)
 
 	/* fill in hdr crc and finalize hdr */
 	crc = crc32c(0, &m->hdr, offsetof(struct ceph_msg_header, crc));
-	con->out_msg->hdr.crc = cpu_to_le32(crc);
-	memcpy(&con->v1.out_hdr, &con->out_msg->hdr, sizeof(con->v1.out_hdr));
+	m->hdr.crc = cpu_to_le32(crc);
+	memcpy(&con->v1.out_hdr, &m->hdr, sizeof(con->v1.out_hdr));
 
 	/* fill in front and middle crc, footer */
 	crc = crc32c(0, m->front.iov_base, m->front.iov_len);
-	con->out_msg->footer.front_crc = cpu_to_le32(crc);
+	m->footer.front_crc = cpu_to_le32(crc);
 	if (m->middle) {
 		crc = crc32c(0, m->middle->vec.iov_base,
 				m->middle->vec.iov_len);
-		con->out_msg->footer.middle_crc = cpu_to_le32(crc);
+		m->footer.middle_crc = cpu_to_le32(crc);
 	} else
-		con->out_msg->footer.middle_crc = 0;
+		m->footer.middle_crc = 0;
 	dout("%s front_crc %u middle_crc %u\n", __func__,
-	     le32_to_cpu(con->out_msg->footer.front_crc),
-	     le32_to_cpu(con->out_msg->footer.middle_crc));
-	con->out_msg->footer.flags = 0;
+	     le32_to_cpu(m->footer.front_crc),
+	     le32_to_cpu(m->footer.middle_crc));
+	m->footer.flags = 0;
 
 	/* is there a data payload? */
-	con->out_msg->footer.data_crc = 0;
+	m->footer.data_crc = 0;
 	if (m->data_length) {
-		prepare_message_data(con->out_msg, m->data_length);
+		prepare_message_data(m, m->data_length);
 		con->v1.out_more = 1;  /* data + footer will follow */
 	} else {
 		/* no, queue up footer too and be done */
-		prepare_write_message_footer(con);
+		prepare_write_message_footer(con, m);
 	}
 
 	ceph_con_flag_set(con, CEPH_CON_F_WRITE_PENDING);
@@ -462,9 +458,9 @@ out:
  *  0 -> socket full, but more to do
  * <0 -> error
  */
-static int write_partial_message_data(struct ceph_connection *con)
+static int write_partial_message_data(struct ceph_connection *con,
+				      struct ceph_msg *msg)
 {
-	struct ceph_msg *msg = con->out_msg;
 	struct ceph_msg_data_cursor *cursor = &msg->cursor;
 	bool do_datacrc = !ceph_test_opt(from_msgr(con->msgr), NOCRC);
 	u32 crc;
@@ -516,7 +512,7 @@ static int write_partial_message_data(struct ceph_connection *con)
 	else
 		msg->footer.flags |= CEPH_MSG_FOOTER_NOCRC;
 	con_out_kvec_reset(con);
-	prepare_write_message_footer(con);
+	prepare_write_message_footer(con, msg);
 
 	return 1;	/* must return > 0 to indicate success */
 }
@@ -1472,6 +1468,7 @@ bad_tag:
  */
 int ceph_con_v1_try_write(struct ceph_connection *con)
 {
+	struct ceph_msg *msg;
 	int ret = 1;
 
 	dout("try_write start %p state %d\n", con, con->state);
@@ -1518,14 +1515,15 @@ more:
 	}
 
 	/* msg pages? */
-	if (con->out_msg) {
+	msg = con->out_msg;
+	if (msg) {
 		if (con->v1.out_msg_done) {
-			ceph_msg_put(con->out_msg);
+			ceph_msg_put(msg);
 			con->out_msg = NULL;   /* we're done with this one */
 			goto do_next;
 		}
 
-		ret = write_partial_message_data(con);
+		ret = write_partial_message_data(con, msg);
 		if (ret == 1)
 			goto more;  /* we need to send the footer, too! */
 		if (ret == 0)
@@ -1545,8 +1543,8 @@ do_next:
 			goto more;
 		}
 		/* is anything else pending? */
-		if (!list_empty(&con->out_queue)) {
-			prepare_write_message(con);
+		if ((msg = ceph_con_get_out_msg(con)) != NULL) {
+			prepare_write_message(con, msg);
 			goto more;
 		}
 		if (con->in_seq > con->in_seq_acked) {
@@ -1564,10 +1562,8 @@ out:
 	return ret;
 }
 
-void ceph_con_v1_revoke(struct ceph_connection *con)
+void ceph_con_v1_revoke(struct ceph_connection *con, struct ceph_msg *msg)
 {
-	struct ceph_msg *msg = con->out_msg;
-
 	WARN_ON(con->v1.out_skip);
 	/* footer */
 	if (con->v1.out_msg_done) {

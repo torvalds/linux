@@ -12,10 +12,10 @@
 #include <linux/skbuff.h>
 #include <linux/netfilter.h>
 #include <net/checksum.h>
+#include <net/flow.h>
 #include <net/icmp.h>
 #include <net/ip.h>
 #include <net/route.h>
-#include <net/inet_dscp.h>
 #include <net/netfilter/ipv4/nf_dup_ipv4.h>
 #if IS_ENABLED(CONFIG_NF_CONNTRACK)
 #include <net/netfilter/nf_conntrack.h>
@@ -33,7 +33,7 @@ static bool nf_dup_ipv4_route(struct net *net, struct sk_buff *skb,
 		fl4.flowi4_oif = oif;
 
 	fl4.daddr = gw->s_addr;
-	fl4.flowi4_tos = inet_dscp_to_dsfield(ip4h_dscp(iph));
+	fl4.flowi4_dscp = ip4h_dscp(iph);
 	fl4.flowi4_scope = RT_SCOPE_UNIVERSE;
 	fl4.flowi4_flags = FLOWI_FLAG_KNOWN_NH;
 	rt = ip_route_output_key(net, &fl4);

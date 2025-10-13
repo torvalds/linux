@@ -64,6 +64,9 @@ struct kvm_vcpu {
 #ifdef __x86_64__
 	struct kvm_cpuid2 *cpuid;
 #endif
+#ifdef __aarch64__
+	struct kvm_vcpu_init init;
+#endif
 	struct kvm_binary_stats stats;
 	struct kvm_dirty_gfn *dirty_gfns;
 	uint32_t fetch_index;
@@ -260,13 +263,18 @@ int __open_path_or_exit(const char *path, int flags, const char *enoent_help);
 int open_path_or_exit(const char *path, int flags);
 int open_kvm_dev_path_or_exit(void);
 
-bool get_kvm_param_bool(const char *param);
-bool get_kvm_intel_param_bool(const char *param);
-bool get_kvm_amd_param_bool(const char *param);
+int kvm_get_module_param_integer(const char *module_name, const char *param);
+bool kvm_get_module_param_bool(const char *module_name, const char *param);
 
-int get_kvm_param_integer(const char *param);
-int get_kvm_intel_param_integer(const char *param);
-int get_kvm_amd_param_integer(const char *param);
+static inline bool get_kvm_param_bool(const char *param)
+{
+	return kvm_get_module_param_bool("kvm", param);
+}
+
+static inline int get_kvm_param_integer(const char *param)
+{
+	return kvm_get_module_param_integer("kvm", param);
+}
 
 unsigned int kvm_check_cap(long cap);
 
@@ -1257,7 +1265,9 @@ static inline int __vm_disable_nx_huge_pages(struct kvm_vm *vm)
  */
 void kvm_selftest_arch_init(void);
 
-void kvm_arch_vm_post_create(struct kvm_vm *vm);
+void kvm_arch_vm_post_create(struct kvm_vm *vm, unsigned int nr_vcpus);
+void kvm_arch_vm_finalize_vcpus(struct kvm_vm *vm);
+void kvm_arch_vm_release(struct kvm_vm *vm);
 
 bool vm_is_gpa_protected(struct kvm_vm *vm, vm_paddr_t paddr);
 

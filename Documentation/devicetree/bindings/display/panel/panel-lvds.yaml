@@ -41,11 +41,15 @@ properties:
       - enum:
           # Admatec 9904379 10.1" 1024x600 LVDS panel
           - admatec,9904379
+          # Ampire AMP19201200B5TZQW-T03 10.1" WUXGA (1920x1200) color TFT LCD panel
+          - ampire,amp19201200b5tzqw-t03
           - auo,b101ew05
           # AUO G084SN05 V9 8.4" 800x600 LVDS panel
           - auo,g084sn05
           # Chunghwa Picture Tubes Ltd. 7" WXGA (800x1280) TFT LCD LVDS panel
           - chunghwa,claa070wp03xg
+          # EDT ETML0700Z8DHA 7.0" Full HD (1920x1080) color TFT LCD LVDS panel
+          - edt,etml0700z8dha
           # EDT ETML0700Z9NDHA 7.0" WSVGA (1024x600) color TFT LCD LVDS panel
           - edt,etml0700z9ndha
           # HannStar Display Corp. HSD101PWW2 10.1" WXGA (1280x800) LVDS panel

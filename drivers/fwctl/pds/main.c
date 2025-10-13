@@ -6,6 +6,7 @@
 #include <linux/pci.h>
 #include <linux/vmalloc.h>
 #include <linux/bitfield.h>
+#include <linux/string.h>
 
 #include <uapi/fwctl/fwctl.h>
 #include <uapi/fwctl/pds.h>
@@ -366,18 +367,10 @@ static void *pdsfc_fw_rpc(struct fwctl_uctx *uctx, enum fwctl_rpc_scope scope,
 		return ERR_PTR(err);
 
 	if (rpc->in.len > 0) {
-		in_payload = kzalloc(rpc->in.len, GFP_KERNEL);
-		if (!in_payload) {
-			dev_err(dev, "Failed to allocate in_payload\n");
-			err = -ENOMEM;
-			goto err_out;
-		}
-
-		if (copy_from_user(in_payload, u64_to_user_ptr(rpc->in.payload),
-				   rpc->in.len)) {
+		in_payload = memdup_user(u64_to_user_ptr(rpc->in.payload), rpc->in.len);
+		if (IS_ERR(in_payload)) {
 			dev_dbg(dev, "Failed to copy in_payload from user\n");
-			err = -EFAULT;
-			goto err_in_payload;
+			return in_payload;
 		}
 
 		in_payload_dma_addr = dma_map_single(dev->parent, in_payload,
@@ -453,7 +446,6 @@ err_out_payload:
 				 rpc->in.len, DMA_TO_DEVICE);
 err_in_payload:
 	kfree(in_payload);
-err_out:
 	if (err)
 		return ERR_PTR(err);
 
@@ -481,7 +473,7 @@ static int pdsfc_probe(struct auxiliary_device *adev,
 	pdsfc = fwctl_alloc_device(&padev->vf_pdev->dev, &pdsfc_ops,
 				   struct pdsfc_dev, fwctl);
 	if (!pdsfc)
-		return dev_err_probe(dev, -ENOMEM, "Failed to allocate fwctl device struct\n");
+		return -ENOMEM;
 	pdsfc->padev = padev;
 
 	err = pdsfc_identify(pdsfc);

@@ -355,8 +355,7 @@ static int ads7924_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return dev_err_probe(dev, -ENOMEM,
-				     "failed to allocate iio device\n");
+		return -ENOMEM;
 
 	data = iio_priv(indio_dev);
 
@@ -399,8 +398,7 @@ static int ads7924_probe(struct i2c_client *client)
 
 	ret = devm_add_action_or_reset(dev, ads7924_reg_disable, data->vref_reg);
 	if (ret)
-		return dev_err_probe(dev, ret,
-				     "failed to add regulator disable action\n");
+		return ret;
 
 	ret = ads7924_reset(indio_dev);
 	if (ret < 0)
@@ -414,8 +412,7 @@ static int ads7924_probe(struct i2c_client *client)
 
 	ret = devm_add_action_or_reset(dev, ads7924_set_idle_mode, data);
 	if (ret)
-		return dev_err_probe(dev, ret,
-				     "failed to add idle mode action\n");
+		return ret;
 
 	/* Use minimum signal acquire time. */
 	ret = regmap_update_bits(data->regmap, ADS7924_ACQCONFIG_REG,

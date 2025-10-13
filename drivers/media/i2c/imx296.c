@@ -921,7 +921,7 @@ static int imx296_read_temperature(struct imx296 *sensor, int *temp)
 
 	tmdout &= IMX296_TMDOUT_MASK;
 
-	/* T(°C) = 246.312 - 0.304 * TMDOUT */;
+	/* T(°C) = 246.312 - 0.304 * TMDOUT */
 	*temp = 246312 - 304 * tmdout;
 
 	return imx296_write(sensor, IMX296_TMDCTRL, 0, NULL);
@@ -1043,7 +1043,7 @@ static int imx296_probe(struct i2c_client *client)
 		return dev_err_probe(sensor->dev, PTR_ERR(sensor->reset),
 				     "failed to get reset GPIO\n");
 
-	sensor->clk = devm_clk_get(sensor->dev, "inck");
+	sensor->clk = devm_v4l2_sensor_clk_get(sensor->dev, "inck");
 	if (IS_ERR(sensor->clk))
 		return dev_err_probe(sensor->dev, PTR_ERR(sensor->clk),
 				     "failed to get clock\n");

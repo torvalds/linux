@@ -461,7 +461,11 @@ static int arizona_hpdet_do_id(struct arizona_priv *info, int *reading,
 			       bool *mic)
 {
 	struct arizona *arizona = info->arizona;
+#ifdef CONFIG_GPIOLIB_LEGACY
 	int id_gpio = arizona->pdata.hpdet_id_gpio;
+#else
+	int id_gpio = 0;
+#endif
 
 	if (!arizona->pdata.hpdet_acc_id)
 		return 0;
@@ -472,6 +476,7 @@ static int arizona_hpdet_do_id(struct arizona_priv *info, int *reading,
 	 */
 	info->hpdet_res[info->num_hpdet_res++] = *reading;
 
+#ifdef CONFIG_GPIOLIB_LEGACY
 	/* Only check the mic directly if we didn't already ID it */
 	if (id_gpio && info->num_hpdet_res == 1) {
 		dev_dbg(arizona->dev, "Measuring mic\n");
@@ -489,6 +494,7 @@ static int arizona_hpdet_do_id(struct arizona_priv *info, int *reading,
 				   ARIZONA_HP_POLL, ARIZONA_HP_POLL);
 		return -EAGAIN;
 	}
+#endif
 
 	/* OK, got both.  Now, compare... */
 	dev_dbg(arizona->dev, "HPDET measured %d %d\n",
@@ -529,7 +535,9 @@ static irqreturn_t arizona_hpdet_irq(int irq, void *data)
 {
 	struct arizona_priv *info = data;
 	struct arizona *arizona = info->arizona;
+#ifdef CONFIG_GPIOLIB_LEGACY
 	int id_gpio = arizona->pdata.hpdet_id_gpio;
+#endif
 	int ret, reading, state, report;
 	bool mic = false;
 
@@ -585,8 +593,10 @@ done:
 
 	arizona_extcon_hp_clamp(info, false);
 
+#ifdef CONFIG_GPIOLIB_LEGACY
 	if (id_gpio)
 		gpio_set_value_cansleep(id_gpio, 0);
+#endif
 
 	/* If we have a mic then reenable MICDET */
 	if (state && (mic || info->mic))
@@ -1317,6 +1327,7 @@ int arizona_jack_codec_dev_probe(struct arizona_priv *info, struct device *dev)
 		regmap_update_bits(arizona->regmap, ARIZONA_GP_SWITCH_1,
 				ARIZONA_SW1_MODE_MASK, arizona->pdata.gpsw);
 
+#ifdef CONFIG_GPIOLIB_LEGACY
 	if (pdata->micd_pol_gpio > 0) {
 		if (info->micd_modes[0].gpio)
 			mode = GPIOF_OUT_INIT_HIGH;
@@ -1332,7 +1343,9 @@ int arizona_jack_codec_dev_probe(struct arizona_priv *info, struct device *dev)
 		}
 
 		info->micd_pol_gpio = gpio_to_desc(pdata->micd_pol_gpio);
-	} else {
+	} else
+#endif
+	{
 		if (info->micd_modes[0].gpio)
 			mode = GPIOD_OUT_HIGH;
 		else
@@ -1353,6 +1366,7 @@ int arizona_jack_codec_dev_probe(struct arizona_priv *info, struct device *dev)
 		}
 	}
 
+#ifdef CONFIG_GPIOLIB_LEGACY
 	if (arizona->pdata.hpdet_id_gpio > 0) {
 		ret = devm_gpio_request_one(dev, arizona->pdata.hpdet_id_gpio,
 					    GPIOF_OUT_INIT_LOW,
@@ -1364,6 +1378,7 @@ int arizona_jack_codec_dev_probe(struct arizona_priv *info, struct device *dev)
 			return ret;
 		}
 	}
+#endif
 
 	return 0;
 }

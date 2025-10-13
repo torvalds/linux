@@ -253,33 +253,24 @@ void snd_ff_stream_lock_changed(struct snd_ff *ff)
 
 int snd_ff_stream_lock_try(struct snd_ff *ff)
 {
-	int err;
-
-	spin_lock_irq(&ff->lock);
+	guard(spinlock_irq)(&ff->lock);
 
 	/* user land lock this */
-	if (ff->dev_lock_count < 0) {
-		err = -EBUSY;
-		goto end;
-	}
+	if (ff->dev_lock_count < 0)
+		return -EBUSY;
 
 	/* this is the first time */
 	if (ff->dev_lock_count++ == 0)
 		snd_ff_stream_lock_changed(ff);
-	err = 0;
-end:
-	spin_unlock_irq(&ff->lock);
-	return err;
+	return 0;
 }
 
 void snd_ff_stream_lock_release(struct snd_ff *ff)
 {
-	spin_lock_irq(&ff->lock);
+	guard(spinlock_irq)(&ff->lock);
 
 	if (WARN_ON(ff->dev_lock_count <= 0))
-		goto end;
+		return;
 	if (--ff->dev_lock_count == 0)
 		snd_ff_stream_lock_changed(ff);
-end:
-	spin_unlock_irq(&ff->lock);
 }

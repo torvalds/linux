@@ -74,7 +74,7 @@ struct dentry;
  * @V4L2_FL_USES_V4L2_FH:
  *	indicates that file->private_data points to &struct v4l2_fh.
  *	This flag is set by the core when v4l2_fh_init() is called.
- *	All new drivers should use it.
+ *	All drivers must use it.
  * @V4L2_FL_QUIRK_INVERTED_CROP:
  *	some old M2M drivers use g/s_crop/cropcap incorrectly: crop and
  *	compose are swapped. If this flag is set, then the selection

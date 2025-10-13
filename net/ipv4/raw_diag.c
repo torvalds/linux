@@ -126,9 +126,9 @@ static int raw_diag_dump_one(struct netlink_callback *cb,
 static int sk_diag_dump(struct sock *sk, struct sk_buff *skb,
 			struct netlink_callback *cb,
 			const struct inet_diag_req_v2 *r,
-			struct nlattr *bc, bool net_admin)
+			bool net_admin)
 {
-	if (!inet_diag_bc_sk(bc, sk))
+	if (!inet_diag_bc_sk(cb->data, sk))
 		return 0;
 
 	return inet_sk_diag_fill(sk, NULL, skb, cb, r, NLM_F_MULTI, net_admin);
@@ -140,17 +140,13 @@ static void raw_diag_dump(struct sk_buff *skb, struct netlink_callback *cb,
 	bool net_admin = netlink_net_capable(cb->skb, CAP_NET_ADMIN);
 	struct raw_hashinfo *hashinfo = raw_get_hashinfo(r);
 	struct net *net = sock_net(skb->sk);
-	struct inet_diag_dump_data *cb_data;
 	int num, s_num, slot, s_slot;
 	struct hlist_head *hlist;
 	struct sock *sk = NULL;
-	struct nlattr *bc;
 
 	if (IS_ERR(hashinfo))
 		return;
 
-	cb_data = cb->data;
-	bc = cb_data->inet_diag_nla_bc;
 	s_slot = cb->args[0];
 	num = s_num = cb->args[1];
 
@@ -174,7 +170,7 @@ static void raw_diag_dump(struct sk_buff *skb, struct netlink_callback *cb,
 			if (r->id.idiag_dport != inet->inet_dport &&
 			    r->id.idiag_dport)
 				goto next;
-			if (sk_diag_dump(sk, skb, cb, r, bc, net_admin) < 0)
+			if (sk_diag_dump(sk, skb, cb, r, net_admin) < 0)
 				goto out_unlock;
 next:
 			num++;

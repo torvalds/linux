@@ -14,7 +14,7 @@
 
 #ifdef __KERNEL__
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <asm/ptrace.h>
 #include <asm/page.h>
@@ -72,7 +72,7 @@ register struct thread_info *current_thread_info_reg asm("g6");
  */
 #define THREAD_SIZE_ORDER  1
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 /* Size of kernel stack for each process */
 #define THREAD_SIZE		(2 * PAGE_SIZE)

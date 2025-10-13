@@ -165,6 +165,8 @@ static void construct_link_service_dp_capability(struct link_service *link_srv)
 	link_srv->dp_overwrite_extended_receiver_cap =
 			dp_overwrite_extended_receiver_cap;
 	link_srv->dp_decide_lttpr_mode = dp_decide_lttpr_mode;
+	link_srv->dp_get_lttpr_count = dp_get_lttpr_count;
+	link_srv->edp_get_alpm_support = edp_get_alpm_support;
 }
 
 /* link dp phy/dpia implements basic dp phy/dpia functionality such as

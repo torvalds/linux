@@ -2,7 +2,7 @@
 ---
 name: netdev
 
-doc:
+doc: >-
   netdev configuration over generic netlink.
 
 definitions:
@@ -13,33 +13,33 @@ definitions:
     entries:
       -
         name: basic
-        doc:
+        doc: >-
           XDP features set supported by all drivers
           (XDP_ABORTED, XDP_DROP, XDP_PASS, XDP_TX)
       -
         name: redirect
-        doc:
+        doc: >-
           The netdev supports XDP_REDIRECT
       -
         name: ndo-xmit
-        doc:
+        doc: >-
           This feature informs if netdev implements ndo_xdp_xmit callback.
       -
         name: xsk-zerocopy
-        doc:
+        doc: >-
           This feature informs if netdev supports AF_XDP in zero copy mode.
       -
         name: hw-offload
-        doc:
+        doc: >-
           This feature informs if netdev supports XDP hw offloading.
       -
         name: rx-sg
-        doc:
+        doc: >-
           This feature informs if netdev implements non-linear XDP buffer
           support in the driver napi callback.
       -
         name: ndo-xmit-sg
-        doc:
+        doc: >-
           This feature informs if netdev implements non-linear XDP buffer
           support in ndo_xdp_xmit callback.
   -
@@ -67,15 +67,15 @@ definitions:
     entries:
       -
         name: tx-timestamp
-        doc:
+        doc: >-
           HW timestamping egress packets is supported by the driver.
       -
         name: tx-checksum
-        doc:
+        doc: >-
           L3 checksum HW offload is supported by the driver.
       -
         name: tx-launch-time-fifo
-        doc:
+        doc: >-
           Launch time HW offload is supported by the driver.
   -
     name: queue-type

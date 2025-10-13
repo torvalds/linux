@@ -50,6 +50,7 @@
 #include "memstress.h"
 #include "guest_modes.h"
 #include "processor.h"
+#include "ucall_common.h"
 
 #include "cgroup_util.h"
 #include "lru_gen_util.h"

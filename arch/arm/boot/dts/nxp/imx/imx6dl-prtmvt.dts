@@ -557,7 +557,6 @@
 
 &usbh1 {
 	vbus-supply = <&reg_h1_vbus>;
-	pinctrl-names = "default";
 	phy_type = "utmi";
 	dr_mode = "host";
 	disable-over-current;

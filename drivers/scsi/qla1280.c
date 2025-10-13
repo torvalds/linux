@@ -1023,7 +1023,7 @@ qla1280_eh_adapter_reset(struct scsi_cmnd *cmd)
 }
 
 static int
-qla1280_biosparam(struct scsi_device *sdev, struct block_device *bdev,
+qla1280_biosparam(struct scsi_device *sdev, struct gendisk *unused,
 		  sector_t capacity, int geom[])
 {
 	int heads, sectors, cylinders;

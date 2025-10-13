@@ -63,6 +63,7 @@
 
 #include <linux/hp_sdc.h>
 #include <linux/errno.h>
+#include <linux/export.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/ioport.h>

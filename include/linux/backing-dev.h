@@ -66,16 +66,6 @@ static inline void wb_stat_mod(struct bdi_writeback *wb,
 	percpu_counter_add_batch(&wb->stat[item], amount, WB_STAT_BATCH);
 }
 
-static inline void inc_wb_stat(struct bdi_writeback *wb, enum wb_stat_item item)
-{
-	wb_stat_mod(wb, item, 1);
-}
-
-static inline void dec_wb_stat(struct bdi_writeback *wb, enum wb_stat_item item)
-{
-	wb_stat_mod(wb, item, -1);
-}
-
 static inline s64 wb_stat(struct bdi_writeback *wb, enum wb_stat_item item)
 {
 	return percpu_counter_read_positive(&wb->stat[item]);
@@ -118,12 +108,10 @@ int bdi_set_strict_limit(struct backing_dev_info *bdi, unsigned int strict_limit
  *
  * BDI_CAP_WRITEBACK:		Supports dirty page writeback, and dirty pages
  *				should contribute to accounting
- * BDI_CAP_WRITEBACK_ACCT:	Automatically account writeback pages
  * BDI_CAP_STRICTLIMIT:		Keep number of dirty pages below bdi threshold
  */
 #define BDI_CAP_WRITEBACK		(1 << 0)
-#define BDI_CAP_WRITEBACK_ACCT		(1 << 1)
-#define BDI_CAP_STRICTLIMIT		(1 << 2)
+#define BDI_CAP_STRICTLIMIT		(1 << 1)
 
 extern struct backing_dev_info noop_backing_dev_info;
 

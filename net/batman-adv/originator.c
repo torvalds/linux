@@ -37,7 +37,6 @@
 #include "log.h"
 #include "multicast.h"
 #include "netlink.h"
-#include "network-coding.h"
 #include "routing.h"
 #include "translation-table.h"
 
@@ -883,9 +882,6 @@ void batadv_orig_node_release(struct kref *ref)
 	}
 	spin_unlock_bh(&orig_node->vlan_list_lock);
 
-	/* Free nc_nodes */
-	batadv_nc_purge_orig(orig_node->bat_priv, orig_node, NULL);
-
 	call_rcu(&orig_node->rcu, batadv_orig_node_free_rcu);
 }
 
@@ -958,8 +954,6 @@ struct batadv_orig_node *batadv_orig_node_new(struct batadv_priv *bat_priv,
 	spin_lock_init(&orig_node->tt_buff_lock);
 	spin_lock_init(&orig_node->tt_lock);
 	spin_lock_init(&orig_node->vlan_list_lock);
-
-	batadv_nc_init_orig(orig_node);
 
 	/* extra reference for return */
 	kref_init(&orig_node->refcount);

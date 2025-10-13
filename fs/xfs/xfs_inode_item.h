@@ -32,9 +32,17 @@ struct xfs_inode_log_item {
 	spinlock_t		ili_lock;	   /* flush state lock */
 	unsigned int		ili_last_fields;   /* fields when flushed */
 	unsigned int		ili_fields;	   /* fields to be logged */
-	unsigned int		ili_fsync_fields;  /* logged since last fsync */
 	xfs_lsn_t		ili_flush_lsn;	   /* lsn at last flush */
+
+	/*
+	 * We record the sequence number for every inode modification, as
+	 * well as those that only require fdatasync operations for data
+	 * integrity. This allows optimisation of the O_DSYNC/fdatasync path
+	 * without needing to track what modifications the journal is currently
+	 * carrying for the inode. These are protected by the above ili_lock.
+	 */
 	xfs_csn_t		ili_commit_seq;	   /* last transaction commit */
+	xfs_csn_t		ili_datasync_seq;  /* for datasync optimisation */
 };
 
 static inline int xfs_inode_clean(struct xfs_inode *ip)

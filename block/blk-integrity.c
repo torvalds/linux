@@ -58,16 +58,14 @@ new_segment:
 int blk_get_meta_cap(struct block_device *bdev, unsigned int cmd,
 		     struct logical_block_metadata_cap __user *argp)
 {
-	struct blk_integrity *bi = blk_get_integrity(bdev->bd_disk);
+	struct blk_integrity *bi;
 	struct logical_block_metadata_cap meta_cap = {};
 	size_t usize = _IOC_SIZE(cmd);
 
-	if (_IOC_DIR(cmd)  != _IOC_DIR(FS_IOC_GETLBMD_CAP) ||
-	    _IOC_TYPE(cmd) != _IOC_TYPE(FS_IOC_GETLBMD_CAP) ||
-	    _IOC_NR(cmd)   != _IOC_NR(FS_IOC_GETLBMD_CAP) ||
-	    _IOC_SIZE(cmd) < LBMD_SIZE_VER0)
+	if (!extensible_ioctl_valid(cmd, FS_IOC_GETLBMD_CAP, LBMD_SIZE_VER0))
 		return -ENOIOCTLCMD;
 
+	bi = blk_get_integrity(bdev->bd_disk);
 	if (!bi)
 		goto out;
 
@@ -121,64 +119,6 @@ out:
 	return copy_struct_to_user(argp, usize, &meta_cap, sizeof(meta_cap),
 				   NULL);
 }
-
-/**
- * blk_rq_map_integrity_sg - Map integrity metadata into a scatterlist
- * @rq:		request to map
- * @sglist:	target scatterlist
- *
- * Description: Map the integrity vectors in request into a
- * scatterlist.  The scatterlist must be big enough to hold all
- * elements.  I.e. sized using blk_rq_count_integrity_sg() or
- * rq->nr_integrity_segments.
- */
-int blk_rq_map_integrity_sg(struct request *rq, struct scatterlist *sglist)
-{
-	struct bio_vec iv, ivprv = { NULL };
-	struct request_queue *q = rq->q;
-	struct scatterlist *sg = NULL;
-	struct bio *bio = rq->bio;
-	unsigned int segments = 0;
-	struct bvec_iter iter;
-	int prev = 0;
-
-	bio_for_each_integrity_vec(iv, bio, iter) {
-		if (prev) {
-			if (!biovec_phys_mergeable(q, &ivprv, &iv))
-				goto new_segment;
-			if (sg->length + iv.bv_len > queue_max_segment_size(q))
-				goto new_segment;
-
-			sg->length += iv.bv_len;
-		} else {
-new_segment:
-			if (!sg)
-				sg = sglist;
-			else {
-				sg_unmark_end(sg);
-				sg = sg_next(sg);
-			}
-
-			sg_set_page(sg, iv.bv_page, iv.bv_len, iv.bv_offset);
-			segments++;
-		}
-
-		prev = 1;
-		ivprv = iv;
-	}
-
-	if (sg)
-		sg_mark_end(sg);
-
-	/*
-	 * Something must have been wrong if the figured number of segment
-	 * is bigger than number of req's physical integrity segments
-	 */
-	BUG_ON(segments > rq->nr_integrity_segments);
-	BUG_ON(segments > queue_max_integrity_segments(q));
-	return segments;
-}
-EXPORT_SYMBOL(blk_rq_map_integrity_sg);
 
 int blk_rq_integrity_map_user(struct request *rq, void __user *ubuf,
 			      ssize_t bytes)

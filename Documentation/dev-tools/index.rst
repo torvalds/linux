@@ -29,6 +29,7 @@ Documentation/process/debugging/index.rst
    ubsan
    kmemleak
    kcsan
+   lkmm/index
    kfence
    kselftest
    kunit/index

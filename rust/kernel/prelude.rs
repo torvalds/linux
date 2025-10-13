@@ -12,7 +12,10 @@
 //! ```
 
 #[doc(no_inline)]
-pub use core::pin::Pin;
+pub use core::{
+    mem::{align_of, align_of_val, size_of, size_of_val},
+    pin::Pin,
+};
 
 pub use ::ffi::{
     c_char, c_int, c_long, c_longlong, c_schar, c_short, c_uchar, c_uint, c_ulong, c_ulonglong,

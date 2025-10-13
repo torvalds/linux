@@ -67,7 +67,7 @@ static inline int paste_last(void *i)
 #define PPC_INST_PASTE_LAST            __PASTE(0, 0, 1, 1)
 
 /* This defines the prefixed load/store instructions */
-#ifdef __ASSEMBLY__
+#ifdef __ASSEMBLER__
 #  define stringify_in_c(...)	__VA_ARGS__
 #else
 #  define __stringify_in_c(...)	#__VA_ARGS__

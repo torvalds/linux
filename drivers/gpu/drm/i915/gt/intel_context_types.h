@@ -14,7 +14,6 @@
 
 #include "i915_active_types.h"
 #include "i915_sw_fence.h"
-#include "i915_utils.h"
 #include "intel_engine_types.h"
 #include "intel_sseu.h"
 #include "intel_wakeref.h"

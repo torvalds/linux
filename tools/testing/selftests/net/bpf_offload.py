@@ -184,8 +184,8 @@ def bpftool_prog_list(expected=None, ns="", exclude_orphaned=True):
         progs = [ p for p in progs if not p['orphaned'] ]
     if expected is not None:
         if len(progs) != expected:
-            fail(True, "%d BPF programs loaded, expected %d" %
-                 (len(progs), expected))
+            fail(True, "%d BPF programs loaded, expected %d\nLoaded Progs:\n%s" %
+                 (len(progs), expected, pp.pformat(progs)))
     return progs
 
 def bpftool_map_list(expected=None, ns=""):

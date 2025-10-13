@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <asm/byteorder.h>
 #include <linux/filter.h>
 #include <sys/param.h>
 #include "btf.h"
@@ -13,8 +14,6 @@
 #include "hashmap.h"
 #include "bpf_gen_internal.h"
 #include "skel_internal.h"
-#include <asm/byteorder.h>
-#include "str_error.h"
 
 #define MAX_USED_MAPS	64
 #define MAX_USED_PROGS	32
@@ -110,6 +109,7 @@ static void emit2(struct bpf_gen *gen, struct bpf_insn insn1, struct bpf_insn in
 
 static int add_data(struct bpf_gen *gen, const void *data, __u32 size);
 static void emit_sys_close_blob(struct bpf_gen *gen, int blob_off);
+static void emit_signature_match(struct bpf_gen *gen);
 
 void bpf_gen__init(struct bpf_gen *gen, int log_level, int nr_progs, int nr_maps)
 {
@@ -152,6 +152,8 @@ void bpf_gen__init(struct bpf_gen *gen, int log_level, int nr_progs, int nr_maps
 	/* R7 contains the error code from sys_bpf. Copy it into R0 and exit. */
 	emit(gen, BPF_MOV64_REG(BPF_REG_0, BPF_REG_7));
 	emit(gen, BPF_EXIT_INSN());
+	if (OPTS_GET(gen->opts, gen_hash, false))
+		emit_signature_match(gen);
 }
 
 static int add_data(struct bpf_gen *gen, const void *data, __u32 size)
@@ -368,6 +370,8 @@ static void emit_sys_close_blob(struct bpf_gen *gen, int blob_off)
 	__emit_sys_close(gen);
 }
 
+static void compute_sha_update_offsets(struct bpf_gen *gen);
+
 int bpf_gen__finish(struct bpf_gen *gen, int nr_progs, int nr_maps)
 {
 	int i;
@@ -394,6 +398,9 @@ int bpf_gen__finish(struct bpf_gen *gen, int nr_progs, int nr_maps)
 			      blob_fd_array_off(gen, i));
 	emit(gen, BPF_MOV64_IMM(BPF_REG_0, 0));
 	emit(gen, BPF_EXIT_INSN());
+	if (OPTS_GET(gen->opts, gen_hash, false))
+		compute_sha_update_offsets(gen);
+
 	pr_debug("gen: finish %s\n", errstr(gen->error));
 	if (!gen->error) {
 		struct gen_loader_opts *opts = gen->opts;
@@ -445,6 +452,22 @@ void bpf_gen__free(struct bpf_gen *gen)
 	}							\
 	_val;							\
 })
+
+static void compute_sha_update_offsets(struct bpf_gen *gen)
+{
+	__u64 sha[SHA256_DWORD_SIZE];
+	__u64 sha_dw;
+	int i;
+
+	libbpf_sha256(gen->data_start, gen->data_cur - gen->data_start, (__u8 *)sha);
+	for (i = 0; i < SHA256_DWORD_SIZE; i++) {
+		struct bpf_insn *insn =
+			(struct bpf_insn *)(gen->insn_start + gen->hash_insn_offset[i]);
+		sha_dw = tgt_endian(sha[i]);
+		insn[0].imm = (__u32)sha_dw;
+		insn[1].imm = sha_dw >> 32;
+	}
+}
 
 void bpf_gen__load_btf(struct bpf_gen *gen, const void *btf_raw_data,
 		       __u32 btf_raw_size)
@@ -555,6 +578,29 @@ void bpf_gen__map_create(struct bpf_gen *gen,
 	}
 	if (close_inner_map_fd)
 		emit_sys_close_stack(gen, stack_off(inner_map_fd));
+}
+
+static void emit_signature_match(struct bpf_gen *gen)
+{
+	__s64 off;
+	int i;
+
+	for (i = 0; i < SHA256_DWORD_SIZE; i++) {
+		emit2(gen, BPF_LD_IMM64_RAW_FULL(BPF_REG_1, BPF_PSEUDO_MAP_IDX,
+						 0, 0, 0, 0));
+		emit(gen, BPF_LDX_MEM(BPF_DW, BPF_REG_2, BPF_REG_1, i * sizeof(__u64)));
+		gen->hash_insn_offset[i] = gen->insn_cur - gen->insn_start;
+		emit2(gen, BPF_LD_IMM64_RAW_FULL(BPF_REG_3, 0, 0, 0, 0, 0));
+
+		off =  -(gen->insn_cur - gen->insn_start - gen->cleanup_label) / 8 - 1;
+		if (is_simm16(off)) {
+			emit(gen, BPF_MOV64_IMM(BPF_REG_7, -EINVAL));
+			emit(gen, BPF_JMP_REG(BPF_JNE, BPF_REG_2, BPF_REG_3, off));
+		} else {
+			gen->error = -ERANGE;
+			emit(gen, BPF_JMP_IMM(BPF_JA, 0, 0, -1));
+		}
+	}
 }
 
 void bpf_gen__record_attach_target(struct bpf_gen *gen, const char *attach_name,

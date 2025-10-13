@@ -74,3 +74,9 @@
 	gpio-reserved-ranges = <32 10>;
 	ti,ngpio = <52>;
 };
+
+&sdhci0 {
+	mmc-hs400-1_8v;
+	ti,strobe-sel = <0x66>;
+	ti,otap-del-sel-hs400 = <0x5>;
+};

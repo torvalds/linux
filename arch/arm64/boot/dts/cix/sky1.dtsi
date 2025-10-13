@@ -192,6 +192,78 @@
 		#address-cells = <2>;
 		#size-cells = <2>;
 
+		i2c0: i2c@4010000 {
+			compatible = "cdns,i2c-r1p14";
+			reg = <0x0 0x04010000 0x0 0x10000>;
+			clock-frequency = <400000>;
+			clocks = <&scmi_clk CLK_TREE_FCH_I2C0_APB>;
+			interrupts = <GIC_SPI 286 IRQ_TYPE_LEVEL_HIGH 0>;
+			status = "disabled";
+		};
+
+		i2c1: i2c@4020000 {
+			compatible = "cdns,i2c-r1p14";
+			reg = <0x0 0x04020000 0x0 0x10000>;
+			clock-frequency = <400000>;
+			clocks = <&scmi_clk CLK_TREE_FCH_I2C1_APB>;
+			interrupts = <GIC_SPI 287 IRQ_TYPE_LEVEL_HIGH 0>;
+			status = "disabled";
+		};
+
+		i2c2: i2c@4030000 {
+			compatible = "cdns,i2c-r1p14";
+			reg = <0x0 0x04030000 0x0 0x10000>;
+			clock-frequency = <400000>;
+			clocks = <&scmi_clk CLK_TREE_FCH_I2C2_APB>;
+			interrupts = <GIC_SPI 288 IRQ_TYPE_LEVEL_HIGH 0>;
+			status = "disabled";
+		};
+
+		i2c3: i2c@4040000 {
+			compatible = "cdns,i2c-r1p14";
+			reg = <0x0 0x04040000 0x0 0x10000>;
+			clock-frequency = <400000>;
+			clocks = <&scmi_clk CLK_TREE_FCH_I2C3_APB>;
+			interrupts = <GIC_SPI 289 IRQ_TYPE_LEVEL_HIGH 0>;
+			status = "disabled";
+		};
+
+		i2c4: i2c@4050000 {
+			compatible = "cdns,i2c-r1p14";
+			reg = <0x0 0x04050000 0x0 0x10000>;
+			clock-frequency = <400000>;
+			clocks = <&scmi_clk CLK_TREE_FCH_I2C4_APB>;
+			interrupts = <GIC_SPI 290 IRQ_TYPE_LEVEL_HIGH 0>;
+			status = "disabled";
+		};
+
+		i2c5: i2c@4060000 {
+			compatible = "cdns,i2c-r1p14";
+			reg = <0x0 0x04060000 0x0 0x10000>;
+			clock-frequency = <400000>;
+			clocks = <&scmi_clk CLK_TREE_FCH_I2C5_APB>;
+			interrupts = <GIC_SPI 291 IRQ_TYPE_LEVEL_HIGH 0>;
+			status = "disabled";
+		};
+
+		i2c6: i2c@4070000 {
+			compatible = "cdns,i2c-r1p14";
+			reg = <0x0 0x04070000 0x0 0x10000>;
+			clock-frequency = <400000>;
+			clocks = <&scmi_clk CLK_TREE_FCH_I2C6_APB>;
+			interrupts = <GIC_SPI 292 IRQ_TYPE_LEVEL_HIGH 0>;
+			status = "disabled";
+		};
+
+		i2c7: i2c@4080000 {
+			compatible = "cdns,i2c-r1p14";
+			reg = <0x0 0x04080000 0x0 0x10000>;
+			clock-frequency = <400000>;
+			clocks = <&scmi_clk CLK_TREE_FCH_I2C7_APB>;
+			interrupts = <GIC_SPI 293 IRQ_TYPE_LEVEL_HIGH 0>;
+			status = "disabled";
+		};
+
 		uart0: serial@40b0000 {
 			compatible = "arm,pl011", "arm,primecell";
 			reg = <0x0 0x040b0000 0x0 0x1000>;
@@ -225,6 +297,34 @@
 			interrupts = <GIC_SPI 299 IRQ_TYPE_LEVEL_HIGH 0>;
 			clocks = <&scmi_clk CLK_TREE_FCH_UART3_FUNC>, <&scmi_clk CLK_TREE_FCH_UART3_APB>;
 			clock-names = "uartclk", "apb_pclk";
+			status = "disabled";
+		};
+
+		i3c0: i3c@40f0000 {
+			compatible = "cdns,i3c-master";
+			reg = <0x0 0x040f0000 0x0 0x10000>;
+			#address-cells = <3>;
+			#size-cells = <0>;
+			interrupts = <GIC_SPI 300 IRQ_TYPE_LEVEL_HIGH 0>;
+			clocks = <&scmi_clk CLK_TREE_FCH_I3C0_APB>,
+				 <&scmi_clk CLK_TREE_FCH_I3C0_FUNC>;
+			clock-names = "pclk", "sysclk";
+			i3c-scl-hz = <400000>;
+			i2c-scl-hz = <100000>;
+			status = "disabled";
+		};
+
+		i3c1: i3c@4100000 {
+			compatible = "cdns,i3c-master";
+			reg = <0x0 0x04100000 0x0 0x10000>;
+			#address-cells = <3>;
+			#size-cells = <0>;
+			interrupts = <GIC_SPI 301 IRQ_TYPE_LEVEL_HIGH 0>;
+			clocks = <&scmi_clk CLK_TREE_FCH_I3C1_APB>,
+				 <&scmi_clk CLK_TREE_FCH_I3C1_FUNC>;
+			clock-names = "pclk", "sysclk";
+			i3c-scl-hz = <400000>;
+			i2c-scl-hz = <100000>;
 			status = "disabled";
 		};
 

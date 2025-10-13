@@ -1944,14 +1944,12 @@ static void sec_request_uninit(struct sec_req *req)
 static int sec_request_init(struct sec_ctx *ctx, struct sec_req *req)
 {
 	struct sec_qp_ctx *qp_ctx;
-	int i;
+	int i = 0;
 
-	for (i = 0; i < ctx->sec->ctx_q_num; i++) {
+	do {
 		qp_ctx = &ctx->qp_ctx[i];
 		req->req_id = sec_alloc_req_id(req, qp_ctx);
-		if (req->req_id >= 0)
-			break;
-	}
+	} while (req->req_id < 0 && ++i < ctx->sec->ctx_q_num);
 
 	req->qp_ctx = qp_ctx;
 	req->backlog = &qp_ctx->backlog;

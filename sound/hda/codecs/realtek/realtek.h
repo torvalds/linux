@@ -295,4 +295,25 @@ void alc233_alc662_fixup_lenovo_dual_codecs(struct hda_codec *codec,
 void alc_fixup_dell_xps13(struct hda_codec *codec,
 			  const struct hda_fixup *fix, int action);
 
+/*
+ * COEF access helper functions
+ */
+static inline void coef_mutex_lock(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+
+	snd_hda_power_up_pm(codec);
+	mutex_lock(&spec->coef_mutex);
+}
+
+static inline void coef_mutex_unlock(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+
+	mutex_unlock(&spec->coef_mutex);
+	snd_hda_power_down_pm(codec);
+}
+
+DEFINE_GUARD(coef_mutex, struct hda_codec *, coef_mutex_lock(_T), coef_mutex_unlock(_T))
+
 #endif /* __HDA_REALTEK_H */

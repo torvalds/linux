@@ -11,6 +11,7 @@
 #include <linux/net.h>
 #include <linux/igmp.h>
 #include <linux/workqueue.h>
+#include <net/flow.h>
 #include <net/pkt_sched.h>
 #include <net/net_namespace.h>
 #include <net/ip.h>
@@ -28,6 +29,7 @@
 #include <net/addrconf.h>
 #include <net/ip6_route.h>
 #include <net/inet_common.h>
+#include <net/inet_dscp.h>
 #include <net/ip6_checksum.h>
 
 static struct workqueue_struct *amt_wq;
@@ -1018,7 +1020,7 @@ static bool amt_send_membership_update(struct amt_dev *amt,
 	fl4.flowi4_oif         = amt->stream_dev->ifindex;
 	fl4.daddr              = amt->remote_ip;
 	fl4.saddr              = amt->local_ip;
-	fl4.flowi4_tos         = AMT_TOS;
+	fl4.flowi4_dscp        = inet_dsfield_to_dscp(AMT_TOS);
 	fl4.flowi4_proto       = IPPROTO_UDP;
 	rt = ip_route_output_key(amt->net, &fl4);
 	if (IS_ERR(rt)) {
@@ -1133,7 +1135,7 @@ static bool amt_send_membership_query(struct amt_dev *amt,
 	fl4.flowi4_oif         = amt->stream_dev->ifindex;
 	fl4.daddr              = tunnel->ip4;
 	fl4.saddr              = amt->local_ip;
-	fl4.flowi4_tos         = AMT_TOS;
+	fl4.flowi4_dscp        = inet_dsfield_to_dscp(AMT_TOS);
 	fl4.flowi4_proto       = IPPROTO_UDP;
 	rt = ip_route_output_key(amt->net, &fl4);
 	if (IS_ERR(rt)) {

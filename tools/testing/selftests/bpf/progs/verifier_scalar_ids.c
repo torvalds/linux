@@ -349,11 +349,11 @@ __naked void precision_two_ids(void)
 SEC("socket")
 __success __log_level(2)
 __flag(BPF_F_TEST_STATE_FREQ)
-/* check thar r0 and r6 have different IDs after 'if',
+/* check that r0 and r6 have different IDs after 'if',
  * collect_linked_regs() can't tie more than 6 registers for a single insn.
  */
 __msg("8: (25) if r0 > 0x7 goto pc+0         ; R0=scalar(id=1")
-__msg("9: (bf) r6 = r6                       ; R6_w=scalar(id=2")
+__msg("9: (bf) r6 = r6                       ; R6=scalar(id=2")
 /* check that r{0-5} are marked precise after 'if' */
 __msg("frame0: regs=r0 stack= before 8: (25) if r0 > 0x7 goto pc+0")
 __msg("frame0: parent state regs=r0,r1,r2,r3,r4,r5 stack=:")
@@ -779,12 +779,12 @@ __success
 __retval(0)
 /* Check that verifier believes r1/r0 are zero at exit */
 __log_level(2)
-__msg("4: (77) r1 >>= 32                     ; R1_w=0")
-__msg("5: (bf) r0 = r1                       ; R0_w=0 R1_w=0")
+__msg("4: (77) r1 >>= 32                     ; R1=0")
+__msg("5: (bf) r0 = r1                       ; R0=0 R1=0")
 __msg("6: (95) exit")
 __msg("from 3 to 4")
-__msg("4: (77) r1 >>= 32                     ; R1_w=0")
-__msg("5: (bf) r0 = r1                       ; R0_w=0 R1_w=0")
+__msg("4: (77) r1 >>= 32                     ; R1=0")
+__msg("5: (bf) r0 = r1                       ; R0=0 R1=0")
 __msg("6: (95) exit")
 /* Verify that statements to randomize upper half of r1 had not been
  * generated.
