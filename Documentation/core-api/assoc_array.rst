@@ -317,8 +317,7 @@ There are two functions for accessing an associative array:
    modified, provided the RCU read lock is held.
 
    The function will return the object if found (and set ``*_type`` to the
-   object
-   type) or will return ``NULL`` if the object was not found.
+   object type) or will return ``NULL`` if the object was not found.
 
 
 Index Key Form
@@ -400,10 +399,11 @@ fixed levels.  For example::
 
 In the above example, there are 7 nodes (A-G), each with 16 slots (0-f).
 Assuming no other meta data nodes in the tree, the key space is divided
-thusly::
+thusly:
 
+    ===========     ====
     KEY PREFIX      NODE
-    ==========      ====
+    ===========     ====
     137*            D
     138*            E
     13[0-69-f]*     C
@@ -411,10 +411,12 @@ thusly::
     e6*             G
     e[0-57-f]*      F
     [02-df]*        A
+    ===========     ====
 
 So, for instance, keys with the following example index keys will be found in
-the appropriate nodes::
+the appropriate nodes:
 
+    =============== ======= ====
     INDEX KEY       PREFIX  NODE
     =============== ======= ====
     13694892892489  13      C
@@ -423,12 +425,13 @@ the appropriate nodes::
     138bbb89003093  138     E
     1394879524789   12      C
     1458952489      1       B
-    9431809de993ba  -       A
-    b4542910809cd   -       A
+    9431809de993ba  \-      A
+    b4542910809cd   \-      A
     e5284310def98   e       F
     e68428974237    e6      G
     e7fffcbd443     e       F
-    f3842239082     -       A
+    f3842239082     \-      A
+    =============== ======= ====
 
 To save memory, if a node can hold all the leaves in its portion of keyspace,
 then the node will have all those leaves in it and will not have any metadata
@@ -442,8 +445,9 @@ metadata pointer.  If the metadata pointer is there, any leaf whose key matches
 the metadata key prefix must be in the subtree that the metadata pointer points
 to.
 
-In the above example list of index keys, node A will contain::
+In the above example list of index keys, node A will contain:
 
+    ====    =============== ==================
     SLOT    CONTENT         INDEX KEY (PREFIX)
     ====    =============== ==================
     1       PTR TO NODE B   1*
@@ -451,11 +455,16 @@ In the above example list of index keys, node A will contain::
     any     LEAF            b4542910809cd
     e       PTR TO NODE F   e*
     any     LEAF            f3842239082
+    ====    =============== ==================
 
-and node B::
+and node B:
 
-    3	PTR TO NODE C	13*
-    any	LEAF		1458952489
+    ====    =============== ==================
+    SLOT    CONTENT         INDEX KEY (PREFIX)
+    ====    =============== ==================
+    3       PTR TO NODE C   13*
+    any     LEAF            1458952489
+    ====    =============== ==================
 
 
 Shortcuts
