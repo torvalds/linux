@@ -542,6 +542,21 @@ static struct device_attribute fw_device_attributes[] = {
 	__ATTR_NULL,
 };
 
+#define CANON_OUI		0x000085
+
+static int detect_quirks_by_bus_information_block(const u32 *bus_information_block)
+{
+	int quirks = 0;
+
+	if ((bus_information_block[2] & 0x000000f0) == 0)
+		quirks |= FW_DEVICE_QUIRK_IRM_IS_1394_1995_ONLY;
+
+	if ((bus_information_block[3] >> 8) == CANON_OUI)
+		quirks |= FW_DEVICE_QUIRK_IRM_IGNORES_BUS_MANAGER;
+
+	return quirks;
+}
+
 static int read_rom(struct fw_device *device,
 		    int generation, int index, u32 *data)
 {
@@ -582,6 +597,7 @@ static int read_config_rom(struct fw_device *device, int generation)
 	u32 *rom, *stack;
 	u32 sp, key;
 	int i, end, length, ret;
+	int quirks;
 
 	rom = kmalloc(sizeof(*rom) * MAX_CONFIG_ROM_SIZE +
 		      sizeof(*stack) * MAX_CONFIG_ROM_SIZE, GFP_KERNEL);
@@ -611,6 +627,11 @@ static int read_config_rom(struct fw_device *device, int generation)
 			goto out;
 		}
 	}
+
+	quirks = detect_quirks_by_bus_information_block(rom);
+
+	// Just prevent from torn writing/reading.
+	WRITE_ONCE(device->quirks, quirks);
 
 	device->max_speed = device->node->max_speed;
 
@@ -1122,10 +1143,10 @@ static void fw_device_init(struct work_struct *work)
 		device->workfn = fw_device_shutdown;
 		fw_schedule_device_work(device, SHUTDOWN_DELAY);
 	} else {
-		fw_notice(card, "created device %s: GUID %08x%08x, S%d00\n",
+		fw_notice(card, "created device %s: GUID %08x%08x, S%d00, quirks %08x\n",
 			  dev_name(&device->device),
 			  device->config_rom[3], device->config_rom[4],
-			  1 << device->max_speed);
+			  1 << device->max_speed, device->quirks);
 		device->config_rom_retries = 0;
 
 		set_broadcast_channel(device, device->generation);

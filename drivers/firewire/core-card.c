@@ -86,8 +86,6 @@ static size_t config_rom_length = 1 + 4 + 1 + 1;
  */
 #define DEFAULT_SPLIT_TIMEOUT	(2 * 8000)
 
-#define CANON_OUI		0x000085
-
 static void generate_config_rom(struct fw_card *card, __be32 *config_rom)
 {
 	struct fw_descriptor *desc;
@@ -308,11 +306,9 @@ __must_hold(&card->lock)
 		cpu_to_be32(local_id),
 	};
 	bool grace = time_is_before_jiffies64(card->reset_jiffies + msecs_to_jiffies(125));
-	bool irm_is_1394_1995_only = false;
-	bool keep_this_irm = false;
 	struct fw_node *irm_node;
 	struct fw_device *irm_device;
-	int irm_node_id;
+	int irm_node_id, irm_device_quirks = 0;
 	int rcode;
 
 	lockdep_assert_held(&card->lock);
@@ -328,15 +324,12 @@ __must_hold(&card->lock)
 		return BM_CONTENTION_OUTCOME_IRM_HAS_LINK_OFF;
 	}
 
+	// NOTE: It is likely that the quirk detection for IRM device has not done yet.
 	irm_device = fw_node_get_device(irm_node);
-	if (irm_device && irm_device->config_rom) {
-		irm_is_1394_1995_only = (irm_device->config_rom[2] & 0x000000f0) == 0;
-
-		// Canon MV5i works unreliably if it is not root node.
-		keep_this_irm = irm_device->config_rom[3] >> 8 == CANON_OUI;
-	}
-
-	if (irm_is_1394_1995_only && !keep_this_irm) {
+	if (irm_device)
+		irm_device_quirks = READ_ONCE(irm_device->quirks);
+	if ((irm_device_quirks & FW_DEVICE_QUIRK_IRM_IS_1394_1995_ONLY) &&
+	    !(irm_device_quirks & FW_DEVICE_QUIRK_IRM_IGNORES_BUS_MANAGER)) {
 		fw_notice(card, "IRM is not 1394a compliant, making local node (%02x) root\n",
 			  local_id);
 		return BM_CONTENTION_OUTCOME_IRM_COMPLIES_1394_1995_ONLY;
@@ -373,7 +366,7 @@ __must_hold(&card->lock)
 			return BM_CONTENTION_OUTCOME_IRM_HOLDS_LOCAL_NODE_AS_BM;
 	}
 	default:
-		if (!keep_this_irm) {
+		if (!(irm_device_quirks & FW_DEVICE_QUIRK_IRM_IGNORES_BUS_MANAGER)) {
 			fw_notice(card, "BM lock failed (%s), making local node (%02x) root\n",
 				  fw_rcode_string(rcode), local_id);
 			return BM_CONTENTION_OUTCOME_IRM_COMPLIES_1394_1995_ONLY;
