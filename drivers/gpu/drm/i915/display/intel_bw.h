@@ -30,10 +30,6 @@ void intel_bw_init_hw(struct intel_display *display);
 int intel_bw_init(struct intel_display *display);
 int intel_bw_atomic_check(struct intel_atomic_state *state);
 int intel_bw_crtc_min_cdclk(const struct intel_crtc_state *crtc_state);
-int intel_bw_calc_min_cdclk(struct intel_atomic_state *state,
-			    bool *need_cdclk_calc);
-int intel_bw_min_cdclk(struct intel_display *display,
-		       const struct intel_bw_state *bw_state);
 void intel_bw_update_hw_state(struct intel_display *display);
 void intel_bw_crtc_disable_noatomic(struct intel_crtc *crtc);
 

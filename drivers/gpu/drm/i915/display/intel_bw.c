@@ -3,16 +3,12 @@
  * Copyright © 2019 Intel Corporation
  */
 
-#include <drm/drm_atomic_state_helper.h>
-
 #include "soc/intel_dram.h"
 
 #include "i915_drv.h"
 #include "i915_reg.h"
 #include "i915_utils.h"
-#include "intel_atomic.h"
 #include "intel_bw.h"
-#include "intel_cdclk.h"
 #include "intel_crtc.h"
 #include "intel_display_core.h"
 #include "intel_display_regs.h"
@@ -22,14 +18,8 @@
 #include "intel_uncore.h"
 #include "skl_watermark.h"
 
-struct intel_dbuf_bw {
-	unsigned int max_bw[I915_MAX_DBUF_SLICES];
-	u8 active_planes[I915_MAX_DBUF_SLICES];
-};
-
 struct intel_bw_state {
 	struct intel_global_state base;
-	struct intel_dbuf_bw dbuf_bw[I915_MAX_PIPES];
 
 	/*
 	 * Contains a bit mask, used to determine, whether correspondent
@@ -1264,184 +1254,6 @@ static int intel_bw_check_qgv_points(struct intel_display *display,
 					   old_bw_state, new_bw_state);
 }
 
-static bool intel_dbuf_bw_changed(struct intel_display *display,
-				  const struct intel_dbuf_bw *old_dbuf_bw,
-				  const struct intel_dbuf_bw *new_dbuf_bw)
-{
-	enum dbuf_slice slice;
-
-	for_each_dbuf_slice(display, slice) {
-		if (old_dbuf_bw->max_bw[slice] != new_dbuf_bw->max_bw[slice] ||
-		    old_dbuf_bw->active_planes[slice] != new_dbuf_bw->active_planes[slice])
-			return true;
-	}
-
-	return false;
-}
-
-static bool intel_bw_state_changed(struct intel_display *display,
-				   const struct intel_bw_state *old_bw_state,
-				   const struct intel_bw_state *new_bw_state)
-{
-	enum pipe pipe;
-
-	for_each_pipe(display, pipe) {
-		const struct intel_dbuf_bw *old_dbuf_bw =
-			&old_bw_state->dbuf_bw[pipe];
-		const struct intel_dbuf_bw *new_dbuf_bw =
-			&new_bw_state->dbuf_bw[pipe];
-
-		if (intel_dbuf_bw_changed(display, old_dbuf_bw, new_dbuf_bw))
-			return true;
-	}
-
-	return false;
-}
-
-static void skl_plane_calc_dbuf_bw(struct intel_dbuf_bw *dbuf_bw,
-				   struct intel_crtc *crtc,
-				   enum plane_id plane_id,
-				   const struct skl_ddb_entry *ddb,
-				   unsigned int data_rate)
-{
-	struct intel_display *display = to_intel_display(crtc);
-	unsigned int dbuf_mask = skl_ddb_dbuf_slice_mask(display, ddb);
-	enum dbuf_slice slice;
-
-	/*
-	 * The arbiter can only really guarantee an
-	 * equal share of the total bw to each plane.
-	 */
-	for_each_dbuf_slice_in_mask(display, slice, dbuf_mask) {
-		dbuf_bw->max_bw[slice] = max(dbuf_bw->max_bw[slice], data_rate);
-		dbuf_bw->active_planes[slice] |= BIT(plane_id);
-	}
-}
-
-static void skl_crtc_calc_dbuf_bw(struct intel_dbuf_bw *dbuf_bw,
-				  const struct intel_crtc_state *crtc_state)
-{
-	struct intel_display *display = to_intel_display(crtc_state);
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	enum plane_id plane_id;
-
-	memset(dbuf_bw, 0, sizeof(*dbuf_bw));
-
-	if (!crtc_state->hw.active)
-		return;
-
-	for_each_plane_id_on_crtc(crtc, plane_id) {
-		/*
-		 * We assume cursors are small enough
-		 * to not cause bandwidth problems.
-		 */
-		if (plane_id == PLANE_CURSOR)
-			continue;
-
-		skl_plane_calc_dbuf_bw(dbuf_bw, crtc, plane_id,
-				       &crtc_state->wm.skl.plane_ddb[plane_id],
-				       crtc_state->data_rate[plane_id]);
-
-		if (DISPLAY_VER(display) < 11)
-			skl_plane_calc_dbuf_bw(dbuf_bw, crtc, plane_id,
-					       &crtc_state->wm.skl.plane_ddb_y[plane_id],
-					       crtc_state->data_rate[plane_id]);
-	}
-}
-
-/* "Maximum Data Buffer Bandwidth" */
-static int
-intel_bw_dbuf_min_cdclk(struct intel_display *display,
-			const struct intel_bw_state *bw_state)
-{
-	unsigned int total_max_bw = 0;
-	enum dbuf_slice slice;
-
-	for_each_dbuf_slice(display, slice) {
-		int num_active_planes = 0;
-		unsigned int max_bw = 0;
-		enum pipe pipe;
-
-		/*
-		 * The arbiter can only really guarantee an
-		 * equal share of the total bw to each plane.
-		 */
-		for_each_pipe(display, pipe) {
-			const struct intel_dbuf_bw *dbuf_bw = &bw_state->dbuf_bw[pipe];
-
-			max_bw = max(dbuf_bw->max_bw[slice], max_bw);
-			num_active_planes += hweight8(dbuf_bw->active_planes[slice]);
-		}
-		max_bw *= num_active_planes;
-
-		total_max_bw = max(total_max_bw, max_bw);
-	}
-
-	return DIV_ROUND_UP(total_max_bw, 64);
-}
-
-int intel_bw_min_cdclk(struct intel_display *display,
-		       const struct intel_bw_state *bw_state)
-{
-	int min_cdclk;
-
-	min_cdclk = intel_bw_dbuf_min_cdclk(display, bw_state);
-
-	return min_cdclk;
-}
-
-int intel_bw_calc_min_cdclk(struct intel_atomic_state *state,
-			    bool *need_cdclk_calc)
-{
-	struct intel_display *display = to_intel_display(state);
-	struct intel_bw_state *new_bw_state = NULL;
-	const struct intel_bw_state *old_bw_state = NULL;
-	const struct intel_crtc_state *old_crtc_state;
-	const struct intel_crtc_state *new_crtc_state;
-	struct intel_crtc *crtc;
-	int ret, i;
-
-	if (DISPLAY_VER(display) < 9)
-		return 0;
-
-	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
-					    new_crtc_state, i) {
-		struct intel_dbuf_bw old_dbuf_bw, new_dbuf_bw;
-
-		skl_crtc_calc_dbuf_bw(&old_dbuf_bw, old_crtc_state);
-		skl_crtc_calc_dbuf_bw(&new_dbuf_bw, new_crtc_state);
-
-		if (!intel_dbuf_bw_changed(display, &old_dbuf_bw, &new_dbuf_bw))
-			continue;
-
-		new_bw_state = intel_atomic_get_bw_state(state);
-		if (IS_ERR(new_bw_state))
-			return PTR_ERR(new_bw_state);
-
-		old_bw_state = intel_atomic_get_old_bw_state(state);
-
-		new_bw_state->dbuf_bw[crtc->pipe] = new_dbuf_bw;
-	}
-
-	if (!old_bw_state)
-		return 0;
-
-	if (intel_bw_state_changed(display, old_bw_state, new_bw_state)) {
-		int ret = intel_atomic_lock_global_state(&new_bw_state->base);
-		if (ret)
-			return ret;
-	}
-
-	ret = intel_cdclk_update_bw_min_cdclk(state,
-					      intel_bw_min_cdclk(display, old_bw_state),
-					      intel_bw_min_cdclk(display, new_bw_state),
-					      need_cdclk_calc);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
 static int intel_bw_check_data_rate(struct intel_atomic_state *state, bool *changed)
 {
 	struct intel_display *display = to_intel_display(state);
@@ -1647,8 +1459,6 @@ void intel_bw_update_hw_state(struct intel_display *display)
 		if (DISPLAY_VER(display) >= 11)
 			intel_bw_crtc_update(bw_state, crtc_state);
 
-		skl_crtc_calc_dbuf_bw(&bw_state->dbuf_bw[pipe], crtc_state);
-
 		/* initially SAGV has been forced off */
 		bw_state->pipe_sagv_reject |= BIT(pipe);
 	}
@@ -1666,7 +1476,6 @@ void intel_bw_crtc_disable_noatomic(struct intel_crtc *crtc)
 
 	bw_state->data_rate[pipe] = 0;
 	bw_state->num_active_planes[pipe] = 0;
-	memset(&bw_state->dbuf_bw[pipe], 0, sizeof(bw_state->dbuf_bw[pipe]));
 }
 
 static struct intel_global_state *

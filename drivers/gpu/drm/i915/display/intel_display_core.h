@@ -370,6 +370,10 @@ struct intel_display {
 	} dbuf;
 
 	struct {
+		struct intel_global_obj obj;
+	} dbuf_bw;
+
+	struct {
 		/*
 		 * dkl.phy_lock protects against concurrent access of the
 		 * Dekel TypeC PHYs.

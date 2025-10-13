@@ -19,6 +19,7 @@
 #include "intel_color.h"
 #include "intel_crtc.h"
 #include "intel_crtc_state_dump.h"
+#include "intel_dbuf_bw.h"
 #include "intel_ddi.h"
 #include "intel_de.h"
 #include "intel_display.h"
@@ -176,6 +177,7 @@ static void intel_crtc_disable_noatomic_complete(struct intel_crtc *crtc)
 	intel_cdclk_crtc_disable_noatomic(crtc);
 	skl_wm_crtc_disable_noatomic(crtc);
 	intel_bw_crtc_disable_noatomic(crtc);
+	intel_dbuf_bw_crtc_disable_noatomic(crtc);
 
 	intel_pmdemand_update_port_clock(display, pmdemand_state, pipe, 0);
 }
@@ -872,6 +874,7 @@ static void intel_modeset_readout_hw_state(struct intel_display *display)
 		intel_wm_get_hw_state(display);
 
 	intel_bw_update_hw_state(display);
+	intel_dbuf_bw_update_hw_state(display);
 	intel_cdclk_update_hw_state(display);
 
 	intel_pmdemand_init_pmdemand_params(display, pmdemand_state);

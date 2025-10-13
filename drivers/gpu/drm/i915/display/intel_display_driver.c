@@ -28,6 +28,7 @@
 #include "intel_cdclk.h"
 #include "intel_color.h"
 #include "intel_crtc.h"
+#include "intel_dbuf_bw.h"
 #include "intel_display_core.h"
 #include "intel_display_debugfs.h"
 #include "intel_display_driver.h"
@@ -282,6 +283,10 @@ int intel_display_driver_probe_noirq(struct intel_display *display)
 		goto cleanup_wq_unordered;
 
 	ret = intel_dbuf_init(display);
+	if (ret)
+		goto cleanup_wq_unordered;
+
+	ret = intel_dbuf_bw_init(display);
 	if (ret)
 		goto cleanup_wq_unordered;
 

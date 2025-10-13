@@ -46,9 +46,9 @@ struct intel_cdclk_state *
 intel_atomic_get_cdclk_state(struct intel_atomic_state *state);
 void intel_cdclk_update_hw_state(struct intel_display *display);
 void intel_cdclk_crtc_disable_noatomic(struct intel_crtc *crtc);
-int intel_cdclk_update_bw_min_cdclk(struct intel_atomic_state *state,
-				    int old_min_cdclk, int new_min_cdclk,
-				    bool *need_cdclk_calc);
+int intel_cdclk_update_dbuf_bw_min_cdclk(struct intel_atomic_state *state,
+					 int old_min_cdclk, int new_min_cdclk,
+					 bool *need_cdclk_calc);
 
 #define to_intel_cdclk_state(global_state) \
 	container_of_const((global_state), struct intel_cdclk_state, base)
@@ -65,7 +65,6 @@ int intel_cdclk_logical(const struct intel_cdclk_state *cdclk_state);
 int intel_cdclk_actual(const struct intel_cdclk_state *cdclk_state);
 int intel_cdclk_actual_voltage_level(const struct intel_cdclk_state *cdclk_state);
 int intel_cdclk_min_cdclk(const struct intel_cdclk_state *cdclk_state, enum pipe pipe);
-int intel_cdclk_bw_min_cdclk(const struct intel_cdclk_state *cdclk_state);
 bool intel_cdclk_pmdemand_needs_update(struct intel_atomic_state *state);
 void intel_cdclk_force_min_cdclk(struct intel_cdclk_state *cdclk_state, int force_min_cdclk);
 void intel_cdclk_read_hw(struct intel_display *display);
