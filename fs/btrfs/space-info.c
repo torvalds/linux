@@ -1666,9 +1666,9 @@ static inline bool is_normal_flushing(enum btrfs_reserve_flush_enum flush)
 		(flush == BTRFS_RESERVE_FLUSH_ALL_STEAL);
 }
 
-static inline void maybe_clamp_preempt(struct btrfs_fs_info *fs_info,
-				       struct btrfs_space_info *space_info)
+static inline void maybe_clamp_preempt(struct btrfs_space_info *space_info)
 {
+	struct btrfs_fs_info *fs_info = space_info->fs_info;
 	u64 ordered = percpu_counter_sum_positive(&fs_info->ordered_bytes);
 	u64 delalloc = percpu_counter_sum_positive(&fs_info->delalloc_bytes);
 
@@ -1811,7 +1811,7 @@ static int __reserve_bytes(struct btrfs_fs_info *fs_info,
 				 * preemptive flushing in order to keep up with
 				 * the workload.
 				 */
-				maybe_clamp_preempt(fs_info, space_info);
+				maybe_clamp_preempt(space_info);
 
 				space_info->flush = true;
 				trace_btrfs_trigger_flush(fs_info,
