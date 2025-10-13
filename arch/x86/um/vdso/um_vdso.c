@@ -9,14 +9,12 @@
 /* Disable profiling for userspace code */
 #define DISABLE_BRANCH_PROFILING
 
+#include <vdso/gettime.h>
 #include <linux/time.h>
 #include <linux/getcpu.h>
 #include <asm/unistd.h>
 
 /* workaround for -Wmissing-prototypes warnings */
-int __vdso_clock_gettime(clockid_t clock, struct __kernel_timespec *ts);
-int __vdso_gettimeofday(struct __kernel_old_timeval *tv, struct timezone *tz);
-__kernel_old_time_t __vdso_time(__kernel_old_time_t *t);
 long __vdso_getcpu(unsigned int *cpu, unsigned int *node, struct getcpu_cache *unused);
 
 int __vdso_clock_gettime(clockid_t clock, struct __kernel_timespec *ts)
