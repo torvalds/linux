@@ -587,6 +587,9 @@ uint64_t ttm_resource_manager_usage(struct ttm_resource_manager *man)
 {
 	uint64_t usage;
 
+	if (WARN_ON_ONCE(!man->bdev))
+		return 0;
+
 	spin_lock(&man->bdev->lru_lock);
 	usage = man->usage;
 	spin_unlock(&man->bdev->lru_lock);
