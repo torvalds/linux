@@ -9777,7 +9777,8 @@ static void ufshcd_vreg_set_lpm(struct ufs_hba *hba)
 	 * All UFS devices require delay after VCC power rail is turned-off.
 	 */
 	if (vcc_off && hba->vreg_info.vcc && !hba->vreg_info.vcc->always_on)
-		usleep_range(5000, 5100);
+		usleep_range(hba->vcc_off_delay_us,
+			     hba->vcc_off_delay_us + 100);
 }
 
 #ifdef CONFIG_PM
@@ -10703,6 +10704,13 @@ int ufshcd_init(struct ufs_hba *hba, void __iomem *mmio_base, unsigned int irq)
 	hba->spm_lvl = ufs_get_desired_pm_lvl_for_dev_link_state(
 						UFS_SLEEP_PWR_MODE,
 						UIC_LINK_HIBERN8_STATE);
+
+	/*
+	 * Most ufs devices require 1ms delay after vcc is powered off before
+	 * it can be powered on again. Set the default to 2ms. The platform
+	 * drivers can override this setting as needed.
+	 */
+	hba->vcc_off_delay_us = 2000;
 
 	init_completion(&hba->dev_cmd.complete);
 

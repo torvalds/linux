@@ -1117,6 +1117,8 @@ struct ufs_hba {
 	int critical_health_count;
 	atomic_t dev_lvl_exception_count;
 	u64 dev_lvl_exception_id;
+
+	u32 vcc_off_delay_us;
 };
 
 /**
