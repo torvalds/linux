@@ -47,6 +47,7 @@ Rust 支持在 v6.1 版本中合并到主线，以帮助确定 Rust 作为一种
     general-information
     coding-guidelines
     arch-support
+    testing
 
 你还可以在 :doc:`../../../process/kernel-docs` 中找到 Rust 的学习材料。
 
