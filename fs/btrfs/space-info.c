@@ -490,8 +490,7 @@ static u64 calc_available_free_space(const struct btrfs_space_info *space_info,
 	return avail;
 }
 
-int btrfs_can_overcommit(struct btrfs_fs_info *fs_info,
-			 const struct btrfs_space_info *space_info, u64 bytes,
+int btrfs_can_overcommit(const struct btrfs_space_info *space_info, u64 bytes,
 			 enum btrfs_reserve_flush_enum flush)
 {
 	u64 avail;
@@ -525,7 +524,6 @@ static void remove_ticket(struct btrfs_space_info *space_info,
  */
 void btrfs_try_granting_tickets(struct btrfs_space_info *space_info)
 {
-	struct btrfs_fs_info *fs_info = space_info->fs_info;
 	struct list_head *head;
 	enum btrfs_reserve_flush_enum flush = BTRFS_RESERVE_NO_FLUSH;
 
@@ -541,8 +539,7 @@ again:
 
 		/* Check and see if our ticket can be satisfied now. */
 		if ((used + ticket->bytes <= space_info->total_bytes) ||
-		    btrfs_can_overcommit(fs_info, space_info, ticket->bytes,
-					 flush)) {
+		    btrfs_can_overcommit(space_info, ticket->bytes, flush)) {
 			btrfs_space_info_update_bytes_may_use(space_info, ticket->bytes);
 			remove_ticket(space_info, ticket);
 			ticket->bytes = 0;
@@ -1775,7 +1772,7 @@ static int __reserve_bytes(struct btrfs_fs_info *fs_info,
 	 */
 	if (!pending_tickets &&
 	    ((used + orig_bytes <= space_info->total_bytes) ||
-	     btrfs_can_overcommit(fs_info, space_info, orig_bytes, flush))) {
+	     btrfs_can_overcommit(space_info, orig_bytes, flush))) {
 		btrfs_space_info_update_bytes_may_use(space_info, orig_bytes);
 		ret = 0;
 	}
