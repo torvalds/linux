@@ -2272,7 +2272,7 @@ static int __s390_enable_skey_hugetlb(pte_t *pte, unsigned long addr,
 	start = pmd_val(*pmd) & HPAGE_MASK;
 	end = start + HPAGE_SIZE;
 	__storage_key_init_range(start, end);
-	set_bit(PG_arch_1, &folio->flags);
+	set_bit(PG_arch_1, &folio->flags.f);
 	cond_resched();
 	return 0;
 }

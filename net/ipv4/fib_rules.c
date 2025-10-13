@@ -23,6 +23,7 @@
 #include <linux/list.h>
 #include <linux/rcupdate.h>
 #include <linux/export.h>
+#include <net/flow.h>
 #include <net/inet_dscp.h>
 #include <net/ip.h>
 #include <net/route.h>
@@ -193,8 +194,7 @@ INDIRECT_CALLABLE_SCOPE int fib4_rule_match(struct fib_rule *rule,
 	 * to mask the upper three DSCP bits prior to matching to maintain
 	 * legacy behavior.
 	 */
-	if (r->dscp_full &&
-	    (r->dscp ^ inet_dsfield_to_dscp(fl4->flowi4_tos)) & r->dscp_mask)
+	if (r->dscp_full && (r->dscp ^ fl4->flowi4_dscp) & r->dscp_mask)
 		return 0;
 	else if (!r->dscp_full && r->dscp &&
 		 !fib_dscp_masked_match(r->dscp, fl4))

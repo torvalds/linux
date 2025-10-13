@@ -226,17 +226,16 @@ int snd_mixart_send_msg(struct mixart_mgr *mgr, struct mixart_msg *request, int 
 
 	init_waitqueue_entry(&wait, current);
 
-	mutex_lock(&mgr->msg_lock);
-	/* send the message */
-	err = send_msg(mgr, request, max_resp_size, 1, &msg_frame);  /* send and mark the answer pending */
-	if (err) {
-		mutex_unlock(&mgr->msg_lock);
-		return err;
+	scoped_guard(mutex, &mgr->msg_lock) {
+		/* send the message */
+		err = send_msg(mgr, request, max_resp_size, 1, &msg_frame);  /* send and mark the answer pending */
+		if (err)
+			return err;
+
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		add_wait_queue(&mgr->msg_sleep, &wait);
 	}
 
-	set_current_state(TASK_UNINTERRUPTIBLE);
-	add_wait_queue(&mgr->msg_sleep, &wait);
-	mutex_unlock(&mgr->msg_lock);
 	timeout = schedule_timeout(MSG_TIMEOUT_JIFFIES);
 	remove_wait_queue(&mgr->msg_sleep, &wait);
 
@@ -253,9 +252,9 @@ int snd_mixart_send_msg(struct mixart_mgr *mgr, struct mixart_msg *request, int 
 	resp.data = resp_data;
 	resp.size = max_resp_size;
 
-	mutex_lock(&mgr->msg_lock);
-	err = get_msg(mgr, &resp, msg_frame);
-	mutex_unlock(&mgr->msg_lock);
+	scoped_guard(mutex, &mgr->msg_lock) {
+		err = get_msg(mgr, &resp, msg_frame);
+	}
 
 	if( request->message_id != resp.message_id )
 		dev_err(&mgr->pci->dev, "RESPONSE ERROR!\n");
@@ -280,17 +279,16 @@ int snd_mixart_send_msg_wait_notif(struct mixart_mgr *mgr,
 
 	init_waitqueue_entry(&wait, current);
 
-	mutex_lock(&mgr->msg_lock);
-	/* send the message */
-	err = send_msg(mgr, request, MSG_DEFAULT_SIZE, 1, &notif_event);  /* send and mark the notification event pending */
-	if(err) {
-		mutex_unlock(&mgr->msg_lock);
-		return err;
+	scoped_guard(mutex, &mgr->msg_lock) {
+		/* send the message */
+		err = send_msg(mgr, request, MSG_DEFAULT_SIZE, 1, &notif_event);  /* send and mark the notification event pending */
+		if (err)
+			return err;
+
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		add_wait_queue(&mgr->msg_sleep, &wait);
 	}
 
-	set_current_state(TASK_UNINTERRUPTIBLE);
-	add_wait_queue(&mgr->msg_sleep, &wait);
-	mutex_unlock(&mgr->msg_lock);
 	timeout = schedule_timeout(MSG_TIMEOUT_JIFFIES);
 	remove_wait_queue(&mgr->msg_sleep, &wait);
 
@@ -311,9 +309,8 @@ int snd_mixart_send_msg_nonblock(struct mixart_mgr *mgr, struct mixart_msg *requ
 	int err;
 
 	/* just send the message (do not mark it as a pending one) */
-	mutex_lock(&mgr->msg_lock);
+	guard(mutex)(&mgr->msg_lock);
 	err = send_msg(mgr, request, MSG_DEFAULT_SIZE, 0, &message_frame);
-	mutex_unlock(&mgr->msg_lock);
 
 	/* the answer will be handled by snd_struct mixart_msgasklet()  */
 	atomic_inc(&mgr->msg_processed);
@@ -420,7 +417,7 @@ irqreturn_t snd_mixart_threaded_irq(int irq, void *dev_id)
 	struct mixart_msg resp;
 	u32 msg;
 
-	mutex_lock(&mgr->lock);
+	guard(mutex)(&mgr->lock);
 	/* process interrupt */
 	while (retrieve_msg_frame(mgr, &msg)) {
 
@@ -530,19 +527,19 @@ irqreturn_t snd_mixart_threaded_irq(int irq, void *dev_id)
 			fallthrough;
 		case MSG_TYPE_ANSWER:
 			/* answer or notification to a message we are waiting for*/
-			mutex_lock(&mgr->msg_lock);
-			if( (msg & ~MSG_TYPE_MASK) == mgr->pending_event ) {
-				wake_up(&mgr->msg_sleep);
-				mgr->pending_event = 0;
+			scoped_guard(mutex, &mgr->msg_lock) {
+				if ((msg & ~MSG_TYPE_MASK) == mgr->pending_event) {
+					wake_up(&mgr->msg_sleep);
+					mgr->pending_event = 0;
+				}
+				/* answer to a message we did't want to wait for */
+				else {
+					mgr->msg_fifo[mgr->msg_fifo_writeptr] = msg;
+					mgr->msg_fifo_writeptr++;
+					mgr->msg_fifo_writeptr %= MSG_FIFO_SIZE;
+					snd_mixart_process_msg(mgr);
+				}
 			}
-			/* answer to a message we did't want to wait for */
-			else {
-				mgr->msg_fifo[mgr->msg_fifo_writeptr] = msg;
-				mgr->msg_fifo_writeptr++;
-				mgr->msg_fifo_writeptr %= MSG_FIFO_SIZE;
-				snd_mixart_process_msg(mgr);
-			}
-			mutex_unlock(&mgr->msg_lock);
 			break;
 		case MSG_TYPE_REQUEST:
 		default:
@@ -555,8 +552,6 @@ irqreturn_t snd_mixart_threaded_irq(int irq, void *dev_id)
 
 	/* allow interrupt again */
 	writel_le( MIXART_ALLOW_OUTBOUND_DOORBELL, MIXART_REG( mgr, MIXART_PCI_OMIMR_OFFSET));
-
-	mutex_unlock(&mgr->lock);
 
 	return IRQ_HANDLED;
 }

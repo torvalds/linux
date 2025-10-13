@@ -528,6 +528,17 @@ enum smu_fw_status {
  */
 #define SMU_WBRF_EVENT_HANDLING_PACE	10
 
+enum smu_feature_cap_id {
+	SMU_FEATURE_CAP_ID__LINK_RESET = 0,
+	SMU_FEATURE_CAP_ID__SDMA_RESET,
+	SMU_FEATURE_CAP_ID__VCN_RESET,
+	SMU_FEATURE_CAP_ID__COUNT,
+};
+
+struct smu_feature_cap {
+	DECLARE_BITMAP(cap_map, SMU_FEATURE_CAP_ID__COUNT);
+};
+
 struct smu_context {
 	struct amdgpu_device            *adev;
 	struct amdgpu_irq_src		irq_source;
@@ -550,6 +561,7 @@ struct smu_context {
 	struct amd_pp_display_configuration  *display_config;
 	struct smu_baco_context		smu_baco;
 	struct smu_temperature_range	thermal_range;
+	struct smu_feature_cap		fea_cap;
 	void *od_settings;
 
 	struct smu_umd_pstate_table	pstate_table;
@@ -1273,11 +1285,6 @@ struct pptable_funcs {
 	bool (*mode1_reset_is_support)(struct smu_context *smu);
 
 	/**
-	 * @link_reset_is_support: Check if GPU supports link reset.
-	 */
-	bool (*link_reset_is_support)(struct smu_context *smu);
-
-	/**
 	 * @mode1_reset: Perform mode1 reset.
 	 *
 	 * Complete GPU reset.
@@ -1427,19 +1434,11 @@ struct pptable_funcs {
 	 * @reset_sdma: message SMU to soft reset sdma instance.
 	 */
 	int (*reset_sdma)(struct smu_context *smu, uint32_t inst_mask);
-	/**
-	 * @reset_sdma_is_supported: Check if support resets the SDMA engine.
-	 */
-	bool (*reset_sdma_is_supported)(struct smu_context *smu);
 
 	/**
 	 * @reset_vcn: message SMU to soft reset vcn instance.
 	 */
 	int (*dpm_reset_vcn)(struct smu_context *smu, uint32_t inst_mask);
-	/**
-	 * @reset_vcn_is_supported: Check if support resets vcn.
-	 */
-	bool (*reset_vcn_is_supported)(struct smu_context *smu);
 
 	/**
 	 * @get_ecc_table:  message SMU to get ECC INFO table.
@@ -1788,4 +1787,7 @@ ssize_t smu_get_pm_policy_info(struct smu_context *smu,
 			       enum pp_pm_policy p_type, char *sysbuf);
 
 #endif
+
+void smu_feature_cap_set(struct smu_context *smu, enum smu_feature_cap_id fea_id);
+bool smu_feature_cap_test(struct smu_context *smu, enum smu_feature_cap_id fea_id);
 #endif

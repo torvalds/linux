@@ -294,6 +294,8 @@ static int crypto_skcipher_init_tfm(struct crypto_tfm *tfm)
 		return crypto_init_lskcipher_ops_sg(tfm);
 	}
 
+	crypto_skcipher_set_reqsize(skcipher, crypto_tfm_alg_reqsize(tfm));
+
 	if (alg->exit)
 		skcipher->base.exit = crypto_skcipher_exit_tfm;
 

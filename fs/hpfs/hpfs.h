@@ -394,27 +394,45 @@ enum {
 	BP_binary_search = 0x40,
 	BP_internal = 0x80
 };
+
+/**
+ * GET_BTREE_PTR() - Get a pointer to struct bplus_header
+ *
+ * Wrapper around container_of() to retrieve a pointer to struct
+ * bplus_header from a pointer to struct bplus_header_fixed.
+ *
+ * @ptr: Pointer to struct bplus_header_fixed.
+ *
+ */
+#define GET_BTREE_PTR(ptr) \
+	container_of(ptr, struct bplus_header, __hdr)
+
 struct bplus_header
 {
-  u8 flags;				/* bit 0 - high bit of first free entry offset
+	/* New members MUST be added within the struct_group() macro below. */
+	struct_group_tagged(bplus_header_fixed, __hdr,
+		u8 flags;		/* bit 0 - high bit of first free entry offset
 					   bit 5 - we're pointed to by an fnode,
 					   the data btree or some ea or the
 					   main ea bootage pointer ea_secno
 					   bit 6 - suggest binary search (unused)
 					   bit 7 - 1 -> (internal) tree of anodes
 						   0 -> (leaf) list of extents */
-  u8 fill[3];
-  u8 n_free_nodes;			/* free nodes in following array */
-  u8 n_used_nodes;			/* used nodes in following array */
-  __le16 first_free;			/* offset from start of header to
+		u8 fill[3];
+		u8 n_free_nodes;	/* free nodes in following array */
+		u8 n_used_nodes;	/* used nodes in following array */
+		__le16 first_free;	/* offset from start of header to
 					   first free node in array */
-  union {
-	/* (internal) 2-word entries giving subtree pointers */
-	DECLARE_FLEX_ARRAY(struct bplus_internal_node, internal);
-	/* (external) 3-word entries giving sector runs */
-	DECLARE_FLEX_ARRAY(struct bplus_leaf_node, external);
-  } u;
+	);
+	union {
+		/* (internal) 2-word entries giving subtree pointers */
+		DECLARE_FLEX_ARRAY(struct bplus_internal_node, internal);
+		/* (external) 3-word entries giving sector runs */
+		DECLARE_FLEX_ARRAY(struct bplus_leaf_node, external);
+	} u;
 };
+static_assert(offsetof(struct bplus_header, u.internal) == sizeof(struct bplus_header_fixed),
+	      "struct member likely outside of struct_group_tagged()");
 
 static inline bool bp_internal(struct bplus_header *bp)
 {
@@ -453,7 +471,7 @@ struct fnode
   __le16 flags;				/* bit 1 set -> ea_secno is an anode */
 					/* bit 8 set -> directory.  first & only extent
 					   points to dnode. */
-  struct bplus_header btree;		/* b+ tree, 8 extents or 12 subtrees */
+  struct bplus_header_fixed btree;	/* b+ tree, 8 extents or 12 subtrees */
   union {
     struct bplus_leaf_node external[8];
     struct bplus_internal_node internal[12];
@@ -495,7 +513,7 @@ struct anode
   __le32 self;				/* pointer to this anode */
   __le32 up;				/* parent anode or fnode */
 
-  struct bplus_header btree;		/* b+tree, 40 extents or 60 subtrees */
+  struct bplus_header_fixed btree;	/* b+tree, 40 extents or 60 subtrees */
   union {
     struct bplus_leaf_node external[40];
     struct bplus_internal_node internal[60];

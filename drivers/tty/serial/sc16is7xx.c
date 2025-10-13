@@ -626,7 +626,7 @@ static void sc16is7xx_handle_rx(struct uart_port *port, unsigned int rxlen,
 {
 	struct sc16is7xx_one *one = to_sc16is7xx_one(port, port);
 	unsigned int lsr = 0, bytes_read, i;
-	bool read_lsr = (iir == SC16IS7XX_IIR_RLSE_SRC) ? true : false;
+	bool read_lsr = (iir == SC16IS7XX_IIR_RLSE_SRC);
 	u8 ch, flag;
 
 	if (unlikely(rxlen >= sizeof(one->buf))) {

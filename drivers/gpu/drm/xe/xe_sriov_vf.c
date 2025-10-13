@@ -3,6 +3,7 @@
  * Copyright © 2023-2024 Intel Corporation
  */
 
+#include <drm/drm_debugfs.h>
 #include <drm/drm_managed.h>
 
 #include "xe_assert.h"
@@ -10,6 +11,7 @@
 #include "xe_gt.h"
 #include "xe_gt_sriov_printk.h"
 #include "xe_gt_sriov_vf.h"
+#include "xe_guc.h"
 #include "xe_guc_ct.h"
 #include "xe_guc_submit.h"
 #include "xe_irq.h"
@@ -18,6 +20,7 @@
 #include "xe_sriov.h"
 #include "xe_sriov_printk.h"
 #include "xe_sriov_vf.h"
+#include "xe_sriov_vf_ccs.h"
 #include "xe_tile_sriov_vf.h"
 
 /**
@@ -127,16 +130,66 @@
  *      |                               |                               |
  */
 
-static bool vf_migration_supported(struct xe_device *xe)
+/**
+ * xe_sriov_vf_migration_supported - Report whether SR-IOV VF migration is
+ * supported or not.
+ * @xe: the &xe_device to check
+ *
+ * Returns: true if VF migration is supported, false otherwise.
+ */
+bool xe_sriov_vf_migration_supported(struct xe_device *xe)
+{
+	xe_assert(xe, IS_SRIOV_VF(xe));
+	return xe->sriov.vf.migration.enabled;
+}
+
+static void vf_disable_migration(struct xe_device *xe, const char *fmt, ...)
+{
+	struct va_format vaf;
+	va_list va_args;
+
+	xe_assert(xe, IS_SRIOV_VF(xe));
+
+	va_start(va_args, fmt);
+	vaf.fmt = fmt;
+	vaf.va  = &va_args;
+	xe_sriov_notice(xe, "migration disabled: %pV\n", &vaf);
+	va_end(va_args);
+
+	xe->sriov.vf.migration.enabled = false;
+}
+
+static void migration_worker_func(struct work_struct *w);
+
+static void vf_migration_init_early(struct xe_device *xe)
 {
 	/*
 	 * TODO: Add conditions to allow specific platforms, when they're
 	 * supported at production quality.
 	 */
-	return IS_ENABLED(CONFIG_DRM_XE_DEBUG);
-}
+	if (!IS_ENABLED(CONFIG_DRM_XE_DEBUG))
+		return vf_disable_migration(xe,
+					    "experimental feature not available on production builds");
 
-static void migration_worker_func(struct work_struct *w);
+	if (GRAPHICS_VER(xe) < 20)
+		return vf_disable_migration(xe, "requires gfx version >= 20, but only %u found",
+					    GRAPHICS_VER(xe));
+
+	if (!IS_DGFX(xe)) {
+		struct xe_uc_fw_version guc_version;
+
+		xe_gt_sriov_vf_guc_versions(xe_device_get_gt(xe, 0), NULL, &guc_version);
+		if (MAKE_GUC_VER_STRUCT(guc_version) < MAKE_GUC_VER(1, 23, 0))
+			return vf_disable_migration(xe,
+						    "CCS migration requires GuC ABI >= 1.23 but only %u.%u found",
+						    guc_version.major, guc_version.minor);
+	}
+
+	INIT_WORK(&xe->sriov.vf.migration.worker, migration_worker_func);
+
+	xe->sriov.vf.migration.enabled = true;
+	xe_sriov_dbg(xe, "migration support enabled\n");
+}
 
 /**
  * xe_sriov_vf_init_early - Initialize SR-IOV VF specific data.
@@ -144,10 +197,7 @@ static void migration_worker_func(struct work_struct *w);
  */
 void xe_sriov_vf_init_early(struct xe_device *xe)
 {
-	INIT_WORK(&xe->sriov.vf.migration.worker, migration_worker_func);
-
-	if (!vf_migration_supported(xe))
-		xe_sriov_info(xe, "migration not supported by this module version\n");
+	vf_migration_init_early(xe);
 }
 
 /**
@@ -302,8 +352,8 @@ static void vf_post_migration_recovery(struct xe_device *xe)
 	xe_pm_runtime_get(xe);
 	vf_post_migration_shutdown(xe);
 
-	if (!vf_migration_supported(xe)) {
-		xe_sriov_err(xe, "migration not supported by this module version\n");
+	if (!xe_sriov_vf_migration_supported(xe)) {
+		xe_sriov_err(xe, "migration is not supported\n");
 		err = -ENOTRECOVERABLE;
 		goto fail;
 	}
@@ -377,4 +427,49 @@ void xe_sriov_vf_start_migration_recovery(struct xe_device *xe)
 	started = queue_work(xe->sriov.wq, &xe->sriov.vf.migration.worker);
 	drm_info(&xe->drm, "VF migration recovery %s\n", started ?
 		 "scheduled" : "already in progress");
+}
+
+/**
+ * xe_sriov_vf_init_late() - SR-IOV VF late initialization functions.
+ * @xe: the &xe_device to initialize
+ *
+ * This function initializes code for CCS migration.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_sriov_vf_init_late(struct xe_device *xe)
+{
+	int err = 0;
+
+	if (xe_sriov_vf_migration_supported(xe))
+		err = xe_sriov_vf_ccs_init(xe);
+
+	return err;
+}
+
+static int sa_info_vf_ccs(struct seq_file *m, void *data)
+{
+	struct drm_info_node *node = m->private;
+	struct xe_device *xe = to_xe_device(node->minor->dev);
+	struct drm_printer p = drm_seq_file_printer(m);
+
+	xe_sriov_vf_ccs_print(xe, &p);
+	return 0;
+}
+
+static const struct drm_info_list debugfs_list[] = {
+	{ .name = "sa_info_vf_ccs", .show = sa_info_vf_ccs },
+};
+
+/**
+ * xe_sriov_vf_debugfs_register - Register VF debugfs attributes.
+ * @xe: the &xe_device
+ * @root: the root &dentry
+ *
+ * Prepare debugfs attributes exposed by the VF.
+ */
+void xe_sriov_vf_debugfs_register(struct xe_device *xe, struct dentry *root)
+{
+	drm_debugfs_create_files(debugfs_list, ARRAY_SIZE(debugfs_list),
+				 root, xe->drm.primary);
 }

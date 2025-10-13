@@ -521,7 +521,7 @@ Fwnode handles
 
 	%pfw[fP]
 
-For printing information on fwnode handles. The default is to print the full
+For printing information on an fwnode_handle. The default is to print the full
 node name, including the path. The modifiers are functionally equivalent to
 %pOF above.
 

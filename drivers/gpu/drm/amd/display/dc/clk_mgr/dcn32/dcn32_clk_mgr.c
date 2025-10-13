@@ -33,7 +33,7 @@
 #include "reg_helper.h"
 #include "core_types.h"
 #include "dm_helpers.h"
-#include "link.h"
+#include "link_service.h"
 #include "dc_state_priv.h"
 #include "atomfirmware.h"
 #include "dcn32_smu13_driver_if.h"

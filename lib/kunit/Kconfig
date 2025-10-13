@@ -106,4 +106,15 @@ config KUNIT_DEFAULT_TIMEOUT
 	  If unsure, the default timeout of 300 seconds is suitable for most
 	  cases.
 
+config KUNIT_UML_PCI
+	bool "KUnit UML PCI Support"
+	depends on UML
+	select UML_PCI
+	help
+	  Enables the PCI subsystem on UML for use by KUnit tests.
+	  Some KUnit tests require the PCI core which is not enabled by
+	  default on UML.
+
+	  If unsure, say N.
+
 endif # KUNIT

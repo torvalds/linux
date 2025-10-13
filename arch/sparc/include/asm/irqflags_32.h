@@ -11,7 +11,7 @@
 #ifndef _ASM_IRQFLAGS_H
 #define _ASM_IRQFLAGS_H
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/types.h>
 #include <asm/psr.h>
@@ -43,6 +43,6 @@ static inline notrace bool arch_irqs_disabled(void)
 	return arch_irqs_disabled_flags(arch_local_save_flags());
 }
 
-#endif /* (__ASSEMBLY__) */
+#endif /* (__ASSEMBLER__) */
 
 #endif /* !(_ASM_IRQFLAGS_H) */

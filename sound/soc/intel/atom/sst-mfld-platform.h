@@ -105,7 +105,7 @@ struct compress_sst_ops {
 	int (*stream_pause_release)(struct device *dev,	unsigned int str_id);
 
 	int (*tstamp)(struct device *dev, unsigned int str_id,
-			struct snd_compr_tstamp *tstamp);
+		      struct snd_compr_tstamp64 *tstamp);
 	int (*ack)(struct device *dev, unsigned int str_id,
 			unsigned long bytes);
 	int (*close)(struct device *dev, unsigned int str_id);

@@ -99,8 +99,8 @@ struct erdma_mtt {
 	union {
 		dma_addr_t buf_dma;
 		struct {
-			struct scatterlist *sglist;
-			u32 nsg;
+			dma_addr_t *dma_addrs;
+			u32 npages;
 			u32 level;
 		};
 	};

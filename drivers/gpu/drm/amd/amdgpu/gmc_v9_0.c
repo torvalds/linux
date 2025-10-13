@@ -1834,11 +1834,19 @@ static void gmc_v9_0_save_registers(struct amdgpu_device *adev)
 
 static void gmc_v9_4_3_init_vram_info(struct amdgpu_device *adev)
 {
+	static const u32 regBIF_BIOS_SCRATCH_4 = 0x50;
+	u32 vram_info;
+
 	adev->gmc.vram_type = AMDGPU_VRAM_TYPE_HBM;
 	adev->gmc.vram_width = 128 * 64;
 
 	if (amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 5, 0))
 		adev->gmc.vram_type = AMDGPU_VRAM_TYPE_HBM3E;
+
+	if (!(adev->flags & AMD_IS_APU) && !amdgpu_sriov_vf(adev)) {
+		vram_info = RREG32(regBIF_BIOS_SCRATCH_4);
+		adev->gmc.vram_vendor = vram_info & 0xF;
+	}
 }
 
 static int gmc_v9_0_sw_init(struct amdgpu_ip_block *ip_block)

@@ -300,7 +300,6 @@ static int snd_msnd_init_sma(struct snd_msnd *chip)
 {
 	static int initted;
 	u16 mastVolLeft, mastVolRight;
-	unsigned long flags;
 
 #ifdef MSND_CLASSIC
 	outb(chip->memid, chip->io + HP_MEMM);
@@ -317,11 +316,11 @@ static int snd_msnd_init_sma(struct snd_msnd *chip)
 	memset_io(chip->mappedbase, 0, 0x8000);
 
 	/* Critical section: bank 1 access */
-	spin_lock_irqsave(&chip->lock, flags);
-	outb(HPBLKSEL_1, chip->io + HP_BLKS);
-	memset_io(chip->mappedbase, 0, 0x8000);
-	outb(HPBLKSEL_0, chip->io + HP_BLKS);
-	spin_unlock_irqrestore(&chip->lock, flags);
+	scoped_guard(spinlock_irqsave, &chip->lock) {
+		outb(HPBLKSEL_1, chip->io + HP_BLKS);
+		memset_io(chip->mappedbase, 0, 0x8000);
+		outb(HPBLKSEL_0, chip->io + HP_BLKS);
+	}
 
 	/* Digital audio play queue */
 	chip->DAPQ = chip->mappedbase + DAPQ_OFFSET;

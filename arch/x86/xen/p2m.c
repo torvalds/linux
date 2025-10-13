@@ -686,7 +686,7 @@ int set_foreign_p2m_mapping(struct gnttab_map_grant_ref *map_ops,
 	int i, ret = 0;
 	pte_t *pte;
 
-	if (xen_feature(XENFEAT_auto_translated_physmap))
+	if (!xen_pv_domain())
 		return 0;
 
 	if (kmap_ops) {
@@ -769,7 +769,7 @@ int clear_foreign_p2m_mapping(struct gnttab_unmap_grant_ref *unmap_ops,
 {
 	int i, ret = 0;
 
-	if (xen_feature(XENFEAT_auto_translated_physmap))
+	if (!xen_pv_domain())
 		return 0;
 
 	for (i = 0; i < count; i++) {

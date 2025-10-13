@@ -641,12 +641,9 @@ static int fcp_ioctl_set_meter_map(struct usb_mixer_interface *mixer,
 		return -EINVAL;
 
 	/* Allocate and copy the map data */
-	tmp_map = kmalloc_array(map.map_size, sizeof(s16), GFP_KERNEL);
-	if (!tmp_map)
-		return -ENOMEM;
-
-	if (copy_from_user(tmp_map, arg->map, map.map_size * sizeof(s16)))
-		return -EFAULT;
+	tmp_map = memdup_array_user(arg->map, map.map_size, sizeof(s16));
+	if (IS_ERR(tmp_map))
+		return PTR_ERR(tmp_map);
 
 	err = validate_meter_map(tmp_map, map.map_size, map.meter_slots);
 	if (err < 0)
@@ -820,7 +817,6 @@ static long fcp_hwdep_read(struct snd_hwdep *hw, char __user *buf,
 {
 	struct usb_mixer_interface *mixer = hw->private_data;
 	struct fcp_data *private = mixer->private_data;
-	unsigned long flags;
 	long ret = 0;
 	u32 event;
 
@@ -832,10 +828,10 @@ static long fcp_hwdep_read(struct snd_hwdep *hw, char __user *buf,
 	if (ret)
 		return ret;
 
-	spin_lock_irqsave(&private->notify.lock, flags);
-	event = private->notify.event;
-	private->notify.event = 0;
-	spin_unlock_irqrestore(&private->notify.lock, flags);
+	scoped_guard(spinlock_irqsave, &private->notify.lock) {
+		event = private->notify.event;
+		private->notify.event = 0;
+	}
 
 	if (copy_to_user(buf, &event, sizeof(event)))
 		return -EFAULT;
@@ -946,11 +942,9 @@ static void fcp_notify(struct urb *urb)
 	}
 
 	if (data) {
-		unsigned long flags;
-
-		spin_lock_irqsave(&private->notify.lock, flags);
-		private->notify.event |= data;
-		spin_unlock_irqrestore(&private->notify.lock, flags);
+		scoped_guard(spinlock_irqsave, &private->notify.lock) {
+			private->notify.event |= data;
+		}
 
 		wake_up_interruptible(&private->notify.queue);
 	}

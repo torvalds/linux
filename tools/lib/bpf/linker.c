@@ -25,7 +25,6 @@
 #include "btf.h"
 #include "libbpf_internal.h"
 #include "strset.h"
-#include "str_error.h"
 
 #define BTF_EXTERN_SEC ".extern"
 

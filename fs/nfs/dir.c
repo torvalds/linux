@@ -829,17 +829,17 @@ static int nfs_readdir_folio_filler(struct nfs_readdir_descriptor *desc,
 	struct address_space *mapping = desc->file->f_mapping;
 	struct folio *new, *folio = *arrays;
 	struct xdr_stream stream;
-	struct page *scratch;
+	struct folio *scratch;
 	struct xdr_buf buf;
 	u64 cookie;
 	int status;
 
-	scratch = alloc_page(GFP_KERNEL);
+	scratch = folio_alloc(GFP_KERNEL, 0);
 	if (scratch == NULL)
 		return -ENOMEM;
 
 	xdr_init_decode_pages(&stream, &buf, xdr_pages, buflen);
-	xdr_set_scratch_page(&stream, scratch);
+	xdr_set_scratch_folio(&stream, scratch);
 
 	do {
 		status = nfs_readdir_entry_decode(desc, entry, &stream);
@@ -891,7 +891,7 @@ static int nfs_readdir_folio_filler(struct nfs_readdir_descriptor *desc,
 	if (folio != *arrays)
 		nfs_readdir_folio_unlock_and_put(folio);
 
-	put_page(scratch);
+	folio_put(scratch);
 	return status;
 }
 
@@ -2198,8 +2198,6 @@ no_open:
 		else
 			dput(dentry);
 	}
-	if (IS_ERR(res))
-		return PTR_ERR(res);
 	return finish_no_open(file, res);
 }
 EXPORT_SYMBOL_GPL(nfs_atomic_open);
@@ -2260,7 +2258,7 @@ int nfs_atomic_open_v23(struct inode *dir, struct dentry *dentry,
 			struct file *file, unsigned int open_flags,
 			umode_t mode)
 {
-
+	struct dentry *res = NULL;
 	/* Same as look+open from lookup_open(), but with different O_TRUNC
 	 * handling.
 	 */
@@ -2275,21 +2273,15 @@ int nfs_atomic_open_v23(struct inode *dir, struct dentry *dentry,
 		if (error)
 			return error;
 		return finish_open(file, dentry, NULL);
-	} else if (d_in_lookup(dentry)) {
+	}
+	if (d_in_lookup(dentry)) {
 		/* The only flags nfs_lookup considers are
 		 * LOOKUP_EXCL and LOOKUP_RENAME_TARGET, and
 		 * we want those to be zero so the lookup isn't skipped.
 		 */
-		struct dentry *res = nfs_lookup(dir, dentry, 0);
-
-		d_lookup_done(dentry);
-		if (unlikely(res)) {
-			if (IS_ERR(res))
-				return PTR_ERR(res);
-			return finish_no_open(file, res);
-		}
+		res = nfs_lookup(dir, dentry, 0);
 	}
-	return finish_no_open(file, NULL);
+	return finish_no_open(file, res);
 
 }
 EXPORT_SYMBOL_GPL(nfs_atomic_open_v23);

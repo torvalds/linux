@@ -1,0 +1,46 @@
+// SPDX-License-Identifier: GPL-2.0
+//
+// A reproducer case for a TFO SYNACK RTO undo bug in:
+//   794200d66273 ("tcp: undo cwnd on Fast Open spurious SYNACK retransmit")
+// This sequence that tickles this bug is:
+//  - Fast Open server receives TFO SYN with data, sends SYNACK
+//  - (client receives SYNACK and sends ACK, but ACK is lost)
+//  - server app sends some data packets
+//  - (N of the first data packets are lost)
+//  - server receives client ACK that has a TS ECR matching first SYNACK,
+//    and also SACKs suggesting the first N data packets were lost
+//     - server performs undo of SYNACK RTO, then immediately enters recovery
+//     - buggy behavior in 794200d66273 then performed an undo that caused
+//       the connection to be in a bad state, in CA_Open with retrans_out != 0
+
+// Check that outbound TS Val ticks are as we would expect with 1000 usec per
+// timestamp tick:
+--tcp_ts_tick_usecs=1000
+
+`./defaults.sh`
+
+// Initialize connection
+    0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+   +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+   +0 setsockopt(3, SOL_TCP, TCP_FASTOPEN, [1], 4) = 0
+   +0 bind(3, ..., ...) = 0
+   +0 listen(3, 1) = 0
+
+   +0 < S 0:1000(1000) win 65535 <mss 1012,sackOK,TS val 1000 ecr 0,wscale 7,nop,nop,nop,FO TFO_COOKIE>
+   +0 > S. 0:0(0) ack 1001 <mss 1460,sackOK,TS val 2000 ecr 1000,nop,wscale 8>
+   +0 accept(3, ..., ...) = 4
+
+// Application writes more data
+   +.010 write(4, ..., 10000) = 10000
+   +0 > P. 1:5001(5000) ack 1001 <nop,nop,TS val 2010 ecr 1000>
+   +0 > P. 5001:10001(5000) ack 1001 <nop,nop,TS val 2010 ecr 1000>
+   +0 %{ assert tcpi_snd_cwnd == 10, tcpi_snd_cwnd }%
+
+   +0 < . 1001:1001(0) ack 1 win 257 <TS val 1010 ecr 2000,sack 2001:5001>
+   +0 > P. 1:2001(2000) ack 1001 <nop,nop,TS val 2010 ecr 1010>
+   +0 %{ assert tcpi_ca_state == TCP_CA_Recovery, tcpi_ca_state }%
+   +0 %{ assert tcpi_snd_cwnd == 7, tcpi_snd_cwnd }%
+
+   +0 < . 1001:1001(0) ack 1 win 257 <TS val 1011 ecr 2000,sack 2001:6001>
+   +0 %{ assert tcpi_ca_state == TCP_CA_Recovery, tcpi_ca_state }%
+   +0 %{ assert tcpi_snd_cwnd == 7, tcpi_snd_cwnd }%

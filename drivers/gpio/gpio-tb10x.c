@@ -7,20 +7,20 @@
  *          Christian Ruppert <christian.ruppert@abilis.com>
  */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/platform_device.h>
+#include <linux/bitops.h>
 #include <linux/gpio/driver.h>
-#include <linux/slab.h>
-#include <linux/irq.h>
-#include <linux/irqdomain.h>
+#include <linux/gpio/generic.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/irq.h>
+#include <linux/irqdomain.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
-#include <linux/spinlock.h>
-#include <linux/bitops.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/platform_device.h>
+#include <linux/slab.h>
 
 #define TB10X_GPIO_DIR_IN	(0x00000000)
 #define TB10X_GPIO_DIR_OUT	(0x00000001)
@@ -36,13 +36,13 @@
  * @base: register base address
  * @domain: IRQ domain of GPIO generated interrupts managed by this controller
  * @irq: Interrupt line of parent interrupt controller
- * @gc: gpio_chip structure associated to this GPIO controller
+ * @chip: Generic GPIO chip structure associated with this GPIO controller
  */
 struct tb10x_gpio {
 	void __iomem *base;
 	struct irq_domain *domain;
 	int irq;
-	struct gpio_chip gc;
+	struct gpio_generic_chip chip;
 };
 
 static inline u32 tb10x_reg_read(struct tb10x_gpio *gpio, unsigned int offs)
@@ -60,16 +60,13 @@ static inline void tb10x_set_bits(struct tb10x_gpio *gpio, unsigned int offs,
 				u32 mask, u32 val)
 {
 	u32 r;
-	unsigned long flags;
 
-	raw_spin_lock_irqsave(&gpio->gc.bgpio_lock, flags);
+	guard(gpio_generic_lock_irqsave)(&gpio->chip);
 
 	r = tb10x_reg_read(gpio, offs);
 	r = (r & ~mask) | (val & mask);
 
 	tb10x_reg_write(gpio, offs, r);
-
-	raw_spin_unlock_irqrestore(&gpio->gc.bgpio_lock, flags);
 }
 
 static int tb10x_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
@@ -107,6 +104,7 @@ static irqreturn_t tb10x_gpio_irq_cascade(int irq, void *data)
 
 static int tb10x_gpio_probe(struct platform_device *pdev)
 {
+	struct gpio_generic_chip_config config;
 	struct tb10x_gpio *tb10x_gpio;
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
@@ -127,9 +125,9 @@ static int tb10x_gpio_probe(struct platform_device *pdev)
 	if (IS_ERR(tb10x_gpio->base))
 		return PTR_ERR(tb10x_gpio->base);
 
-	tb10x_gpio->gc.label =
+	tb10x_gpio->chip.gc.label =
 		devm_kasprintf(dev, GFP_KERNEL, "%pOF", pdev->dev.of_node);
-	if (!tb10x_gpio->gc.label)
+	if (!tb10x_gpio->chip.gc.label)
 		return -ENOMEM;
 
 	/*
@@ -137,29 +135,30 @@ static int tb10x_gpio_probe(struct platform_device *pdev)
 	 * the lines, no special set or clear registers and a data direction register
 	 * wher 1 means "output".
 	 */
-	ret = bgpio_init(&tb10x_gpio->gc, dev, 4,
-			 tb10x_gpio->base + OFFSET_TO_REG_DATA,
-			 NULL,
-			 NULL,
-			 tb10x_gpio->base + OFFSET_TO_REG_DDR,
-			 NULL,
-			 0);
+	config = (struct gpio_generic_chip_config) {
+		.dev = dev,
+		.sz = 4,
+		.dat = tb10x_gpio->base + OFFSET_TO_REG_DATA,
+		.dirout = tb10x_gpio->base + OFFSET_TO_REG_DDR,
+	};
+
+	ret = gpio_generic_chip_init(&tb10x_gpio->chip, &config);
 	if (ret) {
 		dev_err(dev, "unable to init generic GPIO\n");
 		return ret;
 	}
-	tb10x_gpio->gc.base = -1;
-	tb10x_gpio->gc.parent = dev;
-	tb10x_gpio->gc.owner = THIS_MODULE;
+	tb10x_gpio->chip.gc.base = -1;
+	tb10x_gpio->chip.gc.parent = dev;
+	tb10x_gpio->chip.gc.owner = THIS_MODULE;
 	/*
-	 * ngpio is set by bgpio_init() but we override it, this .request()
-	 * callback also overrides the one set up by generic GPIO.
+	 * ngpio is set by gpio_generic_chip_init() but we override it, this
+	 * .request() callback also overrides the one set up by generic GPIO.
 	 */
-	tb10x_gpio->gc.ngpio = ngpio;
-	tb10x_gpio->gc.request = gpiochip_generic_request;
-	tb10x_gpio->gc.free = gpiochip_generic_free;
+	tb10x_gpio->chip.gc.ngpio = ngpio;
+	tb10x_gpio->chip.gc.request = gpiochip_generic_request;
+	tb10x_gpio->chip.gc.free = gpiochip_generic_free;
 
-	ret = devm_gpiochip_add_data(dev, &tb10x_gpio->gc, tb10x_gpio);
+	ret = devm_gpiochip_add_data(dev, &tb10x_gpio->chip.gc, tb10x_gpio);
 	if (ret < 0) {
 		dev_err(dev, "Could not add gpiochip.\n");
 		return ret;
@@ -174,7 +173,7 @@ static int tb10x_gpio_probe(struct platform_device *pdev)
 		if (ret < 0)
 			return ret;
 
-		tb10x_gpio->gc.to_irq	= tb10x_gpio_to_irq;
+		tb10x_gpio->chip.gc.to_irq = tb10x_gpio_to_irq;
 		tb10x_gpio->irq		= ret;
 
 		ret = devm_request_irq(dev, ret, tb10x_gpio_irq_cascade,
@@ -183,14 +182,15 @@ static int tb10x_gpio_probe(struct platform_device *pdev)
 		if (ret != 0)
 			return ret;
 
-		tb10x_gpio->domain = irq_domain_create_linear(dev_fwnode(dev), tb10x_gpio->gc.ngpio,
+		tb10x_gpio->domain = irq_domain_create_linear(dev_fwnode(dev),
+							      tb10x_gpio->chip.gc.ngpio,
 							      &irq_generic_chip_ops, NULL);
 		if (!tb10x_gpio->domain) {
 			return -ENOMEM;
 		}
 
 		ret = irq_alloc_domain_generic_chips(tb10x_gpio->domain,
-				tb10x_gpio->gc.ngpio, 1, tb10x_gpio->gc.label,
+				tb10x_gpio->chip.gc.ngpio, 1, tb10x_gpio->chip.gc.label,
 				handle_edge_irq, IRQ_NOREQUEST, IRQ_NOPROBE,
 				IRQ_GC_INIT_MASK_CACHE);
 		if (ret)
@@ -218,9 +218,9 @@ static void tb10x_gpio_remove(struct platform_device *pdev)
 {
 	struct tb10x_gpio *tb10x_gpio = platform_get_drvdata(pdev);
 
-	if (tb10x_gpio->gc.to_irq) {
+	if (tb10x_gpio->chip.gc.to_irq) {
 		irq_remove_generic_chip(tb10x_gpio->domain->gc->gc[0],
-					BIT(tb10x_gpio->gc.ngpio) - 1, 0, 0);
+					BIT(tb10x_gpio->chip.gc.ngpio) - 1, 0, 0);
 		kfree(tb10x_gpio->domain->gc);
 		irq_domain_remove(tb10x_gpio->domain);
 	}

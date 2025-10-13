@@ -221,7 +221,10 @@ properties:
     maxItems: 1
 
   "#pwm-cells":
-    const: 2
+    oneOf:
+      - const: 2
+        deprecated: true
+      - const: 3
 
 required:
   - compatible
@@ -299,5 +302,5 @@ examples:
       clocks = <&cpg CPG_MOD R9A07G044_MTU_X_MCK_MTU3>;
       power-domains = <&cpg>;
       resets = <&cpg R9A07G044_MTU_X_PRESET_MTU3>;
-      #pwm-cells = <2>;
+      #pwm-cells = <3>;
     };

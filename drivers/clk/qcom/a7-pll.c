@@ -27,7 +27,7 @@ static struct clk_alpha_pll a7pll = {
 	.clkr = {
 		.hw.init = &(struct clk_init_data){
 			.name = "a7pll",
-			.parent_data =  &(const struct clk_parent_data){
+			.parent_data = &(const struct clk_parent_data){
 				.fw_name = "bi_tcxo",
 			},
 			.num_parents = 1,
@@ -50,7 +50,6 @@ static const struct regmap_config a7pll_regmap_config = {
 	.reg_stride		= 4,
 	.val_bits		= 32,
 	.max_register		= 0x1000,
-	.fast_io		= true,
 };
 
 static int qcom_a7pll_probe(struct platform_device *pdev)

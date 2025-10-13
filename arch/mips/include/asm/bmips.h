@@ -42,7 +42,7 @@
 
 #define ZSCM_REG_BASE			0x97000000
 
-#if !defined(__ASSEMBLY__)
+#if !defined(__ASSEMBLER__)
 
 #include <linux/cpumask.h>
 #include <asm/r4kcache.h>
@@ -124,6 +124,6 @@ static inline void bmips_write_zscm_reg(unsigned int offset, unsigned long data)
 	barrier();
 }
 
-#endif /* !defined(__ASSEMBLY__) */
+#endif /* !defined(__ASSEMBLER__) */
 
 #endif /* _ASM_BMIPS_H */

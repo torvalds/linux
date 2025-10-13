@@ -7,6 +7,7 @@
 #include <linux/err.h>
 #include <linux/log2.h>
 #include <linux/regulator/consumer.h>
+#include <linux/workqueue.h>
 
 #include <linux/mmc/host.h>
 
@@ -261,6 +262,82 @@ static inline int mmc_regulator_get_ocrmask(struct regulator *supply)
 }
 
 #endif /* CONFIG_REGULATOR */
+
+/* To be called from a high-priority workqueue */
+void mmc_undervoltage_workfn(struct work_struct *work)
+{
+	struct mmc_supply *supply;
+	struct mmc_host *host;
+
+	supply = container_of(work, struct mmc_supply, uv_work);
+	host = container_of(supply, struct mmc_host, supply);
+
+	mmc_handle_undervoltage(host);
+}
+
+static int mmc_handle_regulator_event(struct notifier_block *nb,
+				      unsigned long event, void *data)
+{
+	struct mmc_supply *supply = container_of(nb, struct mmc_supply,
+						 vmmc_nb);
+	struct mmc_host *host = container_of(supply, struct mmc_host, supply);
+	unsigned long flags;
+
+	switch (event) {
+	case REGULATOR_EVENT_UNDER_VOLTAGE:
+		spin_lock_irqsave(&host->lock, flags);
+		if (host->undervoltage) {
+			spin_unlock_irqrestore(&host->lock, flags);
+			return NOTIFY_OK;
+		}
+
+		host->undervoltage = true;
+		spin_unlock_irqrestore(&host->lock, flags);
+
+		queue_work(system_highpri_wq, &host->supply.uv_work);
+		break;
+	default:
+		return NOTIFY_DONE;
+	}
+
+	return NOTIFY_OK;
+}
+
+/**
+ * mmc_regulator_register_undervoltage_notifier - Register for undervoltage
+ *						  events
+ * @host: MMC host
+ *
+ * To be called by a bus driver when a card supporting graceful shutdown
+ * is attached.
+ */
+void mmc_regulator_register_undervoltage_notifier(struct mmc_host *host)
+{
+	int ret;
+
+	if (IS_ERR_OR_NULL(host->supply.vmmc))
+		return;
+
+	host->supply.vmmc_nb.notifier_call = mmc_handle_regulator_event;
+	ret = regulator_register_notifier(host->supply.vmmc,
+					  &host->supply.vmmc_nb);
+	if (ret)
+		dev_warn(mmc_dev(host), "Failed to register vmmc notifier: %d\n", ret);
+}
+
+/**
+ * mmc_regulator_unregister_undervoltage_notifier - Unregister undervoltage
+ *						    notifier
+ * @host: MMC host
+ */
+void mmc_regulator_unregister_undervoltage_notifier(struct mmc_host *host)
+{
+	if (IS_ERR_OR_NULL(host->supply.vmmc))
+		return;
+
+	regulator_unregister_notifier(host->supply.vmmc, &host->supply.vmmc_nb);
+	cancel_work_sync(&host->supply.uv_work);
+}
 
 /**
  * mmc_regulator_get_supply - try to get VMMC and VQMMC regulators for a host

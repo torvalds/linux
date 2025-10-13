@@ -31,10 +31,18 @@
 #[allow(clippy::undocumented_unsafe_blocks)]
 #[cfg_attr(CONFIG_RUSTC_HAS_UNNECESSARY_TRANSMUTES, allow(unnecessary_transmutes))]
 mod bindings_raw {
+    use pin_init::{MaybeZeroable, Zeroable};
+
     // Manual definition for blocklisted types.
     type __kernel_size_t = usize;
     type __kernel_ssize_t = isize;
     type __kernel_ptrdiff_t = isize;
+
+    // `bindgen` doesn't automatically do this, see
+    // <https://github.com/rust-lang/rust-bindgen/issues/3196>
+    //
+    // SAFETY: `__BindgenBitfieldUnit<Storage>` is a newtype around `Storage`.
+    unsafe impl<Storage> Zeroable for __BindgenBitfieldUnit<Storage> where Storage: Zeroable {}
 
     // Use glob import here to expose all helpers.
     // Symbols defined within the module will take precedence to the glob import.

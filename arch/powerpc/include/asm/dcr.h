@@ -7,7 +7,7 @@
 #ifndef _ASM_POWERPC_DCR_H
 #define _ASM_POWERPC_DCR_H
 #ifdef __KERNEL__
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #ifdef CONFIG_PPC_DCR
 
 #include <asm/dcr-native.h>
@@ -28,6 +28,6 @@ extern unsigned int dcr_resource_start(const struct device_node *np,
 extern unsigned int dcr_resource_len(const struct device_node *np,
 				     unsigned int index);
 #endif /* CONFIG_PPC_DCR */
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_DCR_H */

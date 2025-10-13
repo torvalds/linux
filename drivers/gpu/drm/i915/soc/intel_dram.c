@@ -732,7 +732,7 @@ int intel_dram_detect(struct drm_i915_private *i915)
 	struct dram_info *dram_info;
 	int ret;
 
-	if (IS_DG2(i915) || !HAS_DISPLAY(display))
+	if (IS_DG2(i915) || !intel_display_device_present(display))
 		return 0;
 
 	dram_info = drmm_kzalloc(&i915->drm, sizeof(*dram_info), GFP_KERNEL);

@@ -33,6 +33,20 @@ static const guid_t tpm_ppi_guid =
 	GUID_INIT(0x3DDDFAA6, 0x361B, 0x4EB4,
 		  0xA4, 0x24, 0x8D, 0x10, 0x08, 0x9D, 0x16, 0x53);
 
+static const char * const tpm_ppi_info[] = {
+	"Not implemented",
+	"BIOS only",
+	"Blocked for OS by system firmware",
+	"User required",
+	"User not required",
+};
+
+/* A spinlock to protect access to the cache from concurrent reads */
+static DEFINE_MUTEX(tpm_ppi_lock);
+
+static u32 ppi_operations_cache[PPI_VS_REQ_END + 1];
+static bool ppi_cache_populated;
+
 static bool tpm_ppi_req_has_parameter(u64 req)
 {
 	return req == 23;
@@ -277,8 +291,7 @@ cleanup:
 	return status;
 }
 
-static ssize_t show_ppi_operations(acpi_handle dev_handle, char *buf, u32 start,
-				   u32 end)
+static ssize_t cache_ppi_operations(acpi_handle dev_handle, char *buf)
 {
 	int i;
 	u32 ret;
@@ -286,34 +299,22 @@ static ssize_t show_ppi_operations(acpi_handle dev_handle, char *buf, u32 start,
 	union acpi_object *obj, tmp;
 	union acpi_object argv = ACPI_INIT_DSM_ARGV4(1, &tmp);
 
-	static char *info[] = {
-		"Not implemented",
-		"BIOS only",
-		"Blocked for OS by BIOS",
-		"User required",
-		"User not required",
-	};
-
 	if (!acpi_check_dsm(dev_handle, &tpm_ppi_guid, TPM_PPI_REVISION_ID_1,
 			    1 << TPM_PPI_FN_GETOPR))
 		return -EPERM;
 
 	tmp.integer.type = ACPI_TYPE_INTEGER;
-	for (i = start; i <= end; i++) {
+	for (i = 0; i <= PPI_VS_REQ_END; i++) {
 		tmp.integer.value = i;
 		obj = tpm_eval_dsm(dev_handle, TPM_PPI_FN_GETOPR,
 				   ACPI_TYPE_INTEGER, &argv,
 				   TPM_PPI_REVISION_ID_1);
-		if (!obj) {
+		if (!obj)
 			return -ENOMEM;
-		} else {
-			ret = obj->integer.value;
-			ACPI_FREE(obj);
-		}
 
-		if (ret > 0 && ret < ARRAY_SIZE(info))
-			len += sysfs_emit_at(buf, len, "%d %d: %s\n",
-					     i, ret, info[ret]);
+		ret = obj->integer.value;
+		ppi_operations_cache[i] = ret;
+		ACPI_FREE(obj);
 	}
 
 	return len;
@@ -324,9 +325,30 @@ static ssize_t tpm_show_ppi_tcg_operations(struct device *dev,
 					   char *buf)
 {
 	struct tpm_chip *chip = to_tpm_chip(dev);
+	ssize_t len = 0;
+	u32 ret;
+	int i;
 
-	return show_ppi_operations(chip->acpi_dev_handle, buf, 0,
-				   PPI_TPM_REQ_MAX);
+	mutex_lock(&tpm_ppi_lock);
+	if (!ppi_cache_populated) {
+		len = cache_ppi_operations(chip->acpi_dev_handle, buf);
+		if (len < 0) {
+			mutex_unlock(&tpm_ppi_lock);
+			return len;
+		}
+
+		ppi_cache_populated = true;
+	}
+
+	for (i = 0; i <= PPI_TPM_REQ_MAX; i++) {
+		ret = ppi_operations_cache[i];
+		if (ret >= 0 && ret < ARRAY_SIZE(tpm_ppi_info))
+			len += sysfs_emit_at(buf, len, "%d %d: %s\n",
+							i, ret, tpm_ppi_info[ret]);
+	}
+	mutex_unlock(&tpm_ppi_lock);
+
+	return len;
 }
 
 static ssize_t tpm_show_ppi_vs_operations(struct device *dev,
@@ -334,9 +356,30 @@ static ssize_t tpm_show_ppi_vs_operations(struct device *dev,
 					  char *buf)
 {
 	struct tpm_chip *chip = to_tpm_chip(dev);
+	ssize_t len = 0;
+	u32 ret;
+	int i;
 
-	return show_ppi_operations(chip->acpi_dev_handle, buf, PPI_VS_REQ_START,
-				   PPI_VS_REQ_END);
+	mutex_lock(&tpm_ppi_lock);
+	if (!ppi_cache_populated) {
+		len = cache_ppi_operations(chip->acpi_dev_handle, buf);
+		if (len < 0) {
+			mutex_unlock(&tpm_ppi_lock);
+			return len;
+		}
+
+		ppi_cache_populated = true;
+	}
+
+	for (i = PPI_VS_REQ_START; i <= PPI_VS_REQ_END; i++) {
+		ret = ppi_operations_cache[i];
+		if (ret >= 0 && ret < ARRAY_SIZE(tpm_ppi_info))
+			len += sysfs_emit_at(buf, len, "%d %d: %s\n",
+							i, ret, tpm_ppi_info[ret]);
+	}
+	mutex_unlock(&tpm_ppi_lock);
+
+	return len;
 }
 
 static DEVICE_ATTR(version, S_IRUGO, tpm_show_ppi_version, NULL);

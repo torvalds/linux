@@ -569,7 +569,7 @@ static int kvm_map_page_fast(struct kvm_vcpu *vcpu, unsigned long gpa, bool writ
 	/* Track access to pages marked old */
 	new = kvm_pte_mkyoung(*ptep);
 	if (write && !kvm_pte_dirty(new)) {
-		if (!kvm_pte_write(new)) {
+		if (!kvm_pte_writeable(new)) {
 			ret = -EFAULT;
 			goto out;
 		}
@@ -856,9 +856,9 @@ retry:
 		prot_bits |= _CACHE_SUC;
 
 	if (writeable) {
-		prot_bits |= _PAGE_WRITE;
+		prot_bits = kvm_pte_mkwriteable(prot_bits);
 		if (write)
-			prot_bits |= __WRITEABLE;
+			prot_bits = kvm_pte_mkdirty(prot_bits);
 	}
 
 	/* Disable dirty logging on HugePages */
@@ -904,7 +904,7 @@ retry:
 	kvm_release_faultin_page(kvm, page, false, writeable);
 	spin_unlock(&kvm->mmu_lock);
 
-	if (prot_bits & _PAGE_DIRTY)
+	if (kvm_pte_dirty(prot_bits))
 		mark_page_dirty_in_slot(kvm, memslot, gfn);
 
 out:

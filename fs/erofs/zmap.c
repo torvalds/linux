@@ -462,8 +462,8 @@ static int z_erofs_map_blocks_fo(struct inode *inode,
 		map->m_pa = vi->z_fragmentoff;
 		map->m_plen = vi->z_idata_size;
 		if (erofs_blkoff(sb, map->m_pa) + map->m_plen > sb->s_blocksize) {
-			erofs_err(sb, "invalid tail-packing pclustersize %llu",
-				  map->m_plen);
+			erofs_err(sb, "ztailpacking inline data across blocks @ nid %llu",
+				  vi->nid);
 			err = -EFSCORRUPTED;
 			goto unmap_out;
 		}

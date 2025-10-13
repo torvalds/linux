@@ -41,6 +41,7 @@ properties:
               - adi,ad7910
               - adi,ad7920
               - adi,ad7940
+              - rohm,bd79105
               - ti,adc081s
               - ti,adc101s
               - ti,adc121s
@@ -53,6 +54,11 @@ properties:
           - const: ti,ads7866
 
   reg:
+    maxItems: 1
+
+  interrupts:
+    description:
+      The data-ready interrupt. Provided via DOUT pin.
     maxItems: 1
 
   vcc-supply:
@@ -75,12 +81,30 @@ properties:
     description: A GPIO used to trigger the start of a conversion
     maxItems: 1
 
+  rdy-gpios:
+    description: A GPIO for detecting the data-ready.
+    maxItems: 1
+
 required:
   - compatible
   - reg
 
 allOf:
   - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+# Devices with an IRQ
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - rohm,bd79105
+    then:
+      properties:
+        interrupts: true
+    else:
+      properties:
+        interrupts: false
 
   # Devices where reference is vcc
   - if:
@@ -106,19 +130,18 @@ allOf:
         - vcc-supply
   # Devices with a vref
   - if:
-      properties:
-        compatible:
-          contains:
-            enum:
-              - adi,ad7091r
-              - adi,ad7273
-              - adi,ad7274
-              - adi,ad7475
-              - lltc,ltc2314-14
+      not:
+        properties:
+          compatible:
+            contains:
+              enum:
+                - adi,ad7091r
+                - adi,ad7273
+                - adi,ad7274
+                - adi,ad7475
+                - lltc,ltc2314-14
+                - rohm,bd79105
     then:
-      properties:
-        vref-supply: true
-    else:
       properties:
         vref-supply: false
   # Devices with a vref where it is not optional
@@ -131,35 +154,58 @@ allOf:
               - adi,ad7274
               - adi,ad7475
               - lltc,ltc2314-14
+              - rohm,bd79105
     then:
       required:
         - vref-supply
   - if:
-      properties:
-        compatible:
-          contains:
-            enum:
-              - adi,ad7475
-              - adi,ad7495
+      not:
+        properties:
+          compatible:
+            contains:
+              enum:
+                - adi,ad7475
+                - adi,ad7495
+                - rohm,bd79105
     then:
       properties:
-        vdrive-supply: true
-    else:
-      properties:
         vdrive-supply: false
+
+  # Devices which support polling the data-ready via GPIO
+  - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              enum:
+                - rohm,bd79105
+    then:
+      properties:
+        rdy-gpios: false
+
+  - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              enum:
+                - adi,ad7091
+                - adi,ad7091r
+                - rohm,bd79105
+    then:
+      properties:
+        adi,conversion-start-gpios: false
+
+  # Devices with a convstart GPIO where it is not optional
   - if:
       properties:
         compatible:
           contains:
             enum:
-              - adi,ad7091
-              - adi,ad7091r
+              - rohm,bd79105
     then:
-      properties:
-        adi,conversion-start-gpios: true
-    else:
-      properties:
-        adi,conversion-start-gpios: false
+      required:
+        - adi,conversion-start-gpios
 
 unevaluatedProperties: false
 

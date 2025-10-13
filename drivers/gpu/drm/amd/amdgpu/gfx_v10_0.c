@@ -4075,7 +4075,7 @@ static int gfx_v10_0_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 	struct dma_fence *f = NULL;
 	unsigned int index;
 	uint64_t gpu_addr;
-	volatile uint32_t *cpu_ptr;
+	uint32_t *cpu_ptr;
 	long r;
 
 	memset(&ib, 0, sizeof(ib));
@@ -4322,8 +4322,7 @@ static u32 gfx_v10_0_get_csb_size(struct amdgpu_device *adev)
 	return count;
 }
 
-static void gfx_v10_0_get_csb_buffer(struct amdgpu_device *adev,
-				    volatile u32 *buffer)
+static void gfx_v10_0_get_csb_buffer(struct amdgpu_device *adev, u32 *buffer)
 {
 	u32 count = 0;
 	int ctx_reg_offset;

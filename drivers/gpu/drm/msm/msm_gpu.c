@@ -304,7 +304,7 @@ static void crashstate_get_bos(struct msm_gpu_state *state, struct msm_gem_submi
 			sizeof(struct msm_gpu_state_bo), GFP_KERNEL);
 
 		for (int i = 0; state->bos && i < submit->nr_bos; i++) {
-			struct drm_gem_object *obj = submit->bos[i].obj;;
+			struct drm_gem_object *obj = submit->bos[i].obj;
 			bool dump = rd_full || (submit->bos[i].flags & MSM_SUBMIT_BO_DUMP);
 
 			msm_gem_lock(obj);

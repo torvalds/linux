@@ -6,7 +6,6 @@
         "Deprecated": "1",
         "EventCode": "0xb0",
         "EventName": "ARITH.DIVIDER_ACTIVE",
-        "PublicDescription": "This event is deprecated. Refer to new event ARITH.DIV_ACTIVE Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "UMask": "0x9"
     },
@@ -16,7 +15,7 @@
         "CounterMask": "1",
         "EventCode": "0xb0",
         "EventName": "ARITH.DIV_ACTIVE",
-        "PublicDescription": "Counts cycles when divide unit is busy executing divide or square root operations. Accounts for integer and floating-point operations. Available PDIST counters: 0",
+        "PublicDescription": "Counts cycles when divide unit is busy executing divide or square root operations. Accounts for integer and floating-point operations.",
         "SampleAfterValue": "1000003",
         "UMask": "0x9"
     },
@@ -27,7 +26,6 @@
         "Deprecated": "1",
         "EventCode": "0xb0",
         "EventName": "ARITH.FP_DIVIDER_ACTIVE",
-        "PublicDescription": "This event is deprecated. Refer to new event ARITH.FPDIV_ACTIVE Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "UMask": "0x1"
     },
@@ -37,7 +35,6 @@
         "CounterMask": "1",
         "EventCode": "0xb0",
         "EventName": "ARITH.IDIV_ACTIVE",
-        "PublicDescription": "This event counts the cycles the integer divider is busy. Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "UMask": "0x8"
     },
@@ -48,7 +45,6 @@
         "Deprecated": "1",
         "EventCode": "0xb0",
         "EventName": "ARITH.INT_DIVIDER_ACTIVE",
-        "PublicDescription": "This event is deprecated. Refer to new event ARITH.IDIV_ACTIVE Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "UMask": "0x8"
     },
@@ -57,7 +53,7 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc1",
         "EventName": "ASSISTS.ANY",
-        "PublicDescription": "Counts the number of occurrences where a microcode assist is invoked by hardware. Examples include AD (page Access Dirty), FP and AVX related assists. Available PDIST counters: 0",
+        "PublicDescription": "Counts the number of occurrences where a microcode assist is invoked by hardware. Examples include AD (page Access Dirty), FP and AVX related assists.",
         "SampleAfterValue": "100003",
         "UMask": "0x1b"
     },
@@ -217,7 +213,7 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xec",
         "EventName": "CPU_CLK_UNHALTED.C01",
-        "PublicDescription": "Counts core clocks when the thread is in the C0.1 light-weight slower wakeup time but more power saving optimized state.  This state can be entered via the TPAUSE or UMWAIT instructions. Available PDIST counters: 0",
+        "PublicDescription": "Counts core clocks when the thread is in the C0.1 light-weight slower wakeup time but more power saving optimized state.  This state can be entered via the TPAUSE or UMWAIT instructions.",
         "SampleAfterValue": "2000003",
         "UMask": "0x10"
     },
@@ -226,7 +222,7 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xec",
         "EventName": "CPU_CLK_UNHALTED.C02",
-        "PublicDescription": "Counts core clocks when the thread is in the C0.2 light-weight faster wakeup time but less power saving optimized state.  This state can be entered via the TPAUSE or UMWAIT instructions. Available PDIST counters: 0",
+        "PublicDescription": "Counts core clocks when the thread is in the C0.2 light-weight faster wakeup time but less power saving optimized state.  This state can be entered via the TPAUSE or UMWAIT instructions.",
         "SampleAfterValue": "2000003",
         "UMask": "0x20"
     },
@@ -235,7 +231,7 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xec",
         "EventName": "CPU_CLK_UNHALTED.C0_WAIT",
-        "PublicDescription": "Counts core clocks when the thread is in the C0.1 or C0.2 power saving optimized states (TPAUSE or UMWAIT instructions) or running the PAUSE instruction. Available PDIST counters: 0",
+        "PublicDescription": "Counts core clocks when the thread is in the C0.1 or C0.2 power saving optimized states (TPAUSE or UMWAIT instructions) or running the PAUSE instruction.",
         "SampleAfterValue": "2000003",
         "UMask": "0x70"
     },
@@ -244,7 +240,7 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xec",
         "EventName": "CPU_CLK_UNHALTED.DISTRIBUTED",
-        "PublicDescription": "This event distributes cycle counts between active hyperthreads, i.e., those in C0.  A hyperthread becomes inactive when it executes the HLT or MWAIT instructions.  If all other hyperthreads are inactive (or disabled or do not exist), all counts are attributed to this hyperthread. To obtain the full count when the Core is active, sum the counts from each hyperthread. Available PDIST counters: 0",
+        "PublicDescription": "This event distributes cycle counts between active hyperthreads, i.e., those in C0.  A hyperthread becomes inactive when it executes the HLT or MWAIT instructions.  If all other hyperthreads are inactive (or disabled or do not exist), all counts are attributed to this hyperthread. To obtain the full count when the Core is active, sum the counts from each hyperthread.",
         "SampleAfterValue": "2000003",
         "UMask": "0x2"
     },
@@ -253,7 +249,7 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0x3c",
         "EventName": "CPU_CLK_UNHALTED.ONE_THREAD_ACTIVE",
-        "PublicDescription": "Counts Core crystal clock cycles when current thread is unhalted and the other thread is halted. Available PDIST counters: 0",
+        "PublicDescription": "Counts Core crystal clock cycles when current thread is unhalted and the other thread is halted.",
         "SampleAfterValue": "25003",
         "UMask": "0x2"
     },
@@ -262,7 +258,6 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xec",
         "EventName": "CPU_CLK_UNHALTED.PAUSE",
-        "PublicDescription": "CPU_CLK_UNHALTED.PAUSE Available PDIST counters: 0",
         "SampleAfterValue": "2000003",
         "UMask": "0x40"
     },
@@ -273,7 +268,6 @@
         "EdgeDetect": "1",
         "EventCode": "0xec",
         "EventName": "CPU_CLK_UNHALTED.PAUSE_INST",
-        "PublicDescription": "CPU_CLK_UNHALTED.PAUSE_INST Available PDIST counters: 0",
         "SampleAfterValue": "2000003",
         "UMask": "0x40"
     },
@@ -282,7 +276,7 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0x3c",
         "EventName": "CPU_CLK_UNHALTED.REF_DISTRIBUTED",
-        "PublicDescription": "This event distributes Core crystal clock cycle counts between active hyperthreads, i.e., those in C0 sleep-state. A hyperthread becomes inactive when it executes the HLT or MWAIT instructions. If one thread is active in a core, all counts are attributed to this hyperthread. To obtain the full count when the Core is active, sum the counts from each hyperthread. Available PDIST counters: 0",
+        "PublicDescription": "This event distributes Core crystal clock cycle counts between active hyperthreads, i.e., those in C0 sleep-state. A hyperthread becomes inactive when it executes the HLT or MWAIT instructions. If one thread is active in a core, all counts are attributed to this hyperthread. To obtain the full count when the Core is active, sum the counts from each hyperthread.",
         "SampleAfterValue": "2000003",
         "UMask": "0x8"
     },
@@ -299,7 +293,7 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0x3c",
         "EventName": "CPU_CLK_UNHALTED.REF_TSC_P",
-        "PublicDescription": "Counts the number of reference cycles when the core is not in a halt state. The core enters the halt state when it is running the HLT instruction or the MWAIT instruction. This event is not affected by core frequency changes (for example, P states, TM2 transitions) but has the same incrementing frequency as the time stamp counter. This event can approximate elapsed time while the core was not in a halt state. It is counted on a dedicated fixed counter, leaving the four (eight when Hyperthreading is disabled) programmable counters available for other events. Note: On all current platforms this event stops counting during 'throttling (TM)' states duty off periods the processor is 'halted'.  The counter update is done at a lower clock rate then the core clock the overflow status bit for this counter may appear 'sticky'.  After the counter has overflowed and software clears the overflow status bit and resets the counter to less than MAX. The reset value to the counter is not clocked immediately so the overflow status bit will flip 'high (1)' and generate another PMI (if enabled) after which the reset value gets clocked into the counter. Therefore, software will get the interrupt, read the overflow status bit '1 for bit 34 while the counter value is less than MAX. Software should ignore this case. Available PDIST counters: 0",
+        "PublicDescription": "Counts the number of reference cycles when the core is not in a halt state. The core enters the halt state when it is running the HLT instruction or the MWAIT instruction. This event is not affected by core frequency changes (for example, P states, TM2 transitions) but has the same incrementing frequency as the time stamp counter. This event can approximate elapsed time while the core was not in a halt state. It is counted on a dedicated fixed counter, leaving the four (eight when Hyperthreading is disabled) programmable counters available for other events. Note: On all current platforms this event stops counting during 'throttling (TM)' states duty off periods the processor is 'halted'.  The counter update is done at a lower clock rate then the core clock the overflow status bit for this counter may appear 'sticky'.  After the counter has overflowed and software clears the overflow status bit and resets the counter to less than MAX. The reset value to the counter is not clocked immediately so the overflow status bit will flip 'high (1)' and generate another PMI (if enabled) after which the reset value gets clocked into the counter. Therefore, software will get the interrupt, read the overflow status bit '1 for bit 34 while the counter value is less than MAX. Software should ignore this case.",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },
@@ -316,7 +310,7 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0x3c",
         "EventName": "CPU_CLK_UNHALTED.THREAD_P",
-        "PublicDescription": "This is an architectural event that counts the number of thread cycles while the thread is not in a halt state. The thread enters the halt state when it is running the HLT instruction. The core frequency may change from time to time due to power or thermal throttling. For this reason, this event may have a changing ratio with regards to wall clock time. Available PDIST counters: 0",
+        "PublicDescription": "This is an architectural event that counts the number of thread cycles while the thread is not in a halt state. The thread enters the halt state when it is running the HLT instruction. The core frequency may change from time to time due to power or thermal throttling. For this reason, this event may have a changing ratio with regards to wall clock time.",
         "SampleAfterValue": "2000003"
     },
     {
@@ -325,7 +319,6 @@
         "CounterMask": "8",
         "EventCode": "0xa3",
         "EventName": "CYCLE_ACTIVITY.CYCLES_L1D_MISS",
-        "PublicDescription": "Cycles while L1 cache miss demand load is outstanding. Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "UMask": "0x8"
     },
@@ -335,7 +328,6 @@
         "CounterMask": "1",
         "EventCode": "0xa3",
         "EventName": "CYCLE_ACTIVITY.CYCLES_L2_MISS",
-        "PublicDescription": "Cycles while L2 cache miss demand load is outstanding. Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "UMask": "0x1"
     },
@@ -345,7 +337,6 @@
         "CounterMask": "16",
         "EventCode": "0xa3",
         "EventName": "CYCLE_ACTIVITY.CYCLES_MEM_ANY",
-        "PublicDescription": "Cycles while memory subsystem has an outstanding load. Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "UMask": "0x10"
     },
@@ -355,7 +346,6 @@
         "CounterMask": "12",
         "EventCode": "0xa3",
         "EventName": "CYCLE_ACTIVITY.STALLS_L1D_MISS",
-        "PublicDescription": "Execution stalls while L1 cache miss demand load is outstanding. Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "UMask": "0xc"
     },
@@ -365,7 +355,6 @@
         "CounterMask": "5",
         "EventCode": "0xa3",
         "EventName": "CYCLE_ACTIVITY.STALLS_L2_MISS",
-        "PublicDescription": "Execution stalls while L2 cache miss demand load is outstanding. Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "UMask": "0x5"
     },
@@ -375,7 +364,6 @@
         "CounterMask": "4",
         "EventCode": "0xa3",
         "EventName": "CYCLE_ACTIVITY.STALLS_TOTAL",
-        "PublicDescription": "Total execution stalls. Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "UMask": "0x4"
     },
@@ -384,7 +372,6 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xb7",
         "EventName": "EXE.AMX_BUSY",
-        "PublicDescription": "Counts the cycles where the AMX (Advance Matrix Extension) unit is busy performing an operation. Available PDIST counters: 0",
         "SampleAfterValue": "2000003",
         "UMask": "0x2"
     },
@@ -393,7 +380,7 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xa6",
         "EventName": "EXE_ACTIVITY.1_PORTS_UTIL",
-        "PublicDescription": "Counts cycles during which a total of 1 uop was executed on all ports and Reservation Station (RS) was not empty. Available PDIST counters: 0",
+        "PublicDescription": "Counts cycles during which a total of 1 uop was executed on all ports and Reservation Station (RS) was not empty.",
         "SampleAfterValue": "2000003",
         "UMask": "0x2"
     },
@@ -402,7 +389,6 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xa6",
         "EventName": "EXE_ACTIVITY.2_3_PORTS_UTIL",
-        "PublicDescription": "Cycles total of 2 or 3 uops are executed on all ports and Reservation Station (RS) was not empty. Available PDIST counters: 0",
         "SampleAfterValue": "2000003",
         "UMask": "0xc"
     },
@@ -411,7 +397,7 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xa6",
         "EventName": "EXE_ACTIVITY.2_PORTS_UTIL",
-        "PublicDescription": "Counts cycles during which a total of 2 uops were executed on all ports and Reservation Station (RS) was not empty. Available PDIST counters: 0",
+        "PublicDescription": "Counts cycles during which a total of 2 uops were executed on all ports and Reservation Station (RS) was not empty.",
         "SampleAfterValue": "2000003",
         "UMask": "0x4"
     },
@@ -420,7 +406,7 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xa6",
         "EventName": "EXE_ACTIVITY.3_PORTS_UTIL",
-        "PublicDescription": "Cycles total of 3 uops are executed on all ports and Reservation Station (RS) was not empty. Available PDIST counters: 0",
+        "PublicDescription": "Cycles total of 3 uops are executed on all ports and Reservation Station (RS) was not empty.",
         "SampleAfterValue": "2000003",
         "UMask": "0x8"
     },
@@ -429,7 +415,7 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xa6",
         "EventName": "EXE_ACTIVITY.4_PORTS_UTIL",
-        "PublicDescription": "Cycles total of 4 uops are executed on all ports and Reservation Station (RS) was not empty. Available PDIST counters: 0",
+        "PublicDescription": "Cycles total of 4 uops are executed on all ports and Reservation Station (RS) was not empty.",
         "SampleAfterValue": "2000003",
         "UMask": "0x10"
     },
@@ -439,7 +425,6 @@
         "CounterMask": "5",
         "EventCode": "0xa6",
         "EventName": "EXE_ACTIVITY.BOUND_ON_LOADS",
-        "PublicDescription": "Execution stalls while memory subsystem has an outstanding load. Available PDIST counters: 0",
         "SampleAfterValue": "2000003",
         "UMask": "0x21"
     },
@@ -449,7 +434,7 @@
         "CounterMask": "2",
         "EventCode": "0xa6",
         "EventName": "EXE_ACTIVITY.BOUND_ON_STORES",
-        "PublicDescription": "Counts cycles where the Store Buffer was full and no loads caused an execution stall. Available PDIST counters: 0",
+        "PublicDescription": "Counts cycles where the Store Buffer was full and no loads caused an execution stall.",
         "SampleAfterValue": "1000003",
         "UMask": "0x40"
     },
@@ -458,7 +443,7 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xa6",
         "EventName": "EXE_ACTIVITY.EXE_BOUND_0_PORTS",
-        "PublicDescription": "Number of cycles total of 0 uops executed on all ports, Reservation Station (RS) was not empty, the Store Buffer (SB) was not full and there was no outstanding load. Available PDIST counters: 0",
+        "PublicDescription": "Number of cycles total of 0 uops executed on all ports, Reservation Station (RS) was not empty, the Store Buffer (SB) was not full and there was no outstanding load.",
         "SampleAfterValue": "1000003",
         "UMask": "0x80"
     },
@@ -467,7 +452,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x75",
         "EventName": "INST_DECODED.DECODERS",
-        "PublicDescription": "Number of decoders utilized in a cycle when the MITE (legacy decode pipeline) fetches instructions. Available PDIST counters: 0",
+        "PublicDescription": "Number of decoders utilized in a cycle when the MITE (legacy decode pipeline) fetches instructions.",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },
@@ -492,7 +477,6 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc0",
         "EventName": "INST_RETIRED.MACRO_FUSED",
-        "PublicDescription": "INST_RETIRED.MACRO_FUSED Available PDIST counters: 0",
         "SampleAfterValue": "2000003",
         "UMask": "0x10"
     },
@@ -501,7 +485,7 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc0",
         "EventName": "INST_RETIRED.NOP",
-        "PublicDescription": "Counts all retired NOP or ENDBR32/64 instructions Available PDIST counters: 0",
+        "PublicDescription": "Counts all retired NOP or ENDBR32/64 instructions",
         "SampleAfterValue": "2000003",
         "UMask": "0x2"
     },
@@ -518,7 +502,7 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc0",
         "EventName": "INST_RETIRED.REP_ITERATION",
-        "PublicDescription": "Number of iterations of Repeat (REP) string retired instructions such as MOVS, CMPS, and SCAS. Each has a byte, word, and doubleword version and string instructions can be repeated using a repetition prefix, REP, that allows their architectural execution to be repeated a number of times as specified by the RCX register. Note the number of iterations is implementation-dependent. Available PDIST counters: 0",
+        "PublicDescription": "Number of iterations of Repeat (REP) string retired instructions such as MOVS, CMPS, and SCAS. Each has a byte, word, and doubleword version and string instructions can be repeated using a repetition prefix, REP, that allows their architectural execution to be repeated a number of times as specified by the RCX register. Note the number of iterations is implementation-dependent.",
         "SampleAfterValue": "2000003",
         "UMask": "0x8"
     },
@@ -529,7 +513,7 @@
         "EdgeDetect": "1",
         "EventCode": "0xad",
         "EventName": "INT_MISC.CLEARS_COUNT",
-        "PublicDescription": "Counts the number of speculative clears due to any type of branch misprediction or machine clears Available PDIST counters: 0",
+        "PublicDescription": "Counts the number of speculative clears due to any type of branch misprediction or machine clears",
         "SampleAfterValue": "500009",
         "UMask": "0x1"
     },
@@ -538,7 +522,7 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xad",
         "EventName": "INT_MISC.CLEAR_RESTEER_CYCLES",
-        "PublicDescription": "Cycles after recovery from a branch misprediction or machine clear till the first uop is issued from the resteered path. Available PDIST counters: 0",
+        "PublicDescription": "Cycles after recovery from a branch misprediction or machine clear till the first uop is issued from the resteered path.",
         "SampleAfterValue": "500009",
         "UMask": "0x80"
     },
@@ -547,7 +531,6 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xad",
         "EventName": "INT_MISC.MBA_STALLS",
-        "PublicDescription": "INT_MISC.MBA_STALLS Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "UMask": "0x20"
     },
@@ -556,7 +539,7 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xad",
         "EventName": "INT_MISC.RECOVERY_CYCLES",
-        "PublicDescription": "Counts core cycles when the Resource allocator was stalled due to recovery from an earlier branch misprediction or machine clear event. Available PDIST counters: 0",
+        "PublicDescription": "Counts core cycles when the Resource allocator was stalled due to recovery from an earlier branch misprediction or machine clear event.",
         "SampleAfterValue": "500009",
         "UMask": "0x1"
     },
@@ -567,7 +550,6 @@
         "EventName": "INT_MISC.UNKNOWN_BRANCH_CYCLES",
         "MSRIndex": "0x3F7",
         "MSRValue": "0x7",
-        "PublicDescription": "Bubble cycles of BAClear (Unknown Branch). Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "UMask": "0x40"
     },
@@ -576,7 +558,7 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xad",
         "EventName": "INT_MISC.UOP_DROPPING",
-        "PublicDescription": "Estimated number of Top-down Microarchitecture Analysis slots that got dropped due to non front-end reasons Available PDIST counters: 0",
+        "PublicDescription": "Estimated number of Top-down Microarchitecture Analysis slots that got dropped due to non front-end reasons",
         "SampleAfterValue": "1000003",
         "UMask": "0x10"
     },
@@ -585,7 +567,6 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xe7",
         "EventName": "INT_VEC_RETIRED.128BIT",
-        "PublicDescription": "INT_VEC_RETIRED.128BIT Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "UMask": "0x13"
     },
@@ -594,7 +575,6 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xe7",
         "EventName": "INT_VEC_RETIRED.256BIT",
-        "PublicDescription": "INT_VEC_RETIRED.256BIT Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "UMask": "0xac"
     },
@@ -603,7 +583,7 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xe7",
         "EventName": "INT_VEC_RETIRED.ADD_128",
-        "PublicDescription": "Number of retired integer ADD/SUB (regular or horizontal), SAD 128-bit vector instructions. Available PDIST counters: 0",
+        "PublicDescription": "Number of retired integer ADD/SUB (regular or horizontal), SAD 128-bit vector instructions.",
         "SampleAfterValue": "1000003",
         "UMask": "0x3"
     },
@@ -612,7 +592,7 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xe7",
         "EventName": "INT_VEC_RETIRED.ADD_256",
-        "PublicDescription": "Number of retired integer ADD/SUB (regular or horizontal), SAD 256-bit vector instructions. Available PDIST counters: 0",
+        "PublicDescription": "Number of retired integer ADD/SUB (regular or horizontal), SAD 256-bit vector instructions.",
         "SampleAfterValue": "1000003",
         "UMask": "0xc"
     },
@@ -621,7 +601,6 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xe7",
         "EventName": "INT_VEC_RETIRED.MUL_256",
-        "PublicDescription": "INT_VEC_RETIRED.MUL_256 Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "UMask": "0x80"
     },
@@ -630,7 +609,6 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xe7",
         "EventName": "INT_VEC_RETIRED.SHUFFLES",
-        "PublicDescription": "INT_VEC_RETIRED.SHUFFLES Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "UMask": "0x40"
     },
@@ -639,7 +617,6 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xe7",
         "EventName": "INT_VEC_RETIRED.VNNI_128",
-        "PublicDescription": "INT_VEC_RETIRED.VNNI_128 Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "UMask": "0x10"
     },
@@ -648,7 +625,6 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xe7",
         "EventName": "INT_VEC_RETIRED.VNNI_256",
-        "PublicDescription": "INT_VEC_RETIRED.VNNI_256 Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "UMask": "0x20"
     },
@@ -657,7 +633,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x03",
         "EventName": "LD_BLOCKS.ADDRESS_ALIAS",
-        "PublicDescription": "Counts the number of times a load got blocked due to false dependencies in MOB due to partial compare on address. Available PDIST counters: 0",
+        "PublicDescription": "Counts the number of times a load got blocked due to false dependencies in MOB due to partial compare on address.",
         "SampleAfterValue": "100003",
         "UMask": "0x4"
     },
@@ -666,7 +642,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x03",
         "EventName": "LD_BLOCKS.NO_SR",
-        "PublicDescription": "Counts the number of times that split load operations are temporarily blocked because all resources for handling the split accesses are in use. Available PDIST counters: 0",
+        "PublicDescription": "Counts the number of times that split load operations are temporarily blocked because all resources for handling the split accesses are in use.",
         "SampleAfterValue": "100003",
         "UMask": "0x88"
     },
@@ -675,7 +651,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x03",
         "EventName": "LD_BLOCKS.STORE_FORWARD",
-        "PublicDescription": "Counts the number of times where store forwarding was prevented for a load operation. The most common case is a load blocked due to the address of memory access (partially) overlapping with a preceding uncompleted store. Note: See the table of not supported store forwards in the Optimization Guide. Available PDIST counters: 0",
+        "PublicDescription": "Counts the number of times where store forwarding was prevented for a load operation. The most common case is a load blocked due to the address of memory access (partially) overlapping with a preceding uncompleted store. Note: See the table of not supported store forwards in the Optimization Guide.",
         "SampleAfterValue": "100003",
         "UMask": "0x82"
     },
@@ -684,7 +660,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x4c",
         "EventName": "LOAD_HIT_PREFETCH.SWPF",
-        "PublicDescription": "Counts all software-prefetch load dispatches that hit the fill buffer (FB) allocated for the software prefetch. It can also be incremented by some lock instructions. So it should only be used with profiling so that the locks can be excluded by ASM (Assembly File) inspection of the nearby instructions. Available PDIST counters: 0",
+        "PublicDescription": "Counts all software-prefetch load dispatches that hit the fill buffer (FB) allocated for the software prefetch. It can also be incremented by some lock instructions. So it should only be used with profiling so that the locks can be excluded by ASM (Assembly File) inspection of the nearby instructions.",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -694,7 +670,7 @@
         "CounterMask": "1",
         "EventCode": "0xa8",
         "EventName": "LSD.CYCLES_ACTIVE",
-        "PublicDescription": "Counts the cycles when at least one uop is delivered by the LSD (Loop-stream detector). Available PDIST counters: 0",
+        "PublicDescription": "Counts the cycles when at least one uop is delivered by the LSD (Loop-stream detector).",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },
@@ -704,7 +680,7 @@
         "CounterMask": "6",
         "EventCode": "0xa8",
         "EventName": "LSD.CYCLES_OK",
-        "PublicDescription": "Counts the cycles when optimal number of uops is delivered by the LSD (Loop-stream detector). Available PDIST counters: 0",
+        "PublicDescription": "Counts the cycles when optimal number of uops is delivered by the LSD (Loop-stream detector).",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },
@@ -713,7 +689,7 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xa8",
         "EventName": "LSD.UOPS",
-        "PublicDescription": "Counts the number of uops delivered to the back-end by the LSD(Loop Stream Detector). Available PDIST counters: 0",
+        "PublicDescription": "Counts the number of uops delivered to the back-end by the LSD(Loop Stream Detector).",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },
@@ -724,7 +700,7 @@
         "EdgeDetect": "1",
         "EventCode": "0xc3",
         "EventName": "MACHINE_CLEARS.COUNT",
-        "PublicDescription": "Counts the number of machine clears (nukes) of any type. Available PDIST counters: 0",
+        "PublicDescription": "Counts the number of machine clears (nukes) of any type.",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -733,7 +709,7 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc3",
         "EventName": "MACHINE_CLEARS.SMC",
-        "PublicDescription": "Counts self-modifying code (SMC) detected, which causes a machine clear. Available PDIST counters: 0",
+        "PublicDescription": "Counts self-modifying code (SMC) detected, which causes a machine clear.",
         "SampleAfterValue": "100003",
         "UMask": "0x4"
     },
@@ -742,7 +718,7 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xe0",
         "EventName": "MISC2_RETIRED.LFENCE",
-        "PublicDescription": "number of LFENCE retired instructions Available PDIST counters: 0",
+        "PublicDescription": "number of LFENCE retired instructions",
         "SampleAfterValue": "400009",
         "UMask": "0x20"
     },
@@ -751,7 +727,7 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xcc",
         "EventName": "MISC_RETIRED.LBR_INSERTS",
-        "PublicDescription": "Increments when an entry is added to the Last Branch Record (LBR) array (or removed from the array in case of RETURNs in call stack mode). The event requires LBR enable via IA32_DEBUGCTL MSR and branch type selection via MSR_LBR_SELECT. Available PDIST counters: 0",
+        "PublicDescription": "Increments when an entry is added to the Last Branch Record (LBR) array (or removed from the array in case of RETURNs in call stack mode). The event requires LBR enable via IA32_DEBUGCTL MSR and branch type selection via MSR_LBR_SELECT.",
         "SampleAfterValue": "100003",
         "UMask": "0x20"
     },
@@ -760,7 +736,7 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xa2",
         "EventName": "RESOURCE_STALLS.SB",
-        "PublicDescription": "Counts allocation stall cycles caused by the store buffer (SB) being full. This counts cycles that the pipeline back-end blocked uop delivery from the front-end. Available PDIST counters: 0",
+        "PublicDescription": "Counts allocation stall cycles caused by the store buffer (SB) being full. This counts cycles that the pipeline back-end blocked uop delivery from the front-end.",
         "SampleAfterValue": "100003",
         "UMask": "0x8"
     },
@@ -769,7 +745,6 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xa2",
         "EventName": "RESOURCE_STALLS.SCOREBOARD",
-        "PublicDescription": "Counts cycles where the pipeline is stalled due to serializing operations. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x2"
     },
@@ -778,7 +753,7 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xa5",
         "EventName": "RS.EMPTY",
-        "PublicDescription": "Counts cycles during which the reservation station (RS) is empty for this logical processor. This is usually caused when the front-end pipeline runs into starvation periods (e.g. branch mispredictions or i-cache misses) Available PDIST counters: 0",
+        "PublicDescription": "Counts cycles during which the reservation station (RS) is empty for this logical processor. This is usually caused when the front-end pipeline runs into starvation periods (e.g. branch mispredictions or i-cache misses)",
         "SampleAfterValue": "1000003",
         "UMask": "0x7"
     },
@@ -790,7 +765,7 @@
         "EventCode": "0xa5",
         "EventName": "RS.EMPTY_COUNT",
         "Invert": "1",
-        "PublicDescription": "Counts end of periods where the Reservation Station (RS) was empty. Could be useful to closely sample on front-end latency issues (see the FRONTEND_RETIRED event of designated precise events) Available PDIST counters: 0",
+        "PublicDescription": "Counts end of periods where the Reservation Station (RS) was empty. Could be useful to closely sample on front-end latency issues (see the FRONTEND_RETIRED event of designated precise events)",
         "SampleAfterValue": "100003",
         "UMask": "0x7"
     },
@@ -799,7 +774,6 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xa5",
         "EventName": "RS.EMPTY_RESOURCE",
-        "PublicDescription": "Cycles when Reservation Station (RS) is empty due to a resource in the back-end Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "UMask": "0x1"
     },
@@ -812,7 +786,6 @@
         "EventCode": "0xa5",
         "EventName": "RS_EMPTY.COUNT",
         "Invert": "1",
-        "PublicDescription": "This event is deprecated. Refer to new event RS.EMPTY_COUNT Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x7"
     },
@@ -822,7 +795,6 @@
         "Deprecated": "1",
         "EventCode": "0xa5",
         "EventName": "RS_EMPTY.CYCLES",
-        "PublicDescription": "This event is deprecated. Refer to new event RS.EMPTY Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "UMask": "0x7"
     },
@@ -831,7 +803,7 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xa4",
         "EventName": "TOPDOWN.BACKEND_BOUND_SLOTS",
-        "PublicDescription": "Number of slots in TMA method where no micro-operations were being issued from front-end to back-end of the machine due to lack of back-end resources. Available PDIST counters: 0",
+        "PublicDescription": "Number of slots in TMA method where no micro-operations were being issued from front-end to back-end of the machine due to lack of back-end resources.",
         "SampleAfterValue": "10000003",
         "UMask": "0x2"
     },
@@ -840,7 +812,7 @@
         "Counter": "0",
         "EventCode": "0xa4",
         "EventName": "TOPDOWN.BAD_SPEC_SLOTS",
-        "PublicDescription": "Number of slots of TMA method that were wasted due to incorrect speculation. It covers all types of control-flow or data-related mis-speculations. Available PDIST counters: 0",
+        "PublicDescription": "Number of slots of TMA method that were wasted due to incorrect speculation. It covers all types of control-flow or data-related mis-speculations.",
         "SampleAfterValue": "10000003",
         "UMask": "0x4"
     },
@@ -849,7 +821,7 @@
         "Counter": "0",
         "EventCode": "0xa4",
         "EventName": "TOPDOWN.BR_MISPREDICT_SLOTS",
-        "PublicDescription": "Number of TMA slots that were wasted due to incorrect speculation by (any type of) branch mispredictions. This event estimates number of speculative operations that were issued but not retired as well as the out-of-order engine recovery past a branch misprediction. Available PDIST counters: 0",
+        "PublicDescription": "Number of TMA slots that were wasted due to incorrect speculation by (any type of) branch mispredictions. This event estimates number of speculative operations that were issued but not retired as well as the out-of-order engine recovery past a branch misprediction.",
         "SampleAfterValue": "10000003",
         "UMask": "0x8"
     },
@@ -858,7 +830,6 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xa4",
         "EventName": "TOPDOWN.MEMORY_BOUND_SLOTS",
-        "PublicDescription": "TOPDOWN.MEMORY_BOUND_SLOTS Available PDIST counters: 0",
         "SampleAfterValue": "10000003",
         "UMask": "0x10"
     },
@@ -875,7 +846,7 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xa4",
         "EventName": "TOPDOWN.SLOTS_P",
-        "PublicDescription": "Counts the number of available slots for an unhalted logical processor. The event increments by machine-width of the narrowest pipeline as employed by the Top-down Microarchitecture Analysis method. The count is distributed among unhalted logical processors (hyper-threads) who share the same physical core. Available PDIST counters: 0",
+        "PublicDescription": "Counts the number of available slots for an unhalted logical processor. The event increments by machine-width of the narrowest pipeline as employed by the Top-down Microarchitecture Analysis method. The count is distributed among unhalted logical processors (hyper-threads) who share the same physical core.",
         "SampleAfterValue": "10000003",
         "UMask": "0x1"
     },
@@ -884,7 +855,6 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x76",
         "EventName": "UOPS_DECODED.DEC0_UOPS",
-        "PublicDescription": "UOPS_DECODED.DEC0_UOPS Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "UMask": "0x1"
     },
@@ -893,7 +863,7 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xb2",
         "EventName": "UOPS_DISPATCHED.PORT_0",
-        "PublicDescription": "Number of uops dispatch to execution  port 0. Available PDIST counters: 0",
+        "PublicDescription": "Number of uops dispatch to execution  port 0.",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },
@@ -902,7 +872,7 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xb2",
         "EventName": "UOPS_DISPATCHED.PORT_1",
-        "PublicDescription": "Number of uops dispatch to execution  port 1. Available PDIST counters: 0",
+        "PublicDescription": "Number of uops dispatch to execution  port 1.",
         "SampleAfterValue": "2000003",
         "UMask": "0x2"
     },
@@ -911,7 +881,7 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xb2",
         "EventName": "UOPS_DISPATCHED.PORT_2_3_10",
-        "PublicDescription": "Number of uops dispatch to execution ports 2, 3 and 10 Available PDIST counters: 0",
+        "PublicDescription": "Number of uops dispatch to execution ports 2, 3 and 10",
         "SampleAfterValue": "2000003",
         "UMask": "0x4"
     },
@@ -920,7 +890,7 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xb2",
         "EventName": "UOPS_DISPATCHED.PORT_4_9",
-        "PublicDescription": "Number of uops dispatch to execution ports 4 and 9 Available PDIST counters: 0",
+        "PublicDescription": "Number of uops dispatch to execution ports 4 and 9",
         "SampleAfterValue": "2000003",
         "UMask": "0x10"
     },
@@ -929,7 +899,7 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xb2",
         "EventName": "UOPS_DISPATCHED.PORT_5_11",
-        "PublicDescription": "Number of uops dispatch to execution ports 5 and 11 Available PDIST counters: 0",
+        "PublicDescription": "Number of uops dispatch to execution ports 5 and 11",
         "SampleAfterValue": "2000003",
         "UMask": "0x20"
     },
@@ -938,7 +908,7 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xb2",
         "EventName": "UOPS_DISPATCHED.PORT_6",
-        "PublicDescription": "Number of uops dispatch to execution  port 6. Available PDIST counters: 0",
+        "PublicDescription": "Number of uops dispatch to execution  port 6.",
         "SampleAfterValue": "2000003",
         "UMask": "0x40"
     },
@@ -947,7 +917,7 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xb2",
         "EventName": "UOPS_DISPATCHED.PORT_7_8",
-        "PublicDescription": "Number of uops dispatch to execution  ports 7 and 8. Available PDIST counters: 0",
+        "PublicDescription": "Number of uops dispatch to execution  ports 7 and 8.",
         "SampleAfterValue": "2000003",
         "UMask": "0x80"
     },
@@ -956,7 +926,7 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xb1",
         "EventName": "UOPS_EXECUTED.CORE",
-        "PublicDescription": "Counts the number of uops executed from any thread. Available PDIST counters: 0",
+        "PublicDescription": "Counts the number of uops executed from any thread.",
         "SampleAfterValue": "2000003",
         "UMask": "0x2"
     },
@@ -966,7 +936,7 @@
         "CounterMask": "1",
         "EventCode": "0xb1",
         "EventName": "UOPS_EXECUTED.CORE_CYCLES_GE_1",
-        "PublicDescription": "Counts cycles when at least 1 micro-op is executed from any thread on physical core. Available PDIST counters: 0",
+        "PublicDescription": "Counts cycles when at least 1 micro-op is executed from any thread on physical core.",
         "SampleAfterValue": "2000003",
         "UMask": "0x2"
     },
@@ -976,7 +946,7 @@
         "CounterMask": "2",
         "EventCode": "0xb1",
         "EventName": "UOPS_EXECUTED.CORE_CYCLES_GE_2",
-        "PublicDescription": "Counts cycles when at least 2 micro-ops are executed from any thread on physical core. Available PDIST counters: 0",
+        "PublicDescription": "Counts cycles when at least 2 micro-ops are executed from any thread on physical core.",
         "SampleAfterValue": "2000003",
         "UMask": "0x2"
     },
@@ -986,7 +956,7 @@
         "CounterMask": "3",
         "EventCode": "0xb1",
         "EventName": "UOPS_EXECUTED.CORE_CYCLES_GE_3",
-        "PublicDescription": "Counts cycles when at least 3 micro-ops are executed from any thread on physical core. Available PDIST counters: 0",
+        "PublicDescription": "Counts cycles when at least 3 micro-ops are executed from any thread on physical core.",
         "SampleAfterValue": "2000003",
         "UMask": "0x2"
     },
@@ -996,7 +966,7 @@
         "CounterMask": "4",
         "EventCode": "0xb1",
         "EventName": "UOPS_EXECUTED.CORE_CYCLES_GE_4",
-        "PublicDescription": "Counts cycles when at least 4 micro-ops are executed from any thread on physical core. Available PDIST counters: 0",
+        "PublicDescription": "Counts cycles when at least 4 micro-ops are executed from any thread on physical core.",
         "SampleAfterValue": "2000003",
         "UMask": "0x2"
     },
@@ -1006,7 +976,7 @@
         "CounterMask": "1",
         "EventCode": "0xb1",
         "EventName": "UOPS_EXECUTED.CYCLES_GE_1",
-        "PublicDescription": "Cycles where at least 1 uop was executed per-thread. Available PDIST counters: 0",
+        "PublicDescription": "Cycles where at least 1 uop was executed per-thread.",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },
@@ -1016,7 +986,7 @@
         "CounterMask": "2",
         "EventCode": "0xb1",
         "EventName": "UOPS_EXECUTED.CYCLES_GE_2",
-        "PublicDescription": "Cycles where at least 2 uops were executed per-thread. Available PDIST counters: 0",
+        "PublicDescription": "Cycles where at least 2 uops were executed per-thread.",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },
@@ -1026,7 +996,7 @@
         "CounterMask": "3",
         "EventCode": "0xb1",
         "EventName": "UOPS_EXECUTED.CYCLES_GE_3",
-        "PublicDescription": "Cycles where at least 3 uops were executed per-thread. Available PDIST counters: 0",
+        "PublicDescription": "Cycles where at least 3 uops were executed per-thread.",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },
@@ -1036,7 +1006,7 @@
         "CounterMask": "4",
         "EventCode": "0xb1",
         "EventName": "UOPS_EXECUTED.CYCLES_GE_4",
-        "PublicDescription": "Cycles where at least 4 uops were executed per-thread. Available PDIST counters: 0",
+        "PublicDescription": "Cycles where at least 4 uops were executed per-thread.",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },
@@ -1047,7 +1017,7 @@
         "EventCode": "0xb1",
         "EventName": "UOPS_EXECUTED.STALLS",
         "Invert": "1",
-        "PublicDescription": "Counts cycles during which no uops were dispatched from the Reservation Station (RS) per thread. Available PDIST counters: 0",
+        "PublicDescription": "Counts cycles during which no uops were dispatched from the Reservation Station (RS) per thread.",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },
@@ -1059,7 +1029,6 @@
         "EventCode": "0xb1",
         "EventName": "UOPS_EXECUTED.STALL_CYCLES",
         "Invert": "1",
-        "PublicDescription": "This event is deprecated. Refer to new event UOPS_EXECUTED.STALLS Available PDIST counters: 0",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },
@@ -1068,7 +1037,6 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xb1",
         "EventName": "UOPS_EXECUTED.THREAD",
-        "PublicDescription": "Counts the number of uops to be executed per-thread each cycle. Available PDIST counters: 0",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },
@@ -1077,7 +1045,7 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xb1",
         "EventName": "UOPS_EXECUTED.X87",
-        "PublicDescription": "Counts the number of x87 uops executed. Available PDIST counters: 0",
+        "PublicDescription": "Counts the number of x87 uops executed.",
         "SampleAfterValue": "2000003",
         "UMask": "0x10"
     },
@@ -1086,7 +1054,7 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xae",
         "EventName": "UOPS_ISSUED.ANY",
-        "PublicDescription": "Counts the number of uops that the Resource Allocation Table (RAT) issues to the Reservation Station (RS). Available PDIST counters: 0",
+        "PublicDescription": "Counts the number of uops that the Resource Allocation Table (RAT) issues to the Reservation Station (RS).",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },
@@ -1096,7 +1064,6 @@
         "CounterMask": "1",
         "EventCode": "0xae",
         "EventName": "UOPS_ISSUED.CYCLES",
-        "PublicDescription": "UOPS_ISSUED.CYCLES Available PDIST counters: 0",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },
@@ -1106,7 +1073,7 @@
         "CounterMask": "1",
         "EventCode": "0xc2",
         "EventName": "UOPS_RETIRED.CYCLES",
-        "PublicDescription": "Counts cycles where at least one uop has retired. Available PDIST counters: 0",
+        "PublicDescription": "Counts cycles where at least one uop has retired.",
         "SampleAfterValue": "1000003",
         "UMask": "0x2"
     },
@@ -1115,7 +1082,7 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc2",
         "EventName": "UOPS_RETIRED.HEAVY",
-        "PublicDescription": "Counts the number of retired micro-operations (uops) except the last uop of each instruction. An instruction that is decoded into less than two uops does not contribute to the count. Available PDIST counters: 0",
+        "PublicDescription": "Counts the number of retired micro-operations (uops) except the last uop of each instruction. An instruction that is decoded into less than two uops does not contribute to the count.",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },
@@ -1126,7 +1093,6 @@
         "EventName": "UOPS_RETIRED.MS",
         "MSRIndex": "0x3F7",
         "MSRValue": "0x8",
-        "PublicDescription": "UOPS_RETIRED.MS Available PDIST counters: 0",
         "SampleAfterValue": "2000003",
         "UMask": "0x4"
     },
@@ -1135,7 +1101,7 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc2",
         "EventName": "UOPS_RETIRED.SLOTS",
-        "PublicDescription": "Counts the retirement slots used each cycle. Available PDIST counters: 0",
+        "PublicDescription": "Counts the retirement slots used each cycle.",
         "SampleAfterValue": "2000003",
         "UMask": "0x2"
     },
@@ -1146,7 +1112,7 @@
         "EventCode": "0xc2",
         "EventName": "UOPS_RETIRED.STALLS",
         "Invert": "1",
-        "PublicDescription": "This event counts cycles without actually retired uops. Available PDIST counters: 0",
+        "PublicDescription": "This event counts cycles without actually retired uops.",
         "SampleAfterValue": "1000003",
         "UMask": "0x2"
     },
@@ -1158,7 +1124,6 @@
         "EventCode": "0xc2",
         "EventName": "UOPS_RETIRED.STALL_CYCLES",
         "Invert": "1",
-        "PublicDescription": "This event is deprecated. Refer to new event UOPS_RETIRED.STALLS Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "UMask": "0x2"
     }

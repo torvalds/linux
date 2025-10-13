@@ -2,15 +2,15 @@
 /*
  * Copyright(c) 2020 Intel Corporation.
  */
+
 #include <linux/workqueue.h>
 
 #include "gem/i915_gem_context.h"
-
 #include "gt/intel_context.h"
 #include "gt/intel_gt.h"
 
 #include "i915_drv.h"
-
+#include "i915_wait_util.h"
 #include "intel_pxp.h"
 #include "intel_pxp_gsccs.h"
 #include "intel_pxp_irq.h"

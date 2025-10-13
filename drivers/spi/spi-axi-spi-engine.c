@@ -1050,7 +1050,7 @@ static int spi_engine_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	if (ADI_AXI_PCORE_VER_MINOR(version) >= 1) {
+	if (adi_axi_pcore_ver_gteq(version, 1, 1)) {
 		unsigned int sizes = readl(spi_engine->base +
 				SPI_ENGINE_REG_OFFLOAD_MEM_ADDR_WIDTH);
 
@@ -1064,7 +1064,7 @@ static int spi_engine_probe(struct platform_device *pdev)
 	}
 
 	/* IP v1.5 dropped the requirement for SYNC in offload messages. */
-	spi_engine->offload_requires_sync = ADI_AXI_PCORE_VER_MINOR(version) < 5;
+	spi_engine->offload_requires_sync = !adi_axi_pcore_ver_gteq(version, 1, 5);
 
 	writel_relaxed(0x00, spi_engine->base + SPI_ENGINE_REG_RESET);
 	writel_relaxed(0xff, spi_engine->base + SPI_ENGINE_REG_INT_PENDING);
@@ -1091,15 +1091,12 @@ static int spi_engine_probe(struct platform_device *pdev)
 	host->put_offload = spi_engine_put_offload;
 	host->num_chipselect = 8;
 
-	/* Some features depend of the IP core version. */
-	if (ADI_AXI_PCORE_VER_MAJOR(version) >= 1) {
-		if (ADI_AXI_PCORE_VER_MINOR(version) >= 2) {
-			host->mode_bits |= SPI_CS_HIGH;
-			host->setup = spi_engine_setup;
-		}
-		if (ADI_AXI_PCORE_VER_MINOR(version) >= 3)
-			host->mode_bits |= SPI_MOSI_IDLE_LOW | SPI_MOSI_IDLE_HIGH;
+	if (adi_axi_pcore_ver_gteq(version, 1, 2)) {
+		host->mode_bits |= SPI_CS_HIGH;
+		host->setup = spi_engine_setup;
 	}
+	if (adi_axi_pcore_ver_gteq(version, 1, 3))
+		host->mode_bits |= SPI_MOSI_IDLE_LOW | SPI_MOSI_IDLE_HIGH;
 
 	if (host->max_speed_hz == 0)
 		return dev_err_probe(&pdev->dev, -EINVAL, "spi_clk rate is 0");

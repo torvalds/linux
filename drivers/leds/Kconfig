@@ -674,7 +674,7 @@ config LEDS_BD2606MVV
 	help
 	  This option enables support for BD2606MVV LED driver chips
 	  accessed via the I2C bus. It supports setting brightness, with
-	  the limitiation that there are groups of two channels sharing
+	  the limitation that there are groups of two channels sharing
 	  a brightness setting, but not the on/off setting.
 
 	  To compile this driver as a module, choose M here: the module will

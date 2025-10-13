@@ -50,7 +50,7 @@
 #include "dpcd_defs.h"
 #include "dcn20/dcn20_hwseq.h"
 #include "dcn30/dcn30_resource.h"
-#include "link.h"
+#include "link_service.h"
 #include "dc_state_priv.h"
 
 

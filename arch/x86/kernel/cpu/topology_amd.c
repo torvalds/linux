@@ -59,7 +59,7 @@ static void store_node(struct topo_scan *tscan, u16 nr_nodes, u16 node_id)
 	tscan->amd_node_id = node_id;
 }
 
-static bool parse_8000_001e(struct topo_scan *tscan, bool has_topoext)
+static bool parse_8000_001e(struct topo_scan *tscan)
 {
 	struct {
 		// eax
@@ -85,7 +85,7 @@ static bool parse_8000_001e(struct topo_scan *tscan, bool has_topoext)
 	 * If leaf 0xb/0x26 is available, then the APIC ID and the domain
 	 * shifts are set already.
 	 */
-	if (!has_topoext) {
+	if (!cpu_feature_enabled(X86_FEATURE_XTOPOLOGY)) {
 		tscan->c->topo.initial_apicid = leaf.ext_apic_id;
 
 		/*
@@ -163,11 +163,12 @@ static void topoext_fixup(struct topo_scan *tscan)
 	    c->x86 != 0x15 || c->x86_model < 0x10 || c->x86_model > 0x6f)
 		return;
 
-	if (msr_set_bit(0xc0011005, 54) <= 0)
+	if (msr_set_bit(MSR_AMD64_CPUID_EXT_FEAT,
+			MSR_AMD64_CPUID_EXT_FEAT_TOPOEXT_BIT) <= 0)
 		return;
 
-	rdmsrq(0xc0011005, msrval);
-	if (msrval & BIT_64(54)) {
+	rdmsrq(MSR_AMD64_CPUID_EXT_FEAT, msrval);
+	if (msrval & MSR_AMD64_CPUID_EXT_FEAT_TOPOEXT) {
 		set_cpu_cap(c, X86_FEATURE_TOPOEXT);
 		pr_info_once(FW_INFO "CPU: Re-enabling disabled Topology Extensions Support.\n");
 	}
@@ -175,30 +176,27 @@ static void topoext_fixup(struct topo_scan *tscan)
 
 static void parse_topology_amd(struct topo_scan *tscan)
 {
+	if (cpu_feature_enabled(X86_FEATURE_AMD_HTR_CORES))
+		tscan->c->topo.cpu_type = cpuid_ebx(0x80000026);
+
 	/*
 	 * Try to get SMT, CORE, TILE, and DIE shifts from extended
 	 * CPUID leaf 0x8000_0026 on supported processors first. If
 	 * extended CPUID leaf 0x8000_0026 is not supported, try to
 	 * get SMT and CORE shift from leaf 0xb. If either leaf is
 	 * available, cpu_parse_topology_ext() will return true.
-	 */
-	bool has_xtopology = cpu_parse_topology_ext(tscan);
-
-	if (cpu_feature_enabled(X86_FEATURE_AMD_HTR_CORES))
-		tscan->c->topo.cpu_type = cpuid_ebx(0x80000026);
-
-	/*
+	 *
 	 * If XTOPOLOGY leaves (0x26/0xb) are not available, try to
 	 * get the CORE shift from leaf 0x8000_0008 first.
 	 */
-	if (!has_xtopology && !parse_8000_0008(tscan))
+	if (!cpu_parse_topology_ext(tscan) && !parse_8000_0008(tscan))
 		return;
 
 	/*
 	 * Prefer leaf 0x8000001e if available to get the SMT shift and
 	 * the initial APIC ID if XTOPOLOGY leaves are not available.
 	 */
-	if (parse_8000_001e(tscan, has_xtopology))
+	if (parse_8000_001e(tscan))
 		return;
 
 	/* Try the NODEID MSR */

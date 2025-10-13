@@ -9,7 +9,12 @@ use crate::{
     error::Result,
     uaccess::UserSliceReader,
 };
-use core::ptr::{self, NonNull};
+use core::{
+    marker::PhantomData,
+    mem::ManuallyDrop,
+    ops::Deref,
+    ptr::{self, NonNull},
+};
 
 /// A bitwise shift for the page size.
 pub const PAGE_SHIFT: usize = bindings::PAGE_SHIFT as usize;
@@ -28,6 +33,86 @@ pub const fn page_align(addr: usize) -> usize {
     // Parentheses around `PAGE_SIZE - 1` to avoid triggering overflow sanitizers in the wrong
     // cases.
     (addr + (PAGE_SIZE - 1)) & PAGE_MASK
+}
+
+/// Representation of a non-owning reference to a [`Page`].
+///
+/// This type provides a borrowed version of a [`Page`] that is owned by some other entity, e.g. a
+/// [`Vmalloc`] allocation such as [`VBox`].
+///
+/// # Example
+///
+/// ```
+/// # use kernel::{bindings, prelude::*};
+/// use kernel::page::{BorrowedPage, Page, PAGE_SIZE};
+/// # use core::{mem::MaybeUninit, ptr, ptr::NonNull };
+///
+/// fn borrow_page<'a>(vbox: &'a mut VBox<MaybeUninit<[u8; PAGE_SIZE]>>) -> BorrowedPage<'a> {
+///     let ptr = ptr::from_ref(&**vbox);
+///
+///     // SAFETY: `ptr` is a valid pointer to `Vmalloc` memory.
+///     let page = unsafe { bindings::vmalloc_to_page(ptr.cast()) };
+///
+///     // SAFETY: `vmalloc_to_page` returns a valid pointer to a `struct page` for a valid
+///     // pointer to `Vmalloc` memory.
+///     let page = unsafe { NonNull::new_unchecked(page) };
+///
+///     // SAFETY:
+///     // - `self.0` is a valid pointer to a `struct page`.
+///     // - `self.0` is valid for the entire lifetime of `self`.
+///     unsafe { BorrowedPage::from_raw(page) }
+/// }
+///
+/// let mut vbox = VBox::<[u8; PAGE_SIZE]>::new_uninit(GFP_KERNEL)?;
+/// let page = borrow_page(&mut vbox);
+///
+/// // SAFETY: There is no concurrent read or write to this page.
+/// unsafe { page.fill_zero_raw(0, PAGE_SIZE)? };
+/// # Ok::<(), Error>(())
+/// ```
+///
+/// # Invariants
+///
+/// The borrowed underlying pointer to a `struct page` is valid for the entire lifetime `'a`.
+///
+/// [`VBox`]: kernel::alloc::VBox
+/// [`Vmalloc`]: kernel::alloc::allocator::Vmalloc
+pub struct BorrowedPage<'a>(ManuallyDrop<Page>, PhantomData<&'a Page>);
+
+impl<'a> BorrowedPage<'a> {
+    /// Constructs a [`BorrowedPage`] from a raw pointer to a `struct page`.
+    ///
+    /// # Safety
+    ///
+    /// - `ptr` must point to a valid `bindings::page`.
+    /// - `ptr` must remain valid for the entire lifetime `'a`.
+    pub unsafe fn from_raw(ptr: NonNull<bindings::page>) -> Self {
+        let page = Page { page: ptr };
+
+        // INVARIANT: The safety requirements guarantee that `ptr` is valid for the entire lifetime
+        // `'a`.
+        Self(ManuallyDrop::new(page), PhantomData)
+    }
+}
+
+impl<'a> Deref for BorrowedPage<'a> {
+    type Target = Page;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+/// Trait to be implemented by types which provide an [`Iterator`] implementation of
+/// [`BorrowedPage`] items, such as [`VmallocPageIter`](kernel::alloc::allocator::VmallocPageIter).
+pub trait AsPageIter {
+    /// The [`Iterator`] type, e.g. [`VmallocPageIter`](kernel::alloc::allocator::VmallocPageIter).
+    type Iter<'a>: Iterator<Item = BorrowedPage<'a>>
+    where
+        Self: 'a;
+
+    /// Returns an [`Iterator`] of [`BorrowedPage`] items over all pages owned by `self`.
+    fn page_iter(&mut self) -> Self::Iter<'_>;
 }
 
 /// A pointer to a page that owns the page allocation.
@@ -83,6 +168,12 @@ impl Page {
     /// Returns a raw pointer to the page.
     pub fn as_ptr(&self) -> *mut bindings::page {
         self.page.as_ptr()
+    }
+
+    /// Get the node id containing this page.
+    pub fn nid(&self) -> i32 {
+        // SAFETY: Always safe to call with a valid page.
+        unsafe { bindings::page_to_nid(self.as_ptr()) }
     }
 
     /// Runs a piece of code with this page mapped to an address.

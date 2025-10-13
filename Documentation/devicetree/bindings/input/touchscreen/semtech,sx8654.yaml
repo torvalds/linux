@@ -1,0 +1,52 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/input/touchscreen/semtech,sx8654.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Semtech SX8654 I2C Touchscreen Controller
+
+maintainers:
+  - Frank Li <Frank.Li@nxp.com>
+
+properties:
+  compatible:
+    enum:
+      - semtech,sx8650
+      - semtech,sx8654
+      - semtech,sx8655
+      - semtech,sx8656
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  reset-gpios:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        touchscreen@48 {
+            compatible = "semtech,sx8654";
+            reg = <0x48>;
+            interrupt-parent = <&gpio6>;
+            interrupts = <3 IRQ_TYPE_EDGE_FALLING>;
+            reset-gpios = <&gpio4 2 GPIO_ACTIVE_LOW>;
+        };
+    };

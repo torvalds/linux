@@ -147,8 +147,8 @@ static int ws_bridge_probe(struct i2c_client *i2c)
 	int ret;
 
 	ws = devm_drm_bridge_alloc(dev, struct ws_bridge, bridge, &ws_bridge_bridge_funcs);
-	if (!ws)
-		return -ENOMEM;
+	if (IS_ERR(ws))
+		return PTR_ERR(ws);
 
 	ws->dev = dev;
 

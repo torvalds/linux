@@ -5,11 +5,12 @@
 
 #include <linux/circ_buf.h>
 #include <linux/ktime.h>
-#include <linux/time64.h>
 #include <linux/string_helpers.h>
+#include <linux/time64.h>
 #include <linux/timekeeping.h>
 
 #include "i915_drv.h"
+#include "i915_wait_util.h"
 #include "intel_guc_ct.h"
 #include "intel_guc_print.h"
 

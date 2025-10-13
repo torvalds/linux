@@ -626,7 +626,7 @@ int iwl_mld_mac80211_add_interface(struct ieee80211_hw *hw,
 					     IEEE80211_VIF_SUPPORTS_CQM_RSSI;
 	}
 
-	if (vif->p2p || iwl_fw_lookup_cmd_ver(mld->fw, PHY_CONTEXT_CMD, 0) < 5)
+	if (vif->p2p)
 		vif->driver_flags |= IEEE80211_VIF_IGNORE_OFDMA_WIDER_BW;
 
 	/*
@@ -1966,13 +1966,8 @@ iwl_mld_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 	iwl_fw_runtime_suspend(&mld->fwrt);
 
 	ret = iwl_mld_wowlan_suspend(mld, wowlan);
-	if (ret) {
-		if (ret < 0) {
-			mld->trans->state = IWL_TRANS_NO_FW;
-			set_bit(STATUS_FW_ERROR, &mld->trans->status);
-		}
+	if (ret)
 		return 1;
-	}
 
 	if (iwl_mld_no_wowlan_suspend(mld))
 		return 1;
@@ -2065,9 +2060,8 @@ static int iwl_mld_set_key_add(struct iwl_mld *mld,
 		return -EOPNOTSUPP;
 	}
 
-	if (vif->type == NL80211_IFTYPE_STATION &&
-	    (keyidx == 6 || keyidx == 7))
-		rcu_assign_pointer(mld_vif->bigtks[keyidx - 6], key);
+	if (keyidx == 6 || keyidx == 7)
+		iwl_mld_track_bigtk(mld, vif, key, true);
 
 	/* After exiting from RFKILL, hostapd configures GTK/ITGK before the
 	 * AP is started, but those keys can't be sent to the FW before the
@@ -2116,9 +2110,8 @@ static void iwl_mld_set_key_remove(struct iwl_mld *mld,
 		sta ? iwl_mld_sta_from_mac80211(sta) : NULL;
 	int keyidx = key->keyidx;
 
-	if (vif->type == NL80211_IFTYPE_STATION &&
-	    (keyidx == 6 || keyidx == 7))
-		RCU_INIT_POINTER(mld_vif->bigtks[keyidx - 6], NULL);
+	if (keyidx == 6 || keyidx == 7)
+		iwl_mld_track_bigtk(mld, vif, key, false);
 
 	if (mld_sta && key->flags & IEEE80211_KEY_FLAG_PAIRWISE &&
 	    (key->cipher == WLAN_CIPHER_SUITE_CCMP ||

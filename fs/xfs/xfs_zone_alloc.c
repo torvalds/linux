@@ -493,64 +493,58 @@ xfs_try_open_zone(
 	return oz;
 }
 
-/*
- * For data with short or medium lifetime, try to colocated it into an
- * already open zone with a matching temperature.
- */
-static bool
-xfs_colocate_eagerly(
-	enum rw_hint		file_hint)
-{
-	switch (file_hint) {
-	case WRITE_LIFE_MEDIUM:
-	case WRITE_LIFE_SHORT:
-	case WRITE_LIFE_NONE:
-		return true;
-	default:
-		return false;
-	}
-}
+enum xfs_zone_alloc_score {
+	/* Any open zone will do it, we're desperate */
+	XFS_ZONE_ALLOC_ANY	= 0,
 
-static bool
-xfs_good_hint_match(
-	struct xfs_open_zone	*oz,
-	enum rw_hint		file_hint)
-{
-	switch (oz->oz_write_hint) {
-	case WRITE_LIFE_LONG:
-	case WRITE_LIFE_EXTREME:
-		/* colocate long and extreme */
-		if (file_hint == WRITE_LIFE_LONG ||
-		    file_hint == WRITE_LIFE_EXTREME)
-			return true;
-		break;
-	case WRITE_LIFE_MEDIUM:
-		/* colocate medium with medium */
-		if (file_hint == WRITE_LIFE_MEDIUM)
-			return true;
-		break;
-	case WRITE_LIFE_SHORT:
-	case WRITE_LIFE_NONE:
-	case WRITE_LIFE_NOT_SET:
-		/* colocate short and none */
-		if (file_hint <= WRITE_LIFE_SHORT)
-			return true;
-		break;
-	}
-	return false;
-}
+	/* It better fit somehow */
+	XFS_ZONE_ALLOC_OK	= 1,
+
+	/* Only reuse a zone if it fits really well. */
+	XFS_ZONE_ALLOC_GOOD	= 2,
+};
+
+/*
+ * Life time hint co-location matrix.  Fields not set default to 0
+ * aka XFS_ZONE_ALLOC_ANY.
+ */
+static const unsigned int
+xfs_zoned_hint_score[WRITE_LIFE_HINT_NR][WRITE_LIFE_HINT_NR] = {
+	[WRITE_LIFE_NOT_SET]	= {
+		[WRITE_LIFE_NOT_SET]	= XFS_ZONE_ALLOC_OK,
+	},
+	[WRITE_LIFE_NONE]	= {
+		[WRITE_LIFE_NONE]	= XFS_ZONE_ALLOC_OK,
+	},
+	[WRITE_LIFE_SHORT]	= {
+		[WRITE_LIFE_SHORT]	= XFS_ZONE_ALLOC_GOOD,
+	},
+	[WRITE_LIFE_MEDIUM]	= {
+		[WRITE_LIFE_MEDIUM]	= XFS_ZONE_ALLOC_GOOD,
+	},
+	[WRITE_LIFE_LONG]	= {
+		[WRITE_LIFE_LONG]	= XFS_ZONE_ALLOC_OK,
+		[WRITE_LIFE_EXTREME]	= XFS_ZONE_ALLOC_OK,
+	},
+	[WRITE_LIFE_EXTREME]	= {
+		[WRITE_LIFE_LONG]	= XFS_ZONE_ALLOC_OK,
+		[WRITE_LIFE_EXTREME]	= XFS_ZONE_ALLOC_OK,
+	},
+};
 
 static bool
 xfs_try_use_zone(
 	struct xfs_zone_info	*zi,
 	enum rw_hint		file_hint,
 	struct xfs_open_zone	*oz,
-	bool			lowspace)
+	unsigned int		goodness)
 {
 	if (oz->oz_allocated == rtg_blocks(oz->oz_rtg))
 		return false;
-	if (!lowspace && !xfs_good_hint_match(oz, file_hint))
+
+	if (xfs_zoned_hint_score[oz->oz_write_hint][file_hint] < goodness)
 		return false;
+
 	if (!atomic_inc_not_zero(&oz->oz_ref))
 		return false;
 
@@ -581,14 +575,14 @@ static struct xfs_open_zone *
 xfs_select_open_zone_lru(
 	struct xfs_zone_info	*zi,
 	enum rw_hint		file_hint,
-	bool			lowspace)
+	unsigned int		goodness)
 {
 	struct xfs_open_zone	*oz;
 
 	lockdep_assert_held(&zi->zi_open_zones_lock);
 
 	list_for_each_entry(oz, &zi->zi_open_zones, oz_entry)
-		if (xfs_try_use_zone(zi, file_hint, oz, lowspace))
+		if (xfs_try_use_zone(zi, file_hint, oz, goodness))
 			return oz;
 
 	cond_resched_lock(&zi->zi_open_zones_lock);
@@ -651,9 +645,11 @@ xfs_select_zone_nowait(
 	 * data.
 	 */
 	spin_lock(&zi->zi_open_zones_lock);
-	if (xfs_colocate_eagerly(write_hint))
-		oz = xfs_select_open_zone_lru(zi, write_hint, false);
-	else if (pack_tight)
+	oz = xfs_select_open_zone_lru(zi, write_hint, XFS_ZONE_ALLOC_GOOD);
+	if (oz)
+		goto out_unlock;
+
+	if (pack_tight)
 		oz = xfs_select_open_zone_mru(zi, write_hint);
 	if (oz)
 		goto out_unlock;
@@ -667,16 +663,16 @@ xfs_select_zone_nowait(
 		goto out_unlock;
 
 	/*
-	 * Try to colocate cold data with other cold data if we failed to open a
-	 * new zone for it.
+	 * Try to find an zone that is an ok match to colocate data with.
 	 */
-	if (write_hint != WRITE_LIFE_NOT_SET &&
-	    !xfs_colocate_eagerly(write_hint))
-		oz = xfs_select_open_zone_lru(zi, write_hint, false);
-	if (!oz)
-		oz = xfs_select_open_zone_lru(zi, WRITE_LIFE_NOT_SET, false);
-	if (!oz)
-		oz = xfs_select_open_zone_lru(zi, WRITE_LIFE_NOT_SET, true);
+	oz = xfs_select_open_zone_lru(zi, write_hint, XFS_ZONE_ALLOC_OK);
+	if (oz)
+		goto out_unlock;
+
+	/*
+	 * Pick the least recently used zone, regardless of hint match
+	 */
+	oz = xfs_select_open_zone_lru(zi, write_hint, XFS_ZONE_ALLOC_ANY);
 out_unlock:
 	spin_unlock(&zi->zi_open_zones_lock);
 	return oz;
@@ -1135,7 +1131,7 @@ xfs_calc_open_zones(
 		if (bdev_open_zones)
 			mp->m_max_open_zones = bdev_open_zones;
 		else
-			mp->m_max_open_zones = xfs_max_open_zones(mp);
+			mp->m_max_open_zones = XFS_DEFAULT_MAX_OPEN_ZONES;
 	}
 
 	if (mp->m_max_open_zones < XFS_MIN_OPEN_ZONES) {
@@ -1248,7 +1244,7 @@ xfs_mount_zones(
 	if (!mp->m_zone_info)
 		return -ENOMEM;
 
-	xfs_info(mp, "%u zones of %u blocks size (%u max open)",
+	xfs_info(mp, "%u zones of %u blocks (%u max open zones)",
 		 mp->m_sb.sb_rgcount, mp->m_groups[XG_TYPE_RTG].blocks,
 		 mp->m_max_open_zones);
 	trace_xfs_zones_mount(mp);

@@ -21,7 +21,6 @@
 #include "hashmap.h"
 #include "libbpf.h"
 #include "libbpf_internal.h"
-#include "str_error.h"
 
 static const char PREFIXES[] = "\t\t\t\t\t\t\t\t\t\t\t\t\t";
 static const size_t PREFIX_CNT = sizeof(PREFIXES) - 1;

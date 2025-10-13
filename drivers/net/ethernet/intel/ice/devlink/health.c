@@ -450,9 +450,8 @@ ice_init_devlink_rep(struct ice_pf *pf,
 {
 	struct devlink *devlink = priv_to_devlink(pf);
 	struct devlink_health_reporter *rep;
-	const u64 graceful_period = 0;
 
-	rep = devl_health_reporter_create(devlink, ops, graceful_period, pf);
+	rep = devl_health_reporter_create(devlink, ops, pf);
 	if (IS_ERR(rep)) {
 		struct device *dev = ice_pf_to_dev(pf);
 

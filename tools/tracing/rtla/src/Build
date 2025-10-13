@@ -1,6 +1,7 @@
 rtla-y += trace.o
 rtla-y += utils.o
 rtla-y += actions.o
+rtla-y += common.o
 rtla-y += osnoise.o
 rtla-y += osnoise_top.o
 rtla-y += osnoise_hist.o

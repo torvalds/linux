@@ -213,17 +213,13 @@ static int xe_hw_engine_group_suspend_faulting_lr_jobs(struct xe_hw_engine_group
 
 		err = q->ops->suspend_wait(q);
 		if (err)
-			goto err_suspend;
+			return err;
 	}
 
 	if (need_resume)
 		xe_hw_engine_group_resume_faulting_lr_jobs(group);
 
 	return 0;
-
-err_suspend:
-	up_write(&group->mode_sem);
-	return err;
 }
 
 /**

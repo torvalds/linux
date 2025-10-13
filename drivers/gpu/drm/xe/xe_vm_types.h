@@ -17,6 +17,7 @@
 #include "xe_device_types.h"
 #include "xe_pt_types.h"
 #include "xe_range_fence.h"
+#include "xe_userptr.h"
 
 struct xe_bo;
 struct xe_svm_range;
@@ -45,37 +46,6 @@ struct xe_vm_pgtable_update_op;
 #define XE_VMA_PTE_COMPACT	(DRM_GPUVA_USERBITS << 7)
 #define XE_VMA_DUMPABLE		(DRM_GPUVA_USERBITS << 8)
 #define XE_VMA_SYSTEM_ALLOCATOR	(DRM_GPUVA_USERBITS << 9)
-
-/** struct xe_userptr - User pointer */
-struct xe_userptr {
-	/** @invalidate_link: Link for the vm::userptr.invalidated list */
-	struct list_head invalidate_link;
-	/** @userptr: link into VM repin list if userptr. */
-	struct list_head repin_link;
-	/**
-	 * @notifier: MMU notifier for user pointer (invalidation call back)
-	 */
-	struct mmu_interval_notifier notifier;
-	/** @sgt: storage for a scatter gather table */
-	struct sg_table sgt;
-	/** @sg: allocated scatter gather table */
-	struct sg_table *sg;
-	/** @notifier_seq: notifier sequence number */
-	unsigned long notifier_seq;
-	/** @unmap_mutex: Mutex protecting dma-unmapping */
-	struct mutex unmap_mutex;
-	/**
-	 * @initial_bind: user pointer has been bound at least once.
-	 * write: vm->userptr.notifier_lock in read mode and vm->resv held.
-	 * read: vm->userptr.notifier_lock in write mode or vm->resv held.
-	 */
-	bool initial_bind;
-	/** @mapped: Whether the @sgt sg-table is dma-mapped. Protected by @unmap_mutex. */
-	bool mapped;
-#if IS_ENABLED(CONFIG_DRM_XE_USERPTR_INVAL_INJECT)
-	u32 divisor;
-#endif
-};
 
 /**
  * struct xe_vma_mem_attr - memory attributes associated with vma
@@ -140,10 +110,10 @@ struct xe_vma {
 
 	/**
 	 * @tile_invalidated: Tile mask of binding are invalidated for this VMA.
-	 * protected by BO's resv and for userptrs, vm->userptr.notifier_lock in
-	 * write mode for writing or vm->userptr.notifier_lock in read mode and
+	 * protected by BO's resv and for userptrs, vm->svm.gpusvm.notifier_lock in
+	 * write mode for writing or vm->svm.gpusvm.notifier_lock in read mode and
 	 * the vm->resv. For stable reading, BO's resv or userptr
-	 * vm->userptr.notifier_lock in read mode is required. Can be
+	 * vm->svm.gpusvm.notifier_lock in read mode is required. Can be
 	 * opportunistically read with READ_ONCE outside of locks.
 	 */
 	u8 tile_invalidated;
@@ -154,7 +124,7 @@ struct xe_vma {
 	/**
 	 * @tile_present: Tile mask of binding are present for this VMA.
 	 * protected by vm->lock, vm->resv and for userptrs,
-	 * vm->userptr.notifier_lock for writing. Needs either for reading,
+	 * vm->svm.gpusvm.notifier_lock for writing. Needs either for reading,
 	 * but if reading is done under the vm->lock only, it needs to be held
 	 * in write mode.
 	 */
@@ -289,33 +259,7 @@ struct xe_vm {
 	const struct xe_pt_ops *pt_ops;
 
 	/** @userptr: user pointer state */
-	struct {
-		/**
-		 * @userptr.repin_list: list of VMAs which are user pointers,
-		 * and needs repinning. Protected by @lock.
-		 */
-		struct list_head repin_list;
-		/**
-		 * @notifier_lock: protects notifier in write mode and
-		 * submission in read mode.
-		 */
-		struct rw_semaphore notifier_lock;
-		/**
-		 * @userptr.invalidated_lock: Protects the
-		 * @userptr.invalidated list.
-		 */
-		spinlock_t invalidated_lock;
-		/**
-		 * @userptr.invalidated: List of invalidated userptrs, not yet
-		 * picked
-		 * up for revalidation. Protected from access with the
-		 * @invalidated_lock. Removing items from the list
-		 * additionally requires @lock in write mode, and adding
-		 * items to the list requires either the @userptr.notifier_lock in
-		 * write mode, OR @lock in write mode.
-		 */
-		struct list_head invalidated;
-	} userptr;
+	struct xe_userptr_vm userptr;
 
 	/** @preempt: preempt state */
 	struct {
@@ -363,18 +307,34 @@ struct xe_vm {
 	} error_capture;
 
 	/**
+	 * @validation: Validation data only valid with the vm resv held.
+	 * Note: This is really task state of the task holding the vm resv,
+	 * and moving forward we should
+	 * come up with a better way of passing this down the call-
+	 * chain.
+	 */
+	struct {
+		/**
+		 * @validation.validating: The task that is currently making bos resident.
+		 * for this vm.
+		 * Protected by the VM's resv for writing. Opportunistic reading can be done
+		 * using READ_ONCE. Note: This is a workaround for the
+		 * TTM eviction_valuable() callback not being passed a struct
+		 * ttm_operation_context(). Future work might want to address this.
+		 */
+		struct task_struct *validating;
+		/**
+		 *  @validation.exec The drm_exec context used when locking the vm resv.
+		 *  Protected by the vm's resv.
+		 */
+		struct drm_exec *_exec;
+	} validation;
+
+	/**
 	 * @tlb_flush_seqno: Required TLB flush seqno for the next exec.
 	 * protected by the vm resv.
 	 */
 	u64 tlb_flush_seqno;
-	/**
-	 * @validating: The task that is currently making bos resident for this vm.
-	 * Protected by the VM's resv for writing. Opportunistic reading can be done
-	 * using READ_ONCE. Note: This is a workaround for the
-	 * TTM eviction_valuable() callback not being passed a struct
-	 * ttm_operation_context(). Future work might want to address this.
-	 */
-	struct task_struct *validating;
 	/** @batch_invalidate_tlb: Always invalidate TLB before batch start */
 	bool batch_invalidate_tlb;
 	/** @xef: XE file handle for tracking this VM's drm client */

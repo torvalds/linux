@@ -8,9 +8,9 @@
 
 /* #define DEBUG */
 
+#include <linux/export.h>
 #include <linux/input.h>
 #include <linux/limits.h>
-#include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/overflow.h>
 #include <linux/sched.h>

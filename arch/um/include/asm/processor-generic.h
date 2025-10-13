@@ -71,7 +71,6 @@ extern void start_thread(struct pt_regs *regs, unsigned long entry,
 
 struct cpuinfo_um {
 	unsigned long loops_per_jiffy;
-	int ipi_pipe[2];
 	int cache_alignment;
 	union {
 		__u32		x86_capability[NCAPINTS + NBUGINTS];
@@ -81,8 +80,6 @@ struct cpuinfo_um {
 
 extern struct cpuinfo_um boot_cpu_data;
 
-#define cpu_data(cpu)    boot_cpu_data
-#define current_cpu_data boot_cpu_data
 #define cache_line_size()	(boot_cpu_data.cache_alignment)
 
 #define KSTK_REG(tsk, reg) get_thread_reg(reg, &tsk->thread.switch_buf)

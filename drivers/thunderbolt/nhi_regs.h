@@ -21,6 +21,12 @@ enum ring_flags {
 
 /**
  * struct ring_desc - TX/RX ring entry
+ * @phys: DMA mapped address of the frame
+ * @length: Size of the ring
+ * @eof: End of frame protocol defined field
+ * @sof: Start of frame protocol defined field
+ * @flags: Ring descriptor flags
+ * @time: Fill with zero
  *
  * For TX set length/eof/sof.
  * For RX length/eof/sof are set by the NHI.

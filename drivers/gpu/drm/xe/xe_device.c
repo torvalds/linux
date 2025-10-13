@@ -45,6 +45,7 @@
 #include "xe_hwmon.h"
 #include "xe_i2c.h"
 #include "xe_irq.h"
+#include "xe_late_bind_fw.h"
 #include "xe_mmio.h"
 #include "xe_module.h"
 #include "xe_nvm.h"
@@ -457,6 +458,8 @@ struct xe_device *xe_device_create(struct pci_dev *pdev,
 	if (err)
 		goto err;
 
+	xe_validation_device_init(&xe->val);
+
 	init_waitqueue_head(&xe->ufence_wq);
 
 	init_rwsem(&xe->usm.lock);
@@ -530,7 +533,7 @@ static bool xe_driver_flr_disabled(struct xe_device *xe)
  * re-init and saving/restoring (or re-populating) the wiped memory. Since we
  * perform the FLR as the very last action before releasing access to the HW
  * during the driver release flow, we don't attempt recovery at all, because
- * if/when a new instance of i915 is bound to the device it will do a full
+ * if/when a new instance of Xe is bound to the device it will do a full
  * re-init anyway.
  */
 static void __xe_driver_flr(struct xe_device *xe)
@@ -682,16 +685,16 @@ static int wait_for_lmem_ready(struct xe_device *xe)
 }
 ALLOW_ERROR_INJECTION(wait_for_lmem_ready, ERRNO); /* See xe_pci_probe() */
 
-static void sriov_update_device_info(struct xe_device *xe)
+static void vf_update_device_info(struct xe_device *xe)
 {
+	xe_assert(xe, IS_SRIOV_VF(xe));
 	/* disable features that are not available/applicable to VFs */
-	if (IS_SRIOV_VF(xe)) {
-		xe->info.probe_display = 0;
-		xe->info.has_heci_cscfi = 0;
-		xe->info.has_heci_gscfi = 0;
-		xe->info.skip_guc_pc = 1;
-		xe->info.skip_pcode = 1;
-	}
+	xe->info.probe_display = 0;
+	xe->info.has_heci_cscfi = 0;
+	xe->info.has_heci_gscfi = 0;
+	xe->info.has_late_bind = 0;
+	xe->info.skip_guc_pc = 1;
+	xe->info.skip_pcode = 1;
 }
 
 static int xe_device_vram_alloc(struct xe_device *xe)
@@ -732,7 +735,8 @@ int xe_device_probe_early(struct xe_device *xe)
 
 	xe_sriov_probe_early(xe);
 
-	sriov_update_device_info(xe);
+	if (IS_SRIOV_VF(xe))
+		vf_update_device_info(xe);
 
 	err = xe_pcode_probe_early(xe);
 	if (err || xe_survivability_mode_is_requested(xe)) {
@@ -901,6 +905,10 @@ int xe_device_probe(struct xe_device *xe)
 	if (err)
 		return err;
 
+	err = xe_late_bind_init(&xe->late_bind);
+	if (err)
+		return err;
+
 	err = xe_oa_init(xe);
 	if (err)
 		return err;
@@ -950,7 +958,7 @@ int xe_device_probe(struct xe_device *xe)
 
 	xe_vsec_init(xe);
 
-	err = xe_sriov_late_init(xe);
+	err = xe_sriov_init_late(xe);
 	if (err)
 		goto err_unregister_display;
 

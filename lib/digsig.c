@@ -18,14 +18,10 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/key.h>
-#include <linux/crypto.h>
-#include <crypto/hash.h>
 #include <crypto/sha1.h>
 #include <keys/user-type.h>
 #include <linux/mpi.h>
 #include <linux/digsig.h>
-
-static struct crypto_shash *shash;
 
 static const char *pkcs_1_v1_5_decode_emsa(const unsigned char *msg,
 						unsigned long  msglen,
@@ -159,7 +155,6 @@ static int digsig_verify_rsa(struct key *key,
 
 	len = mlen;
 	head = len - l;
-	memset(out1, 0, head);
 	memcpy(out1 + head, p, l);
 
 	kfree(p);
@@ -199,12 +194,12 @@ err1:
 int digsig_verify(struct key *keyring, const char *sig, int siglen,
 						const char *data, int datalen)
 {
-	int err = -ENOMEM;
 	struct signature_hdr *sh = (struct signature_hdr *)sig;
-	struct shash_desc *desc = NULL;
+	struct sha1_ctx ctx;
 	unsigned char hash[SHA1_DIGEST_SIZE];
 	struct key *key;
 	char name[20];
+	int err;
 
 	if (siglen < sizeof(*sh) + 2)
 		return -EINVAL;
@@ -231,49 +226,19 @@ int digsig_verify(struct key *keyring, const char *sig, int siglen,
 		return PTR_ERR(key);
 	}
 
-	desc = kzalloc(sizeof(*desc) + crypto_shash_descsize(shash),
-		       GFP_KERNEL);
-	if (!desc)
-		goto err;
-
-	desc->tfm = shash;
-
-	crypto_shash_init(desc);
-	crypto_shash_update(desc, data, datalen);
-	crypto_shash_update(desc, sig, sizeof(*sh));
-	crypto_shash_final(desc, hash);
-
-	kfree(desc);
+	sha1_init(&ctx);
+	sha1_update(&ctx, data, datalen);
+	sha1_update(&ctx, sig, sizeof(*sh));
+	sha1_final(&ctx, hash);
 
 	/* pass signature mpis address */
 	err = digsig_verify_rsa(key, sig + sizeof(*sh), siglen - sizeof(*sh),
 			     hash, sizeof(hash));
 
-err:
 	key_put(key);
 
 	return err ? -EINVAL : 0;
 }
 EXPORT_SYMBOL_GPL(digsig_verify);
-
-static int __init digsig_init(void)
-{
-	shash = crypto_alloc_shash("sha1", 0, 0);
-	if (IS_ERR(shash)) {
-		pr_err("shash allocation failed\n");
-		return  PTR_ERR(shash);
-	}
-
-	return 0;
-
-}
-
-static void __exit digsig_cleanup(void)
-{
-	crypto_free_shash(shash);
-}
-
-module_init(digsig_init);
-module_exit(digsig_cleanup);
 
 MODULE_LICENSE("GPL");

@@ -19,9 +19,6 @@ check_netconsole_module
 modprobe netdevsim 2> /dev/null || true
 rmmod netconsole 2> /dev/null || true
 
-# The content of kmsg will be save to the following file
-OUTPUT_FILE="/tmp/${TARGET}"
-
 # Check for basic system dependency and exit if not found
 # check_for_dependencies
 # Set current loglevel to KERN_INFO(6), and default to KERN_NOTICE(5)
@@ -30,23 +27,39 @@ echo "6 5" > /proc/sys/kernel/printk
 trap do_cleanup EXIT
 # Create one namespace and two interfaces
 set_network
-# Create the command line for netconsole, with the configuration from the
-# function above
-CMDLINE="$(create_cmdline_str)"
 
-# Load the module, with the cmdline set
-modprobe netconsole "${CMDLINE}"
+# Run the test twice, with different cmdline parameters
+for BINDMODE in "ifname" "mac"
+do
+	echo "Running with bind mode: ${BINDMODE}" >&2
+	# Create the command line for netconsole, with the configuration from
+	# the function above
+	CMDLINE=$(create_cmdline_str "${BINDMODE}")
 
-# Listed for netconsole port inside the namespace and destination interface
-listen_port_and_save_to "${OUTPUT_FILE}" &
-# Wait for socat to start and listen to the port.
-wait_local_port_listen "${NAMESPACE}" "${PORT}" udp
-# Send the message
-echo "${MSG}: ${TARGET}" > /dev/kmsg
-# Wait until socat saves the file to disk
-busywait "${BUSYWAIT_TIMEOUT}" test -s "${OUTPUT_FILE}"
-# Make sure the message was received in the dst part
-# and exit
-validate_msg "${OUTPUT_FILE}"
+	# The content of kmsg will be save to the following file
+	OUTPUT_FILE="/tmp/${TARGET}-${BINDMODE}"
+
+	# Load the module, with the cmdline set
+	modprobe netconsole "${CMDLINE}"
+
+	# Listed for netconsole port inside the namespace and destination
+	# interface
+	listen_port_and_save_to "${OUTPUT_FILE}" &
+	# Wait for socat to start and listen to the port.
+	wait_local_port_listen "${NAMESPACE}" "${PORT}" udp
+	# Send the message
+	echo "${MSG}: ${TARGET}" > /dev/kmsg
+	# Wait until socat saves the file to disk
+	busywait "${BUSYWAIT_TIMEOUT}" test -s "${OUTPUT_FILE}"
+	# Make sure the message was received in the dst part
+	# and exit
+	validate_msg "${OUTPUT_FILE}"
+
+	# kill socat in case it is still running
+	pkill_socat
+	# Unload the module
+	rmmod netconsole
+	echo "${BINDMODE} : Test passed" >&2
+done
 
 exit "${ksft_pass}"

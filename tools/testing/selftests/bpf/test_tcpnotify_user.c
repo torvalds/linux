@@ -15,20 +15,18 @@
 #include <bpf/libbpf.h>
 #include <sys/ioctl.h>
 #include <linux/rtnetlink.h>
-#include <signal.h>
 #include <linux/perf_event.h>
-#include <linux/err.h>
 
-#include "bpf_util.h"
 #include "cgroup_helpers.h"
 
 #include "test_tcpnotify.h"
-#include "trace_helpers.h"
 #include "testing_helpers.h"
 
 #define SOCKET_BUFFER_SIZE (getpagesize() < 8192L ? getpagesize() : 8192L)
 
 pthread_t tid;
+static bool exit_thread;
+
 int rx_callbacks;
 
 static void dummyfn(void *ctx, int cpu, void *data, __u32 size)
@@ -45,7 +43,7 @@ void tcp_notifier_poller(struct perf_buffer *pb)
 {
 	int err;
 
-	while (1) {
+	while (!exit_thread) {
 		err = perf_buffer__poll(pb, 100);
 		if (err < 0 && err != -EINTR) {
 			printf("failed perf_buffer__poll: %d\n", err);
@@ -78,14 +76,9 @@ int main(int argc, char **argv)
 	int error = EXIT_FAILURE;
 	struct bpf_object *obj;
 	char test_script[80];
-	cpu_set_t cpuset;
 	__u32 key = 0;
 
 	libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
-
-	CPU_ZERO(&cpuset);
-	CPU_SET(0, &cpuset);
-	pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
 
 	cg_fd = cgroup_setup_and_join(cg_path);
 	if (cg_fd < 0)
@@ -150,6 +143,13 @@ int main(int argc, char **argv)
 	}
 
 	sleep(10);
+
+	exit_thread = true;
+	int ret = pthread_join(tid, NULL);
+	if (ret) {
+		printf("FAILED: pthread_join\n");
+		goto err;
+	}
 
 	if (verify_result(&g)) {
 		printf("FAILED: Wrong stats Expected %d calls, got %d\n",

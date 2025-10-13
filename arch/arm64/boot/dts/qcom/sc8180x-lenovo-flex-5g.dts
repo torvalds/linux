@@ -436,8 +436,6 @@
 };
 
 &mdss_edp {
-	data-lanes = <0 1 2 3>;
-
 	pinctrl-0 = <&edp_hpd_active>;
 	pinctrl-names = "default";
 
@@ -457,15 +455,11 @@
 			};
 		};
 	};
+};
 
-	ports {
-		port@1 {
-			reg = <1>;
-			mdss_edp_out: endpoint {
-				remote-endpoint = <&auo_b140han06_in>;
-			};
-		};
-	};
+&mdss_edp_out {
+	data-lanes = <0 1 2 3>;
+	remote-endpoint = <&auo_b140han06_in>;
 };
 
 &pcie3 {

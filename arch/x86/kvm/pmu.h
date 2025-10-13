@@ -13,7 +13,7 @@
 #define MSR_IA32_MISC_ENABLE_PMU_RO_MASK (MSR_IA32_MISC_ENABLE_PEBS_UNAVAIL |	\
 					  MSR_IA32_MISC_ENABLE_BTS_UNAVAIL)
 
-/* retrieve the 4 bits for EN and PMI out of IA32_FIXED_CTR_CTRL */
+/* retrieve a fixed counter bits out of IA32_FIXED_CTR_CTRL */
 #define fixed_ctrl_field(ctrl_reg, idx) \
 	(((ctrl_reg) >> ((idx) * INTEL_FIXED_BITS_STRIDE)) & INTEL_FIXED_BITS_MASK)
 
@@ -22,11 +22,6 @@
 #define VMWARE_BACKDOOR_PMC_APPARENT_TIME	0x10002
 
 #define KVM_FIXED_PMC_BASE_IDX INTEL_PMC_IDX_FIXED
-
-struct kvm_pmu_emulated_event_selectors {
-	u64 INSTRUCTIONS_RETIRED;
-	u64 BRANCH_INSTRUCTIONS_RETIRED;
-};
 
 struct kvm_pmu_ops {
 	struct kvm_pmc *(*rdpmc_ecx_to_pmc)(struct kvm_vcpu *vcpu,
@@ -165,7 +160,7 @@ static inline struct kvm_pmc *get_fixed_pmc(struct kvm_pmu *pmu, u32 msr)
 	return NULL;
 }
 
-static inline bool pmc_speculative_in_use(struct kvm_pmc *pmc)
+static inline bool pmc_is_locally_enabled(struct kvm_pmc *pmc)
 {
 	struct kvm_pmu *pmu = pmc_to_pmu(pmc);
 
@@ -178,57 +173,15 @@ static inline bool pmc_speculative_in_use(struct kvm_pmc *pmc)
 }
 
 extern struct x86_pmu_capability kvm_pmu_cap;
-extern struct kvm_pmu_emulated_event_selectors kvm_pmu_eventsel;
 
-static inline void kvm_init_pmu_capability(const struct kvm_pmu_ops *pmu_ops)
-{
-	bool is_intel = boot_cpu_data.x86_vendor == X86_VENDOR_INTEL;
-	int min_nr_gp_ctrs = pmu_ops->MIN_NR_GP_COUNTERS;
+void kvm_init_pmu_capability(const struct kvm_pmu_ops *pmu_ops);
 
-	/*
-	 * Hybrid PMUs don't play nice with virtualization without careful
-	 * configuration by userspace, and KVM's APIs for reporting supported
-	 * vPMU features do not account for hybrid PMUs.  Disable vPMU support
-	 * for hybrid PMUs until KVM gains a way to let userspace opt-in.
-	 */
-	if (cpu_feature_enabled(X86_FEATURE_HYBRID_CPU))
-		enable_pmu = false;
-
-	if (enable_pmu) {
-		perf_get_x86_pmu_capability(&kvm_pmu_cap);
-
-		/*
-		 * WARN if perf did NOT disable hardware PMU if the number of
-		 * architecturally required GP counters aren't present, i.e. if
-		 * there are a non-zero number of counters, but fewer than what
-		 * is architecturally required.
-		 */
-		if (!kvm_pmu_cap.num_counters_gp ||
-		    WARN_ON_ONCE(kvm_pmu_cap.num_counters_gp < min_nr_gp_ctrs))
-			enable_pmu = false;
-		else if (is_intel && !kvm_pmu_cap.version)
-			enable_pmu = false;
-	}
-
-	if (!enable_pmu) {
-		memset(&kvm_pmu_cap, 0, sizeof(kvm_pmu_cap));
-		return;
-	}
-
-	kvm_pmu_cap.version = min(kvm_pmu_cap.version, 2);
-	kvm_pmu_cap.num_counters_gp = min(kvm_pmu_cap.num_counters_gp,
-					  pmu_ops->MAX_NR_GP_COUNTERS);
-	kvm_pmu_cap.num_counters_fixed = min(kvm_pmu_cap.num_counters_fixed,
-					     KVM_MAX_NR_FIXED_COUNTERS);
-
-	kvm_pmu_eventsel.INSTRUCTIONS_RETIRED =
-		perf_get_hw_event_config(PERF_COUNT_HW_INSTRUCTIONS);
-	kvm_pmu_eventsel.BRANCH_INSTRUCTIONS_RETIRED =
-		perf_get_hw_event_config(PERF_COUNT_HW_BRANCH_INSTRUCTIONS);
-}
+void kvm_pmu_recalc_pmc_emulation(struct kvm_pmu *pmu, struct kvm_pmc *pmc);
 
 static inline void kvm_pmu_request_counter_reprogram(struct kvm_pmc *pmc)
 {
+	kvm_pmu_recalc_pmc_emulation(pmc_to_pmu(pmc), pmc);
+
 	set_bit(pmc->idx, pmc_to_pmu(pmc)->reprogram_pmi);
 	kvm_make_request(KVM_REQ_PMU, pmc->vcpu);
 }
@@ -272,7 +225,8 @@ void kvm_pmu_init(struct kvm_vcpu *vcpu);
 void kvm_pmu_cleanup(struct kvm_vcpu *vcpu);
 void kvm_pmu_destroy(struct kvm_vcpu *vcpu);
 int kvm_vm_ioctl_set_pmu_event_filter(struct kvm *kvm, void __user *argp);
-void kvm_pmu_trigger_event(struct kvm_vcpu *vcpu, u64 eventsel);
+void kvm_pmu_instruction_retired(struct kvm_vcpu *vcpu);
+void kvm_pmu_branch_retired(struct kvm_vcpu *vcpu);
 
 bool is_vmware_backdoor_pmc(u32 pmc_idx);
 

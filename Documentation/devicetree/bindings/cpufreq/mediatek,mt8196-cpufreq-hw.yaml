@@ -1,0 +1,82 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/cpufreq/mediatek,mt8196-cpufreq-hw.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: MediaTek Hybrid CPUFreq for MT8196/MT6991 series SoCs
+
+maintainers:
+  - Nicolas Frattaroli <nicolas.frattaroli@collabora.com>
+
+description:
+  MT8196 uses CPUFreq management hardware that supports dynamic voltage
+  frequency scaling (dvfs), and can support several performance domains.
+
+properties:
+  compatible:
+    const: mediatek,mt8196-cpufreq-hw
+
+  reg:
+    items:
+      - description: FDVFS control register region
+      - description: OPP tables and control for performance domain 0
+      - description: OPP tables and control for performance domain 1
+      - description: OPP tables and control for performance domain 2
+
+  "#performance-domain-cells":
+    const: 1
+
+required:
+  - compatible
+  - reg
+  - "#performance-domain-cells"
+
+additionalProperties: false
+
+examples:
+  - |
+    cpus {
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            cpu0: cpu@0 {
+                device_type = "cpu";
+                compatible = "arm,cortex-a720";
+                enable-method = "psci";
+                performance-domains = <&performance 0>;
+                reg = <0x000>;
+            };
+
+            /* ... */
+
+            cpu6: cpu@600 {
+                device_type = "cpu";
+                compatible = "arm,cortex-x4";
+                enable-method = "psci";
+                performance-domains = <&performance 1>;
+                reg = <0x600>;
+            };
+
+            cpu7: cpu@700 {
+                device_type = "cpu";
+                compatible = "arm,cortex-x925";
+                enable-method = "psci";
+                performance-domains = <&performance 2>;
+                reg = <0x700>;
+            };
+    };
+
+    /* ... */
+
+    soc {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        performance: performance-controller@c2c2034 {
+            compatible = "mediatek,mt8196-cpufreq-hw";
+            reg = <0 0xc220400 0 0x20>, <0 0xc2c0f20 0 0x120>,
+                  <0 0xc2c1040 0 0x120>, <0 0xc2c1160 0 0x120>;
+            #performance-domain-cells = <1>;
+        };
+    };

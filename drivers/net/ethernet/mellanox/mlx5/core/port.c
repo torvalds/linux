@@ -1170,7 +1170,11 @@ const struct mlx5_link_info *mlx5_port_ptys2info(struct mlx5_core_dev *mdev,
 	mlx5e_port_get_link_mode_info_arr(mdev, &table, &max_size,
 					  force_legacy);
 	i = find_first_bit(&temp, max_size);
-	if (i < max_size)
+
+	/* mlx5e_link_info has holes. Check speed
+	 * is not zero as indication of one.
+	 */
+	if (i < max_size && table[i].speed)
 		return &table[i];
 
 	return NULL;

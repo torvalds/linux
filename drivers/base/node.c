@@ -249,6 +249,44 @@ void node_set_perf_attrs(unsigned int nid, struct access_coordinate *coord,
 EXPORT_SYMBOL_GPL(node_set_perf_attrs);
 
 /**
+ * node_update_perf_attrs - Update the performance values for given access class
+ * @nid: Node identifier to be updated
+ * @coord: Heterogeneous memory performance coordinates
+ * @access: The access class for the given attributes
+ */
+void node_update_perf_attrs(unsigned int nid, struct access_coordinate *coord,
+			    enum access_coordinate_class access)
+{
+	struct node_access_nodes *access_node;
+	struct node *node;
+	int i;
+
+	if (WARN_ON_ONCE(!node_online(nid)))
+		return;
+
+	node = node_devices[nid];
+	list_for_each_entry(access_node, &node->access_list, list_node) {
+		if (access_node->access != access)
+			continue;
+
+		access_node->coord = *coord;
+		for (i = 0; access_attrs[i]; i++) {
+			sysfs_notify(&access_node->dev.kobj,
+				     NULL, access_attrs[i]->name);
+		}
+		break;
+	}
+
+	/* When setting CPU access coordinates, update mempolicy */
+	if (access != ACCESS_COORDINATE_CPU)
+		return;
+
+	if (mempolicy_set_node_perf(nid, coord))
+		pr_info("failed to set mempolicy attrs for node %d\n", nid);
+}
+EXPORT_SYMBOL_GPL(node_update_perf_attrs);
+
+/**
  * struct node_cache_info - Internal tracking for memory node caches
  * @dev:	Device represeting the cache level
  * @node:	List element for tracking in the node
@@ -781,12 +819,9 @@ int unregister_cpu_under_node(unsigned int cpu, unsigned int nid)
 
 #ifdef CONFIG_MEMORY_HOTPLUG
 static void do_register_memory_block_under_node(int nid,
-						struct memory_block *mem_blk,
-						enum meminit_context context)
+						struct memory_block *mem_blk)
 {
 	int ret;
-
-	memory_block_add_nid(mem_blk, nid, context);
 
 	ret = sysfs_create_link_nowarn(&node_devices[nid]->dev.kobj,
 				       &mem_blk->dev.kobj,
@@ -815,7 +850,7 @@ static int register_mem_block_under_node_hotplug(struct memory_block *mem_blk,
 {
 	int nid = *(int *)arg;
 
-	do_register_memory_block_under_node(nid, mem_blk, MEMINIT_HOTPLUG);
+	do_register_memory_block_under_node(nid, mem_blk);
 	return 0;
 }
 
@@ -855,7 +890,8 @@ static void register_memory_blocks_under_nodes(void)
 			if (!mem)
 				continue;
 
-			do_register_memory_block_under_node(nid, mem, MEMINIT_EARLY);
+			memory_block_add_nid_early(mem, nid);
+			do_register_memory_block_under_node(nid, mem);
 			put_device(&mem->dev);
 		}
 
@@ -885,6 +921,10 @@ int register_one_node(int nid)
 	node_devices[nid] = node;
 
 	error = register_node(node_devices[nid], nid);
+	if (error) {
+		node_devices[nid] = NULL;
+		return error;
+	}
 
 	/* link cpu under this node */
 	for_each_present_cpu(cpu) {

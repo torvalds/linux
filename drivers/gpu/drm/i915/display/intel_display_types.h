@@ -60,6 +60,7 @@ struct intel_ddi_buf_trans;
 struct intel_fbc;
 struct intel_global_objs_state;
 struct intel_hdcp_shim;
+struct intel_panic;
 struct intel_tc_port;
 
 /*
@@ -149,6 +150,7 @@ struct intel_framebuffer {
 	unsigned int vtd_guard;
 
 	unsigned int (*panic_tiling)(unsigned int x, unsigned int y, unsigned int width);
+	struct intel_panic *panic;
 };
 
 enum intel_hotplug_state {

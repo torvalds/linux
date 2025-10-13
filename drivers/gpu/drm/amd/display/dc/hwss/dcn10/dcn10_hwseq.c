@@ -55,7 +55,7 @@
 #include "dce/dmub_hw_lock_mgr.h"
 #include "dc_trace.h"
 #include "dce/dmub_outbox.h"
-#include "link.h"
+#include "link_service.h"
 #include "dc_state_priv.h"
 
 #define DC_LOGGER \
@@ -3347,7 +3347,7 @@ void dcn10_prepare_bandwidth(
 			context,
 			false);
 
-	dc->wm_optimized_required = hubbub->funcs->program_watermarks(hubbub,
+	dc->optimized_required = hubbub->funcs->program_watermarks(hubbub,
 			&context->bw_ctx.bw.dcn.watermarks,
 			dc->res_pool->ref_clocks.dchub_ref_clock_inKhz / 1000,
 			true);

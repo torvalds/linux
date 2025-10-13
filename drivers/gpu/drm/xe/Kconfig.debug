@@ -104,6 +104,7 @@ config DRM_XE_DEBUG_GUC
 
 config DRM_XE_USERPTR_INVAL_INJECT
        bool "Inject userptr invalidation -EINVAL errors"
+       depends on DRM_GPUSVM
        default n
        help
          Choose this option when debugging error paths that

@@ -1,0 +1,172 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pinctrl/renesas,r9a09g077-pinctrl.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Renesas RZ/T2H and RZ/N2H Pin and GPIO controller
+
+maintainers:
+  - Lad Prabhakar <prabhakar.mahadev-lad.rj@bp.renesas.com>
+
+description:
+  The Renesas RZ/T2H and RZ/N2H SoCs feature a combined Pin and GPIO controller.
+  Pin multiplexing and GPIO configuration are performed on a per-pin basis.
+  Each port supports up to 8 pins, each configurable for either GPIO (port mode)
+  or alternate function mode. Each pin supports function mode values ranging from
+  0x0 to 0x2A, allowing selection from up to 43 different functions.
+
+properties:
+  compatible:
+    enum:
+      - renesas,r9a09g077-pinctrl # RZ/T2H
+      - renesas,r9a09g087-pinctrl # RZ/N2H
+
+  reg:
+    minItems: 1
+    items:
+      - description: Non-safety I/O Port base
+      - description: Safety I/O Port safety region base
+      - description: Safety I/O Port Non-safety region base
+
+  reg-names:
+    minItems: 1
+    items:
+      - const: nsr
+      - const: srs
+      - const: srn
+
+  gpio-controller: true
+
+  '#gpio-cells':
+    const: 2
+    description:
+      The first cell contains the global GPIO port index, constructed using the
+      RZT2H_GPIO() helper macro from <dt-bindings/pinctrl/renesas,r9a09g077-pinctrl.h>
+      (e.g. "RZT2H_GPIO(3, 0)" for P03_0). The second cell represents the consumer
+      flag. Use the macros defined in include/dt-bindings/gpio/gpio.h.
+
+  gpio-ranges:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  power-domains:
+    maxItems: 1
+
+definitions:
+  renesas-rzt2h-n2h-pins-node:
+    type: object
+    allOf:
+      - $ref: pincfg-node.yaml#
+      - $ref: pinmux-node.yaml#
+    properties:
+      pinmux:
+        description:
+          Values are constructed from I/O port number, pin number, and
+          alternate function configuration number using the RZT2H_PORT_PINMUX()
+          helper macro from <dt-bindings/pinctrl/renesas,r9a09g077-pinctrl.h>.
+      pins: true
+      phandle: true
+      input: true
+      input-enable: true
+      output-enable: true
+    oneOf:
+      - required: [pinmux]
+      - required: [pins]
+    additionalProperties: false
+
+patternProperties:
+  # Grouping nodes: allow multiple "-pins" subnodes within a "-group"
+  '.*-group$':
+    type: object
+    description:
+      Pin controller client devices can organize pin configuration entries into
+      grouping nodes ending in "-group". These group nodes may contain multiple
+      child nodes each ending in "-pins" to configure distinct sets of pins.
+    additionalProperties: false
+    patternProperties:
+      '-pins$':
+        $ref: '#/definitions/renesas-rzt2h-n2h-pins-node'
+
+  # Standalone "-pins" nodes under client devices or groups
+  '-pins$':
+    $ref: '#/definitions/renesas-rzt2h-n2h-pins-node'
+
+  '-hog$':
+    type: object
+    description: GPIO hog node
+    properties:
+      gpio-hog: true
+      gpios: true
+      input: true
+      output-high: true
+      output-low: true
+      line-name: true
+    required:
+      - gpio-hog
+      - gpios
+    additionalProperties: false
+
+allOf:
+  - $ref: pinctrl.yaml#
+
+required:
+  - compatible
+  - reg
+  - reg-names
+  - gpio-controller
+  - '#gpio-cells'
+  - gpio-ranges
+  - clocks
+  - power-domains
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/renesas,r9a09g077-cpg-mssr.h>
+    #include <dt-bindings/pinctrl/renesas,r9a09g077-pinctrl.h>
+
+    pinctrl@802c0000 {
+        compatible = "renesas,r9a09g077-pinctrl";
+        reg = <0x802c0000 0x2000>,
+              <0x812c0000 0x2000>,
+              <0x802b0000 0x2000>;
+        reg-names = "nsr", "srs", "srn";
+        clocks = <&cpg CPG_CORE R9A09G077_CLK_PCLKM>;
+        gpio-controller;
+        #gpio-cells = <2>;
+        gpio-ranges = <&pinctrl 0 0 288>;
+        power-domains = <&cpg>;
+
+        serial0-pins {
+            pinmux = <RZT2H_PORT_PINMUX(38, 0, 1)>, /* Tx */
+                     <RZT2H_PORT_PINMUX(38, 1, 1)>; /* Rx */
+        };
+
+        sd1-pwr-en-hog {
+            gpio-hog;
+            gpios = <RZT2H_GPIO(39, 2) 0>;
+            output-high;
+            line-name = "sd1_pwr_en";
+        };
+
+        i2c0-pins {
+            pins = "RIIC0_SDA", "RIIC0_SCL";
+            input-enable;
+        };
+
+        sd0-sd-group {
+            ctrl-pins {
+                pinmux = <RZT2H_PORT_PINMUX(12, 0, 0x29)>, /* SD0_CLK */
+                         <RZT2H_PORT_PINMUX(12, 1, 0x29)>; /* SD0_CMD */
+            };
+
+            data-pins {
+                pinmux = <RZT2H_PORT_PINMUX(12, 0, 0x29)>, /* SD0_CLK */
+                         <RZT2H_PORT_PINMUX(12, 1, 0x29)>; /* SD0_CMD */
+            };
+        };
+    };

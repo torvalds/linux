@@ -629,8 +629,8 @@ following:
   - tracing synthetic events from in-kernel code
   - the low-level "dynevent_cmd" API
 
-7.1 Dyamically creating synthetic event definitions
----------------------------------------------------
+7.1 Dynamically creating synthetic event definitions
+----------------------------------------------------
 
 There are a couple ways to create a new synthetic event from a kernel
 module or other kernel code.
@@ -944,8 +944,8 @@ Note that synth_event_trace_end() must be called at the end regardless
 of whether any of the add calls failed (say due to a bad field name
 being passed in).
 
-7.3 Dyamically creating kprobe and kretprobe event definitions
---------------------------------------------------------------
+7.3 Dynamically creating kprobe and kretprobe event definitions
+---------------------------------------------------------------
 
 To create a kprobe or kretprobe trace event from kernel code, the
 kprobe_event_gen_cmd_start() or kretprobe_event_gen_cmd_start()

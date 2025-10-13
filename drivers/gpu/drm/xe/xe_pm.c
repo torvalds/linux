@@ -21,6 +21,7 @@
 #include "xe_gt_idle.h"
 #include "xe_i2c.h"
 #include "xe_irq.h"
+#include "xe_late_bind_fw.h"
 #include "xe_pcode.h"
 #include "xe_pxp.h"
 #include "xe_sriov_vf_ccs.h"
@@ -129,6 +130,8 @@ int xe_pm_suspend(struct xe_device *xe)
 	if (err)
 		goto err;
 
+	xe_late_bind_wait_for_worker_completion(&xe->late_bind);
+
 	for_each_gt(gt, xe, id)
 		xe_gt_suspend_prepare(gt);
 
@@ -198,7 +201,7 @@ int xe_pm_resume(struct xe_device *xe)
 	if (err)
 		goto err;
 
-	xe_i2c_pm_resume(xe, xe->d3cold.allowed);
+	xe_i2c_pm_resume(xe, true);
 
 	xe_irq_resume(xe);
 
@@ -213,8 +216,10 @@ int xe_pm_resume(struct xe_device *xe)
 
 	xe_pxp_pm_resume(xe->pxp);
 
-	if (IS_SRIOV_VF(xe))
+	if (IS_VF_CCS_READY(xe))
 		xe_sriov_vf_ccs_register_context(xe);
+
+	xe_late_bind_fw_load(&xe->late_bind);
 
 	drm_dbg(&xe->drm, "Device resumed\n");
 	return 0;
@@ -598,8 +603,11 @@ int xe_pm_runtime_resume(struct xe_device *xe)
 
 	xe_pxp_pm_resume(xe->pxp);
 
-	if (IS_SRIOV_VF(xe))
+	if (IS_VF_CCS_READY(xe))
 		xe_sriov_vf_ccs_register_context(xe);
+
+	if (xe->d3cold.allowed)
+		xe_late_bind_fw_load(&xe->late_bind);
 
 out:
 	xe_rpm_lockmap_release(xe);

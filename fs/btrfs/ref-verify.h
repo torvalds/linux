@@ -12,7 +12,7 @@
 struct btrfs_fs_info;
 struct btrfs_ref;
 
-#ifdef CONFIG_BTRFS_FS_REF_VERIFY
+#ifdef CONFIG_BTRFS_DEBUG
 
 #include <linux/spinlock.h>
 
@@ -53,6 +53,6 @@ static inline void btrfs_init_ref_verify(struct btrfs_fs_info *fs_info)
 {
 }
 
-#endif /* CONFIG_BTRFS_FS_REF_VERIFY */
+#endif /* CONFIG_BTRFS_DEBUG */
 
 #endif

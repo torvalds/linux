@@ -119,6 +119,7 @@ static int bcm6345_reset_probe(struct platform_device *pdev)
 
 static const struct of_device_id bcm6345_reset_of_match[] = {
 	{ .compatible = "brcm,bcm6345-reset" },
+	{ .compatible = "brcm,bcm63xx-ephy-ctrl" },
 	{ /* sentinel */ },
 };
 

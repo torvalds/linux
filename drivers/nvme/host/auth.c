@@ -331,9 +331,10 @@ static int nvme_auth_set_dhchap_reply_data(struct nvme_ctrl *ctrl,
 	} else {
 		memset(chap->c2, 0, chap->hash_len);
 	}
-	if (ctrl->opts->concat)
+	if (ctrl->opts->concat) {
 		chap->s2 = 0;
-	else
+		chap->bi_directional = false;
+	} else
 		chap->s2 = nvme_auth_get_seqnum();
 	data->seqnum = cpu_to_le32(chap->s2);
 	if (chap->host_key_len) {

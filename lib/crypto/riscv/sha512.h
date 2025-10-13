@@ -11,7 +11,6 @@
 
 #include <asm/simd.h>
 #include <asm/vector.h>
-#include <crypto/internal/simd.h>
 
 static __ro_after_init DEFINE_STATIC_KEY_FALSE(have_extensions);
 
@@ -21,8 +20,7 @@ asmlinkage void sha512_transform_zvknhb_zvkb(struct sha512_block_state *state,
 static void sha512_blocks(struct sha512_block_state *state,
 			  const u8 *data, size_t nblocks)
 {
-	if (static_branch_likely(&have_extensions) &&
-	    likely(crypto_simd_usable())) {
+	if (static_branch_likely(&have_extensions) && likely(may_use_simd())) {
 		kernel_vector_begin();
 		sha512_transform_zvknhb_zvkb(state, data, nblocks);
 		kernel_vector_end();
@@ -32,7 +30,7 @@ static void sha512_blocks(struct sha512_block_state *state,
 }
 
 #define sha512_mod_init_arch sha512_mod_init_arch
-static inline void sha512_mod_init_arch(void)
+static void sha512_mod_init_arch(void)
 {
 	if (riscv_isa_extension_available(NULL, ZVKNHB) &&
 	    riscv_isa_extension_available(NULL, ZVKB) &&

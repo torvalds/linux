@@ -701,7 +701,7 @@ static void pcxhr_start_linked_stream(struct pcxhr_mgr *mgr)
 
 	start_time = ktime_get();
 #endif
-	mutex_lock(&mgr->setup_mutex);
+	guard(mutex)(&mgr->setup_mutex);
 
 	/* check the pipes concerned and build pipe_array */
 	for (i = 0; i < mgr->num_cards; i++) {
@@ -720,7 +720,6 @@ static void pcxhr_start_linked_stream(struct pcxhr_mgr *mgr)
 		}
 	}
 	if (capture_mask == 0 && playback_mask == 0) {
-		mutex_unlock(&mgr->setup_mutex);
 		dev_err(&mgr->pci->dev, "%s : no pipes\n", __func__);
 		return;
 	}
@@ -731,7 +730,6 @@ static void pcxhr_start_linked_stream(struct pcxhr_mgr *mgr)
 	/* synchronous stop of all the pipes concerned */
 	err = pcxhr_set_pipe_state(mgr,  playback_mask, capture_mask, 0);
 	if (err) {
-		mutex_unlock(&mgr->setup_mutex);
 		dev_err(&mgr->pci->dev, "%s : "
 			   "error stop pipes (P%x C%x)\n",
 			   __func__, playback_mask, capture_mask);
@@ -776,7 +774,6 @@ static void pcxhr_start_linked_stream(struct pcxhr_mgr *mgr)
 	/* synchronous start of all the pipes concerned */
 	err = pcxhr_set_pipe_state(mgr, playback_mask, capture_mask, 1);
 	if (err) {
-		mutex_unlock(&mgr->setup_mutex);
 		dev_err(&mgr->pci->dev, "%s : "
 			   "error start pipes (P%x C%x)\n",
 			   __func__, playback_mask, capture_mask);
@@ -786,7 +783,7 @@ static void pcxhr_start_linked_stream(struct pcxhr_mgr *mgr)
 	/* put the streams into the running state now
 	 * (increment pointer by interrupt)
 	 */
-	mutex_lock(&mgr->lock);
+	guard(mutex)(&mgr->lock);
 	for ( i =0; i < mgr->num_cards; i++) {
 		struct pcxhr_stream *stream;
 		chip = mgr->chip[i];
@@ -804,9 +801,6 @@ static void pcxhr_start_linked_stream(struct pcxhr_mgr *mgr)
 			}
 		}
 	}
-	mutex_unlock(&mgr->lock);
-
-	mutex_unlock(&mgr->setup_mutex);
 
 #ifdef CONFIG_SND_DEBUG_VERBOSE
 	stop_time = ktime_get();
@@ -907,7 +901,7 @@ static int pcxhr_prepare(struct snd_pcm_substream *subs)
 		    subs->runtime->period_size, subs->runtime->periods,
 		    subs->runtime->buffer_size);
 
-	mutex_lock(&mgr->setup_mutex);
+	guard(mutex)(&mgr->setup_mutex);
 
 	do {
 		/* only the first stream can choose the sample rate */
@@ -923,8 +917,6 @@ static int pcxhr_prepare(struct snd_pcm_substream *subs)
 		}
 	} while(0);	/* do only once (so we can use break instead of goto) */
 
-	mutex_unlock(&mgr->setup_mutex);
-
 	return err;
 }
 
@@ -939,14 +931,12 @@ static int pcxhr_hw_params(struct snd_pcm_substream *subs,
 	struct pcxhr_mgr *mgr = chip->mgr;
 	struct pcxhr_stream *stream = subs->runtime->private_data;
 
-	mutex_lock(&mgr->setup_mutex);
+	guard(mutex)(&mgr->setup_mutex);
 
 	/* set up channels */
 	stream->channels = params_channels(hw);
 	/* set up format for the stream */
 	stream->format = params_format(hw);
-
-	mutex_unlock(&mgr->setup_mutex);
 
 	return 0;
 }
@@ -990,7 +980,7 @@ static int pcxhr_open(struct snd_pcm_substream *subs)
 	struct pcxhr_stream    *stream;
 	int err;
 
-	mutex_lock(&mgr->setup_mutex);
+	guard(mutex)(&mgr->setup_mutex);
 
 	/* copy the struct snd_pcm_hardware struct */
 	runtime->hw = pcxhr_caps;
@@ -1012,7 +1002,6 @@ static int pcxhr_open(struct snd_pcm_substream *subs)
 		/* streams in use */
 		dev_err(chip->card->dev, "%s chip%d subs%d in use\n",
 			   __func__, chip->chip_idx, subs->number);
-		mutex_unlock(&mgr->setup_mutex);
 		return -EBUSY;
 	}
 
@@ -1023,10 +1012,8 @@ static int pcxhr_open(struct snd_pcm_substream *subs)
 	/* buffer-size should better be multiple of period-size */
 	err = snd_pcm_hw_constraint_integer(runtime,
 					    SNDRV_PCM_HW_PARAM_PERIODS);
-	if (err < 0) {
-		mutex_unlock(&mgr->setup_mutex);
+	if (err < 0)
 		return err;
-	}
 
 	/* if a sample rate is already used or fixed by external clock,
 	 * the stream cannot change
@@ -1040,7 +1027,6 @@ static int pcxhr_open(struct snd_pcm_substream *subs)
 						     &external_rate) ||
 			    external_rate == 0) {
 				/* cannot detect the external clock rate */
-				mutex_unlock(&mgr->setup_mutex);
 				return -EBUSY;
 			}
 			runtime->hw.rate_min = external_rate;
@@ -1063,7 +1049,6 @@ static int pcxhr_open(struct snd_pcm_substream *subs)
 
 	mgr->ref_count_rate++;
 
-	mutex_unlock(&mgr->setup_mutex);
 	return 0;
 }
 
@@ -1074,7 +1059,7 @@ static int pcxhr_close(struct snd_pcm_substream *subs)
 	struct pcxhr_mgr *mgr = chip->mgr;
 	struct pcxhr_stream *stream = subs->runtime->private_data;
 
-	mutex_lock(&mgr->setup_mutex);
+	guard(mutex)(&mgr->setup_mutex);
 
 	dev_dbg(chip->card->dev, "%s chip%d subs%d\n", __func__,
 		    chip->chip_idx, subs->number);
@@ -1088,8 +1073,6 @@ static int pcxhr_close(struct snd_pcm_substream *subs)
 	stream->status    = PCXHR_STREAM_STATUS_FREE;
 	stream->substream = NULL;
 
-	mutex_unlock(&mgr->setup_mutex);
-
 	return 0;
 }
 
@@ -1102,13 +1085,11 @@ static snd_pcm_uframes_t pcxhr_stream_pointer(struct snd_pcm_substream *subs)
 	struct snd_pcm_runtime *runtime = subs->runtime;
 	struct pcxhr_stream *stream  = runtime->private_data;
 
-	mutex_lock(&chip->mgr->lock);
+	guard(mutex)(&chip->mgr->lock);
 
 	/* get the period fragment and the nb of periods in the buffer */
 	timer_period_frag = stream->timer_period_frag;
 	timer_buf_periods = stream->timer_buf_periods;
-
-	mutex_unlock(&chip->mgr->lock);
 
 	return (snd_pcm_uframes_t)((timer_buf_periods * runtime->period_size) +
 				   timer_period_frag);

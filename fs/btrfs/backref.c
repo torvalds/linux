@@ -859,7 +859,7 @@ static int add_missing_keys(struct btrfs_fs_info *fs_info,
 			free_pref(ref);
 			return PTR_ERR(eb);
 		}
-		if (!extent_buffer_uptodate(eb)) {
+		if (unlikely(!extent_buffer_uptodate(eb))) {
 			free_pref(ref);
 			free_extent_buffer(eb);
 			return -EIO;
@@ -1062,7 +1062,7 @@ static int add_inline_refs(struct btrfs_backref_walk_ctx *ctx,
 		iref = (struct btrfs_extent_inline_ref *)ptr;
 		type = btrfs_get_extent_inline_ref_type(leaf, iref,
 							BTRFS_REF_TYPE_ANY);
-		if (type == BTRFS_REF_TYPE_INVALID)
+		if (unlikely(type == BTRFS_REF_TYPE_INVALID))
 			return -EUCLEAN;
 
 		offset = btrfs_extent_inline_ref_offset(leaf, iref);
@@ -1422,7 +1422,7 @@ again:
 	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 	if (ret < 0)
 		goto out;
-	if (ret == 0) {
+	if (unlikely(ret == 0)) {
 		/*
 		 * Key with offset -1 found, there would have to exist an extent
 		 * item with such offset, but this is out of the valid range.
@@ -1614,7 +1614,7 @@ again:
 					ret = PTR_ERR(eb);
 					goto out;
 				}
-				if (!extent_buffer_uptodate(eb)) {
+				if (unlikely(!extent_buffer_uptodate(eb))) {
 					free_extent_buffer(eb);
 					ret = -EIO;
 					goto out;
@@ -1652,7 +1652,7 @@ again:
 				 * case.
 				 */
 				ASSERT(eie);
-				if (!eie) {
+				if (unlikely(!eie)) {
 					ret = -EUCLEAN;
 					goto out;
 				}
@@ -1690,7 +1690,7 @@ out:
  * @ctx->bytenr and @ctx->extent_item_pos. The bytenr of the found leaves are
  * added to the ulist at @ctx->refs, and that ulist is allocated by this
  * function. The caller should free the ulist with free_leaf_list() if
- * @ctx->ignore_extent_item_pos is false, otherwise a fimple ulist_free() is
+ * @ctx->ignore_extent_item_pos is false, otherwise a simple ulist_free() is
  * enough.
  *
  * Returns 0 on success and < 0 on error. On error @ctx->refs is not allocated.
@@ -2215,7 +2215,7 @@ int extent_from_logical(struct btrfs_fs_info *fs_info, u64 logical,
 	ret = btrfs_search_slot(NULL, extent_root, &key, path, 0, 0);
 	if (ret < 0)
 		return ret;
-	if (ret == 0) {
+	if (unlikely(ret == 0)) {
 		/*
 		 * Key with offset -1 found, there would have to exist an extent
 		 * item with such offset, but this is out of the valid range.
@@ -2312,7 +2312,7 @@ static int get_extent_inline_ref(unsigned long *ptr,
 	*out_eiref = (struct btrfs_extent_inline_ref *)(*ptr);
 	*out_type = btrfs_get_extent_inline_ref_type(eb, *out_eiref,
 						     BTRFS_REF_TYPE_ANY);
-	if (*out_type == BTRFS_REF_TYPE_INVALID)
+	if (unlikely(*out_type == BTRFS_REF_TYPE_INVALID))
 		return -EUCLEAN;
 
 	*ptr += btrfs_extent_inline_ref_size(*out_type);
@@ -2868,7 +2868,7 @@ int btrfs_backref_iter_start(struct btrfs_backref_iter *iter, u64 bytenr)
 	ret = btrfs_search_slot(NULL, extent_root, &key, path, 0, 0);
 	if (ret < 0)
 		return ret;
-	if (ret == 0) {
+	if (unlikely(ret == 0)) {
 		/*
 		 * Key with offset -1 found, there would have to exist an extent
 		 * item with such offset, but this is out of the valid range.
@@ -2876,7 +2876,7 @@ int btrfs_backref_iter_start(struct btrfs_backref_iter *iter, u64 bytenr)
 		ret = -EUCLEAN;
 		goto release;
 	}
-	if (path->slots[0] == 0) {
+	if (unlikely(path->slots[0] == 0)) {
 		DEBUG_WARN();
 		ret = -EUCLEAN;
 		goto release;
@@ -3457,7 +3457,7 @@ int btrfs_backref_add_tree_node(struct btrfs_trans_handle *trans,
 		if (ret < 0)
 			goto out;
 		/* No extra backref? This means the tree block is corrupted */
-		if (ret > 0) {
+		if (unlikely(ret > 0)) {
 			ret = -EUCLEAN;
 			goto out;
 		}
@@ -3500,7 +3500,7 @@ int btrfs_backref_add_tree_node(struct btrfs_trans_handle *trans,
 				((unsigned long)iter->cur_ptr);
 			type = btrfs_get_extent_inline_ref_type(eb, iref,
 							BTRFS_REF_TYPE_BLOCK);
-			if (type == BTRFS_REF_TYPE_INVALID) {
+			if (unlikely(type == BTRFS_REF_TYPE_INVALID)) {
 				ret = -EUCLEAN;
 				goto out;
 			}
@@ -3612,7 +3612,7 @@ int btrfs_backref_finish_upper_links(struct btrfs_backref_cache *cache,
 		}
 
 		/* Sanity check, we shouldn't have any unchecked nodes */
-		if (!upper->checked) {
+		if (unlikely(!upper->checked)) {
 			DEBUG_WARN("we should not have any unchecked nodes");
 			return -EUCLEAN;
 		}

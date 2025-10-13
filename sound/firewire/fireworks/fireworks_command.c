@@ -119,14 +119,14 @@ efw_transaction(struct snd_efw *efw, unsigned int category,
 		return -ENOMEM;
 
 	/* to keep consistency of sequence number */
-	spin_lock(&efw->lock);
-	if ((efw->seqnum < KERNEL_SEQNUM_MIN) ||
-	    (efw->seqnum >= KERNEL_SEQNUM_MAX - 2))
-		efw->seqnum = KERNEL_SEQNUM_MIN;
-	else
-		efw->seqnum += 2;
-	seqnum = efw->seqnum;
-	spin_unlock(&efw->lock);
+	scoped_guard(spinlock, &efw->lock) {
+		if ((efw->seqnum < KERNEL_SEQNUM_MIN) ||
+		    (efw->seqnum >= KERNEL_SEQNUM_MAX - 2))
+			efw->seqnum = KERNEL_SEQNUM_MIN;
+		else
+			efw->seqnum += 2;
+		seqnum = efw->seqnum;
+	}
 
 	/* fill transaction header fields */
 	cmd_bytes = sizeof(struct snd_efw_transaction) + param_bytes;

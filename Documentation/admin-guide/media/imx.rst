@@ -96,7 +96,7 @@ Some of the features of this driver include:
   motion compensation modes: low, medium, and high motion. Pipelines are
   defined that allow sending frames to the VDIC subdev directly from the
   CSI. There is also support in the future for sending frames to the
-  VDIC from memory buffers via a output/mem2mem devices.
+  VDIC from memory buffers via output/mem2mem devices.
 
 - Includes a Frame Interval Monitor (FIM) that can correct vertical sync
   problems with the ADV718x video decoders.

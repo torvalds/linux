@@ -136,8 +136,9 @@ const struct cmn2asic_msg_mapping smu_v13_0_12_message_map[SMU_MSG_MAX_COUNT] = 
 	MSG_MAP(RmaDueToBadPageThreshold,            PPSMC_MSG_RmaDueToBadPageThreshold,        0),
 	MSG_MAP(SetThrottlingPolicy,                 PPSMC_MSG_SetThrottlingPolicy,             0),
 	MSG_MAP(ResetSDMA,                           PPSMC_MSG_ResetSDMA,                       0),
+	MSG_MAP(ResetVCN,                            PPSMC_MSG_ResetVCN,                        0),
 	MSG_MAP(GetStaticMetricsTable,               PPSMC_MSG_GetStaticMetricsTable,           1),
-	MSG_MAP(GetSystemMetricsTable,               PPSMC_MSG_GetSystemMetricsTable,           0),
+	MSG_MAP(GetSystemMetricsTable,               PPSMC_MSG_GetSystemMetricsTable,           1),
 };
 
 int smu_v13_0_12_tables_init(struct smu_context *smu)
@@ -341,6 +342,9 @@ int smu_v13_0_12_setup_driver_pptable(struct smu_context *smu)
 			static_metrics->pldmVersion[0] != 0xFFFFFFFF)
 			smu->adev->firmware.pldm_version =
 				static_metrics->pldmVersion[0];
+		if (smu_v13_0_6_cap_supported(smu, SMU_CAP(NPM_METRICS)))
+			pptable->MaxNodePowerLimit =
+				SMUQ10_ROUND(static_metrics->MaxNodePowerLimit);
 		smu_v13_0_12_init_xgmi_data(smu, static_metrics);
 		pptable->Init = true;
 	}
@@ -578,6 +582,50 @@ static bool smu_v13_0_12_is_temp_metrics_supported(struct smu_context *smu,
 	}
 
 	return false;
+}
+
+int smu_v13_0_12_get_npm_data(struct smu_context *smu,
+			      enum amd_pp_sensors sensor,
+			      uint32_t *value)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+	struct PPTable_t *pptable =
+		(struct PPTable_t *)smu_table->driver_pptable;
+	struct smu_table *tables = smu_table->tables;
+	SystemMetricsTable_t *metrics;
+	struct smu_table *sys_table;
+	int ret;
+
+	if (!smu_v13_0_6_cap_supported(smu, SMU_CAP(NPM_METRICS)))
+		return -EOPNOTSUPP;
+
+	if (sensor == AMDGPU_PP_SENSOR_MAXNODEPOWERLIMIT) {
+		*value = pptable->MaxNodePowerLimit;
+		return 0;
+	}
+
+	ret = smu_v13_0_12_get_system_metrics_table(smu);
+	if (ret)
+		return ret;
+
+	sys_table = &tables[SMU_TABLE_PMFW_SYSTEM_METRICS];
+	metrics = (SystemMetricsTable_t *)sys_table->cache.buffer;
+
+	switch (sensor) {
+	case AMDGPU_PP_SENSOR_NODEPOWERLIMIT:
+		*value = SMUQ10_ROUND(metrics->NodePowerLimit);
+		break;
+	case AMDGPU_PP_SENSOR_NODEPOWER:
+		*value = SMUQ10_ROUND(metrics->NodePower);
+		break;
+	case AMDGPU_PP_SENSOR_GPPTRESIDENCY:
+		*value = SMUQ10_ROUND(metrics->GlobalPPTResidencyAcc);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return ret;
 }
 
 static ssize_t smu_v13_0_12_get_temp_metrics(struct smu_context *smu,

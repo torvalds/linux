@@ -223,7 +223,7 @@ required:
 #
 # For multiple 'if' schema, group them under an 'allOf'.
 #
-# If the conditionals become too unweldy, then it may be better to just split
+# If the conditionals become too unwieldy, then it may be better to just split
 # the binding into separate schema documents.
 allOf:
   - if:

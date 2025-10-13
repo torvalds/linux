@@ -5,7 +5,7 @@
 
 #include <linux/vga_switcheroo.h>
 
-#include "display/intel_display_core.h"
+#include "display/intel_display_device.h"
 
 #include "i915_driver.h"
 #include "i915_drv.h"
@@ -22,7 +22,7 @@ static void i915_switcheroo_set_state(struct pci_dev *pdev,
 		dev_err(&pdev->dev, "DRM not initialized, aborting switch.\n");
 		return;
 	}
-	if (!HAS_DISPLAY(display)) {
+	if (!intel_display_device_present(display)) {
 		dev_err(&pdev->dev, "Device state not initialized, aborting switch.\n");
 		return;
 	}
@@ -52,7 +52,8 @@ static bool i915_switcheroo_can_switch(struct pci_dev *pdev)
 	 * locking inversion with the driver load path. And the access here is
 	 * completely racy anyway. So don't bother with locking for now.
 	 */
-	return i915 && HAS_DISPLAY(display) && atomic_read(&i915->drm.open_count) == 0;
+	return i915 && intel_display_device_present(display) &&
+		atomic_read(&i915->drm.open_count) == 0;
 }
 
 static const struct vga_switcheroo_client_ops i915_switcheroo_ops = {

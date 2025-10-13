@@ -47,7 +47,7 @@ struct hci_drv_ev_cmd_complete {
 struct hci_drv_rp_read_info {
 	__u8	driver_name[HCI_DRV_MAX_DRIVER_NAME_LENGTH];
 	__le16	num_supported_commands;
-	__le16	supported_commands[];
+	__le16	supported_commands[] __counted_by_le(num_supported_commands);
 } __packed;
 
 /* Driver specific OGF (Opcode Group Field)

@@ -1212,6 +1212,22 @@ static int sparx5_get_ts_info(struct net_device *dev,
 	return 0;
 }
 
+static void sparx5_get_pauseparam(struct net_device *dev,
+				  struct ethtool_pauseparam *pause)
+{
+	struct sparx5_port *port = netdev_priv(dev);
+
+	phylink_ethtool_get_pauseparam(port->phylink, pause);
+}
+
+static int sparx5_set_pauseparam(struct net_device *dev,
+				 struct ethtool_pauseparam *pause)
+{
+	struct sparx5_port *port = netdev_priv(dev);
+
+	return phylink_ethtool_set_pauseparam(port->phylink, pause);
+}
+
 const struct ethtool_ops sparx5_ethtool_ops = {
 	.get_sset_count         = sparx5_get_sset_count,
 	.get_strings            = sparx5_get_sset_strings,
@@ -1224,6 +1240,8 @@ const struct ethtool_ops sparx5_ethtool_ops = {
 	.get_eth_ctrl_stats     = sparx5_get_eth_mac_ctrl_stats,
 	.get_rmon_stats         = sparx5_get_eth_rmon_stats,
 	.get_ts_info            = sparx5_get_ts_info,
+	.get_pauseparam         = sparx5_get_pauseparam,
+	.set_pauseparam         = sparx5_set_pauseparam,
 };
 
 int sparx_stats_init(struct sparx5 *sparx5)

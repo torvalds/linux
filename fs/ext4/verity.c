@@ -389,6 +389,8 @@ static int ext4_write_merkle_tree_block(struct inode *inode, const void *buf,
 }
 
 const struct fsverity_operations ext4_verityops = {
+	.inode_info_offs	= (int)offsetof(struct ext4_inode_info, i_verity_info) -
+				  (int)offsetof(struct ext4_inode_info, vfs_inode),
 	.begin_enable_verity	= ext4_begin_enable_verity,
 	.end_enable_verity	= ext4_end_enable_verity,
 	.get_verity_descriptor	= ext4_get_verity_descriptor,

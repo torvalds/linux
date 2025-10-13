@@ -6,6 +6,7 @@
  * Author: Hemanth V <hemanthv@ti.com>
  */
 
+#include <linux/export.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>

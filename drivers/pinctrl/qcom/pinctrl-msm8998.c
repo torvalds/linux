@@ -1160,7 +1160,7 @@ static const char * const mss_lte_groups[] = {
 };
 
 static const struct pinfunction msm8998_functions[] = {
-	MSM_PIN_FUNCTION(gpio),
+	MSM_GPIO_PIN_FUNCTION(gpio),
 	MSM_PIN_FUNCTION(adsp_ext),
 	MSM_PIN_FUNCTION(agera_pll),
 	MSM_PIN_FUNCTION(atest_char),

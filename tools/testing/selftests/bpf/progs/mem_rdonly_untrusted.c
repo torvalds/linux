@@ -8,8 +8,8 @@
 SEC("tp_btf/sys_enter")
 __success
 __log_level(2)
-__msg("r8 = *(u64 *)(r7 +0)          ; R7_w=ptr_nameidata(off={{[0-9]+}}) R8_w=rdonly_untrusted_mem(sz=0)")
-__msg("r9 = *(u8 *)(r8 +0)           ; R8_w=rdonly_untrusted_mem(sz=0) R9_w=scalar")
+__msg("r8 = *(u64 *)(r7 +0)          ; R7=ptr_nameidata(off={{[0-9]+}}) R8=rdonly_untrusted_mem(sz=0)")
+__msg("r9 = *(u8 *)(r8 +0)           ; R8=rdonly_untrusted_mem(sz=0) R9=scalar")
 int btf_id_to_ptr_mem(void *ctx)
 {
 	struct task_struct *task;
