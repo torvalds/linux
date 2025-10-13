@@ -667,11 +667,11 @@ static inline u64 calc_reclaim_items_nr(const struct btrfs_fs_info *fs_info,
 /*
  * shrink metadata reservation for delalloc
  */
-static void shrink_delalloc(struct btrfs_fs_info *fs_info,
-			    struct btrfs_space_info *space_info,
+static void shrink_delalloc(struct btrfs_space_info *space_info,
 			    u64 to_reclaim, bool wait_ordered,
 			    bool for_preempt)
 {
+	struct btrfs_fs_info *fs_info = space_info->fs_info;
 	struct btrfs_trans_handle *trans;
 	u64 delalloc_bytes;
 	u64 ordered_bytes;
@@ -798,10 +798,10 @@ skip_async:
  * and may fail for various reasons. The caller is supposed to examine the
  * state of @space_info to detect the outcome.
  */
-static void flush_space(struct btrfs_fs_info *fs_info,
-		       struct btrfs_space_info *space_info, u64 num_bytes,
-		       enum btrfs_flush_state state, bool for_preempt)
+static void flush_space(struct btrfs_space_info *space_info, u64 num_bytes,
+			enum btrfs_flush_state state, bool for_preempt)
 {
+	struct btrfs_fs_info *fs_info = space_info->fs_info;
 	struct btrfs_root *root = fs_info->tree_root;
 	struct btrfs_trans_handle *trans;
 	int nr;
@@ -830,7 +830,7 @@ static void flush_space(struct btrfs_fs_info *fs_info,
 	case FLUSH_DELALLOC_FULL:
 		if (state == FLUSH_DELALLOC_FULL)
 			num_bytes = U64_MAX;
-		shrink_delalloc(fs_info, space_info, num_bytes,
+		shrink_delalloc(space_info, num_bytes,
 				state != FLUSH_DELALLOC, for_preempt);
 		break;
 	case FLUSH_DELAYED_REFS_NR:
@@ -1149,7 +1149,7 @@ static void do_async_reclaim_metadata_space(struct btrfs_space_info *space_info)
 
 	flush_state = FLUSH_DELAYED_ITEMS_NR;
 	do {
-		flush_space(fs_info, space_info, to_reclaim, flush_state, false);
+		flush_space(space_info, to_reclaim, flush_state, false);
 		spin_lock(&space_info->lock);
 		if (list_empty(&space_info->tickets)) {
 			space_info->flush = false;
@@ -1312,7 +1312,7 @@ static void btrfs_preempt_reclaim_metadata_space(struct work_struct *work)
 		to_reclaim >>= 2;
 		if (!to_reclaim)
 			to_reclaim = btrfs_calc_insert_metadata_size(fs_info, 1);
-		flush_space(fs_info, space_info, to_reclaim, flush, true);
+		flush_space(space_info, to_reclaim, flush, true);
 		cond_resched();
 		spin_lock(&space_info->lock);
 	}
@@ -1385,7 +1385,7 @@ static void do_async_reclaim_data_space(struct btrfs_space_info *space_info)
 	spin_unlock(&space_info->lock);
 
 	while (!space_info->full) {
-		flush_space(fs_info, space_info, U64_MAX, ALLOC_CHUNK_FORCE, false);
+		flush_space(space_info, U64_MAX, ALLOC_CHUNK_FORCE, false);
 		spin_lock(&space_info->lock);
 		if (list_empty(&space_info->tickets)) {
 			space_info->flush = false;
@@ -1401,7 +1401,7 @@ static void do_async_reclaim_data_space(struct btrfs_space_info *space_info)
 	}
 
 	while (flush_state < ARRAY_SIZE(data_flush_states)) {
-		flush_space(fs_info, space_info, U64_MAX,
+		flush_space(space_info, U64_MAX,
 			    data_flush_states[flush_state], false);
 		spin_lock(&space_info->lock);
 		if (list_empty(&space_info->tickets)) {
@@ -1507,8 +1507,7 @@ static void priority_reclaim_metadata_space(struct btrfs_space_info *space_info,
 
 	while (flush_state < states_nr) {
 		spin_unlock(&space_info->lock);
-		flush_space(fs_info, space_info, to_reclaim, states[flush_state],
-			    false);
+		flush_space(space_info, to_reclaim, states[flush_state], false);
 		flush_state++;
 		spin_lock(&space_info->lock);
 		if (ticket->bytes == 0) {
@@ -1545,8 +1544,6 @@ static void priority_reclaim_metadata_space(struct btrfs_space_info *space_info,
 static void priority_reclaim_data_space(struct btrfs_space_info *space_info,
 					struct reserve_ticket *ticket)
 {
-	struct btrfs_fs_info *fs_info = space_info->fs_info;
-
 	spin_lock(&space_info->lock);
 
 	/* We could have been granted before we got here. */
@@ -1557,7 +1554,7 @@ static void priority_reclaim_data_space(struct btrfs_space_info *space_info,
 
 	while (!space_info->full) {
 		spin_unlock(&space_info->lock);
-		flush_space(fs_info, space_info, U64_MAX, ALLOC_CHUNK_FORCE, false);
+		flush_space(space_info, U64_MAX, ALLOC_CHUNK_FORCE, false);
 		spin_lock(&space_info->lock);
 		if (ticket->bytes == 0) {
 			spin_unlock(&space_info->lock);
