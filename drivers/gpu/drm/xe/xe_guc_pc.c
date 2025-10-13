@@ -14,6 +14,7 @@
 
 #include <drm/drm_managed.h>
 #include <drm/drm_print.h>
+#include <generated/xe_device_wa_oob.h>
 #include <generated/xe_wa_oob.h>
 
 #include "abi/guc_actions_slpc_abi.h"
@@ -886,7 +887,7 @@ static int pc_adjust_freq_bounds(struct xe_guc_pc *pc)
 	if (pc_get_min_freq(pc) > pc->rp0_freq)
 		ret = pc_set_min_freq(pc, pc->rp0_freq);
 
-	if (XE_GT_WA(tile->primary_gt, 14022085890))
+	if (XE_DEVICE_WA(tile_to_xe(tile), 14022085890))
 		ret = pc_set_min_freq(pc, max(BMG_MIN_FREQ, pc_get_min_freq(pc)));
 
 out:

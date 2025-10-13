@@ -335,6 +335,8 @@ static const struct xe_device_desc lnl_desc = {
 	.vm_max_level = 4,
 };
 
+static const u16 bmg_g21_ids[] = { INTEL_BMG_G21_IDS(NOP), 0 };
+
 static const struct xe_device_desc bmg_desc = {
 	DGFX_FEATURES,
 	PLATFORM(BATTLEMAGE),
@@ -349,6 +351,10 @@ static const struct xe_device_desc bmg_desc = {
 	.has_sriov = true,
 	.max_gt_per_tile = 2,
 	.needs_scratch = true,
+	.subplatforms = (const struct xe_subplatform_desc[]) {
+		{ XE_SUBPLATFORM_BATTLEMAGE_G21, "G21", bmg_g21_ids },
+		{ }
+	},
 	.va_bits = 48,
 	.vm_max_level = 4,
 };

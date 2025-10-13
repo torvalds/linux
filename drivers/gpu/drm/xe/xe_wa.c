@@ -1138,6 +1138,6 @@ void xe_wa_apply_tile_workarounds(struct xe_tile *tile)
 	if (IS_SRIOV_VF(tile->xe))
 		return;
 
-	if (XE_GT_WA(tile->primary_gt, 22010954014))
+	if (XE_DEVICE_WA(tile->xe, 22010954014))
 		xe_mmio_rmw32(mmio, XEHP_CLOCK_GATE_DIS, 0, SGSI_SIDECLK_DIS);
 }
