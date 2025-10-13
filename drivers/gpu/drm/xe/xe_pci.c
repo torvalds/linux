@@ -51,13 +51,10 @@ __diag_ignore_all("-Woverride-init", "Allow field overrides in table");
 
 static const struct xe_graphics_desc graphics_xelp = {
 	.hw_engine_mask = BIT(XE_HW_ENGINE_RCS0) | BIT(XE_HW_ENGINE_BCS0),
-
-	.vm_max_level = 3,
 };
 
 #define XE_HP_FEATURES \
-	.has_range_tlb_inval = true, \
-	.vm_max_level = 3
+	.has_range_tlb_inval = true
 
 static const struct xe_graphics_desc graphics_xehpg = {
 	.hw_engine_mask =
@@ -82,7 +79,6 @@ static const struct xe_graphics_desc graphics_xehpc = {
 		BIT(XE_HW_ENGINE_CCS2) | BIT(XE_HW_ENGINE_CCS3),
 
 	XE_HP_FEATURES,
-	.vm_max_level = 4,
 	.vram_flags = XE_VRAM_FLAGS_NEED64K,
 
 	.has_asid = 1,
@@ -105,7 +101,6 @@ static const struct xe_graphics_desc graphics_xelpg = {
 	.has_range_tlb_inval = 1, \
 	.has_usm = 1, \
 	.has_64bit_timestamp = 1, \
-	.vm_max_level = 4, \
 	.hw_engine_mask = \
 		BIT(XE_HW_ENGINE_RCS0) | \
 		BIT(XE_HW_ENGINE_BCS8) | BIT(XE_HW_ENGINE_BCS0) | \
@@ -171,6 +166,7 @@ static const struct xe_device_desc tgl_desc = {
 	.max_gt_per_tile = 1,
 	.require_force_probe = true,
 	.va_bits = 48,
+	.vm_max_level = 3,
 };
 
 static const struct xe_device_desc rkl_desc = {
@@ -183,6 +179,7 @@ static const struct xe_device_desc rkl_desc = {
 	.max_gt_per_tile = 1,
 	.require_force_probe = true,
 	.va_bits = 48,
+	.vm_max_level = 3,
 };
 
 static const u16 adls_rpls_ids[] = { INTEL_RPLS_IDS(NOP), 0 };
@@ -202,6 +199,7 @@ static const struct xe_device_desc adl_s_desc = {
 		{},
 	},
 	.va_bits = 48,
+	.vm_max_level = 3,
 };
 
 static const u16 adlp_rplu_ids[] = { INTEL_RPLU_IDS(NOP), 0 };
@@ -221,6 +219,7 @@ static const struct xe_device_desc adl_p_desc = {
 		{},
 	},
 	.va_bits = 48,
+	.vm_max_level = 3,
 };
 
 static const struct xe_device_desc adl_n_desc = {
@@ -234,6 +233,7 @@ static const struct xe_device_desc adl_n_desc = {
 	.max_gt_per_tile = 1,
 	.require_force_probe = true,
 	.va_bits = 48,
+	.vm_max_level = 3,
 };
 
 #define DGFX_FEATURES \
@@ -251,6 +251,7 @@ static const struct xe_device_desc dg1_desc = {
 	.max_gt_per_tile = 1,
 	.require_force_probe = true,
 	.va_bits = 48,
+	.vm_max_level = 3,
 };
 
 static const u16 dg2_g10_ids[] = { INTEL_DG2_G10_IDS(NOP), INTEL_ATS_M150_IDS(NOP), 0 };
@@ -268,7 +269,8 @@ static const u16 dg2_g12_ids[] = { INTEL_DG2_G12_IDS(NOP), 0 };
 		{ XE_SUBPLATFORM_DG2_G12, "G12", dg2_g12_ids }, \
 		{ } \
 	}, \
-	.va_bits = 48
+	.va_bits = 48, \
+	.vm_max_level = 3
 
 static const struct xe_device_desc ats_m_desc = {
 	.pre_gmdid_graphics_ip = &graphics_ip_xehpg,
@@ -307,6 +309,7 @@ static const __maybe_unused struct xe_device_desc pvc_desc = {
 	.max_remote_tiles = 1,
 	.require_force_probe = true,
 	.va_bits = 57,
+	.vm_max_level = 4,
 	.has_mbx_power_limits = false,
 };
 
@@ -319,6 +322,7 @@ static const struct xe_device_desc mtl_desc = {
 	.has_pxp = true,
 	.max_gt_per_tile = 2,
 	.va_bits = 48,
+	.vm_max_level = 4,
 };
 
 static const struct xe_device_desc lnl_desc = {
@@ -329,6 +333,7 @@ static const struct xe_device_desc lnl_desc = {
 	.max_gt_per_tile = 2,
 	.needs_scratch = true,
 	.va_bits = 48,
+	.vm_max_level = 4,
 };
 
 static const struct xe_device_desc bmg_desc = {
@@ -345,6 +350,7 @@ static const struct xe_device_desc bmg_desc = {
 	.max_gt_per_tile = 2,
 	.needs_scratch = true,
 	.va_bits = 48,
+	.vm_max_level = 4,
 };
 
 static const struct xe_device_desc ptl_desc = {
@@ -356,6 +362,7 @@ static const struct xe_device_desc ptl_desc = {
 	.needs_scratch = true,
 	.needs_shared_vf_gt_wq = true,
 	.va_bits = 48,
+	.vm_max_level = 4,
 };
 
 #undef PLATFORM
@@ -592,6 +599,7 @@ static int xe_info_init_early(struct xe_device *xe,
 
 	xe->info.dma_mask_size = desc->dma_mask_size;
 	xe->info.va_bits = desc->va_bits;
+	xe->info.vm_max_level = desc->vm_max_level;
 
 	xe->info.is_dgfx = desc->is_dgfx;
 	xe->info.has_fan_control = desc->has_fan_control;
@@ -723,7 +731,6 @@ static int xe_info_init(struct xe_device *xe,
 	}
 
 	xe->info.vram_flags = graphics_desc->vram_flags;
-	xe->info.vm_max_level = graphics_desc->vm_max_level;
 	xe->info.has_asid = graphics_desc->has_asid;
 	xe->info.has_atomic_enable_pte_bit = graphics_desc->has_atomic_enable_pte_bit;
 	if (xe->info.platform != XE_PVC)
