@@ -26,6 +26,10 @@ properties:
 
   vcc-supply: true
 
+  interrupts:
+    description: Fault condition signal provided on SMBALERT pin.
+    maxItems: 1
+
 required:
   - compatible
   - reg
