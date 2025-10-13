@@ -637,4 +637,3 @@ IRQCHIP_PLATFORM_DRIVER_END(meson_gpio_intc)
 MODULE_AUTHOR("Jerome Brunet <jbrunet@baylibre.com>");
 MODULE_DESCRIPTION("Meson GPIO Interrupt Multiplexer driver");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:meson-gpio-intc");
