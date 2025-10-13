@@ -1548,10 +1548,11 @@ static void priority_reclaim_metadata_space(struct btrfs_fs_info *fs_info,
 	spin_unlock(&space_info->lock);
 }
 
-static void priority_reclaim_data_space(struct btrfs_fs_info *fs_info,
-					struct btrfs_space_info *space_info,
+static void priority_reclaim_data_space(struct btrfs_space_info *space_info,
 					struct reserve_ticket *ticket)
 {
+	struct btrfs_fs_info *fs_info = space_info->fs_info;
+
 	spin_lock(&space_info->lock);
 
 	/* We could have been granted before we got here. */
@@ -1647,7 +1648,7 @@ static int handle_reserve_ticket(struct btrfs_fs_info *fs_info,
 						ARRAY_SIZE(evict_flush_states));
 		break;
 	case BTRFS_RESERVE_FLUSH_FREE_SPACE_INODE:
-		priority_reclaim_data_space(fs_info, space_info, ticket);
+		priority_reclaim_data_space(space_info, ticket);
 		break;
 	default:
 		ASSERT(0);
