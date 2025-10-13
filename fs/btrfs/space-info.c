@@ -421,10 +421,10 @@ static u64 calc_effective_data_chunk_size(struct btrfs_fs_info *fs_info)
 	return min_t(u64, data_chunk_size, SZ_1G);
 }
 
-static u64 calc_available_free_space(struct btrfs_fs_info *fs_info,
-			  const struct btrfs_space_info *space_info,
-			  enum btrfs_reserve_flush_enum flush)
+static u64 calc_available_free_space(const struct btrfs_space_info *space_info,
+				     enum btrfs_reserve_flush_enum flush)
 {
+	struct btrfs_fs_info *fs_info = space_info->fs_info;
 	u64 profile;
 	u64 avail;
 	u64 data_chunk_size;
@@ -502,7 +502,7 @@ int btrfs_can_overcommit(struct btrfs_fs_info *fs_info,
 		return 0;
 
 	used = btrfs_space_info_used(space_info, true);
-	avail = calc_available_free_space(fs_info, space_info, flush);
+	avail = calc_available_free_space(space_info, flush);
 
 	if (used + bytes < space_info->total_bytes + avail)
 		return 1;
@@ -909,8 +909,7 @@ static u64 btrfs_calc_reclaim_metadata_size(struct btrfs_fs_info *fs_info,
 
 	lockdep_assert_held(&space_info->lock);
 
-	avail = calc_available_free_space(fs_info, space_info,
-					  BTRFS_RESERVE_FLUSH_ALL);
+	avail = calc_available_free_space(space_info, BTRFS_RESERVE_FLUSH_ALL);
 	used = btrfs_space_info_used(space_info, true);
 
 	/*
@@ -992,8 +991,7 @@ static bool need_preemptive_reclaim(struct btrfs_fs_info *fs_info,
 	 * much delalloc we need for the background flusher to kick in.
 	 */
 
-	thresh = calc_available_free_space(fs_info, space_info,
-					   BTRFS_RESERVE_FLUSH_ALL);
+	thresh = calc_available_free_space(space_info, BTRFS_RESERVE_FLUSH_ALL);
 	used = space_info->bytes_used + space_info->bytes_reserved +
 	       space_info->bytes_readonly + global_rsv_size;
 	if (used < space_info->total_bytes)
