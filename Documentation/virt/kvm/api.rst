@@ -7286,6 +7286,41 @@ exit, even without calls to ``KVM_ENABLE_CAP`` or similar.  In this case,
 it will enter with output fields already valid; in the common case, the
 ``unknown.ret`` field of the union will be ``TDVMCALL_STATUS_SUBFUNC_UNSUPPORTED``.
 Userspace need not do anything if it does not wish to support a TDVMCALL.
+
+::
+
+		/* KVM_EXIT_ARM_SEA */
+		struct {
+  #define KVM_EXIT_ARM_SEA_FLAG_GPA_VALID   (1ULL << 0)
+			__u64 flags;
+			__u64 esr;
+			__u64 gva;
+			__u64 gpa;
+		} arm_sea;
+
+Used on arm64 systems. When the VM capability ``KVM_CAP_ARM_SEA_TO_USER`` is
+enabled, a KVM exits to userspace if a guest access causes a synchronous
+external abort (SEA) and the host APEI fails to handle the SEA.
+
+``esr`` is set to a sanitized value of ESR_EL2 from the exception taken to KVM,
+consisting of the following fields:
+
+ - ``ESR_EL2.EC``
+ - ``ESR_EL2.IL``
+ - ``ESR_EL2.FnV``
+ - ``ESR_EL2.EA``
+ - ``ESR_EL2.CM``
+ - ``ESR_EL2.WNR``
+ - ``ESR_EL2.FSC``
+ - ``ESR_EL2.SET`` (when FEAT_RAS is implemented for the VM)
+
+``gva`` is set to the value of FAR_EL2 from the exception taken to KVM when
+``ESR_EL2.FnV == 0``. Otherwise, the value of ``gva`` is unknown.
+
+``gpa`` is set to the faulting IPA from the exception taken to KVM when
+the ``KVM_EXIT_ARM_SEA_FLAG_GPA_VALID`` flag is set. Otherwise, the value of
+``gpa`` is unknown.
+
 ::
 
 		/* Fix the size of the union. */
@@ -8702,6 +8737,18 @@ MP_STATE_INIT_RECEIVED through IOCTL.  The original MP_STATE is preserved.
 This capability indicate to the userspace whether a PFNMAP memory region
 can be safely mapped as cacheable. This relies on the presence of
 force write back (FWB) feature support on the hardware.
+
+7.45 KVM_CAP_ARM_SEA_TO_USER
+----------------------------
+
+:Architecture: arm64
+:Target: VM
+:Parameters: none
+:Returns: 0 on success, -EINVAL if unsupported.
+
+When this capability is enabled, KVM may exit to userspace for SEAs taken to
+EL2 resulting from a guest access. See ``KVM_EXIT_ARM_SEA`` for more
+information.
 
 8. Other capabilities.
 ======================
