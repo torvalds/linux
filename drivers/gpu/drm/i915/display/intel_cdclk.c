@@ -2828,7 +2828,7 @@ static int intel_planes_min_cdclk(const struct intel_crtc_state *crtc_state)
 	int min_cdclk = 0;
 
 	for_each_intel_plane_on_crtc(display->drm, crtc, plane)
-		min_cdclk = max(min_cdclk, crtc_state->min_cdclk[plane->id]);
+		min_cdclk = max(min_cdclk, crtc_state->plane_min_cdclk[plane->id]);
 
 	return min_cdclk;
 }

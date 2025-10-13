@@ -1192,7 +1192,7 @@ struct intel_crtc_state {
 
 	struct intel_crtc_wm_state wm;
 
-	int min_cdclk[I915_MAX_PLANES];
+	int plane_min_cdclk[I915_MAX_PLANES];
 
 	/* for packed/planar CbCr */
 	u32 data_rate[I915_MAX_PLANES];

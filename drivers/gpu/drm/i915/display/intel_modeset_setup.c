@@ -853,16 +853,16 @@ static void intel_modeset_readout_hw_state(struct intel_display *display)
 			 */
 			if (plane_state->uapi.visible && plane->min_cdclk) {
 				if (crtc_state->double_wide || DISPLAY_VER(display) >= 10)
-					crtc_state->min_cdclk[plane->id] =
+					crtc_state->plane_min_cdclk[plane->id] =
 						DIV_ROUND_UP(crtc_state->pixel_rate, 2);
 				else
-					crtc_state->min_cdclk[plane->id] =
+					crtc_state->plane_min_cdclk[plane->id] =
 						crtc_state->pixel_rate;
 			}
 			drm_dbg_kms(display->drm,
 				    "[PLANE:%d:%s] min_cdclk %d kHz\n",
 				    plane->base.base.id, plane->base.name,
-				    crtc_state->min_cdclk[plane->id]);
+				    crtc_state->plane_min_cdclk[plane->id]);
 		}
 
 		intel_pmdemand_update_port_clock(display, pmdemand_state, pipe,

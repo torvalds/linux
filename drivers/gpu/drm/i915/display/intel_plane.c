@@ -304,7 +304,7 @@ static void intel_plane_calc_min_cdclk(struct intel_atomic_state *state,
 
 	new_crtc_state = intel_atomic_get_new_crtc_state(state, crtc);
 
-	new_crtc_state->min_cdclk[plane->id] =
+	new_crtc_state->plane_min_cdclk[plane->id] =
 		plane->min_cdclk(new_crtc_state, plane_state);
 }
 
@@ -391,7 +391,7 @@ void intel_plane_set_invisible(struct intel_crtc_state *crtc_state,
 	crtc_state->data_rate_y[plane->id] = 0;
 	crtc_state->rel_data_rate[plane->id] = 0;
 	crtc_state->rel_data_rate_y[plane->id] = 0;
-	crtc_state->min_cdclk[plane->id] = 0;
+	crtc_state->plane_min_cdclk[plane->id] = 0;
 
 	plane_state->uapi.visible = false;
 }
