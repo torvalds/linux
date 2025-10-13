@@ -53,7 +53,6 @@
 #include "i915_vgpu.h"
 #include "i915_vma.h"
 #include "i9xx_plane_regs.h"
-#include "intel_cdclk.h"
 #include "intel_de.h"
 #include "intel_display_device.h"
 #include "intel_display_regs.h"
@@ -1420,6 +1419,18 @@ intel_fbc_prepare_dirty_rect(struct intel_atomic_state *state,
 	}
 }
 
+static int _intel_fbc_min_cdclk(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_display *display = to_intel_display(crtc_state);
+
+	/* WaFbcExceedCdClockThreshold:hsw,bdw */
+	if (display->platform.haswell || display->platform.broadwell)
+		return DIV_ROUND_UP(crtc_state->pixel_rate * 100, 95);
+
+	/* no FBC specific limits to worry about */
+	return 0;
+}
+
 static int intel_fbc_check_plane(struct intel_atomic_state *state,
 				 struct intel_plane *plane)
 {
@@ -1559,18 +1570,9 @@ static int intel_fbc_check_plane(struct intel_atomic_state *state,
 		return 0;
 	}
 
-	/* WaFbcExceedCdClockThreshold:hsw,bdw */
-	if (display->platform.haswell || display->platform.broadwell) {
-		const struct intel_cdclk_state *cdclk_state;
-
-		cdclk_state = intel_atomic_get_cdclk_state(state);
-		if (IS_ERR(cdclk_state))
-			return PTR_ERR(cdclk_state);
-
-		if (crtc_state->pixel_rate >= intel_cdclk_logical(cdclk_state) * 95 / 100) {
-			plane_state->no_fbc_reason = "pixel rate too high";
-			return 0;
-		}
+	if (_intel_fbc_min_cdclk(crtc_state) > display->cdclk.max_cdclk_freq) {
+		plane_state->no_fbc_reason = "pixel rate too high";
+		return 0;
 	}
 
 	plane_state->no_fbc_reason = NULL;
@@ -1578,6 +1580,27 @@ static int intel_fbc_check_plane(struct intel_atomic_state *state,
 	return 0;
 }
 
+int intel_fbc_min_cdclk(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_display *display = to_intel_display(crtc_state);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct intel_plane *plane = to_intel_plane(crtc->base.primary);
+	int min_cdclk;
+
+	if (!plane->fbc)
+		return 0;
+
+	min_cdclk = _intel_fbc_min_cdclk(crtc_state);
+
+	/*
+	 * Do not ask for more than the max CDCLK frequency,
+	 * if that is not enough FBC will simply not be used.
+	 */
+	if (min_cdclk > display->cdclk.max_cdclk_freq)
+		return 0;
+
+	return min_cdclk;
+}
 
 static bool intel_fbc_can_flip_nuke(struct intel_atomic_state *state,
 				    struct intel_crtc *crtc,

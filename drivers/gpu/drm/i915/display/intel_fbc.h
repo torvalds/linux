@@ -28,6 +28,7 @@ enum intel_fbc_id {
 };
 
 int intel_fbc_atomic_check(struct intel_atomic_state *state);
+int intel_fbc_min_cdclk(const struct intel_crtc_state *crtc_state);
 bool intel_fbc_pre_update(struct intel_atomic_state *state,
 			  struct intel_crtc *crtc);
 void intel_fbc_post_update(struct intel_atomic_state *state,
