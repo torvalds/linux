@@ -1039,8 +1039,8 @@ void ext4_es_cache_extent(struct inode *inode, ext4_lblk_t lblk,
  * Return: 1 on found, 0 on not
  */
 int ext4_es_lookup_extent(struct inode *inode, ext4_lblk_t lblk,
-			  ext4_lblk_t *next_lblk,
-			  struct extent_status *es)
+			  ext4_lblk_t *next_lblk, struct extent_status *es,
+			  u64 *pseq)
 {
 	struct ext4_es_tree *tree;
 	struct ext4_es_stats *stats;
@@ -1099,6 +1099,8 @@ out:
 			} else
 				*next_lblk = 0;
 		}
+		if (pseq)
+			*pseq = EXT4_I(inode)->i_es_seq;
 	} else {
 		percpu_counter_inc(&stats->es_stats_cache_misses);
 	}
