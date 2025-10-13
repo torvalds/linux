@@ -1309,8 +1309,6 @@ void smbd_destroy(struct TCP_Server_Info *server)
 {
 	struct smbd_connection *info = server->smbd_conn;
 	struct smbdirect_socket *sc;
-	struct smbdirect_recv_io *response;
-	unsigned long flags;
 
 	if (!info) {
 		log_rdma_event(INFO, "rdma session already destroyed\n");
@@ -1318,68 +1316,9 @@ void smbd_destroy(struct TCP_Server_Info *server)
 	}
 	sc = &info->socket;
 
-	log_rdma_event(INFO, "cancelling and disable disconnect_work\n");
-	disable_work_sync(&sc->disconnect_work);
-
-	log_rdma_event(INFO, "destroying rdma session\n");
-	if (sc->status < SMBDIRECT_SOCKET_DISCONNECTING)
-		smbdirect_socket_cleanup_work(&sc->disconnect_work);
-	if (sc->status < SMBDIRECT_SOCKET_DISCONNECTED) {
-		log_rdma_event(INFO, "wait for transport being disconnected\n");
-		wait_event(sc->status_wait, sc->status == SMBDIRECT_SOCKET_DISCONNECTED);
-		log_rdma_event(INFO, "waited for transport being disconnected\n");
-	}
-
-	/*
-	 * Wake up all waiters in all wait queues
-	 * in order to notice the broken connection.
-	 *
-	 * Most likely this was already called via
-	 * smbdirect_socket_cleanup_work(), but call it again...
-	 */
-	smbdirect_socket_wake_up_all(sc);
-
-	log_rdma_event(INFO, "cancelling recv_io.posted.refill_work\n");
-	disable_work_sync(&sc->recv_io.posted.refill_work);
-
-	log_rdma_event(INFO, "drain qp\n");
-	ib_drain_qp(sc->ib.qp);
-
-	log_rdma_event(INFO, "cancelling idle timer\n");
-	disable_delayed_work_sync(&sc->idle.timer_work);
-	log_rdma_event(INFO, "cancelling send immediate work\n");
-	disable_work_sync(&sc->idle.immediate_work);
-
-	/* It's not possible for upper layer to get to reassembly */
-	log_rdma_event(INFO, "drain the reassembly queue\n");
-	do {
-		spin_lock_irqsave(&sc->recv_io.reassembly.lock, flags);
-		response = smbdirect_connection_reassembly_first_recv_io(sc);
-		if (response) {
-			list_del(&response->list);
-			spin_unlock_irqrestore(
-				&sc->recv_io.reassembly.lock, flags);
-			smbdirect_connection_put_recv_io(response);
-		} else
-			spin_unlock_irqrestore(
-				&sc->recv_io.reassembly.lock, flags);
-	} while (response);
-	sc->recv_io.reassembly.data_length = 0;
-
-	log_rdma_event(INFO, "freeing mr list\n");
-	smbdirect_connection_destroy_mr_list(sc);
-
-	log_rdma_event(INFO, "destroying qp\n");
-	smbdirect_connection_destroy_qp(sc);
-	rdma_destroy_id(sc->rdma.cm_id);
-
-	/* free mempools */
-	smbdirect_connection_destroy_mem_pools(sc);
-
-	sc->status = SMBDIRECT_SOCKET_DESTROYED;
+	smbdirect_socket_destroy_sync(sc);
 
 	destroy_workqueue(sc->workqueue);
-	log_rdma_event(INFO,  "rdma session destroyed\n");
 	kfree(info);
 	server->smbd_conn = NULL;
 }
