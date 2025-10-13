@@ -1602,7 +1602,6 @@ static void wait_reserve_ticket(struct btrfs_space_info *space_info,
 /*
  * Do the appropriate flushing and waiting for a ticket.
  *
- * @fs_info:    the filesystem
  * @space_info: space info for the reservation
  * @ticket:     ticket for the reservation
  * @start_ns:   timestamp when the reservation started
@@ -1612,8 +1611,7 @@ static void wait_reserve_ticket(struct btrfs_space_info *space_info,
  * This does the work of figuring out how to flush for the ticket, waiting for
  * the reservation, and returning the appropriate error if there is one.
  */
-static int handle_reserve_ticket(struct btrfs_fs_info *fs_info,
-				 struct btrfs_space_info *space_info,
+static int handle_reserve_ticket(struct btrfs_space_info *space_info,
 				 struct reserve_ticket *ticket,
 				 u64 start_ns, u64 orig_bytes,
 				 enum btrfs_reserve_flush_enum flush)
@@ -1653,8 +1651,8 @@ static int handle_reserve_ticket(struct btrfs_fs_info *fs_info,
 	 * space wasn't reserved at all).
 	 */
 	ASSERT(!(ticket->bytes == 0 && ticket->error));
-	trace_btrfs_reserve_ticket(fs_info, space_info->flags, orig_bytes,
-				   start_ns, flush, ticket->error);
+	trace_btrfs_reserve_ticket(space_info->fs_info, space_info->flags,
+				   orig_bytes, start_ns, flush, ticket->error);
 	return ret;
 }
 
@@ -1845,8 +1843,7 @@ static int __reserve_bytes(struct btrfs_fs_info *fs_info,
 	if (!ret || !can_ticket(flush))
 		return ret;
 
-	return handle_reserve_ticket(fs_info, space_info, &ticket, start_ns,
-				     orig_bytes, flush);
+	return handle_reserve_ticket(space_info, &ticket, start_ns, orig_bytes, flush);
 }
 
 /*
