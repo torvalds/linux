@@ -2604,6 +2604,7 @@ static int perf_c2c__toggle_annotation(struct hist_browser *browser)
 	struct symbol *sym = NULL;
 	struct annotated_source *src = NULL;
 	struct c2c_hist_entry *c2c_he = NULL;
+	u64 al_addr = NO_ADDR;
 
 	if (!perf_c2c__has_annotation(he->hists->hpp_list)) {
 		ui_browser__help_window(&browser->b, "No annotation support");
@@ -2627,8 +2628,11 @@ static int perf_c2c__toggle_annotation(struct hist_browser *browser)
 		return 0;
 	}
 
+	if (he->mem_info)
+		al_addr = mem_info__iaddr(he->mem_info)->al_addr;
+
 	c2c_he = container_of(he, struct c2c_hist_entry, he);
-	return hist_entry__tui_annotate(he, c2c_he->evsel, NULL);
+	return hist_entry__tui_annotate(he, c2c_he->evsel, NULL, al_addr);
 }
 
 static void c2c_browser__update_nr_entries(struct hist_browser *hb)

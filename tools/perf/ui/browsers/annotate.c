@@ -605,7 +605,7 @@ static bool annotate_browser__callq(struct annotate_browser *browser,
 	target_ms.map = ms->map;
 	target_ms.sym = dl->ops.target.sym;
 	annotation__unlock(notes);
-	__hist_entry__tui_annotate(browser->he, &target_ms, evsel, hbt);
+	__hist_entry__tui_annotate(browser->he, &target_ms, evsel, hbt, NO_ADDR);
 
 	/*
 	 * The annotate_browser above changed the title with the target function
@@ -852,6 +852,16 @@ static void annotate_browser__debuginfo_warning(struct annotate_browser *browser
 	}
 }
 
+static s64 annotate_browser__curr_hot_offset(struct annotate_browser *browser)
+{
+	struct annotation_line *al = NULL;
+
+	if (browser->curr_hot)
+		al = rb_entry(browser->curr_hot, struct annotation_line, rb_node);
+
+	return al ? al->offset : 0;
+}
+
 static int annotate_browser__run(struct annotate_browser *browser,
 				 struct evsel *evsel,
 				 struct hist_browser_timer *hbt)
@@ -872,6 +882,11 @@ static int annotate_browser__run(struct annotate_browser *browser,
 		return -1;
 
 	annotate_browser__calc_percent(browser, evsel);
+
+	if (browser->selection != NULL) {
+		browser->curr_hot = &browser->selection->rb_node;
+		browser->b.use_navkeypressed = false;
+	}
 
 	if (browser->curr_hot) {
 		annotate_browser__set_rb_top(browser, browser->curr_hot);
@@ -969,8 +984,19 @@ static int annotate_browser__run(struct annotate_browser *browser,
 			nd = browser->curr_hot;
 			break;
 		case 's':
+			struct annotation_line *al = NULL;
+			s64 offset = annotate_browser__curr_hot_offset(browser);
+
 			if (annotate_browser__toggle_source(browser, evsel))
 				ui_helpline__puts(help);
+
+			/* Update the annotation browser's rb_tree, and reset the nd */
+			annotate_browser__calc_percent(browser, evsel);
+			/* Try to find the same asm line as before */
+			al = annotated_source__get_line(notes->src, offset);
+			browser->curr_hot = al ? &al->rb_node : NULL;
+			nd = browser->curr_hot;
+
 			annotate__scnprintf_title(hists, title, sizeof(title));
 			annotate_browser__show(browser, title, help);
 			continue;
@@ -1106,19 +1132,19 @@ out:
 }
 
 int hist_entry__tui_annotate(struct hist_entry *he, struct evsel *evsel,
-			     struct hist_browser_timer *hbt)
+			     struct hist_browser_timer *hbt, u64 al_addr)
 {
 	/* reset abort key so that it can get Ctrl-C as a key */
 	SLang_reset_tty();
 	SLang_init_tty(0, 0, 0);
 	SLtty_set_suspend_state(true);
 
-	return __hist_entry__tui_annotate(he, &he->ms, evsel, hbt);
+	return __hist_entry__tui_annotate(he, &he->ms, evsel, hbt, al_addr);
 }
 
 int __hist_entry__tui_annotate(struct hist_entry *he, struct map_symbol *ms,
 			       struct evsel *evsel,
-			       struct hist_browser_timer *hbt)
+			       struct hist_browser_timer *hbt, u64 al_addr)
 {
 	struct symbol *sym = ms->sym;
 	struct annotation *notes = symbol__annotation(sym);
@@ -1187,6 +1213,20 @@ int __hist_entry__tui_annotate(struct hist_entry *he, struct map_symbol *ms,
 
 	if (annotate_opts.hide_src_code)
 		ui_browser__init_asm_mode(&browser.b);
+
+	/*
+	 * If al_addr is set, it means that there should be a line
+	 * intentionally selected, not based on the percentages
+	 * which caculated by the event sampling. In this case, we
+	 * convey this information into the browser selection, where
+	 * the selection in other cases should be empty.
+	 */
+	if (al_addr != NO_ADDR) {
+		struct annotation_line *al = annotated_source__get_line(notes->src,
+			al_addr - sym->start);
+
+		browser.selection = al;
+	}
 
 	ret = annotate_browser__run(&browser, evsel, hbt);
 
