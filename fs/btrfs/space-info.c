@@ -920,9 +920,9 @@ static u64 btrfs_calc_reclaim_metadata_size(const struct btrfs_space_info *space
 	return to_reclaim;
 }
 
-static bool need_preemptive_reclaim(struct btrfs_fs_info *fs_info,
-				    const struct btrfs_space_info *space_info)
+static bool need_preemptive_reclaim(const struct btrfs_space_info *space_info)
 {
+	struct btrfs_fs_info *fs_info = space_info->fs_info;
 	const u64 global_rsv_size = btrfs_block_rsv_reserved(&fs_info->global_block_rsv);
 	u64 ordered, delalloc;
 	u64 thresh;
@@ -1249,7 +1249,7 @@ static void btrfs_preempt_reclaim_metadata_space(struct work_struct *work)
 	trans_rsv = &fs_info->trans_block_rsv;
 
 	spin_lock(&space_info->lock);
-	while (need_preemptive_reclaim(fs_info, space_info)) {
+	while (need_preemptive_reclaim(space_info)) {
 		enum btrfs_flush_state flush;
 		u64 delalloc_size = 0;
 		u64 to_reclaim, block_rsv_size;
@@ -1834,7 +1834,7 @@ static int __reserve_bytes(struct btrfs_fs_info *fs_info,
 		 */
 		if (!test_bit(BTRFS_FS_LOG_RECOVERING, &fs_info->flags) &&
 		    !work_busy(&fs_info->preempt_reclaim_work) &&
-		    need_preemptive_reclaim(fs_info, space_info)) {
+		    need_preemptive_reclaim(space_info)) {
 			trace_btrfs_trigger_flush(fs_info, space_info->flags,
 						  orig_bytes, flush, "preempt");
 			queue_work(system_dfl_wq,
