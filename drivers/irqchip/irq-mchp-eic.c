@@ -199,8 +199,9 @@ static const struct irq_domain_ops mchp_eic_domain_ops = {
 	.free		= irq_domain_free_irqs_common,
 };
 
-static int mchp_eic_init(struct device_node *node, struct device_node *parent)
+static int mchp_eic_probe(struct platform_device *pdev, struct device_node *parent)
 {
+	struct device_node *node = pdev->dev.of_node;
 	struct irq_domain *parent_domain = NULL;
 	int ret, i;
 
@@ -273,7 +274,7 @@ free:
 }
 
 IRQCHIP_PLATFORM_DRIVER_BEGIN(mchp_eic)
-IRQCHIP_MATCH("microchip,sama7g5-eic", mchp_eic_init)
+IRQCHIP_MATCH("microchip,sama7g5-eic", mchp_eic_probe)
 IRQCHIP_PLATFORM_DRIVER_END(mchp_eic)
 
 MODULE_DESCRIPTION("Microchip External Interrupt Controller");

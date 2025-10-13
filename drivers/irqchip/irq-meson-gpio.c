@@ -572,8 +572,9 @@ static int meson_gpio_irq_parse_dt(struct device_node *node, struct meson_gpio_i
 	return 0;
 }
 
-static int meson_gpio_irq_of_init(struct device_node *node, struct device_node *parent)
+static int meson_gpio_irq_probe(struct platform_device *pdev, struct device_node *parent)
 {
+	struct device_node *node = pdev->dev.of_node;
 	struct irq_domain *domain, *parent_domain;
 	struct meson_gpio_irq_controller *ctl;
 	int ret;
@@ -630,7 +631,7 @@ free_ctl:
 }
 
 IRQCHIP_PLATFORM_DRIVER_BEGIN(meson_gpio_intc)
-IRQCHIP_MATCH("amlogic,meson-gpio-intc", meson_gpio_irq_of_init)
+IRQCHIP_MATCH("amlogic,meson-gpio-intc", meson_gpio_irq_probe)
 IRQCHIP_PLATFORM_DRIVER_END(meson_gpio_intc)
 
 MODULE_AUTHOR("Jerome Brunet <jbrunet@baylibre.com>");
