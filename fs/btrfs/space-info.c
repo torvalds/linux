@@ -1071,7 +1071,6 @@ static bool steal_from_global_rsv(struct btrfs_fs_info *fs_info,
 /*
  * We've exhausted our flushing, start failing tickets.
  *
- * @fs_info - fs_info for this fs
  * @space_info - the space info we were flushing
  *
  * We call this when we've exhausted our flushing ability and haven't made
@@ -1084,9 +1083,9 @@ static bool steal_from_global_rsv(struct btrfs_fs_info *fs_info,
  * other tickets, or if it stumbles across a ticket that was smaller than the
  * first ticket.
  */
-static bool maybe_fail_all_tickets(struct btrfs_fs_info *fs_info,
-				   struct btrfs_space_info *space_info)
+static bool maybe_fail_all_tickets(struct btrfs_space_info *space_info)
 {
+	struct btrfs_fs_info *fs_info = space_info->fs_info;
 	struct reserve_ticket *ticket;
 	u64 tickets_id = space_info->tickets_id;
 	const bool aborted = BTRFS_FS_ERROR(fs_info);
@@ -1197,7 +1196,7 @@ static void do_async_reclaim_metadata_space(struct btrfs_space_info *space_info)
 		if (flush_state > final_state) {
 			commit_cycles++;
 			if (commit_cycles > 2) {
-				if (maybe_fail_all_tickets(fs_info, space_info)) {
+				if (maybe_fail_all_tickets(space_info)) {
 					flush_state = FLUSH_DELAYED_ITEMS_NR;
 					commit_cycles--;
 				} else {
@@ -1425,7 +1424,7 @@ static void do_async_reclaim_data_space(struct btrfs_space_info *space_info)
 
 		if (flush_state >= ARRAY_SIZE(data_flush_states)) {
 			if (space_info->full) {
-				if (maybe_fail_all_tickets(fs_info, space_info))
+				if (maybe_fail_all_tickets(space_info))
 					flush_state = 0;
 				else
 					space_info->flush = false;
@@ -1443,7 +1442,7 @@ static void do_async_reclaim_data_space(struct btrfs_space_info *space_info)
 	return;
 
 aborted_fs:
-	maybe_fail_all_tickets(fs_info, space_info);
+	maybe_fail_all_tickets(space_info);
 	space_info->flush = false;
 	spin_unlock(&space_info->lock);
 }
