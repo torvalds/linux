@@ -1781,13 +1781,15 @@ static void build_pt_update_batch_sram(struct xe_migrate *m,
 				       u32 size)
 {
 	u16 pat_index = tile_to_xe(m->tile)->pat.idx[XE_CACHE_WB];
+	u64 gpu_page_size = 0x1ull << xe_pt_shift(0);
 	u32 ptes;
 	int i = 0;
 
-	ptes = DIV_ROUND_UP(size, XE_PAGE_SIZE);
+	ptes = DIV_ROUND_UP(size, gpu_page_size);
 	while (ptes) {
 		u32 chunk = min(MAX_PTE_PER_SDI, ptes);
 
+		chunk = ALIGN_DOWN(chunk, PAGE_SIZE / XE_PAGE_SIZE);
 		bb->cs[bb->len++] = MI_STORE_DATA_IMM | MI_SDI_NUM_QW(chunk);
 		bb->cs[bb->len++] = pt_offset;
 		bb->cs[bb->len++] = 0;
@@ -1796,18 +1798,30 @@ static void build_pt_update_batch_sram(struct xe_migrate *m,
 		ptes -= chunk;
 
 		while (chunk--) {
-			u64 addr = sram_addr[i].addr & PAGE_MASK;
+			u64 addr = sram_addr[i].addr & ~(gpu_page_size - 1);
+			u64 pte, orig_addr = addr;
 
 			xe_tile_assert(m->tile, sram_addr[i].proto ==
 				       DRM_INTERCONNECT_SYSTEM);
 			xe_tile_assert(m->tile, addr);
-			addr = m->q->vm->pt_ops->pte_encode_addr(m->tile->xe,
-								 addr, pat_index,
-								 0, false, 0);
-			bb->cs[bb->len++] = lower_32_bits(addr);
-			bb->cs[bb->len++] = upper_32_bits(addr);
 
-			i++;
+again:
+			pte = m->q->vm->pt_ops->pte_encode_addr(m->tile->xe,
+								addr, pat_index,
+								0, false, 0);
+			bb->cs[bb->len++] = lower_32_bits(pte);
+			bb->cs[bb->len++] = upper_32_bits(pte);
+
+			if (gpu_page_size < PAGE_SIZE) {
+				addr += XE_PAGE_SIZE;
+				if (orig_addr + PAGE_SIZE != addr) {
+					chunk--;
+					goto again;
+				}
+				i++;
+			} else {
+				i += gpu_page_size / PAGE_SIZE;
+			}
 		}
 	}
 }
