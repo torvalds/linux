@@ -580,6 +580,12 @@
 			clock-names = "bus", "sss";
 		};
 
+		sysreg_misc: syscon@10030000 {
+			compatible = "google,gs101-misc-sysreg", "syscon";
+			reg = <0x10030000 0x10000>;
+			clocks = <&cmu_misc CLK_GOUT_MISC_SYSREG_MISC_PCLK>;
+		};
+
 		timer@10050000 {
 			compatible = "google,gs101-mct",
 				     "samsung,exynos4210-mct";
@@ -1560,6 +1566,12 @@
 				 <&cmu_top CLK_DOUT_CMU_HSI0_USBDPDBG>;
 			clock-names = "oscclk", "bus", "dpgtc", "usb31drd",
 				      "usbdpdbg";
+		};
+
+		sysreg_hsi0: syscon@11020000 {
+			compatible = "google,gs101-hsi0-sysreg", "syscon";
+			reg = <0x11020000 0x10000>;
+			clocks = <&cmu_hsi0 CLK_GOUT_HSI0_SYSREG_HSI0_PCLK>;
 		};
 
 		usbdrd31_phy: phy@11100000 {
