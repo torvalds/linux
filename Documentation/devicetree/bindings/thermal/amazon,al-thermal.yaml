@@ -1,0 +1,50 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/thermal/amazon,al-thermal.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Amazon Annapurna Labs Thermal Sensor
+
+maintainers:
+  - Talel Shenhar <talel@amazon.com>
+
+description:
+  Simple thermal device that allows temperature reading by a single MMIO
+  transaction.
+
+properties:
+  compatible:
+    items:
+      - const: amazon,al-thermal
+
+  reg:
+    maxItems: 1
+
+  '#thermal-sensor-cells':
+    const: 1
+
+additionalProperties: false
+
+examples:
+  - |
+    thermal: thermal@5002860 {
+        compatible = "amazon,al-thermal";
+        reg = <0x05002860 0x1>;
+        #thermal-sensor-cells = <0x1>;
+    };
+
+    thermal-zones {
+        z0-thermal {
+            polling-delay-passive = <250>;
+            polling-delay = <1000>;
+            thermal-sensors = <&thermal 0>;
+            trips {
+                critical {
+                    temperature = <105000>;
+                    hysteresis = <2000>;
+                    type = "critical";
+                };
+            };
+        };
+    };
