@@ -32,6 +32,7 @@ struct xe_device_desc {
 	u8 max_gt_per_tile:2;
 	u8 va_bits;
 	u8 vm_max_level;
+	u8 vram_flags;
 
 	u8 require_force_probe:1;
 	u8 is_dgfx:1;
@@ -54,8 +55,6 @@ struct xe_device_desc {
 };
 
 struct xe_graphics_desc {
-	u8 vram_flags;
-
 	u64 hw_engine_mask;	/* hardware engines provided by graphics IP */
 
 	u8 has_asid:1;
