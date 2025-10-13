@@ -42,14 +42,6 @@ config GPIOLIB_IRQCHIP
 	select IRQ_DOMAIN
 	bool
 
-config OF_GPIO_MM_GPIOCHIP
-	bool
-	help
-	  This adds support for the legacy 'struct of_mm_gpio_chip' interface
-	  from PowerPC. Existing drivers using this interface need to select
-	  this symbol, but new drivers should use the generic gpio-regmap
-	  infrastructure instead.
-
 config DEBUG_GPIO
 	bool "Debug GPIO calls"
 	depends on DEBUG_KERNEL
