@@ -30,6 +30,7 @@
 #include "xe_pci_sriov.h"
 #include "xe_pci_types.h"
 #include "xe_pm.h"
+#include "xe_printk.h"
 #include "xe_sriov.h"
 #include "xe_step.h"
 #include "xe_survivability_mode.h"
@@ -696,6 +697,11 @@ static struct xe_gt *alloc_primary_gt(struct xe_tile *tile,
 	struct xe_device *xe = tile_to_xe(tile);
 	struct xe_gt *gt;
 
+	if (!xe_configfs_primary_gt_allowed(to_pci_dev(xe->drm.dev))) {
+		xe_info(xe, "Primary GT disabled via configfs\n");
+		return NULL;
+	}
+
 	gt = xe_gt_alloc(tile);
 	if (IS_ERR(gt))
 		return gt;
@@ -720,6 +726,11 @@ static struct xe_gt *alloc_media_gt(struct xe_tile *tile,
 {
 	struct xe_device *xe = tile_to_xe(tile);
 	struct xe_gt *gt;
+
+	if (!xe_configfs_media_gt_allowed(to_pci_dev(xe->drm.dev))) {
+		xe_info(xe, "Media GT disabled via configfs\n");
+		return NULL;
+	}
 
 	if (MEDIA_VER(xe) < 13 || !media_desc)
 		return NULL;
@@ -829,6 +840,18 @@ static int xe_info_init(struct xe_device *xe,
 		tile->primary_gt = alloc_primary_gt(tile, graphics_desc, media_desc);
 		if (IS_ERR(tile->primary_gt))
 			return PTR_ERR(tile->primary_gt);
+
+		/*
+		 * It's not currently possible to probe a device with the
+		 * primary GT disabled.  With some work, this may be future in
+		 * the possible for igpu platforms (although probably not for
+		 * dgpu's since access to the primary GT's BCS engines is
+		 * required for VRAM management).
+		 */
+		if (!tile->primary_gt) {
+			drm_err(&xe->drm, "Cannot probe device with without a primary GT\n");
+			return -ENODEV;
+		}
 
 		tile->media_gt = alloc_media_gt(tile, media_desc);
 		if (IS_ERR(tile->media_gt))
