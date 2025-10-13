@@ -269,12 +269,6 @@ static inline void *offset_to_ptr(const int *off)
 
 #endif /* __ASSEMBLY__ */
 
-#ifdef CONFIG_64BIT
-#define ARCH_SEL(a,b) a
-#else
-#define ARCH_SEL(a,b) b
-#endif
-
 /*
  * Force the compiler to emit 'sym' as a symbol, so that we can reference
  * it from inline assembler. Necessary in case 'sym' could be inlined
