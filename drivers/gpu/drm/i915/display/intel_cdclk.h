@@ -75,4 +75,6 @@ int intel_cdclk_min_cdclk_for_prefill(const struct intel_crtc_state *crtc_state,
 				      unsigned int prefill_lines_unadjusted,
 				      unsigned int prefill_lines_available);
 
+int intel_crtc_min_cdclk(const struct intel_crtc_state *crtc_state);
+
 #endif /* __INTEL_CDCLK_H__ */

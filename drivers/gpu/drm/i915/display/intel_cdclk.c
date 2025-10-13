@@ -2833,7 +2833,7 @@ static int intel_planes_min_cdclk(const struct intel_crtc_state *crtc_state)
 	return min_cdclk;
 }
 
-static int intel_crtc_compute_min_cdclk(const struct intel_crtc_state *crtc_state)
+int intel_crtc_min_cdclk(const struct intel_crtc_state *crtc_state)
 {
 	int min_cdclk;
 
@@ -3306,8 +3306,8 @@ static int intel_crtcs_calc_min_cdclk(struct intel_atomic_state *state,
 	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
 					    new_crtc_state, i) {
 		ret = intel_cdclk_update_crtc_min_cdclk(state, crtc,
-							intel_crtc_compute_min_cdclk(old_crtc_state),
-							intel_crtc_compute_min_cdclk(new_crtc_state),
+							old_crtc_state->min_cdclk,
+							new_crtc_state->min_cdclk,
 							need_cdclk_calc);
 		if (ret)
 			return ret;
@@ -3527,7 +3527,7 @@ void intel_cdclk_update_hw_state(struct intel_display *display)
 		if (crtc_state->hw.active)
 			cdclk_state->active_pipes |= BIT(pipe);
 
-		cdclk_state->min_cdclk[pipe] = intel_crtc_compute_min_cdclk(crtc_state);
+		cdclk_state->min_cdclk[pipe] = crtc_state->min_cdclk;
 		cdclk_state->min_voltage_level[pipe] = crtc_state->min_voltage_level;
 	}
 

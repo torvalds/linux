@@ -865,6 +865,11 @@ static void intel_modeset_readout_hw_state(struct intel_display *display)
 				    crtc_state->plane_min_cdclk[plane->id]);
 		}
 
+		crtc_state->min_cdclk = intel_crtc_min_cdclk(crtc_state);
+
+		drm_dbg_kms(display->drm, "[CRTC:%d:%s] min_cdclk %d kHz\n",
+			    crtc->base.base.id, crtc->base.name, crtc_state->min_cdclk);
+
 		intel_pmdemand_update_port_clock(display, pmdemand_state, pipe,
 						 crtc_state->port_clock);
 	}
