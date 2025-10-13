@@ -30,6 +30,7 @@ struct xe_device_desc {
 	u8 dma_mask_size;
 	u8 max_remote_tiles:2;
 	u8 max_gt_per_tile:2;
+	u8 va_bits;
 
 	u8 require_force_probe:1;
 	u8 is_dgfx:1;
@@ -52,7 +53,6 @@ struct xe_device_desc {
 };
 
 struct xe_graphics_desc {
-	u8 va_bits;
 	u8 vm_max_level;
 	u8 vram_flags;
 
