@@ -191,45 +191,46 @@ bool hsw_crtc_supports_ips(struct intel_crtc *crtc)
 
 static bool hsw_crtc_state_ips_capable(const struct intel_crtc_state *crtc_state)
 {
-	struct intel_display *display = to_intel_display(crtc_state);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 
-	/* IPS only exists on ULT machines and is tied to pipe A. */
 	if (!hsw_crtc_supports_ips(crtc))
-		return false;
-
-	if (!display->params.enable_ips)
 		return false;
 
 	if (crtc_state->pipe_bpp > 24)
 		return false;
 
-	/*
-	 * We compare against max which means we must take
-	 * the increased cdclk requirement into account when
-	 * calculating the new cdclk.
-	 *
-	 * Should measure whether using a lower cdclk w/o IPS
-	 */
-	if (display->platform.broadwell &&
-	    crtc_state->pixel_rate > display->cdclk.max_cdclk_freq * 95 / 100)
-		return false;
-
 	return true;
+}
+
+static int _hsw_ips_min_cdclk(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_display *display = to_intel_display(crtc_state);
+
+	if (display->platform.broadwell)
+		return DIV_ROUND_UP(crtc_state->pixel_rate * 100, 95);
+
+	/* no IPS specific limits to worry about */
+	return 0;
 }
 
 int hsw_ips_min_cdclk(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
-
-	if (!display->platform.broadwell)
-		return 0;
+	int min_cdclk;
 
 	if (!hsw_crtc_state_ips_capable(crtc_state))
 		return 0;
 
-	/* pixel rate mustn't exceed 95% of cdclk with IPS on BDW */
-	return DIV_ROUND_UP(crtc_state->pixel_rate * 100, 95);
+	min_cdclk = _hsw_ips_min_cdclk(crtc_state);
+
+	/*
+	 * Do not ask for more than the max CDCLK frequency,
+	 * if that is not enough IPS will simply not be used.
+	 */
+	if (min_cdclk > display->cdclk.max_cdclk_freq)
+		return 0;
+
+	return min_cdclk;
 }
 
 int hsw_ips_compute_config(struct intel_atomic_state *state,
@@ -244,6 +245,12 @@ int hsw_ips_compute_config(struct intel_atomic_state *state,
 	if (!hsw_crtc_state_ips_capable(crtc_state))
 		return 0;
 
+	if (_hsw_ips_min_cdclk(crtc_state) > display->cdclk.max_cdclk_freq)
+		return 0;
+
+	if (!display->params.enable_ips)
+		return 0;
+
 	/*
 	 * When IPS gets enabled, the pipe CRC changes. Since IPS gets
 	 * enabled and disabled dynamically based on package C states,
@@ -256,18 +263,6 @@ int hsw_ips_compute_config(struct intel_atomic_state *state,
 	/* IPS should be fine as long as at least one plane is enabled. */
 	if (!(crtc_state->active_planes & ~BIT(PLANE_CURSOR)))
 		return 0;
-
-	if (display->platform.broadwell) {
-		const struct intel_cdclk_state *cdclk_state;
-
-		cdclk_state = intel_atomic_get_cdclk_state(state);
-		if (IS_ERR(cdclk_state))
-			return PTR_ERR(cdclk_state);
-
-		/* pixel rate mustn't exceed 95% of cdclk with IPS on BDW */
-		if (crtc_state->pixel_rate > intel_cdclk_logical(cdclk_state) * 95 / 100)
-			return 0;
-	}
 
 	crtc_state->ips_enabled = true;
 
