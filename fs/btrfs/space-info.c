@@ -373,7 +373,7 @@ void btrfs_add_bg_to_space_info(struct btrfs_fs_info *info,
 	btrfs_space_info_update_bytes_zone_unusable(space_info, block_group->zone_unusable);
 	if (block_group->length > 0)
 		space_info->full = false;
-	btrfs_try_granting_tickets(info, space_info);
+	btrfs_try_granting_tickets(space_info);
 	spin_unlock(&space_info->lock);
 
 	block_group->space_info = space_info;
@@ -523,9 +523,9 @@ static void remove_ticket(struct btrfs_space_info *space_info,
  * This is for space we already have accounted in space_info->bytes_may_use, so
  * basically when we're returning space from block_rsv's.
  */
-void btrfs_try_granting_tickets(struct btrfs_fs_info *fs_info,
-				struct btrfs_space_info *space_info)
+void btrfs_try_granting_tickets(struct btrfs_space_info *space_info)
 {
+	struct btrfs_fs_info *fs_info = space_info->fs_info;
 	struct list_head *head;
 	enum btrfs_reserve_flush_enum flush = BTRFS_RESERVE_NO_FLUSH;
 
@@ -1124,7 +1124,7 @@ static bool maybe_fail_all_tickets(struct btrfs_fs_info *fs_info,
 		 * the list.
 		 */
 		if (!aborted)
-			btrfs_try_granting_tickets(fs_info, space_info);
+			btrfs_try_granting_tickets(space_info);
 	}
 	return (tickets_id != space_info->tickets_id);
 }
@@ -1544,7 +1544,7 @@ static void priority_reclaim_metadata_space(struct btrfs_fs_info *fs_info,
 	 * ticket in front of a smaller ticket that can now be satisfied with
 	 * the available space.
 	 */
-	btrfs_try_granting_tickets(fs_info, space_info);
+	btrfs_try_granting_tickets(space_info);
 	spin_unlock(&space_info->lock);
 }
 
@@ -1572,7 +1572,7 @@ static void priority_reclaim_data_space(struct btrfs_fs_info *fs_info,
 
 	ticket->error = -ENOSPC;
 	remove_ticket(space_info, ticket);
-	btrfs_try_granting_tickets(fs_info, space_info);
+	btrfs_try_granting_tickets(space_info);
 	spin_unlock(&space_info->lock);
 }
 
@@ -2195,5 +2195,5 @@ void btrfs_return_free_space(struct btrfs_space_info *space_info, u64 len)
 grant:
 	/* Add to any tickets we may have. */
 	if (len)
-		btrfs_try_granting_tickets(fs_info, space_info);
+		btrfs_try_granting_tickets(space_info);
 }

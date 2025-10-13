@@ -387,7 +387,7 @@ void btrfs_update_global_block_rsv(struct btrfs_fs_info *fs_info)
 		num_bytes = block_rsv->reserved - block_rsv->size;
 		btrfs_space_info_update_bytes_may_use(sinfo, -num_bytes);
 		block_rsv->reserved = block_rsv->size;
-		btrfs_try_granting_tickets(fs_info, sinfo);
+		btrfs_try_granting_tickets(sinfo);
 	}
 
 	block_rsv->full = (block_rsv->reserved == block_rsv->size);
