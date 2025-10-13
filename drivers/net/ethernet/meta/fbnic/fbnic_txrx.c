@@ -887,6 +887,7 @@ static void fbnic_bd_prep(struct fbnic_ring *bdq, u16 id, netmem_ref netmem)
 		*bdq_desc = cpu_to_le64(bd);
 		bd += FIELD_PREP(FBNIC_BD_DESC_ADDR_MASK, 1) |
 		      FIELD_PREP(FBNIC_BD_DESC_ID_MASK, 1);
+		bdq_desc++;
 	} while (--i);
 }
 
