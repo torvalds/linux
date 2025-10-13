@@ -157,10 +157,6 @@ int xe_tile_init_early(struct xe_tile *tile, struct xe_device *xe, u8 id)
 	if (err)
 		return err;
 
-	tile->primary_gt = xe_gt_alloc(tile);
-	if (IS_ERR(tile->primary_gt))
-		return PTR_ERR(tile->primary_gt);
-
 	xe_pcode_init(tile);
 
 	return 0;
