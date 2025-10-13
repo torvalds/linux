@@ -14,9 +14,14 @@ allOf:
 
 properties:
   compatible:
-    enum:
-      - cdns,spi-r1p6
-      - xlnx,zynq-spi-r1p6
+    oneOf:
+      - enum:
+          - xlnx,zynq-spi-r1p6
+      - items:
+          - enum:
+              - xlnx,zynqmp-spi-r1p6
+              - xlnx,versal-net-spi-r1p6
+          - const: cdns,spi-r1p6
 
   reg:
     maxItems: 1
