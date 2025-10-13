@@ -1882,7 +1882,7 @@ int btrfs_reserve_metadata_bytes(struct btrfs_fs_info *fs_info,
 /*
  * Try to reserve data bytes for an allocation.
  *
- * @fs_info: the filesystem
+ * @space_info: the space_info we're allocating for
  * @bytes:   number of bytes we need
  * @flush:   how we are allowed to flush
  *
