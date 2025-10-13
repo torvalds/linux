@@ -248,6 +248,7 @@ static void update_insn_state_x86(struct type_state *state,
 			tsr = &state->regs[state->ret_reg];
 			tsr->type = type_die;
 			tsr->kind = TSR_KIND_TYPE;
+			tsr->offset = 0;
 			tsr->ok = true;
 
 			pr_debug_dtp("call [%x] return -> reg%d",
@@ -284,12 +285,26 @@ static void update_insn_state_x86(struct type_state *state,
 			    !strcmp(var_name, "this_cpu_off") &&
 			    tsr->kind == TSR_KIND_CONST) {
 				tsr->kind = TSR_KIND_PERCPU_BASE;
+				tsr->offset = 0;
 				tsr->ok = true;
 				imm_value = tsr->imm_value;
 			}
 		}
 		else
 			return;
+
+		/* Ignore add to non-pointer or non-const types */
+		if (tsr->kind == TSR_KIND_POINTER ||
+		    (dwarf_tag(&tsr->type) == DW_TAG_pointer_type &&
+		     src->reg1 != DWARF_REG_PC && tsr->kind == TSR_KIND_TYPE && !dst->mem_ref)) {
+			tsr->offset += imm_value;
+			pr_debug_dtp("add [%x] offset %#"PRIx64" to reg%d",
+				     insn_offset, imm_value, dst->reg1);
+			pr_debug_type_name(&tsr->type, tsr->kind);
+		}
+
+		if (tsr->kind == TSR_KIND_CONST)
+			tsr->imm_value += imm_value;
 
 		if (tsr->kind != TSR_KIND_PERCPU_BASE)
 			return;
@@ -302,10 +317,111 @@ static void update_insn_state_x86(struct type_state *state,
 			 */
 			tsr->type = type_die;
 			tsr->kind = TSR_KIND_PERCPU_POINTER;
+			tsr->offset = 0;
 			tsr->ok = true;
 
 			pr_debug_dtp("add [%x] percpu %#"PRIx64" -> reg%d",
 				     insn_offset, imm_value, dst->reg1);
+			pr_debug_type_name(&tsr->type, tsr->kind);
+		}
+		return;
+	}
+
+	if (!strncmp(dl->ins.name, "sub", 3)) {
+		u64 imm_value = -1ULL;
+
+		if (!has_reg_type(state, dst->reg1))
+			return;
+
+		tsr = &state->regs[dst->reg1];
+		tsr->copied_from = -1;
+
+		if (src->imm)
+			imm_value = src->offset;
+		else if (has_reg_type(state, src->reg1) &&
+			 state->regs[src->reg1].kind == TSR_KIND_CONST)
+			imm_value = state->regs[src->reg1].imm_value;
+
+		if (tsr->kind == TSR_KIND_POINTER ||
+		    (dwarf_tag(&tsr->type) == DW_TAG_pointer_type &&
+		     src->reg1 != DWARF_REG_PC && tsr->kind == TSR_KIND_TYPE && !dst->mem_ref)) {
+			tsr->offset -= imm_value;
+			pr_debug_dtp("sub [%x] offset %#"PRIx64" to reg%d",
+				     insn_offset, imm_value, dst->reg1);
+			pr_debug_type_name(&tsr->type, tsr->kind);
+		}
+
+		if (tsr->kind == TSR_KIND_CONST)
+			tsr->imm_value -= imm_value;
+
+		return;
+	}
+
+	if (!strncmp(dl->ins.name, "lea", 3)) {
+		int sreg = src->reg1;
+		struct type_state_reg src_tsr;
+
+		if (!has_reg_type(state, sreg) ||
+		    !has_reg_type(state, dst->reg1) ||
+		    !src->mem_ref)
+			return;
+
+		src_tsr = state->regs[sreg];
+		tsr = &state->regs[dst->reg1];
+
+		tsr->copied_from = -1;
+		tsr->ok = false;
+
+		/* Case 1: Based on stack pointer or frame pointer */
+		if (sreg == fbreg || sreg == state->stack_reg) {
+			struct type_state_stack *stack;
+			int offset = src->offset - fboff;
+
+			stack = find_stack_state(state, offset);
+			if (!stack)
+				return;
+
+			tsr->type = stack->type;
+			tsr->kind = TSR_KIND_POINTER;
+			tsr->offset = offset - stack->offset;
+			tsr->ok = true;
+
+			if (sreg == fbreg) {
+				pr_debug_dtp("lea [%x] address of -%#x(stack) -> reg%d",
+					     insn_offset, -src->offset, dst->reg1);
+			} else {
+				pr_debug_dtp("lea [%x] address of %#x(reg%d) -> reg%d",
+					     insn_offset, src->offset, sreg, dst->reg1);
+			}
+
+			pr_debug_type_name(&tsr->type, tsr->kind);
+		}
+		/* Case 2: Based on a register holding a typed pointer */
+		else if (src_tsr.ok && (src_tsr.kind == TSR_KIND_POINTER ||
+			 (dwarf_tag(&src_tsr.type) == DW_TAG_pointer_type &&
+			  src_tsr.kind == TSR_KIND_TYPE))) {
+
+			if (src_tsr.kind == TSR_KIND_TYPE &&
+			    __die_get_real_type(&state->regs[sreg].type, &type_die) == NULL)
+				return;
+
+			if (src_tsr.kind == TSR_KIND_POINTER)
+				type_die = state->regs[sreg].type;
+
+			/* Check if the target type has a member at the new offset */
+			if (die_get_member_type(&type_die,
+						src->offset + src_tsr.offset, &type_die) == NULL)
+				return;
+
+			tsr->type = src_tsr.type;
+			tsr->kind = src_tsr.kind;
+			tsr->offset = src->offset + src_tsr.offset;
+			tsr->ok = true;
+
+			pr_debug_dtp("lea [%x] address of %s%#x(reg%d) -> reg%d",
+						insn_offset, src->offset < 0 ? "-" : "",
+						abs(src->offset), sreg, dst->reg1);
+
 			pr_debug_type_name(&tsr->type, tsr->kind);
 		}
 		return;
@@ -345,6 +461,7 @@ static void update_insn_state_x86(struct type_state *state,
 
 			if (var_addr == 40) {
 				tsr->kind = TSR_KIND_CANARY;
+				tsr->offset = 0;
 				tsr->ok = true;
 
 				pr_debug_dtp("mov [%x] stack canary -> reg%d\n",
@@ -361,6 +478,7 @@ static void update_insn_state_x86(struct type_state *state,
 
 			tsr->type = type_die;
 			tsr->kind = TSR_KIND_TYPE;
+			tsr->offset = 0;
 			tsr->ok = true;
 
 			pr_debug_dtp("mov [%x] this-cpu addr=%#"PRIx64" -> reg%d",
@@ -372,6 +490,7 @@ static void update_insn_state_x86(struct type_state *state,
 		if (src->imm) {
 			tsr->kind = TSR_KIND_CONST;
 			tsr->imm_value = src->offset;
+			tsr->offset = 0;
 			tsr->ok = true;
 
 			pr_debug_dtp("mov [%x] imm=%#x -> reg%d\n",
@@ -388,6 +507,7 @@ static void update_insn_state_x86(struct type_state *state,
 		tsr->type = state->regs[src->reg1].type;
 		tsr->kind = state->regs[src->reg1].kind;
 		tsr->imm_value = state->regs[src->reg1].imm_value;
+		tsr->offset = state->regs[src->reg1].offset;
 		tsr->ok = true;
 
 		/* To copy back the variable type later (hopefully) */
@@ -421,12 +541,14 @@ retry:
 			} else if (!stack->compound) {
 				tsr->type = stack->type;
 				tsr->kind = stack->kind;
+				tsr->offset = 0;
 				tsr->ok = true;
 			} else if (die_get_member_type(&stack->type,
 						       offset - stack->offset,
 						       &type_die)) {
 				tsr->type = type_die;
 				tsr->kind = TSR_KIND_TYPE;
+				tsr->offset = 0;
 				tsr->ok = true;
 			} else {
 				tsr->ok = false;
@@ -446,9 +568,10 @@ retry:
 		else if (has_reg_type(state, sreg) && state->regs[sreg].ok &&
 			 state->regs[sreg].kind == TSR_KIND_TYPE &&
 			 die_deref_ptr_type(&state->regs[sreg].type,
-					    src->offset, &type_die)) {
+					    src->offset + state->regs[sreg].offset, &type_die)) {
 			tsr->type = type_die;
 			tsr->kind = TSR_KIND_TYPE;
+			tsr->offset = 0;
 			tsr->ok = true;
 
 			pr_debug_dtp("mov [%x] %#x(reg%d) -> reg%d",
@@ -459,9 +582,10 @@ retry:
 		else if (has_reg_type(state, sreg) && state->regs[sreg].ok &&
 			 state->regs[sreg].kind == TSR_KIND_POINTER &&
 			 die_get_member_type(&state->regs[sreg].type,
-					     src->offset, &type_die)) {
+					     src->offset + state->regs[sreg].offset, &type_die)) {
 			tsr->type = state->regs[sreg].type;
 			tsr->kind = TSR_KIND_TYPE;
+			tsr->offset = src->offset + state->regs[sreg].offset;
 			tsr->ok = true;
 
 			pr_debug_dtp("mov [%x] addr %#x(reg%d) -> reg%d",
@@ -486,6 +610,7 @@ retry:
 
 			tsr->type = type_die;
 			tsr->kind = TSR_KIND_TYPE;
+			tsr->offset = 0;
 			tsr->ok = true;
 
 			pr_debug_dtp("mov [%x] global addr=%"PRIx64" -> reg%d",
@@ -517,6 +642,7 @@ retry:
 			    die_get_member_type(&type_die, offset, &type_die)) {
 				tsr->type = type_die;
 				tsr->kind = TSR_KIND_TYPE;
+				tsr->offset = 0;
 				tsr->ok = true;
 
 				if (src->multi_regs) {
@@ -539,6 +665,7 @@ retry:
 					     src->offset, &type_die)) {
 			tsr->type = type_die;
 			tsr->kind = TSR_KIND_TYPE;
+			tsr->offset = 0;
 			tsr->ok = true;
 
 			pr_debug_dtp("mov [%x] pointer %#x(reg%d) -> reg%d",
@@ -561,6 +688,7 @@ retry:
 							&var_name, &offset) &&
 				    !strcmp(var_name, "__per_cpu_offset")) {
 					tsr->kind = TSR_KIND_PERCPU_BASE;
+					tsr->offset = 0;
 					tsr->ok = true;
 
 					pr_debug_dtp("mov [%x] percpu base reg%d\n",
@@ -609,6 +737,11 @@ retry:
 				pr_debug_dtp("mov [%x] reg%d -> %#x(reg%d)",
 					     insn_offset, src->reg1, offset, dst->reg1);
 			}
+			if (tsr->offset != 0) {
+				pr_debug_dtp(" reg%d offset %#x ->",
+					src->reg1, tsr->offset);
+			}
+
 			pr_debug_type_name(&tsr->type, tsr->kind);
 		}
 		/*
