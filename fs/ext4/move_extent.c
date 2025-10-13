@@ -54,23 +54,14 @@ ext4_double_up_write_data_sem(struct inode *orig_inode,
 	up_write(&EXT4_I(donor_inode)->i_data_sem);
 }
 
-/**
- * mext_folio_double_lock - Grab and lock folio on both @inode1 and @inode2
- *
- * @inode1:	the inode structure
- * @inode2:	the inode structure
- * @index1:	folio index
- * @index2:	folio index
- * @folio:	result folio vector
- *
- * Grab two locked folio for inode's by inode order
- */
-static int
-mext_folio_double_lock(struct inode *inode1, struct inode *inode2,
-		      pgoff_t index1, pgoff_t index2, struct folio *folio[2])
+/* Grab and lock folio on both @inode1 and @inode2 by inode order. */
+static int mext_folio_double_lock(struct inode *inode1, struct inode *inode2,
+				  pgoff_t index1, pgoff_t index2, size_t len,
+				  struct folio *folio[2])
 {
 	struct address_space *mapping[2];
 	unsigned int flags;
+	fgf_t fgp_flags = FGP_WRITEBEGIN;
 
 	BUG_ON(!inode1 || !inode2);
 	if (inode1 < inode2) {
@@ -83,14 +74,15 @@ mext_folio_double_lock(struct inode *inode1, struct inode *inode2,
 	}
 
 	flags = memalloc_nofs_save();
-	folio[0] = __filemap_get_folio(mapping[0], index1, FGP_WRITEBEGIN,
+	fgp_flags |= fgf_set_order(len);
+	folio[0] = __filemap_get_folio(mapping[0], index1, fgp_flags,
 			mapping_gfp_mask(mapping[0]));
 	if (IS_ERR(folio[0])) {
 		memalloc_nofs_restore(flags);
 		return PTR_ERR(folio[0]);
 	}
 
-	folio[1] = __filemap_get_folio(mapping[1], index2, FGP_WRITEBEGIN,
+	folio[1] = __filemap_get_folio(mapping[1], index2, fgp_flags,
 			mapping_gfp_mask(mapping[1]));
 	memalloc_nofs_restore(flags);
 	if (IS_ERR(folio[1])) {
@@ -214,7 +206,8 @@ static int mext_move_begin(struct mext_data *mext, struct folio *folio[2],
 	orig_pos = ((loff_t)mext->orig_map.m_lblk) << blkbits;
 	donor_pos = ((loff_t)mext->donor_lblk) << blkbits;
 	ret = mext_folio_double_lock(orig_inode, donor_inode,
-			orig_pos >> PAGE_SHIFT, donor_pos >> PAGE_SHIFT, folio);
+			orig_pos >> PAGE_SHIFT, donor_pos >> PAGE_SHIFT,
+			((size_t)mext->orig_map.m_len) << blkbits, folio);
 	if (ret)
 		return ret;
 
