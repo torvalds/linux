@@ -795,3 +795,47 @@ bool intel_any_crtc_active_changed(struct intel_atomic_state *state)
 
 	return false;
 }
+
+unsigned int intel_crtc_bw_num_active_planes(const struct intel_crtc_state *crtc_state)
+{
+	/*
+	 * We assume cursors are small enough
+	 * to not cause bandwidth problems.
+	 */
+	return hweight8(crtc_state->active_planes & ~BIT(PLANE_CURSOR));
+}
+
+unsigned int intel_crtc_bw_data_rate(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_display *display = to_intel_display(crtc_state);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	unsigned int data_rate = 0;
+	enum plane_id plane_id;
+
+	for_each_plane_id_on_crtc(crtc, plane_id) {
+		/*
+		 * We assume cursors are small enough
+		 * to not cause bandwidth problems.
+		 */
+		if (plane_id == PLANE_CURSOR)
+			continue;
+
+		data_rate += crtc_state->data_rate[plane_id];
+
+		if (DISPLAY_VER(display) < 11)
+			data_rate += crtc_state->data_rate_y[plane_id];
+	}
+
+	return data_rate;
+}
+
+/* "Maximum Pipe Read Bandwidth" */
+int intel_crtc_bw_min_cdclk(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_display *display = to_intel_display(crtc_state);
+
+	if (DISPLAY_VER(display) < 12)
+		return 0;
+
+	return DIV_ROUND_UP_ULL(mul_u32_u32(intel_crtc_bw_data_rate(crtc_state), 10), 512);
+}

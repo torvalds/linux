@@ -35,7 +35,6 @@
 #include "i915_utils.h"
 #include "intel_atomic.h"
 #include "intel_audio.h"
-#include "intel_bw.h"
 #include "intel_cdclk.h"
 #include "intel_crtc.h"
 #include "intel_dbuf_bw.h"
@@ -2842,7 +2841,7 @@ static int intel_crtc_compute_min_cdclk(const struct intel_crtc_state *crtc_stat
 		return 0;
 
 	min_cdclk = intel_pixel_rate_to_cdclk(crtc_state);
-	min_cdclk = max(min_cdclk, intel_bw_crtc_min_cdclk(crtc_state));
+	min_cdclk = max(min_cdclk, intel_crtc_bw_min_cdclk(crtc_state));
 	min_cdclk = max(min_cdclk, hsw_ips_min_cdclk(crtc_state));
 	min_cdclk = max(min_cdclk, intel_audio_min_cdclk(crtc_state));
 	min_cdclk = max(min_cdclk, vlv_dsi_min_cdclk(crtc_state));

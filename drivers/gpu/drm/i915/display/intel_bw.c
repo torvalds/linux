@@ -827,50 +827,6 @@ void intel_bw_init_hw(struct intel_display *display)
 		icl_get_bw_info(display, dram_info, &icl_sa_info);
 }
 
-static unsigned int intel_bw_crtc_num_active_planes(const struct intel_crtc_state *crtc_state)
-{
-	/*
-	 * We assume cursors are small enough
-	 * to not cause bandwidth problems.
-	 */
-	return hweight8(crtc_state->active_planes & ~BIT(PLANE_CURSOR));
-}
-
-static unsigned int intel_bw_crtc_data_rate(const struct intel_crtc_state *crtc_state)
-{
-	struct intel_display *display = to_intel_display(crtc_state);
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	unsigned int data_rate = 0;
-	enum plane_id plane_id;
-
-	for_each_plane_id_on_crtc(crtc, plane_id) {
-		/*
-		 * We assume cursors are small enough
-		 * to not cause bandwidth problems.
-		 */
-		if (plane_id == PLANE_CURSOR)
-			continue;
-
-		data_rate += crtc_state->data_rate[plane_id];
-
-		if (DISPLAY_VER(display) < 11)
-			data_rate += crtc_state->data_rate_y[plane_id];
-	}
-
-	return data_rate;
-}
-
-/* "Maximum Pipe Read Bandwidth" */
-int intel_bw_crtc_min_cdclk(const struct intel_crtc_state *crtc_state)
-{
-	struct intel_display *display = to_intel_display(crtc_state);
-
-	if (DISPLAY_VER(display) < 12)
-		return 0;
-
-	return DIV_ROUND_UP_ULL(mul_u32_u32(intel_bw_crtc_data_rate(crtc_state), 10), 512);
-}
-
 static unsigned int intel_bw_num_active_planes(struct intel_display *display,
 					       const struct intel_bw_state *bw_state)
 {
@@ -1264,13 +1220,13 @@ static int intel_bw_check_data_rate(struct intel_atomic_state *state, bool *chan
 	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
 					    new_crtc_state, i) {
 		unsigned int old_data_rate =
-			intel_bw_crtc_data_rate(old_crtc_state);
+			intel_crtc_bw_data_rate(old_crtc_state);
 		unsigned int new_data_rate =
-			intel_bw_crtc_data_rate(new_crtc_state);
+			intel_crtc_bw_data_rate(new_crtc_state);
 		unsigned int old_active_planes =
-			intel_bw_crtc_num_active_planes(old_crtc_state);
+			intel_crtc_bw_num_active_planes(old_crtc_state);
 		unsigned int new_active_planes =
-			intel_bw_crtc_num_active_planes(new_crtc_state);
+			intel_crtc_bw_num_active_planes(new_crtc_state);
 		struct intel_bw_state *new_bw_state;
 
 		/*
@@ -1426,9 +1382,9 @@ static void intel_bw_crtc_update(struct intel_bw_state *bw_state,
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 
 	bw_state->data_rate[crtc->pipe] =
-		intel_bw_crtc_data_rate(crtc_state);
+		intel_crtc_bw_data_rate(crtc_state);
 	bw_state->num_active_planes[crtc->pipe] =
-		intel_bw_crtc_num_active_planes(crtc_state);
+		intel_crtc_bw_num_active_planes(crtc_state);
 
 	drm_dbg_kms(display->drm, "pipe %c data rate %u num active planes %u\n",
 		    pipe_name(crtc->pipe),

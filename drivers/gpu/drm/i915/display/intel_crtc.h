@@ -65,4 +65,8 @@ bool intel_any_crtc_active_changed(struct intel_atomic_state *state);
 bool intel_crtc_active_changed(const struct intel_crtc_state *old_crtc_state,
 			       const struct intel_crtc_state *new_crtc_state);
 
+unsigned int intel_crtc_bw_num_active_planes(const struct intel_crtc_state *crtc_state);
+unsigned int intel_crtc_bw_data_rate(const struct intel_crtc_state *crtc_state);
+int intel_crtc_bw_min_cdclk(const struct intel_crtc_state *crtc_state);
+
 #endif
