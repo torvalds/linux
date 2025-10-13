@@ -391,7 +391,7 @@ static void update_insn_state_x86(struct type_state *state,
 		tsr->ok = true;
 
 		/* To copy back the variable type later (hopefully) */
-		if (tsr->kind == TSR_KIND_TYPE)
+		if (tsr->kind == TSR_KIND_TYPE || tsr->kind == TSR_KIND_POINTER)
 			tsr->copied_from = src->reg1;
 
 		pr_debug_dtp("mov [%x] reg%d -> reg%d",
@@ -452,6 +452,19 @@ retry:
 			tsr->ok = true;
 
 			pr_debug_dtp("mov [%x] %#x(reg%d) -> reg%d",
+				     insn_offset, src->offset, sreg, dst->reg1);
+			pr_debug_type_name(&tsr->type, tsr->kind);
+		}
+		/* Handle dereference of TSR_KIND_POINTER registers */
+		else if (has_reg_type(state, sreg) && state->regs[sreg].ok &&
+			 state->regs[sreg].kind == TSR_KIND_POINTER &&
+			 die_get_member_type(&state->regs[sreg].type,
+					     src->offset, &type_die)) {
+			tsr->type = state->regs[sreg].type;
+			tsr->kind = TSR_KIND_TYPE;
+			tsr->ok = true;
+
+			pr_debug_dtp("mov [%x] addr %#x(reg%d) -> reg%d",
 				     insn_offset, src->offset, sreg, dst->reg1);
 			pr_debug_type_name(&tsr->type, tsr->kind);
 		}

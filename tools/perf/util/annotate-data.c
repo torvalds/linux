@@ -59,6 +59,10 @@ void pr_debug_type_name(Dwarf_Die *die, enum type_state_kind kind)
 		pr_info(" constant\n");
 		return;
 	case TSR_KIND_PERCPU_POINTER:
+		pr_info(" percpu pointer");
+		/* it also prints the type info */
+		break;
+	case TSR_KIND_POINTER:
 		pr_info(" pointer");
 		/* it also prints the type info */
 		break;
@@ -578,15 +582,24 @@ void set_stack_state(struct type_state_stack *stack, int offset, u8 kind,
 	int tag;
 	Dwarf_Word size;
 
-	if (dwarf_aggregate_size(type_die, &size) < 0)
+	if (kind == TSR_KIND_POINTER) {
+		/* TODO: arch-dependent pointer size */
+		size = sizeof(void *);
+	}
+	else if (dwarf_aggregate_size(type_die, &size) < 0)
 		size = 0;
-
-	tag = dwarf_tag(type_die);
 
 	stack->type = *type_die;
 	stack->size = size;
 	stack->offset = offset;
 	stack->kind = kind;
+
+	if (kind == TSR_KIND_POINTER) {
+		stack->compound = false;
+		return;
+	}
+
+	tag = dwarf_tag(type_die);
 
 	switch (tag) {
 	case DW_TAG_structure_type:
@@ -898,13 +911,25 @@ static void update_var_state(struct type_state *state, struct data_loc_info *dlo
 
 			reg = &state->regs[var->reg];
 
-			/* For gp registers, skip the address registers for now */
-			if (var->is_reg_var_addr)
+			if (reg->ok && reg->kind == TSR_KIND_TYPE &&
+			   (!is_better_type(&reg->type, &mem_die) || var->is_reg_var_addr))
 				continue;
 
-			if (reg->ok && reg->kind == TSR_KIND_TYPE &&
-			    !is_better_type(&reg->type, &mem_die))
+			/* Handle address registers with TSR_KIND_POINTER */
+			if (var->is_reg_var_addr) {
+				if (reg->ok && reg->kind == TSR_KIND_POINTER &&
+				    !is_better_type(&reg->type, &mem_die))
+					continue;
+
+				reg->type = mem_die;
+				reg->kind = TSR_KIND_POINTER;
+				reg->ok = true;
+
+				pr_debug_dtp("var [%"PRIx64"] reg%d addr offset %x",
+					     insn_offset, var->reg, var->offset);
+				pr_debug_type_name(&mem_die, TSR_KIND_POINTER);
 				continue;
+			}
 
 			orig_type = reg->type;
 
@@ -1110,6 +1135,30 @@ again:
 
 		/* Get the size of the actual type */
 		if (dwarf_aggregate_size(&sized_type, &size) < 0 ||
+		    (unsigned)dloc->type_offset >= size)
+			return PERF_TMR_BAD_OFFSET;
+
+		return PERF_TMR_OK;
+	}
+
+	if (state->regs[reg].kind == TSR_KIND_POINTER) {
+		struct strbuf sb;
+
+		strbuf_init(&sb, 32);
+		die_get_typename_from_type(&state->regs[reg].type, &sb);
+		pr_debug_dtp("(ptr->%s)", sb.buf);
+		strbuf_release(&sb);
+
+		/*
+		 * Register holds a pointer (address) to the target variable.
+		 * The type is the type of the variable it points to.
+		 */
+		*type_die = state->regs[reg].type;
+
+		dloc->type_offset = dloc->op->offset;
+
+		/* Get the size of the actual type */
+		if (dwarf_aggregate_size(type_die, &size) < 0 ||
 		    (unsigned)dloc->type_offset >= size)
 			return PERF_TMR_BAD_OFFSET;
 
