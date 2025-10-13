@@ -10,7 +10,6 @@
 #include <asm/elf.h>
 #include <linux/init.h>
 
-static unsigned int __read_mostly vdso_enabled = 1;
 unsigned long um_vdso_addr;
 static struct page *um_vdso;
 
@@ -25,17 +24,11 @@ static int __init init_vdso(void)
 
 	um_vdso = alloc_page(GFP_KERNEL);
 	if (!um_vdso)
-		goto oom;
+		panic("Cannot allocate vdso\n");
 
 	copy_page(page_address(um_vdso), vdso_start);
 
 	return 0;
-
-oom:
-	printk(KERN_ERR "Cannot allocate vdso\n");
-	vdso_enabled = 0;
-
-	return -ENOMEM;
 }
 subsys_initcall(init_vdso);
 
@@ -47,9 +40,6 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 		.name = "[vdso]",
 		.pages = &um_vdso,
 	};
-
-	if (!vdso_enabled)
-		return 0;
 
 	if (mmap_write_lock_killable(mm))
 		return -EINTR;
