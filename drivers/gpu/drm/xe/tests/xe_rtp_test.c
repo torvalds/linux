@@ -48,12 +48,14 @@ struct rtp_test_case {
 	const struct xe_rtp_entry *entries;
 };
 
-static bool match_yes(const struct xe_gt *gt, const struct xe_hw_engine *hwe)
+static bool match_yes(const struct xe_device *xe, const struct xe_gt *gt,
+		      const struct xe_hw_engine *hwe)
 {
 	return true;
 }
 
-static bool match_no(const struct xe_gt *gt, const struct xe_hw_engine *hwe)
+static bool match_no(const struct xe_device *xe, const struct xe_gt *gt,
+		     const struct xe_hw_engine *hwe)
 {
 	return false;
 }
