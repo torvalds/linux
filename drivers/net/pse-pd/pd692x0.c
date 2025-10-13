@@ -85,6 +85,11 @@ enum {
 	PD692X0_MSG_CNT
 };
 
+struct pd692x0_matrix {
+	u8 hw_port_a;
+	u8 hw_port_b;
+};
+
 struct pd692x0_priv {
 	struct i2c_client *client;
 	struct pse_controller_dev pcdev;
@@ -101,6 +106,8 @@ struct pd692x0_priv {
 	enum ethtool_c33_pse_admin_state admin_state[PD692X0_MAX_PIS];
 	struct regulator_dev *manager_reg[PD692X0_MAX_MANAGERS];
 	int manager_pw_budget[PD692X0_MAX_MANAGERS];
+	int nmanagers;
+	struct pd692x0_matrix *port_matrix;
 };
 
 /* Template list of communication messages. The non-null bytes defined here
@@ -809,11 +816,6 @@ struct pd692x0_manager {
 	int nports;
 };
 
-struct pd692x0_matrix {
-	u8 hw_port_a;
-	u8 hw_port_b;
-};
-
 static int
 pd692x0_of_get_ports_manager(struct pd692x0_priv *priv,
 			     struct pd692x0_manager *manager,
@@ -903,7 +905,8 @@ pd692x0_of_get_managers(struct pd692x0_priv *priv,
 	}
 
 	of_node_put(managers_node);
-	return nmanagers;
+	priv->nmanagers = nmanagers;
+	return 0;
 
 out:
 	for (i = 0; i < nmanagers; i++) {
@@ -963,8 +966,7 @@ pd692x0_register_manager_regulator(struct device *dev, char *reg_name,
 
 static int
 pd692x0_register_managers_regulator(struct pd692x0_priv *priv,
-				    const struct pd692x0_manager *manager,
-				    int nmanagers)
+				    const struct pd692x0_manager *manager)
 {
 	struct device *dev = &priv->client->dev;
 	size_t reg_name_len;
@@ -975,7 +977,7 @@ pd692x0_register_managers_regulator(struct pd692x0_priv *priv,
 	 */
 	reg_name_len = strlen(dev_name(dev)) + 23;
 
-	for (i = 0; i < nmanagers; i++) {
+	for (i = 0; i < priv->nmanagers; i++) {
 		static const char * const regulators[] = { "vaux5", "vaux3p3" };
 		struct regulator_dev *rdev;
 		char *reg_name;
@@ -1008,10 +1010,14 @@ pd692x0_register_managers_regulator(struct pd692x0_priv *priv,
 }
 
 static int
-pd692x0_conf_manager_power_budget(struct pd692x0_priv *priv, int id, int pw)
+pd692x0_conf_manager_power_budget(struct pd692x0_priv *priv, int id)
 {
 	struct pd692x0_msg msg, buf;
-	int ret, pw_mW = pw / 1000;
+	int ret, pw_mW;
+
+	pw_mW = priv->manager_pw_budget[id] / 1000;
+	if (!pw_mW)
+		return 0;
 
 	msg = pd692x0_msg_template_list[PD692X0_MSG_GET_POWER_BANK];
 	msg.data[0] = id;
@@ -1032,11 +1038,11 @@ pd692x0_conf_manager_power_budget(struct pd692x0_priv *priv, int id, int pw)
 }
 
 static int
-pd692x0_configure_managers(struct pd692x0_priv *priv, int nmanagers)
+pd692x0_req_managers_pw_budget(struct pd692x0_priv *priv)
 {
 	int i, ret;
 
-	for (i = 0; i < nmanagers; i++) {
+	for (i = 0; i < priv->nmanagers; i++) {
 		struct regulator *supply = priv->manager_reg[i]->supply;
 		int pw_budget;
 
@@ -1053,7 +1059,18 @@ pd692x0_configure_managers(struct pd692x0_priv *priv, int nmanagers)
 			return ret;
 
 		priv->manager_pw_budget[i] = pw_budget;
-		ret = pd692x0_conf_manager_power_budget(priv, i, pw_budget);
+	}
+
+	return 0;
+}
+
+static int
+pd692x0_configure_managers(struct pd692x0_priv *priv)
+{
+	int i, ret;
+
+	for (i = 0; i < priv->nmanagers; i++) {
+		ret = pd692x0_conf_manager_power_budget(priv, i);
 		if (ret < 0)
 			return ret;
 	}
@@ -1101,10 +1118,9 @@ pd692x0_set_port_matrix(const struct pse_pi_pairset *pairset,
 
 static int
 pd692x0_set_ports_matrix(struct pd692x0_priv *priv,
-			 const struct pd692x0_manager *manager,
-			 int nmanagers,
-			 struct pd692x0_matrix port_matrix[PD692X0_MAX_PIS])
+			 const struct pd692x0_manager *manager)
 {
+	struct pd692x0_matrix *port_matrix = priv->port_matrix;
 	struct pse_controller_dev *pcdev = &priv->pcdev;
 	int i, ret;
 
@@ -1117,7 +1133,7 @@ pd692x0_set_ports_matrix(struct pd692x0_priv *priv,
 	/* Update with values for every PSE PIs */
 	for (i = 0; i < pcdev->nr_lines; i++) {
 		ret = pd692x0_set_port_matrix(&pcdev->pi[i].pairset[0],
-					      manager, nmanagers,
+					      manager, priv->nmanagers,
 					      &port_matrix[i]);
 		if (ret) {
 			dev_err(&priv->client->dev,
@@ -1126,7 +1142,7 @@ pd692x0_set_ports_matrix(struct pd692x0_priv *priv,
 		}
 
 		ret = pd692x0_set_port_matrix(&pcdev->pi[i].pairset[1],
-					      manager, nmanagers,
+					      manager, priv->nmanagers,
 					      &port_matrix[i]);
 		if (ret) {
 			dev_err(&priv->client->dev,
@@ -1139,9 +1155,9 @@ pd692x0_set_ports_matrix(struct pd692x0_priv *priv,
 }
 
 static int
-pd692x0_write_ports_matrix(struct pd692x0_priv *priv,
-			   const struct pd692x0_matrix port_matrix[PD692X0_MAX_PIS])
+pd692x0_write_ports_matrix(struct pd692x0_priv *priv)
 {
+	struct pd692x0_matrix *port_matrix = priv->port_matrix;
 	struct pd692x0_msg msg, buf;
 	int ret, i;
 
@@ -1166,13 +1182,32 @@ pd692x0_write_ports_matrix(struct pd692x0_priv *priv,
 	return 0;
 }
 
+static int pd692x0_hw_conf_init(struct pd692x0_priv *priv)
+{
+	int ret;
+
+	/* Is PD692x0 ready to be configured? */
+	if (priv->fw_state != PD692X0_FW_OK &&
+	    priv->fw_state != PD692X0_FW_COMPLETE)
+		return 0;
+
+	ret = pd692x0_configure_managers(priv);
+	if (ret)
+		return ret;
+
+	ret = pd692x0_write_ports_matrix(priv);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 static void pd692x0_of_put_managers(struct pd692x0_priv *priv,
-				    struct pd692x0_manager *manager,
-				    int nmanagers)
+				    struct pd692x0_manager *manager)
 {
 	int i, j;
 
-	for (i = 0; i < nmanagers; i++) {
+	for (i = 0; i < priv->nmanagers; i++) {
 		for (j = 0; j < manager[i].nports; j++)
 			of_node_put(manager[i].port_node[j]);
 		of_node_put(manager[i].node);
@@ -1201,48 +1236,50 @@ static void pd692x0_managers_free_pw_budget(struct pd692x0_priv *priv)
 static int pd692x0_setup_pi_matrix(struct pse_controller_dev *pcdev)
 {
 	struct pd692x0_priv *priv = to_pd692x0_priv(pcdev);
-	struct pd692x0_matrix port_matrix[PD692X0_MAX_PIS];
+	struct pd692x0_matrix *port_matrix;
 	struct pd692x0_manager *manager;
-	int ret, nmanagers;
-
-	/* Should we flash the port matrix */
-	if (priv->fw_state != PD692X0_FW_OK &&
-	    priv->fw_state != PD692X0_FW_COMPLETE)
-		return 0;
+	int ret;
 
 	manager = kcalloc(PD692X0_MAX_MANAGERS, sizeof(*manager), GFP_KERNEL);
 	if (!manager)
 		return -ENOMEM;
 
+	port_matrix = devm_kcalloc(&priv->client->dev, PD692X0_MAX_PIS,
+				   sizeof(*port_matrix), GFP_KERNEL);
+	if (!port_matrix) {
+		ret = -ENOMEM;
+		goto err_free_manager;
+	}
+	priv->port_matrix = port_matrix;
+
 	ret = pd692x0_of_get_managers(priv, manager);
 	if (ret < 0)
 		goto err_free_manager;
 
-	nmanagers = ret;
-	ret = pd692x0_register_managers_regulator(priv, manager, nmanagers);
+	ret = pd692x0_register_managers_regulator(priv, manager);
 	if (ret)
 		goto err_of_managers;
 
-	ret = pd692x0_configure_managers(priv, nmanagers);
+	ret = pd692x0_req_managers_pw_budget(priv);
 	if (ret)
 		goto err_of_managers;
 
-	ret = pd692x0_set_ports_matrix(priv, manager, nmanagers, port_matrix);
+	ret = pd692x0_set_ports_matrix(priv, manager);
 	if (ret)
 		goto err_managers_req_pw;
 
-	ret = pd692x0_write_ports_matrix(priv, port_matrix);
+	ret = pd692x0_hw_conf_init(priv);
 	if (ret)
 		goto err_managers_req_pw;
 
-	pd692x0_of_put_managers(priv, manager, nmanagers);
+	pd692x0_of_put_managers(priv, manager);
 	kfree(manager);
 	return 0;
 
 err_managers_req_pw:
 	pd692x0_managers_free_pw_budget(priv);
 err_of_managers:
-	pd692x0_of_put_managers(priv, manager, nmanagers);
+	pd692x0_of_put_managers(priv, manager);
 err_free_manager:
 	kfree(manager);
 	return ret;
@@ -1647,7 +1684,7 @@ static enum fw_upload_err pd692x0_fw_poll_complete(struct fw_upload *fwl)
 		return FW_UPLOAD_ERR_FW_INVALID;
 	}
 
-	ret = pd692x0_setup_pi_matrix(&priv->pcdev);
+	ret = pd692x0_hw_conf_init(priv);
 	if (ret < 0) {
 		dev_err(&client->dev, "Error configuring ports matrix (%pe)\n",
 			ERR_PTR(ret));
