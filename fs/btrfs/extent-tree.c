@@ -4735,8 +4735,7 @@ again:
 	"allocation failed flags %llu, wanted %llu tree-log %d, relocation: %d",
 				  flags, num_bytes, for_treelog, for_data_reloc);
 			if (sinfo)
-				btrfs_dump_space_info(fs_info, sinfo,
-						      num_bytes, 1);
+				btrfs_dump_space_info(sinfo, num_bytes, 1);
 		}
 	}
 

@@ -591,9 +591,9 @@ static void dump_global_block_rsv(struct btrfs_fs_info *fs_info)
 	DUMP_BLOCK_RSV(fs_info, delayed_refs_rsv);
 }
 
-static void __btrfs_dump_space_info(const struct btrfs_fs_info *fs_info,
-				    const struct btrfs_space_info *info)
+static void __btrfs_dump_space_info(const struct btrfs_space_info *info)
 {
+	const struct btrfs_fs_info *fs_info = info->fs_info;
 	const char *flag_str = space_info_flag_to_str(info);
 	lockdep_assert_held(&info->lock);
 
@@ -610,16 +610,16 @@ static void __btrfs_dump_space_info(const struct btrfs_fs_info *fs_info,
 		info->bytes_readonly, info->bytes_zone_unusable);
 }
 
-void btrfs_dump_space_info(struct btrfs_fs_info *fs_info,
-			   struct btrfs_space_info *info, u64 bytes,
+void btrfs_dump_space_info(struct btrfs_space_info *info, u64 bytes,
 			   bool dump_block_groups)
 {
+	struct btrfs_fs_info *fs_info = info->fs_info;
 	struct btrfs_block_group *cache;
 	u64 total_avail = 0;
 	int index = 0;
 
 	spin_lock(&info->lock);
-	__btrfs_dump_space_info(fs_info, info);
+	__btrfs_dump_space_info(info);
 	dump_global_block_rsv(fs_info);
 	spin_unlock(&info->lock);
 
@@ -1089,7 +1089,7 @@ static bool maybe_fail_all_tickets(struct btrfs_space_info *space_info)
 
 	if (btrfs_test_opt(fs_info, ENOSPC_DEBUG)) {
 		btrfs_info(fs_info, "cannot satisfy tickets, dumping space info");
-		__btrfs_dump_space_info(fs_info, space_info);
+		__btrfs_dump_space_info(space_info);
 	}
 
 	while (!list_empty(&space_info->tickets) &&
@@ -1882,7 +1882,7 @@ int btrfs_reserve_metadata_bytes(struct btrfs_fs_info *fs_info,
 					      space_info->flags, orig_bytes, 1);
 
 		if (btrfs_test_opt(fs_info, ENOSPC_DEBUG))
-			btrfs_dump_space_info(fs_info, space_info, orig_bytes, false);
+			btrfs_dump_space_info(space_info, orig_bytes, false);
 	}
 	return ret;
 }
@@ -1913,7 +1913,7 @@ int btrfs_reserve_data_bytes(struct btrfs_space_info *space_info, u64 bytes,
 		trace_btrfs_space_reservation(fs_info, "space_info:enospc",
 					      space_info->flags, bytes, 1);
 		if (btrfs_test_opt(fs_info, ENOSPC_DEBUG))
-			btrfs_dump_space_info(fs_info, space_info, bytes, false);
+			btrfs_dump_space_info(space_info, bytes, false);
 	}
 	return ret;
 }
@@ -1926,7 +1926,7 @@ __cold void btrfs_dump_space_info_for_trans_abort(struct btrfs_fs_info *fs_info)
 	btrfs_info(fs_info, "dumping space info:");
 	list_for_each_entry(space_info, &fs_info->space_info, list) {
 		spin_lock(&space_info->lock);
-		__btrfs_dump_space_info(fs_info, space_info);
+		__btrfs_dump_space_info(space_info);
 		spin_unlock(&space_info->lock);
 	}
 	dump_global_block_rsv(fs_info);
