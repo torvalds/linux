@@ -13,6 +13,8 @@
 #include "ext4.h"
 #include "ext4_extents.h"
 
+#include <trace/events/ext4.h>
+
 struct mext_data {
 	struct inode *orig_inode;	/* Origin file inode */
 	struct inode *donor_inode;	/* Donor file inode */
@@ -311,10 +313,14 @@ static int mext_move_extent(struct mext_data *mext, u64 *m_len)
 	int ret, ret2;
 
 	*m_len = 0;
+	trace_ext4_move_extent_enter(orig_inode, orig_map, donor_inode,
+				     mext->donor_lblk);
 	credits = ext4_chunk_trans_extent(orig_inode, 0) * 2;
 	handle = ext4_journal_start(orig_inode, EXT4_HT_MOVE_EXTENTS, credits);
-	if (IS_ERR(handle))
-		return PTR_ERR(handle);
+	if (IS_ERR(handle)) {
+		ret = PTR_ERR(handle);
+		goto out;
+	}
 
 	ret = mext_move_begin(mext, folio, &move_type);
 	if (ret)
@@ -379,6 +385,10 @@ unlock:
 	mext_folio_double_unlock(folio);
 stop_handle:
 	ext4_journal_stop(handle);
+out:
+	trace_ext4_move_extent_exit(orig_inode, orig_map->m_lblk, donor_inode,
+				    mext->donor_lblk, orig_map->m_len, *m_len,
+				    move_type, ret);
 	return ret;
 
 repair_branches:

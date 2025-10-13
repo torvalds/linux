@@ -3016,6 +3016,80 @@ TRACE_EVENT(ext4_update_sb,
 		  __entry->fsblk, __entry->flags)
 );
 
+TRACE_EVENT(ext4_move_extent_enter,
+	TP_PROTO(struct inode *orig_inode, struct ext4_map_blocks *orig_map,
+		 struct inode *donor_inode, ext4_lblk_t donor_lblk),
+
+	TP_ARGS(orig_inode, orig_map, donor_inode, donor_lblk),
+
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(ino_t, orig_ino)
+		__field(ext4_lblk_t, orig_lblk)
+		__field(unsigned int, orig_flags)
+		__field(ino_t, donor_ino)
+		__field(ext4_lblk_t, donor_lblk)
+		__field(unsigned int, len)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= orig_inode->i_sb->s_dev;
+		__entry->orig_ino	= orig_inode->i_ino;
+		__entry->orig_lblk	= orig_map->m_lblk;
+		__entry->orig_flags	= orig_map->m_flags;
+		__entry->donor_ino	= donor_inode->i_ino;
+		__entry->donor_lblk	= donor_lblk;
+		__entry->len		= orig_map->m_len;
+	),
+
+	TP_printk("dev %d,%d origin ino %lu lblk %u flags %s donor ino %lu lblk %u len %u",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  (unsigned long) __entry->orig_ino,  __entry->orig_lblk,
+		  show_mflags(__entry->orig_flags),
+		  (unsigned long) __entry->donor_ino,  __entry->donor_lblk,
+		  __entry->len)
+);
+
+TRACE_EVENT(ext4_move_extent_exit,
+	TP_PROTO(struct inode *orig_inode, ext4_lblk_t orig_lblk,
+		 struct inode *donor_inode, ext4_lblk_t donor_lblk,
+		 unsigned int m_len, u64 move_len, int move_type, int ret),
+
+	TP_ARGS(orig_inode, orig_lblk, donor_inode, donor_lblk, m_len,
+		move_len, move_type, ret),
+
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(ino_t, orig_ino)
+		__field(ext4_lblk_t, orig_lblk)
+		__field(ino_t, donor_ino)
+		__field(ext4_lblk_t, donor_lblk)
+		__field(unsigned int, m_len)
+		__field(u64, move_len)
+		__field(int, move_type)
+		__field(int, ret)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= orig_inode->i_sb->s_dev;
+		__entry->orig_ino	= orig_inode->i_ino;
+		__entry->orig_lblk	= orig_lblk;
+		__entry->donor_ino	= donor_inode->i_ino;
+		__entry->donor_lblk	= donor_lblk;
+		__entry->m_len		= m_len;
+		__entry->move_len	= move_len;
+		__entry->move_type	= move_type;
+		__entry->ret		= ret;
+	),
+
+	TP_printk("dev %d,%d origin ino %lu lblk %u donor ino %lu lblk %u m_len %u, move_len %llu type %d ret %d",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  (unsigned long) __entry->orig_ino,  __entry->orig_lblk,
+		  (unsigned long) __entry->donor_ino,  __entry->donor_lblk,
+		  __entry->m_len, __entry->move_len, __entry->move_type,
+		  __entry->ret)
+);
+
 #endif /* _TRACE_EXT4_H */
 
 /* This part must be outside protection */
