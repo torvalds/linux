@@ -13,6 +13,13 @@
 #include "ext4.h"
 #include "ext4_extents.h"
 
+struct mext_data {
+	struct inode *orig_inode;	/* Origin file inode */
+	struct inode *donor_inode;	/* Donor file inode */
+	struct ext4_map_blocks orig_map;/* Origin file's move mapping */
+	ext4_lblk_t donor_lblk;		/* Start block of the donor file */
+};
+
 /**
  * get_ext_path() - Find an extent path for designated logical block number.
  * @inode:	inode to be searched
@@ -164,6 +171,14 @@ mext_folio_double_lock(struct inode *inode1, struct inode *inode2,
 	return 0;
 }
 
+static void mext_folio_double_unlock(struct folio *folio[2])
+{
+	folio_unlock(folio[0]);
+	folio_put(folio[0]);
+	folio_unlock(folio[1]);
+	folio_put(folio[1]);
+}
+
 /* Force folio buffers uptodate w/o dropping folio's lock */
 static int mext_folio_mkuptodate(struct folio *folio, size_t from, size_t to)
 {
@@ -236,6 +251,215 @@ out:
 	if (!partial)
 		folio_mark_uptodate(folio);
 	return 0;
+}
+
+enum mext_move_type {MEXT_SKIP_EXTENT, MEXT_MOVE_EXTENT, MEXT_COPY_DATA};
+
+/*
+ * Start to move extent between the origin inode and the donor inode,
+ * hold one folio for each inode and check the candidate moving extent
+ * mapping status again.
+ */
+static int mext_move_begin(struct mext_data *mext, struct folio *folio[2],
+			   enum mext_move_type *move_type)
+{
+	struct inode *orig_inode = mext->orig_inode;
+	struct inode *donor_inode = mext->donor_inode;
+	unsigned int blkbits = orig_inode->i_blkbits;
+	struct ext4_map_blocks donor_map = {0};
+	loff_t orig_pos, donor_pos;
+	size_t move_len;
+	int ret;
+
+	orig_pos = ((loff_t)mext->orig_map.m_lblk) << blkbits;
+	donor_pos = ((loff_t)mext->donor_lblk) << blkbits;
+	ret = mext_folio_double_lock(orig_inode, donor_inode,
+			orig_pos >> PAGE_SHIFT, donor_pos >> PAGE_SHIFT, folio);
+	if (ret)
+		return ret;
+
+	/*
+	 * Check the origin inode's mapping information again under the
+	 * folio lock, as we do not hold the i_data_sem at all times, and
+	 * it may change during the concurrent write-back operation.
+	 */
+	if (mext->orig_map.m_seq != READ_ONCE(EXT4_I(orig_inode)->i_es_seq)) {
+		ret = -ESTALE;
+		goto error;
+	}
+
+	/* Adjust the moving length according to the length of shorter folio. */
+	move_len = umin(folio_pos(folio[0]) + folio_size(folio[0]) - orig_pos,
+			folio_pos(folio[1]) + folio_size(folio[1]) - donor_pos);
+	move_len >>= blkbits;
+	if (move_len < mext->orig_map.m_len)
+		mext->orig_map.m_len = move_len;
+
+	donor_map.m_lblk = mext->donor_lblk;
+	donor_map.m_len = mext->orig_map.m_len;
+	donor_map.m_flags = 0;
+	ret = ext4_map_blocks(NULL, donor_inode, &donor_map, 0);
+	if (ret < 0)
+		goto error;
+
+	/* Adjust the moving length according to the donor mapping length. */
+	mext->orig_map.m_len = donor_map.m_len;
+
+	/* Skip moving if the donor range is a hole or a delalloc extent. */
+	if (!(donor_map.m_flags & (EXT4_MAP_MAPPED | EXT4_MAP_UNWRITTEN)))
+		*move_type = MEXT_SKIP_EXTENT;
+	/* If both mapping ranges are unwritten, no need to copy data. */
+	else if ((mext->orig_map.m_flags & EXT4_MAP_UNWRITTEN) &&
+		 (donor_map.m_flags & EXT4_MAP_UNWRITTEN))
+		*move_type = MEXT_MOVE_EXTENT;
+	else
+		*move_type = MEXT_COPY_DATA;
+
+	return 0;
+error:
+	mext_folio_double_unlock(folio);
+	return ret;
+}
+
+/*
+ * Re-create the new moved mapping buffers of the original inode and commit
+ * the entire written range.
+ */
+static int mext_folio_mkwrite(struct inode *inode, struct folio *folio,
+			      size_t from, size_t to)
+{
+	unsigned int blocksize = i_blocksize(inode);
+	struct buffer_head *bh, *head;
+	size_t block_start, block_end;
+	sector_t block;
+	int ret;
+
+	head = folio_buffers(folio);
+	if (!head)
+		head = create_empty_buffers(folio, blocksize, 0);
+
+	block = folio_pos(folio) >> inode->i_blkbits;
+	block_end = 0;
+	bh = head;
+	do {
+		block_start = block_end;
+		block_end = block_start + blocksize;
+		if (block_end <= from || block_start >= to)
+			continue;
+
+		ret = ext4_get_block(inode, block, bh, 0);
+		if (ret)
+			return ret;
+	} while (block++, (bh = bh->b_this_page) != head);
+
+	block_commit_write(folio, from, to);
+	return 0;
+}
+
+/*
+ * Save the data in original inode extent blocks and replace one folio size
+ * aligned original inode extent with one or one partial donor inode extent,
+ * and then write out the saved data in new original inode blocks. Pass out
+ * the replaced block count through m_len. Return 0 on success, and an error
+ * code otherwise.
+ */
+static __used int mext_move_extent(struct mext_data *mext, u64 *m_len)
+{
+	struct inode *orig_inode = mext->orig_inode;
+	struct inode *donor_inode = mext->donor_inode;
+	struct ext4_map_blocks *orig_map = &mext->orig_map;
+	unsigned int blkbits = orig_inode->i_blkbits;
+	struct folio *folio[2] = {NULL, NULL};
+	loff_t from, length;
+	enum mext_move_type move_type = 0;
+	handle_t *handle;
+	u64 r_len = 0;
+	unsigned int credits;
+	int ret, ret2;
+
+	*m_len = 0;
+	credits = ext4_chunk_trans_extent(orig_inode, 0) * 2;
+	handle = ext4_journal_start(orig_inode, EXT4_HT_MOVE_EXTENTS, credits);
+	if (IS_ERR(handle))
+		return PTR_ERR(handle);
+
+	ret = mext_move_begin(mext, folio, &move_type);
+	if (ret)
+		goto stop_handle;
+
+	if (move_type == MEXT_SKIP_EXTENT)
+		goto unlock;
+
+	/*
+	 * Copy the data. First, read the original inode data into the page
+	 * cache. Then, release the existing mapping relationships and swap
+	 * the extent. Finally, re-establish the new mapping relationships
+	 * and dirty the page cache.
+	 */
+	if (move_type == MEXT_COPY_DATA) {
+		from = offset_in_folio(folio[0],
+				((loff_t)orig_map->m_lblk) << blkbits);
+		length = ((loff_t)orig_map->m_len) << blkbits;
+
+		ret = mext_folio_mkuptodate(folio[0], from, from + length);
+		if (ret)
+			goto unlock;
+	}
+
+	if (!filemap_release_folio(folio[0], 0) ||
+	    !filemap_release_folio(folio[1], 0)) {
+		ret = -EBUSY;
+		goto unlock;
+	}
+
+	/* Move extent */
+	ext4_double_down_write_data_sem(orig_inode, donor_inode);
+	*m_len = ext4_swap_extents(handle, orig_inode, donor_inode,
+				   orig_map->m_lblk, mext->donor_lblk,
+				   orig_map->m_len, 1, &ret);
+	ext4_double_up_write_data_sem(orig_inode, donor_inode);
+
+	/* A short-length swap cannot occur after a successful swap extent. */
+	if (WARN_ON_ONCE(!ret && (*m_len != orig_map->m_len)))
+		ret = -EIO;
+
+	if (!(*m_len) || (move_type == MEXT_MOVE_EXTENT))
+		goto unlock;
+
+	/* Copy data */
+	length = (*m_len) << blkbits;
+	ret2 = mext_folio_mkwrite(orig_inode, folio[0], from, from + length);
+	if (ret2) {
+		if (!ret)
+			ret = ret2;
+		goto repair_branches;
+	}
+	/*
+	 * Even in case of data=writeback it is reasonable to pin
+	 * inode to transaction, to prevent unexpected data loss.
+	 */
+	ret2 = ext4_jbd2_inode_add_write(handle, orig_inode,
+			((loff_t)orig_map->m_lblk) << blkbits, length);
+	if (!ret)
+		ret = ret2;
+unlock:
+	mext_folio_double_unlock(folio);
+stop_handle:
+	ext4_journal_stop(handle);
+	return ret;
+
+repair_branches:
+	ret2 = 0;
+	r_len = ext4_swap_extents(handle, donor_inode, orig_inode,
+				  mext->donor_lblk, orig_map->m_lblk,
+				  *m_len, 0, &ret2);
+	if (ret2 || r_len != *m_len) {
+		ext4_error_inode_block(orig_inode, (sector_t)(orig_map->m_lblk),
+				       EIO, "Unable to copy data block, data will be lost!");
+		ret = -EIO;
+	}
+	*m_len = 0;
+	goto unlock;
 }
 
 /**
