@@ -6,7 +6,6 @@
 
 #include "smbdirect_internal.h"
 
-static void smbdirect_connection_destroy_mr_list(struct smbdirect_socket *sc);
 static void smbdirect_connection_mr_io_recovery_work(struct work_struct *work);
 
 /*

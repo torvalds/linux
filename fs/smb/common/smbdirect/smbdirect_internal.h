@@ -39,6 +39,14 @@ static int smbdirect_socket_wait_for_credits(struct smbdirect_socket *sc,
 					     atomic_t *total_credits,
 					     int needed);
 
+static void smbdirect_connection_destroy_qp(struct smbdirect_socket *sc);
+
+static void smbdirect_connection_destroy_mem_pools(struct smbdirect_socket *sc);
+
+static void smbdirect_connection_put_recv_io(struct smbdirect_recv_io *msg);
+
 static void smbdirect_connection_idle_timer_work(struct work_struct *work);
+
+static void smbdirect_connection_destroy_mr_list(struct smbdirect_socket *sc);
 
 #endif /* __FS_SMB_COMMON_SMBDIRECT_INTERNAL_H__ */

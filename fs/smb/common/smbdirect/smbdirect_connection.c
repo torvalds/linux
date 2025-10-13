@@ -77,8 +77,6 @@ static u32 smbdirect_rdma_rw_send_wrs(struct ib_device *dev,
 	return factor * attr->cap.max_rdma_ctxs;
 }
 
-static void smbdirect_connection_destroy_qp(struct smbdirect_socket *sc);
-
 __maybe_unused /* this is temporary while this file is included in others */
 static int smbdirect_connection_create_qp(struct smbdirect_socket *sc)
 {
@@ -257,8 +255,6 @@ static void smbdirect_connection_destroy_qp(struct smbdirect_socket *sc)
 		sc->ib.pd = NULL;
 	}
 }
-
-static void smbdirect_connection_destroy_mem_pools(struct smbdirect_socket *sc);
 
 __maybe_unused /* this is temporary while this file is included in others */
 static int smbdirect_connection_create_mem_pools(struct smbdirect_socket *sc)
