@@ -1641,16 +1641,6 @@ group_extend_out:
 		if (!(fd_file(donor)->f_mode & FMODE_WRITE))
 			return -EBADF;
 
-		if (ext4_has_feature_bigalloc(sb)) {
-			ext4_msg(sb, KERN_ERR,
-				 "Online defrag not supported with bigalloc");
-			return -EOPNOTSUPP;
-		} else if (IS_DAX(inode)) {
-			ext4_msg(sb, KERN_ERR,
-				 "Online defrag not supported with DAX");
-			return -EOPNOTSUPP;
-		}
-
 		err = mnt_want_write_file(filp);
 		if (err)
 			return err;
