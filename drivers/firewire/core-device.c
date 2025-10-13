@@ -557,6 +557,54 @@ static int detect_quirks_by_bus_information_block(const u32 *bus_information_blo
 	return quirks;
 }
 
+struct entry_match {
+	unsigned int index;
+	u32 value;
+};
+
+static const struct entry_match motu_audio_express_matches[] = {
+	{ 1, 0x030001f2 },
+	{ 3, 0xd1000002 },
+	{ 4, 0x8d000005 },
+	{ 6, 0x120001f2 },
+	{ 7, 0x13000033 },
+	{ 8, 0x17104800 },
+};
+
+static int detect_quirks_by_root_directory(const u32 *root_directory, unsigned int length)
+{
+	static const struct {
+		enum fw_device_quirk quirk;
+		const struct entry_match *matches;
+		unsigned int match_count;
+	} *entry, entries[] = {
+		{
+			.quirk = FW_DEVICE_QUIRK_ACK_PACKET_WITH_INVALID_PENDING_CODE,
+			.matches = motu_audio_express_matches,
+			.match_count = ARRAY_SIZE(motu_audio_express_matches),
+		},
+	};
+	int quirks = 0;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(entries); ++i) {
+		int j;
+
+		entry = entries + i;
+		for (j = 0; j < entry->match_count; ++j) {
+			unsigned int index = entry->matches[j].index;
+			unsigned int value = entry->matches[j].value;
+
+			if ((length < index) || (root_directory[index] != value))
+				break;
+		}
+		if (j == entry->match_count)
+			quirks |= entry->quirk;
+	}
+
+	return quirks;
+}
+
 static int read_rom(struct fw_device *device,
 		    int generation, int index, u32 *data)
 {
@@ -736,6 +784,11 @@ static int read_config_rom(struct fw_device *device, int generation)
 		if (length < i)
 			length = i;
 	}
+
+	quirks |= detect_quirks_by_root_directory(rom + ROOT_DIR_OFFSET, length - ROOT_DIR_OFFSET);
+
+	// Just prevent from torn writing/reading.
+	WRITE_ONCE(device->quirks, quirks);
 
 	old_rom = device->config_rom;
 	new_rom = kmemdup(rom, length * 4, GFP_KERNEL);

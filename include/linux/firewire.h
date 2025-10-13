@@ -176,6 +176,9 @@ enum fw_device_quirk {
 
 	// See a509e43ff338 ("firewire: core: fix unstable I/O with Canon camcorder").
 	FW_DEVICE_QUIRK_IRM_IGNORES_BUS_MANAGER = BIT(1),
+
+	// MOTU Audio Express transfers acknowledge packet with 0x10 for pending state.
+	FW_DEVICE_QUIRK_ACK_PACKET_WITH_INVALID_PENDING_CODE = BIT(2),
 };
 
 enum fw_device_state {
