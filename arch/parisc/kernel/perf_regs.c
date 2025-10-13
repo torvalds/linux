@@ -27,7 +27,7 @@ u64 perf_reg_value(struct pt_regs *regs, int idx)
 		return regs->ior;
 	case PERF_REG_PARISC_IPSW:	/* CR22 */
 		return regs->ipsw;
-	};
+	}
 	WARN_ON_ONCE((u32)idx >= PERF_REG_PARISC_MAX);
 	return 0;
 }
