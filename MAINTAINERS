@@ -26885,7 +26885,7 @@ S:	Maintained
 F:	drivers/vfio/cdx/*
 
 VFIO DRIVER
-M:	Alex Williamson <alex.williamson@redhat.com>
+M:	Alex Williamson <alex@shazbot.org>
 L:	kvm@vger.kernel.org
 S:	Maintained
 T:	git https://github.com/awilliam/linux-vfio.git
@@ -27048,7 +27048,7 @@ T:	git git://linuxtv.org/media.git
 F:	drivers/media/test-drivers/vimc/*
 
 VIRT LIB
-M:	Alex Williamson <alex.williamson@redhat.com>
+M:	Alex Williamson <alex@shazbot.org>
 M:	Paolo Bonzini <pbonzini@redhat.com>
 L:	kvm@vger.kernel.org
 S:	Supported
