@@ -278,8 +278,7 @@ u64 __pure btrfs_space_info_used(const struct btrfs_space_info *s_info,
 void btrfs_clear_space_info_full(struct btrfs_fs_info *info);
 void btrfs_dump_space_info(struct btrfs_space_info *info, u64 bytes,
 			   bool dump_block_groups);
-int btrfs_reserve_metadata_bytes(struct btrfs_fs_info *fs_info,
-				 struct btrfs_space_info *space_info,
+int btrfs_reserve_metadata_bytes(struct btrfs_space_info *space_info,
 				 u64 orig_bytes,
 				 enum btrfs_reserve_flush_enum flush);
 void btrfs_try_granting_tickets(struct btrfs_space_info *space_info);

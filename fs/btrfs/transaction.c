@@ -575,7 +575,7 @@ static int btrfs_reserve_trans_metadata(struct btrfs_fs_info *fs_info,
 	 * We want to reserve all the bytes we may need all at once, so we only
 	 * do 1 enospc flushing cycle per transaction start.
 	 */
-	ret = btrfs_reserve_metadata_bytes(fs_info, si, bytes, flush);
+	ret = btrfs_reserve_metadata_bytes(si, bytes, flush);
 
 	/*
 	 * If we are an emergency flush, which can steal from the global block
@@ -585,7 +585,7 @@ static int btrfs_reserve_trans_metadata(struct btrfs_fs_info *fs_info,
 	if (ret && flush == BTRFS_RESERVE_FLUSH_ALL_STEAL) {
 		bytes -= *delayed_refs_bytes;
 		*delayed_refs_bytes = 0;
-		ret = btrfs_reserve_metadata_bytes(fs_info, si, bytes, flush);
+		ret = btrfs_reserve_metadata_bytes(si, bytes, flush);
 	}
 
 	return ret;
