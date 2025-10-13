@@ -165,7 +165,7 @@ mext_folio_double_lock(struct inode *inode1, struct inode *inode2,
 }
 
 /* Force folio buffers uptodate w/o dropping folio's lock */
-static int mext_page_mkuptodate(struct folio *folio, size_t from, size_t to)
+static int mext_folio_mkuptodate(struct folio *folio, size_t from, size_t to)
 {
 	struct inode *inode = folio->mapping->host;
 	sector_t block;
@@ -358,7 +358,7 @@ again:
 data_copy:
 	from = offset_in_folio(folio[0],
 			       orig_blk_offset << orig_inode->i_blkbits);
-	*err = mext_page_mkuptodate(folio[0], from, from + replaced_size);
+	*err = mext_folio_mkuptodate(folio[0], from, from + replaced_size);
 	if (*err)
 		goto unlock_folios;
 
