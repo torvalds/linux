@@ -311,8 +311,8 @@ const void *xe_pci_id_gen_param(struct kunit *test, const void *prev, char *desc
 }
 EXPORT_SYMBOL_IF_KUNIT(xe_pci_id_gen_param);
 
-static void fake_read_gmdid(struct xe_device *xe, enum xe_gmdid_type type,
-			    u32 *ver, u32 *revid)
+static int fake_read_gmdid(struct xe_device *xe, enum xe_gmdid_type type,
+			   u32 *ver, u32 *revid)
 {
 	struct kunit *test = kunit_get_current_test();
 	struct xe_pci_fake_data *data = test->priv;
@@ -324,6 +324,8 @@ static void fake_read_gmdid(struct xe_device *xe, enum xe_gmdid_type type,
 		*ver = data->graphics_verx100;
 		*revid = xe_step_to_gmdid(data->step.graphics);
 	}
+
+	return 0;
 }
 
 static void fake_xe_info_probe_tile_count(struct xe_device *xe)

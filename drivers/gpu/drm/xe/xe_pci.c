@@ -464,7 +464,7 @@ enum xe_gmdid_type {
 	GMDID_MEDIA
 };
 
-static void read_gmdid(struct xe_device *xe, enum xe_gmdid_type type, u32 *ver, u32 *revid)
+static int read_gmdid(struct xe_device *xe, enum xe_gmdid_type type, u32 *ver, u32 *revid)
 {
 	struct xe_mmio *mmio = xe_root_tile_mmio(xe);
 	struct xe_reg gmdid_reg = GMD_ID;
@@ -473,22 +473,24 @@ static void read_gmdid(struct xe_device *xe, enum xe_gmdid_type type, u32 *ver, 
 	KUNIT_STATIC_STUB_REDIRECT(read_gmdid, xe, type, ver, revid);
 
 	if (IS_SRIOV_VF(xe)) {
-		struct xe_gt *gt = xe_root_mmio_gt(xe);
-
 		/*
 		 * To get the value of the GMDID register, VFs must obtain it
 		 * from the GuC using MMIO communication.
 		 *
-		 * Note that at this point the xe_gt is not fully uninitialized
-		 * and only basic access to MMIO registers is possible. To use
-		 * our existing GuC communication functions we must perform at
-		 * least basic xe_gt and xe_guc initialization.
-		 *
-		 * Since to obtain the value of GMDID_MEDIA we need to use the
-		 * media GuC, temporarily tweak the gt type.
+		 * Note that at this point the GTs are not initialized and only
+		 * tile-level access to MMIO registers is possible. To use our
+		 * existing GuC communication functions we must create a dummy
+		 * GT structure and perform at least basic xe_gt and xe_guc
+		 * initialization.
 		 */
-		xe_gt_assert(gt, gt->info.type == XE_GT_TYPE_UNINITIALIZED);
+		struct xe_gt *gt __free(kfree) = NULL;
+		int err;
 
+		gt = kzalloc(sizeof(*gt), GFP_KERNEL);
+		if (!gt)
+			return -ENOMEM;
+
+		gt->tile = &xe->tiles[0];
 		if (type == GMDID_MEDIA) {
 			gt->info.id = 1;
 			gt->info.type = XE_GT_TYPE_MEDIA;
@@ -500,15 +502,11 @@ static void read_gmdid(struct xe_device *xe, enum xe_gmdid_type type, u32 *ver, 
 		xe_gt_mmio_init(gt);
 		xe_guc_comm_init_early(&gt->uc.guc);
 
-		/* Don't bother with GMDID if failed to negotiate the GuC ABI */
-		val = xe_gt_sriov_vf_bootstrap(gt) ? 0 : xe_gt_sriov_vf_gmdid(gt);
+		err = xe_gt_sriov_vf_bootstrap(gt);
+		if (err)
+			return err;
 
-		/*
-		 * Only undo xe_gt.info here, the remaining changes made above
-		 * will be overwritten as part of the regular initialization.
-		 */
-		gt->info.id = 0;
-		gt->info.type = XE_GT_TYPE_UNINITIALIZED;
+		val = xe_gt_sriov_vf_gmdid(gt);
 	} else {
 		/*
 		 * GMD_ID is a GT register, but at this point in the driver
@@ -526,6 +524,8 @@ static void read_gmdid(struct xe_device *xe, enum xe_gmdid_type type, u32 *ver, 
 
 	*ver = REG_FIELD_GET(GMD_ID_ARCH_MASK, val) * 100 + REG_FIELD_GET(GMD_ID_RELEASE_MASK, val);
 	*revid = REG_FIELD_GET(GMD_ID_REVID, val);
+
+	return 0;
 }
 
 static const struct xe_ip *find_graphics_ip(unsigned int verx100)
@@ -552,18 +552,21 @@ static const struct xe_ip *find_media_ip(unsigned int verx100)
  * Read IP version from hardware and select graphics/media IP descriptors
  * based on the result.
  */
-static void handle_gmdid(struct xe_device *xe,
-			 const struct xe_ip **graphics_ip,
-			 const struct xe_ip **media_ip,
-			 u32 *graphics_revid,
-			 u32 *media_revid)
+static int handle_gmdid(struct xe_device *xe,
+			const struct xe_ip **graphics_ip,
+			const struct xe_ip **media_ip,
+			u32 *graphics_revid,
+			u32 *media_revid)
 {
 	u32 ver;
+	int ret;
 
 	*graphics_ip = NULL;
 	*media_ip = NULL;
 
-	read_gmdid(xe, GMDID_GRAPHICS, &ver, graphics_revid);
+	ret = read_gmdid(xe, GMDID_GRAPHICS, &ver, graphics_revid);
+	if (ret)
+		return ret;
 
 	*graphics_ip = find_graphics_ip(ver);
 	if (!*graphics_ip) {
@@ -571,16 +574,21 @@ static void handle_gmdid(struct xe_device *xe,
 			ver / 100, ver % 100);
 	}
 
-	read_gmdid(xe, GMDID_MEDIA, &ver, media_revid);
+	ret = read_gmdid(xe, GMDID_MEDIA, &ver, media_revid);
+	if (ret)
+		return ret;
+
 	/* Media may legitimately be fused off / not present */
 	if (ver == 0)
-		return;
+		return 0;
 
 	*media_ip = find_media_ip(ver);
 	if (!*media_ip) {
 		drm_err(&xe->drm, "Hardware reports unknown media version %u.%02u\n",
 			ver / 100, ver % 100);
 	}
+
+	return 0;
 }
 
 /*
@@ -691,6 +699,7 @@ static int xe_info_init(struct xe_device *xe,
 	const struct xe_media_desc *media_desc;
 	struct xe_tile *tile;
 	struct xe_gt *gt;
+	int ret;
 	u8 id;
 
 	/*
@@ -706,8 +715,11 @@ static int xe_info_init(struct xe_device *xe,
 		xe->info.step = xe_step_pre_gmdid_get(xe);
 	} else {
 		xe_assert(xe, !desc->pre_gmdid_media_ip);
-		handle_gmdid(xe, &graphics_ip, &media_ip,
-			     &graphics_gmdid_revid, &media_gmdid_revid);
+		ret = handle_gmdid(xe, &graphics_ip, &media_ip,
+				   &graphics_gmdid_revid, &media_gmdid_revid);
+		if (ret)
+			return ret;
+
 		xe->info.step = xe_step_gmdid_get(xe,
 						  graphics_gmdid_revid,
 						  media_gmdid_revid);
