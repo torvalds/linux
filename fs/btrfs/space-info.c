@@ -1489,12 +1489,12 @@ static const enum btrfs_flush_state evict_flush_states[] = {
 	RESET_ZONES,
 };
 
-static void priority_reclaim_metadata_space(struct btrfs_fs_info *fs_info,
-				struct btrfs_space_info *space_info,
-				struct reserve_ticket *ticket,
-				const enum btrfs_flush_state *states,
-				int states_nr)
+static void priority_reclaim_metadata_space(struct btrfs_space_info *space_info,
+					    struct reserve_ticket *ticket,
+					    const enum btrfs_flush_state *states,
+					    int states_nr)
 {
+	struct btrfs_fs_info *fs_info = space_info->fs_info;
 	u64 to_reclaim;
 	int flush_state = 0;
 
@@ -1638,12 +1638,12 @@ static int handle_reserve_ticket(struct btrfs_fs_info *fs_info,
 		wait_reserve_ticket(space_info, ticket);
 		break;
 	case BTRFS_RESERVE_FLUSH_LIMIT:
-		priority_reclaim_metadata_space(fs_info, space_info, ticket,
+		priority_reclaim_metadata_space(space_info, ticket,
 						priority_flush_states,
 						ARRAY_SIZE(priority_flush_states));
 		break;
 	case BTRFS_RESERVE_FLUSH_EVICT:
-		priority_reclaim_metadata_space(fs_info, space_info, ticket,
+		priority_reclaim_metadata_space(space_info, ticket,
 						evict_flush_states,
 						ARRAY_SIZE(evict_flush_states));
 		break;
