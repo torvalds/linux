@@ -460,8 +460,6 @@ static int ov01a10_init_controls(struct ov01a10 *ov01a10)
 						    V4L2_CID_LINK_FREQ,
 						    ov01a10->link_freq_index, 0,
 						    link_freq_menu_items);
-	if (ov01a10->link_freq)
-		ov01a10->link_freq->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
 	ov01a10->pixel_rate = v4l2_ctrl_new_std(ctrl_hdlr, &ov01a10_ctrl_ops,
 						V4L2_CID_PIXEL_RATE, 0,
@@ -478,8 +476,6 @@ static int ov01a10_init_controls(struct ov01a10 *ov01a10)
 	ov01a10->hblank = v4l2_ctrl_new_std(ctrl_hdlr, &ov01a10_ctrl_ops,
 					    V4L2_CID_HBLANK, h_blank, h_blank,
 					    1, h_blank);
-	if (ov01a10->hblank)
-		ov01a10->hblank->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
 	v4l2_ctrl_new_std(ctrl_hdlr, &ov01a10_ctrl_ops, V4L2_CID_ANALOGUE_GAIN,
 			  OV01A10_ANAL_GAIN_MIN, OV01A10_ANAL_GAIN_MAX,
@@ -515,6 +511,9 @@ static int ov01a10_init_controls(struct ov01a10 *ov01a10)
 		ret = ctrl_hdlr->error;
 		goto fail;
 	}
+
+	ov01a10->link_freq->flags |= V4L2_CTRL_FLAG_READ_ONLY;
+	ov01a10->hblank->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
 	ov01a10->sd.ctrl_handler = ctrl_hdlr;
 
