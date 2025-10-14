@@ -136,19 +136,13 @@ static unsigned int macb_dma_desc_get_size(struct macb *bp)
 static unsigned int macb_adj_dma_desc_idx(struct macb *bp, unsigned int desc_idx)
 {
 #ifdef MACB_EXT_DESC
-	switch (bp->hw_dma_cap) {
-	case HW_DMA_CAP_64B:
-	case HW_DMA_CAP_PTP:
-		desc_idx <<= 1;
-		break;
-	case HW_DMA_CAP_64B_PTP:
-		desc_idx *= 3;
-		break;
-	default:
-		break;
-	}
-#endif
+	bool is_ptp = bp->hw_dma_cap & HW_DMA_CAP_PTP;
+	bool is_64b = bp->hw_dma_cap & HW_DMA_CAP_64B;
+
+	return desc_idx * (1 + is_64b + is_ptp);
+#else
 	return desc_idx;
+#endif
 }
 
 #ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
