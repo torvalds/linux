@@ -29,6 +29,9 @@ struct mpsse_priv {
 	u8 gpio_outputs[2];	     /* Output states for GPIOs [L, H] */
 	u8 gpio_dir[2];		     /* Directions for GPIOs [L, H] */
 
+	unsigned long dir_in;        /* Bitmask of valid input pins  */
+	unsigned long dir_out;       /* Bitmask of valid output pins */
+
 	u8 *bulk_in_buf;	     /* Extra recv buffer to grab status bytes */
 
 	struct usb_endpoint_descriptor *bulk_in;
@@ -52,6 +55,14 @@ struct bulk_desc {
 				    /* Data to read if rx */
 	int len_actual;		    /* Length successfully transferred */
 	int timeout;
+};
+
+#define MPSSE_NGPIO 16
+
+struct mpsse_quirk {
+	const char   *names[MPSSE_NGPIO]; /* Pin names, if applicable     */
+	unsigned long dir_in;             /* Bitmask of valid input pins  */
+	unsigned long dir_out;            /* Bitmask of valid output pins */
 };
 
 static const struct usb_device_id gpio_mpsse_table[] = {
@@ -171,12 +182,42 @@ static int gpio_mpsse_get_bank(struct mpsse_priv *priv, u8 bank)
 	return buf;
 }
 
+static int mpsse_ensure_supported(struct gpio_chip *chip,
+				  unsigned long mask, int direction)
+{
+	unsigned long supported, unsupported;
+	char *type = "input";
+	struct mpsse_priv *priv = gpiochip_get_data(chip);
+
+	supported = priv->dir_in;
+	if (direction == GPIO_LINE_DIRECTION_OUT) {
+		supported = priv->dir_out;
+		type = "output";
+	}
+
+	/* An invalid bit was in the provided mask */
+	unsupported = mask & ~supported;
+	if (unsupported) {
+		dev_err(&priv->udev->dev,
+			"mpsse: GPIO %lu doesn't support %s\n",
+			find_first_bit(&unsupported, sizeof(unsupported) * 8),
+			type);
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
 static int gpio_mpsse_set_multiple(struct gpio_chip *chip, unsigned long *mask,
 				   unsigned long *bits)
 {
 	unsigned long i, bank, bank_mask, bank_bits;
 	int ret;
 	struct mpsse_priv *priv = gpiochip_get_data(chip);
+
+	ret = mpsse_ensure_supported(chip, *mask, GPIO_LINE_DIRECTION_OUT);
+	if (ret)
+		return ret;
 
 	guard(mutex)(&priv->io_mutex);
 	for_each_set_clump8(i, bank_mask, mask, chip->ngpio) {
@@ -204,6 +245,10 @@ static int gpio_mpsse_get_multiple(struct gpio_chip *chip, unsigned long *mask,
 	unsigned long i, bank, bank_mask;
 	int ret;
 	struct mpsse_priv *priv = gpiochip_get_data(chip);
+
+	ret = mpsse_ensure_supported(chip, *mask, GPIO_LINE_DIRECTION_IN);
+	if (ret)
+		return ret;
 
 	guard(mutex)(&priv->io_mutex);
 	for_each_set_clump8(i, bank_mask, mask, chip->ngpio) {
@@ -253,9 +298,14 @@ static int gpio_mpsse_gpio_set(struct gpio_chip *chip, unsigned int offset,
 static int gpio_mpsse_direction_output(struct gpio_chip *chip,
 				       unsigned int offset, int value)
 {
+	int ret;
 	struct mpsse_priv *priv = gpiochip_get_data(chip);
 	int bank = (offset & 8) >> 3;
 	int bank_offset = offset & 7;
+
+	ret = mpsse_ensure_supported(chip, BIT(offset), GPIO_LINE_DIRECTION_OUT);
+	if (ret)
+		return ret;
 
 	scoped_guard(mutex, &priv->io_mutex)
 		priv->gpio_dir[bank] |= BIT(bank_offset);
@@ -266,9 +316,14 @@ static int gpio_mpsse_direction_output(struct gpio_chip *chip,
 static int gpio_mpsse_direction_input(struct gpio_chip *chip,
 				      unsigned int offset)
 {
+	int ret;
 	struct mpsse_priv *priv = gpiochip_get_data(chip);
 	int bank = (offset & 8) >> 3;
 	int bank_offset = offset & 7;
+
+	ret = mpsse_ensure_supported(chip, BIT(offset), GPIO_LINE_DIRECTION_IN);
+	if (ret)
+		return ret;
 
 	guard(mutex)(&priv->io_mutex);
 	priv->gpio_dir[bank] &= ~BIT(bank_offset);
@@ -482,17 +537,48 @@ static void gpio_mpsse_ida_remove(void *data)
 	ida_free(&gpio_mpsse_ida, priv->id);
 }
 
+static int mpsse_init_valid_mask(struct gpio_chip *chip,
+				 unsigned long *valid_mask,
+				 unsigned int ngpios)
+{
+	struct mpsse_priv *priv = gpiochip_get_data(chip);
+
+	if (WARN_ON(priv == NULL))
+		return -ENODEV;
+
+	*valid_mask = priv->dir_in | priv->dir_out;
+
+	return 0;
+}
+
+static void mpsse_irq_init_valid_mask(struct gpio_chip *chip,
+				      unsigned long *valid_mask,
+				      unsigned int ngpios)
+{
+	struct mpsse_priv *priv = gpiochip_get_data(chip);
+
+	if (WARN_ON(priv == NULL))
+		return;
+
+	/* Can only use IRQ on input capable pins */
+	*valid_mask = priv->dir_in;
+}
+
 static int gpio_mpsse_probe(struct usb_interface *interface,
 			    const struct usb_device_id *id)
 {
 	struct mpsse_priv *priv;
 	struct device *dev;
+	char *serial;
 	int err;
+	struct mpsse_quirk *quirk = (void *)id->driver_info;
 
 	dev = &interface->dev;
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
+
+	INIT_LIST_HEAD(&priv->workers);
 
 	priv->udev = usb_get_dev(interface_to_usbdev(interface));
 	priv->intf = interface;
@@ -520,9 +606,15 @@ static int gpio_mpsse_probe(struct usb_interface *interface,
 
 	raw_spin_lock_init(&priv->irq_spin);
 
+	serial = priv->udev->serial;
+	if (!serial)
+		serial = "NONE";
+
 	priv->gpio.label = devm_kasprintf(dev, GFP_KERNEL,
-					  "gpio-mpsse.%d.%d",
-					  priv->id, priv->intf_id);
+					  "MPSSE%04x:%04x.%d.%d.%s",
+					  id->idVendor, id->idProduct,
+					  priv->intf_id, priv->id,
+					  serial);
 	if (!priv->gpio.label)
 		return -ENOMEM;
 
@@ -536,9 +628,19 @@ static int gpio_mpsse_probe(struct usb_interface *interface,
 	priv->gpio.get_multiple = gpio_mpsse_get_multiple;
 	priv->gpio.set_multiple = gpio_mpsse_set_multiple;
 	priv->gpio.base = -1;
-	priv->gpio.ngpio = 16;
+	priv->gpio.ngpio = MPSSE_NGPIO;
 	priv->gpio.offset = priv->intf_id * priv->gpio.ngpio;
 	priv->gpio.can_sleep = 1;
+
+	if (quirk) {
+		priv->dir_out = quirk->dir_out;
+		priv->dir_in = quirk->dir_in;
+		priv->gpio.names = quirk->names;
+		priv->gpio.init_valid_mask = mpsse_init_valid_mask;
+	} else {
+		priv->dir_in = U16_MAX;
+		priv->dir_out = U16_MAX;
+	}
 
 	err = usb_find_common_endpoints(interface->cur_altsetting,
 					&priv->bulk_in, &priv->bulk_out,
@@ -578,6 +680,7 @@ static int gpio_mpsse_probe(struct usb_interface *interface,
 	priv->gpio.irq.parents = NULL;
 	priv->gpio.irq.default_type = IRQ_TYPE_NONE;
 	priv->gpio.irq.handler = handle_simple_irq;
+	priv->gpio.irq.init_valid_mask = mpsse_irq_init_valid_mask;
 
 	err = devm_gpiochip_add_data(dev, &priv->gpio, priv);
 	if (err)
