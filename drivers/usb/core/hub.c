@@ -41,6 +41,7 @@
 #include "hub.h"
 #include "phy.h"
 #include "otg_productlist.h"
+#include "trace.h"
 
 #define USB_VENDOR_GENESYS_LOGIC		0x05e3
 #define USB_VENDOR_SMSC				0x0424
@@ -2154,6 +2155,7 @@ static void update_usb_device_state(struct usb_device *udev,
 
 	udev->state = new_state;
 	update_port_device_state(udev);
+	trace_usb_set_device_state(udev);
 }
 
 static void recursively_mark_NOTATTACHED(struct usb_device *udev)
