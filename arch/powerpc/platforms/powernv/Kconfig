@@ -9,6 +9,7 @@ config PPC_POWERNV
 	select PPC_P7_NAP
 	select FORCE_PCI
 	select PCI_MSI
+	select IRQ_MSI_LIB
 	select EPAPR_BOOT
 	select PPC_INDIRECT_PIO
 	select PPC_UDBG_16550

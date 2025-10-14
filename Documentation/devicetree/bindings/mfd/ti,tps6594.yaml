@@ -41,6 +41,7 @@ properties:
   system-power-controller: true
 
   gpio-controller: true
+  gpio-line-names: true
 
   '#gpio-cells':
     const: 2

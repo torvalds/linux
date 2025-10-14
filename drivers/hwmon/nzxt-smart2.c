@@ -721,11 +721,6 @@ static int __maybe_unused nzxt_smart2_hid_reset_resume(struct hid_device *hdev)
 	return init_device(drvdata, drvdata->update_interval);
 }
 
-static void mutex_fini(void *lock)
-{
-	mutex_destroy(lock);
-}
-
 static int nzxt_smart2_hid_probe(struct hid_device *hdev,
 				 const struct hid_device_id *id)
 {
@@ -741,8 +736,7 @@ static int nzxt_smart2_hid_probe(struct hid_device *hdev,
 
 	init_waitqueue_head(&drvdata->wq);
 
-	mutex_init(&drvdata->mutex);
-	ret = devm_add_action_or_reset(&hdev->dev, mutex_fini, &drvdata->mutex);
+	ret = devm_mutex_init(&hdev->dev, &drvdata->mutex);
 	if (ret)
 		return ret;
 

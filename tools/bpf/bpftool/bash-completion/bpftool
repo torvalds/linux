@@ -262,7 +262,7 @@ _bpftool()
     # Deal with options
     if [[ ${words[cword]} == -* ]]; then
         local c='--version --json --pretty --bpffs --mapcompat --debug \
-            --use-loader --base-btf'
+            --use-loader --base-btf --sign -i -k'
         COMPREPLY=( $( compgen -W "$c" -- "$cur" ) )
         return 0
     fi
@@ -283,7 +283,7 @@ _bpftool()
             _sysfs_get_netdevs
             return 0
             ;;
-        file|pinned|-B|--base-btf)
+        file|pinned|-B|--base-btf|-i|-k)
             _filedir
             return 0
             ;;
@@ -296,13 +296,21 @@ _bpftool()
     # Remove all options so completions don't have to deal with them.
     local i pprev
     for (( i=1; i < ${#words[@]}; )); do
-        if [[ ${words[i]::1} == - ]] &&
-            [[ ${words[i]} != "-B" ]] && [[ ${words[i]} != "--base-btf" ]]; then
-            words=( "${words[@]:0:i}" "${words[@]:i+1}" )
-            [[ $i -le $cword ]] && cword=$(( cword - 1 ))
-        else
-            i=$(( ++i ))
-        fi
+        case ${words[i]} in
+            # Remove option and its argument
+            -B|--base-btf|-i|-k)
+                words=( "${words[@]:0:i}" "${words[@]:i+2}" )
+                [[ $i -le $(($cword + 1)) ]] && cword=$(( cword - 2 ))
+                ;;
+            # No argument, remove option only
+            -*)
+                words=( "${words[@]:0:i}" "${words[@]:i+1}" )
+                [[ $i -le $cword ]] && cword=$(( cword - 1 ))
+                ;;
+            *)
+                i=$(( ++i ))
+                ;;
+        esac
     done
     cur=${words[cword]}
     prev=${words[cword - 1]}
@@ -1213,6 +1221,17 @@ _bpftool()
                     [[ $prev == $object ]] && \
                         COMPREPLY=( $( compgen -W 'help pin detach show list' -- "$cur" ) )
                     ;;
+            esac
+            ;;
+        token)
+            case $command in
+               show|list)
+                   return 0
+                   ;;
+               *)
+                   [[ $prev == $object ]] && \
+                       COMPREPLY=( $( compgen -W 'help show list' -- "$cur" ) )
+                   ;;
             esac
             ;;
     esac

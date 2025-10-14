@@ -73,11 +73,17 @@ struct rcar_gen3_thermal_fuse_info {
 	u32 mask;
 };
 
+struct rcar_gen3_thermal_fuse_default {
+	u32 ptat[3];
+	u32 thcodes[TSC_MAX_NUM][3];
+};
+
 struct rcar_thermal_info {
 	int scale;
 	int adj_below;
 	int adj_above;
 	const struct rcar_gen3_thermal_fuse_info *fuses;
+	const struct rcar_gen3_thermal_fuse_default *fuse_defaults;
 };
 
 struct equation_set_coef {
@@ -165,7 +171,7 @@ static int rcar_gen3_thermal_get_temp(struct thermal_zone_device *tz, int *temp)
 	const struct equation_set_coef *coef;
 	int adj, decicelsius, reg, thcode;
 
-	/* Read register and convert to mili Celsius */
+	/* Read register and convert to millidegree Celsius */
 	reg = rcar_gen3_thermal_read(tsc, REG_GEN3_TEMP) & CTEMP_MASK;
 
 	if (reg < tsc->thcode[1]) {
@@ -289,6 +295,7 @@ static void rcar_gen3_thermal_fetch_fuses(struct rcar_gen3_thermal_priv *priv)
 
 static bool rcar_gen3_thermal_read_fuses(struct rcar_gen3_thermal_priv *priv)
 {
+	const struct rcar_gen3_thermal_fuse_default *fuse_defaults = priv->info->fuse_defaults;
 	unsigned int i;
 	u32 thscp;
 
@@ -297,24 +304,16 @@ static bool rcar_gen3_thermal_read_fuses(struct rcar_gen3_thermal_priv *priv)
 	if (!priv->info->fuses ||
 	    (thscp & THSCP_COR_PARA_VLD) != THSCP_COR_PARA_VLD) {
 		/* Default THCODE values in case FUSEs are not set. */
-		static const int thcodes[TSC_MAX_NUM][3] = {
-			{ 3397, 2800, 2221 },
-			{ 3393, 2795, 2216 },
-			{ 3389, 2805, 2237 },
-			{ 3415, 2694, 2195 },
-			{ 3356, 2724, 2244 },
-		};
-
-		priv->ptat[0] = 2631;
-		priv->ptat[1] = 1509;
-		priv->ptat[2] = 435;
+		priv->ptat[0] = fuse_defaults->ptat[0];
+		priv->ptat[1] = fuse_defaults->ptat[1];
+		priv->ptat[2] = fuse_defaults->ptat[2];
 
 		for (i = 0; i < priv->num_tscs; i++) {
 			struct rcar_gen3_thermal_tsc *tsc = priv->tscs[i];
 
-			tsc->thcode[0] = thcodes[i][0];
-			tsc->thcode[1] = thcodes[i][1];
-			tsc->thcode[2] = thcodes[i][2];
+			tsc->thcode[0] = fuse_defaults->thcodes[i][0];
+			tsc->thcode[1] = fuse_defaults->thcodes[i][1];
+			tsc->thcode[2] = fuse_defaults->thcodes[i][2];
 		}
 
 		return false;
@@ -361,11 +360,33 @@ static const struct rcar_gen3_thermal_fuse_info rcar_gen3_thermal_fuse_info_gen4
 	.mask = GEN4_FUSE_MASK,
 };
 
+static const struct rcar_gen3_thermal_fuse_default rcar_gen3_thermal_fuse_default_info_gen3 = {
+	.ptat = { 2631, 1509, 435 },
+	.thcodes = {
+		{ 3397, 2800, 2221 },
+		{ 3393, 2795, 2216 },
+		{ 3389, 2805, 2237 },
+		{ 3415, 2694, 2195 },
+		{ 3356, 2724, 2244 },
+	},
+};
+
+static const struct rcar_gen3_thermal_fuse_default rcar_gen3_thermal_fuse_default_info_gen4 = {
+	.ptat = { 3274, 2164, 985 },
+	.thcodes = { /* All four THS units share the same trimming */
+		{ 3218, 2617, 1980 },
+		{ 3218, 2617, 1980 },
+		{ 3218, 2617, 1980 },
+		{ 3218, 2617, 1980 },
+	}
+};
+
 static const struct rcar_thermal_info rcar_m3w_thermal_info = {
 	.scale = 157,
 	.adj_below = -41,
 	.adj_above = 116,
 	.fuses = &rcar_gen3_thermal_fuse_info_gen3,
+	.fuse_defaults = &rcar_gen3_thermal_fuse_default_info_gen3,
 };
 
 static const struct rcar_thermal_info rcar_gen3_thermal_info = {
@@ -373,6 +394,15 @@ static const struct rcar_thermal_info rcar_gen3_thermal_info = {
 	.adj_below = -41,
 	.adj_above = 126,
 	.fuses = &rcar_gen3_thermal_fuse_info_gen3,
+	.fuse_defaults = &rcar_gen3_thermal_fuse_default_info_gen3,
+};
+
+static const struct rcar_thermal_info rcar_s4_thermal_info = {
+	.scale = 167,
+	.adj_below = -41,
+	.adj_above = 126,
+	.fuses = &rcar_gen3_thermal_fuse_info_gen4,
+	.fuse_defaults = &rcar_gen3_thermal_fuse_default_info_gen3,
 };
 
 static const struct rcar_thermal_info rcar_gen4_thermal_info = {
@@ -380,6 +410,7 @@ static const struct rcar_thermal_info rcar_gen4_thermal_info = {
 	.adj_below = -41,
 	.adj_above = 126,
 	.fuses = &rcar_gen3_thermal_fuse_info_gen4,
+	.fuse_defaults = &rcar_gen3_thermal_fuse_default_info_gen4,
 };
 
 static const struct of_device_id rcar_gen3_thermal_dt_ids[] = {
@@ -421,7 +452,7 @@ static const struct of_device_id rcar_gen3_thermal_dt_ids[] = {
 	},
 	{
 		.compatible = "renesas,r8a779f0-thermal",
-		.data = &rcar_gen4_thermal_info,
+		.data = &rcar_s4_thermal_info,
 	},
 	{
 		.compatible = "renesas,r8a779g0-thermal",

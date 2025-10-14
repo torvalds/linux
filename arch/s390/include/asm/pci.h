@@ -246,6 +246,16 @@ int clp_refresh_fh(u32 fid, u32 *fh);
 /* UID */
 void update_uid_checking(bool new);
 
+/* Firmware Sysfs */
+int __init __zpci_fw_sysfs_init(void);
+
+static inline int __init zpci_fw_sysfs_init(void)
+{
+	if (IS_ENABLED(CONFIG_SYSFS))
+		return __zpci_fw_sysfs_init();
+	return 0;
+}
+
 /* IOMMU Interface */
 int zpci_init_iommu(struct zpci_dev *zdev);
 void zpci_destroy_iommu(struct zpci_dev *zdev);

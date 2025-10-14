@@ -68,7 +68,7 @@
 #define ERR_EC_ESL_MISMATCH		-1
 #define ERR_DEEP_STATE_ESL_MISMATCH	-2
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #define PNV_IDLE_NAME_LEN    16
 struct pnv_idle_states_t {

@@ -30,7 +30,7 @@ disabled and enabled, as well as for preemption and from a time
 a task is woken to the task is actually scheduled in.
 
 One of the most common uses of ftrace is the event tracing.
-Throughout the kernel is hundreds of static event points that
+Throughout the kernel are hundreds of static event points that
 can be enabled via the tracefs file system to see what is
 going on in certain parts of the kernel.
 
@@ -383,7 +383,7 @@ of ftrace. Here is a list of some of the key files:
 	not be listed in this count.
 
 	If the callback registered to be traced by a function with
-	the "save regs" attribute (thus even more overhead), a 'R'
+	the "save regs" attribute (thus even more overhead), an 'R'
 	will be displayed on the same line as the function that
 	is returning registers.
 
@@ -392,7 +392,7 @@ of ftrace. Here is a list of some of the key files:
 	an 'I' will be displayed on the same line as the function that
 	can be overridden.
 
-	If a non ftrace trampoline is attached (BPF) a 'D' will be displayed.
+	If a non-ftrace trampoline is attached (BPF) a 'D' will be displayed.
 	Note, normal ftrace trampolines can also be attached, but only one
 	"direct" trampoline can be attached to a given function at a time.
 
@@ -402,7 +402,7 @@ of ftrace. Here is a list of some of the key files:
 
 	If a function had either the "ip modify" or a "direct" call attached to
 	it in the past, a 'M' will be shown. This flag is never cleared. It is
-	used to know if a function was every modified by the ftrace infrastructure,
+	used to know if a function was ever modified by the ftrace infrastructure,
 	and can be used for debugging.
 
 	If the architecture supports it, it will also show what callback
@@ -418,7 +418,7 @@ of ftrace. Here is a list of some of the key files:
 
 	This file contains all the functions that ever had a function callback
 	to it via the ftrace infrastructure. It has the same format as
-	enabled_functions but shows all functions that have every been
+	enabled_functions but shows all functions that have ever been
 	traced.
 
 	To see any function that has every been modified by "ip modify" or a
@@ -517,7 +517,7 @@ of ftrace. Here is a list of some of the key files:
 	Whenever an event is recorded into the ring buffer, a
 	"timestamp" is added. This stamp comes from a specified
 	clock. By default, ftrace uses the "local" clock. This
-	clock is very fast and strictly per cpu, but on some
+	clock is very fast and strictly per CPU, but on some
 	systems it may not be monotonic with respect to other
 	CPUs. In other words, the local clocks may not be in sync
 	with local clocks on other CPUs.
@@ -868,7 +868,7 @@ Here is the list of current tracers that may be configured.
 
   "mmiotrace"
 
-	A special tracer that is used to trace binary module.
+	A special tracer that is used to trace binary modules.
 	It will trace all the calls that a module makes to the
 	hardware. Everything it writes and reads from the I/O
 	as well.

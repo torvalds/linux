@@ -1,0 +1,90 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/ti,twl4030-audio.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Texas Instruments TWL4030-family Audio Module
+
+maintainers:
+  - Peter Ujfalusi <peter.ujfalusi@gmail.com>
+
+description:
+  The audio module within the TWL4030-family of companion chips consists
+  of an audio codec and a vibra driver. This binding describes the parent
+  node for these functions.
+
+properties:
+  compatible:
+    const: ti,twl4030-audio
+
+  codec:
+    type: object
+    description: Node containing properties for the audio codec functionality.
+
+    properties:
+      ti,digimic_delay:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        description:
+          Delay in milliseconds after enabling digital microphones to reduce
+          artifacts.
+
+      ti,ramp_delay_value:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        description:
+          Headset ramp delay configuration to reduce pop noise.
+
+      ti,hs_extmute:
+        type: boolean
+        description:
+          Enable the use of an external mute for headset pop reduction.
+
+      ti,hs_extmute_gpio:
+        $ref: /schemas/types.yaml#/definitions/phandle-array
+        description:
+          The GPIO specifier for the external mute control.
+        maxItems: 1
+
+      ti,offset_cncl_path:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        description:
+          Offset cancellation path selection. Refer to the Technical
+          Reference Manual for valid values.
+
+  # The 'codec' node itself is optional, but if it exists, it can be empty.
+  # We don't require any of its sub-properties.
+
+  ti,enable-vibra:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1]
+    description:
+      Enable or disable the vibra functionality.
+
+additionalProperties: false
+
+required:
+  - compatible
+
+examples:
+  - |
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      twl: twl@48 {
+        reg = <0x48>;
+        interrupts = <7>; /* SYS_NIRQ cascaded to intc */
+        interrupt-parent = <&intc>;
+
+        twl_audio: audio {
+          compatible = "ti,twl4030-audio";
+
+          ti,enable-vibra = <1>;
+
+          codec {
+            ti,ramp_delay_value = <3>;
+          };
+
+        };
+      };
+    };

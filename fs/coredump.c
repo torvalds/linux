@@ -635,7 +635,7 @@ static int umh_coredump_setup(struct subprocess_info *info, struct cred *new)
 
 		/*
 		 * Usermode helpers are childen of either
-		 * system_unbound_wq or of kthreadd. So we know that
+		 * system_dfl_wq or of kthreadd. So we know that
 		 * we're starting off with a clean file descriptor
 		 * table. So we should always be able to use
 		 * COREDUMP_PIDFD_NUMBER as our file descriptor value.
@@ -1103,8 +1103,10 @@ void vfs_coredump(const kernel_siginfo_t *siginfo)
 		 * We must use the same mm->flags while dumping core to avoid
 		 * inconsistency of bit flags, since this flag is not protected
 		 * by any locks.
+		 *
+		 * Note that we only care about MMF_DUMP* flags.
 		 */
-		.mm_flags = mm->flags,
+		.mm_flags = __mm_flags_get_dumpable(mm),
 		.vma_meta = NULL,
 		.cpu = raw_smp_processor_id(),
 	};

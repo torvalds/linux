@@ -241,7 +241,7 @@ static int try_fmt(struct v4l2_vbi_format *f, const struct bttv_tvnorm *tvnorm,
 	return 0;
 }
 
-int bttv_try_fmt_vbi_cap(struct file *file, void *f, struct v4l2_format *frt)
+int bttv_try_fmt_vbi_cap(struct file *file, void *priv, struct v4l2_format *frt)
 {
 	struct bttv *btv = video_drvdata(file);
 	const struct bttv_tvnorm *tvnorm;
@@ -258,7 +258,7 @@ int bttv_try_fmt_vbi_cap(struct file *file, void *f, struct v4l2_format *frt)
 }
 
 
-int bttv_s_fmt_vbi_cap(struct file *file, void *f, struct v4l2_format *frt)
+int bttv_s_fmt_vbi_cap(struct file *file, void *priv, struct v4l2_format *frt)
 {
 	struct bttv *btv = video_drvdata(file);
 	const struct bttv_tvnorm *tvnorm;
@@ -301,7 +301,7 @@ int bttv_s_fmt_vbi_cap(struct file *file, void *f, struct v4l2_format *frt)
 }
 
 
-int bttv_g_fmt_vbi_cap(struct file *file, void *f, struct v4l2_format *frt)
+int bttv_g_fmt_vbi_cap(struct file *file, void *priv, struct v4l2_format *frt)
 {
 	const struct bttv_tvnorm *tvnorm;
 	struct bttv *btv = video_drvdata(file);

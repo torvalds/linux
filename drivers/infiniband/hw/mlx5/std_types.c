@@ -83,33 +83,14 @@ static int fill_vport_icm_addr(struct mlx5_core_dev *mdev, u16 vport,
 static int fill_vport_vhca_id(struct mlx5_core_dev *mdev, u16 vport,
 			      struct mlx5_ib_uapi_query_port *info)
 {
-	size_t out_sz = MLX5_ST_SZ_BYTES(query_hca_cap_out);
-	u32 in[MLX5_ST_SZ_DW(query_hca_cap_in)] = {};
-	void *out;
-	int err;
+	int err = mlx5_vport_get_vhca_id(mdev, vport, &info->vport_vhca_id);
 
-	out = kzalloc(out_sz, GFP_KERNEL);
-	if (!out)
-		return -ENOMEM;
-
-	MLX5_SET(query_hca_cap_in, in, opcode, MLX5_CMD_OP_QUERY_HCA_CAP);
-	MLX5_SET(query_hca_cap_in, in, other_function, true);
-	MLX5_SET(query_hca_cap_in, in, function_id, vport);
-	MLX5_SET(query_hca_cap_in, in, op_mod,
-		 MLX5_SET_HCA_CAP_OP_MOD_GENERAL_DEVICE |
-		 HCA_CAP_OPMOD_GET_CUR);
-
-	err = mlx5_cmd_exec(mdev, in, sizeof(in), out, out_sz);
 	if (err)
-		goto out;
-
-	info->vport_vhca_id = MLX5_GET(query_hca_cap_out, out,
-				       capability.cmd_hca_cap.vhca_id);
+		return err;
 
 	info->flags |= MLX5_IB_UAPI_QUERY_PORT_VPORT_VHCA_ID;
-out:
-	kfree(out);
-	return err;
+
+	return 0;
 }
 
 static int fill_multiport_info(struct mlx5_ib_dev *dev, u32 port_num,

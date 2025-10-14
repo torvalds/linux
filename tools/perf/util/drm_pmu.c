@@ -458,8 +458,10 @@ static int for_each_drm_fdinfo_in_dir(int (*cb)(void *args, int fdinfo_dir_fd, c
 		}
 		ret = cb(args, fdinfo_dir_fd, fd_entry->d_name);
 		if (ret)
-			return ret;
+			goto close_fdinfo;
 	}
+
+close_fdinfo:
 	if (fdinfo_dir_fd != -1)
 		close(fdinfo_dir_fd);
 	closedir(fd_dir);

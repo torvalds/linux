@@ -315,6 +315,10 @@ attribute-sets:
           If enabled, dpll device shall monitor and notify all currently
           available inputs for changes of their phase offset against the
           dpll device.
+      -
+        name: phase-offset-avg-factor
+        type: u32
+        doc: Averaging factor applied to calculation of reported phase offset.
   -
     name: pin
     enum-name: dpll_a_pin
@@ -523,6 +527,7 @@ operations:
             - clock-id
             - type
             - phase-offset-monitor
+            - phase-offset-avg-factor
 
       dump:
         reply: *dev-attrs
@@ -540,6 +545,7 @@ operations:
           attributes:
             - id
             - phase-offset-monitor
+            - phase-offset-avg-factor
     -
       name: device-create-ntf
       doc: Notification about device appearing

@@ -554,12 +554,16 @@ static int brcmf_fw_request_nvram_done(const struct firmware *fw, void *ctx)
 		data = (u8 *)fw->data;
 		data_len = fw->size;
 	} else {
-		if ((data = bcm47xx_nvram_get_contents(&data_len)))
+		data = bcm47xx_nvram_get_contents(&data_len);
+		if (data) {
 			free_bcm47xx_nvram = true;
-		else if ((data = brcmf_fw_nvram_from_efi(&data_len)))
-			kfree_nvram = true;
-		else if (!(cur->flags & BRCMF_FW_REQF_OPTIONAL))
-			goto fail;
+		} else {
+			data = brcmf_fw_nvram_from_efi(&data_len);
+			if (data)
+				kfree_nvram = true;
+			else if (!(cur->flags & BRCMF_FW_REQF_OPTIONAL))
+				goto fail;
+		}
 	}
 
 	if (data)

@@ -796,7 +796,7 @@ kfree_scale_thread(void *arg)
 		pr_alert("Total time taken by all kfree'ers: %llu ns, loops: %d, batches: %ld, memory footprint: %lldMB\n",
 		       (unsigned long long)(end_time - start_time), kfree_loops,
 		       rcuscale_seq_diff(b_rcu_gp_test_finished, b_rcu_gp_test_started),
-		       (mem_begin - mem_during) >> (20 - PAGE_SHIFT));
+		       PAGES_TO_MB(mem_begin - mem_during));
 
 		if (shutdown) {
 			smp_mb(); /* Assign before wake. */

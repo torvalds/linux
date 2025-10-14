@@ -274,10 +274,6 @@ are the following:
 	The time it takes to switch the CPUs belonging to this policy from one
 	P-state to another, in nanoseconds.
 
-	If unknown or if known to be so high that the scaling driver does not
-	work with the `ondemand`_ governor, -1 (:c:macro:`CPUFREQ_ETERNAL`)
-	will be returned by reads from this attribute.
-
 ``related_cpus``
 	List of all (online and offline) CPUs belonging to this policy.
 

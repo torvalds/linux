@@ -12,6 +12,7 @@
 #include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/pm_runtime.h>
+#include <linux/string_choices.h>
 #include <linux/uaccess.h>
 
 #include "tb.h"
@@ -691,7 +692,7 @@ static int margining_caps_show(struct seq_file *s, void *not_used)
 		seq_printf(s, "0x%08x\n", margining->caps[i]);
 
 	seq_printf(s, "# software margining: %s\n",
-		   supports_software(margining) ? "yes" : "no");
+		   str_yes_no(supports_software(margining)));
 	if (supports_hardware(margining)) {
 		seq_puts(s, "# hardware margining: yes\n");
 		seq_puts(s, "# minimum BER level contour: ");

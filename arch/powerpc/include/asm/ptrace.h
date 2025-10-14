@@ -24,7 +24,7 @@
 #include <asm/asm-const.h>
 #include <asm/reg.h>
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 struct pt_regs
 {
 	union {
@@ -165,7 +165,7 @@ struct pt_regs
 #define STACK_INT_FRAME_SIZE	(KERNEL_REDZONE_SIZE + STACK_USER_INT_FRAME_SIZE)
 #define STACK_INT_FRAME_MARKER_LONGS	(STACK_INT_FRAME_MARKER/sizeof(long))
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #include <asm/paca.h>
 
 #ifdef CONFIG_SMP
@@ -414,7 +414,7 @@ static inline unsigned long regs_get_kernel_argument(struct pt_regs *regs, unsig
 	return 0;
 }
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #ifndef __powerpc64__
 /* We need PT_SOFTE defined at all time to avoid #ifdefs */

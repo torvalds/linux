@@ -1111,7 +1111,7 @@ int omap_set_pwrdm_state(struct powerdomain *pwrdm, u8 pwrst)
 	int curr_pwrst;
 	int ret = 0;
 
-	if (!pwrdm || IS_ERR(pwrdm))
+	if (IS_ERR_OR_NULL(pwrdm))
 		return -EINVAL;
 
 	while (!(pwrdm->pwrsts & (1 << pwrst))) {

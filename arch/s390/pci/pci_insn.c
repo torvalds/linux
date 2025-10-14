@@ -145,7 +145,7 @@ int zpci_set_irq_ctrl(u16 ctl, u8 isc, union zpci_sic_iib *iib)
 		return -EIO;
 
 	asm volatile(
-		".insn	rsy,0xeb00000000d1,%[ctl],%[isc],%[iib]\n"
+		".insn	rsy,0xeb00000000d1,%[ctl],%[isc],%[iib]"
 		: : [ctl] "d" (ctl), [isc] "d" (isc << 27), [iib] "Q" (*iib));
 
 	return 0;
@@ -442,7 +442,7 @@ EXPORT_SYMBOL_GPL(zpci_write_block);
 
 static inline void __pciwb_mio(void)
 {
-	asm volatile (".insn    rre,0xb9d50000,0,0\n");
+	asm volatile (".insn    rre,0xb9d50000,0,0");
 }
 
 void zpci_barrier(void)

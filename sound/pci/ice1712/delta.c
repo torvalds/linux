@@ -126,13 +126,12 @@ static int ap_cs8427_sendbytes(struct snd_i2c_device *device, unsigned char *byt
 	int res = count;
 	unsigned char tmp;
 
-	mutex_lock(&ice->gpio_mutex);
+	guard(mutex)(&ice->gpio_mutex);
 	tmp = ap_cs8427_codec_select(ice);
 	ap_cs8427_write_byte(ice, (device->addr << 1) | 0, tmp); /* address + write mode */
 	while (count-- > 0)
 		ap_cs8427_write_byte(ice, *bytes++, tmp);
 	ap_cs8427_codec_deassert(ice, tmp);
-	mutex_unlock(&ice->gpio_mutex);
 	return res;
 }
 
@@ -143,13 +142,12 @@ static int ap_cs8427_readbytes(struct snd_i2c_device *device, unsigned char *byt
 	int res = count;
 	unsigned char tmp;
 	
-	mutex_lock(&ice->gpio_mutex);
+	guard(mutex)(&ice->gpio_mutex);
 	tmp = ap_cs8427_codec_select(ice);
 	ap_cs8427_write_byte(ice, (device->addr << 1) | 1, tmp); /* address + read mode */
 	while (count-- > 0)
 		*bytes++ = ap_cs8427_read_byte(ice, tmp);
 	ap_cs8427_codec_deassert(ice, tmp);
-	mutex_unlock(&ice->gpio_mutex);
 	return res;
 }
 
@@ -176,7 +174,7 @@ static void snd_ice1712_delta_cs8403_spdif_write(struct snd_ice1712 *ice, unsign
 	/* send byte to transmitter */
 	mask1 = ICE1712_DELTA_SPDIF_OUT_STAT_CLOCK;
 	mask2 = ICE1712_DELTA_SPDIF_OUT_STAT_DATA;
-	mutex_lock(&ice->gpio_mutex);
+	guard(mutex)(&ice->gpio_mutex);
 	tmp = snd_ice1712_read(ice, ICE1712_IREG_GPIO_DATA);
 	for (idx = 7; idx >= 0; idx--) {
 		tmp &= ~(mask1 | mask2);
@@ -190,7 +188,6 @@ static void snd_ice1712_delta_cs8403_spdif_write(struct snd_ice1712 *ice, unsign
 	}
 	tmp &= ~mask1;
 	snd_ice1712_write(ice, ICE1712_IREG_GPIO_DATA, tmp);
-	mutex_unlock(&ice->gpio_mutex);
 }
 
 
@@ -205,15 +202,13 @@ static int delta_spdif_default_put(struct snd_ice1712 *ice, struct snd_ctl_elem_
 	int change;
 
 	val = snd_cs8403_encode_spdif_bits(&ucontrol->value.iec958);
-	spin_lock_irq(&ice->reg_lock);
-	change = ice->spdif.cs8403_bits != val;
-	ice->spdif.cs8403_bits = val;
-	if (change && ice->playback_pro_substream == NULL) {
-		spin_unlock_irq(&ice->reg_lock);
-		snd_ice1712_delta_cs8403_spdif_write(ice, val);
-	} else {
-		spin_unlock_irq(&ice->reg_lock);
+	scoped_guard(spinlock_irq, &ice->reg_lock) {
+		change = ice->spdif.cs8403_bits != val;
+		ice->spdif.cs8403_bits = val;
+		if (!change || ice->playback_pro_substream)
+			return change;
 	}
+	snd_ice1712_delta_cs8403_spdif_write(ice, val);
 	return change;
 }
 
@@ -228,15 +223,13 @@ static int delta_spdif_stream_put(struct snd_ice1712 *ice, struct snd_ctl_elem_v
 	int change;
 
 	val = snd_cs8403_encode_spdif_bits(&ucontrol->value.iec958);
-	spin_lock_irq(&ice->reg_lock);
-	change = ice->spdif.cs8403_stream_bits != val;
-	ice->spdif.cs8403_stream_bits = val;
-	if (change && ice->playback_pro_substream != NULL) {
-		spin_unlock_irq(&ice->reg_lock);
-		snd_ice1712_delta_cs8403_spdif_write(ice, val);
-	} else {
-		spin_unlock_irq(&ice->reg_lock);
+	scoped_guard(spinlock_irq, &ice->reg_lock) {
+		change = ice->spdif.cs8403_stream_bits != val;
+		ice->spdif.cs8403_stream_bits = val;
+		if (!change || ice->playback_pro_substream)
+			return change;
 	}
+	snd_ice1712_delta_cs8403_spdif_write(ice, val);
 	return change;
 }
 
@@ -306,14 +299,13 @@ static void delta_1010_set_rate_val(struct snd_ice1712 *ice, unsigned int rate)
 	if (rate == 0)	/* no hint - S/PDIF input is master, simply return */
 		return;
 
-	mutex_lock(&ice->gpio_mutex);
+	guard(mutex)(&ice->gpio_mutex);
 	tmp = snd_ice1712_read(ice, ICE1712_IREG_GPIO_DATA);
 	tmp2 = tmp & ~ICE1712_DELTA_DFS;
 	if (rate > 48000)
 		tmp2 |= ICE1712_DELTA_DFS;
 	if (tmp != tmp2)
 		snd_ice1712_write(ice, ICE1712_IREG_GPIO_DATA, tmp2);
-	mutex_unlock(&ice->gpio_mutex);
 }
 
 /*
@@ -328,9 +320,9 @@ static void delta_ak4524_set_rate_val(struct snd_akm4xxx *ak, unsigned int rate)
 		return;
 
 	/* check before reset ak4524 to avoid unnecessary clicks */
-	mutex_lock(&ice->gpio_mutex);
-	tmp = snd_ice1712_read(ice, ICE1712_IREG_GPIO_DATA);
-	mutex_unlock(&ice->gpio_mutex);
+	scoped_guard(mutex, &ice->gpio_mutex) {
+		tmp = snd_ice1712_read(ice, ICE1712_IREG_GPIO_DATA);
+	}
 	tmp2 = tmp & ~ICE1712_DELTA_DFS; 
 	if (rate > 48000)
 		tmp2 |= ICE1712_DELTA_DFS;
@@ -339,12 +331,12 @@ static void delta_ak4524_set_rate_val(struct snd_akm4xxx *ak, unsigned int rate)
 
 	/* do it again */
 	snd_akm4xxx_reset(ak, 1);
-	mutex_lock(&ice->gpio_mutex);
-	tmp = snd_ice1712_read(ice, ICE1712_IREG_GPIO_DATA) & ~ICE1712_DELTA_DFS;
-	if (rate > 48000)
-		tmp |= ICE1712_DELTA_DFS;
-	snd_ice1712_write(ice, ICE1712_IREG_GPIO_DATA, tmp);
-	mutex_unlock(&ice->gpio_mutex);
+	scoped_guard(mutex, &ice->gpio_mutex) {
+		tmp = snd_ice1712_read(ice, ICE1712_IREG_GPIO_DATA) & ~ICE1712_DELTA_DFS;
+		if (rate > 48000)
+			tmp |= ICE1712_DELTA_DFS;
+		snd_ice1712_write(ice, ICE1712_IREG_GPIO_DATA, tmp);
+	}
 	snd_akm4xxx_reset(ak, 0);
 }
 
@@ -379,23 +371,22 @@ static void delta_open_spdif(struct snd_ice1712 *ice, struct snd_pcm_substream *
 /* set up */
 static void delta_setup_spdif(struct snd_ice1712 *ice, int rate)
 {
-	unsigned long flags;
 	unsigned int tmp;
 	int change;
 
-	spin_lock_irqsave(&ice->reg_lock, flags);
-	tmp = ice->spdif.cs8403_stream_bits;
-	if (tmp & 0x01)		/* consumer */
-		tmp &= (tmp & 0x01) ? ~0x06 : ~0x18;
-	switch (rate) {
-	case 32000: tmp |= (tmp & 0x01) ? 0x04 : 0x00; break;
-	case 44100: tmp |= (tmp & 0x01) ? 0x00 : 0x10; break;
-	case 48000: tmp |= (tmp & 0x01) ? 0x02 : 0x08; break;
-	default: tmp |= (tmp & 0x01) ? 0x00 : 0x18; break;
+	scoped_guard(spinlock_irqsave, &ice->reg_lock) {
+		tmp = ice->spdif.cs8403_stream_bits;
+		if (tmp & 0x01)		/* consumer */
+			tmp &= (tmp & 0x01) ? ~0x06 : ~0x18;
+		switch (rate) {
+		case 32000: tmp |= (tmp & 0x01) ? 0x04 : 0x00; break;
+		case 44100: tmp |= (tmp & 0x01) ? 0x00 : 0x10; break;
+		case 48000: tmp |= (tmp & 0x01) ? 0x02 : 0x08; break;
+		default: tmp |= (tmp & 0x01) ? 0x00 : 0x18; break;
+		}
+		change = ice->spdif.cs8403_stream_bits != tmp;
+		ice->spdif.cs8403_stream_bits = tmp;
 	}
-	change = ice->spdif.cs8403_stream_bits != tmp;
-	ice->spdif.cs8403_stream_bits = tmp;
-	spin_unlock_irqrestore(&ice->reg_lock, flags);
 	if (change)
 		snd_ctl_notify(ice->card, SNDRV_CTL_EVENT_MASK_VALUE, &ice->spdif.stream_ctl->id);
 	snd_ice1712_delta_cs8403_spdif_write(ice, tmp);

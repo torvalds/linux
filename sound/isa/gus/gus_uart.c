@@ -49,13 +49,12 @@ static void snd_gf1_interrupt_midi_in(struct snd_gus_card * gus)
 static void snd_gf1_interrupt_midi_out(struct snd_gus_card * gus)
 {
 	char byte;
-	unsigned long flags;
 
 	/* try unlock output */
 	if (snd_gf1_uart_stat(gus) & 0x01)
 		snd_gf1_interrupt_midi_in(gus);
 
-	spin_lock_irqsave(&gus->uart_cmd_lock, flags);
+	guard(spinlock_irqsave)(&gus->uart_cmd_lock);
 	if (snd_gf1_uart_stat(gus) & 0x02) {	/* Tx FIFO free? */
 		if (snd_rawmidi_transmit(gus->midi_substream_output, &byte, 1) != 1) {	/* no other bytes or error */
 			snd_gf1_uart_cmd(gus, gus->gf1.uart_cmd & ~0x20); /* disable Tx interrupt */
@@ -63,7 +62,6 @@ static void snd_gf1_interrupt_midi_out(struct snd_gus_card * gus)
 			snd_gf1_uart_put(gus, byte);
 		}
 	}
-	spin_unlock_irqrestore(&gus->uart_cmd_lock, flags);
 }
 
 static void snd_gf1_uart_reset(struct snd_gus_card * gus, int close)
@@ -77,17 +75,15 @@ static void snd_gf1_uart_reset(struct snd_gus_card * gus, int close)
 
 static int snd_gf1_uart_output_open(struct snd_rawmidi_substream *substream)
 {
-	unsigned long flags;
 	struct snd_gus_card *gus;
 
 	gus = substream->rmidi->private_data;
-	spin_lock_irqsave(&gus->uart_cmd_lock, flags);
+	guard(spinlock_irqsave)(&gus->uart_cmd_lock);
 	if (!(gus->gf1.uart_cmd & 0x80)) {	/* input active? */
 		snd_gf1_uart_reset(gus, 0);
 	}
 	gus->gf1.interrupt_handler_midi_out = snd_gf1_interrupt_midi_out;
 	gus->midi_substream_output = substream;
-	spin_unlock_irqrestore(&gus->uart_cmd_lock, flags);
 #if 0
 	dev_dbg(gus->card->dev,
 		"write init - cmd = 0x%x, stat = 0x%x\n",
@@ -98,12 +94,11 @@ static int snd_gf1_uart_output_open(struct snd_rawmidi_substream *substream)
 
 static int snd_gf1_uart_input_open(struct snd_rawmidi_substream *substream)
 {
-	unsigned long flags;
 	struct snd_gus_card *gus;
 	int i;
 
 	gus = substream->rmidi->private_data;
-	spin_lock_irqsave(&gus->uart_cmd_lock, flags);
+	guard(spinlock_irqsave)(&gus->uart_cmd_lock);
 	if (gus->gf1.interrupt_handler_midi_out != snd_gf1_interrupt_midi_out) {
 		snd_gf1_uart_reset(gus, 0);
 	}
@@ -115,7 +110,6 @@ static int snd_gf1_uart_input_open(struct snd_rawmidi_substream *substream)
 		if (i >= 1000)
 			dev_err(gus->card->dev, "gus midi uart init read - cleanup error\n");
 	}
-	spin_unlock_irqrestore(&gus->uart_cmd_lock, flags);
 #if 0
 	dev_dbg(gus->card->dev,
 		"read init - enable = %i, cmd = 0x%x, stat = 0x%x\n",
@@ -130,42 +124,37 @@ static int snd_gf1_uart_input_open(struct snd_rawmidi_substream *substream)
 
 static int snd_gf1_uart_output_close(struct snd_rawmidi_substream *substream)
 {
-	unsigned long flags;
 	struct snd_gus_card *gus;
 
 	gus = substream->rmidi->private_data;
-	spin_lock_irqsave(&gus->uart_cmd_lock, flags);
+	guard(spinlock_irqsave)(&gus->uart_cmd_lock);
 	if (gus->gf1.interrupt_handler_midi_in != snd_gf1_interrupt_midi_in)
 		snd_gf1_uart_reset(gus, 1);
 	snd_gf1_set_default_handlers(gus, SNDRV_GF1_HANDLER_MIDI_OUT);
 	gus->midi_substream_output = NULL;
-	spin_unlock_irqrestore(&gus->uart_cmd_lock, flags);
 	return 0;
 }
 
 static int snd_gf1_uart_input_close(struct snd_rawmidi_substream *substream)
 {
-	unsigned long flags;
 	struct snd_gus_card *gus;
 
 	gus = substream->rmidi->private_data;
-	spin_lock_irqsave(&gus->uart_cmd_lock, flags);
+	guard(spinlock_irqsave)(&gus->uart_cmd_lock);
 	if (gus->gf1.interrupt_handler_midi_out != snd_gf1_interrupt_midi_out)
 		snd_gf1_uart_reset(gus, 1);
 	snd_gf1_set_default_handlers(gus, SNDRV_GF1_HANDLER_MIDI_IN);
 	gus->midi_substream_input = NULL;
-	spin_unlock_irqrestore(&gus->uart_cmd_lock, flags);
 	return 0;
 }
 
 static void snd_gf1_uart_input_trigger(struct snd_rawmidi_substream *substream, int up)
 {
 	struct snd_gus_card *gus;
-	unsigned long flags;
 
 	gus = substream->rmidi->private_data;
 
-	spin_lock_irqsave(&gus->uart_cmd_lock, flags);
+	guard(spinlock_irqsave)(&gus->uart_cmd_lock);
 	if (up) {
 		if ((gus->gf1.uart_cmd & 0x80) == 0)
 			snd_gf1_uart_cmd(gus, gus->gf1.uart_cmd | 0x80); /* enable Rx interrupts */
@@ -173,7 +162,6 @@ static void snd_gf1_uart_input_trigger(struct snd_rawmidi_substream *substream, 
 		if (gus->gf1.uart_cmd & 0x80)
 			snd_gf1_uart_cmd(gus, gus->gf1.uart_cmd & ~0x80); /* disable Rx interrupts */
 	}
-	spin_unlock_irqrestore(&gus->uart_cmd_lock, flags);
 }
 
 static void snd_gf1_uart_output_trigger(struct snd_rawmidi_substream *substream, int up)

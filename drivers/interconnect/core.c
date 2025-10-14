@@ -385,7 +385,7 @@ struct icc_node_data *of_icc_get_from_provider(const struct of_phandle_args *spe
 
 	mutex_lock(&icc_lock);
 	list_for_each_entry(provider, &icc_providers, provider_list) {
-		if (provider->dev->of_node == spec->np) {
+		if (device_match_of_node(provider->dev, spec->np)) {
 			if (provider->xlate_extended) {
 				data = provider->xlate_extended(spec, provider->data);
 				if (!IS_ERR(data)) {

@@ -312,11 +312,9 @@
 				reg = <0x50>;
 			};
 
-			pwm@5e{
-				compatible = "max31790";
+			pwm@5e {
+				compatible = "maxim,max31790";
 				reg = <0x5e>;
-				#address-cells = <1>;
-				#size-cells = <0>;
 			};
 
 			power-sensor@40 {
@@ -435,11 +433,9 @@
 				reg = <0x50>;
 			};
 
-			pwm@5e{
-				compatible = "max31790";
+			pwm@5e {
+				compatible = "maxim,max31790";
 				reg = <0x5e>;
-				#address-cells = <1>;
-				#size-cells = <0>;
 			};
 
 			power-sensor@40 {
@@ -558,11 +554,9 @@
 				reg = <0x50>;
 			};
 
-			pwm@5e{
-				compatible = "max31790";
+			pwm@5e {
+				compatible = "maxim,max31790";
 				reg = <0x5e>;
-				#address-cells = <1>;
-				#size-cells = <0>;
 			};
 
 			power-sensor@40 {
@@ -681,11 +675,9 @@
 				reg = <0x50>;
 			};
 
-			pwm@5e{
-				compatible = "max31790";
+			pwm@5e {
+				compatible = "maxim,max31790";
 				reg = <0x5e>;
-				#address-cells = <1>;
-				#size-cells = <0>;
 			};
 
 			power-sensor@40 {
@@ -804,11 +796,9 @@
 				reg = <0x50>;
 			};
 
-			pwm@5e{
-				compatible = "max31790";
+			pwm@5e {
+				compatible = "maxim,max31790";
 				reg = <0x5e>;
-				#address-cells = <1>;
-				#size-cells = <0>;
 			};
 
 			power-sensor@40 {
@@ -926,11 +916,9 @@
 				reg = <0x50>;
 			};
 
-			pwm@5e{
-				compatible = "max31790";
+			pwm@5e {
+				compatible = "maxim,max31790";
 				reg = <0x5e>;
-				#address-cells = <1>;
-				#size-cells = <0>;
 			};
 
 			power-sensor@40 {

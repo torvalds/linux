@@ -58,6 +58,13 @@ properties:
               - ti,am62-lp-sk
           - const: ti,am625
 
+      - description: K3 AM6254atl SiP
+        items:
+          - enum:
+              - ti,am6254atl-sk
+          - const: ti,am6254atl
+          - const: ti,am625
+
       - description: K3 AM62x SoC Toradex Verdin Modules and Carrier Boards
         items:
           - enum:
@@ -104,6 +111,12 @@ properties:
               - toradex,verdin-am62p-wifi-yavia  # Verdin AM62P Wi-Fi / BT Module on Yavia
           - const: toradex,verdin-am62p-wifi     # Verdin AM62P Wi-Fi / BT Module
           - const: toradex,verdin-am62p          # Verdin AM62P Module
+          - const: ti,am62p5
+
+      - description: K3 AM62P5 SoC Variscite SOM and Carrier Boards
+        items:
+          - const: variscite,var-som-am62p-symphony
+          - const: variscite,var-som-am62p
           - const: ti,am62p5
 
       - description: K3 AM642 SoC

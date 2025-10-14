@@ -164,7 +164,7 @@ gnttab_set_map_op(struct gnttab_map_grant_ref *map, phys_addr_t addr,
 {
 	if (flags & GNTMAP_contains_pte)
 		map->host_addr = addr;
-	else if (xen_feature(XENFEAT_auto_translated_physmap))
+	else if (!xen_pv_domain())
 		map->host_addr = __pa(addr);
 	else
 		map->host_addr = addr;
@@ -181,7 +181,7 @@ gnttab_set_unmap_op(struct gnttab_unmap_grant_ref *unmap, phys_addr_t addr,
 {
 	if (flags & GNTMAP_contains_pte)
 		unmap->host_addr = addr;
-	else if (xen_feature(XENFEAT_auto_translated_physmap))
+	else if (!xen_pv_domain())
 		unmap->host_addr = __pa(addr);
 	else
 		unmap->host_addr = addr;

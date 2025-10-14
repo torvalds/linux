@@ -26,6 +26,7 @@
 #include <linux/lsm_hooks.h>
 #include <linux/msg.h>
 #include <net/net_namespace.h>
+#include <linux/bpf.h>
 #include "flask.h"
 #include "avc.h"
 
@@ -245,4 +246,23 @@ selinux_perf_event(void *perf_event)
 	return perf_event + selinux_blob_sizes.lbs_perf_event;
 }
 
+#ifdef CONFIG_BPF_SYSCALL
+static inline struct bpf_security_struct *
+selinux_bpf_map_security(struct bpf_map *map)
+{
+	return map->security + selinux_blob_sizes.lbs_bpf_map;
+}
+
+static inline struct bpf_security_struct *
+selinux_bpf_prog_security(struct bpf_prog *prog)
+{
+	return prog->aux->security + selinux_blob_sizes.lbs_bpf_prog;
+}
+
+static inline struct bpf_security_struct *
+selinux_bpf_token_security(struct bpf_token *token)
+{
+	return token->security + selinux_blob_sizes.lbs_bpf_token;
+}
+#endif /* CONFIG_BPF_SYSCALL */
 #endif /* _SELINUX_OBJSEC_H_ */

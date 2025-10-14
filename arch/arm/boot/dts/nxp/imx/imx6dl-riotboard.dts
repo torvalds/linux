@@ -389,8 +389,6 @@
 };
 
 &iomuxc {
-	pinctrl-names = "default";
-
 	pinctrl_audmux: audmuxgrp {
 		fsl,pins = <
 			MX6QDL_PAD_CSI0_DAT7__AUD3_RXD		0x130b0

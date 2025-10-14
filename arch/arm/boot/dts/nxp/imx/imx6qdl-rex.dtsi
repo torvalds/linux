@@ -23,7 +23,6 @@
 
 	reg_usbh1_vbus: regulator-usbh1-vbus {
 		compatible = "regulator-fixed";
-		pinctrl-names = "default";
 		regulator-name = "usbh1_vbus";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
@@ -33,7 +32,6 @@
 
 	reg_usb_otg_vbus: regulator-otg-vbus {
 		compatible = "regulator-fixed";
-		pinctrl-names = "default";
 		regulator-name = "usb_otg_vbus";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;

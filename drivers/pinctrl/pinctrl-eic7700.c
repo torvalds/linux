@@ -634,7 +634,7 @@ static int eic7700_pinctrl_probe(struct platform_device *pdev)
 		return PTR_ERR(pc->base);
 
 	regulator = devm_regulator_get(dev, "vrgmii");
-	if (IS_ERR_OR_NULL(regulator)) {
+	if (IS_ERR(regulator)) {
 		return dev_err_probe(dev, PTR_ERR(regulator),
 					 "failed to get vrgmii regulator\n");
 	}

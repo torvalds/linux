@@ -241,7 +241,7 @@ static struct fw_node *build_tree(struct fw_card *card, const u32 *sid, int self
 		// If PHYs report different gap counts, set an invalid count which will force a gap
 		// count reconfiguration and a reset.
 		if (phy_packet_self_id_zero_get_gap_count(self_id_sequence[0]) != gap_count)
-			gap_count = 0;
+			gap_count = GAP_COUNT_MISMATCHED;
 
 		update_hop_count(node);
 
@@ -325,9 +325,11 @@ static void report_found_node(struct fw_card *card,
 	card->bm_retries = 0;
 }
 
-/* Must be called with card->lock held */
 void fw_destroy_nodes(struct fw_card *card)
+__must_hold(&card->lock)
 {
+	lockdep_assert_held(&card->lock);
+
 	card->color++;
 	if (card->local_node != NULL)
 		for_each_fw_node(card, card->local_node, report_lost_node);
@@ -435,20 +437,22 @@ static void update_tree(struct fw_card *card, struct fw_node *root)
 	}
 }
 
-static void update_topology_map(struct fw_card *card,
-				u32 *self_ids, int self_id_count)
+static void update_topology_map(__be32 *buffer, size_t buffer_size, int root_node_id,
+				const u32 *self_ids, int self_id_count)
 {
-	int node_count = (card->root_node->node_id & 0x3f) + 1;
-	__be32 *map = card->topology_map;
+	__be32 *map = buffer;
+	int node_count = (root_node_id & 0x3f) + 1;
+
+	memset(map, 0, buffer_size);
 
 	*map++ = cpu_to_be32((self_id_count + 2) << 16);
-	*map++ = cpu_to_be32(be32_to_cpu(card->topology_map[1]) + 1);
+	*map++ = cpu_to_be32(be32_to_cpu(buffer[1]) + 1);
 	*map++ = cpu_to_be32((node_count << 16) | self_id_count);
 
 	while (self_id_count--)
 		*map++ = cpu_to_be32p(self_ids++);
 
-	fw_compute_block_crc(card->topology_map);
+	fw_compute_block_crc(buffer);
 }
 
 void fw_core_handle_bus_reset(struct fw_card *card, int node_id, int generation,
@@ -458,46 +462,45 @@ void fw_core_handle_bus_reset(struct fw_card *card, int node_id, int generation,
 
 	trace_bus_reset_handle(card->index, generation, node_id, bm_abdicate, self_ids, self_id_count);
 
-	guard(spinlock_irqsave)(&card->lock);
+	scoped_guard(spinlock, &card->lock) {
+		// If the selfID buffer is not the immediate successor of the
+		// previously processed one, we cannot reliably compare the
+		// old and new topologies.
+		if (!is_next_generation(generation, card->generation) && card->local_node != NULL) {
+			fw_destroy_nodes(card);
+			card->bm_retries = 0;
+		}
+		card->broadcast_channel_allocated = card->broadcast_channel_auto_allocated;
+		card->node_id = node_id;
+		// Update node_id before generation to prevent anybody from using
+		// a stale node_id together with a current generation.
+		smp_wmb();
+		card->generation = generation;
+		card->reset_jiffies = get_jiffies_64();
+		card->bm_node_id  = 0xffff;
+		card->bm_abdicate = bm_abdicate;
 
-	/*
-	 * If the selfID buffer is not the immediate successor of the
-	 * previously processed one, we cannot reliably compare the
-	 * old and new topologies.
-	 */
-	if (!is_next_generation(generation, card->generation) &&
-	    card->local_node != NULL) {
-		fw_destroy_nodes(card);
-		card->bm_retries = 0;
+		local_node = build_tree(card, self_ids, self_id_count, generation);
+
+		card->color++;
+
+		if (local_node == NULL) {
+			fw_err(card, "topology build failed\n");
+			// FIXME: We need to issue a bus reset in this case.
+		} else if (card->local_node == NULL) {
+			card->local_node = local_node;
+			for_each_fw_node(card, local_node, report_found_node);
+		} else {
+			update_tree(card, local_node);
+		}
 	}
 
-	card->broadcast_channel_allocated = card->broadcast_channel_auto_allocated;
-	card->node_id = node_id;
-	/*
-	 * Update node_id before generation to prevent anybody from using
-	 * a stale node_id together with a current generation.
-	 */
-	smp_wmb();
-	card->generation = generation;
-	card->reset_jiffies = get_jiffies_64();
-	card->bm_node_id  = 0xffff;
-	card->bm_abdicate = bm_abdicate;
 	fw_schedule_bm_work(card, 0);
 
-	local_node = build_tree(card, self_ids, self_id_count, generation);
-
-	update_topology_map(card, self_ids, self_id_count);
-
-	card->color++;
-
-	if (local_node == NULL) {
-		fw_err(card, "topology build failed\n");
-		/* FIXME: We need to issue a bus reset in this case. */
-	} else if (card->local_node == NULL) {
-		card->local_node = local_node;
-		for_each_fw_node(card, local_node, report_found_node);
-	} else {
-		update_tree(card, local_node);
+	// Just used by transaction layer.
+	scoped_guard(spinlock, &card->topology_map.lock) {
+		update_topology_map(card->topology_map.buffer, sizeof(card->topology_map.buffer),
+				    card->root_node->node_id, self_ids, self_id_count);
 	}
 }
 EXPORT_SYMBOL(fw_core_handle_bus_reset);

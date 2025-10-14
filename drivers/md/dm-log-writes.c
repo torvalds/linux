@@ -414,7 +414,7 @@ static int log_super(struct log_writes_c *lc)
 	}
 
 	/*
-	 * Super sector should be writen in-order, otherwise the
+	 * Super sector should be written in-order, otherwise the
 	 * nr_entries could be rewritten incorrectly by an old bio.
 	 */
 	wait_for_completion_io(&lc->super_done);

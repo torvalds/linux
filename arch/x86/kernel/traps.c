@@ -97,7 +97,7 @@ __always_inline int is_valid_bugaddr(unsigned long addr)
  * Check for UD1 or UD2, accounting for Address Size Override Prefixes.
  * If it's a UD1, further decode to determine its use:
  *
- * FineIBT:      ea                      (bad)
+ * FineIBT:      d6                      udb
  * FineIBT:      f0 75 f9                lock jne . - 6
  * UBSan{0}:     67 0f b9 00             ud1    (%eax),%eax
  * UBSan{10}:    67 0f b9 40 10          ud1    0x10(%eax),%eax
@@ -130,9 +130,9 @@ __always_inline int decode_bug(unsigned long addr, s32 *imm, int *len)
 		WARN_ON_ONCE(!lock);
 		return BUG_LOCK;
 
-	case 0xea:
+	case 0xd6:
 		*len = addr - start;
-		return BUG_EA;
+		return BUG_UDB;
 
 	case OPCODE_ESCAPE:
 		break;
@@ -341,7 +341,7 @@ static noinstr bool handle_bug(struct pt_regs *regs)
 		}
 		fallthrough;
 
-	case BUG_EA:
+	case BUG_UDB:
 	case BUG_LOCK:
 		if (handle_cfi_failure(regs) == BUG_TRAP_TYPE_WARN) {
 			handled = true;

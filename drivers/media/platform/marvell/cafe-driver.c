@@ -14,7 +14,7 @@
  * Written by Jonathan Corbet, corbet@lwn.net.
  *
  * v4l2_device/v4l2_subdev conversion by:
- * Copyright (C) 2009 Hans Verkuil <hverkuil@xs4all.nl>
+ * Copyright (C) 2009 Hans Verkuil <hverkuil@kernel.org>
  */
 #include <linux/kernel.h>
 #include <linux/module.h>

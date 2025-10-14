@@ -64,7 +64,7 @@ static irqreturn_t intel_sst_interrupt_mrfld(int irq, void *context)
 		header.p.header_high.part.done = 0;
 		sst_shim_write64(drv->shim, drv->ipc_reg.ipcx, header.full);
 
-		/* write 1 to clear status register */;
+		/* write 1 to clear status register */
 		isr.part.done_interrupt = 1;
 		sst_shim_write64(drv->shim, SST_ISRX, isr.full);
 		spin_unlock(&drv->ipc_spin_lock);

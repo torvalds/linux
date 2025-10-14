@@ -15,6 +15,7 @@
 #include <linux/mount.h>
 #include <linux/user_namespace.h>
 #include <linux/proc_ns.h>
+#include <linux/nstree.h>
 #include <linux/sched/task.h>
 
 #include "util.h"
@@ -61,12 +62,10 @@ static struct ipc_namespace *create_ipc_ns(struct user_namespace *user_ns,
 	if (ns == NULL)
 		goto fail_dec;
 
-	err = ns_alloc_inum(&ns->ns);
+	err = ns_common_init(ns);
 	if (err)
 		goto fail_free;
-	ns->ns.ops = &ipcns_operations;
 
-	refcount_set(&ns->ns.count, 1);
 	ns->user_ns = get_user_ns(user_ns);
 	ns->ucounts = ucounts;
 
@@ -87,6 +86,7 @@ static struct ipc_namespace *create_ipc_ns(struct user_namespace *user_ns,
 
 	sem_init_ns(ns);
 	shm_init_ns(ns);
+	ns_tree_add(ns);
 
 	return ns;
 
@@ -97,7 +97,7 @@ fail_mq:
 
 fail_put:
 	put_user_ns(ns->user_ns);
-	ns_free_inum(&ns->ns);
+	ns_common_free(ns);
 fail_free:
 	kfree(ns);
 fail_dec:
@@ -106,7 +106,7 @@ fail:
 	return ERR_PTR(err);
 }
 
-struct ipc_namespace *copy_ipcs(unsigned long flags,
+struct ipc_namespace *copy_ipcs(u64 flags,
 	struct user_namespace *user_ns, struct ipc_namespace *ns)
 {
 	if (!(flags & CLONE_NEWIPC))
@@ -161,7 +161,7 @@ static void free_ipc_ns(struct ipc_namespace *ns)
 
 	dec_ipc_namespaces(ns->ucounts);
 	put_user_ns(ns->user_ns);
-	ns_free_inum(&ns->ns);
+	ns_common_free(ns);
 	kfree(ns);
 }
 
@@ -199,18 +199,14 @@ static void free_ipc(struct work_struct *unused)
  */
 void put_ipc_ns(struct ipc_namespace *ns)
 {
-	if (refcount_dec_and_lock(&ns->ns.count, &mq_lock)) {
+	if (ns_ref_put_and_lock(ns, &mq_lock)) {
 		mq_clear_sbinfo(ns);
 		spin_unlock(&mq_lock);
 
+		ns_tree_remove(ns);
 		if (llist_add(&ns->mnt_llist, &free_ipc_list))
 			schedule_work(&free_ipc_work);
 	}
-}
-
-static inline struct ipc_namespace *to_ipc_ns(struct ns_common *ns)
-{
-	return container_of(ns, struct ipc_namespace, ns);
 }
 
 static struct ns_common *ipcns_get(struct task_struct *task)
@@ -252,7 +248,6 @@ static struct user_namespace *ipcns_owner(struct ns_common *ns)
 
 const struct proc_ns_operations ipcns_operations = {
 	.name		= "ipc",
-	.type		= CLONE_NEWIPC,
 	.get		= ipcns_get,
 	.put		= ipcns_put,
 	.install	= ipcns_install,

@@ -974,13 +974,17 @@ static int smc_ib_add_dev(struct ib_device *ibdev)
 					   smcibdev->pnetid[i]))
 			smc_pnetid_by_table_ib(smcibdev, i + 1);
 		smc_copy_netdev_ifindex(smcibdev, i);
-		pr_warn_ratelimited("smc:    ib device %s port %d has pnetid "
-				    "%.16s%s\n",
-				    smcibdev->ibdev->name, i + 1,
-				    smcibdev->pnetid[i],
-				    smcibdev->pnetid_by_user[i] ?
-				     " (user defined)" :
-				     "");
+		if (smc_pnet_is_pnetid_set(smcibdev->pnetid[i]))
+			pr_warn_ratelimited("smc:    ib device %s port %d has pnetid %.16s%s\n",
+					    smcibdev->ibdev->name, i + 1,
+					    smcibdev->pnetid[i],
+					    smcibdev->pnetid_by_user[i] ?
+						" (user defined)" :
+						"");
+		else
+			pr_warn_ratelimited("smc:    ib device %s port %d has no pnetid\n",
+					    smcibdev->ibdev->name, i + 1);
+
 	}
 	schedule_work(&smcibdev->port_event_work);
 	return 0;

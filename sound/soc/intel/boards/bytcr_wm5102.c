@@ -288,7 +288,7 @@ static int byt_wm5102_init(struct snd_soc_pcm_runtime *runtime)
 	const struct snd_soc_dapm_route *custom_map = NULL;
 	int ret, jack_type, num_routes = 0;
 
-	card->dapm.idle_bias_off = true;
+	card->dapm.idle_bias = false;
 
 	ret = snd_soc_add_card_controls(card, byt_wm5102_controls,
 					ARRAY_SIZE(byt_wm5102_controls));
@@ -552,7 +552,7 @@ static int snd_byt_wm5102_mc_probe(struct platform_device *pdev)
 		acpi_dev_put(adev);
 	} else {
 		/* Special case for when the codec is missing from the DSTD */
-		strscpy(codec_name, "spi1.0", sizeof(codec_name));
+		strscpy(codec_name, "spi-wm5102", sizeof(codec_name));
 	}
 
 	codec_dev = bus_find_device_by_name(&spi_bus_type, NULL, codec_name);

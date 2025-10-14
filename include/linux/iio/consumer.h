@@ -382,6 +382,24 @@ int iio_read_channel_scale(struct iio_channel *chan, int *val,
 			   int *val2);
 
 /**
+ * iio_multiply_value() - Multiply an IIO value
+ * @result:	Destination pointer for the multiplication result
+ * @multiplier:	Multiplier.
+ * @type:	One of the IIO_VAL_* constants. This decides how the @val and
+ *		@val2 parameters are interpreted.
+ * @val:	Value being multiplied.
+ * @val2:	Value being multiplied. @val2 use depends on type.
+ *
+ * Multiply an IIO value with a s64 multiplier storing the result as
+ * IIO_VAL_INT. This is typically used for scaling.
+ *
+ * Returns:
+ * IIO_VAL_INT on success or a negative error-number on failure.
+ */
+int iio_multiply_value(int *result, s64 multiplier,
+		       unsigned int type, int val, int val2);
+
+/**
  * iio_convert_raw_to_processed() - Converts a raw value to a processed value
  * @chan:		The channel being queried
  * @raw:		The raw IIO to convert

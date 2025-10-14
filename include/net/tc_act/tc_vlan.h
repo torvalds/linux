@@ -10,6 +10,7 @@
 #include <linux/tc_act/tc_vlan.h>
 
 struct tcf_vlan_params {
+	int		  action;
 	int               tcfv_action;
 	unsigned char     tcfv_push_dst[ETH_ALEN];
 	unsigned char     tcfv_push_src[ETH_ALEN];

@@ -527,15 +527,15 @@ static int cs35l56_sdw_probe(struct sdw_slave *peripheral, const struct sdw_devi
 	case 0x3556:
 	case 0x3557:
 		regmap_config = &cs35l56_regmap_sdw;
-		cs35l56->base.fw_reg = &cs35l56_fw_reg;
 		break;
 	case 0x3563:
 		regmap_config = &cs35l63_regmap_sdw;
-		cs35l56->base.fw_reg = &cs35l63_fw_reg;
 		break;
 	default:
 		return -ENODEV;
 	}
+
+	cs35l56->base.type = ((unsigned int)id->driver_data) & 0xff;
 
 	cs35l56->base.regmap = devm_regmap_init(dev, &cs35l56_regmap_bus_sdw,
 					   peripheral, regmap_config);

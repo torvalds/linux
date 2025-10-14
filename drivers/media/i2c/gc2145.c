@@ -1331,7 +1331,7 @@ static int gc2145_probe(struct i2c_client *client)
 		return -EINVAL;
 
 	/* Get system clock (xclk) */
-	gc2145->xclk = devm_clk_get(dev, NULL);
+	gc2145->xclk = devm_v4l2_sensor_clk_get(dev, NULL);
 	if (IS_ERR(gc2145->xclk))
 		return dev_err_probe(dev, PTR_ERR(gc2145->xclk),
 				     "failed to get xclk\n");

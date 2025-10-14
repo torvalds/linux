@@ -504,9 +504,7 @@ iwl_mld_scan_get_cmd_gen_flags2(struct iwl_mld *mld,
 	 */
 	if (scan_status == IWL_MLD_SCAN_REGULAR &&
 	    ieee80211_vif_type_p2p(vif) == NL80211_IFTYPE_AP &&
-	    gen_flags & IWL_UMAC_SCAN_GEN_FLAGS_V2_FORCE_PASSIVE &&
-	    iwl_fw_lookup_notif_ver(mld->fw, SCAN_GROUP,
-				    CHANNEL_SURVEY_NOTIF, 0) >= 1)
+	    gen_flags & IWL_UMAC_SCAN_GEN_FLAGS_V2_FORCE_PASSIVE)
 		flags |= IWL_UMAC_SCAN_GEN_FLAGS2_COLLECT_CHANNEL_STATS;
 
 	return flags;

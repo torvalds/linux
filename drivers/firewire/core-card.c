@@ -229,8 +229,7 @@ void fw_schedule_bus_reset(struct fw_card *card, bool delayed, bool short_reset)
 
 	/* Use an arbitrary short delay to combine multiple reset requests. */
 	fw_card_get(card);
-	if (!queue_delayed_work(fw_workqueue, &card->br_work,
-				delayed ? DIV_ROUND_UP(HZ, 100) : 0))
+	if (!queue_delayed_work(fw_workqueue, &card->br_work, delayed ? msecs_to_jiffies(10) : 0))
 		fw_card_put(card);
 }
 EXPORT_SYMBOL(fw_schedule_bus_reset);
@@ -241,10 +240,10 @@ static void br_work(struct work_struct *work)
 
 	/* Delay for 2s after last reset per IEEE 1394 clause 8.2.1. */
 	if (card->reset_jiffies != 0 &&
-	    time_before64(get_jiffies_64(), card->reset_jiffies + 2 * HZ)) {
+	    time_is_after_jiffies64(card->reset_jiffies + secs_to_jiffies(2))) {
 		trace_bus_reset_postpone(card->index, card->generation, card->br_short);
 
-		if (!queue_delayed_work(fw_workqueue, &card->br_work, 2 * HZ))
+		if (!queue_delayed_work(fw_workqueue, &card->br_work, secs_to_jiffies(2)))
 			fw_card_put(card);
 		return;
 	}
@@ -280,225 +279,254 @@ void fw_schedule_bm_work(struct fw_card *card, unsigned long delay)
 		fw_card_put(card);
 }
 
+enum bm_contention_outcome {
+	// The bus management contention window is not expired.
+	BM_CONTENTION_OUTCOME_WITHIN_WINDOW = 0,
+	// The IRM node has link off.
+	BM_CONTENTION_OUTCOME_IRM_HAS_LINK_OFF,
+	// The IRM node complies IEEE 1394:1994 only.
+	BM_CONTENTION_OUTCOME_IRM_COMPLIES_1394_1995_ONLY,
+	// Another bus reset, BM work has been rescheduled.
+	BM_CONTENTION_OUTCOME_AT_NEW_GENERATION,
+	// We have been unable to send the lock request to IRM node due to some local problem.
+	BM_CONTENTION_OUTCOME_LOCAL_PROBLEM_AT_TRANSACTION,
+	// The lock request failed, maybe the IRM isn't really IRM capable after all.
+	BM_CONTENTION_OUTCOME_IRM_IS_NOT_CAPABLE_FOR_IRM,
+	// Somebody else is BM.
+	BM_CONTENTION_OUTCOME_IRM_HOLDS_ANOTHER_NODE_AS_BM,
+	// The local node succeeds after contending for bus manager.
+	BM_CONTENTION_OUTCOME_IRM_HOLDS_LOCAL_NODE_AS_BM,
+};
+
+static enum bm_contention_outcome contend_for_bm(struct fw_card *card)
+__must_hold(&card->lock)
+{
+	int generation = card->generation;
+	int local_id = card->local_node->node_id;
+	__be32 data[2] = {
+		cpu_to_be32(BUS_MANAGER_ID_NOT_REGISTERED),
+		cpu_to_be32(local_id),
+	};
+	bool grace = time_is_before_jiffies64(card->reset_jiffies + msecs_to_jiffies(125));
+	bool irm_is_1394_1995_only = false;
+	bool keep_this_irm = false;
+	struct fw_node *irm_node;
+	struct fw_device *irm_device;
+	int irm_node_id;
+	int rcode;
+
+	lockdep_assert_held(&card->lock);
+
+	if (!grace) {
+		if (!is_next_generation(generation, card->bm_generation) || card->bm_abdicate)
+			return BM_CONTENTION_OUTCOME_WITHIN_WINDOW;
+	}
+
+	irm_node = card->irm_node;
+	if (!irm_node->link_on) {
+		fw_notice(card, "IRM has link off, making local node (%02x) root\n", local_id);
+		return BM_CONTENTION_OUTCOME_IRM_HAS_LINK_OFF;
+	}
+
+	irm_device = fw_node_get_device(irm_node);
+	if (irm_device && irm_device->config_rom) {
+		irm_is_1394_1995_only = (irm_device->config_rom[2] & 0x000000f0) == 0;
+
+		// Canon MV5i works unreliably if it is not root node.
+		keep_this_irm = irm_device->config_rom[3] >> 8 == CANON_OUI;
+	}
+
+	if (irm_is_1394_1995_only && !keep_this_irm) {
+		fw_notice(card, "IRM is not 1394a compliant, making local node (%02x) root\n",
+			  local_id);
+		return BM_CONTENTION_OUTCOME_IRM_COMPLIES_1394_1995_ONLY;
+	}
+
+	irm_node_id = irm_node->node_id;
+
+	spin_unlock_irq(&card->lock);
+
+	rcode = fw_run_transaction(card, TCODE_LOCK_COMPARE_SWAP, irm_node_id, generation,
+				   SCODE_100, CSR_REGISTER_BASE + CSR_BUS_MANAGER_ID, data,
+				   sizeof(data));
+
+	spin_lock_irq(&card->lock);
+
+	switch (rcode) {
+	case RCODE_GENERATION:
+		return BM_CONTENTION_OUTCOME_AT_NEW_GENERATION;
+	case RCODE_SEND_ERROR:
+		return BM_CONTENTION_OUTCOME_LOCAL_PROBLEM_AT_TRANSACTION;
+	case RCODE_COMPLETE:
+	{
+		int bm_id = be32_to_cpu(data[0]);
+
+		// Used by cdev layer for "struct fw_cdev_event_bus_reset".
+		if (bm_id != BUS_MANAGER_ID_NOT_REGISTERED)
+			card->bm_node_id = 0xffc0 & bm_id;
+		else
+			card->bm_node_id = local_id;
+
+		if (bm_id != BUS_MANAGER_ID_NOT_REGISTERED)
+			return BM_CONTENTION_OUTCOME_IRM_HOLDS_ANOTHER_NODE_AS_BM;
+		else
+			return BM_CONTENTION_OUTCOME_IRM_HOLDS_LOCAL_NODE_AS_BM;
+	}
+	default:
+		if (!keep_this_irm) {
+			fw_notice(card, "BM lock failed (%s), making local node (%02x) root\n",
+				  fw_rcode_string(rcode), local_id);
+			return BM_CONTENTION_OUTCOME_IRM_COMPLIES_1394_1995_ONLY;
+		} else {
+			return BM_CONTENTION_OUTCOME_IRM_IS_NOT_CAPABLE_FOR_IRM;
+		}
+	}
+}
+
+DEFINE_FREE(node_unref, struct fw_node *, if (_T) fw_node_put(_T))
+DEFINE_FREE(card_unref, struct fw_card *, if (_T) fw_card_put(_T))
+
 static void bm_work(struct work_struct *work)
 {
 	static const char gap_count_table[] = {
 		63, 5, 7, 8, 10, 13, 16, 18, 21, 24, 26, 29, 32, 35, 37, 40
 	};
-	struct fw_card *card = from_work(card, work, bm_work.work);
-	struct fw_device *root_device, *irm_device;
-	struct fw_node *root_node;
-	int root_id, new_root_id, irm_id, bm_id, local_id;
-	int gap_count, generation, grace, rcode;
-	bool do_reset = false;
-	bool root_device_is_running;
-	bool root_device_is_cmc;
-	bool irm_is_1394_1995_only;
-	bool keep_this_irm;
-	__be32 transaction_data[2];
+	struct fw_card *card __free(card_unref) = from_work(card, work, bm_work.work);
+	struct fw_node *root_node __free(node_unref) = NULL;
+	int root_id, new_root_id, irm_id, local_id;
+	int expected_gap_count, generation;
+	bool stand_for_root = false;
 
 	spin_lock_irq(&card->lock);
 
 	if (card->local_node == NULL) {
 		spin_unlock_irq(&card->lock);
-		goto out_put_card;
+		return;
 	}
 
 	generation = card->generation;
 
-	root_node = card->root_node;
-	fw_node_get(root_node);
-	root_device = root_node->data;
-	root_device_is_running = root_device &&
-			atomic_read(&root_device->state) == FW_DEVICE_RUNNING;
-	root_device_is_cmc = root_device && root_device->cmc;
-
-	irm_device = card->irm_node->data;
-	irm_is_1394_1995_only = irm_device && irm_device->config_rom &&
-			(irm_device->config_rom[2] & 0x000000f0) == 0;
-
-	/* Canon MV5i works unreliably if it is not root node. */
-	keep_this_irm = irm_device && irm_device->config_rom &&
-			irm_device->config_rom[3] >> 8 == CANON_OUI;
+	root_node = fw_node_get(card->root_node);
 
 	root_id  = root_node->node_id;
 	irm_id   = card->irm_node->node_id;
 	local_id = card->local_node->node_id;
 
-	grace = time_after64(get_jiffies_64(),
-			     card->reset_jiffies + DIV_ROUND_UP(HZ, 8));
+	if (card->bm_generation != generation) {
+		enum bm_contention_outcome result = contend_for_bm(card);
 
-	if ((is_next_generation(generation, card->bm_generation) &&
-	     !card->bm_abdicate) ||
-	    (card->bm_generation != generation && grace)) {
-		/*
-		 * This first step is to figure out who is IRM and
-		 * then try to become bus manager.  If the IRM is not
-		 * well defined (e.g. does not have an active link
-		 * layer or does not responds to our lock request, we
-		 * will have to do a little vigilante bus management.
-		 * In that case, we do a goto into the gap count logic
-		 * so that when we do the reset, we still optimize the
-		 * gap count.  That could well save a reset in the
-		 * next generation.
-		 */
-
-		if (!card->irm_node->link_on) {
-			new_root_id = local_id;
-			fw_notice(card, "%s, making local node (%02x) root\n",
-				  "IRM has link off", new_root_id);
-			goto pick_me;
-		}
-
-		if (irm_is_1394_1995_only && !keep_this_irm) {
-			new_root_id = local_id;
-			fw_notice(card, "%s, making local node (%02x) root\n",
-				  "IRM is not 1394a compliant", new_root_id);
-			goto pick_me;
-		}
-
-		transaction_data[0] = cpu_to_be32(0x3f);
-		transaction_data[1] = cpu_to_be32(local_id);
-
-		spin_unlock_irq(&card->lock);
-
-		rcode = fw_run_transaction(card, TCODE_LOCK_COMPARE_SWAP,
-				irm_id, generation, SCODE_100,
-				CSR_REGISTER_BASE + CSR_BUS_MANAGER_ID,
-				transaction_data, 8);
-
-		if (rcode == RCODE_GENERATION)
-			/* Another bus reset, BM work has been rescheduled. */
-			goto out;
-
-		bm_id = be32_to_cpu(transaction_data[0]);
-
-		scoped_guard(spinlock_irq, &card->lock) {
-			if (rcode == RCODE_COMPLETE && generation == card->generation)
-				card->bm_node_id =
-				    bm_id == 0x3f ? local_id : 0xffc0 | bm_id;
-		}
-
-		if (rcode == RCODE_COMPLETE && bm_id != 0x3f) {
-			/* Somebody else is BM.  Only act as IRM. */
-			if (local_id == irm_id)
+		switch (result) {
+		case BM_CONTENTION_OUTCOME_WITHIN_WINDOW:
+			spin_unlock_irq(&card->lock);
+			fw_schedule_bm_work(card, msecs_to_jiffies(125));
+			return;
+		case BM_CONTENTION_OUTCOME_IRM_HAS_LINK_OFF:
+			stand_for_root = true;
+			break;
+		case BM_CONTENTION_OUTCOME_IRM_COMPLIES_1394_1995_ONLY:
+			stand_for_root = true;
+			break;
+		case BM_CONTENTION_OUTCOME_AT_NEW_GENERATION:
+			// BM work has been rescheduled.
+			spin_unlock_irq(&card->lock);
+			return;
+		case BM_CONTENTION_OUTCOME_LOCAL_PROBLEM_AT_TRANSACTION:
+			// Let's try again later and hope that the local problem has gone away by
+			// then.
+			spin_unlock_irq(&card->lock);
+			fw_schedule_bm_work(card, msecs_to_jiffies(125));
+			return;
+		case BM_CONTENTION_OUTCOME_IRM_IS_NOT_CAPABLE_FOR_IRM:
+			// Let's do a bus reset and pick the local node as root, and thus, IRM.
+			stand_for_root = true;
+			break;
+		case BM_CONTENTION_OUTCOME_IRM_HOLDS_ANOTHER_NODE_AS_BM:
+			if (local_id == irm_id) {
+				// Only acts as IRM.
+				spin_unlock_irq(&card->lock);
 				allocate_broadcast_channel(card, generation);
-
-			goto out;
+				spin_lock_irq(&card->lock);
+			}
+			fallthrough;
+		case BM_CONTENTION_OUTCOME_IRM_HOLDS_LOCAL_NODE_AS_BM:
+		default:
+			card->bm_generation = generation;
+			break;
 		}
-
-		if (rcode == RCODE_SEND_ERROR) {
-			/*
-			 * We have been unable to send the lock request due to
-			 * some local problem.  Let's try again later and hope
-			 * that the problem has gone away by then.
-			 */
-			fw_schedule_bm_work(card, DIV_ROUND_UP(HZ, 8));
-			goto out;
-		}
-
-		spin_lock_irq(&card->lock);
-
-		if (rcode != RCODE_COMPLETE && !keep_this_irm) {
-			/*
-			 * The lock request failed, maybe the IRM
-			 * isn't really IRM capable after all. Let's
-			 * do a bus reset and pick the local node as
-			 * root, and thus, IRM.
-			 */
-			new_root_id = local_id;
-			fw_notice(card, "BM lock failed (%s), making local node (%02x) root\n",
-				  fw_rcode_string(rcode), new_root_id);
-			goto pick_me;
-		}
-	} else if (card->bm_generation != generation) {
-		/*
-		 * We weren't BM in the last generation, and the last
-		 * bus reset is less than 125ms ago.  Reschedule this job.
-		 */
-		spin_unlock_irq(&card->lock);
-		fw_schedule_bm_work(card, DIV_ROUND_UP(HZ, 8));
-		goto out;
 	}
 
-	/*
-	 * We're bus manager for this generation, so next step is to
-	 * make sure we have an active cycle master and do gap count
-	 * optimization.
-	 */
-	card->bm_generation = generation;
+	// We're bus manager for this generation, so next step is to make sure we have an active
+	// cycle master and do gap count optimization.
+	if (!stand_for_root) {
+		if (card->gap_count == GAP_COUNT_MISMATCHED) {
+			// If self IDs have inconsistent gap counts, do a
+			// bus reset ASAP. The config rom read might never
+			// complete, so don't wait for it. However, still
+			// send a PHY configuration packet prior to the
+			// bus reset. The PHY configuration packet might
+			// fail, but 1394-2008 8.4.5.2 explicitly permits
+			// it in this case, so it should be safe to try.
+			stand_for_root = true;
 
-	if (card->gap_count == 0) {
-		/*
-		 * If self IDs have inconsistent gap counts, do a
-		 * bus reset ASAP. The config rom read might never
-		 * complete, so don't wait for it. However, still
-		 * send a PHY configuration packet prior to the
-		 * bus reset. The PHY configuration packet might
-		 * fail, but 1394-2008 8.4.5.2 explicitly permits
-		 * it in this case, so it should be safe to try.
-		 */
+			// We must always send a bus reset if the gap count
+			// is inconsistent, so bypass the 5-reset limit.
+			card->bm_retries = 0;
+		} else {
+			// Now investigate root node.
+			struct fw_device *root_device = fw_node_get_device(root_node);
+
+			if (root_device == NULL) {
+				// Either link_on is false, or we failed to read the
+				// config rom.  In either case, pick another root.
+				stand_for_root = true;
+			} else {
+				bool root_device_is_running =
+					atomic_read(&root_device->state) == FW_DEVICE_RUNNING;
+
+				if (!root_device_is_running) {
+					// If we haven't probed this device yet, bail out now
+					// and let's try again once that's done.
+					spin_unlock_irq(&card->lock);
+					return;
+				} else if (!root_device->cmc) {
+					// Current root has an active link layer and we
+					// successfully read the config rom, but it's not
+					// cycle master capable.
+					stand_for_root = true;
+				}
+			}
+		}
+	}
+
+	if (stand_for_root) {
 		new_root_id = local_id;
-		/*
-		 * We must always send a bus reset if the gap count
-		 * is inconsistent, so bypass the 5-reset limit.
-		 */
-		card->bm_retries = 0;
-	} else if (root_device == NULL) {
-		/*
-		 * Either link_on is false, or we failed to read the
-		 * config rom.  In either case, pick another root.
-		 */
-		new_root_id = local_id;
-	} else if (!root_device_is_running) {
-		/*
-		 * If we haven't probed this device yet, bail out now
-		 * and let's try again once that's done.
-		 */
-		spin_unlock_irq(&card->lock);
-		goto out;
-	} else if (root_device_is_cmc) {
-		/*
-		 * We will send out a force root packet for this
-		 * node as part of the gap count optimization.
-		 */
-		new_root_id = root_id;
 	} else {
-		/*
-		 * Current root has an active link layer and we
-		 * successfully read the config rom, but it's not
-		 * cycle master capable.
-		 */
-		new_root_id = local_id;
+		// We will send out a force root packet for this node as part of the gap count
+		// optimization on behalf of the node.
+		new_root_id = root_id;
 	}
 
- pick_me:
 	/*
 	 * Pick a gap count from 1394a table E-1.  The table doesn't cover
 	 * the typically much larger 1394b beta repeater delays though.
 	 */
 	if (!card->beta_repeaters_present &&
 	    root_node->max_hops < ARRAY_SIZE(gap_count_table))
-		gap_count = gap_count_table[root_node->max_hops];
+		expected_gap_count = gap_count_table[root_node->max_hops];
 	else
-		gap_count = 63;
+		expected_gap_count = 63;
 
-	/*
-	 * Finally, figure out if we should do a reset or not.  If we have
-	 * done less than 5 resets with the same physical topology and we
-	 * have either a new root or a new gap count setting, let's do it.
-	 */
+	// Finally, figure out if we should do a reset or not. If we have done less than 5 resets
+	// with the same physical topology and we have either a new root or a new gap count
+	// setting, let's do it.
+	if (card->bm_retries++ < 5 && (card->gap_count != expected_gap_count || new_root_id != root_id)) {
+		int card_gap_count = card->gap_count;
 
-	if (card->bm_retries++ < 5 &&
-	    (card->gap_count != gap_count || new_root_id != root_id))
-		do_reset = true;
+		spin_unlock_irq(&card->lock);
 
-	spin_unlock_irq(&card->lock);
-
-	if (do_reset) {
 		fw_notice(card, "phy config: new root=%x, gap_count=%d\n",
-			  new_root_id, gap_count);
-		fw_send_phy_config(card, new_root_id, generation, gap_count);
+			  new_root_id, expected_gap_count);
+		fw_send_phy_config(card, new_root_id, generation, expected_gap_count);
 		/*
 		 * Where possible, use a short bus reset to minimize
 		 * disruption to isochronous transfers. But in the event
@@ -511,31 +539,27 @@ static void bm_work(struct work_struct *work)
 		 * may treat it as two, causing a gap count inconsistency
 		 * again. Using a long bus reset prevents this.
 		 */
-		reset_bus(card, card->gap_count != 0);
+		reset_bus(card, card_gap_count != 0);
 		/* Will allocate broadcast channel after the reset. */
-		goto out;
+	} else {
+		struct fw_device *root_device = fw_node_get_device(root_node);
+
+		spin_unlock_irq(&card->lock);
+
+		if (root_device && root_device->cmc) {
+			// Make sure that the cycle master sends cycle start packets.
+			__be32 data = cpu_to_be32(CSR_STATE_BIT_CMSTR);
+			int rcode = fw_run_transaction(card, TCODE_WRITE_QUADLET_REQUEST,
+					root_id, generation, SCODE_100,
+					CSR_REGISTER_BASE + CSR_STATE_SET,
+					&data, sizeof(data));
+			if (rcode == RCODE_GENERATION)
+				return;
+		}
+
+		if (local_id == irm_id)
+			allocate_broadcast_channel(card, generation);
 	}
-
-	if (root_device_is_cmc) {
-		/*
-		 * Make sure that the cycle master sends cycle start packets.
-		 */
-		transaction_data[0] = cpu_to_be32(CSR_STATE_BIT_CMSTR);
-		rcode = fw_run_transaction(card, TCODE_WRITE_QUADLET_REQUEST,
-				root_id, generation, SCODE_100,
-				CSR_REGISTER_BASE + CSR_STATE_SET,
-				transaction_data, 4);
-		if (rcode == RCODE_GENERATION)
-			goto out;
-	}
-
-	if (local_id == irm_id)
-		allocate_broadcast_channel(card, generation);
-
- out:
-	fw_node_put(root_node);
- out_put_card:
-	fw_card_put(card);
 }
 
 void fw_card_initialize(struct fw_card *card,
@@ -547,20 +571,24 @@ void fw_card_initialize(struct fw_card *card,
 	card->index = atomic_inc_return(&index);
 	card->driver = driver;
 	card->device = device;
-	card->current_tlabel = 0;
-	card->tlabel_mask = 0;
-	card->split_timeout_hi = DEFAULT_SPLIT_TIMEOUT / 8000;
-	card->split_timeout_lo = (DEFAULT_SPLIT_TIMEOUT % 8000) << 19;
-	card->split_timeout_cycles = DEFAULT_SPLIT_TIMEOUT;
-	card->split_timeout_jiffies =
-			DIV_ROUND_UP(DEFAULT_SPLIT_TIMEOUT * HZ, 8000);
+
+	card->transactions.current_tlabel = 0;
+	card->transactions.tlabel_mask = 0;
+	INIT_LIST_HEAD(&card->transactions.list);
+	spin_lock_init(&card->transactions.lock);
+
+	card->split_timeout.hi = DEFAULT_SPLIT_TIMEOUT / 8000;
+	card->split_timeout.lo = (DEFAULT_SPLIT_TIMEOUT % 8000) << 19;
+	card->split_timeout.cycles = DEFAULT_SPLIT_TIMEOUT;
+	card->split_timeout.jiffies = isoc_cycles_to_jiffies(DEFAULT_SPLIT_TIMEOUT);
+	spin_lock_init(&card->split_timeout.lock);
+
 	card->color = 0;
 	card->broadcast_channel = BROADCAST_CHANNEL_INITIAL;
 
 	kref_init(&card->kref);
 	init_completion(&card->done);
-	INIT_LIST_HEAD(&card->transaction_list);
-	INIT_LIST_HEAD(&card->phy_receiver_list);
+
 	spin_lock_init(&card->lock);
 
 	card->local_node = NULL;
@@ -570,9 +598,13 @@ void fw_card_initialize(struct fw_card *card,
 }
 EXPORT_SYMBOL(fw_card_initialize);
 
+DEFINE_FREE(workqueue_destroy, struct workqueue_struct *, if (_T) destroy_workqueue(_T))
+
 int fw_card_add(struct fw_card *card, u32 max_receive, u32 link_speed, u64 guid,
 		unsigned int supported_isoc_contexts)
 {
+	struct workqueue_struct *isoc_wq __free(workqueue_destroy) = NULL;
+	struct workqueue_struct *async_wq __free(workqueue_destroy) = NULL;
 	int ret;
 
 	// This workqueue should be:
@@ -587,10 +619,10 @@ int fw_card_add(struct fw_card *card, u32 max_receive, u32 link_speed, u64 guid,
 	//  * == WQ_SYSFS		Parameters are available via sysfs.
 	//  * max_active == n_it + n_ir	A hardIRQ could notify events for multiple isochronous
 	//				contexts if they are scheduled to the same cycle.
-	card->isoc_wq = alloc_workqueue("firewire-isoc-card%u",
-					WQ_UNBOUND | WQ_FREEZABLE | WQ_HIGHPRI | WQ_SYSFS,
-					supported_isoc_contexts, card->index);
-	if (!card->isoc_wq)
+	isoc_wq = alloc_workqueue("firewire-isoc-card%u",
+				  WQ_UNBOUND | WQ_FREEZABLE | WQ_HIGHPRI | WQ_SYSFS,
+				  supported_isoc_contexts, card->index);
+	if (!isoc_wq)
 		return -ENOMEM;
 
 	// This workqueue should be:
@@ -602,14 +634,14 @@ int fw_card_add(struct fw_card *card, u32 max_receive, u32 link_speed, u64 guid,
 	//  * == WQ_SYSFS		Parameters are available via sysfs.
 	//  * max_active == 4		A hardIRQ could notify events for a pair of requests and
 	//				response AR/AT contexts.
-	card->async_wq = alloc_workqueue("firewire-async-card%u",
-					 WQ_UNBOUND | WQ_MEM_RECLAIM | WQ_FREEZABLE | WQ_HIGHPRI | WQ_SYSFS,
-					 4, card->index);
-	if (!card->async_wq) {
-		ret = -ENOMEM;
-		goto err_isoc;
-	}
+	async_wq = alloc_workqueue("firewire-async-card%u",
+				   WQ_UNBOUND | WQ_MEM_RECLAIM | WQ_FREEZABLE | WQ_HIGHPRI | WQ_SYSFS,
+				   4, card->index);
+	if (!async_wq)
+		return -ENOMEM;
 
+	card->isoc_wq = isoc_wq;
+	card->async_wq = async_wq;
 	card->max_receive = max_receive;
 	card->link_speed = link_speed;
 	card->guid = guid;
@@ -617,18 +649,18 @@ int fw_card_add(struct fw_card *card, u32 max_receive, u32 link_speed, u64 guid,
 	scoped_guard(mutex, &card_mutex) {
 		generate_config_rom(card, tmp_config_rom);
 		ret = card->driver->enable(card, tmp_config_rom, config_rom_length);
-		if (ret < 0)
-			goto err_async;
+		if (ret < 0) {
+			card->isoc_wq = NULL;
+			card->async_wq = NULL;
+			return ret;
+		}
+		retain_and_null_ptr(isoc_wq);
+		retain_and_null_ptr(async_wq);
 
 		list_add_tail(&card->link, &card_list);
 	}
 
 	return 0;
-err_async:
-	destroy_workqueue(card->async_wq);
-err_isoc:
-	destroy_workqueue(card->isoc_wq);
-	return ret;
 }
 EXPORT_SYMBOL(fw_card_add);
 
@@ -773,7 +805,7 @@ void fw_core_remove_card(struct fw_card *card)
 	destroy_workqueue(card->isoc_wq);
 	destroy_workqueue(card->async_wq);
 
-	WARN_ON(!list_empty(&card->transaction_list));
+	WARN_ON(!list_empty(&card->transactions.list));
 }
 EXPORT_SYMBOL(fw_core_remove_card);
 

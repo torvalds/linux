@@ -22,7 +22,7 @@ Description
 -----------
 
 The Maxim/Dallas Semiconductor DS2482 is a I2C device that provides
-one (DS2482-100) or eight (DS2482-800) 1-wire busses.
+one (DS2482-100) or eight (DS2482-800) 1-wire buses.
 
 
 General Remarks

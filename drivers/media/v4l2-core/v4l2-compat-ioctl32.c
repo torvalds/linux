@@ -8,7 +8,7 @@
  * Copyright (C) 2001,2002  Andi Kleen, SuSE Labs
  * Copyright (C) 2003       Pavel Machek (pavel@ucw.cz)
  * Copyright (C) 2005       Philippe De Muyter (phdm@macqel.be)
- * Copyright (C) 2008       Hans Verkuil <hverkuil@xs4all.nl>
+ * Copyright (C) 2008       Hans Verkuil <hverkuil@kernel.org>
  *
  * These routines maintain argument size conversion between 32bit and 64bit
  * ioctls.
@@ -672,15 +672,12 @@ struct v4l2_ext_control32 {
 static inline bool ctrl_is_pointer(struct file *file, u32 id)
 {
 	struct video_device *vdev = video_devdata(file);
-	struct v4l2_fh *fh = NULL;
+	struct v4l2_fh *fh = file_to_v4l2_fh(file);
 	struct v4l2_ctrl_handler *hdl = NULL;
 	struct v4l2_query_ext_ctrl qec = { id };
 	const struct v4l2_ioctl_ops *ops = vdev->ioctl_ops;
 
-	if (test_bit(V4L2_FL_USES_V4L2_FH, &vdev->flags))
-		fh = file->private_data;
-
-	if (fh && fh->ctrl_handler)
+	if (fh->ctrl_handler)
 		hdl = fh->ctrl_handler;
 	else if (vdev->ctrl_handler)
 		hdl = vdev->ctrl_handler;
@@ -694,7 +691,7 @@ static inline bool ctrl_is_pointer(struct file *file, u32 id)
 	if (!ops || !ops->vidioc_query_ext_ctrl)
 		return false;
 
-	return !ops->vidioc_query_ext_ctrl(file, fh, &qec) &&
+	return !ops->vidioc_query_ext_ctrl(file, NULL, &qec) &&
 		(qec.flags & V4L2_CTRL_FLAG_HAS_PAYLOAD);
 }
 

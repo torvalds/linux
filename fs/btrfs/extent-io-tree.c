@@ -1237,7 +1237,7 @@ hit_next:
 		state = next_search_state(inserted_state, end);
 		/*
 		 * If there's a next state, whether contiguous or not, we don't
-		 * need to unlock and start search agian. If it's not contiguous
+		 * need to unlock and start search again. If it's not contiguous
 		 * we will end up here and try to allocate a prealloc state and insert.
 		 */
 		if (state)
@@ -1664,7 +1664,7 @@ out:
  */
 u64 btrfs_count_range_bits(struct extent_io_tree *tree,
 			   u64 *start, u64 search_end, u64 max_bytes,
-			   u32 bits, int contig,
+			   u32 bits, bool contig,
 			   struct extent_state **cached_state)
 {
 	struct extent_state *state = NULL;

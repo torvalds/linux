@@ -212,7 +212,8 @@
 						      <&a55_irqsteer 88>, <&a55_irqsteer 89>,
 						      <&a55_irqsteer 90>, <&a55_irqsteer 91>,
 						      <&a55_irqsteer 92>, <&a55_irqsteer 93>,
-						      <&a55_irqsteer 94>, <&a55_irqsteer 95>;
+						      <&a55_irqsteer 94>, <&a55_irqsteer 95>,
+						      <&gic GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
 			mu10: mailbox@42430000 {
@@ -619,7 +620,8 @@
 						      <&a55_irqsteer 216>, <&a55_irqsteer 217>,
 						      <&a55_irqsteer 218>, <&a55_irqsteer 219>,
 						      <&a55_irqsteer 220>, <&a55_irqsteer 221>,
-						      <&a55_irqsteer 222>, <&a55_irqsteer 223>;
+						      <&a55_irqsteer 222>, <&a55_irqsteer 223>,
+						      <&gic GIC_SPI 206 IRQ_TYPE_LEVEL_HIGH>;
 			};
 		};
 

@@ -1,3 +1,5 @@
+.. |tool| replace:: osnoise hist
+
 ===================
 rtla-osnoise-hist
 ===================

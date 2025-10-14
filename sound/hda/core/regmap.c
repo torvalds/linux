@@ -425,15 +425,11 @@ EXPORT_SYMBOL_GPL(snd_hdac_regmap_add_vendor_verb);
 static int reg_raw_write(struct hdac_device *codec, unsigned int reg,
 			 unsigned int val)
 {
-	int err;
-
-	mutex_lock(&codec->regmap_lock);
+	guard(mutex)(&codec->regmap_lock);
 	if (!codec->regmap)
-		err = hda_reg_write(codec, reg, val);
+		return hda_reg_write(codec, reg, val);
 	else
-		err = regmap_write(codec->regmap, reg, val);
-	mutex_unlock(&codec->regmap_lock);
-	return err;
+		return regmap_write(codec->regmap, reg, val);
 }
 
 /* a helper macro to call @func_call; retry with power-up if failed */
@@ -466,15 +462,11 @@ EXPORT_SYMBOL_GPL(snd_hdac_regmap_write_raw);
 static int reg_raw_read(struct hdac_device *codec, unsigned int reg,
 			unsigned int *val, bool uncached)
 {
-	int err;
-
-	mutex_lock(&codec->regmap_lock);
+	guard(mutex)(&codec->regmap_lock);
 	if (uncached || !codec->regmap)
-		err = hda_reg_read(codec, reg, val);
+		return hda_reg_read(codec, reg, val);
 	else
-		err = regmap_read(codec->regmap, reg, val);
-	mutex_unlock(&codec->regmap_lock);
-	return err;
+		return regmap_read(codec->regmap, reg, val);
 }
 
 static int __snd_hdac_regmap_read_raw(struct hdac_device *codec,
@@ -515,7 +507,7 @@ static int reg_raw_update(struct hdac_device *codec, unsigned int reg,
 	bool change;
 	int err;
 
-	mutex_lock(&codec->regmap_lock);
+	guard(mutex)(&codec->regmap_lock);
 	if (codec->regmap) {
 		err = regmap_update_bits_check(codec->regmap, reg, mask, val,
 					       &change);
@@ -533,7 +525,6 @@ static int reg_raw_update(struct hdac_device *codec, unsigned int reg,
 			}
 		}
 	}
-	mutex_unlock(&codec->regmap_lock);
 	return err;
 }
 
@@ -556,17 +547,14 @@ EXPORT_SYMBOL_GPL(snd_hdac_regmap_update_raw);
 static int reg_raw_update_once(struct hdac_device *codec, unsigned int reg,
 			       unsigned int mask, unsigned int val)
 {
-	int err = 0;
-
 	if (!codec->regmap)
 		return reg_raw_update(codec, reg, mask, val);
 
-	mutex_lock(&codec->regmap_lock);
+	guard(mutex)(&codec->regmap_lock);
 	/* Discard any updates to already initialised registers. */
 	if (!regcache_reg_cached(codec->regmap, reg))
-		err = regmap_update_bits(codec->regmap, reg, mask, val);
-	mutex_unlock(&codec->regmap_lock);
-	return err;
+		return regmap_update_bits(codec->regmap, reg, mask, val);
+	return 0;
 }
 
 /**
@@ -593,9 +581,8 @@ EXPORT_SYMBOL_GPL(snd_hdac_regmap_update_raw_once);
  */
 void snd_hdac_regmap_sync(struct hdac_device *codec)
 {
-	mutex_lock(&codec->regmap_lock);
+	guard(mutex)(&codec->regmap_lock);
 	if (codec->regmap)
 		regcache_sync(codec->regmap);
-	mutex_unlock(&codec->regmap_lock);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_regmap_sync);

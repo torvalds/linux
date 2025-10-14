@@ -155,7 +155,7 @@ static void clear_huge_pte_skeys(struct mm_struct *mm, unsigned long rste)
 		paddr = rste & PMD_MASK;
 	}
 
-	if (!test_and_set_bit(PG_arch_1, &folio->flags))
+	if (!test_and_set_bit(PG_arch_1, &folio->flags.f))
 		__storage_key_init_range(paddr, paddr + size);
 }
 

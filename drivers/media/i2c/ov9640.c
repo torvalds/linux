@@ -718,9 +718,10 @@ static int ov9640_probe(struct i2c_client *client)
 
 	priv->subdev.ctrl_handler = &priv->hdl;
 
-	priv->clk = devm_clk_get(&client->dev, "mclk");
+	priv->clk = devm_v4l2_sensor_clk_get(&client->dev, "mclk");
 	if (IS_ERR(priv->clk)) {
-		ret = PTR_ERR(priv->clk);
+		ret = dev_err_probe(&client->dev, PTR_ERR(priv->clk),
+				    "failed to get mclk\n");
 		goto ectrlinit;
 	}
 

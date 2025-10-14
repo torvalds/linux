@@ -823,13 +823,8 @@ void mlx5hws_definer_free(struct mlx5hws_context *ctx,
 
 int mlx5hws_definer_calc_layout(struct mlx5hws_context *ctx,
 				struct mlx5hws_match_template *mt,
-				struct mlx5hws_definer *match_definer);
-
-struct mlx5hws_definer_fc *
-mlx5hws_definer_conv_match_params_to_compressed_fc(struct mlx5hws_context *ctx,
-						   u8 match_criteria_enable,
-						   u32 *match_param,
-						   int *fc_sz);
+				struct mlx5hws_definer *match_definer,
+				bool allow_jumbo);
 
 const char *mlx5hws_definer_fname_to_str(enum mlx5hws_definer_fname fname);
 

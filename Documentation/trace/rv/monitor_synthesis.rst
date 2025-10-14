@@ -181,7 +181,7 @@ which is the list of atomic propositions present in the LTL specification
 functions interacting with the Buchi automaton.
 
 While generating code, `rvgen` cannot understand the meaning of the atomic
-propositions. Thus, that task is left for manual work. The recommended pratice
+propositions. Thus, that task is left for manual work. The recommended practice
 is adding tracepoints to places where the atomic propositions change; and in the
 tracepoints' handlers: the Buchi automaton is executed using::
 

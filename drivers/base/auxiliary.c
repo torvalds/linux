@@ -171,17 +171,18 @@
 static const struct auxiliary_device_id *auxiliary_match_id(const struct auxiliary_device_id *id,
 							    const struct auxiliary_device *auxdev)
 {
+	const char *auxdev_name = dev_name(&auxdev->dev);
+	const char *p = strrchr(auxdev_name, '.');
+	int match_size;
+
+	if (!p)
+		return NULL;
+	match_size = p - auxdev_name;
+
 	for (; id->name[0]; id++) {
-		const char *p = strrchr(dev_name(&auxdev->dev), '.');
-		int match_size;
-
-		if (!p)
-			continue;
-		match_size = p - dev_name(&auxdev->dev);
-
 		/* use dev_name(&auxdev->dev) prefix before last '.' char to match to */
 		if (strlen(id->name) == match_size &&
-		    !strncmp(dev_name(&auxdev->dev), id->name, match_size))
+		    !strncmp(auxdev_name, id->name, match_size))
 			return id;
 	}
 	return NULL;
@@ -217,17 +218,14 @@ static int auxiliary_bus_probe(struct device *dev)
 	struct auxiliary_device *auxdev = to_auxiliary_dev(dev);
 	int ret;
 
-	ret = dev_pm_domain_attach(dev, PD_FLAG_ATTACH_POWER_ON);
+	ret = dev_pm_domain_attach(dev, PD_FLAG_ATTACH_POWER_ON |
+					PD_FLAG_DETACH_POWER_OFF);
 	if (ret) {
 		dev_warn(dev, "Failed to attach to PM Domain : %d\n", ret);
 		return ret;
 	}
 
-	ret = auxdrv->probe(auxdev, auxiliary_match_id(auxdrv->id_table, auxdev));
-	if (ret)
-		dev_pm_domain_detach(dev, true);
-
-	return ret;
+	return auxdrv->probe(auxdev, auxiliary_match_id(auxdrv->id_table, auxdev));
 }
 
 static void auxiliary_bus_remove(struct device *dev)
@@ -237,7 +235,6 @@ static void auxiliary_bus_remove(struct device *dev)
 
 	if (auxdrv->remove)
 		auxdrv->remove(auxdev);
-	dev_pm_domain_detach(dev, true);
 }
 
 static void auxiliary_bus_shutdown(struct device *dev)

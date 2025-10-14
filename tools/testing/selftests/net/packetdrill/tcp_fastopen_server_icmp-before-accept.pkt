@@ -1,0 +1,49 @@
+// SPDX-License-Identifier: GPL-2.0
+//
+// Send an ICMP host_unreachable pkt to a pending SYN_RECV req.
+//
+// If it's a TFO req, the ICMP error will cause it to switch
+// to TCP_CLOSE state but remains in the acceptor queue.
+
+--ip_version=ipv4
+
+`./defaults.sh`
+
+    0 socket(..., SOCK_STREAM|SOCK_NONBLOCK, IPPROTO_TCP) = 3
+   +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+   +0 bind(3, ..., ...) = 0
+   +0 listen(3, 1) = 0
+   +0 setsockopt(3, SOL_TCP, TCP_FASTOPEN, [1], 4) = 0
+
+   +0 < S 0:10(10) win 32792 <mss 1460,sackOK,nop,nop,FO TFO_COOKIE,nop,nop>
+   +0 > S. 0:0(0) ack 11 <mss 1460,nop,nop,sackOK>
+
+// Out-of-window icmp is ignored but accounted.
+   +0 `nstat > /dev/null`
+   +0 < icmp unreachable [5000:6000(1000)]
+   +0 `nstat | grep TcpExtOutOfWindowIcmps > /dev/null`
+
+// Valid ICMP unreach.
+   +0 < icmp unreachable host_unreachable [0:10(10)]
+
+// Unlike the non-TFO case, the req is still there to be accepted.
+   +0 accept(3, ..., ...) = 4
+   +0 %{ assert (tcpi_options & TCPI_OPT_SYN_DATA) != 0, tcpi_options }%
+
+// tcp_done_with_error() in tcp_v4_err() sets sk->sk_state
+// to TCP_CLOSE
+   +0 %{ assert tcpi_state == TCP_CLOSE, tcpi_state }%
+
+// The 1st read will succeed and return the data in SYN
+   +0 read(4, ..., 512) = 10
+
+// The 2nd read will fail.
+   +0 read(4, ..., 512) = -1 EHOSTUNREACH (No route to host)
+
+// But is no longer writable because it's in TCP_CLOSE state.
+   +0 write(4, ..., 100) = -1 EPIPE (Broken Pipe)
+
+// inbound pkt will trigger RST because the socket has been moved
+// off the TCP hash tables.
+   +0 < . 1:1(0) ack 1 win 32792
+   +0 > R 1:1(0)

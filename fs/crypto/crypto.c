@@ -173,7 +173,7 @@ struct page *fscrypt_encrypt_pagecache_blocks(struct folio *folio,
 		size_t len, size_t offs, gfp_t gfp_flags)
 {
 	const struct inode *inode = folio->mapping->host;
-	const struct fscrypt_inode_info *ci = inode->i_crypt_info;
+	const struct fscrypt_inode_info *ci = fscrypt_get_inode_info_raw(inode);
 	const unsigned int du_bits = ci->ci_data_unit_bits;
 	const unsigned int du_size = 1U << du_bits;
 	struct page *ciphertext_page;
@@ -232,8 +232,9 @@ int fscrypt_encrypt_block_inplace(const struct inode *inode, struct page *page,
 {
 	if (WARN_ON_ONCE(inode->i_sb->s_cop->supports_subblock_data_units))
 		return -EOPNOTSUPP;
-	return fscrypt_crypt_data_unit(inode->i_crypt_info, FS_ENCRYPT,
-				       lblk_num, page, page, len, offs);
+	return fscrypt_crypt_data_unit(fscrypt_get_inode_info_raw(inode),
+				       FS_ENCRYPT, lblk_num, page, page, len,
+				       offs);
 }
 EXPORT_SYMBOL(fscrypt_encrypt_block_inplace);
 
@@ -255,7 +256,7 @@ int fscrypt_decrypt_pagecache_blocks(struct folio *folio, size_t len,
 				     size_t offs)
 {
 	const struct inode *inode = folio->mapping->host;
-	const struct fscrypt_inode_info *ci = inode->i_crypt_info;
+	const struct fscrypt_inode_info *ci = fscrypt_get_inode_info_raw(inode);
 	const unsigned int du_bits = ci->ci_data_unit_bits;
 	const unsigned int du_size = 1U << du_bits;
 	u64 index = ((u64)folio->index << (PAGE_SHIFT - du_bits)) +
@@ -305,8 +306,9 @@ int fscrypt_decrypt_block_inplace(const struct inode *inode, struct page *page,
 {
 	if (WARN_ON_ONCE(inode->i_sb->s_cop->supports_subblock_data_units))
 		return -EOPNOTSUPP;
-	return fscrypt_crypt_data_unit(inode->i_crypt_info, FS_DECRYPT,
-				       lblk_num, page, page, len, offs);
+	return fscrypt_crypt_data_unit(fscrypt_get_inode_info_raw(inode),
+				       FS_DECRYPT, lblk_num, page, page, len,
+				       offs);
 }
 EXPORT_SYMBOL(fscrypt_decrypt_block_inplace);
 

@@ -11,10 +11,10 @@
 #ifndef _FSCRYPT_PRIVATE_H
 #define _FSCRYPT_PRIVATE_H
 
+#include <crypto/sha2.h>
 #include <linux/fscrypt.h>
 #include <linux/minmax.h>
 #include <linux/siphash.h>
-#include <crypto/hash.h>
 #include <linux/blk-crypto.h>
 
 #define CONST_STRLEN(str)	(sizeof(str) - 1)
@@ -249,8 +249,8 @@ struct fscrypt_prepared_key {
  * fscrypt_inode_info - the "encryption key" for an inode
  *
  * When an encrypted file's key is made available, an instance of this struct is
- * allocated and stored in ->i_crypt_info.  Once created, it remains until the
- * inode is evicted.
+ * allocated and a pointer to it is stored in the file's in-memory inode.  Once
+ * created, it remains until the inode is evicted.
  */
 struct fscrypt_inode_info {
 
@@ -381,12 +381,8 @@ bool __fscrypt_fname_encrypted_size(const union fscrypt_policy *policy,
 				    u32 *encrypted_len_ret);
 
 /* hkdf.c */
-struct fscrypt_hkdf {
-	struct crypto_shash *hmac_tfm;
-};
-
-int fscrypt_init_hkdf(struct fscrypt_hkdf *hkdf, const u8 *master_key,
-		      unsigned int master_key_size);
+void fscrypt_init_hkdf(struct hmac_sha512_key *hkdf, const u8 *master_key,
+		       unsigned int master_key_size);
 
 /*
  * The list of contexts in which fscrypt uses HKDF.  These values are used as
@@ -405,11 +401,9 @@ int fscrypt_init_hkdf(struct fscrypt_hkdf *hkdf, const u8 *master_key,
 #define HKDF_CONTEXT_KEY_IDENTIFIER_FOR_HW_WRAPPED_KEY \
 					8 /* info=<empty>		*/
 
-int fscrypt_hkdf_expand(const struct fscrypt_hkdf *hkdf, u8 context,
-			const u8 *info, unsigned int infolen,
-			u8 *okm, unsigned int okmlen);
-
-void fscrypt_destroy_hkdf(struct fscrypt_hkdf *hkdf);
+void fscrypt_hkdf_expand(const struct hmac_sha512_key *hkdf, u8 context,
+			 const u8 *info, unsigned int infolen,
+			 u8 *okm, unsigned int okmlen);
 
 /* inline_crypt.c */
 #ifdef CONFIG_FS_ENCRYPTION_INLINE_CRYPT
@@ -517,7 +511,7 @@ struct fscrypt_master_key_secret {
 	 * ->is_hw_wrapped=false, or by the "software secret" that hardware
 	 * derived from this master key if ->is_hw_wrapped=true.
 	 */
-	struct fscrypt_hkdf	hkdf;
+	struct hmac_sha512_key	hkdf;
 
 	/*
 	 * True if this key is a hardware-wrapped key; false if this key is a
@@ -696,7 +690,7 @@ struct fscrypt_master_key *
 fscrypt_find_master_key(struct super_block *sb,
 			const struct fscrypt_key_specifier *mk_spec);
 
-int fscrypt_get_test_dummy_key_identifier(
+void fscrypt_get_test_dummy_key_identifier(
 			  u8 key_identifier[FSCRYPT_KEY_IDENTIFIER_SIZE]);
 
 int fscrypt_add_test_dummy_key(struct super_block *sb,
@@ -732,8 +726,8 @@ void fscrypt_destroy_prepared_key(struct super_block *sb,
 int fscrypt_set_per_file_enc_key(struct fscrypt_inode_info *ci,
 				 const u8 *raw_key);
 
-int fscrypt_derive_dirhash_key(struct fscrypt_inode_info *ci,
-			       const struct fscrypt_master_key *mk);
+void fscrypt_derive_dirhash_key(struct fscrypt_inode_info *ci,
+				const struct fscrypt_master_key *mk);
 
 void fscrypt_hash_inode_number(struct fscrypt_inode_info *ci,
 			       const struct fscrypt_master_key *mk);

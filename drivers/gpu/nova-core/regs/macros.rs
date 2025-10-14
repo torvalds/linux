@@ -569,10 +569,10 @@ macro_rules! register {
 
     // Generates the `Debug` implementation for `$name`.
     (@debug $name:ident { $($field:ident;)* }) => {
-        impl ::core::fmt::Debug for $name {
-            fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+        impl ::kernel::fmt::Debug for $name {
+            fn fmt(&self, f: &mut ::kernel::fmt::Formatter<'_>) -> ::kernel::fmt::Result {
                 f.debug_struct(stringify!($name))
-                    .field("<raw>", &format_args!("{:#x}", &self.0))
+                    .field("<raw>", &::kernel::prelude::fmt!("{:#x}", &self.0))
                 $(
                     .field(stringify!($field), &self.$field())
                 )*

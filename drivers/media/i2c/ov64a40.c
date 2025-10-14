@@ -3546,7 +3546,7 @@ static int ov64a40_probe(struct i2c_client *client)
 		return PTR_ERR(ov64a40->cci);
 	}
 
-	ov64a40->xclk = devm_clk_get(&client->dev, NULL);
+	ov64a40->xclk = devm_v4l2_sensor_clk_get(&client->dev, NULL);
 	if (IS_ERR(ov64a40->xclk))
 		return dev_err_probe(&client->dev, PTR_ERR(ov64a40->xclk),
 				     "Failed to get clock\n");

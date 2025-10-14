@@ -326,7 +326,7 @@ static int setup_serial_poll(struct gpib_board *board, unsigned int usec_timeout
 	cmd_string[i++] = MLA(board->pad);	/* controller's listen address */
 	if (board->sad >= 0)
 		cmd_string[i++] = MSA(board->sad);
-	cmd_string[i++] = SPE;	//serial poll enable
+	cmd_string[i++] = SPE;	// serial poll enable
 
 	ret = board->interface->command(board, cmd_string, i, &bytes_written);
 	if (ret < 0 || bytes_written < i) {

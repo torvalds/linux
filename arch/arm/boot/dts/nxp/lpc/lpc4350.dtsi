@@ -24,16 +24,25 @@
 		sram0: sram@10000000 {
 			compatible = "mmio-sram";
 			reg = <0x10000000 0x20000>; /* 96 + 32 KiB local SRAM */
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
 		};
 
 		sram1: sram@10080000 {
 			compatible = "mmio-sram";
 			reg = <0x10080000 0x12000>; /* 64 + 8 KiB local SRAM */
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
 		};
 
 		sram2: sram@20000000 {
 			compatible = "mmio-sram";
 			reg = <0x20000000 0x10000>; /* 4 x 16 KiB AHB SRAM */
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
 		};
 	};
 };

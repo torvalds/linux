@@ -77,46 +77,46 @@ examples:
         #size-cells = <2>;
 
         pci@1c00000 {
-           compatible = "qcom,pcie-sa8255p";
-           reg = <0x4 0x00000000 0 0x10000000>;
-           device_type = "pci";
-           #address-cells = <3>;
-           #size-cells = <2>;
-           ranges = <0x02000000 0x0 0x40100000 0x0 0x40100000 0x0 0x1ff00000>,
-                    <0x43000000 0x4 0x10100000 0x4 0x10100000 0x0 0x40000000>;
-           bus-range = <0x00 0xff>;
-           dma-coherent;
-           linux,pci-domain = <0>;
-           power-domains = <&scmi5_pd 0>;
-           iommu-map = <0x0 &pcie_smmu 0x0000 0x1>,
-                       <0x100 &pcie_smmu 0x0001 0x1>;
-           interrupt-parent = <&intc>;
-           interrupts = <GIC_SPI 307 IRQ_TYPE_LEVEL_HIGH>,
-                        <GIC_SPI 308 IRQ_TYPE_LEVEL_HIGH>,
-                        <GIC_SPI 309 IRQ_TYPE_LEVEL_HIGH>,
-                        <GIC_SPI 312 IRQ_TYPE_LEVEL_HIGH>,
-                        <GIC_SPI 313 IRQ_TYPE_LEVEL_HIGH>,
-                        <GIC_SPI 314 IRQ_TYPE_LEVEL_HIGH>,
-                        <GIC_SPI 374 IRQ_TYPE_LEVEL_HIGH>,
-                        <GIC_SPI 375 IRQ_TYPE_LEVEL_HIGH>;
-           interrupt-names = "msi0", "msi1", "msi2", "msi3",
-                                  "msi4", "msi5", "msi6", "msi7";
+            compatible = "qcom,pcie-sa8255p";
+            reg = <0x4 0x00000000 0 0x10000000>;
+            device_type = "pci";
+            #address-cells = <3>;
+            #size-cells = <2>;
+            ranges = <0x02000000 0x0 0x40100000 0x0 0x40100000 0x0 0x1ff00000>,
+                     <0x43000000 0x4 0x10100000 0x4 0x10100000 0x0 0x40000000>;
+            bus-range = <0x00 0xff>;
+            dma-coherent;
+            linux,pci-domain = <0>;
+            power-domains = <&scmi5_pd 0>;
+            iommu-map = <0x0 &pcie_smmu 0x0000 0x1>,
+                        <0x100 &pcie_smmu 0x0001 0x1>;
+            interrupt-parent = <&intc>;
+            interrupts = <GIC_SPI 307 IRQ_TYPE_LEVEL_HIGH>,
+                         <GIC_SPI 308 IRQ_TYPE_LEVEL_HIGH>,
+                         <GIC_SPI 309 IRQ_TYPE_LEVEL_HIGH>,
+                         <GIC_SPI 312 IRQ_TYPE_LEVEL_HIGH>,
+                         <GIC_SPI 313 IRQ_TYPE_LEVEL_HIGH>,
+                         <GIC_SPI 314 IRQ_TYPE_LEVEL_HIGH>,
+                         <GIC_SPI 374 IRQ_TYPE_LEVEL_HIGH>,
+                         <GIC_SPI 375 IRQ_TYPE_LEVEL_HIGH>;
+            interrupt-names = "msi0", "msi1", "msi2", "msi3",
+                                   "msi4", "msi5", "msi6", "msi7";
 
-           #interrupt-cells = <1>;
-           interrupt-map-mask = <0 0 0 0x7>;
-           interrupt-map = <0 0 0 1 &intc GIC_SPI 148 IRQ_TYPE_LEVEL_HIGH>,
-                           <0 0 0 2 &intc GIC_SPI 149 IRQ_TYPE_LEVEL_HIGH>,
-                           <0 0 0 3 &intc GIC_SPI 150 IRQ_TYPE_LEVEL_HIGH>,
-                           <0 0 0 4 &intc GIC_SPI 151 IRQ_TYPE_LEVEL_HIGH>;
+            #interrupt-cells = <1>;
+            interrupt-map-mask = <0 0 0 0x7>;
+            interrupt-map = <0 0 0 1 &intc GIC_SPI 148 IRQ_TYPE_LEVEL_HIGH>,
+                            <0 0 0 2 &intc GIC_SPI 149 IRQ_TYPE_LEVEL_HIGH>,
+                            <0 0 0 3 &intc GIC_SPI 150 IRQ_TYPE_LEVEL_HIGH>,
+                            <0 0 0 4 &intc GIC_SPI 151 IRQ_TYPE_LEVEL_HIGH>;
 
-           pcie@0 {
-                   device_type = "pci";
-                   reg = <0x0 0x0 0x0 0x0 0x0>;
-                   bus-range = <0x01 0xff>;
+            pcie@0 {
+                device_type = "pci";
+                reg = <0x0 0x0 0x0 0x0 0x0>;
+                bus-range = <0x01 0xff>;
 
-                   #address-cells = <3>;
-                   #size-cells = <2>;
-                   ranges;
+                #address-cells = <3>;
+                #size-cells = <2>;
+                ranges;
             };
         };
     };

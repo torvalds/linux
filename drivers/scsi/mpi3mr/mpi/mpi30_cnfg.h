@@ -322,6 +322,9 @@ struct mpi3_man6_gpio_entry {
 #define MPI3_MAN6_GPIO_EXTINT_PARAM1_FLAGS_TRIGGER_MASK                       (0x01)
 #define MPI3_MAN6_GPIO_EXTINT_PARAM1_FLAGS_TRIGGER_EDGE                       (0x00)
 #define MPI3_MAN6_GPIO_EXTINT_PARAM1_FLAGS_TRIGGER_LEVEL                      (0x01)
+#define MPI3_MAN6_GPIO_OVER_TEMP_PARAM1_LEVEL_WARNING                         (0x00)
+#define MPI3_MAN6_GPIO_OVER_TEMP_PARAM1_LEVEL_CRITICAL                        (0x01)
+#define MPI3_MAN6_GPIO_OVER_TEMP_PARAM1_LEVEL_FATAL                           (0x02)
 #define MPI3_MAN6_GPIO_PORT_GREEN_PARAM1_PHY_STATUS_ALL_UP                    (0x00)
 #define MPI3_MAN6_GPIO_PORT_GREEN_PARAM1_PHY_STATUS_ONE_OR_MORE_UP            (0x01)
 #define MPI3_MAN6_GPIO_CABLE_MGMT_PARAM1_INTERFACE_MODULE_PRESENT             (0x00)
@@ -1250,6 +1253,37 @@ struct mpi3_io_unit_page17 {
 	__le32                             current_key[];
 };
 #define MPI3_IOUNIT17_PAGEVERSION		(0x00)
+struct mpi3_io_unit_page18 {
+	struct mpi3_config_page_header		header;
+	u8					flags;
+	u8					poll_interval;
+	__le16					reserved0a;
+	__le32					reserved0c;
+};
+
+#define MPI3_IOUNIT18_PAGEVERSION                                   (0x00)
+#define MPI3_IOUNIT18_FLAGS_DIRECTATTACHED_ENABLE                   (0x01)
+#define MPI3_IOUNIT18_POLLINTERVAL_DISABLE                          (0x00)
+#ifndef MPI3_IOUNIT19_DEVICE_MAX
+#define MPI3_IOUNIT19_DEVICE_MAX                                    (1)
+#endif
+struct mpi3_iounit19_device {
+	__le16                             temperature;
+	__le16                             dev_handle;
+	__le16                             persistent_id;
+	__le16                             reserved06;
+};
+
+#define MPI3_IOUNIT19_DEVICE_TEMPERATURE_UNAVAILABLE                (0x8000)
+struct mpi3_io_unit_page19 {
+	struct mpi3_config_page_header		header;
+	__le16					num_devices;
+	__le16					reserved0a;
+	__le32					reserved0c;
+	struct mpi3_iounit19_device		device[MPI3_IOUNIT19_DEVICE_MAX];
+};
+
+#define MPI3_IOUNIT19_PAGEVERSION                                   (0x00)
 struct mpi3_ioc_page0 {
 	struct mpi3_config_page_header         header;
 	__le32                             reserved08;
@@ -2356,7 +2390,9 @@ struct mpi3_device0_vd_format {
 	__le16     io_throttle_group;
 	__le16     io_throttle_group_low;
 	__le16     io_throttle_group_high;
-	__le32     reserved0c;
+	u8         vd_abort_to;
+	u8         vd_reset_to;
+	__le16     reserved0e;
 };
 #define MPI3_DEVICE0_VD_STATE_OFFLINE                       (0x00)
 #define MPI3_DEVICE0_VD_STATE_PARTIALLY_DEGRADED            (0x01)

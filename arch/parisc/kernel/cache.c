@@ -122,10 +122,10 @@ void __update_cache(pte_t pte)
 	pfn = folio_pfn(folio);
 	nr = folio_nr_pages(folio);
 	if (folio_flush_mapping(folio) &&
-	    test_bit(PG_dcache_dirty, &folio->flags)) {
+	    test_bit(PG_dcache_dirty, &folio->flags.f)) {
 		while (nr--)
 			flush_kernel_dcache_page_addr(pfn_va(pfn + nr));
-		clear_bit(PG_dcache_dirty, &folio->flags);
+		clear_bit(PG_dcache_dirty, &folio->flags.f);
 	} else if (parisc_requires_coherency())
 		while (nr--)
 			flush_kernel_dcache_page_addr(pfn_va(pfn + nr));
@@ -481,7 +481,7 @@ void flush_dcache_folio(struct folio *folio)
 	pgoff_t pgoff;
 
 	if (mapping && !mapping_mapped(mapping)) {
-		set_bit(PG_dcache_dirty, &folio->flags);
+		set_bit(PG_dcache_dirty, &folio->flags.f);
 		return;
 	}
 

@@ -41,35 +41,35 @@ static void snd_ice1712_stdsp24_gpio_write(struct snd_ice1712 *ice, unsigned cha
 static void snd_ice1712_stdsp24_darear(struct snd_ice1712 *ice, int activate)
 {
 	struct hoontech_spec *spec = ice->spec;
-	mutex_lock(&ice->gpio_mutex);
+
+	guard(mutex)(&ice->gpio_mutex);
 	ICE1712_STDSP24_0_DAREAR(spec->boxbits, activate);
 	snd_ice1712_stdsp24_gpio_write(ice, spec->boxbits[0]);
-	mutex_unlock(&ice->gpio_mutex);
 }
 
 static void snd_ice1712_stdsp24_mute(struct snd_ice1712 *ice, int activate)
 {
 	struct hoontech_spec *spec = ice->spec;
-	mutex_lock(&ice->gpio_mutex);
+
+	guard(mutex)(&ice->gpio_mutex);
 	ICE1712_STDSP24_3_MUTE(spec->boxbits, activate);
 	snd_ice1712_stdsp24_gpio_write(ice, spec->boxbits[3]);
-	mutex_unlock(&ice->gpio_mutex);
 }
 
 static void snd_ice1712_stdsp24_insel(struct snd_ice1712 *ice, int activate)
 {
 	struct hoontech_spec *spec = ice->spec;
-	mutex_lock(&ice->gpio_mutex);
+
+	guard(mutex)(&ice->gpio_mutex);
 	ICE1712_STDSP24_3_INSEL(spec->boxbits, activate);
 	snd_ice1712_stdsp24_gpio_write(ice, spec->boxbits[3]);
-	mutex_unlock(&ice->gpio_mutex);
 }
 
 static void snd_ice1712_stdsp24_box_channel(struct snd_ice1712 *ice, int box, int chn, int activate)
 {
 	struct hoontech_spec *spec = ice->spec;
 
-	mutex_lock(&ice->gpio_mutex);
+	guard(mutex)(&ice->gpio_mutex);
 
 	/* select box */
 	ICE1712_STDSP24_0_BOX(spec->boxbits, box);
@@ -111,15 +111,13 @@ static void snd_ice1712_stdsp24_box_channel(struct snd_ice1712 *ice, int box, in
 
 	ICE1712_STDSP24_2_MIDI1(spec->boxbits, 0);
 	snd_ice1712_stdsp24_gpio_write(ice, spec->boxbits[2]);
-
-	mutex_unlock(&ice->gpio_mutex);
 }
 
 static void snd_ice1712_stdsp24_box_midi(struct snd_ice1712 *ice, int box, int master)
 {
 	struct hoontech_spec *spec = ice->spec;
 
-	mutex_lock(&ice->gpio_mutex);
+	guard(mutex)(&ice->gpio_mutex);
 
 	/* select box */
 	ICE1712_STDSP24_0_BOX(spec->boxbits, box);
@@ -139,17 +137,15 @@ static void snd_ice1712_stdsp24_box_midi(struct snd_ice1712 *ice, int box, int m
 	
 	ICE1712_STDSP24_2_MIDIIN(spec->boxbits, 1);
 	snd_ice1712_stdsp24_gpio_write(ice, spec->boxbits[2]);
-
-	mutex_unlock(&ice->gpio_mutex);
 }
 
 static void snd_ice1712_stdsp24_midi2(struct snd_ice1712 *ice, int activate)
 {
 	struct hoontech_spec *spec = ice->spec;
-	mutex_lock(&ice->gpio_mutex);
+
+	guard(mutex)(&ice->gpio_mutex);
 	ICE1712_STDSP24_3_MIDI2(spec->boxbits, activate);
 	snd_ice1712_stdsp24_gpio_write(ice, spec->boxbits[3]);
-	mutex_unlock(&ice->gpio_mutex);
 }
 
 static int hoontech_init(struct snd_ice1712 *ice, bool staudio)

@@ -137,7 +137,7 @@ static int btrfs_del_inode_extref(struct btrfs_trans_handle *trans,
 	 */
 	extref = btrfs_find_name_in_ext_backref(path->nodes[0], path->slots[0],
 						ref_objectid, name);
-	if (!extref) {
+	if (unlikely(!extref)) {
 		btrfs_abort_transaction(trans, -ENOENT);
 		return -ENOENT;
 	}
@@ -627,7 +627,7 @@ delete:
 		if (control->clear_extent_range) {
 			ret = btrfs_inode_clear_file_extent_range(control->inode,
 						  clear_start, clear_len);
-			if (ret) {
+			if (unlikely(ret)) {
 				btrfs_abort_transaction(trans, ret);
 				break;
 			}
@@ -666,7 +666,7 @@ delete:
 			btrfs_init_data_ref(&ref, control->ino, extent_offset,
 					    btrfs_root_id(root), false);
 			ret = btrfs_free_extent(trans, &ref);
-			if (ret) {
+			if (unlikely(ret)) {
 				btrfs_abort_transaction(trans, ret);
 				break;
 			}
@@ -684,7 +684,7 @@ delete:
 				ret = btrfs_del_items(trans, root, path,
 						pending_del_slot,
 						pending_del_nr);
-				if (ret) {
+				if (unlikely(ret)) {
 					btrfs_abort_transaction(trans, ret);
 					break;
 				}
@@ -720,7 +720,7 @@ out:
 		int ret2;
 
 		ret2 = btrfs_del_items(trans, root, path, pending_del_slot, pending_del_nr);
-		if (ret2) {
+		if (unlikely(ret2)) {
 			btrfs_abort_transaction(trans, ret2);
 			ret = ret2;
 		}

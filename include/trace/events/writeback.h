@@ -213,6 +213,35 @@ TRACE_EVENT(inode_foreign_history,
 	)
 );
 
+TRACE_EVENT(inode_switch_wbs_queue,
+
+	TP_PROTO(struct bdi_writeback *old_wb, struct bdi_writeback *new_wb,
+		 unsigned int count),
+
+	TP_ARGS(old_wb, new_wb, count),
+
+	TP_STRUCT__entry(
+		__array(char,		name, 32)
+		__field(ino_t,		old_cgroup_ino)
+		__field(ino_t,		new_cgroup_ino)
+		__field(unsigned int,	count)
+	),
+
+	TP_fast_assign(
+		strscpy_pad(__entry->name, bdi_dev_name(old_wb->bdi), 32);
+		__entry->old_cgroup_ino	= __trace_wb_assign_cgroup(old_wb);
+		__entry->new_cgroup_ino	= __trace_wb_assign_cgroup(new_wb);
+		__entry->count		= count;
+	),
+
+	TP_printk("bdi %s: old_cgroup_ino=%lu new_cgroup_ino=%lu count=%u",
+		__entry->name,
+		(unsigned long)__entry->old_cgroup_ino,
+		(unsigned long)__entry->new_cgroup_ino,
+		__entry->count
+	)
+);
+
 TRACE_EVENT(inode_switch_wbs,
 
 	TP_PROTO(struct inode *inode, struct bdi_writeback *old_wb,

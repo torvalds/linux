@@ -12,9 +12,6 @@
 
 #include <linux/io.h>
 
-/* Handy logging macro to save on line length */
-#define DBG(x, ...) pr_devel("%s: " x "\n", __func__, ##__VA_ARGS__)
-
 /* 32-bit word aware bit and mask macros */
 #define W0_MASK(h, l)  GENMASK((h) - 0,  (l) - 0)
 #define W1_MASK(h, l)  GENMASK((h) - 32, (l) - 32)
@@ -94,8 +91,7 @@ struct hci_xfer {
 		};
 		struct {
 			/* DMA specific */
-			dma_addr_t data_dma;
-			void *bounce_buf;
+			struct i3c_dma *dma;
 			int ring_number;
 			int ring_entry;
 		};

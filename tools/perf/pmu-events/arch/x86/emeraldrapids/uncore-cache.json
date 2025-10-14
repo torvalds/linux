@@ -312,6 +312,17 @@
         "Unit": "CHA"
     },
     {
+        "BriefDescription": "Distress signal asserted : DPT Remote",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xaf",
+        "EventName": "UNC_CHA_DISTRESS_ASSERTED.DPT_NONLOCAL",
+        "Experimental": "1",
+        "PerPkg": "1",
+        "PublicDescription": "Distress signal asserted : DPT Remote : Counts the number of cycles either the local or incoming distress signals are asserted. : Dynamic Prefetch Throttle received by this tile",
+        "UMask": "0x8",
+        "Unit": "CHA"
+    },
+    {
         "BriefDescription": "Egress Blocking due to Ordering requirements : Down",
         "Counter": "0,1,2,3",
         "EventCode": "0xba",

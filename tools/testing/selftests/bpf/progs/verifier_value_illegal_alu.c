@@ -3,6 +3,7 @@
 
 #include <linux/bpf.h>
 #include <bpf/bpf_helpers.h>
+#include "../../../include/linux/filter.h"
 #include "bpf_misc.h"
 
 #define MAX_ENTRIES 11
@@ -146,6 +147,24 @@ l0_%=:	exit;						\
 	: __clobber_all);
 }
 
+SEC("socket")
+__description("map_ptr illegal alu op, map_ptr = -map_ptr")
+__failure __msg("R0 invalid mem access 'scalar'")
+__failure_unpriv __msg_unpriv("R0 pointer arithmetic prohibited")
+__flag(BPF_F_ANY_ALIGNMENT)
+__naked void map_ptr_illegal_alu_op(void)
+{
+	asm volatile ("					\
+	r0 = %[map_hash_48b] ll;			\
+	r0 = -r0;					\
+	r1 = 22;					\
+	*(u64*)(r0 + 0) = r1;				\
+	exit;						\
+"	:
+	: __imm_addr(map_hash_48b)
+	: __clobber_all);
+}
+
 SEC("flow_dissector")
 __description("flow_keys illegal alu op with variable offset")
 __failure __msg("R7 pointer arithmetic on flow_keys prohibited")
@@ -164,5 +183,33 @@ __naked void flow_keys_illegal_variable_offset_alu(void)
 	: __imm_const(flow_keys_off, offsetof(struct __sk_buff, flow_keys))
 	: __clobber_all);
 }
+
+#define DEFINE_BAD_OFFSET_TEST(name, op, off, imm)	\
+	SEC("socket")					\
+	__failure __msg("BPF_ALU uses reserved fields") \
+	__naked void name(void)				\
+	{						\
+		asm volatile(				\
+			"r0 = 1;"			\
+			".8byte %[insn];"		\
+			"r0 = 0;"			\
+			"exit;"				\
+		:					\
+		: __imm_insn(insn, BPF_RAW_INSN((op), 0, 0, (off), (imm))) \
+		: __clobber_all);			\
+	}
+
+/*
+ * Offset fields of 0 and 1 are legal for BPF_{DIV,MOD} instructions.
+ * Offset fields of 0 are legal for the rest of ALU instructions.
+ * Test that error is reported for illegal offsets, assuming that tests
+ * for legal offsets exist.
+ */
+DEFINE_BAD_OFFSET_TEST(bad_offset_divx, BPF_ALU64 | BPF_DIV | BPF_X, -1, 0)
+DEFINE_BAD_OFFSET_TEST(bad_offset_modk, BPF_ALU64 | BPF_MOD | BPF_K, -1, 1)
+DEFINE_BAD_OFFSET_TEST(bad_offset_addx, BPF_ALU64 | BPF_ADD | BPF_X, -1, 0)
+DEFINE_BAD_OFFSET_TEST(bad_offset_divx2, BPF_ALU64 | BPF_DIV | BPF_X, 2, 0)
+DEFINE_BAD_OFFSET_TEST(bad_offset_modk2, BPF_ALU64 | BPF_MOD | BPF_K, 2, 1)
+DEFINE_BAD_OFFSET_TEST(bad_offset_addx2, BPF_ALU64 | BPF_ADD | BPF_X, 1, 0)
 
 char _license[] SEC("license") = "GPL";

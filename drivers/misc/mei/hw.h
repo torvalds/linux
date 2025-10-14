@@ -27,6 +27,8 @@
 #define MKHI_RCV_TIMEOUT 500 /* receive timeout in msec */
 #define MKHI_RCV_TIMEOUT_SLOW 10000 /* receive timeout in msec, slow FW */
 
+#define MEI_LINK_RESET_WAIT_TIMEOUT_MSEC 500  /* Max wait timeout for link reset, in msec */
+
 /*
  * FW page size for DMA allocations
  */

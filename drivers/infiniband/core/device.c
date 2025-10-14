@@ -1543,7 +1543,7 @@ static void __ib_unregister_device(struct ib_device *ib_dev)
 
 	/*
 	 * We have a registration lock so that all the calls to unregister are
-	 * fully fenced, once any unregister returns the device is truely
+	 * fully fenced, once any unregister returns the device is truly
 	 * unregistered even if multiple callers are unregistering it at the
 	 * same time. This also interacts with the registration flow and
 	 * provides sane semantics if register and unregister are racing.

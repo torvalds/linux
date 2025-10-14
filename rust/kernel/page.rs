@@ -170,6 +170,12 @@ impl Page {
         self.page.as_ptr()
     }
 
+    /// Get the node id containing this page.
+    pub fn nid(&self) -> i32 {
+        // SAFETY: Always safe to call with a valid page.
+        unsafe { bindings::page_to_nid(self.as_ptr()) }
+    }
+
     /// Runs a piece of code with this page mapped to an address.
     ///
     /// The page is unmapped when this call returns.

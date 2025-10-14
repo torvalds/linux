@@ -14,6 +14,7 @@ u64 get_kaslr_seed(uintptr_t dtb_pa);
 u64 get_kaslr_seed_zkr(const uintptr_t dtb_pa);
 bool set_nokaslr_from_cmdline(uintptr_t dtb_pa);
 u64 set_satp_mode_from_cmdline(uintptr_t dtb_pa);
+u64 set_satp_mode_from_fdt(uintptr_t dtb_pa);
 
 bool fdt_early_match_extension_isa(const void *fdt, const char *ext_name);
 

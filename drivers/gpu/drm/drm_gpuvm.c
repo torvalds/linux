@@ -2533,8 +2533,6 @@ static const struct drm_gpuvm_ops lock_ops = {
  *
  * The expected usage is::
  *
- * .. code-block:: c
- *
  *    vm_bind {
  *        struct drm_exec exec;
  *
