@@ -865,8 +865,7 @@ static int catpt_volume_info(struct snd_kcontrol *kcontrol,
 static int catpt_mixer_volume_get(struct snd_kcontrol *kcontrol,
 				  struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component =
-		snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct catpt_dev *cdev = dev_get_drvdata(component->dev);
 	u32 dspvol;
 	int ret;
@@ -889,8 +888,7 @@ static int catpt_mixer_volume_get(struct snd_kcontrol *kcontrol,
 static int catpt_mixer_volume_put(struct snd_kcontrol *kcontrol,
 				  struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component =
-		snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct catpt_dev *cdev = dev_get_drvdata(component->dev);
 	int ret;
 
@@ -910,8 +908,7 @@ static int catpt_stream_volume_get(struct snd_kcontrol *kcontrol,
 				   struct snd_ctl_elem_value *ucontrol,
 				   enum catpt_pin_id pin_id)
 {
-	struct snd_soc_component *component =
-		snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct catpt_stream_runtime *stream;
 	struct catpt_dev *cdev = dev_get_drvdata(component->dev);
 	long *ctlvol = (long *)kcontrol->private_value;
@@ -944,8 +941,7 @@ static int catpt_stream_volume_put(struct snd_kcontrol *kcontrol,
 				   struct snd_ctl_elem_value *ucontrol,
 				   enum catpt_pin_id pin_id)
 {
-	struct snd_soc_component *component =
-		snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct catpt_stream_runtime *stream;
 	struct catpt_dev *cdev = dev_get_drvdata(component->dev);
 	long *ctlvol = (long *)kcontrol->private_value;
@@ -1021,8 +1017,7 @@ static int catpt_loopback_switch_get(struct snd_kcontrol *kcontrol,
 static int catpt_loopback_switch_put(struct snd_kcontrol *kcontrol,
 				     struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component =
-		snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct catpt_stream_runtime *stream;
 	struct catpt_dev *cdev = dev_get_drvdata(component->dev);
 	bool mute;
