@@ -1597,6 +1597,27 @@ int amdgpu_ras_reset_error_status(struct amdgpu_device *adev,
 	return 0;
 }
 
+static int amdgpu_uniras_error_inject(struct amdgpu_device *adev,
+		struct ras_inject_if *info)
+{
+	struct ras_cmd_inject_error_req inject_req;
+	struct ras_cmd_inject_error_rsp rsp;
+
+	if (!info)
+		return -EINVAL;
+
+	memset(&inject_req, 0, sizeof(inject_req));
+	inject_req.block_id = info->head.block;
+	inject_req.subblock_id = info->head.sub_block_index;
+	inject_req.address = info->address;
+	inject_req.error_type = info->head.type;
+	inject_req.instance_mask = info->instance_mask;
+	inject_req.value = info->value;
+
+	return amdgpu_ras_mgr_handle_ras_cmd(adev, RAS_CMD__INJECT_ERROR,
+			&inject_req, sizeof(inject_req), &rsp, sizeof(rsp));
+}
+
 /* wrapper of psp_ras_trigger_error */
 int amdgpu_ras_error_inject(struct amdgpu_device *adev,
 		struct ras_inject_if *info)
@@ -1613,6 +1634,9 @@ int amdgpu_ras_error_inject(struct amdgpu_device *adev,
 	struct amdgpu_ras_block_object *block_obj = amdgpu_ras_get_ras_block(adev,
 							info->head.block,
 							info->head.sub_block_index);
+
+	if (amdgpu_uniras_enabled(adev))
+		return amdgpu_uniras_error_inject(adev, info);
 
 	/* inject on guest isn't allowed, return success directly */
 	if (amdgpu_sriov_vf(adev))
