@@ -619,8 +619,6 @@ static int ov01a10_set_format(struct v4l2_subdev *sd,
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
 		ov01a10->cur_mode = mode;
-		__v4l2_ctrl_s_ctrl(ov01a10->link_freq, mode->link_freq_index);
-		__v4l2_ctrl_s_ctrl_int64(ov01a10->pixel_rate, OV01A10_SCLK);
 
 		vblank_def = mode->vts_def - mode->height;
 		__v4l2_ctrl_modify_range(ov01a10->vblank,
