@@ -151,7 +151,7 @@ MODULE_DEVICE_TABLE(of, tasdevice_of_match);
 static int tas2781_digital_getvol(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *codec = snd_kcontrol_chip(kcontrol);
 	struct tasdevice_priv *tas_priv = snd_soc_component_get_drvdata(codec);
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
@@ -162,7 +162,7 @@ static int tas2781_digital_getvol(struct snd_kcontrol *kcontrol,
 static int tas2781_digital_putvol(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *codec = snd_kcontrol_chip(kcontrol);
 	struct tasdevice_priv *tas_priv = snd_soc_component_get_drvdata(codec);
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
@@ -173,7 +173,7 @@ static int tas2781_digital_putvol(struct snd_kcontrol *kcontrol,
 static int tas2781_amp_getvol(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *codec = snd_kcontrol_chip(kcontrol);
 	struct tasdevice_priv *tas_priv = snd_soc_component_get_drvdata(codec);
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
@@ -184,7 +184,7 @@ static int tas2781_amp_getvol(struct snd_kcontrol *kcontrol,
 static int tas2781_amp_putvol(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *codec = snd_kcontrol_chip(kcontrol);
 	struct tasdevice_priv *tas_priv =
 		snd_soc_component_get_drvdata(codec);
 	struct soc_mixer_control *mc =
@@ -196,8 +196,7 @@ static int tas2781_amp_putvol(struct snd_kcontrol *kcontrol,
 static int tasdev_force_fwload_get(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component =
-		snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct tasdevice_priv *tas_priv =
 		snd_soc_component_get_drvdata(component);
 
@@ -211,8 +210,7 @@ static int tasdev_force_fwload_get(struct snd_kcontrol *kcontrol,
 static int tasdev_force_fwload_put(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component =
-		snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct tasdevice_priv *tas_priv =
 		snd_soc_component_get_drvdata(component);
 	bool change, val = (bool)ucontrol->value.integer.value[0];
@@ -232,7 +230,7 @@ static int tasdev_force_fwload_put(struct snd_kcontrol *kcontrol,
 static int tasdev_cali_data_get(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *comp = snd_kcontrol_chip(kcontrol);
 	struct tasdevice_priv *priv = snd_soc_component_get_drvdata(comp);
 	struct soc_bytes_ext *bytes_ext =
 		(struct soc_bytes_ext *) kcontrol->private_value;
@@ -469,7 +467,7 @@ static void sngl_calib_start(struct tasdevice_priv *tas_priv, int i,
 static int tas2781_calib_start_put(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *comp = snd_kcontrol_chip(kcontrol);
 	struct tasdevice_priv *priv = snd_soc_component_get_drvdata(comp);
 	struct soc_bytes_ext *bytes_ext =
 		(struct soc_bytes_ext *) kcontrol->private_value;
@@ -542,7 +540,7 @@ static int tas2563_calib_start_put(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
 	struct bulk_reg_val *q = (struct bulk_reg_val *)tas2563_cali_start_reg;
-	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *comp = snd_kcontrol_chip(kcontrol);
 	struct tasdevice_priv *tas_priv = snd_soc_component_get_drvdata(comp);
 	const int sum = ARRAY_SIZE(tas2563_cali_start_reg);
 	int i, j;
@@ -606,7 +604,7 @@ static void tas2563_calib_stop_put(struct tasdevice_priv *tas_priv)
 static int tasdev_calib_stop_put(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *comp = snd_kcontrol_chip(kcontrol);
 	struct tasdevice_priv *priv = snd_soc_component_get_drvdata(comp);
 
 	guard(mutex)(&priv->codec_lock);
@@ -621,7 +619,7 @@ static int tasdev_calib_stop_put(struct snd_kcontrol *kcontrol,
 static int tasdev_cali_data_put(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *comp = snd_kcontrol_chip(kcontrol);
 	struct tasdevice_priv *priv = snd_soc_component_get_drvdata(comp);
 	struct soc_bytes_ext *bytes_ext =
 		(struct soc_bytes_ext *) kcontrol->private_value;
@@ -668,7 +666,7 @@ static int tasdev_cali_data_put(struct snd_kcontrol *kcontrol,
 static int tas2781_latch_reg_get(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *comp = snd_kcontrol_chip(kcontrol);
 	struct tasdevice_priv *tas_priv = snd_soc_component_get_drvdata(comp);
 	struct i2c_client *clt = (struct i2c_client *)tas_priv->client;
 	struct soc_bytes_ext *bytes_ext =
@@ -701,7 +699,7 @@ static int tas2781_latch_reg_get(struct snd_kcontrol *kcontrol,
 static int tasdev_tf_data_get(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *comp = snd_kcontrol_chip(kcontrol);
 	struct tasdevice_priv *tas_priv = snd_soc_component_get_drvdata(comp);
 	struct soc_bytes_ext *bytes_ext =
 		(struct soc_bytes_ext *) kcontrol->private_value;
@@ -728,7 +726,7 @@ static int tasdev_tf_data_get(struct snd_kcontrol *kcontrol,
 static int tasdev_re_data_get(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *comp = snd_kcontrol_chip(kcontrol);
 	struct tasdevice_priv *tas_priv = snd_soc_component_get_drvdata(comp);
 	struct soc_bytes_ext *bytes_ext =
 		(struct soc_bytes_ext *) kcontrol->private_value;
@@ -754,7 +752,7 @@ static int tasdev_re_data_get(struct snd_kcontrol *kcontrol,
 static int tasdev_r0_data_get(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *comp = snd_kcontrol_chip(kcontrol);
 	struct tasdevice_priv *tas_priv = snd_soc_component_get_drvdata(comp);
 	struct calidata *cali_data = &tas_priv->cali_data;
 	struct soc_bytes_ext *bytes_ext =
@@ -777,7 +775,7 @@ static int tasdev_r0_data_get(struct snd_kcontrol *kcontrol,
 static int tasdev_XMA1_data_get(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *comp = snd_kcontrol_chip(kcontrol);
 	struct tasdevice_priv *tas_priv = snd_soc_component_get_drvdata(comp);
 	struct tasdevice_fw *tas_fmw = tas_priv->fmw;
 	struct fct_param_address *p = &(tas_fmw->fct_par_addr);
@@ -797,7 +795,7 @@ static int tasdev_XMA1_data_get(struct snd_kcontrol *kcontrol,
 static int tasdev_XMA2_data_get(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *comp = snd_kcontrol_chip(kcontrol);
 	struct tasdevice_priv *tas_priv = snd_soc_component_get_drvdata(comp);
 	struct tasdevice_fw *tas_fmw = tas_priv->fmw;
 	struct fct_param_address *p = &(tas_fmw->fct_par_addr);
@@ -827,7 +825,7 @@ static int tasdevice_digital_gain_get(
 {
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
-	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *codec = snd_kcontrol_chip(kcontrol);
 	struct tasdevice_priv *tas_dev = snd_soc_component_get_drvdata(codec);
 	unsigned int l = 0, r = mc->max;
 	unsigned int target, ar_mid, mid, ar_l, ar_r;
@@ -871,7 +869,7 @@ static int tasdevice_digital_gain_put(
 {
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
-	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *codec = snd_kcontrol_chip(kcontrol);
 	struct tasdevice_priv *tas_dev = snd_soc_component_get_drvdata(codec);
 	int vol = ucontrol->value.integer.value[0];
 	int status = 0, max = mc->max, rc = 1;
@@ -973,7 +971,7 @@ static const struct snd_kcontrol_new tas2563_cali_controls[] = {
 static int tasdevice_set_profile_id(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *codec = snd_kcontrol_chip(kcontrol);
 	struct tasdevice_priv *tas_priv = snd_soc_component_get_drvdata(codec);
 	int ret = 0;
 
@@ -990,7 +988,7 @@ static int tasdevice_set_profile_id(struct snd_kcontrol *kcontrol,
 static int tasdevice_info_active_num(struct snd_kcontrol *kcontrol,
 			struct snd_ctl_elem_info *uinfo)
 {
-	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *codec = snd_kcontrol_chip(kcontrol);
 	struct tasdevice_priv *tas_priv = snd_soc_component_get_drvdata(codec);
 
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
@@ -1015,7 +1013,7 @@ static int tasdevice_info_chip_id(struct snd_kcontrol *kcontrol,
 static int tasdevice_info_programs(struct snd_kcontrol *kcontrol,
 			struct snd_ctl_elem_info *uinfo)
 {
-	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *codec = snd_kcontrol_chip(kcontrol);
 	struct tasdevice_priv *tas_priv = snd_soc_component_get_drvdata(codec);
 	struct tasdevice_fw *tas_fw = tas_priv->fmw;
 
@@ -1030,8 +1028,7 @@ static int tasdevice_info_programs(struct snd_kcontrol *kcontrol,
 static int tasdevice_info_configurations(
 	struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
-	struct snd_soc_component *codec =
-		snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *codec = snd_kcontrol_chip(kcontrol);
 	struct tasdevice_priv *tas_priv = snd_soc_component_get_drvdata(codec);
 	struct tasdevice_fw *tas_fw = tas_priv->fmw;
 
@@ -1046,7 +1043,7 @@ static int tasdevice_info_configurations(
 static int tasdevice_info_profile(struct snd_kcontrol *kcontrol,
 			struct snd_ctl_elem_info *uinfo)
 {
-	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *codec = snd_kcontrol_chip(kcontrol);
 	struct tasdevice_priv *tas_priv = snd_soc_component_get_drvdata(codec);
 
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
@@ -1060,7 +1057,7 @@ static int tasdevice_info_profile(struct snd_kcontrol *kcontrol,
 static int tasdevice_get_profile_id(struct snd_kcontrol *kcontrol,
 			struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *codec = snd_kcontrol_chip(kcontrol);
 	struct tasdevice_priv *tas_priv = snd_soc_component_get_drvdata(codec);
 
 	ucontrol->value.integer.value[0] = tas_priv->rcabin.profile_cfg_id;
@@ -1071,7 +1068,7 @@ static int tasdevice_get_profile_id(struct snd_kcontrol *kcontrol,
 static int tasdevice_get_chip_id(struct snd_kcontrol *kcontrol,
 			struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *codec = snd_kcontrol_chip(kcontrol);
 	struct tasdevice_priv *tas_priv = snd_soc_component_get_drvdata(codec);
 
 	ucontrol->value.integer.value[0] = tas_priv->chip_id;
@@ -1117,7 +1114,7 @@ out:
 static int tasdevice_program_get(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *codec = snd_kcontrol_chip(kcontrol);
 	struct tasdevice_priv *tas_priv = snd_soc_component_get_drvdata(codec);
 
 	ucontrol->value.integer.value[0] = tas_priv->cur_prog;
@@ -1128,7 +1125,7 @@ static int tasdevice_program_get(struct snd_kcontrol *kcontrol,
 static int tasdevice_program_put(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *codec = snd_kcontrol_chip(kcontrol);
 	struct tasdevice_priv *tas_priv = snd_soc_component_get_drvdata(codec);
 	unsigned int nr_program = ucontrol->value.integer.value[0];
 	int ret = 0;
@@ -1145,7 +1142,7 @@ static int tasdevice_configuration_get(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
 
-	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *codec = snd_kcontrol_chip(kcontrol);
 	struct tasdevice_priv *tas_priv = snd_soc_component_get_drvdata(codec);
 
 	ucontrol->value.integer.value[0] = tas_priv->cur_conf;
@@ -1157,7 +1154,7 @@ static int tasdevice_configuration_put(
 	struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *codec = snd_kcontrol_chip(kcontrol);
 	struct tasdevice_priv *tas_priv = snd_soc_component_get_drvdata(codec);
 	unsigned int nr_configuration = ucontrol->value.integer.value[0];
 	int ret = 0;
@@ -1173,7 +1170,7 @@ static int tasdevice_configuration_put(
 static int tasdevice_active_num_get(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *codec = snd_kcontrol_chip(kcontrol);
 	struct tasdevice_priv *tas_priv = snd_soc_component_get_drvdata(codec);
 	struct i2c_client *clt = (struct i2c_client *)tas_priv->client;
 	struct tasdevice *tasdev = tas_priv->tasdevice;
@@ -1192,7 +1189,7 @@ static int tasdevice_active_num_get(struct snd_kcontrol *kcontrol,
 static int tasdevice_active_num_put(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *codec = snd_kcontrol_chip(kcontrol);
 	struct tasdevice_priv *tas_priv = snd_soc_component_get_drvdata(codec);
 	int dev_id = ucontrol->value.integer.value[0];
 	int max = tas_priv->ndev - 1;
