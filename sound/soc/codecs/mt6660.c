@@ -187,8 +187,7 @@ static const struct snd_soc_dapm_route mt6660_component_dapm_routes[] = {
 static int mt6660_component_get_volsw(struct snd_kcontrol *kcontrol,
 				  struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component =
-		snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct mt6660_chip *chip = (struct mt6660_chip *)
 		snd_soc_component_get_drvdata(component);
 
