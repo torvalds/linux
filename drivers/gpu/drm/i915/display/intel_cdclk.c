@@ -2806,14 +2806,18 @@ static int intel_cdclk_guardband(struct intel_display *display)
 		return 90;
 }
 
-static int intel_pixel_rate_to_cdclk(const struct intel_crtc_state *crtc_state)
+static int _intel_pixel_rate_to_cdclk(const struct intel_crtc_state *crtc_state, int pixel_rate)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
 	int ppc = intel_cdclk_ppc(display, crtc_state->double_wide);
 	int guardband = intel_cdclk_guardband(display);
-	int pixel_rate = crtc_state->pixel_rate;
 
 	return DIV_ROUND_UP(pixel_rate * 100, guardband * ppc);
+}
+
+static int intel_pixel_rate_to_cdclk(const struct intel_crtc_state *crtc_state)
+{
+	return _intel_pixel_rate_to_cdclk(crtc_state, crtc_state->pixel_rate);
 }
 
 static int intel_planes_min_cdclk(const struct intel_crtc_state *crtc_state)
@@ -4055,4 +4059,64 @@ void intel_cdclk_read_hw(struct intel_display *display)
 	intel_cdclk_dump_config(display, &display->cdclk.hw, "Current CDCLK");
 	cdclk_state->actual = display->cdclk.hw;
 	cdclk_state->logical = display->cdclk.hw;
+}
+
+static int calc_cdclk(const struct intel_crtc_state *crtc_state, int min_cdclk)
+{
+	struct intel_display *display = to_intel_display(crtc_state);
+
+	if (DISPLAY_VER(display) >= 10 || display->platform.broxton) {
+		return bxt_calc_cdclk(display, min_cdclk);
+	} else if (DISPLAY_VER(display) == 9) {
+		int vco;
+
+		vco = display->cdclk.skl_preferred_vco_freq;
+		if (vco == 0)
+			vco = 8100000;
+
+		return skl_calc_cdclk(min_cdclk, vco);
+	} else if (display->platform.broadwell) {
+		return bdw_calc_cdclk(min_cdclk);
+	} else if (display->platform.cherryview || display->platform.valleyview) {
+		return vlv_calc_cdclk(display, min_cdclk);
+	} else {
+		return display->cdclk.max_cdclk_freq;
+	}
+}
+
+static unsigned int _intel_cdclk_prefill_adj(const struct intel_crtc_state *crtc_state,
+					     int clock, int min_cdclk)
+{
+	struct intel_display *display = to_intel_display(crtc_state);
+	int ppc = intel_cdclk_ppc(display, crtc_state->double_wide);
+	int cdclk = calc_cdclk(crtc_state, min_cdclk);
+
+	return min(0x10000, DIV_ROUND_UP_ULL((u64)clock << 16, ppc * cdclk));
+}
+
+unsigned int intel_cdclk_prefill_adjustment(const struct intel_crtc_state *crtc_state)
+{
+	/* FIXME use the actual min_cdclk for the pipe here */
+	return intel_cdclk_prefill_adjustment_worst(crtc_state);
+}
+
+unsigned int intel_cdclk_prefill_adjustment_worst(const struct intel_crtc_state *crtc_state)
+{
+	int clock = crtc_state->hw.pipe_mode.crtc_clock;
+	int min_cdclk;
+
+	/*
+	 * FIXME could perhaps consider a few more of the factors
+	 * that go the per-crtc min_cdclk. Namely anything that
+	 * only changes during full modesets.
+	 *
+	 * FIXME this assumes 1:1 scaling, but the other _worst() stuff
+	 * assumes max downscaling, so the final result will be
+	 * unrealistically bad. Figure out where the actual maximum value
+	 * lies and use that to compute a more realistic worst case
+	 * estimate...
+	 */
+	min_cdclk = _intel_pixel_rate_to_cdclk(crtc_state, clock);
+
+	return _intel_cdclk_prefill_adj(crtc_state, clock, min_cdclk);
 }
