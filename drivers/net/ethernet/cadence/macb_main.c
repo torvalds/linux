@@ -1989,7 +1989,7 @@ static unsigned int macb_tx_map(struct macb *bp,
 				unsigned int hdrlen)
 {
 	dma_addr_t mapping;
-	unsigned int len, entry, i, tx_head = queue->tx_head;
+	unsigned int len, i, tx_head = queue->tx_head;
 	struct macb_tx_skb *tx_skb = NULL;
 	struct macb_dma_desc *desc;
 	unsigned int offset, size, count = 0;
@@ -2015,8 +2015,7 @@ static unsigned int macb_tx_map(struct macb *bp,
 
 	offset = 0;
 	while (len) {
-		entry = macb_tx_ring_wrap(bp, tx_head);
-		tx_skb = &queue->tx_skb[entry];
+		tx_skb = macb_tx_skb(queue, tx_head);
 
 		mapping = dma_map_single(&bp->pdev->dev,
 					 skb->data + offset,
@@ -2046,8 +2045,7 @@ static unsigned int macb_tx_map(struct macb *bp,
 		offset = 0;
 		while (len) {
 			size = umin(len, bp->max_tx_length);
-			entry = macb_tx_ring_wrap(bp, tx_head);
-			tx_skb = &queue->tx_skb[entry];
+			tx_skb = macb_tx_skb(queue, tx_head);
 
 			mapping = skb_frag_dma_map(&bp->pdev->dev, frag,
 						   offset, size, DMA_TO_DEVICE);
@@ -2084,9 +2082,8 @@ static unsigned int macb_tx_map(struct macb *bp,
 	 * to set the end of TX queue
 	 */
 	i = tx_head;
-	entry = macb_tx_ring_wrap(bp, i);
 	ctrl = MACB_BIT(TX_USED);
-	desc = macb_tx_desc(queue, entry);
+	desc = macb_tx_desc(queue, i);
 	desc->ctrl = ctrl;
 
 	if (lso_ctrl) {
@@ -2106,16 +2103,15 @@ static unsigned int macb_tx_map(struct macb *bp,
 
 	do {
 		i--;
-		entry = macb_tx_ring_wrap(bp, i);
-		tx_skb = &queue->tx_skb[entry];
-		desc = macb_tx_desc(queue, entry);
+		tx_skb = macb_tx_skb(queue, i);
+		desc = macb_tx_desc(queue, i);
 
 		ctrl = (u32)tx_skb->size;
 		if (eof) {
 			ctrl |= MACB_BIT(TX_LAST);
 			eof = 0;
 		}
-		if (unlikely(entry == (bp->tx_ring_size - 1)))
+		if (unlikely(macb_tx_ring_wrap(bp, i) == bp->tx_ring_size - 1))
 			ctrl |= MACB_BIT(TX_WRAP);
 
 		/* First descriptor is header descriptor */
