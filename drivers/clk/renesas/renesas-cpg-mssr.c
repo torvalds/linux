@@ -308,9 +308,20 @@ static int cpg_mstp_clock_endisable(struct clk_hw *hw, bool enable)
 
 	spin_unlock_irqrestore(&priv->pub.rmw_lock, flags);
 
-	if (!enable || priv->reg_layout == CLK_REG_LAYOUT_RZ_A ||
-	    priv->reg_layout == CLK_REG_LAYOUT_RZ_T2H)
+	if (!enable || priv->reg_layout == CLK_REG_LAYOUT_RZ_A)
 		return 0;
+
+	if (priv->reg_layout == CLK_REG_LAYOUT_RZ_T2H) {
+		/*
+		 * For the RZ/T2H case, it is necessary to perform a read-back after
+		 * accessing the MSTPCRm register and to dummy-read any register of
+		 * the IP at least seven times. Instead of memory-mapping the IP
+		 * register, we simply add a delay after the read operation.
+		 */
+		cpg_rzt2h_mstp_read(hw, priv->control_regs[reg]);
+		udelay(10);
+		return 0;
+	}
 
 	error = readl_poll_timeout_atomic(priv->pub.base0 + priv->status_regs[reg],
 					  value, !(value & bitmask), 0, 10);
