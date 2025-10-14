@@ -312,7 +312,6 @@ static void tcp_time_wait_init(struct sock *sk, struct tcp_timewait_sock *tcptw)
 			return;
 		if (!static_key_fast_inc_not_disabled(&tcp_md5_needed.key.key))
 			goto out_free;
-		tcp_md5_add_sigpool();
 	}
 	return;
 out_free:
@@ -406,7 +405,6 @@ void tcp_twsk_destructor(struct sock *sk)
 		if (twsk->tw_md5_key) {
 			kfree(twsk->tw_md5_key);
 			static_branch_slow_dec_deferred(&tcp_md5_needed);
-			tcp_md5_release_sigpool();
 		}
 	}
 #endif
