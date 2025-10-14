@@ -547,6 +547,7 @@ config DM_VERITY
 	depends on BLK_DEV_DM
 	select CRYPTO
 	select CRYPTO_HASH
+	select CRYPTO_LIB_SHA256
 	select DM_BUFIO
 	help
 	  This device-mapper target creates a read-only device that

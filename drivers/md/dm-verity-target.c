@@ -117,11 +117,25 @@ static sector_t verity_position_at_level(struct dm_verity *v, sector_t block,
 int verity_hash(struct dm_verity *v, struct dm_verity_io *io,
 		const u8 *data, size_t len, u8 *digest)
 {
-	struct shash_desc *desc = &io->hash_desc;
+	struct shash_desc *desc;
 	int r;
 
+	if (likely(v->use_sha256_lib)) {
+		struct sha256_ctx *ctx = &io->hash_ctx.sha256;
+
+		/*
+		 * Fast path using SHA-256 library.  This is enabled only for
+		 * verity version 1, where the salt is at the beginning.
+		 */
+		*ctx = *v->initial_hashstate.sha256;
+		sha256_update(ctx, data, len);
+		sha256_final(ctx, digest);
+		return 0;
+	}
+
+	desc = &io->hash_ctx.shash;
 	desc->tfm = v->shash_tfm;
-	if (unlikely(v->initial_hashstate == NULL)) {
+	if (unlikely(v->initial_hashstate.shash == NULL)) {
 		/* Version 0: salt at end */
 		r = crypto_shash_init(desc) ?:
 		    crypto_shash_update(desc, data, len) ?:
@@ -129,7 +143,7 @@ int verity_hash(struct dm_verity *v, struct dm_verity_io *io,
 		    crypto_shash_final(desc, digest);
 	} else {
 		/* Version 1: salt at beginning */
-		r = crypto_shash_import(desc, v->initial_hashstate) ?:
+		r = crypto_shash_import(desc, v->initial_hashstate.shash) ?:
 		    crypto_shash_finup(desc, data, len, digest);
 	}
 	if (unlikely(r))
@@ -1004,7 +1018,7 @@ static void verity_dtr(struct dm_target *ti)
 
 	kvfree(v->validated_blocks);
 	kfree(v->salt);
-	kfree(v->initial_hashstate);
+	kfree(v->initial_hashstate.shash);
 	kfree(v->root_digest);
 	kfree(v->zero_digest);
 	verity_free_sig(v);
@@ -1069,8 +1083,7 @@ static int verity_alloc_zero_digest(struct dm_verity *v)
 	if (!v->zero_digest)
 		return r;
 
-	io = kmalloc(sizeof(*io) + crypto_shash_descsize(v->shash_tfm),
-		     GFP_KERNEL);
+	io = kmalloc(v->ti->per_io_data_size, GFP_KERNEL);
 
 	if (!io)
 		return r; /* verity_dtr will free zero_digest */
@@ -1256,6 +1269,20 @@ static int verity_setup_hash_alg(struct dm_verity *v, const char *alg_name)
 		ti->error = "Digest size too big";
 		return -EINVAL;
 	}
+	if (likely(v->version && strcmp(alg_name, "sha256") == 0)) {
+		/*
+		 * Fast path: use the library API for reduced overhead and
+		 * interleaved hashing support.
+		 */
+		v->use_sha256_lib = true;
+		ti->per_io_data_size =
+			offsetofend(struct dm_verity_io, hash_ctx.sha256);
+	} else {
+		/* Fallback case: use the generic crypto API. */
+		ti->per_io_data_size =
+			offsetofend(struct dm_verity_io, hash_ctx.shash) +
+			crypto_shash_descsize(shash);
+	}
 	return 0;
 }
 
@@ -1276,7 +1303,18 @@ static int verity_setup_salt_and_hashstate(struct dm_verity *v, const char *arg)
 			return -EINVAL;
 		}
 	}
-	if (v->version) { /* Version 1: salt at beginning */
+	if (likely(v->use_sha256_lib)) {
+		/* Implies version 1: salt at beginning */
+		v->initial_hashstate.sha256 =
+			kmalloc(sizeof(struct sha256_ctx), GFP_KERNEL);
+		if (!v->initial_hashstate.sha256) {
+			ti->error = "Cannot allocate initial hash state";
+			return -ENOMEM;
+		}
+		sha256_init(v->initial_hashstate.sha256);
+		sha256_update(v->initial_hashstate.sha256,
+			      v->salt, v->salt_size);
+	} else if (v->version) { /* Version 1: salt at beginning */
 		SHASH_DESC_ON_STACK(desc, v->shash_tfm);
 		int r;
 
@@ -1284,16 +1322,16 @@ static int verity_setup_salt_and_hashstate(struct dm_verity *v, const char *arg)
 		 * Compute the pre-salted hash state that can be passed to
 		 * crypto_shash_import() for each block later.
 		 */
-		v->initial_hashstate = kmalloc(
+		v->initial_hashstate.shash = kmalloc(
 			crypto_shash_statesize(v->shash_tfm), GFP_KERNEL);
-		if (!v->initial_hashstate) {
+		if (!v->initial_hashstate.shash) {
 			ti->error = "Cannot allocate initial hash state";
 			return -ENOMEM;
 		}
 		desc->tfm = v->shash_tfm;
 		r = crypto_shash_init(desc) ?:
 		    crypto_shash_update(desc, v->salt, v->salt_size) ?:
-		    crypto_shash_export(desc, v->initial_hashstate);
+		    crypto_shash_export(desc, v->initial_hashstate.shash);
 		if (r) {
 			ti->error = "Cannot set up initial hash state";
 			return r;
@@ -1554,9 +1592,6 @@ static int verity_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		r = -ENOMEM;
 		goto bad;
 	}
-
-	ti->per_io_data_size = sizeof(struct dm_verity_io) +
-			       crypto_shash_descsize(v->shash_tfm);
 
 	r = verity_fec_ctr(v);
 	if (r)
