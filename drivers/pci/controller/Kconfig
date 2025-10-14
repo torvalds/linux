@@ -243,6 +243,7 @@ config PCI_TEGRA
 config PCIE_RCAR_HOST
 	bool "Renesas R-Car PCIe controller (host mode)"
 	depends on ARCH_RENESAS || COMPILE_TEST
+	depends on OF
 	depends on PCI_MSI
 	select IRQ_MSI_LIB
 	help
