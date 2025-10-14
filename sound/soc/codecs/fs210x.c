@@ -924,7 +924,7 @@ static int fs210x_get_drvdata_from_kctrl(struct snd_kcontrol *kctrl,
 		return -EINVAL;
 	}
 
-	cmpnt = snd_soc_kcontrol_component(kctrl);
+	cmpnt = snd_kcontrol_chip(kctrl);
 	if (!cmpnt) {
 		pr_err("fs210x: component is null\n");
 		return -EINVAL;
