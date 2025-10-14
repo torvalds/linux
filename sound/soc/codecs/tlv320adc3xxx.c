@@ -565,7 +565,7 @@ static int adc3xxx_coefficient_info(struct snd_kcontrol *kcontrol,
 static int adc3xxx_coefficient_get(struct snd_kcontrol *kcontrol,
 				   struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	int numcoeff  = kcontrol->private_value >> 16;
 	int reg = kcontrol->private_value & 0xffff;
 	int index = 0;
@@ -591,7 +591,7 @@ static int adc3xxx_coefficient_get(struct snd_kcontrol *kcontrol,
 static int adc3xxx_coefficient_put(struct snd_kcontrol *kcontrol,
 				   struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	int numcoeff  = kcontrol->private_value >> 16;
 	int reg = kcontrol->private_value & 0xffff;
 	int index = 0;
