@@ -1695,6 +1695,18 @@ nvkm_device_pci_new(struct pci_dev *pci_dev, const char *cfg, const char *dbg,
 	*pdevice = &pdev->device;
 	pdev->pdev = pci_dev;
 
+	/* Set DMA mask based on capabilities reported by the MMU subdev. */
+	if (pdev->device.mmu && !pdev->device.pci->agp.bridge)
+		bits = pdev->device.mmu->dma_bits;
+	else
+		bits = 32;
+
+	ret = dma_set_mask_and_coherent(&pci_dev->dev, DMA_BIT_MASK(bits));
+	if (ret && bits != 32) {
+		dma_set_mask_and_coherent(&pci_dev->dev, DMA_BIT_MASK(32));
+		pdev->device.mmu->dma_bits = 32;
+	}
+
 	ret = nvkm_device_ctor(&nvkm_device_pci_func, quirk, &pci_dev->dev,
 			       pci_is_pcie(pci_dev) ? NVKM_DEVICE_PCIE :
 			       pci_find_capability(pci_dev, PCI_CAP_ID_AGP) ?
@@ -1707,18 +1719,6 @@ nvkm_device_pci_new(struct pci_dev *pci_dev, const char *cfg, const char *dbg,
 
 	if (ret)
 		return ret;
-
-	/* Set DMA mask based on capabilities reported by the MMU subdev. */
-	if (pdev->device.mmu && !pdev->device.pci->agp.bridge)
-		bits = pdev->device.mmu->dma_bits;
-	else
-		bits = 32;
-
-	ret = dma_set_mask_and_coherent(&pci_dev->dev, DMA_BIT_MASK(bits));
-	if (ret && bits != 32) {
-		dma_set_mask_and_coherent(&pci_dev->dev, DMA_BIT_MASK(32));
-		pdev->device.mmu->dma_bits = 32;
-	}
 
 	return 0;
 }
