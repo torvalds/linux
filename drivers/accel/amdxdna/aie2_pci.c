@@ -924,6 +924,9 @@ static int aie2_get_array(struct amdxdna_client *client,
 	case DRM_AMDXDNA_HW_CONTEXT_ALL:
 		ret = aie2_query_ctx_status_array(client, args);
 		break;
+	case DRM_AMDXDNA_HW_LAST_ASYNC_ERR:
+		ret = aie2_get_array_async_error(xdna->dev_handle, args);
+		break;
 	default:
 		XDNA_ERR(xdna, "Not supported request parameter %u", args->param);
 		ret = -EOPNOTSUPP;
