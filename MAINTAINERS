@@ -13560,6 +13560,7 @@ R:	Dai Ngo <Dai.Ngo@oracle.com>
 R:	Tom Talpey <tom@talpey.com>
 L:	linux-nfs@vger.kernel.org
 S:	Supported
+P:	Documentation/filesystems/nfs/nfsd-maintainer-entry-profile.rst
 B:	https://bugzilla.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/cel/linux.git
 F:	Documentation/filesystems/nfs/
