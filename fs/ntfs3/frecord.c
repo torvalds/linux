@@ -2105,7 +2105,7 @@ int ni_readpage_cmpr(struct ntfs_inode *ni, struct folio *folio)
 		pages[i] = pg;
 	}
 
-	err = ni_read_frame(ni, frame_vbo, pages, pages_per_frame);
+	err = ni_read_frame(ni, frame_vbo, pages, pages_per_frame, 0);
 
 out1:
 	for (i = 0; i < pages_per_frame; i++) {
@@ -2175,17 +2175,9 @@ int ni_decompress_file(struct ntfs_inode *ni)
 	 */
 	index = 0;
 	for (vbo = 0; vbo < i_size; vbo += bytes) {
-		u32 nr_pages;
 		bool new;
 
-		if (vbo + frame_size > i_size) {
-			bytes = i_size - vbo;
-			nr_pages = (bytes + PAGE_SIZE - 1) >> PAGE_SHIFT;
-		} else {
-			nr_pages = pages_per_frame;
-			bytes = frame_size;
-		}
-
+		bytes = vbo + frame_size > i_size ? (i_size - vbo) : frame_size;
 		end = bytes_to_cluster(sbi, vbo + bytes);
 
 		for (vcn = vbo >> sbi->cluster_bits; vcn < end; vcn += clen) {
@@ -2210,15 +2202,7 @@ int ni_decompress_file(struct ntfs_inode *ni)
 			pages[i] = pg;
 		}
 
-		err = ni_read_frame(ni, vbo, pages, pages_per_frame);
-
-		if (!err) {
-			down_read(&ni->file.run_lock);
-			err = ntfs_bio_pages(sbi, &ni->file.run, pages,
-					     nr_pages, vbo, bytes,
-					     REQ_OP_WRITE);
-			up_read(&ni->file.run_lock);
-		}
+		err = ni_read_frame(ni, vbo, pages, pages_per_frame, 1);
 
 		for (i = 0; i < pages_per_frame; i++) {
 			unlock_page(pages[i]);
@@ -2408,20 +2392,19 @@ out2:
  * Pages - Array of locked pages.
  */
 int ni_read_frame(struct ntfs_inode *ni, u64 frame_vbo, struct page **pages,
-		  u32 pages_per_frame)
+		  u32 pages_per_frame, int copy)
 {
 	int err;
 	struct ntfs_sb_info *sbi = ni->mi.sbi;
 	u8 cluster_bits = sbi->cluster_bits;
 	char *frame_ondisk = NULL;
 	char *frame_mem = NULL;
-	struct page **pages_disk = NULL;
 	struct ATTR_LIST_ENTRY *le = NULL;
 	struct runs_tree *run = &ni->file.run;
 	u64 valid_size = ni->i_valid;
 	u64 vbo_disk;
 	size_t unc_size;
-	u32 frame_size, i, npages_disk, ondisk_size;
+	u32 frame_size, i, ondisk_size;
 	struct page *pg;
 	struct ATTRIB *attr;
 	CLST frame, clst_data;
@@ -2513,7 +2496,7 @@ int ni_read_frame(struct ntfs_inode *ni, u64 frame_vbo, struct page **pages,
 		err = attr_wof_frame_info(ni, attr, run, frame64, frames,
 					  frame_bits, &ondisk_size, &vbo_data);
 		if (err)
-			goto out2;
+			goto out1;
 
 		if (frame64 == frames) {
 			unc_size = 1 + ((i_size - 1) & (frame_size - 1));
@@ -2524,7 +2507,7 @@ int ni_read_frame(struct ntfs_inode *ni, u64 frame_vbo, struct page **pages,
 
 		if (ondisk_size > frame_size) {
 			err = -EINVAL;
-			goto out2;
+			goto out1;
 		}
 
 		if (!attr->non_res) {
@@ -2545,10 +2528,7 @@ int ni_read_frame(struct ntfs_inode *ni, u64 frame_vbo, struct page **pages,
 					   ARRAY_SIZE(WOF_NAME), run, vbo_disk,
 					   vbo_data + ondisk_size);
 		if (err)
-			goto out2;
-		npages_disk = (ondisk_size + (vbo_disk & (PAGE_SIZE - 1)) +
-			       PAGE_SIZE - 1) >>
-			      PAGE_SHIFT;
+			goto out1;
 #endif
 	} else if (is_attr_compressed(attr)) {
 		/* LZNT compression. */
@@ -2582,60 +2562,37 @@ int ni_read_frame(struct ntfs_inode *ni, u64 frame_vbo, struct page **pages,
 		if (clst_data >= NTFS_LZNT_CLUSTERS) {
 			/* Frame is not compressed. */
 			down_read(&ni->file.run_lock);
-			err = ntfs_bio_pages(sbi, run, pages, pages_per_frame,
-					     frame_vbo, ondisk_size,
-					     REQ_OP_READ);
+			err = ntfs_read_run(sbi, run, frame_mem, frame_vbo,
+					    ondisk_size);
 			up_read(&ni->file.run_lock);
 			goto out1;
 		}
 		vbo_disk = frame_vbo;
-		npages_disk = (ondisk_size + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	} else {
 		__builtin_unreachable();
 		err = -EINVAL;
 		goto out1;
 	}
 
-	pages_disk = kcalloc(npages_disk, sizeof(*pages_disk), GFP_NOFS);
-	if (!pages_disk) {
+	/* Allocate memory to read compressed data to. */
+	frame_ondisk = kvmalloc(ondisk_size, GFP_KERNEL);
+	if (!frame_ondisk) {
 		err = -ENOMEM;
-		goto out2;
-	}
-
-	for (i = 0; i < npages_disk; i++) {
-		pg = alloc_page(GFP_KERNEL);
-		if (!pg) {
-			err = -ENOMEM;
-			goto out3;
-		}
-		pages_disk[i] = pg;
-		lock_page(pg);
+		goto out1;
 	}
 
 	/* Read 'ondisk_size' bytes from disk. */
 	down_read(&ni->file.run_lock);
-	err = ntfs_bio_pages(sbi, run, pages_disk, npages_disk, vbo_disk,
-			     ondisk_size, REQ_OP_READ);
+	err = ntfs_read_run(sbi, run, frame_ondisk, vbo_disk, ondisk_size);
 	up_read(&ni->file.run_lock);
 	if (err)
-		goto out3;
+		goto out2;
 
-	/*
-	 * To simplify decompress algorithm do vmap for source and target pages.
-	 */
-	frame_ondisk = vmap(pages_disk, npages_disk, VM_MAP, PAGE_KERNEL_RO);
-	if (!frame_ondisk) {
-		err = -ENOMEM;
-		goto out3;
-	}
-
-	/* Decompress: Frame_ondisk -> frame_mem. */
 #ifdef CONFIG_NTFS3_LZX_XPRESS
 	if (run != &ni->file.run) {
 		/* LZX or XPRESS */
-		err = decompress_lzx_xpress(
-			sbi, frame_ondisk + (vbo_disk & (PAGE_SIZE - 1)),
-			ondisk_size, frame_mem, unc_size, frame_size);
+		err = decompress_lzx_xpress(sbi, frame_ondisk, ondisk_size,
+					    frame_mem, unc_size, frame_size);
 	} else
 #endif
 	{
@@ -2653,24 +2610,21 @@ int ni_read_frame(struct ntfs_inode *ni, u64 frame_vbo, struct page **pages,
 		memset(frame_mem + ok, 0, frame_size - ok);
 	}
 
-	vunmap(frame_ondisk);
-
-out3:
-	for (i = 0; i < npages_disk; i++) {
-		pg = pages_disk[i];
-		if (pg) {
-			unlock_page(pg);
-			put_page(pg);
-		}
-	}
-	kfree(pages_disk);
-
 out2:
+	kvfree(frame_ondisk);
+out1:
 #ifdef CONFIG_NTFS3_LZX_XPRESS
 	if (run != &ni->file.run)
 		run_free(run);
+	if (!err && copy) {
+		/* We are called from 'ni_decompress_file' */
+		/* Copy decompressed LZX or XPRESS data into new place. */
+		down_read(&ni->file.run_lock);
+		err = ntfs_write_run(sbi, &ni->file.run, frame_mem, frame_vbo,
+				     frame_size);
+		up_read(&ni->file.run_lock);
+	}
 #endif
-out1:
 	vunmap(frame_mem);
 out:
 	for (i = 0; i < pages_per_frame; i++) {
@@ -2697,13 +2651,10 @@ int ni_write_frame(struct ntfs_inode *ni, struct page **pages,
 	u64 frame_vbo = folio_pos(folio);
 	CLST frame = frame_vbo >> frame_bits;
 	char *frame_ondisk = NULL;
-	struct page **pages_disk = NULL;
 	struct ATTR_LIST_ENTRY *le = NULL;
 	char *frame_mem;
 	struct ATTRIB *attr;
 	struct mft_inode *mi;
-	u32 i;
-	struct page *pg;
 	size_t compr_size, ondisk_size;
 	struct lznt *lznt;
 
@@ -2738,34 +2689,18 @@ int ni_write_frame(struct ntfs_inode *ni, struct page **pages,
 		goto out;
 	}
 
-	pages_disk = kcalloc(pages_per_frame, sizeof(struct page *), GFP_NOFS);
-	if (!pages_disk) {
-		err = -ENOMEM;
-		goto out;
-	}
-
-	for (i = 0; i < pages_per_frame; i++) {
-		pg = alloc_page(GFP_KERNEL);
-		if (!pg) {
-			err = -ENOMEM;
-			goto out1;
-		}
-		pages_disk[i] = pg;
-		lock_page(pg);
-	}
-
-	/* To simplify compress algorithm do vmap for source and target pages. */
-	frame_ondisk = vmap(pages_disk, pages_per_frame, VM_MAP, PAGE_KERNEL);
+	/* Allocate memory to write compressed data to. */
+	frame_ondisk = kvmalloc(frame_size, GFP_KERNEL);
 	if (!frame_ondisk) {
 		err = -ENOMEM;
-		goto out1;
+		goto out;
 	}
 
 	/* Map in-memory frame for read-only. */
 	frame_mem = vmap(pages, pages_per_frame, VM_MAP, PAGE_KERNEL_RO);
 	if (!frame_mem) {
 		err = -ENOMEM;
-		goto out2;
+		goto out1;
 	}
 
 	mutex_lock(&sbi->compress.mtx_lznt);
@@ -2781,7 +2716,7 @@ int ni_write_frame(struct ntfs_inode *ni, struct page **pages,
 		if (!lznt) {
 			mutex_unlock(&sbi->compress.mtx_lznt);
 			err = -ENOMEM;
-			goto out3;
+			goto out2;
 		}
 
 		sbi->compress.lznt = lznt;
@@ -2818,25 +2753,16 @@ int ni_write_frame(struct ntfs_inode *ni, struct page **pages,
 		goto out2;
 
 	down_read(&ni->file.run_lock);
-	err = ntfs_bio_pages(sbi, &ni->file.run,
-			     ondisk_size < frame_size ? pages_disk : pages,
-			     pages_per_frame, frame_vbo, ondisk_size,
-			     REQ_OP_WRITE);
+	err = ntfs_write_run(sbi, &ni->file.run,
+			     ondisk_size < frame_size ? frame_ondisk :
+							frame_mem,
+			     frame_vbo, ondisk_size);
 	up_read(&ni->file.run_lock);
 
-out3:
-	vunmap(frame_mem);
 out2:
-	vunmap(frame_ondisk);
+	vunmap(frame_mem);
 out1:
-	for (i = 0; i < pages_per_frame; i++) {
-		pg = pages_disk[i];
-		if (pg) {
-			unlock_page(pg);
-			put_page(pg);
-		}
-	}
-	kfree(pages_disk);
+	kvfree(frame_ondisk);
 out:
 	return err;
 }

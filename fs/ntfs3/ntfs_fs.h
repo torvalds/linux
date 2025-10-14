@@ -570,7 +570,7 @@ int ni_fiemap(struct ntfs_inode *ni, struct fiemap_extent_info *fieinfo,
 int ni_readpage_cmpr(struct ntfs_inode *ni, struct folio *folio);
 int ni_decompress_file(struct ntfs_inode *ni);
 int ni_read_frame(struct ntfs_inode *ni, u64 frame_vbo, struct page **pages,
-		  u32 pages_per_frame);
+		  u32 pages_per_frame, int copy);
 int ni_write_frame(struct ntfs_inode *ni, struct page **pages,
 		   u32 pages_per_frame);
 int ni_remove_name(struct ntfs_inode *dir_ni, struct ntfs_inode *ni,
@@ -633,9 +633,21 @@ int ntfs_get_bh(struct ntfs_sb_info *sbi, const struct runs_tree *run, u64 vbo,
 		u32 bytes, struct ntfs_buffers *nb);
 int ntfs_write_bh(struct ntfs_sb_info *sbi, struct NTFS_RECORD_HEADER *rhdr,
 		  struct ntfs_buffers *nb, int sync);
-int ntfs_bio_pages(struct ntfs_sb_info *sbi, const struct runs_tree *run,
-		   struct page **pages, u32 nr_pages, u64 vbo, u32 bytes,
-		   enum req_op op);
+int ntfs_read_write_run(struct ntfs_sb_info *sbi, const struct runs_tree *run,
+			void *buf, u64 vbo, size_t bytes, int wr);
+static inline int ntfs_read_run(struct ntfs_sb_info *sbi,
+				const struct runs_tree *run, void *buf, u64 vbo,
+				size_t bytes)
+{
+	return ntfs_read_write_run(sbi, run, buf, vbo, bytes, 0);
+}
+static inline int ntfs_write_run(struct ntfs_sb_info *sbi,
+				 const struct runs_tree *run, void *buf,
+				 u64 vbo, size_t bytes)
+{
+	return ntfs_read_write_run(sbi, run, buf, vbo, bytes, 1);
+}
+
 int ntfs_bio_fill_1(struct ntfs_sb_info *sbi, const struct runs_tree *run);
 int ntfs_vbo_to_lbo(struct ntfs_sb_info *sbi, const struct runs_tree *run,
 		    u64 vbo, u64 *lbo, u64 *bytes);
