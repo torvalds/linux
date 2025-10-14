@@ -3706,7 +3706,7 @@ static int ti_sci_prepare_system_suspend(struct ti_sci_info *info)
 	}
 }
 
-static int __maybe_unused ti_sci_suspend(struct device *dev)
+static int ti_sci_suspend(struct device *dev)
 {
 	struct ti_sci_info *info = dev_get_drvdata(dev);
 	struct device *cpu_dev, *cpu_dev_max = NULL;
@@ -3746,7 +3746,7 @@ static int __maybe_unused ti_sci_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused ti_sci_suspend_noirq(struct device *dev)
+static int ti_sci_suspend_noirq(struct device *dev)
 {
 	struct ti_sci_info *info = dev_get_drvdata(dev);
 	int ret = 0;
@@ -3758,7 +3758,7 @@ static int __maybe_unused ti_sci_suspend_noirq(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused ti_sci_resume_noirq(struct device *dev)
+static int ti_sci_resume_noirq(struct device *dev)
 {
 	struct ti_sci_info *info = dev_get_drvdata(dev);
 	int ret = 0;
@@ -3780,7 +3780,7 @@ static int __maybe_unused ti_sci_resume_noirq(struct device *dev)
 	return 0;
 }
 
-static void __maybe_unused ti_sci_pm_complete(struct device *dev)
+static void ti_sci_pm_complete(struct device *dev)
 {
 	struct ti_sci_info *info = dev_get_drvdata(dev);
 
@@ -3791,12 +3791,10 @@ static void __maybe_unused ti_sci_pm_complete(struct device *dev)
 }
 
 static const struct dev_pm_ops ti_sci_pm_ops = {
-#ifdef CONFIG_PM_SLEEP
-	.suspend = ti_sci_suspend,
-	.suspend_noirq = ti_sci_suspend_noirq,
-	.resume_noirq = ti_sci_resume_noirq,
-	.complete = ti_sci_pm_complete,
-#endif
+	.suspend = pm_sleep_ptr(ti_sci_suspend),
+	.suspend_noirq = pm_sleep_ptr(ti_sci_suspend_noirq),
+	.resume_noirq = pm_sleep_ptr(ti_sci_resume_noirq),
+	.complete = pm_sleep_ptr(ti_sci_pm_complete),
 };
 
 /* Description for K2G */
