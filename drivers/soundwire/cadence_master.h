@@ -226,7 +226,7 @@ int sdw_cdns_prepare_write_dma_buffer(u8 dev_num, u32 start_register, u8 *data, 
 
 int sdw_cdns_prepare_read_dma_buffer(u8 dev_num, u32 start_register, int data_size,
 				     int data_per_frame, u8 *dma_buffer, int dma_buffer_size,
-				     int *dma_buffer_total_bytes);
+				     int *dma_buffer_total_bytes, unsigned int fake_size);
 
 int sdw_cdns_check_write_response(struct device *dev, u8 *dma_buffer,
 				  int dma_buffer_size, int num_frames);

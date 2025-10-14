@@ -2393,7 +2393,7 @@ EXPORT_SYMBOL(sdw_cdns_prepare_write_dma_buffer);
 
 int sdw_cdns_prepare_read_dma_buffer(u8 dev_num, u32 start_register, int data_size,
 				     int data_per_frame, u8 *dma_buffer, int dma_buffer_size,
-				     int *dma_buffer_total_bytes)
+				     int *dma_buffer_total_bytes, unsigned int fake_size)
 {
 	int total_dma_data_written = 0;
 	u8 *p_dma_buffer = dma_buffer;
@@ -2445,6 +2445,43 @@ int sdw_cdns_prepare_read_dma_buffer(u8 dev_num, u32 start_register, int data_si
 		if (ret < 0)
 			return ret;
 
+		counter++;
+
+		p_dma_buffer += dma_data_written;
+		dma_buffer_size -= dma_data_written;
+		total_dma_data_written += dma_data_written;
+	}
+
+	/* Add fake frame */
+	header[0] &= ~GENMASK(7, 6);	/* Set inactive flag in BPT/BRA frame heade */
+	while (fake_size >= data_per_frame) {
+		header[1] = data_per_frame;
+		ret = sdw_cdns_prepare_read_pd0_buffer(header, SDW_CDNS_BRA_HDR, p_dma_buffer,
+						       dma_buffer_size, &dma_data_written,
+						       counter);
+		if (ret < 0)
+			return ret;
+
+		counter++;
+
+		fake_size -= data_per_frame;
+		p_dma_buffer += dma_data_written;
+		dma_buffer_size -= dma_data_written;
+		total_dma_data_written += dma_data_written;
+	}
+
+	if (fake_size) {
+		header[1] = fake_size;
+		ret = sdw_cdns_prepare_read_pd0_buffer(header, SDW_CDNS_BRA_HDR, p_dma_buffer,
+						       dma_buffer_size, &dma_data_written,
+						       counter);
+		if (ret < 0)
+			return ret;
+
+		counter++;
+
+		p_dma_buffer += dma_data_written;
+		dma_buffer_size -= dma_data_written;
 		total_dma_data_written += dma_data_written;
 	}
 
