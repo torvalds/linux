@@ -26,12 +26,12 @@ static int bma220_spi_probe(struct spi_device *spi)
 }
 
 static const struct spi_device_id bma220_spi_id[] = {
-	{"bma220", 0},
+	{ "bma220", 0 },
 	{ }
 };
 
 static const struct acpi_device_id bma220_acpi_id[] = {
-	{"BMA0220", 0},
+	{ "BMA0220", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, bma220_spi_id);
