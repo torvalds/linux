@@ -1,0 +1,70 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/marvell,cp110-clock.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Marvell Armada CP110 System Controller Clocks
+
+maintainers:
+  - Gregory Clement <gregory.clement@bootlin.com>
+  - Miquel Raynal <miquel.raynal@bootlin.com>
+
+description: >
+  The CP110 is one of the two core HW blocks of the Marvell Armada 7K/8K/931x
+  SoCs. It contains system controllers, which provide several registers giving
+  access to numerous features: clocks, pin-muxing and many other SoC
+  configuration items.
+
+properties:
+  compatible:
+    const: marvell,cp110-clock
+
+  "#clock-cells":
+    const: 2
+    description: >
+      The first cell must be 0 or 1. 0 for the core clocks and 1 for the
+      gateable clocks. The second cell identifies the particular core clock or
+      gateable clocks.
+
+      The following clocks are available:
+
+        - Core clocks
+          - 0 0       APLL
+          - 0 1       PPv2 core
+          - 0 2       EIP
+          - 0 3       Core
+          - 0 4       NAND core
+          - 0 5       SDIO core
+
+        - Gateable clocks
+          - 1 0       Audio
+          - 1 1       Comm Unit
+          - 1 2       NAND
+          - 1 3       PPv2
+          - 1 4       SDIO
+          - 1 5       MG Domain
+          - 1 6       MG Core
+          - 1 7       XOR1
+          - 1 8       XOR0
+          - 1 9       GOP DP
+          - 1 11      PCIe x1 0
+          - 1 12      PCIe x1 1
+          - 1 13      PCIe x4
+          - 1 14      PCIe / XOR
+          - 1 15      SATA
+          - 1 16      SATA USB
+          - 1 17      Main
+          - 1 18      SD/MMC/GOP
+          - 1 21      Slow IO (SPI, NOR, BootROM, I2C, UART)
+          - 1 22      USB3H0
+          - 1 23      USB3H1
+          - 1 24      USB3 Device
+          - 1 25      EIP150
+          - 1 26      EIP197
+
+required:
+  - compatible
+  - "#clock-cells"
+
+additionalProperties: false
