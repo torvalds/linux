@@ -30,6 +30,7 @@
 #include "intel_plane.h"
 #include "intel_vblank.h"
 #include "intel_wm.h"
+#include "skl_prefill.h"
 #include "skl_scaler.h"
 #include "skl_universal_plane_regs.h"
 #include "skl_watermark.h"
@@ -2147,105 +2148,6 @@ static int icl_build_plane_wm(struct intel_crtc_state *crtc_state,
 	return 0;
 }
 
-static int
-cdclk_prefill_adjustment(const struct intel_crtc_state *crtc_state)
-{
-	struct intel_display *display = to_intel_display(crtc_state);
-	struct intel_atomic_state *state =
-		to_intel_atomic_state(crtc_state->uapi.state);
-	const struct intel_cdclk_state *cdclk_state;
-
-	cdclk_state = intel_atomic_get_cdclk_state(state);
-	if (IS_ERR(cdclk_state)) {
-		drm_WARN_ON(display->drm, PTR_ERR(cdclk_state));
-		return 1;
-	}
-
-	return min(1, DIV_ROUND_UP(crtc_state->pixel_rate,
-				   2 * intel_cdclk_logical(cdclk_state)));
-}
-
-static int
-dsc_prefill_latency(const struct intel_crtc_state *crtc_state)
-{
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	const struct intel_crtc_scaler_state *scaler_state =
-					&crtc_state->scaler_state;
-	int linetime = DIV_ROUND_UP(1000 * crtc_state->hw.adjusted_mode.htotal,
-				    crtc_state->hw.adjusted_mode.clock);
-	int num_scaler_users = hweight32(scaler_state->scaler_users);
-	int chroma_downscaling_factor =
-		crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420 ? 2 : 1;
-	u32 dsc_prefill_latency = 0;
-
-	if (!crtc_state->dsc.compression_enable ||
-	    !num_scaler_users ||
-	    num_scaler_users > crtc->num_scalers)
-		return dsc_prefill_latency;
-
-	dsc_prefill_latency = DIV_ROUND_UP(15 * linetime * chroma_downscaling_factor, 10);
-
-	for (int i = 0; i < num_scaler_users; i++) {
-		u64 hscale_k, vscale_k;
-
-		hscale_k = max(1000, mul_u32_u32(scaler_state->scalers[i].hscale, 1000) >> 16);
-		vscale_k = max(1000, mul_u32_u32(scaler_state->scalers[i].vscale, 1000) >> 16);
-		dsc_prefill_latency = DIV_ROUND_UP_ULL(dsc_prefill_latency * hscale_k * vscale_k,
-						       1000000);
-	}
-
-	dsc_prefill_latency *= cdclk_prefill_adjustment(crtc_state);
-
-	return intel_usecs_to_scanlines(&crtc_state->hw.adjusted_mode, dsc_prefill_latency);
-}
-
-static int
-scaler_prefill_latency(const struct intel_crtc_state *crtc_state)
-{
-	const struct intel_crtc_scaler_state *scaler_state =
-					&crtc_state->scaler_state;
-	int num_scaler_users = hweight32(scaler_state->scaler_users);
-	int scaler_prefill_latency = 0;
-	int linetime = DIV_ROUND_UP(1000 * crtc_state->hw.adjusted_mode.htotal,
-				    crtc_state->hw.adjusted_mode.clock);
-
-	if (!num_scaler_users)
-		return scaler_prefill_latency;
-
-	scaler_prefill_latency = 4 * linetime;
-
-	if (num_scaler_users > 1) {
-		u64 hscale_k = max(1000, mul_u32_u32(scaler_state->scalers[0].hscale, 1000) >> 16);
-		u64 vscale_k = max(1000, mul_u32_u32(scaler_state->scalers[0].vscale, 1000) >> 16);
-		int chroma_downscaling_factor =
-			crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420 ? 2 : 1;
-		int latency;
-
-		latency = DIV_ROUND_UP_ULL((4 * linetime * hscale_k * vscale_k *
-					    chroma_downscaling_factor), 1000000);
-		scaler_prefill_latency += latency;
-	}
-
-	scaler_prefill_latency *= cdclk_prefill_adjustment(crtc_state);
-
-	return intel_usecs_to_scanlines(&crtc_state->hw.adjusted_mode, scaler_prefill_latency);
-}
-
-static bool
-skl_is_vblank_too_short(const struct intel_crtc_state *crtc_state,
-			int wm0_lines, int latency)
-{
-	const struct drm_display_mode *adjusted_mode =
-		&crtc_state->hw.adjusted_mode;
-
-	return crtc_state->framestart_delay +
-		intel_usecs_to_scanlines(adjusted_mode, latency) +
-		scaler_prefill_latency(crtc_state) +
-		dsc_prefill_latency(crtc_state) +
-		wm0_lines >
-		intel_crtc_vblank_length(crtc_state);
-}
-
 unsigned int skl_wm0_prefill_lines_worst(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
@@ -2324,9 +2226,10 @@ unsigned int skl_wm0_prefill_lines(const struct intel_crtc_state *crtc_state)
  * the scenario to apply Wa_16025596647.
  */
 static int skl_max_wm_level_for_vblank(struct intel_crtc_state *crtc_state,
-				       int wm0_lines)
+				       const struct skl_prefill_ctx *ctx)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	int level;
 
 	for (level = display->wm.num_levels - 1; level >= 0; level--) {
@@ -2341,9 +2244,12 @@ static int skl_max_wm_level_for_vblank(struct intel_crtc_state *crtc_state,
 		if (level == 0)
 			latency = 0;
 
-		if (!skl_is_vblank_too_short(crtc_state, wm0_lines, latency))
+		if (!skl_prefill_vblank_too_short(ctx, crtc_state, latency))
 			return level;
 	}
+
+	drm_dbg_kms(display->drm, "[CRTC:%d:%s] Not enough time in vblank for prefill\n",
+		    crtc->base.base.id, crtc->base.name);
 
 	return -EINVAL;
 }
@@ -2352,14 +2258,15 @@ static int skl_wm_check_vblank(struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	int wm0_lines, level;
+	struct skl_prefill_ctx ctx;
+	int level;
 
 	if (!crtc_state->hw.active)
 		return 0;
 
-	wm0_lines = skl_max_wm0_lines(crtc_state);
+	skl_prefill_init(&ctx, crtc_state);
 
-	level = skl_max_wm_level_for_vblank(crtc_state, wm0_lines);
+	level = skl_max_wm_level_for_vblank(crtc_state, &ctx);
 	if (level < 0)
 		return level;
 
@@ -2368,6 +2275,13 @@ static int skl_wm_check_vblank(struct intel_crtc_state *crtc_state)
 	 * based on whether we're limited by the vblank duration.
 	 */
 	crtc_state->wm_level_disabled = level < display->wm.num_levels - 1;
+
+	/*
+	 * TODO: assert that we are in fact using the maximum guardband
+	 * if we end up disabling any WM levels here. Otherwise we clearly
+	 * failed in using a realistic worst case prefill estimate when
+	 * determining the guardband size.
+	 */
 
 	for (level++; level < display->wm.num_levels; level++) {
 		enum plane_id plane_id;
@@ -2387,8 +2301,8 @@ static int skl_wm_check_vblank(struct intel_crtc_state *crtc_state)
 
 	if (DISPLAY_VER(display) >= 12 &&
 	    display->sagv.block_time_us &&
-	    skl_is_vblank_too_short(crtc_state, wm0_lines,
-				    display->sagv.block_time_us)) {
+	    skl_prefill_vblank_too_short(&ctx, crtc_state,
+					 display->sagv.block_time_us)) {
 		enum plane_id plane_id;
 
 		for_each_plane_id_on_crtc(crtc, plane_id) {
