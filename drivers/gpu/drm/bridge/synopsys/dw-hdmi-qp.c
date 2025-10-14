@@ -163,6 +163,7 @@ struct dw_hdmi_qp {
 
 	unsigned long ref_clk_rate;
 	struct regmap *regm;
+	int main_irq;
 
 	unsigned long tmds_char_rate;
 };
@@ -1271,6 +1272,7 @@ struct dw_hdmi_qp *dw_hdmi_qp_bind(struct platform_device *pdev,
 
 	dw_hdmi_qp_init_hw(hdmi);
 
+	hdmi->main_irq = plat_data->main_irq;
 	ret = devm_request_threaded_irq(dev, plat_data->main_irq,
 					dw_hdmi_qp_main_hardirq, NULL,
 					IRQF_SHARED, dev_name(dev), hdmi);
@@ -1331,9 +1333,16 @@ struct dw_hdmi_qp *dw_hdmi_qp_bind(struct platform_device *pdev,
 }
 EXPORT_SYMBOL_GPL(dw_hdmi_qp_bind);
 
+void dw_hdmi_qp_suspend(struct device *dev, struct dw_hdmi_qp *hdmi)
+{
+	disable_irq(hdmi->main_irq);
+}
+EXPORT_SYMBOL_GPL(dw_hdmi_qp_suspend);
+
 void dw_hdmi_qp_resume(struct device *dev, struct dw_hdmi_qp *hdmi)
 {
 	dw_hdmi_qp_init_hw(hdmi);
+	enable_irq(hdmi->main_irq);
 }
 EXPORT_SYMBOL_GPL(dw_hdmi_qp_resume);
 
