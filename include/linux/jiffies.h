@@ -620,5 +620,7 @@ int proc_dointvec_userhz_jiffies(const struct ctl_table *table, int dir,
 				 void *buffer, size_t *lenp, loff_t *ppos);
 int proc_dointvec_ms_jiffies(const struct ctl_table *table, int dir, void *buffer,
 			     size_t *lenp, loff_t *ppos);
+int proc_doulongvec_ms_jiffies_minmax(const struct ctl_table *table, int dir,
+				      void *buffer, size_t *lenp, loff_t *ppos);
 
 #endif

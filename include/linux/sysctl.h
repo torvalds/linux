@@ -193,8 +193,9 @@ int proc_douintvec_minmax(const struct ctl_table *table, int write, void *buffer
 int proc_dou8vec_minmax(const struct ctl_table *table, int write, void *buffer,
 			size_t *lenp, loff_t *ppos);
 int proc_doulongvec_minmax(const struct ctl_table *, int, void *, size_t *, loff_t *);
-int proc_doulongvec_ms_jiffies_minmax(const struct ctl_table *table, int, void *,
-		size_t *, loff_t *);
+int proc_doulongvec_minmax_conv(const struct ctl_table *table, int dir,
+				void *buffer, size_t *lenp, loff_t *ppos,
+				unsigned long convmul, unsigned long convdiv);
 int proc_do_large_bitmap(const struct ctl_table *, int, void *, size_t *, loff_t *);
 int proc_do_static_key(const struct ctl_table *table, int write, void *buffer,
 		size_t *lenp, loff_t *ppos);

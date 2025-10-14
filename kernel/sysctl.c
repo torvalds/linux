@@ -13,7 +13,6 @@
 #include <linux/highuid.h>
 #include <linux/writeback.h>
 #include <linux/initrd.h>
-#include <linux/times.h>
 #include <linux/limits.h>
 #include <linux/syscalls.h>
 #include <linux/capability.h>
@@ -825,6 +824,14 @@ out:
 	return err;
 }
 
+int proc_doulongvec_minmax_conv(const struct ctl_table *table, int dir,
+				void *buffer, size_t *lenp, loff_t *ppos,
+				unsigned long convmul, unsigned long convdiv)
+{
+	return do_proc_doulongvec_minmax(table, dir, buffer, lenp, ppos,
+					 convmul, convdiv);
+}
+
 /**
  * proc_doulongvec_minmax - read a vector of long integers with min/max values
  * @table: the sysctl table
@@ -844,31 +851,7 @@ out:
 int proc_doulongvec_minmax(const struct ctl_table *table, int dir,
 			   void *buffer, size_t *lenp, loff_t *ppos)
 {
-	return do_proc_doulongvec_minmax(table, dir, buffer, lenp, ppos, 1l, 1l);
-}
-
-/**
- * proc_doulongvec_ms_jiffies_minmax - read a vector of millisecond values with min/max values
- * @table: the sysctl table
- * @dir: %TRUE if this is a write to the sysctl file
- * @buffer: the user buffer
- * @lenp: the size of the user buffer
- * @ppos: file position
- *
- * Reads/writes up to table->maxlen/sizeof(unsigned long) unsigned long
- * values from/to the user buffer, treated as an ASCII string. The values
- * are treated as milliseconds, and converted to jiffies when they are stored.
- *
- * This routine will ensure the values are within the range specified by
- * table->extra1 (min) and table->extra2 (max).
- *
- * Returns 0 on success.
- */
-int proc_doulongvec_ms_jiffies_minmax(const struct ctl_table *table, int dir,
-				      void *buffer, size_t *lenp, loff_t *ppos)
-{
-	return do_proc_doulongvec_minmax(table, dir, buffer,
-					 lenp, ppos, HZ, 1000l);
+	return proc_doulongvec_minmax_conv(table, dir, buffer, lenp, ppos, 1l, 1l);
 }
 
 int proc_dointvec_conv(const struct ctl_table *table, int dir, void *buffer,
@@ -1076,8 +1059,9 @@ int proc_doulongvec_minmax(const struct ctl_table *table, int dir,
 	return -ENOSYS;
 }
 
-int proc_doulongvec_ms_jiffies_minmax(const struct ctl_table *table, int dir,
-				      void *buffer, size_t *lenp, loff_t *ppos)
+int proc_doulongvec_minmax_conv(const struct ctl_table *table, int dir,
+				void *buffer, size_t *lenp, loff_t *ppos,
+				unsigned long convmul, unsigned long convdiv)
 {
 	return -ENOSYS;
 }
@@ -1193,5 +1177,4 @@ EXPORT_SYMBOL(proc_dointvec_minmax);
 EXPORT_SYMBOL_GPL(proc_douintvec_minmax);
 EXPORT_SYMBOL(proc_dostring);
 EXPORT_SYMBOL(proc_doulongvec_minmax);
-EXPORT_SYMBOL(proc_doulongvec_ms_jiffies_minmax);
 EXPORT_SYMBOL(proc_do_large_bitmap);
