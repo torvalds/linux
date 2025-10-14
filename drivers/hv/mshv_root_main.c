@@ -41,7 +41,7 @@ MODULE_DESCRIPTION("Microsoft Hyper-V root partition VMM interface /dev/mshv");
 /* TODO move this to another file when debugfs code is added */
 enum hv_stats_vp_counters {			/* HV_THREAD_COUNTER */
 #if defined(CONFIG_X86)
-	VpRootDispatchThreadBlocked			= 201,
+	VpRootDispatchThreadBlocked			= 202,
 #elif defined(CONFIG_ARM64)
 	VpRootDispatchThreadBlocked			= 94,
 #endif
