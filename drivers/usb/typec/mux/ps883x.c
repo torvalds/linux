@@ -99,44 +99,47 @@ static int ps883x_set(struct ps883x_retimer *retimer, struct typec_retimer_state
 	int cfg1 = 0x00;
 	int cfg2 = 0x00;
 
-	if (retimer->orientation == TYPEC_ORIENTATION_NONE ||
-	    state->mode == TYPEC_STATE_SAFE) {
-		return ps883x_configure(retimer, cfg0, cfg1, cfg2);
-	}
-
-	if (state->alt && state->alt->svid != USB_TYPEC_DP_SID)
-		return -EINVAL;
-
 	if (retimer->orientation == TYPEC_ORIENTATION_REVERSE)
 		cfg0 |= CONN_STATUS_0_ORIENTATION_REVERSED;
 
-	switch (state->mode) {
-	case TYPEC_STATE_USB:
-		cfg0 |= CONN_STATUS_0_USB_3_1_CONNECTED;
-		break;
+	if (state->alt) {
+		switch (state->alt->svid) {
+		case USB_TYPEC_DP_SID:
+			cfg1 |= CONN_STATUS_1_DP_CONNECTED |
+				CONN_STATUS_1_DP_HPD_LEVEL;
 
-	case TYPEC_DP_STATE_C:
-		cfg1 = CONN_STATUS_1_DP_CONNECTED |
-		       CONN_STATUS_1_DP_SINK_REQUESTED |
-		       CONN_STATUS_1_DP_PIN_ASSIGNMENT_C_D |
-		       CONN_STATUS_1_DP_HPD_LEVEL;
-		break;
-
-	case TYPEC_DP_STATE_D:
-		cfg0 |= CONN_STATUS_0_USB_3_1_CONNECTED;
-		cfg1 = CONN_STATUS_1_DP_CONNECTED |
-		       CONN_STATUS_1_DP_SINK_REQUESTED |
-		       CONN_STATUS_1_DP_PIN_ASSIGNMENT_C_D |
-		       CONN_STATUS_1_DP_HPD_LEVEL;
-		break;
-
-	case TYPEC_DP_STATE_E:
-		cfg1 = CONN_STATUS_1_DP_CONNECTED |
-		       CONN_STATUS_1_DP_HPD_LEVEL;
-		break;
-
-	default:
-		return -EOPNOTSUPP;
+			switch (state->mode)  {
+			case TYPEC_DP_STATE_C:
+				cfg1 |= CONN_STATUS_1_DP_SINK_REQUESTED |
+					CONN_STATUS_1_DP_PIN_ASSIGNMENT_C_D;
+				fallthrough;
+			case TYPEC_DP_STATE_D:
+				cfg1 |= CONN_STATUS_0_USB_3_1_CONNECTED;
+				break;
+			default: /* MODE_E */
+				break;
+			}
+			break;
+		default:
+			dev_err(&retimer->client->dev, "Got unsupported SID: 0x%x\n",
+				state->alt->svid);
+			return -EOPNOTSUPP;
+		}
+	} else {
+		switch (state->mode) {
+		case TYPEC_STATE_SAFE:
+		/* USB2 pins don't even go through this chip */
+		case TYPEC_MODE_USB2:
+			break;
+		case TYPEC_STATE_USB:
+		case TYPEC_MODE_USB3:
+			cfg0 |= CONN_STATUS_0_USB_3_1_CONNECTED;
+			break;
+		default:
+			dev_err(&retimer->client->dev, "Got unsupported mode: %lu\n",
+				state->mode);
+			return -EOPNOTSUPP;
+		}
 	}
 
 	return ps883x_configure(retimer, cfg0, cfg1, cfg2);
