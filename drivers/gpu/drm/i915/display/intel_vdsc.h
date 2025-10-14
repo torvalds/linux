@@ -32,5 +32,6 @@ void intel_dsc_dp_pps_write(struct intel_encoder *encoder,
 void intel_vdsc_state_dump(struct drm_printer *p, int indent,
 			   const struct intel_crtc_state *crtc_state);
 int intel_vdsc_min_cdclk(const struct intel_crtc_state *crtc_state);
+unsigned int intel_vdsc_prefill_lines(const struct intel_crtc_state *crtc_state);
 
 #endif /* __INTEL_VDSC_H__ */
