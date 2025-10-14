@@ -279,6 +279,7 @@ static const struct ov01a10_mode supported_modes[] = {
 };
 
 struct ov01a10 {
+	struct device *dev;
 	struct regmap *regmap;
 	struct v4l2_subdev sd;
 	struct media_pad pad;
@@ -356,7 +357,6 @@ static int ov01a10_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct ov01a10 *ov01a10 = container_of(ctrl->handler,
 					       struct ov01a10, ctrl_handler);
-	struct i2c_client *client = v4l2_get_subdevdata(&ov01a10->sd);
 	s64 exposure_max;
 	int ret = 0;
 
@@ -369,7 +369,7 @@ static int ov01a10_set_ctrl(struct v4l2_ctrl *ctrl)
 					 exposure_max);
 	}
 
-	if (!pm_runtime_get_if_in_use(&client->dev))
+	if (!pm_runtime_get_if_in_use(ov01a10->dev))
 		return 0;
 
 	switch (ctrl->id) {
@@ -409,7 +409,7 @@ static int ov01a10_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	}
 
-	pm_runtime_put(&client->dev);
+	pm_runtime_put(ov01a10->dev);
 
 	return ret;
 }
@@ -420,7 +420,6 @@ static const struct v4l2_ctrl_ops ov01a10_ctrl_ops = {
 
 static int ov01a10_init_controls(struct ov01a10 *ov01a10)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&ov01a10->sd);
 	struct v4l2_fwnode_device_properties props;
 	u32 vblank_min, vblank_max, vblank_default;
 	struct v4l2_ctrl_handler *ctrl_hdlr;
@@ -429,7 +428,7 @@ static int ov01a10_init_controls(struct ov01a10 *ov01a10)
 	int ret = 0;
 	int size;
 
-	ret = v4l2_fwnode_device_parse(&client->dev, &props);
+	ret = v4l2_fwnode_device_parse(ov01a10->dev, &props);
 	if (ret)
 		return ret;
 
@@ -523,7 +522,6 @@ static void ov01a10_update_pad_format(const struct ov01a10_mode *mode,
 
 static int ov01a10_start_streaming(struct ov01a10 *ov01a10)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&ov01a10->sd);
 	const struct ov01a10_reg_list *reg_list;
 	int link_freq_index;
 	int ret = 0;
@@ -533,7 +531,7 @@ static int ov01a10_start_streaming(struct ov01a10 *ov01a10)
 	ret = regmap_multi_reg_write(ov01a10->regmap, reg_list->regs,
 				     reg_list->num_of_regs);
 	if (ret) {
-		dev_err(&client->dev, "failed to set plls\n");
+		dev_err(ov01a10->dev, "failed to set plls\n");
 		return ret;
 	}
 
@@ -541,7 +539,7 @@ static int ov01a10_start_streaming(struct ov01a10 *ov01a10)
 	ret = regmap_multi_reg_write(ov01a10->regmap, reg_list->regs,
 				     reg_list->num_of_regs);
 	if (ret) {
-		dev_err(&client->dev, "failed to set mode\n");
+		dev_err(ov01a10->dev, "failed to set mode\n");
 		return ret;
 	}
 
@@ -562,25 +560,24 @@ static void ov01a10_stop_streaming(struct ov01a10 *ov01a10)
 static int ov01a10_set_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct ov01a10 *ov01a10 = to_ov01a10(sd);
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct v4l2_subdev_state *state;
 	int ret = 0;
 
 	state = v4l2_subdev_lock_and_get_active_state(sd);
 
 	if (enable) {
-		ret = pm_runtime_resume_and_get(&client->dev);
+		ret = pm_runtime_resume_and_get(ov01a10->dev);
 		if (ret < 0)
 			goto unlock;
 
 		ret = ov01a10_start_streaming(ov01a10);
 		if (ret) {
-			pm_runtime_put(&client->dev);
+			pm_runtime_put(ov01a10->dev);
 			goto unlock;
 		}
 	} else {
 		ov01a10_stop_streaming(ov01a10);
-		pm_runtime_put(&client->dev);
+		pm_runtime_put(ov01a10->dev);
 	}
 
 unlock:
@@ -732,7 +729,6 @@ static const struct media_entity_operations ov01a10_subdev_entity_ops = {
 
 static int ov01a10_identify_module(struct ov01a10 *ov01a10)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&ov01a10->sd);
 	int ret;
 	u64 val;
 
@@ -741,7 +737,7 @@ static int ov01a10_identify_module(struct ov01a10 *ov01a10)
 		return ret;
 
 	if (val != OV01A10_CHIP_ID) {
-		dev_err(&client->dev, "chip id mismatch: %x!=%llx\n",
+		dev_err(ov01a10->dev, "chip id mismatch: %x!=%llx\n",
 			OV01A10_CHIP_ID, val);
 		return -EIO;
 	}
@@ -764,13 +760,14 @@ static void ov01a10_remove(struct i2c_client *client)
 
 static int ov01a10_probe(struct i2c_client *client)
 {
-	struct device *dev = &client->dev;
 	struct ov01a10 *ov01a10;
 	int ret = 0;
 
-	ov01a10 = devm_kzalloc(dev, sizeof(*ov01a10), GFP_KERNEL);
+	ov01a10 = devm_kzalloc(&client->dev, sizeof(*ov01a10), GFP_KERNEL);
 	if (!ov01a10)
 		return -ENOMEM;
+
+	ov01a10->dev = &client->dev;
 
 	ov01a10->regmap = devm_cci_regmap_init_i2c(client, 16);
 	if (IS_ERR(ov01a10->regmap))
@@ -808,8 +805,8 @@ static int ov01a10_probe(struct i2c_client *client)
 	 * Enable runtime PM and turn off the device.
 	 */
 	pm_runtime_set_active(&client->dev);
-	pm_runtime_enable(dev);
-	pm_runtime_idle(dev);
+	pm_runtime_enable(&client->dev);
+	pm_runtime_idle(&client->dev);
 
 	ret = v4l2_async_register_subdev_sensor(&ov01a10->sd);
 	if (ret)
@@ -818,7 +815,7 @@ static int ov01a10_probe(struct i2c_client *client)
 	return 0;
 
 err_pm_disable:
-	pm_runtime_disable(dev);
+	pm_runtime_disable(&client->dev);
 	pm_runtime_set_suspended(&client->dev);
 	v4l2_subdev_cleanup(&ov01a10->sd);
 
