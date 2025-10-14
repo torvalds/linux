@@ -125,6 +125,7 @@ const struct sof_intel_dsp_desc ptl_chip_info = {
 	.power_down_dsp = mtl_power_down_dsp,
 	.disable_interrupts = lnl_dsp_disable_interrupts,
 	.hw_ip_version = SOF_INTEL_ACE_3_0,
+	.platform = "ptl",
 };
 
 const struct sof_intel_dsp_desc wcl_chip_info = {
@@ -149,6 +150,7 @@ const struct sof_intel_dsp_desc wcl_chip_info = {
 	.power_down_dsp = mtl_power_down_dsp,
 	.disable_interrupts = lnl_dsp_disable_interrupts,
 	.hw_ip_version = SOF_INTEL_ACE_3_0,
+	.platform = "wcl",
 };
 
 MODULE_IMPORT_NS("SND_SOC_SOF_INTEL_MTL");

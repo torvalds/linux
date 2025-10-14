@@ -162,6 +162,7 @@ const struct sof_intel_dsp_desc tgl_chip_info = {
 	.power_down_dsp = hda_power_down_dsp,
 	.disable_interrupts = hda_dsp_disable_interrupts,
 	.hw_ip_version = SOF_INTEL_CAVS_2_5,
+	.platform = "tgl",
 };
 
 const struct sof_intel_dsp_desc tglh_chip_info = {
@@ -191,6 +192,7 @@ const struct sof_intel_dsp_desc tglh_chip_info = {
 	.power_down_dsp = hda_power_down_dsp,
 	.disable_interrupts = hda_dsp_disable_interrupts,
 	.hw_ip_version = SOF_INTEL_CAVS_2_5,
+	.platform = "tgl",
 };
 
 const struct sof_intel_dsp_desc ehl_chip_info = {
@@ -220,6 +222,7 @@ const struct sof_intel_dsp_desc ehl_chip_info = {
 	.power_down_dsp = hda_power_down_dsp,
 	.disable_interrupts = hda_dsp_disable_interrupts,
 	.hw_ip_version = SOF_INTEL_CAVS_2_5,
+	.platform = "ehl",
 };
 
 const struct sof_intel_dsp_desc adls_chip_info = {
@@ -249,4 +252,5 @@ const struct sof_intel_dsp_desc adls_chip_info = {
 	.power_down_dsp = hda_power_down_dsp,
 	.disable_interrupts = hda_dsp_disable_interrupts,
 	.hw_ip_version = SOF_INTEL_CAVS_2_5,
+	.platform = "adl",
 };
