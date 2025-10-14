@@ -2387,13 +2387,34 @@ int amdgpu_device_ip_wait_for_idle(struct amdgpu_device *adev,
 }
 
 /**
- * amdgpu_device_ip_is_valid - is the hardware IP enabled
+ * amdgpu_device_ip_is_hw - is the hardware IP enabled
  *
  * @adev: amdgpu_device pointer
  * @block_type: Type of hardware IP (SMU, GFX, UVD, etc.)
  *
  * Check if the hardware IP is enable or not.
  * Returns true if it the IP is enable, false if not.
+ */
+bool amdgpu_device_ip_is_hw(struct amdgpu_device *adev,
+			    enum amd_ip_block_type block_type)
+{
+	int i;
+
+	for (i = 0; i < adev->num_ip_blocks; i++) {
+		if (adev->ip_blocks[i].version->type == block_type)
+			return adev->ip_blocks[i].status.hw;
+	}
+	return false;
+}
+
+/**
+ * amdgpu_device_ip_is_valid - is the hardware IP valid
+ *
+ * @adev: amdgpu_device pointer
+ * @block_type: Type of hardware IP (SMU, GFX, UVD, etc.)
+ *
+ * Check if the hardware IP is valid or not.
+ * Returns true if it the IP is valid, false if not.
  */
 bool amdgpu_device_ip_is_valid(struct amdgpu_device *adev,
 			       enum amd_ip_block_type block_type)
