@@ -331,7 +331,7 @@ static void enable_dc_servo(struct snd_soc_component *component)
 static int wm8993_put_dc_servo(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct wm_hubs_data *hubs = snd_soc_component_get_drvdata(component);
 	int ret;
 
