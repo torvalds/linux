@@ -1639,7 +1639,7 @@ static int wmax_wmi_probe(struct wmi_device *wdev, const void *context)
 
 static int wmax_wmi_suspend(struct device *dev)
 {
-	if (awcc->hwmon)
+	if (awcc && awcc->hwmon)
 		awcc_hwmon_suspend(dev);
 
 	return 0;
@@ -1647,7 +1647,7 @@ static int wmax_wmi_suspend(struct device *dev)
 
 static int wmax_wmi_resume(struct device *dev)
 {
-	if (awcc->hwmon)
+	if (awcc && awcc->hwmon)
 		awcc_hwmon_resume(dev);
 
 	return 0;
