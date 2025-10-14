@@ -358,7 +358,6 @@ int rxe_odp_flush_pmem_iova(struct rxe_mr *mr, u64 iova,
 
 		length -= bytes;
 		iova += bytes;
-		page_offset = 0;
 	}
 
 	mutex_unlock(&umem_odp->umem_mutex);
