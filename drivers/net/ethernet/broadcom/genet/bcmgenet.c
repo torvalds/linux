@@ -35,7 +35,6 @@
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/phy.h>
-#include <linux/platform_data/bcmgenet.h>
 
 #include <linux/unaligned.h>
 
@@ -3926,7 +3925,6 @@ MODULE_DEVICE_TABLE(of, bcmgenet_match);
 
 static int bcmgenet_probe(struct platform_device *pdev)
 {
-	struct bcmgenet_platform_data *pd = pdev->dev.platform_data;
 	const struct bcmgenet_plat_data *pdata;
 	struct bcmgenet_priv *priv;
 	struct net_device *dev;
@@ -4010,9 +4008,6 @@ static int bcmgenet_probe(struct platform_device *pdev)
 		priv->version = pdata->version;
 		priv->dma_max_burst_length = pdata->dma_max_burst_length;
 		priv->flags = pdata->flags;
-	} else {
-		priv->version = pd->genet_version;
-		priv->dma_max_burst_length = DMA_MAX_BURST_LENGTH;
 	}
 
 	priv->clk = devm_clk_get_optional(&priv->pdev->dev, "enet");
@@ -4062,16 +4057,13 @@ static int bcmgenet_probe(struct platform_device *pdev)
 	if (device_get_phy_mode(&pdev->dev) == PHY_INTERFACE_MODE_INTERNAL)
 		bcmgenet_power_up(priv, GENET_POWER_PASSIVE);
 
-	if (pd && !IS_ERR_OR_NULL(pd->mac_address))
-		eth_hw_addr_set(dev, pd->mac_address);
-	else
-		if (device_get_ethdev_address(&pdev->dev, dev))
-			if (has_acpi_companion(&pdev->dev)) {
-				u8 addr[ETH_ALEN];
+	if (device_get_ethdev_address(&pdev->dev, dev))
+		if (has_acpi_companion(&pdev->dev)) {
+			u8 addr[ETH_ALEN];
 
-				bcmgenet_get_hw_addr(priv, addr);
-				eth_hw_addr_set(dev, addr);
-			}
+			bcmgenet_get_hw_addr(priv, addr);
+			eth_hw_addr_set(dev, addr);
+		}
 
 	if (!is_valid_ether_addr(dev->dev_addr)) {
 		dev_warn(&pdev->dev, "using random Ethernet MAC\n");
