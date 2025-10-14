@@ -576,8 +576,8 @@ EXPORT_SYMBOL(mempool_alloc_noprof);
  * @pool:	pointer to the memory pool
  *
  * This function is similar to mempool_alloc(), but it only attempts allocating
- * an element from the preallocated elements. It does not sleep and immediately
- * returns if no preallocated elements are available.
+ * an element from the preallocated elements. It only takes a single spinlock_t
+ * and immediately returns if no preallocated elements are available.
  *
  * Return: pointer to the allocated element or %NULL if no elements are
  * available.
