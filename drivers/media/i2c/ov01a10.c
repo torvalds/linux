@@ -366,9 +366,8 @@ static int ov01a10_set_ctrl(struct v4l2_ctrl *ctrl)
 		exposure_max = fmt->height + ctrl->val -
 			       OV01A10_EXPOSURE_MAX_MARGIN;
 		__v4l2_ctrl_modify_range(ov01a10->exposure,
-					 ov01a10->exposure->minimum,
-					 exposure_max, ov01a10->exposure->step,
-					 exposure_max);
+					 OV01A10_EXPOSURE_MIN, exposure_max,
+					 OV01A10_EXPOSURE_STEP, exposure_max);
 	}
 
 	if (!pm_runtime_get_if_in_use(ov01a10->dev))
