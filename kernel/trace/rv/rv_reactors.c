@@ -438,7 +438,7 @@ int reactor_populate_monitor(struct rv_monitor *mon)
 /*
  * Nop reactor register
  */
-__printf(1, 2) static void rv_nop_reaction(const char *msg, ...)
+__printf(1, 0) static void rv_nop_reaction(const char *msg, va_list args)
 {
 }
 
@@ -476,4 +476,18 @@ rm_available:
 	rv_remove(available);
 out_err:
 	return -ENOMEM;
+}
+
+void rv_react(struct rv_monitor *monitor, const char *msg, ...)
+{
+	va_list args;
+
+	if (!rv_reacting_on() || !monitor->react)
+		return;
+
+	va_start(args, msg);
+
+	monitor->react(msg, args);
+
+	va_end(args);
 }
