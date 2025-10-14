@@ -14,15 +14,18 @@
 #include <linux/mutex.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
+#include <linux/usb/pd.h>
 #include <linux/usb/typec_altmode.h>
 #include <linux/usb/typec_dp.h>
 #include <linux/usb/typec_mux.h>
 #include <linux/usb/typec_retimer.h>
+#include <linux/usb/typec_tbt.h>
 
 #define REG_USB_PORT_CONN_STATUS_0		0x00
 
 #define CONN_STATUS_0_CONNECTION_PRESENT	BIT(0)
 #define CONN_STATUS_0_ORIENTATION_REVERSED	BIT(1)
+#define CONN_STATUS_0_ACTIVE_CABLE		BIT(2)
 #define CONN_STATUS_0_USB_3_1_CONNECTED		BIT(5)
 
 #define REG_USB_PORT_CONN_STATUS_1		0x01
@@ -33,6 +36,10 @@
 #define CONN_STATUS_1_DP_HPD_LEVEL		BIT(7)
 
 #define REG_USB_PORT_CONN_STATUS_2		0x02
+
+#define CONN_STATUS_2_TBT_CONNECTED		BIT(0)
+#define CONN_STATUS_2_TBT_UNIDIR_LSRX_ACT_LT	BIT(4)
+#define CONN_STATUS_2_USB4_CONNECTED		BIT(7)
 
 struct ps883x_retimer {
 	struct i2c_client *client;
@@ -95,6 +102,8 @@ static int ps883x_configure(struct ps883x_retimer *retimer, int cfg0,
 
 static int ps883x_set(struct ps883x_retimer *retimer, struct typec_retimer_state *state)
 {
+	struct typec_thunderbolt_data *tb_data;
+	const struct enter_usb_data *eudo_data;
 	int cfg0 = CONN_STATUS_0_CONNECTION_PRESENT;
 	int cfg1 = 0x00;
 	int cfg2 = 0x00;
@@ -120,6 +129,18 @@ static int ps883x_set(struct ps883x_retimer *retimer, struct typec_retimer_state
 				break;
 			}
 			break;
+		case USB_TYPEC_TBT_SID:
+			tb_data = state->data;
+
+			/* Unconditional */
+			cfg2 |= CONN_STATUS_2_TBT_CONNECTED;
+
+			if (tb_data->cable_mode & TBT_CABLE_ACTIVE_PASSIVE)
+				cfg0 |= CONN_STATUS_0_ACTIVE_CABLE;
+
+			if (tb_data->enter_vdo & TBT_ENTER_MODE_UNI_DIR_LSRX)
+				cfg2 |= CONN_STATUS_2_TBT_UNIDIR_LSRX_ACT_LT;
+			break;
 		default:
 			dev_err(&retimer->client->dev, "Got unsupported SID: 0x%x\n",
 				state->alt->svid);
@@ -134,6 +155,14 @@ static int ps883x_set(struct ps883x_retimer *retimer, struct typec_retimer_state
 		case TYPEC_STATE_USB:
 		case TYPEC_MODE_USB3:
 			cfg0 |= CONN_STATUS_0_USB_3_1_CONNECTED;
+			break;
+		case TYPEC_MODE_USB4:
+			eudo_data = state->data;
+
+			cfg2 |= CONN_STATUS_2_USB4_CONNECTED;
+
+			if (FIELD_GET(EUDO_CABLE_TYPE_MASK, eudo_data->eudo) != EUDO_CABLE_TYPE_PASSIVE)
+				cfg0 |= CONN_STATUS_0_ACTIVE_CABLE;
 			break;
 		default:
 			dev_err(&retimer->client->dev, "Got unsupported mode: %lu\n",
