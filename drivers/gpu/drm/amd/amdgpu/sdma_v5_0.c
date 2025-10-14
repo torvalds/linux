@@ -1429,7 +1429,8 @@ static int sdma_v5_0_sw_init(struct amdgpu_ip_block *ip_block)
 	case IP_VERSION(5, 0, 2):
 	case IP_VERSION(5, 0, 5):
 		if ((adev->sdma.instance[0].fw_version >= 35) &&
-		    !amdgpu_sriov_vf(adev))
+		    !amdgpu_sriov_vf(adev) &&
+		    !adev->debug_disable_gpu_ring_reset)
 			adev->sdma.supported_reset |= AMDGPU_RESET_TYPE_PER_QUEUE;
 		break;
 	default:
