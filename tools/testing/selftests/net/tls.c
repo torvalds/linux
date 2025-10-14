@@ -946,6 +946,37 @@ TEST_F(tls, peek_and_splice)
 	EXPECT_EQ(memcmp(mem_send, mem_recv, send_len), 0);
 }
 
+#define MAX_FRAGS 48
+TEST_F(tls, splice_short)
+{
+	struct iovec sendchar_iov;
+	char read_buf[0x10000];
+	char sendbuf[0x100];
+	char sendchar = 'S';
+	int pipefds[2];
+	int i;
+
+	sendchar_iov.iov_base = &sendchar;
+	sendchar_iov.iov_len = 1;
+
+	memset(sendbuf, 's', sizeof(sendbuf));
+
+	ASSERT_GE(pipe2(pipefds, O_NONBLOCK), 0);
+	ASSERT_GE(fcntl(pipefds[0], F_SETPIPE_SZ, (MAX_FRAGS + 1) * 0x1000), 0);
+
+	for (i = 0; i < MAX_FRAGS; i++)
+		ASSERT_GE(vmsplice(pipefds[1], &sendchar_iov, 1, 0), 0);
+
+	ASSERT_EQ(write(pipefds[1], sendbuf, sizeof(sendbuf)), sizeof(sendbuf));
+
+	EXPECT_EQ(splice(pipefds[0], NULL, self->fd, NULL, MAX_FRAGS + 0x1000, 0),
+		  MAX_FRAGS + sizeof(sendbuf));
+	EXPECT_EQ(recv(self->cfd, read_buf, sizeof(read_buf), 0), MAX_FRAGS + sizeof(sendbuf));
+	EXPECT_EQ(recv(self->cfd, read_buf, sizeof(read_buf), MSG_DONTWAIT), -1);
+	EXPECT_EQ(errno, EAGAIN);
+}
+#undef MAX_FRAGS
+
 TEST_F(tls, recvmsg_single)
 {
 	char const *test_str = "test_recvmsg_single";
