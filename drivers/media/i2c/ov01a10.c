@@ -293,6 +293,7 @@ struct ov01a10 {
 	struct v4l2_ctrl *exposure;
 
 	const struct ov01a10_mode *cur_mode;
+	u32 link_freq_index;
 };
 
 static inline struct ov01a10 *to_ov01a10(struct v4l2_subdev *subdev)
@@ -426,7 +427,6 @@ static int ov01a10_init_controls(struct ov01a10 *ov01a10)
 	const struct ov01a10_mode *cur_mode;
 	s64 exposure_max, h_blank;
 	int ret = 0;
-	int size;
 
 	ret = v4l2_fwnode_device_parse(ov01a10->dev, &props);
 	if (ret)
@@ -438,12 +438,11 @@ static int ov01a10_init_controls(struct ov01a10 *ov01a10)
 		return ret;
 
 	cur_mode = ov01a10->cur_mode;
-	size = ARRAY_SIZE(link_freq_menu_items);
 
 	ov01a10->link_freq = v4l2_ctrl_new_int_menu(ctrl_hdlr,
 						    &ov01a10_ctrl_ops,
 						    V4L2_CID_LINK_FREQ,
-						    size - 1, 0,
+						    ov01a10->link_freq_index, 0,
 						    link_freq_menu_items);
 	if (ov01a10->link_freq)
 		ov01a10->link_freq->flags |= V4L2_CTRL_FLAG_READ_ONLY;
@@ -745,6 +744,53 @@ static int ov01a10_identify_module(struct ov01a10 *ov01a10)
 	return 0;
 }
 
+static int ov01a10_check_hwcfg(struct ov01a10 *ov01a10)
+{
+	struct v4l2_fwnode_endpoint bus_cfg = {
+		.bus_type = V4L2_MBUS_CSI2_DPHY
+	};
+	struct fwnode_handle *ep, *fwnode = dev_fwnode(ov01a10->dev);
+	unsigned long link_freq_bitmap;
+	int ret;
+
+	/*
+	 * Sometimes the fwnode graph is initialized by the bridge driver,
+	 * wait for this.
+	 */
+	ep = fwnode_graph_get_endpoint_by_id(fwnode, 0, 0, 0);
+	if (!ep)
+		return dev_err_probe(ov01a10->dev, -EPROBE_DEFER,
+				     "waiting for fwnode graph endpoint\n");
+
+	ret = v4l2_fwnode_endpoint_alloc_parse(ep, &bus_cfg);
+	fwnode_handle_put(ep);
+	if (ret)
+		return dev_err_probe(ov01a10->dev, ret, "parsing endpoint\n");
+
+	ret = v4l2_link_freq_to_bitmap(ov01a10->dev,
+				       bus_cfg.link_frequencies,
+				       bus_cfg.nr_of_link_frequencies,
+				       link_freq_menu_items,
+				       ARRAY_SIZE(link_freq_menu_items),
+				       &link_freq_bitmap);
+	if (ret)
+		goto check_hwcfg_error;
+
+	/* v4l2_link_freq_to_bitmap() guarantees at least 1 bit is set */
+	ov01a10->link_freq_index = ffs(link_freq_bitmap) - 1;
+
+	if (bus_cfg.bus.mipi_csi2.num_data_lanes != OV01A10_DATA_LANES) {
+		ret = dev_err_probe(ov01a10->dev, -EINVAL,
+				    "number of CSI2 data lanes %u is not supported\n",
+				    bus_cfg.bus.mipi_csi2.num_data_lanes);
+		goto check_hwcfg_error;
+	}
+
+check_hwcfg_error:
+	v4l2_fwnode_endpoint_free(&bus_cfg);
+	return ret;
+}
+
 static void ov01a10_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
@@ -761,7 +807,7 @@ static void ov01a10_remove(struct i2c_client *client)
 static int ov01a10_probe(struct i2c_client *client)
 {
 	struct ov01a10 *ov01a10;
-	int ret = 0;
+	int ret;
 
 	ov01a10 = devm_kzalloc(&client->dev, sizeof(*ov01a10), GFP_KERNEL);
 	if (!ov01a10)
@@ -775,6 +821,10 @@ static int ov01a10_probe(struct i2c_client *client)
 
 	v4l2_i2c_subdev_init(&ov01a10->sd, client, &ov01a10_subdev_ops);
 	ov01a10->sd.internal_ops = &ov01a10_internal_ops;
+
+	ret = ov01a10_check_hwcfg(ov01a10);
+	if (ret)
+		return ret;
 
 	ret = ov01a10_identify_module(ov01a10);
 	if (ret)
