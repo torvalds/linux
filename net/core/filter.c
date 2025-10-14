@@ -5733,9 +5733,37 @@ static const struct bpf_func_proto bpf_sock_addr_getsockopt_proto = {
 	.arg5_type	= ARG_CONST_SIZE,
 };
 
+static int sk_bpf_set_get_bypass_prot_mem(struct sock *sk,
+					  char *optval, int optlen,
+					  bool getopt)
+{
+	int val;
+
+	if (optlen != sizeof(int))
+		return -EINVAL;
+
+	if (!sk_has_account(sk))
+		return -EOPNOTSUPP;
+
+	if (getopt) {
+		*(int *)optval = sk->sk_bypass_prot_mem;
+		return 0;
+	}
+
+	val = *(int *)optval;
+	if (val < 0 || val > 1)
+		return -EINVAL;
+
+	sk->sk_bypass_prot_mem = val;
+	return 0;
+}
+
 BPF_CALL_5(bpf_sock_create_setsockopt, struct sock *, sk, int, level,
 	   int, optname, char *, optval, int, optlen)
 {
+	if (level == SOL_SOCKET && optname == SK_BPF_BYPASS_PROT_MEM)
+		return sk_bpf_set_get_bypass_prot_mem(sk, optval, optlen, false);
+
 	return __bpf_setsockopt(sk, level, optname, optval, optlen);
 }
 
@@ -5753,6 +5781,15 @@ static const struct bpf_func_proto bpf_sock_create_setsockopt_proto = {
 BPF_CALL_5(bpf_sock_create_getsockopt, struct sock *, sk, int, level,
 	   int, optname, char *, optval, int, optlen)
 {
+	if (level == SOL_SOCKET && optname == SK_BPF_BYPASS_PROT_MEM) {
+		int err = sk_bpf_set_get_bypass_prot_mem(sk, optval, optlen, true);
+
+		if (err)
+			memset(optval, 0, optlen);
+
+		return err;
+	}
+
 	return __bpf_getsockopt(sk, level, optname, optval, optlen);
 }
 
