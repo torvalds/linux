@@ -62,7 +62,7 @@ properties:
     description: Output clock down spread in pcm (1/1000 of percent)
 
 patternProperties:
-  "^DIF[0-19]$":
+  "^DIF1?[0-9]$":
     type: object
     description:
       Description of one of the outputs (DIF0..DIF19).
@@ -105,6 +105,15 @@ examples:
             clocks = <&ref25m>;
 
             DIF0 {
+                renesas,slew-rate = <3000000>;
+            };
+
+            /* Not present on 9FGV0241, used for DT validation only */
+            DIF2 {
+                renesas,slew-rate = <2000000>;
+            };
+
+            DIF19 {
                 renesas,slew-rate = <3000000>;
             };
         };
