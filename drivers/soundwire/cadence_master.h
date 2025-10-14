@@ -209,6 +209,11 @@ void sdw_cdns_config_update(struct sdw_cdns *cdns);
 int sdw_cdns_config_update_set_wait(struct sdw_cdns *cdns);
 
 /* SoundWire BPT/BRA helpers to format data */
+int sdw_cdns_bpt_find_bandwidth(int command, /* 0: write, 1: read */
+				int row, int col, int frame_rate,
+				unsigned int *tx_dma_bandwidth,
+				unsigned int *rx_dma_bandwidth);
+
 int sdw_cdns_bpt_find_buffer_sizes(int command, /* 0: write, 1: read */
 				   int row, int col, unsigned int data_bytes,
 				   unsigned int requested_bytes_per_frame,

@@ -2094,6 +2094,36 @@ static unsigned int sdw_cdns_read_pdi1_buffer_size(unsigned int actual_data_size
 	return total * 2;
 }
 
+int sdw_cdns_bpt_find_bandwidth(int command, /* 0: write, 1: read */
+				int row, int col, int frame_rate,
+				unsigned int *tx_dma_bandwidth,
+				unsigned int *rx_dma_bandwidth)
+{
+	unsigned int bpt_bits = row * (col - 1);
+	unsigned int bpt_bytes = bpt_bits >> 3;
+	unsigned int pdi0_buffer_size;
+	unsigned int pdi1_buffer_size;
+	unsigned int data_per_frame;
+
+	data_per_frame = sdw_cdns_bra_actual_data_size(bpt_bytes);
+	if (!data_per_frame)
+		return -EINVAL;
+
+	if (command == 0) {
+		pdi0_buffer_size = sdw_cdns_write_pdi0_buffer_size(data_per_frame);
+		pdi1_buffer_size = SDW_CDNS_WRITE_PDI1_BUFFER_SIZE;
+	} else {
+		pdi0_buffer_size = SDW_CDNS_READ_PDI0_BUFFER_SIZE;
+		pdi1_buffer_size = sdw_cdns_read_pdi1_buffer_size(data_per_frame);
+	}
+
+	*tx_dma_bandwidth = pdi0_buffer_size * 8 * frame_rate;
+	*rx_dma_bandwidth = pdi1_buffer_size * 8 * frame_rate;
+
+	return 0;
+}
+EXPORT_SYMBOL(sdw_cdns_bpt_find_bandwidth);
+
 int sdw_cdns_bpt_find_buffer_sizes(int command, /* 0: write, 1: read */
 				   int row, int col, unsigned int data_bytes,
 				   unsigned int requested_bytes_per_frame,
