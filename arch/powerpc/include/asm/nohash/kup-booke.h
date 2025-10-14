@@ -7,7 +7,7 @@
 
 #ifdef CONFIG_PPC_KUAP
 
-#ifdef __ASSEMBLY__
+#ifdef __ASSEMBLER__
 
 .macro kuap_check_amr	gpr1, gpr2
 .endm
@@ -105,7 +105,7 @@ __bad_kuap_fault(struct pt_regs *regs, unsigned long address, bool is_write)
 	return !regs->kuap;
 }
 
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 
 #endif /* CONFIG_PPC_KUAP */
 

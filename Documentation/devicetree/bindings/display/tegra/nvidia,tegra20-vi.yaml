@@ -70,9 +70,6 @@ properties:
   ranges:
     maxItems: 1
 
-  avdd-dsi-csi-supply:
-    description: DSI/CSI power supply. Must supply 1.2 V.
-
   vip:
     $ref: /schemas/display/tegra/nvidia,tegra20-vip.yaml
 

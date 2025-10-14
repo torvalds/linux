@@ -14,6 +14,7 @@ dtb-$(CONFIG_ARCH_TEGRA_124_SOC) += \
 	tegra124-venice2.dtb
 dtb-$(CONFIG_ARCH_TEGRA_2x_SOC) += \
 	tegra20-acer-a500-picasso.dtb \
+	tegra20-asus-sl101.dtb \
 	tegra20-asus-tf101.dtb \
 	tegra20-harmony.dtb \
 	tegra20-colibri-eval-v3.dtb \

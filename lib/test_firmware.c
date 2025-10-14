@@ -26,6 +26,7 @@
 #include <linux/kthread.h>
 #include <linux/vmalloc.h>
 #include <linux/efi_embedded_fw.h>
+#include <linux/string_choices.h>
 
 MODULE_IMPORT_NS("TEST_FIRMWARE");
 
@@ -304,17 +305,17 @@ static ssize_t config_show(struct device *dev,
 			"FW_ACTION_NOUEVENT");
 	len += scnprintf(buf + len, PAGE_SIZE - len,
 			"into_buf:\t\t%s\n",
-			test_fw_config->into_buf ? "true" : "false");
+			str_true_false(test_fw_config->into_buf));
 	len += scnprintf(buf + len, PAGE_SIZE - len,
 			"buf_size:\t%zu\n", test_fw_config->buf_size);
 	len += scnprintf(buf + len, PAGE_SIZE - len,
 			"file_offset:\t%zu\n", test_fw_config->file_offset);
 	len += scnprintf(buf + len, PAGE_SIZE - len,
 			"partial:\t\t%s\n",
-			test_fw_config->partial ? "true" : "false");
+			str_true_false(test_fw_config->partial));
 	len += scnprintf(buf + len, PAGE_SIZE - len,
 			"sync_direct:\t\t%s\n",
-			test_fw_config->sync_direct ? "true" : "false");
+			str_true_false(test_fw_config->sync_direct));
 	len += scnprintf(buf + len, PAGE_SIZE - len,
 			"read_fw_idx:\t%u\n", test_fw_config->read_fw_idx);
 	if (test_fw_config->upload_name)

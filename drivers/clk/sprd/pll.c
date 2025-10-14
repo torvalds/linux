@@ -254,16 +254,16 @@ static int sprd_pll_clk_prepare(struct clk_hw *hw)
 	return 0;
 }
 
-static long sprd_pll_round_rate(struct clk_hw *hw, unsigned long rate,
-				unsigned long *prate)
+static int sprd_pll_determine_rate(struct clk_hw *hw,
+				   struct clk_rate_request *req)
 {
-	return rate;
+	return 0;
 }
 
 const struct clk_ops sprd_pll_ops = {
 	.prepare = sprd_pll_clk_prepare,
 	.recalc_rate = sprd_pll_recalc_rate,
-	.round_rate = sprd_pll_round_rate,
+	.determine_rate = sprd_pll_determine_rate,
 	.set_rate = sprd_pll_set_rate,
 };
 EXPORT_SYMBOL_GPL(sprd_pll_ops);

@@ -75,9 +75,9 @@ KUNIT_ARRAY_PARAM(platform, cases, xe_pci_fake_data_desc);
  *
  * Return: pointer to the next parameter or NULL if no more parameters
  */
-const void *xe_pci_fake_data_gen_params(const void *prev, char *desc)
+const void *xe_pci_fake_data_gen_params(struct kunit *test, const void *prev, char *desc)
 {
-	return platform_gen_params(prev, desc);
+	return platform_gen_params(test, prev, desc);
 }
 EXPORT_SYMBOL_IF_KUNIT(xe_pci_fake_data_gen_params);
 
@@ -211,15 +211,15 @@ static void xe_ip_kunit_desc(const struct xe_ip *param, char *desc)
  * param generator can be used for both
  */
 static const struct xe_ip pre_gmdid_graphics_ips[] = {
-	graphics_ip_xelp,
-	graphics_ip_xelpp,
-	graphics_ip_xehpg,
-	graphics_ip_xehpc,
+	{ 1200, "Xe_LP", &graphics_xelp },
+	{ 1210, "Xe_LP+", &graphics_xelp },
+	{ 1255, "Xe_HPG", &graphics_xehpg },
+	{ 1260, "Xe_HPC", &graphics_xehpc },
 };
 
 static const struct xe_ip pre_gmdid_media_ips[] = {
-	media_ip_xem,
-	media_ip_xehpm,
+	{ 1200, "Xe_M", &media_xem },
+	{ 1255, "Xe_HPM", &media_xem },
 };
 
 KUNIT_ARRAY_PARAM(pre_gmdid_graphics_ip, pre_gmdid_graphics_ips, xe_ip_kunit_desc);
@@ -251,16 +251,16 @@ KUNIT_ARRAY_PARAM(pci_id, pciidlist, xe_pci_id_kunit_desc);
  *
  * Return: pointer to the next parameter or NULL if no more parameters
  */
-const void *xe_pci_graphics_ip_gen_param(const void *prev, char *desc)
+const void *xe_pci_graphics_ip_gen_param(struct kunit *test, const void *prev, char *desc)
 {
-	const void *next = pre_gmdid_graphics_ip_gen_params(prev, desc);
+	const void *next = pre_gmdid_graphics_ip_gen_params(test, prev, desc);
 
 	if (next)
 		return next;
 	if (is_insidevar(prev, pre_gmdid_graphics_ips))
 		prev = NULL;
 
-	return graphics_ip_gen_params(prev, desc);
+	return graphics_ip_gen_params(test, prev, desc);
 }
 EXPORT_SYMBOL_IF_KUNIT(xe_pci_graphics_ip_gen_param);
 
@@ -275,16 +275,16 @@ EXPORT_SYMBOL_IF_KUNIT(xe_pci_graphics_ip_gen_param);
  *
  * Return: pointer to the next parameter or NULL if no more parameters
  */
-const void *xe_pci_media_ip_gen_param(const void *prev, char *desc)
+const void *xe_pci_media_ip_gen_param(struct kunit *test, const void *prev, char *desc)
 {
-	const void *next = pre_gmdid_media_ip_gen_params(prev, desc);
+	const void *next = pre_gmdid_media_ip_gen_params(test, prev, desc);
 
 	if (next)
 		return next;
 	if (is_insidevar(prev, pre_gmdid_media_ips))
 		prev = NULL;
 
-	return media_ip_gen_params(prev, desc);
+	return media_ip_gen_params(test, prev, desc);
 }
 EXPORT_SYMBOL_IF_KUNIT(xe_pci_media_ip_gen_param);
 
@@ -299,9 +299,9 @@ EXPORT_SYMBOL_IF_KUNIT(xe_pci_media_ip_gen_param);
  *
  * Return: pointer to the next parameter or NULL if no more parameters
  */
-const void *xe_pci_id_gen_param(const void *prev, char *desc)
+const void *xe_pci_id_gen_param(struct kunit *test, const void *prev, char *desc)
 {
-	const struct pci_device_id *pci = pci_id_gen_params(prev, desc);
+	const struct pci_device_id *pci = pci_id_gen_params(test, prev, desc);
 
 	return pci->driver_data ? pci : NULL;
 }
@@ -387,7 +387,7 @@ EXPORT_SYMBOL_IF_KUNIT(xe_pci_fake_device_init);
  * Return: pointer to the next &struct xe_device ready to be used as a parameter
  *         or NULL if there are no more Xe devices on the system.
  */
-const void *xe_pci_live_device_gen_param(const void *prev, char *desc)
+const void *xe_pci_live_device_gen_param(struct kunit *test, const void *prev, char *desc)
 {
 	const struct xe_device *xe = prev;
 	struct device *dev = xe ? xe->drm.dev : NULL;

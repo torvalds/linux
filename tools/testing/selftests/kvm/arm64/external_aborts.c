@@ -250,6 +250,47 @@ static void test_serror(void)
 	kvm_vm_free(vm);
 }
 
+static void expect_sea_s1ptw_handler(struct ex_regs *regs)
+{
+	u64 esr = read_sysreg(esr_el1);
+
+	GUEST_ASSERT_EQ(regs->pc, expected_abort_pc);
+	GUEST_ASSERT_EQ(ESR_ELx_EC(esr), ESR_ELx_EC_DABT_CUR);
+	GUEST_ASSERT_EQ((esr & ESR_ELx_FSC), ESR_ELx_FSC_SEA_TTW(3));
+
+	GUEST_DONE();
+}
+
+static noinline void test_s1ptw_abort_guest(void)
+{
+	extern char test_s1ptw_abort_insn;
+
+	WRITE_ONCE(expected_abort_pc, (u64)&test_s1ptw_abort_insn);
+
+	asm volatile("test_s1ptw_abort_insn:\n\t"
+		     "ldr x0, [%0]\n\t"
+		     : : "r" (MMIO_ADDR) : "x0", "memory");
+
+	GUEST_FAIL("Load on S1PTW abort should not retire");
+}
+
+static void test_s1ptw_abort(void)
+{
+	struct kvm_vcpu *vcpu;
+	u64 *ptep, bad_pa;
+	struct kvm_vm *vm = vm_create_with_dabt_handler(&vcpu, test_s1ptw_abort_guest,
+							expect_sea_s1ptw_handler);
+
+	ptep = virt_get_pte_hva_at_level(vm, MMIO_ADDR, 2);
+	bad_pa = BIT(vm->pa_bits) - vm->page_size;
+
+	*ptep &= ~GENMASK(47, 12);
+	*ptep |= bad_pa;
+
+	vcpu_run_expect_done(vcpu);
+	kvm_vm_free(vm);
+}
+
 static void test_serror_emulated_guest(void)
 {
 	GUEST_ASSERT(!(read_sysreg(isr_el1) & ISR_EL1_A));
@@ -327,4 +368,5 @@ int main(void)
 	test_serror_masked();
 	test_serror_emulated();
 	test_mmio_ease();
+	test_s1ptw_abort();
 }

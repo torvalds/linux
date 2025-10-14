@@ -10,6 +10,7 @@ TEST_GEN_FILES := \
 # end of TEST_GEN_FILES
 
 TEST_PROGS := \
+	hds.py \
 	napi_id.py \
 	napi_threaded.py \
 	netcons_basic.sh \
@@ -19,11 +20,20 @@ TEST_PROGS := \
 	netcons_sysdata.sh \
 	netpoll_basic.py \
 	ping.py \
+	psp.py \
 	queues.py \
-	stats.py \
 	shaper.py \
-	hds.py \
+	stats.py \
 	xdp.py \
 # end of TEST_PROGS
 
+# YNL files, must be before "include ..lib.mk"
+YNL_GEN_FILES := psp_responder
+TEST_GEN_FILES += $(YNL_GEN_FILES)
+
 include ../../lib.mk
+
+# YNL build
+YNL_GENS := psp
+
+include ../../net/ynl.mk

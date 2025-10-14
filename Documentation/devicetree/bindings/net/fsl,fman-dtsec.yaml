@@ -81,10 +81,6 @@ properties:
       An array of two references: the first is the FMan RX port and the second
       is the TX port used by this MAC.
 
-  ptp-timer:
-    $ref: /schemas/types.yaml#/definitions/phandle
-    description: A reference to the IEEE1588 timer
-
   phys:
     description: A reference to the SerDes lane(s)
     maxItems: 1

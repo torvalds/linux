@@ -95,6 +95,13 @@ static u64 __compute_hcr(struct kvm_vcpu *vcpu)
 			/* Force NV2 in case the guest is forgetful... */
 			guest_hcr |= HCR_NV2;
 		}
+
+		/*
+		 * Exclude the guest's TWED configuration if it hasn't set TWE
+		 * to avoid potentially delaying traps for the host.
+		 */
+		if (!(guest_hcr & HCR_TWE))
+			guest_hcr &= ~(HCR_EL2_TWEDEn | HCR_EL2_TWEDEL);
 	}
 
 	BUG_ON(host_data_test_flag(VCPU_IN_HYP_CONTEXT) &&

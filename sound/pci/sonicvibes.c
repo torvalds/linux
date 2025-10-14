@@ -303,14 +303,11 @@ static void snd_sonicvibes_out(struct sonicvibes * sonic,
 			       unsigned char reg,
 			       unsigned char value)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&sonic->reg_lock, flags);
+	guard(spinlock_irqsave)(&sonic->reg_lock);
 	outb(reg, SV_REG(sonic, INDEX));
 	udelay(10);
 	outb(value, SV_REG(sonic, DATA));
 	udelay(10);
-	spin_unlock_irqrestore(&sonic->reg_lock, flags);
 }
 
 static unsigned char snd_sonicvibes_in1(struct sonicvibes * sonic, unsigned char reg)
@@ -326,15 +323,13 @@ static unsigned char snd_sonicvibes_in1(struct sonicvibes * sonic, unsigned char
 
 static unsigned char snd_sonicvibes_in(struct sonicvibes * sonic, unsigned char reg)
 {
-	unsigned long flags;
 	unsigned char value;
 
-	spin_lock_irqsave(&sonic->reg_lock, flags);
+	guard(spinlock_irqsave)(&sonic->reg_lock);
 	outb(reg, SV_REG(sonic, INDEX));
 	udelay(10);
 	value = inb(SV_REG(sonic, DATA));
 	udelay(10);
-	spin_unlock_irqrestore(&sonic->reg_lock, flags);
 	return value;
 }
 
@@ -448,9 +443,7 @@ static void snd_sonicvibes_setfmt(struct sonicvibes * sonic,
                                   unsigned char mask,
                                   unsigned char value)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&sonic->reg_lock, flags);
+	guard(spinlock_irqsave)(&sonic->reg_lock);
 	outb(SV_MCE | SV_IREG_DMA_DATA_FMT, SV_REG(sonic, INDEX));
 	if (mask) {
 		sonic->format = inb(SV_REG(sonic, DATA));
@@ -461,7 +454,6 @@ static void snd_sonicvibes_setfmt(struct sonicvibes * sonic,
 	udelay(10);
 	outb(0, SV_REG(sonic, INDEX));
 	udelay(10);
-	spin_unlock_irqrestore(&sonic->reg_lock, flags);
 }
 
 static void snd_sonicvibes_pll(unsigned int rate,
@@ -506,21 +498,18 @@ static void snd_sonicvibes_setpll(struct sonicvibes * sonic,
                                   unsigned char reg,
                                   unsigned int rate)
 {
-	unsigned long flags;
 	unsigned int r, m, n;
 
 	snd_sonicvibes_pll(rate, &r, &m, &n);
 	if (sonic != NULL) {
-		spin_lock_irqsave(&sonic->reg_lock, flags);
+		guard(spinlock_irqsave)(&sonic->reg_lock);
 		snd_sonicvibes_out1(sonic, reg, m);
 		snd_sonicvibes_out1(sonic, reg + 1, r | n);
-		spin_unlock_irqrestore(&sonic->reg_lock, flags);
 	}
 }
 
 static void snd_sonicvibes_set_adc_rate(struct sonicvibes * sonic, unsigned int rate)
 {
-	unsigned long flags;
 	unsigned int div;
 	unsigned char clock;
 
@@ -533,10 +522,9 @@ static void snd_sonicvibes_set_adc_rate(struct sonicvibes * sonic, unsigned int 
 		clock = 0x00;
 		snd_sonicvibes_setpll(sonic, SV_IREG_ADC_PLL, rate);
 	}
-	spin_lock_irqsave(&sonic->reg_lock, flags);
+	guard(spinlock_irqsave)(&sonic->reg_lock);
 	snd_sonicvibes_out1(sonic, SV_IREG_ADC_ALT_RATE, (div - 1) << 4);
 	snd_sonicvibes_out1(sonic, SV_IREG_ADC_CLOCK, clock);
-	spin_unlock_irqrestore(&sonic->reg_lock, flags);
 }
 
 static int snd_sonicvibes_hw_constraint_dac_rate(struct snd_pcm_hw_params *params,
@@ -567,22 +555,18 @@ static int snd_sonicvibes_hw_constraint_dac_rate(struct snd_pcm_hw_params *param
 static void snd_sonicvibes_set_dac_rate(struct sonicvibes * sonic, unsigned int rate)
 {
 	unsigned int div;
-	unsigned long flags;
 
 	div = DIV_ROUND_CLOSEST(rate * 65536, SV_FULLRATE);
 	if (div > 65535)
 		div = 65535;
-	spin_lock_irqsave(&sonic->reg_lock, flags);
+	guard(spinlock_irqsave)(&sonic->reg_lock);
 	snd_sonicvibes_out1(sonic, SV_IREG_PCM_RATE_HIGH, div >> 8);
 	snd_sonicvibes_out1(sonic, SV_IREG_PCM_RATE_LOW, div);
-	spin_unlock_irqrestore(&sonic->reg_lock, flags);
 }
 
 static int snd_sonicvibes_trigger(struct sonicvibes * sonic, int what, int cmd)
 {
-	int result = 0;
-
-	spin_lock(&sonic->reg_lock);
+	guard(spinlock)(&sonic->reg_lock);
 	if (cmd == SNDRV_PCM_TRIGGER_START) {
 		if (!(sonic->enable & what)) {
 			sonic->enable |= what;
@@ -594,10 +578,9 @@ static int snd_sonicvibes_trigger(struct sonicvibes * sonic, int what, int cmd)
 			snd_sonicvibes_out1(sonic, SV_IREG_PC_ENABLE, sonic->enable);
 		}
 	} else {
-		result = -EINVAL;
+		return -EINVAL;
 	}
-	spin_unlock(&sonic->reg_lock);
-	return result;
+	return 0;
 }
 
 static irqreturn_t snd_sonicvibes_interrupt(int irq, void *dev_id)
@@ -628,34 +611,34 @@ static irqreturn_t snd_sonicvibes_interrupt(int irq, void *dev_id)
 		unsigned char udreg;
 		int vol, oleft, oright, mleft, mright;
 
-		spin_lock(&sonic->reg_lock);
-		udreg = snd_sonicvibes_in1(sonic, SV_IREG_UD_BUTTON);
-		vol = udreg & 0x3f;
-		if (!(udreg & 0x40))
-			vol = -vol;
-		oleft = mleft = snd_sonicvibes_in1(sonic, SV_IREG_LEFT_ANALOG);
-		oright = mright = snd_sonicvibes_in1(sonic, SV_IREG_RIGHT_ANALOG);
-		oleft &= 0x1f;
-		oright &= 0x1f;
-		oleft += vol;
-		if (oleft < 0)
-			oleft = 0;
-		if (oleft > 0x1f)
-			oleft = 0x1f;
-		oright += vol;
-		if (oright < 0)
-			oright = 0;
-		if (oright > 0x1f)
-			oright = 0x1f;
-		if (udreg & 0x80) {
-			mleft ^= 0x80;
-			mright ^= 0x80;
+		scoped_guard(spinlock, &sonic->reg_lock) {
+			udreg = snd_sonicvibes_in1(sonic, SV_IREG_UD_BUTTON);
+			vol = udreg & 0x3f;
+			if (!(udreg & 0x40))
+				vol = -vol;
+			oleft = mleft = snd_sonicvibes_in1(sonic, SV_IREG_LEFT_ANALOG);
+			oright = mright = snd_sonicvibes_in1(sonic, SV_IREG_RIGHT_ANALOG);
+			oleft &= 0x1f;
+			oright &= 0x1f;
+			oleft += vol;
+			if (oleft < 0)
+				oleft = 0;
+			if (oleft > 0x1f)
+				oleft = 0x1f;
+			oright += vol;
+			if (oright < 0)
+				oright = 0;
+			if (oright > 0x1f)
+				oright = 0x1f;
+			if (udreg & 0x80) {
+				mleft ^= 0x80;
+				mright ^= 0x80;
+			}
+			oleft |= mleft & 0x80;
+			oright |= mright & 0x80;
+			snd_sonicvibes_out1(sonic, SV_IREG_LEFT_ANALOG, oleft);
+			snd_sonicvibes_out1(sonic, SV_IREG_RIGHT_ANALOG, oright);
 		}
-		oleft |= mleft & 0x80;
-		oright |= mright & 0x80;
-		snd_sonicvibes_out1(sonic, SV_IREG_LEFT_ANALOG, oleft);
-		snd_sonicvibes_out1(sonic, SV_IREG_RIGHT_ANALOG, oright);
-		spin_unlock(&sonic->reg_lock);
 		snd_ctl_notify(sonic->card, SNDRV_CTL_EVENT_MASK_VALUE, &sonic->master_mute->id);
 		snd_ctl_notify(sonic->card, SNDRV_CTL_EVENT_MASK_VALUE, &sonic->master_volume->id);
 	}
@@ -696,11 +679,10 @@ static int snd_sonicvibes_playback_prepare(struct snd_pcm_substream *substream)
 		fmt |= 2;
 	snd_sonicvibes_setfmt(sonic, ~3, fmt);
 	snd_sonicvibes_set_dac_rate(sonic, runtime->rate);
-	spin_lock_irq(&sonic->reg_lock);
+	guard(spinlock_irq)(&sonic->reg_lock);
 	snd_sonicvibes_setdmaa(sonic, runtime->dma_addr, size);
 	snd_sonicvibes_out1(sonic, SV_IREG_DMA_A_UPPER, count >> 8);
 	snd_sonicvibes_out1(sonic, SV_IREG_DMA_A_LOWER, count);
-	spin_unlock_irq(&sonic->reg_lock);
 	return 0;
 }
 
@@ -721,11 +703,10 @@ static int snd_sonicvibes_capture_prepare(struct snd_pcm_substream *substream)
 		fmt |= 0x20;
 	snd_sonicvibes_setfmt(sonic, ~0x30, fmt);
 	snd_sonicvibes_set_adc_rate(sonic, runtime->rate);
-	spin_lock_irq(&sonic->reg_lock);
+	guard(spinlock_irq)(&sonic->reg_lock);
 	snd_sonicvibes_setdmac(sonic, runtime->dma_addr, size);
 	snd_sonicvibes_out1(sonic, SV_IREG_DMA_C_UPPER, count >> 8);
 	snd_sonicvibes_out1(sonic, SV_IREG_DMA_C_LOWER, count);
-	spin_unlock_irq(&sonic->reg_lock);
 	return 0;
 }
 
@@ -894,10 +875,9 @@ static int snd_sonicvibes_get_mux(struct snd_kcontrol *kcontrol, struct snd_ctl_
 {
 	struct sonicvibes *sonic = snd_kcontrol_chip(kcontrol);
 	
-	spin_lock_irq(&sonic->reg_lock);
+	guard(spinlock_irq)(&sonic->reg_lock);
 	ucontrol->value.enumerated.item[0] = ((snd_sonicvibes_in1(sonic, SV_IREG_LEFT_ADC) & SV_RECSRC_OUT) >> 5) - 1;
 	ucontrol->value.enumerated.item[1] = ((snd_sonicvibes_in1(sonic, SV_IREG_RIGHT_ADC) & SV_RECSRC_OUT) >> 5) - 1;
-	spin_unlock_irq(&sonic->reg_lock);
 	return 0;
 }
 
@@ -912,7 +892,7 @@ static int snd_sonicvibes_put_mux(struct snd_kcontrol *kcontrol, struct snd_ctl_
 		return -EINVAL;
 	left = (ucontrol->value.enumerated.item[0] + 1) << 5;
 	right = (ucontrol->value.enumerated.item[1] + 1) << 5;
-	spin_lock_irq(&sonic->reg_lock);
+	guard(spinlock_irq)(&sonic->reg_lock);
 	oval1 = snd_sonicvibes_in1(sonic, SV_IREG_LEFT_ADC);
 	oval2 = snd_sonicvibes_in1(sonic, SV_IREG_RIGHT_ADC);
 	left = (oval1 & ~SV_RECSRC_OUT) | left;
@@ -920,7 +900,6 @@ static int snd_sonicvibes_put_mux(struct snd_kcontrol *kcontrol, struct snd_ctl_
 	change = left != oval1 || right != oval2;
 	snd_sonicvibes_out1(sonic, SV_IREG_LEFT_ADC, left);
 	snd_sonicvibes_out1(sonic, SV_IREG_RIGHT_ADC, right);
-	spin_unlock_irq(&sonic->reg_lock);
 	return change;
 }
 
@@ -949,9 +928,8 @@ static int snd_sonicvibes_get_single(struct snd_kcontrol *kcontrol, struct snd_c
 	int mask = (kcontrol->private_value >> 16) & 0xff;
 	int invert = (kcontrol->private_value >> 24) & 0xff;
 	
-	spin_lock_irq(&sonic->reg_lock);
+	guard(spinlock_irq)(&sonic->reg_lock);
 	ucontrol->value.integer.value[0] = (snd_sonicvibes_in1(sonic, reg)>> shift) & mask;
-	spin_unlock_irq(&sonic->reg_lock);
 	if (invert)
 		ucontrol->value.integer.value[0] = mask - ucontrol->value.integer.value[0];
 	return 0;
@@ -971,12 +949,11 @@ static int snd_sonicvibes_put_single(struct snd_kcontrol *kcontrol, struct snd_c
 	if (invert)
 		val = mask - val;
 	val <<= shift;
-	spin_lock_irq(&sonic->reg_lock);
+	guard(spinlock_irq)(&sonic->reg_lock);
 	oval = snd_sonicvibes_in1(sonic, reg);
 	val = (oval & ~(mask << shift)) | val;
 	change = val != oval;
 	snd_sonicvibes_out1(sonic, reg, val);
-	spin_unlock_irq(&sonic->reg_lock);
 	return change;
 }
 
@@ -1007,10 +984,9 @@ static int snd_sonicvibes_get_double(struct snd_kcontrol *kcontrol, struct snd_c
 	int mask = (kcontrol->private_value >> 24) & 0xff;
 	int invert = (kcontrol->private_value >> 22) & 1;
 	
-	spin_lock_irq(&sonic->reg_lock);
+	guard(spinlock_irq)(&sonic->reg_lock);
 	ucontrol->value.integer.value[0] = (snd_sonicvibes_in1(sonic, left_reg) >> shift_left) & mask;
 	ucontrol->value.integer.value[1] = (snd_sonicvibes_in1(sonic, right_reg) >> shift_right) & mask;
-	spin_unlock_irq(&sonic->reg_lock);
 	if (invert) {
 		ucontrol->value.integer.value[0] = mask - ucontrol->value.integer.value[0];
 		ucontrol->value.integer.value[1] = mask - ucontrol->value.integer.value[1];
@@ -1038,7 +1014,7 @@ static int snd_sonicvibes_put_double(struct snd_kcontrol *kcontrol, struct snd_c
 	}
 	val1 <<= shift_left;
 	val2 <<= shift_right;
-	spin_lock_irq(&sonic->reg_lock);
+	guard(spinlock_irq)(&sonic->reg_lock);
 	oval1 = snd_sonicvibes_in1(sonic, left_reg);
 	oval2 = snd_sonicvibes_in1(sonic, right_reg);
 	val1 = (oval1 & ~(mask << shift_left)) | val1;
@@ -1046,7 +1022,6 @@ static int snd_sonicvibes_put_double(struct snd_kcontrol *kcontrol, struct snd_c
 	change = val1 != oval1 || val2 != oval2;
 	snd_sonicvibes_out1(sonic, left_reg, val1);
 	snd_sonicvibes_out1(sonic, right_reg, val2);
-	spin_unlock_irq(&sonic->reg_lock);
 	return change;
 }
 

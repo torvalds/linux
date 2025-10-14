@@ -11,6 +11,7 @@
 #include <linux/personality.h>
 #include <linux/uaccess.h>
 #include <linux/compat.h>
+#include <linux/nsfs.h>
 #include "internal.h"
 #include "mount.h"
 
@@ -186,6 +187,11 @@ static int get_path_anchor(int fd, struct path *root)
 
 	if (fd == FD_PIDFS_ROOT) {
 		pidfs_get_root(root);
+		return 0;
+	}
+
+	if (fd == FD_NSFS_ROOT) {
+		nsfs_get_root(root);
 		return 0;
 	}
 

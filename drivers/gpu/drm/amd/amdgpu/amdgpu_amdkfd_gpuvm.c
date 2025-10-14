@@ -1089,7 +1089,7 @@ static int init_user_pages(struct kgd_mem *mem, uint64_t user_addr,
 		return 0;
 	}
 
-	ret = amdgpu_ttm_tt_get_user_pages(bo, bo->tbo.ttm->pages, &range);
+	ret = amdgpu_ttm_tt_get_user_pages(bo, &range);
 	if (ret) {
 		if (ret == -EAGAIN)
 			pr_debug("Failed to get user pages, try again\n");
@@ -1103,6 +1103,9 @@ static int init_user_pages(struct kgd_mem *mem, uint64_t user_addr,
 		pr_err("%s: Failed to reserve BO\n", __func__);
 		goto release_out;
 	}
+
+	amdgpu_ttm_tt_set_user_pages(bo->tbo.ttm, range);
+
 	amdgpu_bo_placement_from_domain(bo, mem->domain);
 	ret = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 	if (ret)
@@ -2565,8 +2568,7 @@ static int update_invalid_user_pages(struct amdkfd_process_info *process_info,
 		}
 
 		/* Get updated user pages */
-		ret = amdgpu_ttm_tt_get_user_pages(bo, bo->tbo.ttm->pages,
-						   &mem->range);
+		ret = amdgpu_ttm_tt_get_user_pages(bo, &mem->range);
 		if (ret) {
 			pr_debug("Failed %d to get user pages\n", ret);
 
@@ -2584,16 +2586,23 @@ static int update_invalid_user_pages(struct amdkfd_process_info *process_info,
 			 * from the KFD, trigger a segmentation fault in VM debug mode.
 			 */
 			if (amdgpu_ttm_adev(bo->tbo.bdev)->debug_vm_userptr) {
+				struct kfd_process *p;
+
 				pr_err("Pid %d unmapped memory before destroying userptr at GPU addr 0x%llx\n",
 								pid_nr(process_info->pid), mem->va);
 
 				// Send GPU VM fault to user space
-				kfd_signal_vm_fault_event_with_userptr(kfd_lookup_process_by_pid(process_info->pid),
-								mem->va);
+				p = kfd_lookup_process_by_pid(process_info->pid);
+				if (p) {
+					kfd_signal_vm_fault_event_with_userptr(p, mem->va);
+					kfd_unref_process(p);
+				}
 			}
 
 			ret = 0;
 		}
+
+		amdgpu_ttm_tt_set_user_pages(bo->tbo.ttm, mem->range);
 
 		mutex_lock(&process_info->notifier_lock);
 

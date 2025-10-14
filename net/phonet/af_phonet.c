@@ -22,7 +22,7 @@
 #include <net/phonet/pn_dev.h>
 
 /* Transport protocol registration */
-static const struct phonet_protocol *proto_tab[PHONET_NPROTO] __read_mostly;
+static const struct phonet_protocol __rcu *proto_tab[PHONET_NPROTO] __read_mostly;
 
 static const struct phonet_protocol *phonet_proto_get(unsigned int protocol)
 {
@@ -482,7 +482,7 @@ void phonet_proto_unregister(unsigned int protocol,
 			const struct phonet_protocol *pp)
 {
 	mutex_lock(&proto_tab_lock);
-	BUG_ON(proto_tab[protocol] != pp);
+	BUG_ON(rcu_access_pointer(proto_tab[protocol]) != pp);
 	RCU_INIT_POINTER(proto_tab[protocol], NULL);
 	mutex_unlock(&proto_tab_lock);
 	synchronize_rcu();

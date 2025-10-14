@@ -193,8 +193,15 @@ static enum irdma_sd_entry_type irdma_get_type(struct irdma_sc_dev *dev,
 {
 	enum irdma_sd_entry_type sd_entry_type;
 
-	sd_entry_type = !idx->rel_pd_idx && pages == IRDMA_HMC_PD_CNT_IN_SD ?
-			IRDMA_SD_TYPE_DIRECT : IRDMA_SD_TYPE_PAGED;
+	if (dev->hw_attrs.uk_attrs.hw_rev >= IRDMA_GEN_3)
+		sd_entry_type = (!idx->rel_pd_idx &&
+				 pages == IRDMA_HMC_PD_CNT_IN_SD) ?
+				 IRDMA_SD_TYPE_DIRECT : IRDMA_SD_TYPE_PAGED;
+	else
+		sd_entry_type = (!idx->rel_pd_idx &&
+				 pages == IRDMA_HMC_PD_CNT_IN_SD &&
+				 dev->privileged) ?
+				 IRDMA_SD_TYPE_DIRECT : IRDMA_SD_TYPE_PAGED;
 	return sd_entry_type;
 }
 
@@ -279,10 +286,11 @@ static int add_pble_prm(struct irdma_hmc_pble_rsrc *pble_rsrc)
 	sd_reg_val = (sd_entry_type == IRDMA_SD_TYPE_PAGED) ?
 			     sd_entry->u.pd_table.pd_page_addr.pa :
 			     sd_entry->u.bp.addr.pa;
-
-	if (!sd_entry->valid) {
-		ret_code = irdma_hmc_sd_one(dev, hmc_info->hmc_fn_id, sd_reg_val,
-					    idx->sd_idx, sd_entry->entry_type, true);
+	if ((dev->privileged && !sd_entry->valid) ||
+	    dev->hw_attrs.uk_attrs.hw_rev >= IRDMA_GEN_3) {
+		ret_code = irdma_hmc_sd_one(dev, hmc_info->hmc_fn_id,
+					    sd_reg_val, idx->sd_idx,
+					    sd_entry->entry_type, true);
 		if (ret_code)
 			goto error;
 	}

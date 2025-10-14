@@ -188,7 +188,7 @@ static int cn10k_rng_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	rng->reg_base = pcim_iomap(pdev, 0, 0);
 	if (!rng->reg_base)
-		return dev_err_probe(&pdev->dev, -ENOMEM, "Error while mapping CSRs, exiting\n");
+		return -ENOMEM;
 
 	rng->ops.name = devm_kasprintf(&pdev->dev, GFP_KERNEL,
 				       "cn10k-rng-%s", dev_name(&pdev->dev));

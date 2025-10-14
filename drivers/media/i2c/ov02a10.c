@@ -100,7 +100,8 @@ struct ov02a10_mode {
 };
 
 struct ov02a10 {
-	u32 eclk_freq;
+	struct device *dev;
+
 	/* Indication of MIPI transmission speed select */
 	u32 mipi_clock_voltage;
 
@@ -392,7 +393,7 @@ static int ov02a10_check_sensor_id(struct ov02a10 *ov02a10)
 	chip_id = le16_to_cpu((__force __le16)ret);
 
 	if ((chip_id & OV02A10_ID_MASK) != OV02A10_ID) {
-		dev_err(&client->dev, "unexpected sensor id(0x%04x)\n", chip_id);
+		dev_err(ov02a10->dev, "unexpected sensor id(0x%04x)\n", chip_id);
 		return -EINVAL;
 	}
 
@@ -481,7 +482,7 @@ static int __ov02a10_start_stream(struct ov02a10 *ov02a10)
 		ret = i2c_smbus_write_byte_data(client, REG_MIRROR_FLIP_CONTROL,
 						REG_MIRROR_FLIP_ENABLE);
 		if (ret < 0) {
-			dev_err(&client->dev, "failed to set orientation\n");
+			dev_err(ov02a10->dev, "failed to set orientation\n");
 			return ret;
 		}
 		ret = i2c_smbus_write_byte_data(client, REG_GLOBAL_EFFECTIVE,
@@ -530,7 +531,6 @@ static int ov02a10_init_state(struct v4l2_subdev *sd,
 static int ov02a10_s_stream(struct v4l2_subdev *sd, int on)
 {
 	struct ov02a10 *ov02a10 = to_ov02a10(sd);
-	struct i2c_client *client = v4l2_get_subdevdata(&ov02a10->subdev);
 	int ret;
 
 	mutex_lock(&ov02a10->mutex);
@@ -541,7 +541,7 @@ static int ov02a10_s_stream(struct v4l2_subdev *sd, int on)
 	}
 
 	if (on) {
-		ret = pm_runtime_resume_and_get(&client->dev);
+		ret = pm_runtime_resume_and_get(ov02a10->dev);
 		if (ret < 0)
 			goto unlock_and_return;
 
@@ -553,7 +553,7 @@ static int ov02a10_s_stream(struct v4l2_subdev *sd, int on)
 		}
 	} else {
 		__ov02a10_stop_stream(ov02a10);
-		pm_runtime_put(&client->dev);
+		pm_runtime_put(ov02a10->dev);
 	}
 
 	ov02a10->streaming = on;
@@ -562,7 +562,7 @@ static int ov02a10_s_stream(struct v4l2_subdev *sd, int on)
 	return 0;
 
 err_rpm_put:
-	pm_runtime_put(&client->dev);
+	pm_runtime_put(ov02a10->dev);
 unlock_and_return:
 	mutex_unlock(&ov02a10->mutex);
 
@@ -662,7 +662,6 @@ static int ov02a10_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct ov02a10 *ov02a10 = container_of(ctrl->handler,
 					       struct ov02a10, ctrl_handler);
-	struct i2c_client *client = v4l2_get_subdevdata(&ov02a10->subdev);
 	s64 max_expo;
 	int ret;
 
@@ -678,7 +677,7 @@ static int ov02a10_set_ctrl(struct v4l2_ctrl *ctrl)
 	}
 
 	/* V4L2 controls values will be applied only when power is already up */
-	if (!pm_runtime_get_if_in_use(&client->dev))
+	if (!pm_runtime_get_if_in_use(ov02a10->dev))
 		return 0;
 
 	switch (ctrl->id) {
@@ -699,7 +698,7 @@ static int ov02a10_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	}
 
-	pm_runtime_put(&client->dev);
+	pm_runtime_put(ov02a10->dev);
 
 	return ret;
 }
@@ -734,7 +733,6 @@ static const struct v4l2_ctrl_ops ov02a10_ctrl_ops = {
 
 static int ov02a10_initialize_controls(struct ov02a10 *ov02a10)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&ov02a10->subdev);
 	const struct ov02a10_mode *mode;
 	struct v4l2_ctrl_handler *handler;
 	struct v4l2_ctrl *ctrl;
@@ -790,7 +788,7 @@ static int ov02a10_initialize_controls(struct ov02a10 *ov02a10)
 
 	if (handler->error) {
 		ret = handler->error;
-		dev_err(&client->dev, "failed to init controls(%d)\n", ret);
+		dev_err(ov02a10->dev, "failed to init controls(%d)\n", ret);
 		goto err_free_handler;
 	}
 
@@ -866,6 +864,8 @@ static int ov02a10_probe(struct i2c_client *client)
 	if (!ov02a10)
 		return -ENOMEM;
 
+	ov02a10->dev = dev;
+
 	ret = ov02a10_check_hwcfg(dev, ov02a10);
 	if (ret)
 		return dev_err_probe(dev, ret,
@@ -885,21 +885,10 @@ static int ov02a10_probe(struct i2c_client *client)
 		ov02a10->fmt.code = MEDIA_BUS_FMT_SRGGB10_1X10;
 	}
 
-	ov02a10->eclk = devm_clk_get(dev, "eclk");
+	ov02a10->eclk = devm_v4l2_sensor_clk_get_legacy(dev, "eclk", false, 0);
 	if (IS_ERR(ov02a10->eclk))
 		return dev_err_probe(dev, PTR_ERR(ov02a10->eclk),
 				     "failed to get eclk\n");
-
-	ret = device_property_read_u32(dev, "clock-frequency",
-				       &ov02a10->eclk_freq);
-	if (ret < 0)
-		return dev_err_probe(dev, ret,
-				     "failed to get eclk frequency\n");
-
-	ret = clk_set_rate(ov02a10->eclk, ov02a10->eclk_freq);
-	if (ret < 0)
-		return dev_err_probe(dev, ret,
-				     "failed to set eclk frequency (24MHz)\n");
 
 	if (clk_get_rate(ov02a10->eclk) != OV02A10_ECLK_FREQ)
 		dev_warn(dev, "eclk mismatched, mode is based on 24MHz\n");
@@ -985,10 +974,10 @@ static void ov02a10_remove(struct i2c_client *client)
 	v4l2_async_unregister_subdev(sd);
 	media_entity_cleanup(&sd->entity);
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
-	pm_runtime_disable(&client->dev);
-	if (!pm_runtime_status_suspended(&client->dev))
-		ov02a10_power_off(&client->dev);
-	pm_runtime_set_suspended(&client->dev);
+	pm_runtime_disable(ov02a10->dev);
+	if (!pm_runtime_status_suspended(ov02a10->dev))
+		ov02a10_power_off(ov02a10->dev);
+	pm_runtime_set_suspended(ov02a10->dev);
 	mutex_destroy(&ov02a10->mutex);
 }
 

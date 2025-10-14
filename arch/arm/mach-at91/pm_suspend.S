@@ -87,29 +87,6 @@ tmp3	.req	r6
 
 	.endm
 
-/**
- * Set state for 2.5V low power regulator
- * @ena: 0 - disable regulator
- *	 1 - enable regulator
- *
- * Side effects: overwrites r7, r8, r9, r10
- */
-	.macro at91_2_5V_reg_set_low_power ena
-#ifdef CONFIG_SOC_SAMA7
-	ldr	r7, .sfrbu
-	mov	r8, #\ena
-	ldr	r9, [r7, #AT91_SFRBU_25LDOCR]
-	orr	r9, r9, #AT91_SFRBU_25LDOCR_LP
-	cmp	r8, #1
-	beq	lp_done_\ena
-	bic	r9, r9, #AT91_SFRBU_25LDOCR_LP
-lp_done_\ena:
-	ldr	r10, =AT91_SFRBU_25LDOCR_LDOANAKEY
-	orr	r9, r9, r10
-	str	r9, [r7, #AT91_SFRBU_25LDOCR]
-#endif
-	.endm
-
 	.macro at91_backup_set_lpm reg
 #ifdef CONFIG_SOC_SAMA7
 	orr	\reg, \reg, #0x200000
@@ -689,6 +666,10 @@ sr_dis_exit:
 	bic	tmp2, tmp2, #AT91_PMC_PLL_UPDT_ID
 	str	tmp2, [pmc, #AT91_PMC_PLL_UPDT]
 
+	/* save acr */
+	ldr	tmp2, [pmc, #AT91_PMC_PLL_ACR]
+	str	tmp2, .saved_acr
+
 	/* save div. */
 	mov	tmp1, #0
 	ldr	tmp2, [pmc, #AT91_PMC_PLL_CTRL0]
@@ -758,7 +739,7 @@ sr_dis_exit:
 	str	tmp1, [pmc, #AT91_PMC_PLL_UPDT]
 
 	/* step 2. */
-	ldr	tmp1, =AT91_PMC_PLL_ACR_DEFAULT_PLLA
+	ldr	tmp1, .saved_acr
 	str	tmp1, [pmc, #AT91_PMC_PLL_ACR]
 
 	/* step 3. */
@@ -904,7 +885,7 @@ e_done:
 /**
  * at91_mckx_ps_restore: restore MCKx settings
  *
- * Side effects: overwrites tmp1, tmp2
+ * Side effects: overwrites tmp1, tmp2 and tmp3
  */
 .macro at91_mckx_ps_restore
 #ifdef CONFIG_SOC_SAMA7
@@ -980,7 +961,7 @@ r_ps:
 	bic	tmp3, tmp3, #AT91_PMC_MCR_V2_ID_MSK
 	orr	tmp3, tmp3, tmp1
 	orr	tmp3, tmp3, #AT91_PMC_MCR_V2_CMD
-	str	tmp2, [pmc, #AT91_PMC_MCR_V2]
+	str	tmp3, [pmc, #AT91_PMC_MCR_V2]
 
 	wait_mckrdy tmp1
 
@@ -1019,9 +1000,6 @@ save_mck:
 
 	at91_plla_disable
 
-	/* Enable low power mode for 2.5V regulator. */
-	at91_2_5V_reg_set_low_power 1
-
 	ldr	tmp3, .pm_mode
 	cmp	tmp3, #AT91_PM_ULP1
 	beq	ulp1_mode
@@ -1034,9 +1012,6 @@ ulp1_mode:
 	b	ulp_exit
 
 ulp_exit:
-	/* Disable low power mode for 2.5V regulator. */
-	at91_2_5V_reg_set_low_power 0
-
 	ldr	pmc, .pmc_base
 
 	at91_plla_enable
@@ -1206,6 +1181,8 @@ ENDPROC(at91_pm_suspend_in_sram)
 	.word 0
 #endif
 .saved_mckr:
+	.word 0
+.saved_acr:
 	.word 0
 .saved_pllar:
 	.word 0

@@ -511,8 +511,7 @@ static int starfive_aes_map_sg(struct starfive_cryp_dev *cryp,
 		     stsg = sg_next(stsg), dtsg = sg_next(dtsg)) {
 			src_nents = dma_map_sg(cryp->dev, stsg, 1, DMA_BIDIRECTIONAL);
 			if (src_nents == 0)
-				return dev_err_probe(cryp->dev, -ENOMEM,
-						     "dma_map_sg error\n");
+				return -ENOMEM;
 
 			dst_nents = src_nents;
 			len = min(sg_dma_len(stsg), remain);
@@ -528,13 +527,11 @@ static int starfive_aes_map_sg(struct starfive_cryp_dev *cryp,
 		for (stsg = src, dtsg = dst;;) {
 			src_nents = dma_map_sg(cryp->dev, stsg, 1, DMA_TO_DEVICE);
 			if (src_nents == 0)
-				return dev_err_probe(cryp->dev, -ENOMEM,
-						     "dma_map_sg src error\n");
+				return -ENOMEM;
 
 			dst_nents = dma_map_sg(cryp->dev, dtsg, 1, DMA_FROM_DEVICE);
 			if (dst_nents == 0)
-				return dev_err_probe(cryp->dev, -ENOMEM,
-						     "dma_map_sg dst error\n");
+				return -ENOMEM;
 
 			len = min(sg_dma_len(stsg), sg_dma_len(dtsg));
 			len = min(len, remain);
@@ -669,8 +666,7 @@ static int starfive_aes_aead_do_one_req(struct crypto_engine *engine, void *areq
 	if (cryp->assoclen) {
 		rctx->adata = kzalloc(cryp->assoclen + AES_BLOCK_SIZE, GFP_KERNEL);
 		if (!rctx->adata)
-			return dev_err_probe(cryp->dev, -ENOMEM,
-					     "Failed to alloc memory for adata");
+			return -ENOMEM;
 
 		if (sg_copy_to_buffer(req->src, sg_nents_for_len(req->src, cryp->assoclen),
 				      rctx->adata, cryp->assoclen) != cryp->assoclen)

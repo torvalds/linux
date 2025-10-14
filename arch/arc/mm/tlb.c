@@ -488,7 +488,7 @@ void update_mmu_cache_range(struct vm_fault *vmf, struct vm_area_struct *vma,
 	 */
 	if (vma->vm_flags & VM_EXEC) {
 		struct folio *folio = page_folio(page);
-		int dirty = !test_and_set_bit(PG_dc_clean, &folio->flags);
+		int dirty = !test_and_set_bit(PG_dc_clean, &folio->flags.f);
 		if (dirty) {
 			unsigned long offset = offset_in_folio(folio, paddr);
 			nr = folio_nr_pages(folio);

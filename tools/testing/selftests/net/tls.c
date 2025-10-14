@@ -439,6 +439,8 @@ TEST_F(tls, sendfile)
 	EXPECT_GE(filefd, 0);
 	fstat(filefd, &st);
 	EXPECT_GE(sendfile(self->fd, filefd, 0, st.st_size), 0);
+
+	close(filefd);
 }
 
 TEST_F(tls, send_then_sendfile)
@@ -460,6 +462,9 @@ TEST_F(tls, send_then_sendfile)
 
 	EXPECT_GE(sendfile(self->fd, filefd, 0, st.st_size), 0);
 	EXPECT_EQ(recv(self->cfd, buf, st.st_size, MSG_WAITALL), st.st_size);
+
+	free(buf);
+	close(filefd);
 }
 
 static void chunked_sendfile(struct __test_metadata *_metadata,
@@ -2768,6 +2773,22 @@ TEST_F(tls_err, poll_partial_rec_async)
 
 		exit(!__test_passed(_metadata));
 	}
+}
+
+/* Use OOB+large send to trigger copy mode due to memory pressure.
+ * OOB causes a short read.
+ */
+TEST_F(tls_err, oob_pressure)
+{
+	char buf[1<<16];
+	int i;
+
+	memrnd(buf, sizeof(buf));
+
+	EXPECT_EQ(send(self->fd2, buf, 5, MSG_OOB), 5);
+	EXPECT_EQ(send(self->fd2, buf, sizeof(buf), 0), sizeof(buf));
+	for (i = 0; i < 64; i++)
+		EXPECT_EQ(send(self->fd2, buf, 5, MSG_OOB), 5);
 }
 
 TEST(non_established) {

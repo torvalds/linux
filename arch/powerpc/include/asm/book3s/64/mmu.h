@@ -4,7 +4,7 @@
 
 #include <asm/page.h>
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 /*
  * Page size definition
  *
@@ -26,12 +26,12 @@ struct mmu_psize_def {
 	};
 };
 extern struct mmu_psize_def mmu_psize_defs[MMU_PAGE_COUNT];
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 /* 64-bit classic hash table MMU */
 #include <asm/book3s/64/mmu-hash.h>
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 /*
  * ISA 3.0 partition and process table entry format
  */
@@ -288,5 +288,5 @@ static inline unsigned long get_user_vsid(mm_context_t *ctx,
 }
 #endif
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 #endif /* _ASM_POWERPC_BOOK3S_64_MMU_H_ */

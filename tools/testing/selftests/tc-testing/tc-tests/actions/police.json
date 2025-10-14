@@ -879,7 +879,7 @@
         "cmdUnderTest": "$TC actions add action police pkts_rate 1000 pkts_burst 200 index 1",
         "expExitCode": "0",
         "verifyCmd": "$TC actions ls action police",
-        "matchPattern": "action order [0-9]*:  police 0x1 rate 0bit burst 0b mtu 4096Mb pkts_rate 1000 pkts_burst 200",
+        "matchPattern": "action order [0-9]*:  police 0x1 rate 0bit burst 0b mtu (4Gb|4096Mb) pkts_rate 1000 pkts_burst 200",
         "matchCount": "1",
         "teardown": [
             "$TC actions flush action police"

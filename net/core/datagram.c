@@ -345,7 +345,7 @@ int __sk_queue_drop_skb(struct sock *sk, struct sk_buff_head *sk_queue,
 		spin_unlock_bh(&sk_queue->lock);
 	}
 
-	atomic_inc(&sk->sk_drops);
+	sk_drops_inc(sk);
 	return err;
 }
 EXPORT_SYMBOL(__sk_queue_drop_skb);

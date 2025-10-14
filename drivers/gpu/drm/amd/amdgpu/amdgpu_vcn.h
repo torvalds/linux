@@ -501,7 +501,7 @@ struct amdgpu_vcn5_fw_shared {
 	struct amdgpu_fw_shared_rb_setup rb_setup;
 	struct amdgpu_fw_shared_smu_interface_info smu_dpm_interface;
 	struct amdgpu_fw_shared_drm_key_wa drm_key_wa;
-	uint8_t pad3[9];
+	uint8_t pad3[404];
 };
 
 #define VCN_BLOCK_ENCODE_DISABLE_MASK 0x80

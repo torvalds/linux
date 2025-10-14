@@ -44,7 +44,7 @@
 	};
 
 	ahb {
-		gmac1: eth@f0804000 {
+		gmac1: ethernet@f0804000 {
 			device_type = "network";
 			compatible = "snps,dwmac";
 			reg = <0xf0804000 0x2000>;

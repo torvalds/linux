@@ -20,6 +20,7 @@
 #include <linux/reboot.h>
 #include <linux/cciss_ioctl.h>
 #include <linux/crash_dump.h>
+#include <linux/string.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_device.h>
@@ -6774,17 +6775,15 @@ static int pqi_passthru_ioctl(struct pqi_ctrl_info *ctrl_info, void __user *arg)
 	}
 
 	if (iocommand.buf_size > 0) {
-		kernel_buffer = kmalloc(iocommand.buf_size, GFP_KERNEL);
-		if (!kernel_buffer)
-			return -ENOMEM;
 		if (iocommand.Request.Type.Direction & XFER_WRITE) {
-			if (copy_from_user(kernel_buffer, iocommand.buf,
-				iocommand.buf_size)) {
-				rc = -EFAULT;
-				goto out;
-			}
+			kernel_buffer = memdup_user(iocommand.buf,
+						    iocommand.buf_size);
+			if (IS_ERR(kernel_buffer))
+				return PTR_ERR(kernel_buffer);
 		} else {
-			memset(kernel_buffer, 0, iocommand.buf_size);
+			kernel_buffer = kzalloc(iocommand.buf_size, GFP_KERNEL);
+			if (!kernel_buffer)
+				return -ENOMEM;
 		}
 	}
 

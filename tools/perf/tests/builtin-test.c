@@ -84,7 +84,6 @@ static struct test_suite *generic_tests[] = {
 	&suite__syscall_openat_tp_fields,
 #endif
 	&suite__hists_link,
-	&suite__python_use,
 	&suite__bp_signal,
 	&suite__bp_signal_overflow,
 	&suite__bp_accounting,
@@ -152,6 +151,7 @@ static struct test_workload *workloads[] = {
 	&workload__brstack,
 	&workload__datasym,
 	&workload__landlock,
+	&workload__traploop,
 };
 
 #define workloads__for_each(workload) \

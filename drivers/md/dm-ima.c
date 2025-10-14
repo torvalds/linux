@@ -45,7 +45,7 @@ static void fix_separator_chars(char **buf)
 /*
  * Internal function to allocate memory for IMA measurements.
  */
-static void *dm_ima_alloc(size_t len, gfp_t flags, bool noio)
+static void *dm_ima_alloc(size_t len, bool noio)
 {
 	unsigned int noio_flag;
 	void *ptr;
@@ -53,7 +53,7 @@ static void *dm_ima_alloc(size_t len, gfp_t flags, bool noio)
 	if (noio)
 		noio_flag = memalloc_noio_save();
 
-	ptr = kzalloc(len, flags);
+	ptr = kzalloc(len, GFP_KERNEL);
 
 	if (noio)
 		memalloc_noio_restore(noio_flag);
@@ -68,13 +68,13 @@ static int dm_ima_alloc_and_copy_name_uuid(struct mapped_device *md, char **dev_
 					   char **dev_uuid, bool noio)
 {
 	int r;
-	*dev_name = dm_ima_alloc(DM_NAME_LEN*2, GFP_KERNEL, noio);
+	*dev_name = dm_ima_alloc(DM_NAME_LEN*2, noio);
 	if (!(*dev_name)) {
 		r = -ENOMEM;
 		goto error;
 	}
 
-	*dev_uuid = dm_ima_alloc(DM_UUID_LEN*2, GFP_KERNEL, noio);
+	*dev_uuid = dm_ima_alloc(DM_UUID_LEN*2, noio);
 	if (!(*dev_uuid)) {
 		r = -ENOMEM;
 		goto error;
@@ -109,7 +109,7 @@ static int dm_ima_alloc_and_copy_device_data(struct mapped_device *md, char **de
 	if (r)
 		return r;
 
-	*device_data = dm_ima_alloc(DM_IMA_DEVICE_BUF_LEN, GFP_KERNEL, noio);
+	*device_data = dm_ima_alloc(DM_IMA_DEVICE_BUF_LEN, noio);
 	if (!(*device_data)) {
 		r = -ENOMEM;
 		goto error;
@@ -153,14 +153,12 @@ static int dm_ima_alloc_and_copy_capacity_str(struct mapped_device *md, char **c
 
 	capacity = get_capacity(md->disk);
 
-	*capacity_str = dm_ima_alloc(DM_IMA_DEVICE_CAPACITY_BUF_LEN, GFP_KERNEL, noio);
+	*capacity_str = dm_ima_alloc(DM_IMA_DEVICE_CAPACITY_BUF_LEN, noio);
 	if (!(*capacity_str))
 		return -ENOMEM;
 
-	scnprintf(*capacity_str, DM_IMA_DEVICE_BUF_LEN, "current_device_capacity=%llu;",
-		  capacity);
-
-	return 0;
+	return scnprintf(*capacity_str, DM_IMA_DEVICE_BUF_LEN, "current_device_capacity=%llu;",
+			 capacity);
 }
 
 /*
@@ -195,15 +193,15 @@ void dm_ima_measure_on_table_load(struct dm_table *table, unsigned int status_fl
 	const size_t hash_alg_prefix_len = strlen(DM_IMA_TABLE_HASH_ALG) + 1;
 	char table_load_event_name[] = "dm_table_load";
 
-	ima_buf = dm_ima_alloc(DM_IMA_MEASUREMENT_BUF_LEN, GFP_KERNEL, noio);
+	ima_buf = dm_ima_alloc(DM_IMA_MEASUREMENT_BUF_LEN, noio);
 	if (!ima_buf)
 		return;
 
-	target_metadata_buf = dm_ima_alloc(DM_IMA_TARGET_METADATA_BUF_LEN, GFP_KERNEL, noio);
+	target_metadata_buf = dm_ima_alloc(DM_IMA_TARGET_METADATA_BUF_LEN, noio);
 	if (!target_metadata_buf)
 		goto error;
 
-	target_data_buf = dm_ima_alloc(DM_IMA_TARGET_DATA_BUF_LEN, GFP_KERNEL, noio);
+	target_data_buf = dm_ima_alloc(DM_IMA_TARGET_DATA_BUF_LEN, noio);
 	if (!target_data_buf)
 		goto error;
 
@@ -218,7 +216,7 @@ void dm_ima_measure_on_table_load(struct dm_table *table, unsigned int status_fl
 
 	shash->tfm = tfm;
 	digest_size = crypto_shash_digestsize(tfm);
-	digest = dm_ima_alloc(digest_size, GFP_KERNEL, noio);
+	digest = dm_ima_alloc(digest_size, noio);
 	if (!digest)
 		goto error;
 
@@ -327,7 +325,7 @@ void dm_ima_measure_on_table_load(struct dm_table *table, unsigned int status_fl
 	if (r < 0)
 		goto error;
 
-	digest_buf = dm_ima_alloc((digest_size*2) + hash_alg_prefix_len + 1, GFP_KERNEL, noio);
+	digest_buf = dm_ima_alloc((digest_size*2) + hash_alg_prefix_len + 1, noio);
 
 	if (!digest_buf)
 		goto error;
@@ -371,18 +369,18 @@ void dm_ima_measure_on_device_resume(struct mapped_device *md, bool swap)
 {
 	char *device_table_data, *dev_name = NULL, *dev_uuid = NULL, *capacity_str = NULL;
 	char active[] = "active_table_hash=";
-	unsigned int active_len = strlen(active), capacity_len = 0;
+	unsigned int active_len = strlen(active);
 	unsigned int l = 0;
 	bool noio = true;
 	bool nodata = true;
-	int r;
+	int capacity_len;
 
-	device_table_data = dm_ima_alloc(DM_IMA_DEVICE_BUF_LEN, GFP_KERNEL, noio);
+	device_table_data = dm_ima_alloc(DM_IMA_DEVICE_BUF_LEN, noio);
 	if (!device_table_data)
 		return;
 
-	r = dm_ima_alloc_and_copy_capacity_str(md, &capacity_str, noio);
-	if (r)
+	capacity_len = dm_ima_alloc_and_copy_capacity_str(md, &capacity_str, noio);
+	if (capacity_len < 0)
 		goto error;
 
 	memcpy(device_table_data + l, DM_IMA_VERSION_STR, md->ima.dm_version_str_len);
@@ -445,8 +443,7 @@ void dm_ima_measure_on_device_resume(struct mapped_device *md, bool swap)
 	}
 
 	if (nodata) {
-		r = dm_ima_alloc_and_copy_name_uuid(md, &dev_name, &dev_uuid, noio);
-		if (r)
+		if (dm_ima_alloc_and_copy_name_uuid(md, &dev_name, &dev_uuid, noio))
 			goto error;
 
 		l = scnprintf(device_table_data, DM_IMA_DEVICE_BUF_LEN,
@@ -454,7 +451,6 @@ void dm_ima_measure_on_device_resume(struct mapped_device *md, bool swap)
 			      DM_IMA_VERSION_STR, dev_name, dev_uuid);
 	}
 
-	capacity_len = strlen(capacity_str);
 	memcpy(device_table_data + l, capacity_str, capacity_len);
 	l += capacity_len;
 
@@ -483,18 +479,17 @@ void dm_ima_measure_on_device_remove(struct mapped_device *md, bool remove_all)
 	unsigned int device_active_len = strlen(device_active_str);
 	unsigned int device_inactive_len = strlen(device_inactive_str);
 	unsigned int remove_all_len = strlen(remove_all_str);
-	unsigned int capacity_len = 0;
 	unsigned int l = 0;
 	bool noio = true;
 	bool nodata = true;
-	int r;
+	int capacity_len;
 
-	device_table_data = dm_ima_alloc(DM_IMA_DEVICE_BUF_LEN*2, GFP_KERNEL, noio);
+	device_table_data = dm_ima_alloc(DM_IMA_DEVICE_BUF_LEN*2, noio);
 	if (!device_table_data)
 		goto exit;
 
-	r = dm_ima_alloc_and_copy_capacity_str(md, &capacity_str, noio);
-	if (r) {
+	capacity_len = dm_ima_alloc_and_copy_capacity_str(md, &capacity_str, noio);
+	if (capacity_len < 0) {
 		kfree(device_table_data);
 		goto exit;
 	}
@@ -570,7 +565,6 @@ void dm_ima_measure_on_device_remove(struct mapped_device *md, bool remove_all)
 	memcpy(device_table_data + l, remove_all ? "y;" : "n;", 2);
 	l += 2;
 
-	capacity_len = strlen(capacity_str);
 	memcpy(device_table_data + l, capacity_str, capacity_len);
 	l += capacity_len;
 
@@ -602,20 +596,20 @@ exit:
  */
 void dm_ima_measure_on_table_clear(struct mapped_device *md, bool new_map)
 {
-	unsigned int l = 0, capacity_len = 0;
+	unsigned int l = 0;
 	char *device_table_data = NULL, *dev_name = NULL, *dev_uuid = NULL, *capacity_str = NULL;
 	char inactive_str[] = "inactive_table_hash=";
 	unsigned int inactive_len = strlen(inactive_str);
 	bool noio = true;
 	bool nodata = true;
-	int r;
+	int capacity_len;
 
-	device_table_data = dm_ima_alloc(DM_IMA_DEVICE_BUF_LEN, GFP_KERNEL, noio);
+	device_table_data = dm_ima_alloc(DM_IMA_DEVICE_BUF_LEN, noio);
 	if (!device_table_data)
 		return;
 
-	r = dm_ima_alloc_and_copy_capacity_str(md, &capacity_str, noio);
-	if (r)
+	capacity_len = dm_ima_alloc_and_copy_capacity_str(md, &capacity_str, noio);
+	if (capacity_len < 0)
 		goto error1;
 
 	memcpy(device_table_data + l, DM_IMA_VERSION_STR, md->ima.dm_version_str_len);
@@ -650,7 +644,6 @@ void dm_ima_measure_on_table_clear(struct mapped_device *md, bool new_map)
 			      DM_IMA_VERSION_STR, dev_name, dev_uuid);
 	}
 
-	capacity_len = strlen(capacity_str);
 	memcpy(device_table_data + l, capacity_str, capacity_len);
 	l += capacity_len;
 
@@ -703,7 +696,7 @@ void dm_ima_measure_on_device_rename(struct mapped_device *md)
 	char *old_device_data = NULL, *new_device_data = NULL, *combined_device_data = NULL;
 	char *new_dev_name = NULL, *new_dev_uuid = NULL, *capacity_str = NULL;
 	bool noio = true;
-	int r, len;
+	int len;
 
 	if (dm_ima_alloc_and_copy_device_data(md, &new_device_data,
 					      md->ima.active_table.num_targets, noio))
@@ -712,12 +705,11 @@ void dm_ima_measure_on_device_rename(struct mapped_device *md)
 	if (dm_ima_alloc_and_copy_name_uuid(md, &new_dev_name, &new_dev_uuid, noio))
 		goto error;
 
-	combined_device_data = dm_ima_alloc(DM_IMA_DEVICE_BUF_LEN * 2, GFP_KERNEL, noio);
+	combined_device_data = dm_ima_alloc(DM_IMA_DEVICE_BUF_LEN * 2, noio);
 	if (!combined_device_data)
 		goto error;
 
-	r = dm_ima_alloc_and_copy_capacity_str(md, &capacity_str, noio);
-	if (r)
+	if (dm_ima_alloc_and_copy_capacity_str(md, &capacity_str, noio) < 0)
 		goto error;
 
 	old_device_data = md->ima.active_table.device_metadata;

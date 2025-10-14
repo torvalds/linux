@@ -2,10 +2,9 @@
 config FS_ENCRYPTION
 	bool "FS Encryption (Per-file encryption)"
 	select CRYPTO
-	select CRYPTO_HASH
-	select CRYPTO_HKDF
 	select CRYPTO_SKCIPHER
 	select CRYPTO_LIB_SHA256
+	select CRYPTO_LIB_SHA512
 	select KEYS
 	help
 	  Enable encryption of files and directories.  This
@@ -32,8 +31,6 @@ config FS_ENCRYPTION_ALGS
 	select CRYPTO_CBC
 	select CRYPTO_CTS
 	select CRYPTO_ECB
-	select CRYPTO_HMAC
-	select CRYPTO_SHA512
 	select CRYPTO_XTS
 
 config FS_ENCRYPTION_INLINE_CRYPT

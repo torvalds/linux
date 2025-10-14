@@ -163,7 +163,7 @@ config DVB_CX24123
 	  A DVB-S tuner module. Say Y when you want to support this frontend.
 
 config DVB_DS3000
-	tristate "Montage Tehnology DS3000 based"
+	tristate "Montage Technology DS3000 based"
 	depends on DVB_CORE && I2C
 	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
@@ -270,7 +270,7 @@ config DVB_TDA826X
 	  A DVB-S silicon tuner module. Say Y when you want to support this tuner.
 
 config DVB_TS2020
-	tristate "Montage Tehnology TS2020 based tuners"
+	tristate "Montage Technology TS2020 based tuners"
 	depends on DVB_CORE && I2C
 	select REGMAP_I2C
 	default m if !MEDIA_SUBDRV_AUTOSELECT

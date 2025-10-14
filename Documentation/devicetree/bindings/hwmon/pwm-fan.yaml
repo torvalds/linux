@@ -31,6 +31,15 @@ properties:
       it must be self resetting edge interrupts.
     maxItems: 1
 
+  fan-shutdown-percent:
+    description:
+      Fan RPM in percent set during shutdown. This is used to keep the fan
+      running at fixed RPM after the kernel shut down, which is useful on
+      hardware that does keep heating itself even after the kernel did shut
+      down, for example from some sort of management core.
+    minimum: 0
+    maximum: 100
+
   fan-stop-to-start-percent:
     description:
       Minimum fan RPM in percent to start when stopped.

@@ -47,6 +47,10 @@
 #include <sys/resource.h>
 #include <linux/fs.h>
 
+#ifndef __maybe_unused
+#define __maybe_unused __attribute__((__unused__))
+#endif
+
 #include "../kselftest.h"
 
 static inline long sys_execveat(int dirfd, const char *pathname, char **argv, char **envp, int flags)
@@ -218,12 +222,12 @@ static int make_exe(const uint8_t *payload, size_t len)
  * 2: vsyscall VMA is r-xp		vsyscall=emulate
  */
 static volatile int g_vsyscall;
-static const char *str_vsyscall;
+static const char *str_vsyscall __maybe_unused;
 
-static const char str_vsyscall_0[] = "";
-static const char str_vsyscall_1[] =
+static const char str_vsyscall_0[] __maybe_unused = "";
+static const char str_vsyscall_1[] __maybe_unused =
 "ffffffffff600000-ffffffffff601000 --xp 00000000 00:00 0                  [vsyscall]\n";
-static const char str_vsyscall_2[] =
+static const char str_vsyscall_2[] __maybe_unused =
 "ffffffffff600000-ffffffffff601000 r-xp 00000000 00:00 0                  [vsyscall]\n";
 
 #ifdef __x86_64__

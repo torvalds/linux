@@ -7,10 +7,7 @@
 //! C header: [`include/linux/pid_namespace.h`](srctree/include/linux/pid_namespace.h) and
 //! [`include/linux/pid.h`](srctree/include/linux/pid.h)
 
-use crate::{
-    bindings,
-    types::{AlwaysRefCounted, Opaque},
-};
+use crate::{bindings, sync::aref::AlwaysRefCounted, types::Opaque};
 use core::ptr;
 
 /// Wraps the kernel's `struct pid_namespace`. Thread safe.

@@ -37,6 +37,7 @@ static inline void dbitmap_free(struct dbitmap *dmap)
 {
 	dmap->nbits = 0;
 	kfree(dmap->map);
+	dmap->map = NULL;
 }
 
 /* Returns the nbits that a dbitmap can shrink to, 0 if not possible. */

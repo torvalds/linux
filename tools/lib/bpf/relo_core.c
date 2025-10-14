@@ -64,7 +64,6 @@ enum libbpf_print_level {
 #include "libbpf.h"
 #include "bpf.h"
 #include "btf.h"
-#include "str_error.h"
 #include "libbpf_internal.h"
 #endif
 

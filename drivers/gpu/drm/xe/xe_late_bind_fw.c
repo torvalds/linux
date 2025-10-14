@@ -60,7 +60,7 @@ static int parse_cpd_header(struct xe_late_bind_fw *lb_fw,
 	const struct gsc_manifest_header *manifest;
 	const struct gsc_cpd_entry *entry;
 	size_t min_size = sizeof(*header);
-	u32 offset;
+	u32 offset = 0;
 	int i;
 
 	/* manifest_entry is mandatory */
@@ -116,7 +116,7 @@ static int parse_lb_layout(struct xe_late_bind_fw *lb_fw,
 	const struct csc_fpt_header *header = data;
 	const struct csc_fpt_entry *entry;
 	size_t min_size = sizeof(*header);
-	u32 offset;
+	u32 offset = 0;
 	int i;
 
 	/* fpt_entry is mandatory */
@@ -184,17 +184,13 @@ static const char *xe_late_bind_parse_status(uint32_t status)
 	}
 }
 
-static int xe_late_bind_fw_num_fans(struct xe_late_bind *late_bind)
+static int xe_late_bind_fw_num_fans(struct xe_late_bind *late_bind, u32 *num_fans)
 {
 	struct xe_device *xe = late_bind_to_xe(late_bind);
 	struct xe_tile *root_tile = xe_device_get_root_tile(xe);
-	u32 uval;
 
-	if (!xe_pcode_read(root_tile,
-			   PCODE_MBOX(FAN_SPEED_CONTROL, FSC_READ_NUM_FANS, 0), &uval, NULL))
-		return uval;
-	else
-		return 0;
+	return xe_pcode_read(root_tile,
+			     PCODE_MBOX(FAN_SPEED_CONTROL, FSC_READ_NUM_FANS, 0), num_fans, NULL);
 }
 
 void xe_late_bind_wait_for_worker_completion(struct xe_late_bind *late_bind)
@@ -314,7 +310,11 @@ static int __xe_late_bind_fw_init(struct xe_late_bind *late_bind, u32 fw_id)
 	lb_fw->flags &= ~INTEL_LB_FLAG_IS_PERSISTENT;
 
 	if (lb_fw->type == INTEL_LB_TYPE_FAN_CONTROL) {
-		num_fans = xe_late_bind_fw_num_fans(late_bind);
+		ret = xe_late_bind_fw_num_fans(late_bind, &num_fans);
+		if (ret) {
+			drm_dbg(&xe->drm, "Failed to read number of fans: %d\n", ret);
+			return 0; /* Not a fatal error, continue without fan control */
+		}
 		drm_dbg(&xe->drm, "Number of Fans: %d\n", num_fans);
 		if (!num_fans)
 			return 0;

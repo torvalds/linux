@@ -85,7 +85,6 @@ enum gsc_yuv_fmt {
 	GSC_CRCB,
 };
 
-#define fh_to_ctx(__fh) container_of(__fh, struct gsc_ctx, fh)
 #define is_rgb(x) (!!((x) & 0x1))
 #define is_yuv420(x) (!!((x) & 0x2))
 #define is_yuv422(x) (!!((x) & 0x4))
@@ -380,6 +379,11 @@ struct gsc_ctx {
 	bool			ctrls_rdy;
 	enum v4l2_colorspace out_colorspace;
 };
+
+static inline struct gsc_ctx *file_to_ctx(struct file *filp)
+{
+	return container_of(file_to_v4l2_fh(filp), struct gsc_ctx, fh);
+}
 
 void gsc_set_prefbuf(struct gsc_dev *gsc, struct gsc_frame *frm);
 int gsc_register_m2m_device(struct gsc_dev *gsc);

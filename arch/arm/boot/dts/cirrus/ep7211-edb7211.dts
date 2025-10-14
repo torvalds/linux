@@ -46,8 +46,8 @@
 
 	i2c: i2c {
 		compatible = "i2c-gpio";
-		gpios = <&portd 4 GPIO_ACTIVE_HIGH>,
-			<&portd 5 GPIO_ACTIVE_HIGH>;
+		sda-gpios = <&portd 4 GPIO_ACTIVE_HIGH>;
+		scl-gpios = <&portd 5 GPIO_ACTIVE_HIGH>;
 		i2c-gpio,delay-us = <2>;
 		i2c-gpio,scl-output-only;
 		#address-cells = <1>;

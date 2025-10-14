@@ -1577,6 +1577,59 @@ zl3073x_dpll_mode_get(const struct dpll_device *dpll, void *dpll_priv,
 }
 
 static int
+zl3073x_dpll_phase_offset_avg_factor_get(const struct dpll_device *dpll,
+					 void *dpll_priv, u32 *factor,
+					 struct netlink_ext_ack *extack)
+{
+	struct zl3073x_dpll *zldpll = dpll_priv;
+
+	*factor = zl3073x_dev_phase_avg_factor_get(zldpll->dev);
+
+	return 0;
+}
+
+static void
+zl3073x_dpll_change_work(struct work_struct *work)
+{
+	struct zl3073x_dpll *zldpll;
+
+	zldpll = container_of(work, struct zl3073x_dpll, change_work);
+	dpll_device_change_ntf(zldpll->dpll_dev);
+}
+
+static int
+zl3073x_dpll_phase_offset_avg_factor_set(const struct dpll_device *dpll,
+					 void *dpll_priv, u32 factor,
+					 struct netlink_ext_ack *extack)
+{
+	struct zl3073x_dpll *item, *zldpll = dpll_priv;
+	int rc;
+
+	if (factor > 15) {
+		NL_SET_ERR_MSG_FMT(extack,
+				   "Phase offset average factor has to be from range <0,15>");
+		return -EINVAL;
+	}
+
+	rc = zl3073x_dev_phase_avg_factor_set(zldpll->dev, factor);
+	if (rc) {
+		NL_SET_ERR_MSG_FMT(extack,
+				   "Failed to set phase offset averaging factor");
+		return rc;
+	}
+
+	/* The averaging factor is common for all DPLL channels so after change
+	 * we have to send a notification for other DPLL devices.
+	 */
+	list_for_each_entry(item, &zldpll->dev->dplls, list) {
+		if (item != zldpll)
+			schedule_work(&item->change_work);
+	}
+
+	return 0;
+}
+
+static int
 zl3073x_dpll_phase_offset_monitor_get(const struct dpll_device *dpll,
 				      void *dpll_priv,
 				      enum dpll_feature_state *state,
@@ -1635,6 +1688,8 @@ static const struct dpll_pin_ops zl3073x_dpll_output_pin_ops = {
 static const struct dpll_device_ops zl3073x_dpll_device_ops = {
 	.lock_status_get = zl3073x_dpll_lock_status_get,
 	.mode_get = zl3073x_dpll_mode_get,
+	.phase_offset_avg_factor_get = zl3073x_dpll_phase_offset_avg_factor_get,
+	.phase_offset_avg_factor_set = zl3073x_dpll_phase_offset_avg_factor_set,
 	.phase_offset_monitor_get = zl3073x_dpll_phase_offset_monitor_get,
 	.phase_offset_monitor_set = zl3073x_dpll_phase_offset_monitor_set,
 };
@@ -1983,6 +2038,8 @@ zl3073x_dpll_device_unregister(struct zl3073x_dpll *zldpll)
 {
 	WARN(!zldpll->dpll_dev, "DPLL device is not registered\n");
 
+	cancel_work_sync(&zldpll->change_work);
+
 	dpll_device_unregister(zldpll->dpll_dev, &zl3073x_dpll_device_ops,
 			       zldpll);
 	dpll_device_put(zldpll->dpll_dev);
@@ -2258,6 +2315,7 @@ zl3073x_dpll_alloc(struct zl3073x_dev *zldev, u8 ch)
 	zldpll->dev = zldev;
 	zldpll->id = ch;
 	INIT_LIST_HEAD(&zldpll->pins);
+	INIT_WORK(&zldpll->change_work, zl3073x_dpll_change_work);
 
 	return zldpll;
 }

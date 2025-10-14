@@ -677,32 +677,23 @@ static void dice_lock_changed(struct snd_dice *dice)
 
 int snd_dice_stream_lock_try(struct snd_dice *dice)
 {
-	int err;
+	guard(spinlock_irq)(&dice->lock);
 
-	spin_lock_irq(&dice->lock);
-
-	if (dice->dev_lock_count < 0) {
-		err = -EBUSY;
-		goto out;
-	}
+	if (dice->dev_lock_count < 0)
+		return -EBUSY;
 
 	if (dice->dev_lock_count++ == 0)
 		dice_lock_changed(dice);
-	err = 0;
-out:
-	spin_unlock_irq(&dice->lock);
-	return err;
+	return 0;
 }
 
 void snd_dice_stream_lock_release(struct snd_dice *dice)
 {
-	spin_lock_irq(&dice->lock);
+	guard(spinlock_irq)(&dice->lock);
 
 	if (WARN_ON(dice->dev_lock_count <= 0))
-		goto out;
+		return;
 
 	if (--dice->dev_lock_count == 0)
 		dice_lock_changed(dice);
-out:
-	spin_unlock_irq(&dice->lock);
 }

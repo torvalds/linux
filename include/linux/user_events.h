@@ -33,7 +33,7 @@ extern void user_event_mm_dup(struct task_struct *t,
 extern void user_event_mm_remove(struct task_struct *t);
 
 static inline void user_events_fork(struct task_struct *t,
-				    unsigned long clone_flags)
+				    u64 clone_flags)
 {
 	struct user_event_mm *old_mm;
 
@@ -68,7 +68,7 @@ static inline void user_events_exit(struct task_struct *t)
 }
 #else
 static inline void user_events_fork(struct task_struct *t,
-				    unsigned long clone_flags)
+				    u64 clone_flags)
 {
 }
 

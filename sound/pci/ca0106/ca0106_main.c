@@ -332,16 +332,13 @@ unsigned int snd_ca0106_ptr_read(struct snd_ca0106 * emu,
 					  unsigned int reg, 
 					  unsigned int chn)
 {
-	unsigned long flags;
-	unsigned int regptr, val;
+	unsigned int regptr;
   
 	regptr = (reg << 16) | chn;
 
-	spin_lock_irqsave(&emu->emu_lock, flags);
+	guard(spinlock_irqsave)(&emu->emu_lock);
 	outl(regptr, emu->port + CA0106_PTR);
-	val = inl(emu->port + CA0106_DATA);
-	spin_unlock_irqrestore(&emu->emu_lock, flags);
-	return val;
+	return inl(emu->port + CA0106_DATA);
 }
 
 void snd_ca0106_ptr_write(struct snd_ca0106 *emu, 
@@ -350,14 +347,12 @@ void snd_ca0106_ptr_write(struct snd_ca0106 *emu,
 				   unsigned int data)
 {
 	unsigned int regptr;
-	unsigned long flags;
 
 	regptr = (reg << 16) | chn;
 
-	spin_lock_irqsave(&emu->emu_lock, flags);
+	guard(spinlock_irqsave)(&emu->emu_lock);
 	outl(regptr, emu->port + CA0106_PTR);
 	outl(data, emu->port + CA0106_DATA);
-	spin_unlock_irqrestore(&emu->emu_lock, flags);
 }
 
 int snd_ca0106_spi_write(struct snd_ca0106 * emu,
@@ -451,24 +446,20 @@ int snd_ca0106_i2c_write(struct snd_ca0106 *emu,
 
 static void snd_ca0106_intr_enable(struct snd_ca0106 *emu, unsigned int intrenb)
 {
-	unsigned long flags;
 	unsigned int intr_enable;
 
-	spin_lock_irqsave(&emu->emu_lock, flags);
+	guard(spinlock_irqsave)(&emu->emu_lock);
 	intr_enable = inl(emu->port + CA0106_INTE) | intrenb;
 	outl(intr_enable, emu->port + CA0106_INTE);
-	spin_unlock_irqrestore(&emu->emu_lock, flags);
 }
 
 static void snd_ca0106_intr_disable(struct snd_ca0106 *emu, unsigned int intrenb)
 {
-	unsigned long flags;
 	unsigned int intr_enable;
 
-	spin_lock_irqsave(&emu->emu_lock, flags);
+	guard(spinlock_irqsave)(&emu->emu_lock);
 	intr_enable = inl(emu->port + CA0106_INTE) & ~intrenb;
 	outl(intr_enable, emu->port + CA0106_INTE);
-	spin_unlock_irqrestore(&emu->emu_lock, flags);
 }
 
 
@@ -1138,26 +1129,20 @@ static unsigned short snd_ca0106_ac97_read(struct snd_ac97 *ac97,
 					     unsigned short reg)
 {
 	struct snd_ca0106 *emu = ac97->private_data;
-	unsigned long flags;
-	unsigned short val;
 
-	spin_lock_irqsave(&emu->emu_lock, flags);
+	guard(spinlock_irqsave)(&emu->emu_lock);
 	outb(reg, emu->port + CA0106_AC97ADDRESS);
-	val = inw(emu->port + CA0106_AC97DATA);
-	spin_unlock_irqrestore(&emu->emu_lock, flags);
-	return val;
+	return inw(emu->port + CA0106_AC97DATA);
 }
 
 static void snd_ca0106_ac97_write(struct snd_ac97 *ac97,
 				    unsigned short reg, unsigned short val)
 {
 	struct snd_ca0106 *emu = ac97->private_data;
-	unsigned long flags;
   
-	spin_lock_irqsave(&emu->emu_lock, flags);
+	guard(spinlock_irqsave)(&emu->emu_lock);
 	outb(reg, emu->port + CA0106_AC97ADDRESS);
 	outw(val, emu->port + CA0106_AC97DATA);
-	spin_unlock_irqrestore(&emu->emu_lock, flags);
 }
 
 static int snd_ca0106_ac97(struct snd_ca0106 *chip)

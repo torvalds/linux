@@ -38,6 +38,8 @@ properties:
       - dallas,ds1672
       # Extremely Accurate I²C RTC with Integrated Crystal and SRAM
       - dallas,ds3232
+      # Dallas m41t00 Real-time Clock
+      - dallas,m41t00
       # SD2405AL Real-Time Clock
       - dfrobot,sd2405al
       # EM Microelectronic EM3027 RTC
@@ -83,8 +85,8 @@ properties:
       - via,vt8500-rtc
       # I2C bus SERIAL INTERFACE REAL-TIME CLOCK IC
       - whwave,sd3078
-      # Xircom X1205 I2C RTC
-      - xircom,x1205
+      # Xicor/Intersil X1205 I2C RTC
+      - xicor,x1205
 
   reg:
     maxItems: 1

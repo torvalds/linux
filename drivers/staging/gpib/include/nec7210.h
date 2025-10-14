@@ -22,18 +22,18 @@ struct nec7210_priv {
 	u32 iobase;
 #endif
 	void __iomem *mmiobase;
-	unsigned int offset;	// offset between successive nec7210 io addresses
+	unsigned int offset;		// offset between successive nec7210 io addresses
 	unsigned int dma_channel;
 	u8 *dma_buffer;
 	unsigned int dma_buffer_length;	// length of dma buffer
 	dma_addr_t dma_buffer_addr;	// bus address of board->buffer for use with dma
 	// software copy of bits written to registers
 	u8 reg_bits[8];
-	u8 auxa_bits;	// bits written to auxiliary register A
-	u8 auxb_bits;	// bits written to auxiliary register B
+	u8 auxa_bits;			// bits written to auxiliary register A
+	u8 auxb_bits;			// bits written to auxiliary register B
 	// used to keep track of board's state, bit definitions given below
 	unsigned long state;
-	/* lock for chips that extend the nec7210 registers by paging in alternate regs */
+	// lock for chips that extend the nec7210 registers by paging in alternate regs
 	spinlock_t register_page_lock;
 	// wrappers for outb, inb, readb, or writeb
 	u8 (*read_byte)(struct nec7210_priv *priv, unsigned int register_number);
@@ -64,17 +64,17 @@ static inline void write_byte(struct nec7210_priv *priv, u8 byte, unsigned int r
 
 // struct nec7210_priv.state bit numbers
 enum {
-	PIO_IN_PROGRESS_BN,	// pio transfer in progress
+	PIO_IN_PROGRESS_BN,		// pio transfer in progress
 	DMA_READ_IN_PROGRESS_BN,	// dma read transfer in progress
 	DMA_WRITE_IN_PROGRESS_BN,	// dma write transfer in progress
-	READ_READY_BN,	// board has data byte available to read
-	WRITE_READY_BN,	// board is ready to send a data byte
-	COMMAND_READY_BN,	// board is ready to send a command byte
-	RECEIVED_END_BN,	// received END
-	BUS_ERROR_BN,	// output error has occurred
-	RFD_HOLDOFF_BN,	// rfd holdoff in effect
-	DEV_CLEAR_BN,	// device clear received
-	ADR_CHANGE_BN,	// address state change occurred
+	READ_READY_BN,			// board has data byte available to read
+	WRITE_READY_BN,			// board is ready to send a data byte
+	COMMAND_READY_BN,		// board is ready to send a command byte
+	RECEIVED_END_BN,		// received END
+	BUS_ERROR_BN,			// output error has occurred
+	RFD_HOLDOFF_BN,			// rfd holdoff in effect
+	DEV_CLEAR_BN,			// device clear received
+	ADR_CHANGE_BN,			// address state change occurred
 };
 
 // interface functions

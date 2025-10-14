@@ -19,7 +19,7 @@ this uses bootconfig file to describe tracing feature programming.
 Options in the Boot Config
 ==========================
 
-Here is the list of available options list for boot time tracing in
+Here is the list of available options for boot time tracing in
 boot config file [1]_. All options are under "ftrace." or "kernel."
 prefix. See kernel parameters for the options which starts
 with "kernel." prefix [2]_.

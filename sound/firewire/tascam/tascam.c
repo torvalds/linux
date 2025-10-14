@@ -158,9 +158,8 @@ static void snd_tscm_update(struct fw_unit *unit)
 
 	snd_tscm_transaction_reregister(tscm);
 
-	mutex_lock(&tscm->mutex);
+	guard(mutex)(&tscm->mutex);
 	snd_tscm_stream_update_duplex(tscm);
-	mutex_unlock(&tscm->mutex);
 }
 
 static void snd_tscm_remove(struct fw_unit *unit)

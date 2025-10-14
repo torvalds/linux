@@ -25,7 +25,7 @@ generate, like:
 	  (when available)
 
 Those events (see linux/sonypi.h) can be polled using the character device node
-/dev/sonypi (major 10, minor auto allocated or specified as a option).
+/dev/sonypi (major 10, minor auto allocated or specified as an option).
 A simple daemon which translates the jogdial movements into mouse wheel events
 can be downloaded at: <http://popies.net/sonypi/>
 

@@ -1551,36 +1551,19 @@ static int stage2_free_walker(const struct kvm_pgtable_visit_ctx *ctx,
 	return 0;
 }
 
-void kvm_pgtable_stage2_destroy_range(struct kvm_pgtable *pgt,
-				       u64 addr, u64 size)
+void kvm_pgtable_stage2_destroy(struct kvm_pgtable *pgt)
 {
+	size_t pgd_sz;
 	struct kvm_pgtable_walker walker = {
 		.cb	= stage2_free_walker,
 		.flags	= KVM_PGTABLE_WALK_LEAF |
 			  KVM_PGTABLE_WALK_TABLE_POST,
 	};
 
-	WARN_ON(kvm_pgtable_walk(pgt, addr, size, &walker));
-}
-
-void kvm_pgtable_stage2_destroy_pgd(struct kvm_pgtable *pgt)
-{
-	size_t pgd_sz;
-
+	WARN_ON(kvm_pgtable_walk(pgt, 0, BIT(pgt->ia_bits), &walker));
 	pgd_sz = kvm_pgd_pages(pgt->ia_bits, pgt->start_level) * PAGE_SIZE;
-
-	/*
-	 * Since the pgtable is unlinked at this point, and not shared with
-	 * other walkers, safely deference pgd with kvm_dereference_pteref_raw()
-	 */
-	pgt->mm_ops->free_pages_exact(kvm_dereference_pteref_raw(pgt->pgd), pgd_sz);
+	pgt->mm_ops->free_pages_exact(kvm_dereference_pteref(&walker, pgt->pgd), pgd_sz);
 	pgt->pgd = NULL;
-}
-
-void kvm_pgtable_stage2_destroy(struct kvm_pgtable *pgt)
-{
-	kvm_pgtable_stage2_destroy_range(pgt, 0, BIT(pgt->ia_bits));
-	kvm_pgtable_stage2_destroy_pgd(pgt);
 }
 
 void kvm_pgtable_stage2_free_unlinked(struct kvm_pgtable_mm_ops *mm_ops, void *pgtable, s8 level)

@@ -74,7 +74,7 @@
 #define AUXIO_PCIO_CPWR_OFF	0x02 /* Courtesy Power Off	*/
 #define AUXIO_PCIO_SPWR_OFF	0x01 /* System Power Off	*/
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #define AUXIO_LTE_ON	1
 #define AUXIO_LTE_OFF	0
@@ -94,6 +94,6 @@ void auxio_set_lte(int on);
  */
 void auxio_set_led(int on);
 
-#endif /* ifndef __ASSEMBLY__ */
+#endif /* ifndef __ASSEMBLER__ */
 
 #endif /* !(_SPARC64_AUXIO_H) */

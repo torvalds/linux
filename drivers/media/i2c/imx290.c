@@ -1422,14 +1422,14 @@ static int imx290_get_regulators(struct device *dev, struct imx290 *imx290)
 static int imx290_init_clk(struct imx290 *imx290)
 {
 	u32 xclk_freq;
-	int ret;
 
-	ret = device_property_read_u32(imx290->dev, "clock-frequency",
-				       &xclk_freq);
-	if (ret) {
-		dev_err(imx290->dev, "Could not get xclk frequency\n");
-		return ret;
-	}
+	imx290->xclk = devm_v4l2_sensor_clk_get_legacy(imx290->dev, "xclk",
+						       false, 0);
+	if (IS_ERR(imx290->xclk))
+		return dev_err_probe(imx290->dev, PTR_ERR(imx290->xclk),
+				     "Could not get xclk\n");
+
+	xclk_freq = clk_get_rate(imx290->xclk);
 
 	/* external clock must be 37.125 MHz or 74.25MHz */
 	switch (xclk_freq) {
@@ -1443,12 +1443,6 @@ static int imx290_init_clk(struct imx290 *imx290)
 		dev_err(imx290->dev, "External clock frequency %u is not supported\n",
 			xclk_freq);
 		return -EINVAL;
-	}
-
-	ret = clk_set_rate(imx290->xclk, xclk_freq);
-	if (ret) {
-		dev_err(imx290->dev, "Could not set xclk frequency\n");
-		return ret;
 	}
 
 	return 0;
@@ -1596,11 +1590,6 @@ static int imx290_probe(struct i2c_client *client)
 		return ret;
 
 	/* Acquire resources. */
-	imx290->xclk = devm_clk_get(dev, "xclk");
-	if (IS_ERR(imx290->xclk))
-		return dev_err_probe(dev, PTR_ERR(imx290->xclk),
-				     "Could not get xclk\n");
-
 	ret = imx290_get_regulators(dev, imx290);
 	if (ret < 0)
 		return dev_err_probe(dev, ret, "Cannot get regulators\n");
@@ -1611,7 +1600,7 @@ static int imx290_probe(struct i2c_client *client)
 		return dev_err_probe(dev, PTR_ERR(imx290->rst_gpio),
 				     "Cannot get reset gpio\n");
 
-	/* Initialize external clock frequency. */
+	/* Initialize external clock. */
 	ret = imx290_init_clk(imx290);
 	if (ret)
 		return ret;

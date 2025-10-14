@@ -768,14 +768,18 @@ struct hdcp_workqueue *hdcp_create_workqueue(struct amdgpu_device *adev,
 		struct mod_hdcp_ddc_funcs *ddc_funcs = &config->ddc.funcs;
 
 		config->psp.handle = &adev->psp;
-		if (dc->ctx->dce_version == DCN_VERSION_3_1 ||
+		if (dc->ctx->dce_version == DCN_VERSION_3_1  ||
 		    dc->ctx->dce_version == DCN_VERSION_3_14 ||
 		    dc->ctx->dce_version == DCN_VERSION_3_15 ||
-		    dc->ctx->dce_version == DCN_VERSION_3_5 ||
+		    dc->ctx->dce_version == DCN_VERSION_3_16 ||
+		    dc->ctx->dce_version == DCN_VERSION_3_2  ||
+		    dc->ctx->dce_version == DCN_VERSION_3_21 ||
+		    dc->ctx->dce_version == DCN_VERSION_3_5  ||
 		    dc->ctx->dce_version == DCN_VERSION_3_51 ||
-		    dc->ctx->dce_version == DCN_VERSION_3_6 ||
-		    dc->ctx->dce_version == DCN_VERSION_3_16)
+		    dc->ctx->dce_version == DCN_VERSION_3_6  ||
+		    dc->ctx->dce_version == DCN_VERSION_4_01)
 			config->psp.caps.dtm_v3_supported = 1;
+
 		config->ddc.handle = dc_get_link_at_index(dc, i);
 
 		ddc_funcs->write_i2c = lp_write_i2c;

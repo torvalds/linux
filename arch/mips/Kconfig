@@ -6,7 +6,7 @@ config MIPS
 	select ARCH_BINFMT_ELF_STATE if MIPS_FP_SUPPORT
 	select ARCH_HAS_CPU_CACHE_ALIASING
 	select ARCH_HAS_CPU_FINALIZE_INIT
-	select ARCH_HAS_CURRENT_STACK_POINTER if !CC_IS_CLANG || CLANG_VERSION >= 140000
+	select ARCH_HAS_CURRENT_STACK_POINTER
 	select ARCH_HAS_DEBUG_VIRTUAL if !64BIT
 	select ARCH_HAS_DMA_OPS if MACH_JAZZ
 	select ARCH_HAS_FORTIFY_SOURCE
@@ -51,7 +51,6 @@ config MIPS
 	select GENERIC_SMP_IDLE_THREAD
 	select GENERIC_IDLE_POLL_SETUP
 	select GENERIC_TIME_VSYSCALL
-	select GENERIC_VDSO_DATA_STORE
 	select GUP_GET_PXX_LOW_HIGH if CPU_MIPS32 && PHYS_ADDR_T_64BIT
 	select HAS_IOPORT if !NO_IOPORT_MAP || ISA
 	select HAVE_ARCH_COMPILER_H
@@ -480,6 +479,23 @@ config LANTIQ
 
 config MACH_LOONGSON32
 	bool "Loongson 32-bit family of machines"
+	select MACH_GENERIC_CORE
+	select USE_OF
+	select BUILTIN_DTB
+	select BOOT_ELF32
+	select CEVT_R4K
+	select CSRC_R4K
+	select COMMON_CLK
+	select DMA_NONCOHERENT
+	select GENERIC_IRQ_SHOW_LEVEL
+	select IRQ_MIPS_CPU
+	select LS1X_IRQ
+	select SYS_HAS_CPU_LOONGSON32
+	select SYS_HAS_EARLY_PRINTK
+	select USE_GENERIC_EARLY_PRINTK_8250
+	select SYS_SUPPORTS_32BIT_KERNEL
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SYS_SUPPORTS_HIGHMEM
 	select SYS_SUPPORTS_ZBOOT
 	help
 	  This enables support for the Loongson-1 family of machines.
@@ -1386,25 +1402,20 @@ config CPU_LOONGSON2F
 	  have a similar programming interface with FPGA northbridge used in
 	  Loongson2E.
 
-config CPU_LOONGSON1B
-	bool "Loongson 1B"
-	depends on SYS_HAS_CPU_LOONGSON1B
-	select CPU_LOONGSON32
+config CPU_LOONGSON32
+	bool "Loongson 32-bit CPU"
+	depends on SYS_HAS_CPU_LOONGSON32
+	select CPU_MIPS32
+	select CPU_MIPSR2
+	select CPU_HAS_PREFETCH
+	select CPU_HAS_LOAD_STORE_LR
+	select CPU_SUPPORTS_32BIT_KERNEL
+	select CPU_SUPPORTS_HIGHMEM
+	select CPU_SUPPORTS_CPUFREQ
 	select LEDS_GPIO_REGISTER
 	help
-	  The Loongson 1B is a 32-bit SoC, which implements the MIPS32
-	  Release 1 instruction set and part of the MIPS32 Release 2
-	  instruction set.
-
-config CPU_LOONGSON1C
-	bool "Loongson 1C"
-	depends on SYS_HAS_CPU_LOONGSON1C
-	select CPU_LOONGSON32
-	select LEDS_GPIO_REGISTER
-	help
-	  The Loongson 1C is a 32-bit SoC, which implements the MIPS32
-	  Release 1 instruction set and part of the MIPS32 Release 2
-	  instruction set.
+	  The Loongson GS232 microarchitecture implements the MIPS32 Release 1
+	  instruction set and part of the MIPS32 Release 2 instruction set.
 
 config CPU_MIPS32_R1
 	bool "MIPS32 Release 1"
@@ -1839,15 +1850,6 @@ config CPU_LOONGSON2EF
 	select CPU_SUPPORTS_HUGEPAGES
 	select RTC_MC146818_LIB
 
-config CPU_LOONGSON32
-	bool
-	select CPU_MIPS32
-	select CPU_MIPSR2
-	select CPU_HAS_PREFETCH
-	select CPU_SUPPORTS_32BIT_KERNEL
-	select CPU_SUPPORTS_HIGHMEM
-	select CPU_SUPPORTS_CPUFREQ
-
 config CPU_BMIPS32_3300
 	select SMP_UP if SMP
 	bool
@@ -1885,10 +1887,7 @@ config SYS_HAS_CPU_LOONGSON2F
 	select CPU_SUPPORTS_CPUFREQ
 	select CPU_SUPPORTS_ADDRWINCFG if 64BIT
 
-config SYS_HAS_CPU_LOONGSON1B
-	bool
-
-config SYS_HAS_CPU_LOONGSON1C
+config SYS_HAS_CPU_LOONGSON32
 	bool
 
 config SYS_HAS_CPU_MIPS32_R1
@@ -2223,7 +2222,7 @@ config MIPS_MT_SMP
 	select SMP
 	select SMP_UP
 	select SYS_SUPPORTS_SMP
-	select SYS_SUPPORTS_SCHED_SMT
+	select ARCH_SUPPORTS_SCHED_SMT
 	select MIPS_PERF_SHARED_TC_COUNTERS
 	help
 	  This is a kernel model which is known as SMVP. This is supported
@@ -2233,18 +2232,6 @@ config MIPS_MT_SMP
 	  <http://www.imgtec.com/mips/mips-multithreading.asp>.
 
 config MIPS_MT
-	bool
-
-config SCHED_SMT
-	bool "SMT (multithreading) scheduler support"
-	depends on SYS_SUPPORTS_SCHED_SMT
-	default n
-	help
-	  SMT scheduler support improves the CPU scheduler's decision making
-	  when dealing with MIPS MT enabled cores at a cost of slightly
-	  increased overhead in some places. If unsure say N here.
-
-config SYS_SUPPORTS_SCHED_SMT
 	bool
 
 config SYS_SUPPORTS_MULTITHREADING
@@ -2318,7 +2305,7 @@ config MIPS_CPS
 	select HOTPLUG_CORE_SYNC_DEAD if HOTPLUG_CPU
 	select SYNC_R4K if (CEVT_R4K || CSRC_R4K)
 	select SYS_SUPPORTS_HOTPLUG_CPU
-	select SYS_SUPPORTS_SCHED_SMT if CPU_MIPSR6
+	select ARCH_SUPPORTS_SCHED_SMT if CPU_MIPSR6
 	select SYS_SUPPORTS_SMP
 	select WEAK_ORDERING
 	select GENERIC_IRQ_MIGRATION if HOTPLUG_CPU
@@ -2999,8 +2986,8 @@ choice
 	prompt "Kernel command line type"
 	depends on !CMDLINE_OVERRIDE
 	default MIPS_CMDLINE_FROM_DTB if USE_OF && !ATH79 && !MACH_INGENIC && \
-					 !MACH_LOONGSON64 && !MIPS_MALTA && \
-					 !CAVIUM_OCTEON_SOC
+					 !MACH_LOONGSON64 && !MACH_LOONGSON32 && \
+					 !MIPS_MALTA && !CAVIUM_OCTEON_SOC
 	default MIPS_CMDLINE_FROM_BOOTLOADER
 
 	config MIPS_CMDLINE_FROM_DTB

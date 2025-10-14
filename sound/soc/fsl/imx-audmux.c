@@ -305,7 +305,7 @@ static int imx_audmux_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	regcache = devm_kzalloc(&pdev->dev, sizeof(u32) * reg_max, GFP_KERNEL);
+	regcache = devm_kcalloc(&pdev->dev, reg_max, sizeof(u32), GFP_KERNEL);
 	if (!regcache)
 		return -ENOMEM;
 

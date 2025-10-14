@@ -22,7 +22,6 @@
 #include <linux/bsearch.h>
 #include <linux/sort.h>
 #include <linux/key.h>
-#include <linux/verification.h>
 #include <linux/namei.h>
 
 #include <net/bpf_sk_storage.h>
@@ -900,7 +899,7 @@ const struct bpf_func_proto bpf_send_signal_thread_proto = {
 	.arg1_type	= ARG_ANYTHING,
 };
 
-BPF_CALL_3(bpf_d_path, struct path *, path, char *, buf, u32, sz)
+BPF_CALL_3(bpf_d_path, const struct path *, path, char *, buf, u32, sz)
 {
 	struct path copy;
 	long len;
@@ -1241,188 +1240,6 @@ static const struct bpf_func_proto bpf_get_func_arg_cnt_proto = {
 	.arg1_type	= ARG_PTR_TO_CTX,
 };
 
-#ifdef CONFIG_KEYS
-__bpf_kfunc_start_defs();
-
-/**
- * bpf_lookup_user_key - lookup a key by its serial
- * @serial: key handle serial number
- * @flags: lookup-specific flags
- *
- * Search a key with a given *serial* and the provided *flags*.
- * If found, increment the reference count of the key by one, and
- * return it in the bpf_key structure.
- *
- * The bpf_key structure must be passed to bpf_key_put() when done
- * with it, so that the key reference count is decremented and the
- * bpf_key structure is freed.
- *
- * Permission checks are deferred to the time the key is used by
- * one of the available key-specific kfuncs.
- *
- * Set *flags* with KEY_LOOKUP_CREATE, to attempt creating a requested
- * special keyring (e.g. session keyring), if it doesn't yet exist.
- * Set *flags* with KEY_LOOKUP_PARTIAL, to lookup a key without waiting
- * for the key construction, and to retrieve uninstantiated keys (keys
- * without data attached to them).
- *
- * Return: a bpf_key pointer with a valid key pointer if the key is found, a
- *         NULL pointer otherwise.
- */
-__bpf_kfunc struct bpf_key *bpf_lookup_user_key(s32 serial, u64 flags)
-{
-	key_ref_t key_ref;
-	struct bpf_key *bkey;
-
-	if (flags & ~KEY_LOOKUP_ALL)
-		return NULL;
-
-	/*
-	 * Permission check is deferred until the key is used, as the
-	 * intent of the caller is unknown here.
-	 */
-	key_ref = lookup_user_key(serial, flags, KEY_DEFER_PERM_CHECK);
-	if (IS_ERR(key_ref))
-		return NULL;
-
-	bkey = kmalloc(sizeof(*bkey), GFP_KERNEL);
-	if (!bkey) {
-		key_put(key_ref_to_ptr(key_ref));
-		return NULL;
-	}
-
-	bkey->key = key_ref_to_ptr(key_ref);
-	bkey->has_ref = true;
-
-	return bkey;
-}
-
-/**
- * bpf_lookup_system_key - lookup a key by a system-defined ID
- * @id: key ID
- *
- * Obtain a bpf_key structure with a key pointer set to the passed key ID.
- * The key pointer is marked as invalid, to prevent bpf_key_put() from
- * attempting to decrement the key reference count on that pointer. The key
- * pointer set in such way is currently understood only by
- * verify_pkcs7_signature().
- *
- * Set *id* to one of the values defined in include/linux/verification.h:
- * 0 for the primary keyring (immutable keyring of system keys);
- * VERIFY_USE_SECONDARY_KEYRING for both the primary and secondary keyring
- * (where keys can be added only if they are vouched for by existing keys
- * in those keyrings); VERIFY_USE_PLATFORM_KEYRING for the platform
- * keyring (primarily used by the integrity subsystem to verify a kexec'ed
- * kerned image and, possibly, the initramfs signature).
- *
- * Return: a bpf_key pointer with an invalid key pointer set from the
- *         pre-determined ID on success, a NULL pointer otherwise
- */
-__bpf_kfunc struct bpf_key *bpf_lookup_system_key(u64 id)
-{
-	struct bpf_key *bkey;
-
-	if (system_keyring_id_check(id) < 0)
-		return NULL;
-
-	bkey = kmalloc(sizeof(*bkey), GFP_ATOMIC);
-	if (!bkey)
-		return NULL;
-
-	bkey->key = (struct key *)(unsigned long)id;
-	bkey->has_ref = false;
-
-	return bkey;
-}
-
-/**
- * bpf_key_put - decrement key reference count if key is valid and free bpf_key
- * @bkey: bpf_key structure
- *
- * Decrement the reference count of the key inside *bkey*, if the pointer
- * is valid, and free *bkey*.
- */
-__bpf_kfunc void bpf_key_put(struct bpf_key *bkey)
-{
-	if (bkey->has_ref)
-		key_put(bkey->key);
-
-	kfree(bkey);
-}
-
-#ifdef CONFIG_SYSTEM_DATA_VERIFICATION
-/**
- * bpf_verify_pkcs7_signature - verify a PKCS#7 signature
- * @data_p: data to verify
- * @sig_p: signature of the data
- * @trusted_keyring: keyring with keys trusted for signature verification
- *
- * Verify the PKCS#7 signature *sig_ptr* against the supplied *data_ptr*
- * with keys in a keyring referenced by *trusted_keyring*.
- *
- * Return: 0 on success, a negative value on error.
- */
-__bpf_kfunc int bpf_verify_pkcs7_signature(struct bpf_dynptr *data_p,
-			       struct bpf_dynptr *sig_p,
-			       struct bpf_key *trusted_keyring)
-{
-	struct bpf_dynptr_kern *data_ptr = (struct bpf_dynptr_kern *)data_p;
-	struct bpf_dynptr_kern *sig_ptr = (struct bpf_dynptr_kern *)sig_p;
-	const void *data, *sig;
-	u32 data_len, sig_len;
-	int ret;
-
-	if (trusted_keyring->has_ref) {
-		/*
-		 * Do the permission check deferred in bpf_lookup_user_key().
-		 * See bpf_lookup_user_key() for more details.
-		 *
-		 * A call to key_task_permission() here would be redundant, as
-		 * it is already done by keyring_search() called by
-		 * find_asymmetric_key().
-		 */
-		ret = key_validate(trusted_keyring->key);
-		if (ret < 0)
-			return ret;
-	}
-
-	data_len = __bpf_dynptr_size(data_ptr);
-	data = __bpf_dynptr_data(data_ptr, data_len);
-	sig_len = __bpf_dynptr_size(sig_ptr);
-	sig = __bpf_dynptr_data(sig_ptr, sig_len);
-
-	return verify_pkcs7_signature(data, data_len, sig, sig_len,
-				      trusted_keyring->key,
-				      VERIFYING_UNSPECIFIED_SIGNATURE, NULL,
-				      NULL);
-}
-#endif /* CONFIG_SYSTEM_DATA_VERIFICATION */
-
-__bpf_kfunc_end_defs();
-
-BTF_KFUNCS_START(key_sig_kfunc_set)
-BTF_ID_FLAGS(func, bpf_lookup_user_key, KF_ACQUIRE | KF_RET_NULL | KF_SLEEPABLE)
-BTF_ID_FLAGS(func, bpf_lookup_system_key, KF_ACQUIRE | KF_RET_NULL)
-BTF_ID_FLAGS(func, bpf_key_put, KF_RELEASE)
-#ifdef CONFIG_SYSTEM_DATA_VERIFICATION
-BTF_ID_FLAGS(func, bpf_verify_pkcs7_signature, KF_SLEEPABLE)
-#endif
-BTF_KFUNCS_END(key_sig_kfunc_set)
-
-static const struct btf_kfunc_id_set bpf_key_sig_kfunc_set = {
-	.owner = THIS_MODULE,
-	.set = &key_sig_kfunc_set,
-};
-
-static int __init bpf_key_sig_kfuncs_init(void)
-{
-	return register_btf_kfunc_id_set(BPF_PROG_TYPE_TRACING,
-					 &bpf_key_sig_kfunc_set);
-}
-
-late_initcall(bpf_key_sig_kfuncs_init);
-#endif /* CONFIG_KEYS */
-
 static const struct bpf_func_proto *
 bpf_tracing_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 {
@@ -1521,8 +1338,6 @@ static bool kprobe_prog_is_valid_access(int off, int size, enum bpf_access_type 
 {
 	if (off < 0 || off >= sizeof(struct pt_regs))
 		return false;
-	if (type != BPF_READ)
-		return false;
 	if (off % size != 0)
 		return false;
 	/*
@@ -1531,6 +1346,9 @@ static bool kprobe_prog_is_valid_access(int off, int size, enum bpf_access_type 
 	 */
 	if (off + size > sizeof(struct pt_regs))
 		return false;
+
+	if (type == BPF_WRITE)
+		prog->aux->kprobe_write_ctx = true;
 
 	return true;
 }
@@ -2728,20 +2546,25 @@ kprobe_multi_link_prog_run(struct bpf_kprobe_multi_link *link,
 	struct pt_regs *regs;
 	int err;
 
+	/*
+	 * graph tracer framework ensures we won't migrate, so there is no need
+	 * to use migrate_disable for bpf_prog_run again. The check here just for
+	 * __this_cpu_inc_return.
+	 */
+	cant_sleep();
+
 	if (unlikely(__this_cpu_inc_return(bpf_prog_active) != 1)) {
 		bpf_prog_inc_misses_counter(link->link.prog);
 		err = 1;
 		goto out;
 	}
 
-	migrate_disable();
 	rcu_read_lock();
 	regs = ftrace_partial_regs(fregs, bpf_kprobe_multi_pt_regs_ptr());
 	old_run_ctx = bpf_set_run_ctx(&run_ctx.session_ctx.run_ctx);
 	err = bpf_prog_run(link->link.prog, regs);
 	bpf_reset_run_ctx(old_run_ctx);
 	rcu_read_unlock();
-	migrate_enable();
 
  out:
 	__this_cpu_dec(bpf_prog_active);
@@ -2911,6 +2734,10 @@ int bpf_kprobe_multi_link_attach(const union bpf_attr *attr, struct bpf_prog *pr
 		return -EINVAL;
 
 	if (!is_kprobe_multi(prog))
+		return -EINVAL;
+
+	/* Writing to context is not allowed for kprobes. */
+	if (prog->aux->kprobe_write_ctx)
 		return -EINVAL;
 
 	flags = attr->link_create.kprobe_multi.flags;

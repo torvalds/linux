@@ -243,6 +243,24 @@ static inline bool ptr_ring_empty_bh(struct ptr_ring *r)
 	return ret;
 }
 
+/* Zero entries from tail to specified head.
+ * NB: if consumer_head can be >= r->size need to fixup tail later.
+ */
+static inline void __ptr_ring_zero_tail(struct ptr_ring *r, int consumer_head)
+{
+	int head = consumer_head;
+
+	/* Zero out entries in the reverse order: this way we touch the
+	 * cache line that producer might currently be reading the last;
+	 * producer won't make progress and touch other cache lines
+	 * besides the first one until we write out all entries.
+	 */
+	while (likely(head > r->consumer_tail))
+		r->queue[--head] = NULL;
+
+	r->consumer_tail = consumer_head;
+}
+
 /* Must only be called after __ptr_ring_peek returned !NULL */
 static inline void __ptr_ring_discard_one(struct ptr_ring *r)
 {
@@ -261,8 +279,7 @@ static inline void __ptr_ring_discard_one(struct ptr_ring *r)
 	/* Note: we must keep consumer_head valid at all times for __ptr_ring_empty
 	 * to work correctly.
 	 */
-	int consumer_head = r->consumer_head;
-	int head = consumer_head++;
+	int consumer_head = r->consumer_head + 1;
 
 	/* Once we have processed enough entries invalidate them in
 	 * the ring all at once so producer can reuse their space in the ring.
@@ -270,16 +287,9 @@ static inline void __ptr_ring_discard_one(struct ptr_ring *r)
 	 * but helps keep the implementation simple.
 	 */
 	if (unlikely(consumer_head - r->consumer_tail >= r->batch ||
-		     consumer_head >= r->size)) {
-		/* Zero out entries in the reverse order: this way we touch the
-		 * cache line that producer might currently be reading the last;
-		 * producer won't make progress and touch other cache lines
-		 * besides the first one until we write out all entries.
-		 */
-		while (likely(head >= r->consumer_tail))
-			r->queue[head--] = NULL;
-		r->consumer_tail = consumer_head;
-	}
+		     consumer_head >= r->size))
+		__ptr_ring_zero_tail(r, consumer_head);
+
 	if (unlikely(consumer_head >= r->size)) {
 		consumer_head = 0;
 		r->consumer_tail = 0;
@@ -513,7 +523,6 @@ static inline void ptr_ring_unconsume(struct ptr_ring *r, void **batch, int n,
 				      void (*destroy)(void *))
 {
 	unsigned long flags;
-	int head;
 
 	spin_lock_irqsave(&r->consumer_lock, flags);
 	spin_lock(&r->producer_lock);
@@ -525,17 +534,14 @@ static inline void ptr_ring_unconsume(struct ptr_ring *r, void **batch, int n,
 	 * Clean out buffered entries (for simplicity). This way following code
 	 * can test entries for NULL and if not assume they are valid.
 	 */
-	head = r->consumer_head - 1;
-	while (likely(head >= r->consumer_tail))
-		r->queue[head--] = NULL;
-	r->consumer_tail = r->consumer_head;
+	__ptr_ring_zero_tail(r, r->consumer_head);
 
 	/*
 	 * Go over entries in batch, start moving head back and copy entries.
 	 * Stop when we run into previously unconsumed entries.
 	 */
 	while (n) {
-		head = r->consumer_head - 1;
+		int head = r->consumer_head - 1;
 		if (head < 0)
 			head = r->size - 1;
 		if (r->queue[head]) {

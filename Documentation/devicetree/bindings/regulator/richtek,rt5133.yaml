@@ -1,0 +1,178 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/regulator/richtek,rt5133.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Richtek RT5133 PMIC Regulator
+
+maintainers:
+  - ShihChia Chang <jeff_chang@richtek.com>
+
+description:
+  The RT5133 is an integrated Power Management IC for portable devices,
+  featuring 8 LDOs and 3 GPOs. It allows programmable output voltages,
+  soft-start times, and protections via I2C. GPO operation depends on LDO1
+  voltage.
+
+properties:
+  compatible:
+    enum:
+      - richtek,rt5133
+
+  reg:
+    maxItems: 1
+
+  enable-gpios:
+    maxItems: 1
+
+  wakeup-source: true
+
+  interrupts:
+    maxItems: 1
+
+  gpio-controller: true
+
+  "#gpio-cells":
+    const: 2
+
+  richtek,oc-shutdown-all:
+    type: boolean
+    description:
+      Controls the behavior when any LDO (Low Dropout Regulator) enters an
+      Over Current state.
+      If set to true, all LDO channels will be shut down.
+      If set to false, only the affected LDO channel will shut down itself.
+
+  richtek,pgb-shutdown-all:
+    type: boolean
+    description:
+      Controls the behavior when any LDO enters a Power Good Bad state.
+      If set to true, all LDO channels will be shut down.
+      If set to false, only the affected LDO channel will shut down itself.
+
+  regulators:
+    type: object
+    additionalProperties: false
+
+    properties:
+      base:
+        type: object
+        $ref: regulator.yaml#
+        unevaluatedProperties: false
+        description:
+          Properties for the base regulator, which is the top-level supply for
+          LDO1 to LDO6. It functions merely as an on/off switch rather than
+          regulating voltages. If none of LDO1 to LDO6 are in use, switching
+          off the base will reduce the quiescent current.
+
+        required:
+          - regulator-name
+
+    patternProperties:
+      "^ldo([1-6])$":
+        type: object
+        $ref: regulator.yaml#
+        unevaluatedProperties: false
+        description:
+          Properties for single LDO regulator
+
+        required:
+          - regulator-name
+
+      "^ldo([7-8])$":
+        type: object
+        $ref: regulator.yaml#
+        unevaluatedProperties: false
+        description:
+          Properties for single LDO regulator
+
+        properties:
+          vin-supply: true
+
+        required:
+          - regulator-name
+          - vin-supply
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/gpio/gpio.h>
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      pmic@18 {
+        compatible = "richtek,rt5133";
+        reg = <0x18>;
+        wakeup-source;
+        interrupts-extended = <&gpio 0 IRQ_TYPE_EDGE_FALLING>;
+        enable-gpios = <&gpio 2 GPIO_ACTIVE_HIGH>;
+        gpio-controller;
+        #gpio-cells = <2>;
+        richtek,oc-shutdown-all;
+        richtek,pgb-shutdown-all;
+        regulators {
+          base {
+            regulator-name = "base";
+          };
+          pvin78: ldo1 {
+            regulator-name = "ldo1";
+            regulator-min-microvolt = <1800000>;
+            regulator-max-microvolt = <3199998>;
+            regulator-active-discharge = <1>;
+          };
+          ldo2 {
+            regulator-name = "ldo2";
+            regulator-min-microvolt = <1800000>;
+            regulator-max-microvolt = <3200000>;
+            regulator-active-discharge = <1>;
+          };
+          ldo3 {
+            regulator-name = "ldo3";
+            regulator-min-microvolt = <1700000>;
+            regulator-max-microvolt = <3000000>;
+            regulator-active-discharge = <1>;
+          };
+          ldo4 {
+            regulator-name = "ldo4";
+            regulator-min-microvolt = <1700000>;
+            regulator-max-microvolt = <3000000>;
+            regulator-active-discharge = <1>;
+          };
+          ldo5 {
+            regulator-name = "ldo5";
+            regulator-min-microvolt = <1700000>;
+            regulator-max-microvolt = <3000000>;
+            regulator-active-discharge = <1>;
+          };
+          ldo6 {
+            regulator-name = "ldo6";
+            regulator-min-microvolt = <1700000>;
+            regulator-max-microvolt = <3000000>;
+            regulator-active-discharge = <1>;
+          };
+          ldo7 {
+            regulator-name = "ldo7";
+            regulator-min-microvolt = <900000>;
+            regulator-max-microvolt = <1200000>;
+            regulator-active-discharge = <1>;
+            vin-supply = <&pvin78>;
+          };
+          ldo8 {
+            regulator-name = "ldo8";
+            regulator-min-microvolt = <855000>;
+            regulator-max-microvolt = <1200000>;
+            regulator-active-discharge = <1>;
+            vin-supply = <&pvin78>;
+          };
+        };
+      };
+    };

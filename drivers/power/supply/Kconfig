@@ -35,6 +35,9 @@ config APM_POWER
 	  Say Y here to enable support APM status emulation using
 	  battery class devices.
 
+config ADC_BATTERY_HELPER
+	tristate
+
 config GENERIC_ADC_BATTERY
 	tristate "Generic battery support using IIO"
 	depends on IIO
@@ -243,6 +246,18 @@ config BATTERY_INGENIC
 
 	  This driver can also be built as a module. If so, the module will be
 	  called ingenic-battery.
+
+config BATTERY_INTEL_DC_TI
+	tristate "Intel Bay / Cherry Trail Dollar Cove TI battery driver"
+	depends on INTEL_SOC_PMIC_CHTDC_TI && INTEL_DC_TI_ADC && IIO && ACPI
+	select ADC_BATTERY_HELPER
+	help
+	  Choose this option if you want to monitor battery status on Intel
+	  Bay Trail / Cherry Trail tablets using the Dollar Cove TI PMIC's
+	  coulomb-counter as fuel-gauge.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called intel_dc_ti_battery.
 
 config BATTERY_IPAQ_MICRO
 	tristate "iPAQ Atmel Micro ASIC battery driver"
@@ -767,6 +782,13 @@ config CHARGER_BQ2515X
 	  rail, ADC for battery and system monitoring, and push-button
 	  controller.
 
+config CHARGER_BQ257XX
+	tristate "TI BQ257XX battery charger family"
+	depends on MFD_BQ257XX
+	help
+	  Say Y to enable support for the TI BQ257XX family of battery
+	  charging integrated circuits.
+
 config CHARGER_BQ25890
 	tristate "TI BQ25890 battery charger driver"
 	depends on I2C
@@ -1043,6 +1065,7 @@ config CHARGER_SURFACE
 config BATTERY_UG3105
 	tristate "uPI uG3105 battery monitor driver"
 	depends on I2C
+	select ADC_BATTERY_HELPER
 	help
 	  Battery monitor driver for the uPI uG3105 battery monitor.
 

@@ -623,7 +623,7 @@ static void range_cond(enum num_t t, struct range x, struct range y,
 			*newx = range(t, x.a, x.b);
 			*newy = range(t, y.a + 1, y.b);
 		} else if (x.a == x.b && x.b == y.b) {
-			/* X is a constant matching rigth side of Y */
+			/* X is a constant matching right side of Y */
 			*newx = range(t, x.a, x.b);
 			*newy = range(t, y.a, y.b - 1);
 		} else if (y.a == y.b && x.a == y.a) {
@@ -631,7 +631,7 @@ static void range_cond(enum num_t t, struct range x, struct range y,
 			*newx = range(t, x.a + 1, x.b);
 			*newy = range(t, y.a, y.b);
 		} else if (y.a == y.b && x.b == y.b) {
-			/* Y is a constant matching rigth side of X */
+			/* Y is a constant matching right side of X */
 			*newx = range(t, x.a, x.b - 1);
 			*newy = range(t, y.a, y.b);
 		} else {

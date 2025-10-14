@@ -3148,17 +3148,17 @@ static int mtip_block_compat_ioctl(struct block_device *dev,
  * that each partition is also 4KB aligned. Non-aligned partitions adversely
  * affects performance.
  *
- * @dev Pointer to the block_device strucutre.
+ * @disk Pointer to the gendisk strucutre.
  * @geo Pointer to a hd_geometry structure.
  *
  * return value
  *	0       Operation completed successfully.
  *	-ENOTTY An error occurred while reading the drive capacity.
  */
-static int mtip_block_getgeo(struct block_device *dev,
+static int mtip_block_getgeo(struct gendisk *disk,
 				struct hd_geometry *geo)
 {
-	struct driver_data *dd = dev->bd_disk->private_data;
+	struct driver_data *dd = disk->private_data;
 	sector_t capacity;
 
 	if (!dd)

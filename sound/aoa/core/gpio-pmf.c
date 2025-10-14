@@ -74,10 +74,9 @@ static void pmf_handle_notify(struct work_struct *work)
 	struct gpio_notification *notif =
 		container_of(work, struct gpio_notification, work.work);
 
-	mutex_lock(&notif->mutex);
+	guard(mutex)(&notif->mutex);
 	if (notif->notify)
 		notif->notify(notif->data);
-	mutex_unlock(&notif->mutex);
 }
 
 static void pmf_gpio_init(struct gpio_runtime *rt)
@@ -154,19 +153,17 @@ static int pmf_set_notify(struct gpio_runtime *rt,
 		return -EINVAL;
 	}
 
-	mutex_lock(&notif->mutex);
+	guard(mutex)(&notif->mutex);
 
 	old = notif->notify;
 
-	if (!old && !notify) {
-		err = 0;
-		goto out_unlock;
-	}
+	if (!old && !notify)
+		return 0;
 
 	if (old && notify) {
 		if (old == notify && notif->data == data)
 			err = 0;
-		goto out_unlock;
+		return err;
 	}
 
 	if (old && !notify) {
@@ -178,10 +175,8 @@ static int pmf_set_notify(struct gpio_runtime *rt,
 	if (!old && notify) {
 		irq_client = kzalloc(sizeof(struct pmf_irq_client),
 				     GFP_KERNEL);
-		if (!irq_client) {
-			err = -ENOMEM;
-			goto out_unlock;
-		}
+		if (!irq_client)
+			return -ENOMEM;
 		irq_client->data = notif;
 		irq_client->handler = pmf_handle_notify_irq;
 		irq_client->owner = THIS_MODULE;
@@ -192,17 +187,14 @@ static int pmf_set_notify(struct gpio_runtime *rt,
 			printk(KERN_ERR "snd-aoa: gpio layer failed to"
 					" register %s irq (%d)\n", name, err);
 			kfree(irq_client);
-			goto out_unlock;
+			return err;
 		}
 		notif->gpio_private = irq_client;
 	}
 	notif->notify = notify;
 	notif->data = data;
 
-	err = 0;
- out_unlock:
-	mutex_unlock(&notif->mutex);
-	return err;
+	return 0;
 }
 
 static int pmf_get_detect(struct gpio_runtime *rt,

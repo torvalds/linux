@@ -197,8 +197,8 @@ by the PCI endpoint function driver.
 * pci_epf_register_driver()
 
    The PCI Endpoint Function driver should implement the following ops:
-	 * bind: ops to perform when a EPC device has been bound to EPF device
-	 * unbind: ops to perform when a binding has been lost between a EPC
+	 * bind: ops to perform when an EPC device has been bound to EPF device
+	 * unbind: ops to perform when a binding has been lost between an EPC
 	   device and EPF device
 	 * add_cfs: optional ops to create function specific configfs
 	   attributes
@@ -251,7 +251,7 @@ pci-ep-cfs.c can be used as reference for using these APIs.
 * pci_epf_bind()
 
    pci_epf_bind() should be invoked when the EPF device has been bound to
-   a EPC device.
+   an EPC device.
 
 * pci_epf_unbind()
 

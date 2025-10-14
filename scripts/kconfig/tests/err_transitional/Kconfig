@@ -1,0 +1,52 @@
+# SPDX-License-Identifier: GPL-2.0
+# Test that transitional symbols cannot have properties other than help
+
+config BAD_DEFAULT
+	bool
+	transitional
+	default y
+	help
+	  This transitional symbol illegally has a default property.
+
+config BAD_PROMPT
+	bool
+	transitional
+	prompt "Bad prompt"
+	help
+	  This transitional symbol illegally has a prompt.
+
+config BAD_SELECT
+	bool
+	transitional
+	select OTHER_SYMBOL
+	help
+	  This transitional symbol illegally has a select.
+
+config BAD_IMPLY
+	bool
+	transitional
+	imply OTHER_SYMBOL
+	help
+	  This transitional symbol illegally has an imply.
+
+config BAD_DEPENDS
+	bool
+	transitional
+	depends on OTHER_SYMBOL
+	help
+	  This transitional symbol illegally has a depends.
+
+config BAD_RANGE
+	int
+	transitional
+	range 1 10
+	help
+	  This transitional symbol illegally has a range.
+
+config BAD_NO_TYPE
+	transitional
+	help
+	  This transitional symbol illegally has no type specified.
+
+config OTHER_SYMBOL
+	bool

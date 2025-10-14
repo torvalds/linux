@@ -126,8 +126,20 @@
  * not intended for normal execution and will taint the kernel with TAINT_TEST
  * when used.
  *
- * Currently this is implemented only for post and mid context restore.
- * Examples:
+ * The syntax allows to pass straight instructions to be executed by the engine
+ * in a batch buffer or set specific registers.
+ *
+ * #. Generic instruction::
+ *
+ *	<engine-class> cmd <instr> [[dword0] [dword1] [...]]
+ *
+ * #. Simple register setting::
+ *
+ *	<engine-class> reg <address> <value>
+ *
+ * Commands are saved per engine class: all instances of that class will execute
+ * those commands during context switch. The instruction, dword arguments,
+ * addresses and values are in hex format like in the examples below.
  *
  * #. Execute a LRI command to write 0xDEADBEEF to register 0x4f10 after the
  *    normal context restore::
@@ -154,7 +166,8 @@
  *       When using multiple lines, make sure to use a command that is
  *       implemented with a single write syscall, like HEREDOC.
  *
- * These attributes can only be set before binding to the device.
+ * Currently this is implemented only for post and mid context restore and
+ * these attributes can only be set before binding to the device.
  *
  * Remove devices
  * ==============
@@ -324,8 +337,8 @@ static const struct engine_info *lookup_engine_info(const char *pattern, u64 *ma
 			continue;
 
 		pattern += strlen(engine_info[i].cls);
-		if (!mask && !*pattern)
-			return &engine_info[i];
+		if (!mask)
+			return *pattern ? NULL : &engine_info[i];
 
 		if (!strcmp(pattern, "*")) {
 			*mask = engine_info[i].mask;

@@ -70,7 +70,7 @@ static int nd_region_probe(struct device *dev)
 	 * "<async-registered>/<total>" namespace count.
 	 */
 	dev_err(dev, "failed to register %d namespace%s, continuing...\n",
-			err, err == 1 ? "" : "s");
+			err, str_plural(err));
 	return 0;
 }
 
@@ -87,13 +87,13 @@ static void nd_region_remove(struct device *dev)
 	device_for_each_child(dev, NULL, child_unregister);
 
 	/* flush attribute readers and disable */
-	nvdimm_bus_lock(dev);
-	nd_region->ns_seed = NULL;
-	nd_region->btt_seed = NULL;
-	nd_region->pfn_seed = NULL;
-	nd_region->dax_seed = NULL;
-	dev_set_drvdata(dev, NULL);
-	nvdimm_bus_unlock(dev);
+	scoped_guard(nvdimm_bus, dev) {
+		nd_region->ns_seed = NULL;
+		nd_region->btt_seed = NULL;
+		nd_region->pfn_seed = NULL;
+		nd_region->dax_seed = NULL;
+		dev_set_drvdata(dev, NULL);
+	}
 
 	/*
 	 * Note, this assumes device_lock() context to not race

@@ -60,31 +60,31 @@
 		poll-interval = <100>;
 		autorepeat;
 
-		button0 {
+		button-0 {
 			label = "joy_enter";
 			linux,code = <KEY_ENTER>;
 			gpios = <&gpio LPC_GPIO(4,8) GPIO_ACTIVE_LOW>;
 		};
 
-		button1 {
+		button-1 {
 			label = "joy_left";
 			linux,code = <KEY_LEFT>;
 			gpios = <&gpio LPC_GPIO(4,9) GPIO_ACTIVE_LOW>;
 		};
 
-		button2 {
+		button-2 {
 			label = "joy_up";
 			linux,code = <KEY_UP>;
 			gpios = <&gpio LPC_GPIO(4,10) GPIO_ACTIVE_LOW>;
 		};
 
-		button3 {
+		button-3 {
 			label = "joy_right";
 			linux,code = <KEY_RIGHT>;
 			gpios = <&gpio LPC_GPIO(4,12) GPIO_ACTIVE_LOW>;
 		};
 
-		button4 {
+		button-4 {
 			label = "joy_down";
 			linux,code = <KEY_DOWN>;
 			gpios = <&gpio LPC_GPIO(4,13) GPIO_ACTIVE_LOW>;
@@ -403,7 +403,7 @@
 	};
 
 	ssp0_pins: ssp0-pins {
-		ssp0_sck_miso_mosi {
+		ssp0_sck_miso_mosi_cfg {
 			pins = "pf_0", "pf_2", "pf_3";
 			function = "ssp0";
 			slew-rate = <1>;
@@ -412,7 +412,7 @@
 			input-schmitt-disable;
 		};
 
-		ssp0_ssel {
+		ssp0_ssel_cfg {
 			pins = "pf_1";
 			function = "ssp0";
 			bias-pull-up;
@@ -452,12 +452,12 @@
 	};
 
 	usb0_pins: usb0-pins {
-		usb0_pwr_enable {
+		usb0_pwr_enable_cfg {
 			pins = "p2_3";
 			function = "usb0";
 		};
 
-		usb0_pwr_fault {
+		usb0_pwr_fault_cfg {
 			pins = "p8_0";
 			function = "usb0";
 			bias-disable;
@@ -582,8 +582,9 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&spifi_pins>;
 
-	flash {
+	flash@0 {
 		compatible = "jedec,spi-nor";
+		reg = <0>;
 		spi-cpol;
 		spi-cpha;
 		spi-rx-bus-width = <4>;

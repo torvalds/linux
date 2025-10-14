@@ -125,6 +125,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_ES7134
 	imply SND_SOC_ES7241
 	imply SND_SOC_FRAMER
+	imply SND_SOC_FS210X
 	imply SND_SOC_GTM601
 	imply SND_SOC_HDAC_HDMI
 	imply SND_SOC_HDAC_HDA
@@ -177,6 +178,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_NAU8825
 	imply SND_SOC_HDMI_CODEC
 	imply SND_SOC_PCM1681
+	imply SND_SOC_PCM1754
 	imply SND_SOC_PCM1789_I2C
 	imply SND_SOC_PCM179X_I2C
 	imply SND_SOC_PCM179X_SPI
@@ -192,6 +194,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_PCM512x_SPI
 	imply SND_SOC_PCM6240
 	imply SND_SOC_PEB2466
+	imply SND_SOC_PM4125_SDW
 	imply SND_SOC_RK3308
 	imply SND_SOC_RK3328
 	imply SND_SOC_RK817
@@ -265,6 +268,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_TAS2770
 	imply SND_SOC_TAS2780
 	imply SND_SOC_TAS2781_I2C
+	imply SND_SOC_TAS2783_SDW
 	imply SND_SOC_TAS5086
 	imply SND_SOC_TAS571X
 	imply SND_SOC_TAS5720
@@ -300,7 +304,6 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_LPASS_MACRO_COMMON
 	imply SND_SOC_LPASS_RX_MACRO
 	imply SND_SOC_LPASS_TX_MACRO
-	imply SND_SOC_WL1273
 	imply SND_SOC_WM0010
 	imply SND_SOC_WM1250_EV1
 	imply SND_SOC_WM2000
@@ -622,6 +625,7 @@ config SND_SOC_AK4619
 config SND_SOC_AK4641
 	tristate
 	depends on I2C
+	depends on GPIOLIB_LEGACY
 
 config SND_SOC_AK4642
 	tristate "AKM AK4642 CODEC"
@@ -1232,6 +1236,21 @@ config SND_SOC_FRAMER
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-soc-framer.
 
+config SND_SOC_FS_AMP_LIB
+	select CRC16
+	tristate
+
+config SND_SOC_FS210X
+	tristate 'FourSemi FS2104/5S digital audio amplifier'
+	depends on I2C
+	select GPIOLIB
+	select REGMAP_I2C
+	select SND_SOC_FS_AMP_LIB
+	help
+	  Enable support for FourSemi FS2104/5S digital audio amplifier.
+	  The FS2104/5S are Inductor-Less, Stereo, Closed-Loop,
+	  Digital Input Class-D Power Amplifiers with Enhanced Signal Processing.
+	  The amplifiers support I2C and I2S/TDM.
 
 config SND_SOC_GTM601
 	tristate 'GTM601 UMTS modem audio codec'
@@ -1426,6 +1445,10 @@ config SND_SOC_PCM1681
 	tristate "Texas Instruments PCM1681 CODEC"
 	depends on I2C
 
+config SND_SOC_PCM1754
+	tristate "Texas Instruments PCM1754 CODEC"
+	depends on GPIOLIB
+
 config SND_SOC_PCM1789
 	tristate
 
@@ -1541,6 +1564,23 @@ config SND_SOC_PEB2466
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-soc-peb2466.
+
+config SND_SOC_PM4125
+	depends on SND_SOC_PM4125_SDW
+	tristate
+	depends on SOUNDWIRE || !SOUNDWIRE
+
+config SND_SOC_PM4125_SDW
+	tristate "PM4125 audio codec - SDW"
+	select SND_SOC_PM4125
+	select SND_SOC_WCD_MBHC
+	select REGMAP_IRQ
+	depends on SOUNDWIRE
+	select REGMAP_SOUNDWIRE
+	help
+	  The PMIC PM4125 has an in-built audio codec IC used with SoCs
+	  like QCM2290, and it is connected via soundwire and SPMI.
+	  To compile this codec driver say Y or m.
 
 config SND_SOC_RK3308
 	tristate "Rockchip RK3308 audio CODEC"
@@ -1902,6 +1942,7 @@ config SND_SOC_SGTL5000
 
 config SND_SOC_SI476X
 	tristate
+	depends on MFD_SI476X_CORE
 
 config SND_SOC_SIGMADSP
 	tristate
@@ -2058,6 +2099,19 @@ config SND_SOC_TAS2781_I2C
 	  algo coefficient setting, for one, two or even multiple TAS2781
 	  chips.
 
+config SND_SOC_TAS2783_SDW
+	tristate "Texas Instruments TAS2783 speaker amplifier (sdw)"
+	depends on SOUNDWIRE
+	depends on EFI
+	select REGMAP_SOUNDWIRE
+	select REGMAP_SOUNDWIRE_MBQ
+	select CRC32
+	help
+	  Enable support for Texas Instruments TAS2783A Digital input
+	  mono Class-D and DSP-inside audio power amplifiers. TAS2783
+	  driver implements a flexible and configurable algorithm
+	  cofficient setting, for one, two or multiple TAS2783 chips.
+
 config SND_SOC_TAS5086
 	tristate "Texas Instruments TAS5086 speaker amplifier"
 	depends on I2C
@@ -2175,6 +2229,7 @@ config SND_SOC_TLV320AIC3X_SPI
 config SND_SOC_TLV320DAC33
 	tristate
 	depends on I2C
+	depends on GPIOLIB_LEGACY
 
 config SND_SOC_TLV320ADCX140
 	tristate "Texas Instruments TLV320ADCX140 CODEC family"
@@ -2229,8 +2284,12 @@ config SND_SOC_UDA1342
 config SND_SOC_UDA1380
 	tristate
 	depends on I2C
+	depends on GPIOLIB_LEGACY
 
 config SND_SOC_WCD_CLASSH
+	tristate
+
+config SND_SOC_WCD_COMMON
 	tristate
 
 config SND_SOC_WCD9335
@@ -2254,6 +2313,7 @@ config SND_SOC_WCD934X
 	select REGMAP_IRQ
 	select REGMAP_SLIMBUS
 	select SND_SOC_WCD_CLASSH
+	select SND_SOC_WCD_COMMON
 	select SND_SOC_WCD_MBHC
 	depends on MFD_WCD934X || COMPILE_TEST
 	help
@@ -2265,6 +2325,7 @@ config SND_SOC_WCD937X
 	tristate
 	depends on SOUNDWIRE || !SOUNDWIRE
 	select SND_SOC_WCD_CLASSH
+	select SND_SOC_WCD_COMMON
 
 config SND_SOC_WCD937X_SDW
 	tristate "WCD9370/WCD9375 Codec - SDW"
@@ -2284,6 +2345,7 @@ config SND_SOC_WCD938X
 	tristate
 	depends on SOUNDWIRE || !SOUNDWIRE
 	select SND_SOC_WCD_CLASSH
+	select SND_SOC_WCD_COMMON
 	select MULTIPLEXER
 
 config SND_SOC_WCD938X_SDW
@@ -2303,6 +2365,7 @@ config SND_SOC_WCD939X
 	depends on SOUNDWIRE || !SOUNDWIRE
 	depends on TYPEC || !TYPEC
 	select SND_SOC_WCD_CLASSH
+	select SND_SOC_WCD_COMMON
 
 config SND_SOC_WCD939X_SDW
 	tristate "WCD9390/WCD9395 Codec - SDW"
@@ -2315,9 +2378,6 @@ config SND_SOC_WCD939X_SDW
 	help
 	  The WCD9390/9395 is a audio codec IC Integrated in
 	  Qualcomm SoCs like SM8650.
-
-config SND_SOC_WL1273
-	tristate
 
 config SND_SOC_WM0010
 	tristate

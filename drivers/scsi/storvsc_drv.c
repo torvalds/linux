@@ -1615,7 +1615,7 @@ static int storvsc_sdev_configure(struct scsi_device *sdevice,
 	return 0;
 }
 
-static int storvsc_get_chs(struct scsi_device *sdev, struct block_device * bdev,
+static int storvsc_get_chs(struct scsi_device *sdev, struct gendisk *unused,
 			   sector_t capacity, int *info)
 {
 	sector_t nsect = capacity;
@@ -1941,8 +1941,8 @@ static int storvsc_probe(struct hv_device *device,
 	int num_present_cpus = num_present_cpus();
 	struct Scsi_Host *host;
 	struct hv_host_device *host_dev;
-	bool dev_is_ide = ((dev_id->driver_data == IDE_GUID) ? true : false);
-	bool is_fc = ((dev_id->driver_data == SFC_GUID) ? true : false);
+	bool dev_is_ide = dev_id->driver_data == IDE_GUID;
+	bool is_fc = dev_id->driver_data == SFC_GUID;
 	int target = 0;
 	struct storvsc_device *stor_device;
 	int max_sub_channels = 0;

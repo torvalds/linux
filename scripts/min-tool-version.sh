@@ -24,12 +24,10 @@ gcc)
 	fi
 	;;
 llvm)
-	if [ "$SRCARCH" = s390 -o "$SRCARCH" = x86 ]; then
-		echo 15.0.0
-	elif [ "$SRCARCH" = loongarch ]; then
+	if [ "$SRCARCH" = loongarch ]; then
 		echo 18.0.0
 	else
-		echo 13.0.1
+		echo 15.0.0
 	fi
 	;;
 rustc)

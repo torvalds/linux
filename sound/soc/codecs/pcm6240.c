@@ -1353,8 +1353,8 @@ static int pcmdev_gain_ctrl_add(struct pcmdevice_priv *pcm_dev,
 		return 0;
 	}
 
-	pcmdev_controls = devm_kzalloc(pcm_dev->dev,
-		nr_chn * sizeof(struct snd_kcontrol_new), GFP_KERNEL);
+	pcmdev_controls = devm_kcalloc(pcm_dev->dev, nr_chn,
+				       sizeof(struct snd_kcontrol_new), GFP_KERNEL);
 	if (!pcmdev_controls)
 		return -ENOMEM;
 

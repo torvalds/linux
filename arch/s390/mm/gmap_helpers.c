@@ -15,6 +15,7 @@
 #include <linux/pagewalk.h>
 #include <linux/ksm.h>
 #include <asm/gmap_helpers.h>
+#include <asm/pgtable.h>
 
 /**
  * ptep_zap_swap_entry() - discard a swap entry.
@@ -47,6 +48,7 @@ void gmap_helper_zap_one_page(struct mm_struct *mm, unsigned long vmaddr)
 {
 	struct vm_area_struct *vma;
 	spinlock_t *ptl;
+	pgste_t pgste;
 	pte_t *ptep;
 
 	mmap_assert_locked(mm);
@@ -60,8 +62,16 @@ void gmap_helper_zap_one_page(struct mm_struct *mm, unsigned long vmaddr)
 	ptep = get_locked_pte(mm, vmaddr, &ptl);
 	if (unlikely(!ptep))
 		return;
-	if (pte_swap(*ptep))
+	if (pte_swap(*ptep)) {
+		preempt_disable();
+		pgste = pgste_get_lock(ptep);
+
 		ptep_zap_swap_entry(mm, pte_to_swp_entry(*ptep));
+		pte_clear(mm, vmaddr, ptep);
+
+		pgste_set_unlock(ptep, pgste);
+		preempt_enable();
+	}
 	pte_unmap_unlock(ptep, ptl);
 }
 EXPORT_SYMBOL_GPL(gmap_helper_zap_one_page);

@@ -4502,8 +4502,16 @@ static bool ieee80211_accept_frame(struct ieee80211_rx_data *rx)
 		       (ieee80211_is_auth(hdr->frame_control) &&
 			ether_addr_equal(sdata->vif.addr, hdr->addr1));
 	case NL80211_IFTYPE_NAN:
-		/* Currently no frames on NAN interface are allowed */
-		return false;
+		/* Accept only frames that are addressed to the NAN cluster
+		 * (based on the Cluster ID). From these frames, accept only
+		 * action frames or authentication frames that are addressed to
+		 * the local NAN interface.
+		 */
+		return memcmp(sdata->wdev.u.nan.cluster_id,
+			      hdr->addr3, ETH_ALEN) == 0 &&
+			(ieee80211_is_public_action(hdr, skb->len) ||
+			 (ieee80211_is_auth(hdr->frame_control) &&
+			  ether_addr_equal(sdata->vif.addr, hdr->addr1)));
 	default:
 		break;
 	}
@@ -5230,11 +5238,19 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 			}
 
 			rx.sdata = prev_sta->sdata;
+			if (!status->link_valid && prev_sta->sta.mlo) {
+				struct link_sta_info *link_sta;
+
+				link_sta = link_sta_info_get_bss(rx.sdata,
+								 hdr->addr2);
+				if (!link_sta)
+					continue;
+
+				link_id = link_sta->link_id;
+			}
+
 			if (!ieee80211_rx_data_set_sta(&rx, prev_sta, link_id))
 				goto out;
-
-			if (!status->link_valid && prev_sta->sta.mlo)
-				continue;
 
 			ieee80211_prepare_and_rx_handle(&rx, skb, false);
 
@@ -5243,10 +5259,18 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 
 		if (prev_sta) {
 			rx.sdata = prev_sta->sdata;
-			if (!ieee80211_rx_data_set_sta(&rx, prev_sta, link_id))
-				goto out;
+			if (!status->link_valid && prev_sta->sta.mlo) {
+				struct link_sta_info *link_sta;
 
-			if (!status->link_valid && prev_sta->sta.mlo)
+				link_sta = link_sta_info_get_bss(rx.sdata,
+								 hdr->addr2);
+				if (!link_sta)
+					goto out;
+
+				link_id = link_sta->link_id;
+			}
+
+			if (!ieee80211_rx_data_set_sta(&rx, prev_sta, link_id))
 				goto out;
 
 			if (ieee80211_prepare_and_rx_handle(&rx, skb, true))

@@ -30,6 +30,7 @@ properties:
   clock-frequency:
     default: 24000000
     description: extclk clock frequency
+    deprecated: true
 
   gpios:
     maxItems: 1
@@ -80,8 +81,11 @@ examples:
         sensor@10 {
             compatible = "samsung,s5k6a3";
             reg = <0x10>;
-            clock-frequency = <24000000>;
+
             clocks = <&camera 1>;
+            assigned-clocks = <&camera 1>;
+            assigned-clock-rates = <24000000>;
+
             clock-names = "extclk";
             gpios = <&gpm1 6 GPIO_ACTIVE_LOW>;
             afvdd-supply = <&ldo19_reg>;

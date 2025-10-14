@@ -11,6 +11,7 @@
 #include <linux/mutex.h>
 #include <linux/property.h>
 #include <linux/slab.h>
+#include <linux/units.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/iio-opaque.h>
@@ -598,6 +599,42 @@ int iio_read_channel_average_raw(struct iio_channel *chan, int *val)
 }
 EXPORT_SYMBOL_GPL(iio_read_channel_average_raw);
 
+int iio_multiply_value(int *result, s64 multiplier,
+		       unsigned int type, int val, int val2)
+{
+	s64 denominator;
+
+	switch (type) {
+	case IIO_VAL_INT:
+		*result = multiplier * val;
+		return IIO_VAL_INT;
+	case IIO_VAL_INT_PLUS_MICRO:
+	case IIO_VAL_INT_PLUS_NANO:
+		switch (type) {
+		case IIO_VAL_INT_PLUS_MICRO:
+			denominator = MICRO;
+			break;
+		case IIO_VAL_INT_PLUS_NANO:
+			denominator = NANO;
+			break;
+		}
+		*result = multiplier * abs(val);
+		*result += div_s64(multiplier * abs(val2), denominator);
+		if (val < 0 || val2 < 0)
+			*result *= -1;
+		return IIO_VAL_INT;
+	case IIO_VAL_FRACTIONAL:
+		*result = div_s64(multiplier * val, val2);
+		return IIO_VAL_INT;
+	case IIO_VAL_FRACTIONAL_LOG2:
+		*result = (multiplier * val) >> val2;
+		return IIO_VAL_INT;
+	default:
+		return -EINVAL;
+	}
+}
+EXPORT_SYMBOL_NS_GPL(iio_multiply_value, "IIO_UNIT_TEST");
+
 static int iio_convert_raw_to_processed_unlocked(struct iio_channel *chan,
 						 int raw, int *processed,
 						 unsigned int scale)
@@ -605,6 +642,7 @@ static int iio_convert_raw_to_processed_unlocked(struct iio_channel *chan,
 	int scale_type, scale_val, scale_val2;
 	int offset_type, offset_val, offset_val2;
 	s64 raw64 = raw;
+	int ret;
 
 	offset_type = iio_channel_read(chan, &offset_val, &offset_val2,
 				       IIO_CHAN_INFO_OFFSET);
@@ -639,40 +677,14 @@ static int iio_convert_raw_to_processed_unlocked(struct iio_channel *chan,
 		 * If no channel scaling is available apply consumer scale to
 		 * raw value and return.
 		 */
-		*processed = raw * scale;
+		*processed = raw64 * scale;
 		return 0;
 	}
 
-	switch (scale_type) {
-	case IIO_VAL_INT:
-		*processed = raw64 * scale_val * scale;
-		break;
-	case IIO_VAL_INT_PLUS_MICRO:
-		if (scale_val2 < 0)
-			*processed = -raw64 * scale_val * scale;
-		else
-			*processed = raw64 * scale_val * scale;
-		*processed += div_s64(raw64 * (s64)scale_val2 * scale,
-				      1000000LL);
-		break;
-	case IIO_VAL_INT_PLUS_NANO:
-		if (scale_val2 < 0)
-			*processed = -raw64 * scale_val * scale;
-		else
-			*processed = raw64 * scale_val * scale;
-		*processed += div_s64(raw64 * (s64)scale_val2 * scale,
-				      1000000000LL);
-		break;
-	case IIO_VAL_FRACTIONAL:
-		*processed = div_s64(raw64 * (s64)scale_val * scale,
-				     scale_val2);
-		break;
-	case IIO_VAL_FRACTIONAL_LOG2:
-		*processed = (raw64 * (s64)scale_val * scale) >> scale_val2;
-		break;
-	default:
-		return -EINVAL;
-	}
+	ret = iio_multiply_value(processed, raw64 * scale,
+				 scale_type, scale_val, scale_val2);
+	if (ret < 0)
+		return ret;
 
 	return 0;
 }
@@ -714,20 +726,19 @@ int iio_read_channel_processed_scale(struct iio_channel *chan, int *val,
 				     unsigned int scale)
 {
 	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(chan->indio_dev);
-	int ret;
+	int ret, pval, pval2;
 
 	guard(mutex)(&iio_dev_opaque->info_exist_lock);
 	if (!chan->indio_dev->info)
 		return -ENODEV;
 
 	if (iio_channel_has_info(chan->channel, IIO_CHAN_INFO_PROCESSED)) {
-		ret = iio_channel_read(chan, val, NULL,
+		ret = iio_channel_read(chan, &pval, &pval2,
 				       IIO_CHAN_INFO_PROCESSED);
 		if (ret < 0)
 			return ret;
-		*val *= scale;
 
-		return ret;
+		return iio_multiply_value(val, scale, ret, pval, pval2);
 	} else {
 		ret = iio_channel_read(chan, val, NULL, IIO_CHAN_INFO_RAW);
 		if (ret < 0)

@@ -16,6 +16,7 @@
 #include <linux/fs.h>
 #include <linux/atomic.h>
 #include <linux/refcount.h>
+#include <linux/ref_tracker.h>
 #include "ctree.h"
 
 struct btrfs_disk_key;
@@ -42,6 +43,22 @@ struct btrfs_delayed_root {
 	atomic_t items_seq;	/* for delayed items */
 	int nodes;		/* for delayed nodes */
 	wait_queue_head_t wait;
+};
+
+struct btrfs_ref_tracker_dir {
+#ifdef CONFIG_BTRFS_DEBUG
+	struct ref_tracker_dir dir;
+#else
+	struct {} tracker;
+#endif
+};
+
+struct btrfs_ref_tracker {
+#ifdef CONFIG_BTRFS_DEBUG
+	struct ref_tracker *tracker;
+#else
+	struct {} tracker;
+#endif
 };
 
 #define BTRFS_DELAYED_NODE_IN_LIST	0
@@ -78,6 +95,12 @@ struct btrfs_delayed_node {
 	 * actual number of leaves we end up using. Protected by @mutex.
 	 */
 	u32 index_item_leaves;
+	/* Track all references to this delayed node. */
+	struct btrfs_ref_tracker_dir ref_dir;
+	/* Track delayed node reference stored in node list. */
+	struct btrfs_ref_tracker node_list_tracker;
+	/* Track delayed node reference stored in inode cache. */
+	struct btrfs_ref_tracker inode_cache_tracker;
 };
 
 struct btrfs_delayed_item {
@@ -168,5 +191,75 @@ void __cold btrfs_delayed_inode_exit(void);
 
 /* for debugging */
 void btrfs_assert_delayed_root_empty(struct btrfs_fs_info *fs_info);
+
+#define BTRFS_DELAYED_NODE_REF_TRACKER_QUARANTINE_COUNT		16
+#define BTRFS_DELAYED_NODE_REF_TRACKER_DISPLAY_LIMIT		16
+
+#ifdef CONFIG_BTRFS_DEBUG
+static inline void btrfs_delayed_node_ref_tracker_dir_init(struct btrfs_delayed_node *node)
+{
+	if (!btrfs_test_opt(node->root->fs_info, REF_TRACKER))
+		return;
+
+	ref_tracker_dir_init(&node->ref_dir.dir,
+			     BTRFS_DELAYED_NODE_REF_TRACKER_QUARANTINE_COUNT,
+			     "delayed_node");
+}
+
+static inline void btrfs_delayed_node_ref_tracker_dir_exit(struct btrfs_delayed_node *node)
+{
+	if (!btrfs_test_opt(node->root->fs_info, REF_TRACKER))
+		return;
+
+	ref_tracker_dir_exit(&node->ref_dir.dir);
+}
+
+static inline void btrfs_delayed_node_ref_tracker_dir_print(struct btrfs_delayed_node *node)
+{
+	if (!btrfs_test_opt(node->root->fs_info, REF_TRACKER))
+		return;
+
+	ref_tracker_dir_print(&node->ref_dir.dir,
+			      BTRFS_DELAYED_NODE_REF_TRACKER_DISPLAY_LIMIT);
+}
+
+static inline int btrfs_delayed_node_ref_tracker_alloc(struct btrfs_delayed_node *node,
+						       struct btrfs_ref_tracker *tracker,
+						       gfp_t gfp)
+{
+	if (!btrfs_test_opt(node->root->fs_info, REF_TRACKER))
+		return 0;
+
+	return ref_tracker_alloc(&node->ref_dir.dir, &tracker->tracker, gfp);
+}
+
+static inline int btrfs_delayed_node_ref_tracker_free(struct btrfs_delayed_node *node,
+						      struct btrfs_ref_tracker *tracker)
+{
+	if (!btrfs_test_opt(node->root->fs_info, REF_TRACKER))
+		return 0;
+
+	return ref_tracker_free(&node->ref_dir.dir, &tracker->tracker);
+}
+#else
+static inline void btrfs_delayed_node_ref_tracker_dir_init(struct btrfs_delayed_node *node) { }
+
+static inline void btrfs_delayed_node_ref_tracker_dir_exit(struct btrfs_delayed_node *node) { }
+
+static inline void btrfs_delayed_node_ref_tracker_dir_print(struct btrfs_delayed_node *node) { }
+
+static inline int btrfs_delayed_node_ref_tracker_alloc(struct btrfs_delayed_node *node,
+						       struct btrfs_ref_tracker *tracker,
+						       gfp_t gfp)
+{
+	return 0;
+}
+
+static inline int btrfs_delayed_node_ref_tracker_free(struct btrfs_delayed_node *node,
+						      struct btrfs_ref_tracker *tracker)
+{
+	return 0;
+}
+#endif
 
 #endif

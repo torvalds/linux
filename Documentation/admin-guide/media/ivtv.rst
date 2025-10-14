@@ -3,7 +3,7 @@
 The ivtv driver
 ===============
 
-Author: Hans Verkuil <hverkuil@xs4all.nl>
+Author: Hans Verkuil <hverkuil@kernel.org>
 
 This is a v4l2 device driver for the Conexant cx23415/6 MPEG encoder/decoder.
 The cx23415 can do both encoding and decoding, the cx23416 can only do MPEG

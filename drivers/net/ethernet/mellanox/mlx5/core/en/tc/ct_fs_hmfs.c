@@ -136,8 +136,8 @@ mlx5_ct_fs_hmfs_matcher_get(struct mlx5_ct_fs *fs, struct mlx5_flow_spec *spec,
 	hws_bwc_matcher = mlx5_ct_fs_hmfs_matcher_create(fs, tbl, spec, ipv4, tcp, gre);
 	if (IS_ERR(hws_bwc_matcher)) {
 		netdev_warn(fs->netdev,
-			    "ct_fs_hmfs: failed to create bwc matcher (nat %d, ipv4 %d, tcp %d, gre %d), err: %ld\n",
-			    nat, ipv4, tcp, gre, PTR_ERR(hws_bwc_matcher));
+			    "ct_fs_hmfs: failed to create bwc matcher (nat %d, ipv4 %d, tcp %d, gre %d), err: %pe\n",
+			    nat, ipv4, tcp, gre, hws_bwc_matcher);
 
 		hmfs_matcher = ERR_CAST(hws_bwc_matcher);
 		goto out_unlock;

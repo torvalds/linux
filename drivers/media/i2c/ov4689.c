@@ -907,20 +907,12 @@ static int ov4689_probe(struct i2c_client *client)
 
 	ov4689->cur_mode = &supported_modes[OV4689_MODE_2688_1520];
 
-	ov4689->xvclk = devm_clk_get_optional(dev, NULL);
+	ov4689->xvclk = devm_v4l2_sensor_clk_get(dev, NULL);
 	if (IS_ERR(ov4689->xvclk))
 		return dev_err_probe(dev, PTR_ERR(ov4689->xvclk),
 				     "Failed to get external clock\n");
 
-	if (!ov4689->xvclk) {
-		dev_dbg(dev,
-			"No clock provided, using clock-frequency property\n");
-		device_property_read_u32(dev, "clock-frequency",
-					 &ov4689->clock_rate);
-	} else {
-		ov4689->clock_rate = clk_get_rate(ov4689->xvclk);
-	}
-
+	ov4689->clock_rate = clk_get_rate(ov4689->xvclk);
 	if (ov4689->clock_rate != OV4689_XVCLK_FREQ) {
 		dev_err(dev,
 			"External clock rate mismatch: got %d Hz, expected %d Hz\n",

@@ -301,7 +301,7 @@ do {									\
 
 #endif
 
-#ifdef __ASSEMBLY__
+#ifdef __ASSEMBLER__
 
 #define _ssnop ___ssnop
 #define	_ehb ___ehb
@@ -417,6 +417,6 @@ do {									\
  */
 extern void mips_ihb(void);
 
-#endif /* __ASSEMBLY__  */
+#endif /* __ASSEMBLER__  */
 
 #endif /* _ASM_HAZARDS_H */

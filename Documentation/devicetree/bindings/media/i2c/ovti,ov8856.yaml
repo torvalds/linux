@@ -37,6 +37,7 @@ properties:
   clock-frequency:
     description:
       Frequency of the xvclk clock in Hertz.
+    deprecated: true
 
   dovdd-supply:
     description:
@@ -87,7 +88,6 @@ required:
   - reg
   - clocks
   - clock-names
-  - clock-frequency
   - dovdd-supply
   - avdd-supply
   - dvdd-supply
@@ -114,7 +114,6 @@ examples:
 
             clocks = <&cam_osc>;
             clock-names = "xvclk";
-            clock-frequency = <19200000>;
 
             avdd-supply = <&mt6358_vcama2_reg>;
             dvdd-supply = <&mt6358_vcamd_reg>;

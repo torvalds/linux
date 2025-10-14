@@ -6,6 +6,7 @@
  *
  * Author: Eric Biggers <ebiggers@google.com>
  */
+#include <kunit/run-in-irq-context.h>
 #include <kunit/test.h>
 #include <linux/crc7.h>
 #include <linux/crc16.h>
@@ -141,6 +142,54 @@ static size_t generate_random_length(size_t max_length)
 	return len % (max_length + 1);
 }
 
+#define IRQ_TEST_DATA_LEN 512
+#define IRQ_TEST_NUM_BUFFERS 3 /* matches max concurrency level */
+
+struct crc_irq_test_state {
+	const struct crc_variant *v;
+	u64 initial_crc;
+	u64 expected_crcs[IRQ_TEST_NUM_BUFFERS];
+	atomic_t seqno;
+};
+
+/*
+ * Compute the CRC of one of the test messages and verify that it matches the
+ * expected CRC from @state->expected_crcs.  To increase the chance of detecting
+ * problems, cycle through multiple messages.
+ */
+static bool crc_irq_test_func(void *state_)
+{
+	struct crc_irq_test_state *state = state_;
+	const struct crc_variant *v = state->v;
+	u32 i = (u32)atomic_inc_return(&state->seqno) % IRQ_TEST_NUM_BUFFERS;
+	u64 actual_crc = v->func(state->initial_crc,
+				 &test_buffer[i * IRQ_TEST_DATA_LEN],
+				 IRQ_TEST_DATA_LEN);
+
+	return actual_crc == state->expected_crcs[i];
+}
+
+/*
+ * Test that if CRCs are computed in task, softirq, and hardirq context
+ * concurrently, then all results are as expected.
+ */
+static void crc_interrupt_context_test(struct kunit *test,
+				       const struct crc_variant *v)
+{
+	struct crc_irq_test_state state = {
+		.v = v,
+		.initial_crc = generate_random_initial_crc(v),
+	};
+
+	for (int i = 0; i < IRQ_TEST_NUM_BUFFERS; i++) {
+		state.expected_crcs[i] = crc_ref(
+			v, state.initial_crc,
+			&test_buffer[i * IRQ_TEST_DATA_LEN], IRQ_TEST_DATA_LEN);
+	}
+
+	kunit_run_irq_test(test, crc_irq_test_func, 100000, &state);
+}
+
 /* Test that v->func gives the same CRCs as a reference implementation. */
 static void crc_test(struct kunit *test, const struct crc_variant *v)
 {
@@ -149,7 +198,6 @@ static void crc_test(struct kunit *test, const struct crc_variant *v)
 	for (i = 0; i < CRC_KUNIT_NUM_TEST_ITERS; i++) {
 		u64 init_crc, expected_crc, actual_crc;
 		size_t len, offset;
-		bool nosimd;
 
 		init_crc = generate_random_initial_crc(v);
 		len = generate_random_length(CRC_KUNIT_MAX_LEN);
@@ -168,22 +216,18 @@ static void crc_test(struct kunit *test, const struct crc_variant *v)
 			/* Refresh the data occasionally. */
 			prandom_bytes_state(&rng, &test_buffer[offset], len);
 
-		nosimd = rand32() % 8 == 0;
-
 		/*
 		 * Compute the CRC, and verify that it equals the CRC computed
 		 * by a simple bit-at-a-time reference implementation.
 		 */
 		expected_crc = crc_ref(v, init_crc, &test_buffer[offset], len);
-		if (nosimd)
-			local_irq_disable();
 		actual_crc = v->func(init_crc, &test_buffer[offset], len);
-		if (nosimd)
-			local_irq_enable();
 		KUNIT_EXPECT_EQ_MSG(test, expected_crc, actual_crc,
-				    "Wrong result with len=%zu offset=%zu nosimd=%d",
-				    len, offset, nosimd);
+				    "Wrong result with len=%zu offset=%zu",
+				    len, offset);
 	}
+
+	crc_interrupt_context_test(test, v);
 }
 
 static __always_inline void

@@ -960,7 +960,7 @@ module_param_named(tmz, amdgpu_tmz, int, 0444);
  */
 MODULE_PARM_DESC(
 	freesync_video,
-	"Enable freesync modesetting optimization feature (0 = off (default), 1 = on)");
+	"Adds additional modes via VRR for refresh changes without a full modeset (0 = off (default), 1 = on)");
 module_param_named(freesync_video, amdgpu_freesync_vid_mode, uint, 0444);
 
 /**
@@ -2674,7 +2674,7 @@ static int amdgpu_pmops_thaw(struct device *dev)
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
 
 	/* do not resume device if it's normal hibernation */
-	if (!pm_hibernate_is_recovering())
+	if (!pm_hibernate_is_recovering() && !pm_hibernation_mode_is_suspend())
 		return 0;
 
 	return amdgpu_device_resume(drm_dev, true);

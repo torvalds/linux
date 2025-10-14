@@ -398,30 +398,28 @@ static void amdgpu_connector_add_common_modes(struct drm_encoder *encoder,
 	struct drm_display_mode *mode = NULL;
 	struct drm_display_mode *native_mode = &amdgpu_encoder->native_mode;
 	int i;
-	static const struct mode_size {
+	int n;
+	struct mode_size {
+		char name[DRM_DISPLAY_MODE_LEN];
 		int w;
 		int h;
-	} common_modes[17] = {
-		{ 640,  480},
-		{ 720,  480},
-		{ 800,  600},
-		{ 848,  480},
-		{1024,  768},
-		{1152,  768},
-		{1280,  720},
-		{1280,  800},
-		{1280,  854},
-		{1280,  960},
-		{1280, 1024},
-		{1440,  900},
-		{1400, 1050},
-		{1680, 1050},
-		{1600, 1200},
-		{1920, 1080},
-		{1920, 1200}
+	} common_modes[] = {
+		{  "640x480",  640,  480},
+		{  "800x600",  800,  600},
+		{ "1024x768", 1024,  768},
+		{ "1280x720", 1280,  720},
+		{ "1280x800", 1280,  800},
+		{"1280x1024", 1280, 1024},
+		{ "1440x900", 1440,  900},
+		{"1680x1050", 1680, 1050},
+		{"1600x1200", 1600, 1200},
+		{"1920x1080", 1920, 1080},
+		{"1920x1200", 1920, 1200}
 	};
 
-	for (i = 0; i < 17; i++) {
+	n = ARRAY_SIZE(common_modes);
+
+	for (i = 0; i < n; i++) {
 		if (amdgpu_encoder->devices & (ATOM_DEVICE_TV_SUPPORT)) {
 			if (common_modes[i].w > 1024 ||
 			    common_modes[i].h > 768)
@@ -434,12 +432,11 @@ static void amdgpu_connector_add_common_modes(struct drm_encoder *encoder,
 			     common_modes[i].h == native_mode->vdisplay))
 				continue;
 		}
-		if (common_modes[i].w < 320 || common_modes[i].h < 200)
-			continue;
 
 		mode = drm_cvt_mode(dev, common_modes[i].w, common_modes[i].h, 60, false, false, false);
 		if (!mode)
 			return;
+		strscpy(mode->name, common_modes[i].name, DRM_DISPLAY_MODE_LEN);
 
 		drm_mode_probed_add(connector, mode);
 	}

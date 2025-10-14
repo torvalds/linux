@@ -9,9 +9,6 @@ menu "Memory Management options"
 config ARCH_NO_SWAP
 	bool
 
-config ZPOOL
-	bool
-
 menuconfig SWAP
 	bool "Support for paging of anonymous memory (swap)"
 	depends on MMU && BLOCK && !ARCH_NO_SWAP
@@ -26,7 +23,7 @@ config ZSWAP
 	bool "Compressed cache for swap pages"
 	depends on SWAP
 	select CRYPTO
-	select ZPOOL
+	select ZSMALLOC
 	help
 	  A lightweight compressed cache for swap pages.  It takes
 	  pages that are in the process of being swapped out and attempts to
@@ -125,45 +122,18 @@ config ZSWAP_COMPRESSOR_DEFAULT
        default "zstd" if ZSWAP_COMPRESSOR_DEFAULT_ZSTD
        default ""
 
-choice
-	prompt "Default allocator"
-	depends on ZSWAP
-	default ZSWAP_ZPOOL_DEFAULT_ZSMALLOC if MMU
-	help
-	  Selects the default allocator for the compressed cache for
-	  swap pages.
-	  The default is 'zbud' for compatibility, however please do
-	  read the description of each of the allocators below before
-	  making a right choice.
-
-	  The selection made here can be overridden by using the kernel
-	  command line 'zswap.zpool=' option.
-
-config ZSWAP_ZPOOL_DEFAULT_ZSMALLOC
-	bool "zsmalloc"
-	select ZSMALLOC
-	help
-	  Use the zsmalloc allocator as the default allocator.
-endchoice
-
-config ZSWAP_ZPOOL_DEFAULT
-       string
-       depends on ZSWAP
-       default "zsmalloc" if ZSWAP_ZPOOL_DEFAULT_ZSMALLOC
-       default ""
-
 config ZSMALLOC
 	tristate
-	prompt "N:1 compression allocator (zsmalloc)" if (ZSWAP || ZRAM)
-	depends on MMU
-	help
-	  zsmalloc is a slab-based memory allocator designed to store
-	  pages of various compression levels efficiently. It achieves
-	  the highest storage density with the least amount of fragmentation.
+
+if ZSMALLOC
+
+menu "Zsmalloc allocator options"
+	depends on ZSMALLOC
+
+comment "Zsmalloc is a common backend allocator for zswap & zram"
 
 config ZSMALLOC_STAT
 	bool "Export zsmalloc statistics"
-	depends on ZSMALLOC
 	select DEBUG_FS
 	help
 	  This option enables code in the zsmalloc to collect various
@@ -175,7 +145,6 @@ config ZSMALLOC_CHAIN_SIZE
 	int "Maximum number of physical pages per-zspage"
 	default 8
 	range 4 16
-	depends on ZSMALLOC
 	help
 	  This option sets the upper limit on the number of physical pages
 	  that a zmalloc page (zspage) can consist of. The optimal zspage
@@ -190,10 +159,15 @@ config ZSMALLOC_CHAIN_SIZE
 
 	  For more information, see zsmalloc documentation.
 
+endmenu
+
+endif
+
 menu "Slab allocator options"
 
 config SLUB
 	def_bool y
+	select IRQ_WORK
 
 config KVFREE_RCU_BATCHED
 	def_bool y
@@ -439,9 +413,8 @@ config SPARSEMEM_VMEMMAP_ENABLE
 	bool
 
 config SPARSEMEM_VMEMMAP
-	bool "Sparse Memory virtual memmap"
+	def_bool y
 	depends on SPARSEMEM && SPARSEMEM_VMEMMAP_ENABLE
-	default y
 	help
 	  SPARSEMEM_VMEMMAP uses a virtually mapped memmap to optimise
 	  pfn_to_page and page_to_pfn operations.  This is the most
@@ -776,7 +749,6 @@ config MEMORY_FAILURE
 	depends on MMU
 	depends on ARCH_SUPPORTS_MEMORY_FAILURE
 	bool "Enable recovery from hardware memory errors"
-	select MEMORY_ISOLATION
 	select RAS
 	help
 	  Enables code to recover from some memory failures on systems
@@ -822,6 +794,22 @@ config ARCH_WANT_GENERAL_HUGETLB
 
 config ARCH_WANTS_THP_SWAP
 	def_bool n
+
+config PERSISTENT_HUGE_ZERO_FOLIO
+	bool "Allocate a PMD sized folio for zeroing"
+	depends on TRANSPARENT_HUGEPAGE
+	help
+	  Enable this option to reduce the runtime refcounting overhead
+	  of the huge zero folio and expand the places in the kernel
+	  that can use huge zero folios. For instance, block I/O benefits
+	  from access to large folios for zeroing memory.
+
+	  With this option enabled, the huge zero folio is allocated
+	  once and never freed. One full huge page's worth of memory shall
+	  be used.
+
+	  Say Y if your system has lots of memory. Say N if you are
+	  memory constrained.
 
 config MM_ID
 	def_bool n
@@ -1381,6 +1369,8 @@ config PT_RECLAIM
 
 	  Note: now only empty user PTE page table pages will be reclaimed.
 
+config FIND_NORMAL_PAGE
+	def_bool n
 
 source "mm/damon/Kconfig"
 

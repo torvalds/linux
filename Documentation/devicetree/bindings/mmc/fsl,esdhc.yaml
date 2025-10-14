@@ -90,6 +90,7 @@ required:
 
 allOf:
   - $ref: sdhci-common.yaml#
+  - $ref: mmc-controller-common.yaml#
 
 unevaluatedProperties: false
 
