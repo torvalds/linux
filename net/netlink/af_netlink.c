@@ -596,10 +596,8 @@ static void netlink_remove(struct sock *sk)
 
 	table = &nl_table[sk->sk_protocol];
 	if (!rhashtable_remove_fast(&table->hash, &nlk_sk(sk)->node,
-				    netlink_rhashtable_params)) {
-		WARN_ON(refcount_read(&sk->sk_refcnt) == 1);
+				    netlink_rhashtable_params))
 		__sock_put(sk);
-	}
 
 	netlink_table_grab();
 	if (nlk_sk(sk)->subscriptions) {

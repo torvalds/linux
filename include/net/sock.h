@@ -830,11 +830,9 @@ static inline bool sk_del_node_init(struct sock *sk)
 {
 	bool rc = __sk_del_node_init(sk);
 
-	if (rc) {
-		/* paranoid for a while -acme */
-		WARN_ON(refcount_read(&sk->sk_refcnt) == 1);
+	if (rc)
 		__sock_put(sk);
-	}
+
 	return rc;
 }
 #define sk_del_node_init_rcu(sk)	sk_del_node_init(sk)
@@ -852,11 +850,9 @@ static inline bool sk_nulls_del_node_init_rcu(struct sock *sk)
 {
 	bool rc = __sk_nulls_del_node_init_rcu(sk);
 
-	if (rc) {
-		/* paranoid for a while -acme */
-		WARN_ON(refcount_read(&sk->sk_refcnt) == 1);
+	if (rc)
 		__sock_put(sk);
-	}
+
 	return rc;
 }
 
