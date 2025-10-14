@@ -534,8 +534,6 @@ struct smb_version_operations {
 	void (*new_lease_key)(struct cifs_fid *);
 	int (*generate_signingkey)(struct cifs_ses *ses,
 				   struct TCP_Server_Info *server);
-	int (*calc_signature)(struct smb_rqst *, struct TCP_Server_Info *,
-				bool allocate_crypto);
 	int (*set_integrity)(const unsigned int, struct cifs_tcon *tcon,
 			     struct cifsFileInfo *src_file);
 	int (*enum_snapshots)(const unsigned int xid, struct cifs_tcon *tcon,
