@@ -261,9 +261,8 @@ static int gpio_mpsse_direction_input(struct gpio_chip *chip,
 
 	guard(mutex)(&priv->io_mutex);
 	priv->gpio_dir[bank] &= ~BIT(bank_offset);
-	gpio_mpsse_set_bank(priv, bank);
 
-	return 0;
+	return gpio_mpsse_set_bank(priv, bank);
 }
 
 static int gpio_mpsse_get_direction(struct gpio_chip *chip,
