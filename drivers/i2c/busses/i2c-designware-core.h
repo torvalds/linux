@@ -330,7 +330,6 @@ struct dw_i2c_dev {
 
 struct i2c_dw_semaphore_callbacks {
 	int	(*probe)(struct dw_i2c_dev *dev);
-	void	(*remove)(struct dw_i2c_dev *dev);
 };
 
 int i2c_dw_init_regmap(struct dw_i2c_dev *dev);
