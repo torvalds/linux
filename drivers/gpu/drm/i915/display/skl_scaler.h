@@ -46,6 +46,10 @@ void adl_scaler_ecc_mask(const struct intel_crtc_state *crtc_state);
 
 void adl_scaler_ecc_unmask(const struct intel_crtc_state *crtc_state);
 
+unsigned int skl_scaler_max_total_scale(const struct intel_crtc_state *crtc_state);
+unsigned int skl_scaler_max_scale(const struct intel_crtc_state *crtc_state);
+unsigned int skl_scaler_max_hscale(const struct intel_crtc_state *crtc_state);
+
 unsigned int skl_scaler_1st_prefill_adjustment_worst(const struct intel_crtc_state *crtc_state);
 unsigned int skl_scaler_2nd_prefill_adjustment_worst(const struct intel_crtc_state *crtc_state);
 unsigned int skl_scaler_1st_prefill_lines_worst(const struct intel_crtc_state *crtc_state);
