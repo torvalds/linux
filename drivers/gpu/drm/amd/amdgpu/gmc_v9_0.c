@@ -1843,6 +1843,10 @@ static void gmc_v9_4_3_init_vram_info(struct amdgpu_device *adev)
 	if (amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 5, 0))
 		adev->gmc.vram_type = AMDGPU_VRAM_TYPE_HBM3E;
 
+	if (amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 4) &&
+		adev->rev_id == 0x3)
+		adev->gmc.vram_type = AMDGPU_VRAM_TYPE_HBM3E;
+
 	if (!(adev->flags & AMD_IS_APU) && !amdgpu_sriov_vf(adev)) {
 		vram_info = RREG32(regBIF_BIOS_SCRATCH_4);
 		adev->gmc.vram_vendor = vram_info & 0xF;
