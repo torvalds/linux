@@ -83,12 +83,14 @@ enum {
 };
 
 enum {
+	/* Submission Queue (SQ) Configuration Registers */
 	REG_SQATTR		= 0x0,
 	REG_SQLBA		= 0x4,
 	REG_SQUBA		= 0x8,
 	REG_SQDAO		= 0xC,
 	REG_SQISAO		= 0x10,
 
+	/* Completion Queue (CQ) Configuration Registers */
 	REG_CQATTR		= 0x20,
 	REG_CQLBA		= 0x24,
 	REG_CQUBA		= 0x28,
@@ -96,6 +98,7 @@ enum {
 	REG_CQISAO		= 0x30,
 };
 
+/* Operation and Runtime Registers - Submission Queues and Completion Queues */
 enum {
 	REG_SQHP		= 0x0,
 	REG_SQTP		= 0x4,
