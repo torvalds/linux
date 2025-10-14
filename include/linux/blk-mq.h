@@ -152,6 +152,14 @@ struct request {
 	unsigned short nr_phys_segments;
 	unsigned short nr_integrity_segments;
 
+	/*
+	 * The lowest set bit for address gaps between physical segments. This
+	 * provides information necessary for dma optimization opprotunities,
+	 * like for testing if the segments can be coalesced against the
+	 * device's iommu granule.
+	 */
+	unsigned char phys_gap_bit;
+
 #ifdef CONFIG_BLK_INLINE_ENCRYPTION
 	struct bio_crypt_ctx *crypt_ctx;
 	struct blk_crypto_keyslot *crypt_keyslot;
@@ -207,6 +215,14 @@ struct request {
 	rq_end_io_fn *end_io;
 	void *end_io_data;
 };
+
+/*
+ * Returns a mask with all bits starting at req->phys_gap_bit set to 1.
+ */
+static inline unsigned long req_phys_gap_mask(const struct request *req)
+{
+	return ~(((1 << req->phys_gap_bit) >> 1) - 1);
+}
 
 static inline enum req_op req_op(const struct request *req)
 {

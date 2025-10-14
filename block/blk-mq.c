@@ -376,6 +376,7 @@ void blk_rq_init(struct request_queue *q, struct request *rq)
 	INIT_LIST_HEAD(&rq->queuelist);
 	rq->q = q;
 	rq->__sector = (sector_t) -1;
+	rq->phys_gap_bit = 0;
 	INIT_HLIST_NODE(&rq->hash);
 	RB_CLEAR_NODE(&rq->rb_node);
 	rq->tag = BLK_MQ_NO_TAG;
@@ -668,6 +669,7 @@ struct request *blk_mq_alloc_request(struct request_queue *q, blk_opf_t opf,
 			goto out_queue_exit;
 	}
 	rq->__data_len = 0;
+	rq->phys_gap_bit = 0;
 	rq->__sector = (sector_t) -1;
 	rq->bio = rq->biotail = NULL;
 	return rq;
@@ -748,6 +750,7 @@ struct request *blk_mq_alloc_request_hctx(struct request_queue *q,
 	rq = blk_mq_rq_ctx_init(&data, blk_mq_tags_from_data(&data), tag);
 	blk_mq_rq_time_init(rq, alloc_time_ns);
 	rq->__data_len = 0;
+	rq->phys_gap_bit = 0;
 	rq->__sector = (sector_t) -1;
 	rq->bio = rq->biotail = NULL;
 	return rq;
@@ -2674,6 +2677,8 @@ static void blk_mq_bio_to_request(struct request *rq, struct bio *bio,
 	rq->bio = rq->biotail = bio;
 	rq->__sector = bio->bi_iter.bi_sector;
 	rq->__data_len = bio->bi_iter.bi_size;
+	rq->phys_gap_bit = bio->bi_bvec_gap_bit;
+
 	rq->nr_phys_segments = nr_segs;
 	if (bio_integrity(bio))
 		rq->nr_integrity_segments = blk_rq_count_integrity_sg(rq->q,
@@ -3380,6 +3385,7 @@ int blk_rq_prep_clone(struct request *rq, struct request *rq_src,
 	}
 	rq->nr_phys_segments = rq_src->nr_phys_segments;
 	rq->nr_integrity_segments = rq_src->nr_integrity_segments;
+	rq->phys_gap_bit = rq_src->phys_gap_bit;
 
 	if (rq->bio && blk_crypto_rq_bio_prep(rq, rq->bio, gfp_mask) < 0)
 		goto free_and_out;

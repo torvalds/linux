@@ -79,8 +79,7 @@ static bool blk_map_iter_next(struct request *req, struct blk_map_iter *iter,
 static inline bool blk_can_dma_map_iova(struct request *req,
 		struct device *dma_dev)
 {
-	return !((queue_virt_boundary(req->q) + 1) &
-		dma_get_merge_boundary(dma_dev));
+	return !(req_phys_gap_mask(req) & dma_get_merge_boundary(dma_dev));
 }
 
 static bool blk_dma_map_bus(struct blk_dma_iter *iter, struct phys_vec *vec)
