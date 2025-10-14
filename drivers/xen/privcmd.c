@@ -32,6 +32,7 @@
 #include <linux/miscdevice.h>
 #include <linux/moduleparam.h>
 #include <linux/notifier.h>
+#include <linux/security.h>
 #include <linux/virtio_mmio.h>
 #include <linux/wait.h>
 
@@ -71,6 +72,11 @@ module_param_named(dm_op_buf_max_size, privcmd_dm_op_buf_max_size, uint,
 		   0644);
 MODULE_PARM_DESC(dm_op_buf_max_size,
 		 "Maximum size of a dm_op hypercall buffer");
+
+static bool unrestricted;
+module_param(unrestricted, bool, 0);
+MODULE_PARM_DESC(unrestricted,
+	"Don't restrict hypercalls to target domain if running in a domU");
 
 struct privcmd_data {
 	domid_t domid;
@@ -1708,6 +1714,13 @@ static struct notifier_block xenstore_notifier = {
 
 static void __init restrict_driver(void)
 {
+	if (unrestricted) {
+		if (security_locked_down(LOCKDOWN_XEN_USER_ACTIONS))
+			pr_warn("Kernel is locked down, parameter \"unrestricted\" ignored\n");
+		else
+			return;
+	}
+
 	restrict_wait = true;
 
 	register_xenstore_notifier(&xenstore_notifier);
