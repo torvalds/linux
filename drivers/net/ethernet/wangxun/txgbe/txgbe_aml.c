@@ -118,7 +118,7 @@ static void txgbe_get_link_capabilities(struct wx *wx, int *speed, int *duplex)
 	*duplex = *speed == SPEED_UNKNOWN ? DUPLEX_HALF : DUPLEX_FULL;
 }
 
-static void txgbe_get_phy_link(struct wx *wx, int *speed)
+static void txgbe_get_mac_link(struct wx *wx, int *speed)
 {
 	u32 status;
 
@@ -234,7 +234,7 @@ static void txgbe_get_link_state(struct phylink_config *config,
 	struct wx *wx = phylink_to_wx(config);
 	int speed;
 
-	txgbe_get_phy_link(wx, &speed);
+	txgbe_get_mac_link(wx, &speed);
 	state->link = speed != SPEED_UNKNOWN;
 	state->speed = speed;
 	state->duplex = state->link ? DUPLEX_FULL : DUPLEX_UNKNOWN;
