@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/dts-v1/;
+
+#include "blackhole.dtsi"
+
+/ {
+	model = "Tenstorrent Blackhole";
+	compatible = "tenstorrent,blackhole-card", "tenstorrent,blackhole";
+
+	memory@400030000000 {
+		device_type = "memory";
+		reg = <0x4000 0x30000000 0x1 0x00000000>;
+	};
+};
