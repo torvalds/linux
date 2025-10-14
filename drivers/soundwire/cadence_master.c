@@ -2114,9 +2114,6 @@ int sdw_cdns_bpt_find_buffer_sizes(int command, /* 0: write, 1: read */
 	if (!actual_bpt_bytes)
 		return -EINVAL;
 
-	if (data_bytes < actual_bpt_bytes)
-		actual_bpt_bytes = data_bytes;
-
 	/*
 	 * the caller may want to set the number of bytes per frame,
 	 * allow when possible
@@ -2125,6 +2122,9 @@ int sdw_cdns_bpt_find_buffer_sizes(int command, /* 0: write, 1: read */
 		actual_bpt_bytes = requested_bytes_per_frame;
 
 	*data_per_frame = actual_bpt_bytes;
+
+	if (data_bytes < actual_bpt_bytes)
+		actual_bpt_bytes = data_bytes;
 
 	if (command == 0) {
 		/*
