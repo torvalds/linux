@@ -1252,7 +1252,6 @@ static int verity_setup_hash_alg(struct dm_verity *v, const char *alg_name)
 	}
 	v->shash_tfm = shash;
 	v->digest_size = crypto_shash_digestsize(shash);
-	DMINFO("%s using \"%s\"", alg_name, crypto_shash_driver_name(shash));
 	if ((1 << v->hash_dev_block_bits) < v->digest_size * 2) {
 		ti->error = "Digest size too big";
 		return -EINVAL;
