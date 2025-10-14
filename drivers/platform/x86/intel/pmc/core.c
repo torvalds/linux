@@ -20,6 +20,7 @@ enum header_type {
 #include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/dmi.h>
+#include <linux/err.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -1281,7 +1282,20 @@ int get_primary_reg_base(struct pmc *pmc)
 	return 0;
 }
 
-void pmc_core_punit_pmt_init(struct pmc_dev *pmcdev, u32 guid)
+static struct telem_endpoint *pmc_core_register_endpoint(struct pci_dev *pcidev, u32 *guids)
+{
+	struct telem_endpoint *ep;
+	unsigned int i;
+
+	for (i = 0; guids[i]; i++) {
+		ep = pmt_telem_find_and_register_endpoint(pcidev, guids[i], 0);
+		if (!IS_ERR(ep))
+			return ep;
+	}
+	return ERR_PTR(-ENODEV);
+}
+
+void pmc_core_punit_pmt_init(struct pmc_dev *pmcdev, u32 *guids)
 {
 	struct telem_endpoint *ep;
 	struct pci_dev *pcidev;
@@ -1292,7 +1306,7 @@ void pmc_core_punit_pmt_init(struct pmc_dev *pmcdev, u32 guid)
 		return;
 	}
 
-	ep = pmt_telem_find_and_register_endpoint(pcidev, guid, 0);
+	ep = pmc_core_register_endpoint(pcidev, guids);
 	pci_dev_put(pcidev);
 	if (IS_ERR(ep)) {
 		dev_err(&pmcdev->pdev->dev,
@@ -1689,8 +1703,8 @@ int generic_core_init(struct pmc_dev *pmcdev, struct pmc_dev_info *pmc_dev_info)
 	}
 
 	pmc_core_get_low_power_modes(pmcdev);
-	if (pmc_dev_info->dmu_guid)
-		pmc_core_punit_pmt_init(pmcdev, pmc_dev_info->dmu_guid);
+	if (pmc_dev_info->dmu_guids)
+		pmc_core_punit_pmt_init(pmcdev, pmc_dev_info->dmu_guids);
 
 	if (ssram) {
 		ret = pmc_core_get_telem_info(pmcdev, pmc_dev_info);

@@ -992,9 +992,10 @@ static int mtl_core_init(struct pmc_dev *pmcdev, struct pmc_dev_info *pmc_dev_in
 	return generic_core_init(pmcdev, pmc_dev_info);
 }
 
+static u32 MTL_PMT_DMU_GUIDS[] = {MTL_PMT_DMU_GUID, 0x0};
 struct pmc_dev_info mtl_pmc_dev = {
 	.pci_func = 2,
-	.dmu_guid = MTL_PMT_DMU_GUID,
+	.dmu_guids = MTL_PMT_DMU_GUIDS,
 	.regmap_list = mtl_pmc_info_list,
 	.map = &mtl_socm_reg_map,
 	.sub_req_show = &pmc_core_substate_req_regs_fops,

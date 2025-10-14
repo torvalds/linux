@@ -720,9 +720,10 @@ static int arl_h_core_init(struct pmc_dev *pmcdev, struct pmc_dev_info *pmc_dev_
 	return generic_core_init(pmcdev, pmc_dev_info);
 }
 
+static u32 ARL_PMT_DMU_GUIDS[] = {ARL_PMT_DMU_GUID, 0x0};
 struct pmc_dev_info arl_pmc_dev = {
 	.pci_func = 0,
-	.dmu_guid = ARL_PMT_DMU_GUID,
+	.dmu_guids = ARL_PMT_DMU_GUIDS,
 	.regmap_list = arl_pmc_info_list,
 	.map = &arl_socs_reg_map,
 	.sub_req_show = &pmc_core_substate_req_regs_fops,
@@ -732,9 +733,10 @@ struct pmc_dev_info arl_pmc_dev = {
 	.sub_req = pmc_core_pmt_get_lpm_req,
 };
 
+static u32 ARL_H_PMT_DMU_GUIDS[] = {ARL_PMT_DMU_GUID, 0x0};
 struct pmc_dev_info arl_h_pmc_dev = {
 	.pci_func = 2,
-	.dmu_guid = ARL_PMT_DMU_GUID,
+	.dmu_guids = ARL_H_PMT_DMU_GUIDS,
 	.regmap_list = arl_pmc_info_list,
 	.map = &mtl_socm_reg_map,
 	.sub_req_show = &pmc_core_substate_req_regs_fops,

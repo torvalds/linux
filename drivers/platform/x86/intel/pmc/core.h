@@ -481,7 +481,7 @@ enum pmc_index {
 /**
  * struct pmc_dev_info - Structure to keep PMC device info
  * @pci_func:		Function number of the primary PMC
- * @dmu_guid:		Die Management Unit GUID
+ * @dmu_guids:		List of Die Management Unit GUID
  * @regmap_list:	Pointer to a list of pmc_info structure that could be
  *			available for the platform. When set, this field implies
  *			SSRAM support.
@@ -495,7 +495,7 @@ enum pmc_index {
  */
 struct pmc_dev_info {
 	u8 pci_func;
-	u32 dmu_guid;
+	u32 *dmu_guids;
 	struct pmc_info *regmap_list;
 	const struct pmc_reg_map *map;
 	const struct file_operations *sub_req_show;
@@ -532,7 +532,7 @@ int pmc_core_send_ltr_ignore(struct pmc_dev *pmcdev, u32 value, int ignore);
 int pmc_core_resume_common(struct pmc_dev *pmcdev);
 int get_primary_reg_base(struct pmc *pmc);
 void pmc_core_get_low_power_modes(struct pmc_dev *pmcdev);
-void pmc_core_punit_pmt_init(struct pmc_dev *pmcdev, u32 guid);
+void pmc_core_punit_pmt_init(struct pmc_dev *pmcdev, u32 *guids);
 void pmc_core_set_device_d3(unsigned int device);
 
 int generic_core_init(struct pmc_dev *pmcdev, struct pmc_dev_info *pmc_dev_info);
