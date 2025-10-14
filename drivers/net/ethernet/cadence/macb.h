@@ -15,10 +15,6 @@
 #include <linux/phy/phy.h>
 #include <linux/workqueue.h>
 
-#if defined(CONFIG_ARCH_DMA_ADDR_T_64BIT) || defined(CONFIG_MACB_USE_HWSTAMP)
-#define MACB_EXT_DESC
-#endif
-
 #define MACB_GREGS_NBR 16
 #define MACB_GREGS_VERSION 2
 #define MACB_MAX_QUEUES 8
@@ -855,7 +851,6 @@ struct macb_dma_desc {
 	u32	ctrl;
 };
 
-#ifdef MACB_EXT_DESC
 struct macb_dma_desc_64 {
 	u32 addrh;
 	u32 resvd;
@@ -865,7 +860,6 @@ struct macb_dma_desc_ptp {
 	u32	ts_1;
 	u32	ts_2;
 };
-#endif
 
 /* DMA descriptor bitfields */
 #define MACB_RX_USED_OFFSET			0
@@ -1435,6 +1429,18 @@ static inline u64 enst_max_hw_interval(u32 speed_mbps)
 {
 	return DIV_ROUND_UP(GENMASK(GEM_ON_TIME_SIZE - 1, 0) *
 			    ENST_TIME_GRANULARITY_NS * 1000, (speed_mbps));
+}
+
+static inline bool macb_dma64(struct macb *bp)
+{
+	return IS_ENABLED(CONFIG_ARCH_DMA_ADDR_T_64BIT) &&
+	       bp->caps & MACB_CAPS_DMA_64B;
+}
+
+static inline bool macb_dma_ptp(struct macb *bp)
+{
+	return IS_ENABLED(CONFIG_MACB_USE_HWSTAMP) &&
+	       bp->caps & MACB_CAPS_DMA_PTP;
 }
 
 /**

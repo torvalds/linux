@@ -28,10 +28,10 @@
 static struct macb_dma_desc_ptp *macb_ptp_desc(struct macb *bp,
 					       struct macb_dma_desc *desc)
 {
-	if (!(bp->caps & MACB_CAPS_DMA_PTP))
+	if (!macb_dma_ptp(bp))
 		return NULL;
 
-	if (bp->caps & MACB_CAPS_DMA_64B)
+	if (macb_dma64(bp))
 		return (struct macb_dma_desc_ptp *)
 				((u8 *)desc + sizeof(struct macb_dma_desc)
 				+ sizeof(struct macb_dma_desc_64));
@@ -382,7 +382,7 @@ int gem_get_hwtst(struct net_device *dev,
 	struct macb *bp = netdev_priv(dev);
 
 	*tstamp_config = bp->tstamp_config;
-	if (!(bp->caps & MACB_CAPS_DMA_PTP))
+	if (!macb_dma_ptp(bp))
 		return -EOPNOTSUPP;
 
 	return 0;
@@ -409,7 +409,7 @@ int gem_set_hwtst(struct net_device *dev,
 	struct macb *bp = netdev_priv(dev);
 	u32 regval;
 
-	if (!(bp->caps & MACB_CAPS_DMA_PTP))
+	if (!macb_dma_ptp(bp))
 		return -EOPNOTSUPP;
 
 	switch (tstamp_config->tx_type) {
