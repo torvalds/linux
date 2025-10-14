@@ -317,6 +317,17 @@ config IPQ_GCC_9574
 	  i2c, USB, SD/eMMC, etc. Select this for the root clock
 	  of ipq9574.
 
+config IPQ_NSSCC_5424
+	tristate "IPQ5424 NSS Clock Controller"
+	depends on ARM64 || COMPILE_TEST
+	depends on IPQ_GCC_5424
+	help
+	  Support for NSS clock controller on ipq5424 devices.
+	  NSSCC receives the clock sources from GCC, CMN PLL and UNIPHY (PCS).
+	  It in turn supplies the clocks and resets to the networking hardware.
+	  Say Y or M if you want to enable networking function on the
+	  IPQ5424 devices.
+
 config IPQ_NSSCC_9574
         tristate "IPQ9574 NSS Clock Controller"
         depends on ARM64 || COMPILE_TEST
