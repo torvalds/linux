@@ -781,16 +781,13 @@ static int ov01a10_probe(struct i2c_client *client)
 
 	ret = ov01a10_identify_module(ov01a10);
 	if (ret)
-		return dev_err_probe(dev, ret,
-				     "failed to find sensor\n");
+		return ret;
 
 	ov01a10->cur_mode = &supported_modes[0];
 
 	ret = ov01a10_init_controls(ov01a10);
-	if (ret) {
-		dev_err(dev, "failed to init controls: %d\n", ret);
+	if (ret)
 		return ret;
-	}
 
 	ov01a10->sd.state_lock = ov01a10->ctrl_handler.lock;
 	ov01a10->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
@@ -799,16 +796,12 @@ static int ov01a10_probe(struct i2c_client *client)
 	ov01a10->pad.flags = MEDIA_PAD_FL_SOURCE;
 
 	ret = media_entity_pads_init(&ov01a10->sd.entity, 1, &ov01a10->pad);
-	if (ret) {
-		dev_err(dev, "Failed to init entity pads: %d\n", ret);
+	if (ret)
 		goto err_handler_free;
-	}
 
 	ret = v4l2_subdev_init_finalize(&ov01a10->sd);
-	if (ret) {
-		dev_err(dev, "Failed to allocate subdev state: %d\n", ret);
+	if (ret)
 		goto err_media_entity_cleanup;
-	}
 
 	/*
 	 * Device is already turned on by i2c-core with ACPI domain PM.
@@ -819,10 +812,8 @@ static int ov01a10_probe(struct i2c_client *client)
 	pm_runtime_idle(dev);
 
 	ret = v4l2_async_register_subdev_sensor(&ov01a10->sd);
-	if (ret < 0) {
-		dev_err(dev, "Failed to register subdev: %d\n", ret);
+	if (ret)
 		goto err_pm_disable;
-	}
 
 	return 0;
 
