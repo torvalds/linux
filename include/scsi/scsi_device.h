@@ -313,8 +313,8 @@ sdev_prefix_printk(const char *, const struct scsi_device *, const char *,
 #define sdev_printk(l, sdev, fmt, a...)				\
 	sdev_prefix_printk(l, sdev, NULL, fmt, ##a)
 
-__printf(3, 4) void
-scmd_printk(const char *, const struct scsi_cmnd *, const char *, ...);
+__printf(3, 4) void scmd_printk(const char *, struct scsi_cmnd *, const char *,
+				...);
 
 #define scmd_dbg(scmd, fmt, a...)					\
 	do {								\
