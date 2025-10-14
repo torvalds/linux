@@ -906,6 +906,7 @@ drm_atomic_private_obj_init(struct drm_device *dev,
 
 	drm_modeset_lock_init(&obj->lock);
 
+	obj->dev = dev;
 	obj->state = state;
 	obj->funcs = funcs;
 	list_add_tail(&obj->head, &dev->mode_config.privobj_list);

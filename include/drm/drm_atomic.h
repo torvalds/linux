@@ -340,6 +340,11 @@ struct drm_private_state_funcs {
  */
 struct drm_private_obj {
 	/**
+	 * @dev: parent DRM device
+	 */
+	struct drm_device *dev;
+
+	/**
 	 * @head: List entry used to attach a private object to a &drm_device
 	 * (queued to &drm_mode_config.privobj_list).
 	 */
