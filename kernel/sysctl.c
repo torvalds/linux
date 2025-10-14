@@ -356,36 +356,14 @@ static void proc_put_char(void **buf, size_t *size, char c)
 }
 
 #define SYSCTL_CONV_IDENTITY(val) val
-#define SYSCTL_CONV_MULT_HZ(val) ((val) * HZ)
-#define SYSCTL_CONV_DIV_HZ(val) ((val) / HZ)
 
 static SYSCTL_USER_TO_KERN_INT_CONV(, SYSCTL_CONV_IDENTITY)
 static SYSCTL_KERN_TO_USER_INT_CONV(, SYSCTL_CONV_IDENTITY)
 
-static SYSCTL_USER_TO_KERN_INT_CONV(_hz, SYSCTL_CONV_MULT_HZ)
-static SYSCTL_KERN_TO_USER_INT_CONV(_hz, SYSCTL_CONV_DIV_HZ)
-
-static SYSCTL_USER_TO_KERN_INT_CONV(_userhz, clock_t_to_jiffies)
-static SYSCTL_KERN_TO_USER_INT_CONV(_userhz, jiffies_to_clock_t)
-
-static SYSCTL_USER_TO_KERN_INT_CONV(_ms, msecs_to_jiffies)
-static SYSCTL_KERN_TO_USER_INT_CONV(_ms, jiffies_to_msecs)
-
 static SYSCTL_INT_CONV_CUSTOM(, sysctl_user_to_kern_int_conv,
 			      sysctl_kern_to_user_int_conv, false)
-static SYSCTL_INT_CONV_CUSTOM(_jiffies, sysctl_user_to_kern_int_conv_hz,
-			      sysctl_kern_to_user_int_conv_hz, false)
-static SYSCTL_INT_CONV_CUSTOM(_userhz_jiffies,
-			      sysctl_user_to_kern_int_conv_userhz,
-			      sysctl_kern_to_user_int_conv_userhz, false)
-static SYSCTL_INT_CONV_CUSTOM(_ms_jiffies, sysctl_user_to_kern_int_conv_ms,
-			      sysctl_kern_to_user_int_conv_ms, false)
-
 static SYSCTL_INT_CONV_CUSTOM(_minmax, sysctl_user_to_kern_int_conv,
 			      sysctl_kern_to_user_int_conv, true)
-static SYSCTL_INT_CONV_CUSTOM(_ms_jiffies_minmax,
-			      sysctl_user_to_kern_int_conv_ms,
-			      sysctl_kern_to_user_int_conv_ms, true)
 
 
 static SYSCTL_USER_TO_KERN_UINT_CONV(, SYSCTL_CONV_IDENTITY)
@@ -902,81 +880,6 @@ int proc_dointvec_conv(const struct ctl_table *table, int dir, void *buffer,
 }
 
 /**
- * proc_dointvec_jiffies - read a vector of integers as seconds
- * @table: the sysctl table
- * @dir: %TRUE if this is a write to the sysctl file
- * @buffer: the user buffer
- * @lenp: the size of the user buffer
- * @ppos: file position
- *
- * Reads/writes up to table->maxlen/sizeof(unsigned int) integer
- * values from/to the user buffer, treated as an ASCII string.
- * The values read are assumed to be in seconds, and are converted into
- * jiffies.
- *
- * Returns 0 on success.
- */
-int proc_dointvec_jiffies(const struct ctl_table *table, int dir,
-			  void *buffer, size_t *lenp, loff_t *ppos)
-{
-	return proc_dointvec_conv(table, dir, buffer, lenp, ppos,
-				  do_proc_int_conv_jiffies);
-}
-
-int proc_dointvec_ms_jiffies_minmax(const struct ctl_table *table, int dir,
-			  void *buffer, size_t *lenp, loff_t *ppos)
-{
-	return proc_dointvec_conv(table, dir, buffer, lenp, ppos,
-				  do_proc_int_conv_ms_jiffies_minmax);
-}
-
-/**
- * proc_dointvec_userhz_jiffies - read a vector of integers as 1/USER_HZ seconds
- * @table: the sysctl table
- * @dir: %TRUE if this is a write to the sysctl file
- * @buffer: the user buffer
- * @lenp: the size of the user buffer
- * @ppos: pointer to the file position
- *
- * Reads/writes up to table->maxlen/sizeof(unsigned int) integer
- * values from/to the user buffer, treated as an ASCII string.
- * The values read are assumed to be in 1/USER_HZ seconds, and
- * are converted into jiffies.
- *
- * Returns 0 on success.
- */
-int proc_dointvec_userhz_jiffies(const struct ctl_table *table, int dir,
-				 void *buffer, size_t *lenp, loff_t *ppos)
-{
-	if (SYSCTL_USER_TO_KERN(dir) && USER_HZ < HZ)
-		return -EINVAL;
-	return proc_dointvec_conv(table, dir, buffer, lenp, ppos,
-				  do_proc_int_conv_userhz_jiffies);
-}
-
-/**
- * proc_dointvec_ms_jiffies - read a vector of integers as 1 milliseconds
- * @table: the sysctl table
- * @dir: %TRUE if this is a write to the sysctl file
- * @buffer: the user buffer
- * @lenp: the size of the user buffer
- * @ppos: the current position in the file
- *
- * Reads/writes up to table->maxlen/sizeof(unsigned int) integer
- * values from/to the user buffer, treated as an ASCII string.
- * The values read are assumed to be in 1/1000 seconds, and
- * are converted into jiffies.
- *
- * Returns 0 on success.
- */
-int proc_dointvec_ms_jiffies(const struct ctl_table *table, int dir, void *buffer,
-		size_t *lenp, loff_t *ppos)
-{
-	return proc_dointvec_conv(table, dir, buffer, lenp, ppos,
-				  do_proc_int_conv_ms_jiffies);
-}
-
-/**
  * proc_do_large_bitmap - read/write from/to a large bitmap
  * @table: the sysctl table
  * @dir: %TRUE if this is a write to the sysctl file
@@ -1167,30 +1070,6 @@ int proc_dou8vec_minmax(const struct ctl_table *table, int dir,
 	return -ENOSYS;
 }
 
-int proc_dointvec_jiffies(const struct ctl_table *table, int dir,
-		    void *buffer, size_t *lenp, loff_t *ppos)
-{
-	return -ENOSYS;
-}
-
-int proc_dointvec_ms_jiffies_minmax(const struct ctl_table *table, int dir,
-				    void *buffer, size_t *lenp, loff_t *ppos)
-{
-	return -ENOSYS;
-}
-
-int proc_dointvec_userhz_jiffies(const struct ctl_table *table, int dir,
-		    void *buffer, size_t *lenp, loff_t *ppos)
-{
-	return -ENOSYS;
-}
-
-int proc_dointvec_ms_jiffies(const struct ctl_table *table, int dir,
-			     void *buffer, size_t *lenp, loff_t *ppos)
-{
-	return -ENOSYS;
-}
-
 int proc_doulongvec_minmax(const struct ctl_table *table, int dir,
 		    void *buffer, size_t *lenp, loff_t *ppos)
 {
@@ -1310,11 +1189,8 @@ int __init sysctl_init_bases(void)
 EXPORT_SYMBOL(proc_dobool);
 EXPORT_SYMBOL(proc_dointvec);
 EXPORT_SYMBOL(proc_douintvec);
-EXPORT_SYMBOL(proc_dointvec_jiffies);
 EXPORT_SYMBOL(proc_dointvec_minmax);
 EXPORT_SYMBOL_GPL(proc_douintvec_minmax);
-EXPORT_SYMBOL(proc_dointvec_userhz_jiffies);
-EXPORT_SYMBOL(proc_dointvec_ms_jiffies);
 EXPORT_SYMBOL(proc_dostring);
 EXPORT_SYMBOL(proc_doulongvec_minmax);
 EXPORT_SYMBOL(proc_doulongvec_ms_jiffies_minmax);
