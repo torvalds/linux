@@ -827,6 +827,7 @@ static void kfd_process_device_destroy_ib_mem(struct kfd_process_device *pdd)
 
 int kfd_create_process_sysfs(struct kfd_process *process)
 {
+	struct kfd_process *primary_process;
 	int ret;
 
 	if (process->kobj) {
@@ -839,9 +840,22 @@ int kfd_create_process_sysfs(struct kfd_process *process)
 		pr_warn("Creating procfs kobject failed");
 		return -ENOMEM;
 	}
-	ret = kobject_init_and_add(process->kobj, &procfs_type,
-				   procfs.kobj, "%d",
-				   (int)process->lead_thread->pid);
+
+	if (process->context_id == KFD_CONTEXT_ID_PRIMARY)
+		ret = kobject_init_and_add(process->kobj, &procfs_type,
+					   procfs.kobj, "%d",
+					   (int)process->lead_thread->pid);
+	else {
+		primary_process = kfd_lookup_process_by_mm(process->lead_thread->mm);
+		if (!primary_process)
+			return -ESRCH;
+
+		ret = kobject_init_and_add(process->kobj, &procfs_type,
+					   primary_process->kobj, "context_%u",
+					   process->context_id);
+		kfd_unref_process(primary_process);
+	}
+
 	if (ret) {
 		pr_warn("Creating procfs pid directory failed");
 		kobject_put(process->kobj);
@@ -861,6 +875,50 @@ int kfd_create_process_sysfs(struct kfd_process *process)
 	kfd_procfs_add_sysfs_counters(process);
 
 	return 0;
+}
+
+static int kfd_process_alloc_id(struct kfd_process *process)
+{
+	int ret;
+	struct kfd_process *primary_process;
+
+	/* already assign 0xFFFF when create */
+	if (process->context_id == KFD_CONTEXT_ID_PRIMARY)
+		return 0;
+
+	primary_process = kfd_lookup_process_by_mm(process->lead_thread->mm);
+	if (!primary_process)
+		return -ESRCH;
+
+	/* id range: KFD_CONTEXT_ID_MIN to 0xFFFE */
+	ret = ida_alloc_range(&primary_process->id_table, KFD_CONTEXT_ID_MIN,
+	      KFD_CONTEXT_ID_PRIMARY - 1, GFP_KERNEL);
+	if (ret < 0)
+		goto out;
+
+	process->context_id = ret;
+	ret = 0;
+
+out:
+	kfd_unref_process(primary_process);
+
+	return ret;
+}
+
+static void kfd_process_free_id(struct kfd_process *process)
+{
+	struct kfd_process *primary_process;
+
+	if (process->context_id != KFD_CONTEXT_ID_PRIMARY)
+		return;
+
+	primary_process = kfd_lookup_process_by_mm(process->lead_thread->mm);
+	if (!primary_process)
+		return;
+
+	ida_free(&primary_process->id_table, process->context_id);
+
+	kfd_unref_process(primary_process);
 }
 
 struct kfd_process *kfd_create_process(struct task_struct *thread)
@@ -1190,6 +1248,11 @@ static void kfd_process_wq_release(struct work_struct *work)
 	ef = rcu_access_pointer(p->ef);
 	if (ef)
 		dma_fence_signal(ef);
+
+	if (p->context_id != KFD_CONTEXT_ID_PRIMARY)
+		kfd_process_free_id(p);
+	else
+		ida_destroy(&p->id_table);
 
 	kfd_process_remove_sysfs(p);
 	kfd_debugfs_remove_process(p);
@@ -1605,6 +1668,13 @@ static struct kfd_process *create_process(const struct task_struct *thread, bool
 			goto err_register_notifier;
 		}
 		BUG_ON(mn != &process->mmu_notifier);
+		ida_init(&process->id_table);
+	}
+
+	err = kfd_process_alloc_id(process);
+	if (err) {
+		pr_err("Creating kfd process: failed to alloc an id\n");
+		goto err_alloc_id;
 	}
 
 	kfd_unref_process(process);
@@ -1614,6 +1684,8 @@ static struct kfd_process *create_process(const struct task_struct *thread, bool
 
 	return process;
 
+err_alloc_id:
+	kfd_process_free_id(process);
 err_register_notifier:
 	hash_del_rcu(&process->kfd_processes);
 	svm_range_list_fini(process);
