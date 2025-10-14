@@ -7,10 +7,14 @@
 
 #include <linux/acpi.h>
 #include <linux/bitfield.h>
+#include <linux/clk.h>
+#include <linux/delay.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
+#include <linux/regulator/consumer.h>
 
 #include <media/v4l2-cci.h>
 #include <media/v4l2-ctrls.h>
@@ -20,6 +24,7 @@
 #define OV01A10_LINK_FREQ_400MHZ	400000000ULL
 #define OV01A10_SCLK			80000000LL
 #define OV01A10_DATA_LANES		1
+#define OV01A10_MCLK			19200000
 
 #define OV01A10_REG_CHIP_ID		CCI_REG24(0x300a)
 #define OV01A10_CHIP_ID			0x560141
@@ -278,6 +283,12 @@ static const struct ov01a10_mode supported_modes[] = {
 	},
 };
 
+static const char * const ov01a10_supply_names[] = {
+	"dovdd",	/* Digital I/O power */
+	"avdd",		/* Analog power */
+	"dvdd",		/* Digital core power */
+};
+
 struct ov01a10 {
 	struct device *dev;
 	struct regmap *regmap;
@@ -294,6 +305,11 @@ struct ov01a10 {
 
 	const struct ov01a10_mode *cur_mode;
 	u32 link_freq_index;
+
+	struct clk *clk;
+	struct gpio_desc *reset;
+	struct gpio_desc *powerdown;
+	struct regulator_bulk_data supplies[ARRAY_SIZE(ov01a10_supply_names)];
 };
 
 static inline struct ov01a10 *to_ov01a10(struct v4l2_subdev *subdev)
@@ -726,6 +742,92 @@ static const struct media_entity_operations ov01a10_subdev_entity_ops = {
 	.link_validate = v4l2_subdev_link_validate,
 };
 
+static int ov01a10_get_pm_resources(struct ov01a10 *ov01a10)
+{
+	unsigned long freq;
+	int i, ret;
+
+	ov01a10->clk = devm_v4l2_sensor_clk_get(ov01a10->dev, NULL);
+	if (IS_ERR(ov01a10->clk))
+		return dev_err_probe(ov01a10->dev, PTR_ERR(ov01a10->clk),
+				     "getting clock\n");
+
+	freq = clk_get_rate(ov01a10->clk);
+	if (freq != OV01A10_MCLK)
+		return dev_err_probe(ov01a10->dev, -EINVAL,
+				     "external clock %lu is not supported",
+				     freq);
+
+	ov01a10->reset = devm_gpiod_get_optional(ov01a10->dev, "reset",
+						 GPIOD_OUT_HIGH);
+	if (IS_ERR(ov01a10->reset))
+		return dev_err_probe(ov01a10->dev, PTR_ERR(ov01a10->reset),
+				     "getting reset gpio\n");
+
+	ov01a10->powerdown = devm_gpiod_get_optional(ov01a10->dev, "powerdown",
+						 GPIOD_OUT_HIGH);
+	if (IS_ERR(ov01a10->powerdown))
+		return dev_err_probe(ov01a10->dev, PTR_ERR(ov01a10->powerdown),
+				     "getting powerdown gpio\n");
+
+	for (i = 0; i < ARRAY_SIZE(ov01a10_supply_names); i++)
+		ov01a10->supplies[i].supply = ov01a10_supply_names[i];
+
+	ret = devm_regulator_bulk_get(ov01a10->dev,
+				      ARRAY_SIZE(ov01a10_supply_names),
+				      ov01a10->supplies);
+	if (ret)
+		return dev_err_probe(ov01a10->dev, ret, "getting regulators\n");
+
+	return 0;
+}
+
+static int ov01a10_power_on(struct device *dev)
+{
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
+	struct ov01a10 *ov01a10 = to_ov01a10(sd);
+	int ret;
+
+	ret = clk_prepare_enable(ov01a10->clk);
+	if (ret) {
+		dev_err(dev, "Error enabling clk: %d\n", ret);
+		return ret;
+	}
+
+	ret = regulator_bulk_enable(ARRAY_SIZE(ov01a10_supply_names),
+				    ov01a10->supplies);
+	if (ret) {
+		dev_err(dev, "Error enabling regulators: %d\n", ret);
+		clk_disable_unprepare(ov01a10->clk);
+		return ret;
+	}
+
+	if (ov01a10->reset || ov01a10->powerdown) {
+		/* Assert reset/powerdown for at least 2ms on back to back off-on */
+		fsleep(2000);
+		gpiod_set_value_cansleep(ov01a10->powerdown, 0);
+		gpiod_set_value_cansleep(ov01a10->reset, 0);
+		fsleep(20000);
+	}
+
+	return 0;
+}
+
+static int ov01a10_power_off(struct device *dev)
+{
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
+	struct ov01a10 *ov01a10 = to_ov01a10(sd);
+
+	gpiod_set_value_cansleep(ov01a10->reset, 1);
+	gpiod_set_value_cansleep(ov01a10->powerdown, 1);
+
+	regulator_bulk_disable(ARRAY_SIZE(ov01a10_supply_names),
+			       ov01a10->supplies);
+
+	clk_disable_unprepare(ov01a10->clk);
+	return 0;
+}
+
 static int ov01a10_identify_module(struct ov01a10 *ov01a10)
 {
 	int ret;
@@ -801,7 +903,10 @@ static void ov01a10_remove(struct i2c_client *client)
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
 
 	pm_runtime_disable(&client->dev);
-	pm_runtime_set_suspended(&client->dev);
+	if (!pm_runtime_status_suspended(&client->dev)) {
+		ov01a10_power_off(&client->dev);
+		pm_runtime_set_suspended(&client->dev);
+	}
 }
 
 static int ov01a10_probe(struct i2c_client *client)
@@ -826,15 +931,23 @@ static int ov01a10_probe(struct i2c_client *client)
 	if (ret)
 		return ret;
 
-	ret = ov01a10_identify_module(ov01a10);
+	ret = ov01a10_get_pm_resources(ov01a10);
 	if (ret)
 		return ret;
+
+	ret = ov01a10_power_on(&client->dev);
+	if (ret)
+		return ret;
+
+	ret = ov01a10_identify_module(ov01a10);
+	if (ret)
+		goto err_power_off;
 
 	ov01a10->cur_mode = &supported_modes[0];
 
 	ret = ov01a10_init_controls(ov01a10);
 	if (ret)
-		return ret;
+		goto err_power_off;
 
 	ov01a10->sd.state_lock = ov01a10->ctrl_handler.lock;
 	ov01a10->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
@@ -875,8 +988,14 @@ err_media_entity_cleanup:
 err_handler_free:
 	v4l2_ctrl_handler_free(ov01a10->sd.ctrl_handler);
 
+err_power_off:
+	ov01a10_power_off(&client->dev);
+
 	return ret;
 }
+
+static DEFINE_RUNTIME_DEV_PM_OPS(ov01a10_pm_ops, ov01a10_power_off,
+				 ov01a10_power_on, NULL);
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id ov01a10_acpi_ids[] = {
@@ -890,6 +1009,7 @@ MODULE_DEVICE_TABLE(acpi, ov01a10_acpi_ids);
 static struct i2c_driver ov01a10_i2c_driver = {
 	.driver = {
 		.name = "ov01a10",
+		.pm = pm_sleep_ptr(&ov01a10_pm_ops),
 		.acpi_match_table = ACPI_PTR(ov01a10_acpi_ids),
 	},
 	.probe = ov01a10_probe,
