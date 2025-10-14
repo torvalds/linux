@@ -2495,14 +2495,14 @@ int sdw_cdns_check_write_response(struct device *dev, u8 *dma_buffer,
 		ret = check_frame_start(header, counter);
 		if (ret < 0) {
 			dev_err(dev, "%s: bad frame %d/%d start header %x\n",
-				__func__, i, num_frames, header);
+				__func__, i + 1, num_frames, header);
 			return ret;
 		}
 
 		ret = check_frame_end(footer);
 		if (ret < 0) {
 			dev_err(dev, "%s: bad frame %d/%d end footer %x\n",
-				__func__, i, num_frames, footer);
+				__func__, i + 1, num_frames, footer);
 			return ret;
 		}
 
@@ -2573,7 +2573,7 @@ int sdw_cdns_check_read_response(struct device *dev, u8 *dma_buffer, int dma_buf
 		ret = check_frame_start(header, counter);
 		if (ret < 0) {
 			dev_err(dev, "%s: bad frame %d/%d start header %x\n",
-				__func__, i, num_frames, header);
+				__func__, i + 1, num_frames, header);
 			return ret;
 		}
 
@@ -2588,7 +2588,7 @@ int sdw_cdns_check_read_response(struct device *dev, u8 *dma_buffer, int dma_buf
 
 		if (crc != expected_crc) {
 			dev_err(dev, "%s: bad frame %d/%d crc %#x expected %#x\n",
-				__func__, i, num_frames, crc, expected_crc);
+				__func__, i + 1, num_frames, crc, expected_crc);
 			return -EIO;
 		}
 
@@ -2599,7 +2599,7 @@ int sdw_cdns_check_read_response(struct device *dev, u8 *dma_buffer, int dma_buf
 		ret = check_frame_end(footer);
 		if (ret < 0) {
 			dev_err(dev, "%s: bad frame %d/%d end footer %x\n",
-				__func__, i, num_frames, footer);
+				__func__, i + 1, num_frames, footer);
 			return ret;
 		}
 
