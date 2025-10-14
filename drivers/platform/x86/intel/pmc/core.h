@@ -283,6 +283,7 @@ enum ppfear_regs {
 #define MTL_PMT_DMU_DIE_C6_OFFSET		15
 #define MTL_PMT_DMU_GUID			0x1A067102
 #define ARL_PMT_DMU_GUID			0x1A06A102
+#define ARL_H_PMT_DMU_GUID			0x1A06A101
 
 #define LNL_PMC_MMIO_REG_LEN			0x2708
 #define LNL_PMC_LTR_OSSE			0x1B88
