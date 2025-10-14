@@ -72,5 +72,8 @@ void intel_cdclk_read_hw(struct intel_display *display);
 
 unsigned int intel_cdclk_prefill_adjustment(const struct intel_crtc_state *crtc_state);
 unsigned int intel_cdclk_prefill_adjustment_worst(const struct intel_crtc_state *crtc_state);
+int intel_cdclk_min_cdclk_for_prefill(const struct intel_crtc_state *crtc_state,
+				      unsigned int prefill_lines_unadjusted,
+				      unsigned int prefill_lines_available);
 
 #endif /* __INTEL_CDCLK_H__ */

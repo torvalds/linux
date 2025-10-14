@@ -4120,3 +4120,15 @@ unsigned int intel_cdclk_prefill_adjustment_worst(const struct intel_crtc_state 
 
 	return _intel_cdclk_prefill_adj(crtc_state, clock, min_cdclk);
 }
+
+int intel_cdclk_min_cdclk_for_prefill(const struct intel_crtc_state *crtc_state,
+				      unsigned int prefill_lines_unadjusted,
+				      unsigned int prefill_lines_available)
+{
+	struct intel_display *display = to_intel_display(crtc_state);
+	const struct drm_display_mode *pipe_mode = &crtc_state->hw.pipe_mode;
+	int ppc = intel_cdclk_ppc(display, crtc_state->double_wide);
+
+	return DIV_ROUND_UP_ULL(mul_u32_u32(pipe_mode->crtc_clock, prefill_lines_unadjusted),
+				ppc * prefill_lines_available);
+}
