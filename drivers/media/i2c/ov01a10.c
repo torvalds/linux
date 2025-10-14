@@ -1102,8 +1102,17 @@ static const struct ov01a10_sensor_cfg ov01a10_cfg = {
 	.invert_vflip_shift = false,
 };
 
+static const struct ov01a10_sensor_cfg ov01a1b_cfg = {
+	.model = "ov01a1b",
+	.bus_fmt = MEDIA_BUS_FMT_Y10_1X10,
+	.pattern_size = 2, /* Keep coordinates aligned to a multiple of 2 */
+	.border_size = 0,
+	.format1_base_val = 0xa0,
+};
+
 static const struct acpi_device_id ov01a10_acpi_ids[] = {
 	{ "OVTI01A0", (uintptr_t)&ov01a10_cfg },
+	{ "OVTI01AB", (uintptr_t)&ov01a1b_cfg },
 	{ }
 };
 
