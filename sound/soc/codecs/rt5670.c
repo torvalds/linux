@@ -652,7 +652,7 @@ static void rt5670_update_ad_da_mixer_dac1_m_bits(struct rt5670_priv *rt5670)
 static int rt5670_dac1_playback_switch_get(struct snd_kcontrol *kcontrol,
 					   struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct rt5670_priv *rt5670 = snd_soc_component_get_drvdata(component);
 
 	ucontrol->value.integer.value[0] = rt5670->dac1_playback_switch_l;
@@ -664,7 +664,7 @@ static int rt5670_dac1_playback_switch_get(struct snd_kcontrol *kcontrol,
 static int rt5670_dac1_playback_switch_put(struct snd_kcontrol *kcontrol,
 					   struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct rt5670_priv *rt5670 = snd_soc_component_get_drvdata(component);
 
 	if (rt5670->dac1_playback_switch_l == ucontrol->value.integer.value[0] &&
