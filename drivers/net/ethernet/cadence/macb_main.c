@@ -2035,7 +2035,7 @@ static unsigned int macb_tx_map(struct macb *bp,
 		count++;
 		tx_head++;
 
-		size = min(len, bp->max_tx_length);
+		size = umin(len, bp->max_tx_length);
 	}
 
 	/* Then, map paged data from fragments */
@@ -2045,7 +2045,7 @@ static unsigned int macb_tx_map(struct macb *bp,
 		len = skb_frag_size(frag);
 		offset = 0;
 		while (len) {
-			size = min(len, bp->max_tx_length);
+			size = umin(len, bp->max_tx_length);
 			entry = macb_tx_ring_wrap(bp, tx_head);
 			tx_skb = &queue->tx_skb[entry];
 
@@ -2301,7 +2301,7 @@ static netdev_tx_t macb_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			return NETDEV_TX_BUSY;
 		}
 	} else
-		hdrlen = min(skb_headlen(skb), bp->max_tx_length);
+		hdrlen = umin(skb_headlen(skb), bp->max_tx_length);
 
 #if defined(DEBUG) && defined(VERBOSE_DEBUG)
 	netdev_vdbg(bp->dev,
@@ -4573,8 +4573,8 @@ static int macb_init(struct platform_device *pdev)
 	 * each 4-tuple define requires 1 T2 screener reg + 3 compare regs
 	 */
 	reg = gem_readl(bp, DCFG8);
-	bp->max_tuples = min((GEM_BFEXT(SCR2CMP, reg) / 3),
-			GEM_BFEXT(T2SCR, reg));
+	bp->max_tuples = umin((GEM_BFEXT(SCR2CMP, reg) / 3),
+			      GEM_BFEXT(T2SCR, reg));
 	INIT_LIST_HEAD(&bp->rx_fs_list.list);
 	if (bp->max_tuples > 0) {
 		/* also needs one ethtype match to check IPv4 */
