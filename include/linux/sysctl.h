@@ -59,6 +59,7 @@ extern const int sysctl_vals[];
 #define SYSCTL_LONG_ONE		((void *)&sysctl_long_vals[1])
 #define SYSCTL_LONG_MAX		((void *)&sysctl_long_vals[2])
 
+#define SYSCTL_CONV_IDENTITY(val) (val)
 /**
  *
  * "dir" originates from read_iter (dir = 0) or write_iter (dir = 1)

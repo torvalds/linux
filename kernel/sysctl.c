@@ -354,8 +354,6 @@ static void proc_put_char(void **buf, size_t *size, char c)
 	}
 }
 
-#define SYSCTL_CONV_IDENTITY(val) val
-
 static SYSCTL_USER_TO_KERN_INT_CONV(, SYSCTL_CONV_IDENTITY)
 static SYSCTL_KERN_TO_USER_INT_CONV(, SYSCTL_CONV_IDENTITY)
 
