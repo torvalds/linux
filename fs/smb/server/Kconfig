@@ -14,7 +14,6 @@ config SMB_SERVER
 	select CRYPTO_LIB_DES
 	select CRYPTO_LIB_SHA256
 	select CRYPTO_LIB_SHA512
-	select CRYPTO_SHA256
 	select CRYPTO_CMAC
 	select CRYPTO_AEAD2
 	select CRYPTO_CCM
