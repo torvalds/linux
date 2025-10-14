@@ -98,13 +98,9 @@
 #define OV01A10_MEDIA_BUS_FMT		MEDIA_BUS_FMT_SBGGR10_1X10
 #define OV01A10_BAYER_PATTERN_SIZE	2 /* 2x2 */
 
-struct ov01a10_reg_list {
-	u32 num_of_regs;
-	const struct reg_sequence *regs;
-};
-
 struct ov01a10_link_freq_config {
-	const struct ov01a10_reg_list reg_list;
+	const struct reg_sequence *regs;
+	int regs_len;
 };
 
 static const struct reg_sequence mipi_data_rate_720mbps[] = {
@@ -237,10 +233,8 @@ static const s64 link_freq_menu_items[] = {
 
 static const struct ov01a10_link_freq_config link_freq_configs[] = {
 	{
-		.reg_list = {
-			.num_of_regs = ARRAY_SIZE(mipi_data_rate_720mbps),
-			.regs = mipi_data_rate_720mbps,
-		}
+		.regs = mipi_data_rate_720mbps,
+		.regs_len = ARRAY_SIZE(mipi_data_rate_720mbps),
 	},
 };
 
@@ -550,12 +544,12 @@ static int ov01a10_set_mode(struct ov01a10 *ov01a10)
 
 static int ov01a10_start_streaming(struct ov01a10 *ov01a10)
 {
-	const struct ov01a10_reg_list *reg_list;
+	const struct ov01a10_link_freq_config *freq_cfg;
 	int ret;
 
-	reg_list = &link_freq_configs[ov01a10->link_freq_index].reg_list;
-	ret = regmap_multi_reg_write(ov01a10->regmap, reg_list->regs,
-				     reg_list->num_of_regs);
+	freq_cfg = &link_freq_configs[ov01a10->link_freq_index];
+	ret = regmap_multi_reg_write(ov01a10->regmap, freq_cfg->regs,
+				     freq_cfg->regs_len);
 	if (ret) {
 		dev_err(ov01a10->dev, "failed to set plls\n");
 		return ret;
