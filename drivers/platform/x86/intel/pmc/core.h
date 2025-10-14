@@ -468,7 +468,6 @@ struct pmc_dev {
 	u64 *pkgc_res_cnt;
 	u8 num_of_pkgc;
 
-	bool has_die_c6;
 	u32 die_c6_offset;
 	struct telem_endpoint *punit_ep;
 	struct pmc_info *regmap_list;
