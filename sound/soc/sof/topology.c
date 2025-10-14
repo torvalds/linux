@@ -2525,7 +2525,7 @@ int snd_sof_load_topology(struct snd_soc_component *scomp, const char *file)
 	if (!tplg_cnt) {
 		tplg_files[0] = file;
 		tplg_cnt = 1;
-		dev_dbg(scomp->dev, "loading topology: %s\n", file);
+		dev_info(scomp->dev, "loading topology: %s\n", file);
 	} else {
 		dev_info(scomp->dev, "Using function topologies instead %s\n", file);
 	}
