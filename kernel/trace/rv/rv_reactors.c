@@ -61,6 +61,7 @@
  *      printk
  */
 
+#include <linux/lockdep.h>
 #include <linux/slab.h>
 
 #include "rv.h"
@@ -480,6 +481,7 @@ out_err:
 
 void rv_react(struct rv_monitor *monitor, const char *msg, ...)
 {
+	static DEFINE_WAIT_OVERRIDE_MAP(rv_react_map, LD_WAIT_FREE);
 	va_list args;
 
 	if (!rv_reacting_on() || !monitor->react)
@@ -487,7 +489,9 @@ void rv_react(struct rv_monitor *monitor, const char *msg, ...)
 
 	va_start(args, msg);
 
+	lock_map_acquire_try(&rv_react_map);
 	monitor->react(msg, args);
+	lock_map_release(&rv_react_map);
 
 	va_end(args);
 }
