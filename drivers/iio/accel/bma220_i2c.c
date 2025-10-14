@@ -8,7 +8,6 @@
  * I2C address is either 0x0b or 0x0a depending on CSB (pin 10)
  */
 
-#include <linux/errno.h>
 #include <linux/i2c.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
