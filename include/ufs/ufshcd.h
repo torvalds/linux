@@ -78,7 +78,7 @@ struct uic_command {
 	const u32 argument1;
 	u32 argument2;
 	u32 argument3;
-	int cmd_active;
+	bool cmd_active;
 	struct completion done;
 };
 
