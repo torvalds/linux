@@ -28,6 +28,7 @@ struct dml2_core_ip_params core_dcn4_ip_caps_base = {
 	.writeback_interface_buffer_size_kbytes = 90,
 	//Number of pipes after DCN Pipe harvesting
 	.max_num_dpp = 4,
+	.max_num_opp = 4,
 	.max_num_otg = 4,
 	.max_num_wb = 1,
 	.max_dchub_pscl_bw_pix_per_clk = 4,

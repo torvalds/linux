@@ -36,6 +36,7 @@ struct dml2_core_ip_params {
 	unsigned int max_line_buffer_lines;
 	unsigned int writeback_interface_buffer_size_kbytes;
 	unsigned int max_num_dpp;
+	unsigned int max_num_opp;
 	unsigned int max_num_otg;
 	unsigned int TDLUT_33cube_count;
 	unsigned int max_num_wb;
@@ -570,6 +571,7 @@ struct dml2_core_internal_mode_support {
 	enum dml2_odm_mode ODMMode[DML2_MAX_PLANES];
 	unsigned int SurfaceSizeInMALL[DML2_MAX_PLANES];
 	unsigned int NoOfDPP[DML2_MAX_PLANES];
+	unsigned int NoOfOPP[DML2_MAX_PLANES];
 	bool MPCCombine[DML2_MAX_PLANES];
 	double dcfclk_deepsleep;
 	double MinDPPCLKUsingSingleDPP[DML2_MAX_PLANES];
@@ -580,6 +582,7 @@ struct dml2_core_internal_mode_support {
 	bool PTEBufferSizeNotExceeded[DML2_MAX_PLANES];
 	bool DCCMetaBufferSizeNotExceeded[DML2_MAX_PLANES];
 	unsigned int TotalNumberOfActiveDPP;
+	unsigned int TotalNumberOfActiveOPP;
 	unsigned int TotalNumberOfSingleDPPSurfaces;
 	unsigned int TotalNumberOfDCCActiveDPP;
 	unsigned int Total3dlutActive;
