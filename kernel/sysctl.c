@@ -30,19 +30,6 @@ EXPORT_SYMBOL(sysctl_vals);
 const unsigned long sysctl_long_vals[] = { 0, 1, LONG_MAX };
 EXPORT_SYMBOL_GPL(sysctl_long_vals);
 
-/**
- *
- * "dir" originates from read_iter (dir = 0) or write_iter (dir = 1)
- * in the file_operations struct at proc/proc_sysctl.c. Its value means
- * one of two things for sysctl:
- * 1. SYSCTL_USER_TO_KERN(dir) Writing to an internal kernel variable from user
- *                             space (dir > 0)
- * 2. SYSCTL_KERN_TO_USER(dir) Writing to a user space buffer from a kernel
- *                             variable (dir == 0).
- */
-#define SYSCTL_USER_TO_KERN(dir) (!!(dir))
-#define SYSCTL_KERN_TO_USER(dir) (!dir)
-
 #if defined(CONFIG_SYSCTL)
 
 /* Constants used for minimum and maximum */
@@ -366,68 +353,6 @@ static void proc_put_char(void **buf, size_t *size, char c)
 		(*buffer)++;
 		*buf = *buffer;
 	}
-}
-
-#define SYSCTL_USER_TO_KERN_INT_CONV(name, u_ptr_op)		\
-int sysctl_user_to_kern_int_conv##name(const bool *negp,	\
-				       const unsigned long *u_ptr,\
-				       int *k_ptr)		\
-{								\
-	unsigned long u = u_ptr_op(*u_ptr);			\
-	if (*negp) {						\
-		if (u > (unsigned long) INT_MAX + 1)		\
-			return -EINVAL;				\
-		WRITE_ONCE(*k_ptr, -u);				\
-	} else {						\
-		if (u > (unsigned long) INT_MAX)		\
-			return -EINVAL;				\
-		WRITE_ONCE(*k_ptr, u);				\
-	}							\
-	return 0;						\
-}
-
-#define SYSCTL_KERN_TO_USER_INT_CONV(name, k_ptr_op)		\
-int sysctl_kern_to_user_int_conv##name(bool *negp,		\
-				       unsigned long *u_ptr,	\
-				       const int *k_ptr)	\
-{								\
-	int val = READ_ONCE(*k_ptr);				\
-	if (val < 0) {						\
-		*negp = true;					\
-		*u_ptr = -k_ptr_op((unsigned long)val);		\
-	} else {						\
-		*negp = false;					\
-		*u_ptr = k_ptr_op((unsigned long)val);		\
-	}							\
-	return 0;						\
-}
-
-/**
- * To range check on a converted value, use a temp k_ptr
- * When checking range, value should be within (tbl->extra1, tbl->extra2)
- */
-#define SYSCTL_INT_CONV_CUSTOM(name, user_to_kern, kern_to_user,	\
-			       k_ptr_range_check)			\
-int do_proc_int_conv##name(bool *negp, unsigned long *u_ptr, int *k_ptr,\
-			   int dir, const struct ctl_table *tbl)	\
-{									\
-	if (SYSCTL_KERN_TO_USER(dir))					\
-		return kern_to_user(negp, u_ptr, k_ptr);		\
-									\
-	if (k_ptr_range_check) {					\
-		int tmp_k, ret;						\
-		if (!tbl)						\
-			return -EINVAL;					\
-		ret = user_to_kern(negp, u_ptr, &tmp_k);		\
-		if (ret)						\
-			return ret;					\
-		if ((tbl->extra1 && *(int *)tbl->extra1 > tmp_k) ||	\
-		    (tbl->extra2 && *(int *)tbl->extra2 < tmp_k))	\
-			return -EINVAL;					\
-		WRITE_ONCE(*k_ptr, tmp_k);				\
-	} else								\
-		return user_to_kern(negp, u_ptr, k_ptr);		\
-	return 0;							\
 }
 
 #define SYSCTL_CONV_IDENTITY(val) val
