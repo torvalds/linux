@@ -594,7 +594,7 @@ scmi_xfer_inflight_register_unlocked(struct scmi_xfer *xfer,
 	/* Set in-flight */
 	set_bit(xfer->hdr.seq, minfo->xfer_alloc_table);
 	hash_add(minfo->pending_xfers, &xfer->node, xfer->hdr.seq);
-	scmi_inc_count(info->dbg->counters, XFERS_INFLIGHT);
+	scmi_inc_count(info->dbg, XFERS_INFLIGHT);
 
 	xfer->pending = true;
 }
@@ -803,7 +803,7 @@ __scmi_xfer_put(struct scmi_xfers_info *minfo, struct scmi_xfer *xfer)
 			hash_del(&xfer->node);
 			xfer->pending = false;
 
-			scmi_dec_count(info->dbg->counters, XFERS_INFLIGHT);
+			scmi_dec_count(info->dbg, XFERS_INFLIGHT);
 		}
 		hlist_add_head(&xfer->node, &minfo->free_xfers);
 	}
@@ -3406,6 +3406,9 @@ int scmi_inflight_count(const struct scmi_handle *handle)
 {
 	if (IS_ENABLED(CONFIG_ARM_SCMI_DEBUG_COUNTERS)) {
 		struct scmi_info *info = handle_to_scmi_info(handle);
+
+		if (!info->dbg)
+			return 0;
 
 		return atomic_read(&info->dbg->counters[XFERS_INFLIGHT]);
 	} else {

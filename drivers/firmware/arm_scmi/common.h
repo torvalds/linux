@@ -333,10 +333,12 @@ static inline void scmi_inc_count(struct scmi_debug_info *dbg, int stat)
 	}
 }
 
-static inline void scmi_dec_count(atomic_t *arr, int stat)
+static inline void scmi_dec_count(struct scmi_debug_info *dbg, int stat)
 {
-	if (IS_ENABLED(CONFIG_ARM_SCMI_DEBUG_COUNTERS))
-		atomic_dec(&arr[stat]);
+	if (IS_ENABLED(CONFIG_ARM_SCMI_DEBUG_COUNTERS)) {
+		if (dbg)
+			atomic_dec(&dbg->counters[stat]);
+	}
 }
 
 enum scmi_bad_msg {
