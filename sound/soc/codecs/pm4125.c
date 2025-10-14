@@ -69,6 +69,7 @@ struct pm4125_priv {
 	struct wcd_mbhc *wcd_mbhc;
 	struct wcd_mbhc_config mbhc_cfg;
 	struct wcd_mbhc_intr intr_ids;
+	struct wcd_common common;
 	struct irq_domain *virq;
 	const struct regmap_irq_chip *pm4125_regmap_irq_chip;
 	struct regmap_irq_chip_data *irq_chip;
@@ -76,9 +77,6 @@ struct pm4125_priv {
 	unsigned long status_mask;
 	s32 micb_ref[PM4125_MAX_MICBIAS];
 	s32 pullup_ref[PM4125_MAX_MICBIAS];
-	u32 micb1_mv;
-	u32 micb2_mv;
-	u32 micb3_mv;
 
 	int hphr_pdm_wd_int;
 	int hphl_pdm_wd_int;
@@ -644,16 +642,6 @@ static int pm4125_codec_enable_ear_pa(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
-static int pm4125_get_micb_vout_ctl_val(struct device *dev, u32 micb_mv)
-{
-	if (micb_mv < 1600 || micb_mv > 2850) {
-		dev_err(dev, "%s: unsupported micbias voltage (%u mV)\n", __func__, micb_mv);
-		return -EINVAL;
-	}
-
-	return (micb_mv - 1600) / 50;
-}
-
 static int pm4125_codec_enable_adc(struct snd_soc_dapm_widget *w,
 				   struct snd_kcontrol *kcontrol, int event)
 {
@@ -855,7 +843,7 @@ static int pm4125_codec_enable_micbias_pullup(struct snd_soc_dapm_widget *w,
 static int pm4125_connect_port(struct pm4125_sdw_priv *sdw_priv, u8 port_idx, u8 ch_id, bool enable)
 {
 	struct sdw_port_config *port_config = &sdw_priv->port_config[port_idx - 1];
-	const struct pm4125_sdw_ch_info *ch_info = &sdw_priv->ch_info[ch_id];
+	const struct wcd_sdw_ch_info *ch_info = &sdw_priv->ch_info[ch_id];
 	struct sdw_slave *sdev = sdw_priv->sdev;
 	u8 port_num = ch_info->port_num;
 	u8 ch_mask = ch_info->ch_mask;
@@ -1266,15 +1254,8 @@ static const struct snd_soc_dapm_route pm4125_audio_map[] = {
 
 static int pm4125_set_micbias_data(struct device *dev, struct pm4125_priv *pm4125)
 {
-	int vout_ctl;
-
-	/* Set micbias voltage */
-	vout_ctl = pm4125_get_micb_vout_ctl_val(dev, pm4125->micb1_mv);
-	if (vout_ctl < 0)
-		return -EINVAL;
-
 	regmap_update_bits(pm4125->regmap, PM4125_ANA_MICBIAS_LDO_1_SETTING,
-			   PM4125_ANA_MICBIAS_MICB_OUT_VAL_MASK, vout_ctl << 3);
+			   PM4125_ANA_MICBIAS_MICB_OUT_VAL_MASK, pm4125->common.micb_vout[0]);
 	return 0;
 }
 
@@ -1418,31 +1399,6 @@ static const struct snd_soc_component_driver soc_codec_dev_pm4125 = {
 	.endianness = 1,
 };
 
-static void pm4125_dt_parse_micbias_info(struct device *dev, struct pm4125_priv *priv)
-{
-	struct device_node *np = dev->of_node;
-	u32 prop_val = 0;
-	int ret;
-
-	ret = of_property_read_u32(np, "qcom,micbias1-microvolt", &prop_val);
-	if (!ret)
-		priv->micb1_mv = prop_val / 1000;
-	else
-		dev_warn(dev, "Micbias1 DT property not found\n");
-
-	ret = of_property_read_u32(np, "qcom,micbias2-microvolt", &prop_val);
-	if (!ret)
-		priv->micb2_mv = prop_val / 1000;
-	else
-		dev_warn(dev, "Micbias2 DT property not found\n");
-
-	ret = of_property_read_u32(np, "qcom,micbias3-microvolt", &prop_val);
-	if (!ret)
-		priv->micb3_mv = prop_val / 1000;
-	else
-		dev_warn(dev, "Micbias3 DT property not found\n");
-}
-
 static int pm4125_codec_hw_params(struct snd_pcm_substream *substream,
 				  struct snd_pcm_hw_params *params,
 				  struct snd_soc_dai *dai)
@@ -1560,7 +1516,7 @@ static int pm4125_bind(struct device *dev)
 		return ret;
 	}
 
-	pm4125->rxdev = pm4125_sdw_device_get(pm4125->rxnode);
+	pm4125->rxdev = of_sdw_find_device_by_node(pm4125->rxnode);
 	if (!pm4125->rxdev) {
 		dev_err(dev, "could not find rxslave with matching of node\n");
 		ret = -EINVAL;
@@ -1570,7 +1526,7 @@ static int pm4125_bind(struct device *dev)
 	pm4125->sdw_priv[AIF1_PB] = dev_get_drvdata(pm4125->rxdev);
 	pm4125->sdw_priv[AIF1_PB]->pm4125 = pm4125;
 
-	pm4125->txdev = pm4125_sdw_device_get(pm4125->txnode);
+	pm4125->txdev = of_sdw_find_device_by_node(pm4125->txnode);
 	if (!pm4125->txdev) {
 		dev_err(dev, "could not find txslave with matching of node\n");
 		ret = -EINVAL;
@@ -1615,7 +1571,7 @@ static int pm4125_bind(struct device *dev)
 		goto link_remove_dev_tx;
 	}
 
-	pm4125->regmap = dev_get_regmap(&pm4125->tx_sdw_dev->dev, NULL);
+	pm4125->regmap = pm4125->sdw_priv[AIF1_CAP]->regmap;
 	if (!pm4125->regmap) {
 		dev_err(dev, "could not get TX device regmap\n");
 		ret = -EINVAL;
@@ -1631,11 +1587,7 @@ static int pm4125_bind(struct device *dev)
 	pm4125->sdw_priv[AIF1_PB]->slave_irq = pm4125->virq;
 	pm4125->sdw_priv[AIF1_CAP]->slave_irq = pm4125->virq;
 
-	ret = pm4125_set_micbias_data(dev, pm4125);
-	if (ret < 0) {
-		dev_err(dev, "Bad micbias pdata\n");
-		goto link_remove_dev_rx;
-	}
+	pm4125_set_micbias_data(dev, pm4125);
 
 	ret = snd_soc_register_component(dev, &soc_codec_dev_pm4125,
 					 pm4125_dais, ARRAY_SIZE(pm4125_dais));
@@ -1716,7 +1668,12 @@ static int pm4125_probe(struct platform_device *pdev)
 
 	pm4125_reset(pm4125);
 
-	pm4125_dt_parse_micbias_info(dev, pm4125);
+	pm4125->common.dev = dev;
+	pm4125->common.max_bias = 3;
+	ret = wcd_dt_parse_micbias_info(&pm4125->common);
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to get micbias\n");
+
 	atomic_set(&pm4125->gloal_mbias_cnt, 0);
 
 	cfg = &pm4125->mbhc_cfg;
@@ -1724,7 +1681,7 @@ static int pm4125_probe(struct platform_device *pdev)
 	cfg->anc_micbias = MIC_BIAS_2;
 	cfg->v_hs_max = WCD_MBHC_HS_V_MAX;
 	cfg->num_btn = PM4125_MBHC_MAX_BUTTONS;
-	cfg->micb_mv = pm4125->micb2_mv;
+	cfg->micb_mv = pm4125->common.micb_mv[1];
 	cfg->linein_th = 5000;
 	cfg->hs_thr = 1700;
 	cfg->hph_thr = 50;

@@ -7,6 +7,7 @@
 
 #include <linux/soundwire/sdw.h>
 #include <linux/soundwire/sdw_type.h>
+#include "wcd-common.h"
 
 #define PM4125_ANA_BASE_ADDR			0x3000
 #define PM4125_DIG_BASE_ADDR			0x3400
@@ -202,26 +203,13 @@ enum pm4125_rx_sdw_ports {
 	PM4125_MAX_SWR_PORTS = PM4125_COMP_PORT,
 };
 
-struct pm4125_sdw_ch_info {
-	int port_num;
-	unsigned int ch_mask;
-	unsigned int master_ch_mask;
-};
-
-#define WCD_SDW_CH(id, pn, cmask)		\
-	[id] = {				\
-		.port_num = pn,			\
-		.ch_mask = cmask,		\
-		.master_ch_mask = cmask,	\
-	}
-
 struct pm4125_priv;
 struct pm4125_sdw_priv {
 	struct sdw_slave *sdev;
 	struct sdw_stream_config sconfig;
 	struct sdw_stream_runtime *sruntime;
 	struct sdw_port_config port_config[PM4125_MAX_SWR_PORTS];
-	struct pm4125_sdw_ch_info *ch_info;
+	struct wcd_sdw_ch_info *ch_info;
 	bool port_enable[PM4125_MAX_SWR_CH_IDS];
 	unsigned int master_channel_map[SDW_MAX_PORTS];
 	int active_ports;
@@ -239,8 +227,6 @@ int pm4125_sdw_set_sdw_stream(struct pm4125_sdw_priv *pm4125, struct snd_soc_dai
 			      int direction);
 int pm4125_sdw_hw_params(struct pm4125_sdw_priv *pm4125, struct snd_pcm_substream *substream,
 			 struct snd_pcm_hw_params *params, struct snd_soc_dai *dai);
-
-struct device *pm4125_sdw_device_get(struct device_node *np);
 
 #else
 static inline int pm4125_sdw_free(struct pm4125_sdw_priv *pm4125,

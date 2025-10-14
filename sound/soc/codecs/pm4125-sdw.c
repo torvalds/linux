@@ -20,12 +20,12 @@
 #include <sound/soc.h>
 #include "pm4125.h"
 
-static struct pm4125_sdw_ch_info pm4125_sdw_rx_ch_info[] = {
+static struct wcd_sdw_ch_info pm4125_sdw_rx_ch_info[] = {
 	WCD_SDW_CH(PM4125_HPH_L, PM4125_HPH_PORT, BIT(0)),
 	WCD_SDW_CH(PM4125_HPH_R, PM4125_HPH_PORT, BIT(1)),
 };
 
-static struct pm4125_sdw_ch_info pm4125_sdw_tx_ch_info[] = {
+static struct wcd_sdw_ch_info pm4125_sdw_tx_ch_info[] = {
 	WCD_SDW_CH(PM4125_ADC1, PM4125_ADC_1_2_DMIC1L_BCS_PORT, BIT(0)),
 	WCD_SDW_CH(PM4125_ADC2, PM4125_ADC_1_2_DMIC1L_BCS_PORT, BIT(1)),
 };
@@ -45,12 +45,6 @@ static struct sdw_dpn_prop pm4125_dpn_prop[PM4125_MAX_SWR_PORTS] = {
 		.simple_ch_prep_sm = true,
 	}
 };
-
-struct device *pm4125_sdw_device_get(struct device_node *np)
-{
-	return bus_find_device_by_of_node(&sdw_bus_type, np);
-}
-EXPORT_SYMBOL_GPL(pm4125_sdw_device_get);
 
 int pm4125_sdw_hw_params(struct pm4125_sdw_priv *priv, struct snd_pcm_substream *substream,
 			 struct snd_pcm_hw_params *params, struct snd_soc_dai *dai)
@@ -83,19 +77,6 @@ int pm4125_sdw_hw_params(struct pm4125_sdw_priv *priv, struct snd_pcm_substream 
 }
 EXPORT_SYMBOL_GPL(pm4125_sdw_hw_params);
 
-static int pm4125_update_status(struct sdw_slave *slave, enum sdw_slave_status status)
-{
-	struct pm4125_sdw_priv *priv = dev_get_drvdata(&slave->dev);
-
-	if (priv->regmap && status == SDW_SLAVE_ATTACHED) {
-		/* Write out any cached changes that happened between probe and attach */
-		regcache_cache_only(priv->regmap, false);
-		return regcache_sync(priv->regmap);
-	}
-
-	return 0;
-}
-
 /*
  * Handle Soundwire out-of-band interrupt event by triggering the first irq of the slave_irq
  * irq domain, which then will be handled by the regmap_irq threaded irq.
@@ -104,18 +85,9 @@ static int pm4125_update_status(struct sdw_slave *slave, enum sdw_slave_status s
 static int pm4125_interrupt_callback(struct sdw_slave *slave, struct sdw_slave_intr_status *status)
 {
 	struct pm4125_sdw_priv *priv = dev_get_drvdata(&slave->dev);
-	struct irq_domain *slave_irq = priv->slave_irq;
-	u32 sts1, sts2, sts3;
 
-	do {
-		handle_nested_irq(irq_find_mapping(slave_irq, 0));
-		regmap_read(priv->regmap, PM4125_DIG_SWR_INTR_STATUS_0, &sts1);
-		regmap_read(priv->regmap, PM4125_DIG_SWR_INTR_STATUS_1, &sts2);
-		regmap_read(priv->regmap, PM4125_DIG_SWR_INTR_STATUS_2, &sts3);
-
-	} while (sts1 || sts2 || sts3);
-
-	return IRQ_HANDLED;
+	return wcd_interrupt_callback(slave, priv->slave_irq, PM4125_DIG_SWR_INTR_STATUS_0,
+				PM4125_DIG_SWR_INTR_STATUS_1, PM4125_DIG_SWR_INTR_STATUS_2);
 }
 
 static const struct reg_default pm4125_defaults[] = {
@@ -369,30 +341,8 @@ static const struct regmap_config pm4125_regmap_config = {
 };
 
 static const struct sdw_slave_ops pm4125_slave_ops = {
-	.update_status = pm4125_update_status,
+	.update_status = wcd_update_status,
 	.interrupt_callback = pm4125_interrupt_callback,
-};
-
-static int pm4125_sdw_component_bind(struct device *dev, struct device *master, void *data)
-{
-	pm_runtime_set_autosuspend_delay(dev, 3000);
-	pm_runtime_use_autosuspend(dev);
-	pm_runtime_set_active(dev);
-	pm_runtime_enable(dev);
-
-	return 0;
-}
-
-static void pm4125_sdw_component_unbind(struct device *dev, struct device *master, void *data)
-{
-	pm_runtime_disable(dev);
-	pm_runtime_set_suspended(dev);
-	pm_runtime_dont_use_autosuspend(dev);
-}
-
-static const struct component_ops pm4125_sdw_component_ops = {
-	.bind = pm4125_sdw_component_bind,
-	.unbind = pm4125_sdw_component_unbind,
 };
 
 static int pm4125_probe(struct sdw_slave *pdev, const struct sdw_device_id *id)
@@ -476,7 +426,7 @@ static int pm4125_probe(struct sdw_slave *pdev, const struct sdw_device_id *id)
 			priv->ch_info[i].master_ch_mask = PM4125_SWRM_CH_MASK(master_ch_mask[i]);
 	}
 
-	ret = component_add(dev, &pm4125_sdw_component_ops);
+	ret = component_add(dev, &wcd_sdw_component_ops);
 	if (ret)
 		return ret;
 
@@ -490,7 +440,7 @@ static int pm4125_remove(struct sdw_slave *pdev)
 {
 	struct device *dev = &pdev->dev;
 
-	component_del(dev, &pm4125_sdw_component_ops);
+	component_del(dev, &wcd_sdw_component_ops);
 
 	return 0;
 }

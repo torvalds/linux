@@ -1595,6 +1595,7 @@ config SND_SOC_PEB2466
 
 config SND_SOC_PM4125
 	depends on SND_SOC_PM4125_SDW
+	select SND_SOC_WCD_COMMON
 	tristate
 	depends on SOUNDWIRE || !SOUNDWIRE
 
@@ -1603,6 +1604,7 @@ config SND_SOC_PM4125_SDW
 	select SND_SOC_PM4125
 	select SND_SOC_WCD_MBHC
 	select REGMAP_IRQ
+	select SND_SOC_WCD_COMMON
 	depends on SOUNDWIRE
 	select REGMAP_SOUNDWIRE
 	help
