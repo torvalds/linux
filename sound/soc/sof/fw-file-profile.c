@@ -73,6 +73,10 @@ static int sof_test_topology_file(struct device *dev,
 	if (!profile->tplg_path || !profile->tplg_name)
 		return 0;
 
+	/* Dummy topology does not exist and should not be used */
+	if (strstr(profile->tplg_name, "dummy"))
+		return 0;
+
 	tplg_filename = kasprintf(GFP_KERNEL, "%s/%s", profile->tplg_path,
 				  profile->tplg_name);
 	if (!tplg_filename)

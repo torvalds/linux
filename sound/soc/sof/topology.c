@@ -2523,6 +2523,11 @@ int snd_sof_load_topology(struct snd_soc_component *scomp, const char *file)
 	 * callback or the callback returns 0.
 	 */
 	if (!tplg_cnt) {
+		if (strstr(file, "dummy")) {
+			dev_err(scomp->dev,
+				"Function topology is required, please upgrade sof-firmware\n");
+			return -EINVAL;
+		}
 		tplg_files[0] = file;
 		tplg_cnt = 1;
 		dev_info(scomp->dev, "loading topology: %s\n", file);
