@@ -297,7 +297,7 @@ static int pga_event(struct snd_soc_dapm_widget *w,
 static int wm8350_put_volsw_2r_vu(struct snd_kcontrol *kcontrol,
 				  struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct wm8350_data *wm8350_priv = snd_soc_component_get_drvdata(component);
 	struct wm8350_output *out = NULL;
 	struct soc_mixer_control *mc =
@@ -340,7 +340,7 @@ static int wm8350_put_volsw_2r_vu(struct snd_kcontrol *kcontrol,
 static int wm8350_get_volsw_2r(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct wm8350_data *wm8350_priv = snd_soc_component_get_drvdata(component);
 	struct wm8350_output *out1 = &wm8350_priv->out1;
 	struct wm8350_output *out2 = &wm8350_priv->out2;
