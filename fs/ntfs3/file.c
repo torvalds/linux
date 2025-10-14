@@ -325,9 +325,14 @@ static int ntfs_file_mmap_prepare(struct vm_area_desc *desc)
 		return -EOPNOTSUPP;
 	}
 
-	if (is_compressed(ni) && rw) {
-		ntfs_inode_warn(inode, "mmap(write) compressed not supported");
-		return -EOPNOTSUPP;
+	if (is_compressed(ni)) {
+		if (rw) {
+			ntfs_inode_warn(inode,
+					"mmap(write) compressed not supported");
+			return -EOPNOTSUPP;
+		}
+		/* Turn off readahead for compressed files. */
+		file->f_ra.ra_pages = 0;
 	}
 
 	if (rw) {
@@ -884,9 +889,14 @@ static ssize_t ntfs_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 	if (err)
 		return err;
 
-	if (is_compressed(ni) && (iocb->ki_flags & IOCB_DIRECT)) {
-		ntfs_inode_warn(inode, "direct i/o + compressed not supported");
-		return -EOPNOTSUPP;
+	if (is_compressed(ni)) {
+		if (iocb->ki_flags & IOCB_DIRECT) {
+			ntfs_inode_warn(
+				inode, "direct i/o + compressed not supported");
+			return -EOPNOTSUPP;
+		}
+		/* Turn off readahead for compressed files. */
+		file->f_ra.ra_pages = 0;
 	}
 
 	return generic_file_read_iter(iocb, iter);
@@ -905,6 +915,11 @@ static ssize_t ntfs_file_splice_read(struct file *in, loff_t *ppos,
 	err = check_read_restriction(inode);
 	if (err)
 		return err;
+
+	if (is_compressed(ntfs_i(inode))) {
+		/* Turn off readahead for compressed files. */
+		in->f_ra.ra_pages = 0;
+	}
 
 	return filemap_splice_read(in, ppos, pipe, len, flags);
 }
