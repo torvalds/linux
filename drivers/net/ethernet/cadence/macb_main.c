@@ -4066,6 +4066,8 @@ static int macb_taprio_setup_replace(struct net_device *ndev,
 	struct macb *bp = netdev_priv(ndev);
 	struct ethtool_link_ksettings kset;
 	struct macb_queue *queue;
+	u32 queue_mask;
+	u8 queue_id;
 	size_t i;
 	int err;
 
@@ -4117,8 +4119,9 @@ static int macb_taprio_setup_replace(struct net_device *ndev,
 			goto cleanup;
 		}
 
-		/* gate_mask must not select queues outside the valid queue_mask */
-		if (entry->gate_mask & ~bp->queue_mask) {
+		/* gate_mask must not select queues outside the valid queues */
+		queue_id = order_base_2(entry->gate_mask);
+		if (queue_id >= bp->num_queues) {
 			netdev_err(ndev, "Entry %zu: gate_mask 0x%x exceeds queue range (max_queues=%d)\n",
 				   i, entry->gate_mask, bp->num_queues);
 			err = -EINVAL;
@@ -4152,7 +4155,7 @@ static int macb_taprio_setup_replace(struct net_device *ndev,
 			goto cleanup;
 		}
 
-		enst_queue[i].queue_id = order_base_2(entry->gate_mask);
+		enst_queue[i].queue_id = queue_id;
 		enst_queue[i].start_time_mask =
 			(start_time_sec << GEM_START_TIME_SEC_OFFSET) |
 			start_time_nsec;
@@ -4180,8 +4183,9 @@ static int macb_taprio_setup_replace(struct net_device *ndev,
 	/* All validations passed - proceed with hardware configuration */
 	scoped_guard(spinlock_irqsave, &bp->lock) {
 		/* Disable ENST queues if running before configuring */
+		queue_mask = BIT_U32(bp->num_queues) - 1;
 		gem_writel(bp, ENST_CONTROL,
-			   bp->queue_mask << GEM_ENST_DISABLE_QUEUE_OFFSET);
+			   queue_mask << GEM_ENST_DISABLE_QUEUE_OFFSET);
 
 		for (i = 0; i < conf->num_entries; i++) {
 			queue = &bp->queues[enst_queue[i].queue_id];
@@ -4210,15 +4214,16 @@ static void macb_taprio_destroy(struct net_device *ndev)
 {
 	struct macb *bp = netdev_priv(ndev);
 	struct macb_queue *queue;
-	u32 enst_disable_mask;
+	u32 queue_mask;
 	unsigned int q;
 
 	netdev_reset_tc(ndev);
-	enst_disable_mask = bp->queue_mask << GEM_ENST_DISABLE_QUEUE_OFFSET;
+	queue_mask = BIT_U32(bp->num_queues) - 1;
 
 	scoped_guard(spinlock_irqsave, &bp->lock) {
 		/* Single disable command for all queues */
-		gem_writel(bp, ENST_CONTROL, enst_disable_mask);
+		gem_writel(bp, ENST_CONTROL,
+			   queue_mask << GEM_ENST_DISABLE_QUEUE_OFFSET);
 
 		/* Clear all queue ENST registers in batch */
 		for (q = 0, queue = bp->queues; q < bp->num_queues; ++q, ++queue) {
@@ -4341,26 +4346,25 @@ static void macb_configure_caps(struct macb *bp,
 	dev_dbg(&bp->pdev->dev, "Cadence caps 0x%08x\n", bp->caps);
 }
 
-static void macb_probe_queues(void __iomem *mem,
-			      bool native_io,
-			      unsigned int *queue_mask,
-			      unsigned int *num_queues)
+static int macb_probe_queues(struct device *dev, void __iomem *mem, bool native_io)
 {
-	*queue_mask = 0x1;
-	*num_queues = 1;
+	/* BIT(0) is never set but queue 0 always exists. */
+	unsigned int queue_mask = 0x1;
 
-	/* is it macb or gem ?
-	 *
-	 * We need to read directly from the hardware here because
-	 * we are early in the probe process and don't have the
-	 * MACB_CAPS_MACB_IS_GEM flag positioned
-	 */
-	if (!hw_is_gem(mem, native_io))
-		return;
+	/* Use hw_is_gem() as MACB_CAPS_MACB_IS_GEM is not yet positioned. */
+	if (hw_is_gem(mem, native_io)) {
+		if (native_io)
+			queue_mask |= __raw_readl(mem + GEM_DCFG6) & 0xFF;
+		else
+			queue_mask |= readl_relaxed(mem + GEM_DCFG6) & 0xFF;
 
-	/* bit 0 is never set but queue 0 always exists */
-	*queue_mask |= readl_relaxed(mem + GEM_DCFG6) & 0xff;
-	*num_queues = hweight32(*queue_mask);
+		if (fls(queue_mask) != ffz(queue_mask)) {
+			dev_err(dev, "queue mask %#x has a hole\n", queue_mask);
+			return -EINVAL;
+		}
+	}
+
+	return hweight32(queue_mask);
 }
 
 static void macb_clks_disable(struct clk *pclk, struct clk *hclk, struct clk *tx_clk,
@@ -4478,10 +4482,7 @@ static int macb_init(struct platform_device *pdev)
 	 * register mapping but we don't want to test the queue index then
 	 * compute the corresponding register offset at run time.
 	 */
-	for (hw_q = 0, q = 0; hw_q < MACB_MAX_QUEUES; ++hw_q) {
-		if (!(bp->queue_mask & (1 << hw_q)))
-			continue;
-
+	for (hw_q = 0, q = 0; hw_q < bp->num_queues; ++hw_q) {
 		queue = &bp->queues[q];
 		queue->bp = bp;
 		spin_lock_init(&queue->tx_ptr_lock);
@@ -5385,14 +5386,14 @@ static int macb_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct clk *pclk, *hclk = NULL, *tx_clk = NULL, *rx_clk = NULL;
 	struct clk *tsu_clk = NULL;
-	unsigned int queue_mask, num_queues;
-	bool native_io;
 	phy_interface_t interface;
 	struct net_device *dev;
 	struct resource *regs;
 	u32 wtrmrk_rst_val;
 	void __iomem *mem;
 	struct macb *bp;
+	int num_queues;
+	bool native_io;
 	int err, val;
 
 	mem = devm_platform_get_and_ioremap_resource(pdev, 0, &regs);
@@ -5418,7 +5419,12 @@ static int macb_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 	native_io = hw_is_native_io(mem);
 
-	macb_probe_queues(mem, native_io, &queue_mask, &num_queues);
+	num_queues = macb_probe_queues(&pdev->dev, mem, native_io);
+	if (num_queues < 0) {
+		err = num_queues;
+		goto err_disable_clocks;
+	}
+
 	dev = alloc_etherdev_mq(sizeof(*bp), num_queues);
 	if (!dev) {
 		err = -ENOMEM;
@@ -5442,7 +5448,6 @@ static int macb_probe(struct platform_device *pdev)
 		bp->macb_reg_writel = hw_writel;
 	}
 	bp->num_queues = num_queues;
-	bp->queue_mask = queue_mask;
 	bp->dma_burst_length = macb_config->dma_burst_length;
 	bp->pclk = pclk;
 	bp->hclk = hclk;
