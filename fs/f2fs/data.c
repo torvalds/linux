@@ -1273,7 +1273,7 @@ struct folio *f2fs_find_data_folio(struct inode *inode, pgoff_t index,
 	struct address_space *mapping = inode->i_mapping;
 	struct folio *folio;
 
-	folio = __filemap_get_folio(mapping, index, FGP_ACCESSED, 0);
+	folio = f2fs_filemap_get_folio(mapping, index, FGP_ACCESSED, 0);
 	if (IS_ERR(folio))
 		goto read;
 	if (folio_test_uptodate(folio))
@@ -3567,7 +3567,7 @@ repeat:
 	 * Do not use FGP_STABLE to avoid deadlock.
 	 * Will wait that below with our IO control.
 	 */
-	folio = __filemap_get_folio(mapping, index,
+	folio = f2fs_filemap_get_folio(mapping, index,
 				FGP_LOCK | FGP_WRITE | FGP_CREAT | FGP_NOFS,
 				mapping_gfp_mask(mapping));
 	if (IS_ERR(folio)) {
