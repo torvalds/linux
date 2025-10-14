@@ -116,17 +116,11 @@ int rv_get_task_monitor_slot(void);
 void rv_put_task_monitor_slot(int slot);
 
 #ifdef CONFIG_RV_REACTORS
-bool rv_reacting_on(void);
 int rv_unregister_reactor(struct rv_reactor *reactor);
 int rv_register_reactor(struct rv_reactor *reactor);
 __printf(2, 3)
 void rv_react(struct rv_monitor *monitor, const char *msg, ...);
 #else
-static inline bool rv_reacting_on(void)
-{
-	return false;
-}
-
 __printf(2, 3)
 static inline void rv_react(struct rv_monitor *monitor, const char *msg, ...)
 {
