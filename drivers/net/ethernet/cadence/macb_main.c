@@ -124,9 +124,9 @@ static unsigned int macb_dma_desc_get_size(struct macb *bp)
 	unsigned int desc_size = sizeof(struct macb_dma_desc);
 
 #ifdef MACB_EXT_DESC
-	if (bp->hw_dma_cap & HW_DMA_CAP_64B)
+	if (bp->caps & MACB_CAPS_DMA_64B)
 		desc_size += sizeof(struct macb_dma_desc_64);
-	if (bp->hw_dma_cap & HW_DMA_CAP_PTP)
+	if (bp->caps & MACB_CAPS_DMA_PTP)
 		desc_size += sizeof(struct macb_dma_desc_ptp);
 #endif
 
@@ -136,8 +136,8 @@ static unsigned int macb_dma_desc_get_size(struct macb *bp)
 static unsigned int macb_adj_dma_desc_idx(struct macb *bp, unsigned int desc_idx)
 {
 #ifdef MACB_EXT_DESC
-	bool is_ptp = bp->hw_dma_cap & HW_DMA_CAP_PTP;
-	bool is_64b = bp->hw_dma_cap & HW_DMA_CAP_64B;
+	bool is_ptp = bp->caps & MACB_CAPS_DMA_PTP;
+	bool is_64b = bp->caps & MACB_CAPS_DMA_64B;
 
 	return desc_idx * (1 + is_64b + is_ptp);
 #else
@@ -475,7 +475,7 @@ static void macb_init_buffers(struct macb *bp)
 
 #ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
 	/* Single register for all queues' high 32 bits. */
-	if (bp->hw_dma_cap & HW_DMA_CAP_64B) {
+	if (bp->caps & MACB_CAPS_DMA_64B) {
 		macb_writel(bp, RBQPH,
 			    upper_32_bits(bp->queues[0].rx_ring_dma));
 		macb_writel(bp, TBQPH,
@@ -1009,7 +1009,7 @@ static void macb_set_addr(struct macb *bp, struct macb_dma_desc *desc, dma_addr_
 #ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
 	struct macb_dma_desc_64 *desc_64;
 
-	if (bp->hw_dma_cap & HW_DMA_CAP_64B) {
+	if (bp->caps & MACB_CAPS_DMA_64B) {
 		desc_64 = macb_64b_desc(bp, desc);
 		desc_64->addrh = upper_32_bits(addr);
 		/* The low bits of RX address contain the RX_USED bit, clearing
@@ -1028,14 +1028,14 @@ static dma_addr_t macb_get_addr(struct macb *bp, struct macb_dma_desc *desc)
 #ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
 	struct macb_dma_desc_64 *desc_64;
 
-	if (bp->hw_dma_cap & HW_DMA_CAP_64B) {
+	if (bp->caps & MACB_CAPS_DMA_64B) {
 		desc_64 = macb_64b_desc(bp, desc);
 		addr = ((u64)(desc_64->addrh) << 32);
 	}
 #endif
 	addr |= MACB_BF(RX_WADDR, MACB_BFEXT(RX_WADDR, desc->addr));
 #ifdef CONFIG_MACB_USE_HWSTAMP
-	if (bp->hw_dma_cap & HW_DMA_CAP_PTP)
+	if (bp->caps & MACB_CAPS_DMA_PTP)
 		addr &= ~GEM_BIT(DMA_RXVALID);
 #endif
 	return addr;
@@ -2301,7 +2301,7 @@ static netdev_tx_t macb_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 #ifdef CONFIG_MACB_USE_HWSTAMP
 	if ((skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) &&
-	    (bp->hw_dma_cap & HW_DMA_CAP_PTP))
+	    (bp->caps & MACB_CAPS_DMA_PTP))
 		skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
 #endif
 
@@ -2781,11 +2781,11 @@ static void macb_configure_dma(struct macb *bp)
 
 		dmacfg &= ~GEM_BIT(ADDR64);
 #ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
-		if (bp->hw_dma_cap & HW_DMA_CAP_64B)
+		if (bp->caps & MACB_CAPS_DMA_64B)
 			dmacfg |= GEM_BIT(ADDR64);
 #endif
 #ifdef CONFIG_MACB_USE_HWSTAMP
-		if (bp->hw_dma_cap & HW_DMA_CAP_PTP)
+		if (bp->caps & MACB_CAPS_DMA_PTP)
 			dmacfg |= GEM_BIT(RXEXT) | GEM_BIT(TXEXT);
 #endif
 		netdev_dbg(bp->dev, "Cadence configure DMA with 0x%08x\n",
@@ -3563,7 +3563,7 @@ static int gem_get_ts_info(struct net_device *dev,
 {
 	struct macb *bp = netdev_priv(dev);
 
-	if ((bp->hw_dma_cap & HW_DMA_CAP_PTP) == 0) {
+	if (!(bp->caps & MACB_CAPS_DMA_PTP)) {
 		ethtool_op_get_ts_info(dev, info);
 		return 0;
 	}
@@ -4351,7 +4351,7 @@ static void macb_configure_caps(struct macb *bp,
 					"GEM doesn't support hardware ptp.\n");
 			else {
 #ifdef CONFIG_MACB_USE_HWSTAMP
-				bp->hw_dma_cap |= HW_DMA_CAP_PTP;
+				bp->caps |= MACB_CAPS_DMA_PTP;
 				bp->ptp_info = &gem_ptp_info;
 #endif
 			}
@@ -5518,7 +5518,7 @@ static int macb_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "failed to set DMA mask\n");
 			goto err_out_free_netdev;
 		}
-		bp->hw_dma_cap |= HW_DMA_CAP_64B;
+		bp->caps |= MACB_CAPS_DMA_64B;
 	}
 #endif
 	platform_set_drvdata(pdev, dev);

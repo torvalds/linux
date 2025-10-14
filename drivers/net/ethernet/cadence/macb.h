@@ -777,6 +777,8 @@
 #define MACB_CAPS_GIGABIT_MODE_AVAILABLE	BIT(18)
 #define MACB_CAPS_SG_DISABLED			BIT(19)
 #define MACB_CAPS_MACB_IS_GEM			BIT(20)
+#define MACB_CAPS_DMA_64B			BIT(21)
+#define MACB_CAPS_DMA_PTP			BIT(22)
 
 /* LSO settings */
 #define MACB_LSO_UFO_ENABLE			0x01
@@ -854,11 +856,6 @@ struct macb_dma_desc {
 };
 
 #ifdef MACB_EXT_DESC
-#define HW_DMA_CAP_32B		0
-#define HW_DMA_CAP_64B		(1 << 0)
-#define HW_DMA_CAP_PTP		(1 << 1)
-#define HW_DMA_CAP_64B_PTP	(HW_DMA_CAP_64B | HW_DMA_CAP_PTP)
-
 struct macb_dma_desc_64 {
 	u32 addrh;
 	u32 resvd;
@@ -1349,9 +1346,6 @@ struct macb {
 
 	struct phy		*sgmii_phy;	/* for ZynqMP SGMII mode */
 
-#ifdef MACB_EXT_DESC
-	uint8_t hw_dma_cap;
-#endif
 	spinlock_t tsu_clk_lock; /* gem tsu clock locking */
 	unsigned int tsu_rate;
 	struct ptp_clock *ptp_clock;
