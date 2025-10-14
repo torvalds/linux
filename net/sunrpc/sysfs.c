@@ -389,7 +389,7 @@ static ssize_t rpc_sysfs_xprt_dstaddr_store(struct kobject *kobj,
 	saddr = (struct sockaddr *)&xprt->addr;
 	port = rpc_get_port(saddr);
 
-	/* buf_len is the len until the first occurence of either
+	/* buf_len is the len until the first occurrence of either
 	 * '\n' or '\0'
 	 */
 	buf_len = strcspn(buf, "\n");

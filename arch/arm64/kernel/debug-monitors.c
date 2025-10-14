@@ -167,7 +167,7 @@ static void send_user_sigtrap(int si_code)
 	if (WARN_ON(!user_mode(regs)))
 		return;
 
-	if (interrupts_enabled(regs))
+	if (!regs_irqs_disabled(regs))
 		local_irq_enable();
 
 	arm64_force_sig_fault(SIGTRAP, si_code, instruction_pointer(regs),
@@ -212,7 +212,7 @@ static int call_el1_break_hook(struct pt_regs *regs, unsigned long esr)
 	if (esr_brk_comment(esr) == BUG_BRK_IMM)
 		return bug_brk_handler(regs, esr);
 
-	if (IS_ENABLED(CONFIG_CFI_CLANG) && esr_is_cfi_brk(esr))
+	if (IS_ENABLED(CONFIG_CFI) && esr_is_cfi_brk(esr))
 		return cfi_brk_handler(regs, esr);
 
 	if (esr_brk_comment(esr) == FAULT_BRK_IMM)

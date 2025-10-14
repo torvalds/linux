@@ -17,6 +17,7 @@
 #include "xe_oa_types.h"
 #include "xe_reg_sr_types.h"
 #include "xe_sa_types.h"
+#include "xe_tlb_inval_types.h"
 #include "xe_uc_types.h"
 
 struct xe_exec_queue_ops;
@@ -185,34 +186,8 @@ struct xe_gt {
 		struct work_struct worker;
 	} reset;
 
-	/** @tlb_invalidation: TLB invalidation state */
-	struct {
-		/** @tlb_invalidation.seqno: TLB invalidation seqno, protected by CT lock */
-#define TLB_INVALIDATION_SEQNO_MAX	0x100000
-		int seqno;
-		/**
-		 * @tlb_invalidation.seqno_recv: last received TLB invalidation seqno,
-		 * protected by CT lock
-		 */
-		int seqno_recv;
-		/**
-		 * @tlb_invalidation.pending_fences: list of pending fences waiting TLB
-		 * invaliations, protected by CT lock
-		 */
-		struct list_head pending_fences;
-		/**
-		 * @tlb_invalidation.pending_lock: protects @tlb_invalidation.pending_fences
-		 * and updating @tlb_invalidation.seqno_recv.
-		 */
-		spinlock_t pending_lock;
-		/**
-		 * @tlb_invalidation.fence_tdr: schedules a delayed call to
-		 * xe_gt_tlb_fence_timeout after the timeut interval is over.
-		 */
-		struct delayed_work fence_tdr;
-		/** @tlb_invalidation.lock: protects TLB invalidation fences */
-		spinlock_t lock;
-	} tlb_invalidation;
+	/** @tlb_inval: TLB invalidation state */
+	struct xe_tlb_inval tlb_inval;
 
 	/**
 	 * @ccs_mode: Number of compute engines enabled.
@@ -411,7 +386,7 @@ struct xe_gt {
 		unsigned long *oob;
 		/**
 		 * @wa_active.oob_initialized: mark oob as initialized to help
-		 * detecting misuse of XE_WA() - it can only be called on
+		 * detecting misuse of XE_GT_WA() - it can only be called on
 		 * initialization after OOB WAs have being processed
 		 */
 		bool oob_initialized;

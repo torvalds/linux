@@ -177,9 +177,19 @@ Suite for evaluating performance of simple memory copy in various ways.
 
 Options of *memcpy*
 ^^^^^^^^^^^^^^^^^^^
--l::
+-s::
 --size::
 Specify size of memory to copy (default: 1MB).
+Available units are B, KB, MB, GB and TB (case insensitive).
+
+-p::
+--page::
+Specify page-size for mapping memory buffers (default: 4KB).
+Available values are 4KB, 2MB, 1GB (case insensitive).
+
+-k::
+--chunk::
+Specify the chunk-size for each invocation. (default: 0, or full-extent)
 Available units are B, KB, MB, GB and TB (case insensitive).
 
 -f::
@@ -201,9 +211,19 @@ Suite for evaluating performance of simple memory set in various ways.
 
 Options of *memset*
 ^^^^^^^^^^^^^^^^^^^
--l::
+-s::
 --size::
 Specify size of memory to set (default: 1MB).
+Available units are B, KB, MB, GB and TB (case insensitive).
+
+-p::
+--page::
+Specify page-size for mapping memory buffers (default: 4KB).
+Available values are 4KB, 2MB, 1GB (case insensitive).
+
+-k::
+--chunk::
+Specify the chunk-size for each invocation. (default: 0, or full-extent)
 Available units are B, KB, MB, GB and TB (case insensitive).
 
 -f::
@@ -215,6 +235,40 @@ On x86-64, x86-64-unrolled, x86-64-stosq and x86-64-stosb are supported.
 -l::
 --nr_loops::
 Repeat memset invocation this number of times.
+
+-c::
+--cycles::
+Use perf's cpu-cycles event instead of gettimeofday syscall.
+
+*mmap*::
+Suite for evaluating memory subsystem performance for mmap()'d memory.
+
+Options of *mmap*
+^^^^^^^^^^^^^^^^^
+-s::
+--size::
+Specify size of memory to set (default: 1MB).
+Available units are B, KB, MB, GB and TB (case insensitive).
+
+-p::
+--page::
+Specify page-size for mapping memory buffers (default: 4KB).
+Available values are 4KB, 2MB, 1GB (case insensitive).
+
+-r::
+--randomize::
+Specify seed to randomize page access offset (default: 0, or not randomized).
+
+-f::
+--function::
+Specify function to set (default: all).
+Available functions are 'demand' and 'populate', with the first
+demand faulting pages in the region and the second using an eager
+mapping.
+
+-l::
+--nr_loops::
+Repeat mmap() invocation this number of times.
 
 -c::
 --cycles::

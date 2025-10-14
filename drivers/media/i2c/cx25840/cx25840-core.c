@@ -9,10 +9,10 @@
  * Changes by Tyler Trafford <tatrafford@comcast.net>
  *    - cleanup/rewrite for V4L2 API (2005)
  *
- * VBI support by Hans Verkuil <hverkuil@xs4all.nl>.
+ * VBI support by Hans Verkuil <hverkuil@kernel.org>.
  *
  * NTSC sliced VBI support by Christopher Neufeld <television@cneufeld.ca>
- * with additional fixes by Hans Verkuil <hverkuil@xs4all.nl>.
+ * with additional fixes by Hans Verkuil <hverkuil@kernel.org>.
  *
  * CX23885 support by Steven Toth <stoth@linuxtv.org>.
  *

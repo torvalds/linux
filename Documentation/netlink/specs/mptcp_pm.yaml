@@ -28,13 +28,13 @@ definitions:
           traffic-patterns it can take a long time until the
           MPTCP_EVENT_ESTABLISHED is sent.
           Attributes: token, family, saddr4 | saddr6, daddr4 | daddr6, sport,
-          dport, server-side.
+          dport, [server-side], [flags].
       -
         name: established
         doc: >-
           A MPTCP connection is established (can start new subflows).
           Attributes: token, family, saddr4 | saddr6, daddr4 | daddr6, sport,
-          dport, server-side.
+          dport, [server-side], [flags].
       -
         name: closed
         doc: >-
@@ -256,7 +256,7 @@ attribute-sets:
         type: u32
       -
         name: if-idx
-        type: u32
+        type: s32
       -
         name: reset-reason
         type: u32
@@ -266,6 +266,7 @@ attribute-sets:
       -
         name: server-side
         type: u8
+        doc: "Deprecated: use 'flags'"
 
 operations:
   list:

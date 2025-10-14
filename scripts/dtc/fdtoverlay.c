@@ -46,6 +46,7 @@ static void *apply_one(char *base, const char *overlay, size_t *buf_len,
 	char *tmp = NULL;
 	char *tmpo;
 	int ret;
+	bool has_symbols;
 
 	/*
 	 * We take copies first, because a failed apply can trash
@@ -62,6 +63,8 @@ static void *apply_one(char *base, const char *overlay, size_t *buf_len,
 				fdt_strerror(ret));
 			goto fail;
 		}
+		ret = fdt_path_offset(tmp, "/__symbols__");
+		has_symbols = ret >= 0;
 
 		memcpy(tmpo, overlay, fdt_totalsize(overlay));
 
@@ -74,6 +77,11 @@ static void *apply_one(char *base, const char *overlay, size_t *buf_len,
 	if (ret) {
 		fprintf(stderr, "\nFailed to apply '%s': %s\n",
 			name, fdt_strerror(ret));
+		if (!has_symbols) {
+			fprintf(stderr,
+				"base blob does not have a '/__symbols__' node, "
+				"make sure you have compiled the base blob with '-@' option\n");
+		}
 		goto fail;
 	}
 

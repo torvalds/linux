@@ -290,7 +290,8 @@ int nfs_do_submount(struct fs_context *fc)
 		nfs_errorf(fc, "NFS: Couldn't determine submount pathname");
 		ret = PTR_ERR(p);
 	} else {
-		ret = vfs_parse_fs_string(fc, "source", p, buffer + 4096 - p);
+		ret = vfs_parse_fs_qstr(fc, "source",
+					&QSTR_LEN(p, buffer + 4096 - p));
 		if (!ret)
 			ret = vfs_get_tree(fc);
 	}
@@ -335,7 +336,7 @@ static int param_set_nfs_timeout(const char *val, const struct kernel_param *kp)
 			num *= HZ;
 		*((int *)kp->arg) = num;
 		if (!list_empty(&nfs_automount_list))
-			mod_delayed_work(system_wq, &nfs_automount_task, num);
+			mod_delayed_work(system_percpu_wq, &nfs_automount_task, num);
 	} else {
 		*((int *)kp->arg) = -1*HZ;
 		cancel_delayed_work(&nfs_automount_task);

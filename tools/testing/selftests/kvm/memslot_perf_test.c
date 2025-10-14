@@ -25,6 +25,7 @@
 #include <test_util.h>
 #include <kvm_util.h>
 #include <processor.h>
+#include <ucall_common.h>
 
 #define MEM_EXTRA_SIZE		SZ_64K
 

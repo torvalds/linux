@@ -749,7 +749,6 @@ static int mlx90635_read_raw(struct iio_dev *indio_dev,
 	}
 
 mlx90635_read_raw_pm:
-	pm_runtime_mark_last_busy(&data->client->dev);
 	pm_runtime_put_autosuspend(&data->client->dev);
 	return ret;
 }
@@ -939,7 +938,7 @@ static int mlx90635_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*mlx90635));
 	if (!indio_dev)
-		return dev_err_probe(&client->dev, -ENOMEM, "failed to allocate device\n");
+		return -ENOMEM;
 
 	regmap = devm_regmap_init_i2c(client, &mlx90635_regmap);
 	if (IS_ERR(regmap))
@@ -977,8 +976,7 @@ static int mlx90635_probe(struct i2c_client *client)
 	ret = devm_add_action_or_reset(&client->dev, mlx90635_disable_regulator,
 				       mlx90635);
 	if (ret < 0)
-		return dev_err_probe(&client->dev, ret,
-				     "failed to setup regulator cleanup action\n");
+		return ret;
 
 	ret = mlx90635_wakeup(mlx90635);
 	if (ret < 0)
@@ -986,8 +984,7 @@ static int mlx90635_probe(struct i2c_client *client)
 
 	ret = devm_add_action_or_reset(&client->dev, mlx90635_sleep, mlx90635);
 	if (ret < 0)
-		return dev_err_probe(&client->dev, ret,
-				     "failed to setup low power cleanup\n");
+		return ret;
 
 	ret = regmap_read(mlx90635->regmap_ee, MLX90635_EE_VERSION, &dsp_version);
 	if (ret < 0)

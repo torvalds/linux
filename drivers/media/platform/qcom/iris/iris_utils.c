@@ -88,3 +88,39 @@ struct iris_inst *iris_get_instance(struct iris_core *core, u32 session_id)
 	mutex_unlock(&core->lock);
 	return NULL;
 }
+
+int iris_check_core_mbpf(struct iris_inst *inst)
+{
+	struct iris_core *core = inst->core;
+	struct iris_inst *instance;
+	u32 total_mbpf = 0;
+
+	mutex_lock(&core->lock);
+	list_for_each_entry(instance, &core->instances, list)
+		total_mbpf += iris_get_mbpf(instance);
+	mutex_unlock(&core->lock);
+
+	if (total_mbpf > core->iris_platform_data->max_core_mbpf)
+		return -ENOMEM;
+
+	return 0;
+}
+
+int iris_check_core_mbps(struct iris_inst *inst)
+{
+	struct iris_core *core = inst->core;
+	struct iris_inst *instance;
+	u32 total_mbps = 0, fps = 0;
+
+	mutex_lock(&core->lock);
+	list_for_each_entry(instance, &core->instances, list) {
+		fps = max(instance->frame_rate, instance->operating_rate);
+		total_mbps += iris_get_mbpf(instance) * fps;
+	}
+	mutex_unlock(&core->lock);
+
+	if (total_mbps > core->iris_platform_data->max_core_mbps)
+		return -ENOMEM;
+
+	return 0;
+}

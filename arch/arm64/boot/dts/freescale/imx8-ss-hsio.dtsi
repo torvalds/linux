@@ -68,10 +68,10 @@ hsio_subsys: bus@5f000000 {
 		clock-names = "dbi", "mstr", "slv";
 		bus-range = <0x00 0xff>;
 		device_type = "pci";
-		interrupt-map = <0 0 0 1 &gic 0 105 4>,
-				<0 0 0 2 &gic 0 106 4>,
-				<0 0 0 3 &gic 0 107 4>,
-				<0 0 0 4 &gic 0 108 4>;
+		interrupt-map = <0 0 0 1 &gic GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 0 2 &gic GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 0 3 &gic GIC_SPI 107 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 0 4 &gic GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-map-mask = <0 0 0 0x7>;
 		num-lanes = <1>;
 		num-viewport = <4>;

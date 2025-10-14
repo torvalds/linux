@@ -13,7 +13,7 @@ mod ga102;
 /// Implements chipset-specific low-level operations. The trait is generic against [`FalconEngine`]
 /// so its `BASE` parameter can be used in order to avoid runtime bound checks when accessing
 /// registers.
-pub(crate) trait FalconHal<E: FalconEngine>: Sync {
+pub(crate) trait FalconHal<E: FalconEngine>: Send + Sync {
     /// Activates the Falcon core if the engine is a risvc/falcon dual engine.
     fn select_core(&self, _falcon: &Falcon<E>, _bar: &Bar0) -> Result {
         Ok(())

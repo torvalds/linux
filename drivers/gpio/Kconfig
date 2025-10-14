@@ -3,6 +3,9 @@
 # GPIO infrastructure and drivers
 #
 
+config GPIOLIB_LEGACY
+	def_bool y
+
 menuconfig GPIOLIB
 	bool "GPIO Support"
 	help
@@ -11,9 +14,6 @@ menuconfig GPIOLIB
 	  one or more of the GPIO drivers below.
 
 	  If unsure, say N.
-
-config GPIOLIB_LEGACY
-	def_bool y
 
 if GPIOLIB
 
@@ -303,7 +303,7 @@ config GPIO_EN7523
 
 config GPIO_EP93XX
 	def_bool y
-	depends on ARCH_EP93XX
+	depends on ARCH_EP93XX || COMPILE_TEST
 	select GPIO_GENERIC
 	select GPIOLIB_IRQCHIP
 
@@ -408,8 +408,7 @@ config GPIO_IMX_SCU
 
 config GPIO_IXP4XX
 	bool "Intel IXP4xx GPIO"
-	depends on ARCH_IXP4XX
-	depends on OF
+	depends on (ARCH_IXP4XX && OF) || COMPILE_TEST
 	select GPIO_GENERIC
 	select GPIOLIB_IRQCHIP
 	select IRQ_DOMAIN_HIERARCHY
@@ -437,6 +436,7 @@ config GPIO_LOONGSON_64BIT
 	depends on LOONGARCH || COMPILE_TEST
 	depends on OF_GPIO
 	select GPIO_GENERIC
+	select GPIOLIB_IRQCHIP
 	help
 	  Say yes here to support the GPIO functionality of a number of
 	  Loongson series of chips. The Loongson GPIO controller supports
@@ -485,7 +485,6 @@ config GPIO_MM_LANTIQ
 config GPIO_MPC5200
 	def_bool y
 	depends on PPC_MPC52xx
-	select OF_GPIO_MM_GPIOCHIP
 
 config GPIO_MPC8XXX
 	bool "MPC512x/MPC8xxx/QorIQ GPIO support"
@@ -735,7 +734,8 @@ config GPIO_TANGIER
 	  If built as a module its name will be gpio-tangier.
 
 config GPIO_TB10X
-	bool
+	bool "Abilis Systems TB10x GPIO controller"
+	depends on ARC_PLAT_TB10X || COMPILE_TEST
 	select GPIO_GENERIC
 	select GENERIC_IRQ_CHIP
 	select OF_GPIO
@@ -884,7 +884,7 @@ config GPIO_ZYNQMP_MODEPIN
 
 config GPIO_LOONGSON1
 	tristate "Loongson1 GPIO support"
-	depends on MACH_LOONGSON32
+	depends on MACH_LOONGSON32 || COMPILE_TEST
 	select GPIO_GENERIC
 	help
 	  Say Y or M here to support GPIO on Loongson1 SoCs.
@@ -1194,14 +1194,18 @@ config GPIO_PCA953X
 	  4 bits:       pca9536, pca9537
 
 	  8 bits:       max7310, max7315, pca6107, pca9534, pca9538, pca9554,
-	                pca9556, pca9557, pca9574, tca6408, tca9554, xra1202
+	                pca9556, pca9557, pca9574, tca6408, tca9554, xra1202,
+			pcal6408, pcal9554b, tca9538
 
 	  16 bits:      max7312, max7313, pca9535, pca9539, pca9555, pca9575,
-	                tca6416
+	                tca6416, pca6416, pcal6416, pcal9535, pcal9555a, max7318,
+			tca9539
 
-	  24 bits:      tca6424
+	  18 bits:	tca6418
 
-	  40 bits:      pca9505, pca9698
+	  24 bits:      tca6424, pcal6524
+
+	  40 bits:      pca9505, pca9698, pca9506
 
 config GPIO_PCA953X_IRQ
 	bool "Interrupt controller support for PCA953x"
@@ -1492,6 +1496,18 @@ config GPIO_MADERA
 	help
 	  Support for GPIOs on Cirrus Logic Madera class codecs.
 
+config GPIO_MAX7360
+	tristate "MAX7360 GPIO support"
+	depends on MFD_MAX7360
+	select GPIO_REGMAP
+	select REGMAP_IRQ
+	help
+	  Allows to use MAX7360 I/O Expander PWM lines as GPIO and keypad COL
+	  lines as GPO.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called gpio-max7360.
+
 config GPIO_MAX77620
 	tristate "GPIO support for PMIC MAX77620 and MAX20024"
 	depends on MFD_MAX77620
@@ -1521,6 +1537,18 @@ config GPIO_MAX77759
 
 	  This driver can also be built as a module. If so, the module will be
 	  called gpio-max77759.
+
+config GPIO_NCT6694
+	tristate "Nuvoton NCT6694 GPIO controller support"
+	depends on MFD_NCT6694
+	select GENERIC_IRQ_CHIP
+	select GPIOLIB_IRQCHIP
+	help
+	  This driver supports 8 GPIO pins per bank that can all be interrupt
+	  sources.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called gpio-nct6694.
 
 config GPIO_PALMAS
 	tristate "TI PALMAS series PMICs GPIO"
@@ -1559,7 +1587,7 @@ config GPIO_SL28CPLD
 	  called gpio-sl28cpld.
 
 config GPIO_STMPE
-	bool "STMPE GPIOs"
+	tristate "STMPE GPIOs"
 	depends on MFD_STMPE
 	depends on OF_GPIO
 	select GPIOLIB_IRQCHIP
@@ -1922,6 +1950,17 @@ config GPIO_MPSSE
 	help
 	  GPIO driver for FTDI's MPSSE interface. These can do input and
 	  output. Each MPSSE provides 16 IO pins.
+
+config GPIO_USBIO
+	tristate "Intel USBIO GPIO support"
+	depends on USB_USBIO
+	default USB_USBIO
+	help
+	  Select this option to enable GPIO driver for the INTEL
+	  USBIO driver stack.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called gpio_usbio.
 
 endmenu
 

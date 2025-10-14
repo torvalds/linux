@@ -4,7 +4,7 @@
 #include <linux/clk.h>
 #include <linux/of_clk.h>
 #include <linux/minmax.h>
-#include <linux/of_address.h>
+#include <linux/of_reserved_mem.h>
 #include <linux/platform_data/simplefb.h>
 #include <linux/platform_device.h>
 #include <linux/pm_domain.h>
@@ -179,21 +179,16 @@ simplefb_get_format_of(struct drm_device *dev, struct device_node *of_node)
 static struct resource *
 simplefb_get_memory_of(struct drm_device *dev, struct device_node *of_node)
 {
-	struct device_node *np;
-	struct resource *res;
+	struct resource r, *res;
 	int err;
 
-	np = of_parse_phandle(of_node, "memory-region", 0);
-	if (!np)
+	err = of_reserved_mem_region_to_resource(of_node, 0, &r);
+	if (err)
 		return NULL;
 
-	res = devm_kzalloc(dev->dev, sizeof(*res), GFP_KERNEL);
+	res = devm_kmemdup(dev->dev, &r, sizeof(r), GFP_KERNEL);
 	if (!res)
 		return ERR_PTR(-ENOMEM);
-
-	err = of_address_to_resource(np, 0, res);
-	if (err)
-		return ERR_PTR(err);
 
 	if (of_property_present(of_node, "reg"))
 		drm_warn(dev, "preferring \"memory-region\" over \"reg\" property\n");

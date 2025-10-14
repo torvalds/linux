@@ -343,10 +343,8 @@ static int bcm6358_pinctrl_probe(struct platform_device *pdev)
 	pc = platform_get_drvdata(pdev);
 
 	priv->overlays = devm_regmap_field_alloc(dev, pc->regs, overlays);
-	if (IS_ERR(priv->overlays))
-		return PTR_ERR(priv->overlays);
 
-	return 0;
+	return PTR_ERR_OR_ZERO(priv->overlays);
 }
 
 static const struct of_device_id bcm6358_pinctrl_match[] = {

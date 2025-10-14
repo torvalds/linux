@@ -562,6 +562,7 @@ struct afs_server {
 #define AFS_SERVER_FL_NO_IBULK	17		/* Fileserver doesn't support FS.InlineBulkStatus */
 #define AFS_SERVER_FL_NO_RM2	18		/* Fileserver doesn't support YFS.RemoveFile2 */
 #define AFS_SERVER_FL_HAS_FS64	19		/* Fileserver supports FS.{Fetch,Store}Data64 */
+#define AFS_SERVER_FL_NO_RENAME2 20		/* YFS Fileserver doesn't support enhanced rename */
 	refcount_t		ref;		/* Object refcount */
 	atomic_t		active;		/* Active user count */
 	u32			addr_version;	/* Address list version */
@@ -891,9 +892,10 @@ struct afs_operation {
 			bool	need_rehash;
 		} unlink;
 		struct {
-			struct dentry *rehash;
-			struct dentry *tmp;
-			bool	new_negative;
+			struct dentry	*rehash;
+			struct dentry	*tmp;
+			unsigned int	rename_flags;
+			bool		new_negative;
 		} rename;
 		struct {
 			struct netfs_io_subrequest *subreq;
@@ -1097,11 +1099,11 @@ int afs_single_writepages(struct address_space *mapping,
 /*
  * dir_edit.c
  */
-extern void afs_edit_dir_add(struct afs_vnode *, struct qstr *, struct afs_fid *,
+extern void afs_edit_dir_add(struct afs_vnode *, const struct qstr *, struct afs_fid *,
 			     enum afs_edit_dir_reason);
-extern void afs_edit_dir_remove(struct afs_vnode *, struct qstr *, enum afs_edit_dir_reason);
-void afs_edit_dir_update_dotdot(struct afs_vnode *vnode, struct afs_vnode *new_dvnode,
-				enum afs_edit_dir_reason why);
+extern void afs_edit_dir_remove(struct afs_vnode *, const struct qstr *, enum afs_edit_dir_reason);
+void afs_edit_dir_update(struct afs_vnode *vnode, const struct qstr *name,
+			 struct afs_vnode *new_dvnode, enum afs_edit_dir_reason why);
 void afs_mkdir_init_dir(struct afs_vnode *dvnode, struct afs_vnode *parent_vnode);
 
 /*
@@ -1112,7 +1114,7 @@ bool afs_dir_init_iter(struct afs_dir_iter *iter, const struct qstr *name);
 union afs_xdr_dir_block *afs_dir_find_block(struct afs_dir_iter *iter, size_t block);
 int afs_dir_search_bucket(struct afs_dir_iter *iter, const struct qstr *name,
 			  struct afs_fid *_fid);
-int afs_dir_search(struct afs_vnode *dvnode, struct qstr *name,
+int afs_dir_search(struct afs_vnode *dvnode, const struct qstr *name,
 		   struct afs_fid *_fid, afs_dataversion_t *_dir_version);
 
 /*
@@ -1693,6 +1695,9 @@ extern void yfs_fs_remove_dir(struct afs_operation *);
 extern void yfs_fs_link(struct afs_operation *);
 extern void yfs_fs_symlink(struct afs_operation *);
 extern void yfs_fs_rename(struct afs_operation *);
+void yfs_fs_rename_replace(struct afs_operation *op);
+void yfs_fs_rename_noreplace(struct afs_operation *op);
+void yfs_fs_rename_exchange(struct afs_operation *op);
 extern void yfs_fs_store_data(struct afs_operation *);
 extern void yfs_fs_setattr(struct afs_operation *);
 extern void yfs_fs_get_volume_status(struct afs_operation *);

@@ -25,7 +25,7 @@
 #include "dpcd_defs.h"
 #include "clk_mgr.h"
 #include "dsc.h"
-#include "link.h"
+#include "link_service.h"
 
 #include "dce/dmub_hw_lock_mgr.h"
 #include "dcn10/dcn10_cm_common.h"
@@ -810,9 +810,12 @@ enum dc_status dcn401_enable_stream_timing(
 	if (dc->hwseq->funcs.PLAT_58856_wa && (!dc_is_dp_signal(stream->signal)))
 		dc->hwseq->funcs.PLAT_58856_wa(context, pipe_ctx);
 
-	/* if we are borrowing from hblank, h_addressable needs to be adjusted */
-	if (dc->debug.enable_hblank_borrow)
-		patched_crtc_timing.h_addressable = patched_crtc_timing.h_addressable + pipe_ctx->hblank_borrow;
+	/* if we are padding, h_addressable needs to be adjusted */
+	if (dc->debug.enable_hblank_borrow) {
+		patched_crtc_timing.h_addressable = patched_crtc_timing.h_addressable + pipe_ctx->dsc_padding_params.dsc_hactive_padding;
+		patched_crtc_timing.h_total = patched_crtc_timing.h_total + pipe_ctx->dsc_padding_params.dsc_htotal_padding;
+		patched_crtc_timing.pix_clk_100hz = pipe_ctx->dsc_padding_params.dsc_pix_clk_100hz;
+	}
 
 	pipe_ctx->stream_res.tg->funcs->program_timing(
 		pipe_ctx->stream_res.tg,
@@ -964,6 +967,8 @@ void dcn401_enable_stream(struct pipe_ctx *pipe_ctx)
 					link_enc->transmitter - TRANSMITTER_UNIPHY_A);
 		}
 	}
+
+	link_hwss->setup_stream_attribute(pipe_ctx);
 
 	if (dc->res_pool->dccg->funcs->set_pixel_rate_div) {
 		dc->res_pool->dccg->funcs->set_pixel_rate_div(
@@ -1378,22 +1383,22 @@ void dcn401_prepare_bandwidth(struct dc *dc,
 			false);
 
 	/* program dchubbub watermarks:
-	 * For assigning wm_optimized_required, use |= operator since we don't want
+	 * For assigning optimized_required, use |= operator since we don't want
 	 * to clear the value if the optimize has not happened yet
 	 */
-	dc->wm_optimized_required |= hubbub->funcs->program_watermarks(hubbub,
+	dc->optimized_required |= hubbub->funcs->program_watermarks(hubbub,
 					&context->bw_ctx.bw.dcn.watermarks,
 					dc->res_pool->ref_clocks.dchub_ref_clock_inKhz / 1000,
 					false);
 	/* update timeout thresholds */
 	if (hubbub->funcs->program_arbiter) {
-		dc->wm_optimized_required |= hubbub->funcs->program_arbiter(hubbub, &context->bw_ctx.bw.dcn.arb_regs, false);
+		dc->optimized_required |= hubbub->funcs->program_arbiter(hubbub, &context->bw_ctx.bw.dcn.arb_regs, false);
 	}
 
 	/* decrease compbuf size */
 	if (hubbub->funcs->program_compbuf_segments) {
 		compbuf_size = context->bw_ctx.bw.dcn.arb_regs.compbuf_size;
-		dc->wm_optimized_required |= (compbuf_size != dc->current_state->bw_ctx.bw.dcn.arb_regs.compbuf_size);
+		dc->optimized_required |= (compbuf_size != dc->current_state->bw_ctx.bw.dcn.arb_regs.compbuf_size);
 
 		hubbub->funcs->program_compbuf_segments(hubbub, compbuf_size, false);
 	}
@@ -1619,20 +1624,28 @@ void dcn401_unblank_stream(struct pipe_ctx *pipe_ctx,
 
 void dcn401_hardware_release(struct dc *dc)
 {
-	dc_dmub_srv_fams2_update_config(dc, dc->current_state, false);
+	if (!dc->debug.disable_force_pstate_allow_on_hw_release) {
+		dc_dmub_srv_fams2_update_config(dc, dc->current_state, false);
 
-	/* If pstate unsupported, or still supported
-	 * by firmware, force it supported by dcn
-	 */
-	if (dc->current_state) {
-		if ((!dc->clk_mgr->clks.p_state_change_support ||
-				dc->current_state->bw_ctx.bw.dcn.fams2_global_config.features.bits.enable) &&
-				dc->res_pool->hubbub->funcs->force_pstate_change_control)
-			dc->res_pool->hubbub->funcs->force_pstate_change_control(
-					dc->res_pool->hubbub, true, true);
+		/* If pstate unsupported, or still supported
+		* by firmware, force it supported by dcn
+		*/
+		if (dc->current_state) {
+			if ((!dc->clk_mgr->clks.p_state_change_support ||
+					dc->current_state->bw_ctx.bw.dcn.fams2_global_config.features.bits.enable) &&
+					dc->res_pool->hubbub->funcs->force_pstate_change_control)
+				dc->res_pool->hubbub->funcs->force_pstate_change_control(
+						dc->res_pool->hubbub, true, true);
 
-		dc->current_state->bw_ctx.bw.dcn.clk.p_state_change_support = true;
-		dc->clk_mgr->funcs->update_clocks(dc->clk_mgr, dc->current_state, true);
+			dc->current_state->bw_ctx.bw.dcn.clk.p_state_change_support = true;
+			dc->clk_mgr->funcs->update_clocks(dc->clk_mgr, dc->current_state, true);
+		}
+	} else {
+		if (dc->current_state) {
+			dc->clk_mgr->clks.p_state_change_support = false;
+			dc->clk_mgr->funcs->update_clocks(dc->clk_mgr, dc->current_state, true);
+		}
+		dc_dmub_srv_fams2_update_config(dc, dc->current_state, false);
 	}
 }
 
@@ -2019,10 +2032,8 @@ void dcn401_program_pipe(
 	 * updating on slave planes
 	 */
 	if (pipe_ctx->update_flags.bits.enable ||
-		pipe_ctx->update_flags.bits.plane_changed ||
-		pipe_ctx->stream->update_flags.bits.out_tf ||
-		(pipe_ctx->plane_state &&
-			pipe_ctx->plane_state->update_flags.bits.output_tf_change))
+	    pipe_ctx->update_flags.bits.plane_changed ||
+	    pipe_ctx->stream->update_flags.bits.out_tf)
 		hws->funcs.set_output_transfer_func(dc, pipe_ctx, pipe_ctx->stream);
 
 	/* If the pipe has been enabled or has a different opp, we

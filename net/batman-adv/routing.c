@@ -31,7 +31,6 @@
 #include "hard-interface.h"
 #include "log.h"
 #include "mesh-interface.h"
-#include "network-coding.h"
 #include "originator.h"
 #include "send.h"
 #include "tp_meter.h"
@@ -956,15 +955,9 @@ int batadv_recv_unicast_packet(struct sk_buff *skb,
 
 	/* function returns -EREMOTE for promiscuous packets */
 	check = batadv_check_unicast_packet(bat_priv, skb, hdr_size);
-
-	/* Even though the packet is not for us, we might save it to use for
-	 * decoding a later received coded packet
-	 */
-	if (check == -EREMOTE)
-		batadv_nc_skb_store_sniffed_unicast(bat_priv, skb);
-
 	if (check < 0)
 		goto free_skb;
+
 	if (!batadv_check_unicast_ttvn(bat_priv, skb, hdr_size))
 		goto free_skb;
 

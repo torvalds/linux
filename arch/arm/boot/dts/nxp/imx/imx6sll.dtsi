@@ -309,7 +309,7 @@
 					reg = <0x02034000 0x4000>;
 					interrupts = <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>;
 					dmas = <&sdma 29 4 0>, <&sdma 30 4 0>;
-					dma-name = "rx", "tx";
+					dma-names = "rx", "tx";
 					clocks = <&clks IMX6SLL_CLK_UART3_IPG>,
 						 <&clks IMX6SLL_CLK_UART3_SERIAL>;
 					clock-names = "ipg", "per";

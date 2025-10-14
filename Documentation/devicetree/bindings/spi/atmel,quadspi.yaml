@@ -17,6 +17,9 @@ properties:
     enum:
       - atmel,sama5d2-qspi
       - microchip,sam9x60-qspi
+      - microchip,sam9x7-ospi
+      - microchip,sama7d65-qspi
+      - microchip,sama7d65-ospi
       - microchip,sama7g5-qspi
       - microchip,sama7g5-ospi
 

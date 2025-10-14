@@ -110,9 +110,10 @@ static int amdgpu_pm_dev_state_check(struct amdgpu_device *adev, bool runpm)
 	bool runpm_check = runpm ? adev->in_runpm : false;
 
 	if (amdgpu_in_reset(adev))
-		return -EPERM;
+		return -EBUSY;
+
 	if (adev->in_suspend && !runpm_check)
-		return -EPERM;
+		return -EBUSY;
 
 	return 0;
 }
@@ -1420,9 +1421,9 @@ static ssize_t amdgpu_set_pp_power_profile_mode(struct device *dev,
 	return -EINVAL;
 }
 
-static int amdgpu_hwmon_get_sensor_generic(struct amdgpu_device *adev,
-					   enum amd_pp_sensors sensor,
-					   void *query)
+static int amdgpu_pm_get_sensor_generic(struct amdgpu_device *adev,
+					enum amd_pp_sensors sensor,
+					void *query)
 {
 	int r, size = sizeof(uint32_t);
 
@@ -1455,7 +1456,7 @@ static ssize_t amdgpu_get_gpu_busy_percent(struct device *dev,
 	unsigned int value;
 	int r;
 
-	r = amdgpu_hwmon_get_sensor_generic(adev, AMDGPU_PP_SENSOR_GPU_LOAD, &value);
+	r = amdgpu_pm_get_sensor_generic(adev, AMDGPU_PP_SENSOR_GPU_LOAD, &value);
 	if (r)
 		return r;
 
@@ -1479,7 +1480,7 @@ static ssize_t amdgpu_get_mem_busy_percent(struct device *dev,
 	unsigned int value;
 	int r;
 
-	r = amdgpu_hwmon_get_sensor_generic(adev, AMDGPU_PP_SENSOR_MEM_LOAD, &value);
+	r = amdgpu_pm_get_sensor_generic(adev, AMDGPU_PP_SENSOR_MEM_LOAD, &value);
 	if (r)
 		return r;
 
@@ -1503,7 +1504,7 @@ static ssize_t amdgpu_get_vcn_busy_percent(struct device *dev,
 	unsigned int value;
 	int r;
 
-	r = amdgpu_hwmon_get_sensor_generic(adev, AMDGPU_PP_SENSOR_VCN_LOAD, &value);
+	r = amdgpu_pm_get_sensor_generic(adev, AMDGPU_PP_SENSOR_VCN_LOAD, &value);
 	if (r)
 		return r;
 
@@ -1782,7 +1783,7 @@ static int amdgpu_show_powershift_percent(struct device *dev,
 	uint32_t ss_power;
 	int r = 0, i;
 
-	r = amdgpu_hwmon_get_sensor_generic(adev, sensor, (void *)&ss_power);
+	r = amdgpu_pm_get_sensor_generic(adev, sensor, (void *)&ss_power);
 	if (r == -EOPNOTSUPP) {
 		/* sensor not available on dGPU, try to read from APU */
 		adev = NULL;
@@ -1795,7 +1796,7 @@ static int amdgpu_show_powershift_percent(struct device *dev,
 		}
 		mutex_unlock(&mgpu_info.mutex);
 		if (adev)
-			r = amdgpu_hwmon_get_sensor_generic(adev, sensor, (void *)&ss_power);
+			r = amdgpu_pm_get_sensor_generic(adev, sensor, (void *)&ss_power);
 	}
 
 	if (r)
@@ -1905,11 +1906,11 @@ static int ss_bias_attr_update(struct amdgpu_device *adev, struct amdgpu_device_
 
 	if (!amdgpu_device_supports_smart_shift(adev))
 		*states = ATTR_STATE_UNSUPPORTED;
-	else if (amdgpu_hwmon_get_sensor_generic(adev, AMDGPU_PP_SENSOR_SS_APU_SHARE,
-		 (void *)&ss_power))
+	else if (amdgpu_pm_get_sensor_generic(adev, AMDGPU_PP_SENSOR_SS_APU_SHARE,
+					      (void *)&ss_power))
 		*states = ATTR_STATE_UNSUPPORTED;
-	else if (amdgpu_hwmon_get_sensor_generic(adev, AMDGPU_PP_SENSOR_SS_DGPU_SHARE,
-		 (void *)&ss_power))
+	else if (amdgpu_pm_get_sensor_generic(adev, AMDGPU_PP_SENSOR_SS_DGPU_SHARE,
+					      (void *)&ss_power))
 		*states = ATTR_STATE_UNSUPPORTED;
 
 	return 0;
@@ -2072,6 +2073,265 @@ static int pp_dpm_clk_default_attr_update(struct amdgpu_device *adev, struct amd
 
 	return 0;
 }
+
+/**
+ * DOC: board
+ *
+ * Certain SOCs can support various board attributes reporting. This is useful
+ * for user application to monitor various board reated attributes.
+ *
+ * The amdgpu driver provides a sysfs API for reporting board attributes. Presently,
+ * seven types of attributes are reported. Baseboard temperature and
+ * gpu board temperature are reported as binary files. Npm status, current node power limit,
+ * max node power limit, node power and global ppt residency is reported as ASCII text file.
+ *
+ * * .. code-block:: console
+ *
+ *      hexdump /sys/bus/pci/devices/.../board/baseboard_temp
+ *
+ *      hexdump /sys/bus/pci/devices/.../board/gpuboard_temp
+ *
+ *      hexdump /sys/bus/pci/devices/.../board/npm_status
+ *
+ *      hexdump /sys/bus/pci/devices/.../board/cur_node_power_limit
+ *
+ *      hexdump /sys/bus/pci/devices/.../board/max_node_power_limit
+ *
+ *      hexdump /sys/bus/pci/devices/.../board/node_power
+ *
+ *      hexdump /sys/bus/pci/devices/.../board/global_ppt_resid
+ */
+
+/**
+ * DOC: baseboard_temp
+ *
+ * The amdgpu driver provides a sysfs API for retrieving current baseboard
+ * temperature metrics data. The file baseboard_temp is used for this.
+ * Reading the file will dump all the current baseboard temperature  metrics data.
+ */
+static ssize_t amdgpu_get_baseboard_temp_metrics(struct device *dev,
+						 struct device_attribute *attr, char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	ssize_t size;
+	int ret;
+
+	ret = amdgpu_pm_get_access_if_active(adev);
+	if (ret)
+		return ret;
+
+	size = amdgpu_dpm_get_temp_metrics(adev, SMU_TEMP_METRIC_BASEBOARD, NULL);
+	if (size <= 0)
+		goto out;
+	if (size >= PAGE_SIZE) {
+		ret = -ENOSPC;
+		goto out;
+	}
+
+	amdgpu_dpm_get_temp_metrics(adev, SMU_TEMP_METRIC_BASEBOARD, buf);
+
+out:
+	amdgpu_pm_put_access(adev);
+
+	if (ret)
+		return ret;
+
+	return size;
+}
+
+/**
+ * DOC: gpuboard_temp
+ *
+ * The amdgpu driver provides a sysfs API for retrieving current gpuboard
+ * temperature metrics data. The file gpuboard_temp is used for this.
+ * Reading the file will dump all the current gpuboard temperature  metrics data.
+ */
+static ssize_t amdgpu_get_gpuboard_temp_metrics(struct device *dev,
+						struct device_attribute *attr, char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	ssize_t size;
+	int ret;
+
+	ret = amdgpu_pm_get_access_if_active(adev);
+	if (ret)
+		return ret;
+
+	size = amdgpu_dpm_get_temp_metrics(adev, SMU_TEMP_METRIC_GPUBOARD, NULL);
+	if (size <= 0)
+		goto out;
+	if (size >= PAGE_SIZE) {
+		ret = -ENOSPC;
+		goto out;
+	}
+
+	amdgpu_dpm_get_temp_metrics(adev, SMU_TEMP_METRIC_GPUBOARD, buf);
+
+out:
+	amdgpu_pm_put_access(adev);
+
+	if (ret)
+		return ret;
+
+	return size;
+}
+
+/**
+ * DOC: cur_node_power_limit
+ *
+ * The amdgpu driver provides a sysfs API for retrieving current node power limit.
+ * The file cur_node_power_limit is used for this.
+ */
+static ssize_t amdgpu_show_cur_node_power_limit(struct device *dev,
+						struct device_attribute *attr, char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	u32 nplimit;
+	int r;
+
+	/* get the current node power limit */
+	r = amdgpu_pm_get_sensor_generic(adev, AMDGPU_PP_SENSOR_NODEPOWERLIMIT,
+					 (void *)&nplimit);
+	if (r)
+		return r;
+
+	return sysfs_emit(buf, "%u\n", nplimit);
+}
+
+/**
+ * DOC: node_power
+ *
+ * The amdgpu driver provides a sysfs API for retrieving current node power.
+ * The file node_power is used for this.
+ */
+static ssize_t amdgpu_show_node_power(struct device *dev,
+				      struct device_attribute *attr, char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	u32 npower;
+	int r;
+
+	/* get the node power */
+	r = amdgpu_pm_get_sensor_generic(adev, AMDGPU_PP_SENSOR_NODEPOWER,
+					 (void *)&npower);
+	if (r)
+		return r;
+
+	return sysfs_emit(buf, "%u\n", npower);
+}
+
+/**
+ * DOC: npm_status
+ *
+ * The amdgpu driver provides a sysfs API for retrieving current node power management status.
+ * The file npm_status is used for this. It shows the status as enabled or disabled based on
+ * current node power value. If node power is zero, status is disabled else enabled.
+ */
+static ssize_t amdgpu_show_npm_status(struct device *dev,
+				      struct device_attribute *attr, char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	u32 npower;
+	int r;
+
+	/* get the node power */
+	r = amdgpu_pm_get_sensor_generic(adev, AMDGPU_PP_SENSOR_NODEPOWER,
+					 (void *)&npower);
+	if (r)
+		return r;
+
+	return sysfs_emit(buf, "%s\n", npower ? "enabled" : "disabled");
+}
+
+/**
+ * DOC: global_ppt_resid
+ *
+ * The amdgpu driver provides a sysfs API for retrieving global ppt residency.
+ * The file global_ppt_resid is used for this.
+ */
+static ssize_t amdgpu_show_global_ppt_resid(struct device *dev,
+					    struct device_attribute *attr, char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	u32 gpptresid;
+	int r;
+
+	/* get the global ppt residency */
+	r = amdgpu_pm_get_sensor_generic(adev, AMDGPU_PP_SENSOR_GPPTRESIDENCY,
+					 (void *)&gpptresid);
+	if (r)
+		return r;
+
+	return sysfs_emit(buf, "%u\n", gpptresid);
+}
+
+/**
+ * DOC: max_node_power_limit
+ *
+ * The amdgpu driver provides a sysfs API for retrieving maximum node power limit.
+ * The file max_node_power_limit is used for this.
+ */
+static ssize_t amdgpu_show_max_node_power_limit(struct device *dev,
+						struct device_attribute *attr, char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	u32 max_nplimit;
+	int r;
+
+	/* get the max node power limit */
+	r = amdgpu_pm_get_sensor_generic(adev, AMDGPU_PP_SENSOR_MAXNODEPOWERLIMIT,
+					 (void *)&max_nplimit);
+	if (r)
+		return r;
+
+	return sysfs_emit(buf, "%u\n", max_nplimit);
+}
+
+static DEVICE_ATTR(baseboard_temp, 0444, amdgpu_get_baseboard_temp_metrics, NULL);
+static DEVICE_ATTR(gpuboard_temp, 0444, amdgpu_get_gpuboard_temp_metrics, NULL);
+static DEVICE_ATTR(cur_node_power_limit, 0444, amdgpu_show_cur_node_power_limit, NULL);
+static DEVICE_ATTR(node_power, 0444, amdgpu_show_node_power, NULL);
+static DEVICE_ATTR(global_ppt_resid, 0444, amdgpu_show_global_ppt_resid, NULL);
+static DEVICE_ATTR(max_node_power_limit, 0444, amdgpu_show_max_node_power_limit, NULL);
+static DEVICE_ATTR(npm_status, 0444, amdgpu_show_npm_status, NULL);
+
+static struct attribute *board_attrs[] = {
+	&dev_attr_baseboard_temp.attr,
+	&dev_attr_gpuboard_temp.attr,
+	NULL
+};
+
+static umode_t amdgpu_board_attr_visible(struct kobject *kobj, struct attribute *attr, int n)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+
+	if (attr == &dev_attr_baseboard_temp.attr) {
+		if (!amdgpu_dpm_is_temp_metrics_supported(adev, SMU_TEMP_METRIC_BASEBOARD))
+			return 0;
+	}
+
+	if (attr == &dev_attr_gpuboard_temp.attr) {
+		if (!amdgpu_dpm_is_temp_metrics_supported(adev, SMU_TEMP_METRIC_GPUBOARD))
+			return 0;
+	}
+
+	return attr->mode;
+}
+
+const struct attribute_group amdgpu_board_attr_group = {
+	.name = "board",
+	.attrs = board_attrs,
+	.is_visible = amdgpu_board_attr_visible,
+};
 
 /* pm policy attributes */
 struct amdgpu_pm_policy_attr {
@@ -2507,18 +2767,18 @@ static ssize_t amdgpu_hwmon_show_temp(struct device *dev,
 	switch (channel) {
 	case PP_TEMP_JUNCTION:
 		/* get current junction temperature */
-		r = amdgpu_hwmon_get_sensor_generic(adev, AMDGPU_PP_SENSOR_HOTSPOT_TEMP,
-					   (void *)&temp);
+		r = amdgpu_pm_get_sensor_generic(adev, AMDGPU_PP_SENSOR_HOTSPOT_TEMP,
+						 (void *)&temp);
 		break;
 	case PP_TEMP_EDGE:
 		/* get current edge temperature */
-		r = amdgpu_hwmon_get_sensor_generic(adev, AMDGPU_PP_SENSOR_EDGE_TEMP,
-					   (void *)&temp);
+		r = amdgpu_pm_get_sensor_generic(adev, AMDGPU_PP_SENSOR_EDGE_TEMP,
+						 (void *)&temp);
 		break;
 	case PP_TEMP_MEM:
 		/* get current memory temperature */
-		r = amdgpu_hwmon_get_sensor_generic(adev, AMDGPU_PP_SENSOR_MEM_TEMP,
-					   (void *)&temp);
+		r = amdgpu_pm_get_sensor_generic(adev, AMDGPU_PP_SENSOR_MEM_TEMP,
+						 (void *)&temp);
 		break;
 	default:
 		r = -EINVAL;
@@ -2780,8 +3040,8 @@ static ssize_t amdgpu_hwmon_get_fan1_min(struct device *dev,
 	u32 min_rpm = 0;
 	int r;
 
-	r = amdgpu_hwmon_get_sensor_generic(adev, AMDGPU_PP_SENSOR_MIN_FAN_RPM,
-				   (void *)&min_rpm);
+	r = amdgpu_pm_get_sensor_generic(adev, AMDGPU_PP_SENSOR_MIN_FAN_RPM,
+					 (void *)&min_rpm);
 
 	if (r)
 		return r;
@@ -2797,8 +3057,8 @@ static ssize_t amdgpu_hwmon_get_fan1_max(struct device *dev,
 	u32 max_rpm = 0;
 	int r;
 
-	r = amdgpu_hwmon_get_sensor_generic(adev, AMDGPU_PP_SENSOR_MAX_FAN_RPM,
-				   (void *)&max_rpm);
+	r = amdgpu_pm_get_sensor_generic(adev, AMDGPU_PP_SENSOR_MAX_FAN_RPM,
+					 (void *)&max_rpm);
 
 	if (r)
 		return r;
@@ -2931,8 +3191,8 @@ static ssize_t amdgpu_hwmon_show_vddgfx(struct device *dev,
 	int r;
 
 	/* get the voltage */
-	r = amdgpu_hwmon_get_sensor_generic(adev, AMDGPU_PP_SENSOR_VDDGFX,
-				   (void *)&vddgfx);
+	r = amdgpu_pm_get_sensor_generic(adev, AMDGPU_PP_SENSOR_VDDGFX,
+					 (void *)&vddgfx);
 	if (r)
 		return r;
 
@@ -2948,8 +3208,8 @@ static ssize_t amdgpu_hwmon_show_vddboard(struct device *dev,
 	int r;
 
 	/* get the voltage */
-	r = amdgpu_hwmon_get_sensor_generic(adev, AMDGPU_PP_SENSOR_VDDBOARD,
-					    (void *)&vddboard);
+	r = amdgpu_pm_get_sensor_generic(adev, AMDGPU_PP_SENSOR_VDDBOARD,
+					 (void *)&vddboard);
 	if (r)
 		return r;
 
@@ -2982,8 +3242,8 @@ static ssize_t amdgpu_hwmon_show_vddnb(struct device *dev,
 		return -EINVAL;
 
 	/* get the voltage */
-	r = amdgpu_hwmon_get_sensor_generic(adev, AMDGPU_PP_SENSOR_VDDNB,
-				   (void *)&vddnb);
+	r = amdgpu_pm_get_sensor_generic(adev, AMDGPU_PP_SENSOR_VDDNB,
+					 (void *)&vddnb);
 	if (r)
 		return r;
 
@@ -3005,7 +3265,7 @@ static int amdgpu_hwmon_get_power(struct device *dev,
 	u32 query = 0;
 	int r;
 
-	r = amdgpu_hwmon_get_sensor_generic(adev, sensor, (void *)&query);
+	r = amdgpu_pm_get_sensor_generic(adev, sensor, (void *)&query);
 	if (r)
 		return r;
 
@@ -3125,9 +3385,6 @@ static ssize_t amdgpu_hwmon_set_power_cap(struct device *dev,
 	int err;
 	u32 value;
 
-	if (amdgpu_sriov_vf(adev))
-		return -EINVAL;
-
 	err = kstrtou32(buf, 10, &value);
 	if (err)
 		return err;
@@ -3158,8 +3415,8 @@ static ssize_t amdgpu_hwmon_show_sclk(struct device *dev,
 	int r;
 
 	/* get the sclk */
-	r = amdgpu_hwmon_get_sensor_generic(adev, AMDGPU_PP_SENSOR_GFX_SCLK,
-				   (void *)&sclk);
+	r = amdgpu_pm_get_sensor_generic(adev, AMDGPU_PP_SENSOR_GFX_SCLK,
+					 (void *)&sclk);
 	if (r)
 		return r;
 
@@ -3182,8 +3439,8 @@ static ssize_t amdgpu_hwmon_show_mclk(struct device *dev,
 	int r;
 
 	/* get the sclk */
-	r = amdgpu_hwmon_get_sensor_generic(adev, AMDGPU_PP_SENSOR_GFX_MCLK,
-				   (void *)&mclk);
+	r = amdgpu_pm_get_sensor_generic(adev, AMDGPU_PP_SENSOR_GFX_MCLK,
+					 (void *)&mclk);
 	if (r)
 		return r;
 
@@ -3458,14 +3715,20 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 		effective_mode &= ~S_IWUSR;
 
 	/* not implemented yet for APUs other than GC 10.3.1 (vangogh) and 9.4.3 */
-	if (((adev->family == AMDGPU_FAMILY_SI) ||
-	     ((adev->flags & AMD_IS_APU) && (gc_ver != IP_VERSION(10, 3, 1)) &&
-	      (gc_ver != IP_VERSION(9, 4, 3) && gc_ver != IP_VERSION(9, 4, 4)))) &&
-	    (attr == &sensor_dev_attr_power1_cap_max.dev_attr.attr ||
-	     attr == &sensor_dev_attr_power1_cap_min.dev_attr.attr ||
-	     attr == &sensor_dev_attr_power1_cap.dev_attr.attr ||
-	     attr == &sensor_dev_attr_power1_cap_default.dev_attr.attr))
-		return 0;
+	if (attr == &sensor_dev_attr_power1_cap_max.dev_attr.attr ||
+	    attr == &sensor_dev_attr_power1_cap_min.dev_attr.attr ||
+	    attr == &sensor_dev_attr_power1_cap.dev_attr.attr ||
+	    attr == &sensor_dev_attr_power1_cap_default.dev_attr.attr) {
+		if (adev->family == AMDGPU_FAMILY_SI ||
+		    ((adev->flags & AMD_IS_APU) && gc_ver != IP_VERSION(10, 3, 1) &&
+		     (gc_ver != IP_VERSION(9, 4, 3) && gc_ver != IP_VERSION(9, 4, 4))) ||
+		    (amdgpu_sriov_vf(adev) && gc_ver == IP_VERSION(11, 0, 3)))
+			return 0;
+	}
+
+	if (attr == &sensor_dev_attr_power1_cap.dev_attr.attr &&
+	    amdgpu_virt_cap_is_rw(&adev->virt.virt_caps, AMDGPU_VIRT_CAP_POWER_LIMIT))
+		effective_mode |= S_IWUSR;
 
 	/* not implemented yet for APUs having < GC 9.3.0 (Renoir) */
 	if (((adev->family == AMDGPU_FAMILY_SI) ||
@@ -3475,10 +3738,12 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 
 	/* not all products support both average and instantaneous */
 	if (attr == &sensor_dev_attr_power1_average.dev_attr.attr &&
-	    amdgpu_hwmon_get_sensor_generic(adev, AMDGPU_PP_SENSOR_GPU_AVG_POWER, (void *)&tmp) == -EOPNOTSUPP)
+	    amdgpu_pm_get_sensor_generic(adev, AMDGPU_PP_SENSOR_GPU_AVG_POWER,
+					 (void *)&tmp) == -EOPNOTSUPP)
 		return 0;
 	if (attr == &sensor_dev_attr_power1_input.dev_attr.attr &&
-	    amdgpu_hwmon_get_sensor_generic(adev, AMDGPU_PP_SENSOR_GPU_INPUT_POWER, (void *)&tmp) == -EOPNOTSUPP)
+	    amdgpu_pm_get_sensor_generic(adev, AMDGPU_PP_SENSOR_GPU_INPUT_POWER,
+					 (void *)&tmp) == -EOPNOTSUPP)
 		return 0;
 
 	/* hide max/min values if we can't both query and manage the fan */
@@ -3517,8 +3782,8 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 	/* only few boards support vddboard */
 	if ((attr == &sensor_dev_attr_in2_input.dev_attr.attr ||
 	     attr == &sensor_dev_attr_in2_label.dev_attr.attr) &&
-	     amdgpu_hwmon_get_sensor_generic(adev, AMDGPU_PP_SENSOR_VDDBOARD,
-					     (void *)&tmp) == -EOPNOTSUPP)
+	     amdgpu_pm_get_sensor_generic(adev, AMDGPU_PP_SENSOR_VDDBOARD,
+					  (void *)&tmp) == -EOPNOTSUPP)
 		return 0;
 
 	/* no mclk on APUs other than gc 9,4,3*/
@@ -4400,6 +4665,7 @@ int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 {
 	enum amdgpu_sriov_vf_mode mode;
 	uint32_t mask = 0;
+	uint32_t tmp;
 	int ret;
 
 	if (adev->pm.sysfs_initialized)
@@ -4459,6 +4725,28 @@ int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 					    &amdgpu_pm_policy_attr_group);
 		if (ret)
 			goto err_out0;
+	}
+
+	if (amdgpu_dpm_is_temp_metrics_supported(adev, SMU_TEMP_METRIC_GPUBOARD)) {
+		ret = devm_device_add_group(adev->dev,
+					    &amdgpu_board_attr_group);
+		if (ret)
+			goto err_out0;
+		if (amdgpu_pm_get_sensor_generic(adev, AMDGPU_PP_SENSOR_MAXNODEPOWERLIMIT,
+						 (void *)&tmp) != -EOPNOTSUPP) {
+			sysfs_add_file_to_group(&adev->dev->kobj,
+						&dev_attr_cur_node_power_limit.attr,
+						amdgpu_board_attr_group.name);
+			sysfs_add_file_to_group(&adev->dev->kobj, &dev_attr_node_power.attr,
+						amdgpu_board_attr_group.name);
+			sysfs_add_file_to_group(&adev->dev->kobj, &dev_attr_global_ppt_resid.attr,
+						amdgpu_board_attr_group.name);
+			sysfs_add_file_to_group(&adev->dev->kobj,
+						&dev_attr_max_node_power_limit.attr,
+						amdgpu_board_attr_group.name);
+			sysfs_add_file_to_group(&adev->dev->kobj, &dev_attr_npm_status.attr,
+						amdgpu_board_attr_group.name);
+		}
 	}
 
 	adev->pm.sysfs_initialized = true;

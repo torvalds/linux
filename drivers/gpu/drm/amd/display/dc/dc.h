@@ -55,7 +55,7 @@ struct aux_payload;
 struct set_config_cmd_payload;
 struct dmub_notification;
 
-#define DC_VER "3.2.340"
+#define DC_VER "3.2.351"
 
 /**
  * MAX_SURFACES - representative of the upper bound of surfaces that can be piped to a single CRTC
@@ -234,6 +234,7 @@ struct lut3d_caps {
  * @ogam_ram: programmable out gamma LUT
  * @ocsc: output color space conversion matrix
  * @num_3dluts: MPC 3D LUT; always assumes a preceding shaper LUT
+ * @num_rmcm_3dluts: number of RMCM 3D LUTS; always assumes a preceding shaper LUT
  * @shared_3d_lut: shared 3D LUT flag. Can be either DPP or MPC, but single
  * instance
  * @ogam_rom_caps: pre-definied curve caps for regamma 1D LUT
@@ -694,6 +695,15 @@ struct dc_clocks {
 	int idle_fclk_khz;
 	int subvp_prefetch_dramclk_khz;
 	int subvp_prefetch_fclk_khz;
+
+	/* Stutter efficiency is technically not clock values
+	 * but stored here so the values are part of the update_clocks call similar to num_ways
+	 * Efficiencies are stored as percentage (0-100)
+	 */
+	struct {
+		uint8_t base_efficiency; //LP1
+		uint8_t low_power_efficiency; //LP2
+	} stutter_efficiency;
 };
 
 struct dc_bw_validation_profile {
@@ -839,7 +849,8 @@ union dpia_debug_options {
 		uint32_t enable_force_tbt3_work_around:1; /* bit 4 */
 		uint32_t disable_usb4_pm_support:1; /* bit 5 */
 		uint32_t enable_usb4_bw_zero_alloc_patch:1; /* bit 6 */
-		uint32_t reserved:25;
+		uint32_t enable_bw_allocation_mode:1; /* bit 7 */
+		uint32_t reserved:24;
 	} bits;
 	uint32_t raw;
 };
@@ -1072,6 +1083,7 @@ struct dc_debug_options {
 	unsigned int force_mall_ss_num_ways;
 	bool alloc_extra_way_for_cursor;
 	uint32_t subvp_extra_lines;
+	bool disable_force_pstate_allow_on_hw_release;
 	bool force_usr_allow;
 	/* uses value at boot and disables switch */
 	bool disable_dtb_ref_clk_switch;
@@ -1145,6 +1157,13 @@ struct dc_debug_options {
 	bool enable_hblank_borrow;
 	bool force_subvp_df_throttle;
 	uint32_t acpi_transition_bitmasks[MAX_PIPES];
+	bool enable_pg_cntl_debug_logs;
+	unsigned int auxless_alpm_lfps_setup_ns;
+	unsigned int auxless_alpm_lfps_period_ns;
+	unsigned int auxless_alpm_lfps_silence_ns;
+	unsigned int auxless_alpm_lfps_t1t2_us;
+	short auxless_alpm_lfps_t1t2_offset_us;
+	bool disable_stutter_for_wm_program;
 };
 
 
@@ -1305,6 +1324,32 @@ union dc_3dlut_state {
 };
 
 
+#define MATRIX_9C__DIM_128_ALIGNED_LEN   16 // 9+8 :  9 * 8 +  7 * 8 = 72  + 56  = 128 % 128 = 0
+#define MATRIX_17C__DIM_128_ALIGNED_LEN  32 //17+15:  17 * 8 + 15 * 8 = 136 + 120 = 256 % 128 = 0
+#define MATRIX_33C__DIM_128_ALIGNED_LEN  64 //17+47:  17 * 8 + 47 * 8 = 136 + 376 = 512 % 128 = 0
+
+struct lut_rgb {
+	uint16_t b;
+	uint16_t g;
+	uint16_t r;
+	uint16_t padding;
+};
+
+//this structure maps directly to how the lut will read it from memory
+struct lut_mem_mapping {
+	union {
+		//NATIVE MODE 1, 2
+		//RGB layout          [b][g][r]      //red  is 128 byte aligned
+		//BGR layout          [r][g][b]      //blue is 128 byte aligned
+		struct lut_rgb rgb_17c[17][17][MATRIX_17C__DIM_128_ALIGNED_LEN];
+		struct lut_rgb rgb_33c[33][33][MATRIX_33C__DIM_128_ALIGNED_LEN];
+
+		//TRANSFORMED
+		uint16_t linear_rgb[(33*33*33*4/128+1)*128];
+	};
+	uint16_t size;
+};
+
 struct dc_rmcm_3dlut {
 	bool isInUse;
 	const struct dc_stream_state *stream;
@@ -1347,7 +1392,6 @@ union surface_update_flags {
 		uint32_t in_transfer_func_change:1;
 		uint32_t input_csc_change:1;
 		uint32_t coeff_reduction_change:1;
-		uint32_t output_tf_change:1;
 		uint32_t pixel_format_change:1;
 		uint32_t plane_size_change:1;
 		uint32_t gamut_remap_change:1;
@@ -1691,7 +1735,6 @@ struct dc {
 
 	/* Require to optimize clocks and bandwidth for added/removed planes */
 	bool optimized_required;
-	bool wm_optimized_required;
 	bool idle_optimizations_allowed;
 	bool enable_c20_dtm_b0;
 
@@ -1733,7 +1776,7 @@ struct dc {
 	struct dml2_configuration_options dml2_options;
 	struct dml2_configuration_options dml2_dc_power_options;
 	enum dc_acpi_cm_power_state power_state;
-
+	struct soc_and_ip_translator *soc_and_ip_translator;
 };
 
 struct dc_scaling_info {
@@ -1786,6 +1829,23 @@ struct dc_surface_update {
 	struct dc_bias_and_scale bias_and_scale;
 };
 
+struct dc_underflow_debug_data {
+	uint32_t otg_inst;
+	uint32_t otg_underflow;
+	uint32_t h_position;
+	uint32_t v_position;
+	uint32_t otg_frame_count;
+	struct dc_underflow_per_hubp_debug_data {
+		uint32_t hubp_underflow;
+		uint32_t hubp_in_blank;
+		uint32_t hubp_readline;
+		uint32_t det_config_error;
+	} hubps[MAX_PIPES];
+	uint32_t curr_det_sizes[MAX_PIPES];
+	uint32_t target_det_sizes[MAX_PIPES];
+	uint32_t compbuf_config_error;
+};
+
 /*
  * Create a new surface with default parameters;
  */
@@ -1803,8 +1863,6 @@ void dc_3dlut_func_retain(struct dc_3dlut *lut);
 
 void dc_post_update_surfaces_to_stream(
 		struct dc *dc);
-
-#include "dc_stream.h"
 
 /**
  * struct dc_validation_set - Struct to store surface/stream associations for validation
@@ -2447,6 +2505,12 @@ void dc_link_dp_dpia_handle_usb4_bandwidth_allocation_for_link(
  */
 enum dc_status dc_link_validate_dp_tunneling_bandwidth(const struct dc *dc, const struct dc_state *new_ctx);
 
+/*
+ * Get if ALPM is supported by the link
+ */
+void dc_link_get_alpm_support(struct dc_link *link, bool *auxless_support,
+	bool *auxwake_support);
+
 /* Sink Interfaces - A sink corresponds to a display output device */
 
 struct dc_container_id {
@@ -2673,5 +2737,18 @@ bool dc_is_timing_changed(struct dc_stream_state *cur_stream,
 
 bool dc_is_cursor_limit_pending(struct dc *dc);
 bool dc_can_clear_cursor_limit(struct dc *dc);
+
+/**
+ * dc_get_underflow_debug_data_for_otg() - Retrieve underflow debug data.
+ *
+ * @dc: Pointer to the display core context.
+ * @primary_otg_inst: Instance index of the primary OTG that underflowed.
+ * @out_data: Pointer to a dc_underflow_debug_data struct to be filled with debug information.
+ *
+ * This function collects and logs underflow-related HW states when underflow happens,
+ * including OTG underflow status, current read positions, frame count, and per-HUBP debug data.
+ * The results are stored in the provided out_data structure for further analysis or logging.
+ */
+void dc_get_underflow_debug_data_for_otg(struct dc *dc, int primary_otg_inst, struct dc_underflow_debug_data *out_data);
 
 #endif /* DC_INTERFACE_H_ */

@@ -1273,9 +1273,15 @@ static int b53_setup(struct dsa_switch *ds)
 	 */
 	ds->untag_vlan_aware_bridge_pvid = true;
 
-	/* Ageing time is set in seconds */
-	ds->ageing_time_min = 1 * 1000;
-	ds->ageing_time_max = AGE_TIME_MAX * 1000;
+	if (dev->chip_id == BCM53101_DEVICE_ID) {
+		/* BCM53101 uses 0.5 second increments */
+		ds->ageing_time_min = 1 * 500;
+		ds->ageing_time_max = AGE_TIME_MAX * 500;
+	} else {
+		/* Everything else uses 1 second increments */
+		ds->ageing_time_min = 1 * 1000;
+		ds->ageing_time_max = AGE_TIME_MAX * 1000;
+	}
 
 	ret = b53_reset_switch(dev);
 	if (ret) {
@@ -2078,7 +2084,7 @@ int b53_fdb_dump(struct dsa_switch *ds, int port,
 
 	/* Start search operation */
 	reg = ARL_SRCH_STDN;
-	b53_write8(priv, offset, B53_ARL_SRCH_CTL, reg);
+	b53_write8(priv, B53_ARLIO_PAGE, offset, reg);
 
 	do {
 		ret = b53_arl_search_wait(priv);
@@ -2559,7 +2565,10 @@ int b53_set_ageing_time(struct dsa_switch *ds, unsigned int msecs)
 	else
 		reg = B53_AGING_TIME_CONTROL;
 
-	atc = DIV_ROUND_CLOSEST(msecs, 1000);
+	if (dev->chip_id == BCM53101_DEVICE_ID)
+		atc = DIV_ROUND_CLOSEST(msecs, 500);
+	else
+		atc = DIV_ROUND_CLOSEST(msecs, 1000);
 
 	if (!is5325(dev) && !is5365(dev))
 		atc |= AGE_CHANGE;

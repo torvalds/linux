@@ -106,6 +106,18 @@ config PINCTRL_BCM63268
 	help
 	   Say Y here to enable the Broadcom BCM63268 GPIO driver.
 
+config PINCTRL_BRCMSTB
+        tristate "Broadcom STB product line pin controller driver"
+        depends on OF && (ARCH_BCM2835 || ARCH_BRCMSTB || COMPILE_TEST)
+        select PINMUX
+        select PINCONF
+        select GENERIC_PINCONF
+        help
+          Enable pin muxing and configuration functionality
+          for Broadcom STB product line chipsets.
+
+source "drivers/pinctrl/bcm/Kconfig.stb"
+
 config PINCTRL_IPROC_GPIO
 	bool "Broadcom iProc GPIO (with PINCONF) driver"
 	depends on OF_GPIO && (ARCH_BCM_IPROC || COMPILE_TEST)

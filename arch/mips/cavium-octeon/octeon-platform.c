@@ -13,6 +13,7 @@
 #include <linux/of_fdt.h>
 #include <linux/platform_device.h>
 #include <linux/libfdt.h>
+#include <linux/string.h>
 
 #include <asm/octeon/octeon.h>
 #include <asm/octeon/cvmx-helper-board.h>
@@ -538,8 +539,7 @@ static void __init octeon_fdt_set_phy(int eth, int phy_addr)
 
 	if (octeon_has_88e1145()) {
 		fdt_nop_property(initial_boot_params, phy, "marvell,reg-init");
-		memset(new_name, 0, sizeof(new_name));
-		strcpy(new_name, "marvell,88e1145");
+		strscpy_pad(new_name, "marvell,88e1145");
 		p = fdt_getprop(initial_boot_params, phy, "compatible",
 				&current_len);
 		if (p && current_len >= strlen(new_name))

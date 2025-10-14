@@ -10,6 +10,7 @@
 #include <linux/bitops.h>
 #include <linux/of.h>
 #include <linux/phy.h>
+#include <linux/pm_wakeirq.h>
 #include <linux/netdevice.h>
 #include <linux/module.h>
 #include <linux/delay.h>
@@ -31,6 +32,7 @@
 #define RTL821x_INER				0x12
 #define RTL8211B_INER_INIT			0x6400
 #define RTL8211E_INER_LINK_STATUS		BIT(10)
+#define RTL8211F_INER_PME			BIT(7)
 #define RTL8211F_INER_LINK_STATUS		BIT(4)
 
 #define RTL821x_INSR				0x13
@@ -96,17 +98,13 @@
 #define RTL8211F_RXCR				0x15
 #define RTL8211F_RX_DELAY			BIT(3)
 
-/* RTL8211F WOL interrupt configuration */
-#define RTL8211F_INTBCR_PAGE			0xd40
-#define RTL8211F_INTBCR				0x16
-#define RTL8211F_INTBCR_INTB_PMEB		BIT(5)
-
 /* RTL8211F WOL settings */
-#define RTL8211F_WOL_SETTINGS_PAGE		0xd8a
+#define RTL8211F_WOL_PAGE		0xd8a
 #define RTL8211F_WOL_SETTINGS_EVENTS		16
 #define RTL8211F_WOL_EVENT_MAGIC		BIT(12)
-#define RTL8211F_WOL_SETTINGS_STATUS		17
-#define RTL8211F_WOL_STATUS_RESET		(BIT(15) | 0x1fff)
+#define RTL8211F_WOL_RST_RMSQ		17
+#define RTL8211F_WOL_RG_RSTB			BIT(15)
+#define RTL8211F_WOL_RMSQ			0x1fff
 
 /* RTL8211F Unique phyiscal and multicast address (WOL) */
 #define RTL8211F_PHYSICAL_ADDR_PAGE		0xd8c
@@ -172,7 +170,8 @@ struct rtl821x_priv {
 	u16 phycr2;
 	bool has_phycr2;
 	struct clk *clk;
-	u32 saved_wolopts;
+	/* rtl8211f */
+	u16 iner;
 };
 
 static int rtl821x_read_page(struct phy_device *phydev)
@@ -253,6 +252,34 @@ static int rtl821x_probe(struct phy_device *phydev)
 	phydev->priv = priv;
 
 	return 0;
+}
+
+static int rtl8211f_probe(struct phy_device *phydev)
+{
+	struct device *dev = &phydev->mdio.dev;
+	int ret;
+
+	ret = rtl821x_probe(phydev);
+	if (ret < 0)
+		return ret;
+
+	/* Disable all PME events */
+	ret = phy_write_paged(phydev, RTL8211F_WOL_PAGE,
+			      RTL8211F_WOL_SETTINGS_EVENTS, 0);
+	if (ret < 0)
+		return ret;
+
+	/* Mark this PHY as wakeup capable and register the interrupt as a
+	 * wakeup IRQ if the PHY is marked as a wakeup source in firmware,
+	 * and the interrupt is valid.
+	 */
+	if (device_property_read_bool(dev, "wakeup-source") &&
+	    phy_interrupt_is_valid(phydev)) {
+		device_set_wakeup_capable(dev, true);
+		devm_pm_set_wake_irq(dev, phydev->irq);
+	}
+
+	return ret;
 }
 
 static int rtl8201_ack_interrupt(struct phy_device *phydev)
@@ -352,6 +379,7 @@ static int rtl8211e_config_intr(struct phy_device *phydev)
 
 static int rtl8211f_config_intr(struct phy_device *phydev)
 {
+	struct rtl821x_priv *priv = phydev->priv;
 	u16 val;
 	int err;
 
@@ -362,8 +390,10 @@ static int rtl8211f_config_intr(struct phy_device *phydev)
 
 		val = RTL8211F_INER_LINK_STATUS;
 		err = phy_write_paged(phydev, 0xa42, RTL821x_INER, val);
+		if (err == 0)
+			priv->iner = val;
 	} else {
-		val = 0;
+		priv->iner = val = 0;
 		err = phy_write_paged(phydev, 0xa42, RTL821x_INER, val);
 		if (err)
 			return err;
@@ -426,21 +456,34 @@ static irqreturn_t rtl8211f_handle_interrupt(struct phy_device *phydev)
 		return IRQ_NONE;
 	}
 
-	if (!(irq_status & RTL8211F_INER_LINK_STATUS))
-		return IRQ_NONE;
+	if (irq_status & RTL8211F_INER_LINK_STATUS) {
+		phy_trigger_machine(phydev);
+		return IRQ_HANDLED;
+	}
 
-	phy_trigger_machine(phydev);
+	if (irq_status & RTL8211F_INER_PME) {
+		pm_wakeup_event(&phydev->mdio.dev, 0);
+		return IRQ_HANDLED;
+	}
 
-	return IRQ_HANDLED;
+	return IRQ_NONE;
 }
 
 static void rtl8211f_get_wol(struct phy_device *dev, struct ethtool_wolinfo *wol)
 {
 	int wol_events;
 
+	/* If the PHY is not capable of waking the system, then WoL can not
+	 * be supported.
+	 */
+	if (!device_can_wakeup(&dev->mdio.dev)) {
+		wol->supported = 0;
+		return;
+	}
+
 	wol->supported = WAKE_MAGIC;
 
-	wol_events = phy_read_paged(dev, RTL8211F_WOL_SETTINGS_PAGE, RTL8211F_WOL_SETTINGS_EVENTS);
+	wol_events = phy_read_paged(dev, RTL8211F_WOL_PAGE, RTL8211F_WOL_SETTINGS_EVENTS);
 	if (wol_events < 0)
 		return;
 
@@ -453,6 +496,9 @@ static int rtl8211f_set_wol(struct phy_device *dev, struct ethtool_wolinfo *wol)
 	const u8 *mac_addr = dev->attached_dev->dev_addr;
 	int oldpage;
 
+	if (!device_can_wakeup(&dev->mdio.dev))
+		return -EOPNOTSUPP;
+
 	oldpage = phy_save_page(dev);
 	if (oldpage < 0)
 		goto err;
@@ -464,24 +510,22 @@ static int rtl8211f_set_wol(struct phy_device *dev, struct ethtool_wolinfo *wol)
 		__phy_write(dev, RTL8211F_PHYSICAL_ADDR_WORD1, mac_addr[3] << 8 | (mac_addr[2]));
 		__phy_write(dev, RTL8211F_PHYSICAL_ADDR_WORD2, mac_addr[5] << 8 | (mac_addr[4]));
 
-		/* Enable magic packet matching and reset WOL status */
-		rtl821x_write_page(dev, RTL8211F_WOL_SETTINGS_PAGE);
+		/* Enable magic packet matching */
+		rtl821x_write_page(dev, RTL8211F_WOL_PAGE);
 		__phy_write(dev, RTL8211F_WOL_SETTINGS_EVENTS, RTL8211F_WOL_EVENT_MAGIC);
-		__phy_write(dev, RTL8211F_WOL_SETTINGS_STATUS, RTL8211F_WOL_STATUS_RESET);
-
-		/* Enable the WOL interrupt */
-		rtl821x_write_page(dev, RTL8211F_INTBCR_PAGE);
-		__phy_set_bits(dev, RTL8211F_INTBCR, RTL8211F_INTBCR_INTB_PMEB);
+		/* Set the maximum packet size, and assert WoL reset */
+		__phy_write(dev, RTL8211F_WOL_RST_RMSQ, RTL8211F_WOL_RMSQ);
 	} else {
-		/* Disable the WOL interrupt */
-		rtl821x_write_page(dev, RTL8211F_INTBCR_PAGE);
-		__phy_clear_bits(dev, RTL8211F_INTBCR, RTL8211F_INTBCR_INTB_PMEB);
-
-		/* Disable magic packet matching and reset WOL status */
-		rtl821x_write_page(dev, RTL8211F_WOL_SETTINGS_PAGE);
+		/* Disable magic packet matching */
+		rtl821x_write_page(dev, RTL8211F_WOL_PAGE);
 		__phy_write(dev, RTL8211F_WOL_SETTINGS_EVENTS, 0);
-		__phy_write(dev, RTL8211F_WOL_SETTINGS_STATUS, RTL8211F_WOL_STATUS_RESET);
+
+		/* Place WoL in reset */
+		__phy_clear_bits(dev, RTL8211F_WOL_RST_RMSQ,
+				 RTL8211F_WOL_RG_RSTB);
 	}
+
+	device_set_wakeup_enable(&dev->mdio.dev, !!(wol->wolopts & WAKE_MAGIC));
 
 err:
 	return phy_restore_page(dev, oldpage, 0);
@@ -628,6 +672,52 @@ static int rtl821x_suspend(struct phy_device *phydev)
 	return ret;
 }
 
+static int rtl8211f_suspend(struct phy_device *phydev)
+{
+	u16 wol_rst;
+	int ret;
+
+	ret = rtl821x_suspend(phydev);
+	if (ret < 0)
+		return ret;
+
+	/* If a PME event is enabled, then configure the interrupt for
+	 * PME events only, disabling link interrupt. We avoid switching
+	 * to PMEB mode as we don't have a status bit for that.
+	 */
+	if (device_may_wakeup(&phydev->mdio.dev)) {
+		ret = phy_write_paged(phydev, 0xa42, RTL821x_INER,
+				      RTL8211F_INER_PME);
+		if (ret < 0)
+			goto err;
+
+		/* Read the INSR to clear any pending interrupt */
+		phy_read_paged(phydev, RTL8211F_INSR_PAGE, RTL8211F_INSR);
+
+		/* Reset the WoL to ensure that an event is picked up.
+		 * Unless we do this, even if we receive another packet,
+		 * we may not have a PME interrupt raised.
+		 */
+		ret = phy_read_paged(phydev, RTL8211F_WOL_PAGE,
+				     RTL8211F_WOL_RST_RMSQ);
+		if (ret < 0)
+			goto err;
+
+		wol_rst = ret & ~RTL8211F_WOL_RG_RSTB;
+		ret = phy_write_paged(phydev, RTL8211F_WOL_PAGE,
+				      RTL8211F_WOL_RST_RMSQ, wol_rst);
+		if (ret < 0)
+			goto err;
+
+		wol_rst |= RTL8211F_WOL_RG_RSTB;
+		ret = phy_write_paged(phydev, RTL8211F_WOL_PAGE,
+				      RTL8211F_WOL_RST_RMSQ, wol_rst);
+	}
+
+err:
+	return ret;
+}
+
 static int rtl821x_resume(struct phy_device *phydev)
 {
 	struct rtl821x_priv *priv = phydev->priv;
@@ -645,10 +735,29 @@ static int rtl821x_resume(struct phy_device *phydev)
 	return 0;
 }
 
+static int rtl8211f_resume(struct phy_device *phydev)
+{
+	struct rtl821x_priv *priv = phydev->priv;
+	int ret;
+
+	ret = rtl821x_resume(phydev);
+	if (ret < 0)
+		return ret;
+
+	/* If the device was programmed for a PME event, restore the interrupt
+	 * enable so phylib can receive link state interrupts.
+	 */
+	if (device_may_wakeup(&phydev->mdio.dev))
+		ret = phy_write_paged(phydev, 0xa42, RTL821x_INER, priv->iner);
+
+	return ret;
+}
+
 static int rtl8211x_led_hw_is_supported(struct phy_device *phydev, u8 index,
 					unsigned long rules)
 {
-	const unsigned long mask = BIT(TRIGGER_NETDEV_LINK_10) |
+	const unsigned long mask = BIT(TRIGGER_NETDEV_LINK) |
+				   BIT(TRIGGER_NETDEV_LINK_10) |
 				   BIT(TRIGGER_NETDEV_LINK_100) |
 				   BIT(TRIGGER_NETDEV_LINK_1000) |
 				   BIT(TRIGGER_NETDEV_RX) |
@@ -706,6 +815,12 @@ static int rtl8211f_led_hw_control_get(struct phy_device *phydev, u8 index,
 	if (val & RTL8211F_LEDCR_LINK_1000)
 		__set_bit(TRIGGER_NETDEV_LINK_1000, rules);
 
+	if ((val & RTL8211F_LEDCR_LINK_10) &&
+	    (val & RTL8211F_LEDCR_LINK_100) &&
+	    (val & RTL8211F_LEDCR_LINK_1000)) {
+		__set_bit(TRIGGER_NETDEV_LINK, rules);
+	}
+
 	if (val & RTL8211F_LEDCR_ACT_TXRX) {
 		__set_bit(TRIGGER_NETDEV_RX, rules);
 		__set_bit(TRIGGER_NETDEV_TX, rules);
@@ -723,14 +838,20 @@ static int rtl8211f_led_hw_control_set(struct phy_device *phydev, u8 index,
 	if (index >= RTL8211x_LED_COUNT)
 		return -EINVAL;
 
-	if (test_bit(TRIGGER_NETDEV_LINK_10, &rules))
+	if (test_bit(TRIGGER_NETDEV_LINK, &rules) ||
+	    test_bit(TRIGGER_NETDEV_LINK_10, &rules)) {
 		reg |= RTL8211F_LEDCR_LINK_10;
+	}
 
-	if (test_bit(TRIGGER_NETDEV_LINK_100, &rules))
+	if (test_bit(TRIGGER_NETDEV_LINK, &rules) ||
+	    test_bit(TRIGGER_NETDEV_LINK_100, &rules)) {
 		reg |= RTL8211F_LEDCR_LINK_100;
+	}
 
-	if (test_bit(TRIGGER_NETDEV_LINK_1000, &rules))
+	if (test_bit(TRIGGER_NETDEV_LINK, &rules) ||
+	    test_bit(TRIGGER_NETDEV_LINK_1000, &rules)) {
 		reg |= RTL8211F_LEDCR_LINK_1000;
+	}
 
 	if (test_bit(TRIGGER_NETDEV_RX, &rules) ||
 	    test_bit(TRIGGER_NETDEV_TX, &rules)) {
@@ -778,6 +899,12 @@ static int rtl8211e_led_hw_control_get(struct phy_device *phydev, u8 index,
 	if (cr2 & RTL8211E_LEDCR2_LINK_1000)
 		__set_bit(TRIGGER_NETDEV_LINK_1000, rules);
 
+	if ((cr2 & RTL8211E_LEDCR2_LINK_10) &&
+	    (cr2 & RTL8211E_LEDCR2_LINK_100) &&
+	    (cr2 & RTL8211E_LEDCR2_LINK_1000)) {
+		__set_bit(TRIGGER_NETDEV_LINK, rules);
+	}
+
 	return ret;
 }
 
@@ -805,14 +932,20 @@ static int rtl8211e_led_hw_control_set(struct phy_device *phydev, u8 index,
 	if (ret < 0)
 		return ret;
 
-	if (test_bit(TRIGGER_NETDEV_LINK_10, &rules))
+	if (test_bit(TRIGGER_NETDEV_LINK, &rules) ||
+	    test_bit(TRIGGER_NETDEV_LINK_10, &rules)) {
 		cr2 |= RTL8211E_LEDCR2_LINK_10;
+	}
 
-	if (test_bit(TRIGGER_NETDEV_LINK_100, &rules))
+	if (test_bit(TRIGGER_NETDEV_LINK, &rules) ||
+	    test_bit(TRIGGER_NETDEV_LINK_100, &rules)) {
 		cr2 |= RTL8211E_LEDCR2_LINK_100;
+	}
 
-	if (test_bit(TRIGGER_NETDEV_LINK_1000, &rules))
+	if (test_bit(TRIGGER_NETDEV_LINK, &rules) ||
+	    test_bit(TRIGGER_NETDEV_LINK_1000, &rules)) {
 		cr2 |= RTL8211E_LEDCR2_LINK_1000;
+	}
 
 	cr2 <<= RTL8211E_LEDCR2_SHIFT * index;
 	ret = rtl821x_modify_ext_page(phydev, RTL8211E_LEDCR_EXT_PAGE,
@@ -1038,7 +1171,7 @@ static int rtl822x_probe(struct phy_device *phydev)
 	return 0;
 }
 
-static int rtl822xb_config_init(struct phy_device *phydev)
+static int rtl822x_set_serdes_option_mode(struct phy_device *phydev, bool gen1)
 {
 	bool has_2500, has_sgmii;
 	u16 mode;
@@ -1073,15 +1206,18 @@ static int rtl822xb_config_init(struct phy_device *phydev)
 	/* the following sequence with magic numbers sets up the SerDes
 	 * option mode
 	 */
-	ret = phy_write_mmd(phydev, MDIO_MMD_VEND1, 0x75f3, 0);
-	if (ret < 0)
-		return ret;
+
+	if (!gen1) {
+		ret = phy_write_mmd(phydev, MDIO_MMD_VEND1, 0x75f3, 0);
+		if (ret < 0)
+			return ret;
+	}
 
 	ret = phy_modify_mmd_changed(phydev, MDIO_MMD_VEND1,
 				     RTL822X_VND1_SERDES_OPTION,
 				     RTL822X_VND1_SERDES_OPTION_MODE_MASK,
 				     mode);
-	if (ret < 0)
+	if (gen1 || ret < 0)
 		return ret;
 
 	ret = phy_write_mmd(phydev, MDIO_MMD_VEND1, 0x6a04, 0x0503);
@@ -1093,6 +1229,16 @@ static int rtl822xb_config_init(struct phy_device *phydev)
 		return ret;
 
 	return phy_write_mmd(phydev, MDIO_MMD_VEND1, 0x6f11, 0x8020);
+}
+
+static int rtl822x_config_init(struct phy_device *phydev)
+{
+	return rtl822x_set_serdes_option_mode(phydev, true);
+}
+
+static int rtl822xb_config_init(struct phy_device *phydev)
+{
+	return rtl822x_set_serdes_option_mode(phydev, false);
 }
 
 static int rtl822xb_get_rate_matching(struct phy_device *phydev,
@@ -1278,6 +1424,21 @@ static int rtl822x_c45_read_status(struct phy_device *phydev)
 	rtlgen_decode_physr(phydev, val);
 
 	return 0;
+}
+
+static int rtl822x_c45_soft_reset(struct phy_device *phydev)
+{
+	int ret, val;
+
+	ret = phy_modify_mmd(phydev, MDIO_MMD_PMAPMD, MDIO_CTRL1,
+			     MDIO_CTRL1_RESET, MDIO_CTRL1_RESET);
+	if (ret < 0)
+		return ret;
+
+	return phy_read_mmd_poll_timeout(phydev, MDIO_MMD_PMAPMD,
+					 MDIO_CTRL1, val,
+					 !(val & MDIO_CTRL1_RESET),
+					 5000, 100000, true);
 }
 
 static int rtl822xb_c45_read_status(struct phy_device *phydev)
@@ -1612,15 +1773,15 @@ static struct phy_driver realtek_drvs[] = {
 	}, {
 		PHY_ID_MATCH_EXACT(0x001cc916),
 		.name		= "RTL8211F Gigabit Ethernet",
-		.probe		= rtl821x_probe,
+		.probe		= rtl8211f_probe,
 		.config_init	= &rtl8211f_config_init,
 		.read_status	= rtlgen_read_status,
 		.config_intr	= &rtl8211f_config_intr,
 		.handle_interrupt = rtl8211f_handle_interrupt,
 		.set_wol	= rtl8211f_set_wol,
 		.get_wol	= rtl8211f_get_wol,
-		.suspend	= rtl821x_suspend,
-		.resume		= rtl821x_resume,
+		.suspend	= rtl8211f_suspend,
+		.resume		= rtl8211f_resume,
 		.read_page	= rtl821x_read_page,
 		.write_page	= rtl821x_write_page,
 		.flags		= PHY_ALWAYS_CALL_SUSPEND,
@@ -1675,13 +1836,13 @@ static struct phy_driver realtek_drvs[] = {
 	}, {
 		PHY_ID_MATCH_EXACT(0x001cc838),
 		.name           = "RTL8226-CG 2.5Gbps PHY",
-		.get_features   = rtl822x_get_features,
-		.config_aneg    = rtl822x_config_aneg,
-		.read_status    = rtl822x_read_status,
-		.suspend        = genphy_suspend,
-		.resume         = rtlgen_resume,
-		.read_page      = rtl821x_read_page,
-		.write_page     = rtl821x_write_page,
+		.soft_reset     = rtl822x_c45_soft_reset,
+		.get_features   = rtl822x_c45_get_features,
+		.config_aneg    = rtl822x_c45_config_aneg,
+		.config_init    = rtl822x_config_init,
+		.read_status    = rtl822xb_c45_read_status,
+		.suspend        = genphy_c45_pma_suspend,
+		.resume         = rtlgen_c45_resume,
 	}, {
 		PHY_ID_MATCH_EXACT(0x001cc848),
 		.name           = "RTL8226B-CG_RTL8221B-CG 2.5Gbps PHY",

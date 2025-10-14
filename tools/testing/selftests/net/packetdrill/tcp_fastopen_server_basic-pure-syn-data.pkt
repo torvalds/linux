@@ -1,0 +1,50 @@
+// SPDX-License-Identifier: GPL-2.0
+//
+// Basic TFO server test
+//
+// Test that TFO-enabled server would not respond SYN-ACK with any TFO option
+// when receiving a pure SYN-data. It should respond a pure SYN-ack.
+
+`./defaults.sh`
+
+    0 socket(..., SOCK_STREAM|SOCK_NONBLOCK, IPPROTO_TCP) = 3
+   +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+   +0 bind(3, ..., ...) = 0
+   +0 listen(3, 1) = 0
+   +0 setsockopt(3, SOL_TCP, TCP_FASTOPEN, [1], 4) = 0
+
+   +0 < S 999000:999040(40) win 32792 <mss 1460,sackOK,TS val 100 ecr 100,nop,wscale 6>
+   +0 > S. 1234:1234(0) ack 999001 <mss 1460,sackOK,TS val 100 ecr 100,nop,wscale 8>
+   +0 < . 1:1(0) ack 1 win 100
+   +0 accept(3, ..., ...) = 4
+   +0 %{ assert (tcpi_options & TCPI_OPT_SYN_DATA) == 0, tcpi_options }%
+   +0 close(3) = 0
+
+// Test ECN-setup SYN with ECN disabled because this has happened in reality
+   +0 socket(..., SOCK_STREAM|SOCK_NONBLOCK, IPPROTO_TCP) = 3
+   +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+   +0 bind(3, ..., ...) = 0
+   +0 listen(3, 1) = 0
+   +0 setsockopt(3, SOL_TCP, TCP_FASTOPEN, [1], 4) = 0
+
+   +0 < SEW 999000:999040(40) win 32792 <mss 1460,sackOK,TS val 100 ecr 100,nop,wscale 6>
+   +0 > S. 1234:1234(0) ack 999001 <mss 1460,sackOK,TS val 100 ecr 100,nop,wscale 8>
+   +0 < . 1:1(0) ack 1 win 100
+   +0 accept(3, ..., ...) = 4
+   +0 %{ assert (tcpi_options & TCPI_OPT_SYN_DATA) == 0, tcpi_options }%
+   +0 close(3) = 0
+
+// Test ECN-setup SYN w/ ECN enabled
+   +0 `sysctl -q net.ipv4.tcp_ecn=2`
+   +0 socket(..., SOCK_STREAM|SOCK_NONBLOCK, IPPROTO_TCP) = 3
+   +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+   +0 bind(3, ..., ...) = 0
+   +0 listen(3, 1) = 0
+   +0 setsockopt(3, SOL_TCP, TCP_FASTOPEN, [1], 4) = 0
+
+   +0 < SEW 999000:999040(40) win 32792 <mss 1460,sackOK,TS val 100 ecr 100,nop,wscale 6>
+   +0 > SE. 1234:1234(0) ack 999001 <mss 1460,sackOK,TS val 100 ecr 100,nop,wscale 8>
+   +0 < . 1:1(0) ack 1 win 100
+   +0 accept(3, ..., ...) = 4
+   +0 %{ assert (tcpi_options & TCPI_OPT_SYN_DATA) == 0, tcpi_options }%
+   +0 close(3) = 0

@@ -118,8 +118,8 @@ struct task_struct;
 #ifdef CONFIG_BLOCK
 void put_io_context(struct io_context *ioc);
 void exit_io_context(struct task_struct *task);
-int __copy_io(unsigned long clone_flags, struct task_struct *tsk);
-static inline int copy_io(unsigned long clone_flags, struct task_struct *tsk)
+int __copy_io(u64 clone_flags, struct task_struct *tsk);
+static inline int copy_io(u64 clone_flags, struct task_struct *tsk)
 {
 	if (!current->io_context)
 		return 0;
@@ -129,7 +129,7 @@ static inline int copy_io(unsigned long clone_flags, struct task_struct *tsk)
 struct io_context;
 static inline void put_io_context(struct io_context *ioc) { }
 static inline void exit_io_context(struct task_struct *task) { }
-static inline int copy_io(unsigned long clone_flags, struct task_struct *tsk)
+static inline int copy_io(u64 clone_flags, struct task_struct *tsk)
 {
 	return 0;
 }

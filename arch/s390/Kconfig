@@ -49,6 +49,13 @@ config KASAN_SHADOW_OFFSET
 	depends on KASAN
 	default 0x1C000000000000
 
+config CC_HAS_BUILTIN_FFS
+	def_bool !(CC_IS_GCC && GCC_VERSION < 160000)
+	help
+	  GCC versions before 16.0.0 generate library calls to ffs()
+	  for __builtin_ffs() even when __has_builtin(__builtin_ffs)
+	  is true.
+
 config CC_ASM_FLAG_OUTPUT_BROKEN
 	def_bool CC_IS_GCC && GCC_VERSION < 140200
 	help
@@ -167,8 +174,6 @@ config S390
 	select GENERIC_GETTIMEOFDAY
 	select GENERIC_SMP_IDLE_THREAD
 	select GENERIC_TIME_VSYSCALL
-	select GENERIC_VDSO_DATA_STORE
-	select GENERIC_VDSO_TIME_NS
 	select GENERIC_IOREMAP if PCI
 	select HAVE_ALIGNED_STRUCT_PAGE
 	select HAVE_ARCH_AUDITSYSCALL
@@ -199,6 +204,7 @@ config S390
 	select HAVE_DYNAMIC_FTRACE_WITH_REGS
 	select HAVE_EBPF_JIT if HAVE_MARCH_Z196_FEATURES
 	select HAVE_EFFICIENT_UNALIGNED_ACCESS
+	select HAVE_GENERIC_TIF_BITS
 	select HAVE_GUP_FAST
 	select HAVE_FENTRY
 	select HAVE_FTRACE_GRAPH_FUNC
@@ -547,15 +553,11 @@ config NODES_SHIFT
 	depends on NUMA
 	default "1"
 
-config SCHED_SMT
-	def_bool n
-
-config SCHED_MC
-	def_bool n
-
 config SCHED_TOPOLOGY
 	def_bool y
 	prompt "Topology scheduler support"
+	select ARCH_SUPPORTS_SCHED_SMT
+	select ARCH_SUPPORTS_SCHED_MC
 	select SCHED_SMT
 	select SCHED_MC
 	help
@@ -710,7 +712,6 @@ menu "Memory setup"
 config ARCH_SPARSEMEM_ENABLE
 	def_bool y
 	select SPARSEMEM_VMEMMAP_ENABLE
-	select SPARSEMEM_VMEMMAP
 
 config ARCH_SPARSEMEM_DEFAULT
 	def_bool y

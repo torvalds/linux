@@ -6,11 +6,12 @@
 
 #include <linux/ip.h>
 #include <linux/ipv6.h>
+#include <linux/of_platform.h>
+#include <linux/platform_device.h>
 #include <linux/rhashtable.h>
 #include <net/ipv6.h>
 #include <net/pkt_cls.h>
 
-#include "airoha_npu.h"
 #include "airoha_regs.h"
 #include "airoha_eth.h"
 
@@ -190,6 +191,31 @@ static int airoha_ppe_flow_mangle_ipv4(const struct flow_action_entry *act,
 	return 0;
 }
 
+static int airoha_ppe_get_wdma_info(struct net_device *dev, const u8 *addr,
+				    struct airoha_wdma_info *info)
+{
+	struct net_device_path_stack stack;
+	struct net_device_path *path;
+	int err;
+
+	if (!dev)
+		return -ENODEV;
+
+	err = dev_fill_forward_path(dev, addr, &stack);
+	if (err)
+		return err;
+
+	path = &stack.path[stack.num_paths - 1];
+	if (path->type != DEV_PATH_MTK_WDMA)
+		return -1;
+
+	info->idx = path->mtk_wdma.wdma_idx;
+	info->bss = path->mtk_wdma.bss;
+	info->wcid = path->mtk_wdma.wcid;
+
+	return 0;
+}
+
 static int airoha_get_dsa_port(struct net_device **dev)
 {
 #if IS_ENABLED(CONFIG_NET_DSA)
@@ -220,9 +246,9 @@ static int airoha_ppe_foe_entry_prepare(struct airoha_eth *eth,
 					struct airoha_flow_data *data,
 					int l4proto)
 {
-	int dsa_port = airoha_get_dsa_port(&dev);
+	u32 qdata = FIELD_PREP(AIROHA_FOE_SHAPER_ID, 0x7f), ports_pad, val;
+	int wlan_etype = -EINVAL, dsa_port = airoha_get_dsa_port(&dev);
 	struct airoha_foe_mac_info_common *l2;
-	u32 qdata, ports_pad, val;
 	u8 smac_id = 0xf;
 
 	memset(hwe, 0, sizeof(*hwe));
@@ -236,31 +262,47 @@ static int airoha_ppe_foe_entry_prepare(struct airoha_eth *eth,
 	      AIROHA_FOE_IB1_BIND_TTL;
 	hwe->ib1 = val;
 
-	val = FIELD_PREP(AIROHA_FOE_IB2_PORT_AG, 0x1f) |
-	      AIROHA_FOE_IB2_PSE_QOS;
-	if (dsa_port >= 0)
-		val |= FIELD_PREP(AIROHA_FOE_IB2_NBQ, dsa_port);
-
+	val = FIELD_PREP(AIROHA_FOE_IB2_PORT_AG, 0x1f);
 	if (dev) {
-		struct airoha_gdm_port *port = netdev_priv(dev);
-		u8 pse_port;
+		struct airoha_wdma_info info = {};
 
-		if (!airoha_is_valid_gdm_port(eth, port))
-			return -EINVAL;
+		if (!airoha_ppe_get_wdma_info(dev, data->eth.h_dest, &info)) {
+			val |= FIELD_PREP(AIROHA_FOE_IB2_NBQ, info.idx) |
+			       FIELD_PREP(AIROHA_FOE_IB2_PSE_PORT,
+					  FE_PSE_PORT_CDM4);
+			qdata |= FIELD_PREP(AIROHA_FOE_ACTDP, info.bss);
+			wlan_etype = FIELD_PREP(AIROHA_FOE_MAC_WDMA_BAND,
+						info.idx) |
+				     FIELD_PREP(AIROHA_FOE_MAC_WDMA_WCID,
+						info.wcid);
+		} else {
+			struct airoha_gdm_port *port = netdev_priv(dev);
+			u8 pse_port;
 
-		if (dsa_port >= 0)
-			pse_port = port->id == 4 ? FE_PSE_PORT_GDM4 : port->id;
-		else
-			pse_port = 2; /* uplink relies on GDM2 loopback */
-		val |= FIELD_PREP(AIROHA_FOE_IB2_PSE_PORT, pse_port);
+			if (!airoha_is_valid_gdm_port(eth, port))
+				return -EINVAL;
 
-		/* For downlink traffic consume SRAM memory for hw forwarding
-		 * descriptors queue.
-		 */
-		if (airhoa_is_lan_gdm_port(port))
-			val |= AIROHA_FOE_IB2_FAST_PATH;
+			if (dsa_port >= 0)
+				pse_port = port->id == 4 ? FE_PSE_PORT_GDM4
+							 : port->id;
+			else
+				pse_port = 2; /* uplink relies on GDM2
+					       * loopback
+					       */
 
-		smac_id = port->id;
+			val |= FIELD_PREP(AIROHA_FOE_IB2_PSE_PORT, pse_port) |
+			       AIROHA_FOE_IB2_PSE_QOS;
+			/* For downlink traffic consume SRAM memory for hw
+			 * forwarding descriptors queue.
+			 */
+			if (airhoa_is_lan_gdm_port(port))
+				val |= AIROHA_FOE_IB2_FAST_PATH;
+			if (dsa_port >= 0)
+				val |= FIELD_PREP(AIROHA_FOE_IB2_NBQ,
+						  dsa_port);
+
+			smac_id = port->id;
+		}
 	}
 
 	if (is_multicast_ether_addr(data->eth.h_dest))
@@ -272,7 +314,6 @@ static int airoha_ppe_foe_entry_prepare(struct airoha_eth *eth,
 	if (type == PPE_PKT_TYPE_IPV6_ROUTE_3T)
 		hwe->ipv6.ports = ports_pad;
 
-	qdata = FIELD_PREP(AIROHA_FOE_SHAPER_ID, 0x7f);
 	if (type == PPE_PKT_TYPE_BRIDGE) {
 		airoha_ppe_foe_set_bridge_addrs(&hwe->bridge, &data->eth);
 		hwe->bridge.data = qdata;
@@ -313,7 +354,9 @@ static int airoha_ppe_foe_entry_prepare(struct airoha_eth *eth,
 			l2->vlan2 = data->vlan.hdr[1].id;
 	}
 
-	if (dsa_port >= 0) {
+	if (wlan_etype >= 0) {
+		l2->etype = wlan_etype;
+	} else if (dsa_port >= 0) {
 		l2->etype = BIT(dsa_port);
 		l2->etype |= !data->vlan.num ? BIT(15) : 0;
 	} else if (data->pppoe.num) {
@@ -490,6 +533,10 @@ static void airoha_ppe_foe_flow_stats_update(struct airoha_ppe *ppe,
 		meter = &hwe->ipv4.l2.meter;
 	}
 
+	pse_port = FIELD_GET(AIROHA_FOE_IB2_PSE_PORT, *ib2);
+	if (pse_port == FE_PSE_PORT_CDM4)
+		return;
+
 	airoha_ppe_foe_flow_stat_entry_reset(ppe, npu, index);
 
 	val = FIELD_GET(AIROHA_FOE_CHANNEL | AIROHA_FOE_QID, *data);
@@ -500,7 +547,6 @@ static void airoha_ppe_foe_flow_stats_update(struct airoha_ppe *ppe,
 		      AIROHA_FOE_IB2_PSE_QOS | AIROHA_FOE_IB2_FAST_PATH);
 	*meter |= FIELD_PREP(AIROHA_FOE_TUNNEL_MTU, val);
 
-	pse_port = FIELD_GET(AIROHA_FOE_IB2_PSE_PORT, *ib2);
 	nbq = pse_port == 1 ? 6 : 5;
 	*ib2 &= ~(AIROHA_FOE_IB2_NBQ | AIROHA_FOE_IB2_PSE_PORT |
 		  AIROHA_FOE_IB2_PSE_QOS);
@@ -570,7 +616,7 @@ static bool airoha_ppe_foe_compare_entry(struct airoha_flow_table_entry *e,
 
 static int airoha_ppe_foe_commit_entry(struct airoha_ppe *ppe,
 				       struct airoha_foe_entry *e,
-				       u32 hash)
+				       u32 hash, bool rx_wlan)
 {
 	struct airoha_foe_entry *hwe = ppe->foe + hash * sizeof(*hwe);
 	u32 ts = airoha_ppe_get_timestamp(ppe);
@@ -593,7 +639,8 @@ static int airoha_ppe_foe_commit_entry(struct airoha_ppe *ppe,
 		goto unlock;
 	}
 
-	airoha_ppe_foe_flow_stats_update(ppe, npu, hwe, hash);
+	if (!rx_wlan)
+		airoha_ppe_foe_flow_stats_update(ppe, npu, hwe, hash);
 
 	if (hash < PPE_SRAM_NUM_ENTRIES) {
 		dma_addr_t addr = ppe->foe_dma + hash * sizeof(*hwe);
@@ -619,7 +666,7 @@ static void airoha_ppe_foe_remove_flow(struct airoha_ppe *ppe,
 		e->data.ib1 &= ~AIROHA_FOE_IB1_BIND_STATE;
 		e->data.ib1 |= FIELD_PREP(AIROHA_FOE_IB1_BIND_STATE,
 					  AIROHA_FOE_STATE_INVALID);
-		airoha_ppe_foe_commit_entry(ppe, &e->data, e->hash);
+		airoha_ppe_foe_commit_entry(ppe, &e->data, e->hash, false);
 		e->hash = 0xffff;
 	}
 	if (e->type == FLOW_TYPE_L2_SUBFLOW) {
@@ -658,7 +705,7 @@ static void airoha_ppe_foe_flow_remove_entry(struct airoha_ppe *ppe,
 static int
 airoha_ppe_foe_commit_subflow_entry(struct airoha_ppe *ppe,
 				    struct airoha_flow_table_entry *e,
-				    u32 hash)
+				    u32 hash, bool rx_wlan)
 {
 	u32 mask = AIROHA_FOE_IB1_BIND_PACKET_TYPE | AIROHA_FOE_IB1_BIND_UDP;
 	struct airoha_foe_entry *hwe_p, hwe;
@@ -699,14 +746,14 @@ airoha_ppe_foe_commit_subflow_entry(struct airoha_ppe *ppe,
 	}
 
 	hwe.bridge.data = e->data.bridge.data;
-	airoha_ppe_foe_commit_entry(ppe, &hwe, hash);
+	airoha_ppe_foe_commit_entry(ppe, &hwe, hash, rx_wlan);
 
 	return 0;
 }
 
 static void airoha_ppe_foe_insert_entry(struct airoha_ppe *ppe,
 					struct sk_buff *skb,
-					u32 hash)
+					u32 hash, bool rx_wlan)
 {
 	struct airoha_flow_table_entry *e;
 	struct airoha_foe_bridge br = {};
@@ -736,12 +783,10 @@ static void airoha_ppe_foe_insert_entry(struct airoha_ppe *ppe,
 			continue;
 		}
 
-		if (commit_done || !airoha_ppe_foe_compare_entry(e, hwe)) {
-			e->hash = 0xffff;
+		if (!airoha_ppe_foe_compare_entry(e, hwe))
 			continue;
-		}
 
-		airoha_ppe_foe_commit_entry(ppe, &e->data, hash);
+		airoha_ppe_foe_commit_entry(ppe, &e->data, hash, rx_wlan);
 		commit_done = true;
 		e->hash = hash;
 	}
@@ -753,7 +798,7 @@ static void airoha_ppe_foe_insert_entry(struct airoha_ppe *ppe,
 	e = rhashtable_lookup_fast(&ppe->l2_flows, &br,
 				   airoha_l2_flow_table_params);
 	if (e)
-		airoha_ppe_foe_commit_subflow_entry(ppe, e, hash);
+		airoha_ppe_foe_commit_subflow_entry(ppe, e, hash, rx_wlan);
 unlock:
 	spin_unlock_bh(&ppe_lock);
 }
@@ -892,11 +937,10 @@ static int airoha_ppe_entry_idle_time(struct airoha_ppe *ppe,
 	return airoha_ppe_get_entry_idle_time(ppe, e->data.ib1);
 }
 
-static int airoha_ppe_flow_offload_replace(struct airoha_gdm_port *port,
+static int airoha_ppe_flow_offload_replace(struct airoha_eth *eth,
 					   struct flow_cls_offload *f)
 {
 	struct flow_rule *rule = flow_cls_offload_flow_rule(f);
-	struct airoha_eth *eth = port->qdma->eth;
 	struct airoha_flow_table_entry *e;
 	struct airoha_flow_data data = {};
 	struct net_device *odev = NULL;
@@ -1093,10 +1137,9 @@ free_entry:
 	return err;
 }
 
-static int airoha_ppe_flow_offload_destroy(struct airoha_gdm_port *port,
+static int airoha_ppe_flow_offload_destroy(struct airoha_eth *eth,
 					   struct flow_cls_offload *f)
 {
-	struct airoha_eth *eth = port->qdma->eth;
 	struct airoha_flow_table_entry *e;
 
 	e = rhashtable_lookup(&eth->flow_table, &f->cookie,
@@ -1139,10 +1182,9 @@ void airoha_ppe_foe_entry_get_stats(struct airoha_ppe *ppe, u32 hash,
 	rcu_read_unlock();
 }
 
-static int airoha_ppe_flow_offload_stats(struct airoha_gdm_port *port,
+static int airoha_ppe_flow_offload_stats(struct airoha_eth *eth,
 					 struct flow_cls_offload *f)
 {
-	struct airoha_eth *eth = port->qdma->eth;
 	struct airoha_flow_table_entry *e;
 	u32 idle;
 
@@ -1166,16 +1208,16 @@ static int airoha_ppe_flow_offload_stats(struct airoha_gdm_port *port,
 	return 0;
 }
 
-static int airoha_ppe_flow_offload_cmd(struct airoha_gdm_port *port,
+static int airoha_ppe_flow_offload_cmd(struct airoha_eth *eth,
 				       struct flow_cls_offload *f)
 {
 	switch (f->command) {
 	case FLOW_CLS_REPLACE:
-		return airoha_ppe_flow_offload_replace(port, f);
+		return airoha_ppe_flow_offload_replace(eth, f);
 	case FLOW_CLS_DESTROY:
-		return airoha_ppe_flow_offload_destroy(port, f);
+		return airoha_ppe_flow_offload_destroy(eth, f);
 	case FLOW_CLS_STATS:
-		return airoha_ppe_flow_offload_stats(port, f);
+		return airoha_ppe_flow_offload_stats(eth, f);
 	default:
 		break;
 	}
@@ -1201,12 +1243,11 @@ static int airoha_ppe_flush_sram_entries(struct airoha_ppe *ppe,
 
 static struct airoha_npu *airoha_ppe_npu_get(struct airoha_eth *eth)
 {
-	struct airoha_npu *npu = airoha_npu_get(eth->dev,
-						&eth->ppe->foe_stats_dma);
+	struct airoha_npu *npu = airoha_npu_get(eth->dev);
 
 	if (IS_ERR(npu)) {
 		request_module("airoha-npu");
-		npu = airoha_npu_get(eth->dev, &eth->ppe->foe_stats_dma);
+		npu = airoha_npu_get(eth->dev);
 	}
 
 	return npu;
@@ -1215,6 +1256,7 @@ static struct airoha_npu *airoha_ppe_npu_get(struct airoha_eth *eth)
 static int airoha_ppe_offload_setup(struct airoha_eth *eth)
 {
 	struct airoha_npu *npu = airoha_ppe_npu_get(eth);
+	struct airoha_ppe *ppe = eth->ppe;
 	int err;
 
 	if (IS_ERR(npu))
@@ -1224,12 +1266,19 @@ static int airoha_ppe_offload_setup(struct airoha_eth *eth)
 	if (err)
 		goto error_npu_put;
 
-	airoha_ppe_hw_init(eth->ppe);
-	err = airoha_ppe_flush_sram_entries(eth->ppe, npu);
+	if (PPE_STATS_NUM_ENTRIES) {
+		err = npu->ops.ppe_init_stats(npu, ppe->foe_stats_dma,
+					      PPE_STATS_NUM_ENTRIES);
+		if (err)
+			goto error_npu_put;
+	}
+
+	airoha_ppe_hw_init(ppe);
+	err = airoha_ppe_flush_sram_entries(ppe, npu);
 	if (err)
 		goto error_npu_put;
 
-	airoha_ppe_foe_flow_stats_reset(eth->ppe, npu);
+	airoha_ppe_foe_flow_stats_reset(ppe, npu);
 
 	rcu_assign_pointer(eth->npu, npu);
 	synchronize_rcu();
@@ -1242,11 +1291,10 @@ error_npu_put:
 	return err;
 }
 
-int airoha_ppe_setup_tc_block_cb(struct net_device *dev, void *type_data)
+int airoha_ppe_setup_tc_block_cb(struct airoha_ppe_dev *dev, void *type_data)
 {
-	struct airoha_gdm_port *port = netdev_priv(dev);
-	struct flow_cls_offload *cls = type_data;
-	struct airoha_eth *eth = port->qdma->eth;
+	struct airoha_ppe *ppe = dev->priv;
+	struct airoha_eth *eth = ppe->eth;
 	int err = 0;
 
 	mutex_lock(&flow_offload_mutex);
@@ -1254,16 +1302,17 @@ int airoha_ppe_setup_tc_block_cb(struct net_device *dev, void *type_data)
 	if (!eth->npu)
 		err = airoha_ppe_offload_setup(eth);
 	if (!err)
-		err = airoha_ppe_flow_offload_cmd(port, cls);
+		err = airoha_ppe_flow_offload_cmd(eth, type_data);
 
 	mutex_unlock(&flow_offload_mutex);
 
 	return err;
 }
 
-void airoha_ppe_check_skb(struct airoha_ppe *ppe, struct sk_buff *skb,
-			  u16 hash)
+void airoha_ppe_check_skb(struct airoha_ppe_dev *dev, struct sk_buff *skb,
+			  u16 hash, bool rx_wlan)
 {
+	struct airoha_ppe *ppe = dev->priv;
 	u16 now, diff;
 
 	if (hash > PPE_HASH_MASK)
@@ -1275,7 +1324,7 @@ void airoha_ppe_check_skb(struct airoha_ppe *ppe, struct sk_buff *skb,
 		return;
 
 	ppe->foe_check_time[hash] = now;
-	airoha_ppe_foe_insert_entry(ppe, skb, hash);
+	airoha_ppe_foe_insert_entry(ppe, skb, hash, rx_wlan);
 }
 
 void airoha_ppe_init_upd_mem(struct airoha_gdm_port *port)
@@ -1299,6 +1348,61 @@ void airoha_ppe_init_upd_mem(struct airoha_gdm_port *port)
 		     PPE_UPDMEM_WR_MASK | PPE_UPDMEM_REQ_MASK);
 }
 
+struct airoha_ppe_dev *airoha_ppe_get_dev(struct device *dev)
+{
+	struct platform_device *pdev;
+	struct device_node *np;
+	struct airoha_eth *eth;
+
+	np = of_parse_phandle(dev->of_node, "airoha,eth", 0);
+	if (!np)
+		return ERR_PTR(-ENODEV);
+
+	pdev = of_find_device_by_node(np);
+	if (!pdev) {
+		dev_err(dev, "cannot find device node %s\n", np->name);
+		of_node_put(np);
+		return ERR_PTR(-ENODEV);
+	}
+	of_node_put(np);
+
+	if (!try_module_get(THIS_MODULE)) {
+		dev_err(dev, "failed to get the device driver module\n");
+		goto error_pdev_put;
+	}
+
+	eth = platform_get_drvdata(pdev);
+	if (!eth)
+		goto error_module_put;
+
+	if (!device_link_add(dev, &pdev->dev, DL_FLAG_AUTOREMOVE_SUPPLIER)) {
+		dev_err(&pdev->dev,
+			"failed to create device link to consumer %s\n",
+			dev_name(dev));
+		goto error_module_put;
+	}
+
+	return &eth->ppe->dev;
+
+error_module_put:
+	module_put(THIS_MODULE);
+error_pdev_put:
+	platform_device_put(pdev);
+
+	return ERR_PTR(-ENODEV);
+}
+EXPORT_SYMBOL_GPL(airoha_ppe_get_dev);
+
+void airoha_ppe_put_dev(struct airoha_ppe_dev *dev)
+{
+	struct airoha_ppe *ppe = dev->priv;
+	struct airoha_eth *eth = ppe->eth;
+
+	module_put(THIS_MODULE);
+	put_device(eth->dev);
+}
+EXPORT_SYMBOL_GPL(airoha_ppe_put_dev);
+
 int airoha_ppe_init(struct airoha_eth *eth)
 {
 	struct airoha_ppe *ppe;
@@ -1307,6 +1411,10 @@ int airoha_ppe_init(struct airoha_eth *eth)
 	ppe = devm_kzalloc(eth->dev, sizeof(*ppe), GFP_KERNEL);
 	if (!ppe)
 		return -ENOMEM;
+
+	ppe->dev.ops.setup_tc_block_cb = airoha_ppe_setup_tc_block_cb;
+	ppe->dev.ops.check_skb = airoha_ppe_check_skb;
+	ppe->dev.priv = ppe;
 
 	foe_size = PPE_NUM_ENTRIES * sizeof(struct airoha_foe_entry);
 	ppe->foe = dmam_alloc_coherent(eth->dev, foe_size, &ppe->foe_dma,

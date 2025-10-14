@@ -286,7 +286,7 @@ SYM_FUNC_END(v7m_flush_user_cache_range)
  *	- the Icache does not read data from the write buffer
  */
 SYM_TYPED_FUNC_START(v7m_coherent_kern_range)
-#ifdef CONFIG_CFI_CLANG /* Fallthrough if !CFI */
+#ifdef CONFIG_CFI /* Fallthrough if !CFI */
 	b	v7m_coherent_user_range
 #endif
 SYM_FUNC_END(v7m_coherent_kern_range)

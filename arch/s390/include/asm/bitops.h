@@ -62,7 +62,7 @@ static __always_inline bool arch_test_bit(unsigned long nr, const volatile unsig
 		addr += (nr ^ (BITS_PER_LONG - BITS_PER_BYTE)) / BITS_PER_BYTE;
 		mask = 1UL << (nr & (BITS_PER_BYTE - 1));
 		asm volatile(
-			"	tm	%[addr],%[mask]\n"
+			"	tm	%[addr],%[mask]"
 			: "=@cc" (cc)
 			: [addr] "Q" (*addr), [mask] "I" (mask)
 			);
@@ -122,6 +122,8 @@ static inline bool test_bit_inv(unsigned long nr,
 	return test_bit(nr ^ (BITS_PER_LONG - 1), ptr);
 }
 
+#ifndef CONFIG_CC_HAS_BUILTIN_FFS
+
 /**
  * __flogr - find leftmost one
  * @word - The word to search
@@ -130,11 +132,12 @@ static inline bool test_bit_inv(unsigned long nr,
  * where the most significant bit has bit number 0.
  * If no bit is set this function returns 64.
  */
-static inline unsigned char __flogr(unsigned long word)
+static __always_inline __attribute_const__ unsigned long __flogr(unsigned long word)
 {
-	if (__builtin_constant_p(word)) {
-		unsigned long bit = 0;
+	unsigned long bit;
 
+	if (__builtin_constant_p(word)) {
+		bit = 0;
 		if (!word)
 			return 64;
 		if (!(word & 0xffffffff00000000UL)) {
@@ -163,25 +166,20 @@ static inline unsigned char __flogr(unsigned long word)
 		}
 		return bit;
 	} else {
-		union register_pair rp;
+		union register_pair rp __uninitialized;
 
 		rp.even = word;
-		asm volatile(
-			"       flogr   %[rp],%[rp]\n"
-			: [rp] "+d" (rp.pair) : : "cc");
-		return rp.even;
+		asm("flogr	%[rp],%[rp]"
+		    : [rp] "+d" (rp.pair) : : "cc");
+		bit = rp.even;
+		/*
+		 * The result of the flogr instruction is a value in the range
+		 * of 0..64. Let the compiler know that the AND operation can
+		 * be optimized away.
+		 */
+		__assume(bit <= 64);
+		return bit & 127;
 	}
-}
-
-/**
- * __ffs - find first bit in word.
- * @word: The word to search
- *
- * Undefined if no bit exists, so code should check against 0 first.
- */
-static inline unsigned long __ffs(unsigned long word)
-{
-	return __flogr(-word & word) ^ (BITS_PER_LONG - 1);
 }
 
 /**
@@ -191,58 +189,26 @@ static inline unsigned long __ffs(unsigned long word)
  * This is defined the same way as the libc and
  * compiler builtin ffs routines (man ffs).
  */
-static inline int ffs(int word)
+static __always_inline __flatten __attribute_const__ int ffs(int word)
 {
-	unsigned long mask = 2 * BITS_PER_LONG - 1;
 	unsigned int val = (unsigned int)word;
 
-	return (1 + (__flogr(-val & val) ^ (BITS_PER_LONG - 1))) & mask;
+	return BITS_PER_LONG - __flogr(-val & val);
 }
 
-/**
- * __fls - find last (most-significant) set bit in a long word
- * @word: the word to search
- *
- * Undefined if no set bit exists, so code should check against 0 first.
- */
-static inline unsigned long __fls(unsigned long word)
-{
-	return __flogr(word) ^ (BITS_PER_LONG - 1);
-}
+#else /* CONFIG_CC_HAS_BUILTIN_FFS */
 
-/**
- * fls64 - find last set bit in a 64-bit word
- * @word: the word to search
- *
- * This is defined in a similar way as the libc and compiler builtin
- * ffsll, but returns the position of the most significant set bit.
- *
- * fls64(value) returns 0 if value is 0 or the position of the last
- * set bit if value is nonzero. The last (most significant) bit is
- * at position 64.
- */
-static inline int fls64(unsigned long word)
-{
-	unsigned long mask = 2 * BITS_PER_LONG - 1;
+#include <asm-generic/bitops/builtin-ffs.h>
 
-	return (1 + (__flogr(word) ^ (BITS_PER_LONG - 1))) & mask;
-}
+#endif /* CONFIG_CC_HAS_BUILTIN_FFS */
 
-/**
- * fls - find last (most-significant) bit set
- * @word: the word to search
- *
- * This is defined the same way as ffs.
- * Note fls(0) = 0, fls(1) = 1, fls(0x80000000) = 32.
- */
-static inline int fls(unsigned int word)
-{
-	return fls64(word);
-}
-
+#include <asm-generic/bitops/builtin-__ffs.h>
+#include <asm-generic/bitops/ffz.h>
+#include <asm-generic/bitops/builtin-__fls.h>
+#include <asm-generic/bitops/builtin-fls.h>
+#include <asm-generic/bitops/fls64.h>
 #include <asm/arch_hweight.h>
 #include <asm-generic/bitops/const_hweight.h>
-#include <asm-generic/bitops/ffz.h>
 #include <asm-generic/bitops/sched.h>
 #include <asm-generic/bitops/le.h>
 #include <asm-generic/bitops/ext2-atomic-setbit.h>

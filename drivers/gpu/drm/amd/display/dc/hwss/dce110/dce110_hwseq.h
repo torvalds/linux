@@ -114,5 +114,12 @@ void build_audio_output(
 		struct dc_state *state,
 		const struct pipe_ctx *pipe_ctx,
 		struct audio_output *audio_output);
+enum audio_dto_source translate_to_dto_source(enum controller_id crtc_id);
+void populate_audio_dp_link_info(
+	const struct pipe_ctx *pipe_ctx,
+	struct audio_dp_link_info *dp_link_info);
+void enable_fbc(
+	struct dc *dc,
+	struct dc_state *context);
 #endif /* __DC_HWSS_DCE110_H__ */
 

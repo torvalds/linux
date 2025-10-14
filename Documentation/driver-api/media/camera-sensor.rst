@@ -29,21 +29,31 @@ used in the system. Using another frequency may cause harmful effects
 elsewhere. Therefore only the pre-determined frequencies are configurable by the
 user.
 
+The external clock frequency shall be retrieved by obtaining the external clock
+using the ``devm_v4l2_sensor_clk_get()`` helper function, and then getting its
+frequency with ``clk_get_rate()``. Usage of the helper function guarantees
+correct behaviour regardless of whether the sensor is integrated in a DT-based
+or ACPI-based system.
+
 ACPI
 ~~~~
 
-Read the ``clock-frequency`` _DSD property to denote the frequency. The driver
-can rely on this frequency being used.
+ACPI-based systems typically don't register the sensor external clock with the
+kernel, but specify the external clock frequency in the ``clock-frequency``
+_DSD property. The ``devm_v4l2_sensor_clk_get()`` helper creates and returns a
+fixed clock set at that rate.
 
 Devicetree
 ~~~~~~~~~~
 
-The preferred way to achieve this is using ``assigned-clocks``,
-``assigned-clock-parents`` and ``assigned-clock-rates`` properties. See the
-`clock device tree bindings
+Devicetree-based systems declare the sensor external clock in the device tree
+and reference it from the sensor node. The preferred way to select the external
+clock frequency is to use the ``assigned-clocks``, ``assigned-clock-parents``
+and ``assigned-clock-rates`` properties in the sensor node to set the clock
+rate. See the `clock device tree bindings
 <https://github.com/devicetree-org/dt-schema/blob/main/dtschema/schemas/clock/clock.yaml>`_
-for more information. The driver then gets the frequency using
-``clk_get_rate()``.
+for more information. The ``devm_v4l2_sensor_clk_get()`` helper retrieves and
+returns that clock.
 
 This approach has the drawback that there's no guarantee that the frequency
 hasn't been modified directly or indirectly by another driver, or supported by

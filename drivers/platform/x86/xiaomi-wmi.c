@@ -26,13 +26,6 @@ struct xiaomi_wmi {
 	unsigned int key_code;
 };
 
-static void xiaomi_mutex_destroy(void *data)
-{
-	struct mutex *lock = data;
-
-	mutex_destroy(lock);
-}
-
 static int xiaomi_wmi_probe(struct wmi_device *wdev, const void *context)
 {
 	struct xiaomi_wmi *data;
@@ -46,8 +39,7 @@ static int xiaomi_wmi_probe(struct wmi_device *wdev, const void *context)
 		return -ENOMEM;
 	dev_set_drvdata(&wdev->dev, data);
 
-	mutex_init(&data->key_lock);
-	ret = devm_add_action_or_reset(&wdev->dev, xiaomi_mutex_destroy, &data->key_lock);
+	ret = devm_mutex_init(&wdev->dev, &data->key_lock);
 	if (ret < 0)
 		return ret;
 

@@ -38,12 +38,14 @@ enum proc_param {
 	Opt_gid,
 	Opt_hidepid,
 	Opt_subset,
+	Opt_pidns,
 };
 
 static const struct fs_parameter_spec proc_fs_parameters[] = {
-	fsparam_u32("gid",	Opt_gid),
+	fsparam_u32("gid",		Opt_gid),
 	fsparam_string("hidepid",	Opt_hidepid),
 	fsparam_string("subset",	Opt_subset),
+	fsparam_file_or_string("pidns",	Opt_pidns),
 	{}
 };
 
@@ -109,11 +111,66 @@ static int proc_parse_subset_param(struct fs_context *fc, char *value)
 	return 0;
 }
 
+#ifdef CONFIG_PID_NS
+static int proc_parse_pidns_param(struct fs_context *fc,
+				  struct fs_parameter *param,
+				  struct fs_parse_result *result)
+{
+	struct proc_fs_context *ctx = fc->fs_private;
+	struct pid_namespace *target, *active = task_active_pid_ns(current);
+	struct ns_common *ns;
+	struct file *ns_filp __free(fput) = NULL;
+
+	switch (param->type) {
+	case fs_value_is_file:
+		/* came through fsconfig, steal the file reference */
+		ns_filp = no_free_ptr(param->file);
+		break;
+	case fs_value_is_string:
+		ns_filp = filp_open(param->string, O_RDONLY, 0);
+		break;
+	default:
+		WARN_ON_ONCE(true);
+		break;
+	}
+	if (!ns_filp)
+		ns_filp = ERR_PTR(-EBADF);
+	if (IS_ERR(ns_filp)) {
+		errorfc(fc, "could not get file from pidns argument");
+		return PTR_ERR(ns_filp);
+	}
+
+	if (!proc_ns_file(ns_filp))
+		return invalfc(fc, "pidns argument is not an nsfs file");
+	ns = get_proc_ns(file_inode(ns_filp));
+	if (ns->ns_type != CLONE_NEWPID)
+		return invalfc(fc, "pidns argument is not a pidns file");
+	target = container_of(ns, struct pid_namespace, ns);
+
+	/*
+	 * pidns= is shorthand for joining the pidns to get a fsopen fd, so the
+	 * permission model should be the same as pidns_install().
+	 */
+	if (!ns_capable(target->user_ns, CAP_SYS_ADMIN)) {
+		errorfc(fc, "insufficient permissions to set pidns");
+		return -EPERM;
+	}
+	if (!pidns_is_ancestor(target, active))
+		return invalfc(fc, "cannot set pidns to non-descendant pidns");
+
+	put_pid_ns(ctx->pid_ns);
+	ctx->pid_ns = get_pid_ns(target);
+	put_user_ns(fc->user_ns);
+	fc->user_ns = get_user_ns(ctx->pid_ns->user_ns);
+	return 0;
+}
+#endif /* CONFIG_PID_NS */
+
 static int proc_parse_param(struct fs_context *fc, struct fs_parameter *param)
 {
 	struct proc_fs_context *ctx = fc->fs_private;
 	struct fs_parse_result result;
-	int opt;
+	int opt, err;
 
 	opt = fs_parse(fc, proc_fs_parameters, param, &result);
 	if (opt < 0)
@@ -125,14 +182,38 @@ static int proc_parse_param(struct fs_context *fc, struct fs_parameter *param)
 		break;
 
 	case Opt_hidepid:
-		if (proc_parse_hidepid_param(fc, param))
-			return -EINVAL;
+		err = proc_parse_hidepid_param(fc, param);
+		if (err)
+			return err;
 		break;
 
 	case Opt_subset:
-		if (proc_parse_subset_param(fc, param->string) < 0)
-			return -EINVAL;
+		err = proc_parse_subset_param(fc, param->string);
+		if (err)
+			return err;
 		break;
+
+	case Opt_pidns:
+#ifdef CONFIG_PID_NS
+		/*
+		 * We would have to RCU-protect every proc_pid_ns() or
+		 * proc_sb_info() access if we allowed this to be reconfigured
+		 * for an existing procfs instance. Luckily, procfs instances
+		 * are cheap to create, and mount-beneath would let you
+		 * atomically replace an instance even with overmounts.
+		 */
+		if (fc->purpose == FS_CONTEXT_FOR_RECONFIGURE) {
+			errorfc(fc, "cannot reconfigure pidns for existing procfs");
+			return -EBUSY;
+		}
+		err = proc_parse_pidns_param(fc, param, &result);
+		if (err)
+			return err;
+		break;
+#else
+		errorfc(fc, "pidns mount flag not supported on this system");
+		return -EOPNOTSUPP;
+#endif
 
 	default:
 		return -EINVAL;
@@ -154,6 +235,11 @@ static void proc_apply_options(struct proc_fs_info *fs_info,
 		fs_info->hide_pid = ctx->hidepid;
 	if (ctx->mask & (1 << Opt_subset))
 		fs_info->pidonly = ctx->pidonly;
+	if (ctx->mask & (1 << Opt_pidns) &&
+	    !WARN_ON_ONCE(fc->purpose == FS_CONTEXT_FOR_RECONFIGURE)) {
+		put_pid_ns(fs_info->pid_ns);
+		fs_info->pid_ns = get_pid_ns(ctx->pid_ns);
+	}
 }
 
 static int proc_fill_super(struct super_block *s, struct fs_context *fc)

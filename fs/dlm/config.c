@@ -26,6 +26,7 @@
 /*
  * /config/dlm/<cluster>/spaces/<space>/nodes/<node>/nodeid (refers to <node>)
  * /config/dlm/<cluster>/spaces/<space>/nodes/<node>/weight
+ * /config/dlm/<cluster>/spaces/<space>/nodes/<node>/release_recover
  * /config/dlm/<cluster>/comms/<comm>/nodeid (refers to <comm>)
  * /config/dlm/<cluster>/comms/<comm>/local
  * /config/dlm/<cluster>/comms/<comm>/addr      (write only)
@@ -267,6 +268,7 @@ enum {
 enum {
 	NODE_ATTR_NODEID = 0,
 	NODE_ATTR_WEIGHT,
+	NODE_ATTR_RELEASE_RECOVER,
 };
 
 struct dlm_clusters {
@@ -280,6 +282,8 @@ struct dlm_spaces {
 struct dlm_space {
 	struct config_group group;
 	struct list_head members;
+	struct list_head members_gone;
+	int members_gone_count;
 	struct mutex members_lock;
 	int members_count;
 	struct dlm_nodes *nds;
@@ -310,6 +314,14 @@ struct dlm_node {
 	int weight;
 	int new;
 	int comm_seq; /* copy of cm->seq when nd->nodeid is set */
+	unsigned int release_recover;
+};
+
+struct dlm_member_gone {
+	int nodeid;
+	unsigned int release_recover;
+
+	struct list_head list; /* space->members_gone */
 };
 
 static struct configfs_group_operations clusters_ops = {
@@ -480,6 +492,7 @@ static struct config_group *make_space(struct config_group *g, const char *name)
 	configfs_add_default_group(&nds->ns_group, &sp->group);
 
 	INIT_LIST_HEAD(&sp->members);
+	INIT_LIST_HEAD(&sp->members_gone);
 	mutex_init(&sp->members_lock);
 	sp->members_count = 0;
 	sp->nds = nds;
@@ -587,10 +600,20 @@ static void drop_node(struct config_group *g, struct config_item *i)
 {
 	struct dlm_space *sp = config_item_to_space(g->cg_item.ci_parent);
 	struct dlm_node *nd = config_item_to_node(i);
+	struct dlm_member_gone *mb_gone;
+
+	mb_gone = kzalloc(sizeof(*mb_gone), GFP_KERNEL);
+	if (!mb_gone)
+		return;
 
 	mutex_lock(&sp->members_lock);
 	list_del(&nd->list);
 	sp->members_count--;
+
+	mb_gone->nodeid = nd->nodeid;
+	mb_gone->release_recover = nd->release_recover;
+	list_add(&mb_gone->list, &sp->members_gone);
+	sp->members_gone_count++;
 	mutex_unlock(&sp->members_lock);
 
 	config_item_put(i);
@@ -815,12 +838,34 @@ static ssize_t node_weight_store(struct config_item *item, const char *buf,
 	return len;
 }
 
+static ssize_t node_release_recover_show(struct config_item *item, char *buf)
+{
+	struct dlm_node *n = config_item_to_node(item);
+
+	return sprintf(buf, "%u\n", n->release_recover);
+}
+
+static ssize_t node_release_recover_store(struct config_item *item,
+					  const char *buf, size_t len)
+{
+	struct dlm_node *n = config_item_to_node(item);
+	int rc;
+
+	rc = kstrtouint(buf, 0, &n->release_recover);
+	if (rc)
+		return rc;
+
+	return len;
+}
+
 CONFIGFS_ATTR(node_, nodeid);
 CONFIGFS_ATTR(node_, weight);
+CONFIGFS_ATTR(node_, release_recover);
 
 static struct configfs_attribute *node_attrs[] = {
 	[NODE_ATTR_NODEID] = &node_attr_nodeid,
 	[NODE_ATTR_WEIGHT] = &node_attr_weight,
+	[NODE_ATTR_RELEASE_RECOVER] = &node_attr_release_recover,
 	NULL,
 };
 
@@ -882,9 +927,10 @@ static void put_comm(struct dlm_comm *cm)
 int dlm_config_nodes(char *lsname, struct dlm_config_node **nodes_out,
 		     int *count_out)
 {
+	struct dlm_member_gone *mb_gone, *mb_safe;
+	struct dlm_config_node *nodes, *node;
 	struct dlm_space *sp;
 	struct dlm_node *nd;
-	struct dlm_config_node *nodes, *node;
 	int rv, count;
 
 	sp = get_space(lsname);
@@ -898,7 +944,7 @@ int dlm_config_nodes(char *lsname, struct dlm_config_node **nodes_out,
 		goto out;
 	}
 
-	count = sp->members_count;
+	count = sp->members_count + sp->members_gone_count;
 
 	nodes = kcalloc(count, sizeof(struct dlm_config_node), GFP_NOFS);
 	if (!nodes) {
@@ -915,6 +961,20 @@ int dlm_config_nodes(char *lsname, struct dlm_config_node **nodes_out,
 		node++;
 
 		nd->new = 0;
+	}
+
+	/* we delay the remove on nodes until here as configfs does
+	 * not support addtional attributes for rmdir().
+	 */
+	list_for_each_entry_safe(mb_gone, mb_safe, &sp->members_gone, list) {
+		node->nodeid = mb_gone->nodeid;
+		node->release_recover = mb_gone->release_recover;
+		node->gone = true;
+		node++;
+
+		list_del(&mb_gone->list);
+		sp->members_gone_count--;
+		kfree(mb_gone);
 	}
 
 	*count_out = count;

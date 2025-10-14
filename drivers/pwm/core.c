@@ -276,7 +276,7 @@ int pwm_round_waveform_might_sleep(struct pwm_device *pwm, struct pwm_waveform *
 
 	if (IS_ENABLED(CONFIG_PWM_DEBUG) && ret_fromhw > 0)
 		dev_err(&chip->dev, "Unexpected return value from __pwm_round_waveform_fromhw: requested %llu/%llu [+%llu], return value %d\n",
-			wf_req.duty_length_ns, wf_req.period_length_ns, wf_req.duty_offset_ns, ret_tohw);
+			wf_req.duty_length_ns, wf_req.period_length_ns, wf_req.duty_offset_ns, ret_fromhw);
 
 	if (IS_ENABLED(CONFIG_PWM_DEBUG) &&
 	    (ret_tohw == 0) != pwm_check_rounding(&wf_req, wf))
@@ -497,6 +497,13 @@ static void pwm_apply_debug(struct pwm_device *pwm,
 		return;
 
 	/*
+	 * If a disabled PWM was requested the result is unspecified, so nothing
+	 * to check.
+	 */
+	if (!state->enabled)
+		return;
+
+	/*
 	 * *state was just applied. Read out the hardware state and do some
 	 * checks.
 	 */
@@ -508,25 +515,31 @@ static void pwm_apply_debug(struct pwm_device *pwm,
 		return;
 
 	/*
+	 * If the PWM was disabled that's maybe strange but there is nothing
+	 * that can be sensibly checked then. So return early.
+	 */
+	if (!s1.enabled)
+		return;
+
+	/*
 	 * The lowlevel driver either ignored .polarity (which is a bug) or as
 	 * best effort inverted .polarity and fixed .duty_cycle respectively.
 	 * Undo this inversion and fixup for further tests.
 	 */
-	if (s1.enabled && s1.polarity != state->polarity) {
+	if (s1.polarity != state->polarity) {
 		s2.polarity = state->polarity;
 		s2.duty_cycle = s1.period - s1.duty_cycle;
 		s2.period = s1.period;
-		s2.enabled = s1.enabled;
+		s2.enabled = true;
 	} else {
 		s2 = s1;
 	}
 
 	if (s2.polarity != state->polarity &&
-	    state->duty_cycle < state->period)
+	    s2.duty_cycle < s2.period)
 		dev_warn(pwmchip_parent(chip), ".apply ignored .polarity\n");
 
-	if (state->enabled && s2.enabled &&
-	    last->polarity == state->polarity &&
+	if (last->polarity == state->polarity &&
 	    last->period > s2.period &&
 	    last->period <= state->period)
 		dev_warn(pwmchip_parent(chip),
@@ -537,13 +550,12 @@ static void pwm_apply_debug(struct pwm_device *pwm,
 	 * Rounding period up is fine only if duty_cycle is 0 then, because a
 	 * flat line doesn't have a characteristic period.
 	 */
-	if (state->enabled && s2.enabled && state->period < s2.period && s2.duty_cycle)
+	if (state->period < s2.period && s2.duty_cycle)
 		dev_warn(pwmchip_parent(chip),
 			 ".apply is supposed to round down period (requested: %llu, applied: %llu)\n",
 			 state->period, s2.period);
 
-	if (state->enabled &&
-	    last->polarity == state->polarity &&
+	if (last->polarity == state->polarity &&
 	    last->period == s2.period &&
 	    last->duty_cycle > s2.duty_cycle &&
 	    last->duty_cycle <= state->duty_cycle)
@@ -553,15 +565,11 @@ static void pwm_apply_debug(struct pwm_device *pwm,
 			 s2.duty_cycle, s2.period,
 			 last->duty_cycle, last->period);
 
-	if (state->enabled && s2.enabled && state->duty_cycle < s2.duty_cycle)
+	if (state->duty_cycle < s2.duty_cycle)
 		dev_warn(pwmchip_parent(chip),
 			 ".apply is supposed to round down duty_cycle (requested: %llu/%llu, applied: %llu/%llu)\n",
 			 state->duty_cycle, state->period,
 			 s2.duty_cycle, s2.period);
-
-	if (!state->enabled && s2.enabled && s2.duty_cycle > 0)
-		dev_warn(pwmchip_parent(chip),
-			 "requested disabled, but yielded enabled with duty > 0\n");
 
 	/* reapply the state that the driver reported being configured. */
 	err = chip->ops->apply(chip, pwm, &s1);
@@ -2383,6 +2391,51 @@ static const struct file_operations pwm_cdev_fileops = {
 
 static dev_t pwm_devt;
 
+static int pwm_gpio_request(struct gpio_chip *gc, unsigned int offset)
+{
+	struct pwm_chip *chip = gpiochip_get_data(gc);
+	struct pwm_device *pwm;
+
+	pwm = pwm_request_from_chip(chip, offset, "pwm-gpio");
+	if (IS_ERR(pwm))
+		return PTR_ERR(pwm);
+
+	return 0;
+}
+
+static void pwm_gpio_free(struct gpio_chip *gc, unsigned int offset)
+{
+	struct pwm_chip *chip = gpiochip_get_data(gc);
+
+	pwm_put(&chip->pwms[offset]);
+}
+
+static int pwm_gpio_get_direction(struct gpio_chip *gc, unsigned int offset)
+{
+	return GPIO_LINE_DIRECTION_OUT;
+}
+
+static int pwm_gpio_set(struct gpio_chip *gc, unsigned int offset, int value)
+{
+	struct pwm_chip *chip = gpiochip_get_data(gc);
+	struct pwm_device *pwm = &chip->pwms[offset];
+	int ret;
+	struct pwm_waveform wf = {
+		.period_length_ns = 1,
+	};
+
+	ret = pwm_round_waveform_might_sleep(pwm, &wf);
+	if (ret < 0)
+		return ret;
+
+	if (value)
+		wf.duty_length_ns = wf.period_length_ns;
+	else
+		wf.duty_length_ns = 0;
+
+	return pwm_set_waveform_might_sleep(pwm, &wf, true);
+}
+
 /**
  * __pwmchip_add() - register a new PWM chip
  * @chip: the PWM chip to add
@@ -2449,9 +2502,33 @@ int __pwmchip_add(struct pwm_chip *chip, struct module *owner)
 	if (ret)
 		goto err_device_add;
 
+	if (IS_ENABLED(CONFIG_PWM_PROVIDE_GPIO) && chip->ops->write_waveform) {
+		struct device *parent = pwmchip_parent(chip);
+
+		chip->gpio = (typeof(chip->gpio)){
+			.label = dev_name(parent),
+			.parent = parent,
+			.request = pwm_gpio_request,
+			.free = pwm_gpio_free,
+			.get_direction = pwm_gpio_get_direction,
+			.set = pwm_gpio_set,
+			.base = -1,
+			.ngpio = chip->npwm,
+			.can_sleep = true,
+		};
+
+		ret = gpiochip_add_data(&chip->gpio, chip);
+		if (ret)
+			goto err_gpiochip_add;
+	}
+
 	return 0;
 
+err_gpiochip_add:
+
+	cdev_device_del(&chip->cdev, &chip->dev);
 err_device_add:
+
 	scoped_guard(pwmchip, chip)
 		chip->operational = false;
 
@@ -2472,6 +2549,9 @@ EXPORT_SYMBOL_GPL(__pwmchip_add);
  */
 void pwmchip_remove(struct pwm_chip *chip)
 {
+	if (IS_ENABLED(CONFIG_PWM_PROVIDE_GPIO) && chip->ops->write_waveform)
+		gpiochip_remove(&chip->gpio);
+
 	pwmchip_sysfs_unexport(chip);
 
 	scoped_guard(mutex, &pwm_lock) {

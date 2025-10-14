@@ -1135,11 +1135,10 @@ static int ov9282_parse_hw_config(struct ov9282 *ov9282)
 	}
 
 	/* Get sensor input clock */
-	ov9282->inclk = devm_clk_get(ov9282->dev, NULL);
-	if (IS_ERR(ov9282->inclk)) {
-		dev_err(ov9282->dev, "could not get inclk");
-		return PTR_ERR(ov9282->inclk);
-	}
+	ov9282->inclk = devm_v4l2_sensor_clk_get(ov9282->dev, NULL);
+	if (IS_ERR(ov9282->inclk))
+		return dev_err_probe(ov9282->dev, PTR_ERR(ov9282->inclk),
+				     "could not get inclk\n");
 
 	ret = ov9282_configure_regulators(ov9282);
 	if (ret)

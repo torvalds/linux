@@ -230,7 +230,7 @@ static int jffs2_write_begin(const struct kiocb *iocb,
 			goto release_sem;
 		}
 	}
-	jffs2_dbg(1, "end write_begin(). folio->flags %lx\n", folio->flags);
+	jffs2_dbg(1, "end write_begin(). folio->flags %lx\n", folio->flags.f);
 
 release_sem:
 	mutex_unlock(&c->alloc_sem);
@@ -259,7 +259,7 @@ static int jffs2_write_end(const struct kiocb *iocb,
 
 	jffs2_dbg(1, "%s(): ino #%lu, page at 0x%llx, range %d-%d, flags %lx\n",
 		  __func__, inode->i_ino, folio_pos(folio),
-		  start, end, folio->flags);
+		  start, end, folio->flags.f);
 
 	/* We need to avoid deadlock with page_cache_read() in
 	   jffs2_garbage_collect_pass(). So the folio must be

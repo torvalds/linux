@@ -1315,6 +1315,33 @@ static void smu_init_power_profile(struct smu_context *smu)
 	smu_power_profile_mode_get(smu, smu->power_profile_mode);
 }
 
+void smu_feature_cap_set(struct smu_context *smu, enum smu_feature_cap_id fea_id)
+{
+	struct smu_feature_cap *fea_cap = &smu->fea_cap;
+
+	if (fea_id >= SMU_FEATURE_CAP_ID__COUNT)
+		return;
+
+	set_bit(fea_id, fea_cap->cap_map);
+}
+
+bool smu_feature_cap_test(struct smu_context *smu, enum smu_feature_cap_id fea_id)
+{
+	struct smu_feature_cap *fea_cap = &smu->fea_cap;
+
+	if (fea_id >= SMU_FEATURE_CAP_ID__COUNT)
+		return false;
+
+	return test_bit(fea_id, fea_cap->cap_map);
+}
+
+static void smu_feature_cap_init(struct smu_context *smu)
+{
+	struct smu_feature_cap *fea_cap = &smu->fea_cap;
+
+	bitmap_zero(fea_cap->cap_map, SMU_FEATURE_CAP_ID__COUNT);
+}
+
 static int smu_sw_init(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_device *adev = ip_block->adev;
@@ -1346,6 +1373,8 @@ static int smu_sw_init(struct amdgpu_ip_block *ip_block)
 
 	INIT_DELAYED_WORK(&smu->swctf_delayed_work,
 			  smu_swctf_delayed_work_handler);
+
+	smu_feature_cap_init(smu);
 
 	ret = smu_smc_table_sw_init(smu);
 	if (ret) {
@@ -1896,7 +1925,6 @@ static int smu_hw_init(struct amdgpu_ip_block *ip_block)
 		for (i = 0; i < adev->vcn.num_vcn_inst; i++)
 			smu_dpm_set_vcn_enable(smu, true, i);
 		smu_dpm_set_jpeg_enable(smu, true);
-		smu_dpm_set_vpe_enable(smu, true);
 		smu_dpm_set_umsch_mm_enable(smu, true);
 		smu_set_mall_enable(smu);
 		smu_set_gfx_cgpg(smu, true);
@@ -2104,7 +2132,6 @@ static int smu_hw_fini(struct amdgpu_ip_block *ip_block)
 	}
 	smu_dpm_set_jpeg_enable(smu, false);
 	adev->jpeg.cur_state = AMD_PG_STATE_GATE;
-	smu_dpm_set_vpe_enable(smu, false);
 	smu_dpm_set_umsch_mm_enable(smu, false);
 
 	if (!smu->pm_enabled)
@@ -2236,7 +2263,7 @@ static int smu_resume(struct amdgpu_ip_block *ip_block)
 			return ret;
 	}
 
-	if (smu_dpm_ctx->dpm_level == AMD_DPM_FORCED_LEVEL_MANUAL) {
+	if (smu_dpm_ctx->dpm_level == AMD_DPM_FORCED_LEVEL_MANUAL && smu->od_enabled) {
 		ret = smu_od_edit_dpm_table(smu, PP_OD_COMMIT_DPM_TABLE, NULL, 0);
 		if (ret)
 			return ret;
@@ -3507,15 +3534,10 @@ bool smu_mode1_reset_is_support(struct smu_context *smu)
 
 bool smu_link_reset_is_support(struct smu_context *smu)
 {
-	bool ret = false;
-
 	if (!smu->pm_enabled)
 		return false;
 
-	if (smu->ppt_funcs && smu->ppt_funcs->link_reset_is_support)
-		ret = smu->ppt_funcs->link_reset_is_support(smu);
-
-	return ret;
+	return smu_feature_cap_test(smu, SMU_FEATURE_CAP_ID__LINK_RESET);
 }
 
 int smu_mode1_reset(struct smu_context *smu)
@@ -3831,6 +3853,51 @@ int smu_set_pm_policy(struct smu_context *smu, enum pp_pm_policy p_type,
 	return ret;
 }
 
+static ssize_t smu_sys_get_temp_metrics(void *handle, enum smu_temp_metric_type type, void *table)
+{
+	struct smu_context *smu = handle;
+	struct smu_table_context *smu_table = &smu->smu_table;
+	struct smu_table *tables = smu_table->tables;
+	enum smu_table_id table_id;
+
+	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
+		return -EOPNOTSUPP;
+
+	if (!smu->smu_temp.temp_funcs || !smu->smu_temp.temp_funcs->get_temp_metrics)
+		return -EOPNOTSUPP;
+
+	table_id = smu_metrics_get_temp_table_id(type);
+
+	if (table_id == SMU_TABLE_COUNT)
+		return -EINVAL;
+
+	/* If the request is to get size alone, return the cached table size */
+	if (!table && tables[table_id].cache.size)
+		return tables[table_id].cache.size;
+
+	if (smu_table_cache_is_valid(&tables[table_id])) {
+		memcpy(table, tables[table_id].cache.buffer,
+		       tables[table_id].cache.size);
+		return tables[table_id].cache.size;
+	}
+
+	return smu->smu_temp.temp_funcs->get_temp_metrics(smu, type, table);
+}
+
+static bool smu_temp_metrics_is_supported(void *handle, enum smu_temp_metric_type type)
+{
+	struct smu_context *smu = handle;
+	bool ret = false;
+
+	if (!smu->pm_enabled)
+		return false;
+
+	if (smu->smu_temp.temp_funcs && smu->smu_temp.temp_funcs->temp_metrics_is_supported)
+		ret = smu->smu_temp.temp_funcs->temp_metrics_is_supported(smu, type);
+
+	return ret;
+}
+
 static ssize_t smu_sys_get_xcp_metrics(void *handle, int xcp_id, void *table)
 {
 	struct smu_context *smu = handle;
@@ -3903,6 +3970,8 @@ static const struct amd_pm_funcs swsmu_pm_funcs = {
 	.get_dpm_clock_table              = smu_get_dpm_clock_table,
 	.get_smu_prv_buf_details = smu_get_prv_buffer_details,
 	.get_xcp_metrics                  = smu_sys_get_xcp_metrics,
+	.get_temp_metrics             = smu_sys_get_temp_metrics,
+	.temp_metrics_is_supported      = smu_temp_metrics_is_supported,
 };
 
 int smu_wait_for_event(struct smu_context *smu, enum smu_event_type event,
@@ -4058,12 +4127,7 @@ int smu_send_rma_reason(struct smu_context *smu)
  */
 bool smu_reset_sdma_is_supported(struct smu_context *smu)
 {
-	bool ret = false;
-
-	if (smu->ppt_funcs && smu->ppt_funcs->reset_sdma_is_supported)
-		ret = smu->ppt_funcs->reset_sdma_is_supported(smu);
-
-	return ret;
+	return smu_feature_cap_test(smu, SMU_FEATURE_CAP_ID__SDMA_RESET);
 }
 
 int smu_reset_sdma(struct smu_context *smu, uint32_t inst_mask)
@@ -4074,6 +4138,11 @@ int smu_reset_sdma(struct smu_context *smu, uint32_t inst_mask)
 		ret = smu->ppt_funcs->reset_sdma(smu, inst_mask);
 
 	return ret;
+}
+
+bool smu_reset_vcn_is_supported(struct smu_context *smu)
+{
+	return smu_feature_cap_test(smu, SMU_FEATURE_CAP_ID__VCN_RESET);
 }
 
 int smu_reset_vcn(struct smu_context *smu, uint32_t inst_mask)

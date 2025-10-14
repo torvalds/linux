@@ -56,6 +56,9 @@ static void kvm_arm_setup_mdcr_el2(struct kvm_vcpu *vcpu)
 	if (!kvm_guest_owns_debug_regs(vcpu))
 		vcpu->arch.mdcr_el2 |= MDCR_EL2_TDA;
 
+	if (vcpu_has_nv(vcpu))
+		kvm_nested_setup_mdcr_el2(vcpu);
+
 	/* Write MDCR_EL2 directly if we're already at EL2 */
 	if (has_vhe())
 		write_sysreg(vcpu->arch.mdcr_el2, mdcr_el2);
@@ -94,6 +97,13 @@ void kvm_init_host_debug_data(void)
 		    !(read_sysreg_s(SYS_TRBIDR_EL1) & TRBIDR_EL1_P))
 			host_data_set_flag(HAS_TRBE);
 	}
+}
+
+void kvm_debug_init_vhe(void)
+{
+	/* Clear PMSCR_EL1.E{0,1}SPE which reset to UNKNOWN values. */
+	if (SYS_FIELD_GET(ID_AA64DFR0_EL1, PMSVer, read_sysreg(id_aa64dfr0_el1)))
+		write_sysreg_el1(0, SYS_PMSCR);
 }
 
 /*
@@ -137,6 +147,9 @@ void kvm_vcpu_load_debug(struct kvm_vcpu *vcpu)
 
 	/* Must be called before kvm_vcpu_load_vhe() */
 	KVM_BUG_ON(vcpu_get_flag(vcpu, SYSREGS_ON_CPU), vcpu->kvm);
+
+	if (has_vhe())
+		*host_data_ptr(host_debug_state.mdcr_el2) = read_sysreg(mdcr_el2);
 
 	/*
 	 * Determine which of the possible debug states we're in:
@@ -184,6 +197,9 @@ void kvm_vcpu_load_debug(struct kvm_vcpu *vcpu)
 
 void kvm_vcpu_put_debug(struct kvm_vcpu *vcpu)
 {
+	if (has_vhe())
+		write_sysreg(*host_data_ptr(host_debug_state.mdcr_el2), mdcr_el2);
+
 	if (likely(!(vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP)))
 		return;
 
@@ -230,29 +246,29 @@ void kvm_debug_handle_oslar(struct kvm_vcpu *vcpu, u64 val)
 	preempt_enable();
 }
 
+static bool skip_trbe_access(bool skip_condition)
+{
+	return (WARN_ON_ONCE(preemptible()) || skip_condition ||
+		is_protected_kvm_enabled() || !is_kvm_arm_initialised());
+}
+
 void kvm_enable_trbe(void)
 {
-	if (has_vhe() || is_protected_kvm_enabled() ||
-	    WARN_ON_ONCE(preemptible()))
-		return;
-
-	host_data_set_flag(TRBE_ENABLED);
+	if (!skip_trbe_access(has_vhe()))
+		host_data_set_flag(TRBE_ENABLED);
 }
 EXPORT_SYMBOL_GPL(kvm_enable_trbe);
 
 void kvm_disable_trbe(void)
 {
-	if (has_vhe() || is_protected_kvm_enabled() ||
-	    WARN_ON_ONCE(preemptible()))
-		return;
-
-	host_data_clear_flag(TRBE_ENABLED);
+	if (!skip_trbe_access(has_vhe()))
+		host_data_clear_flag(TRBE_ENABLED);
 }
 EXPORT_SYMBOL_GPL(kvm_disable_trbe);
 
 void kvm_tracing_set_el1_configuration(u64 trfcr_while_in_guest)
 {
-	if (is_protected_kvm_enabled() || WARN_ON_ONCE(preemptible()))
+	if (skip_trbe_access(false))
 		return;
 
 	if (has_vhe()) {

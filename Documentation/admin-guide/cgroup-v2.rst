@@ -15,6 +15,9 @@ v1 is available under :ref:`Documentation/admin-guide/cgroup-v1/index.rst <cgrou
 
 .. CONTENTS
 
+   [Whenever any new section is added to this document, please also add
+    an entry here.]
+
    1. Introduction
      1-1. Terminology
      1-2. What is cgroup?
@@ -25,9 +28,10 @@ v1 is available under :ref:`Documentation/admin-guide/cgroup-v1/index.rst <cgrou
        2-2-2. Threads
      2-3. [Un]populated Notification
      2-4. Controlling Controllers
-       2-4-1. Enabling and Disabling
-       2-4-2. Top-down Constraint
-       2-4-3. No Internal Process Constraint
+       2-4-1. Availability
+       2-4-2. Enabling and Disabling
+       2-4-3. Top-down Constraint
+       2-4-4. No Internal Process Constraint
      2-5. Delegation
        2-5-1. Model of Delegation
        2-5-2. Delegation Containment
@@ -61,14 +65,15 @@ v1 is available under :ref:`Documentation/admin-guide/cgroup-v1/index.rst <cgrou
        5-4-1. PID Interface Files
      5-5. Cpuset
        5.5-1. Cpuset Interface Files
-     5-6. Device
+     5-6. Device controller
      5-7. RDMA
        5-7-1. RDMA Interface Files
      5-8. DMEM
+       5-8-1. DMEM Interface Files
      5-9. HugeTLB
        5.9-1. HugeTLB Interface Files
      5-10. Misc
-       5.10-1 Miscellaneous cgroup Interface Files
+       5.10-1 Misc Interface Files
        5.10-2 Migration and Ownership
      5-11. Others
        5-11-1. perf_event
@@ -435,8 +440,8 @@ both cgroups.
 Controlling Controllers
 -----------------------
 
-Availablity
-~~~~~~~~~~~
+Availability
+~~~~~~~~~~~~
 
 A controller is available in a cgroup when it is supported by the kernel (i.e.,
 compiled in, not disabled and not attached to a v1 hierarchy) and listed in the
@@ -1000,6 +1005,24 @@ All cgroup core files are prefixed with "cgroup."
 	  nr_dying_subsys_<cgroup_subsys>
 		Total number of dying cgroup subsystems (e.g. memory
 		cgroup) at and beneath the current cgroup.
+
+  cgroup.stat.local
+	A read-only flat-keyed file which exists in non-root cgroups.
+	The following entry is defined:
+
+	  frozen_usec
+		Cumulative time that this cgroup has spent between freezing and
+		thawing, regardless of whether by self or ancestor groups.
+		NB: (not) reaching "frozen" state is not accounted here.
+
+		Using the following ASCII representation of a cgroup's freezer
+		state, ::
+
+			       1    _____
+			frozen 0 __/     \__
+			          ab    cd
+
+		the duration being measured is the span between a and c.
 
   cgroup.freeze
 	A read-write single value file which exists on non-root cgroups.

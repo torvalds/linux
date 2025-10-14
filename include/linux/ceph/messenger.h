@@ -2,6 +2,7 @@
 #ifndef __FS_CEPH_MESSENGER_H
 #define __FS_CEPH_MESSENGER_H
 
+#include <crypto/sha2.h>
 #include <linux/bvec.h>
 #include <linux/crypto.h>
 #include <linux/kref.h>
@@ -412,7 +413,8 @@ struct ceph_connection_v2_info {
 	struct ceph_msg_data_cursor in_cursor;
 	struct ceph_msg_data_cursor out_cursor;
 
-	struct crypto_shash *hmac_tfm;  /* post-auth signature */
+	struct hmac_sha256_key hmac_key;  /* post-auth signature */
+	bool hmac_key_set;
 	struct crypto_aead *gcm_tfm;  /* on-wire encryption */
 	struct aead_request *gcm_req;
 	struct crypto_wait gcm_wait;
@@ -548,12 +550,12 @@ void ceph_addr_set_port(struct ceph_entity_addr *addr, int p);
 void ceph_con_process_message(struct ceph_connection *con);
 int ceph_con_in_msg_alloc(struct ceph_connection *con,
 			  struct ceph_msg_header *hdr, int *skip);
-void ceph_con_get_out_msg(struct ceph_connection *con);
+struct ceph_msg *ceph_con_get_out_msg(struct ceph_connection *con);
 
 /* messenger_v1.c */
 int ceph_con_v1_try_read(struct ceph_connection *con);
 int ceph_con_v1_try_write(struct ceph_connection *con);
-void ceph_con_v1_revoke(struct ceph_connection *con);
+void ceph_con_v1_revoke(struct ceph_connection *con, struct ceph_msg *msg);
 void ceph_con_v1_revoke_incoming(struct ceph_connection *con);
 bool ceph_con_v1_opened(struct ceph_connection *con);
 void ceph_con_v1_reset_session(struct ceph_connection *con);
@@ -562,7 +564,7 @@ void ceph_con_v1_reset_protocol(struct ceph_connection *con);
 /* messenger_v2.c */
 int ceph_con_v2_try_read(struct ceph_connection *con);
 int ceph_con_v2_try_write(struct ceph_connection *con);
-void ceph_con_v2_revoke(struct ceph_connection *con);
+void ceph_con_v2_revoke(struct ceph_connection *con, struct ceph_msg *msg);
 void ceph_con_v2_revoke_incoming(struct ceph_connection *con);
 bool ceph_con_v2_opened(struct ceph_connection *con);
 void ceph_con_v2_reset_session(struct ceph_connection *con);

@@ -28,108 +28,101 @@ config CRYPTO_LIB_ARC4
 config CRYPTO_LIB_GF128MUL
 	tristate
 
-config CRYPTO_ARCH_HAVE_LIB_BLAKE2S
+# BLAKE2s support is always built-in, so there's no CRYPTO_LIB_BLAKE2S option.
+
+config CRYPTO_LIB_BLAKE2S_ARCH
 	bool
-	help
-	  Declares whether the architecture provides an arch-specific
-	  accelerated implementation of the Blake2s library interface,
-	  either builtin or as a module.
-
-config CRYPTO_LIB_BLAKE2S_GENERIC
-	def_bool !CRYPTO_ARCH_HAVE_LIB_BLAKE2S
-	help
-	  This symbol can be depended upon by arch implementations of the
-	  Blake2s library interface that require the generic code as a
-	  fallback, e.g., for SIMD implementations. If no arch specific
-	  implementation is enabled, this implementation serves the users
-	  of CRYPTO_LIB_BLAKE2S.
-
-config CRYPTO_ARCH_HAVE_LIB_CHACHA
-	bool
-	help
-	  Declares whether the architecture provides an arch-specific
-	  accelerated implementation of the ChaCha library interface,
-	  either builtin or as a module.
-
-config CRYPTO_LIB_CHACHA_GENERIC
-	tristate
-	default CRYPTO_LIB_CHACHA if !CRYPTO_ARCH_HAVE_LIB_CHACHA
-	select CRYPTO_LIB_UTILS
-	help
-	  This symbol can be selected by arch implementations of the ChaCha
-	  library interface that require the generic code as a fallback, e.g.,
-	  for SIMD implementations. If no arch specific implementation is
-	  enabled, this implementation serves the users of CRYPTO_LIB_CHACHA.
+	depends on !UML
+	default y if ARM
+	default y if X86_64
 
 config CRYPTO_LIB_CHACHA
 	tristate
-	help
-	  Enable the ChaCha library interface. This interface may be fulfilled
-	  by either the generic implementation or an arch-specific one, if one
-	  is available and enabled.
-
-config CRYPTO_ARCH_HAVE_LIB_CURVE25519
-	bool
-	help
-	  Declares whether the architecture provides an arch-specific
-	  accelerated implementation of the Curve25519 library interface,
-	  either builtin or as a module.
-
-config CRYPTO_LIB_CURVE25519_GENERIC
-	tristate
 	select CRYPTO_LIB_UTILS
 	help
-	  This symbol can be depended upon by arch implementations of the
-	  Curve25519 library interface that require the generic code as a
-	  fallback, e.g., for SIMD implementations. If no arch specific
-	  implementation is enabled, this implementation serves the users
-	  of CRYPTO_LIB_CURVE25519.
+	  Enable the ChaCha library interface.  Select this if your module uses
+	  chacha_crypt() or hchacha_block().
 
-config CRYPTO_LIB_CURVE25519_INTERNAL
-	tristate
-	select CRYPTO_LIB_CURVE25519_GENERIC if CRYPTO_ARCH_HAVE_LIB_CURVE25519=n
+config CRYPTO_LIB_CHACHA_ARCH
+	bool
+	depends on CRYPTO_LIB_CHACHA && !UML && !KMSAN
+	default y if ARM
+	default y if ARM64 && KERNEL_MODE_NEON
+	default y if MIPS && CPU_MIPS32_R2
+	default y if PPC64 && CPU_LITTLE_ENDIAN && VSX
+	default y if RISCV && 64BIT && RISCV_ISA_V && TOOLCHAIN_HAS_VECTOR_CRYPTO
+	default y if S390
+	default y if X86_64
 
 config CRYPTO_LIB_CURVE25519
 	tristate
-	select CRYPTO
-	select CRYPTO_LIB_CURVE25519_INTERNAL
+	select CRYPTO_LIB_UTILS
 	help
-	  Enable the Curve25519 library interface. This interface may be
-	  fulfilled by either the generic implementation or an arch-specific
-	  one, if one is available and enabled.
+	  The Curve25519 library functions.  Select this if your module uses any
+	  of the functions from <crypto/curve25519.h>.
+
+config CRYPTO_LIB_CURVE25519_ARCH
+	bool
+	depends on CRYPTO_LIB_CURVE25519 && !UML && !KMSAN
+	default y if ARM && KERNEL_MODE_NEON
+	default y if PPC64 && CPU_LITTLE_ENDIAN
+	default y if X86_64
+
+config CRYPTO_LIB_CURVE25519_GENERIC
+	bool
+	depends on CRYPTO_LIB_CURVE25519
+	default y if !CRYPTO_LIB_CURVE25519_ARCH || ARM || X86_64
 
 config CRYPTO_LIB_DES
 	tristate
 
-config CRYPTO_LIB_POLY1305_RSIZE
-	int
-	default 2 if MIPS
-	default 11 if X86_64
-	default 9 if ARM || ARM64
-	default 1
-
-config CRYPTO_ARCH_HAVE_LIB_POLY1305
-	bool
-	help
-	  Declares whether the architecture provides an arch-specific
-	  accelerated implementation of the Poly1305 library interface,
-	  either builtin or as a module.
-
-config CRYPTO_LIB_POLY1305_GENERIC
+config CRYPTO_LIB_MD5
 	tristate
-	default CRYPTO_LIB_POLY1305 if !CRYPTO_ARCH_HAVE_LIB_POLY1305
 	help
-	  This symbol can be selected by arch implementations of the Poly1305
-	  library interface that require the generic code as a fallback, e.g.,
-	  for SIMD implementations. If no arch specific implementation is
-	  enabled, this implementation serves the users of CRYPTO_LIB_POLY1305.
+	  The MD5 and HMAC-MD5 library functions.  Select this if your module
+	  uses any of the functions from <crypto/md5.h>.
+
+config CRYPTO_LIB_MD5_ARCH
+	bool
+	depends on CRYPTO_LIB_MD5 && !UML
+	default y if MIPS && CPU_CAVIUM_OCTEON
+	default y if PPC
+	default y if SPARC64
 
 config CRYPTO_LIB_POLY1305
 	tristate
 	help
-	  Enable the Poly1305 library interface. This interface may be fulfilled
-	  by either the generic implementation or an arch-specific one, if one
-	  is available and enabled.
+	  The Poly1305 library functions.  Select this if your module uses any
+	  of the functions from <crypto/poly1305.h>.
+
+config CRYPTO_LIB_POLY1305_ARCH
+	bool
+	depends on CRYPTO_LIB_POLY1305 && !UML
+	default y if ARM
+	default y if ARM64 && KERNEL_MODE_NEON
+	default y if MIPS
+	# The PPC64 code needs to be fixed to work in softirq context.
+	default y if PPC64 && CPU_LITTLE_ENDIAN && VSX && BROKEN
+	default y if RISCV
+	default y if X86_64
+
+# This symbol controls the inclusion of the Poly1305 generic code.  This differs
+# from most of the other algorithms, which handle the generic code
+# "automatically" via __maybe_unused.  This is needed so that the Adiantum code,
+# which calls the poly1305_core_*() functions directly, can enable them.
+config CRYPTO_LIB_POLY1305_GENERIC
+	bool
+	depends on CRYPTO_LIB_POLY1305
+	# Enable if there's no arch impl or the arch impl requires the generic
+	# impl as a fallback.  (Or if selected explicitly.)
+	default y if !CRYPTO_LIB_POLY1305_ARCH || PPC64
+
+config CRYPTO_LIB_POLY1305_RSIZE
+	int
+	default 2 if MIPS || RISCV
+	default 11 if X86_64
+	default 9 if ARM || ARM64
+	default 1
 
 config CRYPTO_LIB_CHACHA20POLY1305
 	tristate
@@ -140,8 +133,8 @@ config CRYPTO_LIB_CHACHA20POLY1305
 config CRYPTO_LIB_SHA1
 	tristate
 	help
-	  The SHA-1 library functions.  Select this if your module uses any of
-	  the functions from <crypto/sha1.h>.
+	  The SHA-1 and HMAC-SHA1 library functions.  Select this if your module
+	  uses any of the functions from <crypto/sha1.h>.
 
 config CRYPTO_LIB_SHA1_ARCH
 	bool
@@ -157,9 +150,9 @@ config CRYPTO_LIB_SHA1_ARCH
 config CRYPTO_LIB_SHA256
 	tristate
 	help
-	  Enable the SHA-256 library interface. This interface may be fulfilled
-	  by either the generic implementation or an arch-specific one, if one
-	  is available and enabled.
+	  The SHA-224, SHA-256, HMAC-SHA224, and HMAC-SHA256 library functions.
+	  Select this if your module uses any of these functions from
+	  <crypto/sha2.h>.
 
 config CRYPTO_LIB_SHA256_ARCH
 	bool
@@ -195,29 +188,5 @@ config CRYPTO_LIB_SM3
 	tristate
 
 source "lib/crypto/tests/Kconfig"
-
-if !KMSAN # avoid false positives from assembly
-if ARM
-source "lib/crypto/arm/Kconfig"
-endif
-if ARM64
-source "lib/crypto/arm64/Kconfig"
-endif
-if MIPS
-source "lib/crypto/mips/Kconfig"
-endif
-if PPC
-source "lib/crypto/powerpc/Kconfig"
-endif
-if RISCV
-source "lib/crypto/riscv/Kconfig"
-endif
-if S390
-source "lib/crypto/s390/Kconfig"
-endif
-if X86
-source "lib/crypto/x86/Kconfig"
-endif
-endif
 
 endmenu

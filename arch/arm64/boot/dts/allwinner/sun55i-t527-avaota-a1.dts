@@ -27,6 +27,12 @@
 		clock-output-names = "ext_osc32k";
 	};
 
+	iio-hwmon {
+		compatible = "iio-hwmon";
+		io-channels = <&axp717_adc 3>, /* vsys_v */
+			      <&axp717_adc 4>; /* pmic_temp */
+	};
+
 	reg_vcc12v: vcc12v {
 		/* DC input jack */
 		compatible = "regulator-fixed";
@@ -85,6 +91,9 @@
 	ext_rgmii_phy: ethernet-phy@1 {
 		compatible = "ethernet-phy-ieee802.3-c22";
 		reg = <1>;
+		reset-gpios = <&pio 7 8 GPIO_ACTIVE_LOW>; /* PH8 */
+		reset-assert-us = <10000>;
+		reset-deassert-us = <150000>;
 	};
 };
 
@@ -145,6 +154,17 @@
 		aldoin-supply = <&reg_vcc5v>;
 		bldoin-supply = <&reg_vcc5v>;
 		cldoin-supply = <&reg_vcc5v>;
+
+		axp717_adc: adc {
+			compatible = "x-powers,axp717-adc";
+			#io-channel-cells = <1>;
+		};
+
+		battery-power {
+			compatible = "x-powers,axp717-battery-power-supply";
+			/* no battery; output used for dcdc4 instead */
+			status = "disabled";
+		};
 
 		regulators {
 			/* Supplies the "little" cluster (1.4 GHz cores) */
@@ -252,6 +272,12 @@
 				regulator-name = "vdd-cpus";
 			};
 		};
+
+		usb-power {
+			compatible = "x-powers,axp717-usb-power-supply";
+			/* 12V-5V buck converter can supply up to 5A */
+			input-current-limit-microamp = <3250000>;
+		};
 	};
 
 	axp323: pmic@36 {
@@ -304,6 +330,14 @@
  *	vcc-pl-supply = <&reg_aldo3>;
  */
 	vcc-pm-supply = <&reg_aldo3>;
+};
+
+&rtc {
+	clocks = <&r_ccu CLK_BUS_R_RTC>, <&osc24M>,
+		 <&r_ccu CLK_R_AHB>, <&ext_osc32k>;
+	clock-names = "bus", "hosc", "ahb", "ext-osc32k";
+	assigned-clocks = <&rtc CLK_OSC32K>;
+	assigned-clock-rates = <32768>;
 };
 
 &uart0 {

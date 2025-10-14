@@ -7,7 +7,7 @@
 
 static inline void arch_clear_hugetlb_flags(struct folio *folio)
 {
-	clear_bit(PG_dcache_clean, &folio->flags);
+	clear_bit(PG_dcache_clean, &folio->flags.f);
 }
 #define arch_clear_hugetlb_flags arch_clear_hugetlb_flags
 

@@ -872,10 +872,10 @@ static void amd_pstate_update_limits(struct cpufreq_policy *policy)
  */
 static u32 amd_pstate_get_transition_delay_us(unsigned int cpu)
 {
-	u32 transition_delay_ns;
+	int transition_delay_ns;
 
 	transition_delay_ns = cppc_get_transition_latency(cpu);
-	if (transition_delay_ns == CPUFREQ_ETERNAL) {
+	if (transition_delay_ns < 0) {
 		if (cpu_feature_enabled(X86_FEATURE_AMD_FAST_CPPC))
 			return AMD_PSTATE_FAST_CPPC_TRANSITION_DELAY;
 		else
@@ -891,10 +891,10 @@ static u32 amd_pstate_get_transition_delay_us(unsigned int cpu)
  */
 static u32 amd_pstate_get_transition_latency(unsigned int cpu)
 {
-	u32 transition_latency;
+	int transition_latency;
 
 	transition_latency = cppc_get_transition_latency(cpu);
-	if (transition_latency  == CPUFREQ_ETERNAL)
+	if (transition_latency < 0)
 		return AMD_PSTATE_TRANSITION_LATENCY;
 
 	return transition_latency;
@@ -1554,13 +1554,15 @@ static void amd_pstate_epp_cpu_exit(struct cpufreq_policy *policy)
 	pr_debug("CPU %d exiting\n", policy->cpu);
 }
 
-static int amd_pstate_epp_update_limit(struct cpufreq_policy *policy)
+static int amd_pstate_epp_update_limit(struct cpufreq_policy *policy, bool policy_change)
 {
 	struct amd_cpudata *cpudata = policy->driver_data;
 	union perf_cached perf;
 	u8 epp;
 
-	if (policy->min != cpudata->min_limit_freq || policy->max != cpudata->max_limit_freq)
+	if (policy_change ||
+	    policy->min != cpudata->min_limit_freq ||
+	    policy->max != cpudata->max_limit_freq)
 		amd_pstate_update_min_max_limit(policy);
 
 	if (cpudata->policy == CPUFREQ_POLICY_PERFORMANCE)
@@ -1584,7 +1586,7 @@ static int amd_pstate_epp_set_policy(struct cpufreq_policy *policy)
 
 	cpudata->policy = policy->policy;
 
-	ret = amd_pstate_epp_update_limit(policy);
+	ret = amd_pstate_epp_update_limit(policy, true);
 	if (ret)
 		return ret;
 
@@ -1626,12 +1628,13 @@ static int amd_pstate_suspend(struct cpufreq_policy *policy)
 	 * min_perf value across kexec reboots. If this CPU is just resumed back without kexec,
 	 * the limits, epp and desired perf will get reset to the cached values in cpudata struct
 	 */
-	ret = amd_pstate_update_perf(policy, perf.bios_min_perf, 0U, 0U, 0U, false);
+	ret = amd_pstate_update_perf(policy, perf.bios_min_perf,
+				     FIELD_GET(AMD_CPPC_DES_PERF_MASK, cpudata->cppc_req_cached),
+				     FIELD_GET(AMD_CPPC_MAX_PERF_MASK, cpudata->cppc_req_cached),
+				     FIELD_GET(AMD_CPPC_EPP_PERF_MASK, cpudata->cppc_req_cached),
+				     false);
 	if (ret)
 		return ret;
-
-	/* invalidate to ensure it's rewritten during resume */
-	cpudata->cppc_req_cached = 0;
 
 	/* set this flag to avoid setting core offline*/
 	cpudata->suspended = true;
@@ -1658,7 +1661,7 @@ static int amd_pstate_epp_resume(struct cpufreq_policy *policy)
 		int ret;
 
 		/* enable amd pstate from suspend state*/
-		ret = amd_pstate_epp_update_limit(policy);
+		ret = amd_pstate_epp_update_limit(policy, false);
 		if (ret)
 			return ret;
 

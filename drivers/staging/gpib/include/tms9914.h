@@ -30,10 +30,10 @@ struct tms9914_priv {
 	u8 imr0_bits, imr1_bits;
 	// bits written to address mode register
 	u8 admr_bits;
-	u8 auxa_bits;	// bits written to auxiliary register A
+	u8 auxa_bits;		// bits written to auxiliary register A
 	// used to keep track of board's state, bit definitions given below
 	unsigned long state;
-	u8 eos;	// eos character
+	u8 eos;			// eos character
 	short eos_flags;
 	u8 spoll_status;
 	enum tms9914_holdoff_mode holdoff_mode;
@@ -67,15 +67,15 @@ static inline void write_byte(struct tms9914_priv *priv, u8 byte, unsigned int r
 
 // struct tms9914_priv.state bit numbers
 enum {
-	PIO_IN_PROGRESS_BN,	// pio transfer in progress
+	PIO_IN_PROGRESS_BN,		// pio transfer in progress
 	DMA_READ_IN_PROGRESS_BN,	// dma read transfer in progress
 	DMA_WRITE_IN_PROGRESS_BN,	// dma write transfer in progress
-	READ_READY_BN,	// board has data byte available to read
-	WRITE_READY_BN,	// board is ready to send a data byte
-	COMMAND_READY_BN,	// board is ready to send a command byte
-	RECEIVED_END_BN,	// received END
-	BUS_ERROR_BN,	// bus error
-	DEV_CLEAR_BN,	// device clear received
+	READ_READY_BN,			// board has data byte available to read
+	WRITE_READY_BN,			// board is ready to send a data byte
+	COMMAND_READY_BN,		// board is ready to send a command byte
+	RECEIVED_END_BN,		// received END
+	BUS_ERROR_BN,			// bus error
+	DEV_CLEAR_BN,			// device clear received
 };
 
 // interface functions
@@ -150,23 +150,23 @@ enum {
 	IMR0 = 0,	/* interrupt mask 0          */
 	IMR1 = 1,	/* interrupt mask 1          */
 	AUXCR = 3,	/* auxiliary command         */
-	ADR = 4,	// address register
-	SPMR = 5,	// serial poll mode register
+	ADR = 4,	/* address register	     */
+	SPMR = 5,	/* serial poll mode register */
 	PPR = 6,	/* parallel poll             */
 	CDOR = 7,	/* data out register         */
 };
 
 // read registers
 enum {
-	ISR0 = 0,	/* interrupt status 0          */
-	ISR1 = 1,	/* interrupt status 1          */
-	ADSR = 2,	/* address status               */
-	BSR = 3,	/* bus status */
-	CPTR = 6,	/* command pass thru           */
-	DIR = 7,	/* data in register            */
+	ISR0 = 0,	/* interrupt status 0	     */
+	ISR1 = 1,	/* interrupt status 1	     */
+	ADSR = 2,	/* address status	     */
+	BSR = 3,	/* bus status		     */
+	CPTR = 6,	/* command pass thru	     */
+	DIR = 7,	/* data in register          */
 };
 
-//bit definitions common to tms9914 compatible registers
+// bit definitions common to tms9914 compatible registers
 
 /* ISR0   - Register bits */
 enum isr0_bits {
@@ -248,33 +248,33 @@ enum bus_status_bits {
 /*---------------------------------------------------------*/
 
 enum aux_cmd_bits {
-	AUX_CS = 0x80,	/* set bit instead of clearing it, used with commands marked 'd' below */
-	AUX_CHIP_RESET = 0x0,	/* d Chip reset                   */
-	AUX_INVAL = 0x1,	// release dac holdoff, invalid command byte
-	AUX_VAL = (AUX_INVAL | AUX_CS),	// release dac holdoff, valid command byte
-	AUX_RHDF = 0x2,	/* X Release RFD holdoff          */
-	AUX_HLDA = 0x3,	/* d holdoff on all data          */
-	AUX_HLDE = 0x4,	/* d holdoff on EOI only          */
-	AUX_NBAF = 0x5,	/* X Set new byte available false */
-	AUX_FGET = 0x6,	/* d force GET                    */
-	AUX_RTL = 0x7,	/* d return to local              */
-	AUX_SEOI = 0x8,	/* X send EOI with next byte      */
-	AUX_LON = 0x9,	/* d Listen only                  */
-	AUX_TON = 0xa,	/* d Talk only                    */
-	AUX_GTS = 0xb,	/* X goto standby                 */
-	AUX_TCA = 0xc,	/* X take control asynchronously  */
-	AUX_TCS = 0xd,	/* X take    "     synchronously  */
-	AUX_RPP = 0xe,	/* d Request parallel poll        */
-	AUX_SIC = 0xf,	/* d send interface clear         */
-	AUX_SRE = 0x10,	/* d send remote enable           */
-	AUX_RQC = 0x11,	/* X request control              */
-	AUX_RLC = 0x12,	/* X release control              */
-	AUX_DAI = 0x13,	/* d disable all interrupts       */
-	AUX_PTS = 0x14,	/* X pass through next secondary  */
-	AUX_STDL = 0x15,	/* d short T1 delay                 */
-	AUX_SHDW = 0x16,	/* d shadow handshake             */
-	AUX_VSTDL = 0x17,	/* d very short T1 delay (smj9914 extension) */
-	AUX_RSV2 = 0x18,	/* d request service bit 2 (smj9914 extension) */
+	AUX_CS = 0x80,			/* set bit instead of clearing it, used with commands marked 'd' below */
+	AUX_CHIP_RESET = 0x0,		/* d Chip reset                   */
+	AUX_INVAL = 0x1,		/* release dac holdoff, invalid command byte */
+	AUX_VAL = (AUX_INVAL | AUX_CS),	/* release dac holdoff, valid command byte   */
+	AUX_RHDF = 0x2,			/* X Release RFD holdoff          */
+	AUX_HLDA = 0x3,			/* d holdoff on all data          */
+	AUX_HLDE = 0x4,			/* d holdoff on EOI only          */
+	AUX_NBAF = 0x5,			/* X Set new byte available false */
+	AUX_FGET = 0x6,			/* d force GET                    */
+	AUX_RTL = 0x7,			/* d return to local              */
+	AUX_SEOI = 0x8,			/* X send EOI with next byte      */
+	AUX_LON = 0x9,			/* d Listen only                  */
+	AUX_TON = 0xa,			/* d Talk only                    */
+	AUX_GTS = 0xb,			/* X goto standby                 */
+	AUX_TCA = 0xc,			/* X take control asynchronously  */
+	AUX_TCS = 0xd,			/* X take    "     synchronously  */
+	AUX_RPP = 0xe,			/* d Request parallel poll        */
+	AUX_SIC = 0xf,			/* d send interface clear         */
+	AUX_SRE = 0x10,			/* d send remote enable           */
+	AUX_RQC = 0x11,			/* X request control              */
+	AUX_RLC = 0x12,			/* X release control              */
+	AUX_DAI = 0x13,			/* d disable all interrupts       */
+	AUX_PTS = 0x14,			/* X pass through next secondary  */
+	AUX_STDL = 0x15,		/* d short T1 delay		  */
+	AUX_SHDW = 0x16,		/* d shadow handshake             */
+	AUX_VSTDL = 0x17,		/* d very short T1 delay (smj9914 extension)   */
+	AUX_RSV2 = 0x18,		/* d request service bit 2 (smj9914 extension) */
 };
 
 #endif	//_TMS9914_H

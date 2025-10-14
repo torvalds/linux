@@ -96,6 +96,14 @@
 	status = "okay";
 };
 
+&pcie3 {
+	status = "okay";
+};
+
+&pcie5 {
+	status = "okay";
+};
+
 &pcs_mdio7 {
 	status = "okay";
 };

@@ -16,9 +16,9 @@ struct dml2_instance;
 
 enum dml2_project_id {
 	dml2_project_invalid = 0,
-	dml2_project_dcn4x_stage1 = 1,
-	dml2_project_dcn4x_stage2 = 2,
-	dml2_project_dcn4x_stage2_auto_drr_svp = 3,
+	dml2_project_dcn4x_stage1,
+	dml2_project_dcn4x_stage2,
+	dml2_project_dcn4x_stage2_auto_drr_svp,
 };
 
 enum dml2_pstate_change_support {
@@ -417,6 +417,8 @@ struct dml2_display_cfg_programming {
 
 	struct {
 		bool supported_in_blank; // Changing to configurations where this is false requires stutter to be disabled during the transition
+		uint8_t base_percent_efficiency; //LP1
+		uint8_t low_power_percent_efficiency; //LP2
 	} stutter;
 
 	struct {

@@ -59,8 +59,7 @@ host_create()
 	local dev=$1; shift
 	local host=$1; shift
 
-	simple_if_init $dev
-	defer simple_if_fini $dev
+	adf_simple_if_init $dev
 
 	mtu_set $dev 10000
 	defer mtu_restore $dev
@@ -149,8 +148,7 @@ setup_prepare()
 
 	h2_mac=$(mac_get $h2)
 
-	vrf_prepare
-	defer vrf_cleanup
+	adf_vrf_prepare
 
 	h1_create
 	h2_create

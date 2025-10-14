@@ -76,15 +76,11 @@ static int snd_msnd_wait_HC0(struct snd_msnd *dev)
 
 int snd_msnd_send_dsp_cmd(struct snd_msnd *dev, u8 cmd)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&dev->lock, flags);
+	guard(spinlock_irqsave)(&dev->lock);
 	if (snd_msnd_wait_HC0(dev) == 0) {
 		outb(cmd, dev->io + HP_CVR);
-		spin_unlock_irqrestore(&dev->lock, flags);
 		return 0;
 	}
-	spin_unlock_irqrestore(&dev->lock, flags);
 
 	dev_dbg(dev->card->dev, LOGNAME ": Send DSP command timeout\n");
 
@@ -133,14 +129,12 @@ EXPORT_SYMBOL(snd_msnd_upload_host);
 
 int snd_msnd_enable_irq(struct snd_msnd *dev)
 {
-	unsigned long flags;
-
 	if (dev->irq_ref++)
 		return 0;
 
 	dev_dbg(dev->card->dev, LOGNAME ": Enabling IRQ\n");
 
-	spin_lock_irqsave(&dev->lock, flags);
+	guard(spinlock_irqsave)(&dev->lock);
 	if (snd_msnd_wait_TXDE(dev) == 0) {
 		outb(inb(dev->io + HP_ICR) | HPICR_TREQ, dev->io + HP_ICR);
 		if (dev->type == msndClassic)
@@ -151,10 +145,8 @@ int snd_msnd_enable_irq(struct snd_msnd *dev)
 		enable_irq(dev->irq);
 		snd_msnd_init_queue(dev->DSPQ, dev->dspq_data_buff,
 				    dev->dspq_buff_size);
-		spin_unlock_irqrestore(&dev->lock, flags);
 		return 0;
 	}
-	spin_unlock_irqrestore(&dev->lock, flags);
 
 	dev_dbg(dev->card->dev, LOGNAME ": Enable IRQ failed\n");
 
@@ -164,8 +156,6 @@ EXPORT_SYMBOL(snd_msnd_enable_irq);
 
 int snd_msnd_disable_irq(struct snd_msnd *dev)
 {
-	unsigned long flags;
-
 	if (--dev->irq_ref > 0)
 		return 0;
 
@@ -175,16 +165,14 @@ int snd_msnd_disable_irq(struct snd_msnd *dev)
 
 	dev_dbg(dev->card->dev, LOGNAME ": Disabling IRQ\n");
 
-	spin_lock_irqsave(&dev->lock, flags);
+	guard(spinlock_irqsave)(&dev->lock);
 	if (snd_msnd_wait_TXDE(dev) == 0) {
 		outb(inb(dev->io + HP_ICR) & ~HPICR_RREQ, dev->io + HP_ICR);
 		if (dev->type == msndClassic)
 			outb(HPIRQ_NONE, dev->io + HP_IRQM);
 		disable_irq(dev->irq);
-		spin_unlock_irqrestore(&dev->lock, flags);
 		return 0;
 	}
-	spin_unlock_irqrestore(&dev->lock, flags);
 
 	dev_dbg(dev->card->dev, LOGNAME ": Disable IRQ failed\n");
 
@@ -376,7 +364,6 @@ static void snd_msnd_capture_reset_queue(struct snd_msnd *chip,
 {
 	int		n;
 	void		__iomem *pDAQ;
-	/* unsigned long	flags; */
 
 	/* snd_msnd_init_queue(chip->DARQ, DARQ_DATA_BUFF, DARQ_BUFF_SIZE); */
 
@@ -388,11 +375,11 @@ static void snd_msnd_capture_reset_queue(struct snd_msnd *chip,
 		chip->DARQ + JQS_wTail);
 
 #if 0 /* Critical section: bank 1 access. this is how the OSS driver does it:*/
-	spin_lock_irqsave(&chip->lock, flags);
-	outb(HPBLKSEL_1, chip->io + HP_BLKS);
-	memset_io(chip->mappedbase, 0, DAR_BUFF_SIZE * 3);
-	outb(HPBLKSEL_0, chip->io + HP_BLKS);
-	spin_unlock_irqrestore(&chip->lock, flags);
+	scoped_guard(spinlock_irqsave, &chip->lock) {
+		outb(HPBLKSEL_1, chip->io + HP_BLKS);
+		memset_io(chip->mappedbase, 0, DAR_BUFF_SIZE * 3);
+		outb(HPBLKSEL_0, chip->io + HP_BLKS);
+	}
 #endif
 
 	chip->capturePeriodBytes = pcm_count;

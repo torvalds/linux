@@ -276,8 +276,6 @@ EXPORT_SYMBOL_GPL(rpc_destroy_wait_queue);
 
 static int rpc_wait_bit_killable(struct wait_bit_key *key, int mode)
 {
-	if (unlikely(current->flags & PF_EXITING))
-		return -EINTR;
 	schedule();
 	if (signal_pending_state(mode, current))
 		return -ERESTARTSYS;
@@ -1076,7 +1074,6 @@ int rpc_malloc(struct rpc_task *task)
 	rqst->rq_rbuffer = (char *)rqst->rq_buffer + rqst->rq_callsize;
 	return 0;
 }
-EXPORT_SYMBOL_GPL(rpc_malloc);
 
 /**
  * rpc_free - free RPC buffer resources allocated via rpc_malloc
@@ -1097,7 +1094,6 @@ void rpc_free(struct rpc_task *task)
 	else
 		kfree(buf);
 }
-EXPORT_SYMBOL_GPL(rpc_free);
 
 /*
  * Creation and deletion of RPC task structures

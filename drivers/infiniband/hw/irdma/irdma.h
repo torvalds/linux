@@ -32,7 +32,16 @@
 #define IRDMA_PFHMC_SDDATALOW_PMSDDATALOW GENMASK(31, 12)
 #define IRDMA_PFHMC_SDCMD_PMSDWR BIT(31)
 
-#define IRDMA_INVALID_CQ_IDX			0xffffffff
+#define IRDMA_INVALID_CQ_IDX 0xffffffff
+#define IRDMA_Q_INVALID_IDX 0xffff
+
+enum irdma_dyn_idx_t {
+	IRDMA_IDX_ITR0 = 0,
+	IRDMA_IDX_ITR1 = 1,
+	IRDMA_IDX_ITR2 = 2,
+	IRDMA_IDX_NOITR = 3,
+};
+
 enum irdma_registers {
 	IRDMA_CQPTAIL,
 	IRDMA_CQPDB,
@@ -67,6 +76,7 @@ enum irdma_shifts {
 	IRDMA_CQPSQ_CQ_CEQID_S,
 	IRDMA_CQPSQ_CQ_CQID_S,
 	IRDMA_COMMIT_FPM_CQCNT_S,
+	IRDMA_CQPSQ_UPESD_HMCFNID_S,
 	IRDMA_MAX_SHIFTS,
 };
 
@@ -77,6 +87,7 @@ enum irdma_masks {
 	IRDMA_CQPSQ_CQ_CEQID_M,
 	IRDMA_CQPSQ_CQ_CQID_M,
 	IRDMA_COMMIT_FPM_CQCNT_M,
+	IRDMA_CQPSQ_UPESD_HMCFNID_M,
 	IRDMA_MAX_MASKS, /* Must be last entry */
 };
 
@@ -92,7 +103,7 @@ struct irdma_mcast_grp_ctx_entry_info {
 struct irdma_mcast_grp_info {
 	u8 dest_mac_addr[ETH_ALEN];
 	u16 vlan_id;
-	u8 hmc_fcn_id;
+	u16 hmc_fcn_id;
 	bool ipv4_valid:1;
 	bool vlan_valid:1;
 	u16 mg_id;
@@ -107,6 +118,9 @@ enum irdma_vers {
 	IRDMA_GEN_RSVD,
 	IRDMA_GEN_1,
 	IRDMA_GEN_2,
+	IRDMA_GEN_3,
+	IRDMA_GEN_NEXT,
+	IRDMA_GEN_MAX = IRDMA_GEN_NEXT-1
 };
 
 struct irdma_uk_attrs {
@@ -118,6 +132,7 @@ struct irdma_uk_attrs {
 	u32 max_hw_wq_quanta;
 	u32 min_hw_cq_size;
 	u32 max_hw_cq_size;
+	u32 max_hw_srq_quanta;
 	u16 max_hw_sq_chunk;
 	u16 min_hw_wq_size;
 	u8 hw_rev;
@@ -147,10 +162,13 @@ struct irdma_hw_attrs {
 	u32 max_done_count;
 	u32 max_sleep_count;
 	u32 max_cqp_compl_wait_time_ms;
+	u32 min_hw_srq_id;
 	u16 max_stat_inst;
 	u16 max_stat_idx;
 };
 
 void i40iw_init_hw(struct irdma_sc_dev *dev);
 void icrdma_init_hw(struct irdma_sc_dev *dev);
+void ig3rdma_init_hw(struct irdma_sc_dev *dev);
+void __iomem *ig3rdma_get_reg_addr(struct irdma_hw *hw, u64 reg_offset);
 #endif /* IRDMA_H*/

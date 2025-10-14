@@ -994,6 +994,8 @@ int main(int ac, char **av)
 	int pa_bits;
 	int cnt_impl = 0;
 
+	test_disable_default_vgic();
+
 	pa_bits = vm_guest_mode_params[VM_MODE_DEFAULT].pa_bits;
 	max_phys_size = 1ULL << pa_bits;
 

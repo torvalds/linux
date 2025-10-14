@@ -46,6 +46,7 @@ static const struct drm_format_info *vesadrm_get_format_si(struct drm_device *de
 		{ PIXEL_FORMAT_RGB888, DRM_FORMAT_RGB888, },
 		{ PIXEL_FORMAT_XRGB8888, DRM_FORMAT_XRGB8888, },
 		{ PIXEL_FORMAT_XBGR8888, DRM_FORMAT_XBGR8888, },
+		{ PIXEL_FORMAT_C8, DRM_FORMAT_C8, },
 	};
 
 	return drm_sysfb_get_format_si(dev, formats, ARRAY_SIZE(formats), si);
@@ -82,7 +83,7 @@ static struct vesadrm_device *to_vesadrm_device(struct drm_device *dev)
 }
 
 /*
- * Palette
+ * Color LUT
  */
 
 static void vesadrm_vga_cmap_write(struct vesadrm_device *vesa, unsigned int index,
@@ -128,7 +129,7 @@ static void vesadrm_pmi_cmap_write(struct vesadrm_device *vesa, unsigned int ind
 }
 #endif
 
-static void vesadrm_set_gamma_lut(struct drm_crtc *crtc, unsigned int index,
+static void vesadrm_set_color_lut(struct drm_crtc *crtc, unsigned int index,
 				  u16 red, u16 green, u16 blue)
 {
 	struct drm_device *dev = crtc->dev;
@@ -149,15 +150,15 @@ static void vesadrm_fill_gamma_lut(struct vesadrm_device *vesa,
 
 	switch (format->format) {
 	case DRM_FORMAT_XRGB1555:
-		drm_crtc_fill_gamma_555(crtc, vesadrm_set_gamma_lut);
+		drm_crtc_fill_gamma_555(crtc, vesadrm_set_color_lut);
 		break;
 	case DRM_FORMAT_RGB565:
-		drm_crtc_fill_gamma_565(crtc, vesadrm_set_gamma_lut);
+		drm_crtc_fill_gamma_565(crtc, vesadrm_set_color_lut);
 		break;
 	case DRM_FORMAT_RGB888:
 	case DRM_FORMAT_XRGB8888:
 	case DRM_FORMAT_BGRX8888:
-		drm_crtc_fill_gamma_888(crtc, vesadrm_set_gamma_lut);
+		drm_crtc_fill_gamma_888(crtc, vesadrm_set_color_lut);
 		break;
 	default:
 		drm_warn_once(dev, "Unsupported format %p4cc for gamma correction\n",
@@ -175,15 +176,53 @@ static void vesadrm_load_gamma_lut(struct vesadrm_device *vesa,
 
 	switch (format->format) {
 	case DRM_FORMAT_XRGB1555:
-		drm_crtc_load_gamma_555_from_888(crtc, lut, vesadrm_set_gamma_lut);
+		drm_crtc_load_gamma_555_from_888(crtc, lut, vesadrm_set_color_lut);
 		break;
 	case DRM_FORMAT_RGB565:
-		drm_crtc_load_gamma_565_from_888(crtc, lut, vesadrm_set_gamma_lut);
+		drm_crtc_load_gamma_565_from_888(crtc, lut, vesadrm_set_color_lut);
 		break;
 	case DRM_FORMAT_RGB888:
 	case DRM_FORMAT_XRGB8888:
 	case DRM_FORMAT_BGRX8888:
-		drm_crtc_load_gamma_888(crtc, lut, vesadrm_set_gamma_lut);
+		drm_crtc_load_gamma_888(crtc, lut, vesadrm_set_color_lut);
+		break;
+	default:
+		drm_warn_once(dev, "Unsupported format %p4cc for gamma correction\n",
+			      &format->format);
+		break;
+	}
+}
+
+static void vesadrm_fill_palette_lut(struct vesadrm_device *vesa,
+				     const struct drm_format_info *format)
+{
+	struct drm_device *dev = &vesa->sysfb.dev;
+	struct drm_crtc *crtc = &vesa->crtc;
+
+	switch (format->format) {
+	case DRM_FORMAT_C8:
+		drm_crtc_fill_palette_8(crtc, vesadrm_set_color_lut);
+		break;
+	case DRM_FORMAT_RGB332:
+		drm_crtc_fill_palette_332(crtc, vesadrm_set_color_lut);
+		break;
+	default:
+		drm_warn_once(dev, "Unsupported format %p4cc for palette\n",
+			      &format->format);
+		break;
+	}
+}
+
+static void vesadrm_load_palette_lut(struct vesadrm_device *vesa,
+				     const struct drm_format_info *format,
+				     struct drm_color_lut *lut)
+{
+	struct drm_device *dev = &vesa->sysfb.dev;
+	struct drm_crtc *crtc = &vesa->crtc;
+
+	switch (format->format) {
+	case DRM_FORMAT_C8:
+		drm_crtc_load_palette_8(crtc, lut, vesadrm_set_color_lut);
 		break;
 	default:
 		drm_warn_once(dev, "Unsupported format %p4cc for gamma correction\n",
@@ -200,8 +239,67 @@ static const u64 vesadrm_primary_plane_format_modifiers[] = {
 	DRM_SYSFB_PLANE_FORMAT_MODIFIERS,
 };
 
+static int vesadrm_primary_plane_helper_atomic_check(struct drm_plane *plane,
+						     struct drm_atomic_state *new_state)
+{
+	struct drm_sysfb_device *sysfb = to_drm_sysfb_device(plane->dev);
+	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(new_state, plane);
+	struct drm_framebuffer *new_fb = new_plane_state->fb;
+	struct drm_crtc_state *new_crtc_state;
+	struct drm_sysfb_crtc_state *new_sysfb_crtc_state;
+	int ret;
+
+	ret = drm_sysfb_plane_helper_atomic_check(plane, new_state);
+	if (ret)
+		return ret;
+	else if (!new_plane_state->visible)
+		return 0;
+
+	/*
+	 * Fix up format conversion for specific cases
+	 */
+
+	switch (sysfb->fb_format->format) {
+	case DRM_FORMAT_C8:
+		new_crtc_state = drm_atomic_get_new_crtc_state(new_state, new_plane_state->crtc);
+		new_sysfb_crtc_state = to_drm_sysfb_crtc_state(new_crtc_state);
+
+		switch (new_fb->format->format) {
+		case DRM_FORMAT_XRGB8888:
+			/*
+			 * Reduce XRGB8888 to RGB332. Each resulting pixel is an index
+			 * into the C8 hardware palette, which stores RGB332 colors.
+			 */
+			if (new_sysfb_crtc_state->format->format != DRM_FORMAT_RGB332) {
+				new_sysfb_crtc_state->format =
+					drm_format_info(DRM_FORMAT_RGB332);
+				new_crtc_state->color_mgmt_changed = true;
+			}
+			break;
+		case DRM_FORMAT_C8:
+			/*
+			 * Restore original output. Emulation of XRGB8888 set RBG332
+			 * output format and hardware palette. This needs to be undone
+			 * when we switch back to DRM_FORMAT_C8.
+			 */
+			if (new_sysfb_crtc_state->format->format == DRM_FORMAT_RGB332) {
+				new_sysfb_crtc_state->format = sysfb->fb_format;
+				new_crtc_state->color_mgmt_changed = true;
+			}
+			break;
+		}
+		break;
+	}
+
+	return 0;
+}
+
 static const struct drm_plane_helper_funcs vesadrm_primary_plane_helper_funcs = {
-	DRM_SYSFB_PLANE_HELPER_FUNCS,
+	DRM_GEM_SHADOW_PLANE_HELPER_FUNCS,
+	.atomic_check = vesadrm_primary_plane_helper_atomic_check,
+	.atomic_update = drm_sysfb_plane_helper_atomic_update,
+	.atomic_disable = drm_sysfb_plane_helper_atomic_disable,
+	.get_scanout_buffer = drm_sysfb_plane_helper_get_scanout_buffer,
 };
 
 static const struct drm_plane_funcs vesadrm_primary_plane_funcs = {
@@ -223,15 +321,36 @@ static void vesadrm_crtc_helper_atomic_flush(struct drm_crtc *crtc,
 	 * plane's color format.
 	 */
 	if (crtc_state->enable && crtc_state->color_mgmt_changed) {
-		if (sysfb_crtc_state->format == sysfb->fb_format) {
-			if (crtc_state->gamma_lut)
-				vesadrm_load_gamma_lut(vesa,
-						       sysfb_crtc_state->format,
-						       crtc_state->gamma_lut->data);
-			else
+		switch (sysfb->fb_format->format) {
+		/*
+		 * Index formats
+		 */
+		case DRM_FORMAT_C8:
+			if (sysfb_crtc_state->format->format == DRM_FORMAT_RGB332) {
+				vesadrm_fill_palette_lut(vesa, sysfb_crtc_state->format);
+			} else if (crtc->state->gamma_lut) {
+				vesadrm_load_palette_lut(vesa,
+							 sysfb_crtc_state->format,
+							 crtc_state->gamma_lut->data);
+			} else {
+				vesadrm_fill_palette_lut(vesa, sysfb_crtc_state->format);
+			}
+			break;
+		/*
+		 * Component formats
+		 */
+		default:
+			if (sysfb_crtc_state->format == sysfb->fb_format) {
+				if (crtc_state->gamma_lut)
+					vesadrm_load_gamma_lut(vesa,
+							       sysfb_crtc_state->format,
+							       crtc_state->gamma_lut->data);
+				else
+					vesadrm_fill_gamma_lut(vesa, sysfb_crtc_state->format);
+			} else {
 				vesadrm_fill_gamma_lut(vesa, sysfb_crtc_state->format);
-		} else {
-			vesadrm_fill_gamma_lut(vesa, sysfb_crtc_state->format);
+			}
+			break;
 		}
 	}
 }

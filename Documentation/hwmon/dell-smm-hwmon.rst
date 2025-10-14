@@ -38,7 +38,7 @@ fan[1-4]_min                    RO      Minimal Fan speed in RPM
 fan[1-4]_max                    RO      Maximal Fan speed in RPM
 fan[1-4]_target                 RO      Expected Fan speed in RPM
 pwm[1-4]                        RW      Control the fan PWM duty-cycle.
-pwm1_enable                     WO      Enable or disable automatic BIOS fan
+pwm[1-4]_enable                 RW/WO   Enable or disable automatic BIOS fan
                                         control (not supported on all laptops,
                                         see below for details).
 temp[1-10]_input                RO      Temperature reading in milli-degrees
@@ -49,26 +49,40 @@ temp[1-10]_label                RO      Temperature sensor label.
 Due to the nature of the SMM interface, each pwmX attribute controls
 fan number X.
 
-Disabling automatic BIOS fan control
-------------------------------------
+Enabling/Disabling automatic BIOS fan control
+---------------------------------------------
 
-On some laptops the BIOS automatically sets fan speed every few
-seconds. Therefore the fan speed set by mean of this driver is quickly
-overwritten.
+There exist two methods for enabling/disabling automatic BIOS fan control:
 
-There is experimental support for disabling automatic BIOS fan
-control, at least on laptops where the corresponding SMM command is
-known, by writing the value ``1`` in the attribute ``pwm1_enable``
-(writing ``2`` enables automatic BIOS control again). Even if you have
-more than one fan, all of them are set to either enabled or disabled
-automatic fan control at the same time and, notwithstanding the name,
-``pwm1_enable`` sets automatic control for all fans.
+1. Separate SMM commands to enable/disable automatic BIOS fan control for all fans.
 
-If ``pwm1_enable`` is not available, then it means that SMM codes for
-enabling and disabling automatic BIOS fan control are not whitelisted
-for your hardware. It is possible that codes that work for other
-laptops actually work for yours as well, or that you have to discover
-new codes.
+2. A special fan state that enables automatic BIOS fan control for a individual fan.
+
+The driver cannot reliably detect what method should be used on a given
+device, so instead the following heuristic is used:
+
+- use fan state 3 for enabling BIOS fan control if the maximum fan state
+  setable by the user is smaller than 3 (default setting).
+
+- use separate SMM commands if device is whitelisted to support them.
+
+When using the first method, each fan will have a standard ``pwmX_enable``
+sysfs attribute. Writing ``1`` into this attribute will disable automatic
+BIOS fan control for the associated fan and set it to maximum speed. Enabling
+BIOS fan control again can be achieved by writing ``2`` into this attribute.
+Reading this sysfs attributes returns the current setting as reported by
+the underlying hardware.
+
+When using the second method however, only the ``pwm1_enable`` sysfs attribute
+will be available to enable/disable automatic BIOS fan control globaly for all
+fans available on a given device. Additionally, this sysfs attribute is write-only
+as there exists no SMM command for reading the current fan control setting.
+
+If no ``pwmX_enable`` attributes are available, then it means that the driver
+cannot use the first method and the SMM codes for enabling and disabling automatic
+BIOS fan control are not whitelisted for your device. It is possible that codes
+that work for other laptops actually work for yours as well, or that you have to
+discover new codes.
 
 Check the list ``i8k_whitelist_fan_control`` in file
 ``drivers/hwmon/dell-smm-hwmon.c`` in the kernel tree: as a first

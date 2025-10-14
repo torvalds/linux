@@ -18,9 +18,9 @@
 #include "reset.h"
 
 static const struct qcom_reset_map lpass_audiocc_sc8280xp_resets[] = {
-	[LPASS_AUDIO_SWR_RX_CGCR] =  { 0xa0, 1 },
+	[LPASS_AUDIO_SWR_RX_CGCR] = { 0xa0, 1 },
 	[LPASS_AUDIO_SWR_WSA_CGCR] = { 0xb0, 1 },
-	[LPASS_AUDIO_SWR_WSA2_CGCR] =  { 0xd8, 1 },
+	[LPASS_AUDIO_SWR_WSA2_CGCR] = { 0xd8, 1 },
 };
 
 static const struct regmap_config lpass_audiocc_sc8280xp_regmap_config = {

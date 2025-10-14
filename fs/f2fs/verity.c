@@ -287,6 +287,8 @@ static int f2fs_write_merkle_tree_block(struct inode *inode, const void *buf,
 }
 
 const struct fsverity_operations f2fs_verityops = {
+	.inode_info_offs	= (int)offsetof(struct f2fs_inode_info, i_verity_info) -
+				  (int)offsetof(struct f2fs_inode_info, vfs_inode),
 	.begin_enable_verity	= f2fs_begin_enable_verity,
 	.end_enable_verity	= f2fs_end_enable_verity,
 	.get_verity_descriptor	= f2fs_get_verity_descriptor,

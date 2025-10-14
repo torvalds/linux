@@ -243,8 +243,8 @@ Other notes:
 - show() methods should return the number of bytes printed into the
   buffer.
 
-- show() should only use sysfs_emit() or sysfs_emit_at() when formatting
-  the value to be returned to user space.
+- New implementations of show() methods should only use sysfs_emit() or
+  sysfs_emit_at() when formatting the value to be returned to user space.
 
 - store() should return the number of bytes used from the buffer. If the
   entire buffer has been used, just return the count argument.
@@ -299,7 +299,6 @@ The top level sysfs directory looks like::
     hypervisor/
     kernel/
     module/
-    net/
     power/
 
 devices/ contains a filesystem representation of the device tree. It maps
@@ -313,7 +312,7 @@ kernel. Each bus's directory contains two subdirectories::
 	drivers/
 
 devices/ contains symlinks for each device discovered in the system
-that point to the device's directory under root/.
+that point to the device's directory under /sys/devices.
 
 drivers/ contains a directory for each device driver that is loaded
 for devices on that particular bus (this assumes that drivers do not
@@ -321,22 +320,36 @@ span multiple bus types).
 
 fs/ contains a directory for some filesystems.  Currently each
 filesystem wanting to export attributes must create its own hierarchy
-below fs/ (see ./fuse.rst for an example).
+below fs/ (see fuse/fuse.rst for an example).
 
 module/ contains parameter values and state information for all
 loaded system modules, for both builtin and loadable modules.
 
 dev/ contains two directories: char/ and block/. Inside these two
 directories there are symlinks named <major>:<minor>.  These symlinks
-point to the sysfs directory for the given device.  /sys/dev provides a
+point to the directories under /sys/devices for each device.  /sys/dev provides a
 quick way to lookup the sysfs interface for a device from the result of
 a stat(2) operation.
 
 More information on driver-model specific features can be found in
 Documentation/driver-api/driver-model/.
 
+block/ contains symlinks to all the block devices discovered on the system.
+These symlinks point to directories under /sys/devices.
 
-TODO: Finish this section.
+class/ contains a directory for each device class, grouped by functional type.
+Each directory in class/ contains symlinks to devices in the /sys/devices directory.
+
+firmware/ contains system firmware data and configuration such as firmware tables,
+ACPI information, and device tree data.
+
+hypervisor/ contains virtualization platform information and provides an interface to
+the underlying hypervisor.  It is only present when running on a virtual machine.
+
+kernel/ contains runtime kernel parameters, configuration settings, and status.
+
+power/ contains power management subsystem information including
+sleep states, suspend/resume capabilities, and policies.
 
 
 Current Interfaces

@@ -86,7 +86,7 @@
 
 #include <asm/pgtable-masks.h>
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 static inline pte_t pte_mkexec(pte_t pte)
 {
 	return __pte((pte_val(pte) & ~_PAGE_BAP_SX) | _PAGE_BAP_UX);
@@ -134,7 +134,7 @@ static inline unsigned long pud_leaf_size(pud_t pud)
 
 #endif
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* __KERNEL__ */
 #endif /*  _ASM_POWERPC_NOHASH_PTE_E500_H */

@@ -7,7 +7,8 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Xilinx Zynq Ultrascale AMS controller
 
 maintainers:
-  - Anand Ashok Dumbre <anand.ashok.dumbre@xilinx.com>
+  - Salih Erim <salih.erim@amd.com>
+  - Conall O'Griofa <conall.ogriofa@amd.com>
 
 description: |
   The AMS (Analog Monitoring System) includes an ADC as well as on-chip sensors

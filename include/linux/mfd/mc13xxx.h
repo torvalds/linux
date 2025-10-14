@@ -31,12 +31,6 @@ int mc13xxx_adc_do_conversion(struct mc13xxx *mc13xxx,
 		unsigned int mode, unsigned int channel,
 		u8 ato, bool atox, unsigned int *sample);
 
-/* Deprecated calls */
-static inline int mc13xxx_irq_ack(struct mc13xxx *mc13xxx, int irq)
-{
-	return 0;
-}
-
 static inline int mc13xxx_irq_request_nounmask(struct mc13xxx *mc13xxx, int irq,
 					       irq_handler_t handler,
 					       const char *name, void *dev)

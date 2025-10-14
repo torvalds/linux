@@ -81,3 +81,16 @@ insn_attr_t inat_get_avx_attribute(insn_byte_t opcode, insn_byte_t vex_m,
 	return table[opcode];
 }
 
+insn_attr_t inat_get_xop_attribute(insn_byte_t opcode, insn_byte_t map_select)
+{
+	const insn_attr_t *table;
+
+	if (map_select < X86_XOP_M_MIN || map_select > X86_XOP_M_MAX)
+		return 0;
+	map_select -= X86_XOP_M_MIN;
+	/* At first, this checks the master table */
+	table = inat_xop_tables[map_select];
+	if (!table)
+		return 0;
+	return table[opcode];
+}

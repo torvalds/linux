@@ -39,6 +39,7 @@ int kvm_riscv_mmu_ioremap(struct kvm *kvm, gpa_t gpa, phys_addr_t hpa,
 			  unsigned long size, bool writable, bool in_atomic)
 {
 	int ret = 0;
+	pgprot_t prot;
 	unsigned long pfn;
 	phys_addr_t addr, end;
 	struct kvm_mmu_memory_cache pcache = {
@@ -55,10 +56,12 @@ int kvm_riscv_mmu_ioremap(struct kvm *kvm, gpa_t gpa, phys_addr_t hpa,
 
 	end = (gpa + size + PAGE_SIZE - 1) & PAGE_MASK;
 	pfn = __phys_to_pfn(hpa);
+	prot = pgprot_noncached(PAGE_WRITE);
 
 	for (addr = gpa; addr < end; addr += PAGE_SIZE) {
 		map.addr = addr;
-		map.pte = pfn_pte(pfn, PAGE_KERNEL_IO);
+		map.pte = pfn_pte(pfn, prot);
+		map.pte = pte_mkdirty(map.pte);
 		map.level = 0;
 
 		if (!writable)

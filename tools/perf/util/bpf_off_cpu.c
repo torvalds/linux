@@ -13,6 +13,7 @@
 #include "util/cgroup.h"
 #include "util/strlist.h"
 #include <bpf/bpf.h>
+#include <bpf/btf.h>
 #include <internal/xyarray.h>
 #include <linux/time64.h>
 

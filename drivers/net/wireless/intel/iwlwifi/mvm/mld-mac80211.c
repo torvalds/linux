@@ -340,20 +340,6 @@ static int iwl_mvm_mld_assign_vif_chanctx(struct ieee80211_hw *hw,
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 
-	/* update EMLSR mode */
-	if (ieee80211_vif_type_p2p(vif) != NL80211_IFTYPE_STATION) {
-		int ret;
-
-		ret = iwl_mvm_esr_non_bss_link(mvm, vif, link_conf->link_id,
-					       true);
-		/*
-		 * Don't activate this link if failed to exit EMLSR in
-		 * the BSS interface
-		 */
-		if (ret)
-			return ret;
-	}
-
 	guard(mvm)(mvm);
 	return __iwl_mvm_mld_assign_vif_chanctx(mvm, vif, link_conf, ctx, false);
 }
@@ -472,10 +458,6 @@ static void iwl_mvm_mld_unassign_vif_chanctx(struct ieee80211_hw *hw,
 		iwl_mvm_add_link(mvm, vif, link_conf);
 	}
 	mutex_unlock(&mvm->mutex);
-
-	/* update EMLSR mode */
-	if (ieee80211_vif_type_p2p(vif) != NL80211_IFTYPE_STATION)
-		iwl_mvm_esr_non_bss_link(mvm, vif, link_conf->link_id, false);
 }
 
 static void
@@ -684,25 +666,6 @@ static int iwl_mvm_mld_mac_sta_state(struct ieee80211_hw *hw,
 					    &callbacks);
 }
 
-static bool iwl_mvm_esr_bw_criteria(struct iwl_mvm *mvm,
-				    struct ieee80211_vif *vif,
-				    struct ieee80211_bss_conf *link_conf)
-{
-	struct ieee80211_bss_conf *other_link;
-	int link_id;
-
-	/* Exit EMLSR if links don't have equal bandwidths */
-	for_each_vif_active_link(vif, other_link, link_id) {
-		if (link_id == link_conf->link_id)
-			continue;
-		if (link_conf->chanreq.oper.width ==
-		    other_link->chanreq.oper.width)
-			return true;
-	}
-
-	return false;
-}
-
 static void
 iwl_mvm_mld_link_info_changed_station(struct iwl_mvm *mvm,
 				      struct ieee80211_vif *vif,
@@ -736,14 +699,6 @@ iwl_mvm_mld_link_info_changed_station(struct iwl_mvm *mvm,
 		IWL_DEBUG_MAC80211(mvm, "Associated in HE mode\n");
 		link_changes |= LINK_CONTEXT_MODIFY_HE_PARAMS;
 	}
-
-	if ((changes & BSS_CHANGED_BANDWIDTH) &&
-	    ieee80211_vif_link_active(vif, link_conf->link_id) &&
-	    mvmvif->esr_active &&
-	    !iwl_mvm_esr_bw_criteria(mvm, vif, link_conf))
-		iwl_mvm_exit_esr(mvm, vif,
-				 IWL_MVM_ESR_EXIT_BANDWIDTH,
-				 iwl_mvm_get_primary_link(vif));
 
 	/* if associated, maybe puncturing changed - we'll check later */
 	if (vif->cfg.assoc)
@@ -879,11 +834,6 @@ static void iwl_mvm_mld_vif_cfg_changed_station(struct iwl_mvm *mvm,
 		if (ret)
 			IWL_ERR(mvm, "failed to update power mode\n");
 	}
-
-	if (changes & (BSS_CHANGED_MLD_VALID_LINKS | BSS_CHANGED_MLD_TTLM) &&
-	    ieee80211_vif_is_mld(vif) && mvmvif->authorized)
-		wiphy_delayed_work_queue(mvm->hw->wiphy,
-					 &mvmvif->mlo_int_scan_wk, 0);
 }
 
 static void
@@ -1239,91 +1189,6 @@ iwl_mvm_mld_can_neg_ttlm(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	return NEG_TTLM_RES_ACCEPT;
 }
 
-static int
-iwl_mvm_mld_mac_pre_channel_switch(struct ieee80211_hw *hw,
-				   struct ieee80211_vif *vif,
-				   struct ieee80211_channel_switch *chsw)
-{
-	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
-	int ret;
-
-	mutex_lock(&mvm->mutex);
-	if (mvmvif->esr_active) {
-		u8 primary = iwl_mvm_get_primary_link(vif);
-		int selected;
-
-		/* prefer primary unless quiet CSA on it */
-		if (chsw->link_id == primary && chsw->block_tx)
-			selected = iwl_mvm_get_other_link(vif, primary);
-		else
-			selected = primary;
-
-		/*
-		 * remembers to tell the firmware that this link can't tx
-		 * Note that this logic seems to be unrelated to esr, but it
-		 * really is needed only when esr is active. When we have a
-		 * single link, the firmware will handle all this on its own.
-		 * In multi-link scenarios, we can learn about the CSA from
-		 * another link and this logic is too complex for the firmware
-		 * to track.
-		 * Since we want to de-activate the link that got a CSA, we
-		 * need to tell the firmware not to send any frame on that link
-		 * as the firmware may not be aware that link is under a CSA
-		 * with mode=1 (no Tx allowed).
-		 */
-		if (chsw->block_tx && mvmvif->link[chsw->link_id])
-			mvmvif->link[chsw->link_id]->csa_block_tx = true;
-
-		iwl_mvm_exit_esr(mvm, vif, IWL_MVM_ESR_EXIT_CSA, selected);
-		mutex_unlock(&mvm->mutex);
-
-		/*
-		 * If we've not kept the link active that's doing the CSA
-		 * then we don't need to do anything else, just return.
-		 */
-		if (selected != chsw->link_id)
-			return 0;
-
-		mutex_lock(&mvm->mutex);
-	}
-
-	ret = iwl_mvm_pre_channel_switch(mvm, vif, chsw);
-	mutex_unlock(&mvm->mutex);
-
-	return ret;
-}
-
-#define IWL_MVM_MLD_UNBLOCK_ESR_NON_BSS_TIMEOUT (5 * HZ)
-
-static void iwl_mvm_mld_prep_add_interface(struct ieee80211_hw *hw,
-					   enum nl80211_iftype type)
-{
-	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
-	struct ieee80211_vif *bss_vif = iwl_mvm_get_bss_vif(mvm);
-	struct iwl_mvm_vif *mvmvif;
-	int ret;
-
-	IWL_DEBUG_MAC80211(mvm, "prep_add_interface: type=%u\n",
-			   type);
-
-	if (IS_ERR_OR_NULL(bss_vif) ||
-	    !(type == NL80211_IFTYPE_AP ||
-	      type == NL80211_IFTYPE_P2P_GO ||
-	      type == NL80211_IFTYPE_P2P_CLIENT))
-		return;
-
-	mvmvif = iwl_mvm_vif_from_mac80211(bss_vif);
-	ret = iwl_mvm_block_esr_sync(mvm, bss_vif,
-				     IWL_MVM_ESR_BLOCKED_TMP_NON_BSS);
-	if (ret)
-		return;
-
-	wiphy_delayed_work_queue(mvmvif->mvm->hw->wiphy,
-				 &mvmvif->unblock_esr_tmp_non_bss_wk,
-				 IWL_MVM_MLD_UNBLOCK_ESR_NON_BSS_TIMEOUT);
-}
-
 const struct ieee80211_ops iwl_mvm_mld_hw_ops = {
 	.tx = iwl_mvm_mac_tx,
 	.wake_tx_queue = iwl_mvm_mac_wake_tx_queue,
@@ -1377,7 +1242,7 @@ const struct ieee80211_ops iwl_mvm_mld_hw_ops = {
 	.tx_last_beacon = iwl_mvm_tx_last_beacon,
 
 	.channel_switch = iwl_mvm_channel_switch,
-	.pre_channel_switch = iwl_mvm_mld_mac_pre_channel_switch,
+	.pre_channel_switch = iwl_mvm_mac_pre_channel_switch,
 	.post_channel_switch = iwl_mvm_post_channel_switch,
 	.abort_channel_switch = iwl_mvm_abort_channel_switch,
 	.channel_switch_rx_beacon = iwl_mvm_channel_switch_rx_beacon,
@@ -1418,5 +1283,4 @@ const struct ieee80211_ops iwl_mvm_mld_hw_ops = {
 	.change_sta_links = iwl_mvm_mld_change_sta_links,
 	.can_activate_links = iwl_mvm_mld_can_activate_links,
 	.can_neg_ttlm = iwl_mvm_mld_can_neg_ttlm,
-	.prep_add_interface = iwl_mvm_mld_prep_add_interface,
 };

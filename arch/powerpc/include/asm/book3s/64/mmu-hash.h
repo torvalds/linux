@@ -130,7 +130,7 @@
 #define POWER9_TLB_SETS_HASH	256	/* # sets in POWER9 TLB Hash mode */
 #define POWER9_TLB_SETS_RADIX	128	/* # sets in POWER9 TLB Radix mode */
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 struct mmu_hash_ops {
 	void            (*hpte_invalidate)(unsigned long slot,
@@ -220,7 +220,7 @@ static inline unsigned long get_sllp_encoding(int psize)
 	return sllp;
 }
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 /*
  * Segment sizes.
@@ -248,7 +248,7 @@ static inline unsigned long get_sllp_encoding(int psize)
 #define LP_BITS		8
 #define LP_MASK(i)	((0xFF >> (i)) << LP_SHIFT)
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 static inline int slb_vsid_shift(int ssize)
 {
@@ -532,7 +532,7 @@ void slb_set_size(u16 size);
 static inline void slb_set_size(u16 size) { }
 #endif
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 /*
  * VSID allocation (256MB segment)
@@ -668,7 +668,7 @@ static inline void slb_set_size(u16 size) { }
 #define SLICE_ARRAY_SIZE	(H_PGTABLE_RANGE >> 41)
 #define LOW_SLICE_ARRAY_SZ	(BITS_PER_LONG / BITS_PER_BYTE)
 #define TASK_SLICE_ARRAY_SZ(x)	((x)->hash_context->slb_addr_limit >> 41)
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #ifdef CONFIG_PPC_SUBPAGE_PROT
 /*
@@ -881,5 +881,5 @@ static inline unsigned long mk_vsid_data(unsigned long ea, int ssize,
 	return __mk_vsid_data(get_kernel_vsid(ea, ssize), ssize, flags);
 }
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 #endif /* _ASM_POWERPC_BOOK3S_64_MMU_HASH_H_ */

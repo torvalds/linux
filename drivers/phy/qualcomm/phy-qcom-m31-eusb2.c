@@ -196,7 +196,7 @@ static int m31eusb2_phy_init(struct phy *uphy)
 
 	ret = clk_prepare_enable(phy->clk);
 	if (ret) {
-		dev_err(&uphy->dev, "failed to enable cfg ahb clock, %d\n", ret);
+		dev_err(&uphy->dev, "failed to enable ref clock, %d\n", ret);
 		goto disable_repeater;
 	}
 

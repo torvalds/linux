@@ -597,7 +597,7 @@ int rsnd_dai_connect(struct rsnd_mod *mod,
 
 	dev_dbg(dev, "%s is connected to io (%s)\n",
 		rsnd_mod_name(mod),
-		snd_pcm_direction_name(io->substream->stream));
+		rsnd_io_is_play(io) ? "Playback" : "Capture");
 
 	return 0;
 }
@@ -696,25 +696,21 @@ static int rsnd_soc_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 	struct rsnd_dai *rdai = rsnd_dai_to_rdai(dai);
 	struct rsnd_dai_stream *io = rsnd_rdai_to_io(rdai, substream);
 	int ret;
-	unsigned long flags;
 
-	spin_lock_irqsave(&priv->lock, flags);
+	guard(spinlock_irqsave)(&priv->lock);
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 		ret = rsnd_dai_call(init, io, priv);
 		if (ret < 0)
-			goto dai_trigger_end;
+			break;
 
 		ret = rsnd_dai_call(start, io, priv);
 		if (ret < 0)
-			goto dai_trigger_end;
+			break;
 
 		ret = rsnd_dai_call(irq, io, priv, 1);
-		if (ret < 0)
-			goto dai_trigger_end;
-
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
@@ -728,9 +724,6 @@ static int rsnd_soc_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 	default:
 		ret = -EINVAL;
 	}
-
-dai_trigger_end:
-	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return ret;
 }
@@ -1545,15 +1538,14 @@ static int rsnd_hw_update(struct snd_pcm_substream *substream,
 	struct rsnd_dai *rdai = rsnd_dai_to_rdai(dai);
 	struct rsnd_dai_stream *io = rsnd_rdai_to_io(rdai, substream);
 	struct rsnd_priv *priv = rsnd_io_to_priv(io);
-	unsigned long flags;
 	int ret;
 
-	spin_lock_irqsave(&priv->lock, flags);
+	guard(spinlock_irqsave)(&priv->lock);
+
 	if (hw_params)
 		ret = rsnd_dai_call(hw_params, io, substream, hw_params);
 	else
 		ret = rsnd_dai_call(hw_free, io, substream);
-	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return ret;
 }

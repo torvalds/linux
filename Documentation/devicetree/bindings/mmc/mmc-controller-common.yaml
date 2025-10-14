@@ -57,7 +57,7 @@ properties:
   # latter case. We choose to use the XOR logic for GPIO CD and WP
   # lines.  This means, the two properties are "superimposed," for
   # example leaving the GPIO_ACTIVE_LOW flag clear and specifying the
-  # respective *-inverted property property results in a
+  # respective *-inverted property results in a
   # double-inversion and actually means the "normal" line polarity is
   # in effect.
   wp-inverted:
@@ -85,13 +85,21 @@ properties:
         - for eMMC, the maximum supported frequency is 200MHz,
         - for SD/SDIO cards the SDR104 mode has a max supported
           frequency of 208MHz,
-        - some mmc host controllers do support a max frequency upto
+        - some mmc host controllers do support a max frequency up to
           384MHz.
       So, lets keep the maximum supported value here.
 
     $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 400000
     maximum: 384000000
+
+  max-sd-hs-hz:
+    description: |
+      Maximum frequency (in Hz) to be used for SD cards operating in
+      High-Speed (HS) mode.
+    minimum: 400000
+    maximum: 50000000
+    default: 50000000
 
   disable-wp:
     $ref: /schemas/types.yaml#/definitions/flag
@@ -264,7 +272,7 @@ properties:
       mmc-pwrseq-simple.yaml. But now it\'s reused as a tunable delay
       waiting for I/O signalling and card power supply to be stable,
       regardless of whether pwrseq-simple is used. Default to 10ms if
-      no available.
+      not available.
     default: 10
 
   supports-cqe:
