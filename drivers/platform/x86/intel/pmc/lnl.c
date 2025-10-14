@@ -533,11 +533,11 @@ static const struct pmc_reg_map lnl_socm_reg_map = {
 	.s0ix_blocker_maps = lnl_blk_maps,
 	.s0ix_blocker_offset = LNL_S0IX_BLOCKER_OFFSET,
 	.lpm_reg_index = LNL_LPM_REG_INDEX,
+	.lpm_req_guid = SOCM_LPM_REQ_GUID,
 };
 
 static struct pmc_info lnl_pmc_info_list[] = {
 	{
-		.guid	= SOCM_LPM_REQ_GUID,
 		.devid	= PMC_DEVID_LNL_SOCM,
 		.map	= &lnl_socm_reg_map,
 	},

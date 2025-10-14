@@ -281,6 +281,7 @@ static const struct pmc_reg_map arl_socs_reg_map = {
 	.etr3_offset = ETR3_OFFSET,
 	.pson_residency_offset = TGL_PSON_RESIDENCY_OFFSET,
 	.pson_residency_counter_step = TGL_PSON_RES_COUNTER_STEP,
+	.lpm_req_guid = SOCS_LPM_REQ_GUID,
 };
 
 static const struct pmc_bit_map arl_pchs_ltr_show_map[] = {
@@ -648,26 +649,23 @@ static const struct pmc_reg_map arl_pchs_reg_map = {
 	.lpm_num_maps = ADL_LPM_NUM_MAPS,
 	.lpm_reg_index = ARL_LPM_REG_INDEX,
 	.etr3_offset = ETR3_OFFSET,
+	.lpm_req_guid = PCHS_LPM_REQ_GUID,
 };
 
 static struct pmc_info arl_pmc_info_list[] = {
 	{
-		.guid	= IOEP_LPM_REQ_GUID,
 		.devid	= PMC_DEVID_ARL_IOEP,
 		.map	= &mtl_ioep_reg_map,
 	},
 	{
-		.guid	= SOCS_LPM_REQ_GUID,
 		.devid	= PMC_DEVID_ARL_SOCS,
 		.map	= &arl_socs_reg_map,
 	},
 	{
-		.guid	= PCHS_LPM_REQ_GUID,
 		.devid	= PMC_DEVID_ARL_PCHS,
 		.map	= &arl_pchs_reg_map,
 	},
 	{
-		.guid	= SOCM_LPM_REQ_GUID,
 		.devid	= PMC_DEVID_ARL_SOCM,
 		.map	= &mtl_socm_reg_map,
 	},

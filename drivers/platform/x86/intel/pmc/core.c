@@ -1444,15 +1444,6 @@ static void pmc_core_dbgfs_register(struct pmc_dev *pmcdev, struct pmc_dev_info 
 	}
 }
 
-static u32 pmc_core_find_guid(struct pmc_info *list, const struct pmc_reg_map *map)
-{
-	for (; list->map; ++list)
-		if (list->map == map)
-			return list->guid;
-
-	return 0;
-}
-
 /*
  * This function retrieves low power mode requirement data from PMC Low
  * Power Mode (LPM) table.
@@ -1568,7 +1559,6 @@ static int pmc_core_get_telem_info(struct pmc_dev *pmcdev, struct pmc_dev_info *
 	struct pci_dev *pcidev __free(pci_dev_put) = NULL;
 	struct telem_endpoint *ep;
 	unsigned int pmc_idx;
-	u32 guid;
 	int ret;
 
 	pcidev = pci_get_domain_bus_and_slot(0, 0, PCI_DEVFN(20, pmc_dev_info->pci_func));
@@ -1582,11 +1572,10 @@ static int pmc_core_get_telem_info(struct pmc_dev *pmcdev, struct pmc_dev_info *
 		if (!pmc)
 			continue;
 
-		guid = pmc_core_find_guid(pmcdev->regmap_list, pmc->map);
-		if (!guid)
+		if (!pmc->map->lpm_req_guid)
 			return -ENXIO;
 
-		ep = pmt_telem_find_and_register_endpoint(pcidev, guid, 0);
+		ep = pmt_telem_find_and_register_endpoint(pcidev, pmc->map->lpm_req_guid, 0);
 		if (IS_ERR(ep)) {
 			dev_dbg(&pmcdev->pdev->dev, "couldn't get telem endpoint %pe", ep);
 			return -EPROBE_DEFER;

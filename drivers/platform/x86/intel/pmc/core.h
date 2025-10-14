@@ -356,6 +356,7 @@ struct pmc_bit_map {
  * @s0ix_blocker_offset PWRMBASE offset to S0ix blocker counter
  * @num_s0ix_blocker:	Number of S0ix blockers
  * @blocker_req_offset:	Telemetry offset to S0ix blocker low power mode substate requirement table
+ * @lpm_req_guid:	Telemetry GUID to read low power mode substate requirement table
  *
  * Each PCH has unique set of register offsets and bit indexes. This structure
  * captures them to have a common implementation.
@@ -397,6 +398,8 @@ struct pmc_reg_map {
 	const u8  *lpm_reg_index;
 	const u32 pson_residency_offset;
 	const u32 pson_residency_counter_step;
+	/* GUID for telemetry regions */
+	const u32 lpm_req_guid;
 };
 
 /**
@@ -406,7 +409,6 @@ struct pmc_reg_map {
  *			specific attributes
  */
 struct pmc_info {
-	u32 guid;
 	u16 devid;
 	const struct pmc_reg_map *map;
 };
