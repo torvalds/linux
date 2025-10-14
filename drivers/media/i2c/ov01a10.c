@@ -161,7 +161,6 @@ static const struct reg_sequence ov01a10_global_setting[] = {
 	{0x3815, 0x01},
 	{0x3816, 0x01},
 	{0x3817, 0x01},
-	{0x3820, 0xa8},
 	{0x3822, 0x13},
 	{0x3832, 0x28},
 	{0x3833, 0x10},
@@ -240,6 +239,7 @@ struct ov01a10_sensor_cfg {
 	u32 bus_fmt;
 	int pattern_size;
 	int border_size;
+	u8 format1_base_val;
 	bool invert_hflip_shift;
 	bool invert_vflip_shift;
 };
@@ -258,6 +258,8 @@ struct ov01a10 {
 	struct v4l2_ctrl *vblank;
 	struct v4l2_ctrl *hblank;
 	struct v4l2_ctrl *exposure;
+	struct v4l2_ctrl *hflip;
+	struct v4l2_ctrl *vflip;
 
 	u32 link_freq_index;
 
@@ -310,22 +312,33 @@ static int ov01a10_test_pattern(struct ov01a10 *ov01a10, u32 pattern)
 			 NULL);
 }
 
+static void ov01a10_set_format1(struct ov01a10 *ov01a10, int *ret)
+{
+	u8 val = ov01a10->cfg->format1_base_val;
+
+	/* hflip register bit is inverted */
+	if (!ov01a10->hflip->val)
+		val |= FIELD_PREP(OV01A10_HFLIP_MASK, 0x1);
+
+	if (ov01a10->vflip->val)
+		val |= FIELD_PREP(OV01A10_VFLIP_MASK, 0x1);
+
+	cci_write(ov01a10->regmap, OV01A10_REG_FORMAT1, val, ret);
+}
+
 static int ov01a10_set_hflip(struct ov01a10 *ov01a10, bool hflip)
 {
 	struct v4l2_rect *crop = ov01a10_get_active_crop(ov01a10);
 	const struct ov01a10_sensor_cfg *cfg = ov01a10->cfg;
-	u32 val, offset;
+	u32 offset;
 	int ret = 0;
 
 	offset = crop->left;
 	if ((hflip ^ cfg->invert_hflip_shift) && cfg->border_size)
 		offset++;
 
-	val = hflip ? 0 : FIELD_PREP(OV01A10_HFLIP_MASK, 0x1);
-
 	cci_write(ov01a10->regmap, OV01A10_REG_X_WIN, offset, &ret);
-	cci_update_bits(ov01a10->regmap, OV01A10_REG_FORMAT1,
-			OV01A10_HFLIP_MASK, val, &ret);
+	ov01a10_set_format1(ov01a10, &ret);
 
 	return ret;
 }
@@ -334,18 +347,15 @@ static int ov01a10_set_vflip(struct ov01a10 *ov01a10, bool vflip)
 {
 	struct v4l2_rect *crop = ov01a10_get_active_crop(ov01a10);
 	const struct ov01a10_sensor_cfg *cfg = ov01a10->cfg;
-	u32 val, offset;
+	u32 offset;
 	int ret = 0;
 
 	offset = crop->top;
 	if ((vflip ^ cfg->invert_vflip_shift) && cfg->border_size)
 		offset++;
 
-	val = vflip ? FIELD_PREP(OV01A10_VFLIP_MASK, 0x1) : 0;
-
 	cci_write(ov01a10->regmap, OV01A10_REG_Y_WIN, offset, &ret);
-	cci_update_bits(ov01a10->regmap, OV01A10_REG_FORMAT1,
-			OV01A10_VFLIP_MASK, val, &ret);
+	ov01a10_set_format1(ov01a10, &ret);
 
 	return ret;
 }
@@ -474,10 +484,10 @@ static int ov01a10_init_controls(struct ov01a10 *ov01a10)
 				     ARRAY_SIZE(ov01a10_test_pattern_menu) - 1,
 				     0, 0, ov01a10_test_pattern_menu);
 
-	v4l2_ctrl_new_std(ctrl_hdlr, &ov01a10_ctrl_ops, V4L2_CID_HFLIP,
-			  0, 1, 1, 0);
-	v4l2_ctrl_new_std(ctrl_hdlr, &ov01a10_ctrl_ops, V4L2_CID_VFLIP,
-			  0, 1, 1, 0);
+	ov01a10->hflip = v4l2_ctrl_new_std(ctrl_hdlr, &ov01a10_ctrl_ops,
+					   V4L2_CID_HFLIP, 0, 1, 1, 0);
+	ov01a10->vflip = v4l2_ctrl_new_std(ctrl_hdlr, &ov01a10_ctrl_ops,
+					   V4L2_CID_VFLIP, 0, 1, 1, 0);
 
 	ret = v4l2_ctrl_new_fwnode_properties(ctrl_hdlr, &ov01a10_ctrl_ops,
 					      &props);
@@ -1087,6 +1097,7 @@ static const struct ov01a10_sensor_cfg ov01a10_cfg = {
 	.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
 	.pattern_size = 2, /* 2x2 */
 	.border_size = 2,
+	.format1_base_val = 0xa0,
 	.invert_hflip_shift = true,
 	.invert_vflip_shift = false,
 };
