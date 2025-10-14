@@ -1988,14 +1988,14 @@ static unsigned int macb_tx_map(struct macb *bp,
 				struct sk_buff *skb,
 				unsigned int hdrlen)
 {
-	dma_addr_t mapping;
+	unsigned int f, nr_frags = skb_shinfo(skb)->nr_frags;
 	unsigned int len, i, tx_head = queue->tx_head;
+	u32 ctrl, lso_ctrl = 0, seq_ctrl = 0;
+	unsigned int eof = 1, mss_mfs = 0;
 	struct macb_tx_skb *tx_skb = NULL;
 	struct macb_dma_desc *desc;
 	unsigned int offset, size;
-	unsigned int f, nr_frags = skb_shinfo(skb)->nr_frags;
-	unsigned int eof = 1, mss_mfs = 0;
-	u32 ctrl, lso_ctrl = 0, seq_ctrl = 0;
+	dma_addr_t mapping;
 
 	/* LSO */
 	if (skb_shinfo(skb)->gso_size != 0) {
