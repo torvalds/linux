@@ -1610,6 +1610,8 @@ patternProperties:
     description: Tempo Semiconductor
   "^tenda,.*":
     description: Shenzhen Tenda Technology Co., Ltd.
+  "^tenstorrent,.*":
+    description: Tenstorrent AI ULC
   "^terasic,.*":
     description: Terasic Inc.
   "^tesla,.*":
