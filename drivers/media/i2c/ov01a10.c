@@ -34,10 +34,10 @@
 #define OV01A10_MODE_STREAMING		0x01
 
 /* pixel array */
-#define OV01A10_PIXEL_ARRAY_WIDTH	1296
-#define OV01A10_PIXEL_ARRAY_HEIGHT	816
-#define OV01A10_ACITVE_WIDTH		1280
-#define OV01A10_ACITVE_HEIGHT		800
+#define OV01A10_NATIVE_WIDTH		1296
+#define OV01A10_NATIVE_HEIGHT		816
+#define OV01A10_DEFAULT_WIDTH		1280
+#define OV01A10_DEFAULT_HEIGHT		800
 
 /* vertical and horizontal timings */
 #define OV01A10_REG_VTS			CCI_REG16(0x380e)
@@ -270,8 +270,8 @@ static const struct ov01a10_link_freq_config link_freq_configs[] = {
 
 static const struct ov01a10_mode supported_modes[] = {
 	{
-		.width = OV01A10_ACITVE_WIDTH,
-		.height = OV01A10_ACITVE_HEIGHT,
+		.width = OV01A10_DEFAULT_WIDTH,
+		.height = OV01A10_DEFAULT_HEIGHT,
 		.hts = OV01A10_HTS_DEF,
 		.vts_def = OV01A10_VTS_DEF,
 		.vts_min = OV01A10_VTS_MIN,
@@ -642,8 +642,8 @@ static int ov01a10_init_state(struct v4l2_subdev *sd,
 	struct v4l2_subdev_format fmt = {
 		.which = V4L2_SUBDEV_FORMAT_TRY,
 		.format = {
-			.width = OV01A10_ACITVE_WIDTH,
-			.height = OV01A10_ACITVE_HEIGHT,
+			.width = OV01A10_DEFAULT_WIDTH,
+			.height = OV01A10_DEFAULT_HEIGHT,
 		},
 	};
 
@@ -692,17 +692,17 @@ static int ov01a10_get_selection(struct v4l2_subdev *sd,
 	case V4L2_SEL_TGT_CROP_BOUNDS:
 		sel->r.top = 0;
 		sel->r.left = 0;
-		sel->r.width = OV01A10_PIXEL_ARRAY_WIDTH;
-		sel->r.height = OV01A10_PIXEL_ARRAY_HEIGHT;
+		sel->r.width = OV01A10_NATIVE_WIDTH;
+		sel->r.height = OV01A10_NATIVE_HEIGHT;
 		return 0;
 	case V4L2_SEL_TGT_CROP:
 	case V4L2_SEL_TGT_CROP_DEFAULT:
-		sel->r.top = (OV01A10_PIXEL_ARRAY_HEIGHT -
-			      OV01A10_ACITVE_HEIGHT) / 2;
-		sel->r.left = (OV01A10_PIXEL_ARRAY_WIDTH -
-			       OV01A10_ACITVE_WIDTH) / 2;
-		sel->r.width = OV01A10_ACITVE_WIDTH;
-		sel->r.height = OV01A10_ACITVE_HEIGHT;
+		sel->r.top = (OV01A10_NATIVE_HEIGHT -
+			      OV01A10_DEFAULT_HEIGHT) / 2;
+		sel->r.left = (OV01A10_NATIVE_WIDTH -
+			       OV01A10_DEFAULT_WIDTH) / 2;
+		sel->r.width = OV01A10_DEFAULT_WIDTH;
+		sel->r.height = OV01A10_DEFAULT_HEIGHT;
 		return 0;
 	}
 
