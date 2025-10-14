@@ -198,8 +198,7 @@ static int cs35l45_activate_ctl(struct snd_soc_component *component,
 static int cs35l45_amplifier_mode_get(struct snd_kcontrol *kcontrol,
 				      struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component =
-			snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct cs35l45_private *cs35l45 =
 			snd_soc_component_get_drvdata(component);
 
@@ -211,8 +210,7 @@ static int cs35l45_amplifier_mode_get(struct snd_kcontrol *kcontrol,
 static int cs35l45_amplifier_mode_put(struct snd_kcontrol *kcontrol,
 				      struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component =
-			snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct cs35l45_private *cs35l45 =
 			snd_soc_component_get_drvdata(component);
 	struct snd_soc_dapm_context *dapm =
