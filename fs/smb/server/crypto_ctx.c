@@ -66,9 +66,6 @@ static struct shash_desc *alloc_shash_desc(int id)
 	struct shash_desc *shash;
 
 	switch (id) {
-	case CRYPTO_SHASH_HMACMD5:
-		tfm = crypto_alloc_shash("hmac(md5)", 0, 0);
-		break;
 	case CRYPTO_SHASH_CMACAES:
 		tfm = crypto_alloc_shash("cmac(aes)", 0, 0);
 		break;
@@ -172,11 +169,6 @@ static struct ksmbd_crypto_ctx *____crypto_shash_ctx_find(int id)
 		return ctx;
 	ksmbd_release_crypto_ctx(ctx);
 	return NULL;
-}
-
-struct ksmbd_crypto_ctx *ksmbd_crypto_ctx_find_hmacmd5(void)
-{
-	return ____crypto_shash_ctx_find(CRYPTO_SHASH_HMACMD5);
 }
 
 struct ksmbd_crypto_ctx *ksmbd_crypto_ctx_find_cmacaes(void)

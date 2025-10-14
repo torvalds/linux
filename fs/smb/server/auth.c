@@ -13,6 +13,7 @@
 #include <linux/xattr.h>
 #include <crypto/hash.h>
 #include <crypto/aead.h>
+#include <crypto/md5.h>
 #include <crypto/sha2.h>
 #include <linux/random.h>
 #include <linux/scatterlist.h>
@@ -70,85 +71,16 @@ void ksmbd_copy_gss_neg_header(void *buf)
 	memcpy(buf, NEGOTIATE_GSS_HEADER, AUTH_GSS_LENGTH);
 }
 
-/**
- * ksmbd_gen_sess_key() - function to generate session key
- * @sess:	session of connection
- * @hash:	source hash value to be used for find session key
- * @hmac:	source hmac value to be used for finding session key
- *
- */
-static int ksmbd_gen_sess_key(struct ksmbd_session *sess, char *hash,
-			      char *hmac)
-{
-	struct ksmbd_crypto_ctx *ctx;
-	int rc;
-
-	ctx = ksmbd_crypto_ctx_find_hmacmd5();
-	if (!ctx) {
-		ksmbd_debug(AUTH, "could not crypto alloc hmacmd5\n");
-		return -ENOMEM;
-	}
-
-	rc = crypto_shash_setkey(CRYPTO_HMACMD5_TFM(ctx),
-				 hash,
-				 CIFS_HMAC_MD5_HASH_SIZE);
-	if (rc) {
-		ksmbd_debug(AUTH, "hmacmd5 set key fail error %d\n", rc);
-		goto out;
-	}
-
-	rc = crypto_shash_init(CRYPTO_HMACMD5(ctx));
-	if (rc) {
-		ksmbd_debug(AUTH, "could not init hmacmd5 error %d\n", rc);
-		goto out;
-	}
-
-	rc = crypto_shash_update(CRYPTO_HMACMD5(ctx),
-				 hmac,
-				 SMB2_NTLMV2_SESSKEY_SIZE);
-	if (rc) {
-		ksmbd_debug(AUTH, "Could not update with response error %d\n", rc);
-		goto out;
-	}
-
-	rc = crypto_shash_final(CRYPTO_HMACMD5(ctx), sess->sess_key);
-	if (rc) {
-		ksmbd_debug(AUTH, "Could not generate hmacmd5 hash error %d\n", rc);
-		goto out;
-	}
-
-out:
-	ksmbd_release_crypto_ctx(ctx);
-	return rc;
-}
-
 static int calc_ntlmv2_hash(struct ksmbd_conn *conn, struct ksmbd_session *sess,
 			    char *ntlmv2_hash, char *dname)
 {
 	int ret, len, conv_len;
 	wchar_t *domain = NULL;
 	__le16 *uniname = NULL;
-	struct ksmbd_crypto_ctx *ctx;
+	struct hmac_md5_ctx ctx;
 
-	ctx = ksmbd_crypto_ctx_find_hmacmd5();
-	if (!ctx) {
-		ksmbd_debug(AUTH, "can't generate ntlmv2 hash\n");
-		return -ENOMEM;
-	}
-
-	ret = crypto_shash_setkey(CRYPTO_HMACMD5_TFM(ctx),
-				  user_passkey(sess->user),
+	hmac_md5_init_usingrawkey(&ctx, user_passkey(sess->user),
 				  CIFS_ENCPWD_SIZE);
-	if (ret) {
-		ksmbd_debug(AUTH, "Could not set NT Hash as a key\n");
-		goto out;
-	}
-
-	ret = crypto_shash_init(CRYPTO_HMACMD5(ctx));
-	if (ret) {
-		ksmbd_debug(AUTH, "could not init hmacmd5\n");
-		goto out;
-	}
 
 	/* convert user_name to unicode */
 	len = strlen(user_name(sess->user));
@@ -166,13 +98,7 @@ static int calc_ntlmv2_hash(struct ksmbd_conn *conn, struct ksmbd_session *sess,
 	}
 	UniStrupr(uniname);
 
-	ret = crypto_shash_update(CRYPTO_HMACMD5(ctx),
-				  (char *)uniname,
-				  UNICODE_LEN(conv_len));
-	if (ret) {
-		ksmbd_debug(AUTH, "Could not update with user\n");
-		goto out;
-	}
+	hmac_md5_update(&ctx, (const u8 *)uniname, UNICODE_LEN(conv_len));
 
 	/* Convert domain name or conn name to unicode and uppercase */
 	len = strlen(dname);
@@ -189,21 +115,12 @@ static int calc_ntlmv2_hash(struct ksmbd_conn *conn, struct ksmbd_session *sess,
 		goto out;
 	}
 
-	ret = crypto_shash_update(CRYPTO_HMACMD5(ctx),
-				  (char *)domain,
-				  UNICODE_LEN(conv_len));
-	if (ret) {
-		ksmbd_debug(AUTH, "Could not update with domain\n");
-		goto out;
-	}
-
-	ret = crypto_shash_final(CRYPTO_HMACMD5(ctx), ntlmv2_hash);
-	if (ret)
-		ksmbd_debug(AUTH, "Could not generate md5 hash\n");
+	hmac_md5_update(&ctx, (const u8 *)domain, UNICODE_LEN(conv_len));
+	hmac_md5_final(&ctx, ntlmv2_hash);
+	ret = 0;
 out:
 	kfree(uniname);
 	kfree(domain);
-	ksmbd_release_crypto_ctx(ctx);
 	return ret;
 }
 
@@ -224,73 +141,33 @@ int ksmbd_auth_ntlmv2(struct ksmbd_conn *conn, struct ksmbd_session *sess,
 {
 	char ntlmv2_hash[CIFS_ENCPWD_SIZE];
 	char ntlmv2_rsp[CIFS_HMAC_MD5_HASH_SIZE];
-	struct ksmbd_crypto_ctx *ctx = NULL;
-	char *construct = NULL;
-	int rc, len;
+	struct hmac_md5_ctx ctx;
+	int rc;
+
+	if (fips_enabled) {
+		ksmbd_debug(AUTH, "NTLMv2 support is disabled due to FIPS\n");
+		return -EOPNOTSUPP;
+	}
 
 	rc = calc_ntlmv2_hash(conn, sess, ntlmv2_hash, domain_name);
 	if (rc) {
 		ksmbd_debug(AUTH, "could not get v2 hash rc %d\n", rc);
-		goto out;
+		return rc;
 	}
 
-	ctx = ksmbd_crypto_ctx_find_hmacmd5();
-	if (!ctx) {
-		ksmbd_debug(AUTH, "could not crypto alloc hmacmd5\n");
-		return -ENOMEM;
-	}
+	hmac_md5_init_usingrawkey(&ctx, ntlmv2_hash, CIFS_HMAC_MD5_HASH_SIZE);
+	hmac_md5_update(&ctx, cryptkey, CIFS_CRYPTO_KEY_SIZE);
+	hmac_md5_update(&ctx, (const u8 *)&ntlmv2->blob_signature, blen);
+	hmac_md5_final(&ctx, ntlmv2_rsp);
 
-	rc = crypto_shash_setkey(CRYPTO_HMACMD5_TFM(ctx),
-				 ntlmv2_hash,
-				 CIFS_HMAC_MD5_HASH_SIZE);
-	if (rc) {
-		ksmbd_debug(AUTH, "Could not set NTLMV2 Hash as a key\n");
-		goto out;
-	}
-
-	rc = crypto_shash_init(CRYPTO_HMACMD5(ctx));
-	if (rc) {
-		ksmbd_debug(AUTH, "Could not init hmacmd5\n");
-		goto out;
-	}
-
-	len = CIFS_CRYPTO_KEY_SIZE + blen;
-	construct = kzalloc(len, KSMBD_DEFAULT_GFP);
-	if (!construct) {
-		rc = -ENOMEM;
-		goto out;
-	}
-
-	memcpy(construct, cryptkey, CIFS_CRYPTO_KEY_SIZE);
-	memcpy(construct + CIFS_CRYPTO_KEY_SIZE, &ntlmv2->blob_signature, blen);
-
-	rc = crypto_shash_update(CRYPTO_HMACMD5(ctx), construct, len);
-	if (rc) {
-		ksmbd_debug(AUTH, "Could not update with response\n");
-		goto out;
-	}
-
-	rc = crypto_shash_final(CRYPTO_HMACMD5(ctx), ntlmv2_rsp);
-	if (rc) {
-		ksmbd_debug(AUTH, "Could not generate md5 hash\n");
-		goto out;
-	}
-	ksmbd_release_crypto_ctx(ctx);
-	ctx = NULL;
-
-	rc = ksmbd_gen_sess_key(sess, ntlmv2_hash, ntlmv2_rsp);
-	if (rc) {
-		ksmbd_debug(AUTH, "Could not generate sess key\n");
-		goto out;
-	}
+	/* Generate the session key */
+	hmac_md5_usingrawkey(ntlmv2_hash, CIFS_HMAC_MD5_HASH_SIZE,
+			     ntlmv2_rsp, CIFS_HMAC_MD5_HASH_SIZE,
+			     sess->sess_key);
 
 	if (memcmp(ntlmv2->ntlmv2_hash, ntlmv2_rsp, CIFS_HMAC_MD5_HASH_SIZE) != 0)
-		rc = -EINVAL;
-out:
-	if (ctx)
-		ksmbd_release_crypto_ctx(ctx);
-	kfree(construct);
-	return rc;
+		return -EINVAL;
+	return 0;
 }
 
 /**
