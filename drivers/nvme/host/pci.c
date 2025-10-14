@@ -613,9 +613,22 @@ static inline enum nvme_use_sgl nvme_pci_use_sgls(struct nvme_dev *dev,
 	struct nvme_queue *nvmeq = req->mq_hctx->driver_data;
 
 	if (nvmeq->qid && nvme_ctrl_sgl_supported(&dev->ctrl)) {
-		if (nvme_req(req)->flags & NVME_REQ_USERCMD)
-			return SGL_FORCED;
-		if (req->nr_integrity_segments > 1)
+		/*
+		 * When the controller is capable of using SGL, there are
+		 * several conditions that we force to use it:
+		 *
+		 * 1. A request containing page gaps within the controller's
+		 *    mask can not use the PRP format.
+		 *
+		 * 2. User commands use SGL because that lets the device
+		 *    validate the requested transfer lengths.
+		 *
+		 * 3. Multiple integrity segments must use SGL as that's the
+		 *    only way to describe such a command in NVMe.
+		 */
+		if (req_phys_gap_mask(req) & (NVME_CTRL_PAGE_SIZE - 1) ||
+		    nvme_req(req)->flags & NVME_REQ_USERCMD ||
+		    req->nr_integrity_segments > 1)
 			return SGL_FORCED;
 		return SGL_SUPPORTED;
 	}
@@ -3243,6 +3256,14 @@ static bool nvme_pci_supports_pci_p2pdma(struct nvme_ctrl *ctrl)
 	return dma_pci_p2pdma_supported(dev->dev);
 }
 
+static unsigned long nvme_pci_get_virt_boundary(struct nvme_ctrl *ctrl,
+						bool is_admin)
+{
+	if (!nvme_ctrl_sgl_supported(ctrl) || is_admin)
+		return NVME_CTRL_PAGE_SIZE - 1;
+	return 0;
+}
+
 static const struct nvme_ctrl_ops nvme_pci_ctrl_ops = {
 	.name			= "pcie",
 	.module			= THIS_MODULE,
@@ -3257,6 +3278,7 @@ static const struct nvme_ctrl_ops nvme_pci_ctrl_ops = {
 	.get_address		= nvme_pci_get_address,
 	.print_device_info	= nvme_pci_print_device_info,
 	.supports_pci_p2pdma	= nvme_pci_supports_pci_p2pdma,
+	.get_virt_boundary	= nvme_pci_get_virt_boundary,
 };
 
 static int nvme_dev_map(struct nvme_dev *dev)
