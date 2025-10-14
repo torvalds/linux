@@ -227,6 +227,19 @@ out_free_range:
 	return r;
 }
 
+/**
+ * amdgpu_hmm_range_valid - check if an HMM range is still valid
+ * @range: pointer to the &struct amdgpu_hmm_range to validate
+ *
+ * Determines whether the given HMM range @range is still valid by
+ * checking for invalidations via the MMU notifier sequence. This is
+ * typically used to verify that the range has not been invalidated
+ * by concurrent address space updates before it is accessed.
+ *
+ * Return:
+ * * true if @range is valid and can be used safely
+ * * false if @range is NULL or has been invalidated
+ */
 bool amdgpu_hmm_range_valid(struct amdgpu_hmm_range *range)
 {
 	if (!range)
@@ -236,6 +249,17 @@ bool amdgpu_hmm_range_valid(struct amdgpu_hmm_range *range)
 					range->hmm_range.notifier_seq);
 }
 
+/**
+ * amdgpu_hmm_range_alloc - allocate and initialize an AMDGPU HMM range
+ * @bo: optional buffer object to associate with this HMM range
+ *
+ * Allocates memory for amdgpu_hmm_range and associates it with the @bo passed.
+ * The reference count of the @bo is incremented.
+ *
+ * Return:
+ * Pointer to a newly allocated struct amdgpu_hmm_range on success,
+ * or NULL if memory allocation fails.
+ */
 struct amdgpu_hmm_range *amdgpu_hmm_range_alloc(struct amdgpu_bo *bo)
 {
 	struct amdgpu_hmm_range *range;
@@ -248,6 +272,15 @@ struct amdgpu_hmm_range *amdgpu_hmm_range_alloc(struct amdgpu_bo *bo)
 	return range;
 }
 
+/**
+ * amdgpu_hmm_range_free - release an AMDGPU HMM range
+ * @range: pointer to the range object to free
+ *
+ * Releases all resources held by @range, including the associated
+ * hmm_pfns and the dropping reference of associated bo if any.
+ *
+ * Return: void
+ */
 void amdgpu_hmm_range_free(struct amdgpu_hmm_range *range)
 {
 	if (!range)
