@@ -12216,6 +12216,7 @@ L:	industrypack-devel@lists.sourceforge.net
 S:	Maintained
 W:	http://industrypack.sourceforge.net
 F:	drivers/ipack/
+F:	include/linux/ipack.h
 
 INFINEON DPS310 Driver
 M:	Eddie James <eajames@linux.ibm.com>
