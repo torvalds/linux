@@ -775,7 +775,7 @@ static void del_bio_entry(struct bio_entry *be)
 }
 
 static int add_ipu_page(struct f2fs_io_info *fio, struct bio **bio,
-							struct page *page)
+							struct folio *folio)
 {
 	struct folio *fio_folio = fio->folio;
 	struct f2fs_sb_info *sbi = fio->sbi;
@@ -801,8 +801,7 @@ static int add_ipu_page(struct f2fs_io_info *fio, struct bio **bio,
 			if (f2fs_crypt_mergeable_bio(*bio,
 					fio_folio->mapping->host,
 					fio_folio->index, fio) &&
-			    bio_add_page(*bio, page, PAGE_SIZE, 0) ==
-					PAGE_SIZE) {
+			    bio_add_folio(*bio, folio, folio_size(folio), 0)) {
 				ret = 0;
 				break;
 			}
@@ -905,7 +904,7 @@ alloc_new:
 
 		add_bio_entry(fio->sbi, bio, data_folio, fio->temp);
 	} else {
-		if (add_ipu_page(fio, &bio, &data_folio->page))
+		if (add_ipu_page(fio, &bio, data_folio))
 			goto alloc_new;
 	}
 
