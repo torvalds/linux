@@ -1,0 +1,133 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/media/i2c/ti,tvp5150.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Texas Instruments TVP5150 and TVP5151 video decoders
+
+maintainers:
+  - Frank Li <Frank.Li@nxp.com>
+
+description:
+  The TVP5150 and TVP5151 are video decoders that convert baseband NTSC and PAL
+  (and also SECAM in the TVP5151 case) video signals to either 8-bit 4:2:2 YUV
+  with discrete syncs or 8-bit ITU-R BT.656 with embedded syncs output formats.
+
+properties:
+  compatible:
+    const: ti,tvp5150
+
+  reg:
+    maxItems: 1
+
+  pdn-gpios:
+    maxItems: 1
+
+  reset-gpios:
+    maxItems: 1
+
+  '#address-cells':
+    const: 1
+
+  '#size-cells':
+    const: 0
+
+  port@0:
+    $ref: /schemas/graph.yaml#/$defs/port-base
+    unevaluatedProperties: false
+    description:
+      sink port node, AIP1A
+
+    properties:
+      endpoint:
+        $ref: /schemas/media/video-interfaces.yaml#
+        unevaluatedProperties: false
+
+  port@1:
+    $ref: /schemas/graph.yaml#/$defs/port-base
+    unevaluatedProperties: false
+    description:
+      sink port node, AIP1B
+
+    properties:
+      endpoint:
+        $ref: /schemas/media/video-interfaces.yaml#
+        unevaluatedProperties: false
+
+  port@2:
+    $ref: /schemas/graph.yaml#/$defs/port-base
+    unevaluatedProperties: false
+    description:
+      source port node, Y-OUT
+
+    properties:
+      endpoint:
+        $ref: /schemas/media/video-interfaces.yaml#
+        unevaluatedProperties: false
+
+required:
+  - compatible
+  - reg
+  - port@2
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/display/sdtv-standards.h>
+    #include <dt-bindings/gpio/gpio.h>
+
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        bridge@5c {
+            compatible = "ti,tvp5150";
+            reg = <0x5c>;
+            pdn-gpios = <&gpio4 30 GPIO_ACTIVE_LOW>;
+            reset-gpios = <&gpio6 7 GPIO_ACTIVE_LOW>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            port@0 {
+                #address-cells = <1>;
+                #size-cells = <0>;
+                reg = <0>;
+
+                endpoint@0 {
+                    reg = <0>;
+                    remote-endpoint = <&composite0_to_tvp5150>;
+                };
+
+                endpoint@1 {
+                    reg = <1>;
+                    remote-endpoint = <&svideo_luma_to_tvp5150>;
+                };
+            };
+
+            port@1 {
+                #address-cells = <1>;
+                #size-cells = <0>;
+                reg = <1>;
+
+                endpoint@0 {
+                    reg = <0>;
+                    remote-endpoint = <&composite1_to_tvp5150>;
+                };
+
+                endpoint@1 {
+                    reg = <1>;
+                    remote-endpoint = <&svideo_chroma_to_tvp5150>;
+                };
+            };
+
+            port@2 {
+                reg = <2>;
+
+                endpoint {
+                    remote-endpoint = <&ccdc_ep>;
+                };
+            };
+        };
+    };
