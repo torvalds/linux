@@ -34,7 +34,7 @@
 
 /* vertical and horizontal timings */
 #define OV01A10_REG_VTS			0x380e
-#define OV01A10_VTS_DEF			0x0380
+#define OV01A10_VTS_DEF			0x0700
 #define OV01A10_VTS_MIN			0x0380
 #define OV01A10_VTS_MAX			0xffff
 #define OV01A10_HTS_DEF			1488
@@ -191,8 +191,8 @@ static const struct ov01a10_reg sensor_1280x800_setting[] = {
 	{0x380b, 0x20},
 	{0x380c, 0x02},
 	{0x380d, 0xe8},
-	{0x380e, 0x03},
-	{0x380f, 0x80},
+	{0x380e, 0x07},
+	{0x380f, 0x00},
 	{0x3810, 0x00},
 	{0x3811, 0x09},
 	{0x3812, 0x00},
