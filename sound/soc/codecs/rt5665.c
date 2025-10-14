@@ -993,7 +993,7 @@ static const struct snd_kcontrol_new rt5665_if3_adc_swap_mux =
 static int rt5665_hp_vol_put(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	int ret = snd_soc_put_volsw(kcontrol, ucontrol);
 
 	if (snd_soc_component_read(component, RT5665_STO_NG2_CTRL_1) & RT5665_NG2_EN) {
@@ -1009,7 +1009,7 @@ static int rt5665_hp_vol_put(struct snd_kcontrol *kcontrol,
 static int rt5665_mono_vol_put(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	int ret = snd_soc_put_volsw(kcontrol, ucontrol);
 
 	if (snd_soc_component_read(component, RT5665_MONO_NG2_CTRL_1) & RT5665_NG2_EN) {
