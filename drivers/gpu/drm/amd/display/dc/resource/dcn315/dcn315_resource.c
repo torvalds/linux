@@ -889,6 +889,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 	},
 	.psr_power_use_phy_fsm = 0,
 	.using_dml2 = false,
+	.min_disp_clk_khz = 100000,
 };
 
 static const struct dc_check_config config_defaults = {
