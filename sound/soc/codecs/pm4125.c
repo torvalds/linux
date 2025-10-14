@@ -879,7 +879,7 @@ static int pm4125_connect_port(struct pm4125_sdw_priv *sdw_priv, u8 port_idx, u8
 
 static int pm4125_get_compander(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct pm4125_priv *pm4125 = snd_soc_component_get_drvdata(component);
 	struct soc_mixer_control *mc;
 	bool hphr;
@@ -893,7 +893,7 @@ static int pm4125_get_compander(struct snd_kcontrol *kcontrol, struct snd_ctl_el
 
 static int pm4125_set_compander(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct pm4125_priv *pm4125 = snd_soc_component_get_drvdata(component);
 	struct pm4125_sdw_priv *sdw_priv = pm4125->sdw_priv[AIF1_PB];
 	int value = ucontrol->value.integer.value[0];
@@ -926,7 +926,7 @@ static int pm4125_set_compander(struct snd_kcontrol *kcontrol, struct snd_ctl_el
 static int pm4125_get_swr_port(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct soc_mixer_control *mixer = (struct soc_mixer_control *)kcontrol->private_value;
-	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *comp = snd_kcontrol_chip(kcontrol);
 	struct pm4125_priv *pm4125 = snd_soc_component_get_drvdata(comp);
 	struct pm4125_sdw_priv *sdw_priv;
 	int dai_id = mixer->shift;
@@ -944,7 +944,7 @@ static int pm4125_get_swr_port(struct snd_kcontrol *kcontrol, struct snd_ctl_ele
 static int pm4125_set_swr_port(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct soc_mixer_control *mixer = (struct soc_mixer_control *)kcontrol->private_value;
-	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *comp = snd_kcontrol_chip(kcontrol);
 	struct pm4125_priv *pm4125 = snd_soc_component_get_drvdata(comp);
 	struct pm4125_sdw_priv *sdw_priv;
 	int dai_id = mixer->shift;
