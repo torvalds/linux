@@ -88,16 +88,6 @@
 #define OV01A10_REG_TEST_PATTERN	CCI_REG8(0x4503)
 #define OV01A10_TEST_PATTERN_ENABLE	BIT(7)
 
-/*
- * The native ov01a10 bayer-pattern is GBRG, but there was a driver bug enabling
- * hflip/mirroring by default resulting in BGGR. Because of this bug Intel's
- * proprietary IPU6 userspace stack expects BGGR. So we report BGGR to not break
- * userspace and fix things up by shifting the crop window-x coordinate by 1
- * when hflip is *disabled*.
- */
-#define OV01A10_MEDIA_BUS_FMT		MEDIA_BUS_FMT_SBGGR10_1X10
-#define OV01A10_BAYER_PATTERN_SIZE	2 /* 2x2 */
-
 struct ov01a10_link_freq_config {
 	const struct reg_sequence *regs;
 	int regs_len;
@@ -245,9 +235,19 @@ static const char * const ov01a10_supply_names[] = {
 	"dvdd",		/* Digital core power */
 };
 
+struct ov01a10_sensor_cfg {
+	const char *model;
+	u32 bus_fmt;
+	int pattern_size;
+	int border_size;
+	bool invert_hflip_shift;
+	bool invert_vflip_shift;
+};
+
 struct ov01a10 {
 	struct device *dev;
 	struct regmap *regmap;
+	const struct ov01a10_sensor_cfg *cfg;
 	struct v4l2_subdev sd;
 	struct media_pad pad;
 	struct v4l2_ctrl_handler ctrl_handler;
@@ -310,14 +310,15 @@ static int ov01a10_test_pattern(struct ov01a10 *ov01a10, u32 pattern)
 			 NULL);
 }
 
-static int ov01a10_set_hflip(struct ov01a10 *ov01a10, u32 hflip)
+static int ov01a10_set_hflip(struct ov01a10 *ov01a10, bool hflip)
 {
 	struct v4l2_rect *crop = ov01a10_get_active_crop(ov01a10);
+	const struct ov01a10_sensor_cfg *cfg = ov01a10->cfg;
 	u32 val, offset;
 	int ret = 0;
 
 	offset = crop->left;
-	if (!hflip)
+	if ((hflip ^ cfg->invert_hflip_shift) && cfg->border_size)
 		offset++;
 
 	val = hflip ? 0 : FIELD_PREP(OV01A10_HFLIP_MASK, 0x1);
@@ -329,14 +330,15 @@ static int ov01a10_set_hflip(struct ov01a10 *ov01a10, u32 hflip)
 	return ret;
 }
 
-static int ov01a10_set_vflip(struct ov01a10 *ov01a10, u32 vflip)
+static int ov01a10_set_vflip(struct ov01a10 *ov01a10, bool vflip)
 {
 	struct v4l2_rect *crop = ov01a10_get_active_crop(ov01a10);
+	const struct ov01a10_sensor_cfg *cfg = ov01a10->cfg;
 	u32 val, offset;
 	int ret = 0;
 
 	offset = crop->top;
-	if (vflip)
+	if ((vflip ^ cfg->invert_vflip_shift) && cfg->border_size)
 		offset++;
 
 	val = vflip ? FIELD_PREP(OV01A10_VFLIP_MASK, 0x1) : 0;
@@ -499,13 +501,14 @@ fail:
 	return ret;
 }
 
-static void ov01a10_fill_format(struct v4l2_mbus_framefmt *fmt,
+static void ov01a10_fill_format(struct ov01a10 *ov01a10,
+				struct v4l2_mbus_framefmt *fmt,
 				unsigned int width, unsigned int height)
 {
 	memset(fmt, 0, sizeof(*fmt));
 	fmt->width = width;
 	fmt->height = height;
-	fmt->code = OV01A10_MEDIA_BUS_FMT;
+	fmt->code = ov01a10->cfg->bus_fmt;
 	fmt->field = V4L2_FIELD_NONE;
 	fmt->colorspace = V4L2_COLORSPACE_RAW;
 }
@@ -625,9 +628,9 @@ static int ov01a10_set_format(struct v4l2_subdev *sd,
 			      struct v4l2_subdev_format *fmt)
 {
 	struct v4l2_rect *crop = v4l2_subdev_state_get_crop(sd_state, fmt->pad);
-	const int pattern_size = OV01A10_BAYER_PATTERN_SIZE;
-	const int border_size = OV01A10_BAYER_PATTERN_SIZE;
 	struct ov01a10 *ov01a10 = to_ov01a10(sd);
+	const int pattern_size = ov01a10->cfg->pattern_size;
+	const int border_size = ov01a10->cfg->border_size;
 	unsigned int width, height;
 
 	width = clamp_val(ALIGN(fmt->format.width, pattern_size),
@@ -647,7 +650,7 @@ static int ov01a10_set_format(struct v4l2_subdev *sd,
 		crop->height = height;
 	}
 
-	ov01a10_fill_format(&fmt->format, width, height);
+	ov01a10_fill_format(ov01a10, &fmt->format, width, height);
 	*v4l2_subdev_state_get_format(sd_state, fmt->pad) = fmt->format;
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_ACTIVE)
@@ -659,8 +662,10 @@ static int ov01a10_set_format(struct v4l2_subdev *sd,
 static int ov01a10_init_state(struct v4l2_subdev *sd,
 			      struct v4l2_subdev_state *sd_state)
 {
+	struct ov01a10 *ov01a10 = to_ov01a10(sd);
+
 	*v4l2_subdev_state_get_crop(sd_state, 0) = ov01a10_default_crop;
-	ov01a10_fill_format(v4l2_subdev_state_get_format(sd_state, 0),
+	ov01a10_fill_format(ov01a10, v4l2_subdev_state_get_format(sd_state, 0),
 			    OV01A10_DEFAULT_WIDTH, OV01A10_DEFAULT_HEIGHT);
 
 	return 0;
@@ -670,10 +675,12 @@ static int ov01a10_enum_mbus_code(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_mbus_code_enum *code)
 {
+	struct ov01a10 *ov01a10 = to_ov01a10(sd);
+
 	if (code->index > 0)
 		return -EINVAL;
 
-	code->code = OV01A10_MEDIA_BUS_FMT;
+	code->code = ov01a10->cfg->bus_fmt;
 
 	return 0;
 }
@@ -682,8 +689,9 @@ static int ov01a10_enum_frame_size(struct v4l2_subdev *sd,
 				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_size_enum *fse)
 {
-	const int pattern_size = OV01A10_BAYER_PATTERN_SIZE;
-	const int border_size = OV01A10_BAYER_PATTERN_SIZE;
+	struct ov01a10 *ov01a10 = to_ov01a10(sd);
+	const int pattern_size = ov01a10->cfg->pattern_size;
+	const int border_size = ov01a10->cfg->border_size;
 
 	if (fse->index)
 		return -EINVAL;
@@ -700,7 +708,8 @@ static int ov01a10_get_selection(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_state *state,
 				 struct v4l2_subdev_selection *sel)
 {
-	const int border_size = OV01A10_BAYER_PATTERN_SIZE;
+	struct ov01a10 *ov01a10 = to_ov01a10(sd);
+	const int border_size = ov01a10->cfg->border_size;
 
 	switch (sel->target) {
 	case V4L2_SEL_TGT_CROP:
@@ -731,9 +740,9 @@ static int ov01a10_set_selection(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_selection *sel)
 {
-	const int pattern_size = OV01A10_BAYER_PATTERN_SIZE;
-	const int border_size = OV01A10_BAYER_PATTERN_SIZE;
 	struct ov01a10 *ov01a10 = to_ov01a10(sd);
+	const int pattern_size = ov01a10->cfg->pattern_size;
+	const int border_size = ov01a10->cfg->border_size;
 	struct v4l2_mbus_framefmt *format;
 	struct v4l2_rect *crop;
 	struct v4l2_rect rect;
@@ -973,20 +982,28 @@ static void ov01a10_remove(struct i2c_client *client)
 
 static int ov01a10_probe(struct i2c_client *client)
 {
+	const struct ov01a10_sensor_cfg *cfg;
 	struct ov01a10 *ov01a10;
 	int ret;
+
+	cfg = device_get_match_data(&client->dev);
+	if (!cfg)
+		return -EINVAL;
 
 	ov01a10 = devm_kzalloc(&client->dev, sizeof(*ov01a10), GFP_KERNEL);
 	if (!ov01a10)
 		return -ENOMEM;
 
 	ov01a10->dev = &client->dev;
+	ov01a10->cfg = cfg;
 
 	ov01a10->regmap = devm_cci_regmap_init_i2c(client, 16);
 	if (IS_ERR(ov01a10->regmap))
 		return PTR_ERR(ov01a10->regmap);
 
 	v4l2_i2c_subdev_init(&ov01a10->sd, client, &ov01a10_subdev_ops);
+	/* Override driver->name with actual sensor model */
+	v4l2_i2c_subdev_set_name(&ov01a10->sd, client, cfg->model, NULL);
 	ov01a10->sd.internal_ops = &ov01a10_internal_ops;
 
 	ret = ov01a10_check_hwcfg(ov01a10);
@@ -1058,8 +1075,24 @@ static DEFINE_RUNTIME_DEV_PM_OPS(ov01a10_pm_ops, ov01a10_power_off,
 				 ov01a10_power_on, NULL);
 
 #ifdef CONFIG_ACPI
+/*
+ * The native ov01a10 bayer-pattern is GBRG, but there was a driver bug enabling
+ * hflip/mirroring by default resulting in BGGR. Because of this bug Intel's
+ * proprietary IPU6 userspace stack expects BGGR. So we report BGGR to not break
+ * userspace and fix things up by shifting the crop window-x coordinate by 1
+ * when hflip is *disabled*.
+ */
+static const struct ov01a10_sensor_cfg ov01a10_cfg = {
+	.model = "ov01a10",
+	.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
+	.pattern_size = 2, /* 2x2 */
+	.border_size = 2,
+	.invert_hflip_shift = true,
+	.invert_vflip_shift = false,
+};
+
 static const struct acpi_device_id ov01a10_acpi_ids[] = {
-	{ "OVTI01A0" },
+	{ "OVTI01A0", (uintptr_t)&ov01a10_cfg },
 	{ }
 };
 
