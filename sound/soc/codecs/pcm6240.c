@@ -1139,8 +1139,7 @@ static int pcmdevice_info_profile(
 	struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_info *uinfo)
 {
-	struct snd_soc_component *codec
-		= snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *codec = snd_kcontrol_chip(kcontrol);
 	struct pcmdevice_priv *pcm_dev =
 		snd_soc_component_get_drvdata(codec);
 
@@ -1156,8 +1155,7 @@ static int pcmdevice_get_profile_id(
 	struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *codec
-		= snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *codec = snd_kcontrol_chip(kcontrol);
 	struct pcmdevice_priv *pcm_dev =
 		snd_soc_component_get_drvdata(codec);
 
@@ -1170,8 +1168,7 @@ static int pcmdevice_set_profile_id(
 	struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *codec
-		= snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *codec = snd_kcontrol_chip(kcontrol);
 	struct pcmdevice_priv *pcm_dev =
 		snd_soc_component_get_drvdata(codec);
 	int nr_profile = ucontrol->value.integer.value[0];
