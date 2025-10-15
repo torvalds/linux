@@ -532,8 +532,6 @@ static int vdec_s_fmt_common(struct vpu_inst *inst, struct v4l2_format *f)
 		return -EINVAL;
 
 	q = v4l2_m2m_get_vq(inst->fh.m2m_ctx, f->type);
-	if (!q)
-		return -EINVAL;
 	if (vb2_is_busy(q))
 		return -EBUSY;
 

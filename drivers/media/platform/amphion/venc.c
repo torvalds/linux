@@ -223,8 +223,6 @@ static int venc_s_fmt(struct file *file, void *fh, struct v4l2_format *f)
 	struct v4l2_pix_format_mplane *pix_mp = &f->fmt.pix_mp;
 
 	q = v4l2_m2m_get_vq(inst->fh.m2m_ctx, f->type);
-	if (!q)
-		return -EINVAL;
 	if (vb2_is_busy(q))
 		return -EBUSY;
 
