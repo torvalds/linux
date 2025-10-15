@@ -666,6 +666,56 @@ struct fsnotify_inode_mark_connector {
 	struct list_head conns_list;
 };
 
+static struct inode *fsnotify_get_living_inode(struct fsnotify_sb_info *sbinfo)
+{
+	struct fsnotify_inode_mark_connector *iconn;
+	struct inode *inode;
+
+	spin_lock(&sbinfo->list_lock);
+	/* Find the first non-evicting inode */
+	list_for_each_entry(iconn, &sbinfo->inode_conn_list, conns_list) {
+		/* All connectors on the list are still attached to an inode */
+		inode = iconn->common.obj;
+		/*
+		 * For connectors without FSNOTIFY_CONN_FLAG_HAS_IREF
+		 * (evictable marks) corresponding inode may well have 0
+		 * refcount and can be undergoing eviction. OTOH list_lock
+		 * protects us from the connector getting detached and inode
+		 * freed. So we can poke around the inode safely.
+		 */
+		spin_lock(&inode->i_lock);
+		if (likely(
+		    !(inode_state_read(inode) & (I_FREEING | I_WILL_FREE)))) {
+			__iget(inode);
+			spin_unlock(&inode->i_lock);
+			spin_unlock(&sbinfo->list_lock);
+			return inode;
+		}
+		spin_unlock(&inode->i_lock);
+	}
+	spin_unlock(&sbinfo->list_lock);
+
+	return NULL;
+}
+
+/**
+ * fsnotify_unmount_inodes - an sb is unmounting. Handle any watched inodes.
+ * @sbinfo: fsnotify info for superblock being unmounted.
+ *
+ * Walk all inode connectors for the superblock and free all associated marks.
+ */
+void fsnotify_unmount_inodes(struct fsnotify_sb_info *sbinfo)
+{
+	struct inode *inode;
+
+	while ((inode = fsnotify_get_living_inode(sbinfo))) {
+		fsnotify_inode(inode, FS_UNMOUNT);
+		fsnotify_clear_marks_by_inode(inode);
+		iput(inode);
+		cond_resched();
+	}
+}
+
 static void fsnotify_init_connector(struct fsnotify_mark_connector *conn,
 				    void *obj, unsigned int obj_type)
 {

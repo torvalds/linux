@@ -77,6 +77,9 @@ extern struct srcu_struct fsnotify_mark_srcu;
 extern int fsnotify_compare_groups(struct fsnotify_group *a,
 				   struct fsnotify_group *b);
 
+/* Destroy all inode marks for given superblock */
+void fsnotify_unmount_inodes(struct fsnotify_sb_info *sbinfo);
+
 /* Destroy all marks attached to an object via connector */
 extern void fsnotify_destroy_marks(fsnotify_connp_t *connp);
 /* run the list of all marks associated with inode and destroy them */
