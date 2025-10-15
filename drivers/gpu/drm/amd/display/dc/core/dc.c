@@ -6401,3 +6401,8 @@ void dc_get_underflow_debug_data_for_otg(struct dc *dc, int primary_otg_inst,
 	if (dc->hwss.get_underflow_debug_data)
 		dc->hwss.get_underflow_debug_data(dc, tg, out_data);
 }
+
+void dc_log_preos_dmcub_info(const struct dc *dc)
+{
+	dc_dmub_srv_log_preos_dmcub_info(dc->ctx->dmub_srv);
+}

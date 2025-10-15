@@ -2727,6 +2727,8 @@ unsigned int dc_get_det_buffer_size_from_state(const struct dc_state *context);
 
 bool dc_get_host_router_index(const struct dc_link *link, unsigned int *host_router_index);
 
+void dc_log_preos_dmcub_info(const struct dc *dc);
+
 /* DSC Interfaces */
 #include "dc_dsc.h"
 

@@ -359,6 +359,7 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 
 			funcs->get_current_time = dmub_dcn35_get_current_time;
 			funcs->get_diagnostic_data = dmub_dcn35_get_diagnostic_data;
+			funcs->get_preos_fw_info = dmub_dcn35_get_preos_fw_info;
 
 			funcs->init_reg_offsets = dmub_srv_dcn35_regs_init;
 			if (asic == DMUB_ASIC_DCN351)
@@ -1371,4 +1372,12 @@ enum dmub_status dmub_srv_update_inbox_status(struct dmub_srv *dmub)
 	dmub_srv_update_reg_inbox0_status(dmub);
 
 	return DMUB_STATUS_OK;
+}
+
+bool dmub_srv_get_preos_info(struct dmub_srv *dmub)
+{
+	if (!dmub || !dmub->hw_funcs.get_preos_fw_info)
+		return false;
+
+	return dmub->hw_funcs.get_preos_fw_info(dmub);
 }

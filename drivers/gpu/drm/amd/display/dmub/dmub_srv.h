@@ -363,6 +363,19 @@ struct dmub_diagnostic_data {
 	uint8_t is_pwait : 1;
 };
 
+/**
+ * struct dmub_preos_info - preos fw info before loading post os fw.
+ */
+struct dmub_preos_info {
+	uint64_t fb_base;
+	uint64_t fb_offset;
+	uint64_t trace_buffer_phy_addr;
+	uint32_t trace_buffer_size;
+	uint32_t fw_version;
+	uint32_t boot_status;
+	uint32_t boot_options;
+};
+
 struct dmub_srv_inbox {
 	/* generic status */
 	uint64_t num_submitted;
@@ -488,6 +501,7 @@ struct dmub_srv_hw_funcs {
 	uint32_t (*get_current_time)(struct dmub_srv *dmub);
 
 	void (*get_diagnostic_data)(struct dmub_srv *dmub);
+	bool (*get_preos_fw_info)(struct dmub_srv *dmub);
 
 	bool (*should_detect)(struct dmub_srv *dmub);
 	void (*init_reg_offsets)(struct dmub_srv *dmub, struct dc_context *ctx);
@@ -588,6 +602,7 @@ struct dmub_srv {
 	enum dmub_srv_power_state_type power_state;
 	struct dmub_diagnostic_data debug;
 	struct dmub_fb lsdma_rb_fb;
+	struct dmub_preos_info preos_info;
 };
 
 /**
@@ -1072,5 +1087,15 @@ enum dmub_status dmub_srv_wait_for_inbox_free(struct dmub_srv *dmub,
  *   DMUB_STATUS_INVALID - unspecified error
  */
 enum dmub_status dmub_srv_update_inbox_status(struct dmub_srv *dmub);
+
+/**
+ * dmub_srv_get_preos_info() - retrieves preos fw info
+ * @dmub: the dmub service
+ *
+ * Return:
+ *   true - preos fw info retrieved successfully
+ *   false - preos fw info not retrieved successfully
+ */
+bool dmub_srv_get_preos_info(struct dmub_srv *dmub);
 
 #endif /* _DMUB_SRV_H_ */
