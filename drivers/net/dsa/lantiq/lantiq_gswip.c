@@ -1000,6 +1000,9 @@ static int gswip_port_vlan_add(struct dsa_switch *ds, int port,
 	bool pvid = vlan->flags & BRIDGE_VLAN_INFO_PVID;
 	int err;
 
+	if (vlan->vid == GSWIP_VLAN_UNAWARE_PVID)
+		return 0;
+
 	err = gswip_port_vlan_prepare(ds, port, vlan, extack);
 	if (err)
 		return err;
@@ -1022,6 +1025,9 @@ static int gswip_port_vlan_del(struct dsa_switch *ds, int port,
 	struct net_device *bridge = dsa_port_bridge_dev_get(dsa_to_port(ds, port));
 	struct gswip_priv *priv = ds->priv;
 	bool pvid = vlan->flags & BRIDGE_VLAN_INFO_PVID;
+
+	if (vlan->vid == GSWIP_VLAN_UNAWARE_PVID)
+		return 0;
 
 	/* We have to receive all packets on the CPU port and should not
 	 * do any VLAN filtering here. This is also called with bridge
