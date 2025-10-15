@@ -612,6 +612,8 @@ static ssize_t amdgpu_ras_debugfs_ctrl_write(struct file *f,
 	return size;
 }
 
+static int amdgpu_uniras_clear_badpages_info(struct amdgpu_device *adev);
+
 /**
  * DOC: AMDGPU RAS debugfs EEPROM table reset interface
  *
@@ -635,6 +637,11 @@ static ssize_t amdgpu_ras_debugfs_eeprom_write(struct file *f,
 	struct amdgpu_device *adev =
 		(struct amdgpu_device *)file_inode(f)->i_private;
 	int ret;
+
+	if (amdgpu_uniras_enabled(adev)) {
+		ret = amdgpu_uniras_clear_badpages_info(adev);
+		return ret ? ret : size;
+	}
 
 	ret = amdgpu_ras_eeprom_reset_table(
 		&(amdgpu_ras_get_context(adev)->eeprom_control));
@@ -1541,6 +1548,21 @@ out_fini_err_data:
 	amdgpu_ras_error_data_fini(&err_data);
 
 	return ret;
+}
+
+static int amdgpu_uniras_clear_badpages_info(struct amdgpu_device *adev)
+{
+	struct ras_cmd_dev_handle req = {0};
+	int ret;
+
+	ret = amdgpu_ras_mgr_handle_ras_cmd(adev, RAS_CMD__CLEAR_BAD_PAGE_INFO,
+				&req, sizeof(req), NULL, 0);
+	if (ret) {
+		dev_err(adev->dev, "Failed to clear bad pages info, ret: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
 }
 
 static int amdgpu_uniras_query_block_ecc(struct amdgpu_device *adev,
