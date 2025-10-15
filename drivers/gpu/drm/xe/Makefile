@@ -176,6 +176,7 @@ xe-$(CONFIG_PCI_IOV) += \
 	xe_sriov_pf.o \
 	xe_sriov_pf_control.o \
 	xe_sriov_pf_debugfs.o \
+	xe_sriov_pf_provision.o \
 	xe_sriov_pf_service.o \
 	xe_tile_sriov_pf_debugfs.o
 
