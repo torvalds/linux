@@ -402,12 +402,13 @@ setup_pixel_info(struct screen_info *si, u32 pixels_per_scan_line,
 	}
 }
 
-static efi_graphics_output_protocol_t *find_gop(unsigned long num,
-						const efi_handle_t handles[])
+static efi_handle_t find_handle_with_primary_gop(unsigned long num, const efi_handle_t handles[],
+						 efi_graphics_output_protocol_t **found_gop)
 {
 	efi_graphics_output_protocol_t *first_gop;
-	efi_handle_t h;
+	efi_handle_t h, first_gop_handle;
 
+	first_gop_handle = NULL;
 	first_gop = NULL;
 
 	for_each_efi_handle(h, handles, num) {
@@ -442,19 +443,25 @@ static efi_graphics_output_protocol_t *find_gop(unsigned long num,
 		 */
 		status = efi_bs_call(handle_protocol, h,
 				     &EFI_CONSOLE_OUT_DEVICE_GUID, &dummy);
-		if (status == EFI_SUCCESS)
-			return gop;
-
-		if (!first_gop)
+		if (status == EFI_SUCCESS) {
+			if (found_gop)
+				*found_gop = gop;
+			return h;
+		} else if (!first_gop_handle) {
+			first_gop_handle = h;
 			first_gop = gop;
+		}
 	}
 
-	return first_gop;
+	if (found_gop)
+		*found_gop = first_gop;
+	return first_gop_handle;
 }
 
 efi_status_t efi_setup_gop(struct screen_info *si)
 {
 	efi_handle_t *handles __free(efi_pool) = NULL;
+	efi_handle_t handle;
 	efi_graphics_output_protocol_mode_t *mode;
 	efi_graphics_output_mode_info_t *info;
 	efi_graphics_output_protocol_t *gop;
@@ -467,8 +474,8 @@ efi_status_t efi_setup_gop(struct screen_info *si)
 	if (status != EFI_SUCCESS)
 		return status;
 
-	gop = find_gop(num, handles);
-	if (!gop)
+	handle = find_handle_with_primary_gop(num, handles, &gop);
+	if (!handle)
 		return EFI_NOT_FOUND;
 
 	/* Change mode if requested */
