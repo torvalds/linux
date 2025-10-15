@@ -446,7 +446,7 @@ static long pidfd_info(struct file *file, unsigned int cmd, unsigned long arg)
 	 * the fields are set correctly, or return ESRCH to avoid providing
 	 * incomplete information. */
 
-	kinfo.ppid = task_ppid_nr_ns(task, NULL);
+	kinfo.ppid = task_ppid_vnr(task);
 	kinfo.tgid = task_tgid_vnr(task);
 	kinfo.pid = task_pid_vnr(task);
 	kinfo.mask |= PIDFD_INFO_PID;
