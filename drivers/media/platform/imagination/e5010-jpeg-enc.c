@@ -396,8 +396,6 @@ static int e5010_s_fmt(struct file *file, void *priv, struct v4l2_format *f)
 	struct e5010_fmt *fmt;
 
 	vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, f->type);
-	if (!vq)
-		return -EINVAL;
 
 	if (vb2_is_busy(vq)) {
 		v4l2_err(&ctx->e5010->v4l2_dev, "queue busy\n");
@@ -496,8 +494,6 @@ static int e5010_s_selection(struct file *file, void *fh, struct v4l2_selection 
 	struct v4l2_rect base_rect;
 
 	vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, s->type);
-	if (!vq)
-		return -EINVAL;
 
 	if (vb2_is_streaming(vq))
 		return -EBUSY;
