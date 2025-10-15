@@ -400,7 +400,7 @@ properties:
       - '#pwm-cells'
 
 patternProperties:
-  "^regulator-":
+  '^regulator-':
     type: object
     unevaluatedProperties: false
     $ref: /schemas/regulator/regulator.yaml
@@ -429,7 +429,7 @@ required:
   - reg
   - interrupts
   - interrupt-controller
-  - "#interrupt-cells"
+  - '#interrupt-cells'
 
 examples:
   - |

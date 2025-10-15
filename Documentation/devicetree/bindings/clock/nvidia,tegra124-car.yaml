@@ -37,7 +37,7 @@ properties:
   '#clock-cells':
     const: 1
 
-  "#reset-cells":
+  '#reset-cells':
     const: 1
 
   nvidia,external-memory-controller:
@@ -46,7 +46,7 @@ properties:
       phandle of the external memory controller node
 
 patternProperties:
-  "^emc-timings-[0-9]+$":
+  '^emc-timings-[0-9]+$':
     type: object
     properties:
       nvidia,ram-code:
@@ -56,7 +56,7 @@ patternProperties:
           this timing set is used for
 
     patternProperties:
-      "^timing-[0-9]+$":
+      '^timing-[0-9]+$':
         type: object
         properties:
           clock-frequency:
@@ -94,7 +94,7 @@ required:
   - compatible
   - reg
   - '#clock-cells'
-  - "#reset-cells"
+  - '#reset-cells'
 
 additionalProperties: false
 

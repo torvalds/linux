@@ -424,13 +424,13 @@ allOf:
 patternProperties:
   '-state$':
     oneOf:
-      - $ref: "#/$defs/qcom-pmic-gpio-state"
+      - $ref: '#/$defs/qcom-pmic-gpio-state'
       - patternProperties:
-          "(pinconf|-pins)$":
-            $ref: "#/$defs/qcom-pmic-gpio-state"
+          '(pinconf|-pins)$':
+            $ref: '#/$defs/qcom-pmic-gpio-state'
         additionalProperties: false
 
-  "-hog(-[0-9]+)?$":
+  '-hog(-[0-9]+)?$':
     type: object
     required:
       - gpio-hog
@@ -503,7 +503,7 @@ $defs:
                  - gpio1-gpio12 for pmxr2230
 
         items:
-          pattern: "^gpio([0-9]+)$"
+          pattern: '^gpio([0-9]+)$'
 
       function:
         items:

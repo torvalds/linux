@@ -39,11 +39,11 @@ properties:
   '#clock-cells':
     const: 1
 
-  "#reset-cells":
+  '#reset-cells':
     const: 1
 
 patternProperties:
-  "^(sclk)|(pll-[cem])$":
+  '^(sclk)|(pll-[cem])$':
     type: object
     properties:
       compatible:
@@ -76,7 +76,7 @@ required:
   - compatible
   - reg
   - '#clock-cells'
-  - "#reset-cells"
+  - '#reset-cells'
 
 additionalProperties: false
 
