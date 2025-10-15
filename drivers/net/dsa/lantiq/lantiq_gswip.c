@@ -1140,19 +1140,15 @@ static void gswip_port_stp_state_set(struct dsa_switch *ds, int port, u8 state)
 }
 
 static int gswip_port_fdb(struct dsa_switch *ds, int port,
-			  const unsigned char *addr, u16 vid, bool add)
+			  struct net_device *bridge, const unsigned char *addr,
+			  u16 vid, bool add)
 {
-	struct net_device *bridge = dsa_port_bridge_dev_get(dsa_to_port(ds, port));
 	struct gswip_priv *priv = ds->priv;
 	struct gswip_pce_table_entry mac_bridge = {0,};
 	unsigned int max_ports = priv->hw_info->max_ports;
 	int fid = -1;
 	int i;
 	int err;
-
-	/* Operation not supported on the CPU port, don't throw errors */
-	if (!bridge)
-		return 0;
 
 	for (i = max_ports; i < ARRAY_SIZE(priv->vlans); i++) {
 		if (priv->vlans[i].bridge == bridge) {
@@ -1188,14 +1184,20 @@ static int gswip_port_fdb_add(struct dsa_switch *ds, int port,
 			      const unsigned char *addr, u16 vid,
 			      struct dsa_db db)
 {
-	return gswip_port_fdb(ds, port, addr, vid, true);
+	if (db.type != DSA_DB_BRIDGE)
+		return -EOPNOTSUPP;
+
+	return gswip_port_fdb(ds, port, db.bridge.dev, addr, vid, true);
 }
 
 static int gswip_port_fdb_del(struct dsa_switch *ds, int port,
 			      const unsigned char *addr, u16 vid,
 			      struct dsa_db db)
 {
-	return gswip_port_fdb(ds, port, addr, vid, false);
+	if (db.type != DSA_DB_BRIDGE)
+		return -EOPNOTSUPP;
+
+	return gswip_port_fdb(ds, port, db.bridge.dev, addr, vid, false);
 }
 
 static int gswip_port_fdb_dump(struct dsa_switch *ds, int port,
