@@ -162,7 +162,7 @@ static void tegra_eqos_fix_speed(void *bsp_priv, int speed, unsigned int mode)
 		priv = netdev_priv(dev_get_drvdata(eqos->dev));
 
 		/* Calibration should be done with the MDIO bus idle */
-		mutex_lock(&priv->mii->mdio_lock);
+		stmmac_mdio_lock(priv);
 
 		/* calibrate */
 		value = readl(eqos->regs + SDMEMCOMPPADCTRL);
@@ -198,7 +198,7 @@ static void tegra_eqos_fix_speed(void *bsp_priv, int speed, unsigned int mode)
 		value &= ~SDMEMCOMPPADCTRL_PAD_E_INPUT_OR_E_PWRD;
 		writel(value, eqos->regs + SDMEMCOMPPADCTRL);
 
-		mutex_unlock(&priv->mii->mdio_lock);
+		stmmac_mdio_unlock(priv);
 	} else {
 		value = readl(eqos->regs + AUTO_CAL_CONFIG);
 		value &= ~AUTO_CAL_CONFIG_ENABLE;
