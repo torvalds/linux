@@ -1162,9 +1162,6 @@ static void kfd_process_wq_release(struct work_struct *work)
 					     release_work);
 	struct dma_fence *ef;
 
-	kfd_process_dequeue_from_all_devices(p);
-	pqm_uninit(&p->pqm);
-
 	/*
 	 * If GPU in reset, user queues may still running, wait for reset complete.
 	 */
@@ -1225,6 +1222,14 @@ static void kfd_process_notifier_release_internal(struct kfd_process *p)
 
 	cancel_delayed_work_sync(&p->eviction_work);
 	cancel_delayed_work_sync(&p->restore_work);
+
+	/*
+	 * Dequeue and destroy user queues, it is not safe for GPU to access
+	 * system memory after mmu release notifier callback returns because
+	 * exit_mmap free process memory afterwards.
+	 */
+	kfd_process_dequeue_from_all_devices(p);
+	pqm_uninit(&p->pqm);
 
 	for (i = 0; i < p->n_pdds; i++) {
 		struct kfd_process_device *pdd = p->pdds[i];
