@@ -1575,12 +1575,12 @@ void smbd_destroy(struct TCP_Server_Info *server)
 	disable_work_sync(&sc->disconnect_work);
 
 	log_rdma_event(INFO, "destroying rdma session\n");
-	if (sc->status < SMBDIRECT_SOCKET_DISCONNECTING) {
+	if (sc->status < SMBDIRECT_SOCKET_DISCONNECTING)
 		smbd_disconnect_rdma_work(&sc->disconnect_work);
+	if (sc->status < SMBDIRECT_SOCKET_DISCONNECTED) {
 		log_rdma_event(INFO, "wait for transport being disconnected\n");
-		wait_event_interruptible(
-			sc->status_wait,
-			sc->status == SMBDIRECT_SOCKET_DISCONNECTED);
+		wait_event(sc->status_wait, sc->status == SMBDIRECT_SOCKET_DISCONNECTED);
+		log_rdma_event(INFO, "waited for transport being disconnected\n");
 	}
 
 	/*
