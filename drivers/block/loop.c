@@ -350,21 +350,15 @@ static inline unsigned lo_cmd_nr_bvec(struct loop_cmd *cmd)
 	return nr_bvec;
 }
 
-static int lo_rw_aio(struct loop_device *lo, struct loop_cmd *cmd,
-		     loff_t pos, int rw)
+static int lo_rw_aio_prep(struct loop_device *lo, struct loop_cmd *cmd,
+			  unsigned nr_bvec, loff_t pos)
 {
-	struct iov_iter iter;
-	struct req_iterator rq_iter;
-	struct bio_vec *bvec;
 	struct request *rq = blk_mq_rq_from_pdu(cmd);
-	struct bio *bio = rq->bio;
-	struct file *file = lo->lo_backing_file;
-	struct bio_vec tmp;
-	unsigned int offset;
-	int nr_bvec = lo_cmd_nr_bvec(cmd);
-	int ret;
 
 	if (rq->bio != rq->biotail) {
+		struct req_iterator rq_iter;
+		struct bio_vec *bvec;
+		struct bio_vec tmp;
 
 		bvec = kmalloc_array(nr_bvec, sizeof(struct bio_vec),
 				     GFP_NOIO);
@@ -382,8 +376,42 @@ static int lo_rw_aio(struct loop_device *lo, struct loop_cmd *cmd,
 			*bvec = tmp;
 			bvec++;
 		}
-		bvec = cmd->bvec;
+	} else {
+		cmd->bvec = NULL;
+	}
+
+	cmd->iocb.ki_pos = pos;
+	cmd->iocb.ki_filp = lo->lo_backing_file;
+	cmd->iocb.ki_ioprio = req_get_ioprio(rq);
+	if (cmd->use_aio) {
+		cmd->iocb.ki_complete = lo_rw_aio_complete;
+		cmd->iocb.ki_flags = IOCB_DIRECT;
+	} else {
+		cmd->iocb.ki_complete = NULL;
+		cmd->iocb.ki_flags = 0;
+	}
+	return 0;
+}
+
+static int lo_rw_aio(struct loop_device *lo, struct loop_cmd *cmd,
+		     loff_t pos, int rw)
+{
+	struct iov_iter iter;
+	struct bio_vec *bvec;
+	struct request *rq = blk_mq_rq_from_pdu(cmd);
+	struct bio *bio = rq->bio;
+	struct file *file = lo->lo_backing_file;
+	unsigned int offset;
+	int nr_bvec = lo_cmd_nr_bvec(cmd);
+	int ret;
+
+	ret = lo_rw_aio_prep(lo, cmd, nr_bvec, pos);
+	if (unlikely(ret))
+		return ret;
+
+	if (cmd->bvec) {
 		offset = 0;
+		bvec = cmd->bvec;
 	} else {
 		/*
 		 * Same here, this bio may be started from the middle of the
@@ -397,17 +425,6 @@ static int lo_rw_aio(struct loop_device *lo, struct loop_cmd *cmd,
 
 	iov_iter_bvec(&iter, rw, bvec, nr_bvec, blk_rq_bytes(rq));
 	iter.iov_offset = offset;
-
-	cmd->iocb.ki_pos = pos;
-	cmd->iocb.ki_filp = file;
-	cmd->iocb.ki_ioprio = req_get_ioprio(rq);
-	if (cmd->use_aio) {
-		cmd->iocb.ki_complete = lo_rw_aio_complete;
-		cmd->iocb.ki_flags = IOCB_DIRECT;
-	} else {
-		cmd->iocb.ki_complete = NULL;
-		cmd->iocb.ki_flags = 0;
-	}
 
 	if (rw == ITER_SOURCE) {
 		kiocb_start_write(&cmd->iocb);
