@@ -175,7 +175,7 @@ config SENSORS_ADT7X10
 	select REGMAP
 	help
 	  This module contains common code shared by the ADT7310/ADT7320 and
-	  ADT7410/ADT7420 temperature monitoring chip drivers.
+	  ADT7410/ADT7420/ADT7422 temperature monitoring chip drivers.
 
 	  If built as a module, the module will be called adt7x10.
 
@@ -191,12 +191,12 @@ config SENSORS_ADT7310
 	  will be called adt7310.
 
 config SENSORS_ADT7410
-	tristate "Analog Devices ADT7410/ADT7420"
+	tristate "Analog Devices ADT7410/ADT7420/ADT7422"
 	depends on I2C
 	select SENSORS_ADT7X10
 	help
 	  If you say yes here you get support for the Analog Devices
-	  ADT7410 and ADT7420 temperature monitoring chips.
+	  ADT7410, ADT7420 and ADT7422 temperature monitoring chips.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called adt7410.
