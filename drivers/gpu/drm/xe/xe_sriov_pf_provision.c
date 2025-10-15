@@ -9,6 +9,14 @@
 #include "xe_sriov.h"
 #include "xe_sriov_pf_helpers.h"
 #include "xe_sriov_pf_provision.h"
+#include "xe_sriov_pf_provision_types.h"
+
+static bool pf_auto_provisioning_mode(struct xe_device *xe)
+{
+	xe_assert(xe, IS_SRIOV_PF(xe));
+
+	return xe->sriov.pf.provision.mode == XE_SRIOV_PROVISIONING_MODE_AUTO;
+}
 
 static bool pf_needs_provisioning(struct xe_gt *gt, unsigned int num_vfs)
 {
@@ -30,7 +38,7 @@ static int pf_provision_vfs(struct xe_device *xe, unsigned int num_vfs)
 
 	for_each_gt(gt, xe, id) {
 		if (!pf_needs_provisioning(gt, num_vfs))
-			continue;
+			return -EUCLEAN;
 		err = xe_gt_sriov_pf_config_set_fair(gt, VFID(1), num_vfs);
 		result = result ?: err;
 	}
@@ -62,6 +70,9 @@ int xe_sriov_pf_provision_vfs(struct xe_device *xe, unsigned int num_vfs)
 {
 	xe_assert(xe, IS_SRIOV_PF(xe));
 
+	if (!pf_auto_provisioning_mode(xe))
+		return 0;
+
 	return pf_provision_vfs(xe, num_vfs);
 }
 
@@ -77,6 +88,9 @@ int xe_sriov_pf_provision_vfs(struct xe_device *xe, unsigned int num_vfs)
 int xe_sriov_pf_unprovision_vfs(struct xe_device *xe, unsigned int num_vfs)
 {
 	xe_assert(xe, IS_SRIOV_PF(xe));
+
+	if (!pf_auto_provisioning_mode(xe))
+		return 0;
 
 	pf_unprovision_vfs(xe, num_vfs);
 	return 0;

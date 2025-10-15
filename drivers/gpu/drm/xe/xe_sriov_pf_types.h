@@ -9,6 +9,7 @@
 #include <linux/mutex.h>
 #include <linux/types.h>
 
+#include "xe_sriov_pf_provision_types.h"
 #include "xe_sriov_pf_service_types.h"
 
 /**
@@ -34,6 +35,9 @@ struct xe_device_pf {
 
 	/** @master_lock: protects all VFs configurations across GTs */
 	struct mutex master_lock;
+
+	/** @provision: device level provisioning data. */
+	struct xe_sriov_pf_provision provision;
 
 	/** @service: device level service data. */
 	struct xe_sriov_pf_service service;
