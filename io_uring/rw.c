@@ -655,13 +655,17 @@ static int kiocb_done(struct io_kiocb *req, ssize_t ret,
 	if (ret >= 0 && req->flags & REQ_F_CUR_POS)
 		req->file->f_pos = rw->kiocb.ki_pos;
 	if (ret >= 0 && !(req->ctx->flags & IORING_SETUP_IOPOLL)) {
+		u32 cflags = 0;
+
 		__io_complete_rw_common(req, ret);
 		/*
 		 * Safe to call io_end from here as we're inline
 		 * from the submission path.
 		 */
 		io_req_io_end(req);
-		io_req_set_res(req, final_ret, io_put_kbuf(req, ret, sel->buf_list));
+		if (sel)
+			cflags = io_put_kbuf(req, ret, sel->buf_list);
+		io_req_set_res(req, final_ret, cflags);
 		io_req_rw_cleanup(req, issue_flags);
 		return IOU_COMPLETE;
 	} else {
