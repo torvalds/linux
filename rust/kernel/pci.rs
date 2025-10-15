@@ -596,6 +596,20 @@ impl<'a> IrqVector<'a> {
     }
 }
 
+impl<'a> TryInto<IrqRequest<'a>> for IrqVector<'a> {
+    type Error = Error;
+
+    fn try_into(self) -> Result<IrqRequest<'a>> {
+        // SAFETY: `self.as_raw` returns a valid pointer to a `struct pci_dev`.
+        let irq = unsafe { bindings::pci_irq_vector(self.dev.as_raw(), self.index()) };
+        if irq < 0 {
+            return Err(crate::error::Error::from_errno(irq));
+        }
+        // SAFETY: `irq` is guaranteed to be a valid IRQ number for `&self`.
+        Ok(unsafe { IrqRequest::new(self.dev.as_ref(), irq as u32) })
+    }
+}
+
 /// Represents an IRQ vector allocation for a PCI device.
 ///
 /// This type ensures that IRQ vectors are properly allocated and freed by
@@ -675,31 +689,15 @@ impl Device<device::Bound> {
         self.iomap_region_sized::<0>(bar, name)
     }
 
-    /// Returns an [`IrqRequest`] for the given IRQ vector.
-    pub fn irq_vector(&self, vector: IrqVector<'_>) -> Result<IrqRequest<'_>> {
-        // Verify that the vector belongs to this device.
-        if !core::ptr::eq(vector.dev.as_raw(), self.as_raw()) {
-            return Err(EINVAL);
-        }
-
-        // SAFETY: `self.as_raw` returns a valid pointer to a `struct pci_dev`.
-        let irq = unsafe { crate::bindings::pci_irq_vector(self.as_raw(), vector.index()) };
-        if irq < 0 {
-            return Err(crate::error::Error::from_errno(irq));
-        }
-        // SAFETY: `irq` is guaranteed to be a valid IRQ number for `&self`.
-        Ok(unsafe { IrqRequest::new(self.as_ref(), irq as u32) })
-    }
-
     /// Returns a [`kernel::irq::Registration`] for the given IRQ vector.
     pub fn request_irq<'a, T: crate::irq::Handler + 'static>(
         &'a self,
-        vector: IrqVector<'_>,
+        vector: IrqVector<'a>,
         flags: irq::Flags,
         name: &'static CStr,
         handler: impl PinInit<T, Error> + 'a,
     ) -> Result<impl PinInit<irq::Registration<T>, Error> + 'a> {
-        let request = self.irq_vector(vector)?;
+        let request = vector.try_into()?;
 
         Ok(irq::Registration::<T>::new(request, flags, name, handler))
     }
@@ -707,12 +705,12 @@ impl Device<device::Bound> {
     /// Returns a [`kernel::irq::ThreadedRegistration`] for the given IRQ vector.
     pub fn request_threaded_irq<'a, T: crate::irq::ThreadedHandler + 'static>(
         &'a self,
-        vector: IrqVector<'_>,
+        vector: IrqVector<'a>,
         flags: irq::Flags,
         name: &'static CStr,
         handler: impl PinInit<T, Error> + 'a,
     ) -> Result<impl PinInit<irq::ThreadedRegistration<T>, Error> + 'a> {
-        let request = self.irq_vector(vector)?;
+        let request = vector.try_into()?;
 
         Ok(irq::ThreadedRegistration::<T>::new(
             request, flags, name, handler,
