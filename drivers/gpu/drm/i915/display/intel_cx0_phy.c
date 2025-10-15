@@ -2624,6 +2624,7 @@ static void intel_c20_pll_program(struct intel_display *display,
 				  bool is_dp, int port_clock)
 {
 	u8 owned_lane_mask = intel_cx0_get_owned_lane_mask(encoder);
+	u8 serdes;
 	bool cntx;
 	int i;
 
@@ -2699,21 +2700,23 @@ static void intel_c20_pll_program(struct intel_display *display,
 		      MB_WRITE_COMMITTED);
 
 	/* 5. For DP or 6. For HDMI */
-	if (is_dp) {
-		intel_cx0_rmw(encoder, owned_lane_mask, PHY_C20_VDR_CUSTOM_SERDES_RATE,
-			      PHY_C20_IS_DP | PHY_C20_DP_RATE_MASK,
-			      PHY_C20_IS_DP | PHY_C20_DP_RATE(intel_c20_get_dp_rate(port_clock)),
-			      MB_WRITE_COMMITTED);
-	} else {
-		intel_cx0_rmw(encoder, owned_lane_mask, PHY_C20_VDR_CUSTOM_SERDES_RATE,
-			      PHY_C20_IS_HDMI_FRL | PHY_C20_DP_RATE_MASK,
-			      is_hdmi_frl(port_clock) ? PHY_C20_IS_HDMI_FRL : 0,
-			      MB_WRITE_COMMITTED);
+	serdes = 0;
 
+	if (is_dp)
+		serdes = PHY_C20_IS_DP |
+			 PHY_C20_DP_RATE(intel_c20_get_dp_rate(port_clock));
+	else if (is_hdmi_frl(port_clock))
+		serdes = PHY_C20_IS_HDMI_FRL;
+
+	intel_cx0_rmw(encoder, owned_lane_mask, PHY_C20_VDR_CUSTOM_SERDES_RATE,
+		      PHY_C20_IS_DP | PHY_C20_DP_RATE_MASK | PHY_C20_IS_HDMI_FRL,
+		      serdes,
+		      MB_WRITE_COMMITTED);
+
+	if (!is_dp)
 		intel_cx0_write(encoder, INTEL_CX0_BOTH_LANES, PHY_C20_VDR_HDMI_RATE,
 				intel_c20_get_hdmi_rate(port_clock),
 				MB_WRITE_COMMITTED);
-	}
 
 	/*
 	 * 7. Write Vendor specific registers to toggle context setting to load
