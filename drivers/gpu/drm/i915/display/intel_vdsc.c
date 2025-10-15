@@ -372,6 +372,11 @@ int intel_dsc_compute_params(struct intel_crtc_state *pipe_config)
 	return 0;
 }
 
+void intel_dsc_enable_on_crtc(struct intel_crtc_state *crtc_state)
+{
+	crtc_state->dsc.compression_enable = true;
+}
+
 enum intel_display_power_domain
 intel_dsc_power_domain(struct intel_crtc *crtc, enum transcoder cpu_transcoder)
 {

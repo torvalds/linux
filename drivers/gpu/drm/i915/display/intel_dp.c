@@ -2475,7 +2475,8 @@ int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 		return ret;
 	}
 
-	pipe_config->dsc.compression_enable = true;
+	intel_dsc_enable_on_crtc(pipe_config);
+
 	drm_dbg_kms(display->drm, "DP DSC computed with Input Bpp = %d "
 		    "Compressed Bpp = " FXP_Q4_FMT " Slice Count = %d\n",
 		    pipe_config->pipe_bpp,

@@ -1655,7 +1655,7 @@ static int gen11_dsi_dsc_compute_config(struct intel_encoder *encoder,
 	if (ret)
 		return ret;
 
-	crtc_state->dsc.compression_enable = true;
+	intel_dsc_enable_on_crtc(crtc_state);
 
 	return 0;
 }
