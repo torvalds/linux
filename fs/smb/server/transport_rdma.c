@@ -451,11 +451,10 @@ static void free_transport(struct smb_direct_transport *t)
 	struct smbdirect_recv_io *recvmsg;
 
 	disable_work_sync(&sc->disconnect_work);
-	if (sc->status < SMBDIRECT_SOCKET_DISCONNECTING) {
+	if (sc->status < SMBDIRECT_SOCKET_DISCONNECTING)
 		smb_direct_disconnect_rdma_work(&sc->disconnect_work);
-		wait_event_interruptible(sc->status_wait,
-					 sc->status == SMBDIRECT_SOCKET_DISCONNECTED);
-	}
+	if (sc->status < SMBDIRECT_SOCKET_DISCONNECTED)
+		wait_event(sc->status_wait, sc->status == SMBDIRECT_SOCKET_DISCONNECTED);
 
 	/*
 	 * Wake up all waiters in all wait queues
