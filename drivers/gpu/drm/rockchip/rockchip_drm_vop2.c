@@ -2647,6 +2647,12 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 	if (IS_ERR(vop2->map))
 		return PTR_ERR(vop2->map);
 
+	/* Set the bounds for framebuffer creation */
+	drm->mode_config.min_width = 4;
+	drm->mode_config.min_height = 4;
+	drm->mode_config.max_width = vop2_data->max_input.width;
+	drm->mode_config.max_height = vop2_data->max_input.height;
+
 	ret = vop2_win_init(vop2);
 	if (ret)
 		return ret;
