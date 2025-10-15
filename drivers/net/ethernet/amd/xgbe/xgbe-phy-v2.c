@@ -668,7 +668,7 @@ static int xgbe_phy_mii_read_c45(struct mii_bus *mii, int addr, int devad,
 	else if (phy_data->conn_type & XGBE_CONN_TYPE_MDIO)
 		ret = xgbe_phy_mdio_mii_read_c45(pdata, addr, devad, reg);
 	else
-		ret = -ENOTSUPP;
+		ret = -EOPNOTSUPP;
 
 	xgbe_phy_put_comm_ownership(pdata);
 
