@@ -666,10 +666,9 @@ static int resolve_indirect_ref(struct btrfs_backref_walk_ctx *ctx,
 		ret = btrfs_search_old_slot(root, &search_key, path, ctx->time_seq);
 
 	btrfs_debug(ctx->fs_info,
-		"search slot in root %llu (level %d, ref count %d) returned %d for key (%llu %u %llu)",
-		 ref->root_id, level, ref->count, ret,
-		 ref->key_for_search.objectid, ref->key_for_search.type,
-		 ref->key_for_search.offset);
+"search slot in root %llu (level %d, ref count %d) returned %d for key " BTRFS_KEY_FMT,
+		    ref->root_id, level, ref->count, ret,
+		    BTRFS_KEY_FMT_VALUE(&ref->key_for_search));
 	if (ret < 0)
 		goto out;
 
@@ -3323,9 +3322,9 @@ static int handle_indirect_tree_backref(struct btrfs_trans_handle *trans,
 	eb = path->nodes[level];
 	if (btrfs_node_blockptr(eb, path->slots[level]) != cur->bytenr) {
 		btrfs_err(fs_info,
-"couldn't find block (%llu) (level %d) in tree (%llu) with key (%llu %u %llu)",
+"couldn't find block (%llu) (level %d) in tree (%llu) with key " BTRFS_KEY_FMT,
 			  cur->bytenr, level - 1, btrfs_root_id(root),
-			  tree_key->objectid, tree_key->type, tree_key->offset);
+			  BTRFS_KEY_FMT_VALUE(tree_key));
 		btrfs_put_root(root);
 		ret = -ENOENT;
 		goto out;

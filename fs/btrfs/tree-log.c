@@ -198,9 +198,9 @@ static void do_abort_log_replay(struct walk_control *wc, const char *function,
 
 	if (wc->log_leaf) {
 		btrfs_crit(fs_info,
-	  "log tree (for root %llu) leaf currently being processed (slot %d key %llu %u %llu):",
+"log tree (for root %llu) leaf currently being processed (slot %d key " BTRFS_KEY_FMT "):",
 			   btrfs_root_id(wc->root), wc->log_slot,
-			   wc->log_key.objectid, wc->log_key.type, wc->log_key.offset);
+			   BTRFS_KEY_FMT_VALUE(&wc->log_key));
 		btrfs_print_leaf(wc->log_leaf);
 	}
 
@@ -510,9 +510,9 @@ static int overwrite_item(struct walk_control *wc)
 	ret = btrfs_search_slot(NULL, root, &wc->log_key, wc->subvol_path, 0, 0);
 	if (ret < 0) {
 		btrfs_abort_log_replay(wc, ret,
-		"failed to search subvolume tree for key (%llu %u %llu) root %llu",
-				       wc->log_key.objectid, wc->log_key.type,
-				       wc->log_key.offset, btrfs_root_id(root));
+		"failed to search subvolume tree for key " BTRFS_KEY_FMT " root %llu",
+				       BTRFS_KEY_FMT_VALUE(&wc->log_key),
+				       btrfs_root_id(root));
 		return ret;
 	}
 
@@ -618,9 +618,8 @@ insert:
 			btrfs_extend_item(trans, wc->subvol_path, item_size - found_size);
 	} else if (ret) {
 		btrfs_abort_log_replay(wc, ret,
-				       "failed to insert item for key (%llu %u %llu)",
-				       wc->log_key.objectid, wc->log_key.type,
-				       wc->log_key.offset);
+				       "failed to insert item for key " BTRFS_KEY_FMT,
+				       BTRFS_KEY_FMT_VALUE(&wc->log_key));
 		return ret;
 	}
 	dst_ptr = btrfs_item_ptr_offset(dst_eb, dst_slot);
@@ -829,9 +828,9 @@ static noinline int replay_one_extent(struct walk_control *wc)
 				      &wc->log_key, sizeof(*item));
 	if (ret) {
 		btrfs_abort_log_replay(wc, ret,
-		       "failed to insert item with key (%llu %u %llu) root %llu",
-				       wc->log_key.objectid, wc->log_key.type,
-				       wc->log_key.offset, btrfs_root_id(root));
+		       "failed to insert item with key " BTRFS_KEY_FMT " root %llu",
+				       BTRFS_KEY_FMT_VALUE(&wc->log_key),
+				       btrfs_root_id(root));
 		goto out;
 	}
 	dest_offset = btrfs_item_ptr_offset(wc->subvol_path->nodes[0],
@@ -1348,9 +1347,9 @@ again:
 	ret = btrfs_search_slot(NULL, root, &search_key, wc->subvol_path, 0, 0);
 	if (ret < 0) {
 		btrfs_abort_log_replay(wc, ret,
-	       "failed to search subvolume tree for key (%llu %u %llu) root %llu",
-				       search_key.objectid, search_key.type,
-				       search_key.offset, btrfs_root_id(root));
+	       "failed to search subvolume tree for key " BTRFS_KEY_FMT " root %llu",
+				       BTRFS_KEY_FMT_VALUE(&search_key),
+				       btrfs_root_id(root));
 		return ret;
 	} else if (ret == 0) {
 		/*
@@ -1483,9 +1482,9 @@ again:
 	}
 	if (ret < 0) {
 		btrfs_abort_log_replay(wc, ret,
-	       "failed to search subvolume tree for key (%llu %u %llu) root %llu",
-				       wc->log_key.objectid, wc->log_key.type,
-				       wc->log_key.offset, btrfs_root_id(root));
+	       "failed to search subvolume tree for key " BTRFS_KEY_FMT " root %llu",
+				       BTRFS_KEY_FMT_VALUE(&wc->log_key),
+				       btrfs_root_id(root));
 		goto out;
 	}
 
@@ -2700,10 +2699,9 @@ static noinline int replay_dir_deletes(struct walk_control *wc,
 						wc->subvol_path, 0, 0);
 			if (ret < 0) {
 				btrfs_abort_log_replay(wc, ret,
-			       "failed to search root %llu for key (%llu %u %llu)",
+			       "failed to search root %llu for key " BTRFS_KEY_FMT,
 						       btrfs_root_id(root),
-						       dir_key.objectid, dir_key.type,
-						       dir_key.offset);
+						       BTRFS_KEY_FMT_VALUE(&dir_key));
 				goto out;
 			}
 

@@ -147,8 +147,8 @@ int btrfs_update_root(struct btrfs_trans_handle *trans, struct btrfs_root
 
 	if (unlikely(ret > 0)) {
 		btrfs_crit(fs_info,
-			"unable to find root key (%llu %u %llu) in tree %llu",
-			key->objectid, key->type, key->offset, btrfs_root_id(root));
+			   "unable to find root key " BTRFS_KEY_FMT " in tree %llu",
+			   BTRFS_KEY_FMT_VALUE(key), btrfs_root_id(root));
 		ret = -EUCLEAN;
 		btrfs_abort_transaction(trans, ret);
 		return ret;

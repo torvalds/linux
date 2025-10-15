@@ -615,8 +615,8 @@ static struct btrfs_root *create_reloc_root(struct btrfs_trans_handle *trans,
 
 			btrfs_disk_key_to_cpu(&cpu_key, &root->root_item.drop_progress);
 			btrfs_err(fs_info,
-	"cannot relocate partially dropped subvolume %llu, drop progress key (%llu %u %llu)",
-				  objectid, cpu_key.objectid, cpu_key.type, cpu_key.offset);
+	"cannot relocate partially dropped subvolume %llu, drop progress key " BTRFS_KEY_FMT,
+				  objectid, BTRFS_KEY_FMT_VALUE(&cpu_key));
 			ret = -EUCLEAN;
 			goto fail;
 		}
