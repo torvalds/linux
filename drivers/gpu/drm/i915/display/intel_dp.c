@@ -2365,24 +2365,29 @@ static int intel_edp_dsc_compute_pipe_bpp(struct intel_dp *intel_dp,
 	return 0;
 }
 
-static void intel_dp_fec_compute_config(struct intel_dp *intel_dp,
-					struct intel_crtc_state *crtc_state)
+/*
+ * Return whether FEC must be enabled for 8b10b SST or MST links. On 128b132b
+ * links FEC is always enabled implicitly by the HW, so this function returns
+ * false for that case.
+ */
+bool intel_dp_needs_8b10b_fec(const struct intel_crtc_state *crtc_state,
+			      bool dsc_enabled_on_crtc)
 {
 	if (intel_dp_is_uhbr(crtc_state))
-		return;
+		return false;
 
 	if (crtc_state->fec_enable)
-		return;
+		return true;
 
 	/*
 	 * Though eDP v1.5 supports FEC with DSC, unlike DP, it is optional.
 	 * Since, FEC is a bandwidth overhead, continue to not enable it for
 	 * eDP. Until, there is a good reason to do so.
 	 */
-	if (intel_dp_is_edp(intel_dp))
-		return;
+	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_EDP))
+		return false;
 
-	crtc_state->fec_enable = true;
+	return dsc_enabled_on_crtc;
 }
 
 int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
@@ -2404,7 +2409,7 @@ int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 	 * FIXME: set the FEC enabled state once pipe_config->port_clock is
 	 * already known, so the UHBR/non-UHBR mode can be determined.
 	 */
-	intel_dp_fec_compute_config(intel_dp, pipe_config);
+	pipe_config->fec_enable = intel_dp_needs_8b10b_fec(pipe_config, true);
 
 	if (!intel_dp_dsc_supports_format(connector, pipe_config->output_format))
 		return -EINVAL;

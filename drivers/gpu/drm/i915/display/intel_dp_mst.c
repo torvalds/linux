@@ -296,7 +296,7 @@ int intel_dp_mtp_tu_compute_config(struct intel_dp *intel_dp,
 	/*
 	 * NOTE: The following must reset crtc_state->fec_enable for UHBR/DSC
 	 * after it was set by intel_dp_dsc_compute_config() ->
-	 * intel_dp_fec_compute_config().
+	 * intel_dp_needs_8b10b_fec().
 	 */
 	if (dsc) {
 		if (!intel_dp_supports_fec(intel_dp, connector, crtc_state))
