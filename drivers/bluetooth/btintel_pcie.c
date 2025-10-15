@@ -825,6 +825,11 @@ static inline bool btintel_pcie_in_d0(struct btintel_pcie_data *data)
 	return !(data->boot_stage_cache & BTINTEL_PCIE_CSR_BOOT_STAGE_D3_STATE_READY);
 }
 
+static inline bool btintel_pcie_in_device_halt(struct btintel_pcie_data *data)
+{
+	return data->boot_stage_cache & BTINTEL_PCIE_CSR_BOOT_STAGE_DEVICE_HALTED;
+}
+
 static void btintel_pcie_wr_sleep_cntrl(struct btintel_pcie_data *data,
 					u32 dxstate)
 {
@@ -2532,6 +2537,8 @@ static int btintel_pcie_suspend_late(struct device *dev, pm_message_t mesg)
 	dxstate = (mesg.event == PM_EVENT_SUSPEND ?
 		   BTINTEL_PCIE_STATE_D3_HOT : BTINTEL_PCIE_STATE_D3_COLD);
 
+	data->pm_sx_event = mesg.event;
+
 	data->gp0_received = false;
 
 	start = ktime_get();
@@ -2581,6 +2588,20 @@ static int btintel_pcie_resume(struct device *dev)
 
 	start = ktime_get();
 
+	/* When the system enters S4 (hibernate) mode, bluetooth device loses
+	 * power, which results in the erasure of its loaded firmware.
+	 * Consequently, function level reset (flr) is required on system
+	 * resume to bring the controller back into an operational state by
+	 * initiating a new firmware download.
+	 */
+
+	if (data->pm_sx_event == PM_EVENT_FREEZE ||
+	    data->pm_sx_event == PM_EVENT_HIBERNATE) {
+		set_bit(BTINTEL_PCIE_CORE_HALTED, &data->flags);
+		btintel_pcie_reset(data->hdev);
+		return 0;
+	}
+
 	/* Refer: 6.4.11.7 -> Platform power management */
 	btintel_pcie_wr_sleep_cntrl(data, BTINTEL_PCIE_STATE_D0);
 	err = wait_event_timeout(data->gp0_wait_q, data->gp0_received,
@@ -2589,6 +2610,26 @@ static int btintel_pcie_resume(struct device *dev)
 		bt_dev_err(data->hdev,
 			   "Timeout (%u ms) on alive interrupt for D0 entry",
 			   BTINTEL_DEFAULT_INTR_TIMEOUT_MS);
+
+		/* Trigger function level reset if the controller is in error
+		 * state during resume() to bring back the controller to
+		 * operational mode
+		 */
+
+		data->boot_stage_cache = btintel_pcie_rd_reg32(data,
+				BTINTEL_PCIE_CSR_BOOT_STAGE_REG);
+		if (btintel_pcie_in_error(data) ||
+				btintel_pcie_in_device_halt(data)) {
+			bt_dev_err(data->hdev, "Controller in error state for D0 entry");
+			if (!test_and_set_bit(BTINTEL_PCIE_COREDUMP_INPROGRESS,
+					      &data->flags)) {
+				data->dmp_hdr.trigger_reason =
+					BTINTEL_PCIE_TRIGGER_REASON_FW_ASSERT;
+				queue_work(data->workqueue, &data->rx_work);
+			}
+			set_bit(BTINTEL_PCIE_CORE_HALTED, &data->flags);
+			btintel_pcie_reset(data->hdev);
+		}
 		return -EBUSY;
 	}
 
