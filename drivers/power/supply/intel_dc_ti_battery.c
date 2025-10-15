@@ -141,7 +141,7 @@ static int dc_ti_battery_get_voltage_and_current_now(struct power_supply *psy, i
 	if (ret)
 		goto out_err;
 
-	cnt_start_usec = ktime_get_ns() / NSEC_PER_USEC;
+	cnt_start_usec = ktime_divns(ktime_get_ns(), NSEC_PER_USEC);
 
 	/* Read Vbat, convert IIO mV to power-supply ųV */
 	ret = iio_read_channel_processed_scale(chip->vbat_channel, volt, 1000);
@@ -149,7 +149,7 @@ static int dc_ti_battery_get_voltage_and_current_now(struct power_supply *psy, i
 		goto out_err;
 
 	/* Sleep at least 3 sample-times + slack to get 3+ CC samples */
-	now_usec = ktime_get_ns() / NSEC_PER_USEC;
+	now_usec = ktime_divns(ktime_get_ns(), NSEC_PER_USEC);
 	sleep_usec = 3 * SMPL_INTVL_US + SLEEP_SLACK_US - (now_usec - cnt_start_usec);
 	if (sleep_usec > 0 && sleep_usec < 1000000)
 		usleep_range(sleep_usec, sleep_usec + SLEEP_SLACK_US);
