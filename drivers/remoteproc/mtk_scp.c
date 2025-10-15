@@ -16,6 +16,7 @@
 #include <linux/remoteproc.h>
 #include <linux/remoteproc/mtk_scp.h>
 #include <linux/rpmsg/mtk_rpmsg.h>
+#include <linux/string.h>
 
 #include "mtk_common.h"
 #include "remoteproc_internal.h"
@@ -1093,22 +1094,74 @@ static void scp_remove_rpmsg_subdev(struct mtk_scp *scp)
 	}
 }
 
+/**
+ * scp_get_default_fw_path() - Get default SCP firmware path
+ * @dev:     SCP Device
+ * @core_id: SCP Core number
+ *
+ * This function generates a path based on the following format:
+ *     mediatek/(soc_model)/scp(_cX).img; for multi-core or
+ *     mediatek/(soc_model)/scp.img for single core SCP HW
+ *
+ * Return: A devm allocated string containing the full path to
+ *         a SCP firmware or an error pointer
+ */
+static const char *scp_get_default_fw_path(struct device *dev, int core_id)
+{
+	struct device_node *np = core_id < 0 ? dev->of_node : dev->parent->of_node;
+	const char *compatible, *soc;
+	char scp_fw_file[7];
+	int ret;
+
+	/* Use only the first compatible string */
+	ret = of_property_read_string_index(np, "compatible", 0, &compatible);
+	if (ret)
+		return ERR_PTR(ret);
+
+	/* If the compatible string's length is implausible bail out early */
+	if (strlen(compatible) < strlen("mediatek,mtXXXX-scp"))
+		return ERR_PTR(-EINVAL);
+
+	/* If the compatible string starts with "mediatek,mt" assume that it's ok */
+	if (!str_has_prefix(compatible, "mediatek,mt"))
+		return ERR_PTR(-EINVAL);
+
+	if (core_id >= 0)
+		ret = snprintf(scp_fw_file, ARRAY_SIZE(scp_fw_file), "scp_c%1d", core_id);
+	else
+		ret = snprintf(scp_fw_file, ARRAY_SIZE(scp_fw_file), "scp");
+	if (ret <= 0)
+		return ERR_PTR(ret);
+
+	/* Not using strchr here, as strlen of a const gets optimized by compiler */
+	soc = &compatible[strlen("mediatek,")];
+
+	return devm_kasprintf(dev, GFP_KERNEL, "mediatek/%.*s/%s.img",
+			      (int)strlen("mtXXXX"), soc, scp_fw_file);
+}
+
 static struct mtk_scp *scp_rproc_init(struct platform_device *pdev,
 				      struct mtk_scp_of_cluster *scp_cluster,
-				      const struct mtk_scp_of_data *of_data)
+				      const struct mtk_scp_of_data *of_data,
+				      int core_id)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 	struct mtk_scp *scp;
 	struct rproc *rproc;
 	struct resource *res;
-	const char *fw_name = "scp.img";
+	const char *fw_name;
 	int ret, i;
 	const struct mtk_scp_sizes_data *scp_sizes;
 
 	ret = rproc_of_parse_firmware(dev, 0, &fw_name);
-	if (ret < 0 && ret != -EINVAL)
-		return ERR_PTR(ret);
+	if (ret) {
+		fw_name = scp_get_default_fw_path(dev, core_id);
+		if (IS_ERR(fw_name)) {
+			dev_err(dev, "Cannot get firmware path: %ld\n", PTR_ERR(fw_name));
+			return ERR_CAST(fw_name);
+		}
+	}
 
 	rproc = devm_rproc_alloc(dev, np->name, &scp_ops, fw_name, sizeof(*scp));
 	if (!rproc) {
@@ -1212,7 +1265,7 @@ static int scp_add_single_core(struct platform_device *pdev,
 	struct mtk_scp *scp;
 	int ret;
 
-	scp = scp_rproc_init(pdev, scp_cluster, of_device_get_match_data(dev));
+	scp = scp_rproc_init(pdev, scp_cluster, of_device_get_match_data(dev), -1);
 	if (IS_ERR(scp))
 		return PTR_ERR(scp);
 
@@ -1259,7 +1312,7 @@ static int scp_add_multi_core(struct platform_device *pdev,
 			goto init_fail;
 		}
 
-		scp = scp_rproc_init(cpdev, scp_cluster, cluster_of_data[core_id]);
+		scp = scp_rproc_init(cpdev, scp_cluster, cluster_of_data[core_id], core_id);
 		put_device(&cpdev->dev);
 		if (IS_ERR(scp)) {
 			ret = PTR_ERR(scp);
