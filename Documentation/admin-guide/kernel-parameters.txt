@@ -7150,7 +7150,7 @@
 			limit. Default value is 8191 pools.
 
 	stacktrace	[FTRACE]
-			Enabled the stack tracer on boot up.
+			Enable the stack tracer on boot up.
 
 	stacktrace_filter=[function-list]
 			[FTRACE] Limit the functions that the stack tracer
