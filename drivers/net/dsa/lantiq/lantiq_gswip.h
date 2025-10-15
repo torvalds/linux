@@ -270,7 +270,6 @@ struct gswip_priv {
 	struct gswip_vlan vlans[64];
 	int num_gphy_fw;
 	struct gswip_gphy_fw *gphy_fw;
-	u32 port_vlan_filter;
 	struct mutex pce_table_lock;
 	u16 version;
 };

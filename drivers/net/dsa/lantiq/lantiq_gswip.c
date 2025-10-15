@@ -590,15 +590,7 @@ static int gswip_port_vlan_filtering(struct dsa_switch *ds, int port,
 				     bool vlan_filtering,
 				     struct netlink_ext_ack *extack)
 {
-	struct net_device *bridge = dsa_port_bridge_dev_get(dsa_to_port(ds, port));
 	struct gswip_priv *priv = ds->priv;
-
-	/* Do not allow changing the VLAN filtering options while in bridge */
-	if (bridge && !!(priv->port_vlan_filter & BIT(port)) != vlan_filtering) {
-		NL_SET_ERR_MSG_MOD(extack,
-				   "Dynamic toggling of vlan_filtering not supported");
-		return -EIO;
-	}
 
 	if (vlan_filtering) {
 		/* Use tag based VLAN */
@@ -927,18 +919,15 @@ static int gswip_port_bridge_join(struct dsa_switch *ds, int port,
 	struct gswip_priv *priv = ds->priv;
 	int err;
 
-	/* When the bridge uses VLAN filtering we have to configure VLAN
-	 * specific bridges. No bridge is configured here.
+	/* Set up the VLAN for VLAN-unaware bridging for this port, and remove
+	 * it from the "single-port bridge" through which it was operating as
+	 * standalone.
 	 */
-	if (!br_vlan_enabled(br)) {
-		err = gswip_vlan_add(priv, br, port, GSWIP_VLAN_UNAWARE_PVID,
-				     true, true, false);
-		if (err)
-			return err;
-		priv->port_vlan_filter &= ~BIT(port);
-	} else {
-		priv->port_vlan_filter |= BIT(port);
-	}
+	err = gswip_vlan_add(priv, br, port, GSWIP_VLAN_UNAWARE_PVID,
+			     true, true, false);
+	if (err)
+		return err;
+
 	return gswip_add_single_port_br(priv, port, false);
 }
 
@@ -948,14 +937,11 @@ static void gswip_port_bridge_leave(struct dsa_switch *ds, int port,
 	struct net_device *br = bridge.dev;
 	struct gswip_priv *priv = ds->priv;
 
-	gswip_add_single_port_br(priv, port, true);
-
-	/* When the bridge uses VLAN filtering we have to configure VLAN
-	 * specific bridges. No bridge is configured here.
+	/* Add the port back to the "single-port bridge", and remove it from
+	 * the VLAN-unaware PVID created for this bridge.
 	 */
-	if (!br_vlan_enabled(br))
-		gswip_vlan_remove(priv, br, port, GSWIP_VLAN_UNAWARE_PVID, true,
-				  false);
+	gswip_add_single_port_br(priv, port, true);
+	gswip_vlan_remove(priv, br, port, GSWIP_VLAN_UNAWARE_PVID, true, false);
 }
 
 static int gswip_port_vlan_prepare(struct dsa_switch *ds, int port,
