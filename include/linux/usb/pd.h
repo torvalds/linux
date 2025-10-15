@@ -6,6 +6,7 @@
 #ifndef __LINUX_USB_PD_H
 #define __LINUX_USB_PD_H
 
+#include <linux/bitfield.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/usb/typec.h>
@@ -271,9 +272,11 @@ enum pd_pdo_type {
 
 enum pd_apdo_type {
 	APDO_TYPE_PPS = 0,
+	APDO_TYPE_EPR_AVS = 1,
+	APDO_TYPE_SPR_AVS = 2,
 };
 
-#define PDO_APDO_TYPE_SHIFT	28	/* Only valid value currently is 0x0 - PPS */
+#define PDO_APDO_TYPE_SHIFT	28
 #define PDO_APDO_TYPE_MASK	0x3
 
 #define PDO_APDO_TYPE(t)	((t) << PDO_APDO_TYPE_SHIFT)
@@ -296,6 +299,35 @@ enum pd_apdo_type {
 	(PDO_TYPE(PDO_TYPE_APDO) | PDO_APDO_TYPE(APDO_TYPE_PPS) |	\
 	PDO_PPS_APDO_MIN_VOLT(min_mv) | PDO_PPS_APDO_MAX_VOLT(max_mv) |	\
 	PDO_PPS_APDO_MAX_CURR(max_ma))
+
+/*
+ * Applicable only to EPR AVS APDO source cap as per
+ * Table 6.15 EPR Adjustable Voltage Supply APDO – Source
+ */
+#define PDO_EPR_AVS_APDO_PEAK_CURRENT	GENMASK(27, 26)
+
+/*
+ * Applicable to both EPR AVS APDO source and sink cap as per
+ * Table 6.15 EPR Adjustable Voltage Supply APDO – Source
+ * Table 6.22 EPR Adjustable Voltage Supply APDO – Sink
+ */
+#define PDO_EPR_AVS_APDO_MAX_VOLT	GENMASK(25, 17)	/* 100mV unit */
+#define PDO_EPR_AVS_APDO_MIN_VOLT	GENMASK(15, 8)	/* 100mV unit */
+#define PDO_EPR_AVS_APDO_PDP		GENMASK(7, 0) /* 1W unit */
+
+/*
+ * Applicable only SPR AVS APDO source cap as per
+ * Table 6.14 SPR Adjustable Voltage Supply APDO – Source
+ */
+#define PDO_SPR_AVS_APDO_PEAK_CURRENT		GENMASK(27, 26)
+
+/*
+ * Applicable to both SPR AVS APDO source and sink cap as per
+ * Table 6.14 SPR Adjustable Voltage Supply APDO – Source
+ * Table 6.21 SPR Adjustable Voltage Supply APDO – Sink
+ */
+#define PDO_SPR_AVS_APDO_9V_TO_15V_MAX_CURR	GENMASK(19, 10)	/* 10mA unit */
+#define PDO_SPR_AVS_APDO_15V_TO_20V_MAX_CURR	GENMASK(9, 0)	/* 10mA unit */
 
 static inline enum pd_pdo_type pdo_type(u32 pdo)
 {
@@ -348,6 +380,41 @@ static inline unsigned int pdo_pps_apdo_max_current(u32 pdo)
 {
 	return ((pdo >> PDO_PPS_APDO_MAX_CURR_SHIFT) &
 		PDO_PPS_APDO_CURR_MASK) * 50;
+}
+
+static inline unsigned int pdo_epr_avs_apdo_src_peak_current(u32 pdo)
+{
+	return FIELD_GET(PDO_EPR_AVS_APDO_PEAK_CURRENT, pdo);
+}
+
+static inline unsigned int pdo_epr_avs_apdo_min_voltage_mv(u32 pdo)
+{
+	return FIELD_GET(PDO_EPR_AVS_APDO_MIN_VOLT, pdo) * 100;
+}
+
+static inline unsigned int pdo_epr_avs_apdo_max_voltage_mv(u32 pdo)
+{
+	return FIELD_GET(PDO_EPR_AVS_APDO_MIN_VOLT, pdo) * 100;
+}
+
+static inline unsigned int pdo_epr_avs_apdo_pdp_w(u32 pdo)
+{
+	return FIELD_GET(PDO_EPR_AVS_APDO_PDP, pdo);
+}
+
+static inline unsigned int pdo_spr_avs_apdo_src_peak_current(u32 pdo)
+{
+	return FIELD_GET(PDO_SPR_AVS_APDO_PEAK_CURRENT, pdo);
+}
+
+static inline unsigned int pdo_spr_avs_apdo_9v_to_15v_max_current_ma(u32 pdo)
+{
+	return FIELD_GET(PDO_SPR_AVS_APDO_9V_TO_15V_MAX_CURR, pdo) * 10;
+}
+
+static inline unsigned int pdo_spr_avs_apdo_15v_to_20v_max_current_ma(u32 pdo)
+{
+	return FIELD_GET(PDO_SPR_AVS_APDO_15V_TO_20V_MAX_CURR, pdo) * 10;
 }
 
 /* RDO: Request Data Object */

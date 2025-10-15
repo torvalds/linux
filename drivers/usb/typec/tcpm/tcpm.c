@@ -823,10 +823,23 @@ static void tcpm_log_source_caps(struct tcpm_port *port)
 		case PDO_TYPE_APDO:
 			if (pdo_apdo_type(pdo) == APDO_TYPE_PPS)
 				scnprintf(msg, sizeof(msg),
-					  "%u-%u mV, %u mA",
+					  "PPS %u-%u mV, %u mA",
 					  pdo_pps_apdo_min_voltage(pdo),
 					  pdo_pps_apdo_max_voltage(pdo),
 					  pdo_pps_apdo_max_current(pdo));
+			else if (pdo_apdo_type(pdo) == APDO_TYPE_EPR_AVS)
+				scnprintf(msg, sizeof(msg),
+					  "EPR AVS %u-%u mV %u W peak_current: %u",
+					  pdo_epr_avs_apdo_min_voltage_mv(pdo),
+					  pdo_epr_avs_apdo_max_voltage_mv(pdo),
+					  pdo_epr_avs_apdo_pdp_w(pdo),
+					  pdo_epr_avs_apdo_src_peak_current(pdo));
+			else if (pdo_apdo_type(pdo) == APDO_TYPE_SPR_AVS)
+				scnprintf(msg, sizeof(msg),
+					  "SPR AVS 9-15 V: %u mA 15-20 V: %u mA peak_current: %u",
+					  pdo_spr_avs_apdo_9v_to_15v_max_current_ma(pdo),
+					  pdo_spr_avs_apdo_15v_to_20v_max_current_ma(pdo),
+					  pdo_spr_avs_apdo_src_peak_current(pdo));
 			else
 				strcpy(msg, "undefined APDO");
 			break;
