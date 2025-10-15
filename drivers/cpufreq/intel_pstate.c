@@ -951,11 +951,26 @@ static int hybrid_active_power(struct device *dev, unsigned long *power,
 	return 0;
 }
 
+static bool hybrid_has_l3(unsigned int cpu)
+{
+	struct cpu_cacheinfo *cacheinfo = get_cpu_cacheinfo(cpu);
+	unsigned int i;
+
+	if (!cacheinfo)
+		return false;
+
+	for (i = 0; i < cacheinfo->num_leaves; i++) {
+		if (cacheinfo->info_list[i].level == 3)
+			return true;
+	}
+
+	return false;
+}
+
 static int hybrid_get_cost(struct device *dev, unsigned long freq,
 			   unsigned long *cost)
 {
 	struct pstate_data *pstate = &all_cpu_data[dev->id]->pstate;
-	struct cpu_cacheinfo *cacheinfo = get_cpu_cacheinfo(dev->id);
 
 	/*
 	 * The smaller the perf-to-frequency scaling factor, the larger the IPC
@@ -973,17 +988,8 @@ static int hybrid_get_cost(struct device *dev, unsigned long freq,
 	 * touching it in case some other CPUs of the same type can do the work
 	 * without it.
 	 */
-	if (cacheinfo) {
-		unsigned int i;
-
-		/* Check if L3 cache is there. */
-		for (i = 0; i < cacheinfo->num_leaves; i++) {
-			if (cacheinfo->info_list[i].level == 3) {
-				*cost += 2;
-				break;
-			}
-		}
-	}
+	if (hybrid_has_l3(dev->id))
+		*cost += 2;
 
 	return 0;
 }
