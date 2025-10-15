@@ -43,8 +43,14 @@ properties:
           - adi,ad5110
             # Temperature sensor with integrated fan control
           - adi,adm1027
+            # Analog Devices ADT7410 High Accuracy Digital Temperature Sensor
+          - adi,adt7410
             # Analog Devices ADT7411 Temperature Sensor and 8-channel ADC
           - adi,adt7411
+            # Analog Devices ADT7420 High Accuracy Digital Temperature Sensor
+          - adi,adt7420
+            # Analog Devices ADT7422 High Accuracy Digital Temperature Sensor
+          - adi,adt7422
             # Temperature sensor with integrated fan control
           - adi,adt7463
             # Temperature sensor with integrated fan control
