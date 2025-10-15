@@ -108,14 +108,14 @@ TEST(file_backed)
 	/* Testing a file backed shared memory */
 	fd = open(SHM_PATH, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
 	if (fd < 0)
-		ksft_exit_fail_msg("open");
+		ksft_exit_fail_msg("open\n");
 
 	if (ftruncate(fd, sizeof(f_private)))
-		ksft_exit_fail_msg("ftruncate");
+		ksft_exit_fail_msg("ftruncate\n");
 
 	shm = mmap(NULL, sizeof(f_private), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 	if (shm == MAP_FAILED)
-		ksft_exit_fail_msg("mmap");
+		ksft_exit_fail_msg("mmap\n");
 
 	memcpy(shm, &f_private, sizeof(f_private));
 
