@@ -1279,7 +1279,14 @@
 };
 
 &i2c11 {
+	multi-master;
+	mctp-controller;
 	status = "okay";
+
+	mctp@10 {
+		compatible = "mctp-i2c-controller";
+		reg = <(0x10 | I2C_OWN_SLAVE_ADDRESS)>;
+	};
 
 	// OCP NIC TEMP
 	temperature-sensor@1f {
