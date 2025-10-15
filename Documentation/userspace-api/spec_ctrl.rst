@@ -26,7 +26,8 @@ PR_GET_SPECULATION_CTRL
 
 PR_GET_SPECULATION_CTRL returns the state of the speculation misfeature
 which is selected with arg2 of prctl(2). The return value uses bits 0-3 with
-the following meaning:
+the following meaning (with the caveat that PR_SPEC_L1D_FLUSH has less obvious
+semantics, see documentation for that specific control below):
 
 ==== ====================== ==================================================
 Bit  Define                 Description
@@ -109,6 +110,9 @@ Speculation misfeature controls
 
 - PR_SPEC_L1D_FLUSH: Flush L1D Cache on context switch out of the task
                         (works only when tasks run on non SMT cores)
+
+For this control, PR_SPEC_ENABLE means that the **mitigation** is enabled (L1D
+is flushed), PR_SPEC_DISABLE means it is disabled.
 
   Invocations:
    * prctl(PR_GET_SPECULATION_CTRL, PR_SPEC_L1D_FLUSH, 0, 0, 0);
