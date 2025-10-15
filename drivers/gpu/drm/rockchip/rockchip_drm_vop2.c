@@ -1003,6 +1003,8 @@ static int vop2_plane_atomic_check(struct drm_plane *plane,
 	struct drm_rect *src = &pstate->src;
 	int min_scale = FRAC_16_16(1, 8);
 	int max_scale = FRAC_16_16(8, 1);
+	int src_x, src_w, src_h;
+	int dest_w, dest_h;
 	int format;
 	int ret;
 
@@ -1030,19 +1032,23 @@ static int vop2_plane_atomic_check(struct drm_plane *plane,
 	if (format < 0)
 		return format;
 
-	if (drm_rect_width(src) >> 16 < 4 || drm_rect_height(src) >> 16 < 4 ||
-	    drm_rect_width(dest) < 4 || drm_rect_width(dest) < 4) {
+	/* Co-ordinates have now been clipped */
+	src_x = src->x1 >> 16;
+	src_w = drm_rect_width(src) >> 16;
+	src_h = drm_rect_height(src) >> 16;
+	dest_w = drm_rect_width(dest);
+	dest_h = drm_rect_height(dest);
+
+	if (src_w < 4 || src_h < 4 || dest_w < 4 || dest_h < 4) {
 		drm_dbg_kms(vop2->drm, "Invalid size: %dx%d->%dx%d, min size is 4x4\n",
-			    drm_rect_width(src) >> 16, drm_rect_height(src) >> 16,
-			    drm_rect_width(dest), drm_rect_height(dest));
+			    src_w, src_h, dest_w, dest_h);
 		return -EINVAL;
 	}
 
-	if (drm_rect_width(src) >> 16 > vop2_data->max_input.width ||
-	    drm_rect_height(src) >> 16 > vop2_data->max_input.height) {
+	if (src_w > vop2_data->max_input.width ||
+	    src_h > vop2_data->max_input.height) {
 		drm_dbg_kms(vop2->drm, "Invalid source: %dx%d. max input: %dx%d\n",
-			    drm_rect_width(src) >> 16,
-			    drm_rect_height(src) >> 16,
+			    src_w, src_h,
 			    vop2_data->max_input.width,
 			    vop2_data->max_input.height);
 		return -EINVAL;
@@ -1052,7 +1058,7 @@ static int vop2_plane_atomic_check(struct drm_plane *plane,
 	 * Src.x1 can be odd when do clip, but yuv plane start point
 	 * need align with 2 pixel.
 	 */
-	if (fb->format->is_yuv && ((pstate->src.x1 >> 16) % 2)) {
+	if (fb->format->is_yuv && src_x % 2) {
 		drm_dbg_kms(vop2->drm, "Invalid Source: Yuv format not support odd xpos\n");
 		return -EINVAL;
 	}
