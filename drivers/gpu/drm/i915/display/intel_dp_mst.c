@@ -298,12 +298,10 @@ int intel_dp_mtp_tu_compute_config(struct intel_dp *intel_dp,
 	 * after it was set by intel_dp_dsc_compute_config() ->
 	 * intel_dp_needs_8b10b_fec().
 	 */
-	if (dsc) {
-		if (!intel_dp_supports_fec(intel_dp, connector, crtc_state))
-			return -EINVAL;
-
-		crtc_state->fec_enable = !intel_dp_is_uhbr(crtc_state);
-	}
+	crtc_state->fec_enable = intel_dp_needs_8b10b_fec(crtc_state, dsc);
+	if (crtc_state->fec_enable &&
+	    !intel_dp_supports_fec(intel_dp, connector, crtc_state))
+		return -EINVAL;
 
 	max_dpt_bpp_x16 = fxp_q4_from_int(intel_dp_mst_max_dpt_bpp(crtc_state, dsc));
 	if (max_dpt_bpp_x16 && max_bpp_x16 > max_dpt_bpp_x16) {
