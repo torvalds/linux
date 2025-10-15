@@ -875,7 +875,8 @@ static int gswip_vlan_remove(struct gswip_priv *priv,
 	}
 
 	if (idx == -1) {
-		dev_err(priv->dev, "bridge to leave does not exists\n");
+		dev_err(priv->dev, "Port %d cannot find VID %u of bridge %s\n",
+			port, vid, bridge ? bridge->name : "(null)");
 		return -ENOENT;
 	}
 
