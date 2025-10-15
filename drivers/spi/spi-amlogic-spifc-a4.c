@@ -286,7 +286,7 @@ static int aml_sfc_set_bus_width(struct aml_sfc *sfc, u8 buswidth, u32 mask)
 
 	for (i = 0; i <= LANE_MAX; i++) {
 		if (buswidth == 1 << i) {
-			conf = i << __bf_shf(mask);
+			conf = i << __ffs(mask);
 			return regmap_update_bits(sfc->regmap_base, SFC_SPI_CFG,
 						  mask, conf);
 		}
@@ -566,7 +566,7 @@ static int aml_sfc_raw_io_op(struct aml_sfc *sfc, const struct spi_mem_op *op)
 	if (!op->data.nbytes)
 		goto end_xfer;
 
-	conf = (op->data.nbytes >> RAW_SIZE_BW) << __bf_shf(RAW_EXT_SIZE);
+	conf = (op->data.nbytes >> RAW_SIZE_BW) << __ffs(RAW_EXT_SIZE);
 	ret = regmap_update_bits(sfc->regmap_base, SFC_SPI_CFG, RAW_EXT_SIZE, conf);
 	if (ret)
 		goto err_out;
