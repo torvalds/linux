@@ -657,7 +657,7 @@ static void sahara_parse_dump_table(struct sahara_context *context)
 
 	/* Request the first chunk of the first image */
 	context->dump_image = &image_out_table[0];
-	dump_length = min(context->dump_image->length, SAHARA_READ_MAX_SIZE);
+	dump_length = min_t(u64, context->dump_image->length, SAHARA_READ_MAX_SIZE);
 	/* Avoid requesting EOI sized data so that we can identify errors */
 	if (dump_length == SAHARA_END_OF_IMAGE_LENGTH)
 		dump_length = SAHARA_END_OF_IMAGE_LENGTH / 2;
@@ -705,7 +705,7 @@ static void sahara_parse_dump_image(struct sahara_context *context)
 
 	/* Get next image chunk */
 	dump_length = context->dump_image->length - context->dump_image_offset;
-	dump_length = min(dump_length, SAHARA_READ_MAX_SIZE);
+	dump_length = min_t(u64, dump_length, SAHARA_READ_MAX_SIZE);
 	/* Avoid requesting EOI sized data so that we can identify errors */
 	if (dump_length == SAHARA_END_OF_IMAGE_LENGTH)
 		dump_length = SAHARA_END_OF_IMAGE_LENGTH / 2;
