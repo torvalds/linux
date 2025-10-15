@@ -262,10 +262,10 @@ static int tc_init(struct stmmac_priv *priv)
 	unsigned int count;
 	int ret, i;
 
-	if (dma_cap->l3l4fnum) {
-		priv->flow_entries_max = dma_cap->l3l4fnum;
+	priv->flow_entries_max = dma_cap->l3l4fnum;
+	if (priv->flow_entries_max) {
 		priv->flow_entries = devm_kcalloc(priv->device,
-						  dma_cap->l3l4fnum,
+						  priv->flow_entries_max,
 						  sizeof(*priv->flow_entries),
 						  GFP_KERNEL);
 		if (!priv->flow_entries)
