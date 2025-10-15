@@ -968,3 +968,114 @@ void adl_scaler_ecc_unmask(const struct intel_crtc_state *crtc_state)
 			  1);
 	intel_de_write(display, XELPD_DISPLAY_ERR_FATAL_MASK, 0);
 }
+
+unsigned int skl_scaler_1st_prefill_adjustment(const struct intel_crtc_state *crtc_state)
+{
+	/*
+	 * FIXME don't have scalers assigned yet
+	 * so can't look up the scale factors
+	 */
+	return 0x10000;
+}
+
+unsigned int skl_scaler_2nd_prefill_adjustment(const struct intel_crtc_state *crtc_state)
+{
+	/*
+	 * FIXME don't have scalers assigned yet
+	 * so can't look up the scale factors
+	 */
+	return 0x10000;
+}
+
+unsigned int skl_scaler_1st_prefill_lines(const struct intel_crtc_state *crtc_state)
+{
+	const struct intel_crtc_scaler_state *scaler_state =
+		&crtc_state->scaler_state;
+	int num_scalers = hweight32(scaler_state->scaler_users);
+
+	if (num_scalers > 0)
+		return 4 << 16;
+
+	return 0;
+}
+
+unsigned int skl_scaler_2nd_prefill_lines(const struct intel_crtc_state *crtc_state)
+{
+	const struct intel_crtc_scaler_state *scaler_state =
+		&crtc_state->scaler_state;
+	int num_scalers = hweight32(scaler_state->scaler_users);
+
+	if (num_scalers > 1 && crtc_state->pch_pfit.enabled)
+		return 4 << 16;
+
+	return 0;
+}
+
+static unsigned int _skl_scaler_max_scale(const struct intel_crtc_state *crtc_state,
+					  unsigned int max_scale)
+{
+	struct intel_display *display = to_intel_display(crtc_state);
+
+	/*
+	 * Downscaling requires increasing cdclk, so max scale
+	 * factor is limited to the max_dotclock/dotclock ratio.
+	 *
+	 * FIXME find out the max downscale factors properly
+	 */
+	return min(max_scale, DIV_ROUND_UP_ULL((u64)display->cdclk.max_dotclk_freq << 16,
+					       crtc_state->hw.pipe_mode.crtc_clock));
+}
+
+static unsigned int skl_scaler_max_scale(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	unsigned int max_scale;
+
+	if (crtc->num_scalers < 1)
+		return 0x10000;
+
+	/* FIXME find out the max downscale factors properly */
+	max_scale = 9 << 16;
+
+	return _skl_scaler_max_scale(crtc_state, max_scale);
+}
+
+unsigned int skl_scaler_1st_prefill_adjustment_worst(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+
+	if (crtc->num_scalers > 0)
+		return skl_scaler_max_scale(crtc_state);
+	else
+		return 0x10000;
+}
+
+unsigned int skl_scaler_2nd_prefill_adjustment_worst(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+
+	if (crtc->num_scalers > 1)
+		return skl_scaler_max_scale(crtc_state);
+	else
+		return 0x10000;
+}
+
+unsigned int skl_scaler_1st_prefill_lines_worst(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+
+	if (crtc->num_scalers > 0)
+		return 4 << 16;
+	else
+		return 0;
+}
+
+unsigned int skl_scaler_2nd_prefill_lines_worst(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+
+	if (crtc->num_scalers > 1)
+		return 4 << 16;
+	else
+		return 0;
+}
