@@ -355,12 +355,7 @@ static int vidioc_enum_fmt(struct file *file, void *priv, struct v4l2_fmtdesc *f
 static int vidioc_g_fmt(struct file *file, void *priv, struct v4l2_format *f)
 {
 	struct dma2d_ctx *ctx = file2ctx(file);
-	struct vb2_queue *vq;
 	struct dma2d_frame *frm;
-
-	vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, f->type);
-	if (!vq)
-		return -EINVAL;
 
 	frm = get_frame(ctx, f->type);
 	f->fmt.pix.width		= frm->width;
