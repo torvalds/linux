@@ -46,6 +46,7 @@ struct xe_vm_pgtable_update_op;
 #define XE_VMA_PTE_COMPACT	(DRM_GPUVA_USERBITS << 7)
 #define XE_VMA_DUMPABLE		(DRM_GPUVA_USERBITS << 8)
 #define XE_VMA_SYSTEM_ALLOCATOR	(DRM_GPUVA_USERBITS << 9)
+#define XE_VMA_MADV_AUTORESET	(DRM_GPUVA_USERBITS << 10)
 
 /**
  * struct xe_vma_mem_attr - memory attributes associated with vma
