@@ -1073,7 +1073,7 @@ static int vdec_av1_slice_setup_lat_from_src_buf(struct vdec_av1_slice_instance 
 
 	lat_buf->src_buf_req = src->vb2_buf.req_obj.req;
 	dst = &lat_buf->ts_info;
-	v4l2_m2m_buf_copy_metadata(src, dst, true);
+	v4l2_m2m_buf_copy_metadata(src, dst);
 	vsi->frame.cur_ts = dst->vb2_buf.timestamp;
 
 	return 0;
@@ -1780,7 +1780,7 @@ static int vdec_av1_slice_setup_core_to_dst_buf(struct vdec_av1_slice_instance *
 	if (!dst)
 		return -EINVAL;
 
-	v4l2_m2m_buf_copy_metadata(&lat_buf->ts_info, dst, true);
+	v4l2_m2m_buf_copy_metadata(&lat_buf->ts_info, dst);
 
 	return 0;
 }

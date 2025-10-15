@@ -1430,7 +1430,7 @@ static void dw100_start(struct dw100_ctx *ctx, struct vb2_v4l2_buffer *in_vb,
 				V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE),
 		in_vb->sequence, out_vb->sequence);
 
-	v4l2_m2m_buf_copy_metadata(in_vb, out_vb, true);
+	v4l2_m2m_buf_copy_metadata(in_vb, out_vb);
 
 	/* Now, let's deal with hardware ... */
 	dw100_hw_master_bus_disable(dw_dev);

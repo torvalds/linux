@@ -75,7 +75,7 @@ static irqreturn_t rga_isr(int irq, void *prv)
 		WARN_ON(!src);
 		WARN_ON(!dst);
 
-		v4l2_m2m_buf_copy_metadata(src, dst, true);
+		v4l2_m2m_buf_copy_metadata(src, dst);
 
 		dst->sequence = ctx->csequence++;
 

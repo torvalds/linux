@@ -421,7 +421,7 @@ static void device_run(void *priv)
 	else
 		dst_buf->sequence = q_dst->sequence++;
 	dst_buf->flags &= ~V4L2_BUF_FLAG_LAST;
-	v4l2_m2m_buf_copy_metadata(src_buf, dst_buf, false);
+	v4l2_m2m_buf_copy_metadata(src_buf, dst_buf);
 
 	spin_lock(ctx->lock);
 	if (!ctx->comp_has_next_frame &&
@@ -555,7 +555,7 @@ static void set_last_buffer(struct vb2_v4l2_buffer *dst_buf,
 	vb2_set_plane_payload(&dst_buf->vb2_buf, 0, 0);
 	dst_buf->sequence = q_dst->sequence++;
 
-	v4l2_m2m_buf_copy_metadata(src_buf, dst_buf, !ctx->is_enc);
+	v4l2_m2m_buf_copy_metadata(src_buf, dst_buf);
 	dst_buf->flags |= V4L2_BUF_FLAG_LAST;
 	v4l2_m2m_buf_done(dst_buf, VB2_BUF_STATE_DONE);
 }

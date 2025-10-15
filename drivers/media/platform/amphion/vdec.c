@@ -821,7 +821,7 @@ static int vdec_frame_decoded(struct vpu_inst *inst, void *arg)
 	vbuf = &vpu_buf->m2m_buf.vb;
 	src_buf = vdec_get_src_buffer(inst, info->consumed_count);
 	if (src_buf) {
-		v4l2_m2m_buf_copy_metadata(src_buf, vbuf, true);
+		v4l2_m2m_buf_copy_metadata(src_buf, vbuf);
 		if (info->consumed_count) {
 			v4l2_m2m_src_buf_remove(inst->fh.m2m_ctx);
 			vpu_set_buffer_state(src_buf, VPU_BUF_STATE_IDLE);

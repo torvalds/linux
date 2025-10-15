@@ -2124,7 +2124,7 @@ static void allegro_channel_finish_frame(struct allegro_channel *channel,
 
 	state = VB2_BUF_STATE_DONE;
 
-	v4l2_m2m_buf_copy_metadata(src_buf, dst_buf, false);
+	v4l2_m2m_buf_copy_metadata(src_buf, dst_buf);
 	if (msg->is_idr)
 		dst_buf->flags |= V4L2_BUF_FLAG_KEYFRAME;
 	else

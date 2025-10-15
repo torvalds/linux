@@ -485,7 +485,7 @@ static void device_run(void *prv)
 
 	src->sequence = frm_out->sequence++;
 	dst->sequence = frm_cap->sequence++;
-	v4l2_m2m_buf_copy_metadata(src, dst, true);
+	v4l2_m2m_buf_copy_metadata(src, dst);
 
 	if (clk_enable(dev->gate))
 		goto end;

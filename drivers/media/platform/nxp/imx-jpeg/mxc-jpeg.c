@@ -1537,7 +1537,7 @@ static void mxc_jpeg_device_run(void *priv)
 	src_buf->sequence = q_data_out->sequence++;
 	dst_buf->sequence = q_data_cap->sequence++;
 
-	v4l2_m2m_buf_copy_metadata(src_buf, dst_buf, true);
+	v4l2_m2m_buf_copy_metadata(src_buf, dst_buf);
 
 	jpeg_src_buf = vb2_to_mxc_buf(&src_buf->vb2_buf);
 	if (q_data_cap->fmt->mem_planes != dst_buf->vb2_buf.num_planes) {

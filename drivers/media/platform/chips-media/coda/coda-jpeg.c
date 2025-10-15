@@ -1245,7 +1245,7 @@ static void coda9_jpeg_finish_encode(struct coda_ctx *ctx)
 	dst_buf->flags |= V4L2_BUF_FLAG_KEYFRAME;
 	dst_buf->flags |= src_buf->flags & V4L2_BUF_FLAG_LAST;
 
-	v4l2_m2m_buf_copy_metadata(src_buf, dst_buf, false);
+	v4l2_m2m_buf_copy_metadata(src_buf, dst_buf);
 
 	v4l2_m2m_buf_done(src_buf, VB2_BUF_STATE_DONE);
 	coda_m2m_buf_done(ctx, dst_buf, err_mb ? VB2_BUF_STATE_ERROR :
@@ -1472,7 +1472,7 @@ static void coda9_jpeg_finish_decode(struct coda_ctx *ctx)
 	dst_buf->flags |= V4L2_BUF_FLAG_KEYFRAME;
 	dst_buf->flags |= src_buf->flags & V4L2_BUF_FLAG_LAST;
 
-	v4l2_m2m_buf_copy_metadata(src_buf, dst_buf, false);
+	v4l2_m2m_buf_copy_metadata(src_buf, dst_buf);
 
 	q_data_dst = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_CAPTURE);
 	vb2_set_plane_payload(&dst_buf->vb2_buf, 0, q_data_dst->sizeimage);

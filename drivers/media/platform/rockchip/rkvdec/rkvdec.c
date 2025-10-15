@@ -783,7 +783,7 @@ void rkvdec_run_preamble(struct rkvdec_ctx *ctx, struct rkvdec_run *run)
 	if (src_req)
 		v4l2_ctrl_request_setup(src_req, &ctx->ctrl_hdl);
 
-	v4l2_m2m_buf_copy_metadata(run->bufs.src, run->bufs.dst, true);
+	v4l2_m2m_buf_copy_metadata(run->bufs.src, run->bufs.dst);
 }
 
 void rkvdec_run_postamble(struct rkvdec_ctx *ctx, struct rkvdec_run *run)

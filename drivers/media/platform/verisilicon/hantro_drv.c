@@ -183,7 +183,7 @@ static void device_run(void *priv)
 	if (ret)
 		goto err_cancel_job;
 
-	v4l2_m2m_buf_copy_metadata(src, dst, true);
+	v4l2_m2m_buf_copy_metadata(src, dst);
 
 	if (ctx->codec_ops->run(ctx))
 		goto err_cancel_job;

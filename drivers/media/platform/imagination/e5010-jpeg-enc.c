@@ -1354,7 +1354,7 @@ static void e5010_device_run(void *priv)
 	s_vb->sequence = ctx->out_queue.sequence++;
 	d_vb->sequence = ctx->cap_queue.sequence++;
 
-	v4l2_m2m_buf_copy_metadata(s_vb, d_vb, false);
+	v4l2_m2m_buf_copy_metadata(s_vb, d_vb);
 
 	if (ctx != e5010->last_context_run || ctx->update_qp) {
 		dprintk(e5010, 1, "ctx updated: 0x%p -> 0x%p, updating qp tables\n",
