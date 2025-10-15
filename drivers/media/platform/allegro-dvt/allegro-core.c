@@ -3333,8 +3333,6 @@ static int allegro_s_fmt_vid_cap(struct file *file, void *fh,
 		return err;
 
 	vq = v4l2_m2m_get_vq(channel->fh.m2m_ctx, f->type);
-	if (!vq)
-		return -EINVAL;
 	if (vb2_is_busy(vq))
 		return -EBUSY;
 
