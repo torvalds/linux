@@ -790,8 +790,6 @@ static int coda_s_fmt(struct coda_ctx *ctx, struct v4l2_format *f,
 	struct vb2_queue *vq;
 
 	vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, f->type);
-	if (!vq)
-		return -EINVAL;
 
 	q_data = get_q_data(ctx, f->type);
 	if (!q_data)
@@ -942,8 +940,6 @@ static int coda_s_fmt_vid_out(struct file *file, void *priv,
 	ctx->codec = codec;
 
 	dst_vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, V4L2_BUF_TYPE_VIDEO_CAPTURE);
-	if (!dst_vq)
-		return -EINVAL;
 
 	/*
 	 * Setting the capture queue format is not possible while the capture
