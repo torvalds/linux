@@ -857,7 +857,7 @@ static int gswip_vlan_add(struct gswip_priv *priv, struct net_device *bridge,
 
 static int gswip_vlan_remove(struct gswip_priv *priv,
 			     struct net_device *bridge, int port,
-			     u16 vid, bool pvid, bool vlan_aware)
+			     u16 vid)
 {
 	struct gswip_pce_table_entry vlan_mapping = {0,};
 	unsigned int max_ports = priv->hw_info->max_ports;
@@ -868,7 +868,7 @@ static int gswip_vlan_remove(struct gswip_priv *priv,
 	/* Check if there is already a page for this bridge */
 	for (i = max_ports; i < ARRAY_SIZE(priv->vlans); i++) {
 		if (priv->vlans[i].bridge == bridge &&
-		    (!vlan_aware || priv->vlans[i].vid == vid)) {
+		    priv->vlans[i].vid == vid) {
 			idx = i;
 			break;
 		}
@@ -941,7 +941,7 @@ static void gswip_port_bridge_leave(struct dsa_switch *ds, int port,
 	 * the VLAN-unaware PVID created for this bridge.
 	 */
 	gswip_add_single_port_br(priv, port, true);
-	gswip_vlan_remove(priv, br, port, GSWIP_VLAN_UNAWARE_PVID, true, false);
+	gswip_vlan_remove(priv, br, port, GSWIP_VLAN_UNAWARE_PVID);
 }
 
 static int gswip_port_vlan_prepare(struct dsa_switch *ds, int port,
@@ -1024,7 +1024,6 @@ static int gswip_port_vlan_del(struct dsa_switch *ds, int port,
 {
 	struct net_device *bridge = dsa_port_bridge_dev_get(dsa_to_port(ds, port));
 	struct gswip_priv *priv = ds->priv;
-	bool pvid = vlan->flags & BRIDGE_VLAN_INFO_PVID;
 
 	if (vlan->vid == GSWIP_VLAN_UNAWARE_PVID)
 		return 0;
@@ -1037,7 +1036,7 @@ static int gswip_port_vlan_del(struct dsa_switch *ds, int port,
 	if (dsa_is_cpu_port(ds, port))
 		return 0;
 
-	return gswip_vlan_remove(priv, bridge, port, vlan->vid, pvid, true);
+	return gswip_vlan_remove(priv, bridge, port, vlan->vid);
 }
 
 static void gswip_port_fast_age(struct dsa_switch *ds, int port)
