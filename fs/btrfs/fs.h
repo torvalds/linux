@@ -74,6 +74,10 @@ struct btrfs_space_info;
 #define BTRFS_SUPER_INFO_SIZE			4096
 static_assert(sizeof(struct btrfs_super_block) == BTRFS_SUPER_INFO_SIZE);
 
+/* Array of bytes with variable length, hexadecimal format 0x1234 */
+#define BTRFS_CSUM_FMT				"0x%*phN"
+#define BTRFS_CSUM_FMT_VALUE(size, bytes)	size, bytes
+
 #define BTRFS_KEY_FMT			"(%llu %u %llu)"
 #define BTRFS_KEY_FMT_VALUE(key)	(key)->objectid, (key)->type, (key)->offset
 
