@@ -848,8 +848,6 @@ static int gswip_vlan_add_aware(struct gswip_priv *priv,
 
 		vlan_mapping.index = idx;
 		vlan_mapping.table = GSWIP_TABLE_VLAN_MAPPING;
-		/* VLAN ID byte, maps to the VLAN ID of vlan active table */
-		vlan_mapping.val[0] = vid;
 	} else {
 		/* Read the existing VLAN mapping entry from the switch */
 		vlan_mapping.index = idx;
@@ -862,6 +860,7 @@ static int gswip_vlan_add_aware(struct gswip_priv *priv,
 		}
 	}
 
+	/* VLAN ID byte, maps to the VLAN ID of vlan active table */
 	vlan_mapping.val[0] = vid;
 	/* Update the VLAN mapping entry and write it to the switch */
 	vlan_mapping.val[1] |= cpu_ports;
