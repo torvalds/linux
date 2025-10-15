@@ -248,6 +248,7 @@ static struct dpp_funcs dcn401_dpp_funcs = {
 	.set_optional_cursor_attributes	= dpp401_set_optional_cursor_attributes,
 	.dpp_dppclk_control			= dpp1_dppclk_control,
 	.dpp_set_hdr_multiplier		= dpp3_set_hdr_multiplier,
+	.dpp_read_reg_state			= dpp30_read_reg_state,
 	.set_cursor_matrix			= dpp401_set_cursor_matrix,
 };
 

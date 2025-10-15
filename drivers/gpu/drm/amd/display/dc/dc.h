@@ -54,6 +54,14 @@ struct abm_save_restore;
 struct aux_payload;
 struct set_config_cmd_payload;
 struct dmub_notification;
+struct dcn_hubbub_reg_state;
+struct dcn_hubp_reg_state;
+struct dcn_dpp_reg_state;
+struct dcn_mpc_reg_state;
+struct dcn_opp_reg_state;
+struct dcn_dsc_reg_state;
+struct dcn_optc_reg_state;
+struct dcn_dccg_reg_state;
 
 #define DC_VER "3.2.355"
 
@@ -1831,20 +1839,14 @@ struct dc_surface_update {
 };
 
 struct dc_underflow_debug_data {
-	uint32_t otg_inst;
-	uint32_t otg_underflow;
-	uint32_t h_position;
-	uint32_t v_position;
-	uint32_t otg_frame_count;
-	struct dc_underflow_per_hubp_debug_data {
-		uint32_t hubp_underflow;
-		uint32_t hubp_in_blank;
-		uint32_t hubp_readline;
-		uint32_t det_config_error;
-	} hubps[MAX_PIPES];
-	uint32_t curr_det_sizes[MAX_PIPES];
-	uint32_t target_det_sizes[MAX_PIPES];
-	uint32_t compbuf_config_error;
+	struct dcn_hubbub_reg_state *hubbub_reg_state;
+	struct dcn_hubp_reg_state *hubp_reg_state[MAX_PIPES];
+	struct dcn_dpp_reg_state *dpp_reg_state[MAX_PIPES];
+	struct dcn_mpc_reg_state *mpc_reg_state[MAX_PIPES];
+	struct dcn_opp_reg_state *opp_reg_state[MAX_PIPES];
+	struct dcn_dsc_reg_state *dsc_reg_state[MAX_PIPES];
+	struct dcn_optc_reg_state *optc_reg_state[MAX_PIPES];
+	struct dcn_dccg_reg_state *dccg_reg_state[MAX_PIPES];
 };
 
 /*

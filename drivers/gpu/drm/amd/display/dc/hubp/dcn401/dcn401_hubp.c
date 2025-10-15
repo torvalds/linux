@@ -1071,9 +1071,7 @@ static struct hubp_funcs dcn401_hubp_funcs = {
 	.hubp_get_3dlut_fl_done = hubp401_get_3dlut_fl_done,
 	.hubp_clear_tiling = hubp401_clear_tiling,
 	.hubp_program_3dlut_fl_config = hubp401_program_3dlut_fl_config,
-	.hubp_get_underflow_status = hubp3_get_underflow_status,
-	.hubp_get_current_read_line = hubp3_get_current_read_line,
-	.hubp_get_det_config_error = hubp31_get_det_config_error,
+	.hubp_read_reg_state = hubp3_read_reg_state
 };
 
 bool hubp401_construct(

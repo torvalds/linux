@@ -274,4 +274,6 @@ void optc3_init_odm(struct timing_generator *optc);
 void optc31_read_otg_state(struct timing_generator *optc,
 		struct dcn_otg_state *s);
 
+void optc31_read_reg_state(struct timing_generator *optc, struct dcn_optc_reg_state *optc_reg_state);
+
 #endif /* __DC_OPTC_DCN31_H__ */

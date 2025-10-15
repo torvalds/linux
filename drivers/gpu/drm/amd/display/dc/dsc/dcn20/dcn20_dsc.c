@@ -35,6 +35,7 @@ static void dsc_write_to_registers(struct display_stream_compressor *dsc, const 
 static const struct dsc_funcs dcn20_dsc_funcs = {
 	.dsc_get_enc_caps = dsc2_get_enc_caps,
 	.dsc_read_state = dsc2_read_state,
+	.dsc_read_reg_state = dsc2_read_reg_state,
 	.dsc_validate_stream = dsc2_validate_stream,
 	.dsc_set_config = dsc2_set_config,
 	.dsc_get_packed_pps = dsc2_get_packed_pps,
@@ -155,6 +156,13 @@ void dsc2_read_state(struct display_stream_compressor *dsc, struct dcn_dsc_state
 		DSCRM_DSC_OPP_PIPE_SOURCE, &s->dsc_opp_source);
 }
 
+void dsc2_read_reg_state(struct display_stream_compressor *dsc, struct dcn_dsc_reg_state *dccg_reg_state)
+{
+	struct dcn20_dsc *dsc20 = TO_DCN20_DSC(dsc);
+
+	dccg_reg_state->dsc_top_control = REG_READ(DSC_TOP_CONTROL);
+	dccg_reg_state->dscc_interrupt_control_status = REG_READ(DSCC_INTERRUPT_CONTROL_STATUS);
+}
 
 bool dsc2_validate_stream(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg)
 {
