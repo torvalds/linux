@@ -68,6 +68,7 @@ struct rzg2l_mipi_dsi {
 	struct drm_bridge *next_bridge;
 
 	struct clk *vclk;
+	struct clk *lpclk;
 
 	enum mipi_dsi_pixel_format format;
 	unsigned int num_data_lanes;
@@ -978,6 +979,10 @@ static int rzg2l_mipi_dsi_probe(struct platform_device *pdev)
 	dsi->vclk = devm_clk_get(dsi->dev, "vclk");
 	if (IS_ERR(dsi->vclk))
 		return PTR_ERR(dsi->vclk);
+
+	dsi->lpclk = devm_clk_get(dsi->dev, "lpclk");
+	if (IS_ERR(dsi->lpclk))
+		return PTR_ERR(dsi->lpclk);
 
 	dsi->rstc = devm_reset_control_get_optional_exclusive(dsi->dev, "rst");
 	if (IS_ERR(dsi->rstc))
