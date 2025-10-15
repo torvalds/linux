@@ -955,6 +955,12 @@ struct intel_csc_matrix {
 	u16 postoff[3];
 };
 
+enum intel_panel_replay_dsc_support {
+	INTEL_DP_PANEL_REPLAY_DSC_NOT_SUPPORTED,
+	INTEL_DP_PANEL_REPLAY_DSC_FULL_FRAME_ONLY,
+	INTEL_DP_PANEL_REPLAY_DSC_SELECTIVE_UPDATE,
+};
+
 struct intel_crtc_state {
 	/*
 	 * uapi (drm) state. This is the software state shown to userspace.
@@ -1133,6 +1139,8 @@ struct intel_crtc_state {
 	bool has_panel_replay;
 	bool wm_level_disabled;
 	bool pkg_c_latency_used;
+	/* Only used for state verification. */
+	enum intel_panel_replay_dsc_support panel_replay_dsc_support;
 	u32 dc3co_exitline;
 	u16 su_y_granularity;
 	u8 active_non_psr_pipes;
@@ -1706,6 +1714,7 @@ struct intel_psr {
 	bool source_panel_replay_support;
 	bool sink_panel_replay_support;
 	bool sink_panel_replay_su_support;
+	enum intel_panel_replay_dsc_support sink_panel_replay_dsc_support;
 	bool panel_replay_enabled;
 	u32 dc3co_exitline;
 	u32 dc3co_exit_delay;
