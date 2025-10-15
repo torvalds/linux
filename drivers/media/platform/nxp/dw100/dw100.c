@@ -735,12 +735,7 @@ static int dw100_enum_framesizes(struct file *file, void *priv,
 static int dw100_g_fmt_vid(struct file *file, void *priv, struct v4l2_format *f)
 {
 	struct dw100_ctx *ctx = dw100_file2ctx(file);
-	struct vb2_queue *vq;
 	struct dw100_q_data *q_data;
-
-	vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, f->type);
-	if (!vq)
-		return -EINVAL;
 
 	q_data = dw100_get_q_data(ctx, f->type);
 
@@ -803,8 +798,6 @@ static int dw100_s_fmt(struct dw100_ctx *ctx, struct v4l2_format *f)
 	struct vb2_queue *vq;
 
 	vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, f->type);
-	if (!vq)
-		return -EINVAL;
 
 	q_data = dw100_get_q_data(ctx, f->type);
 	if (!q_data)
