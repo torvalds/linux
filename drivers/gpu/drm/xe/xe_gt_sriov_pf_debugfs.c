@@ -23,6 +23,7 @@
 #include "xe_gt_sriov_pf_service.h"
 #include "xe_pm.h"
 #include "xe_sriov_pf.h"
+#include "xe_sriov_pf_provision.h"
 
 /*
  *      /sys/kernel/debug/dri/BDF/
@@ -124,6 +125,8 @@ static int POLICY##_set(void *data, u64 val)					\
 										\
 	xe_pm_runtime_get(xe);							\
 	err = xe_gt_sriov_pf_policy_set_##POLICY(gt, val);			\
+	if (!err)								\
+		xe_sriov_pf_provision_set_custom_mode(xe);			\
 	xe_pm_runtime_put(xe);							\
 										\
 	return err;								\
@@ -189,6 +192,8 @@ static int CONFIG##_set(void *data, u64 val)					\
 	xe_pm_runtime_get(xe);							\
 	err = xe_sriov_pf_wait_ready(xe) ?:					\
 	      xe_gt_sriov_pf_config_set_##CONFIG(gt, vfid, val);		\
+	if (!err)								\
+		xe_sriov_pf_provision_set_custom_mode(xe);			\
 	xe_pm_runtime_put(xe);							\
 										\
 	return err;								\
@@ -246,6 +251,8 @@ static int set_threshold(void *data, u64 val, enum xe_guc_klv_threshold_index in
 
 	xe_pm_runtime_get(xe);
 	err = xe_gt_sriov_pf_config_set_threshold(gt, vfid, index, val);
+	if (!err)
+		xe_sriov_pf_provision_set_custom_mode(xe);
 	xe_pm_runtime_put(xe);
 
 	return err;

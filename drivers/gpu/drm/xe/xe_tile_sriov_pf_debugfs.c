@@ -15,6 +15,7 @@
 #include "xe_tile_sriov_pf_debugfs.h"
 #include "xe_sriov.h"
 #include "xe_sriov_pf.h"
+#include "xe_sriov_pf_provision.h"
 
 /*
  *      /sys/kernel/debug/dri/BDF/
@@ -143,6 +144,8 @@ static int NAME##_set(void *data, u64 val)					\
 	xe_pm_runtime_get(xe);							\
 	err = xe_sriov_pf_wait_ready(xe) ?:					\
 	      xe_gt_sriov_pf_config_set_##CONFIG(gt, vfid, val);		\
+	if (!err)								\
+		xe_sriov_pf_provision_set_custom_mode(xe);			\
 	xe_pm_runtime_put(xe);							\
 										\
 	return err;								\

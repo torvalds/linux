@@ -10,6 +10,19 @@
 #include "xe_sriov_pf_helpers.h"
 #include "xe_sriov_pf_provision.h"
 #include "xe_sriov_pf_provision_types.h"
+#include "xe_sriov_printk.h"
+
+static const char *mode_to_string(enum xe_sriov_provisioning_mode mode)
+{
+	switch (mode) {
+	case XE_SRIOV_PROVISIONING_MODE_AUTO:
+		return "auto";
+	case XE_SRIOV_PROVISIONING_MODE_CUSTOM:
+		return "custom";
+	default:
+		return "<invalid>";
+	}
+}
 
 static bool pf_auto_provisioning_mode(struct xe_device *xe)
 {
@@ -93,5 +106,31 @@ int xe_sriov_pf_unprovision_vfs(struct xe_device *xe, unsigned int num_vfs)
 		return 0;
 
 	pf_unprovision_vfs(xe, num_vfs);
+	return 0;
+}
+
+/**
+ * xe_sriov_pf_provision_set_mode() - Change VFs provision mode.
+ * @xe: the PF &xe_device
+ * @mode: the new VFs provisioning mode
+ *
+ * When changing from AUTO to CUSTOM mode, any already allocated VFs resources
+ * will remain allocated and will not be released upon VFs disabling.
+ *
+ * This function can only be called on PF.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_sriov_pf_provision_set_mode(struct xe_device *xe, enum xe_sriov_provisioning_mode mode)
+{
+	xe_assert(xe, IS_SRIOV_PF(xe));
+
+	if (mode == xe->sriov.pf.provision.mode)
+		return 0;
+
+	xe_sriov_dbg(xe, "mode %s changed to %s by %ps\n",
+		     mode_to_string(xe->sriov.pf.provision.mode),
+		     mode_to_string(mode), __builtin_return_address(0));
+	xe->sriov.pf.provision.mode = mode;
 	return 0;
 }

@@ -15,9 +15,13 @@
  *                                   Any allocated resources to the VFs will be
  *                                   automatically released when disabling VFs.
  *                                   This is a default mode.
+ * @XE_SRIOV_PROVISIONING_MODE_CUSTOM: Explicit VFs provisioning using uABI interfaces.
+ *                                     VFs resources remains allocated regardless if
+ *                                     VFs are enabled or not.
  */
 enum xe_sriov_provisioning_mode {
 	XE_SRIOV_PROVISIONING_MODE_AUTO,
+	XE_SRIOV_PROVISIONING_MODE_CUSTOM,
 };
 static_assert(XE_SRIOV_PROVISIONING_MODE_AUTO == 0);
 
