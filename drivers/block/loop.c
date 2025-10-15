@@ -90,6 +90,8 @@ struct loop_cmd {
 #define LOOP_IDLE_WORKER_TIMEOUT (60 * HZ)
 #define LOOP_DEFAULT_HW_Q_DEPTH 128
 
+static void loop_queue_work(struct loop_device *lo, struct loop_cmd *cmd);
+
 static DEFINE_IDR(loop_index_idr);
 static DEFINE_MUTEX(loop_ctl_mutex);
 static DEFINE_MUTEX(loop_validate_mutex);
@@ -321,6 +323,15 @@ static void lo_rw_aio_do_completion(struct loop_cmd *cmd)
 
 	if (!atomic_dec_and_test(&cmd->ref))
 		return;
+
+	/* -EAGAIN could be returned from bdev's ->ki_complete */
+	if (cmd->ret == -EAGAIN) {
+		struct loop_device *lo = rq->q->queuedata;
+
+		loop_queue_work(lo, cmd);
+		return;
+	}
+
 	kfree(cmd->bvec);
 	cmd->bvec = NULL;
 	if (req_op(rq) == REQ_OP_WRITE)
@@ -430,20 +441,49 @@ static int lo_submit_rw_aio(struct loop_device *lo, struct loop_cmd *cmd,
 	return ret;
 }
 
+static bool lo_backfile_support_nowait(const struct loop_device *lo)
+{
+	return lo->lo_backing_file->f_mode & FMODE_NOWAIT;
+}
+
 static int lo_rw_aio(struct loop_device *lo, struct loop_cmd *cmd,
 		     loff_t pos, int rw)
 {
 	int nr_bvec = lo_cmd_nr_bvec(cmd);
 	int ret;
 
-	ret = lo_rw_aio_prep(lo, cmd, nr_bvec, pos);
-	if (unlikely(ret))
-		return ret;
+	/* prepared already if we have tried nowait */
+	if (!cmd->use_aio || !lo_backfile_support_nowait(lo)) {
+		ret = lo_rw_aio_prep(lo, cmd, nr_bvec, pos);
+		if (unlikely(ret))
+			goto fail;
+	}
 
+	cmd->iocb.ki_flags &= ~IOCB_NOWAIT;
 	ret = lo_submit_rw_aio(lo, cmd, nr_bvec, rw);
+fail:
 	if (ret != -EIOCBQUEUED)
 		lo_rw_aio_complete(&cmd->iocb, ret);
 	return -EIOCBQUEUED;
+}
+
+static int lo_rw_aio_nowait(struct loop_device *lo, struct loop_cmd *cmd,
+			    int rw)
+{
+	struct request *rq = blk_mq_rq_from_pdu(cmd);
+	loff_t pos = ((loff_t) blk_rq_pos(rq) << 9) + lo->lo_offset;
+	int nr_bvec = lo_cmd_nr_bvec(cmd);
+	int ret = lo_rw_aio_prep(lo, cmd, nr_bvec, pos);
+
+	if (unlikely(ret))
+		goto fail;
+
+	cmd->iocb.ki_flags |= IOCB_NOWAIT;
+	ret = lo_submit_rw_aio(lo, cmd, nr_bvec, rw);
+fail:
+	if (ret != -EIOCBQUEUED && ret != -EAGAIN)
+		lo_rw_aio_complete(&cmd->iocb, ret);
+	return ret;
 }
 
 static int do_req_filebacked(struct loop_device *lo, struct request *rq)
@@ -1907,6 +1947,7 @@ static blk_status_t loop_queue_rq(struct blk_mq_hw_ctx *hctx,
 	struct request *rq = bd->rq;
 	struct loop_cmd *cmd = blk_mq_rq_to_pdu(rq);
 	struct loop_device *lo = rq->q->queuedata;
+	int rw = 0;
 
 	blk_mq_start_request(rq);
 
@@ -1919,9 +1960,25 @@ static blk_status_t loop_queue_rq(struct blk_mq_hw_ctx *hctx,
 	case REQ_OP_WRITE_ZEROES:
 		cmd->use_aio = false;
 		break;
-	default:
+	case REQ_OP_READ:
+		rw = ITER_DEST;
 		cmd->use_aio = lo->lo_flags & LO_FLAGS_DIRECT_IO;
 		break;
+	case REQ_OP_WRITE:
+		rw = ITER_SOURCE;
+		cmd->use_aio = lo->lo_flags & LO_FLAGS_DIRECT_IO;
+		break;
+	default:
+		return BLK_STS_IOERR;
+	}
+
+	/* try NOWAIT if the backing file supports the mode */
+	if (cmd->use_aio && lo_backfile_support_nowait(lo)) {
+		int res = lo_rw_aio_nowait(lo, cmd, rw);
+
+		if (res != -EAGAIN && res != -EOPNOTSUPP)
+			return BLK_STS_OK;
+		/* fallback to workqueue for handling aio */
 	}
 
 	loop_queue_work(lo, cmd);
@@ -2073,7 +2130,8 @@ static int loop_add(int i)
 	lo->tag_set.queue_depth = hw_queue_depth;
 	lo->tag_set.numa_node = NUMA_NO_NODE;
 	lo->tag_set.cmd_size = sizeof(struct loop_cmd);
-	lo->tag_set.flags = BLK_MQ_F_STACKING | BLK_MQ_F_NO_SCHED_BY_DEFAULT;
+	lo->tag_set.flags = BLK_MQ_F_STACKING | BLK_MQ_F_NO_SCHED_BY_DEFAULT |
+		BLK_MQ_F_BLOCKING;
 	lo->tag_set.driver_data = lo;
 
 	err = blk_mq_alloc_tag_set(&lo->tag_set);
