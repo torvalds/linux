@@ -404,6 +404,10 @@ struct nxp_fspi {
 #define FSPI_NEED_INIT		BIT(0)
 #define FSPI_DTR_MODE		BIT(1)
 	int flags;
+	/* save the previous operation clock rate */
+	unsigned long pre_op_rate;
+	/* the max clock rate fspi output to device */
+	unsigned long max_rate;
 };
 
 static inline int needs_ip_only(struct nxp_fspi *f)
@@ -685,10 +689,13 @@ static void nxp_fspi_select_rx_sample_clk_source(struct nxp_fspi *f,
 	 * change the mode back to mode 0.
 	 */
 	reg = fspi_readl(f, f->iobase + FSPI_MCR0);
-	if (op_is_dtr)
+	if (op_is_dtr) {
 		reg |= FSPI_MCR0_RXCLKSRC(3);
-	else	/*select mode 0 */
+		f->max_rate = 166000000;
+	} else {	/*select mode 0 */
 		reg &= ~FSPI_MCR0_RXCLKSRC(3);
+		f->max_rate = 66000000;
+	}
 	fspi_writel(f, reg, f->iobase + FSPI_MCR0);
 }
 
@@ -719,6 +726,12 @@ static void nxp_fspi_dll_calibration(struct nxp_fspi *f)
 				   0, POLL_TOUT, true);
 	if (ret)
 		dev_warn(f->dev, "DLL lock failed, please fix it!\n");
+
+	/*
+	 * For ERR050272, DLL lock status bit is not accurate,
+	 * wait for 4us more as a workaround.
+	 */
+	udelay(4);
 }
 
 /*
@@ -780,11 +793,17 @@ static void nxp_fspi_select_mem(struct nxp_fspi *f, struct spi_device *spi,
 	uint64_t size_kb;
 
 	/*
-	 * Return, if previously selected target device is same as current
-	 * requested target device. Also the DTR or STR mode do not change.
+	 * Return when following condition all meet,
+	 * 1, if previously selected target device is same as current
+	 *    requested target device.
+	 * 2, the DTR or STR mode do not change.
+	 * 3, previous operation max rate equals current one.
+	 *
+	 * For other case, need to re-config.
 	 */
 	if ((f->selected == spi_get_chipselect(spi, 0)) &&
-	    (!!(f->flags & FSPI_DTR_MODE) == op_is_dtr))
+	    (!!(f->flags & FSPI_DTR_MODE) == op_is_dtr) &&
+	    (f->pre_op_rate == op->max_freq))
 		return;
 
 	/* Reset FLSHxxCR0 registers */
@@ -802,6 +821,7 @@ static void nxp_fspi_select_mem(struct nxp_fspi *f, struct spi_device *spi,
 	dev_dbg(f->dev, "Target device [CS:%x] selected\n", spi_get_chipselect(spi, 0));
 
 	nxp_fspi_select_rx_sample_clk_source(f, op_is_dtr);
+	rate = min(f->max_rate, op->max_freq);
 
 	if (op_is_dtr) {
 		f->flags |= FSPI_DTR_MODE;
@@ -831,6 +851,8 @@ static void nxp_fspi_select_mem(struct nxp_fspi *f, struct spi_device *spi,
 		nxp_fspi_dll_calibration(f);
 	else
 		nxp_fspi_dll_override(f);
+
+	f->pre_op_rate = op->max_freq;
 
 	f->selected = spi_get_chipselect(spi, 0);
 }
