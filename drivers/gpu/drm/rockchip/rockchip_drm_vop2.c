@@ -1035,8 +1035,7 @@ static int vop2_plane_atomic_check(struct drm_plane *plane,
 		drm_dbg_kms(vop2->drm, "Invalid size: %dx%d->%dx%d, min size is 4x4\n",
 			    drm_rect_width(src) >> 16, drm_rect_height(src) >> 16,
 			    drm_rect_width(dest), drm_rect_height(dest));
-		pstate->visible = false;
-		return 0;
+		return -EINVAL;
 	}
 
 	if (drm_rect_width(src) >> 16 > vop2_data->max_input.width ||
