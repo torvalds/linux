@@ -487,8 +487,9 @@ static void setup_quirks(struct boot_params *boot_params)
 static void setup_graphics(struct boot_params *boot_params)
 {
 	struct screen_info *si = memset(&boot_params->screen_info, 0, sizeof(*si));
+	struct edid_info *edid = memset(&boot_params->edid_info, 0, sizeof(*edid));
 
-	efi_setup_graphics(si, NULL);
+	efi_setup_graphics(si, edid);
 }
 
 static void __noreturn efi_exit(efi_handle_t handle, efi_status_t status)
