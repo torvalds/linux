@@ -551,6 +551,7 @@ static void gswip_port_commit_pvid(struct gswip_priv *priv, int port)
 {
 	struct dsa_port *dp = dsa_to_port(priv->ds, port);
 	struct net_device *br = dsa_port_bridge_dev_get(dp);
+	u32 vinr;
 	int idx;
 
 	if (!dsa_port_is_user(dp))
@@ -581,6 +582,11 @@ static void gswip_port_commit_pvid(struct gswip_priv *priv, int port)
 		 */
 		idx = port + 1;
 	}
+
+	vinr = idx ? GSWIP_PCE_VCTRL_VINR_ALL : GSWIP_PCE_VCTRL_VINR_TAGGED;
+	gswip_switch_mask(priv, GSWIP_PCE_VCTRL_VINR,
+			  FIELD_PREP(GSWIP_PCE_VCTRL_VINR, vinr),
+			  GSWIP_PCE_VCTRL(port));
 
 	/* GSWIP 2.2 (GRX300) and later program here the VID directly. */
 	gswip_switch_w(priv, idx, GSWIP_PCE_DEFPVID(port));
