@@ -329,6 +329,20 @@
 	};
 };
 
+&i2c3 {
+	status = "okay";
+
+	sbrmi@3c {
+		compatible = "amd,sbrmi";
+		reg = <0x3c>;
+	};
+
+	sbtsi@4c {
+		compatible = "amd,sbtsi";
+		reg = <0x4c>;
+	};
+};
+
 &i2c4 {
 	status = "okay";
 
@@ -1755,7 +1769,7 @@
 	"P12V_SCM_ADC_ALERT","",
 	"CPU0_REGS_I2C_ALERT_N","",
 	"FM_RTC_ALERT_N","",
-	"APML_CPU0_ALERT_R_N","",
+	"P0_I3C_APML_ALERT_L","",
 	/*J0-J3 line 144-151*/
 	"SMB_RJ45_FIO_TMP_ALERT","",
 	"FM_SMB_ALERT_MCIO_0A_N","",
