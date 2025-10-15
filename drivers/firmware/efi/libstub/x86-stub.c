@@ -488,7 +488,7 @@ static void setup_graphics(struct boot_params *boot_params)
 {
 	struct screen_info *si = memset(&boot_params->screen_info, 0, sizeof(*si));
 
-	efi_setup_gop(si);
+	efi_setup_graphics(si, NULL);
 }
 
 static void __noreturn efi_exit(efi_handle_t handle, efi_status_t status)

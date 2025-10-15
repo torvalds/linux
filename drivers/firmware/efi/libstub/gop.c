@@ -12,6 +12,7 @@
 #include <linux/string.h>
 #include <asm/efi.h>
 #include <asm/setup.h>
+#include <video/edid.h>
 
 #include "efistub.h"
 
@@ -413,6 +414,14 @@ static void setup_screen_info(struct screen_info *si, const efi_graphics_output_
 	si->capabilities |= VIDEO_CAPABILITY_SKIP_QUIRKS;
 }
 
+static void setup_edid_info(struct edid_info *edid, u32 gop_size_of_edid, u8 *gop_edid)
+{
+	if (!gop_edid || gop_size_of_edid < 128)
+		memset(edid->dummy, 0, sizeof(edid->dummy));
+	else
+		memcpy(edid->dummy, gop_edid, min(gop_size_of_edid, sizeof(edid->dummy)));
+}
+
 static efi_handle_t find_handle_with_primary_gop(unsigned long num, const efi_handle_t handles[],
 						 efi_graphics_output_protocol_t **found_gop)
 {
@@ -469,7 +478,7 @@ static efi_handle_t find_handle_with_primary_gop(unsigned long num, const efi_ha
 	return first_gop_handle;
 }
 
-efi_status_t efi_setup_gop(struct screen_info *si)
+efi_status_t efi_setup_graphics(struct screen_info *si, struct edid_info *edid)
 {
 	efi_handle_t *handles __free(efi_pool) = NULL;
 	efi_handle_t handle;
@@ -493,6 +502,31 @@ efi_status_t efi_setup_gop(struct screen_info *si)
 	/* EFI framebuffer */
 	if (si)
 		setup_screen_info(si, gop);
+
+	/* Display EDID for primary GOP */
+	if (edid) {
+		efi_edid_discovered_protocol_t *discovered_edid;
+		efi_edid_active_protocol_t *active_edid;
+		u32 gop_size_of_edid = 0;
+		u8 *gop_edid = NULL;
+
+		status = efi_bs_call(handle_protocol, handle, &EFI_EDID_ACTIVE_PROTOCOL_GUID,
+				     (void **)&active_edid);
+		if (status == EFI_SUCCESS) {
+			gop_size_of_edid = active_edid->size_of_edid;
+			gop_edid = active_edid->edid;
+		} else {
+			status = efi_bs_call(handle_protocol, handle,
+					     &EFI_EDID_DISCOVERED_PROTOCOL_GUID,
+					     (void **)&discovered_edid);
+			if (status == EFI_SUCCESS) {
+				gop_size_of_edid = discovered_edid->size_of_edid;
+				gop_edid = discovered_edid->edid;
+			}
+		}
+
+		setup_edid_info(edid, gop_size_of_edid, gop_edid);
+	}
 
 	return EFI_SUCCESS;
 }
