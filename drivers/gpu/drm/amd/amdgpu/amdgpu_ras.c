@@ -3142,7 +3142,7 @@ int amdgpu_ras_save_bad_pages(struct amdgpu_device *adev,
 		*new_cnt = unit_num;
 
 	/* only new entries are saved */
-	if (unit_num > 0) {
+	if (unit_num && save_count) {
 		/*old asics only save pa to eeprom like before*/
 		if (IP_VERSION_MAJ(amdgpu_ip_version(adev, UMC_HWIP, 0)) < 12) {
 			if (amdgpu_ras_eeprom_append(control,
