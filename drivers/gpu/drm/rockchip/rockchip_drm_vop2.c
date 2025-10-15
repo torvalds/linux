@@ -1032,20 +1032,20 @@ static int vop2_plane_atomic_check(struct drm_plane *plane,
 
 	if (drm_rect_width(src) >> 16 < 4 || drm_rect_height(src) >> 16 < 4 ||
 	    drm_rect_width(dest) < 4 || drm_rect_width(dest) < 4) {
-		drm_err(vop2->drm, "Invalid size: %dx%d->%dx%d, min size is 4x4\n",
-			drm_rect_width(src) >> 16, drm_rect_height(src) >> 16,
-			drm_rect_width(dest), drm_rect_height(dest));
+		drm_dbg_kms(vop2->drm, "Invalid size: %dx%d->%dx%d, min size is 4x4\n",
+			    drm_rect_width(src) >> 16, drm_rect_height(src) >> 16,
+			    drm_rect_width(dest), drm_rect_height(dest));
 		pstate->visible = false;
 		return 0;
 	}
 
 	if (drm_rect_width(src) >> 16 > vop2_data->max_input.width ||
 	    drm_rect_height(src) >> 16 > vop2_data->max_input.height) {
-		drm_err(vop2->drm, "Invalid source: %dx%d. max input: %dx%d\n",
-			drm_rect_width(src) >> 16,
-			drm_rect_height(src) >> 16,
-			vop2_data->max_input.width,
-			vop2_data->max_input.height);
+		drm_dbg_kms(vop2->drm, "Invalid source: %dx%d. max input: %dx%d\n",
+			    drm_rect_width(src) >> 16,
+			    drm_rect_height(src) >> 16,
+			    vop2_data->max_input.width,
+			    vop2_data->max_input.height);
 		return -EINVAL;
 	}
 
@@ -1054,7 +1054,7 @@ static int vop2_plane_atomic_check(struct drm_plane *plane,
 	 * need align with 2 pixel.
 	 */
 	if (fb->format->is_yuv && ((pstate->src.x1 >> 16) % 2)) {
-		drm_err(vop2->drm, "Invalid Source: Yuv format not support odd xpos\n");
+		drm_dbg_kms(vop2->drm, "Invalid Source: Yuv format not support odd xpos\n");
 		return -EINVAL;
 	}
 
