@@ -367,24 +367,31 @@ static void find_bits(u32 mask, u8 *pos, u8 *size)
 	*size = __fls(mask) - *pos + 1;
 }
 
-static void
-setup_pixel_info(struct screen_info *si, u32 pixels_per_scan_line,
-		 efi_pixel_bitmask_t pixel_info, int pixel_format)
+static void setup_screen_info(struct screen_info *si, const efi_graphics_output_protocol_t *gop)
 {
-	if (pixel_format == PIXEL_BIT_MASK) {
-		find_bits(pixel_info.red_mask,
-			  &si->red_pos, &si->red_size);
-		find_bits(pixel_info.green_mask,
-			  &si->green_pos, &si->green_size);
-		find_bits(pixel_info.blue_mask,
-			  &si->blue_pos, &si->blue_size);
-		find_bits(pixel_info.reserved_mask,
-			  &si->rsvd_pos, &si->rsvd_size);
-		si->lfb_depth = si->red_size + si->green_size +
-			si->blue_size + si->rsvd_size;
-		si->lfb_linelength = (pixels_per_scan_line * si->lfb_depth) / 8;
+	const efi_graphics_output_protocol_mode_t *mode = efi_table_attr(gop, mode);
+	const efi_graphics_output_mode_info_t *info = efi_table_attr(mode, info);
+
+	si->orig_video_isVGA = VIDEO_TYPE_EFI;
+
+	si->lfb_width  = info->horizontal_resolution;
+	si->lfb_height = info->vertical_resolution;
+
+	efi_set_u64_split(efi_table_attr(mode, frame_buffer_base),
+			  &si->lfb_base, &si->ext_lfb_base);
+	if (si->ext_lfb_base)
+		si->capabilities |= VIDEO_CAPABILITY_64BIT_BASE;
+	si->pages = 1;
+
+	if (info->pixel_format == PIXEL_BIT_MASK) {
+		find_bits(info->pixel_information.red_mask, &si->red_pos, &si->red_size);
+		find_bits(info->pixel_information.green_mask, &si->green_pos, &si->green_size);
+		find_bits(info->pixel_information.blue_mask, &si->blue_pos, &si->blue_size);
+		find_bits(info->pixel_information.reserved_mask, &si->rsvd_pos, &si->rsvd_size);
+		si->lfb_depth = si->red_size + si->green_size + si->blue_size + si->rsvd_size;
+		si->lfb_linelength = (info->pixels_per_scan_line * si->lfb_depth) / 8;
 	} else {
-		if (pixel_format == PIXEL_RGB_RESERVED_8BIT_PER_COLOR) {
+		if (info->pixel_format == PIXEL_RGB_RESERVED_8BIT_PER_COLOR) {
 			si->red_pos   = 0;
 			si->blue_pos  = 16;
 		} else /* PIXEL_BGR_RESERVED_8BIT_PER_COLOR */ {
@@ -394,12 +401,16 @@ setup_pixel_info(struct screen_info *si, u32 pixels_per_scan_line,
 
 		si->green_pos = 8;
 		si->rsvd_pos  = 24;
-		si->red_size = si->green_size =
-			si->blue_size = si->rsvd_size = 8;
-
+		si->red_size = 8;
+		si->green_size = 8;
+		si->blue_size = 8;
+		si->rsvd_size = 8;
 		si->lfb_depth = 32;
-		si->lfb_linelength = pixels_per_scan_line * 4;
+		si->lfb_linelength = info->pixels_per_scan_line * 4;
 	}
+
+	si->lfb_size = si->lfb_linelength * si->lfb_height;
+	si->capabilities |= VIDEO_CAPABILITY_SKIP_QUIRKS;
 }
 
 static efi_handle_t find_handle_with_primary_gop(unsigned long num, const efi_handle_t handles[],
@@ -462,8 +473,6 @@ efi_status_t efi_setup_gop(struct screen_info *si)
 {
 	efi_handle_t *handles __free(efi_pool) = NULL;
 	efi_handle_t handle;
-	efi_graphics_output_protocol_mode_t *mode;
-	efi_graphics_output_mode_info_t *info;
 	efi_graphics_output_protocol_t *gop;
 	efi_status_t status;
 	unsigned long num;
@@ -482,27 +491,8 @@ efi_status_t efi_setup_gop(struct screen_info *si)
 	set_mode(gop);
 
 	/* EFI framebuffer */
-	mode = efi_table_attr(gop, mode);
-	info = efi_table_attr(mode, info);
-
-	si->orig_video_isVGA = VIDEO_TYPE_EFI;
-
-	si->lfb_width  = info->horizontal_resolution;
-	si->lfb_height = info->vertical_resolution;
-
-	efi_set_u64_split(efi_table_attr(mode, frame_buffer_base),
-			  &si->lfb_base, &si->ext_lfb_base);
-	if (si->ext_lfb_base)
-		si->capabilities |= VIDEO_CAPABILITY_64BIT_BASE;
-
-	si->pages = 1;
-
-	setup_pixel_info(si, info->pixels_per_scan_line,
-			     info->pixel_information, info->pixel_format);
-
-	si->lfb_size = si->lfb_linelength * si->lfb_height;
-
-	si->capabilities |= VIDEO_CAPABILITY_SKIP_QUIRKS;
+	if (si)
+		setup_screen_info(si, gop);
 
 	return EFI_SUCCESS;
 }
