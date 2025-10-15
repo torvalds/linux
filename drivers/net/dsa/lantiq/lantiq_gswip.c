@@ -432,7 +432,7 @@ static int gswip_add_single_port_br(struct gswip_priv *priv, int port, bool add)
 
 	vlan_active.index = port + 1;
 	vlan_active.table = GSWIP_TABLE_ACTIVE_VLAN;
-	vlan_active.key[0] = 0; /* vid */
+	vlan_active.key[0] = GSWIP_VLAN_UNAWARE_PVID;
 	vlan_active.val[0] = port + 1 /* fid */;
 	vlan_active.valid = add;
 	err = gswip_pce_table_entry_write(priv, &vlan_active);
@@ -446,7 +446,7 @@ static int gswip_add_single_port_br(struct gswip_priv *priv, int port, bool add)
 
 	vlan_mapping.index = port + 1;
 	vlan_mapping.table = GSWIP_TABLE_VLAN_MAPPING;
-	vlan_mapping.val[0] = 0 /* vid */;
+	vlan_mapping.val[0] = GSWIP_VLAN_UNAWARE_PVID;
 	vlan_mapping.val[1] = BIT(port) | dsa_cpu_ports(priv->ds);
 	vlan_mapping.val[2] = 0;
 	err = gswip_pce_table_entry_write(priv, &vlan_mapping);
@@ -772,7 +772,8 @@ static int gswip_vlan_add_unaware(struct gswip_priv *priv,
 	 * entry in a free slot and prepare the VLAN mapping table entry.
 	 */
 	if (idx == -1) {
-		idx = gswip_vlan_active_create(priv, bridge, -1, 0);
+		idx = gswip_vlan_active_create(priv, bridge, -1,
+					       GSWIP_VLAN_UNAWARE_PVID);
 		if (idx < 0)
 			return idx;
 		active_vlan_created = true;
@@ -780,7 +781,7 @@ static int gswip_vlan_add_unaware(struct gswip_priv *priv,
 		vlan_mapping.index = idx;
 		vlan_mapping.table = GSWIP_TABLE_VLAN_MAPPING;
 		/* VLAN ID byte, maps to the VLAN ID of vlan active table */
-		vlan_mapping.val[0] = 0;
+		vlan_mapping.val[0] = GSWIP_VLAN_UNAWARE_PVID;
 	} else {
 		/* Read the existing VLAN mapping entry from the switch */
 		vlan_mapping.index = idx;
@@ -977,7 +978,8 @@ static void gswip_port_bridge_leave(struct dsa_switch *ds, int port,
 	 * specific bridges. No bridge is configured here.
 	 */
 	if (!br_vlan_enabled(br))
-		gswip_vlan_remove(priv, br, port, 0, true, false);
+		gswip_vlan_remove(priv, br, port, GSWIP_VLAN_UNAWARE_PVID, true,
+				  false);
 }
 
 static int gswip_port_vlan_prepare(struct dsa_switch *ds, int port,

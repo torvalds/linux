@@ -222,6 +222,8 @@
  */
 #define GSWIP_MAX_PACKET_LENGTH	2400
 
+#define GSWIP_VLAN_UNAWARE_PVID	0
+
 struct gswip_pce_microcode {
 	u16 val_3;
 	u16 val_2;
