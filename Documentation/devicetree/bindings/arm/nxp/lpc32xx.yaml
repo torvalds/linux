@@ -22,5 +22,27 @@ properties:
               - phytec,phy3250
           - const: nxp,lpc3250
 
+      - items:
+          - enum:
+              - ea,lpc4357-developers-kit
+          - const: nxp,lpc4357
+          - const: nxp,lpc4350
+
+      - items:
+          - enum:
+              - ciaa,lpc4337
+          - const: nxp,lpc4337
+          - const: nxp,lpc4350
+
+      - items:
+          - enum:
+              - hitex,lpc4350-eval-board
+          - const: nxp,lpc4350
+
+      - items:
+          - enum:
+              - myir,myd-lpc4357
+          - const: nxp,lpc4357
+
 additionalProperties: true
 ...
