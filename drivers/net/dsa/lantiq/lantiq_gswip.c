@@ -547,6 +547,45 @@ static int gswip_pce_load_microcode(struct gswip_priv *priv)
 	return 0;
 }
 
+static void gswip_port_commit_pvid(struct gswip_priv *priv, int port)
+{
+	struct dsa_port *dp = dsa_to_port(priv->ds, port);
+	struct net_device *br = dsa_port_bridge_dev_get(dp);
+	int idx;
+
+	if (!dsa_port_is_user(dp))
+		return;
+
+	if (br) {
+		u16 pvid = GSWIP_VLAN_UNAWARE_PVID;
+
+		if (br_vlan_enabled(br))
+			br_vlan_get_pvid(br, &pvid);
+
+		/* VLAN-aware bridge ports with no PVID will use Active VLAN
+		 * index 0. The expectation is that this drops all untagged and
+		 * VID-0 tagged ingress traffic.
+		 */
+		idx = 0;
+		for (int i = priv->hw_info->max_ports;
+		     i < ARRAY_SIZE(priv->vlans); i++) {
+			if (priv->vlans[i].bridge == br &&
+			    priv->vlans[i].vid == pvid) {
+				idx = i;
+				break;
+			}
+		}
+	} else {
+		/* The Active VLAN table index as configured by
+		 * gswip_add_single_port_br()
+		 */
+		idx = port + 1;
+	}
+
+	/* GSWIP 2.2 (GRX300) and later program here the VID directly. */
+	gswip_switch_w(priv, idx, GSWIP_PCE_DEFPVID(port));
+}
+
 static int gswip_port_vlan_filtering(struct dsa_switch *ds, int port,
 				     bool vlan_filtering,
 				     struct netlink_ext_ack *extack)
@@ -580,6 +619,8 @@ static int gswip_port_vlan_filtering(struct dsa_switch *ds, int port,
 		gswip_switch_mask(priv, 0, GSWIP_PCE_PCTRL_0_TVM,
 				  GSWIP_PCE_PCTRL_0p(port));
 	}
+
+	gswip_port_commit_pvid(priv, port);
 
 	return 0;
 }
@@ -676,8 +717,6 @@ static int gswip_setup(struct dsa_switch *ds)
 	}
 
 	ds->mtu_enforcement_ingress = true;
-
-	ds->configure_vlan_while_not_filtering = false;
 
 	return 0;
 }
@@ -819,7 +858,7 @@ static int gswip_vlan_add(struct gswip_priv *priv, struct net_device *bridge,
 		return err;
 	}
 
-	gswip_switch_w(priv, vlan_aware ? idx : 0, GSWIP_PCE_DEFPVID(port));
+	gswip_port_commit_pvid(priv, port);
 
 	return 0;
 }
@@ -874,9 +913,7 @@ static int gswip_vlan_remove(struct gswip_priv *priv,
 		}
 	}
 
-	/* GSWIP 2.2 (GRX300) and later program here the VID directly. */
-	if (pvid)
-		gswip_switch_w(priv, 0, GSWIP_PCE_DEFPVID(port));
+	gswip_port_commit_pvid(priv, port);
 
 	return 0;
 }
