@@ -313,6 +313,7 @@ struct sk_filter;
   *	@sk_bind_phc: SO_TIMESTAMPING bind PHC index of PTP virtual clock
   *	              for timestamping
   *	@sk_tskey: counter to disambiguate concurrent tstamp requests
+  *	@sk_tx_queue_mapping_jiffies: time in jiffies of last @sk_tx_queue_mapping refresh.
   *	@sk_zckey: counter to order MSG_ZEROCOPY notifications
   *	@sk_socket: Identd and reporting IO signals
   *	@sk_user_data: RPC layer private data. Write-protected by @sk_callback_lock.
@@ -485,6 +486,7 @@ struct sock {
 	unsigned long		sk_pacing_rate; /* bytes per second */
 	atomic_t		sk_zckey;
 	atomic_t		sk_tskey;
+	unsigned long		sk_tx_queue_mapping_jiffies;
 	__cacheline_group_end(sock_write_tx);
 
 	__cacheline_group_begin(sock_read_tx);
@@ -1992,7 +1994,15 @@ static inline void sk_tx_queue_set(struct sock *sk, int tx_queue)
 	/* Paired with READ_ONCE() in sk_tx_queue_get() and
 	 * other WRITE_ONCE() because socket lock might be not held.
 	 */
-	WRITE_ONCE(sk->sk_tx_queue_mapping, tx_queue);
+	if (READ_ONCE(sk->sk_tx_queue_mapping) != tx_queue) {
+		WRITE_ONCE(sk->sk_tx_queue_mapping, tx_queue);
+		WRITE_ONCE(sk->sk_tx_queue_mapping_jiffies, jiffies);
+		return;
+	}
+
+	/* Refresh sk_tx_queue_mapping_jiffies if too old. */
+	if (time_is_before_jiffies(READ_ONCE(sk->sk_tx_queue_mapping_jiffies) + HZ))
+		WRITE_ONCE(sk->sk_tx_queue_mapping_jiffies, jiffies);
 }
 
 #define NO_QUEUE_MAPPING	USHRT_MAX
@@ -2005,19 +2015,7 @@ static inline void sk_tx_queue_clear(struct sock *sk)
 	WRITE_ONCE(sk->sk_tx_queue_mapping, NO_QUEUE_MAPPING);
 }
 
-static inline int sk_tx_queue_get(const struct sock *sk)
-{
-	if (sk) {
-		/* Paired with WRITE_ONCE() in sk_tx_queue_clear()
-		 * and sk_tx_queue_set().
-		 */
-		int val = READ_ONCE(sk->sk_tx_queue_mapping);
-
-		if (val != NO_QUEUE_MAPPING)
-			return val;
-	}
-	return -1;
-}
+int sk_tx_queue_get(const struct sock *sk);
 
 static inline void __sk_rx_queue_set(struct sock *sk,
 				     const struct sk_buff *skb,
@@ -2303,6 +2301,7 @@ static inline int skb_copy_to_page_nocache(struct sock *sk, struct iov_iter *fro
 	return 0;
 }
 
+#define SK_WMEM_ALLOC_BIAS 1
 /**
  * sk_wmem_alloc_get - returns write allocations
  * @sk: socket
@@ -2311,7 +2310,7 @@ static inline int skb_copy_to_page_nocache(struct sock *sk, struct iov_iter *fro
  */
 static inline int sk_wmem_alloc_get(const struct sock *sk)
 {
-	return refcount_read(&sk->sk_wmem_alloc) - 1;
+	return refcount_read(&sk->sk_wmem_alloc) - SK_WMEM_ALLOC_BIAS;
 }
 
 /**

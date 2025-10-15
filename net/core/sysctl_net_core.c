@@ -668,6 +668,13 @@ static struct ctl_table netns_core_table[] = {
 		.proc_handler	= proc_dou8vec_minmax,
 	},
 	{
+		.procname	= "txq_reselection_ms",
+		.data		= &init_net.core.sysctl_txq_reselection,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_ms_jiffies,
+	},
+	{
 		.procname	= "tstamp_allow_data",
 		.data		= &init_net.core.sysctl_tstamp_allow_data,
 		.maxlen		= sizeof(u8),

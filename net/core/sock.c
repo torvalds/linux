@@ -2313,7 +2313,7 @@ struct sock *sk_alloc(struct net *net, int family, gfp_t priority,
 		}
 
 		sock_net_set(sk, net);
-		refcount_set(&sk->sk_wmem_alloc, 1);
+		refcount_set(&sk->sk_wmem_alloc, SK_WMEM_ALLOC_BIAS);
 
 		mem_cgroup_sk_alloc(sk);
 		cgroup_sk_alloc(&sk->sk_cgrp_data);
@@ -2494,8 +2494,7 @@ struct sock *sk_clone_lock(const struct sock *sk, const gfp_t priority)
 
 	atomic_set(&newsk->sk_rmem_alloc, 0);
 
-	/* sk_wmem_alloc set to one (see sk_free() and sock_wfree()) */
-	refcount_set(&newsk->sk_wmem_alloc, 1);
+	refcount_set(&newsk->sk_wmem_alloc, SK_WMEM_ALLOC_BIAS);
 
 	atomic_set(&newsk->sk_omem_alloc, 0);
 	sk_init_common(newsk);
@@ -2695,6 +2694,8 @@ void __sock_wfree(struct sk_buff *skb)
 
 void skb_set_owner_w(struct sk_buff *skb, struct sock *sk)
 {
+	int old_wmem;
+
 	skb_orphan(skb);
 #ifdef CONFIG_INET
 	if (unlikely(!sk_fullsock(sk)))
@@ -2708,7 +2709,15 @@ void skb_set_owner_w(struct sk_buff *skb, struct sock *sk)
 	 * is enough to guarantee sk_free() won't free this sock until
 	 * all in-flight packets are completed
 	 */
-	refcount_add(skb->truesize, &sk->sk_wmem_alloc);
+	__refcount_add(skb->truesize, &sk->sk_wmem_alloc, &old_wmem);
+
+	/* (old_wmem == SK_WMEM_ALLOC_BIAS) if no other TX packet for this socket
+	 * is in a host queue (qdisc, NIC queue).
+	 * Set skb->ooo_okay so that netdev_pick_tx() can choose a TX queue
+	 * based on XPS for better performance.
+	 * Otherwise clear ooo_okay to not risk Out Of Order delivery.
+	 */
+	skb->ooo_okay = (old_wmem == SK_WMEM_ALLOC_BIAS);
 }
 EXPORT_SYMBOL(skb_set_owner_w);
 

@@ -4591,6 +4591,32 @@ u16 dev_pick_tx_zero(struct net_device *dev, struct sk_buff *skb,
 }
 EXPORT_SYMBOL(dev_pick_tx_zero);
 
+int sk_tx_queue_get(const struct sock *sk)
+{
+	int resel, val;
+
+	if (!sk)
+		return -1;
+	/* Paired with WRITE_ONCE() in sk_tx_queue_clear()
+	 * and sk_tx_queue_set().
+	 */
+	val = READ_ONCE(sk->sk_tx_queue_mapping);
+
+	if (val == NO_QUEUE_MAPPING)
+		return -1;
+
+	if (!sk_fullsock(sk))
+		return val;
+
+	resel = READ_ONCE(sock_net(sk)->core.sysctl_txq_reselection);
+	if (resel && time_is_before_jiffies(
+			READ_ONCE(sk->sk_tx_queue_mapping_jiffies) + resel))
+		return -1;
+
+	return val;
+}
+EXPORT_SYMBOL(sk_tx_queue_get);
+
 u16 netdev_pick_tx(struct net_device *dev, struct sk_buff *skb,
 		     struct net_device *sb_dev)
 {
@@ -4606,8 +4632,7 @@ u16 netdev_pick_tx(struct net_device *dev, struct sk_buff *skb,
 		if (new_index < 0)
 			new_index = skb_tx_hash(dev, sb_dev, skb);
 
-		if (queue_index != new_index && sk &&
-		    sk_fullsock(sk) &&
+		if (sk && sk_fullsock(sk) &&
 		    rcu_access_pointer(sk->sk_dst_cache))
 			sk_tx_queue_set(sk, new_index);
 
