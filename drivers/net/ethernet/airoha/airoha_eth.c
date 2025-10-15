@@ -2022,8 +2022,12 @@ static void airoha_ethtool_get_mac_stats(struct net_device *dev,
 	airoha_update_hw_stats(port);
 	do {
 		start = u64_stats_fetch_begin(&port->stats.syncp);
+		stats->FramesTransmittedOK = port->stats.tx_ok_pkts;
+		stats->OctetsTransmittedOK = port->stats.tx_ok_bytes;
 		stats->MulticastFramesXmittedOK = port->stats.tx_multicast;
 		stats->BroadcastFramesXmittedOK = port->stats.tx_broadcast;
+		stats->FramesReceivedOK = port->stats.rx_ok_pkts;
+		stats->OctetsReceivedOK = port->stats.rx_ok_bytes;
 		stats->BroadcastFramesReceivedOK = port->stats.rx_broadcast;
 	} while (u64_stats_fetch_retry(&port->stats.syncp, start));
 }
@@ -2766,6 +2770,7 @@ static const struct ethtool_ops airoha_ethtool_ops = {
 	.get_drvinfo		= airoha_ethtool_get_drvinfo,
 	.get_eth_mac_stats      = airoha_ethtool_get_mac_stats,
 	.get_rmon_stats		= airoha_ethtool_get_rmon_stats,
+	.get_link		= ethtool_op_get_link,
 };
 
 static int airoha_metadata_dst_alloc(struct airoha_gdm_port *port)
