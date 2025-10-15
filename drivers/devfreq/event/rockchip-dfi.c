@@ -20,6 +20,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/bitfield.h>
+#include <linux/hw_bitfield.h>
 #include <linux/bits.h>
 #include <linux/perf_event.h>
 
@@ -30,8 +31,6 @@
 
 #define DMC_MAX_CHANNELS	4
 
-#define HIWORD_UPDATE(val, mask)	((val) | (mask) << 16)
-
 /* DDRMON_CTRL */
 #define DDRMON_CTRL	0x04
 #define DDRMON_CTRL_LPDDR5		BIT(6)
@@ -41,10 +40,6 @@
 #define DDRMON_CTRL_LPDDR23		BIT(2)
 #define DDRMON_CTRL_SOFTWARE_EN		BIT(1)
 #define DDRMON_CTRL_TIMER_CNT_EN	BIT(0)
-#define DDRMON_CTRL_DDR_TYPE_MASK	(DDRMON_CTRL_LPDDR5 | \
-					 DDRMON_CTRL_DDR4 | \
-					 DDRMON_CTRL_LPDDR4 | \
-					 DDRMON_CTRL_LPDDR23)
 #define DDRMON_CTRL_LP5_BANK_MODE_MASK	GENMASK(8, 7)
 
 #define DDRMON_CH0_WR_NUM		0x20
@@ -124,27 +119,31 @@ struct rockchip_dfi {
 	unsigned int count_multiplier;	/* number of data clocks per count */
 };
 
-static int rockchip_dfi_ddrtype_to_ctrl(struct rockchip_dfi *dfi, u32 *ctrl,
-					u32 *mask)
+static int rockchip_dfi_ddrtype_to_ctrl(struct rockchip_dfi *dfi, u32 *ctrl)
 {
 	u32 ddrmon_ver;
-
-	*mask = DDRMON_CTRL_DDR_TYPE_MASK;
 
 	switch (dfi->ddr_type) {
 	case ROCKCHIP_DDRTYPE_LPDDR2:
 	case ROCKCHIP_DDRTYPE_LPDDR3:
-		*ctrl = DDRMON_CTRL_LPDDR23;
+		*ctrl = FIELD_PREP_WM16(DDRMON_CTRL_LPDDR23, 1) |
+			FIELD_PREP_WM16(DDRMON_CTRL_LPDDR4, 0) |
+			FIELD_PREP_WM16(DDRMON_CTRL_LPDDR5, 0);
 		break;
 	case ROCKCHIP_DDRTYPE_LPDDR4:
 	case ROCKCHIP_DDRTYPE_LPDDR4X:
-		*ctrl = DDRMON_CTRL_LPDDR4;
+		*ctrl = FIELD_PREP_WM16(DDRMON_CTRL_LPDDR23, 0) |
+			FIELD_PREP_WM16(DDRMON_CTRL_LPDDR4, 1) |
+			FIELD_PREP_WM16(DDRMON_CTRL_LPDDR5, 0);
 		break;
 	case ROCKCHIP_DDRTYPE_LPDDR5:
 		ddrmon_ver = readl_relaxed(dfi->regs);
 		if (ddrmon_ver < 0x40) {
-			*ctrl = DDRMON_CTRL_LPDDR5 | dfi->lp5_bank_mode;
-			*mask |= DDRMON_CTRL_LP5_BANK_MODE_MASK;
+			*ctrl = FIELD_PREP_WM16(DDRMON_CTRL_LPDDR23, 0) |
+				FIELD_PREP_WM16(DDRMON_CTRL_LPDDR4, 0) |
+				FIELD_PREP_WM16(DDRMON_CTRL_LPDDR5, 1) |
+				FIELD_PREP_WM16(DDRMON_CTRL_LP5_BANK_MODE_MASK,
+						dfi->lp5_bank_mode);
 			break;
 		}
 
@@ -172,7 +171,6 @@ static int rockchip_dfi_enable(struct rockchip_dfi *dfi)
 	void __iomem *dfi_regs = dfi->regs;
 	int i, ret = 0;
 	u32 ctrl;
-	u32 ctrl_mask;
 
 	mutex_lock(&dfi->mutex);
 
@@ -186,7 +184,7 @@ static int rockchip_dfi_enable(struct rockchip_dfi *dfi)
 		goto out;
 	}
 
-	ret = rockchip_dfi_ddrtype_to_ctrl(dfi, &ctrl, &ctrl_mask);
+	ret = rockchip_dfi_ddrtype_to_ctrl(dfi, &ctrl);
 	if (ret)
 		goto out;
 
@@ -196,15 +194,16 @@ static int rockchip_dfi_enable(struct rockchip_dfi *dfi)
 			continue;
 
 		/* clear DDRMON_CTRL setting */
-		writel_relaxed(HIWORD_UPDATE(0, DDRMON_CTRL_TIMER_CNT_EN |
-			       DDRMON_CTRL_SOFTWARE_EN | DDRMON_CTRL_HARDWARE_EN),
+		writel_relaxed(FIELD_PREP_WM16(DDRMON_CTRL_TIMER_CNT_EN, 0) |
+			       FIELD_PREP_WM16(DDRMON_CTRL_SOFTWARE_EN, 0) |
+			       FIELD_PREP_WM16(DDRMON_CTRL_HARDWARE_EN, 0),
 			       dfi_regs + i * dfi->ddrmon_stride + DDRMON_CTRL);
 
-		writel_relaxed(HIWORD_UPDATE(ctrl, ctrl_mask),
-			       dfi_regs + i * dfi->ddrmon_stride + DDRMON_CTRL);
+		writel_relaxed(ctrl, dfi_regs + i * dfi->ddrmon_stride +
+			       DDRMON_CTRL);
 
 		/* enable count, use software mode */
-		writel_relaxed(HIWORD_UPDATE(DDRMON_CTRL_SOFTWARE_EN, DDRMON_CTRL_SOFTWARE_EN),
+		writel_relaxed(FIELD_PREP_WM16(DDRMON_CTRL_SOFTWARE_EN, 1),
 			       dfi_regs + i * dfi->ddrmon_stride + DDRMON_CTRL);
 
 		if (dfi->ddrmon_ctrl_single)
@@ -234,8 +233,8 @@ static void rockchip_dfi_disable(struct rockchip_dfi *dfi)
 		if (!(dfi->channel_mask & BIT(i)))
 			continue;
 
-		writel_relaxed(HIWORD_UPDATE(0, DDRMON_CTRL_SOFTWARE_EN),
-			      dfi_regs + i * dfi->ddrmon_stride + DDRMON_CTRL);
+		writel_relaxed(FIELD_PREP_WM16(DDRMON_CTRL_SOFTWARE_EN, 0),
+			       dfi_regs + i * dfi->ddrmon_stride + DDRMON_CTRL);
 
 		if (dfi->ddrmon_ctrl_single)
 			break;
