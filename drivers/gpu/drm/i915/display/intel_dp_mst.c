@@ -814,14 +814,14 @@ static u8 get_pipes_downstream_of_mst_port(struct intel_atomic_state *state,
 	return mask;
 }
 
-static int intel_dp_mst_check_fec_change(struct intel_atomic_state *state,
+static int intel_dp_mst_check_dsc_change(struct intel_atomic_state *state,
 					 struct drm_dp_mst_topology_mgr *mst_mgr,
 					 struct intel_link_bw_limits *limits)
 {
 	struct intel_display *display = to_intel_display(state);
 	struct intel_crtc *crtc;
 	u8 mst_pipe_mask;
-	u8 fec_pipe_mask = 0;
+	u8 dsc_pipe_mask = 0;
 	int ret;
 
 	mst_pipe_mask = get_pipes_downstream_of_mst_port(state, mst_mgr, NULL);
@@ -834,16 +834,16 @@ static int intel_dp_mst_check_fec_change(struct intel_atomic_state *state,
 		if (drm_WARN_ON(display->drm, !crtc_state))
 			return -EINVAL;
 
-		if (crtc_state->fec_enable)
-			fec_pipe_mask |= BIT(crtc->pipe);
+		if (intel_dsc_enabled_on_link(crtc_state))
+			dsc_pipe_mask |= BIT(crtc->pipe);
 	}
 
-	if (!fec_pipe_mask || mst_pipe_mask == fec_pipe_mask)
+	if (!dsc_pipe_mask || mst_pipe_mask == dsc_pipe_mask)
 		return 0;
 
-	limits->force_fec_pipes |= mst_pipe_mask;
+	limits->link_dsc_pipes |= mst_pipe_mask;
 
-	ret = intel_modeset_pipes_in_mask_early(state, "MST FEC",
+	ret = intel_modeset_pipes_in_mask_early(state, "MST DSC",
 						mst_pipe_mask);
 
 	return ret ? : -EAGAIN;
@@ -897,7 +897,7 @@ int intel_dp_mst_atomic_check_link(struct intel_atomic_state *state,
 	int i;
 
 	for_each_new_mst_mgr_in_state(&state->base, mgr, mst_state, i) {
-		ret = intel_dp_mst_check_fec_change(state, mgr, limits);
+		ret = intel_dp_mst_check_dsc_change(state, mgr, limits);
 		if (ret)
 			return ret;
 
