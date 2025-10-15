@@ -70,6 +70,11 @@ static void pf_unprovision_vfs(struct xe_device *xe, unsigned int num_vfs)
 			xe_gt_sriov_pf_config_release(gt, n, true);
 }
 
+static void pf_unprovision_all_vfs(struct xe_device *xe)
+{
+	pf_unprovision_vfs(xe, xe_sriov_pf_get_totalvfs(xe));
+}
+
 /**
  * xe_sriov_pf_provision_vfs() - Provision VFs in auto-mode.
  * @xe: the PF &xe_device
@@ -117,6 +122,10 @@ int xe_sriov_pf_unprovision_vfs(struct xe_device *xe, unsigned int num_vfs)
  * When changing from AUTO to CUSTOM mode, any already allocated VFs resources
  * will remain allocated and will not be released upon VFs disabling.
  *
+ * When changing back to AUTO mode, if VFs are not enabled, already allocated
+ * VFs resources will be immediately released. If VFs are still enabled, such
+ * mode change is rejected.
+ *
  * This function can only be called on PF.
  *
  * Return: 0 on success or a negative error code on failure.
@@ -127,6 +136,15 @@ int xe_sriov_pf_provision_set_mode(struct xe_device *xe, enum xe_sriov_provision
 
 	if (mode == xe->sriov.pf.provision.mode)
 		return 0;
+
+	if (mode == XE_SRIOV_PROVISIONING_MODE_AUTO) {
+		if (xe_sriov_pf_num_vfs(xe)) {
+			xe_sriov_dbg(xe, "can't restore %s: VFs must be disabled!\n",
+				     mode_to_string(mode));
+			return -EBUSY;
+		}
+		pf_unprovision_all_vfs(xe);
+	}
 
 	xe_sriov_dbg(xe, "mode %s changed to %s by %ps\n",
 		     mode_to_string(xe->sriov.pf.provision.mode),

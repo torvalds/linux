@@ -13,6 +13,7 @@
 #include "xe_sriov_pf_control.h"
 #include "xe_sriov_pf_debugfs.h"
 #include "xe_sriov_pf_helpers.h"
+#include "xe_sriov_pf_provision.h"
 #include "xe_sriov_pf_service.h"
 #include "xe_sriov_printk.h"
 #include "xe_tile_sriov_pf_debugfs.h"
@@ -41,6 +42,66 @@ static unsigned int extract_vfid(struct dentry *d)
 	void *p = extract_priv(d);
 
 	return p == extract_xe(d) ? PFID : (uintptr_t)p;
+}
+
+/*
+ *      /sys/kernel/debug/dri/BDF/
+ *      ├── sriov
+ *      │   ├── restore_auto_provisioning
+ *      │   :
+ *      │   ├── pf/
+ *      │   ├── vf1
+ *      │   │   ├── ...
+ */
+
+static ssize_t from_file_write_to_xe_call(struct file *file, const char __user *userbuf,
+					  size_t count, loff_t *ppos,
+					  int (*call)(struct xe_device *))
+{
+	struct dentry *dent = file_dentry(file);
+	struct xe_device *xe = extract_xe(dent);
+	bool yes;
+	int ret;
+
+	if (*ppos)
+		return -EINVAL;
+	ret = kstrtobool_from_user(userbuf, count, &yes);
+	if (ret < 0)
+		return ret;
+	if (yes) {
+		xe_pm_runtime_get(xe);
+		ret = call(xe);
+		xe_pm_runtime_put(xe);
+	}
+	if (ret < 0)
+		return ret;
+	return count;
+}
+
+#define DEFINE_SRIOV_ATTRIBUTE(OP)						\
+static int OP##_show(struct seq_file *s, void *unused)				\
+{										\
+	return 0;								\
+}										\
+static ssize_t OP##_write(struct file *file, const char __user *userbuf,	\
+			  size_t count, loff_t *ppos)				\
+{										\
+	return from_file_write_to_xe_call(file, userbuf, count, ppos,		\
+					  xe_sriov_pf_##OP);			\
+}										\
+DEFINE_SHOW_STORE_ATTRIBUTE(OP)
+
+static inline int xe_sriov_pf_restore_auto_provisioning(struct xe_device *xe)
+{
+	return xe_sriov_pf_provision_set_mode(xe, XE_SRIOV_PROVISIONING_MODE_AUTO);
+}
+
+DEFINE_SRIOV_ATTRIBUTE(restore_auto_provisioning);
+
+static void pf_populate_root(struct xe_device *xe, struct dentry *dent)
+{
+	debugfs_create_file("restore_auto_provisioning", 0200, dent, xe,
+			    &restore_auto_provisioning_fops);
 }
 
 static int simple_show(struct seq_file *m, void *data)
@@ -166,6 +227,8 @@ void xe_sriov_pf_debugfs_register(struct xe_device *xe, struct dentry *root)
 	if (IS_ERR(dent))
 		return;
 	dent->d_inode->i_private = xe;
+
+	pf_populate_root(xe, dent);
 
 	/*
 	 *      /sys/kernel/debug/dri/BDF/
