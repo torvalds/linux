@@ -106,14 +106,14 @@ static void do_tx(int domain, int type, int protocol)
 
 	ret = io_uring_queue_init(512, &ring, 0);
 	if (ret)
-		error(1, ret, "io_uring: queue init");
+		error(1, -ret, "io_uring: queue init");
 
 	iov.iov_base = payload;
 	iov.iov_len = cfg_payload_len;
 
 	ret = io_uring_register_buffers(&ring, &iov, 1);
 	if (ret)
-		error(1, ret, "io_uring: buffer registration");
+		error(1, -ret, "io_uring: buffer registration");
 
 	tstop = gettimeofday_ms() + cfg_runtime_ms;
 	do {
@@ -149,24 +149,24 @@ static void do_tx(int domain, int type, int protocol)
 
 		ret = io_uring_submit(&ring);
 		if (ret != cfg_nr_reqs)
-			error(1, ret, "submit");
+			error(1, -ret, "submit");
 
 		if (cfg_cork)
 			do_setsockopt(fd, IPPROTO_UDP, UDP_CORK, 0);
 		for (i = 0; i < cfg_nr_reqs; i++) {
 			ret = io_uring_wait_cqe(&ring, &cqe);
 			if (ret)
-				error(1, ret, "wait cqe");
+				error(1, -ret, "wait cqe");
 
 			if (cqe->user_data != NONZC_TAG &&
 			    cqe->user_data != ZC_TAG)
-				error(1, -EINVAL, "invalid cqe->user_data");
+				error(1, EINVAL, "invalid cqe->user_data");
 
 			if (cqe->flags & IORING_CQE_F_NOTIF) {
 				if (cqe->flags & IORING_CQE_F_MORE)
-					error(1, -EINVAL, "invalid notif flags");
+					error(1, EINVAL, "invalid notif flags");
 				if (compl_cqes <= 0)
-					error(1, -EINVAL, "notification mismatch");
+					error(1, EINVAL, "notification mismatch");
 				compl_cqes--;
 				i--;
 				io_uring_cqe_seen(&ring);
@@ -174,14 +174,14 @@ static void do_tx(int domain, int type, int protocol)
 			}
 			if (cqe->flags & IORING_CQE_F_MORE) {
 				if (cqe->user_data != ZC_TAG)
-					error(1, cqe->res, "unexpected F_MORE");
+					error(1, -cqe->res, "unexpected F_MORE");
 				compl_cqes++;
 			}
 			if (cqe->res >= 0) {
 				packets++;
 				bytes += cqe->res;
 			} else if (cqe->res != -EAGAIN) {
-				error(1, cqe->res, "send failed");
+				error(1, -cqe->res, "send failed");
 			}
 			io_uring_cqe_seen(&ring);
 		}
@@ -190,11 +190,11 @@ static void do_tx(int domain, int type, int protocol)
 	while (compl_cqes) {
 		ret = io_uring_wait_cqe(&ring, &cqe);
 		if (ret)
-			error(1, ret, "wait cqe");
+			error(1, -ret, "wait cqe");
 		if (cqe->flags & IORING_CQE_F_MORE)
-			error(1, -EINVAL, "invalid notif flags");
+			error(1, EINVAL, "invalid notif flags");
 		if (!(cqe->flags & IORING_CQE_F_NOTIF))
-			error(1, -EINVAL, "missing notif flag");
+			error(1, EINVAL, "missing notif flag");
 
 		io_uring_cqe_seen(&ring);
 		compl_cqes--;
