@@ -122,15 +122,21 @@
 		VDDD-supply = <&reg_1p8v>;
 	};
 
-	stmpe811: gpio-expander@44 {
+	gpio-expander@44 {
 		compatible = "st,stmpe811";
 		reg = <0x44>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_stmpe>;
 		interrupt-parent = <&gpio1>;
 		interrupts = <18 IRQ_TYPE_EDGE_FALLING>;
-		interrupt-controller;
-		#interrupt-cells = <2>;
+
+		gpio {
+			compatible = "st,stmpe-gpio";
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
 
 		stmpe: touchscreen {
 			compatible = "st,stmpe-ts";
