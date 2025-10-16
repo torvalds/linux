@@ -10,7 +10,7 @@
  * bugs.
  */
 
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 #include <errno.h>
 #include <fcntl.h>

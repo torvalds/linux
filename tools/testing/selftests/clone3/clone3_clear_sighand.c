@@ -13,7 +13,7 @@
 #include <sys/syscall.h>
 #include <sys/wait.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 #include "clone3_selftests.h"
 
 static void nop_handler(int signo)

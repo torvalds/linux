@@ -18,7 +18,7 @@
 #include <sys/types.h>
 #include <sys/auxv.h>
 #include "defines.h"
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 #include "main.h"
 
 static const uint64_t MAGIC = 0x1122334455667788ULL;

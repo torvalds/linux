@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 #include <stdio.h>
 
-#include "../../../kselftest.h"
+#include "kselftest.h"
 #include <vfio_util.h>
 
 #ifdef __x86_64__

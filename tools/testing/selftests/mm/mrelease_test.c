@@ -12,7 +12,7 @@
 #include <unistd.h>
 #include <asm-generic/unistd.h>
 #include "vm_util.h"
-#include "../kselftest.h"
+#include "kselftest.h"
 
 #define MB(x) (x << 20)
 #define MAX_SIZE_MB 1024

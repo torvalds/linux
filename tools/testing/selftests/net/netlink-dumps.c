@@ -18,7 +18,7 @@
 #include <linux/mqueue.h>
 #include <linux/rtnetlink.h>
 
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 #include <ynl.h>
 

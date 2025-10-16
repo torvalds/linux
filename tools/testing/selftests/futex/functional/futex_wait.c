@@ -11,7 +11,7 @@
 #include <fcntl.h>
 
 #include "futextest.h"
-#include "../../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 #define timeout_ns  30000000
 #define WAKE_WAIT_US 10000

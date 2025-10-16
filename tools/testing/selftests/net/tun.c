@@ -15,7 +15,7 @@
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 static int tun_attach(int fd, char *dev)
 {

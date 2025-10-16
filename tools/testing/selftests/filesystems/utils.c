@@ -20,7 +20,7 @@
 #include <sys/xattr.h>
 #include <sys/mount.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 #include "wrappers.h"
 #include "utils.h"
 

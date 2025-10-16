@@ -18,7 +18,7 @@
 #include <linux/vfio.h>
 #include <linux/iommufd.h>
 
-#include "../../../kselftest.h"
+#include "kselftest.h"
 #include <vfio_util.h>
 
 #define PCI_SYSFS_PATH	"/sys/bus/pci/devices"

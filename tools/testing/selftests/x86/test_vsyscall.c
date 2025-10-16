@@ -21,7 +21,7 @@
 #include <sys/uio.h>
 
 #include "helpers.h"
-#include "../kselftest.h"
+#include "kselftest.h"
 
 #ifdef __x86_64__
 #define TOTAL_TESTS 13

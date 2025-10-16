@@ -7,7 +7,7 @@
 #include <malloc.h>
 #include <sys/mman.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 #include "vm_util.h"
 #include "thp_settings.h"
 

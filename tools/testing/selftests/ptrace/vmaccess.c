@@ -7,7 +7,7 @@
  * when de_thread is blocked with ->cred_guard_mutex held.
  */
 
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 #include <stdio.h>
 #include <fcntl.h>
 #include <pthread.h>

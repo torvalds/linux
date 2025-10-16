@@ -10,7 +10,7 @@
 #include <sched.h>
 #include <stdlib.h>
 
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 #define DST_PORT 30000
 #define SRC_PORT 40000

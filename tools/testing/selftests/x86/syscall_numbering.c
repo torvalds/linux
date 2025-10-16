@@ -25,7 +25,7 @@
 #include <sys/mman.h>
 
 #include <linux/ptrace.h>
-#include "../kselftest.h"
+#include "kselftest.h"
 
 /* Common system call numbers */
 #define SYS_READ	  0

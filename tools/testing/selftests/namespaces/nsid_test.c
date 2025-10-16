@@ -18,7 +18,7 @@
 #include <linux/fs.h>
 #include <linux/limits.h>
 #include <linux/nsfs.h>
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 TEST(nsid_mntns_basic)
 {

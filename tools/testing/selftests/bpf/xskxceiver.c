@@ -104,7 +104,7 @@
 #include "xskxceiver.h"
 #include <bpf/bpf.h>
 #include <linux/filter.h>
-#include "../kselftest.h"
+#include "kselftest.h"
 #include "xsk_xdp_common.h"
 
 #include <network_helpers.h>

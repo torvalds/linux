@@ -57,7 +57,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 
 #define DPORT 8000
 #define SPORT 1500

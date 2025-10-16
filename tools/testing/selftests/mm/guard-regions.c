@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #define _GNU_SOURCE
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 #include <asm-generic/mman.h> /* Force the import of the tools version. */
 #include <assert.h>
 #include <errno.h>

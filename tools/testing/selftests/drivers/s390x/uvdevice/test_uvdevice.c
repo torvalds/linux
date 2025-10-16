@@ -14,7 +14,7 @@
 
 #include <asm/uvdevice.h>
 
-#include "../../../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 #define UV_PATH  "/dev/uv"
 #define BUFFER_SIZE 0x200

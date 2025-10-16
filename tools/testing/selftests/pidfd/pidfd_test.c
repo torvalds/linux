@@ -20,7 +20,7 @@
 #include <unistd.h>
 
 #include "pidfd.h"
-#include "../kselftest.h"
+#include "kselftest.h"
 
 #define str(s) _str(s)
 #define _str(s) #s

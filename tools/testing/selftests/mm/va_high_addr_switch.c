@@ -10,7 +10,7 @@
 #include <string.h>
 
 #include "vm_util.h"
-#include "../kselftest.h"
+#include "kselftest.h"
 
 /*
  * The hint addr value is used to allocate addresses

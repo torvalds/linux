@@ -19,7 +19,7 @@
 #include <include/vdso/time64.h>
 #include <pthread.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 
 #define DELAY 2
 

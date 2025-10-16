@@ -12,7 +12,7 @@
 
 #include <vfio_util.h>
 
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 static const char *device_bdf;
 

@@ -11,7 +11,7 @@
 #include <string.h>
 #include <sys/wait.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 #include "cgroup_util.h"
 
 #define DEBUG

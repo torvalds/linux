@@ -18,7 +18,7 @@
 #include <sys/wait.h>
 #include <sys/epoll.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 
 static long sys_kcmp(int pid1, int pid2, int type, unsigned long fd1, unsigned long fd2)
 {

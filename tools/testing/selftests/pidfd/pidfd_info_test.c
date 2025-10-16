@@ -21,7 +21,7 @@
 #include <sys/stat.h>
 
 #include "pidfd.h"
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 FIXTURE(pidfd_info)
 {
