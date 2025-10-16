@@ -4995,9 +4995,7 @@ static int rtl8169_resume(struct device *device)
 		clk_prepare_enable(tp->clk);
 
 	/* Some chip versions may truncate packets without this initialization */
-	if (tp->mac_version == RTL_GIGA_MAC_VER_37 ||
-	    tp->mac_version == RTL_GIGA_MAC_VER_46)
-		rtl_init_rxcfg(tp);
+	rtl_init_rxcfg(tp);
 
 	return rtl8169_runtime_resume(device);
 }
