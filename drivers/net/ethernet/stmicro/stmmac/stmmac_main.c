@@ -1096,12 +1096,12 @@ static void stmmac_check_pcs_mode(struct stmmac_priv *priv)
 		case SPEED_10:
 		case SPEED_100:
 		case SPEED_1000:
-			priv->hw->ps = speed;
+			priv->hw->reverse_sgmii_enable = true;
 			break;
 
 		default:
 			dev_warn(priv->device, "invalid port speed\n");
-			priv->hw->ps = 0;
+			priv->hw->reverse_sgmii_enable = false;
 			break;
 		}
 	}
@@ -3486,7 +3486,7 @@ static int stmmac_hw_setup(struct net_device *dev)
 	}
 
 	if (priv->hw->pcs)
-		stmmac_pcs_ctrl_ane(priv, 1, priv->hw->ps);
+		stmmac_pcs_ctrl_ane(priv, 1, priv->hw->reverse_sgmii_enable);
 
 	/* set TX and RX rings length */
 	stmmac_set_rings_length(priv);
