@@ -379,7 +379,6 @@ struct io_ring_ctx_rings {
 };
 
 static void io_register_free_rings(struct io_ring_ctx *ctx,
-				   struct io_uring_params *p,
 				   struct io_ring_ctx_rings *r)
 {
 	io_free_region(ctx, &r->sq_region);
@@ -434,7 +433,7 @@ static int io_register_resize_rings(struct io_ring_ctx *ctx, void __user *arg)
 	}
 	ret = io_create_region(ctx, &n.ring_region, &rd, IORING_OFF_CQ_RING);
 	if (ret) {
-		io_register_free_rings(ctx, &p, &n);
+		io_register_free_rings(ctx, &n);
 		return ret;
 	}
 	n.rings = io_region_get_ptr(&n.ring_region);
@@ -453,7 +452,7 @@ static int io_register_resize_rings(struct io_ring_ctx *ctx, void __user *arg)
 	WRITE_ONCE(n.rings->cq_ring_entries, p.cq_entries);
 
 	if (copy_to_user(arg, &p, sizeof(p))) {
-		io_register_free_rings(ctx, &p, &n);
+		io_register_free_rings(ctx, &n);
 		return -EFAULT;
 	}
 
@@ -462,7 +461,7 @@ static int io_register_resize_rings(struct io_ring_ctx *ctx, void __user *arg)
 	else
 		size = array_size(sizeof(struct io_uring_sqe), p.sq_entries);
 	if (size == SIZE_MAX) {
-		io_register_free_rings(ctx, &p, &n);
+		io_register_free_rings(ctx, &n);
 		return -EOVERFLOW;
 	}
 
@@ -474,7 +473,7 @@ static int io_register_resize_rings(struct io_ring_ctx *ctx, void __user *arg)
 	}
 	ret = io_create_region(ctx, &n.sq_region, &rd, IORING_OFF_SQES);
 	if (ret) {
-		io_register_free_rings(ctx, &p, &n);
+		io_register_free_rings(ctx, &n);
 		return ret;
 	}
 	n.sq_sqes = io_region_get_ptr(&n.sq_region);
@@ -564,7 +563,7 @@ overflow:
 out:
 	spin_unlock(&ctx->completion_lock);
 	mutex_unlock(&ctx->mmap_lock);
-	io_register_free_rings(ctx, &p, to_free);
+	io_register_free_rings(ctx, to_free);
 
 	if (ctx->sq_data)
 		io_sq_thread_unpark(ctx->sq_data);
