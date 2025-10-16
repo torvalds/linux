@@ -172,7 +172,7 @@ struct tape_discipline {
 
 /* Char Frontend Data */
 struct tape_char_data {
-	struct idal_buffer *idal_buf;	/* idal buffer for user char data */
+	struct idal_buffer **ibs;	/* idal buffer array for user char data */
 	int block_size;			/*   of size block_size. */
 };
 

@@ -729,10 +729,11 @@ tape_free_request (struct tape_request * request)
 int
 tape_check_idalbuffer(struct tape_device *device, size_t size)
 {
-	struct idal_buffer *new;
+	struct idal_buffer **new;
+	size_t old_size = 0;
 
-	if (device->char_data.idal_buf != NULL &&
-	    device->char_data.idal_buf->size == size)
+	old_size = idal_buffer_array_datasize(device->char_data.ibs);
+	if (old_size == size)
 		return 0;
 
 	if (size > MAX_BLOCKSIZE) {
@@ -742,14 +743,15 @@ tape_check_idalbuffer(struct tape_device *device, size_t size)
 	}
 
 	/* The current idal buffer is not correct. Allocate a new one. */
-	new = idal_buffer_alloc(size, 0);
+	new = idal_buffer_array_alloc(size, 0);
 	if (IS_ERR(new))
 		return -ENOMEM;
 
-	if (device->char_data.idal_buf != NULL)
-		idal_buffer_free(device->char_data.idal_buf);
+	/* Free old idal buffer array */
+	if (device->char_data.ibs)
+		idal_buffer_array_free(&device->char_data.ibs);
 
-	device->char_data.idal_buf = new;
+	device->char_data.ibs = new;
 
 	return 0;
 }

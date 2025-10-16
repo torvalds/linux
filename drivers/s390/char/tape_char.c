@@ -144,7 +144,7 @@ tapechar_read(struct file *filp, char __user *data, size_t count, loff_t *ppos)
 		rc = block_size - request->rescnt;
 		DBF_EVENT(6, "TCHAR:rbytes:  %x\n", rc);
 		/* Copy data from idal buffer to user space. */
-		if (idal_buffer_to_user(device->char_data.idal_buf,
+		if (idal_buffer_to_user(*device->char_data.ibs,
 					data, rc) != 0)
 			rc = -EFAULT;
 	}
@@ -195,7 +195,7 @@ tapechar_write(struct file *filp, const char __user *data, size_t count, loff_t 
 	written = 0;
 	for (i = 0; i < nblocks; i++) {
 		/* Copy data from user space to idal buffer. */
-		if (idal_buffer_from_user(device->char_data.idal_buf,
+		if (idal_buffer_from_user(*device->char_data.ibs,
 					  data, block_size)) {
 			rc = -EFAULT;
 			break;
@@ -297,10 +297,8 @@ tapechar_release(struct inode *inode, struct file *filp)
 		}
 	}
 
-	if (device->char_data.idal_buf != NULL) {
-		idal_buffer_free(device->char_data.idal_buf);
-		device->char_data.idal_buf = NULL;
-	}
+	if (device->char_data.ibs)
+		idal_buffer_array_free(&device->char_data.ibs);
 	tape_release(device);
 	filp->private_data = NULL;
 	tape_put_device(device);

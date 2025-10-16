@@ -639,7 +639,7 @@ tape_std_read_block(struct tape_device *device)
 	request->op = TO_RFO;
 	tape_ccw_cc(request->cpaddr, MODE_SET_DB, 1, device->modeset_byte);
 	tape_ccw_end_idal(request->cpaddr + 1, READ_FORWARD,
-			  device->char_data.idal_buf);
+			  *device->char_data.ibs);
 	DBF_EVENT(6, "xrbl ccwg\n");
 	return request;
 }
@@ -660,7 +660,7 @@ tape_std_write_block(struct tape_device *device)
 	request->op = TO_WRI;
 	tape_ccw_cc(request->cpaddr, MODE_SET_DB, 1, device->modeset_byte);
 	tape_ccw_end_idal(request->cpaddr + 1, WRITE_CMD,
-			  device->char_data.idal_buf);
+			  *device->char_data.ibs);
 	DBF_EVENT(6, "xwbl ccwg\n");
 	return request;
 }
