@@ -124,7 +124,7 @@
 	pinctrl-0 = <&pinctrl_ecspi5 &pinctrl_ecspi5cs>;
 	status = "okay";
 
-	eeprom: m95m02@1 {
+	eeprom: eeprom@1 {
 		compatible = "st,m95m02", "atmel,at25";
 		size = <262144>;
 		pagesize = <256>;
