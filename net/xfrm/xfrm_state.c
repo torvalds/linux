@@ -3308,6 +3308,7 @@ out_bydst:
 void xfrm_state_fini(struct net *net)
 {
 	unsigned int sz;
+	int i;
 
 	flush_work(&net->xfrm.state_hash_work);
 	xfrm_state_flush(net, 0, false);
@@ -3315,14 +3316,17 @@ void xfrm_state_fini(struct net *net)
 
 	WARN_ON(!list_empty(&net->xfrm.state_all));
 
+	for (i = 0; i <= net->xfrm.state_hmask; i++) {
+		WARN_ON(!hlist_empty(net->xfrm.state_byseq + i));
+		WARN_ON(!hlist_empty(net->xfrm.state_byspi + i));
+		WARN_ON(!hlist_empty(net->xfrm.state_bysrc + i));
+		WARN_ON(!hlist_empty(net->xfrm.state_bydst + i));
+	}
+
 	sz = (net->xfrm.state_hmask + 1) * sizeof(struct hlist_head);
-	WARN_ON(!hlist_empty(net->xfrm.state_byseq));
 	xfrm_hash_free(net->xfrm.state_byseq, sz);
-	WARN_ON(!hlist_empty(net->xfrm.state_byspi));
 	xfrm_hash_free(net->xfrm.state_byspi, sz);
-	WARN_ON(!hlist_empty(net->xfrm.state_bysrc));
 	xfrm_hash_free(net->xfrm.state_bysrc, sz);
-	WARN_ON(!hlist_empty(net->xfrm.state_bydst));
 	xfrm_hash_free(net->xfrm.state_bydst, sz);
 	free_percpu(net->xfrm.state_cache_input);
 }
