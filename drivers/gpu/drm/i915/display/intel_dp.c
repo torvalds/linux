@@ -6979,3 +6979,14 @@ void intel_dp_mst_resume(struct intel_display *display)
 		}
 	}
 }
+
+int intel_dp_compute_config_late(struct intel_encoder *encoder,
+				 struct intel_crtc_state *crtc_state,
+				 struct drm_connector_state *conn_state)
+{
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+
+	intel_psr_compute_config_late(intel_dp, crtc_state);
+
+	return 0;
+}
