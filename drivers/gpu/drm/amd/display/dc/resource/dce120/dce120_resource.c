@@ -526,8 +526,11 @@ static const struct dc_plane_cap plane_cap = {
 };
 
 static const struct dc_debug_options debug_defaults = {
-		.disable_clock_gate = true,
-		.enable_legacy_fast_update = true,
+	.disable_clock_gate = true,
+};
+
+static const struct dc_check_config config_defaults = {
+	.enable_legacy_fast_update = true,
 };
 
 static struct clock_source *dce120_clock_source_create(
@@ -1089,6 +1092,7 @@ static bool dce120_resource_construct(
 	dc->caps.psp_setup_panel_mode = true;
 	dc->caps.extended_aux_timeout_support = false;
 	dc->debug = debug_defaults;
+	dc->check_config = config_defaults;
 
 	/*************************************************
 	 *  Create resources                             *

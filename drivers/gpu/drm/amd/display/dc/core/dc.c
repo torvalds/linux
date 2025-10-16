@@ -1148,8 +1148,8 @@ static bool dc_construct(struct dc *dc,
 	/* set i2c speed if not done by the respective dcnxxx__resource.c */
 	if (dc->caps.i2c_speed_in_khz_hdcp == 0)
 		dc->caps.i2c_speed_in_khz_hdcp = dc->caps.i2c_speed_in_khz;
-	if (dc->caps.max_optimizable_video_width == 0)
-		dc->caps.max_optimizable_video_width = 5120;
+	if (dc->check_config.max_optimizable_video_width == 0)
+		dc->check_config.max_optimizable_video_width = 5120;
 	dc->clk_mgr = dc_clk_mgr_create(dc->ctx, dc->res_pool->pp_smu, dc->res_pool->dccg);
 	if (!dc->clk_mgr)
 		goto fail;
@@ -2656,7 +2656,7 @@ static bool is_surface_in_context(
 	return false;
 }
 
-static enum surface_update_type get_plane_info_update_type(const struct dc *dc, const struct dc_surface_update *u)
+static enum surface_update_type get_plane_info_update_type(const struct dc_surface_update *u)
 {
 	union surface_update_flags *update_flags = &u->surface->update_flags;
 	enum surface_update_type update_type = UPDATE_TYPE_FAST;
@@ -2760,7 +2760,7 @@ static enum surface_update_type get_plane_info_update_type(const struct dc *dc, 
 }
 
 static enum surface_update_type get_scaling_info_update_type(
-		const struct dc *dc,
+		const struct dc_check_config *check_config,
 		const struct dc_surface_update *u)
 {
 	union surface_update_flags *update_flags = &u->surface->update_flags;
@@ -2790,7 +2790,7 @@ static enum surface_update_type get_scaling_info_update_type(
 			/* Making dst rect smaller requires a bandwidth change */
 			update_flags->bits.bandwidth_change = 1;
 
-		if (u->scaling_info->src_rect.width > dc->caps.max_optimizable_video_width &&
+		if (u->scaling_info->src_rect.width > check_config->max_optimizable_video_width &&
 			(u->scaling_info->clip_rect.width > u->surface->clip_rect.width ||
 			 u->scaling_info->clip_rect.height > u->surface->clip_rect.height))
 			 /* Changing clip size of a large surface may result in MPC slice count change */
@@ -2817,7 +2817,8 @@ static enum surface_update_type get_scaling_info_update_type(
 	return UPDATE_TYPE_FAST;
 }
 
-static enum surface_update_type det_surface_update(const struct dc *dc,
+static enum surface_update_type det_surface_update(
+		const struct dc_check_config *check_config,
 		const struct dc_surface_update *u)
 {
 	enum surface_update_type type;
@@ -2831,10 +2832,10 @@ static enum surface_update_type det_surface_update(const struct dc *dc,
 
 	update_flags->raw = 0; // Reset all flags
 
-	type = get_plane_info_update_type(dc, u);
+	type = get_plane_info_update_type(u);
 	elevate_update_type(&overall_type, type);
 
-	type = get_scaling_info_update_type(dc, u);
+	type = get_scaling_info_update_type(check_config, u);
 	elevate_update_type(&overall_type, type);
 
 	if (u->flip_addr) {
@@ -2911,7 +2912,7 @@ static enum surface_update_type det_surface_update(const struct dc *dc,
 		elevate_update_type(&overall_type, type);
 	}
 
-	if (dc->debug.enable_legacy_fast_update &&
+	if (check_config->enable_legacy_fast_update &&
 			(update_flags->bits.gamma_change ||
 			update_flags->bits.gamut_remap_change ||
 			update_flags->bits.input_csc_change ||
@@ -2946,11 +2947,11 @@ static void force_immediate_gsl_plane_flip(struct dc *dc, struct dc_surface_upda
 }
 
 static enum surface_update_type check_update_surfaces_for_stream(
-		struct dc *dc,
+		const struct dc_check_config *check_config,
 		struct dc_surface_update *updates,
 		int surface_count,
-		struct dc_stream_update *stream_update,
-		const struct dc_stream_status *stream_status)
+		struct dc_stream_update *stream_update
+)
 {
 	int i;
 	enum surface_update_type overall_type = UPDATE_TYPE_FAST;
@@ -2972,7 +2973,7 @@ static enum surface_update_type check_update_surfaces_for_stream(
 			stream_update->integer_scaling_update)
 			su_flags->bits.scaling = 1;
 
-		if (dc->debug.enable_legacy_fast_update && stream_update->out_transfer_func)
+		if (check_config->enable_legacy_fast_update && stream_update->out_transfer_func)
 			su_flags->bits.out_tf = 1;
 
 		if (stream_update->abm_level)
@@ -3016,13 +3017,13 @@ static enum surface_update_type check_update_surfaces_for_stream(
 		/* Output transfer function changes do not require bandwidth recalculation,
 		 * so don't trigger a full update
 		 */
-		if (!dc->debug.enable_legacy_fast_update && stream_update->out_transfer_func)
+		if (!check_config->enable_legacy_fast_update && stream_update->out_transfer_func)
 			su_flags->bits.out_tf = 1;
 	}
 
 	for (i = 0 ; i < surface_count; i++) {
 		enum surface_update_type type =
-				det_surface_update(dc, &updates[i]);
+				det_surface_update(check_config, &updates[i]);
 
 		elevate_update_type(&overall_type, type);
 	}
@@ -3036,22 +3037,17 @@ static enum surface_update_type check_update_surfaces_for_stream(
  * See :c:type:`enum surface_update_type <surface_update_type>` for explanation of update types
  */
 enum surface_update_type dc_check_update_surfaces_for_stream(
-		struct dc *dc,
+		const struct dc_check_config *check_config,
 		struct dc_surface_update *updates,
 		int surface_count,
-		struct dc_stream_update *stream_update,
-		const struct dc_stream_status *stream_status)
+		struct dc_stream_update *stream_update)
 {
-	int i;
-	enum surface_update_type type;
-
 	if (stream_update)
 		stream_update->stream->update_flags.raw = 0;
-	for (i = 0; i < surface_count; i++)
+	for (size_t i = 0; i < surface_count; i++)
 		updates[i].surface->update_flags.raw = 0;
 
-	type = check_update_surfaces_for_stream(dc, updates, surface_count, stream_update, stream_status);
-	return type;
+	return check_update_surfaces_for_stream(check_config, updates, surface_count, stream_update);
 }
 
 static struct dc_stream_status *stream_get_status(
@@ -3472,8 +3468,7 @@ static bool update_planes_and_stream_state(struct dc *dc,
 
 	context = dc->current_state;
 	update_type = dc_check_update_surfaces_for_stream(
-			dc, srf_updates, surface_count, stream_update, stream_status);
-
+			&dc->check_config, srf_updates, surface_count, stream_update);
 	if (full_update_required_weak(dc, srf_updates, surface_count, stream_update, stream))
 		update_type = UPDATE_TYPE_FULL;
 
@@ -5208,7 +5203,7 @@ static bool update_planes_and_stream_v2(struct dc *dc,
 		commit_minimal_transition_state_in_dc_update(dc, context, stream,
 				srf_updates, surface_count);
 
-	if (is_fast_update_only && !dc->debug.enable_legacy_fast_update) {
+	if (is_fast_update_only && !dc->check_config.enable_legacy_fast_update) {
 		commit_planes_for_stream_fast(dc,
 				srf_updates,
 				surface_count,
@@ -5251,7 +5246,7 @@ static void commit_planes_and_stream_update_on_current_context(struct dc *dc,
 			stream_update);
 	if (fast_update_only(dc, fast_update, srf_updates, surface_count,
 			stream_update, stream) &&
-			!dc->debug.enable_legacy_fast_update)
+			!dc->check_config.enable_legacy_fast_update)
 		commit_planes_for_stream_fast(dc,
 				srf_updates,
 				surface_count,

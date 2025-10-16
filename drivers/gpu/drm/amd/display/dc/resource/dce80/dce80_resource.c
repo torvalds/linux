@@ -418,8 +418,10 @@ static const struct dc_plane_cap plane_cap = {
 	}
 };
 
-static const struct dc_debug_options debug_defaults = {
-		.enable_legacy_fast_update = true,
+static const struct dc_debug_options debug_defaults = { 0 };
+
+static const struct dc_check_config config_defaults = {
+	.enable_legacy_fast_update = true,
 };
 
 static const struct dce_dmcu_registers dmcu_regs = {
@@ -919,6 +921,7 @@ static bool dce80_construct(
 	dc->caps.dual_link_dvi = true;
 	dc->caps.extended_aux_timeout_support = false;
 	dc->debug = debug_defaults;
+	dc->check_config = config_defaults;
 
 	/*************************************************
 	 *  Create resources                             *
@@ -1320,6 +1323,7 @@ static bool dce83_construct(
 	dc->caps.min_horizontal_blanking_period = 80;
 	dc->caps.is_apu = true;
 	dc->debug = debug_defaults;
+	dc->check_config = config_defaults;
 
 	/*************************************************
 	 *  Create resources                             *
