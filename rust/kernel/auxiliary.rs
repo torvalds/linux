@@ -217,13 +217,7 @@ impl<Ctx: device::DeviceContext> Device<Ctx> {
 
     /// Returns a reference to the parent [`device::Device`], if any.
     pub fn parent(&self) -> Option<&device::Device> {
-        let ptr: *const Self = self;
-        // CAST: `Device<Ctx: DeviceContext>` types are transparent to each other.
-        let ptr: *const Device = ptr.cast();
-        // SAFETY: `ptr` was derived from `&self`.
-        let this = unsafe { &*ptr };
-
-        this.as_ref().parent()
+        self.as_ref().parent()
     }
 }
 
