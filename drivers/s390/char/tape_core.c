@@ -726,6 +726,34 @@ tape_free_request (struct tape_request * request)
 	kfree(request);
 }
 
+int
+tape_check_idalbuffer(struct tape_device *device, size_t size)
+{
+	struct idal_buffer *new;
+
+	if (device->char_data.idal_buf != NULL &&
+	    device->char_data.idal_buf->size == size)
+		return 0;
+
+	if (size > MAX_BLOCKSIZE) {
+		DBF_EVENT(3, "Invalid blocksize (%zd > %d)\n",
+			  size, MAX_BLOCKSIZE);
+		return -EINVAL;
+	}
+
+	/* The current idal buffer is not correct. Allocate a new one. */
+	new = idal_buffer_alloc(size, 0);
+	if (IS_ERR(new))
+		return -ENOMEM;
+
+	if (device->char_data.idal_buf != NULL)
+		idal_buffer_free(device->char_data.idal_buf);
+
+	device->char_data.idal_buf = new;
+
+	return 0;
+}
+
 static int
 __tape_start_io(struct tape_device *device, struct tape_request *request)
 {

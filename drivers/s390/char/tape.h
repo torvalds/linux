@@ -234,6 +234,7 @@ struct tape_device {
 /* Externals from tape_core.c */
 extern struct tape_request *tape_alloc_request(int cplength, int datasize);
 extern void tape_free_request(struct tape_request *);
+extern int tape_check_idalbuffer(struct tape_device *device, size_t size);
 extern int tape_do_io(struct tape_device *, struct tape_request *);
 extern int tape_do_io_async(struct tape_device *, struct tape_request *);
 extern int tape_do_io_interruptible(struct tape_device *, struct tape_request *);

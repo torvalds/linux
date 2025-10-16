@@ -212,7 +212,7 @@ tape_std_mtload(struct tape_device *device, int count)
 int
 tape_std_mtsetblk(struct tape_device *device, int count)
 {
-	struct idal_buffer *new;
+	int rc;
 
 	DBF_LH(6, "tape_std_mtsetblk(%d)\n", count);
 	if (count <= 0) {
@@ -224,26 +224,12 @@ tape_std_mtsetblk(struct tape_device *device, int count)
 		device->char_data.block_size = 0;
 		return 0;
 	}
-	if (device->char_data.idal_buf != NULL &&
-	    device->char_data.idal_buf->size == count)
-		/* We already have a idal buffer of that size. */
-		return 0;
 
-	if (count > MAX_BLOCKSIZE) {
-		DBF_EVENT(3, "Invalid block size (%d > %d) given.\n",
-			count, MAX_BLOCKSIZE);
-		return -EINVAL;
-	}
+	rc = tape_check_idalbuffer(device, count);
+	if (rc)
+		return rc;
 
-	/* Allocate a new idal buffer. */
-	new = idal_buffer_alloc(count, 0);
-	if (IS_ERR(new))
-		return -ENOMEM;
-	if (device->char_data.idal_buf != NULL)
-		idal_buffer_free(device->char_data.idal_buf);
-	device->char_data.idal_buf = new;
 	device->char_data.block_size = count;
-
 	DBF_LH(6, "new blocksize is %d\n", device->char_data.block_size);
 
 	return 0;

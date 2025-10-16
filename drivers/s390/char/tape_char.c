@@ -93,33 +93,6 @@ tapechar_cleanup_device(struct tape_device *device)
 	device->nt = NULL;
 }
 
-static int
-tapechar_check_idalbuffer(struct tape_device *device, size_t block_size)
-{
-	struct idal_buffer *new;
-
-	if (device->char_data.idal_buf != NULL &&
-	    device->char_data.idal_buf->size == block_size)
-		return 0;
-
-	if (block_size > MAX_BLOCKSIZE) {
-		DBF_EVENT(3, "Invalid blocksize (%zd > %d)\n",
-			block_size, MAX_BLOCKSIZE);
-		return -EINVAL;
-	}
-
-	/* The current idal buffer is not correct. Allocate a new one. */
-	new = idal_buffer_alloc(block_size, 0);
-	if (IS_ERR(new))
-		return -ENOMEM;
-
-	if (device->char_data.idal_buf != NULL)
-		idal_buffer_free(device->char_data.idal_buf);
-
-	device->char_data.idal_buf = new;
-
-	return 0;
-}
 
 /*
  * Tape device read function
@@ -156,7 +129,7 @@ tapechar_read(struct file *filp, char __user *data, size_t count, loff_t *ppos)
 		block_size = count;
 	}
 
-	rc = tapechar_check_idalbuffer(device, block_size);
+	rc = tape_check_idalbuffer(device, block_size);
 	if (rc)
 		return rc;
 
@@ -208,7 +181,7 @@ tapechar_write(struct file *filp, const char __user *data, size_t count, loff_t 
 		nblocks = 1;
 	}
 
-	rc = tapechar_check_idalbuffer(device, block_size);
+	rc = tape_check_idalbuffer(device, block_size);
 	if (rc)
 		return rc;
 
