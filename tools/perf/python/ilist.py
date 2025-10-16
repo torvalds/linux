@@ -439,6 +439,8 @@ class IListApp(App):
                 pmu_node = pmus.add(pmu_name)
                 try:
                     for event in sorted(pmu.events(), key=lambda x: x["name"]):
+                        if "deprecated" in event:
+                            continue
                         if "name" in event:
                             e = event["name"].lower()
                             if "alias" in event:
