@@ -377,18 +377,20 @@ pcc_mbox_request_channel(struct mbox_client *cl, int subspace_id)
 		return ERR_PTR(-EBUSY);
 	}
 
-	rc = mbox_bind_client(chan, cl);
-	if (rc)
-		return ERR_PTR(rc);
-
 	pcc_mchan = &pchan->chan;
 	pcc_mchan->shmem = acpi_os_ioremap(pcc_mchan->shmem_base_addr,
 					   pcc_mchan->shmem_size);
-	if (pcc_mchan->shmem)
-		return pcc_mchan;
+	if (!pcc_mchan->shmem)
+		return ERR_PTR(-ENXIO);
 
-	mbox_free_channel(chan);
-	return ERR_PTR(-ENXIO);
+	rc = mbox_bind_client(chan, cl);
+	if (rc) {
+		iounmap(pcc_mchan->shmem);
+		pcc_mchan->shmem = NULL;
+		return ERR_PTR(rc);
+	}
+
+	return pcc_mchan;
 }
 EXPORT_SYMBOL_GPL(pcc_mbox_request_channel);
 
