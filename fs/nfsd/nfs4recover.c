@@ -32,7 +32,7 @@
 *
 */
 
-#include <crypto/hash.h>
+#include <crypto/md5.h>
 #include <crypto/sha2.h>
 #include <linux/file.h>
 #include <linux/slab.h>
@@ -92,57 +92,18 @@ nfs4_reset_creds(const struct cred *original)
 	put_cred(revert_creds(original));
 }
 
-static int
+static void
 nfs4_make_rec_clidname(char dname[HEXDIR_LEN], const struct xdr_netobj *clname)
 {
 	u8 digest[MD5_DIGEST_SIZE];
-	struct crypto_shash *tfm;
-	int status;
 
 	dprintk("NFSD: nfs4_make_rec_clidname for %.*s\n",
 			clname->len, clname->data);
-	tfm = crypto_alloc_shash("md5", 0, 0);
-	if (IS_ERR(tfm)) {
-		status = PTR_ERR(tfm);
-		goto out_no_tfm;
-	}
 
-	status = crypto_shash_tfm_digest(tfm, clname->data, clname->len,
-					 digest);
-	if (status)
-		goto out;
+	md5(clname->data, clname->len, digest);
 
 	static_assert(HEXDIR_LEN == 2 * MD5_DIGEST_SIZE + 1);
 	sprintf(dname, "%*phN", MD5_DIGEST_SIZE, digest);
-
-	status = 0;
-out:
-	crypto_free_shash(tfm);
-out_no_tfm:
-	return status;
-}
-
-/*
- * If we had an error generating the recdir name for the legacy tracker
- * then warn the admin. If the error doesn't appear to be transient,
- * then disable recovery tracking.
- */
-static void
-legacy_recdir_name_error(struct nfs4_client *clp, int error)
-{
-	printk(KERN_ERR "NFSD: unable to generate recoverydir "
-			"name (%d).\n", error);
-
-	/*
-	 * if the algorithm just doesn't exist, then disable the recovery
-	 * tracker altogether. The crypto libs will generally return this if
-	 * FIPS is enabled as well.
-	 */
-	if (error == -ENOENT) {
-		printk(KERN_ERR "NFSD: disabling legacy clientid tracking. "
-			"Reboot recovery will not function correctly!\n");
-		nfsd4_client_tracking_exit(clp->net);
-	}
 }
 
 static void
@@ -171,9 +132,7 @@ nfsd4_create_clid_dir(struct nfs4_client *clp)
 	if (!nn->rec_file)
 		return;
 
-	status = nfs4_make_rec_clidname(dname, &clp->cl_name);
-	if (status)
-		return legacy_recdir_name_error(clp, status);
+	nfs4_make_rec_clidname(dname, &clp->cl_name);
 
 	status = nfs4_save_creds(&original_cred);
 	if (status < 0)
@@ -354,9 +313,7 @@ nfsd4_remove_clid_dir(struct nfs4_client *clp)
 	if (!nn->rec_file || !test_bit(NFSD4_CLIENT_STABLE, &clp->cl_flags))
 		return;
 
-	status = nfs4_make_rec_clidname(dname, &clp->cl_name);
-	if (status)
-		return legacy_recdir_name_error(clp, status);
+	nfs4_make_rec_clidname(dname, &clp->cl_name);
 
 	status = mnt_want_write_file(nn->rec_file);
 	if (status)
@@ -636,7 +593,6 @@ nfs4_recoverydir(void)
 static int
 nfsd4_check_legacy_client(struct nfs4_client *clp)
 {
-	int status;
 	char dname[HEXDIR_LEN];
 	struct nfs4_client_reclaim *crp;
 	struct nfsd_net *nn = net_generic(clp->net, nfsd_net_id);
@@ -646,11 +602,7 @@ nfsd4_check_legacy_client(struct nfs4_client *clp)
 	if (test_bit(NFSD4_CLIENT_STABLE, &clp->cl_flags))
 		return 0;
 
-	status = nfs4_make_rec_clidname(dname, &clp->cl_name);
-	if (status) {
-		legacy_recdir_name_error(clp, status);
-		return status;
-	}
+	nfs4_make_rec_clidname(dname, &clp->cl_name);
 
 	/* look for it in the reclaim hashtable otherwise */
 	name.data = kmemdup(dname, HEXDIR_LEN, GFP_KERNEL);
@@ -1243,13 +1195,10 @@ nfsd4_cld_check(struct nfs4_client *clp)
 
 #ifdef CONFIG_NFSD_LEGACY_CLIENT_TRACKING
 	if (nn->cld_net->cn_has_legacy) {
-		int status;
 		char dname[HEXDIR_LEN];
 		struct xdr_netobj name;
 
-		status = nfs4_make_rec_clidname(dname, &clp->cl_name);
-		if (status)
-			return -ENOENT;
+		nfs4_make_rec_clidname(dname, &clp->cl_name);
 
 		name.data = kmemdup(dname, HEXDIR_LEN, GFP_KERNEL);
 		if (!name.data) {
@@ -1294,11 +1243,8 @@ nfsd4_cld_check_v2(struct nfs4_client *clp)
 	if (cn->cn_has_legacy) {
 		struct xdr_netobj name;
 		char dname[HEXDIR_LEN];
-		int status;
 
-		status = nfs4_make_rec_clidname(dname, &clp->cl_name);
-		if (status)
-			return -ENOENT;
+		nfs4_make_rec_clidname(dname, &clp->cl_name);
 
 		name.data = kmemdup(dname, HEXDIR_LEN, GFP_KERNEL);
 		if (!name.data) {
@@ -1671,11 +1617,7 @@ nfsd4_cltrack_legacy_recdir(const struct xdr_netobj *name)
 		return NULL;
 	}
 
-	copied = nfs4_make_rec_clidname(result + copied, name);
-	if (copied) {
-		kfree(result);
-		return NULL;
-	}
+	nfs4_make_rec_clidname(result + copied, name);
 
 	return result;
 }
