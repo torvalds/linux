@@ -106,7 +106,7 @@ static u64 detect_bar2_dgfx(struct xe_device *xe, struct xe_ttm_stolen_mgr *mgr)
 
 	stolen_size = tile_size - mgr->stolen_base;
 
-	xe_assert(xe, stolen_size > wopcm_size);
+	xe_assert(xe, stolen_size >= wopcm_size);
 	stolen_size -= wopcm_size;
 
 	/* Verify usage fits in the actual resource available */
