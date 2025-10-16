@@ -274,6 +274,11 @@ void *__netdev_alloc_frag_align(unsigned int fragsz, unsigned int align_mask)
 }
 EXPORT_SYMBOL(__netdev_alloc_frag_align);
 
+/* Cache kmem_cache_size(net_hotdata.skbuff_cache) to help the compiler
+ * remove dead code (and skbuff_cache_size) when CONFIG_KASAN is unset.
+ */
+static u32 skbuff_cache_size __read_mostly;
+
 static struct sk_buff *napi_skb_cache_get(void)
 {
 	struct napi_alloc_cache *nc = this_cpu_ptr(&napi_alloc_cache);
@@ -293,7 +298,7 @@ static struct sk_buff *napi_skb_cache_get(void)
 
 	skb = nc->skb_cache[--nc->skb_count];
 	local_unlock_nested_bh(&napi_alloc_cache.bh_lock);
-	kasan_mempool_unpoison_object(skb, kmem_cache_size(net_hotdata.skbuff_cache));
+	kasan_mempool_unpoison_object(skb, skbuff_cache_size);
 
 	return skb;
 }
@@ -345,11 +350,9 @@ u32 napi_skb_cache_get_bulk(void **skbs, u32 n)
 
 get:
 	for (u32 base = nc->skb_count - n, i = 0; i < n; i++) {
-		u32 cache_size = kmem_cache_size(net_hotdata.skbuff_cache);
-
 		skbs[i] = nc->skb_cache[base + i];
 
-		kasan_mempool_unpoison_object(skbs[i], cache_size);
+		kasan_mempool_unpoison_object(skbs[i], skbuff_cache_size);
 		memset(skbs[i], 0, offsetof(struct sk_buff, tail));
 	}
 
@@ -1437,7 +1440,7 @@ static void napi_skb_cache_put(struct sk_buff *skb)
 	if (unlikely(nc->skb_count == NAPI_SKB_CACHE_SIZE)) {
 		for (i = NAPI_SKB_CACHE_HALF; i < NAPI_SKB_CACHE_SIZE; i++)
 			kasan_mempool_unpoison_object(nc->skb_cache[i],
-						kmem_cache_size(net_hotdata.skbuff_cache));
+						skbuff_cache_size);
 
 		kmem_cache_free_bulk(net_hotdata.skbuff_cache, NAPI_SKB_CACHE_HALF,
 				     nc->skb_cache + NAPI_SKB_CACHE_HALF);
@@ -5125,6 +5128,8 @@ void __init skb_init(void)
 					      offsetof(struct sk_buff, cb),
 					      sizeof_field(struct sk_buff, cb),
 					      NULL);
+	skbuff_cache_size = kmem_cache_size(net_hotdata.skbuff_cache);
+
 	net_hotdata.skbuff_fclone_cache = kmem_cache_create("skbuff_fclone_cache",
 						sizeof(struct sk_buff_fclones),
 						0,
