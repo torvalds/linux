@@ -462,14 +462,18 @@ static SYSCTL_INT_CONV_CUSTOM(_ms_jiffies_minmax,
 			      sysctl_user_to_kern_int_conv_ms,
 			      sysctl_kern_to_user_int_conv_ms, true)
 
-static int sysctl_user_to_kern_uint_conv(const unsigned long *u_ptr,
-					 unsigned int *k_ptr)
-{
-	if (*u_ptr > UINT_MAX)
-		return -EINVAL;
-	WRITE_ONCE(*k_ptr, *u_ptr);
-	return 0;
+#define SYSCTL_USER_TO_KERN_UINT_CONV(name, u_ptr_op)		\
+int sysctl_user_to_kern_uint_conv##name(const unsigned long *u_ptr,\
+					unsigned int *k_ptr)	\
+{								\
+	unsigned long u = u_ptr_op(*u_ptr);			\
+	if (u > UINT_MAX)					\
+		return -EINVAL;					\
+	WRITE_ONCE(*k_ptr, u);					\
+	return 0;						\
 }
+
+static SYSCTL_USER_TO_KERN_UINT_CONV(, SYSCTL_CONV_IDENTITY)
 
 static int sysctl_kern_to_user_uint_conv(unsigned long *u_ptr,
 					 const unsigned int *k_ptr)
