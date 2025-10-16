@@ -539,7 +539,7 @@ static int aspeed_spi_trim_window_size(struct aspeed_spi *aspi)
 	} while (total_sz > aspi->ahb_window_size);
 
 	if (trimmed) {
-		dev_warn(aspi->dev, "Window size after triming:\n");
+		dev_warn(aspi->dev, "Window size after trimming:\n");
 		for (cs = 0; cs < aspi->data->max_cs; cs++) {
 			dev_warn(aspi->dev, "CE%d: 0x%08x\n",
 				 cs, chips[cs].ahb_window_size);
