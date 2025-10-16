@@ -1282,6 +1282,7 @@ static int gfx_v12_1_sw_fini(struct amdgpu_ip_block *ip_block)
 		gfx_v12_1_rlc_autoload_buffer_fini(adev);
 
 	gfx_v12_1_free_microcode(adev);
+	amdgpu_gfx_sysfs_fini(adev);
 
 	return 0;
 }
