@@ -51,6 +51,7 @@ class TreeValue(ABC):
 class Metric(TreeValue):
     """A metric in the tree."""
     metric_name: str
+    metric_pmu: str
 
     def name(self) -> str:
         return self.metric_name
@@ -59,6 +60,8 @@ class Metric(TreeValue):
         """Find and format metric description."""
         for metric in perf.metrics():
             if metric["MetricName"] != self.metric_name:
+                continue
+            if self.metric_pmu and metric["PMU"] != self.metric_pmu:
                 continue
             desc = get_info(metric, "BriefDescription")
             desc += get_info(metric, "PublicDescription")
@@ -71,7 +74,7 @@ class Metric(TreeValue):
         return query in self.metric_name
 
     def parse(self) -> perf.evlist:
-        return perf.parse_metrics(self.metric_name)
+        return perf.parse_metrics(self.metric_name, self.metric_pmu)
 
     def value(self, evlist: perf.evlist, evsel: perf.evsel, cpu: int, thread: int) -> float:
         val = evlist.compute_metric(self.metric_name, cpu, thread)
@@ -456,14 +459,25 @@ class IListApp(App):
             for metric in perf.metrics():
                 groups.update(metric["MetricGroup"])
 
-            def add_metrics_to_tree(node: TreeNode[TreeValue], parent: str):
+            def add_metrics_to_tree(node: TreeNode[TreeValue], parent: str, pmu: str = None):
                 for metric in sorted(perf.metrics(), key=lambda x: x["MetricName"]):
+                    metric_pmu = metric.get('PMU')
+                    if pmu and metric_pmu and metric_pmu != pmu:
+                        continue
                     if parent in metric["MetricGroup"]:
                         name = metric["MetricName"]
-                        node.add_leaf(name, data=Metric(name))
+                        display_name = name
+                        if metric_pmu:
+                            display_name += f" ({metric_pmu})"
+                        node.add_leaf(display_name, data=Metric(name, metric_pmu))
                         child_group_name = f'{name}_group'
                         if child_group_name in groups:
-                            add_metrics_to_tree(node.add(child_group_name), child_group_name)
+                            display_child_group_name = child_group_name
+                            if metric_pmu:
+                                display_child_group_name += f" ({metric_pmu})"
+                            add_metrics_to_tree(node.add(display_child_group_name),
+                                                child_group_name,
+                                                metric_pmu)
 
             for group in sorted(groups):
                 if group.endswith('_group'):
