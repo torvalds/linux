@@ -792,7 +792,7 @@ static void schedule_deferred(struct rq *rq)
 		return;
 
 	/* Don't do anything if there already is a deferred operation. */
-	if (rq->scx.flags & SCX_RQ_BAL_PENDING)
+	if (rq->scx.flags & SCX_RQ_BAL_CB_PENDING)
 		return;
 
 	/*
@@ -4611,14 +4611,14 @@ static int scx_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 
 	mutex_lock(&scx_enable_mutex);
 
+	if (scx_enable_state() != SCX_DISABLED) {
+		ret = -EBUSY;
+		goto err_unlock;
+	}
+
 	ret = alloc_kick_pseqs();
 	if (ret)
 		goto err_unlock;
-
-	if (scx_enable_state() != SCX_DISABLED) {
-		ret = -EBUSY;
-		goto err_free_pseqs;
-	}
 
 	sch = scx_alloc_and_add_sched(ops);
 	if (IS_ERR(sch)) {
