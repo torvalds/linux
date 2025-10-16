@@ -324,8 +324,6 @@
 };
 
 &iomuxc {
-	pinctrl-names = "default";
-
 	pinctrl_hog: hoggrp {
 		fsl,pins = <
 			MX6QDL_PAD_EIM_D22__GPIO3_IO22	0x1b0b0  /*pcie power*/
