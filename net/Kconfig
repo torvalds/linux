@@ -400,15 +400,15 @@ config NET_PKTGEN
 	  module will be called pktgen.
 
 config NET_DROP_MONITOR
-	tristate "Network packet drop alerting service"
+	tristate "Legacy network packet drop alerting service"
 	depends on INET && TRACEPOINTS
 	help
 	  This feature provides an alerting service to userspace in the
 	  event that packets are discarded in the network stack.  Alerts
 	  are broadcast via netlink socket to any listening user space
-	  process.  If you don't need network drop alerts, or if you are ok
-	  just checking the various proc files and other utilities for
-	  drop statistics, say N here.
+	  process. This feature is NOT related to "perf" based drop monitoring.
+	  Say N here unless you need to support older userspace tools like
+	  "dropwatch".
 
 endmenu # Network testing
 
