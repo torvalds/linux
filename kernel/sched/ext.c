@@ -792,7 +792,7 @@ static void schedule_deferred(struct rq *rq)
 		return;
 
 	/* Don't do anything if there already is a deferred operation. */
-	if (rq->scx.flags & SCX_RQ_BAL_PENDING)
+	if (rq->scx.flags & SCX_RQ_BAL_CB_PENDING)
 		return;
 
 	/*
