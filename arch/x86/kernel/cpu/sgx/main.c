@@ -934,7 +934,7 @@ static int sgx_usage_count;
  * *             entropy in RNG
  * * %-EIO:    - Unexpected error, retries are not advisable
  */
-static int __maybe_unused sgx_update_svn(void)
+static int sgx_update_svn(void)
 {
 	int ret;
 
@@ -992,14 +992,30 @@ static int __maybe_unused sgx_update_svn(void)
 	return -EIO;
 }
 
+/* Mutex to ensure no concurrent EPC accesses during EUPDATESVN */
+static DEFINE_MUTEX(sgx_svn_lock);
+
 int sgx_inc_usage_count(void)
 {
+	int ret;
+
+	guard(mutex)(&sgx_svn_lock);
+
+	if (!sgx_usage_count) {
+		ret = sgx_update_svn();
+		if (ret)
+			return ret;
+	}
+
+	sgx_usage_count++;
+
 	return 0;
 }
 
 void sgx_dec_usage_count(void)
 {
-	return;
+	guard(mutex)(&sgx_svn_lock);
+	sgx_usage_count--;
 }
 
 static int __init sgx_init(void)
