@@ -1548,7 +1548,8 @@ int xe_gt_sriov_pf_config_set_lmem(struct xe_gt *gt, unsigned int vfid, u64 size
 {
 	int err;
 
-	xe_gt_assert(gt, xe_device_has_lmtt(gt_to_xe(gt)));
+	if (!xe_device_has_lmtt(gt_to_xe(gt)))
+		return -EPERM;
 
 	mutex_lock(xe_gt_sriov_pf_master_mutex(gt));
 	if (vfid)

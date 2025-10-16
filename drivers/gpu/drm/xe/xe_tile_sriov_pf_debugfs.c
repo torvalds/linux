@@ -165,14 +165,17 @@ DEFINE_SRIOV_TILE_CONFIG_DEBUGFS_ATTRIBUTE(vram, lmem, u64, "%llu\n");
 
 static void pf_add_config_attrs(struct xe_tile *tile, struct dentry *dent, unsigned int vfid)
 {
+	struct xe_device *xe = tile->xe;
+
 	xe_tile_assert(tile, tile == extract_tile(dent));
 	xe_tile_assert(tile, vfid == extract_vfid(dent));
 
 	debugfs_create_file_unsafe(vfid ? "ggtt_quota" : "ggtt_spare",
 				   0644, dent, dent, &ggtt_fops);
-	if (xe_device_has_lmtt(tile->xe))
+	if (IS_DGFX(xe))
 		debugfs_create_file_unsafe(vfid ? "vram_quota" : "vram_spare",
-					   0644, dent, dent, &vram_fops);
+					   xe_device_has_lmtt(xe) ? 0644 : 0444,
+					   dent, dent, &vram_fops);
 }
 
 static void pf_populate_tile(struct xe_tile *tile, struct dentry *dent, unsigned int vfid)
@@ -188,7 +191,7 @@ static void pf_populate_tile(struct xe_tile *tile, struct dentry *dent, unsigned
 		drm_debugfs_create_files(pf_ggtt_info,
 					 ARRAY_SIZE(pf_ggtt_info),
 					 dent, minor);
-		if (xe_device_has_lmtt(xe))
+		if (IS_DGFX(xe))
 			drm_debugfs_create_files(pf_vram_info,
 						 ARRAY_SIZE(pf_vram_info),
 						 dent, minor);
