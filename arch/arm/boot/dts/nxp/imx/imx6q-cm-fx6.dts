@@ -73,7 +73,7 @@
 		reset-gpios = <&gpio6 16 GPIO_ACTIVE_HIGH>;
 	};
 
-	reg_pcie_power_on_gpio: regulator-pcie-power-on-gpio {
+	reg_pcie_power_on_gpio: regulator-pcie-power-on {
 		compatible = "regulator-fixed";
 		regulator-name = "regulator-pcie-power-on-gpio";
 		regulator-min-microvolt = <3300000>;
