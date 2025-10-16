@@ -150,6 +150,9 @@ void __intel_fb_flush(struct intel_frontbuffer *front,
 {
 	struct intel_display *display = to_intel_display(front->obj->dev);
 
+	if (origin == ORIGIN_DIRTYFB)
+		intel_bo_frontbuffer_flush_for_display(front);
+
 	if (origin == ORIGIN_CS) {
 		spin_lock(&display->fb_tracking.lock);
 		/* Filter out new bits since rendering started. */
@@ -167,7 +170,6 @@ static void intel_frontbuffer_flush_work(struct work_struct *work)
 	struct intel_frontbuffer *front =
 		container_of(work, struct intel_frontbuffer, flush_work);
 
-	intel_bo_frontbuffer_flush_for_display(front);
 	intel_frontbuffer_flush(front, ORIGIN_DIRTYFB);
 	intel_frontbuffer_put(front);
 }
