@@ -387,52 +387,15 @@ static SYSCTL_INT_CONV_CUSTOM(_ms_jiffies_minmax,
 			      sysctl_user_to_kern_int_conv_ms,
 			      sysctl_kern_to_user_int_conv_ms, true)
 
-#define SYSCTL_USER_TO_KERN_UINT_CONV(name, u_ptr_op)		\
-int sysctl_user_to_kern_uint_conv##name(const unsigned long *u_ptr,\
-					unsigned int *k_ptr)	\
-{								\
-	unsigned long u = u_ptr_op(*u_ptr);			\
-	if (u > UINT_MAX)					\
-		return -EINVAL;					\
-	WRITE_ONCE(*k_ptr, u);					\
-	return 0;						\
-}
 
 static SYSCTL_USER_TO_KERN_UINT_CONV(, SYSCTL_CONV_IDENTITY)
 
-static int sysctl_kern_to_user_uint_conv(unsigned long *u_ptr,
-					 const unsigned int *k_ptr)
+int sysctl_kern_to_user_uint_conv(unsigned long *u_ptr,
+				  const unsigned int *k_ptr)
 {
 	unsigned int val = READ_ONCE(*k_ptr);
 	*u_ptr = (unsigned long)val;
 	return 0;
-}
-
-#define SYSCTL_UINT_CONV_CUSTOM(name, user_to_kern, kern_to_user,	\
-				k_ptr_range_check)			\
-int do_proc_uint_conv##name(unsigned long *u_ptr, unsigned int *k_ptr,	\
-			   int dir, const struct ctl_table *tbl)	\
-{									\
-	if (SYSCTL_KERN_TO_USER(dir))					\
-		return kern_to_user(u_ptr, k_ptr);			\
-									\
-	if (k_ptr_range_check) {					\
-		unsigned int tmp_k;					\
-		int ret;						\
-		if (!tbl)						\
-			return -EINVAL;					\
-		ret = user_to_kern(u_ptr, &tmp_k);			\
-		if (ret)						\
-			return ret;					\
-		if ((tbl->extra1 &&					\
-		     *(unsigned int *)tbl->extra1 > tmp_k) ||		\
-		    (tbl->extra2 &&					\
-		     *(unsigned int *)tbl->extra2 < tmp_k))		\
-			return -ERANGE;					\
-		WRITE_ONCE(*k_ptr, tmp_k);				\
-	} else								\
-		return user_to_kern(u_ptr, k_ptr);			\
-	return 0;							\
 }
 
 static SYSCTL_UINT_CONV_CUSTOM(, sysctl_user_to_kern_uint_conv,

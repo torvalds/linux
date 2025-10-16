@@ -134,6 +134,45 @@ int do_proc_int_conv##name(bool *negp, unsigned long *u_ptr, int *k_ptr,\
 	return 0;							\
 }
 
+#define SYSCTL_USER_TO_KERN_UINT_CONV(name, u_ptr_op)		\
+int sysctl_user_to_kern_uint_conv##name(const unsigned long *u_ptr,\
+					unsigned int *k_ptr)	\
+{								\
+	unsigned long u = u_ptr_op(*u_ptr);			\
+	if (u > UINT_MAX)					\
+		return -EINVAL;					\
+	WRITE_ONCE(*k_ptr, u);					\
+	return 0;						\
+}
+
+#define SYSCTL_UINT_CONV_CUSTOM(name, user_to_kern, kern_to_user,	\
+				k_ptr_range_check)			\
+int do_proc_uint_conv##name(unsigned long *u_ptr, unsigned int *k_ptr,	\
+			   int dir, const struct ctl_table *tbl)	\
+{									\
+	if (SYSCTL_KERN_TO_USER(dir))					\
+		return kern_to_user(u_ptr, k_ptr);			\
+									\
+	if (k_ptr_range_check) {					\
+		unsigned int tmp_k;					\
+		int ret;						\
+		if (!tbl)						\
+			return -EINVAL;					\
+		ret = user_to_kern(u_ptr, &tmp_k);			\
+		if (ret)						\
+			return ret;					\
+		if ((tbl->extra1 &&					\
+		     *(unsigned int *)tbl->extra1 > tmp_k) ||		\
+		    (tbl->extra2 &&					\
+		     *(unsigned int *)tbl->extra2 < tmp_k))		\
+			return -ERANGE;					\
+		WRITE_ONCE(*k_ptr, tmp_k);				\
+	} else								\
+		return user_to_kern(u_ptr, k_ptr);			\
+	return 0;							\
+}
+
+
 extern const unsigned long sysctl_long_vals[];
 
 typedef int proc_handler(const struct ctl_table *ctl, int write, void *buffer,
@@ -166,6 +205,7 @@ int proc_doulongvec_ms_jiffies_minmax(const struct ctl_table *table, int, void *
 int proc_do_large_bitmap(const struct ctl_table *, int, void *, size_t *, loff_t *);
 int proc_do_static_key(const struct ctl_table *table, int write, void *buffer,
 		size_t *lenp, loff_t *ppos);
+int sysctl_kern_to_user_uint_conv(unsigned long *u_ptr, const unsigned int *k_ptr);
 
 /*
  * Register a set of sysctl names by calling register_sysctl
