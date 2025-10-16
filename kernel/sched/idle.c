@@ -466,7 +466,7 @@ static void set_next_task_idle(struct rq *rq, struct task_struct *next, bool fir
 	next->se.exec_start = rq_clock_task(rq);
 }
 
-struct task_struct *pick_task_idle(struct rq *rq)
+struct task_struct *pick_task_idle(struct rq *rq, struct rq_flags *rf)
 {
 	scx_update_idle(rq, true, false);
 	return rq->idle;
@@ -498,14 +498,17 @@ static void task_tick_idle(struct rq *rq, struct task_struct *curr, int queued)
 {
 }
 
-static void switched_to_idle(struct rq *rq, struct task_struct *p)
+static void switching_to_idle(struct rq *rq, struct task_struct *p)
 {
 	BUG();
 }
 
 static void
-prio_changed_idle(struct rq *rq, struct task_struct *p, int oldprio)
+prio_changed_idle(struct rq *rq, struct task_struct *p, u64 oldprio)
 {
+	if (p->prio == oldprio)
+		return;
+
 	BUG();
 }
 
@@ -517,6 +520,8 @@ static void update_curr_idle(struct rq *rq)
  * Simple, special scheduling class for the per-CPU idle tasks:
  */
 DEFINE_SCHED_CLASS(idle) = {
+
+	.queue_mask		= 0,
 
 	/* no enqueue/yield_task for idle tasks */
 
@@ -536,6 +541,6 @@ DEFINE_SCHED_CLASS(idle) = {
 	.task_tick		= task_tick_idle,
 
 	.prio_changed		= prio_changed_idle,
-	.switched_to		= switched_to_idle,
+	.switching_to		= switching_to_idle,
 	.update_curr		= update_curr_idle,
 };

@@ -206,7 +206,7 @@ static inline void psi_ttwu_dequeue(struct task_struct *p)
 
 		rq = __task_rq_lock(p, &rf);
 		psi_task_change(p, p->psi_flags, 0);
-		__task_rq_unlock(rq, &rf);
+		__task_rq_unlock(rq, p, &rf);
 	}
 }
 

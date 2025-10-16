@@ -64,8 +64,6 @@ static int effective_prio(struct task_struct *p)
 
 void set_user_nice(struct task_struct *p, long nice)
 {
-	bool queued, running;
-	struct rq *rq;
 	int old_prio;
 
 	if (task_nice(p) == nice || nice < MIN_NICE || nice > MAX_NICE)
@@ -74,10 +72,7 @@ void set_user_nice(struct task_struct *p, long nice)
 	 * We have to be careful, if called from sys_setpriority(),
 	 * the task might be in the middle of scheduling on another CPU.
 	 */
-	CLASS(task_rq_lock, rq_guard)(p);
-	rq = rq_guard.rq;
-
-	update_rq_clock(rq);
+	guard(task_rq_lock)(p);
 
 	/*
 	 * The RT priorities are set via sched_setscheduler(), but we still
@@ -90,28 +85,12 @@ void set_user_nice(struct task_struct *p, long nice)
 		return;
 	}
 
-	queued = task_on_rq_queued(p);
-	running = task_current_donor(rq, p);
-	if (queued)
-		dequeue_task(rq, p, DEQUEUE_SAVE | DEQUEUE_NOCLOCK);
-	if (running)
-		put_prev_task(rq, p);
-
-	p->static_prio = NICE_TO_PRIO(nice);
-	set_load_weight(p, true);
-	old_prio = p->prio;
-	p->prio = effective_prio(p);
-
-	if (queued)
-		enqueue_task(rq, p, ENQUEUE_RESTORE | ENQUEUE_NOCLOCK);
-	if (running)
-		set_next_task(rq, p);
-
-	/*
-	 * If the task increased its priority or is running and
-	 * lowered its priority, then reschedule its CPU:
-	 */
-	p->sched_class->prio_changed(rq, p, old_prio);
+	scoped_guard (sched_change, p, DEQUEUE_SAVE) {
+		p->static_prio = NICE_TO_PRIO(nice);
+		set_load_weight(p, true);
+		old_prio = p->prio;
+		p->prio = effective_prio(p);
+	}
 }
 EXPORT_SYMBOL(set_user_nice);
 
@@ -515,7 +494,7 @@ int __sched_setscheduler(struct task_struct *p,
 			 bool user, bool pi)
 {
 	int oldpolicy = -1, policy = attr->sched_policy;
-	int retval, oldprio, newprio, queued, running;
+	int retval, oldprio, newprio;
 	const struct sched_class *prev_class, *next_class;
 	struct balance_callback *head;
 	struct rq_flags rf;
@@ -695,38 +674,27 @@ change:
 	prev_class = p->sched_class;
 	next_class = __setscheduler_class(policy, newprio);
 
-	if (prev_class != next_class && p->se.sched_delayed)
-		dequeue_task(rq, p, DEQUEUE_SLEEP | DEQUEUE_DELAYED | DEQUEUE_NOCLOCK);
+	if (prev_class != next_class)
+		queue_flags |= DEQUEUE_CLASS;
 
-	queued = task_on_rq_queued(p);
-	running = task_current_donor(rq, p);
-	if (queued)
-		dequeue_task(rq, p, queue_flags);
-	if (running)
-		put_prev_task(rq, p);
+	scoped_guard (sched_change, p, queue_flags) {
 
-	if (!(attr->sched_flags & SCHED_FLAG_KEEP_PARAMS)) {
-		__setscheduler_params(p, attr);
-		p->sched_class = next_class;
-		p->prio = newprio;
+		if (!(attr->sched_flags & SCHED_FLAG_KEEP_PARAMS)) {
+			__setscheduler_params(p, attr);
+			p->sched_class = next_class;
+			p->prio = newprio;
+		}
+		__setscheduler_uclamp(p, attr);
+
+		if (scope->queued) {
+			/*
+			 * We enqueue to tail when the priority of a task is
+			 * increased (user space view).
+			 */
+			if (oldprio < p->prio)
+				scope->flags |= ENQUEUE_HEAD;
+		}
 	}
-	__setscheduler_uclamp(p, attr);
-	check_class_changing(rq, p, prev_class);
-
-	if (queued) {
-		/*
-		 * We enqueue to tail when the priority of a task is
-		 * increased (user space view).
-		 */
-		if (oldprio < p->prio)
-			queue_flags |= ENQUEUE_HEAD;
-
-		enqueue_task(rq, p, queue_flags);
-	}
-	if (running)
-		set_next_task(rq, p);
-
-	check_class_changed(rq, p, prev_class, oldprio);
 
 	/* Avoid rq from going away on us: */
 	preempt_disable();

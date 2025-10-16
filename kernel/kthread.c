@@ -593,18 +593,16 @@ EXPORT_SYMBOL(kthread_create_on_node);
 
 static void __kthread_bind_mask(struct task_struct *p, const struct cpumask *mask, unsigned int state)
 {
-	unsigned long flags;
-
 	if (!wait_task_inactive(p, state)) {
 		WARN_ON(1);
 		return;
 	}
 
+	scoped_guard (raw_spinlock_irqsave, &p->pi_lock)
+		set_cpus_allowed_force(p, mask);
+
 	/* It's safe because the task is inactive. */
-	raw_spin_lock_irqsave(&p->pi_lock, flags);
-	do_set_cpus_allowed(p, mask);
 	p->flags |= PF_NO_SETAFFINITY;
-	raw_spin_unlock_irqrestore(&p->pi_lock, flags);
 }
 
 static void __kthread_bind(struct task_struct *p, unsigned int cpu, unsigned int state)
@@ -857,7 +855,6 @@ int kthread_affine_preferred(struct task_struct *p, const struct cpumask *mask)
 {
 	struct kthread *kthread = to_kthread(p);
 	cpumask_var_t affinity;
-	unsigned long flags;
 	int ret = 0;
 
 	if (!wait_task_inactive(p, TASK_UNINTERRUPTIBLE) || kthread->started) {
@@ -882,10 +879,8 @@ int kthread_affine_preferred(struct task_struct *p, const struct cpumask *mask)
 	list_add_tail(&kthread->hotplug_node, &kthreads_hotplug);
 	kthread_fetch_affinity(kthread, affinity);
 
-	/* It's safe because the task is inactive. */
-	raw_spin_lock_irqsave(&p->pi_lock, flags);
-	do_set_cpus_allowed(p, affinity);
-	raw_spin_unlock_irqrestore(&p->pi_lock, flags);
+	scoped_guard (raw_spinlock_irqsave, &p->pi_lock)
+		set_cpus_allowed_force(p, affinity);
 
 	mutex_unlock(&kthreads_hotplug_lock);
 out:

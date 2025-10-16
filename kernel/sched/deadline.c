@@ -405,7 +405,7 @@ static void __dl_clear_params(struct sched_dl_entity *dl_se);
  * up, and checks if the task is still in the "ACTIVE non contending"
  * state or not (in the second case, it updates running_bw).
  */
-static void task_non_contending(struct sched_dl_entity *dl_se)
+static void task_non_contending(struct sched_dl_entity *dl_se, bool dl_task)
 {
 	struct hrtimer *timer = &dl_se->inactive_timer;
 	struct rq *rq = rq_of_dl_se(dl_se);
@@ -444,10 +444,10 @@ static void task_non_contending(struct sched_dl_entity *dl_se)
 		} else {
 			struct task_struct *p = dl_task_of(dl_se);
 
-			if (dl_task(p))
+			if (dl_task)
 				sub_running_bw(dl_se, dl_rq);
 
-			if (!dl_task(p) || READ_ONCE(p->__state) == TASK_DEAD) {
+			if (!dl_task || READ_ONCE(p->__state) == TASK_DEAD) {
 				struct dl_bw *dl_b = dl_bw_of(task_cpu(p));
 
 				if (READ_ONCE(p->__state) == TASK_DEAD)
@@ -1808,7 +1808,7 @@ static void dec_dl_deadline(struct dl_rq *dl_rq, u64 deadline)
 	if (!dl_rq->dl_nr_running) {
 		dl_rq->earliest_dl.curr = 0;
 		dl_rq->earliest_dl.next = 0;
-		cpudl_clear(&rq->rd->cpudl, rq->cpu);
+		cpudl_clear(&rq->rd->cpudl, rq->cpu, rq->online);
 		cpupri_set(&rq->rd->cpupri, rq->cpu, rq->rt.highest_prio.curr);
 	} else {
 		struct rb_node *leftmost = rb_first_cached(&dl_rq->root);
@@ -2045,7 +2045,7 @@ static void dequeue_dl_entity(struct sched_dl_entity *dl_se, int flags)
 	 * or "inactive")
 	 */
 	if (flags & DEQUEUE_SLEEP)
-		task_non_contending(dl_se);
+		task_non_contending(dl_se, true);
 }
 
 static void enqueue_task_dl(struct rq *rq, struct task_struct *p, int flags)
@@ -2352,7 +2352,7 @@ static struct sched_dl_entity *pick_next_dl_entity(struct dl_rq *dl_rq)
  * __pick_next_task_dl - Helper to pick the next -deadline task to run.
  * @rq: The runqueue to pick the next task from.
  */
-static struct task_struct *__pick_task_dl(struct rq *rq)
+static struct task_struct *__pick_task_dl(struct rq *rq, struct rq_flags *rf)
 {
 	struct sched_dl_entity *dl_se;
 	struct dl_rq *dl_rq = &rq->dl;
@@ -2366,7 +2366,7 @@ again:
 	WARN_ON_ONCE(!dl_se);
 
 	if (dl_server(dl_se)) {
-		p = dl_se->server_pick_task(dl_se);
+		p = dl_se->server_pick_task(dl_se, rf);
 		if (!p) {
 			dl_server_stop(dl_se);
 			goto again;
@@ -2379,9 +2379,9 @@ again:
 	return p;
 }
 
-static struct task_struct *pick_task_dl(struct rq *rq)
+static struct task_struct *pick_task_dl(struct rq *rq, struct rq_flags *rf)
 {
-	return __pick_task_dl(rq);
+	return __pick_task_dl(rq, rf);
 }
 
 static void put_prev_task_dl(struct rq *rq, struct task_struct *p, struct task_struct *next)
@@ -2880,9 +2880,10 @@ static void rq_online_dl(struct rq *rq)
 	if (rq->dl.overloaded)
 		dl_set_overload(rq);
 
-	cpudl_set_freecpu(&rq->rd->cpudl, rq->cpu);
 	if (rq->dl.dl_nr_running > 0)
 		cpudl_set(&rq->rd->cpudl, rq->cpu, rq->dl.earliest_dl.curr);
+	else
+		cpudl_clear(&rq->rd->cpudl, rq->cpu, true);
 }
 
 /* Assumes rq->lock is held */
@@ -2891,8 +2892,7 @@ static void rq_offline_dl(struct rq *rq)
 	if (rq->dl.overloaded)
 		dl_clear_overload(rq);
 
-	cpudl_clear(&rq->rd->cpudl, rq->cpu);
-	cpudl_clear_freecpu(&rq->rd->cpudl, rq->cpu);
+	cpudl_clear(&rq->rd->cpudl, rq->cpu, false);
 }
 
 void __init init_sched_dl_class(void)
@@ -2970,7 +2970,7 @@ static void switched_from_dl(struct rq *rq, struct task_struct *p)
 	 * will reset the task parameters.
 	 */
 	if (task_on_rq_queued(p) && p->dl.dl_runtime)
-		task_non_contending(&p->dl);
+		task_non_contending(&p->dl, false);
 
 	/*
 	 * In case a task is setscheduled out from SCHED_DEADLINE we need to
@@ -3042,23 +3042,24 @@ static void switched_to_dl(struct rq *rq, struct task_struct *p)
 	}
 }
 
+static u64 get_prio_dl(struct rq *rq, struct task_struct *p)
+{
+	return p->dl.deadline;
+}
+
 /*
  * If the scheduling parameters of a -deadline task changed,
  * a push or pull operation might be needed.
  */
-static void prio_changed_dl(struct rq *rq, struct task_struct *p,
-			    int oldprio)
+static void prio_changed_dl(struct rq *rq, struct task_struct *p, u64 old_deadline)
 {
 	if (!task_on_rq_queued(p))
 		return;
 
-	/*
-	 * This might be too much, but unfortunately
-	 * we don't have the old deadline value, and
-	 * we can't argue if the task is increasing
-	 * or lowering its prio, so...
-	 */
-	if (!rq->dl.overloaded)
+	if (p->dl.deadline == old_deadline)
+		return;
+
+	if (dl_time_before(old_deadline, p->dl.deadline))
 		deadline_queue_pull_task(rq);
 
 	if (task_current_donor(rq, p)) {
@@ -3091,6 +3092,8 @@ static int task_is_throttled_dl(struct task_struct *p, int cpu)
 
 DEFINE_SCHED_CLASS(dl) = {
 
+	.queue_mask		= 8,
+
 	.enqueue_task		= enqueue_task_dl,
 	.dequeue_task		= dequeue_task_dl,
 	.yield_task		= yield_task_dl,
@@ -3113,6 +3116,7 @@ DEFINE_SCHED_CLASS(dl) = {
 	.task_tick		= task_tick_dl,
 	.task_fork              = task_fork_dl,
 
+	.get_prio		= get_prio_dl,
 	.prio_changed           = prio_changed_dl,
 	.switched_from		= switched_from_dl,
 	.switched_to		= switched_to_dl,
