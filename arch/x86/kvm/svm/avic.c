@@ -1243,3 +1243,9 @@ bool __init avic_hardware_setup(void)
 
 	return true;
 }
+
+void avic_hardware_unsetup(void)
+{
+	if (avic)
+		amd_iommu_register_ga_log_notifier(NULL);
+}

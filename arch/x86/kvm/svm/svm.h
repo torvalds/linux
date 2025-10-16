@@ -805,6 +805,7 @@ extern struct kvm_x86_nested_ops svm_nested_ops;
 )
 
 bool __init avic_hardware_setup(void);
+void avic_hardware_unsetup(void);
 int avic_ga_log_notifier(u32 ga_tag);
 void avic_vm_destroy(struct kvm *kvm);
 int avic_vm_init(struct kvm *kvm);
