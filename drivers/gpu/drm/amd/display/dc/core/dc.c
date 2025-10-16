@@ -3427,11 +3427,12 @@ static void update_seamless_boot_flags(struct dc *dc,
 	}
 }
 
-static bool full_update_required_weak(struct dc *dc,
-		struct dc_surface_update *srf_updates,
+static bool full_update_required_weak(
+		const struct dc *dc,
+		const struct dc_surface_update *srf_updates,
 		int surface_count,
-		struct dc_stream_update *stream_update,
-		struct dc_stream_state *stream);
+		const struct dc_stream_update *stream_update,
+		const struct dc_stream_state *stream);
 
 /**
  * update_planes_and_stream_state() - The function takes planes and stream
@@ -5015,7 +5016,7 @@ void populate_fast_updates(struct dc_fast_update *fast_update,
 	}
 }
 
-static bool fast_updates_exist(struct dc_fast_update *fast_update, int surface_count)
+static bool fast_updates_exist(const struct dc_fast_update *fast_update, int surface_count)
 {
 	int i;
 
@@ -5056,11 +5057,12 @@ bool fast_nonaddr_updates_exist(struct dc_fast_update *fast_update, int surface_
 	return false;
 }
 
-static bool full_update_required_weak(struct dc *dc,
-		struct dc_surface_update *srf_updates,
+static bool full_update_required_weak(
+		const struct dc *dc,
+		const struct dc_surface_update *srf_updates,
 		int surface_count,
-		struct dc_stream_update *stream_update,
-		struct dc_stream_state *stream)
+		const struct dc_stream_update *stream_update,
+		const struct dc_stream_state *stream)
 {
 	const struct dc_state *context = dc->current_state;
 	if (srf_updates)
@@ -5069,7 +5071,7 @@ static bool full_update_required_weak(struct dc *dc,
 				return true;
 
 	if (stream) {
-		const struct dc_stream_status *stream_status = dc_stream_get_status(stream);
+		const struct dc_stream_status *stream_status = dc_stream_get_status_const(stream);
 		if (stream_status == NULL || stream_status->plane_count != surface_count)
 			return true;
 	}
@@ -5082,11 +5084,12 @@ static bool full_update_required_weak(struct dc *dc,
 	return false;
 }
 
-static bool full_update_required(struct dc *dc,
-		struct dc_surface_update *srf_updates,
+static bool full_update_required(
+		const struct dc *dc,
+		const struct dc_surface_update *srf_updates,
 		int surface_count,
-		struct dc_stream_update *stream_update,
-		struct dc_stream_state *stream)
+		const struct dc_stream_update *stream_update,
+		const struct dc_stream_state *stream)
 {
 	if (full_update_required_weak(dc, srf_updates, surface_count, stream_update, stream))
 		return true;
@@ -5146,12 +5149,13 @@ static bool full_update_required(struct dc *dc,
 	return false;
 }
 
-static bool fast_update_only(struct dc *dc,
-		struct dc_fast_update *fast_update,
-		struct dc_surface_update *srf_updates,
+static bool fast_update_only(
+		const struct dc *dc,
+		const struct dc_fast_update *fast_update,
+		const struct dc_surface_update *srf_updates,
 		int surface_count,
-		struct dc_stream_update *stream_update,
-		struct dc_stream_state *stream)
+		const struct dc_stream_update *stream_update,
+		const struct dc_stream_state *stream)
 {
 	return fast_updates_exist(fast_update, surface_count)
 			&& !full_update_required(dc, srf_updates, surface_count, stream_update, stream);
@@ -6383,7 +6387,7 @@ bool dc_is_cursor_limit_pending(struct dc *dc)
 	return false;
 }
 
-bool dc_can_clear_cursor_limit(struct dc *dc)
+bool dc_can_clear_cursor_limit(const struct dc *dc)
 {
 	uint32_t i;
 
