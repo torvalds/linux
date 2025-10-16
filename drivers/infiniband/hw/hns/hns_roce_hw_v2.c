@@ -7053,7 +7053,6 @@ static int __hns_roce_hw_v2_init_instance(struct hnae3_handle *handle)
 		goto error_failed_roce_init;
 	}
 
-
 	handle->priv = hr_dev;
 
 	return 0;
