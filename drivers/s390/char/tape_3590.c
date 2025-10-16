@@ -551,31 +551,6 @@ tape_3590_mtseek(struct tape_device *device, int count)
 }
 
 /*
- * Read Opposite Error Recovery Function:
- * Used, when Read Forward does not work
- */
-static void
-tape_3590_read_opposite(struct tape_device *device,
-			struct tape_request *request)
-{
-	struct tape_3590_disc_data *data;
-
-	/*
-	 * We have allocated 4 ccws in tape_std_read, so we can now
-	 * transform the request to a read backward, followed by a
-	 * forward space block.
-	 */
-	request->op = TO_RBA;
-	tape_ccw_cc(request->cpaddr, MODE_SET_DB, 1, device->modeset_byte);
-	data = device->discdata;
-	tape_ccw_cc_idal(request->cpaddr + 1, data->read_back_op,
-			 device->char_data.idal_buf);
-	tape_ccw_cc(request->cpaddr + 2, FORSPACEBLOCK, 0, NULL);
-	tape_ccw_end(request->cpaddr + 3, NOP, 0, NULL);
-	DBF_EVENT(6, "xrop ccwg\n");
-}
-
-/*
  * Read Attention Msg
  * This should be done after an interrupt with attention bit (0x80)
  * in device state.
@@ -894,60 +869,6 @@ tape_3590_erp_special_interrupt(struct tape_device *device,
 				struct tape_request *request, struct irb *irb)
 {
 	return tape_3590_erp_basic(device, request, irb, -EIO);
-}
-
-/*
- *  RDA: Read Alternate
- */
-static int
-tape_3590_erp_read_alternate(struct tape_device *device,
-			     struct tape_request *request, struct irb *irb)
-{
-	struct tape_3590_disc_data *data;
-
-	/*
-	 * The issued Read Backward or Read Previous command is not
-	 * supported by the device
-	 * The recovery action should be to issue another command:
-	 * Read Revious: if Read Backward is not supported
-	 * Read Backward: if Read Previous is not supported
-	 */
-	data = device->discdata;
-	if (data->read_back_op == READ_PREVIOUS) {
-		DBF_EVENT(2, "(%08x): No support for READ_PREVIOUS command\n",
-			  device->cdev_id);
-		data->read_back_op = READ_BACKWARD;
-	} else {
-		DBF_EVENT(2, "(%08x): No support for READ_BACKWARD command\n",
-			  device->cdev_id);
-		data->read_back_op = READ_PREVIOUS;
-	}
-	tape_3590_read_opposite(device, request);
-	return tape_3590_erp_retry(device, request, irb);
-}
-
-/*
- * Error Recovery read opposite
- */
-static int
-tape_3590_erp_read_opposite(struct tape_device *device,
-			    struct tape_request *request, struct irb *irb)
-{
-	switch (request->op) {
-	case TO_RFO:
-		/*
-		 * We did read forward, but the data could not be read.
-		 * We will read backward and then skip forward again.
-		 */
-		tape_3590_read_opposite(device, request);
-		return tape_3590_erp_retry(device, request, irb);
-	case TO_RBA:
-		/* We tried to read forward and backward, but hat no success */
-		return tape_3590_erp_failed(device, request, irb, -EIO);
-		break;
-	default:
-		return tape_3590_erp_failed(device, request, irb, -EIO);
-	}
 }
 
 /*
@@ -1348,10 +1269,6 @@ tape_3590_unit_check(struct tape_device *device, struct tape_request *request,
 		tape_3590_print_era_msg(device, irb);
 		return tape_3590_erp_read_buf_log(device, request, irb);
 
-	case 0x2011:
-		tape_3590_print_era_msg(device, irb);
-		return tape_3590_erp_read_alternate(device, request, irb);
-
 	case 0x2230:
 	case 0x2231:
 		tape_3590_print_era_msg(device, irb);
@@ -1404,12 +1321,6 @@ tape_3590_unit_check(struct tape_device *device, struct tape_request *request,
 			/* Swap */
 			tape_3590_print_era_msg(device, irb);
 			return tape_3590_erp_swap(device, request, irb);
-		}
-		if (sense->rac == 0x26) {
-			/* Read Opposite */
-			tape_3590_print_era_msg(device, irb);
-			return tape_3590_erp_read_opposite(device, request,
-							   irb);
 		}
 		return tape_3590_erp_basic(device, request, irb, -EIO);
 	case 0x5020:
