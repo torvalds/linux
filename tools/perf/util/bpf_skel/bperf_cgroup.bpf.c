@@ -7,7 +7,7 @@
 #include <bpf/bpf_core_read.h>
 
 #define MAX_LEVELS  10  // max cgroup hierarchy level: arbitrary
-#define MAX_EVENTS  32  // max events per cgroup: arbitrary
+#define MAX_EVENTS  1024  // max events per cgroup: arbitrary
 
 // NOTE: many of map and global data will be modified before loading
 //       from the userspace (perf tool) using the skeleton helpers.
