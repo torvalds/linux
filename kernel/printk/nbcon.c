@@ -10,6 +10,7 @@
 #include <linux/export.h>
 #include <linux/init.h>
 #include <linux/irqflags.h>
+#include <linux/kdb.h>
 #include <linux/kthread.h>
 #include <linux/minmax.h>
 #include <linux/panic.h>
@@ -249,13 +250,16 @@ static int nbcon_context_try_acquire_direct(struct nbcon_context *ctxt,
 		 * since all non-panic CPUs are stopped during panic(), it
 		 * is safer to have them avoid gaining console ownership.
 		 *
-		 * If this acquire is a reacquire (and an unsafe takeover
+		 * One exception is when kdb has locked for printing on this CPU.
+		 *
+		 * Second exception is a reacquire (and an unsafe takeover
 		 * has not previously occurred) then it is allowed to attempt
 		 * a direct acquire in panic. This gives console drivers an
 		 * opportunity to perform any necessary cleanup if they were
 		 * interrupted by the panic CPU while printing.
 		 */
 		if (panic_on_other_cpu() &&
+		    !kdb_printf_on_this_cpu() &&
 		    (!is_reacquire || cur->unsafe_takeover)) {
 			return -EPERM;
 		}

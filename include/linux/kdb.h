@@ -14,6 +14,7 @@
  */
 
 #include <linux/list.h>
+#include <linux/smp.h>
 
 /* Shifted versions of the command enable bits are be used if the command
  * has no arguments (see kdb_check_flags). This allows commands, such as
@@ -207,11 +208,26 @@ static inline const char *kdb_walk_kallsyms(loff_t *pos)
 /* Dynamic kdb shell command registration */
 extern int kdb_register(kdbtab_t *cmd);
 extern void kdb_unregister(kdbtab_t *cmd);
+
+/* Return true when KDB as locked for printing a message on this CPU. */
+static inline
+bool kdb_printf_on_this_cpu(void)
+{
+	/*
+	 * We can use raw_smp_processor_id() here because the task could
+	 * not get migrated when KDB has locked for printing on this CPU.
+	 */
+	return unlikely(READ_ONCE(kdb_printf_cpu) == raw_smp_processor_id());
+}
+
 #else /* ! CONFIG_KGDB_KDB */
 static inline __printf(1, 2) int kdb_printf(const char *fmt, ...) { return 0; }
 static inline void kdb_init(int level) {}
 static inline int kdb_register(kdbtab_t *cmd) { return 0; }
 static inline void kdb_unregister(kdbtab_t *cmd) {}
+
+static inline bool kdb_printf_on_this_cpu(void) { return false; }
+
 #endif	/* CONFIG_KGDB_KDB */
 enum {
 	KDB_NOT_INITIALIZED,
