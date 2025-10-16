@@ -645,11 +645,7 @@ tape_std_read_block(struct tape_device *device)
 {
 	struct tape_request *request;
 
-	/*
-	 * We have to alloc 4 ccws in order to be able to transform request
-	 * into a read backward request in error case.
-	 */
-	request = tape_alloc_request(4, 0);
+	request = tape_alloc_request(2, 0);
 	if (IS_ERR(request)) {
 		DBF_EXCEPTION(6, "xrbl fail");
 		return request;
