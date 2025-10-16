@@ -46,8 +46,8 @@ void i915_gem_object_frontbuffer_ref(struct i915_frontbuffer *front);
 void i915_gem_object_frontbuffer_put(struct i915_frontbuffer *front);
 
 /**
- * i915_gem_object_get_frontbuffer - Get the object's frontbuffer
- * @obj: The object whose frontbuffer to get.
+ * i915_gem_object_frontbuffer_lookup - Look up the object's frontbuffer
+ * @obj: The object whose frontbuffer to look up.
  *
  * Get pointer to object's frontbuffer if such exists. Please note that RCU
  * mechanism is used to handle e.g. ongoing removal of frontbuffer pointer.
@@ -55,7 +55,7 @@ void i915_gem_object_frontbuffer_put(struct i915_frontbuffer *front);
  * Return: pointer to object's frontbuffer is such exists or NULL
  */
 static inline struct i915_frontbuffer *
-i915_gem_object_get_frontbuffer(const struct drm_i915_gem_object *obj)
+i915_gem_object_frontbuffer_lookup(const struct drm_i915_gem_object *obj)
 {
 	struct i915_frontbuffer *front;
 

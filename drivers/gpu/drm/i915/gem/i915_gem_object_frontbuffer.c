@@ -28,7 +28,7 @@ i915_gem_object_frontbuffer_get(struct drm_i915_gem_object *obj)
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
 	struct i915_frontbuffer *front, *cur;
 
-	front = i915_gem_object_get_frontbuffer(obj);
+	front = i915_gem_object_frontbuffer_lookup(obj);
 	if (front)
 		return front;
 

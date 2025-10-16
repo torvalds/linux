@@ -478,7 +478,7 @@ void __i915_gem_object_flush_frontbuffer(struct drm_i915_gem_object *obj,
 {
 	struct i915_frontbuffer *front;
 
-	front = i915_gem_object_get_frontbuffer(obj);
+	front = i915_gem_object_frontbuffer_lookup(obj);
 	if (front) {
 		intel_frontbuffer_flush(&front->base, origin);
 		i915_gem_object_frontbuffer_put(front);
@@ -490,7 +490,7 @@ void __i915_gem_object_invalidate_frontbuffer(struct drm_i915_gem_object *obj,
 {
 	struct i915_frontbuffer *front;
 
-	front = i915_gem_object_get_frontbuffer(obj);
+	front = i915_gem_object_frontbuffer_lookup(obj);
 	if (front) {
 		intel_frontbuffer_invalidate(&front->base, origin);
 		i915_gem_object_frontbuffer_put(front);
