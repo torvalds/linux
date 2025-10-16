@@ -234,27 +234,6 @@ out_free:
 	return ret;
 }
 
-int io_create_region_mmap_safe(struct io_ring_ctx *ctx, struct io_mapped_region *mr,
-				struct io_uring_region_desc *reg,
-				unsigned long mmap_offset)
-{
-	struct io_mapped_region tmp_mr;
-	int ret;
-
-	memcpy(&tmp_mr, mr, sizeof(tmp_mr));
-	ret = io_create_region(ctx, &tmp_mr, reg, mmap_offset);
-	if (ret)
-		return ret;
-
-	/*
-	 * Once published mmap can find it without holding only the ->mmap_lock
-	 * and not ->uring_lock.
-	 */
-	guard(mutex)(&ctx->mmap_lock);
-	memcpy(mr, &tmp_mr, sizeof(tmp_mr));
-	return 0;
-}
-
 static struct io_mapped_region *io_mmap_get_region(struct io_ring_ctx *ctx,
 						   loff_t pgoff)
 {

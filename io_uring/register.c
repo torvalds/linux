@@ -576,6 +576,7 @@ static int io_register_mem_region(struct io_ring_ctx *ctx, void __user *uarg)
 	struct io_uring_mem_region_reg reg;
 	struct io_uring_region_desc __user *rd_uptr;
 	struct io_uring_region_desc rd;
+	struct io_mapped_region region = {};
 	int ret;
 
 	if (io_region_is_set(&ctx->param_region))
@@ -599,20 +600,20 @@ static int io_register_mem_region(struct io_ring_ctx *ctx, void __user *uarg)
 	    !(ctx->flags & IORING_SETUP_R_DISABLED))
 		return -EINVAL;
 
-	ret = io_create_region_mmap_safe(ctx, &ctx->param_region, &rd,
-					 IORING_MAP_OFF_PARAM_REGION);
+	ret = io_create_region(ctx, &region, &rd, IORING_MAP_OFF_PARAM_REGION);
 	if (ret)
 		return ret;
 	if (copy_to_user(rd_uptr, &rd, sizeof(rd))) {
-		guard(mutex)(&ctx->mmap_lock);
-		io_free_region(ctx, &ctx->param_region);
+		io_free_region(ctx, &region);
 		return -EFAULT;
 	}
 
 	if (reg.flags & IORING_MEM_REGION_REG_WAIT_ARG) {
-		ctx->cq_wait_arg = io_region_get_ptr(&ctx->param_region);
+		ctx->cq_wait_arg = io_region_get_ptr(&region);
 		ctx->cq_wait_size = rd.size;
 	}
+
+	io_region_publish(ctx, &region, &ctx->param_region);
 	return 0;
 }
 

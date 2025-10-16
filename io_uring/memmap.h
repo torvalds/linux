@@ -36,4 +36,16 @@ static inline bool io_region_is_set(struct io_mapped_region *mr)
 	return !!mr->nr_pages;
 }
 
+static inline void io_region_publish(struct io_ring_ctx *ctx,
+				     struct io_mapped_region *src_region,
+				     struct io_mapped_region *dst_region)
+{
+	/*
+	 * Once published mmap can find it without holding only the ->mmap_lock
+	 * and not ->uring_lock.
+	 */
+	guard(mutex)(&ctx->mmap_lock);
+	*dst_region = *src_region;
+}
+
 #endif
