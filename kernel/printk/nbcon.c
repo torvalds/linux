@@ -854,8 +854,8 @@ out:
 	return nbcon_context_can_proceed(ctxt, &cur);
 }
 
-static void nbcon_write_context_set_buf(struct nbcon_write_context *wctxt,
-					char *buf, unsigned int len)
+void nbcon_write_context_set_buf(struct nbcon_write_context *wctxt,
+				 char *buf, unsigned int len)
 {
 	struct nbcon_context *ctxt = &ACCESS_PRIVATE(wctxt, ctxt);
 	struct console *con = ctxt->console;
