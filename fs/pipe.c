@@ -1489,8 +1489,8 @@ static SYSCTL_UINT_CONV_CUSTOM(_pipe_maxsz,
 static int proc_dopipe_max_size(const struct ctl_table *table, int write,
 				void *buffer, size_t *lenp, loff_t *ppos)
 {
-	return do_proc_douintvec(table, write, buffer, lenp, ppos,
-				 do_proc_uint_conv_pipe_maxsz);
+	return proc_douintvec_conv(table, write, buffer, lenp, ppos,
+				   do_proc_uint_conv_pipe_maxsz);
 }
 
 static const struct ctl_table fs_pipe_sysctls[] = {

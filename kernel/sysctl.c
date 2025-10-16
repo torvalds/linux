@@ -535,10 +535,11 @@ out:
 	return err;
 }
 
-int do_proc_douintvec(const struct ctl_table *table, int dir, void *buffer,
-		      size_t *lenp, loff_t *ppos,
-		      int (*conv)(unsigned long *u_ptr, unsigned int *k_ptr,
-				  int dir, const struct ctl_table *table))
+static int do_proc_douintvec(const struct ctl_table *table, int dir,
+			     void *buffer, size_t *lenp, loff_t *ppos,
+			      int (*conv)(unsigned long *u_ptr,
+					  unsigned int *k_ptr, int dir,
+					  const struct ctl_table *table))
 {
 	unsigned int vleft;
 
@@ -566,6 +567,15 @@ int do_proc_douintvec(const struct ctl_table *table, int dir, void *buffer,
 		return do_proc_douintvec_w(table, buffer, lenp, ppos, conv);
 	return do_proc_douintvec_r(table, buffer, lenp, ppos, conv);
 }
+
+int proc_douintvec_conv(const struct ctl_table *table, int dir, void *buffer,
+			size_t *lenp, loff_t *ppos,
+			int (*conv)(unsigned long *u_ptr, unsigned int *k_ptr,
+				    int dir, const struct ctl_table *table))
+{
+	return do_proc_douintvec(table, dir, buffer, lenp, ppos, conv);
+}
+
 
 /**
  * proc_dobool - read/write a bool
