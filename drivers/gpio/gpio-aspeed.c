@@ -29,7 +29,6 @@
  * access to some GPIOs and to arbitrate between coprocessor and ARM.
  */
 #include <linux/gpio/consumer.h>
-#include "gpiolib.h"
 
 /* Non-constant mask variant of FIELD_GET() and FIELD_PREP() */
 #define field_get(_mask, _reg)	(((_reg) & (_mask)) >> (ffs(_mask) - 1))
