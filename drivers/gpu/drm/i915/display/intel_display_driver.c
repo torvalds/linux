@@ -186,7 +186,6 @@ void intel_display_driver_early_probe(struct intel_display *display)
 	if (!HAS_DISPLAY(display))
 		return;
 
-	spin_lock_init(&display->fb_tracking.frontbuffer_lock);
 	spin_lock_init(&display->fb_tracking.lock);
 	mutex_init(&display->backlight.lock);
 	mutex_init(&display->audio.mutex);

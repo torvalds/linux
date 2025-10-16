@@ -57,8 +57,6 @@
 
 #include <drm/drm_gem.h>
 
-#include "i915_active.h"
-#include "i915_vma.h"
 #include "intel_bo.h"
 #include "intel_display_trace.h"
 #include "intel_display_types.h"
@@ -167,7 +165,7 @@ void __intel_fb_flush(struct intel_frontbuffer *front,
 
 static void intel_frontbuffer_ref(struct intel_frontbuffer *front)
 {
-	kref_get(&front->ref);
+	intel_bo_frontbuffer_ref(front);
 }
 
 static void intel_frontbuffer_flush_work(struct work_struct *work)
@@ -196,89 +194,26 @@ void intel_frontbuffer_queue_flush(struct intel_frontbuffer *front)
 		intel_frontbuffer_put(front);
 }
 
-static int frontbuffer_active(struct i915_active *ref)
+void intel_frontbuffer_init(struct intel_frontbuffer *front, struct drm_device *drm)
 {
-	struct intel_frontbuffer *front =
-		container_of(ref, typeof(*front), write);
-
-	kref_get(&front->ref);
-	return 0;
-}
-
-static void frontbuffer_retire(struct i915_active *ref)
-{
-	struct intel_frontbuffer *front =
-		container_of(ref, typeof(*front), write);
-
-	intel_frontbuffer_flush(front, ORIGIN_CS);
-	intel_frontbuffer_put(front);
-}
-
-static void frontbuffer_release(struct kref *ref)
-	__releases(&front->display->fb_tracking.frontbuffer_lock)
-{
-	struct intel_frontbuffer *ret, *front =
-		container_of(ref, typeof(*front), ref);
-	struct intel_display *display = front->display;
-	struct drm_gem_object *obj = front->obj;
-
-	drm_WARN_ON(display->drm, atomic_read(&front->bits));
-
-	i915_ggtt_clear_scanout(to_intel_bo(obj));
-
-	ret = intel_bo_set_frontbuffer(obj, NULL);
-	drm_WARN_ON(display->drm, ret);
-	spin_unlock(&display->fb_tracking.frontbuffer_lock);
-
-	i915_active_fini(&front->write);
-
-	drm_gem_object_put(obj);
-	kfree_rcu(front, rcu);
-}
-
-struct intel_frontbuffer *
-intel_frontbuffer_get(struct drm_gem_object *obj)
-{
-	struct intel_display *display = to_intel_display(obj->dev);
-	struct intel_frontbuffer *front, *cur;
-
-	front = intel_bo_get_frontbuffer(obj);
-	if (front)
-		return front;
-
-	front = kmalloc(sizeof(*front), GFP_KERNEL);
-	if (!front)
-		return NULL;
-
-	drm_gem_object_get(obj);
-
-	front->obj = obj;
-	front->display = display;
-	kref_init(&front->ref);
+	front->display = to_intel_display(drm);
 	atomic_set(&front->bits, 0);
-	i915_active_init(&front->write,
-			 frontbuffer_active,
-			 frontbuffer_retire,
-			 I915_ACTIVE_RETIRE_SLEEPS);
 	INIT_WORK(&front->flush_work, intel_frontbuffer_flush_work);
+}
 
-	spin_lock(&display->fb_tracking.frontbuffer_lock);
-	cur = intel_bo_set_frontbuffer(obj, front);
-	spin_unlock(&display->fb_tracking.frontbuffer_lock);
+void intel_frontbuffer_fini(struct intel_frontbuffer *front)
+{
+	drm_WARN_ON(front->display->drm, atomic_read(&front->bits));
+}
 
-	if (cur != front) {
-		drm_gem_object_put(obj);
-		kfree(front);
-	}
-
-	return cur;
+struct intel_frontbuffer *intel_frontbuffer_get(struct drm_gem_object *obj)
+{
+	return intel_bo_frontbuffer_get(obj);
 }
 
 void intel_frontbuffer_put(struct intel_frontbuffer *front)
 {
-	kref_put_lock(&front->ref,
-		      frontbuffer_release,
-		      &front->display->fb_tracking.frontbuffer_lock);
+	intel_bo_frontbuffer_put(front);
 }
 
 /**

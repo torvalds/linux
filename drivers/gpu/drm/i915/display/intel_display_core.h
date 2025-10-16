@@ -142,9 +142,6 @@ struct intel_dpll_global {
 };
 
 struct intel_frontbuffer_tracking {
-	/* protects obj->frontbuffer (write-side) */
-	spinlock_t frontbuffer_lock;
-
 	/* protects busy_bits */
 	spinlock_t lock;
 

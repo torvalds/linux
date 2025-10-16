@@ -26,10 +26,9 @@
 
 #include <linux/atomic.h>
 #include <linux/bits.h>
-#include <linux/kref.h>
+#include <linux/workqueue_types.h>
 
-#include "i915_active_types.h"
-
+struct drm_device;
 struct drm_gem_object;
 struct intel_display;
 
@@ -42,13 +41,8 @@ enum fb_op_origin {
 };
 
 struct intel_frontbuffer {
-	struct kref ref;
 	struct intel_display *display;
 	atomic_t bits;
-	struct i915_active write;
-	struct drm_gem_object *obj;
-	struct rcu_head rcu;
-
 	struct work_struct flush_work;
 };
 
@@ -140,5 +134,8 @@ void intel_frontbuffer_queue_flush(struct intel_frontbuffer *front);
 void intel_frontbuffer_track(struct intel_frontbuffer *old,
 			     struct intel_frontbuffer *new,
 			     unsigned int frontbuffer_bits);
+
+void intel_frontbuffer_init(struct intel_frontbuffer *front, struct drm_device *drm);
+void intel_frontbuffer_fini(struct intel_frontbuffer *front);
 
 #endif /* __INTEL_FRONTBUFFER_H__ */

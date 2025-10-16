@@ -156,6 +156,7 @@ gem-y += \
 	gem/i915_gem_lmem.o \
 	gem/i915_gem_mman.o \
 	gem/i915_gem_object.o \
+	gem/i915_gem_object_frontbuffer.o \
 	gem/i915_gem_pages.o \
 	gem/i915_gem_phys.o \
 	gem/i915_gem_pm.o \
