@@ -689,8 +689,20 @@ bool kvm_riscv_vcpu_aia_imsic_has_interrupt(struct kvm_vcpu *vcpu)
 	 */
 
 	read_lock_irqsave(&imsic->vsfile_lock, flags);
-	if (imsic->vsfile_cpu > -1)
-		ret = !!(csr_read(CSR_HGEIP) & BIT(imsic->vsfile_hgei));
+	if (imsic->vsfile_cpu > -1) {
+		/*
+		 * This function is typically called from kvm_vcpu_block() via
+		 * kvm_arch_vcpu_runnable() upon WFI trap. The kvm_vcpu_block()
+		 * can be preempted and the blocking VCPU might resume on a
+		 * different CPU. This means it is possible that current CPU
+		 * does not match the imsic->vsfile_cpu hence this function
+		 * must check imsic->vsfile_cpu before accessing HGEIP CSR.
+		 */
+		if (imsic->vsfile_cpu != vcpu->cpu)
+			ret = true;
+		else
+			ret = !!(csr_read(CSR_HGEIP) & BIT(imsic->vsfile_hgei));
+	}
 	read_unlock_irqrestore(&imsic->vsfile_lock, flags);
 
 	return ret;
