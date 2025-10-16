@@ -210,7 +210,7 @@ static void frontbuffer_retire(struct i915_active *ref)
 }
 
 static void frontbuffer_release(struct kref *ref)
-	__releases(&to_intel_display(front->obj->dev)->fb_tracking.lock)
+	__releases(&to_intel_display(front->obj->dev)->fb_tracking.frontbuffer_lock)
 {
 	struct intel_frontbuffer *ret, *front =
 		container_of(ref, typeof(*front), ref);
@@ -223,7 +223,7 @@ static void frontbuffer_release(struct kref *ref)
 
 	ret = intel_bo_set_frontbuffer(obj, NULL);
 	drm_WARN_ON(display->drm, ret);
-	spin_unlock(&display->fb_tracking.lock);
+	spin_unlock(&display->fb_tracking.frontbuffer_lock);
 
 	i915_active_fini(&front->write);
 
@@ -256,9 +256,9 @@ intel_frontbuffer_get(struct drm_gem_object *obj)
 			 I915_ACTIVE_RETIRE_SLEEPS);
 	INIT_WORK(&front->flush_work, intel_frontbuffer_flush_work);
 
-	spin_lock(&display->fb_tracking.lock);
+	spin_lock(&display->fb_tracking.frontbuffer_lock);
 	cur = intel_bo_set_frontbuffer(obj, front);
-	spin_unlock(&display->fb_tracking.lock);
+	spin_unlock(&display->fb_tracking.frontbuffer_lock);
 
 	if (cur != front) {
 		drm_gem_object_put(obj);
@@ -272,7 +272,7 @@ void intel_frontbuffer_put(struct intel_frontbuffer *front)
 {
 	kref_put_lock(&front->ref,
 		      frontbuffer_release,
-		      &to_intel_display(front->obj->dev)->fb_tracking.lock);
+		      &to_intel_display(front->obj->dev)->fb_tracking.frontbuffer_lock);
 }
 
 /**
