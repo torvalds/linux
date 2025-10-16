@@ -1271,8 +1271,6 @@ struct wx {
 
 	/* PHY stuff */
 	bool notify_down;
-	int adv_speed;
-	int adv_duplex;
 	unsigned int link;
 	int speed;
 	int duplex;

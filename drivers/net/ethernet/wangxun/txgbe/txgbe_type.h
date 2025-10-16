@@ -314,6 +314,7 @@ void txgbe_up(struct wx *wx);
 int txgbe_setup_tc(struct net_device *dev, u8 tc);
 void txgbe_do_reset(struct net_device *netdev);
 
+#define TXGBE_LINK_SPEED_UNKNOWN        0
 #define TXGBE_LINK_SPEED_10GB_FULL      4
 #define TXGBE_LINK_SPEED_25GB_FULL      0x10
 
@@ -352,7 +353,9 @@ struct txgbe_sfp_id {
 	u8 vendor_oui0;		/* A0H 0x25 */
 	u8 vendor_oui1;		/* A0H 0x26 */
 	u8 vendor_oui2;		/* A0H 0x27 */
-	u8 reserved[3];
+	u8 transceiver_type;	/* A0H 0x83 */
+	u8 sff_opt1;		/* A0H 0xC0 */
+	u8 reserved[5];
 };
 
 struct txgbe_hic_i2c_read {

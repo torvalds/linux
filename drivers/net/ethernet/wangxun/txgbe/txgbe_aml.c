@@ -19,8 +19,8 @@ void txgbe_gpio_init_aml(struct wx *wx)
 {
 	u32 status;
 
-	wr32(wx, WX_GPIO_INTTYPE_LEVEL, TXGBE_GPIOBIT_2 | TXGBE_GPIOBIT_3);
-	wr32(wx, WX_GPIO_INTEN, TXGBE_GPIOBIT_2 | TXGBE_GPIOBIT_3);
+	wr32(wx, WX_GPIO_INTTYPE_LEVEL, TXGBE_GPIOBIT_2);
+	wr32(wx, WX_GPIO_INTEN, TXGBE_GPIOBIT_2);
 
 	status = rd32(wx, WX_GPIO_INTSTATUS);
 	for (int i = 0; i < 6; i++) {
@@ -41,11 +41,6 @@ irqreturn_t txgbe_gpio_irq_handler_aml(int irq, void *data)
 		set_bit(WX_FLAG_NEED_SFP_RESET, wx->flags);
 		wr32(wx, WX_GPIO_EOI, TXGBE_GPIOBIT_2);
 		wx_service_event_schedule(wx);
-	}
-	if (status & TXGBE_GPIOBIT_3) {
-		set_bit(WX_FLAG_NEED_LINK_CONFIG, wx->flags);
-		wx_service_event_schedule(wx);
-		wr32(wx, WX_GPIO_EOI, TXGBE_GPIOBIT_3);
 	}
 
 	wr32(wx, WX_GPIO_INTMASK, 0);
@@ -96,6 +91,9 @@ static int txgbe_set_phy_link_hostif(struct wx *wx, int speed, int autoneg, int 
 	case SPEED_10000:
 		buffer.speed = TXGBE_LINK_SPEED_10GB_FULL;
 		break;
+	default:
+		buffer.speed = TXGBE_LINK_SPEED_UNKNOWN;
+		break;
 	}
 
 	buffer.fec_mode = TXGBE_PHY_FEC_AUTO;
@@ -106,22 +104,21 @@ static int txgbe_set_phy_link_hostif(struct wx *wx, int speed, int autoneg, int 
 					 WX_HI_COMMAND_TIMEOUT, true);
 }
 
-static void txgbe_get_link_capabilities(struct wx *wx)
+static void txgbe_get_link_capabilities(struct wx *wx, int *speed, int *duplex)
 {
 	struct txgbe *txgbe = wx->priv;
 
 	if (test_bit(PHY_INTERFACE_MODE_25GBASER, txgbe->sfp_interfaces))
-		wx->adv_speed = SPEED_25000;
+		*speed = SPEED_25000;
 	else if (test_bit(PHY_INTERFACE_MODE_10GBASER, txgbe->sfp_interfaces))
-		wx->adv_speed = SPEED_10000;
+		*speed = SPEED_10000;
 	else
-		wx->adv_speed = SPEED_UNKNOWN;
+		*speed = SPEED_UNKNOWN;
 
-	wx->adv_duplex = wx->adv_speed == SPEED_UNKNOWN ?
-			 DUPLEX_HALF : DUPLEX_FULL;
+	*duplex = *speed == SPEED_UNKNOWN ? DUPLEX_HALF : DUPLEX_FULL;
 }
 
-static void txgbe_get_phy_link(struct wx *wx, int *speed)
+static void txgbe_get_mac_link(struct wx *wx, int *speed)
 {
 	u32 status;
 
@@ -138,23 +135,11 @@ static void txgbe_get_phy_link(struct wx *wx, int *speed)
 
 int txgbe_set_phy_link(struct wx *wx)
 {
-	int speed, err;
-	u32 gpio;
+	int speed, duplex, err;
 
-	/* Check RX signal */
-	gpio = rd32(wx, WX_GPIO_EXT);
-	if (gpio & TXGBE_GPIOBIT_3)
-		return -ENODEV;
+	txgbe_get_link_capabilities(wx, &speed, &duplex);
 
-	txgbe_get_link_capabilities(wx);
-	if (wx->adv_speed == SPEED_UNKNOWN)
-		return -ENODEV;
-
-	txgbe_get_phy_link(wx, &speed);
-	if (speed == wx->adv_speed)
-		return 0;
-
-	err = txgbe_set_phy_link_hostif(wx, wx->adv_speed, 0, wx->adv_duplex);
+	err = txgbe_set_phy_link_hostif(wx, speed, 0, duplex);
 	if (err) {
 		wx_err(wx, "Failed to setup link\n");
 		return err;
@@ -230,14 +215,7 @@ int txgbe_identify_sfp(struct wx *wx)
 		return -ENODEV;
 	}
 
-	err = txgbe_sfp_to_linkmodes(wx, id);
-	if (err)
-		return err;
-
-	if (gpio & TXGBE_GPIOBIT_3)
-		set_bit(WX_FLAG_NEED_LINK_CONFIG, wx->flags);
-
-	return 0;
+	return txgbe_sfp_to_linkmodes(wx, id);
 }
 
 void txgbe_setup_link(struct wx *wx)
@@ -256,7 +234,7 @@ static void txgbe_get_link_state(struct phylink_config *config,
 	struct wx *wx = phylink_to_wx(config);
 	int speed;
 
-	txgbe_get_phy_link(wx, &speed);
+	txgbe_get_mac_link(wx, &speed);
 	state->link = speed != SPEED_UNKNOWN;
 	state->speed = speed;
 	state->duplex = state->link ? DUPLEX_FULL : DUPLEX_UNKNOWN;
