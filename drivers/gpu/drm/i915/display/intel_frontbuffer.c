@@ -128,7 +128,7 @@ void __intel_fb_invalidate(struct intel_frontbuffer *front,
 			   enum fb_op_origin origin,
 			   unsigned int frontbuffer_bits)
 {
-	struct intel_display *display = to_intel_display(front->obj->dev);
+	struct intel_display *display = front->display;
 
 	if (origin == ORIGIN_CS) {
 		spin_lock(&display->fb_tracking.lock);
@@ -148,7 +148,7 @@ void __intel_fb_flush(struct intel_frontbuffer *front,
 		      enum fb_op_origin origin,
 		      unsigned int frontbuffer_bits)
 {
-	struct intel_display *display = to_intel_display(front->obj->dev);
+	struct intel_display *display = front->display;
 
 	if (origin == ORIGIN_DIRTYFB)
 		intel_bo_frontbuffer_flush_for_display(front);
@@ -215,12 +215,12 @@ static void frontbuffer_retire(struct i915_active *ref)
 }
 
 static void frontbuffer_release(struct kref *ref)
-	__releases(&to_intel_display(front->obj->dev)->fb_tracking.frontbuffer_lock)
+	__releases(&front->display->fb_tracking.frontbuffer_lock)
 {
 	struct intel_frontbuffer *ret, *front =
 		container_of(ref, typeof(*front), ref);
+	struct intel_display *display = front->display;
 	struct drm_gem_object *obj = front->obj;
-	struct intel_display *display = to_intel_display(obj->dev);
 
 	drm_WARN_ON(display->drm, atomic_read(&front->bits));
 
@@ -253,6 +253,7 @@ intel_frontbuffer_get(struct drm_gem_object *obj)
 	drm_gem_object_get(obj);
 
 	front->obj = obj;
+	front->display = display;
 	kref_init(&front->ref);
 	atomic_set(&front->bits, 0);
 	i915_active_init(&front->write,
@@ -277,7 +278,7 @@ void intel_frontbuffer_put(struct intel_frontbuffer *front)
 {
 	kref_put_lock(&front->ref,
 		      frontbuffer_release,
-		      &to_intel_display(front->obj->dev)->fb_tracking.frontbuffer_lock);
+		      &front->display->fb_tracking.frontbuffer_lock);
 }
 
 /**
@@ -306,17 +307,13 @@ void intel_frontbuffer_track(struct intel_frontbuffer *old,
 	BUILD_BUG_ON(I915_MAX_PLANES > INTEL_FRONTBUFFER_BITS_PER_PIPE);
 
 	if (old) {
-		struct intel_display *display = to_intel_display(old->obj->dev);
-
-		drm_WARN_ON(display->drm,
+		drm_WARN_ON(old->display->drm,
 			    !(atomic_read(&old->bits) & frontbuffer_bits));
 		atomic_andnot(frontbuffer_bits, &old->bits);
 	}
 
 	if (new) {
-		struct intel_display *display = to_intel_display(new->obj->dev);
-
-		drm_WARN_ON(display->drm,
+		drm_WARN_ON(new->display->drm,
 			    atomic_read(&new->bits) & frontbuffer_bits);
 		atomic_or(frontbuffer_bits, &new->bits);
 	}

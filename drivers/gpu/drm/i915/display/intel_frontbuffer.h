@@ -43,6 +43,7 @@ enum fb_op_origin {
 
 struct intel_frontbuffer {
 	struct kref ref;
+	struct intel_display *display;
 	atomic_t bits;
 	struct i915_active write;
 	struct drm_gem_object *obj;
