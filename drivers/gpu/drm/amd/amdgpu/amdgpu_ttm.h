@@ -83,9 +83,6 @@ struct amdgpu_mman {
 	uint64_t		stolen_reserved_offset;
 	uint64_t		stolen_reserved_size;
 
-	/* discovery */
-	uint8_t				*discovery_bin;
-	uint32_t			discovery_tmr_size;
 	/* fw reserved memory */
 	struct amdgpu_bo		*fw_reserved_memory;
 	struct amdgpu_bo		*fw_reserved_memory_extend;
