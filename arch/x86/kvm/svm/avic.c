@@ -216,7 +216,7 @@ static void avic_deactivate_vmcb(struct vcpu_svm *svm)
  * This function is called from IOMMU driver to notify
  * SVM to schedule in a particular vCPU of a particular VM.
  */
-int avic_ga_log_notifier(u32 ga_tag)
+static int avic_ga_log_notifier(u32 ga_tag)
 {
 	unsigned long flags;
 	struct kvm_svm *kvm_svm;
