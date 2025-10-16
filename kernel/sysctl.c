@@ -462,23 +462,36 @@ static SYSCTL_INT_CONV_CUSTOM(_ms_jiffies_minmax,
 			      sysctl_user_to_kern_int_conv_ms,
 			      sysctl_kern_to_user_int_conv_ms, true)
 
-static int do_proc_douintvec_conv(unsigned long *u_ptr,
-				  unsigned int *k_ptr, int dir,
-				  const struct ctl_table *table)
+#define SYSCTL_UINT_CONV_CUSTOM(name, user_to_kern, kern_to_user)	\
+int do_proc_uint_conv##name(unsigned long *u_ptr, unsigned int *k_ptr,	\
+			   int dir, const struct ctl_table *tbl)	\
+{									\
+	if (SYSCTL_USER_TO_KERN(dir))					\
+		return user_to_kern(u_ptr, k_ptr);			\
+	return kern_to_user(u_ptr, k_ptr);				\
+}
+
+static int sysctl_user_to_kern_uint_conv(const unsigned long *u_ptr,
+					 unsigned int *k_ptr)
 {
-	if (SYSCTL_USER_TO_KERN(dir)) {
-		if (*u_ptr > UINT_MAX)
-			return -EINVAL;
-		WRITE_ONCE(*k_ptr, *u_ptr);
-	} else {
-		unsigned int val = READ_ONCE(*k_ptr);
-		*u_ptr = (unsigned long)val;
-	}
+	if (*u_ptr > UINT_MAX)
+		return -EINVAL;
+	WRITE_ONCE(*k_ptr, *u_ptr);
 	return 0;
 }
 
-static const char proc_wspace_sep[] = { ' ', '\t', '\n' };
+static int sysctl_kern_to_user_uint_conv(unsigned long *u_ptr,
+					 const unsigned int *k_ptr)
+{
+	unsigned int val = READ_ONCE(*k_ptr);
+	*u_ptr = (unsigned long)val;
+	return 0;
+}
 
+static SYSCTL_UINT_CONV_CUSTOM(, sysctl_user_to_kern_uint_conv,
+			       sysctl_kern_to_user_uint_conv)
+
+static const char proc_wspace_sep[] = { ' ', '\t', '\n' };
 
 static int do_proc_dointvec(const struct ctl_table *table, int dir,
 		  void *buffer, size_t *lenp, loff_t *ppos,
@@ -660,7 +673,7 @@ int do_proc_douintvec(const struct ctl_table *table, int dir, void *buffer,
 	}
 
 	if (!conv)
-		conv = do_proc_douintvec_conv;
+		conv = do_proc_uint_conv;
 
 	if (SYSCTL_USER_TO_KERN(dir))
 		return do_proc_douintvec_w(table, buffer, lenp, ppos, conv);
@@ -743,7 +756,7 @@ int proc_douintvec(const struct ctl_table *table, int dir, void *buffer,
 		size_t *lenp, loff_t *ppos)
 {
 	return do_proc_douintvec(table, dir, buffer, lenp, ppos,
-				 do_proc_douintvec_conv);
+				 do_proc_uint_conv);
 }
 
 /**
@@ -779,7 +792,7 @@ static int do_proc_douintvec_minmax_conv(unsigned long *u_ptr,
 	/* When writing to the kernel use a temp local uint for bounds-checking */
 	unsigned int *up = SYSCTL_USER_TO_KERN(dir) ? &tmp : k_ptr;
 
-	ret = do_proc_douintvec_conv(u_ptr, up, dir, table);
+	ret = do_proc_uint_conv(u_ptr, up, dir, table);
 	if (ret)
 		return ret;
 
