@@ -68,10 +68,6 @@ struct intel_frontbuffer {
 	GENMASK(INTEL_FRONTBUFFER_BITS_PER_PIPE * ((pipe) + 1) - 1,	\
 		INTEL_FRONTBUFFER_BITS_PER_PIPE * (pipe))
 
-void intel_frontbuffer_flip_prepare(struct intel_display *display,
-				    unsigned frontbuffer_bits);
-void intel_frontbuffer_flip_complete(struct intel_display *display,
-				     unsigned frontbuffer_bits);
 void intel_frontbuffer_flip(struct intel_display *display,
 			    unsigned frontbuffer_bits);
 

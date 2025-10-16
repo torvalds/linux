@@ -103,51 +103,6 @@ static void frontbuffer_flush(struct intel_display *display,
 }
 
 /**
- * intel_frontbuffer_flip_prepare - prepare asynchronous frontbuffer flip
- * @display: display device
- * @frontbuffer_bits: frontbuffer plane tracking bits
- *
- * This function gets called after scheduling a flip on @obj. The actual
- * frontbuffer flushing will be delayed until completion is signalled with
- * intel_frontbuffer_flip_complete. If an invalidate happens in between this
- * flush will be cancelled.
- *
- * Can be called without any locks held.
- */
-void intel_frontbuffer_flip_prepare(struct intel_display *display,
-				    unsigned frontbuffer_bits)
-{
-	spin_lock(&display->fb_tracking.lock);
-	display->fb_tracking.flip_bits |= frontbuffer_bits;
-	/* Remove stale busy bits due to the old buffer. */
-	display->fb_tracking.busy_bits &= ~frontbuffer_bits;
-	spin_unlock(&display->fb_tracking.lock);
-}
-
-/**
- * intel_frontbuffer_flip_complete - complete asynchronous frontbuffer flip
- * @display: display device
- * @frontbuffer_bits: frontbuffer plane tracking bits
- *
- * This function gets called after the flip has been latched and will complete
- * on the next vblank. It will execute the flush if it hasn't been cancelled yet.
- *
- * Can be called without any locks held.
- */
-void intel_frontbuffer_flip_complete(struct intel_display *display,
-				     unsigned frontbuffer_bits)
-{
-	spin_lock(&display->fb_tracking.lock);
-	/* Mask any cancelled flips. */
-	frontbuffer_bits &= display->fb_tracking.flip_bits;
-	display->fb_tracking.flip_bits &= ~frontbuffer_bits;
-	spin_unlock(&display->fb_tracking.lock);
-
-	if (frontbuffer_bits)
-		frontbuffer_flush(display, frontbuffer_bits, ORIGIN_FLIP);
-}
-
-/**
  * intel_frontbuffer_flip - synchronous frontbuffer flip
  * @display: display device
  * @frontbuffer_bits: frontbuffer plane tracking bits
@@ -178,7 +133,6 @@ void __intel_fb_invalidate(struct intel_frontbuffer *front,
 	if (origin == ORIGIN_CS) {
 		spin_lock(&display->fb_tracking.lock);
 		display->fb_tracking.busy_bits |= frontbuffer_bits;
-		display->fb_tracking.flip_bits &= ~frontbuffer_bits;
 		spin_unlock(&display->fb_tracking.lock);
 	}
 
