@@ -465,6 +465,7 @@ static struct quirk_entry quirk_acer_predator_ph16_72 = {
 	.cpu_fans = 1,
 	.gpu_fans = 1,
 	.predator_v4 = 1,
+	.pwm = 1,
 };
 
 static struct quirk_entry quirk_acer_predator_pt14_51 = {
@@ -472,6 +473,7 @@ static struct quirk_entry quirk_acer_predator_pt14_51 = {
 	.cpu_fans = 1,
 	.gpu_fans = 1,
 	.predator_v4 = 1,
+	.pwm = 1,
 };
 
 static struct quirk_entry quirk_acer_predator_v4 = {
