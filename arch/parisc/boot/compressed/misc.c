@@ -278,6 +278,19 @@ static void parse_elf(void *output)
 	free(phdrs);
 }
 
+/*
+ * The regular get_unaligned_le32 uses __builtin_memcpy which can trigger
+ * warnings when reading a byte/char output_len as an integer, as the size of a
+ * char is less than that of an integer. Use type punning and the packed
+ * attribute, which requires -fno-strict-aliasing, to work around the problem.
+ */
+static u32 punned_get_unaligned_le32(const void *p)
+{
+	const struct { __le32 x; } __packed * __get_pptr = p;
+
+	return le32_to_cpu(__get_pptr->x);
+}
+
 asmlinkage unsigned long __visible decompress_kernel(unsigned int started_wide,
 		unsigned int command_line,
 		const unsigned int rd_start,
@@ -309,7 +322,7 @@ asmlinkage unsigned long __visible decompress_kernel(unsigned int started_wide,
 	 * leave 2 MB for the stack.
 	 */
 	vmlinux_addr = (unsigned long) &_ebss + 2*1024*1024;
-	vmlinux_len = get_unaligned_le32(&output_len);
+	vmlinux_len = punned_get_unaligned_le32(&output_len);
 	output = (char *) vmlinux_addr;
 
 	/*
