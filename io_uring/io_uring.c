@@ -2164,7 +2164,7 @@ static __cold int io_init_fail_req(struct io_kiocb *req, int err)
 }
 
 static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
-		       const struct io_uring_sqe *sqe)
+		       const struct io_uring_sqe *sqe, unsigned int *left)
 	__must_hold(&ctx->uring_lock)
 {
 	const struct io_issue_def *def;
@@ -2190,6 +2190,24 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 	opcode = array_index_nospec(opcode, IORING_OP_LAST);
 
 	def = &io_issue_defs[opcode];
+	if (def->is_128 && !(ctx->flags & IORING_SETUP_SQE128)) {
+		/*
+		 * A 128b op on a non-128b SQ requires mixed SQE support as
+		 * well as 2 contiguous entries.
+		 */
+		if (!(ctx->flags & IORING_SETUP_SQE_MIXED) || *left < 2 ||
+		    !(ctx->cached_sq_head & (ctx->sq_entries - 1)))
+			return io_init_fail_req(req, -EINVAL);
+		/*
+		 * A 128b operation on a mixed SQ uses two entries, so we have
+		 * to increment the head and cached refs, and decrement what's
+		 * left.
+		 */
+		current->io_uring->cached_refs++;
+		ctx->cached_sq_head++;
+		(*left)--;
+	}
+
 	if (unlikely(sqe_flags & ~SQE_COMMON_FLAGS)) {
 		/* enforce forwards compatibility on users */
 		if (sqe_flags & ~SQE_VALID_FLAGS)
@@ -2299,13 +2317,13 @@ static __cold int io_submit_fail_init(const struct io_uring_sqe *sqe,
 }
 
 static inline int io_submit_sqe(struct io_ring_ctx *ctx, struct io_kiocb *req,
-			 const struct io_uring_sqe *sqe)
+			 const struct io_uring_sqe *sqe, unsigned int *left)
 	__must_hold(&ctx->uring_lock)
 {
 	struct io_submit_link *link = &ctx->submit_state.link;
 	int ret;
 
-	ret = io_init_req(ctx, req, sqe);
+	ret = io_init_req(ctx, req, sqe, left);
 	if (unlikely(ret))
 		return io_submit_fail_init(sqe, req, ret);
 
@@ -2457,7 +2475,7 @@ int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr)
 		 * Continue submitting even for sqe failure if the
 		 * ring was setup with IORING_SETUP_SUBMIT_ALL
 		 */
-		if (unlikely(io_submit_sqe(ctx, req, sqe)) &&
+		if (unlikely(io_submit_sqe(ctx, req, sqe, &left)) &&
 		    !(ctx->flags & IORING_SETUP_SUBMIT_ALL)) {
 			left--;
 			break;
@@ -2800,6 +2818,10 @@ unsigned long rings_size(unsigned int flags, unsigned int sq_entries,
 	}
 	if (flags & IORING_SETUP_CQE_MIXED) {
 		if (cq_entries < 2)
+			return SIZE_MAX;
+	}
+	if (flags & IORING_SETUP_SQE_MIXED) {
+		if (sq_entries < 2)
 			return SIZE_MAX;
 	}
 
@@ -3725,6 +3747,13 @@ static int io_uring_sanitise_params(struct io_uring_params *p)
 	 */
 	if ((flags & (IORING_SETUP_CQE32|IORING_SETUP_CQE_MIXED)) ==
 	    (IORING_SETUP_CQE32|IORING_SETUP_CQE_MIXED))
+		return -EINVAL;
+	/*
+	 * Nonsensical to ask for SQE128 and mixed SQE support, it's not
+	 * supported to post 64b SQEs on a ring setup with SQE128.
+	 */
+	if ((flags & (IORING_SETUP_SQE128|IORING_SETUP_SQE_MIXED)) ==
+	    (IORING_SETUP_SQE128|IORING_SETUP_SQE_MIXED))
 		return -EINVAL;
 
 	return 0;

@@ -216,6 +216,18 @@ int io_uring_cmd_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	return 0;
 }
 
+/*
+ * IORING_SETUP_SQE128 contexts allocate twice the normal SQE size for each
+ * slot.
+ */
+static inline size_t uring_sqe_size(struct io_kiocb *req)
+{
+	if (req->ctx->flags & IORING_SETUP_SQE128 ||
+	    req->opcode == IORING_OP_URING_CMD128)
+		return 2 * sizeof(struct io_uring_sqe);
+	return sizeof(struct io_uring_sqe);
+}
+
 void io_uring_cmd_sqe_copy(struct io_kiocb *req)
 {
 	struct io_uring_cmd *ioucmd = io_kiocb_to_cmd(req, struct io_uring_cmd);
@@ -224,7 +236,7 @@ void io_uring_cmd_sqe_copy(struct io_kiocb *req)
 	/* Should not happen, as REQ_F_SQE_COPIED covers this */
 	if (WARN_ON_ONCE(ioucmd->sqe == ac->sqes))
 		return;
-	memcpy(ac->sqes, ioucmd->sqe, uring_sqe_size(req->ctx));
+	memcpy(ac->sqes, ioucmd->sqe, uring_sqe_size(req));
 	ioucmd->sqe = ac->sqes;
 }
 
@@ -242,7 +254,8 @@ int io_uring_cmd(struct io_kiocb *req, unsigned int issue_flags)
 	if (ret)
 		return ret;
 
-	if (ctx->flags & IORING_SETUP_SQE128)
+	if (ctx->flags & IORING_SETUP_SQE128 ||
+	    req->opcode == IORING_OP_URING_CMD128)
 		issue_flags |= IO_URING_F_SQE128;
 	if (ctx->flags & (IORING_SETUP_CQE32 | IORING_SETUP_CQE_MIXED))
 		issue_flags |= IO_URING_F_CQE32;

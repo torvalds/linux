@@ -54,7 +54,8 @@
 			IORING_SETUP_REGISTERED_FD_ONLY |\
 			IORING_SETUP_NO_SQARRAY |\
 			IORING_SETUP_HYBRID_IOPOLL |\
-			IORING_SETUP_CQE_MIXED)
+			IORING_SETUP_CQE_MIXED |\
+			IORING_SETUP_SQE_MIXED)
 
 #define IORING_ENTER_FLAGS (IORING_ENTER_GETEVENTS |\
 			IORING_ENTER_SQ_WAKEUP |\
@@ -563,17 +564,6 @@ static inline void io_req_queue_tw_complete(struct io_kiocb *req, s32 res)
 	io_req_set_res(req, res, 0);
 	req->io_task_work.func = io_req_task_complete;
 	io_req_task_work_add(req);
-}
-
-/*
- * IORING_SETUP_SQE128 contexts allocate twice the normal SQE size for each
- * slot.
- */
-static inline size_t uring_sqe_size(struct io_ring_ctx *ctx)
-{
-	if (ctx->flags & IORING_SETUP_SQE128)
-		return 2 * sizeof(struct io_uring_sqe);
-	return sizeof(struct io_uring_sqe);
 }
 
 static inline bool io_file_can_poll(struct io_kiocb *req)

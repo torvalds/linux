@@ -14,6 +14,7 @@
 #include "fdinfo.h"
 #include "cancel.h"
 #include "rsrc.h"
+#include "opdef.h"
 
 #ifdef CONFIG_NET_RX_BUSY_POLL
 static __cold void common_tracking_show_fdinfo(struct io_ring_ctx *ctx,
@@ -66,7 +67,6 @@ static void __io_uring_show_fdinfo(struct io_ring_ctx *ctx, struct seq_file *m)
 	unsigned int cq_head = READ_ONCE(r->cq.head);
 	unsigned int cq_tail = READ_ONCE(r->cq.tail);
 	unsigned int sq_shift = 0;
-	unsigned int sq_entries;
 	int sq_pid = -1, sq_cpu = -1;
 	u64 sq_total_time = 0, sq_work_time = 0;
 	unsigned int i;
@@ -89,26 +89,45 @@ static void __io_uring_show_fdinfo(struct io_ring_ctx *ctx, struct seq_file *m)
 	seq_printf(m, "CqTail:\t%u\n", cq_tail);
 	seq_printf(m, "CachedCqTail:\t%u\n", data_race(ctx->cached_cq_tail));
 	seq_printf(m, "SQEs:\t%u\n", sq_tail - sq_head);
-	sq_entries = min(sq_tail - sq_head, ctx->sq_entries);
-	for (i = 0; i < sq_entries; i++) {
-		unsigned int entry = i + sq_head;
+	while (sq_head < sq_tail) {
 		struct io_uring_sqe *sqe;
 		unsigned int sq_idx;
+		bool sqe128 = false;
+		u8 opcode;
 
 		if (ctx->flags & IORING_SETUP_NO_SQARRAY)
 			break;
-		sq_idx = READ_ONCE(ctx->sq_array[entry & sq_mask]);
+		sq_idx = READ_ONCE(ctx->sq_array[sq_head & sq_mask]);
 		if (sq_idx > sq_mask)
 			continue;
+
 		sqe = &ctx->sq_sqes[sq_idx << sq_shift];
+		opcode = READ_ONCE(sqe->opcode);
+		if (sq_shift) {
+			sqe128 = true;
+		} else if (io_issue_defs[opcode].is_128) {
+			if (!(ctx->flags & IORING_SETUP_SQE_MIXED)) {
+				seq_printf(m,
+					"%5u: invalid sqe, 128B entry on non-mixed sq\n",
+					sq_idx);
+				break;
+			}
+			if ((++sq_head & sq_mask) == 0) {
+				seq_printf(m,
+					"%5u: corrupted sqe, wrapping 128B entry\n",
+					sq_idx);
+				break;
+			}
+			sqe128 = true;
+		}
 		seq_printf(m, "%5u: opcode:%s, fd:%d, flags:%x, off:%llu, "
 			      "addr:0x%llx, rw_flags:0x%x, buf_index:%d "
 			      "user_data:%llu",
-			   sq_idx, io_uring_get_opcode(sqe->opcode), sqe->fd,
+			   sq_idx, io_uring_get_opcode(opcode), sqe->fd,
 			   sqe->flags, (unsigned long long) sqe->off,
 			   (unsigned long long) sqe->addr, sqe->rw_flags,
 			   sqe->buf_index, sqe->user_data);
-		if (sq_shift) {
+		if (sqe128) {
 			u64 *sqeb = (void *) (sqe + 1);
 			int size = sizeof(struct io_uring_sqe) / sizeof(u64);
 			int j;
@@ -120,6 +139,7 @@ static void __io_uring_show_fdinfo(struct io_ring_ctx *ctx, struct seq_file *m)
 			}
 		}
 		seq_printf(m, "\n");
+		sq_head++;
 	}
 	seq_printf(m, "CQEs:\t%u\n", cq_tail - cq_head);
 	while (cq_head < cq_tail) {

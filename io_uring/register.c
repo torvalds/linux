@@ -394,7 +394,7 @@ static void io_register_free_rings(struct io_ring_ctx *ctx,
 #define RESIZE_FLAGS	(IORING_SETUP_CQSIZE | IORING_SETUP_CLAMP)
 #define COPY_FLAGS	(IORING_SETUP_NO_SQARRAY | IORING_SETUP_SQE128 | \
 			 IORING_SETUP_CQE32 | IORING_SETUP_NO_MMAP | \
-			 IORING_SETUP_CQE_MIXED)
+			 IORING_SETUP_CQE_MIXED | IORING_SETUP_SQE_MIXED)
 
 static int io_register_resize_rings(struct io_ring_ctx *ctx, void __user *arg)
 {
