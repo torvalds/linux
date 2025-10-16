@@ -5386,12 +5386,6 @@ static __init int svm_hardware_setup(void)
 
 	svm_hv_hardware_setup();
 
-	for_each_possible_cpu(cpu) {
-		r = svm_cpu_init(cpu);
-		if (r)
-			goto err;
-	}
-
 	enable_apicv = avic_hardware_setup();
 	if (!enable_apicv) {
 		enable_ipiv = false;
@@ -5435,6 +5429,13 @@ static __init int svm_hardware_setup(void)
 	svm_set_cpu_caps();
 
 	kvm_caps.inapplicable_quirks &= ~KVM_X86_QUIRK_CD_NW_CLEARED;
+
+	for_each_possible_cpu(cpu) {
+		r = svm_cpu_init(cpu);
+		if (r)
+			goto err;
+	}
+
 	return 0;
 
 err:
