@@ -462,15 +462,6 @@ static SYSCTL_INT_CONV_CUSTOM(_ms_jiffies_minmax,
 			      sysctl_user_to_kern_int_conv_ms,
 			      sysctl_kern_to_user_int_conv_ms, true)
 
-#define SYSCTL_UINT_CONV_CUSTOM(name, user_to_kern, kern_to_user)	\
-int do_proc_uint_conv##name(unsigned long *u_ptr, unsigned int *k_ptr,	\
-			   int dir, const struct ctl_table *tbl)	\
-{									\
-	if (SYSCTL_USER_TO_KERN(dir))					\
-		return user_to_kern(u_ptr, k_ptr);			\
-	return kern_to_user(u_ptr, k_ptr);				\
-}
-
 static int sysctl_user_to_kern_uint_conv(const unsigned long *u_ptr,
 					 unsigned int *k_ptr)
 {
@@ -488,8 +479,37 @@ static int sysctl_kern_to_user_uint_conv(unsigned long *u_ptr,
 	return 0;
 }
 
+#define SYSCTL_UINT_CONV_CUSTOM(name, user_to_kern, kern_to_user,	\
+				k_ptr_range_check)			\
+int do_proc_uint_conv##name(unsigned long *u_ptr, unsigned int *k_ptr,	\
+			   int dir, const struct ctl_table *tbl)	\
+{									\
+	if (SYSCTL_KERN_TO_USER(dir))					\
+		return kern_to_user(u_ptr, k_ptr);			\
+									\
+	if (k_ptr_range_check) {					\
+		unsigned int tmp_k;					\
+		int ret;						\
+		if (!tbl)						\
+			return -EINVAL;					\
+		ret = user_to_kern(u_ptr, &tmp_k);			\
+		if (ret)						\
+			return ret;					\
+		if ((tbl->extra1 &&					\
+		     *(unsigned int *)tbl->extra1 > tmp_k) ||		\
+		    (tbl->extra2 &&					\
+		     *(unsigned int *)tbl->extra2 < tmp_k))		\
+			return -ERANGE;					\
+		WRITE_ONCE(*k_ptr, tmp_k);				\
+	} else								\
+		return user_to_kern(u_ptr, k_ptr);			\
+	return 0;							\
+}
+
 static SYSCTL_UINT_CONV_CUSTOM(, sysctl_user_to_kern_uint_conv,
-			       sysctl_kern_to_user_uint_conv)
+			       sysctl_kern_to_user_uint_conv, false)
+static SYSCTL_UINT_CONV_CUSTOM(_minmax, sysctl_user_to_kern_uint_conv,
+			       sysctl_kern_to_user_uint_conv, true)
 
 static const char proc_wspace_sep[] = { ' ', '\t', '\n' };
 
@@ -783,31 +803,6 @@ int proc_dointvec_minmax(const struct ctl_table *table, int dir,
 				do_proc_int_conv_minmax);
 }
 
-static int do_proc_douintvec_minmax_conv(unsigned long *u_ptr,
-					 unsigned int *k_ptr, int dir,
-					 const struct ctl_table *table)
-{
-	int ret;
-	unsigned int tmp, *min, *max;
-	/* When writing to the kernel use a temp local uint for bounds-checking */
-	unsigned int *up = SYSCTL_USER_TO_KERN(dir) ? &tmp : k_ptr;
-
-	ret = do_proc_uint_conv(u_ptr, up, dir, table);
-	if (ret)
-		return ret;
-
-	if (SYSCTL_USER_TO_KERN(dir)) {
-		min = (unsigned int *) table->extra1;
-		max = (unsigned int *) table->extra2;
-		if ((min && *min > tmp) || (max && *max < tmp))
-			return -ERANGE;
-
-		WRITE_ONCE(*k_ptr, tmp);
-	}
-
-	return 0;
-}
-
 /**
  * proc_douintvec_minmax - read a vector of unsigned ints with min/max values
  * @table: the sysctl table
@@ -832,7 +827,7 @@ int proc_douintvec_minmax(const struct ctl_table *table, int dir,
 			  void *buffer, size_t *lenp, loff_t *ppos)
 {
 	return do_proc_douintvec(table, dir, buffer, lenp, ppos,
-				 do_proc_douintvec_minmax_conv);
+				 do_proc_uint_conv_minmax);
 }
 
 /**
@@ -876,7 +871,7 @@ int proc_dou8vec_minmax(const struct ctl_table *table, int dir,
 
 	val = READ_ONCE(*data);
 	res = do_proc_douintvec(&tmp, dir, buffer, lenp, ppos,
-				do_proc_douintvec_minmax_conv);
+				do_proc_uint_conv_minmax);
 	if (res)
 		return res;
 	if (SYSCTL_USER_TO_KERN(dir))
