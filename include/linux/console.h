@@ -664,7 +664,7 @@ static inline bool nbcon_exit_unsafe(struct nbcon_write_context *wctxt) { return
 static inline void nbcon_reacquire_nobuf(struct nbcon_write_context *wctxt) { }
 static inline bool nbcon_kdb_try_acquire(struct console *con,
 					 struct nbcon_write_context *wctxt) { return false; }
-static inline void nbcon_kdb_release(struct console *con) { }
+static inline void nbcon_kdb_release(struct nbcon_write_context *wctxt) { }
 static inline bool console_is_usable(struct console *con, short flags,
 				     bool use_atomic) { return false; }
 #endif
