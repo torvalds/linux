@@ -40,6 +40,17 @@ enum ipi_message_type {
 	IPI_MAX
 };
 
+static const char * const ipi_names[] = {
+	[IPI_RESCHEDULE]	= "Rescheduling interrupts",
+	[IPI_CALL_FUNC]		= "Function call interrupts",
+	[IPI_CPU_STOP]		= "CPU stop interrupts",
+	[IPI_CPU_CRASH_STOP]	= "CPU stop (for crash dump) interrupts",
+	[IPI_IRQ_WORK]		= "IRQ work interrupts",
+	[IPI_TIMER]		= "Timer broadcast interrupts",
+	[IPI_CPU_BACKTRACE]     = "CPU backtrace interrupts",
+	[IPI_KGDB_ROUNDUP]	= "KGDB roundup interrupts",
+};
+
 unsigned long __cpuid_to_hartid_map[NR_CPUS] __ro_after_init = {
 	[0 ... NR_CPUS-1] = INVALID_HARTID
 };
@@ -199,7 +210,7 @@ void riscv_ipi_set_virq_range(int virq, int nr)
 	/* Request IPIs */
 	for (i = 0; i < nr_ipi; i++) {
 		err = request_percpu_irq(ipi_virq_base + i, handle_IPI,
-					 "IPI", &ipi_dummy_dev);
+					 ipi_names[i], &ipi_dummy_dev);
 		WARN_ON(err);
 
 		ipi_desc[i] = irq_to_desc(ipi_virq_base + i);
@@ -209,17 +220,6 @@ void riscv_ipi_set_virq_range(int virq, int nr)
 	/* Enabled IPIs for boot CPU immediately */
 	riscv_ipi_enable();
 }
-
-static const char * const ipi_names[] = {
-	[IPI_RESCHEDULE]	= "Rescheduling interrupts",
-	[IPI_CALL_FUNC]		= "Function call interrupts",
-	[IPI_CPU_STOP]		= "CPU stop interrupts",
-	[IPI_CPU_CRASH_STOP]	= "CPU stop (for crash dump) interrupts",
-	[IPI_IRQ_WORK]		= "IRQ work interrupts",
-	[IPI_TIMER]		= "Timer broadcast interrupts",
-	[IPI_CPU_BACKTRACE]     = "CPU backtrace interrupts",
-	[IPI_KGDB_ROUNDUP]	= "KGDB roundup interrupts",
-};
 
 void show_ipi_stats(struct seq_file *p, int prec)
 {
