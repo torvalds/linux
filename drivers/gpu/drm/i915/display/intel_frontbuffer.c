@@ -165,6 +165,11 @@ void __intel_fb_flush(struct intel_frontbuffer *front,
 		frontbuffer_flush(display, frontbuffer_bits, origin);
 }
 
+static void intel_frontbuffer_ref(struct intel_frontbuffer *front)
+{
+	kref_get(&front->ref);
+}
+
 static void intel_frontbuffer_flush_work(struct work_struct *work)
 {
 	struct intel_frontbuffer *front =
@@ -186,7 +191,7 @@ void intel_frontbuffer_queue_flush(struct intel_frontbuffer *front)
 	if (!front)
 		return;
 
-	kref_get(&front->ref);
+	intel_frontbuffer_ref(front);
 	if (!schedule_work(&front->flush_work))
 		intel_frontbuffer_put(front);
 }
