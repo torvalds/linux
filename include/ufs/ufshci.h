@@ -569,10 +569,26 @@ struct cq_entry {
 	__le16  prd_table_offset;
 
 	/* DW 4 */
-	__le32 status;
+	u8 overall_status;
+	u8 extended_error_code;
+	__le16 reserved_1;
 
-	/* DW 5-7 */
-	__le32 reserved[3];
+	/* DW 5 */
+	u8 task_tag;
+	u8 lun;
+#if defined(__BIG_ENDIAN)
+	u8 ext_iid:4;
+	u8 iid:4;
+#elif defined(__LITTLE_ENDIAN)
+	u8 iid:4;
+	u8 ext_iid:4;
+#else
+#error
+#endif
+	u8 reserved_2;
+
+	/* DW 6-7 */
+	__le32 reserved_3[2];
 };
 
 static_assert(sizeof(struct cq_entry) == 32);

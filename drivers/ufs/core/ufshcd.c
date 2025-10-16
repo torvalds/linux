@@ -856,7 +856,7 @@ static enum utp_ocs ufshcd_get_tr_ocs(struct ufshcd_lrb *lrbp,
 				      struct cq_entry *cqe)
 {
 	if (cqe)
-		return le32_to_cpu(cqe->status) & MASK_OCS;
+		return cqe->overall_status & MASK_OCS;
 
 	return lrbp->utr_descriptor_ptr->header.ocs & MASK_OCS;
 }
@@ -5646,7 +5646,7 @@ void ufshcd_compl_one_cqe(struct ufs_hba *hba, int task_tag,
 		scsi_done(cmd);
 	} else {
 		if (cqe) {
-			ocs = le32_to_cpu(cqe->status) & MASK_OCS;
+			ocs = cqe->overall_status & MASK_OCS;
 			lrbp->utr_descriptor_ptr->header.ocs = ocs;
 		}
 		complete(&hba->dev_cmd.complete);
