@@ -29,11 +29,6 @@ bool intel_bo_is_protected(struct drm_gem_object *obj)
 	return i915_gem_object_is_protected(to_intel_bo(obj));
 }
 
-void intel_bo_flush_if_display(struct drm_gem_object *obj)
-{
-	i915_gem_object_flush_if_display(to_intel_bo(obj));
-}
-
 int intel_bo_fb_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
 {
 	return i915_gem_fb_mmap(to_intel_bo(obj), vma);
@@ -53,6 +48,11 @@ struct intel_frontbuffer *intel_bo_set_frontbuffer(struct drm_gem_object *obj,
 						   struct intel_frontbuffer *front)
 {
 	return i915_gem_object_set_frontbuffer(to_intel_bo(obj), front);
+}
+
+void intel_bo_frontbuffer_flush_for_display(struct intel_frontbuffer *front)
+{
+	i915_gem_object_flush_if_display(to_intel_bo(front->obj));
 }
 
 void intel_bo_describe(struct seq_file *m, struct drm_gem_object *obj)
