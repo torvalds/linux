@@ -432,10 +432,9 @@ static int io_register_resize_rings(struct io_ring_ctx *ctx, void __user *arg)
 		rd.flags |= IORING_MEM_REGION_TYPE_USER;
 	}
 	ret = io_create_region(ctx, &n.ring_region, &rd, IORING_OFF_CQ_RING);
-	if (ret) {
-		io_register_free_rings(ctx, &n);
+	if (ret)
 		return ret;
-	}
+
 	n.rings = io_region_get_ptr(&n.ring_region);
 
 	/*
