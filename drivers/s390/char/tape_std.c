@@ -663,25 +663,6 @@ tape_std_read_block(struct tape_device *device)
 }
 
 /*
- * Read Block backward transformation function.
- */
-void
-tape_std_read_backward(struct tape_device *device, struct tape_request *request)
-{
-	/*
-	 * We have allocated 4 ccws in tape_std_read, so we can now
-	 * transform the request to a read backward, followed by a
-	 * forward space block.
-	 */
-	request->op = TO_RBA;
-	tape_ccw_cc(request->cpaddr, MODE_SET_DB, 1, device->modeset_byte);
-	tape_ccw_cc_idal(request->cpaddr + 1, READ_BACKWARD,
-			 device->char_data.idal_buf);
-	tape_ccw_cc(request->cpaddr + 2, FORSPACEBLOCK, 0, NULL);
-	tape_ccw_end(request->cpaddr + 3, NOP, 0, NULL);
-	DBF_EVENT(6, "xrop ccwg");}
-
-/*
  * Write Block
  */
 struct tape_request *
@@ -741,6 +722,5 @@ EXPORT_SYMBOL(tape_std_mterase);
 EXPORT_SYMBOL(tape_std_mtunload);
 EXPORT_SYMBOL(tape_std_mtcompression);
 EXPORT_SYMBOL(tape_std_read_block);
-EXPORT_SYMBOL(tape_std_read_backward);
 EXPORT_SYMBOL(tape_std_write_block);
 EXPORT_SYMBOL(tape_std_process_eov);
