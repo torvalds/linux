@@ -100,9 +100,12 @@ tapechar_cleanup_device(struct tape_device *device)
 static ssize_t
 tapechar_read(struct file *filp, char __user *data, size_t count, loff_t *ppos)
 {
-	struct tape_device *device;
 	struct tape_request *request;
+	struct ccw1 *ccw, *last_ccw;
+	struct tape_device *device;
+	struct idal_buffer **ibs;
 	size_t block_size;
+	size_t read = 0;
 	int rc;
 
 	DBF_EVENT(6, "TCHAR:read\n");
@@ -141,12 +144,25 @@ tapechar_read(struct file *filp, char __user *data, size_t count, loff_t *ppos)
 	/* Execute it. */
 	rc = tape_do_io(device, request);
 	if (rc == 0) {
-		rc = block_size - request->rescnt;
 		DBF_EVENT(6, "TCHAR:rbytes:  %x\n", rc);
-		/* Copy data from idal buffer to user space. */
-		if (idal_buffer_to_user(*device->char_data.ibs,
-					data, rc) != 0)
-			rc = -EFAULT;
+		/* Channel Program Address (cpa) points to last CCW + 8 */
+		last_ccw = dma32_to_virt(request->irb.scsw.cmd.cpa);
+		ccw = request->cpaddr;
+		ibs = device->char_data.ibs;
+		while (++ccw < last_ccw) {
+			/* Copy data from idal buffer to user space. */
+			if (idal_buffer_to_user(*ibs++, data, ccw->count) != 0) {
+				rc = -EFAULT;
+				break;
+			}
+			read += ccw->count;
+			data += ccw->count;
+		}
+		if (&last_ccw[-1] == &request->cpaddr[1] &&
+		    request->rescnt == last_ccw[-1].count)
+			rc = 0;
+		else
+			rc = read - request->rescnt;
 	}
 	tape_free_request(request);
 	return rc;
@@ -158,10 +174,12 @@ tapechar_read(struct file *filp, char __user *data, size_t count, loff_t *ppos)
 static ssize_t
 tapechar_write(struct file *filp, const char __user *data, size_t count, loff_t *ppos)
 {
-	struct tape_device *device;
 	struct tape_request *request;
+	struct ccw1 *ccw, *last_ccw;
+	struct tape_device *device;
+	struct idal_buffer **ibs;
+	size_t written = 0;
 	size_t block_size;
-	size_t written;
 	int nblocks;
 	int i, rc;
 
@@ -185,31 +203,41 @@ tapechar_write(struct file *filp, const char __user *data, size_t count, loff_t 
 	if (rc)
 		return rc;
 
-	DBF_EVENT(6,"TCHAR:nbytes: %lx\n", block_size);
+	DBF_EVENT(6, "TCHAR:nbytes: %lx\n", block_size);
 	DBF_EVENT(6, "TCHAR:nblocks: %x\n", nblocks);
 	/* Let the discipline build the ccw chain. */
 	request = device->discipline->write_block(device);
 	if (IS_ERR(request))
 		return PTR_ERR(request);
-	rc = 0;
-	written = 0;
+
 	for (i = 0; i < nblocks; i++) {
-		/* Copy data from user space to idal buffer. */
-		if (idal_buffer_from_user(*device->char_data.ibs,
-					  data, block_size)) {
-			rc = -EFAULT;
-			break;
+		size_t wbytes = 0; /* Used to trace written data in dbf */
+
+		ibs = device->char_data.ibs;
+		while (ibs && *ibs) {
+			if (idal_buffer_from_user(*ibs, data, (*ibs)->size)) {
+				rc = -EFAULT;
+				goto out;
+			}
+			data += (*ibs)->size;
+			ibs++;
 		}
 		rc = tape_do_io(device, request);
 		if (rc)
-			break;
-		DBF_EVENT(6, "TCHAR:wbytes: %lx\n",
-			  block_size - request->rescnt);
-		written += block_size - request->rescnt;
+			goto out;
+
+		/* Channel Program Address (cpa) points to last CCW + 8 */
+		last_ccw = dma32_to_virt(request->irb.scsw.cmd.cpa);
+		ccw = request->cpaddr;
+		while (++ccw < last_ccw)
+			wbytes += ccw->count;
+		DBF_EVENT(6, "TCHAR:wbytes: %lx\n", wbytes - request->rescnt);
+		written += wbytes - request->rescnt;
 		if (request->rescnt != 0)
 			break;
-		data += block_size;
 	}
+
+out:
 	tape_free_request(request);
 	if (rc == -ENOSPC) {
 		/*

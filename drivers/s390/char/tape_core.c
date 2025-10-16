@@ -1129,9 +1129,10 @@ __tape_do_irq (struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 	}
 
 	/* May be an unsolicited irq */
-	if(request != NULL)
+	if (request != NULL) {
 		request->rescnt = irb->scsw.cmd.count;
-	else if ((irb->scsw.cmd.dstat == 0x85 || irb->scsw.cmd.dstat == 0x80) &&
+		memcpy(&request->irb, irb, sizeof(*irb));
+	} else if ((irb->scsw.cmd.dstat == 0x85 || irb->scsw.cmd.dstat == 0x80) &&
 		 !list_empty(&device->req_queue)) {
 		/* Not Ready to Ready after long busy ? */
 		struct tape_request *req;

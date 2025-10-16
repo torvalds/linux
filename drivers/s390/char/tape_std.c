@@ -630,16 +630,23 @@ struct tape_request *
 tape_std_read_block(struct tape_device *device)
 {
 	struct tape_request *request;
+	struct idal_buffer **ibs;
+	struct ccw1 *ccw;
+	size_t count;
 
-	request = tape_alloc_request(2, 0);
+	ibs = device->char_data.ibs;
+	count = idal_buffer_array_size(ibs);
+	request = tape_alloc_request(count + 1 /* MODE_SET_DB */, 0);
 	if (IS_ERR(request)) {
 		DBF_EXCEPTION(6, "xrbl fail");
 		return request;
 	}
 	request->op = TO_RFO;
-	tape_ccw_cc(request->cpaddr, MODE_SET_DB, 1, device->modeset_byte);
-	tape_ccw_end_idal(request->cpaddr + 1, READ_FORWARD,
-			  *device->char_data.ibs);
+	ccw = tape_ccw_cc(request->cpaddr, MODE_SET_DB, 1, device->modeset_byte);
+	while (count-- > 1)
+		ccw = tape_ccw_dc_idal(ccw, READ_FORWARD, *ibs++);
+	tape_ccw_end_idal(ccw, READ_FORWARD, *ibs);
+
 	DBF_EVENT(6, "xrbl ccwg\n");
 	return request;
 }
@@ -651,16 +658,23 @@ struct tape_request *
 tape_std_write_block(struct tape_device *device)
 {
 	struct tape_request *request;
+	struct idal_buffer **ibs;
+	struct ccw1 *ccw;
+	size_t count;
 
-	request = tape_alloc_request(2, 0);
+	count = idal_buffer_array_size(device->char_data.ibs);
+	request = tape_alloc_request(count + 1 /* MODE_SET_DB */, 0);
 	if (IS_ERR(request)) {
 		DBF_EXCEPTION(6, "xwbl fail\n");
 		return request;
 	}
 	request->op = TO_WRI;
-	tape_ccw_cc(request->cpaddr, MODE_SET_DB, 1, device->modeset_byte);
-	tape_ccw_end_idal(request->cpaddr + 1, WRITE_CMD,
-			  *device->char_data.ibs);
+	ccw = tape_ccw_cc(request->cpaddr, MODE_SET_DB, 1, device->modeset_byte);
+	ibs = device->char_data.ibs;
+	while (count-- > 1)
+		ccw = tape_ccw_dc_idal(ccw, WRITE_CMD, *ibs++);
+	tape_ccw_end_idal(ccw, WRITE_CMD, *ibs);
+
 	DBF_EVENT(6, "xwbl ccwg\n");
 	return request;
 }

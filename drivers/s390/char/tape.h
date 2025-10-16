@@ -130,6 +130,7 @@ struct tape_request {
 	int retries;			/* retry counter for error recovery. */
 	int rescnt;			/* residual count from devstat. */
 	struct timer_list timer;	/* timer for std_assign_timeout(). */
+	struct irb irb;			/* device status */
 
 	/* Callback for delivering final status. */
 	void (*callback)(struct tape_request *, void *);
@@ -345,6 +346,15 @@ tape_ccw_repeat(struct ccw1 *ccw, __u8 cmd_code, int count)
 		ccw++;
 	}
 	return ccw;
+}
+
+static inline struct ccw1 *
+tape_ccw_dc_idal(struct ccw1 *ccw, __u8 cmd_code, struct idal_buffer *idal)
+{
+	ccw->cmd_code = cmd_code;
+	ccw->flags    = CCW_FLAG_DC;
+	idal_buffer_set_cda(idal, ccw);
+	return ccw + 1;
 }
 
 static inline struct ccw1 *

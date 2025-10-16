@@ -14,10 +14,9 @@
 #include <asm/tape390.h>
 
 /*
- * Biggest block size to handle. Currently 64K because we only build
- * channel programs without data chaining.
+ * Biggest block size of 256K to handle.
  */
-#define MAX_BLOCKSIZE   65535
+#define MAX_BLOCKSIZE	262144
 
 /*
  * The CCW commands for the Tape type of command.
