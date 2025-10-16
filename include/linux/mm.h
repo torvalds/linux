@@ -3369,6 +3369,8 @@ void vma_interval_tree_insert_after(struct vm_area_struct *node,
 				    struct rb_root_cached *root);
 void vma_interval_tree_remove(struct vm_area_struct *node,
 			      struct rb_root_cached *root);
+struct vm_area_struct *vma_interval_tree_subtree_search(struct vm_area_struct *node,
+				unsigned long start, unsigned long last);
 struct vm_area_struct *vma_interval_tree_iter_first(struct rb_root_cached *root,
 				unsigned long start, unsigned long last);
 struct vm_area_struct *vma_interval_tree_iter_next(struct vm_area_struct *node,

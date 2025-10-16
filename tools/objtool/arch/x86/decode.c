@@ -19,11 +19,10 @@
 #include <objtool/elf.h>
 #include <objtool/arch.h>
 #include <objtool/warn.h>
-#include <objtool/endianness.h>
 #include <objtool/builtin.h>
 #include <arch/elf.h>
 
-int arch_ftrace_match(char *name)
+int arch_ftrace_match(const char *name)
 {
 	return !strcmp(name, "__fentry__");
 }
@@ -68,9 +67,65 @@ bool arch_callee_saved_reg(unsigned char reg)
 	}
 }
 
-unsigned long arch_dest_reloc_offset(int addend)
+/* Undo the effects of __pa_symbol() if necessary */
+static unsigned long phys_to_virt(unsigned long pa)
 {
-	return addend + 4;
+	s64 va = pa;
+
+	if (va > 0)
+		va &= ~(0x80000000);
+
+	return va;
+}
+
+s64 arch_insn_adjusted_addend(struct instruction *insn, struct reloc *reloc)
+{
+	s64 addend = reloc_addend(reloc);
+
+	if (arch_pc_relative_reloc(reloc))
+		addend += insn->offset + insn->len - reloc_offset(reloc);
+
+	return phys_to_virt(addend);
+}
+
+static void scan_for_insn(struct section *sec, unsigned long offset,
+			  unsigned long *insn_off, unsigned int *insn_len)
+{
+	unsigned long o = 0;
+	struct insn insn;
+
+	while (1) {
+
+		insn_decode(&insn, sec->data->d_buf + o, sec_size(sec) - o,
+			    INSN_MODE_64);
+
+		if (o + insn.length > offset) {
+			*insn_off = o;
+			*insn_len = insn.length;
+			return;
+		}
+
+		o += insn.length;
+	}
+}
+
+u64 arch_adjusted_addend(struct reloc *reloc)
+{
+	unsigned int type = reloc_type(reloc);
+	s64 addend = reloc_addend(reloc);
+	unsigned long insn_off;
+	unsigned int insn_len;
+
+	if (type == R_X86_64_PLT32)
+		return addend + 4;
+
+	if (type != R_X86_64_PC32 || !is_text_sec(reloc->sec->base))
+		return addend;
+
+	scan_for_insn(reloc->sec->base, reloc_offset(reloc),
+		      &insn_off, &insn_len);
+
+	return addend + insn_off + insn_len - reloc_offset(reloc);
 }
 
 unsigned long arch_jump_destination(struct instruction *insn)

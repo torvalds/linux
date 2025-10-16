@@ -57,6 +57,7 @@
 #define _BUG_FLAGS_ASM(ins, file, line, flags, size, extra)		\
 	"1:\t" ins "\n"							\
 	".pushsection __bug_table,\"aw\"\n"				\
+	ANNOTATE_DATA_SPECIAL						\
 	__BUG_ENTRY(file, line, flags)					\
 	"\t.org 2b + " size "\n"					\
 	".popsection\n"							\

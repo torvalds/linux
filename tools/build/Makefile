@@ -37,5 +37,24 @@ ifneq ($(wildcard $(TMP_O)),)
 	$(Q)$(MAKE) -C feature OUTPUT=$(TMP_O) clean >/dev/null
 endif
 
-$(OUTPUT)fixdep: $(srctree)/tools/build/fixdep.c
-	$(QUIET_CC)$(HOSTCC) $(KBUILD_HOSTCFLAGS) $(KBUILD_HOSTLDFLAGS) -o $@ $<
+include $(srctree)/tools/build/Makefile.include
+
+FIXDEP		:= $(OUTPUT)fixdep
+FIXDEP_IN	:= $(OUTPUT)fixdep-in.o
+
+# To track fixdep's dependencies properly, fixdep needs to run on itself.
+# Build it twice the first time.
+$(FIXDEP_IN): FORCE
+	$(Q)if [ ! -f $(FIXDEP) ]; then						\
+		$(MAKE) $(build)=fixdep HOSTCFLAGS="$(KBUILD_HOSTCFLAGS)";	\
+		rm -f $(FIXDEP).o;						\
+	fi
+	$(Q)$(MAKE) $(build)=fixdep HOSTCFLAGS="$(KBUILD_HOSTCFLAGS)"
+
+
+$(FIXDEP): $(FIXDEP_IN)
+	$(QUIET_LINK)$(HOSTCC) $(FIXDEP_IN) $(KBUILD_HOSTLDFLAGS) -o $@
+
+FORCE:
+
+.PHONY: FORCE

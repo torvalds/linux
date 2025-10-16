@@ -8,11 +8,20 @@
 
 #include <stdio.h>
 #include <gelf.h>
+#include <linux/string.h>
 #include <linux/list.h>
 #include <linux/hashtable.h>
 #include <linux/rbtree.h>
 #include <linux/jhash.h>
+
+#include <objtool/endianness.h>
+#include <objtool/checksum_types.h>
 #include <arch/elf.h>
+
+#define SEC_NAME_LEN		1024
+#define SYM_NAME_LEN		512
+
+#define bswap_if_needed(elf, val) __bswap_if_needed(&elf->ehdr, val)
 
 #ifdef LIBELF_USE_DEPRECATED
 # define elf_getshdrnum    elf_getshnum
@@ -40,20 +49,23 @@ struct section {
 	struct section *base, *rsec;
 	struct symbol *sym;
 	Elf_Data *data;
-	char *name;
+	const char *name;
 	int idx;
 	bool _changed, text, rodata, noinstr, init, truncate;
 	struct reloc *relocs;
+	unsigned long nr_alloc_relocs;
+	struct section *twin;
 };
 
 struct symbol {
 	struct list_head list;
+	struct list_head global_list;
 	struct rb_node node;
 	struct elf_hash_node hash;
 	struct elf_hash_node name_hash;
 	GElf_Sym sym;
 	struct section *sec;
-	char *name;
+	const char *name, *demangled_name;
 	unsigned int idx, len;
 	unsigned long offset;
 	unsigned long __subtree_last;
@@ -71,9 +83,17 @@ struct symbol {
 	u8 frame_pointer     : 1;
 	u8 ignore	     : 1;
 	u8 nocfi             : 1;
+	u8 cold		     : 1;
+	u8 prefix	     : 1;
+	u8 debug_checksum    : 1;
+	u8 changed	     : 1;
+	u8 included	     : 1;
+	u8 klp		     : 1;
 	struct list_head pv_target;
 	struct reloc *relocs;
 	struct section *group_sec;
+	struct checksum csum;
+	struct symbol *twin, *clone;
 };
 
 struct reloc {
@@ -88,9 +108,10 @@ struct elf {
 	GElf_Ehdr ehdr;
 	int fd;
 	bool changed;
-	char *name;
+	const char *name, *tmp_name;
 	unsigned int num_files;
 	struct list_head sections;
+	struct list_head symbols;
 	unsigned long num_relocs;
 
 	int symbol_bits;
@@ -110,14 +131,37 @@ struct elf {
 };
 
 struct elf *elf_open_read(const char *name, int flags);
+struct elf *elf_create_file(GElf_Ehdr *ehdr, const char *name);
 
 struct section *elf_create_section(struct elf *elf, const char *name,
-				   size_t entsize, unsigned int nr);
+				   size_t size, size_t entsize,
+				   unsigned int type, unsigned int align,
+				   unsigned int flags);
 struct section *elf_create_section_pair(struct elf *elf, const char *name,
 					size_t entsize, unsigned int nr,
 					unsigned int reloc_nr);
 
-struct symbol *elf_create_prefix_symbol(struct elf *elf, struct symbol *orig, long size);
+struct section *elf_create_rela_section(struct elf *elf, struct section *sec,
+					unsigned int reloc_nr);
+
+struct symbol *elf_create_symbol(struct elf *elf, const char *name,
+				 struct section *sec, unsigned int bind,
+				 unsigned int type, unsigned long offset,
+				 size_t size);
+struct symbol *elf_create_section_symbol(struct elf *elf, struct section *sec);
+
+void *elf_add_data(struct elf *elf, struct section *sec, const void *data,
+		   size_t size);
+
+unsigned int elf_add_string(struct elf *elf, struct section *strtab, const char *str);
+
+struct reloc *elf_create_reloc(struct elf *elf, struct section *sec,
+			       unsigned long offset, struct symbol *sym,
+			       s64 addend, unsigned int type);
+
+struct reloc *elf_init_reloc(struct elf *elf, struct section *rsec,
+			     unsigned int reloc_idx, unsigned long offset,
+			     struct symbol *sym, s64 addend, unsigned int type);
 
 struct reloc *elf_init_reloc_text_sym(struct elf *elf, struct section *sec,
 				      unsigned long offset,
@@ -131,16 +175,17 @@ struct reloc *elf_init_reloc_data_sym(struct elf *elf, struct section *sec,
 				      struct symbol *sym,
 				      s64 addend);
 
-int elf_write_insn(struct elf *elf, struct section *sec,
-		   unsigned long offset, unsigned int len,
-		   const char *insn);
+int elf_write_insn(struct elf *elf, struct section *sec, unsigned long offset,
+		   unsigned int len, const char *insn);
+
 int elf_write(struct elf *elf);
-void elf_close(struct elf *elf);
+int elf_close(struct elf *elf);
 
 struct section *find_section_by_name(const struct elf *elf, const char *name);
 struct symbol *find_func_by_offset(struct section *sec, unsigned long offset);
 struct symbol *find_symbol_by_offset(struct section *sec, unsigned long offset);
 struct symbol *find_symbol_by_name(const struct elf *elf, const char *name);
+struct symbol *find_global_symbol_by_name(const struct elf *elf, const char *name);
 struct symbol *find_symbol_containing(const struct section *sec, unsigned long offset);
 int find_symbol_hole_containing(const struct section *sec, unsigned long offset);
 struct reloc *find_reloc_by_dest(const struct elf *elf, struct section *sec, unsigned long offset);
@@ -178,9 +223,74 @@ static inline unsigned int elf_text_rela_type(struct elf *elf)
 	return elf_addr_size(elf) == 4 ? R_TEXT32 : R_TEXT64;
 }
 
+static inline bool is_undef_sym(struct symbol *sym)
+{
+	return !sym->sec->idx;
+}
+
+static inline bool is_null_sym(struct symbol *sym)
+{
+	return !sym->idx;
+}
+
+static inline bool is_sec_sym(struct symbol *sym)
+{
+	return sym->type == STT_SECTION;
+}
+
+static inline bool is_object_sym(struct symbol *sym)
+{
+	return sym->type == STT_OBJECT;
+}
+
+static inline bool is_func_sym(struct symbol *sym)
+{
+	return sym->type == STT_FUNC;
+}
+
+static inline bool is_file_sym(struct symbol *sym)
+{
+	return sym->type == STT_FILE;
+}
+
+static inline bool is_notype_sym(struct symbol *sym)
+{
+	return sym->type == STT_NOTYPE;
+}
+
+static inline bool is_global_sym(struct symbol *sym)
+{
+	return sym->bind == STB_GLOBAL;
+}
+
+static inline bool is_weak_sym(struct symbol *sym)
+{
+	return sym->bind == STB_WEAK;
+}
+
+static inline bool is_local_sym(struct symbol *sym)
+{
+	return sym->bind == STB_LOCAL;
+}
+
+static inline bool is_prefix_func(struct symbol *sym)
+{
+	return sym->prefix;
+}
+
 static inline bool is_reloc_sec(struct section *sec)
 {
 	return sec->sh.sh_type == SHT_RELA || sec->sh.sh_type == SHT_REL;
+}
+
+static inline bool is_string_sec(struct section *sec)
+{
+	return sec->sh.sh_flags & SHF_STRINGS;
+}
+
+static inline bool is_text_sec(struct section *sec)
+{
+	return sec->sh.sh_flags & SHF_EXECINSTR;
 }
 
 static inline bool sec_changed(struct section *sec)
@@ -221,6 +331,11 @@ static inline bool is_32bit_reloc(struct reloc *reloc)
 	 * Elf64_Rela: 24 bytes
 	 */
 	return reloc->sec->sh.sh_entsize < 16;
+}
+
+static inline unsigned long sec_size(struct section *sec)
+{
+	return sec->sh.sh_size;
 }
 
 #define __get_reloc_field(reloc, field)					\
@@ -300,6 +415,15 @@ static inline void set_reloc_type(struct elf *elf, struct reloc *reloc, unsigned
 	mark_sec_changed(elf, reloc->sec, true);
 }
 
+static inline unsigned int annotype(struct elf *elf, struct section *sec,
+				    struct reloc *reloc)
+{
+	unsigned int type;
+
+	type = *(u32 *)(sec->data->d_buf + (reloc_idx(reloc) * 8) + 4);
+	return bswap_if_needed(elf, type);
+}
+
 #define RELOC_JUMP_TABLE_BIT 1UL
 
 /* Does reloc mark the beginning of a jump table? */
@@ -325,28 +449,54 @@ static inline void set_sym_next_reloc(struct reloc *reloc, struct reloc *next)
 	reloc->_sym_next_reloc = (unsigned long)next | bit;
 }
 
-#define for_each_sec(file, sec)						\
-	list_for_each_entry(sec, &file->elf->sections, list)
+#define for_each_sec(elf, sec)						\
+	list_for_each_entry(sec, &elf->sections, list)
 
 #define sec_for_each_sym(sec, sym)					\
 	list_for_each_entry(sym, &sec->symbol_list, list)
 
-#define for_each_sym(file, sym)						\
-	for (struct section *__sec, *__fake = (struct section *)1;	\
-	     __fake; __fake = NULL)					\
-		for_each_sec(file, __sec)				\
-			sec_for_each_sym(__sec, sym)
+#define sec_prev_sym(sym)						\
+	sym->sec && sym->list.prev != &sym->sec->symbol_list ?		\
+	list_prev_entry(sym, list) : NULL
+
+#define for_each_sym(elf, sym)						\
+	list_for_each_entry(sym, &elf->symbols, global_list)
+
+#define for_each_sym_continue(elf, sym)					\
+	list_for_each_entry_continue(sym, &elf->symbols, global_list)
+
+#define rsec_next_reloc(rsec, reloc)					\
+	reloc_idx(reloc) < sec_num_entries(rsec) - 1 ? reloc + 1 : NULL
 
 #define for_each_reloc(rsec, reloc)					\
-	for (int __i = 0, __fake = 1; __fake; __fake = 0)		\
-		for (reloc = rsec->relocs;				\
-		     __i < sec_num_entries(rsec);			\
-		     __i++, reloc++)
+	for (reloc = rsec->relocs; reloc; reloc = rsec_next_reloc(rsec, reloc))
 
 #define for_each_reloc_from(rsec, reloc)				\
-	for (int __i = reloc_idx(reloc);				\
-	     __i < sec_num_entries(rsec);				\
-	     __i++, reloc++)
+	for (; reloc; reloc = rsec_next_reloc(rsec, reloc))
+
+#define for_each_reloc_continue(rsec, reloc)				\
+	for (reloc = rsec_next_reloc(rsec, reloc); reloc;		\
+	     reloc = rsec_next_reloc(rsec, reloc))
+
+#define sym_for_each_reloc(elf, sym, reloc)				\
+	for (reloc = find_reloc_by_dest_range(elf, sym->sec,		\
+					      sym->offset, sym->len);	\
+	     reloc && reloc_offset(reloc) <  sym->offset + sym->len;	\
+	     reloc = rsec_next_reloc(sym->sec->rsec, reloc))
+
+static inline struct symbol *get_func_prefix(struct symbol *func)
+{
+	struct symbol *prev;
+
+	if (!is_func_sym(func))
+		return NULL;
+
+	prev = sec_prev_sym(func);
+	if (prev && is_prefix_func(prev))
+		return prev;
+
+	return NULL;
+}
 
 #define OFFSET_STRIDE_BITS	4
 #define OFFSET_STRIDE		(1UL << OFFSET_STRIDE_BITS)

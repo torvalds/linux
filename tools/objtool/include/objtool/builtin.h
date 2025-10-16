@@ -9,12 +9,15 @@
 
 struct opts {
 	/* actions: */
+	bool cfi;
+	bool checksum;
 	bool dump_orc;
 	bool hack_jump_label;
 	bool hack_noinstr;
 	bool hack_skylake;
 	bool ibt;
 	bool mcount;
+	bool noabs;
 	bool noinstr;
 	bool orc;
 	bool retpoline;
@@ -25,11 +28,11 @@ struct opts {
 	bool static_call;
 	bool uaccess;
 	int prefix;
-	bool cfi;
-	bool noabs;
 
 	/* options: */
 	bool backtrace;
+	bool backup;
+	const char *debug_checksum;
 	bool dryrun;
 	bool link;
 	bool mnop;
@@ -48,6 +51,8 @@ int cmd_parse_options(int argc, const char **argv, const char * const usage[]);
 
 int objtool_run(int argc, const char **argv);
 
-void print_args(void);
+int make_backup(void);
+
+int cmd_klp(int argc, const char **argv);
 
 #endif /* _BUILTIN_H */

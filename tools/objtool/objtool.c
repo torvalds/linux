@@ -16,7 +16,8 @@
 #include <objtool/objtool.h>
 #include <objtool/warn.h>
 
-bool help;
+bool debug;
+int indent;
 
 static struct objtool_file file;
 
@@ -71,6 +72,39 @@ int objtool_pv_add(struct objtool_file *f, int idx, struct symbol *func)
 	return 0;
 }
 
+char *top_level_dir(const char *file)
+{
+	ssize_t len, self_len, file_len;
+	char self[PATH_MAX], *str;
+	int i;
+
+	len = readlink("/proc/self/exe", self, sizeof(self) - 1);
+	if (len <= 0)
+		return NULL;
+	self[len] = '\0';
+
+	for (i = 0; i < 3; i++) {
+		char *s = strrchr(self, '/');
+		if (!s)
+			return NULL;
+		*s = '\0';
+	}
+
+	self_len = strlen(self);
+	file_len = strlen(file);
+
+	str = malloc(self_len + file_len + 2);
+	if (!str)
+		return NULL;
+
+	memcpy(str, self, self_len);
+	str[self_len] = '/';
+	strcpy(str + self_len + 1, file);
+
+	return str;
+}
+
+
 int main(int argc, const char **argv)
 {
 	static const char *UNUSED = "OBJTOOL_NOT_IMPLEMENTED";
@@ -78,6 +112,12 @@ int main(int argc, const char **argv)
 	/* libsubcmd init */
 	exec_cmd_init("objtool", UNUSED, UNUSED, UNUSED);
 	pager_init(UNUSED);
+
+	if (argc > 1 && !strcmp(argv[1], "klp")) {
+		argc--;
+		argv++;
+		return cmd_klp(argc, argv);
+	}
 
 	return objtool_run(argc, argv);
 }

@@ -102,4 +102,44 @@ static inline char *offstr(struct section *sec, unsigned long offset)
 #define ERROR_FUNC(sec, offset, format, ...) __WARN_FUNC(ERROR_STR, sec, offset, format, ##__VA_ARGS__)
 #define ERROR_INSN(insn, format, ...) WARN_FUNC(insn->sec, insn->offset, format, ##__VA_ARGS__)
 
+extern bool debug;
+extern int indent;
+
+static inline void unindent(int *unused) { indent--; }
+
+#define __dbg(format, ...)						\
+	fprintf(stderr,							\
+		"DEBUG: %s%s" format "\n",				\
+		objname ?: "",						\
+		objname ? ": " : "",					\
+		##__VA_ARGS__)
+
+#define dbg(args...)							\
+({									\
+	if (unlikely(debug))						\
+		__dbg(args);						\
+})
+
+#define __dbg_indent(format, ...)					\
+({									\
+	if (unlikely(debug))						\
+		__dbg("%*s" format, indent * 8, "", ##__VA_ARGS__);	\
+})
+
+#define dbg_indent(args...)						\
+	int __attribute__((cleanup(unindent))) __dummy_##__COUNTER__;	\
+	__dbg_indent(args);						\
+	indent++
+
+#define dbg_checksum(func, insn, checksum)				\
+({									\
+	if (unlikely(insn->sym && insn->sym->pfunc &&			\
+		     insn->sym->pfunc->debug_checksum)) {		\
+		char *insn_off = offstr(insn->sec, insn->offset);	\
+		__dbg("checksum: %s %s %016lx",				\
+		      func->name, insn_off, checksum);			\
+		free(insn_off);						\
+	}								\
+})
+
 #endif /* _WARN_H */

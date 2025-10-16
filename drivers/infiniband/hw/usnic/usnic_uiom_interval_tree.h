@@ -53,6 +53,10 @@ extern void
 usnic_uiom_interval_tree_remove(struct usnic_uiom_interval_node *node,
 					struct rb_root_cached *root);
 extern struct usnic_uiom_interval_node *
+usnic_uiom_interval_tree_subtree_search(struct usnic_uiom_interval_node *node,
+					unsigned long start,
+					unsigned long last);
+extern struct usnic_uiom_interval_node *
 usnic_uiom_interval_tree_iter_first(struct rb_root_cached *root,
 					unsigned long start,
 					unsigned long last);

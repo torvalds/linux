@@ -41,7 +41,7 @@ objtool-enabled := $(or $(delay-objtool),$(CONFIG_NOINSTR_VALIDATION))
 ifeq ($(delay-objtool),y)
 vmlinux-objtool-args-y					+= $(objtool-args-y)
 else
-vmlinux-objtool-args-$(CONFIG_OBJTOOL_WERROR)		+= --Werror
+vmlinux-objtool-args-$(CONFIG_OBJTOOL_WERROR)		+= --werror
 endif
 
 vmlinux-objtool-args-$(CONFIG_NOINSTR_VALIDATION)	+= --noinstr \

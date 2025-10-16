@@ -73,35 +73,38 @@ static int parse_hacks(const struct option *opt, const char *str, int unset)
 
 static const struct option check_options[] = {
 	OPT_GROUP("Actions:"),
+	OPT_BOOLEAN(0,		 "checksum", &opts.checksum, "generate per-function checksums"),
+	OPT_BOOLEAN(0,		 "cfi", &opts.cfi, "annotate kernel control flow integrity (kCFI) function preambles"),
 	OPT_CALLBACK_OPTARG('h', "hacks", NULL, NULL, "jump_label,noinstr,skylake", "patch toolchain bugs/limitations", parse_hacks),
-	OPT_BOOLEAN('i', "ibt", &opts.ibt, "validate and annotate IBT"),
-	OPT_BOOLEAN('m', "mcount", &opts.mcount, "annotate mcount/fentry calls for ftrace"),
-	OPT_BOOLEAN('n', "noinstr", &opts.noinstr, "validate noinstr rules"),
-	OPT_BOOLEAN(0,   "orc", &opts.orc, "generate ORC metadata"),
-	OPT_BOOLEAN('r', "retpoline", &opts.retpoline, "validate and annotate retpoline usage"),
-	OPT_BOOLEAN(0,   "rethunk", &opts.rethunk, "validate and annotate rethunk usage"),
-	OPT_BOOLEAN(0,   "unret", &opts.unret, "validate entry unret placement"),
-	OPT_INTEGER(0,   "prefix", &opts.prefix, "generate prefix symbols"),
-	OPT_BOOLEAN('l', "sls", &opts.sls, "validate straight-line-speculation mitigations"),
-	OPT_BOOLEAN('s', "stackval", &opts.stackval, "validate frame pointer rules"),
-	OPT_BOOLEAN('t', "static-call", &opts.static_call, "annotate static calls"),
-	OPT_BOOLEAN('u', "uaccess", &opts.uaccess, "validate uaccess rules for SMAP"),
-	OPT_BOOLEAN(0  , "cfi", &opts.cfi, "annotate kernel control flow integrity (kCFI) function preambles"),
-	OPT_BOOLEAN(0  , "noabs", &opts.noabs, "reject absolute references in allocatable sections"),
-	OPT_CALLBACK_OPTARG(0, "dump", NULL, NULL, "orc", "dump metadata", parse_dump),
+	OPT_BOOLEAN('i',	 "ibt", &opts.ibt, "validate and annotate IBT"),
+	OPT_BOOLEAN('m',	 "mcount", &opts.mcount, "annotate mcount/fentry calls for ftrace"),
+	OPT_BOOLEAN(0,		 "noabs", &opts.noabs, "reject absolute references in allocatable sections"),
+	OPT_BOOLEAN('n',	 "noinstr", &opts.noinstr, "validate noinstr rules"),
+	OPT_BOOLEAN(0,		 "orc", &opts.orc, "generate ORC metadata"),
+	OPT_BOOLEAN('r',	 "retpoline", &opts.retpoline, "validate and annotate retpoline usage"),
+	OPT_BOOLEAN(0,		 "rethunk", &opts.rethunk, "validate and annotate rethunk usage"),
+	OPT_BOOLEAN(0,		 "unret", &opts.unret, "validate entry unret placement"),
+	OPT_INTEGER(0,		 "prefix", &opts.prefix, "generate prefix symbols"),
+	OPT_BOOLEAN('l',	 "sls", &opts.sls, "validate straight-line-speculation mitigations"),
+	OPT_BOOLEAN('s',	 "stackval", &opts.stackval, "validate frame pointer rules"),
+	OPT_BOOLEAN('t',	 "static-call", &opts.static_call, "annotate static calls"),
+	OPT_BOOLEAN('u',	 "uaccess", &opts.uaccess, "validate uaccess rules for SMAP"),
+	OPT_CALLBACK_OPTARG(0,	 "dump", NULL, NULL, "orc", "dump metadata", parse_dump),
 
 	OPT_GROUP("Options:"),
-	OPT_BOOLEAN(0,   "backtrace", &opts.backtrace, "unwind on error"),
-	OPT_BOOLEAN(0,   "dry-run", &opts.dryrun, "don't write modifications"),
-	OPT_BOOLEAN(0,   "link", &opts.link, "object is a linked object"),
-	OPT_BOOLEAN(0,   "module", &opts.module, "object is part of a kernel module"),
-	OPT_BOOLEAN(0,   "mnop", &opts.mnop, "nop out mcount call sites"),
-	OPT_BOOLEAN(0,   "no-unreachable", &opts.no_unreachable, "skip 'unreachable instruction' warnings"),
-	OPT_STRING('o',  "output", &opts.output, "file", "output file name"),
-	OPT_BOOLEAN(0,   "sec-address", &opts.sec_address, "print section addresses in warnings"),
-	OPT_BOOLEAN(0,   "stats", &opts.stats, "print statistics"),
-	OPT_BOOLEAN('v', "verbose", &opts.verbose, "verbose warnings"),
-	OPT_BOOLEAN(0,   "Werror", &opts.werror, "return error on warnings"),
+	OPT_BOOLEAN(0,		 "backtrace", &opts.backtrace, "unwind on error"),
+	OPT_BOOLEAN(0,		 "backup", &opts.backup, "create backup (.orig) file on warning/error"),
+	OPT_STRING(0,		 "debug-checksum", &opts.debug_checksum,  "funcs", "enable checksum debug output"),
+	OPT_BOOLEAN(0,		 "dry-run", &opts.dryrun, "don't write modifications"),
+	OPT_BOOLEAN(0,		 "link", &opts.link, "object is a linked object"),
+	OPT_BOOLEAN(0,		 "module", &opts.module, "object is part of a kernel module"),
+	OPT_BOOLEAN(0,		 "mnop", &opts.mnop, "nop out mcount call sites"),
+	OPT_BOOLEAN(0,		 "no-unreachable", &opts.no_unreachable, "skip 'unreachable instruction' warnings"),
+	OPT_STRING('o',		 "output", &opts.output, "file", "output file name"),
+	OPT_BOOLEAN(0,		 "sec-address", &opts.sec_address, "print section addresses in warnings"),
+	OPT_BOOLEAN(0,		 "stats", &opts.stats, "print statistics"),
+	OPT_BOOLEAN('v',	 "verbose", &opts.verbose, "verbose warnings"),
+	OPT_BOOLEAN(0,		 "werror", &opts.werror, "return error on warnings"),
 
 	OPT_END(),
 };
@@ -159,7 +162,20 @@ static bool opts_valid(void)
 		return false;
 	}
 
-	if (opts.hack_jump_label	||
+#ifndef BUILD_KLP
+	if (opts.checksum) {
+		ERROR("--checksum not supported; install xxhash-devel and recompile");
+		return false;
+	}
+#endif
+
+	if (opts.debug_checksum && !opts.checksum) {
+		ERROR("--debug-checksum requires --checksum");
+		return false;
+	}
+
+	if (opts.checksum		||
+	    opts.hack_jump_label	||
 	    opts.hack_noinstr		||
 	    opts.ibt			||
 	    opts.mcount			||
@@ -243,15 +259,12 @@ static void save_argv(int argc, const char **argv)
 			ERROR_GLIBC("strdup(%s)", argv[i]);
 			exit(1);
 		}
-	};
+	}
 }
 
-void print_args(void)
+int make_backup(void)
 {
-	char *backup = NULL;
-
-	if (opts.output || opts.dryrun)
-		goto print;
+	char *backup;
 
 	/*
 	 * Make a backup before kbuild deletes the file so the error
@@ -260,33 +273,32 @@ void print_args(void)
 	backup = malloc(strlen(objname) + strlen(ORIG_SUFFIX) + 1);
 	if (!backup) {
 		ERROR_GLIBC("malloc");
-		goto print;
+		return 1;
 	}
 
 	strcpy(backup, objname);
 	strcat(backup, ORIG_SUFFIX);
-	if (copy_file(objname, backup)) {
-		backup = NULL;
-		goto print;
-	}
+	if (copy_file(objname, backup))
+		return 1;
 
-print:
 	/*
-	 * Print the cmdline args to make it easier to recreate.  If '--output'
-	 * wasn't used, add it to the printed args with the backup as input.
+	 * Print the cmdline args to make it easier to recreate.
 	 */
+
 	fprintf(stderr, "%s", orig_argv[0]);
 
 	for (int i = 1; i < orig_argc; i++) {
 		char *arg = orig_argv[i];
 
-		if (backup && !strcmp(arg, objname))
+		/* Modify the printed args to use the backup */
+		if (!opts.output && !strcmp(arg, objname))
 			fprintf(stderr, " %s -o %s", backup, objname);
 		else
 			fprintf(stderr, " %s", arg);
 	}
 
 	fprintf(stderr, "\n");
+	return 0;
 }
 
 int objtool_run(int argc, const char **argv)
@@ -332,5 +344,5 @@ int objtool_run(int argc, const char **argv)
 	if (!opts.dryrun && file->elf->changed && elf_write(file->elf))
 		return 1;
 
-	return 0;
+	return elf_close(file->elf);
 }

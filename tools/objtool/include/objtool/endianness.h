@@ -4,7 +4,6 @@
 
 #include <linux/kernel.h>
 #include <endian.h>
-#include <objtool/elf.h>
 
 /*
  * Does a byte swap if target file endianness doesn't match the host, i.e. cross
@@ -12,16 +11,16 @@
  * To be used for multi-byte values conversion, which are read from / about
  * to be written to a target native endianness ELF file.
  */
-static inline bool need_bswap(struct elf *elf)
+static inline bool need_bswap(GElf_Ehdr *ehdr)
 {
 	return (__BYTE_ORDER == __LITTLE_ENDIAN) ^
-	       (elf->ehdr.e_ident[EI_DATA] == ELFDATA2LSB);
+	       (ehdr->e_ident[EI_DATA] == ELFDATA2LSB);
 }
 
-#define bswap_if_needed(elf, val)					\
+#define __bswap_if_needed(ehdr, val)					\
 ({									\
 	__typeof__(val) __ret;						\
-	bool __need_bswap = need_bswap(elf);				\
+	bool __need_bswap = need_bswap(ehdr);				\
 	switch (sizeof(val)) {						\
 	case 8:								\
 		__ret = __need_bswap ? bswap_64(val) : (val); break;	\

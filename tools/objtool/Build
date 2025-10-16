@@ -8,8 +8,8 @@ objtool-y += builtin-check.o
 objtool-y += elf.o
 objtool-y += objtool.o
 
-objtool-$(BUILD_ORC) += orc_gen.o
-objtool-$(BUILD_ORC) += orc_dump.o
+objtool-$(BUILD_ORC) += orc_gen.o orc_dump.o
+objtool-$(BUILD_KLP) += builtin-klp.o klp-diff.o klp-post-link.o
 
 objtool-y += libstring.o
 objtool-y += libctype.o

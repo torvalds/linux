@@ -7,7 +7,7 @@
 #include <linux/objtool_types.h>
 #include <arch/elf.h>
 
-int arch_ftrace_match(char *name)
+int arch_ftrace_match(const char *name)
 {
 	return !strcmp(name, "_mcount");
 }
@@ -17,9 +17,9 @@ unsigned long arch_jump_destination(struct instruction *insn)
 	return insn->offset + (insn->immediate << 2);
 }
 
-unsigned long arch_dest_reloc_offset(int addend)
+s64 arch_insn_adjusted_addend(struct instruction *insn, struct reloc *reloc)
 {
-	return addend;
+	return reloc_addend(reloc);
 }
 
 bool arch_pc_relative_reloc(struct reloc *reloc)
