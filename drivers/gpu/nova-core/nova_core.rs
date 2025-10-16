@@ -13,6 +13,7 @@ mod firmware;
 mod gfw;
 mod gpu;
 mod gsp;
+mod num;
 mod regs;
 mod vbios;
 
