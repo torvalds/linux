@@ -352,7 +352,7 @@ tape_ccw_cc_idal(struct ccw1 *ccw, __u8 cmd_code, struct idal_buffer *idal)
 	ccw->cmd_code = cmd_code;
 	ccw->flags    = CCW_FLAG_CC;
 	idal_buffer_set_cda(idal, ccw);
-	return ccw++;
+	return ccw + 1;
 }
 
 static inline struct ccw1 *
@@ -361,7 +361,7 @@ tape_ccw_end_idal(struct ccw1 *ccw, __u8 cmd_code, struct idal_buffer *idal)
 	ccw->cmd_code = cmd_code;
 	ccw->flags    = 0;
 	idal_buffer_set_cda(idal, ccw);
-	return ccw++;
+	return ccw + 1;
 }
 
 /* Global vars */
