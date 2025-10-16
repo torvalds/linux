@@ -641,7 +641,7 @@ tape_std_mtcompression(struct tape_device *device, int mt_count)
  * Read Block
  */
 struct tape_request *
-tape_std_read_block(struct tape_device *device, size_t count)
+tape_std_read_block(struct tape_device *device)
 {
 	struct tape_request *request;
 
@@ -685,7 +685,7 @@ tape_std_read_backward(struct tape_device *device, struct tape_request *request)
  * Write Block
  */
 struct tape_request *
-tape_std_write_block(struct tape_device *device, size_t count)
+tape_std_write_block(struct tape_device *device)
 {
 	struct tape_request *request;
 

@@ -162,7 +162,7 @@ tapechar_read(struct file *filp, char __user *data, size_t count, loff_t *ppos)
 
 	DBF_EVENT(6, "TCHAR:nbytes: %lx\n", block_size);
 	/* Let the discipline build the ccw chain. */
-	request = device->discipline->read_block(device, block_size);
+	request = device->discipline->read_block(device);
 	if (IS_ERR(request))
 		return PTR_ERR(request);
 	/* Execute it. */
@@ -215,7 +215,7 @@ tapechar_write(struct file *filp, const char __user *data, size_t count, loff_t 
 	DBF_EVENT(6,"TCHAR:nbytes: %lx\n", block_size);
 	DBF_EVENT(6, "TCHAR:nblocks: %x\n", nblocks);
 	/* Let the discipline build the ccw chain. */
-	request = device->discipline->write_block(device, block_size);
+	request = device->discipline->write_block(device);
 	if (IS_ERR(request))
 		return PTR_ERR(request);
 	rc = 0;
