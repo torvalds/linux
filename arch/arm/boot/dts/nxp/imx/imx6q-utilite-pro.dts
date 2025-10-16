@@ -326,11 +326,14 @@
 &pcie {
 	pcie@0,0 {
 		reg = <0x000000 0 0 0 0>;
+		device_type = "pci";
 		#address-cells = <3>;
 		#size-cells = <2>;
+		bus-range = <0x00 0xff>;
+		ranges;
 
 		/* non-removable i211 ethernet card */
-		eth1: intel,i211@pcie0,0 {
+		eth1: ethernet@0,0 {
 			reg = <0x010000 0 0 0 0>;
 		};
 	};
