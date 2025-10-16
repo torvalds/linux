@@ -4136,7 +4136,6 @@ void btrfs_extend_item(struct btrfs_trans_handle *trans,
 	memmove_leaf_data(leaf, data_end - data_size, data_end,
 			  old_data - data_end);
 
-	data_end = old_data;
 	old_size = btrfs_item_size(leaf, slot);
 	btrfs_set_item_size(leaf, slot, old_size + data_size);
 	btrfs_mark_buffer_dirty(trans, leaf);
