@@ -5538,8 +5538,11 @@ ufshcd_transfer_rsp_status(struct ufs_hba *hba, struct ufshcd_lrb *lrbp,
 	} /* end of switch */
 
 	if ((host_byte(result) != DID_OK) &&
-	    (host_byte(result) != DID_REQUEUE) && !hba->silence_err_logs)
+	    (host_byte(result) != DID_REQUEUE) && !hba->silence_err_logs) {
+		if (cqe)
+			ufshcd_hex_dump("UPIU CQE: ", cqe, sizeof(struct cq_entry));
 		ufshcd_print_tr(hba, lrbp->task_tag, true);
+	}
 	return result;
 }
 
