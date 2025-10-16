@@ -1014,26 +1014,25 @@ static int fun_get_port_attributes(struct net_device *netdev)
 	return 0;
 }
 
-static int fun_hwtstamp_get(struct net_device *dev, struct ifreq *ifr)
+static int fun_hwtstamp_get(struct net_device *dev,
+			    struct kernel_hwtstamp_config *config)
 {
 	const struct funeth_priv *fp = netdev_priv(dev);
 
-	return copy_to_user(ifr->ifr_data, &fp->hwtstamp_cfg,
-			    sizeof(fp->hwtstamp_cfg)) ? -EFAULT : 0;
+	*config = fp->hwtstamp_cfg;
+	return 0;
 }
 
-static int fun_hwtstamp_set(struct net_device *dev, struct ifreq *ifr)
+static int fun_hwtstamp_set(struct net_device *dev,
+			    struct kernel_hwtstamp_config *config,
+			    struct netlink_ext_ack *extack)
 {
 	struct funeth_priv *fp = netdev_priv(dev);
-	struct hwtstamp_config cfg;
-
-	if (copy_from_user(&cfg, ifr->ifr_data, sizeof(cfg)))
-		return -EFAULT;
 
 	/* no TX HW timestamps */
-	cfg.tx_type = HWTSTAMP_TX_OFF;
+	config->tx_type = HWTSTAMP_TX_OFF;
 
-	switch (cfg.rx_filter) {
+	switch (config->rx_filter) {
 	case HWTSTAMP_FILTER_NONE:
 		break;
 	case HWTSTAMP_FILTER_ALL:
@@ -1051,26 +1050,14 @@ static int fun_hwtstamp_set(struct net_device *dev, struct ifreq *ifr)
 	case HWTSTAMP_FILTER_PTP_V2_SYNC:
 	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
 	case HWTSTAMP_FILTER_NTP_ALL:
-		cfg.rx_filter = HWTSTAMP_FILTER_ALL;
+		config->rx_filter = HWTSTAMP_FILTER_ALL;
 		break;
 	default:
 		return -ERANGE;
 	}
 
-	fp->hwtstamp_cfg = cfg;
-	return copy_to_user(ifr->ifr_data, &cfg, sizeof(cfg)) ? -EFAULT : 0;
-}
-
-static int fun_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
-{
-	switch (cmd) {
-	case SIOCSHWTSTAMP:
-		return fun_hwtstamp_set(dev, ifr);
-	case SIOCGHWTSTAMP:
-		return fun_hwtstamp_get(dev, ifr);
-	default:
-		return -EOPNOTSUPP;
-	}
+	fp->hwtstamp_cfg = *config;
+	return 0;
 }
 
 /* Prepare the queues for XDP. */
@@ -1340,7 +1327,6 @@ static const struct net_device_ops fun_netdev_ops = {
 	.ndo_change_mtu		= fun_change_mtu,
 	.ndo_set_mac_address	= fun_set_macaddr,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_eth_ioctl		= fun_ioctl,
 	.ndo_uninit		= fun_uninit,
 	.ndo_bpf		= fun_xdp,
 	.ndo_xdp_xmit		= fun_xdp_xmit_frames,
@@ -1348,6 +1334,8 @@ static const struct net_device_ops fun_netdev_ops = {
 	.ndo_set_vf_vlan	= fun_set_vf_vlan,
 	.ndo_set_vf_rate	= fun_set_vf_rate,
 	.ndo_get_vf_config	= fun_get_vf_config,
+	.ndo_hwtstamp_get	= fun_hwtstamp_get,
+	.ndo_hwtstamp_set	= fun_hwtstamp_set,
 };
 
 #define GSO_ENCAP_FLAGS (NETIF_F_GSO_GRE | NETIF_F_GSO_IPXIP4 | \
