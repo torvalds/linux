@@ -340,6 +340,7 @@ static irqreturn_t pcc_mbox_irq(int irq, void *p)
 	 */
 	pchan->chan_in_use = false;
 	mbox_chan_received_data(chan, NULL);
+	mbox_chan_txdone(chan, 0);
 
 	pcc_chan_acknowledge(pchan);
 
