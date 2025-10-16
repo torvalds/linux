@@ -1101,6 +1101,8 @@ static void stmmac_check_pcs_mode(struct stmmac_priv *priv)
 
 		default:
 			dev_warn(priv->device, "invalid port speed\n");
+			fallthrough;
+		case 0:
 			priv->hw->reverse_sgmii_enable = false;
 			break;
 		}
