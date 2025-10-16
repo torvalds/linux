@@ -484,7 +484,7 @@ module_arch_cleanup(struct module *mod)
 #endif
 }
 
-void __weak module_arch_freeing_init(struct module *mod)
+void module_arch_freeing_init(struct module *mod)
 {
 #ifdef CONFIG_ARM_UNWIND
 	struct unwind_table *init = mod->arch.init_table;

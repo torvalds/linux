@@ -1876,7 +1876,7 @@ static int ov8858_probe(struct i2c_client *client)
 	if (!ov8858)
 		return -ENOMEM;
 
-	ov8858->xvclk = devm_clk_get(dev, "xvclk");
+	ov8858->xvclk = devm_v4l2_sensor_clk_get(dev, "xvclk");
 	if (IS_ERR(ov8858->xvclk))
 		return dev_err_probe(dev, PTR_ERR(ov8858->xvclk),
 				     "Failed to get xvclk\n");

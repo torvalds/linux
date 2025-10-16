@@ -437,6 +437,15 @@ static void dw_mipi_dsi2_rockchip_remove(struct platform_device *pdev)
 	dw_mipi_dsi2_remove(dsi2->dmd);
 }
 
+static const struct dsigrf_reg rk3576_dsi_grf_reg_fields[MAX_FIELDS] = {
+	[TXREQCLKHS_EN]		= { 0x0028, 1,  1 },
+	[GATING_EN]		= { 0x0028, 0,  0 },
+	[IPI_SHUTDN]		= { 0x0028, 3,  3 },
+	[IPI_COLORM]		= { 0x0028, 2,  2 },
+	[IPI_COLOR_DEPTH]	= { 0x0028, 8, 11 },
+	[IPI_FORMAT]		= { 0x0028, 4,  7 },
+};
+
 static const struct dsigrf_reg rk3588_dsi0_grf_reg_fields[MAX_FIELDS] = {
 	[TXREQCLKHS_EN]		= { 0x0000, 11, 11 },
 	[GATING_EN]		= { 0x0000, 10, 10 },
@@ -455,6 +464,15 @@ static const struct dsigrf_reg rk3588_dsi1_grf_reg_fields[MAX_FIELDS] = {
 	[IPI_FORMAT]		= { 0x0004,  0,  3 },
 };
 
+static const struct rockchip_dw_dsi2_chip_data rk3576_chip_data[] = {
+	{
+		.reg = 0x27d80000,
+		.grf_regs = rk3576_dsi_grf_reg_fields,
+		.max_bit_rate_per_lane = 2500000ULL,
+	},
+	{ /* sentinel */ }
+};
+
 static const struct rockchip_dw_dsi2_chip_data rk3588_chip_data[] = {
 	{
 		.reg = 0xfde20000,
@@ -470,6 +488,9 @@ static const struct rockchip_dw_dsi2_chip_data rk3588_chip_data[] = {
 
 static const struct of_device_id dw_mipi_dsi2_rockchip_dt_ids[] = {
 	{
+		.compatible = "rockchip,rk3576-mipi-dsi2",
+		.data = &rk3576_chip_data,
+	}, {
 		.compatible = "rockchip,rk3588-mipi-dsi2",
 		.data = &rk3588_chip_data,
 	},

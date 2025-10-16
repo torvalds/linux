@@ -98,13 +98,15 @@ enum ast_config_mode {
 	ast_use_defaults
 };
 
-#define AST_DRAM_512Mx16 0
-#define AST_DRAM_1Gx16   1
-#define AST_DRAM_512Mx32 2
-#define AST_DRAM_1Gx32   3
-#define AST_DRAM_2Gx16   6
-#define AST_DRAM_4Gx16   7
-#define AST_DRAM_8Gx16   8
+enum ast_dram_layout {
+	AST_DRAM_512Mx16 = 0,
+	AST_DRAM_1Gx16 = 1,
+	AST_DRAM_512Mx32 = 2,
+	AST_DRAM_1Gx32 = 3,
+	AST_DRAM_2Gx16 = 6,
+	AST_DRAM_4Gx16 = 7,
+	AST_DRAM_8Gx16 = 8,
+};
 
 /*
  * Hardware cursor
@@ -171,10 +173,6 @@ struct ast_device {
 
 	enum ast_config_mode config_mode;
 	enum ast_chip chip;
-
-	uint32_t dram_bus_width;
-	uint32_t dram_type;
-	uint32_t mclk;
 
 	void __iomem	*vram;
 	unsigned long	vram_base;

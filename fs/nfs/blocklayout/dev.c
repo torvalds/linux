@@ -541,16 +541,16 @@ bl_alloc_deviceid_node(struct nfs_server *server, struct pnfs_device *pdev,
 	struct pnfs_block_dev *top;
 	struct xdr_stream xdr;
 	struct xdr_buf buf;
-	struct page *scratch;
+	struct folio *scratch;
 	int nr_volumes, ret, i;
 	__be32 *p;
 
-	scratch = alloc_page(gfp_mask);
+	scratch = folio_alloc(gfp_mask, 0);
 	if (!scratch)
 		goto out;
 
 	xdr_init_decode_pages(&xdr, &buf, pdev->pages, pdev->pglen);
-	xdr_set_scratch_page(&xdr, scratch);
+	xdr_set_scratch_folio(&xdr, scratch);
 
 	p = xdr_inline_decode(&xdr, sizeof(__be32));
 	if (!p)
@@ -582,7 +582,7 @@ bl_alloc_deviceid_node(struct nfs_server *server, struct pnfs_device *pdev,
 out_free_volumes:
 	kfree(volumes);
 out_free_scratch:
-	__free_page(scratch);
+	folio_put(scratch);
 out:
 	return node;
 }

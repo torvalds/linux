@@ -211,11 +211,45 @@ void dc_dmub_srv_fams2_passthrough_flip(
 		int surface_count);
 
 bool dmub_lsdma_init(struct dc_dmub_srv *dc_dmub_srv);
-bool dmub_lsdma_send_linear_copy_packet(
+bool dmub_lsdma_send_linear_copy_command(
 	struct dc_dmub_srv *dc_dmub_srv,
 	uint64_t src_addr,
 	uint64_t dst_addr,
 	uint32_t count);
+
+struct lsdma_linear_sub_window_copy_params {
+	uint32_t src_lo;
+	uint32_t src_hi;
+
+	uint32_t dst_lo;
+	uint32_t dst_hi;
+
+	uint32_t src_x        : 16;
+	uint32_t src_y        : 16;
+
+	uint32_t dst_x        : 16;
+	uint32_t dst_y        : 16;
+
+	uint32_t rect_x       : 16;
+	uint32_t rect_y       : 16;
+
+	uint32_t src_pitch    : 16;
+	uint32_t dst_pitch    : 16;
+
+	uint32_t src_slice_pitch;
+	uint32_t dst_slice_pitch;
+
+	uint32_t tmz              : 1;
+	uint32_t element_size     : 3;
+	uint32_t src_cache_policy : 3;
+	uint32_t dst_cache_policy : 3;
+	uint32_t padding          : 22;
+};
+
+bool dmub_lsdma_send_linear_sub_window_copy_command(
+	struct dc_dmub_srv *dc_dmub_srv,
+	struct lsdma_linear_sub_window_copy_params copy_data
+);
 bool dmub_lsdma_send_pio_copy_command(
 	struct dc_dmub_srv *dc_dmub_srv,
 	uint64_t src_addr,

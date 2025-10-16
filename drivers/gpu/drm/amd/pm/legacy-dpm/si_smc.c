@@ -172,20 +172,42 @@ PPSMC_Result amdgpu_si_send_msg_to_smc(struct amdgpu_device *adev,
 {
 	u32 tmp;
 	int i;
+	int usec_timeout;
+
+	/* SMC seems to process some messages exceptionally slowly. */
+	switch (msg) {
+	case PPSMC_MSG_NoForcedLevel:
+	case PPSMC_MSG_SetEnabledLevels:
+	case PPSMC_MSG_SetForcedLevels:
+	case PPSMC_MSG_DisableULV:
+	case PPSMC_MSG_SwitchToSwState:
+		usec_timeout = 1000000; /* 1 sec */
+		break;
+	default:
+		usec_timeout = 200000; /* 200 ms */
+		break;
+	}
 
 	if (!amdgpu_si_is_smc_running(adev))
 		return PPSMC_Result_Failed;
 
 	WREG32(mmSMC_MESSAGE_0, msg);
 
-	for (i = 0; i < adev->usec_timeout; i++) {
+	for (i = 0; i < usec_timeout; i++) {
 		tmp = RREG32(mmSMC_RESP_0);
 		if (tmp != 0)
 			break;
 		udelay(1);
 	}
 
-	return (PPSMC_Result)RREG32(mmSMC_RESP_0);
+	tmp = RREG32(mmSMC_RESP_0);
+	if (tmp == 0) {
+		drm_warn(adev_to_drm(adev),
+			"%s timeout on message: %x (SMC_SCRATCH0: %x)\n",
+			__func__, msg, RREG32(mmSMC_SCRATCH0));
+	}
+
+	return (PPSMC_Result)tmp;
 }
 
 PPSMC_Result amdgpu_si_wait_for_smc_inactive(struct amdgpu_device *adev)

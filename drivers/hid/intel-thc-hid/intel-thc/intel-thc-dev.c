@@ -4,6 +4,7 @@
 #include <linux/bitfield.h>
 #include <linux/math.h>
 #include <linux/regmap.h>
+#include <linux/string_choices.h>
 
 #include "intel-thc-dev.h"
 #include "intel-thc-hw.h"
@@ -664,7 +665,7 @@ int thc_interrupt_quiesce(const struct thc_device *dev, bool int_quiesce)
 	if (ret) {
 		dev_err_once(dev->dev,
 			     "Timeout while waiting THC idle, target quiesce state = %s\n",
-			     int_quiesce ? "true" : "false");
+			     str_true_false(int_quiesce));
 		return ret;
 	}
 

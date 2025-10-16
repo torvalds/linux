@@ -2,4 +2,6 @@
 #ifndef _TOOLS_IO_H
 #define _TOOLS_IO_H
 
-#endif
+#include <asm/io.h>
+
+#endif /* _TOOLS_IO_H */

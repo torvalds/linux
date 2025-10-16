@@ -340,8 +340,8 @@ TP_PROTO(struct io_ring_ctx *ctx, void *req, struct io_uring_cqe *cqe),
 		__entry->user_data	= cqe->user_data;
 		__entry->res		= cqe->res;
 		__entry->cflags		= cqe->flags;
-		__entry->extra1		= io_ctx_cqe32(ctx) ? cqe->big_cqe[0] : 0;
-		__entry->extra2		= io_ctx_cqe32(ctx) ? cqe->big_cqe[1] : 0;
+		__entry->extra1		= ctx->flags & IORING_SETUP_CQE32 || cqe->flags & IORING_CQE_F_32 ? cqe->big_cqe[0] : 0;
+		__entry->extra2		= ctx->flags & IORING_SETUP_CQE32 || cqe->flags & IORING_CQE_F_32 ? cqe->big_cqe[1] : 0;
 	),
 
 	TP_printk("ring %p, req %p, user_data 0x%llx, result %d, cflags 0x%x "

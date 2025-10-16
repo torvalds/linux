@@ -81,6 +81,7 @@ struct raw_sock {
 	struct inet_sock   inet;
 	struct icmp_filter filter;
 	u32		   ipmr_table;
+	struct numa_drop_counters drop_counters;
 };
 
 #define raw_sk(ptr) container_of_const(ptr, struct raw_sock, inet.sk)

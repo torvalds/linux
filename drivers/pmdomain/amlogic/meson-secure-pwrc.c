@@ -16,6 +16,9 @@
 #include <dt-bindings/power/amlogic,t7-pwrc.h>
 #include <dt-bindings/power/amlogic,a4-pwrc.h>
 #include <dt-bindings/power/amlogic,a5-pwrc.h>
+#include <dt-bindings/power/amlogic,s6-pwrc.h>
+#include <dt-bindings/power/amlogic,s7-pwrc.h>
+#include <dt-bindings/power/amlogic,s7d-pwrc.h>
 #include <linux/arm-smccc.h>
 #include <linux/firmware/meson/meson_sm.h>
 #include <linux/module.h>
@@ -201,6 +204,71 @@ static const struct meson_secure_pwrc_domain_desc s4_pwrc_domains[] = {
 	SEC_PD(S4_AUDIO,	0),
 };
 
+static const struct meson_secure_pwrc_domain_desc s6_pwrc_domains[] = {
+	SEC_PD(S6_DSPA,		0),
+	SEC_PD(S6_DOS_HEVC,	0),
+	SEC_PD(S6_DOS_VDEC,	0),
+	SEC_PD(S6_VPU_HDMI,	0),
+	SEC_PD(S6_U2DRD,	0),
+	SEC_PD(S6_U3DRD,	0),
+	SEC_PD(S6_SD_EMMC_C,	0),
+	SEC_PD(S6_GE2D,		0),
+	SEC_PD(S6_AMFC,		0),
+	SEC_PD(S6_VC9000E,	0),
+	SEC_PD(S6_DEWARP,	0),
+	SEC_PD(S6_VICP,		0),
+	SEC_PD(S6_SD_EMMC_A,	0),
+	SEC_PD(S6_SD_EMMC_B,	0),
+	/* ETH is for ethernet online wakeup, and should be always on */
+	SEC_PD(S6_ETH,		GENPD_FLAG_ALWAYS_ON),
+	SEC_PD(S6_PCIE,		0),
+	SEC_PD(S6_NNA_4T,	0),
+	SEC_PD(S6_AUDIO,	0),
+	SEC_PD(S6_AUCPU,	0),
+	SEC_PD(S6_ADAPT,	0),
+};
+
+static const struct meson_secure_pwrc_domain_desc s7_pwrc_domains[] = {
+	SEC_PD(S7_DOS_HEVC,	0),
+	SEC_PD(S7_DOS_VDEC,	0),
+	SEC_PD(S7_VPU_HDMI,	0),
+	SEC_PD(S7_USB_COMB,	0),
+	SEC_PD(S7_SD_EMMC_C,	0),
+	SEC_PD(S7_GE2D,		0),
+	SEC_PD(S7_SD_EMMC_A,	0),
+	SEC_PD(S7_SD_EMMC_B,	0),
+	/* ETH is for ethernet online wakeup, and should be always on */
+	SEC_PD(S7_ETH,		GENPD_FLAG_ALWAYS_ON),
+	SEC_PD(S7_AUCPU,	0),
+	SEC_PD(S7_AUDIO,	0),
+};
+
+static const struct meson_secure_pwrc_domain_desc s7d_pwrc_domains[] = {
+	SEC_PD(S7D_DOS_HCODEC,	0),
+	SEC_PD(S7D_DOS_HEVC,	0),
+	SEC_PD(S7D_DOS_VDEC,	0),
+	SEC_PD(S7D_VPU_HDMI,	0),
+	SEC_PD(S7D_USB_U2DRD,	0),
+	SEC_PD(S7D_USB_U2H,	0),
+	SEC_PD(S7D_SSD_EMMC_C,	0),
+	SEC_PD(S7D_GE2D,	0),
+	SEC_PD(S7D_AMFC,	0),
+	SEC_PD(S7D_EMMC_A,	0),
+	SEC_PD(S7D_EMMC_B,	0),
+	/* ETH is for ethernet online wakeup, and should be always on */
+	SEC_PD(S7D_ETH,		GENPD_FLAG_ALWAYS_ON),
+	SEC_PD(S7D_AUCPU,	0),
+	SEC_PD(S7D_AUDIO,	0),
+	/* SRAMA is used as ATF runtime memory, and should be always on */
+	SEC_PD(S7D_SRAMA,	GENPD_FLAG_ALWAYS_ON),
+	/* DMC0 is for DDR PHY ana/dig and DMC, and should be always on */
+	SEC_PD(S7D_DMC0,	GENPD_FLAG_ALWAYS_ON),
+	/* DMC1 is for DDR PHY ana/dig and DMC, and should be always on */
+	SEC_PD(S7D_DMC1,	GENPD_FLAG_ALWAYS_ON),
+	/* DDR should be always on */
+	SEC_PD(S7D_DDR,		GENPD_FLAG_ALWAYS_ON),
+};
+
 static const struct meson_secure_pwrc_domain_desc t7_pwrc_domains[] = {
 	SEC_PD(T7_DSPA,		0),
 	SEC_PD(T7_DSPB,		0),
@@ -367,6 +435,21 @@ static const struct meson_secure_pwrc_domain_data meson_secure_s4_pwrc_data = {
 	.count = ARRAY_SIZE(s4_pwrc_domains),
 };
 
+static const struct meson_secure_pwrc_domain_data amlogic_secure_s6_pwrc_data = {
+	.domains = s6_pwrc_domains,
+	.count = ARRAY_SIZE(s6_pwrc_domains),
+};
+
+static const struct meson_secure_pwrc_domain_data amlogic_secure_s7_pwrc_data = {
+	.domains = s7_pwrc_domains,
+	.count = ARRAY_SIZE(s7_pwrc_domains),
+};
+
+static const struct meson_secure_pwrc_domain_data amlogic_secure_s7d_pwrc_data = {
+	.domains = s7d_pwrc_domains,
+	.count = ARRAY_SIZE(s7d_pwrc_domains),
+};
+
 static const struct meson_secure_pwrc_domain_data amlogic_secure_t7_pwrc_data = {
 	.domains = t7_pwrc_domains,
 	.count = ARRAY_SIZE(t7_pwrc_domains),
@@ -392,6 +475,18 @@ static const struct of_device_id meson_secure_pwrc_match_table[] = {
 	{
 		.compatible = "amlogic,meson-s4-pwrc",
 		.data = &meson_secure_s4_pwrc_data,
+	},
+	{
+		.compatible = "amlogic,s6-pwrc",
+		.data = &amlogic_secure_s6_pwrc_data,
+	},
+	{
+		.compatible = "amlogic,s7-pwrc",
+		.data = &amlogic_secure_s7_pwrc_data,
+	},
+	{
+		.compatible = "amlogic,s7d-pwrc",
+		.data = &amlogic_secure_s7d_pwrc_data,
 	},
 	{
 		.compatible = "amlogic,t7-pwrc",

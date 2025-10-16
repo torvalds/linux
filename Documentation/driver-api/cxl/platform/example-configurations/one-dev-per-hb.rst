@@ -10,7 +10,7 @@ has a single CXL memory expander with a 4GB of memory.
 Things to note:
 
 * Cross-Bridge interleave is not being used.
-* The expanders are in two separate but adjascent memory regions.
+* The expanders are in two separate but adjacent memory regions.
 * This CEDT/SRAT describes one node per device
 * The expanders have the same performance and will be in the same memory tier.
 

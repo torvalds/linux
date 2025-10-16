@@ -1042,6 +1042,9 @@ void yfs_fs_rename(struct afs_operation *op)
 
 	_enter("");
 
+	if (!test_bit(AFS_SERVER_FL_NO_RENAME2, &op->server->flags))
+		return yfs_fs_rename_replace(op);
+
 	call = afs_alloc_flat_call(op->net, &yfs_RXYFSRename,
 				   sizeof(__be32) +
 				   sizeof(struct yfs_xdr_RPCFlags) +
@@ -1058,6 +1061,252 @@ void yfs_fs_rename(struct afs_operation *op)
 	/* marshall the parameters */
 	bp = call->request;
 	bp = xdr_encode_u32(bp, YFSRENAME);
+	bp = xdr_encode_u32(bp, 0); /* RPC flags */
+	bp = xdr_encode_YFSFid(bp, &orig_dvp->fid);
+	bp = xdr_encode_name(bp, orig_name);
+	bp = xdr_encode_YFSFid(bp, &new_dvp->fid);
+	bp = xdr_encode_name(bp, new_name);
+	yfs_check_req(call, bp);
+
+	call->fid = orig_dvp->fid;
+	trace_afs_make_fs_call2(call, &orig_dvp->fid, orig_name, new_name);
+	afs_make_op_call(op, call, GFP_NOFS);
+}
+
+/*
+ * Deliver reply data to a YFS.Rename_NoReplace operation.  This does not
+ * return the status of a displaced target inode as there cannot be one.
+ */
+static int yfs_deliver_fs_rename_1(struct afs_call *call)
+{
+	struct afs_operation *op = call->op;
+	struct afs_vnode_param *orig_dvp = &op->file[0];
+	struct afs_vnode_param *new_dvp = &op->file[1];
+	struct afs_vnode_param *old_vp = &op->more_files[0];
+	const __be32 *bp;
+	int ret;
+
+	_enter("{%u}", call->unmarshall);
+
+	ret = afs_transfer_reply(call);
+	if (ret < 0)
+		return ret;
+
+	bp = call->buffer;
+	/* If the two dirs are the same, we have two copies of the same status
+	 * report, so we just decode it twice.
+	 */
+	xdr_decode_YFSFetchStatus(&bp, call, &orig_dvp->scb);
+	xdr_decode_YFSFid(&bp, &old_vp->fid);
+	xdr_decode_YFSFetchStatus(&bp, call, &old_vp->scb);
+	xdr_decode_YFSFetchStatus(&bp, call, &new_dvp->scb);
+	xdr_decode_YFSVolSync(&bp, &op->volsync);
+	_leave(" = 0 [done]");
+	return 0;
+}
+
+/*
+ * Deliver reply data to a YFS.Rename_Replace or a YFS.Rename_Exchange
+ * operation.  These return the status of the displaced target inode if there
+ * was one.
+ */
+static int yfs_deliver_fs_rename_2(struct afs_call *call)
+{
+	struct afs_operation *op = call->op;
+	struct afs_vnode_param *orig_dvp = &op->file[0];
+	struct afs_vnode_param *new_dvp = &op->file[1];
+	struct afs_vnode_param *old_vp = &op->more_files[0];
+	struct afs_vnode_param *new_vp = &op->more_files[1];
+	const __be32 *bp;
+	int ret;
+
+	_enter("{%u}", call->unmarshall);
+
+	ret = afs_transfer_reply(call);
+	if (ret < 0)
+		return ret;
+
+	bp = call->buffer;
+	/* If the two dirs are the same, we have two copies of the same status
+	 * report, so we just decode it twice.
+	 */
+	xdr_decode_YFSFetchStatus(&bp, call, &orig_dvp->scb);
+	xdr_decode_YFSFid(&bp, &old_vp->fid);
+	xdr_decode_YFSFetchStatus(&bp, call, &old_vp->scb);
+	xdr_decode_YFSFetchStatus(&bp, call, &new_dvp->scb);
+	xdr_decode_YFSFid(&bp, &new_vp->fid);
+	xdr_decode_YFSFetchStatus(&bp, call, &new_vp->scb);
+	xdr_decode_YFSVolSync(&bp, &op->volsync);
+	_leave(" = 0 [done]");
+	return 0;
+}
+
+static void yfs_done_fs_rename_replace(struct afs_call *call)
+{
+	if (call->error == -ECONNABORTED &&
+	    (call->abort_code == RX_INVALID_OPERATION ||
+	     call->abort_code == RXGEN_OPCODE)) {
+		set_bit(AFS_SERVER_FL_NO_RENAME2, &call->op->server->flags);
+		call->op->flags |= AFS_OPERATION_DOWNGRADE;
+	}
+}
+
+/*
+ * YFS.Rename_Replace operation type
+ */
+static const struct afs_call_type yfs_RXYFSRename_Replace = {
+	.name		= "FS.Rename_Replace",
+	.op		= yfs_FS_Rename_Replace,
+	.deliver	= yfs_deliver_fs_rename_2,
+	.done		= yfs_done_fs_rename_replace,
+	.destructor	= afs_flat_call_destructor,
+};
+
+/*
+ * YFS.Rename_NoReplace operation type
+ */
+static const struct afs_call_type yfs_RXYFSRename_NoReplace = {
+	.name		= "FS.Rename_NoReplace",
+	.op		= yfs_FS_Rename_NoReplace,
+	.deliver	= yfs_deliver_fs_rename_1,
+	.destructor	= afs_flat_call_destructor,
+};
+
+/*
+ * YFS.Rename_Exchange operation type
+ */
+static const struct afs_call_type yfs_RXYFSRename_Exchange = {
+	.name		= "FS.Rename_Exchange",
+	.op		= yfs_FS_Rename_Exchange,
+	.deliver	= yfs_deliver_fs_rename_2,
+	.destructor	= afs_flat_call_destructor,
+};
+
+/*
+ * Rename a file or directory, replacing the target if it exists.  The status
+ * of a displaced target is returned.
+ */
+void yfs_fs_rename_replace(struct afs_operation *op)
+{
+	struct afs_vnode_param *orig_dvp = &op->file[0];
+	struct afs_vnode_param *new_dvp = &op->file[1];
+	const struct qstr *orig_name = &op->dentry->d_name;
+	const struct qstr *new_name = &op->dentry_2->d_name;
+	struct afs_call *call;
+	__be32 *bp;
+
+	_enter("");
+
+	call = afs_alloc_flat_call(op->net, &yfs_RXYFSRename_Replace,
+				   sizeof(__be32) +
+				   sizeof(struct yfs_xdr_RPCFlags) +
+				   sizeof(struct yfs_xdr_YFSFid) +
+				   xdr_strlen(orig_name->len) +
+				   sizeof(struct yfs_xdr_YFSFid) +
+				   xdr_strlen(new_name->len),
+				   sizeof(struct yfs_xdr_YFSFetchStatus) +
+				   sizeof(struct yfs_xdr_YFSFid) +
+				   sizeof(struct yfs_xdr_YFSFetchStatus) +
+				   sizeof(struct yfs_xdr_YFSFetchStatus) +
+				   sizeof(struct yfs_xdr_YFSFid) +
+				   sizeof(struct yfs_xdr_YFSFetchStatus) +
+				   sizeof(struct yfs_xdr_YFSVolSync));
+	if (!call)
+		return afs_op_nomem(op);
+
+	/* Marshall the parameters. */
+	bp = call->request;
+	bp = xdr_encode_u32(bp, YFSRENAME_REPLACE);
+	bp = xdr_encode_u32(bp, 0); /* RPC flags */
+	bp = xdr_encode_YFSFid(bp, &orig_dvp->fid);
+	bp = xdr_encode_name(bp, orig_name);
+	bp = xdr_encode_YFSFid(bp, &new_dvp->fid);
+	bp = xdr_encode_name(bp, new_name);
+	yfs_check_req(call, bp);
+
+	call->fid = orig_dvp->fid;
+	trace_afs_make_fs_call2(call, &orig_dvp->fid, orig_name, new_name);
+	afs_make_op_call(op, call, GFP_NOFS);
+}
+
+/*
+ * Rename a file or directory, failing if the target dirent exists.
+ */
+void yfs_fs_rename_noreplace(struct afs_operation *op)
+{
+	struct afs_vnode_param *orig_dvp = &op->file[0];
+	struct afs_vnode_param *new_dvp = &op->file[1];
+	const struct qstr *orig_name = &op->dentry->d_name;
+	const struct qstr *new_name = &op->dentry_2->d_name;
+	struct afs_call *call;
+	__be32 *bp;
+
+	_enter("");
+
+	call = afs_alloc_flat_call(op->net, &yfs_RXYFSRename_NoReplace,
+				   sizeof(__be32) +
+				   sizeof(struct yfs_xdr_RPCFlags) +
+				   sizeof(struct yfs_xdr_YFSFid) +
+				   xdr_strlen(orig_name->len) +
+				   sizeof(struct yfs_xdr_YFSFid) +
+				   xdr_strlen(new_name->len),
+				   sizeof(struct yfs_xdr_YFSFetchStatus) +
+				   sizeof(struct yfs_xdr_YFSFid) +
+				   sizeof(struct yfs_xdr_YFSFetchStatus) +
+				   sizeof(struct yfs_xdr_YFSFetchStatus) +
+				   sizeof(struct yfs_xdr_YFSVolSync));
+	if (!call)
+		return afs_op_nomem(op);
+
+	/* Marshall the parameters. */
+	bp = call->request;
+	bp = xdr_encode_u32(bp, YFSRENAME_NOREPLACE);
+	bp = xdr_encode_u32(bp, 0); /* RPC flags */
+	bp = xdr_encode_YFSFid(bp, &orig_dvp->fid);
+	bp = xdr_encode_name(bp, orig_name);
+	bp = xdr_encode_YFSFid(bp, &new_dvp->fid);
+	bp = xdr_encode_name(bp, new_name);
+	yfs_check_req(call, bp);
+
+	call->fid = orig_dvp->fid;
+	trace_afs_make_fs_call2(call, &orig_dvp->fid, orig_name, new_name);
+	afs_make_op_call(op, call, GFP_NOFS);
+}
+
+/*
+ * Exchange a pair of files directories.
+ */
+void yfs_fs_rename_exchange(struct afs_operation *op)
+{
+	struct afs_vnode_param *orig_dvp = &op->file[0];
+	struct afs_vnode_param *new_dvp = &op->file[1];
+	const struct qstr *orig_name = &op->dentry->d_name;
+	const struct qstr *new_name = &op->dentry_2->d_name;
+	struct afs_call *call;
+	__be32 *bp;
+
+	_enter("");
+
+	call = afs_alloc_flat_call(op->net, &yfs_RXYFSRename_Exchange,
+				   sizeof(__be32) +
+				   sizeof(struct yfs_xdr_RPCFlags) +
+				   sizeof(struct yfs_xdr_YFSFid) +
+				   xdr_strlen(orig_name->len) +
+				   sizeof(struct yfs_xdr_YFSFid) +
+				   xdr_strlen(new_name->len),
+				   sizeof(struct yfs_xdr_YFSFetchStatus) +
+				   sizeof(struct yfs_xdr_YFSFid) +
+				   sizeof(struct yfs_xdr_YFSFetchStatus) +
+				   sizeof(struct yfs_xdr_YFSFetchStatus) +
+				   sizeof(struct yfs_xdr_YFSFid) +
+				   sizeof(struct yfs_xdr_YFSFetchStatus) +
+				   sizeof(struct yfs_xdr_YFSVolSync));
+	if (!call)
+		return afs_op_nomem(op);
+
+	/* Marshall the parameters. */
+	bp = call->request;
+	bp = xdr_encode_u32(bp, YFSRENAME_EXCHANGE);
 	bp = xdr_encode_u32(bp, 0); /* RPC flags */
 	bp = xdr_encode_YFSFid(bp, &orig_dvp->fid);
 	bp = xdr_encode_name(bp, orig_name);

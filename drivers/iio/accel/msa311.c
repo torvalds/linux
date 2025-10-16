@@ -607,7 +607,6 @@ static int msa311_read_raw_data(struct iio_dev *indio_dev,
 	err = msa311_get_axis(msa311, chan, &axis);
 	mutex_unlock(&msa311->lock);
 
-	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 
 	iio_device_release_direct(indio_dev);
@@ -741,7 +740,6 @@ static int msa311_write_scale(struct iio_dev *indio_dev, int val, int val2)
 			break;
 		}
 
-	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 
 	if (err)
@@ -781,7 +779,6 @@ static int msa311_write_samp_freq(struct iio_dev *indio_dev, int val, int val2)
 			break;
 		}
 
-	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 
 	iio_device_release_direct(indio_dev);
@@ -832,7 +829,6 @@ static int msa311_debugfs_reg_access(struct iio_dev *indio_dev,
 
 	mutex_unlock(&msa311->lock);
 
-	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 
 	if (err)
@@ -855,7 +851,6 @@ static int msa311_buffer_postdisable(struct iio_dev *indio_dev)
 	struct msa311_priv *msa311 = iio_priv(indio_dev);
 	struct device *dev = msa311->dev;
 
-	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 
 	return 0;
@@ -990,7 +985,7 @@ static int msa311_check_partid(struct msa311_priv *msa311)
 	msa311->chip_name = devm_kasprintf(dev, GFP_KERNEL,
 					   "msa311-%02x", partid);
 	if (!msa311->chip_name)
-		return dev_err_probe(dev, -ENOMEM, "can't alloc chip name\n");
+		return -ENOMEM;
 
 	return 0;
 }
@@ -1069,8 +1064,7 @@ static int msa311_setup_interrupts(struct msa311_priv *msa311)
 
 	trig = devm_iio_trigger_alloc(dev, "%s-new-data", msa311->chip_name);
 	if (!trig)
-		return dev_err_probe(dev, -ENOMEM,
-				     "can't allocate newdata trigger\n");
+		return -ENOMEM;
 
 	msa311->new_data_trig = trig;
 	msa311->new_data_trig->ops = &msa311_new_data_trig_ops;
@@ -1153,8 +1147,7 @@ static int msa311_probe(struct i2c_client *i2c)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*msa311));
 	if (!indio_dev)
-		return dev_err_probe(dev, -ENOMEM,
-				     "IIO device allocation failed\n");
+		return -ENOMEM;
 
 	msa311 = iio_priv(indio_dev);
 	msa311->dev = dev;
@@ -1195,7 +1188,7 @@ static int msa311_probe(struct i2c_client *i2c)
 	 */
 	err = devm_add_action_or_reset(dev, msa311_powerdown, msa311);
 	if (err)
-		return dev_err_probe(dev, err, "can't add powerdown action\n");
+		return err;
 
 	err = pm_runtime_set_active(dev);
 	if (err)
@@ -1231,7 +1224,6 @@ static int msa311_probe(struct i2c_client *i2c)
 	if (err)
 		return err;
 
-	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 
 	err = devm_iio_device_register(dev, indio_dev);

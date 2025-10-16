@@ -431,7 +431,7 @@ struct qdisc_rate_table *qdisc_get_rtab(struct tc_ratespec *r,
 
 	for (rtab = qdisc_rtab_list; rtab; rtab = rtab->next) {
 		if (!memcmp(&rtab->rate, r, sizeof(struct tc_ratespec)) &&
-		    !memcmp(&rtab->data, nla_data(tab), 1024)) {
+		    !memcmp(&rtab->data, nla_data(tab), TC_RTAB_SIZE)) {
 			rtab->refcnt++;
 			return rtab;
 		}
@@ -441,7 +441,7 @@ struct qdisc_rate_table *qdisc_get_rtab(struct tc_ratespec *r,
 	if (rtab) {
 		rtab->rate = *r;
 		rtab->refcnt = 1;
-		memcpy(rtab->data, nla_data(tab), 1024);
+		memcpy(rtab->data, nla_data(tab), TC_RTAB_SIZE);
 		if (r->linklayer == TC_LINKLAYER_UNAWARE)
 			r->linklayer = __detect_linklayer(r, rtab->data);
 		rtab->next = qdisc_rtab_list;

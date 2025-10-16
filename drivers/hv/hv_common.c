@@ -257,7 +257,7 @@ static void hv_kmsg_dump_register(void)
 
 static inline bool hv_output_page_exists(void)
 {
-	return hv_root_partition() || IS_ENABLED(CONFIG_HYPERV_VTL_MODE);
+	return hv_parent_partition() || IS_ENABLED(CONFIG_HYPERV_VTL_MODE);
 }
 
 void __init hv_get_partition_id(void)
@@ -377,7 +377,7 @@ int __init hv_common_init(void)
 		BUG_ON(!hyperv_pcpu_output_arg);
 	}
 
-	if (hv_root_partition()) {
+	if (hv_parent_partition()) {
 		hv_synic_eventring_tail = alloc_percpu(u8 *);
 		BUG_ON(!hv_synic_eventring_tail);
 	}
@@ -531,7 +531,7 @@ int hv_common_cpu_init(unsigned int cpu)
 	if (msr_vp_index > hv_max_vp_index)
 		hv_max_vp_index = msr_vp_index;
 
-	if (hv_root_partition()) {
+	if (hv_parent_partition()) {
 		synic_eventring_tail = (u8 **)this_cpu_ptr(hv_synic_eventring_tail);
 		*synic_eventring_tail = kcalloc(HV_SYNIC_SINT_COUNT,
 						sizeof(u8), flags);
@@ -558,7 +558,7 @@ int hv_common_cpu_die(unsigned int cpu)
 	 * originally allocated memory is reused in hv_common_cpu_init().
 	 */
 
-	if (hv_root_partition()) {
+	if (hv_parent_partition()) {
 		synic_eventring_tail = this_cpu_ptr(hv_synic_eventring_tail);
 		kfree(*synic_eventring_tail);
 		*synic_eventring_tail = NULL;
@@ -729,13 +729,17 @@ void hv_identify_partition_type(void)
 	 * the root partition setting if also a Confidential VM.
 	 */
 	if ((ms_hyperv.priv_high & HV_CREATE_PARTITIONS) &&
-	    (ms_hyperv.priv_high & HV_CPU_MANAGEMENT) &&
 	    !(ms_hyperv.priv_high & HV_ISOLATION)) {
-		pr_info("Hyper-V: running as root partition\n");
-		if (IS_ENABLED(CONFIG_MSHV_ROOT))
-			hv_curr_partition_type = HV_PARTITION_TYPE_ROOT;
-		else
+
+		if (!IS_ENABLED(CONFIG_MSHV_ROOT)) {
 			pr_crit("Hyper-V: CONFIG_MSHV_ROOT not enabled!\n");
+		} else if (ms_hyperv.priv_high & HV_CPU_MANAGEMENT) {
+			pr_info("Hyper-V: running as root partition\n");
+			hv_curr_partition_type = HV_PARTITION_TYPE_ROOT;
+		} else {
+			pr_info("Hyper-V: running as L1VH partition\n");
+			hv_curr_partition_type = HV_PARTITION_TYPE_L1VH;
+		}
 	}
 }
 

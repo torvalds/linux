@@ -40,6 +40,6 @@ examples:
             compatible = "dynaimage,al3320a";
             reg = <0x1c>;
             vdd-supply = <&vdd_reg>;
-            interrupts = <0 99 4>;
+            interrupts = <99 IRQ_TYPE_LEVEL_HIGH>;
         };
     };

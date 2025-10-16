@@ -1,3 +1,6 @@
+Random Number Generator (RNG)
+=============================
+
 Random Number Algorithm Definitions
 -----------------------------------
 

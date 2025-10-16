@@ -95,7 +95,6 @@ static const struct regmap_config sdhci_am654_regmap_config = {
 	.reg_bits = 32,
 	.val_bits = 32,
 	.reg_stride = 4,
-	.fast_io = true,
 };
 
 struct timing_data {
@@ -1036,7 +1035,6 @@ static void sdhci_am654_remove(struct platform_device *pdev)
 	pm_runtime_put_noidle(dev);
 }
 
-#ifdef CONFIG_PM
 static int sdhci_am654_restore(struct sdhci_host *host)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
@@ -1124,20 +1122,17 @@ static int sdhci_am654_runtime_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static const struct dev_pm_ops sdhci_am654_dev_pm_ops = {
-	SET_RUNTIME_PM_OPS(sdhci_am654_runtime_suspend,
-			   sdhci_am654_runtime_resume, NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				pm_runtime_force_resume)
+	RUNTIME_PM_OPS(sdhci_am654_runtime_suspend, sdhci_am654_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
 };
 
 static struct platform_driver sdhci_am654_driver = {
 	.driver = {
 		.name = "sdhci-am654",
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
-		.pm = &sdhci_am654_dev_pm_ops,
+		.pm = pm_ptr(&sdhci_am654_dev_pm_ops),
 		.of_match_table = sdhci_am654_of_match,
 	},
 	.probe = sdhci_am654_probe,

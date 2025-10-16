@@ -11,7 +11,7 @@ Prerequisites:
     gnuplot 5.0 or higher
     gnuplot-py 1.8 or higher
     (Most of the distributions have these required packages. They may be called
-     gnuplot-py, phython-gnuplot or phython3-gnuplot, gnuplot-nox, ... )
+     gnuplot-py, python-gnuplot or python3-gnuplot, gnuplot-nox, ... )
 
     Kernel config for Linux trace is enabled
 

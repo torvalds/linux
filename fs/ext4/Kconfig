@@ -1,31 +1,4 @@
 # SPDX-License-Identifier: GPL-2.0-only
-# Ext3 configs are here for backward compatibility with old configs which may
-# have EXT3_FS set but not EXT4_FS set and thus would result in non-bootable
-# kernels after the removal of ext3 driver.
-config EXT3_FS
-	tristate "The Extended 3 (ext3) filesystem"
-	select EXT4_FS
-	help
-	  This config option is here only for backward compatibility. ext3
-	  filesystem is now handled by the ext4 driver.
-
-config EXT3_FS_POSIX_ACL
-	bool "Ext3 POSIX Access Control Lists"
-	depends on EXT3_FS
-	select EXT4_FS_POSIX_ACL
-	select FS_POSIX_ACL
-	help
-	  This config option is here only for backward compatibility. ext3
-	  filesystem is now handled by the ext4 driver.
-
-config EXT3_FS_SECURITY
-	bool "Ext3 Security Labels"
-	depends on EXT3_FS
-	select EXT4_FS_SECURITY
-	help
-	  This config option is here only for backward compatibility. ext3
-	  filesystem is now handled by the ext4 driver.
-
 config EXT4_FS
 	tristate "The Extended 4 (ext4) filesystem"
 	select BUFFER_HEAD

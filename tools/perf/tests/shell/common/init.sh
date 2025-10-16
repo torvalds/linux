@@ -11,8 +11,8 @@
 #
 
 
-. ../common/settings.sh
-. ../common/patterns.sh
+. "$(dirname $0)/../common/settings.sh"
+. "$(dirname $0)/../common/patterns.sh"
 
 THIS_TEST_NAME=`basename $0 .sh`
 

@@ -2,7 +2,7 @@
 # Makefile for Sparc library files..
 #
 
-asflags-y := -ansi -DST_DIV0=0x02
+asflags-y := -DST_DIV0=0x02
 
 lib-$(CONFIG_SPARC32) += ashrdi3.o
 lib-$(CONFIG_SPARC32) += memcpy.o memset.o

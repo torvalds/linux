@@ -112,10 +112,39 @@ destroy_skel:
 	tracing_struct_many_args__destroy(skel);
 }
 
+static void test_union_args(void)
+{
+	struct tracing_struct *skel;
+	int err;
+
+	skel = tracing_struct__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "tracing_struct__open_and_load"))
+		return;
+
+	err = tracing_struct__attach(skel);
+	if (!ASSERT_OK(err, "tracing_struct__attach"))
+		goto out;
+
+	ASSERT_OK(trigger_module_test_read(256), "trigger_read");
+
+	ASSERT_EQ(skel->bss->ut1_a_a, 1, "ut1:a.arg.a");
+	ASSERT_EQ(skel->bss->ut1_b, 4, "ut1:b");
+	ASSERT_EQ(skel->bss->ut1_c, 5, "ut1:c");
+
+	ASSERT_EQ(skel->bss->ut2_a, 6, "ut2:a");
+	ASSERT_EQ(skel->bss->ut2_b_a, 2, "ut2:b.arg.a");
+	ASSERT_EQ(skel->bss->ut2_b_b, 3, "ut2:b.arg.b");
+
+out:
+	tracing_struct__destroy(skel);
+}
+
 void test_tracing_struct(void)
 {
 	if (test__start_subtest("struct_args"))
 		test_struct_args();
 	if (test__start_subtest("struct_many_args"))
 		test_struct_many_args();
+	if (test__start_subtest("union_args"))
+		test_union_args();
 }

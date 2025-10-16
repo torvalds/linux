@@ -158,5 +158,9 @@ void bpf_kfunc_trusted_vma_test(struct vm_area_struct *ptr) __ksym;
 void bpf_kfunc_trusted_task_test(struct task_struct *ptr) __ksym;
 void bpf_kfunc_trusted_num_test(int *ptr) __ksym;
 void bpf_kfunc_rcu_task_test(struct task_struct *ptr) __ksym;
+struct task_struct *bpf_kfunc_ret_rcu_test(void) __ksym;
+int *bpf_kfunc_ret_rcu_test_nostruct(int rdonly_buf_size) __ksym;
+
+int bpf_kfunc_multi_st_ops_test_1(struct st_ops_args *args, u32 id) __ksym;
 
 #endif /* _BPF_TESTMOD_KFUNC_H */

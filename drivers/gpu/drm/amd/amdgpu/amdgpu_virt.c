@@ -828,10 +828,13 @@ static void amdgpu_virt_init_ras(struct amdgpu_device *adev)
 {
 	ratelimit_state_init(&adev->virt.ras.ras_error_cnt_rs, 5 * HZ, 1);
 	ratelimit_state_init(&adev->virt.ras.ras_cper_dump_rs, 5 * HZ, 1);
+	ratelimit_state_init(&adev->virt.ras.ras_chk_criti_rs, 5 * HZ, 1);
 
 	ratelimit_set_flags(&adev->virt.ras.ras_error_cnt_rs,
 			    RATELIMIT_MSG_ON_RELEASE);
 	ratelimit_set_flags(&adev->virt.ras.ras_cper_dump_rs,
+			    RATELIMIT_MSG_ON_RELEASE);
+	ratelimit_set_flags(&adev->virt.ras.ras_chk_criti_rs,
 			    RATELIMIT_MSG_ON_RELEASE);
 
 	mutex_init(&adev->virt.ras.ras_telemetry_mutex);
@@ -1500,4 +1503,56 @@ void amdgpu_virt_request_bad_pages(struct amdgpu_device *adev)
 
 	if (virt->ops && virt->ops->req_bad_pages)
 		virt->ops->req_bad_pages(adev);
+}
+
+static int amdgpu_virt_cache_chk_criti_hit(struct amdgpu_device *adev,
+					   struct amdsriov_ras_telemetry *host_telemetry,
+					   bool *hit)
+{
+	struct amd_sriov_ras_chk_criti *tmp = NULL;
+	uint32_t checksum, used_size;
+
+	checksum = host_telemetry->header.checksum;
+	used_size = host_telemetry->header.used_size;
+
+	if (used_size > (AMD_SRIOV_RAS_TELEMETRY_SIZE_KB << 10))
+		return 0;
+
+	tmp = kmemdup(&host_telemetry->body.chk_criti, used_size, GFP_KERNEL);
+	if (!tmp)
+		return -ENOMEM;
+
+	if (checksum != amd_sriov_msg_checksum(tmp, used_size, 0, 0))
+		goto out;
+
+	if (hit)
+		*hit = tmp->hit ? true : false;
+
+out:
+	kfree(tmp);
+
+	return 0;
+}
+
+int amdgpu_virt_check_vf_critical_region(struct amdgpu_device *adev, u64 addr, bool *hit)
+{
+	struct amdgpu_virt *virt = &adev->virt;
+	int r = -EPERM;
+
+	if (!virt->ops || !virt->ops->req_ras_chk_criti)
+		return -EOPNOTSUPP;
+
+	/* Host allows 15 ras telemetry requests per 60 seconds. Afterwhich, the Host
+	 * will ignore incoming guest messages. Ratelimit the guest messages to
+	 * prevent guest self DOS.
+	 */
+	if (__ratelimit(&virt->ras.ras_chk_criti_rs)) {
+		mutex_lock(&virt->ras.ras_telemetry_mutex);
+		if (!virt->ops->req_ras_chk_criti(adev, addr))
+			r = amdgpu_virt_cache_chk_criti_hit(
+				adev, virt->fw_reserve.ras_telemetry, hit);
+		mutex_unlock(&virt->ras.ras_telemetry_mutex);
+	}
+
+	return r;
 }

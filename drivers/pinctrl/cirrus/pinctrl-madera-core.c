@@ -804,7 +804,7 @@ static int madera_pin_conf_get(struct pinctrl_dev *pctldev, unsigned int pin,
 		if (conf[0] & MADERA_GP1_IP_CFG_MASK)
 			result = 1;
 		break;
-	case PIN_CONFIG_OUTPUT:
+	case PIN_CONFIG_LEVEL:
 		if ((conf[1] & MADERA_GP1_DIR_MASK) &&
 		    (conf[0] & MADERA_GP1_LVL_MASK))
 			result = 1;
@@ -902,7 +902,7 @@ static int madera_pin_conf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 			mask[1] |= MADERA_GP1_DIR_MASK;
 			conf[1] |= MADERA_GP1_DIR;
 			break;
-		case PIN_CONFIG_OUTPUT:
+		case PIN_CONFIG_LEVEL:
 			val = pinconf_to_config_argument(*configs);
 			mask[0] |= MADERA_GP1_LVL_MASK;
 			if (val)

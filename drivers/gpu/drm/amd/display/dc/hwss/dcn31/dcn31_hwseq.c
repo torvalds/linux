@@ -45,7 +45,7 @@
 #include "link_hwss.h"
 #include "dpcd_defs.h"
 #include "dce/dmub_outbox.h"
-#include "link.h"
+#include "link_service.h"
 #include "dcn10/dcn10_hwseq.h"
 #include "dcn21/dcn21_hwseq.h"
 #include "inc/link_enc_cfg.h"

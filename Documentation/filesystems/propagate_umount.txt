@@ -286,7 +286,7 @@ Trim_one(m)
 		strip the "seen by Trim_ancestors" mark from m
 		remove m from the Candidates list
 		return
-		
+
 	remove_this = false
 	found = false
 	for each n in children(m)
@@ -312,7 +312,7 @@ Trim_ancestors(m)
 	}
 
 	Terminating condition in the loop in Trim_ancestors() is correct,
-since that that loop will never run into p belonging to U - p is always
+since that loop will never run into p belonging to U - p is always
 an ancestor of argument of Trim_one() and since U is closed, the argument
 of Trim_one() would also have to belong to U.  But Trim_one() is never
 called for elements of U.  In other words, p belongs to S if and only
@@ -361,7 +361,7 @@ such removals.
 Proof: suppose S was non-shifting, x is a locked element of S, parent of x
 is not in S and S - {x} is not non-shifting.  Then there is an element m
 in S - {x} and a subtree mounted strictly inside m, such that m contains
-an element not in in S - {x}.  Since S is non-shifting, everything in
+an element not in S - {x}.  Since S is non-shifting, everything in
 that subtree must belong to S.  But that means that this subtree must
 contain x somewhere *and* that parent of x either belongs that subtree
 or is equal to m.  Either way it must belong to S.  Contradiction.

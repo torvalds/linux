@@ -1388,18 +1388,19 @@ struct find_var_data {
 #define DWARF_OP_DIRECT_REGS  32
 
 static bool match_var_offset(Dwarf_Die *die_mem, struct find_var_data *data,
-			     u64 addr_offset, u64 addr_type, bool is_pointer)
+			     s64 addr_offset, s64 addr_type, bool is_pointer)
 {
 	Dwarf_Die type_die;
 	Dwarf_Word size;
+	s64 offset = addr_offset - addr_type;
 
-	if (addr_offset == addr_type) {
+	if (offset == 0) {
 		/* Update offset relative to the start of the variable */
 		data->offset = 0;
 		return true;
 	}
 
-	if (addr_offset < addr_type)
+	if (offset < 0)
 		return false;
 
 	if (die_get_real_type(die_mem, &type_die) == NULL)
@@ -1414,12 +1415,40 @@ static bool match_var_offset(Dwarf_Die *die_mem, struct find_var_data *data,
 	if (dwarf_aggregate_size(&type_die, &size) < 0)
 		return false;
 
-	if (addr_offset >= addr_type + size)
+	if ((u64)offset >= size)
 		return false;
 
 	/* Update offset relative to the start of the variable */
-	data->offset = addr_offset - addr_type;
+	data->offset = offset;
 	return true;
+}
+
+/**
+ * is_breg_access_indirect - Check if breg based access implies type
+ * dereference
+ * @ops: DWARF operations array
+ * @nops: Number of operations in @ops
+ *
+ * Returns true if the DWARF expression evaluates to the variable's
+ * value, so the memory access on that register needs type dereference.
+ * Returns false if the expression evaluates to the variable's address.
+ * This is called after check_allowed_ops.
+ */
+static bool is_breg_access_indirect(Dwarf_Op *ops, size_t nops)
+{
+	/* only the base register */
+	if (nops == 1)
+		return false;
+
+	if (nops == 2 && ops[1].atom == DW_OP_stack_value)
+		return true;
+
+	if (nops == 3 && (ops[1].atom == DW_OP_deref ||
+		ops[1].atom == DW_OP_deref_size) &&
+		ops[2].atom == DW_OP_stack_value)
+		return false;
+	/* unreachable, OP not supported */
+	return false;
 }
 
 /* Only checks direct child DIEs in the given scope. */
@@ -1450,7 +1479,7 @@ static int __die_find_var_reg_cb(Dwarf_Die *die_mem, void *arg)
 		if (data->is_fbreg && ops->atom == DW_OP_fbreg &&
 		    check_allowed_ops(ops, nops) &&
 		    match_var_offset(die_mem, data, data->offset, ops->number,
-				     /*is_pointer=*/false))
+				     is_breg_access_indirect(ops, nops)))
 			return DIE_FIND_CB_END;
 
 		/* Only match with a simple case */
@@ -1462,11 +1491,11 @@ static int __die_find_var_reg_cb(Dwarf_Die *die_mem, void *arg)
 					     /*is_pointer=*/true))
 				return DIE_FIND_CB_END;
 
-			/* Local variables accessed by a register + offset */
+			/* variables accessed by a register + offset */
 			if (ops->atom == (DW_OP_breg0 + data->reg) &&
 			    check_allowed_ops(ops, nops) &&
 			    match_var_offset(die_mem, data, data->offset, ops->number,
-					     /*is_pointer=*/false))
+					     is_breg_access_indirect(ops, nops)))
 				return DIE_FIND_CB_END;
 		} else {
 			/* pointer variables saved in a register 32 or above */
@@ -1476,11 +1505,11 @@ static int __die_find_var_reg_cb(Dwarf_Die *die_mem, void *arg)
 					     /*is_pointer=*/true))
 				return DIE_FIND_CB_END;
 
-			/* Local variables accessed by a register + offset */
+			/* variables accessed by a register + offset */
 			if (ops->atom == DW_OP_bregx && data->reg == ops->number &&
 			    check_allowed_ops(ops, nops) &&
 			    match_var_offset(die_mem, data, data->offset, ops->number2,
-					     /*is_poitner=*/false))
+					     is_breg_access_indirect(ops, nops)))
 				return DIE_FIND_CB_END;
 		}
 	}
@@ -1598,12 +1627,21 @@ static int __die_collect_vars_cb(Dwarf_Die *die_mem, void *arg)
 	if (!check_allowed_ops(ops, nops))
 		return DIE_FIND_CB_SIBLING;
 
-	if (die_get_real_type(die_mem, &type_die) == NULL)
+	if (__die_get_real_type(die_mem, &type_die) == NULL)
 		return DIE_FIND_CB_SIBLING;
 
 	vt = malloc(sizeof(*vt));
 	if (vt == NULL)
 		return DIE_FIND_CB_END;
+
+	/* Usually a register holds the value of a variable */
+	vt->is_reg_var_addr = false;
+
+	if (((ops->atom >= DW_OP_breg0 && ops->atom <= DW_OP_breg31) ||
+	      ops->atom == DW_OP_bregx || ops->atom == DW_OP_fbreg) &&
+	      !is_breg_access_indirect(ops, nops))
+		/* The register contains an address of the variable. */
+		vt->is_reg_var_addr = true;
 
 	vt->die_off = dwarf_dieoffset(&type_die);
 	vt->addr = start;
@@ -1920,6 +1958,7 @@ struct find_scope_data {
 static int __die_find_scope_cb(Dwarf_Die *die_mem, void *arg)
 {
 	struct find_scope_data *data = arg;
+	int tag = dwarf_tag(die_mem);
 
 	if (dwarf_haspc(die_mem, data->pc)) {
 		Dwarf_Die *tmp;
@@ -1933,6 +1972,14 @@ static int __die_find_scope_cb(Dwarf_Die *die_mem, void *arg)
 		data->nr++;
 		return DIE_FIND_CB_CHILD;
 	}
+
+	/*
+	 * If the DIE doesn't have the PC, we still need to check its children
+	 * and siblings if it's a container like a namespace.
+	 */
+	if (tag == DW_TAG_namespace)
+		return DIE_FIND_CB_CONTINUE;
+
 	return DIE_FIND_CB_SIBLING;
 }
 

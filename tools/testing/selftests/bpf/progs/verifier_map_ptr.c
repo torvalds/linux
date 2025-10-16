@@ -70,10 +70,13 @@ __naked void bpf_map_ptr_write_rejected(void)
 	: __clobber_all);
 }
 
+/* The first element of struct bpf_map is a SHA256 hash of 32 bytes, accessing
+ * into this array is valid. The opts field is now at offset 33.
+ */
 SEC("socket")
 __description("bpf_map_ptr: read non-existent field rejected")
 __failure
-__msg("cannot access ptr member ops with moff 0 in struct bpf_map with off 1 size 4")
+__msg("cannot access ptr member ops with moff 32 in struct bpf_map with off 33 size 4")
 __failure_unpriv
 __msg_unpriv("access is allowed only to CAP_PERFMON and CAP_SYS_ADMIN")
 __flag(BPF_F_ANY_ALIGNMENT)
@@ -82,7 +85,7 @@ __naked void read_non_existent_field_rejected(void)
 	asm volatile ("					\
 	r6 = 0;						\
 	r1 = %[map_array_48b] ll;			\
-	r6 = *(u32*)(r1 + 1);				\
+	r6 = *(u32*)(r1 + 33);				\
 	r0 = 1;						\
 	exit;						\
 "	:

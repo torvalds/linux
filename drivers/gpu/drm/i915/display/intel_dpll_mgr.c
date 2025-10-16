@@ -2046,6 +2046,7 @@ static void bxt_ddi_pll_enable(struct intel_display *display,
 	enum dpio_phy phy = DPIO_PHY0;
 	enum dpio_channel ch = DPIO_CH0;
 	u32 temp;
+	int ret;
 
 	bxt_port_to_phy_channel(display, port, &phy, &ch);
 
@@ -2056,8 +2057,10 @@ static void bxt_ddi_pll_enable(struct intel_display *display,
 		intel_de_rmw(display, BXT_PORT_PLL_ENABLE(port),
 			     0, PORT_PLL_POWER_ENABLE);
 
-		if (wait_for_us((intel_de_read(display, BXT_PORT_PLL_ENABLE(port)) &
-				 PORT_PLL_POWER_STATE), 200))
+		ret = intel_de_wait_custom(display, BXT_PORT_PLL_ENABLE(port),
+					   PORT_PLL_POWER_STATE, PORT_PLL_POWER_STATE,
+					   200, 0, NULL);
+		if (ret)
 			drm_err(display->drm,
 				"Power state not set for PLL:%d\n", port);
 	}
@@ -2119,8 +2122,10 @@ static void bxt_ddi_pll_enable(struct intel_display *display,
 	intel_de_rmw(display, BXT_PORT_PLL_ENABLE(port), 0, PORT_PLL_ENABLE);
 	intel_de_posting_read(display, BXT_PORT_PLL_ENABLE(port));
 
-	if (wait_for_us((intel_de_read(display, BXT_PORT_PLL_ENABLE(port)) & PORT_PLL_LOCK),
-			200))
+	ret = intel_de_wait_custom(display, BXT_PORT_PLL_ENABLE(port),
+				   PORT_PLL_LOCK, PORT_PLL_LOCK,
+				   200, 0, NULL);
+	if (ret)
 		drm_err(display->drm, "PLL %d not locked\n", port);
 
 	if (display->platform.geminilake) {
@@ -2144,6 +2149,7 @@ static void bxt_ddi_pll_disable(struct intel_display *display,
 				struct intel_dpll *pll)
 {
 	enum port port = (enum port)pll->info->id; /* 1:1 port->PLL mapping */
+	int ret;
 
 	intel_de_rmw(display, BXT_PORT_PLL_ENABLE(port), PORT_PLL_ENABLE, 0);
 	intel_de_posting_read(display, BXT_PORT_PLL_ENABLE(port));
@@ -2152,8 +2158,10 @@ static void bxt_ddi_pll_disable(struct intel_display *display,
 		intel_de_rmw(display, BXT_PORT_PLL_ENABLE(port),
 			     PORT_PLL_POWER_ENABLE, 0);
 
-		if (wait_for_us(!(intel_de_read(display, BXT_PORT_PLL_ENABLE(port)) &
-				  PORT_PLL_POWER_STATE), 200))
+		ret = intel_de_wait_custom(display, BXT_PORT_PLL_ENABLE(port),
+					   PORT_PLL_POWER_STATE, 0,
+					   200, 0, NULL);
+		if (ret)
 			drm_err(display->drm,
 				"Power state not reset for PLL:%d\n", port);
 	}

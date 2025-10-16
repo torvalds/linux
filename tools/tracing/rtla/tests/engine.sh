@@ -43,6 +43,7 @@ check() {
 	tested_command=$1
 	expected_exitcode=${3:-0}
 	expected_output=$4
+	unexpected_output=$5
 	# Simple check: run rtla with given arguments and test exit code.
 	# If TEST_COUNT is set, run the test. Otherwise, just count.
 	ctr=$(($ctr + 1))
@@ -53,24 +54,33 @@ check() {
 		# Run rtla; in case of failure, include its output as comment
 		# in the test results.
 		result=$(eval stdbuf -oL $TIMEOUT "$RTLA" $2 2>&1); exitcode=$?
+		failbuf=''
+		fail=0
+
 		# Test if the results matches if requested
-		if [ -n "$expected_output" ]
+		if [ -n "$expected_output" ] && ! grep -qE "$expected_output" <<< "$result"
 		then
-			grep -E "$expected_output" <<< "$result" > /dev/null; grep_result=$?
-		else
-			grep_result=0
+			fail=1
+			failbuf+=$(printf "# Output match failed: \"%s\"" "$expected_output")
+			failbuf+=$'\n'
 		fi
 
-		if [ $exitcode -eq $expected_exitcode ] && [ $grep_result -eq 0 ]
+		if [ -n "$unexpected_output" ] && grep -qE "$unexpected_output" <<< "$result"
+		then
+			fail=1
+			failbuf+=$(printf "# Output non-match failed: \"%s\"" "$unexpected_output")
+			failbuf+=$'\n'
+		fi
+
+		if [ $exitcode -eq $expected_exitcode ] && [ $fail -eq 0 ]
 		then
 			echo "ok $ctr - $1"
 		else
-			echo "not ok $ctr - $1"
 			# Add rtla output and exit code as comments in case of failure
+			echo "not ok $ctr - $1"
+			echo -n "$failbuf"
 			echo "$result" | col -b | while read line; do echo "# $line"; done
 			printf "#\n# exit code %s\n" $exitcode
-			[ -n "$expected_output" ] && [ $grep_result -ne 0 ] && \
-				printf "# Output match failed: \"%s\"\n" "$expected_output"
 		fi
 	fi
 }

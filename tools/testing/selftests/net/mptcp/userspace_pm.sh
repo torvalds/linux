@@ -241,7 +241,7 @@ make_connection()
 
 	print_test "Established IP${is_v6} MPTCP Connection ns2 => ns1"
 	if [ "${client_token}" != "" ] && [ "${server_token}" != "" ] &&
-	   [ "${client_serverside}" = 0 ] && [ "${server_serverside}" = 1 ] &&
+	   [ "${client_serverside:-0}" = 0 ] && [ "${server_serverside:-0}" = 1 ] &&
 	   [ "${client_nojoin:-0}" = 0 ] && [ "${server_nojoin:-0}" = 1 ]
 	then
 		test_pass

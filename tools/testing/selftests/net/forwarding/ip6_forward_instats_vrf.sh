@@ -95,7 +95,7 @@ ipv6_in_too_big_err()
 
 	# Send too big packets
 	ip vrf exec $vrf_name \
-		$PING6 -s 1300 2001:1:2::2 -c 1 -w $PING_TIMEOUT &> /dev/null
+		$PING6 -s 1300 -c 1 -w $PING_TIMEOUT 2001:1:2::2 &> /dev/null
 
 	local t1=$(ipv6_stats_get $rtr1 Ip6InTooBigErrors)
 	test "$((t1 - t0))" -ne 0
@@ -131,7 +131,7 @@ ipv6_in_addr_err()
 	# Disable forwarding temporary while sending the packet
 	sysctl -qw net.ipv6.conf.all.forwarding=0
 	ip vrf exec $vrf_name \
-		$PING6 2001:1:2::2 -c 1 -w $PING_TIMEOUT &> /dev/null
+		$PING6 -c 1 -w $PING_TIMEOUT 2001:1:2::2 &> /dev/null
 	sysctl -qw net.ipv6.conf.all.forwarding=1
 
 	local t1=$(ipv6_stats_get $rtr1 Ip6InAddrErrors)
@@ -150,7 +150,7 @@ ipv6_in_discard()
 	# Add a policy to discard
 	ip xfrm policy add dst 2001:1:2::2/128 dir fwd action block
 	ip vrf exec $vrf_name \
-		$PING6 2001:1:2::2 -c 1 -w $PING_TIMEOUT &> /dev/null
+		$PING6 -c 1 -w $PING_TIMEOUT 2001:1:2::2 &> /dev/null
 	ip xfrm policy del dst 2001:1:2::2/128 dir fwd
 
 	local t1=$(ipv6_stats_get $rtr1 Ip6InDiscards)

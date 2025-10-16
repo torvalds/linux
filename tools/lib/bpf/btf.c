@@ -23,7 +23,6 @@
 #include "libbpf_internal.h"
 #include "hashmap.h"
 #include "strset.h"
-#include "str_error.h"
 
 #define BTF_MAX_NR_TYPES 0x7fffffffU
 #define BTF_MAX_STR_OFFSET 0x7fffffffU

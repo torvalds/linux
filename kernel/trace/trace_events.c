@@ -1629,10 +1629,9 @@ static void *s_start(struct seq_file *m, loff_t *pos)
 	loff_t l;
 
 	iter = kzalloc(sizeof(*iter), GFP_KERNEL);
+	mutex_lock(&event_mutex);
 	if (!iter)
 		return NULL;
-
-	mutex_lock(&event_mutex);
 
 	iter->type = SET_EVENT_FILE;
 	iter->file = list_entry(&tr->events, struct trace_event_file, list);

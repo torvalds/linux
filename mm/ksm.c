@@ -1061,11 +1061,6 @@ struct ksm_stable_node *folio_stable_node(const struct folio *folio)
 	return folio_test_ksm(folio) ? folio_raw_mapping(folio) : NULL;
 }
 
-static inline struct ksm_stable_node *page_stable_node(struct page *page)
-{
-	return folio_stable_node(page_folio(page));
-}
-
 static inline void folio_set_stable_node(struct folio *folio,
 					 struct ksm_stable_node *stable_node)
 {
@@ -1217,8 +1212,8 @@ mm_exiting:
 			spin_unlock(&ksm_mmlist_lock);
 
 			mm_slot_free(mm_slot_cache, mm_slot);
-			clear_bit(MMF_VM_MERGEABLE, &mm->flags);
-			clear_bit(MMF_VM_MERGE_ANY, &mm->flags);
+			mm_flags_clear(MMF_VM_MERGEABLE, mm);
+			mm_flags_clear(MMF_VM_MERGE_ANY, mm);
 			mmdrop(mm);
 		} else
 			spin_unlock(&ksm_mmlist_lock);
@@ -2225,6 +2220,7 @@ static void stable_tree_append(struct ksm_rmap_item *rmap_item,
  */
 static void cmp_and_merge_page(struct page *page, struct ksm_rmap_item *rmap_item)
 {
+	struct folio *folio = page_folio(page);
 	struct ksm_rmap_item *tree_rmap_item;
 	struct page *tree_page = NULL;
 	struct ksm_stable_node *stable_node;
@@ -2233,7 +2229,7 @@ static void cmp_and_merge_page(struct page *page, struct ksm_rmap_item *rmap_ite
 	int err;
 	bool max_page_sharing_bypass = false;
 
-	stable_node = page_stable_node(page);
+	stable_node = folio_stable_node(folio);
 	if (stable_node) {
 		if (stable_node->head != &migrate_nodes &&
 		    get_kpfn_nid(READ_ONCE(stable_node->kpfn)) !=
@@ -2272,7 +2268,7 @@ static void cmp_and_merge_page(struct page *page, struct ksm_rmap_item *rmap_ite
 
 	/* Start by searching for the folio in the stable tree */
 	kfolio = stable_tree_search(page);
-	if (&kfolio->page == page && rmap_item->head == stable_node) {
+	if (kfolio == folio && rmap_item->head == stable_node) {
 		folio_put(kfolio);
 		return;
 	}
@@ -2353,10 +2349,11 @@ static void cmp_and_merge_page(struct page *page, struct ksm_rmap_item *rmap_ite
 			 * the page is locked, it is better to skip it and
 			 * perhaps try again later.
 			 */
-			if (!trylock_page(page))
+			if (!folio_trylock(folio))
 				return;
 			split_huge_page(page);
-			unlock_page(page);
+			folio = page_folio(page);
+			folio_unlock(folio);
 		}
 	}
 }
@@ -2620,8 +2617,8 @@ no_vmas:
 		spin_unlock(&ksm_mmlist_lock);
 
 		mm_slot_free(mm_slot_cache, mm_slot);
-		clear_bit(MMF_VM_MERGEABLE, &mm->flags);
-		clear_bit(MMF_VM_MERGE_ANY, &mm->flags);
+		mm_flags_clear(MMF_VM_MERGEABLE, mm);
+		mm_flags_clear(MMF_VM_MERGE_ANY, mm);
 		mmap_read_unlock(mm);
 		mmdrop(mm);
 	} else {
@@ -2742,7 +2739,7 @@ static int __ksm_del_vma(struct vm_area_struct *vma)
 vm_flags_t ksm_vma_flags(const struct mm_struct *mm, const struct file *file,
 			 vm_flags_t vm_flags)
 {
-	if (test_bit(MMF_VM_MERGE_ANY, &mm->flags) &&
+	if (mm_flags_test(MMF_VM_MERGE_ANY, mm) &&
 	    __ksm_should_add_vma(file, vm_flags))
 		vm_flags |= VM_MERGEABLE;
 
@@ -2784,16 +2781,16 @@ int ksm_enable_merge_any(struct mm_struct *mm)
 {
 	int err;
 
-	if (test_bit(MMF_VM_MERGE_ANY, &mm->flags))
+	if (mm_flags_test(MMF_VM_MERGE_ANY, mm))
 		return 0;
 
-	if (!test_bit(MMF_VM_MERGEABLE, &mm->flags)) {
+	if (!mm_flags_test(MMF_VM_MERGEABLE, mm)) {
 		err = __ksm_enter(mm);
 		if (err)
 			return err;
 	}
 
-	set_bit(MMF_VM_MERGE_ANY, &mm->flags);
+	mm_flags_set(MMF_VM_MERGE_ANY, mm);
 	ksm_add_vmas(mm);
 
 	return 0;
@@ -2815,7 +2812,7 @@ int ksm_disable_merge_any(struct mm_struct *mm)
 {
 	int err;
 
-	if (!test_bit(MMF_VM_MERGE_ANY, &mm->flags))
+	if (!mm_flags_test(MMF_VM_MERGE_ANY, mm))
 		return 0;
 
 	err = ksm_del_vmas(mm);
@@ -2824,7 +2821,7 @@ int ksm_disable_merge_any(struct mm_struct *mm)
 		return err;
 	}
 
-	clear_bit(MMF_VM_MERGE_ANY, &mm->flags);
+	mm_flags_clear(MMF_VM_MERGE_ANY, mm);
 	return 0;
 }
 
@@ -2832,9 +2829,9 @@ int ksm_disable(struct mm_struct *mm)
 {
 	mmap_assert_write_locked(mm);
 
-	if (!test_bit(MMF_VM_MERGEABLE, &mm->flags))
+	if (!mm_flags_test(MMF_VM_MERGEABLE, mm))
 		return 0;
-	if (test_bit(MMF_VM_MERGE_ANY, &mm->flags))
+	if (mm_flags_test(MMF_VM_MERGE_ANY, mm))
 		return ksm_disable_merge_any(mm);
 	return ksm_del_vmas(mm);
 }
@@ -2852,7 +2849,7 @@ int ksm_madvise(struct vm_area_struct *vma, unsigned long start,
 		if (!vma_ksm_compatible(vma))
 			return 0;
 
-		if (!test_bit(MMF_VM_MERGEABLE, &mm->flags)) {
+		if (!mm_flags_test(MMF_VM_MERGEABLE, mm)) {
 			err = __ksm_enter(mm);
 			if (err)
 				return err;
@@ -2912,7 +2909,7 @@ int __ksm_enter(struct mm_struct *mm)
 		list_add_tail(&slot->mm_node, &ksm_scan.mm_slot->slot.mm_node);
 	spin_unlock(&ksm_mmlist_lock);
 
-	set_bit(MMF_VM_MERGEABLE, &mm->flags);
+	mm_flags_set(MMF_VM_MERGEABLE, mm);
 	mmgrab(mm);
 
 	if (needs_wakeup)
@@ -2924,7 +2921,7 @@ int __ksm_enter(struct mm_struct *mm)
 
 void __ksm_exit(struct mm_struct *mm)
 {
-	struct ksm_mm_slot *mm_slot;
+	struct ksm_mm_slot *mm_slot = NULL;
 	struct mm_slot *slot;
 	int easy_to_free = 0;
 
@@ -2939,23 +2936,26 @@ void __ksm_exit(struct mm_struct *mm)
 
 	spin_lock(&ksm_mmlist_lock);
 	slot = mm_slot_lookup(mm_slots_hash, mm);
+	if (!slot)
+		goto unlock;
 	mm_slot = mm_slot_entry(slot, struct ksm_mm_slot, slot);
-	if (mm_slot && ksm_scan.mm_slot != mm_slot) {
-		if (!mm_slot->rmap_list) {
-			hash_del(&slot->hash);
-			list_del(&slot->mm_node);
-			easy_to_free = 1;
-		} else {
-			list_move(&slot->mm_node,
-				  &ksm_scan.mm_slot->slot.mm_node);
-		}
+	if (ksm_scan.mm_slot == mm_slot)
+		goto unlock;
+	if (!mm_slot->rmap_list) {
+		hash_del(&slot->hash);
+		list_del(&slot->mm_node);
+		easy_to_free = 1;
+	} else {
+		list_move(&slot->mm_node,
+			  &ksm_scan.mm_slot->slot.mm_node);
 	}
+unlock:
 	spin_unlock(&ksm_mmlist_lock);
 
 	if (easy_to_free) {
 		mm_slot_free(mm_slot_cache, mm_slot);
-		clear_bit(MMF_VM_MERGE_ANY, &mm->flags);
-		clear_bit(MMF_VM_MERGEABLE, &mm->flags);
+		mm_flags_clear(MMF_VM_MERGE_ANY, mm);
+		mm_flags_clear(MMF_VM_MERGEABLE, mm);
 		mmdrop(mm);
 	} else if (mm_slot) {
 		mmap_write_lock(mm);

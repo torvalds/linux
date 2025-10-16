@@ -926,7 +926,6 @@ static int nxp_c45_mdo_dev_open(struct macsec_context *ctx)
 	struct phy_device *phydev = ctx->phydev;
 	struct nxp_c45_phy *priv = phydev->priv;
 	struct nxp_c45_secy *phy_secy;
-	int any_bit_set;
 
 	phy_secy = nxp_c45_find_secy(&priv->macsec->secy_list, ctx->secy->sci);
 	if (IS_ERR(phy_secy))
@@ -939,8 +938,7 @@ static int nxp_c45_mdo_dev_open(struct macsec_context *ctx)
 	if (phy_secy->rx_sc)
 		nxp_c45_rx_sc_en(phydev, phy_secy->rx_sc, true);
 
-	any_bit_set = find_first_bit(priv->macsec->secy_bitmap, TX_SC_MAX);
-	if (any_bit_set == TX_SC_MAX)
+	if (bitmap_empty(priv->macsec->secy_bitmap, TX_SC_MAX))
 		nxp_c45_macsec_en(phydev, true);
 
 	set_bit(phy_secy->secy_id, priv->macsec->secy_bitmap);
@@ -953,7 +951,6 @@ static int nxp_c45_mdo_dev_stop(struct macsec_context *ctx)
 	struct phy_device *phydev = ctx->phydev;
 	struct nxp_c45_phy *priv = phydev->priv;
 	struct nxp_c45_secy *phy_secy;
-	int any_bit_set;
 
 	phy_secy = nxp_c45_find_secy(&priv->macsec->secy_list, ctx->secy->sci);
 	if (IS_ERR(phy_secy))
@@ -967,8 +964,7 @@ static int nxp_c45_mdo_dev_stop(struct macsec_context *ctx)
 	nxp_c45_set_rx_sc0_impl(phydev, false);
 
 	clear_bit(phy_secy->secy_id, priv->macsec->secy_bitmap);
-	any_bit_set = find_first_bit(priv->macsec->secy_bitmap, TX_SC_MAX);
-	if (any_bit_set == TX_SC_MAX)
+	if (bitmap_empty(priv->macsec->secy_bitmap, TX_SC_MAX))
 		nxp_c45_macsec_en(phydev, false);
 
 	return 0;

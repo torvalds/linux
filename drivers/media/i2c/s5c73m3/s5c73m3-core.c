@@ -1368,10 +1368,6 @@ static int __s5c73m3_power_on(struct s5c73m3 *state)
 			goto err_reg_dis;
 	}
 
-	ret = clk_set_rate(state->clock, state->mclk_frequency);
-	if (ret < 0)
-		goto err_reg_dis;
-
 	ret = clk_prepare_enable(state->clock);
 	if (ret < 0)
 		goto err_reg_dis;
@@ -1556,16 +1552,13 @@ static int s5c73m3_get_dt_data(struct s5c73m3 *state)
 	if (!node)
 		return -EINVAL;
 
-	state->clock = devm_clk_get(dev, S5C73M3_CLK_NAME);
+	state->clock = devm_v4l2_sensor_clk_get_legacy(dev, S5C73M3_CLK_NAME,
+						       false,
+						       S5C73M3_DEFAULT_MCLK_FREQ);
 	if (IS_ERR(state->clock))
-		return PTR_ERR(state->clock);
-
-	if (of_property_read_u32(node, "clock-frequency",
-				 &state->mclk_frequency)) {
-		state->mclk_frequency = S5C73M3_DEFAULT_MCLK_FREQ;
-		dev_info(dev, "using default %u Hz clock frequency\n",
-					state->mclk_frequency);
-	}
+		return dev_err_probe(dev, PTR_ERR(state->clock),
+				     "Failed to get the clock %s\n",
+				     S5C73M3_CLK_NAME);
 
 	/* Request GPIO lines asserted */
 	state->stby = devm_gpiod_get(dev, "standby", GPIOD_OUT_HIGH);

@@ -26,6 +26,7 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_bitbang.h>
 #include <linux/types.h>
+#include <linux/minmax.h>
 
 #define DRIVER_NAME "fsl_lpspi"
 
@@ -485,10 +486,9 @@ static int fsl_lpspi_setup_transfer(struct spi_controller *controller,
 		fsl_lpspi->tx = fsl_lpspi_buf_tx_u32;
 	}
 
-	if (t->len <= fsl_lpspi->txfifosize)
-		fsl_lpspi->watermark = t->len;
-	else
-		fsl_lpspi->watermark = fsl_lpspi->txfifosize;
+	fsl_lpspi->watermark = min_t(typeof(fsl_lpspi->watermark),
+				     fsl_lpspi->txfifosize,
+				     t->len);
 
 	if (fsl_lpspi_can_dma(controller, spi, t))
 		fsl_lpspi->usedma = true;

@@ -83,7 +83,7 @@
 
 #include <asm/pgtable-masks.h>
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 static inline pte_t pte_wrprotect(pte_t pte)
 {
 	return __pte(pte_val(pte) | _PAGE_RO);

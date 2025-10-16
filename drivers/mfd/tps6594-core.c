@@ -10,16 +10,20 @@
  * Copyright (C) 2023 BayLibre Incorporated - https://www.baylibre.com/
  */
 
+#include <linux/bitfield.h>
 #include <linux/completion.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/reboot.h>
 
 #include <linux/mfd/core.h>
 #include <linux/mfd/tps6594.h>
 
 #define TPS6594_CRC_SYNC_TIMEOUT_MS 150
+#define TPS65224_EN_SEL_PB 1
+#define TPS65224_GPIO3_SEL_PB 3
 
 /* Completion to synchronize CRC feature enabling on all PMICs */
 static DECLARE_COMPLETION(tps6594_crc_comp);
@@ -126,6 +130,12 @@ static const struct resource tps6594_rtc_resources[] = {
 	DEFINE_RES_IRQ_NAMED(TPS6594_IRQ_TIMER, TPS6594_IRQ_NAME_TIMER),
 	DEFINE_RES_IRQ_NAMED(TPS6594_IRQ_ALARM, TPS6594_IRQ_NAME_ALARM),
 	DEFINE_RES_IRQ_NAMED(TPS6594_IRQ_POWER_UP, TPS6594_IRQ_NAME_POWERUP),
+};
+
+static const struct resource tps6594_pwrbutton_resources[] = {
+	DEFINE_RES_IRQ_NAMED(TPS65224_IRQ_PB_FALL, TPS65224_IRQ_NAME_PB_FALL),
+	DEFINE_RES_IRQ_NAMED(TPS65224_IRQ_PB_RISE, TPS65224_IRQ_NAME_PB_RISE),
+	DEFINE_RES_IRQ_NAMED(TPS65224_IRQ_PB_SHORT, TPS65224_IRQ_NAME_PB_SHORT),
 };
 
 static const struct mfd_cell tps6594_common_cells[] = {
@@ -318,8 +328,6 @@ static const struct resource tps65224_pfsm_resources[] = {
 	DEFINE_RES_IRQ_NAMED(TPS65224_IRQ_REG_UNLOCK, TPS65224_IRQ_NAME_REG_UNLOCK),
 	DEFINE_RES_IRQ_NAMED(TPS65224_IRQ_TWARN, TPS65224_IRQ_NAME_TWARN),
 	DEFINE_RES_IRQ_NAMED(TPS65224_IRQ_PB_LONG, TPS65224_IRQ_NAME_PB_LONG),
-	DEFINE_RES_IRQ_NAMED(TPS65224_IRQ_PB_FALL, TPS65224_IRQ_NAME_PB_FALL),
-	DEFINE_RES_IRQ_NAMED(TPS65224_IRQ_PB_RISE, TPS65224_IRQ_NAME_PB_RISE),
 	DEFINE_RES_IRQ_NAMED(TPS65224_IRQ_TSD_ORD, TPS65224_IRQ_NAME_TSD_ORD),
 	DEFINE_RES_IRQ_NAMED(TPS65224_IRQ_BIST_FAIL, TPS65224_IRQ_NAME_BIST_FAIL),
 	DEFINE_RES_IRQ_NAMED(TPS65224_IRQ_REG_CRC_ERR, TPS65224_IRQ_NAME_REG_CRC_ERR),
@@ -345,6 +353,12 @@ static const struct mfd_cell tps65224_common_cells[] = {
 	MFD_CELL_RES("tps6594-pfsm", tps65224_pfsm_resources),
 	MFD_CELL_RES("tps6594-pinctrl", tps65224_pinctrl_resources),
 	MFD_CELL_RES("tps6594-regulator", tps65224_regulator_resources),
+};
+
+static const struct mfd_cell tps6594_pwrbutton_cell = {
+	.name = "tps6594-pwrbutton",
+	.resources = tps6594_pwrbutton_resources,
+	.num_resources = ARRAY_SIZE(tps6594_pwrbutton_resources),
 };
 
 static const struct regmap_irq tps65224_irqs[] = {
@@ -676,11 +690,25 @@ static int tps6594_enable_crc(struct tps6594 *tps)
 	return ret;
 }
 
+static int tps6594_power_off_handler(struct sys_off_data *data)
+{
+	struct tps6594 *tps = data->cb_data;
+	int ret;
+
+	ret = regmap_update_bits(tps->regmap, TPS6594_REG_FSM_I2C_TRIGGERS,
+				 TPS6594_BIT_TRIGGER_I2C(0), TPS6594_BIT_TRIGGER_I2C(0));
+	if (ret)
+		return notifier_from_errno(ret);
+
+	return NOTIFY_DONE;
+}
+
 int tps6594_device_init(struct tps6594 *tps, bool enable_crc)
 {
 	struct device *dev = tps->dev;
 	int ret;
 	struct regmap_irq_chip *irq_chip;
+	unsigned int pwr_on, gpio3_cfg;
 	const struct mfd_cell *cells;
 	int n_cells;
 
@@ -727,6 +755,27 @@ int tps6594_device_init(struct tps6594 *tps, bool enable_crc)
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to add common child devices\n");
 
+	/* If either the PB/EN/VSENSE or GPIO3 is configured as PB, register a driver for it */
+	if (tps->chip_id == TPS65224 || tps->chip_id == TPS652G1) {
+		ret = regmap_read(tps->regmap, TPS6594_REG_NPWRON_CONF, &pwr_on);
+		if (ret)
+			return dev_err_probe(dev, ret, "Failed to read PB/EN/VSENSE config\n");
+
+		ret = regmap_read(tps->regmap, TPS6594_REG_GPIOX_CONF(2), &gpio3_cfg);
+		if (ret)
+			return dev_err_probe(dev, ret, "Failed to read GPIO3 config\n");
+
+		if (FIELD_GET(TPS65224_MASK_EN_PB_VSENSE_CONFIG, pwr_on) == TPS65224_EN_SEL_PB ||
+		    FIELD_GET(TPS65224_MASK_GPIO_SEL, gpio3_cfg) == TPS65224_GPIO3_SEL_PB) {
+			ret = devm_mfd_add_devices(dev, PLATFORM_DEVID_AUTO,
+						   &tps6594_pwrbutton_cell, 1, NULL, 0,
+						   regmap_irq_get_domain(tps->irq_data));
+			if (ret)
+				return dev_err_probe(dev, ret,
+						     "Failed to add power button device.\n");
+		}
+	}
+
 	/* No RTC for LP8764, TPS65224 and TPS652G1 */
 	if (tps->chip_id != LP8764 && tps->chip_id != TPS65224 && tps->chip_id != TPS652G1) {
 		ret = devm_mfd_add_devices(dev, PLATFORM_DEVID_AUTO, tps6594_rtc_cells,
@@ -734,6 +783,12 @@ int tps6594_device_init(struct tps6594 *tps, bool enable_crc)
 					   regmap_irq_get_domain(tps->irq_data));
 		if (ret)
 			return dev_err_probe(dev, ret, "Failed to add RTC child device\n");
+	}
+
+	if (of_device_is_system_power_controller(dev->of_node)) {
+		ret = devm_register_power_off_handler(tps->dev, tps6594_power_off_handler, tps);
+		if (ret)
+			return dev_err_probe(dev, ret, "Failed to register power-off handler\n");
 	}
 
 	return 0;

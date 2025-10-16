@@ -1,0 +1,61 @@
+// SPDX-License-Identifier: GPL-2.0
+/dts-v1/;
+
+#include "tegra20-asus-transformer-common.dtsi"
+
+/ {
+	model = "ASUS Eee Pad Slider SL101";
+	compatible = "asus,sl101", "nvidia,tegra20";
+
+	i2c@7000c000 {
+		magnetometer@e {
+			mount-matrix =  "1",  "0",  "0",
+					"0", "-1",  "0",
+					"0",  "0",  "1";
+		};
+
+		/* Atmel MXT1386 Touchscreen */
+		touchscreen@5a {
+			compatible = "atmel,maxtouch";
+			reg = <0x5a>;
+
+			interrupt-parent = <&gpio>;
+			interrupts = <TEGRA_GPIO(V, 6) IRQ_TYPE_LEVEL_LOW>;
+
+			reset-gpios = <&gpio TEGRA_GPIO(Q, 7) GPIO_ACTIVE_LOW>;
+
+			vdda-supply = <&vdd_3v3_sys>;
+			vdd-supply  = <&vdd_3v3_sys>;
+
+			atmel,wakeup-method = <ATMEL_MXT_WAKEUP_I2C_SCL>;
+		};
+
+		gyroscope@68 {
+			mount-matrix =	 "0",  "1",  "0",
+					"-1",  "0",  "0",
+					 "0",  "0",  "1";
+
+			i2c-gate {
+				accelerometer@f {
+					mount-matrix =	 "1",  "0",  "0",
+							 "0", "-1",  "0",
+							 "0",  "0",  "1";
+				};
+			};
+		};
+	};
+
+	extcon-keys {
+		compatible = "gpio-keys";
+
+		switch-tablet-mode {
+			label = "Tablet Mode";
+			gpios = <&gpio TEGRA_GPIO(S, 4) GPIO_ACTIVE_LOW>;
+			linux,input-type = <EV_SW>;
+			linux,code = <SW_TABLET_MODE>;
+			debounce-interval = <500>;
+			wakeup-event-action = <EV_ACT_ASSERTED>;
+			wakeup-source;
+		};
+	};
+};

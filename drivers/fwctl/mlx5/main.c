@@ -58,6 +58,9 @@ enum {
 	MLX5_CMD_OP_QUERY_DC_CNAK_TRACE = 0x716,
 	MLX5_CMD_OP_QUERY_NVMF_BACKEND_CONTROLLER = 0x722,
 	MLX5_CMD_OP_QUERY_NVMF_NAMESPACE_CONTEXT = 0x728,
+	MLX5_CMD_OP_QUERY_ADJACENT_FUNCTIONS_ID = 0x730,
+	MLX5_CMD_OP_DELEGATE_VHCA_MANAGEMENT = 0x731,
+	MLX5_CMD_OP_QUERY_DELEGATED_VHCA = 0x732,
 	MLX5_CMD_OP_QUERY_BURST_SIZE = 0x813,
 	MLX5_CMD_OP_QUERY_DIAGNOSTIC_PARAMS = 0x819,
 	MLX5_CMD_OP_SET_DIAGNOSTIC_PARAMS = 0x820,
@@ -188,6 +191,7 @@ static bool mlx5ctl_validate_rpc(const void *in, enum fwctl_rpc_scope scope)
 	 * filter commands manually for now.
 	 */
 	switch (opcode) {
+	case MLX5_CMD_OP_MODIFY_CONG_STATUS:
 	case MLX5_CMD_OP_POSTPONE_CONNECTED_QP_TIMEOUT:
 	case MLX5_CMD_OP_QUERY_ADAPTER:
 	case MLX5_CMD_OP_QUERY_ESW_FUNCTIONS:
@@ -196,6 +200,7 @@ static bool mlx5ctl_validate_rpc(const void *in, enum fwctl_rpc_scope scope)
 	case MLX5_CMD_OP_QUERY_OTHER_HCA_CAP:
 	case MLX5_CMD_OP_QUERY_ROCE_ADDRESS:
 	case MLX5_CMD_OPCODE_QUERY_VUID:
+	case MLX5_CMD_OP_DELEGATE_VHCA_MANAGEMENT:
 	/*
 	 * FW limits SET_HCA_CAP on the tools UID to only the other function
 	 * mode which is used for function pre-configuration
@@ -281,6 +286,8 @@ static bool mlx5ctl_validate_rpc(const void *in, enum fwctl_rpc_scope scope)
 	case MLX5_CMD_OP_QUERY_XRQ:
 	case MLX5_CMD_OP_USER_QUERY_XRQ_DC_PARAMS_ENTRY:
 	case MLX5_CMD_OP_USER_QUERY_XRQ_ERROR_PARAMS:
+	case MLX5_CMD_OP_QUERY_ADJACENT_FUNCTIONS_ID:
+	case MLX5_CMD_OP_QUERY_DELEGATED_VHCA:
 		return scope >= FWCTL_RPC_DEBUG_READ_ONLY;
 
 	case MLX5_CMD_OP_SET_DIAGNOSTIC_PARAMS:
@@ -345,7 +352,7 @@ static void *mlx5ctl_fw_rpc(struct fwctl_uctx *uctx, enum fwctl_rpc_scope scope,
 	 */
 	if (ret && ret != -EREMOTEIO) {
 		if (rpc_out != rpc_in)
-			kfree(rpc_out);
+			kvfree(rpc_out);
 		return ERR_PTR(ret);
 	}
 	return rpc_out;

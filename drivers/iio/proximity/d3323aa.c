@@ -722,8 +722,7 @@ static int d3323aa_probe(struct platform_device *pdev)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!indio_dev)
-		return dev_err_probe(dev, -ENOMEM,
-				     "Could not allocate iio device\n");
+		return -ENOMEM;
 
 	data = iio_priv(indio_dev);
 	data->dev = dev;

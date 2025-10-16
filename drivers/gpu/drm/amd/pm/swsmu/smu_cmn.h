@@ -40,6 +40,8 @@
 #define SMU_IH_INTERRUPT_CONTEXT_ID_FAN_ABNORMAL        0x8
 #define SMU_IH_INTERRUPT_CONTEXT_ID_FAN_RECOVERY        0x9
 
+#define SMU_IGNORE_IF_VERSION 0xFFFFFFFF
+
 #define smu_cmn_init_soft_gpu_metrics(ptr, frev, crev)                   \
 	do {                                                             \
 		typecheck(struct gpu_metrics_v##frev##_##crev *, (ptr)); \
@@ -63,6 +65,32 @@
 		header->format_revision = fr;                              \
 		header->content_revision = cr;                             \
 		header->structure_size = sizeof(*tmp);                     \
+	} while (0)
+
+#define smu_cmn_init_baseboard_temp_metrics(ptr, fr, cr)                        \
+	do {                                                                    \
+		typecheck(struct amdgpu_baseboard_temp_metrics_v##fr##_##cr *,  \
+			  (ptr));                                               \
+		struct amdgpu_baseboard_temp_metrics_v##fr##_##cr *tmp = (ptr); \
+		struct metrics_table_header *header =                           \
+			(struct metrics_table_header *)tmp;                     \
+		memset(header, 0xFF, sizeof(*tmp));                             \
+		header->format_revision = fr;                                   \
+		header->content_revision = cr;                                  \
+		header->structure_size = sizeof(*tmp);                          \
+	} while (0)
+
+#define smu_cmn_init_gpuboard_temp_metrics(ptr, fr, cr)                         \
+	do {                                                                    \
+		typecheck(struct amdgpu_gpuboard_temp_metrics_v##fr##_##cr *,   \
+			  (ptr));                                               \
+		struct amdgpu_gpuboard_temp_metrics_v##fr##_##cr *tmp = (ptr);  \
+		struct metrics_table_header *header =                           \
+			(struct metrics_table_header *)tmp;                     \
+		memset(header, 0xFF, sizeof(*tmp));                             \
+		header->format_revision = fr;                                   \
+		header->content_revision = cr;                                  \
+		header->structure_size = sizeof(*tmp);                          \
 	} while (0)
 
 extern const int link_speed[];

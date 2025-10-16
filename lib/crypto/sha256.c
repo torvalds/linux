@@ -25,12 +25,19 @@ static const struct sha256_block_state sha224_iv = {
 	},
 };
 
-static const struct sha256_block_state sha256_iv = {
-	.h = {
-		SHA256_H0, SHA256_H1, SHA256_H2, SHA256_H3,
-		SHA256_H4, SHA256_H5, SHA256_H6, SHA256_H7,
+static const struct sha256_ctx initial_sha256_ctx = {
+	.ctx = {
+		.state = {
+			.h = {
+				SHA256_H0, SHA256_H1, SHA256_H2, SHA256_H3,
+				SHA256_H4, SHA256_H5, SHA256_H6, SHA256_H7,
+			},
+		},
+		.bytecount = 0,
 	},
 };
+
+#define sha256_iv (initial_sha256_ctx.ctx.state)
 
 static const u32 sha256_K[64] = {
 	0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1,
@@ -261,8 +268,62 @@ void sha256(const u8 *data, size_t len, u8 out[SHA256_DIGEST_SIZE])
 }
 EXPORT_SYMBOL(sha256);
 
-/* pre-boot environment (as indicated by __DISABLE_EXPORTS) doesn't need HMAC */
+/*
+ * Pre-boot environment (as indicated by __DISABLE_EXPORTS being defined)
+ * doesn't need either HMAC support or interleaved hashing support
+ */
 #ifndef __DISABLE_EXPORTS
+
+#ifndef sha256_finup_2x_arch
+static bool sha256_finup_2x_arch(const struct __sha256_ctx *ctx,
+				 const u8 *data1, const u8 *data2, size_t len,
+				 u8 out1[SHA256_DIGEST_SIZE],
+				 u8 out2[SHA256_DIGEST_SIZE])
+{
+	return false;
+}
+static bool sha256_finup_2x_is_optimized_arch(void)
+{
+	return false;
+}
+#endif
+
+/* Sequential fallback implementation of sha256_finup_2x() */
+static noinline_for_stack void sha256_finup_2x_sequential(
+	const struct __sha256_ctx *ctx, const u8 *data1, const u8 *data2,
+	size_t len, u8 out1[SHA256_DIGEST_SIZE], u8 out2[SHA256_DIGEST_SIZE])
+{
+	struct __sha256_ctx mut_ctx;
+
+	mut_ctx = *ctx;
+	__sha256_update(&mut_ctx, data1, len);
+	__sha256_final(&mut_ctx, out1, SHA256_DIGEST_SIZE);
+
+	mut_ctx = *ctx;
+	__sha256_update(&mut_ctx, data2, len);
+	__sha256_final(&mut_ctx, out2, SHA256_DIGEST_SIZE);
+}
+
+void sha256_finup_2x(const struct sha256_ctx *ctx, const u8 *data1,
+		     const u8 *data2, size_t len, u8 out1[SHA256_DIGEST_SIZE],
+		     u8 out2[SHA256_DIGEST_SIZE])
+{
+	if (ctx == NULL)
+		ctx = &initial_sha256_ctx;
+
+	if (likely(sha256_finup_2x_arch(&ctx->ctx, data1, data2, len, out1,
+					out2)))
+		return;
+	sha256_finup_2x_sequential(&ctx->ctx, data1, data2, len, out1, out2);
+}
+EXPORT_SYMBOL_GPL(sha256_finup_2x);
+
+bool sha256_finup_2x_is_optimized(void)
+{
+	return sha256_finup_2x_is_optimized_arch();
+}
+EXPORT_SYMBOL_GPL(sha256_finup_2x_is_optimized);
+
 static void __hmac_sha256_preparekey(struct sha256_block_state *istate,
 				     struct sha256_block_state *ostate,
 				     const u8 *raw_key, size_t raw_key_len,

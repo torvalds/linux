@@ -164,6 +164,11 @@ struct bnxt_re_user_mmap_entry {
 	u8 mmap_flag;
 };
 
+struct bnxt_re_flow {
+	struct ib_flow		ib_flow;
+	struct bnxt_re_dev	*rdev;
+};
+
 static inline u16 bnxt_re_get_swqe_size(int nsge)
 {
 	return sizeof(struct sq_send_hdr) + nsge * sizeof(struct sq_sge);
@@ -267,6 +272,11 @@ struct ib_mr *bnxt_re_reg_user_mr_dmabuf(struct ib_pd *ib_pd, u64 start,
 					 struct uverbs_attr_bundle *attrs);
 int bnxt_re_alloc_ucontext(struct ib_ucontext *ctx, struct ib_udata *udata);
 void bnxt_re_dealloc_ucontext(struct ib_ucontext *context);
+struct ib_flow *bnxt_re_create_flow(struct ib_qp *ib_qp,
+				    struct ib_flow_attr *attr,
+				    struct ib_udata *udata);
+int bnxt_re_destroy_flow(struct ib_flow *flow_id);
+
 int bnxt_re_mmap(struct ib_ucontext *context, struct vm_area_struct *vma);
 void bnxt_re_mmap_free(struct rdma_user_mmap_entry *rdma_entry);
 

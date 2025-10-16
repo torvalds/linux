@@ -266,7 +266,7 @@ properties:
           reg:
             maxItems: 1
             description:
-              This define the LED index in the PHY or the MAC. It's really
+              This defines the LED index in the PHY or the MAC. It's really
               driver dependent and required for ports that define multiple
               LED for the same port.
 

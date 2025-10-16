@@ -25,7 +25,7 @@
  * Copyright (C) 2004  Chris Kennedy <c@groovy.org>
  *
  * VBI additions & cleanup:
- * Copyright (C) 2004, 2005 Hans Verkuil <hverkuil@xs4all.nl>
+ * Copyright (C) 2004, 2005 Hans Verkuil <hverkuil@kernel.org>
  *
  * Note: the saa7126 is identical to the saa7127, and the saa7128 is
  * identical to the saa7129, except that the saa7126 and saa7128 have

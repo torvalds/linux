@@ -419,7 +419,7 @@ int mptcp_pm_nl_subflow_create_doit(struct sk_buff *skb, struct genl_info *info)
 	if (err)
 		mptcp_userspace_pm_delete_local_addr(msk, &entry);
 	else
-		msk->pm.subflows++;
+		msk->pm.extra_subflows++;
 	spin_unlock_bh(&msk->pm.lock);
 
  create_err:

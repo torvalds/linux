@@ -592,6 +592,8 @@ static void setup_APIC_timer(void)
 						0xF, ~0UL);
 	} else
 		clockevents_register_device(levt);
+
+	apic_update_vector(smp_processor_id(), LOCAL_TIMER_VECTOR, true);
 }
 
 /*
@@ -1168,6 +1170,9 @@ void disable_local_APIC(void)
 	if (!apic_accessible())
 		return;
 
+	if (apic->teardown)
+		apic->teardown();
+
 	apic_soft_disable();
 
 #ifdef CONFIG_X86_32
@@ -1428,63 +1433,61 @@ union apic_ir {
 	u32		regs[APIC_IR_REGS];
 };
 
-static bool apic_check_and_ack(union apic_ir *irr, union apic_ir *isr)
+static bool apic_check_and_eoi_isr(union apic_ir *isr)
 {
 	int i, bit;
-
-	/* Read the IRRs */
-	for (i = 0; i < APIC_IR_REGS; i++)
-		irr->regs[i] = apic_read(APIC_IRR + i * 0x10);
 
 	/* Read the ISRs */
 	for (i = 0; i < APIC_IR_REGS; i++)
 		isr->regs[i] = apic_read(APIC_ISR + i * 0x10);
 
-	/*
-	 * If the ISR map is not empty. ACK the APIC and run another round
-	 * to verify whether a pending IRR has been unblocked and turned
-	 * into a ISR.
-	 */
-	if (!bitmap_empty(isr->map, APIC_IR_BITS)) {
-		/*
-		 * There can be multiple ISR bits set when a high priority
-		 * interrupt preempted a lower priority one. Issue an ACK
-		 * per set bit.
-		 */
-		for_each_set_bit(bit, isr->map, APIC_IR_BITS)
-			apic_eoi();
+	/* If the ISR map empty, nothing to do here. */
+	if (bitmap_empty(isr->map, APIC_IR_BITS))
 		return true;
-	}
 
-	return !bitmap_empty(irr->map, APIC_IR_BITS);
+	/*
+	 * There can be multiple ISR bits set when a high priority
+	 * interrupt preempted a lower priority one. Issue an EOI for each
+	 * set bit. The priority traversal order does not matter as there
+	 * can't be new ISR bits raised at this point. What matters is that
+	 * an EOI is issued for each ISR bit.
+	 */
+	for_each_set_bit(bit, isr->map, APIC_IR_BITS)
+		apic_eoi();
+
+	/* Reread the ISRs, they should be empty now */
+	for (i = 0; i < APIC_IR_REGS; i++)
+		isr->regs[i] = apic_read(APIC_ISR + i * 0x10);
+
+	return bitmap_empty(isr->map, APIC_IR_BITS);
 }
 
 /*
- * After a crash, we no longer service the interrupts and a pending
- * interrupt from previous kernel might still have ISR bit set.
+ * If a CPU services an interrupt and crashes before issuing EOI to the
+ * local APIC, the corresponding ISR bit is still set when the crashing CPU
+ * jumps into a crash kernel. Read the ISR and issue an EOI for each set
+ * bit to acknowledge it as otherwise these slots would be locked forever
+ * waiting for an EOI.
  *
- * Most probably by now the CPU has serviced that pending interrupt and it
- * might not have done the apic_eoi() because it thought, interrupt
- * came from i8259 as ExtInt. LAPIC did not get EOI so it does not clear
- * the ISR bit and cpu thinks it has already serviced the interrupt. Hence
- * a vector might get locked. It was noticed for timer irq (vector
- * 0x31). Issue an extra EOI to clear ISR.
+ * If there are pending bits in the IRR, then they won't be converted into
+ * ISR bits as the CPU has interrupts disabled. They will be delivered once
+ * the CPU enables interrupts and there is nothing which can prevent that.
  *
- * If there are pending IRR bits they turn into ISR bits after a higher
- * priority ISR bit has been acked.
+ * In the worst case this results in spurious interrupt warnings.
  */
-static void apic_pending_intr_clear(void)
+static void apic_clear_isr(void)
 {
-	union apic_ir irr, isr;
+	union apic_ir ir;
 	unsigned int i;
 
-	/* 512 loops are way oversized and give the APIC a chance to obey. */
-	for (i = 0; i < 512; i++) {
-		if (!apic_check_and_ack(&irr, &isr))
-			return;
-	}
-	/* Dump the IRR/ISR content if that failed */
-	pr_warn("APIC: Stale IRR: %256pb ISR: %256pb\n", irr.map, isr.map);
+	if (!apic_check_and_eoi_isr(&ir))
+		pr_warn("APIC: Stale ISR: %256pb\n", ir.map);
+
+	for (i = 0; i < APIC_IR_REGS; i++)
+		ir.regs[i] = apic_read(APIC_IRR + i * 0x10);
+
+	if (!bitmap_empty(ir.map, APIC_IR_BITS))
+		pr_warn("APIC: Stale IRR: %256pb\n", ir.map);
 }
 
 /**
@@ -1502,6 +1505,9 @@ static void setup_local_APIC(void)
 		disable_ioapic_support();
 		return;
 	}
+
+	if (apic->setup)
+		apic->setup();
 
 	/*
 	 * If this comes from kexec/kcrash the APIC might be enabled in
@@ -1541,8 +1547,7 @@ static void setup_local_APIC(void)
 	value |= 0x10;
 	apic_write(APIC_TASKPRI, value);
 
-	/* Clear eventually stale ISR/IRR bits */
-	apic_pending_intr_clear();
+	apic_clear_isr();
 
 	/*
 	 * Now that we are all set up, enable the APIC

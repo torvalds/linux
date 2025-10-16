@@ -1,0 +1,326 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/embedded-controller/google,cros-ec.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: ChromeOS Embedded Controller
+
+maintainers:
+  - Benson Leung <bleung@chromium.org>
+  - Guenter Roeck <groeck@chromium.org>
+
+description:
+  Google's ChromeOS EC is a microcontroller which talks to the AP and
+  implements various functions such as keyboard and battery charging.
+  The EC can be connected through various interfaces (I2C, SPI, and others)
+  and the compatible string specifies which interface is being used.
+
+properties:
+  compatible:
+    oneOf:
+      - description:
+          For implementations of the EC connected through I2C.
+        const: google,cros-ec-i2c
+      - description:
+          For implementations of the EC connected through SPI.
+        const: google,cros-ec-spi
+      - description:
+          For implementations of the FPMCU connected through SPI.
+        items:
+          - const: google,cros-ec-fp
+          - const: google,cros-ec-spi
+      - description:
+          For implementations of the EC connected through RPMSG.
+        const: google,cros-ec-rpmsg
+      - description:
+          For implementations of the EC connected through UART.
+        const: google,cros-ec-uart
+
+  controller-data: true
+
+  google,cros-ec-spi-pre-delay:
+    description:
+      This property specifies the delay in usecs between the
+      assertion of the CS and the first clock pulse.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    default: 0
+
+  google,cros-ec-spi-msg-delay:
+    description:
+      This property specifies the delay in usecs between messages.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    default: 0
+
+  google,has-vbc-nvram:
+    description:
+      Some implementations of the EC include a small nvram space used to
+      store verified boot context data. This boolean flag is used to specify
+      whether this nvram is present or not.
+    type: boolean
+
+  mediatek,rpmsg-name:
+    description:
+      Must be defined if the cros-ec is a rpmsg device for a Mediatek
+      ARM Cortex M4 Co-processor. Contains the name of the rpmsg
+      device. Used to match the subnode to the rpmsg device announced by
+      the SCP.
+    $ref: /schemas/types.yaml#/definitions/string
+
+  spi-max-frequency: true
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  reset-gpios:
+    maxItems: 1
+
+  boot0-gpios:
+    maxItems: 1
+    description: Assert for bootloader mode.
+
+  vdd-supply: true
+
+  wakeup-source:
+    description: Button can wake-up the system.
+
+  '#address-cells':
+    const: 1
+
+  '#size-cells':
+    const: 0
+
+  '#gpio-cells':
+    const: 2
+
+  gpio-controller: true
+
+  typec:
+    $ref: /schemas/chrome/google,cros-ec-typec.yaml#
+
+  ec-pwm:
+    $ref: /schemas/pwm/google,cros-ec-pwm.yaml#
+    deprecated: true
+
+  pwm:
+    $ref: /schemas/pwm/google,cros-ec-pwm.yaml#
+
+  keyboard-controller:
+    $ref: /schemas/input/google,cros-ec-keyb.yaml#
+
+  proximity:
+    $ref: /schemas/iio/proximity/google,cros-ec-mkbp-proximity.yaml#
+
+  codecs:
+    type: object
+    additionalProperties: false
+
+    properties:
+      '#address-cells':
+        const: 2
+
+      '#size-cells':
+        const: 1
+
+    patternProperties:
+      "^ec-codec@[a-f0-9]+$":
+        type: object
+        $ref: /schemas/sound/google,cros-ec-codec.yaml#
+
+    required:
+      - "#address-cells"
+      - "#size-cells"
+
+  cbas:
+    type: object
+
+    description:
+      This device is used to signal when a detachable base is attached
+      to a Chrome OS tablet. This device cannot be detected at runtime.
+
+    properties:
+      compatible:
+        const: google,cros-cbas
+
+    required:
+      - compatible
+
+    additionalProperties: false
+
+patternProperties:
+  "^i2c-tunnel[0-9]*$":
+    type: object
+    $ref: /schemas/i2c/google,cros-ec-i2c-tunnel.yaml#
+
+  "^regulator@[0-9]+$":
+    type: object
+    $ref: /schemas/regulator/google,cros-ec-regulator.yaml#
+
+  "^extcon[0-9]*$":
+    type: object
+    $ref: /schemas/extcon/extcon-usbc-cros-ec.yaml#
+
+required:
+  - compatible
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          not:
+            contains:
+              const: google,cros-ec-spi
+    then:
+      properties:
+        controller-data: false
+        google,cros-ec-spi-pre-delay: false
+        google,cros-ec-spi-msg-delay: false
+        spi-max-frequency: false
+    else:
+      $ref: /schemas/spi/spi-peripheral-props.yaml
+
+  - if:
+      properties:
+        compatible:
+          not:
+            contains:
+              const: google,cros-ec-rpmsg
+    then:
+      properties:
+        mediatek,rpmsg-name: false
+
+  - if:
+      properties:
+        compatible:
+          not:
+            contains:
+              enum:
+                - google,cros-ec-rpmsg
+                - google,cros-ec-uart
+    then:
+      required:
+        - reg
+        - interrupts
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: google,cros-ec-fp
+    then:
+      properties:
+        '#address-cells': false
+        '#size-cells': false
+        typec: false
+        ec-pwm: false
+        kbd-led-backlight: false
+        keyboard-controller: false
+        proximity: false
+        codecs: false
+        cbas: false
+
+      patternProperties:
+        "^i2c-tunnel[0-9]*$": false
+        "^regulator@[0-9]+$": false
+        "^extcon[0-9]*$": false
+
+      # Using additionalProperties: false here and
+      # listing true properties doesn't work
+
+      required:
+        - reset-gpios
+        - boot0-gpios
+        - vdd-supply
+    else:
+      properties:
+        reset-gpios: false
+        boot0-gpios: false
+        vdd-supply: false
+
+additionalProperties: false
+
+examples:
+  # Example for I2C
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        cros-ec@1e {
+            compatible = "google,cros-ec-i2c";
+            reg = <0x1e>;
+            interrupts = <6 0>;
+            interrupt-parent = <&gpio0>;
+        };
+    };
+
+  # Example for SPI
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    spi {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        cros-ec@0 {
+            compatible = "google,cros-ec-spi";
+            reg = <0x0>;
+            google,cros-ec-spi-msg-delay = <30>;
+            google,cros-ec-spi-pre-delay = <10>;
+            interrupts = <99 0>;
+            interrupt-parent = <&gpio7>;
+            spi-max-frequency = <5000000>;
+            #gpio-cells = <2>;
+            gpio-controller;
+
+            proximity {
+                compatible = "google,cros-ec-mkbp-proximity";
+            };
+
+            cbas {
+                compatible = "google,cros-cbas";
+            };
+        };
+    };
+
+  # Example for RPMSG
+  - |
+    scp0 {
+        cros-ec {
+            compatible = "google,cros-ec-rpmsg";
+        };
+    };
+
+  # Example for FPMCU
+  - |
+    spi {
+      #address-cells = <0x1>;
+      #size-cells = <0x0>;
+
+      ec@0 {
+        compatible = "google,cros-ec-fp", "google,cros-ec-spi";
+        reg = <0x0>;
+        interrupt-parent = <&gpio_controller>;
+        interrupts = <4 IRQ_TYPE_LEVEL_LOW>;
+        spi-max-frequency = <3000000>;
+        reset-gpios = <&gpio_controller 5 GPIO_ACTIVE_LOW>;
+        boot0-gpios = <&gpio_controller 10 GPIO_ACTIVE_HIGH>;
+        vdd-supply = <&pp3300_fp_mcu>;
+      };
+    };
+
+  # Example for UART
+  - |
+    serial {
+        cros-ec {
+            compatible = "google,cros-ec-uart";
+        };
+    };
+...

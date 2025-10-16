@@ -99,6 +99,17 @@ extern int rtsx_usb_card_exclusive_check(struct rtsx_ucr *ucr, int card);
 #define CD_MASK		(SD_CD | MS_CD | XD_CD)
 #define SD_WP		0x08
 
+/* OCPCTL */
+#define MS_OCP_DETECT_EN		0x08
+#define	MS_OCP_INT_EN			0x04
+#define	MS_OCP_INT_CLR			0x02
+#define	MS_OCP_CLEAR			0x01
+
+/* OCPSTAT */
+#define MS_OCP_DETECT			0x80
+#define MS_OCP_NOW			0x02
+#define MS_OCP_EVER			0x01
+
 /* reader command field offset & parameters */
 #define READ_REG_CMD		0
 #define WRITE_REG_CMD		1

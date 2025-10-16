@@ -387,23 +387,42 @@ error:
 
 static void iris_hfi_gen1_session_ftb_done(struct iris_inst *inst, void *packet)
 {
-	struct hfi_msg_session_fbd_uncompressed_plane0_pkt *pkt = packet;
+	struct hfi_msg_session_fbd_uncompressed_plane0_pkt *uncom_pkt = packet;
+	struct hfi_msg_session_fbd_compressed_pkt *com_pkt = packet;
 	struct v4l2_m2m_ctx *m2m_ctx = inst->m2m_ctx;
 	struct v4l2_m2m_buffer *m2m_buffer, *n;
 	struct hfi_session_flush_pkt flush_pkt;
-	u32 timestamp_hi = pkt->time_stamp_hi;
-	u32 timestamp_lo = pkt->time_stamp_lo;
+	u32 timestamp_hi;
+	u32 timestamp_lo;
 	struct iris_core *core = inst->core;
-	u32 filled_len = pkt->filled_len;
-	u32 pic_type = pkt->picture_type;
-	u32 output_tag = pkt->output_tag;
+	u32 filled_len;
+	u32 pic_type;
+	u32 output_tag;
 	struct iris_buffer *buf, *iter;
 	struct iris_buffers *buffers;
-	u32 hfi_flags = pkt->flags;
-	u32 offset = pkt->offset;
+	u32 hfi_flags;
+	u32 offset;
 	u64 timestamp_us = 0;
 	bool found = false;
 	u32 flags = 0;
+
+	if (inst->domain == DECODER) {
+		timestamp_hi = uncom_pkt->time_stamp_hi;
+		timestamp_lo = uncom_pkt->time_stamp_lo;
+		filled_len = uncom_pkt->filled_len;
+		pic_type = uncom_pkt->picture_type;
+		output_tag = uncom_pkt->output_tag;
+		hfi_flags = uncom_pkt->flags;
+		offset = uncom_pkt->offset;
+	} else {
+		timestamp_hi = com_pkt->time_stamp_hi;
+		timestamp_lo = com_pkt->time_stamp_lo;
+		filled_len = com_pkt->filled_len;
+		pic_type = com_pkt->picture_type;
+		output_tag = com_pkt->output_tag;
+		hfi_flags = com_pkt->flags;
+		offset = com_pkt->offset;
+	}
 
 	if ((hfi_flags & HFI_BUFFERFLAG_EOS) && !filled_len) {
 		reinit_completion(&inst->flush_completion);
@@ -416,11 +435,10 @@ static void iris_hfi_gen1_session_ftb_done(struct iris_inst *inst, void *packet)
 			inst->flush_responses_pending++;
 
 		iris_inst_sub_state_change_drain_last(inst);
-
-		return;
 	}
 
-	if (iris_split_mode_enabled(inst) && pkt->stream_id == 0) {
+	if (iris_split_mode_enabled(inst) && inst->domain == DECODER &&
+	    uncom_pkt->stream_id == 0) {
 		buffers = &inst->buffers[BUF_DPB];
 		if (!buffers)
 			goto error;
@@ -461,8 +479,14 @@ static void iris_hfi_gen1_session_ftb_done(struct iris_inst *inst, void *packet)
 		timestamp_us = timestamp_hi;
 		timestamp_us = (timestamp_us << 32) | timestamp_lo;
 	} else {
-		if (pkt->stream_id == 1 && !inst->last_buffer_dequeued) {
-			if (iris_drc_pending(inst)) {
+		if (inst->domain == DECODER && uncom_pkt->stream_id == 1 &&
+		    !inst->last_buffer_dequeued) {
+			if (iris_drc_pending(inst) || iris_drain_pending(inst)) {
+				flags |= V4L2_BUF_FLAG_LAST;
+				inst->last_buffer_dequeued = true;
+			}
+		} else if (inst->domain == ENCODER) {
+			if (!inst->last_buffer_dequeued && iris_drain_pending(inst)) {
 				flags |= V4L2_BUF_FLAG_LAST;
 				inst->last_buffer_dequeued = true;
 			}
@@ -471,14 +495,14 @@ static void iris_hfi_gen1_session_ftb_done(struct iris_inst *inst, void *packet)
 	buf->timestamp = timestamp_us;
 
 	switch (pic_type) {
-	case HFI_PICTURE_IDR:
-	case HFI_PICTURE_I:
+	case HFI_GEN1_PICTURE_IDR:
+	case HFI_GEN1_PICTURE_I:
 		flags |= V4L2_BUF_FLAG_KEYFRAME;
 		break;
-	case HFI_PICTURE_P:
+	case HFI_GEN1_PICTURE_P:
 		flags |= V4L2_BUF_FLAG_PFRAME;
 		break;
-	case HFI_PICTURE_B:
+	case HFI_GEN1_PICTURE_B:
 		flags |= V4L2_BUF_FLAG_BFRAME;
 		break;
 	case HFI_FRAME_NOTCODED:
@@ -553,7 +577,7 @@ static const struct iris_hfi_gen1_response_pkt_info pkt_infos[] = {
 	},
 	{
 	 .pkt = HFI_MSG_SESSION_FILL_BUFFER,
-	 .pkt_sz = sizeof(struct hfi_msg_session_fbd_uncompressed_plane0_pkt),
+	 .pkt_sz = sizeof(struct hfi_msg_session_fbd_compressed_pkt),
 	},
 	{
 	 .pkt = HFI_MSG_SESSION_FLUSH,

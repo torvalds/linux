@@ -273,8 +273,8 @@ void pmc_core_get_tgl_lpm_reqs(struct platform_device *pdev)
 
 	addr = (u32 *)out_obj->buffer.pointer;
 
-	lpm_req_regs = devm_kzalloc(&pdev->dev, lpm_size * sizeof(u32),
-				     GFP_KERNEL);
+	lpm_req_regs = devm_kcalloc(&pdev->dev, lpm_size, sizeof(u32),
+				    GFP_KERNEL);
 	if (!lpm_req_regs)
 		goto free_acpi_obj;
 

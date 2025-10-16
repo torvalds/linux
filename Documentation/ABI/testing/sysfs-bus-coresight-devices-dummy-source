@@ -13,3 +13,9 @@ KernelVersion:	6.14
 Contact:	Mao Jinlong <quic_jinlmao@quicinc.com>
 Description:	(R) Show the trace ID that will appear in the trace stream
 		coming from this trace entity.
+
+What:           /sys/bus/coresight/devices/dummy_source<N>/label
+Date:           Aug 2025
+KernelVersion   6.18
+Contact:        Mao Jinlong <quic_jinlmao@quicinc.com>
+Description:    (Read) Show hardware context information of device.

@@ -177,14 +177,26 @@ struct shash_desc {
 
 #define HASH_MAX_DIGESTSIZE	 64
 
+/*
+ * The size of a core hash state and a partial block.  The final byte
+ * is the length of the partial block.
+ */
+#define HASH_STATE_AND_BLOCK(state, block) ((state) + (block) + 1)
+
+
 /* Worst case is sha3-224. */
-#define HASH_MAX_STATESIZE	 200 + 144 + 1
+#define HASH_MAX_STATESIZE	 HASH_STATE_AND_BLOCK(200, 144)
+
+/* This needs to match arch/s390/crypto/sha.h. */
+#define S390_SHA_CTX_SIZE	216
 
 /*
  * Worst case is hmac(sha3-224-s390).  Its context is a nested 'shash_desc'
  * containing a 'struct s390_sha_ctx'.
  */
-#define HASH_MAX_DESCSIZE	(sizeof(struct shash_desc) + 361)
+#define SHA3_224_S390_DESCSIZE	HASH_STATE_AND_BLOCK(S390_SHA_CTX_SIZE, 144)
+#define HASH_MAX_DESCSIZE	(sizeof(struct shash_desc) + \
+				 SHA3_224_S390_DESCSIZE)
 #define MAX_SYNC_HASH_REQSIZE	(sizeof(struct ahash_request) + \
 				 HASH_MAX_DESCSIZE)
 

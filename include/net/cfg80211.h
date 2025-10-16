@@ -101,16 +101,6 @@ struct wiphy;
  * @IEEE80211_CHAN_NO_10MHZ: 10 MHz bandwidth is not permitted
  *	on this channel.
  * @IEEE80211_CHAN_NO_HE: HE operation is not permitted on this channel.
- * @IEEE80211_CHAN_1MHZ: 1 MHz bandwidth is permitted
- *	on this channel.
- * @IEEE80211_CHAN_2MHZ: 2 MHz bandwidth is permitted
- *	on this channel.
- * @IEEE80211_CHAN_4MHZ: 4 MHz bandwidth is permitted
- *	on this channel.
- * @IEEE80211_CHAN_8MHZ: 8 MHz bandwidth is permitted
- *	on this channel.
- * @IEEE80211_CHAN_16MHZ: 16 MHz bandwidth is permitted
- *	on this channel.
  * @IEEE80211_CHAN_NO_320MHZ: If the driver supports 320 MHz on the band,
  *	this flag indicates that a 320 MHz channel cannot use this
  *	channel as the control or any of the secondary channels.
@@ -129,6 +119,13 @@ struct wiphy;
  *	with very low power (VLP), even if otherwise set to NO_IR.
  * @IEEE80211_CHAN_ALLOW_20MHZ_ACTIVITY: Allow activity on a 20 MHz channel,
  *	even if otherwise set to NO_IR.
+ * @IEEE80211_CHAN_S1G_NO_PRIMARY: Prevents the channel for use as an S1G
+ *	primary channel. Does not prevent the wider operating channel
+ *	described by the chandef from being used. In order for a 2MHz primary
+ *	to be used, both 1MHz subchannels shall not contain this flag.
+ * @IEEE80211_CHAN_NO_4MHZ: 4 MHz bandwidth is not permitted on this channel.
+ * @IEEE80211_CHAN_NO_8MHZ: 8 MHz bandwidth is not permitted on this channel.
+ * @IEEE80211_CHAN_NO_16MHZ: 16 MHz bandwidth is not permitted on this channel.
  */
 enum ieee80211_channel_flags {
 	IEEE80211_CHAN_DISABLED			= BIT(0),
@@ -145,11 +142,7 @@ enum ieee80211_channel_flags {
 	IEEE80211_CHAN_NO_20MHZ			= BIT(11),
 	IEEE80211_CHAN_NO_10MHZ			= BIT(12),
 	IEEE80211_CHAN_NO_HE			= BIT(13),
-	IEEE80211_CHAN_1MHZ			= BIT(14),
-	IEEE80211_CHAN_2MHZ			= BIT(15),
-	IEEE80211_CHAN_4MHZ			= BIT(16),
-	IEEE80211_CHAN_8MHZ			= BIT(17),
-	IEEE80211_CHAN_16MHZ			= BIT(18),
+	/* can use free bits here */
 	IEEE80211_CHAN_NO_320MHZ		= BIT(19),
 	IEEE80211_CHAN_NO_EHT			= BIT(20),
 	IEEE80211_CHAN_DFS_CONCURRENT		= BIT(21),
@@ -158,6 +151,10 @@ enum ieee80211_channel_flags {
 	IEEE80211_CHAN_CAN_MONITOR		= BIT(24),
 	IEEE80211_CHAN_ALLOW_6GHZ_VLP_AP	= BIT(25),
 	IEEE80211_CHAN_ALLOW_20MHZ_ACTIVITY     = BIT(26),
+	IEEE80211_CHAN_S1G_NO_PRIMARY		= BIT(27),
+	IEEE80211_CHAN_NO_4MHZ			= BIT(28),
+	IEEE80211_CHAN_NO_8MHZ			= BIT(29),
+	IEEE80211_CHAN_NO_16MHZ			= BIT(30),
 };
 
 #define IEEE80211_CHAN_NO_HT40 \
@@ -821,6 +818,9 @@ struct key_params {
  * @punctured: mask of the punctured 20 MHz subchannels, with
  *	bits turned on being disabled (punctured); numbered
  *	from lower to higher frequency (like in the spec)
+ * @s1g_primary_2mhz: Indicates if the control channel pointed to
+ *	by 'chan' exists as a 1MHz primary subchannel within an
+ *	S1G 2MHz primary channel.
  */
 struct cfg80211_chan_def {
 	struct ieee80211_channel *chan;
@@ -830,6 +830,7 @@ struct cfg80211_chan_def {
 	struct ieee80211_edmg edmg;
 	u16 freq1_offset;
 	u16 punctured;
+	bool s1g_primary_2mhz;
 };
 
 /*
@@ -841,9 +842,12 @@ struct cfg80211_bitrate_mask {
 		u8 ht_mcs[IEEE80211_HT_MCS_MASK_LEN];
 		u16 vht_mcs[NL80211_VHT_NSS_MAX];
 		u16 he_mcs[NL80211_HE_NSS_MAX];
+		u16 eht_mcs[NL80211_EHT_NSS_MAX];
 		enum nl80211_txrate_gi gi;
 		enum nl80211_he_gi he_gi;
+		enum nl80211_eht_gi eht_gi;
 		enum nl80211_he_ltf he_ltf;
+		enum nl80211_eht_ltf eht_ltf;
 	} control[NUM_NL80211_BANDS];
 };
 
@@ -985,6 +989,18 @@ static inline bool
 cfg80211_chandef_is_edmg(const struct cfg80211_chan_def *chandef)
 {
 	return chandef->edmg.channels || chandef->edmg.bw_config;
+}
+
+/**
+ * cfg80211_chandef_is_s1g - check if chandef represents an S1G channel
+ * @chandef: the channel definition
+ *
+ * Return: %true if S1G.
+ */
+static inline bool
+cfg80211_chandef_is_s1g(const struct cfg80211_chan_def *chandef)
+{
+	return chandef->chan->band == NL80211_BAND_S1GHZ;
 }
 
 /**
@@ -2457,6 +2473,29 @@ struct mpath_info {
 };
 
 /**
+ * enum wiphy_bss_param_flags - bit positions for supported bss parameters.
+ *
+ * @WIPHY_BSS_PARAM_CTS_PROT: support changing CTS protection.
+ * @WIPHY_BSS_PARAM_SHORT_PREAMBLE: support changing short preamble usage.
+ * @WIPHY_BSS_PARAM_SHORT_SLOT_TIME: support changing short slot time usage.
+ * @WIPHY_BSS_PARAM_BASIC_RATES: support reconfiguring basic rates.
+ * @WIPHY_BSS_PARAM_AP_ISOLATE: support changing AP isolation.
+ * @WIPHY_BSS_PARAM_HT_OPMODE: support changing HT operating mode.
+ * @WIPHY_BSS_PARAM_P2P_CTWINDOW: support reconfiguring ctwindow.
+ * @WIPHY_BSS_PARAM_P2P_OPPPS: support changing P2P opportunistic power-save.
+ */
+enum wiphy_bss_param_flags {
+	WIPHY_BSS_PARAM_CTS_PROT = BIT(0),
+	WIPHY_BSS_PARAM_SHORT_PREAMBLE = BIT(1),
+	WIPHY_BSS_PARAM_SHORT_SLOT_TIME = BIT(2),
+	WIPHY_BSS_PARAM_BASIC_RATES = BIT(3),
+	WIPHY_BSS_PARAM_AP_ISOLATE = BIT(4),
+	WIPHY_BSS_PARAM_HT_OPMODE = BIT(5),
+	WIPHY_BSS_PARAM_P2P_CTWINDOW = BIT(6),
+	WIPHY_BSS_PARAM_P2P_OPPPS = BIT(7),
+};
+
+/**
  * struct bss_parameters - BSS parameters
  *
  * Used to change BSS parameters (mainly for AP mode).
@@ -3887,6 +3926,38 @@ struct cfg80211_qos_map {
 };
 
 /**
+ * struct cfg80211_nan_band_config - NAN band specific configuration
+ *
+ * @chan: Pointer to the IEEE 802.11 channel structure. The channel to be used
+ *	for NAN operations on this band. For 2.4 GHz band, this is always
+ *	channel 6. For 5 GHz band, the channel is either 44 or 149, according
+ *	to the regulatory constraints. If chan pointer is NULL the entire band
+ *	configuration entry is considered invalid and should not be used.
+ * @rssi_close: RSSI close threshold used for NAN state transition algorithm
+ *	as described in chapters 3.3.6 and 3.3.7 "NAN Device Role and State
+ *	Transition" of Wi-Fi Aware Specification v4.0. If not
+ *	specified (set to 0), default device value is used. The value should
+ *	be greater than -60 dBm.
+ * @rssi_middle: RSSI middle threshold used for NAN state transition algorithm.
+ *	as described in chapters 3.3.6 and 3.3.7 "NAN Device Role and State
+ *	Transition" of Wi-Fi Aware Specification v4.0. If not
+ *	specified (set to 0), default device value is used. The value should be
+ *	greater than -75 dBm and less than rssi_close.
+ * @awake_dw_interval: Committed DW interval. Valid values range: 0-5. 0
+ *	indicates no wakeup for DW and can't be used on 2.4GHz band, otherwise
+ *	2^(n-1).
+ * @disable_scan: If true, the device will not scan this band for cluster
+ *	 merge. Disabling scan on 2.4 GHz band is not allowed.
+ */
+struct cfg80211_nan_band_config {
+	struct ieee80211_channel *chan;
+	s8 rssi_close;
+	s8 rssi_middle;
+	u8 awake_dw_interval;
+	bool disable_scan;
+};
+
+/**
  * struct cfg80211_nan_conf - NAN configuration
  *
  * This struct defines NAN configuration parameters
@@ -3895,10 +3966,34 @@ struct cfg80211_qos_map {
  * @bands: operating bands, a bitmap of &enum nl80211_band values.
  *	For instance, for NL80211_BAND_2GHZ, bit 0 would be set
  *	(i.e. BIT(NL80211_BAND_2GHZ)).
+ * @cluster_id: cluster ID used for NAN synchronization. This is a MAC address
+ *	that can take a value from 50-6F-9A-01-00-00 to 50-6F-9A-01-FF-FF.
+ *	If NULL, the device will pick a random Cluster ID.
+ * @scan_period: period (in seconds) between NAN scans.
+ * @scan_dwell_time: dwell time (in milliseconds) for NAN scans.
+ * @discovery_beacon_interval: interval (in TUs) for discovery beacons.
+ * @enable_dw_notification: flag to enable/disable discovery window
+ *	notifications.
+ * @band_cfgs: array of band specific configurations, indexed by
+ *	&enum nl80211_band values.
+ * @extra_nan_attrs: pointer to additional NAN attributes.
+ * @extra_nan_attrs_len: length of the additional NAN attributes.
+ * @vendor_elems: pointer to vendor-specific elements.
+ * @vendor_elems_len: length of the vendor-specific elements.
  */
 struct cfg80211_nan_conf {
 	u8 master_pref;
 	u8 bands;
+	const u8 *cluster_id;
+	u16 scan_period;
+	u16 scan_dwell_time;
+	u8 discovery_beacon_interval;
+	bool enable_dw_notification;
+	struct cfg80211_nan_band_config band_cfgs[NUM_NL80211_BANDS];
+	const u8 *extra_nan_attrs;
+	u16 extra_nan_attrs_len;
+	const u8 *vendor_elems;
+	u16 vendor_elems_len;
 };
 
 /**
@@ -3907,10 +4002,17 @@ struct cfg80211_nan_conf {
  *
  * @CFG80211_NAN_CONF_CHANGED_PREF: master preference
  * @CFG80211_NAN_CONF_CHANGED_BANDS: operating bands
+ * @CFG80211_NAN_CONF_CHANGED_CONFIG: changed additional configuration.
+ *	When this flag is set, it indicates that some additional attribute(s)
+ *	(other then master_pref and bands) have been changed. In this case,
+ *	all the unchanged attributes will be properly configured to their
+ *	previous values. The driver doesn't need to store any
+ *	previous configuration besides master_pref and bands.
  */
 enum cfg80211_nan_conf_changes {
 	CFG80211_NAN_CONF_CHANGED_PREF = BIT(0),
 	CFG80211_NAN_CONF_CHANGED_BANDS = BIT(1),
+	CFG80211_NAN_CONF_CHANGED_CONFIG = BIT(2),
 };
 
 /**
@@ -5622,6 +5724,42 @@ struct wiphy_radio {
 	u32 antenna_mask;
 };
 
+/**
+ * enum wiphy_nan_flags - NAN capabilities
+ *
+ * @WIPHY_NAN_FLAGS_CONFIGURABLE_SYNC: Device supports NAN configurable
+ *     synchronization.
+ * @WIPHY_NAN_FLAGS_USERSPACE_DE: Device doesn't support DE offload.
+ */
+enum wiphy_nan_flags {
+	WIPHY_NAN_FLAGS_CONFIGURABLE_SYNC = BIT(0),
+	WIPHY_NAN_FLAGS_USERSPACE_DE   = BIT(1),
+};
+
+/**
+ * struct wiphy_nan_capa - NAN capabilities
+ *
+ * This structure describes the NAN capabilities of a wiphy.
+ *
+ * @flags: NAN capabilities flags, see &enum wiphy_nan_flags
+ * @op_mode: NAN operation mode, as defined in Wi-Fi Aware (TM) specification
+ *     Table 81.
+ * @n_antennas: number of antennas supported by the device for Tx/Rx. Lower
+ *     nibble indicates the number of TX antennas and upper nibble indicates the
+ *     number of RX antennas. Value 0 indicates the information is not
+ *     available.
+ * @max_channel_switch_time: maximum channel switch time in milliseconds.
+ * @dev_capabilities: NAN device capabilities as defined in Wi-Fi Aware (TM)
+ *     specification Table 79 (Capabilities field).
+ */
+struct wiphy_nan_capa {
+	u32 flags;
+	u8 op_mode;
+	u8 n_antennas;
+	u16 max_channel_switch_time;
+	u8 dev_capabilities;
+};
+
 #define CFG80211_HW_TIMESTAMP_ALL_PEERS	0xffff
 
 /**
@@ -5782,6 +5920,11 @@ struct wiphy_radio {
  *	and probe responses.  This value should be set if the driver
  *	wishes to limit the number of csa counters. Default (0) means
  *	infinite.
+ * @bss_param_support: bitmask indicating which bss_parameters as defined in
+ *	&struct bss_parameters the driver can actually handle in the
+ *	.change_bss() callback. The bit positions are defined in &enum
+ *	wiphy_bss_param_flags.
+ *
  * @bss_select_support: bitmask indicating the BSS selection criteria supported
  *	by the driver in the .connect() callback. The bit position maps to the
  *	attribute indices defined in &enum nl80211_bss_select_attr.
@@ -5790,6 +5933,7 @@ struct wiphy_radio {
  *	bitmap of &enum nl80211_band values.  For instance, for
  *	NL80211_BAND_2GHZ, bit 0 would be set
  *	(i.e. BIT(NL80211_BAND_2GHZ)).
+ * @nan_capa: NAN capabilities
  *
  * @txq_limit: configuration of internal TX queue frame limit
  * @txq_memory_limit: configuration internal TX queue memory limit
@@ -5967,9 +6111,11 @@ struct wiphy {
 
 	u8 max_num_csa_counters;
 
+	u32 bss_param_support;
 	u32 bss_select_support;
 
 	u8 nan_supported_bands;
+	struct wiphy_nan_capa nan_capa;
 
 	u32 txq_limit;
 	u32 txq_memory_limit;
@@ -6548,6 +6694,9 @@ struct wireless_dev {
 		struct {
 			struct cfg80211_chan_def chandef;
 		} ocb;
+		struct {
+			u8 cluster_id[ETH_ALEN] __aligned(2);
+		} nan;
 	} u;
 
 	struct {
@@ -6654,16 +6803,6 @@ ieee80211_channel_to_khz(const struct ieee80211_channel *chan)
 {
 	return MHZ_TO_KHZ(chan->center_freq) + chan->freq_offset;
 }
-
-/**
- * ieee80211_s1g_channel_width - get allowed channel width from @chan
- *
- * Only allowed for band NL80211_BAND_S1GHZ
- * @chan: channel
- * Return: The allowed channel width for this center_freq
- */
-enum nl80211_chan_width
-ieee80211_s1g_channel_width(const struct ieee80211_channel *chan);
 
 /**
  * ieee80211_channel_to_freq_khz - convert channel number to frequency
@@ -9548,7 +9687,7 @@ int cfg80211_iter_combinations(struct wiphy *wiphy,
  * @wiphy: the wiphy
  * @chan: channel for which the supported radio index is required
  *
- * Return: radio index on success or a negative error code
+ * Return: radio index on success or -EINVAL otherwise
  */
 int cfg80211_get_radio_idx_by_chan(struct wiphy *wiphy,
 				   const struct ieee80211_channel *chan);
@@ -9970,6 +10109,29 @@ void cfg80211_schedule_channels_check(struct wireless_dev *wdev);
  */
 void cfg80211_epcs_changed(struct net_device *netdev, bool enabled);
 
+/**
+ * cfg80211_next_nan_dw_notif - Notify about the next NAN Discovery Window (DW)
+ * @wdev: Pointer to the wireless device structure
+ * @chan: DW channel (6, 44 or 149)
+ * @gfp: Memory allocation flags
+ */
+void cfg80211_next_nan_dw_notif(struct wireless_dev *wdev,
+				struct ieee80211_channel *chan, gfp_t gfp);
+
+/**
+ * cfg80211_nan_cluster_joined - Notify about NAN cluster join
+ * @wdev: Pointer to the wireless device structure
+ * @cluster_id: Cluster ID of the NAN cluster that was joined or started
+ * @new_cluster: Indicates if this is a new cluster or an existing one
+ * @gfp: Memory allocation flags
+ *
+ * This function is used to notify user space when a NAN cluster has been
+ * joined, providing the cluster ID and a flag whether it is a new cluster.
+ */
+void cfg80211_nan_cluster_joined(struct wireless_dev *wdev,
+				 const u8 *cluster_id, bool new_cluster,
+				 gfp_t gfp);
+
 #ifdef CONFIG_CFG80211_DEBUGFS
 /**
  * wiphy_locked_debugfs_read - do a locked read in debugfs
@@ -10019,5 +10181,73 @@ ssize_t wiphy_locked_debugfs_write(struct wiphy *wiphy, struct file *file,
 						      void *data),
 				   void *data);
 #endif
+
+/**
+ * cfg80211_s1g_get_start_freq_khz - get S1G chandef start frequency
+ * @chandef: the chandef to use
+ *
+ * Return: the chandefs starting frequency in KHz
+ */
+static inline u32
+cfg80211_s1g_get_start_freq_khz(const struct cfg80211_chan_def *chandef)
+{
+	u32 bw_mhz = cfg80211_chandef_get_width(chandef);
+	u32 center_khz =
+		MHZ_TO_KHZ(chandef->center_freq1) + chandef->freq1_offset;
+	return center_khz - bw_mhz * 500 + 500;
+}
+
+/**
+ * cfg80211_s1g_get_end_freq_khz - get S1G chandef end frequency
+ * @chandef: the chandef to use
+ *
+ * Return: the chandefs ending frequency in KHz
+ */
+static inline u32
+cfg80211_s1g_get_end_freq_khz(const struct cfg80211_chan_def *chandef)
+{
+	u32 bw_mhz = cfg80211_chandef_get_width(chandef);
+	u32 center_khz =
+		MHZ_TO_KHZ(chandef->center_freq1) + chandef->freq1_offset;
+	return center_khz + bw_mhz * 500 - 500;
+}
+
+/**
+ * cfg80211_s1g_get_primary_sibling - retrieve the sibling 1MHz subchannel
+ *	for an S1G chandef using a 2MHz primary channel.
+ * @wiphy: wiphy the channel belongs to
+ * @chandef: the chandef to use
+ *
+ * When chandef::s1g_primary_2mhz is set to true, we are operating on a 2MHz
+ * primary channel. The 1MHz subchannel designated by the primary channel
+ * location exists within chandef::chan, whilst the 'sibling' is denoted as
+ * being the other 1MHz subchannel that make up the 2MHz primary channel.
+ *
+ * Returns: the sibling 1MHz &struct ieee80211_channel, or %NULL on failure.
+ */
+static inline struct ieee80211_channel *
+cfg80211_s1g_get_primary_sibling(struct wiphy *wiphy,
+				 const struct cfg80211_chan_def *chandef)
+{
+	int width_mhz = cfg80211_chandef_get_width(chandef);
+	u32 pri_1mhz_khz, sibling_1mhz_khz, op_low_1mhz_khz, pri_index;
+
+	if (!chandef->s1g_primary_2mhz || width_mhz < 2)
+		return NULL;
+
+	pri_1mhz_khz = ieee80211_channel_to_khz(chandef->chan);
+	op_low_1mhz_khz = cfg80211_s1g_get_start_freq_khz(chandef);
+
+	/*
+	 * Compute the index of the primary 1 MHz subchannel within the
+	 * operating channel, relative to the lowest 1 MHz center frequency.
+	 * Flip the least significant bit to select the even/odd sibling,
+	 * then translate that index back into a channel frequency.
+	 */
+	pri_index = (pri_1mhz_khz - op_low_1mhz_khz) / 1000;
+	sibling_1mhz_khz = op_low_1mhz_khz + ((pri_index ^ 1) * 1000);
+
+	return ieee80211_get_channel_khz(wiphy, sibling_1mhz_khz);
+}
 
 #endif /* __NET_CFG80211_H */

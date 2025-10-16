@@ -151,6 +151,21 @@ static void PRINTF(1, 2) lexical_error(const char *fmt, ...);
 			return DT_LABEL;
 		}
 
+<V1>{LABEL} 	{
+			/* Missed includes or macro definitions while
+			 * preprocessing can lead to unexpected identifiers in
+			 * the input. Report a slightly more informative error
+			 * in this case */
+
+			lexical_error("Unexpected '%s'", yytext);
+
+			/* Treat it as a literal which often generates further
+			 * useful error messages */
+
+			yylval.integer = 0;
+			return DT_LITERAL;
+		}
+
 <V1>([0-9]+|0[xX][0-9a-fA-F]+)(U|L|UL|LL|ULL)? {
 			char *e;
 			DPRINT("Integer Literal: '%s'\n", yytext);

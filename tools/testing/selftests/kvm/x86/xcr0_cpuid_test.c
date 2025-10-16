@@ -81,13 +81,13 @@ static void guest_code(void)
 
 	vector = xsetbv_safe(0, XFEATURE_MASK_FP);
 	__GUEST_ASSERT(!vector,
-		       "Expected success on XSETBV(FP), got vector '0x%x'",
-		       vector);
+		       "Expected success on XSETBV(FP), got %s",
+		       ex_str(vector));
 
 	vector = xsetbv_safe(0, supported_xcr0);
 	__GUEST_ASSERT(!vector,
-		       "Expected success on XSETBV(0x%lx), got vector '0x%x'",
-		       supported_xcr0, vector);
+		       "Expected success on XSETBV(0x%lx), got %s",
+		       supported_xcr0, ex_str(vector));
 
 	for (i = 0; i < 64; i++) {
 		if (supported_xcr0 & BIT_ULL(i))
@@ -95,8 +95,8 @@ static void guest_code(void)
 
 		vector = xsetbv_safe(0, supported_xcr0 | BIT_ULL(i));
 		__GUEST_ASSERT(vector == GP_VECTOR,
-			       "Expected #GP on XSETBV(0x%llx), supported XCR0 = %lx, got vector '0x%x'",
-			       BIT_ULL(i), supported_xcr0, vector);
+			       "Expected #GP on XSETBV(0x%llx), supported XCR0 = %lx, got %s",
+			       BIT_ULL(i), supported_xcr0, ex_str(vector));
 	}
 
 	GUEST_DONE();
