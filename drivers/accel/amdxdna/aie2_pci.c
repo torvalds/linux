@@ -1004,6 +1004,7 @@ const struct amdxdna_dev_ops aie2_ops = {
 	.hwctx_init = aie2_hwctx_init,
 	.hwctx_fini = aie2_hwctx_fini,
 	.hwctx_config = aie2_hwctx_config,
+	.hwctx_sync_debug_bo = aie2_hwctx_sync_debug_bo,
 	.cmd_submit = aie2_cmd_submit,
 	.hmm_invalidate = aie2_hmm_invalidate,
 	.get_array = aie2_get_array,
