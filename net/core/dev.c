@@ -4125,9 +4125,10 @@ static inline int __dev_xmit_skb(struct sk_buff *skb, struct Qdisc *q,
 				 struct net_device *dev,
 				 struct netdev_queue *txq)
 {
+	struct sk_buff *next, *to_free = NULL;
 	spinlock_t *root_lock = qdisc_lock(q);
-	struct sk_buff *to_free = NULL;
-	bool contended;
+	struct llist_node *ll_list, *first_n;
+	unsigned long defer_count = 0;
 	int rc;
 
 	qdisc_calculate_pkt_len(skb, q);
@@ -4167,67 +4168,81 @@ no_lock_out:
 		return rc;
 	}
 
-	if (unlikely(READ_ONCE(q->owner) == smp_processor_id())) {
-		kfree_skb_reason(skb, SKB_DROP_REASON_TC_RECLASSIFY_LOOP);
-		return NET_XMIT_DROP;
-	}
-	/*
-	 * Heuristic to force contended enqueues to serialize on a
-	 * separate lock before trying to get qdisc main lock.
-	 * This permits qdisc->running owner to get the lock more
-	 * often and dequeue packets faster.
-	 * On PREEMPT_RT it is possible to preempt the qdisc owner during xmit
-	 * and then other tasks will only enqueue packets. The packets will be
-	 * sent after the qdisc owner is scheduled again. To prevent this
-	 * scenario the task always serialize on the lock.
+	/* Open code llist_add(&skb->ll_node, &q->defer_list) + queue limit.
+	 * In the try_cmpxchg() loop, we want to increment q->defer_count
+	 * at most once to limit the number of skbs in defer_list.
+	 * We perform the defer_count increment only if the list is not empty,
+	 * because some arches have slow atomic_long_inc_return().
 	 */
-	contended = qdisc_is_running(q) || IS_ENABLED(CONFIG_PREEMPT_RT);
-	if (unlikely(contended))
-		spin_lock(&q->busylock);
+	first_n = READ_ONCE(q->defer_list.first);
+	do {
+		if (first_n && !defer_count) {
+			defer_count = atomic_long_inc_return(&q->defer_count);
+			if (unlikely(defer_count > q->limit)) {
+				kfree_skb_reason(skb, SKB_DROP_REASON_QDISC_DROP);
+				return NET_XMIT_DROP;
+			}
+		}
+		skb->ll_node.next = first_n;
+	} while (!try_cmpxchg(&q->defer_list.first, &first_n, &skb->ll_node));
+
+	/* If defer_list was not empty, we know the cpu which queued
+	 * the first skb will process the whole list for us.
+	 */
+	if (first_n)
+		return NET_XMIT_SUCCESS;
 
 	spin_lock(root_lock);
+
+	ll_list = llist_del_all(&q->defer_list);
+	/* There is a small race because we clear defer_count not atomically
+	 * with the prior llist_del_all(). This means defer_list could grow
+	 * over q->limit.
+	 */
+	atomic_long_set(&q->defer_count, 0);
+
+	ll_list = llist_reverse_order(ll_list);
+
 	if (unlikely(test_bit(__QDISC_STATE_DEACTIVATED, &q->state))) {
-		__qdisc_drop(skb, &to_free);
+		llist_for_each_entry_safe(skb, next, ll_list, ll_node)
+			__qdisc_drop(skb, &to_free);
 		rc = NET_XMIT_DROP;
-	} else if ((q->flags & TCQ_F_CAN_BYPASS) && !qdisc_qlen(q) &&
-		   qdisc_run_begin(q)) {
+		goto unlock;
+	}
+	if ((q->flags & TCQ_F_CAN_BYPASS) && !qdisc_qlen(q) &&
+	    !llist_next(ll_list) && qdisc_run_begin(q)) {
 		/*
 		 * This is a work-conserving queue; there are no old skbs
 		 * waiting to be sent out; and the qdisc is not running -
 		 * xmit the skb directly.
 		 */
 
+		DEBUG_NET_WARN_ON_ONCE(skb != llist_entry(ll_list,
+							  struct sk_buff,
+							  ll_node));
 		qdisc_bstats_update(q, skb);
-
-		if (sch_direct_xmit(skb, q, dev, txq, root_lock, true)) {
-			if (unlikely(contended)) {
-				spin_unlock(&q->busylock);
-				contended = false;
-			}
+		if (sch_direct_xmit(skb, q, dev, txq, root_lock, true))
 			__qdisc_run(q);
-		}
-
 		qdisc_run_end(q);
 		rc = NET_XMIT_SUCCESS;
 	} else {
-		WRITE_ONCE(q->owner, smp_processor_id());
-		rc = dev_qdisc_enqueue(skb, q, &to_free, txq);
-		WRITE_ONCE(q->owner, -1);
-		if (qdisc_run_begin(q)) {
-			if (unlikely(contended)) {
-				spin_unlock(&q->busylock);
-				contended = false;
-			}
-			__qdisc_run(q);
-			qdisc_run_end(q);
+		int count = 0;
+
+		llist_for_each_entry_safe(skb, next, ll_list, ll_node) {
+			prefetch(next);
+			skb_mark_not_on_list(skb);
+			rc = dev_qdisc_enqueue(skb, q, &to_free, txq);
+			count++;
 		}
+		qdisc_run(q);
+		if (count != 1)
+			rc = NET_XMIT_SUCCESS;
 	}
+unlock:
 	spin_unlock(root_lock);
 	if (unlikely(to_free))
 		kfree_skb_list_reason(to_free,
 				      tcf_get_drop_reason(to_free));
-	if (unlikely(contended))
-		spin_unlock(&q->busylock);
 	return rc;
 }
 
