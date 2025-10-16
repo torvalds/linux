@@ -27,7 +27,7 @@ impl auxiliary::Driver for AuxiliaryDriver {
 
     const ID_TABLE: auxiliary::IdTable<Self::IdInfo> = &AUX_TABLE;
 
-    fn probe(adev: &auxiliary::Device<Core>, _info: &Self::IdInfo) -> Result<Pin<KBox<Self>>> {
+    fn probe(adev: &auxiliary::Device<Core>, _info: &Self::IdInfo) -> impl PinInit<Self, Error> {
         dev_info!(
             adev.as_ref(),
             "Probing auxiliary driver for auxiliary device with id={}\n",
@@ -36,9 +36,7 @@ impl auxiliary::Driver for AuxiliaryDriver {
 
         ParentDriver::connect(adev)?;
 
-        let this = KBox::new(Self, GFP_KERNEL)?;
-
-        Ok(this.into())
+        Ok(Self)
     }
 }
 
@@ -58,18 +56,13 @@ impl pci::Driver for ParentDriver {
 
     const ID_TABLE: pci::IdTable<Self::IdInfo> = &PCI_TABLE;
 
-    fn probe(pdev: &pci::Device<Core>, _info: &Self::IdInfo) -> Result<Pin<KBox<Self>>> {
-        let this = KBox::new(
-            Self {
-                _reg: [
-                    auxiliary::Registration::new(pdev.as_ref(), AUXILIARY_NAME, 0, MODULE_NAME)?,
-                    auxiliary::Registration::new(pdev.as_ref(), AUXILIARY_NAME, 1, MODULE_NAME)?,
-                ],
-            },
-            GFP_KERNEL,
-        )?;
-
-        Ok(this.into())
+    fn probe(pdev: &pci::Device<Core>, _info: &Self::IdInfo) -> impl PinInit<Self, Error> {
+        Ok(Self {
+            _reg: [
+                auxiliary::Registration::new(pdev.as_ref(), AUXILIARY_NAME, 0, MODULE_NAME)?,
+                auxiliary::Registration::new(pdev.as_ref(), AUXILIARY_NAME, 1, MODULE_NAME)?,
+            ],
+        })
     }
 }
 

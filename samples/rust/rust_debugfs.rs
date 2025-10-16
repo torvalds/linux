@@ -106,16 +106,17 @@ impl platform::Driver for RustDebugFs {
     fn probe(
         pdev: &platform::Device<Core>,
         _info: Option<&Self::IdInfo>,
-    ) -> Result<Pin<KBox<Self>>> {
-        let result = KBox::try_pin_init(RustDebugFs::new(pdev), GFP_KERNEL)?;
-        // We can still mutate fields through the files which are atomic or mutexed:
-        result.counter.store(91, Ordering::Relaxed);
-        {
-            let mut guard = result.inner.lock();
-            guard.x = guard.y;
-            guard.y = 42;
-        }
-        Ok(result)
+    ) -> impl PinInit<Self, Error> {
+        RustDebugFs::new(pdev).pin_chain(|this| {
+            this.counter.store(91, Ordering::Relaxed);
+            {
+                let mut guard = this.inner.lock();
+                guard.x = guard.y;
+                guard.y = 42;
+            }
+
+            Ok(())
+        })
     }
 }
 

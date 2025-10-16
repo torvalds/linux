@@ -67,10 +67,10 @@ impl<T: Driver + 'static> Adapter<T> {
             let id = unsafe { &*id.cast::<DeviceId>() };
 
             let info = T::ID_TABLE.info(id.index());
-            let data = T::probe(intf, id, info)?;
+            let data = T::probe(intf, id, info);
 
             let dev: &device::Device<device::CoreInternal> = intf.as_ref();
-            dev.set_drvdata(data);
+            dev.set_drvdata(data)?;
             Ok(0)
         })
     }
@@ -270,7 +270,7 @@ macro_rules! usb_device_table {
 ///         _interface: &usb::Interface<Core>,
 ///         _id: &usb::DeviceId,
 ///         _info: &Self::IdInfo,
-///     ) -> Result<Pin<KBox<Self>>> {
+///     ) -> impl PinInit<Self, Error> {
 ///         Err(ENODEV)
 ///     }
 ///
@@ -292,7 +292,7 @@ pub trait Driver {
         interface: &Interface<device::Core>,
         id: &DeviceId,
         id_info: &Self::IdInfo,
-    ) -> Result<Pin<KBox<Self>>>;
+    ) -> impl PinInit<Self, Error>;
 
     /// USB driver disconnect.
     ///

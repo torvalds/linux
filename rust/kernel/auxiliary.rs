@@ -68,9 +68,9 @@ impl<T: Driver + 'static> Adapter<T> {
         let info = T::ID_TABLE.info(id.index());
 
         from_result(|| {
-            let data = T::probe(adev, info)?;
+            let data = T::probe(adev, info);
 
-            adev.as_ref().set_drvdata(data);
+            adev.as_ref().set_drvdata(data)?;
             Ok(0)
         })
     }
@@ -184,7 +184,7 @@ pub trait Driver {
     /// Auxiliary driver probe.
     ///
     /// Called when an auxiliary device is matches a corresponding driver.
-    fn probe(dev: &Device<device::Core>, id_info: &Self::IdInfo) -> Result<Pin<KBox<Self>>>;
+    fn probe(dev: &Device<device::Core>, id_info: &Self::IdInfo) -> impl PinInit<Self, Error>;
 }
 
 /// The auxiliary device representation.

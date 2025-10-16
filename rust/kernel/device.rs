@@ -6,6 +6,7 @@
 
 use crate::{
     bindings, fmt,
+    prelude::*,
     sync::aref::ARef,
     types::{ForeignOwnable, Opaque},
 };
@@ -198,9 +199,13 @@ impl Device {
 
 impl Device<CoreInternal> {
     /// Store a pointer to the bound driver's private data.
-    pub fn set_drvdata(&self, data: impl ForeignOwnable) {
+    pub fn set_drvdata<T: 'static>(&self, data: impl PinInit<T, Error>) -> Result {
+        let data = KBox::pin_init(data, GFP_KERNEL)?;
+
         // SAFETY: By the type invariants, `self.as_raw()` is a valid pointer to a `struct device`.
-        unsafe { bindings::dev_set_drvdata(self.as_raw(), data.into_foreign().cast()) }
+        unsafe { bindings::dev_set_drvdata(self.as_raw(), data.into_foreign().cast()) };
+
+        Ok(())
     }
 
     /// Take ownership of the private data stored in this [`Device`].

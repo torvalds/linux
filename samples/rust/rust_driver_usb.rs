@@ -24,12 +24,11 @@ impl usb::Driver for SampleDriver {
         intf: &usb::Interface<Core>,
         _id: &usb::DeviceId,
         _info: &Self::IdInfo,
-    ) -> Result<Pin<KBox<Self>>> {
+    ) -> impl PinInit<Self, Error> {
         let dev: &device::Device<Core> = intf.as_ref();
         dev_info!(dev, "Rust USB driver sample probed\n");
 
-        let drvdata = KBox::new(Self { _intf: intf.into() }, GFP_KERNEL)?;
-        Ok(drvdata.into())
+        Ok(Self { _intf: intf.into() })
     }
 
     fn disconnect(intf: &usb::Interface<Core>, _data: Pin<&Self>) {

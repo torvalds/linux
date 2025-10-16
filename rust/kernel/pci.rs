@@ -77,9 +77,9 @@ impl<T: Driver + 'static> Adapter<T> {
         let info = T::ID_TABLE.info(id.index());
 
         from_result(|| {
-            let data = T::probe(pdev, info)?;
+            let data = T::probe(pdev, info);
 
-            pdev.as_ref().set_drvdata(data);
+            pdev.as_ref().set_drvdata(data)?;
             Ok(0)
         })
     }
@@ -248,7 +248,7 @@ macro_rules! pci_device_table {
 ///     fn probe(
 ///         _pdev: &pci::Device<Core>,
 ///         _id_info: &Self::IdInfo,
-///     ) -> Result<Pin<KBox<Self>>> {
+///     ) -> impl PinInit<Self, Error> {
 ///         Err(ENODEV)
 ///     }
 /// }
@@ -271,7 +271,7 @@ pub trait Driver: Send {
     ///
     /// Called when a new pci device is added or discovered. Implementers should
     /// attempt to initialize the device here.
-    fn probe(dev: &Device<device::Core>, id_info: &Self::IdInfo) -> Result<Pin<KBox<Self>>>;
+    fn probe(dev: &Device<device::Core>, id_info: &Self::IdInfo) -> impl PinInit<Self, Error>;
 
     /// PCI driver unbind.
     ///

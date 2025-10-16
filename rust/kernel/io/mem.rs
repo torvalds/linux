@@ -53,7 +53,7 @@ impl<'a> IoRequest<'a> {
     ///    fn probe(
     ///       pdev: &platform::Device<Core>,
     ///       info: Option<&Self::IdInfo>,
-    ///    ) -> Result<Pin<KBox<Self>>> {
+    ///    ) -> impl PinInit<Self, Error> {
     ///       let offset = 0; // Some offset.
     ///
     ///       // If the size is known at compile time, use [`Self::iomap_sized`].
@@ -70,7 +70,7 @@ impl<'a> IoRequest<'a> {
     ///
     ///       io.write32_relaxed(data, offset);
     ///
-    ///       # Ok(KBox::new(SampleDriver, GFP_KERNEL)?.into())
+    ///       # Ok(SampleDriver)
     ///     }
     /// }
     /// ```
@@ -111,7 +111,7 @@ impl<'a> IoRequest<'a> {
     ///    fn probe(
     ///       pdev: &platform::Device<Core>,
     ///       info: Option<&Self::IdInfo>,
-    ///    ) -> Result<Pin<KBox<Self>>> {
+    ///    ) -> impl PinInit<Self, Error> {
     ///       let offset = 0; // Some offset.
     ///
     ///       // Unlike [`Self::iomap_sized`], here the size of the memory region
@@ -128,7 +128,7 @@ impl<'a> IoRequest<'a> {
     ///
     ///       io.try_write32_relaxed(data, offset)?;
     ///
-    ///       # Ok(KBox::new(SampleDriver, GFP_KERNEL)?.into())
+    ///       # Ok(SampleDriver)
     ///     }
     /// }
     /// ```
