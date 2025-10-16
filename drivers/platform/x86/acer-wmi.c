@@ -68,9 +68,17 @@ MODULE_LICENSE("GPL");
 #define ACER_WMID_SET_GAMING_LED_METHODID 2
 #define ACER_WMID_GET_GAMING_LED_METHODID 4
 #define ACER_WMID_GET_GAMING_SYS_INFO_METHODID 5
-#define ACER_WMID_SET_GAMING_FAN_BEHAVIOR 14
+#define ACER_WMID_SET_GAMING_FAN_BEHAVIOR_METHODID 14
 #define ACER_WMID_SET_GAMING_MISC_SETTING_METHODID 22
 #define ACER_WMID_GET_GAMING_MISC_SETTING_METHODID 23
+
+#define ACER_GAMING_FAN_BEHAVIOR_CPU BIT(0)
+#define ACER_GAMING_FAN_BEHAVIOR_GPU BIT(3)
+
+#define ACER_GAMING_FAN_BEHAVIOR_STATUS_MASK GENMASK_ULL(7, 0)
+#define ACER_GAMING_FAN_BEHAVIOR_ID_MASK GENMASK_ULL(15, 0)
+#define ACER_GAMING_FAN_BEHAVIOR_SET_CPU_MODE_MASK GENMASK(17, 16)
+#define ACER_GAMING_FAN_BEHAVIOR_SET_GPU_MODE_MASK GENMASK(23, 22)
 
 #define ACER_GAMING_MISC_SETTING_STATUS_MASK GENMASK_ULL(7, 0)
 #define ACER_GAMING_MISC_SETTING_INDEX_MASK GENMASK_ULL(7, 0)
@@ -119,6 +127,12 @@ enum acer_wmi_predator_v4_sensor_id {
 	ACER_WMID_SENSOR_EXTERNAL_TEMPERATURE_2 = 0x03,
 	ACER_WMID_SENSOR_GPU_FAN_SPEED		= 0x06,
 	ACER_WMID_SENSOR_GPU_TEMPERATURE	= 0x0A,
+};
+
+enum acer_wmi_gaming_fan_mode {
+	ACER_WMID_FAN_MODE_AUTO		= 0x01,
+	ACER_WMID_FAN_MODE_TURBO	= 0x02,
+	ACER_WMID_FAN_MODE_CUSTOM	= 0x03,
 };
 
 enum acer_wmi_predator_v4_oc {
@@ -1563,9 +1577,6 @@ static acpi_status WMID_gaming_set_u64(u64 value, u32 cap)
 	case ACER_CAP_TURBO_LED:
 		method_id = ACER_WMID_SET_GAMING_LED_METHODID;
 		break;
-	case ACER_CAP_TURBO_FAN:
-		method_id = ACER_WMID_SET_GAMING_FAN_BEHAVIOR;
-		break;
 	default:
 		return AE_BAD_PARAMETER;
 	}
@@ -1616,25 +1627,43 @@ static int WMID_gaming_get_sys_info(u32 command, u64 *out)
 	return 0;
 }
 
-static void WMID_gaming_set_fan_mode(u8 fan_mode)
+static int WMID_gaming_set_fan_behavior(u16 fan_bitmap, enum acer_wmi_gaming_fan_mode mode)
 {
-	/* fan_mode = 1 is used for auto, fan_mode = 2 used for turbo*/
-	u64 gpu_fan_config1 = 0, gpu_fan_config2 = 0;
-	int i;
+	acpi_status status;
+	u64 input = 0;
+	u64 result;
+
+	input |= FIELD_PREP(ACER_GAMING_FAN_BEHAVIOR_ID_MASK, fan_bitmap);
+
+	if (fan_bitmap & ACER_GAMING_FAN_BEHAVIOR_CPU)
+		input |= FIELD_PREP(ACER_GAMING_FAN_BEHAVIOR_SET_CPU_MODE_MASK, mode);
+
+	if (fan_bitmap & ACER_GAMING_FAN_BEHAVIOR_GPU)
+		input |= FIELD_PREP(ACER_GAMING_FAN_BEHAVIOR_SET_GPU_MODE_MASK, mode);
+
+	status = WMI_gaming_execute_u64(ACER_WMID_SET_GAMING_FAN_BEHAVIOR_METHODID, input,
+					&result);
+	if (ACPI_FAILURE(status))
+		return -EIO;
+
+	/* The return status must be zero for the operation to have succeeded */
+	if (FIELD_GET(ACER_GAMING_FAN_BEHAVIOR_STATUS_MASK, result))
+		return -EIO;
+
+	return 0;
+}
+
+static void WMID_gaming_set_fan_mode(enum acer_wmi_gaming_fan_mode mode)
+{
+	u16 fan_bitmap = 0;
 
 	if (quirks->cpu_fans > 0)
-		gpu_fan_config2 |= 1;
-	for (i = 0; i < (quirks->cpu_fans + quirks->gpu_fans); ++i)
-		gpu_fan_config2 |= 1 << (i + 1);
-	for (i = 0; i < quirks->gpu_fans; ++i)
-		gpu_fan_config2 |= 1 << (i + 3);
-	if (quirks->cpu_fans > 0)
-		gpu_fan_config1 |= fan_mode;
-	for (i = 0; i < (quirks->cpu_fans + quirks->gpu_fans); ++i)
-		gpu_fan_config1 |= fan_mode << (2 * i + 2);
-	for (i = 0; i < quirks->gpu_fans; ++i)
-		gpu_fan_config1 |= fan_mode << (2 * i + 6);
-	WMID_gaming_set_u64(gpu_fan_config2 | gpu_fan_config1 << 16, ACER_CAP_TURBO_FAN);
+		fan_bitmap |= ACER_GAMING_FAN_BEHAVIOR_CPU;
+
+	if (quirks->gpu_fans > 0)
+		fan_bitmap |= ACER_GAMING_FAN_BEHAVIOR_GPU;
+
+	WMID_gaming_set_fan_behavior(fan_bitmap, mode);
 }
 
 static int WMID_gaming_set_misc_setting(enum acer_wmi_gaming_misc_setting setting, u8 value)
@@ -1921,7 +1950,7 @@ static int acer_toggle_turbo(void)
 		WMID_gaming_set_u64(0x1, ACER_CAP_TURBO_LED);
 
 		/* Set FAN mode to auto */
-		WMID_gaming_set_fan_mode(0x1);
+		WMID_gaming_set_fan_mode(ACER_WMID_FAN_MODE_AUTO);
 
 		/* Set OC to normal */
 		if (has_cap(ACER_CAP_TURBO_OC)) {
@@ -1935,7 +1964,7 @@ static int acer_toggle_turbo(void)
 		WMID_gaming_set_u64(0x10001, ACER_CAP_TURBO_LED);
 
 		/* Set FAN mode to turbo */
-		WMID_gaming_set_fan_mode(0x2);
+		WMID_gaming_set_fan_mode(ACER_WMID_FAN_MODE_TURBO);
 
 		/* Set OC to turbo mode */
 		if (has_cap(ACER_CAP_TURBO_OC)) {
