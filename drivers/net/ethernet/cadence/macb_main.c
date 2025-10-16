@@ -6,36 +6,37 @@
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-#include <linux/clk.h>
+#include <linux/circ_buf.h>
 #include <linux/clk-provider.h>
+#include <linux/clk.h>
 #include <linux/crc32.h>
+#include <linux/dma-mapping.h>
+#include <linux/etherdevice.h>
+#include <linux/firmware/xlnx-zynqmp.h>
+#include <linux/inetdevice.h>
+#include <linux/inetdevice.h>
+#include <linux/init.h>
+#include <linux/interrupt.h>
+#include <linux/io.h>
+#include <linux/iopoll.h>
+#include <linux/ip.h>
+#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
-#include <linux/kernel.h>
-#include <linux/types.h>
-#include <linux/circ_buf.h>
-#include <linux/slab.h>
-#include <linux/init.h>
-#include <linux/io.h>
-#include <linux/interrupt.h>
 #include <linux/netdevice.h>
-#include <linux/etherdevice.h>
-#include <linux/dma-mapping.h>
-#include <linux/platform_device.h>
-#include <linux/phylink.h>
 #include <linux/of.h>
 #include <linux/of_mdio.h>
 #include <linux/of_net.h>
-#include <linux/ip.h>
-#include <linux/udp.h>
-#include <linux/tcp.h>
-#include <linux/iopoll.h>
 #include <linux/phy/phy.h>
+#include <linux/phylink.h>
+#include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/ptp_classify.h>
 #include <linux/reset.h>
-#include <linux/firmware/xlnx-zynqmp.h>
-#include <linux/inetdevice.h>
+#include <linux/slab.h>
+#include <linux/tcp.h>
+#include <linux/types.h>
+#include <linux/udp.h>
 #include <net/pkt_sched.h>
 #include "macb.h"
 
@@ -121,56 +122,26 @@ struct sifive_fu540_macb_mgmt {
  */
 static unsigned int macb_dma_desc_get_size(struct macb *bp)
 {
-#ifdef MACB_EXT_DESC
-	unsigned int desc_size;
+	unsigned int desc_size = sizeof(struct macb_dma_desc);
 
-	switch (bp->hw_dma_cap) {
-	case HW_DMA_CAP_64B:
-		desc_size = sizeof(struct macb_dma_desc)
-			+ sizeof(struct macb_dma_desc_64);
-		break;
-	case HW_DMA_CAP_PTP:
-		desc_size = sizeof(struct macb_dma_desc)
-			+ sizeof(struct macb_dma_desc_ptp);
-		break;
-	case HW_DMA_CAP_64B_PTP:
-		desc_size = sizeof(struct macb_dma_desc)
-			+ sizeof(struct macb_dma_desc_64)
-			+ sizeof(struct macb_dma_desc_ptp);
-		break;
-	default:
-		desc_size = sizeof(struct macb_dma_desc);
-	}
+	if (macb_dma64(bp))
+		desc_size += sizeof(struct macb_dma_desc_64);
+	if (macb_dma_ptp(bp))
+		desc_size += sizeof(struct macb_dma_desc_ptp);
+
 	return desc_size;
-#endif
-	return sizeof(struct macb_dma_desc);
 }
 
 static unsigned int macb_adj_dma_desc_idx(struct macb *bp, unsigned int desc_idx)
 {
-#ifdef MACB_EXT_DESC
-	switch (bp->hw_dma_cap) {
-	case HW_DMA_CAP_64B:
-	case HW_DMA_CAP_PTP:
-		desc_idx <<= 1;
-		break;
-	case HW_DMA_CAP_64B_PTP:
-		desc_idx *= 3;
-		break;
-	default:
-		break;
-	}
-#endif
-	return desc_idx;
+	return desc_idx * (1 + macb_dma64(bp) + macb_dma_ptp(bp));
 }
 
-#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
 static struct macb_dma_desc_64 *macb_64b_desc(struct macb *bp, struct macb_dma_desc *desc)
 {
 	return (struct macb_dma_desc_64 *)((void *)desc
 		+ sizeof(struct macb_dma_desc));
 }
-#endif
 
 /* Ring buffer accessors */
 static unsigned int macb_tx_ring_wrap(struct macb *bp, unsigned int index)
@@ -492,15 +463,13 @@ static void macb_init_buffers(struct macb *bp)
 	struct macb_queue *queue;
 	unsigned int q;
 
-#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
 	/* Single register for all queues' high 32 bits. */
-	if (bp->hw_dma_cap & HW_DMA_CAP_64B) {
+	if (macb_dma64(bp)) {
 		macb_writel(bp, RBQPH,
 			    upper_32_bits(bp->queues[0].rx_ring_dma));
 		macb_writel(bp, TBQPH,
 			    upper_32_bits(bp->queues[0].tx_ring_dma));
 	}
-#endif
 
 	for (q = 0, queue = bp->queues; q < bp->num_queues; ++q, ++queue) {
 		queue_writel(queue, RBQP, lower_32_bits(queue->rx_ring_dma));
@@ -1025,10 +994,9 @@ static void macb_tx_unmap(struct macb *bp, struct macb_tx_skb *tx_skb, int budge
 
 static void macb_set_addr(struct macb *bp, struct macb_dma_desc *desc, dma_addr_t addr)
 {
-#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
-	struct macb_dma_desc_64 *desc_64;
+	if (macb_dma64(bp)) {
+		struct macb_dma_desc_64 *desc_64;
 
-	if (bp->hw_dma_cap & HW_DMA_CAP_64B) {
 		desc_64 = macb_64b_desc(bp, desc);
 		desc_64->addrh = upper_32_bits(addr);
 		/* The low bits of RX address contain the RX_USED bit, clearing
@@ -1037,26 +1005,23 @@ static void macb_set_addr(struct macb *bp, struct macb_dma_desc *desc, dma_addr_
 		 */
 		dma_wmb();
 	}
-#endif
+
 	desc->addr = lower_32_bits(addr);
 }
 
 static dma_addr_t macb_get_addr(struct macb *bp, struct macb_dma_desc *desc)
 {
 	dma_addr_t addr = 0;
-#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
-	struct macb_dma_desc_64 *desc_64;
 
-	if (bp->hw_dma_cap & HW_DMA_CAP_64B) {
+	if (macb_dma64(bp)) {
+		struct macb_dma_desc_64 *desc_64;
+
 		desc_64 = macb_64b_desc(bp, desc);
 		addr = ((u64)(desc_64->addrh) << 32);
 	}
-#endif
 	addr |= MACB_BF(RX_WADDR, MACB_BFEXT(RX_WADDR, desc->addr));
-#ifdef CONFIG_MACB_USE_HWSTAMP
-	if (bp->hw_dma_cap & HW_DMA_CAP_PTP)
+	if (macb_dma_ptp(bp))
 		addr &= ~GEM_BIT(DMA_RXVALID);
-#endif
 	return addr;
 }
 
@@ -2024,14 +1989,14 @@ static unsigned int macb_tx_map(struct macb *bp,
 				struct sk_buff *skb,
 				unsigned int hdrlen)
 {
-	dma_addr_t mapping;
-	unsigned int len, entry, i, tx_head = queue->tx_head;
+	unsigned int f, nr_frags = skb_shinfo(skb)->nr_frags;
+	unsigned int len, i, tx_head = queue->tx_head;
+	u32 ctrl, lso_ctrl = 0, seq_ctrl = 0;
+	unsigned int eof = 1, mss_mfs = 0;
 	struct macb_tx_skb *tx_skb = NULL;
 	struct macb_dma_desc *desc;
-	unsigned int offset, size, count = 0;
-	unsigned int f, nr_frags = skb_shinfo(skb)->nr_frags;
-	unsigned int eof = 1, mss_mfs = 0;
-	u32 ctrl, lso_ctrl = 0, seq_ctrl = 0;
+	unsigned int offset, size;
+	dma_addr_t mapping;
 
 	/* LSO */
 	if (skb_shinfo(skb)->gso_size != 0) {
@@ -2051,8 +2016,7 @@ static unsigned int macb_tx_map(struct macb *bp,
 
 	offset = 0;
 	while (len) {
-		entry = macb_tx_ring_wrap(bp, tx_head);
-		tx_skb = &queue->tx_skb[entry];
+		tx_skb = macb_tx_skb(queue, tx_head);
 
 		mapping = dma_map_single(&bp->pdev->dev,
 					 skb->data + offset,
@@ -2068,10 +2032,9 @@ static unsigned int macb_tx_map(struct macb *bp,
 
 		len -= size;
 		offset += size;
-		count++;
 		tx_head++;
 
-		size = min(len, bp->max_tx_length);
+		size = umin(len, bp->max_tx_length);
 	}
 
 	/* Then, map paged data from fragments */
@@ -2081,9 +2044,8 @@ static unsigned int macb_tx_map(struct macb *bp,
 		len = skb_frag_size(frag);
 		offset = 0;
 		while (len) {
-			size = min(len, bp->max_tx_length);
-			entry = macb_tx_ring_wrap(bp, tx_head);
-			tx_skb = &queue->tx_skb[entry];
+			size = umin(len, bp->max_tx_length);
+			tx_skb = macb_tx_skb(queue, tx_head);
 
 			mapping = skb_frag_dma_map(&bp->pdev->dev, frag,
 						   offset, size, DMA_TO_DEVICE);
@@ -2098,7 +2060,6 @@ static unsigned int macb_tx_map(struct macb *bp,
 
 			len -= size;
 			offset += size;
-			count++;
 			tx_head++;
 		}
 	}
@@ -2120,9 +2081,8 @@ static unsigned int macb_tx_map(struct macb *bp,
 	 * to set the end of TX queue
 	 */
 	i = tx_head;
-	entry = macb_tx_ring_wrap(bp, i);
 	ctrl = MACB_BIT(TX_USED);
-	desc = macb_tx_desc(queue, entry);
+	desc = macb_tx_desc(queue, i);
 	desc->ctrl = ctrl;
 
 	if (lso_ctrl) {
@@ -2142,16 +2102,15 @@ static unsigned int macb_tx_map(struct macb *bp,
 
 	do {
 		i--;
-		entry = macb_tx_ring_wrap(bp, i);
-		tx_skb = &queue->tx_skb[entry];
-		desc = macb_tx_desc(queue, entry);
+		tx_skb = macb_tx_skb(queue, i);
+		desc = macb_tx_desc(queue, i);
 
 		ctrl = (u32)tx_skb->size;
 		if (eof) {
 			ctrl |= MACB_BIT(TX_LAST);
 			eof = 0;
 		}
-		if (unlikely(entry == (bp->tx_ring_size - 1)))
+		if (unlikely(macb_tx_ring_wrap(bp, i) == bp->tx_ring_size - 1))
 			ctrl |= MACB_BIT(TX_WRAP);
 
 		/* First descriptor is header descriptor */
@@ -2179,7 +2138,7 @@ static unsigned int macb_tx_map(struct macb *bp,
 
 	queue->tx_head = tx_head;
 
-	return count;
+	return 0;
 
 dma_error:
 	netdev_err(bp->dev, "TX DMA map failed\n");
@@ -2190,7 +2149,7 @@ dma_error:
 		macb_tx_unmap(bp, tx_skb, 0);
 	}
 
-	return 0;
+	return -ENOMEM;
 }
 
 static netdev_features_t macb_features_check(struct sk_buff *skb,
@@ -2318,11 +2277,9 @@ static netdev_tx_t macb_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		return ret;
 	}
 
-#ifdef CONFIG_MACB_USE_HWSTAMP
-	if ((skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) &&
-	    (bp->hw_dma_cap & HW_DMA_CAP_PTP))
+	if (macb_dma_ptp(bp) &&
+	    (skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP))
 		skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
-#endif
 
 	is_lso = (skb_shinfo(skb)->gso_size != 0);
 
@@ -2339,7 +2296,7 @@ static netdev_tx_t macb_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			return NETDEV_TX_BUSY;
 		}
 	} else
-		hdrlen = min(skb_headlen(skb), bp->max_tx_length);
+		hdrlen = umin(skb_headlen(skb), bp->max_tx_length);
 
 #if defined(DEBUG) && defined(VERBOSE_DEBUG)
 	netdev_vdbg(bp->dev,
@@ -2378,7 +2335,7 @@ static netdev_tx_t macb_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	/* Map socket buffer for DMA transfer */
-	if (!macb_tx_map(bp, queue, skb, hdrlen)) {
+	if (macb_tx_map(bp, queue, skb, hdrlen)) {
 		dev_kfree_skb_any(skb);
 		goto unlock;
 	}
@@ -2799,14 +2756,10 @@ static void macb_configure_dma(struct macb *bp)
 			dmacfg &= ~GEM_BIT(TXCOEN);
 
 		dmacfg &= ~GEM_BIT(ADDR64);
-#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
-		if (bp->hw_dma_cap & HW_DMA_CAP_64B)
+		if (macb_dma64(bp))
 			dmacfg |= GEM_BIT(ADDR64);
-#endif
-#ifdef CONFIG_MACB_USE_HWSTAMP
-		if (bp->hw_dma_cap & HW_DMA_CAP_PTP)
+		if (macb_dma_ptp(bp))
 			dmacfg |= GEM_BIT(RXEXT) | GEM_BIT(TXEXT);
-#endif
 		netdev_dbg(bp->dev, "Cadence configure DMA with 0x%08x\n",
 			   dmacfg);
 		gem_writel(bp, DMACFG, dmacfg);
@@ -3582,7 +3535,7 @@ static int gem_get_ts_info(struct net_device *dev,
 {
 	struct macb *bp = netdev_priv(dev);
 
-	if ((bp->hw_dma_cap & HW_DMA_CAP_PTP) == 0) {
+	if (!macb_dma_ptp(bp)) {
 		ethtool_op_get_ts_info(dev, info);
 		return 0;
 	}
@@ -4108,6 +4061,8 @@ static int macb_taprio_setup_replace(struct net_device *ndev,
 	struct macb *bp = netdev_priv(ndev);
 	struct ethtool_link_ksettings kset;
 	struct macb_queue *queue;
+	u32 queue_mask;
+	u8 queue_id;
 	size_t i;
 	int err;
 
@@ -4159,8 +4114,9 @@ static int macb_taprio_setup_replace(struct net_device *ndev,
 			goto cleanup;
 		}
 
-		/* gate_mask must not select queues outside the valid queue_mask */
-		if (entry->gate_mask & ~bp->queue_mask) {
+		/* gate_mask must not select queues outside the valid queues */
+		queue_id = order_base_2(entry->gate_mask);
+		if (queue_id >= bp->num_queues) {
 			netdev_err(ndev, "Entry %zu: gate_mask 0x%x exceeds queue range (max_queues=%d)\n",
 				   i, entry->gate_mask, bp->num_queues);
 			err = -EINVAL;
@@ -4194,7 +4150,7 @@ static int macb_taprio_setup_replace(struct net_device *ndev,
 			goto cleanup;
 		}
 
-		enst_queue[i].queue_id = order_base_2(entry->gate_mask);
+		enst_queue[i].queue_id = queue_id;
 		enst_queue[i].start_time_mask =
 			(start_time_sec << GEM_START_TIME_SEC_OFFSET) |
 			start_time_nsec;
@@ -4222,8 +4178,9 @@ static int macb_taprio_setup_replace(struct net_device *ndev,
 	/* All validations passed - proceed with hardware configuration */
 	scoped_guard(spinlock_irqsave, &bp->lock) {
 		/* Disable ENST queues if running before configuring */
+		queue_mask = BIT_U32(bp->num_queues) - 1;
 		gem_writel(bp, ENST_CONTROL,
-			   bp->queue_mask << GEM_ENST_DISABLE_QUEUE_OFFSET);
+			   queue_mask << GEM_ENST_DISABLE_QUEUE_OFFSET);
 
 		for (i = 0; i < conf->num_entries; i++) {
 			queue = &bp->queues[enst_queue[i].queue_id];
@@ -4252,15 +4209,16 @@ static void macb_taprio_destroy(struct net_device *ndev)
 {
 	struct macb *bp = netdev_priv(ndev);
 	struct macb_queue *queue;
-	u32 enst_disable_mask;
+	u32 queue_mask;
 	unsigned int q;
 
 	netdev_reset_tc(ndev);
-	enst_disable_mask = bp->queue_mask << GEM_ENST_DISABLE_QUEUE_OFFSET;
+	queue_mask = BIT_U32(bp->num_queues) - 1;
 
 	scoped_guard(spinlock_irqsave, &bp->lock) {
 		/* Single disable command for all queues */
-		gem_writel(bp, ENST_CONTROL, enst_disable_mask);
+		gem_writel(bp, ENST_CONTROL,
+			   queue_mask << GEM_ENST_DISABLE_QUEUE_OFFSET);
 
 		/* Clear all queue ENST registers in batch */
 		for (q = 0, queue = bp->queues; q < bp->num_queues; ++q, ++queue) {
@@ -4370,7 +4328,7 @@ static void macb_configure_caps(struct macb *bp,
 					"GEM doesn't support hardware ptp.\n");
 			else {
 #ifdef CONFIG_MACB_USE_HWSTAMP
-				bp->hw_dma_cap |= HW_DMA_CAP_PTP;
+				bp->caps |= MACB_CAPS_DMA_PTP;
 				bp->ptp_info = &gem_ptp_info;
 #endif
 			}
@@ -4383,26 +4341,25 @@ static void macb_configure_caps(struct macb *bp,
 	dev_dbg(&bp->pdev->dev, "Cadence caps 0x%08x\n", bp->caps);
 }
 
-static void macb_probe_queues(void __iomem *mem,
-			      bool native_io,
-			      unsigned int *queue_mask,
-			      unsigned int *num_queues)
+static int macb_probe_queues(struct device *dev, void __iomem *mem, bool native_io)
 {
-	*queue_mask = 0x1;
-	*num_queues = 1;
+	/* BIT(0) is never set but queue 0 always exists. */
+	unsigned int queue_mask = 0x1;
 
-	/* is it macb or gem ?
-	 *
-	 * We need to read directly from the hardware here because
-	 * we are early in the probe process and don't have the
-	 * MACB_CAPS_MACB_IS_GEM flag positioned
-	 */
-	if (!hw_is_gem(mem, native_io))
-		return;
+	/* Use hw_is_gem() as MACB_CAPS_MACB_IS_GEM is not yet positioned. */
+	if (hw_is_gem(mem, native_io)) {
+		if (native_io)
+			queue_mask |= __raw_readl(mem + GEM_DCFG6) & 0xFF;
+		else
+			queue_mask |= readl_relaxed(mem + GEM_DCFG6) & 0xFF;
 
-	/* bit 0 is never set but queue 0 always exists */
-	*queue_mask |= readl_relaxed(mem + GEM_DCFG6) & 0xff;
-	*num_queues = hweight32(*queue_mask);
+		if (fls(queue_mask) != ffz(queue_mask)) {
+			dev_err(dev, "queue mask %#x has a hole\n", queue_mask);
+			return -EINVAL;
+		}
+	}
+
+	return hweight32(queue_mask);
 }
 
 static void macb_clks_disable(struct clk *pclk, struct clk *hclk, struct clk *tx_clk,
@@ -4520,10 +4477,7 @@ static int macb_init(struct platform_device *pdev)
 	 * register mapping but we don't want to test the queue index then
 	 * compute the corresponding register offset at run time.
 	 */
-	for (hw_q = 0, q = 0; hw_q < MACB_MAX_QUEUES; ++hw_q) {
-		if (!(bp->queue_mask & (1 << hw_q)))
-			continue;
-
+	for (hw_q = 0, q = 0; hw_q < bp->num_queues; ++hw_q) {
 		queue = &bp->queues[q];
 		queue->bp = bp;
 		spin_lock_init(&queue->tx_ptr_lock);
@@ -4614,8 +4568,8 @@ static int macb_init(struct platform_device *pdev)
 	 * each 4-tuple define requires 1 T2 screener reg + 3 compare regs
 	 */
 	reg = gem_readl(bp, DCFG8);
-	bp->max_tuples = min((GEM_BFEXT(SCR2CMP, reg) / 3),
-			GEM_BFEXT(T2SCR, reg));
+	bp->max_tuples = umin((GEM_BFEXT(SCR2CMP, reg) / 3),
+			      GEM_BFEXT(T2SCR, reg));
 	INIT_LIST_HEAD(&bp->rx_fs_list.list);
 	if (bp->max_tuples > 0) {
 		/* also needs one ethtype match to check IPv4 */
@@ -5424,21 +5378,17 @@ static const struct macb_config default_gem_config = {
 static int macb_probe(struct platform_device *pdev)
 {
 	const struct macb_config *macb_config = &default_gem_config;
-	int (*clk_init)(struct platform_device *, struct clk **,
-			struct clk **, struct clk **,  struct clk **,
-			struct clk **) = macb_config->clk_init;
-	int (*init)(struct platform_device *) = macb_config->init;
 	struct device_node *np = pdev->dev.of_node;
 	struct clk *pclk, *hclk = NULL, *tx_clk = NULL, *rx_clk = NULL;
 	struct clk *tsu_clk = NULL;
-	unsigned int queue_mask, num_queues;
-	bool native_io;
 	phy_interface_t interface;
 	struct net_device *dev;
 	struct resource *regs;
 	u32 wtrmrk_rst_val;
 	void __iomem *mem;
 	struct macb *bp;
+	int num_queues;
+	bool native_io;
 	int err, val;
 
 	mem = devm_platform_get_and_ioremap_resource(pdev, 0, &regs);
@@ -5449,14 +5399,11 @@ static int macb_probe(struct platform_device *pdev)
 		const struct of_device_id *match;
 
 		match = of_match_node(macb_dt_ids, np);
-		if (match && match->data) {
+		if (match && match->data)
 			macb_config = match->data;
-			clk_init = macb_config->clk_init;
-			init = macb_config->init;
-		}
 	}
 
-	err = clk_init(pdev, &pclk, &hclk, &tx_clk, &rx_clk, &tsu_clk);
+	err = macb_config->clk_init(pdev, &pclk, &hclk, &tx_clk, &rx_clk, &tsu_clk);
 	if (err)
 		return err;
 
@@ -5467,7 +5414,12 @@ static int macb_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 	native_io = hw_is_native_io(mem);
 
-	macb_probe_queues(mem, native_io, &queue_mask, &num_queues);
+	num_queues = macb_probe_queues(&pdev->dev, mem, native_io);
+	if (num_queues < 0) {
+		err = num_queues;
+		goto err_disable_clocks;
+	}
+
 	dev = alloc_etherdev_mq(sizeof(*bp), num_queues);
 	if (!dev) {
 		err = -ENOMEM;
@@ -5491,16 +5443,13 @@ static int macb_probe(struct platform_device *pdev)
 		bp->macb_reg_writel = hw_writel;
 	}
 	bp->num_queues = num_queues;
-	bp->queue_mask = queue_mask;
-	if (macb_config)
-		bp->dma_burst_length = macb_config->dma_burst_length;
+	bp->dma_burst_length = macb_config->dma_burst_length;
 	bp->pclk = pclk;
 	bp->hclk = hclk;
 	bp->tx_clk = tx_clk;
 	bp->rx_clk = rx_clk;
 	bp->tsu_clk = tsu_clk;
-	if (macb_config)
-		bp->jumbo_max_len = macb_config->jumbo_max_len;
+	bp->jumbo_max_len = macb_config->jumbo_max_len;
 
 	if (!hw_is_gem(bp->regs, bp->native_io))
 		bp->max_tx_length = MACB_MAX_TX_LEN;
@@ -5546,7 +5495,7 @@ static int macb_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "failed to set DMA mask\n");
 			goto err_out_free_netdev;
 		}
-		bp->hw_dma_cap |= HW_DMA_CAP_64B;
+		bp->caps |= MACB_CAPS_DMA_64B;
 	}
 #endif
 	platform_set_drvdata(pdev, dev);
@@ -5594,7 +5543,7 @@ static int macb_probe(struct platform_device *pdev)
 		bp->phy_interface = interface;
 
 	/* IP specific init */
-	err = init(pdev);
+	err = macb_config->init(pdev);
 	if (err)
 		goto err_out_free_netdev;
 
