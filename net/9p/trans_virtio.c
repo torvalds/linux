@@ -803,6 +803,7 @@ static struct p9_trans_module p9_virtio_trans = {
 	.maxsize = PAGE_SIZE * (VIRTQUEUE_NUM - 3),
 	.pooled_rbuffers = false,
 	.def = 1,
+	.supports_vmalloc = false,
 	.owner = THIS_MODULE,
 };
 

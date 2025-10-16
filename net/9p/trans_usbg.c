@@ -514,6 +514,7 @@ static struct p9_trans_module p9_usbg_trans = {
 	.close = p9_usbg_close,
 	.request = p9_usbg_request,
 	.cancel = p9_usbg_cancel,
+	.supports_vmalloc = false,
 	.owner = THIS_MODULE,
 };
 

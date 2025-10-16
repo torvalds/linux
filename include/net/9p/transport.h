@@ -24,6 +24,9 @@
  *                   we're less flexible when choosing the response message
  *                   size in this case
  * @def: set if this transport should be considered the default
+ * @supports_vmalloc: set if this transport can work with vmalloc'd buffers
+ *                    (non-physically contiguous memory). Transports requiring
+ *                    DMA should leave this as false.
  * @create: member function to create a new connection on this transport
  * @close: member function to discard a connection on this transport
  * @request: member function to issue a request to the transport
@@ -44,6 +47,7 @@ struct p9_trans_module {
 	int maxsize;		/* max message size of transport */
 	bool pooled_rbuffers;
 	int def;		/* this transport should be default */
+	bool supports_vmalloc;	/* can work with vmalloc'd buffers */
 	struct module *owner;
 	int (*create)(struct p9_client *client,
 		      const char *devname, char *args);

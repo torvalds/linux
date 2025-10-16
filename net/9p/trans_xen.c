@@ -258,6 +258,7 @@ static struct p9_trans_module p9_xen_trans = {
 	.maxsize = 1 << (XEN_9PFS_RING_ORDER + XEN_PAGE_SHIFT - 2),
 	.pooled_rbuffers = false,
 	.def = 1,
+	.supports_vmalloc = false,
 	.create = p9_xen_create,
 	.close = p9_xen_close,
 	.request = p9_xen_request,

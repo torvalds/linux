@@ -229,8 +229,15 @@ static int p9_fcall_init(struct p9_client *c, struct p9_fcall *fc,
 	if (likely(c->fcall_cache) && alloc_msize == c->msize) {
 		fc->sdata = kmem_cache_alloc(c->fcall_cache, GFP_NOFS);
 		fc->cache = c->fcall_cache;
+		if (!fc->sdata && c->trans_mod->supports_vmalloc) {
+			fc->sdata = kvmalloc(alloc_msize, GFP_NOFS);
+			fc->cache = NULL;
+		}
 	} else {
-		fc->sdata = kmalloc(alloc_msize, GFP_NOFS);
+		if (c->trans_mod->supports_vmalloc)
+			fc->sdata = kvmalloc(alloc_msize, GFP_NOFS);
+		else
+			fc->sdata = kmalloc(alloc_msize, GFP_NOFS);
 		fc->cache = NULL;
 	}
 	if (!fc->sdata)
@@ -252,7 +259,7 @@ void p9_fcall_fini(struct p9_fcall *fc)
 	if (fc->cache)
 		kmem_cache_free(fc->cache, fc->sdata);
 	else
-		kfree(fc->sdata);
+		kvfree(fc->sdata);
 }
 EXPORT_SYMBOL(p9_fcall_fini);
 
