@@ -385,9 +385,23 @@ int hv_snp_boot_ap(u32 apic_id, unsigned long start_ip, unsigned int cpu)
 	return ret;
 }
 
+u64 hv_snp_hypercall(u64 control, u64 param1, u64 param2)
+{
+	u64 hv_status;
+
+	register u64 __r8 asm("r8") = param2;
+	asm volatile("vmmcall"
+		     : "=a" (hv_status), ASM_CALL_CONSTRAINT,
+		       "+c" (control), "+d" (param1), "+r" (__r8)
+		     : : "cc", "memory", "r9", "r10", "r11");
+
+	return hv_status;
+}
+
 #else
 static inline void hv_ghcb_msr_write(u64 msr, u64 value) {}
 static inline void hv_ghcb_msr_read(u64 msr, u64 *value) {}
+u64 hv_snp_hypercall(u64 control, u64 param1, u64 param2) { return U64_MAX; }
 #endif /* CONFIG_AMD_MEM_ENCRYPT */
 
 #ifdef CONFIG_INTEL_TDX_GUEST
@@ -437,6 +451,7 @@ u64 hv_tdx_hypercall(u64 control, u64 param1, u64 param2)
 #else
 static inline void hv_tdx_msr_write(u64 msr, u64 value) {}
 static inline void hv_tdx_msr_read(u64 msr, u64 *value) {}
+u64 hv_tdx_hypercall(u64 control, u64 param1, u64 param2) { return U64_MAX; }
 #endif /* CONFIG_INTEL_TDX_GUEST */
 
 #if defined(CONFIG_AMD_MEM_ENCRYPT) || defined(CONFIG_INTEL_TDX_GUEST)
