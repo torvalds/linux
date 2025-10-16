@@ -3610,6 +3610,7 @@ static __cold int io_allocate_scq_urings(struct io_ring_ctx *ctx,
 	struct io_uring_region_desc rd;
 	struct io_rings *rings;
 	size_t size, sq_array_offset;
+	size_t sqe_size;
 	int ret;
 
 	/* make sure these are sane, as we already accounted them */
@@ -3639,10 +3640,11 @@ static __cold int io_allocate_scq_urings(struct io_ring_ctx *ctx,
 	rings->sq_ring_entries = p->sq_entries;
 	rings->cq_ring_entries = p->cq_entries;
 
+	sqe_size = sizeof(struct io_uring_sqe);
 	if (p->flags & IORING_SETUP_SQE128)
-		size = array_size(2 * sizeof(struct io_uring_sqe), p->sq_entries);
-	else
-		size = array_size(sizeof(struct io_uring_sqe), p->sq_entries);
+		sqe_size *= 2;
+
+	size = array_size(sqe_size, p->sq_entries);
 	if (size == SIZE_MAX) {
 		io_rings_free(ctx);
 		return -EOVERFLOW;
