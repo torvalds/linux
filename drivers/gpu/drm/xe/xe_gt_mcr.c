@@ -236,12 +236,13 @@ static const struct xe_mmio_range xe2lpm_instance0_steering_table[] = {
 };
 
 static const struct xe_mmio_range xe3lpm_instance0_steering_table[] = {
-	{ 0x384000, 0x3847DF },         /* GAM, rsvd, GAM */
+	{ 0x384000, 0x3841FF },         /* GAM */
+	{ 0x384400, 0x3847DF },         /* GAM */
 	{ 0x384900, 0x384AFF },         /* GAM */
 	{ 0x389560, 0x3895FF },         /* MEDIAINF */
 	{ 0x38B600, 0x38B8FF },         /* L3BANK */
 	{ 0x38C800, 0x38D07F },         /* GAM, MEDIAINF */
-	{ 0x38D0D0, 0x38F0FF },		/* MEDIAINF, GAM */
+	{ 0x38D0D0, 0x38F0FF },         /* MEDIAINF, rsvd, GAM */
 	{ 0x393C00, 0x393C7F },         /* MEDIAINF */
 	{},
 };
