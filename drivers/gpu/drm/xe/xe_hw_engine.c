@@ -350,6 +350,13 @@ static bool xe_hw_engine_match_fixed_cslice_mode(const struct xe_device *xe,
 						 const struct xe_gt *gt,
 						 const struct xe_hw_engine *hwe)
 {
+	/*
+	 * Xe3p no longer supports load balance mode, so "fixed cslice" mode
+	 * is automatic and no RCU_MODE programming is required.
+	 */
+	if (GRAPHICS_VER(gt_to_xe(gt)) >= 35)
+		return false;
+
 	return xe_gt_ccs_mode_enabled(gt) &&
 	       xe_rtp_match_first_render_or_compute(xe, gt, hwe);
 }
