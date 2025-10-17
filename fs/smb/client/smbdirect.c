@@ -1163,9 +1163,9 @@ static void smbd_post_send_empty(struct smbdirect_socket *sc)
 static int smbd_post_send_full_iter(struct smbdirect_socket *sc,
 				    struct smbdirect_send_batch *batch,
 				    struct iov_iter *iter,
-				    int *_remaining_data_length)
+				    u32 remaining_data_length)
 {
-	int rc = 0;
+	int bytes = 0;
 
 	/*
 	 * smbd_post_send_iter() respects the
@@ -1174,14 +1174,16 @@ static int smbd_post_send_full_iter(struct smbdirect_socket *sc,
 	 */
 
 	while (iov_iter_count(iter) > 0) {
-		rc = smbd_post_send_iter(sc, batch, iter, *_remaining_data_length);
+		int rc;
+
+		rc = smbd_post_send_iter(sc, batch, iter, remaining_data_length);
 		if (rc < 0)
-			break;
-		*_remaining_data_length -= rc;
-		rc = 0;
+			return rc;
+		remaining_data_length -= rc;
+		bytes += rc;
 	}
 
-	return rc;
+	return bytes;
 }
 
 /* Perform SMBD negotiate according to [MS-SMBD] 3.1.5.2 */
@@ -1584,20 +1586,22 @@ int smbd_send(struct TCP_Server_Info *server,
 			klen += rqst->rq_iov[i].iov_len;
 		iov_iter_kvec(&iter, ITER_SOURCE, rqst->rq_iov, rqst->rq_nvec, klen);
 
-		rc = smbd_post_send_full_iter(sc, &batch, &iter, &remaining_data_length);
+		rc = smbd_post_send_full_iter(sc, &batch, &iter, remaining_data_length);
 		if (rc < 0) {
 			error = rc;
 			break;
 		}
+		remaining_data_length -= rc;
 
 		if (iov_iter_count(&rqst->rq_iter) > 0) {
 			/* And then the data pages if there are any */
 			rc = smbd_post_send_full_iter(sc, &batch, &rqst->rq_iter,
-						      &remaining_data_length);
+						      remaining_data_length);
 			if (rc < 0) {
 				error = rc;
 				break;
 			}
+			remaining_data_length -= rc;
 		}
 
 	} while (++rqst_idx < num_rqst);
