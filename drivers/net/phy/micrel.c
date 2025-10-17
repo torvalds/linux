@@ -1050,7 +1050,7 @@ static int ksz9021_config_init(struct phy_device *phydev)
 #define TX_CLK_ID			0x1f
 
 /* set tx and tx_clk to "No delay adjustment" to keep 0ns
- * dealy
+ * delay
  */
 #define TX_ND				0x7
 #define TX_CLK_ND			0xf
@@ -1913,7 +1913,7 @@ static int ksz886x_config_aneg(struct phy_device *phydev)
 		return ret;
 
 	if (phydev->autoneg != AUTONEG_ENABLE) {
-		/* When autonegotation is disabled, we need to manually force
+		/* When autonegotiation is disabled, we need to manually force
 		 * the link state. If we don't do this, the PHY will keep
 		 * sending Fast Link Pulses (FLPs) which are part of the
 		 * autonegotiation process. This is not desired when
@@ -3533,7 +3533,7 @@ static void lan8814_ptp_disable_event(struct phy_device *phydev, int event)
 	/* Set target to too far in the future, effectively disabling it */
 	lan8814_ptp_set_target(phydev, event, 0xFFFFFFFF, 0);
 
-	/* And then reload once it recheas the target */
+	/* And then reload once it reaches the target */
 	lanphy_modify_page_reg(phydev, LAN8814_PAGE_COMMON_REGS, LAN8814_PTP_GENERAL_CONFIG,
 			       LAN8814_PTP_GENERAL_CONFIG_RELOAD_ADD_X(event),
 			       LAN8814_PTP_GENERAL_CONFIG_RELOAD_ADD_X(event));
@@ -4403,7 +4403,7 @@ static int lan8814_release_coma_mode(struct phy_device *phydev)
 static void lan8814_clear_2psp_bit(struct phy_device *phydev)
 {
 	/* It was noticed that when traffic is passing through the PHY and the
-	 * cable is removed then the LED was still one even though there is no
+	 * cable is removed then the LED was still on even though there is no
 	 * link
 	 */
 	lanphy_modify_page_reg(phydev, LAN8814_PAGE_PCS_DIGITAL, LAN8814_EEE_STATE,
@@ -4543,7 +4543,7 @@ static int lan8841_config_init(struct phy_device *phydev)
 	phy_write_mmd(phydev, KSZ9131RN_MMD_COMMON_CTRL_REG,
 		      LAN8841_PTP_TX_VERSION, 0xff00);
 
-	/* 100BT Clause 40 improvenent errata */
+	/* 100BT Clause 40 improvement errata */
 	phy_write_mmd(phydev, LAN8841_MMD_ANALOG_REG,
 		      LAN8841_ANALOG_CONTROL_1,
 		      LAN8841_ANALOG_CONTROL_1_PLL_TRIM(0x2));
@@ -5563,7 +5563,7 @@ static int lan8841_ptp_extts_on(struct kszphy_ptp_priv *ptp_priv, int pin,
 	u16 tmp = 0;
 	int ret;
 
-	/* Set GPIO to be intput */
+	/* Set GPIO to be input */
 	ret = phy_set_bits_mmd(phydev, 2, LAN8841_GPIO_EN, BIT(pin));
 	if (ret)
 		return ret;
