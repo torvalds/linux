@@ -254,8 +254,9 @@ SECTION_DEFAULT = "Description"  # default section
 
 class KernelEntry:
 
-    def __init__(self, config, ln):
+    def __init__(self, config, fname, ln):
         self.config = config
+        self.fname = fname
 
         self._contents = []
         self.prototype = ""
@@ -350,6 +351,7 @@ class KernelEntry:
             self.section = SECTION_DEFAULT
             self._contents = []
 
+python_warning = False
 
 class KernelDoc:
     """
@@ -383,9 +385,13 @@ class KernelDoc:
         # We need Python 3.7 for its "dicts remember the insertion
         # order" guarantee
         #
-        if sys.version_info.major == 3 and sys.version_info.minor < 7:
+        global python_warning
+        if (not python_warning and
+            sys.version_info.major == 3 and sys.version_info.minor < 7):
+
             self.emit_msg(0,
                           'Python 3.7 or later is required for correct results')
+            python_warning = True
 
     def emit_msg(self, ln, msg, warning=True):
         """Emit a message"""
@@ -417,7 +423,8 @@ class KernelDoc:
         The actual output and output filters will be handled elsewhere
         """
 
-        item = KdocItem(name, dtype, self.entry.declaration_start_line, **args)
+        item = KdocItem(name, self.fname, dtype,
+                        self.entry.declaration_start_line, **args)
         item.warnings = self.entry.warnings
 
         # Drop empty sections
@@ -440,7 +447,7 @@ class KernelDoc:
         variables used by the state machine.
         """
 
-        self.entry = KernelEntry(self.config, ln)
+        self.entry = KernelEntry(self.config, self.fname, ln)
 
         # State flags
         self.state = state.NORMAL

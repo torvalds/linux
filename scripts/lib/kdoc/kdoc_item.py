@@ -5,8 +5,9 @@
 #
 
 class KdocItem:
-    def __init__(self, name, type, start_line, **other_stuff):
+    def __init__(self, name, fname, type, start_line, **other_stuff):
         self.name = name
+        self.fname = fname
         self.type = type
         self.declaration_start_line = start_line
         self.sections = {}
