@@ -1047,6 +1047,8 @@ static bool steal_from_global_rsv(struct btrfs_space_info *space_info,
 	struct btrfs_block_rsv *global_rsv = &fs_info->global_block_rsv;
 	u64 min_bytes;
 
+	lockdep_assert_held(&space_info->lock);
+
 	if (!ticket->steal)
 		return false;
 
