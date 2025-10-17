@@ -27,8 +27,6 @@ static int smbd_post_send(struct smbdirect_socket *sc,
 			  struct smbdirect_send_batch *batch,
 			  struct smbdirect_send_io *request);
 
-static int smbd_post_send_empty(struct smbdirect_socket *sc);
-
 /* Port numbers for SMBD transport */
 #define SMB_PORT	445
 #define SMBD_PORT	5445
@@ -1144,12 +1142,17 @@ err_wait_bcredit:
  * Empty message is used to extend credits to peer to for keep live
  * while there is no upper layer payload to send at the time
  */
-static int smbd_post_send_empty(struct smbdirect_socket *sc)
+static void smbd_post_send_empty(struct smbdirect_socket *sc)
 {
 	int remaining_data_length = 0;
+	int ret;
 
 	sc->statistics.send_empty++;
-	return smbd_post_send_iter(sc, NULL, NULL, &remaining_data_length);
+	ret = smbd_post_send_iter(sc, NULL, NULL, &remaining_data_length);
+	if (ret < 0) {
+		log_rdma_send(ERR, "smbd_post_send_iter failed ret=%d\n", ret);
+		smbdirect_socket_schedule_cleanup(sc, ret);
+	}
 }
 
 static int smbd_post_send_full_iter(struct smbdirect_socket *sc,
