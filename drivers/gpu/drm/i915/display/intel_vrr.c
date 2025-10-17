@@ -468,8 +468,6 @@ int intel_vrr_compute_optimized_guardband(struct intel_crtc_state *crtc_state)
 
 static bool intel_vrr_use_optimized_guardband(const struct intel_crtc_state *crtc_state)
 {
-	struct intel_display *display = to_intel_display(crtc_state);
-
 	/*
 	 * #TODO: Enable optimized guardband for HDMI
 	 * For HDMI lot of infoframes are transmitted a line or two after vsync.
@@ -479,7 +477,7 @@ static bool intel_vrr_use_optimized_guardband(const struct intel_crtc_state *crt
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
 		return false;
 
-	return intel_vrr_always_use_vrr_tg(display);
+	return true;
 }
 
 void intel_vrr_compute_guardband(struct intel_crtc_state *crtc_state)
