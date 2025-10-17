@@ -149,6 +149,12 @@ void xe_irq_enable_hwe(struct xe_gt *gt)
 	if (xe_device_uc_enabled(xe)) {
 		common_mask = GT_MI_USER_INTERRUPT |
 			      GT_FLUSH_COMPLETE_INTERRUPT;
+
+		/* Enable Compute Walker Interrupt for non-MSIX platforms */
+		if (GRAPHICS_VERx100(xe) >= 3511 && !xe_device_has_msix(xe)) {
+			rcs_mask |= GT_COMPUTE_WALKER_INTERRUPT;
+			ccs_mask |= GT_COMPUTE_WALKER_INTERRUPT;
+		}
 	} else {
 		common_mask = GT_MI_USER_INTERRUPT |
 			      GT_CS_MASTER_ERROR_INTERRUPT |
