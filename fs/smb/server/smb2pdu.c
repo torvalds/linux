@@ -8777,7 +8777,7 @@ int smb2_oplock_break(struct ksmbd_work *work)
  * smb2_notify() - handler for smb2 notify request
  * @work:   smb work containing notify command buffer
  *
- * Return:      0
+ * Return:      0 on success, otherwise error
  */
 int smb2_notify(struct ksmbd_work *work)
 {
@@ -8791,12 +8791,12 @@ int smb2_notify(struct ksmbd_work *work)
 	if (work->next_smb2_rcv_hdr_off && req->hdr.NextCommand) {
 		rsp->hdr.Status = STATUS_INTERNAL_ERROR;
 		smb2_set_err_rsp(work);
-		return 0;
+		return -EIO;
 	}
 
 	smb2_set_err_rsp(work);
 	rsp->hdr.Status = STATUS_NOT_IMPLEMENTED;
-	return 0;
+	return -EOPNOTSUPP;
 }
 
 /**
