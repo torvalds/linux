@@ -153,7 +153,8 @@ struct ras_cmd_ctx {
 	uint32_t cmd_res;
 	uint32_t input_size;
 	uint32_t output_size;
-	uint32_t reserved[6];
+	uint32_t output_buf_size;
+	uint32_t reserved[5];
 	uint8_t  input_buff_raw[RAS_CMD_MAX_IN_SIZE];
 	uint8_t  output_buff_raw[];
 };

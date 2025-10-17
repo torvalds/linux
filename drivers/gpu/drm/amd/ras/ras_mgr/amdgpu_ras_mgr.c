@@ -578,3 +578,34 @@ bool amdgpu_ras_mgr_is_rma(struct amdgpu_device *adev)
 
 	return ras_core_gpu_is_rma(ras_mgr->ras_core);
 }
+
+int amdgpu_ras_mgr_handle_ras_cmd(struct amdgpu_device *adev,
+			uint32_t cmd_id, void *input, uint32_t input_size,
+			void *output, uint32_t out_size)
+{
+	struct amdgpu_ras_mgr *ras_mgr = amdgpu_ras_mgr_get_context(adev);
+	struct ras_cmd_ctx *cmd_ctx;
+	uint32_t ctx_buf_size = PAGE_SIZE;
+	int ret;
+
+	if (!amdgpu_ras_mgr_is_ready(adev))
+		return -EPERM;
+
+	cmd_ctx = kzalloc(ctx_buf_size, GFP_KERNEL);
+	if (!cmd_ctx)
+		return -ENOMEM;
+
+	cmd_ctx->cmd_id = cmd_id;
+
+	memcpy(cmd_ctx->input_buff_raw, input, input_size);
+	cmd_ctx->input_size = input_size;
+	cmd_ctx->output_buf_size = ctx_buf_size - sizeof(*cmd_ctx);
+
+	ret = amdgpu_ras_submit_cmd(ras_mgr->ras_core, cmd_ctx);
+	if (!ret && !cmd_ctx->cmd_res && output && (out_size == cmd_ctx->output_size))
+		memcpy(output, cmd_ctx->output_buff_raw, cmd_ctx->output_size);
+
+	kfree(cmd_ctx);
+
+	return ret;
+}

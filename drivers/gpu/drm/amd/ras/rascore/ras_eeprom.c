@@ -199,17 +199,6 @@ static int __ras_eeprom_xfer(struct ras_core_context *ras_core, u32 eeprom_addr,
 	return -EINVAL;
 }
 
-
-/**
- * __eeprom_xfer -- Read/write from/to an I2C EEPROM device
- * @i2c_adap: pointer to the I2C adapter to use
- * @eeprom_addr: EEPROM address from which to read/write
- * @eeprom_buf: pointer to data buffer to read into/write from
- * @buf_size: the size of @eeprom_buf
- * @read: True if reading from the EEPROM, false if writing
- *
- * Returns the number of bytes read/written; -errno on error.
- */
 static int __eeprom_xfer(struct ras_core_context *ras_core, u32 eeprom_addr,
 			      u8 *eeprom_buf, u32 buf_size, bool read)
 {
@@ -454,13 +443,6 @@ static void ras_set_eeprom_table_version(struct ras_eeprom_control *control)
 	hdr->version = RAS_TABLE_VER_V3;
 }
 
-/**
- * ras_eeprom_reset_table -- Reset the RAS EEPROM table
- * @control: pointer to control structure
- *
- * Reset the contents of the header of the RAS EEPROM table.
- * Return 0 on success, -errno on error.
- */
 int ras_eeprom_reset_table(struct ras_core_context *ras_core)
 {
 	struct ras_eeprom_control *control = &ras_core->ras_eeprom;
@@ -928,17 +910,6 @@ static int __ras_eeprom_read(struct ras_eeprom_control *control,
 	return res;
 }
 
-/**
- * ras_eeprom_read -- read EEPROM
- * @control: pointer to control structure
- * @record: array of records to read into
- * @num: number of records in @record
- *
- * Reads num records from the RAS table in EEPROM and
- * writes the data into @record array.
- *
- * Returns 0 on success, -errno on error.
- */
 int ras_eeprom_read(struct ras_core_context *ras_core,
 			 struct eeprom_umc_record *record, const u32 num)
 {

@@ -72,4 +72,7 @@ int amdgpu_ras_mgr_get_curr_nps_mode(struct amdgpu_device *adev, uint32_t *nps_m
 bool amdgpu_ras_mgr_check_retired_addr(struct amdgpu_device *adev,
 			uint64_t addr);
 bool amdgpu_ras_mgr_is_rma(struct amdgpu_device *adev);
+int amdgpu_ras_mgr_handle_ras_cmd(struct amdgpu_device *adev,
+		uint32_t cmd_id, void *input, uint32_t input_size,
+		void *output, uint32_t out_size);
 #endif
