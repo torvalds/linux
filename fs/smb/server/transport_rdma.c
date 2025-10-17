@@ -944,7 +944,7 @@ static int smb_direct_post_send_data(struct smbdirect_socket *sc,
 			goto flush_failed;
 	}
 
-	return 0;
+	return data_length;
 err:
 	smbdirect_connection_free_send_io(msg);
 flush_failed:
@@ -1000,7 +1000,7 @@ static int smb_direct_send_iter(struct smbdirect_socket *sc,
 						&send_ctx,
 						iter,
 						iov_iter_count(iter));
-		if (unlikely(ret)) {
+		if (unlikely(ret < 0)) {
 			error = ret;
 			break;
 		}
