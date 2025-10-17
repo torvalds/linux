@@ -397,7 +397,20 @@ static int __maybe_unused ish_resume(struct device *device)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(ish_pm_ops, ish_suspend, ish_resume);
+static int __maybe_unused ish_freeze(struct device *device)
+{
+	struct pci_dev *pdev = to_pci_dev(device);
+
+	return pci_save_state(pdev);
+}
+
+static const struct dev_pm_ops __maybe_unused ish_pm_ops = {
+	.suspend = pm_sleep_ptr(ish_suspend),
+	.resume = pm_sleep_ptr(ish_resume),
+	.freeze = pm_sleep_ptr(ish_freeze),
+	.restore = pm_sleep_ptr(ish_resume),
+	.poweroff = pm_sleep_ptr(ish_suspend),
+};
 
 static ssize_t base_version_show(struct device *cdev,
 				 struct device_attribute *attr, char *buf)
