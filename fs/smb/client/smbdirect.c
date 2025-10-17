@@ -760,51 +760,6 @@ dma_mapping_failed:
 }
 
 /*
- * Extend the credits to remote peer
- * This implements [MS-SMBD] 3.1.5.9
- * The idea is that we should extend credits to remote peer as quickly as
- * it's allowed, to maintain data flow. We allocate as much receive
- * buffer as possible, and extend the receive credits to remote peer
- * return value: the new credtis being granted.
- */
-static int manage_credits_prior_sending(struct smbdirect_socket *sc)
-{
-	int missing;
-	int available;
-	int new_credits;
-
-	if (atomic_read(&sc->recv_io.credits.count) >= sc->recv_io.credits.target)
-		return 0;
-
-	missing = (int)sc->recv_io.credits.target - atomic_read(&sc->recv_io.credits.count);
-	available = atomic_xchg(&sc->recv_io.credits.available, 0);
-	new_credits = (u16)min3(U16_MAX, missing, available);
-	if (new_credits <= 0) {
-		/*
-		 * If credits are available, but not granted
-		 * we need to re-add them again.
-		 */
-		if (available)
-			atomic_add(available, &sc->recv_io.credits.available);
-		return 0;
-	}
-
-	if (new_credits < available) {
-		/*
-		 * Readd the remaining available again.
-		 */
-		available -= new_credits;
-		atomic_add(available, &sc->recv_io.credits.available);
-	}
-
-	/*
-	 * Remember we granted the credits
-	 */
-	atomic_add(new_credits, &sc->recv_io.credits.count);
-	return new_credits;
-}
-
-/*
  * Check if we need to send a KEEP_ALIVE message
  * The idle connection timer triggers a KEEP_ALIVE message when expires
  * SMBDIRECT_FLAG_RESPONSE_REQUESTED is set in the message flag to have peer send
@@ -1048,7 +1003,7 @@ static int smbd_post_send_iter(struct smbdirect_socket *sc,
 	int data_length;
 	struct smbdirect_send_io *request;
 	struct smbdirect_data_transfer *packet;
-	int new_credits = 0;
+	u16 new_credits = 0;
 	struct smbdirect_send_batch _batch;
 
 	if (!batch) {
@@ -1077,7 +1032,7 @@ static int smbd_post_send_iter(struct smbdirect_socket *sc,
 		goto err_wait_credit;
 	}
 
-	new_credits = manage_credits_prior_sending(sc);
+	new_credits = smbdirect_connection_grant_recv_credits(sc);
 	if (new_credits == 0 &&
 	    atomic_read(&sc->send_io.credits.count) == 0 &&
 	    atomic_read(&sc->recv_io.credits.count) == 0) {
@@ -1094,7 +1049,7 @@ static int smbd_post_send_iter(struct smbdirect_socket *sc,
 			goto err_wait_credit;
 		}
 
-		new_credits = manage_credits_prior_sending(sc);
+		new_credits = smbdirect_connection_grant_recv_credits(sc);
 	}
 
 	request = smbdirect_connection_alloc_send_io(sc);
