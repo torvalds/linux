@@ -378,3 +378,10 @@ bool xe_rtp_match_gt_has_discontiguous_dss_groups(const struct xe_device *xe,
 {
 	return xe_gt_has_discontiguous_dss_groups(gt);
 }
+
+bool xe_rtp_match_has_flat_ccs(const struct xe_device *xe,
+			       const struct xe_gt *gt,
+			       const struct xe_hw_engine *hwe)
+{
+	return xe->info.has_flat_ccs;
+}
