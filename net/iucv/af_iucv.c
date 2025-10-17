@@ -553,10 +553,11 @@ static void __iucv_auto_name(struct iucv_sock *iucv)
 {
 	char name[12];
 
-	sprintf(name, "%08x", atomic_inc_return(&iucv_sk_list.autobind_name));
+	scnprintf(name, sizeof(name),
+		  "%08x", atomic_inc_return(&iucv_sk_list.autobind_name));
 	while (__iucv_get_sock_by_name(name)) {
-		sprintf(name, "%08x",
-			atomic_inc_return(&iucv_sk_list.autobind_name));
+		scnprintf(name, sizeof(name), "%08x",
+			  atomic_inc_return(&iucv_sk_list.autobind_name));
 	}
 	memcpy(iucv->src_name, name, 8);
 }

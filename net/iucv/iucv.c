@@ -95,7 +95,7 @@ struct device *iucv_alloc_device(const struct attribute_group **attrs,
 	if (!dev)
 		goto out_error;
 	va_start(vargs, fmt);
-	vsnprintf(buf, sizeof(buf), fmt, vargs);
+	vscnprintf(buf, sizeof(buf), fmt, vargs);
 	rc = dev_set_name(dev, "%s", buf);
 	va_end(vargs);
 	if (rc)
