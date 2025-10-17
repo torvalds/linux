@@ -500,13 +500,15 @@ static void _dpu_plane_setup_pixel_ext(struct dpu_hw_scaler3_cfg *scale_cfg,
 	int i;
 
 	for (i = 0; i < DPU_MAX_PLANES; i++) {
+		uint32_t w = src_w, h = src_h;
+
 		if (i == DPU_SSPP_COMP_1_2 || i == DPU_SSPP_COMP_2) {
-			src_w /= chroma_subsmpl_h;
-			src_h /= chroma_subsmpl_v;
+			w /= chroma_subsmpl_h;
+			h /= chroma_subsmpl_v;
 		}
 
-		pixel_ext->num_ext_pxls_top[i] = src_h;
-		pixel_ext->num_ext_pxls_left[i] = src_w;
+		pixel_ext->num_ext_pxls_top[i] = h;
+		pixel_ext->num_ext_pxls_left[i] = w;
 	}
 }
 
