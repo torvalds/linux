@@ -53,11 +53,19 @@ class ParseDataStructs:
 
         replace <type> <old_symbol> <new_reference>
 
-    Replaces how old_symbol with a new reference. The new_reference can be:
+       Replaces how old_symbol with a new reference. The new_reference can be:
+
         - A simple symbol name;
         - A full Sphinx reference.
 
-    On both cases, <type> can be:
+    3. Namespace rules
+
+        namespace <namespace>
+
+       Sets C namespace to be used during cross-reference generation. Can
+       be overridden by replace rules.
+
+    On ignore and replace rules, <type> can be:
         - ioctl: for defines that end with _IO*, e.g. ioctl definitions
         - define: for other defines
         - symbol: for symbols defined within enums;
@@ -71,6 +79,8 @@ class ParseDataStructs:
         ignore ioctl VIDIOC_ENUM_FMT
         replace ioctl VIDIOC_DQBUF vidioc_qbuf
         replace define V4L2_EVENT_MD_FL_HAVE_FRAME_SEQ :c:type:`v4l2_event_motion_det`
+
+        namespace MC
     """
 
     # Parser regexes with multiple ways to capture enums and structs
@@ -140,10 +150,96 @@ class ParseDataStructs:
 
         self.symbols = {}
 
+        self.namespace = None
+        self.ignore = []
+        self.replace = []
+
         for symbol_type in self.DEF_SYMBOL_TYPES:
             self.symbols[symbol_type] = {}
 
-    def store_type(self, symbol_type: str, symbol: str,
+    def read_exceptions(self, fname: str):
+        if not fname:
+            return
+
+        name = os.path.basename(fname)
+
+        with open(fname, "r", encoding="utf-8", errors="backslashreplace") as f:
+            for ln, line in enumerate(f):
+                ln += 1
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+
+                # ignore rules
+                match = re.match(r"^ignore\s+(\w+)\s+(\S+)", line)
+
+                if match:
+                    self.ignore.append((ln, match.group(1), match.group(2)))
+                    continue
+
+                # replace rules
+                match = re.match(r"^replace\s+(\S+)\s+(\S+)\s+(\S+)", line)
+                if match:
+                    self.replace.append((ln, match.group(1), match.group(2),
+                                         match.group(3)))
+                    continue
+
+                match = re.match(r"^namespace\s+(\S+)", line)
+                if match:
+                    self.namespace = match.group(1)
+                    continue
+
+                sys.exit(f"{name}:{ln}: invalid line: {line}")
+
+    def apply_exceptions(self):
+        """
+        Process exceptions file with rules to ignore or replace references.
+        """
+
+        # Handle ignore rules
+        for ln, c_type, symbol in self.ignore:
+            if c_type not in self.DEF_SYMBOL_TYPES:
+                sys.exit(f"{name}:{ln}: {c_type} is invalid")
+
+            d = self.symbols[c_type]
+            if symbol in d:
+                del d[symbol]
+
+        # Handle replace rules
+        for ln, c_type, old, new in self.replace:
+            if c_type not in self.DEF_SYMBOL_TYPES:
+                sys.exit(f"{name}:{ln}: {c_type} is invalid")
+
+            reftype = None
+
+            # Parse reference type when the type is specified
+
+            match = re.match(r"^\:c\:(\w+)\:\`(.+)\`", new)
+            if match:
+                reftype = f":c:{match.group(1)}"
+                new = match.group(2)
+            else:
+                match = re.search(r"(\:ref)\:\`(.+)\`", new)
+                if match:
+                    reftype = match.group(1)
+                    new = match.group(2)
+
+            # If the replacement rule doesn't have a type, get default
+            if not reftype:
+                reftype = self.DEF_SYMBOL_TYPES[c_type].get("ref_type")
+                if not reftype:
+                    reftype = self.DEF_SYMBOL_TYPES[c_type].get("real_type")
+
+            new_ref = f"{reftype}:`{old} <{new}>`"
+
+            # Change self.symbols to use the replacement rule
+            if old in self.symbols[c_type]:
+                (_, ln) = self.symbols[c_type][old]
+                self.symbols[c_type][old] = (new_ref, ln)
+            else:
+                print(f"{name}:{ln}: Warning: can't find {old} {c_type}")
+
+    def store_type(self, ln, symbol_type: str, symbol: str,
                    ref_name: str = None, replace_underscores: bool = True):
         """
         Stores a new symbol at self.symbols under symbol_type.
@@ -157,34 +253,41 @@ class ParseDataStructs:
         ref_type = defs.get("ref_type")
 
         # Determine ref_link based on symbol type
-        if ref_type:
-            if symbol_type == "enum":
-                ref_link = f"{ref_type}:`{symbol}`"
-            else:
-                if not ref_name:
-                    ref_name = symbol.lower()
+        if ref_type or self.namespace:
+            if not ref_name:
+                ref_name = symbol.lower()
 
-                # c-type references don't support hash
-                if ref_type == ":ref" and replace_underscores:
-                    ref_name = ref_name.replace("_", "-")
+            # c-type references don't support hash
+            if ref_type == ":ref" and replace_underscores:
+                ref_name = ref_name.replace("_", "-")
 
+            # C domain references may have namespaces
+            if ref_type.startswith(":c:"):
+                if self.namespace:
+                    ref_name = f"{self.namespace}.{ref_name}"
+
+            if ref_type:
                 ref_link = f"{ref_type}:`{symbol} <{ref_name}>`"
+            else:
+                ref_link = f"`{symbol} <{ref_name}>`"
         else:
             ref_link = symbol
 
-        self.symbols[symbol_type][symbol] = f"{prefix}{ref_link}{suffix}"
+        self.symbols[symbol_type][symbol] = (f"{prefix}{ref_link}{suffix}", ln)
 
     def store_line(self, line):
         """Stores a line at self.data, properly indented"""
         line = "    " + line.expandtabs()
         self.data += line.rstrip(" ")
 
-    def parse_file(self, file_in: str):
+    def parse_file(self, file_in: str, exceptions: str = None):
         """Reads a C source file and get identifiers"""
         self.data = ""
         is_enum = False
         is_comment = False
         multiline = ""
+
+        self.read_exceptions(exceptions)
 
         with open(file_in, "r",
                   encoding="utf-8", errors="backslashreplace") as f:
@@ -240,20 +343,20 @@ class ParseDataStructs:
                 if is_enum:
                     match = re.match(r"^\s*([_\w][\w\d_]+)\s*[\,=]?", line)
                     if match:
-                        self.store_type("symbol", match.group(1))
+                        self.store_type(line_no, "symbol", match.group(1))
                     if "}" in line:
                         is_enum = False
                     continue
 
                 match = re.match(r"^\s*#\s*define\s+([\w_]+)\s+_IO", line)
                 if match:
-                    self.store_type("ioctl", match.group(1),
+                    self.store_type(line_no, "ioctl", match.group(1),
                                     replace_underscores=False)
                     continue
 
                 match = re.match(r"^\s*#\s*define\s+([\w_]+)(\s+|$)", line)
                 if match:
-                    self.store_type("define", match.group(1))
+                    self.store_type(line_no, "define", match.group(1))
                     continue
 
                 match = re.match(r"^\s*typedef\s+([_\w][\w\d_]+)\s+(.*)\s+([_\w][\w\d_]+);",
@@ -261,90 +364,23 @@ class ParseDataStructs:
                 if match:
                     name = match.group(2).strip()
                     symbol = match.group(3)
-                    self.store_type("typedef", symbol, ref_name=name)
+                    self.store_type(line_no, "typedef", symbol, ref_name=name)
                     continue
 
                 for re_enum in self.RE_ENUMS:
                     match = re_enum.match(line)
                     if match:
-                        self.store_type("enum", match.group(1))
+                        self.store_type(line_no, "enum", match.group(1))
                         is_enum = True
                         break
 
                 for re_struct in self.RE_STRUCTS:
                     match = re_struct.match(line)
                     if match:
-                        self.store_type("struct", match.group(1))
+                        self.store_type(line_no, "struct", match.group(1))
                         break
 
-    def process_exceptions(self, fname: str):
-        """
-        Process exceptions file with rules to ignore or replace references.
-        """
-        if not fname:
-            return
-
-        name = os.path.basename(fname)
-
-        with open(fname, "r", encoding="utf-8", errors="backslashreplace") as f:
-            for ln, line in enumerate(f):
-                ln += 1
-                line = line.strip()
-                if not line or line.startswith("#"):
-                    continue
-
-                # Handle ignore rules
-                match = re.match(r"^ignore\s+(\w+)\s+(\S+)", line)
-                if match:
-                    c_type = match.group(1)
-                    symbol = match.group(2)
-
-                    if c_type not in self.DEF_SYMBOL_TYPES:
-                        sys.exit(f"{name}:{ln}: {c_type} is invalid")
-
-                    d = self.symbols[c_type]
-                    if symbol in d:
-                        del d[symbol]
-
-                    continue
-
-                # Handle replace rules
-                match = re.match(r"^replace\s+(\S+)\s+(\S+)\s+(\S+)", line)
-                if not match:
-                    sys.exit(f"{name}:{ln}: invalid line: {line}")
-
-                c_type, old, new = match.groups()
-
-                if c_type not in self.DEF_SYMBOL_TYPES:
-                    sys.exit(f"{name}:{ln}: {c_type} is invalid")
-
-                reftype = None
-
-                # Parse reference type when the type is specified
-
-                match = re.match(r"^\:c\:(data|func|macro|type)\:\`(.+)\`", new)
-                if match:
-                    reftype = f":c:{match.group(1)}"
-                    new = match.group(2)
-                else:
-                    match = re.search(r"(\:ref)\:\`(.+)\`", new)
-                    if match:
-                        reftype = match.group(1)
-                        new = match.group(2)
-
-                # If the replacement rule doesn't have a type, get default
-                if not reftype:
-                    reftype = self.DEF_SYMBOL_TYPES[c_type].get("ref_type")
-                    if not reftype:
-                        reftype = self.DEF_SYMBOL_TYPES[c_type].get("real_type")
-
-                new_ref = f"{reftype}:`{old} <{new}>`"
-
-                # Change self.symbols to use the replacement rule
-                if old in self.symbols[c_type]:
-                    self.symbols[c_type][old] = new_ref
-                else:
-                    print(f"{name}:{ln}: Warning: can't find {old} {c_type}")
+        self.apply_exceptions()
 
     def debug_print(self):
         """
@@ -360,8 +396,8 @@ class ParseDataStructs:
 
             print(f"{c_type}:")
 
-            for symbol, ref in sorted(refs.items()):
-                print(f"  {symbol} -> {ref}")
+            for symbol, (ref, ln) in sorted(refs.items()):
+                print(f"  #{ln:<5d} {symbol} -> {ref}")
 
             print()
 
@@ -384,7 +420,7 @@ class ParseDataStructs:
 
         # Process all reference types
         for ref_dict in self.symbols.values():
-            for symbol, replacement in ref_dict.items():
+            for symbol, (replacement, _) in ref_dict.items():
                 symbol = re.escape(re.sub(r"([\_\`\*\<\>\&\\\\:\/])", r"\\\1", symbol))
                 text = re.sub(fr'{start_delim}{symbol}{end_delim}',
                               fr'\1{replacement}\2', text)
@@ -397,15 +433,9 @@ class ParseDataStructs:
 
     def gen_toc(self):
         """
-        Create a TOC table pointing to each symbol from the header
+        Create a list of symbols to be part of a TOC contents table
         """
         text = []
-
-        # Add header
-        text.append(".. contents:: Table of Contents")
-        text.append("   :depth: 2")
-        text.append("   :local:")
-        text.append("")
 
         # Sort symbol types per description
         symbol_descriptions = []
@@ -426,8 +456,8 @@ class ParseDataStructs:
             text.append("")
 
             # Sort symbols alphabetically
-            for symbol, ref in sorted(refs.items()):
-                text.append(f"* :{ref}:")
+            for symbol, (ref, ln) in sorted(refs.items()):
+                text.append(f"- LINENO_{ln}: {ref}")
 
             text.append("")  # Add empty line between categories
 
