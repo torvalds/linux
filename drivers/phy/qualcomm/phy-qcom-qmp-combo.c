@@ -69,6 +69,7 @@
 /* QPHY_V3_DP_COM_TYPEC_CTRL register bits */
 #define SW_PORTSELECT_VAL			BIT(0)
 #define SW_PORTSELECT_MUX			BIT(1)
+#define INVERT_CC_POLARITY			BIT(2)
 
 #define PHY_INIT_COMPLETE_TIMEOUT		10000
 
@@ -2260,6 +2261,7 @@ struct qmp_phy_cfg {
 	/* Offset from PCS to PCS_USB region */
 	unsigned int pcs_usb_offset;
 
+	bool invert_cc_polarity;
 };
 
 struct qmp_combo {
@@ -2471,6 +2473,7 @@ static const struct qmp_phy_cfg sar2130p_usb3dpphy_cfg = {
 	.num_resets		= ARRAY_SIZE(msm8996_usb3phy_reset_l),
 	.vreg_list		= qmp_phy_vreg_l,
 	.num_vregs		= ARRAY_SIZE(qmp_phy_vreg_l),
+	.invert_cc_polarity     = true,
 };
 
 static const struct qmp_phy_cfg sc7180_usb3dpphy_cfg = {
@@ -3705,6 +3708,10 @@ static int qmp_combo_com_init(struct qmp_combo *qmp, bool force)
 	val = SW_PORTSELECT_MUX;
 	if (qmp->orientation == TYPEC_ORIENTATION_REVERSE)
 		val |= SW_PORTSELECT_VAL;
+
+	if (cfg->invert_cc_polarity)
+		val |= INVERT_CC_POLARITY;
+
 	writel(val, com + QPHY_V3_DP_COM_TYPEC_CTRL);
 
 	switch (qmp->qmpphy_mode) {
