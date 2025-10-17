@@ -537,34 +537,6 @@ static void gve_get_ringparam(struct net_device *netdev,
 		kernel_cmd->tcp_data_split = ETHTOOL_TCP_DATA_SPLIT_DISABLED;
 }
 
-static int gve_adjust_ring_sizes(struct gve_priv *priv,
-				 u16 new_tx_desc_cnt,
-				 u16 new_rx_desc_cnt)
-{
-	struct gve_tx_alloc_rings_cfg tx_alloc_cfg = {0};
-	struct gve_rx_alloc_rings_cfg rx_alloc_cfg = {0};
-	int err;
-
-	/* get current queue configuration */
-	gve_get_curr_alloc_cfgs(priv, &tx_alloc_cfg, &rx_alloc_cfg);
-
-	/* copy over the new ring_size from ethtool */
-	tx_alloc_cfg.ring_size = new_tx_desc_cnt;
-	rx_alloc_cfg.ring_size = new_rx_desc_cnt;
-
-	if (netif_running(priv->dev)) {
-		err = gve_adjust_config(priv, &tx_alloc_cfg, &rx_alloc_cfg);
-		if (err)
-			return err;
-	}
-
-	/* Set new ring_size for the next up */
-	priv->tx_desc_cnt = new_tx_desc_cnt;
-	priv->rx_desc_cnt = new_rx_desc_cnt;
-
-	return 0;
-}
-
 static int gve_validate_req_ring_size(struct gve_priv *priv, u16 new_tx_desc_cnt,
 				      u16 new_rx_desc_cnt)
 {
@@ -584,20 +556,13 @@ static int gve_validate_req_ring_size(struct gve_priv *priv, u16 new_tx_desc_cnt
 	return 0;
 }
 
-static int gve_set_ringparam(struct net_device *netdev,
-			     struct ethtool_ringparam *cmd,
-			     struct kernel_ethtool_ringparam *kernel_cmd,
-			     struct netlink_ext_ack *extack)
+static int gve_set_ring_sizes_config(struct gve_priv *priv, u16 new_tx_desc_cnt,
+				     u16 new_rx_desc_cnt,
+				     struct gve_tx_alloc_rings_cfg *tx_alloc_cfg,
+				     struct gve_rx_alloc_rings_cfg *rx_alloc_cfg)
 {
-	struct gve_priv *priv = netdev_priv(netdev);
-	u16 new_tx_cnt, new_rx_cnt;
-	int err;
-
-	err = gve_set_hsplit_config(priv, kernel_cmd->tcp_data_split);
-	if (err)
-		return err;
-
-	if (cmd->tx_pending == priv->tx_desc_cnt && cmd->rx_pending == priv->rx_desc_cnt)
+	if (new_tx_desc_cnt == priv->tx_desc_cnt &&
+	    new_rx_desc_cnt == priv->rx_desc_cnt)
 		return 0;
 
 	if (!priv->modify_ring_size_enabled) {
@@ -605,13 +570,48 @@ static int gve_set_ringparam(struct net_device *netdev,
 		return -EOPNOTSUPP;
 	}
 
-	new_tx_cnt = cmd->tx_pending;
-	new_rx_cnt = cmd->rx_pending;
-
-	if (gve_validate_req_ring_size(priv, new_tx_cnt, new_rx_cnt))
+	if (gve_validate_req_ring_size(priv, new_tx_desc_cnt, new_rx_desc_cnt))
 		return -EINVAL;
 
-	return gve_adjust_ring_sizes(priv, new_tx_cnt, new_rx_cnt);
+	tx_alloc_cfg->ring_size = new_tx_desc_cnt;
+	rx_alloc_cfg->ring_size = new_rx_desc_cnt;
+	return 0;
+}
+
+static int gve_set_ringparam(struct net_device *netdev,
+			     struct ethtool_ringparam *cmd,
+			     struct kernel_ethtool_ringparam *kernel_cmd,
+			     struct netlink_ext_ack *extack)
+{
+	struct gve_tx_alloc_rings_cfg tx_alloc_cfg = {0};
+	struct gve_rx_alloc_rings_cfg rx_alloc_cfg = {0};
+	struct gve_priv *priv = netdev_priv(netdev);
+	int err;
+
+	gve_get_curr_alloc_cfgs(priv, &tx_alloc_cfg, &rx_alloc_cfg);
+	err = gve_set_hsplit_config(priv, kernel_cmd->tcp_data_split,
+				    &rx_alloc_cfg);
+	if (err)
+		return err;
+
+	err = gve_set_ring_sizes_config(priv, cmd->tx_pending, cmd->rx_pending,
+					&tx_alloc_cfg, &rx_alloc_cfg);
+	if (err)
+		return err;
+
+	if (netif_running(priv->dev)) {
+		err = gve_adjust_config(priv, &tx_alloc_cfg, &rx_alloc_cfg);
+		if (err)
+			return err;
+	} else {
+		/* Set ring params for the next up */
+		priv->header_split_enabled = rx_alloc_cfg.enable_header_split;
+		priv->rx_cfg.packet_buffer_size =
+			rx_alloc_cfg.packet_buffer_size;
+		priv->tx_desc_cnt = tx_alloc_cfg.ring_size;
+		priv->rx_desc_cnt = rx_alloc_cfg.ring_size;
+	}
+	return 0;
 }
 
 static int gve_user_reset(struct net_device *netdev, u32 *flags)
