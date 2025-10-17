@@ -67,7 +67,7 @@
  *   Assume we are unable to simply make the reservation because we do not have
  *   enough space
  *
- *   -> __reserve_bytes
+ *   -> reserve_bytes
  *     create a reserve_ticket with ->bytes set to our reservation, add it to
  *     the tail of space_info->tickets, kick async flush thread
  *
@@ -1728,8 +1728,8 @@ static inline bool can_ticket(enum btrfs_reserve_flush_enum flush)
  * regain reservations will be made and this will fail if there is not enough
  * space already.
  */
-static int __reserve_bytes(struct btrfs_space_info *space_info, u64 orig_bytes,
-			   enum btrfs_reserve_flush_enum flush)
+static int reserve_bytes(struct btrfs_space_info *space_info, u64 orig_bytes,
+			 enum btrfs_reserve_flush_enum flush)
 {
 	struct btrfs_fs_info *fs_info = space_info->fs_info;
 	struct work_struct *async_work;
@@ -1879,7 +1879,7 @@ int btrfs_reserve_metadata_bytes(struct btrfs_space_info *space_info,
 {
 	int ret;
 
-	ret = __reserve_bytes(space_info, orig_bytes, flush);
+	ret = reserve_bytes(space_info, orig_bytes, flush);
 	if (ret == -ENOSPC) {
 		struct btrfs_fs_info *fs_info = space_info->fs_info;
 
@@ -1913,7 +1913,7 @@ int btrfs_reserve_data_bytes(struct btrfs_space_info *space_info, u64 bytes,
 	       flush == BTRFS_RESERVE_NO_FLUSH);
 	ASSERT(!current->journal_info || flush != BTRFS_RESERVE_FLUSH_DATA);
 
-	ret = __reserve_bytes(space_info, bytes, flush);
+	ret = reserve_bytes(space_info, bytes, flush);
 	if (ret == -ENOSPC) {
 		trace_btrfs_space_reservation(fs_info, "space_info:enospc",
 					      space_info->flags, bytes, 1);
