@@ -959,43 +959,47 @@ bcredit_failed:
 	return ret;
 }
 
-static int smb_direct_writev(struct ksmbd_transport *t,
-			     struct kvec *iov, int niovs, int buflen,
-			     bool need_invalidate, unsigned int remote_key)
+static int smb_direct_send_iter(struct smbdirect_socket *sc,
+				struct iov_iter *iter,
+				bool need_invalidate,
+				unsigned int remote_key)
 {
-	struct smb_direct_transport *st = SMBD_TRANS(t);
-	struct smbdirect_socket *sc = &st->socket;
 	struct smbdirect_socket_parameters *sp = &sc->parameters;
 	int ret;
 	struct smbdirect_send_batch send_ctx;
-	struct iov_iter iter;
 	int error = 0;
+	__be32 hdr;
 
 	if (sc->status != SMBDIRECT_SOCKET_CONNECTED)
 		return -ENOTCONN;
 
-	//FIXME: skip RFC1002 header..
-	if (WARN_ON_ONCE(niovs <= 1 || iov[0].iov_len != 4))
+	/*
+	 * For now we expect the iter to have the full
+	 * message, including a 4 byte length header.
+	 */
+	if (iov_iter_count(iter) <= 4)
 		return -EINVAL;
-	iov_iter_kvec(&iter, ITER_SOURCE, iov, niovs, buflen);
-	iov_iter_advance(&iter, 4);
+	if (!copy_from_iter_full(&hdr, sizeof(hdr), iter))
+		return -EFAULT;
+	if (iov_iter_count(iter) != be32_to_cpu(hdr))
+		return -EINVAL;
 
 	/*
 	 * The size must fit into the negotiated
 	 * fragmented send size.
 	 */
-	if (iov_iter_count(&iter) > sp->max_fragmented_send_size)
+	if (iov_iter_count(iter) > sp->max_fragmented_send_size)
 		return -EMSGSIZE;
 
 	ksmbd_debug(RDMA, "Sending smb (RDMA): smb_len=%zu\n",
-		    iov_iter_count(&iter));
+		    iov_iter_count(iter));
 
 	smb_direct_send_ctx_init(&send_ctx, need_invalidate, remote_key);
-	while (iov_iter_count(&iter)) {
+	while (iov_iter_count(iter)) {
 		ret = smb_direct_post_send_data(sc,
 						&send_ctx,
-						&iter,
-						iov_iter_count(&iter));
+						iter,
+						iov_iter_count(iter));
 		if (unlikely(ret)) {
 			error = ret;
 			break;
@@ -1020,6 +1024,19 @@ static int smb_direct_writev(struct ksmbd_transport *t,
 		ret = -ENOTCONN;
 
 	return ret;
+}
+
+static int smb_direct_writev(struct ksmbd_transport *t,
+			     struct kvec *iov, int niovs, int buflen,
+			     bool need_invalidate, unsigned int remote_key)
+{
+	struct smb_direct_transport *st = SMBD_TRANS(t);
+	struct smbdirect_socket *sc = &st->socket;
+	struct iov_iter iter;
+
+	iov_iter_kvec(&iter, ITER_SOURCE, iov, niovs, buflen);
+
+	return smb_direct_send_iter(sc, &iter, need_invalidate, remote_key);
 }
 
 static int smb_direct_rdma_write(struct ksmbd_transport *t,
