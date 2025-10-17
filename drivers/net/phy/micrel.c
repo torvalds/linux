@@ -2095,11 +2095,7 @@ static int ksz9477_phy_errata(struct phy_device *phydev)
 			return err;
 	}
 
-	err = genphy_restart_aneg(phydev);
-	if (err)
-		return err;
-
-	return err;
+	return genphy_restart_aneg(phydev);
 }
 
 static int ksz9477_config_init(struct phy_device *phydev)
