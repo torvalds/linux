@@ -73,6 +73,21 @@ enum xe_steering_type {
 	SQIDI_PSMI,
 
 	/*
+	 * The bspec lists multiple ranges as "PSMI," but the different
+	 * ranges with that label have different grpid steering values so we
+	 * treat them independently in code.  Note that the ranges with grpid=0
+	 * are included in the INSTANCE0 group above.
+	 */
+	PSMI19,
+
+	/*
+	 * Although most GAM ranges must be steered to (0,0) and thus use the
+	 * INSTANCE0 type farther down, some platforms have special rules
+	 * for specific subtypes that require steering to (1,0) instead.
+	 */
+	GAM1,
+
+	/*
 	 * On some platforms there are multiple types of MCR registers that
 	 * will always return a non-terminated value at instance (0, 0).  We'll
 	 * lump those all into a single category to keep things simple.
