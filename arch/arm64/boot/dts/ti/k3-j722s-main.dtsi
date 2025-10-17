@@ -443,7 +443,7 @@
 		reg = <0x82e0 0x4>;
 		clocks = <&k3_clks 157 0>;
 		assigned-clocks = <&k3_clks 157 0>;
-		assigned-clock-parents = <&k3_clks 157 15>;
+		assigned-clock-parents = <&k3_clks 157 16>;
 		#clock-cells = <0>;
 	};
 
@@ -452,7 +452,7 @@
 		reg = <0x82e4 0x4>;
 		clocks = <&k3_clks 157 18>;
 		assigned-clocks = <&k3_clks 157 18>;
-		assigned-clock-parents = <&k3_clks 157 33>;
+		assigned-clock-parents = <&k3_clks 157 34>;
 		#clock-cells = <0>;
 	};
 };
