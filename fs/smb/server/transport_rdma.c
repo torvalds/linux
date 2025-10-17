@@ -618,43 +618,6 @@ static int smb_direct_read(struct ksmbd_transport *t, char *buf,
 	return ret;
 }
 
-static int manage_credits_prior_sending(struct smbdirect_socket *sc)
-{
-	int missing;
-	int available;
-	int new_credits;
-
-	if (atomic_read(&sc->recv_io.credits.count) >= sc->recv_io.credits.target)
-		return 0;
-
-	missing = (int)sc->recv_io.credits.target - atomic_read(&sc->recv_io.credits.count);
-	available = atomic_xchg(&sc->recv_io.credits.available, 0);
-	new_credits = (u16)min3(U16_MAX, missing, available);
-	if (new_credits <= 0) {
-		/*
-		 * If credits are available, but not granted
-		 * we need to re-add them again.
-		 */
-		if (available)
-			atomic_add(available, &sc->recv_io.credits.available);
-		return 0;
-	}
-
-	if (new_credits < available) {
-		/*
-		 * Readd the remaining available again.
-		 */
-		available -= new_credits;
-		atomic_add(available, &sc->recv_io.credits.available);
-	}
-
-	/*
-	 * Remember we granted the credits
-	 */
-	atomic_add(new_credits, &sc->recv_io.credits.count);
-	return new_credits;
-}
-
 static int manage_keep_alive_before_sending(struct smbdirect_socket *sc)
 {
 	struct smbdirect_socket_parameters *sp = &sc->parameters;
@@ -931,7 +894,7 @@ static int smb_direct_post_send_data(struct smbdirect_socket *sc,
 	struct smbdirect_send_io *msg;
 	int data_length;
 	struct smbdirect_send_batch _send_ctx;
-	int new_credits;
+	u16 new_credits;
 
 	if (!send_ctx) {
 		smb_direct_send_ctx_init(&_send_ctx, false, 0);
@@ -950,7 +913,7 @@ static int smb_direct_post_send_data(struct smbdirect_socket *sc,
 	if (ret)
 		goto credit_failed;
 
-	new_credits = manage_credits_prior_sending(sc);
+	new_credits = smbdirect_connection_grant_recv_credits(sc);
 	if (new_credits == 0 &&
 	    atomic_read(&sc->send_io.credits.count) == 0 &&
 	    atomic_read(&sc->recv_io.credits.count) == 0) {
@@ -964,7 +927,7 @@ static int smb_direct_post_send_data(struct smbdirect_socket *sc,
 		if (ret < 0)
 			goto credit_failed;
 
-		new_credits = manage_credits_prior_sending(sc);
+		new_credits = smbdirect_connection_grant_recv_credits(sc);
 	}
 
 	data_length = 0;
@@ -1307,7 +1270,7 @@ static int smb_direct_send_negotiate_response(struct smbdirect_socket *sc,
 		resp->reserved = 0;
 		resp->credits_requested =
 				cpu_to_le16(sp->send_credit_target);
-		resp->credits_granted = cpu_to_le16(manage_credits_prior_sending(sc));
+		resp->credits_granted = cpu_to_le16(smbdirect_connection_grant_recv_credits(sc));
 		resp->max_readwrite_size = cpu_to_le32(sp->max_read_write_size);
 		resp->preferred_send_size = cpu_to_le32(sp->max_send_size);
 		resp->max_receive_size = cpu_to_le32(sp->max_recv_size);
