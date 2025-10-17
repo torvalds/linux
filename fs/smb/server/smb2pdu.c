@@ -2158,7 +2158,7 @@ static int smb2_create_open_flags(bool file_present, __le32 access,
  * smb2_tree_disconnect() - handler for smb tree connect request
  * @work:	smb work containing request buffer
  *
- * Return:      0
+ * Return:      0 on success, otherwise error
  */
 int smb2_tree_disconnect(struct ksmbd_work *work)
 {
@@ -2222,7 +2222,7 @@ err_out:
  * smb2_session_logoff() - handler for session log off request
  * @work:	smb work containing request buffer
  *
- * Return:      0
+ * Return:      0 on success, otherwise error
  */
 int smb2_session_logoff(struct ksmbd_work *work)
 {
@@ -5834,7 +5834,7 @@ static noinline int smb2_close_pipe(struct ksmbd_work *work)
  * smb2_close() - handler for smb2 close file command
  * @work:	smb work containing close request buffer
  *
- * Return:	0
+ * Return:	0 on success, otherwise error
  */
 int smb2_close(struct ksmbd_work *work)
 {
@@ -5959,7 +5959,7 @@ out:
  * smb2_echo() - handler for smb2 echo(ping) command
  * @work:	smb work containing echo request buffer
  *
- * Return:	0
+ * Return:	0 on success, otherwise error
  */
 int smb2_echo(struct ksmbd_work *work)
 {
