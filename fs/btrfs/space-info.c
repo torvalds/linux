@@ -490,10 +490,29 @@ static u64 calc_available_free_space(const struct btrfs_space_info *space_info,
 	return avail;
 }
 
+static inline bool check_can_overcommit(const struct btrfs_space_info *space_info,
+					u64 space_info_used_bytes, u64 bytes,
+					enum btrfs_reserve_flush_enum flush)
+{
+	const u64 avail = calc_available_free_space(space_info, flush);
+
+	return (space_info_used_bytes + bytes < space_info->total_bytes + avail);
+}
+
+static inline bool can_overcommit(const struct btrfs_space_info *space_info,
+				  u64 space_info_used_bytes, u64 bytes,
+				  enum btrfs_reserve_flush_enum flush)
+{
+	/* Don't overcommit when in mixed mode. */
+	if (space_info->flags & BTRFS_BLOCK_GROUP_DATA)
+		return false;
+
+	return check_can_overcommit(space_info, space_info_used_bytes, bytes, flush);
+}
+
 bool btrfs_can_overcommit(const struct btrfs_space_info *space_info, u64 bytes,
 			  enum btrfs_reserve_flush_enum flush)
 {
-	u64 avail;
 	u64 used;
 
 	/* Don't overcommit when in mixed mode */
@@ -501,9 +520,8 @@ bool btrfs_can_overcommit(const struct btrfs_space_info *space_info, u64 bytes,
 		return false;
 
 	used = btrfs_space_info_used(space_info, true);
-	avail = calc_available_free_space(space_info, flush);
 
-	return (used + bytes < space_info->total_bytes + avail);
+	return check_can_overcommit(space_info, used, bytes, flush);
 }
 
 static void remove_ticket(struct btrfs_space_info *space_info,
@@ -539,7 +557,7 @@ again:
 
 		/* Check and see if our ticket can be satisfied now. */
 		if (used_after <= space_info->total_bytes ||
-		    btrfs_can_overcommit(space_info, ticket->bytes, flush)) {
+		    can_overcommit(space_info, used, ticket->bytes, flush)) {
 			btrfs_space_info_update_bytes_may_use(space_info, ticket->bytes);
 			remove_ticket(space_info, ticket);
 			ticket->bytes = 0;
