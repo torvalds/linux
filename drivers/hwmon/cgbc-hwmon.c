@@ -107,6 +107,9 @@ static int cgbc_hwmon_probe_sensors(struct device *dev, struct cgbc_hwmon_data *
 	nb_sensors = data[0];
 
 	hwmon->sensors = devm_kzalloc(dev, sizeof(*hwmon->sensors) * nb_sensors, GFP_KERNEL);
+	if (!hwmon->sensors)
+		return -ENOMEM;
+
 	sensor = hwmon->sensors;
 
 	for (i = 0; i < nb_sensors; i++) {
