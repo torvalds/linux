@@ -93,6 +93,7 @@
 #include "intel_psr.h"
 #include "intel_quirks.h"
 #include "intel_tc.h"
+#include "intel_vblank.h"
 #include "intel_vdsc.h"
 #include "intel_vrr.h"
 
@@ -6992,13 +6993,34 @@ void intel_dp_mst_resume(struct intel_display *display)
 	}
 }
 
+static
+int intel_dp_sdp_compute_config_late(struct intel_crtc_state *crtc_state)
+{
+	struct intel_display *display = to_intel_display(crtc_state);
+	int guardband = intel_crtc_vblank_length(crtc_state);
+	int min_sdp_guardband = intel_dp_sdp_min_guardband(crtc_state, false);
+
+	if (guardband < min_sdp_guardband) {
+		drm_dbg_kms(display->drm, "guardband %d < min sdp guardband %d\n",
+			    guardband, min_sdp_guardband);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 int intel_dp_compute_config_late(struct intel_encoder *encoder,
 				 struct intel_crtc_state *crtc_state,
 				 struct drm_connector_state *conn_state)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+	int ret;
 
 	intel_psr_compute_config_late(intel_dp, crtc_state);
+
+	ret = intel_dp_sdp_compute_config_late(crtc_state);
+	if (ret)
+		return ret;
 
 	return 0;
 }
