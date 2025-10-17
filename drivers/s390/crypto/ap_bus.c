@@ -1650,6 +1650,15 @@ static ssize_t bindings_show(const struct bus_type *bus, char *buf)
 
 static BUS_ATTR_RO(bindings);
 
+static ssize_t bindings_complete_count_show(const struct bus_type *bus,
+					    char *buf)
+{
+	return sysfs_emit(buf, "%llu\n",
+			  atomic64_read(&ap_bindings_complete_count));
+}
+
+static BUS_ATTR_RO(bindings_complete_count);
+
 static ssize_t features_show(const struct bus_type *bus, char *buf)
 {
 	int n = 0;
@@ -1690,6 +1699,7 @@ static struct attribute *ap_bus_attrs[] = {
 	&bus_attr_aqmask.attr,
 	&bus_attr_scans.attr,
 	&bus_attr_bindings.attr,
+	&bus_attr_bindings_complete_count.attr,
 	&bus_attr_features.attr,
 	NULL,
 };
