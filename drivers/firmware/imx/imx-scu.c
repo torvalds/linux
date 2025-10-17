@@ -352,6 +352,7 @@ static struct platform_driver imx_scu_driver = {
 	.driver = {
 		.name = "imx-scu",
 		.of_match_table = imx_scu_match,
+		.suppress_bind_attrs = true,
 	},
 	.probe = imx_scu_probe,
 };
