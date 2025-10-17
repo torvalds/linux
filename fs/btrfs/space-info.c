@@ -1264,8 +1264,6 @@ static void btrfs_preempt_reclaim_metadata_space(struct work_struct *work)
 		u64 to_reclaim, block_rsv_size;
 		const u64 global_rsv_size = btrfs_block_rsv_reserved(global_rsv);
 
-		loops++;
-
 		/*
 		 * We don't have a precise counter for the metadata being
 		 * reserved for delalloc, so we'll approximate it by subtracting
@@ -1310,6 +1308,8 @@ static void btrfs_preempt_reclaim_metadata_space(struct work_struct *work)
 		}
 
 		spin_unlock(&space_info->lock);
+
+		loops++;
 
 		/*
 		 * We don't want to reclaim everything, just a portion, so scale
