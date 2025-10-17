@@ -718,27 +718,52 @@ static void read_media_fuses(struct xe_gt *gt)
 	}
 }
 
+static u32 infer_svccopy_from_meml3(struct xe_gt *gt)
+{
+	u32 meml3 = REG_FIELD_GET(MEML3_EN_MASK,
+				  xe_mmio_read32(&gt->mmio, MIRROR_FUSE3));
+	u32 svccopy_mask = 0;
+
+	/*
+	 * Each of the four meml3 bits determines the fusing of two service
+	 * copy engines.
+	 */
+	for (int i = 0; i < 4; i++)
+		svccopy_mask |= (meml3 & BIT(i)) ? 0b11 << 2 * i : 0;
+
+	return svccopy_mask;
+}
+
+static u32 read_svccopy_fuses(struct xe_gt *gt)
+{
+	return REG_FIELD_GET(FUSE_SERVICE_COPY_ENABLE_MASK,
+			     xe_mmio_read32(&gt->mmio, SERVICE_COPY_ENABLE));
+}
+
 static void read_copy_fuses(struct xe_gt *gt)
 {
 	struct xe_device *xe = gt_to_xe(gt);
 	u32 bcs_mask;
 
-	if (GRAPHICS_VERx100(xe) < 1260 || GRAPHICS_VERx100(xe) >= 1270)
-		return;
-
 	xe_force_wake_assert_held(gt_to_fw(gt), XE_FW_GT);
 
-	bcs_mask = xe_mmio_read32(&gt->mmio, MIRROR_FUSE3);
-	bcs_mask = REG_FIELD_GET(MEML3_EN_MASK, bcs_mask);
+	if (GRAPHICS_VER(xe) >= 35)
+		bcs_mask = read_svccopy_fuses(gt);
+	else if (GRAPHICS_VERx100(xe) == 1260)
+		bcs_mask = infer_svccopy_from_meml3(gt);
+	else
+		return;
 
-	/* BCS0 is always present; only BCS1-BCS8 may be fused off */
-	for (int i = XE_HW_ENGINE_BCS1, j = 0; i <= XE_HW_ENGINE_BCS8; ++i, ++j) {
+	/* Only BCS1-BCS8 may be fused off */
+	bcs_mask <<= XE_HW_ENGINE_BCS1;
+	for (int i = XE_HW_ENGINE_BCS1; i <= XE_HW_ENGINE_BCS8; ++i) {
 		if (!(gt->info.engine_mask & BIT(i)))
 			continue;
 
-		if (!(BIT(j / 2) & bcs_mask)) {
+		if (!(bcs_mask & BIT(i))) {
 			gt->info.engine_mask &= ~BIT(i);
-			xe_gt_info(gt, "bcs%u fused off\n", j);
+			xe_gt_info(gt, "bcs%u fused off\n",
+				   i - XE_HW_ENGINE_BCS0);
 		}
 	}
 }
