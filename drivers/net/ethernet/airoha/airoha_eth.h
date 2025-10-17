@@ -74,6 +74,12 @@ enum {
 };
 
 enum {
+	HSGMII_LAN_7583_ETH_SRCPORT	= 0x16,
+	HSGMII_LAN_7583_PCIE_SRCPORT	= 0x18,
+	HSGMII_LAN_7583_USB_SRCPORT,
+};
+
+enum {
 	XSI_PCIE0_VIP_PORT_MASK	= BIT(22),
 	XSI_PCIE1_VIP_PORT_MASK	= BIT(23),
 	XSI_USB_VIP_PORT_MASK	= BIT(25),
@@ -627,6 +633,11 @@ static inline bool airhoa_is_lan_gdm_port(struct airoha_gdm_port *port)
 static inline bool airoha_is_7581(struct airoha_eth *eth)
 {
 	return eth->soc->version == 0x7581;
+}
+
+static inline bool airoha_is_7583(struct airoha_eth *eth)
+{
+	return eth->soc->version == 0x7583;
 }
 
 bool airoha_is_valid_gdm_port(struct airoha_eth *eth,
