@@ -356,6 +356,7 @@ struct ath12k_link_vif {
 	bool pairwise_key_done;
 	u16 num_stations;
 	bool is_csa_in_progress;
+	struct wiphy_work bcn_tx_work;
 };
 
 struct ath12k_vif {
