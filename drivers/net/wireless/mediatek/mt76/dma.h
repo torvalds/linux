@@ -70,6 +70,42 @@
 		writel(_val, &(_q)->regs->_field);			\
 } while (0)
 
+#elif IS_ENABLED(CONFIG_MT76_NPU)
+
+#define Q_READ(_q, _field) ({						\
+	u32 _offset = offsetof(struct mt76_queue_regs, _field);		\
+	u32 _val = 0;							\
+	if ((_q)->flags & MT_QFLAG_NPU) {				\
+		struct airoha_npu *npu;					\
+									\
+		rcu_read_lock();					\
+		npu = rcu_dereference(q->dev->mmio.npu);		\
+		if (npu)						\
+			regmap_read(npu->regmap,			\
+				    ((_q)->wed_regs + _offset), &_val);	\
+		rcu_read_unlock();					\
+	} else {							\
+		_val = readl(&(_q)->regs->_field);			\
+	}								\
+	_val;								\
+})
+
+#define Q_WRITE(_q, _field, _val)	do {				\
+	u32 _offset = offsetof(struct mt76_queue_regs, _field);		\
+	if ((_q)->flags & MT_QFLAG_NPU) {				\
+		struct airoha_npu *npu;					\
+									\
+		rcu_read_lock();					\
+		npu = rcu_dereference(q->dev->mmio.npu);		\
+		if (npu)						\
+			regmap_write(npu->regmap,			\
+				     ((_q)->wed_regs + _offset), _val);	\
+		rcu_read_unlock();					\
+	} else {							\
+		writel(_val, &(_q)->regs->_field);			\
+	}								\
+} while (0)
+
 #else
 
 #define Q_READ(_q, _field)		readl(&(_q)->regs->_field)
