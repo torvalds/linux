@@ -205,6 +205,8 @@ void xe_irq_enable_hwe(struct xe_gt *gt)
 	}
 
 	if (xe_gt_is_media_type(gt) || MEDIA_VER(xe) < 13) {
+		u32 vcs_fuse_mask = xe_hw_engine_mask_per_class(gt, XE_ENGINE_CLASS_VIDEO_DECODE);
+		u32 vecs_fuse_mask = xe_hw_engine_mask_per_class(gt, XE_ENGINE_CLASS_VIDEO_ENHANCE);
 		u32 other_fuse_mask = xe_hw_engine_mask_per_class(gt, XE_ENGINE_CLASS_OTHER);
 
 		/* Enable interrupts for each engine class */
@@ -215,12 +217,21 @@ void xe_irq_enable_hwe(struct xe_gt *gt)
 		/* Unmask interrupts for each engine instance */
 		val = ~(REG_FIELD_PREP(ENGINE1_MASK, vcs_mask) |
 			REG_FIELD_PREP(ENGINE0_MASK, vcs_mask));
-		xe_mmio_write32(mmio, VCS0_VCS1_INTR_MASK, val);
-		xe_mmio_write32(mmio, VCS2_VCS3_INTR_MASK, val);
+		if (vcs_fuse_mask & (BIT(0) | BIT(1)))
+			xe_mmio_write32(mmio, VCS0_VCS1_INTR_MASK, val);
+		if (vcs_fuse_mask & (BIT(2) | BIT(3)))
+			xe_mmio_write32(mmio, VCS2_VCS3_INTR_MASK, val);
+		if (vcs_fuse_mask & (BIT(4) | BIT(5)))
+			xe_mmio_write32(mmio, VCS4_VCS5_INTR_MASK, val);
+		if (vcs_fuse_mask & (BIT(6) | BIT(7)))
+			xe_mmio_write32(mmio, VCS6_VCS7_INTR_MASK, val);
 
 		val = ~(REG_FIELD_PREP(ENGINE1_MASK, vecs_mask) |
 			REG_FIELD_PREP(ENGINE0_MASK, vecs_mask));
-		xe_mmio_write32(mmio, VECS0_VECS1_INTR_MASK, val);
+		if (vecs_fuse_mask & (BIT(0) | BIT(1)))
+			xe_mmio_write32(mmio, VECS0_VECS1_INTR_MASK, val);
+		if (vecs_fuse_mask & (BIT(2) | BIT(3)))
+			xe_mmio_write32(mmio, VECS2_VECS3_INTR_MASK, val);
 
 		/*
 		 * the heci2 interrupt is enabled via the same register as the
