@@ -328,8 +328,14 @@ KBUILD_BUILD_TIMESTAMP
 ----------------------
 Setting this to a date string overrides the timestamp used in the
 UTS_VERSION definition (uname -v in the running kernel). The value has to
-be a string that can be passed to date -d. The default value
-is the output of the date command at one point during build.
+be a string that can be passed to date -d. E.g.::
+
+    $ KBUILD_BUILD_TIMESTAMP="Mon Oct 13 00:00:00 UTC 2025" make
+
+The default value is the output of the date command at one point during
+build. If provided, this timestamp will also be used for mtime fields
+within any initramfs archive. Initramfs mtimes are 32-bit, so dates before
+the 1970 Unix epoch, or after 2106-02-07 06:28:15 UTC will fail.
 
 KBUILD_BUILD_USER, KBUILD_BUILD_HOST
 ------------------------------------
