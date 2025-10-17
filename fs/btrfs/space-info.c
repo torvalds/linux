@@ -1062,13 +1062,14 @@ static bool steal_from_global_rsv(struct btrfs_space_info *space_info,
 		return false;
 	}
 	global_rsv->reserved -= ticket->bytes;
+	if (global_rsv->reserved < global_rsv->size)
+		global_rsv->full = false;
+	spin_unlock(&global_rsv->lock);
+
 	remove_ticket(space_info, ticket);
 	ticket->bytes = 0;
 	wake_up(&ticket->wait);
 	space_info->tickets_id++;
-	if (global_rsv->reserved < global_rsv->size)
-		global_rsv->full = false;
-	spin_unlock(&global_rsv->lock);
 
 	return true;
 }
