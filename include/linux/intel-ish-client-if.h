@@ -109,6 +109,7 @@ struct ishtp_device *ishtp_get_ishtp_device(struct ishtp_cl *cl);
 void ishtp_set_tx_ring_size(struct ishtp_cl *cl, int size);
 void ishtp_set_rx_ring_size(struct ishtp_cl *cl, int size);
 void ishtp_set_connection_state(struct ishtp_cl *cl, int state);
+int ishtp_get_connection_state(struct ishtp_cl *cl);
 void ishtp_cl_set_fw_client_id(struct ishtp_cl *cl, int fw_client_id);
 
 void ishtp_put_device(struct ishtp_cl_device *cl_dev);
