@@ -1303,6 +1303,28 @@ skip_free:
 }
 
 __maybe_unused /* this is temporary while this file is included in others */
+static void smbdirect_connection_send_immediate_work(struct work_struct *work)
+{
+	struct smbdirect_socket *sc =
+		container_of(work, struct smbdirect_socket, idle.immediate_work);
+	int ret;
+
+	if (sc->status != SMBDIRECT_SOCKET_CONNECTED)
+		return;
+
+	smbdirect_log_keep_alive(sc, SMBDIRECT_LOG_INFO,
+		"send an empty message\n");
+	sc->statistics.send_empty++;
+	ret = smbdirect_connection_send_single_iter(sc, NULL, NULL, 0, 0);
+	if (ret < 0) {
+		smbdirect_log_write(sc, SMBDIRECT_LOG_ERR,
+			"smbdirect_connection_send_single_iter ret=%1pe\n",
+			SMBDIRECT_DEBUG_ERR_PTR(ret));
+		smbdirect_socket_schedule_cleanup(sc, ret);
+	}
+}
+
+__maybe_unused /* this is temporary while this file is included in others */
 static int smbdirect_connection_post_recv_io(struct smbdirect_recv_io *msg)
 {
 	struct smbdirect_socket *sc = msg->socket;
