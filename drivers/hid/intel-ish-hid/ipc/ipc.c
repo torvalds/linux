@@ -481,6 +481,20 @@ out:
 	return ret;
 }
 
+static void ish_send_reset_notify_ack(struct ishtp_device *dev)
+{
+	/* Read reset ID */
+	u32 reset_id = ish_reg_read(dev, IPC_REG_ISH2HOST_MSG) & 0xFFFF;
+
+	/*
+	 * Set HOST2ISH.ILUP. Apparently we need this BEFORE sending
+	 * RESET_NOTIFY_ACK - FW will be checking for it
+	 */
+	ish_set_host_rdy(dev);
+	/* Send RESET_NOTIFY_ACK (with reset_id) */
+	ipc_send_mng_msg(dev, MNG_RESET_NOTIFY_ACK, &reset_id, sizeof(u32));
+}
+
 #define TIME_SLICE_FOR_FW_RDY_MS		100
 #define TIME_SLICE_FOR_INPUT_RDY_MS		100
 #define TIMEOUT_FOR_FW_RDY_MS			2000
@@ -496,12 +510,8 @@ out:
  */
 static int ish_fw_reset_handler(struct ishtp_device *dev)
 {
-	uint32_t	reset_id;
 	unsigned long	flags;
 	int ret;
-
-	/* Read reset ID */
-	reset_id = ish_reg_read(dev, IPC_REG_ISH2HOST_MSG) & 0xFFFF;
 
 	/* Clear IPC output queue */
 	spin_lock_irqsave(&dev->wr_processing_spinlock, flags);
@@ -520,15 +530,6 @@ static int ish_fw_reset_handler(struct ishtp_device *dev)
 
 	/* Send clock sync at once after reset */
 	ishtp_dev->prev_sync = 0;
-
-	/*
-	 * Set HOST2ISH.ILUP. Apparently we need this BEFORE sending
-	 * RESET_NOTIFY_ACK - FW will be checking for it
-	 */
-	ish_set_host_rdy(dev);
-	/* Send RESET_NOTIFY_ACK (with reset_id) */
-	ipc_send_mng_msg(dev, MNG_RESET_NOTIFY_ACK, &reset_id,
-			 sizeof(uint32_t));
 
 	/* Wait for ISH FW'es ILUP and ISHTP_READY */
 	ret = timed_wait_for_timeout(dev, WAIT_FOR_FW_RDY,
@@ -563,8 +564,6 @@ static void fw_reset_work_fn(struct work_struct *work)
 	if (!rv) {
 		/* ISH is ILUP & ISHTP-ready. Restart ISHTP */
 		msleep_interruptible(TIMEOUT_FOR_HW_RDY_MS);
-		ishtp_dev->recvd_hw_ready = 1;
-		wake_up_interruptible(&ishtp_dev->wait_hw_ready);
 
 		/* ISHTP notification in IPC_RESET sequence completion */
 		if (!work_pending(work))
@@ -625,15 +624,14 @@ static void	recv_ipc(struct ishtp_device *dev, uint32_t doorbell_val)
 		break;
 
 	case MNG_RESET_NOTIFY:
-		if (!ishtp_dev) {
-			ishtp_dev = dev;
-		}
-		queue_work(dev->unbound_wq, &fw_reset_work);
-		break;
+		ish_send_reset_notify_ack(ishtp_dev);
+		fallthrough;
 
 	case MNG_RESET_NOTIFY_ACK:
 		dev->recvd_hw_ready = 1;
 		wake_up_interruptible(&dev->wait_hw_ready);
+		if (!work_pending(&fw_reset_work))
+			queue_work(dev->unbound_wq, &fw_reset_work);
 		break;
 	}
 }
@@ -1001,6 +999,7 @@ struct ishtp_device *ish_dev_init(struct pci_dev *pdev)
 		list_add_tail(&tx_buf->link, &dev->wr_free_list);
 	}
 
+	ishtp_dev = dev;
 	ret = devm_work_autocancel(&pdev->dev, &fw_reset_work, fw_reset_work_fn);
 	if (ret) {
 		dev_err(dev->devc, "Failed to initialise FW reset work\n");
