@@ -7002,3 +7002,39 @@ int intel_dp_compute_config_late(struct intel_encoder *encoder,
 
 	return 0;
 }
+
+static
+int intel_dp_get_lines_for_sdp(u32 type)
+{
+	switch (type) {
+	case DP_SDP_VSC_EXT_VESA:
+	case DP_SDP_VSC_EXT_CEA:
+		return 10;
+	case HDMI_PACKET_TYPE_GAMUT_METADATA:
+		return 8;
+	case DP_SDP_PPS:
+		return 7;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+int intel_dp_sdp_min_guardband(const struct intel_crtc_state *crtc_state,
+			       bool assume_all_enabled)
+{
+	int sdp_guardband = 0;
+
+	if (assume_all_enabled ||
+	    crtc_state->infoframes.enable &
+	    intel_hdmi_infoframe_enable(HDMI_PACKET_TYPE_GAMUT_METADATA))
+		sdp_guardband = max(sdp_guardband,
+				    intel_dp_get_lines_for_sdp(HDMI_PACKET_TYPE_GAMUT_METADATA));
+
+	if (assume_all_enabled ||
+	    crtc_state->dsc.compression_enable)
+		sdp_guardband = max(sdp_guardband, intel_dp_get_lines_for_sdp(DP_SDP_PPS));
+
+	return sdp_guardband;
+}
