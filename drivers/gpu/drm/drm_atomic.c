@@ -836,6 +836,8 @@ drm_atomic_get_private_obj_state(struct drm_atomic_state *state,
 	struct __drm_private_objs_state *arr;
 	struct drm_private_state *obj_state;
 
+	WARN_ON(!state->acquire_ctx);
+
 	obj_state = drm_atomic_get_new_private_obj_state(state, obj);
 	if (obj_state)
 		return obj_state;
