@@ -139,7 +139,6 @@ void xe_irq_enable_hwe(struct xe_gt *gt)
 {
 	struct xe_device *xe = gt_to_xe(gt);
 	struct xe_mmio *mmio = &gt->mmio;
-	u32 ccs_mask, bcs_mask;
 	u32 irqs, dmask, smask;
 	u32 gsc_mask = 0;
 	u32 heci_mask = 0;
@@ -157,36 +156,43 @@ void xe_irq_enable_hwe(struct xe_gt *gt)
 		       GT_WAIT_SEMAPHORE_INTERRUPT;
 	}
 
-	ccs_mask = xe_hw_engine_mask_per_class(gt, XE_ENGINE_CLASS_COMPUTE);
-	bcs_mask = xe_hw_engine_mask_per_class(gt, XE_ENGINE_CLASS_COPY);
-
 	dmask = irqs << 16 | irqs;
 	smask = irqs << 16;
 
 	if (xe_gt_is_main_type(gt)) {
+		/*
+		 * For enabling the interrupts, the information about fused off
+		 * engines doesn't matter much, but this also allows to check if
+		 * the engine is available architecturally in the platform
+		 */
+		u32 ccs_fuse_mask = xe_hw_engine_mask_per_class(gt, XE_ENGINE_CLASS_COMPUTE);
+		u32 bcs_fuse_mask = xe_hw_engine_mask_per_class(gt, XE_ENGINE_CLASS_COPY);
+
 		/* Enable interrupts for each engine class */
 		xe_mmio_write32(mmio, RENDER_COPY_INTR_ENABLE, dmask);
-		if (ccs_mask)
+		if (ccs_fuse_mask)
 			xe_mmio_write32(mmio, CCS_RSVD_INTR_ENABLE, smask);
 
 		/* Unmask interrupts for each engine instance */
 		xe_mmio_write32(mmio, RCS0_RSVD_INTR_MASK, ~smask);
 		xe_mmio_write32(mmio, BCS_RSVD_INTR_MASK, ~smask);
-		if (bcs_mask & (BIT(1)|BIT(2)))
+		if (bcs_fuse_mask & (BIT(1)|BIT(2)))
 			xe_mmio_write32(mmio, XEHPC_BCS1_BCS2_INTR_MASK, ~dmask);
-		if (bcs_mask & (BIT(3)|BIT(4)))
+		if (bcs_fuse_mask & (BIT(3)|BIT(4)))
 			xe_mmio_write32(mmio, XEHPC_BCS3_BCS4_INTR_MASK, ~dmask);
-		if (bcs_mask & (BIT(5)|BIT(6)))
+		if (bcs_fuse_mask & (BIT(5)|BIT(6)))
 			xe_mmio_write32(mmio, XEHPC_BCS5_BCS6_INTR_MASK, ~dmask);
-		if (bcs_mask & (BIT(7)|BIT(8)))
+		if (bcs_fuse_mask & (BIT(7)|BIT(8)))
 			xe_mmio_write32(mmio, XEHPC_BCS7_BCS8_INTR_MASK, ~dmask);
-		if (ccs_mask & (BIT(0)|BIT(1)))
+		if (ccs_fuse_mask & (BIT(0)|BIT(1)))
 			xe_mmio_write32(mmio, CCS0_CCS1_INTR_MASK, ~dmask);
-		if (ccs_mask & (BIT(2)|BIT(3)))
+		if (ccs_fuse_mask & (BIT(2)|BIT(3)))
 			xe_mmio_write32(mmio, CCS2_CCS3_INTR_MASK, ~dmask);
 	}
 
 	if (xe_gt_is_media_type(gt) || MEDIA_VER(xe) < 13) {
+		u32 other_fuse_mask = xe_hw_engine_mask_per_class(gt, XE_ENGINE_CLASS_OTHER);
+
 		/* Enable interrupts for each engine class */
 		xe_mmio_write32(mmio, VCS_VECS_INTR_ENABLE, dmask);
 
@@ -199,7 +205,7 @@ void xe_irq_enable_hwe(struct xe_gt *gt)
 		 * the heci2 interrupt is enabled via the same register as the
 		 * GSCCS interrupts, but it has its own mask register.
 		 */
-		if (xe_hw_engine_mask_per_class(gt, XE_ENGINE_CLASS_OTHER)) {
+		if (other_fuse_mask) {
 			gsc_mask = irqs | GSC_ER_COMPLETE;
 			heci_mask = GSC_IRQ_INTF(1);
 		} else if (xe->info.has_heci_gscfi) {
