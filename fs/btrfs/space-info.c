@@ -937,9 +937,16 @@ static bool need_preemptive_reclaim(const struct btrfs_space_info *space_info)
 	u64 thresh;
 	u64 used;
 
-	thresh = mult_perc(space_info->total_bytes, 90);
-
 	lockdep_assert_held(&space_info->lock);
+
+	/*
+	 * We have tickets queued, bail so we don't compete with the async
+	 * flushers.
+	 */
+	if (space_info->reclaim_size)
+		return false;
+
+	thresh = mult_perc(space_info->total_bytes, 90);
 
 	/* If we're just plain full then async reclaim just slows us down. */
 	if ((space_info->bytes_used + space_info->bytes_reserved +
@@ -958,13 +965,6 @@ static bool need_preemptive_reclaim(const struct btrfs_space_info *space_info)
 	 * we don't have a lot of things that need flushing.
 	 */
 	if (used - global_rsv_size <= SZ_128M)
-		return false;
-
-	/*
-	 * We have tickets queued, bail so we don't compete with the async
-	 * flushers.
-	 */
-	if (space_info->reclaim_size)
 		return false;
 
 	/*
