@@ -95,11 +95,18 @@ static int pkcs7_check_authattrs(struct pkcs7_message *msg)
 	if (sinfo->authattrs) {
 		want = true;
 		msg->have_authattrs = true;
+	} else if (sinfo->sig->algo_takes_data) {
+		sinfo->sig->hash_algo = "none";
 	}
 
-	for (sinfo = sinfo->next; sinfo; sinfo = sinfo->next)
+	for (sinfo = sinfo->next; sinfo; sinfo = sinfo->next) {
 		if (!!sinfo->authattrs != want)
 			goto inconsistent;
+
+		if (!sinfo->authattrs &&
+		    sinfo->sig->algo_takes_data)
+			sinfo->sig->hash_algo = "none";
+	}
 	return 0;
 
 inconsistent:
@@ -296,6 +303,21 @@ int pkcs7_sig_note_pkey_algo(void *context, size_t hdrlen,
 	case OID_gost2012PKey512:
 		ctx->sinfo->sig->pkey_algo = "ecrdsa";
 		ctx->sinfo->sig->encoding = "raw";
+		break;
+	case OID_id_ml_dsa_44:
+		ctx->sinfo->sig->pkey_algo = "mldsa44";
+		ctx->sinfo->sig->encoding = "raw";
+		ctx->sinfo->sig->algo_takes_data = true;
+		break;
+	case OID_id_ml_dsa_65:
+		ctx->sinfo->sig->pkey_algo = "mldsa65";
+		ctx->sinfo->sig->encoding = "raw";
+		ctx->sinfo->sig->algo_takes_data = true;
+		break;
+	case OID_id_ml_dsa_87:
+		ctx->sinfo->sig->pkey_algo = "mldsa87";
+		ctx->sinfo->sig->encoding = "raw";
+		ctx->sinfo->sig->algo_takes_data = true;
 		break;
 	default:
 		printk("Unsupported pkey algo: %u\n", ctx->last_oid);
