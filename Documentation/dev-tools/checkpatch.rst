@@ -465,13 +465,6 @@ Comments
        * for multi line comments.
        */
 
-    The networking comment style is a bit different, with the first line
-    not empty like the former::
-
-      /* This is the preferred comment style
-       * for files in net/ and drivers/net/
-       */
-
     See: https://www.kernel.org/doc/html/latest/process/coding-style.html#commenting
 
   **C99_COMMENTS**
