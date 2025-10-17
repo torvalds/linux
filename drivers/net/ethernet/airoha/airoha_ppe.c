@@ -37,17 +37,34 @@ static int airoha_ppe_get_num_stats_entries(struct airoha_ppe *ppe)
 	if (!IS_ENABLED(CONFIG_NET_AIROHA_FLOW_STATS))
 		return -EOPNOTSUPP;
 
-	return PPE1_STATS_NUM_ENTRIES;
+	return PPE_STATS_NUM_ENTRIES;
 }
 
 static int airoha_ppe_get_total_num_stats_entries(struct airoha_ppe *ppe)
 {
 	int num_stats = airoha_ppe_get_num_stats_entries(ppe);
 
-	if (num_stats > 0)
-		num_stats = num_stats * PPE_NUM;
+	if (num_stats > 0) {
+		struct airoha_eth *eth = ppe->eth;
+
+		num_stats = num_stats * eth->soc->num_ppe;
+	}
 
 	return num_stats;
+}
+
+static u32 airoha_ppe_get_total_sram_num_entries(struct airoha_ppe *ppe)
+{
+	struct airoha_eth *eth = ppe->eth;
+
+	return PPE_SRAM_NUM_ENTRIES * eth->soc->num_ppe;
+}
+
+u32 airoha_ppe_get_total_num_entries(struct airoha_ppe *ppe)
+{
+	u32 sram_num_entries = airoha_ppe_get_total_sram_num_entries(ppe);
+
+	return sram_num_entries + PPE_DRAM_NUM_ENTRIES;
 }
 
 bool airoha_ppe_is_enabled(struct airoha_eth *eth, int index)
@@ -67,14 +84,22 @@ static u32 airoha_ppe_get_timestamp(struct airoha_ppe *ppe)
 
 static void airoha_ppe_hw_init(struct airoha_ppe *ppe)
 {
-	u32 sram_tb_size, sram_num_entries, dram_num_entries;
+	u32 sram_ppe_num_data_entries = PPE_SRAM_NUM_ENTRIES, sram_num_entries;
+	u32 sram_tb_size, dram_num_entries;
 	struct airoha_eth *eth = ppe->eth;
 	int i, sram_num_stats_entries;
 
-	sram_tb_size = PPE_SRAM_NUM_ENTRIES * sizeof(struct airoha_foe_entry);
+	sram_num_entries = airoha_ppe_get_total_sram_num_entries(ppe);
+	sram_tb_size = sram_num_entries * sizeof(struct airoha_foe_entry);
 	dram_num_entries = PPE_RAM_NUM_ENTRIES_SHIFT(PPE_DRAM_NUM_ENTRIES);
 
-	for (i = 0; i < PPE_NUM; i++) {
+	sram_num_stats_entries = airoha_ppe_get_num_stats_entries(ppe);
+	if (sram_num_stats_entries > 0)
+		sram_ppe_num_data_entries -= sram_num_stats_entries;
+	sram_ppe_num_data_entries =
+		PPE_RAM_NUM_ENTRIES_SHIFT(sram_ppe_num_data_entries);
+
+	for (i = 0; i < eth->soc->num_ppe; i++) {
 		int p;
 
 		airoha_fe_wr(eth, REG_PPE_TB_BASE(i),
@@ -106,10 +131,16 @@ static void airoha_ppe_hw_init(struct airoha_ppe *ppe)
 
 		airoha_fe_rmw(eth, REG_PPE_TB_CFG(i),
 			      PPE_TB_CFG_SEARCH_MISS_MASK |
+			      PPE_SRAM_TB_NUM_ENTRY_MASK |
+			      PPE_DRAM_TB_NUM_ENTRY_MASK |
 			      PPE_TB_CFG_KEEPALIVE_MASK |
 			      PPE_TB_ENTRY_SIZE_MASK,
 			      FIELD_PREP(PPE_TB_CFG_SEARCH_MISS_MASK, 3) |
-			      FIELD_PREP(PPE_TB_ENTRY_SIZE_MASK, 0));
+			      FIELD_PREP(PPE_TB_ENTRY_SIZE_MASK, 0) |
+			      FIELD_PREP(PPE_SRAM_TB_NUM_ENTRY_MASK,
+					 sram_ppe_num_data_entries) |
+			      FIELD_PREP(PPE_DRAM_TB_NUM_ENTRY_MASK,
+					 dram_num_entries));
 
 		airoha_fe_wr(eth, REG_PPE_HASH_SEED(i), PPE_HASH_SEED);
 
@@ -121,45 +152,6 @@ static void airoha_ppe_hw_init(struct airoha_ppe *ppe)
 						 AIROHA_MAX_MTU) |
 				      FIELD_PREP(FP1_EGRESS_MTU_MASK,
 						 AIROHA_MAX_MTU));
-	}
-
-	if (airoha_ppe_is_enabled(eth, 1)) {
-		sram_num_entries = PPE1_SRAM_NUM_ENTRIES;
-		sram_num_stats_entries =
-			airoha_ppe_get_num_stats_entries(ppe);
-		if (sram_num_stats_entries > 0)
-			sram_num_entries -= sram_num_stats_entries;
-		sram_num_entries = PPE_RAM_NUM_ENTRIES_SHIFT(sram_num_entries);
-
-		airoha_fe_rmw(eth, REG_PPE_TB_CFG(0),
-			      PPE_SRAM_TB_NUM_ENTRY_MASK |
-			      PPE_DRAM_TB_NUM_ENTRY_MASK,
-			      FIELD_PREP(PPE_SRAM_TB_NUM_ENTRY_MASK,
-					 sram_num_entries) |
-			      FIELD_PREP(PPE_DRAM_TB_NUM_ENTRY_MASK,
-					 dram_num_entries));
-		airoha_fe_rmw(eth, REG_PPE_TB_CFG(1),
-			      PPE_SRAM_TB_NUM_ENTRY_MASK |
-			      PPE_DRAM_TB_NUM_ENTRY_MASK,
-			      FIELD_PREP(PPE_SRAM_TB_NUM_ENTRY_MASK,
-					 sram_num_entries) |
-			      FIELD_PREP(PPE_DRAM_TB_NUM_ENTRY_MASK,
-					 dram_num_entries));
-	} else {
-		sram_num_entries = PPE_SRAM_NUM_ENTRIES;
-		sram_num_stats_entries =
-			airoha_ppe_get_total_num_stats_entries(ppe);
-		if (sram_num_stats_entries > 0)
-			sram_num_entries -= sram_num_stats_entries;
-		sram_num_entries = PPE_RAM_NUM_ENTRIES_SHIFT(sram_num_entries);
-
-		airoha_fe_rmw(eth, REG_PPE_TB_CFG(0),
-			      PPE_SRAM_TB_NUM_ENTRY_MASK |
-			      PPE_DRAM_TB_NUM_ENTRY_MASK,
-			      FIELD_PREP(PPE_SRAM_TB_NUM_ENTRY_MASK,
-					 sram_num_entries) |
-			      FIELD_PREP(PPE_DRAM_TB_NUM_ENTRY_MASK,
-					 dram_num_entries));
 	}
 }
 
@@ -459,9 +451,11 @@ static int airoha_ppe_foe_entry_set_ipv6_tuple(struct airoha_foe_entry *hwe,
 	return 0;
 }
 
-static u32 airoha_ppe_foe_get_entry_hash(struct airoha_foe_entry *hwe)
+static u32 airoha_ppe_foe_get_entry_hash(struct airoha_ppe *ppe,
+					 struct airoha_foe_entry *hwe)
 {
 	int type = FIELD_GET(AIROHA_FOE_IB1_BIND_PACKET_TYPE, hwe->ib1);
+	u32 ppe_hash_mask = airoha_ppe_get_total_num_entries(ppe) - 1;
 	u32 hash, hv1, hv2, hv3;
 
 	switch (type) {
@@ -499,14 +493,14 @@ static u32 airoha_ppe_foe_get_entry_hash(struct airoha_foe_entry *hwe)
 	case PPE_PKT_TYPE_IPV6_6RD:
 	default:
 		WARN_ON_ONCE(1);
-		return PPE_HASH_MASK;
+		return ppe_hash_mask;
 	}
 
 	hash = (hv1 & hv2) | ((~hv1) & hv3);
 	hash = (hash >> 24) | ((hash & 0xffffff) << 8);
 	hash ^= hv1 ^ hv2 ^ hv3;
 	hash ^= hash >> 16;
-	hash &= PPE_NUM_ENTRIES - 1;
+	hash &= ppe_hash_mask;
 
 	return hash;
 }
@@ -607,9 +601,11 @@ static void airoha_ppe_foe_flow_stats_update(struct airoha_ppe *ppe,
 static struct airoha_foe_entry *
 airoha_ppe_foe_get_entry_locked(struct airoha_ppe *ppe, u32 hash)
 {
+	u32 sram_num_entries = airoha_ppe_get_total_sram_num_entries(ppe);
+
 	lockdep_assert_held(&ppe_lock);
 
-	if (hash < PPE_SRAM_NUM_ENTRIES) {
+	if (hash < sram_num_entries) {
 		u32 *hwe = ppe->foe + hash * sizeof(struct airoha_foe_entry);
 		struct airoha_eth *eth = ppe->eth;
 		bool ppe2;
@@ -617,7 +613,7 @@ airoha_ppe_foe_get_entry_locked(struct airoha_ppe *ppe, u32 hash)
 		int i;
 
 		ppe2 = airoha_ppe_is_enabled(ppe->eth, 1) &&
-		       hash >= PPE1_SRAM_NUM_ENTRIES;
+		       hash >= PPE_SRAM_NUM_ENTRIES;
 		airoha_fe_wr(ppe->eth, REG_PPE_RAM_CTRL(ppe2),
 			     FIELD_PREP(PPE_SRAM_CTRL_ENTRY_MASK, hash) |
 			     PPE_SRAM_CTRL_REQ_MASK);
@@ -668,6 +664,7 @@ static int airoha_ppe_foe_commit_entry(struct airoha_ppe *ppe,
 				       struct airoha_foe_entry *e,
 				       u32 hash, bool rx_wlan)
 {
+	u32 sram_num_entries = airoha_ppe_get_total_sram_num_entries(ppe);
 	struct airoha_foe_entry *hwe = ppe->foe + hash * sizeof(*hwe);
 	u32 ts = airoha_ppe_get_timestamp(ppe);
 	struct airoha_eth *eth = ppe->eth;
@@ -692,10 +689,10 @@ static int airoha_ppe_foe_commit_entry(struct airoha_ppe *ppe,
 	if (!rx_wlan)
 		airoha_ppe_foe_flow_stats_update(ppe, npu, hwe, hash);
 
-	if (hash < PPE_SRAM_NUM_ENTRIES) {
+	if (hash < sram_num_entries) {
 		dma_addr_t addr = ppe->foe_dma + hash * sizeof(*hwe);
 		bool ppe2 = airoha_ppe_is_enabled(eth, 1) &&
-			    hash >= PPE1_SRAM_NUM_ENTRIES;
+			    hash >= PPE_SRAM_NUM_ENTRIES;
 
 		err = npu->ops.ppe_foe_commit_entry(npu, addr, sizeof(*hwe),
 						    hash, ppe2);
@@ -822,7 +819,7 @@ static void airoha_ppe_foe_insert_entry(struct airoha_ppe *ppe,
 	if (state == AIROHA_FOE_STATE_BIND)
 		goto unlock;
 
-	index = airoha_ppe_foe_get_entry_hash(hwe);
+	index = airoha_ppe_foe_get_entry_hash(ppe, hwe);
 	hlist_for_each_entry_safe(e, n, &ppe->foe_flow[index], list) {
 		if (e->type == FLOW_TYPE_L2_SUBFLOW) {
 			state = FIELD_GET(AIROHA_FOE_IB1_BIND_STATE, hwe->ib1);
@@ -882,7 +879,7 @@ static int airoha_ppe_foe_flow_commit_entry(struct airoha_ppe *ppe,
 	if (type == PPE_PKT_TYPE_BRIDGE)
 		return airoha_ppe_foe_l2_flow_commit_entry(ppe, e);
 
-	hash = airoha_ppe_foe_get_entry_hash(&e->data);
+	hash = airoha_ppe_foe_get_entry_hash(ppe, &e->data);
 	e->type = FLOW_TYPE_L4;
 	e->hash = 0xffff;
 
@@ -1286,17 +1283,15 @@ static int airoha_ppe_flow_offload_cmd(struct airoha_eth *eth,
 static int airoha_ppe_flush_sram_entries(struct airoha_ppe *ppe,
 					 struct airoha_npu *npu)
 {
-	int i, sram_num_entries = PPE_SRAM_NUM_ENTRIES;
+	u32 sram_num_entries = airoha_ppe_get_total_sram_num_entries(ppe);
 	struct airoha_foe_entry *hwe = ppe->foe;
+	int i;
 
-	if (airoha_ppe_is_enabled(ppe->eth, 1))
-		sram_num_entries = sram_num_entries / 2;
-
-	for (i = 0; i < sram_num_entries; i++)
+	for (i = 0; i < PPE_SRAM_NUM_ENTRIES; i++)
 		memset(&hwe[i], 0, sizeof(*hwe));
 
 	return npu->ops.ppe_flush_sram_entries(npu, ppe->foe_dma,
-					       PPE_SRAM_NUM_ENTRIES);
+					       sram_num_entries);
 }
 
 static struct airoha_npu *airoha_ppe_npu_get(struct airoha_eth *eth)
@@ -1372,9 +1367,10 @@ void airoha_ppe_check_skb(struct airoha_ppe_dev *dev, struct sk_buff *skb,
 			  u16 hash, bool rx_wlan)
 {
 	struct airoha_ppe *ppe = dev->priv;
+	u32 ppe_hash_mask = airoha_ppe_get_total_num_entries(ppe) - 1;
 	u16 now, diff;
 
-	if (hash > PPE_HASH_MASK)
+	if (hash > ppe_hash_mask)
 		return;
 
 	now = (u16)jiffies;
@@ -1465,6 +1461,7 @@ EXPORT_SYMBOL_GPL(airoha_ppe_put_dev);
 int airoha_ppe_init(struct airoha_eth *eth)
 {
 	int foe_size, err, ppe_num_stats_entries;
+	u32 ppe_num_entries;
 	struct airoha_ppe *ppe;
 
 	ppe = devm_kzalloc(eth->dev, sizeof(*ppe), GFP_KERNEL);
@@ -1474,18 +1471,18 @@ int airoha_ppe_init(struct airoha_eth *eth)
 	ppe->dev.ops.setup_tc_block_cb = airoha_ppe_setup_tc_block_cb;
 	ppe->dev.ops.check_skb = airoha_ppe_check_skb;
 	ppe->dev.priv = ppe;
+	ppe->eth = eth;
+	eth->ppe = ppe;
 
-	foe_size = PPE_NUM_ENTRIES * sizeof(struct airoha_foe_entry);
+	ppe_num_entries = airoha_ppe_get_total_num_entries(ppe);
+	foe_size = ppe_num_entries * sizeof(struct airoha_foe_entry);
 	ppe->foe = dmam_alloc_coherent(eth->dev, foe_size, &ppe->foe_dma,
 				       GFP_KERNEL);
 	if (!ppe->foe)
 		return -ENOMEM;
 
-	ppe->eth = eth;
-	eth->ppe = ppe;
-
 	ppe->foe_flow = devm_kzalloc(eth->dev,
-				     PPE_NUM_ENTRIES * sizeof(*ppe->foe_flow),
+				     ppe_num_entries * sizeof(*ppe->foe_flow),
 				     GFP_KERNEL);
 	if (!ppe->foe_flow)
 		return -ENOMEM;
@@ -1500,7 +1497,7 @@ int airoha_ppe_init(struct airoha_eth *eth)
 			return -ENOMEM;
 	}
 
-	ppe->foe_check_time = devm_kzalloc(eth->dev, PPE_NUM_ENTRIES,
+	ppe->foe_check_time = devm_kzalloc(eth->dev, ppe_num_entries,
 					   GFP_KERNEL);
 	if (!ppe->foe_check_time)
 		return -ENOMEM;
