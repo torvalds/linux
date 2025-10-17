@@ -151,6 +151,8 @@ static const struct xe_ip media_ips[] = {
 	{ 2000, "Xe2_LPM", &media_xelpmp },
 	{ 3000, "Xe3_LPM", &media_xelpmp },
 	{ 3002, "Xe3_LPM", &media_xelpmp },
+	{ 3500, "Xe3p_LPM", &media_xelpmp },
+	{ 3503, "Xe3p_HPM", &media_xelpmp },
 };
 
 static const struct xe_device_desc tgl_desc = {
