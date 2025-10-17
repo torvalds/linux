@@ -526,6 +526,7 @@ void btrfs_try_granting_tickets(struct btrfs_space_info *space_info)
 {
 	struct list_head *head;
 	enum btrfs_reserve_flush_enum flush = BTRFS_RESERVE_NO_FLUSH;
+	u64 used = btrfs_space_info_used(space_info, true);
 
 	lockdep_assert_held(&space_info->lock);
 
@@ -533,18 +534,20 @@ void btrfs_try_granting_tickets(struct btrfs_space_info *space_info)
 again:
 	while (!list_empty(head)) {
 		struct reserve_ticket *ticket;
-		u64 used = btrfs_space_info_used(space_info, true);
+		u64 used_after;
 
 		ticket = list_first_entry(head, struct reserve_ticket, list);
+		used_after = used + ticket->bytes;
 
 		/* Check and see if our ticket can be satisfied now. */
-		if ((used + ticket->bytes <= space_info->total_bytes) ||
+		if (used_after <= space_info->total_bytes ||
 		    btrfs_can_overcommit(space_info, ticket->bytes, flush)) {
 			btrfs_space_info_update_bytes_may_use(space_info, ticket->bytes);
 			remove_ticket(space_info, ticket);
 			ticket->bytes = 0;
 			space_info->tickets_id++;
 			wake_up(&ticket->wait);
+			used = used_after;
 		} else {
 			break;
 		}
