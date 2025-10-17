@@ -728,22 +728,28 @@ int ish_disable_dma(struct ishtp_device *dev)
  * ish_wakeup() - wakeup ishfw from waiting-for-host state
  * @dev: ishtp device pointer
  *
- * Set the dma enable bit and send a void message to FW,
+ * Set the dma enable bit and send a IPC RESET message to FW,
  * it wil wakeup FW from waiting-for-host state.
+ *
+ * Return: 0 for success else error code.
  */
-static void ish_wakeup(struct ishtp_device *dev)
+static int ish_wakeup(struct ishtp_device *dev)
 {
+	int ret;
+
 	/* Set dma enable bit */
 	ish_reg_write(dev, IPC_REG_ISH_RMP2, IPC_RMP2_DMA_ENABLED);
 
 	/*
-	 * Send 0 IPC message so that ISH FW wakes up if it was already
+	 * Send IPC RESET message so that ISH FW wakes up if it was already
 	 * asleep.
 	 */
-	ish_reg_write(dev, IPC_REG_HOST2ISH_DRBL, IPC_DRBL_BUSY_BIT);
+	ret = ish_ipc_reset(dev);
 
 	/* Flush writes to doorbell and REMAP2 */
 	ish_reg_read(dev, IPC_REG_ISH_HOST_FWSTS);
+
+	return ret;
 }
 
 /**
@@ -792,10 +798,10 @@ static int _ish_hw_reset(struct ishtp_device *dev)
 	pci_write_config_word(pdev, pdev->pm_cap + PCI_PM_CTRL, csr);
 
 	/* Now we can enable ISH DMA operation and wakeup ISHFW */
-	ish_wakeup(dev);
-
-	return	0;
+	return ish_wakeup(dev);
 }
+
+#define RECVD_HW_READY_TIMEOUT (10 * HZ)
 
 /**
  * _ish_ipc_reset() - IPC reset
@@ -831,7 +837,8 @@ static int _ish_ipc_reset(struct ishtp_device *dev)
 	}
 
 	wait_event_interruptible_timeout(dev->wait_hw_ready,
-					 dev->recvd_hw_ready, 2 * HZ);
+					 dev->recvd_hw_ready,
+					 RECVD_HW_READY_TIMEOUT);
 	if (!dev->recvd_hw_ready) {
 		dev_err(dev->devc, "Timed out waiting for HW ready\n");
 		rv = -ENODEV;
@@ -855,21 +862,7 @@ int ish_hw_start(struct ishtp_device *dev)
 	set_host_ready(dev);
 
 	/* After that we can enable ISH DMA operation and wakeup ISHFW */
-	ish_wakeup(dev);
-
-	/* wait for FW-initiated reset flow */
-	if (!dev->recvd_hw_ready)
-		wait_event_interruptible_timeout(dev->wait_hw_ready,
-						 dev->recvd_hw_ready,
-						 10 * HZ);
-
-	if (!dev->recvd_hw_ready) {
-		dev_err(dev->devc,
-			"[ishtp-ish]: Timed out waiting for FW-initiated reset\n");
-		return	-ENODEV;
-	}
-
-	return 0;
+	return ish_wakeup(dev);
 }
 
 /**
