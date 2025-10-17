@@ -409,24 +409,14 @@ static void imx219_get_binning(struct v4l2_subdev_state *state, u8 *bin_h,
 	u32 hbin = crop->width / format->width;
 	u32 vbin = crop->height / format->height;
 
-	*bin_h = IMX219_BINNING_NONE;
-	*bin_v = IMX219_BINNING_NONE;
-
-	/*
-	 * Use analog binning only if both dimensions are binned, as it crops
-	 * the other dimension.
-	 */
 	if (hbin == 2 && vbin == 2) {
 		*bin_h = IMX219_BINNING_X2_ANALOG;
 		*bin_v = IMX219_BINNING_X2_ANALOG;
-
-		return;
+	} else {
+		*bin_h = IMX219_BINNING_NONE;
+		*bin_v = IMX219_BINNING_NONE;
 	}
 
-	if (hbin == 2)
-		*bin_h = IMX219_BINNING_X2;
-	if (vbin == 2)
-		*bin_v = IMX219_BINNING_X2;
 }
 
 static inline u32 imx219_get_rate_factor(struct v4l2_subdev_state *state)
