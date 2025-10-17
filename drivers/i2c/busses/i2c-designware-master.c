@@ -901,7 +901,6 @@ done:
 	i2c_dw_release_lock(dev);
 
 done_nolock:
-	pm_runtime_mark_last_busy(dev->dev);
 	pm_runtime_put_autosuspend(dev->dev);
 
 	return ret;

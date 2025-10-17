@@ -313,7 +313,6 @@ static int __maybe_unused at91_twi_resume_noirq(struct device *dev)
 			return ret;
 	}
 
-	pm_runtime_mark_last_busy(dev);
 	pm_request_autosuspend(dev);
 
 	at91_init_twi_bus(twi_dev);
