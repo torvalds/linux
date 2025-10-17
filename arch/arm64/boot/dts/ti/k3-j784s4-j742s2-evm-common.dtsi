@@ -970,6 +970,7 @@
 &serdes_refclk {
 	status = "okay";
 	clock-frequency = <100000000>;
+	bootph-all;
 };
 
 &dss {
@@ -984,6 +985,10 @@
 				 <&k3_clks 218 22>;
 };
 
+&serdes_ln_ctrl {
+	bootph-all;
+};
+
 &serdes0 {
 	status = "okay";
 
@@ -993,6 +998,7 @@
 		#phy-cells = <0>;
 		cdns,phy-type = <PHY_TYPE_PCIE>;
 		resets = <&serdes_wiz0 1>, <&serdes_wiz0 2>;
+		bootph-all;
 	};
 
 	serdes0_usb_link: phy@3 {
