@@ -22,6 +22,12 @@
 
 #define CCS_MASK(gt) (((gt)->info.engine_mask & XE_HW_ENGINE_CCS_MASK) >> XE_HW_ENGINE_CCS0)
 
+#define GT_VER(gt) ({ \
+	typeof(gt) gt_ = (gt); \
+	struct xe_device *xe = gt_to_xe(gt_); \
+	xe_gt_is_media_type(gt_) ? MEDIA_VER(xe) : GRAPHICS_VER(xe); \
+})
+
 extern struct fault_attr gt_reset_failure;
 static inline bool xe_fault_inject_gt_reset(void)
 {
