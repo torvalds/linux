@@ -2607,12 +2607,16 @@ static inline struct page_frag *sk_page_frag(struct sock *sk)
 
 bool sk_page_frag_refill(struct sock *sk, struct page_frag *pfrag);
 
+static inline bool __sock_writeable(const struct sock *sk, int wmem_alloc)
+{
+	return wmem_alloc < (READ_ONCE(sk->sk_sndbuf) >> 1);
+}
 /*
  *	Default write policy as shown to user space via poll/select/SIGIO
  */
 static inline bool sock_writeable(const struct sock *sk)
 {
-	return refcount_read(&sk->sk_wmem_alloc) < (READ_ONCE(sk->sk_sndbuf) >> 1);
+	return __sock_writeable(sk, refcount_read(&sk->sk_wmem_alloc));
 }
 
 static inline gfp_t gfp_any(void)
