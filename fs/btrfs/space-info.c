@@ -1067,7 +1067,7 @@ static bool steal_from_global_rsv(struct btrfs_space_info *space_info,
 	wake_up(&ticket->wait);
 	space_info->tickets_id++;
 	if (global_rsv->reserved < global_rsv->size)
-		global_rsv->full = 0;
+		global_rsv->full = false;
 	spin_unlock(&global_rsv->lock);
 
 	return true;
@@ -2186,7 +2186,7 @@ void btrfs_return_free_space(struct btrfs_space_info *space_info, u64 len)
 		global_rsv->reserved += to_add;
 		btrfs_space_info_update_bytes_may_use(space_info, to_add);
 		if (global_rsv->reserved >= global_rsv->size)
-			global_rsv->full = 1;
+			global_rsv->full = true;
 		len -= to_add;
 	}
 	spin_unlock(&global_rsv->lock);
