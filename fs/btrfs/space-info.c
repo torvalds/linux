@@ -1783,7 +1783,7 @@ static int __reserve_bytes(struct btrfs_space_info *space_info, u64 orig_bytes,
 	 */
 	if (!pending_tickets &&
 	    ((used + orig_bytes <= space_info->total_bytes) ||
-	     btrfs_can_overcommit(space_info, orig_bytes, flush))) {
+	     can_overcommit(space_info, used, orig_bytes, flush))) {
 		btrfs_space_info_update_bytes_may_use(space_info, orig_bytes);
 		ret = 0;
 	}
@@ -1794,7 +1794,7 @@ static int __reserve_bytes(struct btrfs_space_info *space_info, u64 orig_bytes,
 	 * left to allocate for the block.
 	 */
 	if (ret && unlikely(flush == BTRFS_RESERVE_FLUSH_EMERGENCY)) {
-		used = btrfs_space_info_used(space_info, false);
+		used -= space_info->bytes_may_use;
 		if (used + orig_bytes <= space_info->total_bytes) {
 			btrfs_space_info_update_bytes_may_use(space_info, orig_bytes);
 			ret = 0;
