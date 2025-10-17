@@ -8,7 +8,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Altera SoCFPGA ECC Manager
 
 maintainers:
-  - Matthew Gerlach <matthew.gerlach@altera.com>
+  - Niravkumar L Rabara <niravkumarlaxmidas.rabara@altera.com>
 
 description:
   This binding describes the device tree nodes required for the Altera SoCFPGA
