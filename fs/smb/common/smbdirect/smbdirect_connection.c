@@ -689,6 +689,44 @@ static void smbdirect_connection_idle_timer_work(struct work_struct *work)
 }
 
 __maybe_unused /* this is temporary while this file is included in others */
+static u16 smbdirect_connection_grant_recv_credits(struct smbdirect_socket *sc)
+{
+	int missing;
+	int available;
+	int new_credits;
+
+	if (atomic_read(&sc->recv_io.credits.count) >= sc->recv_io.credits.target)
+		return 0;
+
+	missing = (int)sc->recv_io.credits.target - atomic_read(&sc->recv_io.credits.count);
+	available = atomic_xchg(&sc->recv_io.credits.available, 0);
+	new_credits = min3((int)U16_MAX, missing, available);
+	if (new_credits <= 0) {
+		/*
+		 * If credits are available, but not granted
+		 * we need to re-add them again.
+		 */
+		if (available)
+			atomic_add(available, &sc->recv_io.credits.available);
+		return 0;
+	}
+
+	if (new_credits < available) {
+		/*
+		 * Readd the remaining available again.
+		 */
+		available -= new_credits;
+		atomic_add(available, &sc->recv_io.credits.available);
+	}
+
+	/*
+	 * Remember we granted the credits
+	 */
+	atomic_add(new_credits, &sc->recv_io.credits.count);
+	return new_credits;
+}
+
+__maybe_unused /* this is temporary while this file is included in others */
 static void smbdirect_connection_send_io_done(struct ib_cq *cq, struct ib_wc *wc)
 {
 	struct smbdirect_send_io *msg =
