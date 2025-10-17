@@ -524,6 +524,14 @@ struct drm_atomic_state {
 	bool duplicated : 1;
 
 	/**
+	 * @checked:
+	 *
+	 * Indicates the state has been checked and thus must no longer
+	 * be mutated. For internal use only, do not consult from drivers.
+	 */
+	bool checked : 1;
+
+	/**
 	 * @planes:
 	 *
 	 * Pointer to array of @drm_plane and @drm_plane_state part of this
