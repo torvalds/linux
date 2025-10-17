@@ -211,8 +211,8 @@ unsigned int get_smbd_max_read_write_size(struct ksmbd_transport *kt)
 
 static int smb_direct_post_send_data(struct smbdirect_socket *sc,
 				     struct smbdirect_send_batch *send_ctx,
-				     struct kvec *iov, int niov,
-				     int remaining_data_length);
+				     struct iov_iter *iter,
+				     size_t *remaining_data_length);
 
 static void smb_direct_send_immediate_work(struct work_struct *work)
 {
@@ -222,7 +222,7 @@ static void smb_direct_send_immediate_work(struct work_struct *work)
 	if (sc->status != SMBDIRECT_SOCKET_CONNECTED)
 		return;
 
-	smb_direct_post_send_data(sc, NULL, NULL, 0, 0);
+	smb_direct_post_send_data(sc, NULL, NULL, NULL);
 }
 
 static struct smb_direct_transport *alloc_transport(struct rdma_cm_id *cm_id)
@@ -870,12 +870,13 @@ static int post_sendmsg(struct smbdirect_socket *sc,
 
 static int smb_direct_post_send_data(struct smbdirect_socket *sc,
 				     struct smbdirect_send_batch *send_ctx,
-				     struct kvec *iov, int niov,
-				     int remaining_data_length)
+				     struct iov_iter *iter,
+				     size_t *_remaining_data_length)
 {
-	int i, ret;
+	int ret;
 	struct smbdirect_send_io *msg;
-	int data_length;
+	u32 remaining_data_length = 0;
+	u32 data_length = 0;
 	struct smbdirect_send_batch _send_ctx;
 	u16 new_credits;
 
@@ -913,16 +914,20 @@ static int smb_direct_post_send_data(struct smbdirect_socket *sc,
 		new_credits = smbdirect_connection_grant_recv_credits(sc);
 	}
 
-	data_length = 0;
-	for (i = 0; i < niov; i++)
-		data_length += iov[i].iov_len;
+	if (iter)
+		data_length = iov_iter_count(iter);
+
+	if (_remaining_data_length) {
+		*_remaining_data_length -= data_length;
+		remaining_data_length = *_remaining_data_length;
+	}
 
 	ret = smb_direct_create_header(sc, data_length, remaining_data_length,
 				       new_credits, &msg);
 	if (ret)
 		goto header_failed;
 
-	if (data_length) {
+	if (iter) {
 		struct smbdirect_map_sges extract = {
 			.num_sge	= msg->num_sge,
 			.max_sge	= ARRAY_SIZE(msg->sge),
@@ -931,11 +936,8 @@ static int smb_direct_post_send_data(struct smbdirect_socket *sc,
 			.local_dma_lkey	= sc->ib.pd->local_dma_lkey,
 			.direction	= DMA_TO_DEVICE,
 		};
-		struct iov_iter iter;
 
-		iov_iter_kvec(&iter, ITER_SOURCE, iov, niov, data_length);
-
-		ret = smbdirect_map_sges_from_iter(&iter, data_length, &extract);
+		ret = smbdirect_map_sges_from_iter(iter, data_length, &extract);
 		if (ret < 0)
 			goto err;
 		if (WARN_ON_ONCE(ret != data_length)) {
@@ -1011,6 +1013,7 @@ static int smb_direct_writev(struct ksmbd_transport *t,
 		size_t possible_vecs;
 		size_t bytes = 0;
 		size_t nvecs = 0;
+		struct iov_iter iter;
 
 		/*
 		 * For the last message remaining_data_length should be
@@ -1091,11 +1094,10 @@ static int smb_direct_writev(struct ksmbd_transport *t,
 			}
 		}
 
-		remaining_data_length -= bytes;
+		iov_iter_kvec(&iter, ITER_SOURCE, vecs, nvecs, bytes);
 
 		ret = smb_direct_post_send_data(sc, &send_ctx,
-						vecs, nvecs,
-						remaining_data_length);
+						&iter, &remaining_data_length);
 		if (unlikely(ret)) {
 			error = ret;
 			goto done;
