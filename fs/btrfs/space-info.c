@@ -1501,7 +1501,6 @@ static void priority_reclaim_metadata_space(struct btrfs_space_info *space_info,
 	int flush_state = 0;
 
 	spin_lock(&space_info->lock);
-	to_reclaim = btrfs_calc_reclaim_metadata_size(space_info);
 	/*
 	 * This is the priority reclaim path, so to_reclaim could be >0 still
 	 * because we may have only satisfied the priority tickets and still
@@ -1512,6 +1511,8 @@ static void priority_reclaim_metadata_space(struct btrfs_space_info *space_info,
 		spin_unlock(&space_info->lock);
 		return;
 	}
+
+	to_reclaim = btrfs_calc_reclaim_metadata_size(space_info);
 
 	while (flush_state < states_nr) {
 		spin_unlock(&space_info->lock);
