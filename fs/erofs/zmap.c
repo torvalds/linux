@@ -272,20 +272,19 @@ static int z_erofs_extent_lookback(struct z_erofs_maprecorder *m,
 		unsigned long lcn = m->lcn - lookback_distance;
 		int err;
 
+		if (!lookback_distance)
+			break;
+
 		err = z_erofs_load_lcluster_from_disk(m, lcn, false);
 		if (err)
 			return err;
-
 		if (m->type == Z_EROFS_LCLUSTER_TYPE_NONHEAD) {
 			lookback_distance = m->delta[0];
-			if (!lookback_distance)
-				break;
 			continue;
-		} else {
-			m->headtype = m->type;
-			m->map->m_la = (lcn << lclusterbits) | m->clusterofs;
-			return 0;
 		}
+		m->headtype = m->type;
+		m->map->m_la = (lcn << lclusterbits) | m->clusterofs;
+		return 0;
 	}
 	erofs_err(sb, "bogus lookback distance %u @ lcn %lu of nid %llu",
 		  lookback_distance, m->lcn, vi->nid);
@@ -435,13 +434,6 @@ static int z_erofs_map_blocks_fo(struct inode *inode,
 			end = inode->i_size;
 	} else {
 		if (m.type != Z_EROFS_LCLUSTER_TYPE_NONHEAD) {
-			/* m.lcn should be >= 1 if endoff < m.clusterofs */
-			if (!m.lcn) {
-				erofs_err(sb, "invalid logical cluster 0 at nid %llu",
-					  vi->nid);
-				err = -EFSCORRUPTED;
-				goto unmap_out;
-			}
 			end = (m.lcn << lclusterbits) | m.clusterofs;
 			map->m_flags |= EROFS_MAP_FULL_MAPPED;
 			m.delta[0] = 1;
