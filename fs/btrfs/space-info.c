@@ -1082,7 +1082,7 @@ static bool maybe_fail_all_tickets(struct btrfs_space_info *space_info)
 	struct btrfs_fs_info *fs_info = space_info->fs_info;
 	struct reserve_ticket *ticket;
 	u64 tickets_id = space_info->tickets_id;
-	const bool aborted = BTRFS_FS_ERROR(fs_info);
+	const int abort_error = BTRFS_FS_ERROR(fs_info);
 
 	trace_btrfs_fail_all_tickets(fs_info, space_info);
 
@@ -1096,16 +1096,16 @@ static bool maybe_fail_all_tickets(struct btrfs_space_info *space_info)
 		ticket = list_first_entry(&space_info->tickets,
 					  struct reserve_ticket, list);
 
-		if (!aborted && steal_from_global_rsv(space_info, ticket))
+		if (!abort_error && steal_from_global_rsv(space_info, ticket))
 			return true;
 
-		if (!aborted && btrfs_test_opt(fs_info, ENOSPC_DEBUG))
+		if (!abort_error && btrfs_test_opt(fs_info, ENOSPC_DEBUG))
 			btrfs_info(fs_info, "failing ticket with %llu bytes",
 				   ticket->bytes);
 
 		remove_ticket(space_info, ticket);
-		if (aborted)
-			ticket->error = -EIO;
+		if (abort_error)
+			ticket->error = abort_error;
 		else
 			ticket->error = -ENOSPC;
 		wake_up(&ticket->wait);
@@ -1116,7 +1116,7 @@ static bool maybe_fail_all_tickets(struct btrfs_space_info *space_info)
 		 * here to see if we can make progress with the next ticket in
 		 * the list.
 		 */
-		if (!aborted)
+		if (!abort_error)
 			btrfs_try_granting_tickets(space_info);
 	}
 	return (tickets_id != space_info->tickets_id);
