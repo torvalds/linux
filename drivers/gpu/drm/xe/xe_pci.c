@@ -106,6 +106,13 @@ static const struct xe_graphics_desc graphics_xe2 = {
 	XE2_GFX_FEATURES,
 };
 
+static const struct xe_graphics_desc graphics_xe3p_xpc = {
+	XE2_GFX_FEATURES,
+	.hw_engine_mask =
+		GENMASK(XE_HW_ENGINE_BCS8, XE_HW_ENGINE_BCS1) |
+		GENMASK(XE_HW_ENGINE_CCS3, XE_HW_ENGINE_CCS0),
+};
+
 static const struct xe_media_desc media_xem = {
 	.hw_engine_mask =
 		GENMASK(XE_HW_ENGINE_VCS7, XE_HW_ENGINE_VCS0) |
@@ -138,6 +145,7 @@ static const struct xe_ip graphics_ips[] = {
 	{ 3003, "Xe3_LPG", &graphics_xe2 },
 	{ 3004, "Xe3_LPG", &graphics_xe2 },
 	{ 3005, "Xe3_LPG", &graphics_xe2 },
+	{ 3511, "Xe3p_XPC", &graphics_xe3p_xpc },
 };
 
 /* Pre-GMDID Media IPs */
