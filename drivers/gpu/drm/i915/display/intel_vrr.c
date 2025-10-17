@@ -10,8 +10,11 @@
 #include "intel_display_regs.h"
 #include "intel_display_types.h"
 #include "intel_dp.h"
+#include "intel_psr.h"
 #include "intel_vrr.h"
 #include "intel_vrr_regs.h"
+#include "skl_prefill.h"
+#include "skl_watermark.h"
 
 #define FIXED_POINT_PRECISION		100
 #define CMRR_PRECISION_TOLERANCE	10
@@ -433,17 +436,68 @@ intel_vrr_max_guardband(struct intel_crtc_state *crtc_state)
 		   intel_vrr_max_vblank_guardband(crtc_state));
 }
 
+static
+int intel_vrr_compute_optimized_guardband(struct intel_crtc_state *crtc_state)
+{
+	struct intel_display *display = to_intel_display(crtc_state);
+	struct skl_prefill_ctx prefill_ctx;
+	int prefill_latency_us;
+	int guardband = 0;
+
+	skl_prefill_init_worst(&prefill_ctx, crtc_state);
+
+	/*
+	 * The SoC power controller runs SAGV mutually exclusive with package C states,
+	 * so the max of package C and SAGV latencies is used to compute the min prefill guardband.
+	 * PM delay = max(sagv_latency, pkgc_max_latency (highest enabled wm level 1 and up))
+	 */
+	prefill_latency_us = max(display->sagv.block_time_us,
+				 skl_watermark_max_latency(display, 1));
+
+	guardband = skl_prefill_min_guardband(&prefill_ctx,
+					      crtc_state,
+					      prefill_latency_us);
+
+	if (intel_crtc_has_dp_encoder(crtc_state)) {
+		guardband = max(guardband, intel_psr_min_guardband(crtc_state));
+		guardband = max(guardband, intel_dp_sdp_min_guardband(crtc_state, true));
+	}
+
+	return guardband;
+}
+
+static bool intel_vrr_use_optimized_guardband(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_display *display = to_intel_display(crtc_state);
+
+	/*
+	 * #TODO: Enable optimized guardband for HDMI
+	 * For HDMI lot of infoframes are transmitted a line or two after vsync.
+	 * Since with optimized guardband the double bufferring point is at delayed vblank,
+	 * we need to ensure that vsync happens after delayed vblank for the HDMI case.
+	 */
+	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
+		return false;
+
+	return intel_vrr_always_use_vrr_tg(display);
+}
+
 void intel_vrr_compute_guardband(struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
 	struct drm_display_mode *adjusted_mode = &crtc_state->hw.adjusted_mode;
 	struct drm_display_mode *pipe_mode = &crtc_state->hw.pipe_mode;
+	int guardband;
 
 	if (!intel_vrr_possible(crtc_state))
 		return;
 
-	crtc_state->vrr.guardband = min(crtc_state->vrr.vmin - adjusted_mode->crtc_vdisplay,
-					intel_vrr_max_guardband(crtc_state));
+	if (intel_vrr_use_optimized_guardband(crtc_state))
+		guardband = intel_vrr_compute_optimized_guardband(crtc_state);
+	else
+		guardband = crtc_state->vrr.vmin - adjusted_mode->crtc_vdisplay;
+
+	crtc_state->vrr.guardband = min(guardband, intel_vrr_max_guardband(crtc_state));
 
 	if (intel_vrr_always_use_vrr_tg(display)) {
 		adjusted_mode->crtc_vblank_start  =
