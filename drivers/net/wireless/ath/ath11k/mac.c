@@ -4103,12 +4103,10 @@ static int ath11k_mac_get_fw_stats(struct ath11k *ar, u32 pdev_id,
 	return ret;
 }
 
-static int ath11k_mac_op_get_txpower(struct ieee80211_hw *hw,
-				     struct ieee80211_vif *vif,
-				     unsigned int link_id,
-				     int *dbm)
+static int ath11k_mac_handle_get_txpower(struct ath11k *ar,
+					 struct ieee80211_vif *vif,
+					 int *dbm)
 {
-	struct ath11k *ar = hw->priv;
 	struct ath11k_base *ab = ar->ab;
 	struct ath11k_fw_stats_pdev *pdev;
 	int ret;
@@ -4119,15 +4117,13 @@ static int ath11k_mac_op_get_txpower(struct ieee80211_hw *hw,
 	 * of these. Hence, we request the FW pdev stats in which FW reports
 	 * the minimum of all vdev's channel Tx power.
 	 */
-	mutex_lock(&ar->conf_mutex);
+	lockdep_assert_held(&ar->conf_mutex);
 
 	/* Firmware doesn't provide Tx power during CAC hence no need to fetch
 	 * the stats.
 	 */
-	if (test_bit(ATH11K_CAC_RUNNING, &ar->dev_flags)) {
-		mutex_unlock(&ar->conf_mutex);
+	if (test_bit(ATH11K_CAC_RUNNING, &ar->dev_flags))
 		return -EAGAIN;
-	}
 
 	ret = ath11k_mac_get_fw_stats(ar, ar->pdev->pdev_id, 0,
 				      WMI_REQUEST_PDEV_STAT);
@@ -4148,19 +4144,32 @@ static int ath11k_mac_op_get_txpower(struct ieee80211_hw *hw,
 	*dbm = pdev->chan_tx_power / 2;
 
 	spin_unlock_bh(&ar->data_lock);
-	mutex_unlock(&ar->conf_mutex);
 
 	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "txpower from firmware %d, reported %d dBm\n",
 		   pdev->chan_tx_power, *dbm);
 	return 0;
 
 err_fallback:
-	mutex_unlock(&ar->conf_mutex);
 	/* We didn't get txpower from FW. Hence, relying on vif->bss_conf.txpower */
 	*dbm = vif->bss_conf.txpower;
 	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "txpower from firmware NaN, reported %d dBm\n",
 		   *dbm);
 	return 0;
+}
+
+static int ath11k_mac_op_get_txpower(struct ieee80211_hw *hw,
+				     struct ieee80211_vif *vif,
+				     unsigned int link_id,
+				     int *dbm)
+{
+	struct ath11k *ar = hw->priv;
+	int ret;
+
+	mutex_lock(&ar->conf_mutex);
+	ret = ath11k_mac_handle_get_txpower(ar, vif, dbm);
+	mutex_unlock(&ar->conf_mutex);
+
+	return ret;
 }
 
 static int ath11k_mac_op_hw_scan(struct ieee80211_hw *hw,
