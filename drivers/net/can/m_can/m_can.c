@@ -387,8 +387,8 @@ static int m_can_cccr_update_bits(struct m_can_classdev *cdev, u32 mask, u32 val
 	size_t tries = 10;
 
 	if (!(mask & CCCR_INIT) && !(val_before & CCCR_INIT)) {
-		dev_err(cdev->dev,
-			"refusing to configure device when in normal mode\n");
+		netdev_err(cdev->net,
+			   "refusing to configure device when in normal mode\n");
 		return -EBUSY;
 	}
 
@@ -452,7 +452,7 @@ static void m_can_interrupt_enable(struct m_can_classdev *cdev, u32 interrupts)
 {
 	if (cdev->active_interrupts == interrupts)
 		return;
-	cdev->ops->write_reg(cdev, M_CAN_IE, interrupts);
+	m_can_write(cdev, M_CAN_IE, interrupts);
 	cdev->active_interrupts = interrupts;
 }
 
@@ -470,7 +470,7 @@ static void m_can_coalescing_disable(struct m_can_classdev *cdev)
 static inline void m_can_enable_all_interrupts(struct m_can_classdev *cdev)
 {
 	if (!cdev->net->irq) {
-		dev_dbg(cdev->dev, "Start hrtimer\n");
+		netdev_dbg(cdev->net, "Start hrtimer\n");
 		hrtimer_start(&cdev->hrtimer,
 			      ms_to_ktime(HRTIMER_POLL_INTERVAL_MS),
 			      HRTIMER_MODE_REL_PINNED);
@@ -486,7 +486,7 @@ static inline void m_can_disable_all_interrupts(struct m_can_classdev *cdev)
 	m_can_write(cdev, M_CAN_ILE, 0x0);
 
 	if (!cdev->net->irq) {
-		dev_dbg(cdev->dev, "Stop hrtimer\n");
+		netdev_dbg(cdev->net, "Stop hrtimer\n");
 		hrtimer_try_to_cancel(&cdev->hrtimer);
 	}
 }
@@ -790,6 +790,10 @@ static int m_can_get_berr_counter(const struct net_device *dev,
 {
 	struct m_can_classdev *cdev = netdev_priv(dev);
 	int err;
+
+	/* Avoid waking up the controller if the interface is down */
+	if (!(dev->flags & IFF_UP))
+		return 0;
 
 	err = m_can_clk_start(cdev);
 	if (err)
@@ -1380,6 +1384,27 @@ static const struct can_bittiming_const m_can_data_bittiming_const_31X = {
 	.brp_inc = 1,
 };
 
+static int m_can_init_ram(struct m_can_classdev *cdev)
+{
+	int end, i, start;
+	int err = 0;
+
+	/* initialize the entire Message RAM in use to avoid possible
+	 * ECC/parity checksum errors when reading an uninitialized buffer
+	 */
+	start = cdev->mcfg[MRAM_SIDF].off;
+	end = cdev->mcfg[MRAM_TXB].off +
+		cdev->mcfg[MRAM_TXB].num * TXB_ELEMENT_SIZE;
+
+	for (i = start; i < end; i += 4) {
+		err = m_can_fifo_write_no_off(cdev, i, 0x0);
+		if (err)
+			break;
+	}
+
+	return err;
+}
+
 static int m_can_set_bittiming(struct net_device *dev)
 {
 	struct m_can_classdev *cdev = netdev_priv(dev);
@@ -1465,7 +1490,7 @@ static int m_can_chip_config(struct net_device *dev)
 
 	err = m_can_init_ram(cdev);
 	if (err) {
-		dev_err(cdev->dev, "Message RAM configuration failed\n");
+		netdev_err(dev, "Message RAM configuration failed\n");
 		return err;
 	}
 
@@ -1695,7 +1720,7 @@ static int m_can_niso_supported(struct m_can_classdev *cdev)
 	/* Then clear the it again. */
 	ret = m_can_cccr_update_bits(cdev, CCCR_NISO, 0);
 	if (ret) {
-		dev_err(cdev->dev, "failed to revert the NON-ISO bit in CCCR\n");
+		netdev_err(cdev->net, "failed to revert the NON-ISO bit in CCCR\n");
 		return ret;
 	}
 
@@ -1714,8 +1739,8 @@ static int m_can_dev_setup(struct m_can_classdev *cdev)
 	m_can_version = m_can_check_core_release(cdev);
 	/* return if unsupported version */
 	if (!m_can_version) {
-		dev_err(cdev->dev, "Unsupported version number: %2d",
-			m_can_version);
+		netdev_err(cdev->net, "Unsupported version number: %2d",
+			   m_can_version);
 		return -EINVAL;
 	}
 
@@ -1773,8 +1798,8 @@ static int m_can_dev_setup(struct m_can_classdev *cdev)
 			cdev->can.ctrlmode_supported |= CAN_CTRLMODE_FD_NON_ISO;
 		break;
 	default:
-		dev_err(cdev->dev, "Unsupported version number: %2d",
-			cdev->version);
+		netdev_err(cdev->net, "Unsupported version number: %2d",
+			   cdev->version);
 		return -EINVAL;
 	}
 
@@ -1952,11 +1977,6 @@ out_fail:
 
 static void m_can_tx_submit(struct m_can_classdev *cdev)
 {
-	if (cdev->version == 30)
-		return;
-	if (!cdev->is_peripheral)
-		return;
-
 	m_can_write(cdev, M_CAN_TXBAR, cdev->tx_peripheral_submit);
 	cdev->tx_peripheral_submit = 0;
 }
@@ -2037,7 +2057,7 @@ static netdev_tx_t m_can_start_xmit(struct sk_buff *skb,
 	return ret;
 }
 
-static enum hrtimer_restart hrtimer_callback(struct hrtimer *timer)
+static enum hrtimer_restart m_can_polling_timer(struct hrtimer *timer)
 {
 	struct m_can_classdev *cdev = container_of(timer, struct
 						   m_can_classdev, hrtimer);
@@ -2327,8 +2347,8 @@ int m_can_check_mram_cfg(struct m_can_classdev *cdev, u32 mram_max_size)
 	total_size = cdev->mcfg[MRAM_TXB].off - cdev->mcfg[MRAM_SIDF].off +
 			cdev->mcfg[MRAM_TXB].num * TXB_ELEMENT_SIZE;
 	if (total_size > mram_max_size) {
-		dev_err(cdev->dev, "Total size of mram config(%u) exceeds mram(%u)\n",
-			total_size, mram_max_size);
+		netdev_err(cdev->net, "Total size of mram config(%u) exceeds mram(%u)\n",
+			   total_size, mram_max_size);
 		return -EINVAL;
 	}
 
@@ -2363,38 +2383,16 @@ static void m_can_of_parse_mram(struct m_can_classdev *cdev,
 	cdev->mcfg[MRAM_TXB].num = mram_config_vals[7] &
 		FIELD_MAX(TXBC_NDTB_MASK);
 
-	dev_dbg(cdev->dev,
-		"sidf 0x%x %d xidf 0x%x %d rxf0 0x%x %d rxf1 0x%x %d rxb 0x%x %d txe 0x%x %d txb 0x%x %d\n",
-		cdev->mcfg[MRAM_SIDF].off, cdev->mcfg[MRAM_SIDF].num,
-		cdev->mcfg[MRAM_XIDF].off, cdev->mcfg[MRAM_XIDF].num,
-		cdev->mcfg[MRAM_RXF0].off, cdev->mcfg[MRAM_RXF0].num,
-		cdev->mcfg[MRAM_RXF1].off, cdev->mcfg[MRAM_RXF1].num,
-		cdev->mcfg[MRAM_RXB].off, cdev->mcfg[MRAM_RXB].num,
-		cdev->mcfg[MRAM_TXE].off, cdev->mcfg[MRAM_TXE].num,
-		cdev->mcfg[MRAM_TXB].off, cdev->mcfg[MRAM_TXB].num);
+	netdev_dbg(cdev->net,
+		   "sidf 0x%x %d xidf 0x%x %d rxf0 0x%x %d rxf1 0x%x %d rxb 0x%x %d txe 0x%x %d txb 0x%x %d\n",
+		   cdev->mcfg[MRAM_SIDF].off, cdev->mcfg[MRAM_SIDF].num,
+		   cdev->mcfg[MRAM_XIDF].off, cdev->mcfg[MRAM_XIDF].num,
+		   cdev->mcfg[MRAM_RXF0].off, cdev->mcfg[MRAM_RXF0].num,
+		   cdev->mcfg[MRAM_RXF1].off, cdev->mcfg[MRAM_RXF1].num,
+		   cdev->mcfg[MRAM_RXB].off, cdev->mcfg[MRAM_RXB].num,
+		   cdev->mcfg[MRAM_TXE].off, cdev->mcfg[MRAM_TXE].num,
+		   cdev->mcfg[MRAM_TXB].off, cdev->mcfg[MRAM_TXB].num);
 }
-
-int m_can_init_ram(struct m_can_classdev *cdev)
-{
-	int end, i, start;
-	int err = 0;
-
-	/* initialize the entire Message RAM in use to avoid possible
-	 * ECC/parity checksum errors when reading an uninitialized buffer
-	 */
-	start = cdev->mcfg[MRAM_SIDF].off;
-	end = cdev->mcfg[MRAM_TXB].off +
-		cdev->mcfg[MRAM_TXB].num * TXB_ELEMENT_SIZE;
-
-	for (i = start; i < end; i += 4) {
-		err = m_can_fifo_write_no_off(cdev, i, 0x0);
-		if (err)
-			break;
-	}
-
-	return err;
-}
-EXPORT_SYMBOL_GPL(m_can_init_ram);
 
 int m_can_class_get_clocks(struct m_can_classdev *cdev)
 {
@@ -2404,7 +2402,7 @@ int m_can_class_get_clocks(struct m_can_classdev *cdev)
 	cdev->cclk = devm_clk_get(cdev->dev, "cclk");
 
 	if (IS_ERR(cdev->hclk) || IS_ERR(cdev->cclk)) {
-		dev_err(cdev->dev, "no clock found\n");
+		netdev_err(cdev->net, "no clock found\n");
 		ret = -ENODEV;
 	}
 
@@ -2518,10 +2516,8 @@ int m_can_class_register(struct m_can_classdev *cdev)
 			devm_kzalloc(cdev->dev,
 				     cdev->tx_fifo_size * sizeof(*cdev->tx_ops),
 				     GFP_KERNEL);
-		if (!cdev->tx_ops) {
-			dev_err(cdev->dev, "Failed to allocate tx_ops for workqueue\n");
+		if (!cdev->tx_ops)
 			return -ENOMEM;
-		}
 	}
 
 	cdev->rst = devm_reset_control_get_optional_shared(cdev->dev, NULL);
@@ -2545,8 +2541,8 @@ int m_can_class_register(struct m_can_classdev *cdev)
 	}
 
 	if (!cdev->net->irq) {
-		dev_dbg(cdev->dev, "Polling enabled, initialize hrtimer");
-		hrtimer_setup(&cdev->hrtimer, &hrtimer_callback, CLOCK_MONOTONIC,
+		netdev_dbg(cdev->net, "Polling enabled, initialize hrtimer");
+		hrtimer_setup(&cdev->hrtimer, m_can_polling_timer, CLOCK_MONOTONIC,
 			      HRTIMER_MODE_REL_PINNED);
 	} else {
 		hrtimer_setup(&cdev->hrtimer, m_can_coalescing_timer, CLOCK_MONOTONIC,
@@ -2559,15 +2555,15 @@ int m_can_class_register(struct m_can_classdev *cdev)
 
 	ret = register_m_can_dev(cdev);
 	if (ret) {
-		dev_err(cdev->dev, "registering %s failed (err=%d)\n",
-			cdev->net->name, ret);
+		netdev_err(cdev->net, "registering %s failed (err=%d)\n",
+			   cdev->net->name, ret);
 		goto rx_offload_del;
 	}
 
 	of_can_transceiver(cdev->net);
 
-	dev_info(cdev->dev, "%s device registered (irq=%d, version=%d)\n",
-		 KBUILD_MODNAME, cdev->net->irq, cdev->version);
+	netdev_info(cdev->net, "device registered (irq=%d, version=%d)\n",
+		    cdev->net->irq, cdev->version);
 
 	/* Probe finished
 	 * Assert reset and stop clocks.
