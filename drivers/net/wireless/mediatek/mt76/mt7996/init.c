@@ -475,7 +475,7 @@ mt7996_init_wiphy(struct ieee80211_hw *hw, struct mtk_wed_device *wed)
 		hw->max_tx_aggregation_subframes = 512;
 
 	hw->netdev_features = NETIF_F_RXCSUM;
-	if (mtk_wed_device_active(wed))
+	if (mtk_wed_device_active(wed) || mt76_npu_device_active(mdev))
 		hw->netdev_features |= NETIF_F_HW_TC;
 
 	hw->radiotap_timestamp.units_pos =
@@ -830,7 +830,8 @@ void mt7996_rro_hw_init(struct mt7996_dev *dev)
 				   MT_RRO_3_0_EMU_CONF_EN_MASK);
 			mt76_set(dev, MT_RRO_3_1_GLOBAL_CONFIG,
 				 MT_RRO_3_1_GLOBAL_CONFIG_RXDMAD_SEL);
-			if (!mtk_wed_device_active(&dev->mt76.mmio.wed)) {
+			if (!mtk_wed_device_active(&dev->mt76.mmio.wed) &&
+			    !mt76_npu_device_active(&dev->mt76)) {
 				mt76_set(dev, MT_RRO_3_1_GLOBAL_CONFIG,
 					 MT_RRO_3_1_GLOBAL_CONFIG_RX_DIDX_WR_EN |
 					 MT_RRO_3_1_GLOBAL_CONFIG_RX_CIDX_RD_EN);
@@ -1067,6 +1068,9 @@ static void mt7996_wed_rro_work(struct work_struct *work)
 				     list);
 		list_del_init(&e->list);
 
+		if (mt76_npu_device_active(&dev->mt76))
+			goto reset_session;
+
 		for (i = 0; i < MT7996_RRO_WINDOW_MAX_LEN; i++) {
 			void *ptr = dev->wed_rro.session.ptr;
 			struct mt7996_wed_rro_addr *elem;
@@ -1087,6 +1091,7 @@ reset:
 			elem = ptr + elem_id * sizeof(*elem);
 			elem->data |= cpu_to_le32(val);
 		}
+reset_session:
 		mt7996_mcu_wed_rro_reset_sessions(dev, e->id);
 out:
 		kfree(e);
@@ -1671,6 +1676,10 @@ int mt7996_register_device(struct mt7996_dev *dev)
 		return ret;
 
 	ret = mt7996_register_phy(dev, MT_BAND2);
+	if (ret)
+		return ret;
+
+	ret = mt7996_npu_hw_init(dev);
 	if (ret)
 		return ret;
 
