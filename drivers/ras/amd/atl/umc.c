@@ -422,7 +422,7 @@ unsigned long convert_umc_mca_addr_to_sys_addr(struct atl_err *err)
 		 socket_id, die_id, coh_st_inst_id, addr);
 
 	ret_addr = prm_umc_norm_to_sys_addr(socket_id, err->ipid, addr);
-	if (!IS_ERR_VALUE(ret_addr))
+	if (!IS_ERR_VALUE(ret_addr) || df_cfg.flags.prm_only)
 		return ret_addr;
 
 	return norm_to_sys_addr(socket_id, die_id, coh_st_inst_id, addr);
