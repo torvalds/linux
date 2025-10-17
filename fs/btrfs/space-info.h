@@ -282,8 +282,8 @@ int btrfs_reserve_metadata_bytes(struct btrfs_space_info *space_info,
 				 u64 orig_bytes,
 				 enum btrfs_reserve_flush_enum flush);
 void btrfs_try_granting_tickets(struct btrfs_space_info *space_info);
-int btrfs_can_overcommit(const struct btrfs_space_info *space_info, u64 bytes,
-			 enum btrfs_reserve_flush_enum flush);
+bool btrfs_can_overcommit(const struct btrfs_space_info *space_info, u64 bytes,
+			  enum btrfs_reserve_flush_enum flush);
 
 static inline void btrfs_space_info_free_bytes_may_use(
 				struct btrfs_space_info *space_info,

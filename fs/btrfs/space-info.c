@@ -490,22 +490,20 @@ static u64 calc_available_free_space(const struct btrfs_space_info *space_info,
 	return avail;
 }
 
-int btrfs_can_overcommit(const struct btrfs_space_info *space_info, u64 bytes,
-			 enum btrfs_reserve_flush_enum flush)
+bool btrfs_can_overcommit(const struct btrfs_space_info *space_info, u64 bytes,
+			  enum btrfs_reserve_flush_enum flush)
 {
 	u64 avail;
 	u64 used;
 
 	/* Don't overcommit when in mixed mode */
 	if (space_info->flags & BTRFS_BLOCK_GROUP_DATA)
-		return 0;
+		return false;
 
 	used = btrfs_space_info_used(space_info, true);
 	avail = calc_available_free_space(space_info, flush);
 
-	if (used + bytes < space_info->total_bytes + avail)
-		return 1;
-	return 0;
+	return (used + bytes < space_info->total_bytes + avail);
 }
 
 static void remove_ticket(struct btrfs_space_info *space_info,
