@@ -1561,7 +1561,7 @@ static int bxt_calc_cdclk(struct intel_display *display, int min_cdclk)
 	drm_WARN(display->drm, 1,
 		 "Cannot satisfy minimum cdclk %d with refclk %u\n",
 		 min_cdclk, display->cdclk.hw.ref);
-	return 0;
+	return display->cdclk.max_cdclk_freq;
 }
 
 static int bxt_calc_cdclk_pll_vco(struct intel_display *display, int cdclk)
