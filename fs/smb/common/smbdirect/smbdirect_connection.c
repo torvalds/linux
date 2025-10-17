@@ -727,6 +727,25 @@ static u16 smbdirect_connection_grant_recv_credits(struct smbdirect_socket *sc)
 }
 
 __maybe_unused /* this is temporary while this file is included in others */
+static bool smbdirect_connection_request_keep_alive(struct smbdirect_socket *sc)
+{
+	const struct smbdirect_socket_parameters *sp = &sc->parameters;
+
+	if (sc->idle.keepalive == SMBDIRECT_KEEPALIVE_PENDING) {
+		sc->idle.keepalive = SMBDIRECT_KEEPALIVE_SENT;
+		/*
+		 * Now use the keepalive timeout (instead of keepalive interval)
+		 * in order to wait for a response
+		 */
+		mod_delayed_work(sc->workqueue, &sc->idle.timer_work,
+				 msecs_to_jiffies(sp->keepalive_timeout_msec));
+		return true;
+	}
+
+	return false;
+}
+
+__maybe_unused /* this is temporary while this file is included in others */
 static void smbdirect_connection_send_io_done(struct ib_cq *cq, struct ib_wc *wc)
 {
 	struct smbdirect_send_io *msg =
