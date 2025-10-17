@@ -208,10 +208,8 @@ static int __init nxp_stm_clocksource_init(struct device *dev, struct stm_timer 
 		return ret;
 
 	ret = devm_add_action_or_reset(dev, devm_clocksource_unregister, stm_timer);
-	if (ret) {
-		clocksource_unregister(&stm_timer->cs);
+	if (ret)
 		return ret;
-	}
 
 	stm_sched_clock = stm_timer;
 
