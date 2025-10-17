@@ -985,6 +985,10 @@
 				 <&k3_clks 218 22>;
 };
 
+&pcie1_ctrl {
+	bootph-all;
+};
+
 &serdes_ln_ctrl {
 	bootph-all;
 };
