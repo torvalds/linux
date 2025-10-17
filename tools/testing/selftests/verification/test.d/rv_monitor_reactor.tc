@@ -1,0 +1,68 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-or-later
+# description: Test monitor reactor setting
+# requires: available_reactors
+
+test_monitor_reactor() {
+    local monitor="$1"
+    local prefix="$2" # nested monitors
+
+    while read -r reactor; do
+        [ "$reactor" = nop ] && continue
+
+        echo "$reactor" > "monitors/$prefix$monitor/reactors"
+        grep -q "\\[$reactor\\]" "monitors/$prefix$monitor/reactors"
+    done < available_reactors
+
+    echo nop > "monitors/$prefix$monitor/reactors"
+    grep -q "\\[nop\\]" "monitors/$prefix$monitor/reactors"
+}
+
+test_container_monitor() {
+    local monitor="$1"
+	local nested
+
+    while read -r reactor; do
+        [ "$reactor" = nop ] && continue
+
+        echo "$reactor" > "monitors/$monitor/reactors"
+        grep -q "\\[$reactor\\]" "monitors/$monitor/reactors"
+
+        for nested_dir in "monitors/$monitor"/*; do
+            [ -d "$nested_dir" ] || continue
+            nested=$(basename "$nested_dir")
+            grep -q "\\[$reactor\\]" "monitors/$monitor/$nested/reactors"
+        done
+    done < available_reactors
+	test -n "$nested"
+
+    echo nop > "monitors/$monitor/reactors"
+    grep -q "\\[nop\\]" "monitors/$monitor/reactors"
+
+    for nested_dir in "monitors/$monitor"/*; do
+        [ -d "$nested_dir" ] || continue
+        nested=$(basename "$nested_dir")
+        grep -q "\\[nop\\]" "monitors/$monitor/$nested/reactors"
+    done
+
+    for nested_dir in "monitors/$monitor"/*; do
+        [ -d "$nested_dir" ] || continue
+        nested=$(basename "$nested_dir")
+        test_monitor_reactor "$nested" "$monitor/"
+    done
+}
+
+for monitor_dir in monitors/*; do
+    monitor=$(basename "$monitor_dir")
+
+    if find "$monitor_dir" -mindepth 1 -type d | grep -q .; then
+        test_container_monitor "$monitor"
+    else
+        test_monitor_reactor "$monitor"
+    fi
+done
+
+monitor=$(ls /sys/kernel/tracing/rv/monitors -1 | head -n 1)
+test -f "monitors/$monitor/reactors"
+! echo non_existent_reactor > "monitors/$monitor/reactors"
+! grep -q "\\[non_existent_reactor\\]" "monitors/$monitor/reactors"

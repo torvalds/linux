@@ -1,0 +1,39 @@
+check_requires() { # Check required files, monitors and reactors
+	for i in "$@" ; do
+		p=${i%:program}
+		m=${i%:monitor}
+		r=${i%:reactor}
+		if [ $p != $i ]; then
+			if ! which $p ; then
+				echo "Required program $p is not found."
+				exit_unresolved
+			fi
+		elif [ $m != $i ]; then
+			if ! grep -wq $m available_monitors ; then
+				echo "Required monitor $m is not configured."
+				exit_unsupported
+			fi
+		elif [ $r != $i ]; then
+			if ! grep -wq $r available_reactors ; then
+				echo "Required reactor $r is not configured."
+				exit_unsupported
+			fi
+		elif [ ! -e $i ]; then
+			echo "Required feature interface $i doesn't exist."
+			exit_unsupported
+		fi
+	done
+}
+
+initialize_system() { # Reset RV to initial-state
+	echo > enabled_monitors
+	for m in monitors/*; do
+		echo nop > $m/reactors || true
+	done
+	echo 1 > monitoring_on
+	echo 1 > reacting_on || true
+}
+
+finish_system() {
+	initialize_system
+}
