@@ -904,7 +904,7 @@ void xe_hw_engine_handle_irq(struct xe_hw_engine *hwe, u16 intr_vec)
 	if (hwe->irq_handler)
 		hwe->irq_handler(hwe, intr_vec);
 
-	if (intr_vec & GT_RENDER_USER_INTERRUPT)
+	if (intr_vec & GT_MI_USER_INTERRUPT)
 		xe_hw_fence_irq_run(hwe->fence_irq);
 }
 

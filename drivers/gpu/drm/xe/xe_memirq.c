@@ -434,8 +434,8 @@ static void memirq_dispatch_engine(struct xe_memirq *memirq, struct iosys_map *s
 {
 	memirq_debug(memirq, "STATUS %s %*ph\n", hwe->name, 16, status->vaddr);
 
-	if (memirq_received(memirq, status, ilog2(GT_RENDER_USER_INTERRUPT), hwe->name))
-		xe_hw_engine_handle_irq(hwe, GT_RENDER_USER_INTERRUPT);
+	if (memirq_received(memirq, status, ilog2(GT_MI_USER_INTERRUPT), hwe->name))
+		xe_hw_engine_handle_irq(hwe, GT_MI_USER_INTERRUPT);
 }
 
 static void memirq_dispatch_guc(struct xe_memirq *memirq, struct iosys_map *status,

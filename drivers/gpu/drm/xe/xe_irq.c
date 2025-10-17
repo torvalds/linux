@@ -147,10 +147,10 @@ void xe_irq_enable_hwe(struct xe_gt *gt)
 		return;
 
 	if (xe_device_uc_enabled(xe)) {
-		common_mask = GT_RENDER_USER_INTERRUPT |
-			      GT_RENDER_PIPECTL_NOTIFY_INTERRUPT;
+		common_mask = GT_MI_USER_INTERRUPT |
+			      GT_FLUSH_COMPLETE_INTERRUPT;
 	} else {
-		common_mask = GT_RENDER_USER_INTERRUPT |
+		common_mask = GT_MI_USER_INTERRUPT |
 			      GT_CS_MASTER_ERROR_INTERRUPT |
 			      GT_CONTEXT_SWITCH_INTERRUPT |
 			      GT_WAIT_SEMAPHORE_INTERRUPT;
