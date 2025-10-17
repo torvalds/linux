@@ -1908,16 +1908,12 @@ static long writeback_chunk_size(struct bdi_writeback *wb,
 	 *                   (maybe slowly) sync all tagged pages
 	 */
 	if (work->sync_mode == WB_SYNC_ALL || work->tagged_writepages)
-		pages = LONG_MAX;
-	else {
-		pages = min(wb->avg_write_bandwidth / 2,
-			    global_wb_domain.dirty_limit / DIRTY_SCOPE);
-		pages = min(pages, work->nr_pages);
-		pages = round_down(pages + MIN_WRITEBACK_PAGES,
-				   MIN_WRITEBACK_PAGES);
-	}
+		return LONG_MAX;
 
-	return pages;
+	pages = min(wb->avg_write_bandwidth / 2,
+		    global_wb_domain.dirty_limit / DIRTY_SCOPE);
+	pages = min(pages, work->nr_pages);
+	return round_down(pages + MIN_WRITEBACK_PAGES, MIN_WRITEBACK_PAGES);
 }
 
 /*
