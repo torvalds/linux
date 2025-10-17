@@ -150,6 +150,9 @@ struct __guc_capture_parsed_output {
 	{ SFC_DONE(2),			0,	0,	0,	0,	"SFC_DONE[2]"}, \
 	{ SFC_DONE(3),			0,	0,	0,	0,	"SFC_DONE[3]"}
 
+#define XE3P_BASE_ENGINE_INSTANCE \
+	{ RING_CSMQDEBUG(0),		REG_32BIT,	0,	0,	0,	"CSMQDEBUG"}
+
 /* XE_LP Global */
 static const struct __guc_mmio_reg_descr xe_lp_global_regs[] = {
 	COMMON_XELP_BASE_GLOBAL,
@@ -194,6 +197,12 @@ static const struct __guc_mmio_reg_descr xe_blt_inst_regs[] = {
 /* XE_LP - GSC Per-Engine-Instance */
 static const struct __guc_mmio_reg_descr xe_lp_gsc_inst_regs[] = {
 	COMMON_BASE_ENGINE_INSTANCE,
+};
+
+/* Render / Compute Per-Engine-Instance */
+static const struct __guc_mmio_reg_descr xe3p_rc_inst_regs[] = {
+	COMMON_BASE_ENGINE_INSTANCE,
+	XE3P_BASE_ENGINE_INSTANCE,
 };
 
 /*
@@ -246,6 +255,21 @@ static const struct __guc_mmio_reg_descr_group xe_hpg_lists[] = {
 	{}
 };
 
+ /* List of lists for Xe3p and beyond */
+static const struct __guc_mmio_reg_descr_group xe3p_lists[] = {
+	MAKE_REGLIST(xe_lp_global_regs, PF, GLOBAL, 0),
+	MAKE_REGLIST(xe_hpg_rc_class_regs, PF, ENGINE_CLASS, GUC_CAPTURE_LIST_CLASS_RENDER_COMPUTE),
+	MAKE_REGLIST(xe3p_rc_inst_regs, PF, ENGINE_INSTANCE, GUC_CAPTURE_LIST_CLASS_RENDER_COMPUTE),
+	MAKE_REGLIST(empty_regs_list, PF, ENGINE_CLASS, GUC_CAPTURE_LIST_CLASS_VIDEO),
+	MAKE_REGLIST(xe_vd_inst_regs, PF, ENGINE_INSTANCE, GUC_CAPTURE_LIST_CLASS_VIDEO),
+	MAKE_REGLIST(xe_vec_class_regs, PF, ENGINE_CLASS, GUC_CAPTURE_LIST_CLASS_VIDEOENHANCE),
+	MAKE_REGLIST(xe_vec_inst_regs, PF, ENGINE_INSTANCE, GUC_CAPTURE_LIST_CLASS_VIDEOENHANCE),
+	MAKE_REGLIST(empty_regs_list, PF, ENGINE_CLASS, GUC_CAPTURE_LIST_CLASS_BLITTER),
+	MAKE_REGLIST(xe_blt_inst_regs, PF, ENGINE_INSTANCE, GUC_CAPTURE_LIST_CLASS_BLITTER),
+	MAKE_REGLIST(empty_regs_list, PF, ENGINE_CLASS, GUC_CAPTURE_LIST_CLASS_GSC_OTHER),
+	MAKE_REGLIST(xe_lp_gsc_inst_regs, PF, ENGINE_INSTANCE, GUC_CAPTURE_LIST_CLASS_GSC_OTHER),
+	{}
+};
 static const char * const capture_list_type_names[] = {
 	"Global",
 	"Class",
@@ -293,7 +317,9 @@ guc_capture_remove_stale_matches_from_list(struct xe_guc_state_capture *gc,
 static const struct __guc_mmio_reg_descr_group *
 guc_capture_get_device_reglist(struct xe_device *xe)
 {
-	if (GRAPHICS_VERx100(xe) >= 1255)
+	if (GRAPHICS_VER(xe) >= 35)
+		return xe3p_lists;
+	else if (GRAPHICS_VERx100(xe) >= 1255)
 		return xe_hpg_lists;
 	else
 		return xe_lp_lists;

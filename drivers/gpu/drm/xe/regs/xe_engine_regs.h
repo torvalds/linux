@@ -155,6 +155,8 @@
 #define   GFX_DISABLE_LEGACY_MODE		REG_BIT(3)
 #define   GFX_MSIX_INTERRUPT_ENABLE		REG_BIT(13)
 
+#define RING_CSMQDEBUG(base)			XE_REG((base) + 0x2b0)
+
 #define RING_TIMESTAMP(base)			XE_REG((base) + 0x358)
 
 #define RING_TIMESTAMP_UDW(base)		XE_REG((base) + 0x358 + 4)
