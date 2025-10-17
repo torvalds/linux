@@ -994,7 +994,7 @@ static void rcar_du_crtc_cleanup(struct drm_crtc *crtc)
 
 	rcar_du_crtc_crc_cleanup(rcrtc);
 
-	return drm_crtc_cleanup(crtc);
+	drm_crtc_cleanup(crtc);
 }
 
 static void rcar_du_crtc_reset(struct drm_crtc *crtc)
