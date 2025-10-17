@@ -22,6 +22,7 @@ MODULE_LICENSE("GPL");
 #define OUI_PRESONUS		0x000a92
 #define OUI_HARMAN		0x000fd7
 #define OUI_AVID		0x00a07e
+#define OUI_TEAC		0x00022e
 
 #define DICE_CATEGORY_ID	0x04
 #define WEISS_CATEGORY_ID	0x00
@@ -457,6 +458,18 @@ static const struct ieee1394_device_id dice_id_table[] = {
 	{
 		.match_flags = IEEE1394_MATCH_VERSION,
 		.version     = DICE_INTERFACE,
+	},
+	// Tascam IF-FW/DM MkII for DM-3200 and DM-4800.
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID |
+				  IEEE1394_MATCH_MODEL_ID |
+				  IEEE1394_MATCH_SPECIFIER_ID |
+				  IEEE1394_MATCH_VERSION,
+		.vendor_id	= OUI_TEAC,
+		.model_id	= OUI_TEAC,
+		.specifier_id	= OUI_TEAC,
+		.version	= 0x800006,
+		.driver_data = (kernel_ulong_t)snd_dice_detect_teac_formats,
 	},
 	{ }
 };
