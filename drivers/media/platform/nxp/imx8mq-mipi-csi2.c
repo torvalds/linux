@@ -1114,4 +1114,3 @@ module_platform_driver(imx8mq_mipi_csi_driver);
 MODULE_DESCRIPTION("i.MX8MQ MIPI CSI-2 receiver driver");
 MODULE_AUTHOR("Martin Kepplinger <martin.kepplinger@puri.sm>");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:imx8mq-mipi-csi2");
