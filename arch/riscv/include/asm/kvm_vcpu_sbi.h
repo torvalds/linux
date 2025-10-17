@@ -69,7 +69,9 @@ struct kvm_vcpu_sbi_extension {
 			     unsigned long reg_size, const void *reg_val);
 };
 
-void kvm_riscv_vcpu_sbi_forward(struct kvm_vcpu *vcpu, struct kvm_run *run);
+int kvm_riscv_vcpu_sbi_forward_handler(struct kvm_vcpu *vcpu,
+				       struct kvm_run *run,
+				       struct kvm_vcpu_sbi_return *retdata);
 void kvm_riscv_vcpu_sbi_system_reset(struct kvm_vcpu *vcpu,
 				     struct kvm_run *run,
 				     u32 type, u64 flags);
