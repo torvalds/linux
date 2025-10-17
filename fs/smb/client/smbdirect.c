@@ -967,7 +967,7 @@ static int wait_for_send_credits(struct smbdirect_socket *sc,
 static int smbd_post_send_iter(struct smbdirect_socket *sc,
 			       struct smbdirect_send_batch *batch,
 			       struct iov_iter *iter,
-			       int *_remaining_data_length)
+			       u32 remaining_data_length)
 {
 	struct smbdirect_socket_parameters *sp = &sc->parameters;
 	int rc;
@@ -977,6 +977,18 @@ static int smbd_post_send_iter(struct smbdirect_socket *sc,
 	struct smbdirect_data_transfer *packet;
 	u16 new_credits = 0;
 	struct smbdirect_send_batch _batch;
+
+	if (iter) {
+		header_length = sizeof(struct smbdirect_data_transfer);
+		if (WARN_ON_ONCE(remaining_data_length == 0 ||
+				 iov_iter_count(iter) > remaining_data_length))
+			return -EINVAL;
+	} else {
+		/* If this is a packet without payload, don't send padding */
+		header_length = offsetof(struct smbdirect_data_transfer, padding);
+		if (WARN_ON_ONCE(remaining_data_length))
+			return -EINVAL;
+	}
 
 	if (!batch) {
 		smbd_send_batch_init(&_batch, false, 0);
@@ -1032,12 +1044,6 @@ static int smbd_post_send_iter(struct smbdirect_socket *sc,
 
 	memset(request->sge, 0, sizeof(request->sge));
 
-	/* Map the packet to DMA */
-	header_length = sizeof(struct smbdirect_data_transfer);
-	/* If this is a packet without payload, don't send padding */
-	if (!iter)
-		header_length = offsetof(struct smbdirect_data_transfer, padding);
-
 	packet = smbdirect_send_io_payload(request);
 	request->sge[0].addr = ib_dma_map_single(sc->ib.dev,
 						 (void *)packet,
@@ -1062,7 +1068,7 @@ static int smbd_post_send_iter(struct smbdirect_socket *sc,
 			.local_dma_lkey	= sc->ib.pd->local_dma_lkey,
 			.direction	= DMA_TO_DEVICE,
 		};
-		size_t payload_len = umin(*_remaining_data_length,
+		size_t payload_len = umin(iov_iter_count(iter),
 					  sp->max_send_size - sizeof(*packet));
 
 		rc = smbdirect_map_sges_from_iter(iter, payload_len, &extract);
@@ -1070,7 +1076,7 @@ static int smbd_post_send_iter(struct smbdirect_socket *sc,
 			goto err_dma;
 		data_length = rc;
 		request->num_sge = extract.num_sge;
-		*_remaining_data_length -= data_length;
+		remaining_data_length -= data_length;
 	} else {
 		data_length = 0;
 	}
@@ -1089,7 +1095,7 @@ static int smbd_post_send_iter(struct smbdirect_socket *sc,
 	else
 		packet->data_offset = cpu_to_le32(24);
 	packet->data_length = cpu_to_le32(data_length);
-	packet->remaining_data_length = cpu_to_le32(*_remaining_data_length);
+	packet->remaining_data_length = cpu_to_le32(remaining_data_length);
 	packet->padding = 0;
 
 	log_outgoing(INFO, "credits_requested=%d credits_granted=%d data_offset=%d data_length=%d remaining_data_length=%d\n",
@@ -1107,11 +1113,11 @@ static int smbd_post_send_iter(struct smbdirect_socket *sc,
 		 */
 
 		if (batch != &_batch)
-			return 0;
+			return data_length;
 
 		rc = smbd_send_batch_flush(sc, batch, true);
 		if (!rc)
-			return 0;
+			return data_length;
 
 		goto err_flush;
 	}
@@ -1144,11 +1150,10 @@ err_wait_bcredit:
  */
 static void smbd_post_send_empty(struct smbdirect_socket *sc)
 {
-	int remaining_data_length = 0;
 	int ret;
 
 	sc->statistics.send_empty++;
-	ret = smbd_post_send_iter(sc, NULL, NULL, &remaining_data_length);
+	ret = smbd_post_send_iter(sc, NULL, NULL, 0);
 	if (ret < 0) {
 		log_rdma_send(ERR, "smbd_post_send_iter failed ret=%d\n", ret);
 		smbdirect_socket_schedule_cleanup(sc, ret);
@@ -1169,9 +1174,11 @@ static int smbd_post_send_full_iter(struct smbdirect_socket *sc,
 	 */
 
 	while (iov_iter_count(iter) > 0) {
-		rc = smbd_post_send_iter(sc, batch, iter, _remaining_data_length);
+		rc = smbd_post_send_iter(sc, batch, iter, *_remaining_data_length);
 		if (rc < 0)
 			break;
+		*_remaining_data_length -= rc;
+		rc = 0;
 	}
 
 	return rc;
