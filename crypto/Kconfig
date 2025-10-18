@@ -881,6 +881,7 @@ menu "Hashes, digests, and MACs"
 config CRYPTO_BLAKE2B
 	tristate "BLAKE2b"
 	select CRYPTO_HASH
+	select CRYPTO_LIB_BLAKE2B
 	help
 	  BLAKE2b cryptographic hash function (RFC 7693)
 
