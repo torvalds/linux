@@ -29,16 +29,15 @@ static const u8 blake2s_sigma[10][16] = {
 	{ 10, 2, 8, 4, 7, 6, 1, 5, 15, 11, 9, 14, 3, 12, 13, 0 },
 };
 
-static inline void blake2s_increment_counter(struct blake2s_ctx *ctx,
-					     const u32 inc)
+static inline void blake2s_increment_counter(struct blake2s_ctx *ctx, u32 inc)
 {
 	ctx->t[0] += inc;
 	ctx->t[1] += (ctx->t[0] < inc);
 }
 
 static void __maybe_unused
-blake2s_compress_generic(struct blake2s_ctx *ctx, const u8 *block,
-			 size_t nblocks, const u32 inc)
+blake2s_compress_generic(struct blake2s_ctx *ctx,
+			 const u8 *data, size_t nblocks, u32 inc)
 {
 	u32 m[16];
 	u32 v[16];
@@ -49,7 +48,7 @@ blake2s_compress_generic(struct blake2s_ctx *ctx, const u8 *block,
 
 	while (nblocks > 0) {
 		blake2s_increment_counter(ctx, inc);
-		memcpy(m, block, BLAKE2S_BLOCK_SIZE);
+		memcpy(m, data, BLAKE2S_BLOCK_SIZE);
 		le32_to_cpu_array(m, ARRAY_SIZE(m));
 		memcpy(v, ctx->h, 32);
 		v[ 8] = BLAKE2S_IV0;
@@ -99,7 +98,7 @@ blake2s_compress_generic(struct blake2s_ctx *ctx, const u8 *block,
 		for (i = 0; i < 8; ++i)
 			ctx->h[i] ^= v[i] ^ v[i + 8];
 
-		block += BLAKE2S_BLOCK_SIZE;
+		data += BLAKE2S_BLOCK_SIZE;
 		--nblocks;
 	}
 }
@@ -130,6 +129,7 @@ void blake2s_update(struct blake2s_ctx *ctx, const u8 *in, size_t inlen)
 	}
 	if (inlen > BLAKE2S_BLOCK_SIZE) {
 		const size_t nblocks = DIV_ROUND_UP(inlen, BLAKE2S_BLOCK_SIZE);
+
 		blake2s_compress(ctx, in, nblocks - 1, BLAKE2S_BLOCK_SIZE);
 		in += BLAKE2S_BLOCK_SIZE * (nblocks - 1);
 		inlen -= BLAKE2S_BLOCK_SIZE * (nblocks - 1);

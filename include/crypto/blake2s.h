@@ -67,14 +67,13 @@ static inline void __blake2s_init(struct blake2s_ctx *ctx, size_t outlen,
 	}
 }
 
-static inline void blake2s_init(struct blake2s_ctx *ctx, const size_t outlen)
+static inline void blake2s_init(struct blake2s_ctx *ctx, size_t outlen)
 {
 	__blake2s_init(ctx, outlen, NULL, 0);
 }
 
-static inline void blake2s_init_key(struct blake2s_ctx *ctx,
-				    const size_t outlen, const void *key,
-				    const size_t keylen)
+static inline void blake2s_init_key(struct blake2s_ctx *ctx, size_t outlen,
+				    const void *key, size_t keylen)
 {
 	WARN_ON(IS_ENABLED(DEBUG) && (!outlen || outlen > BLAKE2S_HASH_SIZE ||
 		!key || !keylen || keylen > BLAKE2S_KEY_SIZE));
@@ -85,9 +84,9 @@ static inline void blake2s_init_key(struct blake2s_ctx *ctx,
 void blake2s_update(struct blake2s_ctx *ctx, const u8 *in, size_t inlen);
 void blake2s_final(struct blake2s_ctx *ctx, u8 *out);
 
-static inline void blake2s(const u8 *key, const size_t keylen,
-			   const u8 *in, const size_t inlen,
-			   u8 *out, const size_t outlen)
+static inline void blake2s(const u8 *key, size_t keylen,
+			   const u8 *in, size_t inlen,
+			   u8 *out, size_t outlen)
 {
 	struct blake2s_ctx ctx;
 

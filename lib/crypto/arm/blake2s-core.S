@@ -171,7 +171,7 @@
 
 //
 // void blake2s_compress(struct blake2s_ctx *ctx,
-//			 const u8 *block, size_t nblocks, u32 inc);
+//			 const u8 *data, size_t nblocks, u32 inc);
 //
 // Only the first three fields of struct blake2s_ctx are used:
 //	u32 h[8];	(inout)
@@ -184,7 +184,7 @@ ENTRY(blake2s_compress)
 
 .Lnext_block:
 	// r0 is 'ctx'
-	// r1 is 'block'
+	// r1 is 'data'
 	// r3 is 'inc'
 
 	// Load and increment the counter t[0..1].
@@ -275,7 +275,7 @@ ENTRY(blake2s_compress)
 	// Advance to the next block, if there is one.  Note that if there are
 	// multiple blocks, then 'inc' (the counter increment amount) must be
 	// 64.  So we can simply set it to 64 without re-loading it.
-	ldm		sp, {r0, r1, r2}	// load (ctx, block, nblocks)
+	ldm		sp, {r0, r1, r2}	// load (ctx, data, nblocks)
 	mov		r3, #64			// set 'inc'
 	subs		r2, r2, #1		// nblocks--
 	str		r2, [sp, #8]
