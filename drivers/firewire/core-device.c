@@ -605,8 +605,7 @@ static int detect_quirks_by_root_directory(const u32 *root_directory, unsigned i
 	return quirks;
 }
 
-static int read_rom(struct fw_device *device,
-		    int generation, int index, u32 *data)
+static int read_rom(struct fw_device *device, int generation, int speed, int index, u32 *data)
 {
 	u64 offset = (CSR_REGISTER_BASE | CSR_CONFIG_ROM) + index * 4;
 	int i, rcode;
@@ -617,7 +616,7 @@ static int read_rom(struct fw_device *device,
 	for (i = 10; i < 100; i += 10) {
 		rcode = fw_run_transaction(device->card,
 				TCODE_READ_QUADLET_REQUEST, device->node_id,
-				generation, device->max_speed, offset, data, 4);
+				generation, speed, offset, data, 4);
 		if (rcode != RCODE_BUSY)
 			break;
 		msleep(i);
@@ -644,7 +643,7 @@ static int read_config_rom(struct fw_device *device, int generation)
 	const u32 *old_rom, *new_rom;
 	u32 *rom, *stack;
 	u32 sp, key;
-	int i, end, length, ret;
+	int i, end, length, ret, speed;
 	int quirks;
 
 	rom = kmalloc(sizeof(*rom) * MAX_CONFIG_ROM_SIZE +
@@ -655,11 +654,11 @@ static int read_config_rom(struct fw_device *device, int generation)
 	stack = &rom[MAX_CONFIG_ROM_SIZE];
 	memset(rom, 0, sizeof(*rom) * MAX_CONFIG_ROM_SIZE);
 
-	device->max_speed = SCODE_100;
+	speed = SCODE_100;
 
 	/* First read the bus info block. */
 	for (i = 0; i < 5; i++) {
-		ret = read_rom(device, generation, i, &rom[i]);
+		ret = read_rom(device, generation, speed, i, &rom[i]);
 		if (ret != RCODE_COMPLETE)
 			goto out;
 		/*
@@ -681,7 +680,7 @@ static int read_config_rom(struct fw_device *device, int generation)
 	// Just prevent from torn writing/reading.
 	WRITE_ONCE(device->quirks, quirks);
 
-	device->max_speed = device->node->max_speed;
+	speed = device->node->max_speed;
 
 	/*
 	 * Determine the speed of
@@ -692,20 +691,18 @@ static int read_config_rom(struct fw_device *device, int generation)
 	 * because some buggy firmwares set it lower than necessary and because
 	 * 1394-1995 nodes do not have the field.
 	 */
-	if ((rom[2] & 0x7) < device->max_speed ||
-	    device->max_speed == SCODE_BETA ||
-	    card->beta_repeaters_present) {
+	if ((rom[2] & 0x7) < speed || speed == SCODE_BETA || card->beta_repeaters_present) {
 		u32 dummy;
 
 		/* for S1600 and S3200 */
-		if (device->max_speed == SCODE_BETA)
-			device->max_speed = card->link_speed;
+		if (speed == SCODE_BETA)
+			speed = card->link_speed;
 
-		while (device->max_speed > SCODE_100) {
-			if (read_rom(device, generation, 0, &dummy) ==
+		while (speed > SCODE_100) {
+			if (read_rom(device, generation, speed, 0, &dummy) ==
 			    RCODE_COMPLETE)
 				break;
-			device->max_speed--;
+			--speed;
 		}
 	}
 
@@ -734,7 +731,7 @@ static int read_config_rom(struct fw_device *device, int generation)
 		}
 
 		/* Read header quadlet for the block to get the length. */
-		ret = read_rom(device, generation, i, &rom[i]);
+		ret = read_rom(device, generation, speed, i, &rom[i]);
 		if (ret != RCODE_COMPLETE)
 			goto out;
 		end = i + (rom[i] >> 16) + 1;
@@ -758,7 +755,7 @@ static int read_config_rom(struct fw_device *device, int generation)
 		 * it references another block, and push it in that case.
 		 */
 		for (; i < end; i++) {
-			ret = read_rom(device, generation, i, &rom[i]);
+			ret = read_rom(device, generation, speed, i, &rom[i]);
 			if (ret != RCODE_COMPLETE)
 				goto out;
 
@@ -784,6 +781,8 @@ static int read_config_rom(struct fw_device *device, int generation)
 		if (length < i)
 			length = i;
 	}
+
+	device->max_speed = speed;
 
 	quirks |= detect_quirks_by_root_directory(rom + ROOT_DIR_OFFSET, length - ROOT_DIR_OFFSET);
 
@@ -1234,7 +1233,7 @@ static int reread_config_rom(struct fw_device *device, int generation,
 	int i, rcode;
 
 	for (i = 0; i < 6; i++) {
-		rcode = read_rom(device, generation, i, &q);
+		rcode = read_rom(device, generation, device->max_speed, i, &q);
 		if (rcode != RCODE_COMPLETE)
 			return rcode;
 
