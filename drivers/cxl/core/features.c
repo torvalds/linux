@@ -371,6 +371,9 @@ cxl_feature_info(struct cxl_features_state *cxlfs,
 {
 	struct cxl_feat_entry *feat;
 
+	if (!cxlfs || !cxlfs->entries)
+		return ERR_PTR(-EOPNOTSUPP);
+
 	for (int i = 0; i < cxlfs->entries->num_features; i++) {
 		feat = &cxlfs->entries->ent[i];
 		if (uuid_equal(uuid, &feat->uuid))
