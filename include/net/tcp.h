@@ -303,6 +303,9 @@ static inline bool tcp_under_memory_pressure(const struct sock *sk)
 	    mem_cgroup_sk_under_memory_pressure(sk))
 		return true;
 
+	if (sk->sk_bypass_prot_mem)
+		return false;
+
 	return READ_ONCE(tcp_memory_pressure);
 }
 /*
