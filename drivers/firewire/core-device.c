@@ -680,32 +680,6 @@ static int read_config_rom(struct fw_device *device, int generation)
 	// Just prevent from torn writing/reading.
 	WRITE_ONCE(device->quirks, quirks);
 
-	speed = device->node->max_speed;
-
-	/*
-	 * Determine the speed of
-	 *   - devices with link speed less than PHY speed,
-	 *   - devices with 1394b PHY (unless only connected to 1394a PHYs),
-	 *   - all devices if there are 1394b repeaters.
-	 * Note, we cannot use the bus info block's link_spd as starting point
-	 * because some buggy firmwares set it lower than necessary and because
-	 * 1394-1995 nodes do not have the field.
-	 */
-	if ((rom[2] & 0x7) < speed || speed == SCODE_BETA || card->beta_repeaters_present) {
-		u32 dummy;
-
-		/* for S1600 and S3200 */
-		if (speed == SCODE_BETA)
-			speed = card->link_speed;
-
-		while (speed > SCODE_100) {
-			if (read_rom(device, generation, speed, 0, &dummy) ==
-			    RCODE_COMPLETE)
-				break;
-			--speed;
-		}
-	}
-
 	/*
 	 * Now parse the config rom.  The config rom is a recursive
 	 * directory structure so we parse it using a stack of
@@ -782,12 +756,35 @@ static int read_config_rom(struct fw_device *device, int generation)
 			length = i;
 	}
 
-	device->max_speed = speed;
-
 	quirks |= detect_quirks_by_root_directory(rom + ROOT_DIR_OFFSET, length - ROOT_DIR_OFFSET);
 
 	// Just prevent from torn writing/reading.
 	WRITE_ONCE(device->quirks, quirks);
+
+	speed = device->node->max_speed;
+
+	// Determine the speed of
+	//   - devices with link speed less than PHY speed,
+	//   - devices with 1394b PHY (unless only connected to 1394a PHYs),
+	//   - all devices if there are 1394b repeaters.
+	// Note, we cannot use the bus info block's link_spd as starting point because some buggy
+	// firmwares set it lower than necessary and because 1394-1995 nodes do not have the field.
+	if ((rom[2] & 0x7) < speed || speed == SCODE_BETA || card->beta_repeaters_present) {
+		u32 dummy;
+
+		// for S1600 and S3200.
+		if (speed == SCODE_BETA)
+			speed = card->link_speed;
+
+		while (speed > SCODE_100) {
+			if (read_rom(device, generation, speed, 0, &dummy) ==
+			    RCODE_COMPLETE)
+				break;
+			--speed;
+		}
+	}
+
+	device->max_speed = speed;
 
 	old_rom = device->config_rom;
 	new_rom = kmemdup(rom, length * 4, GFP_KERNEL);
