@@ -77,7 +77,7 @@ static void compute_mac1(u8 mac1[COOKIE_LEN], const void *message, size_t len,
 {
 	len = len - sizeof(struct message_macs) +
 	      offsetof(struct message_macs, mac1);
-	blake2s(mac1, message, key, COOKIE_LEN, len, NOISE_SYMMETRIC_KEY_LEN);
+	blake2s(key, NOISE_SYMMETRIC_KEY_LEN, message, len, mac1, COOKIE_LEN);
 }
 
 static void compute_mac2(u8 mac2[COOKIE_LEN], const void *message, size_t len,
@@ -85,7 +85,7 @@ static void compute_mac2(u8 mac2[COOKIE_LEN], const void *message, size_t len,
 {
 	len = len - sizeof(struct message_macs) +
 	      offsetof(struct message_macs, mac2);
-	blake2s(mac2, message, cookie, COOKIE_LEN, len, COOKIE_LEN);
+	blake2s(cookie, COOKIE_LEN, message, len, mac2, COOKIE_LEN);
 }
 
 static void make_cookie(u8 cookie[COOKIE_LEN], struct sk_buff *skb,

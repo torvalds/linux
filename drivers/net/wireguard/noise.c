@@ -35,8 +35,8 @@ void __init wg_noise_init(void)
 {
 	struct blake2s_state blake;
 
-	blake2s(handshake_init_chaining_key, handshake_name, NULL,
-		NOISE_HASH_LEN, sizeof(handshake_name), 0);
+	blake2s(NULL, 0, handshake_name, sizeof(handshake_name),
+		handshake_init_chaining_key, NOISE_HASH_LEN);
 	blake2s_init(&blake, NOISE_HASH_LEN);
 	blake2s_update(&blake, handshake_init_chaining_key, NOISE_HASH_LEN);
 	blake2s_update(&blake, identifier_name, sizeof(identifier_name));
