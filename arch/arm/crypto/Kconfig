@@ -33,22 +33,6 @@ config CRYPTO_NHPOLY1305_NEON
 	  Architecture: arm using:
 	  - NEON (Advanced SIMD) extensions
 
-config CRYPTO_BLAKE2B_NEON
-	tristate "Hash functions: BLAKE2b (NEON)"
-	depends on KERNEL_MODE_NEON
-	select CRYPTO_BLAKE2B
-	help
-	  BLAKE2b cryptographic hash function (RFC 7693)
-
-	  Architecture: arm using
-	  - NEON (Advanced SIMD) extensions
-
-	  BLAKE2b digest algorithm optimized with ARM NEON instructions.
-	  On ARM processors that have NEON support but not the ARMv8
-	  Crypto Extensions, typically this BLAKE2b implementation is
-	  much faster than the SHA-2 family and slightly faster than
-	  SHA-1.
-
 config CRYPTO_AES_ARM
 	tristate "Ciphers: AES"
 	select CRYPTO_ALGAPI

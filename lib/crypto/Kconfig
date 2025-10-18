@@ -37,6 +37,7 @@ config CRYPTO_LIB_BLAKE2B
 config CRYPTO_LIB_BLAKE2B_ARCH
 	bool
 	depends on CRYPTO_LIB_BLAKE2B && !UML
+	default y if ARM && KERNEL_MODE_NEON
 
 # BLAKE2s support is always built-in, so there's no CRYPTO_LIB_BLAKE2S option.
 
