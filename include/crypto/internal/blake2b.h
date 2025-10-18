@@ -57,13 +57,28 @@ static inline int crypto_blake2b_setkey(struct crypto_shash *tfm,
 	return 0;
 }
 
+static inline void __crypto_blake2b_init(struct blake2b_state *state,
+					 size_t outlen, size_t keylen)
+{
+	state->h[0] = BLAKE2B_IV0 ^ (0x01010000 | keylen << 8 | outlen);
+	state->h[1] = BLAKE2B_IV1;
+	state->h[2] = BLAKE2B_IV2;
+	state->h[3] = BLAKE2B_IV3;
+	state->h[4] = BLAKE2B_IV4;
+	state->h[5] = BLAKE2B_IV5;
+	state->h[6] = BLAKE2B_IV6;
+	state->h[7] = BLAKE2B_IV7;
+	state->t[0] = 0;
+	state->t[1] = 0;
+}
+
 static inline int crypto_blake2b_init(struct shash_desc *desc)
 {
 	const struct blake2b_tfm_ctx *tctx = crypto_shash_ctx(desc->tfm);
 	struct blake2b_state *state = shash_desc_ctx(desc);
 	unsigned int outlen = crypto_shash_digestsize(desc->tfm);
 
-	__blake2b_init(state, outlen, tctx->keylen);
+	__crypto_blake2b_init(state, outlen, tctx->keylen);
 	return tctx->keylen ?
 	       crypto_shash_update(desc, tctx->key, BLAKE2B_BLOCK_SIZE) : 0;
 }
