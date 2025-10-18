@@ -432,7 +432,7 @@ static int gswip_add_single_port_br(struct gswip_priv *priv, int port, bool add)
 
 	vlan_active.index = port + 1;
 	vlan_active.table = GSWIP_TABLE_ACTIVE_VLAN;
-	vlan_active.key[0] = 0; /* vid */
+	vlan_active.key[0] = GSWIP_VLAN_UNAWARE_PVID;
 	vlan_active.val[0] = port + 1 /* fid */;
 	vlan_active.valid = add;
 	err = gswip_pce_table_entry_write(priv, &vlan_active);
@@ -446,7 +446,7 @@ static int gswip_add_single_port_br(struct gswip_priv *priv, int port, bool add)
 
 	vlan_mapping.index = port + 1;
 	vlan_mapping.table = GSWIP_TABLE_VLAN_MAPPING;
-	vlan_mapping.val[0] = 0 /* vid */;
+	vlan_mapping.val[0] = GSWIP_VLAN_UNAWARE_PVID;
 	vlan_mapping.val[1] = BIT(port) | dsa_cpu_ports(priv->ds);
 	vlan_mapping.val[2] = 0;
 	err = gswip_pce_table_entry_write(priv, &vlan_mapping);
@@ -547,26 +547,63 @@ static int gswip_pce_load_microcode(struct gswip_priv *priv)
 	return 0;
 }
 
+static void gswip_port_commit_pvid(struct gswip_priv *priv, int port)
+{
+	struct dsa_port *dp = dsa_to_port(priv->ds, port);
+	struct net_device *br = dsa_port_bridge_dev_get(dp);
+	u32 vinr;
+	int idx;
+
+	if (!dsa_port_is_user(dp))
+		return;
+
+	if (br) {
+		u16 pvid = GSWIP_VLAN_UNAWARE_PVID;
+
+		if (br_vlan_enabled(br))
+			br_vlan_get_pvid(br, &pvid);
+
+		/* VLAN-aware bridge ports with no PVID will use Active VLAN
+		 * index 0. The expectation is that this drops all untagged and
+		 * VID-0 tagged ingress traffic.
+		 */
+		idx = 0;
+		for (int i = priv->hw_info->max_ports;
+		     i < ARRAY_SIZE(priv->vlans); i++) {
+			if (priv->vlans[i].bridge == br &&
+			    priv->vlans[i].vid == pvid) {
+				idx = i;
+				break;
+			}
+		}
+	} else {
+		/* The Active VLAN table index as configured by
+		 * gswip_add_single_port_br()
+		 */
+		idx = port + 1;
+	}
+
+	vinr = idx ? GSWIP_PCE_VCTRL_VINR_ALL : GSWIP_PCE_VCTRL_VINR_TAGGED;
+	gswip_switch_mask(priv, GSWIP_PCE_VCTRL_VINR,
+			  FIELD_PREP(GSWIP_PCE_VCTRL_VINR, vinr),
+			  GSWIP_PCE_VCTRL(port));
+
+	/* GSWIP 2.2 (GRX300) and later program here the VID directly. */
+	gswip_switch_w(priv, idx, GSWIP_PCE_DEFPVID(port));
+}
+
 static int gswip_port_vlan_filtering(struct dsa_switch *ds, int port,
 				     bool vlan_filtering,
 				     struct netlink_ext_ack *extack)
 {
-	struct net_device *bridge = dsa_port_bridge_dev_get(dsa_to_port(ds, port));
 	struct gswip_priv *priv = ds->priv;
-
-	/* Do not allow changing the VLAN filtering options while in bridge */
-	if (bridge && !!(priv->port_vlan_filter & BIT(port)) != vlan_filtering) {
-		NL_SET_ERR_MSG_MOD(extack,
-				   "Dynamic toggling of vlan_filtering not supported");
-		return -EIO;
-	}
 
 	if (vlan_filtering) {
 		/* Use tag based VLAN */
 		gswip_switch_mask(priv,
 				  GSWIP_PCE_VCTRL_VSR,
 				  GSWIP_PCE_VCTRL_UVR | GSWIP_PCE_VCTRL_VIMR |
-				  GSWIP_PCE_VCTRL_VEMR,
+				  GSWIP_PCE_VCTRL_VEMR | GSWIP_PCE_VCTRL_VID0,
 				  GSWIP_PCE_VCTRL(port));
 		gswip_switch_mask(priv, GSWIP_PCE_PCTRL_0_TVM, 0,
 				  GSWIP_PCE_PCTRL_0p(port));
@@ -574,12 +611,14 @@ static int gswip_port_vlan_filtering(struct dsa_switch *ds, int port,
 		/* Use port based VLAN */
 		gswip_switch_mask(priv,
 				  GSWIP_PCE_VCTRL_UVR | GSWIP_PCE_VCTRL_VIMR |
-				  GSWIP_PCE_VCTRL_VEMR,
+				  GSWIP_PCE_VCTRL_VEMR | GSWIP_PCE_VCTRL_VID0,
 				  GSWIP_PCE_VCTRL_VSR,
 				  GSWIP_PCE_VCTRL(port));
 		gswip_switch_mask(priv, 0, GSWIP_PCE_PCTRL_0_TVM,
 				  GSWIP_PCE_PCTRL_0p(port));
 	}
+
+	gswip_port_commit_pvid(priv, port);
 
 	return 0;
 }
@@ -677,8 +716,6 @@ static int gswip_setup(struct dsa_switch *ds)
 
 	ds->mtu_enforcement_ingress = true;
 
-	ds->configure_vlan_while_not_filtering = false;
-
 	return 0;
 }
 
@@ -750,85 +787,25 @@ static int gswip_vlan_active_remove(struct gswip_priv *priv, int idx)
 	return err;
 }
 
-static int gswip_vlan_add_unaware(struct gswip_priv *priv,
-				  struct net_device *bridge, int port)
-{
-	struct gswip_pce_table_entry vlan_mapping = {0,};
-	unsigned int max_ports = priv->hw_info->max_ports;
-	bool active_vlan_created = false;
-	int idx = -1;
-	int i;
-	int err;
-
-	/* Check if there is already a page for this bridge */
-	for (i = max_ports; i < ARRAY_SIZE(priv->vlans); i++) {
-		if (priv->vlans[i].bridge == bridge) {
-			idx = i;
-			break;
-		}
-	}
-
-	/* If this bridge is not programmed yet, add a Active VLAN table
-	 * entry in a free slot and prepare the VLAN mapping table entry.
-	 */
-	if (idx == -1) {
-		idx = gswip_vlan_active_create(priv, bridge, -1, 0);
-		if (idx < 0)
-			return idx;
-		active_vlan_created = true;
-
-		vlan_mapping.index = idx;
-		vlan_mapping.table = GSWIP_TABLE_VLAN_MAPPING;
-		/* VLAN ID byte, maps to the VLAN ID of vlan active table */
-		vlan_mapping.val[0] = 0;
-	} else {
-		/* Read the existing VLAN mapping entry from the switch */
-		vlan_mapping.index = idx;
-		vlan_mapping.table = GSWIP_TABLE_VLAN_MAPPING;
-		err = gswip_pce_table_entry_read(priv, &vlan_mapping);
-		if (err) {
-			dev_err(priv->dev, "failed to read VLAN mapping: %d\n",
-				err);
-			return err;
-		}
-	}
-
-	/* Update the VLAN mapping entry and write it to the switch */
-	vlan_mapping.val[1] |= dsa_cpu_ports(priv->ds);
-	vlan_mapping.val[1] |= BIT(port);
-	err = gswip_pce_table_entry_write(priv, &vlan_mapping);
-	if (err) {
-		dev_err(priv->dev, "failed to write VLAN mapping: %d\n", err);
-		/* In case an Active VLAN was creaetd delete it again */
-		if (active_vlan_created)
-			gswip_vlan_active_remove(priv, idx);
-		return err;
-	}
-
-	gswip_switch_w(priv, 0, GSWIP_PCE_DEFPVID(port));
-	return 0;
-}
-
-static int gswip_vlan_add_aware(struct gswip_priv *priv,
-				struct net_device *bridge, int port,
-				u16 vid, bool untagged,
-				bool pvid)
+static int gswip_vlan_add(struct gswip_priv *priv, struct net_device *bridge,
+			  int port, u16 vid, bool untagged, bool pvid,
+			  bool vlan_aware)
 {
 	struct gswip_pce_table_entry vlan_mapping = {0,};
 	unsigned int max_ports = priv->hw_info->max_ports;
 	unsigned int cpu_ports = dsa_cpu_ports(priv->ds);
 	bool active_vlan_created = false;
-	int idx = -1;
-	int fid = -1;
-	int i;
-	int err;
+	int fid = -1, idx = -1;
+	int i, err;
 
 	/* Check if there is already a page for this bridge */
 	for (i = max_ports; i < ARRAY_SIZE(priv->vlans); i++) {
 		if (priv->vlans[i].bridge == bridge) {
-			if (fid != -1 && fid != priv->vlans[i].fid)
-				dev_err(priv->dev, "one bridge with multiple flow ids\n");
-			fid = priv->vlans[i].fid;
+			if (vlan_aware) {
+				if (fid != -1 && fid != priv->vlans[i].fid)
+					dev_err(priv->dev, "one bridge with multiple flow ids\n");
+				fid = priv->vlans[i].fid;
+			}
 			if (priv->vlans[i].vid == vid) {
 				idx = i;
 				break;
@@ -847,8 +824,6 @@ static int gswip_vlan_add_aware(struct gswip_priv *priv,
 
 		vlan_mapping.index = idx;
 		vlan_mapping.table = GSWIP_TABLE_VLAN_MAPPING;
-		/* VLAN ID byte, maps to the VLAN ID of vlan active table */
-		vlan_mapping.val[0] = vid;
 	} else {
 		/* Read the existing VLAN mapping entry from the switch */
 		vlan_mapping.index = idx;
@@ -861,11 +836,13 @@ static int gswip_vlan_add_aware(struct gswip_priv *priv,
 		}
 	}
 
+	/* VLAN ID byte, maps to the VLAN ID of vlan active table */
 	vlan_mapping.val[0] = vid;
 	/* Update the VLAN mapping entry and write it to the switch */
 	vlan_mapping.val[1] |= cpu_ports;
-	vlan_mapping.val[2] |= cpu_ports;
 	vlan_mapping.val[1] |= BIT(port);
+	if (vlan_aware)
+		vlan_mapping.val[2] |= cpu_ports;
 	if (untagged)
 		vlan_mapping.val[2] &= ~BIT(port);
 	else
@@ -879,15 +856,14 @@ static int gswip_vlan_add_aware(struct gswip_priv *priv,
 		return err;
 	}
 
-	if (pvid)
-		gswip_switch_w(priv, idx, GSWIP_PCE_DEFPVID(port));
+	gswip_port_commit_pvid(priv, port);
 
 	return 0;
 }
 
 static int gswip_vlan_remove(struct gswip_priv *priv,
 			     struct net_device *bridge, int port,
-			     u16 vid, bool pvid, bool vlan_aware)
+			     u16 vid)
 {
 	struct gswip_pce_table_entry vlan_mapping = {0,};
 	unsigned int max_ports = priv->hw_info->max_ports;
@@ -898,14 +874,15 @@ static int gswip_vlan_remove(struct gswip_priv *priv,
 	/* Check if there is already a page for this bridge */
 	for (i = max_ports; i < ARRAY_SIZE(priv->vlans); i++) {
 		if (priv->vlans[i].bridge == bridge &&
-		    (!vlan_aware || priv->vlans[i].vid == vid)) {
+		    priv->vlans[i].vid == vid) {
 			idx = i;
 			break;
 		}
 	}
 
 	if (idx == -1) {
-		dev_err(priv->dev, "bridge to leave does not exists\n");
+		dev_err(priv->dev, "Port %d cannot find VID %u of bridge %s\n",
+			port, vid, bridge ? bridge->name : "(null)");
 		return -ENOENT;
 	}
 
@@ -935,9 +912,7 @@ static int gswip_vlan_remove(struct gswip_priv *priv,
 		}
 	}
 
-	/* GSWIP 2.2 (GRX300) and later program here the VID directly. */
-	if (pvid)
-		gswip_switch_w(priv, 0, GSWIP_PCE_DEFPVID(port));
+	gswip_port_commit_pvid(priv, port);
 
 	return 0;
 }
@@ -951,17 +926,15 @@ static int gswip_port_bridge_join(struct dsa_switch *ds, int port,
 	struct gswip_priv *priv = ds->priv;
 	int err;
 
-	/* When the bridge uses VLAN filtering we have to configure VLAN
-	 * specific bridges. No bridge is configured here.
+	/* Set up the VLAN for VLAN-unaware bridging for this port, and remove
+	 * it from the "single-port bridge" through which it was operating as
+	 * standalone.
 	 */
-	if (!br_vlan_enabled(br)) {
-		err = gswip_vlan_add_unaware(priv, br, port);
-		if (err)
-			return err;
-		priv->port_vlan_filter &= ~BIT(port);
-	} else {
-		priv->port_vlan_filter |= BIT(port);
-	}
+	err = gswip_vlan_add(priv, br, port, GSWIP_VLAN_UNAWARE_PVID,
+			     true, true, false);
+	if (err)
+		return err;
+
 	return gswip_add_single_port_br(priv, port, false);
 }
 
@@ -971,13 +944,11 @@ static void gswip_port_bridge_leave(struct dsa_switch *ds, int port,
 	struct net_device *br = bridge.dev;
 	struct gswip_priv *priv = ds->priv;
 
-	gswip_add_single_port_br(priv, port, true);
-
-	/* When the bridge uses VLAN filtering we have to configure VLAN
-	 * specific bridges. No bridge is configured here.
+	/* Add the port back to the "single-port bridge", and remove it from
+	 * the VLAN-unaware PVID created for this bridge.
 	 */
-	if (!br_vlan_enabled(br))
-		gswip_vlan_remove(priv, br, port, 0, true, false);
+	gswip_add_single_port_br(priv, port, true);
+	gswip_vlan_remove(priv, br, port, GSWIP_VLAN_UNAWARE_PVID);
 }
 
 static int gswip_port_vlan_prepare(struct dsa_switch *ds, int port,
@@ -1036,6 +1007,9 @@ static int gswip_port_vlan_add(struct dsa_switch *ds, int port,
 	bool pvid = vlan->flags & BRIDGE_VLAN_INFO_PVID;
 	int err;
 
+	if (vlan->vid == GSWIP_VLAN_UNAWARE_PVID)
+		return 0;
+
 	err = gswip_port_vlan_prepare(ds, port, vlan, extack);
 	if (err)
 		return err;
@@ -1048,8 +1022,8 @@ static int gswip_port_vlan_add(struct dsa_switch *ds, int port,
 	if (dsa_is_cpu_port(ds, port))
 		return 0;
 
-	return gswip_vlan_add_aware(priv, bridge, port, vlan->vid,
-				    untagged, pvid);
+	return gswip_vlan_add(priv, bridge, port, vlan->vid, untagged, pvid,
+			      true);
 }
 
 static int gswip_port_vlan_del(struct dsa_switch *ds, int port,
@@ -1057,7 +1031,9 @@ static int gswip_port_vlan_del(struct dsa_switch *ds, int port,
 {
 	struct net_device *bridge = dsa_port_bridge_dev_get(dsa_to_port(ds, port));
 	struct gswip_priv *priv = ds->priv;
-	bool pvid = vlan->flags & BRIDGE_VLAN_INFO_PVID;
+
+	if (vlan->vid == GSWIP_VLAN_UNAWARE_PVID)
+		return 0;
 
 	/* We have to receive all packets on the CPU port and should not
 	 * do any VLAN filtering here. This is also called with bridge
@@ -1067,7 +1043,7 @@ static int gswip_port_vlan_del(struct dsa_switch *ds, int port,
 	if (dsa_is_cpu_port(ds, port))
 		return 0;
 
-	return gswip_vlan_remove(priv, bridge, port, vlan->vid, pvid, true);
+	return gswip_vlan_remove(priv, bridge, port, vlan->vid);
 }
 
 static void gswip_port_fast_age(struct dsa_switch *ds, int port)
@@ -1140,19 +1116,15 @@ static void gswip_port_stp_state_set(struct dsa_switch *ds, int port, u8 state)
 }
 
 static int gswip_port_fdb(struct dsa_switch *ds, int port,
-			  const unsigned char *addr, u16 vid, bool add)
+			  struct net_device *bridge, const unsigned char *addr,
+			  u16 vid, bool add)
 {
-	struct net_device *bridge = dsa_port_bridge_dev_get(dsa_to_port(ds, port));
 	struct gswip_priv *priv = ds->priv;
 	struct gswip_pce_table_entry mac_bridge = {0,};
 	unsigned int max_ports = priv->hw_info->max_ports;
 	int fid = -1;
 	int i;
 	int err;
-
-	/* Operation not supported on the CPU port, don't throw errors */
-	if (!bridge)
-		return 0;
 
 	for (i = max_ports; i < ARRAY_SIZE(priv->vlans); i++) {
 		if (priv->vlans[i].bridge == bridge) {
@@ -1188,14 +1160,20 @@ static int gswip_port_fdb_add(struct dsa_switch *ds, int port,
 			      const unsigned char *addr, u16 vid,
 			      struct dsa_db db)
 {
-	return gswip_port_fdb(ds, port, addr, vid, true);
+	if (db.type != DSA_DB_BRIDGE)
+		return -EOPNOTSUPP;
+
+	return gswip_port_fdb(ds, port, db.bridge.dev, addr, vid, true);
 }
 
 static int gswip_port_fdb_del(struct dsa_switch *ds, int port,
 			      const unsigned char *addr, u16 vid,
 			      struct dsa_db db)
 {
-	return gswip_port_fdb(ds, port, addr, vid, false);
+	if (db.type != DSA_DB_BRIDGE)
+		return -EOPNOTSUPP;
+
+	return gswip_port_fdb(ds, port, db.bridge.dev, addr, vid, false);
 }
 
 static int gswip_port_fdb_dump(struct dsa_switch *ds, int port,

@@ -159,6 +159,10 @@
 #define  GSWIP_PCE_PCTRL_0_PSTATE_MASK	GENMASK(2, 0)
 #define GSWIP_PCE_VCTRL(p)		(0x485 + ((p) * 0xA))
 #define  GSWIP_PCE_VCTRL_UVR		BIT(0)	/* Unknown VLAN Rule */
+#define  GSWIP_PCE_VCTRL_VINR		GENMASK(2, 1) /* VLAN Ingress Tag Rule */
+#define  GSWIP_PCE_VCTRL_VINR_ALL	0 /* Admit tagged and untagged packets */
+#define  GSWIP_PCE_VCTRL_VINR_TAGGED	1 /* Admit only tagged packets */
+#define  GSWIP_PCE_VCTRL_VINR_UNTAGGED	2 /* Admit only untagged packets */
 #define  GSWIP_PCE_VCTRL_VIMR		BIT(3)	/* VLAN Ingress Member violation rule */
 #define  GSWIP_PCE_VCTRL_VEMR		BIT(4)	/* VLAN Egress Member violation rule */
 #define  GSWIP_PCE_VCTRL_VSR		BIT(5)	/* VLAN Security */
@@ -222,6 +226,8 @@
  */
 #define GSWIP_MAX_PACKET_LENGTH	2400
 
+#define GSWIP_VLAN_UNAWARE_PVID	0
+
 struct gswip_pce_microcode {
 	u16 val_3;
 	u16 val_2;
@@ -268,7 +274,6 @@ struct gswip_priv {
 	struct gswip_vlan vlans[64];
 	int num_gphy_fw;
 	struct gswip_gphy_fw *gphy_fw;
-	u32 port_vlan_filter;
 	struct mutex pce_table_lock;
 	u16 version;
 };
