@@ -22,6 +22,15 @@ enum blake2s_lengths {
 	BLAKE2S_256_HASH_SIZE = 32,
 };
 
+/**
+ * struct blake2s_ctx - Context for hashing a message with BLAKE2s
+ * @h: compression function state
+ * @t: block counter
+ * @f: finalization indicator
+ * @buf: partial block buffer; 'buflen' bytes are valid
+ * @buflen: number of bytes buffered in @buf
+ * @outlen: length of output hash value in bytes, at most BLAKE2S_HASH_SIZE
+ */
 struct blake2s_ctx {
 	/* 'h', 't', and 'f' are used in assembly code, so keep them as-is. */
 	u32 h[8];
@@ -67,11 +76,27 @@ static inline void __blake2s_init(struct blake2s_ctx *ctx, size_t outlen,
 	}
 }
 
+/**
+ * blake2s_init() - Initialize a BLAKE2s context for a new message (unkeyed)
+ * @ctx: the context to initialize
+ * @outlen: length of output hash value in bytes, at most BLAKE2S_HASH_SIZE
+ *
+ * Context: Any context.
+ */
 static inline void blake2s_init(struct blake2s_ctx *ctx, size_t outlen)
 {
 	__blake2s_init(ctx, outlen, NULL, 0);
 }
 
+/**
+ * blake2s_init_key() - Initialize a BLAKE2s context for a new message (keyed)
+ * @ctx: the context to initialize
+ * @outlen: length of output hash value in bytes, at most BLAKE2S_HASH_SIZE
+ * @key: the key
+ * @keylen: the key length in bytes, at most BLAKE2S_KEY_SIZE
+ *
+ * Context: Any context.
+ */
 static inline void blake2s_init_key(struct blake2s_ctx *ctx, size_t outlen,
 				    const void *key, size_t keylen)
 {
@@ -81,9 +106,42 @@ static inline void blake2s_init_key(struct blake2s_ctx *ctx, size_t outlen,
 	__blake2s_init(ctx, outlen, key, keylen);
 }
 
+/**
+ * blake2s_update() - Update a BLAKE2s context with message data
+ * @ctx: the context to update; must have been initialized
+ * @in: the message data
+ * @inlen: the data length in bytes
+ *
+ * This can be called any number of times.
+ *
+ * Context: Any context.
+ */
 void blake2s_update(struct blake2s_ctx *ctx, const u8 *in, size_t inlen);
+
+/**
+ * blake2s_final() - Finish computing a BLAKE2s hash
+ * @ctx: the context to finalize; must have been initialized
+ * @out: (output) the resulting BLAKE2s hash.  Its length will be equal to the
+ *	 @outlen that was passed to blake2s_init() or blake2s_init_key().
+ *
+ * After finishing, this zeroizes @ctx.  So the caller does not need to do it.
+ *
+ * Context: Any context.
+ */
 void blake2s_final(struct blake2s_ctx *ctx, u8 *out);
 
+/**
+ * blake2s() - Compute BLAKE2s hash in one shot
+ * @key: the key, or NULL for an unkeyed hash
+ * @keylen: the key length in bytes (at most BLAKE2S_KEY_SIZE), or 0 for an
+ *	    unkeyed hash
+ * @in: the message data
+ * @inlen: the data length in bytes
+ * @out: (output) the resulting BLAKE2s hash, with length @outlen
+ * @outlen: length of output hash value in bytes, at most BLAKE2S_HASH_SIZE
+ *
+ * Context: Any context.
+ */
 static inline void blake2s(const u8 *key, size_t keylen,
 			   const u8 *in, size_t inlen,
 			   u8 *out, size_t outlen)
