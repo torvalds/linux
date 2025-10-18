@@ -2351,7 +2351,8 @@ static struct task_struct *first_local_task(struct rq *rq)
 					struct task_struct, scx.dsq_list.node);
 }
 
-static struct task_struct *pick_task_scx(struct rq *rq, struct rq_flags *rf)
+static struct task_struct *
+do_pick_task_scx(struct rq *rq, struct rq_flags *rf, bool force_scx)
 {
 	struct task_struct *prev = rq->curr;
 	bool keep_prev, kick_idle = false;
@@ -2365,7 +2366,15 @@ static struct task_struct *pick_task_scx(struct rq *rq, struct rq_flags *rf)
 
 	maybe_queue_balance_callback(rq);
 
-	if (rq_modified_above(rq, &ext_sched_class))
+	/*
+	 * If any higher-priority sched class enqueued a runnable task on
+	 * this rq during balance_one(), abort and return RETRY_TASK, so
+	 * that the scheduler loop can restart.
+	 *
+	 * If @force_scx is true, always try to pick a SCHED_EXT task,
+	 * regardless of any higher-priority sched classes activity.
+	 */
+	if (!force_scx && rq_modified_above(rq, &ext_sched_class))
 		return RETRY_TASK;
 
 	keep_prev = rq->scx.flags & SCX_RQ_BAL_KEEP;
@@ -2406,6 +2415,11 @@ static struct task_struct *pick_task_scx(struct rq *rq, struct rq_flags *rf)
 	}
 
 	return p;
+}
+
+static struct task_struct *pick_task_scx(struct rq *rq, struct rq_flags *rf)
+{
+	return do_pick_task_scx(rq, rf, false);
 }
 
 #ifdef CONFIG_SCHED_CORE
