@@ -1632,7 +1632,7 @@ static int va_macro_probe(struct platform_device *pdev)
 		/* read version from register */
 		ret = va_macro_set_lpass_codec_version(va);
 		if (ret)
-			return ret;
+			goto err_clkout;
 	}
 
 	if (va->has_swr_master) {
