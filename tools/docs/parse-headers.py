@@ -47,10 +47,7 @@ def main():
     args = parser.parse_args()
 
     parser = ParseDataStructs(debug=args.debug)
-    parser.parse_file(args.file_in)
-
-    if args.file_rules:
-        parser.process_exceptions(args.file_rules)
+    parser.parse_file(args.file_in, args.file_rules)
 
     parser.debug_print()
     parser.write_output(args.file_in, args.file_out, args.toc)
