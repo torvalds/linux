@@ -61,7 +61,7 @@ impl BinderStats {
 
 mod strings {
     use core::str::from_utf8_unchecked;
-    use kernel::str::CStr;
+    use kernel::str::{CStr, CStrExt as _};
 
     extern "C" {
         static binder_command_strings: [*const u8; super::BC_COUNT];

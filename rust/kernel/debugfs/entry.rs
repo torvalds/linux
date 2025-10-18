@@ -3,7 +3,7 @@
 
 use crate::debugfs::file_ops::FileOps;
 use crate::ffi::c_void;
-use crate::str::CStr;
+use crate::str::{CStr, CStrExt as _};
 use crate::sync::Arc;
 use core::marker::PhantomData;
 
