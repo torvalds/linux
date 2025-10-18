@@ -466,8 +466,7 @@ struct elevator_tags *blk_mq_alloc_sched_tags(struct blk_mq_tag_set *set,
 	else
 		nr_tags = nr_hw_queues;
 
-	et = kmalloc(sizeof(struct elevator_tags) +
-			nr_tags * sizeof(struct blk_mq_tags *), gfp);
+	et = kmalloc(struct_size(et, tags, nr_tags), gfp);
 	if (!et)
 		return NULL;
 
