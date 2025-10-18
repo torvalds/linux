@@ -179,6 +179,9 @@ enum fw_device_quirk {
 
 	// MOTU Audio Express transfers acknowledge packet with 0x10 for pending state.
 	FW_DEVICE_QUIRK_ACK_PACKET_WITH_INVALID_PENDING_CODE = BIT(2),
+
+	// TASCAM FW-1082/FW-1804/FW-1884 often freezes when receiving S400 packets.
+	FW_DEVICE_QUIRK_UNSTABLE_AT_S400 = BIT(3),
 };
 
 enum fw_device_state {

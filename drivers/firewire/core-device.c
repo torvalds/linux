@@ -571,6 +571,14 @@ static const struct entry_match motu_audio_express_matches[] = {
 	{ 8, 0x17104800 },
 };
 
+static const struct entry_match tascam_fw_series_matches[] = {
+	{ 1, 0x0300022e },
+	{ 3, 0x8d000006 },
+	{ 4, 0xd1000001 },
+	{ 6, 0x1200022e },
+	{ 8, 0xd4000004 },
+};
+
 static int detect_quirks_by_root_directory(const u32 *root_directory, unsigned int length)
 {
 	static const struct {
@@ -582,6 +590,11 @@ static int detect_quirks_by_root_directory(const u32 *root_directory, unsigned i
 			.quirk = FW_DEVICE_QUIRK_ACK_PACKET_WITH_INVALID_PENDING_CODE,
 			.matches = motu_audio_express_matches,
 			.match_count = ARRAY_SIZE(motu_audio_express_matches),
+		},
+		{
+			.quirk = FW_DEVICE_QUIRK_UNSTABLE_AT_S400,
+			.matches = tascam_fw_series_matches,
+			.match_count = ARRAY_SIZE(tascam_fw_series_matches),
 		},
 	};
 	int quirks = 0;
@@ -761,7 +774,10 @@ static int read_config_rom(struct fw_device *device, int generation)
 	// Just prevent from torn writing/reading.
 	WRITE_ONCE(device->quirks, quirks);
 
-	speed = device->node->max_speed;
+	if (unlikely(quirks & FW_DEVICE_QUIRK_UNSTABLE_AT_S400))
+		speed = SCODE_200;
+	else
+		speed = device->node->max_speed;
 
 	// Determine the speed of
 	//   - devices with link speed less than PHY speed,
