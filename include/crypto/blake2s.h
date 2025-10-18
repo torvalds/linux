@@ -22,7 +22,7 @@ enum blake2s_lengths {
 	BLAKE2S_256_HASH_SIZE = 32,
 };
 
-struct blake2s_state {
+struct blake2s_ctx {
 	/* 'h', 't', and 'f' are used in assembly code, so keep them as-is. */
 	u32 h[8];
 	u32 t[2];
@@ -43,62 +43,61 @@ enum blake2s_iv {
 	BLAKE2S_IV7 = 0x5BE0CD19UL,
 };
 
-static inline void __blake2s_init(struct blake2s_state *state, size_t outlen,
+static inline void __blake2s_init(struct blake2s_ctx *ctx, size_t outlen,
 				  const void *key, size_t keylen)
 {
-	state->h[0] = BLAKE2S_IV0 ^ (0x01010000 | keylen << 8 | outlen);
-	state->h[1] = BLAKE2S_IV1;
-	state->h[2] = BLAKE2S_IV2;
-	state->h[3] = BLAKE2S_IV3;
-	state->h[4] = BLAKE2S_IV4;
-	state->h[5] = BLAKE2S_IV5;
-	state->h[6] = BLAKE2S_IV6;
-	state->h[7] = BLAKE2S_IV7;
-	state->t[0] = 0;
-	state->t[1] = 0;
-	state->f[0] = 0;
-	state->f[1] = 0;
-	state->buflen = 0;
-	state->outlen = outlen;
+	ctx->h[0] = BLAKE2S_IV0 ^ (0x01010000 | keylen << 8 | outlen);
+	ctx->h[1] = BLAKE2S_IV1;
+	ctx->h[2] = BLAKE2S_IV2;
+	ctx->h[3] = BLAKE2S_IV3;
+	ctx->h[4] = BLAKE2S_IV4;
+	ctx->h[5] = BLAKE2S_IV5;
+	ctx->h[6] = BLAKE2S_IV6;
+	ctx->h[7] = BLAKE2S_IV7;
+	ctx->t[0] = 0;
+	ctx->t[1] = 0;
+	ctx->f[0] = 0;
+	ctx->f[1] = 0;
+	ctx->buflen = 0;
+	ctx->outlen = outlen;
 	if (keylen) {
-		memcpy(state->buf, key, keylen);
-		memset(&state->buf[keylen], 0, BLAKE2S_BLOCK_SIZE - keylen);
-		state->buflen = BLAKE2S_BLOCK_SIZE;
+		memcpy(ctx->buf, key, keylen);
+		memset(&ctx->buf[keylen], 0, BLAKE2S_BLOCK_SIZE - keylen);
+		ctx->buflen = BLAKE2S_BLOCK_SIZE;
 	}
 }
 
-static inline void blake2s_init(struct blake2s_state *state,
-				const size_t outlen)
+static inline void blake2s_init(struct blake2s_ctx *ctx, const size_t outlen)
 {
-	__blake2s_init(state, outlen, NULL, 0);
+	__blake2s_init(ctx, outlen, NULL, 0);
 }
 
-static inline void blake2s_init_key(struct blake2s_state *state,
+static inline void blake2s_init_key(struct blake2s_ctx *ctx,
 				    const size_t outlen, const void *key,
 				    const size_t keylen)
 {
 	WARN_ON(IS_ENABLED(DEBUG) && (!outlen || outlen > BLAKE2S_HASH_SIZE ||
 		!key || !keylen || keylen > BLAKE2S_KEY_SIZE));
 
-	__blake2s_init(state, outlen, key, keylen);
+	__blake2s_init(ctx, outlen, key, keylen);
 }
 
-void blake2s_update(struct blake2s_state *state, const u8 *in, size_t inlen);
-void blake2s_final(struct blake2s_state *state, u8 *out);
+void blake2s_update(struct blake2s_ctx *ctx, const u8 *in, size_t inlen);
+void blake2s_final(struct blake2s_ctx *ctx, u8 *out);
 
 static inline void blake2s(const u8 *key, const size_t keylen,
 			   const u8 *in, const size_t inlen,
 			   u8 *out, const size_t outlen)
 {
-	struct blake2s_state state;
+	struct blake2s_ctx ctx;
 
 	WARN_ON(IS_ENABLED(DEBUG) && ((!in && inlen > 0) || !out || !outlen ||
 		outlen > BLAKE2S_HASH_SIZE || keylen > BLAKE2S_KEY_SIZE ||
 		(!key && keylen)));
 
-	__blake2s_init(&state, outlen, key, keylen);
-	blake2s_update(&state, in, inlen);
-	blake2s_final(&state, out);
+	__blake2s_init(&ctx, outlen, key, keylen);
+	blake2s_update(&ctx, in, inlen);
+	blake2s_final(&ctx, out);
 }
 
 #endif /* _CRYPTO_BLAKE2S_H */

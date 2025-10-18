@@ -170,10 +170,10 @@
 .endm
 
 //
-// void blake2s_compress(struct blake2s_state *state,
+// void blake2s_compress(struct blake2s_ctx *ctx,
 //			 const u8 *block, size_t nblocks, u32 inc);
 //
-// Only the first three fields of struct blake2s_state are used:
+// Only the first three fields of struct blake2s_ctx are used:
 //	u32 h[8];	(inout)
 //	u32 t[2];	(inout)
 //	u32 f[2];	(in)
@@ -183,7 +183,7 @@ ENTRY(blake2s_compress)
 	push		{r0-r2,r4-r11,lr}	// keep this an even number
 
 .Lnext_block:
-	// r0 is 'state'
+	// r0 is 'ctx'
 	// r1 is 'block'
 	// r3 is 'inc'
 
@@ -211,7 +211,7 @@ ENTRY(blake2s_compress)
 
 	// Calculate v[8..15].  Push v[9..15] onto the stack, and leave space
 	// for spilling v[8..9].  Leave v[8..9] in r8-r9.
-	mov		r14, r0			// r14 = state
+	mov		r14, r0			// r14 = ctx
 	adr		r12, .Lblake2s_IV
 	ldmia		r12!, {r8-r9}		// load IV[0..1]
 	__ldrd		r0, r1, r14, 40		// load f[0..1]
@@ -275,7 +275,7 @@ ENTRY(blake2s_compress)
 	// Advance to the next block, if there is one.  Note that if there are
 	// multiple blocks, then 'inc' (the counter increment amount) must be
 	// 64.  So we can simply set it to 64 without re-loading it.
-	ldm		sp, {r0, r1, r2}	// load (state, block, nblocks)
+	ldm		sp, {r0, r1, r2}	// load (ctx, block, nblocks)
 	mov		r3, #64			// set 'inc'
 	subs		r2, r2, #1		// nblocks--
 	str		r2, [sp, #8]

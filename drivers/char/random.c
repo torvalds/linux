@@ -636,7 +636,7 @@ enum {
 };
 
 static struct {
-	struct blake2s_state hash;
+	struct blake2s_ctx hash;
 	spinlock_t lock;
 	unsigned int init_bits;
 } input_pool = {
