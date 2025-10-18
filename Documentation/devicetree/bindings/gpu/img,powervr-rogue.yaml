@@ -90,8 +90,7 @@ allOf:
     then:
       properties:
         power-domains:
-          items:
-            - description: Power domain A
+          maxItems: 1
         power-domain-names:
           maxItems: 1
       required:
@@ -125,9 +124,7 @@ allOf:
     then:
       properties:
         power-domains:
-          items:
-            - description: Power domain A
-            - description: Power domain B
+          minItems: 2
         power-domain-names:
           minItems: 2
       required:
