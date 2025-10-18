@@ -2005,7 +2005,9 @@ static int trace__symbols_init(struct trace *trace, int argc, const char **argv,
 
 	err = __machine__synthesize_threads(trace->host, &trace->tool, &trace->opts.target,
 					    evlist->core.threads, trace__tool_process,
-					    true, false, 1);
+					    /*needs_mmap=*/callchain_param.enabled,
+					    /*mmap_data=*/false,
+					    /*nr_threads_synthesize=*/1);
 out:
 	if (err) {
 		perf_env__exit(&trace->host_env);
