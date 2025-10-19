@@ -274,6 +274,7 @@ static void devinfo_pci_ids_config(struct kunit *test)
 		if (s->device == PCI_ANY_ID || s->subdevice == PCI_ANY_ID)
 			continue;
 
+#if IS_ENABLED(CONFIG_IWLMVM) || IS_ENABLED(CONFIG_IWLMLD)
 		/*
 		 * The check below only works for old (pre-CNVI) devices. Most
 		 * new have subdevice==ANY, so are already skipped, but for some
@@ -281,6 +282,7 @@ static void devinfo_pci_ids_config(struct kunit *test)
 		 */
 		if (s->driver_data == (kernel_ulong_t)&iwl_bz_mac_cfg)
 			continue;
+#endif
 
 		di = iwl_pci_find_dev_info(s->device, s->subdevice,
 					   0, 0, 0, 0, true);
