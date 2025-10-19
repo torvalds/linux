@@ -571,8 +571,12 @@ void iwl_mld_handle_missed_beacon_notif(struct iwl_mld *mld,
 		/* Not in EMLSR and we can't hear the link.
 		 * Try to switch to a better link. EMLSR case is handled below.
 		 */
-		if (!iwl_mld_emlsr_active(vif))
+		if (!iwl_mld_emlsr_active(vif)) {
+			IWL_DEBUG_EHT(mld,
+				      "missed beacons exceeds threshold. link_id=%u. Try to switch to a better link.\n",
+				      link_id);
 			iwl_mld_int_mlo_scan(mld, vif);
+		}
 	}
 
 	/* no more logic if we're not in EMLSR */
@@ -591,7 +595,8 @@ void iwl_mld_handle_missed_beacon_notif(struct iwl_mld *mld,
 		return;
 
 	IWL_DEBUG_EHT(mld,
-		      "missed bcn on the other link (link_id=%u): %u\n",
+		      "missed bcn link_id=%u: %u consecutive=%u, other link_id=%u: %u\n",
+		      link_id, missed_bcon, missed_bcon_since_rx,
 		      other_link->link_id, scnd_lnk_bcn_lost);
 
 	/* Exit EMLSR if we lost more than

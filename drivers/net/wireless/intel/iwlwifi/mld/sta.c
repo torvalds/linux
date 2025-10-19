@@ -890,7 +890,7 @@ static void iwl_mld_count_mpdu(struct ieee80211_link_sta *link_sta, int queue,
 		       sizeof(queue_counter->per_link));
 		queue_counter->window_start_time = jiffies;
 
-		IWL_DEBUG_INFO(mld, "MPDU counters are cleared\n");
+		IWL_DEBUG_EHT(mld, "MPDU counters are cleared\n");
 	}
 
 	link_counter = &queue_counter->per_link[mld_link->fw_id];
