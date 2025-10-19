@@ -2941,6 +2941,8 @@ int smu_get_power_limit(void *handle,
 	if (limit_type != SMU_DEFAULT_PPT_LIMIT) {
 		if (smu->ppt_funcs->get_ppt_limit)
 			ret = smu->ppt_funcs->get_ppt_limit(smu, limit, limit_type, limit_level);
+		else
+			return -EOPNOTSUPP;
 	} else {
 		switch (limit_level) {
 		case SMU_PPT_LIMIT_CURRENT:
