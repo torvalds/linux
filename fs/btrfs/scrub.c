@@ -2069,6 +2069,44 @@ static int queue_scrub_stripe(struct scrub_ctx *sctx, struct btrfs_block_group *
 	return 0;
 }
 
+/*
+ * Return 0 if we should not cancel the scrub.
+ * Return <0 if we need to cancel the scrub, returned value will
+ * indicate the reason:
+ * - -ECANCELED - Being explicitly canceled through ioctl.
+ * - -EINTR     - Being interrupted by fs/process freezing.
+ */
+static int should_cancel_scrub(const struct scrub_ctx *sctx)
+{
+	struct btrfs_fs_info *fs_info = sctx->fs_info;
+
+	if (atomic_read(&fs_info->scrub_cancel_req) ||
+	    atomic_read(&sctx->cancel_req))
+		return -ECANCELED;
+
+	/*
+	 * The user (e.g. fsfreeze command) or power management (PM)
+	 * suspend/hibernate can freeze the fs.  And PM suspend/hibernate will
+	 * also freeze all user processes.
+	 *
+	 * A user process can only be frozen when it is in user space, thus we
+	 * have to cancel the run so that the process can return to the user
+	 * space.
+	 *
+	 * Furthermore we have to check both filesystem and process freezing,
+	 * as PM can be configured to freeze the filesystems before processes.
+	 *
+	 * If we only check fs freezing, then suspend without fs freezing
+	 * will timeout, as the process is still in kernel space.
+	 *
+	 * If we only check process freezing, then suspend with fs freezing
+	 * will timeout, as the running scrub will prevent the fs from being frozen.
+	 */
+	if (fs_info->sb->s_writers.frozen > SB_UNFROZEN || freezing(current))
+		return -EINTR;
+	return 0;
+}
+
 static int scrub_raid56_parity_stripe(struct scrub_ctx *sctx,
 				      struct btrfs_device *scrub_dev,
 				      struct btrfs_block_group *bg,
@@ -2091,9 +2129,9 @@ static int scrub_raid56_parity_stripe(struct scrub_ctx *sctx,
 
 	ASSERT(sctx->raid56_data_stripes);
 
-	if (atomic_read(&fs_info->scrub_cancel_req) ||
-	    atomic_read(&sctx->cancel_req))
-		return -ECANCELED;
+	ret = should_cancel_scrub(sctx);
+	if (ret < 0)
+		return ret;
 
 	if (atomic_read(&fs_info->scrub_pause_req))
 		scrub_blocked_if_needed(fs_info);
@@ -2277,11 +2315,9 @@ static int scrub_simple_mirror(struct scrub_ctx *sctx,
 		u64 found_logical = U64_MAX;
 		u64 cur_physical = physical + cur_logical - logical_start;
 
-		if (atomic_read(&fs_info->scrub_cancel_req) ||
-		    atomic_read(&sctx->cancel_req)) {
-			ret = -ECANCELED;
+		ret = should_cancel_scrub(sctx);
+		if (ret < 0)
 			break;
-		}
 
 		if (atomic_read(&fs_info->scrub_pause_req))
 			scrub_blocked_if_needed(fs_info);
