@@ -2107,6 +2107,12 @@ struct bpf_array {
 	};
 };
 
+/*
+ * The bpf_array_get_next_key() function may be used for all array-like
+ * maps, i.e., maps with u32 keys with range [0 ,..., max_entries)
+ */
+int bpf_array_get_next_key(struct bpf_map *map, void *key, void *next_key);
+
 #define BPF_COMPLEXITY_LIMIT_INSNS      1000000 /* yes. 1M insns */
 #define MAX_TAIL_CALL_CNT 33
 
