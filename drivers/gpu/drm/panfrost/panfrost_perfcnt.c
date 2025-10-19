@@ -130,9 +130,11 @@ static int panfrost_perfcnt_enable_locked(struct panfrost_device *pfdev,
 		goto err_vunmap;
 	}
 
-	perfcnt->user = user;
+	ret = panfrost_mmu_as_get(pfdev, perfcnt->mapping->mmu);
+	if (ret < 0)
+		goto err_vunmap;
 
-	as = panfrost_mmu_as_get(pfdev, perfcnt->mapping->mmu);
+	as = ret;
 	cfg = GPU_PERFCNT_CFG_AS(as) |
 	      GPU_PERFCNT_CFG_MODE(GPU_PERFCNT_CFG_MODE_MANUAL);
 
@@ -163,6 +165,8 @@ static int panfrost_perfcnt_enable_locked(struct panfrost_device *pfdev,
 
 	/* The BO ref is retained by the mapping. */
 	drm_gem_object_put(&bo->base);
+
+	perfcnt->user = user;
 
 	return 0;
 
