@@ -79,6 +79,12 @@ struct iwl_drv *iwl_drv_start(struct iwl_trans *trans);
 void iwl_drv_stop(struct iwl_drv *drv);
 
 /*
+ * iwl_drv_is_wifi7_supported - returns if wifi7 is supported
+ * If yes, iwlmld needs to be used to drive the device.
+ */
+bool iwl_drv_is_wifi7_supported(struct iwl_trans *trans);
+
+/*
  * exported symbol management
  *
  * The driver can be split into multiple modules, in which case some symbols

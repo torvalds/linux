@@ -177,7 +177,7 @@ static inline char iwl_drv_get_step(int step)
 	return 'a' + step;
 }
 
-static bool iwl_drv_is_wifi7_supported(struct iwl_trans *trans)
+bool iwl_drv_is_wifi7_supported(struct iwl_trans *trans)
 {
 	return trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_BZ &&
 	       CSR_HW_RFID_TYPE(trans->info.hw_rf_id) >= IWL_CFG_RF_TYPE_FM;
@@ -1859,13 +1859,6 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 #if IS_ENABLED(CONFIG_IWLMLD)
 	if (iwl_drv_is_wifi7_supported(drv->trans))
 		op = &iwlwifi_opmode_table[MLD_OP_MODE];
-#else
-	if (iwl_drv_is_wifi7_supported(drv->trans)) {
-		IWL_ERR(drv,
-			"IWLMLD needs to be compiled to support this firmware\n");
-		mutex_unlock(&iwlwifi_opmode_table_mtx);
-		goto out_unbind;
-	}
 #endif
 
 	IWL_INFO(drv, "loaded firmware version %s op_mode %s\n",
