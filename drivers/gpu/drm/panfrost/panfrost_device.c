@@ -259,7 +259,7 @@ int panfrost_device_init(struct panfrost_device *pfdev)
 	if (err)
 		goto out_gpu;
 
-	err = panfrost_job_init(pfdev);
+	err = panfrost_jm_init(pfdev);
 	if (err)
 		goto out_mmu;
 
@@ -269,7 +269,7 @@ int panfrost_device_init(struct panfrost_device *pfdev)
 
 	return 0;
 out_job:
-	panfrost_job_fini(pfdev);
+	panfrost_jm_fini(pfdev);
 out_mmu:
 	panfrost_mmu_fini(pfdev);
 out_gpu:
@@ -290,7 +290,7 @@ out_pm_domain:
 void panfrost_device_fini(struct panfrost_device *pfdev)
 {
 	panfrost_perfcnt_fini(pfdev);
-	panfrost_job_fini(pfdev);
+	panfrost_jm_fini(pfdev);
 	panfrost_mmu_fini(pfdev);
 	panfrost_gpu_fini(pfdev);
 	panfrost_devfreq_fini(pfdev);
@@ -407,9 +407,9 @@ void panfrost_device_reset(struct panfrost_device *pfdev, bool enable_job_int)
 	panfrost_gpu_power_on(pfdev);
 	panfrost_mmu_reset(pfdev);
 
-	panfrost_job_reset_interrupts(pfdev);
+	panfrost_jm_reset_interrupts(pfdev);
 	if (enable_job_int)
-		panfrost_job_enable_interrupts(pfdev);
+		panfrost_jm_enable_interrupts(pfdev);
 }
 
 static int panfrost_device_runtime_resume(struct device *dev)
@@ -451,11 +451,11 @@ static int panfrost_device_runtime_suspend(struct device *dev)
 {
 	struct panfrost_device *pfdev = dev_get_drvdata(dev);
 
-	if (!panfrost_job_is_idle(pfdev))
+	if (!panfrost_jm_is_idle(pfdev))
 		return -EBUSY;
 
 	panfrost_devfreq_suspend(pfdev);
-	panfrost_job_suspend_irq(pfdev);
+	panfrost_jm_suspend_irq(pfdev);
 	panfrost_mmu_suspend_irq(pfdev);
 	panfrost_gpu_suspend_irq(pfdev);
 	panfrost_gpu_power_off(pfdev);

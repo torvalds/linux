@@ -430,18 +430,18 @@ static struct dma_fence *panfrost_job_run(struct drm_sched_job *sched_job)
 	return fence;
 }
 
-void panfrost_job_reset_interrupts(struct panfrost_device *pfdev)
+void panfrost_jm_reset_interrupts(struct panfrost_device *pfdev)
 {
 	job_write(pfdev, JOB_INT_CLEAR, ALL_JS_INT_MASK);
 }
 
-void panfrost_job_enable_interrupts(struct panfrost_device *pfdev)
+void panfrost_jm_enable_interrupts(struct panfrost_device *pfdev)
 {
 	clear_bit(PANFROST_COMP_BIT_JOB, pfdev->is_suspended);
 	job_write(pfdev, JOB_INT_MASK, ALL_JS_INT_MASK);
 }
 
-void panfrost_job_suspend_irq(struct panfrost_device *pfdev)
+void panfrost_jm_suspend_irq(struct panfrost_device *pfdev)
 {
 	set_bit(PANFROST_COMP_BIT_JOB, pfdev->is_suspended);
 
@@ -503,8 +503,8 @@ static void panfrost_job_handle_err(struct panfrost_device *pfdev,
 	}
 }
 
-static void panfrost_job_handle_done(struct panfrost_device *pfdev,
-				     struct panfrost_job *job)
+static void panfrost_jm_handle_done(struct panfrost_device *pfdev,
+				    struct panfrost_job *job)
 {
 	/* Set ->jc to 0 to avoid re-submitting an already finished job (can
 	 * happen when we receive the DONE interrupt while doing a GPU reset).
@@ -517,7 +517,7 @@ static void panfrost_job_handle_done(struct panfrost_device *pfdev,
 	pm_runtime_put_autosuspend(pfdev->base.dev);
 }
 
-static void panfrost_job_handle_irq(struct panfrost_device *pfdev, u32 status)
+static void panfrost_jm_handle_irq(struct panfrost_device *pfdev, u32 status)
 {
 	struct panfrost_job *done[NUM_JOB_SLOTS][2] = {};
 	struct panfrost_job *failed[NUM_JOB_SLOTS] = {};
@@ -592,7 +592,7 @@ static void panfrost_job_handle_irq(struct panfrost_device *pfdev, u32 status)
 		}
 
 		for (i = 0; i < ARRAY_SIZE(done[0]) && done[j][i]; i++)
-			panfrost_job_handle_done(pfdev, done[j][i]);
+			panfrost_jm_handle_done(pfdev, done[j][i]);
 	}
 
 	/* And finally we requeue jobs that were waiting in the second slot
@@ -610,7 +610,7 @@ static void panfrost_job_handle_irq(struct panfrost_device *pfdev, u32 status)
 			struct panfrost_job *canceled = panfrost_dequeue_job(pfdev, j);
 
 			dma_fence_set_error(canceled->done_fence, -ECANCELED);
-			panfrost_job_handle_done(pfdev, canceled);
+			panfrost_jm_handle_done(pfdev, canceled);
 		} else if (!atomic_read(&pfdev->reset.pending)) {
 			/* Requeue the job we removed if no reset is pending */
 			job_write(pfdev, JS_COMMAND_NEXT(j), JS_COMMAND_START);
@@ -618,7 +618,7 @@ static void panfrost_job_handle_irq(struct panfrost_device *pfdev, u32 status)
 	}
 }
 
-static void panfrost_job_handle_irqs(struct panfrost_device *pfdev)
+static void panfrost_jm_handle_irqs(struct panfrost_device *pfdev)
 {
 	u32 status = job_read(pfdev, JOB_INT_RAWSTAT);
 
@@ -626,7 +626,7 @@ static void panfrost_job_handle_irqs(struct panfrost_device *pfdev)
 		pm_runtime_mark_last_busy(pfdev->base.dev);
 
 		spin_lock(&pfdev->js->job_lock);
-		panfrost_job_handle_irq(pfdev, status);
+		panfrost_jm_handle_irq(pfdev, status);
 		spin_unlock(&pfdev->js->job_lock);
 		status = job_read(pfdev, JOB_INT_RAWSTAT);
 	}
@@ -707,7 +707,7 @@ panfrost_reset(struct panfrost_device *pfdev,
 		dev_err(pfdev->base.dev, "Soft-stop failed\n");
 
 	/* Handle the remaining interrupts before we reset. */
-	panfrost_job_handle_irqs(pfdev);
+	panfrost_jm_handle_irqs(pfdev);
 
 	/* Remaining interrupts have been handled, but we might still have
 	 * stuck jobs. Let's make sure the PM counters stay balanced by
@@ -752,7 +752,7 @@ panfrost_reset(struct panfrost_device *pfdev,
 		drm_sched_start(&pfdev->js->queue[i].sched, 0);
 
 	/* Re-enable job interrupts now that everything has been restarted. */
-	panfrost_job_enable_interrupts(pfdev);
+	panfrost_jm_enable_interrupts(pfdev);
 
 	dma_fence_end_signalling(cookie);
 }
@@ -817,11 +817,11 @@ static const struct drm_sched_backend_ops panfrost_sched_ops = {
 	.free_job = panfrost_job_free
 };
 
-static irqreturn_t panfrost_job_irq_handler_thread(int irq, void *data)
+static irqreturn_t panfrost_jm_irq_handler_thread(int irq, void *data)
 {
 	struct panfrost_device *pfdev = data;
 
-	panfrost_job_handle_irqs(pfdev);
+	panfrost_jm_handle_irqs(pfdev);
 
 	/* Enable interrupts only if we're not about to get suspended */
 	if (!test_bit(PANFROST_COMP_BIT_JOB, pfdev->is_suspended))
@@ -830,7 +830,7 @@ static irqreturn_t panfrost_job_irq_handler_thread(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t panfrost_job_irq_handler(int irq, void *data)
+static irqreturn_t panfrost_jm_irq_handler(int irq, void *data)
 {
 	struct panfrost_device *pfdev = data;
 	u32 status;
@@ -846,7 +846,7 @@ static irqreturn_t panfrost_job_irq_handler(int irq, void *data)
 	return IRQ_WAKE_THREAD;
 }
 
-int panfrost_job_init(struct panfrost_device *pfdev)
+int panfrost_jm_init(struct panfrost_device *pfdev)
 {
 	struct drm_sched_init_args args = {
 		.ops = &panfrost_sched_ops,
@@ -880,8 +880,8 @@ int panfrost_job_init(struct panfrost_device *pfdev)
 		return js->irq;
 
 	ret = devm_request_threaded_irq(pfdev->base.dev, js->irq,
-					panfrost_job_irq_handler,
-					panfrost_job_irq_handler_thread,
+					panfrost_jm_irq_handler,
+					panfrost_jm_irq_handler_thread,
 					IRQF_SHARED, KBUILD_MODNAME "-job",
 					pfdev);
 	if (ret) {
@@ -905,8 +905,8 @@ int panfrost_job_init(struct panfrost_device *pfdev)
 		}
 	}
 
-	panfrost_job_reset_interrupts(pfdev);
-	panfrost_job_enable_interrupts(pfdev);
+	panfrost_jm_reset_interrupts(pfdev);
+	panfrost_jm_enable_interrupts(pfdev);
 
 	return 0;
 
@@ -918,7 +918,7 @@ err_sched:
 	return ret;
 }
 
-void panfrost_job_fini(struct panfrost_device *pfdev)
+void panfrost_jm_fini(struct panfrost_device *pfdev)
 {
 	struct panfrost_job_slot *js = pfdev->js;
 	int j;
@@ -933,7 +933,7 @@ void panfrost_job_fini(struct panfrost_device *pfdev)
 	destroy_workqueue(pfdev->reset.wq);
 }
 
-int panfrost_job_open(struct drm_file *file)
+int panfrost_jm_open(struct drm_file *file)
 {
 	struct panfrost_file_priv *panfrost_priv = file->driver_priv;
 	int ret;
@@ -955,7 +955,7 @@ int panfrost_job_open(struct drm_file *file)
 	return 0;
 }
 
-void panfrost_job_close(struct drm_file *file)
+void panfrost_jm_close(struct drm_file *file)
 {
 	struct panfrost_file_priv *panfrost_priv = file->driver_priv;
 	struct panfrost_jm_ctx *jm_ctx;
@@ -967,7 +967,7 @@ void panfrost_job_close(struct drm_file *file)
 	xa_destroy(&panfrost_priv->jm_ctxs);
 }
 
-int panfrost_job_is_idle(struct panfrost_device *pfdev)
+int panfrost_jm_is_idle(struct panfrost_device *pfdev)
 {
 	struct panfrost_job_slot *js = pfdev->js;
 	int i;
