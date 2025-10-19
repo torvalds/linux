@@ -118,7 +118,11 @@
  * @monitor.cur_bssid: current bssid tracked by the sniffer
  * @monitor.ptp_time: set the Rx mactime using the device's PTP clock time
  * @monitor.p80: primary channel position relative to he whole bandwidth, in
- * steps of 80 MHz
+ *	steps of 80 MHz
+ * @monitor.phy: PHY data information
+ * @monitor.phy.data: PHY data (&struct iwl_rx_phy_air_sniffer_ntfy) received
+ * @monitor.phy.valid: PHY data is valid (was received)
+ * @monitor.phy.used: PHY data was used by an RX
  * @fw_id_to_link_sta: maps a fw id of a sta to the corresponding
  *	ieee80211_link_sta. This is not cleaned up on restart since we want to
  *	preserve the fw sta ids during a restart (for SN/PN restoring).
@@ -209,6 +213,10 @@ struct iwl_mld {
 			u32 ampdu_ref;
 			bool ampdu_toggle;
 			u8 p80;
+			struct {
+				struct iwl_rx_phy_air_sniffer_ntfy data;
+				u8 valid:1, used:1;
+			} phy;
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 			__le16 cur_aid;
 			u8 cur_bssid[ETH_ALEN];

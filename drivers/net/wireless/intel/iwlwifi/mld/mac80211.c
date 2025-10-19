@@ -397,11 +397,9 @@ static int iwl_mld_hw_verify_preconditions(struct iwl_mld *mld)
 					 TLC_MNG_UPDATE_NOTIF, 0) >= 4) +
 		(iwl_fw_lookup_notif_ver(mld->fw, LEGACY_GROUP,
 					 REPLY_RX_MPDU_CMD, 0) >= 6) +
-		(iwl_fw_lookup_notif_ver(mld->fw, DATA_PATH_GROUP,
-					 RX_NO_DATA_NOTIF, 0) >= 4) +
 		(iwl_fw_lookup_notif_ver(mld->fw, LONG_GROUP, TX_CMD, 0) >= 9);
 
-	if (ratecheck != 0 && ratecheck != 5) {
+	if (ratecheck != 0 && ratecheck != 4) {
 		IWL_ERR(mld, "Firmware has inconsistent rates\n");
 		return -EINVAL;
 	}
@@ -684,6 +682,8 @@ void iwl_mld_mac80211_remove_interface(struct ieee80211_hw *hw,
 #endif
 
 	iwl_mld_rm_vif(mld, vif);
+
+	mld->monitor.phy.valid = false;
 }
 
 struct iwl_mld_mc_iter_data {

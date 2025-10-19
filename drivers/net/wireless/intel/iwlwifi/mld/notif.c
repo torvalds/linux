@@ -589,8 +589,8 @@ void iwl_mld_rx(struct iwl_op_mode *op_mode, struct napi_struct *napi,
 	else if (unlikely(cmd_id == WIDE_ID(DATA_PATH_GROUP,
 					    RX_QUEUES_NOTIFICATION)))
 		iwl_mld_handle_rx_queues_sync_notif(mld, napi, pkt, 0);
-	else if (cmd_id == WIDE_ID(DATA_PATH_GROUP, RX_NO_DATA_NOTIF))
-		iwl_mld_rx_monitor_no_data(mld, napi, pkt, 0);
+	else if (cmd_id == WIDE_ID(DATA_PATH_GROUP, PHY_AIR_SNIFFER_NOTIF))
+		iwl_mld_handle_phy_air_sniffer_notif(mld, napi, pkt);
 	else
 		iwl_mld_rx_notif(mld, rxb, pkt);
 }
