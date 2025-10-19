@@ -2074,7 +2074,7 @@ static int queue_scrub_stripe(struct scrub_ctx *sctx, struct btrfs_block_group *
  * Return <0 if we need to cancel the scrub, returned value will
  * indicate the reason:
  * - -ECANCELED - Being explicitly canceled through ioctl.
- * - -EINTR     - Being interrupted by fs/process freezing.
+ * - -EINTR     - Being interrupted by signal or fs/process freezing.
  */
 static int should_cancel_scrub(const struct scrub_ctx *sctx)
 {
@@ -2102,7 +2102,8 @@ static int should_cancel_scrub(const struct scrub_ctx *sctx)
 	 * If we only check process freezing, then suspend with fs freezing
 	 * will timeout, as the running scrub will prevent the fs from being frozen.
 	 */
-	if (fs_info->sb->s_writers.frozen > SB_UNFROZEN || freezing(current))
+	if (fs_info->sb->s_writers.frozen > SB_UNFROZEN ||
+	    freezing(current) || signal_pending(current))
 		return -EINTR;
 	return 0;
 }
