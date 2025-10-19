@@ -2508,6 +2508,16 @@ static void ieee80211_csa_switch_work(struct wiphy *wiphy,
 
 	link->u.mgd.csa.waiting_bcn = true;
 
+	/*
+	 * The next beacon really should always be different, so this should
+	 * have no effect whatsoever. However, some APs (we observed this in
+	 * an Asus AXE11000), the beacon after the CSA might be identical to
+	 * the last beacon on the old channel - in this case we'd ignore it.
+	 * Resetting the CRC will lead us to handle it better (albeit with a
+	 * disconnect, but clearly the AP is broken.)
+	 */
+	link->u.mgd.beacon_crc_valid = false;
+
 	/* apply new TPE restrictions immediately on the new channel */
 	if (link->u.mgd.csa.ap_chandef.chan->band == NL80211_BAND_6GHZ &&
 	    link->u.mgd.conn.mode >= IEEE80211_CONN_MODE_HE) {
