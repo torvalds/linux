@@ -189,7 +189,7 @@ typedef enum {
   SVI_MAX_TEMP_ENTRIES,   // 13
 } SVI_TEMP_e;
 
-#define SMU_METRICS_TABLE_VERSION 0x14
+#define SMU_METRICS_TABLE_VERSION 0x15
 
 #define SMU_SYSTEM_METRICS_TABLE_VERSION 0x1
 
@@ -367,6 +367,11 @@ typedef struct {
 
   //Node Power Limit
   uint32_t MaxNodePowerLimit;
+
+  // PPT1 Configuration
+  uint32_t PPT1Max;
+  uint32_t PPT1Min;
+  uint32_t PPT1Default;
 } StaticMetricsTable_t;
 #pragma pack(pop)
 

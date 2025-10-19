@@ -117,7 +117,9 @@
 #define PPSMC_MSG_GetSystemMetricsTable             0x5C
 #define PPSMC_MSG_GetSystemMetricsVersion           0x5D
 #define PPSMC_MSG_ResetVCN                          0x5E
-#define PPSMC_Message_Count                         0x5F
+#define PPSMC_MSG_SetFastPptLimit                   0x5F
+#define PPSMC_MSG_GetFastPptLimit                   0x60
+#define PPSMC_Message_Count                         0x61
 
 //PPSMC Reset Types for driver msg argument
 #define PPSMC_RESET_TYPE_DRIVER_MODE_1_RESET        0x1
