@@ -465,10 +465,13 @@ int iwl_mld_add_link(struct iwl_mld *mld,
 	int ret;
 
 	if (!link) {
-		if (is_deflink)
+		if (is_deflink) {
 			link = &mld_vif->deflink;
-		else
+		} else {
 			link = kzalloc(sizeof(*link), GFP_KERNEL);
+			if (!link)
+				return -ENOMEM;
+		}
 	} else {
 		WARN_ON(!mld->fw_status.in_hw_restart);
 	}
