@@ -17805,6 +17805,22 @@ static int mark_fastcall_patterns(struct bpf_verifier_env *env)
 	return 0;
 }
 
+static struct bpf_iarray *iarray_realloc(struct bpf_iarray *old, size_t n_elem)
+{
+	size_t new_size = sizeof(struct bpf_iarray) + n_elem * sizeof(old->items[0]);
+	struct bpf_iarray *new;
+
+	new = kvrealloc(old, new_size, GFP_KERNEL_ACCOUNT);
+	if (!new) {
+		/* this is what callers always want, so simplify the call site */
+		kvfree(old);
+		return NULL;
+	}
+
+	new->cnt = n_elem;
+	return new;
+}
+
 /* Visits the instruction at index t and returns one of the following:
  *  < 0 - an error occurred
  *  DONE_EXPLORING - the instruction was fully explored
@@ -18025,8 +18041,9 @@ err_free:
  */
 static int compute_postorder(struct bpf_verifier_env *env)
 {
-	u32 cur_postorder, i, top, stack_sz, s, succ_cnt, succ[2];
+	u32 cur_postorder, i, top, stack_sz, s;
 	int *stack = NULL, *postorder = NULL, *state = NULL;
+	struct bpf_iarray *succ;
 
 	postorder = kvcalloc(env->prog->len, sizeof(int), GFP_KERNEL_ACCOUNT);
 	state = kvcalloc(env->prog->len, sizeof(int), GFP_KERNEL_ACCOUNT);
@@ -18050,11 +18067,11 @@ static int compute_postorder(struct bpf_verifier_env *env)
 				stack_sz--;
 				continue;
 			}
-			succ_cnt = bpf_insn_successors(env->prog, top, succ);
-			for (s = 0; s < succ_cnt; ++s) {
-				if (!state[succ[s]]) {
-					stack[stack_sz++] = succ[s];
-					state[succ[s]] |= DISCOVERED;
+			succ = bpf_insn_successors(env, top);
+			for (s = 0; s < succ->cnt; ++s) {
+				if (!state[succ->items[s]]) {
+					stack[stack_sz++] = succ->items[s];
+					state[succ->items[s]] |= DISCOVERED;
 				}
 			}
 			state[top] |= EXPLORED;
@@ -24313,14 +24330,13 @@ static int compute_live_registers(struct bpf_verifier_env *env)
 		for (i = 0; i < env->cfg.cur_postorder; ++i) {
 			int insn_idx = env->cfg.insn_postorder[i];
 			struct insn_live_regs *live = &state[insn_idx];
-			int succ_num;
-			u32 succ[2];
+			struct bpf_iarray *succ;
 			u16 new_out = 0;
 			u16 new_in = 0;
 
-			succ_num = bpf_insn_successors(env->prog, insn_idx, succ);
-			for (int s = 0; s < succ_num; ++s)
-				new_out |= state[succ[s]].in;
+			succ = bpf_insn_successors(env, insn_idx);
+			for (int s = 0; s < succ->cnt; ++s)
+				new_out |= state[succ->items[s]].in;
 			new_in = (new_out & ~live->def) | live->use;
 			if (new_out != live->out || new_in != live->in) {
 				live->in = new_in;
@@ -24373,11 +24389,11 @@ static int compute_scc(struct bpf_verifier_env *env)
 	const u32 insn_cnt = env->prog->len;
 	int stack_sz, dfs_sz, err = 0;
 	u32 *stack, *pre, *low, *dfs;
-	u32 succ_cnt, i, j, t, w;
+	u32 i, j, t, w;
 	u32 next_preorder_num;
 	u32 next_scc_id;
 	bool assign_scc;
-	u32 succ[2];
+	struct bpf_iarray *succ;
 
 	next_preorder_num = 1;
 	next_scc_id = 1;
@@ -24484,12 +24500,12 @@ dfs_continue:
 				stack[stack_sz++] = w;
 			}
 			/* Visit 'w' successors */
-			succ_cnt = bpf_insn_successors(env->prog, w, succ);
-			for (j = 0; j < succ_cnt; ++j) {
-				if (pre[succ[j]]) {
-					low[w] = min(low[w], low[succ[j]]);
+			succ = bpf_insn_successors(env, w);
+			for (j = 0; j < succ->cnt; ++j) {
+				if (pre[succ->items[j]]) {
+					low[w] = min(low[w], low[succ->items[j]]);
 				} else {
-					dfs[dfs_sz++] = succ[j];
+					dfs[dfs_sz++] = succ->items[j];
 					goto dfs_continue;
 				}
 			}
@@ -24506,8 +24522,8 @@ dfs_continue:
 			 * or if component has a self reference.
 			 */
 			assign_scc = stack[stack_sz - 1] != w;
-			for (j = 0; j < succ_cnt; ++j) {
-				if (succ[j] == w) {
+			for (j = 0; j < succ->cnt; ++j) {
+				if (succ->items[j] == w) {
 					assign_scc = true;
 					break;
 				}
@@ -24569,6 +24585,9 @@ int bpf_check(struct bpf_prog **prog, union bpf_attr *attr, bpfptr_t uattr, __u3
 		goto err_free_env;
 	for (i = 0; i < len; i++)
 		env->insn_aux_data[i].orig_idx = i;
+	env->succ = iarray_realloc(NULL, 2);
+	if (!env->succ)
+		goto err_free_env;
 	env->prog = *prog;
 	env->ops = bpf_verifier_ops[env->prog->type];
 
@@ -24817,6 +24836,7 @@ err_free_env:
 	bpf_stack_liveness_free(env);
 	kvfree(env->cfg.insn_postorder);
 	kvfree(env->scc_info);
+	kvfree(env->succ);
 	kvfree(env);
 	return ret;
 }
