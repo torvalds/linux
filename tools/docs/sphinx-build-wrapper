@@ -298,8 +298,8 @@ class SphinxBuilder:
 
             cmd += [sphinx_build]
             cmd += [f"-j{n_jobs}"]
-            cmd += self.sphinxopts
             cmd += build_args
+            cmd += self.sphinxopts
 
             if self.verbose:
                 print(" ".join(cmd))
