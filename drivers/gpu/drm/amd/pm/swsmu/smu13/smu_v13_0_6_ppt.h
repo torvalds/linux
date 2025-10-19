@@ -50,6 +50,9 @@ struct PPTable_t {
 	uint32_t MinLclkDpmRange;
 	uint64_t PublicSerialNumber_AID;
 	uint32_t MaxNodePowerLimit;
+	uint32_t PPT1Max;
+	uint32_t PPT1Min;
+	uint32_t PPT1Default;
 	bool Init;
 };
 
@@ -73,6 +76,7 @@ enum smu_v13_0_6_caps {
 	SMU_CAP(TEMP_METRICS),
 	SMU_CAP(NPM_METRICS),
 	SMU_CAP(RAS_EEPROM),
+	SMU_CAP(FAST_PPT),
 	SMU_CAP(ALL),
 };
 
