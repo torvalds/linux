@@ -221,3 +221,8 @@ void vcpu_arch_dump(FILE *stream, struct kvm_vcpu *vcpu, uint8_t indent)
 void assert_on_unhandled_exception(struct kvm_vcpu *vcpu)
 {
 }
+
+bool kvm_arch_has_default_irqchip(void)
+{
+	return true;
+}

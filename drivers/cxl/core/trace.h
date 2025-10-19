@@ -1068,7 +1068,7 @@ TRACE_EVENT(cxl_poison,
 			__entry->hpa = cxl_dpa_to_hpa(cxlr, cxlmd,
 						      __entry->dpa);
 			if (__entry->hpa != ULLONG_MAX && cxlr->params.cache_size)
-				__entry->hpa_alias0 = __entry->hpa +
+				__entry->hpa_alias0 = __entry->hpa -
 						      cxlr->params.cache_size;
 			else
 				__entry->hpa_alias0 = ULLONG_MAX;

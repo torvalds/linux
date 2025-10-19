@@ -13941,10 +13941,11 @@ bool kvm_arch_no_poll(struct kvm_vcpu *vcpu)
 
 #ifdef CONFIG_KVM_GUEST_MEMFD
 /*
- * KVM doesn't yet support mmap() on guest_memfd for VMs with private memory
- * (the private vs. shared tracking needs to be moved into guest_memfd).
+ * KVM doesn't yet support initializing guest_memfd memory as shared for VMs
+ * with private memory (the private vs. shared tracking needs to be moved into
+ * guest_memfd).
  */
-bool kvm_arch_supports_gmem_mmap(struct kvm *kvm)
+bool kvm_arch_supports_gmem_init_shared(struct kvm *kvm)
 {
 	return !kvm_arch_has_private_mem(kvm);
 }

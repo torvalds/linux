@@ -257,4 +257,10 @@ int kvm_finalize_sys_regs(struct kvm_vcpu *vcpu);
 	(val);								       \
 })
 
+#define TO_ARM64_SYS_REG(r)	ARM64_SYS_REG(sys_reg_Op0(SYS_ ## r),	\
+					      sys_reg_Op1(SYS_ ## r),	\
+					      sys_reg_CRn(SYS_ ## r),	\
+					      sys_reg_CRm(SYS_ ## r),	\
+					      sys_reg_Op2(SYS_ ## r))
+
 #endif /* __ARM64_KVM_SYS_REGS_LOCAL_H__ */
