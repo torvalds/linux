@@ -124,9 +124,7 @@ struct panfrost_device_debugfs {
 };
 
 struct panfrost_device {
-	struct device *dev;
-	struct drm_device *ddev;
-	struct platform_device *pdev;
+	struct drm_device base;
 	int gpu_irq;
 	int mmu_irq;
 
@@ -222,7 +220,7 @@ static inline bool panfrost_high_prio_allowed(struct drm_file *file)
 
 static inline struct panfrost_device *to_panfrost_device(struct drm_device *ddev)
 {
-	return ddev->dev_private;
+	return container_of(ddev, struct panfrost_device, base);
 }
 
 static inline int panfrost_model_cmp(struct panfrost_device *pfdev, s32 id)
