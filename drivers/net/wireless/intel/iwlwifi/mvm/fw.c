@@ -214,17 +214,8 @@ static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 							~FW_ADDR_CACHE_CONTROL;
 
 	if (umac_error_table) {
-		if (umac_error_table >=
-		    mvm->trans->mac_cfg->base->min_umac_error_event_table) {
-			iwl_fw_umac_set_alive_err_table(mvm->trans,
-							umac_error_table);
-		} else {
-			IWL_ERR(mvm,
-				"Not valid error log pointer 0x%08X for %s uCode\n",
-				umac_error_table,
-				(mvm->fwrt.cur_fw_img == IWL_UCODE_INIT) ?
-				"Init" : "RT");
-		}
+		iwl_fw_umac_set_alive_err_table(mvm->trans,
+						umac_error_table);
 	}
 
 	alive_data->valid = status == IWL_ALIVE_STATUS_OK;
