@@ -1239,11 +1239,10 @@ static int mtk_iommu_mm_dts_parse(struct device *dev, struct component_match **m
 	return 0;
 
 err_larbdev_put:
-	for (i = MTK_LARB_NR_MAX - 1; i >= 0; i--) {
-		if (!data->larb_imu[i].dev)
-			continue;
+	/* id mapping may not be linear, loop the whole array */
+	for (i = 0; i < MTK_LARB_NR_MAX; i++)
 		put_device(data->larb_imu[i].dev);
-	}
+
 	return ret;
 }
 
