@@ -1575,12 +1575,12 @@ void smbd_destroy(struct TCP_Server_Info *server)
 	disable_work_sync(&sc->disconnect_work);
 
 	log_rdma_event(INFO, "destroying rdma session\n");
-	if (sc->status < SMBDIRECT_SOCKET_DISCONNECTING) {
+	if (sc->status < SMBDIRECT_SOCKET_DISCONNECTING)
 		smbd_disconnect_rdma_work(&sc->disconnect_work);
+	if (sc->status < SMBDIRECT_SOCKET_DISCONNECTED) {
 		log_rdma_event(INFO, "wait for transport being disconnected\n");
-		wait_event_interruptible(
-			sc->status_wait,
-			sc->status == SMBDIRECT_SOCKET_DISCONNECTED);
+		wait_event(sc->status_wait, sc->status == SMBDIRECT_SOCKET_DISCONNECTED);
+		log_rdma_event(INFO, "waited for transport being disconnected\n");
 	}
 
 	/*
@@ -1624,19 +1624,7 @@ void smbd_destroy(struct TCP_Server_Info *server)
 	log_rdma_event(INFO, "free receive buffers\n");
 	destroy_receive_buffers(sc);
 
-	/*
-	 * For performance reasons, memory registration and deregistration
-	 * are not locked by srv_mutex. It is possible some processes are
-	 * blocked on transport srv_mutex while holding memory registration.
-	 * Release the transport srv_mutex to allow them to hit the failure
-	 * path when sending data, and then release memory registrations.
-	 */
 	log_rdma_event(INFO, "freeing mr list\n");
-	while (atomic_read(&sc->mr_io.used.count)) {
-		cifs_server_unlock(server);
-		msleep(1000);
-		cifs_server_lock(server);
-	}
 	destroy_mr_list(sc);
 
 	ib_free_cq(sc->ib.send_cq);
@@ -2352,18 +2340,84 @@ static void smbd_mr_recovery_work(struct work_struct *work)
 	}
 }
 
+static void smbd_mr_disable_locked(struct smbdirect_mr_io *mr)
+{
+	struct smbdirect_socket *sc = mr->socket;
+
+	lockdep_assert_held(&mr->mutex);
+
+	if (mr->state == SMBDIRECT_MR_DISABLED)
+		return;
+
+	if (mr->mr)
+		ib_dereg_mr(mr->mr);
+	if (mr->sgt.nents)
+		ib_dma_unmap_sg(sc->ib.dev, mr->sgt.sgl, mr->sgt.nents, mr->dir);
+	kfree(mr->sgt.sgl);
+
+	mr->mr = NULL;
+	mr->sgt.sgl = NULL;
+	mr->sgt.nents = 0;
+
+	mr->state = SMBDIRECT_MR_DISABLED;
+}
+
+static void smbd_mr_free_locked(struct kref *kref)
+{
+	struct smbdirect_mr_io *mr =
+		container_of(kref, struct smbdirect_mr_io, kref);
+
+	lockdep_assert_held(&mr->mutex);
+
+	/*
+	 * smbd_mr_disable_locked() should already be called!
+	 */
+	if (WARN_ON_ONCE(mr->state != SMBDIRECT_MR_DISABLED))
+		smbd_mr_disable_locked(mr);
+
+	mutex_unlock(&mr->mutex);
+	mutex_destroy(&mr->mutex);
+	kfree(mr);
+}
+
 static void destroy_mr_list(struct smbdirect_socket *sc)
 {
 	struct smbdirect_mr_io *mr, *tmp;
+	LIST_HEAD(all_list);
+	unsigned long flags;
 
 	disable_work_sync(&sc->mr_io.recovery_work);
-	list_for_each_entry_safe(mr, tmp, &sc->mr_io.all.list, list) {
-		if (mr->state == SMBDIRECT_MR_INVALIDATED)
-			ib_dma_unmap_sg(sc->ib.dev, mr->sgt.sgl,
-				mr->sgt.nents, mr->dir);
-		ib_dereg_mr(mr->mr);
-		kfree(mr->sgt.sgl);
-		kfree(mr);
+
+	spin_lock_irqsave(&sc->mr_io.all.lock, flags);
+	list_splice_tail_init(&sc->mr_io.all.list, &all_list);
+	spin_unlock_irqrestore(&sc->mr_io.all.lock, flags);
+
+	list_for_each_entry_safe(mr, tmp, &all_list, list) {
+		mutex_lock(&mr->mutex);
+
+		smbd_mr_disable_locked(mr);
+		list_del(&mr->list);
+		mr->socket = NULL;
+
+		/*
+		 * No kref_put_mutex() as it's already locked.
+		 *
+		 * If smbd_mr_free_locked() is called
+		 * and the mutex is unlocked and mr is gone,
+		 * in that case kref_put() returned 1.
+		 *
+		 * If kref_put() returned 0 we know that
+		 * smbd_mr_free_locked() didn't
+		 * run. Not by us nor by anyone else, as we
+		 * still hold the mutex, so we need to unlock.
+		 *
+		 * If the mr is still registered it will
+		 * be dangling (detached from the connection
+		 * waiting for smbd_deregister_mr() to be
+		 * called in order to free the memory.
+		 */
+		if (!kref_put(&mr->kref, smbd_mr_free_locked))
+			mutex_unlock(&mr->mutex);
 	}
 }
 
@@ -2377,10 +2431,9 @@ static void destroy_mr_list(struct smbdirect_socket *sc)
 static int allocate_mr_list(struct smbdirect_socket *sc)
 {
 	struct smbdirect_socket_parameters *sp = &sc->parameters;
-	int i;
-	struct smbdirect_mr_io *smbdirect_mr, *tmp;
-
-	INIT_WORK(&sc->mr_io.recovery_work, smbd_mr_recovery_work);
+	struct smbdirect_mr_io *mr;
+	int ret;
+	u32 i;
 
 	if (sp->responder_resources == 0) {
 		log_rdma_mr(ERR, "responder_resources negotiated as 0\n");
@@ -2389,42 +2442,52 @@ static int allocate_mr_list(struct smbdirect_socket *sc)
 
 	/* Allocate more MRs (2x) than hardware responder_resources */
 	for (i = 0; i < sp->responder_resources * 2; i++) {
-		smbdirect_mr = kzalloc(sizeof(*smbdirect_mr), GFP_KERNEL);
-		if (!smbdirect_mr)
-			goto cleanup_entries;
-		smbdirect_mr->mr = ib_alloc_mr(sc->ib.pd, sc->mr_io.type,
-					sp->max_frmr_depth);
-		if (IS_ERR(smbdirect_mr->mr)) {
+		mr = kzalloc(sizeof(*mr), GFP_KERNEL);
+		if (!mr) {
+			ret = -ENOMEM;
+			goto kzalloc_mr_failed;
+		}
+
+		kref_init(&mr->kref);
+		mutex_init(&mr->mutex);
+
+		mr->mr = ib_alloc_mr(sc->ib.pd,
+				     sc->mr_io.type,
+				     sp->max_frmr_depth);
+		if (IS_ERR(mr->mr)) {
+			ret = PTR_ERR(mr->mr);
 			log_rdma_mr(ERR, "ib_alloc_mr failed mr_type=%x max_frmr_depth=%x\n",
 				    sc->mr_io.type, sp->max_frmr_depth);
-			goto out;
+			goto ib_alloc_mr_failed;
 		}
-		smbdirect_mr->sgt.sgl = kcalloc(sp->max_frmr_depth,
-						sizeof(struct scatterlist),
-						GFP_KERNEL);
-		if (!smbdirect_mr->sgt.sgl) {
-			log_rdma_mr(ERR, "failed to allocate sgl\n");
-			ib_dereg_mr(smbdirect_mr->mr);
-			goto out;
-		}
-		smbdirect_mr->state = SMBDIRECT_MR_READY;
-		smbdirect_mr->socket = sc;
 
-		list_add_tail(&smbdirect_mr->list, &sc->mr_io.all.list);
+		mr->sgt.sgl = kcalloc(sp->max_frmr_depth,
+				      sizeof(struct scatterlist),
+				      GFP_KERNEL);
+		if (!mr->sgt.sgl) {
+			ret = -ENOMEM;
+			log_rdma_mr(ERR, "failed to allocate sgl\n");
+			goto kcalloc_sgl_failed;
+		}
+		mr->state = SMBDIRECT_MR_READY;
+		mr->socket = sc;
+
+		list_add_tail(&mr->list, &sc->mr_io.all.list);
 		atomic_inc(&sc->mr_io.ready.count);
 	}
+
+	INIT_WORK(&sc->mr_io.recovery_work, smbd_mr_recovery_work);
+
 	return 0;
 
-out:
-	kfree(smbdirect_mr);
-cleanup_entries:
-	list_for_each_entry_safe(smbdirect_mr, tmp, &sc->mr_io.all.list, list) {
-		list_del(&smbdirect_mr->list);
-		ib_dereg_mr(smbdirect_mr->mr);
-		kfree(smbdirect_mr->sgt.sgl);
-		kfree(smbdirect_mr);
-	}
-	return -ENOMEM;
+kcalloc_sgl_failed:
+	ib_dereg_mr(mr->mr);
+ib_alloc_mr_failed:
+	mutex_destroy(&mr->mutex);
+	kfree(mr);
+kzalloc_mr_failed:
+	destroy_mr_list(sc);
+	return ret;
 }
 
 /*
@@ -2458,6 +2521,7 @@ again:
 	list_for_each_entry(ret, &sc->mr_io.all.list, list) {
 		if (ret->state == SMBDIRECT_MR_READY) {
 			ret->state = SMBDIRECT_MR_REGISTERED;
+			kref_get(&ret->kref);
 			spin_unlock_irqrestore(&sc->mr_io.all.lock, flags);
 			atomic_dec(&sc->mr_io.ready.count);
 			atomic_inc(&sc->mr_io.used.count);
@@ -2504,9 +2568,8 @@ struct smbdirect_mr_io *smbd_register_mr(struct smbd_connection *info,
 {
 	struct smbdirect_socket *sc = &info->socket;
 	struct smbdirect_socket_parameters *sp = &sc->parameters;
-	struct smbdirect_mr_io *smbdirect_mr;
+	struct smbdirect_mr_io *mr;
 	int rc, num_pages;
-	enum dma_data_direction dir;
 	struct ib_reg_wr *reg_wr;
 
 	num_pages = iov_iter_npages(iter, sp->max_frmr_depth + 1);
@@ -2517,49 +2580,47 @@ struct smbdirect_mr_io *smbd_register_mr(struct smbd_connection *info,
 		return NULL;
 	}
 
-	smbdirect_mr = get_mr(sc);
-	if (!smbdirect_mr) {
+	mr = get_mr(sc);
+	if (!mr) {
 		log_rdma_mr(ERR, "get_mr returning NULL\n");
 		return NULL;
 	}
 
-	dir = writing ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
-	smbdirect_mr->dir = dir;
-	smbdirect_mr->need_invalidate = need_invalidate;
-	smbdirect_mr->sgt.nents = 0;
-	smbdirect_mr->sgt.orig_nents = 0;
+	mutex_lock(&mr->mutex);
+
+	mr->dir = writing ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
+	mr->need_invalidate = need_invalidate;
+	mr->sgt.nents = 0;
+	mr->sgt.orig_nents = 0;
 
 	log_rdma_mr(INFO, "num_pages=0x%x count=0x%zx depth=%u\n",
 		    num_pages, iov_iter_count(iter), sp->max_frmr_depth);
-	smbd_iter_to_mr(iter, &smbdirect_mr->sgt, sp->max_frmr_depth);
+	smbd_iter_to_mr(iter, &mr->sgt, sp->max_frmr_depth);
 
-	rc = ib_dma_map_sg(sc->ib.dev, smbdirect_mr->sgt.sgl,
-			   smbdirect_mr->sgt.nents, dir);
+	rc = ib_dma_map_sg(sc->ib.dev, mr->sgt.sgl, mr->sgt.nents, mr->dir);
 	if (!rc) {
 		log_rdma_mr(ERR, "ib_dma_map_sg num_pages=%x dir=%x rc=%x\n",
-			num_pages, dir, rc);
+			    num_pages, mr->dir, rc);
 		goto dma_map_error;
 	}
 
-	rc = ib_map_mr_sg(smbdirect_mr->mr, smbdirect_mr->sgt.sgl,
-			  smbdirect_mr->sgt.nents, NULL, PAGE_SIZE);
-	if (rc != smbdirect_mr->sgt.nents) {
+	rc = ib_map_mr_sg(mr->mr, mr->sgt.sgl, mr->sgt.nents, NULL, PAGE_SIZE);
+	if (rc != mr->sgt.nents) {
 		log_rdma_mr(ERR,
-			"ib_map_mr_sg failed rc = %d nents = %x\n",
-			rc, smbdirect_mr->sgt.nents);
+			    "ib_map_mr_sg failed rc = %d nents = %x\n",
+			    rc, mr->sgt.nents);
 		goto map_mr_error;
 	}
 
-	ib_update_fast_reg_key(smbdirect_mr->mr,
-		ib_inc_rkey(smbdirect_mr->mr->rkey));
-	reg_wr = &smbdirect_mr->wr;
+	ib_update_fast_reg_key(mr->mr, ib_inc_rkey(mr->mr->rkey));
+	reg_wr = &mr->wr;
 	reg_wr->wr.opcode = IB_WR_REG_MR;
-	smbdirect_mr->cqe.done = register_mr_done;
-	reg_wr->wr.wr_cqe = &smbdirect_mr->cqe;
+	mr->cqe.done = register_mr_done;
+	reg_wr->wr.wr_cqe = &mr->cqe;
 	reg_wr->wr.num_sge = 0;
 	reg_wr->wr.send_flags = IB_SEND_SIGNALED;
-	reg_wr->mr = smbdirect_mr->mr;
-	reg_wr->key = smbdirect_mr->mr->rkey;
+	reg_wr->mr = mr->mr;
+	reg_wr->key = mr->mr->rkey;
 	reg_wr->access = writing ?
 			IB_ACCESS_REMOTE_WRITE | IB_ACCESS_LOCAL_WRITE :
 			IB_ACCESS_REMOTE_READ;
@@ -2570,23 +2631,50 @@ struct smbdirect_mr_io *smbd_register_mr(struct smbd_connection *info,
 	 * on the next ib_post_send when we actually send I/O to remote peer
 	 */
 	rc = ib_post_send(sc->ib.qp, &reg_wr->wr, NULL);
-	if (!rc)
-		return smbdirect_mr;
+	if (!rc) {
+		/*
+		 * get_mr() gave us a reference
+		 * via kref_get(&mr->kref), we keep that and let
+		 * the caller use smbd_deregister_mr()
+		 * to remove it again.
+		 */
+		mutex_unlock(&mr->mutex);
+		return mr;
+	}
 
 	log_rdma_mr(ERR, "ib_post_send failed rc=%x reg_wr->key=%x\n",
 		rc, reg_wr->key);
 
 	/* If all failed, attempt to recover this MR by setting it SMBDIRECT_MR_ERROR*/
 map_mr_error:
-	ib_dma_unmap_sg(sc->ib.dev, smbdirect_mr->sgt.sgl,
-			smbdirect_mr->sgt.nents, smbdirect_mr->dir);
+	ib_dma_unmap_sg(sc->ib.dev, mr->sgt.sgl, mr->sgt.nents, mr->dir);
 
 dma_map_error:
-	smbdirect_mr->state = SMBDIRECT_MR_ERROR;
+	mr->sgt.nents = 0;
+	mr->state = SMBDIRECT_MR_ERROR;
 	if (atomic_dec_and_test(&sc->mr_io.used.count))
 		wake_up(&sc->mr_io.cleanup.wait_queue);
 
 	smbd_disconnect_rdma_connection(sc);
+
+	/*
+	 * get_mr() gave us a reference
+	 * via kref_get(&mr->kref), we need to remove it again
+	 * on error.
+	 *
+	 * No kref_put_mutex() as it's already locked.
+	 *
+	 * If smbd_mr_free_locked() is called
+	 * and the mutex is unlocked and mr is gone,
+	 * in that case kref_put() returned 1.
+	 *
+	 * If kref_put() returned 0 we know that
+	 * smbd_mr_free_locked() didn't
+	 * run. Not by us nor by anyone else, as we
+	 * still hold the mutex, so we need to unlock.
+	 */
+	if (!kref_put(&mr->kref, smbd_mr_free_locked))
+		mutex_unlock(&mr->mutex);
 
 	return NULL;
 }
@@ -2612,44 +2700,55 @@ static void local_inv_done(struct ib_cq *cq, struct ib_wc *wc)
  * and we have to locally invalidate the buffer to prevent data is being
  * modified by remote peer after upper layer consumes it
  */
-int smbd_deregister_mr(struct smbdirect_mr_io *smbdirect_mr)
+void smbd_deregister_mr(struct smbdirect_mr_io *mr)
 {
-	struct ib_send_wr *wr;
-	struct smbdirect_socket *sc = smbdirect_mr->socket;
-	int rc = 0;
+	struct smbdirect_socket *sc = mr->socket;
 
-	if (smbdirect_mr->need_invalidate) {
+	mutex_lock(&mr->mutex);
+	if (mr->state == SMBDIRECT_MR_DISABLED)
+		goto put_kref;
+
+	if (sc->status != SMBDIRECT_SOCKET_CONNECTED) {
+		smbd_mr_disable_locked(mr);
+		goto put_kref;
+	}
+
+	if (mr->need_invalidate) {
+		struct ib_send_wr *wr = &mr->inv_wr;
+		int rc;
+
 		/* Need to finish local invalidation before returning */
-		wr = &smbdirect_mr->inv_wr;
 		wr->opcode = IB_WR_LOCAL_INV;
-		smbdirect_mr->cqe.done = local_inv_done;
-		wr->wr_cqe = &smbdirect_mr->cqe;
+		mr->cqe.done = local_inv_done;
+		wr->wr_cqe = &mr->cqe;
 		wr->num_sge = 0;
-		wr->ex.invalidate_rkey = smbdirect_mr->mr->rkey;
+		wr->ex.invalidate_rkey = mr->mr->rkey;
 		wr->send_flags = IB_SEND_SIGNALED;
 
-		init_completion(&smbdirect_mr->invalidate_done);
+		init_completion(&mr->invalidate_done);
 		rc = ib_post_send(sc->ib.qp, wr, NULL);
 		if (rc) {
 			log_rdma_mr(ERR, "ib_post_send failed rc=%x\n", rc);
+			smbd_mr_disable_locked(mr);
 			smbd_disconnect_rdma_connection(sc);
 			goto done;
 		}
-		wait_for_completion(&smbdirect_mr->invalidate_done);
-		smbdirect_mr->need_invalidate = false;
+		wait_for_completion(&mr->invalidate_done);
+		mr->need_invalidate = false;
 	} else
 		/*
 		 * For remote invalidation, just set it to SMBDIRECT_MR_INVALIDATED
 		 * and defer to mr_recovery_work to recover the MR for next use
 		 */
-		smbdirect_mr->state = SMBDIRECT_MR_INVALIDATED;
+		mr->state = SMBDIRECT_MR_INVALIDATED;
 
-	if (smbdirect_mr->state == SMBDIRECT_MR_INVALIDATED) {
-		ib_dma_unmap_sg(
-			sc->ib.dev, smbdirect_mr->sgt.sgl,
-			smbdirect_mr->sgt.nents,
-			smbdirect_mr->dir);
-		smbdirect_mr->state = SMBDIRECT_MR_READY;
+	if (mr->sgt.nents) {
+		ib_dma_unmap_sg(sc->ib.dev, mr->sgt.sgl, mr->sgt.nents, mr->dir);
+		mr->sgt.nents = 0;
+	}
+
+	if (mr->state == SMBDIRECT_MR_INVALIDATED) {
+		mr->state = SMBDIRECT_MR_READY;
 		if (atomic_inc_return(&sc->mr_io.ready.count) == 1)
 			wake_up(&sc->mr_io.ready.wait_queue);
 	} else
@@ -2663,7 +2762,23 @@ done:
 	if (atomic_dec_and_test(&sc->mr_io.used.count))
 		wake_up(&sc->mr_io.cleanup.wait_queue);
 
-	return rc;
+put_kref:
+	/*
+	 * No kref_put_mutex() as it's already locked.
+	 *
+	 * If smbd_mr_free_locked() is called
+	 * and the mutex is unlocked and mr is gone,
+	 * in that case kref_put() returned 1.
+	 *
+	 * If kref_put() returned 0 we know that
+	 * smbd_mr_free_locked() didn't
+	 * run. Not by us nor by anyone else, as we
+	 * still hold the mutex, so we need to unlock
+	 * and keep the mr in SMBDIRECT_MR_READY or
+	 * SMBDIRECT_MR_ERROR state.
+	 */
+	if (!kref_put(&mr->kref, smbd_mr_free_locked))
+		mutex_unlock(&mr->mutex);
 }
 
 static bool smb_set_sge(struct smb_extract_to_rdma *rdma,
