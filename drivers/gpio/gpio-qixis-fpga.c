@@ -105,3 +105,7 @@ static struct platform_driver qixis_cpld_gpio_driver = {
 	},
 };
 module_platform_driver(qixis_cpld_gpio_driver);
+
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Ioana Ciornei <ioana.ciornei@nxp.com>");
+MODULE_DESCRIPTION("Layerscape GPIO QIXIS FPGA driver");
