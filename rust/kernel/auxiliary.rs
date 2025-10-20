@@ -217,6 +217,16 @@ impl<Ctx: device::DeviceContext> Device<Ctx> {
     }
 }
 
+impl Device<device::Bound> {
+    /// Returns a bound reference to the parent [`device::Device`].
+    pub fn parent(&self) -> &device::Device<device::Bound> {
+        let parent = (**self).parent();
+
+        // SAFETY: A bound auxiliary device always has a bound parent device.
+        unsafe { parent.as_bound() }
+    }
+}
+
 impl Device {
     /// Returns a reference to the parent [`device::Device`].
     pub fn parent(&self) -> &device::Device {
