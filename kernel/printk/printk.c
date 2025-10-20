@@ -3142,30 +3142,32 @@ static inline void printk_kthreads_check_locked(void) { }
  * context.
  *
  * @next_seq is set to the sequence number after the last available record.
- * The value is valid only when there is at least one usable console and all
- * usable consoles were flushed.
+ * The value is valid only when all usable consoles were flushed. It is
+ * when the function returns true (can do the job) and @try_again parameter
+ * is set to false, see below.
  *
  * @handover will be set to true if a printk waiter has taken over the
  * console_lock, in which case the caller is no longer holding the
  * console_lock. Otherwise it is set to false.
  *
- * @any_usable will be set to true if there are any usable consoles.
+ * @try_again will be set to true when it still makes sense to call this
+ * function again. The function could do the job, see the return value.
+ * And some consoles still make progress.
  *
- * Returns true when there was at least one usable console and a record was
- * flushed. A returned false indicates there were no records to flush for any
- * of the consoles. It may also indicate that there were no usable consoles,
- * the context has been lost or there is a panic suitation. Regardless the
- * reason, the caller should assume it is not useful to immediately try again.
+ * Returns true when the function could do the job. Some consoles are usable,
+ * and there was no takeover and no panic_on_other_cpu().
  *
  * Requires the console_lock.
  */
 static bool console_flush_one_record(bool do_cond_resched, u64 *next_seq, bool *handover,
-				     bool *any_usable)
+				     bool *try_again)
 {
 	struct console_flush_type ft;
-	bool any_progress = false;
+	bool any_usable = false;
 	struct console *con;
 	int cookie;
+
+	*try_again = false;
 
 	printk_get_console_flush_type(&ft);
 
@@ -3185,7 +3187,7 @@ static bool console_flush_one_record(bool do_cond_resched, u64 *next_seq, bool *
 
 		if (!console_is_usable(con, flags, !do_cond_resched))
 			continue;
-		*any_usable = true;
+		any_usable = true;
 
 		if (flags & CON_NBCON) {
 			progress = nbcon_legacy_emit_next_record(con, handover, cookie,
@@ -3201,7 +3203,7 @@ static bool console_flush_one_record(bool do_cond_resched, u64 *next_seq, bool *
 		 * is already released.
 		 */
 		if (*handover)
-			return false;
+			goto fail;
 
 		/* Track the next of the highest seq flushed. */
 		if (printk_seq > *next_seq)
@@ -3209,21 +3211,28 @@ static bool console_flush_one_record(bool do_cond_resched, u64 *next_seq, bool *
 
 		if (!progress)
 			continue;
-		any_progress = true;
+
+		/*
+		 * An usable console made a progress. There might still be
+		 * pending messages.
+		 */
+		*try_again = true;
 
 		/* Allow panic_cpu to take over the consoles safely. */
 		if (panic_on_other_cpu())
-			goto abandon;
+			goto fail_srcu;
 
 		if (do_cond_resched)
 			cond_resched();
 	}
 	console_srcu_read_unlock(cookie);
 
-	return any_progress;
+	return any_usable;
 
-abandon:
+fail_srcu:
 	console_srcu_read_unlock(cookie);
+fail:
+	*try_again = false;
 	return false;
 }
 
@@ -3252,24 +3261,18 @@ abandon:
  */
 static bool console_flush_all(bool do_cond_resched, u64 *next_seq, bool *handover)
 {
-	bool any_usable = false;
-	bool any_progress;
+	bool try_again;
+	bool ret;
 
 	*next_seq = 0;
 	*handover = false;
 
 	do {
-		any_progress = console_flush_one_record(do_cond_resched, next_seq, handover,
-							&any_usable);
+		ret = console_flush_one_record(do_cond_resched, next_seq,
+					       handover, &try_again);
+	} while (try_again);
 
-		if (*handover)
-			return false;
-
-		if (panic_on_other_cpu())
-			return false;
-	} while (any_progress);
-
-	return any_usable;
+	return ret;
 }
 
 static void __console_flush_and_unlock(void)
