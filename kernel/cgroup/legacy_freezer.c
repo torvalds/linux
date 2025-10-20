@@ -63,7 +63,7 @@ static struct freezer *parent_freezer(struct freezer *freezer)
 	return css_freezer(freezer->css.parent);
 }
 
-bool cgroup_freezing(struct task_struct *task)
+bool cgroup1_freezing(struct task_struct *task)
 {
 	bool ret;
 
