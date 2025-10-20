@@ -43,7 +43,7 @@ properties:
     maximum: 20000000
 
 patternProperties:
-  "^.*@[0-9a-fA-F]+$":
+  "@[0-9a-f]+$":
     type: object
     additionalProperties: true
     properties:
