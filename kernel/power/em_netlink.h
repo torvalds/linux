@@ -13,6 +13,7 @@
 int for_each_em_perf_domain(int (*cb)(struct em_perf_domain*, void *),
 			    void *data);
 struct em_perf_domain *em_perf_domain_get_by_id(int id);
+void em_notify_pd_deleted(const struct em_perf_domain *pd);
 #else
 static inline
 int for_each_em_perf_domain(int (*cb)(struct em_perf_domain*, void *),
@@ -25,6 +26,8 @@ struct em_perf_domain *em_perf_domain_get_by_id(int id)
 {
 	return NULL;
 }
+
+static inline void em_notify_pd_deleted(const struct em_perf_domain *pd) {}
 #endif
 
 #endif /* _EM_NETLINK_H */
