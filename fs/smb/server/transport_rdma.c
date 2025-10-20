@@ -466,6 +466,9 @@ static void free_transport(struct smb_direct_transport *t)
 	disable_delayed_work_sync(&sc->idle.timer_work);
 	disable_work_sync(&sc->idle.immediate_work);
 
+	if (sc->rdma.cm_id)
+		rdma_lock_handler(sc->rdma.cm_id);
+
 	if (sc->ib.qp) {
 		ib_drain_qp(sc->ib.qp);
 		sc->ib.qp = NULL;
@@ -494,8 +497,10 @@ static void free_transport(struct smb_direct_transport *t)
 		ib_free_cq(sc->ib.recv_cq);
 	if (sc->ib.pd)
 		ib_dealloc_pd(sc->ib.pd);
-	if (sc->rdma.cm_id)
+	if (sc->rdma.cm_id) {
+		rdma_unlock_handler(sc->rdma.cm_id);
 		rdma_destroy_id(sc->rdma.cm_id);
+	}
 
 	smb_direct_destroy_pools(sc);
 	ksmbd_conn_free(KSMBD_TRANS(t)->conn);
@@ -1724,10 +1729,10 @@ static int smb_direct_cm_handler(struct rdma_cm_id *cm_id,
 	}
 	case RDMA_CM_EVENT_DEVICE_REMOVAL:
 	case RDMA_CM_EVENT_DISCONNECTED: {
-		ib_drain_qp(sc->ib.qp);
-
 		sc->status = SMBDIRECT_SOCKET_DISCONNECTED;
 		smb_direct_disconnect_rdma_work(&sc->disconnect_work);
+		if (sc->ib.qp)
+			ib_drain_qp(sc->ib.qp);
 		break;
 	}
 	case RDMA_CM_EVENT_CONNECT_ERROR: {
