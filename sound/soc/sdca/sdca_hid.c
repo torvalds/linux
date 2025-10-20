@@ -10,6 +10,7 @@
 #include <linux/cleanup.h>
 #include <linux/device.h>
 #include <linux/dev_printk.h>
+#include <linux/hid.h>
 #include <linux/module.h>
 #include <linux/property.h>
 #include <linux/soundwire/sdw.h>
@@ -17,6 +18,8 @@
 #include <sound/sdca.h>
 #include <sound/sdca_function.h>
 #include <sound/sdca_hid.h>
+#include <sound/sdca_interrupts.h>
+#include <sound/sdca_ump.h>
 
 static int sdwhid_parse(struct hid_device *hid)
 {
@@ -120,6 +123,49 @@ int sdca_add_hid_device(struct device *dev, struct sdw_slave *sdw,
 	return 0;
 }
 EXPORT_SYMBOL_NS(sdca_add_hid_device, "SND_SOC_SDCA");
+
+/**
+ * sdca_hid_process_report - read a HID event from the device and report
+ * @interrupt: Pointer to the SDCA interrupt information structure.
+ *
+ * Return: Zero on success, and a negative error code on failure.
+ */
+int sdca_hid_process_report(struct sdca_interrupt *interrupt)
+{
+	struct device *dev = interrupt->dev;
+	struct hid_device *hid = interrupt->entity->hide.hid;
+	void *val __free(kfree) = NULL;
+	int len, ret;
+
+	ret = sdca_ump_get_owner_host(dev, interrupt->function_regmap,
+				      interrupt->function, interrupt->entity,
+				      interrupt->control);
+	if (ret)
+		return ret;
+
+	len = sdca_ump_read_message(dev, interrupt->device_regmap,
+				    interrupt->function_regmap,
+				    interrupt->function, interrupt->entity,
+				    SDCA_CTL_HIDE_HIDTX_MESSAGEOFFSET,
+				    SDCA_CTL_HIDE_HIDTX_MESSAGELENGTH, &val);
+	if (len < 0)
+		return len;
+
+	ret = sdca_ump_set_owner_device(dev, interrupt->function_regmap,
+					interrupt->function, interrupt->entity,
+					interrupt->control);
+	if (ret)
+		return ret;
+
+	ret = hid_input_report(hid, HID_INPUT_REPORT, val, len, true);
+	if (ret < 0) {
+		dev_err(dev, "failed to report hid event: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_NS(sdca_hid_process_report, "SND_SOC_SDCA");
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("SDCA HID library");

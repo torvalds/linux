@@ -20,6 +20,7 @@
 #include <sound/sdca.h>
 #include <sound/sdca_fdl.h>
 #include <sound/sdca_function.h>
+#include <sound/sdca_hid.h>
 #include <sound/sdca_interrupts.h>
 #include <sound/sdca_ump.h>
 #include <sound/soc-component.h>
@@ -240,6 +241,29 @@ static irqreturn_t detected_mode_handler(int irq, void *data)
 	}
 
 	snd_ctl_notify(card->snd_card, SNDRV_CTL_EVENT_MASK_VALUE, &kctl->id);
+
+	irqret = IRQ_HANDLED;
+error:
+	pm_runtime_put(dev);
+	return irqret;
+}
+
+static irqreturn_t hid_handler(int irq, void *data)
+{
+	struct sdca_interrupt *interrupt = data;
+	struct device *dev = interrupt->dev;
+	irqreturn_t irqret = IRQ_NONE;
+	int ret;
+
+	ret = pm_runtime_get_sync(dev);
+	if (ret < 0) {
+		dev_err(dev, "failed to resume for hid: %d\n", ret);
+		goto error;
+	}
+
+	ret = sdca_hid_process_report(interrupt);
+	if (ret)
+		goto error;
 
 	irqret = IRQ_HANDLED;
 error:
@@ -527,6 +551,10 @@ int sdca_irq_populate(struct sdca_function_data *function,
 
 					handler = fdl_owner_handler;
 				}
+				break;
+			case SDCA_ENTITY_TYPE_HIDE:
+				if (control->sel == SDCA_CTL_HIDE_HIDTX_CURRENTOWNER)
+					handler = hid_handler;
 				break;
 			default:
 				break;
