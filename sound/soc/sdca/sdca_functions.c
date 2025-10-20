@@ -2033,8 +2033,14 @@ int sdca_parse_function(struct device *dev, struct sdw_slave *sdw,
 	if (!ret)
 		function->busy_max_delay = tmp;
 
-	dev_info(dev, "%pfwP: name %s delay %dus\n", function->desc->node,
-		 function->desc->name, function->busy_max_delay);
+	ret = fwnode_property_read_u32(function_desc->node,
+				       "mipi-sdca-function-reset-max-delay", &tmp);
+	if (!ret)
+		function->reset_max_delay = tmp;
+
+	dev_info(dev, "%pfwP: name %s busy delay %dus reset delay %dus\n",
+		 function->desc->node, function->desc->name,
+		 function->busy_max_delay, function->reset_max_delay);
 
 	ret = find_sdca_init_table(dev, function_desc->node, function);
 	if (ret)
