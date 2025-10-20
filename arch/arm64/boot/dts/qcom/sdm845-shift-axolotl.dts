@@ -479,9 +479,6 @@
 		vdda-supply = <&vreg_l14a_1p88>;
 		vdd3p3-supply = <&vreg_l28a_3p0>;
 
-		#address-cells = <1>;
-		#size-cells = <0>;
-
 		reset-gpios = <&tlmm 6 GPIO_ACTIVE_HIGH>;
 
 		pinctrl-names = "default", "sleep";
