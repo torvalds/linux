@@ -3813,22 +3813,26 @@ int btrfs_add_reserved_bytes(struct btrfs_block_group *cache,
 	spin_lock(&cache->lock);
 	if (cache->ro) {
 		ret = -EAGAIN;
-		goto out;
+		goto out_error;
 	}
 
 	if (btrfs_block_group_should_use_size_class(cache)) {
 		size_class = btrfs_calc_block_group_size_class(num_bytes);
 		ret = btrfs_use_block_group_size_class(cache, size_class, force_wrong_size_class);
 		if (ret)
-			goto out;
+			goto out_error;
 	}
+
 	cache->reserved += num_bytes;
-	space_info->bytes_reserved += num_bytes;
-	trace_btrfs_space_reservation(cache->fs_info, "space_info",
-				      space_info->flags, num_bytes, 1);
-	btrfs_space_info_update_bytes_may_use(space_info, -ram_bytes);
 	if (delalloc)
 		cache->delalloc_bytes += num_bytes;
+
+	trace_btrfs_space_reservation(cache->fs_info, "space_info",
+				      space_info->flags, num_bytes, 1);
+	spin_unlock(&cache->lock);
+
+	space_info->bytes_reserved += num_bytes;
+	btrfs_space_info_update_bytes_may_use(space_info, -ram_bytes);
 
 	/*
 	 * Compression can use less space than we reserved, so wake tickets if
@@ -3836,7 +3840,11 @@ int btrfs_add_reserved_bytes(struct btrfs_block_group *cache,
 	 */
 	if (num_bytes < ram_bytes)
 		btrfs_try_granting_tickets(space_info);
-out:
+	spin_unlock(&space_info->lock);
+
+	return 0;
+
+out_error:
 	spin_unlock(&cache->lock);
 	spin_unlock(&space_info->lock);
 	return ret;
