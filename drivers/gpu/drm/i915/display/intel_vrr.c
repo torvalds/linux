@@ -770,15 +770,15 @@ void intel_vrr_transcoder_enable(const struct intel_crtc_state *crtc_state)
 		intel_vrr_tg_enable(crtc_state, false);
 }
 
-void intel_vrr_transcoder_disable(const struct intel_crtc_state *crtc_state)
+void intel_vrr_transcoder_disable(const struct intel_crtc_state *old_crtc_state)
 {
-	struct intel_display *display = to_intel_display(crtc_state);
+	struct intel_display *display = to_intel_display(old_crtc_state);
 
-	if (!intel_vrr_possible(crtc_state))
+	if (!intel_vrr_possible(old_crtc_state))
 		return;
 
 	if (intel_vrr_always_use_vrr_tg(display))
-		intel_vrr_tg_disable(crtc_state);
+		intel_vrr_tg_disable(old_crtc_state);
 }
 
 bool intel_vrr_is_fixed_rr(const struct intel_crtc_state *crtc_state)
