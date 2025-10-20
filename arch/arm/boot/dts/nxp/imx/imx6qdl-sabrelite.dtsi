@@ -363,7 +363,6 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_ov5642>;
 		clocks = <&clks IMX6QDL_CLK_CKO2>;
-		clock-names = "xclk";
 		reg = <0x42>;
 		reset-gpios = <&gpio1 8 GPIO_ACTIVE_LOW>;
 		powerdown-gpios = <&gpio1 6 GPIO_ACTIVE_HIGH>;

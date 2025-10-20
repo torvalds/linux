@@ -287,7 +287,6 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_ov5642>;
 		clocks = <&clks IMX6QDL_CLK_CKO>;
-		clock-names = "xclk";
 		reg = <0x3c>;
 		DOVDD-supply = <&vgen4_reg>; /* 1.8v */
 		AVDD-supply = <&vgen3_reg>;  /* 2.8v, rev C board is VGEN3
