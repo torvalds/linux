@@ -246,6 +246,15 @@ void intel_vrr_compute_vrr_timings(struct intel_crtc_state *crtc_state,
 	crtc_state->mode_flags |= I915_MODE_FLAG_VRR;
 }
 
+static
+void intel_vrr_compute_fixed_rr_timings(struct intel_crtc_state *crtc_state)
+{
+	/* For fixed rr,  vmin = vmax = flipline */
+	crtc_state->vrr.vmax = crtc_state->hw.adjusted_mode.crtc_vtotal;
+	crtc_state->vrr.vmin = crtc_state->vrr.vmax;
+	crtc_state->vrr.flipline = crtc_state->vrr.vmin;
+}
+
 static int intel_vrr_hw_value(const struct intel_crtc_state *crtc_state,
 			      int value)
 {
@@ -306,15 +315,6 @@ void intel_vrr_set_fixed_rr_timings(const struct intel_crtc_state *crtc_state)
 		       intel_vrr_fixed_rr_hw_vmax(crtc_state) - 1);
 	intel_de_write(display, TRANS_VRR_FLIPLINE(display, cpu_transcoder),
 		       intel_vrr_fixed_rr_hw_flipline(crtc_state) - 1);
-}
-
-static
-void intel_vrr_compute_fixed_rr_timings(struct intel_crtc_state *crtc_state)
-{
-	/* For fixed rr,  vmin = vmax = flipline */
-	crtc_state->vrr.vmax = crtc_state->hw.adjusted_mode.crtc_vtotal;
-	crtc_state->vrr.vmin = crtc_state->vrr.vmax;
-	crtc_state->vrr.flipline = crtc_state->vrr.vmin;
 }
 
 static
