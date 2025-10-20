@@ -1253,7 +1253,8 @@ bad_list:
 }
 
 static int
-find_sdca_entity_hide(struct device *dev, struct fwnode_handle *function_node,
+find_sdca_entity_hide(struct device *dev, struct sdw_slave *sdw,
+		      struct fwnode_handle *function_node,
 		      struct fwnode_handle *entity_node, struct sdca_entity *entity)
 {
 	struct sdca_entity_hide *hide = &entity->hide;
@@ -1328,7 +1329,7 @@ find_sdca_entity_hide(struct device *dev, struct fwnode_handle *function_node,
 						      report_desc, nval);
 
 			/* add HID device */
-			ret = sdca_add_hid_device(dev, entity);
+			ret = sdca_add_hid_device(dev, sdw, entity);
 			if (ret) {
 				dev_err(dev, "%pfwP: failed to add HID device: %d\n", entity_node, ret);
 				return ret;
@@ -1339,7 +1340,7 @@ find_sdca_entity_hide(struct device *dev, struct fwnode_handle *function_node,
 	return 0;
 }
 
-static int find_sdca_entity(struct device *dev,
+static int find_sdca_entity(struct device *dev, struct sdw_slave *sdw,
 			    struct fwnode_handle *function_node,
 			    struct fwnode_handle *entity_node,
 			    struct sdca_entity *entity)
@@ -1381,7 +1382,8 @@ static int find_sdca_entity(struct device *dev,
 		ret = find_sdca_entity_ge(dev, entity_node, entity);
 		break;
 	case SDCA_ENTITY_TYPE_HIDE:
-		ret = find_sdca_entity_hide(dev, function_node, entity_node, entity);
+		ret = find_sdca_entity_hide(dev, sdw, function_node,
+					    entity_node, entity);
 		break;
 	default:
 		break;
@@ -1396,7 +1398,7 @@ static int find_sdca_entity(struct device *dev,
 	return 0;
 }
 
-static int find_sdca_entities(struct device *dev,
+static int find_sdca_entities(struct device *dev, struct sdw_slave *sdw,
 			      struct fwnode_handle *function_node,
 			      struct sdca_function_data *function)
 {
@@ -1448,7 +1450,8 @@ static int find_sdca_entities(struct device *dev,
 			return -EINVAL;
 		}
 
-		ret = find_sdca_entity(dev, function_node, entity_node, &entities[i]);
+		ret = find_sdca_entity(dev, sdw, function_node,
+				       entity_node, &entities[i]);
 		fwnode_handle_put(entity_node);
 		if (ret)
 			return ret;
@@ -1927,12 +1930,13 @@ static int find_sdca_clusters(struct device *dev,
 /**
  * sdca_parse_function - parse ACPI DisCo for a Function
  * @dev: Pointer to device against which function data will be allocated.
+ * @sdw: SoundWire slave device to be processed.
  * @function_desc: Pointer to the Function short descriptor.
  * @function: Pointer to the Function information, to be populated.
  *
  * Return: Returns 0 for success.
  */
-int sdca_parse_function(struct device *dev,
+int sdca_parse_function(struct device *dev, struct sdw_slave *sdw,
 			struct sdca_function_desc *function_desc,
 			struct sdca_function_data *function)
 {
@@ -1953,7 +1957,7 @@ int sdca_parse_function(struct device *dev,
 	if (ret)
 		return ret;
 
-	ret = find_sdca_entities(dev, function_desc->node, function);
+	ret = find_sdca_entities(dev, sdw, function_desc->node, function);
 	if (ret)
 		return ret;
 

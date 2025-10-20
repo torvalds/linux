@@ -82,14 +82,12 @@ static const struct hid_ll_driver sdw_hid_driver = {
 	.raw_request = sdwhid_raw_request,
 };
 
-int sdca_add_hid_device(struct device *dev, struct sdca_entity *entity)
+int sdca_add_hid_device(struct device *dev, struct sdw_slave *sdw,
+			struct sdca_entity *entity)
 {
-	struct sdw_bus *bus;
+	struct sdw_bus *bus = sdw->bus;
 	struct hid_device *hid;
-	struct sdw_slave *slave = dev_to_sdw_dev(dev);
 	int ret;
-
-	bus = slave->bus;
 
 	hid = hid_allocate_device();
 	if (IS_ERR(hid))
@@ -103,8 +101,8 @@ int sdca_add_hid_device(struct device *dev, struct sdca_entity *entity)
 
 	snprintf(hid->name, sizeof(hid->name),
 		 "HID sdw:%01x:%01x:%04x:%04x:%02x",
-		 bus->controller_id, bus->link_id, slave->id.mfg_id,
-		 slave->id.part_id, slave->id.class_id);
+		 bus->controller_id, bus->link_id, sdw->id.mfg_id,
+		 sdw->id.part_id, sdw->id.class_id);
 
 	snprintf(hid->phys, sizeof(hid->phys), "%s", dev->bus->name);
 
