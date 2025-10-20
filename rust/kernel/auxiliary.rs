@@ -215,9 +215,10 @@ impl<Ctx: device::DeviceContext> Device<Ctx> {
         unsafe { (*self.as_raw()).id }
     }
 
-    /// Returns a reference to the parent [`device::Device`], if any.
-    pub fn parent(&self) -> Option<&device::Device> {
-        self.as_ref().parent()
+    /// Returns a reference to the parent [`device::Device`].
+    pub fn parent(&self) -> &device::Device {
+        // SAFETY: A `struct auxiliary_device` always has a parent.
+        unsafe { self.as_ref().parent().unwrap_unchecked() }
     }
 }
 

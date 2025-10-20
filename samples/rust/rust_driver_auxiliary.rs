@@ -68,7 +68,7 @@ impl pci::Driver for ParentDriver {
 
 impl ParentDriver {
     fn connect(adev: &auxiliary::Device) -> Result<()> {
-        let parent = adev.parent().ok_or(EINVAL)?;
+        let parent = adev.parent();
         let pdev: &pci::Device = parent.try_into()?;
 
         let vendor = pdev.vendor_id();

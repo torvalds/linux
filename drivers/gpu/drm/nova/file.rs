@@ -28,7 +28,7 @@ impl File {
         _file: &drm::File<File>,
     ) -> Result<u32> {
         let adev = &dev.adev;
-        let parent = adev.parent().ok_or(ENOENT)?;
+        let parent = adev.parent();
         let pdev: &pci::Device = parent.try_into()?;
 
         let value = match getparam.param as u32 {
