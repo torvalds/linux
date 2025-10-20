@@ -148,6 +148,7 @@ config HIBMCGE
 	tristate "Hisilicon BMC Gigabit Ethernet Device Support"
 	depends on PCI && PCI_MSI
 	select PHYLIB
+	select FIXED_PHY
 	select MOTORCOMM_PHY
 	select REALTEK_PHY
 	help
