@@ -49,7 +49,7 @@ static struct kunit_case kprobes_testcases[] = {
 };
 
 static struct kunit_suite kprobes_test_suite = {
-	.name = "kprobes_test_riscv",
+	.name = "kprobes_riscv",
 	.test_cases = kprobes_testcases,
 };
 
