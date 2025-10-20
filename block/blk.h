@@ -377,7 +377,7 @@ static inline bool bio_may_need_split(struct bio *bio,
 	if (bio->bi_vcnt != 1)
 		return true;
 	return bio->bi_io_vec->bv_len + bio->bi_io_vec->bv_offset >
-		lim->min_segment_size;
+		lim->max_fast_segment_size;
 }
 
 /**

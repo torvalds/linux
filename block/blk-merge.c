@@ -336,7 +336,7 @@ int bio_split_io_at(struct bio *bio, const struct queue_limits *lim,
 
 		if (nsegs < lim->max_segments &&
 		    bytes + bv.bv_len <= max_bytes &&
-		    bv.bv_offset + bv.bv_len <= lim->min_segment_size) {
+		    bv.bv_offset + bv.bv_len <= lim->max_fast_segment_size) {
 			nsegs++;
 			bytes += bv.bv_len;
 		} else {
