@@ -76,30 +76,18 @@
 
 	reserved-memory {
 		/*
-		 * The rmtfs_mem needs to be guarded due to "XPU limitations"
-		 * it is otherwise possible for an allocation adjacent to the
-		 * rmtfs_mem region to trigger an XPU violation, causing a crash.
-		 */
-		rmtfs_lower_guard: rmtfs-lower-guard@f5b00000 {
-			no-map;
-			reg = <0 0xf5b00000 0 0x1000>;
-		};
-		/*
 		 * The rmtfs memory region in downstream is 'dynamically allocated'
 		 * but given the same address every time. Hard code it as this address is
 		 * where the modem firmware expects it to be.
 		 */
-		rmtfs_mem: rmtfs-mem@f5b01000 {
+		rmtfs_mem: rmtfs-region@f5b00000 {
 			compatible = "qcom,rmtfs-mem";
-			reg = <0 0xf5b01000 0 0x200000>;
+			reg = <0 0xf5b00000 0 0x202000>;
+			qcom,use-guard-pages;
 			no-map;
 
 			qcom,client-id = <1>;
 			qcom,vmid = <QCOM_SCM_VMID_MSS_MSA>;
-		};
-		rmtfs_upper_guard: rmtfs-upper-guard@f5d01000 {
-			no-map;
-			reg = <0 0xf5d01000 0 0x1000>;
 		};
 
 		/*
