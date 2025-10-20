@@ -4711,8 +4711,8 @@ static int check_abs_references(struct objtool_file *file)
 
 		for_each_reloc(sec->rsec, reloc) {
 			if (arch_absolute_reloc(file->elf, reloc)) {
-				WARN("section %s has absolute relocation at offset 0x%lx",
-				     sec->name, reloc_offset(reloc));
+				WARN("section %s has absolute relocation at offset 0x%llx",
+				     sec->name, (unsigned long long)reloc_offset(reloc));
 				ret++;
 			}
 		}
