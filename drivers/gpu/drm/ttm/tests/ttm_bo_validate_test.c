@@ -995,7 +995,7 @@ static void ttm_bo_validate_busy_domain_evict(struct kunit *test)
 	 */
 	ttm_device_fini(priv->ttm_dev);
 
-	err = ttm_device_kunit_init_bad_evict(test->priv, priv->ttm_dev, false, false);
+	err = ttm_device_kunit_init_bad_evict(test->priv, priv->ttm_dev);
 	KUNIT_ASSERT_EQ(test, err, 0);
 
 	ttm_mock_manager_init(priv->ttm_dev, mem_type, MANAGER_SIZE);

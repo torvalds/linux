@@ -25,7 +25,7 @@ static void ttm_device_init_basic(struct kunit *test)
 	ttm_dev = kunit_kzalloc(test, sizeof(*ttm_dev), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, ttm_dev);
 
-	err = ttm_device_kunit_init(priv, ttm_dev, false, false);
+	err = ttm_device_kunit_init(priv, ttm_dev, 0);
 	KUNIT_ASSERT_EQ(test, err, 0);
 
 	KUNIT_EXPECT_PTR_EQ(test, ttm_dev->funcs, &ttm_dev_funcs);
@@ -55,7 +55,7 @@ static void ttm_device_init_multiple(struct kunit *test)
 	KUNIT_ASSERT_NOT_NULL(test, ttm_devs);
 
 	for (i = 0; i < num_dev; i++) {
-		err = ttm_device_kunit_init(priv, &ttm_devs[i], false, false);
+		err = ttm_device_kunit_init(priv, &ttm_devs[i], 0);
 		KUNIT_ASSERT_EQ(test, err, 0);
 
 		KUNIT_EXPECT_PTR_EQ(test, ttm_devs[i].dev_mapping,
@@ -81,7 +81,7 @@ static void ttm_device_fini_basic(struct kunit *test)
 	ttm_dev = kunit_kzalloc(test, sizeof(*ttm_dev), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, ttm_dev);
 
-	err = ttm_device_kunit_init(priv, ttm_dev, false, false);
+	err = ttm_device_kunit_init(priv, ttm_dev, 0);
 	KUNIT_ASSERT_EQ(test, err, 0);
 
 	man = ttm_manager_type(ttm_dev, TTM_PL_SYSTEM);
@@ -109,7 +109,7 @@ static void ttm_device_init_no_vma_man(struct kunit *test)
 	vma_man = drm->vma_offset_manager;
 	drm->vma_offset_manager = NULL;
 
-	err = ttm_device_kunit_init(priv, ttm_dev, false, false);
+	err = ttm_device_kunit_init(priv, ttm_dev, 0);
 	KUNIT_EXPECT_EQ(test, err, -EINVAL);
 
 	/* Bring the manager back for a graceful cleanup */
@@ -158,9 +158,7 @@ static void ttm_device_init_pools(struct kunit *test)
 	ttm_dev = kunit_kzalloc(test, sizeof(*ttm_dev), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, ttm_dev);
 
-	err = ttm_device_kunit_init(priv, ttm_dev,
-				    params->alloc_flags & TTM_ALLOCATION_POOL_USE_DMA_ALLOC,
-				    params->alloc_flags & TTM_ALLOCATION_POOL_USE_DMA32);
+	err = ttm_device_kunit_init(priv, ttm_dev, params->alloc_flags);
 	KUNIT_ASSERT_EQ(test, err, 0);
 
 	pool = &ttm_dev->pool;

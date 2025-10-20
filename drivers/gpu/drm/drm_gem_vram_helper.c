@@ -860,7 +860,7 @@ static int drm_vram_mm_init(struct drm_vram_mm *vmm, struct drm_device *dev,
 	ret = ttm_device_init(&vmm->bdev, &bo_driver, dev->dev,
 				 dev->anon_inode->i_mapping,
 				 dev->vma_offset_manager,
-				 false, true);
+				 TTM_ALLOCATION_POOL_USE_DMA32);
 	if (ret)
 		return ret;
 

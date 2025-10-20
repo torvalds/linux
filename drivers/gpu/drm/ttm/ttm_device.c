@@ -199,8 +199,7 @@ EXPORT_SYMBOL(ttm_device_swapout);
  * @dev: The core kernel device pointer for DMA mappings and allocations.
  * @mapping: The address space to use for this bo.
  * @vma_manager: A pointer to a vma manager.
- * @use_dma_alloc: If coherent DMA allocation API should be used.
- * @use_dma32: If we should use GFP_DMA32 for device memory allocations.
+ * @alloc_flags: TTM_ALLOCATION_ flags.
  *
  * Initializes a struct ttm_device:
  * Returns:
@@ -209,7 +208,7 @@ EXPORT_SYMBOL(ttm_device_swapout);
 int ttm_device_init(struct ttm_device *bdev, const struct ttm_device_funcs *funcs,
 		    struct device *dev, struct address_space *mapping,
 		    struct drm_vma_offset_manager *vma_manager,
-		    bool use_dma_alloc, bool use_dma32)
+		    unsigned int alloc_flags)
 {
 	struct ttm_global *glob = &ttm_glob;
 	int ret, nid;
@@ -237,9 +236,7 @@ int ttm_device_init(struct ttm_device *bdev, const struct ttm_device_funcs *func
 	else
 		nid = NUMA_NO_NODE;
 
-	ttm_pool_init(&bdev->pool, dev, nid,
-		      (use_dma_alloc ? TTM_ALLOCATION_POOL_USE_DMA_ALLOC : 0) |
-		      (use_dma32 ? TTM_ALLOCATION_POOL_USE_DMA32 : 0));
+	ttm_pool_init(&bdev->pool, dev, nid, alloc_flags);
 
 	bdev->vma_manager = vma_manager;
 	spin_lock_init(&bdev->lru_lock);
