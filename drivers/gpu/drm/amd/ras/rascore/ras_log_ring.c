@@ -226,7 +226,9 @@ void ras_log_ring_add_log_event(struct ras_core_context *ras_core,
 		enum ras_log_event event, void *data, struct ras_log_batch_tag *batch_tag)
 {
 	struct ras_log_ring *log_ring = &ras_core->ras_log_ring;
+	struct device_system_info dev_info = {0};
 	struct ras_log_info *log;
+	uint64_t socket_id;
 	void *obj;
 
 	obj = mempool_alloc_preallocated(log_ring->ras_log_mempool);
@@ -252,8 +254,13 @@ void ras_log_ring_add_log_event(struct ras_core_context *ras_core,
 	if (data)
 		memcpy(&log->aca_reg, data, sizeof(log->aca_reg));
 
-	if (event == RAS_LOG_EVENT_RMA)
+	if (event == RAS_LOG_EVENT_RMA) {
 		memcpy(&log->aca_reg, ras_rma_aca_reg, sizeof(log->aca_reg));
+		ras_core_get_device_system_info(ras_core, &dev_info);
+		socket_id = dev_info.socket_id;
+		log->aca_reg.regs[ACA_REG_IDX__IPID] |= ((socket_id / 4) & 0x01);
+		log->aca_reg.regs[ACA_REG_IDX__IPID] |= (((socket_id % 4) & 0x3) << 44);
+	}
 
 	ras_log_ring_add_data(ras_core, log, batch_tag);
 }
