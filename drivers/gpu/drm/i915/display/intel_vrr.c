@@ -760,9 +760,6 @@ void intel_vrr_transcoder_enable(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
 
-	if (!HAS_VRR(display))
-		return;
-
 	if (!intel_vrr_possible(crtc_state))
 		return;
 
@@ -773,9 +770,6 @@ void intel_vrr_transcoder_enable(const struct intel_crtc_state *crtc_state)
 void intel_vrr_transcoder_disable(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
-
-	if (!HAS_VRR(display))
-		return;
 
 	if (!intel_vrr_possible(crtc_state))
 		return;
