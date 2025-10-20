@@ -515,13 +515,20 @@ bool btrfs_can_overcommit(const struct btrfs_space_info *space_info, u64 bytes,
 }
 
 static void remove_ticket(struct btrfs_space_info *space_info,
-			  struct reserve_ticket *ticket)
+			  struct reserve_ticket *ticket, int error)
 {
 	if (!list_empty(&ticket->list)) {
 		list_del_init(&ticket->list);
 		ASSERT(space_info->reclaim_size >= ticket->bytes);
 		space_info->reclaim_size -= ticket->bytes;
 	}
+
+	if (error)
+		ticket->error = error;
+	else
+		ticket->bytes = 0;
+
+	wake_up(&ticket->wait);
 }
 
 /*
@@ -549,10 +556,8 @@ again:
 		if (used_after <= space_info->total_bytes ||
 		    can_overcommit(space_info, used, ticket->bytes, flush)) {
 			btrfs_space_info_update_bytes_may_use(space_info, ticket->bytes);
-			remove_ticket(space_info, ticket);
-			ticket->bytes = 0;
+			remove_ticket(space_info, ticket, 0);
 			space_info->tickets_id++;
-			wake_up(&ticket->wait);
 			used = used_after;
 		} else {
 			break;
@@ -1066,9 +1071,7 @@ static bool steal_from_global_rsv(struct btrfs_space_info *space_info,
 		global_rsv->full = false;
 	spin_unlock(&global_rsv->lock);
 
-	remove_ticket(space_info, ticket);
-	ticket->bytes = 0;
-	wake_up(&ticket->wait);
+	remove_ticket(space_info, ticket, 0);
 	space_info->tickets_id++;
 
 	return true;
@@ -1115,12 +1118,10 @@ static bool maybe_fail_all_tickets(struct btrfs_space_info *space_info)
 			btrfs_info(fs_info, "failing ticket with %llu bytes",
 				   ticket->bytes);
 
-		remove_ticket(space_info, ticket);
 		if (abort_error)
-			ticket->error = abort_error;
+			remove_ticket(space_info, ticket, abort_error);
 		else
-			ticket->error = -ENOSPC;
-		wake_up(&ticket->wait);
+			remove_ticket(space_info, ticket, -ENOSPC);
 
 		/*
 		 * We're just throwing tickets away, so more flushing may not
@@ -1536,13 +1537,10 @@ static void priority_reclaim_metadata_space(struct btrfs_space_info *space_info,
 	 * just to have caller fail immediately instead of later when trying to
 	 * modify the fs, making it easier to debug -ENOSPC problems.
 	 */
-	if (BTRFS_FS_ERROR(fs_info)) {
-		ticket->error = BTRFS_FS_ERROR(fs_info);
-		remove_ticket(space_info, ticket);
-	} else if (!steal_from_global_rsv(space_info, ticket)) {
-		ticket->error = -ENOSPC;
-		remove_ticket(space_info, ticket);
-	}
+	if (BTRFS_FS_ERROR(fs_info))
+		remove_ticket(space_info, ticket, BTRFS_FS_ERROR(fs_info));
+	else if (!steal_from_global_rsv(space_info, ticket))
+		remove_ticket(space_info, ticket, -ENOSPC);
 
 	/*
 	 * We must run try_granting_tickets here because we could be a large
@@ -1574,8 +1572,7 @@ static void priority_reclaim_data_space(struct btrfs_space_info *space_info,
 		}
 	}
 
-	ticket->error = -ENOSPC;
-	remove_ticket(space_info, ticket);
+	remove_ticket(space_info, ticket, -ENOSPC);
 	btrfs_try_granting_tickets(space_info);
 	spin_unlock(&space_info->lock);
 }
@@ -1599,8 +1596,7 @@ static void wait_reserve_ticket(struct btrfs_space_info *space_info,
 			 * despite getting an error, resulting in a space leak
 			 * (bytes_may_use counter of our space_info).
 			 */
-			remove_ticket(space_info, ticket);
-			ticket->error = -EINTR;
+			remove_ticket(space_info, ticket, -EINTR);
 			break;
 		}
 		spin_unlock(&space_info->lock);
