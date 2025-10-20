@@ -143,10 +143,6 @@ static int intel_vrr_pipeline_full_to_guardband(const struct intel_crtc_state *c
  *
  * framestart_delay is programmable 1-4.
  */
-static int intel_vrr_vblank_exit_length(const struct intel_crtc_state *crtc_state)
-{
-	return crtc_state->vrr.guardband;
-}
 
 int intel_vrr_vmin_vtotal(const struct intel_crtc_state *crtc_state)
 {
@@ -161,12 +157,12 @@ int intel_vrr_vmax_vtotal(const struct intel_crtc_state *crtc_state)
 
 int intel_vrr_vmin_vblank_start(const struct intel_crtc_state *crtc_state)
 {
-	return intel_vrr_vmin_vtotal(crtc_state) - intel_vrr_vblank_exit_length(crtc_state);
+	return intel_vrr_vmin_vtotal(crtc_state) - crtc_state->vrr.guardband;
 }
 
 int intel_vrr_vmax_vblank_start(const struct intel_crtc_state *crtc_state)
 {
-	return intel_vrr_vmax_vtotal(crtc_state) - intel_vrr_vblank_exit_length(crtc_state);
+	return intel_vrr_vmax_vtotal(crtc_state) - crtc_state->vrr.guardband;
 }
 
 static bool
