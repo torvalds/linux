@@ -18,8 +18,10 @@
 #include <linux/soundwire/sdw.h>
 #include <linux/soundwire/sdw_registers.h>
 #include <sound/sdca.h>
+#include <sound/sdca_fdl.h>
 #include <sound/sdca_function.h>
 #include <sound/sdca_interrupts.h>
+#include <sound/sdca_ump.h>
 #include <sound/soc-component.h>
 #include <sound/soc.h>
 
@@ -245,6 +247,29 @@ error:
 	return irqret;
 }
 
+static irqreturn_t fdl_owner_handler(int irq, void *data)
+{
+	struct sdca_interrupt *interrupt = data;
+	struct device *dev = interrupt->dev;
+	irqreturn_t irqret = IRQ_NONE;
+	int ret;
+
+	ret = pm_runtime_get_sync(dev);
+	if (ret < 0) {
+		dev_err(dev, "failed to resume for fdl: %d\n", ret);
+		goto error;
+	}
+
+	ret = sdca_fdl_process(interrupt);
+	if (ret)
+		goto error;
+
+	irqret = IRQ_HANDLED;
+error:
+	pm_runtime_put(dev);
+	return irqret;
+}
+
 static int sdca_irq_request_locked(struct device *dev,
 				   struct sdca_interrupt_info *info,
 				   int sdca_irq, const char *name,
@@ -422,6 +447,15 @@ int sdca_irq_populate(struct sdca_function_data *function,
 			case SDCA_ENTITY_TYPE_GE:
 				if (control->sel == SDCA_CTL_GE_DETECTED_MODE)
 					handler = detected_mode_handler;
+				break;
+			case SDCA_ENTITY_TYPE_XU:
+				if (control->sel == SDCA_CTL_XU_FDL_CURRENTOWNER) {
+					ret = sdca_fdl_alloc_state(interrupt);
+					if (ret)
+						return ret;
+
+					handler = fdl_owner_handler;
+				}
 				break;
 			default:
 				break;
