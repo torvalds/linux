@@ -521,7 +521,6 @@ spc_emulate_evpd_b0(struct se_cmd *cmd, unsigned char *buf)
 		have_tp = 1;
 
 	buf[0] = dev->transport->get_device_type(dev);
-	buf[3] = have_tp ? 0x3c : 0x10;
 
 	/* Set WSNZ to 1 */
 	buf[4] = 0x01;
@@ -562,11 +561,10 @@ spc_emulate_evpd_b0(struct se_cmd *cmd, unsigned char *buf)
 	else
 		put_unaligned_be32(dev->dev_attrib.optimal_sectors, &buf[12]);
 
-	/*
-	 * Exit now if we don't support TP.
-	 */
+	put_unaligned_be16(12, &buf[2]);
+
 	if (!have_tp)
-		goto max_write_same;
+		goto try_atomic;
 
 	/*
 	 * Set MAXIMUM UNMAP LBA COUNT
@@ -595,9 +593,29 @@ spc_emulate_evpd_b0(struct se_cmd *cmd, unsigned char *buf)
 	/*
 	 * MAXIMUM WRITE SAME LENGTH
 	 */
-max_write_same:
 	put_unaligned_be64(dev->dev_attrib.max_write_same_len, &buf[36]);
 
+	put_unaligned_be16(40, &buf[2]);
+
+try_atomic:
+	/*
+	 * ATOMIC
+	 */
+	if (!dev->dev_attrib.atomic_max_len)
+		goto done;
+
+	if (dev->dev_attrib.atomic_max_len < io_max_blocks)
+		put_unaligned_be32(dev->dev_attrib.atomic_max_len, &buf[44]);
+	else
+		put_unaligned_be32(io_max_blocks, &buf[44]);
+
+	put_unaligned_be32(dev->dev_attrib.atomic_alignment, &buf[48]);
+	put_unaligned_be32(dev->dev_attrib.atomic_granularity, &buf[52]);
+	put_unaligned_be32(dev->dev_attrib.atomic_max_with_boundary, &buf[56]);
+	put_unaligned_be32(dev->dev_attrib.atomic_max_boundary, &buf[60]);
+
+	put_unaligned_be16(60, &buf[2]);
+done:
 	return 0;
 }
 
