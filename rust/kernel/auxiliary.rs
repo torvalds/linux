@@ -215,15 +215,15 @@ impl<Ctx: device::DeviceContext> Device<Ctx> {
         // `struct auxiliary_device`.
         unsafe { (*self.as_raw()).id }
     }
+}
 
+impl Device {
     /// Returns a reference to the parent [`device::Device`].
     pub fn parent(&self) -> &device::Device {
         // SAFETY: A `struct auxiliary_device` always has a parent.
         unsafe { self.as_ref().parent().unwrap_unchecked() }
     }
-}
 
-impl Device {
     extern "C" fn release(dev: *mut bindings::device) {
         // SAFETY: By the type invariant `self.0.as_raw` is a pointer to the `struct device`
         // embedded in `struct auxiliary_device`.
