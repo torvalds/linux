@@ -55,6 +55,13 @@
 		reg = <0x10000000 0x40000000>;
 	};
 
+	reg_3v3: regulator-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "3v3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
 	reg_usbh1_vbus: regulator-usbhubreset {
 		compatible = "regulator-fixed";
 		regulator-name = "usbh1_vbus";
@@ -81,6 +88,7 @@
 
 	panel {
 		compatible = "sharp,lq101k1ly04";
+		power-supply = <&reg_3v3>;
 
 		port {
 			panel_in: endpoint {

@@ -17,6 +17,13 @@
 		reg = <0x10000000 0x40000000>;
 	};
 
+	reg_3v3: regulator-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "reg-3v3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
 	reg_usb_otg_vbus: regulator-usb-otg-vbus {
 		compatible = "regulator-fixed";
 		regulator-name = "usb_otg_vbus";
@@ -139,6 +146,7 @@
 	panel {
 		compatible = "hannstar,hsd100pxn1";
 		backlight = <&backlight_lvds>;
+		power-supply = <&reg_3v3>;
 
 		port {
 			panel_in: endpoint {

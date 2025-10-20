@@ -35,6 +35,7 @@
 	panel-lcd {
 		compatible = "okaya,rs800480t-7x0gp";
 		backlight = <&backlight_lcd>;
+		power-supply = <&reg_3v3>;
 
 		port {
 			panel_in: endpoint {
@@ -60,6 +61,13 @@
 		gpio = <&gpio4 7 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 	};
+
+	reg_3v3: regulator-3v3 {
+		  compatible = "regulator-fixed";
+		  regulator-name = "reg-3v3";
+		  regulator-min-microvolt = <3300000>;
+		  regulator-max-microvolt = <3300000>;
+	 };
 
 	reg_can2_3v3: regulator-can2-3v3 {
 		compatible = "regulator-fixed";

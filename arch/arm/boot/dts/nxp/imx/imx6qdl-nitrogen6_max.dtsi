@@ -237,6 +237,7 @@
 	panel-lcd {
 		compatible = "okaya,rs800480t-7x0gp";
 		backlight = <&backlight_lcd>;
+		power-supply = <&reg_3p3v>;
 
 		port {
 			lcd_panel_in: endpoint {
@@ -248,6 +249,7 @@
 	panel-lvds0 {
 		compatible = "hannstar,hsd100pxn1";
 		backlight = <&backlight_lvds0>;
+		power-supply = <&reg_3p3v>;
 
 		port {
 			panel_in_lvds0: endpoint {
@@ -259,6 +261,7 @@
 	panel-lvds1 {
 		compatible = "hannstar,hsd100pxn1";
 		backlight = <&backlight_lvds1>;
+		power-supply = <&reg_3p3v>;
 
 		port {
 			panel_in_lvds1: endpoint {

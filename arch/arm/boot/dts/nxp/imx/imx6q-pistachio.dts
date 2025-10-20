@@ -145,6 +145,7 @@
 	panel {
 		compatible = "hannstar,hsd100pxn1";
 		backlight = <&backlight_lvds>;
+		power-supply = <&reg_3p3v>;
 
 		port {
 			panel_in: endpoint {
