@@ -116,7 +116,7 @@ int sdca_fdl_sync(struct device *dev, struct sdca_function_data *function,
 							   done_timeout);
 			if (!time) {
 				dev_err(dev, "timed out waiting for FDL to complete\n");
-				return -ETIMEDOUT;
+				goto error;
 			}
 		}
 
@@ -125,6 +125,25 @@ int sdca_fdl_sync(struct device *dev, struct sdca_function_data *function,
 	}
 
 	dev_err(dev, "too many FDL requests\n");
+
+error:
+	for (j = 0; j < SDCA_MAX_INTERRUPTS; j++) {
+		struct sdca_interrupt *interrupt = &info->irqs[j];
+		struct fdl_state *fdl_state;
+
+		if (interrupt->function != function ||
+		    !interrupt->entity || !interrupt->control ||
+		    interrupt->entity->type != SDCA_ENTITY_TYPE_XU ||
+		    interrupt->control->sel != SDCA_CTL_XU_FDL_CURRENTOWNER)
+			continue;
+
+		disable_irq(interrupt->irq);
+
+		fdl_state = interrupt->priv;
+
+		sdca_ump_cancel_timeout(&fdl_state->timeout);
+	}
+
 	return -ETIMEDOUT;
 }
 EXPORT_SYMBOL_NS_GPL(sdca_fdl_sync, "SND_SOC_SDCA");
@@ -302,6 +321,21 @@ static void fdl_end(struct sdca_interrupt *interrupt)
 	dev_dbg(interrupt->dev, "completed FDL process\n");
 }
 
+static void sdca_fdl_timeout_work(struct work_struct *work)
+{
+	struct fdl_state *fdl_state = container_of(work, struct fdl_state,
+						   timeout.work);
+	struct sdca_interrupt *interrupt = fdl_state->interrupt;
+	struct device *dev = interrupt->dev;
+
+	dev_err(dev, "FDL transaction timed out\n");
+
+	guard(mutex)(&fdl_state->lock);
+
+	fdl_end(interrupt);
+	sdca_reset_function(dev, interrupt->function, interrupt->function_regmap);
+}
+
 static int fdl_status_process(struct sdca_interrupt *interrupt, unsigned int status)
 {
 	struct fdl_state *fdl_state = interrupt->priv;
@@ -364,14 +398,19 @@ int sdca_fdl_process(struct sdca_interrupt *interrupt)
 {
 	struct device *dev = interrupt->dev;
 	struct sdca_entity_xu *xu = &interrupt->entity->xu;
+	struct fdl_state *fdl_state = interrupt->priv;
 	unsigned int reg, status;
 	int response, ret;
+
+	guard(mutex)(&fdl_state->lock);
 
 	ret = sdca_ump_get_owner_host(dev, interrupt->function_regmap,
 				      interrupt->function, interrupt->entity,
 				      interrupt->control);
 	if (ret)
 		goto reset_function;
+
+	sdca_ump_cancel_timeout(&fdl_state->timeout);
 
 	reg = SDW_SDCA_CTL(interrupt->function->desc->adr, interrupt->entity->id,
 			   SDCA_CTL_XU_FDL_STATUS, 0);
@@ -415,7 +454,13 @@ int sdca_fdl_process(struct sdca_interrupt *interrupt)
 		case SDCA_XU_RESET_FUNCTION:
 			goto reset_function;
 		}
+	case SDCA_CTL_XU_FDLH_COMPLETE:
+		if (status & SDCA_CTL_XU_FDLD_REQ_ABORT ||
+		    status == SDCA_CTL_XU_FDLD_COMPLETE)
+			return 0;
+		fallthrough;
 	default:
+		sdca_ump_schedule_timeout(&fdl_state->timeout, xu->max_delay);
 		return 0;
 	}
 
@@ -441,8 +486,11 @@ int sdca_fdl_alloc_state(struct sdca_interrupt *interrupt)
 	if (!fdl_state)
 		return -ENOMEM;
 
+	INIT_DELAYED_WORK(&fdl_state->timeout, sdca_fdl_timeout_work);
 	init_completion(&fdl_state->begin);
 	init_completion(&fdl_state->done);
+	mutex_init(&fdl_state->lock);
+	fdl_state->interrupt = interrupt;
 
 	interrupt->priv = fdl_state;
 

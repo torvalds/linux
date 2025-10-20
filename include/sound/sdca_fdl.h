@@ -11,6 +11,7 @@
 #define __SDCA_FDL_H__
 
 #include <linux/completion.h>
+#include <linux/workqueue.h>
 
 struct device;
 struct regmap;
@@ -23,13 +24,19 @@ struct sdca_interrupt_info;
  * struct fdl_state - FDL state structure to keep data between interrupts
  * @begin: Completion indicating the start of an FDL download cycle.
  * @done: Completion indicating the end of an FDL download cycle.
+ * @timeout: Delayed work used for timing out UMP transactions.
+ * @lock: Mutex to protect between the timeout work and IRQ handlers.
+ * @interrupt: Pointer to the interrupt struct to which this FDL is attached.
  * @set: Pointer to the FDL set currently being downloaded.
  * @file_index: Index of the current file being processed.
  */
 struct fdl_state {
 	struct completion begin;
 	struct completion done;
+	struct delayed_work timeout;
+	struct mutex lock;
 
+	struct sdca_interrupt *interrupt;
 	struct sdca_fdl_set *set;
 	int file_index;
 };

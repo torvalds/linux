@@ -15,6 +15,7 @@ struct sdca_control;
 struct sdca_entity;
 struct sdca_function_data;
 struct snd_soc_component;
+struct delayed_work;
 
 int sdca_ump_get_owner_host(struct device *dev,
 			    struct regmap *function_regmap,
@@ -41,5 +42,9 @@ int sdca_ump_write_message(struct device *dev,
 			   unsigned int offset_sel, unsigned int msg_offset,
 			   unsigned int length_sel,
 			   void *msg, int msg_len);
+
+void sdca_ump_cancel_timeout(struct delayed_work *work);
+void sdca_ump_schedule_timeout(struct delayed_work *work,
+			       unsigned int timeout_us);
 
 #endif // __SDCA_UMP_H__

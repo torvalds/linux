@@ -245,3 +245,18 @@ int sdca_ump_write_message(struct device *dev,
 	return 0;
 }
 EXPORT_SYMBOL_NS_GPL(sdca_ump_write_message, "SND_SOC_SDCA");
+
+void sdca_ump_cancel_timeout(struct delayed_work *work)
+{
+	cancel_delayed_work_sync(work);
+}
+EXPORT_SYMBOL_NS_GPL(sdca_ump_cancel_timeout, "SND_SOC_SDCA");
+
+void sdca_ump_schedule_timeout(struct delayed_work *work, unsigned int timeout_us)
+{
+	if (!timeout_us)
+		return;
+
+	queue_delayed_work(system_wq, work, usecs_to_jiffies(timeout_us));
+}
+EXPORT_SYMBOL_NS_GPL(sdca_ump_schedule_timeout, "SND_SOC_SDCA");
