@@ -578,6 +578,11 @@ DEF_CONFIGFS_ATTRIB_SHOW(unmap_zeroes_data);
 DEF_CONFIGFS_ATTRIB_SHOW(max_write_same_len);
 DEF_CONFIGFS_ATTRIB_SHOW(emulate_rsoc);
 DEF_CONFIGFS_ATTRIB_SHOW(submit_type);
+DEF_CONFIGFS_ATTRIB_SHOW(atomic_max_len);
+DEF_CONFIGFS_ATTRIB_SHOW(atomic_alignment);
+DEF_CONFIGFS_ATTRIB_SHOW(atomic_granularity);
+DEF_CONFIGFS_ATTRIB_SHOW(atomic_max_with_boundary);
+DEF_CONFIGFS_ATTRIB_SHOW(atomic_max_boundary);
 
 #define DEF_CONFIGFS_ATTRIB_STORE_U32(_name)				\
 static ssize_t _name##_store(struct config_item *item, const char *page,\
@@ -1300,6 +1305,11 @@ CONFIGFS_ATTR(, max_write_same_len);
 CONFIGFS_ATTR(, alua_support);
 CONFIGFS_ATTR(, pgr_support);
 CONFIGFS_ATTR(, submit_type);
+CONFIGFS_ATTR_RO(, atomic_max_len);
+CONFIGFS_ATTR_RO(, atomic_alignment);
+CONFIGFS_ATTR_RO(, atomic_granularity);
+CONFIGFS_ATTR_RO(, atomic_max_with_boundary);
+CONFIGFS_ATTR_RO(, atomic_max_boundary);
 
 /*
  * dev_attrib attributes for devices using the target core SBC/SPC
@@ -1343,6 +1353,11 @@ struct configfs_attribute *sbc_attrib_attrs[] = {
 	&attr_pgr_support,
 	&attr_emulate_rsoc,
 	&attr_submit_type,
+	&attr_atomic_alignment,
+	&attr_atomic_max_len,
+	&attr_atomic_granularity,
+	&attr_atomic_max_with_boundary,
+	&attr_atomic_max_boundary,
 	NULL,
 };
 EXPORT_SYMBOL(sbc_attrib_attrs);

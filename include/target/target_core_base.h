@@ -731,6 +731,11 @@ struct se_dev_attrib {
 	u32		unmap_granularity;
 	u32		unmap_granularity_alignment;
 	u32		max_write_same_len;
+	u32		atomic_max_len;
+	u32		atomic_alignment;
+	u32		atomic_granularity;
+	u32		atomic_max_with_boundary;
+	u32		atomic_max_boundary;
 	u8		submit_type;
 	struct se_device *da_dev;
 	struct config_group da_group;
