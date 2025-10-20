@@ -6,6 +6,7 @@
 #include <dt-bindings/clock/imx6qdl-clock.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/media/video-interfaces.h>
 
 / {
 	chosen {
@@ -299,6 +300,7 @@
 		port {
 			ov5642_to_ipu1_csi0_mux: endpoint {
 				remote-endpoint = <&ipu1_csi0_mux_from_parallel_sensor>;
+				bus-type = <MEDIA_BUS_TYPE_PARALLEL>;
 				bus-width = <8>;
 				hsync-active = <1>;
 				vsync-active = <1>;
