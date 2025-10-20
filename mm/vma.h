@@ -312,12 +312,6 @@ void unlink_file_vma_batch_final(struct unlink_vma_file_batch *vb);
 void unlink_file_vma_batch_add(struct unlink_vma_file_batch *vb,
 			       struct vm_area_struct *vma);
 
-void unlink_file_vma(struct vm_area_struct *vma);
-
-void vma_link_file(struct vm_area_struct *vma);
-
-int vma_link(struct mm_struct *mm, struct vm_area_struct *vma);
-
 struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
 	unsigned long addr, unsigned long len, pgoff_t pgoff,
 	bool *need_rmap_locks);

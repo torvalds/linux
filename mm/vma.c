@@ -1754,24 +1754,7 @@ void unlink_file_vma_batch_final(struct unlink_vma_file_batch *vb)
 		unlink_file_vma_batch_process(vb);
 }
 
-/*
- * Unlink a file-based vm structure from its interval tree, to hide
- * vma from rmap and vmtruncate before freeing its page tables.
- */
-void unlink_file_vma(struct vm_area_struct *vma)
-{
-	struct file *file = vma->vm_file;
-
-	if (file) {
-		struct address_space *mapping = file->f_mapping;
-
-		i_mmap_lock_write(mapping);
-		__remove_shared_vm_struct(vma, mapping);
-		i_mmap_unlock_write(mapping);
-	}
-}
-
-void vma_link_file(struct vm_area_struct *vma)
+static void vma_link_file(struct vm_area_struct *vma)
 {
 	struct file *file = vma->vm_file;
 	struct address_space *mapping;
@@ -1784,7 +1767,7 @@ void vma_link_file(struct vm_area_struct *vma)
 	}
 }
 
-int vma_link(struct mm_struct *mm, struct vm_area_struct *vma)
+static int vma_link(struct mm_struct *mm, struct vm_area_struct *vma)
 {
 	VMA_ITERATOR(vmi, mm, 0);
 
