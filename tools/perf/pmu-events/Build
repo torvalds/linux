@@ -1,5 +1,4 @@
 pmu-events-y	+= pmu-events.o
-JDIR		=  pmu-events/arch/$(SRCARCH)
 JSON		=  $(shell find pmu-events/arch -name '*.json' -o -name '*.csv')
 JDIR_TEST	=  pmu-events/arch/test
 JSON_TEST	=  $(shell [ -d $(JDIR_TEST) ] &&			\
