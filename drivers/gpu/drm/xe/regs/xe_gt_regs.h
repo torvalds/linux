@@ -37,6 +37,12 @@
 #define GMD_ID					XE_REG(0xd8c)
 #define   GMD_ID_ARCH_MASK			REG_GENMASK(31, 22)
 #define   GMD_ID_RELEASE_MASK			REG_GENMASK(21, 14)
+/*
+ * Spec defines these bits as "Reserved", but then make them assume some
+ * meaning that depends on the ARCH. To avoid any confusion, call them
+ * SUBIP_FLAG_MASK.
+ */
+#define   GMD_ID_SUBIP_FLAG_MASK		REG_GENMASK(13, 6)
 #define   GMD_ID_REVID				REG_GENMASK(5, 0)
 
 #define FORCEWAKE_ACK_GSC			XE_REG(0xdf8)
