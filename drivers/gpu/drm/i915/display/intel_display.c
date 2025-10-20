@@ -2631,6 +2631,9 @@ static void intel_set_transcoder_timings(const struct intel_crtc_state *crtc_sta
 		 * to make it stand out in register dumps.
 		 */
 		crtc_vblank_start = 1;
+	} else if (DISPLAY_VER(display) == 12) {
+		/* VBLANK_START - VACTIVE defines SCL on TGL */
+		crtc_vblank_start = crtc_vdisplay + crtc_state->set_context_latency;
 	}
 
 	if (DISPLAY_VER(display) >= 4)
@@ -2721,6 +2724,9 @@ static void intel_set_transcoder_timings_lrr(const struct intel_crtc_state *crtc
 		 * to make it stand out in register dumps.
 		 */
 		crtc_vblank_start = 1;
+	} else if (DISPLAY_VER(display) == 12) {
+		/* VBLANK_START - VACTIVE defines SCL on TGL */
+		crtc_vblank_start = crtc_vdisplay + crtc_state->set_context_latency;
 	}
 
 	/*
