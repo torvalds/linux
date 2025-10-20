@@ -676,7 +676,7 @@ static int ssam_serial_hub_probe(struct serdev_device *serdev)
 
 	status = ssam_serdev_setup(ssh, serdev);
 	if (status) {
-		status = dev_err_probe(dev, status, "failed to setup serdev\n");
+		dev_err_probe(dev, status, "failed to setup serdev\n");
 		goto err_devinit;
 	}
 
