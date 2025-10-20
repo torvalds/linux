@@ -841,6 +841,8 @@ static int sun50i_iommu_of_xlate(struct device *dev,
 
 	dev_iommu_priv_set(dev, platform_get_drvdata(iommu_pdev));
 
+	put_device(&iommu_pdev->dev);
+
 	return iommu_fwspec_add_ids(dev, &id, 1);
 }
 
