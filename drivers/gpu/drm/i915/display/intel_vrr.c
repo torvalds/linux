@@ -692,6 +692,28 @@ static void intel_vrr_set_vrr_timings(const struct intel_crtc_state *crtc_state)
 		       intel_vrr_hw_flipline(crtc_state) - 1);
 }
 
+static void intel_vrr_tg_enable(const struct intel_crtc_state *crtc_state,
+				bool cmrr_enable)
+{
+	struct intel_display *display = to_intel_display(crtc_state);
+	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
+	u32 vrr_ctl;
+
+	intel_de_write(display, TRANS_PUSH(display, cpu_transcoder), TRANS_PUSH_EN);
+
+	vrr_ctl = VRR_CTL_VRR_ENABLE | trans_vrr_ctl(crtc_state);
+
+	/*
+	 * FIXME this might be broken as bspec seems to imply that
+	 * even VRR_CTL_CMRR_ENABLE is armed by TRANS_CMRR_N_HI
+	 * when enabling CMRR (but not when disabling CMRR?).
+	 */
+	if (cmrr_enable)
+		vrr_ctl |= VRR_CTL_CMRR_ENABLE;
+
+	intel_de_write(display, TRANS_VRR_CTL(display, cpu_transcoder), vrr_ctl);
+}
+
 static void intel_vrr_tg_disable(const struct intel_crtc_state *old_crtc_state)
 {
 	struct intel_display *display = to_intel_display(old_crtc_state);
@@ -711,26 +733,14 @@ static void intel_vrr_tg_disable(const struct intel_crtc_state *old_crtc_state)
 void intel_vrr_enable(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
-	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 
 	if (!crtc_state->vrr.enable)
 		return;
 
 	intel_vrr_set_vrr_timings(crtc_state);
 
-	if (!intel_vrr_always_use_vrr_tg(display)) {
-		intel_de_write(display, TRANS_PUSH(display, cpu_transcoder),
-			       TRANS_PUSH_EN);
-
-		if (crtc_state->cmrr.enable) {
-			intel_de_write(display, TRANS_VRR_CTL(display, cpu_transcoder),
-				       VRR_CTL_VRR_ENABLE | VRR_CTL_CMRR_ENABLE |
-				       trans_vrr_ctl(crtc_state));
-		} else {
-			intel_de_write(display, TRANS_VRR_CTL(display, cpu_transcoder),
-				       VRR_CTL_VRR_ENABLE | trans_vrr_ctl(crtc_state));
-		}
-	}
+	if (!intel_vrr_always_use_vrr_tg(display))
+		intel_vrr_tg_enable(crtc_state, crtc_state->cmrr.enable);
 }
 
 void intel_vrr_disable(const struct intel_crtc_state *old_crtc_state)
@@ -763,11 +773,7 @@ void intel_vrr_transcoder_enable(const struct intel_crtc_state *crtc_state)
 		return;
 	}
 
-	intel_de_write(display, TRANS_PUSH(display, cpu_transcoder),
-		       TRANS_PUSH_EN);
-
-	intel_de_write(display, TRANS_VRR_CTL(display, cpu_transcoder),
-		       VRR_CTL_VRR_ENABLE | trans_vrr_ctl(crtc_state));
+	intel_vrr_tg_enable(crtc_state, false);
 }
 
 void intel_vrr_transcoder_disable(const struct intel_crtc_state *crtc_state)
