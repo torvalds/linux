@@ -3608,6 +3608,80 @@ static inline unsigned long vma_desc_pages(const struct vm_area_desc *desc)
 	return vma_desc_size(desc) >> PAGE_SHIFT;
 }
 
+/**
+ * mmap_action_remap - helper for mmap_prepare hook to specify that a pure PFN
+ * remap is required.
+ * @desc: The VMA descriptor for the VMA requiring remap.
+ * @start: The virtual address to start the remap from, must be within the VMA.
+ * @start_pfn: The first PFN in the range to remap.
+ * @size: The size of the range to remap, in bytes, at most spanning to the end
+ * of the VMA.
+ */
+static inline void mmap_action_remap(struct vm_area_desc *desc,
+				     unsigned long start,
+				     unsigned long start_pfn,
+				     unsigned long size)
+{
+	struct mmap_action *action = &desc->action;
+
+	/* [start, start + size) must be within the VMA. */
+	WARN_ON_ONCE(start < desc->start || start >= desc->end);
+	WARN_ON_ONCE(start + size > desc->end);
+
+	action->type = MMAP_REMAP_PFN;
+	action->remap.start = start;
+	action->remap.start_pfn = start_pfn;
+	action->remap.size = size;
+	action->remap.pgprot = desc->page_prot;
+}
+
+/**
+ * mmap_action_remap_full - helper for mmap_prepare hook to specify that the
+ * entirety of a VMA should be PFN remapped.
+ * @desc: The VMA descriptor for the VMA requiring remap.
+ * @start_pfn: The first PFN in the range to remap.
+ */
+static inline void mmap_action_remap_full(struct vm_area_desc *desc,
+					  unsigned long start_pfn)
+{
+	mmap_action_remap(desc, desc->start, start_pfn, vma_desc_size(desc));
+}
+
+/**
+ * mmap_action_ioremap - helper for mmap_prepare hook to specify that a pure PFN
+ * I/O remap is required.
+ * @desc: The VMA descriptor for the VMA requiring remap.
+ * @start: The virtual address to start the remap from, must be within the VMA.
+ * @start_pfn: The first PFN in the range to remap.
+ * @size: The size of the range to remap, in bytes, at most spanning to the end
+ * of the VMA.
+ */
+static inline void mmap_action_ioremap(struct vm_area_desc *desc,
+				       unsigned long start,
+				       unsigned long start_pfn,
+				       unsigned long size)
+{
+	mmap_action_remap(desc, start, start_pfn, size);
+	desc->action.type = MMAP_IO_REMAP_PFN;
+}
+
+/**
+ * mmap_action_ioremap_full - helper for mmap_prepare hook to specify that the
+ * entirety of a VMA should be PFN I/O remapped.
+ * @desc: The VMA descriptor for the VMA requiring remap.
+ * @start_pfn: The first PFN in the range to remap.
+ */
+static inline void mmap_action_ioremap_full(struct vm_area_desc *desc,
+					  unsigned long start_pfn)
+{
+	mmap_action_ioremap(desc, desc->start, start_pfn, vma_desc_size(desc));
+}
+
+void mmap_action_prepare(struct mmap_action *action,
+			 struct vm_area_desc *desc);
+int mmap_action_complete(struct mmap_action *action,
+			 struct vm_area_struct *vma);
+
 /* Look up the first VMA which exactly match the interval vm_start ... vm_end */
 static inline struct vm_area_struct *find_exact_vma(struct mm_struct *mm,
 				unsigned long vm_start, unsigned long vm_end)
