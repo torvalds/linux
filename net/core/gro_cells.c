@@ -43,12 +43,11 @@ drop:
 	if (skb_queue_len(&cell->napi_skbs) == 1)
 		napi_schedule(&cell->napi);
 
-	if (have_bh_lock)
-		local_unlock_nested_bh(&gcells->cells->bh_lock);
-
 	res = NET_RX_SUCCESS;
 
 unlock:
+	if (have_bh_lock)
+		local_unlock_nested_bh(&gcells->cells->bh_lock);
 	rcu_read_unlock();
 	return res;
 }
