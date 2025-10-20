@@ -12,6 +12,7 @@
 #include <linux/types.h>
 #include <linux/kconfig.h>
 
+struct acpi_table_swft;
 struct sdw_slave;
 
 #define SDCA_MAX_FUNCTION_COUNT 8
@@ -37,11 +38,13 @@ struct sdca_function_desc {
  * @num_functions: Total number of supported SDCA functions. Invalid/unsupported
  * functions will be skipped.
  * @function: Array of function descriptors.
+ * @swft: Pointer to the SWFT table, if available.
  */
 struct sdca_device_data {
 	u32 interface_revision;
 	int num_functions;
 	struct sdca_function_desc function[SDCA_MAX_FUNCTION_COUNT];
+	struct acpi_table_swft *swft;
 };
 
 enum sdca_quirk {
@@ -52,12 +55,14 @@ enum sdca_quirk {
 #if IS_ENABLED(CONFIG_ACPI) && IS_ENABLED(CONFIG_SND_SOC_SDCA)
 
 void sdca_lookup_functions(struct sdw_slave *slave);
+void sdca_lookup_swft(struct sdw_slave *slave);
 void sdca_lookup_interface_revision(struct sdw_slave *slave);
 bool sdca_device_quirk_match(struct sdw_slave *slave, enum sdca_quirk quirk);
 
 #else
 
 static inline void sdca_lookup_functions(struct sdw_slave *slave) {}
+static inline void sdca_lookup_swft(struct sdw_slave *slave) {}
 static inline void sdca_lookup_interface_revision(struct sdw_slave *slave) {}
 static inline bool sdca_device_quirk_match(struct sdw_slave *slave, enum sdca_quirk quirk)
 {
