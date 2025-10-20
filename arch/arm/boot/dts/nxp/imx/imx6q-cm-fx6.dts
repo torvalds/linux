@@ -99,6 +99,34 @@
 		enable-active-high;
 	};
 
+	avdd_reg: regulator-avdd {
+		compatible = "regulator-fixed";
+		regulator-name = "avdd";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+	};
+
+	hpvdd_reg: regulator-hpvdd {
+		compatible = "regulator-fixed";
+		regulator-name = "hpvdd";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+	};
+
+	dcvdd_reg: regulator-dcvdd {
+		compatible = "regulator-fixed";
+		regulator-name = "dcvdd";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
+	dbvdd_reg: regulator-dbvdd {
+		compatible = "regulator-fixed";
+		regulator-name = "dbvdd";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
 	sound-analog {
 		compatible = "simple-audio-card";
 		simple-audio-card,name = "On-board analog audio";
@@ -307,6 +335,10 @@
 		#sound-dai-cells = <0>;
 		compatible = "wlf,wm8731";
 		reg = <0x1a>;
+		AVDD-supply = <&avdd_reg>;
+		HPVDD-supply = <&hpvdd_reg>;
+		DCVDD-supply = <&dcvdd_reg>;
+		DBVDD-supply = <&dbvdd_reg>;
 	};
 };
 
