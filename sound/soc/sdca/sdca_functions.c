@@ -179,11 +179,11 @@ static int find_sdca_function(struct acpi_device *adev, void *data)
  */
 void sdca_lookup_functions(struct sdw_slave *slave)
 {
-	struct device *dev = &slave->dev;
-	struct acpi_device *adev = to_acpi_device_node(dev->fwnode);
+	struct device *sdev = &slave->dev;
+	struct acpi_device *adev = to_acpi_device_node(sdev->fwnode);
 
 	if (!adev) {
-		dev_info(dev, "no matching ACPI device found, ignoring peripheral\n");
+		dev_info(sdev, "no matching ACPI device found, ignoring peripheral\n");
 		return;
 	}
 

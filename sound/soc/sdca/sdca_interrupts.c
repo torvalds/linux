@@ -400,7 +400,7 @@ EXPORT_SYMBOL_NS_GPL(sdca_irq_populate, "SND_SOC_SDCA");
 
 /**
  * sdca_irq_allocate - allocate an SDCA interrupt structure for a device
- * @dev: Device pointer against which things should be allocated.
+ * @sdev: Device pointer against which things should be allocated.
  * @regmap: regmap to be used for accessing the SDCA IRQ registers.
  * @irq: The interrupt number.
  *
@@ -411,30 +411,30 @@ EXPORT_SYMBOL_NS_GPL(sdca_irq_populate, "SND_SOC_SDCA");
  * Return: A pointer to the allocated sdca_interrupt_info struct, or an
  * error code.
  */
-struct sdca_interrupt_info *sdca_irq_allocate(struct device *dev,
+struct sdca_interrupt_info *sdca_irq_allocate(struct device *sdev,
 					      struct regmap *regmap, int irq)
 {
 	struct sdca_interrupt_info *info;
 	int ret;
 
-	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc(sdev, sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return ERR_PTR(-ENOMEM);
 
 	info->irq_chip = sdca_irq_chip;
 
-	ret = devm_mutex_init(dev, &info->irq_lock);
+	ret = devm_mutex_init(sdev, &info->irq_lock);
 	if (ret)
 		return ERR_PTR(ret);
 
-	ret = devm_regmap_add_irq_chip(dev, regmap, irq, IRQF_ONESHOT, 0,
+	ret = devm_regmap_add_irq_chip(sdev, regmap, irq, IRQF_ONESHOT, 0,
 				       &info->irq_chip, &info->irq_data);
 	if (ret) {
-		dev_err(dev, "failed to register irq chip: %d\n", ret);
+		dev_err(sdev, "failed to register irq chip: %d\n", ret);
 		return ERR_PTR(ret);
 	}
 
-	dev_dbg(dev, "registered on irq %d\n", irq);
+	dev_dbg(sdev, "registered on irq %d\n", irq);
 
 	return info;
 }
