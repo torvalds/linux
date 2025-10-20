@@ -29,9 +29,8 @@ struct sdca_function_data;
  * @entity: Pointer to the Entity that the interrupt is associated with.
  * @control: Pointer to the Control that the interrupt is associated with.
  * @priv: Pointer to private data for use by the handler.
- * @externally_requested: Internal flag used to check if a client driver has
- * already requested the interrupt, for custom handling, allowing the core to
- * skip handling this interrupt.
+ * @irq: IRQ number allocated to this interrupt, also used internally to track
+ * the IRQ being assigned.
  */
 struct sdca_interrupt {
 	const char *name;
@@ -44,7 +43,7 @@ struct sdca_interrupt {
 
 	void *priv;
 
-	bool externally_requested;
+	int irq;
 };
 
 /**

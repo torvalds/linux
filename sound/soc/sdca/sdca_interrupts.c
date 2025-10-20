@@ -262,6 +262,8 @@ static int sdca_irq_request_locked(struct device *dev,
 	if (ret)
 		return ret;
 
+	info->irqs[sdca_irq].irq = irq;
+
 	dev_dbg(dev, "requested irq %d for %s\n", irq, name);
 
 	return 0;
@@ -300,8 +302,6 @@ int sdca_irq_request(struct device *dev, struct sdca_interrupt_info *info,
 		dev_err(dev, "failed to request irq %s: %d\n", name, ret);
 		return ret;
 	}
-
-	info->irqs[sdca_irq].externally_requested = true;
 
 	return 0;
 }
@@ -379,9 +379,9 @@ int sdca_irq_populate(struct sdca_function_data *function,
 
 			interrupt = &info->irqs[irq];
 
-			if (interrupt->externally_requested) {
+			if (interrupt->requested) {
 				dev_dbg(dev,
-					"skipping irq %d, externally requested\n",
+					"skipping irq %d, already requested\n",
 					irq);
 				continue;
 			}
