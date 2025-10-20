@@ -227,6 +227,7 @@ int ttm_device_init(struct ttm_device *bdev, const struct ttm_device_funcs *func
 		return -ENOMEM;
 	}
 
+	bdev->alloc_flags = alloc_flags;
 	bdev->funcs = funcs;
 
 	ttm_sys_man_init(bdev);

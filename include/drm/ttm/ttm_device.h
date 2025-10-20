@@ -221,6 +221,11 @@ struct ttm_device {
 	struct list_head device_list;
 
 	/**
+	 * @alloc_flags: TTM_ALLOCATION_ flags.
+	 */
+	unsigned int alloc_flags;
+
+	/**
 	 * @funcs: Function table for the device.
 	 * Constant after bo device init
 	 */
