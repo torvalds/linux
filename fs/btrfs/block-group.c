@@ -4191,11 +4191,11 @@ int btrfs_chunk_alloc(struct btrfs_trans_handle *trans,
 		should_alloc = should_alloc_chunk(fs_info, space_info, force);
 		if (space_info->full) {
 			/* No more free physical space */
+			spin_unlock(&space_info->lock);
 			if (should_alloc)
 				ret = -ENOSPC;
 			else
 				ret = 0;
-			spin_unlock(&space_info->lock);
 			return ret;
 		} else if (!should_alloc) {
 			spin_unlock(&space_info->lock);
@@ -4207,16 +4207,16 @@ int btrfs_chunk_alloc(struct btrfs_trans_handle *trans,
 			 * recheck if we should continue with our allocation
 			 * attempt.
 			 */
+			spin_unlock(&space_info->lock);
 			wait_for_alloc = true;
 			force = CHUNK_ALLOC_NO_FORCE;
-			spin_unlock(&space_info->lock);
 			mutex_lock(&fs_info->chunk_mutex);
 			mutex_unlock(&fs_info->chunk_mutex);
 		} else {
 			/* Proceed with allocation */
 			space_info->chunk_alloc = true;
-			wait_for_alloc = false;
 			spin_unlock(&space_info->lock);
+			wait_for_alloc = false;
 		}
 
 		cond_resched();
