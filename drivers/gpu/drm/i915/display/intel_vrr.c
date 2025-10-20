@@ -786,7 +786,8 @@ void intel_vrr_transcoder_disable(const struct intel_crtc_state *crtc_state)
 	if (!intel_vrr_possible(crtc_state))
 		return;
 
-	intel_vrr_tg_disable(crtc_state);
+	if (intel_vrr_always_use_vrr_tg(display))
+		intel_vrr_tg_disable(crtc_state);
 }
 
 bool intel_vrr_is_fixed_rr(const struct intel_crtc_state *crtc_state)
