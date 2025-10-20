@@ -1091,6 +1091,27 @@ struct sdca_entity_hide {
 };
 
 /**
+ * enum sdca_xu_reset_machanism - SDCA FDL Resets
+ */
+enum sdca_xu_reset_mechanism {
+	SDCA_XU_RESET_FUNCTION				= 0x0,
+	SDCA_XU_RESET_DEVICE				= 0x1,
+	SDCA_XU_RESET_BUS				= 0x2,
+};
+
+/**
+ * struct sdca_entity_xu - information specific to XU Entities
+ * @max_delay: the maximum time in microseconds allowed for the Device
+ * to change the ownership from Device to Host
+ * @reset_mechanism: indicates the type of reset that can be requested
+ * the end of an FDL.
+ */
+struct sdca_entity_xu {
+	unsigned int max_delay;
+	enum sdca_xu_reset_mechanism reset_mechanism;
+};
+
+/**
  * struct sdca_entity - information for one SDCA Entity
  * @label: String such as "OT 12".
  * @id: Identifier used for addressing.
@@ -1106,6 +1127,7 @@ struct sdca_entity_hide {
  * @pde: Power Domain Entity specific Entity properties.
  * @ge: Group Entity specific Entity properties.
  * @hide: HIDE Entity specific Entity properties.
+ * @xu: XU Entity specific Entity properties.
  */
 struct sdca_entity {
 	const char *label;
@@ -1123,6 +1145,7 @@ struct sdca_entity {
 		struct sdca_entity_pde pde;
 		struct sdca_entity_ge ge;
 		struct sdca_entity_hide hide;
+		struct sdca_entity_xu xu;
 	};
 };
 

@@ -1398,6 +1398,28 @@ find_sdca_entity_hide(struct device *dev, struct sdw_slave *sdw,
 	return 0;
 }
 
+static int find_sdca_entity_xu(struct device *dev,
+			       struct fwnode_handle *entity_node,
+			       struct sdca_entity *entity)
+{
+	struct sdca_entity_xu *xu = &entity->xu;
+	u32 tmp;
+	int ret;
+
+	ret = fwnode_property_read_u32(entity_node,
+				       "mipi-sdca-RxUMP-ownership-transition-max-delay",
+				       &tmp);
+	if (!ret)
+		xu->max_delay = tmp;
+
+	ret = fwnode_property_read_u32(entity_node, "mipi-sdca-FDL-reset-mechanism",
+				       &tmp);
+	if (!ret)
+		xu->reset_mechanism = tmp;
+
+	return 0;
+}
+
 static int find_sdca_entity(struct device *dev, struct sdw_slave *sdw,
 			    struct fwnode_handle *function_node,
 			    struct fwnode_handle *entity_node,
@@ -1429,6 +1451,9 @@ static int find_sdca_entity(struct device *dev, struct sdw_slave *sdw,
 	case SDCA_ENTITY_TYPE_IT:
 	case SDCA_ENTITY_TYPE_OT:
 		ret = find_sdca_entity_iot(dev, entity_node, entity);
+		break;
+	case SDCA_ENTITY_TYPE_XU:
+		ret = find_sdca_entity_xu(dev, entity_node, entity);
 		break;
 	case SDCA_ENTITY_TYPE_CS:
 		ret = find_sdca_entity_cs(dev, entity_node, entity);
