@@ -110,8 +110,7 @@ int btrfs_lookup_extent_info(struct btrfs_trans_handle *trans,
 			     struct btrfs_fs_info *fs_info, u64 bytenr,
 			     u64 offset, int metadata, u64 *refs, u64 *flags,
 			     u64 *owner_root);
-int btrfs_pin_extent(struct btrfs_trans_handle *trans, u64 bytenr, u64 num,
-		     int reserved);
+int btrfs_pin_extent(struct btrfs_trans_handle *trans, u64 bytenr, u64 num);
 int btrfs_pin_extent_for_log_replay(struct btrfs_trans_handle *trans,
 				    const struct extent_buffer *eb);
 int btrfs_exclude_logged_extents(struct extent_buffer *eb);

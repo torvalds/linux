@@ -1764,7 +1764,7 @@ static int run_one_delayed_ref(struct btrfs_trans_handle *trans,
 
 	if (TRANS_ABORTED(trans)) {
 		if (insert_reserved) {
-			btrfs_pin_extent(trans, node->bytenr, node->num_bytes, 1);
+			btrfs_pin_extent(trans, node->bytenr, node->num_bytes);
 			free_head_ref_squota_rsv(trans->fs_info, href);
 		}
 		return 0;
@@ -1783,7 +1783,7 @@ static int run_one_delayed_ref(struct btrfs_trans_handle *trans,
 	else
 		BUG();
 	if (ret && insert_reserved)
-		btrfs_pin_extent(trans, node->bytenr, node->num_bytes, 1);
+		btrfs_pin_extent(trans, node->bytenr, node->num_bytes);
 	if (ret < 0)
 		btrfs_err(trans->fs_info,
 "failed to run delayed ref for logical %llu num_bytes %llu type %u action %u ref_mod %d: %d",
@@ -1890,7 +1890,7 @@ static int cleanup_ref_head(struct btrfs_trans_handle *trans,
 	spin_unlock(&delayed_refs->lock);
 
 	if (head->must_insert_reserved) {
-		btrfs_pin_extent(trans, head->bytenr, head->num_bytes, 1);
+		btrfs_pin_extent(trans, head->bytenr, head->num_bytes);
 		if (head->is_data) {
 			struct btrfs_root *csum_root;
 
@@ -2611,15 +2611,14 @@ static int pin_down_extent(struct btrfs_trans_handle *trans,
 	return 0;
 }
 
-int btrfs_pin_extent(struct btrfs_trans_handle *trans,
-		     u64 bytenr, u64 num_bytes, int reserved)
+int btrfs_pin_extent(struct btrfs_trans_handle *trans, u64 bytenr, u64 num_bytes)
 {
 	struct btrfs_block_group *cache;
 
 	cache = btrfs_lookup_block_group(trans->fs_info, bytenr);
 	BUG_ON(!cache); /* Logic error */
 
-	pin_down_extent(trans, cache, bytenr, num_bytes, reserved);
+	pin_down_extent(trans, cache, bytenr, num_bytes, 1);
 
 	btrfs_put_block_group(cache);
 	return 0;
@@ -3538,7 +3537,7 @@ int btrfs_free_extent(struct btrfs_trans_handle *trans, struct btrfs_ref *ref)
 	 * tree, just update pinning info and exit early.
 	 */
 	if (ref->ref_root == BTRFS_TREE_LOG_OBJECTID) {
-		btrfs_pin_extent(trans, ref->bytenr, ref->num_bytes, 1);
+		btrfs_pin_extent(trans, ref->bytenr, ref->num_bytes);
 		ret = 0;
 	} else if (ref->type == BTRFS_REF_METADATA) {
 		ret = btrfs_add_delayed_tree_ref(trans, ref, NULL);
@@ -5022,7 +5021,7 @@ int btrfs_alloc_logged_file_extent(struct btrfs_trans_handle *trans,
 	ret = alloc_reserved_file_extent(trans, 0, root_objectid, 0, owner,
 					 offset, ins, 1, root_objectid);
 	if (ret)
-		btrfs_pin_extent(trans, ins->objectid, ins->offset, 1);
+		btrfs_pin_extent(trans, ins->objectid, ins->offset);
 	ret = btrfs_record_squota_delta(fs_info, &delta);
 	btrfs_put_block_group(block_group);
 	return ret;
