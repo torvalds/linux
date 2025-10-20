@@ -2670,41 +2670,42 @@ static struct surface_update_descriptor get_plane_info_update_type(const struct 
 	if (!u->plane_info)
 		return update_type;
 
-	elevate_update_type(&update_type, UPDATE_TYPE_FAST, LOCK_DESCRIPTOR_PLANE);
+	// `plane_info` present means at least `STREAM` lock is required
+	elevate_update_type(&update_type, UPDATE_TYPE_FAST, LOCK_DESCRIPTOR_STREAM);
 
 	if (u->plane_info->color_space != u->surface->color_space) {
 		update_flags->bits.color_space_change = 1;
-		elevate_update_type(&update_type, UPDATE_TYPE_MED, LOCK_DESCRIPTOR_STATE);
+		elevate_update_type(&update_type, UPDATE_TYPE_MED, LOCK_DESCRIPTOR_STREAM);
 	}
 
 	if (u->plane_info->horizontal_mirror != u->surface->horizontal_mirror) {
 		update_flags->bits.horizontal_mirror_change = 1;
-		elevate_update_type(&update_type, UPDATE_TYPE_MED, LOCK_DESCRIPTOR_STATE);
+		elevate_update_type(&update_type, UPDATE_TYPE_MED, LOCK_DESCRIPTOR_STREAM);
 	}
 
 	if (u->plane_info->rotation != u->surface->rotation) {
 		update_flags->bits.rotation_change = 1;
-		elevate_update_type(&update_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_STATE);
+		elevate_update_type(&update_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_GLOBAL);
 	}
 
 	if (u->plane_info->format != u->surface->format) {
 		update_flags->bits.pixel_format_change = 1;
-		elevate_update_type(&update_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_STATE);
+		elevate_update_type(&update_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_GLOBAL);
 	}
 
 	if (u->plane_info->stereo_format != u->surface->stereo_format) {
 		update_flags->bits.stereo_format_change = 1;
-		elevate_update_type(&update_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_STATE);
+		elevate_update_type(&update_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_GLOBAL);
 	}
 
 	if (u->plane_info->per_pixel_alpha != u->surface->per_pixel_alpha) {
 		update_flags->bits.per_pixel_alpha_change = 1;
-		elevate_update_type(&update_type, UPDATE_TYPE_MED, LOCK_DESCRIPTOR_STATE);
+		elevate_update_type(&update_type, UPDATE_TYPE_MED, LOCK_DESCRIPTOR_STREAM);
 	}
 
 	if (u->plane_info->global_alpha_value != u->surface->global_alpha_value) {
 		update_flags->bits.global_alpha_change = 1;
-		elevate_update_type(&update_type, UPDATE_TYPE_MED, LOCK_DESCRIPTOR_STATE);
+		elevate_update_type(&update_type, UPDATE_TYPE_MED, LOCK_DESCRIPTOR_STREAM);
 	}
 
 	if (u->plane_info->dcc.enable != u->surface->dcc.enable
@@ -2716,7 +2717,7 @@ static struct surface_update_descriptor get_plane_info_update_type(const struct 
 		 * recalculate stutter period.
 		 */
 		update_flags->bits.dcc_change = 1;
-		elevate_update_type(&update_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_STATE);
+		elevate_update_type(&update_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_GLOBAL);
 	}
 
 	if (resource_pixel_format_to_bpp(u->plane_info->format) !=
@@ -2725,34 +2726,34 @@ static struct surface_update_descriptor get_plane_info_update_type(const struct 
 		 * and DML calculation
 		 */
 		update_flags->bits.bpp_change = 1;
-		elevate_update_type(&update_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_STATE);
+		elevate_update_type(&update_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_GLOBAL);
 	}
 
 	if (u->plane_info->plane_size.surface_pitch != u->surface->plane_size.surface_pitch
 			|| u->plane_info->plane_size.chroma_pitch != u->surface->plane_size.chroma_pitch) {
 		update_flags->bits.plane_size_change = 1;
-		elevate_update_type(&update_type, UPDATE_TYPE_MED, LOCK_DESCRIPTOR_STATE);
+		elevate_update_type(&update_type, UPDATE_TYPE_MED, LOCK_DESCRIPTOR_STREAM);
 	}
 
 	const struct dc_tiling_info *tiling = &u->plane_info->tiling_info;
 
 	if (memcmp(tiling, &u->surface->tiling_info, sizeof(*tiling)) != 0) {
 		update_flags->bits.swizzle_change = 1;
-		elevate_update_type(&update_type, UPDATE_TYPE_MED, LOCK_DESCRIPTOR_STATE);
+		elevate_update_type(&update_type, UPDATE_TYPE_MED, LOCK_DESCRIPTOR_STREAM);
 
 		switch (tiling->gfxversion) {
 		case DcGfxVersion9:
 		case DcGfxVersion10:
 		case DcGfxVersion11:
 			if (tiling->gfx9.swizzle != DC_SW_LINEAR) {
-				elevate_update_type(&update_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_STATE);
 				update_flags->bits.bandwidth_change = 1;
+				elevate_update_type(&update_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_GLOBAL);
 			}
 			break;
 		case DcGfxAddr3:
 			if (tiling->gfx_addr3.swizzle != DC_ADDR3_SW_LINEAR) {
-				elevate_update_type(&update_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_STATE);
 				update_flags->bits.bandwidth_change = 1;
+				elevate_update_type(&update_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_GLOBAL);
 			}
 			break;
 		case DcGfxVersion7:
@@ -2777,7 +2778,8 @@ static struct surface_update_descriptor get_scaling_info_update_type(
 	if (!u->scaling_info)
 		return update_type;
 
-	elevate_update_type(&update_type, UPDATE_TYPE_FAST, LOCK_DESCRIPTOR_PLANE);
+	// `scaling_info` present means at least `STREAM` lock is required
+	elevate_update_type(&update_type, UPDATE_TYPE_FAST, LOCK_DESCRIPTOR_STREAM);
 
 	if (u->scaling_info->src_rect.width != u->surface->src_rect.width
 			|| u->scaling_info->src_rect.height != u->surface->src_rect.height
@@ -2788,6 +2790,7 @@ static struct surface_update_descriptor get_scaling_info_update_type(
 			|| u->scaling_info->scaling_quality.integer_scaling !=
 					u->surface->scaling_quality.integer_scaling) {
 		update_flags->bits.scaling_change = 1;
+		elevate_update_type(&update_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_GLOBAL);
 
 		if (u->scaling_info->src_rect.width > u->surface->src_rect.width
 				|| u->scaling_info->src_rect.height > u->surface->src_rect.height)
@@ -2813,17 +2816,10 @@ static struct surface_update_descriptor get_scaling_info_update_type(
 			|| u->scaling_info->clip_rect.x != u->surface->clip_rect.x
 			|| u->scaling_info->clip_rect.y != u->surface->clip_rect.y
 			|| u->scaling_info->dst_rect.x != u->surface->dst_rect.x
-			|| u->scaling_info->dst_rect.y != u->surface->dst_rect.y)
+			|| u->scaling_info->dst_rect.y != u->surface->dst_rect.y) {
+		elevate_update_type(&update_type, UPDATE_TYPE_MED, LOCK_DESCRIPTOR_STREAM);
 		update_flags->bits.position_change = 1;
-
-	/* process every update flag before returning */
-	if (update_flags->bits.clock_change
-			|| update_flags->bits.bandwidth_change
-			|| update_flags->bits.scaling_change)
-		elevate_update_type(&update_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_STATE);
-
-	if (update_flags->bits.position_change)
-		elevate_update_type(&update_type, UPDATE_TYPE_MED, LOCK_DESCRIPTOR_STATE);
+	}
 
 	return update_type;
 }
@@ -2837,7 +2833,7 @@ static struct surface_update_descriptor det_surface_update(
 
 	if (u->surface->force_full_update) {
 		update_flags->raw = 0xFFFFFFFF;
-		elevate_update_type(&overall_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_STATE);
+		elevate_update_type(&overall_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_GLOBAL);
 		return overall_type;
 	}
 
@@ -2852,76 +2848,69 @@ static struct surface_update_descriptor det_surface_update(
 
 	if (u->flip_addr) {
 		update_flags->bits.addr_update = 1;
+		elevate_update_type(&overall_type, UPDATE_TYPE_FAST, LOCK_DESCRIPTOR_STREAM);
+
 		if (u->flip_addr->address.tmz_surface != u->surface->address.tmz_surface) {
 			update_flags->bits.tmz_changed = 1;
-			elevate_update_type(&overall_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_STATE);
+			elevate_update_type(&overall_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_GLOBAL);
 		}
 	}
-	if (u->in_transfer_func)
+	if (u->in_transfer_func) {
 		update_flags->bits.in_transfer_func_change = 1;
-
-	if (u->input_csc_color_matrix)
-		update_flags->bits.input_csc_change = 1;
-
-	if (u->coeff_reduction_factor)
-		update_flags->bits.coeff_reduction_change = 1;
-
-	if (u->gamut_remap_matrix)
-		update_flags->bits.gamut_remap_change = 1;
-
-	if (u->blend_tf)
-		update_flags->bits.gamma_change = 1;
-
-	if (u->gamma) {
-		enum surface_pixel_format format = SURFACE_PIXEL_FORMAT_GRPH_BEGIN;
-
-		if (u->plane_info)
-			format = u->plane_info->format;
-		else
-			format = u->surface->format;
-
-		if (dce_use_lut(format))
-			update_flags->bits.gamma_change = 1;
+		elevate_update_type(&overall_type, UPDATE_TYPE_FAST, LOCK_DESCRIPTOR_STREAM);
 	}
 
-	if (u->lut3d_func || u->func_shaper)
+	if (u->input_csc_color_matrix) {
+		update_flags->bits.input_csc_change = 1;
+		elevate_update_type(&overall_type, UPDATE_TYPE_FAST, LOCK_DESCRIPTOR_STREAM);
+	}
+
+	if (u->coeff_reduction_factor) {
+		update_flags->bits.coeff_reduction_change = 1;
+		elevate_update_type(&overall_type, UPDATE_TYPE_FAST, LOCK_DESCRIPTOR_STREAM);
+	}
+
+	if (u->gamut_remap_matrix) {
+		update_flags->bits.gamut_remap_change = 1;
+		elevate_update_type(&overall_type, UPDATE_TYPE_FAST, LOCK_DESCRIPTOR_STREAM);
+	}
+
+	if (u->blend_tf || (u->gamma && dce_use_lut(u->plane_info ? u->plane_info->format : u->surface->format))) {
+		update_flags->bits.gamma_change = 1;
+		elevate_update_type(&overall_type, UPDATE_TYPE_FAST, LOCK_DESCRIPTOR_STREAM);
+	}
+
+	if (u->lut3d_func || u->func_shaper) {
 		update_flags->bits.lut_3d = 1;
+		elevate_update_type(&overall_type, UPDATE_TYPE_FAST, LOCK_DESCRIPTOR_STREAM);
+	}
 
 	if (u->hdr_mult.value)
 		if (u->hdr_mult.value != u->surface->hdr_mult.value) {
-			update_flags->bits.hdr_mult = 1;
 			// TODO: Should be fast?
-			elevate_update_type(&overall_type, UPDATE_TYPE_MED, LOCK_DESCRIPTOR_STATE);
+			update_flags->bits.hdr_mult = 1;
+			elevate_update_type(&overall_type, UPDATE_TYPE_MED, LOCK_DESCRIPTOR_STREAM);
 		}
 
 	if (u->sdr_white_level_nits)
 		if (u->sdr_white_level_nits != u->surface->sdr_white_level_nits) {
-			update_flags->bits.sdr_white_level_nits = 1;
 			// TODO: Should be fast?
-			elevate_update_type(&overall_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_STATE);
+			update_flags->bits.sdr_white_level_nits = 1;
+			elevate_update_type(&overall_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_GLOBAL);
 		}
 
 	if (u->cm2_params) {
-		if ((u->cm2_params->component_settings.shaper_3dlut_setting
-					!= u->surface->mcm_shaper_3dlut_setting)
-				|| (u->cm2_params->component_settings.lut1d_enable
-					!= u->surface->mcm_lut1d_enable))
+		if (u->cm2_params->component_settings.shaper_3dlut_setting != u->surface->mcm_shaper_3dlut_setting
+				|| u->cm2_params->component_settings.lut1d_enable != u->surface->mcm_lut1d_enable
+				|| u->cm2_params->cm2_luts.lut3d_data.lut3d_src != u->surface->mcm_luts.lut3d_data.lut3d_src) {
 			update_flags->bits.mcm_transfer_function_enable_change = 1;
-		if (u->cm2_params->cm2_luts.lut3d_data.lut3d_src
-				!= u->surface->mcm_luts.lut3d_data.lut3d_src)
-			update_flags->bits.mcm_transfer_function_enable_change = 1;
-	}
-	if (update_flags->bits.in_transfer_func_change) {
-		// TODO: Fast?
-		elevate_update_type(&overall_type, UPDATE_TYPE_MED, LOCK_DESCRIPTOR_STATE);
+			elevate_update_type(&overall_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_GLOBAL);
+		}
 	}
 
 	if (update_flags->bits.lut_3d &&
 			u->surface->mcm_luts.lut3d_data.lut3d_src != DC_CM2_TRANSFER_FUNC_SOURCE_VIDMEM) {
-		elevate_update_type(&overall_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_STATE);
-	}
-	if (update_flags->bits.mcm_transfer_function_enable_change) {
-		elevate_update_type(&overall_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_STATE);
+		elevate_update_type(&overall_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_GLOBAL);
 	}
 
 	if (check_config->enable_legacy_fast_update &&
@@ -2929,7 +2918,7 @@ static struct surface_update_descriptor det_surface_update(
 			update_flags->bits.gamut_remap_change ||
 			update_flags->bits.input_csc_change ||
 			update_flags->bits.coeff_reduction_change)) {
-		elevate_update_type(&overall_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_STATE);
+		elevate_update_type(&overall_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_GLOBAL);
 	}
 	return overall_type;
 }
@@ -2966,18 +2955,18 @@ static struct surface_update_descriptor check_update_surfaces_for_stream(
 	struct surface_update_descriptor overall_type = { UPDATE_TYPE_FAST, LOCK_DESCRIPTOR_NONE };
 
 	if (stream_update && stream_update->pending_test_pattern) {
-		elevate_update_type(&overall_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_STATE);
+		elevate_update_type(&overall_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_GLOBAL);
 	}
 
 	if (stream_update && stream_update->hw_cursor_req) {
-		elevate_update_type(&overall_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_STATE);
+		elevate_update_type(&overall_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_GLOBAL);
 	}
 
 	/* some stream updates require passive update */
 	if (stream_update) {
-		union stream_update_flags *su_flags = &stream_update->stream->update_flags;
-
 		elevate_update_type(&overall_type, UPDATE_TYPE_FAST, LOCK_DESCRIPTOR_STREAM);
+
+		union stream_update_flags *su_flags = &stream_update->stream->update_flags;
 
 		if ((stream_update->src.height != 0 && stream_update->src.width != 0) ||
 			(stream_update->dst.height != 0 && stream_update->dst.width != 0) ||
@@ -2990,8 +2979,10 @@ static struct surface_update_descriptor check_update_surfaces_for_stream(
 		if (stream_update->abm_level)
 			su_flags->bits.abm_level = 1;
 
-		if (stream_update->dpms_off)
+		if (stream_update->dpms_off) {
 			su_flags->bits.dpms_off = 1;
+			elevate_update_type(&overall_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_GLOBAL | LOCK_DESCRIPTOR_LINK);
+		}
 
 		if (stream_update->gamut_remap)
 			su_flags->bits.gamut_remap = 1;
@@ -3019,17 +3010,20 @@ static struct surface_update_descriptor check_update_surfaces_for_stream(
 		if (stream_update->output_color_space)
 			su_flags->bits.out_csc = 1;
 
-		if (su_flags->raw != 0)
-			elevate_update_type(&overall_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_STATE);
+		// TODO: Make each elevation explicit, as to not override fast stream in crct_timing_adjust
+		if (su_flags->raw)
+			elevate_update_type(&overall_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_GLOBAL);
 
-		if (stream_update->output_csc_transform)
+		// Non-global cases
+		if (stream_update->output_csc_transform) {
 			su_flags->bits.out_csc = 1;
+			elevate_update_type(&overall_type, UPDATE_TYPE_FAST, LOCK_DESCRIPTOR_STREAM);
+		}
 
-		/* Output transfer function changes do not require bandwidth recalculation,
-		 * so don't trigger a full update
-		 */
-		if (!check_config->enable_legacy_fast_update && stream_update->out_transfer_func)
+		if (!check_config->enable_legacy_fast_update && stream_update->out_transfer_func) {
 			su_flags->bits.out_tf = 1;
+			elevate_update_type(&overall_type, UPDATE_TYPE_FAST, LOCK_DESCRIPTOR_STREAM);
+		}
 	}
 
 	for (int i = 0 ; i < surface_count; i++) {

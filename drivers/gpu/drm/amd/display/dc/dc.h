@@ -469,10 +469,9 @@ enum surface_update_type {
 
 enum dc_lock_descriptor {
 	LOCK_DESCRIPTOR_NONE = 0x0,
-	LOCK_DESCRIPTOR_STATE = 0x1,
+	LOCK_DESCRIPTOR_STREAM = 0x1,
 	LOCK_DESCRIPTOR_LINK = 0x2,
-	LOCK_DESCRIPTOR_STREAM = 0x4,
-	LOCK_DESCRIPTOR_PLANE = 0x8,
+	LOCK_DESCRIPTOR_GLOBAL = 0x4,
 };
 
 struct surface_update_descriptor {
