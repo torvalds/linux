@@ -235,8 +235,13 @@ void intel_vrr_compute_cmrr_timings(struct intel_crtc_state *crtc_state)
 }
 
 static
-void intel_vrr_compute_vrr_timings(struct intel_crtc_state *crtc_state)
+void intel_vrr_compute_vrr_timings(struct intel_crtc_state *crtc_state,
+				   int vmin, int vmax)
 {
+	crtc_state->vrr.vmax = vmax;
+	crtc_state->vrr.vmin = vmin;
+	crtc_state->vrr.flipline = crtc_state->vrr.vmin;
+
 	crtc_state->vrr.enable = true;
 	crtc_state->mode_flags |= I915_MODE_FLAG_VRR;
 }
@@ -381,13 +386,8 @@ intel_vrr_compute_config(struct intel_crtc_state *crtc_state,
 		vmax = vmin;
 	}
 
-	crtc_state->vrr.vmin = vmin;
-	crtc_state->vrr.vmax = vmax;
-
-	crtc_state->vrr.flipline = crtc_state->vrr.vmin;
-
 	if (crtc_state->uapi.vrr_enabled && vmin < vmax)
-		intel_vrr_compute_vrr_timings(crtc_state);
+		intel_vrr_compute_vrr_timings(crtc_state, vmin, vmax);
 	else if (is_cmrr_frac_required(crtc_state) && is_edp)
 		intel_vrr_compute_cmrr_timings(crtc_state);
 	else
