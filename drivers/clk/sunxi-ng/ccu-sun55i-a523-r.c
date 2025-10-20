@@ -121,7 +121,7 @@ static SUNXI_CCU_GATE_HW(bus_r_ir_rx_clk, "bus-r-ir-rx",
 			 &r_apb0_clk.common.hw, 0x1cc, BIT(0), 0);
 
 static SUNXI_CCU_GATE_HW(bus_r_dma_clk, "bus-r-dma",
-			 &r_apb0_clk.common.hw, 0x1dc, BIT(0), 0);
+			 &r_apb0_clk.common.hw, 0x1dc, BIT(0), CLK_IS_CRITICAL);
 static SUNXI_CCU_GATE_HW(bus_r_rtc_clk, "bus-r-rtc",
 			 &r_apb0_clk.common.hw, 0x20c, BIT(0), 0);
 static SUNXI_CCU_GATE_HW(bus_r_cpucfg_clk, "bus-r-cpucfg",
