@@ -1470,6 +1470,24 @@ static const struct target_opcode_descriptor tcm_opcode_write_same32 = {
 	.update_usage_bits = set_dpofua_usage_bits32,
 };
 
+static bool tcm_is_atomic_enabled(const struct target_opcode_descriptor *descr,
+				  struct se_cmd *cmd)
+{
+	return cmd->se_dev->dev_attrib.atomic_max_len;
+}
+
+static struct target_opcode_descriptor tcm_opcode_write_atomic16 = {
+	.support = SCSI_SUPPORT_FULL,
+	.opcode = WRITE_ATOMIC_16,
+	.cdb_size = 16,
+	.usage_bits = {WRITE_ATOMIC_16, 0xf8, 0xff, 0xff,
+		       0xff, 0xff, 0xff, 0xff,
+		       0xff, 0xff, 0xff, 0xff,
+		       0xff, 0xff, SCSI_GROUP_NUMBER_MASK, SCSI_CONTROL_MASK},
+	.enabled = tcm_is_atomic_enabled,
+	.update_usage_bits = set_dpofua_usage_bits,
+};
+
 static bool tcm_is_caw_enabled(const struct target_opcode_descriptor *descr,
 			       struct se_cmd *cmd)
 {
@@ -2026,6 +2044,7 @@ static const struct target_opcode_descriptor *tcm_supported_opcodes[] = {
 	&tcm_opcode_write16,
 	&tcm_opcode_write_verify16,
 	&tcm_opcode_write_same32,
+	&tcm_opcode_write_atomic16,
 	&tcm_opcode_compare_write,
 	&tcm_opcode_read_capacity,
 	&tcm_opcode_read_capacity16,
