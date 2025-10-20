@@ -305,12 +305,10 @@ void intel_vrr_set_fixed_rr_timings(const struct intel_crtc_state *crtc_state)
 static
 void intel_vrr_compute_fixed_rr_timings(struct intel_crtc_state *crtc_state)
 {
-	/*
-	 * For fixed rr,  vmin = vmax = flipline.
-	 * vmin is already set to crtc_vtotal set vmax and flipline the same.
-	 */
+	/* For fixed rr,  vmin = vmax = flipline */
 	crtc_state->vrr.vmax = crtc_state->hw.adjusted_mode.crtc_vtotal;
-	crtc_state->vrr.flipline = crtc_state->hw.adjusted_mode.crtc_vtotal;
+	crtc_state->vrr.vmin = crtc_state->vrr.vmax;
+	crtc_state->vrr.flipline = crtc_state->vrr.vmin;
 }
 
 static
