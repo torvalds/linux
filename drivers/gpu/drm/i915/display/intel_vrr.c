@@ -108,11 +108,6 @@ static int intel_vrr_vmin_flipline_offset(struct intel_display *display)
 	return DISPLAY_VER(display) < 13 ? 1 : 0;
 }
 
-static int intel_vrr_vmin_flipline(const struct intel_crtc_state *crtc_state)
-{
-	return crtc_state->vrr.vmin;
-}
-
 static int intel_vrr_guardband_to_pipeline_full(const struct intel_crtc_state *crtc_state,
 						int guardband)
 {
@@ -147,7 +142,7 @@ static int intel_vrr_pipeline_full_to_guardband(const struct intel_crtc_state *c
 int intel_vrr_vmin_vtotal(const struct intel_crtc_state *crtc_state)
 {
 	/* Min vblank actually determined by flipline */
-	return intel_vrr_vmin_flipline(crtc_state);
+	return crtc_state->vrr.vmin;
 }
 
 int intel_vrr_vmax_vtotal(const struct intel_crtc_state *crtc_state)
@@ -781,7 +776,7 @@ bool intel_vrr_is_fixed_rr(const struct intel_crtc_state *crtc_state)
 {
 	return crtc_state->vrr.flipline &&
 	       crtc_state->vrr.flipline == crtc_state->vrr.vmax &&
-	       crtc_state->vrr.flipline == intel_vrr_vmin_flipline(crtc_state);
+	       crtc_state->vrr.flipline == crtc_state->vrr.vmin;
 }
 
 void intel_vrr_get_config(struct intel_crtc_state *crtc_state)
