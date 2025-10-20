@@ -653,8 +653,8 @@ static int read_rom(struct fw_device *device, int generation, int speed, int ind
 static int read_config_rom(struct fw_device *device, int generation)
 {
 	struct fw_card *card = device->card;
-	const u32 *old_rom, *new_rom;
-	u32 *rom, *stack;
+	const u32 *new_rom, *old_rom __free(kfree) = NULL;
+	u32 *stack, *rom __free(kfree) = NULL;
 	u32 sp, key;
 	int i, end, length, ret, speed;
 	int quirks;
@@ -673,7 +673,7 @@ static int read_config_rom(struct fw_device *device, int generation)
 	for (i = 0; i < 5; i++) {
 		ret = read_rom(device, generation, speed, i, &rom[i]);
 		if (ret != RCODE_COMPLETE)
-			goto out;
+			return ret;
 		/*
 		 * As per IEEE1212 7.2, during initialization, devices can
 		 * reply with a 0 for the first quadlet of the config
@@ -682,10 +682,8 @@ static int read_config_rom(struct fw_device *device, int generation)
 		 * harddisk).  In that case we just fail, and the
 		 * retry mechanism will try again later.
 		 */
-		if (i == 0 && rom[i] == 0) {
-			ret = RCODE_BUSY;
-			goto out;
-		}
+		if (i == 0 && rom[i] == 0)
+			return RCODE_BUSY;
 	}
 
 	quirks = detect_quirks_by_bus_information_block(rom);
@@ -712,15 +710,13 @@ static int read_config_rom(struct fw_device *device, int generation)
 		 */
 		key = stack[--sp];
 		i = key & 0xffffff;
-		if (WARN_ON(i >= MAX_CONFIG_ROM_SIZE)) {
-			ret = -ENXIO;
-			goto out;
-		}
+		if (WARN_ON(i >= MAX_CONFIG_ROM_SIZE))
+			return -ENXIO;
 
 		/* Read header quadlet for the block to get the length. */
 		ret = read_rom(device, generation, speed, i, &rom[i]);
 		if (ret != RCODE_COMPLETE)
-			goto out;
+			return ret;
 		end = i + (rom[i] >> 16) + 1;
 		if (end > MAX_CONFIG_ROM_SIZE) {
 			/*
@@ -744,7 +740,7 @@ static int read_config_rom(struct fw_device *device, int generation)
 		for (; i < end; i++) {
 			ret = read_rom(device, generation, speed, i, &rom[i]);
 			if (ret != RCODE_COMPLETE)
-				goto out;
+				return ret;
 
 			if ((key >> 30) != 3 || (rom[i] >> 30) < 2)
 				continue;
@@ -804,25 +800,19 @@ static int read_config_rom(struct fw_device *device, int generation)
 
 	old_rom = device->config_rom;
 	new_rom = kmemdup(rom, length * 4, GFP_KERNEL);
-	if (new_rom == NULL) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (new_rom == NULL)
+		return -ENOMEM;
 
 	scoped_guard(rwsem_write, &fw_device_rwsem) {
 		device->config_rom = new_rom;
 		device->config_rom_length = length;
 	}
 
-	kfree(old_rom);
-	ret = RCODE_COMPLETE;
 	device->max_rec	= rom[2] >> 12 & 0xf;
 	device->cmc	= rom[2] >> 30 & 1;
 	device->irmc	= rom[2] >> 31 & 1;
- out:
-	kfree(rom);
 
-	return ret;
+	return RCODE_COMPLETE;
 }
 
 static void fw_unit_release(struct device *dev)
