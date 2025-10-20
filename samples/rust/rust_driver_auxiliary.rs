@@ -5,10 +5,17 @@
 //! To make this driver probe, QEMU must be run with `-device pci-testdev`.
 
 use kernel::{
-    auxiliary, c_str, device::Core, devres::Devres, driver, error::Error, pci, prelude::*,
+    auxiliary, c_str,
+    device::{Bound, Core},
+    devres::Devres,
+    driver,
+    error::Error,
+    pci,
+    prelude::*,
     InPlaceModule,
 };
 
+use core::any::TypeId;
 use pin_init::PinInit;
 
 const MODULE_NAME: &CStr = <LocalModule as kernel::ModuleMetadata>::NAME;
@@ -43,6 +50,7 @@ impl auxiliary::Driver for AuxiliaryDriver {
 
 #[pin_data]
 struct ParentDriver {
+    private: TypeId,
     #[pin]
     _reg0: Devres<auxiliary::Registration>,
     #[pin]
@@ -63,6 +71,7 @@ impl pci::Driver for ParentDriver {
 
     fn probe(pdev: &pci::Device<Core>, _info: &Self::IdInfo) -> impl PinInit<Self, Error> {
         try_pin_init!(Self {
+            private: TypeId::of::<Self>(),
             _reg0 <- auxiliary::Registration::new(pdev.as_ref(), AUXILIARY_NAME, 0, MODULE_NAME),
             _reg1 <- auxiliary::Registration::new(pdev.as_ref(), AUXILIARY_NAME, 1, MODULE_NAME),
         })
@@ -70,9 +79,10 @@ impl pci::Driver for ParentDriver {
 }
 
 impl ParentDriver {
-    fn connect(adev: &auxiliary::Device) -> Result {
+    fn connect(adev: &auxiliary::Device<Bound>) -> Result {
         let dev = adev.parent();
-        let pdev: &pci::Device = dev.try_into()?;
+        let pdev: &pci::Device<Bound> = dev.try_into()?;
+        let drvdata = dev.drvdata::<Self>()?;
 
         dev_info!(
             dev,
@@ -80,6 +90,12 @@ impl ParentDriver {
             adev.id(),
             pdev.vendor_id(),
             pdev.device_id()
+        );
+
+        dev_info!(
+            dev,
+            "We have access to the private data of {:?}.\n",
+            drvdata.private
         );
 
         Ok(())
