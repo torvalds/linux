@@ -65,7 +65,6 @@ static void fill_section_hdr(struct ras_core_context *ras_core,
 	hdr->error_severity		= sev;
 
 	hdr->valid_bits.platform_id	= 1;
-	hdr->valid_bits.partition_id	= 1;
 	hdr->valid_bits.timestamp	= 1;
 
 	ras_core_get_device_system_info(ras_core, &dev_info);
@@ -147,13 +146,19 @@ static int fill_section_fatal(struct ras_core_context *ras_core,
 }
 
 static int fill_section_runtime(struct ras_core_context *ras_core,
-		struct cper_section_runtime *runtime, struct ras_log_info *trace)
+		struct cper_section_runtime *runtime, struct ras_log_info *trace,
+		enum ras_cper_severity sev)
 {
 	runtime->hdr.valid_bits.err_info_cnt = 1;
 	runtime->hdr.valid_bits.err_context_cnt = 1;
 
 	runtime->descriptor.error_type = RUNTIME;
 	runtime->descriptor.ms_chk_bits.err_type_valid = 1;
+	if (sev == RAS_CPER_SEV_RMA) {
+		runtime->descriptor.valid_bits.ms_chk = 1;
+		runtime->descriptor.ms_chk_bits.err_type = 1;
+		runtime->descriptor.ms_chk_bits.pcc = 1;
+	}
 
 	runtime->reg.reg_ctx_type = CPER_CTX_TYPE__CRASH;
 	runtime->reg.reg_arr_size = sizeof(runtime->reg.reg_dump);
@@ -189,7 +194,7 @@ static int cper_generate_runtime_record(struct ras_core_context *ras_core,
 		fill_section_descriptor(ras_core, descriptor, sev, RUNTIME,
 			RAS_NONSTD_SEC_OFFSET(hdr->sec_cnt, i),
 			sizeof(struct cper_section_runtime));
-		fill_section_runtime(ras_core, runtime, trace_arr[i]);
+		fill_section_runtime(ras_core, runtime, trace_arr[i], sev);
 	}
 
 	return 0;
