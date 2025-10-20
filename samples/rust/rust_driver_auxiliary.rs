@@ -70,16 +70,15 @@ impl pci::Driver for ParentDriver {
 }
 
 impl ParentDriver {
-    fn connect(adev: &auxiliary::Device) -> Result<()> {
-        let parent = adev.parent();
-        let pdev: &pci::Device = parent.try_into()?;
+    fn connect(adev: &auxiliary::Device) -> Result {
+        let dev = adev.parent();
+        let pdev: &pci::Device = dev.try_into()?;
 
-        let vendor = pdev.vendor_id();
         dev_info!(
-            adev.as_ref(),
+            dev,
             "Connect auxiliary {} with parent: VendorID={}, DeviceID={:#x}\n",
             adev.id(),
-            vendor,
+            pdev.vendor_id(),
             pdev.device_id()
         );
 
