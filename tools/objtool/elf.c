@@ -451,7 +451,7 @@ static const char *demangle_name(struct symbol *sym)
 			str[i + 1] = '\0';
 			break;
 		}
-	};
+	}
 
 	return str;
 }
