@@ -2747,13 +2747,12 @@ static int unpin_extent_range(struct btrfs_fs_info *fs_info,
 	struct btrfs_free_cluster *cluster = NULL;
 	u64 total_unpinned = 0;
 	u64 empty_cluster = 0;
-	bool readonly;
 	int ret = 0;
 
 	while (start <= end) {
 		u64 len;
+		bool readonly;
 
-		readonly = false;
 		if (!cache ||
 		    start >= cache->start + cache->length) {
 			if (cache)
@@ -2797,20 +2796,21 @@ static int unpin_extent_range(struct btrfs_fs_info *fs_info,
 
 		spin_lock(&space_info->lock);
 		spin_lock(&cache->lock);
+		readonly = cache->ro;
 		cache->pinned -= len;
+		spin_unlock(&cache->lock);
+
 		btrfs_space_info_update_bytes_pinned(space_info, -len);
 		space_info->max_extent_size = 0;
-		if (cache->ro) {
+
+		if (readonly) {
 			space_info->bytes_readonly += len;
-			readonly = true;
 		} else if (btrfs_is_zoned(fs_info)) {
 			/* Need reset before reusing in a zoned block group */
 			btrfs_space_info_update_bytes_zone_unusable(space_info, len);
-			readonly = true;
-		}
-		spin_unlock(&cache->lock);
-		if (!readonly && return_free_space)
+		} else if (return_free_space) {
 			btrfs_return_free_space(space_info, len);
+		}
 		spin_unlock(&space_info->lock);
 	}
 
