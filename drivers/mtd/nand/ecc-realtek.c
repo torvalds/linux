@@ -380,7 +380,7 @@ static void rtl_ecc_cleanup_ctx(struct nand_device *nand)
 		nand_ecc_cleanup_req_tweaking(&ctx->req_ctx);
 }
 
-static struct nand_ecc_engine_ops rtl_ecc_engine_ops = {
+static const struct nand_ecc_engine_ops rtl_ecc_engine_ops = {
 	.init_ctx = rtl_ecc_init_ctx,
 	.cleanup_ctx = rtl_ecc_cleanup_ctx,
 	.prepare_io_req = rtl_ecc_prepare_io_req,
