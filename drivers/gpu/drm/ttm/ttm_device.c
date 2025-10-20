@@ -31,6 +31,7 @@
 #include <linux/export.h>
 #include <linux/mm.h>
 
+#include <drm/ttm/ttm_allocation.h>
 #include <drm/ttm/ttm_bo.h>
 #include <drm/ttm/ttm_device.h>
 #include <drm/ttm/ttm_tt.h>
@@ -236,7 +237,9 @@ int ttm_device_init(struct ttm_device *bdev, const struct ttm_device_funcs *func
 	else
 		nid = NUMA_NO_NODE;
 
-	ttm_pool_init(&bdev->pool, dev, nid, use_dma_alloc, use_dma32);
+	ttm_pool_init(&bdev->pool, dev, nid,
+		      (use_dma_alloc ? TTM_ALLOCATION_POOL_USE_DMA_ALLOC : 0) |
+		      (use_dma32 ? TTM_ALLOCATION_POOL_USE_DMA32 : 0));
 
 	bdev->vma_manager = vma_manager;
 	spin_lock_init(&bdev->lru_lock);
