@@ -8,6 +8,7 @@
 #include <drm/ttm/ttm_pool.h>
 
 #include "ttm_kunit_helpers.h"
+#include "../ttm_pool_internal.h"
 
 struct ttm_pool_test_case {
 	const char *description;
@@ -155,7 +156,8 @@ static void ttm_pool_alloc_basic(struct kunit *test)
 
 	KUNIT_ASSERT_PTR_EQ(test, pool->dev, devs->dev);
 	KUNIT_ASSERT_EQ(test, pool->nid, NUMA_NO_NODE);
-	KUNIT_ASSERT_EQ(test, pool->use_dma_alloc, params->use_dma_alloc);
+	KUNIT_ASSERT_EQ(test, ttm_pool_uses_dma_alloc(pool),
+			params->use_dma_alloc);
 
 	err = ttm_pool_alloc(pool, tt, &simple_ctx);
 	KUNIT_ASSERT_EQ(test, err, 0);

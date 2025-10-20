@@ -47,6 +47,7 @@
 #include <drm/ttm/ttm_tt.h>
 
 #include "ttm_module.h"
+#include "ttm_pool_internal.h"
 
 static unsigned long ttm_pages_limit;
 
@@ -94,7 +95,8 @@ int ttm_tt_create(struct ttm_buffer_object *bo, bool zero_alloc)
 	 * mapped TT pages need to be decrypted or otherwise the drivers
 	 * will end up sending encrypted mem to the gpu.
 	 */
-	if (bdev->pool.use_dma_alloc && cc_platform_has(CC_ATTR_GUEST_MEM_ENCRYPT)) {
+	if (ttm_pool_uses_dma_alloc(&bdev->pool) &&
+	    cc_platform_has(CC_ATTR_GUEST_MEM_ENCRYPT)) {
 		page_flags |= TTM_TT_FLAG_DECRYPTED;
 		drm_info_once(ddev, "TT memory decryption enabled.");
 	}
@@ -379,7 +381,7 @@ int ttm_tt_populate(struct ttm_device *bdev,
 
 	if (!(ttm->page_flags & TTM_TT_FLAG_EXTERNAL)) {
 		atomic_long_add(ttm->num_pages, &ttm_pages_allocated);
-		if (bdev->pool.use_dma32)
+		if (ttm_pool_uses_dma32(&bdev->pool))
 			atomic_long_add(ttm->num_pages,
 					&ttm_dma32_pages_allocated);
 	}
@@ -417,7 +419,7 @@ int ttm_tt_populate(struct ttm_device *bdev,
 error:
 	if (!(ttm->page_flags & TTM_TT_FLAG_EXTERNAL)) {
 		atomic_long_sub(ttm->num_pages, &ttm_pages_allocated);
-		if (bdev->pool.use_dma32)
+		if (ttm_pool_uses_dma32(&bdev->pool))
 			atomic_long_sub(ttm->num_pages,
 					&ttm_dma32_pages_allocated);
 	}
@@ -440,7 +442,7 @@ void ttm_tt_unpopulate(struct ttm_device *bdev, struct ttm_tt *ttm)
 
 	if (!(ttm->page_flags & TTM_TT_FLAG_EXTERNAL)) {
 		atomic_long_sub(ttm->num_pages, &ttm_pages_allocated);
-		if (bdev->pool.use_dma32)
+		if (ttm_pool_uses_dma32(&bdev->pool))
 			atomic_long_sub(ttm->num_pages,
 					&ttm_dma32_pages_allocated);
 	}
