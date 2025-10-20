@@ -234,12 +234,12 @@ endif
 # The fixdep build - we force fixdep tool to be built as
 # the first target in the separate make session not to be
 # disturbed by any parallel make jobs. Once fixdep is done
-# we issue the requested build with FIXDEP=1 variable.
+# we issue the requested build with FIXDEP_BUILT=1 variable.
 #
 # The fixdep build is disabled for $(NON_CONFIG_TARGETS)
 # targets, because it's not necessary.
 
-ifdef FIXDEP
+ifdef FIXDEP_BUILT
   force_fixdep := 0
 else
   force_fixdep := $(config)
@@ -286,7 +286,7 @@ $(goals) all: sub-make
 
 sub-make: fixdep
 	@./check-headers.sh
-	$(Q)$(MAKE) FIXDEP=1 -f Makefile.perf $(goals)
+	$(Q)$(MAKE) FIXDEP_BUILT=1 -f Makefile.perf $(goals)
 
 else # force_fixdep
 
