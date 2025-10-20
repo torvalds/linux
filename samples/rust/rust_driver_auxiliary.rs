@@ -5,7 +5,8 @@
 //! To make this driver probe, QEMU must be run with `-device pci-testdev`.
 
 use kernel::{
-    auxiliary, c_str, device::Core, driver, error::Error, pci, prelude::*, InPlaceModule,
+    auxiliary, c_str, device::Core, devres::Devres, driver, error::Error, pci, prelude::*,
+    InPlaceModule,
 };
 
 use pin_init::PinInit;
@@ -40,8 +41,12 @@ impl auxiliary::Driver for AuxiliaryDriver {
     }
 }
 
+#[pin_data]
 struct ParentDriver {
-    _reg: [auxiliary::Registration; 2],
+    #[pin]
+    _reg0: Devres<auxiliary::Registration>,
+    #[pin]
+    _reg1: Devres<auxiliary::Registration>,
 }
 
 kernel::pci_device_table!(
@@ -57,11 +62,9 @@ impl pci::Driver for ParentDriver {
     const ID_TABLE: pci::IdTable<Self::IdInfo> = &PCI_TABLE;
 
     fn probe(pdev: &pci::Device<Core>, _info: &Self::IdInfo) -> impl PinInit<Self, Error> {
-        Ok(Self {
-            _reg: [
-                auxiliary::Registration::new(pdev.as_ref(), AUXILIARY_NAME, 0, MODULE_NAME)?,
-                auxiliary::Registration::new(pdev.as_ref(), AUXILIARY_NAME, 1, MODULE_NAME)?,
-            ],
+        try_pin_init!(Self {
+            _reg0 <- auxiliary::Registration::new(pdev.as_ref(), AUXILIARY_NAME, 0, MODULE_NAME),
+            _reg1 <- auxiliary::Registration::new(pdev.as_ref(), AUXILIARY_NAME, 1, MODULE_NAME),
         })
     }
 }

@@ -3,6 +3,7 @@
 use kernel::{
     auxiliary, c_str,
     device::Core,
+    devres::Devres,
     pci,
     pci::{Class, ClassMask, Vendor},
     prelude::*,
@@ -16,7 +17,8 @@ use crate::gpu::Gpu;
 pub(crate) struct NovaCore {
     #[pin]
     pub(crate) gpu: Gpu,
-    _reg: auxiliary::Registration,
+    #[pin]
+    _reg: Devres<auxiliary::Registration>,
 }
 
 const BAR0_SIZE: usize = SZ_16M;
@@ -65,12 +67,12 @@ impl pci::Driver for NovaCore {
 
             Ok(try_pin_init!(Self {
                 gpu <- Gpu::new(pdev, bar.clone(), bar.access(pdev.as_ref())?),
-                _reg: auxiliary::Registration::new(
+                _reg <- auxiliary::Registration::new(
                     pdev.as_ref(),
                     c_str!("nova-drm"),
                     0, // TODO[XARR]: Once it lands, use XArray; for now we don't use the ID.
                     crate::MODULE_NAME
-                )?,
+                ),
             }))
         })
     }
