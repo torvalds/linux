@@ -1837,7 +1837,7 @@ static int amdgpu_ttm_pools_init(struct amdgpu_device *adev)
 	for (i = 0; i < adev->gmc.num_mem_partitions; i++) {
 		ttm_pool_init(&adev->mman.ttm_pools[i], adev->dev,
 			      adev->gmc.mem_partitions[i].numa.node,
-			      0);
+			      TTM_ALLOCATION_POOL_BENEFICIAL_ORDER(get_order(SZ_2M)));
 	}
 	return 0;
 }
@@ -1933,7 +1933,8 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 			       (adev->need_swiotlb ?
 				TTM_ALLOCATION_POOL_USE_DMA_ALLOC : 0) |
 			       (dma_addressing_limited(adev->dev) ?
-				TTM_ALLOCATION_POOL_USE_DMA32 : 0));
+				TTM_ALLOCATION_POOL_USE_DMA32 : 0) |
+			       TTM_ALLOCATION_POOL_BENEFICIAL_ORDER(get_order(SZ_2M)));
 	if (r) {
 		dev_err(adev->dev,
 			"failed initializing buffer object driver(%d).\n", r);
