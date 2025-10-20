@@ -87,10 +87,8 @@ static int intel_vrr_extra_vblank_delay(struct intel_display *display)
 	/*
 	 * On ICL/TGL VRR hardware inserts one extra scanline
 	 * just after vactive, which pushes the vmin decision
-	 * boundary ahead accordingly. We'll include the extra
-	 * scanline in our vblank delay estimates to make sure
-	 * that we never underestimate how long we have until
-	 * the delayed vblank has passed.
+	 * boundary ahead accordingly, and thus reduces the
+	 * max guardband length by one scanline.
 	 */
 	return DISPLAY_VER(display) < 13 ? 1 : 0;
 }
