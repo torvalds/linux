@@ -54,3 +54,6 @@ static struct kunit_suite kprobes_test_suite = {
 };
 
 kunit_test_suites(&kprobes_test_suite);
+
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("KUnit test for riscv kprobes");
