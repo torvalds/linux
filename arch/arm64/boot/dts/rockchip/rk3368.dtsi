@@ -501,6 +501,12 @@
 		resets = <&cru SRST_MAC>;
 		reset-names = "stmmaceth";
 		status = "disabled";
+
+		mdio: mdio {
+			compatible = "snps,dwmac-mdio";
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
 	};
 
 	usb_host0_ehci: usb@ff500000 {
