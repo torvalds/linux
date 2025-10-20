@@ -1250,8 +1250,7 @@ static int prueth_netdev_init(struct prueth *prueth,
 	} else if (of_phy_is_fixed_link(eth_node)) {
 		ret = of_phy_register_fixed_link(eth_node);
 		if (ret) {
-			ret = dev_err_probe(prueth->dev, ret,
-					    "failed to register fixed-link phy\n");
+			dev_err_probe(prueth->dev, ret, "failed to register fixed-link phy\n");
 			goto free;
 		}
 
