@@ -2591,19 +2591,20 @@ static u64 first_logical_byte(struct btrfs_fs_info *fs_info)
 }
 
 static int pin_down_extent(struct btrfs_trans_handle *trans,
-			   struct btrfs_block_group *cache,
+			   struct btrfs_block_group *bg,
 			   u64 bytenr, u64 num_bytes, int reserved)
 {
+	struct btrfs_space_info *space_info = bg->space_info;
 	const u64 reserved_bytes = (reserved ? num_bytes : 0);
 
-	spin_lock(&cache->space_info->lock);
-	spin_lock(&cache->lock);
-	cache->pinned += num_bytes;
-	cache->reserved -= reserved_bytes;
-	spin_unlock(&cache->lock);
-	cache->space_info->bytes_reserved -= reserved_bytes;
-	btrfs_space_info_update_bytes_pinned(cache->space_info, num_bytes);
-	spin_unlock(&cache->space_info->lock);
+	spin_lock(&space_info->lock);
+	spin_lock(&bg->lock);
+	bg->pinned += num_bytes;
+	bg->reserved -= reserved_bytes;
+	spin_unlock(&bg->lock);
+	space_info->bytes_reserved -= reserved_bytes;
+	btrfs_space_info_update_bytes_pinned(space_info, num_bytes);
+	spin_unlock(&space_info->lock);
 
 	btrfs_set_extent_bit(&trans->transaction->pinned_extents, bytenr,
 			     bytenr + num_bytes - 1, EXTENT_DIRTY, NULL);
