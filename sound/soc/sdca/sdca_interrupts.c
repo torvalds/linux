@@ -11,7 +11,9 @@
 #include <linux/bits.h>
 #include <linux/cleanup.h>
 #include <linux/device.h>
+#include <linux/dev_printk.h>
 #include <linux/interrupt.h>
+#include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/soundwire/sdw.h>
 #include <linux/soundwire/sdw_registers.h>
@@ -86,10 +88,17 @@ static irqreturn_t function_status_handler(int irq, void *data)
 {
 	struct sdca_interrupt *interrupt = data;
 	struct device *dev = interrupt->component->dev;
+	irqreturn_t irqret = IRQ_NONE;
 	unsigned int reg, val;
 	unsigned long status;
 	unsigned int mask;
 	int ret;
+
+	ret = pm_runtime_get_sync(dev);
+	if (ret < 0) {
+		dev_err(dev, "failed to resume for function status: %d\n", ret);
+		goto error;
+	}
 
 	reg = SDW_SDCA_CTL(interrupt->function->desc->adr, interrupt->entity->id,
 			   interrupt->control->sel, 0);
@@ -97,7 +106,7 @@ static irqreturn_t function_status_handler(int irq, void *data)
 	ret = regmap_read(interrupt->component->regmap, reg, &val);
 	if (ret < 0) {
 		dev_err(dev, "failed to read function status: %d\n", ret);
-		return IRQ_NONE;
+		goto error;
 	}
 
 	dev_dbg(dev, "function status: %#x\n", val);
@@ -130,10 +139,13 @@ static irqreturn_t function_status_handler(int irq, void *data)
 	ret = regmap_write(interrupt->component->regmap, reg, val);
 	if (ret < 0) {
 		dev_err(dev, "failed to clear function status: %d\n", ret);
-		return IRQ_NONE;
+		goto error;
 	}
 
-	return IRQ_HANDLED;
+	irqret = IRQ_HANDLED;
+error:
+	pm_runtime_put(dev);
+	return irqret;
 }
 
 static irqreturn_t detected_mode_handler(int irq, void *data)
@@ -146,8 +158,15 @@ static irqreturn_t detected_mode_handler(int irq, void *data)
 	struct snd_kcontrol *kctl = interrupt->priv;
 	struct snd_ctl_elem_value *ucontrol __free(kfree) = NULL;
 	struct soc_enum *soc_enum;
+	irqreturn_t irqret = IRQ_NONE;
 	unsigned int reg, val;
 	int ret;
+
+	ret = pm_runtime_get_sync(dev);
+	if (ret < 0) {
+		dev_err(dev, "failed to resume for detected mode: %d\n", ret);
+		goto error;
+	}
 
 	if (!kctl) {
 		const char *name __free(kfree) = kasprintf(GFP_KERNEL, "%s %s",
@@ -155,12 +174,12 @@ static irqreturn_t detected_mode_handler(int irq, void *data)
 							   SDCA_CTL_SELECTED_MODE_NAME);
 
 		if (!name)
-			return IRQ_NONE;
+			goto error;
 
 		kctl = snd_soc_component_get_kcontrol(component, name);
 		if (!kctl) {
 			dev_dbg(dev, "control not found: %s\n", name);
-			return IRQ_NONE;
+			goto error;
 		}
 
 		interrupt->priv = kctl;
@@ -174,7 +193,7 @@ static irqreturn_t detected_mode_handler(int irq, void *data)
 	ret = regmap_read(component->regmap, reg, &val);
 	if (ret < 0) {
 		dev_err(dev, "failed to read detected mode: %d\n", ret);
-		return IRQ_NONE;
+		goto error;
 	}
 
 	switch (val) {
@@ -195,7 +214,7 @@ static irqreturn_t detected_mode_handler(int irq, void *data)
 		ret = regmap_read(component->regmap, reg, &val);
 		if (ret) {
 			dev_err(dev, "failed to re-check selected mode: %d\n", ret);
-			return IRQ_NONE;
+			goto error;
 		}
 		break;
 	default:
@@ -206,7 +225,7 @@ static irqreturn_t detected_mode_handler(int irq, void *data)
 
 	ucontrol = kzalloc(sizeof(*ucontrol), GFP_KERNEL);
 	if (!ucontrol)
-		return IRQ_NONE;
+		goto error;
 
 	ucontrol->value.enumerated.item[0] = snd_soc_enum_val_to_item(soc_enum, val);
 
@@ -215,12 +234,15 @@ static irqreturn_t detected_mode_handler(int irq, void *data)
 	up_write(rwsem);
 	if (ret < 0) {
 		dev_err(dev, "failed to update selected mode: %d\n", ret);
-		return IRQ_NONE;
+		goto error;
 	}
 
 	snd_ctl_notify(card->snd_card, SNDRV_CTL_EVENT_MASK_VALUE, &kctl->id);
 
-	return IRQ_HANDLED;
+	irqret = IRQ_HANDLED;
+error:
+	pm_runtime_put(dev);
+	return irqret;
 }
 
 static int sdca_irq_request_locked(struct device *dev,
