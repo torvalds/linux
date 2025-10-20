@@ -2736,6 +2736,10 @@ static inline int print_decimal_value(int width, int *printed, char *delim, unsi
 	else
 		return (sprintf(outp, "%s%-8lld", (*printed++ ? delim : ""), value));
 }
+static inline int print_float_value(int *printed, char *delim, double value)
+{
+	return (sprintf(outp, "%s%0.2f", (*printed++ ? delim : ""), value));
+}
 
 void print_header(char *delim)
 {
@@ -3243,11 +3247,9 @@ int format_counters(PER_THREAD_PARAMS)
 			outp += print_decimal_value(mp->width, &printed, delim, t->counter[i]);
 		else if (mp->format == FORMAT_PERCENT) {
 			if (mp->type == COUNTER_USEC)
-				outp +=
-				    sprintf(outp, "%s%.2f", (printed++ ? delim : ""),
-					    t->counter[i] / interval_float / 10000);
+				outp += print_float_value(&printed, delim, t->counter[i] / interval_float / 10000);
 			else
-				outp += sprintf(outp, "%s%.2f", (printed++ ? delim : ""), 100.0 * t->counter[i] / tsc);
+				outp += print_float_value(&printed, delim, 100.0 * t->counter[i] / tsc);
 		}
 	}
 
@@ -3255,16 +3257,13 @@ int format_counters(PER_THREAD_PARAMS)
 	for (i = 0, pp = sys.perf_tp; pp; ++i, pp = pp->next) {
 		if (pp->format == FORMAT_RAW)
 			outp += print_hex_value(pp->width, &printed, delim, t->perf_counter[i]);
-		else if (pp->format == FORMAT_DELTA)
+		else if (pp->format == FORMAT_DELTA || mp->format == FORMAT_AVERAGE)
 			outp += print_decimal_value(pp->width, &printed, delim, t->perf_counter[i]);
 		else if (pp->format == FORMAT_PERCENT) {
 			if (pp->type == COUNTER_USEC)
-				outp +=
-				    sprintf(outp, "%s%.2f", (printed++ ? delim : ""),
-					    t->perf_counter[i] / interval_float / 10000);
+				outp += print_float_value(&printed, delim, t->perf_counter[i] / interval_float / 10000);
 			else
-				outp +=
-				    sprintf(outp, "%s%.2f", (printed++ ? delim : ""), 100.0 * t->perf_counter[i] / tsc);
+				outp += print_float_value(&printed, delim, 100.0 * t->perf_counter[i] / tsc);
 		}
 	}
 
@@ -3320,20 +3319,18 @@ int format_counters(PER_THREAD_PARAMS)
 			outp += print_hex_value(mp->width, &printed, delim, c->counter[i]);
 		else if (mp->format == FORMAT_DELTA || mp->format == FORMAT_AVERAGE)
 			outp += print_decimal_value(mp->width, &printed, delim, c->counter[i]);
-		else if (mp->format == FORMAT_PERCENT) {
-			outp += sprintf(outp, "%s%.2f", (printed++ ? delim : ""), 100.0 * c->counter[i] / tsc);
-		}
+		else if (mp->format == FORMAT_PERCENT)
+			outp += print_float_value(&printed, delim, 100.0 * c->counter[i] / tsc);
 	}
 
 	/* Added perf Core counters */
 	for (i = 0, pp = sys.perf_cp; pp; i++, pp = pp->next) {
 		if (pp->format == FORMAT_RAW)
 			outp += print_hex_value(pp->width, &printed, delim, c->perf_counter[i]);
-		else if (pp->format == FORMAT_DELTA)
+		else if (pp->format == FORMAT_DELTA || mp->format == FORMAT_AVERAGE)
 			outp += print_decimal_value(pp->width, &printed, delim, c->perf_counter[i]);
-		else if (pp->format == FORMAT_PERCENT) {
-			outp += sprintf(outp, "%s%.2f", (printed++ ? delim : ""), 100.0 * c->perf_counter[i] / tsc);
-		}
+		else if (pp->format == FORMAT_PERCENT)
+			outp += print_float_value(&printed, delim, 100.0 * c->perf_counter[i] / tsc);
 	}
 
 	/* Added PMT Core counters */
@@ -3347,12 +3344,12 @@ int format_counters(PER_THREAD_PARAMS)
 
 		case PMT_TYPE_XTAL_TIME:
 			value_converted = 100.0 * value_raw / crystal_hz / interval_float;
-			outp += sprintf(outp, "%s%.2f", (printed++ ? delim : ""), value_converted);
+			outp += print_float_value(&printed, delim, value_converted);
 			break;
 
 		case PMT_TYPE_TCORE_CLOCK:
 			value_converted = 100.0 * value_raw / tcore_clock_freq_hz / interval_float;
-			outp += sprintf(outp, "%s%.2f", (printed++ ? delim : ""), value_converted);
+			outp += print_float_value(&printed, delim, value_converted);
 		}
 	}
 
@@ -3500,26 +3497,25 @@ int format_counters(PER_THREAD_PARAMS)
 	for (i = 0, mp = sys.pp; mp; i++, mp = mp->next) {
 		if (mp->format == FORMAT_RAW)
 			outp += print_hex_value(mp->width, &printed, delim, p->counter[i]);
-		else if (mp->format == FORMAT_DELTA)
-			outp += print_decimal_value(mp->width, &printed, delim, p->counter[i]);
-		else if (mp->format == FORMAT_PERCENT) {
-			outp += sprintf(outp, "%s%.2f", (printed++ ? delim : ""), 100.0 * p->counter[i] / tsc);
-		} else if (mp->type == COUNTER_K2M)
+		else if (mp->type == COUNTER_K2M)
 			outp += sprintf(outp, "%s%d", (printed++ ? delim : ""), (unsigned int)p->counter[i] / 1000);
+		else if (mp->format == FORMAT_DELTA || mp->format == FORMAT_AVERAGE)
+			outp += print_decimal_value(mp->width, &printed, delim, p->counter[i]);
+		else if (mp->format == FORMAT_PERCENT)
+			outp += print_float_value(&printed, delim, 100.0 * p->counter[i] / tsc);
 	}
 
 	/* Added perf Package Counters */
 	for (i = 0, pp = sys.perf_pp; pp; i++, pp = pp->next) {
 		if (pp->format == FORMAT_RAW)
 			outp += print_hex_value(pp->width, &printed, delim, p->perf_counter[i]);
-		else if (pp->format == FORMAT_DELTA) {
-			outp += print_decimal_value(pp->width, &printed, delim, p->perf_counter[i]);
-		} else if (pp->format == FORMAT_PERCENT) {
-			outp += sprintf(outp, "%s%.2f", (printed++ ? delim : ""), 100.0 * p->perf_counter[i] / tsc);
-		} else if (pp->type == COUNTER_K2M) {
+		else if (pp->type == COUNTER_K2M)
 			outp +=
 			    sprintf(outp, "%s%d", (printed++ ? delim : ""), (unsigned int)p->perf_counter[i] / 1000);
-		}
+		else if (pp->format == FORMAT_DELTA || mp->format == FORMAT_AVERAGE)
+			outp += print_decimal_value(pp->width, &printed, delim, p->perf_counter[i]);
+		else if (pp->format == FORMAT_PERCENT)
+			outp += print_float_value(&printed, delim, 100.0 * p->perf_counter[i] / tsc);
 	}
 
 	/* Added PMT Package Counters */
@@ -3533,12 +3529,12 @@ int format_counters(PER_THREAD_PARAMS)
 
 		case PMT_TYPE_XTAL_TIME:
 			value_converted = 100.0 * value_raw / crystal_hz / interval_float;
-			outp += sprintf(outp, "%s%.2f", (printed++ ? delim : ""), value_converted);
+			outp += print_float_value(&printed, delim, value_converted);
 			break;
 
 		case PMT_TYPE_TCORE_CLOCK:
 			value_converted = 100.0 * value_raw / tcore_clock_freq_hz / interval_float;
-			outp += sprintf(outp, "%s%.2f", (printed++ ? delim : ""), value_converted);
+			outp += print_float_value(&printed, delim, value_converted);
 		}
 	}
 
