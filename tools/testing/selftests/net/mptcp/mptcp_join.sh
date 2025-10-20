@@ -2324,7 +2324,7 @@ laminar_endp_tests()
 {
 	# no laminar endpoints: routing rules are used
 	if reset_with_tcp_filter "without a laminar endpoint" ns1 10.0.2.2 REJECT &&
-	   mptcp_lib_kallsyms_has "mptcp_pm_get_endp_laminar_max$"; then
+	   continue_if mptcp_lib_kallsyms_has "mptcp_pm_get_endp_laminar_max$"; then
 		pm_nl_set_limits $ns1 0 2
 		pm_nl_set_limits $ns2 2 2
 		pm_nl_add_endpoint $ns1 10.0.2.1 flags signal
@@ -2336,7 +2336,7 @@ laminar_endp_tests()
 
 	# laminar endpoints: this endpoint is used
 	if reset_with_tcp_filter "with a laminar endpoint" ns1 10.0.2.2 REJECT &&
-	   mptcp_lib_kallsyms_has "mptcp_pm_get_endp_laminar_max$"; then
+	   continue_if mptcp_lib_kallsyms_has "mptcp_pm_get_endp_laminar_max$"; then
 		pm_nl_set_limits $ns1 0 2
 		pm_nl_set_limits $ns2 2 2
 		pm_nl_add_endpoint $ns1 10.0.2.1 flags signal
@@ -2348,7 +2348,7 @@ laminar_endp_tests()
 
 	# laminar endpoints: these endpoints are used
 	if reset_with_tcp_filter "with multiple laminar endpoints" ns1 10.0.2.2 REJECT &&
-	   mptcp_lib_kallsyms_has "mptcp_pm_get_endp_laminar_max$"; then
+	   continue_if mptcp_lib_kallsyms_has "mptcp_pm_get_endp_laminar_max$"; then
 		pm_nl_set_limits $ns1 0 2
 		pm_nl_set_limits $ns2 2 2
 		pm_nl_add_endpoint $ns1 10.0.2.1 flags signal
@@ -2363,7 +2363,7 @@ laminar_endp_tests()
 
 	# laminar endpoints: only one endpoint is used
 	if reset_with_tcp_filter "single laminar endpoint" ns1 10.0.2.2 REJECT &&
-	   mptcp_lib_kallsyms_has "mptcp_pm_get_endp_laminar_max$"; then
+	   continue_if mptcp_lib_kallsyms_has "mptcp_pm_get_endp_laminar_max$"; then
 		pm_nl_set_limits $ns1 0 2
 		pm_nl_set_limits $ns2 2 2
 		pm_nl_add_endpoint $ns1 10.0.2.1 flags signal
@@ -2376,7 +2376,7 @@ laminar_endp_tests()
 
 	# laminar endpoints: subflow and laminar flags
 	if reset_with_tcp_filter "sublow + laminar endpoints" ns1 10.0.2.2 REJECT &&
-	   mptcp_lib_kallsyms_has "mptcp_pm_get_endp_laminar_max$"; then
+	   continue_if mptcp_lib_kallsyms_has "mptcp_pm_get_endp_laminar_max$"; then
 		pm_nl_set_limits $ns1 0 4
 		pm_nl_set_limits $ns2 2 4
 		pm_nl_add_endpoint $ns1 10.0.2.1 flags signal
