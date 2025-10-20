@@ -215,6 +215,50 @@ out_free_msg:
 
 
 /**************************** Event encoding *********************************/
+static void __em_notify_pd_table(const struct em_perf_domain *pd, int ntf_type)
+{
+	struct sk_buff *msg;
+	int msg_sz, ret = -EMSGSIZE;
+	void *hdr;
+
+	if (!genl_has_listeners(&em_nl_family, &init_net, EM_NLGRP_EVENT))
+		return;
+
+	msg_sz = __em_nl_get_pd_table_size(pd);
+
+	msg = genlmsg_new(msg_sz, GFP_KERNEL);
+	if (!msg)
+		return;
+
+	hdr = genlmsg_put(msg, 0, 0, &em_nl_family, 0, ntf_type);
+	if (!hdr)
+		goto out_free_msg;
+
+	ret = __em_nl_get_pd_table(msg, pd);
+	if (ret)
+		goto out_free_msg;
+
+	genlmsg_end(msg, hdr);
+
+	genlmsg_multicast(&em_nl_family, msg, 0, EM_NLGRP_EVENT, GFP_KERNEL);
+
+	return;
+
+out_free_msg:
+	nlmsg_free(msg);
+	return;
+}
+
+void em_notify_pd_created(const struct em_perf_domain *pd)
+{
+	__em_notify_pd_table(pd, EM_CMD_PD_CREATED);
+}
+
+void em_notify_pd_updated(const struct em_perf_domain *pd)
+{
+	__em_notify_pd_table(pd, EM_CMD_PD_UPDATED);
+}
+
 static int __em_notify_pd_deleted_size(const struct em_perf_domain *pd)
 {
 	int id_sz = nla_total_size(sizeof(u32)); /* EM_A_PD_TABLE_PD_ID */
