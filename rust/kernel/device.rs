@@ -215,7 +215,7 @@ impl Device<CoreInternal> {
     /// - Must only be called once after a preceding call to [`Device::set_drvdata`].
     /// - The type `T` must match the type of the `ForeignOwnable` previously stored by
     ///   [`Device::set_drvdata`].
-    pub unsafe fn drvdata_obtain<T: ForeignOwnable>(&self) -> T {
+    pub unsafe fn drvdata_obtain<T: 'static>(&self) -> Pin<KBox<T>> {
         // SAFETY: By the type invariants, `self.as_raw()` is a valid pointer to a `struct device`.
         let ptr = unsafe { bindings::dev_get_drvdata(self.as_raw()) };
 
@@ -224,7 +224,7 @@ impl Device<CoreInternal> {
         //   `into_foreign()`.
         // - `dev_get_drvdata()` guarantees to return the same pointer given to `dev_set_drvdata()`
         //   in `into_foreign()`.
-        unsafe { T::from_foreign(ptr.cast()) }
+        unsafe { Pin::<KBox<T>>::from_foreign(ptr.cast()) }
     }
 
     /// Borrow the driver's private data bound to this [`Device`].
