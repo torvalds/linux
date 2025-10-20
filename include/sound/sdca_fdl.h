@@ -10,18 +10,26 @@
 #ifndef __SDCA_FDL_H__
 #define __SDCA_FDL_H__
 
+#include <linux/completion.h>
+
 struct device;
 struct regmap;
 struct sdca_fdl_set;
 struct sdca_function_data;
 struct sdca_interrupt;
+struct sdca_interrupt_info;
 
 /**
  * struct fdl_state - FDL state structure to keep data between interrupts
+ * @begin: Completion indicating the start of an FDL download cycle.
+ * @done: Completion indicating the end of an FDL download cycle.
  * @set: Pointer to the FDL set currently being downloaded.
  * @file_index: Index of the current file being processed.
  */
 struct fdl_state {
+	struct completion begin;
+	struct completion done;
+
 	struct sdca_fdl_set *set;
 	int file_index;
 };
@@ -51,6 +59,8 @@ struct fdl_state {
 
 int sdca_fdl_alloc_state(struct sdca_interrupt *interrupt);
 int sdca_fdl_process(struct sdca_interrupt *interrupt);
+int sdca_fdl_sync(struct device *dev, struct sdca_function_data *function,
+		  struct sdca_interrupt_info *info);
 
 int sdca_reset_function(struct device *dev, struct sdca_function_data *function,
 			struct regmap *regmap);

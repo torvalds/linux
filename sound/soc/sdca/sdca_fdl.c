@@ -14,6 +14,7 @@
 #include <linux/firmware.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/sprintf.h>
 #include <linux/soundwire/sdw.h>
@@ -62,6 +63,71 @@ int sdca_reset_function(struct device *dev, struct sdca_function_data *function,
 	return 0;
 }
 EXPORT_SYMBOL_NS(sdca_reset_function, "SND_SOC_SDCA");
+
+/**
+ * sdca_fdl_sync - wait for a function to finish FDL
+ * @dev: Device pointer for error messages.
+ * @function: Pointer to the SDCA Function.
+ * @info: Pointer to the SDCA interrupt info for this device.
+ *
+ * Return: Zero on success or a negative error code.
+ */
+int sdca_fdl_sync(struct device *dev, struct sdca_function_data *function,
+		  struct sdca_interrupt_info *info)
+{
+	static const int fdl_retries = 6;
+	unsigned long begin_timeout = msecs_to_jiffies(100);
+	unsigned long done_timeout = msecs_to_jiffies(4000);
+	int nfdl;
+	int i, j;
+
+	for (i = 0; i < fdl_retries; i++) {
+		nfdl = 0;
+
+		for (j = 0; j < SDCA_MAX_INTERRUPTS; j++) {
+			struct sdca_interrupt *interrupt = &info->irqs[j];
+			struct fdl_state *fdl_state;
+			unsigned long time;
+
+			if (interrupt->function != function ||
+			    !interrupt->entity || !interrupt->control ||
+			    interrupt->entity->type != SDCA_ENTITY_TYPE_XU ||
+			    interrupt->control->sel != SDCA_CTL_XU_FDL_CURRENTOWNER)
+				continue;
+
+			fdl_state = interrupt->priv;
+			nfdl++;
+
+			/*
+			 * Looking for timeout without any new FDL requests
+			 * to imply the device has completed initial
+			 * firmware setup. Alas the specification doesn't
+			 * have any mechanism to detect this.
+			 */
+			time = wait_for_completion_timeout(&fdl_state->begin,
+							   begin_timeout);
+			if (!time) {
+				dev_dbg(dev, "no new FDL starts\n");
+				nfdl--;
+				continue;
+			}
+
+			time = wait_for_completion_timeout(&fdl_state->done,
+							   done_timeout);
+			if (!time) {
+				dev_err(dev, "timed out waiting for FDL to complete\n");
+				return -ETIMEDOUT;
+			}
+		}
+
+		if (!nfdl)
+			return 0;
+	}
+
+	dev_err(dev, "too many FDL requests\n");
+	return -ETIMEDOUT;
+}
+EXPORT_SYMBOL_NS_GPL(sdca_fdl_sync, "SND_SOC_SDCA");
 
 static char *fdl_get_sku_filename(struct device *dev,
 				  struct sdca_fdl_file *fdl_file)
@@ -230,6 +296,9 @@ static void fdl_end(struct sdca_interrupt *interrupt)
 
 	fdl_state->set = NULL;
 
+	pm_runtime_put(interrupt->dev);
+	complete(&fdl_state->done);
+
 	dev_dbg(interrupt->dev, "completed FDL process\n");
 }
 
@@ -241,6 +310,9 @@ static int fdl_status_process(struct sdca_interrupt *interrupt, unsigned int sta
 	switch (status) {
 	case SDCA_CTL_XU_FDLD_NEEDS_SET:
 		dev_dbg(interrupt->dev, "starting FDL process...\n");
+
+		pm_runtime_get(interrupt->dev);
+		complete(&fdl_state->begin);
 
 		fdl_state->file_index = 0;
 		fdl_state->set = fdl_get_set(interrupt);
@@ -368,6 +440,9 @@ int sdca_fdl_alloc_state(struct sdca_interrupt *interrupt)
 	fdl_state = devm_kzalloc(dev, sizeof(struct fdl_state), GFP_KERNEL);
 	if (!fdl_state)
 		return -ENOMEM;
+
+	init_completion(&fdl_state->begin);
+	init_completion(&fdl_state->done);
 
 	interrupt->priv = fdl_state;
 
