@@ -2377,9 +2377,6 @@ bool intel_dp_needs_8b10b_fec(const struct intel_crtc_state *crtc_state,
 	if (intel_dp_is_uhbr(crtc_state))
 		return false;
 
-	if (crtc_state->fec_enable)
-		return true;
-
 	/*
 	 * Though eDP v1.5 supports FEC with DSC, unlike DP, it is optional.
 	 * Since, FEC is a bandwidth overhead, continue to not enable it for
