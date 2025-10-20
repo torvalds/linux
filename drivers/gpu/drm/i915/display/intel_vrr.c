@@ -779,7 +779,8 @@ void intel_vrr_transcoder_disable(const struct intel_crtc_state *crtc_state)
 	if (!intel_vrr_possible(crtc_state))
 		return;
 
-	intel_de_write(display, TRANS_VRR_CTL(display, cpu_transcoder), 0);
+	intel_de_write(display, TRANS_VRR_CTL(display, cpu_transcoder),
+		       trans_vrr_ctl(crtc_state));
 
 	intel_vrr_wait_for_live_status_clear(display, cpu_transcoder);
 
