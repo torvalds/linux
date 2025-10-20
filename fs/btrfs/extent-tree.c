@@ -2747,7 +2747,6 @@ static int unpin_extent_range(struct btrfs_fs_info *fs_info,
 	struct btrfs_free_cluster *cluster = NULL;
 	u64 total_unpinned = 0;
 	u64 empty_cluster = 0;
-	int ret = 0;
 
 	while (start <= end) {
 		u64 len;
@@ -2761,8 +2760,7 @@ static int unpin_extent_range(struct btrfs_fs_info *fs_info,
 			cache = btrfs_lookup_block_group(fs_info, start);
 			if (unlikely(cache == NULL)) {
 				/* Logic error, something removed the block group. */
-				ret = -EUCLEAN;
-				goto out;
+				return -EUCLEAN;
 			}
 
 			cluster = fetch_cluster_info(fs_info,
@@ -2816,8 +2814,8 @@ static int unpin_extent_range(struct btrfs_fs_info *fs_info,
 
 	if (cache)
 		btrfs_put_block_group(cache);
-out:
-	return ret;
+
+	return 0;
 }
 
 int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans)
