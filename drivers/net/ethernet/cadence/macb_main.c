@@ -14,7 +14,6 @@
 #include <linux/etherdevice.h>
 #include <linux/firmware/xlnx-zynqmp.h>
 #include <linux/inetdevice.h>
-#include <linux/inetdevice.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
