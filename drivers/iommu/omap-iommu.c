@@ -1675,6 +1675,7 @@ static struct iommu_device *omap_iommu_probe_device(struct device *dev)
 		}
 
 		oiommu = platform_get_drvdata(pdev);
+		put_device(&pdev->dev);
 		if (!oiommu) {
 			of_node_put(np);
 			kfree(arch_data);
@@ -1682,7 +1683,6 @@ static struct iommu_device *omap_iommu_probe_device(struct device *dev)
 		}
 
 		tmp->iommu_dev = oiommu;
-		tmp->dev = &pdev->dev;
 
 		of_node_put(np);
 	}
