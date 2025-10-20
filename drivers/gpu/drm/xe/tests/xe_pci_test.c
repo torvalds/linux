@@ -50,8 +50,15 @@ static void check_platform_desc(struct kunit *test)
 	const struct xe_device_desc *desc =
 		(const struct xe_device_desc *)pci->driver_data;
 
+	KUNIT_EXPECT_GT(test, desc->dma_mask_size, 0);
+
 	KUNIT_EXPECT_GT(test, (unsigned int)desc->max_gt_per_tile, 0);
 	KUNIT_EXPECT_LE(test, (unsigned int)desc->max_gt_per_tile, XE_MAX_GT_PER_TILE);
+
+	KUNIT_EXPECT_GT(test, desc->va_bits, 0);
+	KUNIT_EXPECT_LE(test, desc->va_bits, 64);
+
+	KUNIT_EXPECT_GT(test, desc->vm_max_level, 0);
 }
 
 static struct kunit_case xe_pci_tests[] = {
