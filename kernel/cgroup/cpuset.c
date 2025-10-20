@@ -358,8 +358,13 @@ static inline bool is_in_v2_mode(void)
  * @excluded_child: a child cpuset to be excluded in task checking
  * Return: true if there are tasks, false otherwise
  *
- * It is assumed that @cs is a valid partition root. @excluded_child should
- * be non-NULL when this cpuset is going to become a partition itself.
+ * @cs should be a valid partition root or going to become a partition root.
+ * @excluded_child should be non-NULL when this cpuset is going to become a
+ * partition itself.
+ *
+ * Note that a remote partition is not allowed underneath a valid local
+ * or remote partition. So if a non-partition root child is populated,
+ * the whole partition is considered populated.
  */
 static inline bool partition_is_populated(struct cpuset *cs,
 					  struct cpuset *excluded_child)
@@ -369,8 +374,6 @@ static inline bool partition_is_populated(struct cpuset *cs,
 
 	if (cs->css.cgroup->nr_populated_csets)
 		return true;
-	if (!excluded_child && !cs->nr_subparts)
-		return cgroup_is_populated(cs->css.cgroup);
 
 	rcu_read_lock();
 	cpuset_for_each_child(child, css, cs) {
@@ -1302,7 +1305,6 @@ static void reset_partition_data(struct cpuset *cs)
 
 	lockdep_assert_held(&callback_lock);
 
-	cs->nr_subparts = 0;
 	if (cpumask_empty(cs->exclusive_cpus)) {
 		cpumask_clear(cs->effective_xcpus);
 		if (is_cpu_exclusive(cs))
@@ -1746,7 +1748,6 @@ static int update_parent_effective_cpumask(struct cpuset *cs, int cmd,
 	int deleting;	/* Deleting cpus from parent's effective_cpus	*/
 	int old_prs, new_prs;
 	int part_error = PERR_NONE;	/* Partition error? */
-	int subparts_delta = 0;
 	int isolcpus_updated = 0;
 	struct cpumask *xcpus = user_xcpus(cs);
 	bool nocpu;
@@ -1771,10 +1772,9 @@ static int update_parent_effective_cpumask(struct cpuset *cs, int cmd,
 		if (is_partition_valid(parent))
 			adding = cpumask_and(tmp->addmask,
 					     xcpus, parent->effective_xcpus);
-		if (old_prs > 0) {
+		if (old_prs > 0)
 			new_prs = -old_prs;
-			subparts_delta--;
-		}
+
 		goto write_error;
 	}
 
@@ -1829,7 +1829,6 @@ static int update_parent_effective_cpumask(struct cpuset *cs, int cmd,
 		WARN_ON_ONCE(!cpumask_subset(tmp->new_cpus, parent->effective_cpus));
 
 		deleting = true;
-		subparts_delta++;
 	} else if (cmd == partcmd_disable) {
 		/*
 		 * May need to add cpus back to parent's effective_cpus
@@ -1840,7 +1839,6 @@ static int update_parent_effective_cpumask(struct cpuset *cs, int cmd,
 		if (is_partition_valid(cs)) {
 			cpumask_copy(tmp->addmask, cs->effective_xcpus);
 			adding = true;
-			subparts_delta--;
 		}
 		new_prs = PRS_MEMBER;
 	} else if (newmask) {
@@ -1963,17 +1961,13 @@ write_error:
 		switch (cs->partition_root_state) {
 		case PRS_ROOT:
 		case PRS_ISOLATED:
-			if (part_error) {
+			if (part_error)
 				new_prs = -old_prs;
-				subparts_delta--;
-			}
 			break;
 		case PRS_INVALID_ROOT:
 		case PRS_INVALID_ISOLATED:
-			if (!part_error) {
+			if (!part_error)
 				new_prs = -old_prs;
-				subparts_delta++;
-			}
 			break;
 		}
 	}
@@ -2002,11 +1996,9 @@ write_error:
 	 * newly deleted ones will be added back to effective_cpus.
 	 */
 	spin_lock_irq(&callback_lock);
-	if (old_prs != new_prs) {
+	if (old_prs != new_prs)
 		cs->partition_root_state = new_prs;
-		if (new_prs <= 0)
-			cs->nr_subparts = 0;
-	}
+
 	/*
 	 * Adding to parent's effective_cpus means deletion CPUs from cs
 	 * and vice versa.
@@ -2018,10 +2010,6 @@ write_error:
 		isolcpus_updated += partition_xcpus_add(new_prs, parent,
 							tmp->delmask);
 
-	if (is_partition_valid(parent)) {
-		parent->nr_subparts += subparts_delta;
-		WARN_ON_ONCE(parent->nr_subparts < 0);
-	}
 	spin_unlock_irq(&callback_lock);
 	update_unbound_workqueue_cpumask(isolcpus_updated);
 
@@ -2105,8 +2093,6 @@ static void compute_partition_effective_cpumask(struct cpuset *cs,
 			 */
 			spin_lock_irq(&callback_lock);
 			make_partition_invalid(child);
-			cs->nr_subparts--;
-			child->nr_subparts = 0;
 			spin_unlock_irq(&callback_lock);
 			notify_partition_change(child, old_prs);
 			continue;
@@ -4021,7 +4007,6 @@ static void cpuset_handle_hotplug(void)
 		 */
 		if (!cpumask_empty(subpartitions_cpus)) {
 			if (cpumask_subset(&new_cpus, subpartitions_cpus)) {
-				top_cpuset.nr_subparts = 0;
 				cpumask_clear(subpartitions_cpus);
 			} else {
 				cpumask_andnot(&new_cpus, &new_cpus,
