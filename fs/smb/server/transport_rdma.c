@@ -987,8 +987,6 @@ static int smb_direct_post_send(struct smbdirect_socket *sc,
 	ret = ib_post_send(sc->ib.qp, wr, NULL);
 	if (ret) {
 		pr_err("failed to post send: %d\n", ret);
-		if (atomic_dec_and_test(&sc->send_io.pending.count))
-			wake_up(&sc->send_io.pending.zero_wait_queue);
 		smb_direct_disconnect_rdma_connection(sc);
 	}
 	return ret;
@@ -1037,8 +1035,6 @@ static int smb_direct_flush_send_list(struct smbdirect_socket *sc,
 					 send_ctx->need_invalidate_rkey,
 					 send_ctx->remote_key);
 	} else {
-		atomic_add(send_ctx->wr_cnt, &sc->send_io.credits.count);
-		wake_up(&sc->send_io.credits.wait_queue);
 		list_for_each_entry_safe(first, last, &send_ctx->msg_list,
 					 sibling_list) {
 			smb_direct_free_sendmsg(sc, first);
