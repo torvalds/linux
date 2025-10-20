@@ -844,8 +844,8 @@ free_device:
  * Check if the underlying struct block_device supports discard and if yes
  * configure the UNMAP parameters.
  */
-bool target_configure_unmap_from_queue(struct se_dev_attrib *attrib,
-				       struct block_device *bdev)
+bool target_configure_unmap_from_bdev(struct se_dev_attrib *attrib,
+				      struct block_device *bdev)
 {
 	int block_size = bdev_logical_block_size(bdev);
 
@@ -863,7 +863,7 @@ bool target_configure_unmap_from_queue(struct se_dev_attrib *attrib,
 		bdev_discard_alignment(bdev) / block_size;
 	return true;
 }
-EXPORT_SYMBOL(target_configure_unmap_from_queue);
+EXPORT_SYMBOL(target_configure_unmap_from_bdev);
 
 /*
  * Convert from blocksize advertised to the initiator to the 512 byte

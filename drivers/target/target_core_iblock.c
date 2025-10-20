@@ -84,8 +84,8 @@ static bool iblock_configure_unmap(struct se_device *dev)
 {
 	struct iblock_dev *ib_dev = IBLOCK_DEV(dev);
 
-	return target_configure_unmap_from_queue(&dev->dev_attrib,
-						 ib_dev->ibd_bd);
+	return target_configure_unmap_from_bdev(&dev->dev_attrib,
+						ib_dev->ibd_bd);
 }
 
 static int iblock_configure_device(struct se_device *dev)
