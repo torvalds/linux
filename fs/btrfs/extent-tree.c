@@ -2592,7 +2592,7 @@ static u64 first_logical_byte(struct btrfs_fs_info *fs_info)
 
 static int pin_down_extent(struct btrfs_trans_handle *trans,
 			   struct btrfs_block_group *bg,
-			   u64 bytenr, u64 num_bytes, int reserved)
+			   u64 bytenr, u64 num_bytes, bool reserved)
 {
 	struct btrfs_space_info *space_info = bg->space_info;
 	const u64 reserved_bytes = (reserved ? num_bytes : 0);
@@ -2618,7 +2618,7 @@ int btrfs_pin_extent(struct btrfs_trans_handle *trans, u64 bytenr, u64 num_bytes
 	cache = btrfs_lookup_block_group(trans->fs_info, bytenr);
 	BUG_ON(!cache); /* Logic error */
 
-	pin_down_extent(trans, cache, bytenr, num_bytes, 1);
+	pin_down_extent(trans, cache, bytenr, num_bytes, true);
 
 	btrfs_put_block_group(cache);
 	return 0;
@@ -2642,7 +2642,7 @@ int btrfs_pin_extent_for_log_replay(struct btrfs_trans_handle *trans,
 	if (ret)
 		goto out;
 
-	pin_down_extent(trans, cache, eb->start, eb->len, 0);
+	pin_down_extent(trans, cache, eb->start, eb->len, false);
 
 	/* remove us from the free space cache (if we're there at all) */
 	ret = btrfs_remove_free_space(cache, eb->start, eb->len);
@@ -3483,7 +3483,7 @@ int btrfs_free_tree_block(struct btrfs_trans_handle *trans,
 	bg = btrfs_lookup_block_group(fs_info, buf->start);
 
 	if (btrfs_header_flag(buf, BTRFS_HEADER_FLAG_WRITTEN)) {
-		pin_down_extent(trans, bg, buf->start, buf->len, 1);
+		pin_down_extent(trans, bg, buf->start, buf->len, true);
 		btrfs_put_block_group(bg);
 		goto out;
 	}
@@ -3507,7 +3507,7 @@ int btrfs_free_tree_block(struct btrfs_trans_handle *trans,
 
 	if (test_bit(BTRFS_FS_TREE_MOD_LOG_USERS, &fs_info->flags)
 		     || btrfs_is_zoned(fs_info)) {
-		pin_down_extent(trans, bg, buf->start, buf->len, 1);
+		pin_down_extent(trans, bg, buf->start, buf->len, true);
 		btrfs_put_block_group(bg);
 		goto out;
 	}
@@ -4775,7 +4775,7 @@ int btrfs_pin_reserved_extent(struct btrfs_trans_handle *trans,
 		return -ENOSPC;
 	}
 
-	ret = pin_down_extent(trans, cache, eb->start, eb->len, 1);
+	ret = pin_down_extent(trans, cache, eb->start, eb->len, true);
 	btrfs_put_block_group(cache);
 	return ret;
 }
