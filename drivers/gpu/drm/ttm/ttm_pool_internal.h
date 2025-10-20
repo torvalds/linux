@@ -17,4 +17,9 @@ static inline bool ttm_pool_uses_dma32(struct ttm_pool *pool)
 	return pool->alloc_flags & TTM_ALLOCATION_POOL_USE_DMA32;
 }
 
+static inline bool ttm_pool_beneficial_order(struct ttm_pool *pool)
+{
+	return pool->alloc_flags & 0xff;
+}
+
 #endif
