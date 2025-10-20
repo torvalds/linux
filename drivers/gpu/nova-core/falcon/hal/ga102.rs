@@ -3,6 +3,7 @@
 use core::marker::PhantomData;
 
 use kernel::device;
+use kernel::io::poll::read_poll_timeout;
 use kernel::prelude::*;
 use kernel::time::Delta;
 
@@ -11,7 +12,6 @@ use crate::falcon::{
     Falcon, FalconBromParams, FalconEngine, FalconModSelAlgo, PeregrineCoreSelect,
 };
 use crate::regs;
-use crate::util;
 
 use super::FalconHal;
 
@@ -23,14 +23,12 @@ fn select_core_ga102<E: FalconEngine>(bar: &Bar0) -> Result {
             .write(bar, &E::ID);
 
         // TIMEOUT: falcon core should take less than 10ms to report being enabled.
-        util::wait_on(Delta::from_millis(10), || {
-            let r = regs::NV_PRISCV_RISCV_BCR_CTRL::read(bar, &E::ID);
-            if r.valid() {
-                Some(())
-            } else {
-                None
-            }
-        })?;
+        read_poll_timeout(
+            || Ok(regs::NV_PRISCV_RISCV_BCR_CTRL::read(bar, &E::ID)),
+            |r| r.valid(),
+            Delta::ZERO,
+            Delta::from_millis(10),
+        )?;
     }
 
     Ok(())

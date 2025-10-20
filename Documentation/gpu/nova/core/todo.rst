@@ -153,17 +153,6 @@ A `num` core kernel module is being designed to provide these operations.
 | Complexity: Intermediate
 | Contact: Alexandre Courbot
 
-Delay / Sleep abstractions [DLAY]
----------------------------------
-
-Rust abstractions for the kernel's delay() and sleep() functions.
-
-FUJITA Tomonori plans to work on abstractions for read_poll_timeout_atomic()
-(and friends) [1].
-
-| Complexity: Beginner
-| Link: https://lore.kernel.org/netdev/20250228.080550.354359820929821928.fujita.tomonori@gmail.com/ [1]
-
 IRQ abstractions
 ----------------
 
