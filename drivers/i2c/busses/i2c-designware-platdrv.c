@@ -239,7 +239,7 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 
 	ret = i2c_dw_probe_lock_support(dev);
 	if (ret) {
-		ret = dev_err_probe(device, ret, "failed to probe lock support\n");
+		dev_err_probe(device, ret, "failed to probe lock support\n");
 		goto exit_reset;
 	}
 
