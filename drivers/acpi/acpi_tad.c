@@ -563,8 +563,6 @@ static void acpi_tad_remove(struct platform_device *pdev)
 
 	device_init_wakeup(dev, false);
 
-	pm_runtime_get_sync(dev);
-
 	if (dd->capabilities & ACPI_TAD_RT)
 		sysfs_remove_group(&dev->kobj, &acpi_tad_time_attr_group);
 
@@ -573,6 +571,8 @@ static void acpi_tad_remove(struct platform_device *pdev)
 
 	sysfs_remove_group(&dev->kobj, &acpi_tad_attr_group);
 
+	pm_runtime_get_noresume(dev);
+
 	acpi_tad_disable_timer(dev, ACPI_TAD_AC_TIMER);
 	acpi_tad_clear_status(dev, ACPI_TAD_AC_TIMER);
 	if (dd->capabilities & ACPI_TAD_DC_WAKE) {
@@ -580,7 +580,8 @@ static void acpi_tad_remove(struct platform_device *pdev)
 		acpi_tad_clear_status(dev, ACPI_TAD_DC_TIMER);
 	}
 
-	pm_runtime_put_sync(dev);
+	pm_runtime_put_noidle(dev);
+	pm_runtime_suspend(dev);
 	pm_runtime_disable(dev);
 	acpi_remove_cmos_rtc_space_handler(handle);
 }
