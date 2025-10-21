@@ -588,7 +588,11 @@ static void gswip_port_commit_pvid(struct gswip_priv *priv, int port)
 			  FIELD_PREP(GSWIP_PCE_VCTRL_VINR, vinr),
 			  GSWIP_PCE_VCTRL(port));
 
-	/* GSWIP 2.2 (GRX300) and later program here the VID directly. */
+	/* Note that in GSWIP 2.2 VLAN mode the VID needs to be programmed
+	 * directly instead of referencing the index in the Active VLAN Tablet.
+	 * However, without the VLANMD bit (9) in PCE_GCTRL_1 (0x457) even
+	 * GSWIP 2.2 and newer hardware maintain the GSWIP 2.1 behavior.
+	 */
 	gswip_switch_w(priv, idx, GSWIP_PCE_DEFPVID(port));
 }
 
