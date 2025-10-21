@@ -105,6 +105,8 @@ extern int mmap_rnd_compat_bits __read_mostly;
 # endif
 #endif
 
+#define INVALID_PHYS_ADDR (~(phys_addr_t)0)
+
 #include <asm/page.h>
 #include <asm/processor.h>
 
