@@ -8,7 +8,7 @@ title: Qualcomm Technologies, Inc. IPQ9574 TLMM block
 
 maintainers:
   - Bjorn Andersson <andersson@kernel.org>
-  - Krzysztof Kozlowski <krzysztof.kozlowski@linaro.org>
+  - Krzysztof Kozlowski <krzk@kernel.org>
 
 description:
   Top Level Mode Multiplexer pin controller in Qualcomm IPQ9574 SoC.

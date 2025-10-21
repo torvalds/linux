@@ -8,7 +8,7 @@ title: Qualcomm MSM8976 TLMM pin controller
 
 maintainers:
   - Bjorn Andersson <andersson@kernel.org>
-  - Krzysztof Kozlowski <krzysztof.kozlowski@linaro.org>
+  - Krzysztof Kozlowski <krzk@kernel.org>
 
 description:
   Top Level Mode Multiplexer pin controller in Qualcomm MSM8976 SoC.

@@ -9,7 +9,7 @@ title: GENI based Qualcomm Universal Peripheral (QUP) Serial Peripheral Interfac
 maintainers:
   - Andy Gross <agross@kernel.org>
   - Bjorn Andersson <bjorn.andersson@linaro.org>
-  - Krzysztof Kozlowski <krzysztof.kozlowski@linaro.org>
+  - Krzysztof Kozlowski <krzk@kernel.org>
 
 description:
   The QUP v3 core is a GENI based AHB slave that provides a common data path

@@ -9,7 +9,7 @@ title: Qualcomm Shared Memory Driver
 maintainers:
   - Andy Gross <agross@kernel.org>
   - Bjorn Andersson <bjorn.andersson@linaro.org>
-  - Krzysztof Kozlowski <krzysztof.kozlowski@linaro.org>
+  - Krzysztof Kozlowski <krzk@kernel.org>
 
 description:
   The Qualcomm Shared Memory Driver is a FIFO based communication channel for
