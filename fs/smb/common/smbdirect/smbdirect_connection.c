@@ -704,6 +704,14 @@ static void smbdirect_connection_negotiate_rdma_resources(struct smbdirect_socke
 }
 
 __maybe_unused /* this is temporary while this file is included in others */
+static bool smbdirect_connection_is_connected(struct smbdirect_socket *sc)
+{
+	if (unlikely(!sc || sc->first_error || sc->status != SMBDIRECT_SOCKET_CONNECTED))
+		return false;
+	return true;
+}
+
+__maybe_unused /* this is temporary while this file is included in others */
 static int smbdirect_connection_wait_for_connected(struct smbdirect_socket *sc)
 {
 	const struct smbdirect_socket_parameters *sp = &sc->parameters;
