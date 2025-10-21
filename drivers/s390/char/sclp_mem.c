@@ -9,9 +9,12 @@
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #include <linux/cpufeature.h>
+#include <linux/container_of.h>
 #include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/init.h>
+#include <linux/kobject.h>
+#include <linux/kstrtox.h>
 #include <linux/memory.h>
 #include <linux/memory_hotplug.h>
 #include <linux/mm.h>
@@ -27,7 +30,6 @@
 #define SCLP_CMDW_ASSIGN_STORAGE		0x000d0001
 #define SCLP_CMDW_UNASSIGN_STORAGE		0x000c0001
 
-static DEFINE_MUTEX(sclp_mem_mutex);
 static LIST_HEAD(sclp_mem_list);
 static u8 sclp_max_storage_id;
 static DECLARE_BITMAP(sclp_storage_ids, 256);
@@ -36,6 +38,18 @@ struct memory_increment {
 	struct list_head list;
 	u16 rn;
 	int standby;
+};
+
+struct sclp_mem {
+	struct kobject kobj;
+	unsigned int id;
+	unsigned int memmap_on_memory;
+	unsigned int config;
+};
+
+struct sclp_mem_arg {
+	struct sclp_mem *sclp_mems;
+	struct kset *kset;
 };
 
 struct assign_storage_sccb {
@@ -163,91 +177,165 @@ static int sclp_mem_change_state(unsigned long start, unsigned long size,
 	return rc ? -EIO : 0;
 }
 
-static bool contains_standby_increment(unsigned long start, unsigned long end)
+static ssize_t sclp_config_mem_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 {
-	struct memory_increment *incr;
-	unsigned long istart;
+	struct sclp_mem *sclp_mem = container_of(kobj, struct sclp_mem, kobj);
 
-	list_for_each_entry(incr, &sclp_mem_list, list) {
-		istart = rn2addr(incr->rn);
-		if (end - 1 < istart)
-			continue;
-		if (start > istart + sclp.rzm - 1)
-			continue;
-		if (incr->standby)
-			return true;
-	}
-	return false;
+	return sysfs_emit(buf, "%u\n", READ_ONCE(sclp_mem->config));
 }
 
-static int sclp_mem_notifier(struct notifier_block *nb,
-			     unsigned long action, void *data)
+static ssize_t sclp_config_mem_store(struct kobject *kobj, struct kobj_attribute *attr,
+				     const char *buf, size_t count)
 {
-	unsigned long start, size;
-	struct memory_notify *arg;
+	unsigned long addr, block_size;
+	struct sclp_mem *sclp_mem;
+	struct memory_block *mem;
 	unsigned char id;
-	int rc = 0;
+	bool value;
+	int rc;
 
-	arg = data;
-	start = arg->start_pfn << PAGE_SHIFT;
-	size = arg->nr_pages << PAGE_SHIFT;
-	mutex_lock(&sclp_mem_mutex);
+	rc = kstrtobool(buf, &value);
+	if (rc)
+		return rc;
+	sclp_mem = container_of(kobj, struct sclp_mem, kobj);
+	block_size = memory_block_size_bytes();
+	addr = sclp_mem->id * block_size;
+	/*
+	 * Hold device_hotplug_lock when adding/removing memory blocks.
+	 * Additionally, also protect calls to find_memory_block() and
+	 * sclp_attach_storage().
+	 */
+	rc = lock_device_hotplug_sysfs();
+	if (rc)
+		goto out;
 	for_each_clear_bit(id, sclp_storage_ids, sclp_max_storage_id + 1)
 		sclp_attach_storage(id);
-	switch (action) {
-	case MEM_GOING_OFFLINE:
+	if (value) {
+		if (sclp_mem->config)
+			goto out_unlock;
+		rc = sclp_mem_change_state(addr, block_size, 1);
+		if (rc)
+			goto out_unlock;
 		/*
-		 * Do not allow to set memory blocks offline that contain
-		 * standby memory. This is done to simplify the "memory online"
-		 * case.
+		 * Set entire memory block CMMA state to nodat. Later, when
+		 * page tables pages are allocated via __add_memory(), those
+		 * regions are marked __arch_set_page_dat().
 		 */
-		if (contains_standby_increment(start, start + size))
-			rc = -EPERM;
-		break;
-	case MEM_PREPARE_ONLINE:
-		/*
-		 * Access the altmap_start_pfn and altmap_nr_pages fields
-		 * within the struct memory_notify specifically when dealing
-		 * with only MEM_PREPARE_ONLINE/MEM_FINISH_OFFLINE notifiers.
-		 *
-		 * When altmap is in use, take the specified memory range
-		 * online, which includes the altmap.
-		 */
-		if (arg->altmap_nr_pages) {
-			start = PFN_PHYS(arg->altmap_start_pfn);
-			size += PFN_PHYS(arg->altmap_nr_pages);
+		__arch_set_page_nodat((void *)__va(addr), block_size >> PAGE_SHIFT);
+		rc = __add_memory(0, addr, block_size,
+				  sclp_mem->memmap_on_memory ?
+				  MHP_MEMMAP_ON_MEMORY : MHP_NONE);
+		if (rc) {
+			sclp_mem_change_state(addr, block_size, 0);
+			goto out_unlock;
 		}
-		rc = sclp_mem_change_state(start, size, 1);
-		if (rc || !arg->altmap_nr_pages)
-			break;
-		/*
-		 * Set CMMA state to nodat here, since the struct page memory
-		 * at the beginning of the memory block will not go through the
-		 * buddy allocator later.
-		 */
-		__arch_set_page_nodat((void *)__va(start), arg->altmap_nr_pages);
-		break;
-	case MEM_FINISH_OFFLINE:
-		/*
-		 * When altmap is in use, take the specified memory range
-		 * offline, which includes the altmap.
-		 */
-		if (arg->altmap_nr_pages) {
-			start = PFN_PHYS(arg->altmap_start_pfn);
-			size += PFN_PHYS(arg->altmap_nr_pages);
+		mem = find_memory_block(pfn_to_section_nr(PFN_DOWN(addr)));
+		put_device(&mem->dev);
+		WRITE_ONCE(sclp_mem->config, 1);
+	} else {
+		if (!sclp_mem->config)
+			goto out_unlock;
+		mem = find_memory_block(pfn_to_section_nr(PFN_DOWN(addr)));
+		if (mem->state != MEM_OFFLINE) {
+			put_device(&mem->dev);
+			rc = -EBUSY;
+			goto out_unlock;
 		}
-		sclp_mem_change_state(start, size, 0);
-		break;
-	default:
-		break;
+		/* drop the ref just got via find_memory_block() */
+		put_device(&mem->dev);
+		sclp_mem_change_state(addr, block_size, 0);
+		__remove_memory(addr, block_size);
+		WRITE_ONCE(sclp_mem->config, 0);
 	}
-	mutex_unlock(&sclp_mem_mutex);
-	return rc ? NOTIFY_BAD : NOTIFY_OK;
+out_unlock:
+	unlock_device_hotplug();
+out:
+	return rc ? rc : count;
 }
 
-static struct notifier_block sclp_mem_nb = {
-	.notifier_call = sclp_mem_notifier,
+static struct kobj_attribute sclp_config_mem_attr =
+	__ATTR(config, 0644, sclp_config_mem_show, sclp_config_mem_store);
+
+static ssize_t sclp_memmap_on_memory_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
+{
+	struct sclp_mem *sclp_mem = container_of(kobj, struct sclp_mem, kobj);
+
+	return sysfs_emit(buf, "%u\n", READ_ONCE(sclp_mem->memmap_on_memory));
+}
+
+static ssize_t sclp_memmap_on_memory_store(struct kobject *kobj, struct kobj_attribute *attr,
+					   const char *buf, size_t count)
+{
+	struct sclp_mem *sclp_mem;
+	unsigned long block_size;
+	struct memory_block *mem;
+	bool value;
+	int rc;
+
+	rc = kstrtobool(buf, &value);
+	if (rc)
+		return rc;
+	rc = lock_device_hotplug_sysfs();
+	if (rc)
+		return rc;
+	block_size = memory_block_size_bytes();
+	sclp_mem = container_of(kobj, struct sclp_mem, kobj);
+	mem = find_memory_block(pfn_to_section_nr(PFN_DOWN(sclp_mem->id * block_size)));
+	if (!mem) {
+		WRITE_ONCE(sclp_mem->memmap_on_memory, value);
+	} else {
+		put_device(&mem->dev);
+		rc = -EBUSY;
+	}
+	unlock_device_hotplug();
+	return rc ? rc : count;
+}
+
+static const struct kobj_type ktype = {
+	.sysfs_ops = &kobj_sysfs_ops,
 };
+
+static struct kobj_attribute sclp_memmap_attr =
+	__ATTR(memmap_on_memory, 0644, sclp_memmap_on_memory_show, sclp_memmap_on_memory_store);
+
+static struct attribute *sclp_mem_attrs[] = {
+	&sclp_config_mem_attr.attr,
+	&sclp_memmap_attr.attr,
+	NULL,
+};
+
+static struct attribute_group sclp_mem_attr_group = {
+	.attrs = sclp_mem_attrs,
+};
+
+static int sclp_create_mem(struct sclp_mem *sclp_mem, struct kset *kset,
+			   unsigned int id, bool config, bool memmap_on_memory)
+{
+	int rc;
+
+	sclp_mem->memmap_on_memory = memmap_on_memory;
+	sclp_mem->config = config;
+	sclp_mem->id = id;
+	kobject_init(&sclp_mem->kobj, &ktype);
+	rc = kobject_add(&sclp_mem->kobj, &kset->kobj, "memory%d", id);
+	if (rc)
+		return rc;
+	return sysfs_create_group(&sclp_mem->kobj, &sclp_mem_attr_group);
+}
+
+static int sclp_create_configured_mem(struct memory_block *mem, void *argument)
+{
+	struct sclp_mem *sclp_mems;
+	struct sclp_mem_arg *arg;
+	struct kset *kset;
+	unsigned int id;
+
+	id = mem->dev.id;
+	arg = (struct sclp_mem_arg *)argument;
+	sclp_mems = arg->sclp_mems;
+	kset = arg->kset;
+	return sclp_create_mem(&sclp_mems[id], kset, id, true, false);
+}
 
 static void __init align_to_block_size(unsigned long *start,
 				       unsigned long *size,
@@ -264,14 +352,17 @@ static void __init align_to_block_size(unsigned long *start,
 	*size = size_align;
 }
 
-static void __init add_memory_merged(u16 rn)
+static int __init sclp_create_standby_mems_merged(struct sclp_mem *sclp_mems,
+						  struct kset *kset, u16 rn)
 {
 	unsigned long start, size, addr, block_size;
 	static u16 first_rn, num;
+	unsigned int id;
+	int rc = 0;
 
 	if (rn && first_rn && (first_rn + num == rn)) {
 		num++;
-		return;
+		return rc;
 	}
 	if (!first_rn)
 		goto skip_add;
@@ -286,24 +377,57 @@ static void __init add_memory_merged(u16 rn)
 	if (!size)
 		goto skip_add;
 	for (addr = start; addr < start + size; addr += block_size) {
-		add_memory(0, addr, block_size,
-			   cpu_has_edat1() ?
-			   MHP_MEMMAP_ON_MEMORY | MHP_OFFLINE_INACCESSIBLE : MHP_NONE);
+		id = addr / block_size;
+		rc = sclp_create_mem(&sclp_mems[id], kset, id, false,
+				     mhp_supports_memmap_on_memory());
+		if (rc)
+			break;
 	}
 skip_add:
 	first_rn = rn;
 	num = 1;
+	return rc;
 }
 
-static void __init sclp_add_standby_memory(void)
+static int __init sclp_create_standby_mems(struct sclp_mem *sclp_mems, struct kset *kset)
 {
 	struct memory_increment *incr;
+	int rc = 0;
 
 	list_for_each_entry(incr, &sclp_mem_list, list) {
 		if (incr->standby)
-			add_memory_merged(incr->rn);
+			rc = sclp_create_standby_mems_merged(sclp_mems, kset, incr->rn);
+		if (rc)
+			return rc;
 	}
-	add_memory_merged(0);
+	return sclp_create_standby_mems_merged(sclp_mems, kset, 0);
+}
+
+static int __init sclp_init_mem(void)
+{
+	const unsigned long block_size = memory_block_size_bytes();
+	unsigned int max_sclp_mems;
+	struct sclp_mem *sclp_mems;
+	struct sclp_mem_arg arg;
+	struct kset *kset;
+	int rc;
+
+	max_sclp_mems = roundup(sclp.rnmax * sclp.rzm, block_size) / block_size;
+	/* Allocate memory for all blocks ahead of time. */
+	sclp_mems = kcalloc(max_sclp_mems, sizeof(struct sclp_mem), GFP_KERNEL);
+	if (!sclp_mems)
+		return -ENOMEM;
+	kset = kset_create_and_add("memory", NULL, firmware_kobj);
+	if (!kset)
+		return -ENOMEM;
+	/* Initial memory is in the "configured" state already. */
+	arg.sclp_mems = sclp_mems;
+	arg.kset = kset;
+	rc = for_each_memory_block(&arg, sclp_create_configured_mem);
+	if (rc)
+		return rc;
+	/* Standby memory is "deconfigured". */
+	return sclp_create_standby_mems(sclp_mems, kset);
 }
 
 static void __init insert_increment(u16 rn, int standby, int assigned)
@@ -336,7 +460,7 @@ static void __init insert_increment(u16 rn, int standby, int assigned)
 	list_add(&new_incr->list, prev);
 }
 
-static int __init sclp_detect_standby_memory(void)
+static int __init sclp_setup_memory(void)
 {
 	struct read_storage_sccb *sccb;
 	int i, id, assigned, rc;
@@ -388,12 +512,9 @@ static int __init sclp_detect_standby_memory(void)
 		goto out;
 	for (i = 1; i <= sclp.rnmax - assigned; i++)
 		insert_increment(0, 1, 0);
-	rc = register_memory_notifier(&sclp_mem_nb);
-	if (rc)
-		goto out;
-	sclp_add_standby_memory();
+	rc = sclp_init_mem();
 out:
 	free_page((unsigned long)sccb);
 	return rc;
 }
-__initcall(sclp_detect_standby_memory);
+__initcall(sclp_setup_memory);
