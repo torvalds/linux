@@ -71,6 +71,11 @@ struct cs_amp_test_hooks {
 					 u32 *returned_attr,
 					 unsigned long *size,
 					 void *buf);
+	efi_status_t (*set_efi_variable)(efi_char16_t *name,
+					 efi_guid_t *guid,
+					 u32 attr,
+					 unsigned long size,
+					 void *buf);
 
 	int (*write_cal_coeff)(struct cs_dsp *dsp,
 			       const struct cirrus_amp_cal_controls *controls,
