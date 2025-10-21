@@ -348,6 +348,11 @@
 			status = "disabled";
 		};
 
+		iomuxc: pinctrl@4170000 {
+			compatible = "cix,sky1-pinctrl";
+			reg = <0x0 0x04170000 0x0 0x1000>;
+		};
+
 		mbox_ap2se: mailbox@5060000 {
 			compatible = "cix,sky1-mbox";
 			reg = <0x0 0x05060000 0x0 0x10000>;
@@ -435,6 +440,11 @@
 					affinity = <&cpu4 &cpu5 &cpu6 &cpu7 &cpu8 &cpu9 &cpu10 &cpu11>;
 				};
 			};
+		};
+
+		iomuxc_s5: pinctrl@16007000 {
+			compatible = "cix,sky1-pinctrl-s5";
+			reg = <0x0 0x16007000 0x0 0x1000>;
 		};
 	};
 
