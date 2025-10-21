@@ -1294,6 +1294,12 @@ struct smbdirect_mr_io *smbd_register_mr(struct smbd_connection *info,
 	return smbdirect_connection_register_mr_io(sc, iter, writing, need_invalidate);
 }
 
+void smbd_mr_fill_buffer_descriptor(struct smbdirect_mr_io *mr,
+				    struct smbdirect_buffer_descriptor_v1 *v1)
+{
+	smbdirect_mr_io_fill_buffer_descriptor(mr, v1);
+}
+
 /*
  * Deregister a MR after I/O is done
  * This function may wait if remote invalidation is not used
