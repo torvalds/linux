@@ -1310,3 +1310,18 @@ void smbd_deregister_mr(struct smbdirect_mr_io *mr)
 {
 	smbdirect_connection_deregister_mr_io(mr);
 }
+
+void smbd_debug_proc_show(struct TCP_Server_Info *server, struct seq_file *m)
+{
+	if (!server->rdma)
+		return;
+
+	if (!server->smbd_conn) {
+		seq_puts(m, "\nSMBDirect transport not available");
+		return;
+	}
+
+	smbdirect_connection_legacy_debug_proc_show(&server->smbd_conn->socket,
+						    server->rdma_readwrite_threshold,
+						    m);
+}

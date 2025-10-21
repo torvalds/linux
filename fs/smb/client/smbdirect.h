@@ -64,6 +64,8 @@ void smbd_mr_fill_buffer_descriptor(struct smbdirect_mr_io *mr,
 				    struct smbdirect_buffer_descriptor_v1 *v1);
 void smbd_deregister_mr(struct smbdirect_mr_io *mr);
 
+void smbd_debug_proc_show(struct TCP_Server_Info *server, struct seq_file *m);
+
 #else
 #define cifs_rdma_enabled(server)	0
 struct smbd_connection {};
