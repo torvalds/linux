@@ -5421,8 +5421,8 @@ __bpf_kfunc_start_defs();
  * scheduler, %false return triggers scheduler abort and the caller doesn't need
  * to check the return value.
  */
-__bpf_kfunc bool scx_bpf_dsq_insert(struct task_struct *p, u64 dsq_id, u64 slice,
-				    u64 enq_flags)
+__bpf_kfunc bool scx_bpf_dsq_insert___v2(struct task_struct *p, u64 dsq_id,
+					 u64 slice, u64 enq_flags)
 {
 	struct scx_sched *sch;
 
@@ -5445,12 +5445,12 @@ __bpf_kfunc bool scx_bpf_dsq_insert(struct task_struct *p, u64 dsq_id, u64 slice
 }
 
 /*
- * COMPAT: Will be removed in v6.23.
+ * COMPAT: Will be removed in v6.23 along with the ___v2 suffix.
  */
-__bpf_kfunc void scx_bpf_dsq_insert___compat(struct task_struct *p, u64 dsq_id,
+__bpf_kfunc void scx_bpf_dsq_insert(struct task_struct *p, u64 dsq_id,
 					     u64 slice, u64 enq_flags)
 {
-	scx_bpf_dsq_insert(p, dsq_id, slice, enq_flags);
+	scx_bpf_dsq_insert___v2(p, dsq_id, slice, enq_flags);
 }
 
 static bool scx_dsq_insert_vtime(struct scx_sched *sch, struct task_struct *p,
@@ -5546,7 +5546,7 @@ __bpf_kfunc_end_defs();
 
 BTF_KFUNCS_START(scx_kfunc_ids_enqueue_dispatch)
 BTF_ID_FLAGS(func, scx_bpf_dsq_insert, KF_RCU)
-BTF_ID_FLAGS(func, scx_bpf_dsq_insert___compat, KF_RCU)
+BTF_ID_FLAGS(func, scx_bpf_dsq_insert___v2, KF_RCU)
 BTF_ID_FLAGS(func, __scx_bpf_dsq_insert_vtime, KF_RCU)
 BTF_ID_FLAGS(func, scx_bpf_dsq_insert_vtime, KF_RCU)
 BTF_KFUNCS_END(scx_kfunc_ids_enqueue_dispatch)
