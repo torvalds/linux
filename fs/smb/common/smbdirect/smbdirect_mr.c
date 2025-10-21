@@ -452,6 +452,24 @@ dma_map_error:
 		mutex_unlock(&mr->mutex);
 	return NULL;
 }
+
+__maybe_unused /* this is temporary while this file is included in others */
+static void smbdirect_mr_io_fill_buffer_descriptor(struct smbdirect_mr_io *mr,
+						   struct smbdirect_buffer_descriptor_v1 *v1)
+{
+	mutex_lock(&mr->mutex);
+	if (mr->state == SMBDIRECT_MR_REGISTERED) {
+		v1->offset = cpu_to_le64(mr->mr->iova);
+		v1->token = cpu_to_le32(mr->mr->rkey);
+		v1->length = cpu_to_le32(mr->mr->length);
+	} else {
+		v1->offset = cpu_to_le64(U64_MAX);
+		v1->token = cpu_to_le32(U32_MAX);
+		v1->length = cpu_to_le32(U32_MAX);
+	}
+	mutex_unlock(&mr->mutex);
+}
+
 /*
  * Deregister a MR after I/O is done
  * This function may wait if remote invalidation is not used
