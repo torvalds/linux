@@ -541,6 +541,7 @@ EXPORT_SYMBOL_NS_GPL(cs_amp_create_debugfs, "SND_SOC_CS_AMP_LIB");
 static const struct cs_amp_test_hooks cs_amp_test_hook_ptrs = {
 	.get_efi_variable = cs_amp_get_efi_variable,
 	.write_cal_coeff = cs_amp_write_cal_coeff,
+	.read_cal_coeff = cs_amp_read_cal_coeff,
 };
 
 const struct cs_amp_test_hooks * const cs_amp_test_hooks =

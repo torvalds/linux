@@ -701,6 +701,77 @@ static void cs_amp_lib_test_write_cal_data_test(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, entry->value, data.calStatus);
 }
 
+static int cs_amp_lib_test_read_cal_coeff(struct cs_dsp *dsp,
+					  const struct cirrus_amp_cal_controls *controls,
+					  const char *ctl_name, u32 *val)
+{
+	struct kunit *test = kunit_get_current_test();
+
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ctl_name);
+	KUNIT_EXPECT_PTR_EQ(test, controls, &cs_amp_lib_test_calibration_controls);
+
+	if (strcmp(ctl_name, controls->ambient) == 0)
+		*val = 19;
+	else if (strcmp(ctl_name, controls->calr) == 0)
+		*val = 1077;
+	else if (strcmp(ctl_name, controls->status) == 0)
+		*val = 2;
+	else
+		kunit_fail_current_test("Bad control '%s'\n", ctl_name);
+
+	return 0;
+}
+
+static void cs_amp_lib_test_read_cal_data_test(struct kunit *test)
+{
+	struct cs_amp_lib_test_priv *priv = test->priv;
+	struct cirrus_amp_cal_data data = { 0 };
+	struct cs_dsp *dsp;
+	int ret;
+
+	dsp = kunit_kzalloc(test, sizeof(*dsp), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dsp);
+	dsp->dev = &priv->amp_dev->dev;
+
+	kunit_activate_static_stub(test,
+				   cs_amp_test_hooks->read_cal_coeff,
+				   cs_amp_lib_test_read_cal_coeff);
+
+	ret = cs_amp_read_cal_coeffs(dsp, &cs_amp_lib_test_calibration_controls, &data);
+	KUNIT_EXPECT_EQ(test, ret, 0);
+
+	KUNIT_EXPECT_EQ(test, 19, data.calAmbient);
+	KUNIT_EXPECT_EQ(test, 1077, data.calR);
+	KUNIT_EXPECT_EQ(test, 2, data.calStatus);
+	KUNIT_EXPECT_NE(test, 0, data.calTime[0] | data.calTime[1]);
+}
+
+static void cs_amp_lib_test_write_ambient_test(struct kunit *test)
+{
+	struct cs_amp_lib_test_priv *priv = test->priv;
+	struct cs_amp_lib_test_ctl_write_entry *entry;
+	struct cs_dsp *dsp;
+	int ret;
+
+	dsp = kunit_kzalloc(test, sizeof(*dsp), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dsp);
+	dsp->dev = &priv->amp_dev->dev;
+
+	/* Redirect calls to write firmware controls */
+	kunit_activate_static_stub(test,
+				   cs_amp_test_hooks->write_cal_coeff,
+				   cs_amp_lib_test_write_cal_coeff);
+
+	ret = cs_amp_write_ambient_temp(dsp, &cs_amp_lib_test_calibration_controls, 18);
+	KUNIT_EXPECT_EQ(test, ret, 0);
+
+	KUNIT_EXPECT_EQ(test, list_count_nodes(&priv->ctl_write_list), 1);
+
+	entry = list_first_entry(&priv->ctl_write_list, typeof(*entry), list);
+	KUNIT_EXPECT_STREQ(test, entry->name, cs_amp_lib_test_calibration_controls.ambient);
+	KUNIT_EXPECT_EQ(test, entry->value, 18);
+}
+
 static void cs_amp_lib_test_spkid_lenovo_not_present(struct kunit *test)
 {
 	struct cs_amp_lib_test_priv *priv = test->priv;
@@ -973,8 +1044,10 @@ static struct kunit_case cs_amp_lib_test_cases[] = {
 			 cs_amp_lib_test_get_cal_gen_params),
 	KUNIT_CASE(cs_amp_lib_test_get_efi_cal_empty_entry_test),
 
-	/* Tests for writing calibration data */
+	/* Tests for writing and reading calibration data */
 	KUNIT_CASE(cs_amp_lib_test_write_cal_data_test),
+	KUNIT_CASE(cs_amp_lib_test_read_cal_data_test),
+	KUNIT_CASE(cs_amp_lib_test_write_ambient_test),
 
 	/* Test cases for speaker ID */
 	KUNIT_CASE(cs_amp_lib_test_spkid_lenovo_not_present),

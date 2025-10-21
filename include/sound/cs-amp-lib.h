@@ -72,8 +72,11 @@ struct cs_amp_test_hooks {
 	int (*write_cal_coeff)(struct cs_dsp *dsp,
 			       const struct cirrus_amp_cal_controls *controls,
 			       const char *ctl_name, u32 val);
-};
 
+	int (*read_cal_coeff)(struct cs_dsp *dsp,
+			      const struct cirrus_amp_cal_controls *controls,
+			      const char *ctl_name, u32 *val);
+};
 extern const struct cs_amp_test_hooks * const cs_amp_test_hooks;
 
 #endif /* CS_AMP_LIB_H */
