@@ -24226,6 +24226,7 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/broonie/spi.git
 F:	Documentation/devicetree/bindings/spi/
 F:	Documentation/spi/
 F:	drivers/spi/
+F:	include/trace/events/spi*
 F:	include/linux/spi/
 F:	include/uapi/linux/spi/
 F:	tools/spi/
