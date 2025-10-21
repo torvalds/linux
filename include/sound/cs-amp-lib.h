@@ -47,9 +47,21 @@ struct cirrus_amp_cal_controls {
 int cs_amp_write_cal_coeffs(struct cs_dsp *dsp,
 			    const struct cirrus_amp_cal_controls *controls,
 			    const struct cirrus_amp_cal_data *data);
+int cs_amp_read_cal_coeffs(struct cs_dsp *dsp,
+			   const struct cirrus_amp_cal_controls *controls,
+			   struct cirrus_amp_cal_data *data);
+int cs_amp_write_ambient_temp(struct cs_dsp *dsp,
+			      const struct cirrus_amp_cal_controls *controls,
+			      u32 temp);
 int cs_amp_get_efi_calibration_data(struct device *dev, u64 target_uid, int amp_index,
 				    struct cirrus_amp_cal_data *out_data);
 int cs_amp_get_vendor_spkid(struct device *dev);
+struct dentry *cs_amp_create_debugfs(struct device *dev);
+
+static inline u64 cs_amp_cal_target_u64(const struct cirrus_amp_cal_data *data)
+{
+	return ((u64)data->calTarget[1] << 32) | data->calTarget[0];
+}
 
 struct cs_amp_test_hooks {
 	efi_status_t (*get_efi_variable)(efi_char16_t *name,

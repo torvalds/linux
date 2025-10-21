@@ -7,12 +7,15 @@
 
 #include <asm/byteorder.h>
 #include <kunit/static_stub.h>
+#include <linux/debugfs.h>
 #include <linux/dev_printk.h>
 #include <linux/efi.h>
 #include <linux/firmware/cirrus/cs_dsp.h>
+#include <linux/math64.h>
 #include <linux/module.h>
 #include <linux/overflow.h>
 #include <linux/slab.h>
+#include <linux/timekeeping.h>
 #include <linux/types.h>
 #include <sound/cs-amp-lib.h>
 
@@ -46,6 +49,16 @@ static const struct cs_amp_lib_cal_efivar {
 	},
 };
 
+/* Offset from Unix time to Windows time (100ns since 1 Jan 1601) */
+#define UNIX_TIME_TO_WINDOWS_TIME_OFFSET	116444736000000000ULL
+
+static u64 cs_amp_time_now_in_windows_time(void)
+{
+	u64 time_in_100ns = div_u64(ktime_get_real_ns(), 100);
+
+	return time_in_100ns + UNIX_TIME_TO_WINDOWS_TIME_OFFSET;
+}
+
 static int cs_amp_write_cal_coeff(struct cs_dsp *dsp,
 				  const struct cirrus_amp_cal_controls *controls,
 				  const char *ctl_name, u32 val)
@@ -71,6 +84,34 @@ static int cs_amp_write_cal_coeff(struct cs_dsp *dsp,
 	}
 
 	return -ENODEV;
+}
+
+static int cs_amp_read_cal_coeff(struct cs_dsp *dsp,
+				 const struct cirrus_amp_cal_controls *controls,
+				 const char *ctl_name, u32 *val)
+{
+	struct cs_dsp_coeff_ctl *cs_ctl;
+	__be32 beval;
+	int ret;
+
+	KUNIT_STATIC_STUB_REDIRECT(cs_amp_read_cal_coeff, dsp, controls, ctl_name, val);
+
+	if (!IS_REACHABLE(CONFIG_FW_CS_DSP))
+		return -ENODEV;
+
+	scoped_guard(mutex, &dsp->pwr_lock) {
+		cs_ctl = cs_dsp_get_ctl(dsp, ctl_name, controls->mem_region, controls->alg_id);
+		ret = cs_dsp_coeff_read_ctrl(cs_ctl, 0, &beval, sizeof(beval));
+	}
+
+	if (ret < 0) {
+		dev_err(dsp->dev, "Failed to write to '%s': %d\n", ctl_name, ret);
+		return ret;
+	}
+
+	*val = be32_to_cpu(beval);
+
+	return 0;
 }
 
 static int _cs_amp_write_cal_coeffs(struct cs_dsp *dsp,
@@ -106,6 +147,45 @@ static int _cs_amp_write_cal_coeffs(struct cs_dsp *dsp,
 	return 0;
 }
 
+static int _cs_amp_read_cal_coeffs(struct cs_dsp *dsp,
+				    const struct cirrus_amp_cal_controls *controls,
+				    struct cirrus_amp_cal_data *data)
+{
+	u64 time;
+	u32 val;
+	int ret;
+
+	if (list_empty(&dsp->ctl_list)) {
+		dev_info(dsp->dev, "Calibration disabled due to missing firmware controls\n");
+		return -ENOENT;
+	}
+
+	ret = cs_amp_read_cal_coeff(dsp, controls, controls->ambient, &val);
+	if (ret)
+		return ret;
+
+	data->calAmbient = (s8)val;
+
+	ret = cs_amp_read_cal_coeff(dsp, controls, controls->calr, &val);
+	if (ret)
+		return ret;
+
+	data->calR = (u16)val;
+
+	ret = cs_amp_read_cal_coeff(dsp, controls, controls->status, &val);
+	if (ret)
+		return ret;
+
+	data->calStatus = (u8)val;
+
+	/* Fill in timestamp */
+	time = cs_amp_time_now_in_windows_time();
+	data->calTime[0] = (u32)time;
+	data->calTime[1] = (u32)(time >> 32);
+
+	return 0;
+}
+
 /**
  * cs_amp_write_cal_coeffs - Write calibration data to firmware controls.
  * @dsp:	Pointer to struct cs_dsp.
@@ -124,6 +204,44 @@ int cs_amp_write_cal_coeffs(struct cs_dsp *dsp,
 		return -ENODEV;
 }
 EXPORT_SYMBOL_NS_GPL(cs_amp_write_cal_coeffs, "SND_SOC_CS_AMP_LIB");
+
+/**
+ * cs_amp_read_cal_coeffs - Read calibration data from firmware controls.
+ * @dsp:	Pointer to struct cs_dsp.
+ * @controls:	Pointer to definition of firmware controls to be read.
+ * @data:	Pointer to calibration data where results will be written.
+ *
+ * Returns: 0 on success, else negative error value.
+ */
+int cs_amp_read_cal_coeffs(struct cs_dsp *dsp,
+			   const struct cirrus_amp_cal_controls *controls,
+			   struct cirrus_amp_cal_data *data)
+{
+	if (IS_REACHABLE(CONFIG_FW_CS_DSP) || IS_ENABLED(CONFIG_SND_SOC_CS_AMP_LIB_TEST))
+		return _cs_amp_read_cal_coeffs(dsp, controls, data);
+	else
+		return -ENODEV;
+}
+EXPORT_SYMBOL_NS_GPL(cs_amp_read_cal_coeffs, "SND_SOC_CS_AMP_LIB");
+
+/**
+ * cs_amp_write_ambient_temp - write value to calibration ambient temperature
+ * @dsp:	Pointer to struct cs_dsp.
+ * @controls:	Pointer to definition of firmware controls to be read.
+ * @temp:	Temperature in degrees celcius.
+ *
+ * Returns: 0 on success, else negative error value.
+ */
+int cs_amp_write_ambient_temp(struct cs_dsp *dsp,
+			      const struct cirrus_amp_cal_controls *controls,
+			      u32 temp)
+{
+	if (IS_REACHABLE(CONFIG_FW_CS_DSP) || IS_ENABLED(CONFIG_SND_SOC_CS_AMP_LIB_TEST))
+		return cs_amp_write_cal_coeff(dsp, controls, controls->ambient, temp);
+	else
+		return -ENODEV;
+}
+EXPORT_SYMBOL_NS_GPL(cs_amp_write_ambient_temp, "SND_SOC_CS_AMP_LIB");
 
 static efi_status_t cs_amp_get_efi_variable(efi_char16_t *name,
 					    efi_guid_t *guid,
@@ -213,11 +331,6 @@ err:
 	dev_err(dev, "Failed to read calibration data from EFI: %d\n", ret);
 
 	return ERR_PTR(ret);
-}
-
-static u64 cs_amp_cal_target_u64(const struct cirrus_amp_cal_data *data)
-{
-	return ((u64)data->calTarget[1] << 32) | data->calTarget[0];
 }
 
 static int _cs_amp_get_efi_calibration_data(struct device *dev, u64 target_uid, int amp_index,
@@ -399,6 +512,31 @@ int cs_amp_get_vendor_spkid(struct device *dev)
 	return -ENOENT;
 }
 EXPORT_SYMBOL_NS_GPL(cs_amp_get_vendor_spkid, "SND_SOC_CS_AMP_LIB");
+
+/**
+ * cs_amp_create_debugfs - create a debugfs directory for a device
+ *
+ * @dev: pointer to struct device
+ *
+ * Creates a node under "cirrus_logic" in the root of the debugfs filesystem.
+ * This is for Cirrus-specific debugfs functionality to be grouped in a
+ * defined way, independently of the debugfs provided by ALSA/ASoC.
+ * The general ALSA/ASoC debugfs may not be enabled, and does not necessarily
+ * have a stable layout or naming convention.
+ *
+ * Return: Pointer to the dentry for the created directory, or -ENODEV.
+ */
+struct dentry *cs_amp_create_debugfs(struct device *dev)
+{
+	struct dentry *dir;
+
+	dir = debugfs_lookup("cirrus_logic", NULL);
+	if (!dir)
+		dir = debugfs_create_dir("cirrus_logic", NULL);
+
+	return debugfs_create_dir(dev_name(dev), dir);
+}
+EXPORT_SYMBOL_NS_GPL(cs_amp_create_debugfs, "SND_SOC_CS_AMP_LIB");
 
 static const struct cs_amp_test_hooks cs_amp_test_hook_ptrs = {
 	.get_efi_variable = cs_amp_get_efi_variable,
