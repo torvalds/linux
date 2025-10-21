@@ -12,6 +12,7 @@
 #include "phy.h"
 #include "ps.h"
 #include "reg.h"
+#include "ser.h"
 #include "util.h"
 
 static const u32 rtw89_mac_mem_base_addrs_ax[RTW89_MAC_MEM_NUM] = {
@@ -1423,13 +1424,15 @@ void rtw89_mac_power_mode_change(struct rtw89_dev *rtwdev, bool enter)
 		if (!ret)
 			break;
 
-		if (i == RPWM_TRY_CNT - 1)
+		if (i == RPWM_TRY_CNT - 1) {
 			rtw89_err(rtwdev, "firmware failed to ack for %s ps mode\n",
 				  enter ? "entering" : "leaving");
-		else
+			rtw89_ser_notify(rtwdev, MAC_AX_ERR_ASSERTION);
+		} else {
 			rtw89_debug(rtwdev, RTW89_DBG_UNEXP,
 				    "%d time firmware failed to ack for %s ps mode\n",
 				    i + 1, enter ? "entering" : "leaving");
+		}
 	}
 }
 

@@ -5538,6 +5538,7 @@ int rtw89_core_start(struct rtw89_dev *rtwdev)
 	rtw89_fw_h2c_fw_log(rtwdev, rtwdev->fw.log.enable);
 	rtw89_fw_h2c_init_ba_cam(rtwdev);
 	rtw89_tas_fw_timer_enable(rtwdev, true);
+	rtwdev->ps_hang_cnt = 0;
 
 	return 0;
 }
