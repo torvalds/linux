@@ -534,8 +534,7 @@ bool kvm_cpu_has_ept(void)
 	return ctrl & SECONDARY_EXEC_ENABLE_EPT;
 }
 
-void prepare_eptp(struct vmx_pages *vmx, struct kvm_vm *vm,
-		  uint32_t eptp_memslot)
+void prepare_eptp(struct vmx_pages *vmx, struct kvm_vm *vm)
 {
 	TEST_ASSERT(kvm_cpu_has_ept(), "KVM doesn't support nested EPT");
 
