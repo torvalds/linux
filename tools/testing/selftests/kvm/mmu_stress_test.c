@@ -362,11 +362,9 @@ int main(int argc, char *argv[])
 
 #ifdef __x86_64__
 		/* Identity map memory in the guest using 1gb pages. */
-		for (i = 0; i < slot_size; i += SZ_1G)
-			__virt_pg_map(vm, gpa + i, gpa + i, PG_LEVEL_1G);
+		virt_map_level(vm, gpa, gpa, slot_size, PG_LEVEL_1G);
 #else
-		for (i = 0; i < slot_size; i += vm->page_size)
-			virt_pg_map(vm, gpa + i, gpa + i);
+		virt_map(vm, gpa, gpa, slot_size >> vm->page_shift);
 #endif
 	}
 
