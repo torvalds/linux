@@ -24,6 +24,160 @@ static bool smbdirect_frwr_is_supported(const struct ib_device_attr *attrs)
 
 static void smbdirect_socket_cleanup_work(struct work_struct *work);
 
+static int smbdirect_socket_rdma_event_handler(struct rdma_cm_id *id,
+					       struct rdma_cm_event *event)
+{
+	struct smbdirect_socket *sc = id->context;
+	int ret = -ESTALE;
+
+	/*
+	 * This should be replaced before any real work
+	 * starts! So it should never be called!
+	 */
+
+	if (event->event == RDMA_CM_EVENT_DEVICE_REMOVAL)
+		ret = -ENETDOWN;
+	if (IS_ERR(SMBDIRECT_DEBUG_ERR_PTR(event->status)))
+		ret = event->status;
+	pr_err("%s (first_error=%1pe, expected=%s) => event=%s status=%d => ret=%1pe\n",
+		smbdirect_socket_status_string(sc->status),
+		SMBDIRECT_DEBUG_ERR_PTR(sc->first_error),
+		rdma_event_msg(sc->rdma.expected_event),
+		rdma_event_msg(event->event),
+		event->status,
+		SMBDIRECT_DEBUG_ERR_PTR(ret));
+	WARN_ONCE(1, "%s should not be called!\n", __func__);
+	sc->rdma.cm_id = NULL;
+	return -ESTALE;
+}
+
+__maybe_unused /* this is temporary while this file is included in others */
+static int smbdirect_socket_init_new(struct net *net, struct smbdirect_socket *sc)
+{
+	struct rdma_cm_id *id;
+	int ret;
+
+	smbdirect_socket_init(sc);
+
+	id = rdma_create_id(net,
+			    smbdirect_socket_rdma_event_handler,
+			    sc,
+			    RDMA_PS_TCP,
+			    IB_QPT_RC);
+	if (IS_ERR(id)) {
+		pr_err("%s: rdma_create_id() failed %1pe\n", __func__, id);
+		return PTR_ERR(id);
+	}
+
+	ret = rdma_set_afonly(id, 1);
+	if (ret) {
+		rdma_destroy_id(id);
+		pr_err("%s: rdma_set_afonly() failed %1pe\n",
+		       __func__, SMBDIRECT_DEBUG_ERR_PTR(ret));
+		return ret;
+	}
+
+	sc->rdma.cm_id = id;
+
+	INIT_WORK(&sc->disconnect_work, smbdirect_socket_cleanup_work);
+
+	return 0;
+}
+
+__maybe_unused /* this is temporary while this file is included in others */
+static int smbdirect_socket_init_accepting(struct rdma_cm_id *id, struct smbdirect_socket *sc)
+{
+	smbdirect_socket_init(sc);
+
+	sc->rdma.cm_id = id;
+	sc->rdma.cm_id->context = sc;
+	sc->rdma.cm_id->event_handler = smbdirect_socket_rdma_event_handler;
+
+	sc->ib.dev = sc->rdma.cm_id->device;
+
+	INIT_WORK(&sc->disconnect_work, smbdirect_socket_cleanup_work);
+
+	return 0;
+}
+
+__maybe_unused /* this is temporary while this file is included in others */
+static int smbdirect_socket_set_initial_parameters(struct smbdirect_socket *sc,
+						   const struct smbdirect_socket_parameters *sp)
+{
+	/*
+	 * This is only allowed before connect or accept
+	 */
+	WARN_ONCE(sc->status != SMBDIRECT_SOCKET_CREATED,
+		  "status=%s first_error=%1pe",
+		  smbdirect_socket_status_string(sc->status),
+		  SMBDIRECT_DEBUG_ERR_PTR(sc->first_error));
+	if (sc->status != SMBDIRECT_SOCKET_CREATED)
+		return -EINVAL;
+
+	/*
+	 * Make a copy of the callers parameters
+	 * from here we only work on the copy
+	 *
+	 * TODO: do we want consistency checking?
+	 */
+	sc->parameters = *sp;
+
+	return 0;
+}
+
+__maybe_unused /* this is temporary while this file is included in others */
+static const struct smbdirect_socket_parameters *
+smbdirect_socket_get_current_parameters(struct smbdirect_socket *sc)
+{
+	return &sc->parameters;
+}
+
+__maybe_unused /* this is temporary while this file is included in others */
+static int smbdirect_socket_set_kernel_settings(struct smbdirect_socket *sc,
+						enum ib_poll_context poll_ctx,
+						gfp_t gfp_mask)
+{
+	/*
+	 * This is only allowed before connect or accept
+	 */
+	WARN_ONCE(sc->status != SMBDIRECT_SOCKET_CREATED,
+		  "status=%s first_error=%1pe",
+		  smbdirect_socket_status_string(sc->status),
+		  SMBDIRECT_DEBUG_ERR_PTR(sc->first_error));
+	if (sc->status != SMBDIRECT_SOCKET_CREATED)
+		return -EINVAL;
+
+	sc->ib.poll_ctx = poll_ctx;
+
+	sc->send_io.mem.gfp_mask = gfp_mask;
+	sc->recv_io.mem.gfp_mask = gfp_mask;
+	sc->rw_io.mem.gfp_mask = gfp_mask;
+
+	return 0;
+}
+
+__maybe_unused /* this is temporary while this file is included in others */
+static int smbdirect_socket_set_custom_workqueue(struct smbdirect_socket *sc,
+						 struct workqueue_struct *workqueue)
+{
+	/*
+	 * This is only allowed before connect or accept
+	 */
+	WARN_ONCE(sc->status != SMBDIRECT_SOCKET_CREATED,
+		  "status=%s first_error=%1pe",
+		  smbdirect_socket_status_string(sc->status),
+		  SMBDIRECT_DEBUG_ERR_PTR(sc->first_error));
+	if (sc->status != SMBDIRECT_SOCKET_CREATED)
+		return -EINVAL;
+
+	/*
+	 * Remember the callers workqueue
+	 */
+	sc->workqueue = workqueue;
+
+	return 0;
+}
+
 __maybe_unused /* this is temporary while this file is included in others */
 static void smbdirect_socket_prepare_create(struct smbdirect_socket *sc,
 					    const struct smbdirect_socket_parameters *sp,
@@ -35,12 +189,12 @@ static void smbdirect_socket_prepare_create(struct smbdirect_socket *sc,
 	 * Make a copy of the callers parameters
 	 * from here we only work on the copy
 	 */
-	sc->parameters = *sp;
+	smbdirect_socket_set_initial_parameters(sc, sp);
 
 	/*
 	 * Remember the callers workqueue
 	 */
-	sc->workqueue = workqueue;
+	smbdirect_socket_set_custom_workqueue(sc, workqueue);
 
 	INIT_WORK(&sc->disconnect_work, smbdirect_socket_cleanup_work);
 
