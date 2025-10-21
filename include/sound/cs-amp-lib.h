@@ -66,6 +66,7 @@ static inline u64 cs_amp_cal_target_u64(const struct cirrus_amp_cal_data *data)
 struct cs_amp_test_hooks {
 	efi_status_t (*get_efi_variable)(efi_char16_t *name,
 					 efi_guid_t *guid,
+					 u32 *returned_attr,
 					 unsigned long *size,
 					 void *buf);
 

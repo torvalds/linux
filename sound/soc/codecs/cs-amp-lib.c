@@ -245,15 +245,20 @@ EXPORT_SYMBOL_NS_GPL(cs_amp_write_ambient_temp, "SND_SOC_CS_AMP_LIB");
 
 static efi_status_t cs_amp_get_efi_variable(efi_char16_t *name,
 					    efi_guid_t *guid,
+					    u32 *returned_attr,
 					    unsigned long *size,
 					    void *buf)
 {
 	u32 attr;
 
-	KUNIT_STATIC_STUB_REDIRECT(cs_amp_get_efi_variable, name, guid, size, buf);
+	if (!returned_attr)
+		returned_attr = &attr;
+
+	KUNIT_STATIC_STUB_REDIRECT(cs_amp_get_efi_variable, name, guid,
+				   returned_attr, size, buf);
 
 	if (efi_rt_services_supported(EFI_RT_SUPPORTED_GET_VARIABLE))
-		return efi.get_variable(name, guid, &attr, size, buf);
+		return efi.get_variable(name, guid, returned_attr, size, buf);
 
 	return EFI_NOT_FOUND;
 }
@@ -288,7 +293,7 @@ static struct cirrus_amp_efi_data *cs_amp_get_cal_efi_buffer(struct device *dev)
 	for (i = 0; i < ARRAY_SIZE(cs_amp_lib_cal_efivars); i++) {
 		status = cs_amp_get_efi_variable(cs_amp_lib_cal_efivars[i].name,
 						 cs_amp_lib_cal_efivars[i].guid,
-						 &data_size, NULL);
+						 NULL, &data_size, NULL);
 		if (status == EFI_BUFFER_TOO_SMALL)
 			break;
 	}
@@ -308,7 +313,7 @@ static struct cirrus_amp_efi_data *cs_amp_get_cal_efi_buffer(struct device *dev)
 
 	status = cs_amp_get_efi_variable(cs_amp_lib_cal_efivars[i].name,
 					 cs_amp_lib_cal_efivars[i].guid,
-					 &data_size, data);
+					 NULL, &data_size, data);
 	if (status != EFI_SUCCESS) {
 		ret = -EINVAL;
 		goto err;
@@ -452,7 +457,7 @@ static int cs_amp_get_efi_byte_spkid(struct device *dev, const struct cs_amp_spk
 	int i, ret;
 
 	size = sizeof(spkid);
-	status = cs_amp_get_efi_variable(info->name, info->guid, &size, &spkid);
+	status = cs_amp_get_efi_variable(info->name, info->guid, NULL, &size, &spkid);
 	ret = cs_amp_convert_efi_status(status);
 	if (ret < 0)
 		return ret;
