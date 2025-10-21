@@ -51,7 +51,6 @@ static int smbdirect_socket_rdma_event_handler(struct rdma_cm_id *id,
 	return -ESTALE;
 }
 
-__maybe_unused /* this is temporary while this file is included in others */
 static int smbdirect_socket_init_new(struct net *net, struct smbdirect_socket *sc)
 {
 	struct rdma_cm_id *id;
@@ -85,6 +84,31 @@ static int smbdirect_socket_init_new(struct net *net, struct smbdirect_socket *s
 }
 
 __maybe_unused /* this is temporary while this file is included in others */
+static int smbdirect_socket_create_kern(struct net *net, struct smbdirect_socket **_sc)
+{
+	struct smbdirect_socket *sc;
+	int ret;
+
+	ret = -ENOMEM;
+	sc = kzalloc_obj(*sc);
+	if (!sc)
+		goto alloc_failed;
+
+	ret = smbdirect_socket_init_new(net, sc);
+	if (ret)
+		goto init_failed;
+
+	kref_init(&sc->refs.destroy);
+
+	*_sc = sc;
+	return 0;
+
+init_failed:
+	kfree(sc);
+alloc_failed:
+	return ret;
+}
+
 static int smbdirect_socket_init_accepting(struct rdma_cm_id *id, struct smbdirect_socket *sc)
 {
 	smbdirect_socket_init(sc);
@@ -98,6 +122,32 @@ static int smbdirect_socket_init_accepting(struct rdma_cm_id *id, struct smbdire
 	INIT_WORK(&sc->disconnect_work, smbdirect_socket_cleanup_work);
 
 	return 0;
+}
+
+__maybe_unused /* this is temporary while this file is included in others */
+static int smbdirect_socket_create_accepting(struct rdma_cm_id *id, struct smbdirect_socket **_sc)
+{
+	struct smbdirect_socket *sc;
+	int ret;
+
+	ret = -ENOMEM;
+	sc = kzalloc_obj(*sc);
+	if (!sc)
+		goto alloc_failed;
+
+	ret = smbdirect_socket_init_accepting(id, sc);
+	if (ret)
+		goto init_failed;
+
+	kref_init(&sc->refs.destroy);
+
+	*_sc = sc;
+	return 0;
+
+init_failed:
+	kfree(sc);
+alloc_failed:
+	return ret;
 }
 
 __maybe_unused /* this is temporary while this file is included in others */
@@ -554,6 +604,49 @@ __maybe_unused /* this is temporary while this file is included in others */
 static void smbdirect_socket_shutdown(struct smbdirect_socket *sc)
 {
 	smbdirect_socket_schedule_cleanup_lvl(sc, SMBDIRECT_LOG_INFO, -ESHUTDOWN);
+}
+
+static void smbdirect_socket_release_disconnect(struct kref *kref)
+{
+	struct smbdirect_socket *sc =
+		container_of(kref, struct smbdirect_socket, refs.disconnect);
+
+	/*
+	 * For now do a sync disconnect/destroy
+	 */
+	smbdirect_socket_destroy_sync(sc);
+}
+
+static void smbdirect_socket_release_destroy(struct kref *kref)
+{
+	struct smbdirect_socket *sc =
+		container_of(kref, struct smbdirect_socket, refs.destroy);
+
+	/*
+	 * Do a sync disconnect/destroy...
+	 * hopefully a no-op, as it should be already
+	 * in DESTROYED state, before we free the memory.
+	 */
+	smbdirect_socket_destroy_sync(sc);
+	kfree(sc);
+}
+
+__maybe_unused /* this is temporary while this file is included in others */
+static void smbdirect_socket_release(struct smbdirect_socket *sc)
+{
+	/*
+	 * We expect only 1 disconnect reference
+	 * and if it is already 0, it's a use after free!
+	 */
+	WARN_ON_ONCE(kref_read(&sc->refs.disconnect) != 1);
+	WARN_ON(!kref_put(&sc->refs.disconnect, smbdirect_socket_release_disconnect));
+
+	/*
+	 * This may not trigger smbdirect_socket_release_destroy(),
+	 * if struct smbdirect_socket is embedded in another structure
+	 * indicated by REFCOUNT_MAX.
+	 */
+	kref_put(&sc->refs.destroy, smbdirect_socket_release_destroy);
 }
 
 __maybe_unused /* this is temporary while this file is included in others */
