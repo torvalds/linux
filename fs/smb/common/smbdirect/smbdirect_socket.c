@@ -386,6 +386,12 @@ static void smbdirect_socket_destroy_sync(struct smbdirect_socket *sc)
 }
 
 __maybe_unused /* this is temporary while this file is included in others */
+static void smbdirect_socket_shutdown(struct smbdirect_socket *sc)
+{
+	smbdirect_socket_schedule_cleanup_lvl(sc, SMBDIRECT_LOG_INFO, -ESHUTDOWN);
+}
+
+__maybe_unused /* this is temporary while this file is included in others */
 static int smbdirect_socket_wait_for_credits(struct smbdirect_socket *sc,
 					     enum smbdirect_socket_status expected_status,
 					     int unexpected_errno,
