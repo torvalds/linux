@@ -9,6 +9,7 @@
 #ifndef __CS35L56_H
 #define __CS35L56_H
 
+#include <linux/debugfs.h>
 #include <linux/firmware/cirrus/cs_dsp.h>
 #include <linux/regulator/consumer.h>
 #include <linux/regmap.h>
@@ -62,6 +63,8 @@
 #define CS35L56_IRQ1_MASK_8				0x000E0AC
 #define CS35L56_IRQ1_MASK_18				0x000E0D4
 #define CS35L56_IRQ1_MASK_20				0x000E0DC
+#define CS35L56_MIXER_NGATE_CH1_CFG			0x0010004
+#define CS35L56_MIXER_NGATE_CH2_CFG			0x0010008
 #define CS35L56_DSP_MBOX_1_RAW				0x0011000
 #define CS35L56_DSP_VIRTUAL1_MBOX_1			0x0011020
 #define CS35L56_DSP_VIRTUAL1_MBOX_2			0x0011024
@@ -177,6 +180,9 @@
 /* IRQ1_EINT_8 */
 #define CS35L56_TEMP_ERR_EINT1_MASK			0x80000000
 
+/* MIXER_NGATE_CHn_CFG */
+#define CS35L56_AUX_NGATE_CHn_EN			0x00000001
+
 /* Mixer input sources */
 #define CS35L56_INPUT_SRC_NONE				0x00
 #define CS35L56_INPUT_SRC_ASP1RX1			0x08
@@ -243,6 +249,7 @@
 #define CS35L56_MBOX_CMD_AUDIO_PLAY			0x0B000001
 #define CS35L56_MBOX_CMD_AUDIO_PAUSE			0x0B000002
 #define CS35L56_MBOX_CMD_AUDIO_REINIT			0x0B000003
+#define CS35L56_MBOX_CMD_AUDIO_CALIBRATION		0x0B000006
 #define CS35L56_MBOX_CMD_HIBERNATE_NOW			0x02000001
 #define CS35L56_MBOX_CMD_WAKEUP				0x02000002
 #define CS35L56_MBOX_CMD_PREVENT_AUTO_HIBERNATE		0x02000003
@@ -263,6 +270,9 @@
 #define CS35L56_HALO_STATE_TIMEOUT_US			250000
 #define CS35L56_RESET_PULSE_MIN_US			1100
 #define CS35L56_WAKE_HOLD_TIME_US			1000
+
+#define CS35L56_CALIBRATION_POLL_US			(100 * USEC_PER_MSEC)
+#define CS35L56_CALIBRATION_TIMEOUT_US			(5 * USEC_PER_SEC)
 
 #define CS35L56_SDW1_PLAYBACK_PORT			1
 #define CS35L56_SDW1_CAPTURE_PORT			3
@@ -291,9 +301,16 @@ struct cs35l56_fw_reg {
 	unsigned int posture_number;
 };
 
+struct cs35l56_cal_debugfs_fops {
+	const struct debugfs_short_fops calibrate;
+	const struct debugfs_short_fops cal_temperature;
+	const struct debugfs_short_fops cal_data;
+};
+
 struct cs35l56_base {
 	struct device *dev;
 	struct regmap *regmap;
+	struct cs_dsp *dsp;
 	int irq;
 	struct mutex irq_lock;
 	u8 type;
@@ -309,6 +326,7 @@ struct cs35l56_base {
 	struct cs35l56_spi_payload *spi_payload_buf;
 	const struct cs35l56_fw_reg *fw_reg;
 	const struct cirrus_amp_cal_controls *calibration_controls;
+	struct dentry *debugfs;
 	u64 silicon_uid;
 };
 
@@ -359,6 +377,21 @@ int cs35l56_runtime_suspend_common(struct cs35l56_base *cs35l56_base);
 int cs35l56_runtime_resume_common(struct cs35l56_base *cs35l56_base, bool is_soundwire);
 void cs35l56_init_cs_dsp(struct cs35l56_base *cs35l56_base, struct cs_dsp *cs_dsp);
 int cs35l56_get_calibration(struct cs35l56_base *cs35l56_base);
+ssize_t cs35l56_calibrate_debugfs_write(struct cs35l56_base *cs35l56_base,
+					const char __user *from, size_t count,
+					loff_t *ppos);
+ssize_t cs35l56_cal_ambient_debugfs_write(struct cs35l56_base *cs35l56_base,
+					  const char __user *from, size_t count,
+					  loff_t *ppos);
+ssize_t cs35l56_cal_data_debugfs_read(struct cs35l56_base *cs35l56_base,
+				      char __user *to, size_t count,
+				      loff_t *ppos);
+ssize_t cs35l56_cal_data_debugfs_write(struct cs35l56_base *cs35l56_base,
+				       const char __user *from, size_t count,
+				       loff_t *ppos);
+void cs35l56_create_cal_debugfs(struct cs35l56_base *cs35l56_base,
+				const struct cs35l56_cal_debugfs_fops *fops);
+void cs35l56_remove_cal_debugfs(struct cs35l56_base *cs35l56_base);
 int cs35l56_read_prot_status(struct cs35l56_base *cs35l56_base,
 			     bool *fw_missing, unsigned int *fw_version);
 void cs35l56_log_tuning(struct cs35l56_base *cs35l56_base, struct cs_dsp *cs_dsp);
