@@ -3544,6 +3544,9 @@ static int _nl80211_parse_chandef(struct cfg80211_registered_device *rdev,
 		return -EINVAL;
 	}
 
+	if (cfg80211_chandef_is_s1g(chandef))
+		chandef->width = NL80211_CHAN_WIDTH_1;
+
 	if (attrs[NL80211_ATTR_WIPHY_CHANNEL_TYPE]) {
 		enum nl80211_channel_type chantype;
 
