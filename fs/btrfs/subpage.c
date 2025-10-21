@@ -440,6 +440,7 @@ void btrfs_subpage_set_writeback(const struct btrfs_fs_info *fs_info,
 	unsigned int start_bit = subpage_calc_start_bit(fs_info, folio,
 							writeback, start, len);
 	unsigned long flags;
+	bool keep_write;
 
 	spin_lock_irqsave(&bfs->lock, flags);
 	bitmap_set(bfs->bitmaps, start_bit, len >> fs_info->sectorsize_bits);
@@ -450,18 +451,9 @@ void btrfs_subpage_set_writeback(const struct btrfs_fs_info *fs_info,
 	 * assume writeback is complete, and exit too early — violating sync
 	 * ordering guarantees.
 	 */
+	keep_write = folio_test_dirty(folio);
 	if (!folio_test_writeback(folio))
-		__folio_start_writeback(folio, true);
-	if (!folio_test_dirty(folio)) {
-		struct address_space *mapping = folio_mapping(folio);
-		XA_STATE(xas, &mapping->i_pages, folio->index);
-		unsigned long xa_flags;
-
-		xas_lock_irqsave(&xas, xa_flags);
-		xas_load(&xas);
-		xas_clear_mark(&xas, PAGECACHE_TAG_TOWRITE);
-		xas_unlock_irqrestore(&xas, xa_flags);
-	}
+		__folio_start_writeback(folio, keep_write);
 	spin_unlock_irqrestore(&bfs->lock, flags);
 }
 
