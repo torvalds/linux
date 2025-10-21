@@ -113,22 +113,22 @@ static const struct gswip_rmon_cnt_desc gswip_rmon_cnt[] = {
 
 static u32 gswip_switch_r(struct gswip_priv *priv, u32 offset)
 {
-	return __raw_readl(priv->gswip + (offset * 4));
+	u32 val;
+
+	regmap_read(priv->gswip, offset, &val);
+
+	return val;
 }
 
 static void gswip_switch_w(struct gswip_priv *priv, u32 val, u32 offset)
 {
-	__raw_writel(val, priv->gswip + (offset * 4));
+	regmap_write(priv->gswip, offset, val);
 }
 
 static void gswip_switch_mask(struct gswip_priv *priv, u32 clear, u32 set,
 			      u32 offset)
 {
-	u32 val = gswip_switch_r(priv, offset);
-
-	val &= ~(clear);
-	val |= set;
-	gswip_switch_w(priv, val, offset);
+	regmap_write_bits(priv->gswip, offset, clear | set, set);
 }
 
 static u32 gswip_switch_r_timeout(struct gswip_priv *priv, u32 offset,
@@ -136,48 +136,34 @@ static u32 gswip_switch_r_timeout(struct gswip_priv *priv, u32 offset,
 {
 	u32 val;
 
-	return readx_poll_timeout(__raw_readl, priv->gswip + (offset * 4), val,
-				  (val & cleared) == 0, 20, 50000);
+	return regmap_read_poll_timeout(priv->gswip, offset, val,
+					!(val & cleared), 20, 50000);
 }
 
 static u32 gswip_mdio_r(struct gswip_priv *priv, u32 offset)
 {
-	return __raw_readl(priv->mdio + (offset * 4));
+	u32 val;
+
+	regmap_read(priv->mdio, offset, &val);
+
+	return val;
 }
 
 static void gswip_mdio_w(struct gswip_priv *priv, u32 val, u32 offset)
 {
-	__raw_writel(val, priv->mdio + (offset * 4));
+	regmap_write(priv->mdio, offset, val);
 }
 
 static void gswip_mdio_mask(struct gswip_priv *priv, u32 clear, u32 set,
 			    u32 offset)
 {
-	u32 val = gswip_mdio_r(priv, offset);
-
-	val &= ~(clear);
-	val |= set;
-	gswip_mdio_w(priv, val, offset);
-}
-
-static u32 gswip_mii_r(struct gswip_priv *priv, u32 offset)
-{
-	return __raw_readl(priv->mii + (offset * 4));
-}
-
-static void gswip_mii_w(struct gswip_priv *priv, u32 val, u32 offset)
-{
-	__raw_writel(val, priv->mii + (offset * 4));
+	regmap_write_bits(priv->mdio, offset, clear | set, set);
 }
 
 static void gswip_mii_mask(struct gswip_priv *priv, u32 clear, u32 set,
 			   u32 offset)
 {
-	u32 val = gswip_mii_r(priv, offset);
-
-	val &= ~(clear);
-	val |= set;
-	gswip_mii_w(priv, val, offset);
+	regmap_write_bits(priv->mii, offset, clear | set, set);
 }
 
 static void gswip_mii_mask_cfg(struct gswip_priv *priv, u32 clear, u32 set,
@@ -220,17 +206,10 @@ static void gswip_mii_mask_pcdu(struct gswip_priv *priv, u32 clear, u32 set,
 
 static int gswip_mdio_poll(struct gswip_priv *priv)
 {
-	int cnt = 100;
+	u32 ctrl;
 
-	while (likely(cnt--)) {
-		u32 ctrl = gswip_mdio_r(priv, GSWIP_MDIO_CTRL);
-
-		if ((ctrl & GSWIP_MDIO_CTRL_BUSY) == 0)
-			return 0;
-		usleep_range(20, 40);
-	}
-
-	return -ETIMEDOUT;
+	return regmap_read_poll_timeout(priv->mdio, GSWIP_MDIO_CTRL, ctrl,
+					!(ctrl & GSWIP_MDIO_CTRL_BUSY), 40, 4000);
 }
 
 static int gswip_mdio_wr(struct mii_bus *bus, int addr, int reg, u16 val)
@@ -1893,9 +1872,37 @@ static int gswip_validate_cpu_port(struct dsa_switch *ds)
 	return 0;
 }
 
+static const struct regmap_config sw_regmap_config = {
+	.name = "switch",
+	.reg_bits = 32,
+	.val_bits = 32,
+	.reg_shift = REGMAP_UPSHIFT(2),
+	.val_format_endian = REGMAP_ENDIAN_NATIVE,
+	.max_register = GSWIP_SDMA_PCTRLp(6),
+};
+
+static const struct regmap_config mdio_regmap_config = {
+	.name = "mdio",
+	.reg_bits = 32,
+	.val_bits = 32,
+	.reg_shift = REGMAP_UPSHIFT(2),
+	.val_format_endian = REGMAP_ENDIAN_NATIVE,
+	.max_register = GSWIP_MDIO_PHYp(0),
+};
+
+static const struct regmap_config mii_regmap_config = {
+	.name = "mii",
+	.reg_bits = 32,
+	.val_bits = 32,
+	.reg_shift = REGMAP_UPSHIFT(2),
+	.val_format_endian = REGMAP_ENDIAN_NATIVE,
+	.max_register = GSWIP_MII_CFGp(6),
+};
+
 static int gswip_probe(struct platform_device *pdev)
 {
 	struct device_node *np, *gphy_fw_np;
+	__iomem void *gswip, *mdio, *mii;
 	struct device *dev = &pdev->dev;
 	struct gswip_priv *priv;
 	int err;
@@ -1906,15 +1913,27 @@ static int gswip_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	priv->gswip = devm_platform_ioremap_resource(pdev, 0);
+	gswip = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(gswip))
+		return PTR_ERR(gswip);
+
+	mdio = devm_platform_ioremap_resource(pdev, 1);
+	if (IS_ERR(mdio))
+		return PTR_ERR(mdio);
+
+	mii = devm_platform_ioremap_resource(pdev, 2);
+	if (IS_ERR(mii))
+		return PTR_ERR(mii);
+
+	priv->gswip = devm_regmap_init_mmio(dev, gswip, &sw_regmap_config);
 	if (IS_ERR(priv->gswip))
 		return PTR_ERR(priv->gswip);
 
-	priv->mdio = devm_platform_ioremap_resource(pdev, 1);
+	priv->mdio = devm_regmap_init_mmio(dev, mdio, &mdio_regmap_config);
 	if (IS_ERR(priv->mdio))
 		return PTR_ERR(priv->mdio);
 
-	priv->mii = devm_platform_ioremap_resource(pdev, 2);
+	priv->mii = devm_regmap_init_mmio(dev, mii, &mii_regmap_config);
 	if (IS_ERR(priv->mii))
 		return PTR_ERR(priv->mii);
 
