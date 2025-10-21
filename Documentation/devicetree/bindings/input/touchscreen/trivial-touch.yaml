@@ -12,10 +12,39 @@ maintainers:
 properties:
   compatible:
     enum:
+      # The Azoteq IQS550, IQS572 and IQS525 trackpad and touchscreen controllers
+      - azoteq,iqs550
+      - azoteq,iqs572
+      - azoteq,iqs525
+      # Himax hx83100a touchscreen controller
+      - himax,hx83100a
+      # Himax hx83112b touchscreen controller
+      - himax,hx83112b
+      # Hynitron cstxxx series touchscreen controller
+      - hynitron,cst340
+      # Ilitek I2C Touchscreen Controller
+      - ilitek,ili210x
+      - ilitek,ili2117
+      - ilitek,ili2120
+      - ilitek,ili2130
+      - ilitek,ili2131
+      - ilitek,ili2132
+      - ilitek,ili2316
+      - ilitek,ili2322
+      - ilitek,ili2323
+      - ilitek,ili2326
+      - ilitek,ili251x
+      - ilitek,ili2520
+      - ilitek,ili2521
       # MAXI MAX11801 Resistive touch screen controller with i2c interface
       - maxim,max11801
       # Microchip AR1020 and AR1021 touchscreen interface (I2C)
       - microchip,ar1021-i2c
+      # Trivial touch screen controller with i2c interface
+      - semtech,sx8650
+      - semtech,sx8654
+      - semtech,sx8655
+      - semtech,sx8656
 
   reg:
     maxItems: 1
