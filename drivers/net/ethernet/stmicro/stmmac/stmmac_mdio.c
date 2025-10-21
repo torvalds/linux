@@ -301,7 +301,7 @@ static int stmmac_mdio_read_c22(struct mii_bus *bus, int phyaddr, int phyreg)
 	struct stmmac_priv *priv = netdev_priv(bus->priv);
 	u32 cmd;
 
-	if (priv->plat->has_gmac4)
+	if (priv->plat->core_type == DWMAC_CORE_GMAC4)
 		cmd = MII_GMAC4_READ;
 	else
 		cmd = 0;
@@ -344,7 +344,7 @@ static int stmmac_mdio_write_c22(struct mii_bus *bus, int phyaddr, int phyreg,
 	struct stmmac_priv *priv = netdev_priv(bus->priv);
 	u32 cmd;
 
-	if (priv->plat->has_gmac4)
+	if (priv->plat->core_type == DWMAC_CORE_GMAC4)
 		cmd = MII_GMAC4_WRITE;
 	else
 		cmd = MII_ADDR_GWRITE;
@@ -417,7 +417,7 @@ int stmmac_mdio_reset(struct mii_bus *bus)
 	 * on MDC, so perform a dummy mdio read. To be updated for GMAC4
 	 * if needed.
 	 */
-	if (!priv->plat->has_gmac4)
+	if (priv->plat->core_type != DWMAC_CORE_GMAC4)
 		writel(0, priv->ioaddr + mii_address);
 #endif
 	return 0;
@@ -528,7 +528,7 @@ static u32 stmmac_clk_csr_set(struct stmmac_priv *priv)
 			value = 0;
 	}
 
-	if (priv->plat->has_xgmac) {
+	if (priv->plat->core_type == DWMAC_CORE_XGMAC) {
 		if (clk_rate > 400000000)
 			value = 0x5;
 		else if (clk_rate > 350000000)
@@ -601,7 +601,7 @@ int stmmac_mdio_register(struct net_device *ndev)
 
 	new_bus->name = "stmmac";
 
-	if (priv->plat->has_xgmac) {
+	if (priv->plat->core_type == DWMAC_CORE_XGMAC) {
 		new_bus->read = &stmmac_xgmac2_mdio_read_c22;
 		new_bus->write = &stmmac_xgmac2_mdio_write_c22;
 		new_bus->read_c45 = &stmmac_xgmac2_mdio_read_c45;
@@ -622,7 +622,7 @@ int stmmac_mdio_register(struct net_device *ndev)
 	} else {
 		new_bus->read = &stmmac_mdio_read_c22;
 		new_bus->write = &stmmac_mdio_write_c22;
-		if (priv->plat->has_gmac4) {
+		if (priv->plat->core_type == DWMAC_CORE_GMAC4) {
 			new_bus->read_c45 = &stmmac_mdio_read_c45;
 			new_bus->write_c45 = &stmmac_mdio_write_c45;
 		}
@@ -650,7 +650,7 @@ int stmmac_mdio_register(struct net_device *ndev)
 	}
 
 	/* Looks like we need a dummy read for XGMAC only and C45 PHYs */
-	if (priv->plat->has_xgmac)
+	if (priv->plat->core_type == DWMAC_CORE_XGMAC)
 		stmmac_xgmac2_mdio_read_c45(new_bus, 0, 0, 0);
 
 	/* If fixed-link is set, skip PHY scanning */

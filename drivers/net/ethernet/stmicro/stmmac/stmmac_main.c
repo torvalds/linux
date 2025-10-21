@@ -446,7 +446,7 @@ static void stmmac_get_rx_hwtstamp(struct stmmac_priv *priv, struct dma_desc *p,
 	if (!priv->hwts_rx_en)
 		return;
 	/* For GMAC4, the valid timestamp is from CTX next desc. */
-	if (priv->plat->has_gmac4 || priv->plat->has_xgmac)
+	if (dwmac_is_xmac(priv->plat->core_type))
 		desc = np;
 
 	/* Check if timestamp is available */
@@ -697,7 +697,7 @@ static int stmmac_hwtstamp_get(struct net_device *dev,
 static int stmmac_init_tstamp_counter(struct stmmac_priv *priv,
 				      u32 systime_flags)
 {
-	bool xmac = priv->plat->has_gmac4 || priv->plat->has_xgmac;
+	bool xmac = dwmac_is_xmac(priv->plat->core_type);
 	struct timespec64 now;
 	u32 sec_inc = 0;
 	u64 temp = 0;
@@ -746,7 +746,7 @@ static int stmmac_init_tstamp_counter(struct stmmac_priv *priv,
  */
 static int stmmac_init_timestamping(struct stmmac_priv *priv)
 {
-	bool xmac = priv->plat->has_gmac4 || priv->plat->has_xgmac;
+	bool xmac = dwmac_is_xmac(priv->plat->core_type);
 	int ret;
 
 	if (priv->plat->ptp_clk_freq_config)
@@ -2413,7 +2413,7 @@ static void stmmac_dma_operation_mode(struct stmmac_priv *priv)
 		txfifosz = priv->dma_cap.tx_fifo_size;
 
 	/* Split up the shared Tx/Rx FIFO memory on DW QoS Eth and DW XGMAC */
-	if (priv->plat->has_gmac4 || priv->plat->has_xgmac) {
+	if (dwmac_is_xmac(priv->plat->core_type)) {
 		rxfifosz /= rx_channels_count;
 		txfifosz /= tx_channels_count;
 	}
@@ -4520,7 +4520,8 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (skb_is_gso(skb) && priv->tso) {
 		if (gso & (SKB_GSO_TCPV4 | SKB_GSO_TCPV6))
 			return stmmac_tso_xmit(skb, dev);
-		if (priv->plat->has_gmac4 && (gso & SKB_GSO_UDP_L4))
+		if (priv->plat->core_type == DWMAC_CORE_GMAC4 &&
+		    (gso & SKB_GSO_UDP_L4))
 			return stmmac_tso_xmit(skb, dev);
 	}
 
@@ -5973,7 +5974,7 @@ static void stmmac_common_interrupt(struct stmmac_priv *priv)
 	u32 queue;
 	bool xmac;
 
-	xmac = priv->plat->has_gmac4 || priv->plat->has_xgmac;
+	xmac = dwmac_is_xmac(priv->plat->core_type);
 	queues_count = (rx_cnt > tx_cnt) ? rx_cnt : tx_cnt;
 
 	if (priv->irq_wake)
@@ -5987,7 +5988,7 @@ static void stmmac_common_interrupt(struct stmmac_priv *priv)
 		stmmac_fpe_irq_status(priv);
 
 	/* To handle GMAC own interrupts */
-	if ((priv->plat->has_gmac) || xmac) {
+	if (priv->plat->core_type == DWMAC_CORE_GMAC || xmac) {
 		int status = stmmac_host_irq_status(priv, priv->hw, &priv->xstats);
 
 		if (unlikely(status)) {
@@ -6348,7 +6349,7 @@ static int stmmac_dma_cap_show(struct seq_file *seq, void *v)
 		   (priv->dma_cap.mbps_1000) ? "Y" : "N");
 	seq_printf(seq, "\tHalf duplex: %s\n",
 		   (priv->dma_cap.half_duplex) ? "Y" : "N");
-	if (priv->plat->has_xgmac) {
+	if (priv->plat->core_type == DWMAC_CORE_XGMAC) {
 		seq_printf(seq,
 			   "\tNumber of Additional MAC address registers: %d\n",
 			   priv->dma_cap.multi_addr);
@@ -6372,7 +6373,7 @@ static int stmmac_dma_cap_show(struct seq_file *seq, void *v)
 		   (priv->dma_cap.time_stamp) ? "Y" : "N");
 	seq_printf(seq, "\tIEEE 1588-2008 Advanced Time Stamp: %s\n",
 		   (priv->dma_cap.atime_stamp) ? "Y" : "N");
-	if (priv->plat->has_xgmac)
+	if (priv->plat->core_type == DWMAC_CORE_XGMAC)
 		seq_printf(seq, "\tTimestamp System Time Source: %s\n",
 			   dwxgmac_timestamp_source[priv->dma_cap.tssrc]);
 	seq_printf(seq, "\t802.3az - Energy-Efficient Ethernet (EEE): %s\n",
@@ -6381,7 +6382,7 @@ static int stmmac_dma_cap_show(struct seq_file *seq, void *v)
 	seq_printf(seq, "\tChecksum Offload in TX: %s\n",
 		   (priv->dma_cap.tx_coe) ? "Y" : "N");
 	if (priv->synopsys_id >= DWMAC_CORE_4_00 ||
-	    priv->plat->has_xgmac) {
+	    priv->plat->core_type == DWMAC_CORE_XGMAC) {
 		seq_printf(seq, "\tIP Checksum Offload in RX: %s\n",
 			   (priv->dma_cap.rx_coe) ? "Y" : "N");
 	} else {
@@ -7233,8 +7234,9 @@ static int stmmac_hw_init(struct stmmac_priv *priv)
 	 * has to be disable and this can be done by passing the
 	 * riwt_off field from the platform.
 	 */
-	if (((priv->synopsys_id >= DWMAC_CORE_3_50) ||
-	    (priv->plat->has_xgmac)) && (!priv->plat->riwt_off)) {
+	if ((priv->synopsys_id >= DWMAC_CORE_3_50 ||
+	     priv->plat->core_type == DWMAC_CORE_XGMAC) &&
+	    !priv->plat->riwt_off) {
 		priv->use_riwt = 1;
 		dev_info(priv->device,
 			 "Enable RX Mitigation via HW Watchdog Timer\n");
@@ -7355,7 +7357,7 @@ static int stmmac_xdp_rx_timestamp(const struct xdp_md *_ctx, u64 *timestamp)
 		return -ENODATA;
 
 	/* For GMAC4, the valid timestamp is from CTX next desc. */
-	if (priv->plat->has_gmac4 || priv->plat->has_xgmac)
+	if (dwmac_is_xmac(priv->plat->core_type))
 		desc_contains_ts = ndesc;
 
 	/* Check if timestamp is available */
@@ -7511,7 +7513,7 @@ int stmmac_dvr_probe(struct device *device,
 
 	if ((priv->plat->flags & STMMAC_FLAG_TSO_EN) && (priv->dma_cap.tsoen)) {
 		ndev->hw_features |= NETIF_F_TSO | NETIF_F_TSO6;
-		if (priv->plat->has_gmac4)
+		if (priv->plat->core_type == DWMAC_CORE_GMAC4)
 			ndev->hw_features |= NETIF_F_GSO_UDP_L4;
 		priv->tso = true;
 		dev_info(priv->device, "TSO feature enabled\n");
@@ -7564,7 +7566,7 @@ int stmmac_dvr_probe(struct device *device,
 #ifdef STMMAC_VLAN_TAG_USED
 	/* Both mac100 and gmac support receive VLAN tag detection */
 	ndev->features |= NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_HW_VLAN_STAG_RX;
-	if (priv->plat->has_gmac4 || priv->plat->has_xgmac) {
+	if (dwmac_is_xmac(priv->plat->core_type)) {
 		ndev->hw_features |= NETIF_F_HW_VLAN_CTAG_RX;
 		priv->hw->hw_vlan_en = true;
 	}
@@ -7595,7 +7597,7 @@ int stmmac_dvr_probe(struct device *device,
 
 	/* MTU range: 46 - hw-specific max */
 	ndev->min_mtu = ETH_ZLEN - ETH_HLEN;
-	if (priv->plat->has_xgmac)
+	if (priv->plat->core_type == DWMAC_CORE_XGMAC)
 		ndev->max_mtu = XGMAC_JUMBO_LEN;
 	else if ((priv->plat->enh_desc) || (priv->synopsys_id >= DWMAC_CORE_4_00))
 		ndev->max_mtu = JUMBO_LEN;

@@ -1750,8 +1750,8 @@ static int rk_gmac_probe(struct platform_device *pdev)
 	/* If the stmmac is not already selected as gmac4,
 	 * then make sure we fallback to gmac.
 	 */
-	if (!plat_dat->has_gmac4) {
-		plat_dat->has_gmac = true;
+	if (plat_dat->core_type != DWMAC_CORE_GMAC4) {
+		plat_dat->core_type = DWMAC_CORE_GMAC;
 		plat_dat->rx_fifo_size = 4096;
 		plat_dat->tx_fifo_size = 2048;
 	}

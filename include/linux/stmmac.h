@@ -171,6 +171,13 @@ struct dwmac4_addrs {
 	u32 mtl_low_cred_offset;
 };
 
+enum dwmac_core_type {
+	DWMAC_CORE_MAC100,
+	DWMAC_CORE_GMAC,
+	DWMAC_CORE_GMAC4,
+	DWMAC_CORE_XGMAC,
+};
+
 #define STMMAC_FLAG_SPH_DISABLE			BIT(1)
 #define STMMAC_FLAG_USE_PHY_WOL			BIT(2)
 #define STMMAC_FLAG_HAS_SUN8I			BIT(3)
@@ -186,6 +193,7 @@ struct dwmac4_addrs {
 #define STMMAC_FLAG_HWTSTAMP_CORRECT_LATENCY	BIT(13)
 
 struct plat_stmmacenet_data {
+	enum dwmac_core_type core_type;
 	int bus_id;
 	int phy_addr;
 	/* MAC ----- optional PCS ----- SerDes ----- optional PHY ----- Media
@@ -219,7 +227,6 @@ struct plat_stmmacenet_data {
 	struct stmmac_dma_cfg *dma_cfg;
 	struct stmmac_safety_feature_cfg *safety_feat_cfg;
 	int clk_csr;
-	int has_gmac;
 	int enh_desc;
 	int tx_coe;
 	int rx_coe;
@@ -282,10 +289,8 @@ struct plat_stmmacenet_data {
 	struct reset_control *stmmac_rst;
 	struct reset_control *stmmac_ahb_rst;
 	struct stmmac_axi *axi;
-	int has_gmac4;
 	int rss_en;
 	int mac_port_sel_speed;
-	int has_xgmac;
 	u8 vlan_fail_q;
 	struct pci_dev *pdev;
 	int int_snapshot_num;

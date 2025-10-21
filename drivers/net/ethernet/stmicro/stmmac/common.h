@@ -43,6 +43,11 @@
 #define DWXGMAC_ID		0x76
 #define DWXLGMAC_ID		0x27
 
+static inline bool dwmac_is_xmac(enum dwmac_core_type core_type)
+{
+	return core_type == DWMAC_CORE_GMAC4 || core_type == DWMAC_CORE_XGMAC;
+}
+
 #define STMMAC_CHAN0	0	/* Always supported and default for all chips */
 
 /* TX and RX Descriptor Length, these need to be power of two.

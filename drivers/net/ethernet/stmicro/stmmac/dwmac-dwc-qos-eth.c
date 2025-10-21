@@ -109,7 +109,7 @@ static int dwc_eth_dwmac_config_dt(struct platform_device *pdev,
 	}
 
 	/* dwc-qos needs GMAC4, AAL, TSO and PMT */
-	plat_dat->has_gmac4 = 1;
+	plat_dat->core_type = DWMAC_CORE_GMAC4;
 	plat_dat->dma_cfg->aal = 1;
 	plat_dat->flags |= STMMAC_FLAG_TSO_EN;
 	plat_dat->pmt = 1;

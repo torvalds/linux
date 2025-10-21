@@ -146,7 +146,7 @@ static int s32_dwmac_probe(struct platform_device *pdev)
 	gmac->ioaddr = res.addr;
 
 	/* S32CC core feature set */
-	plat->has_gmac4 = true;
+	plat->core_type = DWMAC_CORE_GMAC4;
 	plat->pmt = 1;
 	plat->flags |= STMMAC_FLAG_SPH_DISABLE;
 	plat->rx_fifo_size = 20480;

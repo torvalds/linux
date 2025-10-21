@@ -303,9 +303,10 @@ static void stmmac_ethtool_getdrvinfo(struct net_device *dev,
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
 
-	if (priv->plat->has_gmac || priv->plat->has_gmac4)
+	if (priv->plat->core_type == DWMAC_CORE_GMAC ||
+	    priv->plat->core_type == DWMAC_CORE_GMAC4)
 		strscpy(info->driver, GMAC_ETHTOOL_NAME, sizeof(info->driver));
-	else if (priv->plat->has_xgmac)
+	else if (priv->plat->core_type == DWMAC_CORE_XGMAC)
 		strscpy(info->driver, XGMAC_ETHTOOL_NAME, sizeof(info->driver));
 	else
 		strscpy(info->driver, MAC100_ETHTOOL_NAME,
@@ -351,9 +352,9 @@ static int stmmac_ethtool_get_regs_len(struct net_device *dev)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
 
-	if (priv->plat->has_xgmac)
+	if (priv->plat->core_type == DWMAC_CORE_XGMAC)
 		return XGMAC_REGSIZE * 4;
-	else if (priv->plat->has_gmac4)
+	else if (priv->plat->core_type == DWMAC_CORE_GMAC4)
 		return GMAC4_REG_SPACE_SIZE;
 	return REG_SPACE_SIZE;
 }
@@ -368,12 +369,12 @@ static void stmmac_ethtool_gregs(struct net_device *dev,
 	stmmac_dump_dma_regs(priv, priv->ioaddr, reg_space);
 
 	/* Copy DMA registers to where ethtool expects them */
-	if (priv->plat->has_gmac4) {
+	if (priv->plat->core_type == DWMAC_CORE_GMAC4) {
 		/* GMAC4 dumps its DMA registers at its DMA_CHAN_BASE_ADDR */
 		memcpy(&reg_space[ETHTOOL_DMA_OFFSET],
 		       &reg_space[GMAC4_DMA_CHAN_BASE_ADDR / 4],
 		       NUM_DWMAC4_DMA_REGS * 4);
-	} else if (!priv->plat->has_xgmac) {
+	} else if (priv->plat->core_type != DWMAC_CORE_XGMAC) {
 		memcpy(&reg_space[ETHTOOL_DMA_OFFSET],
 		       &reg_space[DMA_BUS_MODE / 4],
 		       NUM_DWMAC1000_DMA_REGS * 4);

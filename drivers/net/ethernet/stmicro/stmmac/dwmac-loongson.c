@@ -92,7 +92,7 @@ static void loongson_default_data(struct pci_dev *pdev,
 
 	/* clk_csr_i = 20-35MHz & MDC = clk_csr_i/16 */
 	plat->clk_csr = STMMAC_CSR_20_35M;
-	plat->has_gmac = 1;
+	plat->core_type = DWMAC_CORE_GMAC;
 	plat->force_sf_dma_mode = 1;
 
 	/* Set default value for multicast hash bins */

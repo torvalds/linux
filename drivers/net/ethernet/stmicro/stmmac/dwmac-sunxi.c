@@ -136,7 +136,7 @@ static int sun7i_gmac_probe(struct platform_device *pdev)
 	/* platform data specifying hardware features and callbacks.
 	 * hardware features were copied from Allwinner drivers. */
 	plat_dat->tx_coe = 1;
-	plat_dat->has_gmac = true;
+	plat_dat->core_type = DWMAC_CORE_GMAC;
 	plat_dat->bsp_priv = gmac;
 	plat_dat->init = sun7i_gmac_init;
 	plat_dat->exit = sun7i_gmac_exit;

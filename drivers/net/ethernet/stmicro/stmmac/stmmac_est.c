@@ -53,7 +53,7 @@ static int est_configure(struct stmmac_priv *priv, struct stmmac_est *cfg,
 	}
 
 	ctrl = readl(est_addr + EST_CONTROL);
-	if (priv->plat->has_xgmac) {
+	if (priv->plat->core_type == DWMAC_CORE_XGMAC) {
 		ctrl &= ~EST_XGMAC_PTOV;
 		ctrl |= ((NSEC_PER_SEC / ptp_rate) * EST_XGMAC_PTOV_MUL) <<
 			 EST_XGMAC_PTOV_SHIFT;
@@ -148,7 +148,7 @@ static void est_irq_status(struct stmmac_priv *priv, struct net_device *dev,
 	}
 
 	if (status & EST_BTRE) {
-		if (priv->plat->has_xgmac) {
+		if (priv->plat->core_type == DWMAC_CORE_XGMAC) {
 			btrl = FIELD_GET(EST_XGMAC_BTRL, status);
 			btrl_max = FIELD_MAX(EST_XGMAC_BTRL);
 		} else {
