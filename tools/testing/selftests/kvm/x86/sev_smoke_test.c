@@ -104,7 +104,7 @@ static void test_sync_vmsa(uint32_t type, uint64_t policy)
 	vm_sev_launch(vm, policy, NULL);
 
 	/* This page is shared, so make it decrypted.  */
-	memset(hva, 0, 4096);
+	memset(hva, 0, PAGE_SIZE);
 
 	vcpu_run(vcpu);
 
