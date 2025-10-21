@@ -19,7 +19,8 @@
 #undef XE_REG_MCR
 #define XE_REG_MCR(...)     XE_REG(__VA_ARGS__, .mcr = 1)
 
-static bool match_not_render(const struct xe_gt *gt,
+static bool match_not_render(const struct xe_device *xe,
+			     const struct xe_gt *gt,
 			     const struct xe_hw_engine *hwe)
 {
 	return hwe->class != XE_ENGINE_CLASS_RENDER;

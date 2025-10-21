@@ -169,6 +169,15 @@ static const struct xe_mmio_range xelpg_dss_steering_table[] = {
 	{},
 };
 
+static const struct xe_mmio_range xe3p_xpc_xecore_steering_table[] = {
+	{ 0x008140, 0x00817F },         /* SLICE, XeCore, SLICE */
+	{ 0x009480, 0x00955F },         /* SLICE, XeCore */
+	{ 0x00D800, 0x00D87F },		/* SLICE */
+	{ 0x00DC00, 0x00E9FF },         /* SLICE, rsvd, XeCore, rsvd, XeCore, rsvd, XeCore */
+	{ 0x013000, 0x0135FF },         /* XeCore, SLICE */
+	{},
+};
+
 static const struct xe_mmio_range xelpmp_oaddrm_steering_table[] = {
 	{ 0x393200, 0x39323F },
 	{ 0x393400, 0x3934FF },
@@ -236,13 +245,38 @@ static const struct xe_mmio_range xe2lpm_instance0_steering_table[] = {
 };
 
 static const struct xe_mmio_range xe3lpm_instance0_steering_table[] = {
-	{ 0x384000, 0x3847DF },         /* GAM, rsvd, GAM */
+	{ 0x384000, 0x3841FF },         /* GAM */
+	{ 0x384400, 0x3847DF },         /* GAM */
 	{ 0x384900, 0x384AFF },         /* GAM */
 	{ 0x389560, 0x3895FF },         /* MEDIAINF */
 	{ 0x38B600, 0x38B8FF },         /* L3BANK */
 	{ 0x38C800, 0x38D07F },         /* GAM, MEDIAINF */
-	{ 0x38D0D0, 0x38F0FF },		/* MEDIAINF, GAM */
+	{ 0x38D0D0, 0x38F0FF },         /* MEDIAINF, rsvd, GAM */
 	{ 0x393C00, 0x393C7F },         /* MEDIAINF */
+	{},
+};
+
+/*
+ * Different "GAM" ranges have different rules; GAMWKRS, STLB, and GAMREQSTRM
+ * range subtypes need to be steered to (1,0), while all other GAM subtypes
+ * are steered to (0,0) and are included in the "INSTANCE0" table farther
+ * down.
+ */
+static const struct xe_mmio_range xe3p_xpc_gam_grp1_steering_table[] = {
+	{ 0x004000, 0x004AFF },		/* GAMREQSTRM, rsvd, STLB, GAMWKRS, GAMREQSTRM */
+	{ 0x00F100, 0x00FFFF },		/* GAMWKRS */
+	{},
+};
+
+static const struct xe_mmio_range xe3p_xpc_psmi_grp19_steering_table[] = {
+	{ 0x00B500, 0x00B5FF },
+	{},
+};
+
+static const struct xe_mmio_range xe3p_xpc_instance0_steering_table[] = {
+	{ 0x00B600, 0x00B6FF },		/* PSMI0 */
+	{ 0x00C800, 0x00CFFF },		/* GAMCTRL */
+	{ 0x00F000, 0x00F0FF },		/* GAMCTRL */
 	{},
 };
 
@@ -418,6 +452,18 @@ static void init_steering_sqidi_psmi(struct xe_gt *gt)
 	gt->steering[SQIDI_PSMI].instance_target = select & 0x1;
 }
 
+static void init_steering_psmi(struct xe_gt *gt)
+{
+	gt->steering[PSMI19].group_target = 19;
+	gt->steering[PSMI19].instance_target = 0;
+}
+
+static void init_steering_gam1(struct xe_gt *gt)
+{
+	gt->steering[GAM1].group_target = 1;
+	gt->steering[GAM1].instance_target = 0;
+}
+
 static const struct {
 	const char *name;
 	void (*init)(struct xe_gt *gt);
@@ -425,9 +471,11 @@ static const struct {
 	[L3BANK] =	{ "L3BANK",	init_steering_l3bank },
 	[MSLICE] =	{ "MSLICE",	init_steering_mslice },
 	[LNCF] =	{ "LNCF",	NULL }, /* initialized by mslice init */
-	[DSS] =		{ "DSS",	init_steering_dss },
+	[DSS] =		{ "DSS / XeCore", init_steering_dss },
 	[OADDRM] =	{ "OADDRM / GPMXMT", init_steering_oaddrm },
 	[SQIDI_PSMI] =  { "SQIDI_PSMI", init_steering_sqidi_psmi },
+	[PSMI19] =	{ "PSMI[19]",	init_steering_psmi },
+	[GAM1] =	{ "GAMWKRS / STLB / GAMREQSTRM", init_steering_gam1 },
 	[INSTANCE0] =	{ "INSTANCE 0",	NULL },
 	[IMPLICIT_STEERING] = { "IMPLICIT", NULL },
 };
@@ -466,7 +514,18 @@ void xe_gt_mcr_init_early(struct xe_gt *gt)
 			gt->steering[OADDRM].ranges = xelpmp_oaddrm_steering_table;
 		}
 	} else {
-		if (GRAPHICS_VER(xe) >= 20) {
+		if (GRAPHICS_VERx100(xe) == 3511) {
+			/*
+			 * TODO: there are some ranges in bspec with missing
+			 * termination: [0x00B000, 0x00B0FF] and
+			 * [0x00D880, 0x00D8FF] (NODE); [0x00B100, 0x00B3FF]
+			 * (L3BANK). Update them here once bspec is updated.
+			 */
+			gt->steering[DSS].ranges = xe3p_xpc_xecore_steering_table;
+			gt->steering[GAM1].ranges = xe3p_xpc_gam_grp1_steering_table;
+			gt->steering[INSTANCE0].ranges = xe3p_xpc_instance0_steering_table;
+			gt->steering[PSMI19].ranges = xe3p_xpc_psmi_grp19_steering_table;
+		} else if (GRAPHICS_VER(xe) >= 20) {
 			gt->steering[DSS].ranges = xe2lpg_dss_steering_table;
 			gt->steering[SQIDI_PSMI].ranges = xe2lpg_sqidi_psmi_steering_table;
 			gt->steering[INSTANCE0].ranges = xe2lpg_instance0_steering_table;

@@ -56,9 +56,19 @@ static struct xe_device *relay_to_xe(struct xe_guc_relay *relay)
 	return gt_to_xe(relay_to_gt(relay));
 }
 
+#define XE_RELAY_DIAG_RATELIMIT_INTERVAL	(10 * HZ)
+#define XE_RELAY_DIAG_RATELIMIT_BURST		10
+
+#define relay_ratelimit_printk(relay, _level, fmt...) ({			\
+	typeof(relay) _r = (relay);						\
+	if (IS_ENABLED(CONFIG_DRM_XE_DEBUG_SRIOV) ||				\
+	    ___ratelimit(&_r->diag_ratelimit, "xe_guc_relay"))			\
+		xe_gt_sriov_##_level(relay_to_gt(_r), "relay: " fmt);		\
+})
+
 #define relay_assert(relay, condition)	xe_gt_assert(relay_to_gt(relay), condition)
-#define relay_notice(relay, msg...)	xe_gt_sriov_notice(relay_to_gt(relay), "relay: " msg)
-#define relay_debug(relay, msg...)	xe_gt_sriov_dbg_verbose(relay_to_gt(relay), "relay: " msg)
+#define relay_notice(relay, msg...)	relay_ratelimit_printk((relay), notice, msg)
+#define relay_debug(relay, msg...)	relay_ratelimit_printk((relay), dbg_verbose, msg)
 
 static int relay_get_totalvfs(struct xe_guc_relay *relay)
 {
@@ -345,6 +355,9 @@ int xe_guc_relay_init(struct xe_guc_relay *relay)
 	INIT_WORK(&relay->worker, relays_worker_fn);
 	INIT_LIST_HEAD(&relay->pending_relays);
 	INIT_LIST_HEAD(&relay->incoming_actions);
+	ratelimit_state_init(&relay->diag_ratelimit,
+			     XE_RELAY_DIAG_RATELIMIT_INTERVAL,
+			     XE_RELAY_DIAG_RATELIMIT_BURST);
 
 	err = mempool_init_kmalloc_pool(&relay->pool, XE_RELAY_MEMPOOL_MIN_NUM +
 					relay_get_totalvfs(relay),

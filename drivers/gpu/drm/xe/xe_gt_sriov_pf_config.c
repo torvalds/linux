@@ -1484,7 +1484,8 @@ static int pf_provision_vf_lmem(struct xe_gt *gt, unsigned int vfid, u64 size)
 					 XE_BO_FLAG_VRAM_IF_DGFX(tile) |
 					 XE_BO_FLAG_NEEDS_2M |
 					 XE_BO_FLAG_PINNED |
-					 XE_BO_FLAG_PINNED_LATE_RESTORE);
+					 XE_BO_FLAG_PINNED_LATE_RESTORE |
+					 XE_BO_FLAG_FORCE_USER_VRAM);
 	if (IS_ERR(bo))
 		return PTR_ERR(bo);
 
@@ -1547,7 +1548,8 @@ int xe_gt_sriov_pf_config_set_lmem(struct xe_gt *gt, unsigned int vfid, u64 size
 {
 	int err;
 
-	xe_gt_assert(gt, xe_device_has_lmtt(gt_to_xe(gt)));
+	if (!xe_device_has_lmtt(gt_to_xe(gt)))
+		return -EPERM;
 
 	mutex_lock(xe_gt_sriov_pf_master_mutex(gt));
 	if (vfid)

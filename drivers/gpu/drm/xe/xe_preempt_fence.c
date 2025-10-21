@@ -8,6 +8,8 @@
 #include <linux/slab.h>
 
 #include "xe_exec_queue.h"
+#include "xe_gt_printk.h"
+#include "xe_guc_exec_queue_types.h"
 #include "xe_vm.h"
 
 static void preempt_fence_work_func(struct work_struct *w)
@@ -21,6 +23,15 @@ static void preempt_fence_work_func(struct work_struct *w)
 		dma_fence_set_error(&pfence->base, pfence->error);
 	} else if (!q->ops->reset_status(q)) {
 		int err = q->ops->suspend_wait(q);
+
+		if (err == -EAGAIN) {
+			xe_gt_dbg(q->gt, "PREEMPT FENCE RETRY guc_id=%d",
+				  q->guc->id);
+			queue_work(q->vm->xe->preempt_fence_wq,
+				   &pfence->preempt_work);
+			dma_fence_end_signalling(cookie);
+			return;
+		}
 
 		if (err)
 			dma_fence_set_error(&pfence->base, err);

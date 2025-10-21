@@ -40,7 +40,8 @@ static const struct xe_rtp_entry_sr gt_tunings[] = {
 				   REG_FIELD_PREP(L3_PWM_TIMER_INIT_VAL_MASK, 0x7f)))
 	},
 	{ XE_RTP_NAME("Tuning: Compression Overfetch"),
-	  XE_RTP_RULES(GRAPHICS_VERSION_RANGE(2001, XE_RTP_END_VERSION_UNDEFINED)),
+	  XE_RTP_RULES(GRAPHICS_VERSION_RANGE(2001, XE_RTP_END_VERSION_UNDEFINED),
+		       FUNC(xe_rtp_match_has_flat_ccs)),
 	  XE_RTP_ACTIONS(CLR(CCCHKNREG1, ENCOMPPERFFIX),
 			 SET(CCCHKNREG1, L3CMPCTRL))
 	},
@@ -58,12 +59,14 @@ static const struct xe_rtp_entry_sr gt_tunings[] = {
 	  XE_RTP_ACTIONS(SET(XE2LPM_L3SQCREG3, COMPPWOVERFETCHEN))
 	},
 	{ XE_RTP_NAME("Tuning: L2 Overfetch Compressible Only"),
-	  XE_RTP_RULES(GRAPHICS_VERSION_RANGE(2001, XE_RTP_END_VERSION_UNDEFINED)),
+	  XE_RTP_RULES(GRAPHICS_VERSION_RANGE(2001, XE_RTP_END_VERSION_UNDEFINED),
+		       FUNC(xe_rtp_match_has_flat_ccs)),
 	  XE_RTP_ACTIONS(SET(L3SQCREG2,
 			     COMPMEMRD256BOVRFETCHEN))
 	},
 	{ XE_RTP_NAME("Tuning: L2 Overfetch Compressible Only - media"),
-	  XE_RTP_RULES(MEDIA_VERSION_RANGE(2000, XE_RTP_END_VERSION_UNDEFINED)),
+	  XE_RTP_RULES(MEDIA_VERSION_RANGE(2000, XE_RTP_END_VERSION_UNDEFINED),
+		       FUNC(xe_rtp_match_has_flat_ccs)),
 	  XE_RTP_ACTIONS(SET(XE2LPM_L3SQCREG2,
 			     COMPMEMRD256BOVRFETCHEN))
 	},
@@ -214,7 +217,14 @@ void xe_tuning_process_lrc(struct xe_hw_engine *hwe)
 	xe_rtp_process_to_sr(&ctx, lrc_tunings, ARRAY_SIZE(lrc_tunings), &hwe->reg_lrc);
 }
 
-void xe_tuning_dump(struct xe_gt *gt, struct drm_printer *p)
+/**
+ * xe_tuning_dump() - Dump GT tuning info into a drm printer.
+ * @gt: the &xe_gt
+ * @p: the &drm_printer
+ *
+ * Return: always 0.
+ */
+int xe_tuning_dump(struct xe_gt *gt, struct drm_printer *p)
 {
 	size_t idx;
 
@@ -222,11 +232,15 @@ void xe_tuning_dump(struct xe_gt *gt, struct drm_printer *p)
 	for_each_set_bit(idx, gt->tuning_active.gt, ARRAY_SIZE(gt_tunings))
 		drm_printf_indent(p, 1, "%s\n", gt_tunings[idx].name);
 
-	drm_printf(p, "\nEngine Tunings\n");
+	drm_puts(p, "\n");
+	drm_printf(p, "Engine Tunings\n");
 	for_each_set_bit(idx, gt->tuning_active.engine, ARRAY_SIZE(engine_tunings))
 		drm_printf_indent(p, 1, "%s\n", engine_tunings[idx].name);
 
-	drm_printf(p, "\nLRC Tunings\n");
+	drm_puts(p, "\n");
+	drm_printf(p, "LRC Tunings\n");
 	for_each_set_bit(idx, gt->tuning_active.lrc, ARRAY_SIZE(lrc_tunings))
 		drm_printf_indent(p, 1, "%s\n", lrc_tunings[idx].name);
+
+	return 0;
 }

@@ -148,7 +148,11 @@ load_l3_bank_mask(struct xe_gt *gt, xe_l3_bank_mask_t l3_bank_mask)
 	if (!xe_gt_topology_report_l3(gt))
 		return;
 
-	if (GRAPHICS_VER(xe) >= 30) {
+	if (GRAPHICS_VER(xe) >= 35) {
+		u32 fuse_val = xe_mmio_read32(mmio, MIRROR_L3BANK_ENABLE);
+
+		bitmap_from_arr32(l3_bank_mask, &fuse_val, 32);
+	} else if (GRAPHICS_VER(xe) >= 30) {
 		xe_l3_bank_mask_t per_node = {};
 		u32 meml3_en = REG_FIELD_GET(XE2_NODE_ENABLE_MASK, fuse3);
 		u32 mirror_l3bank_enable = xe_mmio_read32(mmio, MIRROR_L3BANK_ENABLE);
@@ -269,8 +273,14 @@ static const char *eu_type_to_str(enum xe_gt_eu_type eu_type)
 	return NULL;
 }
 
-void
-xe_gt_topology_dump(struct xe_gt *gt, struct drm_printer *p)
+/**
+ * xe_gt_topology_dump() - Dump GT topology into a drm printer.
+ * @gt: the &xe_gt
+ * @p: the &drm_printer
+ *
+ * Return: always 0.
+ */
+int xe_gt_topology_dump(struct xe_gt *gt, struct drm_printer *p)
 {
 	drm_printf(p, "dss mask (geometry): %*pb\n", XE_MAX_DSS_FUSE_BITS,
 		   gt->fuse_topo.g_dss_mask);
@@ -285,6 +295,7 @@ xe_gt_topology_dump(struct xe_gt *gt, struct drm_printer *p)
 	if (xe_gt_topology_report_l3(gt))
 		drm_printf(p, "L3 bank mask:        %*pb\n", XE_MAX_L3_BANK_MASK_BITS,
 			   gt->fuse_topo.l3_bank_mask);
+	return 0;
 }
 
 /*

@@ -302,6 +302,11 @@ static int xe_svm_range_set_default_attr(struct xe_vm *vm, u64 range_start, u64 
 	if (!vma)
 		return -EINVAL;
 
+	if (!(vma->gpuva.flags & XE_VMA_MADV_AUTORESET)) {
+		drm_dbg(&vm->xe->drm, "Skipping madvise reset for vma.\n");
+		return 0;
+	}
+
 	if (xe_vma_has_default_mem_attrs(vma))
 		return 0;
 

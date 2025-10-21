@@ -83,7 +83,57 @@ static struct lockdep_map xe_pm_runtime_d3cold_map = {
 static struct lockdep_map xe_pm_runtime_nod3cold_map = {
 	.name = "xe_rpm_nod3cold_map"
 };
+
+static struct lockdep_map xe_pm_block_lockdep_map = {
+	.name = "xe_pm_block_map",
+};
 #endif
+
+static void xe_pm_block_begin_signalling(void)
+{
+	lock_acquire_shared_recursive(&xe_pm_block_lockdep_map, 0, 1, NULL, _RET_IP_);
+}
+
+static void xe_pm_block_end_signalling(void)
+{
+	lock_release(&xe_pm_block_lockdep_map, _RET_IP_);
+}
+
+/**
+ * xe_pm_might_block_on_suspend() - Annotate that the code might block on suspend
+ *
+ * Annotation to use where the code might block or sieze to make
+ * progress pending resume completion.
+ */
+void xe_pm_might_block_on_suspend(void)
+{
+	lock_map_acquire(&xe_pm_block_lockdep_map);
+	lock_map_release(&xe_pm_block_lockdep_map);
+}
+
+/**
+ * xe_pm_might_block_on_suspend() - Block pending suspend.
+ * @xe: The xe device about to be suspended.
+ *
+ * Block if the pm notifier has start evicting bos, to avoid
+ * racing and validating those bos back. The function is
+ * annotated to ensure no locks are held that are also grabbed
+ * in the pm notifier or the device suspend / resume.
+ * This is intended to be used by freezable tasks only.
+ * (Not freezable workqueues), with the intention that the function
+ * returns %-ERESTARTSYS when tasks are frozen during suspend,
+ * and allows the task to freeze. The caller must be able to
+ * handle the %-ERESTARTSYS.
+ *
+ * Return: %0 on success, %-ERESTARTSYS on signal pending or
+ * if freezing requested.
+ */
+int xe_pm_block_on_suspend(struct xe_device *xe)
+{
+	xe_pm_might_block_on_suspend();
+
+	return wait_for_completion_interruptible(&xe->pm_block);
+}
 
 /**
  * xe_rpm_reclaim_safe() - Whether runtime resume can be done from reclaim context
@@ -124,6 +174,7 @@ int xe_pm_suspend(struct xe_device *xe)
 	int err;
 
 	drm_dbg(&xe->drm, "Suspending device\n");
+	xe_pm_block_begin_signalling();
 	trace_xe_pm_suspend(xe, __builtin_return_address(0));
 
 	err = xe_pxp_pm_suspend(xe->pxp);
@@ -155,6 +206,8 @@ int xe_pm_suspend(struct xe_device *xe)
 	xe_i2c_pm_suspend(xe);
 
 	drm_dbg(&xe->drm, "Device suspended\n");
+	xe_pm_block_end_signalling();
+
 	return 0;
 
 err_display:
@@ -162,6 +215,7 @@ err_display:
 	xe_pxp_pm_resume(xe->pxp);
 err:
 	drm_dbg(&xe->drm, "Device suspend failed %d\n", err);
+	xe_pm_block_end_signalling();
 	return err;
 }
 
@@ -178,6 +232,7 @@ int xe_pm_resume(struct xe_device *xe)
 	u8 id;
 	int err;
 
+	xe_pm_block_begin_signalling();
 	drm_dbg(&xe->drm, "Resuming device\n");
 	trace_xe_pm_resume(xe, __builtin_return_address(0));
 
@@ -222,9 +277,11 @@ int xe_pm_resume(struct xe_device *xe)
 	xe_late_bind_fw_load(&xe->late_bind);
 
 	drm_dbg(&xe->drm, "Device resumed\n");
+	xe_pm_block_end_signalling();
 	return 0;
 err:
 	drm_dbg(&xe->drm, "Device resume failed %d\n", err);
+	xe_pm_block_end_signalling();
 	return err;
 }
 
@@ -329,9 +386,16 @@ static int xe_pm_notifier_callback(struct notifier_block *nb,
 	switch (action) {
 	case PM_HIBERNATION_PREPARE:
 	case PM_SUSPEND_PREPARE:
+	{
+		struct xe_validation_ctx ctx;
+
 		reinit_completion(&xe->pm_block);
+		xe_pm_block_begin_signalling();
 		xe_pm_runtime_get(xe);
+		(void)xe_validation_ctx_init(&ctx, &xe->val, NULL,
+					     (struct xe_val_flags) {.exclusive = true});
 		err = xe_bo_evict_all_user(xe);
+		xe_validation_ctx_fini(&ctx);
 		if (err)
 			drm_dbg(&xe->drm, "Notifier evict user failed (%d)\n", err);
 
@@ -343,7 +407,9 @@ static int xe_pm_notifier_callback(struct notifier_block *nb,
 		 * avoid a runtime suspend interfering with evicted objects or backup
 		 * allocations.
 		 */
+		xe_pm_block_end_signalling();
 		break;
+	}
 	case PM_POST_HIBERNATION:
 	case PM_POST_SUSPEND:
 		complete_all(&xe->pm_block);

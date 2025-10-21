@@ -684,7 +684,7 @@ static const struct xe_rtp_entry_sr engine_was[] = {
 	},
 	{ XE_RTP_NAME("13012615864"),
 	  XE_RTP_RULES(GRAPHICS_VERSION_RANGE(3000, 3001), OR,
-		       GRAPHICS_VERSION(3003),
+		       GRAPHICS_VERSION_RANGE(3003, 3005),
 		       FUNC(xe_rtp_match_first_render_or_compute)),
 	  XE_RTP_ACTIONS(SET(TDL_TSL_CHICKEN, RES_CHK_SPR_DIS))
 	},
@@ -695,7 +695,7 @@ static const struct xe_rtp_entry_sr engine_was[] = {
 			     XE_RTP_ACTION_FLAG(ENGINE_BASE)))
 	},
 	{ XE_RTP_NAME("14021402888"),
-	  XE_RTP_RULES(GRAPHICS_VERSION(3003), FUNC(xe_rtp_match_first_render_or_compute)),
+	  XE_RTP_RULES(GRAPHICS_VERSION_RANGE(3003, 3005), FUNC(xe_rtp_match_first_render_or_compute)),
 	  XE_RTP_ACTIONS(SET(HALF_SLICE_CHICKEN7, CLEAR_OPTIMIZATION_DISABLE))
 	},
 	{ XE_RTP_NAME("18041344222"),
@@ -913,7 +913,7 @@ static const struct xe_rtp_entry_sr lrc_was[] = {
 			     DIS_AUTOSTRIP))
 	},
 	{ XE_RTP_NAME("22021007897"),
-	  XE_RTP_RULES(GRAPHICS_VERSION_RANGE(3000, 3003), ENGINE_CLASS(RENDER)),
+	  XE_RTP_RULES(GRAPHICS_VERSION_RANGE(3000, 3005), ENGINE_CLASS(RENDER)),
 	  XE_RTP_ACTIONS(SET(COMMON_SLICE_CHICKEN4, SBE_PUSH_CONSTANT_BEHIND_FIX_ENABLE))
 	},
 };
@@ -1086,7 +1086,14 @@ void xe_wa_device_dump(struct xe_device *xe, struct drm_printer *p)
 			drm_printf_indent(p, 1, "%s\n", device_oob_was[idx].name);
 }
 
-void xe_wa_dump(struct xe_gt *gt, struct drm_printer *p)
+/**
+ * xe_wa_gt_dump() - Dump GT workarounds into a drm printer.
+ * @gt: the &xe_gt
+ * @p: the &drm_printer
+ *
+ * Return: always 0.
+ */
+int xe_wa_gt_dump(struct xe_gt *gt, struct drm_printer *p)
 {
 	size_t idx;
 
@@ -1094,18 +1101,22 @@ void xe_wa_dump(struct xe_gt *gt, struct drm_printer *p)
 	for_each_set_bit(idx, gt->wa_active.gt, ARRAY_SIZE(gt_was))
 		drm_printf_indent(p, 1, "%s\n", gt_was[idx].name);
 
-	drm_printf(p, "\nEngine Workarounds\n");
+	drm_puts(p, "\n");
+	drm_printf(p, "Engine Workarounds\n");
 	for_each_set_bit(idx, gt->wa_active.engine, ARRAY_SIZE(engine_was))
 		drm_printf_indent(p, 1, "%s\n", engine_was[idx].name);
 
-	drm_printf(p, "\nLRC Workarounds\n");
+	drm_puts(p, "\n");
+	drm_printf(p, "LRC Workarounds\n");
 	for_each_set_bit(idx, gt->wa_active.lrc, ARRAY_SIZE(lrc_was))
 		drm_printf_indent(p, 1, "%s\n", lrc_was[idx].name);
 
-	drm_printf(p, "\nOOB Workarounds\n");
+	drm_puts(p, "\n");
+	drm_printf(p, "OOB Workarounds\n");
 	for_each_set_bit(idx, gt->wa_active.oob, ARRAY_SIZE(oob_was))
 		if (oob_was[idx].name)
 			drm_printf_indent(p, 1, "%s\n", oob_was[idx].name);
+	return 0;
 }
 
 /*
@@ -1127,6 +1138,6 @@ void xe_wa_apply_tile_workarounds(struct xe_tile *tile)
 	if (IS_SRIOV_VF(tile->xe))
 		return;
 
-	if (XE_GT_WA(tile->primary_gt, 22010954014))
+	if (XE_DEVICE_WA(tile->xe, 22010954014))
 		xe_mmio_rmw32(mmio, XEHP_CLOCK_GATE_DIS, 0, SGSI_SIDECLK_DIS);
 }

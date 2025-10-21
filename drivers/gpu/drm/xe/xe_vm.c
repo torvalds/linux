@@ -35,6 +35,7 @@
 #include "xe_pt.h"
 #include "xe_pxp.h"
 #include "xe_res_cursor.h"
+#include "xe_sriov_vf.h"
 #include "xe_svm.h"
 #include "xe_sync.h"
 #include "xe_tile.h"
@@ -111,12 +112,22 @@ static int alloc_preempt_fences(struct xe_vm *vm, struct list_head *list,
 static int wait_for_existing_preempt_fences(struct xe_vm *vm)
 {
 	struct xe_exec_queue *q;
+	bool vf_migration = IS_SRIOV_VF(vm->xe) &&
+		xe_sriov_vf_migration_supported(vm->xe);
+	signed long wait_time = vf_migration ? HZ / 5 : MAX_SCHEDULE_TIMEOUT;
 
 	xe_vm_assert_held(vm);
 
 	list_for_each_entry(q, &vm->preempt.exec_queues, lr.link) {
 		if (q->lr.pfence) {
-			long timeout = dma_fence_wait(q->lr.pfence, false);
+			long timeout;
+
+			timeout = dma_fence_wait_timeout(q->lr.pfence, false,
+							 wait_time);
+			if (!timeout) {
+				xe_assert(vm->xe, vf_migration);
+				return -EAGAIN;
+			}
 
 			/* Only -ETIME on fence indicates VM needs to be killed */
 			if (timeout < 0 || q->lr.pfence->error == -ETIME)
@@ -466,6 +477,8 @@ static void preempt_rebind_work_func(struct work_struct *w)
 retry:
 	if (!try_wait_for_completion(&vm->xe->pm_block) && vm_suspend_rebind_worker(vm)) {
 		up_write(&vm->lock);
+		/* We don't actually block but don't make progress. */
+		xe_pm_might_block_on_suspend();
 		return;
 	}
 
@@ -539,6 +552,19 @@ out_unlock:
 out_unlock_outer:
 	if (err == -EAGAIN) {
 		trace_xe_vm_rebind_worker_retry(vm);
+
+		/*
+		 * We can't block in workers on a VF which supports migration
+		 * given this can block the VF post-migration workers from
+		 * getting scheduled.
+		 */
+		if (IS_SRIOV_VF(vm->xe) &&
+		    xe_sriov_vf_migration_supported(vm->xe)) {
+			up_write(&vm->lock);
+			xe_vm_queue_rebind_worker(vm);
+			return;
+		}
+
 		goto retry;
 	}
 
@@ -616,6 +642,13 @@ static void xe_vma_ops_incr_pt_update_ops(struct xe_vma_ops *vops, u8 tile_mask,
 			vops->pt_update_ops[i].num_ops += inc_val;
 }
 
+#define XE_VMA_CREATE_MASK (		    \
+	XE_VMA_READ_ONLY |		    \
+	XE_VMA_DUMPABLE |		    \
+	XE_VMA_SYSTEM_ALLOCATOR |           \
+	DRM_GPUVA_SPARSE |		    \
+	XE_VMA_MADV_AUTORESET)
+
 static void xe_vm_populate_rebind(struct xe_vma_op *op, struct xe_vma *vma,
 				  u8 tile_mask)
 {
@@ -628,8 +661,7 @@ static void xe_vm_populate_rebind(struct xe_vma_op *op, struct xe_vma *vma,
 	op->base.map.gem.offset = vma->gpuva.gem.offset;
 	op->map.vma = vma;
 	op->map.immediate = true;
-	op->map.dumpable = vma->gpuva.flags & XE_VMA_DUMPABLE;
-	op->map.is_null = xe_vma_is_null(vma);
+	op->map.vma_flags = vma->gpuva.flags & XE_VMA_CREATE_MASK;
 }
 
 static int xe_vm_ops_add_rebind(struct xe_vma_ops *vops, struct xe_vma *vma,
@@ -932,11 +964,6 @@ static void xe_vma_free(struct xe_vma *vma)
 		kfree(vma);
 }
 
-#define VMA_CREATE_FLAG_READ_ONLY		BIT(0)
-#define VMA_CREATE_FLAG_IS_NULL			BIT(1)
-#define VMA_CREATE_FLAG_DUMPABLE		BIT(2)
-#define VMA_CREATE_FLAG_IS_SYSTEM_ALLOCATOR	BIT(3)
-
 static struct xe_vma *xe_vma_create(struct xe_vm *vm,
 				    struct xe_bo *bo,
 				    u64 bo_offset_or_userptr,
@@ -947,11 +974,8 @@ static struct xe_vma *xe_vma_create(struct xe_vm *vm,
 	struct xe_vma *vma;
 	struct xe_tile *tile;
 	u8 id;
-	bool read_only = (flags & VMA_CREATE_FLAG_READ_ONLY);
-	bool is_null = (flags & VMA_CREATE_FLAG_IS_NULL);
-	bool dumpable = (flags & VMA_CREATE_FLAG_DUMPABLE);
-	bool is_cpu_addr_mirror =
-		(flags & VMA_CREATE_FLAG_IS_SYSTEM_ALLOCATOR);
+	bool is_null = (flags & DRM_GPUVA_SPARSE);
+	bool is_cpu_addr_mirror = (flags & XE_VMA_SYSTEM_ALLOCATOR);
 
 	xe_assert(vm->xe, start < end);
 	xe_assert(vm->xe, end < vm->size);
@@ -972,10 +996,6 @@ static struct xe_vma *xe_vma_create(struct xe_vm *vm,
 		if (!vma)
 			return ERR_PTR(-ENOMEM);
 
-		if (is_cpu_addr_mirror)
-			vma->gpuva.flags |= XE_VMA_SYSTEM_ALLOCATOR;
-		if (is_null)
-			vma->gpuva.flags |= DRM_GPUVA_SPARSE;
 		if (bo)
 			vma->gpuva.gem.obj = &bo->ttm.base;
 	}
@@ -986,10 +1006,7 @@ static struct xe_vma *xe_vma_create(struct xe_vm *vm,
 	vma->gpuva.vm = &vm->gpuvm;
 	vma->gpuva.va.addr = start;
 	vma->gpuva.va.range = end - start + 1;
-	if (read_only)
-		vma->gpuva.flags |= XE_VMA_READ_ONLY;
-	if (dumpable)
-		vma->gpuva.flags |= XE_VMA_DUMPABLE;
+	vma->gpuva.flags = flags;
 
 	for_each_tile(tile, vm->xe, id)
 		vma->tile_mask |= 0x1 << id;
@@ -1884,6 +1901,7 @@ int xe_vm_create_ioctl(struct drm_device *dev, void *data,
 	struct xe_device *xe = to_xe_device(dev);
 	struct xe_file *xef = to_xe_file(file);
 	struct drm_xe_vm_create *args = data;
+	struct xe_gt *wa_gt = xe_root_mmio_gt(xe);
 	struct xe_vm *vm;
 	u32 id;
 	int err;
@@ -1892,7 +1910,7 @@ int xe_vm_create_ioctl(struct drm_device *dev, void *data,
 	if (XE_IOCTL_DBG(xe, args->extensions))
 		return -EINVAL;
 
-	if (XE_GT_WA(xe_root_mmio_gt(xe), 14016763929))
+	if (wa_gt && XE_GT_WA(wa_gt, 22014953428))
 		args->flags |= DRM_XE_VM_CREATE_FLAG_SCRATCH_PAGE;
 
 	if (XE_IOCTL_DBG(xe, args->flags & DRM_XE_VM_CREATE_FLAG_FAULT_MODE &&
@@ -2272,12 +2290,16 @@ vm_bind_ioctl_ops_create(struct xe_vm *vm, struct xe_vma_ops *vops,
 		if (__op->op == DRM_GPUVA_OP_MAP) {
 			op->map.immediate =
 				flags & DRM_XE_VM_BIND_FLAG_IMMEDIATE;
-			op->map.read_only =
-				flags & DRM_XE_VM_BIND_FLAG_READONLY;
-			op->map.is_null = flags & DRM_XE_VM_BIND_FLAG_NULL;
-			op->map.is_cpu_addr_mirror = flags &
-				DRM_XE_VM_BIND_FLAG_CPU_ADDR_MIRROR;
-			op->map.dumpable = flags & DRM_XE_VM_BIND_FLAG_DUMPABLE;
+			if (flags & DRM_XE_VM_BIND_FLAG_READONLY)
+				op->map.vma_flags |= XE_VMA_READ_ONLY;
+			if (flags & DRM_XE_VM_BIND_FLAG_NULL)
+				op->map.vma_flags |= DRM_GPUVA_SPARSE;
+			if (flags & DRM_XE_VM_BIND_FLAG_CPU_ADDR_MIRROR)
+				op->map.vma_flags |= XE_VMA_SYSTEM_ALLOCATOR;
+			if (flags & DRM_XE_VM_BIND_FLAG_DUMPABLE)
+				op->map.vma_flags |= XE_VMA_DUMPABLE;
+			if (flags & DRM_XE_VM_BIND_FLAG_MADVISE_AUTORESET)
+				op->map.vma_flags |= XE_VMA_MADV_AUTORESET;
 			op->map.pat_index = pat_index;
 			op->map.invalidate_on_bind =
 				__xe_vm_needs_clear_scratch_pages(vm, flags);
@@ -2590,14 +2612,7 @@ static int vm_bind_ioctl_ops_parse(struct xe_vm *vm, struct drm_gpuva_ops *ops,
 				.pat_index = op->map.pat_index,
 			};
 
-			flags |= op->map.read_only ?
-				VMA_CREATE_FLAG_READ_ONLY : 0;
-			flags |= op->map.is_null ?
-				VMA_CREATE_FLAG_IS_NULL : 0;
-			flags |= op->map.dumpable ?
-				VMA_CREATE_FLAG_DUMPABLE : 0;
-			flags |= op->map.is_cpu_addr_mirror ?
-				VMA_CREATE_FLAG_IS_SYSTEM_ALLOCATOR : 0;
+			flags |= op->map.vma_flags & XE_VMA_CREATE_MASK;
 
 			vma = new_vma(vm, &op->base.map, &default_attr,
 				      flags);
@@ -2606,7 +2621,7 @@ static int vm_bind_ioctl_ops_parse(struct xe_vm *vm, struct drm_gpuva_ops *ops,
 
 			op->map.vma = vma;
 			if (((op->map.immediate || !xe_vm_in_fault_mode(vm)) &&
-			     !op->map.is_cpu_addr_mirror) ||
+			     !(op->map.vma_flags & XE_VMA_SYSTEM_ALLOCATOR)) ||
 			    op->map.invalidate_on_bind)
 				xe_vma_ops_incr_pt_update_ops(vops,
 							      op->tile_mask, 1);
@@ -2637,18 +2652,7 @@ static int vm_bind_ioctl_ops_parse(struct xe_vm *vm, struct drm_gpuva_ops *ops,
 			op->remap.start = xe_vma_start(old);
 			op->remap.range = xe_vma_size(old);
 
-			flags |= op->base.remap.unmap->va->flags &
-				XE_VMA_READ_ONLY ?
-				VMA_CREATE_FLAG_READ_ONLY : 0;
-			flags |= op->base.remap.unmap->va->flags &
-				DRM_GPUVA_SPARSE ?
-				VMA_CREATE_FLAG_IS_NULL : 0;
-			flags |= op->base.remap.unmap->va->flags &
-				XE_VMA_DUMPABLE ?
-				VMA_CREATE_FLAG_DUMPABLE : 0;
-			flags |= xe_vma_is_cpu_addr_mirror(old) ?
-				VMA_CREATE_FLAG_IS_SYSTEM_ALLOCATOR : 0;
-
+			flags |= op->base.remap.unmap->va->flags & XE_VMA_CREATE_MASK;
 			if (op->base.remap.prev) {
 				vma = new_vma(vm, op->base.remap.prev,
 					      &old->attr, flags);
@@ -3279,7 +3283,8 @@ ALLOW_ERROR_INJECTION(vm_bind_ioctl_ops_execute, ERRNO);
 	 DRM_XE_VM_BIND_FLAG_NULL | \
 	 DRM_XE_VM_BIND_FLAG_DUMPABLE | \
 	 DRM_XE_VM_BIND_FLAG_CHECK_PXP | \
-	 DRM_XE_VM_BIND_FLAG_CPU_ADDR_MIRROR)
+	 DRM_XE_VM_BIND_FLAG_CPU_ADDR_MIRROR | \
+	 DRM_XE_VM_BIND_FLAG_MADVISE_AUTORESET)
 
 #ifdef TEST_VM_OPS_ERROR
 #define SUPPORTED_FLAGS	(SUPPORTED_FLAGS_STUB | FORCE_OP_ERROR)
@@ -3394,7 +3399,9 @@ static int vm_bind_ioctl_check_args(struct xe_device *xe, struct xe_vm *vm,
 		    XE_IOCTL_DBG(xe,  (prefetch_region != DRM_XE_CONSULT_MEM_ADVISE_PREF_LOC &&
 				       !(BIT(prefetch_region) & xe->info.mem_region_mask))) ||
 		    XE_IOCTL_DBG(xe, obj &&
-				 op == DRM_XE_VM_BIND_OP_UNMAP)) {
+				 op == DRM_XE_VM_BIND_OP_UNMAP) ||
+		    XE_IOCTL_DBG(xe, (flags & DRM_XE_VM_BIND_FLAG_MADVISE_AUTORESET) &&
+				 (!is_cpu_addr_mirror || op != DRM_XE_VM_BIND_OP_MAP))) {
 			err = -EINVAL;
 			goto free_bind_ops;
 		}
@@ -4212,7 +4219,7 @@ static int xe_vm_alloc_vma(struct xe_vm *vm,
 	struct xe_vma_ops vops;
 	struct drm_gpuva_ops *ops = NULL;
 	struct drm_gpuva_op *__op;
-	bool is_cpu_addr_mirror = false;
+	unsigned int vma_flags = 0;
 	bool remap_op = false;
 	struct xe_vma_mem_attr tmp_attr;
 	u16 default_pat;
@@ -4242,15 +4249,17 @@ static int xe_vm_alloc_vma(struct xe_vm *vm,
 				vma = gpuva_to_vma(op->base.unmap.va);
 				XE_WARN_ON(!xe_vma_has_default_mem_attrs(vma));
 				default_pat = vma->attr.default_pat_index;
+				vma_flags = vma->gpuva.flags;
 			}
 
 			if (__op->op == DRM_GPUVA_OP_REMAP) {
 				vma = gpuva_to_vma(op->base.remap.unmap->va);
 				default_pat = vma->attr.default_pat_index;
+				vma_flags = vma->gpuva.flags;
 			}
 
 			if (__op->op == DRM_GPUVA_OP_MAP) {
-				op->map.is_cpu_addr_mirror = true;
+				op->map.vma_flags |= vma_flags & XE_VMA_CREATE_MASK;
 				op->map.pat_index = default_pat;
 			}
 		} else {
@@ -4259,11 +4268,7 @@ static int xe_vm_alloc_vma(struct xe_vm *vm,
 				xe_assert(vm->xe, !remap_op);
 				xe_assert(vm->xe, xe_vma_has_no_bo(vma));
 				remap_op = true;
-
-				if (xe_vma_is_cpu_addr_mirror(vma))
-					is_cpu_addr_mirror = true;
-				else
-					is_cpu_addr_mirror = false;
+				vma_flags = vma->gpuva.flags;
 			}
 
 			if (__op->op == DRM_GPUVA_OP_MAP) {
@@ -4272,10 +4277,10 @@ static int xe_vm_alloc_vma(struct xe_vm *vm,
 				/*
 				 * In case of madvise ops DRM_GPUVA_OP_MAP is
 				 * always after DRM_GPUVA_OP_REMAP, so ensure
-				 * we assign op->map.is_cpu_addr_mirror true
-				 * if REMAP is for xe_vma_is_cpu_addr_mirror vma
+				 * to propagate the flags from the vma we're
+				 * unmapping.
 				 */
-				op->map.is_cpu_addr_mirror = is_cpu_addr_mirror;
+				op->map.vma_flags |= vma_flags & XE_VMA_CREATE_MASK;
 			}
 		}
 		print_op(vm->xe, __op);

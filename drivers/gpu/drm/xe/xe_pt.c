@@ -122,7 +122,7 @@ struct xe_pt *xe_pt_create(struct xe_vm *vm, struct xe_tile *tile,
 		   XE_BO_FLAG_IGNORE_MIN_PAGE_SIZE |
 		   XE_BO_FLAG_NO_RESV_EVICT | XE_BO_FLAG_PAGETABLE;
 	if (vm->xef) /* userspace */
-		bo_flags |= XE_BO_FLAG_PINNED_LATE_RESTORE;
+		bo_flags |= XE_BO_FLAG_PINNED_LATE_RESTORE | XE_BO_FLAG_FORCE_USER_VRAM;
 
 	pt->level = level;
 
@@ -2022,7 +2022,7 @@ static int op_prepare(struct xe_vm *vm,
 	case DRM_GPUVA_OP_MAP:
 		if ((!op->map.immediate && xe_vm_in_fault_mode(vm) &&
 		     !op->map.invalidate_on_bind) ||
-		    op->map.is_cpu_addr_mirror)
+		    (op->map.vma_flags & XE_VMA_SYSTEM_ALLOCATOR))
 			break;
 
 		err = bind_op_prepare(vm, tile, pt_update_ops, op->map.vma,
@@ -2252,7 +2252,7 @@ static void op_commit(struct xe_vm *vm,
 	switch (op->base.op) {
 	case DRM_GPUVA_OP_MAP:
 		if ((!op->map.immediate && xe_vm_in_fault_mode(vm)) ||
-		    op->map.is_cpu_addr_mirror)
+		    (op->map.vma_flags & XE_VMA_SYSTEM_ALLOCATOR))
 			break;
 
 		bind_op_commit(vm, tile, pt_update_ops, op->map.vma, fence,

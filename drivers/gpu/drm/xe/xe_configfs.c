@@ -15,9 +15,11 @@
 
 #include "instructions/xe_mi_commands.h"
 #include "xe_configfs.h"
+#include "xe_gt_types.h"
 #include "xe_hw_engine_types.h"
 #include "xe_module.h"
 #include "xe_pci_types.h"
+#include "xe_sriov_types.h"
 
 /**
  * DOC: Xe Configfs
@@ -56,6 +58,7 @@
  *	:
  *	└── 0000:03:00.0
  *	    ├── survivability_mode
+ *	    ├── gt_types_allowed
  *	    ├── engines_allowed
  *	    └── enable_psmi
  *
@@ -78,6 +81,44 @@
  *	# echo 1 > /sys/kernel/config/xe/0000:03:00.0/survivability_mode
  *
  * This attribute can only be set before binding to the device.
+ *
+ * Allowed GT types:
+ * -----------------
+ *
+ * Allow only specific types of GTs to be detected and initialized by the
+ * driver.  Any combination of GT types can be enabled/disabled, although
+ * some settings will cause the device to fail to probe.
+ *
+ * Writes support both comma- and newline-separated input format. Reads
+ * will always return one GT type per line. "primary" and "media" are the
+ * GT type names supported by this interface.
+ *
+ * This attribute can only be set before binding to the device.
+ *
+ * Examples:
+ *
+ * Allow both primary and media GTs to be initialized and used.  This matches
+ * the driver's default behavior::
+ *
+ *	# echo 'primary,media' > /sys/kernel/config/xe/0000:03:00.0/gt_types_allowed
+ *
+ * Allow only the primary GT of each tile to be initialized and used,
+ * effectively disabling the media GT if it exists on the platform::
+ *
+ *	# echo 'primary' > /sys/kernel/config/xe/0000:03:00.0/gt_types_allowed
+ *
+ * Allow only the media GT of each tile to be initialized and used,
+ * effectively disabling the primary GT.  **This configuration will cause
+ * device probe failure on all current platforms, but may be allowed on
+ * igpu platforms in the future**::
+ *
+ *	# echo 'media' > /sys/kernel/config/xe/0000:03:00.0/gt_types_allowed
+ *
+ * Disable all GTs.  Only other GPU IP (such as display) is potentially usable.
+ * **This configuration will cause device probe failure on all current
+ * platforms, but may be allowed on igpu platforms in the future**::
+ *
+ *	# echo '' > /sys/kernel/config/xe/0000:03:00.0/gt_types_allowed
  *
  * Allowed engines:
  * ----------------
@@ -169,6 +210,32 @@
  * Currently this is implemented only for post and mid context restore and
  * these attributes can only be set before binding to the device.
  *
+ * Max SR-IOV Virtual Functions
+ * ----------------------------
+ *
+ * This config allows to limit number of the Virtual Functions (VFs) that can
+ * be managed by the Physical Function (PF) driver, where value 0 disables the
+ * PF mode (no VFs).
+ *
+ * The default max_vfs config value is taken from the max_vfs modparam.
+ *
+ * How to enable PF with support with unlimited (up to HW limit) number of VFs::
+ *
+ *	# echo unlimited > /sys/kernel/config/xe/0000:00:02.0/sriov/max_vfs
+ *	# echo 0000:00:02.0 > /sys/bus/pci/drivers/xe/bind
+ *
+ * How to enable PF with support up to 3 VFs::
+ *
+ *	# echo 3 > /sys/kernel/config/xe/0000:00:02.0/sriov/max_vfs
+ *	# echo 0000:00:02.0 > /sys/bus/pci/drivers/xe/bind
+ *
+ * How to disable PF mode and always run as native::
+ *
+ *	# echo 0 > /sys/kernel/config/xe/0000:00:02.0/sriov/max_vfs
+ *	# echo 0000:00:02.0 > /sys/bus/pci/drivers/xe/bind
+ *
+ * This setting only takes effect when probing the device.
+ *
  * Remove devices
  * ==============
  *
@@ -185,30 +252,44 @@ struct wa_bb {
 
 struct xe_config_group_device {
 	struct config_group group;
+	struct config_group sriov;
 
 	struct xe_config_device {
+		u64 gt_types_allowed;
 		u64 engines_allowed;
 		struct wa_bb ctx_restore_post_bb[XE_ENGINE_CLASS_MAX];
 		struct wa_bb ctx_restore_mid_bb[XE_ENGINE_CLASS_MAX];
 		bool survivability_mode;
 		bool enable_psmi;
+		struct {
+			unsigned int max_vfs;
+		} sriov;
 	} config;
 
 	/* protects attributes */
 	struct mutex lock;
 	/* matching descriptor */
 	const struct xe_device_desc *desc;
+	/* tentative SR-IOV mode */
+	enum xe_sriov_mode mode;
 };
 
 static const struct xe_config_device device_defaults = {
+	.gt_types_allowed = U64_MAX,
 	.engines_allowed = U64_MAX,
 	.survivability_mode = false,
 	.enable_psmi = false,
+	.sriov = {
+		.max_vfs = UINT_MAX,
+	},
 };
 
 static void set_device_defaults(struct xe_config_device *config)
 {
 	*config = device_defaults;
+#ifdef CONFIG_PCI_IOV
+	config->sriov.max_vfs = xe_modparam.max_vfs;
+#endif
 }
 
 struct engine_info {
@@ -220,6 +301,7 @@ struct engine_info {
 /* Some helpful macros to aid on the sizing of buffer allocation when parsing */
 #define MAX_ENGINE_CLASS_CHARS 5
 #define MAX_ENGINE_INSTANCE_CHARS 2
+#define MAX_GT_TYPE_CHARS 7
 
 static const struct engine_info engine_info[] = {
 	{ .cls = "rcs", .mask = XE_HW_ENGINE_RCS_MASK, .engine_class = XE_ENGINE_CLASS_RENDER },
@@ -228,6 +310,14 @@ static const struct engine_info engine_info[] = {
 	{ .cls = "vecs", .mask = XE_HW_ENGINE_VECS_MASK, .engine_class = XE_ENGINE_CLASS_VIDEO_ENHANCE },
 	{ .cls = "ccs", .mask = XE_HW_ENGINE_CCS_MASK, .engine_class = XE_ENGINE_CLASS_COMPUTE },
 	{ .cls = "gsccs", .mask = XE_HW_ENGINE_GSCCS_MASK, .engine_class = XE_ENGINE_CLASS_OTHER },
+};
+
+static const struct {
+	const char name[MAX_GT_TYPE_CHARS + 1];
+	enum xe_gt_type type;
+} gt_types[] = {
+	{ .name = "primary", .type = XE_GT_TYPE_MAIN },
+	{ .name = "media", .type = XE_GT_TYPE_MEDIA },
 };
 
 static struct xe_config_group_device *to_xe_config_group_device(struct config_item *item)
@@ -288,6 +378,57 @@ static ssize_t survivability_mode_store(struct config_item *item, const char *pa
 		return -EBUSY;
 
 	dev->config.survivability_mode = survivability_mode;
+
+	return len;
+}
+
+static ssize_t gt_types_allowed_show(struct config_item *item, char *page)
+{
+	struct xe_config_device *dev = to_xe_config_device(item);
+	char *p = page;
+
+	for (size_t i = 0; i < ARRAY_SIZE(gt_types); i++)
+		if (dev->gt_types_allowed & BIT_ULL(gt_types[i].type))
+			p += sprintf(p, "%s\n", gt_types[i].name);
+
+	return p - page;
+}
+
+static ssize_t gt_types_allowed_store(struct config_item *item, const char *page,
+				      size_t len)
+{
+	struct xe_config_group_device *dev = to_xe_config_group_device(item);
+	char *buf __free(kfree) = kstrdup(page, GFP_KERNEL);
+	char *p = buf;
+	u64 typemask = 0;
+
+	if (!buf)
+		return -ENOMEM;
+
+	while (p) {
+		char *typename = strsep(&p, ",\n");
+		bool matched = false;
+
+		if (typename[0] == '\0')
+			continue;
+
+		for (size_t i = 0; i < ARRAY_SIZE(gt_types); i++) {
+			if (strcmp(typename, gt_types[i].name) == 0) {
+				typemask |= BIT(gt_types[i].type);
+				matched = true;
+				break;
+			}
+		}
+
+		if (!matched)
+			return -EINVAL;
+	}
+
+	guard(mutex)(&dev->lock);
+	if (is_bound(dev))
+		return -EBUSY;
+
+	dev->config.gt_types_allowed = typemask;
 
 	return len;
 }
@@ -672,6 +813,7 @@ CONFIGFS_ATTR(, ctx_restore_mid_bb);
 CONFIGFS_ATTR(, ctx_restore_post_bb);
 CONFIGFS_ATTR(, enable_psmi);
 CONFIGFS_ATTR(, engines_allowed);
+CONFIGFS_ATTR(, gt_types_allowed);
 CONFIGFS_ATTR(, survivability_mode);
 
 static struct configfs_attribute *xe_config_device_attrs[] = {
@@ -679,6 +821,7 @@ static struct configfs_attribute *xe_config_device_attrs[] = {
 	&attr_ctx_restore_post_bb,
 	&attr_enable_psmi,
 	&attr_engines_allowed,
+	&attr_gt_types_allowed,
 	&attr_survivability_mode,
 	NULL,
 };
@@ -721,6 +864,68 @@ static const struct config_item_type xe_config_device_type = {
 	.ct_owner	= THIS_MODULE,
 };
 
+static ssize_t sriov_max_vfs_show(struct config_item *item, char *page)
+{
+	struct xe_config_group_device *dev = to_xe_config_group_device(item->ci_parent);
+
+	guard(mutex)(&dev->lock);
+
+	if (dev->config.sriov.max_vfs == UINT_MAX)
+		return sprintf(page, "%s\n", "unlimited");
+	else
+		return sprintf(page, "%u\n", dev->config.sriov.max_vfs);
+}
+
+static ssize_t sriov_max_vfs_store(struct config_item *item, const char *page, size_t len)
+{
+	struct xe_config_group_device *dev = to_xe_config_group_device(item->ci_parent);
+	unsigned int max_vfs;
+	int ret;
+
+	guard(mutex)(&dev->lock);
+
+	if (is_bound(dev))
+		return -EBUSY;
+
+	ret = kstrtouint(page, 0, &max_vfs);
+	if (ret) {
+		if (!sysfs_streq(page, "unlimited"))
+			return ret;
+		max_vfs = UINT_MAX;
+	}
+
+	dev->config.sriov.max_vfs = max_vfs;
+	return len;
+}
+
+CONFIGFS_ATTR(sriov_, max_vfs);
+
+static struct configfs_attribute *xe_config_sriov_attrs[] = {
+	&sriov_attr_max_vfs,
+	NULL,
+};
+
+static bool xe_config_sriov_is_visible(struct config_item *item,
+				       struct configfs_attribute *attr, int n)
+{
+	struct xe_config_group_device *dev = to_xe_config_group_device(item->ci_parent);
+
+	if (attr == &sriov_attr_max_vfs && dev->mode != XE_SRIOV_MODE_PF)
+		return false;
+
+	return true;
+}
+
+static struct configfs_group_operations xe_config_sriov_group_ops = {
+	.is_visible	= xe_config_sriov_is_visible,
+};
+
+static const struct config_item_type xe_config_sriov_type = {
+	.ct_owner	= THIS_MODULE,
+	.ct_group_ops	= &xe_config_sriov_group_ops,
+	.ct_attrs	= xe_config_sriov_attrs,
+};
+
 static const struct xe_device_desc *xe_match_desc(struct pci_dev *pdev)
 {
 	struct device_driver *driver = driver_find("xe", &pci_bus_type);
@@ -746,6 +951,7 @@ static struct config_group *xe_config_make_device_group(struct config_group *gro
 	unsigned int domain, bus, slot, function;
 	struct xe_config_group_device *dev;
 	const struct xe_device_desc *match;
+	enum xe_sriov_mode mode;
 	struct pci_dev *pdev;
 	char canonical[16];
 	int vfnumber = 0;
@@ -762,6 +968,9 @@ static struct config_group *xe_config_make_device_group(struct config_group *gro
 		return ERR_PTR(-EINVAL);
 
 	pdev = pci_get_domain_bus_and_slot(domain, bus, PCI_DEVFN(slot, function));
+	mode = pdev ? dev_is_pf(&pdev->dev) ?
+		XE_SRIOV_MODE_PF : XE_SRIOV_MODE_NONE : XE_SRIOV_MODE_VF;
+
 	if (!pdev && function)
 		pdev = pci_get_domain_bus_and_slot(domain, bus, PCI_DEVFN(slot, 0));
 	if (!pdev && slot)
@@ -796,9 +1005,15 @@ static struct config_group *xe_config_make_device_group(struct config_group *gro
 		return ERR_PTR(-ENOMEM);
 
 	dev->desc = match;
+	dev->mode = match->has_sriov ? mode : XE_SRIOV_MODE_NONE;
+
 	set_device_defaults(&dev->config);
 
 	config_group_init_type_name(&dev->group, name, &xe_config_device_type);
+	if (dev->mode != XE_SRIOV_MODE_NONE) {
+		config_group_init_type_name(&dev->sriov, "sriov", &xe_config_sriov_type);
+		configfs_add_default_group(&dev->sriov, &dev->group);
+	}
 
 	mutex_init(&dev->lock);
 
@@ -846,6 +1061,7 @@ static void dump_custom_dev_config(struct pci_dev *pdev,
 				 dev->config.attr_); \
 	} while (0)
 
+	PRI_CUSTOM_ATTR("%llx", gt_types_allowed);
 	PRI_CUSTOM_ATTR("%llx", engines_allowed);
 	PRI_CUSTOM_ATTR("%d", enable_psmi);
 	PRI_CUSTOM_ATTR("%d", survivability_mode);
@@ -894,6 +1110,44 @@ bool xe_configfs_get_survivability_mode(struct pci_dev *pdev)
 	config_group_put(&dev->group);
 
 	return mode;
+}
+
+static u64 get_gt_types_allowed(struct pci_dev *pdev)
+{
+	struct xe_config_group_device *dev = find_xe_config_group_device(pdev);
+	u64 mask;
+
+	if (!dev)
+		return device_defaults.gt_types_allowed;
+
+	mask = dev->config.gt_types_allowed;
+	config_group_put(&dev->group);
+
+	return mask;
+}
+
+/**
+ * xe_configfs_primary_gt_allowed - determine whether primary GTs are supported
+ * @pdev: pci device
+ *
+ * Return: True if primary GTs are enabled, false if they have been disabled via
+ *     configfs.
+ */
+bool xe_configfs_primary_gt_allowed(struct pci_dev *pdev)
+{
+	return get_gt_types_allowed(pdev) & BIT_ULL(XE_GT_TYPE_MAIN);
+}
+
+/**
+ * xe_configfs_media_gt_allowed - determine whether media GTs are supported
+ * @pdev: pci device
+ *
+ * Return: True if the media GTs are enabled, false if they have been disabled
+ *     via configfs.
+ */
+bool xe_configfs_media_gt_allowed(struct pci_dev *pdev)
+{
+	return get_gt_types_allowed(pdev) & BIT_ULL(XE_GT_TYPE_MEDIA);
 }
 
 /**
@@ -987,6 +1241,34 @@ u32 xe_configfs_get_ctx_restore_post_bb(struct pci_dev *pdev,
 
 	return len;
 }
+
+#ifdef CONFIG_PCI_IOV
+/**
+ * xe_configfs_get_max_vfs() - Get number of VFs that could be managed
+ * @pdev: the &pci_dev device
+ *
+ * Find the configfs group that belongs to the PCI device and return maximum
+ * number of Virtual Functions (VFs) that could be managed by this device.
+ * If configfs group is not present, use value of max_vfs module parameter.
+ *
+ * Return: maximum number of VFs that could be managed.
+ */
+unsigned int xe_configfs_get_max_vfs(struct pci_dev *pdev)
+{
+	struct xe_config_group_device *dev = find_xe_config_group_device(pdev);
+	unsigned int max_vfs;
+
+	if (!dev)
+		return xe_modparam.max_vfs;
+
+	scoped_guard(mutex, &dev->lock)
+		max_vfs = dev->config.sriov.max_vfs;
+
+	config_group_put(&dev->group);
+
+	return max_vfs;
+}
+#endif
 
 int __init xe_configfs_init(void)
 {

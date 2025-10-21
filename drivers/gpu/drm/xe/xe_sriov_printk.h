@@ -1,22 +1,22 @@
 /* SPDX-License-Identifier: MIT */
 /*
- * Copyright © 2023 Intel Corporation
+ * Copyright © 2023-2025 Intel Corporation
  */
 
 #ifndef _XE_SRIOV_PRINTK_H_
 #define _XE_SRIOV_PRINTK_H_
 
-#include <drm/drm_print.h>
-
-#include "xe_device_types.h"
-#include "xe_sriov_types.h"
+#include "xe_printk.h"
 
 #define xe_sriov_printk_prefix(xe) \
 	((xe)->sriov.__mode == XE_SRIOV_MODE_PF ? "PF: " : \
 	 (xe)->sriov.__mode == XE_SRIOV_MODE_VF ? "VF: " : "")
 
+#define __XE_SRIOV_PRINTK_FMT(_xe, _fmt, _args...)	\
+	"%s" _fmt, xe_sriov_printk_prefix(_xe), ##_args
+
 #define xe_sriov_printk(xe, _level, fmt, ...) \
-	drm_##_level(&(xe)->drm, "%s" fmt, xe_sriov_printk_prefix(xe), ##__VA_ARGS__)
+	xe_##_level((xe), __XE_SRIOV_PRINTK_FMT((xe), fmt, ##__VA_ARGS__))
 
 #define xe_sriov_err(xe, fmt, ...) \
 	xe_sriov_printk((xe), err, fmt, ##__VA_ARGS__)

@@ -18,6 +18,7 @@
 #include "xe_gt_sriov_printk.h"
 #include "xe_guc_ct.h"
 #include "xe_sriov.h"
+#include "xe_sriov_pf_control.h"
 #include "xe_sriov_pf_service.h"
 #include "xe_tile.h"
 
@@ -170,6 +171,7 @@ static const char *control_bit_to_string(enum xe_gt_sriov_control_bits bit)
 	CASE2STR(FLR_SEND_START);
 	CASE2STR(FLR_WAIT_GUC);
 	CASE2STR(FLR_GUC_DONE);
+	CASE2STR(FLR_SYNC);
 	CASE2STR(FLR_RESET_CONFIG);
 	CASE2STR(FLR_RESET_DATA);
 	CASE2STR(FLR_RESET_MMIO);
@@ -271,12 +273,19 @@ static bool pf_expect_vf_not_state(struct xe_gt *gt, unsigned int vfid,
 	return result;
 }
 
+static void pf_track_vf_state(struct xe_gt *gt, unsigned int vfid,
+			      enum xe_gt_sriov_control_bits bit,
+			      const char *what)
+{
+	xe_gt_sriov_dbg_verbose(gt, "VF%u state %s(%d) %s\n",
+				vfid, control_bit_to_string(bit), bit, what);
+}
+
 static bool pf_enter_vf_state(struct xe_gt *gt, unsigned int vfid,
 			      enum xe_gt_sriov_control_bits bit)
 {
 	if (!test_and_set_bit(bit, pf_peek_vf_state(gt, vfid))) {
-		xe_gt_sriov_dbg_verbose(gt, "VF%u state %s(%d) enter\n",
-					vfid, control_bit_to_string(bit), bit);
+		pf_track_vf_state(gt, vfid, bit, "enter");
 		return true;
 	}
 	return false;
@@ -286,8 +295,7 @@ static bool pf_exit_vf_state(struct xe_gt *gt, unsigned int vfid,
 			     enum xe_gt_sriov_control_bits bit)
 {
 	if (test_and_clear_bit(bit, pf_peek_vf_state(gt, vfid))) {
-		xe_gt_sriov_dbg_verbose(gt, "VF%u state %s(%d) exit\n",
-					vfid, control_bit_to_string(bit), bit);
+		pf_track_vf_state(gt, vfid, bit, "exit");
 		return true;
 	}
 	return false;
@@ -616,7 +624,7 @@ int xe_gt_sriov_pf_control_pause_vf(struct xe_gt *gt, unsigned int vfid)
 	}
 
 	if (pf_expect_vf_state(gt, vfid, XE_GT_SRIOV_STATE_PAUSED)) {
-		xe_gt_sriov_info(gt, "VF%u paused!\n", vfid);
+		xe_gt_sriov_dbg(gt, "VF%u paused!\n", vfid);
 		return 0;
 	}
 
@@ -755,7 +763,7 @@ int xe_gt_sriov_pf_control_resume_vf(struct xe_gt *gt, unsigned int vfid)
 		return err;
 
 	if (pf_expect_vf_state(gt, vfid, XE_GT_SRIOV_STATE_RESUMED)) {
-		xe_gt_sriov_info(gt, "VF%u resumed!\n", vfid);
+		xe_gt_sriov_dbg(gt, "VF%u resumed!\n", vfid);
 		return 0;
 	}
 
@@ -896,7 +904,7 @@ int xe_gt_sriov_pf_control_stop_vf(struct xe_gt *gt, unsigned int vfid)
 		return err;
 
 	if (pf_expect_vf_state(gt, vfid, XE_GT_SRIOV_STATE_STOPPED)) {
-		xe_gt_sriov_info(gt, "VF%u stopped!\n", vfid);
+		xe_gt_sriov_dbg(gt, "VF%u stopped!\n", vfid);
 		return 0;
 	}
 
@@ -933,6 +941,10 @@ int xe_gt_sriov_pf_control_stop_vf(struct xe_gt *gt, unsigned int vfid)
  *	:        |                                      :        |           |
  *	:        v                                      :        |           |
  *	:       FLR_GUC_DONE                            :        |           |
+ *	:        |                                      :        |           |
+ *	:        | o--<--sync                           :        |           |
+ *	:        |/        /                            :        |           |
+ *	:       FLR_SYNC--o                             :        |           |
  *	:        |                                      :        |           |
  *	:       FLR_RESET_CONFIG---failed--->-----------o--------+-----------o
  *	:        |                                      :        |           |
@@ -1141,12 +1153,38 @@ static bool pf_exit_vf_flr_send_start(struct xe_gt *gt, unsigned int vfid)
 	return true;
 }
 
+static bool pf_exit_vf_flr_sync(struct xe_gt *gt, unsigned int vfid)
+{
+	if (!pf_exit_vf_state(gt, vfid, XE_GT_SRIOV_STATE_FLR_SYNC))
+		return false;
+
+	pf_enter_vf_flr_reset_config(gt, vfid);
+	return true;
+}
+
+static void pf_enter_vf_flr_sync(struct xe_gt *gt, unsigned int vfid)
+{
+	int ret;
+
+	if (!pf_enter_vf_state(gt, vfid, XE_GT_SRIOV_STATE_FLR_SYNC))
+		pf_enter_vf_state_machine_bug(gt, vfid);
+
+	ret = xe_sriov_pf_control_sync_flr(gt_to_xe(gt), vfid);
+	if (ret < 0) {
+		xe_gt_sriov_dbg_verbose(gt, "FLR checkpoint %pe\n", ERR_PTR(ret));
+		pf_expect_vf_state(gt, vfid, XE_GT_SRIOV_STATE_FLR_SYNC);
+	} else {
+		xe_gt_sriov_dbg_verbose(gt, "FLR checkpoint pass\n");
+		pf_expect_vf_not_state(gt, vfid, XE_GT_SRIOV_STATE_FLR_SYNC);
+	}
+}
+
 static bool pf_exit_vf_flr_guc_done(struct xe_gt *gt, unsigned int vfid)
 {
 	if (!pf_exit_vf_state(gt, vfid, XE_GT_SRIOV_STATE_FLR_GUC_DONE))
 		return false;
 
-	pf_enter_vf_flr_reset_config(gt, vfid);
+	pf_enter_vf_flr_sync(gt, vfid);
 	return true;
 }
 
@@ -1167,10 +1205,52 @@ static void pf_enter_vf_flr_guc_done(struct xe_gt *gt, unsigned int vfid)
  */
 int xe_gt_sriov_pf_control_trigger_flr(struct xe_gt *gt, unsigned int vfid)
 {
+	pf_enter_vf_flr_wip(gt, vfid);
+
+	return 0;
+}
+
+/**
+ * xe_gt_sriov_pf_control_sync_flr() - Synchronize on the VF FLR checkpoint.
+ * @gt: the &xe_gt
+ * @vfid: the VF identifier
+ * @sync: if true it will allow to exit the checkpoint
+ *
+ * Return: non-zero if FLR checkpoint has been reached, zero if the is no FLR
+ *         in progress, or a negative error code on the FLR busy or failed.
+ */
+int xe_gt_sriov_pf_control_sync_flr(struct xe_gt *gt, unsigned int vfid, bool sync)
+{
+	if (sync && pf_exit_vf_flr_sync(gt, vfid))
+		return 1;
+	if (pf_check_vf_state(gt, vfid, XE_GT_SRIOV_STATE_FLR_SYNC))
+		return 1;
+	if (pf_check_vf_state(gt, vfid, XE_GT_SRIOV_STATE_FLR_WIP))
+		return -EBUSY;
+	if (pf_check_vf_state(gt, vfid, XE_GT_SRIOV_STATE_FLR_FAILED))
+		return -EIO;
+	return 0;
+}
+
+/**
+ * xe_gt_sriov_pf_control_wait_flr() - Wait for a VF FLR to complete.
+ * @gt: the &xe_gt
+ * @vfid: the VF identifier
+ *
+ * This function is for PF only.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_gt_sriov_pf_control_wait_flr(struct xe_gt *gt, unsigned int vfid)
+{
 	unsigned long timeout = pf_get_default_timeout(XE_GT_SRIOV_STATE_FLR_WIP);
 	int err;
 
-	pf_enter_vf_flr_wip(gt, vfid);
+	if (pf_check_vf_state(gt, vfid, XE_GT_SRIOV_STATE_FLR_FAILED))
+		return -EIO;
+
+	if (!pf_check_vf_state(gt, vfid, XE_GT_SRIOV_STATE_FLR_WIP))
+		return 0;
 
 	err = pf_wait_vf_wip_done(gt, vfid, timeout);
 	if (err) {
