@@ -8,6 +8,7 @@
  * I2C address is either 0x0b or 0x0a depending on CSB (pin 10)
  */
 
+#include <linux/bitfield.h>
 #include <linux/i2c.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
@@ -16,16 +17,27 @@
 
 #include "bma220.h"
 
+static int bma220_set_wdt(struct regmap *regmap, const u8 val)
+{
+	return regmap_update_bits(regmap, BMA220_REG_WDT, BMA220_WDT_MASK,
+				  FIELD_PREP(BMA220_WDT_MASK, val));
+}
+
 static int bma220_i2c_probe(struct i2c_client *client)
 {
 	struct regmap *regmap;
+	int ret;
 
 	regmap = devm_regmap_init_i2c(client, &bma220_i2c_regmap_config);
 	if (IS_ERR(regmap))
 		return dev_err_probe(&client->dev, PTR_ERR(regmap),
 				     "failed to create regmap\n");
 
-	return bma220_common_probe(&client->dev, regmap, client->irq);
+	ret = bma220_common_probe(&client->dev, regmap, client->irq);
+	if (ret)
+		return ret;
+
+	return bma220_set_wdt(regmap, BMA220_WDT_1MS);
 }
 
 static const struct of_device_id bma220_i2c_match[] = {

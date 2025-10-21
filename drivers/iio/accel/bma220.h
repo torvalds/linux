@@ -11,6 +11,12 @@
 #include <linux/pm.h>
 #include <linux/regmap.h>
 
+#define BMA220_REG_WDT				0x17
+#define BMA220_WDT_MASK				GENMASK(2, 1)
+#define BMA220_WDT_OFF				0x0
+#define BMA220_WDT_1MS				0x2
+#define BMA220_WDT_10MS				0x3
+
 struct device;
 
 extern const struct regmap_config bma220_i2c_regmap_config;
