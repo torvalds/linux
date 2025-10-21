@@ -276,7 +276,7 @@ static int gswip_pce_table_entry_read(struct gswip_priv *priv,
 	regmap_write_bits(priv->gswip, GSWIP_PCE_TBL_CTRL,
 			  GSWIP_PCE_TBL_CTRL_ADDR_MASK |
 			  GSWIP_PCE_TBL_CTRL_OPMOD_MASK |
-			  tbl->table | addr_mode | GSWIP_PCE_TBL_CTRL_BAS,
+			  GSWIP_PCE_TBL_CTRL_BAS,
 			  tbl->table | addr_mode | GSWIP_PCE_TBL_CTRL_BAS);
 
 	err = gswip_switch_r_timeout(priv, GSWIP_PCE_TBL_CTRL,
@@ -337,8 +337,7 @@ static int gswip_pce_table_entry_write(struct gswip_priv *priv,
 	regmap_write(priv->gswip, GSWIP_PCE_TBL_ADDR, tbl->index);
 	regmap_write_bits(priv->gswip, GSWIP_PCE_TBL_CTRL,
 			  GSWIP_PCE_TBL_CTRL_ADDR_MASK |
-			  GSWIP_PCE_TBL_CTRL_OPMOD_MASK |
-			  tbl->table | addr_mode,
+			  GSWIP_PCE_TBL_CTRL_OPMOD_MASK,
 			  tbl->table | addr_mode);
 
 	for (i = 0; i < ARRAY_SIZE(tbl->key); i++)
@@ -349,8 +348,7 @@ static int gswip_pce_table_entry_write(struct gswip_priv *priv,
 
 	regmap_write_bits(priv->gswip, GSWIP_PCE_TBL_CTRL,
 			  GSWIP_PCE_TBL_CTRL_ADDR_MASK |
-			  GSWIP_PCE_TBL_CTRL_OPMOD_MASK |
-			  tbl->table | addr_mode,
+			  GSWIP_PCE_TBL_CTRL_OPMOD_MASK,
 			  tbl->table | addr_mode);
 
 	regmap_write(priv->gswip, GSWIP_PCE_TBL_MASK, tbl->mask);
@@ -439,7 +437,7 @@ static int gswip_port_enable(struct dsa_switch *ds, int port,
 			mdio_phy = phydev->mdio.addr & GSWIP_MDIO_PHY_ADDR_MASK;
 
 		regmap_write_bits(priv->mdio, GSWIP_MDIO_PHYp(port),
-				  GSWIP_MDIO_PHY_ADDR_MASK | mdio_phy,
+				  GSWIP_MDIO_PHY_ADDR_MASK,
 				  mdio_phy);
 	}
 
@@ -542,8 +540,7 @@ static void gswip_port_commit_pvid(struct gswip_priv *priv, int port)
 
 	vinr = idx ? GSWIP_PCE_VCTRL_VINR_ALL : GSWIP_PCE_VCTRL_VINR_TAGGED;
 	regmap_write_bits(priv->gswip, GSWIP_PCE_VCTRL(port),
-			  GSWIP_PCE_VCTRL_VINR |
-			  FIELD_PREP(GSWIP_PCE_VCTRL_VINR, vinr),
+			  GSWIP_PCE_VCTRL_VINR,
 			  FIELD_PREP(GSWIP_PCE_VCTRL_VINR, vinr));
 
 	/* Note that in GSWIP 2.2 VLAN mode the VID needs to be programmed
@@ -642,7 +639,7 @@ static int gswip_setup(struct dsa_switch *ds)
 	regmap_write(priv->mdio, GSWIP_MDIO_MDC_CFG0, 0x0);
 
 	/* Configure the MDIO Clock 2.5 MHz */
-	regmap_write_bits(priv->mdio, GSWIP_MDIO_MDC_CFG1, 0xff | 0x09, 0x09);
+	regmap_write_bits(priv->mdio, GSWIP_MDIO_MDC_CFG1, 0xff, 0x09);
 
 	/* bring up the mdio bus */
 	err = gswip_mdio(priv);
@@ -1084,7 +1081,7 @@ static void gswip_port_stp_state_set(struct dsa_switch *ds, int port, u8 state)
 	regmap_set_bits(priv->gswip, GSWIP_SDMA_PCTRLp(port),
 			GSWIP_SDMA_PCTRL_EN);
 	regmap_write_bits(priv->gswip, GSWIP_PCE_PCTRL_0p(port),
-			  GSWIP_PCE_PCTRL_0_PSTATE_MASK | stp_state,
+			  GSWIP_PCE_PCTRL_0_PSTATE_MASK,
 			  stp_state);
 }
 
@@ -1315,7 +1312,7 @@ static void gswip_port_set_link(struct gswip_priv *priv, int port, bool link)
 		mdio_phy = GSWIP_MDIO_PHY_LINK_DOWN;
 
 	regmap_write_bits(priv->mdio, GSWIP_MDIO_PHYp(port),
-			  GSWIP_MDIO_PHY_LINK_MASK | mdio_phy, mdio_phy);
+			  GSWIP_MDIO_PHY_LINK_MASK, mdio_phy);
 }
 
 static void gswip_port_set_speed(struct gswip_priv *priv, int port, int speed,
@@ -1356,10 +1353,10 @@ static void gswip_port_set_speed(struct gswip_priv *priv, int port, int speed,
 	}
 
 	regmap_write_bits(priv->mdio, GSWIP_MDIO_PHYp(port),
-			  GSWIP_MDIO_PHY_SPEED_MASK | mdio_phy, mdio_phy);
+			  GSWIP_MDIO_PHY_SPEED_MASK, mdio_phy);
 	gswip_mii_mask_cfg(priv, GSWIP_MII_CFG_RATE_MASK, mii_cfg, port);
 	regmap_write_bits(priv->gswip, GSWIP_MAC_CTRL_0p(port),
-			  GSWIP_MAC_CTRL_0_GMII_MASK | mac_ctrl_0, mac_ctrl_0);
+			  GSWIP_MAC_CTRL_0_GMII_MASK, mac_ctrl_0);
 }
 
 static void gswip_port_set_duplex(struct gswip_priv *priv, int port, int duplex)
@@ -1375,9 +1372,9 @@ static void gswip_port_set_duplex(struct gswip_priv *priv, int port, int duplex)
 	}
 
 	regmap_write_bits(priv->gswip, GSWIP_MAC_CTRL_0p(port),
-			  GSWIP_MAC_CTRL_0_FDUP_MASK | mac_ctrl_0, mac_ctrl_0);
+			  GSWIP_MAC_CTRL_0_FDUP_MASK, mac_ctrl_0);
 	regmap_write_bits(priv->mdio, GSWIP_MDIO_PHYp(port),
-			  GSWIP_MDIO_PHY_FDUP_MASK | mdio_phy, mdio_phy);
+			  GSWIP_MDIO_PHY_FDUP_MASK, mdio_phy);
 }
 
 static void gswip_port_set_pause(struct gswip_priv *priv, int port,
@@ -1404,9 +1401,9 @@ static void gswip_port_set_pause(struct gswip_priv *priv, int port,
 	}
 
 	regmap_write_bits(priv->gswip, GSWIP_MAC_CTRL_0p(port),
-			  GSWIP_MAC_CTRL_0_FCON_MASK | mac_ctrl_0, mac_ctrl_0);
+			  GSWIP_MAC_CTRL_0_FCON_MASK, mac_ctrl_0);
 	regmap_write_bits(priv->mdio, GSWIP_MDIO_PHYp(port),
-			  GSWIP_MDIO_PHY_FCONTX_MASK | GSWIP_MDIO_PHY_FCONRX_MASK | mdio_phy,
+			  GSWIP_MDIO_PHY_FCONTX_MASK | GSWIP_MDIO_PHY_FCONRX_MASK,
 			  mdio_phy);
 }
 
@@ -1528,7 +1525,7 @@ static u32 gswip_bcm_ram_entry_read(struct gswip_priv *priv, u32 table,
 	regmap_write(priv->gswip, GSWIP_BM_RAM_ADDR, index);
 	regmap_write_bits(priv->gswip, GSWIP_BM_RAM_CTRL,
 			  GSWIP_BM_RAM_CTRL_ADDR_MASK | GSWIP_BM_RAM_CTRL_OPMOD |
-			  table | GSWIP_BM_RAM_CTRL_BAS,
+			  GSWIP_BM_RAM_CTRL_BAS,
 			  table | GSWIP_BM_RAM_CTRL_BAS);
 
 	err = gswip_switch_r_timeout(priv, GSWIP_BM_RAM_CTRL,
