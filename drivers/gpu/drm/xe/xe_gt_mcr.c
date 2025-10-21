@@ -268,13 +268,8 @@ static const struct xe_mmio_range xe3p_xpc_gam_grp1_steering_table[] = {
 	{},
 };
 
-static const struct xe_mmio_range xe3p_xpc_psmi_grp19_steering_table[] = {
-	{ 0x00B500, 0x00B5FF },
-	{},
-};
-
 static const struct xe_mmio_range xe3p_xpc_instance0_steering_table[] = {
-	{ 0x00B600, 0x00B6FF },		/* PSMI0 */
+	{ 0x00B500, 0x00B6FF },		/* PSMI */
 	{ 0x00C800, 0x00CFFF },		/* GAMCTRL */
 	{ 0x00F000, 0x00F0FF },		/* GAMCTRL */
 	{},
@@ -452,12 +447,6 @@ static void init_steering_sqidi_psmi(struct xe_gt *gt)
 	gt->steering[SQIDI_PSMI].instance_target = select & 0x1;
 }
 
-static void init_steering_psmi(struct xe_gt *gt)
-{
-	gt->steering[PSMI19].group_target = 19;
-	gt->steering[PSMI19].instance_target = 0;
-}
-
 static void init_steering_gam1(struct xe_gt *gt)
 {
 	gt->steering[GAM1].group_target = 1;
@@ -474,7 +463,6 @@ static const struct {
 	[DSS] =		{ "DSS / XeCore", init_steering_dss },
 	[OADDRM] =	{ "OADDRM / GPMXMT", init_steering_oaddrm },
 	[SQIDI_PSMI] =  { "SQIDI_PSMI", init_steering_sqidi_psmi },
-	[PSMI19] =	{ "PSMI[19]",	init_steering_psmi },
 	[GAM1] =	{ "GAMWKRS / STLB / GAMREQSTRM", init_steering_gam1 },
 	[INSTANCE0] =	{ "INSTANCE 0",	NULL },
 	[IMPLICIT_STEERING] = { "IMPLICIT", NULL },
@@ -524,7 +512,6 @@ void xe_gt_mcr_init_early(struct xe_gt *gt)
 			gt->steering[DSS].ranges = xe3p_xpc_xecore_steering_table;
 			gt->steering[GAM1].ranges = xe3p_xpc_gam_grp1_steering_table;
 			gt->steering[INSTANCE0].ranges = xe3p_xpc_instance0_steering_table;
-			gt->steering[PSMI19].ranges = xe3p_xpc_psmi_grp19_steering_table;
 		} else if (GRAPHICS_VER(xe) >= 20) {
 			gt->steering[DSS].ranges = xe2lpg_dss_steering_table;
 			gt->steering[SQIDI_PSMI].ranges = xe2lpg_sqidi_psmi_steering_table;
