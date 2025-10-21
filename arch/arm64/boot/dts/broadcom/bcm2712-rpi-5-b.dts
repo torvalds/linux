@@ -23,6 +23,10 @@
 };
 
 &rp1_eth {
+	assigned-clocks = <&rp1_clocks RP1_CLK_ETH_TSU>,
+			  <&rp1_clocks RP1_CLK_ETH>;
+	assigned-clock-rates = <50000000>,
+			       <125000000>;
 	status = "okay";
 	phy-mode = "rgmii-id";
 	phy-handle = <&phy1>;
