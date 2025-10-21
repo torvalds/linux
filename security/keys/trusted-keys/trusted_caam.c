@@ -29,12 +29,12 @@ static const match_table_t key_tokens = {
 };
 
 #ifdef CAAM_DEBUG
-static inline void dump_options(struct caam_pkey_info pkey_info)
+static inline void dump_options(const struct caam_pkey_info *pkey_info)
 {
-	pr_info("key encryption algo %d\n", pkey_info.key_enc_algo);
+	pr_info("key encryption algo %d\n", pkey_info->key_enc_algo);
 }
 #else
-static inline void dump_options(struct caam_pkey_info pkey_info)
+static inline void dump_options(const struct caam_pkey_info *pkey_info)
 {
 }
 #endif
@@ -108,7 +108,7 @@ static int trusted_caam_seal(struct trusted_key_payload *p, char *datablob)
 		ret = get_pkey_options(datablob, &info.pkey_info);
 		if (ret < 0)
 			return 0;
-		dump_options(info.pkey_info);
+		dump_options(&info.pkey_info);
 	}
 
 	ret = caam_encap_blob(blobifier, &info);
@@ -140,7 +140,7 @@ static int trusted_caam_unseal(struct trusted_key_payload *p, char *datablob)
 		ret = get_pkey_options(datablob, &info.pkey_info);
 		if (ret < 0)
 			return 0;
-		dump_options(info.pkey_info);
+		dump_options(&info.pkey_info);
 
 		p->key_len = p->blob_len + sizeof(struct caam_pkey_info);
 		memcpy(p->key, &info.pkey_info, sizeof(struct caam_pkey_info));
