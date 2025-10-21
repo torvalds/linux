@@ -29,6 +29,7 @@ properties:
       - adi,ad4081
       - adi,ad4083
       - adi,ad4084
+      - adi,ad4086
 
   reg:
     maxItems: 1
