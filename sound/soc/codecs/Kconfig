@@ -899,6 +899,21 @@ config SND_SOC_CS35L56_SDW
 config SND_SOC_CS35L56_CAL_DEBUGFS_COMMON
 	bool
 
+menu "CS35L56 driver options"
+	depends on SND_SOC_CS35L56
+
+config SND_SOC_CS35L56_CAL_DEBUGFS
+	bool "CS35L56 create debugfs for factory calibration"
+	default N
+	depends on DEBUG_FS
+	select SND_SOC_CS35L56_CAL_DEBUGFS_COMMON
+	help
+	  Create debugfs entries used during factory-line manufacture
+	  for factory calibration.
+
+	  If unsure select "N".
+endmenu
+
 config SND_SOC_CS40L50
 	tristate "Cirrus Logic CS40L50 CODEC"
 	depends on MFD_CS40L50_CORE
