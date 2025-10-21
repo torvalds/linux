@@ -38,16 +38,30 @@ typedef unsigned int ap_qid_t;
  * The ap queue status word is returned by all three AP functions
  * (PQAP, NQAP and DQAP).  There's a set of flags in the first
  * byte, followed by a 1 byte response code.
+ *
+ * For convenience the 'value' field is a 32 bit access of the
+ * whole status and the 'status_bits' and 'rc' fields comprise
+ * the leftmost 8 status bits and the response_code.
  */
 struct ap_queue_status {
-	unsigned int queue_empty	: 1;
-	unsigned int replies_waiting	: 1;
-	unsigned int queue_full		: 1;
-	unsigned int			: 3;
-	unsigned int async		: 1;
-	unsigned int irq_enabled	: 1;
-	unsigned int response_code	: 8;
-	unsigned int			: 16;
+	union {
+		unsigned int value			: 32;
+		struct {
+			unsigned int status_bits	: 8;
+			unsigned int rc			: 8;
+			unsigned int			: 16;
+		};
+		struct {
+			unsigned int queue_empty	: 1;
+			unsigned int replies_waiting	: 1;
+			unsigned int queue_full		: 1;
+			unsigned int			: 3;
+			unsigned int async		: 1;
+			unsigned int irq_enabled	: 1;
+			unsigned int response_code	: 8;
+			unsigned int			: 16;
+		};
+	};
 };
 
 /*

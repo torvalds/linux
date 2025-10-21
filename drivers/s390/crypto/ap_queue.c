@@ -14,8 +14,14 @@
 #include <linux/slab.h>
 #include <asm/facility.h>
 
+#define CREATE_TRACE_POINTS
+#include <asm/trace/ap.h>
+
 #include "ap_bus.h"
 #include "ap_debug.h"
+
+EXPORT_TRACEPOINT_SYMBOL(s390_ap_nqap);
+EXPORT_TRACEPOINT_SYMBOL(s390_ap_dqap);
 
 static void __ap_flush_queue(struct ap_queue *aq);
 
@@ -98,9 +104,17 @@ static inline struct ap_queue_status
 __ap_send(ap_qid_t qid, unsigned long psmid, void *msg, size_t msglen,
 	  int special)
 {
+	struct ap_queue_status status;
+
 	if (special)
 		qid |= 0x400000UL;
-	return ap_nqap(qid, psmid, msg, msglen);
+
+	status = ap_nqap(qid, psmid, msg, msglen);
+
+	trace_s390_ap_nqap(AP_QID_CARD(qid), AP_QID_QUEUE(qid),
+			   status.value, psmid);
+
+	return status;
 }
 
 /* State machine definitions and helpers */
@@ -139,6 +153,9 @@ static struct ap_queue_status ap_sm_recv(struct ap_queue *aq)
 				 &aq->reply->len, &reslen, &resgr0);
 		parts++;
 	} while (status.response_code == 0xFF && resgr0 != 0);
+
+	trace_s390_ap_dqap(AP_QID_CARD(aq->qid), AP_QID_QUEUE(aq->qid),
+			   status.value, aq->reply->psmid);
 
 	switch (status.response_code) {
 	case AP_RESPONSE_NORMAL:
