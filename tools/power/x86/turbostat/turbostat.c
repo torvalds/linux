@@ -209,6 +209,8 @@ struct msr_counter bic[] = {
 	{ 0x0, "NMI", NULL, 0, 0, 0, NULL, 0 },
 	{ 0x0, "CPU%c1e", NULL, 0, 0, 0, NULL, 0 },
 	{ 0x0, "pct_idle", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "LLCkRPS", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "LLC%hit", NULL, 0, 0, 0, NULL, 0 },
 };
 
 /* n.b. bic_names must match the order in bic[], above */
@@ -278,6 +280,8 @@ enum bic_names {
 	BIC_NMI,
 	BIC_CPU_c1e,
 	BIC_pct_idle,
+	BIC_LLC_RPS,
+	BIC_LLC_HIT,
 	MAX_BIC
 };
 
@@ -305,6 +309,7 @@ static cpu_set_t bic_group_frequency;
 static cpu_set_t bic_group_hw_idle;
 static cpu_set_t bic_group_sw_idle;
 static cpu_set_t bic_group_idle;
+static cpu_set_t bic_group_cache;
 static cpu_set_t bic_group_other;
 static cpu_set_t bic_group_disabled_by_default;
 static cpu_set_t bic_enabled;
@@ -413,8 +418,13 @@ static void bic_groups_init(void)
 	SET_BIC(BIC_pct_idle, &bic_group_sw_idle);
 
 	BIC_INIT(&bic_group_idle);
+
 	CPU_OR(&bic_group_idle, &bic_group_idle, &bic_group_hw_idle);
 	SET_BIC(BIC_pct_idle, &bic_group_idle);
+
+	BIC_INIT(&bic_group_cache);
+	SET_BIC(BIC_LLC_RPS, &bic_group_cache);
+	SET_BIC(BIC_LLC_HIT, &bic_group_cache);
 
 	BIC_INIT(&bic_group_other);
 	SET_BIC(BIC_IRQ, &bic_group_other);
@@ -470,6 +480,7 @@ char *proc_stat = "/proc/stat";
 FILE *outf;
 int *fd_percpu;
 int *fd_instr_count_percpu;
+int *fd_llc_percpu;
 struct timeval interval_tv = { 5, 0 };
 struct timespec interval_ts = { 5, 0 };
 
@@ -1992,6 +2003,10 @@ void pmt_counter_resize(struct pmt_counter *pcounter, unsigned int new_size)
 	pmt_counter_resize_(pcounter, new_size);
 }
 
+struct llc_stats {
+	unsigned long long references;
+	unsigned long long misses;
+};
 struct thread_data {
 	struct timeval tv_begin;
 	struct timeval tv_end;
@@ -2004,6 +2019,7 @@ struct thread_data {
 	unsigned long long irq_count;
 	unsigned long long nmi_count;
 	unsigned int smi_count;
+	struct llc_stats llc;
 	unsigned int cpu_id;
 	unsigned int apic_id;
 	unsigned int x2apic_id;
@@ -2363,23 +2379,19 @@ int for_all_cpus(int (func) (struct thread_data *, struct core_data *, struct pk
 	return retval;
 }
 
-int is_cpu_first_thread_in_core(PER_THREAD_PARAMS)
+int is_cpu_first_thread_in_core(struct thread_data *t, struct core_data *c)
 {
-	UNUSED(p);
-
 	return ((int)t->cpu_id == c->base_cpu || c->base_cpu < 0);
 }
 
-int is_cpu_first_core_in_package(PER_THREAD_PARAMS)
+int is_cpu_first_core_in_package(struct thread_data *t, struct pkg_data *p)
 {
-	UNUSED(c);
-
 	return ((int)t->cpu_id == p->base_cpu || p->base_cpu < 0);
 }
 
-int is_cpu_first_thread_in_package(PER_THREAD_PARAMS)
+int is_cpu_first_thread_in_package(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 {
-	return is_cpu_first_thread_in_core(t, c, p) && is_cpu_first_core_in_package(t, c, p);
+	return is_cpu_first_thread_in_core(t, c) && is_cpu_first_core_in_package(t, p);
 }
 
 int cpu_migrate(int cpu)
@@ -2657,6 +2669,12 @@ void bic_lookup(cpu_set_t *ret_set, char *name_list, enum show_hide_mode mode)
 			} else if (!strcmp(name_list, "idle")) {
 				CPU_OR(ret_set, ret_set, &bic_group_idle);
 				break;
+			} else if (!strcmp(name_list, "cache")) {
+				CPU_OR(ret_set, ret_set, &bic_group_cache);
+				break;
+			} else if (!strcmp(name_list, "llc")) {
+				CPU_OR(ret_set, ret_set, &bic_group_cache);
+				break;
 			} else if (!strcmp(name_list, "swidle")) {
 				CPU_OR(ret_set, ret_set, &bic_group_sw_idle);
 				break;
@@ -2794,6 +2812,12 @@ void print_header(char *delim)
 	if (DO_BIC(BIC_SMI))
 		outp += sprintf(outp, "%sSMI", (printed++ ? delim : ""));
 
+	if (DO_BIC(BIC_LLC_RPS))
+		outp += sprintf(outp, "%sLLCkRPS", (printed++ ? delim : ""));
+
+	if (DO_BIC(BIC_LLC_HIT))
+		outp += sprintf(outp, "%sLLC%%hit", (printed++ ? delim : ""));
+
 	for (mp = sys.tp; mp; mp = mp->next)
 		outp += print_name(mp->width, &printed, delim, mp->name);
 
@@ -2864,7 +2888,6 @@ void print_header(char *delim)
 
 		ppmt = ppmt->next;
 	}
-
 	if (DO_BIC(BIC_PkgTmp))
 		outp += sprintf(outp, "%sPkgTmp", (printed++ ? delim : ""));
 
@@ -3001,6 +3024,10 @@ int dump_counters(PER_THREAD_PARAMS)
 		if (DO_BIC(BIC_SMI))
 			outp += sprintf(outp, "SMI: %d\n", t->smi_count);
 
+		outp += sprintf(outp, "LLC refs: %lld", t->llc.references);
+		outp += sprintf(outp, "LLC miss: %lld", t->llc.misses);
+		outp += sprintf(outp, "LLC Hit%%: %.2f", 100.0 * (t->llc.references - t->llc.misses) / t->llc.references);
+
 		for (i = 0, mp = sys.tp; mp; i++, mp = mp->next) {
 			outp +=
 			    sprintf(outp, "tADDED [%d] %8s msr0x%x: %08llX %s\n", i, mp->name, mp->msr_num,
@@ -3008,7 +3035,7 @@ int dump_counters(PER_THREAD_PARAMS)
 		}
 	}
 
-	if (c && is_cpu_first_thread_in_core(t, c, p)) {
+	if (c && is_cpu_first_thread_in_core(t, c)) {
 		outp += sprintf(outp, "core: %d\n", c->core_id);
 		outp += sprintf(outp, "c3: %016llX\n", c->c3);
 		outp += sprintf(outp, "c6: %016llX\n", c->c6);
@@ -3030,7 +3057,7 @@ int dump_counters(PER_THREAD_PARAMS)
 		outp += sprintf(outp, "mc6_us: %016llX\n", c->mc6_us);
 	}
 
-	if (p && is_cpu_first_core_in_package(t, c, p)) {
+	if (p && is_cpu_first_core_in_package(t, p)) {
 		outp += sprintf(outp, "package: %d\n", p->package_id);
 
 		outp += sprintf(outp, "Weighted cores: %016llX\n", p->pkg_wtd_core_c0);
@@ -3088,6 +3115,26 @@ double rapl_counter_get_value(const struct rapl_counter *c, enum rapl_unit desir
 	return scaled;
 }
 
+void get_perf_llc_stats(int cpu, struct llc_stats *llc)
+{
+	struct read_format {
+		unsigned long long num_read;
+		struct llc_stats llc;
+	} r;
+	const ssize_t expected_read_size = sizeof(r);
+	ssize_t actual_read_size;
+
+	actual_read_size = read(fd_llc_percpu[cpu], &r, expected_read_size);
+
+	if (actual_read_size == -1)
+		err(-1, "%s(cpu%d,) %d,,%ld\n", __func__, cpu, fd_llc_percpu[cpu], expected_read_size);
+
+	llc->references = r.llc.references;
+	llc->misses = r.llc.misses;
+	if (actual_read_size != expected_read_size)
+		warn("%s: failed to read perf_data (req %zu act %zu)", __func__, expected_read_size, actual_read_size);
+}
+
 /*
  * column formatting convention & formats
  */
@@ -3097,7 +3144,8 @@ int format_counters(PER_THREAD_PARAMS)
 
 	struct platform_counters *pplat_cnt = NULL;
 	double interval_float, tsc;
-	char *fmt8;
+	char *fmt8 = "%s%.2f";
+
 	int i;
 	struct msr_counter *mp;
 	struct perf_counter_info *pp;
@@ -3111,11 +3159,11 @@ int format_counters(PER_THREAD_PARAMS)
 	}
 
 	/* if showing only 1st thread in core and this isn't one, bail out */
-	if (show_core_only && !is_cpu_first_thread_in_core(t, c, p))
+	if (show_core_only && !is_cpu_first_thread_in_core(t, c))
 		return 0;
 
 	/* if showing only 1st thread in pkg and this isn't one, bail out */
-	if (show_pkg_only && !is_cpu_first_core_in_package(t, c, p))
+	if (show_pkg_only && !is_cpu_first_core_in_package(t, p))
 		return 0;
 
 	/*if not summary line and --cpu is used */
@@ -3237,6 +3285,16 @@ int format_counters(PER_THREAD_PARAMS)
 	if (DO_BIC(BIC_SMI))
 		outp += sprintf(outp, "%s%d", (printed++ ? delim : ""), t->smi_count);
 
+	/* LLC Stats */
+	if (DO_BIC(BIC_LLC_RPS) || DO_BIC(BIC_LLC_HIT)) {
+		if (DO_BIC(BIC_LLC_RPS))
+			outp += sprintf(outp, "%s%.0f", (printed++ ? delim : ""), t->llc.references / interval_float / 1000);
+
+		if (DO_BIC(BIC_LLC_HIT))
+			outp += sprintf(outp, fmt8, (printed++ ? delim : ""), 100.0 * (t->llc.references - t->llc.misses) / t->llc.references);
+	}
+
+
 	/* Added Thread Counters */
 	for (i = 0, mp = sys.tp; mp; i++, mp = mp->next) {
 		if (mp->format == FORMAT_RAW)
@@ -3290,7 +3348,7 @@ int format_counters(PER_THREAD_PARAMS)
 		outp += sprintf(outp, "%s%.2f", (printed++ ? delim : ""), 100.0 * t->c1 / tsc);
 
 	/* print per-core data only for 1st thread in core */
-	if (!is_cpu_first_thread_in_core(t, c, p))
+	if (!is_cpu_first_thread_in_core(t, c))
 		goto done;
 
 	if (DO_BIC(BIC_CPU_c3))
@@ -3351,8 +3409,6 @@ int format_counters(PER_THREAD_PARAMS)
 		}
 	}
 
-	fmt8 = "%s%.2f";
-
 	if (DO_BIC(BIC_CorWatt) && platform->has_per_core_rapl)
 		outp +=
 		    sprintf(outp, fmt8, (printed++ ? delim : ""),
@@ -3362,7 +3418,7 @@ int format_counters(PER_THREAD_PARAMS)
 				rapl_counter_get_value(&c->core_energy, RAPL_UNIT_JOULES, interval_float));
 
 	/* print per-package data only for 1st core in package */
-	if (!is_cpu_first_core_in_package(t, c, p))
+	if (!is_cpu_first_core_in_package(t, p))
 		goto done;
 
 	/* PkgTmp */
@@ -3808,6 +3864,12 @@ int delta_thread(struct thread_data *new, struct thread_data *old, struct core_d
 	if (DO_BIC(BIC_SMI))
 		old->smi_count = new->smi_count - old->smi_count;
 
+	if (DO_BIC(BIC_LLC_RPS))
+		old->llc.references = new->llc.references - old->llc.references;
+
+	if (DO_BIC(BIC_LLC_HIT))
+		old->llc.misses = new->llc.misses - old->llc.misses;
+
 	for (i = 0, mp = sys.tp; mp; i++, mp = mp->next) {
 		if (mp->format == FORMAT_RAW || mp->format == FORMAT_AVERAGE)
 			old->counter[i] = new->counter[i];
@@ -3838,14 +3900,14 @@ int delta_cpu(struct thread_data *t, struct core_data *c,
 	int retval = 0;
 
 	/* calculate core delta only for 1st thread in core */
-	if (is_cpu_first_thread_in_core(t, c, p))
+	if (is_cpu_first_thread_in_core(t, c))
 		delta_core(c, c2);
 
 	/* always calculate thread delta */
 	retval = delta_thread(t, t2, c2);	/* c2 is core delta */
 
 	/* calculate package delta only for 1st core in package */
-	if (is_cpu_first_core_in_package(t, c, p))
+	if (is_cpu_first_core_in_package(t, p))
 		retval |= delta_package(p, p2);
 
 	return retval;
@@ -3886,6 +3948,9 @@ void clear_counters(PER_THREAD_PARAMS)
 	t->nmi_count = 0;
 	t->smi_count = 0;
 
+	t->llc.references = 0;
+	t->llc.misses = 0;
+
 	c->c3 = 0;
 	c->c6 = 0;
 	c->c7 = 0;
@@ -3893,6 +3958,9 @@ void clear_counters(PER_THREAD_PARAMS)
 	c->core_temp_c = 0;
 	rapl_counter_clear(&c->core_energy);
 	c->core_throt_cnt = 0;
+
+	t->llc.references = 0;
+	t->llc.misses = 0;
 
 	p->pkg_wtd_core_c0 = 0;
 	p->pkg_any_core_c0 = 0;
@@ -3991,6 +4059,9 @@ int sum_counters(PER_THREAD_PARAMS)
 	average.threads.nmi_count += t->nmi_count;
 	average.threads.smi_count += t->smi_count;
 
+	average.threads.llc.references += t->llc.references;
+	average.threads.llc.misses += t->llc.misses;
+
 	for (i = 0, mp = sys.tp; mp; i++, mp = mp->next) {
 		if (mp->format == FORMAT_RAW)
 			continue;
@@ -4008,7 +4079,7 @@ int sum_counters(PER_THREAD_PARAMS)
 	}
 
 	/* sum per-core values only for 1st thread in core */
-	if (!is_cpu_first_thread_in_core(t, c, p))
+	if (!is_cpu_first_thread_in_core(t, c))
 		return 0;
 
 	average.cores.c3 += c->c3;
@@ -4038,7 +4109,7 @@ int sum_counters(PER_THREAD_PARAMS)
 	}
 
 	/* sum per-pkg values only for 1st core in pkg */
-	if (!is_cpu_first_core_in_package(t, c, p))
+	if (!is_cpu_first_core_in_package(t, p))
 		return 0;
 
 	if (DO_BIC(BIC_Totl_c0))
@@ -5009,6 +5080,9 @@ int get_counters(PER_THREAD_PARAMS)
 
 	get_smi_aperf_mperf(cpu, t);
 
+	if (DO_BIC(BIC_LLC_RPS) || DO_BIC(BIC_LLC_HIT))
+		get_perf_llc_stats(cpu, &t->llc);
+
 	if (DO_BIC(BIC_IPC))
 		if (read(get_instr_count_fd(cpu), &t->instr_count, sizeof(long long)) != sizeof(long long))
 			return -4;
@@ -5032,7 +5106,7 @@ int get_counters(PER_THREAD_PARAMS)
 		t->pmt_counter[i] = pmt_read_counter(pp, t->cpu_id);
 
 	/* collect core counters only for 1st thread in core */
-	if (!is_cpu_first_thread_in_core(t, c, p))
+	if (!is_cpu_first_thread_in_core(t, c))
 		goto done;
 
 	if (platform->has_per_core_rapl) {
@@ -5076,7 +5150,7 @@ int get_counters(PER_THREAD_PARAMS)
 		c->pmt_counter[i] = pmt_read_counter(pp, c->core_id);
 
 	/* collect package counters only for 1st core in package */
-	if (!is_cpu_first_core_in_package(t, c, p))
+	if (!is_cpu_first_core_in_package(t, p))
 		goto done;
 
 	if (DO_BIC(BIC_Totl_c0)) {
@@ -5631,6 +5705,20 @@ void free_fd_instr_count_percpu(void)
 	fd_instr_count_percpu = NULL;
 }
 
+void free_fd_llc_percpu(void)
+{
+	if (!fd_llc_percpu)
+		return;
+
+	for (int i = 0; i < topo.max_cpu_num + 1; ++i) {
+		if (fd_llc_percpu[i] != 0)
+			close(fd_llc_percpu[i]);
+	}
+
+	free(fd_llc_percpu);
+	fd_llc_percpu = NULL;
+}
+
 void free_fd_cstate(void)
 {
 	if (!ccstate_counter_info)
@@ -5755,6 +5843,7 @@ void free_all_buffers(void)
 
 	free_fd_percpu();
 	free_fd_instr_count_percpu();
+	free_fd_llc_percpu();
 	free_fd_msr();
 	free_fd_rapl_percpu();
 	free_fd_cstate();
@@ -6101,6 +6190,7 @@ void linux_perf_init(void);
 void msr_perf_init(void);
 void rapl_perf_init(void);
 void cstate_perf_init(void);
+void perf_llc_init(void);
 void added_perf_counters_init(void);
 void pmt_init(void);
 
@@ -6112,6 +6202,7 @@ void re_initialize(void)
 	msr_perf_init();
 	rapl_perf_init();
 	cstate_perf_init();
+	perf_llc_init();
 	added_perf_counters_init();
 	pmt_init();
 	fprintf(outf, "turbostat: re-initialized with num_cpus %d, allowed_cpus %d\n", topo.num_cpus,
@@ -7976,7 +8067,7 @@ int print_thermal(PER_THREAD_PARAMS)
 	cpu = t->cpu_id;
 
 	/* DTS is per-core, no need to print for each thread */
-	if (!is_cpu_first_thread_in_core(t, c, p))
+	if (!is_cpu_first_thread_in_core(t, c))
 		return 0;
 
 	if (cpu_migrate(cpu)) {
@@ -7984,7 +8075,7 @@ int print_thermal(PER_THREAD_PARAMS)
 		return -1;
 	}
 
-	if (do_ptm && is_cpu_first_core_in_package(t, c, p)) {
+	if (do_ptm && is_cpu_first_core_in_package(t, p)) {
 		if (get_msr(cpu, MSR_IA32_PACKAGE_THERM_STATUS, &msr))
 			return 0;
 
@@ -8262,6 +8353,11 @@ void linux_perf_init(void)
 		fd_instr_count_percpu = calloc(topo.max_cpu_num + 1, sizeof(int));
 		if (fd_instr_count_percpu == NULL)
 			err(-1, "calloc fd_instr_count_percpu");
+	}
+	if (BIC_IS_ENABLED(BIC_LLC_RPS)) {
+		fd_llc_percpu = calloc(topo.max_cpu_num + 1, sizeof(int));
+		if (fd_llc_percpu == NULL)
+			err(-1, "calloc fd_llc_percpu");
 	}
 }
 
@@ -8933,6 +9029,40 @@ void probe_pm_features(void)
 		decode_misc_feature_control();
 }
 
+void perf_llc_init(void)
+{
+	int cpu;
+	int retval;
+
+	if (no_perf)
+		return;
+	if (!(BIC_IS_ENABLED(BIC_LLC_RPS) && BIC_IS_ENABLED(BIC_LLC_HIT)))
+		return;
+
+	for (cpu = 0; cpu <= topo.max_cpu_num; ++cpu) {
+
+		if (cpu_is_not_allowed(cpu))
+			continue;
+
+		assert(fd_llc_percpu != 0);
+		fd_llc_percpu[cpu] = open_perf_counter(cpu, PERF_TYPE_HARDWARE, PERF_COUNT_HW_CACHE_REFERENCES, -1, PERF_FORMAT_GROUP);
+		if (fd_llc_percpu[cpu] == -1) {
+			warnx("%s: perf REFS: failed to open counter on cpu%d", __func__, cpu);
+			free_fd_llc_percpu();
+			return;
+		}
+		assert(fd_llc_percpu != 0);
+		retval = open_perf_counter(cpu, PERF_TYPE_HARDWARE, PERF_COUNT_HW_CACHE_MISSES, fd_llc_percpu[cpu], PERF_FORMAT_GROUP);
+		if (retval == -1) {
+			warnx("%s: perf MISS: failed to open counter on cpu%d", __func__, cpu);
+			free_fd_llc_percpu();
+			return;
+		}
+	}
+	BIC_PRESENT(BIC_LLC_RPS);
+	BIC_PRESENT(BIC_LLC_HIT);
+}
+
 /*
  * in /dev/cpu/ return success for names that are numbers
  * ie. filter out ".", "..", "microcode".
@@ -9239,6 +9369,7 @@ void init_counter(struct thread_data *thread_base, struct core_data *core_base, 
 
 	t->cpu_id = cpu_id;
 	if (!cpu_is_not_allowed(cpu_id)) {
+
 		if (c->base_cpu < 0)
 			c->base_cpu = t->cpu_id;
 		if (pkg_base[pkg_id].base_cpu < 0)
@@ -9909,6 +10040,7 @@ void turbostat_init()
 	linux_perf_init();
 	rapl_perf_init();
 	cstate_perf_init();
+	perf_llc_init();
 	added_perf_counters_init();
 	pmt_init();
 
@@ -10014,7 +10146,7 @@ int get_and_dump_counters(void)
 
 void print_version()
 {
-	fprintf(outf, "turbostat version 2025.10.18 - Len Brown <lenb@kernel.org>\n");
+	fprintf(outf, "turbostat version 2025.10.24 - Len Brown <lenb@kernel.org>\n");
 }
 
 #define COMMAND_LINE_SIZE 2048
