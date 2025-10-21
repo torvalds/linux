@@ -133,7 +133,12 @@ bool xe_sriov_vf_migration_supported(struct xe_device *xe)
 	return !xe->sriov.vf.migration.disabled;
 }
 
-static void vf_disable_migration(struct xe_device *xe, const char *fmt, ...)
+/**
+ * xe_sriov_vf_migration_disable - Turn off VF migration with given log message.
+ * @xe: the &xe_device instance.
+ * @fmt: format string for the log message, to be combined with following VAs.
+ */
+void xe_sriov_vf_migration_disable(struct xe_device *xe, const char *fmt, ...)
 {
 	struct va_format vaf;
 	va_list va_args;
@@ -156,22 +161,13 @@ static void vf_migration_init_early(struct xe_device *xe)
 	 * supported at production quality.
 	 */
 	if (!IS_ENABLED(CONFIG_DRM_XE_DEBUG))
-		return vf_disable_migration(xe,
-					    "experimental feature not available on production builds");
+		return xe_sriov_vf_migration_disable(xe,
+				"experimental feature not available on production builds");
 
 	if (GRAPHICS_VER(xe) < 20)
-		return vf_disable_migration(xe, "requires gfx version >= 20, but only %u found",
-					    GRAPHICS_VER(xe));
-
-	if (!IS_DGFX(xe)) {
-		struct xe_uc_fw_version guc_version;
-
-		xe_gt_sriov_vf_guc_versions(xe_device_get_gt(xe, 0), NULL, &guc_version);
-		if (MAKE_GUC_VER_STRUCT(guc_version) < MAKE_GUC_VER(1, 23, 0))
-			return vf_disable_migration(xe,
-						    "CCS migration requires GuC ABI >= 1.23 but only %u.%u found",
-						    guc_version.major, guc_version.minor);
-	}
+		return xe_sriov_vf_migration_disable(xe,
+				"requires gfx version >= 20, but only %u found",
+				GRAPHICS_VER(xe));
 }
 
 /**
@@ -193,12 +189,7 @@ void xe_sriov_vf_init_early(struct xe_device *xe)
  */
 int xe_sriov_vf_init_late(struct xe_device *xe)
 {
-	int err = 0;
-
-	if (xe_sriov_vf_migration_supported(xe))
-		err = xe_sriov_vf_ccs_init(xe);
-
-	return err;
+	return xe_sriov_vf_ccs_init(xe);
 }
 
 static int sa_info_vf_ccs(struct seq_file *m, void *data)
