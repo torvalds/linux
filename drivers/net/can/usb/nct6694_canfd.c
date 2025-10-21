@@ -690,7 +690,6 @@ static const struct net_device_ops nct6694_canfd_netdev_ops = {
 	.ndo_open = nct6694_canfd_open,
 	.ndo_stop = nct6694_canfd_close,
 	.ndo_start_xmit = nct6694_canfd_start_xmit,
-	.ndo_change_mtu = can_change_mtu,
 };
 
 static const struct ethtool_ops nct6694_canfd_ethtool_ops = {
