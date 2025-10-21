@@ -1051,20 +1051,22 @@ struct dispc_bus_format *dispc_vp_find_bus_fmt(struct dispc_device *dispc,
 int dispc_vp_bus_check(struct dispc_device *dispc, u32 hw_videoport,
 		       const struct drm_crtc_state *state)
 {
+	struct tidss_device *tidss = dispc->tidss;
+	struct drm_device *dev = &tidss->ddev;
 	const struct tidss_crtc_state *tstate = to_tidss_crtc_state(state);
 	const struct dispc_bus_format *fmt;
 
 	fmt = dispc_vp_find_bus_fmt(dispc, hw_videoport, tstate->bus_format,
 				    tstate->bus_flags);
 	if (!fmt) {
-		dev_dbg(dispc->dev, "%s: Unsupported bus format: %u\n",
+		drm_dbg(dev, "%s: Unsupported bus format: %u\n",
 			__func__, tstate->bus_format);
 		return -EINVAL;
 	}
 
 	if (dispc->feat->vp_bus_type[hw_videoport] != DISPC_VP_OLDI_AM65X &&
 	    fmt->is_oldi_fmt) {
-		dev_dbg(dispc->dev, "%s: %s is not OLDI-port\n",
+		drm_dbg(dev, "%s: %s is not OLDI-port\n",
 			__func__, dispc->feat->vp_name[hw_videoport]);
 		return -EINVAL;
 	}
@@ -2849,8 +2851,6 @@ int dispc_runtime_resume(struct dispc_device *dispc)
 
 void dispc_remove(struct tidss_device *tidss)
 {
-	dev_dbg(tidss->dev, "%s\n", __func__);
-
 	tidss->dispc = NULL;
 }
 
@@ -2991,8 +2991,6 @@ int dispc_init(struct tidss_device *tidss)
 	const struct dispc_features *feat;
 	unsigned int i, num_fourccs;
 	int r = 0;
-
-	dev_dbg(dev, "%s\n", __func__);
 
 	feat = tidss->feat;
 

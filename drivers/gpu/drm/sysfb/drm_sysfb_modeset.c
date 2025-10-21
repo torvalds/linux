@@ -11,7 +11,6 @@
 #include <drm/drm_edid.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
-#include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_panic.h>
 #include <drm/drm_print.h>
@@ -185,6 +184,104 @@ size_t drm_sysfb_build_fourcc_list(struct drm_device *dev,
 }
 EXPORT_SYMBOL(drm_sysfb_build_fourcc_list);
 
+static void drm_sysfb_plane_state_destroy(struct drm_sysfb_plane_state *sysfb_plane_state)
+{
+	__drm_gem_destroy_shadow_plane_state(&sysfb_plane_state->base);
+
+	kfree(sysfb_plane_state);
+}
+
+static void drm_sysfb_memcpy(struct iosys_map *dst, const unsigned int *dst_pitch,
+			     const struct iosys_map *src, const struct drm_framebuffer *fb,
+			     const struct drm_rect *clip, struct drm_format_conv_state *state)
+{
+	drm_fb_memcpy(dst, dst_pitch, src, fb, clip);
+}
+
+static drm_sysfb_blit_func drm_sysfb_get_blit_func(u32 dst_format, u32 src_format)
+{
+	if (src_format == dst_format) {
+		return drm_sysfb_memcpy;
+	} else if (src_format == DRM_FORMAT_XRGB8888) {
+		switch (dst_format) {
+		case DRM_FORMAT_RGB565:
+			return drm_fb_xrgb8888_to_rgb565;
+		case DRM_FORMAT_RGB565 | DRM_FORMAT_BIG_ENDIAN:
+			return drm_fb_xrgb8888_to_rgb565be;
+		case DRM_FORMAT_XRGB1555:
+			return drm_fb_xrgb8888_to_xrgb1555;
+		case DRM_FORMAT_ARGB1555:
+			return drm_fb_xrgb8888_to_argb1555;
+		case DRM_FORMAT_RGBA5551:
+			return drm_fb_xrgb8888_to_rgba5551;
+		case DRM_FORMAT_RGB888:
+			return drm_fb_xrgb8888_to_rgb888;
+		case DRM_FORMAT_BGR888:
+			return drm_fb_xrgb8888_to_bgr888;
+		case DRM_FORMAT_ARGB8888:
+			return drm_fb_xrgb8888_to_argb8888;
+		case DRM_FORMAT_XBGR8888:
+			return drm_fb_xrgb8888_to_xbgr8888;
+		case DRM_FORMAT_ABGR8888:
+			return drm_fb_xrgb8888_to_abgr8888;
+		case DRM_FORMAT_XRGB2101010:
+			return drm_fb_xrgb8888_to_xrgb2101010;
+		case DRM_FORMAT_ARGB2101010:
+			return drm_fb_xrgb8888_to_argb2101010;
+		case DRM_FORMAT_BGRX8888:
+			return drm_fb_xrgb8888_to_bgrx8888;
+		case DRM_FORMAT_RGB332:
+			return drm_fb_xrgb8888_to_rgb332;
+		}
+	}
+
+	return NULL;
+}
+
+int drm_sysfb_plane_helper_begin_fb_access(struct drm_plane *plane,
+					   struct drm_plane_state *plane_state)
+{
+	struct drm_device *dev = plane->dev;
+	struct drm_sysfb_plane_state *sysfb_plane_state = to_drm_sysfb_plane_state(plane_state);
+	struct drm_framebuffer *fb = plane_state->fb;
+	struct drm_crtc_state *crtc_state;
+	struct drm_sysfb_crtc_state *sysfb_crtc_state;
+	drm_sysfb_blit_func blit_to_crtc;
+	int ret;
+
+	ret = drm_gem_begin_shadow_fb_access(plane, plane_state);
+	if (ret)
+		return ret;
+
+	if (!fb)
+		return 0;
+
+	ret = -EINVAL;
+
+	crtc_state = drm_atomic_get_crtc_state(plane_state->state, plane_state->crtc);
+	if (drm_WARN_ON_ONCE(dev, !crtc_state))
+		goto err_drm_gem_end_shadow_fb_access;
+	sysfb_crtc_state = to_drm_sysfb_crtc_state(crtc_state);
+
+	if (drm_WARN_ON_ONCE(dev, !sysfb_crtc_state->format))
+		goto err_drm_gem_end_shadow_fb_access;
+	blit_to_crtc = drm_sysfb_get_blit_func(sysfb_crtc_state->format->format,
+					       fb->format->format);
+	if (!blit_to_crtc) {
+		drm_warn_once(dev, "No blit helper from %p4cc to %p4cc found.\n",
+			      &fb->format->format, &sysfb_crtc_state->format->format);
+		goto err_drm_gem_end_shadow_fb_access;
+	}
+	sysfb_plane_state->blit_to_crtc = blit_to_crtc;
+
+	return 0;
+
+err_drm_gem_end_shadow_fb_access:
+	drm_gem_end_shadow_fb_access(plane, plane_state);
+	return ret;
+}
+EXPORT_SYMBOL(drm_sysfb_plane_helper_begin_fb_access);
+
 int drm_sysfb_plane_helper_atomic_check(struct drm_plane *plane,
 					struct drm_atomic_state *new_state)
 {
@@ -235,12 +332,14 @@ void drm_sysfb_plane_helper_atomic_update(struct drm_plane *plane, struct drm_at
 	struct drm_sysfb_device *sysfb = to_drm_sysfb_device(dev);
 	struct drm_plane_state *plane_state = drm_atomic_get_new_plane_state(state, plane);
 	struct drm_plane_state *old_plane_state = drm_atomic_get_old_plane_state(state, plane);
-	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(plane_state);
+	struct drm_sysfb_plane_state *sysfb_plane_state = to_drm_sysfb_plane_state(plane_state);
+	struct drm_shadow_plane_state *shadow_plane_state = &sysfb_plane_state->base;
 	struct drm_framebuffer *fb = plane_state->fb;
 	unsigned int dst_pitch = sysfb->fb_pitch;
 	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state, plane_state->crtc);
 	struct drm_sysfb_crtc_state *sysfb_crtc_state = to_drm_sysfb_crtc_state(crtc_state);
 	const struct drm_format_info *dst_format = sysfb_crtc_state->format;
+	drm_sysfb_blit_func blit_to_crtc = sysfb_plane_state->blit_to_crtc;
 	struct drm_atomic_helper_damage_iter iter;
 	struct drm_rect damage;
 	int ret, idx;
@@ -261,8 +360,8 @@ void drm_sysfb_plane_helper_atomic_update(struct drm_plane *plane, struct drm_at
 			continue;
 
 		iosys_map_incr(&dst, drm_fb_clip_offset(dst_pitch, dst_format, &dst_clip));
-		drm_fb_blit(&dst, &dst_pitch, dst_format->format, shadow_plane_state->data, fb,
-			    &damage, &shadow_plane_state->fmtcnv_state);
+		blit_to_crtc(&dst, &dst_pitch, shadow_plane_state->data, fb, &damage,
+			     &shadow_plane_state->fmtcnv_state);
 	}
 
 	drm_dev_exit(idx);
@@ -320,6 +419,52 @@ int drm_sysfb_plane_helper_get_scanout_buffer(struct drm_plane *plane,
 	return 0;
 }
 EXPORT_SYMBOL(drm_sysfb_plane_helper_get_scanout_buffer);
+
+void drm_sysfb_plane_reset(struct drm_plane *plane)
+{
+	struct drm_sysfb_plane_state *sysfb_plane_state;
+
+	if (plane->state)
+		drm_sysfb_plane_state_destroy(to_drm_sysfb_plane_state(plane->state));
+
+	sysfb_plane_state = kzalloc(sizeof(*sysfb_plane_state), GFP_KERNEL);
+	if (sysfb_plane_state)
+		__drm_gem_reset_shadow_plane(plane, &sysfb_plane_state->base);
+	else
+		__drm_gem_reset_shadow_plane(plane, NULL);
+}
+EXPORT_SYMBOL(drm_sysfb_plane_reset);
+
+struct drm_plane_state *drm_sysfb_plane_atomic_duplicate_state(struct drm_plane *plane)
+{
+	struct drm_device *dev = plane->dev;
+	struct drm_plane_state *plane_state = plane->state;
+	struct drm_sysfb_plane_state *sysfb_plane_state;
+	struct drm_sysfb_plane_state *new_sysfb_plane_state;
+	struct drm_shadow_plane_state *new_shadow_plane_state;
+
+	if (drm_WARN_ON(dev, !plane_state))
+		return NULL;
+	sysfb_plane_state = to_drm_sysfb_plane_state(plane_state);
+
+	new_sysfb_plane_state = kzalloc(sizeof(*new_sysfb_plane_state), GFP_KERNEL);
+	if (!new_sysfb_plane_state)
+		return NULL;
+	new_shadow_plane_state = &new_sysfb_plane_state->base;
+
+	__drm_gem_duplicate_shadow_plane_state(plane, new_shadow_plane_state);
+	new_sysfb_plane_state->blit_to_crtc = sysfb_plane_state->blit_to_crtc;
+
+	return &new_shadow_plane_state->base;
+}
+EXPORT_SYMBOL(drm_sysfb_plane_atomic_duplicate_state);
+
+void drm_sysfb_plane_atomic_destroy_state(struct drm_plane *plane,
+					  struct drm_plane_state *plane_state)
+{
+	drm_sysfb_plane_state_destroy(to_drm_sysfb_plane_state(plane_state));
+}
+EXPORT_SYMBOL(drm_sysfb_plane_atomic_destroy_state);
 
 /*
  * CRTC

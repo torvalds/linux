@@ -21,6 +21,7 @@
 #include "amdxdna_gem.h"
 #include "amdxdna_mailbox.h"
 #include "amdxdna_pci_drv.h"
+#include "amdxdna_pm.h"
 
 static bool force_cmdlist;
 module_param(force_cmdlist, bool, 0600);
@@ -88,7 +89,7 @@ static int aie2_hwctx_restart(struct amdxdna_dev *xdna, struct amdxdna_hwctx *hw
 		goto out;
 	}
 
-	ret = aie2_config_cu(hwctx);
+	ret = aie2_config_cu(hwctx, NULL);
 	if (ret) {
 		XDNA_ERR(xdna, "Config cu failed, ret %d", ret);
 		goto out;
@@ -167,14 +168,11 @@ static int aie2_hwctx_resume_cb(struct amdxdna_hwctx *hwctx, void *arg)
 
 int aie2_hwctx_resume(struct amdxdna_client *client)
 {
-	struct amdxdna_dev *xdna = client->xdna;
-
 	/*
 	 * The resume path cannot guarantee that mailbox channel can be
 	 * regenerated. If this happen, when submit message to this
 	 * mailbox channel, error will return.
 	 */
-	drm_WARN_ON(&xdna->ddev, !mutex_is_locked(&xdna->dev_lock));
 	return amdxdna_hwctx_walk(client, NULL, aie2_hwctx_resume_cb);
 }
 
@@ -184,6 +182,8 @@ aie2_sched_notify(struct amdxdna_sched_job *job)
 	struct dma_fence *fence = job->fence;
 
 	trace_xdna_job(&job->base, job->hwctx->name, "signaled fence", job->seq);
+
+	amdxdna_pm_suspend_put(job->hwctx->client->xdna);
 	job->hwctx->priv->completed++;
 	dma_fence_signal(fence);
 
@@ -531,7 +531,7 @@ int aie2_hwctx_init(struct amdxdna_hwctx *hwctx)
 		.num_rqs = DRM_SCHED_PRIORITY_COUNT,
 		.credit_limit = HWCTX_MAX_CMDS,
 		.timeout = msecs_to_jiffies(HWCTX_MAX_TIMEOUT),
-		.name = hwctx->name,
+		.name = "amdxdna_js",
 		.dev = xdna->ddev.dev,
 	};
 	struct drm_gpu_scheduler *sched;
@@ -697,6 +697,14 @@ void aie2_hwctx_fini(struct amdxdna_hwctx *hwctx)
 	kfree(hwctx->cus);
 }
 
+static int aie2_config_cu_resp_handler(void *handle, void __iomem *data, size_t size)
+{
+	struct amdxdna_hwctx *hwctx = handle;
+
+	amdxdna_pm_suspend_put(hwctx->client->xdna);
+	return 0;
+}
+
 static int aie2_hwctx_cu_config(struct amdxdna_hwctx *hwctx, void *buf, u32 size)
 {
 	struct amdxdna_hwctx_param_config_cu *config = buf;
@@ -728,10 +736,14 @@ static int aie2_hwctx_cu_config(struct amdxdna_hwctx *hwctx, void *buf, u32 size
 	if (!hwctx->cus)
 		return -ENOMEM;
 
-	ret = aie2_config_cu(hwctx);
+	ret = amdxdna_pm_resume_get(xdna);
+	if (ret)
+		goto free_cus;
+
+	ret = aie2_config_cu(hwctx, aie2_config_cu_resp_handler);
 	if (ret) {
 		XDNA_ERR(xdna, "Config CU to firmware failed, ret %d", ret);
-		goto free_cus;
+		goto pm_suspend_put;
 	}
 
 	wmb(); /* To avoid locking in command submit when check status */
@@ -739,6 +751,8 @@ static int aie2_hwctx_cu_config(struct amdxdna_hwctx *hwctx, void *buf, u32 size
 
 	return 0;
 
+pm_suspend_put:
+	amdxdna_pm_suspend_put(xdna);
 free_cus:
 	kfree(hwctx->cus);
 	hwctx->cus = NULL;
@@ -862,11 +876,15 @@ int aie2_cmd_submit(struct amdxdna_hwctx *hwctx, struct amdxdna_sched_job *job, 
 		goto free_chain;
 	}
 
+	ret = amdxdna_pm_resume_get(xdna);
+	if (ret)
+		goto cleanup_job;
+
 retry:
 	ret = drm_gem_lock_reservations(job->bos, job->bo_cnt, &acquire_ctx);
 	if (ret) {
 		XDNA_WARN(xdna, "Failed to lock BOs, ret %d", ret);
-		goto cleanup_job;
+		goto suspend_put;
 	}
 
 	for (i = 0; i < job->bo_cnt; i++) {
@@ -874,7 +892,7 @@ retry:
 		if (ret) {
 			XDNA_WARN(xdna, "Failed to reserve fences %d", ret);
 			drm_gem_unlock_reservations(job->bos, job->bo_cnt, &acquire_ctx);
-			goto cleanup_job;
+			goto suspend_put;
 		}
 	}
 
@@ -889,12 +907,12 @@ retry:
 					msecs_to_jiffies(HMM_RANGE_DEFAULT_TIMEOUT);
 			} else if (time_after(jiffies, timeout)) {
 				ret = -ETIME;
-				goto cleanup_job;
+				goto suspend_put;
 			}
 
 			ret = aie2_populate_range(abo);
 			if (ret)
-				goto cleanup_job;
+				goto suspend_put;
 			goto retry;
 		}
 	}
@@ -920,6 +938,8 @@ retry:
 
 	return 0;
 
+suspend_put:
+	amdxdna_pm_suspend_put(xdna);
 cleanup_job:
 	drm_sched_job_cleanup(&job->base);
 free_chain:

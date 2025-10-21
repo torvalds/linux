@@ -5,11 +5,13 @@
  */
 
 #include <linux/clk.h>
+#include <linux/component.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <drm/bridge/dw_hdmi.h>
 #include <drm/drm_modes.h>
+#include <drm/drm_of.h>
 
 struct imx8mp_hdmi {
 	struct dw_hdmi_plat_data plat_data;
@@ -79,10 +81,45 @@ static const struct dw_hdmi_phy_ops imx8mp_hdmi_phy_ops = {
 	.update_hpd	= dw_hdmi_phy_update_hpd,
 };
 
+static int imx8mp_dw_hdmi_bind(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct imx8mp_hdmi *hdmi = dev_get_drvdata(dev);
+	int ret;
+
+	ret = component_bind_all(dev, &hdmi->plat_data);
+	if (ret)
+		return dev_err_probe(dev, ret, "component_bind_all failed!\n");
+
+	hdmi->dw_hdmi = dw_hdmi_probe(pdev, &hdmi->plat_data);
+	if (IS_ERR(hdmi->dw_hdmi)) {
+		component_unbind_all(dev, &hdmi->plat_data);
+		return PTR_ERR(hdmi->dw_hdmi);
+	}
+
+	return 0;
+}
+
+static void imx8mp_dw_hdmi_unbind(struct device *dev)
+{
+	struct imx8mp_hdmi *hdmi = dev_get_drvdata(dev);
+
+	dw_hdmi_remove(hdmi->dw_hdmi);
+
+	component_unbind_all(dev, &hdmi->plat_data);
+}
+
+static const struct component_master_ops imx8mp_dw_hdmi_ops = {
+	.bind   = imx8mp_dw_hdmi_bind,
+	.unbind = imx8mp_dw_hdmi_unbind,
+};
+
 static int imx8mp_dw_hdmi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct dw_hdmi_plat_data *plat_data;
+	struct component_match *match = NULL;
+	struct device_node *remote;
 	struct imx8mp_hdmi *hdmi;
 
 	hdmi = devm_kzalloc(dev, sizeof(*hdmi), GFP_KERNEL);
@@ -102,11 +139,21 @@ static int imx8mp_dw_hdmi_probe(struct platform_device *pdev)
 	plat_data->priv_data = hdmi;
 	plat_data->phy_force_vendor = true;
 
-	hdmi->dw_hdmi = dw_hdmi_probe(pdev, plat_data);
-	if (IS_ERR(hdmi->dw_hdmi))
-		return PTR_ERR(hdmi->dw_hdmi);
-
 	platform_set_drvdata(pdev, hdmi);
+
+	/* port@2 is for hdmi_pai device */
+	remote = of_graph_get_remote_node(pdev->dev.of_node, 2, 0);
+	if (!remote) {
+		hdmi->dw_hdmi = dw_hdmi_probe(pdev, plat_data);
+		if (IS_ERR(hdmi->dw_hdmi))
+			return PTR_ERR(hdmi->dw_hdmi);
+	} else {
+		drm_of_component_match_add(dev, &match, component_compare_of, remote);
+
+		of_node_put(remote);
+
+		return component_master_add_with_match(dev, &imx8mp_dw_hdmi_ops, match);
+	}
 
 	return 0;
 }
@@ -114,8 +161,16 @@ static int imx8mp_dw_hdmi_probe(struct platform_device *pdev)
 static void imx8mp_dw_hdmi_remove(struct platform_device *pdev)
 {
 	struct imx8mp_hdmi *hdmi = platform_get_drvdata(pdev);
+	struct device_node *remote;
 
-	dw_hdmi_remove(hdmi->dw_hdmi);
+	remote = of_graph_get_remote_node(pdev->dev.of_node, 2, 0);
+	if (remote) {
+		of_node_put(remote);
+
+		component_master_del(&pdev->dev, &imx8mp_dw_hdmi_ops);
+	} else {
+		dw_hdmi_remove(hdmi->dw_hdmi);
+	}
 }
 
 static int imx8mp_dw_hdmi_pm_suspend(struct device *dev)

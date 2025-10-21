@@ -48,10 +48,10 @@ static void ud_update_attr(u8 *dst, u8 *src, int attribute,
 static void ud_bmove(struct vc_data *vc, struct fb_info *info, int sy,
 		     int sx, int dy, int dx, int height, int width)
 {
-	struct fbcon_ops *ops = info->fbcon_par;
+	struct fbcon_par *par = info->fbcon_par;
 	struct fb_copyarea area;
-	u32 vyres = GETVYRES(ops->p, info);
-	u32 vxres = GETVXRES(ops->p, info);
+	u32 vyres = GETVYRES(par->p, info);
+	u32 vxres = GETVXRES(par->p, info);
 
 	area.sy = vyres - ((sy + height) * vc->vc_font.height);
 	area.sx = vxres - ((sx + width) * vc->vc_font.width);
@@ -66,10 +66,10 @@ static void ud_bmove(struct vc_data *vc, struct fb_info *info, int sy,
 static void ud_clear(struct vc_data *vc, struct fb_info *info, int sy,
 		     int sx, int height, int width, int fg, int bg)
 {
-	struct fbcon_ops *ops = info->fbcon_par;
+	struct fbcon_par *par = info->fbcon_par;
 	struct fb_fillrect region;
-	u32 vyres = GETVYRES(ops->p, info);
-	u32 vxres = GETVXRES(ops->p, info);
+	u32 vyres = GETVYRES(par->p, info);
+	u32 vxres = GETVXRES(par->p, info);
 
 	region.color = bg;
 	region.dy = vyres - ((sy + height) * vc->vc_font.height);
@@ -86,13 +86,13 @@ static inline void ud_putcs_aligned(struct vc_data *vc, struct fb_info *info,
 				    u32 d_pitch, u32 s_pitch, u32 cellsize,
 				    struct fb_image *image, u8 *buf, u8 *dst)
 {
-	struct fbcon_ops *ops = info->fbcon_par;
+	struct fbcon_par *par = info->fbcon_par;
 	u16 charmask = vc->vc_hi_font_mask ? 0x1ff : 0xff;
 	u32 idx = vc->vc_font.width >> 3;
 	u8 *src;
 
 	while (cnt--) {
-		src = ops->fontbuffer + (scr_readw(s--) & charmask)*cellsize;
+		src = par->fontbuffer + (scr_readw(s--) & charmask) * cellsize;
 
 		if (attr) {
 			ud_update_attr(buf, src, attr, vc);
@@ -119,7 +119,7 @@ static inline void ud_putcs_unaligned(struct vc_data *vc,
 				      struct fb_image *image, u8 *buf,
 				      u8 *dst)
 {
-	struct fbcon_ops *ops = info->fbcon_par;
+	struct fbcon_par *par = info->fbcon_par;
 	u16 charmask = vc->vc_hi_font_mask ? 0x1ff : 0xff;
 	u32 shift_low = 0, mod = vc->vc_font.width % 8;
 	u32 shift_high = 8;
@@ -127,7 +127,7 @@ static inline void ud_putcs_unaligned(struct vc_data *vc,
 	u8 *src;
 
 	while (cnt--) {
-		src = ops->fontbuffer + (scr_readw(s--) & charmask)*cellsize;
+		src = par->fontbuffer + (scr_readw(s--) & charmask) * cellsize;
 
 		if (attr) {
 			ud_update_attr(buf, src, attr, vc);
@@ -152,7 +152,7 @@ static void ud_putcs(struct vc_data *vc, struct fb_info *info,
 		      int fg, int bg)
 {
 	struct fb_image image;
-	struct fbcon_ops *ops = info->fbcon_par;
+	struct fbcon_par *par = info->fbcon_par;
 	u32 width = (vc->vc_font.width + 7)/8;
 	u32 cellsize = width * vc->vc_font.height;
 	u32 maxcnt = info->pixmap.size/cellsize;
@@ -161,10 +161,10 @@ static void ud_putcs(struct vc_data *vc, struct fb_info *info,
 	u32 mod = vc->vc_font.width % 8, cnt, pitch, size;
 	u32 attribute = get_attribute(info, scr_readw(s));
 	u8 *dst, *buf = NULL;
-	u32 vyres = GETVYRES(ops->p, info);
-	u32 vxres = GETVXRES(ops->p, info);
+	u32 vyres = GETVYRES(par->p, info);
+	u32 vxres = GETVXRES(par->p, info);
 
-	if (!ops->fontbuffer)
+	if (!par->fontbuffer)
 		return;
 
 	image.fg_color = fg;
@@ -251,29 +251,29 @@ static void ud_cursor(struct vc_data *vc, struct fb_info *info, bool enable,
 		      int fg, int bg)
 {
 	struct fb_cursor cursor;
-	struct fbcon_ops *ops = info->fbcon_par;
+	struct fbcon_par *par = info->fbcon_par;
 	unsigned short charmask = vc->vc_hi_font_mask ? 0x1ff : 0xff;
 	int w = (vc->vc_font.width + 7) >> 3, c;
-	int y = real_y(ops->p, vc->state.y);
+	int y = real_y(par->p, vc->state.y);
 	int attribute, use_sw = vc->vc_cursor_type & CUR_SW;
 	int err = 1, dx, dy;
 	char *src;
-	u32 vyres = GETVYRES(ops->p, info);
-	u32 vxres = GETVXRES(ops->p, info);
+	u32 vyres = GETVYRES(par->p, info);
+	u32 vxres = GETVXRES(par->p, info);
 
-	if (!ops->fontbuffer)
+	if (!par->fontbuffer)
 		return;
 
 	cursor.set = 0;
 
  	c = scr_readw((u16 *) vc->vc_pos);
 	attribute = get_attribute(info, c);
-	src = ops->fontbuffer + ((c & charmask) * (w * vc->vc_font.height));
+	src = par->fontbuffer + ((c & charmask) * (w * vc->vc_font.height));
 
-	if (ops->cursor_state.image.data != src ||
-	    ops->cursor_reset) {
-	    ops->cursor_state.image.data = src;
-	    cursor.set |= FB_CUR_SETIMAGE;
+	if (par->cursor_state.image.data != src ||
+	    par->cursor_reset) {
+		par->cursor_state.image.data = src;
+		cursor.set |= FB_CUR_SETIMAGE;
 	}
 
 	if (attribute) {
@@ -282,49 +282,49 @@ static void ud_cursor(struct vc_data *vc, struct fb_info *info, bool enable,
 		dst = kmalloc_array(w, vc->vc_font.height, GFP_ATOMIC);
 		if (!dst)
 			return;
-		kfree(ops->cursor_data);
-		ops->cursor_data = dst;
+		kfree(par->cursor_data);
+		par->cursor_data = dst;
 		ud_update_attr(dst, src, attribute, vc);
 		src = dst;
 	}
 
-	if (ops->cursor_state.image.fg_color != fg ||
-	    ops->cursor_state.image.bg_color != bg ||
-	    ops->cursor_reset) {
-		ops->cursor_state.image.fg_color = fg;
-		ops->cursor_state.image.bg_color = bg;
+	if (par->cursor_state.image.fg_color != fg ||
+	    par->cursor_state.image.bg_color != bg ||
+	    par->cursor_reset) {
+		par->cursor_state.image.fg_color = fg;
+		par->cursor_state.image.bg_color = bg;
 		cursor.set |= FB_CUR_SETCMAP;
 	}
 
-	if (ops->cursor_state.image.height != vc->vc_font.height ||
-	    ops->cursor_state.image.width != vc->vc_font.width ||
-	    ops->cursor_reset) {
-		ops->cursor_state.image.height = vc->vc_font.height;
-		ops->cursor_state.image.width = vc->vc_font.width;
+	if (par->cursor_state.image.height != vc->vc_font.height ||
+	    par->cursor_state.image.width != vc->vc_font.width ||
+	    par->cursor_reset) {
+		par->cursor_state.image.height = vc->vc_font.height;
+		par->cursor_state.image.width = vc->vc_font.width;
 		cursor.set |= FB_CUR_SETSIZE;
 	}
 
 	dy = vyres - ((y * vc->vc_font.height) + vc->vc_font.height);
 	dx = vxres - ((vc->state.x * vc->vc_font.width) + vc->vc_font.width);
 
-	if (ops->cursor_state.image.dx != dx ||
-	    ops->cursor_state.image.dy != dy ||
-	    ops->cursor_reset) {
-		ops->cursor_state.image.dx = dx;
-		ops->cursor_state.image.dy = dy;
+	if (par->cursor_state.image.dx != dx ||
+	    par->cursor_state.image.dy != dy ||
+	    par->cursor_reset) {
+		par->cursor_state.image.dx = dx;
+		par->cursor_state.image.dy = dy;
 		cursor.set |= FB_CUR_SETPOS;
 	}
 
-	if (ops->cursor_state.hot.x || ops->cursor_state.hot.y ||
-	    ops->cursor_reset) {
-		ops->cursor_state.hot.x = cursor.hot.y = 0;
+	if (par->cursor_state.hot.x || par->cursor_state.hot.y ||
+	    par->cursor_reset) {
+		par->cursor_state.hot.x = cursor.hot.y = 0;
 		cursor.set |= FB_CUR_SETHOT;
 	}
 
 	if (cursor.set & FB_CUR_SETSIZE ||
-	    vc->vc_cursor_type != ops->p->cursor_shape ||
-	    ops->cursor_state.mask == NULL ||
-	    ops->cursor_reset) {
+	    vc->vc_cursor_type != par->p->cursor_shape ||
+	    par->cursor_state.mask == NULL ||
+	    par->cursor_reset) {
 		char *mask = kmalloc_array(w, vc->vc_font.height, GFP_ATOMIC);
 		int cur_height, size, i = 0;
 		u8 msk = 0xff;
@@ -332,13 +332,13 @@ static void ud_cursor(struct vc_data *vc, struct fb_info *info, bool enable,
 		if (!mask)
 			return;
 
-		kfree(ops->cursor_state.mask);
-		ops->cursor_state.mask = mask;
+		kfree(par->cursor_state.mask);
+		par->cursor_state.mask = mask;
 
-		ops->p->cursor_shape = vc->vc_cursor_type;
+		par->p->cursor_shape = vc->vc_cursor_type;
 		cursor.set |= FB_CUR_SETSHAPE;
 
-		switch (CUR_SIZE(ops->p->cursor_shape)) {
+		switch (CUR_SIZE(par->p->cursor_shape)) {
 		case CUR_NONE:
 			cur_height = 0;
 			break;
@@ -371,19 +371,19 @@ static void ud_cursor(struct vc_data *vc, struct fb_info *info, bool enable,
 			mask[i++] = ~msk;
 	}
 
-	ops->cursor_state.enable = enable && !use_sw;
+	par->cursor_state.enable = enable && !use_sw;
 
 	cursor.image.data = src;
-	cursor.image.fg_color = ops->cursor_state.image.fg_color;
-	cursor.image.bg_color = ops->cursor_state.image.bg_color;
-	cursor.image.dx = ops->cursor_state.image.dx;
-	cursor.image.dy = ops->cursor_state.image.dy;
-	cursor.image.height = ops->cursor_state.image.height;
-	cursor.image.width = ops->cursor_state.image.width;
-	cursor.hot.x = ops->cursor_state.hot.x;
-	cursor.hot.y = ops->cursor_state.hot.y;
-	cursor.mask = ops->cursor_state.mask;
-	cursor.enable = ops->cursor_state.enable;
+	cursor.image.fg_color = par->cursor_state.image.fg_color;
+	cursor.image.bg_color = par->cursor_state.image.bg_color;
+	cursor.image.dx = par->cursor_state.image.dx;
+	cursor.image.dy = par->cursor_state.image.dy;
+	cursor.image.height = par->cursor_state.image.height;
+	cursor.image.width = par->cursor_state.image.width;
+	cursor.hot.x = par->cursor_state.hot.x;
+	cursor.hot.y = par->cursor_state.hot.y;
+	cursor.mask = par->cursor_state.mask;
+	cursor.enable = par->cursor_state.enable;
 	cursor.image.depth = 1;
 	cursor.rop = ROP_XOR;
 
@@ -393,36 +393,41 @@ static void ud_cursor(struct vc_data *vc, struct fb_info *info, bool enable,
 	if (err)
 		soft_cursor(info, &cursor);
 
-	ops->cursor_reset = 0;
+	par->cursor_reset = 0;
 }
 
 static int ud_update_start(struct fb_info *info)
 {
-	struct fbcon_ops *ops = info->fbcon_par;
+	struct fbcon_par *par = info->fbcon_par;
 	int xoffset, yoffset;
-	u32 vyres = GETVYRES(ops->p, info);
-	u32 vxres = GETVXRES(ops->p, info);
+	u32 vyres = GETVYRES(par->p, info);
+	u32 vxres = GETVXRES(par->p, info);
 	int err;
 
-	xoffset = vxres - info->var.xres - ops->var.xoffset;
-	yoffset = vyres - info->var.yres - ops->var.yoffset;
+	xoffset = vxres - info->var.xres - par->var.xoffset;
+	yoffset = vyres - info->var.yres - par->var.yoffset;
 	if (yoffset < 0)
 		yoffset += vyres;
-	ops->var.xoffset = xoffset;
-	ops->var.yoffset = yoffset;
-	err = fb_pan_display(info, &ops->var);
-	ops->var.xoffset = info->var.xoffset;
-	ops->var.yoffset = info->var.yoffset;
-	ops->var.vmode = info->var.vmode;
+	par->var.xoffset = xoffset;
+	par->var.yoffset = yoffset;
+	err = fb_pan_display(info, &par->var);
+	par->var.xoffset = info->var.xoffset;
+	par->var.yoffset = info->var.yoffset;
+	par->var.vmode = info->var.vmode;
 	return err;
 }
 
-void fbcon_rotate_ud(struct fbcon_ops *ops)
+static const struct fbcon_bitops ud_fbcon_bitops = {
+	.bmove = ud_bmove,
+	.clear = ud_clear,
+	.putcs = ud_putcs,
+	.clear_margins = ud_clear_margins,
+	.cursor = ud_cursor,
+	.update_start = ud_update_start,
+	.rotate_font = fbcon_rotate_font,
+};
+
+void fbcon_set_bitops_ud(struct fbcon_par *par)
 {
-	ops->bmove = ud_bmove;
-	ops->clear = ud_clear;
-	ops->putcs = ud_putcs;
-	ops->clear_margins = ud_clear_margins;
-	ops->cursor = ud_cursor;
-	ops->update_start = ud_update_start;
+	par->bitops = &ud_fbcon_bitops;
 }
