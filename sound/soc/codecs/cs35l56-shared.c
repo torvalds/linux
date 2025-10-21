@@ -1105,9 +1105,9 @@ ssize_t cs35l56_calibrate_debugfs_write(struct cs35l56_base *cs35l56_base,
 					const char __user *from, size_t count,
 					loff_t *ppos)
 {
-	static const char * const options[] = { "factory" };
-	char buf[8] = { 0 };
-	int ret;
+	static const char * const options[] = { "factory", "store_uefi" };
+	char buf[11] = { 0 };
+	int num_amps, ret;
 
 	if (!IS_ENABLED(CONFIG_SND_SOC_CS35L56_CAL_DEBUGFS_COMMON))
 		return -ENXIO;
@@ -1122,6 +1122,21 @@ ssize_t cs35l56_calibrate_debugfs_write(struct cs35l56_base *cs35l56_base,
 	switch (sysfs_match_string(options, buf)) {
 	case 0:
 		ret = cs35l56_perform_calibration(cs35l56_base);
+		if (ret < 0)
+			return ret;
+		break;
+	case 1:
+		if (!cs35l56_base->cal_data_valid)
+			return -ENODATA;
+
+		num_amps = cs35l56_base->num_amps;
+		if (num_amps == 0)
+			num_amps = -1;
+
+		ret = cs_amp_set_efi_calibration_data(cs35l56_base->dev,
+						      cs35l56_base->cal_index,
+						      num_amps,
+						      &cs35l56_base->cal_data);
 		if (ret < 0)
 			return ret;
 		break;
