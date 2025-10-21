@@ -1754,27 +1754,6 @@ static int xgbe_set_mac_address(struct net_device *netdev, void *addr)
 	return 0;
 }
 
-static int xgbe_ioctl(struct net_device *netdev, struct ifreq *ifreq, int cmd)
-{
-	struct xgbe_prv_data *pdata = netdev_priv(netdev);
-	int ret;
-
-	switch (cmd) {
-	case SIOCGHWTSTAMP:
-		ret = xgbe_get_hwtstamp_settings(pdata, ifreq);
-		break;
-
-	case SIOCSHWTSTAMP:
-		ret = xgbe_set_hwtstamp_settings(pdata, ifreq);
-		break;
-
-	default:
-		ret = -EOPNOTSUPP;
-	}
-
-	return ret;
-}
-
 static int xgbe_change_mtu(struct net_device *netdev, int mtu)
 {
 	struct xgbe_prv_data *pdata = netdev_priv(netdev);
@@ -2020,7 +1999,6 @@ static const struct net_device_ops xgbe_netdev_ops = {
 	.ndo_set_rx_mode	= xgbe_set_rx_mode,
 	.ndo_set_mac_address	= xgbe_set_mac_address,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_eth_ioctl		= xgbe_ioctl,
 	.ndo_change_mtu		= xgbe_change_mtu,
 	.ndo_tx_timeout		= xgbe_tx_timeout,
 	.ndo_get_stats64	= xgbe_get_stats64,
@@ -2033,6 +2011,8 @@ static const struct net_device_ops xgbe_netdev_ops = {
 	.ndo_fix_features	= xgbe_fix_features,
 	.ndo_set_features	= xgbe_set_features,
 	.ndo_features_check	= xgbe_features_check,
+	.ndo_hwtstamp_get	= xgbe_get_hwtstamp_settings,
+	.ndo_hwtstamp_set	= xgbe_set_hwtstamp_settings,
 };
 
 const struct net_device_ops *xgbe_get_netdev_ops(void)

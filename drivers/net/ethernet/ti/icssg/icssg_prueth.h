@@ -479,7 +479,11 @@ void prueth_reset_tx_chan(struct prueth_emac *emac, int ch_num,
 void prueth_reset_rx_chan(struct prueth_rx_chn *chn,
 			  int num_flows, bool disable);
 void icssg_ndo_tx_timeout(struct net_device *ndev, unsigned int txqueue);
-int icssg_ndo_ioctl(struct net_device *ndev, struct ifreq *ifr, int cmd);
+int icssg_ndo_get_ts_config(struct net_device *ndev,
+			    struct kernel_hwtstamp_config *config);
+int icssg_ndo_set_ts_config(struct net_device *ndev,
+			    struct kernel_hwtstamp_config *config,
+			    struct netlink_ext_ack *extack);
 void icssg_ndo_get_stats64(struct net_device *ndev,
 			   struct rtnl_link_stats64 *stats);
 int icssg_ndo_get_phys_port_name(struct net_device *ndev, char *name,

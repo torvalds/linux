@@ -1146,7 +1146,7 @@ struct xgbe_prv_data {
 	spinlock_t tstamp_lock;
 	struct ptp_clock_info ptp_clock_info;
 	struct ptp_clock *ptp_clock;
-	struct hwtstamp_config tstamp_config;
+	struct kernel_hwtstamp_config tstamp_config;
 	unsigned int tstamp_addend;
 	struct work_struct tx_tstamp_work;
 	struct sk_buff *tx_tstamp_skb;
@@ -1307,10 +1307,11 @@ void xgbe_update_tstamp_addend(struct xgbe_prv_data *pdata,
 void xgbe_set_tstamp_time(struct xgbe_prv_data *pdata, unsigned int sec,
 			  unsigned int nsec);
 void xgbe_tx_tstamp(struct work_struct *work);
-int xgbe_get_hwtstamp_settings(struct xgbe_prv_data *pdata,
-			       struct ifreq *ifreq);
-int xgbe_set_hwtstamp_settings(struct xgbe_prv_data *pdata,
-			       struct ifreq *ifreq);
+int xgbe_get_hwtstamp_settings(struct net_device *netdev,
+			       struct kernel_hwtstamp_config *config);
+int xgbe_set_hwtstamp_settings(struct net_device *netdev,
+			       struct kernel_hwtstamp_config *config,
+			       struct netlink_ext_ack *extack);
 void xgbe_prep_tx_tstamp(struct xgbe_prv_data *pdata,
 			 struct sk_buff *skb,
 			 struct xgbe_packet_data *packet);
