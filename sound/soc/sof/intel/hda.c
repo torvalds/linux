@@ -1261,7 +1261,7 @@ static struct snd_soc_acpi_adr_device *find_acpi_adr_device(struct device *dev,
 			break;
 		}
 	} else {
-		adr_dev[index].name_prefix = devm_kasprintf(dev, GFP_KERNEL, "%s%d",
+		adr_dev[index].name_prefix = devm_kasprintf(dev, GFP_KERNEL, "%s-%d",
 							    name_prefix,
 							    *amp_index);
 	}
