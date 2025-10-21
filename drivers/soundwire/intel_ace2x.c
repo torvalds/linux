@@ -57,6 +57,8 @@ static int intel_ace2x_bpt_open_stream(struct sdw_intel *sdw, struct sdw_slave *
 	struct sdw_port_config *pconfig;
 	unsigned int pdi0_buf_size_pre_frame;
 	unsigned int pdi1_buf_size_pre_frame;
+	unsigned int pdi0_buffer_size_;
+	unsigned int pdi1_buffer_size_;
 	unsigned int pdi0_buffer_size;
 	unsigned int tx_dma_bandwidth;
 	unsigned int pdi1_buffer_size;
@@ -68,6 +70,7 @@ static int intel_ace2x_bpt_open_stream(struct sdw_intel *sdw, struct sdw_slave *
 	struct sdw_cdns_pdi *pdi1;
 	unsigned int rx_alignment;
 	unsigned int tx_alignment;
+	unsigned int num_frames_;
 	unsigned int num_frames;
 	unsigned int fake_size;
 	unsigned int tx_pad;
@@ -76,6 +79,7 @@ static int intel_ace2x_bpt_open_stream(struct sdw_intel *sdw, struct sdw_slave *
 	int ret1;
 	int ret;
 	int dir;
+	int len;
 	int i;
 
 	stream = sdw_alloc_stream("BPT", SDW_STREAM_BPT);
@@ -155,12 +159,25 @@ static int intel_ace2x_bpt_open_stream(struct sdw_intel *sdw, struct sdw_slave *
 	if (ret < 0)
 		goto deprepare_stream;
 
-	ret = sdw_cdns_bpt_find_buffer_sizes(command, cdns->bus.params.row, cdns->bus.params.col,
-					     msg->sec[0].len, SDW_BPT_MSG_MAX_BYTES,
-					     &data_per_frame, &pdi0_buffer_size, &pdi1_buffer_size,
-					     &num_frames);
-	if (ret < 0)
-		goto deprepare_stream;
+	len = 0;
+	pdi0_buffer_size = 0;
+	pdi1_buffer_size = 0;
+	num_frames = 0;
+	/* Add up pdi buffer size and frame numbers of each BPT sections */
+	for (i = 0; i < msg->sections; i++) {
+		ret = sdw_cdns_bpt_find_buffer_sizes(command, cdns->bus.params.row,
+						     cdns->bus.params.col,
+						     msg->sec[i].len, SDW_BPT_MSG_MAX_BYTES,
+						     &data_per_frame, &pdi0_buffer_size_,
+						     &pdi1_buffer_size_, &num_frames_);
+		if (ret < 0)
+			goto deprepare_stream;
+
+		len += msg->sec[i].len;
+		pdi0_buffer_size += pdi0_buffer_size_;
+		pdi1_buffer_size += pdi1_buffer_size_;
+		num_frames += num_frames_;
+	}
 
 	sdw->bpt_ctx.pdi0_buffer_size = pdi0_buffer_size;
 	sdw->bpt_ctx.pdi1_buffer_size = pdi1_buffer_size;
@@ -205,7 +222,7 @@ static int intel_ace2x_bpt_open_stream(struct sdw_intel *sdw, struct sdw_slave *
 	}
 
 	dev_dbg(cdns->dev, "Message len %d transferred in %d frames (%d per frame)\n",
-		msg->sec[0].len, num_frames, data_per_frame);
+		len, num_frames, data_per_frame);
 	dev_dbg(cdns->dev, "sizes pdi0 %d pdi1 %d tx_bandwidth %d rx_bandwidth %d\n",
 		pdi0_buffer_size, pdi1_buffer_size, tx_dma_bandwidth, rx_dma_bandwidth);
 
@@ -220,12 +237,12 @@ static int intel_ace2x_bpt_open_stream(struct sdw_intel *sdw, struct sdw_slave *
 	}
 
 	if (!command) {
-		ret = sdw_cdns_prepare_write_dma_buffer(msg->dev_num, msg->sec, 1,
+		ret = sdw_cdns_prepare_write_dma_buffer(msg->dev_num, msg->sec, msg->sections,
 							data_per_frame,
 							sdw->bpt_ctx.dmab_tx_bdl.area,
 							pdi0_buffer_size, &tx_total_bytes);
 	} else {
-		ret = sdw_cdns_prepare_read_dma_buffer(msg->dev_num, msg->sec, 1,
+		ret = sdw_cdns_prepare_read_dma_buffer(msg->dev_num, msg->sec, msg->sections,
 						       data_per_frame,
 						       sdw->bpt_ctx.dmab_tx_bdl.area,
 						       pdi0_buffer_size, &tx_total_bytes,
@@ -304,11 +321,16 @@ static int intel_ace2x_bpt_send_async(struct sdw_intel *sdw, struct sdw_slave *s
 				      struct sdw_bpt_msg *msg)
 {
 	struct sdw_cdns *cdns = &sdw->cdns;
+	int len = 0;
 	int ret;
+	int i;
 
-	if (msg->sec[0].len < INTEL_BPT_MSG_BYTE_MIN) {
+	for (i = 0; i < msg->sections; i++)
+		len += msg->sec[i].len;
+
+	if (len < INTEL_BPT_MSG_BYTE_MIN) {
 		dev_err(cdns->dev, "BPT message length %d is less than the minimum bytes %d\n",
-			msg->sec[0].len, INTEL_BPT_MSG_BYTE_MIN);
+			len, INTEL_BPT_MSG_BYTE_MIN);
 		return -EINVAL;
 	}
 
@@ -368,7 +390,7 @@ static int intel_ace2x_bpt_wait(struct sdw_intel *sdw, struct sdw_slave *slave,
 	} else {
 		ret = sdw_cdns_check_read_response(cdns->dev, sdw->bpt_ctx.dmab_rx_bdl.area,
 						   sdw->bpt_ctx.pdi1_buffer_size,
-						   msg->sec, 1, sdw->bpt_ctx.num_frames,
+						   msg->sec, msg->sections, sdw->bpt_ctx.num_frames,
 						   sdw->bpt_ctx.data_per_frame);
 		if (ret < 0)
 			dev_err(cdns->dev, "%s: BPT Read failed %d\n", __func__, ret);
