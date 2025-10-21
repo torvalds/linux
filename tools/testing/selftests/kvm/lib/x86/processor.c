@@ -286,6 +286,8 @@ void virt_map_level(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
 
 	for (i = 0; i < nr_pages; i++) {
 		__virt_pg_map(vm, vaddr, paddr, level);
+		sparsebit_set_num(vm->vpages_mapped, vaddr >> vm->page_shift,
+				  nr_bytes / PAGE_SIZE);
 
 		vaddr += pg_size;
 		paddr += pg_size;
