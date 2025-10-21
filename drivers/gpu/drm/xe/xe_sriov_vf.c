@@ -164,10 +164,9 @@ static void vf_migration_init_early(struct xe_device *xe)
 		return xe_sriov_vf_migration_disable(xe,
 				"experimental feature not available on production builds");
 
-	if (GRAPHICS_VER(xe) < 20)
-		return xe_sriov_vf_migration_disable(xe,
-				"requires gfx version >= 20, but only %u found",
-				GRAPHICS_VER(xe));
+	if (!xe_device_has_memirq(xe))
+		return xe_sriov_vf_migration_disable(xe, "requires memory-based IRQ support");
+
 }
 
 /**
