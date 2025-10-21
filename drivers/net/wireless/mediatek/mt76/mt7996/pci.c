@@ -161,7 +161,7 @@ static int mt7996_pci_probe(struct pci_dev *pdev,
 		goto free_wed_or_irq_vector;
 
 	mt76_wr(dev, MT_INT_MASK_CSR, 0);
-	/* master switch of PCIe tnterrupt enable */
+	/* master switch of PCIe interrupt enable */
 	mt76_wr(dev, MT_PCIE_MAC_INT_ENABLE, 0xff);
 
 	if (hif2) {
