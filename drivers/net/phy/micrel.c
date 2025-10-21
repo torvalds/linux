@@ -101,6 +101,8 @@
 #define LAN8814_CABLE_DIAG_VCT_DATA_MASK	GENMASK(7, 0)
 #define LAN8814_PAIR_BIT_SHIFT			12
 
+#define LAN8814_SKUS				0xB
+
 #define LAN8814_WIRE_PAIR_MASK			0xF
 
 /* Lan8814 general Interrupt control/status reg in GPHY specific block. */
@@ -367,6 +369,9 @@
 
 #define LAN8842_REV_8832			0x8832
 
+#define LAN8814_REV_LAN8814			0x8814
+#define LAN8814_REV_LAN8818			0x8818
+
 struct kszphy_hw_stat {
 	const char *string;
 	u8 reg;
@@ -449,6 +454,7 @@ struct kszphy_priv {
 	bool rmii_ref_clk_sel;
 	bool rmii_ref_clk_sel_val;
 	bool clk_enable;
+	bool is_ptp_available;
 	u64 stats[ARRAY_SIZE(kszphy_hw_stats)];
 	struct kszphy_phy_stats phy_stats;
 };
@@ -4126,6 +4132,17 @@ static int lan8804_config_intr(struct phy_device *phydev)
 	return 0;
 }
 
+/* Check if the PHY has 1588 support. There are multiple skus of the PHY and
+ * some of them support PTP while others don't support it. This function will
+ * return true is the sku supports it, otherwise will return false.
+ */
+static bool lan8814_has_ptp(struct phy_device *phydev)
+{
+	struct kszphy_priv *priv = phydev->priv;
+
+	return priv->is_ptp_available;
+}
+
 static irqreturn_t lan8814_handle_interrupt(struct phy_device *phydev)
 {
 	int ret = IRQ_NONE;
@@ -4141,6 +4158,9 @@ static irqreturn_t lan8814_handle_interrupt(struct phy_device *phydev)
 		phy_trigger_machine(phydev);
 		ret = IRQ_HANDLED;
 	}
+
+	if (!lan8814_has_ptp(phydev))
+		return ret;
 
 	while (true) {
 		irq_status = lanphy_read_page_reg(phydev, LAN8814_PAGE_PORT_REGS,
@@ -4201,6 +4221,9 @@ static void lan8814_ptp_init(struct phy_device *phydev)
 
 	if (!IS_ENABLED(CONFIG_PTP_1588_CLOCK) ||
 	    !IS_ENABLED(CONFIG_NETWORK_PHY_TIMESTAMPING))
+		return;
+
+	if (!lan8814_has_ptp(phydev))
 		return;
 
 	lanphy_write_page_reg(phydev, LAN8814_PAGE_PORT_REGS,
@@ -4332,6 +4355,9 @@ static int __lan8814_ptp_probe_once(struct phy_device *phydev, char *pin_name,
 
 static int lan8814_ptp_probe_once(struct phy_device *phydev)
 {
+	if (!lan8814_has_ptp(phydev))
+		return 0;
+
 	return __lan8814_ptp_probe_once(phydev, "lan8814_ptp_pin",
 					LAN8814_PTP_GPIO_NUM);
 }
@@ -4445,6 +4471,18 @@ static int lan8814_probe(struct phy_device *phydev)
 	addr = lanphy_read_page_reg(phydev, LAN8814_PAGE_COMMON_REGS, 0) & 0x1F;
 	devm_phy_package_join(&phydev->mdio.dev, phydev,
 			      addr, sizeof(struct lan8814_shared_priv));
+
+	/* There are lan8814 SKUs that don't support PTP. Make sure that for
+	 * those skus no PTP device is created. Here we check if the SKU
+	 * supports PTP.
+	 */
+	err = lanphy_read_page_reg(phydev, LAN8814_PAGE_COMMON_REGS,
+				   LAN8814_SKUS);
+	if (err < 0)
+		return err;
+
+	priv->is_ptp_available = err == LAN8814_REV_LAN8814 ||
+				 err == LAN8814_REV_LAN8818;
 
 	if (phy_package_init_once(phydev)) {
 		err = lan8814_release_coma_mode(phydev);
