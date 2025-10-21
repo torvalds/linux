@@ -853,7 +853,7 @@ struct cs35l56_pte {
 } __packed;
 static_assert((sizeof(struct cs35l56_pte) % sizeof(u32)) == 0);
 
-static int cs35l56_read_silicon_uid(struct cs35l56_base *cs35l56_base, u64 *uid)
+static int cs35l56_read_silicon_uid(struct cs35l56_base *cs35l56_base)
 {
 	struct cs35l56_pte pte;
 	u64 unique_id;
@@ -870,14 +870,15 @@ static int cs35l56_read_silicon_uid(struct cs35l56_base *cs35l56_base, u64 *uid)
 	unique_id |= (u32)pte.x | ((u32)pte.y << 8) | ((u32)pte.wafer_id << 16) |
 		     ((u32)pte.dvs << 24);
 
-	*uid = unique_id;
+	cs35l56_base->silicon_uid = unique_id;
 
 	return 0;
 }
 
-static int cs35l63_read_silicon_uid(struct cs35l56_base *cs35l56_base, u64 *uid)
+static int cs35l63_read_silicon_uid(struct cs35l56_base *cs35l56_base)
 {
 	u32 tmp[2];
+	u64 unique_id;
 	int ret;
 
 	ret = regmap_bulk_read(cs35l56_base->regmap, CS35L56_DIE_STS1, tmp, ARRAY_SIZE(tmp));
@@ -886,9 +887,11 @@ static int cs35l63_read_silicon_uid(struct cs35l56_base *cs35l56_base, u64 *uid)
 		return ret;
 	}
 
-	*uid = tmp[1];
-	*uid <<= 32;
-	*uid |= tmp[0];
+	unique_id = tmp[1];
+	unique_id <<= 32;
+	unique_id |= tmp[0];
+
+	cs35l56_base->silicon_uid = unique_id;
 
 	return 0;
 }
@@ -915,33 +918,14 @@ static const struct cirrus_amp_cal_controls cs35l63_calibration_controls = {
 
 int cs35l56_get_calibration(struct cs35l56_base *cs35l56_base)
 {
-	u64 silicon_uid = 0;
 	int ret;
 
 	/* Driver can't apply calibration to a secured part, so skip */
 	if (cs35l56_base->secured)
 		return 0;
 
-	switch (cs35l56_base->type) {
-	case 0x54:
-	case 0x56:
-	case 0x57:
-		ret = cs35l56_read_silicon_uid(cs35l56_base, &silicon_uid);
-		break;
-	case 0x63:
-		ret = cs35l63_read_silicon_uid(cs35l56_base, &silicon_uid);
-		break;
-	default:
-		ret = -ENODEV;
-		break;
-	}
-
-	if (ret < 0)
-		return ret;
-
-	dev_dbg(cs35l56_base->dev, "UniqueID = %#llx\n", silicon_uid);
-
-	ret = cs_amp_get_efi_calibration_data(cs35l56_base->dev, silicon_uid,
+	ret = cs_amp_get_efi_calibration_data(cs35l56_base->dev,
+					      cs35l56_base->silicon_uid,
 					      cs35l56_base->cal_index,
 					      &cs35l56_base->cal_data);
 
@@ -1110,6 +1094,21 @@ int cs35l56_hw_init(struct cs35l56_base *cs35l56_base)
 	regmap_update_bits(cs35l56_base->regmap, CS35L56_IRQ1_MASK_8,
 			   CS35L56_TEMP_ERR_EINT1_MASK,
 			   0);
+
+	switch (cs35l56_base->type) {
+	case 0x54:
+	case 0x56:
+	case 0x57:
+		ret = cs35l56_read_silicon_uid(cs35l56_base);
+		break;
+	default:
+		ret = cs35l63_read_silicon_uid(cs35l56_base);
+		break;
+	}
+	if (ret)
+		return ret;
+
+	dev_dbg(cs35l56_base->dev, "SiliconID = %#llx\n", cs35l56_base->silicon_uid);
 
 	return 0;
 }

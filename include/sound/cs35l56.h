@@ -309,6 +309,7 @@ struct cs35l56_base {
 	struct cs35l56_spi_payload *spi_payload_buf;
 	const struct cs35l56_fw_reg *fw_reg;
 	const struct cirrus_amp_cal_controls *calibration_controls;
+	u64 silicon_uid;
 };
 
 static inline bool cs35l56_is_otp_register(unsigned int reg)
