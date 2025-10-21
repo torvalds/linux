@@ -16,6 +16,7 @@
 #include <linux/types.h>
 
 #include <linux/err.h>
+#include <linux/firmware/xlnx-zynqmp-ufs.h>
 
 #define ZYNQMP_PM_VERSION_MAJOR	1
 #define ZYNQMP_PM_VERSION_MINOR	0
