@@ -120,7 +120,7 @@ static u32 gswip_switch_r_timeout(struct gswip_priv *priv, u32 offset,
 					!(val & cleared), 20, 50000);
 }
 
-static void gswip_mii_mask_cfg(struct gswip_priv *priv, u32 clear, u32 set,
+static void gswip_mii_mask_cfg(struct gswip_priv *priv, u32 mask, u32 set,
 			       int port)
 {
 	int reg_port;
@@ -131,11 +131,11 @@ static void gswip_mii_mask_cfg(struct gswip_priv *priv, u32 clear, u32 set,
 
 	reg_port = port + priv->hw_info->mii_port_reg_offset;
 
-	regmap_write_bits(priv->mii, GSWIP_MII_CFGp(reg_port), clear | set,
+	regmap_write_bits(priv->mii, GSWIP_MII_CFGp(reg_port), mask,
 			  set);
 }
 
-static void gswip_mii_mask_pcdu(struct gswip_priv *priv, u32 clear, u32 set,
+static void gswip_mii_mask_pcdu(struct gswip_priv *priv, u32 mask, u32 set,
 				int port)
 {
 	int reg_port;
@@ -148,16 +148,13 @@ static void gswip_mii_mask_pcdu(struct gswip_priv *priv, u32 clear, u32 set,
 
 	switch (reg_port) {
 	case 0:
-		regmap_write_bits(priv->mii, GSWIP_MII_PCDU0, clear | set,
-				  set);
+		regmap_write_bits(priv->mii, GSWIP_MII_PCDU0, mask, set);
 		break;
 	case 1:
-		regmap_write_bits(priv->mii, GSWIP_MII_PCDU1, clear | set,
-				  set);
+		regmap_write_bits(priv->mii, GSWIP_MII_PCDU1, mask, set);
 		break;
 	case 5:
-		regmap_write_bits(priv->mii, GSWIP_MII_PCDU5, clear | set,
-				  set);
+		regmap_write_bits(priv->mii, GSWIP_MII_PCDU5, mask, set);
 		break;
 	}
 }
@@ -1501,7 +1498,7 @@ static void gswip_phylink_mac_link_up(struct phylink_config *config,
 		gswip_port_set_pause(priv, port, tx_pause, rx_pause);
 	}
 
-	gswip_mii_mask_cfg(priv, 0, GSWIP_MII_CFG_EN, port);
+	gswip_mii_mask_cfg(priv, GSWIP_MII_CFG_EN, GSWIP_MII_CFG_EN, port);
 }
 
 static void gswip_get_strings(struct dsa_switch *ds, int port, u32 stringset,
