@@ -286,7 +286,9 @@ void amdgpu_hmm_range_free(struct amdgpu_hmm_range *range)
 	if (!range)
 		return;
 
-	kvfree(range->hmm_range.hmm_pfns);
+	if (range->hmm_range.hmm_pfns)
+		kvfree(range->hmm_range.hmm_pfns);
+
 	amdgpu_bo_unref(&range->bo);
 	kfree(range);
 }
