@@ -703,6 +703,79 @@ static void smbdirect_connection_negotiate_rdma_resources(struct smbdirect_socke
 						peer_responder_resources);
 }
 
+__maybe_unused /* this is temporary while this file is included in others */
+static int smbdirect_connection_wait_for_connected(struct smbdirect_socket *sc)
+{
+	const struct smbdirect_socket_parameters *sp = &sc->parameters;
+	union {
+		struct sockaddr sa;
+		struct sockaddr_storage ss;
+	} src_addr, dst_addr;
+	const struct sockaddr *src = NULL;
+	const struct sockaddr *dst = NULL;
+	char _devname[IB_DEVICE_NAME_MAX] = { 0, };
+	const char *devname = NULL;
+	int ret;
+
+	if (sc->rdma.cm_id) {
+		src_addr.ss = sc->rdma.cm_id->route.addr.src_addr;
+		if (src_addr.sa.sa_family != AF_UNSPEC)
+			src = &src_addr.sa;
+		dst_addr.ss = sc->rdma.cm_id->route.addr.dst_addr;
+		if (dst_addr.sa.sa_family != AF_UNSPEC)
+			dst = &dst_addr.sa;
+
+		if (sc->ib.dev) {
+			memcpy(_devname, sc->ib.dev->name, IB_DEVICE_NAME_MAX);
+			devname = _devname;
+		}
+	}
+
+	smbdirect_log_rdma_event(sc, SMBDIRECT_LOG_INFO,
+		"waiting for connection: device: %.*s local: %pISpsfc remote: %pISpsfc\n",
+		IB_DEVICE_NAME_MAX, devname, src, dst);
+
+	ret = wait_event_interruptible_timeout(sc->status_wait,
+					       sc->status == SMBDIRECT_SOCKET_CONNECTED ||
+					       sc->first_error,
+					       msecs_to_jiffies(sp->negotiate_timeout_msec));
+	if (sc->rdma.cm_id) {
+		/*
+		 * Maybe src and dev are updated in the meantime.
+		 */
+		src_addr.ss = sc->rdma.cm_id->route.addr.src_addr;
+		if (src_addr.sa.sa_family != AF_UNSPEC)
+			src = &src_addr.sa;
+		dst_addr.ss = sc->rdma.cm_id->route.addr.dst_addr;
+		if (dst_addr.sa.sa_family != AF_UNSPEC)
+			dst = &dst_addr.sa;
+
+		if (sc->ib.dev) {
+			memcpy(_devname, sc->ib.dev->name, IB_DEVICE_NAME_MAX);
+			devname = _devname;
+		}
+	}
+	if (ret == 0)
+		ret = -ETIMEDOUT;
+	if (ret < 0)
+		smbdirect_socket_schedule_cleanup(sc, ret);
+	if (sc->first_error) {
+		int lvl = SMBDIRECT_LOG_ERR;
+
+		ret = sc->first_error;
+		if (ret == -ENODEV)
+			lvl = SMBDIRECT_LOG_INFO;
+
+		smbdirect_log_rdma_event(sc, lvl,
+			"connection failed %1pe device: %.*s local: %pISpsfc remote: %pISpsfc\n",
+			SMBDIRECT_DEBUG_ERR_PTR(ret),
+			IB_DEVICE_NAME_MAX, devname, src, dst);
+		return ret;
+	}
+
+	return 0;
+}
+
 static void smbdirect_connection_idle_timer_work(struct work_struct *work)
 {
 	struct smbdirect_socket *sc =
