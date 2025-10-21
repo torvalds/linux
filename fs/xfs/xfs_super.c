@@ -102,7 +102,7 @@ static const struct constant_table dax_param_enums[] = {
  * Table driven mount option parser.
  */
 enum {
-	Opt_logbufs, Opt_logbsize, Opt_logdev, Opt_rtdev,
+	Op_deprecated, Opt_logbufs, Opt_logbsize, Opt_logdev, Opt_rtdev,
 	Opt_wsync, Opt_noalign, Opt_swalloc, Opt_sunit, Opt_swidth, Opt_nouuid,
 	Opt_grpid, Opt_nogrpid, Opt_bsdgroups, Opt_sysvgroups,
 	Opt_allocsize, Opt_norecovery, Opt_inode64, Opt_inode32,
@@ -114,7 +114,21 @@ enum {
 	Opt_lifetime, Opt_nolifetime, Opt_max_atomic_write,
 };
 
+#define fsparam_dead(NAME) \
+	__fsparam(NULL, (NAME), Op_deprecated, fs_param_deprecated, NULL)
+
 static const struct fs_parameter_spec xfs_fs_parameters[] = {
+	/*
+	 * These mount options were supposed to be deprecated in September 2025
+	 * but the deprecation warning was buggy, so not all users were
+	 * notified.  The deprecation is now obnoxiously loud and postponed to
+	 * September 2030.
+	 */
+	fsparam_dead("attr2"),
+	fsparam_dead("noattr2"),
+	fsparam_dead("ikeep"),
+	fsparam_dead("noikeep"),
+
 	fsparam_u32("logbufs",		Opt_logbufs),
 	fsparam_string("logbsize",	Opt_logbsize),
 	fsparam_string("logdev",	Opt_logdev),
@@ -1423,6 +1437,9 @@ xfs_fs_parse_param(
 		return opt;
 
 	switch (opt) {
+	case Op_deprecated:
+		xfs_fs_warn_deprecated(fc, param);
+		return 0;
 	case Opt_logbufs:
 		parsing_mp->m_logbufs = result.uint_32;
 		return 0;
@@ -1543,7 +1560,6 @@ xfs_fs_parse_param(
 		xfs_mount_set_dax_mode(parsing_mp, result.uint_32);
 		return 0;
 #endif
-	/* Following mount options will be removed in September 2025 */
 	case Opt_max_open_zones:
 		parsing_mp->m_max_open_zones = result.uint_32;
 		return 0;
