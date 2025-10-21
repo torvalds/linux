@@ -6891,11 +6891,18 @@ void rtw89_fw_c2h_work(struct wiphy *wiphy, struct wiphy_work *work)
 	struct rtw89_dev *rtwdev = container_of(work, struct rtw89_dev,
 						c2h_work);
 	struct sk_buff *skb, *tmp;
+	struct sk_buff_head c2hq;
+	unsigned long flags;
 
 	lockdep_assert_wiphy(rtwdev->hw->wiphy);
 
-	skb_queue_walk_safe(&rtwdev->c2h_queue, skb, tmp) {
-		skb_unlink(skb, &rtwdev->c2h_queue);
+	__skb_queue_head_init(&c2hq);
+
+	spin_lock_irqsave(&rtwdev->c2h_queue.lock, flags);
+	skb_queue_splice_init(&rtwdev->c2h_queue, &c2hq);
+	spin_unlock_irqrestore(&rtwdev->c2h_queue.lock, flags);
+
+	skb_queue_walk_safe(&c2hq, skb, tmp) {
 		rtw89_fw_c2h_cmd_handle(rtwdev, skb);
 		dev_kfree_skb_any(skb);
 	}
@@ -6905,17 +6912,19 @@ void rtw89_fw_c2h_purge_obsoleted_scan_events(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_hw_scan_info *scan_info = &rtwdev->scan_info;
 	struct sk_buff *skb, *tmp;
-	int limit;
+	struct sk_buff_head c2hq;
+	unsigned long flags;
 
 	lockdep_assert_wiphy(rtwdev->hw->wiphy);
 
-	limit = skb_queue_len(&rtwdev->c2h_queue);
+	__skb_queue_head_init(&c2hq);
 
-	skb_queue_walk_safe(&rtwdev->c2h_queue, skb, tmp) {
+	spin_lock_irqsave(&rtwdev->c2h_queue.lock, flags);
+	skb_queue_splice_init(&rtwdev->c2h_queue, &c2hq);
+	spin_unlock_irqrestore(&rtwdev->c2h_queue.lock, flags);
+
+	skb_queue_walk_safe(&c2hq, skb, tmp) {
 		struct rtw89_fw_c2h_attr *attr = RTW89_SKB_C2H_CB(skb);
-
-		if (--limit < 0)
-			return;
 
 		if (!attr->is_scan_event || attr->scan_seq == scan_info->seq)
 			continue;
@@ -6924,9 +6933,13 @@ void rtw89_fw_c2h_purge_obsoleted_scan_events(struct rtw89_dev *rtwdev)
 			    "purge obsoleted scan event with seq=%d (cur=%d)\n",
 			    attr->scan_seq, scan_info->seq);
 
-		skb_unlink(skb, &rtwdev->c2h_queue);
+		__skb_unlink(skb, &c2hq);
 		dev_kfree_skb_any(skb);
 	}
+
+	spin_lock_irqsave(&rtwdev->c2h_queue.lock, flags);
+	skb_queue_splice(&c2hq, &rtwdev->c2h_queue);
+	spin_unlock_irqrestore(&rtwdev->c2h_queue.lock, flags);
 }
 
 static int rtw89_fw_write_h2c_reg(struct rtw89_dev *rtwdev,
