@@ -230,6 +230,7 @@ struct reserve_ticket {
 	bool steal;
 	struct list_head list;
 	wait_queue_head_t wait;
+	spinlock_t lock;
 };
 
 static inline bool btrfs_mixed_space_info(const struct btrfs_space_info *space_info)
