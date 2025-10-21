@@ -3402,8 +3402,8 @@ static int __split_unmapped_folio(struct folio *folio, int new_order,
 		struct address_space *mapping, bool uniform_split)
 {
 	const bool is_anon = folio_test_anon(folio);
-	int order = folio_order(folio);
-	int start_order = uniform_split ? new_order : order - 1;
+	int old_order = folio_order(folio);
+	int start_order = uniform_split ? new_order : old_order - 1;
 	int split_order;
 
 	/*
@@ -3413,13 +3413,10 @@ static int __split_unmapped_folio(struct folio *folio, int new_order,
 	for (split_order = start_order;
 	     split_order >= new_order;
 	     split_order--) {
-		int old_order = folio_order(folio);
 		int nr_new_folios = 1UL << (old_order - split_order);
 
 		/* order-1 anonymous folio is not supported */
 		if (is_anon && split_order == 1)
-			continue;
-		if (uniform_split && split_order != new_order)
 			continue;
 
 		if (mapping) {
@@ -3447,7 +3444,13 @@ static int __split_unmapped_folio(struct folio *folio, int new_order,
 			mod_mthp_stat(old_order, MTHP_STAT_NR_ANON, -1);
 			mod_mthp_stat(split_order, MTHP_STAT_NR_ANON, nr_new_folios);
 		}
+		/*
+		 * If uniform split, the process is complete.
+		 * If non-uniform, continue splitting the folio at @split_at
+		 * as long as the next @split_order is >= @new_order.
+		 */
 		folio = page_folio(split_at);
+		old_order = split_order;
 	}
 
 	return 0;
