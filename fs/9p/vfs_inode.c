@@ -1339,14 +1339,8 @@ int v9fs_refresh_inode(struct p9_fid *fid, struct inode *inode)
 	 * Don't update inode if the file type is different
 	 */
 	umode = p9mode2unixmode(v9ses, st, &rdev);
-	if (inode_wrong_type(inode, umode)) {
-		/*
-		 * Do this as a way of letting the caller know the inode should not
-		 * be reused
-		 */
-		v9fs_invalidate_inode_attr(inode);
+	if (inode_wrong_type(inode, umode))
 		goto out;
-	}
 
 	/*
 	 * We don't want to refresh inode->i_size,
