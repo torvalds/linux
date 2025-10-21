@@ -130,7 +130,7 @@
 bool xe_sriov_vf_migration_supported(struct xe_device *xe)
 {
 	xe_assert(xe, IS_SRIOV_VF(xe));
-	return xe->sriov.vf.migration.enabled;
+	return !xe->sriov.vf.migration.disabled;
 }
 
 static void vf_disable_migration(struct xe_device *xe, const char *fmt, ...)
@@ -146,7 +146,7 @@ static void vf_disable_migration(struct xe_device *xe, const char *fmt, ...)
 	xe_sriov_notice(xe, "migration disabled: %pV\n", &vaf);
 	va_end(va_args);
 
-	xe->sriov.vf.migration.enabled = false;
+	xe->sriov.vf.migration.disabled = true;
 }
 
 static void vf_migration_init_early(struct xe_device *xe)
@@ -172,9 +172,6 @@ static void vf_migration_init_early(struct xe_device *xe)
 						    "CCS migration requires GuC ABI >= 1.23 but only %u.%u found",
 						    guc_version.major, guc_version.minor);
 	}
-
-	xe->sriov.vf.migration.enabled = true;
-	xe_sriov_dbg(xe, "migration support enabled\n");
 }
 
 /**
