@@ -45,8 +45,10 @@ static int zpci_bus_prepare_device(struct zpci_dev *zdev)
 
 	if (!zdev_enabled(zdev)) {
 		rc = zpci_enable_device(zdev);
-		if (rc)
+		if (rc) {
+			pr_err("Enabling PCI function %08x failed\n", zdev->fid);
 			return rc;
+		}
 	}
 
 	if (!zdev->has_resources) {
