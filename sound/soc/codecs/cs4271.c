@@ -276,7 +276,7 @@ static int cs4271_set_deemph(struct snd_soc_component *component)
 static int cs4271_get_deemph(struct snd_kcontrol *kcontrol,
 			     struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct cs4271_private *cs4271 = snd_soc_component_get_drvdata(component);
 
 	ucontrol->value.integer.value[0] = cs4271->deemph;
@@ -286,7 +286,7 @@ static int cs4271_get_deemph(struct snd_kcontrol *kcontrol,
 static int cs4271_put_deemph(struct snd_kcontrol *kcontrol,
 			     struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct cs4271_private *cs4271 = snd_soc_component_get_drvdata(component);
 
 	cs4271->deemph = ucontrol->value.integer.value[0];

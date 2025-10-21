@@ -142,7 +142,7 @@ static int es8328_set_deemph(struct snd_soc_component *component)
 static int es8328_get_deemph(struct snd_kcontrol *kcontrol,
 			     struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct es8328_priv *es8328 = snd_soc_component_get_drvdata(component);
 
 	ucontrol->value.integer.value[0] = es8328->deemph;
@@ -152,7 +152,7 @@ static int es8328_get_deemph(struct snd_kcontrol *kcontrol,
 static int es8328_put_deemph(struct snd_kcontrol *kcontrol,
 			     struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct es8328_priv *es8328 = snd_soc_component_get_drvdata(component);
 	unsigned int deemph = ucontrol->value.integer.value[0];
 	int ret;

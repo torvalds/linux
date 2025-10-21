@@ -85,7 +85,7 @@ static SOC_ENUM_SINGLE_DECL(cs4234_max_delay, CS4234_VOLUME_MODE,
 static int cs4234_dac14_grp_delay_put(struct snd_kcontrol *kctrl,
 				      struct snd_ctl_elem_value *uctrl)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kctrl);
+	struct snd_soc_component *component = snd_kcontrol_chip(kctrl);
 	struct cs4234 *cs4234 = snd_soc_component_get_drvdata(component);
 	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
 	unsigned int val = 0;

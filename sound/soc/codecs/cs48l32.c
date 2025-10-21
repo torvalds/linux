@@ -231,7 +231,7 @@ static_assert(ARRAY_SIZE(cs48l32_rate_val) == ARRAY_SIZE(cs48l32_rate_text));
 
 static int cs48l32_rate_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct cs48l32_codec *cs48l32_codec = snd_soc_component_get_drvdata(component);
 	int ret;
 
@@ -704,7 +704,7 @@ static bool cs48l32_is_input_enabled(struct snd_soc_component *component,
 static int cs48l32_in_rate_put(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	int ret;
@@ -755,7 +755,7 @@ static int cs48l32_low_power_mode_put(struct snd_kcontrol *kcontrol,
 				      struct snd_ctl_elem_value *ucontrol)
 {
 	struct soc_mixer_control *mc = (struct soc_mixer_control *)kcontrol->private_value;
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
 	int ret;
 
@@ -912,7 +912,7 @@ static const struct soc_enum cs48l32_lhpf_mode[] = {
 static int cs48l32_lhpf_coeff_put(struct snd_kcontrol *kcontrol,
 				  struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct cs48l32_codec *cs48l32_codec = snd_soc_component_get_drvdata(component);
 	__be32 *data = (__be32 *)ucontrol->value.bytes.data;
 	s16 val = (s16)be32_to_cpu(*data);
@@ -947,7 +947,7 @@ static const struct soc_enum cs48l32_eq_mode[] = {
 static int cs48l32_eq_mode_get(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct cs48l32_codec *cs48l32_codec = snd_soc_component_get_drvdata(component);
 	struct soc_enum *e = (struct soc_enum *) kcontrol->private_value;
 	unsigned int item;
@@ -961,7 +961,7 @@ static int cs48l32_eq_mode_get(struct snd_kcontrol *kcontrol,
 static int cs48l32_eq_mode_put(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
 	struct cs48l32_codec *cs48l32_codec = snd_soc_component_get_drvdata(component);
 	struct soc_enum *e = (struct soc_enum *) kcontrol->private_value;
@@ -1000,7 +1000,7 @@ static int cs48l32_eq_coeff_info(struct snd_kcontrol *kcontrol,
 static int cs48l32_eq_coeff_get(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct cs48l32_codec *cs48l32_codec = snd_soc_component_get_drvdata(component);
 	struct cs48l32_eq_control *params = (void *)kcontrol->private_value;
 	__be16 *coeffs;
@@ -1025,7 +1025,7 @@ static int cs48l32_eq_coeff_get(struct snd_kcontrol *kcontrol,
 static int cs48l32_eq_coeff_put(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
 	struct cs48l32_codec *cs48l32_codec = snd_soc_component_get_drvdata(component);
 	struct cs48l32_eq_control *params = (void *)kcontrol->private_value;
@@ -1062,7 +1062,7 @@ static const struct snd_kcontrol_new cs48l32_dsp_trigger_output_mux[] = {
 static int cs48l32_dsp_rate_get(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct cs48l32_codec *cs48l32_codec = snd_soc_component_get_drvdata(component);
 	struct soc_enum *e = (struct soc_enum *) kcontrol->private_value;
 	unsigned int cached_rate;
@@ -1082,7 +1082,7 @@ static int cs48l32_dsp_rate_get(struct snd_kcontrol *kcontrol,
 static int cs48l32_dsp_rate_put(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
 	struct cs48l32_codec *cs48l32_codec = snd_soc_component_get_drvdata(component);
 	struct soc_enum *e = (struct soc_enum *) kcontrol->private_value;
@@ -2465,7 +2465,7 @@ static int cs48l32_in_ev(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kco
 static int cs48l32_in_put_volsw(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct cs48l32_codec *cs48l32_codec = snd_soc_component_get_drvdata(component);
 	int ret;
 

@@ -175,7 +175,7 @@ static int aw87390_dev_set_profile_index(struct aw_device *aw_dev, int index)
 static int aw87390_profile_info(struct snd_kcontrol *kcontrol,
 			 struct snd_ctl_elem_info *uinfo)
 {
-	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *codec = snd_kcontrol_chip(kcontrol);
 	struct aw87390 *aw87390 = snd_soc_component_get_drvdata(codec);
 	char *prof_name;
 	int count, ret;
@@ -210,7 +210,7 @@ static int aw87390_profile_info(struct snd_kcontrol *kcontrol,
 static int aw87390_profile_get(struct snd_kcontrol *kcontrol,
 			struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *codec = snd_kcontrol_chip(kcontrol);
 	struct aw87390 *aw87390 = snd_soc_component_get_drvdata(codec);
 
 	ucontrol->value.integer.value[0] = aw87390->aw_pa->prof_index;
@@ -221,7 +221,7 @@ static int aw87390_profile_get(struct snd_kcontrol *kcontrol,
 static int aw87390_profile_set(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *codec = snd_kcontrol_chip(kcontrol);
 	struct aw87390 *aw87390 = snd_soc_component_get_drvdata(codec);
 	int ret;
 

@@ -1034,8 +1034,7 @@ static void rt1011_reset(struct regmap *regmap)
 static int rt1011_recv_spk_mode_get(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component =
-		snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct rt1011_priv *rt1011 =
 		snd_soc_component_get_drvdata(component);
 
@@ -1047,8 +1046,7 @@ static int rt1011_recv_spk_mode_get(struct snd_kcontrol *kcontrol,
 static int rt1011_recv_spk_mode_put(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component =
-		snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct rt1011_priv *rt1011 =
 		snd_soc_component_get_drvdata(component);
 
@@ -1110,8 +1108,7 @@ static bool rt1011_validate_bq_drc_coeff(unsigned short reg)
 static int rt1011_bq_drc_coeff_get(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component =
-		snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct rt1011_priv *rt1011 =
 		snd_soc_component_get_drvdata(component);
 	struct rt1011_bq_drc_params *bq_drc_info;
@@ -1147,8 +1144,7 @@ static int rt1011_bq_drc_coeff_get(struct snd_kcontrol *kcontrol,
 static int rt1011_bq_drc_coeff_put(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component =
-		snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct rt1011_priv *rt1011 =
 		snd_soc_component_get_drvdata(component);
 	struct rt1011_bq_drc_params *bq_drc_info;
@@ -1319,8 +1315,7 @@ static SOC_ENUM_SINGLE_DECL(rt1011_i2s_ref_enum, 0, 0,
 static int rt1011_i2s_ref_put(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component =
-		snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct rt1011_priv *rt1011 =
 		snd_soc_component_get_drvdata(component);
 
@@ -1348,8 +1343,7 @@ static int rt1011_i2s_ref_put(struct snd_kcontrol *kcontrol,
 static int rt1011_i2s_ref_get(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component =
-		snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct rt1011_priv *rt1011 =
 		snd_soc_component_get_drvdata(component);
 

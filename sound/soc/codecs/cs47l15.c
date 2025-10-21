@@ -106,8 +106,7 @@ static int cs47l15_adsp_power_ev(struct snd_soc_dapm_widget *w,
 static int cs47l15_in1_adc_get(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component =
-		snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct cs47l15 *cs47l15 = snd_soc_component_get_drvdata(component);
 
 	ucontrol->value.integer.value[0] = !!cs47l15->in1_lp_mode;
@@ -118,8 +117,7 @@ static int cs47l15_in1_adc_get(struct snd_kcontrol *kcontrol,
 static int cs47l15_in1_adc_put(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component =
-		snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct cs47l15 *cs47l15 = snd_soc_component_get_drvdata(component);
 
 	if (!!ucontrol->value.integer.value[0] == cs47l15->in1_lp_mode)

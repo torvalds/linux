@@ -224,7 +224,7 @@ static bool pcm512x_volatile(struct device *dev, unsigned int reg)
 static int pcm512x_overclock_pll_get(struct snd_kcontrol *kcontrol,
 				     struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct pcm512x_priv *pcm512x = snd_soc_component_get_drvdata(component);
 
 	ucontrol->value.integer.value[0] = pcm512x->overclock_pll;
@@ -234,7 +234,7 @@ static int pcm512x_overclock_pll_get(struct snd_kcontrol *kcontrol,
 static int pcm512x_overclock_pll_put(struct snd_kcontrol *kcontrol,
 				     struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct pcm512x_priv *pcm512x = snd_soc_component_get_drvdata(component);
 
 	switch (snd_soc_component_get_bias_level(component)) {
@@ -252,7 +252,7 @@ static int pcm512x_overclock_pll_put(struct snd_kcontrol *kcontrol,
 static int pcm512x_overclock_dsp_get(struct snd_kcontrol *kcontrol,
 				     struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct pcm512x_priv *pcm512x = snd_soc_component_get_drvdata(component);
 
 	ucontrol->value.integer.value[0] = pcm512x->overclock_dsp;
@@ -262,7 +262,7 @@ static int pcm512x_overclock_dsp_get(struct snd_kcontrol *kcontrol,
 static int pcm512x_overclock_dsp_put(struct snd_kcontrol *kcontrol,
 				     struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct pcm512x_priv *pcm512x = snd_soc_component_get_drvdata(component);
 
 	switch (snd_soc_component_get_bias_level(component)) {
@@ -280,7 +280,7 @@ static int pcm512x_overclock_dsp_put(struct snd_kcontrol *kcontrol,
 static int pcm512x_overclock_dac_get(struct snd_kcontrol *kcontrol,
 				     struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct pcm512x_priv *pcm512x = snd_soc_component_get_drvdata(component);
 
 	ucontrol->value.integer.value[0] = pcm512x->overclock_dac;
@@ -290,7 +290,7 @@ static int pcm512x_overclock_dac_get(struct snd_kcontrol *kcontrol,
 static int pcm512x_overclock_dac_put(struct snd_kcontrol *kcontrol,
 				     struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct pcm512x_priv *pcm512x = snd_soc_component_get_drvdata(component);
 
 	switch (snd_soc_component_get_bias_level(component)) {
@@ -393,7 +393,7 @@ static int pcm512x_update_mute(struct pcm512x_priv *pcm512x)
 static int pcm512x_digital_playback_switch_get(struct snd_kcontrol *kcontrol,
 					       struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct pcm512x_priv *pcm512x = snd_soc_component_get_drvdata(component);
 
 	mutex_lock(&pcm512x->mutex);
@@ -407,7 +407,7 @@ static int pcm512x_digital_playback_switch_get(struct snd_kcontrol *kcontrol,
 static int pcm512x_digital_playback_switch_put(struct snd_kcontrol *kcontrol,
 					       struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct pcm512x_priv *pcm512x = snd_soc_component_get_drvdata(component);
 	int ret, changed = 0;
 

@@ -164,7 +164,7 @@ static bool nau8810_volatile_reg(struct device *dev, unsigned int reg)
 static int nau8810_eq_get(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct nau8810 *nau8810 = snd_soc_component_get_drvdata(component);
 	struct soc_bytes_ext *params = (void *)kcontrol->private_value;
 	int i, reg, reg_val;
@@ -196,7 +196,7 @@ static int nau8810_eq_get(struct snd_kcontrol *kcontrol,
 static int nau8810_eq_put(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct nau8810 *nau8810 = snd_soc_component_get_drvdata(component);
 	struct soc_bytes_ext *params = (void *)kcontrol->private_value;
 	void *data;
