@@ -1089,6 +1089,8 @@ static int ath12k_dp_prepare_reo_update_elem(struct ath12k_dp *dp,
 {
 	struct dp_reo_update_rx_queue_elem *elem;
 
+	lockdep_assert_held(&dp->ab->base_lock);
+
 	elem = kzalloc(sizeof(*elem), GFP_ATOMIC);
 	if (!elem)
 		return -ENOMEM;
