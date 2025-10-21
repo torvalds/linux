@@ -1303,6 +1303,7 @@ static double TruncToValidBPP(
 		MinDSCBPP = 8;
 		MaxDSCBPP = 16;
 	} else {
+
 		if (Output == dml2_hdmi || Output == dml2_hdmifrl) {
 			NonDSCBPP0 = 24;
 			NonDSCBPP1 = 24;
@@ -1320,6 +1321,7 @@ static double TruncToValidBPP(
 			MaxDSCBPP = 16;
 		}
 	}
+
 	if (Output == dml2_dp2p0) {
 		MaxLinkBPP = LinkBitRate * Lanes / PixelClock * 128.0 / 132.0 * 383.0 / 384.0 * 65536.0 / 65540.0;
 	} else if (DSCEnable && Output == dml2_dp) {

@@ -30,7 +30,6 @@
 #include "display_mode_core_structs.h"
 #include "cmntypes.h"
 
-
 #include "dml_assert.h"
 #include "dml_logging.h"
 
@@ -71,6 +70,5 @@ __DML_DLL_EXPORT__ dml_uint_t dml_get_num_active_pipes(const struct dml_display_
 __DML_DLL_EXPORT__ dml_uint_t dml_get_plane_idx(const struct display_mode_lib_st *mode_lib, dml_uint_t pipe_idx);
 __DML_DLL_EXPORT__ dml_uint_t dml_get_pipe_idx(const struct display_mode_lib_st *mode_lib, dml_uint_t plane_idx);
 __DML_DLL_EXPORT__ void       dml_calc_pipe_plane_mapping(const struct dml_hw_resource_st *hw, dml_uint_t *pipe_plane);
-
 
 #endif

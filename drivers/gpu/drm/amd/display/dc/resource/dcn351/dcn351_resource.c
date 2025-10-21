@@ -83,7 +83,7 @@
 #include "vm_helper.h"
 #include "dcn20/dcn20_vmid.h"
 
-#include "dml2/dml2_wrapper.h"
+#include "dml2_0/dml2_wrapper.h"
 
 #include "link_enc_cfg.h"
 #define DC_LOGGER_INIT(logger)

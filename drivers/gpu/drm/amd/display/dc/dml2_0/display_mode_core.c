@@ -10205,6 +10205,7 @@ dml_bool_t dml_get_is_phantom_pipe(struct display_mode_lib_st *mode_lib, dml_uin
 	return (mode_lib->ms.cache_display_cfg.plane.UseMALLForPStateChange[plane_idx] == dml_use_mall_pstate_change_phantom_pipe);
 }
 
+
 #define dml_get_per_surface_var_func(variable, type, interval_var) type dml_get_##variable(struct display_mode_lib_st *mode_lib, dml_uint_t surface_idx) \
 { \
 	dml_uint_t plane_idx; \
@@ -10333,3 +10334,4 @@ dml_get_per_surface_var_func(bigk_fragment_size, dml_uint_t, mode_lib->mp.BIGK_F
 dml_get_per_surface_var_func(dpte_bytes_per_row, dml_uint_t, mode_lib->mp.PixelPTEBytesPerRow);
 dml_get_per_surface_var_func(meta_bytes_per_row, dml_uint_t, mode_lib->mp.MetaRowByte);
 dml_get_per_surface_var_func(det_buffer_size_kbytes, dml_uint_t, mode_lib->ms.DETBufferSizeInKByte);
+

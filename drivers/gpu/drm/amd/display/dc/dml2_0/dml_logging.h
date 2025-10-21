@@ -23,6 +23,7 @@
  * Authors: AMD
  *
  */
+
 #ifndef __DML_LOGGING_H__
 #define __DML_LOGGING_H__
 
