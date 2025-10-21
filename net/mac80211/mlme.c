@@ -6620,8 +6620,8 @@ static void ieee80211_rx_mgmt_probe_resp(struct ieee80211_link_data *link,
 	 * Response frame shall be set to the broadcast address [..]"
 	 * So, on 6GHz band we should also accept broadcast responses.
 	 */
-	channel = ieee80211_get_channel(sdata->local->hw.wiphy,
-					rx_status->freq);
+	channel = ieee80211_get_channel_khz(sdata->local->hw.wiphy,
+					    ieee80211_rx_status_to_khz(rx_status));
 	if (!channel)
 		return;
 
