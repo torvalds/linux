@@ -220,14 +220,12 @@ static int intel_ace2x_bpt_open_stream(struct sdw_intel *sdw, struct sdw_slave *
 	}
 
 	if (!command) {
-		ret = sdw_cdns_prepare_write_dma_buffer(msg->dev_num, msg->sec[0].addr,
-							msg->sec[0].buf,
-							msg->sec[0].len, data_per_frame,
+		ret = sdw_cdns_prepare_write_dma_buffer(msg->dev_num, msg->sec, 1,
+							data_per_frame,
 							sdw->bpt_ctx.dmab_tx_bdl.area,
 							pdi0_buffer_size, &tx_total_bytes);
 	} else {
-		ret = sdw_cdns_prepare_read_dma_buffer(msg->dev_num, msg->sec[0].addr,
-						       msg->sec[0].len,
+		ret = sdw_cdns_prepare_read_dma_buffer(msg->dev_num, msg->sec, 1,
 						       data_per_frame,
 						       sdw->bpt_ctx.dmab_tx_bdl.area,
 						       pdi0_buffer_size, &tx_total_bytes,
@@ -370,8 +368,7 @@ static int intel_ace2x_bpt_wait(struct sdw_intel *sdw, struct sdw_slave *slave,
 	} else {
 		ret = sdw_cdns_check_read_response(cdns->dev, sdw->bpt_ctx.dmab_rx_bdl.area,
 						   sdw->bpt_ctx.pdi1_buffer_size,
-						   msg->sec[0].buf, msg->sec[0].len,
-						   sdw->bpt_ctx.num_frames,
+						   msg->sec, 1, sdw->bpt_ctx.num_frames,
 						   sdw->bpt_ctx.data_per_frame);
 		if (ret < 0)
 			dev_err(cdns->dev, "%s: BPT Read failed %d\n", __func__, ret);
