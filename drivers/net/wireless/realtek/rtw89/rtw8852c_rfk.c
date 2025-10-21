@@ -3987,37 +3987,56 @@ static void _ctrl_ch(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy,
 	}
 }
 
+static void _set_rxbb_bw(struct rtw89_dev *rtwdev, enum rtw89_rf_path path,
+			 enum rtw89_bandwidth bw)
+{
+	u32 val;
+
+	rtw89_write_rf(rtwdev, path, RR_LUTWE2, RR_LUTWE2_RTXBW, 0x1);
+	rtw89_write_rf(rtwdev, path, RR_LUTWA, RR_LUTWA_M2, 0xa);
+
+	switch (bw) {
+	case RTW89_CHANNEL_WIDTH_20:
+		val = 0x1b;
+		break;
+	case RTW89_CHANNEL_WIDTH_40:
+		val = 0x13;
+		break;
+	case RTW89_CHANNEL_WIDTH_80:
+		val = 0xb;
+		break;
+	case RTW89_CHANNEL_WIDTH_160:
+	default:
+		val = 0x3;
+		break;
+	}
+
+	rtw89_write_rf(rtwdev, path, RR_LUTWD0, RR_LUTWD0_LB, val);
+	rtw89_write_rf(rtwdev, path, RR_LUTWE2, RR_LUTWE2_RTXBW, 0x0);
+}
+
+static void _set_tia_bw(struct rtw89_dev *rtwdev, enum rtw89_rf_path path,
+			enum rtw89_bandwidth bw)
+{
+	if (bw == RTW89_CHANNEL_WIDTH_160)
+		rtw89_write_rf(rtwdev, path, RR_RXBB2, RR_RXBB2_EBW, 0x0);
+	else
+		rtw89_write_rf(rtwdev, path, RR_RXBB2, RR_RXBB2_EBW, 0x2);
+}
+
 static void _rxbb_bw(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy,
 		     enum rtw89_bandwidth bw)
 {
 	u8 kpath;
 	u8 path;
-	u32 val;
 
 	kpath = _kpath(rtwdev, phy);
 	for (path = 0; path < 2; path++) {
 		if (!(kpath & BIT(path)))
 			continue;
 
-		rtw89_write_rf(rtwdev, path, RR_LUTWE2, RR_LUTWE2_RTXBW, 0x1);
-		rtw89_write_rf(rtwdev, path, RR_LUTWA, RR_LUTWA_M2, 0xa);
-		switch (bw) {
-		case RTW89_CHANNEL_WIDTH_20:
-			val = 0x1b;
-			break;
-		case RTW89_CHANNEL_WIDTH_40:
-			val = 0x13;
-			break;
-		case RTW89_CHANNEL_WIDTH_80:
-			val = 0xb;
-			break;
-		case RTW89_CHANNEL_WIDTH_160:
-		default:
-			val = 0x3;
-			break;
-		}
-		rtw89_write_rf(rtwdev, path, RR_LUTWD0, RR_LUTWD0_LB, val);
-		rtw89_write_rf(rtwdev, path, RR_LUTWE2, RR_LUTWE2_RTXBW, 0x0);
+		_set_rxbb_bw(rtwdev, path, bw);
+		_set_tia_bw(rtwdev, path, bw);
 	}
 }
 
