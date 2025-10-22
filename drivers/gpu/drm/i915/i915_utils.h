@@ -100,9 +100,6 @@ static inline bool is_power_of_2_u64(u64 n)
 	return (n != 0 && ((n & (n - 1)) == 0));
 }
 
-#define KHz(x) (1000 * (x))
-#define MHz(x) KHz(1000 * (x))
-
 void add_taint_for_CI(struct drm_i915_private *i915, unsigned int taint);
 static inline void __add_taint_for_CI(unsigned int taint)
 {
