@@ -847,7 +847,7 @@ struct dma_fence *xe_migrate_copy(struct xe_migrate *m,
 				&ccs_it);
 
 	while (size) {
-		u32 batch_size = 2; /* arb_clear() + MI_BATCH_BUFFER_END */
+		u32 batch_size = 1; /* MI_BATCH_BUFFER_END */
 		struct xe_sched_job *job;
 		struct xe_bb *bb;
 		u32 flush_flags = 0;
@@ -1312,7 +1312,7 @@ struct dma_fence *xe_migrate_clear(struct xe_migrate *m,
 
 		/* Calculate final sizes and batch size.. */
 		pte_flags = clear_vram ? PTE_UPDATE_FLAG_IS_VRAM : 0;
-		batch_size = 2 +
+		batch_size = 1 +
 			pte_update_size(m, pte_flags, src, &src_it,
 					&clear_L0, &clear_L0_ofs, &clear_L0_pt,
 					clear_bo_data ? emit_clear_cmd_len(gt) : 0, 0,
@@ -1876,7 +1876,7 @@ static struct dma_fence *xe_migrate_vram(struct xe_migrate *m,
 	struct xe_device *xe = gt_to_xe(gt);
 	bool use_usm_batch = xe->info.has_usm;
 	struct dma_fence *fence = NULL;
-	u32 batch_size = 2;
+	u32 batch_size = 1;
 	u64 src_L0_ofs, dst_L0_ofs;
 	struct xe_sched_job *job;
 	struct xe_bb *bb;
