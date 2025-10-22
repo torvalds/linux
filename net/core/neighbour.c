@@ -2362,9 +2362,9 @@ static int neightbl_set(struct sk_buff *skb, struct nlmsghdr *nlh,
 			struct netlink_ext_ack *extack)
 {
 	struct net *net = sock_net(skb->sk);
+	struct nlattr *tb[NDTA_MAX + 1];
 	struct neigh_table *tbl;
 	struct ndtmsg *ndtmsg;
-	struct nlattr *tb[NDTA_MAX+1];
 	bool found = false;
 	int err, tidx;
 
@@ -2380,20 +2380,27 @@ static int neightbl_set(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	ndtmsg = nlmsg_data(nlh);
 
+	rcu_read_lock();
+
 	for (tidx = 0; tidx < NEIGH_NR_TABLES; tidx++) {
-		tbl = rcu_dereference_rtnl(neigh_tables[tidx]);
+		tbl = rcu_dereference(neigh_tables[tidx]);
 		if (!tbl)
 			continue;
+
 		if (ndtmsg->ndtm_family && tbl->family != ndtmsg->ndtm_family)
 			continue;
+
 		if (nla_strcmp(tb[NDTA_NAME], tbl->id) == 0) {
 			found = true;
 			break;
 		}
 	}
 
-	if (!found)
-		return -ENOENT;
+	if (!found) {
+		rcu_read_unlock();
+		err = -ENOENT;
+		goto errout;
+	}
 
 	/*
 	 * We acquire tbl->lock to be nice to the periodic timers and
@@ -2519,6 +2526,7 @@ static int neightbl_set(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 errout_tbl_lock:
 	write_unlock_bh(&tbl->lock);
+	rcu_read_unlock();
 errout:
 	return err;
 }
@@ -3909,7 +3917,8 @@ static const struct rtnl_msg_handler neigh_rtnl_msg_handlers[] __initconst = {
 	 .flags = RTNL_FLAG_DOIT_UNLOCKED | RTNL_FLAG_DUMP_UNLOCKED},
 	{.msgtype = RTM_GETNEIGHTBL, .dumpit = neightbl_dump_info,
 	 .flags = RTNL_FLAG_DUMP_UNLOCKED},
-	{.msgtype = RTM_SETNEIGHTBL, .doit = neightbl_set},
+	{.msgtype = RTM_SETNEIGHTBL, .doit = neightbl_set,
+	 .flags = RTNL_FLAG_DOIT_UNLOCKED},
 };
 
 static int __init neigh_init(void)
