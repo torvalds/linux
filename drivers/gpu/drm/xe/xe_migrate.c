@@ -1798,6 +1798,8 @@ static void build_pt_update_batch_sram(struct xe_migrate *m,
 	u32 ptes;
 	int i = 0;
 
+	xe_tile_assert(m->tile, PAGE_ALIGNED(size));
+
 	ptes = DIV_ROUND_UP(size, gpu_page_size);
 	while (ptes) {
 		u32 chunk = min(MAX_PTE_PER_SDI, ptes);
@@ -1811,12 +1813,13 @@ static void build_pt_update_batch_sram(struct xe_migrate *m,
 		ptes -= chunk;
 
 		while (chunk--) {
-			u64 addr = sram_addr[i].addr & ~(gpu_page_size - 1);
-			u64 pte, orig_addr = addr;
+			u64 addr = sram_addr[i].addr;
+			u64 pte;
 
 			xe_tile_assert(m->tile, sram_addr[i].proto ==
 				       DRM_INTERCONNECT_SYSTEM);
 			xe_tile_assert(m->tile, addr);
+			xe_tile_assert(m->tile, PAGE_ALIGNED(addr));
 
 again:
 			pte = m->q->vm->pt_ops->pte_encode_addr(m->tile->xe,
@@ -1827,7 +1830,7 @@ again:
 
 			if (gpu_page_size < PAGE_SIZE) {
 				addr += XE_PAGE_SIZE;
-				if (orig_addr + PAGE_SIZE != addr) {
+				if (!PAGE_ALIGNED(addr)) {
 					chunk--;
 					goto again;
 				}
@@ -1918,10 +1921,10 @@ static struct dma_fence *xe_migrate_vram(struct xe_migrate *m,
 
 	if (use_pde)
 		build_pt_update_batch_sram(m, bb, m->large_page_copy_pdes,
-					   sram_addr, len + sram_offset, 1);
+					   sram_addr, npages << PAGE_SHIFT, 1);
 	else
 		build_pt_update_batch_sram(m, bb, pt_slot * XE_PAGE_SIZE,
-					   sram_addr, len + sram_offset, 0);
+					   sram_addr, npages << PAGE_SHIFT, 0);
 
 	if (dir == XE_MIGRATE_COPY_TO_VRAM) {
 		if (use_pde)
