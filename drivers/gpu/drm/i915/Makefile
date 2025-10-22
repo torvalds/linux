@@ -256,6 +256,7 @@ i915-y += \
 	display/intel_display_rpm.o \
 	display/intel_display_rps.o \
 	display/intel_display_snapshot.o \
+	display/intel_display_utils.o \
 	display/intel_display_wa.o \
 	display/intel_dmc.o \
 	display/intel_dmc_wl.o \
