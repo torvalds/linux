@@ -159,9 +159,9 @@ static int amdgpu_userq_buffer_vas_list_cleanup(struct amdgpu_device *adev,
 			r = -EINVAL;
 			goto err;
 		}
-		amdgpu_userq_buffer_va_list_del(mapping, va_cursor);
 		dev_dbg(adev->dev, "delete the userq:%p va:%llx\n",
 			queue, va_cursor->gpu_addr);
+		amdgpu_userq_buffer_va_list_del(mapping, va_cursor);
 	}
 err:
 	amdgpu_bo_unreserve(queue->vm->root.bo);
