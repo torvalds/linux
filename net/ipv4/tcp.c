@@ -4886,18 +4886,16 @@ tcp_inbound_md5_hash(const struct sock *sk, const struct sk_buff *skb,
 		     int family, int l3index, const __u8 *hash_location)
 {
 	/* This gets called for each TCP segment that has TCP-MD5 option.
-	 * We have 3 drop cases:
-	 * o No MD5 hash and one expected.
-	 * o MD5 hash and we're not expecting one.
-	 * o MD5 hash and its wrong.
+	 * We have 2 drop cases:
+	 * o An MD5 signature is present, but we're not expecting one.
+	 * o The MD5 signature is wrong.
 	 */
 	const struct tcp_sock *tp = tcp_sk(sk);
 	struct tcp_md5sig_key *key;
 	u8 newhash[16];
 
 	key = tcp_md5_do_lookup(sk, l3index, saddr, family);
-
-	if (!key && hash_location) {
+	if (!key) {
 		NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPMD5UNEXPECTED);
 		trace_tcp_hash_md5_unexpected(sk, skb);
 		return SKB_DROP_REASON_TCP_MD5UNEXPECTED;
