@@ -466,8 +466,6 @@ static void bic_groups_init(void)
 #define PCL_10 14		/* PC10 */
 #define PCLUNL 15		/* Unlimited */
 
-struct amperf_group_fd;
-
 char *proc_stat = "/proc/stat";
 FILE *outf;
 int *fd_percpu;
@@ -4417,11 +4415,6 @@ int get_core_throt_cnt(int cpu, unsigned long long *cnt)
 
 	return 0;
 }
-
-struct amperf_group_fd {
-	int aperf;		/* Also the group descriptor */
-	int mperf;
-};
 
 static int read_perf_counter_info(const char *const path, const char *const parse_format, void *value_ptr)
 {
