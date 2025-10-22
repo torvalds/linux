@@ -307,6 +307,15 @@ where
     }
 }
 
+impl<T: AtomicType + core::fmt::Debug> core::fmt::Debug for Atomic<T>
+where
+    T::Repr: AtomicBasicOps,
+{
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::fmt::Debug::fmt(&self.load(Relaxed), f)
+    }
+}
+
 impl<T: AtomicType> Atomic<T>
 where
     T::Repr: AtomicExchangeOps,
