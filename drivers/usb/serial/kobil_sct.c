@@ -178,10 +178,10 @@ static void kobil_init_termios(struct tty_struct *tty)
 static int kobil_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	struct device *dev = &port->dev;
-	int result = 0;
 	struct kobil_private *priv;
 	unsigned char *transfer_buffer;
 	int transfer_buffer_length = 8;
+	int result;
 
 	priv = usb_get_serial_port_data(port);
 
@@ -272,10 +272,8 @@ static void kobil_write_int_callback(struct urb *urb)
 static int kobil_write(struct tty_struct *tty, struct usb_serial_port *port,
 			const unsigned char *buf, int count)
 {
-	int length = 0;
-	int result = 0;
-	int todo = 0;
 	struct kobil_private *priv;
+	int length, todo, result;
 
 	if (count == 0) {
 		dev_dbg(&port->dev, "%s - write request of 0 bytes\n", __func__);
