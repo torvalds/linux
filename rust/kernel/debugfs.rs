@@ -21,7 +21,7 @@ use core::mem::ManuallyDrop;
 use core::ops::Deref;
 
 mod traits;
-pub use traits::{BinaryReader, BinaryWriter, Reader, Writer};
+pub use traits::{BinaryReader, BinaryReaderMut, BinaryWriter, Reader, Writer};
 
 mod callback_adapters;
 use callback_adapters::{FormatAdapter, NoWriter, WritableAdapter};
