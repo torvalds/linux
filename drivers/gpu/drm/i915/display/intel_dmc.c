@@ -513,10 +513,16 @@ static u32 pipedmc_interrupt_mask(struct intel_display *display)
 		PIPEDMC_ATS_FAULT;
 }
 
-static u32 dmc_evt_ctl_disable(void)
+static u32 dmc_evt_ctl_disable(u32 dmc_evt_ctl)
 {
-	return REG_FIELD_PREP(DMC_EVT_CTL_TYPE_MASK,
-			      DMC_EVT_CTL_TYPE_EDGE_0_1) |
+	/*
+	 * DMC_EVT_CTL_ENABLE cannot be cleared once set. Always
+	 * configure it based on the original event definition to
+	 * avoid mismatches in assert_dmc_loaded().
+	 */
+	return (dmc_evt_ctl & DMC_EVT_CTL_ENABLE) |
+		REG_FIELD_PREP(DMC_EVT_CTL_TYPE_MASK,
+			       DMC_EVT_CTL_TYPE_EDGE_0_1) |
 		REG_FIELD_PREP(DMC_EVT_CTL_EVENT_ID_MASK,
 			       DMC_EVENT_FALSE);
 }
@@ -626,7 +632,7 @@ static u32 dmc_mmiodata(struct intel_display *display,
 	if (disable_dmc_evt(display, dmc_id,
 			    dmc->dmc_info[dmc_id].mmioaddr[i],
 			    dmc->dmc_info[dmc_id].mmiodata[i]))
-		return dmc_evt_ctl_disable();
+		return dmc_evt_ctl_disable(dmc->dmc_info[dmc_id].mmiodata[i]);
 	else
 		return dmc->dmc_info[dmc_id].mmiodata[i];
 }
@@ -684,12 +690,6 @@ static void assert_dmc_loaded(struct intel_display *display,
 
 		found = intel_de_read(display, reg);
 		expected = dmc_mmiodata(display, dmc, dmc_id, i);
-
-		/* once set DMC_EVT_CTL_ENABLE can't be cleared :/ */
-		if (is_dmc_evt_ctl_reg(display, dmc_id, reg)) {
-			found &= ~DMC_EVT_CTL_ENABLE;
-			expected &= ~DMC_EVT_CTL_ENABLE;
-		}
 
 		drm_WARN(display->drm, found != expected,
 			 "DMC %d mmio[%d]/0x%x incorrect (expected 0x%x, current 0x%x)\n",
@@ -843,7 +843,7 @@ static void dmc_configure_event(struct intel_display *display,
 		if (!is_event_handler(display, dmc_id, event_id, reg, data))
 			continue;
 
-		intel_de_write(display, reg, enable ? data : dmc_evt_ctl_disable());
+		intel_de_write(display, reg, enable ? data : dmc_evt_ctl_disable(data));
 		num_handlers++;
 	}
 
