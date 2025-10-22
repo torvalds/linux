@@ -293,6 +293,15 @@ static void amdgpu_job_free_cb(struct drm_sched_job *s_job)
 
 	amdgpu_sync_free(&job->explicit_sync);
 
+	if (job->hw_fence->base.ops)
+		dma_fence_put(&job->hw_fence->base);
+	else
+		kfree(job->hw_fence);
+	if (job->hw_vm_fence->base.ops)
+		dma_fence_put(&job->hw_vm_fence->base);
+	else
+		kfree(job->hw_vm_fence);
+
 	kfree(job);
 }
 
@@ -321,6 +330,15 @@ void amdgpu_job_free(struct amdgpu_job *job)
 	amdgpu_sync_free(&job->explicit_sync);
 	if (job->gang_submit != &job->base.s_fence->scheduled)
 		dma_fence_put(job->gang_submit);
+
+	if (job->hw_fence->base.ops)
+		dma_fence_put(&job->hw_fence->base);
+	else
+		kfree(job->hw_fence);
+	if (job->hw_vm_fence->base.ops)
+		dma_fence_put(&job->hw_vm_fence->base);
+	else
+		kfree(job->hw_vm_fence);
 
 	kfree(job);
 }
