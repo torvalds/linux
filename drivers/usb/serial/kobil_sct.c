@@ -435,9 +435,9 @@ static void kobil_set_termios(struct tty_struct *tty,
 {
 	struct kobil_private *priv;
 	int result;
-	unsigned short urb_val = 0;
 	int c_cflag = tty->termios.c_cflag;
 	speed_t speed;
+	u16 val;
 
 	priv = usb_get_serial_port_data(port);
 	if (priv->device_type == KOBIL_USBTWIN_PRODUCT_ID ||
@@ -450,28 +450,34 @@ static void kobil_set_termios(struct tty_struct *tty,
 	speed = tty_get_baud_rate(tty);
 	switch (speed) {
 	case 1200:
-		urb_val = SUSBCR_SBR_1200;
+		val = SUSBCR_SBR_1200;
 		break;
 	default:
 		speed = 9600;
 		fallthrough;
 	case 9600:
-		urb_val = SUSBCR_SBR_9600;
+		val = SUSBCR_SBR_9600;
 		break;
 	}
-	urb_val |= (c_cflag & CSTOPB) ? SUSBCR_SPASB_2StopBits :
-							SUSBCR_SPASB_1StopBit;
+
+	if (c_cflag & CSTOPB)
+		val |= SUSBCR_SPASB_2StopBits;
+	else
+		val |= SUSBCR_SPASB_1StopBit;
+
 	if (c_cflag & PARENB) {
 		if  (c_cflag & PARODD)
-			urb_val |= SUSBCR_SPASB_OddParity;
+			val |= SUSBCR_SPASB_OddParity;
 		else
-			urb_val |= SUSBCR_SPASB_EvenParity;
-	} else
-		urb_val |= SUSBCR_SPASB_NoParity;
+			val |= SUSBCR_SPASB_EvenParity;
+	} else {
+		val |= SUSBCR_SPASB_NoParity;
+	}
+
 	tty->termios.c_cflag &= ~CMSPAR;
 	tty_encode_baud_rate(tty, speed, speed);
 
-	result = kobil_ctrl_send(port, SUSBCRequest_SetBaudRateParityAndStopBits, urb_val);
+	result = kobil_ctrl_send(port, SUSBCRequest_SetBaudRateParityAndStopBits, val);
 	if (result) {
 		dev_err(&port->dev, "failed to update line settings: %d\n",
 				result);
