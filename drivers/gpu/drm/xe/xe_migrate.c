@@ -1894,7 +1894,7 @@ static struct dma_fence *xe_migrate_vram(struct xe_migrate *m,
 
 	xe_assert(xe, npages * PAGE_SIZE <= MAX_PREEMPTDISABLE_TRANSFER);
 
-	batch_size += pte_update_cmd_size(len);
+	batch_size += pte_update_cmd_size(npages << PAGE_SHIFT);
 	batch_size += EMIT_COPY_DW;
 
 	bb = xe_bb_new(gt, batch_size, use_usm_batch);
