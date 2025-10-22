@@ -59,6 +59,7 @@
 #include "intel_display_rpm.h"
 #include "intel_display_trace.h"
 #include "intel_display_types.h"
+#include "intel_display_utils.h"
 #include "intel_display_wa.h"
 #include "intel_fbc.h"
 #include "intel_fbc_regs.h"
@@ -1472,7 +1473,8 @@ static int intel_fbc_check_plane(struct intel_atomic_state *state,
 	}
 
 	/* WaFbcTurnOffFbcWhenHyperVisorIsUsed:skl,bxt */
-	if (i915_vtd_active(i915) && (display->platform.skylake || display->platform.broxton)) {
+	if (intel_display_vtd_active(display) &&
+	    (display->platform.skylake || display->platform.broxton)) {
 		plane_state->no_fbc_reason = "VT-d enabled";
 		return 0;
 	}

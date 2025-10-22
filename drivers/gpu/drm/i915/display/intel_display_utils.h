@@ -12,5 +12,6 @@ struct intel_display;
 #define MHz(x) KHz(1000 * (x))
 
 bool intel_display_run_as_guest(struct intel_display *display);
+bool intel_display_vtd_active(struct intel_display *display);
 
 #endif /* __INTEL_DISPLAY_UTILS__ */

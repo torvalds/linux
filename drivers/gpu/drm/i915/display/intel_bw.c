@@ -13,6 +13,7 @@
 #include "intel_display_core.h"
 #include "intel_display_regs.h"
 #include "intel_display_types.h"
+#include "intel_display_utils.h"
 #include "intel_mchbar_regs.h"
 #include "intel_pcode.h"
 #include "intel_uncore.h"
@@ -842,14 +843,13 @@ static unsigned int intel_bw_num_active_planes(struct intel_display *display,
 static unsigned int intel_bw_data_rate(struct intel_display *display,
 				       const struct intel_bw_state *bw_state)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	unsigned int data_rate = 0;
 	enum pipe pipe;
 
 	for_each_pipe(display, pipe)
 		data_rate += bw_state->data_rate[pipe];
 
-	if (DISPLAY_VER(display) >= 13 && i915_vtd_active(i915))
+	if (DISPLAY_VER(display) >= 13 && intel_display_vtd_active(display))
 		data_rate = DIV_ROUND_UP(data_rate * 105, 100);
 
 	return data_rate;

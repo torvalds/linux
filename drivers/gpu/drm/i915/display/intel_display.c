@@ -77,6 +77,7 @@
 #include "intel_display_regs.h"
 #include "intel_display_rpm.h"
 #include "intel_display_types.h"
+#include "intel_display_utils.h"
 #include "intel_display_wa.h"
 #include "intel_dmc.h"
 #include "intel_dp.h"
@@ -831,9 +832,8 @@ static void intel_async_flip_vtd_wa(struct intel_display *display,
 static bool needs_async_flip_vtd_wa(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
-	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
 
-	return crtc_state->uapi.async_flip && i915_vtd_active(i915) &&
+	return crtc_state->uapi.async_flip && intel_display_vtd_active(display) &&
 		(DISPLAY_VER(display) == 9 || display->platform.broadwell ||
 		 display->platform.haswell);
 }
@@ -8356,7 +8356,5 @@ void i830_disable_pipe(struct intel_display *display, enum pipe pipe)
 
 bool intel_scanout_needs_vtd_wa(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-
-	return IS_DISPLAY_VER(display, 6, 11) && i915_vtd_active(i915);
+	return IS_DISPLAY_VER(display, 6, 11) && intel_display_vtd_active(display);
 }
