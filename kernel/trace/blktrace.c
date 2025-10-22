@@ -163,8 +163,8 @@ static void relay_blktrace_event(struct blk_trace *bt, unsigned long sequence,
 					     bytes, what, error, cgid, cgid_len,
 					     pdu_data, pdu_len);
 	return relay_blktrace_event1(bt, sequence, pid, cpu, sector, bytes,
-				     lower_32_bits(what), error, cgid, cgid_len,
-				     pdu_data, pdu_len);
+				     what, error, cgid, cgid_len, pdu_data,
+				     pdu_len);
 }
 
 /*
@@ -342,9 +342,31 @@ static void __blk_add_trace(struct blk_trace *bt, sector_t sector, int bytes,
 	case REQ_OP_FLUSH:
 		what |= BLK_TC_ACT(BLK_TC_FLUSH);
 		break;
+	case REQ_OP_ZONE_APPEND:
+		what |= BLK_TC_ACT(BLK_TC_ZONE_APPEND);
+		break;
+	case REQ_OP_ZONE_RESET:
+		what |= BLK_TC_ACT(BLK_TC_ZONE_RESET);
+		break;
+	case REQ_OP_ZONE_RESET_ALL:
+		what |= BLK_TC_ACT(BLK_TC_ZONE_RESET_ALL);
+		break;
+	case REQ_OP_ZONE_FINISH:
+		what |= BLK_TC_ACT(BLK_TC_ZONE_FINISH);
+		break;
+	case REQ_OP_ZONE_OPEN:
+		what |= BLK_TC_ACT(BLK_TC_ZONE_OPEN);
+		break;
+	case REQ_OP_ZONE_CLOSE:
+		what |= BLK_TC_ACT(BLK_TC_ZONE_CLOSE);
+		break;
 	default:
 		break;
 	}
+
+	if (WARN_ON_ONCE(bt->version == 1 &&
+		     (what >> BLK_TC_SHIFT) > BLK_TC_END_V1))
+		return;
 
 	if (cgid)
 		what |= __BLK_TA_CGROUP;
@@ -386,8 +408,7 @@ static void __blk_add_trace(struct blk_trace *bt, sector_t sector, int bytes,
 	sequence = per_cpu_ptr(bt->sequence, cpu);
 	(*sequence)++;
 	relay_blktrace_event(bt, *sequence, pid, cpu, sector, bytes,
-			     lower_32_bits(what), error, cgid, cgid_len,
-			     pdu_data, pdu_len);
+			     what, error, cgid, cgid_len, pdu_data, pdu_len);
 	local_irq_restore(flags);
 }
 
