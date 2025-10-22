@@ -1224,7 +1224,7 @@ static void blk_unregister_tracepoints(void)
  * struct blk_io_tracer formatting routines
  */
 
-static void fill_rwbs(char *rwbs, const struct blk_io_trace *t)
+static void fill_rwbs(char *rwbs, const struct blk_io_trace2 *t)
 {
 	int i = 0;
 	int tc = t->action >> BLK_TC_SHIFT;
@@ -1259,9 +1259,9 @@ out:
 }
 
 static inline
-const struct blk_io_trace *te_blk_io_trace(const struct trace_entry *ent)
+const struct blk_io_trace2 *te_blk_io_trace(const struct trace_entry *ent)
 {
-	return (const struct blk_io_trace *)ent;
+	return (const struct blk_io_trace2 *)ent;
 }
 
 static inline const void *pdu_start(const struct trace_entry *ent, bool has_cg)
@@ -1320,7 +1320,7 @@ static void blk_log_action_classic(struct trace_iterator *iter, const char *act,
 	unsigned long long ts  = iter->ts;
 	unsigned long nsec_rem = do_div(ts, NSEC_PER_SEC);
 	unsigned secs	       = (unsigned long)ts;
-	const struct blk_io_trace *t = te_blk_io_trace(iter->ent);
+	const struct blk_io_trace2 *t = te_blk_io_trace(iter->ent);
 
 	fill_rwbs(rwbs, t);
 
@@ -1334,7 +1334,7 @@ static void blk_log_action(struct trace_iterator *iter, const char *act,
 	bool has_cg)
 {
 	char rwbs[RWBS_LEN];
-	const struct blk_io_trace *t = te_blk_io_trace(iter->ent);
+	const struct blk_io_trace2 *t = te_blk_io_trace(iter->ent);
 
 	fill_rwbs(rwbs, t);
 	if (has_cg) {
@@ -1555,7 +1555,7 @@ static enum print_line_t print_one_line(struct trace_iterator *iter,
 {
 	struct trace_array *tr = iter->tr;
 	struct trace_seq *s = &iter->seq;
-	const struct blk_io_trace *t;
+	const struct blk_io_trace2 *t;
 	u16 what;
 	bool long_act;
 	blk_log_action_t *log_action;
@@ -1592,8 +1592,8 @@ static enum print_line_t blk_trace_event_print(struct trace_iterator *iter,
 static void blk_trace_synthesize_old_trace(struct trace_iterator *iter)
 {
 	struct trace_seq *s = &iter->seq;
-	struct blk_io_trace *t = (struct blk_io_trace *)iter->ent;
-	const int offset = offsetof(struct blk_io_trace, sector);
+	struct blk_io_trace2 *t = (struct blk_io_trace2 *)iter->ent;
+	const int offset = offsetof(struct blk_io_trace2, sector);
 	struct blk_io_trace old = {
 		.magic	  = BLK_IO_TRACE_MAGIC | BLK_IO_TRACE_VERSION,
 		.time     = iter->ts,
