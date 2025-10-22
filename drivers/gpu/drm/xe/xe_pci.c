@@ -400,6 +400,20 @@ static const struct xe_device_desc nvls_desc = {
 	.vm_max_level = 4,
 };
 
+static const struct xe_device_desc cri_desc = {
+	DGFX_FEATURES,
+	PLATFORM(CRESCENTISLAND),
+	.dma_mask_size = 52,
+	.has_display = false,
+	.has_flat_ccs = false,
+	.has_mbx_power_limits = true,
+	.has_sriov = true,
+	.max_gt_per_tile = 2,
+	.require_force_probe = true,
+	.va_bits = 57,
+	.vm_max_level = 4,
+};
+
 #undef PLATFORM
 __diag_pop();
 
@@ -427,6 +441,7 @@ static const struct pci_device_id pciidlist[] = {
 	INTEL_BMG_IDS(INTEL_VGA_DEVICE, &bmg_desc),
 	INTEL_PTL_IDS(INTEL_VGA_DEVICE, &ptl_desc),
 	INTEL_NVLS_IDS(INTEL_VGA_DEVICE, &nvls_desc),
+	INTEL_CRI_IDS(INTEL_PCI_DEVICE, &cri_desc),
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, pciidlist);
