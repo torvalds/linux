@@ -109,6 +109,21 @@ struct kobil_private {
 	__u16 device_type;
 };
 
+static int kobil_ctrl_send(struct usb_serial_port *port, u8 req, u16 val)
+{
+	return usb_control_msg(port->serial->dev,
+			usb_sndctrlpipe(port->serial->dev, 0),
+			req, USB_TYPE_VENDOR | USB_RECIP_ENDPOINT | USB_DIR_OUT,
+			val, 0, NULL, 0, KOBIL_TIMEOUT);
+}
+
+static int kobil_ctrl_recv(struct usb_serial_port *port, u8 req, u16 val, void *buf, u16 size)
+{
+	return usb_control_msg(port->serial->dev,
+			usb_rcvctrlpipe(port->serial->dev, 0),
+			req, USB_TYPE_VENDOR | USB_RECIP_ENDPOINT | USB_DIR_IN,
+			val, 0, buf, size, KOBIL_TIMEOUT);
+}
 
 static int kobil_port_probe(struct usb_serial_port *port)
 {
@@ -176,16 +191,8 @@ static int kobil_open(struct tty_struct *tty, struct usb_serial_port *port)
 		return -ENOMEM;
 
 	/* get hardware version */
-	result = usb_control_msg(port->serial->dev,
-			  usb_rcvctrlpipe(port->serial->dev, 0),
-			  SUSBCRequest_GetMisc,
-			  USB_TYPE_VENDOR | USB_RECIP_ENDPOINT | USB_DIR_IN,
-			  SUSBCR_MSC_GetHWVersion,
-			  0,
-			  transfer_buffer,
-			  transfer_buffer_length,
-			  KOBIL_TIMEOUT
-	);
+	result = kobil_ctrl_recv(port, SUSBCRequest_GetMisc, SUSBCR_MSC_GetHWVersion,
+			transfer_buffer, transfer_buffer_length);
 	dev_dbg(dev, "%s - Send get_HW_version URB returns: %i\n", __func__, result);
 	if (result >= 3) {
 		dev_dbg(dev, "Hardware version: %i.%i.%i\n", transfer_buffer[0],
@@ -193,16 +200,8 @@ static int kobil_open(struct tty_struct *tty, struct usb_serial_port *port)
 	}
 
 	/* get firmware version */
-	result = usb_control_msg(port->serial->dev,
-			  usb_rcvctrlpipe(port->serial->dev, 0),
-			  SUSBCRequest_GetMisc,
-			  USB_TYPE_VENDOR | USB_RECIP_ENDPOINT | USB_DIR_IN,
-			  SUSBCR_MSC_GetFWVersion,
-			  0,
-			  transfer_buffer,
-			  transfer_buffer_length,
-			  KOBIL_TIMEOUT
-	);
+	result = kobil_ctrl_recv(port, SUSBCRequest_GetMisc, SUSBCR_MSC_GetFWVersion,
+			transfer_buffer, transfer_buffer_length);
 	dev_dbg(dev, "%s - Send get_FW_version URB returns: %i\n", __func__, result);
 	if (result >= 3) {
 		dev_dbg(dev, "Firmware version: %i.%i.%i\n", transfer_buffer[0],
@@ -212,30 +211,12 @@ static int kobil_open(struct tty_struct *tty, struct usb_serial_port *port)
 	if (priv->device_type == KOBIL_ADAPTER_B_PRODUCT_ID ||
 			priv->device_type == KOBIL_ADAPTER_K_PRODUCT_ID) {
 		/* Setting Baudrate, Parity and Stopbits */
-		result = usb_control_msg(port->serial->dev,
-			  usb_sndctrlpipe(port->serial->dev, 0),
-			  SUSBCRequest_SetBaudRateParityAndStopBits,
-			  USB_TYPE_VENDOR | USB_RECIP_ENDPOINT | USB_DIR_OUT,
-			  SUSBCR_SBR_9600 | SUSBCR_SPASB_EvenParity |
-							SUSBCR_SPASB_1StopBit,
-			  0,
-			  NULL,
-			  0,
-			  KOBIL_TIMEOUT
-		);
+		result = kobil_ctrl_send(port, SUSBCRequest_SetBaudRateParityAndStopBits,
+				SUSBCR_SBR_9600 | SUSBCR_SPASB_EvenParity | SUSBCR_SPASB_1StopBit);
 		dev_dbg(dev, "%s - Send set_baudrate URB returns: %i\n", __func__, result);
 
 		/* reset all queues */
-		result = usb_control_msg(port->serial->dev,
-			  usb_sndctrlpipe(port->serial->dev, 0),
-			  SUSBCRequest_Misc,
-			  USB_TYPE_VENDOR | USB_RECIP_ENDPOINT | USB_DIR_OUT,
-			  SUSBCR_MSC_ResetAllQueues,
-			  0,
-			  NULL,
-			  0,
-			  KOBIL_TIMEOUT
-		);
+		result = kobil_ctrl_send(port, SUSBCRequest_Misc, SUSBCR_MSC_ResetAllQueues);
 		dev_dbg(dev, "%s - Send reset_all_queues URB returns: %i\n", __func__, result);
 	}
 	if (priv->device_type == KOBIL_USBTWIN_PRODUCT_ID ||
@@ -385,16 +366,8 @@ static int kobil_tiocmget(struct tty_struct *tty)
 	if (!transfer_buffer)
 		return -ENOMEM;
 
-	result = usb_control_msg(port->serial->dev,
-			  usb_rcvctrlpipe(port->serial->dev, 0),
-			  SUSBCRequest_GetStatusLineState,
-			  USB_TYPE_VENDOR | USB_RECIP_ENDPOINT | USB_DIR_IN,
-			  0,
-			  0,
-			  transfer_buffer,
-			  transfer_buffer_length,
-			  KOBIL_TIMEOUT);
-
+	result = kobil_ctrl_recv(port, SUSBCRequest_GetStatusLineState, 0,
+			transfer_buffer, transfer_buffer_length);
 	dev_dbg(&port->dev, "Send get_status_line_state URB returns: %i\n",
 			result);
 	if (result < 1) {
@@ -446,15 +419,7 @@ static int kobil_tiocmset(struct tty_struct *tty,
 	}
 
 	if (val) {
-		result = usb_control_msg(port->serial->dev,
-				usb_sndctrlpipe(port->serial->dev, 0),
-				SUSBCRequest_SetStatusLinesOrQueues,
-				USB_TYPE_VENDOR | USB_RECIP_ENDPOINT | USB_DIR_OUT,
-				val,
-				0,
-				NULL,
-				0,
-				KOBIL_TIMEOUT);
+		result = kobil_ctrl_send(port, SUSBCRequest_SetStatusLinesOrQueues, val);
 		if (result < 0) {
 			dev_err(dev, "failed to set status lines: %d\n", result);
 			return result;
@@ -506,16 +471,7 @@ static void kobil_set_termios(struct tty_struct *tty,
 	tty->termios.c_cflag &= ~CMSPAR;
 	tty_encode_baud_rate(tty, speed, speed);
 
-	result = usb_control_msg(port->serial->dev,
-		  usb_sndctrlpipe(port->serial->dev, 0),
-		  SUSBCRequest_SetBaudRateParityAndStopBits,
-		  USB_TYPE_VENDOR | USB_RECIP_ENDPOINT | USB_DIR_OUT,
-		  urb_val,
-		  0,
-		  NULL,
-		  0,
-		  KOBIL_TIMEOUT
-		);
+	result = kobil_ctrl_send(port, SUSBCRequest_SetBaudRateParityAndStopBits, urb_val);
 	if (result) {
 		dev_err(&port->dev, "failed to update line settings: %d\n",
 				result);
@@ -536,17 +492,7 @@ static int kobil_ioctl(struct tty_struct *tty,
 
 	switch (cmd) {
 	case TCFLSH:
-		result = usb_control_msg(port->serial->dev,
-			  usb_sndctrlpipe(port->serial->dev, 0),
-			  SUSBCRequest_Misc,
-			  USB_TYPE_VENDOR | USB_RECIP_ENDPOINT | USB_DIR_OUT,
-			  SUSBCR_MSC_ResetAllQueues,
-			  0,
-			  NULL,
-			  0,
-			  KOBIL_TIMEOUT
-			);
-
+		result = kobil_ctrl_send(port, SUSBCRequest_Misc, SUSBCR_MSC_ResetAllQueues);
 		dev_dbg(&port->dev,
 			"%s - Send reset_all_queues (FLUSH) URB returns: %i\n",
 			__func__, result);
