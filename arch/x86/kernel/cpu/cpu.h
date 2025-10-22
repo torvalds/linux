@@ -42,15 +42,6 @@ extern const struct cpu_dev *const __x86_cpu_dev_start[],
 			    *const __x86_cpu_dev_end[];
 
 #ifdef CONFIG_CPU_SUP_INTEL
-enum tsx_ctrl_states {
-	TSX_CTRL_ENABLE,
-	TSX_CTRL_DISABLE,
-	TSX_CTRL_RTM_ALWAYS_ABORT,
-	TSX_CTRL_NOT_SUPPORTED,
-};
-
-extern __ro_after_init enum tsx_ctrl_states tsx_ctrl_state;
-
 extern void __init tsx_init(void);
 void tsx_ap_init(void);
 void intel_unlock_cpuid_leafs(struct cpuinfo_x86 *c);
