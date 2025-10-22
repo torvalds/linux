@@ -137,11 +137,11 @@ static void airoha_fe_maccr_init(struct airoha_eth *eth)
 
 	for (p = 1; p <= ARRAY_SIZE(eth->ports); p++)
 		airoha_fe_set(eth, REG_GDM_FWD_CFG(p),
-			      GDM_TCP_CKSUM | GDM_UDP_CKSUM | GDM_IP4_CKSUM |
-			      GDM_DROP_CRC_ERR);
+			      GDM_TCP_CKSUM_MASK | GDM_UDP_CKSUM_MASK |
+			      GDM_IP4_CKSUM_MASK | GDM_DROP_CRC_ERR_MASK);
 
-	airoha_fe_rmw(eth, REG_CDM1_VLAN_CTRL, CDM1_VLAN_MASK,
-		      FIELD_PREP(CDM1_VLAN_MASK, 0x8100));
+	airoha_fe_rmw(eth, REG_CDM_VLAN_CTRL(1), CDM_VLAN_MASK,
+		      FIELD_PREP(CDM_VLAN_MASK, 0x8100));
 
 	airoha_fe_set(eth, REG_FE_CPORT_CFG, FE_CPORT_PAD);
 }
@@ -403,46 +403,46 @@ static int airoha_fe_mc_vlan_clear(struct airoha_eth *eth)
 static void airoha_fe_crsn_qsel_init(struct airoha_eth *eth)
 {
 	/* CDM1_CRSN_QSEL */
-	airoha_fe_rmw(eth, REG_CDM1_CRSN_QSEL(CRSN_22 >> 2),
-		      CDM1_CRSN_QSEL_REASON_MASK(CRSN_22),
-		      FIELD_PREP(CDM1_CRSN_QSEL_REASON_MASK(CRSN_22),
+	airoha_fe_rmw(eth, REG_CDM_CRSN_QSEL(1, CRSN_22 >> 2),
+		      CDM_CRSN_QSEL_REASON_MASK(CRSN_22),
+		      FIELD_PREP(CDM_CRSN_QSEL_REASON_MASK(CRSN_22),
 				 CDM_CRSN_QSEL_Q1));
-	airoha_fe_rmw(eth, REG_CDM1_CRSN_QSEL(CRSN_08 >> 2),
-		      CDM1_CRSN_QSEL_REASON_MASK(CRSN_08),
-		      FIELD_PREP(CDM1_CRSN_QSEL_REASON_MASK(CRSN_08),
+	airoha_fe_rmw(eth, REG_CDM_CRSN_QSEL(1, CRSN_08 >> 2),
+		      CDM_CRSN_QSEL_REASON_MASK(CRSN_08),
+		      FIELD_PREP(CDM_CRSN_QSEL_REASON_MASK(CRSN_08),
 				 CDM_CRSN_QSEL_Q1));
-	airoha_fe_rmw(eth, REG_CDM1_CRSN_QSEL(CRSN_21 >> 2),
-		      CDM1_CRSN_QSEL_REASON_MASK(CRSN_21),
-		      FIELD_PREP(CDM1_CRSN_QSEL_REASON_MASK(CRSN_21),
+	airoha_fe_rmw(eth, REG_CDM_CRSN_QSEL(1, CRSN_21 >> 2),
+		      CDM_CRSN_QSEL_REASON_MASK(CRSN_21),
+		      FIELD_PREP(CDM_CRSN_QSEL_REASON_MASK(CRSN_21),
 				 CDM_CRSN_QSEL_Q1));
-	airoha_fe_rmw(eth, REG_CDM1_CRSN_QSEL(CRSN_24 >> 2),
-		      CDM1_CRSN_QSEL_REASON_MASK(CRSN_24),
-		      FIELD_PREP(CDM1_CRSN_QSEL_REASON_MASK(CRSN_24),
+	airoha_fe_rmw(eth, REG_CDM_CRSN_QSEL(1, CRSN_24 >> 2),
+		      CDM_CRSN_QSEL_REASON_MASK(CRSN_24),
+		      FIELD_PREP(CDM_CRSN_QSEL_REASON_MASK(CRSN_24),
 				 CDM_CRSN_QSEL_Q6));
-	airoha_fe_rmw(eth, REG_CDM1_CRSN_QSEL(CRSN_25 >> 2),
-		      CDM1_CRSN_QSEL_REASON_MASK(CRSN_25),
-		      FIELD_PREP(CDM1_CRSN_QSEL_REASON_MASK(CRSN_25),
+	airoha_fe_rmw(eth, REG_CDM_CRSN_QSEL(1, CRSN_25 >> 2),
+		      CDM_CRSN_QSEL_REASON_MASK(CRSN_25),
+		      FIELD_PREP(CDM_CRSN_QSEL_REASON_MASK(CRSN_25),
 				 CDM_CRSN_QSEL_Q1));
 	/* CDM2_CRSN_QSEL */
-	airoha_fe_rmw(eth, REG_CDM2_CRSN_QSEL(CRSN_08 >> 2),
-		      CDM2_CRSN_QSEL_REASON_MASK(CRSN_08),
-		      FIELD_PREP(CDM2_CRSN_QSEL_REASON_MASK(CRSN_08),
+	airoha_fe_rmw(eth, REG_CDM_CRSN_QSEL(2, CRSN_08 >> 2),
+		      CDM_CRSN_QSEL_REASON_MASK(CRSN_08),
+		      FIELD_PREP(CDM_CRSN_QSEL_REASON_MASK(CRSN_08),
 				 CDM_CRSN_QSEL_Q1));
-	airoha_fe_rmw(eth, REG_CDM2_CRSN_QSEL(CRSN_21 >> 2),
-		      CDM2_CRSN_QSEL_REASON_MASK(CRSN_21),
-		      FIELD_PREP(CDM2_CRSN_QSEL_REASON_MASK(CRSN_21),
+	airoha_fe_rmw(eth, REG_CDM_CRSN_QSEL(2, CRSN_21 >> 2),
+		      CDM_CRSN_QSEL_REASON_MASK(CRSN_21),
+		      FIELD_PREP(CDM_CRSN_QSEL_REASON_MASK(CRSN_21),
 				 CDM_CRSN_QSEL_Q1));
-	airoha_fe_rmw(eth, REG_CDM2_CRSN_QSEL(CRSN_22 >> 2),
-		      CDM2_CRSN_QSEL_REASON_MASK(CRSN_22),
-		      FIELD_PREP(CDM2_CRSN_QSEL_REASON_MASK(CRSN_22),
+	airoha_fe_rmw(eth, REG_CDM_CRSN_QSEL(2, CRSN_22 >> 2),
+		      CDM_CRSN_QSEL_REASON_MASK(CRSN_22),
+		      FIELD_PREP(CDM_CRSN_QSEL_REASON_MASK(CRSN_22),
 				 CDM_CRSN_QSEL_Q1));
-	airoha_fe_rmw(eth, REG_CDM2_CRSN_QSEL(CRSN_24 >> 2),
-		      CDM2_CRSN_QSEL_REASON_MASK(CRSN_24),
-		      FIELD_PREP(CDM2_CRSN_QSEL_REASON_MASK(CRSN_24),
+	airoha_fe_rmw(eth, REG_CDM_CRSN_QSEL(2, CRSN_24 >> 2),
+		      CDM_CRSN_QSEL_REASON_MASK(CRSN_24),
+		      FIELD_PREP(CDM_CRSN_QSEL_REASON_MASK(CRSN_24),
 				 CDM_CRSN_QSEL_Q6));
-	airoha_fe_rmw(eth, REG_CDM2_CRSN_QSEL(CRSN_25 >> 2),
-		      CDM2_CRSN_QSEL_REASON_MASK(CRSN_25),
-		      FIELD_PREP(CDM2_CRSN_QSEL_REASON_MASK(CRSN_25),
+	airoha_fe_rmw(eth, REG_CDM_CRSN_QSEL(2, CRSN_25 >> 2),
+		      CDM_CRSN_QSEL_REASON_MASK(CRSN_25),
+		      FIELD_PREP(CDM_CRSN_QSEL_REASON_MASK(CRSN_25),
 				 CDM_CRSN_QSEL_Q1));
 }
 
@@ -462,18 +462,18 @@ static int airoha_fe_init(struct airoha_eth *eth)
 	airoha_fe_wr(eth, REG_FE_PCE_CFG,
 		     PCE_DPI_EN_MASK | PCE_KA_EN_MASK | PCE_MC_EN_MASK);
 	/* set vip queue selection to ring 1 */
-	airoha_fe_rmw(eth, REG_CDM1_FWD_CFG, CDM1_VIP_QSEL_MASK,
-		      FIELD_PREP(CDM1_VIP_QSEL_MASK, 0x4));
-	airoha_fe_rmw(eth, REG_CDM2_FWD_CFG, CDM2_VIP_QSEL_MASK,
-		      FIELD_PREP(CDM2_VIP_QSEL_MASK, 0x4));
+	airoha_fe_rmw(eth, REG_CDM_FWD_CFG(1), CDM_VIP_QSEL_MASK,
+		      FIELD_PREP(CDM_VIP_QSEL_MASK, 0x4));
+	airoha_fe_rmw(eth, REG_CDM_FWD_CFG(2), CDM_VIP_QSEL_MASK,
+		      FIELD_PREP(CDM_VIP_QSEL_MASK, 0x4));
 	/* set GDM4 source interface offset to 8 */
-	airoha_fe_rmw(eth, REG_GDM4_SRC_PORT_SET,
-		      GDM4_SPORT_OFF2_MASK |
-		      GDM4_SPORT_OFF1_MASK |
-		      GDM4_SPORT_OFF0_MASK,
-		      FIELD_PREP(GDM4_SPORT_OFF2_MASK, 8) |
-		      FIELD_PREP(GDM4_SPORT_OFF1_MASK, 8) |
-		      FIELD_PREP(GDM4_SPORT_OFF0_MASK, 8));
+	airoha_fe_rmw(eth, REG_GDM_SRC_PORT_SET(4),
+		      GDM_SPORT_OFF2_MASK |
+		      GDM_SPORT_OFF1_MASK |
+		      GDM_SPORT_OFF0_MASK,
+		      FIELD_PREP(GDM_SPORT_OFF2_MASK, 8) |
+		      FIELD_PREP(GDM_SPORT_OFF1_MASK, 8) |
+		      FIELD_PREP(GDM_SPORT_OFF0_MASK, 8));
 
 	/* set PSE Page as 128B */
 	airoha_fe_rmw(eth, REG_FE_DMA_GLO_CFG,
@@ -499,8 +499,8 @@ static int airoha_fe_init(struct airoha_eth *eth)
 	airoha_fe_set(eth, REG_GDM_MISC_CFG,
 		      GDM2_RDM_ACK_WAIT_PREF_MASK |
 		      GDM2_CHN_VLD_MODE_MASK);
-	airoha_fe_rmw(eth, REG_CDM2_FWD_CFG, CDM2_OAM_QSEL_MASK,
-		      FIELD_PREP(CDM2_OAM_QSEL_MASK, 15));
+	airoha_fe_rmw(eth, REG_CDM_FWD_CFG(2), CDM_OAM_QSEL_MASK,
+		      FIELD_PREP(CDM_OAM_QSEL_MASK, 15));
 
 	/* init fragment and assemble Force Port */
 	/* NPU Core-3, NPU Bridge Channel-3 */
@@ -514,8 +514,8 @@ static int airoha_fe_init(struct airoha_eth *eth)
 		      FIELD_PREP(IP_ASSEMBLE_PORT_MASK, 0) |
 		      FIELD_PREP(IP_ASSEMBLE_NBQ_MASK, 22));
 
-	airoha_fe_set(eth, REG_GDM3_FWD_CFG, GDM3_PAD_EN_MASK);
-	airoha_fe_set(eth, REG_GDM4_FWD_CFG, GDM4_PAD_EN_MASK);
+	airoha_fe_set(eth, REG_GDM_FWD_CFG(3), GDM_PAD_EN_MASK);
+	airoha_fe_set(eth, REG_GDM_FWD_CFG(4), GDM_PAD_EN_MASK);
 
 	airoha_fe_crsn_qsel_init(eth);
 
@@ -523,7 +523,7 @@ static int airoha_fe_init(struct airoha_eth *eth)
 	airoha_fe_set(eth, REG_FE_CPORT_CFG, FE_CPORT_PORT_XFC_MASK);
 
 	/* default aging mode for mbi unlock issue */
-	airoha_fe_rmw(eth, REG_GDM2_CHN_RLS,
+	airoha_fe_rmw(eth, REG_GDM_CHN_RLS(2),
 		      MBI_RX_AGE_SEL_MASK | MBI_TX_AGE_SEL_MASK,
 		      FIELD_PREP(MBI_RX_AGE_SEL_MASK, 3) |
 		      FIELD_PREP(MBI_TX_AGE_SEL_MASK, 3));
@@ -1692,7 +1692,7 @@ static int airhoha_set_gdm2_loopback(struct airoha_gdm_port *port)
 	pse_port = port->id == AIROHA_GDM3_IDX ? FE_PSE_PORT_GDM3
 					       : FE_PSE_PORT_GDM4;
 	airoha_set_gdm_port_fwd_cfg(eth, REG_GDM_FWD_CFG(2), pse_port);
-	airoha_fe_clear(eth, REG_GDM_FWD_CFG(2), GDM_STRIP_CRC);
+	airoha_fe_clear(eth, REG_GDM_FWD_CFG(2), GDM_STRIP_CRC_MASK);
 
 	/* Enable GDM2 loopback */
 	airoha_fe_wr(eth, REG_GDM_TXCHN_EN(2), 0xffffffff);
