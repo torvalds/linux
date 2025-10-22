@@ -2494,16 +2494,6 @@ static void rzg2l_gpio_irq_enable(struct irq_data *d)
 	__rzg2l_gpio_irq_enable(d, true);
 }
 
-static int rzg2l_gpio_irq_set_type(struct irq_data *d, unsigned int type)
-{
-	return irq_chip_set_type_parent(d, type);
-}
-
-static void rzg2l_gpio_irqc_eoi(struct irq_data *d)
-{
-	irq_chip_eoi_parent(d);
-}
-
 static void rzg2l_gpio_irq_print_chip(struct irq_data *data, struct seq_file *p)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(data);
@@ -2539,8 +2529,8 @@ static const struct irq_chip rzg2l_gpio_irqchip = {
 	.irq_enable = rzg2l_gpio_irq_enable,
 	.irq_mask = irq_chip_mask_parent,
 	.irq_unmask = irq_chip_unmask_parent,
-	.irq_set_type = rzg2l_gpio_irq_set_type,
-	.irq_eoi = rzg2l_gpio_irqc_eoi,
+	.irq_set_type = irq_chip_set_type_parent,
+	.irq_eoi = irq_chip_eoi_parent,
 	.irq_print_chip = rzg2l_gpio_irq_print_chip,
 	.irq_set_affinity = irq_chip_set_affinity_parent,
 	.irq_set_wake = rzg2l_gpio_irq_set_wake,
@@ -2640,7 +2630,7 @@ static void rzg2l_gpio_irq_restore(struct rzg2l_pinctrl *pctrl)
 		 * interrupt.
 		 */
 		raw_spin_lock_irqsave(&pctrl->lock, flags);
-		ret = rzg2l_gpio_irq_set_type(data, irqd_get_trigger_type(data));
+		ret = irq_chip_set_type_parent(data, irqd_get_trigger_type(data));
 		if (!ret && !irqd_irq_disabled(data))
 			__rzg2l_gpio_irq_enable(data, false);
 		raw_spin_unlock_irqrestore(&pctrl->lock, flags);
