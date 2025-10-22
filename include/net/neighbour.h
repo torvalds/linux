@@ -238,7 +238,7 @@ struct neigh_table {
 	atomic_t		gc_entries;
 	struct list_head	gc_list;
 	struct list_head	managed_list;
-	rwlock_t		lock;
+	spinlock_t		lock;
 	unsigned long		last_rand;
 	struct neigh_statistics	__percpu *stats;
 	struct neigh_hash_table __rcu *nht;
