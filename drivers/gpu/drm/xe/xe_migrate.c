@@ -1883,7 +1883,7 @@ static struct dma_fence *xe_migrate_vram(struct xe_migrate *m,
 	unsigned long i, j;
 	bool use_pde = xe_migrate_vram_use_pde(sram_addr, len + sram_offset);
 
-	if (drm_WARN_ON(&xe->drm, (len & XE_CACHELINE_MASK) ||
+	if (drm_WARN_ON(&xe->drm, (!IS_ALIGNED(len, pitch)) ||
 			(sram_offset | vram_addr) & XE_CACHELINE_MASK))
 		return ERR_PTR(-EOPNOTSUPP);
 
@@ -2103,8 +2103,9 @@ int xe_migrate_access_memory(struct xe_migrate *m, struct xe_bo *bo,
 	xe_bo_assert_held(bo);
 
 	/* Use bounce buffer for small access and unaligned access */
-	if (!IS_ALIGNED(len, XE_CACHELINE_BYTES) ||
-	    !IS_ALIGNED((unsigned long)buf + offset, XE_CACHELINE_BYTES)) {
+	if (!IS_ALIGNED(len, 4) ||
+	    !IS_ALIGNED(page_offset, XE_CACHELINE_BYTES) ||
+	    !IS_ALIGNED(offset, XE_CACHELINE_BYTES)) {
 		int buf_offset = 0;
 		void *bounce;
 		int err;
