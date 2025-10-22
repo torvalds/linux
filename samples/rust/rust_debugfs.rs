@@ -32,14 +32,12 @@
 //! ```
 
 use core::str::FromStr;
-use core::sync::atomic::AtomicUsize;
-use core::sync::atomic::Ordering;
 use kernel::c_str;
 use kernel::debugfs::{Dir, File};
 use kernel::new_mutex;
 use kernel::prelude::*;
+use kernel::sync::atomic::{Atomic, Relaxed};
 use kernel::sync::Mutex;
-
 use kernel::{acpi, device::Core, of, platform, str::CString, types::ARef};
 
 kernel::module_platform_driver! {
@@ -59,7 +57,7 @@ struct RustDebugFs {
     #[pin]
     _compatible: File<CString>,
     #[pin]
-    counter: File<AtomicUsize>,
+    counter: File<Atomic<usize>>,
     #[pin]
     inner: File<Mutex<Inner>>,
 }
@@ -109,7 +107,7 @@ impl platform::Driver for RustDebugFs {
     ) -> Result<Pin<KBox<Self>>> {
         let result = KBox::try_pin_init(RustDebugFs::new(pdev), GFP_KERNEL)?;
         // We can still mutate fields through the files which are atomic or mutexed:
-        result.counter.store(91, Ordering::Relaxed);
+        result.counter.store(91, Relaxed);
         {
             let mut guard = result.inner.lock();
             guard.x = guard.y;
@@ -120,8 +118,8 @@ impl platform::Driver for RustDebugFs {
 }
 
 impl RustDebugFs {
-    fn build_counter(dir: &Dir) -> impl PinInit<File<AtomicUsize>> + '_ {
-        dir.read_write_file(c_str!("counter"), AtomicUsize::new(0))
+    fn build_counter(dir: &Dir) -> impl PinInit<File<Atomic<usize>>> + '_ {
+        dir.read_write_file(c_str!("counter"), Atomic::<usize>::new(0))
     }
 
     fn build_inner(dir: &Dir) -> impl PinInit<File<Mutex<Inner>>> + '_ {
