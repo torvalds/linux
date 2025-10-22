@@ -322,7 +322,7 @@ static void st7571_prepare_buffer_grayscale(struct st7571_device *st7571,
 		size = (rect->x2 - rect->x1) * (rect->y2 - rect->y1) / 4;
 		memcpy(st7571->hwbuf, vmap->vaddr, size);
 		break;
-	};
+	}
 }
 
 static int st7571_fb_update_rect_monochrome(struct drm_framebuffer *fb, struct drm_rect *rect)
