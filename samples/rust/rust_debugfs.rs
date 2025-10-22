@@ -38,6 +38,7 @@ use kernel::c_str;
 use kernel::debugfs::{Dir, File};
 use kernel::new_mutex;
 use kernel::prelude::*;
+use kernel::sizes::*;
 use kernel::sync::Mutex;
 
 use kernel::{acpi, device::Core, of, platform, str::CString, types::ARef};
@@ -62,6 +63,10 @@ struct RustDebugFs {
     counter: File<AtomicUsize>,
     #[pin]
     inner: File<Mutex<Inner>>,
+    #[pin]
+    array_blob: File<Mutex<[u8; 4]>>,
+    #[pin]
+    vector_blob: File<Mutex<KVec<u8>>>,
 }
 
 #[derive(Debug)]
@@ -144,6 +149,14 @@ impl RustDebugFs {
                 ),
                 counter <- Self::build_counter(&debugfs),
                 inner <- Self::build_inner(&debugfs),
+                array_blob <- debugfs.read_write_binary_file(
+                    c_str!("array_blob"),
+                    new_mutex!([0x62, 0x6c, 0x6f, 0x62]),
+                ),
+                vector_blob <- debugfs.read_write_binary_file(
+                    c_str!("vector_blob"),
+                    new_mutex!(kernel::kvec!(0x42; SZ_4K)?),
+                ),
                 _debugfs: debugfs,
                 pdev: pdev.into(),
             }
