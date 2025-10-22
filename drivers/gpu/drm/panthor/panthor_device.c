@@ -84,6 +84,8 @@ void panthor_device_unplug(struct panthor_device *ptdev)
 		return;
 	}
 
+	drm_WARN_ON(&ptdev->base, pm_runtime_get_sync(ptdev->base.dev) < 0);
+
 	/* Call drm_dev_unplug() so any access to HW blocks happening after
 	 * that point get rejected.
 	 */
@@ -93,8 +95,6 @@ void panthor_device_unplug(struct panthor_device *ptdev)
 	 * future callers will wait on ptdev->unplug.done anyway.
 	 */
 	mutex_unlock(&ptdev->unplug.lock);
-
-	drm_WARN_ON(&ptdev->base, pm_runtime_get_sync(ptdev->base.dev) < 0);
 
 	/* Now, try to cleanly shutdown the GPU before the device resources
 	 * get reclaimed.
