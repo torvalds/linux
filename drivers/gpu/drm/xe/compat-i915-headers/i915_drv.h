@@ -12,7 +12,6 @@
 
 #include <drm/drm_drv.h>
 
-#include "xe_device.h" /* for xe_device_has_flat_ccs() */
 #include "xe_device_types.h"
 
 static inline struct drm_i915_private *to_i915(const struct drm_device *dev)
