@@ -239,8 +239,8 @@ static int kobil_open(struct tty_struct *tty, struct usb_serial_port *port)
 		dev_dbg(dev, "%s - Send reset_all_queues URB returns: %i\n", __func__, result);
 	}
 	if (priv->device_type == KOBIL_USBTWIN_PRODUCT_ID ||
-	    priv->device_type == KOBIL_ADAPTER_B_PRODUCT_ID ||
-	    priv->device_type == KOBIL_KAAN_SIM_PRODUCT_ID) {
+			priv->device_type == KOBIL_ADAPTER_B_PRODUCT_ID ||
+			priv->device_type == KOBIL_KAAN_SIM_PRODUCT_ID) {
 		/* start reading (Adapter B 'cause PNP string) */
 		result = usb_submit_urb(port->interrupt_in_urb, GFP_KERNEL);
 		dev_dbg(dev, "%s - Send read URB returns: %i\n", __func__, result);
@@ -318,9 +318,10 @@ static int kobil_write(struct tty_struct *tty, struct usb_serial_port *port,
 	if (((priv->device_type != KOBIL_ADAPTER_B_PRODUCT_ID) && (priv->filled > 2) && (priv->filled >= (priv->buf[1] + 3))) ||
 	     ((priv->device_type == KOBIL_ADAPTER_B_PRODUCT_ID) && (priv->filled > 3) && (priv->filled >= (priv->buf[2] + 4)))) {
 		/* stop reading (except TWIN and KAAN SIM) */
-		if ((priv->device_type == KOBIL_ADAPTER_B_PRODUCT_ID)
-			|| (priv->device_type == KOBIL_ADAPTER_K_PRODUCT_ID))
+		if (priv->device_type == KOBIL_ADAPTER_B_PRODUCT_ID ||
+				priv->device_type == KOBIL_ADAPTER_K_PRODUCT_ID) {
 			usb_kill_urb(port->interrupt_in_urb);
+		}
 
 		todo = priv->filled - priv->cur_pos;
 
@@ -347,7 +348,7 @@ static int kobil_write(struct tty_struct *tty, struct usb_serial_port *port,
 
 		/* start reading (except TWIN and KAAN SIM) */
 		if (priv->device_type == KOBIL_ADAPTER_B_PRODUCT_ID ||
-			priv->device_type == KOBIL_ADAPTER_K_PRODUCT_ID) {
+				priv->device_type == KOBIL_ADAPTER_K_PRODUCT_ID) {
 			result = usb_submit_urb(port->interrupt_in_urb,
 					GFP_ATOMIC);
 			dev_dbg(&port->dev, "%s - Send read URB returns: %i\n", __func__, result);
@@ -373,8 +374,8 @@ static int kobil_tiocmget(struct tty_struct *tty)
 	int transfer_buffer_length = 8;
 
 	priv = usb_get_serial_port_data(port);
-	if (priv->device_type == KOBIL_USBTWIN_PRODUCT_ID
-			|| priv->device_type == KOBIL_KAAN_SIM_PRODUCT_ID) {
+	if (priv->device_type == KOBIL_USBTWIN_PRODUCT_ID ||
+			priv->device_type == KOBIL_KAAN_SIM_PRODUCT_ID) {
 		/* This device doesn't support ioctl calls */
 		return -EINVAL;
 	}
@@ -423,8 +424,8 @@ static int kobil_tiocmset(struct tty_struct *tty,
 	u16 val = 0;
 
 	priv = usb_get_serial_port_data(port);
-	if (priv->device_type == KOBIL_USBTWIN_PRODUCT_ID
-		|| priv->device_type == KOBIL_KAAN_SIM_PRODUCT_ID) {
+	if (priv->device_type == KOBIL_USBTWIN_PRODUCT_ID ||
+			priv->device_type == KOBIL_KAAN_SIM_PRODUCT_ID) {
 		/* This device doesn't support ioctl calls */
 		return -EINVAL;
 	}
