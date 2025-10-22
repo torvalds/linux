@@ -313,6 +313,7 @@ struct asoc_sdw_codec_info codec_info_list[] = {
 	},
 	{
 		.part_id = 0x1321,
+		.name_prefix = "rt1320",
 		.dais = {
 			{
 				.direction = {true, false},
