@@ -12,6 +12,17 @@
 
 #include <generated/xe_wa_oob.h>
 
+/*
+ * FIXME: There shouldn't be any reason to have XE_PAGE_SIZE stride
+ * alignment. The same 64 as i915 uses should be fine, and we shouldn't need to
+ * have driver specific values. However, dropping the stride alignment to 64
+ * leads to underflowing the bo pin count in the atomic cleanup work.
+ */
+u32 intel_fbdev_fb_pitch_align(u32 stride)
+{
+	return ALIGN(stride, XE_PAGE_SIZE);
+}
+
 struct drm_gem_object *intel_fbdev_fb_bo_create(struct drm_device *drm, int size)
 {
 	struct xe_device *xe = to_xe_device(drm);

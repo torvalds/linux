@@ -10,6 +10,11 @@
 #include "i915_drv.h"
 #include "intel_fbdev_fb.h"
 
+u32 intel_fbdev_fb_pitch_align(u32 stride)
+{
+	return ALIGN(stride, 64);
+}
+
 struct drm_gem_object *intel_fbdev_fb_bo_create(struct drm_device *drm, int size)
 {
 	struct drm_i915_private *dev_priv = to_i915(drm);
