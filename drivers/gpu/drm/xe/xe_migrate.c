@@ -699,9 +699,9 @@ static void emit_copy_ccs(struct xe_gt *gt, struct xe_bb *bb,
 }
 
 #define EMIT_COPY_DW 10
-static void emit_copy(struct xe_gt *gt, struct xe_bb *bb,
-		      u64 src_ofs, u64 dst_ofs, unsigned int size,
-		      unsigned int pitch)
+static void emit_xy_fast_copy(struct xe_gt *gt, struct xe_bb *bb, u64 src_ofs,
+			      u64 dst_ofs, unsigned int size,
+			      unsigned int pitch)
 {
 	struct xe_device *xe = gt_to_xe(gt);
 	u32 mocs = 0;
@@ -728,6 +728,61 @@ static void emit_copy(struct xe_gt *gt, struct xe_bb *bb,
 	bb->cs[bb->len++] = pitch | mocs;
 	bb->cs[bb->len++] = lower_32_bits(src_ofs);
 	bb->cs[bb->len++] = upper_32_bits(src_ofs);
+}
+
+#define PAGE_COPY_MODE_PS SZ_256 /* hw uses 256 bytes as the page-size */
+static void emit_mem_copy(struct xe_gt *gt, struct xe_bb *bb, u64 src_ofs,
+			  u64 dst_ofs, unsigned int size, unsigned int pitch)
+{
+	u32 mode, copy_type, width;
+
+	xe_gt_assert(gt, IS_ALIGNED(size, pitch));
+	xe_gt_assert(gt, pitch <= U16_MAX);
+	xe_gt_assert(gt, pitch);
+	xe_gt_assert(gt, size);
+
+	if (IS_ALIGNED(size, PAGE_COPY_MODE_PS) &&
+	    IS_ALIGNED(lower_32_bits(src_ofs), PAGE_COPY_MODE_PS) &&
+	    IS_ALIGNED(lower_32_bits(dst_ofs), PAGE_COPY_MODE_PS)) {
+		mode = MEM_COPY_PAGE_COPY_MODE;
+		copy_type = 0; /* linear copy */
+		width = size / PAGE_COPY_MODE_PS;
+	} else if (pitch > 1) {
+		xe_gt_assert(gt, size / pitch <= U16_MAX);
+		mode = 0; /* BYTE_COPY */
+		copy_type = MEM_COPY_MATRIX_COPY;
+		width = pitch;
+	} else {
+		mode = 0; /* BYTE_COPY */
+		copy_type = 0; /* linear copy */
+		width = size;
+	}
+
+	xe_gt_assert(gt, width <= U16_MAX);
+
+	bb->cs[bb->len++] = MEM_COPY_CMD | mode | copy_type;
+	bb->cs[bb->len++] = width - 1;
+	bb->cs[bb->len++] = size / pitch - 1; /* ignored by hw for page-copy/linear above */
+	bb->cs[bb->len++] = pitch - 1;
+	bb->cs[bb->len++] = pitch - 1;
+	bb->cs[bb->len++] = lower_32_bits(src_ofs);
+	bb->cs[bb->len++] = upper_32_bits(src_ofs);
+	bb->cs[bb->len++] = lower_32_bits(dst_ofs);
+	bb->cs[bb->len++] = upper_32_bits(dst_ofs);
+	bb->cs[bb->len++] = FIELD_PREP(MEM_COPY_SRC_MOCS_INDEX_MASK, gt->mocs.uc_index) |
+			    FIELD_PREP(MEM_COPY_DST_MOCS_INDEX_MASK, gt->mocs.uc_index);
+}
+
+static void emit_copy(struct xe_gt *gt, struct xe_bb *bb,
+		      u64 src_ofs, u64 dst_ofs, unsigned int size,
+		      unsigned int pitch)
+{
+	struct xe_device *xe = gt_to_xe(gt);
+
+	if (xe->info.has_mem_copy_instr)
+		emit_mem_copy(gt, bb, src_ofs, dst_ofs, size, pitch);
+	else
+		emit_xy_fast_copy(gt, bb, src_ofs, dst_ofs, size, pitch);
 }
 
 static u64 xe_migrate_batch_base(struct xe_migrate *m, bool usm)
