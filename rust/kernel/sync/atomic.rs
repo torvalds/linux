@@ -22,9 +22,10 @@ mod predefine;
 
 pub use internal::AtomicImpl;
 pub use ordering::{Acquire, Full, Relaxed, Release};
+pub(crate) use internal::{AtomicArithmeticOps, AtomicBasicOps, AtomicExchangeOps};
 
 use crate::build_error;
-use internal::{AtomicArithmeticOps, AtomicBasicOps, AtomicExchangeOps, AtomicRepr};
+use internal::AtomicRepr;
 use ordering::OrderingType;
 
 /// A memory location which can be safely modified from multiple execution contexts.
