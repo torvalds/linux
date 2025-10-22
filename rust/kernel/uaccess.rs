@@ -498,6 +498,31 @@ impl UserSliceWriter {
         Ok(src.len())
     }
 
+    /// Writes raw data to this user pointer from a kernel buffer partially.
+    ///
+    /// This is the same as [`Self::write_slice_partial`] but updates the given [`file::Offset`] by
+    /// the number of bytes written.
+    ///
+    /// This is equivalent to C's `simple_read_from_buffer()`.
+    ///
+    /// On success, returns the number of bytes written.
+    pub fn write_slice_file(&mut self, data: &[u8], offset: &mut file::Offset) -> Result<usize> {
+        if offset.is_negative() {
+            return Err(EINVAL);
+        }
+
+        let Ok(offset_index) = (*offset).try_into() else {
+            return Ok(0);
+        };
+
+        let written = self.write_slice_partial(data, offset_index)?;
+
+        // OVERFLOW: `offset + written <= data.len() <= isize::MAX <= Offset::MAX`
+        *offset += written as i64;
+
+        Ok(written)
+    }
+
     /// Writes the provided Rust value to this userspace pointer.
     ///
     /// Fails with [`EFAULT`] if the write happens on a bad address, or if the write goes out of
