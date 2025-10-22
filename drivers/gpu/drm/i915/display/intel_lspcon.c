@@ -31,10 +31,10 @@
 #include <drm/drm_edid.h>
 #include <drm/drm_print.h>
 
-#include "i915_utils.h"
 #include "intel_de.h"
 #include "intel_display_regs.h"
 #include "intel_display_types.h"
+#include "intel_display_utils.h"
 #include "intel_dp.h"
 #include "intel_hdmi.h"
 #include "intel_lspcon.h"

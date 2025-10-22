@@ -3,12 +3,12 @@
  * Copyright © 2020 Intel Corporation
  */
 
-#include "i915_utils.h"
 #include "intel_cx0_phy.h"
 #include "intel_ddi.h"
 #include "intel_ddi_buf_trans.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
+#include "intel_display_utils.h"
 #include "intel_dp.h"
 
 /* HDMI/DVI modes ignore everything but the last 2 items. So we share

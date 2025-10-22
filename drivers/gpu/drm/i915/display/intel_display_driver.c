@@ -18,7 +18,7 @@
 #include <drm/drm_vblank.h>
 
 #include "i915_drv.h"
-#include "i915_utils.h"
+#include "i915_utils.h" /* for i915_inject_probe_failure() */
 #include "i9xx_wm.h"
 #include "intel_acpi.h"
 #include "intel_atomic.h"
@@ -35,6 +35,7 @@
 #include "intel_display_irq.h"
 #include "intel_display_power.h"
 #include "intel_display_types.h"
+#include "intel_display_utils.h"
 #include "intel_display_wa.h"
 #include "intel_dkl_phy.h"
 #include "intel_dmc.h"

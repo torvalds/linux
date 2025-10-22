@@ -10,11 +10,11 @@
 #include <drm/drm_gem.h>
 #include <drm/drm_modeset_helper.h>
 
-#include "i915_utils.h"
 #include "intel_bo.h"
 #include "intel_display.h"
 #include "intel_display_core.h"
 #include "intel_display_types.h"
+#include "intel_display_utils.h"
 #include "intel_dpt.h"
 #include "intel_fb.h"
 #include "intel_fb_bo.h"

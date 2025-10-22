@@ -39,10 +39,10 @@
 #include <drm/drm_print.h>
 #include <drm/drm_rect.h>
 
-#include "i915_utils.h"
 #include "i9xx_plane.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
+#include "intel_display_utils.h"
 #include "intel_fb.h"
 #include "intel_frontbuffer.h"
 #include "intel_plane.h"

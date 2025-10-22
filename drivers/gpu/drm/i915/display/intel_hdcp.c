@@ -19,7 +19,6 @@
 #include <drm/intel/i915_component.h>
 
 #include "i915_reg.h"
-#include "i915_utils.h"
 #include "intel_connector.h"
 #include "intel_de.h"
 #include "intel_display_jiffies.h"

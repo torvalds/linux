@@ -51,7 +51,6 @@
 #include <drm/drm_probe_helper.h>
 
 #include "g4x_dp.h"
-#include "i915_utils.h"
 #include "intel_alpm.h"
 #include "intel_atomic.h"
 #include "intel_audio.h"
@@ -65,6 +64,7 @@
 #include "intel_de.h"
 #include "intel_display_driver.h"
 #include "intel_display_jiffies.h"
+#include "intel_display_utils.h"
 #include "intel_display_regs.h"
 #include "intel_display_rpm.h"
 #include "intel_display_types.h"

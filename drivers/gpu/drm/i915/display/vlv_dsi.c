@@ -34,7 +34,6 @@
 #include <drm/drm_probe_helper.h>
 
 #include "i915_reg.h"
-#include "i915_utils.h"
 #include "intel_atomic.h"
 #include "intel_backlight.h"
 #include "intel_connector.h"
@@ -42,6 +41,7 @@
 #include "intel_de.h"
 #include "intel_display_regs.h"
 #include "intel_display_types.h"
+#include "intel_display_utils.h"
 #include "intel_dsi.h"
 #include "intel_dsi_vbt.h"
 #include "intel_fifo_underrun.h"

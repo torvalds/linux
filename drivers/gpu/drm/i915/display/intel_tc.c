@@ -8,7 +8,6 @@
 #include <drm/drm_print.h>
 
 #include "i915_reg.h"
-#include "i915_utils.h"
 #include "intel_atomic.h"
 #include "intel_cx0_phy_regs.h"
 #include "intel_ddi.h"
@@ -18,6 +17,7 @@
 #include "intel_display_power_map.h"
 #include "intel_display_regs.h"
 #include "intel_display_types.h"
+#include "intel_display_utils.h"
 #include "intel_dkl_phy_regs.h"
 #include "intel_dp.h"
 #include "intel_dp_mst.h"

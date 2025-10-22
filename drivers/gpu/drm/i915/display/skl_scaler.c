@@ -5,13 +5,13 @@
 
 #include <drm/drm_print.h>
 
-#include "i915_utils.h"
 #include "intel_casf.h"
 #include "intel_casf_regs.h"
 #include "intel_de.h"
 #include "intel_display_regs.h"
 #include "intel_display_trace.h"
 #include "intel_display_types.h"
+#include "intel_display_utils.h"
 #include "intel_display_wa.h"
 #include "intel_fb.h"
 #include "skl_scaler.h"

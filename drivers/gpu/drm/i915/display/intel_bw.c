@@ -7,7 +7,6 @@
 
 #include "i915_drv.h"
 #include "i915_reg.h"
-#include "i915_utils.h"
 #include "intel_bw.h"
 #include "intel_crtc.h"
 #include "intel_display_core.h"

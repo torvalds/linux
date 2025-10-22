@@ -45,7 +45,6 @@
 #include <media/cec-notifier.h>
 
 #include "g4x_hdmi.h"
-#include "i915_utils.h"
 #include "intel_atomic.h"
 #include "intel_audio.h"
 #include "intel_connector.h"
@@ -55,6 +54,7 @@
 #include "intel_display_driver.h"
 #include "intel_display_regs.h"
 #include "intel_display_types.h"
+#include "intel_display_utils.h"
 #include "intel_dp.h"
 #include "intel_gmbus.h"
 #include "intel_hdcp.h"

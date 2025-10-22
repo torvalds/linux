@@ -51,7 +51,6 @@
 #include "i915_config.h"
 #include "i915_drv.h"
 #include "i915_reg.h"
-#include "i915_utils.h"
 #include "i9xx_plane.h"
 #include "i9xx_plane_regs.h"
 #include "i9xx_wm.h"
