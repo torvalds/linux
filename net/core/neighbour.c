@@ -995,8 +995,7 @@ static void neigh_periodic_work(struct work_struct *work)
 
 		WRITE_ONCE(tbl->last_rand, jiffies);
 		list_for_each_entry(p, &tbl->parms_list, list)
-			p->reachable_time =
-				neigh_rand_reach_time(NEIGH_VAR(p, BASE_REACHABLE_TIME));
+			neigh_set_reach_time(p);
 	}
 
 	if (atomic_read(&tbl->entries) < READ_ONCE(tbl->gc_thresh1))
@@ -1749,8 +1748,7 @@ struct neigh_parms *neigh_parms_alloc(struct net_device *dev,
 	if (p) {
 		p->tbl		  = tbl;
 		refcount_set(&p->refcnt, 1);
-		p->reachable_time =
-				neigh_rand_reach_time(NEIGH_VAR(p, BASE_REACHABLE_TIME));
+		neigh_set_reach_time(p);
 		p->qlen = 0;
 		netdev_hold(dev, &p->dev_tracker, GFP_KERNEL);
 		p->dev = dev;
@@ -1810,8 +1808,7 @@ void neigh_table_init(int index, struct neigh_table *tbl)
 	list_add(&tbl->parms.list, &tbl->parms_list);
 	write_pnet(&tbl->parms.net, &init_net);
 	refcount_set(&tbl->parms.refcnt, 1);
-	tbl->parms.reachable_time =
-			  neigh_rand_reach_time(NEIGH_VAR(&tbl->parms, BASE_REACHABLE_TIME));
+	neigh_set_reach_time(&tbl->parms);
 	tbl->parms.qlen = 0;
 
 	tbl->stats = alloc_percpu(struct neigh_statistics);
@@ -2194,7 +2191,7 @@ static int neightbl_fill_parms(struct sk_buff *skb, struct neigh_parms *parms)
 			NEIGH_VAR(parms, MCAST_PROBES)) ||
 	    nla_put_u32(skb, NDTPA_MCAST_REPROBES,
 			NEIGH_VAR(parms, MCAST_REPROBES)) ||
-	    nla_put_msecs(skb, NDTPA_REACHABLE_TIME, parms->reachable_time,
+	    nla_put_msecs(skb, NDTPA_REACHABLE_TIME, READ_ONCE(parms->reachable_time),
 			  NDTPA_PAD) ||
 	    nla_put_msecs(skb, NDTPA_BASE_REACHABLE_TIME,
 			  NEIGH_VAR(parms, BASE_REACHABLE_TIME), NDTPA_PAD) ||
@@ -2475,8 +2472,7 @@ static int neightbl_set(struct sk_buff *skb, struct nlmsghdr *nlh,
 				 * only be effective after the next time neigh_periodic_work
 				 * decides to recompute it (can be multiple minutes)
 				 */
-				p->reachable_time =
-					neigh_rand_reach_time(NEIGH_VAR(p, BASE_REACHABLE_TIME));
+				neigh_set_reach_time(p);
 				break;
 			case NDTPA_GC_STALETIME:
 				NEIGH_VAR_SET(p, GC_STALETIME,
@@ -3721,8 +3717,7 @@ static int neigh_proc_base_reachable_time(const struct ctl_table *ctl, int write
 		 * only be effective after the next time neigh_periodic_work
 		 * decides to recompute it
 		 */
-		p->reachable_time =
-			neigh_rand_reach_time(NEIGH_VAR(p, BASE_REACHABLE_TIME));
+		neigh_set_reach_time(p);
 	}
 	return ret;
 }
