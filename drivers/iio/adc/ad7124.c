@@ -586,13 +586,18 @@ static int ad7124_request_config_slot(struct ad7124_state *st, u8 channel)
 
 static void ad7124_release_config_slot(struct ad7124_state *st, u8 channel)
 {
-	unsigned int slot = st->channels[channel].cfg.cfg_slot;
+	unsigned int slot;
 
 	/*
-	 * All of these conditions can happen at probe when all channels are
-	 * disabled. Otherwise, they should not happen normally.
+	 * All of these early return conditions can happen at probe when all
+	 * channels are disabled. Otherwise, they should not happen normally.
 	 */
-	if (channel >= st->num_channels || slot == AD7124_CFG_SLOT_UNASSIGNED ||
+	if (channel >= st->num_channels)
+		return;
+
+	slot = st->channels[channel].cfg.cfg_slot;
+
+	if (slot == AD7124_CFG_SLOT_UNASSIGNED ||
 	    st->cfg_slot_use_count[slot] == 0)
 		return;
 
