@@ -418,11 +418,10 @@ static int kobil_tiocmset(struct tty_struct *tty,
 	struct usb_serial_port *port = tty->driver_data;
 	struct device *dev = &port->dev;
 	struct kobil_private *priv;
-	int result = 0;
-	int dtr = 0;
-	int rts = 0;
+	int dtr, rts;
+	int result;
+	u16 val = 0;
 
-	/* FIXME: locking ? */
 	priv = usb_get_serial_port_data(port);
 	if (priv->device_type == KOBIL_USBTWIN_PRODUCT_ID
 		|| priv->device_type == KOBIL_KAAN_SIM_PRODUCT_ID) {
@@ -430,46 +429,38 @@ static int kobil_tiocmset(struct tty_struct *tty,
 		return -EINVAL;
 	}
 
-	if (set & TIOCM_RTS)
-		rts = 1;
-	if (set & TIOCM_DTR)
-		dtr = 1;
-	if (clear & TIOCM_RTS)
-		rts = 1;
-	if (clear & TIOCM_DTR)
-		dtr = 1;
+	dtr = (set | clear) & TIOCM_DTR;
+	rts = (set | clear) & TIOCM_RTS;
 
 	if (dtr && priv->device_type == KOBIL_ADAPTER_B_PRODUCT_ID) {
 		if (set & TIOCM_DTR)
-			dev_dbg(dev, "%s - Setting DTR\n", __func__);
+			val = SUSBCR_SSL_SETDTR;
 		else
-			dev_dbg(dev, "%s - Clearing DTR\n", __func__);
-		result = usb_control_msg(port->serial->dev,
-			  usb_sndctrlpipe(port->serial->dev, 0),
-			  SUSBCRequest_SetStatusLinesOrQueues,
-			  USB_TYPE_VENDOR | USB_RECIP_ENDPOINT | USB_DIR_OUT,
-			  ((set & TIOCM_DTR) ? SUSBCR_SSL_SETDTR : SUSBCR_SSL_CLRDTR),
-			  0,
-			  NULL,
-			  0,
-			  KOBIL_TIMEOUT);
+			val = SUSBCR_SSL_CLRDTR;
 	} else if (rts) {
 		if (set & TIOCM_RTS)
-			dev_dbg(dev, "%s - Setting RTS\n", __func__);
+			val = SUSBCR_SSL_SETRTS;
 		else
-			dev_dbg(dev, "%s - Clearing RTS\n", __func__);
-		result = usb_control_msg(port->serial->dev,
-			usb_sndctrlpipe(port->serial->dev, 0),
-			SUSBCRequest_SetStatusLinesOrQueues,
-			USB_TYPE_VENDOR | USB_RECIP_ENDPOINT | USB_DIR_OUT,
-			((set & TIOCM_RTS) ? SUSBCR_SSL_SETRTS : SUSBCR_SSL_CLRRTS),
-			0,
-			NULL,
-			0,
-			KOBIL_TIMEOUT);
+			val = SUSBCR_SSL_CLRRTS;
 	}
-	dev_dbg(dev, "%s - Send set_status_line URB returns: %i\n", __func__, result);
-	return (result < 0) ? result : 0;
+
+	if (val) {
+		result = usb_control_msg(port->serial->dev,
+				usb_sndctrlpipe(port->serial->dev, 0),
+				SUSBCRequest_SetStatusLinesOrQueues,
+				USB_TYPE_VENDOR | USB_RECIP_ENDPOINT | USB_DIR_OUT,
+				val,
+				0,
+				NULL,
+				0,
+				KOBIL_TIMEOUT);
+		if (result < 0) {
+			dev_err(dev, "failed to set status lines: %d\n", result);
+			return result;
+		}
+	}
+
+	return 0;
 }
 
 static void kobil_set_termios(struct tty_struct *tty,
