@@ -937,9 +937,10 @@ static uint8_t amdgpu_virt_crit_region_calc_checksum(uint8_t *buf_start, uint8_t
 int amdgpu_virt_init_critical_region(struct amdgpu_device *adev)
 {
 	struct amd_sriov_msg_init_data_header *init_data_hdr = NULL;
-	uint32_t init_hdr_offset = adev->virt.init_data_header.offset;
-	uint32_t init_hdr_size = adev->virt.init_data_header.size_kb << 10;
-	uint64_t vram_size;
+	u64 init_hdr_offset = adev->virt.init_data_header.offset;
+	u64 init_hdr_size = (u64)adev->virt.init_data_header.size_kb << 10; /* KB → bytes */
+	u64 vram_size;
+	u64 end;
 	int r = 0;
 	uint8_t checksum = 0;
 
@@ -957,7 +958,7 @@ int amdgpu_virt_init_critical_region(struct amdgpu_device *adev)
 		return -EINVAL;
 	vram_size <<= 20;
 
-	if ((init_hdr_offset + init_hdr_size) > vram_size) {
+	if (check_add_overflow(init_hdr_offset, init_hdr_size, &end) || end > vram_size) {
 		dev_err(adev->dev, "init_data_header exceeds VRAM size, exiting\n");
 		return -EINVAL;
 	}
