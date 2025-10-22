@@ -66,6 +66,18 @@ function define_field_sign(prefix, reg, field, sign) {
 	define(prefix, reg "_" field "_SIGNED", sign)
 }
 
+# Print the Res0, Res1, Unkn masks
+function define_resx_unkn(prefix, reg, res0, res1, unkn) {
+	if (res0 != null)
+		define(prefix, reg "_RES0", "(" res0 ")")
+	if (res1 != null)
+		define(prefix, reg "_RES1", "(" res1 ")")
+	if (unkn != null)
+		define(prefix, reg "_UNKN", "(" unkn ")")
+	if (res0 != null || res1 != null || unkn != null)
+		print ""
+}
+
 # Parse a "<msb>[:<lsb>]" string into the global variables @msb and @lsb
 function parse_bitdef(reg, field, bitdef, _bits)
 {
@@ -143,10 +155,7 @@ $1 == "EndSysregFields" && block_current() == "SysregFields" {
 	if (next_bit >= 0)
 		fatal("Unspecified bits in " reg)
 
-	define(prefix, reg "_RES0", "(" res0 ")")
-	define(prefix, reg "_RES1", "(" res1 ")")
-	define(prefix, reg "_UNKN", "(" unkn ")")
-	print ""
+	define_resx_unkn(prefix, reg, res0, res1, unkn)
 
 	reg = null
 	res0 = null
@@ -201,14 +210,7 @@ $1 == "EndSysreg" && block_current() == "Sysreg" {
 	if (next_bit >= 0)
 		fatal("Unspecified bits in " reg)
 
-	if (res0 != null)
-		define(prefix, reg "_RES0", "(" res0 ")")
-	if (res1 != null)
-		define(prefix, reg "_RES1", "(" res1 ")")
-	if (unkn != null)
-		define(prefix, reg "_UNKN", "(" unkn ")")
-	if (res0 != null || res1 != null || unkn != null)
-		print ""
+	define_resx_unkn(prefix, reg, res0, res1, unkn)
 
 	reg = null
 	op0 = null
