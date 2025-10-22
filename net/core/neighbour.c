@@ -1764,7 +1764,7 @@ struct neigh_parms *neigh_parms_alloc(struct net_device *dev,
 		}
 
 		write_lock_bh(&tbl->lock);
-		list_add(&p->list, &tbl->parms.list);
+		list_add_rcu(&p->list, &tbl->parms.list);
 		write_unlock_bh(&tbl->lock);
 
 		neigh_parms_data_state_cleanall(p);
@@ -1786,7 +1786,7 @@ void neigh_parms_release(struct neigh_table *tbl, struct neigh_parms *parms)
 	if (!parms || parms == &tbl->parms)
 		return;
 	write_lock_bh(&tbl->lock);
-	list_del(&parms->list);
+	list_del_rcu(&parms->list);
 	parms->dead = 1;
 	write_unlock_bh(&tbl->lock);
 	netdev_put(parms->dev, &parms->dev_tracker);
