@@ -112,7 +112,7 @@ static int find_event(const char *str, void *array, size_t size)
 	return bsearch(&str, array, size, sizeof(char *), compare_strings) != NULL;
 }
 
-static void check_tracepoints(struct elf_tracepoint *etrace)
+static void check_tracepoints(struct elf_tracepoint *etrace, const char *fname)
 {
 	Elf_Ehdr *ehdr = etrace->ehdr;
 	int len;
@@ -129,22 +129,26 @@ static void check_tracepoints(struct elf_tracepoint *etrace)
 		if (!len)
 			continue;
 		if (!find_event(str, etrace->array, etrace->count)) {
-			fprintf(stderr, "warning: tracepoint '%s' is unused.\n", str);
+			fprintf(stderr, "warning: tracepoint '%s' is unused", str);
+			if (fname)
+				fprintf(stderr, " in module %s\n", fname);
+			else
+				fprintf(stderr, "\n");
 		}
 	}
 
 	free(etrace->array);
 }
 
-static void *tracepoint_check(struct elf_tracepoint *etrace)
+static void *tracepoint_check(struct elf_tracepoint *etrace, const char *fname)
 {
 	make_trace_array(etrace);
-	check_tracepoints(etrace);
+	check_tracepoints(etrace, fname);
 
 	return NULL;
 }
 
-static int process_tracepoints(void *addr, char const *const fname)
+static int process_tracepoints(bool mod, void *addr, const char *fname)
 {
 	struct elf_tracepoint etrace = {0};
 	Elf_Ehdr *ehdr = addr;
@@ -188,7 +192,19 @@ static int process_tracepoints(void *addr, char const *const fname)
 		}
 	}
 
+	/*
+	 * Modules may not have either section. But if it has one section,
+	 * it should have both of them.
+	 */
+	if (mod && !check_data_sec && !tracepoint_data_sec)
+		return 0;
+
 	if (!check_data_sec) {
+		if (mod) {
+			fprintf(stderr, "warning: Module %s has only unused tracepoints\n", fname);
+			/* Do not fail build */
+			return 0;
+		}
 		fprintf(stderr,	"no __tracepoint_check in file: %s\n", fname);
 		return -1;
 	}
@@ -198,8 +214,11 @@ static int process_tracepoints(void *addr, char const *const fname)
 		return -1;
 	}
 
+	if (!mod)
+		fname = NULL;
+
 	etrace.ehdr = ehdr;
-	tracepoint_check(&etrace);
+	tracepoint_check(&etrace, fname);
 	return 0;
 }
 
@@ -208,9 +227,19 @@ int main(int argc, char *argv[])
 	int n_error = 0;
 	size_t size = 0;
 	void *addr = NULL;
+	bool mod = false;
+
+	if (argc > 1 && strcmp(argv[1], "--module") == 0) {
+		mod = true;
+		argc--;
+		argv++;
+	}
 
 	if (argc < 2) {
-		fprintf(stderr, "usage: tracepoint-update vmlinux...\n");
+		if (mod)
+			fprintf(stderr, "usage: tracepoint-update --module module...\n");
+		else
+			fprintf(stderr, "usage: tracepoint-update vmlinux...\n");
 		return 0;
 	}
 
@@ -222,7 +251,7 @@ int main(int argc, char *argv[])
 			continue;
 		}
 
-		if (process_tracepoints(addr, argv[i]))
+		if (process_tracepoints(mod, addr, argv[i]))
 			++n_error;
 
 		elf_unmap(addr, size);
