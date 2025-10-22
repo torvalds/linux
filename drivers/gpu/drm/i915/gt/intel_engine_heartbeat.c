@@ -4,6 +4,7 @@
  */
 
 #include "i915_drv.h"
+#include "i915_jiffies.h"
 #include "i915_request.h"
 
 #include "intel_context.h"

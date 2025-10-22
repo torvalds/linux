@@ -12,6 +12,7 @@
 #include "intel_color.h"
 #include "intel_crtc.h"
 #include "intel_de.h"
+#include "intel_display_jiffies.h"
 #include "intel_display_regs.h"
 #include "intel_display_types.h"
 #include "intel_vblank.h"
