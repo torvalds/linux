@@ -31,7 +31,6 @@
 #include "xe_lrc.h"
 #include "xe_memirq.h"
 #include "xe_mmio.h"
-#include "xe_pm.h"
 #include "xe_sriov.h"
 #include "xe_sriov_vf.h"
 #include "xe_sriov_vf_ccs.h"
@@ -1218,7 +1217,6 @@ static void vf_post_migration_recovery(struct xe_gt *gt)
 
 	xe_gt_sriov_dbg(gt, "migration recovery in progress\n");
 
-	xe_pm_runtime_get(xe);
 	retry = vf_post_migration_shutdown(gt);
 	if (retry)
 		goto queue;
@@ -1241,12 +1239,10 @@ static void vf_post_migration_recovery(struct xe_gt *gt)
 
 	vf_post_migration_kickstart(gt);
 
-	xe_pm_runtime_put(xe);
 	xe_gt_sriov_notice(gt, "migration recovery ended\n");
 	return;
 fail:
 	vf_post_migration_abort(gt);
-	xe_pm_runtime_put(xe);
 	xe_gt_sriov_err(gt, "migration recovery failed (%pe)\n", ERR_PTR(err));
 	xe_device_declare_wedged(xe);
 	return;
@@ -1254,7 +1250,6 @@ fail:
 queue:
 	xe_gt_sriov_info(gt, "Re-queuing migration recovery\n");
 	queue_work(gt->ordered_wq, &gt->sriov.vf.migration.worker);
-	xe_pm_runtime_put(xe);
 }
 
 static void migration_worker_func(struct work_struct *w)
