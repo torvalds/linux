@@ -133,7 +133,7 @@ $1 == "SysregFields" && block_current() == "Root" {
 
 $1 == "EndSysregFields" && block_current() == "SysregFields" {
 	expect_fields(1)
-	if (next_bit > 0)
+	if (next_bit >= 0)
 		fatal("Unspecified bits in " reg)
 
 	define(reg "_RES0", "(" res0 ")")
@@ -188,7 +188,7 @@ $1 == "Sysreg" && block_current() == "Root" {
 
 $1 == "EndSysreg" && block_current() == "Sysreg" {
 	expect_fields(1)
-	if (next_bit > 0)
+	if (next_bit >= 0)
 		fatal("Unspecified bits in " reg)
 
 	if (res0 != null)
@@ -225,7 +225,7 @@ $1 == "EndSysreg" && block_current() == "Sysreg" {
 	print "/* For " reg " fields see " $2 " */"
 	print ""
 
-        next_bit = 0
+	next_bit = -1
 	res0 = null
 	res1 = null
 	unkn = null
