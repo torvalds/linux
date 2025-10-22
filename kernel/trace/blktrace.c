@@ -64,7 +64,7 @@ static void blk_register_tracepoints(void);
 static void blk_unregister_tracepoints(void);
 
 static void record_blktrace_event(struct blk_io_trace *t, pid_t pid, int cpu,
-				  sector_t sector, int bytes, u32 what,
+				  sector_t sector, int bytes, u64 what,
 				  dev_t dev, int error, u64 cgid,
 				  ssize_t cgid_len, void *pdu_data, int pdu_len)
 
@@ -80,7 +80,7 @@ static void record_blktrace_event(struct blk_io_trace *t, pid_t pid, int cpu,
 
 	t->sector = sector;
 	t->bytes = bytes;
-	t->action = what;
+	t->action = lower_32_bits(what);
 	t->device = dev;
 	t->error = error;
 	t->pdu_len = pdu_len + cgid_len;
@@ -93,7 +93,7 @@ static void record_blktrace_event(struct blk_io_trace *t, pid_t pid, int cpu,
 
 static void relay_blktrace_event(struct blk_trace *bt, unsigned long sequence,
 				 pid_t pid, int cpu, sector_t sector, int bytes,
-				 u32 what, int error, u64 cgid,
+				 u64 what, int error, u64 cgid,
 				 ssize_t cgid_len, void *pdu_data, int pdu_len)
 {
 	struct blk_io_trace *t;
@@ -114,7 +114,7 @@ static void relay_blktrace_event(struct blk_trace *bt, unsigned long sequence,
 /*
  * Send out a notify message.
  */
-static void trace_note(struct blk_trace *bt, pid_t pid, int action,
+static void trace_note(struct blk_trace *bt, pid_t pid, u64 action,
 		       const void *data, size_t len, u64 cgid)
 {
 	struct blk_io_trace *t;
@@ -127,6 +127,7 @@ static void trace_note(struct blk_trace *bt, pid_t pid, int action,
 	size_t trace_len;
 
 	trace_len = sizeof(*t) + cgid_len + len;
+	action = lower_32_bits(action | (cgid ? __BLK_TN_CGROUP : 0));
 	if (blk_tracer) {
 		buffer = blk_tr->array_buffer.buffer;
 		trace_ctx = tracing_gen_ctx_flags(0);
@@ -136,9 +137,8 @@ static void trace_note(struct blk_trace *bt, pid_t pid, int action,
 			return;
 		t = ring_buffer_event_data(event);
 		record_blktrace_event(t, pid, cpu, 0, 0,
-				      action | (cgid ? __BLK_TN_CGROUP : 0),
-				      bt->dev, 0, cgid, cgid_len, (void *)data,
-				      len);
+				      action, bt->dev, 0, cgid, cgid_len,
+				      (void *)data, len);
 		trace_buffer_unlock_commit(blk_tr, buffer, event, trace_ctx);
 		return;
 	}
@@ -146,8 +146,7 @@ static void trace_note(struct blk_trace *bt, pid_t pid, int action,
 	if (!bt->rchan)
 		return;
 
-	relay_blktrace_event(bt, 0, pid, cpu, 0, 0,
-			     action | (cgid ? __BLK_TN_CGROUP : 0), 0, cgid,
+	relay_blktrace_event(bt, 0, pid, cpu, 0, 0, action, 0, cgid,
 			     cgid_len, (void *)data, len);
 }
 
@@ -222,7 +221,7 @@ void __blk_trace_note_message(struct blk_trace *bt,
 }
 EXPORT_SYMBOL_GPL(__blk_trace_note_message);
 
-static int act_log_check(struct blk_trace *bt, u32 what, sector_t sector,
+static int act_log_check(struct blk_trace *bt, u64 what, sector_t sector,
 			 pid_t pid)
 {
 	if (((bt->act_mask << BLK_TC_SHIFT) & what) == 0)
@@ -253,7 +252,7 @@ static const u32 ddir_act[2] = { BLK_TC_ACT(BLK_TC_READ),
  * blk_io_trace structure and places it in a per-cpu subbuffer.
  */
 static void __blk_add_trace(struct blk_trace *bt, sector_t sector, int bytes,
-			    const blk_opf_t opf, u32 what, int error,
+			    const blk_opf_t opf, u64 what, int error,
 			    int pdu_len, void *pdu_data, u64 cgid)
 {
 	struct task_struct *tsk = current;
@@ -311,9 +310,9 @@ static void __blk_add_trace(struct blk_trace *bt, sector_t sector, int bytes,
 			return;
 
 		record_blktrace_event(ring_buffer_event_data(event),
-				      pid, cpu, sector, bytes, what, bt->dev,
-				      error, cgid, cgid_len, pdu_data,
-				      pdu_len);
+				      pid, cpu, sector, bytes,
+				      what, bt->dev, error, cgid, cgid_len,
+				      pdu_data, pdu_len);
 
 		trace_buffer_unlock_commit(blk_tr, buffer, event, trace_ctx);
 		return;
@@ -330,8 +329,9 @@ static void __blk_add_trace(struct blk_trace *bt, sector_t sector, int bytes,
 	local_irq_save(flags);
 	sequence = per_cpu_ptr(bt->sequence, cpu);
 	(*sequence)++;
-	relay_blktrace_event(bt, *sequence, pid, cpu, sector, bytes, what,
-			     error, cgid, cgid_len, pdu_data, pdu_len);
+	relay_blktrace_event(bt, *sequence, pid, cpu, sector, bytes,
+			     lower_32_bits(what), error, cgid, cgid_len,
+			     pdu_data, pdu_len);
 	local_irq_restore(flags);
 }
 
@@ -818,7 +818,7 @@ blk_trace_request_get_cgid(struct request *rq)
  *
  **/
 static void blk_add_trace_rq(struct request *rq, blk_status_t error,
-			     unsigned int nr_bytes, u32 what, u64 cgid)
+			     unsigned int nr_bytes, u64 what, u64 cgid)
 {
 	struct blk_trace *bt;
 
@@ -882,7 +882,7 @@ static void blk_add_trace_rq_complete(void *ignore, struct request *rq,
  *
  **/
 static void blk_add_trace_bio(struct request_queue *q, struct bio *bio,
-			      u32 what, int error)
+			      u64 what, int error)
 {
 	struct blk_trace *bt;
 
@@ -948,7 +948,7 @@ static void blk_add_trace_unplug(void *ignore, struct request_queue *q,
 	bt = rcu_dereference(q->blk_trace);
 	if (bt) {
 		__be64 rpdu = cpu_to_be64(depth);
-		u32 what;
+		u64 what;
 
 		if (explicit)
 			what = BLK_TA_UNPLUG_IO;
