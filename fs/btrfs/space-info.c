@@ -1119,27 +1119,26 @@ static bool maybe_fail_all_tickets(struct btrfs_space_info *space_info)
 	       tickets_id == space_info->tickets_id) {
 		ticket = list_first_entry(&space_info->tickets,
 					  struct reserve_ticket, list);
-
-		if (!abort_error && steal_from_global_rsv(space_info, ticket))
-			return true;
-
-		if (!abort_error && btrfs_test_opt(fs_info, ENOSPC_DEBUG))
-			btrfs_info(fs_info, "failing ticket with %llu bytes",
-				   ticket->bytes);
-
-		if (abort_error)
+		if (unlikely(abort_error)) {
 			remove_ticket(space_info, ticket, abort_error);
-		else
+		} else {
+			if (steal_from_global_rsv(space_info, ticket))
+				return true;
+
+			if (btrfs_test_opt(fs_info, ENOSPC_DEBUG))
+				btrfs_info(fs_info, "failing ticket with %llu bytes",
+					   ticket->bytes);
+
 			remove_ticket(space_info, ticket, -ENOSPC);
 
-		/*
-		 * We're just throwing tickets away, so more flushing may not
-		 * trip over btrfs_try_granting_tickets, so we need to call it
-		 * here to see if we can make progress with the next ticket in
-		 * the list.
-		 */
-		if (!abort_error)
+			/*
+			 * We're just throwing tickets away, so more flushing may
+			 * not trip over btrfs_try_granting_tickets, so we need
+			 * to call it here to see if we can make progress with
+			 * the next ticket in the list.
+			 */
 			btrfs_try_granting_tickets(space_info);
+		}
 	}
 	return (tickets_id != space_info->tickets_id);
 }
@@ -1415,7 +1414,7 @@ static void do_async_reclaim_data_space(struct btrfs_space_info *space_info)
 		}
 
 		/* Something happened, fail everything and bail. */
-		if (BTRFS_FS_ERROR(fs_info))
+		if (unlikely(BTRFS_FS_ERROR(fs_info)))
 			goto aborted_fs;
 		last_tickets_id = space_info->tickets_id;
 		spin_unlock(&space_info->lock);
@@ -1449,7 +1448,7 @@ static void do_async_reclaim_data_space(struct btrfs_space_info *space_info)
 			}
 
 			/* Something happened, fail everything and bail. */
-			if (BTRFS_FS_ERROR(fs_info))
+			if (unlikely(BTRFS_FS_ERROR(fs_info)))
 				goto aborted_fs;
 
 		}
@@ -1553,7 +1552,7 @@ static void priority_reclaim_metadata_space(struct btrfs_space_info *space_info,
 	 * just to have caller fail immediately instead of later when trying to
 	 * modify the fs, making it easier to debug -ENOSPC problems.
 	 */
-	if (BTRFS_FS_ERROR(fs_info))
+	if (unlikely(BTRFS_FS_ERROR(fs_info)))
 		remove_ticket(space_info, ticket, BTRFS_FS_ERROR(fs_info));
 	else if (!steal_from_global_rsv(space_info, ticket))
 		remove_ticket(space_info, ticket, -ENOSPC);
