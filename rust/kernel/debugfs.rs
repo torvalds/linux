@@ -21,12 +21,15 @@ use core::mem::ManuallyDrop;
 use core::ops::Deref;
 
 mod traits;
-pub use traits::{Reader, Writer};
+pub use traits::{BinaryReader, BinaryWriter, Reader, Writer};
 
 mod callback_adapters;
 use callback_adapters::{FormatAdapter, NoWriter, WritableAdapter};
 mod file_ops;
-use file_ops::{FileOps, ReadFile, ReadWriteFile, WriteFile};
+use file_ops::{
+    BinaryReadFile, BinaryReadWriteFile, BinaryWriteFile, FileOps, ReadFile, ReadWriteFile,
+    WriteFile,
+};
 #[cfg(CONFIG_DEBUG_FS)]
 mod entry;
 #[cfg(CONFIG_DEBUG_FS)]
@@ -150,6 +153,32 @@ impl Dir {
         self.create_file(name, data, file_ops)
     }
 
+    /// Creates a read-only binary file in this directory.
+    ///
+    /// The file's contents are produced by invoking [`BinaryWriter::write_to_slice`] on the value
+    /// initialized by `data`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use kernel::c_str;
+    /// # use kernel::debugfs::Dir;
+    /// # use kernel::prelude::*;
+    /// # let dir = Dir::new(c_str!("my_debugfs_dir"));
+    /// let file = KBox::pin_init(dir.read_binary_file(c_str!("foo"), [0x1, 0x2]), GFP_KERNEL)?;
+    /// # Ok::<(), Error>(())
+    /// ```
+    pub fn read_binary_file<'a, T, E: 'a>(
+        &'a self,
+        name: &'a CStr,
+        data: impl PinInit<T, E> + 'a,
+    ) -> impl PinInit<File<T>, E> + 'a
+    where
+        T: BinaryWriter + Send + Sync + 'static,
+    {
+        self.create_file(name, data, &T::FILE_OPS)
+    }
+
     /// Creates a read-only file in this directory, with contents from a callback.
     ///
     /// `f` must be a function item or a non-capturing closure.
@@ -206,6 +235,22 @@ impl Dir {
         self.create_file(name, data, file_ops)
     }
 
+    /// Creates a read-write binary file in this directory.
+    ///
+    /// Reading the file uses the [`BinaryWriter`] implementation.
+    /// Writing to the file uses the [`BinaryReader`] implementation.
+    pub fn read_write_binary_file<'a, T, E: 'a>(
+        &'a self,
+        name: &'a CStr,
+        data: impl PinInit<T, E> + 'a,
+    ) -> impl PinInit<File<T>, E> + 'a
+    where
+        T: BinaryWriter + BinaryReader + Send + Sync + 'static,
+    {
+        let file_ops = &<T as BinaryReadWriteFile<_>>::FILE_OPS;
+        self.create_file(name, data, file_ops)
+    }
+
     /// Creates a read-write file in this directory, with logic from callbacks.
     ///
     /// Reading from the file is handled by `f`. Writing to the file is handled by `w`.
@@ -244,6 +289,23 @@ impl Dir {
     ) -> impl PinInit<File<T>, E> + 'a
     where
         T: Reader + Send + Sync + 'static,
+    {
+        self.create_file(name, data, &T::FILE_OPS)
+    }
+
+    /// Creates a write-only binary file in this directory.
+    ///
+    /// The file owns its backing data. Writing to the file uses the [`BinaryReader`]
+    /// implementation.
+    ///
+    /// The file is removed when the returned [`File`] is dropped.
+    pub fn write_binary_file<'a, T, E: 'a>(
+        &'a self,
+        name: &'a CStr,
+        data: impl PinInit<T, E> + 'a,
+    ) -> impl PinInit<File<T>, E> + 'a
+    where
+        T: BinaryReader + Send + Sync + 'static,
     {
         self.create_file(name, data, &T::FILE_OPS)
     }
