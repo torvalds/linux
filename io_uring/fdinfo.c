@@ -96,8 +96,10 @@ static void __io_uring_show_fdinfo(struct io_ring_ctx *ctx, struct seq_file *m)
 		u8 opcode;
 
 		if (ctx->flags & IORING_SETUP_NO_SQARRAY)
-			break;
-		sq_idx = READ_ONCE(ctx->sq_array[sq_head & sq_mask]);
+			sq_idx = sq_head & sq_mask;
+		else
+			sq_idx = READ_ONCE(ctx->sq_array[sq_head & sq_mask]);
+
 		if (sq_idx > sq_mask)
 			continue;
 
