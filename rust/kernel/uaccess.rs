@@ -9,6 +9,7 @@ use crate::{
     bindings,
     error::Result,
     ffi::{c_char, c_void},
+    fs::file,
     prelude::*,
     transmute::{AsBytes, FromBytes},
 };
@@ -302,6 +303,31 @@ impl UserSliceReader {
 
         self.read_slice(dst)?;
         Ok(dst.len())
+    }
+
+    /// Reads raw data from the user slice into a kernel buffer partially.
+    ///
+    /// This is the same as [`Self::read_slice_partial`] but updates the given [`file::Offset`] by
+    /// the number of bytes read.
+    ///
+    /// This is equivalent to C's `simple_write_to_buffer()`.
+    ///
+    /// On success, returns the number of bytes read.
+    pub fn read_slice_file(&mut self, out: &mut [u8], offset: &mut file::Offset) -> Result<usize> {
+        if offset.is_negative() {
+            return Err(EINVAL);
+        }
+
+        let Ok(offset_index) = (*offset).try_into() else {
+            return Ok(0);
+        };
+
+        let read = self.read_slice_partial(out, offset_index)?;
+
+        // OVERFLOW: `offset + read <= data.len() <= isize::MAX <= Offset::MAX`
+        *offset += read as i64;
+
+        Ok(read)
     }
 
     /// Reads a value of the specified type.
