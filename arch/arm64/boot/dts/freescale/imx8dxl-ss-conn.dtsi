@@ -7,6 +7,7 @@
 /delete-node/ &fec2;
 /delete-node/ &usbotg3;
 /delete-node/ &usb3_phy;
+/delete-node/ &usb3_lpcg;
 
 / {
 	conn_enet0_root_clk: clock-conn-enet0-root {
