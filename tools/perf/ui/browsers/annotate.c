@@ -995,7 +995,7 @@ static int annotate_browser__run(struct annotate_browser *browser,
 		case 'H':
 			nd = browser->curr_hot;
 			break;
-		case 's':
+		case 's': {
 			struct annotation_line *al = NULL;
 			s64 offset = annotate_browser__curr_hot_offset(browser);
 
@@ -1012,6 +1012,7 @@ static int annotate_browser__run(struct annotate_browser *browser,
 			annotate__scnprintf_title(hists, title, sizeof(title));
 			annotate_browser__show(browser, title, help);
 			continue;
+		}
 		case 'o':
 			annotate_opts.use_offset = !annotate_opts.use_offset;
 			annotation__update_column_widths(notes);
