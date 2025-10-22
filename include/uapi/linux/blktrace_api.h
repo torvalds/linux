@@ -129,6 +129,7 @@ enum {
 };
 
 #define BLKTRACE_BDEV_SIZE	32
+#define BLKTRACE_BDEV_SIZE2	64
 
 /*
  * User setup structure passed with BLKTRACESETUP
@@ -141,6 +142,21 @@ struct blk_user_trace_setup {
 	__u64 start_lba;
 	__u64 end_lba;
 	__u32 pid;
+};
+
+/*
+ * User setup structure passed with BLKTRACESETUP2
+ */
+struct blk_user_trace_setup2 {
+	char name[BLKTRACE_BDEV_SIZE2];		/* output */
+	__u64 act_mask;				/* input */
+	__u32 buf_size;				/* input */
+	__u32 buf_nr;				/* input */
+	__u64 start_lba;
+	__u64 end_lba;
+	__u32 pid;
+	__u32 flags;		/* currently unused */
+	__u64 reserved[11];
 };
 
 #endif /* _UAPIBLKTRACE_H */

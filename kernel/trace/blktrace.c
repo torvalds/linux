@@ -1601,6 +1601,9 @@ static int __init init_blk_tracer(void)
 		return 1;
 	}
 
+	BUILD_BUG_ON(__alignof__(struct blk_user_trace_setup2) %
+		     __alignof__(long));
+
 	return 0;
 }
 
