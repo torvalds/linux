@@ -66,6 +66,16 @@ static int panthor_clk_init(struct panthor_device *ptdev)
 	return 0;
 }
 
+static int panthor_init_power(struct device *dev)
+{
+	struct dev_pm_domain_list  *pd_list = NULL;
+
+	if (dev->pm_domain)
+		return 0;
+
+	return devm_pm_domain_attach_list(dev, NULL, &pd_list);
+}
+
 void panthor_device_unplug(struct panthor_device *ptdev)
 {
 	/* This function can be called from two different path: the reset work
@@ -221,6 +231,12 @@ int panthor_device_init(struct panthor_device *ptdev)
 	ret = panthor_clk_init(ptdev);
 	if (ret)
 		return ret;
+
+	ret = panthor_init_power(ptdev->base.dev);
+	if (ret < 0) {
+		drm_err(&ptdev->base, "init power domains failed, ret=%d", ret);
+		return ret;
+	}
 
 	ret = panthor_devfreq_init(ptdev);
 	if (ret)
