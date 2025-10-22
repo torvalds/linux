@@ -57,7 +57,8 @@ static int inv_icm45600_i3c_probe(struct i3c_device *i3cdev)
 	}
 
 	if (chip == nb_chip)
-		dev_err_probe(&i3cdev->dev, -ENODEV, "Failed to match part id %d\n", whoami);
+		return dev_err_probe(&i3cdev->dev, -ENODEV,
+				     "Failed to match part id %d\n", whoami);
 
 	return inv_icm45600_core_probe(regmap, i3c_chip_info[chip], false, NULL);
 }
