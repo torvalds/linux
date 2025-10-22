@@ -80,6 +80,8 @@ conn_subsys: bus@5b000000 {
 		assigned-clocks = <&clk IMX_SC_R_SDHC_0 IMX_SC_PM_CLK_PER>;
 		assigned-clock-rates = <400000000>;
 		power-domains = <&pd IMX_SC_R_SDHC_0>;
+		fsl,tuning-start-tap = <20>;
+		fsl,tuning-step = <2>;
 		status = "disabled";
 	};
 
@@ -108,6 +110,8 @@ conn_subsys: bus@5b000000 {
 		assigned-clocks = <&clk IMX_SC_R_SDHC_2 IMX_SC_PM_CLK_PER>;
 		assigned-clock-rates = <200000000>;
 		power-domains = <&pd IMX_SC_R_SDHC_2>;
+		fsl,tuning-start-tap = <20>;
+		fsl,tuning-step = <2>;
 		status = "disabled";
 	};
 
