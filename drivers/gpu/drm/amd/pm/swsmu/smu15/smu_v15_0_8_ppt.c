@@ -1147,6 +1147,38 @@ static void smu_v15_0_8_get_unique_id(struct smu_context *smu)
 	adev->unique_id = pptable->PublicSerialNumberMID;
 }
 
+static int smu_v15_0_8_get_power_limit(struct smu_context *smu,
+				       uint32_t *current_power_limit,
+				       uint32_t *default_power_limit,
+				       uint32_t *max_power_limit,
+				       uint32_t *min_power_limit)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+	PPTable_t *pptable = (PPTable_t *)smu_table->driver_pptable;
+	uint32_t power_limit = 0;
+	int ret;
+
+	ret = smu_cmn_send_smc_msg(smu, SMU_MSG_GetPptLimit, &power_limit);
+	if (ret) {
+		dev_err(smu->adev->dev, "Couldn't get PPT limit");
+		return -EINVAL;
+	}
+
+	if (current_power_limit)
+		*current_power_limit = power_limit;
+
+	if (default_power_limit)
+		*max_power_limit = pptable->MaxSocketPowerLimit;
+
+	if (max_power_limit)
+		*max_power_limit = pptable->MaxSocketPowerLimit;
+
+	if (min_power_limit)
+		*min_power_limit = 0;
+
+	return 0;
+}
+
 static const struct pptable_funcs smu_v15_0_8_ppt_funcs = {
 	.init_allowed_features = smu_v15_0_8_init_allowed_features,
 	.set_default_dpm_table = smu_v15_0_8_set_default_dpm_table,
@@ -1172,6 +1204,8 @@ static const struct pptable_funcs smu_v15_0_8_ppt_funcs = {
 	.get_dpm_ultimate_freq = smu_v15_0_8_get_dpm_ultimate_freq,
 	.get_gpu_metrics = smu_v15_0_8_get_gpu_metrics,
 	.get_unique_id = smu_v15_0_8_get_unique_id,
+	.get_power_limit = smu_v15_0_8_get_power_limit,
+	.set_power_limit = smu_v15_0_set_power_limit,
 };
 
 static void smu_v15_0_8_init_msg_ctl(struct smu_context *smu,

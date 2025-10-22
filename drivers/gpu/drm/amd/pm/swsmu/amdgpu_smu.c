@@ -2966,6 +2966,7 @@ int smu_get_power_limit(void *handle,
 			case IP_VERSION(11, 0, 11):
 			case IP_VERSION(11, 0, 12):
 			case IP_VERSION(11, 0, 13):
+			case IP_VERSION(15, 0, 8):
 				ret = smu_get_asic_power_limits(smu,
 								&smu->current_power_limit,
 								NULL, NULL, NULL);
