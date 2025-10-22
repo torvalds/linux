@@ -1920,6 +1920,25 @@ enum xe_migrate_copy_dir {
 #define XE_CACHELINE_BYTES	64ull
 #define XE_CACHELINE_MASK	(XE_CACHELINE_BYTES - 1)
 
+static u32 xe_migrate_copy_pitch(struct xe_device *xe, u32 len)
+{
+	u32 pitch;
+
+	if (IS_ALIGNED(len, PAGE_SIZE))
+		pitch = PAGE_SIZE;
+	else if (IS_ALIGNED(len, SZ_4K))
+		pitch = SZ_4K;
+	else if (IS_ALIGNED(len, SZ_256))
+		pitch = SZ_256;
+	else if (IS_ALIGNED(len, 4))
+		pitch = 4;
+	else
+		pitch = 1;
+
+	xe_assert(xe, pitch > 1 || xe->info.has_mem_copy_instr);
+	return pitch;
+}
+
 static struct dma_fence *xe_migrate_vram(struct xe_migrate *m,
 					 unsigned long len,
 					 unsigned long sram_offset,
@@ -1937,14 +1956,14 @@ static struct dma_fence *xe_migrate_vram(struct xe_migrate *m,
 	struct xe_bb *bb;
 	u32 update_idx, pt_slot = 0;
 	unsigned long npages = DIV_ROUND_UP(len + sram_offset, PAGE_SIZE);
-	unsigned int pitch = len >= PAGE_SIZE && !(len & ~PAGE_MASK) ?
-		PAGE_SIZE : 4;
+	unsigned int pitch = xe_migrate_copy_pitch(xe, len);
 	int err;
 	unsigned long i, j;
 	bool use_pde = xe_migrate_vram_use_pde(sram_addr, len + sram_offset);
 
-	if (drm_WARN_ON(&xe->drm, (!IS_ALIGNED(len, pitch)) ||
-			(sram_offset | vram_addr) & XE_CACHELINE_MASK))
+	if (!xe->info.has_mem_copy_instr &&
+	    drm_WARN_ON(&xe->drm,
+			(!IS_ALIGNED(len, pitch)) || (sram_offset | vram_addr) & XE_CACHELINE_MASK))
 		return ERR_PTR(-EOPNOTSUPP);
 
 	xe_assert(xe, npages * PAGE_SIZE <= MAX_PREEMPTDISABLE_TRANSFER);
@@ -2163,9 +2182,10 @@ int xe_migrate_access_memory(struct xe_migrate *m, struct xe_bo *bo,
 	xe_bo_assert_held(bo);
 
 	/* Use bounce buffer for small access and unaligned access */
-	if (!IS_ALIGNED(len, 4) ||
-	    !IS_ALIGNED(page_offset, XE_CACHELINE_BYTES) ||
-	    !IS_ALIGNED(offset, XE_CACHELINE_BYTES)) {
+	if (!xe->info.has_mem_copy_instr &&
+	    (!IS_ALIGNED(len, 4) ||
+	     !IS_ALIGNED(page_offset, XE_CACHELINE_BYTES) ||
+	     !IS_ALIGNED(offset, XE_CACHELINE_BYTES))) {
 		int buf_offset = 0;
 		void *bounce;
 		int err;
@@ -2227,6 +2247,7 @@ int xe_migrate_access_memory(struct xe_migrate *m, struct xe_bo *bo,
 		u64 vram_addr = vram_region_gpu_offset(bo->ttm.resource) +
 			cursor.start;
 		int current_bytes;
+		u32 pitch;
 
 		if (cursor.size > MAX_PREEMPTDISABLE_TRANSFER)
 			current_bytes = min_t(int, bytes_left,
@@ -2234,13 +2255,13 @@ int xe_migrate_access_memory(struct xe_migrate *m, struct xe_bo *bo,
 		else
 			current_bytes = min_t(int, bytes_left, cursor.size);
 
-		if (current_bytes & ~PAGE_MASK) {
-			int pitch = 4;
-
+		pitch = xe_migrate_copy_pitch(xe, current_bytes);
+		if (xe->info.has_mem_copy_instr)
+			current_bytes = min_t(int, current_bytes, U16_MAX * pitch);
+		else
 			current_bytes = min_t(int, current_bytes,
 					      round_down(S16_MAX * pitch,
 							 XE_CACHELINE_BYTES));
-		}
 
 		__fence = xe_migrate_vram(m, current_bytes,
 					  (unsigned long)buf & ~PAGE_MASK,
