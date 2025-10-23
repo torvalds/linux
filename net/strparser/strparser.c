@@ -127,7 +127,7 @@ static int __strp_recv(read_descriptor_t *desc, struct sk_buff *orig_skb,
 		}
 
 		if (!strp->skb_nextp) {
-			/* We are going to append to the frags_list of head.
+			/* We are going to append to the frag_list of head.
 			 * Need to unshare the frag_list.
 			 */
 			err = skb_unclone(head, GFP_ATOMIC);
