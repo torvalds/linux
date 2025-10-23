@@ -192,9 +192,9 @@ static inline int x86_64_pt_iommu_set_prot(struct pt_common *common,
 {
 	u64 pte;
 
-	pte = X86_64_FMT_U | X86_64_FMT_A | X86_64_FMT_D;
+	pte = X86_64_FMT_U | X86_64_FMT_A;
 	if (iommu_prot & IOMMU_WRITE)
-		pte |= X86_64_FMT_RW;
+		pte |= X86_64_FMT_RW | X86_64_FMT_D;
 
 	/*
 	 * Ideally we'd have an IOMMU_ENCRYPTED flag set by higher levels to
