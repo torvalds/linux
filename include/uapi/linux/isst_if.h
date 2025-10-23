@@ -52,7 +52,7 @@ struct isst_if_cpu_map {
 /**
  * struct isst_if_cpu_maps - structure for CPU map IOCTL
  * @cmd_count:	Number of CPU mapping command in cpu_map[]
- * @cpu_map[]:	Holds one or more CPU map data structure
+ * @cpu_map:	Holds one or more CPU map data structure
  *
  * This structure used with ioctl ISST_IF_GET_PHY_ID to send
  * one or more CPU mapping commands. Here IOCTL return value indicates
@@ -82,8 +82,8 @@ struct isst_if_io_reg {
 
 /**
  * struct isst_if_io_regs - structure for IO register commands
- * @cmd_count:	Number of io reg commands in io_reg[]
- * @io_reg[]:	Holds one or more io_reg command structure
+ * @req_count:	Number of io reg commands in io_reg[]
+ * @io_reg:	Holds one or more io_reg command structure
  *
  * This structure used with ioctl ISST_IF_IO_CMD to send
  * one or more read/write commands to PUNIT. Here IOCTL return value
@@ -120,7 +120,7 @@ struct isst_if_mbox_cmd {
 /**
  * struct isst_if_mbox_cmds - structure for mailbox commands
  * @cmd_count:	Number of mailbox commands in mbox_cmd[]
- * @mbox_cmd[]:	Holds one or more mbox commands
+ * @mbox_cmd:	Holds one or more mbox commands
  *
  * This structure used with ioctl ISST_IF_MBOX_COMMAND to send
  * one or more mailbox commands to PUNIT. Here IOCTL return value
@@ -152,7 +152,7 @@ struct isst_if_msr_cmd {
 /**
  * struct isst_if_msr_cmds - structure for msr commands
  * @cmd_count:	Number of mailbox commands in msr_cmd[]
- * @msr_cmd[]:	Holds one or more msr commands
+ * @msr_cmd:	Holds one or more msr commands
  *
  * This structure used with ioctl ISST_IF_MSR_COMMAND to send
  * one or more MSR commands. IOCTL return value indicates number of
@@ -167,8 +167,9 @@ struct isst_if_msr_cmds {
  * struct isst_core_power - Structure to get/set core_power feature
  * @get_set:	0: Get, 1: Set
  * @socket_id:	Socket/package id
- * @power_domain: Power Domain id
+ * @power_domain_id: Power Domain id
  * @enable:	Feature enable status
+ * @supported:	Power domain supports SST_CP interface
  * @priority_type: Priority type for the feature (ordered/proportional)
  *
  * Structure to get/set core_power feature state using IOCTL
@@ -187,11 +188,11 @@ struct isst_core_power {
  * struct isst_clos_param - Structure to get/set clos praram
  * @get_set:	0: Get, 1: Set
  * @socket_id:	Socket/package id
- * @power_domain:	Power Domain id
- * clos:	Clos ID for the parameters
- * min_freq_mhz: Minimum frequency in MHz
- * max_freq_mhz: Maximum frequency in MHz
- * prop_prio:	Proportional priority from 0-15
+ * @power_domain_id:	Power Domain id
+ * @clos:	Clos ID for the parameters
+ * @min_freq_mhz: Minimum frequency in MHz
+ * @max_freq_mhz: Maximum frequency in MHz
+ * @prop_prio:	Proportional priority from 0-15
  *
  * Structure to get/set per clos property using IOCTL
  * ISST_IF_CLOS_PARAM.
@@ -209,7 +210,7 @@ struct isst_clos_param {
 /**
  * struct isst_if_clos_assoc - Structure to assign clos to a CPU
  * @socket_id:	Socket/package id
- * @power_domain:	Power Domain id
+ * @power_domain_id:	Power Domain id
  * @logical_cpu: CPU number
  * @clos:	Clos ID to assign to the logical CPU
  *
@@ -228,6 +229,7 @@ struct isst_if_clos_assoc {
  * @get_set:	Request is for get or set
  * @punit_cpu_map: Set to 1 if the CPU number is punit numbering not
  *		   Linux CPU number
+ * @assoc_info: CLOS data for this CPU
  *
  * Structure used to get/set associate CPUs to clos using IOCTL
  * ISST_IF_CLOS_ASSOC.
@@ -257,7 +259,7 @@ struct isst_tpmi_instance_count {
 /**
  * struct isst_perf_level_info - Structure to get information on SST-PP levels
  * @socket_id:	Socket/package id
- * @power_domain:	Power Domain id
+ * @power_domain_id:	Power Domain id
  * @logical_cpu: CPU number
  * @clos:	Clos ID to assign to the logical CPU
  * @max_level: Maximum performance level supported by the platform
@@ -267,8 +269,8 @@ struct isst_tpmi_instance_count {
  * @feature_state: SST-BF and SST-TF (enabled/disabled) status at current level
  * @locked: SST-PP performance level change is locked/unlocked
  * @enabled: SST-PP feature is enabled or not
- * @sst-tf_support: SST-TF support status at this level
- * @sst-bf_support: SST-BF support status at this level
+ * @sst_tf_support: SST-TF support status at this level
+ * @sst_bf_support: SST-BF support status at this level
  *
  * Structure to get SST-PP details using IOCTL ISST_IF_PERF_LEVELS.
  */
@@ -289,7 +291,7 @@ struct isst_perf_level_info {
 /**
  * struct isst_perf_level_control - Structure to set SST-PP level
  * @socket_id:	Socket/package id
- * @power_domain:	Power Domain id
+ * @power_domain_id:	Power Domain id
  * @level:	level to set
  *
  * Structure used change SST-PP level using IOCTL ISST_IF_PERF_SET_LEVEL.
@@ -303,7 +305,7 @@ struct isst_perf_level_control {
 /**
  * struct isst_perf_feature_control - Structure to activate SST-BF/SST-TF
  * @socket_id:	Socket/package id
- * @power_domain:	Power Domain id
+ * @power_domain_id:	Power Domain id
  * @feature:	bit 0 = SST-BF state, bit 1 = SST-TF state
  *
  * Structure used to enable SST-BF/SST-TF using IOCTL ISST_IF_PERF_SET_FEATURE.
@@ -320,7 +322,7 @@ struct isst_perf_feature_control {
 /**
  * struct isst_perf_level_data_info - Structure to get SST-PP level details
  * @socket_id:	Socket/package id
- * @power_domain:	Power Domain id
+ * @power_domain_id:	Power Domain id
  * @level:	SST-PP level for which caller wants to get information
  * @tdp_ratio: TDP Ratio
  * @base_freq_mhz: Base frequency in MHz
@@ -341,8 +343,8 @@ struct isst_perf_feature_control {
  * @pm_fabric_freq_mhz: Fabric (Uncore) minimum frequency
  * @max_buckets: Maximum trl buckets
  * @max_trl_levels: Maximum trl levels
- * @bucket_core_counts[TRL_MAX_BUCKETS]: Number of cores per bucket
- * @trl_freq_mhz[TRL_MAX_LEVELS][TRL_MAX_BUCKETS]: maximum frequency
+ * @bucket_core_counts: Number of cores per bucket
+ * @trl_freq_mhz: maximum frequency
  * for a bucket and trl level
  *
  * Structure used to get information on frequencies and TDP for a SST-PP
@@ -402,7 +404,7 @@ struct isst_perf_level_fabric_info {
 /**
  * struct isst_perf_level_cpu_mask - Structure to get SST-PP level CPU mask
  * @socket_id:	Socket/package id
- * @power_domain:	Power Domain id
+ * @power_domain_id:	Power Domain id
  * @level:	SST-PP level for which caller wants to get information
  * @punit_cpu_map: Set to 1 if the CPU number is punit numbering not
  *		   Linux CPU number. If 0 CPU buffer is copied to user space
@@ -430,7 +432,7 @@ struct isst_perf_level_cpu_mask {
 /**
  * struct isst_base_freq_info - Structure to get SST-BF frequencies
  * @socket_id:	Socket/package id
- * @power_domain:	Power Domain id
+ * @power_domain_id:	Power Domain id
  * @level:	SST-PP level for which caller wants to get information
  * @high_base_freq_mhz: High priority CPU base frequency
  * @low_base_freq_mhz: Low priority CPU base frequency
@@ -453,9 +455,11 @@ struct isst_base_freq_info {
 /**
  * struct isst_turbo_freq_info - Structure to get SST-TF frequencies
  * @socket_id:	Socket/package id
- * @power_domain:	Power Domain id
+ * @power_domain_id:	Power Domain id
  * @level:	SST-PP level for which caller wants to get information
  * @max_clip_freqs: Maximum number of low priority core clipping frequencies
+ * @max_buckets: Maximum trl buckets
+ * @max_trl_levels: Maximum trl levels
  * @lp_clip_freq_mhz: Clip frequencies per trl level
  * @bucket_core_counts: Maximum number of cores for a bucket
  * @trl_freq_mhz: Frequencies per trl level for each bucket
