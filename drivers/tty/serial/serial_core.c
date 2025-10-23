@@ -3502,6 +3502,14 @@ int uart_get_rs485_mode(struct uart_port *port)
 	if (!(port->rs485_supported.flags & SER_RS485_ENABLED))
 		return 0;
 
+	/*
+	 * Retrieve properties only if a firmware node exists. If no firmware
+	 * node exists, then don't touch rs485 config and keep initial rs485
+	 * properties set by driver.
+	 */
+	if (!dev_fwnode(dev))
+		return 0;
+
 	ret = device_property_read_u32_array(dev, "rs485-rts-delay",
 					     rs485_delay, 2);
 	if (!ret) {
