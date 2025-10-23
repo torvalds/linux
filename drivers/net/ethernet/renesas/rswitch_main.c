@@ -1793,46 +1793,44 @@ static struct net_device_stats *rswitch_get_stats(struct net_device *ndev)
 	return &ndev->stats;
 }
 
-static int rswitch_hwstamp_get(struct net_device *ndev, struct ifreq *req)
+static int rswitch_hwstamp_get(struct net_device *ndev,
+			       struct kernel_hwtstamp_config *config)
 {
 	struct rswitch_device *rdev = netdev_priv(ndev);
 	struct rcar_gen4_ptp_private *ptp_priv;
-	struct hwtstamp_config config;
 
 	ptp_priv = rdev->priv->ptp_priv;
 
-	config.flags = 0;
-	config.tx_type = ptp_priv->tstamp_tx_ctrl ? HWTSTAMP_TX_ON :
+	config->flags = 0;
+	config->tx_type = ptp_priv->tstamp_tx_ctrl ? HWTSTAMP_TX_ON :
 						    HWTSTAMP_TX_OFF;
 	switch (ptp_priv->tstamp_rx_ctrl & RCAR_GEN4_RXTSTAMP_TYPE) {
 	case RCAR_GEN4_RXTSTAMP_TYPE_V2_L2_EVENT:
-		config.rx_filter = HWTSTAMP_FILTER_PTP_V2_L2_EVENT;
+		config->rx_filter = HWTSTAMP_FILTER_PTP_V2_L2_EVENT;
 		break;
 	case RCAR_GEN4_RXTSTAMP_TYPE_ALL:
-		config.rx_filter = HWTSTAMP_FILTER_ALL;
+		config->rx_filter = HWTSTAMP_FILTER_ALL;
 		break;
 	default:
-		config.rx_filter = HWTSTAMP_FILTER_NONE;
+		config->rx_filter = HWTSTAMP_FILTER_NONE;
 		break;
 	}
 
-	return copy_to_user(req->ifr_data, &config, sizeof(config)) ? -EFAULT : 0;
+	return 0;
 }
 
-static int rswitch_hwstamp_set(struct net_device *ndev, struct ifreq *req)
+static int rswitch_hwstamp_set(struct net_device *ndev,
+			       struct kernel_hwtstamp_config *config,
+			       struct netlink_ext_ack *extack)
 {
 	struct rswitch_device *rdev = netdev_priv(ndev);
 	u32 tstamp_rx_ctrl = RCAR_GEN4_RXTSTAMP_ENABLED;
-	struct hwtstamp_config config;
 	u32 tstamp_tx_ctrl;
 
-	if (copy_from_user(&config, req->ifr_data, sizeof(config)))
-		return -EFAULT;
-
-	if (config.flags)
+	if (config->flags)
 		return -EINVAL;
 
-	switch (config.tx_type) {
+	switch (config->tx_type) {
 	case HWTSTAMP_TX_OFF:
 		tstamp_tx_ctrl = 0;
 		break;
@@ -1843,7 +1841,7 @@ static int rswitch_hwstamp_set(struct net_device *ndev, struct ifreq *req)
 		return -ERANGE;
 	}
 
-	switch (config.rx_filter) {
+	switch (config->rx_filter) {
 	case HWTSTAMP_FILTER_NONE:
 		tstamp_rx_ctrl = 0;
 		break;
@@ -1851,7 +1849,7 @@ static int rswitch_hwstamp_set(struct net_device *ndev, struct ifreq *req)
 		tstamp_rx_ctrl |= RCAR_GEN4_RXTSTAMP_TYPE_V2_L2_EVENT;
 		break;
 	default:
-		config.rx_filter = HWTSTAMP_FILTER_ALL;
+		config->rx_filter = HWTSTAMP_FILTER_ALL;
 		tstamp_rx_ctrl |= RCAR_GEN4_RXTSTAMP_TYPE_ALL;
 		break;
 	}
@@ -1859,22 +1857,7 @@ static int rswitch_hwstamp_set(struct net_device *ndev, struct ifreq *req)
 	rdev->priv->ptp_priv->tstamp_tx_ctrl = tstamp_tx_ctrl;
 	rdev->priv->ptp_priv->tstamp_rx_ctrl = tstamp_rx_ctrl;
 
-	return copy_to_user(req->ifr_data, &config, sizeof(config)) ? -EFAULT : 0;
-}
-
-static int rswitch_eth_ioctl(struct net_device *ndev, struct ifreq *req, int cmd)
-{
-	if (!netif_running(ndev))
-		return -EINVAL;
-
-	switch (cmd) {
-	case SIOCGHWTSTAMP:
-		return rswitch_hwstamp_get(ndev, req);
-	case SIOCSHWTSTAMP:
-		return rswitch_hwstamp_set(ndev, req);
-	default:
-		return phy_mii_ioctl(ndev->phydev, req, cmd);
-	}
+	return 0;
 }
 
 static int rswitch_get_port_parent_id(struct net_device *ndev,
@@ -1905,11 +1888,13 @@ static const struct net_device_ops rswitch_netdev_ops = {
 	.ndo_stop = rswitch_stop,
 	.ndo_start_xmit = rswitch_start_xmit,
 	.ndo_get_stats = rswitch_get_stats,
-	.ndo_eth_ioctl = rswitch_eth_ioctl,
+	.ndo_eth_ioctl = phy_do_ioctl_running,
 	.ndo_get_port_parent_id = rswitch_get_port_parent_id,
 	.ndo_get_phys_port_name = rswitch_get_phys_port_name,
 	.ndo_validate_addr = eth_validate_addr,
 	.ndo_set_mac_address = eth_mac_addr,
+	.ndo_hwtstamp_get = rswitch_hwstamp_get,
+	.ndo_hwtstamp_set = rswitch_hwstamp_set,
 };
 
 bool is_rdev(const struct net_device *ndev)
