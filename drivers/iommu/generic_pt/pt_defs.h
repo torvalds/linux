@@ -48,13 +48,16 @@ enum {
 /*
  * When in debug mode we compile all formats with all features. This allows the
  * kunit to test the full matrix. SIGN_EXTEND can't co-exist with DYNAMIC_TOP or
- * FULL_VA.
+ * FULL_VA. DMA_INCOHERENT requires a SW bit that not all formats have
  */
 #if IS_ENABLED(CONFIG_DEBUG_GENERIC_PT)
 enum {
 	PT_ORIG_SUPPORTED_FEATURES = PT_SUPPORTED_FEATURES,
 	PT_DEBUG_SUPPORTED_FEATURES =
 		UINT_MAX &
+		~((PT_ORIG_SUPPORTED_FEATURES & BIT(PT_FEAT_DMA_INCOHERENT) ?
+			   0 :
+			   BIT(PT_FEAT_DMA_INCOHERENT))) &
 		~((PT_ORIG_SUPPORTED_FEATURES & BIT(PT_FEAT_SIGN_EXTEND)) ?
 			  BIT(PT_FEAT_DYNAMIC_TOP) | BIT(PT_FEAT_FULL_VA) :
 			  BIT(PT_FEAT_SIGN_EXTEND)),

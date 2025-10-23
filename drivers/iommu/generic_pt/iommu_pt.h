@@ -24,6 +24,10 @@ static void gather_range_pages(struct iommu_iotlb_gather *iotlb_gather,
 {
 	struct pt_common *common = common_from_iommu(iommu_table);
 
+	if (pt_feature(common, PT_FEAT_DMA_INCOHERENT))
+		iommu_pages_stop_incoherent_list(free_list,
+						 iommu_table->iommu_device);
+
 	if (pt_feature(common, PT_FEAT_FLUSH_RANGE_NO_GAPS) &&
 	    iommu_iotlb_gather_is_disjoint(iotlb_gather, iova, len)) {
 		iommu_iotlb_sync(&iommu_table->domain, iotlb_gather);
@@ -329,35 +333,55 @@ static int __collect_tables(struct pt_range *range, void *arg,
 	return 0;
 }
 
-static inline struct pt_table_p *table_alloc_top(struct pt_common *common,
-						 uintptr_t top_of_table,
-						 gfp_t gfp)
+enum alloc_mode {ALLOC_NORMAL, ALLOC_DEFER_COHERENT_FLUSH};
+
+/* Allocate a table, the empty table will be ready to be installed. */
+static inline struct pt_table_p *_table_alloc(struct pt_common *common,
+					      size_t lg2sz, gfp_t gfp,
+					      enum alloc_mode mode)
 {
 	struct pt_iommu *iommu_table = iommu_from_common(common);
+	struct pt_table_p *table_mem;
 
+	table_mem = iommu_alloc_pages_node_sz(iommu_table->nid, gfp,
+					      log2_to_int(lg2sz));
+	if (pt_feature(common, PT_FEAT_DMA_INCOHERENT) &&
+	    mode == ALLOC_NORMAL) {
+		int ret = iommu_pages_start_incoherent(
+			table_mem, iommu_table->iommu_device);
+		if (ret) {
+			iommu_free_pages(table_mem);
+			return ERR_PTR(ret);
+		}
+	}
+	return table_mem;
+}
+
+static inline struct pt_table_p *table_alloc_top(struct pt_common *common,
+						 uintptr_t top_of_table,
+						 gfp_t gfp,
+						 enum alloc_mode mode)
+{
 	/*
 	 * Top doesn't need the free list or otherwise, so it technically
 	 * doesn't need to use iommu pages. Use the API anyhow as the top is
 	 * usually not smaller than PAGE_SIZE to keep things simple.
 	 */
-	return iommu_alloc_pages_node_sz(
-		iommu_table->nid, gfp,
-		log2_to_int(pt_top_memsize_lg2(common, top_of_table)));
+	return _table_alloc(common, pt_top_memsize_lg2(common, top_of_table),
+			    gfp, mode);
 }
 
 /* Allocate an interior table */
 static inline struct pt_table_p *table_alloc(const struct pt_state *parent_pts,
-					     gfp_t gfp)
+					     gfp_t gfp, enum alloc_mode mode)
 {
-	struct pt_iommu *iommu_table =
-		iommu_from_common(parent_pts->range->common);
 	struct pt_state child_pts =
 		pt_init(parent_pts->range, parent_pts->level - 1, NULL);
 
-	return iommu_alloc_pages_node_sz(
-		iommu_table->nid, gfp,
-		log2_to_int(pt_num_items_lg2(&child_pts) +
-			    ilog2(PT_ITEM_WORD_SIZE)));
+	return _table_alloc(parent_pts->range->common,
+			    pt_num_items_lg2(&child_pts) +
+				    ilog2(PT_ITEM_WORD_SIZE),
+			    gfp, mode);
 }
 
 static inline int pt_iommu_new_table(struct pt_state *pts,
@@ -370,13 +394,15 @@ static inline int pt_iommu_new_table(struct pt_state *pts,
 	if (PT_WARN_ON(!pt_can_have_table(pts)))
 		return -ENXIO;
 
-	table_mem = table_alloc(pts, attrs->gfp);
+	table_mem = table_alloc(pts, attrs->gfp, ALLOC_NORMAL);
 	if (IS_ERR(table_mem))
 		return PTR_ERR(table_mem);
 
 	phys = virt_to_phys(table_mem);
 	if (!pt_install_table(pts, phys, attrs)) {
-		iommu_free_pages(table_mem);
+		iommu_pages_free_incoherent(
+			table_mem,
+			iommu_from_common(pts->range->common)->iommu_device);
 		return -EAGAIN;
 	}
 
@@ -389,7 +415,9 @@ static inline int pt_iommu_new_table(struct pt_state *pts,
 		pt_load_single_entry(pts);
 		if (PT_WARN_ON(pt_table_pa(pts) != phys)) {
 			pt_clear_entries(pts, ilog2(1));
-			iommu_free_pages(table_mem);
+			iommu_pages_free_incoherent(
+				table_mem, iommu_from_common(pts->range->common)
+						   ->iommu_device);
 			return -EINVAL;
 		}
 	}
@@ -615,8 +643,9 @@ static int increase_top(struct pt_iommu *iommu_table, struct pt_range *range,
 		}
 
 		new_level = pts.level;
-		table_mem = table_alloc_top(
-			common, _pt_top_set(NULL, pts.level), map->attrs.gfp);
+		table_mem =
+			table_alloc_top(common, _pt_top_set(NULL, pts.level),
+					map->attrs.gfp, ALLOC_DEFER_COHERENT_FLUSH);
 		if (IS_ERR(table_mem))
 			return PTR_ERR(table_mem);
 		iommu_pages_list_add(&free_list, table_mem);
@@ -631,6 +660,16 @@ static int increase_top(struct pt_iommu *iommu_table, struct pt_range *range,
 		pt_install_table(&pts, virt_to_phys(pts.table_lower),
 				 &map->attrs);
 		new_top_of_table = _pt_top_set(pts.table, pts.level);
+	}
+
+	/*
+	 * Avoid double flushing, flush it once after all pt_install_table()
+	 */
+	if (pt_feature(common, PT_FEAT_DMA_INCOHERENT)) {
+		ret = iommu_pages_start_incoherent_list(
+			&free_list, iommu_table->iommu_device);
+		if (ret)
+			goto err_free;
 	}
 
 	/*
@@ -665,6 +704,9 @@ static int increase_top(struct pt_iommu *iommu_table, struct pt_range *range,
 	return 0;
 
 err_free:
+	if (pt_feature(common, PT_FEAT_DMA_INCOHERENT))
+		iommu_pages_stop_incoherent_list(&free_list,
+						 iommu_table->iommu_device);
 	iommu_put_pages_list(&free_list);
 	return ret;
 }
@@ -988,6 +1030,9 @@ static void NS(deinit)(struct pt_iommu *iommu_table)
 	 * The driver has to already have fenced the HW access to the page table
 	 * and invalidated any caching referring to this memory.
 	 */
+	if (pt_feature(common, PT_FEAT_DMA_INCOHERENT))
+		iommu_pages_stop_incoherent_list(&collect.free_list,
+						 iommu_table->iommu_device);
 	iommu_put_pages_list(&collect.free_list);
 }
 
@@ -1078,6 +1123,7 @@ static void pt_iommu_zero(struct pt_iommu_table *fmt_table)
 	memset_after(fmt_table, 0, iommu.domain);
 
 	/* The caller can initialize some of these values */
+	iommu_table->iommu_device = cfg.iommu_device;
 	iommu_table->driver_ops = cfg.driver_ops;
 	iommu_table->nid = cfg.nid;
 }
@@ -1123,11 +1169,16 @@ int pt_iommu_init(struct pt_iommu_table *fmt_table,
 	     pt_feature(common, PT_FEAT_DYNAMIC_TOP)))
 		return -EINVAL;
 
+	if (pt_feature(common, PT_FEAT_DMA_INCOHERENT) &&
+	    WARN_ON(!iommu_table->iommu_device))
+		return -EINVAL;
+
 	ret = pt_iommu_init_domain(iommu_table, &iommu_table->domain);
 	if (ret)
 		return ret;
 
-	table_mem = table_alloc_top(common, common->top_of_table, gfp);
+	table_mem = table_alloc_top(common, common->top_of_table, gfp,
+				    ALLOC_NORMAL);
 	if (IS_ERR(table_mem))
 		return PTR_ERR(table_mem);
 	pt_top_set(common, table_mem, pt_top_get_level(common));

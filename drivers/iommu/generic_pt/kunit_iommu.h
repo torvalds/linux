@@ -139,6 +139,7 @@ static int pt_kunit_priv_init(struct kunit *test, struct kunit_iommu_priv *priv)
 
 	priv->fmt_table.iommu.nid = NUMA_NO_NODE;
 	priv->fmt_table.iommu.driver_ops = &pt_kunit_driver_ops;
+	priv->fmt_table.iommu.iommu_device = priv->dummy_dev;
 	priv->domain.ops = &kunit_pt_ops;
 	ret = pt_iommu_init(&priv->fmt_table, &priv->cfg, GFP_KERNEL);
 	if (ret) {

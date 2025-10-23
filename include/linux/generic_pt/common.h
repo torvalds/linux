@@ -86,6 +86,12 @@ enum {
  */
 enum pt_features {
 	/**
+	 * @PT_FEAT_DMA_INCOHERENT: Cache flush page table memory before
+	 * assuming the HW can read it. Otherwise a SMP release is sufficient
+	 * for HW to read it.
+	 */
+	PT_FEAT_DMA_INCOHERENT,
+	/**
 	 * @PT_FEAT_FULL_VA: The table can span the full VA range from 0 to
 	 * PT_VADDR_MAX.
 	 */

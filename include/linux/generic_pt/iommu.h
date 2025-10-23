@@ -57,6 +57,13 @@ struct pt_iommu {
 	 * table walkers.
 	 */
 	int nid;
+
+	/**
+	 * @iommu_device: Device pointer used for any DMA cache flushing when
+	 * PT_FEAT_DMA_INCOHERENT. This is the iommu device that created the
+	 * page table which must have dma ops that perform cache flushing.
+	 */
+	struct device *iommu_device;
 };
 
 /**
