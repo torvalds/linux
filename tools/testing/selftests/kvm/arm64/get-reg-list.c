@@ -69,6 +69,7 @@ static struct feature_id_reg feat_id_regs[] = {
 	REG_FEAT(VNCR_EL2,	ID_AA64MMFR4_EL1, NV_frac, NV2_ONLY),
 	REG_FEAT(CNTHV_CTL_EL2, ID_AA64MMFR1_EL1, VH, IMP),
 	REG_FEAT(CNTHV_CVAL_EL2,ID_AA64MMFR1_EL1, VH, IMP),
+	REG_FEAT(ZCR_EL2,	ID_AA64PFR0_EL1, SVE, IMP),
 };
 
 bool filter_reg(__u64 reg)
