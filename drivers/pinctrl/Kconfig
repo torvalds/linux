@@ -486,6 +486,14 @@ config PINCTRL_PIC32MZDA
 	def_bool y if PIC32MZDA
 	select PINCTRL_PIC32
 
+config PINCTRL_PIC64GX
+	bool "pic64gx gpio2 pinctrl driver"
+	depends on ARCH_MICROCHIP || COMPILE_TEST
+	select GENERIC_PINCONF
+	default y
+	help
+	  This selects the pinctrl driver for gpio2 on pic64gx.
+
 config PINCTRL_PISTACHIO
 	bool "IMG Pistachio SoC pinctrl driver"
 	depends on OF && (MIPS || COMPILE_TEST)
