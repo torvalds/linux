@@ -4,110 +4,9 @@
 #include <linux/bpf.h>
 #include <linux/filter.h>
 #include <linux/bpf_mem_alloc.h>
-#include <linux/percpu.h>
-#include <linux/refcount.h>
 #include <linux/gfp.h>
 #include <linux/memory.h>
-#include <linux/local_lock.h>
 #include <linux/mutex.h>
-
-/*
- * Simple per-CPU NMI-safe bump allocation mechanism, backed by the NMI-safe
- * try_alloc_pages()/free_pages_nolock() primitives. We allocate a page and
- * stash it in a local per-CPU variable, and bump allocate from the page
- * whenever items need to be printed to a stream. Each page holds a global
- * atomic refcount in its first 4 bytes, and then records of variable length
- * that describe the printed messages. Once the global refcount has dropped to
- * zero, it is a signal to free the page back to the kernel's page allocator,
- * given all the individual records in it have been consumed.
- *
- * It is possible the same page is used to serve allocations across different
- * programs, which may be consumed at different times individually, hence
- * maintaining a reference count per-page is critical for correct lifetime
- * tracking.
- *
- * The bpf_stream_page code will be replaced to use kmalloc_nolock() once it
- * lands.
- */
-struct bpf_stream_page {
-	refcount_t ref;
-	u32 consumed;
-	char buf[];
-};
-
-/* Available room to add data to a refcounted page. */
-#define BPF_STREAM_PAGE_SZ (PAGE_SIZE - offsetofend(struct bpf_stream_page, consumed))
-
-static DEFINE_PER_CPU(local_trylock_t, stream_local_lock) = INIT_LOCAL_TRYLOCK(stream_local_lock);
-static DEFINE_PER_CPU(struct bpf_stream_page *, stream_pcpu_page);
-
-static bool bpf_stream_page_local_lock(unsigned long *flags)
-{
-	return local_trylock_irqsave(&stream_local_lock, *flags);
-}
-
-static void bpf_stream_page_local_unlock(unsigned long *flags)
-{
-	local_unlock_irqrestore(&stream_local_lock, *flags);
-}
-
-static void bpf_stream_page_free(struct bpf_stream_page *stream_page)
-{
-	struct page *p;
-
-	if (!stream_page)
-		return;
-	p = virt_to_page(stream_page);
-	free_pages_nolock(p, 0);
-}
-
-static void bpf_stream_page_get(struct bpf_stream_page *stream_page)
-{
-	refcount_inc(&stream_page->ref);
-}
-
-static void bpf_stream_page_put(struct bpf_stream_page *stream_page)
-{
-	if (refcount_dec_and_test(&stream_page->ref))
-		bpf_stream_page_free(stream_page);
-}
-
-static void bpf_stream_page_init(struct bpf_stream_page *stream_page)
-{
-	refcount_set(&stream_page->ref, 1);
-	stream_page->consumed = 0;
-}
-
-static struct bpf_stream_page *bpf_stream_page_replace(void)
-{
-	struct bpf_stream_page *stream_page, *old_stream_page;
-	struct page *page;
-
-	page = alloc_pages_nolock(/* Don't account */ 0, NUMA_NO_NODE, 0);
-	if (!page)
-		return NULL;
-	stream_page = page_address(page);
-	bpf_stream_page_init(stream_page);
-
-	old_stream_page = this_cpu_read(stream_pcpu_page);
-	if (old_stream_page)
-		bpf_stream_page_put(old_stream_page);
-	this_cpu_write(stream_pcpu_page, stream_page);
-	return stream_page;
-}
-
-static int bpf_stream_page_check_room(struct bpf_stream_page *stream_page, int len)
-{
-	int min = offsetof(struct bpf_stream_elem, str[0]);
-	int consumed = stream_page->consumed;
-	int total = BPF_STREAM_PAGE_SZ;
-	int rem = max(0, total - consumed - min);
-
-	/* Let's give room of at least 8 bytes. */
-	WARN_ON_ONCE(rem % 8 != 0);
-	rem = rem < 8 ? 0 : rem;
-	return min(len, rem);
-}
 
 static void bpf_stream_elem_init(struct bpf_stream_elem *elem, int len)
 {
@@ -116,54 +15,12 @@ static void bpf_stream_elem_init(struct bpf_stream_elem *elem, int len)
 	elem->consumed_len = 0;
 }
 
-static struct bpf_stream_page *bpf_stream_page_from_elem(struct bpf_stream_elem *elem)
-{
-	unsigned long addr = (unsigned long)elem;
-
-	return (struct bpf_stream_page *)PAGE_ALIGN_DOWN(addr);
-}
-
-static struct bpf_stream_elem *bpf_stream_page_push_elem(struct bpf_stream_page *stream_page, int len)
-{
-	u32 consumed = stream_page->consumed;
-
-	stream_page->consumed += round_up(offsetof(struct bpf_stream_elem, str[len]), 8);
-	return (struct bpf_stream_elem *)&stream_page->buf[consumed];
-}
-
-static struct bpf_stream_elem *bpf_stream_page_reserve_elem(int len)
-{
-	struct bpf_stream_elem *elem = NULL;
-	struct bpf_stream_page *page;
-	int room = 0;
-
-	page = this_cpu_read(stream_pcpu_page);
-	if (!page)
-		page = bpf_stream_page_replace();
-	if (!page)
-		return NULL;
-
-	room = bpf_stream_page_check_room(page, len);
-	if (room != len)
-		page = bpf_stream_page_replace();
-	if (!page)
-		return NULL;
-	bpf_stream_page_get(page);
-	room = bpf_stream_page_check_room(page, len);
-	WARN_ON_ONCE(room != len);
-
-	elem = bpf_stream_page_push_elem(page, room);
-	bpf_stream_elem_init(elem, room);
-	return elem;
-}
-
 static struct bpf_stream_elem *bpf_stream_elem_alloc(int len)
 {
 	const int max_len = ARRAY_SIZE((struct bpf_bprintf_buffers){}.buf);
 	struct bpf_stream_elem *elem;
-	unsigned long flags;
+	size_t alloc_size;
 
-	BUILD_BUG_ON(max_len > BPF_STREAM_PAGE_SZ);
 	/*
 	 * Length denotes the amount of data to be written as part of stream element,
 	 * thus includes '\0' byte. We're capped by how much bpf_bprintf_buffers can
@@ -172,10 +29,13 @@ static struct bpf_stream_elem *bpf_stream_elem_alloc(int len)
 	if (len < 0 || len > max_len)
 		return NULL;
 
-	if (!bpf_stream_page_local_lock(&flags))
+	alloc_size = offsetof(struct bpf_stream_elem, str[len]);
+	elem = kmalloc_nolock(alloc_size, __GFP_ZERO, -1);
+	if (!elem)
 		return NULL;
-	elem = bpf_stream_page_reserve_elem(len);
-	bpf_stream_page_local_unlock(&flags);
+
+	bpf_stream_elem_init(elem, len);
+
 	return elem;
 }
 
@@ -231,10 +91,7 @@ static struct bpf_stream *bpf_stream_get(enum bpf_stream_id stream_id, struct bp
 
 static void bpf_stream_free_elem(struct bpf_stream_elem *elem)
 {
-	struct bpf_stream_page *p;
-
-	p = bpf_stream_page_from_elem(elem);
-	bpf_stream_page_put(p);
+	kfree_nolock(elem);
 }
 
 static void bpf_stream_free_list(struct llist_node *list)
