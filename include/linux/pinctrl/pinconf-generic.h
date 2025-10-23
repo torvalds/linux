@@ -181,21 +181,28 @@ static inline unsigned long pinconf_to_config_packed(enum pin_config_param param
 	return PIN_CONF_PACKED(param, argument);
 }
 
-#define PCONFDUMP(a, b, c, d) {					\
-	.param = a, .display = b, .format = c, .has_arg = d	\
+#define PCONFDUMP_WITH_VALUES(a, b, c, d, e, f) {		\
+	.param = a, .display = b, .format = c, .has_arg = d,	\
+	.values = e, .num_values = f				\
 	}
+
+#define PCONFDUMP(a, b, c, d)	PCONFDUMP_WITH_VALUES(a, b, c, d, NULL, 0)
 
 struct pin_config_item {
 	const enum pin_config_param param;
 	const char * const display;
 	const char * const format;
 	bool has_arg;
+	const char * const *values;
+	size_t num_values;
 };
 
 struct pinconf_generic_params {
 	const char * const property;
 	enum pin_config_param param;
 	u32 default_value;
+	const char * const *values;
+	size_t num_values;
 };
 
 int pinconf_generic_dt_subnode_to_map(struct pinctrl_dev *pctldev,
