@@ -1118,6 +1118,10 @@ static int misaligned_case(struct i915_address_space *vm, struct intel_memory_re
 		goto err_put;
 	}
 
+	/* make sure page_sizes_gtt has been populated before use */
+	if (i915_is_ggtt(vm) && intel_vm_no_concurrent_access_wa(vm->i915))
+		i915_vma_wait_for_bind(vma);
+
 	expected_vma_size = round_up(size, 1 << (ffs(vma->resource->page_sizes_gtt) - 1));
 	expected_node_size = expected_vma_size;
 
