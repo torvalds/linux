@@ -192,10 +192,8 @@ static int ps883x_sw_set(struct typec_switch_dev *sw,
 		ret = regmap_assign_bits(retimer->regmap, REG_USB_PORT_CONN_STATUS_0,
 					 CONN_STATUS_0_ORIENTATION_REVERSED,
 					 orientation == TYPEC_ORIENTATION_REVERSE);
-		if (ret) {
+		if (ret)
 			dev_err(&retimer->client->dev, "failed to set orientation: %d\n", ret);
-			return ret;
-		}
 	}
 
 	mutex_unlock(&retimer->lock);
