@@ -175,6 +175,43 @@ static void smbd_disconnect_rdma_connection(struct smbdirect_socket *sc);
  */
 #include "../common/smbdirect/smbdirect_all_c_files.c"
 
+static bool smbd_logging_needed(struct smbdirect_socket *sc,
+				void *private_ptr,
+				unsigned int lvl,
+				unsigned int cls)
+{
+#define BUILD_BUG_SAME(x) BUILD_BUG_ON(x != SMBDIRECT_LOG_ ##x)
+	BUILD_BUG_SAME(ERR);
+	BUILD_BUG_SAME(INFO);
+#undef BUILD_BUG_SAME
+#define BUILD_BUG_SAME(x) BUILD_BUG_ON(x != SMBDIRECT_ ##x)
+	BUILD_BUG_SAME(LOG_OUTGOING);
+	BUILD_BUG_SAME(LOG_INCOMING);
+	BUILD_BUG_SAME(LOG_READ);
+	BUILD_BUG_SAME(LOG_WRITE);
+	BUILD_BUG_SAME(LOG_RDMA_SEND);
+	BUILD_BUG_SAME(LOG_RDMA_RECV);
+	BUILD_BUG_SAME(LOG_KEEP_ALIVE);
+	BUILD_BUG_SAME(LOG_RDMA_EVENT);
+	BUILD_BUG_SAME(LOG_RDMA_MR);
+#undef BUILD_BUG_SAME
+
+	if (lvl <= smbd_logging_level || cls & smbd_logging_class)
+		return true;
+	return false;
+}
+
+static void smbd_logging_vaprintf(struct smbdirect_socket *sc,
+				  const char *func,
+				  unsigned int line,
+				  void *private_ptr,
+				  unsigned int lvl,
+				  unsigned int cls,
+				  struct va_format *vaf)
+{
+	cifs_dbg(VFS, "%s:%u %pV", func, line, vaf);
+}
+
 #define log_rdma(level, class, fmt, args...)				\
 do {									\
 	if (level <= smbd_logging_level || class & smbd_logging_class)	\
@@ -2150,6 +2187,7 @@ static struct smbd_connection *_smbd_get_connection(
 	if (!workqueue)
 		goto create_wq_failed;
 	smbdirect_socket_prepare_create(sc, sp, workqueue);
+	smbdirect_socket_set_logging(sc, NULL, smbd_logging_needed, smbd_logging_vaprintf);
 	/*
 	 * from here we operate on the copy.
 	 */
