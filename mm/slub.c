@@ -3422,7 +3422,6 @@ static void *alloc_single_from_new_slab(struct kmem_cache *s, struct slab *slab,
 
 	if (!allow_spin && !spin_trylock_irqsave(&n->list_lock, flags)) {
 		/* Unlucky, discard newly allocated slab */
-		slab->frozen = 1;
 		defer_deactivate_slab(slab, NULL);
 		return NULL;
 	}
@@ -6471,9 +6470,12 @@ static void free_deferred_objects(struct irq_work *work)
 		struct slab *slab = container_of(pos, struct slab, llnode);
 
 #ifdef CONFIG_SLUB_TINY
-		discard_slab(slab->slab_cache, slab);
+		free_slab(slab->slab_cache, slab);
 #else
-		deactivate_slab(slab->slab_cache, slab, slab->flush_freelist);
+		if (slab->frozen)
+			deactivate_slab(slab->slab_cache, slab, slab->flush_freelist);
+		else
+			free_slab(slab->slab_cache, slab);
 #endif
 	}
 }
