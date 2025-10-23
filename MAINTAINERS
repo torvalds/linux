@@ -13247,10 +13247,8 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/nab/target-pending.git mast
 F:	drivers/infiniband/ulp/isert
 
 ISDN/CMTP OVER BLUETOOTH
-M:	Karsten Keil <isdn@linux-pingi.de>
-L:	isdn4linux@listserv.isdn4linux.de (subscribers-only)
 L:	netdev@vger.kernel.org
-S:	Odd Fixes
+S:	Orphan
 W:	http://www.isdn4linux.de
 F:	Documentation/isdn/
 F:	drivers/isdn/capi/
@@ -13259,10 +13257,8 @@ F:	include/uapi/linux/isdn/
 F:	net/bluetooth/cmtp/
 
 ISDN/mISDN SUBSYSTEM
-M:	Karsten Keil <isdn@linux-pingi.de>
-L:	isdn4linux@listserv.isdn4linux.de (subscribers-only)
 L:	netdev@vger.kernel.org
-S:	Maintained
+S:	Orphan
 W:	http://www.isdn4linux.de
 F:	drivers/isdn/Kconfig
 F:	drivers/isdn/Makefile
