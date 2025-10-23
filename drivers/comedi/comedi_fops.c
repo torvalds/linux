@@ -38,6 +38,7 @@
  * COMEDI_SRF_ERROR:		indicates an COMEDI_CB_ERROR event has occurred
  *				since the last command was started
  * COMEDI_SRF_RUNNING:		command is running
+ * COMEDI_SRF_BUSY:		command was started and subdevice still busy
  * COMEDI_SRF_FREE_SPRIV:	free s->private on detach
  *
  * COMEDI_SRF_BUSY_MASK:	runflags that indicate the subdevice is "busy"
@@ -45,9 +46,11 @@
 #define COMEDI_SRF_RT		BIT(1)
 #define COMEDI_SRF_ERROR	BIT(2)
 #define COMEDI_SRF_RUNNING	BIT(27)
+#define COMEDI_SRF_BUSY		BIT(28)
 #define COMEDI_SRF_FREE_SPRIV	BIT(31)
 
-#define COMEDI_SRF_BUSY_MASK	(COMEDI_SRF_ERROR | COMEDI_SRF_RUNNING)
+#define COMEDI_SRF_BUSY_MASK	\
+	(COMEDI_SRF_ERROR | COMEDI_SRF_RUNNING | COMEDI_SRF_BUSY)
 
 /**
  * struct comedi_file - Per-file private data for COMEDI device
@@ -665,6 +668,11 @@ static bool comedi_is_runflags_in_error(unsigned int runflags)
 	return runflags & COMEDI_SRF_ERROR;
 }
 
+static bool comedi_is_runflags_busy(unsigned int runflags)
+{
+	return runflags & COMEDI_SRF_BUSY;
+}
+
 /**
  * comedi_is_subdevice_running() - Check if async command running on subdevice
  * @s: COMEDI subdevice.
@@ -686,6 +694,46 @@ static bool __comedi_is_subdevice_running(struct comedi_subdevice *s)
 
 	return comedi_is_runflags_running(runflags);
 }
+
+/**
+ * comedi_get_is_subdevice_running() - Get if async command running on subdevice
+ * @s: COMEDI subdevice.
+ *
+ * If an asynchronous COMEDI command is running on the subdevice, increment
+ * a reference counter.  If the function return value indicates that a
+ * command is running, then the details of the command will not be destroyed
+ * before a matching call to comedi_put_is_subdevice_running().
+ *
+ * Return: %true if an asynchronous COMEDI command is active on the
+ * subdevice, else %false.
+ */
+bool comedi_get_is_subdevice_running(struct comedi_subdevice *s)
+{
+	unsigned long flags;
+	bool running;
+
+	spin_lock_irqsave(&s->spin_lock, flags);
+	running = __comedi_is_subdevice_running(s);
+	if (running)
+		refcount_inc(&s->async->run_active);
+	spin_unlock_irqrestore(&s->spin_lock, flags);
+	return running;
+}
+EXPORT_SYMBOL_GPL(comedi_get_is_subdevice_running);
+
+/**
+ * comedi_put_is_subdevice_running() - Put if async command running on subdevice
+ * @s: COMEDI subdevice.
+ *
+ * Decrements the reference counter that was incremented when
+ * comedi_get_is_subdevice_running() returned %true.
+ */
+void comedi_put_is_subdevice_running(struct comedi_subdevice *s)
+{
+	if (refcount_dec_and_test(&s->async->run_active))
+		complete_all(&s->async->run_complete);
+}
+EXPORT_SYMBOL_GPL(comedi_put_is_subdevice_running);
 
 bool comedi_can_auto_free_spriv(struct comedi_subdevice *s)
 {
@@ -736,20 +784,28 @@ static void do_become_nonbusy(struct comedi_device *dev,
 			      struct comedi_subdevice *s)
 {
 	struct comedi_async *async = s->async;
+	unsigned int runflags;
+	unsigned long flags;
 
 	lockdep_assert_held(&dev->mutex);
-	comedi_update_subdevice_runflags(s, COMEDI_SRF_RUNNING, 0);
-	if (async) {
+	spin_lock_irqsave(&s->spin_lock, flags);
+	runflags = __comedi_get_subdevice_runflags(s);
+	__comedi_clear_subdevice_runflags(s, COMEDI_SRF_RUNNING |
+					     COMEDI_SRF_BUSY);
+	spin_unlock_irqrestore(&s->spin_lock, flags);
+	if (comedi_is_runflags_busy(runflags)) {
+		/*
+		 * "Run active" counter was set to 1 when setting up the
+		 * command.  Decrement it and wait for it to become 0.
+		 */
+		comedi_put_is_subdevice_running(s);
+		wait_for_completion(&async->run_complete);
 		comedi_buf_reset(s);
 		async->inttrig = NULL;
 		kfree(async->cmd.chanlist);
 		async->cmd.chanlist = NULL;
 		s->busy = NULL;
 		wake_up_interruptible_all(&async->wait_head);
-	} else {
-		dev_err(dev->class_dev,
-			"BUG: (?) %s called with async=NULL\n", __func__);
-		s->busy = NULL;
 	}
 }
 
@@ -1860,8 +1916,14 @@ static int do_cmd_ioctl(struct comedi_device *dev,
 	if (async->cmd.flags & CMDF_WAKE_EOS)
 		async->cb_mask |= COMEDI_CB_EOS;
 
+	/*
+	 * Set the "run active" counter with an initial count of 1 that will
+	 * complete the "safe to reset" event when it is decremented to 0.
+	 */
+	refcount_set(&s->async->run_active, 1);
+	reinit_completion(&s->async->run_complete);
 	comedi_update_subdevice_runflags(s, COMEDI_SRF_BUSY_MASK,
-					 COMEDI_SRF_RUNNING);
+					 COMEDI_SRF_RUNNING | COMEDI_SRF_BUSY);
 
 	/*
 	 * Set s->busy _after_ setting COMEDI_SRF_RUNNING flag to avoid

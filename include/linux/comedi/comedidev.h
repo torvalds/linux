@@ -15,6 +15,7 @@
 #include <linux/spinlock_types.h>
 #include <linux/rwsem.h>
 #include <linux/kref.h>
+#include <linux/completion.h>
 #include <linux/comedi.h>
 
 #define COMEDI_VERSION(a, b, c) (((a) << 16) + ((b) << 8) + (c))
@@ -272,6 +273,8 @@ struct comedi_buf_map {
  * @events: Bit-vector of events that have occurred.
  * @cmd: Details of comedi command in progress.
  * @wait_head: Task wait queue for file reader or writer.
+ * @run_complete: "run complete" completion event.
+ * @run_active: "run active" reference counter.
  * @cb_mask: Bit-vector of events that should wake waiting tasks.
  * @inttrig: Software trigger function for command, or NULL.
  *
@@ -357,6 +360,8 @@ struct comedi_async {
 	unsigned int events;
 	struct comedi_cmd cmd;
 	wait_queue_head_t wait_head;
+	struct completion run_complete;
+	refcount_t run_active;
 	unsigned int cb_mask;
 	int (*inttrig)(struct comedi_device *dev, struct comedi_subdevice *s,
 		       unsigned int x);
@@ -584,6 +589,8 @@ struct comedi_device *comedi_dev_get_from_minor(unsigned int minor);
 int comedi_dev_put(struct comedi_device *dev);
 
 bool comedi_is_subdevice_running(struct comedi_subdevice *s);
+bool comedi_get_is_subdevice_running(struct comedi_subdevice *s);
+void comedi_put_is_subdevice_running(struct comedi_subdevice *s);
 
 void *comedi_alloc_spriv(struct comedi_subdevice *s, size_t size);
 void comedi_set_spriv_auto_free(struct comedi_subdevice *s);
