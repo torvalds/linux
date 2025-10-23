@@ -3389,7 +3389,11 @@ static void restore_planes_and_stream_state(
 	for (i = 0; i < status->plane_count; i++) {
 		dc_plane_copy_config(status->plane_states[i], &scratch->plane_states[i]);
 	}
+
+	// refcount is persistent
+	struct kref temp_refcount = stream->refcount;
 	*stream = scratch->stream_state;
+	stream->refcount = temp_refcount;
 }
 
 /**
