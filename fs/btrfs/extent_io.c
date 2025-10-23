@@ -1726,7 +1726,6 @@ static noinline_for_stack int extent_writepage_io(struct btrfs_inode *inode,
 
 		if (cur >= i_size) {
 			struct btrfs_ordered_extent *ordered;
-			unsigned long flags;
 
 			ordered = btrfs_lookup_first_ordered_range(inode, cur,
 								   folio_end - cur);
@@ -1735,11 +1734,11 @@ static noinline_for_stack int extent_writepage_io(struct btrfs_inode *inode,
 			 * there must be an ordered extent.
 			 */
 			ASSERT(ordered != NULL);
-			spin_lock_irqsave(&inode->ordered_tree_lock, flags);
+			spin_lock(&inode->ordered_tree_lock);
 			set_bit(BTRFS_ORDERED_TRUNCATED, &ordered->flags);
 			ordered->truncated_len = min(ordered->truncated_len,
 						     cur - ordered->file_offset);
-			spin_unlock_irqrestore(&inode->ordered_tree_lock, flags);
+			spin_unlock(&inode->ordered_tree_lock);
 			btrfs_put_ordered_extent(ordered);
 
 			btrfs_mark_ordered_io_finished(inode, folio, cur,
