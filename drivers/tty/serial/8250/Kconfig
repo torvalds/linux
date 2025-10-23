@@ -413,6 +413,19 @@ config SERIAL_8250_IOC3
 	  behind the IOC3 device on those systems.  Maximum baud speed is
 	  38400bps using this driver.
 
+config SERIAL_8250_KEBA
+	tristate "Support for KEBA 8250 UART"
+	depends on SERIAL_8250
+	depends on KEBA_CP500
+	help
+	  Selecting this option will add support for KEBA UARTs. These UARTs
+	  are used for the serial interfaces of KEBA PLCs.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called 8250_keba.
+
+	  If unsure, say N.
+
 config SERIAL_8250_RT288X
 	bool "Ralink RT288x/RT305x/RT3662/RT3883 serial port support"
 	depends on SERIAL_8250
