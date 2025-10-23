@@ -424,6 +424,7 @@ enum WX_MSCA_CMD_value {
 #define WX_7K_ITR                    595
 #define WX_12K_ITR                   336
 #define WX_20K_ITR                   200
+#define WX_MIN_RSC_ITR               24
 #define WX_SP_MAX_EITR               0x00000FF8U
 #define WX_AML_MAX_EITR              0x00000FFFU
 #define WX_EM_MAX_EITR               0x00007FFCU
@@ -454,7 +455,9 @@ enum WX_MSCA_CMD_value {
 /* PX_RR_CFG bit definitions */
 #define WX_PX_RR_CFG_VLAN            BIT(31)
 #define WX_PX_RR_CFG_DROP_EN         BIT(30)
+#define WX_PX_RR_CFG_RSC             BIT(29)
 #define WX_PX_RR_CFG_SPLIT_MODE      BIT(26)
+#define WX_PX_RR_CFG_MAX_RSCBUF_16   FIELD_PREP(GENMASK(24, 23), 3)
 #define WX_PX_RR_CFG_DESC_MERGE      BIT(19)
 #define WX_PX_RR_CFG_RR_THER_SHIFT   16
 #define WX_PX_RR_CFG_RR_HDR_SZ       GENMASK(15, 12)
@@ -551,13 +554,8 @@ enum WX_MSCA_CMD_value {
 /* Supported Rx Buffer Sizes */
 #define WX_RXBUFFER_256      256    /* Used for skb receive header */
 #define WX_RXBUFFER_2K       2048
+#define WX_RXBUFFER_3K       3072
 #define WX_MAX_RXBUFFER      16384  /* largest size for single descriptor */
-
-#if MAX_SKB_FRAGS < 8
-#define WX_RX_BUFSZ      ALIGN(WX_MAX_RXBUFFER / MAX_SKB_FRAGS, 1024)
-#else
-#define WX_RX_BUFSZ      WX_RXBUFFER_2K
-#endif
 
 #define WX_RX_BUFFER_WRITE   16      /* Must be power of 2 */
 
@@ -652,6 +650,12 @@ enum wx_l2_ptypes {
 
 #define WX_RXD_PKTTYPE(_rxd) \
 	((le32_to_cpu((_rxd)->wb.lower.lo_dword.data) >> 9) & 0xFF)
+
+#define WX_RXD_RSCCNT_MASK           GENMASK(20, 17)
+#define WX_RXD_RSCCNT_SHIFT          17
+#define WX_RXD_NEXTP_MASK            GENMASK(19, 4)
+#define WX_RXD_NEXTP_SHIFT           4
+
 /*********************** Transmit Descriptor Config Masks ****************/
 #define WX_TXD_STAT_DD               BIT(0)  /* Descriptor Done */
 #define WX_TXD_DTYP_DATA             0       /* Adv Data Descriptor */
@@ -1039,6 +1043,8 @@ struct wx_rx_queue_stats {
 	u64 csum_good_cnt;
 	u64 csum_err;
 	u64 alloc_rx_buff_failed;
+	u64 rsc_count;
+	u64 rsc_flush;
 };
 
 /* iterator for handling rings in ring container */
@@ -1081,6 +1087,7 @@ struct wx_ring {
 					 */
 	u16 next_to_use;
 	u16 next_to_clean;
+	u16 rx_buf_len;
 	union {
 		u16 next_to_alloc;
 		struct {
@@ -1237,6 +1244,7 @@ enum wx_pf_flags {
 	WX_FLAG_FDIR_HASH,
 	WX_FLAG_FDIR_PERFECT,
 	WX_FLAG_RSC_CAPABLE,
+	WX_FLAG_RSC_ENABLED,
 	WX_FLAG_RX_HWTSTAMP_ENABLED,
 	WX_FLAG_RX_HWTSTAMP_IN_REGISTER,
 	WX_FLAG_PTP_PPS_ENABLED,
@@ -1352,6 +1360,8 @@ struct wx {
 	u64 hw_csum_rx_good;
 	u64 hw_csum_rx_error;
 	u64 alloc_rx_buff_failed;
+	u64 rsc_count;
+	u64 rsc_flush;
 	unsigned int num_vfs;
 	struct vf_data_storage *vfinfo;
 	struct vf_macvlans vf_mvs;
@@ -1482,5 +1492,16 @@ static inline int wx_set_state_reset(struct wx *wx)
 
 	return 0;
 }
+
+static inline unsigned int wx_rx_pg_order(struct wx_ring *ring)
+{
+#if (PAGE_SIZE < 8192)
+	if (ring->rx_buf_len == WX_RXBUFFER_3K)
+		return 1;
+#endif
+	return 0;
+}
+
+#define wx_rx_pg_size(_ring) (PAGE_SIZE << wx_rx_pg_order(_ring))
 
 #endif /* _WX_TYPE_H_ */
