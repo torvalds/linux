@@ -18,7 +18,7 @@ void intel_gt_fini_tlb(struct intel_gt *gt);
 
 static inline u32 intel_gt_tlb_seqno(const struct intel_gt *gt)
 {
-	return seqprop_sequence(&gt->tlb.seqno);
+	return raw_read_seqcount(&gt->tlb.seqno);
 }
 
 static inline u32 intel_gt_next_invalidate_tlb_full(const struct intel_gt *gt)
