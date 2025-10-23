@@ -221,6 +221,7 @@ retry:
 
 out_free_pfns:
 	kvfree(pfns);
+	hmm_range->hmm_pfns = NULL;
 out_free_range:
 	if (r == -EBUSY)
 		r = -EAGAIN;

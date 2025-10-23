@@ -1746,6 +1746,7 @@ static int svm_range_validate_and_map(struct mm_struct *mm,
 			WRITE_ONCE(p->svms.faulting_task, NULL);
 			if (r) {
 				amdgpu_hmm_range_free(range);
+				range = NULL;
 				pr_debug("failed %d to get svm range pages\n", r);
 			}
 		} else {
@@ -1763,7 +1764,7 @@ static int svm_range_validate_and_map(struct mm_struct *mm,
 		svm_range_lock(prange);
 
 		/* Free backing memory of hmm_range if it was initialized
-		 * Overrride return value to TRY AGAIN only if prior returns
+		 * Override return value to TRY AGAIN only if prior returns
 		 * were successful
 		 */
 		if (range && !amdgpu_hmm_range_valid(range) && !r) {
@@ -1771,7 +1772,8 @@ static int svm_range_validate_and_map(struct mm_struct *mm,
 			r = -EAGAIN;
 		}
 		/* Free the hmm range */
-		amdgpu_hmm_range_free(range);
+		if (range)
+			amdgpu_hmm_range_free(range);
 
 
 		if (!r && !list_empty(&prange->child_list)) {
