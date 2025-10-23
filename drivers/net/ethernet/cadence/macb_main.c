@@ -2965,6 +2965,10 @@ static int macb_open(struct net_device *dev)
 
 	macb_init_hw(bp);
 
+	err = phy_set_mode_ext(bp->phy, PHY_MODE_ETHERNET, bp->phy_interface);
+	if (err)
+		goto reset_hw;
+
 	err = phy_power_on(bp->phy);
 	if (err)
 		goto reset_hw;
@@ -5189,6 +5193,28 @@ err_out_phy_exit:
 	return ret;
 }
 
+static int eyeq5_init(struct platform_device *pdev)
+{
+	struct net_device *netdev = platform_get_drvdata(pdev);
+	struct macb *bp = netdev_priv(netdev);
+	struct device *dev = &pdev->dev;
+	int ret;
+
+	bp->phy = devm_phy_get(dev, NULL);
+	if (IS_ERR(bp->phy))
+		return dev_err_probe(dev, PTR_ERR(bp->phy),
+				     "failed to get PHY\n");
+
+	ret = phy_init(bp->phy);
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to init PHY\n");
+
+	ret = macb_init(pdev);
+	if (ret)
+		phy_exit(bp->phy);
+	return ret;
+}
+
 static const struct macb_usrio_config sama7g5_usrio = {
 	.mii = 0,
 	.rmii = 1,
@@ -5343,6 +5369,17 @@ static const struct macb_config versal_config = {
 	.usrio = &macb_default_usrio,
 };
 
+static const struct macb_config eyeq5_config = {
+	.caps = MACB_CAPS_GIGABIT_MODE_AVAILABLE | MACB_CAPS_JUMBO |
+		MACB_CAPS_GEM_HAS_PTP | MACB_CAPS_QUEUE_DISABLE |
+		MACB_CAPS_NO_LSO,
+	.dma_burst_length = 16,
+	.clk_init = macb_clk_init,
+	.init = eyeq5_init,
+	.jumbo_max_len = 10240,
+	.usrio = &macb_default_usrio,
+};
+
 static const struct macb_config raspberrypi_rp1_config = {
 	.caps = MACB_CAPS_GIGABIT_MODE_AVAILABLE | MACB_CAPS_CLK_HW_CHG |
 		MACB_CAPS_JUMBO |
@@ -5374,6 +5411,7 @@ static const struct of_device_id macb_dt_ids[] = {
 	{ .compatible = "microchip,mpfs-macb", .data = &mpfs_config },
 	{ .compatible = "microchip,sama7g5-gem", .data = &sama7g5_gem_config },
 	{ .compatible = "microchip,sama7g5-emac", .data = &sama7g5_emac_config },
+	{ .compatible = "mobileye,eyeq5-gem", .data = &eyeq5_config },
 	{ .compatible = "raspberrypi,rp1-gem", .data = &raspberrypi_rp1_config },
 	{ .compatible = "xlnx,zynqmp-gem", .data = &zynqmp_config},
 	{ .compatible = "xlnx,zynq-gem", .data = &zynq_config },
