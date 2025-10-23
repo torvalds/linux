@@ -3614,15 +3614,11 @@ static bool same_port_devs(struct mlx5e_priv *priv, struct mlx5e_priv *peer_priv
 bool mlx5e_same_hw_devs(struct mlx5e_priv *priv, struct mlx5e_priv *peer_priv)
 {
 	struct mlx5_core_dev *fmdev, *pmdev;
-	u64 fsystem_guid, psystem_guid;
 
 	fmdev = priv->mdev;
 	pmdev = peer_priv->mdev;
 
-	fsystem_guid = mlx5_query_nic_system_image_guid(fmdev);
-	psystem_guid = mlx5_query_nic_system_image_guid(pmdev);
-
-	return (fsystem_guid == psystem_guid);
+	return mlx5_same_hw_devs(fmdev, pmdev);
 }
 
 static int
