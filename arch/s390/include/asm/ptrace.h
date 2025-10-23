@@ -8,6 +8,7 @@
 #define _S390_PTRACE_H
 
 #include <linux/bits.h>
+#include <linux/typecheck.h>
 #include <uapi/asm/ptrace.h>
 #include <asm/thread_info.h>
 #include <asm/tpi.h>
