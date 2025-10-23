@@ -2015,39 +2015,31 @@ static int match_session(struct cifs_ses *ses,
 /**
  * cifs_setup_ipc - helper to setup the IPC tcon for the session
  * @ses: smb session to issue the request on
- * @ctx: the superblock configuration context to use for building the
- *       new tree connection for the IPC (interprocess communication RPC)
+ * @seal: if encryption is requested
  *
  * A new IPC connection is made and stored in the session
  * tcon_ipc. The IPC tcon has the same lifetime as the session.
  */
-static int
-cifs_setup_ipc(struct cifs_ses *ses, struct smb3_fs_context *ctx)
+struct cifs_tcon *cifs_setup_ipc(struct cifs_ses *ses, bool seal)
 {
 	int rc = 0, xid;
 	struct cifs_tcon *tcon;
 	char unc[SERVER_NAME_LENGTH + sizeof("//x/IPC$")] = {0};
-	bool seal = false;
 	struct TCP_Server_Info *server = ses->server;
 
 	/*
 	 * If the mount request that resulted in the creation of the
 	 * session requires encryption, force IPC to be encrypted too.
 	 */
-	if (ctx->seal) {
-		if (server->capabilities & SMB2_GLOBAL_CAP_ENCRYPTION)
-			seal = true;
-		else {
-			cifs_server_dbg(VFS,
-				 "IPC: server doesn't support encryption\n");
-			return -EOPNOTSUPP;
-		}
+	if (seal && !(server->capabilities & SMB2_GLOBAL_CAP_ENCRYPTION)) {
+		cifs_server_dbg(VFS, "IPC: server doesn't support encryption\n");
+		return ERR_PTR(-EOPNOTSUPP);
 	}
 
 	/* no need to setup directory caching on IPC share, so pass in false */
 	tcon = tcon_info_alloc(false, netfs_trace_tcon_ref_new_ipc);
 	if (tcon == NULL)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	spin_lock(&server->srv_lock);
 	scnprintf(unc, sizeof(unc), "\\\\%s\\IPC$", server->hostname);
@@ -2057,13 +2049,13 @@ cifs_setup_ipc(struct cifs_ses *ses, struct smb3_fs_context *ctx)
 	tcon->ses = ses;
 	tcon->ipc = true;
 	tcon->seal = seal;
-	rc = server->ops->tree_connect(xid, ses, unc, tcon, ctx->local_nls);
+	rc = server->ops->tree_connect(xid, ses, unc, tcon, ses->local_nls);
 	free_xid(xid);
 
 	if (rc) {
-		cifs_server_dbg(VFS, "failed to connect to IPC (rc=%d)\n", rc);
+		cifs_server_dbg(VFS | ONCE, "failed to connect to IPC (rc=%d)\n", rc);
 		tconInfoFree(tcon, netfs_trace_tcon_ref_free_ipc_fail);
-		goto out;
+		return ERR_PTR(rc);
 	}
 
 	cifs_dbg(FYI, "IPC tcon rc=%d ipc tid=0x%x\n", rc, tcon->tid);
@@ -2071,9 +2063,7 @@ cifs_setup_ipc(struct cifs_ses *ses, struct smb3_fs_context *ctx)
 	spin_lock(&tcon->tc_lock);
 	tcon->status = TID_GOOD;
 	spin_unlock(&tcon->tc_lock);
-	ses->tcon_ipc = tcon;
-out:
-	return rc;
+	return tcon;
 }
 
 static struct cifs_ses *
@@ -2347,6 +2337,7 @@ cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb3_fs_context *ctx)
 {
 	struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *)&server->dstaddr;
 	struct sockaddr_in *addr = (struct sockaddr_in *)&server->dstaddr;
+	struct cifs_tcon *ipc;
 	struct cifs_ses *ses;
 	unsigned int xid;
 	int retries = 0;
@@ -2525,7 +2516,12 @@ retry_new_session:
 	list_add(&ses->smb_ses_list, &server->smb_ses_list);
 	spin_unlock(&cifs_tcp_ses_lock);
 
-	cifs_setup_ipc(ses, ctx);
+	ipc = cifs_setup_ipc(ses, ctx->seal);
+	spin_lock(&cifs_tcp_ses_lock);
+	spin_lock(&ses->ses_lock);
+	ses->tcon_ipc = !IS_ERR(ipc) ? ipc : NULL;
+	spin_unlock(&ses->ses_lock);
+	spin_unlock(&cifs_tcp_ses_lock);
 
 	free_xid(xid);
 
