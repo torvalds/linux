@@ -42,8 +42,8 @@ use crate::{
 ///
 /// const HW_READY: u16 = 0x01;
 ///
-/// fn wait_for_hardware<const SIZE: usize>(io: &Io<SIZE>) -> Result<()> {
-///     match read_poll_timeout(
+/// fn wait_for_hardware<const SIZE: usize>(io: &Io<SIZE>) -> Result {
+///     read_poll_timeout(
 ///         // The `op` closure reads the value of a specific status register.
 ///         || io.try_read16(0x1000),
 ///         // The `cond` closure takes a reference to the value returned by `op`
@@ -51,14 +51,8 @@ use crate::{
 ///         |val: &u16| *val == HW_READY,
 ///         Delta::from_millis(50),
 ///         Delta::from_secs(3),
-///     ) {
-///         Ok(_) => {
-///             // The hardware is ready. The returned value of the `op` closure
-///             // isn't used.
-///             Ok(())
-///         }
-///         Err(e) => Err(e),
-///     }
+///     )?;
+///     Ok(())
 /// }
 /// ```
 #[track_caller]
