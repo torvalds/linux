@@ -24,3 +24,23 @@ static void smbdirect_socket_prepare_create(struct smbdirect_socket *sc,
 	 */
 	sc->workqueue = workqueue;
 }
+
+__maybe_unused /* this is temporary while this file is included in others */
+static void smbdirect_socket_set_logging(struct smbdirect_socket *sc,
+					 void *private_ptr,
+					 bool (*needed)(struct smbdirect_socket *sc,
+							void *private_ptr,
+							unsigned int lvl,
+							unsigned int cls),
+					 void (*vaprintf)(struct smbdirect_socket *sc,
+							  const char *func,
+							  unsigned int line,
+							  void *private_ptr,
+							  unsigned int lvl,
+							  unsigned int cls,
+							  struct va_format *vaf))
+{
+	sc->logging.private_ptr = private_ptr;
+	sc->logging.needed = needed;
+	sc->logging.vaprintf = vaprintf;
+}
