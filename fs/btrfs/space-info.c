@@ -172,16 +172,6 @@
  *   thing with or without extra unallocated space.
  */
 
-u64 __pure btrfs_space_info_used(const struct btrfs_space_info *s_info,
-			  bool may_use_included)
-{
-	ASSERT(s_info);
-	return s_info->bytes_used + s_info->bytes_reserved +
-		s_info->bytes_pinned + s_info->bytes_readonly +
-		s_info->bytes_zone_unusable +
-		(may_use_included ? s_info->bytes_may_use : 0);
-}
-
 /*
  * after adding space to the filesystem, we need to clear the full flags
  * on all the space infos.
