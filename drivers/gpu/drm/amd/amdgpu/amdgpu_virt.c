@@ -1102,7 +1102,7 @@ out:
 }
 
 int amdgpu_virt_get_dynamic_data_info(struct amdgpu_device *adev,
-	int data_id, uint8_t *binary, uint64_t *size)
+	int data_id, uint8_t *binary, u32 *size)
 {
 	uint32_t data_offset = 0;
 	uint32_t data_size = 0;
