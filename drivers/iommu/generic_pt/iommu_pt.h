@@ -17,6 +17,29 @@
 #include <linux/cleanup.h>
 #include <linux/dma-mapping.h>
 
+enum {
+	SW_BIT_CACHE_FLUSH_DONE = 0,
+};
+
+static void flush_writes_range(const struct pt_state *pts,
+			       unsigned int start_index, unsigned int end_index)
+{
+	if (pts_feature(pts, PT_FEAT_DMA_INCOHERENT))
+		iommu_pages_flush_incoherent(
+			iommu_from_common(pts->range->common)->iommu_device,
+			pts->table, start_index * PT_ITEM_WORD_SIZE,
+			(end_index - start_index) * PT_ITEM_WORD_SIZE);
+}
+
+static void flush_writes_item(const struct pt_state *pts)
+{
+	if (pts_feature(pts, PT_FEAT_DMA_INCOHERENT))
+		iommu_pages_flush_incoherent(
+			iommu_from_common(pts->range->common)->iommu_device,
+			pts->table, pts->index * PT_ITEM_WORD_SIZE,
+			PT_ITEM_WORD_SIZE);
+}
+
 static void gather_range_pages(struct iommu_iotlb_gather *iotlb_gather,
 			       struct pt_iommu *iommu_table, pt_vaddr_t iova,
 			       pt_vaddr_t len,
@@ -195,6 +218,10 @@ static void record_dirty(struct pt_state *pts,
 				dirty_len);
 
 	if (!(dirty->flags & IOMMU_DIRTY_NO_CLEAR)) {
+		/*
+		 * No write log required because DMA incoherence and atomic
+		 * dirty tracking bits can't work together
+		 */
 		pt_entry_make_write_clean(pts);
 		iommu_iotlb_gather_add_range(dirty->dirty->gather,
 					     pts->range->va, dirty_len);
@@ -406,6 +433,11 @@ static inline int pt_iommu_new_table(struct pt_state *pts,
 		return -EAGAIN;
 	}
 
+	if (pts_feature(pts, PT_FEAT_DMA_INCOHERENT)) {
+		flush_writes_item(pts);
+		pt_set_sw_bit_release(pts, SW_BIT_CACHE_FLUSH_DONE);
+	}
+
 	if (IS_ENABLED(CONFIG_DEBUG_GENERIC_PT)) {
 		/*
 		 * The underlying table can't store the physical table address.
@@ -466,6 +498,7 @@ static int clear_contig(const struct pt_state *start_pts,
 			 * the gather
 			 */
 			pt_clear_entries(&pts, ilog2(1));
+			flush_writes_item(&pts);
 
 			iommu_pages_list_add(&collect.free_list,
 					     pt_table_ptr(&pts));
@@ -523,6 +556,8 @@ static int __map_range_leaf(struct pt_range *range, void *arg,
 		pts.index += step;
 	} while (pts.index < pts.end_index);
 
+	flush_writes_range(&pts, start_index, pts.index);
+
 	map->oa = oa;
 	return ret;
 }
@@ -557,6 +592,21 @@ static int __map_range(struct pt_range *range, void *arg, unsigned int level,
 			}
 		} else {
 			pts.table_lower = pt_table_ptr(&pts);
+			/*
+			 * Racing with a shared pt_iommu_new_table()? The other
+			 * thread is still flushing the cache, so we have to
+			 * also flush it to ensure that when our thread's map
+			 * completes all the table items leading to our mapping
+			 * are visible.
+			 *
+			 * This requires the pt_set_bit_release() to be a
+			 * release of the cache flush so that this can acquire
+			 * visibility at the iommu.
+			 */
+			if (pts_feature(&pts, PT_FEAT_DMA_INCOHERENT) &&
+			    !pt_test_sw_bit_acquire(&pts,
+						    SW_BIT_CACHE_FLUSH_DONE))
+				flush_writes_item(&pts);
 		}
 
 		/*
@@ -597,6 +647,7 @@ static __always_inline int __do_map_single_page(struct pt_range *range,
 			return -EADDRINUSE;
 		pt_install_leaf_entry(&pts, map->oa, PAGE_SHIFT,
 				      &map->attrs);
+		/* No flush, not used when incoherent */
 		map->oa += PAGE_SIZE;
 		return 0;
 	}
@@ -736,10 +787,14 @@ static int check_map_range(struct pt_iommu *iommu_table, struct pt_range *range,
 	return 0;
 }
 
-static int do_map(struct pt_range *range, bool single_page,
-		  struct pt_iommu_map_args *map)
+static int do_map(struct pt_range *range, struct pt_common *common,
+		  bool single_page, struct pt_iommu_map_args *map)
 {
-	if (single_page) {
+	/*
+	 * The __map_single_page() fast path does not support DMA_INCOHERENT
+	 * flushing to keep its .text small.
+	 */
+	if (single_page && !pt_feature(common, PT_FEAT_DMA_INCOHERENT)) {
 		int ret;
 
 		ret = pt_walk_range(range, __map_single_page, map);
@@ -842,7 +897,7 @@ int DOMAIN_NS(map_pages)(struct iommu_domain *domain, unsigned long iova,
 
 	PT_WARN_ON(map.leaf_level > range.top_level);
 
-	ret = do_map(&range, single_page, &map);
+	ret = do_map(&range, common, single_page, &map);
 
 	/*
 	 * Table levels were freed and replaced with large items, flush any walk
@@ -944,6 +999,8 @@ start_oa:
 	} while (true);
 
 	unmap->unmapped += log2_mul(num_oas, pt_table_item_lg2sz(&pts));
+	flush_writes_range(&pts, start_index, pts.index);
+
 	return ret;
 }
 
