@@ -414,7 +414,8 @@ L_HAVE_VGPRS:
 	s_getreg_b32	s_save_tmp, hwreg(HW_REG_WAVE_MODE, SQ_WAVE_MODE_DST_SRC0_SRC1_VGPR_MSB_SHIFT, SQ_WAVE_MODE_DST_SRC0_SRC1_VGPR_MSB_SIZE)
 	s_lshl_b32	s_save_tmp, s_save_tmp, S_SAVE_PC_HI_DST_SRC0_SRC1_VGPR_MSB_SHIFT
 	s_or_b32	s_save_pc_hi, s_save_pc_hi, s_save_tmp
-	s_setreg_imm32_b32	hwreg(HW_REG_WAVE_MODE, SQ_WAVE_MODE_DST_SRC0_SRC1_VGPR_MSB_SHIFT, SQ_WAVE_MODE_DST_SRC0_SRC1_VGPR_MSB_SIZE), 0
+	s_mov_b32	s_save_tmp, 0
+	s_setreg_b32	hwreg(HW_REG_WAVE_MODE, SQ_WAVE_MODE_DST_SRC0_SRC1_VGPR_MSB_SHIFT, SQ_WAVE_MODE_DST_SRC0_SRC1_VGPR_MSB_SIZE), s_save_tmp
 #endif
 
 	// Trap temporaries must be saved via VGPR but all VGPRs are in use.
