@@ -628,6 +628,7 @@ static const struct x86_cpu_id intel_cstates_match[] __initconst = {
 	X86_MATCH_VFM(INTEL_ATOM_GRACEMONT,	&adl_cstates),
 	X86_MATCH_VFM(INTEL_ATOM_CRESTMONT_X,	&srf_cstates),
 	X86_MATCH_VFM(INTEL_ATOM_CRESTMONT,	&grr_cstates),
+	X86_MATCH_VFM(INTEL_ATOM_DARKMONT_X,	&srf_cstates),
 
 	X86_MATCH_VFM(INTEL_ICELAKE_L,		&icl_cstates),
 	X86_MATCH_VFM(INTEL_ICELAKE,		&icl_cstates),
