@@ -350,6 +350,35 @@ struct smbdirect_socket {
 		u64 dequeue_reassembly_queue;
 		u64 send_empty;
 	} statistics;
+
+	struct {
+#define SMBDIRECT_LOG_ERR		0x0
+#define SMBDIRECT_LOG_INFO		0x1
+
+#define SMBDIRECT_LOG_OUTGOING			0x1
+#define SMBDIRECT_LOG_INCOMING			0x2
+#define SMBDIRECT_LOG_READ			0x4
+#define SMBDIRECT_LOG_WRITE			0x8
+#define SMBDIRECT_LOG_RDMA_SEND			0x10
+#define SMBDIRECT_LOG_RDMA_RECV			0x20
+#define SMBDIRECT_LOG_KEEP_ALIVE		0x40
+#define SMBDIRECT_LOG_RDMA_EVENT		0x80
+#define SMBDIRECT_LOG_RDMA_MR			0x100
+#define SMBDIRECT_LOG_RDMA_RW			0x200
+#define SMBDIRECT_LOG_NEGOTIATE			0x400
+		void *private_ptr;
+		bool (*needed)(struct smbdirect_socket *sc,
+			       void *private_ptr,
+			       unsigned int lvl,
+			       unsigned int cls);
+		void (*vaprintf)(struct smbdirect_socket *sc,
+				 const char *func,
+				 unsigned int line,
+				 void *private_ptr,
+				 unsigned int lvl,
+				 unsigned int cls,
+				 struct va_format *vaf);
+	} logging;
 };
 
 static void __smbdirect_socket_disabled_work(struct work_struct *work)
@@ -359,6 +388,100 @@ static void __smbdirect_socket_disabled_work(struct work_struct *work)
 	 */
 	WARN_ON_ONCE(1);
 }
+
+static bool __smbdirect_log_needed(struct smbdirect_socket *sc,
+				   void *private_ptr,
+				   unsigned int lvl,
+				   unsigned int cls)
+{
+	/*
+	 * Should never be called, the caller should
+	 * set it's own functions.
+	 */
+	WARN_ON_ONCE(1);
+	return false;
+}
+
+static void __smbdirect_log_vaprintf(struct smbdirect_socket *sc,
+				     const char *func,
+				     unsigned int line,
+				     void *private_ptr,
+				     unsigned int lvl,
+				     unsigned int cls,
+				     struct va_format *vaf)
+{
+	/*
+	 * Should never be called, the caller should
+	 * set it's own functions.
+	 */
+	WARN_ON_ONCE(1);
+}
+
+__printf(6, 7)
+static void __smbdirect_log_printf(struct smbdirect_socket *sc,
+				   const char *func,
+				   unsigned int line,
+				   unsigned int lvl,
+				   unsigned int cls,
+				   const char *fmt,
+				   ...);
+__maybe_unused
+static void __smbdirect_log_printf(struct smbdirect_socket *sc,
+				   const char *func,
+				   unsigned int line,
+				   unsigned int lvl,
+				   unsigned int cls,
+				   const char *fmt,
+				   ...)
+{
+	struct va_format vaf;
+	va_list args;
+
+	va_start(args, fmt);
+
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	sc->logging.vaprintf(sc,
+			     func,
+			     line,
+			     sc->logging.private_ptr,
+			     lvl,
+			     cls,
+			     &vaf);
+	va_end(args);
+}
+
+#define ___smbdirect_log_generic(sc, func, line, lvl, cls, fmt, args...) do {	\
+	if (sc->logging.needed(sc, sc->logging.private_ptr, lvl, cls)) {	\
+		__smbdirect_log_printf(sc, func, line, lvl, cls, fmt, ##args);	\
+	}									\
+} while (0)
+#define __smbdirect_log_generic(sc, lvl, cls, fmt, args...) \
+	___smbdirect_log_generic(sc, __func__, __LINE__, lvl, cls, fmt, ##args)
+
+#define smbdirect_log_outgoing(sc, lvl, fmt, args...) \
+		__smbdirect_log_generic(sc, lvl, SMBDIRECT_LOG_OUTGOING, fmt, ##args)
+#define smbdirect_log_incoming(sc, lvl, fmt, args...) \
+		__smbdirect_log_generic(sc, lvl, SMBDIRECT_LOG_INCOMING, fmt, ##args)
+#define smbdirect_log_read(sc, lvl, fmt, args...) \
+		__smbdirect_log_generic(sc, lvl, SMBDIRECT_LOG_READ, fmt, ##args)
+#define smbdirect_log_write(sc, lvl, fmt, args...) \
+		__smbdirect_log_generic(sc, lvl, SMBDIRECT_LOG_WRITE, fmt, ##args)
+#define smbdirect_log_rdma_send(sc, lvl, fmt, args...) \
+		__smbdirect_log_generic(sc, lvl, SMBDIRECT_LOG_RDMA_SEND, fmt, ##args)
+#define smbdirect_log_rdma_recv(sc, lvl, fmt, args...) \
+		__smbdirect_log_generic(sc, lvl, SMBDIRECT_LOG_RDMA_RECV, fmt, ##args)
+#define smbdirect_log_keep_alive(sc, lvl, fmt, args...) \
+		__smbdirect_log_generic(sc, lvl, SMBDIRECT_LOG_KEEP_ALIVE, fmt, ##args)
+#define smbdirect_log_rdma_event(sc, lvl, fmt, args...) \
+		__smbdirect_log_generic(sc, lvl, SMBDIRECT_LOG_RDMA_EVENT, fmt, ##args)
+#define smbdirect_log_rdma_mr(sc, lvl, fmt, args...) \
+		__smbdirect_log_generic(sc, lvl, SMBDIRECT_LOG_RDMA_MR, fmt, ##args)
+#define smbdirect_log_rdma_rw(sc, lvl, fmt, args...) \
+		__smbdirect_log_generic(sc, lvl, SMBDIRECT_LOG_RDMA_RW, fmt, ##args)
+#define smbdirect_log_negotiate(sc, lvl, fmt, args...) \
+		__smbdirect_log_generic(sc, lvl, SMBDIRECT_LOG_NEGOTIATE, fmt, ##args)
 
 static __always_inline void smbdirect_socket_init(struct smbdirect_socket *sc)
 {
@@ -420,6 +543,10 @@ static __always_inline void smbdirect_socket_init(struct smbdirect_socket *sc)
 	INIT_WORK(&sc->mr_io.recovery_work, __smbdirect_socket_disabled_work);
 	disable_work_sync(&sc->mr_io.recovery_work);
 	init_waitqueue_head(&sc->mr_io.cleanup.wait_queue);
+
+	sc->logging.private_ptr = NULL;
+	sc->logging.needed = __smbdirect_log_needed;
+	sc->logging.vaprintf = __smbdirect_log_vaprintf;
 }
 
 #define __SMBDIRECT_CHECK_STATUS_FAILED(__sc, __expected_status, __error_cmd, __unexpected_cmd) ({ \
