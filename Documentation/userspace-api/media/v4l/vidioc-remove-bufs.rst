@@ -54,7 +54,7 @@ are invoked.
       - ``count``
       - The number of buffers to be removed with indices 'index' until 'index + count - 1'.
         All buffers in this range must be valid and in DEQUEUED state.
-        :ref:`VIDIOC_REMOVE_BUFS` will always check the validity of ``type`, if it is
+        :ref:`VIDIOC_REMOVE_BUFS` will always check the validity of ``type``, if it is
         invalid it returns ``EINVAL`` error code.
         If count is set to 0 :ref:`VIDIOC_REMOVE_BUFS` will do nothing and return 0.
     * - __u32
