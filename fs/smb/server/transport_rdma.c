@@ -41,8 +41,6 @@
 #define SMB_DIRECT_PORT_IWARP		5445
 #define SMB_DIRECT_PORT_INFINIBAND	445
 
-#define SMB_DIRECT_VERSION_LE		cpu_to_le16(SMBDIRECT_V1)
-
 /* SMB_DIRECT negotiation timeout (for the server) in seconds */
 #define SMB_DIRECT_NEGOTIATE_TIMEOUT		5
 
@@ -57,11 +55,6 @@
  * This value is possibly decreased during QP creation on hardware limit
  */
 #define SMB_DIRECT_CM_INITIATOR_DEPTH		8
-
-/* Maximum number of retries on data transfer operations */
-#define SMB_DIRECT_CM_RETRY			6
-/* No need to retry on Receiver Not Ready since SMB_DIRECT manages credits */
-#define SMB_DIRECT_CM_RNR_RETRY		0
 
 /*
  * User configurable initial values per SMB_DIRECT transport connection
@@ -119,7 +112,7 @@ static struct workqueue_struct *smb_direct_wq;
 struct smb_direct_transport {
 	struct ksmbd_transport	transport;
 
-	struct smbdirect_socket socket;
+	struct smbdirect_socket *socket;
 };
 
 static bool smb_direct_logging_needed(struct smbdirect_socket *sc,
@@ -196,15 +189,13 @@ void init_smbd_max_io_size(unsigned int sz)
 unsigned int get_smbd_max_read_write_size(struct ksmbd_transport *kt)
 {
 	struct smb_direct_transport *t;
-	struct smbdirect_socket *sc;
 	const struct smbdirect_socket_parameters *sp;
 
 	if (kt->ops != &ksmbd_smb_direct_transport_ops)
 		return 0;
 
 	t = SMBD_TRANS(kt);
-	sc = &t->socket;
-	sp = smbdirect_socket_get_current_parameters(sc);
+	sp = smbdirect_socket_get_current_parameters(t->socket);
 
 	return sp->max_read_write_size;
 }
@@ -237,10 +228,9 @@ static struct smb_direct_transport *alloc_transport(struct rdma_cm_id *cm_id)
 	t = kzalloc_obj(*t, KSMBD_DEFAULT_GFP);
 	if (!t)
 		return NULL;
-	sc = &t->socket;
-	ret = smbdirect_socket_init_accepting(cm_id, sc);
+	ret = smbdirect_socket_create_accepting(cm_id, &sc);
 	if (ret)
-		goto socket_init_failed;
+		goto socket_create_failed;
 	smbdirect_socket_set_logging(sc, NULL,
 				     smb_direct_logging_needed,
 				     smb_direct_logging_vaprintf);
@@ -265,28 +255,31 @@ static struct smb_direct_transport *alloc_transport(struct rdma_cm_id *cm_id)
 	conn->transport = KSMBD_TRANS(t);
 	KSMBD_TRANS(t)->conn = conn;
 	KSMBD_TRANS(t)->ops = &ksmbd_smb_direct_transport_ops;
+
+	t->socket = sc;
 	return t;
 
 conn_alloc_failed:
 set_workqueue_failed:
 set_settings_failed:
 set_params_failed:
-socket_init_failed:
+	smbdirect_socket_release(sc);
+socket_create_failed:
 	kfree(t);
 	return NULL;
 }
 
 static void smb_direct_free_transport(struct ksmbd_transport *kt)
 {
-	kfree(SMBD_TRANS(kt));
+	struct smb_direct_transport *t = SMBD_TRANS(kt);
+
+	smbdirect_socket_release(t->socket);
+	kfree(t);
 }
 
 static void free_transport(struct smb_direct_transport *t)
 {
-	struct smbdirect_socket *sc = &t->socket;
-
-	smbdirect_socket_destroy_sync(sc);
-
+	smbdirect_socket_shutdown(t->socket);
 	ksmbd_conn_free(KSMBD_TRANS(t)->conn);
 }
 
@@ -294,7 +287,7 @@ static int smb_direct_read(struct ksmbd_transport *t, char *buf,
 			   unsigned int size, int unused)
 {
 	struct smb_direct_transport *st = SMBD_TRANS(t);
-	struct smbdirect_socket *sc = &st->socket;
+	struct smbdirect_socket *sc = st->socket;
 	struct msghdr msg = { .msg_flags = 0, };
 	struct kvec iov = {
 		.iov_base = buf,
@@ -315,7 +308,7 @@ static int smb_direct_writev(struct ksmbd_transport *t,
 			     bool need_invalidate, unsigned int remote_key)
 {
 	struct smb_direct_transport *st = SMBD_TRANS(t);
-	struct smbdirect_socket *sc = &st->socket;
+	struct smbdirect_socket *sc = st->socket;
 	struct iov_iter iter;
 
 	iov_iter_kvec(&iter, ITER_SOURCE, iov, niovs, buflen);
@@ -330,7 +323,7 @@ static int smb_direct_rdma_write(struct ksmbd_transport *t,
 				 unsigned int desc_len)
 {
 	struct smb_direct_transport *st = SMBD_TRANS(t);
-	struct smbdirect_socket *sc = &st->socket;
+	struct smbdirect_socket *sc = st->socket;
 
 	return smbdirect_connection_rdma_xmit(sc, buf, buflen,
 					      desc, desc_len, false);
@@ -342,7 +335,7 @@ static int smb_direct_rdma_read(struct ksmbd_transport *t,
 				unsigned int desc_len)
 {
 	struct smb_direct_transport *st = SMBD_TRANS(t);
-	struct smbdirect_socket *sc = &st->socket;
+	struct smbdirect_socket *sc = st->socket;
 
 	return smbdirect_connection_rdma_xmit(sc, buf, buflen,
 					      desc, desc_len, true);
@@ -351,9 +344,9 @@ static int smb_direct_rdma_read(struct ksmbd_transport *t,
 static void smb_direct_disconnect(struct ksmbd_transport *t)
 {
 	struct smb_direct_transport *st = SMBD_TRANS(t);
-	struct smbdirect_socket *sc = &st->socket;
+	struct smbdirect_socket *sc = st->socket;
 
-	ksmbd_debug(RDMA, "Disconnecting cm_id=%p\n", sc->rdma.cm_id);
+	ksmbd_debug(RDMA, "Disconnecting sc=%p\n", sc);
 
 	free_transport(st);
 }
@@ -361,9 +354,9 @@ static void smb_direct_disconnect(struct ksmbd_transport *t)
 static void smb_direct_shutdown(struct ksmbd_transport *t)
 {
 	struct smb_direct_transport *st = SMBD_TRANS(t);
-	struct smbdirect_socket *sc = &st->socket;
+	struct smbdirect_socket *sc = st->socket;
 
-	ksmbd_debug(RDMA, "smb-direct shutdown cm_id=%p\n", sc->rdma.cm_id);
+	ksmbd_debug(RDMA, "smb-direct shutdown sc=%p\n", sc);
 
 	smbdirect_socket_shutdown(sc);
 }
@@ -371,7 +364,7 @@ static void smb_direct_shutdown(struct ksmbd_transport *t)
 static int smb_direct_prepare(struct ksmbd_transport *t)
 {
 	struct smb_direct_transport *st = SMBD_TRANS(t);
-	struct smbdirect_socket *sc = &st->socket;
+	struct smbdirect_socket *sc = st->socket;
 	int ret;
 
 	ksmbd_debug(RDMA, "SMB_DIRECT Waiting for connection\n");
@@ -405,7 +398,7 @@ static int smb_direct_handle_connect_request(struct rdma_cm_id *new_cm_id,
 	t = alloc_transport(new_cm_id);
 	if (!t)
 		return -ENOMEM;
-	sc = &t->socket;
+	sc = t->socket;
 
 	ret = smbdirect_accept_connect_request(sc, &event->param.conn);
 	if (ret)
