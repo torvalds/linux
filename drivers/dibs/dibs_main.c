@@ -271,5 +271,5 @@ static void __exit dibs_exit(void)
 	class_destroy(dibs_class);
 }
 
-module_init(dibs_init);
+subsys_initcall(dibs_init);
 module_exit(dibs_exit);
