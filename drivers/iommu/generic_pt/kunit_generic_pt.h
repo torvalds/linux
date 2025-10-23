@@ -660,6 +660,112 @@ static __maybe_unused void test_dirty(struct kunit *test)
 	check_all_levels(test, test_lvl_dirty, NULL);
 }
 
+static void test_lvl_sw_bit_leaf(struct kunit *test, struct pt_state *pts,
+				 void *arg)
+{
+	struct kunit_iommu_priv *priv = test->priv;
+	pt_vaddr_t pgsize_bitmap = pt_possible_sizes(pts);
+	unsigned int isz_lg2 = pt_table_item_lg2sz(pts);
+	struct pt_write_attrs attrs = {};
+	unsigned int len_lg2;
+
+	if (!pt_can_have_leaf(pts))
+		return;
+	if (pts->index != 0)
+		return;
+
+	KUNIT_ASSERT_NO_ERRNO_FN(test, "pt_iommu_set_prot",
+				 pt_iommu_set_prot(pts->range->common, &attrs,
+						   IOMMU_READ));
+
+	for (len_lg2 = 0; len_lg2 < PT_VADDR_MAX_LG2 - 1; len_lg2++) {
+		pt_oaddr_t paddr = log2_set_mod(priv->test_oa, 0, len_lg2);
+		struct pt_write_attrs new_attrs = {};
+		unsigned int bitnr;
+
+		if (!(pgsize_bitmap & log2_to_int(len_lg2)))
+			continue;
+
+		pt_install_leaf_entry(pts, paddr, len_lg2, &attrs);
+
+		for (bitnr = 0; bitnr <= pt_max_sw_bit(pts->range->common);
+		     bitnr++)
+			KUNIT_ASSERT_FALSE(test,
+					   pt_test_sw_bit_acquire(pts, bitnr));
+
+		for (bitnr = 0; bitnr <= pt_max_sw_bit(pts->range->common);
+		     bitnr++) {
+			KUNIT_ASSERT_FALSE(test,
+					   pt_test_sw_bit_acquire(pts, bitnr));
+			pt_set_sw_bit_release(pts, bitnr);
+			KUNIT_ASSERT_TRUE(test,
+					  pt_test_sw_bit_acquire(pts, bitnr));
+		}
+
+		for (bitnr = 0; bitnr <= pt_max_sw_bit(pts->range->common);
+		     bitnr++)
+			KUNIT_ASSERT_TRUE(test,
+					  pt_test_sw_bit_acquire(pts, bitnr));
+
+		KUNIT_ASSERT_EQ(test, pt_item_oa(pts), paddr);
+
+		/* SW bits didn't leak into the attrs */
+		pt_attr_from_entry(pts, &new_attrs);
+		KUNIT_ASSERT_MEMEQ(test, &new_attrs, &attrs, sizeof(attrs));
+
+		pt_clear_entries(pts, len_lg2 - isz_lg2);
+		KUNIT_ASSERT_PT_LOAD(test, pts, PT_ENTRY_EMPTY);
+	}
+}
+
+static __maybe_unused void test_sw_bit_leaf(struct kunit *test)
+{
+	check_all_levels(test, test_lvl_sw_bit_leaf, NULL);
+}
+
+static void test_lvl_sw_bit_table(struct kunit *test, struct pt_state *pts,
+				  void *arg)
+{
+	struct kunit_iommu_priv *priv = test->priv;
+	struct pt_write_attrs attrs = {};
+	pt_oaddr_t paddr =
+		log2_set_mod(priv->test_oa, 0, priv->smallest_pgsz_lg2);
+	unsigned int bitnr;
+
+	if (!pt_can_have_leaf(pts))
+		return;
+	if (pts->index != 0)
+		return;
+
+	KUNIT_ASSERT_NO_ERRNO_FN(test, "pt_iommu_set_prot",
+				 pt_iommu_set_prot(pts->range->common, &attrs,
+						   IOMMU_READ));
+
+	KUNIT_ASSERT_TRUE(test, pt_install_table(pts, paddr, &attrs));
+
+	for (bitnr = 0; bitnr <= pt_max_sw_bit(pts->range->common); bitnr++)
+		KUNIT_ASSERT_FALSE(test, pt_test_sw_bit_acquire(pts, bitnr));
+
+	for (bitnr = 0; bitnr <= pt_max_sw_bit(pts->range->common); bitnr++) {
+		KUNIT_ASSERT_FALSE(test, pt_test_sw_bit_acquire(pts, bitnr));
+		pt_set_sw_bit_release(pts, bitnr);
+		KUNIT_ASSERT_TRUE(test, pt_test_sw_bit_acquire(pts, bitnr));
+	}
+
+	for (bitnr = 0; bitnr <= pt_max_sw_bit(pts->range->common); bitnr++)
+		KUNIT_ASSERT_TRUE(test, pt_test_sw_bit_acquire(pts, bitnr));
+
+	KUNIT_ASSERT_EQ(test, pt_table_pa(pts), paddr);
+
+	pt_clear_entries(pts, ilog2(1));
+	KUNIT_ASSERT_PT_LOAD(test, pts, PT_ENTRY_EMPTY);
+}
+
+static __maybe_unused void test_sw_bit_table(struct kunit *test)
+{
+	check_all_levels(test, test_lvl_sw_bit_table, NULL);
+}
+
 static struct kunit_case generic_pt_test_cases[] = {
 	KUNIT_CASE_FMT(test_init),
 	KUNIT_CASE_FMT(test_bitops),
@@ -672,6 +778,10 @@ static struct kunit_case generic_pt_test_cases[] = {
 	KUNIT_CASE_FMT(test_attr_from_entry),
 #ifdef pt_entry_is_write_dirty
 	KUNIT_CASE_FMT(test_dirty),
+#endif
+#ifdef pt_sw_bit
+	KUNIT_CASE_FMT(test_sw_bit_leaf),
+	KUNIT_CASE_FMT(test_sw_bit_table),
 #endif
 	{},
 };
