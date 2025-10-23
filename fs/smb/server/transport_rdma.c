@@ -126,6 +126,65 @@ struct smb_direct_transport {
 	struct smbdirect_socket socket;
 };
 
+static bool smb_direct_logging_needed(struct smbdirect_socket *sc,
+				      void *private_ptr,
+				      unsigned int lvl,
+				      unsigned int cls)
+{
+	if (lvl <= SMBDIRECT_LOG_ERR)
+		return true;
+
+	if (lvl > SMBDIRECT_LOG_INFO)
+		return false;
+
+	switch (cls) {
+	/*
+	 * These were more or less also logged before
+	 * the move to common code.
+	 *
+	 * SMBDIRECT_LOG_RDMA_MR was not used, but
+	 * that's client only code and we should
+	 * notice if it's used on the server...
+	 */
+	case SMBDIRECT_LOG_RDMA_EVENT:
+	case SMBDIRECT_LOG_RDMA_SEND:
+	case SMBDIRECT_LOG_RDMA_RECV:
+	case SMBDIRECT_LOG_WRITE:
+	case SMBDIRECT_LOG_READ:
+	case SMBDIRECT_LOG_NEGOTIATE:
+	case SMBDIRECT_LOG_OUTGOING:
+	case SMBDIRECT_LOG_RDMA_RW:
+	case SMBDIRECT_LOG_RDMA_MR:
+		return true;
+	/*
+	 * These were not logged before the move
+	 * to common code.
+	 */
+	case SMBDIRECT_LOG_KEEP_ALIVE:
+	case SMBDIRECT_LOG_INCOMING:
+		return false;
+	}
+
+	/*
+	 * Log all unknown messages
+	 */
+	return true;
+}
+
+static void smb_direct_logging_vaprintf(struct smbdirect_socket *sc,
+					const char *func,
+					unsigned int line,
+					void *private_ptr,
+					unsigned int lvl,
+					unsigned int cls,
+					struct va_format *vaf)
+{
+	if (lvl <= SMBDIRECT_LOG_ERR)
+		pr_err("%pV", vaf);
+	else
+		ksmbd_debug(RDMA, "%pV", vaf);
+}
+
 #define KSMBD_TRANS(t) (&(t)->transport)
 #define SMBD_TRANS(t)	(container_of(t, \
 				struct smb_direct_transport, transport))
@@ -447,6 +506,9 @@ static struct smb_direct_transport *alloc_transport(struct rdma_cm_id *cm_id)
 		return NULL;
 	sc = &t->socket;
 	smbdirect_socket_prepare_create(sc, sp, smb_direct_wq);
+	smbdirect_socket_set_logging(sc, NULL,
+				     smb_direct_logging_needed,
+				     smb_direct_logging_vaprintf);
 	/*
 	 * from here we operate on the copy.
 	 */
