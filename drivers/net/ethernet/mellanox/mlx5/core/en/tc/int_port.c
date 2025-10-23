@@ -307,7 +307,8 @@ mlx5e_tc_int_port_init(struct mlx5e_priv *priv)
 {
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	struct mlx5e_tc_int_port_priv *int_port_priv;
-	u64 mapping_id;
+	u8 mapping_id[MLX5_SW_IMAGE_GUID_MAX_BYTES];
+	u8 id_len;
 
 	if (!mlx5e_tc_int_port_supported(esw))
 		return NULL;
@@ -316,9 +317,10 @@ mlx5e_tc_int_port_init(struct mlx5e_priv *priv)
 	if (!int_port_priv)
 		return NULL;
 
-	mapping_id = mlx5_query_nic_system_image_guid(priv->mdev);
+	mlx5_query_nic_sw_system_image_guid(priv->mdev, mapping_id, &id_len);
 
-	int_port_priv->metadata_mapping = mapping_create_for_id(mapping_id, MAPPING_TYPE_INT_PORT,
+	int_port_priv->metadata_mapping = mapping_create_for_id(mapping_id, id_len,
+								MAPPING_TYPE_INT_PORT,
 								sizeof(u32) * 2,
 								(1 << ESW_VPORT_BITS) - 1, true);
 	if (IS_ERR(int_port_priv->metadata_mapping)) {
