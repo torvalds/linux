@@ -104,7 +104,7 @@ static void pinconf_generic_dump_one(struct pinctrl_dev *pctldev,
  * @pctldev:	Pincontrol device
  * @s:		File to print to
  * @gname:	Group name specifying pins
- * @pin:	Pin number specyfying pin
+ * @pin:	Pin number specifying pin
  *
  * Print the pinconf configuration for the requested pin(s) to @s. Pins can be
  * specified either by pin using @pin or by group using @gname. Only one needs
@@ -242,7 +242,7 @@ static void parse_dt_cfg(struct device_node *np,
  * @pmux: array with pin mux value entries
  * @npins: number of pins
  *
- * pinmux propertity: mux value [0,7]bits and pin identity [8,31]bits.
+ * pinmux property: mux value [0,7]bits and pin identity [8,31]bits.
  */
 int pinconf_generic_parse_dt_pinmux(struct device_node *np, struct device *dev,
 				    unsigned int **pid, unsigned int **pmux,
