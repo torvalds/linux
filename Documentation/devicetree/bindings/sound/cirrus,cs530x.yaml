@@ -19,6 +19,10 @@ allOf:
 properties:
   compatible:
     enum:
+      - cirrus,cs4282
+      - cirrus,cs4302
+      - cirrus,cs4304
+      - cirrus,cs4308
       - cirrus,cs5302
       - cirrus,cs5304
       - cirrus,cs5308
