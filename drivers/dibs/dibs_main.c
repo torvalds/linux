@@ -254,9 +254,6 @@ static int __init dibs_init(void)
 {
 	int rc;
 
-	memset(clients, 0, sizeof(clients));
-	max_client = 0;
-
 	dibs_class = class_create("dibs");
 	if (IS_ERR(dibs_class))
 		return PTR_ERR(dibs_class);
