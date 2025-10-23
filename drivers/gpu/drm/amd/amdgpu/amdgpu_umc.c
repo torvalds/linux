@@ -24,6 +24,7 @@
 #include <linux/sort.h>
 #include "amdgpu.h"
 #include "umc_v6_7.h"
+#include "amdgpu_ras_mgr.h"
 #define MAX_UMC_POISON_POLLING_TIME_SYNC   20  //ms
 
 #define MAX_UMC_HASH_STRING_SIZE  256
@@ -273,6 +274,15 @@ int amdgpu_umc_pasid_poison_handler(struct amdgpu_device *adev,
 			}
 
 			amdgpu_ras_error_data_fini(&err_data);
+		} else if (amdgpu_uniras_enabled(adev)) {
+			struct ras_ih_info ih_info = {0};
+
+			ih_info.block = block;
+			ih_info.pasid = pasid;
+			ih_info.reset = reset;
+			ih_info.pasid_fn = pasid_fn;
+			ih_info.data = data;
+			amdgpu_ras_mgr_handle_consumer_interrupt(adev, &ih_info);
 		} else {
 			struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 			int ret;
