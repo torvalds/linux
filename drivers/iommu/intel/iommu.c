@@ -1300,6 +1300,10 @@ static int domain_setup_first_level(struct intel_iommu *iommu,
 	if (domain->force_snooping)
 		flags |= PASID_FLAG_PAGE_SNOOP;
 
+	if (!(domain->fspt.x86_64_pt.common.features &
+	      BIT(PT_FEAT_DMA_INCOHERENT)))
+		flags |= PASID_FLAG_PWSNP;
+
 	return __domain_setup_first_level(iommu, dev, pasid,
 					  domain_id_iommu(domain, iommu),
 					  pt_info.gcr3_pt, flags, old);
@@ -2990,7 +2994,7 @@ static int paging_domain_compatible_first_stage(struct dmar_domain *dmar_domain,
 	if (!sm_supported(iommu) || !ecap_flts(iommu->ecap))
 		return -EINVAL;
 
-	if (!!ecap_smpwc(iommu->ecap) !=
+	if (!ecap_smpwc(iommu->ecap) &&
 	    !(dmar_domain->fspt.x86_64_pt.common.features &
 	      BIT(PT_FEAT_DMA_INCOHERENT)))
 		return -EINVAL;
@@ -3031,7 +3035,7 @@ paging_domain_compatible_second_stage(struct dmar_domain *dmar_domain,
 	if (sm_supported(iommu) && !ecap_slts(iommu->ecap))
 		return -EINVAL;
 
-	if (iommu_paging_structure_coherency(iommu) !=
+	if (!iommu_paging_structure_coherency(iommu) &&
 	    !(dmar_domain->sspt.vtdss_pt.common.features &
 	      BIT(PT_FEAT_DMA_INCOHERENT)))
 		return -EINVAL;
