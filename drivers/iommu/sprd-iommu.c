@@ -247,7 +247,8 @@ static void sprd_iommu_domain_free(struct iommu_domain *domain)
 }
 
 static int sprd_iommu_attach_device(struct iommu_domain *domain,
-				    struct device *dev)
+				    struct device *dev,
+				    struct iommu_domain *old)
 {
 	struct sprd_iommu_device *sdev = dev_iommu_priv_get(dev);
 	struct sprd_iommu_domain *dom = to_sprd_domain(domain);

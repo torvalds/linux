@@ -984,7 +984,8 @@ static void exynos_iommu_domain_free(struct iommu_domain *iommu_domain)
 }
 
 static int exynos_iommu_identity_attach(struct iommu_domain *identity_domain,
-					struct device *dev)
+					struct device *dev,
+					struct iommu_domain *old)
 {
 	struct exynos_iommu_owner *owner = dev_iommu_priv_get(dev);
 	struct exynos_iommu_domain *domain;
@@ -1035,7 +1036,8 @@ static struct iommu_domain exynos_identity_domain = {
 };
 
 static int exynos_iommu_attach_device(struct iommu_domain *iommu_domain,
-				   struct device *dev)
+				      struct device *dev,
+				      struct iommu_domain *old)
 {
 	struct exynos_iommu_domain *domain = to_exynos_domain(iommu_domain);
 	struct exynos_iommu_owner *owner = dev_iommu_priv_get(dev);
@@ -1044,7 +1046,7 @@ static int exynos_iommu_attach_device(struct iommu_domain *iommu_domain,
 	unsigned long flags;
 	int err;
 
-	err = exynos_iommu_identity_attach(&exynos_identity_domain, dev);
+	err = exynos_iommu_identity_attach(&exynos_identity_domain, dev, old);
 	if (err)
 		return err;
 

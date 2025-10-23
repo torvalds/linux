@@ -705,7 +705,7 @@ static void mtk_iommu_domain_free(struct iommu_domain *domain)
 }
 
 static int mtk_iommu_attach_device(struct iommu_domain *domain,
-				   struct device *dev)
+				   struct device *dev, struct iommu_domain *old)
 {
 	struct mtk_iommu_data *data = dev_iommu_priv_get(dev), *frstdata;
 	struct mtk_iommu_domain *dom = to_mtk_domain(domain);
@@ -773,12 +773,12 @@ err_unlock:
 }
 
 static int mtk_iommu_identity_attach(struct iommu_domain *identity_domain,
-				     struct device *dev)
+				     struct device *dev,
+				     struct iommu_domain *old)
 {
-	struct iommu_domain *domain = iommu_get_domain_for_dev(dev);
 	struct mtk_iommu_data *data = dev_iommu_priv_get(dev);
 
-	if (domain == identity_domain || !domain)
+	if (old == identity_domain || !old)
 		return 0;
 
 	mtk_iommu_config(data, dev, false, 0);
