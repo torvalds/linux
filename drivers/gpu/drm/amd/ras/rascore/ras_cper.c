@@ -62,7 +62,7 @@ static void fill_section_hdr(struct ras_core_context *ras_core,
 	hdr->signature[3]		= 'R';
 	hdr->revision			= CPER_HDR__REV_1;
 	hdr->signature_end		= 0xFFFFFFFF;
-	hdr->error_severity		= sev;
+	hdr->error_severity		= (sev == RAS_CPER_SEV_RMA ? RAS_CPER_SEV_FATAL_UE : sev);
 
 	hdr->valid_bits.platform_id	= 1;
 	hdr->valid_bits.timestamp	= 1;
@@ -115,7 +115,7 @@ static int fill_section_descriptor(struct ras_core_context *ras_core,
 	descriptor->sec_length		= section_length;
 	descriptor->valid_bits.fru_text	= 1;
 	descriptor->flag_bits.primary	= 1;
-	descriptor->severity			= sev;
+	descriptor->severity = (sev == RAS_CPER_SEV_RMA ? RAS_CPER_SEV_FATAL_UE : sev);
 	descriptor->sec_type			= sec_type;
 
 	ras_core_get_device_system_info(ras_core, &dev_info);
