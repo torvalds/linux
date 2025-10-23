@@ -575,6 +575,11 @@ static int handle_hca_cap_2(struct mlx5_core_dev *dev, void *set_ctx)
 		do_set = true;
 	}
 
+	if (MLX5_CAP_GEN_2_MAX(dev, lag_per_mp_group)) {
+		MLX5_SET(cmd_hca_cap_2, set_hca_cap, lag_per_mp_group, 1);
+		do_set = true;
+	}
+
 	/* some FW versions that support querying MLX5_CAP_GENERAL_2
 	 * capabilities but don't support setting them.
 	 * Skip unnecessary update to hca_cap_2 when no changes were introduced

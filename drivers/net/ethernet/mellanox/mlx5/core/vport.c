@@ -1203,6 +1203,10 @@ void mlx5_query_nic_sw_system_image_guid(struct mlx5_core_dev *mdev, u8 *buf,
 
 	memcpy(buf, &fw_system_image_guid, sizeof(fw_system_image_guid));
 	*len += sizeof(fw_system_image_guid);
+
+	if (MLX5_CAP_GEN_2(mdev, load_balance_id) &&
+	    MLX5_CAP_GEN_2(mdev, lag_per_mp_group))
+		buf[(*len)++] = MLX5_CAP_GEN_2(mdev, load_balance_id);
 }
 
 static bool mlx5_vport_use_vhca_id_as_func_id(struct mlx5_core_dev *dev,
