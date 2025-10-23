@@ -505,6 +505,14 @@ config PINCTRL_PISTACHIO
 	help
 	  This support pinctrl and GPIO driver for IMG Pistachio SoC.
 
+config PINCTRL_POLARFIRE_SOC
+	bool "Polarfire SoC pinctrl driver"
+	depends on ARCH_MICROCHIP || COMPILE_TEST
+	select GENERIC_PINCONF
+	default y
+	help
+	  This selects the pinctrl driver for Microchip Polarfire SoC.
+
 config PINCTRL_RK805
 	tristate "Pinctrl and GPIO driver for RK805 PMIC"
 	depends on MFD_RK8XX
