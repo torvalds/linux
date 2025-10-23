@@ -1948,7 +1948,7 @@ u64 btrfs_account_ro_block_groups_free_space(struct btrfs_space_info *sinfo)
 	int factor;
 
 	/* It's df, we don't care if it's racy */
-	if (list_empty(&sinfo->ro_bgs))
+	if (data_race(list_empty(&sinfo->ro_bgs)))
 		return 0;
 
 	spin_lock(&sinfo->lock);
