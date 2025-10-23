@@ -721,6 +721,7 @@ struct dmub_feature_caps {
 	uint8_t replay_supported;
 	uint8_t replay_reserved[3];
 	uint8_t abm_aux_backlight_support;
+	uint8_t lsdma_support_in_dmu;
 };
 
 struct dmub_visual_confirm_color {
