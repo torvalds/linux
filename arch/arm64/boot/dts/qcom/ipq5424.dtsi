@@ -13,6 +13,7 @@
 #include <dt-bindings/reset/qcom,ipq5424-gcc.h>
 #include <dt-bindings/interconnect/qcom,ipq5424.h>
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/thermal/thermal.h>
 
 / {
 	#address-cells = <2>;
@@ -57,6 +58,7 @@
 			clock-names = "cpu";
 			operating-points-v2 = <&cpu_opp_table>;
 			interconnects = <&apss_clk MASTER_CPU &apss_clk SLAVE_L3>;
+			#cooling-cells = <2>;
 
 			l2_0: l2-cache {
 				compatible = "cache";
@@ -82,6 +84,7 @@
 			clock-names = "cpu";
 			operating-points-v2 = <&cpu_opp_table>;
 			interconnects = <&apss_clk MASTER_CPU &apss_clk SLAVE_L3>;
+			#cooling-cells = <2>;
 
 			l2_100: l2-cache {
 				compatible = "cache";
@@ -101,6 +104,7 @@
 			clock-names = "cpu";
 			operating-points-v2 = <&cpu_opp_table>;
 			interconnects = <&apss_clk MASTER_CPU &apss_clk SLAVE_L3>;
+			#cooling-cells = <2>;
 
 			l2_200: l2-cache {
 				compatible = "cache";
@@ -120,6 +124,7 @@
 			clock-names = "cpu";
 			operating-points-v2 = <&cpu_opp_table>;
 			interconnects = <&apss_clk MASTER_CPU &apss_clk SLAVE_L3>;
+			#cooling-cells = <2>;
 
 			l2_300: l2-cache {
 				compatible = "cache";
@@ -1235,16 +1240,26 @@
 			thermal-sensors = <&tsens 14>;
 
 			trips {
-				cpu-critical {
+				cpu0_crit: cpu-critical {
 					temperature = <120000>;
 					hysteresis = <9000>;
 					type = "critical";
 				};
 
-				cpu-passive {
+				cpu0_alert: cpu-passive {
 					temperature = <110000>;
 					hysteresis = <9000>;
 					type = "passive";
+				};
+			};
+
+			cooling-maps {
+				map0 {
+					trip = <&cpu0_alert>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 				};
 			};
 		};
@@ -1254,16 +1269,26 @@
 			thermal-sensors = <&tsens 12>;
 
 			trips {
-				cpu-critical {
+				cpu1_crit: cpu-critical {
 					temperature = <120000>;
 					hysteresis = <9000>;
 					type = "critical";
 				};
 
-				cpu-passive {
+				cpu1_alert: cpu-passive {
 					temperature = <110000>;
 					hysteresis = <9000>;
 					type = "passive";
+				};
+			};
+
+			cooling-maps {
+				map0 {
+					trip = <&cpu1_alert>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 				};
 			};
 		};
@@ -1273,16 +1298,26 @@
 			thermal-sensors = <&tsens 11>;
 
 			trips {
-				cpu-critical {
+				cpu2_crit: cpu-critical {
 					temperature = <120000>;
 					hysteresis = <9000>;
 					type = "critical";
 				};
 
-				cpu-passive {
+				cpu2_alert: cpu-passive {
 					temperature = <110000>;
 					hysteresis = <9000>;
 					type = "passive";
+				};
+			};
+
+			cooling-maps {
+				map0 {
+					trip = <&cpu2_alert>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 				};
 			};
 		};
@@ -1292,16 +1327,26 @@
 			thermal-sensors = <&tsens 13>;
 
 			trips {
-				cpu-critical {
+				cpu3_crit: cpu-critical {
 					temperature = <120000>;
 					hysteresis = <9000>;
 					type = "critical";
 				};
 
-				cpu-passive {
+				cpu3_alert: cpu-passive {
 					temperature = <110000>;
 					hysteresis = <9000>;
 					type = "passive";
+				};
+			};
+
+			cooling-maps {
+				map0 {
+					trip = <&cpu3_alert>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 				};
 			};
 		};
