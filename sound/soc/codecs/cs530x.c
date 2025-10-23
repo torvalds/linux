@@ -141,8 +141,8 @@ static int cs530x_put_volsw_vu(struct snd_kcontrol *kcontrol,
 	if (ret)
 		goto volsw_err;
 
-	/* Write IN_VU bit for the volume change to take effect */
-	regmap_write(regmap, CS530X_IN_VOL_CTRL5, CS530X_IN_VU);
+	/* Write INOUT_VU bit for the volume change to take effect */
+	regmap_write(regmap, CS530X_IN_VOL_CTRL5, CS530X_INOUT_VU);
 
 volsw_err:
 	snd_soc_dapm_mutex_unlock(dapm);
