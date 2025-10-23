@@ -2403,6 +2403,9 @@ err_revert:
 	 */
 	last_gdev = gdev;
 	for_each_group_device(group, gdev) {
+		/* No need to revert the last gdev that failed to set domain */
+		if (gdev == last_gdev)
+			break;
 		/*
 		 * A NULL domain can happen only for first probe, in which case
 		 * we leave group->domain as NULL and let release clean
@@ -2412,8 +2415,6 @@ err_revert:
 			WARN_ON(__iommu_device_set_domain(
 				group, gdev->dev, group->domain,
 				IOMMU_SET_DOMAIN_MUST_SUCCEED));
-		if (gdev == last_gdev)
-			break;
 	}
 	return ret;
 }
