@@ -202,6 +202,68 @@ static inline void pt_clear_entries(struct pt_state *pts,
 #define pt_clear_entries pt_clear_entries
 #endif
 
+/* If not supplied then SW bits are not supported */
+#ifdef pt_sw_bit
+static inline bool pt_test_sw_bit_acquire(struct pt_state *pts,
+					  unsigned int bitnr)
+{
+	/* Acquire, pairs with pt_set_sw_bit_release() */
+	smp_mb();
+	/* For a contiguous entry the sw bit is only stored in the first item. */
+	return pts->entry & pt_sw_bit(bitnr);
+}
+#define pt_test_sw_bit_acquire pt_test_sw_bit_acquire
+
+static inline void pt_set_sw_bit_release(struct pt_state *pts,
+					 unsigned int bitnr)
+{
+#if !IS_ENABLED(CONFIG_GENERIC_ATOMIC64)
+	if (PT_ITEM_WORD_SIZE == sizeof(u64)) {
+		u64 *entryp = pt_cur_table(pts, u64) + pts->index;
+		u64 old_entry = pts->entry;
+		u64 new_entry;
+
+		do {
+			new_entry = old_entry | pt_sw_bit(bitnr);
+		} while (!try_cmpxchg64_release(entryp, &old_entry, new_entry));
+		pts->entry = new_entry;
+		return;
+	}
+#endif
+	if (PT_ITEM_WORD_SIZE == sizeof(u32)) {
+		u32 *entryp = pt_cur_table(pts, u32) + pts->index;
+		u32 old_entry = pts->entry;
+		u32 new_entry;
+
+		do {
+			new_entry = old_entry | pt_sw_bit(bitnr);
+		} while (!try_cmpxchg_release(entryp, &old_entry, new_entry));
+		pts->entry = new_entry;
+	} else
+		BUILD_BUG();
+}
+#define pt_set_sw_bit_release pt_set_sw_bit_release
+#else
+static inline unsigned int pt_max_sw_bit(struct pt_common *common)
+{
+	return 0;
+}
+
+extern void __pt_no_sw_bit(void);
+static inline bool pt_test_sw_bit_acquire(struct pt_state *pts,
+					  unsigned int bitnr)
+{
+	__pt_no_sw_bit();
+	return false;
+}
+
+static inline void pt_set_sw_bit_release(struct pt_state *pts,
+					 unsigned int bitnr)
+{
+	__pt_no_sw_bit();
+}
+#endif
+
 /*
  * Format can call in the pt_install_leaf_entry() to check the arguments are all
  * aligned correctly.

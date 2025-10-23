@@ -343,6 +343,35 @@ static inline struct pt_table_p *pt_table_ptr(const struct pt_state *pts)
 }
 
 /**
+ * pt_max_sw_bit() - Return the maximum software bit usable for any level and
+ *                   entry
+ * @common: Page table
+ *
+ * The swbit can be passed as bitnr to the other sw_bit functions.
+ */
+static inline unsigned int pt_max_sw_bit(struct pt_common *common);
+
+/**
+ * pt_test_sw_bit_acquire() - Read a software bit in an item
+ * @pts: Entry to set
+ *
+ * Software bits are ignored by HW and can be used for any purpose by the
+ * software. This does a test bit and acquire operation.
+ */
+static inline bool pt_test_sw_bit_acquire(struct pt_state *pts,
+					  unsigned int bitnr);
+
+/**
+ * pt_set_sw_bit_release() - Set a software bit in an item
+ * @pts: Entry to set
+ *
+ * Software bits are ignored by HW and can be used for any purpose by the
+ * software. This does a set bit and release operation.
+ */
+static inline void pt_set_sw_bit_release(struct pt_state *pts,
+					 unsigned int bitnr);
+
+/**
  * pt_load_entry() - Read from the location pts points at into the pts
  * @pts: Table index to load
  *
