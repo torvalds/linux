@@ -1206,15 +1206,15 @@ static int do_bufinfo_ioctl(struct comedi_device *dev,
 	if (!(async->cmd.flags & CMDF_WRITE)) {
 		/* command was set up in "read" direction */
 		if (bi.bytes_read) {
-			comedi_buf_read_alloc(s, bi.bytes_read);
-			bi.bytes_read = comedi_buf_read_free(s, bi.bytes_read);
+			_comedi_buf_read_alloc(s, bi.bytes_read);
+			bi.bytes_read = _comedi_buf_read_free(s, bi.bytes_read);
 		}
 		/*
 		 * If nothing left to read, and command has stopped, and
 		 * {"read" position not updated or command stopped normally},
 		 * then become non-busy.
 		 */
-		if (comedi_buf_read_n_available(s) == 0 &&
+		if (_comedi_buf_read_n_available(s) == 0 &&
 		    !comedi_is_runflags_running(runflags) &&
 		    (bi.bytes_read == 0 ||
 		     !comedi_is_runflags_in_error(runflags))) {
@@ -1231,9 +1231,9 @@ static int do_bufinfo_ioctl(struct comedi_device *dev,
 			if (comedi_is_runflags_in_error(runflags))
 				retval = -EPIPE;
 		} else if (bi.bytes_written) {
-			comedi_buf_write_alloc(s, bi.bytes_written);
+			_comedi_buf_write_alloc(s, bi.bytes_written);
 			bi.bytes_written =
-			    comedi_buf_write_free(s, bi.bytes_written);
+			    _comedi_buf_write_free(s, bi.bytes_written);
 		}
 		bi.bytes_read = 0;
 	}
@@ -2569,7 +2569,7 @@ static __poll_t comedi_poll(struct file *file, poll_table *wait)
 		poll_wait(file, &s->async->wait_head, wait);
 		if (s->busy != file || !comedi_is_subdevice_running(s) ||
 		    (s->async->cmd.flags & CMDF_WRITE) ||
-		    comedi_buf_read_n_available(s) > 0)
+		    _comedi_buf_read_n_available(s) > 0)
 			mask |= EPOLLIN | EPOLLRDNORM;
 	}
 
@@ -2702,7 +2702,7 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 			break;
 
 		/* Allocate all free buffer space. */
-		comedi_buf_write_alloc(s, async->prealloc_bufsz);
+		_comedi_buf_write_alloc(s, async->prealloc_bufsz);
 		m = comedi_buf_write_n_allocated(s);
 		n = min_t(size_t, m, nbytes);
 
@@ -2730,7 +2730,7 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 			n -= m;
 			retval = -EFAULT;
 		}
-		comedi_buf_write_free(s, n);
+		_comedi_buf_write_free(s, n);
 
 		count += n;
 		nbytes -= n;
@@ -2816,7 +2816,7 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 	while (count == 0 && !retval) {
 		set_current_state(TASK_INTERRUPTIBLE);
 
-		m = comedi_buf_read_n_available(s);
+		m = _comedi_buf_read_n_available(s);
 		n = min_t(size_t, m, nbytes);
 
 		if (n == 0) {
@@ -2856,8 +2856,8 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 			retval = -EFAULT;
 		}
 
-		comedi_buf_read_alloc(s, n);
-		comedi_buf_read_free(s, n);
+		_comedi_buf_read_alloc(s, n);
+		_comedi_buf_read_free(s, n);
 
 		count += n;
 		nbytes -= n;
@@ -2891,7 +2891,7 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 		    s == new_s && new_s->async == async && s->busy == file &&
 		    !(async->cmd.flags & CMDF_WRITE) &&
 		    !comedi_is_subdevice_running(s) &&
-		    comedi_buf_read_n_available(s) == 0)
+		    _comedi_buf_read_n_available(s) == 0)
 			do_become_nonbusy(dev, s);
 		mutex_unlock(&dev->mutex);
 	}
@@ -3386,18 +3386,7 @@ static const struct file_operations comedi_fops = {
 	.llseek = noop_llseek,
 };
 
-/**
- * comedi_event() - Handle events for asynchronous COMEDI command
- * @dev: COMEDI device.
- * @s: COMEDI subdevice.
- * Context: in_interrupt() (usually), @s->spin_lock spin-lock not held.
- *
- * If an asynchronous COMEDI command is active on the subdevice, process
- * any %COMEDI_CB_... event flags that have been set, usually by an
- * interrupt handler.  These may change the run state of the asynchronous
- * command, wake a task, and/or send a %SIGIO signal.
- */
-void comedi_event(struct comedi_device *dev, struct comedi_subdevice *s)
+void _comedi_event(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct comedi_async *async = s->async;
 	unsigned int events;
@@ -3432,6 +3421,25 @@ void comedi_event(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	if (si_code)
 		kill_fasync(&dev->async_queue, SIGIO, si_code);
+}
+
+/**
+ * comedi_event() - Handle events for asynchronous COMEDI command
+ * @dev: COMEDI device.
+ * @s: COMEDI subdevice.
+ * Context: in_interrupt() (usually), @s->spin_lock spin-lock not held.
+ *
+ * If an asynchronous COMEDI command is active on the subdevice, process
+ * any %COMEDI_CB_... event flags that have been set, usually by an
+ * interrupt handler.  These may change the run state of the asynchronous
+ * command, wake a task, and/or send a %SIGIO signal.
+ */
+void comedi_event(struct comedi_device *dev, struct comedi_subdevice *s)
+{
+	if (comedi_get_is_subdevice_running(s)) {
+		comedi_event(dev, s);
+		comedi_put_is_subdevice_running(s);
+	}
 }
 EXPORT_SYMBOL_GPL(comedi_event);
 
