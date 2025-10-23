@@ -1905,6 +1905,15 @@ static void wx_configure_tx_ring(struct wx *wx,
 	memset(ring->tx_buffer_info, 0,
 	       sizeof(struct wx_tx_buffer) * ring->count);
 
+	if (ring->headwb_mem) {
+		wr32(wx, WX_PX_TR_HEAD_ADDRL(reg_idx),
+		     ring->headwb_dma & DMA_BIT_MASK(32));
+		wr32(wx, WX_PX_TR_HEAD_ADDRH(reg_idx),
+		     upper_32_bits(ring->headwb_dma));
+
+		txdctl |= WX_PX_TR_CFG_HEAD_WB;
+	}
+
 	/* enable queue */
 	wr32(wx, WX_PX_TR_CFG(reg_idx), txdctl);
 

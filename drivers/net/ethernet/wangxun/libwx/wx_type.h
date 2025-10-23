@@ -434,12 +434,15 @@ enum WX_MSCA_CMD_value {
 #define WX_PX_TR_WP(_i)              (0x03008 + ((_i) * 0x40))
 #define WX_PX_TR_RP(_i)              (0x0300C + ((_i) * 0x40))
 #define WX_PX_TR_CFG(_i)             (0x03010 + ((_i) * 0x40))
+#define WX_PX_TR_HEAD_ADDRL(_i)      (0x03028 + ((_i) * 0x40))
+#define WX_PX_TR_HEAD_ADDRH(_i)      (0x0302C + ((_i) * 0x40))
 /* Transmit Config masks */
 #define WX_PX_TR_CFG_ENABLE          BIT(0) /* Ena specific Tx Queue */
 #define WX_PX_TR_CFG_TR_SIZE_SHIFT   1 /* tx desc number per ring */
 #define WX_PX_TR_CFG_SWFLSH          BIT(26) /* Tx Desc. wr-bk flushing */
 #define WX_PX_TR_CFG_WTHRESH_SHIFT   16 /* shift to WTHRESH bits */
 #define WX_PX_TR_CFG_THRE_SHIFT      8
+#define WX_PX_TR_CFG_HEAD_WB         BIT(27)
 
 /* Receive DMA Registers */
 #define WX_PX_RR_BAL(_i)             (0x01000 + ((_i) * 0x40))
@@ -1011,6 +1014,7 @@ struct wx_tx_buffer {
 	DEFINE_DMA_UNMAP_LEN(len);
 	__be16 protocol;
 	u32 tx_flags;
+	u32 next_eop;
 };
 
 struct wx_rx_buffer {
@@ -1062,6 +1066,8 @@ struct wx_ring {
 	};
 	u8 __iomem *tail;
 	dma_addr_t dma;                 /* phys. address of descriptor ring */
+	dma_addr_t headwb_dma;
+	u32 *headwb_mem;
 	unsigned int size;              /* length in bytes */
 
 	u16 count;                      /* amount of descriptors */
@@ -1239,6 +1245,7 @@ enum wx_pf_flags {
 	WX_FLAG_NEED_UPDATE_LINK,
 	WX_FLAG_NEED_DO_RESET,
 	WX_FLAG_RX_MERGE_ENABLED,
+	WX_FLAG_TXHEAD_WB_ENABLED,
 	WX_PF_FLAGS_NBITS               /* must be last */
 };
 
