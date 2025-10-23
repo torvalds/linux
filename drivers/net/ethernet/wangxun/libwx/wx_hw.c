@@ -1935,6 +1935,10 @@ static void wx_configure_rx_ring(struct wx *wx,
 		rxdctl |= (ring->count / 128) << WX_PX_RR_CFG_RR_SIZE_SHIFT;
 
 	rxdctl |= 0x1 << WX_PX_RR_CFG_RR_THER_SHIFT;
+
+	if (test_bit(WX_FLAG_RX_MERGE_ENABLED, wx->flags))
+		rxdctl |= WX_PX_RR_CFG_DESC_MERGE;
+
 	wr32(wx, WX_PX_RR_CFG(reg_idx), rxdctl);
 
 	/* reset head and tail pointers */
@@ -2190,6 +2194,12 @@ void wx_configure_rx(struct wx *wx)
 	/* set_rx_buffer_len must be called before ring initialization */
 	wx_set_rx_buffer_len(wx);
 
+	if (test_bit(WX_FLAG_RX_MERGE_ENABLED, wx->flags)) {
+		wr32(wx, WX_RDM_DCACHE_CTL, WX_RDM_DCACHE_CTL_EN);
+		wr32m(wx, WX_RDM_RSC_CTL,
+		      WX_RDM_RSC_CTL_FREE_CTL | WX_RDM_RSC_CTL_FREE_CNT_DIS,
+		      WX_RDM_RSC_CTL_FREE_CTL);
+	}
 	/* Setup the HW Rx Head and Tail Descriptor Pointers and
 	 * the Base and Length of the Rx Descriptor Ring
 	 */

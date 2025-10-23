@@ -83,8 +83,13 @@
 
 /*********************** Receive DMA registers **************************/
 #define WX_RDM_VF_RE(_i)             (0x12004 + ((_i) * 4))
+#define WX_RDM_RSC_CTL               0x1200C
+#define WX_RDM_RSC_CTL_FREE_CNT_DIS  BIT(8)
+#define WX_RDM_RSC_CTL_FREE_CTL      BIT(7)
 #define WX_RDM_PF_QDE(_i)            (0x12080 + ((_i) * 4))
 #define WX_RDM_VFRE_CLR(_i)          (0x120A0 + ((_i) * 4))
+#define WX_RDM_DCACHE_CTL            0x120A8
+#define WX_RDM_DCACHE_CTL_EN         BIT(0)
 #define WX_RDM_DRP_PKT               0x12500
 #define WX_RDM_PKT_CNT               0x12504
 #define WX_RDM_BYTE_CNT_LSB          0x12508
@@ -447,6 +452,7 @@ enum WX_MSCA_CMD_value {
 #define WX_PX_RR_CFG_VLAN            BIT(31)
 #define WX_PX_RR_CFG_DROP_EN         BIT(30)
 #define WX_PX_RR_CFG_SPLIT_MODE      BIT(26)
+#define WX_PX_RR_CFG_DESC_MERGE      BIT(19)
 #define WX_PX_RR_CFG_RR_THER_SHIFT   16
 #define WX_PX_RR_CFG_RR_HDR_SZ       GENMASK(15, 12)
 #define WX_PX_RR_CFG_RR_BUF_SZ       GENMASK(11, 8)
@@ -1232,6 +1238,7 @@ enum wx_pf_flags {
 	WX_FLAG_NEED_SFP_RESET,
 	WX_FLAG_NEED_UPDATE_LINK,
 	WX_FLAG_NEED_DO_RESET,
+	WX_FLAG_RX_MERGE_ENABLED,
 	WX_PF_FLAGS_NBITS               /* must be last */
 };
 

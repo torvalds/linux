@@ -423,6 +423,7 @@ static int txgbe_sw_init(struct wx *wx)
 		break;
 	case wx_mac_aml:
 	case wx_mac_aml40:
+		set_bit(WX_FLAG_RX_MERGE_ENABLED, wx->flags);
 		set_bit(WX_FLAG_SWFW_RING, wx->flags);
 		wx->swfw_index = 0;
 		break;

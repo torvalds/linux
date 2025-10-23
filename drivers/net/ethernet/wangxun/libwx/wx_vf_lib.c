@@ -272,6 +272,9 @@ void wx_configure_rx_ring_vf(struct wx *wx, struct wx_ring *ring)
 	rxdctl |= WX_VXRXDCTL_RSCMAX(0);
 	rxdctl |= WX_VXRXDCTL_RSCEN;
 
+	if (test_bit(WX_FLAG_RX_MERGE_ENABLED, wx->flags))
+		rxdctl |= WX_VXRXDCTL_DESC_MERGE;
+
 	wr32(wx, WX_VXRXDCTL(reg_idx), rxdctl);
 
 	/* pf/vf reuse */
