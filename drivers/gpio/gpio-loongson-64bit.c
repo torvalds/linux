@@ -312,6 +312,7 @@ static int loongson_gpio_init(struct platform_device *pdev, struct loongson_gpio
 		lgpio->chip.gc.direction_output = loongson_gpio_direction_output;
 		lgpio->chip.gc.set = loongson_gpio_set;
 		lgpio->chip.gc.parent = &pdev->dev;
+		lgpio->chip.gc.base = -1;
 		spin_lock_init(&lgpio->lock);
 	}
 
