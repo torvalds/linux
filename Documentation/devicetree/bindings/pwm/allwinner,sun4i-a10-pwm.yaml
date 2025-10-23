@@ -55,7 +55,6 @@ properties:
   resets:
     maxItems: 1
 
-
 allOf:
   - $ref: pwm.yaml#
 

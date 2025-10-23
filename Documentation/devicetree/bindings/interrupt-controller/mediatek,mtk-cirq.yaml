@@ -18,7 +18,6 @@ description:
   flush command is executed. With CIRQ, MCUSYS can be completely turned off
   to improve the system power consumption without losing interrupts.
 
-
 properties:
   compatible:
     items:

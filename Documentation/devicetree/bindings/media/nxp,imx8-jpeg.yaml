@@ -79,7 +79,6 @@ allOf:
         power-domains:
           minItems: 2        # Wrapper and 1 slot
 
-
 additionalProperties: false
 
 examples:

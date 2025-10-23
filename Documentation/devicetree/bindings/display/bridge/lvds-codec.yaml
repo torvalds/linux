@@ -131,7 +131,6 @@ required:
 
 additionalProperties: false
 
-
 examples:
   - |
     lvds-encoder {

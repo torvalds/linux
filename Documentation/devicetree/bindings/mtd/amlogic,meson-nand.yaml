@@ -88,7 +88,6 @@ patternProperties:
       amlogic,boot-pages: [nand-is-boot-medium, "amlogic,boot-page-step"]
       amlogic,boot-page-step: [nand-is-boot-medium, "amlogic,boot-pages"]
 
-
 required:
   - compatible
   - reg

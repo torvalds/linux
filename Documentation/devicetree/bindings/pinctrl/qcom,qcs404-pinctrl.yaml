@@ -142,7 +142,6 @@ examples:
         interrupt-controller;
         #interrupt-cells = <2>;
 
-
         blsp1-i2c1-default-state {
             pins = "gpio24", "gpio25";
             function = "blsp_i2c1";

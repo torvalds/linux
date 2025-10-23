@@ -30,7 +30,6 @@ properties:
     $ref: /schemas/types.yaml#/definitions/string
     enum: [host, slave]
 
-
 patternProperties:
   '^data\-only@[a-f0-9]+$':
     type: object

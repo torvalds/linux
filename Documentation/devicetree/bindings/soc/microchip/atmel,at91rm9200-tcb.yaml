@@ -105,7 +105,6 @@ patternProperties:
 
     additionalProperties: false
 
-
 allOf:
   - if:
       properties:

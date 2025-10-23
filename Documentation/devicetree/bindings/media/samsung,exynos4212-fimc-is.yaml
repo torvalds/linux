@@ -111,7 +111,6 @@ patternProperties:
       reg:
         maxItems: 1
 
-
       clocks:
         maxItems: 1
 

@@ -123,7 +123,6 @@ properties:
       - required:
           - port@1
 
-
 required:
   - compatible
   - reg

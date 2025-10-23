@@ -21,7 +21,6 @@ properties:
     description: Maximum CHGIN regulation voltage in uV.
     enum: [ 5500000, 6500000, 11000000, 14500000 ]
 
-
   usb-otg-vbus-regulator:
     type: object
     description: OTG boost regulator.

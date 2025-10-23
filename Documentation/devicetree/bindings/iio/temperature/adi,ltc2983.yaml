@@ -39,7 +39,6 @@ $defs:
       - reg
       - adi,sensor-type
 
-
 properties:
   compatible:
     oneOf:

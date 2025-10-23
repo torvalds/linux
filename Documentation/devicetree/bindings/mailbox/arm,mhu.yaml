@@ -52,7 +52,6 @@ properties:
           - const: arm,mhu-doorbell
           - const: arm,primecell
 
-
   reg:
     maxItems: 1
 

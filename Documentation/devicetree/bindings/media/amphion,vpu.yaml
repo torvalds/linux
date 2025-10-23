@@ -45,7 +45,6 @@ patternProperties:
       between driver and firmware. Implement via mailbox on driver.
     $ref: /schemas/mailbox/fsl,mu.yaml#
 
-
   "^vpu-core@[0-9a-f]+$":
     description:
       Each core correspond a decoder or encoder, need to configure them

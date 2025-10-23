@@ -53,7 +53,6 @@ properties:
                                |         |---...
                                +---------+---module31
 
-
 required:
   - compatible
   - reg

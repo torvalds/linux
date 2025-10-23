@@ -484,7 +484,6 @@ examples:
                           "gcc_axi_hf",
                           "gcc_axi_sf";
 
-
             iommus = <&apps_smmu 0x2000 0x4e0>,
                      <&apps_smmu 0x2020 0x4e0>,
                      <&apps_smmu 0x2040 0x4e0>,

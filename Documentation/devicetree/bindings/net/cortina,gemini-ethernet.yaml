@@ -100,7 +100,6 @@ examples:
       };
     };
 
-
     ethernet@60000000 {
         compatible = "cortina,gemini-ethernet";
         reg = <0x60000000 0x4000>, /* Global registers, queue */
