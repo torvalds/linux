@@ -29,11 +29,6 @@ static int intel_nested_attach_dev(struct iommu_domain *domain,
 
 	device_block_translation(dev);
 
-	if (iommu->agaw < dmar_domain->s2_domain->agaw) {
-		dev_err_ratelimited(dev, "Adjusted guest address width not compatible\n");
-		return -ENODEV;
-	}
-
 	/*
 	 * Stage-1 domain cannot work alone, it is nested on a s2_domain.
 	 * The s2_domain will be used in nested translation, hence needs

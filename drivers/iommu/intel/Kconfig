@@ -13,6 +13,10 @@ config INTEL_IOMMU
 	bool "Support for Intel IOMMU using DMA Remapping Devices"
 	depends on PCI_MSI && ACPI && X86
 	select IOMMU_API
+	select GENERIC_PT
+	select IOMMU_PT
+	select IOMMU_PT_X86_64
+	select IOMMU_PT_VTDSS
 	select IOMMU_IOVA
 	select IOMMU_IOPF
 	select IOMMUFD_DRIVER if IOMMUFD
