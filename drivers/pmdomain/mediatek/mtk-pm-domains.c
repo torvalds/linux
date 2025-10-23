@@ -2,6 +2,7 @@
 /*
  * Copyright (c) 2020 Collabora Ltd.
  */
+#include <linux/arm-smccc.h>
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/init.h>
