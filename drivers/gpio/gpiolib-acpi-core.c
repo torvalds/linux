@@ -382,8 +382,8 @@ static acpi_status acpi_gpiochip_alloc_event(struct acpi_resource *ares,
 	desc = acpi_request_own_gpiod(chip, agpio, 0, "ACPI:Event");
 	if (IS_ERR(desc)) {
 		dev_err(chip->parent,
-			"Failed to request GPIO for pin 0x%04X, err %ld\n",
-			pin, PTR_ERR(desc));
+			"Failed to request GPIO for pin 0x%04X, err %pe\n",
+			pin, desc);
 		return AE_OK;
 	}
 
