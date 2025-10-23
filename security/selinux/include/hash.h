@@ -3,10 +3,11 @@
 #ifndef _SELINUX_HASH_H_
 #define _SELINUX_HASH_H_
 
-/* Based on MurmurHash3, written by Austin Appleby and placed in the
+/*
+ * Based on MurmurHash3, written by Austin Appleby and placed in the
  * public domain.
  */
-static inline u32 avtab_hash(const struct avtab_key *keyp, u32 mask)
+static inline u32 av_hash(u32 key1, u32 key2, u32 key3, u32 mask)
 {
 	static const u32 c1 = 0xcc9e2d51;
 	static const u32 c2 = 0x1b873593;
@@ -28,9 +29,9 @@ static inline u32 avtab_hash(const struct avtab_key *keyp, u32 mask)
 		hash = hash * m + n;                       \
 	} while (0)
 
-	mix(keyp->target_class);
-	mix(keyp->target_type);
-	mix(keyp->source_type);
+	mix(key1);
+	mix(key2);
+	mix(key3);
 
 #undef mix
 
