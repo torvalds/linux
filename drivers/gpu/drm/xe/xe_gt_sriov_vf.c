@@ -738,7 +738,7 @@ static void vf_start_migration_recovery(struct xe_gt *gt)
 		gt->sriov.vf.migration.recovery_queued = true;
 		WRITE_ONCE(gt->sriov.vf.migration.recovery_inprogress, true);
 		WRITE_ONCE(gt->sriov.vf.migration.ggtt_need_fixes, true);
-		smp_wmb();	/* Ensure above writes visable before wake */
+		smp_wmb();	/* Ensure above writes visible before wake */
 
 		xe_guc_ct_wake_waiters(&gt->uc.guc.ct);
 

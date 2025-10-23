@@ -222,7 +222,7 @@ struct xe_tile {
 };
 
 /**
- * struct xe_device - Top level struct of XE device
+ * struct xe_device - Top level struct of Xe device
  */
 struct xe_device {
 	/** @drm: drm device */
@@ -245,9 +245,9 @@ struct xe_device {
 		u32 media_verx100;
 		/** @info.mem_region_mask: mask of valid memory regions */
 		u32 mem_region_mask;
-		/** @info.platform: XE platform enum */
+		/** @info.platform: Xe platform enum */
 		enum xe_platform platform;
-		/** @info.subplatform: XE subplatform enum */
+		/** @info.subplatform: Xe subplatform enum */
 		enum xe_subplatform subplatform;
 		/** @info.devid: device ID */
 		u16 devid;
@@ -661,7 +661,7 @@ struct xe_device {
 };
 
 /**
- * struct xe_file - file handle for XE driver
+ * struct xe_file - file handle for Xe driver
  */
 struct xe_file {
 	/** @xe: xe DEVICE **/

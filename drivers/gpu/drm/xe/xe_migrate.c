@@ -2060,7 +2060,7 @@ err:
  *
  * Copy from an array dma addresses to a VRAM device physical address
  *
- * Return: dma fence for migrate to signal completion on succees, ERR_PTR on
+ * Return: dma fence for migrate to signal completion on success, ERR_PTR on
  * failure
  */
 struct dma_fence *xe_migrate_to_vram(struct xe_migrate *m,
@@ -2081,7 +2081,7 @@ struct dma_fence *xe_migrate_to_vram(struct xe_migrate *m,
  *
  * Copy from a VRAM device physical address to an array dma addresses
  *
- * Return: dma fence for migrate to signal completion on succees, ERR_PTR on
+ * Return: dma fence for migrate to signal completion on success, ERR_PTR on
  * failure
  */
 struct dma_fence *xe_migrate_from_vram(struct xe_migrate *m,

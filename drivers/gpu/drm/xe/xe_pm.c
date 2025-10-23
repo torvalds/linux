@@ -102,7 +102,7 @@ static void xe_pm_block_end_signalling(void)
 /**
  * xe_pm_might_block_on_suspend() - Annotate that the code might block on suspend
  *
- * Annotation to use where the code might block or sieze to make
+ * Annotation to use where the code might block or seize to make
  * progress pending resume completion.
  */
 void xe_pm_might_block_on_suspend(void)

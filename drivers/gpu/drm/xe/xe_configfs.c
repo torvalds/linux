@@ -27,7 +27,7 @@
  * Overview
  * ========
  *
- * Configfs is a filesystem-based manager of kernel objects. XE KMD registers a
+ * Configfs is a filesystem-based manager of kernel objects. Xe KMD registers a
  * configfs subsystem called ``xe`` that creates a directory in the mounted
  * configfs directory. The user can create devices under this directory and
  * configure them as necessary. See Documentation/filesystems/configfs.rst for

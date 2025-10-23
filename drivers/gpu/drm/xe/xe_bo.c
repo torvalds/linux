@@ -2121,7 +2121,7 @@ void xe_bo_free(struct xe_bo *bo)
  * if the function should allocate a new one.
  * @tile: The tile to select for migration of this bo, and the tile used for
  * GGTT binding if any. Only to be non-NULL for ttm_bo_type_kernel bos.
- * @resv: Pointer to a locked shared reservation object to use fo this bo,
+ * @resv: Pointer to a locked shared reservation object to use for this bo,
  * or NULL for the xe_bo to use its own.
  * @bulk: The bulk move to use for LRU bumping, or NULL for external bos.
  * @size: The storage size to use for the bo.
@@ -2651,7 +2651,7 @@ struct xe_bo *xe_bo_create_pin_map(struct xe_device *xe, struct xe_tile *tile,
  * @size: The storage size to use for the bo.
  * @type: The TTM buffer object type.
  * @flags: XE_BO_FLAG_ flags.
- * @intr: Whether to execut any waits for backing store interruptible.
+ * @intr: Whether to execute any waits for backing store interruptible.
  *
  * Create a pinned and mapped bo. The bo will be external and not associated
  * with a VM.

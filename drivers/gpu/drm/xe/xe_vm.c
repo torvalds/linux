@@ -824,7 +824,7 @@ xe_vm_ops_add_range_rebind(struct xe_vma_ops *vops,
  *
  * (re)bind SVM range setting up GPU page tables for the range.
  *
- * Return: dma fence for rebind to signal completion on succees, ERR_PTR on
+ * Return: dma fence for rebind to signal completion on success, ERR_PTR on
  * failure
  */
 struct dma_fence *xe_vm_range_rebind(struct xe_vm *vm,
@@ -907,7 +907,7 @@ xe_vm_ops_add_range_unbind(struct xe_vma_ops *vops,
  *
  * Unbind SVM range removing the GPU page tables for the range.
  *
- * Return: dma fence for unbind to signal completion on succees, ERR_PTR on
+ * Return: dma fence for unbind to signal completion on success, ERR_PTR on
  * failure
  */
 struct dma_fence *xe_vm_range_unbind(struct xe_vm *vm,
@@ -1291,7 +1291,7 @@ static u16 pde_pat_index(struct xe_bo *bo)
 	 * selection of options. The user PAT index is only for encoding leaf
 	 * nodes, where we have use of more bits to do the encoding. The
 	 * non-leaf nodes are instead under driver control so the chosen index
-	 * here should be distict from the user PAT index. Also the
+	 * here should be distinct from the user PAT index. Also the
 	 * corresponding coherency of the PAT index should be tied to the
 	 * allocation type of the page table (or at least we should pick
 	 * something which is always safe).
@@ -4172,7 +4172,7 @@ void xe_vm_snapshot_free(struct xe_vm_snapshot *snap)
 
 /**
  * xe_vma_need_vram_for_atomic - Check if VMA needs VRAM migration for atomic operations
- * @xe: Pointer to the XE device structure
+ * @xe: Pointer to the Xe device structure
  * @vma: Pointer to the virtual memory area (VMA) structure
  * @is_atomic: In pagefault path and atomic operation
  *
@@ -4319,7 +4319,7 @@ static int xe_vm_alloc_vma(struct xe_vm *vm,
 			xe_vma_destroy(gpuva_to_vma(op->base.remap.unmap->va), NULL);
 		} else if (__op->op == DRM_GPUVA_OP_MAP) {
 			vma = op->map.vma;
-			/* In case of madvise call, MAP will always be follwed by REMAP.
+			/* In case of madvise call, MAP will always be followed by REMAP.
 			 * Therefore temp_attr will always have sane values, making it safe to
 			 * copy them to new vma.
 			 */
