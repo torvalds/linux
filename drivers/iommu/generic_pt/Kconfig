@@ -42,6 +42,16 @@ config IOMMU_PT_AMDV1
 
 	  Selected automatically by an IOMMU driver that uses this format.
 
+config IOMMU_PT_VTDSS
+       tristate "IOMMU page table for Intel VT-d Second Stage"
+	depends on !GENERIC_ATOMIC64 # for cmpxchg64
+	help
+	  iommu_domain implementation for the Intel VT-d's 64 bit 3/4/5
+	  level Second Stage page table. It is similar to the X86_64 format with
+	  4K/2M/1G page sizes.
+
+	  Selected automatically by an IOMMU driver that uses this format.
+
 config IOMMU_PT_X86_64
 	tristate "IOMMU page table for x86 64-bit, 4/5 levels"
 	depends on !GENERIC_ATOMIC64 # for cmpxchg64
@@ -57,6 +67,7 @@ config IOMMU_PT_KUNIT_TEST
 	depends on KUNIT
 	depends on IOMMU_PT_AMDV1 || !IOMMU_PT_AMDV1
 	depends on IOMMU_PT_X86_64 || !IOMMU_PT_X86_64
+	depends on IOMMU_PT_VTDSS || !IOMMU_PT_VTDSS
 	default KUNIT_ALL_TESTS
 	help
 	  Enable kunit tests for GENERIC_PT and IOMMU_PT that covers all the

@@ -262,6 +262,17 @@ IOMMU_FORMAT(amdv1, amdpt);
 struct pt_iommu_amdv1_mock_hw_info;
 IOMMU_PROTOTYPES(amdv1_mock);
 
+struct pt_iommu_vtdss_cfg {
+	struct pt_iommu_cfg common;
+};
+
+struct pt_iommu_vtdss_hw_info {
+	u64 ssptptr;
+	u8 aw;
+};
+
+IOMMU_FORMAT(vtdss, vtdss_pt);
+
 struct pt_iommu_x86_64_cfg {
 	struct pt_iommu_cfg common;
 };

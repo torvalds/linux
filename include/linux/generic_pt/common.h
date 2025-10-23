@@ -157,6 +157,24 @@ enum {
 	PT_FEAT_AMDV1_FORCE_COHERENCE,
 };
 
+struct pt_vtdss {
+	struct pt_common common;
+};
+
+enum {
+	/*
+	 * The PTEs are set to prevent cache incoherent traffic, such as PCI no
+	 * snoop. This is set either at creation time or before the first map
+	 * operation.
+	 */
+	PT_FEAT_VTDSS_FORCE_COHERENCE = PT_FEAT_FMT_START,
+	/*
+	 * Prevent creating read-only PTEs. Used to work around HW errata
+	 * ERRATA_772415_SPR17.
+	 */
+	PT_FEAT_VTDSS_FORCE_WRITEABLE,
+};
+
 struct pt_x86_64 {
 	struct pt_common common;
 };
