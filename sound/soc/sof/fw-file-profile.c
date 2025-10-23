@@ -288,7 +288,8 @@ static void sof_print_profile_info(struct snd_sof_dev *sdev,
 	if (profile->fw_lib_path)
 		dev_info(dev, " Firmware lib path: %s\n", profile->fw_lib_path);
 
-	if (plat_data->machine->get_function_tplg_files && !plat_data->disable_function_topology)
+	if (plat_data->machine && plat_data->machine->get_function_tplg_files &&
+	    !plat_data->disable_function_topology)
 		dev_info(dev, " Topology file:     function topologies\n");
 	else
 		dev_info(dev, " Topology file:     %s/%s\n",
