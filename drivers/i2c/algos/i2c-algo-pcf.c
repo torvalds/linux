@@ -253,7 +253,7 @@ static int pcf_readbytes(struct i2c_adapter *i2c_adap, char *buf,
 }
 
 
-static void pcf_doAddress(struct i2c_algo_pcf_data *adap,
+static void pcf_send_address(struct i2c_algo_pcf_data *adap,
 			 struct i2c_msg *msg)
 {
 	unsigned char addr = i2c_8bit_addr_from_msg(msg);
@@ -286,7 +286,7 @@ static int pcf_xfer(struct i2c_adapter *i2c_adap,
 		int ret;
 
 		pmsg = &msgs[i];
-		pcf_doAddress(adap, pmsg);
+		pcf_send_address(adap, pmsg);
 
 		/* Send START */
 		if (i == 0)
