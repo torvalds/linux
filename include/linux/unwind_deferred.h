@@ -6,18 +6,6 @@
 #include <linux/unwind_user.h>
 #include <linux/unwind_deferred_types.h>
 
-struct unwind_work;
-
-typedef void (*unwind_callback_t)(struct unwind_work *work,
-				  struct unwind_stacktrace *trace,
-				  u64 cookie);
-
-struct unwind_work {
-	struct list_head		list;
-	unwind_callback_t		func;
-	int				bit;
-};
-
 #ifdef CONFIG_UNWIND_USER
 
 enum {

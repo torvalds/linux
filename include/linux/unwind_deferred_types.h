@@ -39,4 +39,17 @@ struct unwind_task_info {
 	union unwind_task_id	id;
 };
 
+struct unwind_work;
+struct unwind_stacktrace;
+
+typedef void (*unwind_callback_t)(struct unwind_work *work,
+				  struct unwind_stacktrace *trace,
+				  u64 cookie);
+
+struct unwind_work {
+	struct list_head		list;
+	unwind_callback_t		func;
+	int				bit;
+};
+
 #endif /* _LINUX_UNWIND_USER_DEFERRED_TYPES_H */
