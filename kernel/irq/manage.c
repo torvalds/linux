@@ -659,7 +659,7 @@ void __disable_irq(struct irq_desc *desc)
 
 static int __disable_irq_nosync(unsigned int irq)
 {
-	scoped_irqdesc_get_and_lock(irq, IRQ_GET_DESC_CHECK_GLOBAL) {
+	scoped_irqdesc_get_and_buslock(irq, IRQ_GET_DESC_CHECK_GLOBAL) {
 		__disable_irq(scoped_irqdesc);
 		return 0;
 	}
