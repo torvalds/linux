@@ -537,6 +537,8 @@
 /* Bitfields in DCFG6. */
 #define GEM_PBUF_LSO_OFFSET			27
 #define GEM_PBUF_LSO_SIZE			1
+#define GEM_PBUF_RSC_OFFSET			26
+#define GEM_PBUF_RSC_SIZE			1
 #define GEM_PBUF_CUTTHRU_OFFSET			25
 #define GEM_PBUF_CUTTHRU_SIZE			1
 #define GEM_DAW64_OFFSET			23
@@ -775,6 +777,7 @@
 #define MACB_CAPS_MACB_IS_GEM			BIT(20)
 #define MACB_CAPS_DMA_64B			BIT(21)
 #define MACB_CAPS_DMA_PTP			BIT(22)
+#define MACB_CAPS_RSC				BIT(23)
 
 /* LSO settings */
 #define MACB_LSO_UFO_ENABLE			0x01
