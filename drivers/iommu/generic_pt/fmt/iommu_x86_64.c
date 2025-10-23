@@ -6,6 +6,6 @@
 #define PT_SUPPORTED_FEATURES                                  \
 	(BIT(PT_FEAT_SIGN_EXTEND) | BIT(PT_FEAT_FLUSH_RANGE) | \
 	 BIT(PT_FEAT_FLUSH_RANGE_NO_GAPS) |                    \
-	 BIT(PT_FEAT_X86_64_AMD_ENCRYPT_TABLES))
+	 BIT(PT_FEAT_X86_64_AMD_ENCRYPT_TABLES) | BIT(PT_FEAT_DMA_INCOHERENT))
 
 #include "iommu_template.h"

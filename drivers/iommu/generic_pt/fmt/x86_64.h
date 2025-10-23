@@ -167,6 +167,33 @@ static inline void x86_64_pt_attr_from_entry(const struct pt_state *pts,
 }
 #define pt_attr_from_entry x86_64_pt_attr_from_entry
 
+static inline unsigned int x86_64_pt_max_sw_bit(struct pt_common *common)
+{
+	return 12;
+}
+#define pt_max_sw_bit x86_64_pt_max_sw_bit
+
+static inline u64 x86_64_pt_sw_bit(unsigned int bitnr)
+{
+	/* Bits marked Ignored/AVL in the specification */
+	switch (bitnr) {
+	case 0:
+		return BIT(9);
+	case 1:
+		return BIT(11);
+	case 2 ... 12:
+		return BIT_ULL((bitnr - 2) + 52);
+	/* Some bits in 8,6,4,3 are available in some entries */
+	default:
+		if (__builtin_constant_p(bitnr))
+			BUILD_BUG();
+		else
+			PT_WARN_ON(true);
+		return 0;
+	}
+}
+#define pt_sw_bit x86_64_pt_sw_bit
+
 /* --- iommu */
 #include <linux/generic_pt/iommu.h>
 #include <linux/iommu.h>
