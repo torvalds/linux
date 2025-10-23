@@ -25,5 +25,7 @@ obj-$(CONFIG_DRM_MEDIATEK_HDMI_COMMON) += mtk_hdmi_common.o
 obj-$(CONFIG_DRM_MEDIATEK_HDMI) += mtk_cec.o
 obj-$(CONFIG_DRM_MEDIATEK_HDMI) += mtk_hdmi.o
 obj-$(CONFIG_DRM_MEDIATEK_HDMI) += mtk_hdmi_ddc.o
+obj-$(CONFIG_DRM_MEDIATEK_HDMI_V2) += mtk_hdmi_v2.o
+obj-$(CONFIG_DRM_MEDIATEK_HDMI_V2) += mtk_hdmi_ddc_v2.o
 
 obj-$(CONFIG_DRM_MEDIATEK_DP) += mtk_dp.o

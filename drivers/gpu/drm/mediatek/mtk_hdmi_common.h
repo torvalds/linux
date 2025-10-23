@@ -126,6 +126,12 @@ struct hdmi_audio_param {
 	struct hdmi_codec_params codec_params;
 };
 
+enum hdmi_hpd_state {
+	HDMI_PLUG_OUT = 0,
+	HDMI_PLUG_IN_AND_SINK_POWER_ON,
+	HDMI_PLUG_IN_ONLY,
+};
+
 struct mtk_hdmi_ver_conf {
 	const struct drm_bridge_funcs *bridge_funcs;
 	const struct hdmi_codec_ops *codec_ops;
@@ -139,6 +145,7 @@ struct mtk_hdmi_conf {
 	bool tz_disabled;
 	bool cea_modes_only;
 	unsigned long max_mode_clock;
+	u32 reg_hdmi_tx_cfg;
 };
 
 struct mtk_hdmi {
@@ -161,6 +168,8 @@ struct mtk_hdmi {
 	bool audio_enable;
 	bool powered;
 	bool enabled;
+	unsigned int irq;
+	enum hdmi_hpd_state hpd;
 	hdmi_codec_plugged_cb plugged_cb;
 	struct device *codec_dev;
 	struct mutex update_plugged_status_lock;
