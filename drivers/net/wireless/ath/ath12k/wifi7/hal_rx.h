@@ -21,6 +21,7 @@ struct hal_rx_wbm_rel_info {
 	bool continuation;
 	void *rx_desc;
 	bool hw_cc_done;
+	__le32 peer_metadata;
 };
 
 #define HAL_RX_MPDU_INFO_PN_GET_BYTE1(__val) \

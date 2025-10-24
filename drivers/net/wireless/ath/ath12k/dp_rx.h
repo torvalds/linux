@@ -12,10 +12,15 @@
 
 #define DP_MAX_NWIFI_HDR_LEN	30
 
+struct ath12k_reoq_buf {
+	void *vaddr;
+	dma_addr_t paddr_aligned;
+	u32 size;
+};
+
 struct ath12k_dp_rx_tid {
 	u8 tid;
 	u32 ba_win_sz;
-	bool active;
 	struct ath12k_reoq_buf qbuf;
 
 	/* Info related to rx fragments */
@@ -230,7 +235,7 @@ int ath12k_dp_rx_peer_frag_setup(struct ath12k *ar, const u8 *peer_mac, int vdev
 u8 ath12k_dp_rx_h_l3pad(struct ath12k_base *ab,
 			struct hal_rx_desc *desc);
 struct ath12k_dp_link_peer *
-ath12k_dp_rx_h_find_link_peer(struct ath12k_dp *dp, struct sk_buff *msdu,
+ath12k_dp_rx_h_find_link_peer(struct ath12k_pdev_dp *dp_pdev, struct sk_buff *msdu,
 			      struct hal_rx_desc_data *rx_info);
 u8 ath12k_dp_rx_h_decap_type(struct ath12k_base *ab,
 			     struct hal_rx_desc *desc);

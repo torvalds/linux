@@ -1192,7 +1192,7 @@ void ath12k_mac_peer_cleanup_all(struct ath12k *ar)
 	spin_lock_bh(&dp->dp_lock);
 	list_for_each_entry_safe(peer, tmp, &dp->peers, list) {
 		/* Skip Rx TID cleanup for self peer */
-		if (peer->sta)
+		if (peer->sta && peer->dp_peer)
 			ath12k_dp_rx_peer_tid_cleanup(ar, peer);
 
 		/* cleanup dp peer */
@@ -5536,27 +5536,37 @@ static int ath12k_clear_peer_keys(struct ath12k_link_vif *arvif,
 	struct ath12k_dp_link_peer *peer;
 	int first_errno = 0;
 	int ret;
-	int i;
+	int i, len;
 	u32 flags = 0;
 	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
+	struct ieee80211_key_conf *keys[WMI_MAX_KEY_INDEX + 1] = {};
 
 	lockdep_assert_wiphy(ath12k_ar_to_hw(ar)->wiphy);
 
 	spin_lock_bh(&dp->dp_lock);
 	peer = ath12k_dp_link_peer_find_by_vdev_and_addr(dp, arvif->vdev_id, addr);
-	if (!peer) {
+	if (!peer || !peer->dp_peer) {
 		spin_unlock_bh(&dp->dp_lock);
 		return -ENOENT;
 	}
 
+	len = ARRAY_SIZE(peer->dp_peer->keys);
+	for (i = 0; i < len; i++) {
+		if (!peer->dp_peer->keys[i])
+			continue;
+
+		keys[i] = peer->dp_peer->keys[i];
+		peer->dp_peer->keys[i] = NULL;
+	}
+
 	spin_unlock_bh(&dp->dp_lock);
 
-	for (i = 0; i < ARRAY_SIZE(peer->keys); i++) {
-		if (!peer->keys[i])
+	for (i = 0; i < len; i++) {
+		if (!keys[i])
 			continue;
 
 		/* key flags are not required to delete the key */
-		ret = ath12k_install_key(arvif, peer->keys[i],
+		ret = ath12k_install_key(arvif, keys[i],
 					 DISABLE_KEY, addr, flags);
 		if (ret < 0 && first_errno == 0)
 			first_errno = ret;
@@ -5564,10 +5574,6 @@ static int ath12k_clear_peer_keys(struct ath12k_link_vif *arvif,
 		if (ret < 0)
 			ath12k_warn(ab, "failed to remove peer key %d: %d\n",
 				    i, ret);
-
-		spin_lock_bh(&dp->dp_lock);
-		peer->keys[i] = NULL;
-		spin_unlock_bh(&dp->dp_lock);
 	}
 
 	return first_errno;
@@ -5608,7 +5614,7 @@ static int ath12k_mac_set_key(struct ath12k *ar, enum set_key_cmd cmd,
 	spin_lock_bh(&dp->dp_lock);
 	peer = ath12k_dp_link_peer_find_by_vdev_and_addr(dp, arvif->vdev_id,
 							 peer_addr);
-	if (!peer) {
+	if (!peer || !peer->dp_peer) {
 		spin_unlock_bh(&dp->dp_lock);
 
 		if (cmd == SET_KEY) {
@@ -5645,21 +5651,23 @@ static int ath12k_mac_set_key(struct ath12k *ar, enum set_key_cmd cmd,
 	spin_lock_bh(&dp->dp_lock);
 	peer = ath12k_dp_link_peer_find_by_vdev_and_addr(dp, arvif->vdev_id,
 							 peer_addr);
-	if (peer && cmd == SET_KEY) {
-		peer->keys[key->keyidx] = key;
+	if (peer && peer->dp_peer && cmd == SET_KEY) {
+		peer->dp_peer->keys[key->keyidx] = key;
 		if (key->flags & IEEE80211_KEY_FLAG_PAIRWISE) {
-			peer->ucast_keyidx = key->keyidx;
-			peer->sec_type = ath12k_dp_tx_get_encrypt_type(key->cipher);
+			peer->dp_peer->ucast_keyidx = key->keyidx;
+			peer->dp_peer->sec_type =
+					ath12k_dp_tx_get_encrypt_type(key->cipher);
 		} else {
-			peer->mcast_keyidx = key->keyidx;
-			peer->sec_type_grp = ath12k_dp_tx_get_encrypt_type(key->cipher);
+			peer->dp_peer->mcast_keyidx = key->keyidx;
+			peer->dp_peer->sec_type_grp =
+					ath12k_dp_tx_get_encrypt_type(key->cipher);
 		}
-	} else if (peer && cmd == DISABLE_KEY) {
-		peer->keys[key->keyidx] = NULL;
+	} else if (peer && peer->dp_peer && cmd == DISABLE_KEY) {
+		peer->dp_peer->keys[key->keyidx] = NULL;
 		if (key->flags & IEEE80211_KEY_FLAG_PAIRWISE)
-			peer->ucast_keyidx = 0;
+			peer->dp_peer->ucast_keyidx = 0;
 		else
-			peer->mcast_keyidx = 0;
+			peer->dp_peer->mcast_keyidx = 0;
 	} else if (!peer)
 		/* impossible unless FW goes crazy */
 		ath12k_warn(ab, "peer %pM disappeared!\n", peer_addr);
@@ -9164,7 +9172,7 @@ void ath12k_mac_op_tx(struct ieee80211_hw *hw,
 			spin_lock_bh(&tmp_dp->dp_lock);
 			peer = ath12k_dp_link_peer_find_by_addr(tmp_dp,
 								tmp_arvif->bssid);
-			if (!peer) {
+			if (!peer || !peer->dp_peer) {
 				spin_unlock_bh(&tmp_dp->dp_lock);
 				ath12k_warn(tmp_ar->ab,
 					    "failed to find peer for vdev_id 0x%X addr %pM link_map 0x%X\n",
@@ -9174,7 +9182,7 @@ void ath12k_mac_op_tx(struct ieee80211_hw *hw,
 				continue;
 			}
 
-			key = peer->keys[peer->mcast_keyidx];
+			key = peer->dp_peer->keys[peer->dp_peer->mcast_keyidx];
 			if (key) {
 				skb_cb->cipher = key->cipher;
 				skb_cb->flags |= ATH12K_SKB_CIPHER_SET;

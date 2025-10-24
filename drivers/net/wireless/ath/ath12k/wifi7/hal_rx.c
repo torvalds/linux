@@ -439,6 +439,8 @@ int ath12k_wifi7_hal_wbm_desc_parse_err(struct ath12k_base *ab, void *desc,
 				      HAL_WBM_RELEASE_INFO0_RXDMA_ERROR_CODE);
 	}
 
+	rel_info->peer_metadata = wbm_desc->info2;
+
 	return 0;
 }
 

@@ -72,8 +72,8 @@ ath12k_dp_link_peer_find_by_ml_id(struct ath12k_dp *dp, int ml_peer_id)
 	return NULL;
 }
 
-struct ath12k_dp_link_peer *
-ath12k_dp_link_peer_find_by_id(struct ath12k_dp *dp, int peer_id)
+static struct ath12k_dp_link_peer *
+ath12k_dp_link_peer_search_by_id(struct ath12k_dp *dp, int peer_id)
 {
 	struct ath12k_dp_link_peer *peer;
 
@@ -129,7 +129,7 @@ void ath12k_dp_link_peer_unmap_event(struct ath12k_base *ab, u16 peer_id)
 
 	spin_lock_bh(&dp->dp_lock);
 
-	peer = ath12k_dp_link_peer_find_by_id(dp, peer_id);
+	peer = ath12k_dp_link_peer_search_by_id(dp, peer_id);
 	if (!peer) {
 		ath12k_warn(ab, "peer-unmap-event: unknown peer id %d\n",
 			    peer_id);
@@ -388,6 +388,44 @@ u16 ath12k_dp_peer_get_peerid_index(struct ath12k_dp *dp, u16 peer_id)
 		((dp->device_id << ATH12K_DP_PEER_TABLE_DEVICE_ID_SHIFT) | peer_id);
 }
 
+struct ath12k_dp_peer *ath12k_dp_peer_find_by_peerid(struct ath12k_pdev_dp *dp_pdev,
+						     u16 peer_id)
+{
+	u16 index;
+	struct ath12k_dp *dp = dp_pdev->dp;
+
+	RCU_LOCKDEP_WARN(!rcu_read_lock_held(),
+			 "ath12k dp peer find by peerid index called without rcu lock");
+
+	if (!peer_id || peer_id >= ATH12K_DP_PEER_ID_INVALID)
+		return NULL;
+
+	index = ath12k_dp_peer_get_peerid_index(dp, peer_id);
+
+	return rcu_dereference(dp_pdev->dp_hw->dp_peers[index]);
+}
+
+struct ath12k_dp_link_peer *
+ath12k_dp_link_peer_find_by_peerid(struct ath12k_pdev_dp *dp_pdev, u16 peer_id)
+{
+	struct ath12k_dp_peer *dp_peer = NULL;
+	u8 link_id;
+
+	RCU_LOCKDEP_WARN(!rcu_read_lock_held(),
+			 "ath12k dp link peer find by peerid index called without rcu lock");
+
+	if (dp_pdev->hw_link_id >= ATH12K_GROUP_MAX_RADIO)
+		return NULL;
+
+	dp_peer = ath12k_dp_peer_find_by_peerid(dp_pdev, peer_id);
+	if (!dp_peer)
+		return NULL;
+
+	link_id = dp_peer->hw_links[dp_pdev->hw_link_id];
+
+	return rcu_dereference(dp_peer->link_peers[link_id]);
+}
+
 int ath12k_dp_peer_create(struct ath12k_dp_hw *dp_hw, u8 *addr,
 			  struct ath12k_dp_peer_create_params *params)
 {
@@ -419,6 +457,7 @@ int ath12k_dp_peer_create(struct ath12k_dp_hw *dp_hw, u8 *addr,
 
 	dp_peer->sec_type = HAL_ENCRYPT_TYPE_OPEN;
 	dp_peer->sec_type_grp = HAL_ENCRYPT_TYPE_OPEN;
+	dp_peer->ucast_ra_only = params->ucast_ra_only;
 
 	spin_lock_bh(&dp_hw->peer_lock);
 

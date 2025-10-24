@@ -214,9 +214,6 @@ int ath12k_peer_create(struct ath12k *ar, struct ath12k_link_vif *arvif,
 		dp_link_vif->ast_idx = peer->hw_peer_id;
 	}
 
-	if (vif->type == NL80211_IFTYPE_AP)
-		peer->ucast_ra_only = true;
-
 	if (sta) {
 		ahsta = ath12k_sta_to_ahsta(sta);
 		arsta = wiphy_dereference(ath12k_ar_to_hw(ar)->wiphy,
@@ -239,9 +236,6 @@ int ath12k_peer_create(struct ath12k *ar, struct ath12k_link_vif *arvif,
 			peer->mlo = false;
 		}
 	}
-
-	peer->sec_type = HAL_ENCRYPT_TYPE_OPEN;
-	peer->sec_type_grp = HAL_ENCRYPT_TYPE_OPEN;
 
 	ar->num_peers++;
 

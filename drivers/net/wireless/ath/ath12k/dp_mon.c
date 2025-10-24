@@ -2275,6 +2275,7 @@ static void ath12k_dp_mon_rx_deliver_msdu(struct ath12k_pdev_dp *dp_pdev,
 	bool is_mcbc = rxcb->is_mcbc;
 	bool is_eapol_tkip = rxcb->is_eapol;
 	struct hal_rx_desc *rx_desc = (struct hal_rx_desc *)msdu->data;
+	u8 addr[ETH_ALEN] = {};
 
 	status->link_valid = 0;
 
@@ -2287,11 +2288,13 @@ static void ath12k_dp_mon_rx_deliver_msdu(struct ath12k_pdev_dp *dp_pdev,
 
 	ath12k_wifi7_dp_extract_rx_desc_data(ab, &rx_info, rx_desc, rx_desc);
 
+	rcu_read_lock();
 	spin_lock_bh(&dp->dp_lock);
 	rx_info.addr2_present = false;
-	peer = ath12k_dp_rx_h_find_link_peer(dp, msdu, &rx_info);
+	peer = ath12k_dp_rx_h_find_link_peer(dp_pdev, msdu, &rx_info);
 	if (peer && peer->sta) {
 		pubsta = peer->sta;
+		memcpy(addr, peer->addr, ETH_ALEN);
 		if (pubsta->valid_links) {
 			status->link_valid = 1;
 			status->link_id = peer->link_id;
@@ -2299,12 +2302,13 @@ static void ath12k_dp_mon_rx_deliver_msdu(struct ath12k_pdev_dp *dp_pdev,
 	}
 
 	spin_unlock_bh(&dp->dp_lock);
+	rcu_read_unlock();
 
 	ath12k_dbg(ab, ATH12K_DBG_DATA,
 		   "rx skb %p len %u peer %pM %u %s %s%s%s%s%s%s%s%s %srate_idx %u vht_nss %u freq %u band %u flag 0x%x fcs-err %i mic-err %i amsdu-more %i\n",
 		   msdu,
 		   msdu->len,
-		   peer ? peer->addr : NULL,
+		   addr,
 		   rxcb->tid,
 		   (is_mcbc) ? "mcast" : "ucast",
 		   (status->encoding == RX_ENC_LEGACY) ? "legacy" : "",
@@ -3885,8 +3889,7 @@ move_next:
 			goto free_skb;
 
 		rcu_read_lock();
-		spin_lock_bh(&dp->dp_lock);
-		peer = ath12k_dp_link_peer_find_by_id(dp, ppdu_info->peer_id);
+		peer = ath12k_dp_link_peer_find_by_peerid(pdev_dp, ppdu_info->peer_id);
 		if (!peer || !peer->sta) {
 			ath12k_dbg(ab, ATH12K_DBG_DATA,
 				   "failed to find the peer with monitor peer_id %d\n",
@@ -3899,7 +3902,6 @@ move_next:
 			if (!arsta) {
 				ath12k_warn(ab, "link sta not found on peer %pM id %d\n",
 					    peer->addr, peer->peer_id);
-				spin_unlock_bh(&dp->dp_lock);
 				rcu_read_unlock();
 				dev_kfree_skb_any(skb);
 				continue;
@@ -3913,7 +3915,6 @@ move_next:
 		}
 
 next_skb:
-		spin_unlock_bh(&dp->dp_lock);
 		rcu_read_unlock();
 free_skb:
 		dev_kfree_skb_any(skb);

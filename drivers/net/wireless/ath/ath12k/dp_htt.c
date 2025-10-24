@@ -272,18 +272,15 @@ ath12k_update_per_peer_tx_stats(struct ath12k_pdev_dp *dp_pdev,
 	}
 
 	rcu_read_lock();
-	spin_lock_bh(&dp->dp_lock);
-	peer = ath12k_dp_link_peer_find_by_id(dp, usr_stats->peer_id);
+	peer = ath12k_dp_link_peer_find_by_peerid(dp_pdev, usr_stats->peer_id);
 
 	if (!peer || !peer->sta) {
-		spin_unlock_bh(&dp->dp_lock);
 		rcu_read_unlock();
 		return;
 	}
 
 	arsta = ath12k_dp_link_peer_to_link_sta(ab, peer);
 	if (!arsta) {
-		spin_unlock_bh(&dp->dp_lock);
 		rcu_read_unlock();
 		return;
 	}
@@ -357,7 +354,6 @@ ath12k_update_per_peer_tx_stats(struct ath12k_pdev_dp *dp_pdev,
 			HTT_USR_CMPLTN_SHORT_RETRY(usr_stats->cmpltn_cmn.flags);
 	}
 
-	spin_unlock_bh(&dp->dp_lock);
 	rcu_read_unlock();
 }
 
@@ -507,17 +503,13 @@ static int ath12k_htt_pull_ppdu_stats(struct ath12k_base *ab,
 	    ppdu_info->delay_ba) {
 		for (i = 0; i < ppdu_info->ppdu_stats.common.num_users; i++) {
 			peer_id = ppdu_info->ppdu_stats.user_stats[i].peer_id;
-			spin_lock_bh(&dp->dp_lock);
-			peer = ath12k_dp_link_peer_find_by_id(dp, peer_id);
-			if (!peer) {
-				spin_unlock_bh(&dp->dp_lock);
+			peer = ath12k_dp_link_peer_find_by_peerid(dp_pdev, peer_id);
+			if (!peer)
 				continue;
-			}
 
 			usr_stats = &ppdu_info->ppdu_stats.user_stats[i];
 			if (usr_stats->delay_ba)
 				ath12k_copy_to_delay_stats(peer, usr_stats);
-			spin_unlock_bh(&dp->dp_lock);
 		}
 	}
 
@@ -526,17 +518,13 @@ static int ath12k_htt_pull_ppdu_stats(struct ath12k_base *ab,
 	    (ppdu_info->tlv_bitmap & (1 << HTT_PPDU_STATS_TAG_USR_COMMON))) {
 		for (i = 0; i < ppdu_info->bar_num_users; i++) {
 			peer_id = ppdu_info->ppdu_stats.user_stats[i].peer_id;
-			spin_lock_bh(&dp->dp_lock);
-			peer = ath12k_dp_link_peer_find_by_id(dp, peer_id);
-			if (!peer) {
-				spin_unlock_bh(&dp->dp_lock);
+			peer = ath12k_dp_link_peer_find_by_peerid(dp_pdev, peer_id);
+			if (!peer)
 				continue;
-			}
 
 			usr_stats = &ppdu_info->ppdu_stats.user_stats[i];
 			if (peer->delayba_flag)
 				ath12k_copy_to_bar(peer, usr_stats);
-			spin_unlock_bh(&dp->dp_lock);
 		}
 	}
 
