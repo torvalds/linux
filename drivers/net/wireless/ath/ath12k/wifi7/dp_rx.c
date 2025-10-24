@@ -37,6 +37,7 @@ void ath12k_wifi7_peer_rx_tid_qref_setup(struct ath12k_base *ab, u16 peer_id, u1
 	qref->info1 = u32_encode_bits(upper_32_bits(paddr),
 				      BUFFER_ADDR_INFO1_ADDR) |
 		      u32_encode_bits(tid, DP_REO_QREF_NUM);
+
 	ath12k_hal_reo_shared_qaddr_cache_clear(ab);
 }
 
@@ -316,7 +317,6 @@ static void ath12k_wifi7_dp_rx_h_mpdu(struct ath12k_pdev_dp *dp_pdev,
 				      struct hal_rx_desc_data *rx_info)
 {
 	struct ath12k_dp *dp = dp_pdev->dp;
-	struct ath12k_base *ab = dp->ab;
 	struct ath12k_skb_rxcb *rxcb;
 	enum hal_encrypt_type enctype;
 	bool is_decrypted = false;
@@ -332,8 +332,8 @@ static void ath12k_wifi7_dp_rx_h_mpdu(struct ath12k_pdev_dp *dp_pdev,
 	if (rxcb->is_mcbc)
 		rxcb->peer_id = rx_info->peer_id;
 
-	spin_lock_bh(&ab->base_lock);
-	peer = ath12k_dp_rx_h_find_link_peer(ab, msdu, rx_info);
+	spin_lock_bh(&dp->dp_lock);
+	peer = ath12k_dp_rx_h_find_link_peer(dp, msdu, rx_info);
 	if (peer) {
 		/* resetting mcbc bit because mcbc packets are unicast
 		 * packets only for AP as STA sends unicast packets.
@@ -347,7 +347,7 @@ static void ath12k_wifi7_dp_rx_h_mpdu(struct ath12k_pdev_dp *dp_pdev,
 	} else {
 		enctype = HAL_ENCRYPT_TYPE_OPEN;
 	}
-	spin_unlock_bh(&ab->base_lock);
+	spin_unlock_bh(&dp->dp_lock);
 
 	if (enctype != HAL_ENCRYPT_TYPE_OPEN && !err_bitmap)
 		is_decrypted = rx_info->is_decrypted;
@@ -1133,8 +1133,8 @@ static int ath12k_wifi7_dp_rx_frag_h_mpdu(struct ath12k_pdev_dp *dp_pdev,
 	if (WARN_ON_ONCE(!frag_no && !more_frags))
 		return -EINVAL;
 
-	spin_lock_bh(&ab->base_lock);
-	peer = ath12k_dp_link_peer_find_by_id(ab, peer_id);
+	spin_lock_bh(&dp->dp_lock);
+	peer = ath12k_dp_link_peer_find_by_id(dp, peer_id);
 	if (!peer) {
 		ath12k_warn(ab, "failed to find the peer to de-fragment received fragment peer_id %d\n",
 			    peer_id);
@@ -1193,11 +1193,11 @@ static int ath12k_wifi7_dp_rx_frag_h_mpdu(struct ath12k_pdev_dp *dp_pdev,
 		goto out_unlock;
 	}
 
-	spin_unlock_bh(&ab->base_lock);
+	spin_unlock_bh(&dp->dp_lock);
 	timer_delete_sync(&rx_tid->frag_timer);
-	spin_lock_bh(&ab->base_lock);
+	spin_lock_bh(&dp->dp_lock);
 
-	peer = ath12k_dp_link_peer_find_by_id(ab, peer_id);
+	peer = ath12k_dp_link_peer_find_by_id(dp, peer_id);
 	if (!peer)
 		goto err_frags_cleanup;
 
@@ -1221,7 +1221,7 @@ err_frags_cleanup:
 	dev_kfree_skb_any(defrag_skb);
 	ath12k_dp_rx_frags_cleanup(rx_tid, true);
 out_unlock:
-	spin_unlock_bh(&ab->base_lock);
+	spin_unlock_bh(&dp->dp_lock);
 	return ret;
 }
 

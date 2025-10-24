@@ -28,7 +28,7 @@ struct ath12k_dp_rx_tid {
 
 	/* Timer info related to fragments */
 	struct timer_list frag_timer;
-	struct ath12k_base *ab;
+	struct ath12k_dp *dp;
 };
 
 struct ath12k_dp_rx_reo_cache_flush_elem {
@@ -230,7 +230,7 @@ int ath12k_dp_rx_peer_frag_setup(struct ath12k *ar, const u8 *peer_mac, int vdev
 u8 ath12k_dp_rx_h_l3pad(struct ath12k_base *ab,
 			struct hal_rx_desc *desc);
 struct ath12k_dp_link_peer *
-ath12k_dp_rx_h_find_link_peer(struct ath12k_base *ab, struct sk_buff *msdu,
+ath12k_dp_rx_h_find_link_peer(struct ath12k_dp *dp, struct sk_buff *msdu,
 			      struct hal_rx_desc_data *rx_info);
 u8 ath12k_dp_rx_h_decap_type(struct ath12k_base *ab,
 			     struct hal_rx_desc *desc);

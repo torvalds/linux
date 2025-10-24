@@ -471,7 +471,13 @@ struct ath12k_dp {
 	struct ath12k_hw_group *ag;
 	u8 device_id;
 
+	/* Lock for protection of peers */
+	spinlock_t dp_lock;
+
 	struct ath12k_dp_arch_ops *ops;
+
+	/* Linked list of struct ath12k_dp_link_peer */
+	struct list_head peers;
 };
 
 static inline void ath12k_dp_get_mac_addr(u32 addr_l32, u16 addr_h16, u8 *addr)

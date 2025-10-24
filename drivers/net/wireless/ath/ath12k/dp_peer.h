@@ -69,17 +69,17 @@ void ath12k_dp_link_peer_unmap_event(struct ath12k_base *ab, u16 peer_id);
 void ath12k_dp_link_peer_map_event(struct ath12k_base *ab, u8 vdev_id, u16 peer_id,
 				   u8 *mac_addr, u16 ast_hash, u16 hw_peer_id);
 struct ath12k_dp_link_peer *
-ath12k_dp_link_peer_find_by_vdev_and_addr(struct ath12k_base *ab,
+ath12k_dp_link_peer_find_by_vdev_and_addr(struct ath12k_dp *dp,
 					  int vdev_id, const u8 *addr);
 struct ath12k_dp_link_peer *
-ath12k_dp_link_peer_find_by_addr(struct ath12k_base *ab, const u8 *addr);
+ath12k_dp_link_peer_find_by_addr(struct ath12k_dp *dp, const u8 *addr);
 struct ath12k_dp_link_peer *
-ath12k_dp_link_peer_find_by_id(struct ath12k_base *ab, int peer_id);
-bool ath12k_dp_link_peer_exist_by_vdev_id(struct ath12k_base *ab, int vdev_id);
+ath12k_dp_link_peer_find_by_id(struct ath12k_dp *dp, int peer_id);
+bool ath12k_dp_link_peer_exist_by_vdev_id(struct ath12k_dp *dp, int vdev_id);
 struct ath12k_dp_link_peer *
-ath12k_dp_link_peer_find_by_ast(struct ath12k_base *ab, int ast_hash);
+ath12k_dp_link_peer_find_by_ast(struct ath12k_dp *dp, int ast_hash);
 struct ath12k_dp_link_peer *
-ath12k_dp_link_peer_find_by_pdev_and_addr(struct ath12k_base *ab, u8 pdev_idx,
+ath12k_dp_link_peer_find_by_pdev_and_addr(struct ath12k_dp *dp, u8 pdev_idx,
 					  const u8 *addr);
 struct ath12k_link_sta *ath12k_dp_link_peer_to_link_sta(struct ath12k_base *ab,
 							struct ath12k_dp_link_peer *peer);

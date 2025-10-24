@@ -956,8 +956,9 @@ void ath12k_hal_reo_shared_qaddr_cache_clear(struct ath12k_base *ab)
 {
 	u32 val;
 	struct ath12k_hal *hal = &ab->hal;
+	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
 
-	lockdep_assert_held(&ab->base_lock);
+	lockdep_assert_held(&dp->dp_lock);
 	val = ath12k_hif_read32(ab, HAL_SEQ_WCSS_UMAC_REO_REG +
 				HAL_REO1_QDESC_ADDR(hal));
 

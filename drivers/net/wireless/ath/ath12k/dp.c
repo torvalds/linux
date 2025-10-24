@@ -24,27 +24,28 @@ void ath12k_dp_peer_cleanup(struct ath12k *ar, int vdev_id, const u8 *addr)
 {
 	struct ath12k_base *ab = ar->ab;
 	struct ath12k_dp_link_peer *peer;
+	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
 
 	/* TODO: Any other peer specific DP cleanup */
 
-	spin_lock_bh(&ab->base_lock);
-	peer = ath12k_dp_link_peer_find_by_vdev_and_addr(ab, vdev_id, addr);
+	spin_lock_bh(&dp->dp_lock);
+	peer = ath12k_dp_link_peer_find_by_vdev_and_addr(dp, vdev_id, addr);
 	if (!peer) {
 		ath12k_warn(ab, "failed to lookup peer %pM on vdev %d\n",
 			    addr, vdev_id);
-		spin_unlock_bh(&ab->base_lock);
+		spin_unlock_bh(&dp->dp_lock);
 		return;
 	}
 
 	if (!peer->primary_link) {
-		spin_unlock_bh(&ab->base_lock);
+		spin_unlock_bh(&dp->dp_lock);
 		return;
 	}
 
 	ath12k_dp_rx_peer_tid_cleanup(ar, peer);
 	crypto_free_shash(peer->tfm_mmic);
 	peer->dp_setup_done = false;
-	spin_unlock_bh(&ab->base_lock);
+	spin_unlock_bh(&dp->dp_lock);
 }
 
 int ath12k_dp_peer_setup(struct ath12k *ar, int vdev_id, const u8 *addr)
@@ -53,6 +54,7 @@ int ath12k_dp_peer_setup(struct ath12k *ar, int vdev_id, const u8 *addr)
 	struct ath12k_dp_link_peer *peer;
 	u32 reo_dest;
 	int ret = 0, tid;
+	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
 
 	/* NOTE: reo_dest ring id starts from 1 unlike mac_id which starts from 0 */
 	reo_dest = ar->dp.mac_id + 1;
@@ -87,19 +89,19 @@ int ath12k_dp_peer_setup(struct ath12k *ar, int vdev_id, const u8 *addr)
 	return 0;
 
 peer_clean:
-	spin_lock_bh(&ab->base_lock);
+	spin_lock_bh(&dp->dp_lock);
 
-	peer = ath12k_dp_link_peer_find_by_vdev_and_addr(ab, vdev_id, addr);
+	peer = ath12k_dp_link_peer_find_by_vdev_and_addr(dp, vdev_id, addr);
 	if (!peer) {
 		ath12k_warn(ab, "failed to find the peer to del rx tid\n");
-		spin_unlock_bh(&ab->base_lock);
+		spin_unlock_bh(&dp->dp_lock);
 		return -ENOENT;
 	}
 
 	for (tid--; tid >= 0; tid--)
 		ath12k_wifi7_dp_rx_peer_tid_delete(ar, peer, tid);
 
-	spin_unlock_bh(&ab->base_lock);
+	spin_unlock_bh(&dp->dp_lock);
 
 	return ret;
 }
@@ -1481,6 +1483,9 @@ static int ath12k_dp_setup(struct ath12k_base *ab)
 	INIT_LIST_HEAD(&dp->reo_cmd_list);
 	INIT_LIST_HEAD(&dp->reo_cmd_cache_flush_list);
 	spin_lock_init(&dp->reo_cmd_lock);
+
+	spin_lock_init(&dp->dp_lock);
+	INIT_LIST_HEAD(&dp->peers);
 
 	dp->reo_cmd_cache_flush_count = 0;
 	dp->idle_link_rbm =
