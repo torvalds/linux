@@ -69,6 +69,7 @@ To read/write to RAM, need to send a command to the device.
 The command format is as below.
 
 DataByte(SET_REPORT)
+~~~~~~~~~~~~~~~~~~~~
 
 =====	======================
 Byte1	Command Byte
@@ -89,6 +90,7 @@ Value Byte is writing data when you send the write commands.
 When you read RAM, there is no meaning.
 
 DataByte(GET_REPORT)
+~~~~~~~~~~~~~~~~~~~~
 
 =====	======================
 Byte1	Response Byte
