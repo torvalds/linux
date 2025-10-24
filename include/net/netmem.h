@@ -68,10 +68,6 @@ DECLARE_STATIC_KEY_FALSE(page_pool_mem_providers);
 enum net_iov_type {
 	NET_IOV_DMABUF,
 	NET_IOV_IOURING,
-
-	/* Force size to unsigned long to make the NET_IOV_ASSERTS below pass.
-	 */
-	NET_IOV_MAX = ULONG_MAX
 };
 
 /* A memory descriptor representing abstract networking I/O vectors,
