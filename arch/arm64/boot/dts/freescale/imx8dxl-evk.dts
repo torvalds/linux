@@ -653,6 +653,7 @@
 	pinctrl-names = "default";
 	reset-gpio = <&lsio_gpio4 0 GPIO_ACTIVE_LOW>;
 	vpcie-supply = <&reg_pcieb>;
+	vpcie3v3aux-supply = <&reg_pcieb>;
 	status = "okay";
 };
 
