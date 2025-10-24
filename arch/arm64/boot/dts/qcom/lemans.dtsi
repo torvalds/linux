@@ -4106,6 +4106,7 @@
 					<&gem_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_USB2 0>;
 			interconnect-names = "usb-ddr", "apps-usb";
 
+			qcom,select-utmi-as-pipe-clk;
 			wakeup-source;
 
 			iommus = <&apps_smmu 0x020 0x0>;
