@@ -86,5 +86,9 @@ void ath12k_dp_cmn_hw_group_unassign(struct ath12k_dp *dp,
 				     struct ath12k_hw_group *ag);
 void ath12k_dp_cmn_hw_group_assign(struct ath12k_dp *dp,
 				   struct ath12k_hw_group *ag);
-
+int ath12k_dp_link_peer_assign(struct ath12k_dp *dp, struct ath12k_dp_hw *dp_hw,
+			       u8 vdev_id, struct ieee80211_sta *sta, u8 *addr,
+			       u8 link_id, u32 hw_link_id);
+void ath12k_dp_link_peer_unassign(struct ath12k_dp *dp, struct ath12k_dp_hw *dp_hw,
+				  u8 vdev_id, u8 *addr, u32 hw_link_id);
 #endif

@@ -26,6 +26,7 @@ struct ppdu_user_delayba {
 struct ath12k_dp_link_peer {
 	struct list_head list;
 	struct ieee80211_sta *sta;
+	struct ath12k_dp_peer *dp_peer;
 	int vdev_id;
 	u8 addr[ETH_ALEN];
 	int peer_id;
@@ -68,6 +69,8 @@ struct ath12k_dp_link_peer {
 
 	/* peer addr based rhashtable list pointer */
 	struct rhash_head rhash_addr;
+
+	u8 hw_link_id;
 };
 
 void ath12k_dp_link_peer_unmap_event(struct ath12k_base *ab, u16 peer_id);
@@ -81,10 +84,13 @@ struct ath12k_dp_peer {
 	u8 addr[ETH_ALEN];
 	bool is_mlo;
 
+	struct ath12k_dp_link_peer __rcu *link_peers[ATH12K_NUM_MAX_LINKS];
+
 	u16 sec_type;
 	u16 sec_type_grp;
 
 	bool ucast_ra_only;
+	u8 hw_links[ATH12K_GROUP_MAX_RADIO];
 };
 
 struct ath12k_dp_link_peer *
@@ -116,4 +122,5 @@ struct ath12k_dp_peer *ath12k_dp_peer_find_by_addr(struct ath12k_dp_hw *dp_hw, u
 struct ath12k_dp_peer *ath12k_dp_peer_find_by_addr_and_sta(struct ath12k_dp_hw *dp_hw,
 							   u8 *addr,
 							   struct ieee80211_sta *sta);
+u16 ath12k_dp_peer_get_peerid_index(struct ath12k_dp *dp, u16 peer_id);
 #endif

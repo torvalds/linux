@@ -158,6 +158,7 @@ struct ath12k_pdev_dp {
 	struct ath12k_dp *dp;
 	struct ieee80211_hw *hw;
 	u8 hw_link_id;
+	struct ath12k_dp_hw *dp_hw;
 
 	/* Protects ppdu stats */
 	spinlock_t ppdu_list_lock;

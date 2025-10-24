@@ -110,6 +110,10 @@ int ath12k_peer_delete(struct ath12k *ar, u32 vdev_id, u8 *addr)
 
 	lockdep_assert_wiphy(ath12k_ar_to_hw(ar)->wiphy);
 
+	ath12k_dp_link_peer_unassign(ath12k_ab_to_dp(ar->ab),
+				     &(ath12k_ar_to_ah(ar)->dp_hw), vdev_id,
+				     addr, ar->hw_link_id);
+
 	ret = ath12k_peer_delete_send(ar, vdev_id, addr);
 	if (ret)
 		return ret;
@@ -243,7 +247,13 @@ int ath12k_peer_create(struct ath12k *ar, struct ath12k_link_vif *arvif,
 
 	spin_unlock_bh(&dp->dp_lock);
 
-	return 0;
+	ret = ath12k_dp_link_peer_assign(ath12k_ab_to_dp(ar->ab),
+					 &(ath12k_ar_to_ah(ar)->dp_hw),
+					 arvif->vdev_id, sta,
+					 (u8 *)arg->peer_addr, link_id,
+					 ar->hw_link_id);
+
+	return ret;
 }
 
 u16 ath12k_peer_ml_alloc(struct ath12k_hw *ah)
@@ -297,6 +307,11 @@ int ath12k_peer_mlo_link_peers_delete(struct ath12k_vif *ahvif, struct ath12k_st
 			continue;
 
 		ath12k_dp_peer_cleanup(ar, arvif->vdev_id, arsta->addr);
+
+		ath12k_dp_link_peer_unassign(ath12k_ab_to_dp(ar->ab),
+					     &(ath12k_ar_to_ah(ar)->dp_hw),
+					     arvif->vdev_id, arsta->addr,
+					     ar->hw_link_id);
 
 		ret = ath12k_peer_delete_send(ar, arvif->vdev_id, arsta->addr);
 		if (ret) {

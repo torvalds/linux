@@ -139,7 +139,6 @@ void ath12k_dp_link_peer_unmap_event(struct ath12k_base *ab, u16 peer_id)
 	ath12k_dbg(ab, ATH12K_DBG_DP_HTT, "htt peer unmap vdev %d peer %pM id %d\n",
 		   peer->vdev_id, peer->addr, peer_id);
 
-	ath12k_dp_link_peer_rhash_delete(dp, peer);
 	list_del(&peer->list);
 	kfree(peer);
 	wake_up(&ab->peer_mapping_wq);
@@ -153,7 +152,6 @@ void ath12k_dp_link_peer_map_event(struct ath12k_base *ab, u8 vdev_id, u16 peer_
 {
 	struct ath12k_dp_link_peer *peer;
 	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
-	int ret;
 
 	spin_lock_bh(&dp->dp_lock);
 	peer = ath12k_dp_link_peer_find_by_vdev_and_addr(dp, vdev_id, mac_addr);
@@ -167,11 +165,7 @@ void ath12k_dp_link_peer_map_event(struct ath12k_base *ab, u8 vdev_id, u16 peer_
 		peer->ast_hash = ast_hash;
 		peer->hw_peer_id = hw_peer_id;
 		ether_addr_copy(peer->addr, mac_addr);
-		ret = ath12k_dp_link_peer_rhash_add(dp, peer);
-		if (!ret)
-			list_add(&peer->list, &dp->peers);
-		else
-			kfree(peer);
+		list_add(&peer->list, &dp->peers);
 		wake_up(&ab->peer_mapping_wq);
 	}
 
@@ -377,6 +371,23 @@ static struct ath12k_dp_peer *ath12k_dp_peer_create_find(struct ath12k_dp_hw *dp
 	return NULL;
 }
 
+/*
+ * Index of ath12k_dp_peer for MLO client is same as peer id of ath12k_dp_peer,
+ * while for ath12k_dp_link_peer(mlo and non-mlo) and ath12k_dp_peer for
+ * Non-MLO client it is derived as ((DEVICE_ID << 10) | (10 bits of peer id)).
+ *
+ * This is done because ml_peer_id and peer_id_table are at hw granularity,
+ * while link_peer_id is at device granularity, hence in order to avoid
+ * conflict this approach is followed.
+ */
+#define ATH12K_DP_PEER_TABLE_DEVICE_ID_SHIFT        10
+
+u16 ath12k_dp_peer_get_peerid_index(struct ath12k_dp *dp, u16 peer_id)
+{
+	return (peer_id & ATH12K_PEER_ML_ID_VALID) ? peer_id :
+		((dp->device_id << ATH12K_DP_PEER_TABLE_DEVICE_ID_SHIFT) | peer_id);
+}
+
 int ath12k_dp_peer_create(struct ath12k_dp_hw *dp_hw, u8 *addr,
 			  struct ath12k_dp_peer_create_params *params)
 {
@@ -450,4 +461,125 @@ void ath12k_dp_peer_delete(struct ath12k_dp_hw *dp_hw, u8 *addr,
 
 	synchronize_rcu();
 	kfree(dp_peer);
+}
+
+int ath12k_dp_link_peer_assign(struct ath12k_dp *dp, struct ath12k_dp_hw *dp_hw,
+			       u8 vdev_id, struct ieee80211_sta *sta, u8 *addr,
+			       u8 link_id, u32 hw_link_id)
+{
+	struct ath12k_dp_peer *dp_peer;
+	struct ath12k_dp_link_peer *peer, *temp_peer;
+	u16 peerid_index;
+	int ret = -EINVAL;
+	u8 *dp_peer_mac = !sta ? addr : sta->addr;
+
+	spin_lock_bh(&dp->dp_lock);
+
+	peer = ath12k_dp_link_peer_find_by_vdev_and_addr(dp, vdev_id, addr);
+	if (!peer) {
+		ath12k_warn(dp, "failed to find dp_link_peer with mac %pM on vdev %u\n",
+			    addr, vdev_id);
+		ret = -ENOENT;
+		goto err_peer;
+	}
+
+	spin_lock_bh(&dp_hw->peer_lock);
+
+	dp_peer = ath12k_dp_peer_find_by_addr_and_sta(dp_hw, dp_peer_mac, sta);
+	if (!dp_peer) {
+		ath12k_warn(dp, "failed to find dp_peer with mac %pM\n", dp_peer_mac);
+		ret = -ENOENT;
+		goto err_dp_peer;
+	}
+
+	/*
+	 * Set peer_id in dp_peer for non-mlo client, peer_id for mlo client is
+	 * set during dp_peer create
+	 */
+	if (!dp_peer->is_mlo)
+		dp_peer->peer_id = peer->peer_id;
+
+	peer->dp_peer = dp_peer;
+	peer->hw_link_id = hw_link_id;
+
+	dp_peer->hw_links[peer->hw_link_id] = link_id;
+
+	peerid_index = ath12k_dp_peer_get_peerid_index(dp, peer->peer_id);
+
+	rcu_assign_pointer(dp_peer->link_peers[peer->link_id], peer);
+
+	rcu_assign_pointer(dp_hw->dp_peers[peerid_index], dp_peer);
+
+	spin_unlock_bh(&dp_hw->peer_lock);
+
+	/*
+	 * In case of Split PHY and roaming scenario, pdev idx
+	 * might differ but both the pdev will share same rhash
+	 * table. In that case update the rhash table if link_peer is
+	 * already present
+	 */
+	temp_peer = ath12k_dp_link_peer_find_by_addr(dp, addr);
+	if (temp_peer && temp_peer->hw_link_id != hw_link_id)
+		ath12k_dp_link_peer_rhash_delete(dp, temp_peer);
+
+	ret = ath12k_dp_link_peer_rhash_add(dp, peer);
+	if (ret) {
+		/*
+		 * If new entry addition failed, add back old entry
+		 * If old entry addition also fails, then nothing
+		 * can be done, simply proceed
+		 */
+		if (temp_peer)
+			ath12k_dp_link_peer_rhash_add(dp, temp_peer);
+	}
+
+	spin_unlock_bh(&dp->dp_lock);
+
+	return ret;
+
+err_dp_peer:
+	spin_unlock_bh(&dp_hw->peer_lock);
+
+err_peer:
+	spin_unlock_bh(&dp->dp_lock);
+
+	return ret;
+}
+
+void ath12k_dp_link_peer_unassign(struct ath12k_dp *dp, struct ath12k_dp_hw *dp_hw,
+				  u8 vdev_id, u8 *addr, u32 hw_link_id)
+{
+	struct ath12k_dp_peer *dp_peer;
+	struct ath12k_dp_link_peer *peer, *temp_peer;
+	u16 peerid_index;
+
+	spin_lock_bh(&dp->dp_lock);
+
+	peer = ath12k_dp_link_peer_find_by_vdev_and_addr(dp, vdev_id, addr);
+	if (!peer || !peer->dp_peer) {
+		spin_unlock_bh(&dp->dp_lock);
+		return;
+	}
+
+	spin_lock_bh(&dp_hw->peer_lock);
+
+	dp_peer = peer->dp_peer;
+	dp_peer->hw_links[peer->hw_link_id] = 0;
+
+	peerid_index = ath12k_dp_peer_get_peerid_index(dp, peer->peer_id);
+
+	rcu_assign_pointer(dp_peer->link_peers[peer->link_id], NULL);
+
+	rcu_assign_pointer(dp_hw->dp_peers[peerid_index], NULL);
+
+	spin_unlock_bh(&dp_hw->peer_lock);
+
+	/* To handle roaming and split phy scenario */
+	temp_peer = ath12k_dp_link_peer_find_by_addr(dp, addr);
+	if (temp_peer && temp_peer->hw_link_id == hw_link_id)
+		ath12k_dp_link_peer_rhash_delete(dp, peer);
+
+	spin_unlock_bh(&dp->dp_lock);
+
+	synchronize_rcu();
 }
