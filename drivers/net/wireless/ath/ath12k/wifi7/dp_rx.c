@@ -323,6 +323,9 @@ static void ath12k_wifi7_dp_rx_h_mpdu(struct ath12k_pdev_dp *dp_pdev,
 	struct ieee80211_rx_status *rx_status = rx_info->rx_status;
 	u32 err_bitmap = rx_info->err_bitmap;
 
+	RCU_LOCKDEP_WARN(!rcu_read_lock_held(),
+			 "dp_rx_h_mpdu called without rcu lock");
+
 	/* PN for multicast packets will be checked in mac80211 */
 	rxcb = ATH12K_SKB_RXCB(msdu);
 	rxcb->is_mcbc = rx_info->is_mcbc;

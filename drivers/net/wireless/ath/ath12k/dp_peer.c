@@ -182,6 +182,9 @@ struct ath12k_link_sta *ath12k_dp_link_peer_to_link_sta(struct ath12k_base *ab,
 	struct ath12k_sta *ahsta;
 	struct ath12k_link_sta *arsta;
 
+	RCU_LOCKDEP_WARN(!rcu_read_lock_held(),
+			 "ath12k_dp_link_peer to ath12k_link_sta called without rcu lock");
+
 	if (!peer->sta)
 		return NULL;
 
