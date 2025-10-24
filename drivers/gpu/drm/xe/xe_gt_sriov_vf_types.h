@@ -7,20 +7,14 @@
 #define _XE_GT_SRIOV_VF_TYPES_H_
 
 #include <linux/types.h>
+#include <linux/wait.h>
+#include <linux/workqueue.h>
 #include "xe_uc_fw_types.h"
 
 /**
  * struct xe_gt_sriov_vf_selfconfig - VF configuration data.
  */
 struct xe_gt_sriov_vf_selfconfig {
-	/** @ggtt_base: assigned base offset of the GGTT region. */
-	u64 ggtt_base;
-	/** @ggtt_size: assigned size of the GGTT region. */
-	u64 ggtt_size;
-	/** @ggtt_shift: difference in ggtt_base on last migration */
-	s64 ggtt_shift;
-	/** @lmem_size: assigned size of the LMEM. */
-	u64 lmem_size;
 	/** @num_ctxs: assigned number of GuC submission context IDs. */
 	u16 num_ctxs;
 	/** @num_dbs: assigned number of GuC doorbells IDs. */
@@ -47,6 +41,28 @@ struct xe_gt_sriov_vf_runtime {
 };
 
 /**
+ * xe_gt_sriov_vf_migration - VF migration data.
+ */
+struct xe_gt_sriov_vf_migration {
+	/** @migration: VF migration recovery worker */
+	struct work_struct worker;
+	/** @lock: Protects recovery_queued, teardown */
+	spinlock_t lock;
+	/** @wq: wait queue for migration fixes */
+	wait_queue_head_t wq;
+	/** @scratch: Scratch memory for VF recovery */
+	void *scratch;
+	/** @recovery_teardown: VF post migration recovery is being torn down */
+	bool recovery_teardown;
+	/** @recovery_queued: VF post migration recovery in queued */
+	bool recovery_queued;
+	/** @recovery_inprogress: VF post migration recovery in progress */
+	bool recovery_inprogress;
+	/** @ggtt_need_fixes: VF GGTT needs fixes */
+	bool ggtt_need_fixes;
+};
+
+/**
  * struct xe_gt_sriov_vf - GT level VF virtualization data.
  */
 struct xe_gt_sriov_vf {
@@ -58,6 +74,8 @@ struct xe_gt_sriov_vf {
 	struct xe_gt_sriov_vf_selfconfig self_config;
 	/** @runtime: runtime data retrieved from the PF. */
 	struct xe_gt_sriov_vf_runtime runtime;
+	/** @migration: migration data for the VF. */
+	struct xe_gt_sriov_vf_migration migration;
 };
 
 #endif

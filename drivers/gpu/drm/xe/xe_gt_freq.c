@@ -99,13 +99,8 @@ static ssize_t rp0_freq_show(struct kobject *kobj,
 {
 	struct device *dev = kobj_to_dev(kobj);
 	struct xe_guc_pc *pc = dev_to_pc(dev);
-	u32 freq;
 
-	xe_pm_runtime_get(dev_to_xe(dev));
-	freq = xe_guc_pc_get_rp0_freq(pc);
-	xe_pm_runtime_put(dev_to_xe(dev));
-
-	return sysfs_emit(buf, "%d\n", freq);
+	return sysfs_emit(buf, "%d\n", xe_guc_pc_get_rp0_freq(pc));
 }
 static struct kobj_attribute attr_rp0_freq = __ATTR_RO(rp0_freq);
 

@@ -107,10 +107,23 @@ static unsigned int probe_gsm_size(struct pci_dev *pdev)
 static void ggtt_update_access_counter(struct xe_ggtt *ggtt)
 {
 	struct xe_tile *tile = ggtt->tile;
-	struct xe_gt *affected_gt = XE_GT_WA(tile->primary_gt, 22019338487) ?
-		tile->primary_gt : tile->media_gt;
-	struct xe_mmio *mmio = &affected_gt->mmio;
-	u32 max_gtt_writes = XE_GT_WA(ggtt->tile->primary_gt, 22019338487) ? 1100 : 63;
+	struct xe_gt *affected_gt;
+	u32 max_gtt_writes;
+
+	if (tile->primary_gt && XE_GT_WA(tile->primary_gt, 22019338487)) {
+		affected_gt = tile->primary_gt;
+		max_gtt_writes = 1100;
+
+		/* Only expected to apply to primary GT on dgpu platforms */
+		xe_tile_assert(tile, IS_DGFX(tile_to_xe(tile)));
+	} else {
+		affected_gt = tile->media_gt;
+		max_gtt_writes = 63;
+
+		/* Only expected to apply to media GT on igpu platforms */
+		xe_tile_assert(tile, !IS_DGFX(tile_to_xe(tile)));
+	}
+
 	/*
 	 * Wa_22019338487: GMD_ID is a RO register, a dummy write forces gunit
 	 * to wait for completion of prior GTT writes before letting this through.
@@ -119,7 +132,7 @@ static void ggtt_update_access_counter(struct xe_ggtt *ggtt)
 	lockdep_assert_held(&ggtt->lock);
 
 	if ((++ggtt->access_count % max_gtt_writes) == 0) {
-		xe_mmio_write32(mmio, GMD_ID, 0x0);
+		xe_mmio_write32(&affected_gt->mmio, GMD_ID, 0x0);
 		ggtt->access_count = 0;
 	}
 }
@@ -159,6 +172,16 @@ static void xe_ggtt_clear(struct xe_ggtt *ggtt, u64 start, u64 size)
 	}
 }
 
+static void primelockdep(struct xe_ggtt *ggtt)
+{
+	if (!IS_ENABLED(CONFIG_LOCKDEP))
+		return;
+
+	fs_reclaim_acquire(GFP_KERNEL);
+	might_lock(&ggtt->lock);
+	fs_reclaim_release(GFP_KERNEL);
+}
+
 /**
  * xe_ggtt_alloc - Allocate a GGTT for a given &xe_tile
  * @tile: &xe_tile
@@ -169,9 +192,19 @@ static void xe_ggtt_clear(struct xe_ggtt *ggtt, u64 start, u64 size)
  */
 struct xe_ggtt *xe_ggtt_alloc(struct xe_tile *tile)
 {
-	struct xe_ggtt *ggtt = drmm_kzalloc(&tile_to_xe(tile)->drm, sizeof(*ggtt), GFP_KERNEL);
-	if (ggtt)
-		ggtt->tile = tile;
+	struct xe_device *xe = tile_to_xe(tile);
+	struct xe_ggtt *ggtt;
+
+	ggtt = drmm_kzalloc(&xe->drm, sizeof(*ggtt), GFP_KERNEL);
+	if (!ggtt)
+		return NULL;
+
+	if (drmm_mutex_init(&xe->drm, &ggtt->lock))
+		return NULL;
+
+	primelockdep(ggtt);
+	ggtt->tile = tile;
+
 	return ggtt;
 }
 
@@ -180,7 +213,6 @@ static void ggtt_fini_early(struct drm_device *drm, void *arg)
 	struct xe_ggtt *ggtt = arg;
 
 	destroy_workqueue(ggtt->wq);
-	mutex_destroy(&ggtt->lock);
 	drm_mm_takedown(&ggtt->mm);
 }
 
@@ -197,16 +229,6 @@ void xe_ggtt_might_lock(struct xe_ggtt *ggtt)
 	might_lock(&ggtt->lock);
 }
 #endif
-
-static void primelockdep(struct xe_ggtt *ggtt)
-{
-	if (!IS_ENABLED(CONFIG_LOCKDEP))
-		return;
-
-	fs_reclaim_acquire(GFP_KERNEL);
-	might_lock(&ggtt->lock);
-	fs_reclaim_release(GFP_KERNEL);
-}
 
 static const struct xe_ggtt_pt_ops xelp_pt_ops = {
 	.pte_encode_flags = xelp_ggtt_pte_flags,
@@ -227,8 +249,6 @@ static void __xe_ggtt_init_early(struct xe_ggtt *ggtt, u32 reserved)
 {
 	drm_mm_init(&ggtt->mm, reserved,
 		    ggtt->size - reserved);
-	mutex_init(&ggtt->lock);
-	primelockdep(ggtt);
 }
 
 int xe_ggtt_init_kunit(struct xe_ggtt *ggtt, u32 reserved, u32 size)
@@ -284,10 +304,10 @@ int xe_ggtt_init_early(struct xe_ggtt *ggtt)
 		ggtt->size = GUC_GGTT_TOP;
 
 	if (GRAPHICS_VERx100(xe) >= 1270)
-		ggtt->pt_ops = (ggtt->tile->media_gt &&
-			       XE_GT_WA(ggtt->tile->media_gt, 22019338487)) ||
-			       XE_GT_WA(ggtt->tile->primary_gt, 22019338487) ?
-			       &xelpg_pt_wa_ops : &xelpg_pt_ops;
+		ggtt->pt_ops =
+			(ggtt->tile->media_gt && XE_GT_WA(ggtt->tile->media_gt, 22019338487)) ||
+			(ggtt->tile->primary_gt && XE_GT_WA(ggtt->tile->primary_gt, 22019338487)) ?
+			&xelpg_pt_wa_ops : &xelpg_pt_ops;
 	else
 		ggtt->pt_ops = &xelp_pt_ops;
 

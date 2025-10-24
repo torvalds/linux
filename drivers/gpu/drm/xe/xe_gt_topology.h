@@ -23,7 +23,7 @@ struct drm_printer;
 
 void xe_gt_topology_init(struct xe_gt *gt);
 
-void xe_gt_topology_dump(struct xe_gt *gt, struct drm_printer *p);
+int xe_gt_topology_dump(struct xe_gt *gt, struct drm_printer *p);
 
 /**
  * xe_gt_topology_mask_last_dss() - Returns the index of the last DSS in a mask.

@@ -30,12 +30,16 @@ struct xe_device_desc {
 	u8 dma_mask_size;
 	u8 max_remote_tiles:2;
 	u8 max_gt_per_tile:2;
+	u8 va_bits;
+	u8 vm_max_level;
+	u8 vram_flags;
 
 	u8 require_force_probe:1;
 	u8 is_dgfx:1;
 
 	u8 has_display:1;
 	u8 has_fan_control:1;
+	u8 has_flat_ccs:1;
 	u8 has_gsc_nvm:1;
 	u8 has_heci_gscfi:1;
 	u8 has_heci_cscfi:1;
@@ -48,18 +52,14 @@ struct xe_device_desc {
 	u8 skip_guc_pc:1;
 	u8 skip_mtcfg:1;
 	u8 skip_pcode:1;
+	u8 needs_shared_vf_gt_wq:1;
 };
 
 struct xe_graphics_desc {
-	u8 va_bits;
-	u8 vm_max_level;
-	u8 vram_flags;
-
 	u64 hw_engine_mask;	/* hardware engines provided by graphics IP */
 
 	u8 has_asid:1;
 	u8 has_atomic_enable_pte_bit:1;
-	u8 has_flat_ccs:1;
 	u8 has_indirect_ring_state:1;
 	u8 has_range_tlb_inval:1;
 	u8 has_usm:1;

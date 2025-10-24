@@ -8,6 +8,7 @@
 #include <drm/drm_managed.h>
 
 #include "xe_assert.h"
+#include "xe_configfs.h"
 #include "xe_device.h"
 #include "xe_gt_sriov_pf.h"
 #include "xe_module.h"
@@ -19,6 +20,8 @@
 
 static unsigned int wanted_max_vfs(struct xe_device *xe)
 {
+	if (IS_ENABLED(CONFIG_CONFIGFS_FS))
+		return xe_configfs_get_max_vfs(to_pci_dev(xe->drm.dev));
 	return xe_modparam.max_vfs;
 }
 
@@ -104,6 +107,31 @@ int xe_sriov_pf_init_early(struct xe_device *xe)
 }
 
 /**
+ * xe_sriov_pf_init_late() - Late initialization of the SR-IOV PF.
+ * @xe: the &xe_device to initialize
+ *
+ * This function can only be called on PF.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_sriov_pf_init_late(struct xe_device *xe)
+{
+	struct xe_gt *gt;
+	unsigned int id;
+	int err;
+
+	xe_assert(xe, IS_SRIOV_PF(xe));
+
+	for_each_gt(gt, xe, id) {
+		err = xe_gt_sriov_pf_init(gt);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+/**
  * xe_sriov_pf_wait_ready() - Wait until PF is ready to operate.
  * @xe: the &xe_device to test
  *
@@ -145,46 +173,4 @@ void xe_sriov_pf_print_vfs_summary(struct xe_device *xe, struct drm_printer *p)
 	drm_printf(p, "total: %u\n", xe->sriov.pf.device_total_vfs);
 	drm_printf(p, "supported: %u\n", xe->sriov.pf.driver_max_vfs);
 	drm_printf(p, "enabled: %u\n", pci_num_vf(pdev));
-}
-
-static int simple_show(struct seq_file *m, void *data)
-{
-	struct drm_printer p = drm_seq_file_printer(m);
-	struct drm_info_node *node = m->private;
-	struct dentry *parent = node->dent->d_parent;
-	struct xe_device *xe = parent->d_inode->i_private;
-	void (*print)(struct xe_device *, struct drm_printer *) = node->info_ent->data;
-
-	print(xe, &p);
-	return 0;
-}
-
-static const struct drm_info_list debugfs_list[] = {
-	{ .name = "vfs", .show = simple_show, .data = xe_sriov_pf_print_vfs_summary },
-	{ .name = "versions", .show = simple_show, .data = xe_sriov_pf_service_print_versions },
-};
-
-/**
- * xe_sriov_pf_debugfs_register - Register PF debugfs attributes.
- * @xe: the &xe_device
- * @root: the root &dentry
- *
- * Prepare debugfs attributes exposed by the PF.
- */
-void xe_sriov_pf_debugfs_register(struct xe_device *xe, struct dentry *root)
-{
-	struct drm_minor *minor = xe->drm.primary;
-	struct dentry *parent;
-
-	/*
-	 *      /sys/kernel/debug/dri/0/
-	 *      ├── pf
-	 *      │   ├── ...
-	 */
-	parent = debugfs_create_dir("pf", root);
-	if (IS_ERR(parent))
-		return;
-	parent->d_inode->i_private = xe;
-
-	drm_debugfs_create_files(debugfs_list, ARRAY_SIZE(debugfs_list), parent, minor);
 }

@@ -133,8 +133,7 @@ static inline bool tpm_crb_has_idle(u32 start_method)
 {
 	return !(start_method == ACPI_TPM2_START_METHOD ||
 	       start_method == ACPI_TPM2_COMMAND_BUFFER_WITH_START_METHOD ||
-	       start_method == ACPI_TPM2_COMMAND_BUFFER_WITH_ARM_SMC ||
-	       start_method == ACPI_TPM2_CRB_WITH_ARM_FFA);
+	       start_method == ACPI_TPM2_COMMAND_BUFFER_WITH_ARM_SMC);
 }
 
 static bool crb_wait_for_reg_32(u32 __iomem *reg, u32 mask, u32 value,
@@ -191,7 +190,7 @@ static int crb_try_pluton_doorbell(struct crb_priv *priv, bool wait_for_complete
  *
  * Return: 0 always
  */
-static int __crb_go_idle(struct device *dev, struct crb_priv *priv)
+static int __crb_go_idle(struct device *dev, struct crb_priv *priv, int loc)
 {
 	int rc;
 
@@ -199,6 +198,12 @@ static int __crb_go_idle(struct device *dev, struct crb_priv *priv)
 		return 0;
 
 	iowrite32(CRB_CTRL_REQ_GO_IDLE, &priv->regs_t->ctrl_req);
+
+	if (priv->sm == ACPI_TPM2_CRB_WITH_ARM_FFA) {
+		rc = tpm_crb_ffa_start(CRB_FFA_START_TYPE_COMMAND, loc);
+		if (rc)
+			return rc;
+	}
 
 	rc = crb_try_pluton_doorbell(priv, true);
 	if (rc)
@@ -220,7 +225,7 @@ static int crb_go_idle(struct tpm_chip *chip)
 	struct device *dev = &chip->dev;
 	struct crb_priv *priv = dev_get_drvdata(dev);
 
-	return __crb_go_idle(dev, priv);
+	return __crb_go_idle(dev, priv, chip->locality);
 }
 
 /**
@@ -238,7 +243,7 @@ static int crb_go_idle(struct tpm_chip *chip)
  *
  * Return: 0 on success -ETIME on timeout;
  */
-static int __crb_cmd_ready(struct device *dev, struct crb_priv *priv)
+static int __crb_cmd_ready(struct device *dev, struct crb_priv *priv, int loc)
 {
 	int rc;
 
@@ -246,6 +251,12 @@ static int __crb_cmd_ready(struct device *dev, struct crb_priv *priv)
 		return 0;
 
 	iowrite32(CRB_CTRL_REQ_CMD_READY, &priv->regs_t->ctrl_req);
+
+	if (priv->sm == ACPI_TPM2_CRB_WITH_ARM_FFA) {
+		rc = tpm_crb_ffa_start(CRB_FFA_START_TYPE_COMMAND, loc);
+		if (rc)
+			return rc;
+	}
 
 	rc = crb_try_pluton_doorbell(priv, true);
 	if (rc)
@@ -267,7 +278,7 @@ static int crb_cmd_ready(struct tpm_chip *chip)
 	struct device *dev = &chip->dev;
 	struct crb_priv *priv = dev_get_drvdata(dev);
 
-	return __crb_cmd_ready(dev, priv);
+	return __crb_cmd_ready(dev, priv, chip->locality);
 }
 
 static int __crb_request_locality(struct device *dev,
@@ -444,7 +455,7 @@ static int crb_send(struct tpm_chip *chip, u8 *buf, size_t bufsiz, size_t len)
 
 	/* Seems to be necessary for every command */
 	if (priv->sm == ACPI_TPM2_COMMAND_BUFFER_WITH_PLUTON)
-		__crb_cmd_ready(&chip->dev, priv);
+		__crb_cmd_ready(&chip->dev, priv, chip->locality);
 
 	memcpy_toio(priv->cmd, buf, len);
 
@@ -672,7 +683,7 @@ static int crb_map_io(struct acpi_device *device, struct crb_priv *priv,
 	 * PTT HW bug w/a: wake up the device to access
 	 * possibly not retained registers.
 	 */
-	ret = __crb_cmd_ready(dev, priv);
+	ret = __crb_cmd_ready(dev, priv, 0);
 	if (ret)
 		goto out_relinquish_locality;
 
@@ -744,7 +755,7 @@ out:
 	if (!ret)
 		priv->cmd_size = cmd_size;
 
-	__crb_go_idle(dev, priv);
+	__crb_go_idle(dev, priv, 0);
 
 out_relinquish_locality:
 

@@ -207,6 +207,9 @@ struct xe_exec_queue_ops {
 	 * call after suspend. In dma-fencing path thus must return within a
 	 * reasonable amount of time. -ETIME return shall indicate an error
 	 * waiting for suspend resulting in associated VM getting killed.
+	 * -EAGAIN return indicates the wait should be tried again, if the wait
+	 * is within a work item, the work item should be requeued as deadlock
+	 * avoidance mechanism.
 	 */
 	int (*suspend_wait)(struct xe_exec_queue *q);
 	/**
