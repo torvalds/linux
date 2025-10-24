@@ -12,9 +12,9 @@
  * Copyright (c) 2024 Cryolitia PukNgae
  */
 
-#include <linux/acpi.h>
 #include <linux/dmi.h>
 #include <linux/hwmon.h>
+#include <linux/io.h>
 #include <linux/ioport.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
