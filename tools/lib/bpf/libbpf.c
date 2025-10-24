@@ -2996,7 +2996,7 @@ static int bpf_object__init_user_btf_maps(struct bpf_object *obj, bool strict,
 
 	scn = elf_sec_by_idx(obj, obj->efile.btf_maps_shndx);
 	data = elf_sec_data(obj, scn);
-	if (!scn || !data) {
+	if (!data) {
 		pr_warn("elf: failed to get %s map definitions for %s\n",
 			MAPS_ELF_SEC, obj->path);
 		return -EINVAL;
