@@ -81,8 +81,7 @@ static int gfs2_write_jdata_folio(struct folio *folio,
 	 * the page size, the remaining memory is zeroed when mapped, and
 	 * writes to that region are not written out to the file."
 	 */
-	if (folio_pos(folio) < i_size &&
-	    i_size < folio_pos(folio) + folio_size(folio))
+	if (folio_pos(folio) < i_size && i_size < folio_next_pos(folio))
 		folio_zero_segment(folio, offset_in_folio(folio, i_size),
 				folio_size(folio));
 
