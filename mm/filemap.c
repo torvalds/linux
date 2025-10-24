@@ -422,24 +422,18 @@ int __filemap_fdatawrite_range(struct address_space *mapping, loff_t start,
 	return filemap_fdatawrite_wbc(mapping, &wbc);
 }
 
-static inline int __filemap_fdatawrite(struct address_space *mapping,
-	int sync_mode)
-{
-	return __filemap_fdatawrite_range(mapping, 0, LLONG_MAX, sync_mode);
-}
-
-int filemap_fdatawrite(struct address_space *mapping)
-{
-	return __filemap_fdatawrite(mapping, WB_SYNC_ALL);
-}
-EXPORT_SYMBOL(filemap_fdatawrite);
-
 int filemap_fdatawrite_range(struct address_space *mapping, loff_t start,
-				loff_t end)
+		loff_t end)
 {
 	return __filemap_fdatawrite_range(mapping, start, end, WB_SYNC_ALL);
 }
 EXPORT_SYMBOL(filemap_fdatawrite_range);
+
+int filemap_fdatawrite(struct address_space *mapping)
+{
+	return filemap_fdatawrite_range(mapping, 0, LLONG_MAX);
+}
+EXPORT_SYMBOL(filemap_fdatawrite);
 
 /**
  * filemap_fdatawrite_range_kick - start writeback on a range
@@ -470,7 +464,7 @@ EXPORT_SYMBOL_GPL(filemap_fdatawrite_range_kick);
  */
 int filemap_flush(struct address_space *mapping)
 {
-	return __filemap_fdatawrite(mapping, WB_SYNC_NONE);
+	return filemap_fdatawrite_range_kick(mapping, 0, LLONG_MAX);
 }
 EXPORT_SYMBOL(filemap_flush);
 
