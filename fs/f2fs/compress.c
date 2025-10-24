@@ -1329,7 +1329,7 @@ static int f2fs_write_compressed_pages(struct compress_ctx *cc,
 	}
 
 	folio = page_folio(cc->rpages[last_index]);
-	psize = folio_pos(folio) + folio_size(folio);
+	psize = folio_next_pos(folio);
 
 	err = f2fs_get_node_info(fio.sbi, dn.nid, &ni, false);
 	if (err)
