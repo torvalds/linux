@@ -300,13 +300,9 @@ static int tegra_rtc_probe(struct platform_device *pdev)
 	info->rtc->ops = &tegra_rtc_ops;
 	info->rtc->range_max = U32_MAX;
 
-	info->clk = devm_clk_get(&pdev->dev, NULL);
+	info->clk = devm_clk_get_enabled(&pdev->dev, NULL);
 	if (IS_ERR(info->clk))
 		return PTR_ERR(info->clk);
-
-	ret = clk_prepare_enable(info->clk);
-	if (ret < 0)
-		return ret;
 
 	/* set context info */
 	info->pdev = pdev;
@@ -324,29 +320,16 @@ static int tegra_rtc_probe(struct platform_device *pdev)
 	ret = devm_request_irq(&pdev->dev, info->irq, tegra_rtc_irq_handler,
 			       IRQF_TRIGGER_HIGH, dev_name(&pdev->dev),
 			       &pdev->dev);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to request interrupt: %d\n", ret);
-		goto disable_clk;
-	}
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret, "failed to request interrupt\n");
 
 	ret = devm_rtc_register_device(info->rtc);
 	if (ret)
-		goto disable_clk;
+		return ret;
 
 	dev_notice(&pdev->dev, "Tegra internal Real Time Clock\n");
 
 	return 0;
-
-disable_clk:
-	clk_disable_unprepare(info->clk);
-	return ret;
-}
-
-static void tegra_rtc_remove(struct platform_device *pdev)
-{
-	struct tegra_rtc_info *info = platform_get_drvdata(pdev);
-
-	clk_disable_unprepare(info->clk);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -399,7 +382,6 @@ static void tegra_rtc_shutdown(struct platform_device *pdev)
 
 static struct platform_driver tegra_rtc_driver = {
 	.probe = tegra_rtc_probe,
-	.remove = tegra_rtc_remove,
 	.shutdown = tegra_rtc_shutdown,
 	.driver = {
 		.name = "tegra_rtc",
