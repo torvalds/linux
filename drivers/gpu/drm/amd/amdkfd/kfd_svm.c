@@ -1738,6 +1738,11 @@ static int svm_range_validate_and_map(struct mm_struct *mm,
 
 			WRITE_ONCE(p->svms.faulting_task, current);
 			range = amdgpu_hmm_range_alloc(NULL);
+			if (unlikely(!range)) {
+				r = -ENOMEM;
+				goto free_ctx;
+			}
+
 			r = amdgpu_hmm_range_get_pages(&prange->notifier, addr, npages,
 						       readonly, owner,
 						       range);
