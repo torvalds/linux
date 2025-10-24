@@ -100,7 +100,6 @@ struct evsel {
 	 * metric fields are similar, but needs more care as they can have
 	 * references to other metric (evsel).
 	 */
-	struct evsel		**metric_events;
 	struct evsel		*metric_leader;
 
 	void			*handler;
