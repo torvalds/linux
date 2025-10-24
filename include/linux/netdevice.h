@@ -377,6 +377,8 @@ struct napi_config {
  * Structure for NAPI scheduling similar to tasklet but with weighting
  */
 struct napi_struct {
+	/* This field should be first or softnet_data.backlog needs tweaks. */
+	unsigned long		state;
 	/* The poll_list must only be managed by the entity which
 	 * changes the state of the NAPI_STATE_SCHED bit.  This means
 	 * whoever atomically sets that bit can add this napi_struct
@@ -385,7 +387,6 @@ struct napi_struct {
 	 */
 	struct list_head	poll_list;
 
-	unsigned long		state;
 	int			weight;
 	u32			defer_hard_irqs_count;
 	int			(*poll)(struct napi_struct *, int);
@@ -3529,9 +3530,17 @@ struct softnet_data {
 	call_single_data_t	csd ____cacheline_aligned_in_smp;
 	struct softnet_data	*rps_ipi_next;
 	unsigned int		cpu;
+
+	/* We force a cacheline alignment from here, to hold together
+	 * input_queue_tail, input_pkt_queue and backlog.state.
+	 * We add holes so that backlog.state is the last field
+	 * of this cache line.
+	 */
+	long			pad[3] ____cacheline_aligned_in_smp;
 	unsigned int		input_queue_tail;
 #endif
 	struct sk_buff_head	input_pkt_queue;
+
 	struct napi_struct	backlog;
 
 	struct numa_drop_counters drop_counters;
