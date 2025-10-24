@@ -195,12 +195,6 @@ static enum signal_type link_detect_sink_signal_type(struct dc_link *link,
 	 * eDP connector supports only eDP signal;
 	 * HDMI should check straps for audio
 	 */
-
-	/* PCIE detects the actual connector on add-on board */
-	if (link->link_id.id == CONNECTOR_ID_PCIE) {
-		/* ZAZTODO implement PCIE add-on card detection */
-	}
-
 	switch (link->link_id.id) {
 	case CONNECTOR_ID_HDMI_TYPE_A:
 		/* check audio support:
@@ -225,6 +219,9 @@ static enum signal_type link_detect_sink_signal_type(struct dc_link *link,
 			if (!dm_helpers_is_dp_sink_present(link))
 				result = SIGNAL_TYPE_DVI_SINGLE_LINK;
 		}
+		break;
+	case CONNECTOR_ID_PCIE:
+		/* ZAZTODO implement PCIE add-on card detection */
 		break;
 	default:
 		break;
