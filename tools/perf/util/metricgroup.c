@@ -1455,6 +1455,7 @@ static int parse_groups(struct evlist *perf_evlist,
 
 		if (!expr->metric_name) {
 			ret = -ENOMEM;
+			free(expr);
 			free(metric_events);
 			goto out;
 		}
