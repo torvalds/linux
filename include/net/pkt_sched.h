@@ -43,7 +43,6 @@ struct qdisc_walker {
  */
 
 typedef u64	psched_time_t;
-typedef long	psched_tdiff_t;
 
 /* Avoid doing 64 bit divide */
 #define PSCHED_SHIFT			6
