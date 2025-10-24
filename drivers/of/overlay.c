@@ -1190,6 +1190,9 @@ int of_overlay_remove(int *ovcs_id)
 	struct overlay_changeset *ovcs;
 	int ret, ret_apply, ret_tmp;
 
+	if (*ovcs_id == 0)
+		return 0;
+
 	if (devicetree_corrupt()) {
 		pr_err("suspect devicetree state, refuse to remove overlay\n");
 		ret = -EBUSY;
