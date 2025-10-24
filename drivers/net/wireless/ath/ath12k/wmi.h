@@ -223,15 +223,15 @@ enum WMI_HOST_WLAN_BAND {
 };
 
 /* Parameters used for WMI_VDEV_PARAM_AUTORATE_MISC_CFG command.
- * Used only for HE auto rate mode.
+ * Used for HE and EHT auto rate mode.
  */
 enum {
-	/* HE LTF related configuration */
-	WMI_HE_AUTORATE_LTF_1X = BIT(0),
-	WMI_HE_AUTORATE_LTF_2X = BIT(1),
-	WMI_HE_AUTORATE_LTF_4X = BIT(2),
+	/* LTF related configuration */
+	WMI_AUTORATE_LTF_1X = BIT(0),
+	WMI_AUTORATE_LTF_2X = BIT(1),
+	WMI_AUTORATE_LTF_4X = BIT(2),
 
-	/* HE GI related configuration */
+	/* GI related configuration */
 	WMI_AUTORATE_400NS_GI = BIT(8),
 	WMI_AUTORATE_800NS_GI = BIT(9),
 	WMI_AUTORATE_1600NS_GI = BIT(10),

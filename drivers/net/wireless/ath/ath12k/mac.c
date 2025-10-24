@@ -12094,55 +12094,57 @@ ath12k_mac_get_single_legacy_rate(struct ath12k *ar,
 }
 
 static int
-ath12k_mac_set_fixed_rate_gi_ltf(struct ath12k_link_vif *arvif, u8 he_gi, u8 he_ltf)
+ath12k_mac_set_fixed_rate_gi_ltf(struct ath12k_link_vif *arvif, u8 gi, u8 ltf)
 {
 	struct ath12k *ar = arvif->ar;
-	int ret;
+	int param, ret;
 
 	lockdep_assert_wiphy(ath12k_ar_to_hw(ar)->wiphy);
 
 	/* 0.8 = 0, 1.6 = 2 and 3.2 = 3. */
-	if (he_gi && he_gi != 0xFF)
-		he_gi += 1;
+	if (gi && gi != 0xFF)
+		gi += 1;
 
 	ret = ath12k_wmi_vdev_set_param_cmd(ar, arvif->vdev_id,
-					    WMI_VDEV_PARAM_SGI, he_gi);
+					    WMI_VDEV_PARAM_SGI, gi);
 	if (ret) {
-		ath12k_warn(ar->ab, "failed to set HE GI:%d, error:%d\n",
-			    he_gi, ret);
+		ath12k_warn(ar->ab, "failed to set GI:%d, error:%d\n",
+			    gi, ret);
 		return ret;
 	}
 	/* start from 1 */
-	if (he_ltf != 0xFF)
-		he_ltf += 1;
+	if (ltf != 0xFF)
+		ltf += 1;
+
+	param = WMI_VDEV_PARAM_HE_LTF;
 
 	ret = ath12k_wmi_vdev_set_param_cmd(ar, arvif->vdev_id,
-					    WMI_VDEV_PARAM_HE_LTF, he_ltf);
+					    param, ltf);
 	if (ret) {
-		ath12k_warn(ar->ab, "failed to set HE LTF:%d, error:%d\n",
-			    he_ltf, ret);
+		ath12k_warn(ar->ab, "failed to set LTF:%d, error:%d\n",
+			    ltf, ret);
 		return ret;
 	}
 	return 0;
 }
 
 static int
-ath12k_mac_set_auto_rate_gi_ltf(struct ath12k_link_vif *arvif, u16 he_gi, u8 he_ltf)
+ath12k_mac_set_auto_rate_gi_ltf(struct ath12k_link_vif *arvif, u16 gi, u8 ltf)
 {
 	struct ath12k *ar = arvif->ar;
 	int ret;
-	u32 he_ar_gi_ltf;
+	u32 ar_gi_ltf;
 
-	if (he_gi != 0xFF) {
-		switch (he_gi) {
-		case NL80211_RATE_INFO_HE_GI_0_8:
-			he_gi = WMI_AUTORATE_800NS_GI;
+	if (gi != 0xFF) {
+		switch (gi) {
+		case ATH12K_RATE_INFO_GI_0_8:
+			gi = WMI_AUTORATE_800NS_GI;
 			break;
-		case NL80211_RATE_INFO_HE_GI_1_6:
-			he_gi = WMI_AUTORATE_1600NS_GI;
+		case ATH12K_RATE_INFO_GI_1_6:
+			gi = WMI_AUTORATE_1600NS_GI;
 			break;
-		case NL80211_RATE_INFO_HE_GI_3_2:
-			he_gi = WMI_AUTORATE_3200NS_GI;
+		case ATH12K_RATE_INFO_GI_3_2:
+			gi = WMI_AUTORATE_3200NS_GI;
 			break;
 		default:
 			ath12k_warn(ar->ab, "Invalid GI\n");
@@ -12150,16 +12152,16 @@ ath12k_mac_set_auto_rate_gi_ltf(struct ath12k_link_vif *arvif, u16 he_gi, u8 he_
 		}
 	}
 
-	if (he_ltf != 0xFF) {
-		switch (he_ltf) {
-		case NL80211_RATE_INFO_HE_1XLTF:
-			he_ltf = WMI_HE_AUTORATE_LTF_1X;
+	if (ltf != 0xFF) {
+		switch (ltf) {
+		case ATH12K_RATE_INFO_1XLTF:
+			ltf = WMI_AUTORATE_LTF_1X;
 			break;
-		case NL80211_RATE_INFO_HE_2XLTF:
-			he_ltf = WMI_HE_AUTORATE_LTF_2X;
+		case ATH12K_RATE_INFO_2XLTF:
+			ltf = WMI_AUTORATE_LTF_2X;
 			break;
-		case NL80211_RATE_INFO_HE_4XLTF:
-			he_ltf = WMI_HE_AUTORATE_LTF_4X;
+		case ATH12K_RATE_INFO_4XLTF:
+			ltf = WMI_AUTORATE_LTF_4X;
 			break;
 		default:
 			ath12k_warn(ar->ab, "Invalid LTF\n");
@@ -12167,15 +12169,15 @@ ath12k_mac_set_auto_rate_gi_ltf(struct ath12k_link_vif *arvif, u16 he_gi, u8 he_
 		}
 	}
 
-	he_ar_gi_ltf = he_gi | he_ltf;
+	ar_gi_ltf = gi | ltf;
 
 	ret = ath12k_wmi_vdev_set_param_cmd(ar, arvif->vdev_id,
 					    WMI_VDEV_PARAM_AUTORATE_MISC_CFG,
-					    he_ar_gi_ltf);
+					    ar_gi_ltf);
 	if (ret) {
 		ath12k_warn(ar->ab,
-			    "failed to set HE autorate GI:%u, LTF:%u params, error:%d\n",
-			    he_gi, he_ltf, ret);
+			    "failed to set autorate GI:%u, LTF:%u params, error:%d\n",
+			    gi, ltf, ret);
 		return ret;
 	}
 
@@ -12200,10 +12202,10 @@ static int ath12k_mac_set_rate_params(struct ath12k_link_vif *arvif,
 {
 	struct ieee80211_bss_conf *link_conf;
 	struct ath12k *ar = arvif->ar;
+	bool he_support, gi_ltf_set = false;
 	u32 vdev_param;
 	u32 param_value;
 	int ret;
-	bool he_support;
 
 	lockdep_assert_wiphy(ath12k_ar_to_hw(ar)->wiphy);
 
@@ -12257,7 +12259,10 @@ static int ath12k_mac_set_rate_params(struct ath12k_link_vif *arvif,
 			ret = ath12k_mac_set_auto_rate_gi_ltf(arvif, he_gi, he_ltf);
 		if (ret)
 			return ret;
-	} else {
+		gi_ltf_set = true;
+	}
+
+	if (!gi_ltf_set) {
 		vdev_param = WMI_VDEV_PARAM_SGI;
 		param_value = ath12k_mac_nlgi_to_wmigi(sgi);
 		ret = ath12k_wmi_vdev_set_param_cmd(ar, arvif->vdev_id,
