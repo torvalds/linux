@@ -1589,15 +1589,15 @@ static int ntb_async_rx_submit(struct ntb_queue_entry *entry, void *offset)
 		goto err;
 
 	unmap->len = len;
-	unmap->addr[0] = dma_map_page(device->dev, virt_to_page(offset),
-				      pay_off, len, DMA_TO_DEVICE);
+	unmap->addr[0] = dma_map_phys(device->dev, virt_to_phys(offset),
+				      len, DMA_TO_DEVICE, 0);
 	if (dma_mapping_error(device->dev, unmap->addr[0]))
 		goto err_get_unmap;
 
 	unmap->to_cnt = 1;
 
-	unmap->addr[1] = dma_map_page(device->dev, virt_to_page(buf),
-				      buff_off, len, DMA_FROM_DEVICE);
+	unmap->addr[1] = dma_map_phys(device->dev, virt_to_phys(buf),
+				      len, DMA_FROM_DEVICE, 0);
 	if (dma_mapping_error(device->dev, unmap->addr[1]))
 		goto err_get_unmap;
 
@@ -1923,8 +1923,8 @@ static int ntb_async_tx_submit(struct ntb_transport_qp *qp,
 		goto err;
 
 	unmap->len = len;
-	unmap->addr[0] = dma_map_page(device->dev, virt_to_page(buf),
-				      buff_off, len, DMA_TO_DEVICE);
+	unmap->addr[0] = dma_map_phys(device->dev, virt_to_phys(buf),
+				      len, DMA_TO_DEVICE, 0);
 	if (dma_mapping_error(device->dev, unmap->addr[0]))
 		goto err_get_unmap;
 
