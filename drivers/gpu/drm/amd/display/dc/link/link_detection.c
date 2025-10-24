@@ -184,11 +184,13 @@ static enum signal_type link_detect_sink_signal_type(struct dc_link *link,
 	if (link->ep_type != DISPLAY_ENDPOINT_PHY)
 		return result;
 
-	/* Internal digital encoder will detect only dongles
+	/*
+	 * Internal digital encoder will detect only dongles
 	 * that require digital signal
 	 */
 
-	/* Detection mechanism is different
+	/*
+	 * Detection mechanism is different
 	 * for different native connectors.
 	 * LVDS connector supports only LVDS signal;
 	 * PCIE is a bus slot, the actual connector needs to be detected first;
@@ -197,7 +199,8 @@ static enum signal_type link_detect_sink_signal_type(struct dc_link *link,
 	 */
 	switch (link->link_id.id) {
 	case CONNECTOR_ID_HDMI_TYPE_A:
-		/* check audio support:
+		/*
+		 * check audio support:
 		 * if native HDMI is not supported, switch to DVI
 		 */
 		aud_support = &link->dc->res_pool->audio_support;
@@ -207,11 +210,13 @@ static enum signal_type link_detect_sink_signal_type(struct dc_link *link,
 		break;
 	case CONNECTOR_ID_DISPLAY_PORT:
 	case CONNECTOR_ID_USBC:
-		/* DP HPD short pulse. Passive DP dongle will not
+		/*
+		 * DP HPD short pulse. Passive DP dongle will not
 		 * have short pulse
 		 */
 		if (reason != DETECT_REASON_HPDRX) {
-			/* Check whether DP signal detected: if not -
+			/*
+			 * Check whether DP signal detected: if not -
 			 * we assume signal is DVI; it could be corrected
 			 * to HDMI after dongle detection
 			 */
