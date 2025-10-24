@@ -161,7 +161,7 @@ To return to graphical mode, do::
 
 Once you are in text only mode, you can run tests using the --device switch
 or IGT_DEVICE variable to specify the device filter for the driver we want
-to test. IGT_DEVICE can also be used with the run-test.sh script to run the
+to test. IGT_DEVICE can also be used with the run-tests.sh script to run the
 tests for a specific driver::
 
   sudo ./build/tests/<name of test> --device "sys:/sys/devices/platform/vkms"
