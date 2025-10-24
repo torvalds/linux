@@ -707,7 +707,7 @@ static int __iomap_write_begin(const struct iomap_iter *iter,
 	 * are not changing pagecache contents.
 	 */
 	if (!(iter->flags & IOMAP_UNSHARE) && pos <= folio_pos(folio) &&
-	    pos + len >= folio_pos(folio) + folio_size(folio))
+	    pos + len >= folio_next_pos(folio))
 		return 0;
 
 	ifs = ifs_alloc(iter->inode, folio, iter->flags);
@@ -1097,8 +1097,7 @@ static void iomap_write_delalloc_ifs_punch(struct inode *inode,
 	if (!ifs)
 		return;
 
-	last_byte = min_t(loff_t, end_byte - 1,
-			folio_pos(folio) + folio_size(folio) - 1);
+	last_byte = min_t(loff_t, end_byte - 1, folio_next_pos(folio) - 1);
 	first_blk = offset_in_folio(folio, start_byte) >> blkbits;
 	last_blk = offset_in_folio(folio, last_byte) >> blkbits;
 	for (i = first_blk; i <= last_blk; i++) {
@@ -1129,8 +1128,7 @@ static void iomap_write_delalloc_punch(struct inode *inode, struct folio *folio,
 	 * Make sure the next punch start is correctly bound to
 	 * the end of this data range, not the end of the folio.
 	 */
-	*punch_start_byte = min_t(loff_t, end_byte,
-				folio_pos(folio) + folio_size(folio));
+	*punch_start_byte = min_t(loff_t, end_byte, folio_next_pos(folio));
 }
 
 /*
@@ -1170,7 +1168,7 @@ static void iomap_write_delalloc_scan(struct inode *inode,
 				start_byte, end_byte, iomap, punch);
 
 		/* move offset to start of next folio in range */
-		start_byte = folio_pos(folio) + folio_size(folio);
+		start_byte = folio_next_pos(folio);
 		folio_unlock(folio);
 		folio_put(folio);
 	}
