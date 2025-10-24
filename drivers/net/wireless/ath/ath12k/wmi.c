@@ -7202,7 +7202,7 @@ static void ath12k_peer_sta_kickout_event(struct ath12k_base *ab, struct sk_buff
 {
 	struct wmi_peer_sta_kickout_arg arg = {};
 	struct ieee80211_sta *sta;
-	struct ath12k_dp_link_peer *peer;
+	struct ath12k_link_sta *arsta;
 	struct ath12k *ar;
 
 	if (ath12k_pull_peer_sta_kickout_ev(ab, skb, &arg) != 0) {
@@ -7214,18 +7214,18 @@ static void ath12k_peer_sta_kickout_event(struct ath12k_base *ab, struct sk_buff
 
 	spin_lock_bh(&ab->base_lock);
 
-	peer = ath12k_dp_link_peer_find_by_addr(ab, arg.mac_addr);
+	arsta = ath12k_link_sta_find_by_addr(ab, arg.mac_addr);
 
-	if (!peer) {
-		ath12k_warn(ab, "peer not found %pM\n",
+	if (!arsta) {
+		ath12k_warn(ab, "arsta not found %pM\n",
 			    arg.mac_addr);
 		goto exit;
 	}
 
-	ar = ath12k_mac_get_ar_by_vdev_id(ab, peer->vdev_id);
+	ar = arsta->arvif->ar;
 	if (!ar) {
-		ath12k_warn(ab, "invalid vdev id in peer sta kickout ev %d",
-			    peer->vdev_id);
+		ath12k_warn(ab, "invalid ar in peer sta kickout ev for STA %pM\n",
+			    arg.mac_addr);
 		goto exit;
 	}
 

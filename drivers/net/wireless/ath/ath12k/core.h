@@ -18,6 +18,7 @@
 #include <linux/panic_notifier.h>
 #include <linux/average.h>
 #include <linux/of.h>
+#include <linux/rhashtable.h>
 #include "qmi.h"
 #include "htc.h"
 #include "wmi.h"
@@ -560,6 +561,9 @@ struct ath12k_link_sta {
 	u8 link_idx;
 	u32 tx_retry_failed;
 	u32 tx_retry_count;
+
+	/* peer addr based rhashtable list pointer */
+	struct rhash_head rhash_addr;
 };
 
 struct ath12k_reoq_buf {
@@ -1219,6 +1223,9 @@ struct ath12k_base {
 	 * during the initial phase of probe later.
 	 */
 	const struct ieee80211_ops *ath12k_ops;
+
+	struct rhashtable *rhead_sta_addr;
+	struct rhashtable_params rhash_sta_addr_param;
 
 	/* must be last */
 	u8 drv_priv[] __aligned(sizeof(void *));

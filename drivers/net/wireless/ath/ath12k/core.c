@@ -23,6 +23,7 @@
 #include "pci.h"
 #include "wow.h"
 #include "dp_cmn.h"
+#include "peer.h"
 
 unsigned int ath12k_debug_mask;
 module_param_named(debug_mask, ath12k_debug_mask, uint, 0644);
@@ -702,6 +703,8 @@ void ath12k_core_to_group_ref_put(struct ath12k_base *ab)
 
 static void ath12k_core_stop(struct ath12k_base *ab)
 {
+	ath12k_link_sta_rhash_tbl_destroy(ab);
+
 	ath12k_core_to_group_ref_put(ab);
 
 	if (!test_bit(ATH12K_FLAG_CRASH_FLUSH, &ab->dev_flags))
@@ -963,6 +966,12 @@ static int ath12k_core_start(struct ath12k_base *ab)
 
 	/* Indicate the core start in the appropriate group */
 	ath12k_core_to_group_ref_get(ab);
+
+	ret = ath12k_link_sta_rhash_tbl_init(ab);
+	if (ret) {
+		ath12k_warn(ab, "failed to init peer addr rhash table %d\n", ret);
+		goto err_reo_cleanup;
+	}
 
 	return 0;
 
@@ -1351,6 +1360,7 @@ static int ath12k_core_reconfigure_on_crash(struct ath12k_base *ab)
 	int ret, total_vdev;
 
 	mutex_lock(&ab->core_lock);
+	ath12k_link_sta_rhash_tbl_destroy(ab);
 	ath12k_dp_pdev_free(ab);
 	ath12k_ce_cleanup_pipes(ab);
 	ath12k_wmi_detach(ab);

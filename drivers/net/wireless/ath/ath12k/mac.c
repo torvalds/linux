@@ -1145,6 +1145,35 @@ static int ath12k_mac_set_kickout(struct ath12k_link_vif *arvif)
 	return 0;
 }
 
+static void ath12k_mac_link_sta_rhash_cleanup(void *data, struct ieee80211_sta *sta)
+{
+	u8 link_id;
+	unsigned long links_map;
+	struct ath12k_sta *ahsta;
+	struct ath12k *ar = data;
+	struct ath12k_link_sta *arsta;
+	struct ath12k_link_vif *arvif;
+	struct ath12k_base *ab = ar->ab;
+
+	ahsta = ath12k_sta_to_ahsta(sta);
+	links_map = ahsta->links_map;
+
+	rcu_read_lock();
+	for_each_set_bit(link_id, &links_map, IEEE80211_MLD_MAX_NUM_LINKS) {
+		arsta = rcu_dereference(ahsta->link[link_id]);
+		if (!arsta)
+			continue;
+		arvif = arsta->arvif;
+		if (!(arvif->ar == ar))
+			continue;
+
+		spin_lock_bh(&ab->base_lock);
+		ath12k_link_sta_rhash_delete(ab, arsta);
+		spin_unlock_bh(&ab->base_lock);
+	}
+	rcu_read_unlock();
+}
+
 void ath12k_mac_peer_cleanup_all(struct ath12k *ar)
 {
 	struct ath12k_dp_link_peer *peer, *tmp;
@@ -1165,6 +1194,10 @@ void ath12k_mac_peer_cleanup_all(struct ath12k *ar)
 
 	ar->num_peers = 0;
 	ar->num_stations = 0;
+
+	/* Cleanup rhash table maintained for arsta by iterating over sta */
+	ieee80211_iterate_stations_mtx(ar->ah->hw, ath12k_mac_link_sta_rhash_cleanup,
+				       ar);
 }
 
 static int ath12k_mac_vdev_setup_sync(struct ath12k *ar)
@@ -6349,6 +6382,7 @@ static int ath12k_mac_station_remove(struct ath12k *ar,
 	struct ieee80211_sta *sta = ath12k_ahsta_to_sta(arsta->ahsta);
 	struct ath12k_vif *ahvif = arvif->ahvif;
 	int ret = 0;
+	struct ath12k_link_sta *temp_arsta;
 
 	lockdep_assert_wiphy(ath12k_ar_to_hw(ar)->wiphy);
 
@@ -6377,6 +6411,15 @@ static int ath12k_mac_station_remove(struct ath12k *ar,
 
 	ath12k_mac_station_post_remove(ar, arvif, arsta);
 
+	spin_lock_bh(&ar->ab->base_lock);
+
+	/* To handle roaming and split phy scenario */
+	temp_arsta = ath12k_link_sta_find_by_addr(ar->ab, arsta->addr);
+	if (temp_arsta && temp_arsta->arvif->ar == ar)
+		ath12k_link_sta_rhash_delete(ar->ab, arsta);
+
+	spin_unlock_bh(&ar->ab->base_lock);
+
 	if (sta->valid_links)
 		ath12k_mac_free_unassign_link_sta(ahvif->ah,
 						  arsta->ahsta, arsta->link_id);
@@ -6393,6 +6436,7 @@ static int ath12k_mac_station_add(struct ath12k *ar,
 	struct ieee80211_sta *sta = ath12k_ahsta_to_sta(arsta->ahsta);
 	struct ath12k_wmi_peer_create_arg peer_param = {};
 	int ret;
+	struct ath12k_link_sta *temp_arsta;
 
 	lockdep_assert_wiphy(ath12k_ar_to_hw(ar)->wiphy);
 
@@ -6409,6 +6453,26 @@ static int ath12k_mac_station_add(struct ath12k *ar,
 			ret = -ENOMEM;
 			goto dec_num_station;
 		}
+	}
+
+	spin_lock_bh(&ab->base_lock);
+
+	/*
+	 * In case of Split PHY and roaming scenario, pdev idx
+	 * might differ but both the pdev will share same rhash
+	 * table. In that case update the rhash table if link_sta is
+	 * already present
+	 */
+	temp_arsta = ath12k_link_sta_find_by_addr(ab, arsta->addr);
+	if (temp_arsta && temp_arsta->arvif->ar != ar)
+		ath12k_link_sta_rhash_delete(ab, temp_arsta);
+
+	ret = ath12k_link_sta_rhash_add(ab, arsta);
+	spin_unlock_bh(&ab->base_lock);
+	if (ret) {
+		ath12k_warn(ab, "Failed to add arsta: %pM to hash table, ret: %d",
+			    arsta->addr, ret);
+		goto free_rx_stats;
 	}
 
 	peer_param.vdev_id = arvif->vdev_id;
@@ -6459,6 +6523,10 @@ static int ath12k_mac_station_add(struct ath12k *ar,
 
 free_peer:
 	ath12k_peer_delete(ar, arvif->vdev_id, arsta->addr);
+	spin_lock_bh(&ab->base_lock);
+	ath12k_link_sta_rhash_delete(ab, arsta);
+	spin_unlock_bh(&ab->base_lock);
+free_rx_stats:
 	kfree(arsta->rx_stats);
 	arsta->rx_stats = NULL;
 dec_num_station:
@@ -6536,6 +6604,10 @@ static void ath12k_mac_ml_station_remove(struct ath12k_vif *ahvif,
 		ar = arvif->ar;
 
 		ath12k_mac_station_post_remove(ar, arvif, arsta);
+
+		spin_lock_bh(&ar->ab->base_lock);
+		ath12k_link_sta_rhash_delete(ar->ab, arsta);
+		spin_unlock_bh(&ar->ab->base_lock);
 
 		ath12k_mac_free_unassign_link_sta(ah, ahsta, link_id);
 	}
