@@ -237,15 +237,17 @@ scx_bpf_dsq_insert_vtime(struct task_struct *p, u64 dsq_id, u64 slice, u64 vtime
 /*
  * v6.19: scx_bpf_dsq_insert() now returns bool instead of void. Move
  * scx_bpf_dsq_insert() decl to common.bpf.h and drop compat helper after v6.22.
+ * The extra ___compat suffix is to work around libbpf not ignoring __SUFFIX on
+ * kernel side. The entire suffix can be dropped later.
  */
-bool scx_bpf_dsq_insert___v2(struct task_struct *p, u64 dsq_id, u64 slice, u64 enq_flags) __ksym __weak;
+bool scx_bpf_dsq_insert___v2___compat(struct task_struct *p, u64 dsq_id, u64 slice, u64 enq_flags) __ksym __weak;
 void scx_bpf_dsq_insert___v1(struct task_struct *p, u64 dsq_id, u64 slice, u64 enq_flags) __ksym __weak;
 
 static inline bool
 scx_bpf_dsq_insert(struct task_struct *p, u64 dsq_id, u64 slice, u64 enq_flags)
 {
-	if (bpf_ksym_exists(scx_bpf_dsq_insert___v2)) {
-		return scx_bpf_dsq_insert___v2(p, dsq_id, slice, enq_flags);
+	if (bpf_ksym_exists(scx_bpf_dsq_insert___v2___compat)) {
+		return scx_bpf_dsq_insert___v2___compat(p, dsq_id, slice, enq_flags);
 	} else {
 		scx_bpf_dsq_insert___v1(p, dsq_id, slice, enq_flags);
 		return true;
