@@ -340,7 +340,6 @@ static int tegra_rtc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int tegra_rtc_suspend(struct device *dev)
 {
 	struct tegra_rtc_info *info = dev_get_drvdata(dev);
@@ -378,9 +377,8 @@ static int tegra_rtc_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
-static SIMPLE_DEV_PM_OPS(tegra_rtc_pm_ops, tegra_rtc_suspend, tegra_rtc_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(tegra_rtc_pm_ops, tegra_rtc_suspend, tegra_rtc_resume);
 
 static void tegra_rtc_shutdown(struct platform_device *pdev)
 {
@@ -395,7 +393,7 @@ static struct platform_driver tegra_rtc_driver = {
 		.name = "tegra_rtc",
 		.of_match_table = tegra_rtc_dt_match,
 		.acpi_match_table = tegra_rtc_acpi_match,
-		.pm = &tegra_rtc_pm_ops,
+		.pm = pm_sleep_ptr(&tegra_rtc_pm_ops),
 	},
 };
 module_platform_driver(tegra_rtc_driver);
