@@ -30,9 +30,9 @@
 #include <linux/sched/mm.h>
 #include <linux/io.h>
 #include <linux/vmalloc.h>
+#include <linux/pgalloc.h>
 
 #include <asm/cacheflush.h>
-#include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
 
 /*

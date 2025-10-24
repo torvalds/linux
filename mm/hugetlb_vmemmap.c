@@ -15,7 +15,8 @@
 #include <linux/bootmem_info.h>
 #include <linux/mmdebug.h>
 #include <linux/pagewalk.h>
-#include <asm/pgalloc.h>
+#include <linux/pgalloc.h>
+
 #include <asm/tlbflush.h>
 #include "hugetlb_vmemmap.h"
 

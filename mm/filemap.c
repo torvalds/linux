@@ -48,7 +48,8 @@
 #include <linux/rcupdate_wait.h>
 #include <linux/sched/mm.h>
 #include <linux/sysctl.h>
-#include <asm/pgalloc.h>
+#include <linux/pgalloc.h>
+
 #include <asm/tlbflush.h>
 #include "internal.h"
 

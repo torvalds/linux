@@ -106,9 +106,9 @@
 #include <linux/pidfs.h>
 #include <linux/tick.h>
 #include <linux/unwind_deferred.h>
-
-#include <asm/pgalloc.h>
+#include <linux/pgalloc.h>
 #include <linux/uaccess.h>
+
 #include <asm/mmu_context.h>
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>

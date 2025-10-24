@@ -17,8 +17,7 @@
 #include <linux/vmalloc.h>
 #include <linux/async.h>
 #include <linux/mutex.h>
-
-#include <asm/pgalloc.h>
+#include <linux/pgalloc.h>
 
 #include "sclp.h"
 
