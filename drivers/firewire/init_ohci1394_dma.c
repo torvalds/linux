@@ -167,6 +167,7 @@ static inline void __init init_ohci1394_initialize(struct ohci *ohci)
 
 /**
  * init_ohci1394_wait_for_busresets - wait until bus resets are completed
+ * @ohci: Pointer to the OHCI-1394 controller structure
  *
  * OHCI1394 initialization itself and any device going on- or offline
  * and any cable issue cause a IEEE1394 bus reset. The OHCI1394 spec
@@ -189,6 +190,8 @@ static inline void __init init_ohci1394_wait_for_busresets(struct ohci *ohci)
 
 /**
  * init_ohci1394_enable_physical_dma - Enable physical DMA for remote debugging
+ * @ohci: Pointer to the OHCI-1394 controller structure
+ *
  * This enables remote DMA access over IEEE1394 from every host for the low
  * 4GB of address space. DMA accesses above 4GB are not available currently.
  */
@@ -201,6 +204,8 @@ static inline void __init init_ohci1394_enable_physical_dma(struct ohci *ohci)
 
 /**
  * init_ohci1394_reset_and_init_dma - init controller and enable DMA
+ * @ohci: Pointer to the OHCI-1394 controller structure
+ *
  * This initializes the given controller and enables physical DMA engine in it.
  */
 static inline void __init init_ohci1394_reset_and_init_dma(struct ohci *ohci)
@@ -230,6 +235,10 @@ static inline void __init init_ohci1394_reset_and_init_dma(struct ohci *ohci)
 
 /**
  * init_ohci1394_controller - Map the registers of the controller and init DMA
+ * @num: PCI bus number
+ * @slot: PCI device number
+ * @func: PCI function number
+ *
  * This maps the registers of the specified controller and initializes it
  */
 static inline void __init init_ohci1394_controller(int num, int slot, int func)
@@ -284,6 +293,7 @@ void __init init_ohci1394_dma_on_all_controllers(void)
 
 /**
  * setup_ohci1394_dma - enables early OHCI1394 DMA initialization
+ * @opt: Kernel command line parameter string
  */
 static int __init setup_ohci1394_dma(char *opt)
 {
