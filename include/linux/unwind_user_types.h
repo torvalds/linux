@@ -39,6 +39,7 @@ struct unwind_user_state {
 	unsigned int				ws;
 	enum unwind_user_type			current_type;
 	unsigned int				available_types;
+	bool					topmost;
 	bool					done;
 };
 

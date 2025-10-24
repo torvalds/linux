@@ -3,12 +3,19 @@
 #define _ASM_X86_UNWIND_USER_H
 
 #include <asm/ptrace.h>
+#include <asm/uprobes.h>
 
 #define ARCH_INIT_USER_FP_FRAME(ws)			\
 	.cfa_off	=  2*(ws),			\
 	.ra_off		= -1*(ws),			\
 	.fp_off		= -2*(ws),			\
 	.use_fp		= true,
+
+#define ARCH_INIT_USER_FP_ENTRY_FRAME(ws)		\
+	.cfa_off	=  1*(ws),			\
+	.ra_off		= -1*(ws),			\
+	.fp_off		= 0,				\
+	.use_fp		= false,
 
 static inline int unwind_user_word_size(struct pt_regs *regs)
 {
@@ -20,6 +27,11 @@ static inline int unwind_user_word_size(struct pt_regs *regs)
 		return sizeof(int);
 #endif
 	return sizeof(long);
+}
+
+static inline bool unwind_user_at_function_start(struct pt_regs *regs)
+{
+	return is_uprobe_at_func_entry(regs);
 }
 
 #endif /* _ASM_X86_UNWIND_USER_H */
