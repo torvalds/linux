@@ -6656,9 +6656,31 @@ static void pci_no_domains(void)
 #endif
 }
 
+#ifdef CONFIG_PCI_DOMAINS
+static DEFINE_IDA(pci_domain_nr_dynamic_ida);
+
+/**
+ * pci_bus_find_emul_domain_nr() - allocate a PCI domain number per constraints
+ * @hint: desired domain, 0 if any ID in the range of @min to @max is acceptable
+ * @min: minimum allowable domain
+ * @max: maximum allowable domain, no IDs higher than INT_MAX will be returned
+ */
+int pci_bus_find_emul_domain_nr(u32 hint, u32 min, u32 max)
+{
+	return ida_alloc_range(&pci_domain_nr_dynamic_ida, max(hint, min), max,
+			       GFP_KERNEL);
+}
+EXPORT_SYMBOL_GPL(pci_bus_find_emul_domain_nr);
+
+void pci_bus_release_emul_domain_nr(int domain_nr)
+{
+	ida_free(&pci_domain_nr_dynamic_ida, domain_nr);
+}
+EXPORT_SYMBOL_GPL(pci_bus_release_emul_domain_nr);
+#endif
+
 #ifdef CONFIG_PCI_DOMAINS_GENERIC
 static DEFINE_IDA(pci_domain_nr_static_ida);
-static DEFINE_IDA(pci_domain_nr_dynamic_ida);
 
 static void of_pci_reserve_static_domain_nr(void)
 {
