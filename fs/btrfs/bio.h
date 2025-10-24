@@ -56,6 +56,9 @@ struct btrfs_bio {
 		struct {
 			struct btrfs_ordered_extent *ordered;
 			struct btrfs_ordered_sum *sums;
+			struct work_struct csum_work;
+			struct completion csum_done;
+			struct bvec_iter csum_saved_iter;
 			u64 orig_physical;
 		};
 
@@ -83,6 +86,10 @@ struct btrfs_bio {
 	 * scrub bios.
 	 */
 	bool is_scrub;
+
+	/* Whether the csum generation for data write is async. */
+	bool async_csum;
+
 	/*
 	 * This member must come last, bio_alloc_bioset will allocate enough
 	 * bytes for entire btrfs_bio but relies on bio being last.
