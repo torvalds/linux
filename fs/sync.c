@@ -285,8 +285,7 @@ int sync_file_range(struct file *file, loff_t offset, loff_t nbytes,
 			ret = filemap_fdatawrite_range(mapping, offset,
 					endbyte);
 		else
-			ret = filemap_fdatawrite_range_kick(mapping, offset,
-					endbyte);
+			ret = filemap_flush_range(mapping, offset, endbyte);
 		if (ret < 0)
 			goto out;
 	}
