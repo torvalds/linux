@@ -1556,8 +1556,10 @@ void __tcp_cleanup_rbuf(struct sock *sk, int copied)
 				time_to_ack = true;
 		}
 	}
-	if (time_to_ack)
+	if (time_to_ack) {
+		tcp_mstamp_refresh(tp);
 		tcp_send_ack(sk);
+	}
 }
 
 void tcp_cleanup_rbuf(struct sock *sk, int copied)
