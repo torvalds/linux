@@ -8589,6 +8589,7 @@ S:	Supported
 T:	git https://gitlab.freedesktop.org/drm/misc/kernel.git
 F:	drivers/gpu/drm/scheduler/
 F:	include/drm/gpu_scheduler.h
+F:	include/drm/spsc_queue.h
 
 DRM GPUVM
 M:	Danilo Krummrich <dakr@kernel.org>
