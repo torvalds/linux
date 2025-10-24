@@ -234,7 +234,7 @@ static const struct regmap_config apds9960_regmap_config = {
 	.reg_defaults = apds9960_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(apds9960_reg_defaults),
 	.max_register = APDS9960_REG_GFIFO_DIR(RIGHT),
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static const struct iio_event_spec apds9960_pxs_event_spec[] = {
