@@ -834,7 +834,7 @@ xfarray_sort_scan(
 		si->first_folio_idx = xfarray_idx(si->array,
 				folio_pos(si->folio) + si->array->obj_size - 1);
 
-		next_pos = folio_pos(si->folio) + folio_size(si->folio);
+		next_pos = folio_next_pos(si->folio);
 		si->last_folio_idx = xfarray_idx(si->array, next_pos - 1);
 		if (xfarray_pos(si->array, si->last_folio_idx + 1) > next_pos)
 			si->last_folio_idx--;
