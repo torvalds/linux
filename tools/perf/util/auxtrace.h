@@ -648,6 +648,7 @@ void auxtrace__free_events(struct perf_session *session);
 void auxtrace__free(struct perf_session *session);
 bool auxtrace__evsel_is_auxtrace(struct perf_session *session,
 				 struct evsel *evsel);
+u64 auxtrace_synth_id_range_start(struct evsel *evsel);
 
 #define ITRACE_HELP \
 "				i[period]:    		synthesize instructions events\n" \

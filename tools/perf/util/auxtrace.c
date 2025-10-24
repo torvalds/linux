@@ -62,6 +62,22 @@
 #include <internal/lib.h>
 #include "util/sample.h"
 
+#define AUXTRACE_SYNTH_EVENT_ID_OFFSET	1000000000ULL
+
+/*
+ * Event IDs are allocated sequentially, so a big offset from any
+ * existing ID will reach a unused range.
+ */
+u64 auxtrace_synth_id_range_start(struct evsel *evsel)
+{
+	u64 id = evsel->core.id[0] + AUXTRACE_SYNTH_EVENT_ID_OFFSET;
+
+	if (!id)
+		id = 1;
+
+	return id;
+}
+
 /*
  * Make a group from 'leader' to 'last', requiring that the events were not
  * already grouped to a different leader.
