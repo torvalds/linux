@@ -13116,6 +13116,15 @@ F:	include/uapi/linux/io_uring.h
 F:	include/uapi/linux/io_uring/
 F:	io_uring/
 
+IO_URING ZCRX
+M:	Pavel Begunkov <asml.silence@gmail.com>
+L:	io-uring@vger.kernel.org
+L:	netdev@vger.kernel.org
+T:	git https://github.com/isilence/linux.git zcrx/for-next
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/axboe/linux.git
+S:	Maintained
+F:	io_uring/zcrx.*
+
 IPMI SUBSYSTEM
 M:	Corey Minyard <corey@minyard.net>
 L:	openipmi-developer@lists.sourceforge.net (moderated for non-subscribers)
