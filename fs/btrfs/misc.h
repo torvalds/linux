@@ -209,9 +209,4 @@ static inline bool bitmap_test_range_all_zero(const unsigned long *addr,
 	return (found_set == start + nbits);
 }
 
-static inline u64 folio_end(struct folio *folio)
-{
-	return folio_pos(folio) + folio_size(folio);
-}
-
 #endif
