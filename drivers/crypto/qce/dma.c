@@ -24,11 +24,13 @@ int devm_qce_dma_request(struct device *dev, struct qce_dma_data *dma)
 
 	dma->txchan = dma_request_chan(dev, "tx");
 	if (IS_ERR(dma->txchan))
-		return PTR_ERR(dma->txchan);
+		return dev_err_probe(dev, PTR_ERR(dma->txchan),
+				     "Failed to get TX DMA channel\n");
 
 	dma->rxchan = dma_request_chan(dev, "rx");
 	if (IS_ERR(dma->rxchan)) {
-		ret = PTR_ERR(dma->rxchan);
+		ret = dev_err_probe(dev, PTR_ERR(dma->rxchan),
+				    "Failed to get RX DMA channel\n");
 		goto error_rx;
 	}
 
