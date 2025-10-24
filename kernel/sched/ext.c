@@ -1044,15 +1044,15 @@ static void task_unlink_from_dsq(struct task_struct *p,
 		p->scx.dsq_flags &= ~SCX_TASK_DSQ_ON_PRIQ;
 	}
 
+	list_del_init(&p->scx.dsq_list.node);
+	dsq_mod_nr(dsq, -1);
+
 	if (!(dsq->id & SCX_DSQ_FLAG_BUILTIN) && dsq->first_task == p) {
 		struct task_struct *first_task;
 
 		first_task = nldsq_next_task(dsq, NULL, false);
 		rcu_assign_pointer(dsq->first_task, first_task);
 	}
-
-	list_del_init(&p->scx.dsq_list.node);
-	dsq_mod_nr(dsq, -1);
 }
 
 static void dispatch_dequeue(struct rq *rq, struct task_struct *p)
