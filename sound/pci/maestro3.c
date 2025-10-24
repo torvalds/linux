@@ -2571,9 +2571,9 @@ snd_m3_create(struct snd_card *card, struct pci_dev *pci,
 
 	if (IS_ENABLED(CONFIG_PM_SLEEP)) {
 		chip->suspend_mem =
-			vmalloc(array_size(sizeof(u16),
-					   REV_B_CODE_MEMORY_LENGTH +
-					   REV_B_DATA_MEMORY_LENGTH));
+			vmalloc_array(REV_B_CODE_MEMORY_LENGTH +
+				      REV_B_DATA_MEMORY_LENGTH,
+				      sizeof(u16));
 		if (!chip->suspend_mem)
 			dev_warn(card->dev, "can't allocate apm buffer\n");
 	}
