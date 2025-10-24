@@ -274,6 +274,12 @@ static const struct of_device_id tegra_rtc_dt_match[] = {
 };
 MODULE_DEVICE_TABLE(of, tegra_rtc_dt_match);
 
+static const struct acpi_device_id tegra_rtc_acpi_match[] = {
+	{ "NVDA0280" },
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, tegra_rtc_acpi_match);
+
 static int tegra_rtc_probe(struct platform_device *pdev)
 {
 	struct tegra_rtc_info *info;
@@ -300,9 +306,11 @@ static int tegra_rtc_probe(struct platform_device *pdev)
 	info->rtc->ops = &tegra_rtc_ops;
 	info->rtc->range_max = U32_MAX;
 
-	info->clk = devm_clk_get_enabled(&pdev->dev, NULL);
-	if (IS_ERR(info->clk))
-		return PTR_ERR(info->clk);
+	if (dev_of_node(&pdev->dev)) {
+		info->clk = devm_clk_get_enabled(&pdev->dev, NULL);
+		if (IS_ERR(info->clk))
+			return PTR_ERR(info->clk);
+	}
 
 	/* set context info */
 	info->pdev = pdev;
@@ -386,6 +394,7 @@ static struct platform_driver tegra_rtc_driver = {
 	.driver = {
 		.name = "tegra_rtc",
 		.of_match_table = tegra_rtc_dt_match,
+		.acpi_match_table = tegra_rtc_acpi_match,
 		.pm = &tegra_rtc_pm_ops,
 	},
 };
