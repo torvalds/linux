@@ -188,7 +188,7 @@ ath12k_update_per_peer_tx_stats(struct ath12k_pdev_dp *dp_pdev,
 {
 	struct ath12k_dp *dp = dp_pdev->dp;
 	struct ath12k_base *ab = dp->ab;
-	struct ath12k_peer *peer;
+	struct ath12k_dp_link_peer *peer;
 	struct ath12k_link_sta *arsta;
 	struct htt_ppdu_stats_user_rate *user_rate;
 	struct ath12k_per_peer_tx_stats *peer_stats = &dp_pdev->peer_tx_stats;
@@ -273,7 +273,7 @@ ath12k_update_per_peer_tx_stats(struct ath12k_pdev_dp *dp_pdev,
 
 	rcu_read_lock();
 	spin_lock_bh(&ab->base_lock);
-	peer = ath12k_peer_find_by_id(ab, usr_stats->peer_id);
+	peer = ath12k_dp_link_peer_find_by_id(ab, usr_stats->peer_id);
 
 	if (!peer || !peer->sta) {
 		spin_unlock_bh(&ab->base_lock);
@@ -281,7 +281,7 @@ ath12k_update_per_peer_tx_stats(struct ath12k_pdev_dp *dp_pdev,
 		return;
 	}
 
-	arsta = ath12k_peer_get_link_sta(ab, peer);
+	arsta = ath12k_dp_link_peer_to_link_sta(ab, peer);
 	if (!arsta) {
 		spin_unlock_bh(&ab->base_lock);
 		rcu_read_unlock();
@@ -403,7 +403,7 @@ struct htt_ppdu_stats_info *ath12k_dp_htt_get_ppdu_desc(struct ath12k_pdev_dp *d
 	return ppdu_info;
 }
 
-static void ath12k_copy_to_delay_stats(struct ath12k_peer *peer,
+static void ath12k_copy_to_delay_stats(struct ath12k_dp_link_peer *peer,
 				       struct htt_ppdu_user_stats *usr_stats)
 {
 	peer->ppdu_stats_delayba.sw_peer_id = le16_to_cpu(usr_stats->rate.sw_peer_id);
@@ -418,7 +418,7 @@ static void ath12k_copy_to_delay_stats(struct ath12k_peer *peer,
 	peer->delayba_flag = true;
 }
 
-static void ath12k_copy_to_bar(struct ath12k_peer *peer,
+static void ath12k_copy_to_bar(struct ath12k_dp_link_peer *peer,
 			       struct htt_ppdu_user_stats *usr_stats)
 {
 	usr_stats->rate.sw_peer_id = cpu_to_le16(peer->ppdu_stats_delayba.sw_peer_id);
@@ -439,7 +439,7 @@ static int ath12k_htt_pull_ppdu_stats(struct ath12k_base *ab,
 	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
 	struct ath12k_htt_ppdu_stats_msg *msg;
 	struct htt_ppdu_stats_info *ppdu_info;
-	struct ath12k_peer *peer = NULL;
+	struct ath12k_dp_link_peer *peer = NULL;
 	struct htt_ppdu_user_stats *usr_stats = NULL;
 	u32 peer_id = 0;
 	struct ath12k_pdev_dp *dp_pdev;
@@ -508,7 +508,7 @@ static int ath12k_htt_pull_ppdu_stats(struct ath12k_base *ab,
 		for (i = 0; i < ppdu_info->ppdu_stats.common.num_users; i++) {
 			peer_id = ppdu_info->ppdu_stats.user_stats[i].peer_id;
 			spin_lock_bh(&ab->base_lock);
-			peer = ath12k_peer_find_by_id(ab, peer_id);
+			peer = ath12k_dp_link_peer_find_by_id(ab, peer_id);
 			if (!peer) {
 				spin_unlock_bh(&ab->base_lock);
 				continue;
@@ -527,7 +527,7 @@ static int ath12k_htt_pull_ppdu_stats(struct ath12k_base *ab,
 		for (i = 0; i < ppdu_info->bar_num_users; i++) {
 			peer_id = ppdu_info->ppdu_stats.user_stats[i].peer_id;
 			spin_lock_bh(&ab->base_lock);
-			peer = ath12k_peer_find_by_id(ab, peer_id);
+			peer = ath12k_dp_link_peer_find_by_id(ab, peer_id);
 			if (!peer) {
 				spin_unlock_bh(&ab->base_lock);
 				continue;
@@ -623,7 +623,7 @@ void ath12k_dp_htt_htc_t2h_msg_handler(struct ath12k_base *ab,
 					     HTT_T2H_PEER_MAP_INFO1_MAC_ADDR_H16);
 		ath12k_dp_get_mac_addr(le32_to_cpu(resp->peer_map_ev.mac_addr_l32),
 				       peer_mac_h16, mac_addr);
-		ath12k_peer_map_event(ab, vdev_id, peer_id, mac_addr, 0, 0);
+		ath12k_dp_link_peer_map_event(ab, vdev_id, peer_id, mac_addr, 0, 0);
 		break;
 	case HTT_T2H_MSG_TYPE_PEER_MAP2:
 		vdev_id = le32_get_bits(resp->peer_map_ev.info,
@@ -638,8 +638,8 @@ void ath12k_dp_htt_htc_t2h_msg_handler(struct ath12k_base *ab,
 					 HTT_T2H_PEER_MAP_INFO2_AST_HASH_VAL);
 		hw_peer_id = le32_get_bits(resp->peer_map_ev.info1,
 					   HTT_T2H_PEER_MAP_INFO1_HW_PEER_ID);
-		ath12k_peer_map_event(ab, vdev_id, peer_id, mac_addr, ast_hash,
-				      hw_peer_id);
+		ath12k_dp_link_peer_map_event(ab, vdev_id, peer_id, mac_addr, ast_hash,
+					      hw_peer_id);
 		break;
 	case HTT_T2H_MSG_TYPE_PEER_MAP3:
 		vdev_id = le32_get_bits(resp->peer_map_ev.info,
@@ -654,14 +654,14 @@ void ath12k_dp_htt_htc_t2h_msg_handler(struct ath12k_base *ab,
 					 HTT_T2H_PEER_MAP3_INFO2_AST_HASH_VAL);
 		hw_peer_id = le32_get_bits(resp->peer_map_ev.info2,
 					   HTT_T2H_PEER_MAP3_INFO2_HW_PEER_ID);
-		ath12k_peer_map_event(ab, vdev_id, peer_id, mac_addr, ast_hash,
-				      hw_peer_id);
+		ath12k_dp_link_peer_map_event(ab, vdev_id, peer_id, mac_addr, ast_hash,
+					      hw_peer_id);
 		break;
 	case HTT_T2H_MSG_TYPE_PEER_UNMAP:
 	case HTT_T2H_MSG_TYPE_PEER_UNMAP2:
 		peer_id = le32_get_bits(resp->peer_unmap_ev.info,
 					HTT_T2H_PEER_UNMAP_INFO_PEER_ID);
-		ath12k_peer_unmap_event(ab, peer_id);
+		ath12k_dp_link_peer_unmap_event(ab, peer_id);
 		break;
 	case HTT_T2H_MSG_TYPE_PPDU_STATS_IND:
 		ath12k_htt_pull_ppdu_stats(ab, skb);

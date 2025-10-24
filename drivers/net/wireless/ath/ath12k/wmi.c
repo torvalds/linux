@@ -7202,7 +7202,7 @@ static void ath12k_peer_sta_kickout_event(struct ath12k_base *ab, struct sk_buff
 {
 	struct wmi_peer_sta_kickout_arg arg = {};
 	struct ieee80211_sta *sta;
-	struct ath12k_peer *peer;
+	struct ath12k_dp_link_peer *peer;
 	struct ath12k *ar;
 
 	if (ath12k_pull_peer_sta_kickout_ev(ab, skb, &arg) != 0) {
@@ -7214,7 +7214,7 @@ static void ath12k_peer_sta_kickout_event(struct ath12k_base *ab, struct sk_buff
 
 	spin_lock_bh(&ab->base_lock);
 
-	peer = ath12k_peer_find_by_addr(ab, arg.mac_addr);
+	peer = ath12k_dp_link_peer_find_by_addr(ab, arg.mac_addr);
 
 	if (!peer) {
 		ath12k_warn(ab, "peer not found %pM\n",

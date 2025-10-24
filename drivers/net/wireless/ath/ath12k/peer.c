@@ -25,8 +25,8 @@ struct ath12k_ml_peer *ath12k_peer_ml_find(struct ath12k_hw *ah, const u8 *addr)
 }
 EXPORT_SYMBOL(ath12k_peer_ml_find);
 
-static int ath12k_wait_for_peer_common(struct ath12k_base *ab, int vdev_id,
-				       const u8 *addr, bool expect_mapped)
+static int ath12k_wait_for_dp_link_peer_common(struct ath12k_base *ab, int vdev_id,
+					       const u8 *addr, bool expect_mapped)
 {
 	int ret;
 
@@ -34,7 +34,9 @@ static int ath12k_wait_for_peer_common(struct ath12k_base *ab, int vdev_id,
 				bool mapped;
 
 				spin_lock_bh(&ab->base_lock);
-				mapped = !!ath12k_peer_find(ab, vdev_id, addr);
+				mapped = !!ath12k_dp_link_peer_find_by_vdev_and_addr(ab,
+										vdev_id,
+										addr);
 				spin_unlock_bh(&ab->base_lock);
 
 				(mapped == expect_mapped ||
@@ -49,7 +51,7 @@ static int ath12k_wait_for_peer_common(struct ath12k_base *ab, int vdev_id,
 
 void ath12k_peer_cleanup(struct ath12k *ar, u32 vdev_id)
 {
-	struct ath12k_peer *peer, *tmp;
+	struct ath12k_dp_link_peer *peer, *tmp;
 	struct ath12k_base *ab = ar->ab;
 
 	lockdep_assert_wiphy(ath12k_ar_to_hw(ar)->wiphy);
@@ -72,7 +74,7 @@ void ath12k_peer_cleanup(struct ath12k *ar, u32 vdev_id)
 
 static int ath12k_wait_for_peer_deleted(struct ath12k *ar, int vdev_id, const u8 *addr)
 {
-	return ath12k_wait_for_peer_common(ar->ab, vdev_id, addr, false);
+	return ath12k_wait_for_dp_link_peer_common(ar->ab, vdev_id, addr, false);
 }
 
 int ath12k_wait_for_peer_delete_done(struct ath12k *ar, u32 vdev_id,
@@ -138,7 +140,7 @@ int ath12k_peer_delete(struct ath12k *ar, u32 vdev_id, u8 *addr)
 
 static int ath12k_wait_for_peer_created(struct ath12k *ar, int vdev_id, const u8 *addr)
 {
-	return ath12k_wait_for_peer_common(ar->ab, vdev_id, addr, true);
+	return ath12k_wait_for_dp_link_peer_common(ar->ab, vdev_id, addr, true);
 }
 
 int ath12k_peer_create(struct ath12k *ar, struct ath12k_link_vif *arvif,
@@ -150,7 +152,7 @@ int ath12k_peer_create(struct ath12k *ar, struct ath12k_link_vif *arvif,
 	struct ath12k_dp_link_vif *dp_link_vif;
 	struct ath12k_link_sta *arsta;
 	u8 link_id = arvif->link_id;
-	struct ath12k_peer *peer;
+	struct ath12k_dp_link_peer *peer;
 	struct ath12k_sta *ahsta;
 	u16 ml_peer_id;
 	int ret;
@@ -166,7 +168,8 @@ int ath12k_peer_create(struct ath12k *ar, struct ath12k_link_vif *arvif,
 	}
 
 	spin_lock_bh(&ar->ab->base_lock);
-	peer = ath12k_peer_find_by_pdev_idx(ar->ab, ar->pdev_idx, arg->peer_addr);
+	peer = ath12k_dp_link_peer_find_by_pdev_and_addr(ar->ab, ar->pdev_idx,
+							 arg->peer_addr);
 	if (peer) {
 		spin_unlock_bh(&ar->ab->base_lock);
 		return -EINVAL;
@@ -188,7 +191,8 @@ int ath12k_peer_create(struct ath12k *ar, struct ath12k_link_vif *arvif,
 
 	spin_lock_bh(&ar->ab->base_lock);
 
-	peer = ath12k_peer_find(ar->ab, arg->vdev_id, arg->peer_addr);
+	peer = ath12k_dp_link_peer_find_by_vdev_and_addr(ar->ab, arg->vdev_id,
+							 arg->peer_addr);
 	if (!peer) {
 		spin_unlock_bh(&ar->ab->base_lock);
 		ath12k_warn(ar->ab, "failed to find peer %pM on vdev %i after creation\n",

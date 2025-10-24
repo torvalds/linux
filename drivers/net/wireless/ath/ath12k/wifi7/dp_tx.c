@@ -395,7 +395,7 @@ ath12k_dp_tx_htt_tx_complete_buf(struct ath12k_base *ab,
 	struct sk_buff *msdu = desc_params->skb;
 	s32 noise_floor;
 	struct ieee80211_tx_status status = {};
-	struct ath12k_peer *peer;
+	struct ath12k_dp_link_peer *peer;
 
 	skb_cb = ATH12K_SKB_CB(msdu);
 	info = IEEE80211_SKB_CB(msdu);
@@ -449,7 +449,7 @@ ath12k_dp_tx_htt_tx_complete_buf(struct ath12k_base *ab,
 	}
 	rcu_read_lock();
 	spin_lock_bh(&ab->base_lock);
-	peer = ath12k_peer_find_by_id(ab, peer_id);
+	peer = ath12k_dp_link_peer_find_by_id(ab, peer_id);
 	if (!peer || !peer->sta) {
 		ath12k_dbg(ab, ATH12K_DBG_DATA,
 			   "dp_tx: failed to find the peer with peer_id %d\n", peer_id);
@@ -518,7 +518,7 @@ static void ath12k_wifi7_dp_tx_update_txcompl(struct ath12k_pdev_dp *dp_pdev,
 {
 	struct ath12k_dp *dp = dp_pdev->dp;
 	struct ath12k_base *ab = dp->ab;
-	struct ath12k_peer *peer;
+	struct ath12k_dp_link_peer *peer;
 	struct ieee80211_sta *sta;
 	struct ath12k_sta *ahsta;
 	struct ath12k_link_sta *arsta;
@@ -528,7 +528,7 @@ static void ath12k_wifi7_dp_tx_update_txcompl(struct ath12k_pdev_dp *dp_pdev,
 	int ret;
 
 	spin_lock_bh(&ab->base_lock);
-	peer = ath12k_peer_find_by_id(ab, ts->peer_id);
+	peer = ath12k_dp_link_peer_find_by_id(ab, ts->peer_id);
 	if (!peer || !peer->sta) {
 		ath12k_dbg(ab, ATH12K_DBG_DP_TX,
 			   "failed to find the peer by id %u\n", ts->peer_id);
@@ -649,7 +649,7 @@ static void ath12k_wifi7_dp_tx_complete_msdu(struct ath12k_pdev_dp *dp_pdev,
 	s32 noise_floor;
 	struct ieee80211_tx_status status = {};
 	struct ieee80211_rate_status status_rate = {};
-	struct ath12k_peer *peer;
+	struct ath12k_dp_link_peer *peer;
 	struct ath12k_link_sta *arsta;
 	struct ath12k_sta *ahsta;
 	struct rate_info rate;
@@ -747,7 +747,7 @@ static void ath12k_wifi7_dp_tx_complete_msdu(struct ath12k_pdev_dp *dp_pdev,
 	ath12k_wifi7_dp_tx_update_txcompl(dp_pdev, ts);
 
 	spin_lock_bh(&ab->base_lock);
-	peer = ath12k_peer_find_by_id(ab, ts->peer_id);
+	peer = ath12k_dp_link_peer_find_by_id(ab, ts->peer_id);
 	if (!peer || !peer->sta) {
 		ath12k_err(ab,
 			   "dp_tx: failed to find the peer with peer_id %d\n",

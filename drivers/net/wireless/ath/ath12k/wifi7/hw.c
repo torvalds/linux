@@ -119,7 +119,7 @@ ath12k_wifi7_is_frame_link_agnostic_wcn7850(struct ath12k_link_vif *arvif,
 	__le16 fc = mgmt->frame_control;
 
 	spin_lock_bh(&ab->base_lock);
-	if (!ath12k_peer_find_by_addr(ab, mgmt->da) &&
+	if (!ath12k_dp_link_peer_find_by_addr(ab, mgmt->da) &&
 	    !ath12k_peer_ml_find(ah, mgmt->da)) {
 		spin_unlock_bh(&ab->base_lock);
 		return false;

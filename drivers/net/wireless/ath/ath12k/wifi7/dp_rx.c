@@ -68,7 +68,7 @@ static void ath12k_wifi7_peer_rx_tid_qref_reset(struct ath12k_base *ab,
 }
 
 void ath12k_wifi7_dp_rx_peer_tid_delete(struct ath12k *ar,
-					struct ath12k_peer *peer, u8 tid)
+					struct ath12k_dp_link_peer *peer, u8 tid)
 {
 	struct ath12k_hal_reo_cmd cmd = {};
 	struct ath12k_dp_rx_tid *rx_tid = &peer->rx_tid[tid];
@@ -179,7 +179,7 @@ int ath12k_wifi7_dp_reo_cmd_send(struct ath12k_base *ab,
 }
 
 int ath12k_wifi7_peer_rx_tid_reo_update(struct ath12k *ar,
-					struct ath12k_peer *peer,
+					struct ath12k_dp_link_peer *peer,
 					struct ath12k_dp_rx_tid *rx_tid,
 					u32 ba_win_sz, u16 ssn,
 					bool update_ssn)
@@ -321,7 +321,7 @@ static void ath12k_wifi7_dp_rx_h_mpdu(struct ath12k_pdev_dp *dp_pdev,
 	enum hal_encrypt_type enctype;
 	bool is_decrypted = false;
 	struct ieee80211_hdr *hdr;
-	struct ath12k_peer *peer;
+	struct ath12k_dp_link_peer *peer;
 	struct ieee80211_rx_status *rx_status = rx_info->rx_status;
 	u32 err_bitmap = rx_info->err_bitmap;
 
@@ -333,7 +333,7 @@ static void ath12k_wifi7_dp_rx_h_mpdu(struct ath12k_pdev_dp *dp_pdev,
 		rxcb->peer_id = rx_info->peer_id;
 
 	spin_lock_bh(&ab->base_lock);
-	peer = ath12k_dp_rx_h_find_peer(ab, msdu, rx_info);
+	peer = ath12k_dp_rx_h_find_link_peer(ab, msdu, rx_info);
 	if (peer) {
 		/* resetting mcbc bit because mcbc packets are unicast
 		 * packets only for AP as STA sends unicast packets.
@@ -964,7 +964,7 @@ err_unmap_dma:
 }
 
 static int ath12k_wifi7_dp_rx_h_verify_tkip_mic(struct ath12k_pdev_dp *dp_pdev,
-						struct ath12k_peer *peer,
+						struct ath12k_dp_link_peer *peer,
 						enum hal_encrypt_type enctype,
 						struct sk_buff *msdu,
 						struct hal_rx_desc_data *rx_info)
@@ -1033,7 +1033,7 @@ mic_fail:
 }
 
 static int ath12k_wifi7_dp_rx_h_defrag(struct ath12k_pdev_dp *dp_pdev,
-				       struct ath12k_peer *peer,
+				       struct ath12k_dp_link_peer *peer,
 				       struct ath12k_dp_rx_tid *rx_tid,
 				       struct sk_buff **defrag_skb,
 				       enum hal_encrypt_type enctype,
@@ -1107,7 +1107,7 @@ static int ath12k_wifi7_dp_rx_frag_h_mpdu(struct ath12k_pdev_dp *dp_pdev,
 {
 	struct ath12k_dp *dp = dp_pdev->dp;
 	struct ath12k_base *ab = dp->ab;
-	struct ath12k_peer *peer;
+	struct ath12k_dp_link_peer *peer;
 	struct ath12k_dp_rx_tid *rx_tid;
 	struct sk_buff *defrag_skb = NULL;
 	u32 peer_id = rx_info->peer_id;
@@ -1134,7 +1134,7 @@ static int ath12k_wifi7_dp_rx_frag_h_mpdu(struct ath12k_pdev_dp *dp_pdev,
 		return -EINVAL;
 
 	spin_lock_bh(&ab->base_lock);
-	peer = ath12k_peer_find_by_id(ab, peer_id);
+	peer = ath12k_dp_link_peer_find_by_id(ab, peer_id);
 	if (!peer) {
 		ath12k_warn(ab, "failed to find the peer to de-fragment received fragment peer_id %d\n",
 			    peer_id);
@@ -1197,7 +1197,7 @@ static int ath12k_wifi7_dp_rx_frag_h_mpdu(struct ath12k_pdev_dp *dp_pdev,
 	timer_delete_sync(&rx_tid->frag_timer);
 	spin_lock_bh(&ab->base_lock);
 
-	peer = ath12k_peer_find_by_id(ab, peer_id);
+	peer = ath12k_dp_link_peer_find_by_id(ab, peer_id);
 	if (!peer)
 		goto err_frags_cleanup;
 

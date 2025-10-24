@@ -471,7 +471,7 @@ void ath12k_dp_rx_frags_cleanup(struct ath12k_dp_rx_tid *rx_tid,
 	__skb_queue_purge(&rx_tid->rx_frags);
 }
 
-void ath12k_dp_rx_peer_tid_cleanup(struct ath12k *ar, struct ath12k_peer *peer)
+void ath12k_dp_rx_peer_tid_cleanup(struct ath12k *ar, struct ath12k_dp_link_peer *peer)
 {
 	struct ath12k_dp_rx_tid *rx_tid;
 	int i;
@@ -496,7 +496,7 @@ int ath12k_dp_rx_peer_tid_setup(struct ath12k *ar, const u8 *peer_mac, int vdev_
 {
 	struct ath12k_base *ab = ar->ab;
 	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
-	struct ath12k_peer *peer;
+	struct ath12k_dp_link_peer *peer;
 	struct ath12k_sta *ahsta;
 	struct ath12k_dp_rx_tid *rx_tid;
 	dma_addr_t paddr_aligned;
@@ -504,7 +504,7 @@ int ath12k_dp_rx_peer_tid_setup(struct ath12k *ar, const u8 *peer_mac, int vdev_
 
 	spin_lock_bh(&ab->base_lock);
 
-	peer = ath12k_peer_find(ab, vdev_id, peer_mac);
+	peer = ath12k_dp_link_peer_find_by_vdev_and_addr(ab, vdev_id, peer_mac);
 	if (!peer) {
 		spin_unlock_bh(&ab->base_lock);
 		ath12k_warn(ab, "failed to find the peer to set up rx tid\n");
@@ -626,7 +626,7 @@ int ath12k_dp_rx_ampdu_stop(struct ath12k *ar,
 			    u8 link_id)
 {
 	struct ath12k_base *ab = ar->ab;
-	struct ath12k_peer *peer;
+	struct ath12k_dp_link_peer *peer;
 	struct ath12k_sta *ahsta = ath12k_sta_to_ahsta(params->sta);
 	struct ath12k_link_sta *arsta;
 	int vdev_id;
@@ -644,7 +644,7 @@ int ath12k_dp_rx_ampdu_stop(struct ath12k *ar,
 
 	spin_lock_bh(&ab->base_lock);
 
-	peer = ath12k_peer_find(ab, vdev_id, arsta->addr);
+	peer = ath12k_dp_link_peer_find_by_vdev_and_addr(ab, vdev_id, arsta->addr);
 	if (!peer) {
 		spin_unlock_bh(&ab->base_lock);
 		ath12k_warn(ab, "failed to find the peer to stop rx aggregation\n");
@@ -677,7 +677,7 @@ int ath12k_dp_rx_peer_pn_replay_config(struct ath12k_link_vif *arvif,
 	struct ath12k *ar = arvif->ar;
 	struct ath12k_base *ab = ar->ab;
 	struct ath12k_hal_reo_cmd cmd = {};
-	struct ath12k_peer *peer;
+	struct ath12k_dp_link_peer *peer;
 	struct ath12k_dp_rx_tid *rx_tid;
 	u8 tid;
 	int ret = 0;
@@ -691,7 +691,8 @@ int ath12k_dp_rx_peer_pn_replay_config(struct ath12k_link_vif *arvif,
 
 	spin_lock_bh(&ab->base_lock);
 
-	peer = ath12k_peer_find(ab, arvif->vdev_id, peer_addr);
+	peer = ath12k_dp_link_peer_find_by_vdev_and_addr(ab, arvif->vdev_id,
+							 peer_addr);
 	if (!peer) {
 		spin_unlock_bh(&ab->base_lock);
 		ath12k_warn(ab, "failed to find the peer %pM to configure pn replay detection\n",
@@ -1036,23 +1037,23 @@ void ath12k_dp_rx_h_undecap(struct ath12k_pdev_dp *dp_pdev, struct sk_buff *msdu
 	}
 }
 
-struct ath12k_peer *
-ath12k_dp_rx_h_find_peer(struct ath12k_base *ab, struct sk_buff *msdu,
-			 struct hal_rx_desc_data *rx_info)
+struct ath12k_dp_link_peer *
+ath12k_dp_rx_h_find_link_peer(struct ath12k_base *ab, struct sk_buff *msdu,
+			      struct hal_rx_desc_data *rx_info)
 {
 	struct ath12k_skb_rxcb *rxcb = ATH12K_SKB_RXCB(msdu);
-	struct ath12k_peer *peer = NULL;
+	struct ath12k_dp_link_peer *peer = NULL;
 
 	lockdep_assert_held(&ab->base_lock);
 
 	if (rxcb->peer_id)
-		peer = ath12k_peer_find_by_id(ab, rxcb->peer_id);
+		peer = ath12k_dp_link_peer_find_by_id(ab, rxcb->peer_id);
 
 	if (peer)
 		return peer;
 
 	if (rx_info->addr2_present)
-		peer = ath12k_peer_find_by_addr(ab, rx_info->addr2);
+		peer = ath12k_dp_link_peer_find_by_addr(ab, rx_info->addr2);
 
 	return peer;
 }
@@ -1195,7 +1196,7 @@ void ath12k_dp_rx_deliver_msdu(struct ath12k_pdev_dp *dp_pdev, struct napi_struc
 	struct ath12k_base *ab = dp->ab;
 	struct ieee80211_rx_status *rx_status;
 	struct ieee80211_sta *pubsta;
-	struct ath12k_peer *peer;
+	struct ath12k_dp_link_peer *peer;
 	struct ath12k_skb_rxcb *rxcb = ATH12K_SKB_RXCB(msdu);
 	struct ieee80211_rx_status *status = rx_info->rx_status;
 	u8 decap = rx_info->decap_type;
@@ -1203,7 +1204,7 @@ void ath12k_dp_rx_deliver_msdu(struct ath12k_pdev_dp *dp_pdev, struct napi_struc
 	bool is_eapol = rxcb->is_eapol;
 
 	spin_lock_bh(&ab->base_lock);
-	peer = ath12k_dp_rx_h_find_peer(ab, msdu, rx_info);
+	peer = ath12k_dp_rx_h_find_link_peer(ab, msdu, rx_info);
 
 	pubsta = peer ? peer->sta : NULL;
 
@@ -1324,7 +1325,7 @@ int ath12k_dp_rx_peer_frag_setup(struct ath12k *ar, const u8 *peer_mac, int vdev
 {
 	struct ath12k_base *ab = ar->ab;
 	struct crypto_shash *tfm;
-	struct ath12k_peer *peer;
+	struct ath12k_dp_link_peer *peer;
 	struct ath12k_dp_rx_tid *rx_tid;
 	int i;
 
@@ -1334,7 +1335,7 @@ int ath12k_dp_rx_peer_frag_setup(struct ath12k *ar, const u8 *peer_mac, int vdev
 
 	spin_lock_bh(&ab->base_lock);
 
-	peer = ath12k_peer_find(ab, vdev_id, peer_mac);
+	peer = ath12k_dp_link_peer_find_by_vdev_and_addr(ab, vdev_id, peer_mac);
 	if (!peer) {
 		spin_unlock_bh(&ab->base_lock);
 		crypto_free_shash(tfm);

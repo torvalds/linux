@@ -21,7 +21,7 @@ struct ppdu_user_delayba {
 
 #define ATH12K_PEER_ML_ID_VALID         BIT(13)
 
-struct ath12k_peer {
+struct ath12k_dp_link_peer {
 	struct list_head list;
 	struct ieee80211_sta *sta;
 	int vdev_id;
@@ -65,18 +65,22 @@ struct ath12k_peer {
 	bool ucast_ra_only;
 };
 
-void ath12k_peer_unmap_event(struct ath12k_base *ab, u16 peer_id);
-void ath12k_peer_map_event(struct ath12k_base *ab, u8 vdev_id, u16 peer_id,
-			   u8 *mac_addr, u16 ast_hash, u16 hw_peer_id);
-struct ath12k_peer *ath12k_peer_find(struct ath12k_base *ab, int vdev_id,
-				     const u8 *addr);
-struct ath12k_peer *ath12k_peer_find_by_addr(struct ath12k_base *ab,
-					     const u8 *addr);
-struct ath12k_peer *ath12k_peer_find_by_id(struct ath12k_base *ab, int peer_id);
-bool ath12k_peer_exist_by_vdev_id(struct ath12k_base *ab, int vdev_id);
-struct ath12k_peer *ath12k_peer_find_by_ast(struct ath12k_base *ab, int ast_hash);
-struct ath12k_peer *ath12k_peer_find_by_pdev_idx(struct ath12k_base *ab,
-						 u8 pdev_idx, const u8 *addr);
-struct ath12k_link_sta *ath12k_peer_get_link_sta(struct ath12k_base *ab,
-						 struct ath12k_peer *peer);
+void ath12k_dp_link_peer_unmap_event(struct ath12k_base *ab, u16 peer_id);
+void ath12k_dp_link_peer_map_event(struct ath12k_base *ab, u8 vdev_id, u16 peer_id,
+				   u8 *mac_addr, u16 ast_hash, u16 hw_peer_id);
+struct ath12k_dp_link_peer *
+ath12k_dp_link_peer_find_by_vdev_and_addr(struct ath12k_base *ab,
+					  int vdev_id, const u8 *addr);
+struct ath12k_dp_link_peer *
+ath12k_dp_link_peer_find_by_addr(struct ath12k_base *ab, const u8 *addr);
+struct ath12k_dp_link_peer *
+ath12k_dp_link_peer_find_by_id(struct ath12k_base *ab, int peer_id);
+bool ath12k_dp_link_peer_exist_by_vdev_id(struct ath12k_base *ab, int vdev_id);
+struct ath12k_dp_link_peer *
+ath12k_dp_link_peer_find_by_ast(struct ath12k_base *ab, int ast_hash);
+struct ath12k_dp_link_peer *
+ath12k_dp_link_peer_find_by_pdev_and_addr(struct ath12k_base *ab, u8 pdev_idx,
+					  const u8 *addr);
+struct ath12k_link_sta *ath12k_dp_link_peer_to_link_sta(struct ath12k_base *ab,
+							struct ath12k_dp_link_peer *peer);
 #endif

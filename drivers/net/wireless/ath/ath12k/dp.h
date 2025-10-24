@@ -14,7 +14,7 @@
 #define MAX_RXDMA_PER_PDEV     2
 
 struct ath12k_base;
-struct ath12k_peer;
+struct ath12k_dp_link_peer;
 struct ath12k_dp;
 struct ath12k_vif;
 struct ath12k_link_vif;
