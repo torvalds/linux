@@ -505,7 +505,7 @@ static int __test_eb_bitmaps(unsigned long *bitmap, struct extent_buffer *eb)
 static int test_eb_bitmaps(u32 sectorsize, u32 nodesize)
 {
 	struct btrfs_fs_info *fs_info;
-	unsigned long *bitmap = NULL;
+	unsigned long AUTO_KFREE(bitmap);
 	struct extent_buffer *eb = NULL;
 	int ret;
 
@@ -551,7 +551,6 @@ static int test_eb_bitmaps(u32 sectorsize, u32 nodesize)
 	ret = __test_eb_bitmaps(bitmap, eb);
 out:
 	free_extent_buffer(eb);
-	kfree(bitmap);
 	btrfs_free_dummy_fs_info(fs_info);
 	return ret;
 }

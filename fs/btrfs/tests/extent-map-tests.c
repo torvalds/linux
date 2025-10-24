@@ -1013,7 +1013,7 @@ static int test_rmap_block(struct btrfs_fs_info *fs_info,
 			   struct rmap_test_vector *test)
 {
 	struct btrfs_chunk_map *map;
-	u64 *logical = NULL;
+	u64 AUTO_KFREE(logical);
 	int i, out_ndaddrs, out_stripe_len;
 	int ret;
 
@@ -1046,7 +1046,7 @@ static int test_rmap_block(struct btrfs_fs_info *fs_info,
 	if (ret) {
 		test_err("error adding chunk map to mapping tree");
 		btrfs_free_chunk_map(map);
-		goto out_free;
+		return ret;
 	}
 
 	ret = btrfs_rmap_block(fs_info, map->start, btrfs_sb_offset(1),
@@ -1079,8 +1079,6 @@ static int test_rmap_block(struct btrfs_fs_info *fs_info,
 	ret = 0;
 out:
 	btrfs_remove_chunk_map(fs_info, map);
-out_free:
-	kfree(logical);
 	return ret;
 }
 

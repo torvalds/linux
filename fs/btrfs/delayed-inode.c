@@ -668,7 +668,7 @@ static int btrfs_insert_delayed_item(struct btrfs_trans_handle *trans,
 	struct btrfs_key first_key;
 	const u32 first_data_size = first_item->data_len;
 	int total_size;
-	char *ins_data = NULL;
+	char AUTO_KFREE(ins_data);
 	int ret;
 	bool continuous_keys_only = false;
 
@@ -740,10 +740,8 @@ static int btrfs_insert_delayed_item(struct btrfs_trans_handle *trans,
 
 		ins_data = kmalloc_array(batch.nr,
 					 sizeof(u32) + sizeof(struct btrfs_key), GFP_NOFS);
-		if (!ins_data) {
-			ret = -ENOMEM;
-			goto out;
-		}
+		if (!ins_data)
+			return -ENOMEM;
 		ins_sizes = (u32 *)ins_data;
 		ins_keys = (struct btrfs_key *)(ins_data + batch.nr * sizeof(u32));
 		batch.keys = ins_keys;
@@ -759,7 +757,7 @@ static int btrfs_insert_delayed_item(struct btrfs_trans_handle *trans,
 
 	ret = btrfs_insert_empty_items(trans, root, path, &batch);
 	if (ret)
-		goto out;
+		return ret;
 
 	list_for_each_entry(curr, &item_list, tree_list) {
 		char *data_ptr;
@@ -814,9 +812,8 @@ static int btrfs_insert_delayed_item(struct btrfs_trans_handle *trans,
 		list_del(&curr->tree_list);
 		btrfs_release_delayed_item(curr);
 	}
-out:
-	kfree(ins_data);
-	return ret;
+
+	return 0;
 }
 
 static int btrfs_insert_delayed_items(struct btrfs_trans_handle *trans,

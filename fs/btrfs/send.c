@@ -2458,7 +2458,7 @@ static int send_subvol_begin(struct send_ctx *sctx)
 	struct btrfs_key key;
 	struct btrfs_root_ref *ref;
 	struct extent_buffer *leaf;
-	char *name = NULL;
+	char AUTO_KFREE(name);
 	int namelen;
 
 	path = btrfs_alloc_path();
@@ -2476,18 +2476,15 @@ static int send_subvol_begin(struct send_ctx *sctx)
 	ret = btrfs_search_slot_for_read(send_root->fs_info->tree_root,
 				&key, path, 1, 0);
 	if (ret < 0)
-		goto out;
-	if (ret) {
-		ret = -ENOENT;
-		goto out;
-	}
+		return ret;
+	if (ret)
+		return -ENOENT;
 
 	leaf = path->nodes[0];
 	btrfs_item_key_to_cpu(leaf, &key, path->slots[0]);
 	if (key.type != BTRFS_ROOT_BACKREF_KEY ||
 	    key.objectid != btrfs_root_id(send_root)) {
-		ret = -ENOENT;
-		goto out;
+		return -ENOENT;
 	}
 	ref = btrfs_item_ptr(leaf, path->slots[0], struct btrfs_root_ref);
 	namelen = btrfs_root_ref_name_len(leaf, ref);
@@ -2497,11 +2494,11 @@ static int send_subvol_begin(struct send_ctx *sctx)
 	if (parent_root) {
 		ret = begin_cmd(sctx, BTRFS_SEND_C_SNAPSHOT);
 		if (ret < 0)
-			goto out;
+			return ret;
 	} else {
 		ret = begin_cmd(sctx, BTRFS_SEND_C_SUBVOL);
 		if (ret < 0)
-			goto out;
+			return ret;
 	}
 
 	TLV_PUT_STRING(sctx, BTRFS_SEND_A_PATH, name, namelen);
@@ -2529,8 +2526,6 @@ static int send_subvol_begin(struct send_ctx *sctx)
 	ret = send_cmd(sctx);
 
 tlv_put_failure:
-out:
-	kfree(name);
 	return ret;
 }
 
@@ -4077,7 +4072,7 @@ static int update_ref_path(struct send_ctx *sctx, struct recorded_ref *ref)
  */
 static int refresh_ref_path(struct send_ctx *sctx, struct recorded_ref *ref)
 {
-	char *name;
+	char AUTO_KFREE(name);
 	int ret;
 
 	name = kmemdup(ref->name, ref->name_len, GFP_KERNEL);
@@ -4087,17 +4082,16 @@ static int refresh_ref_path(struct send_ctx *sctx, struct recorded_ref *ref)
 	fs_path_reset(ref->full_path);
 	ret = get_cur_path(sctx, ref->dir, ref->dir_gen, ref->full_path);
 	if (ret < 0)
-		goto out;
+		return ret;
 
 	ret = fs_path_add(ref->full_path, name, ref->name_len);
 	if (ret < 0)
-		goto out;
+		return ret;
 
 	/* Update the reference's base name pointer. */
 	set_ref_path(ref, ref->full_path);
-out:
-	kfree(name);
-	return ret;
+
+	return 0;
 }
 
 static int rbtree_check_dir_ref_comp(const void *k, const struct rb_node *node)
@@ -5006,8 +5000,8 @@ static int __process_changed_new_xattr(int num, struct btrfs_key *di_key,
 {
 	int ret;
 	struct send_ctx *sctx = ctx;
-	char *found_data = NULL;
-	int found_data_len  = 0;
+	char AUTO_KFREE(found_data);
+	int found_data_len = 0;
 
 	ret = find_xattr(sctx->parent_root, sctx->right_path,
 			 sctx->cmp_key, name, name_len, &found_data,
@@ -5025,7 +5019,6 @@ static int __process_changed_new_xattr(int num, struct btrfs_key *di_key,
 		}
 	}
 
-	kfree(found_data);
 	return ret;
 }
 
@@ -5762,7 +5755,7 @@ static int send_capabilities(struct send_ctx *sctx)
 	struct btrfs_dir_item *di;
 	struct extent_buffer *leaf;
 	unsigned long data_ptr;
-	char *buf = NULL;
+	char AUTO_KFREE(buf);
 	int buf_len;
 	int ret = 0;
 
@@ -5774,28 +5767,23 @@ static int send_capabilities(struct send_ctx *sctx)
 				XATTR_NAME_CAPS, strlen(XATTR_NAME_CAPS), 0);
 	if (!di) {
 		/* There is no xattr for this inode */
-		goto out;
+		return 0;
 	} else if (IS_ERR(di)) {
-		ret = PTR_ERR(di);
-		goto out;
+		return PTR_ERR(di);
 	}
 
 	leaf = path->nodes[0];
 	buf_len = btrfs_dir_data_len(leaf, di);
 
 	buf = kmalloc(buf_len, GFP_KERNEL);
-	if (!buf) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (!buf)
+		return -ENOMEM;
 
 	data_ptr = (unsigned long)(di + 1) + btrfs_dir_name_len(leaf, di);
 	read_extent_buffer(leaf, buf, data_ptr, buf_len);
 
 	ret = send_set_xattr(sctx, XATTR_NAME_CAPS,
 			strlen(XATTR_NAME_CAPS), buf, buf_len);
-out:
-	kfree(buf);
 	return ret;
 }
 

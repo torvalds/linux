@@ -14,12 +14,13 @@
 #include "ctree.h"
 #include "xattr.h"
 #include "acl.h"
+#include "misc.h"
 
 struct posix_acl *btrfs_get_acl(struct inode *inode, int type, bool rcu)
 {
 	int size;
 	const char *name;
-	char *value = NULL;
+	char AUTO_KFREE(value);
 	struct posix_acl *acl;
 
 	if (rcu)
@@ -49,7 +50,6 @@ struct posix_acl *btrfs_get_acl(struct inode *inode, int type, bool rcu)
 		acl = NULL;
 	else
 		acl = ERR_PTR(size);
-	kfree(value);
 
 	return acl;
 }
@@ -59,7 +59,7 @@ int __btrfs_set_acl(struct btrfs_trans_handle *trans, struct inode *inode,
 {
 	int ret, size = 0;
 	const char *name;
-	char *value = NULL;
+	char AUTO_KFREE(value);
 
 	switch (type) {
 	case ACL_TYPE_ACCESS:
@@ -85,28 +85,23 @@ int __btrfs_set_acl(struct btrfs_trans_handle *trans, struct inode *inode,
 		nofs_flag = memalloc_nofs_save();
 		value = kmalloc(size, GFP_KERNEL);
 		memalloc_nofs_restore(nofs_flag);
-		if (!value) {
-			ret = -ENOMEM;
-			goto out;
-		}
+		if (!value)
+			return -ENOMEM;
 
 		ret = posix_acl_to_xattr(&init_user_ns, acl, value, size);
 		if (ret < 0)
-			goto out;
+			return ret;
 	}
 
 	if (trans)
 		ret = btrfs_setxattr(trans, inode, name, value, size, 0);
 	else
 		ret = btrfs_setxattr_trans(inode, name, value, size, 0);
+	if (ret < 0)
+		return ret;
 
-out:
-	kfree(value);
-
-	if (!ret)
-		set_cached_acl(inode, type, acl);
-
-	return ret;
+	set_cached_acl(inode, type, acl);
+	return 0;
 }
 
 int btrfs_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,

@@ -4015,7 +4015,7 @@ static int flush_dir_items_batch(struct btrfs_trans_handle *trans,
 				 int count)
 {
 	struct btrfs_root *log = inode->root->log_root;
-	char *ins_data = NULL;
+	char AUTO_KFREE(ins_data);
 	struct btrfs_item_batch batch;
 	struct extent_buffer *dst;
 	unsigned long src_offset;
@@ -4060,7 +4060,7 @@ static int flush_dir_items_batch(struct btrfs_trans_handle *trans,
 
 	ret = btrfs_insert_empty_items(trans, log, dst_path, &batch);
 	if (ret)
-		goto out;
+		return ret;
 
 	dst = dst_path->nodes[0];
 	/*
@@ -4092,8 +4092,6 @@ static int flush_dir_items_batch(struct btrfs_trans_handle *trans,
 
 	if (btrfs_get_first_dir_index_to_log(inode) == 0)
 		btrfs_set_first_dir_index_to_log(inode, batch.keys[0].offset);
-out:
-	kfree(ins_data);
 
 	return ret;
 }
@@ -4760,7 +4758,7 @@ static noinline int copy_items(struct btrfs_trans_handle *trans,
 	struct btrfs_key *ins_keys;
 	u32 *ins_sizes;
 	struct btrfs_item_batch batch;
-	char *ins_data;
+	char AUTO_KFREE(ins_data);
 	int dst_index;
 	const bool skip_csum = (inode->flags & BTRFS_INODE_NODATASUM);
 	const u64 i_size = i_size_read(&inode->vfs_inode);
@@ -4888,7 +4886,7 @@ static noinline int copy_items(struct btrfs_trans_handle *trans,
 					      disk_bytenr + extent_num_bytes - 1,
 					      &ordered_sums, false);
 		if (ret < 0)
-			goto out;
+			return ret;
 		ret = 0;
 
 		list_for_each_entry_safe(sums, sums_next, &ordered_sums, list) {
@@ -4898,7 +4896,7 @@ static noinline int copy_items(struct btrfs_trans_handle *trans,
 			kfree(sums);
 		}
 		if (ret)
-			goto out;
+			return ret;
 
 add_to_batch:
 		ins_sizes[dst_index] = btrfs_item_size(src, src_slot);
@@ -4912,11 +4910,11 @@ add_to_batch:
 	 * so we don't need to do anything.
 	 */
 	if (batch.nr == 0)
-		goto out;
+		return 0;
 
 	ret = btrfs_insert_empty_items(trans, log, dst_path, &batch);
 	if (ret)
-		goto out;
+		return ret;
 
 	dst_index = 0;
 	for (int i = 0; i < nr; i++) {
@@ -4969,8 +4967,6 @@ copy_item:
 	}
 
 	btrfs_release_path(dst_path);
-out:
-	kfree(ins_data);
 
 	return ret;
 }
@@ -5689,9 +5685,8 @@ static int btrfs_check_ref_name_override(struct extent_buffer *eb,
 					 struct btrfs_inode *inode,
 					 u64 *other_ino, u64 *other_parent)
 {
-	int ret;
 	BTRFS_PATH_AUTO_FREE(search_path);
-	char *name = NULL;
+	char AUTO_KFREE(name);
 	u32 name_len = 0;
 	u32 item_size = btrfs_item_size(eb, slot);
 	u32 cur_offset = 0;
@@ -5734,10 +5729,8 @@ static int btrfs_check_ref_name_override(struct extent_buffer *eb,
 			char *new_name;
 
 			new_name = krealloc(name, this_name_len, GFP_NOFS);
-			if (!new_name) {
-				ret = -ENOMEM;
-				goto out;
-			}
+			if (!new_name)
+				return -ENOMEM;
 			name_len = this_name_len;
 			name = new_name;
 		}
@@ -5755,28 +5748,24 @@ static int btrfs_check_ref_name_override(struct extent_buffer *eb,
 						  di, &di_key);
 			if (di_key.type == BTRFS_INODE_ITEM_KEY) {
 				if (di_key.objectid != key->objectid) {
-					ret = 1;
 					*other_ino = di_key.objectid;
 					*other_parent = parent;
+					return 1;
 				} else {
-					ret = 0;
+					return 0;
 				}
 			} else {
-				ret = -EAGAIN;
+				return -EAGAIN;
 			}
-			goto out;
 		} else if (IS_ERR(di)) {
-			ret = PTR_ERR(di);
-			goto out;
+			return PTR_ERR(di);
 		}
 		btrfs_release_path(search_path);
 
 		cur_offset += this_len;
 	}
-	ret = 0;
-out:
-	kfree(name);
-	return ret;
+
+	return 0;
 }
 
 /*
