@@ -1608,6 +1608,7 @@ int metricgroup__copy_metric_events(struct evlist *evlist, struct cgroup *cgrp,
 		pr_debug("copying metric event for cgroup '%s': %s (idx=%d)\n",
 			 cgrp ? cgrp->name : "root", evsel->name, evsel->core.idx);
 
+		new_me->is_default = old_me->is_default;
 		list_for_each_entry(old_expr, &old_me->head, nd) {
 			new_expr = malloc(sizeof(*new_expr));
 			if (!new_expr)
@@ -1621,6 +1622,7 @@ int metricgroup__copy_metric_events(struct evlist *evlist, struct cgroup *cgrp,
 
 			new_expr->metric_unit = old_expr->metric_unit;
 			new_expr->runtime = old_expr->runtime;
+			new_expr->default_metricgroup_name = old_expr->default_metricgroup_name;
 
 			if (old_expr->metric_refs) {
 				/* calculate number of metric_events */
