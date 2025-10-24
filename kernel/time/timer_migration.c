@@ -1511,8 +1511,7 @@ static void tmigr_init_group(struct tmigr_group *group, unsigned int lvl,
 	group->groupevt.ignore = true;
 }
 
-static struct tmigr_group *tmigr_get_group(unsigned int cpu, int node,
-					   unsigned int lvl)
+static struct tmigr_group *tmigr_get_group(int node, unsigned int lvl)
 {
 	struct tmigr_group *tmp, *group = NULL;
 
@@ -1636,7 +1635,7 @@ static int tmigr_setup_groups(unsigned int cpu, unsigned int node,
 		root_mismatch = tmigr_root->numa_node != node;
 
 	for (i = start_lvl; i < tmigr_hierarchy_levels; i++) {
-		group = tmigr_get_group(cpu, node, i);
+		group = tmigr_get_group(node, i);
 		if (IS_ERR(group)) {
 			err = PTR_ERR(group);
 			i--;
