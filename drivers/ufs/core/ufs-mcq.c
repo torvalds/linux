@@ -568,12 +568,12 @@ int ufshcd_mcq_sq_cleanup(struct ufs_hba *hba, int task_tag)
 
 	id = hwq->id;
 
-	mutex_lock(&hwq->sq_mutex);
+	guard(mutex)(&hwq->sq_mutex);
 
 	/* stop the SQ fetching before working on it */
 	err = ufshcd_mcq_sq_stop(hba, hwq);
 	if (err)
-		goto unlock;
+		return err;
 
 	/* SQCTI = EXT_IID, IID, LUN, Task Tag */
 	nexus = lrbp->lun << 8 | task_tag;
@@ -600,8 +600,6 @@ int ufshcd_mcq_sq_cleanup(struct ufs_hba *hba, int task_tag)
 	if (ufshcd_mcq_sq_start(hba, hwq))
 		err = -ETIMEDOUT;
 
-unlock:
-	mutex_unlock(&hwq->sq_mutex);
 	return err;
 }
 
