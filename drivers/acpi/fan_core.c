@@ -19,6 +19,8 @@
 
 #include "fan.h"
 
+#define ACPI_FAN_NOTIFY_STATE_CHANGED	0x80
+
 static const struct acpi_device_id fan_device_ids[] = {
 	ACPI_FAN_DEVICE_IDS,
 	{"", 0},
@@ -308,6 +310,50 @@ err:
 	return status;
 }
 
+static void acpi_fan_notify_handler(acpi_handle handle, u32 event, void *context)
+{
+	struct device *dev = context;
+	struct acpi_fan_fst fst;
+	int ret;
+
+	switch (event) {
+	case ACPI_FAN_NOTIFY_STATE_CHANGED:
+		/*
+		 * The ACPI specification says that we must evaluate _FST when we
+		 * receive an ACPI event indicating that the fan state has changed.
+		 */
+		ret = acpi_fan_get_fst(handle, &fst);
+		if (ret < 0)
+			dev_err(dev, "Error retrieving current fan status: %d\n", ret);
+
+		acpi_bus_generate_netlink_event("fan", dev_name(dev), event, 0);
+		break;
+	default:
+		dev_dbg(dev, "Unsupported ACPI notification 0x%x\n", event);
+		break;
+	}
+}
+
+static void acpi_fan_notify_remove(void *data)
+{
+	struct acpi_fan *fan = data;
+
+	acpi_remove_notify_handler(fan->handle, ACPI_DEVICE_NOTIFY, acpi_fan_notify_handler);
+}
+
+static int devm_acpi_fan_notify_init(struct device *dev)
+{
+	struct acpi_fan *fan = dev_get_drvdata(dev);
+	acpi_status status;
+
+	status = acpi_install_notify_handler(fan->handle, ACPI_DEVICE_NOTIFY,
+					     acpi_fan_notify_handler, dev);
+	if (ACPI_FAILURE(status))
+		return -EIO;
+
+	return devm_add_action_or_reset(dev, acpi_fan_notify_remove, fan);
+}
+
 static int acpi_fan_probe(struct platform_device *pdev)
 {
 	int result = 0;
@@ -348,6 +394,10 @@ static int acpi_fan_probe(struct platform_device *pdev)
 
 	if (fan->has_fst) {
 		result = devm_acpi_fan_create_hwmon(&pdev->dev);
+		if (result)
+			return result;
+
+		result = devm_acpi_fan_notify_init(&pdev->dev);
 		if (result)
 			return result;
 
