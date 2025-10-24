@@ -428,7 +428,9 @@ static int spacemit_i2s_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(i2s->dev, i2s);
 
-	spacemit_i2s_init_dai(i2s, &dai, res->start + SSDATR);
+	ret = spacemit_i2s_init_dai(i2s, &dai, res->start + SSDATR);
+	if (ret)
+		return ret;
 
 	ret = devm_snd_soc_register_component(i2s->dev,
 					      &spacemit_i2s_component,
