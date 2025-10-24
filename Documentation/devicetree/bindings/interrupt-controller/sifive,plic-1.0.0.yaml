@@ -76,6 +76,9 @@ properties:
               - thead,th1520-plic
           - const: thead,c900-plic
       - items:
+          - const: ultrarisc,dp1000-plic
+          - const: ultrarisc,cp100-plic
+      - items:
           - const: sifive,plic-1.0.0
           - const: riscv,plic0
         deprecated: true
