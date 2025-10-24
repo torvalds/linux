@@ -171,6 +171,7 @@ static enum signal_type link_detect_sink_signal_type(struct dc_link *link,
 					 enum dc_detect_reason reason)
 {
 	enum signal_type result;
+	struct audio_support *aud_support;
 	struct graphics_object_id enc_id;
 
 	if (link->is_dig_mapping_flexible)
@@ -201,20 +202,18 @@ static enum signal_type link_detect_sink_signal_type(struct dc_link *link,
 	}
 
 	switch (link->link_id.id) {
-	case CONNECTOR_ID_HDMI_TYPE_A: {
+	case CONNECTOR_ID_HDMI_TYPE_A:
 		/* check audio support:
 		 * if native HDMI is not supported, switch to DVI
 		 */
-		struct audio_support *aud_support =
-					&link->dc->res_pool->audio_support;
+		aud_support = &link->dc->res_pool->audio_support;
 
 		if (!aud_support->hdmi_audio_native)
 			if (link->link_id.id == CONNECTOR_ID_HDMI_TYPE_A)
 				result = SIGNAL_TYPE_DVI_SINGLE_LINK;
-	}
-	break;
+		break;
 	case CONNECTOR_ID_DISPLAY_PORT:
-	case CONNECTOR_ID_USBC: {
+	case CONNECTOR_ID_USBC:
 		/* DP HPD short pulse. Passive DP dongle will not
 		 * have short pulse
 		 */
@@ -226,10 +225,9 @@ static enum signal_type link_detect_sink_signal_type(struct dc_link *link,
 			if (!dm_helpers_is_dp_sink_present(link))
 				result = SIGNAL_TYPE_DVI_SINGLE_LINK;
 		}
-	}
-	break;
+		break;
 	default:
-	break;
+		break;
 	}
 
 	return result;
