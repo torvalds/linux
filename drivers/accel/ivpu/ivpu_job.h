@@ -51,6 +51,7 @@ struct ivpu_cmdq {
  * @cmdq_id:             Command queue ID used for submission
  * @job_id:              Unique job ID for tracking and status reporting
  * @engine_idx:          Engine index for job execution
+ * @job_status:          Status reported by firmware for this job
  * @primary_preempt_buf: Primary preemption buffer for job
  * @secondary_preempt_buf: Secondary preemption buffer for job (optional)
  * @bo_count:            Number of buffer objects associated with this job
@@ -64,6 +65,7 @@ struct ivpu_job {
 	u32 cmdq_id;
 	u32 job_id;
 	u32 engine_idx;
+	u32 job_status;
 	struct ivpu_bo *primary_preempt_buf;
 	struct ivpu_bo *secondary_preempt_buf;
 	size_t bo_count;
@@ -83,6 +85,7 @@ void ivpu_cmdq_abort_all_jobs(struct ivpu_device *vdev, u32 ctx_id, u32 cmdq_id)
 
 void ivpu_job_done_consumer_init(struct ivpu_device *vdev);
 void ivpu_job_done_consumer_fini(struct ivpu_device *vdev);
+bool ivpu_job_handle_engine_error(struct ivpu_device *vdev, u32 job_id, u32 job_status);
 void ivpu_context_abort_work_fn(struct work_struct *work);
 
 void ivpu_jobs_abort_all(struct ivpu_device *vdev);

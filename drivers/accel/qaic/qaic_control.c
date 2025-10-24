@@ -17,6 +17,7 @@
 #include <linux/overflow.h>
 #include <linux/pci.h>
 #include <linux/scatterlist.h>
+#include <linux/sched/signal.h>
 #include <linux/types.h>
 #include <linux/uaccess.h>
 #include <linux/workqueue.h>
@@ -655,8 +656,9 @@ static int encode_activate(struct qaic_device *qdev, void *trans, struct wrapper
 		return -EINVAL;
 
 	nelem = in_trans->queue_size;
-	size = (get_dbc_req_elem_size() + get_dbc_rsp_elem_size()) * nelem;
-	if (size / nelem != get_dbc_req_elem_size() + get_dbc_rsp_elem_size())
+	if (check_mul_overflow((u32)(get_dbc_req_elem_size() + get_dbc_rsp_elem_size()),
+			       nelem,
+			       &size))
 		return -EINVAL;
 
 	if (size + QAIC_DBC_Q_GAP + QAIC_DBC_Q_BUF_ALIGN < size)
@@ -810,7 +812,7 @@ static int encode_message(struct qaic_device *qdev, struct manage_msg *user_msg,
 		}
 
 		if (ret)
-			break;
+			goto out;
 	}
 
 	if (user_len != user_msg->len)
@@ -1079,7 +1081,6 @@ static void *msg_xfer(struct qaic_device *qdev, struct wrapper_list *wrappers, u
 
 	list_for_each_entry(w, &wrappers->list, list) {
 		kref_get(&w->ref_count);
-		retry_count = 0;
 		ret = mhi_queue_buf(qdev->cntl_ch, DMA_TO_DEVICE, &w->msg, w->len,
 				    list_is_last(&w->list, &wrappers->list) ? MHI_EOT : MHI_CHAIN);
 		if (ret) {

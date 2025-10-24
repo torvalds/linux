@@ -46,6 +46,7 @@
 
 const struct rt_config npu1_default_rt_cfg[] = {
 	{ 2, 1, AIE2_RT_CFG_INIT }, /* PDI APP LOAD MODE */
+	{ 4, 1, AIE2_RT_CFG_INIT }, /* Debug BO */
 	{ 1, 1, AIE2_RT_CFG_CLK_GATING }, /* Clock gating on */
 	{ 0 },
 };

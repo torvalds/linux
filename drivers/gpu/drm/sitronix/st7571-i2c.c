@@ -263,6 +263,7 @@ static int st7571_fb_clear_screen(struct st7571_device *st7571)
 	u32 npixels = st7571->ncols * round_up(st7571->nlines, ST7571_PAGE_HEIGHT) * st7571->bpp;
 	char pixelvalue = 0x00;
 
+	st7571_set_position(st7571, 0, 0);
 	for (int i = 0; i < npixels; i++)
 		regmap_bulk_write(st7571->regmap, ST7571_DATA_MODE, &pixelvalue, 1);
 

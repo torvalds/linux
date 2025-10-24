@@ -962,6 +962,9 @@ int amdxdna_drm_sync_bo_ioctl(struct drm_device *dev,
 	XDNA_DBG(xdna, "Sync bo %d offset 0x%llx, size 0x%llx\n",
 		 args->handle, args->offset, args->size);
 
+	if (args->direction == SYNC_DIRECT_FROM_DEVICE)
+		ret = amdxdna_hwctx_sync_debug_bo(abo->client, args->handle);
+
 put_obj:
 	drm_gem_object_put(gobj);
 	return ret;

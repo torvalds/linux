@@ -12446,7 +12446,7 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 				int j = state->num_private_objs-1;
 
 				dm_atomic_destroy_state(obj,
-						state->private_objs[i].state);
+						state->private_objs[i].state_to_destroy);
 
 				/* If i is not at the end of the array then the
 				 * last element needs to be moved to where i was
@@ -12457,7 +12457,7 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 						state->private_objs[j];
 
 				state->private_objs[j].ptr = NULL;
-				state->private_objs[j].state = NULL;
+				state->private_objs[j].state_to_destroy = NULL;
 				state->private_objs[j].old_state = NULL;
 				state->private_objs[j].new_state = NULL;
 

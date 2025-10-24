@@ -106,7 +106,7 @@ dc_plane_atomic_check(struct drm_plane *plane, struct drm_atomic_state *state)
 	}
 
 	crtc_state =
-		drm_atomic_get_existing_crtc_state(state, plane_state->crtc);
+		drm_atomic_get_new_crtc_state(state, plane_state->crtc);
 	if (WARN_ON(!crtc_state))
 		return -EINVAL;
 

@@ -226,11 +226,10 @@ out:
 }
 
 static int
-aie2_sched_nocmd_resp_handler(void *handle, void __iomem *data, size_t size)
+aie2_sched_drvcmd_resp_handler(void *handle, void __iomem *data, size_t size)
 {
 	struct amdxdna_sched_job *job = handle;
 	int ret = 0;
-	u32 status;
 
 	if (unlikely(!data))
 		goto out;
@@ -240,8 +239,7 @@ aie2_sched_nocmd_resp_handler(void *handle, void __iomem *data, size_t size)
 		goto out;
 	}
 
-	status = readl(data);
-	XDNA_DBG(job->hwctx->client->xdna, "Resp status 0x%x", status);
+	job->drv_cmd->result = readl(data);
 
 out:
 	aie2_sched_notify(job);
@@ -314,8 +312,18 @@ aie2_sched_job_run(struct drm_sched_job *sched_job)
 	kref_get(&job->refcnt);
 	fence = dma_fence_get(job->fence);
 
-	if (unlikely(!cmd_abo)) {
-		ret = aie2_sync_bo(hwctx, job, aie2_sched_nocmd_resp_handler);
+	if (job->drv_cmd) {
+		switch (job->drv_cmd->opcode) {
+		case SYNC_DEBUG_BO:
+			ret = aie2_sync_bo(hwctx, job, aie2_sched_drvcmd_resp_handler);
+			break;
+		case ATTACH_DEBUG_BO:
+			ret = aie2_config_debug_bo(hwctx, job, aie2_sched_drvcmd_resp_handler);
+			break;
+		default:
+			ret = -EINVAL;
+			break;
+		}
 		goto out;
 	}
 
@@ -610,10 +618,14 @@ int aie2_hwctx_init(struct amdxdna_hwctx *hwctx)
 		goto free_entity;
 	}
 
+	ret = amdxdna_pm_resume_get(xdna);
+	if (ret)
+		goto free_col_list;
+
 	ret = aie2_alloc_resource(hwctx);
 	if (ret) {
 		XDNA_ERR(xdna, "Alloc hw resource failed, ret %d", ret);
-		goto free_col_list;
+		goto suspend_put;
 	}
 
 	ret = aie2_map_host_buf(xdna->dev_handle, hwctx->fw_ctx_id,
@@ -628,6 +640,7 @@ int aie2_hwctx_init(struct amdxdna_hwctx *hwctx)
 		XDNA_ERR(xdna, "Create syncobj failed, ret %d", ret);
 		goto release_resource;
 	}
+	amdxdna_pm_suspend_put(xdna);
 
 	hwctx->status = HWCTX_STAT_INIT;
 	ndev = xdna->dev_handle;
@@ -640,6 +653,8 @@ int aie2_hwctx_init(struct amdxdna_hwctx *hwctx)
 
 release_resource:
 	aie2_release_resource(hwctx);
+suspend_put:
+	amdxdna_pm_suspend_put(xdna);
 free_col_list:
 	kfree(hwctx->col_list);
 free_entity:
@@ -759,6 +774,74 @@ free_cus:
 	return ret;
 }
 
+static void aie2_cmd_wait(struct amdxdna_hwctx *hwctx, u64 seq)
+{
+	struct dma_fence *out_fence = aie2_cmd_get_out_fence(hwctx, seq);
+
+	if (!out_fence) {
+		XDNA_ERR(hwctx->client->xdna, "Failed to get fence");
+		return;
+	}
+
+	dma_fence_wait_timeout(out_fence, false, MAX_SCHEDULE_TIMEOUT);
+	dma_fence_put(out_fence);
+}
+
+static int aie2_hwctx_cfg_debug_bo(struct amdxdna_hwctx *hwctx, u32 bo_hdl,
+				   bool attach)
+{
+	struct amdxdna_client *client = hwctx->client;
+	struct amdxdna_dev *xdna = client->xdna;
+	struct amdxdna_drv_cmd cmd = { 0 };
+	struct amdxdna_gem_obj *abo;
+	u64 seq;
+	int ret;
+
+	abo = amdxdna_gem_get_obj(client, bo_hdl, AMDXDNA_BO_DEV);
+	if (!abo) {
+		XDNA_ERR(xdna, "Get bo %d failed", bo_hdl);
+		return -EINVAL;
+	}
+
+	if (attach) {
+		if (abo->assigned_hwctx != AMDXDNA_INVALID_CTX_HANDLE) {
+			ret = -EBUSY;
+			goto put_obj;
+		}
+		cmd.opcode = ATTACH_DEBUG_BO;
+	} else {
+		if (abo->assigned_hwctx != hwctx->id) {
+			ret = -EINVAL;
+			goto put_obj;
+		}
+		cmd.opcode = DETACH_DEBUG_BO;
+	}
+
+	ret = amdxdna_cmd_submit(client, &cmd, AMDXDNA_INVALID_BO_HANDLE,
+				 &bo_hdl, 1, hwctx->id, &seq);
+	if (ret) {
+		XDNA_ERR(xdna, "Submit command failed");
+		goto put_obj;
+	}
+
+	aie2_cmd_wait(hwctx, seq);
+	if (cmd.result) {
+		XDNA_ERR(xdna, "Response failure 0x%x", cmd.result);
+		goto put_obj;
+	}
+
+	if (attach)
+		abo->assigned_hwctx = hwctx->id;
+	else
+		abo->assigned_hwctx = AMDXDNA_INVALID_CTX_HANDLE;
+
+	XDNA_DBG(xdna, "Config debug BO %d to %s", bo_hdl, hwctx->name);
+
+put_obj:
+	amdxdna_gem_put_obj(abo);
+	return ret;
+}
+
 int aie2_hwctx_config(struct amdxdna_hwctx *hwctx, u32 type, u64 value, void *buf, u32 size)
 {
 	struct amdxdna_dev *xdna = hwctx->client->xdna;
@@ -768,12 +851,38 @@ int aie2_hwctx_config(struct amdxdna_hwctx *hwctx, u32 type, u64 value, void *bu
 	case DRM_AMDXDNA_HWCTX_CONFIG_CU:
 		return aie2_hwctx_cu_config(hwctx, buf, size);
 	case DRM_AMDXDNA_HWCTX_ASSIGN_DBG_BUF:
+		return aie2_hwctx_cfg_debug_bo(hwctx, (u32)value, true);
 	case DRM_AMDXDNA_HWCTX_REMOVE_DBG_BUF:
-		return -EOPNOTSUPP;
+		return aie2_hwctx_cfg_debug_bo(hwctx, (u32)value, false);
 	default:
 		XDNA_DBG(xdna, "Not supported type %d", type);
 		return -EOPNOTSUPP;
 	}
+}
+
+int aie2_hwctx_sync_debug_bo(struct amdxdna_hwctx *hwctx, u32 debug_bo_hdl)
+{
+	struct amdxdna_client *client = hwctx->client;
+	struct amdxdna_dev *xdna = client->xdna;
+	struct amdxdna_drv_cmd cmd = { 0 };
+	u64 seq;
+	int ret;
+
+	cmd.opcode = SYNC_DEBUG_BO;
+	ret = amdxdna_cmd_submit(client, &cmd, AMDXDNA_INVALID_BO_HANDLE,
+				 &debug_bo_hdl, 1, hwctx->id, &seq);
+	if (ret) {
+		XDNA_ERR(xdna, "Submit command failed");
+		return ret;
+	}
+
+	aie2_cmd_wait(hwctx, seq);
+	if (cmd.result) {
+		XDNA_ERR(xdna, "Response failure 0x%x", cmd.result);
+		return ret;
+	}
+
+	return 0;
 }
 
 static int aie2_populate_range(struct amdxdna_gem_obj *abo)

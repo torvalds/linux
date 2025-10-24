@@ -488,9 +488,23 @@
 #define AUDPKT_VBIT_OVR0				0xf24
 /* CEC Registers */
 #define CEC_TX_CONTROL					0x1000
+#define CEC_CTRL_CLEAR					BIT(0)
+#define CEC_CTRL_START					BIT(0)
 #define CEC_STATUS					0x1004
+#define CEC_STAT_DONE					BIT(0)
+#define CEC_STAT_NACK					BIT(1)
+#define CEC_STAT_ARBLOST				BIT(2)
+#define CEC_STAT_LINE_ERR				BIT(3)
+#define CEC_STAT_RETRANS_FAIL				BIT(4)
+#define CEC_STAT_DISCARD				BIT(5)
+#define CEC_STAT_TX_BUSY				BIT(8)
+#define CEC_STAT_RX_BUSY				BIT(9)
+#define CEC_STAT_DRIVE_ERR				BIT(10)
+#define CEC_STAT_EOM					BIT(11)
+#define CEC_STAT_NOTIFY_ERR				BIT(12)
 #define CEC_CONFIG					0x1008
 #define CEC_ADDR					0x100c
+#define CEC_ADDR_BROADCAST				BIT(15)
 #define CEC_TX_COUNT					0x1020
 #define CEC_TX_DATA3_0					0x1024
 #define CEC_TX_DATA7_4					0x1028

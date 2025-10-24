@@ -53,6 +53,8 @@ struct panfrost_jm_ctx {
 	struct drm_sched_entity slot_entity[NUM_JOB_SLOTS];
 };
 
+extern const char * const panfrost_engine_names[];
+
 int panfrost_jm_ctx_create(struct drm_file *file,
 			   struct drm_panfrost_jm_ctx_create *args);
 int panfrost_jm_ctx_destroy(struct drm_file *file, u32 handle);
@@ -60,15 +62,16 @@ void panfrost_jm_ctx_put(struct panfrost_jm_ctx *jm_ctx);
 struct panfrost_jm_ctx *panfrost_jm_ctx_get(struct panfrost_jm_ctx *jm_ctx);
 struct panfrost_jm_ctx *panfrost_jm_ctx_from_handle(struct drm_file *file, u32 handle);
 
-int panfrost_job_init(struct panfrost_device *pfdev);
-void panfrost_job_fini(struct panfrost_device *pfdev);
-int panfrost_job_open(struct drm_file *file);
-void panfrost_job_close(struct drm_file *file);
+int panfrost_jm_init(struct panfrost_device *pfdev);
+void panfrost_jm_fini(struct panfrost_device *pfdev);
+int panfrost_jm_open(struct drm_file *file);
+void panfrost_jm_close(struct drm_file *file);
+void panfrost_jm_reset_interrupts(struct panfrost_device *pfdev);
+void panfrost_jm_enable_interrupts(struct panfrost_device *pfdev);
+void panfrost_jm_suspend_irq(struct panfrost_device *pfdev);
+int panfrost_jm_is_idle(struct panfrost_device *pfdev);
 int panfrost_job_get_slot(struct panfrost_job *job);
 int panfrost_job_push(struct panfrost_job *job);
 void panfrost_job_put(struct panfrost_job *job);
-void panfrost_job_enable_interrupts(struct panfrost_device *pfdev);
-void panfrost_job_suspend_irq(struct panfrost_device *pfdev);
-int panfrost_job_is_idle(struct panfrost_device *pfdev);
 
 #endif

@@ -749,7 +749,7 @@ int aie2_sync_bo(struct amdxdna_hwctx *hwctx, struct amdxdna_sched_job *job,
 	int ret = 0;
 
 	req.src_addr = 0;
-	req.dst_addr = abo->mem.dev_addr - hwctx->client->dev_heap->mem.dev_addr;
+	req.dst_addr = amdxdna_dev_bo_offset(abo);
 	req.size = abo->mem.size;
 
 	/* Device to Host */
@@ -772,4 +772,33 @@ int aie2_sync_bo(struct amdxdna_hwctx *hwctx, struct amdxdna_sched_job *job,
 	}
 
 	return 0;
+}
+
+int aie2_config_debug_bo(struct amdxdna_hwctx *hwctx, struct amdxdna_sched_job *job,
+			 int (*notify_cb)(void *, void __iomem *, size_t))
+{
+	struct mailbox_channel *chann = hwctx->priv->mbox_chann;
+	struct amdxdna_gem_obj *abo = to_xdna_obj(job->bos[0]);
+	struct amdxdna_dev *xdna = hwctx->client->xdna;
+	struct config_debug_bo_req req;
+	struct xdna_mailbox_msg msg;
+
+	if (job->drv_cmd->opcode == ATTACH_DEBUG_BO)
+		req.config = DEBUG_BO_REGISTER;
+	else
+		req.config = DEBUG_BO_UNREGISTER;
+
+	req.offset = amdxdna_dev_bo_offset(abo);
+	req.size = abo->mem.size;
+
+	XDNA_DBG(xdna, "offset 0x%llx size 0x%llx config %d",
+		 req.offset, req.size, req.config);
+
+	msg.handle = job;
+	msg.notify_cb = notify_cb;
+	msg.send_data = (u8 *)&req;
+	msg.send_size = sizeof(req);
+	msg.opcode = MSG_OP_CONFIG_DEBUG_BO;
+
+	return xdna_mailbox_send_msg(chann, &msg, TX_TIMEOUT);
 }

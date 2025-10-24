@@ -59,6 +59,13 @@ static void ast_2600_detect_widescreen(struct ast_device *ast)
 		ast->support_wuxga = true;
 }
 
+static const struct ast_device_quirks ast_2600_device_quirks = {
+	.crtc_mem_req_threshold_low = 160,
+	.crtc_mem_req_threshold_high = 224,
+	.crtc_hsync_precatch_needed = true,
+	.crtc_hsync_add4_needed = true,
+};
+
 struct drm_device *ast_2600_device_create(struct pci_dev *pdev,
 					  const struct drm_driver *drv,
 					  enum ast_chip chip,
@@ -76,7 +83,9 @@ struct drm_device *ast_2600_device_create(struct pci_dev *pdev,
 		return ERR_CAST(ast);
 	dev = &ast->base;
 
-	ast_device_init(ast, chip, config_mode, regs, ioregs);
+	ast_device_init(ast, chip, config_mode, regs, ioregs, &ast_2600_device_quirks);
+
+	ast->dclk_table = ast_2500_dclk_table;
 
 	ast_2300_detect_tx_chip(ast);
 

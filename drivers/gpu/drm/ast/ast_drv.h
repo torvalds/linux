@@ -164,8 +164,30 @@ to_ast_connector(struct drm_connector *connector)
  * Device
  */
 
+struct ast_device_quirks {
+	/*
+	 * CRTC memory request threshold
+	 */
+	unsigned char crtc_mem_req_threshold_low;
+	unsigned char crtc_mem_req_threshold_high;
+
+	/*
+	 * Adjust hsync values to load next scanline early. Signalled
+	 * by AST2500PreCatchCRT in VBIOS mode flags.
+	 */
+	bool crtc_hsync_precatch_needed;
+
+	/*
+	 * Workaround for modes with HSync Time that is not a multiple
+	 * of 8 (e.g., 1920x1080@60Hz, HSync +44 pixels).
+	 */
+	bool crtc_hsync_add4_needed;
+};
+
 struct ast_device {
 	struct drm_device base;
+
+	const struct ast_device_quirks *quirks;
 
 	void __iomem *regs;
 	void __iomem *ioregs;
@@ -173,6 +195,8 @@ struct ast_device {
 
 	enum ast_config_mode config_mode;
 	enum ast_chip chip;
+
+	const struct ast_vbios_dclk_info *dclk_table;
 
 	void __iomem	*vram;
 	unsigned long	vram_base;
@@ -412,7 +436,8 @@ void ast_device_init(struct ast_device *ast,
 		     enum ast_chip chip,
 		     enum ast_config_mode config_mode,
 		     void __iomem *regs,
-		     void __iomem *ioregs);
+		     void __iomem *ioregs,
+		     const struct ast_device_quirks *quirks);
 void __ast_device_set_tx_chip(struct ast_device *ast, enum ast_tx_chip tx_chip);
 
 /* ast_2000.c */

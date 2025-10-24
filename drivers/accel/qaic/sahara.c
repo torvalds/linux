@@ -159,6 +159,7 @@ struct sahara_context {
 	struct sahara_packet		*rx;
 	struct work_struct		fw_work;
 	struct work_struct		dump_work;
+	struct work_struct		read_data_work;
 	struct mhi_device		*mhi_dev;
 	const char * const		*image_table;
 	u32				table_size;
@@ -174,7 +175,10 @@ struct sahara_context {
 	u64				dump_image_offset;
 	void				*mem_dump_freespace;
 	u64				dump_images_left;
+	u32				read_data_offset;
+	u32				read_data_length;
 	bool				is_mem_dump_mode;
+	bool				non_streaming;
 };
 
 static const char * const aic100_image_table[] = {
@@ -215,6 +219,11 @@ static const char * const aic200_image_table[] = {
 	[74] = "qcom/aic200/sti.bin",
 	[75] = "qcom/aic200/pvs.bin",
 };
+
+static bool is_streaming(struct sahara_context *context)
+{
+	return !context->non_streaming;
+}
 
 static int sahara_find_image(struct sahara_context *context, u32 image_id)
 {
@@ -265,6 +274,8 @@ static void sahara_send_reset(struct sahara_context *context)
 	int ret;
 
 	context->is_mem_dump_mode = false;
+	context->read_data_offset = 0;
+	context->read_data_length = 0;
 
 	context->tx[0]->cmd = cpu_to_le32(SAHARA_RESET_CMD);
 	context->tx[0]->length = cpu_to_le32(SAHARA_RESET_LENGTH);
@@ -319,9 +330,39 @@ static void sahara_hello(struct sahara_context *context)
 		dev_err(&context->mhi_dev->dev, "Unable to send hello response %d\n", ret);
 }
 
+static int read_data_helper(struct sahara_context *context, int buf_index)
+{
+	enum mhi_flags mhi_flag;
+	u32 pkt_data_len;
+	int ret;
+
+	pkt_data_len = min(context->read_data_length, SAHARA_PACKET_MAX_SIZE);
+
+	memcpy(context->tx[buf_index],
+	       &context->firmware->data[context->read_data_offset],
+	       pkt_data_len);
+
+	context->read_data_offset += pkt_data_len;
+	context->read_data_length -= pkt_data_len;
+
+	if (is_streaming(context) || !context->read_data_length)
+		mhi_flag = MHI_EOT;
+	else
+		mhi_flag = MHI_CHAIN;
+
+	ret = mhi_queue_buf(context->mhi_dev, DMA_TO_DEVICE,
+			    context->tx[buf_index], pkt_data_len, mhi_flag);
+	if (ret) {
+		dev_err(&context->mhi_dev->dev, "Unable to send read_data response %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
 static void sahara_read_data(struct sahara_context *context)
 {
-	u32 image_id, data_offset, data_len, pkt_data_len;
+	u32 image_id, data_offset, data_len;
 	int ret;
 	int i;
 
@@ -357,7 +398,7 @@ static void sahara_read_data(struct sahara_context *context)
 	 * and is not needed here on error.
 	 */
 
-	if (data_len > SAHARA_TRANSFER_MAX_SIZE) {
+	if (context->non_streaming && data_len > SAHARA_TRANSFER_MAX_SIZE) {
 		dev_err(&context->mhi_dev->dev, "Malformed read_data packet - data len %d exceeds max xfer size %d\n",
 			data_len, SAHARA_TRANSFER_MAX_SIZE);
 		sahara_send_reset(context);
@@ -378,22 +419,18 @@ static void sahara_read_data(struct sahara_context *context)
 		return;
 	}
 
-	for (i = 0; i < SAHARA_NUM_TX_BUF && data_len; ++i) {
-		pkt_data_len = min(data_len, SAHARA_PACKET_MAX_SIZE);
+	context->read_data_offset = data_offset;
+	context->read_data_length = data_len;
 
-		memcpy(context->tx[i], &context->firmware->data[data_offset], pkt_data_len);
+	if (is_streaming(context)) {
+		schedule_work(&context->read_data_work);
+		return;
+	}
 
-		data_offset += pkt_data_len;
-		data_len -= pkt_data_len;
-
-		ret = mhi_queue_buf(context->mhi_dev, DMA_TO_DEVICE,
-				    context->tx[i], pkt_data_len,
-				    !data_len ? MHI_EOT : MHI_CHAIN);
-		if (ret) {
-			dev_err(&context->mhi_dev->dev, "Unable to send read_data response %d\n",
-				ret);
-			return;
-		}
+	for (i = 0; i < SAHARA_NUM_TX_BUF && context->read_data_length; ++i) {
+		ret = read_data_helper(context, i);
+		if (ret)
+			break;
 	}
 }
 
@@ -538,6 +575,7 @@ static void sahara_parse_dump_table(struct sahara_context *context)
 	struct sahara_memory_dump_meta_v1 *dump_meta;
 	u64 table_nents;
 	u64 dump_length;
+	u64 mul_bytes;
 	int ret;
 	u64 i;
 
@@ -551,8 +589,9 @@ static void sahara_parse_dump_table(struct sahara_context *context)
 		dev_table[i].description[SAHARA_TABLE_ENTRY_STR_LEN - 1] = 0;
 		dev_table[i].filename[SAHARA_TABLE_ENTRY_STR_LEN - 1] = 0;
 
-		dump_length = size_add(dump_length, le64_to_cpu(dev_table[i].length));
-		if (dump_length == SIZE_MAX) {
+		if (check_add_overflow(dump_length,
+				       le64_to_cpu(dev_table[i].length),
+				       &dump_length)) {
 			/* Discard the dump */
 			sahara_send_reset(context);
 			return;
@@ -568,14 +607,17 @@ static void sahara_parse_dump_table(struct sahara_context *context)
 			dev_table[i].filename);
 	}
 
-	dump_length = size_add(dump_length, sizeof(*dump_meta));
-	if (dump_length == SIZE_MAX) {
+	if (check_add_overflow(dump_length, (u64)sizeof(*dump_meta), &dump_length)) {
 		/* Discard the dump */
 		sahara_send_reset(context);
 		return;
 	}
-	dump_length = size_add(dump_length, size_mul(sizeof(*image_out_table), table_nents));
-	if (dump_length == SIZE_MAX) {
+	if (check_mul_overflow((u64)sizeof(*image_out_table), table_nents, &mul_bytes)) {
+		/* Discard the dump */
+		sahara_send_reset(context);
+		return;
+	}
+	if (check_add_overflow(dump_length, mul_bytes, &dump_length)) {
 		/* Discard the dump */
 		sahara_send_reset(context);
 		return;
@@ -615,7 +657,7 @@ static void sahara_parse_dump_table(struct sahara_context *context)
 
 	/* Request the first chunk of the first image */
 	context->dump_image = &image_out_table[0];
-	dump_length = min(context->dump_image->length, SAHARA_READ_MAX_SIZE);
+	dump_length = min_t(u64, context->dump_image->length, SAHARA_READ_MAX_SIZE);
 	/* Avoid requesting EOI sized data so that we can identify errors */
 	if (dump_length == SAHARA_END_OF_IMAGE_LENGTH)
 		dump_length = SAHARA_END_OF_IMAGE_LENGTH / 2;
@@ -663,7 +705,7 @@ static void sahara_parse_dump_image(struct sahara_context *context)
 
 	/* Get next image chunk */
 	dump_length = context->dump_image->length - context->dump_image_offset;
-	dump_length = min(dump_length, SAHARA_READ_MAX_SIZE);
+	dump_length = min_t(u64, dump_length, SAHARA_READ_MAX_SIZE);
 	/* Avoid requesting EOI sized data so that we can identify errors */
 	if (dump_length == SAHARA_END_OF_IMAGE_LENGTH)
 		dump_length = SAHARA_END_OF_IMAGE_LENGTH / 2;
@@ -742,6 +784,13 @@ error:
 	sahara_send_reset(context);
 }
 
+static void sahara_read_data_processing(struct work_struct *work)
+{
+	struct sahara_context *context = container_of(work, struct sahara_context, read_data_work);
+
+	read_data_helper(context, 0);
+}
+
 static int sahara_mhi_probe(struct mhi_device *mhi_dev, const struct mhi_device_id *id)
 {
 	struct sahara_context *context;
@@ -756,34 +805,56 @@ static int sahara_mhi_probe(struct mhi_device *mhi_dev, const struct mhi_device_
 	if (!context->rx)
 		return -ENOMEM;
 
-	/*
-	 * AIC100 defines SAHARA_TRANSFER_MAX_SIZE as the largest value it
-	 * will request for READ_DATA. This is larger than
-	 * SAHARA_PACKET_MAX_SIZE, and we need 9x SAHARA_PACKET_MAX_SIZE to
-	 * cover SAHARA_TRANSFER_MAX_SIZE. When the remote side issues a
-	 * READ_DATA, it requires a transfer of the exact size requested. We
-	 * can use MHI_CHAIN to link multiple buffers into a single transfer
-	 * but the remote side will not consume the buffers until it sees an
-	 * EOT, thus we need to allocate enough buffers to put in the tx fifo
-	 * to cover an entire READ_DATA request of the max size.
-	 */
-	for (i = 0; i < SAHARA_NUM_TX_BUF; ++i) {
-		context->tx[i] = devm_kzalloc(&mhi_dev->dev, SAHARA_PACKET_MAX_SIZE, GFP_KERNEL);
-		if (!context->tx[i])
-			return -ENOMEM;
-	}
-
-	context->mhi_dev = mhi_dev;
-	INIT_WORK(&context->fw_work, sahara_processing);
-	INIT_WORK(&context->dump_work, sahara_dump_processing);
-
 	if (!strcmp(mhi_dev->mhi_cntrl->name, "AIC200")) {
 		context->image_table = aic200_image_table;
 		context->table_size = ARRAY_SIZE(aic200_image_table);
 	} else {
 		context->image_table = aic100_image_table;
 		context->table_size = ARRAY_SIZE(aic100_image_table);
+		context->non_streaming = true;
 	}
+
+	/*
+	 * There are two firmware implementations for READ_DATA handling.
+	 * The older "SBL" implementation defines a Sahara transfer size, and
+	 * expects that the response is a single transport transfer. If the
+	 * FW wants to transfer a file that is larger than the transfer size,
+	 * the FW will issue multiple READ_DATA commands. For this
+	 * implementation, we need to allocate enough buffers to contain the
+	 * entire Sahara transfer size.
+	 *
+	 * The newer "XBL" implementation does not define a maximum transfer
+	 * size and instead expects the data to be streamed over using the
+	 * transport level MTU. The FW will issue a single READ_DATA command
+	 * of whatever size, and consume multiple transport level transfers
+	 * until the expected amount of data is consumed. For this
+	 * implementation we only need a single buffer of the transport MTU
+	 * but we'll need to be able to use it multiple times for a single
+	 * READ_DATA request.
+	 *
+	 * AIC100 is the SBL implementation and defines SAHARA_TRANSFER_MAX_SIZE
+	 * and we need 9x SAHARA_PACKET_MAX_SIZE to cover that. We can use
+	 * MHI_CHAIN to link multiple buffers into a single transfer but the
+	 * remote side will not consume the buffers until it sees an EOT, thus
+	 * we need to allocate enough buffers to put in the tx fifo to cover an
+	 * entire READ_DATA request of the max size.
+	 *
+	 * AIC200 is the XBL implementation, and so a single buffer will work.
+	 */
+	for (i = 0; i < SAHARA_NUM_TX_BUF; ++i) {
+		context->tx[i] = devm_kzalloc(&mhi_dev->dev,
+					      SAHARA_PACKET_MAX_SIZE,
+					      GFP_KERNEL);
+		if (!context->tx[i])
+			return -ENOMEM;
+		if (is_streaming(context))
+			break;
+	}
+
+	context->mhi_dev = mhi_dev;
+	INIT_WORK(&context->fw_work, sahara_processing);
+	INIT_WORK(&context->dump_work, sahara_dump_processing);
+	INIT_WORK(&context->read_data_work, sahara_read_data_processing);
 
 	context->active_image_id = SAHARA_IMAGE_ID_NONE;
 	dev_set_drvdata(&mhi_dev->dev, context);
@@ -814,6 +885,10 @@ static void sahara_mhi_remove(struct mhi_device *mhi_dev)
 
 static void sahara_mhi_ul_xfer_cb(struct mhi_device *mhi_dev, struct mhi_result *mhi_result)
 {
+	struct sahara_context *context = dev_get_drvdata(&mhi_dev->dev);
+
+	if (!mhi_result->transaction_status && context->read_data_length && is_streaming(context))
+		schedule_work(&context->read_data_work);
 }
 
 static void sahara_mhi_dl_xfer_cb(struct mhi_device *mhi_dev, struct mhi_result *mhi_result)

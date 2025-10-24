@@ -564,6 +564,44 @@ static struct ivpu_job *ivpu_job_remove_from_submitted_jobs(struct ivpu_device *
 	return job;
 }
 
+bool ivpu_job_handle_engine_error(struct ivpu_device *vdev, u32 job_id, u32 job_status)
+{
+	lockdep_assert_held(&vdev->submitted_jobs_lock);
+
+	switch (job_status) {
+	case VPU_JSM_STATUS_PROCESSING_ERR:
+	case VPU_JSM_STATUS_ENGINE_RESET_REQUIRED_MIN ... VPU_JSM_STATUS_ENGINE_RESET_REQUIRED_MAX:
+	{
+		struct ivpu_job *job = xa_load(&vdev->submitted_jobs_xa, job_id);
+
+		if (!job)
+			return false;
+
+		/* Trigger an engine reset */
+		guard(mutex)(&job->file_priv->lock);
+
+		job->job_status = job_status;
+
+		if (job->file_priv->has_mmu_faults)
+			return false;
+
+		/*
+		 * Mark context as faulty and defer destruction of the job to jobs abort thread
+		 * handler to synchronize between both faults and jobs returning context violation
+		 * status and ensure both are handled in the same way
+		 */
+		job->file_priv->has_mmu_faults = true;
+		queue_work(system_wq, &vdev->context_abort_work);
+		return true;
+	}
+	default:
+		/* Complete job with error status, engine reset not required */
+		break;
+	}
+
+	return false;
+}
+
 static int ivpu_job_signal_and_destroy(struct ivpu_device *vdev, u32 job_id, u32 job_status)
 {
 	struct ivpu_job *job;
@@ -574,35 +612,22 @@ static int ivpu_job_signal_and_destroy(struct ivpu_device *vdev, u32 job_id, u32
 	if (!job)
 		return -ENOENT;
 
-	if (job_status == VPU_JSM_STATUS_MVNCI_CONTEXT_VIOLATION_HW) {
-		guard(mutex)(&job->file_priv->lock);
+	ivpu_job_remove_from_submitted_jobs(vdev, job_id);
 
+	if (job->job_status == VPU_JSM_STATUS_SUCCESS) {
 		if (job->file_priv->has_mmu_faults)
-			return 0;
-
-		/*
-		 * Mark context as faulty and defer destruction of the job to jobs abort thread
-		 * handler to synchronize between both faults and jobs returning context violation
-		 * status and ensure both are handled in the same way
-		 */
-		job->file_priv->has_mmu_faults = true;
-		queue_work(system_wq, &vdev->context_abort_work);
-		return 0;
+			job->job_status = DRM_IVPU_JOB_STATUS_ABORTED;
+		else
+			job->job_status = job_status;
 	}
 
-	job = ivpu_job_remove_from_submitted_jobs(vdev, job_id);
-	if (!job)
-		return -ENOENT;
-
-	if (job->file_priv->has_mmu_faults)
-		job_status = DRM_IVPU_JOB_STATUS_ABORTED;
-
-	job->bos[CMD_BUF_IDX]->job_status = job_status;
+	job->bos[CMD_BUF_IDX]->job_status = job->job_status;
 	dma_fence_signal(job->done_fence);
 
 	trace_job("done", job);
 	ivpu_dbg(vdev, JOB, "Job complete:  id %3u ctx %2d cmdq_id %u engine %d status 0x%x\n",
-		 job->job_id, job->file_priv->ctx.id, job->cmdq_id, job->engine_idx, job_status);
+		 job->job_id, job->file_priv->ctx.id, job->cmdq_id, job->engine_idx,
+		 job->job_status);
 
 	ivpu_job_destroy(job);
 	ivpu_stop_job_timeout_detection(vdev);
@@ -1022,7 +1047,9 @@ ivpu_job_done_callback(struct ivpu_device *vdev, struct ivpu_ipc_hdr *ipc_hdr,
 	payload = (struct vpu_ipc_msg_payload_job_done *)&jsm_msg->payload;
 
 	mutex_lock(&vdev->submitted_jobs_lock);
-	ivpu_job_signal_and_destroy(vdev, payload->job_id, payload->job_status);
+	if (!ivpu_job_handle_engine_error(vdev, payload->job_id, payload->job_status))
+		/* No engine error, complete the job normally */
+		ivpu_job_signal_and_destroy(vdev, payload->job_id, payload->job_status);
 	mutex_unlock(&vdev->submitted_jobs_lock);
 }
 

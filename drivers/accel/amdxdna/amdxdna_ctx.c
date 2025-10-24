@@ -328,6 +328,38 @@ unlock_srcu:
 	return ret;
 }
 
+int amdxdna_hwctx_sync_debug_bo(struct amdxdna_client *client, u32 debug_bo_hdl)
+{
+	struct amdxdna_dev *xdna = client->xdna;
+	struct amdxdna_hwctx *hwctx;
+	struct amdxdna_gem_obj *abo;
+	struct drm_gem_object *gobj;
+	int ret, idx;
+
+	if (!xdna->dev_info->ops->hwctx_sync_debug_bo)
+		return -EOPNOTSUPP;
+
+	gobj = drm_gem_object_lookup(client->filp, debug_bo_hdl);
+	if (!gobj)
+		return -EINVAL;
+
+	abo = to_xdna_obj(gobj);
+	guard(mutex)(&xdna->dev_lock);
+	idx = srcu_read_lock(&client->hwctx_srcu);
+	hwctx = xa_load(&client->hwctx_xa, abo->assigned_hwctx);
+	if (!hwctx) {
+		ret = -EINVAL;
+		goto unlock_srcu;
+	}
+
+	ret = xdna->dev_info->ops->hwctx_sync_debug_bo(hwctx, debug_bo_hdl);
+
+unlock_srcu:
+	srcu_read_unlock(&client->hwctx_srcu, idx);
+	drm_gem_object_put(gobj);
+	return ret;
+}
+
 static void
 amdxdna_arg_bos_put(struct amdxdna_sched_job *job)
 {
@@ -393,6 +425,7 @@ void amdxdna_sched_job_cleanup(struct amdxdna_sched_job *job)
 }
 
 int amdxdna_cmd_submit(struct amdxdna_client *client,
+		       struct amdxdna_drv_cmd *drv_cmd,
 		       u32 cmd_bo_hdl, u32 *arg_bo_hdls, u32 arg_bo_cnt,
 		       u32 hwctx_hdl, u64 *seq)
 {
@@ -406,6 +439,8 @@ int amdxdna_cmd_submit(struct amdxdna_client *client,
 	if (!job)
 		return -ENOMEM;
 
+	job->drv_cmd = drv_cmd;
+
 	if (cmd_bo_hdl != AMDXDNA_INVALID_BO_HANDLE) {
 		job->cmd_bo = amdxdna_gem_get_obj(client, cmd_bo_hdl, AMDXDNA_BO_CMD);
 		if (!job->cmd_bo) {
@@ -413,8 +448,6 @@ int amdxdna_cmd_submit(struct amdxdna_client *client,
 			ret = -EINVAL;
 			goto free_job;
 		}
-	} else {
-		job->cmd_bo = NULL;
 	}
 
 	ret = amdxdna_arg_bos_lookup(client, job, arg_bo_hdls, arg_bo_cnt);
@@ -508,7 +541,7 @@ static int amdxdna_drm_submit_execbuf(struct amdxdna_client *client,
 		}
 	}
 
-	ret = amdxdna_cmd_submit(client, cmd_bo_hdl, arg_bo_hdls,
+	ret = amdxdna_cmd_submit(client, NULL, cmd_bo_hdl, arg_bo_hdls,
 				 args->arg_count, args->hwctx, &args->seq);
 	if (ret)
 		XDNA_DBG(xdna, "Submit cmds failed, ret %d", ret);

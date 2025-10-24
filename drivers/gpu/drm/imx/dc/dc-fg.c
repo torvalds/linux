@@ -56,9 +56,9 @@
 
 #define FGINCTRL		0x5c
 #define FGINCTRLPANIC		0x60
-#define  FGDM_MASK		GENMASK(2, 0)
-#define  ENPRIMALPHA		BIT(3)
 #define  ENSECALPHA		BIT(4)
+#define  ENPRIMALPHA		BIT(3)
+#define  FGDM_MASK		GENMASK(2, 0)
 
 #define FGCCR			0x64
 #define  CCGREEN(x)		FIELD_PREP(GENMASK(19, 10), (x))

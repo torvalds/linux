@@ -18,6 +18,7 @@ enum aie2_msg_opcode {
 	MSG_OP_CONFIG_CU                   = 0x11,
 	MSG_OP_CHAIN_EXEC_BUFFER_CF        = 0x12,
 	MSG_OP_CHAIN_EXEC_DPU              = 0x13,
+	MSG_OP_CONFIG_DEBUG_BO             = 0x14,
 	MSG_OP_MAX_XRT_OPCODE,
 	MSG_OP_SUSPEND                     = 0x101,
 	MSG_OP_RESUME                      = 0x102,
@@ -363,6 +364,23 @@ struct sync_bo_req {
 } __packed;
 
 struct sync_bo_resp {
+	enum aie2_msg_status	status;
+} __packed;
+
+#define DEBUG_BO_UNREGISTER 0
+#define DEBUG_BO_REGISTER   1
+struct config_debug_bo_req {
+	__u64	offset;
+	__u64	size;
+	/*
+	 * config operations.
+	 *   DEBUG_BO_REGISTER: Register debug buffer
+	 *   DEBUG_BO_UNREGISTER: Unregister debug buffer
+	 */
+	__u32	config;
+} __packed;
+
+struct config_debug_bo_resp {
 	enum aie2_msg_status	status;
 } __packed;
 #endif /* _AIE2_MSG_PRIV_H_ */

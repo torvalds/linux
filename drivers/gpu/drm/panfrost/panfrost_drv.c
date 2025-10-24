@@ -36,7 +36,7 @@ static int panfrost_ioctl_query_timestamp(struct panfrost_device *pfdev,
 {
 	int ret;
 
-	ret = pm_runtime_resume_and_get(pfdev->dev);
+	ret = pm_runtime_resume_and_get(pfdev->base.dev);
 	if (ret)
 		return ret;
 
@@ -44,14 +44,14 @@ static int panfrost_ioctl_query_timestamp(struct panfrost_device *pfdev,
 	*arg = panfrost_timestamp_read(pfdev);
 	panfrost_cycle_counter_put(pfdev);
 
-	pm_runtime_put(pfdev->dev);
+	pm_runtime_put(pfdev->base.dev);
 	return 0;
 }
 
 static int panfrost_ioctl_get_param(struct drm_device *ddev, void *data, struct drm_file *file)
 {
 	struct drm_panfrost_get_param *param = data;
-	struct panfrost_device *pfdev = ddev->dev_private;
+	struct panfrost_device *pfdev = to_panfrost_device(ddev);
 	int ret;
 
 	if (param->pad != 0)
@@ -283,7 +283,7 @@ fail:
 static int panfrost_ioctl_submit(struct drm_device *dev, void *data,
 		struct drm_file *file)
 {
-	struct panfrost_device *pfdev = dev->dev_private;
+	struct panfrost_device *pfdev = to_panfrost_device(dev);
 	struct panfrost_file_priv *file_priv = file->driver_priv;
 	struct drm_panfrost_submit *args = data;
 	struct drm_syncobj *sync_out = NULL;
@@ -457,7 +457,7 @@ static int panfrost_ioctl_madvise(struct drm_device *dev, void *data,
 {
 	struct panfrost_file_priv *priv = file_priv->driver_priv;
 	struct drm_panfrost_madvise *args = data;
-	struct panfrost_device *pfdev = dev->dev_private;
+	struct panfrost_device *pfdev = to_panfrost_device(dev);
 	struct drm_gem_object *gem_obj;
 	struct panfrost_gem_object *bo;
 	int ret = 0;
@@ -590,7 +590,7 @@ static int
 panfrost_open(struct drm_device *dev, struct drm_file *file)
 {
 	int ret;
-	struct panfrost_device *pfdev = dev->dev_private;
+	struct panfrost_device *pfdev = to_panfrost_device(dev);
 	struct panfrost_file_priv *panfrost_priv;
 
 	panfrost_priv = kzalloc(sizeof(*panfrost_priv), GFP_KERNEL);
@@ -606,7 +606,7 @@ panfrost_open(struct drm_device *dev, struct drm_file *file)
 		goto err_free;
 	}
 
-	ret = panfrost_job_open(file);
+	ret = panfrost_jm_open(file);
 	if (ret)
 		goto err_job;
 
@@ -625,7 +625,7 @@ panfrost_postclose(struct drm_device *dev, struct drm_file *file)
 	struct panfrost_file_priv *panfrost_priv = file->driver_priv;
 
 	panfrost_perfcnt_close(file);
-	panfrost_job_close(file);
+	panfrost_jm_close(file);
 
 	panfrost_mmu_ctx_put(panfrost_priv->mmu);
 	kfree(panfrost_priv);
@@ -668,30 +668,25 @@ static void panfrost_gpu_show_fdinfo(struct panfrost_device *pfdev,
 	 *   job spent on the GPU.
 	 */
 
-	static const char * const engine_names[] = {
-		"fragment", "vertex-tiler", "compute-only"
-	};
-
-	BUILD_BUG_ON(ARRAY_SIZE(engine_names) != NUM_JOB_SLOTS);
-
 	for (i = 0; i < NUM_JOB_SLOTS - 1; i++) {
 		if (pfdev->profile_mode) {
 			drm_printf(p, "drm-engine-%s:\t%llu ns\n",
-				   engine_names[i], panfrost_priv->engine_usage.elapsed_ns[i]);
+				   panfrost_engine_names[i],
+				   panfrost_priv->engine_usage.elapsed_ns[i]);
 			drm_printf(p, "drm-cycles-%s:\t%llu\n",
-				   engine_names[i], panfrost_priv->engine_usage.cycles[i]);
+				   panfrost_engine_names[i],
+				   panfrost_priv->engine_usage.cycles[i]);
 		}
 		drm_printf(p, "drm-maxfreq-%s:\t%lu Hz\n",
-			   engine_names[i], pfdev->pfdevfreq.fast_rate);
+			   panfrost_engine_names[i], pfdev->pfdevfreq.fast_rate);
 		drm_printf(p, "drm-curfreq-%s:\t%lu Hz\n",
-			   engine_names[i], pfdev->pfdevfreq.current_frequency);
+			   panfrost_engine_names[i], pfdev->pfdevfreq.current_frequency);
 	}
 }
 
 static void panfrost_show_fdinfo(struct drm_printer *p, struct drm_file *file)
 {
-	struct drm_device *dev = file->minor->dev;
-	struct panfrost_device *pfdev = dev->dev_private;
+	struct panfrost_device *pfdev = to_panfrost_device(file->minor->dev);
 
 	panfrost_gpu_show_fdinfo(pfdev, file->driver_priv, p);
 
@@ -708,8 +703,7 @@ static const struct file_operations panfrost_drm_driver_fops = {
 static int panthor_gems_show(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = m->private;
-	struct drm_device *dev = node->minor->dev;
-	struct panfrost_device *pfdev = dev->dev_private;
+	struct panfrost_device *pfdev = to_panfrost_device(node->minor->dev);
 
 	panfrost_gem_debugfs_print_bos(pfdev, m);
 
@@ -758,7 +752,8 @@ static int show_file_jm_ctxs(struct panfrost_file_priv *pfile,
 }
 
 static struct drm_info_list panthor_debugfs_list[] = {
-	{"gems", panthor_gems_show, 0, NULL},
+	{"gems",
+	 panthor_gems_show, 0, NULL},
 };
 
 static int panthor_gems_debugfs_init(struct drm_minor *minor)
@@ -865,15 +860,12 @@ static const struct drm_driver panfrost_drm_driver = {
 static int panfrost_probe(struct platform_device *pdev)
 {
 	struct panfrost_device *pfdev;
-	struct drm_device *ddev;
 	int err;
 
-	pfdev = devm_kzalloc(&pdev->dev, sizeof(*pfdev), GFP_KERNEL);
-	if (!pfdev)
-		return -ENOMEM;
-
-	pfdev->pdev = pdev;
-	pfdev->dev = &pdev->dev;
+	pfdev = devm_drm_dev_alloc(&pdev->dev, &panfrost_drm_driver,
+				   struct panfrost_device, base);
+	if (IS_ERR(pfdev))
+		return PTR_ERR(pfdev);
 
 	platform_set_drvdata(pdev, pfdev);
 
@@ -882,14 +874,6 @@ static int panfrost_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	pfdev->coherent = device_get_dma_attr(&pdev->dev) == DEV_DMA_COHERENT;
-
-	/* Allocate and initialize the DRM device. */
-	ddev = drm_dev_alloc(&panfrost_drm_driver, &pdev->dev);
-	if (IS_ERR(ddev))
-		return PTR_ERR(ddev);
-
-	ddev->dev_private = pfdev;
-	pfdev->ddev = ddev;
 
 	mutex_init(&pfdev->shrinker_lock);
 	INIT_LIST_HEAD(&pfdev->shrinker_list);
@@ -901,51 +885,47 @@ static int panfrost_probe(struct platform_device *pdev)
 		goto err_out0;
 	}
 
-	pm_runtime_set_active(pfdev->dev);
-	pm_runtime_mark_last_busy(pfdev->dev);
-	pm_runtime_enable(pfdev->dev);
-	pm_runtime_set_autosuspend_delay(pfdev->dev, 50); /* ~3 frames */
-	pm_runtime_use_autosuspend(pfdev->dev);
+	pm_runtime_set_active(pfdev->base.dev);
+	pm_runtime_mark_last_busy(pfdev->base.dev);
+	pm_runtime_enable(pfdev->base.dev);
+	pm_runtime_set_autosuspend_delay(pfdev->base.dev, 50); /* ~3 frames */
+	pm_runtime_use_autosuspend(pfdev->base.dev);
 
 	/*
 	 * Register the DRM device with the core and the connectors with
 	 * sysfs
 	 */
-	err = drm_dev_register(ddev, 0);
+	err = drm_dev_register(&pfdev->base, 0);
 	if (err < 0)
 		goto err_out1;
 
-	err = panfrost_gem_shrinker_init(ddev);
+	err = panfrost_gem_shrinker_init(&pfdev->base);
 	if (err)
 		goto err_out2;
 
 	return 0;
 
 err_out2:
-	drm_dev_unregister(ddev);
+	drm_dev_unregister(&pfdev->base);
 err_out1:
-	pm_runtime_disable(pfdev->dev);
+	pm_runtime_disable(pfdev->base.dev);
 	panfrost_device_fini(pfdev);
-	pm_runtime_set_suspended(pfdev->dev);
+	pm_runtime_set_suspended(pfdev->base.dev);
 err_out0:
-	drm_dev_put(ddev);
 	return err;
 }
 
 static void panfrost_remove(struct platform_device *pdev)
 {
 	struct panfrost_device *pfdev = platform_get_drvdata(pdev);
-	struct drm_device *ddev = pfdev->ddev;
 
-	drm_dev_unregister(ddev);
-	panfrost_gem_shrinker_cleanup(ddev);
+	drm_dev_unregister(&pfdev->base);
+	panfrost_gem_shrinker_cleanup(&pfdev->base);
 
-	pm_runtime_get_sync(pfdev->dev);
-	pm_runtime_disable(pfdev->dev);
+	pm_runtime_get_sync(pfdev->base.dev);
+	pm_runtime_disable(pfdev->base.dev);
 	panfrost_device_fini(pfdev);
-	pm_runtime_set_suspended(pfdev->dev);
-
-	drm_dev_put(ddev);
+	pm_runtime_set_suspended(pfdev->base.dev);
 }
 
 static ssize_t profiling_show(struct device *dev,

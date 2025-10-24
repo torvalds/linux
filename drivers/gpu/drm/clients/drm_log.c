@@ -319,7 +319,7 @@ static int drm_log_client_hotplug(struct drm_client_dev *client)
 	return 0;
 }
 
-static int drm_log_client_suspend(struct drm_client_dev *client, bool _console_lock)
+static int drm_log_client_suspend(struct drm_client_dev *client)
 {
 	struct drm_log *dlog = client_to_drm_log(client);
 
@@ -328,7 +328,7 @@ static int drm_log_client_suspend(struct drm_client_dev *client, bool _console_l
 	return 0;
 }
 
-static int drm_log_client_resume(struct drm_client_dev *client, bool _console_lock)
+static int drm_log_client_resume(struct drm_client_dev *client)
 {
 	struct drm_log *dlog = client_to_drm_log(client);
 

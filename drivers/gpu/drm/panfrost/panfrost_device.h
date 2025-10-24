@@ -26,6 +26,10 @@ struct panfrost_perfcnt;
 
 #define MAX_PM_DOMAINS 5
 
+#define ALL_JS_INT_MASK					\
+	(GENMASK(16 + NUM_JOB_SLOTS - 1, 16) |		\
+	 GENMASK(NUM_JOB_SLOTS - 1, 0))
+
 enum panfrost_drv_comp_bits {
 	PANFROST_COMP_BIT_GPU,
 	PANFROST_COMP_BIT_JOB,
@@ -124,9 +128,7 @@ struct panfrost_device_debugfs {
 };
 
 struct panfrost_device {
-	struct device *dev;
-	struct drm_device *ddev;
-	struct platform_device *pdev;
+	struct drm_device base;
 	int gpu_irq;
 	int mmu_irq;
 
@@ -145,7 +147,6 @@ struct panfrost_device {
 	DECLARE_BITMAP(is_suspended, PANFROST_COMP_BIT_MAX);
 
 	spinlock_t as_lock;
-	unsigned long as_in_use_mask;
 	unsigned long as_alloc_mask;
 	unsigned long as_faulty_mask;
 	struct list_head as_lru_list;
@@ -222,7 +223,7 @@ static inline bool panfrost_high_prio_allowed(struct drm_file *file)
 
 static inline struct panfrost_device *to_panfrost_device(struct drm_device *ddev)
 {
-	return ddev->dev_private;
+	return container_of(ddev, struct panfrost_device, base);
 }
 
 static inline int panfrost_model_cmp(struct panfrost_device *pfdev, s32 id)
@@ -248,7 +249,7 @@ int panfrost_unstable_ioctl_check(void);
 
 int panfrost_device_init(struct panfrost_device *pfdev);
 void panfrost_device_fini(struct panfrost_device *pfdev);
-void panfrost_device_reset(struct panfrost_device *pfdev);
+void panfrost_device_reset(struct panfrost_device *pfdev, bool enable_job_int);
 
 extern const struct dev_pm_ops panfrost_pm_ops;
 

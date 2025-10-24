@@ -45,6 +45,8 @@
 #include <drm/drm_modeset_helper_vtables.h>
 #include <drm/drm_module.h>
 #include <drm/drm_probe_helper.h>
+#include <drm/drm_vblank.h>
+#include <drm/drm_vblank_helper.h>
 
 #define DRIVER_NAME "cirrus-qemu"
 #define DRIVER_DESC "qemu cirrus vga"
@@ -404,11 +406,15 @@ static void cirrus_crtc_helper_atomic_enable(struct drm_crtc *crtc,
 #endif
 
 	drm_dev_exit(idx);
+
+	drm_crtc_vblank_on(crtc);
 }
 
 static const struct drm_crtc_helper_funcs cirrus_crtc_helper_funcs = {
 	.atomic_check = cirrus_crtc_helper_atomic_check,
+	.atomic_flush = drm_crtc_vblank_atomic_flush,
 	.atomic_enable = cirrus_crtc_helper_atomic_enable,
+	.atomic_disable = drm_crtc_vblank_atomic_disable,
 };
 
 static const struct drm_crtc_funcs cirrus_crtc_funcs = {
@@ -418,6 +424,7 @@ static const struct drm_crtc_funcs cirrus_crtc_funcs = {
 	.page_flip = drm_atomic_helper_page_flip,
 	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
+	DRM_CRTC_VBLANK_TIMER_FUNCS,
 };
 
 static const struct drm_encoder_funcs cirrus_encoder_funcs = {
@@ -490,6 +497,10 @@ static int cirrus_pipe_init(struct cirrus_device *cirrus)
 	drm_connector_helper_add(connector, &cirrus_connector_helper_funcs);
 
 	ret = drm_connector_attach_encoder(connector, encoder);
+	if (ret)
+		return ret;
+
+	ret = drm_vblank_init(dev, 1);
 	if (ret)
 		return ret;
 

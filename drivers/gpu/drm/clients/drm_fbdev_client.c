@@ -62,26 +62,20 @@ err_drm_err:
 	return ret;
 }
 
-static int drm_fbdev_client_suspend(struct drm_client_dev *client, bool holds_console_lock)
+static int drm_fbdev_client_suspend(struct drm_client_dev *client)
 {
 	struct drm_fb_helper *fb_helper = drm_fb_helper_from_client(client);
 
-	if (holds_console_lock)
-		drm_fb_helper_set_suspend(fb_helper, true);
-	else
-		drm_fb_helper_set_suspend_unlocked(fb_helper, true);
+	drm_fb_helper_set_suspend_unlocked(fb_helper, true);
 
 	return 0;
 }
 
-static int drm_fbdev_client_resume(struct drm_client_dev *client, bool holds_console_lock)
+static int drm_fbdev_client_resume(struct drm_client_dev *client)
 {
 	struct drm_fb_helper *fb_helper = drm_fb_helper_from_client(client);
 
-	if (holds_console_lock)
-		drm_fb_helper_set_suspend(fb_helper, false);
-	else
-		drm_fb_helper_set_suspend_unlocked(fb_helper, false);
+	drm_fb_helper_set_suspend_unlocked(fb_helper, false);
 
 	return 0;
 }
