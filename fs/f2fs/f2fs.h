@@ -4752,6 +4752,18 @@ static inline bool f2fs_hw_support_discard(struct f2fs_sb_info *sbi)
 	return false;
 }
 
+static inline unsigned int f2fs_hw_discard_granularity(struct f2fs_sb_info *sbi)
+{
+	int i = 1;
+	unsigned int discard_granularity = bdev_discard_granularity(sbi->sb->s_bdev);
+
+	if (f2fs_is_multi_device(sbi))
+		for (; i < sbi->s_ndevs && !bdev_is_zoned(FDEV(i).bdev); i++)
+			discard_granularity = max_t(unsigned int, discard_granularity,
+						bdev_discard_granularity(FDEV(i).bdev));
+	return discard_granularity;
+}
+
 static inline bool f2fs_realtime_discard_enable(struct f2fs_sb_info *sbi)
 {
 	return (test_opt(sbi, DISCARD) && f2fs_hw_support_discard(sbi)) ||

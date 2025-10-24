@@ -2588,14 +2588,14 @@ static int f2fs_keep_noreuse_range(struct inode *inode,
 static int f2fs_ioc_fitrim(struct file *filp, unsigned long arg)
 {
 	struct inode *inode = file_inode(filp);
-	struct super_block *sb = inode->i_sb;
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	struct fstrim_range range;
 	int ret;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	if (!f2fs_hw_support_discard(F2FS_SB(sb)))
+	if (!f2fs_hw_support_discard(sbi))
 		return -EOPNOTSUPP;
 
 	if (copy_from_user(&range, (struct fstrim_range __user *)arg,
@@ -2606,9 +2606,9 @@ static int f2fs_ioc_fitrim(struct file *filp, unsigned long arg)
 	if (ret)
 		return ret;
 
-	range.minlen = max((unsigned int)range.minlen,
-			   bdev_discard_granularity(sb->s_bdev));
-	ret = f2fs_trim_fs(F2FS_SB(sb), &range);
+	range.minlen = max_t(unsigned int, range.minlen,
+			f2fs_hw_discard_granularity(sbi));
+	ret = f2fs_trim_fs(sbi, &range);
 	mnt_drop_write_file(filp);
 	if (ret < 0)
 		return ret;
@@ -2616,7 +2616,7 @@ static int f2fs_ioc_fitrim(struct file *filp, unsigned long arg)
 	if (copy_to_user((struct fstrim_range __user *)arg, &range,
 				sizeof(range)))
 		return -EFAULT;
-	f2fs_update_time(F2FS_I_SB(inode), REQ_TIME);
+	f2fs_update_time(sbi, REQ_TIME);
 	return 0;
 }
 
