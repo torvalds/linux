@@ -10,6 +10,7 @@
 #include "hw.h"
 #include "dp_htt.h"
 #include "dp_cmn.h"
+#include <linux/rhashtable.h>
 
 #define MAX_RXDMA_PER_PDEV     2
 
@@ -471,13 +472,20 @@ struct ath12k_dp {
 	struct ath12k_hw_group *ag;
 	u8 device_id;
 
-	/* Lock for protection of peers */
+	/* Lock for protection of peers and rhead_peer_addr */
 	spinlock_t dp_lock;
 
 	struct ath12k_dp_arch_ops *ops;
 
 	/* Linked list of struct ath12k_dp_link_peer */
 	struct list_head peers;
+
+	/* For rhash table init and deinit protection */
+	struct mutex link_peer_rhash_tbl_lock;
+
+	/* The rhashtable containing struct ath12k_link_peer keyed by mac addr */
+	struct rhashtable *rhead_peer_addr;
+	struct rhashtable_params rhash_peer_addr_param;
 };
 
 static inline void ath12k_dp_get_mac_addr(u32 addr_l32, u16 addr_h16, u8 *addr)

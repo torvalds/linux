@@ -1188,6 +1188,8 @@ void ath12k_mac_peer_cleanup_all(struct ath12k *ar)
 		if (peer->sta)
 			ath12k_dp_rx_peer_tid_cleanup(ar, peer);
 
+		ath12k_dp_link_peer_rhash_delete(dp, peer);
+
 		list_del(&peer->list);
 		kfree(peer);
 	}

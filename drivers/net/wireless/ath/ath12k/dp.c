@@ -1122,6 +1122,8 @@ static void ath12k_dp_cleanup(struct ath12k_base *ab)
 	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
 	int i;
 
+	ath12k_dp_link_peer_rhash_tbl_destroy(dp);
+
 	if (!dp->ab)
 		return;
 
@@ -1487,14 +1489,22 @@ static int ath12k_dp_setup(struct ath12k_base *ab)
 	spin_lock_init(&dp->dp_lock);
 	INIT_LIST_HEAD(&dp->peers);
 
+	mutex_init(&dp->link_peer_rhash_tbl_lock);
+
 	dp->reo_cmd_cache_flush_count = 0;
 	dp->idle_link_rbm =
 			ath12k_hal_get_idle_link_rbm(&ab->hal, ab->device_id);
 
+	ret = ath12k_dp_link_peer_rhash_tbl_init(dp);
+	if (ret) {
+		ath12k_warn(ab, "failed to init link_peer rhash table: %d\n", ret);
+		return ret;
+	}
+
 	ret = ath12k_wbm_idle_ring_setup(ab, &n_link_desc);
 	if (ret) {
 		ath12k_warn(ab, "failed to setup wbm_idle_ring: %d\n", ret);
-		return ret;
+		goto rhash_destroy;
 	}
 
 	srng = &ab->hal.srng_list[dp->wbm_idle_ring.ring_id];
@@ -1575,6 +1585,8 @@ fail_hw_cc_cleanup:
 fail_link_desc_cleanup:
 	ath12k_dp_link_desc_cleanup(ab, dp->link_desc_banks,
 				    HAL_WBM_IDLE_LINK, &dp->wbm_idle_ring);
+rhash_destroy:
+	ath12k_dp_link_peer_rhash_tbl_destroy(dp);
 
 	return ret;
 }
