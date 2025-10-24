@@ -12568,6 +12568,38 @@ ath12k_mac_he_mcs_range_present(struct ath12k *ar,
 	return true;
 }
 
+static bool
+ath12k_mac_eht_mcs_range_present(struct ath12k *ar,
+				 enum nl80211_band band,
+				 const struct cfg80211_bitrate_mask *mask)
+{
+	u16 eht_mcs;
+	int i;
+
+	for (i = 0; i < NL80211_EHT_NSS_MAX; i++) {
+		eht_mcs = mask->control[band].eht_mcs[i];
+
+		switch (eht_mcs) {
+		case 0:
+		case BIT(8) - 1:
+		case BIT(10) - 1:
+		case BIT(12) - 1:
+		case BIT(14) - 1:
+			break;
+		case BIT(15) - 1:
+		case BIT(16) - 1:
+		case BIT(16) - BIT(14) - 1:
+			if (i != 0)
+				return false;
+			break;
+		default:
+			return false;
+		}
+	}
+
+	return true;
+}
+
 static void ath12k_mac_set_bitrate_mask_iter(void *data,
 					     struct ieee80211_sta *sta)
 {
@@ -12695,6 +12727,7 @@ ath12k_mac_op_set_bitrate_mask(struct ieee80211_hw *hw,
 	const u8 *ht_mcs_mask;
 	const u16 *vht_mcs_mask;
 	const u16 *he_mcs_mask;
+	const u16 *eht_mcs_mask;
 	u8 he_ltf = 0;
 	u8 he_gi = 0;
 	u8 eht_ltf = 0, eht_gi = 0;
@@ -12722,6 +12755,7 @@ ath12k_mac_op_set_bitrate_mask(struct ieee80211_hw *hw,
 	ht_mcs_mask = mask->control[band].ht_mcs;
 	vht_mcs_mask = mask->control[band].vht_mcs;
 	he_mcs_mask = mask->control[band].he_mcs;
+	eht_mcs_mask = mask->control[band].eht_mcs;
 	ldpc = !!(ar->ht_cap_info & WMI_HT_CAP_LDPC);
 
 	sgi = mask->control[band].gi;
@@ -12773,9 +12807,10 @@ ath12k_mac_op_set_bitrate_mask(struct ieee80211_hw *hw,
 			ath12k_warn(ar->ab,
 				    "failed to update fixed rate settings due to mcs/nss incompatibility\n");
 
-		mac_nss = max3(ath12k_mac_max_ht_nss(ht_mcs_mask),
-			       ath12k_mac_max_vht_nss(vht_mcs_mask),
-			       ath12k_mac_max_he_nss(he_mcs_mask));
+		mac_nss = max(max3(ath12k_mac_max_ht_nss(ht_mcs_mask),
+				   ath12k_mac_max_vht_nss(vht_mcs_mask),
+				   ath12k_mac_max_he_nss(he_mcs_mask)),
+			       ath12k_mac_max_eht_nss(eht_mcs_mask));
 		nss = min_t(u32, ar->num_tx_chains, mac_nss);
 
 		/* If multiple rates across different preambles are given
@@ -12823,6 +12858,20 @@ ath12k_mac_op_set_bitrate_mask(struct ieee80211_hw *hw,
 			ret = -EINVAL;
 			goto out;
 		}
+
+		num_rates = ath12k_mac_bitrate_mask_num_eht_rates(ar, band,
+								  mask);
+		if (num_rates == 1)
+			eht_fixed_rate = true;
+
+		if (!ath12k_mac_eht_mcs_range_present(ar, band, mask) &&
+		    num_rates > 1) {
+			ath12k_warn(ar->ab,
+				    "Setting more than one EHT MCS Value in bitrate mask not supported\n");
+			ret = -EINVAL;
+			goto out;
+		}
+
 		ieee80211_iterate_stations_mtx(hw,
 					       ath12k_mac_disable_peer_fixed_rate,
 					       arvif);
