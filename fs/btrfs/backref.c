@@ -2785,7 +2785,7 @@ struct btrfs_data_container *init_data_container(u32 total_bytes)
  * allocates space to return multiple file system paths for an inode.
  * total_bytes to allocate are passed, note that space usable for actual path
  * information will be total_bytes - sizeof(struct inode_fs_paths).
- * the returned pointer must be freed with free_ipath() in the end.
+ * the returned pointer must be freed with __free_inode_fs_paths() in the end.
  */
 struct inode_fs_paths *init_ipath(s32 total_bytes, struct btrfs_root *fs_root,
 					struct btrfs_path *path)
@@ -2808,14 +2808,6 @@ struct inode_fs_paths *init_ipath(s32 total_bytes, struct btrfs_root *fs_root,
 	ifp->fs_root = fs_root;
 
 	return ifp;
-}
-
-void free_ipath(struct inode_fs_paths *ipath)
-{
-	if (!ipath)
-		return;
-	kvfree(ipath->fspath);
-	kfree(ipath);
 }
 
 struct btrfs_backref_iter *btrfs_backref_iter_alloc(struct btrfs_fs_info *fs_info)
