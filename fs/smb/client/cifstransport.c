@@ -227,15 +227,15 @@ SendReceive(const unsigned int xid, struct cifs_ses *ses,
 	int rc = 0;
 
 	if (WARN_ON_ONCE(in_len > 0xffffff))
-		return -EIO;
+		return smb_EIO1(smb_eio_trace_tx_too_long, in_len);
 	if (ses == NULL) {
 		cifs_dbg(VFS, "Null smb session\n");
-		return -EIO;
+		return smb_EIO(smb_eio_trace_null_pointers);
 	}
 	server = ses->server;
 	if (server == NULL) {
 		cifs_dbg(VFS, "Null tcp session\n");
-		return -EIO;
+		return smb_EIO(smb_eio_trace_null_pointers);
 	}
 
 	/* Ensure that we do not send more than 50 overlapping requests
@@ -245,7 +245,7 @@ SendReceive(const unsigned int xid, struct cifs_ses *ses,
 	if (in_len > CIFSMaxBufSize + MAX_CIFS_HDR_SIZE) {
 		cifs_server_dbg(VFS, "Invalid length, greater than maximum frame, %d\n",
 				in_len);
-		return -EIO;
+		return smb_EIO1(smb_eio_trace_tx_too_long, in_len);
 	}
 
 	rc = cifs_send_recv(xid, ses, ses->server,

@@ -1503,7 +1503,7 @@ sess_auth_ntlmv2(struct sess_data *sess_data)
 	smb_buf = (struct smb_hdr *)sess_data->iov[0].iov_base;
 
 	if (smb_buf->WordCount != 3) {
-		rc = -EIO;
+		rc = smb_EIO1(smb_eio_trace_sess_nl2_wcc, smb_buf->WordCount);
 		cifs_dbg(VFS, "bad word count %d\n", smb_buf->WordCount);
 		goto out;
 	}
@@ -1629,7 +1629,7 @@ sess_auth_kerberos(struct sess_data *sess_data)
 	smb_buf = (struct smb_hdr *)sess_data->iov[0].iov_base;
 
 	if (smb_buf->WordCount != 4) {
-		rc = -EIO;
+		rc = smb_EIO1(smb_eio_trace_sess_krb_wcc, smb_buf->WordCount);
 		cifs_dbg(VFS, "bad word count %d\n", smb_buf->WordCount);
 		goto out_put_spnego_key;
 	}
@@ -1790,7 +1790,7 @@ sess_auth_rawntlmssp_negotiate(struct sess_data *sess_data)
 	cifs_dbg(FYI, "rawntlmssp session setup challenge phase\n");
 
 	if (smb_buf->WordCount != 4) {
-		rc = -EIO;
+		rc = smb_EIO1(smb_eio_trace_sess_rawnl_neg_wcc, smb_buf->WordCount);
 		cifs_dbg(VFS, "bad word count %d\n", smb_buf->WordCount);
 		goto out_free_ntlmsspblob;
 	}
@@ -1880,7 +1880,7 @@ sess_auth_rawntlmssp_authenticate(struct sess_data *sess_data)
 	pSMB = (SESSION_SETUP_ANDX *)sess_data->iov[0].iov_base;
 	smb_buf = (struct smb_hdr *)sess_data->iov[0].iov_base;
 	if (smb_buf->WordCount != 4) {
-		rc = -EIO;
+		rc = smb_EIO1(smb_eio_trace_sess_rawnl_auth_wcc, smb_buf->WordCount);
 		cifs_dbg(VFS, "bad word count %d\n", smb_buf->WordCount);
 		goto out_free_ntlmsspblob;
 	}

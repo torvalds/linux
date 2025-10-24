@@ -75,11 +75,13 @@ static int cifs_sig_iter(const struct iov_iter *iter, size_t maxsize,
 			 struct cifs_calc_sig_ctx *ctx)
 {
 	struct iov_iter tmp_iter = *iter;
-	int err = -EIO;
+	size_t did;
+	int err;
 
-	if (iterate_and_advance_kernel(&tmp_iter, maxsize, ctx, &err,
-				       cifs_sig_step) != maxsize)
-		return err;
+	did = iterate_and_advance_kernel(&tmp_iter, maxsize, ctx, &err,
+					 cifs_sig_step);
+	if (did != maxsize)
+		return smb_EIO2(smb_eio_trace_sig_iter, did, maxsize);
 	return 0;
 }
 
@@ -96,7 +98,8 @@ int __cifs_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server,
 	iov_iter_kvec(&iter, ITER_SOURCE, rqst->rq_iov, rqst->rq_nvec, size);
 
 	if (iov_iter_count(&iter) <= 4)
-		return -EIO;
+		return smb_EIO2(smb_eio_trace_sig_data_too_small,
+				iov_iter_count(&iter), 4);
 
 	rc = cifs_sig_iter(&iter, iov_iter_count(&iter), ctx);
 	if (rc < 0)

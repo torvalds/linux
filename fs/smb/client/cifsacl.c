@@ -300,7 +300,7 @@ id_to_sid(unsigned int cid, uint sidtype, struct smb_sid *ssid)
 			 __func__, sidtype == SIDOWNER ? 'u' : 'g', cid);
 		goto out_revert_creds;
 	} else if (sidkey->datalen < CIFS_SID_BASE_SIZE) {
-		rc = -EIO;
+		rc = smb_EIO1(smb_eio_trace_malformed_sid_key, sidkey->datalen);
 		cifs_dbg(FYI, "%s: Downcall contained malformed key (datalen=%hu)\n",
 			 __func__, sidkey->datalen);
 		goto invalidate_key;
@@ -317,7 +317,8 @@ id_to_sid(unsigned int cid, uint sidtype, struct smb_sid *ssid)
 
 	ksid_size = CIFS_SID_BASE_SIZE + (ksid->num_subauth * sizeof(__le32));
 	if (ksid_size > sidkey->datalen) {
-		rc = -EIO;
+		rc = smb_EIO2(smb_eio_trace_malformed_ksid_key,
+			      ksid_size, sidkey->datalen);
 		cifs_dbg(FYI, "%s: Downcall contained malformed key (datalen=%hu, ksid_size=%u)\n",
 			 __func__, sidkey->datalen, ksid_size);
 		goto invalidate_key;
@@ -352,7 +353,8 @@ sid_to_id(struct cifs_sb_info *cifs_sb, struct smb_sid *psid,
 	if (unlikely(psid->num_subauth > SID_MAX_SUB_AUTHORITIES)) {
 		cifs_dbg(FYI, "%s: %u subauthorities is too many!\n",
 			 __func__, psid->num_subauth);
-		return -EIO;
+		return smb_EIO2(smb_eio_trace_sid_too_many_auth,
+				psid->num_subauth, SID_MAX_SUB_AUTHORITIES);
 	}
 
 	if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UID_FROM_ACL) ||
@@ -1227,7 +1229,7 @@ static int parse_sec_desc(struct cifs_sb_info *cifs_sb,
 	__u32 dacloffset;
 
 	if (pntsd == NULL)
-		return -EIO;
+		return smb_EIO(smb_eio_trace_null_pointers);
 
 	owner_sid_ptr = (struct smb_sid *)((char *)pntsd +
 				le32_to_cpu(pntsd->osidoffset));

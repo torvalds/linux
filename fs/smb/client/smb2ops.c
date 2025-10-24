@@ -1046,7 +1046,8 @@ move_smb2_ea_to_cifs(char *dst, size_t dst_size,
 
 		if (src_size < 8 + name_len + 1 + value_len) {
 			cifs_dbg(FYI, "EA entry goes beyond length of list\n");
-			rc = -EIO;
+			rc = smb_EIO2(smb_eio_trace_ea_overrun,
+				      src_size, 8 + name_len + 1 + value_len);
 			goto out;
 		}
 
@@ -1607,7 +1608,7 @@ replay_again:
 	}
 
 	if (!ses || !server) {
-		rc = -EIO;
+		rc = smb_EIO(smb_eio_trace_null_pointers);
 		goto free_vars;
 	}
 
@@ -1942,7 +1943,7 @@ retry:
 		if (unlikely(ret_data_len != sizeof(*cc_rsp))) {
 			cifs_tcon_dbg(VFS, "Copychunk invalid response: size %u/%zu\n",
 				      ret_data_len, sizeof(*cc_rsp));
-			rc = -EIO;
+			rc = smb_EIO1(smb_eio_trace_copychunk_inv_rsp, ret_data_len);
 			goto out;
 		}
 
@@ -1952,11 +1953,18 @@ retry:
 
 		if (rc == 0) {
 			/* Check if server claimed to write more than we asked */
-			if (unlikely(!bytes_written || bytes_written > copy_bytes ||
-				     !chunks_written || chunks_written > chunks)) {
-				cifs_tcon_dbg(VFS, "Copychunk invalid response: bytes written %u/%u, chunks written %u/%u\n",
-					      bytes_written, copy_bytes, chunks_written, chunks);
-				rc = -EIO;
+			if (unlikely(!bytes_written || bytes_written > copy_bytes)) {
+				cifs_tcon_dbg(VFS, "Copychunk invalid response: bytes written %u/%u\n",
+					      bytes_written, copy_bytes);
+				rc = smb_EIO2(smb_eio_trace_copychunk_overcopy_b,
+					      bytes_written, copy_bytes);
+				goto out;
+			}
+			if (unlikely(!chunks_written || chunks_written > chunks)) {
+				cifs_tcon_dbg(VFS, "Copychunk invalid response: chunks written %u/%u\n",
+					      chunks_written, chunks);
+				rc = smb_EIO2(smb_eio_trace_copychunk_overcopy_c,
+					      chunks_written, chunks);
 				goto out;
 			}
 
@@ -3127,7 +3135,7 @@ smb2_get_dfs_refer(const unsigned int xid, struct cifs_ses *ses,
 	}
 
 	if (!rc && !dfs_rsp)
-		rc = -EIO;
+		rc = smb_EIO(smb_eio_trace_dfsref_no_rsp);
 	if (rc) {
 		if (!is_retryable_error(rc) && rc != -ENOENT && rc != -EOPNOTSUPP)
 			cifs_tcon_dbg(FYI, "%s: ioctl error: rc=%d\n", __func__, rc);
@@ -4555,7 +4563,7 @@ smb3_init_transform_rq(struct TCP_Server_Info *server, int num_rqst,
 					     buffer, 0, 0, size);
 
 			if (!cifs_copy_iter_to_folioq(&old->rq_iter, size, buffer)) {
-				rc = -EIO;
+				rc = smb_EIO1(smb_eio_trace_tx_copy_iter_to_buf, size);
 				goto err_free;
 			}
 		}
@@ -4656,7 +4664,8 @@ cifs_copy_folioq_to_iter(struct folio_queue *folioq, size_t data_size,
 			n = copy_folio_to_iter(folio, skip, len, iter);
 			if (n != len) {
 				cifs_dbg(VFS, "%s: something went wrong\n", __func__);
-				return -EIO;
+				return smb_EIO2(smb_eio_trace_rx_copy_to_iter,
+						n, len);
 			}
 			data_size -= n;
 			skip = 0;
@@ -4739,7 +4748,7 @@ handle_read_data(struct TCP_Server_Info *server, struct mid_q_entry *mid,
 		/* data_offset is beyond the end of smallbuf */
 		cifs_dbg(FYI, "%s: data offset (%u) beyond end of smallbuf\n",
 			 __func__, data_offset);
-		rdata->result = -EIO;
+		rdata->result = smb_EIO1(smb_eio_trace_rx_overlong, data_offset);
 		if (is_offloaded)
 			mid->mid_state = MID_RESPONSE_MALFORMED;
 		else
@@ -4758,7 +4767,7 @@ handle_read_data(struct TCP_Server_Info *server, struct mid_q_entry *mid,
 			/* data offset is beyond the 1st page of response */
 			cifs_dbg(FYI, "%s: data offset (%u) beyond 1st page of response\n",
 				 __func__, data_offset);
-			rdata->result = -EIO;
+			rdata->result = smb_EIO1(smb_eio_trace_rx_overpage, data_offset);
 			if (is_offloaded)
 				mid->mid_state = MID_RESPONSE_MALFORMED;
 			else
@@ -4768,7 +4777,7 @@ handle_read_data(struct TCP_Server_Info *server, struct mid_q_entry *mid,
 
 		if (data_len > buffer_len - pad_len) {
 			/* data_len is corrupt -- discard frame */
-			rdata->result = -EIO;
+			rdata->result = smb_EIO1(smb_eio_trace_rx_bad_datalen, data_len);
 			if (is_offloaded)
 				mid->mid_state = MID_RESPONSE_MALFORMED;
 			else
@@ -4793,12 +4802,12 @@ handle_read_data(struct TCP_Server_Info *server, struct mid_q_entry *mid,
 		WARN_ONCE(buffer, "read data can be either in buf or in buffer");
 		copied = copy_to_iter(buf + data_offset, data_len, &rdata->subreq.io_iter);
 		if (copied == 0)
-			return -EIO;
+			return smb_EIO2(smb_eio_trace_rx_copy_to_iter, copied, data_len);
 		rdata->got_bytes = copied;
 	} else {
 		/* read response payload cannot be in both buf and pages */
 		WARN_ONCE(1, "buf can not contain only a part of read data");
-		rdata->result = -EIO;
+		rdata->result = smb_EIO(smb_eio_trace_rx_both_buf);
 		if (is_offloaded)
 			mid->mid_state = MID_RESPONSE_MALFORMED;
 		else

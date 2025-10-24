@@ -310,7 +310,7 @@ int smb_compress(struct TCP_Server_Info *server, struct smb_rqst *rq, compress_s
 	iter = rq->rq_iter;
 
 	if (!copy_from_iter_full(src, slen, &iter)) {
-		ret = -EIO;
+		ret = smb_EIO(smb_eio_trace_compress_copy);
 		goto err_free;
 	}
 

@@ -373,7 +373,8 @@ decode_ext_sec_blob(struct cifs_ses *ses, SMB_NEGOTIATE_RSP *pSMBr)
 
 	count = get_bcc(&pSMBr->hdr);
 	if (count < SMB1_CLIENT_GUID_SIZE)
-		return -EIO;
+		return smb_EIO2(smb_eio_trace_neg_sec_blob_too_small,
+				count, SMB1_CLIENT_GUID_SIZE);
 
 	spin_lock(&cifs_tcp_ses_lock);
 	if (server->srv_count > 1) {
@@ -432,7 +433,7 @@ CIFSSMBNegotiate(const unsigned int xid,
 
 	if (!server) {
 		WARN(1, "%s: server is NULL!\n", __func__);
-		return -EIO;
+		return smb_EIO(smb_eio_trace_null_pointers);
 	}
 
 	rc = smb_init(SMB_COM_NEGOTIATE, 0, NULL /* no tcon yet */ ,
@@ -516,7 +517,8 @@ CIFSSMBNegotiate(const unsigned int xid,
 		server->negflavor = CIFS_NEGFLAVOR_EXTENDED;
 		rc = decode_ext_sec_blob(ses, pSMBr);
 	} else if (server->sec_mode & SECMODE_PW_ENCRYPT) {
-		rc = -EIO; /* no crypt key only if plain text pwd */
+		/* no crypt key only if plain text pwd */
+		rc = smb_EIO(smb_eio_trace_neg_no_crypt_key);
 	} else {
 		server->negflavor = CIFS_NEGFLAVOR_UNENCAP;
 		server->capabilities &= ~CAP_EXTENDED_SECURITY;
@@ -542,7 +544,7 @@ CIFSSMBTDis(const unsigned int xid, struct cifs_tcon *tcon)
 
 	/* BB: do we need to check this? These should never be NULL. */
 	if ((tcon->ses == NULL) || (tcon->ses->server == NULL))
-		return -EIO;
+		return smb_EIO(smb_eio_trace_null_pointers);
 
 	/*
 	 * No need to return error on this operation if tid invalidated and
@@ -553,7 +555,7 @@ CIFSSMBTDis(const unsigned int xid, struct cifs_tcon *tcon)
 	spin_lock(&tcon->ses->chan_lock);
 	if ((tcon->need_reconnect) || CIFS_ALL_CHANS_NEED_RECONNECT(tcon->ses)) {
 		spin_unlock(&tcon->ses->chan_lock);
-		return -EIO;
+		return smb_EIO(smb_eio_trace_tdis_in_reconnect);
 	}
 	spin_unlock(&tcon->ses->chan_lock);
 
@@ -650,7 +652,7 @@ CIFSSMBLogoff(const unsigned int xid, struct cifs_ses *ses)
 	 * should probably be a BUG()
 	 */
 	if (!ses || !ses->server)
-		return -EIO;
+		return smb_EIO(smb_eio_trace_null_pointers);
 
 	mutex_lock(&ses->session_mutex);
 	spin_lock(&ses->chan_lock);
@@ -980,7 +982,8 @@ PsxCreat:
 	rc = validate_t2((struct smb_t2_rsp *)pSMBr);
 
 	if (rc || get_bcc(&pSMBr->hdr) < sizeof(OPEN_PSX_RSP)) {
-		rc = -EIO;	/* bad smb */
+		rc = smb_EIO2(smb_eio_trace_create_rsp_too_small,
+			      get_bcc(&pSMBr->hdr), sizeof(OPEN_PSX_RSP));
 		goto psx_create_err;
 	}
 
@@ -1371,11 +1374,12 @@ do_retry:
 		break;
 	case MID_RESPONSE_MALFORMED:
 		trace_netfs_sreq(&rdata->subreq, netfs_sreq_trace_io_malformed);
-		rdata->result = -EIO;
+		rdata->result = smb_EIO(smb_eio_trace_read_rsp_malformed);
 		break;
 	default:
 		trace_netfs_sreq(&rdata->subreq, netfs_sreq_trace_io_unknown);
-		rdata->result = -EIO;
+		rdata->result = smb_EIO1(smb_eio_trace_read_mid_state_unknown,
+					 mid->mid_state);
 		break;
 	}
 
@@ -1446,7 +1450,7 @@ cifs_async_readv(struct cifs_io_subrequest *rdata)
 		wct = 10; /* old style read */
 		if ((rdata->subreq.start >> 32) > 0)  {
 			/* can not handle this big offset for old */
-			return -EIO;
+			return smb_EIO(smb_eio_trace_read_too_far);
 		}
 	}
 
@@ -1521,7 +1525,7 @@ CIFSSMBRead(const unsigned int xid, struct cifs_io_parms *io_parms,
 		wct = 10; /* old style read */
 		if ((offset >> 32) > 0)  {
 			/* can not handle this big offset for old */
-			return -EIO;
+			return smb_EIO(smb_eio_trace_read_too_far);
 		}
 	}
 
@@ -1576,7 +1580,8 @@ CIFSSMBRead(const unsigned int xid, struct cifs_io_parms *io_parms,
 				|| (data_length > count)) {
 			cifs_dbg(FYI, "bad length %d for count %d\n",
 				 data_length, count);
-			rc = -EIO;
+			rc = smb_EIO2(smb_eio_trace_read_overlarge,
+				      data_length, count);
 			*nbytes = 0;
 		} else {
 			pReadData = (char *) (&pSMBr->hdr.Protocol) +
@@ -1635,7 +1640,7 @@ CIFSSMBWrite(const unsigned int xid, struct cifs_io_parms *io_parms,
 		wct = 12;
 		if ((offset >> 32) > 0) {
 			/* can not handle big offset for old srv */
-			return -EIO;
+			return smb_EIO(smb_eio_trace_write_too_far);
 		}
 	}
 
@@ -1786,11 +1791,12 @@ cifs_writev_callback(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 		break;
 	case MID_RESPONSE_MALFORMED:
 		trace_netfs_sreq(&wdata->subreq, netfs_sreq_trace_io_malformed);
-		result = -EIO;
+		result = smb_EIO(smb_eio_trace_write_rsp_malformed);
 		break;
 	default:
 		trace_netfs_sreq(&wdata->subreq, netfs_sreq_trace_io_unknown);
-		result = -EIO;
+		result = smb_EIO1(smb_eio_trace_write_mid_state_unknown,
+				  mid->mid_state);
 		break;
 	}
 
@@ -1825,7 +1831,7 @@ cifs_async_writev(struct cifs_io_subrequest *wdata)
 		wct = 12;
 		if (wdata->subreq.start >> 32 > 0) {
 			/* can not handle big offset for old srv */
-			rc = -EIO;
+			rc = smb_EIO(smb_eio_trace_write_too_far);
 			goto out;
 		}
 	}
@@ -1917,7 +1923,7 @@ CIFSSMBWrite2(const unsigned int xid, struct cifs_io_parms *io_parms,
 		wct = 12;
 		if ((offset >> 32) > 0) {
 			/* can not handle big offset for old srv */
-			return -EIO;
+			return smb_EIO(smb_eio_trace_write_too_far);
 		}
 	}
 	rc = small_smb_init(SMB_COM_WRITE_ANDX, wct, tcon, (void **) &pSMB);
@@ -1973,7 +1979,7 @@ CIFSSMBWrite2(const unsigned int xid, struct cifs_io_parms *io_parms,
 		cifs_dbg(FYI, "Send error Write2 = %d\n", rc);
 	} else if (resp_buf_type == 0) {
 		/* presumably this can not happen, but best to be safe */
-		rc = -EIO;
+		rc = smb_EIO1(smb_eio_trace_write_bad_buf_type, resp_buf_type);
 	} else {
 		WRITE_RSP *pSMBr = (WRITE_RSP *)rsp_iov.iov_base;
 		*nbytes = le16_to_cpu(pSMBr->CountHigh);
@@ -2209,13 +2215,15 @@ CIFSSMBPosixLock(const unsigned int xid, struct cifs_tcon *tcon,
 		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
 
 		if (rc || get_bcc(&pSMBr->hdr) < sizeof(*parm_data)) {
-			rc = -EIO;      /* bad smb */
+			rc = smb_EIO2(smb_eio_trace_lock_bcc_too_small,
+				      get_bcc(&pSMBr->hdr), sizeof(*parm_data));
 			goto plk_err_exit;
 		}
 		data_offset = le16_to_cpu(pSMBr->t2.DataOffset);
 		data_count  = le16_to_cpu(pSMBr->t2.DataCount);
 		if (data_count < sizeof(struct cifs_posix_lock)) {
-			rc = -EIO;
+			rc = smb_EIO2(smb_eio_trace_lock_data_too_small,
+				      data_count, sizeof(struct cifs_posix_lock));
 			goto plk_err_exit;
 		}
 		parm_data = (struct cifs_posix_lock *)
@@ -2774,7 +2782,8 @@ querySymLinkRetry:
 		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
 		/* BB also check enough total bytes returned */
 		if (rc || get_bcc(&pSMBr->hdr) < 2)
-			rc = -EIO;
+			rc = smb_EIO2(smb_eio_trace_qsym_bcc_too_small,
+				      get_bcc(&pSMBr->hdr), 2);
 		else {
 			bool is_unicode;
 			u16 count = le16_to_cpu(pSMBr->t2.DataCount);
@@ -2876,13 +2885,15 @@ int cifs_query_reparse_point(const unsigned int xid,
 	data_count = le32_to_cpu(io_rsp->DataCount);
 	if (get_bcc(&io_rsp->hdr) < 2 || data_offset > 512 ||
 	    !data_count || data_count > 2048) {
-		rc = -EIO;
+		rc = smb_EIO2(smb_eio_trace_qreparse_sizes_wrong,
+			      get_bcc(&io_rsp->hdr), data_count);
 		goto error;
 	}
 
 	/* SetupCount must be 1, otherwise offset to ByteCount is incorrect. */
 	if (io_rsp->SetupCount != 1) {
-		rc = -EIO;
+		rc = smb_EIO2(smb_eio_trace_qreparse_setup_count,
+			      io_rsp->SetupCount, 1);
 		goto error;
 	}
 
@@ -2892,14 +2903,17 @@ int cifs_query_reparse_point(const unsigned int xid,
 	 * Check that we have full FSCTL_GET_REPARSE_POINT buffer.
 	 */
 	if (data_count != le16_to_cpu(io_rsp->ReturnedDataLen)) {
-		rc = -EIO;
+		rc = smb_EIO2(smb_eio_trace_qreparse_ret_datalen,
+			      data_count, le16_to_cpu(io_rsp->ReturnedDataLen));
 		goto error;
 	}
 
 	end = 2 + get_bcc(&io_rsp->hdr) + (__u8 *)&io_rsp->ByteCount;
 	start = (__u8 *)&io_rsp->hdr.Protocol + data_offset;
 	if (start >= end) {
-		rc = -EIO;
+		rc = smb_EIO2(smb_eio_trace_qreparse_data_area,
+			      (unsigned long)start - (unsigned long)io_rsp,
+			      (unsigned long)end - (unsigned long)io_rsp);
 		goto error;
 	}
 
@@ -2908,7 +2922,8 @@ int cifs_query_reparse_point(const unsigned int xid,
 	len = sizeof(*buf);
 	if (data_count < len ||
 	    data_count < le16_to_cpu(buf->ReparseDataLength) + len) {
-		rc = -EIO;
+		rc = smb_EIO2(smb_eio_trace_qreparse_rep_datalen,
+			      data_count, le16_to_cpu(buf->ReparseDataLength) + len);
 		goto error;
 	}
 
@@ -3352,7 +3367,8 @@ queryAclRetry:
 		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
 		/* BB also check enough total bytes returned */
 		if (rc || get_bcc(&pSMBr->hdr) < 2)
-			rc = -EIO;      /* bad smb */
+			rc = smb_EIO2(smb_eio_trace_getacl_bcc_too_small,
+				      get_bcc(&pSMBr->hdr), 2);
 		else {
 			__u16 data_offset = le16_to_cpu(pSMBr->t2.DataOffset);
 			__u16 count = le16_to_cpu(pSMBr->t2.DataCount);
@@ -3525,7 +3541,8 @@ GetExtAttrRetry:
 		if (rc || get_bcc(&pSMBr->hdr) < 2)
 			/* If rc should we check for EOPNOSUPP and
 			   disable the srvino flag? or in caller? */
-			rc = -EIO;      /* bad smb */
+			rc = smb_EIO2(smb_eio_trace_getextattr_bcc_too_small,
+				      get_bcc(&pSMBr->hdr), 2);
 		else {
 			__u16 data_offset = le16_to_cpu(pSMBr->t2.DataOffset);
 			__u16 count = le16_to_cpu(pSMBr->t2.DataCount);
@@ -3533,7 +3550,8 @@ GetExtAttrRetry:
 
 			if (count != 16) {
 				cifs_dbg(FYI, "Invalid size ret in GetExtAttr\n");
-				rc = -EIO;
+				rc = smb_EIO2(smb_eio_trace_getextattr_inv_size,
+					      count, 16);
 				goto GetExtAttrOut;
 			}
 			pfinfo = (struct file_chattr_info *)
@@ -3700,7 +3718,8 @@ CIFSSMBGetCIFSACL(const unsigned int xid, struct cifs_tcon *tcon, __u16 fid,
 			 pSMBr, parm, *acl_inf);
 
 		if (le32_to_cpu(pSMBr->ParameterCount) != 4) {
-			rc = -EIO;      /* bad smb */
+			rc = smb_EIO2(smb_eio_trace_getcifsacl_param_count,
+				      le32_to_cpu(pSMBr->ParameterCount), 4);
 			*pbuflen = 0;
 			goto qsec_out;
 		}
@@ -3858,8 +3877,10 @@ QInfRetry:
 		data->EndOfFile = data->AllocationSize;
 		data->Attributes =
 			cpu_to_le32(le16_to_cpu(pSMBr->attr));
-	} else
-		rc = -EIO; /* bad buffer passed in */
+	} else {
+		/* bad buffer passed in */
+		rc = smb_EIO(smb_eio_trace_null_pointers);
+	}
 
 	cifs_buf_release(pSMB);
 
@@ -3921,9 +3942,11 @@ QFileInfoRetry:
 		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
 
 		if (rc) /* BB add auto retry on EOPNOTSUPP? */
-			rc = -EIO;
+			rc = smb_EIO2(smb_eio_trace_qfileinfo_invalid,
+				      get_bcc(&pSMBr->hdr), 40);
 		else if (get_bcc(&pSMBr->hdr) < 40)
-			rc = -EIO;	/* bad smb */
+			rc = smb_EIO2(smb_eio_trace_qfileinfo_bcc_too_small,
+				      get_bcc(&pSMBr->hdr), 40);
 		else if (pFindData) {
 			__u16 data_offset = le16_to_cpu(pSMBr->t2.DataOffset);
 			memcpy((char *) pFindData,
@@ -4008,12 +4031,15 @@ QPathInfoRetry:
 		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
 
 		if (rc) /* BB add auto retry on EOPNOTSUPP? */
-			rc = -EIO;
+			rc = smb_EIO2(smb_eio_trace_qpathinfo_invalid,
+				      get_bcc(&pSMBr->hdr), 40);
 		else if (!legacy && get_bcc(&pSMBr->hdr) < 40)
-			rc = -EIO;	/* bad smb */
+			rc = smb_EIO2(smb_eio_trace_qpathinfo_bcc_too_small,
+				      get_bcc(&pSMBr->hdr), 40);
 		else if (legacy && get_bcc(&pSMBr->hdr) < 24)
-			rc = -EIO;  /* 24 or 26 expected but we do not read
-					last field */
+			/* 24 or 26 expected but we do not read last field */
+			rc = smb_EIO2(smb_eio_trace_qpathinfo_bcc_too_small,
+				      get_bcc(&pSMBr->hdr), 24);
 		else if (data) {
 			int size;
 			__u16 data_offset = le16_to_cpu(pSMBr->t2.DataOffset);
@@ -4093,7 +4119,8 @@ UnixQFileInfoRetry:
 
 		if (rc || get_bcc(&pSMBr->hdr) < sizeof(FILE_UNIX_BASIC_INFO)) {
 			cifs_dbg(VFS, "Malformed FILE_UNIX_BASIC_INFO response. Unix Extensions can be disabled on mount by specifying the nosfu mount option.\n");
-			rc = -EIO;	/* bad smb */
+			rc = smb_EIO2(smb_eio_trace_unixqfileinfo_bcc_too_small,
+				      get_bcc(&pSMBr->hdr), sizeof(FILE_UNIX_BASIC_INFO));
 		} else {
 			__u16 data_offset = le16_to_cpu(pSMBr->t2.DataOffset);
 			memcpy((char *) pFindData,
@@ -4177,7 +4204,8 @@ UnixQPathInfoRetry:
 
 		if (rc || get_bcc(&pSMBr->hdr) < sizeof(FILE_UNIX_BASIC_INFO)) {
 			cifs_dbg(VFS, "Malformed FILE_UNIX_BASIC_INFO response. Unix Extensions can be disabled on mount by specifying the nosfu mount option.\n");
-			rc = -EIO;	/* bad smb */
+			rc = smb_EIO2(smb_eio_trace_unixqpathinfo_bcc_too_small,
+				      get_bcc(&pSMBr->hdr), sizeof(FILE_UNIX_BASIC_INFO));
 		} else {
 			__u16 data_offset = le16_to_cpu(pSMBr->t2.DataOffset);
 			memcpy((char *) pFindData,
@@ -4580,7 +4608,8 @@ GetInodeNumberRetry:
 		if (rc || get_bcc(&pSMBr->hdr) < 2)
 			/* If rc should we check for EOPNOSUPP and
 			disable the srvino flag? or in caller? */
-			rc = -EIO;      /* bad smb */
+			rc = smb_EIO2(smb_eio_trace_getsrvinonum_bcc_too_small,
+				      get_bcc(&pSMBr->hdr), 2);
 		else {
 			__u16 data_offset = le16_to_cpu(pSMBr->t2.DataOffset);
 			__u16 count = le16_to_cpu(pSMBr->t2.DataCount);
@@ -4588,7 +4617,8 @@ GetInodeNumberRetry:
 			/* BB Do we need a cast or hash here ? */
 			if (count < 8) {
 				cifs_dbg(FYI, "Invalid size ret in QryIntrnlInf\n");
-				rc = -EIO;
+				rc = smb_EIO2(smb_eio_trace_getsrvinonum_size,
+					      count, 8);
 				goto GetInodeNumOut;
 			}
 			pfinfo = (struct file_internal_info *)
@@ -4697,7 +4727,8 @@ getDFSRetry:
 
 	/* BB Also check if enough total bytes returned? */
 	if (rc || get_bcc(&pSMBr->hdr) < 17) {
-		rc = -EIO;      /* bad smb */
+		rc = smb_EIO2(smb_eio_trace_getdfsrefer_bcc_too_small,
+			      get_bcc(&pSMBr->hdr), 17);
 		goto GetDFSRefExit;
 	}
 
@@ -4773,7 +4804,8 @@ oldQFSInfoRetry:
 		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
 
 		if (rc || get_bcc(&pSMBr->hdr) < 18)
-			rc = -EIO;      /* bad smb */
+			rc = smb_EIO2(smb_eio_trace_oldqfsinfo_bcc_too_small,
+				      get_bcc(&pSMBr->hdr), 18);
 		else {
 			__u16 data_offset = le16_to_cpu(pSMBr->t2.DataOffset);
 			cifs_dbg(FYI, "qfsinf resp BCC: %d  Offset %d\n",
@@ -4862,7 +4894,8 @@ QFSInfoRetry:
 		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
 
 		if (rc || get_bcc(&pSMBr->hdr) < 24)
-			rc = -EIO;	/* bad smb */
+			rc = smb_EIO2(smb_eio_trace_qfsinfo_bcc_too_small,
+				      get_bcc(&pSMBr->hdr), 24);
 		else {
 			__u16 data_offset = le16_to_cpu(pSMBr->t2.DataOffset);
 
@@ -4952,7 +4985,8 @@ QFSAttributeRetry:
 
 		if (rc || get_bcc(&pSMBr->hdr) < 13) {
 			/* BB also check if enough bytes returned */
-			rc = -EIO;	/* bad smb */
+			rc = smb_EIO2(smb_eio_trace_qfsattrinfo_bcc_too_small,
+				      get_bcc(&pSMBr->hdr), 13);
 		} else {
 			__u16 data_offset = le16_to_cpu(pSMBr->t2.DataOffset);
 			response_data =
@@ -5025,7 +5059,9 @@ QFSDeviceRetry:
 
 		if (rc || get_bcc(&pSMBr->hdr) <
 			  sizeof(FILE_SYSTEM_DEVICE_INFO))
-			rc = -EIO;	/* bad smb */
+			rc = smb_EIO2(smb_eio_trace_qfsdevinfo_bcc_too_small,
+				      get_bcc(&pSMBr->hdr),
+				      sizeof(FILE_SYSTEM_DEVICE_INFO));
 		else {
 			__u16 data_offset = le16_to_cpu(pSMBr->t2.DataOffset);
 			response_data =
@@ -5096,7 +5132,8 @@ QFSUnixRetry:
 		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
 
 		if (rc || get_bcc(&pSMBr->hdr) < 13) {
-			rc = -EIO;	/* bad smb */
+			rc = smb_EIO2(smb_eio_trace_qfsunixinfo_bcc_too_small,
+				      get_bcc(&pSMBr->hdr), 13);
 		} else {
 			__u16 data_offset = le16_to_cpu(pSMBr->t2.DataOffset);
 			response_data =
@@ -5244,7 +5281,8 @@ QFSPosixRetry:
 		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
 
 		if (rc || get_bcc(&pSMBr->hdr) < 13) {
-			rc = -EIO;	/* bad smb */
+			rc = smb_EIO2(smb_eio_trace_qfsposixinfo_bcc_too_small,
+				      get_bcc(&pSMBr->hdr), 13);
 		} else {
 			__u16 data_offset = le16_to_cpu(pSMBr->t2.DataOffset);
 			response_data =
@@ -6044,7 +6082,8 @@ QAllEAsRetry:
 
 	rc = validate_t2((struct smb_t2_rsp *)pSMBr);
 	if (rc || get_bcc(&pSMBr->hdr) < 4) {
-		rc = -EIO;	/* bad smb */
+		rc = smb_EIO2(smb_eio_trace_qalleas_bcc_too_small,
+			      get_bcc(&pSMBr->hdr), 4);
 		goto QAllEAsOut;
 	}
 
@@ -6074,7 +6113,9 @@ QAllEAsRetry:
 	end_of_smb = (char *)pByteArea(&pSMBr->hdr) + get_bcc(&pSMBr->hdr);
 	if ((char *)ea_response_data + list_len > end_of_smb) {
 		cifs_dbg(FYI, "EA list appears to go beyond SMB\n");
-		rc = -EIO;
+		rc = smb_EIO2(smb_eio_trace_qalleas_overlong,
+			      (unsigned long)ea_response_data + list_len - (unsigned long)pSMBr,
+			      (unsigned long)end_of_smb - (unsigned long)pSMBr);
 		goto QAllEAsOut;
 	}
 
@@ -6091,7 +6132,7 @@ QAllEAsRetry:
 		/* make sure we can read name_len and value_len */
 		if (list_len < 0) {
 			cifs_dbg(FYI, "EA entry goes beyond length of list\n");
-			rc = -EIO;
+			rc = smb_EIO1(smb_eio_trace_qalleas_ea_overlong, list_len);
 			goto QAllEAsOut;
 		}
 
@@ -6100,7 +6141,7 @@ QAllEAsRetry:
 		list_len -= name_len + 1 + value_len;
 		if (list_len < 0) {
 			cifs_dbg(FYI, "EA entry goes beyond length of list\n");
-			rc = -EIO;
+			rc = smb_EIO1(smb_eio_trace_qalleas_ea_overlong, list_len);
 			goto QAllEAsOut;
 		}
 

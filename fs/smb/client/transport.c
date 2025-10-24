@@ -402,11 +402,11 @@ smb_send_rqst(struct TCP_Server_Info *server, int num_rqst,
 		return __smb_send_rqst(server, num_rqst, rqst);
 
 	if (WARN_ON_ONCE(num_rqst > MAX_COMPOUND - 1))
-		return -EIO;
+		return smb_EIO1(smb_eio_trace_tx_max_compound, num_rqst);
 
 	if (!server->ops->init_transform_rq) {
 		cifs_server_dbg(VFS, "Encryption requested but transform callback is missing\n");
-		return -EIO;
+		return smb_EIO(smb_eio_trace_tx_need_transform);
 	}
 
 	new_rqst[0].rq_iov = &iov;
@@ -753,7 +753,7 @@ int cifs_sync_mid_result(struct mid_q_entry *mid, struct TCP_Server_Info *server
 		rc = -EAGAIN;
 		break;
 	case MID_RESPONSE_MALFORMED:
-		rc = -EIO;
+		rc = smb_EIO(smb_eio_trace_rx_sync_mid_malformed);
 		break;
 	case MID_SHUTDOWN:
 		rc = -EHOSTDOWN;
@@ -769,7 +769,7 @@ int cifs_sync_mid_result(struct mid_q_entry *mid, struct TCP_Server_Info *server
 		spin_unlock(&server->mid_queue_lock);
 		cifs_server_dbg(VFS, "%s: invalid mid state mid=%llu state=%d\n",
 			 __func__, mid->mid, mid->mid_state);
-		rc = -EIO;
+		rc = smb_EIO1(smb_eio_trace_rx_sync_mid_invalid, mid->mid_state);
 		goto sync_mid_done;
 	}
 	spin_unlock(&server->mid_queue_lock);
@@ -883,7 +883,7 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 
 	if (!ses || !ses->server || !server) {
 		cifs_dbg(VFS, "Null session\n");
-		return -EIO;
+		return smb_EIO(smb_eio_trace_null_pointers);
 	}
 
 	spin_lock(&server->srv_lock);
@@ -1043,7 +1043,7 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 
 		if (!mid[i]->resp_buf ||
 		    mid[i]->mid_state != MID_RESPONSE_READY) {
-			rc = -EIO;
+			rc = smb_EIO1(smb_eio_trace_rx_mid_unready, mid[i]->mid_state);
 			cifs_dbg(FYI, "Bad MID state?\n");
 			goto out;
 		}
@@ -1215,7 +1215,8 @@ cifs_readv_receive(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 		cifs_dbg(FYI, "%s: server returned short header. got=%u expected=%zu\n",
 			 __func__, server->total_read,
 			 server->vals->read_rsp_size);
-		rdata->result = -EIO;
+		rdata->result = smb_EIO2(smb_eio_trace_read_rsp_short,
+					 server->total_read, server->vals->read_rsp_size);
 		return cifs_readv_discard(server, mid);
 	}
 
@@ -1233,7 +1234,8 @@ cifs_readv_receive(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 		/* data_offset is beyond the end of smallbuf */
 		cifs_dbg(FYI, "%s: data offset (%u) beyond end of smallbuf\n",
 			 __func__, data_offset);
-		rdata->result = -EIO;
+		rdata->result = smb_EIO1(smb_eio_trace_read_overlarge,
+					 data_offset);
 		return cifs_readv_discard(server, mid);
 	}
 
@@ -1258,7 +1260,8 @@ cifs_readv_receive(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	data_len = server->ops->read_data_length(buf, use_rdma_mr);
 	if (!use_rdma_mr && (data_offset + data_len > buflen)) {
 		/* data_len is corrupt -- discard frame */
-		rdata->result = -EIO;
+		rdata->result = smb_EIO2(smb_eio_trace_read_rsp_malformed,
+					 data_offset + data_len, buflen);
 		return cifs_readv_discard(server, mid);
 	}
 

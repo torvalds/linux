@@ -153,7 +153,7 @@ static int smb2_get_sign_key(struct TCP_Server_Info *server,
 				memcpy(key, ses->auth_key.response,
 				       SMB2_NTLMV2_SESSKEY_SIZE);
 			} else {
-				rc = -EIO;
+				rc = smb_EIO(smb_eio_trace_no_auth_key);
 			}
 			break;
 		default:

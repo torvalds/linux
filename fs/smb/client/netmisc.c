@@ -885,6 +885,10 @@ map_smb_to_linux_error(char *buf, bool logErr)
 	/* generic corrective action e.g. reconnect SMB session on
 	 * ERRbaduid could be added */
 
+	if (rc == -EIO)
+		smb_EIO2(smb_eio_trace_smb1_received_error,
+			 le32_to_cpu(smb->Status.CifsError),
+			 le16_to_cpu(smb->Flags2));
 	return rc;
 }
 

@@ -379,25 +379,29 @@ checkSMB(char *buf, unsigned int pdu_len, unsigned int total_read,
 				return 0;
 			}
 			cifs_dbg(VFS, "rcvd invalid byte count (bcc)\n");
+			return smb_EIO1(smb_eio_trace_rx_inv_bcc, tmp[sizeof(struct smb_hdr)]);
 		} else {
 			cifs_dbg(VFS, "Length less than smb header size\n");
+			return smb_EIO2(smb_eio_trace_rx_too_short,
+					total_read, smb->WordCount);
 		}
-		return -EIO;
 	} else if (total_read < sizeof(*smb) + 2 * smb->WordCount) {
 		cifs_dbg(VFS, "%s: can't read BCC due to invalid WordCount(%u)\n",
 			 __func__, smb->WordCount);
-		return -EIO;
+		return smb_EIO2(smb_eio_trace_rx_check_rsp,
+				total_read, 2 + sizeof(struct smb_hdr));
 	}
 
 	/* otherwise, there is enough to get to the BCC */
 	if (check_smb_hdr(smb))
-		return -EIO;
+		return smb_EIO1(smb_eio_trace_rx_rfc1002_magic, *(u32 *)smb->Protocol);
 	clc_len = smbCalcSize(smb);
 
 	if (rfclen != total_read) {
 		cifs_dbg(VFS, "Length read does not match RFC1001 length %d/%d\n",
 			 rfclen, total_read);
-		return -EIO;
+		return smb_EIO2(smb_eio_trace_rx_check_rsp,
+				total_read, rfclen);
 	}
 
 	if (rfclen != clc_len) {
@@ -414,7 +418,8 @@ checkSMB(char *buf, unsigned int pdu_len, unsigned int total_read,
 		if (rfclen < clc_len) {
 			cifs_dbg(VFS, "RFC1001 size %u smaller than SMB for mid=%u\n",
 				 rfclen, mid);
-			return -EIO;
+			return smb_EIO2(smb_eio_trace_rx_calc_len_too_big,
+					rfclen, clc_len);
 		} else if (rfclen > clc_len + 512) {
 			/*
 			 * Some servers (Windows XP in particular) send more
@@ -427,7 +432,8 @@ checkSMB(char *buf, unsigned int pdu_len, unsigned int total_read,
 			 */
 			cifs_dbg(VFS, "RFC1001 size %u more than 512 bytes larger than SMB for mid=%u\n",
 				 rfclen, mid);
-			return -EIO;
+			return smb_EIO2(smb_eio_trace_rx_overlong,
+					rfclen, clc_len + 512);
 		}
 	}
 	return 0;

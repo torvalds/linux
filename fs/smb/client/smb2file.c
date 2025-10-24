@@ -76,11 +76,11 @@ int smb2_fix_symlink_target_type(char **target, bool directory, struct cifs_sb_i
 		return 0;
 
 	if (!*target)
-		return -EIO;
+		return smb_EIO(smb_eio_trace_null_pointers);
 
 	len = strlen(*target);
 	if (!len)
-		return -EIO;
+		return smb_EIO1(smb_eio_trace_sym_target_len, len);
 
 	/*
 	 * If this is directory symlink and it does not have trailing slash then
@@ -104,7 +104,7 @@ int smb2_fix_symlink_target_type(char **target, bool directory, struct cifs_sb_i
 	 * both Windows and Linux systems. So return an error for such symlink.
 	 */
 	if (!directory && (*target)[len-1] == '/')
-		return -EIO;
+		return smb_EIO(smb_eio_trace_sym_slash);
 
 	return 0;
 }

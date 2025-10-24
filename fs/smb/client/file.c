@@ -118,7 +118,7 @@ static void cifs_issue_write(struct netfs_io_subrequest *subreq)
 	int rc;
 
 	if (cifs_forced_shutdown(sbi)) {
-		rc = -EIO;
+		rc = smb_EIO(smb_eio_trace_forced_shutdown);
 		goto fail;
 	}
 
@@ -286,7 +286,7 @@ static int cifs_init_request(struct netfs_io_request *rreq, struct file *file)
 			req->pid = req->cfile->pid;
 	} else if (rreq->origin != NETFS_WRITEBACK) {
 		WARN_ON_ONCE(1);
-		return -EIO;
+		return smb_EIO1(smb_eio_trace_not_netfs_writeback, rreq->origin);
 	}
 
 	return 0;
@@ -1036,7 +1036,7 @@ int cifs_open(struct inode *inode, struct file *file)
 	cifs_sb = CIFS_SB(inode->i_sb);
 	if (unlikely(cifs_forced_shutdown(cifs_sb))) {
 		free_xid(xid);
-		return -EIO;
+		return smb_EIO(smb_eio_trace_forced_shutdown);
 	}
 
 	tlink = cifs_sb_tlink(cifs_sb);

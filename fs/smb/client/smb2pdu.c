@@ -249,15 +249,15 @@ smb2_reconnect(__le16 smb2_command, struct cifs_tcon *tcon,
 
 	ses = tcon->ses;
 	if (!ses)
-		return -EIO;
+		return smb_EIO(smb_eio_trace_null_pointers);
 	spin_lock(&ses->ses_lock);
 	if (ses->ses_status == SES_EXITING) {
 		spin_unlock(&ses->ses_lock);
-		return -EIO;
+		return smb_EIO(smb_eio_trace_sess_exiting);
 	}
 	spin_unlock(&ses->ses_lock);
 	if (!ses->server || !server)
-		return -EIO;
+		return smb_EIO(smb_eio_trace_null_pointers);
 
 	spin_lock(&server->srv_lock);
 	if (server->tcpStatus == CifsNeedReconnect) {
@@ -1061,7 +1061,7 @@ SMB2_negotiate(const unsigned int xid,
 
 	if (!server) {
 		WARN(1, "%s: server is NULL!\n", __func__);
-		return -EIO;
+		return smb_EIO(smb_eio_trace_null_pointers);
 	}
 
 	rc = smb2_plain_req_init(SMB2_NEGOTIATE, NULL, server,
@@ -1142,64 +1142,84 @@ SMB2_negotiate(const unsigned int xid,
 	} else if (rc != 0)
 		goto neg_exit;
 
-	rc = -EIO;
+	u16 dialect = le16_to_cpu(rsp->DialectRevision);
 	if (strcmp(server->vals->version_string,
 		   SMB3ANY_VERSION_STRING) == 0) {
-		if (rsp->DialectRevision == cpu_to_le16(SMB20_PROT_ID)) {
+		switch (dialect) {
+		case SMB20_PROT_ID:
 			cifs_server_dbg(VFS,
 				"SMB2 dialect returned but not requested\n");
+			rc = smb_EIO2(smb_eio_trace_neg_unreq_dialect, dialect, 3);
 			goto neg_exit;
-		} else if (rsp->DialectRevision == cpu_to_le16(SMB21_PROT_ID)) {
+		case SMB21_PROT_ID:
 			cifs_server_dbg(VFS,
 				"SMB2.1 dialect returned but not requested\n");
+			rc = smb_EIO2(smb_eio_trace_neg_unreq_dialect, dialect, 3);
 			goto neg_exit;
-		} else if (rsp->DialectRevision == cpu_to_le16(SMB311_PROT_ID)) {
+		case SMB311_PROT_ID:
 			/* ops set to 3.0 by default for default so update */
 			server->ops = &smb311_operations;
 			server->vals = &smb311_values;
+			break;
+		default:
+			break;
 		}
 	} else if (strcmp(server->vals->version_string,
-		   SMBDEFAULT_VERSION_STRING) == 0) {
-		if (rsp->DialectRevision == cpu_to_le16(SMB20_PROT_ID)) {
+			  SMBDEFAULT_VERSION_STRING) == 0) {
+		switch (dialect) {
+		case SMB20_PROT_ID:
 			cifs_server_dbg(VFS,
 				"SMB2 dialect returned but not requested\n");
+			rc = smb_EIO2(smb_eio_trace_neg_unreq_dialect, dialect, 0);
 			goto neg_exit;
-		} else if (rsp->DialectRevision == cpu_to_le16(SMB21_PROT_ID)) {
+		case SMB21_PROT_ID:
 			/* ops set to 3.0 by default for default so update */
 			server->ops = &smb21_operations;
 			server->vals = &smb21_values;
-		} else if (rsp->DialectRevision == cpu_to_le16(SMB311_PROT_ID)) {
+			break;
+		case SMB311_PROT_ID:
 			server->ops = &smb311_operations;
 			server->vals = &smb311_values;
+			break;
+		default:
+			break;
 		}
-	} else if (le16_to_cpu(rsp->DialectRevision) !=
-				server->vals->protocol_id) {
+	} else if (dialect != server->vals->protocol_id) {
 		/* if requested single dialect ensure returned dialect matched */
 		cifs_server_dbg(VFS, "Invalid 0x%x dialect returned: not requested\n",
-				le16_to_cpu(rsp->DialectRevision));
+				dialect);
+		rc = smb_EIO2(smb_eio_trace_neg_unreq_dialect,
+			      dialect, server->vals->protocol_id);
 		goto neg_exit;
 	}
 
 	cifs_dbg(FYI, "mode 0x%x\n", rsp->SecurityMode);
 
-	if (rsp->DialectRevision == cpu_to_le16(SMB20_PROT_ID))
+	switch (dialect) {
+	case SMB20_PROT_ID:
 		cifs_dbg(FYI, "negotiated smb2.0 dialect\n");
-	else if (rsp->DialectRevision == cpu_to_le16(SMB21_PROT_ID))
+		break;
+	case SMB21_PROT_ID:
 		cifs_dbg(FYI, "negotiated smb2.1 dialect\n");
-	else if (rsp->DialectRevision == cpu_to_le16(SMB30_PROT_ID))
+		break;
+	case SMB30_PROT_ID:
 		cifs_dbg(FYI, "negotiated smb3.0 dialect\n");
-	else if (rsp->DialectRevision == cpu_to_le16(SMB302_PROT_ID))
+		break;
+	case SMB302_PROT_ID:
 		cifs_dbg(FYI, "negotiated smb3.02 dialect\n");
-	else if (rsp->DialectRevision == cpu_to_le16(SMB311_PROT_ID))
+		break;
+	case SMB311_PROT_ID:
 		cifs_dbg(FYI, "negotiated smb3.1.1 dialect\n");
-	else {
+		break;
+	default:
 		cifs_server_dbg(VFS, "Invalid dialect returned by server 0x%x\n",
-				le16_to_cpu(rsp->DialectRevision));
+				dialect);
+		rc = smb_EIO1(smb_eio_trace_neg_inval_dialect, dialect);
 		goto neg_exit;
 	}
 
 	rc = 0;
-	server->dialect = le16_to_cpu(rsp->DialectRevision);
+	server->dialect = dialect;
 
 	/*
 	 * Keep a copy of the hash after negprot. This hash will be
@@ -1255,10 +1275,10 @@ SMB2_negotiate(const unsigned int xid,
 		if (rc == 1)
 			rc = 0;
 		else if (rc == 0)
-			rc = -EIO;
+			rc = smb_EIO1(smb_eio_trace_neg_decode_token, rc);
 	}
 
-	if (rsp->DialectRevision == cpu_to_le16(SMB311_PROT_ID)) {
+	if (server->dialect == SMB311_PROT_ID) {
 		if (rsp->NegotiateContextCount)
 			rc = smb311_decode_neg_context(rsp, server,
 						       rsp_iov.iov_len);
@@ -1371,32 +1391,47 @@ int smb3_validate_negotiate(const unsigned int xid, struct cifs_tcon *tcon)
 	} else if (rc != 0) {
 		cifs_tcon_dbg(VFS, "validate protocol negotiate failed: %d\n",
 			      rc);
-		rc = -EIO;
+		rc = smb_EIO1(smb_eio_trace_neg_info_fail, rc);
 		goto out_free_inbuf;
 	}
 
-	rc = -EIO;
 	if (rsplen != sizeof(*pneg_rsp)) {
 		cifs_tcon_dbg(VFS, "Invalid protocol negotiate response size: %d\n",
 			      rsplen);
 
 		/* relax check since Mac returns max bufsize allowed on ioctl */
-		if (rsplen > CIFSMaxBufSize || rsplen < sizeof(*pneg_rsp))
+		if (rsplen > CIFSMaxBufSize || rsplen < sizeof(*pneg_rsp)) {
+			rc = smb_EIO1(smb_eio_trace_neg_bad_rsplen, rsplen);
 			goto out_free_rsp;
+		}
 	}
 
 	/* check validate negotiate info response matches what we got earlier */
-	if (pneg_rsp->Dialect != cpu_to_le16(server->dialect))
-		goto vneg_out;
+	u16 dialect = le16_to_cpu(pneg_rsp->Dialect);
 
-	if (pneg_rsp->SecurityMode != cpu_to_le16(server->sec_mode))
+	if (dialect != server->dialect) {
+		rc = smb_EIO2(smb_eio_trace_neg_info_dialect,
+			      dialect, server->dialect);
 		goto vneg_out;
+	}
+
+	u16 sec_mode = le16_to_cpu(pneg_rsp->SecurityMode);
+
+	if (sec_mode != server->sec_mode) {
+		rc = smb_EIO2(smb_eio_trace_neg_info_sec_mode,
+			      sec_mode, server->sec_mode);
+		goto vneg_out;
+	}
 
 	/* do not validate server guid because not saved at negprot time yet */
+	u32 caps = le32_to_cpu(pneg_rsp->Capabilities);
 
-	if ((le32_to_cpu(pneg_rsp->Capabilities) | SMB2_NT_FIND |
-	      SMB2_LARGE_FILES) != server->capabilities)
+	if ((caps | SMB2_NT_FIND |
+	     SMB2_LARGE_FILES) != server->capabilities) {
+		rc = smb_EIO2(smb_eio_trace_neg_info_caps,
+			      caps, server->capabilities);
 		goto vneg_out;
+	}
 
 	/* validate negotiate successful */
 	rc = 0;
@@ -1758,11 +1793,11 @@ SMB2_sess_auth_rawntlmssp_negotiate(struct SMB2_sess_data *sess_data)
 	if (rc)
 		goto out;
 
-	if (offsetof(struct smb2_sess_setup_rsp, Buffer) !=
-			le16_to_cpu(rsp->SecurityBufferOffset)) {
-		cifs_dbg(VFS, "Invalid security buffer offset %d\n",
-			le16_to_cpu(rsp->SecurityBufferOffset));
-		rc = -EIO;
+	u16 boff = le16_to_cpu(rsp->SecurityBufferOffset);
+
+	if (offsetof(struct smb2_sess_setup_rsp, Buffer) != boff) {
+		cifs_dbg(VFS, "Invalid security buffer offset %d\n", boff);
+		rc = smb_EIO1(smb_eio_trace_sess_buf_off, boff);
 		goto out;
 	}
 	rc = decode_ntlmssp_challenge(rsp->Buffer,
@@ -1916,7 +1951,7 @@ SMB2_sess_setup(const unsigned int xid, struct cifs_ses *ses,
 
 	if (!server) {
 		WARN(1, "%s: server is NULL!\n", __func__);
-		return -EIO;
+		return smb_EIO(smb_eio_trace_null_pointers);
 	}
 
 	sess_data = kzalloc(sizeof(struct SMB2_sess_data), GFP_KERNEL);
@@ -1966,10 +2001,9 @@ SMB2_logoff(const unsigned int xid, struct cifs_ses *ses)
 
 	cifs_dbg(FYI, "disconnect session %p\n", ses);
 
-	if (ses && (ses->server))
-		server = ses->server;
-	else
-		return -EIO;
+	if (!ses || !ses->server)
+		return smb_EIO(smb_eio_trace_null_pointers);
+	server = ses->server;
 
 	/* no need to send SMB logoff if uid already closed due to reconnect */
 	spin_lock(&ses->chan_lock);
@@ -2048,7 +2082,7 @@ SMB2_tcon(const unsigned int xid, struct cifs_ses *ses, const char *tree,
 	cifs_dbg(FYI, "TCON\n");
 
 	if (!server || !tree)
-		return -EIO;
+		return smb_EIO(smb_eio_trace_null_pointers);
 
 	unc_path = kmalloc(MAX_SHARENAME_LENGTH * 2, GFP_KERNEL);
 	if (unc_path == NULL)
@@ -2186,7 +2220,7 @@ SMB2_tdis(const unsigned int xid, struct cifs_tcon *tcon)
 	cifs_dbg(FYI, "Tree Disconnect\n");
 
 	if (!ses || !(ses->server))
-		return -EIO;
+		return smb_EIO(smb_eio_trace_null_pointers);
 
 	trace_smb3_tdis_enter(xid, tcon->tid, ses->Suid, tcon->tree_name);
 	spin_lock(&ses->chan_lock);
@@ -2856,7 +2890,7 @@ replay_again:
 		return -ENOMEM;
 
 	if (!ses || !server) {
-		rc = -EIO;
+		rc = smb_EIO(smb_eio_trace_null_pointers);
 		goto err_free_path;
 	}
 
@@ -2973,7 +3007,7 @@ replay_again:
 	 */
 	rsp = (struct smb2_create_rsp *)rsp_iov.iov_base;
 	if (rsp == NULL) {
-		rc = -EIO;
+		rc = smb_EIO(smb_eio_trace_mkdir_no_rsp);
 		kfree(pc_buf);
 		goto err_free_req;
 	}
@@ -3211,7 +3245,7 @@ replay_again:
 
 	cifs_dbg(FYI, "create/open\n");
 	if (!ses || !server)
-		return -EIO;
+		return smb_EIO(smb_eio_trace_null_pointers);
 
 	if (smb3_encryption_required(tcon))
 		flags |= CIFS_TRANSFORM_REQ;
@@ -3417,11 +3451,11 @@ SMB2_ioctl(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
 	int retries = 0, cur_sleep = 1;
 
 	if (!tcon)
-		return -EIO;
+		return smb_EIO(smb_eio_trace_null_pointers);
 
 	ses = tcon->ses;
 	if (!ses)
-		return -EIO;
+		return smb_EIO(smb_eio_trace_null_pointers);
 
 replay_again:
 	/* reinitialize for possible replay */
@@ -3429,7 +3463,7 @@ replay_again:
 	server = cifs_pick_channel(ses);
 
 	if (!server)
-		return -EIO;
+		return smb_EIO(smb_eio_trace_null_pointers);
 
 	cifs_dbg(FYI, "SMB2 IOCTL\n");
 
@@ -3492,7 +3526,7 @@ replay_again:
 	 * warning)
 	 */
 	if (rsp == NULL) {
-		rc = -EIO;
+		rc = smb_EIO(smb_eio_trace_ioctl_no_rsp);
 		goto ioctl_exit;
 	}
 
@@ -3503,16 +3537,18 @@ replay_again:
 		goto ioctl_exit; /* server returned no data */
 	else if (*plen > rsp_iov.iov_len || *plen > 0xFF00) {
 		cifs_tcon_dbg(VFS, "srv returned invalid ioctl length: %d\n", *plen);
+		rc = smb_EIO2(smb_eio_trace_ioctl_data_len, *plen, rsp_iov.iov_len);
 		*plen = 0;
-		rc = -EIO;
 		goto ioctl_exit;
 	}
 
-	if (rsp_iov.iov_len - *plen < le32_to_cpu(rsp->OutputOffset)) {
-		cifs_tcon_dbg(VFS, "Malformed ioctl resp: len %d offset %d\n", *plen,
-			le32_to_cpu(rsp->OutputOffset));
+	u32 outoff = le32_to_cpu(rsp->OutputOffset);
+
+	if (rsp_iov.iov_len - *plen < outoff) {
+		cifs_tcon_dbg(VFS, "Malformed ioctl resp: len %d offset %d\n",
+			      *plen, outoff);
+		rc = smb_EIO2(smb_eio_trace_ioctl_out_off, rsp_iov.iov_len - *plen, outoff);
 		*plen = 0;
-		rc = -EIO;
 		goto ioctl_exit;
 	}
 
@@ -3620,7 +3656,7 @@ replay_again:
 	cifs_dbg(FYI, "Close\n");
 
 	if (!ses || !server)
-		return -EIO;
+		return smb_EIO(smb_eio_trace_null_pointers);
 
 	if (smb3_encryption_required(tcon))
 		flags |= CIFS_TRANSFORM_REQ;
@@ -3817,7 +3853,7 @@ query_info(const unsigned int xid, struct cifs_tcon *tcon,
 	cifs_dbg(FYI, "Query Info\n");
 
 	if (!ses)
-		return -EIO;
+		return smb_EIO(smb_eio_trace_null_pointers);
 
 replay_again:
 	/* reinitialize for possible replay */
@@ -3826,7 +3862,7 @@ replay_again:
 	server = cifs_pick_channel(ses);
 
 	if (!server)
-		return -EIO;
+		return smb_EIO(smb_eio_trace_null_pointers);
 
 	if (smb3_encryption_required(tcon))
 		flags |= CIFS_TRANSFORM_REQ;
@@ -4011,7 +4047,7 @@ replay_again:
 
 	cifs_dbg(FYI, "change notify\n");
 	if (!ses || !server)
-		return -EIO;
+		return smb_EIO(smb_eio_trace_null_pointers);
 
 	if (smb3_encryption_required(tcon))
 		flags |= CIFS_TRANSFORM_REQ;
@@ -4347,7 +4383,7 @@ replay_again:
 
 	cifs_dbg(FYI, "flush\n");
 	if (!ses || !(ses->server))
-		return -EIO;
+		return smb_EIO(smb_eio_trace_null_pointers);
 
 	if (smb3_encryption_required(tcon))
 		flags |= CIFS_TRANSFORM_REQ;
@@ -4582,11 +4618,12 @@ do_retry:
 		trace_netfs_sreq(&rdata->subreq, netfs_sreq_trace_io_malformed);
 		credits.value = le16_to_cpu(shdr->CreditRequest);
 		credits.instance = server->reconnect_instance;
-		rdata->result = -EIO;
+		rdata->result = smb_EIO(smb_eio_trace_read_rsp_malformed);
 		break;
 	default:
 		trace_netfs_sreq(&rdata->subreq, netfs_sreq_trace_io_unknown);
-		rdata->result = -EIO;
+		rdata->result = smb_EIO1(smb_eio_trace_read_mid_state_unknown,
+					 mid->mid_state);
 		break;
 	}
 #ifdef CONFIG_CIFS_SMB_DIRECT
@@ -4795,7 +4832,8 @@ SMB2_read(const unsigned int xid, struct cifs_io_parms *io_parms,
 	    (*nbytes > io_parms->length)) {
 		cifs_dbg(FYI, "bad length %d for count %d\n",
 			 *nbytes, io_parms->length);
-		rc = -EIO;
+		rc = smb_EIO2(smb_eio_trace_read_overlarge,
+			      *nbytes, io_parms->length);
 		*nbytes = 0;
 	}
 
@@ -4881,11 +4919,12 @@ smb2_writev_callback(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 		trace_netfs_sreq(&wdata->subreq, netfs_sreq_trace_io_malformed);
 		credits.value = le16_to_cpu(rsp->hdr.CreditRequest);
 		credits.instance = server->reconnect_instance;
-		result = -EIO;
+		result = smb_EIO(smb_eio_trace_write_rsp_malformed);
 		break;
 	default:
 		trace_netfs_sreq(&wdata->subreq, netfs_sreq_trace_io_unknown);
-		result = -EIO;
+		result = smb_EIO1(smb_eio_trace_write_mid_state_unknown,
+				  mid->mid_state);
 		break;
 	}
 #ifdef CONFIG_CIFS_SMB_DIRECT
@@ -5528,7 +5567,7 @@ replay_again:
 	server = cifs_pick_channel(ses);
 
 	if (!ses || !(ses->server))
-		return -EIO;
+		return smb_EIO(smb_eio_trace_null_pointers);
 
 	if (smb3_encryption_required(tcon))
 		flags |= CIFS_TRANSFORM_REQ;
@@ -5663,7 +5702,7 @@ replay_again:
 	server = cifs_pick_channel(ses);
 
 	if (!ses || !server)
-		return -EIO;
+		return smb_EIO(smb_eio_trace_null_pointers);
 
 	if (!num)
 		return -EINVAL;
@@ -5860,7 +5899,7 @@ build_qfs_info_req(struct kvec *iov, struct cifs_tcon *tcon,
 	cifs_dbg(FYI, "Query FSInfo level %d\n", level);
 
 	if ((tcon->ses == NULL) || server == NULL)
-		return -EIO;
+		return smb_EIO(smb_eio_trace_null_pointers);
 
 	rc = smb2_plain_req_init(SMB2_QUERY_INFO, tcon, server,
 				 (void **) &req, &total_len);
