@@ -215,15 +215,13 @@ static int smbd_post_send_full_iter(struct smbdirect_socket *sc,
 void smbd_destroy(struct TCP_Server_Info *server)
 {
 	struct smbd_connection *info = server->smbd_conn;
-	struct smbdirect_socket *sc;
 
 	if (!info) {
 		log_rdma_event(INFO, "rdma session already destroyed\n");
 		return;
 	}
-	sc = &info->socket;
 
-	smbdirect_socket_destroy_sync(sc);
+	smbdirect_socket_release(info->socket);
 
 	destroy_workqueue(info->workqueue);
 	kfree(info);
@@ -324,8 +322,7 @@ static struct smbd_connection *_smbd_get_connection(
 	info->workqueue = create_workqueue(wq_name);
 	if (!info->workqueue)
 		goto create_wq_failed;
-	sc = &info->socket;
-	ret = smbdirect_socket_init_new(net, sc);
+	ret = smbdirect_socket_create_kern(net, &sc);
 	if (ret)
 		goto socket_init_failed;
 	smbdirect_socket_set_logging(sc, NULL, smbd_logging_needed, smbd_logging_vaprintf);
@@ -353,17 +350,14 @@ static struct smbd_connection *_smbd_get_connection(
 		goto connect_failed;
 	}
 
+	info->socket = sc;
 	return info;
 
 connect_failed:
 set_workqueue_failed:
 set_settings_failed:
 set_params_failed:
-	/* At this point, need to a full transport shutdown */
-	server->smbd_conn = info;
-	smbd_destroy(server);
-	return NULL;
-
+	smbdirect_socket_release(sc);
 socket_init_failed:
 	destroy_workqueue(info->workqueue);
 create_wq_failed:
@@ -373,9 +367,13 @@ create_wq_failed:
 
 const struct smbdirect_socket_parameters *smbd_get_parameters(struct smbd_connection *conn)
 {
-	struct smbdirect_socket *sc = &conn->socket;
+	if (unlikely(!conn->socket)) {
+		static const struct smbdirect_socket_parameters zero_params;
 
-	return smbdirect_socket_get_current_parameters(sc);
+		return &zero_params;
+	}
+
+	return smbdirect_socket_get_current_parameters(conn->socket);
 }
 
 struct smbd_connection *smbd_get_connection(
@@ -422,7 +420,7 @@ try_again:
  */
 int smbd_recv(struct smbd_connection *info, struct msghdr *msg)
 {
-	struct smbdirect_socket *sc = &info->socket;
+	struct smbdirect_socket *sc = info->socket;
 
 	if (!smbdirect_connection_is_connected(sc))
 		return -ENOTCONN;
@@ -440,7 +438,7 @@ int smbd_send(struct TCP_Server_Info *server,
 	int num_rqst, struct smb_rqst *rqst_array)
 {
 	struct smbd_connection *info = server->smbd_conn;
-	struct smbdirect_socket *sc = &info->socket;
+	struct smbdirect_socket *sc = info->socket;
 	const struct smbdirect_socket_parameters *sp = smbd_get_parameters(info);
 	struct smb_rqst *rqst;
 	struct iov_iter iter;
@@ -545,7 +543,7 @@ struct smbdirect_mr_io *smbd_register_mr(struct smbd_connection *info,
 				 struct iov_iter *iter,
 				 bool writing, bool need_invalidate)
 {
-	struct smbdirect_socket *sc = &info->socket;
+	struct smbdirect_socket *sc = info->socket;
 
 	if (!smbdirect_connection_is_connected(sc))
 		return NULL;
@@ -580,7 +578,7 @@ void smbd_debug_proc_show(struct TCP_Server_Info *server, struct seq_file *m)
 		return;
 	}
 
-	smbdirect_connection_legacy_debug_proc_show(&server->smbd_conn->socket,
+	smbdirect_connection_legacy_debug_proc_show(server->smbd_conn->socket,
 						    server->rdma_readwrite_threshold,
 						    m);
 }
