@@ -504,11 +504,6 @@ static bool tmigr_check_lonely(struct tmigr_group *group)
  * @now:		timer base monotonic
  * @check:		is set if there is the need to handle remote timers;
  *			required in tmigr_requires_handle_remote() only
- * @tmc_active:		this flag indicates, whether the CPU which triggers
- *			the hierarchy walk is !idle in the timer migration
- *			hierarchy. When the CPU is idle and the whole hierarchy is
- *			idle, only the first event of the top level has to be
- *			considered.
  */
 struct tmigr_walk {
 	u64			nextexp;
@@ -519,7 +514,6 @@ struct tmigr_walk {
 	unsigned long		basej;
 	u64			now;
 	bool			check;
-	bool			tmc_active;
 };
 
 typedef bool (*up_f)(struct tmigr_group *, struct tmigr_group *, struct tmigr_walk *);
@@ -1119,15 +1113,6 @@ static bool tmigr_requires_handle_remote_up(struct tmigr_group *group,
 	 */
 	if (!tmigr_check_migrator(group, childmask))
 		return true;
-
-	/*
-	 * When there is a parent group and the CPU which triggered the
-	 * hierarchy walk is not active, proceed the walk to reach the top level
-	 * group before reading the next_expiry value.
-	 */
-	if (group->parent && !data->tmc_active)
-		return false;
-
 	/*
 	 * The lock is required on 32bit architectures to read the variable
 	 * consistently with a concurrent writer. On 64bit the lock is not
@@ -1172,7 +1157,6 @@ bool tmigr_requires_handle_remote(void)
 	data.now = get_jiffies_update(&jif);
 	data.childmask = tmc->groupmask;
 	data.firstexp = KTIME_MAX;
-	data.tmc_active = !tmc->idle;
 	data.check = false;
 
 	/*
