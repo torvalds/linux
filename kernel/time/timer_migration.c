@@ -1573,9 +1573,6 @@ static void tmigr_connect_child_parent(struct tmigr_group *child,
 {
 	struct tmigr_walk data;
 
-	raw_spin_lock_irq(&child->lock);
-	raw_spin_lock_nested(&parent->lock, SINGLE_DEPTH_NESTING);
-
 	if (activate) {
 		/*
 		 * @child is the old top and @parent the new one. In this
@@ -1595,9 +1592,6 @@ static void tmigr_connect_child_parent(struct tmigr_group *child,
 	 * address dependency that pairs with the READ_ONCE() in __walk_groups().
 	 */
 	smp_store_release(&child->parent, parent);
-
-	raw_spin_unlock(&parent->lock);
-	raw_spin_unlock_irq(&child->lock);
 
 	trace_tmigr_connect_child_parent(child);
 
@@ -1695,12 +1689,8 @@ static int tmigr_setup_groups(unsigned int cpu, unsigned int node)
 		if (i == 0) {
 			struct tmigr_cpu *tmc = per_cpu_ptr(&tmigr_cpu, cpu);
 
-			raw_spin_lock_irq(&group->lock);
-
 			tmc->tmgroup = group;
 			tmc->groupmask = BIT(group->num_children++);
-
-			raw_spin_unlock_irq(&group->lock);
 
 			trace_tmigr_connect_cpu_parent(tmc);
 
