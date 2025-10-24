@@ -56,6 +56,9 @@ struct acpi_fan {
 	struct acpi_fan_fif fif;
 	struct acpi_fan_fps *fps;
 	int fps_count;
+#if IS_REACHABLE(CONFIG_HWMON)
+	struct device *hdev;
+#endif
 	struct thermal_cooling_device *cdev;
 	struct device_attribute fst_speed;
 	struct device_attribute fine_grain_control;
@@ -99,8 +102,10 @@ void acpi_fan_delete_attributes(struct acpi_device *device);
 
 #if IS_REACHABLE(CONFIG_HWMON)
 int devm_acpi_fan_create_hwmon(struct device *dev);
+void acpi_fan_notify_hwmon(struct device *dev);
 #else
 static inline int devm_acpi_fan_create_hwmon(struct device *dev) { return 0; };
+static inline void acpi_fan_notify_hwmon(struct device *dev) { };
 #endif
 
 #endif
