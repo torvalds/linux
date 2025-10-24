@@ -34,7 +34,7 @@ static const char *get_current_interrupt_type(void)
 	if (in_nmi())
 		return "NMI";
 
-	if (in_irq())
+	if (in_hardirq())
 		return "HI";
 
 	if (in_softirq())

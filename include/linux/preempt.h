@@ -134,11 +134,9 @@ static __always_inline unsigned char interrupt_context_level(void)
 
 /*
  * The following macros are deprecated and should not be used in new code:
- * in_irq()       - Obsolete version of in_hardirq()
  * in_softirq()   - We have BH disabled, or are processing softirqs
  * in_interrupt() - We're in NMI,IRQ,SoftIRQ context or have BH disabled
  */
-#define in_irq()		(hardirq_count())
 #define in_softirq()		(softirq_count())
 #define in_interrupt()		(irq_count())
 
