@@ -2585,7 +2585,7 @@ static const struct compact_pmu_event pmu_events__common_tool[] = {
 
 };
 
-const struct pmu_table_entry pmu_events__common[] = {
+static const struct pmu_table_entry pmu_events__common[] = {
 {
      .entries = pmu_events__common_default_core,
      .num_entries = ARRAY_SIZE(pmu_events__common_default_core),
@@ -2630,7 +2630,7 @@ static const struct compact_pmu_event pmu_events__test_soc_cpu_uncore_imc_free_r
 
 };
 
-const struct pmu_table_entry pmu_events__test_soc_cpu[] = {
+static const struct pmu_table_entry pmu_events__test_soc_cpu[] = {
 {
      .entries = pmu_events__test_soc_cpu_default_core,
      .num_entries = ARRAY_SIZE(pmu_events__test_soc_cpu_default_core),
@@ -2682,7 +2682,7 @@ static const struct compact_pmu_event pmu_metrics__test_soc_cpu_default_core[] =
 
 };
 
-const struct pmu_table_entry pmu_metrics__test_soc_cpu[] = {
+static const struct pmu_table_entry pmu_metrics__test_soc_cpu[] = {
 {
      .entries = pmu_metrics__test_soc_cpu_default_core,
      .num_entries = ARRAY_SIZE(pmu_metrics__test_soc_cpu_default_core),
@@ -2701,7 +2701,7 @@ static const struct compact_pmu_event pmu_events__test_soc_sys_uncore_sys_ddr_pm
 
 };
 
-const struct pmu_table_entry pmu_events__test_soc_sys[] = {
+static const struct pmu_table_entry pmu_events__test_soc_sys[] = {
 {
      .entries = pmu_events__test_soc_sys_uncore_sys_ccn_pmu,
      .num_entries = ARRAY_SIZE(pmu_events__test_soc_sys_uncore_sys_ccn_pmu),
@@ -2751,7 +2751,7 @@ struct pmu_events_map {
  * Global table mapping each known CPU for the architecture to its
  * table of PMU events.
  */
-const struct pmu_events_map pmu_events_map[] = {
+static const struct pmu_events_map pmu_events_map[] = {
 {
 	.arch = "common",
 	.cpuid = "common",

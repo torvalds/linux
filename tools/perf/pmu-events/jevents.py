@@ -550,7 +550,7 @@ def print_pending_events() -> None:
   _args.output_file.write(f"""
 }};
 
-const struct pmu_table_entry {_pending_events_tblname}[] = {{
+static const struct pmu_table_entry {_pending_events_tblname}[] = {{
 """)
   for (pmu, tbl_pmu) in sorted(pmus):
     pmu_name = f"{pmu}\\000"
@@ -605,7 +605,7 @@ def print_pending_metrics() -> None:
   _args.output_file.write(f"""
 }};
 
-const struct pmu_table_entry {_pending_metrics_tblname}[] = {{
+static const struct pmu_table_entry {_pending_metrics_tblname}[] = {{
 """)
   for (pmu, tbl_pmu) in sorted(pmus):
     pmu_name = f"{pmu}\\000"
@@ -730,7 +730,7 @@ struct pmu_events_map {
  * Global table mapping each known CPU for the architecture to its
  * table of PMU events.
  */
-const struct pmu_events_map pmu_events_map[] = {
+static const struct pmu_events_map pmu_events_map[] = {
 """)
   for arch in archs:
     if arch == 'test':
