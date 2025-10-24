@@ -1119,12 +1119,10 @@ static int imx_rproc_probe(struct platform_device *pdev)
 			return dev_err_probe(dev, ret, "register restart handler failure\n");
 	}
 
-	if (dcfg->method == IMX_RPROC_SCU_API) {
-		pm_runtime_enable(dev);
-		ret = pm_runtime_resume_and_get(dev);
-		if (ret)
-			return dev_err_probe(dev, ret, "pm_runtime get failed\n");
-	}
+	pm_runtime_enable(dev);
+	ret = pm_runtime_resume_and_get(dev);
+	if (ret)
+		return dev_err_probe(dev, ret, "pm_runtime get failed\n");
 
 	ret = devm_rproc_add(dev, rproc);
 	if (ret) {
@@ -1135,10 +1133,8 @@ static int imx_rproc_probe(struct platform_device *pdev)
 	return 0;
 
 err_put_pm:
-	if (dcfg->method == IMX_RPROC_SCU_API) {
-		pm_runtime_disable(dev);
-		pm_runtime_put_noidle(dev);
-	}
+	pm_runtime_disable(dev);
+	pm_runtime_put_noidle(dev);
 
 	return ret;
 }
@@ -1148,10 +1144,8 @@ static void imx_rproc_remove(struct platform_device *pdev)
 	struct rproc *rproc = platform_get_drvdata(pdev);
 	struct imx_rproc *priv = rproc->priv;
 
-	if (priv->dcfg->method == IMX_RPROC_SCU_API) {
-		pm_runtime_disable(priv->dev);
-		pm_runtime_put_noidle(priv->dev);
-	}
+	pm_runtime_disable(priv->dev);
+	pm_runtime_put_noidle(priv->dev);
 }
 
 static const struct imx_rproc_plat_ops imx_rproc_ops_arm_smc = {
