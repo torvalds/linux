@@ -822,7 +822,7 @@ static int aie2_get_hwctx_status(struct amdxdna_client *client,
 	}
 
 	args->buffer_size -= (u32)(array_args.buffer - args->buffer);
-	return ret;
+	return 0;
 }
 
 static int aie2_get_info(struct amdxdna_client *client, struct amdxdna_drm_get_info *args)
@@ -904,7 +904,7 @@ static int aie2_query_ctx_status_array(struct amdxdna_client *client,
 	args->num_element = (u32)((array_args.buffer - args->buffer) /
 				  args->element_size);
 
-	return ret;
+	return 0;
 }
 
 static int aie2_get_array(struct amdxdna_client *client,
