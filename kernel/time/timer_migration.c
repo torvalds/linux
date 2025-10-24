@@ -1703,6 +1703,7 @@ static int tmigr_setup_groups(unsigned int cpu, unsigned int node,
 
 	if (activate) {
 		struct tmigr_walk data;
+		union tmigr_state state;
 
 		/*
 		 * To prevent inconsistent states, active children need to be active in
@@ -1726,6 +1727,8 @@ static int tmigr_setup_groups(unsigned int cpu, unsigned int node,
 		 *   the new childmask and parent to subsequent walkers through this
 		 *   @child. Therefore propagate active state unconditionally.
 		 */
+		state.state = atomic_read(&start->migr_state);
+		WARN_ON_ONCE(!state.active);
 		WARN_ON_ONCE(!start->parent);
 		data.childmask = start->groupmask;
 		__walk_groups_from(tmigr_active_up, &data, start, start->parent);
@@ -1768,6 +1771,11 @@ static int tmigr_add_cpu(unsigned int cpu)
 		 * active or not) and/or release an uninitialized childmask.
 		 */
 		WARN_ON_ONCE(cpu == raw_smp_processor_id());
+		/*
+		 * The (likely) current CPU is expected to be online in the hierarchy,
+		 * otherwise the old root may not be active as expected.
+		 */
+		WARN_ON_ONCE(!per_cpu_ptr(&tmigr_cpu, raw_smp_processor_id())->online);
 		ret = tmigr_setup_groups(-1, old_root->numa_node, old_root, true);
 	}
 
