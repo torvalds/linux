@@ -8,23 +8,6 @@
 #include "peer.h"
 #include "debug.h"
 
-struct ath12k_ml_peer *ath12k_peer_ml_find(struct ath12k_hw *ah, const u8 *addr)
-{
-	struct ath12k_ml_peer *ml_peer;
-
-	lockdep_assert_wiphy(ah->hw->wiphy);
-
-	list_for_each_entry(ml_peer, &ah->ml_peers, list) {
-		if (!ether_addr_equal(ml_peer->addr, addr))
-			continue;
-
-		return ml_peer;
-	}
-
-	return NULL;
-}
-EXPORT_SYMBOL(ath12k_peer_ml_find);
-
 static int ath12k_wait_for_dp_link_peer_common(struct ath12k_base *ab, int vdev_id,
 					       const u8 *addr, bool expect_mapped)
 {
@@ -263,7 +246,7 @@ int ath12k_peer_create(struct ath12k *ar, struct ath12k_link_vif *arvif,
 	return 0;
 }
 
-static u16 ath12k_peer_ml_alloc(struct ath12k_hw *ah)
+u16 ath12k_peer_ml_alloc(struct ath12k_hw *ah)
 {
 	u16 ml_peer_id;
 
@@ -281,68 +264,6 @@ static u16 ath12k_peer_ml_alloc(struct ath12k_hw *ah)
 		ml_peer_id = ATH12K_MLO_PEER_ID_INVALID;
 
 	return ml_peer_id;
-}
-
-int ath12k_peer_ml_create(struct ath12k_hw *ah, struct ieee80211_sta *sta)
-{
-	struct ath12k_sta *ahsta = ath12k_sta_to_ahsta(sta);
-	struct ath12k_ml_peer *ml_peer;
-
-	lockdep_assert_wiphy(ah->hw->wiphy);
-
-	if (!sta->mlo)
-		return -EINVAL;
-
-	ml_peer = ath12k_peer_ml_find(ah, sta->addr);
-	if (ml_peer) {
-		ath12k_hw_warn(ah, "ML peer %d exists already, unable to add new entry for %pM",
-			       ml_peer->id, sta->addr);
-		return -EEXIST;
-	}
-
-	ml_peer = kzalloc(sizeof(*ml_peer), GFP_ATOMIC);
-	if (!ml_peer)
-		return -ENOMEM;
-
-	ahsta->ml_peer_id = ath12k_peer_ml_alloc(ah);
-
-	if (ahsta->ml_peer_id == ATH12K_MLO_PEER_ID_INVALID) {
-		ath12k_hw_warn(ah, "unable to allocate ML peer id for sta %pM",
-			       sta->addr);
-		kfree(ml_peer);
-		return -ENOMEM;
-	}
-
-	ether_addr_copy(ml_peer->addr, sta->addr);
-	ml_peer->id = ahsta->ml_peer_id;
-	list_add(&ml_peer->list, &ah->ml_peers);
-
-	return 0;
-}
-
-int ath12k_peer_ml_delete(struct ath12k_hw *ah, struct ieee80211_sta *sta)
-{
-	struct ath12k_sta *ahsta = ath12k_sta_to_ahsta(sta);
-	struct ath12k_ml_peer *ml_peer;
-
-	lockdep_assert_wiphy(ah->hw->wiphy);
-
-	if (!sta->mlo)
-		return -EINVAL;
-
-	clear_bit(ahsta->ml_peer_id, ah->free_ml_peer_id_map);
-	ahsta->ml_peer_id = ATH12K_MLO_PEER_ID_INVALID;
-
-	ml_peer = ath12k_peer_ml_find(ah, sta->addr);
-	if (!ml_peer) {
-		ath12k_hw_warn(ah, "ML peer for %pM not found", sta->addr);
-		return -EINVAL;
-	}
-
-	list_del(&ml_peer->list);
-	kfree(ml_peer);
-
-	return 0;
 }
 
 int ath12k_peer_mlo_link_peers_delete(struct ath12k_vif *ahvif, struct ath12k_sta *ahsta)

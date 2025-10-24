@@ -325,3 +325,129 @@ void ath12k_dp_link_peer_rhash_delete(struct ath12k_dp *dp,
 		ath12k_warn(dp, "failed to remove peer %pM with id %d in rhash_addr ret %d\n",
 			    peer->addr, peer->peer_id, ret);
 }
+
+struct ath12k_dp_peer *ath12k_dp_peer_find_by_addr(struct ath12k_dp_hw *dp_hw, u8 *addr)
+{
+	struct ath12k_dp_peer *peer;
+
+	lockdep_assert_held(&dp_hw->peer_lock);
+
+	list_for_each_entry(peer, &dp_hw->dp_peers_list, list) {
+		if (ether_addr_equal(peer->addr, addr))
+			return peer;
+	}
+
+	return NULL;
+}
+EXPORT_SYMBOL(ath12k_dp_peer_find_by_addr);
+
+struct ath12k_dp_peer *ath12k_dp_peer_find_by_addr_and_sta(struct ath12k_dp_hw *dp_hw,
+							   u8 *addr,
+							   struct ieee80211_sta *sta)
+{
+	struct ath12k_dp_peer *dp_peer;
+
+	lockdep_assert_held(&dp_hw->peer_lock);
+
+	list_for_each_entry(dp_peer, &dp_hw->dp_peers_list, list) {
+		if (ether_addr_equal(dp_peer->addr, addr) && (dp_peer->sta == sta))
+			return dp_peer;
+	}
+
+	return NULL;
+}
+
+static struct ath12k_dp_peer *ath12k_dp_peer_create_find(struct ath12k_dp_hw *dp_hw,
+							 u8 *addr,
+							 struct ieee80211_sta *sta,
+							 bool mlo_peer)
+{
+	struct ath12k_dp_peer *dp_peer;
+
+	lockdep_assert_held(&dp_hw->peer_lock);
+
+	list_for_each_entry(dp_peer, &dp_hw->dp_peers_list, list) {
+		if (ether_addr_equal(dp_peer->addr, addr)) {
+			if (!sta || mlo_peer || dp_peer->is_mlo ||
+			    dp_peer->sta == sta)
+				return dp_peer;
+		}
+	}
+
+	return NULL;
+}
+
+int ath12k_dp_peer_create(struct ath12k_dp_hw *dp_hw, u8 *addr,
+			  struct ath12k_dp_peer_create_params *params)
+{
+	struct ath12k_dp_peer *dp_peer;
+
+	spin_lock_bh(&dp_hw->peer_lock);
+	dp_peer = ath12k_dp_peer_create_find(dp_hw, addr, params->sta, params->is_mlo);
+	if (dp_peer) {
+		spin_unlock_bh(&dp_hw->peer_lock);
+		return -EEXIST;
+	}
+	spin_unlock_bh(&dp_hw->peer_lock);
+
+	dp_peer = kzalloc(sizeof(*dp_peer), GFP_ATOMIC);
+	if (!dp_peer)
+		return -ENOMEM;
+
+	ether_addr_copy(dp_peer->addr, addr);
+	dp_peer->sta = params->sta;
+	dp_peer->is_mlo = params->is_mlo;
+
+	/*
+	 * For MLO client, the host assigns the ML peer ID, so set peer_id in dp_peer
+	 * For non-MLO client, host gets link peer ID from firmware and will be
+	 * assigned at the time of link peer creation
+	 */
+	dp_peer->peer_id = params->is_mlo ? params->peer_id : ATH12K_DP_PEER_ID_INVALID;
+	dp_peer->ucast_ra_only = params->ucast_ra_only;
+
+	dp_peer->sec_type = HAL_ENCRYPT_TYPE_OPEN;
+	dp_peer->sec_type_grp = HAL_ENCRYPT_TYPE_OPEN;
+
+	spin_lock_bh(&dp_hw->peer_lock);
+
+	list_add(&dp_peer->list, &dp_hw->dp_peers_list);
+
+	/*
+	 * For MLO client, the peer_id for ath12k_dp_peer is allocated by host
+	 * and that peer_id is known at this point, and hence this ath12k_dp_peer
+	 * can be added to the RCU table using the peer_id.
+	 * For non-MLO client, this addition to RCU table shall be done at the
+	 * time of assignment of ath12k_dp_link_peer to ath12k_dp_peer.
+	 */
+	if (dp_peer->is_mlo)
+		rcu_assign_pointer(dp_hw->dp_peers[dp_peer->peer_id], dp_peer);
+
+	spin_unlock_bh(&dp_hw->peer_lock);
+
+	return 0;
+}
+
+void ath12k_dp_peer_delete(struct ath12k_dp_hw *dp_hw, u8 *addr,
+			   struct ieee80211_sta *sta)
+{
+	struct ath12k_dp_peer *dp_peer;
+
+	spin_lock_bh(&dp_hw->peer_lock);
+
+	dp_peer = ath12k_dp_peer_find_by_addr_and_sta(dp_hw, addr, sta);
+	if (!dp_peer) {
+		spin_unlock_bh(&dp_hw->peer_lock);
+		return;
+	}
+
+	if (dp_peer->is_mlo)
+		rcu_assign_pointer(dp_hw->dp_peers[dp_peer->peer_id], NULL);
+
+	list_del(&dp_peer->list);
+
+	spin_unlock_bh(&dp_hw->peer_lock);
+
+	synchronize_rcu();
+	kfree(dp_peer);
+}

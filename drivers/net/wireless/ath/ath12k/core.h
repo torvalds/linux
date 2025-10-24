@@ -836,8 +836,7 @@ struct ath12k_hw {
 
 	DECLARE_BITMAP(free_ml_peer_id_map, ATH12K_MAX_MLO_PEERS);
 
-	/* protected by wiphy_lock() */
-	struct list_head ml_peers;
+	struct ath12k_dp_hw dp_hw;
 
 	/* Keep last */
 	struct ath12k radio[] __aligned(sizeof(void *));

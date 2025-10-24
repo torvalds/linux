@@ -1576,6 +1576,7 @@ static void ath12k_core_post_reconfigure_recovery(struct ath12k_base *ab)
 				ath12k_core_halt(ar);
 			}
 
+			ath12k_mac_dp_peer_cleanup(ah);
 			break;
 		case ATH12K_HW_STATE_OFF:
 			ath12k_warn(ab,

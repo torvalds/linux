@@ -117,13 +117,19 @@ ath12k_wifi7_is_frame_link_agnostic_wcn7850(struct ath12k_link_vif *arvif,
 	struct ath12k_hw *ah = ath12k_ar_to_ah(arvif->ar);
 	struct ath12k_base *ab = arvif->ar->ab;
 	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
+	struct ath12k_dp_peer *peer;
 	__le16 fc = mgmt->frame_control;
 
 	spin_lock_bh(&dp->dp_lock);
-	if (!ath12k_dp_link_peer_find_by_addr(dp, mgmt->da) &&
-	    !ath12k_peer_ml_find(ah, mgmt->da)) {
-		spin_unlock_bh(&dp->dp_lock);
-		return false;
+	if (!ath12k_dp_link_peer_find_by_addr(dp, mgmt->da)) {
+		spin_lock_bh(&ah->dp_hw.peer_lock);
+		peer = ath12k_dp_peer_find_by_addr(&ah->dp_hw, mgmt->da);
+		if (!peer || (peer && !peer->is_mlo)) {
+			spin_unlock_bh(&ah->dp_hw.peer_lock);
+			spin_unlock_bh(&dp->dp_lock);
+			return false;
+		}
+		spin_unlock_bh(&ah->dp_hw.peer_lock);
 	}
 	spin_unlock_bh(&dp->dp_lock);
 

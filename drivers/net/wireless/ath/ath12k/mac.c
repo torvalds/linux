@@ -1179,6 +1179,8 @@ void ath12k_mac_peer_cleanup_all(struct ath12k *ar)
 	struct ath12k_dp_link_peer *peer, *tmp;
 	struct ath12k_base *ab = ar->ab;
 	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
+	struct ath12k_link_vif *arvif, *tmp_vif;
+	struct ath12k_dp_hw *dp_hw = &ar->ah->dp_hw;
 
 	lockdep_assert_wiphy(ath12k_ar_to_hw(ar)->wiphy);
 
@@ -1201,6 +1203,42 @@ void ath12k_mac_peer_cleanup_all(struct ath12k *ar)
 	/* Cleanup rhash table maintained for arsta by iterating over sta */
 	ieee80211_iterate_stations_mtx(ar->ah->hw, ath12k_mac_link_sta_rhash_cleanup,
 				       ar);
+
+	/* Delete all the self dp_peers on asserted radio */
+	list_for_each_entry_safe_reverse(arvif, tmp_vif, &ar->arvifs, list) {
+		if (arvif->ahvif->vdev_type == WMI_VDEV_TYPE_AP) {
+			ath12k_dp_peer_delete(dp_hw, arvif->bssid, NULL);
+			arvif->num_stations = 0;
+		}
+	}
+}
+
+void ath12k_mac_dp_peer_cleanup(struct ath12k_hw *ah)
+{
+	struct list_head peers;
+	struct ath12k_dp_peer *dp_peer, *tmp;
+	struct ath12k_dp_hw *dp_hw = &ah->dp_hw;
+
+	INIT_LIST_HEAD(&peers);
+
+	spin_lock_bh(&dp_hw->peer_lock);
+	list_for_each_entry_safe(dp_peer, tmp, &dp_hw->dp_peers_list, list) {
+		if (dp_peer->is_mlo) {
+			rcu_assign_pointer(dp_hw->dp_peers[dp_peer->peer_id], NULL);
+			clear_bit(dp_peer->peer_id, ah->free_ml_peer_id_map);
+		}
+
+		list_move(&dp_peer->list, &peers);
+	}
+
+	spin_unlock_bh(&dp_hw->peer_lock);
+
+	synchronize_rcu();
+
+	list_for_each_entry_safe(dp_peer, tmp, &peers, list) {
+		list_del(&dp_peer->list);
+		kfree(dp_peer);
+	}
 }
 
 static int ath12k_mac_vdev_setup_sync(struct ath12k *ar)
@@ -3969,6 +4007,8 @@ static void ath12k_mac_remove_link_interface(struct ieee80211_hw *hw,
 		if (ret)
 			ath12k_warn(ar->ab, "failed to submit AP self-peer removal on vdev %d link id %d: %d",
 				    arvif->vdev_id, arvif->link_id, ret);
+
+		ath12k_dp_peer_delete(&ah->dp_hw, arvif->bssid, NULL);
 	}
 	ath12k_mac_vdev_delete(ar, arvif);
 }
@@ -6625,7 +6665,10 @@ static void ath12k_mac_ml_station_remove(struct ath12k_vif *ahvif,
 		ath12k_mac_free_unassign_link_sta(ah, ahsta, link_id);
 	}
 
-	ath12k_peer_ml_delete(ah, sta);
+	if (sta->mlo) {
+		clear_bit(ahsta->ml_peer_id, ah->free_ml_peer_id_map);
+		ahsta->ml_peer_id = ATH12K_MLO_PEER_ID_INVALID;
+	}
 }
 
 static int ath12k_mac_handle_link_sta_state(struct ieee80211_hw *hw,
@@ -7064,7 +7107,8 @@ int ath12k_mac_op_sta_state(struct ieee80211_hw *hw,
 	u16 selected_links = 0;
 	u8 link_id = 0, i;
 	struct ath12k *ar;
-	int ret;
+	int ret = -EINVAL;
+	struct ath12k_dp_peer_create_params dp_params = {};
 
 	lockdep_assert_wiphy(hw->wiphy);
 
@@ -7087,12 +7131,28 @@ int ath12k_mac_op_sta_state(struct ieee80211_hw *hw,
 		/* ML sta */
 		if (sta->mlo && !ahsta->links_map &&
 		    (hweight16(sta->valid_links) == 1)) {
-			ret = ath12k_peer_ml_create(ah, sta);
-			if (ret) {
-				ath12k_hw_warn(ah, "unable to create ML peer for sta %pM",
+			ahsta->ml_peer_id = ath12k_peer_ml_alloc(ah);
+			if (ahsta->ml_peer_id == ATH12K_MLO_PEER_ID_INVALID) {
+				ath12k_hw_warn(ah, "unable to allocate ML peer id for sta %pM",
 					       sta->addr);
 				goto exit;
 			}
+
+			dp_params.is_mlo = true;
+			dp_params.peer_id = ahsta->ml_peer_id | ATH12K_PEER_ML_ID_VALID;
+		}
+
+		dp_params.sta = sta;
+
+		if (vif->type == NL80211_IFTYPE_AP)
+			dp_params.ucast_ra_only = true;
+
+		ret = ath12k_dp_peer_create(&ah->dp_hw, sta->addr, &dp_params);
+		if (ret) {
+			ath12k_hw_warn(ah, "unable to create ath12k_dp_peer for sta %pM, ret: %d",
+				       sta->addr, ret);
+
+			goto ml_peer_id_clear;
 		}
 
 		ret = ath12k_mac_assign_link_sta(ah, ahsta, arsta, ahvif,
@@ -7100,7 +7160,7 @@ int ath12k_mac_op_sta_state(struct ieee80211_hw *hw,
 		if (ret) {
 			ath12k_hw_warn(ah, "unable assign link %d for sta %pM",
 				       link_id, sta->addr);
-			goto exit;
+			goto peer_delete;
 		}
 
 		/* above arsta will get memset, hence do this after assign
@@ -7170,7 +7230,12 @@ int ath12k_mac_op_sta_state(struct ieee80211_hw *hw,
 		if (ret) {
 			ath12k_hw_warn(ah, "unable to move link sta %d of sta %pM from state %d to %d",
 				       link_id, arsta->addr, old_state, new_state);
-			goto exit;
+
+			if (old_state == IEEE80211_STA_NOTEXIST &&
+			    new_state == IEEE80211_STA_NONE)
+				goto peer_delete;
+			else
+				goto exit;
 		}
 	}
 
@@ -7198,11 +7263,23 @@ int ath12k_mac_op_sta_state(struct ieee80211_hw *hw,
 	 * handler below
 	 */
 	if (old_state == IEEE80211_STA_NONE &&
-	    new_state == IEEE80211_STA_NOTEXIST && sta->mlo)
-		ath12k_mac_ml_station_remove(ahvif, ahsta);
+	    new_state == IEEE80211_STA_NOTEXIST) {
+		if (sta->mlo)
+			ath12k_mac_ml_station_remove(ahvif, ahsta);
+
+		ath12k_dp_peer_delete(&ah->dp_hw, sta->addr, sta);
+	}
 
 	ret = 0;
+	goto exit;
 
+peer_delete:
+	ath12k_dp_peer_delete(&ah->dp_hw, sta->addr, sta);
+ml_peer_id_clear:
+	if (sta->mlo) {
+		clear_bit(ahsta->ml_peer_id, ah->free_ml_peer_id_map);
+		ahsta->ml_peer_id = ATH12K_MLO_PEER_ID_INVALID;
+	}
 exit:
 	/* update the state if everything went well */
 	if (!ret)
@@ -9827,6 +9904,7 @@ int ath12k_mac_vdev_create(struct ath12k *ar, struct ath12k_link_vif *arvif)
 	int ret, vdev_id;
 	u8 link_id;
 	struct ath12k_dp_link_vif *dp_link_vif = NULL;
+	struct ath12k_dp_peer_create_params params = {};
 
 	lockdep_assert_wiphy(hw->wiphy);
 
@@ -9910,6 +9988,15 @@ int ath12k_mac_vdev_create(struct ath12k *ar, struct ath12k_link_vif *arvif)
 
 	switch (ahvif->vdev_type) {
 	case WMI_VDEV_TYPE_AP:
+		params.ucast_ra_only = true;
+
+		ret = ath12k_dp_peer_create(&ah->dp_hw, arvif->bssid, &params);
+		if (ret) {
+			ath12k_warn(ab, "failed to vdev %d create dp_peer for AP: %d\n",
+				    arvif->vdev_id, ret);
+			goto err_vdev_del;
+		}
+
 		peer_param.vdev_id = arvif->vdev_id;
 		peer_param.peer_addr = arvif->bssid;
 		peer_param.peer_type = WMI_PEER_TYPE_DEFAULT;
@@ -9917,7 +10004,7 @@ int ath12k_mac_vdev_create(struct ath12k *ar, struct ath12k_link_vif *arvif)
 		if (ret) {
 			ath12k_warn(ab, "failed to vdev %d create peer for AP: %d\n",
 				    arvif->vdev_id, ret);
-			goto err_vdev_del;
+			goto err_dp_peer_del;
 		}
 
 		ret = ath12k_mac_set_kickout(arvif);
@@ -10021,6 +10108,10 @@ err_peer_del:
 
 		ar->num_peers--;
 	}
+
+err_dp_peer_del:
+	if (ahvif->vdev_type == WMI_VDEV_TYPE_AP)
+		ath12k_dp_peer_delete(&ah->dp_hw, arvif->bssid, NULL);
 
 err_vdev_del:
 	if (ahvif->vdev_type == WMI_VDEV_TYPE_MONITOR) {
@@ -14349,7 +14440,9 @@ static struct ath12k_hw *ath12k_mac_hw_allocate(struct ath12k_hw_group *ag,
 	ah->num_radio = num_pdev_map;
 
 	mutex_init(&ah->hw_mutex);
-	INIT_LIST_HEAD(&ah->ml_peers);
+
+	spin_lock_init(&ah->dp_hw.peer_lock);
+	INIT_LIST_HEAD(&ah->dp_hw.dp_peers_list);
 
 	for (i = 0; i < num_pdev_map; i++) {
 		ab = pdev_map[i].ab;
