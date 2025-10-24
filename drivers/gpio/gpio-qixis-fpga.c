@@ -56,8 +56,8 @@ static int qixis_cpld_gpio_probe(struct platform_device *pdev)
 		 * create our own from the MMIO space.
 		 */
 		reg = devm_platform_ioremap_resource(pdev, 0);
-		if (!reg)
-			return -ENODEV;
+		if (IS_ERR(reg))
+			return PTR_ERR(reg);
 
 		regmap = devm_regmap_init_mmio(&pdev->dev, reg, &regmap_config_8r_8v);
 		if (!regmap)
