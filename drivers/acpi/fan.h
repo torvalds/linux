@@ -56,6 +56,8 @@ struct acpi_fan {
 	struct acpi_fan_fif fif;
 	struct acpi_fan_fps *fps;
 	int fps_count;
+	/* A value of 0 means that trippoint-related functions are not supported */
+	u32 fan_trip_granularity;
 #if IS_REACHABLE(CONFIG_HWMON)
 	struct device *hdev;
 #endif
