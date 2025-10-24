@@ -203,8 +203,7 @@ static enum signal_type link_detect_sink_signal_type(struct dc_link *link,
 		aud_support = &link->dc->res_pool->audio_support;
 
 		if (!aud_support->hdmi_audio_native)
-			if (link->link_id.id == CONNECTOR_ID_HDMI_TYPE_A)
-				result = SIGNAL_TYPE_DVI_SINGLE_LINK;
+			result = SIGNAL_TYPE_DVI_SINGLE_LINK;
 		break;
 	case CONNECTOR_ID_DISPLAY_PORT:
 	case CONNECTOR_ID_USBC:
