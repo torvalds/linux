@@ -1286,6 +1286,13 @@ static void qm_vft_data_cfg(struct hisi_qm *qm, enum vft_type type, u32 base,
 				(factor->cbs_s << QM_SHAPER_FACTOR_CBS_S_SHIFT);
 			}
 			break;
+		/*
+		 * Note: The current logic only needs to handle the above three types
+		 * If new types are added, they need to be supplemented here,
+		 * otherwise undefined behavior may occur.
+		 */
+		default:
+			break;
 		}
 	}
 
