@@ -15,6 +15,8 @@ static struct dev_hw_ops	otx2_hw_ops = {
 	.aura_freeptr = otx2_aura_freeptr,
 	.refill_pool_ptrs = otx2_refill_pool_ptrs,
 	.pfaf_mbox_intr_handler = otx2_pfaf_mbox_intr_handler,
+	.aura_aq_init = otx2_aura_aq_init,
+	.pool_aq_init = otx2_pool_aq_init,
 };
 
 static struct dev_hw_ops cn10k_hw_ops = {
@@ -23,6 +25,8 @@ static struct dev_hw_ops cn10k_hw_ops = {
 	.aura_freeptr = cn10k_aura_freeptr,
 	.refill_pool_ptrs = cn10k_refill_pool_ptrs,
 	.pfaf_mbox_intr_handler = otx2_pfaf_mbox_intr_handler,
+	.aura_aq_init = otx2_aura_aq_init,
+	.pool_aq_init = otx2_pool_aq_init,
 };
 
 void otx2_init_hw_ops(struct otx2_nic *pfvf)
