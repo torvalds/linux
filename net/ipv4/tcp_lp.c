@@ -23,9 +23,9 @@
  * Original Author:
  *   Aleksandar Kuzmanovic <akuzma@northwestern.edu>
  * Available from:
- *   http://www.ece.rice.edu/~akuzma/Doc/akuzma/TCP-LP.pdf
+ *   https://users.cs.northwestern.edu/~akuzma/doc/TCP-LP-ToN.pdf
  * Original implementation for 2.4.19:
- *   http://www-ece.rice.edu/networks/TCP-LP/
+ *   https://users.cs.northwestern.edu/~akuzma/rice/TCP-LP/linux/tcp-lp-linux.htm
  *
  * 2.6.x module Authors:
  *   Wong Hoi Sing, Edison <hswong3i@gmail.com>
@@ -113,6 +113,8 @@ static void tcp_lp_init(struct sock *sk)
 /**
  * tcp_lp_cong_avoid
  * @sk: socket to avoid congesting
+ * @ack: current ack sequence number
+ * @acked: number of ACKed packets
  *
  * Implementation of cong_avoid.
  * Will only call newReno CA when away from inference.
@@ -261,6 +263,7 @@ static void tcp_lp_rtt_sample(struct sock *sk, u32 rtt)
 /**
  * tcp_lp_pkts_acked
  * @sk: socket requiring congestion avoidance calculations
+ * @sample: ACK sample containing timing and rate information
  *
  * Implementation of pkts_acked.
  * Deal with active drop under Early Congestion Indication.
