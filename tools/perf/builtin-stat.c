@@ -96,6 +96,10 @@
 #include <perf/evlist.h>
 #include <internal/threadmap.h>
 
+#ifdef HAVE_BPF_SKEL
+#include "util/bpf_skel/bperf_cgroup.h"
+#endif
+
 #define DEFAULT_SEPARATOR	" "
 #define FREEZE_ON_SMI_PATH	"bus/event_source/devices/cpu/freeze_on_smi"
 
@@ -2852,7 +2856,14 @@ int cmd_stat(int argc, const char **argv)
 			goto out;
 		}
 	}
-
+#ifdef HAVE_BPF_SKEL
+	if (target.use_bpf && nr_cgroups &&
+	    (evsel_list->core.nr_entries / nr_cgroups) > BPERF_CGROUP__MAX_EVENTS) {
+		pr_warning("Disabling BPF counters due to more events (%d) than the max (%d)\n",
+			   evsel_list->core.nr_entries / nr_cgroups, BPERF_CGROUP__MAX_EVENTS);
+		target.use_bpf = false;
+	}
+#endif // HAVE_BPF_SKEL
 	evlist__warn_user_requested_cpus(evsel_list, target.cpu_list);
 
 	evlist__for_each_entry(evsel_list, counter) {
