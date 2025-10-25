@@ -213,12 +213,10 @@ impl Gpu {
             gsp_falcon: Falcon::new(
                 pdev.as_ref(),
                 spec.chipset,
-                bar,
-                spec.chipset > Chipset::GA100,
             )
             .inspect(|falcon| falcon.clear_swgen0_intr(bar))?,
 
-            sec2_falcon: Falcon::new(pdev.as_ref(), spec.chipset, bar, true)?,
+            sec2_falcon: Falcon::new(pdev.as_ref(), spec.chipset)?,
 
             gsp <- Gsp::new(),
 

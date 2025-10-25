@@ -362,26 +362,7 @@ pub(crate) struct Falcon<E: FalconEngine> {
 
 impl<E: FalconEngine + 'static> Falcon<E> {
     /// Create a new falcon instance.
-    ///
-    /// `need_riscv` is set to `true` if the caller expects the falcon to be a dual falcon/riscv
-    /// controller.
-    pub(crate) fn new(
-        dev: &device::Device,
-        chipset: Chipset,
-        bar: &Bar0,
-        need_riscv: bool,
-    ) -> Result<Self> {
-        if need_riscv {
-            let hwcfg2 = regs::NV_PFALCON_FALCON_HWCFG2::read(bar, &E::ID);
-            if !hwcfg2.riscv() {
-                dev_err!(
-                    dev,
-                    "riscv support requested on a controller that does not support it\n"
-                );
-                return Err(EINVAL);
-            }
-        }
-
+    pub(crate) fn new(dev: &device::Device, chipset: Chipset) -> Result<Self> {
         Ok(Self {
             hal: hal::falcon_hal(chipset)?,
             dev: dev.into(),
