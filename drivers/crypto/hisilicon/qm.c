@@ -2655,10 +2655,10 @@ static int qm_hw_err_isolate(struct hisi_qm *qm)
 		}
 	}
 	list_add(&hw_err->list, &isolate->qm_hw_errs);
-	mutex_unlock(&isolate->isolate_lock);
 
 	if (count >= isolate->err_threshold)
 		isolate->is_isolate = true;
+	mutex_unlock(&isolate->isolate_lock);
 
 	return 0;
 }
@@ -2667,12 +2667,10 @@ static void qm_hw_err_destroy(struct hisi_qm *qm)
 {
 	struct qm_hw_err *err, *tmp;
 
-	mutex_lock(&qm->isolate_data.isolate_lock);
 	list_for_each_entry_safe(err, tmp, &qm->isolate_data.qm_hw_errs, list) {
 		list_del(&err->list);
 		kfree(err);
 	}
-	mutex_unlock(&qm->isolate_data.isolate_lock);
 }
 
 static enum uacce_dev_state hisi_qm_get_isolate_state(struct uacce_device *uacce)
@@ -2700,10 +2698,12 @@ static int hisi_qm_isolate_threshold_write(struct uacce_device *uacce, u32 num)
 	if (qm->isolate_data.is_isolate)
 		return -EPERM;
 
+	mutex_lock(&qm->isolate_data.isolate_lock);
 	qm->isolate_data.err_threshold = num;
 
 	/* After the policy is updated, need to reset the hardware err list */
 	qm_hw_err_destroy(qm);
+	mutex_unlock(&qm->isolate_data.isolate_lock);
 
 	return 0;
 }
@@ -2740,7 +2740,10 @@ static void qm_remove_uacce(struct hisi_qm *qm)
 	struct uacce_device *uacce = qm->uacce;
 
 	if (qm->use_sva) {
+		mutex_lock(&qm->isolate_data.isolate_lock);
 		qm_hw_err_destroy(qm);
+		mutex_unlock(&qm->isolate_data.isolate_lock);
+
 		uacce_remove(uacce);
 		qm->uacce = NULL;
 	}
