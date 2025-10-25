@@ -5879,32 +5879,12 @@ static const struct btf_kfunc_id_set scx_kfunc_set_dispatch = {
 	.set			= &scx_kfunc_ids_dispatch,
 };
 
-__bpf_kfunc_start_defs();
-
-/**
- * scx_bpf_reenqueue_local - Re-enqueue tasks on a local DSQ
- *
- * Iterate over all of the tasks currently enqueued on the local DSQ of the
- * caller's CPU, and re-enqueue them in the BPF scheduler. Returns the number of
- * processed tasks. Can only be called from ops.cpu_release().
- */
-__bpf_kfunc u32 scx_bpf_reenqueue_local(void)
+static u32 reenq_local(struct rq *rq)
 {
-	struct scx_sched *sch;
 	LIST_HEAD(tasks);
 	u32 nr_enqueued = 0;
-	struct rq *rq;
 	struct task_struct *p, *n;
 
-	guard(rcu)();
-	sch = rcu_dereference(scx_root);
-	if (unlikely(!sch))
-		return 0;
-
-	if (!scx_kf_allowed(sch, SCX_KF_CPU_RELEASE))
-		return 0;
-
-	rq = cpu_rq(smp_processor_id());
 	lockdep_assert_rq_held(rq);
 
 	/*
@@ -5939,6 +5919,34 @@ __bpf_kfunc u32 scx_bpf_reenqueue_local(void)
 	}
 
 	return nr_enqueued;
+}
+
+__bpf_kfunc_start_defs();
+
+/**
+ * scx_bpf_reenqueue_local - Re-enqueue tasks on a local DSQ
+ *
+ * Iterate over all of the tasks currently enqueued on the local DSQ of the
+ * caller's CPU, and re-enqueue them in the BPF scheduler. Returns the number of
+ * processed tasks. Can only be called from ops.cpu_release().
+ */
+__bpf_kfunc u32 scx_bpf_reenqueue_local(void)
+{
+	struct scx_sched *sch;
+	struct rq *rq;
+
+	guard(rcu)();
+	sch = rcu_dereference(scx_root);
+	if (unlikely(!sch))
+		return 0;
+
+	if (!scx_kf_allowed(sch, SCX_KF_CPU_RELEASE))
+		return 0;
+
+	rq = cpu_rq(smp_processor_id());
+	lockdep_assert_rq_held(rq);
+
+	return reenq_local(rq);
 }
 
 __bpf_kfunc_end_defs();
