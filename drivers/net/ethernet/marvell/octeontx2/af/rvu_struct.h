@@ -13,6 +13,8 @@
 
 #define RVU_MULTI_BLK_VER		0x7ULL
 
+#define NIX_MAX_CTX_SIZE		128
+
 /* RVU Block Address Enumeration */
 enum rvu_block_addr_e {
 	BLKADDR_RVUM		= 0x0ULL,
@@ -370,7 +372,11 @@ struct nix_cq_ctx_s {
 	u64 qsize		: 4;
 	u64 cq_err_int		: 8;
 	u64 cq_err_int_ena	: 8;
+	/* Ensure all context sizes are 128 bytes */
+	u64 padding[12];
 };
+
+static_assert(sizeof(struct nix_cq_ctx_s) == NIX_MAX_CTX_SIZE);
 
 /* CN10K NIX Receive queue context structure */
 struct nix_cn10k_rq_ctx_s {
@@ -460,6 +466,8 @@ struct nix_cn10k_rq_ctx_s {
 	u64 rsvd_1023_960;		/* W15 */
 };
 
+static_assert(sizeof(struct nix_cn10k_rq_ctx_s) == NIX_MAX_CTX_SIZE);
+
 /* CN10K NIX Send queue context structure */
 struct nix_cn10k_sq_ctx_s {
 	u64 ena                   : 1;
@@ -522,6 +530,8 @@ struct nix_cn10k_sq_ctx_s {
 	u64 dropped_pkts          : 48;
 	u64 rsvd_1023_1008        : 16;
 };
+
+static_assert(sizeof(struct nix_cn10k_sq_ctx_s) == NIX_MAX_CTX_SIZE);
 
 /* NIX Receive queue context structure */
 struct nix_rq_ctx_s {
@@ -593,6 +603,8 @@ struct nix_rq_ctx_s {
 	u64 rsvd_959_896;		/* W14 */
 	u64 rsvd_1023_960;		/* W15 */
 };
+
+static_assert(sizeof(struct nix_rq_ctx_s) == NIX_MAX_CTX_SIZE);
 
 /* NIX sqe sizes */
 enum nix_maxsqesz {
@@ -668,12 +680,17 @@ struct nix_sq_ctx_s {
 	u64 rsvd_1023_1008        : 16;
 };
 
+static_assert(sizeof(struct nix_sq_ctx_s) == NIX_MAX_CTX_SIZE);
+
 /* NIX Receive side scaling entry structure*/
 struct nix_rsse_s {
 	uint32_t rq			: 20;
 	uint32_t reserved_20_31		: 12;
-
+	/* Ensure all context sizes are minimum 128 bytes */
+	u64 padding[15];
 };
+
+static_assert(sizeof(struct nix_rsse_s) == NIX_MAX_CTX_SIZE);
 
 /* NIX receive multicast/mirror entry structure */
 struct nix_rx_mce_s {
@@ -684,7 +701,11 @@ struct nix_rx_mce_s {
 	uint64_t rsvd_31_24 : 8;
 	uint64_t pf_func    : 16;
 	uint64_t next       : 16;
+	/* Ensure all context sizes are minimum 128 bytes */
+	u64 padding[15];
 };
+
+static_assert(sizeof(struct nix_rx_mce_s) == NIX_MAX_CTX_SIZE);
 
 enum nix_band_prof_layers {
 	BAND_PROF_LEAF_LAYER = 0,
@@ -768,6 +789,8 @@ struct nix_bandprof_s {
 	uint64_t red_octs_drop               : 48; /* W15 */
 	uint64_t reserved_1008_1023          : 16;
 };
+
+static_assert(sizeof(struct nix_bandprof_s) == NIX_MAX_CTX_SIZE);
 
 enum nix_lsoalg {
 	NIX_LSOALG_NOP,
