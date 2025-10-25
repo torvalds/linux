@@ -1019,6 +1019,12 @@ static void nix_get_aq_req_smq(struct rvu *rvu, struct nix_aq_enq_req *req,
 {
 	struct nix_cn10k_aq_enq_req *aq_req;
 
+	if (is_cn20k(rvu->pdev)) {
+		*smq = ((struct nix_cn20k_aq_enq_req *)req)->sq.smq;
+		*smq_mask = ((struct nix_cn20k_aq_enq_req *)req)->sq_mask.smq;
+		return;
+	}
+
 	if (!is_rvu_otx2(rvu)) {
 		aq_req = (struct nix_cn10k_aq_enq_req *)req;
 		*smq = aq_req->sq.smq;
@@ -1323,8 +1329,8 @@ static int rvu_nix_verify_aq_ctx(struct rvu *rvu, struct nix_hw *nix_hw,
 	return 0;
 }
 
-static int rvu_nix_aq_enq_inst(struct rvu *rvu, struct nix_aq_enq_req *req,
-			       struct nix_aq_enq_rsp *rsp)
+int rvu_nix_aq_enq_inst(struct rvu *rvu, struct nix_aq_enq_req *req,
+			struct nix_aq_enq_rsp *rsp)
 {
 	struct nix_hw *nix_hw;
 	int err, retries = 5;

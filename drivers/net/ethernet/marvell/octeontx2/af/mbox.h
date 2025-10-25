@@ -336,6 +336,8 @@ M(NIX_MCAST_GRP_UPDATE, 0x802d, nix_mcast_grp_update,				\
 				nix_mcast_grp_update_req,			\
 				nix_mcast_grp_update_rsp)			\
 M(NIX_LF_STATS, 0x802e, nix_lf_stats, nix_stats_req, nix_stats_rsp)	\
+M(NIX_CN20K_AQ_ENQ,	0x802f, nix_cn20k_aq_enq, nix_cn20k_aq_enq_req,		\
+				nix_cn20k_aq_enq_rsp)				\
 /* MCS mbox IDs (range 0xA000 - 0xBFFF) */					\
 M(MCS_ALLOC_RESOURCES,	0xa000, mcs_alloc_resources, mcs_alloc_rsrc_req,	\
 				mcs_alloc_rsrc_rsp)				\
@@ -938,6 +940,42 @@ struct nix_lf_free_req {
 #define NIX_LF_DISABLE_FLOWS		BIT_ULL(0)
 #define NIX_LF_DONT_FREE_TX_VTAG	BIT_ULL(1)
 	u64 flags;
+};
+
+/* CN20K NIX AQ enqueue msg */
+struct nix_cn20k_aq_enq_req {
+	struct mbox_msghdr hdr;
+	u32  qidx;
+	u8 ctype;
+	u8 op;
+	union {
+		struct nix_cn20k_rq_ctx_s rq;
+		struct nix_cn20k_sq_ctx_s sq;
+		struct nix_cn20k_cq_ctx_s cq;
+		struct nix_rsse_s   rss;
+		struct nix_rx_mce_s mce;
+		struct nix_bandprof_s prof;
+	};
+	union {
+		struct nix_cn20k_rq_ctx_s rq_mask;
+		struct nix_cn20k_sq_ctx_s sq_mask;
+		struct nix_cn20k_cq_ctx_s cq_mask;
+		struct nix_rsse_s   rss_mask;
+		struct nix_rx_mce_s mce_mask;
+		struct nix_bandprof_s prof_mask;
+	};
+};
+
+struct nix_cn20k_aq_enq_rsp {
+	struct mbox_msghdr hdr;
+	union {
+		struct nix_cn20k_rq_ctx_s rq;
+		struct nix_cn20k_sq_ctx_s sq;
+		struct nix_cn20k_cq_ctx_s cq;
+		struct nix_rsse_s   rss;
+		struct nix_rx_mce_s mce;
+		struct nix_bandprof_s prof;
+	};
 };
 
 /* CN10K NIX AQ enqueue msg */
