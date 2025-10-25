@@ -1073,7 +1073,7 @@ struct sctp_outq {
 	struct list_head out_chunk_list;
 
 	/* Stream scheduler being used */
-	struct sctp_sched_ops *sched;
+	const struct sctp_sched_ops *sched;
 
 	unsigned int out_qlen;	/* Total length of queued data chunks. */
 

@@ -188,7 +188,7 @@ static void sctp_sched_fc_unsched_all(struct sctp_stream *stream)
 		list_del_init(&soute->fc_list);
 }
 
-static struct sctp_sched_ops sctp_sched_fc = {
+static const struct sctp_sched_ops sctp_sched_fc = {
 	.set = sctp_sched_fc_set,
 	.get = sctp_sched_fc_get,
 	.init = sctp_sched_fc_init,
@@ -206,7 +206,7 @@ void sctp_sched_ops_fc_init(void)
 	sctp_sched_ops_register(SCTP_SS_FC, &sctp_sched_fc);
 }
 
-static struct sctp_sched_ops sctp_sched_wfq = {
+static const struct sctp_sched_ops sctp_sched_wfq = {
 	.set = sctp_sched_wfq_set,
 	.get = sctp_sched_wfq_get,
 	.init = sctp_sched_fc_init,
