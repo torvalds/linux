@@ -419,7 +419,8 @@ struct nix_cn10k_rq_ctx_s {
 	u64 rsvd_171		: 1;
 	u64 later_skip		: 6;
 	u64 xqe_imm_size	: 6;
-	u64 rsvd_189_184	: 6;
+	u64 band_prof_id_h	: 4;
+	u64 rsvd_189_188	: 2;
 	u64 xqe_imm_copy	: 1;
 	u64 xqe_hdr_split	: 1;
 	u64 xqe_drop		: 8; /* W3 */
@@ -757,7 +758,8 @@ struct nix_bandprof_s {
 	uint64_t rc_action                   :  2;
 	uint64_t meter_algo                  :  2;
 	uint64_t band_prof_id                :  7;
-	uint64_t reserved_111_118            :  8;
+	uint64_t band_prof_id_h              :  4;
+	uint64_t reserved_115_118            :  4;
 	uint64_t hl_en                       :  1;
 	uint64_t reserved_120_127            :  8;
 	uint64_t ts                          : 48; /* W2 */

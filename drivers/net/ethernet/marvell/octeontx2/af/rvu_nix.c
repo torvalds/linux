@@ -5818,6 +5818,8 @@ static void nix_ipolicer_freemem(struct rvu *rvu, struct nix_hw *nix_hw)
 	}
 }
 
+#define NIX_BW_PROF_HI_MASK	GENMASK(10, 7)
+
 static int nix_verify_bandprof(struct nix_cn10k_aq_enq_req *req,
 			       struct nix_hw *nix_hw, u16 pcifunc)
 {
@@ -5856,7 +5858,8 @@ static int nix_verify_bandprof(struct nix_cn10k_aq_enq_req *req,
 		return -EINVAL;
 
 	ipolicer = &nix_hw->ipolicer[hi_layer];
-	prof_idx = req->prof.band_prof_id;
+	prof_idx = FIELD_PREP(NIX_BW_PROF_HI_MASK, req->prof.band_prof_id_h);
+	prof_idx |= req->prof.band_prof_id;
 	if (prof_idx >= ipolicer->band_prof.max ||
 	    ipolicer->pfvf_map[prof_idx] != pcifunc)
 		return -EINVAL;
@@ -6021,8 +6024,10 @@ static int nix_ipolicer_map_leaf_midprofs(struct rvu *rvu,
 	aq_req->op = NIX_AQ_INSTOP_WRITE;
 	aq_req->qidx = leaf_prof;
 
-	aq_req->prof.band_prof_id = mid_prof;
+	aq_req->prof.band_prof_id = mid_prof & 0x7F;
 	aq_req->prof_mask.band_prof_id = GENMASK(6, 0);
+	aq_req->prof.band_prof_id_h = FIELD_GET(NIX_BW_PROF_HI_MASK, mid_prof);
+	aq_req->prof_mask.band_prof_id_h = GENMASK(3, 0);
 	aq_req->prof.hl_en = 1;
 	aq_req->prof_mask.hl_en = 1;
 
@@ -6030,6 +6035,8 @@ static int nix_ipolicer_map_leaf_midprofs(struct rvu *rvu,
 				       (struct nix_aq_enq_req *)aq_req,
 				       (struct nix_aq_enq_rsp *)aq_rsp);
 }
+
+#define NIX_RQ_PROF_HI_MASK	GENMASK(13, 10)
 
 int rvu_nix_setup_ratelimit_aggr(struct rvu *rvu, u16 pcifunc,
 				 u16 rq_idx, u16 match_id)
@@ -6062,7 +6069,8 @@ int rvu_nix_setup_ratelimit_aggr(struct rvu *rvu, u16 pcifunc,
 		return 0;
 
 	/* Get the bandwidth profile ID mapped to this RQ */
-	leaf_prof = aq_rsp.rq.band_prof_id;
+	leaf_prof = FIELD_PREP(NIX_RQ_PROF_HI_MASK, aq_rsp.rq.band_prof_id_h);
+	leaf_prof |= aq_rsp.rq.band_prof_id;
 
 	ipolicer = &nix_hw->ipolicer[BAND_PROF_LEAF_LAYER];
 	ipolicer->match_id[leaf_prof] = match_id;
@@ -6100,7 +6108,10 @@ int rvu_nix_setup_ratelimit_aggr(struct rvu *rvu, u16 pcifunc,
 		 * to different RQs and marked with same match_id
 		 * are rate limited in a aggregate fashion
 		 */
-		mid_prof = aq_rsp.prof.band_prof_id;
+		mid_prof = FIELD_PREP(NIX_BW_PROF_HI_MASK,
+				      aq_rsp.prof.band_prof_id_h);
+		mid_prof |= aq_rsp.prof.band_prof_id;
+
 		rc = nix_ipolicer_map_leaf_midprofs(rvu, nix_hw,
 						    &aq_req, &aq_rsp,
 						    leaf_prof, mid_prof);
@@ -6222,7 +6233,8 @@ static void nix_clear_ratelimit_aggr(struct rvu *rvu, struct nix_hw *nix_hw,
 	if (!aq_rsp.prof.hl_en)
 		return;
 
-	mid_prof = aq_rsp.prof.band_prof_id;
+	mid_prof = FIELD_PREP(NIX_BW_PROF_HI_MASK, aq_rsp.prof.band_prof_id_h);
+	mid_prof |= aq_rsp.prof.band_prof_id;
 	ipolicer = &nix_hw->ipolicer[BAND_PROF_MID_LAYER];
 	ipolicer->ref_count[mid_prof]--;
 	/* If ref_count is zero, free mid layer profile */
