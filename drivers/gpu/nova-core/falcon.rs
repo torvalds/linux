@@ -371,11 +371,6 @@ impl<E: FalconEngine + 'static> Falcon<E> {
         bar: &Bar0,
         need_riscv: bool,
     ) -> Result<Self> {
-        let hwcfg1 = regs::NV_PFALCON_FALCON_HWCFG1::read(bar, &E::ID);
-        // Check that the revision and security model contain valid values.
-        let _ = hwcfg1.core_rev()?;
-        let _ = hwcfg1.security_model()?;
-
         if need_riscv {
             let hwcfg2 = regs::NV_PFALCON_FALCON_HWCFG2::read(bar, &E::ID);
             if !hwcfg2.riscv() {
