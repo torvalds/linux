@@ -52,7 +52,7 @@ pub(crate) trait RegisterBase<T> {
 /// boot0.set_major_revision(3).set_minor_revision(10).write(&bar);
 ///
 /// // Or, just read and update the register in a single step:
-/// BOOT_0::alter(&bar, |r| r.set_major_revision(3).set_minor_revision(10));
+/// BOOT_0::update(&bar, |r| r.set_major_revision(3).set_minor_revision(10));
 /// ```
 ///
 /// The documentation strings are optional. If present, they will be added to the type's
@@ -136,15 +136,15 @@ pub(crate) trait RegisterBase<T> {
 ///     0:0     start as bool, "Start the CPU core";
 /// });
 ///
-/// // The `read`, `write` and `alter` methods of relative registers take an extra `base` argument
+/// // The `read`, `write` and `update` methods of relative registers take an extra `base` argument
 /// // that is used to resolve its final address by adding its `BASE` to the offset of the
 /// // register.
 ///
 /// // Start `CPU0`.
-/// CPU_CTL::alter(bar, &CPU0, |r| r.set_start(true));
+/// CPU_CTL::update(bar, &CPU0, |r| r.set_start(true));
 ///
 /// // Start `CPU1`.
-/// CPU_CTL::alter(bar, &CPU1, |r| r.set_start(true));
+/// CPU_CTL::update(bar, &CPU1, |r| r.set_start(true));
 ///
 /// // Aliases can also be defined for relative register.
 /// register!(CPU_CTL_ALIAS => CpuCtlBase[CPU_CTL], "Alias to CPU core control" {
@@ -152,7 +152,7 @@ pub(crate) trait RegisterBase<T> {
 /// });
 ///
 /// // Start the aliased `CPU0`.
-/// CPU_CTL_ALIAS::alter(bar, &CPU0, |r| r.set_alias_start(true));
+/// CPU_CTL_ALIAS::update(bar, &CPU0, |r| r.set_alias_start(true));
 /// ```
 ///
 /// ## Arrays of registers
@@ -160,7 +160,7 @@ pub(crate) trait RegisterBase<T> {
 /// Some I/O areas contain consecutive values that can be interpreted in the same way. These areas
 /// can be defined as an array of identical registers, allowing them to be accessed by index with
 /// compile-time or runtime bound checking. Simply define their address as `Address[Size]`, and add
-/// an `idx` parameter to their `read`, `write` and `alter` methods:
+/// an `idx` parameter to their `read`, `write` and `update` methods:
 ///
 /// ```no_run
 /// # fn no_run() -> Result<(), Error> {
@@ -386,7 +386,7 @@ macro_rules! register {
             /// Read the register from its address in `io` and run `f` on its value to obtain a new
             /// value to write back.
             #[inline(always)]
-            pub(crate) fn alter<const SIZE: usize, T, F>(
+            pub(crate) fn update<const SIZE: usize, T, F>(
                 io: &T,
                 f: F,
             ) where
@@ -449,7 +449,7 @@ macro_rules! register {
             /// the register's offset to it, then run `f` on its value to obtain a new value to
             /// write back.
             #[inline(always)]
-            pub(crate) fn alter<const SIZE: usize, T, B, F>(
+            pub(crate) fn update<const SIZE: usize, T, B, F>(
                 io: &T,
                 base: &B,
                 f: F,
@@ -507,7 +507,7 @@ macro_rules! register {
             /// Read the array register at index `idx` in `io` and run `f` on its value to obtain a
             /// new value to write back.
             #[inline(always)]
-            pub(crate) fn alter<const SIZE: usize, T, F>(
+            pub(crate) fn update<const SIZE: usize, T, F>(
                 io: &T,
                 idx: usize,
                 f: F,
@@ -562,7 +562,7 @@ macro_rules! register {
             /// The validity of `idx` is checked at run-time, and `EINVAL` is returned is the
             /// access was out-of-bounds.
             #[inline(always)]
-            pub(crate) fn try_alter<const SIZE: usize, T, F>(
+            pub(crate) fn try_update<const SIZE: usize, T, F>(
                 io: &T,
                 idx: usize,
                 f: F,
@@ -571,7 +571,7 @@ macro_rules! register {
                 F: ::core::ops::FnOnce(Self) -> Self,
             {
                 if idx < Self::SIZE {
-                    Ok(Self::alter(io, idx, f))
+                    Ok(Self::update(io, idx, f))
                 } else {
                     Err(EINVAL)
                 }
@@ -636,7 +636,7 @@ macro_rules! register {
             /// by `base` and adding the register's offset to it, then run `f` on its value to
             /// obtain a new value to write back.
             #[inline(always)]
-            pub(crate) fn alter<const SIZE: usize, T, B, F>(
+            pub(crate) fn update<const SIZE: usize, T, B, F>(
                 io: &T,
                 base: &B,
                 idx: usize,
@@ -700,7 +700,7 @@ macro_rules! register {
             /// The validity of `idx` is checked at run-time, and `EINVAL` is returned is the
             /// access was out-of-bounds.
             #[inline(always)]
-            pub(crate) fn try_alter<const SIZE: usize, T, B, F>(
+            pub(crate) fn try_update<const SIZE: usize, T, B, F>(
                 io: &T,
                 base: &B,
                 idx: usize,
@@ -711,7 +711,7 @@ macro_rules! register {
                 F: ::core::ops::FnOnce(Self) -> Self,
             {
                 if idx < Self::SIZE {
-                    Ok(Self::alter(io, base, idx, f))
+                    Ok(Self::update(io, base, idx, f))
                 } else {
                     Err(EINVAL)
                 }
