@@ -203,6 +203,8 @@ M(NPA_LF_ALLOC,		0x400, npa_lf_alloc,				\
 M(NPA_LF_FREE,		0x401, npa_lf_free, msg_req, msg_rsp)		\
 M(NPA_AQ_ENQ,		0x402, npa_aq_enq, npa_aq_enq_req, npa_aq_enq_rsp)   \
 M(NPA_HWCTX_DISABLE,	0x403, npa_hwctx_disable, hwctx_disable_req, msg_rsp)\
+M(NPA_CN20K_AQ_ENQ,	0x404, npa_cn20k_aq_enq, npa_cn20k_aq_enq_req,	\
+				npa_cn20k_aq_enq_rsp)			\
 /* SSO/SSOW mbox IDs (range 0x600 - 0x7FF) */				\
 /* TIM mbox IDs (range 0x800 - 0x9FF) */				\
 /* CPT mbox IDs (range 0xA00 - 0xBFF) */				\
@@ -831,6 +833,39 @@ struct npa_aq_enq_rsp {
 		struct npa_aura_s aura;
 		/* Valid when op == READ and ctype == POOL */
 		struct npa_pool_s pool;
+	};
+};
+
+struct npa_cn20k_aq_enq_req {
+	struct mbox_msghdr hdr;
+	u32 aura_id;
+	u8 ctype;
+	u8 op;
+	union {
+		/* Valid when op == WRITE/INIT and ctype == AURA.
+		 * LF fills the pool_id in aura.pool_addr. AF will translate
+		 * the pool_id to pool context pointer.
+		 */
+		struct npa_cn20k_aura_s aura;
+		/* Valid when op == WRITE/INIT and ctype == POOL */
+		struct npa_cn20k_pool_s pool;
+	};
+	/* Mask data when op == WRITE (1=write, 0=don't write) */
+	union {
+		/* Valid when op == WRITE and ctype == AURA */
+		struct npa_cn20k_aura_s aura_mask;
+		/* Valid when op == WRITE and ctype == POOL */
+		struct npa_cn20k_pool_s pool_mask;
+	};
+};
+
+struct npa_cn20k_aq_enq_rsp {
+	struct mbox_msghdr hdr;
+	union {
+		/* Valid when op == READ and ctype == AURA */
+		struct npa_cn20k_aura_s aura;
+		/* Valid when op == READ and ctype == POOL */
+		struct npa_cn20k_pool_s pool;
 	};
 };
 

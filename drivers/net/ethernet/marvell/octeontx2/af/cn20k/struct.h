@@ -242,4 +242,139 @@ struct nix_cn20k_rq_ctx_s {
 
 static_assert(sizeof(struct nix_cn20k_rq_ctx_s) == NIX_MAX_CTX_SIZE);
 
+struct npa_cn20k_aura_s {
+	u64 pool_addr;			/* W0 */
+	u64 ena                   : 1;  /* W1 */
+	u64 reserved_65           : 2;
+	u64 pool_caching          : 1;
+	u64 reserved_68           : 16;
+	u64 avg_con               : 9;
+	u64 reserved_93           : 1;
+	u64 pool_drop_ena         : 1;
+	u64 aura_drop_ena         : 1;
+	u64 bp_ena                : 1;
+	u64 reserved_97_103       : 7;
+	u64 aura_drop             : 8;
+	u64 shift                 : 6;
+	u64 reserved_118_119      : 2;
+	u64 avg_level             : 8;
+	u64 count                 : 36; /* W2 */
+	u64 reserved_164_167      : 4;
+	u64 bpid                  : 12;
+	u64 reserved_180_191      : 12;
+	u64 limit                 : 36; /* W3 */
+	u64 reserved_228_231      : 4;
+	u64 bp                    : 7;
+	u64 reserved_239_243      : 5;
+	u64 fc_ena                : 1;
+	u64 fc_up_crossing        : 1;
+	u64 fc_stype              : 2;
+	u64 fc_hyst_bits          : 4;
+	u64 reserved_252_255      : 4;
+	u64 fc_addr;			/* W4 */
+	u64 pool_drop             : 8;  /* W5 */
+	u64 update_time           : 16;
+	u64 err_int               : 8;
+	u64 err_int_ena           : 8;
+	u64 thresh_int            : 1;
+	u64 thresh_int_ena        : 1;
+	u64 thresh_up             : 1;
+	u64 reserved_363          : 1;
+	u64 thresh_qint_idx       : 7;
+	u64 reserved_371          : 1;
+	u64 err_qint_idx          : 7;
+	u64 reserved_379_383      : 5;
+	u64 thresh                : 36; /* W6*/
+	u64 rsvd_423_420          : 4;
+	u64 fc_msh_dst            : 11;
+	u64 reserved_435_438      : 4;
+	u64 op_dpc_ena            : 1;
+	u64 op_dpc_set            : 5;
+	u64 reserved_445_445      : 1;
+	u64 stream_ctx            : 1;
+	u64 unified_ctx           : 1;
+	u64 reserved_448_511;		/* W7 */
+	u64 padding[8];
+};
+
+static_assert(sizeof(struct npa_cn20k_aura_s) == NIX_MAX_CTX_SIZE);
+
+struct npa_cn20k_pool_s {
+	u64 stack_base;			/* W0 */
+	u64 ena                   : 1;
+	u64 nat_align             : 1;
+	u64 reserved_66_67        : 2;
+	u64 stack_caching         : 1;
+	u64 reserved_69_87        : 19;
+	u64 buf_offset            : 12;
+	u64 reserved_100_103      : 4;
+	u64 buf_size              : 12;
+	u64 reserved_116_119      : 4;
+	u64 ref_cnt_prof          : 3;
+	u64 reserved_123_127      : 5;
+	u64 stack_max_pages       : 32;
+	u64 stack_pages           : 32;
+	uint64_t bp_0             : 7;
+	uint64_t bp_1             : 7;
+	uint64_t bp_2             : 7;
+	uint64_t bp_3             : 7;
+	uint64_t bp_4             : 7;
+	uint64_t bp_5             : 7;
+	uint64_t bp_6             : 7;
+	uint64_t bp_7             : 7;
+	uint64_t bp_ena_0         : 1;
+	uint64_t bp_ena_1         : 1;
+	uint64_t bp_ena_2         : 1;
+	uint64_t bp_ena_3         : 1;
+	uint64_t bp_ena_4         : 1;
+	uint64_t bp_ena_5         : 1;
+	uint64_t bp_ena_6         : 1;
+	uint64_t bp_ena_7         : 1;
+	u64 stack_offset          : 4;
+	u64 reserved_260_263      : 4;
+	u64 shift                 : 6;
+	u64 reserved_270_271      : 2;
+	u64 avg_level             : 8;
+	u64 avg_con               : 9;
+	u64 fc_ena                : 1;
+	u64 fc_stype              : 2;
+	u64 fc_hyst_bits          : 4;
+	u64 fc_up_crossing        : 1;
+	u64 reserved_297_299      : 3;
+	u64 update_time           : 16;
+	u64 reserved_316_319      : 4;
+	u64 fc_addr;			/* W5 */
+	u64 ptr_start;			/* W6 */
+	u64 ptr_end;			/* W7 */
+	u64 bpid_0                : 12;
+	u64 reserved_524_535      : 12;
+	u64 err_int               : 8;
+	u64 err_int_ena           : 8;
+	u64 thresh_int            : 1;
+	u64 thresh_int_ena        : 1;
+	u64 thresh_up             : 1;
+	u64 reserved_555          : 1;
+	u64 thresh_qint_idx       : 7;
+	u64 reserved_563          : 1;
+	u64 err_qint_idx          : 7;
+	u64 reserved_571_575      : 5;
+	u64 thresh                : 36;
+	u64 rsvd_612_615	  : 4;
+	u64 fc_msh_dst		  : 11;
+	u64 reserved_627_630      : 4;
+	u64 op_dpc_ena            : 1;
+	u64 op_dpc_set            : 5;
+	u64 reserved_637_637      : 1;
+	u64 stream_ctx            : 1;
+	u64 reserved_639          : 1;
+	u64 reserved_640_703;		/* W10 */
+	u64 reserved_704_767;		/* W11 */
+	u64 reserved_768_831;		/* W12 */
+	u64 reserved_832_895;		/* W13 */
+	u64 reserved_896_959;		/* W14 */
+	u64 reserved_960_1023;		/* W15 */
+};
+
+static_assert(sizeof(struct npa_cn20k_pool_s) == NIX_MAX_CTX_SIZE);
+
 #endif
