@@ -318,6 +318,7 @@ static int outmixer_event (struct snd_soc_dapm_widget *w,
 	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
+	struct wm8400_priv *wm8400 = snd_soc_component_get_drvdata(component);
 	u32 reg_shift = mc->shift;
 	int ret = 0;
 	u16 reg;
@@ -326,7 +327,7 @@ static int outmixer_event (struct snd_soc_dapm_widget *w,
 	case WM8400_SPEAKER_MIXER | (WM8400_LDSPK << 8) :
 		reg = snd_soc_component_read(component, WM8400_OUTPUT_MIXER1);
 		if (reg & WM8400_LDLO) {
-			printk(KERN_WARNING
+			dev_warn(wm8400->wm8400->dev,
 			"Cannot set as Output Mixer 1 LDLO Set\n");
 			ret = -1;
 		}
@@ -334,7 +335,7 @@ static int outmixer_event (struct snd_soc_dapm_widget *w,
 	case WM8400_SPEAKER_MIXER | (WM8400_RDSPK << 8):
 		reg = snd_soc_component_read(component, WM8400_OUTPUT_MIXER2);
 		if (reg & WM8400_RDRO) {
-			printk(KERN_WARNING
+			dev_warn(wm8400->wm8400->dev,
 			"Cannot set as Output Mixer 2 RDRO Set\n");
 			ret = -1;
 		}
@@ -342,7 +343,7 @@ static int outmixer_event (struct snd_soc_dapm_widget *w,
 	case WM8400_OUTPUT_MIXER1 | (WM8400_LDLO << 8):
 		reg = snd_soc_component_read(component, WM8400_SPEAKER_MIXER);
 		if (reg & WM8400_LDSPK) {
-			printk(KERN_WARNING
+			dev_warn(wm8400->wm8400->dev,
 			"Cannot set as Speaker Mixer LDSPK Set\n");
 			ret = -1;
 		}
@@ -350,7 +351,7 @@ static int outmixer_event (struct snd_soc_dapm_widget *w,
 	case WM8400_OUTPUT_MIXER2 | (WM8400_RDRO << 8):
 		reg = snd_soc_component_read(component, WM8400_SPEAKER_MIXER);
 		if (reg & WM8400_RDSPK) {
-			printk(KERN_WARNING
+			dev_warn(wm8400->wm8400->dev,
 			"Cannot set as Speaker Mixer RDSPK Set\n");
 			ret = -1;
 		}
