@@ -341,6 +341,12 @@ int cn10k_map_unmap_rq_policer(struct otx2_nic *pfvf, int rq_idx,
 	aq->rq.band_prof_id = policer;
 	aq->rq_mask.band_prof_id = GENMASK(9, 0);
 
+	/* If policer id is greater than 1023 then it implies hardware supports
+	 * more leaf profiles. In that case use band_prof_id_h for 4 MSBs.
+	 */
+	aq->rq.band_prof_id_h = policer >> 10;
+	aq->rq_mask.band_prof_id_h = GENMASK(3, 0);
+
 	/* Fill AQ info */
 	aq->qidx = rq_idx;
 	aq->ctype = NIX_AQ_CTYPE_RQ;
