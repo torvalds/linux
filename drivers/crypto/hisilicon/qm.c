@@ -64,10 +64,10 @@
 #define QM_EQE_AEQE_SIZE		(2UL << 12)
 #define QM_EQC_PHASE_SHIFT		16
 
-#define QM_EQE_PHASE(eqe)		((le32_to_cpu((eqe)->dw0) >> 16) & 0x1)
+#define QM_EQE_PHASE(dw0)		(((dw0) >> 16) & 0x1)
 #define QM_EQE_CQN_MASK			GENMASK(15, 0)
 
-#define QM_AEQE_PHASE(aeqe)		((le32_to_cpu((aeqe)->dw0) >> 16) & 0x1)
+#define QM_AEQE_PHASE(dw0)		(((dw0) >> 16) & 0x1)
 #define QM_AEQE_TYPE_SHIFT		17
 #define QM_AEQE_TYPE_MASK		0xf
 #define QM_AEQE_CQN_MASK		GENMASK(15, 0)
@@ -976,23 +976,23 @@ static void qm_get_complete_eqe_num(struct hisi_qm *qm)
 {
 	struct qm_eqe *eqe = qm->eqe + qm->status.eq_head;
 	struct hisi_qm_poll_data *poll_data = NULL;
+	u32 dw0 = le32_to_cpu(eqe->dw0);
 	u16 eq_depth = qm->eq_depth;
 	u16 cqn, eqe_num = 0;
 
-	if (QM_EQE_PHASE(eqe) != qm->status.eqc_phase) {
+	if (QM_EQE_PHASE(dw0) != qm->status.eqc_phase) {
 		atomic64_inc(&qm->debug.dfx.err_irq_cnt);
 		qm_db(qm, 0, QM_DOORBELL_CMD_EQ, qm->status.eq_head, 0);
 		return;
 	}
 
-	cqn = le32_to_cpu(eqe->dw0) & QM_EQE_CQN_MASK;
+	cqn = dw0 & QM_EQE_CQN_MASK;
 	if (unlikely(cqn >= qm->qp_num))
 		return;
 	poll_data = &qm->poll_data[cqn];
 
-	while (QM_EQE_PHASE(eqe) == qm->status.eqc_phase) {
-		cqn = le32_to_cpu(eqe->dw0) & QM_EQE_CQN_MASK;
-		poll_data->qp_finish_id[eqe_num] = cqn;
+	while (QM_EQE_PHASE(dw0) != qm->status.eqc_phase) {
+		poll_data->qp_finish_id[eqe_num] = dw0 & QM_EQE_CQN_MASK;
 		eqe_num++;
 
 		if (qm->status.eq_head == eq_depth - 1) {
@@ -1006,6 +1006,8 @@ static void qm_get_complete_eqe_num(struct hisi_qm *qm)
 
 		if (eqe_num == (eq_depth >> 1) - 1)
 			break;
+
+		dw0 = le32_to_cpu(eqe->dw0);
 	}
 
 	poll_data->eqe_num = eqe_num;
@@ -1098,15 +1100,15 @@ static irqreturn_t qm_aeq_thread(int irq, void *data)
 {
 	struct hisi_qm *qm = data;
 	struct qm_aeqe *aeqe = qm->aeqe + qm->status.aeq_head;
+	u32 dw0 = le32_to_cpu(aeqe->dw0);
 	u16 aeq_depth = qm->aeq_depth;
 	u32 type, qp_id;
 
 	atomic64_inc(&qm->debug.dfx.aeq_irq_cnt);
 
-	while (QM_AEQE_PHASE(aeqe) == qm->status.aeqc_phase) {
-		type = (le32_to_cpu(aeqe->dw0) >> QM_AEQE_TYPE_SHIFT) &
-			QM_AEQE_TYPE_MASK;
-		qp_id = le32_to_cpu(aeqe->dw0) & QM_AEQE_CQN_MASK;
+	while (QM_AEQE_PHASE(dw0) == qm->status.aeqc_phase) {
+		type = (dw0 >> QM_AEQE_TYPE_SHIFT) & QM_AEQE_TYPE_MASK;
+		qp_id = dw0 & QM_AEQE_CQN_MASK;
 
 		switch (type) {
 		case QM_EQ_OVERFLOW:
@@ -1134,6 +1136,7 @@ static irqreturn_t qm_aeq_thread(int irq, void *data)
 			aeqe++;
 			qm->status.aeq_head++;
 		}
+		dw0 = le32_to_cpu(aeqe->dw0);
 	}
 
 	qm_db(qm, 0, QM_DOORBELL_CMD_AEQ, qm->status.aeq_head, 0);
