@@ -15,38 +15,7 @@ use crate::{
     prelude::*,
     types::{ARef, AlwaysRefCounted, Opaque},
 };
-use core::{convert::TryFrom, marker::PhantomData, ptr::NonNull};
-
-/// PWM polarity. Mirrors [`enum pwm_polarity`](srctree/include/linux/pwm.h).
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub enum Polarity {
-    /// Normal polarity (duty cycle defines the high period of the signal).
-    Normal,
-
-    /// Inversed polarity (duty cycle defines the low period of the signal).
-    Inversed,
-}
-
-impl TryFrom<bindings::pwm_polarity> for Polarity {
-    type Error = Error;
-
-    fn try_from(polarity: bindings::pwm_polarity) -> Result<Self, Error> {
-        match polarity {
-            bindings::pwm_polarity_PWM_POLARITY_NORMAL => Ok(Polarity::Normal),
-            bindings::pwm_polarity_PWM_POLARITY_INVERSED => Ok(Polarity::Inversed),
-            _ => Err(EINVAL),
-        }
-    }
-}
-
-impl From<Polarity> for bindings::pwm_polarity {
-    fn from(polarity: Polarity) -> Self {
-        match polarity {
-            Polarity::Normal => bindings::pwm_polarity_PWM_POLARITY_NORMAL,
-            Polarity::Inversed => bindings::pwm_polarity_PWM_POLARITY_INVERSED,
-        }
-    }
-}
+use core::{marker::PhantomData, ptr::NonNull};
 
 /// Represents a PWM waveform configuration.
 /// Mirrors struct [`struct pwm_waveform`](srctree/include/linux/pwm.h).
@@ -86,22 +55,6 @@ impl From<Waveform> for bindings::pwm_waveform {
             duty_length_ns: wf.duty_length_ns,
             duty_offset_ns: wf.duty_offset_ns,
         }
-    }
-}
-
-/// Wrapper for PWM state [`struct pwm_state`](srctree/include/linux/pwm.h).
-#[repr(transparent)]
-pub struct State(bindings::pwm_state);
-
-impl State {
-    /// Creates a `State` wrapper by taking ownership of a C `pwm_state` value.
-    pub(crate) fn from_c(c_state: bindings::pwm_state) -> Self {
-        State(c_state)
-    }
-
-    /// Returns `true` if the PWM signal is enabled.
-    pub fn enabled(&self) -> bool {
-        self.0.enabled
     }
 }
 
@@ -162,13 +115,6 @@ impl Device {
         // SAFETY: label_ptr is non-null and points to a C string
         // managed by the kernel, valid for the lifetime of the PWM device.
         Some(unsafe { CStr::from_char_ptr(label_ptr) })
-    }
-
-    /// Gets a copy of the current state of this PWM device.
-    pub fn state(&self) -> State {
-        // SAFETY: `self.as_raw()` gives a valid pointer. `(*self.as_raw()).state`
-        // is a valid `pwm_state` struct. `State::from_c` copies this data.
-        State::from_c(unsafe { (*self.as_raw()).state })
     }
 
     /// Sets the PWM waveform configuration and enables the PWM signal.
