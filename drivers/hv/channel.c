@@ -590,7 +590,7 @@ EXPORT_SYMBOL_GPL(vmbus_establish_gpadl);
  * keeps track of the next available slot in the array. Initially, each
  * slot points to the next one (as in a Linked List). The last slot
  * does not point to anything, so its value is U64_MAX by default.
- * @size The size of the array
+ * @size: The size of the array
  */
 static u64 *request_arr_init(u32 size)
 {
