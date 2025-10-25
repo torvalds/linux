@@ -920,7 +920,7 @@
 
 &mcu_cpsw_port1 {
 	status = "okay";
-	phy-mode = "rgmii-rxid";
+	phy-mode = "rgmii-id";
 	phy-handle = <&mcu_phy0>;
 };
 
@@ -944,7 +944,7 @@
 };
 
 &main_cpsw1_port1 {
-	phy-mode = "rgmii-rxid";
+	phy-mode = "rgmii-id";
 	phy-handle = <&main_cpsw1_phy0>;
 	status = "okay";
 };

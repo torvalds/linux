@@ -731,7 +731,7 @@
 
 &cpsw_port1 {
 	status = "okay";
-	phy-mode = "rgmii-rxid";
+	phy-mode = "rgmii-id";
 	phy-handle = <&cpsw3g_phy0>;
 	bootph-all;
 };

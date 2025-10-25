@@ -175,7 +175,7 @@
 
 &main_cpsw_port1 {
 	phy-handle = <&phy1>;
-	phy-mode = "rgmii-rxid";
+	phy-mode = "rgmii-id";
 	status = "okay";
 };
 
