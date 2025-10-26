@@ -17,6 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/unaligned.h>
+#include "fips.h"
 
 /*
  * On some 32-bit architectures, such as h8300, GCC ends up using over 1 KB of
@@ -341,10 +342,24 @@ void shake256(const u8 *in, size_t in_len, u8 *out, size_t out_len)
 }
 EXPORT_SYMBOL_GPL(shake256);
 
-#ifdef sha3_mod_init_arch
+#if defined(sha3_mod_init_arch) || defined(CONFIG_CRYPTO_FIPS)
 static int __init sha3_mod_init(void)
 {
+#ifdef sha3_mod_init_arch
 	sha3_mod_init_arch();
+#endif
+	if (fips_enabled) {
+		/*
+		 * FIPS cryptographic algorithm self-test.  As per the FIPS
+		 * Implementation Guidance, testing any SHA-3 algorithm
+		 * satisfies the test requirement for all of them.
+		 */
+		u8 hash[SHA3_256_DIGEST_SIZE];
+
+		sha3_256(fips_test_data, sizeof(fips_test_data), hash);
+		if (memcmp(fips_test_sha3_256_value, hash, sizeof(hash)) != 0)
+			panic("sha3: FIPS self-test failed\n");
+	}
 	return 0;
 }
 subsys_initcall(sha3_mod_init);

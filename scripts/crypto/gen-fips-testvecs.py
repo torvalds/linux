@@ -5,6 +5,7 @@
 #
 # Copyright 2025 Google LLC
 
+import hashlib
 import hmac
 
 fips_test_data = b"fips test data\0\0"
@@ -30,3 +31,6 @@ for alg in 'sha1', 'sha256', 'sha512':
     ctx = hmac.new(fips_test_key, digestmod=alg)
     ctx.update(fips_test_data)
     print_static_u8_array_definition(f'fips_test_hmac_{alg}_value', ctx.digest())
+
+print_static_u8_array_definition(f'fips_test_sha3_256_value',
+                                 hashlib.sha3_256(fips_test_data).digest())
