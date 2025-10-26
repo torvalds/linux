@@ -630,7 +630,7 @@ unlock:
 	return ret;
 }
 
-static struct v4l2_file_operations iris_v4l2_file_ops = {
+static const struct v4l2_file_operations iris_v4l2_file_ops = {
 	.owner                          = THIS_MODULE,
 	.open                           = iris_open,
 	.release                        = iris_close,
