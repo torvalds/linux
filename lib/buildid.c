@@ -108,18 +108,21 @@ const void *freader_fetch(struct freader *r, loff_t file_off, size_t sz)
 	 */
 	folio_sz = folio_size(r->folio);
 	if (file_off + sz > r->folio_off + folio_sz) {
-		int part_sz = r->folio_off + folio_sz - file_off;
+		u64 part_sz = r->folio_off + folio_sz - file_off, off;
 
-		/* copy the part that resides in the current folio */
-		memcpy(r->buf, r->addr + (file_off - r->folio_off), part_sz);
+		memcpy(r->buf, r->addr + file_off - r->folio_off, part_sz);
+		off = part_sz;
 
-		/* fetch next folio */
-		r->err = freader_get_folio(r, r->folio_off + folio_sz);
-		if (r->err)
-			return NULL;
-
-		/* copy the rest of requested data */
-		memcpy(r->buf + part_sz, r->addr, sz - part_sz);
+		while (off < sz) {
+			/* fetch next folio */
+			r->err = freader_get_folio(r, r->folio_off + folio_sz);
+			if (r->err)
+				return NULL;
+			folio_sz = folio_size(r->folio);
+			part_sz = min_t(u64, sz - off, folio_sz);
+			memcpy(r->buf + off, r->addr, part_sz);
+			off += part_sz;
+		}
 
 		return r->buf;
 	}
