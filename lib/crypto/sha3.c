@@ -48,7 +48,7 @@ static const u64 sha3_keccakf_rndc[SHA3_KECCAK_ROUNDS] = {
 /*
  * Perform a single round of Keccak mixing.
  */
-static SHA3_INLINE void sha3_keccakf_one_round_generic(u64 st[25])
+static SHA3_INLINE void sha3_keccakf_one_round_generic(u64 st[25], int round)
 {
 	u64 t[5], tt, bc[5];
 
@@ -149,6 +149,9 @@ static SHA3_INLINE void sha3_keccakf_one_round_generic(u64 st[25])
 	st[22] ^= bc[ 2];
 	st[23] ^= bc[ 3];
 	st[24] ^= bc[ 4];
+
+	/* Iota */
+	st[0] ^= sha3_keccakf_rndc[round];
 }
 
 /* Generic implementation of the Keccak-f[1600] permutation */
@@ -163,11 +166,8 @@ static void sha3_keccakf_generic(struct sha3_state *state)
 	for (int i = 0; i < ARRAY_SIZE(state->words); i++)
 		state->native_words[i] = le64_to_cpu(state->words[i]);
 
-	for (int round = 0; round < SHA3_KECCAK_ROUNDS; round++) {
-		sha3_keccakf_one_round_generic(state->native_words);
-		/* Iota */
-		state->native_words[0] ^= sha3_keccakf_rndc[round];
-	}
+	for (int round = 0; round < SHA3_KECCAK_ROUNDS; round++)
+		sha3_keccakf_one_round_generic(state->native_words, round);
 
 	for (int i = 0; i < ARRAY_SIZE(state->words); i++)
 		state->words[i] = cpu_to_le64(state->native_words[i]);
