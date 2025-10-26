@@ -247,72 +247,149 @@ static void test_shake256_nist(struct kunit *test)
 			       "SHAKE256 gives wrong output for NIST.1600");
 }
 
-/*
- * Output tiling test of SHAKE256; equal output tiles barring the last.  A
- * series of squeezings of the same context should, if laid end-to-end, match a
- * single squeezing of the combined size.
- */
-static void test_shake256_tiling(struct kunit *test)
+static void shake(int alg, const u8 *in, size_t in_len, u8 *out, size_t out_len)
 {
-	struct shake_ctx ctx;
-	u8 out[8 + SHA3_512_DIGEST_SIZE + 8];
+	if (alg == 0)
+		shake128(in, in_len, out, out_len);
+	else
+		shake256(in, in_len, out, out_len);
+}
 
-	for (int tile_size = 1; tile_size < SHAKE256_DEFAULT_SIZE; tile_size++) {
-		int left = SHAKE256_DEFAULT_SIZE;
-		u8 *p = out + 8;
+static void shake_init(struct shake_ctx *ctx, int alg)
+{
+	if (alg == 0)
+		shake128_init(ctx);
+	else
+		shake256_init(ctx);
+}
 
-		memset(out, 0, sizeof(out));
-		shake256_init(&ctx);
-		shake_update(&ctx, test_sha3_sample,
-			     sizeof(test_sha3_sample) - 1);
-		while (left > 0) {
-			int part = umin(tile_size, left);
+/*
+ * Test each of SHAKE128 and SHAKE256 with all input lengths 0 through 4096, for
+ * both input and output.  The input and output lengths cycle through the values
+ * together, so we do 4096 tests total.  To verify all the SHAKE outputs,
+ * compute and verify the SHA3-256 digest of all of them concatenated together.
+ */
+static void test_shake_all_lens_up_to_4096(struct kunit *test)
+{
+	struct sha3_ctx main_ctx;
+	const size_t max_len = 4096;
+	u8 *const in = test_buf;
+	u8 *const out = &test_buf[TEST_BUF_LEN - max_len];
+	u8 main_hash[SHA3_256_DIGEST_SIZE];
 
-			shake_squeeze(&ctx, p, part);
-			p += part;
-			left -= part;
+	KUNIT_ASSERT_LE(test, 2 * max_len, TEST_BUF_LEN);
+
+	rand_bytes_seeded_from_len(in, max_len);
+	for (int alg = 0; alg < 2; alg++) {
+		sha3_256_init(&main_ctx);
+		for (size_t in_len = 0; in_len <= max_len; in_len++) {
+			size_t out_len = (in_len * 293) % (max_len + 1);
+
+			shake(alg, in, in_len, out, out_len);
+			sha3_update(&main_ctx, out, out_len);
 		}
-
-		KUNIT_ASSERT_MEMEQ_MSG(test, out, test_shake256, sizeof(test_shake256),
-				       "SHAKE tile %u gives wrong output", tile_size);
+		sha3_final(&main_ctx, main_hash);
+		if (alg == 0)
+			KUNIT_ASSERT_MEMEQ_MSG(test, main_hash,
+					       shake128_testvec_consolidated,
+					       sizeof(main_hash),
+					       "shake128() gives wrong output");
+		else
+			KUNIT_ASSERT_MEMEQ_MSG(test, main_hash,
+					       shake256_testvec_consolidated,
+					       sizeof(main_hash),
+					       "shake256() gives wrong output");
 	}
 }
 
 /*
- * Output tiling test of SHAKE256; output tiles getting gradually smaller and
- * then cycling round to medium sized ones.  A series of squeezings of the same
- * context should, if laid end-to-end, match a single squeezing of the combined
- * size.
+ * Test that a sequence of SHAKE squeezes gives the same output as a single
+ * squeeze of the same total length.
  */
-static void test_shake256_tiling2(struct kunit *test)
+static void test_shake_multiple_squeezes(struct kunit *test)
 {
-	struct shake_ctx ctx;
-	u8 out[8 + SHA3_512_DIGEST_SIZE + 8];
+	const size_t max_len = 512;
+	u8 *ref_out;
 
-	for (int first_tile_size = 3;
-	     first_tile_size < SHAKE256_DEFAULT_SIZE;
-	     first_tile_size++) {
-		int tile_size = first_tile_size;
-		int left = SHAKE256_DEFAULT_SIZE;
-		u8 *p = out + 8;
+	KUNIT_ASSERT_GE(test, TEST_BUF_LEN, 2 * max_len);
 
-		memset(out, 0, sizeof(out));
-		shake256_init(&ctx);
-		shake_update(&ctx, test_sha3_sample,
-			     sizeof(test_sha3_sample) - 1);
-		while (left > 0) {
-			int part = umin(tile_size, left);
+	ref_out = kunit_kzalloc(test, max_len, GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ref_out);
 
-			shake_squeeze(&ctx, p, part);
-			p += part;
-			left -= part;
-			tile_size--;
-			if (tile_size < 1)
-				tile_size = 5;
+	for (int i = 0; i < 2000; i++) {
+		const int alg = rand32() % 2;
+		const size_t in_len = rand_length(max_len);
+		const size_t out_len = rand_length(max_len);
+		const size_t in_offs = rand_offset(max_len - in_len);
+		const size_t out_offs = rand_offset(max_len - out_len);
+		u8 *const in = &test_buf[in_offs];
+		u8 *const out = &test_buf[out_offs];
+		struct shake_ctx ctx;
+		size_t remaining_len, j, num_parts;
+
+		rand_bytes(in, in_len);
+		rand_bytes(out, out_len);
+
+		/* Compute the output using the one-shot function. */
+		shake(alg, in, in_len, ref_out, out_len);
+
+		/* Compute the output using a random sequence of squeezes. */
+		shake_init(&ctx, alg);
+		shake_update(&ctx, in, in_len);
+		remaining_len = out_len;
+		j = 0;
+		num_parts = 0;
+		while (rand_bool()) {
+			size_t part_len = rand_length(remaining_len);
+
+			shake_squeeze(&ctx, &out[j], part_len);
+			num_parts++;
+			j += part_len;
+			remaining_len -= part_len;
+		}
+		if (remaining_len != 0 || rand_bool()) {
+			shake_squeeze(&ctx, &out[j], remaining_len);
+			num_parts++;
 		}
 
-		KUNIT_ASSERT_MEMEQ_MSG(test, out, test_shake256, sizeof(test_shake256),
-				       "SHAKE tile %u gives wrong output", tile_size);
+		/* Verify that the outputs are the same. */
+		KUNIT_ASSERT_MEMEQ_MSG(
+			test, out, ref_out, out_len,
+			"Multi-squeeze test failed with in_len=%zu in_offs=%zu out_len=%zu out_offs=%zu num_parts=%zu alg=%d",
+			in_len, in_offs, out_len, out_offs, num_parts, alg);
+	}
+}
+
+/*
+ * Test that SHAKE operations on buffers immediately followed by an unmapped
+ * page work as expected.  This catches out-of-bounds memory accesses even if
+ * they occur in assembly code.
+ */
+static void test_shake_with_guarded_bufs(struct kunit *test)
+{
+	const size_t max_len = 512;
+	u8 *reg_buf;
+
+	KUNIT_ASSERT_GE(test, TEST_BUF_LEN, max_len);
+
+	reg_buf = kunit_kzalloc(test, max_len, GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, reg_buf);
+
+	for (int alg = 0; alg < 2; alg++) {
+		for (size_t len = 0; len <= max_len; len++) {
+			u8 *guarded_buf = &test_buf[TEST_BUF_LEN - len];
+
+			rand_bytes(reg_buf, len);
+			memcpy(guarded_buf, reg_buf, len);
+
+			shake(alg, reg_buf, len, reg_buf, len);
+			shake(alg, guarded_buf, len, guarded_buf, len);
+
+			KUNIT_ASSERT_MEMEQ_MSG(
+				test, reg_buf, guarded_buf, len,
+				"Guard page test failed with len=%zu alg=%d",
+				len, alg);
+		}
 	}
 }
 
@@ -326,8 +403,9 @@ static struct kunit_case sha3_test_cases[] = {
 	KUNIT_CASE(test_shake256_basic),
 	KUNIT_CASE(test_shake128_nist),
 	KUNIT_CASE(test_shake256_nist),
-	KUNIT_CASE(test_shake256_tiling),
-	KUNIT_CASE(test_shake256_tiling2),
+	KUNIT_CASE(test_shake_all_lens_up_to_4096),
+	KUNIT_CASE(test_shake_multiple_squeezes),
+	KUNIT_CASE(test_shake_with_guarded_bufs),
 	KUNIT_CASE(benchmark_hash),
 	{},
 };
