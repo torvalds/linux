@@ -87,6 +87,7 @@ static const struct acpi_gpio_mapping tas2781_speaker_id_gpios[] = {
 
 static int tas2781_read_acpi(struct tasdevice_priv *p, const char *hid)
 {
+	struct gpio_desc *speaker_id;
 	struct acpi_device *adev;
 	struct device *physdev;
 	LIST_HEAD(resources);
@@ -119,19 +120,31 @@ static int tas2781_read_acpi(struct tasdevice_priv *p, const char *hid)
 	/* Speaker id was needed for ASUS projects. */
 	ret = kstrtou32(sub, 16, &subid);
 	if (!ret && upper_16_bits(subid) == PCI_VENDOR_ID_ASUSTEK) {
-		ret = devm_acpi_dev_add_driver_gpios(p->dev,
-			tas2781_speaker_id_gpios);
-		if (ret < 0)
+		ret = acpi_dev_add_driver_gpios(adev, tas2781_speaker_id_gpios);
+		if (ret < 0) {
 			dev_err(p->dev, "Failed to add driver gpio %d.\n",
 				ret);
-		p->speaker_id = devm_gpiod_get(p->dev, "speakerid", GPIOD_IN);
-		if (IS_ERR(p->speaker_id)) {
-			dev_err(p->dev, "Failed to get Speaker id.\n");
-			ret = PTR_ERR(p->speaker_id);
-			goto err;
+			p->speaker_id = -1;
+			goto end_2563;
 		}
+
+		speaker_id = fwnode_gpiod_get_index(acpi_fwnode_handle(adev),
+			"speakerid", 0, GPIOD_IN, NULL);
+		if (!IS_ERR(speaker_id)) {
+			p->speaker_id = gpiod_get_value_cansleep(speaker_id);
+			dev_dbg(p->dev, "Got speaker id gpio from ACPI: %d.\n",
+				p->speaker_id);
+			gpiod_put(speaker_id);
+		} else {
+			p->speaker_id = -1;
+			ret = PTR_ERR(speaker_id);
+			dev_err(p->dev, "Get speaker id gpio failed %d.\n",
+				ret);
+		}
+
+		acpi_dev_remove_driver_gpios(adev);
 	} else {
-		p->speaker_id = NULL;
+		p->speaker_id = -1;
 	}
 
 end_2563:
@@ -432,23 +445,16 @@ static void tasdevice_dspfw_init(void *context)
 	struct tas2781_hda *tas_hda = dev_get_drvdata(tas_priv->dev);
 	struct tas2781_hda_i2c_priv *hda_priv = tas_hda->hda_priv;
 	struct hda_codec *codec = tas_priv->codec;
-	int ret, spk_id;
+	int ret;
 
 	tasdevice_dsp_remove(tas_priv);
 	tas_priv->fw_state = TASDEVICE_DSP_FW_PENDING;
-	if (tas_priv->speaker_id != NULL) {
-		// Speaker id need to be checked for ASUS only.
-		spk_id = gpiod_get_value(tas_priv->speaker_id);
-		if (spk_id < 0) {
-			// Speaker id is not valid, use default.
-			dev_dbg(tas_priv->dev, "Wrong spk_id = %d\n", spk_id);
-			spk_id = 0;
-		}
+	if (tas_priv->speaker_id >= 0) {
 		snprintf(tas_priv->coef_binaryname,
 			  sizeof(tas_priv->coef_binaryname),
 			  "TAS2XXX%04X%d.bin",
 			  lower_16_bits(codec->core.subsystem_id),
-			  spk_id);
+			  tas_priv->speaker_id);
 	} else {
 		snprintf(tas_priv->coef_binaryname,
 			  sizeof(tas_priv->coef_binaryname),
