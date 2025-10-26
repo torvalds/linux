@@ -28,18 +28,17 @@ MODULE_ALIAS_CRYPTO("sha3-256");
 MODULE_ALIAS_CRYPTO("sha3-384");
 MODULE_ALIAS_CRYPTO("sha3-512");
 
-asmlinkage int sha3_ce_transform(u64 *st, const u8 *data, int blocks,
-				 int md_len);
+asmlinkage size_t sha3_ce_transform(struct sha3_state *state, const u8 *data,
+				    size_t nblocks, size_t block_size);
 
 static int arm64_sha3_update(struct shash_desc *desc, const u8 *data,
 			     unsigned int len)
 {
 	struct sha3_state *sctx = shash_desc_ctx(desc);
 	struct crypto_shash *tfm = desc->tfm;
-	unsigned int bs, ds;
+	unsigned int bs;
 	int blocks;
 
-	ds = crypto_shash_digestsize(tfm);
 	bs = crypto_shash_blocksize(tfm);
 	blocks = len / bs;
 	len -= blocks * bs;
@@ -47,7 +46,7 @@ static int arm64_sha3_update(struct shash_desc *desc, const u8 *data,
 		int rem;
 
 		kernel_neon_begin();
-		rem = sha3_ce_transform(sctx->st, data, blocks, ds);
+		rem = sha3_ce_transform(sctx, data, blocks, bs);
 		kernel_neon_end();
 		data += (blocks - rem) * bs;
 		blocks = rem;
@@ -74,7 +73,7 @@ static int sha3_finup(struct shash_desc *desc, const u8 *src, unsigned int len,
 	block[bs - 1] |= 0x80;
 
 	kernel_neon_begin();
-	sha3_ce_transform(sctx->st, block, 1, ds);
+	sha3_ce_transform(sctx, block, 1, bs);
 	kernel_neon_end();
 	memzero_explicit(block , sizeof(block));
 
