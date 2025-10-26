@@ -490,9 +490,13 @@ impl<E: FalconEngine + 'static> Falcon<E> {
         // Set up the base source DMA address.
 
         regs::NV_PFALCON_FALCON_DMATRFBASE::default()
+            // CAST: `as u32` is used on purpose since we do want to strip the upper bits, which
+            // will be written to `NV_PFALCON_FALCON_DMATRFBASE1`.
             .set_base((dma_start >> 8) as u32)
             .write(bar, &E::ID);
         regs::NV_PFALCON_FALCON_DMATRFBASE1::default()
+            // CAST: `as u16` is used on purpose since the remaining bits are guaranteed to fit
+            // within a `u16`.
             .set_base((dma_start >> 40) as u16)
             .write(bar, &E::ID);
 
