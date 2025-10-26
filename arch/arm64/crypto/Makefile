@@ -5,9 +5,6 @@
 # Copyright (C) 2014 Linaro Ltd <ard.biesheuvel@linaro.org>
 #
 
-obj-$(CONFIG_CRYPTO_SHA3_ARM64) += sha3-ce.o
-sha3-ce-y := sha3-ce-glue.o sha3-ce-core.o
-
 obj-$(CONFIG_CRYPTO_SM3_NEON) += sm3-neon.o
 sm3-neon-y := sm3-neon-glue.o sm3-neon-core.o
 

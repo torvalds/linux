@@ -281,6 +281,11 @@ endif # CONFIG_CRYPTO_LIB_SHA512_ARCH
 obj-$(CONFIG_CRYPTO_LIB_SHA3) += libsha3.o
 libsha3-y := sha3.o
 
+ifeq ($(CONFIG_CRYPTO_LIB_SHA3_ARCH),y)
+CFLAGS_sha3.o += -I$(src)/$(SRCARCH)
+libsha3-$(CONFIG_ARM64) += arm64/sha3-ce-core.o
+endif # CONFIG_CRYPTO_LIB_SHA3_ARCH
+
 ################################################################################
 
 obj-$(CONFIG_MPILIB) += mpi/

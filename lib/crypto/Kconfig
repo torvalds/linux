@@ -202,6 +202,11 @@ config CRYPTO_LIB_SHA3
 	  The SHA3 library functions.  Select this if your module uses any of
 	  the functions from <crypto/sha3.h>.
 
+config CRYPTO_LIB_SHA3_ARCH
+	bool
+	depends on CRYPTO_LIB_SHA3 && !UML
+	default y if ARM64 && KERNEL_MODE_NEON
+
 config CRYPTO_LIB_SM3
 	tristate
 
