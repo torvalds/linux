@@ -280,10 +280,41 @@ void shake_squeeze(struct shake_ctx *shake_ctx, u8 *out, size_t out_len)
 }
 EXPORT_SYMBOL_GPL(shake_squeeze);
 
+#ifndef sha3_224_arch
+static inline bool sha3_224_arch(const u8 *in, size_t in_len,
+				 u8 out[SHA3_224_DIGEST_SIZE])
+{
+	return false;
+}
+#endif
+#ifndef sha3_256_arch
+static inline bool sha3_256_arch(const u8 *in, size_t in_len,
+				 u8 out[SHA3_256_DIGEST_SIZE])
+{
+	return false;
+}
+#endif
+#ifndef sha3_384_arch
+static inline bool sha3_384_arch(const u8 *in, size_t in_len,
+				 u8 out[SHA3_384_DIGEST_SIZE])
+{
+	return false;
+}
+#endif
+#ifndef sha3_512_arch
+static inline bool sha3_512_arch(const u8 *in, size_t in_len,
+				 u8 out[SHA3_512_DIGEST_SIZE])
+{
+	return false;
+}
+#endif
+
 void sha3_224(const u8 *in, size_t in_len, u8 out[SHA3_224_DIGEST_SIZE])
 {
 	struct sha3_ctx ctx;
 
+	if (sha3_224_arch(in, in_len, out))
+		return;
 	sha3_224_init(&ctx);
 	sha3_update(&ctx, in, in_len);
 	sha3_final(&ctx, out);
@@ -294,6 +325,8 @@ void sha3_256(const u8 *in, size_t in_len, u8 out[SHA3_256_DIGEST_SIZE])
 {
 	struct sha3_ctx ctx;
 
+	if (sha3_256_arch(in, in_len, out))
+		return;
 	sha3_256_init(&ctx);
 	sha3_update(&ctx, in, in_len);
 	sha3_final(&ctx, out);
@@ -304,6 +337,8 @@ void sha3_384(const u8 *in, size_t in_len, u8 out[SHA3_384_DIGEST_SIZE])
 {
 	struct sha3_ctx ctx;
 
+	if (sha3_384_arch(in, in_len, out))
+		return;
 	sha3_384_init(&ctx);
 	sha3_update(&ctx, in, in_len);
 	sha3_final(&ctx, out);
@@ -314,6 +349,8 @@ void sha3_512(const u8 *in, size_t in_len, u8 out[SHA3_512_DIGEST_SIZE])
 {
 	struct sha3_ctx ctx;
 
+	if (sha3_512_arch(in, in_len, out))
+		return;
 	sha3_512_init(&ctx);
 	sha3_update(&ctx, in, in_len);
 	sha3_final(&ctx, out);
