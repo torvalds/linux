@@ -28,7 +28,6 @@
    netmem
    alias
    mptcp-sysctl
-   skbuff
    generic-hdlc
    timestamping
 
