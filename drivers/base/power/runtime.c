@@ -90,7 +90,7 @@ static void update_pm_runtime_accounting(struct device *dev)
 	/*
 	 * Because ktime_get_mono_fast_ns() is not monotonic during
 	 * timekeeping updates, ensure that 'now' is after the last saved
-	 * timesptamp.
+	 * timestamp.
 	 */
 	if (now < last)
 		return;
@@ -217,7 +217,7 @@ static int dev_memalloc_noio(struct device *dev, void *data)
  *     resume/suspend callback of any one of its ancestors(or the
  *     block device itself), the deadlock may be triggered inside the
  *     memory allocation since it might not complete until the block
- *     device becomes active and the involed page I/O finishes. The
+ *     device becomes active and the involved page I/O finishes. The
  *     situation is pointed out first by Alan Stern. Network device
  *     are involved in iSCSI kind of situation.
  *
@@ -1210,7 +1210,7 @@ EXPORT_SYMBOL_GPL(__pm_runtime_resume);
  *
  * Otherwise, if its runtime PM status is %RPM_ACTIVE and (1) @ign_usage_count
  * is set, or (2) @dev is not ignoring children and its active child count is
- * nonero, or (3) the runtime PM usage counter of @dev is not zero, increment
+ * nonzero, or (3) the runtime PM usage counter of @dev is not zero, increment
  * the usage counter of @dev and return 1.
  *
  * Otherwise, return 0 without changing the usage counter.
