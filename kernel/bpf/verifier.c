@@ -3124,7 +3124,8 @@ struct bpf_kfunc_btf_tab {
 	u32 nr_descs;
 };
 
-static int specialize_kfunc(struct bpf_verifier_env *env, struct bpf_kfunc_desc *desc);
+static int specialize_kfunc(struct bpf_verifier_env *env, struct bpf_kfunc_desc *desc,
+			    int insn_idx);
 
 static int kfunc_desc_cmp_by_id_off(const void *a, const void *b)
 {
@@ -21869,7 +21870,7 @@ static int fixup_call_args(struct bpf_verifier_env *env)
 }
 
 /* replace a generic kfunc with a specialized version if necessary */
-static int specialize_kfunc(struct bpf_verifier_env *env, struct bpf_kfunc_desc *desc)
+static int specialize_kfunc(struct bpf_verifier_env *env, struct bpf_kfunc_desc *desc, int insn_idx)
 {
 	struct bpf_prog *prog = env->prog;
 	bool seen_direct_write;
@@ -21904,6 +21905,9 @@ static int specialize_kfunc(struct bpf_verifier_env *env, struct bpf_kfunc_desc 
 	} else if (func_id == special_kfunc_list[KF_bpf_remove_dentry_xattr]) {
 		if (bpf_lsm_has_d_inode_locked(prog))
 			addr = (unsigned long)bpf_remove_dentry_xattr_locked;
+	} else if (func_id == special_kfunc_list[KF_bpf_dynptr_from_file]) {
+		if (!env->insn_aux_data[insn_idx].non_sleepable)
+			addr = (unsigned long)bpf_dynptr_from_file_sleepable;
 	}
 
 set_imm:
@@ -21963,7 +21967,7 @@ static int fixup_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 		return -EFAULT;
 	}
 
-	err = specialize_kfunc(env, desc);
+	err = specialize_kfunc(env, desc, insn_idx);
 	if (err)
 		return err;
 
