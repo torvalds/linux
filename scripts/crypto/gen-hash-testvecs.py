@@ -87,7 +87,7 @@ def print_c_struct_u8_array_field(name, value):
 def alg_digest_size_const(alg):
     if alg.startswith('blake2'):
         return f'{alg.upper()}_HASH_SIZE'
-    return f'{alg.upper()}_DIGEST_SIZE'
+    return f'{alg.upper().replace('-', '_')}_DIGEST_SIZE'
 
 def gen_unkeyed_testvecs(alg):
     print('')
@@ -167,5 +167,7 @@ if alg.startswith('blake2'):
     gen_additional_blake2_testvecs(alg)
 elif alg == 'poly1305':
     gen_additional_poly1305_testvecs()
+elif alg.startswith('sha3-'):
+    pass # no HMAC
 else:
     gen_hmac_testvecs(alg)
