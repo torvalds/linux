@@ -81,7 +81,7 @@ enum dwc3_apple_state {
  * @dev: Pointer to the device structure
  * @mmio_resource: Resource to be passed to dwc3_core_probe
  * @apple_regs: Apple-specific DWC3 registers
- * @resets: Reset control
+ * @reset: Reset control
  * @role_sw: USB role switch
  * @lock: Mutex for synchronizing access
  * @state: Current state of the controller, see documentation for the enum for details
@@ -93,7 +93,7 @@ struct dwc3_apple {
 	struct resource *mmio_resource;
 	void __iomem *apple_regs;
 
-	struct reset_control *resets;
+	struct reset_control *reset;
 	struct usb_role_switch *role_sw;
 
 	struct mutex lock;
@@ -237,9 +237,9 @@ static int dwc3_apple_init(struct dwc3_apple *appledwc, enum dwc3_apple_state st
 
 	lockdep_assert_held(&appledwc->lock);
 
-	ret = reset_control_deassert(appledwc->resets);
+	ret = reset_control_deassert(appledwc->reset);
 	if (ret) {
-		dev_err(appledwc->dev, "Failed to deassert resets, err=%d\n", ret);
+		dev_err(appledwc->dev, "Failed to deassert reset, err=%d\n", ret);
 		return ret;
 	}
 
@@ -288,9 +288,9 @@ static int dwc3_apple_init(struct dwc3_apple *appledwc, enum dwc3_apple_state st
 core_exit:
 	dwc3_core_exit(&appledwc->dwc);
 reset_assert:
-	ret_reset = reset_control_assert(appledwc->resets);
+	ret_reset = reset_control_assert(appledwc->reset);
 	if (ret_reset)
-		dev_warn(appledwc->dev, "Failed to assert resets, err=%d\n", ret_reset);
+		dev_warn(appledwc->dev, "Failed to assert reset, err=%d\n", ret_reset);
 
 	return ret;
 }
@@ -323,9 +323,9 @@ static int dwc3_apple_exit(struct dwc3_apple *appledwc)
 	dwc3_core_exit(&appledwc->dwc);
 	appledwc->state = DWC3_APPLE_NO_CABLE;
 
-	ret = reset_control_assert(appledwc->resets);
+	ret = reset_control_assert(appledwc->reset);
 	if (ret) {
-		dev_err(appledwc->dev, "Failed to assert resets, err=%d\n", ret);
+		dev_err(appledwc->dev, "Failed to assert reset, err=%d\n", ret);
 		return ret;
 	}
 
@@ -411,14 +411,14 @@ static int dwc3_apple_probe(struct platform_device *pdev)
 	appledwc->dev = &pdev->dev;
 	mutex_init(&appledwc->lock);
 
-	appledwc->resets = devm_reset_control_array_get_exclusive(dev);
-	if (IS_ERR(appledwc->resets))
-		return dev_err_probe(&pdev->dev, PTR_ERR(appledwc->resets),
-				     "Failed to get resets\n");
+	appledwc->reset = devm_reset_control_get_exclusive(dev, NULL);
+	if (IS_ERR(appledwc->reset))
+		return dev_err_probe(&pdev->dev, PTR_ERR(appledwc->reset),
+				     "Failed to get reset control\n");
 
-	ret = reset_control_assert(appledwc->resets);
+	ret = reset_control_assert(appledwc->reset);
 	if (ret) {
-		dev_err(&pdev->dev, "Failed to assert resets, err=%d\n", ret);
+		dev_err(&pdev->dev, "Failed to assert reset, err=%d\n", ret);
 		return ret;
 	}
 
