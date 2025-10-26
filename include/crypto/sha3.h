@@ -37,10 +37,6 @@
 
 #define SHA3_STATE_SIZE		200
 
-struct shash_desc;
-
-int crypto_sha3_init(struct shash_desc *desc);
-
 /*
  * State for the Keccak-f[1600] permutation: 25 64-bit words.
  *
@@ -52,8 +48,6 @@ int crypto_sha3_init(struct shash_desc *desc);
  */
 struct sha3_state {
 	union {
-		u64 st[SHA3_STATE_SIZE / 8]; /* temporarily retained for compatibility purposes */
-
 		__le64 words[SHA3_STATE_SIZE / 8];
 		u8 bytes[SHA3_STATE_SIZE];
 
