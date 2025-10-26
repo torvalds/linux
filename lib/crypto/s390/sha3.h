@@ -8,6 +8,7 @@
 #include <linux/cpufeature.h>
 
 static __ro_after_init DEFINE_STATIC_KEY_FALSE(have_sha3);
+static __ro_after_init DEFINE_STATIC_KEY_FALSE(have_sha3_init_optim);
 
 static void sha3_absorb_blocks(struct sha3_state *state, const u8 *data,
 			       size_t nblocks, size_t block_size)
@@ -60,6 +61,61 @@ static void sha3_keccakf(struct sha3_state *state)
 	}
 }
 
+static inline bool s390_sha3(int func, const u8 *in, size_t in_len,
+			     u8 *out, size_t out_len)
+{
+	struct sha3_state state;
+
+	if (!static_branch_likely(&have_sha3))
+		return false;
+
+	if (static_branch_likely(&have_sha3_init_optim))
+		func |= CPACF_KLMD_NIP | CPACF_KLMD_DUFOP;
+	else
+		memset(&state, 0, sizeof(state));
+
+	cpacf_klmd(func, &state, in, in_len);
+
+	if (static_branch_likely(&have_sha3_init_optim))
+		kmsan_unpoison_memory(&state, out_len);
+
+	memcpy(out, &state, out_len);
+	memzero_explicit(&state, sizeof(state));
+	return true;
+}
+
+#define sha3_224_arch sha3_224_arch
+static bool sha3_224_arch(const u8 *in, size_t in_len,
+			  u8 out[SHA3_224_DIGEST_SIZE])
+{
+	return s390_sha3(CPACF_KLMD_SHA3_224, in, in_len,
+			 out, SHA3_224_DIGEST_SIZE);
+}
+
+#define sha3_256_arch sha3_256_arch
+static bool sha3_256_arch(const u8 *in, size_t in_len,
+			  u8 out[SHA3_256_DIGEST_SIZE])
+{
+	return s390_sha3(CPACF_KLMD_SHA3_256, in, in_len,
+			 out, SHA3_256_DIGEST_SIZE);
+}
+
+#define sha3_384_arch sha3_384_arch
+static bool sha3_384_arch(const u8 *in, size_t in_len,
+			  u8 out[SHA3_384_DIGEST_SIZE])
+{
+	return s390_sha3(CPACF_KLMD_SHA3_384, in, in_len,
+			 out, SHA3_384_DIGEST_SIZE);
+}
+
+#define sha3_512_arch sha3_512_arch
+static bool sha3_512_arch(const u8 *in, size_t in_len,
+			  u8 out[SHA3_512_DIGEST_SIZE])
+{
+	return s390_sha3(CPACF_KLMD_SHA3_512, in, in_len,
+			 out, SHA3_512_DIGEST_SIZE);
+}
+
 #define sha3_mod_init_arch sha3_mod_init_arch
 static void sha3_mod_init_arch(void)
 {
@@ -79,10 +135,17 @@ static void sha3_mod_init_arch(void)
 	QUERY(CPACF_KIMD, CPACF_KIMD_SHA3_256);
 	QUERY(CPACF_KIMD, CPACF_KIMD_SHA3_384);
 	QUERY(CPACF_KIMD, CPACF_KIMD_SHA3_512);
+	QUERY(CPACF_KLMD, CPACF_KLMD_SHA3_224);
+	QUERY(CPACF_KLMD, CPACF_KLMD_SHA3_256);
+	QUERY(CPACF_KLMD, CPACF_KLMD_SHA3_384);
+	QUERY(CPACF_KLMD, CPACF_KLMD_SHA3_512);
 #undef QUERY
 
-	if (num_present == num_possible)
+	if (num_present == num_possible) {
 		static_branch_enable(&have_sha3);
-	else if (num_present != 0)
+		if (test_facility(86))
+			static_branch_enable(&have_sha3_init_optim);
+	} else if (num_present != 0) {
 		pr_warn("Unsupported combination of SHA-3 facilities\n");
+	}
 }
