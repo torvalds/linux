@@ -1440,7 +1440,7 @@ bool damon_is_running(struct damon_ctx *ctx)
  * Ask DAMON worker thread (kdamond) of @ctx to call a function with an
  * argument data that respectively passed via &damon_call_control->fn and
  * &damon_call_control->data of @control.  If &damon_call_control->repeat of
- * @control is set, further wait until the kdamond finishes handling of the
+ * @control is unset, further wait until the kdamond finishes handling of the
  * request.  Otherwise, return as soon as the request is made.
  *
  * The kdamond executes the function with the argument in the main loop, just
