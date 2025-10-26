@@ -1387,19 +1387,19 @@ enum bpf_dynptr_type {
 	BPF_DYNPTR_TYPE_SKB_META,
 };
 
-int bpf_dynptr_check_size(u32 size);
-u32 __bpf_dynptr_size(const struct bpf_dynptr_kern *ptr);
-const void *__bpf_dynptr_data(const struct bpf_dynptr_kern *ptr, u32 len);
-void *__bpf_dynptr_data_rw(const struct bpf_dynptr_kern *ptr, u32 len);
+int bpf_dynptr_check_size(u64 size);
+u64 __bpf_dynptr_size(const struct bpf_dynptr_kern *ptr);
+const void *__bpf_dynptr_data(const struct bpf_dynptr_kern *ptr, u64 len);
+void *__bpf_dynptr_data_rw(const struct bpf_dynptr_kern *ptr, u64 len);
 bool __bpf_dynptr_is_rdonly(const struct bpf_dynptr_kern *ptr);
-int __bpf_dynptr_write(const struct bpf_dynptr_kern *dst, u32 offset,
-		       void *src, u32 len, u64 flags);
-void *bpf_dynptr_slice_rdwr(const struct bpf_dynptr *p, u32 offset,
-			    void *buffer__opt, u32 buffer__szk);
+int __bpf_dynptr_write(const struct bpf_dynptr_kern *dst, u64 offset,
+		       void *src, u64 len, u64 flags);
+void *bpf_dynptr_slice_rdwr(const struct bpf_dynptr *p, u64 offset,
+			    void *buffer__opt, u64 buffer__szk);
 
-static inline int bpf_dynptr_check_off_len(const struct bpf_dynptr_kern *ptr, u32 offset, u32 len)
+static inline int bpf_dynptr_check_off_len(const struct bpf_dynptr_kern *ptr, u64 offset, u64 len)
 {
-	u32 size = __bpf_dynptr_size(ptr);
+	u64 size = __bpf_dynptr_size(ptr);
 
 	if (len > size || offset > size - len)
 		return -E2BIG;

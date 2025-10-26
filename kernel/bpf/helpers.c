@@ -1684,19 +1684,19 @@ static enum bpf_dynptr_type bpf_dynptr_get_type(const struct bpf_dynptr_kern *pt
 	return (ptr->size & ~(DYNPTR_RDONLY_BIT)) >> DYNPTR_TYPE_SHIFT;
 }
 
-u32 __bpf_dynptr_size(const struct bpf_dynptr_kern *ptr)
+u64 __bpf_dynptr_size(const struct bpf_dynptr_kern *ptr)
 {
 	return ptr->size & DYNPTR_SIZE_MASK;
 }
 
-static void bpf_dynptr_set_size(struct bpf_dynptr_kern *ptr, u32 new_size)
+static void bpf_dynptr_set_size(struct bpf_dynptr_kern *ptr, u64 new_size)
 {
 	u32 metadata = ptr->size & ~DYNPTR_SIZE_MASK;
 
-	ptr->size = new_size | metadata;
+	ptr->size = (u32)new_size | metadata;
 }
 
-int bpf_dynptr_check_size(u32 size)
+int bpf_dynptr_check_size(u64 size)
 {
 	return size > DYNPTR_MAX_SIZE ? -E2BIG : 0;
 }
@@ -1715,7 +1715,7 @@ void bpf_dynptr_set_null(struct bpf_dynptr_kern *ptr)
 	memset(ptr, 0, sizeof(*ptr));
 }
 
-BPF_CALL_4(bpf_dynptr_from_mem, void *, data, u32, size, u64, flags, struct bpf_dynptr_kern *, ptr)
+BPF_CALL_4(bpf_dynptr_from_mem, void *, data, u64, size, u64, flags, struct bpf_dynptr_kern *, ptr)
 {
 	int err;
 
@@ -1750,8 +1750,8 @@ static const struct bpf_func_proto bpf_dynptr_from_mem_proto = {
 	.arg4_type	= ARG_PTR_TO_DYNPTR | DYNPTR_TYPE_LOCAL | MEM_UNINIT | MEM_WRITE,
 };
 
-static int __bpf_dynptr_read(void *dst, u32 len, const struct bpf_dynptr_kern *src,
-			     u32 offset, u64 flags)
+static int __bpf_dynptr_read(void *dst, u64 len, const struct bpf_dynptr_kern *src,
+			     u64 offset, u64 flags)
 {
 	enum bpf_dynptr_type type;
 	int err;
@@ -1787,8 +1787,8 @@ static int __bpf_dynptr_read(void *dst, u32 len, const struct bpf_dynptr_kern *s
 	}
 }
 
-BPF_CALL_5(bpf_dynptr_read, void *, dst, u32, len, const struct bpf_dynptr_kern *, src,
-	   u32, offset, u64, flags)
+BPF_CALL_5(bpf_dynptr_read, void *, dst, u64, len, const struct bpf_dynptr_kern *, src,
+	   u64, offset, u64, flags)
 {
 	return __bpf_dynptr_read(dst, len, src, offset, flags);
 }
@@ -1804,8 +1804,8 @@ static const struct bpf_func_proto bpf_dynptr_read_proto = {
 	.arg5_type	= ARG_ANYTHING,
 };
 
-int __bpf_dynptr_write(const struct bpf_dynptr_kern *dst, u32 offset, void *src,
-		       u32 len, u64 flags)
+int __bpf_dynptr_write(const struct bpf_dynptr_kern *dst, u64 offset, void *src,
+		       u64 len, u64 flags)
 {
 	enum bpf_dynptr_type type;
 	int err;
@@ -1848,8 +1848,8 @@ int __bpf_dynptr_write(const struct bpf_dynptr_kern *dst, u32 offset, void *src,
 	}
 }
 
-BPF_CALL_5(bpf_dynptr_write, const struct bpf_dynptr_kern *, dst, u32, offset, void *, src,
-	   u32, len, u64, flags)
+BPF_CALL_5(bpf_dynptr_write, const struct bpf_dynptr_kern *, dst, u64, offset, void *, src,
+	   u64, len, u64, flags)
 {
 	return __bpf_dynptr_write(dst, offset, src, len, flags);
 }
@@ -1865,7 +1865,7 @@ static const struct bpf_func_proto bpf_dynptr_write_proto = {
 	.arg5_type	= ARG_ANYTHING,
 };
 
-BPF_CALL_3(bpf_dynptr_data, const struct bpf_dynptr_kern *, ptr, u32, offset, u32, len)
+BPF_CALL_3(bpf_dynptr_data, const struct bpf_dynptr_kern *, ptr, u64, offset, u64, len)
 {
 	enum bpf_dynptr_type type;
 	int err;
@@ -2680,12 +2680,12 @@ __bpf_kfunc struct task_struct *bpf_task_from_vpid(s32 vpid)
  * provided buffer, with its contents containing the data, if unable to obtain
  * direct pointer)
  */
-__bpf_kfunc void *bpf_dynptr_slice(const struct bpf_dynptr *p, u32 offset,
-				   void *buffer__opt, u32 buffer__szk)
+__bpf_kfunc void *bpf_dynptr_slice(const struct bpf_dynptr *p, u64 offset,
+				   void *buffer__opt, u64 buffer__szk)
 {
 	const struct bpf_dynptr_kern *ptr = (struct bpf_dynptr_kern *)p;
 	enum bpf_dynptr_type type;
-	u32 len = buffer__szk;
+	u64 len = buffer__szk;
 	int err;
 
 	if (!ptr->data)
@@ -2767,8 +2767,8 @@ __bpf_kfunc void *bpf_dynptr_slice(const struct bpf_dynptr *p, u32 offset,
  * provided buffer, with its contents containing the data, if unable to obtain
  * direct pointer)
  */
-__bpf_kfunc void *bpf_dynptr_slice_rdwr(const struct bpf_dynptr *p, u32 offset,
-					void *buffer__opt, u32 buffer__szk)
+__bpf_kfunc void *bpf_dynptr_slice_rdwr(const struct bpf_dynptr *p, u64 offset,
+					void *buffer__opt, u64 buffer__szk)
 {
 	const struct bpf_dynptr_kern *ptr = (struct bpf_dynptr_kern *)p;
 
@@ -2800,10 +2800,10 @@ __bpf_kfunc void *bpf_dynptr_slice_rdwr(const struct bpf_dynptr *p, u32 offset,
 	return bpf_dynptr_slice(p, offset, buffer__opt, buffer__szk);
 }
 
-__bpf_kfunc int bpf_dynptr_adjust(const struct bpf_dynptr *p, u32 start, u32 end)
+__bpf_kfunc int bpf_dynptr_adjust(const struct bpf_dynptr *p, u64 start, u64 end)
 {
 	struct bpf_dynptr_kern *ptr = (struct bpf_dynptr_kern *)p;
-	u32 size;
+	u64 size;
 
 	if (!ptr->data || start > end)
 		return -EINVAL;
@@ -2836,7 +2836,7 @@ __bpf_kfunc bool bpf_dynptr_is_rdonly(const struct bpf_dynptr *p)
 	return __bpf_dynptr_is_rdonly(ptr);
 }
 
-__bpf_kfunc __u32 bpf_dynptr_size(const struct bpf_dynptr *p)
+__bpf_kfunc u64 bpf_dynptr_size(const struct bpf_dynptr *p)
 {
 	struct bpf_dynptr_kern *ptr = (struct bpf_dynptr_kern *)p;
 
@@ -2873,14 +2873,14 @@ __bpf_kfunc int bpf_dynptr_clone(const struct bpf_dynptr *p,
  * Copies data from source dynptr to destination dynptr.
  * Returns 0 on success; negative error, otherwise.
  */
-__bpf_kfunc int bpf_dynptr_copy(struct bpf_dynptr *dst_ptr, u32 dst_off,
-				struct bpf_dynptr *src_ptr, u32 src_off, u32 size)
+__bpf_kfunc int bpf_dynptr_copy(struct bpf_dynptr *dst_ptr, u64 dst_off,
+				struct bpf_dynptr *src_ptr, u64 src_off, u64 size)
 {
 	struct bpf_dynptr_kern *dst = (struct bpf_dynptr_kern *)dst_ptr;
 	struct bpf_dynptr_kern *src = (struct bpf_dynptr_kern *)src_ptr;
 	void *src_slice, *dst_slice;
 	char buf[256];
-	u32 off;
+	u64 off;
 
 	src_slice = bpf_dynptr_slice(src_ptr, src_off, NULL, size);
 	dst_slice = bpf_dynptr_slice_rdwr(dst_ptr, dst_off, NULL, size);
@@ -2902,7 +2902,7 @@ __bpf_kfunc int bpf_dynptr_copy(struct bpf_dynptr *dst_ptr, u32 dst_off,
 
 	off = 0;
 	while (off < size) {
-		u32 chunk_sz = min_t(u32, sizeof(buf), size - off);
+		u64 chunk_sz = min_t(u64, sizeof(buf), size - off);
 		int err;
 
 		err = __bpf_dynptr_read(buf, chunk_sz, src, src_off + off, 0);
@@ -2928,10 +2928,10 @@ __bpf_kfunc int bpf_dynptr_copy(struct bpf_dynptr *dst_ptr, u32 dst_off,
  * at @offset with the constant byte @val.
  * Returns 0 on success; negative error, otherwise.
  */
- __bpf_kfunc int bpf_dynptr_memset(struct bpf_dynptr *p, u32 offset, u32 size, u8 val)
- {
+__bpf_kfunc int bpf_dynptr_memset(struct bpf_dynptr *p, u64 offset, u64 size, u8 val)
+{
 	struct bpf_dynptr_kern *ptr = (struct bpf_dynptr_kern *)p;
-	u32 chunk_sz, write_off;
+	u64 chunk_sz, write_off;
 	char buf[256];
 	void* slice;
 	int err;
@@ -2950,11 +2950,11 @@ __bpf_kfunc int bpf_dynptr_copy(struct bpf_dynptr *dst_ptr, u32 dst_off,
 		return err;
 
 	/* Non-linear data under the dynptr, write from a local buffer */
-	chunk_sz = min_t(u32, sizeof(buf), size);
+	chunk_sz = min_t(u64, sizeof(buf), size);
 	memset(buf, val, chunk_sz);
 
 	for (write_off = 0; write_off < size; write_off += chunk_sz) {
-		chunk_sz = min_t(u32, sizeof(buf), size - write_off);
+		chunk_sz = min_t(u64, sizeof(buf), size - write_off);
 		err = __bpf_dynptr_write(ptr, offset + write_off, buf, chunk_sz, 0);
 		if (err)
 			return err;
@@ -4469,7 +4469,7 @@ late_initcall(kfunc_init);
 /* Get a pointer to dynptr data up to len bytes for read only access. If
  * the dynptr doesn't have continuous data up to len bytes, return NULL.
  */
-const void *__bpf_dynptr_data(const struct bpf_dynptr_kern *ptr, u32 len)
+const void *__bpf_dynptr_data(const struct bpf_dynptr_kern *ptr, u64 len)
 {
 	const struct bpf_dynptr *p = (struct bpf_dynptr *)ptr;
 
@@ -4480,7 +4480,7 @@ const void *__bpf_dynptr_data(const struct bpf_dynptr_kern *ptr, u32 len)
  * the dynptr doesn't have continuous data up to len bytes, or the dynptr
  * is read only, return NULL.
  */
-void *__bpf_dynptr_data_rw(const struct bpf_dynptr_kern *ptr, u32 len)
+void *__bpf_dynptr_data_rw(const struct bpf_dynptr_kern *ptr, u64 len)
 {
 	if (__bpf_dynptr_is_rdonly(ptr))
 		return NULL;
