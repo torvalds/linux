@@ -468,6 +468,12 @@ tls_offload_rx_resync_async_request_end(struct tls_offload_resync_async *resync_
 }
 
 static inline void
+tls_offload_rx_resync_async_request_cancel(struct tls_offload_resync_async *resync_async)
+{
+	atomic64_set(&resync_async->req, 0);
+}
+
+static inline void
 tls_offload_rx_resync_set_type(struct sock *sk, enum tls_offload_sync_type type)
 {
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
