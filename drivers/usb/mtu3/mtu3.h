@@ -76,7 +76,7 @@ struct mtu3_request;
 
 /**
  * Normally the device works on HS or SS, to simplify fifo management,
- * devide fifo into some 512B parts, use bitmap to manage it; And
+ * divide fifo into some 512B parts, use bitmap to manage it; And
  * 128 bits size of bitmap is large enough, that means it can manage
  * up to 64KB fifo size.
  * NOTE: MTU3_EP_FIFO_UNIT should be power of two
@@ -121,7 +121,7 @@ enum mtu3_g_ep0_state {
 };
 
 /**
- * MTU3_DR_FORCE_NONE: automatically switch host and periperal mode
+ * MTU3_DR_FORCE_NONE: automatically switch host and peripheral mode
  *		by IDPIN signal.
  * MTU3_DR_FORCE_HOST: force to enter host mode and override OTG
  *		IDPIN signal.
