@@ -278,6 +278,11 @@ endif # CONFIG_CRYPTO_LIB_SHA512_ARCH
 
 ################################################################################
 
+obj-$(CONFIG_CRYPTO_LIB_SHA3) += libsha3.o
+libsha3-y := sha3.o
+
+################################################################################
+
 obj-$(CONFIG_MPILIB) += mpi/
 
 obj-$(CONFIG_CRYPTO_SELFTESTS_FULL)		+= simd.o
