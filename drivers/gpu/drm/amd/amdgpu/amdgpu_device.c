@@ -178,6 +178,7 @@ struct amdgpu_init_level amdgpu_init_minimal_xgmi = {
 		BIT(AMD_IP_BLOCK_TYPE_COMMON) | BIT(AMD_IP_BLOCK_TYPE_IH) |
 		BIT(AMD_IP_BLOCK_TYPE_PSP)
 };
+static int amdgpu_device_ip_resume_phase3(struct amdgpu_device *adev);
 
 static void amdgpu_device_load_switch_state(struct amdgpu_device *adev);
 
@@ -3784,7 +3785,7 @@ static void amdgpu_device_delay_enable_gfx_off(struct work_struct *work)
  */
 static int amdgpu_device_ip_suspend_phase1(struct amdgpu_device *adev)
 {
-	int i, r;
+	int i, r, rec;
 
 	amdgpu_device_set_pg_state(adev, AMD_PG_STATE_UNGATE);
 	amdgpu_device_set_cg_state(adev, AMD_CG_STATE_UNGATE);
@@ -3807,10 +3808,23 @@ static int amdgpu_device_ip_suspend_phase1(struct amdgpu_device *adev)
 
 		r = amdgpu_ip_block_suspend(&adev->ip_blocks[i]);
 		if (r)
-			return r;
+			goto unwind;
 	}
 
 	return 0;
+unwind:
+	rec = amdgpu_device_ip_resume_phase3(adev);
+	if (rec)
+		dev_err(adev->dev,
+			"amdgpu_device_ip_resume_phase3 failed during unwind: %d\n",
+			rec);
+
+	amdgpu_dpm_set_df_cstate(adev, DF_CSTATE_ALLOW);
+
+	amdgpu_device_set_pg_state(adev, AMD_PG_STATE_GATE);
+	amdgpu_device_set_cg_state(adev, AMD_CG_STATE_GATE);
+
+	return r;
 }
 
 /**
