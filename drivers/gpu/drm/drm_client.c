@@ -188,7 +188,7 @@ static void drm_client_buffer_delete(struct drm_client_buffer *buffer)
 
 static struct drm_client_buffer *
 drm_client_buffer_create(struct drm_client_dev *client, u32 width, u32 height,
-			 u32 format, u32 *handle)
+			 u32 format, u32 *handle, u32 *pitch)
 {
 	const struct drm_format_info *info = drm_format_info(format);
 	struct drm_mode_create_dumb dumb_args = { };
@@ -216,9 +216,9 @@ drm_client_buffer_create(struct drm_client_dev *client, u32 width, u32 height,
 		goto err_delete;
 	}
 
-	buffer->pitch = dumb_args.pitch;
 	buffer->gem = obj;
 	*handle = dumb_args.handle;
+	*pitch = dumb_args.pitch;
 
 	return buffer;
 
@@ -353,7 +353,7 @@ static void drm_client_buffer_rmfb(struct drm_client_buffer *buffer)
 
 static int drm_client_buffer_addfb(struct drm_client_buffer *buffer,
 				   u32 width, u32 height, u32 format,
-				   u32 handle)
+				   u32 handle, u32 pitch)
 {
 	struct drm_client_dev *client = buffer->client;
 	struct drm_mode_fb_cmd2 fb_req = { };
@@ -363,7 +363,7 @@ static int drm_client_buffer_addfb(struct drm_client_buffer *buffer,
 	fb_req.height = height;
 	fb_req.pixel_format = format;
 	fb_req.handles[0] = handle;
-	fb_req.pitches[0] = buffer->pitch;
+	fb_req.pitches[0] = pitch;
 
 	ret = drm_mode_addfb2(client->dev, &fb_req, client->file);
 	if (ret)
@@ -399,15 +399,15 @@ struct drm_client_buffer *
 drm_client_framebuffer_create(struct drm_client_dev *client, u32 width, u32 height, u32 format)
 {
 	struct drm_client_buffer *buffer;
-	u32 handle;
+	u32 handle, pitch;
 	int ret;
 
 	buffer = drm_client_buffer_create(client, width, height, format,
-					  &handle);
+					  &handle, &pitch);
 	if (IS_ERR(buffer))
 		return buffer;
 
-	ret = drm_client_buffer_addfb(buffer, width, height, format, handle);
+	ret = drm_client_buffer_addfb(buffer, width, height, format, handle, pitch);
 
 	/*
 	 * The handle is only needed for creating the framebuffer, destroy it
