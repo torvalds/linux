@@ -128,6 +128,15 @@ static int exynos_pd_probe(struct platform_device *pdev)
 	pd->pd.power_on = exynos_pd_power_on;
 	pd->local_pwr_cfg = pm_domain_cfg->local_pwr_cfg;
 
+	/*
+	 * Some Samsung platforms with bootloaders turning on the splash-screen
+	 * and handing it over to the kernel, requires the power-domains to be
+	 * reset during boot.
+	 */
+	if (IS_ENABLED(CONFIG_ARM) &&
+	    of_device_is_compatible(np, "samsung,exynos4210-pd"))
+		exynos_pd_power_off(&pd->pd);
+
 	on = readl_relaxed(pd->base + 0x4) & pd->local_pwr_cfg;
 
 	pm_genpd_init(&pd->pd, NULL, !on);
@@ -145,15 +154,6 @@ static int exynos_pd_probe(struct platform_device *pdev)
 			pr_info("%pOF has as child subdomain: %pOF.\n",
 				parent.np, child.np);
 	}
-
-	/*
-	 * Some Samsung platforms with bootloaders turning on the splash-screen
-	 * and handing it over to the kernel, requires the power-domains to be
-	 * reset during boot. As a temporary hack to manage this, let's enforce
-	 * a sync_state.
-	 */
-	if (!ret)
-		of_genpd_sync_state(np);
 
 	pm_runtime_enable(dev);
 	return ret;
