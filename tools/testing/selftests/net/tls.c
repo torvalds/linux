@@ -564,6 +564,40 @@ TEST_F(tls, msg_more)
 	EXPECT_EQ(memcmp(buf, test_str, send_len), 0);
 }
 
+TEST_F(tls, cmsg_msg_more)
+{
+	char *test_str =  "test_read";
+	char record_type = 100;
+	int send_len = 10;
+
+	/* we don't allow MSG_MORE with non-DATA records */
+	EXPECT_EQ(tls_send_cmsg(self->fd, record_type, test_str, send_len,
+				MSG_MORE), -1);
+	EXPECT_EQ(errno, EINVAL);
+}
+
+TEST_F(tls, msg_more_then_cmsg)
+{
+	char *test_str = "test_read";
+	char record_type = 100;
+	int send_len = 10;
+	char buf[10 * 2];
+	int ret;
+
+	EXPECT_EQ(send(self->fd, test_str, send_len, MSG_MORE), send_len);
+	EXPECT_EQ(recv(self->cfd, buf, send_len, MSG_DONTWAIT), -1);
+
+	ret = tls_send_cmsg(self->fd, record_type, test_str, send_len, 0);
+	EXPECT_EQ(ret, send_len);
+
+	/* initial DATA record didn't get merged with the non-DATA record */
+	EXPECT_EQ(recv(self->cfd, buf, send_len * 2, 0), send_len);
+
+	EXPECT_EQ(tls_recv_cmsg(_metadata, self->cfd, record_type,
+				buf, sizeof(buf), MSG_WAITALL),
+		  send_len);
+}
+
 TEST_F(tls, msg_more_unsent)
 {
 	char const *test_str = "test_read";
@@ -911,6 +945,37 @@ TEST_F(tls, peek_and_splice)
 	EXPECT_EQ(read(p[0], mem_recv, send_len), send_len);
 	EXPECT_EQ(memcmp(mem_send, mem_recv, send_len), 0);
 }
+
+#define MAX_FRAGS 48
+TEST_F(tls, splice_short)
+{
+	struct iovec sendchar_iov;
+	char read_buf[0x10000];
+	char sendbuf[0x100];
+	char sendchar = 'S';
+	int pipefds[2];
+	int i;
+
+	sendchar_iov.iov_base = &sendchar;
+	sendchar_iov.iov_len = 1;
+
+	memset(sendbuf, 's', sizeof(sendbuf));
+
+	ASSERT_GE(pipe2(pipefds, O_NONBLOCK), 0);
+	ASSERT_GE(fcntl(pipefds[0], F_SETPIPE_SZ, (MAX_FRAGS + 1) * 0x1000), 0);
+
+	for (i = 0; i < MAX_FRAGS; i++)
+		ASSERT_GE(vmsplice(pipefds[1], &sendchar_iov, 1, 0), 0);
+
+	ASSERT_EQ(write(pipefds[1], sendbuf, sizeof(sendbuf)), sizeof(sendbuf));
+
+	EXPECT_EQ(splice(pipefds[0], NULL, self->fd, NULL, MAX_FRAGS + 0x1000, 0),
+		  MAX_FRAGS + sizeof(sendbuf));
+	EXPECT_EQ(recv(self->cfd, read_buf, sizeof(read_buf), 0), MAX_FRAGS + sizeof(sendbuf));
+	EXPECT_EQ(recv(self->cfd, read_buf, sizeof(read_buf), MSG_DONTWAIT), -1);
+	EXPECT_EQ(errno, EAGAIN);
+}
+#undef MAX_FRAGS
 
 TEST_F(tls, recvmsg_single)
 {

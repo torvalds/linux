@@ -183,10 +183,10 @@ in the place where the name normally goes. The structure is
      - det_checksum
      - Directory leaf block checksum.
 
-The leaf directory block checksum is calculated against the FS UUID, the
-directory's inode number, the directory's inode generation number, and
-the entire directory entry block up to (but not including) the fake
-directory entry.
+The leaf directory block checksum is calculated against the FS UUID (or
+the checksum seed, if that feature is enabled for the fs), the directory's
+inode number, the directory's inode generation number, and the entire
+directory entry block up to (but not including) the fake directory entry.
 
 Hash Tree Directories
 ~~~~~~~~~~~~~~~~~~~~~
@@ -196,12 +196,12 @@ new feature was added to ext3 to provide a faster (but peculiar)
 balanced tree keyed off a hash of the directory entry name. If the
 EXT4_INDEX_FL (0x1000) flag is set in the inode, this directory uses a
 hashed btree (htree) to organize and find directory entries. For
-backwards read-only compatibility with ext2, this tree is actually
-hidden inside the directory file, masquerading as “empty” directory data
-blocks! It was stated previously that the end of the linear directory
-entry table was signified with an entry pointing to inode 0; this is
-(ab)used to fool the old linear-scan algorithm into thinking that the
-rest of the directory block is empty so that it moves on.
+backwards read-only compatibility with ext2, interior tree nodes are actually
+hidden inside the directory file, masquerading as “empty” directory entries
+spanning the whole block. It was stated previously that directory entries
+with the inode set to 0 are treated as unused entries; this is (ab)used to
+fool the old linear-scan algorithm into skipping over those blocks containing
+the interior tree node data.
 
 The root of the tree always lives in the first data block of the
 directory. By ext2 custom, the '.' and '..' entries must appear at the
@@ -209,24 +209,24 @@ beginning of this first block, so they are put here as two
 ``struct ext4_dir_entry_2`` s and not stored in the tree. The rest of
 the root node contains metadata about the tree and finally a hash->block
 map to find nodes that are lower in the htree. If
-``dx_root.info.indirect_levels`` is non-zero then the htree has two
-levels; the data block pointed to by the root node's map is an interior
-node, which is indexed by a minor hash. Interior nodes in this tree
-contains a zeroed out ``struct ext4_dir_entry_2`` followed by a
-minor_hash->block map to find leafe nodes. Leaf nodes contain a linear
-array of all ``struct ext4_dir_entry_2``; all of these entries
-(presumably) hash to the same value. If there is an overflow, the
-entries simply overflow into the next leaf node, and the
-least-significant bit of the hash (in the interior node map) that gets
-us to this next leaf node is set.
+``dx_root.info.indirect_levels`` is non-zero then the htree has that many
+levels and the blocks pointed to by the root node's map are interior nodes.
+These interior nodes have a zeroed out ``struct ext4_dir_entry_2`` followed by
+a hash->block map to find nodes of the next level. Leaf nodes look like
+classic linear directory blocks, but all of its entries have a hash value
+equal or greater than the indicated hash of the parent node.
 
-To traverse the directory as a htree, the code calculates the hash of
-the desired file name and uses it to find the corresponding block
-number. If the tree is flat, the block is a linear array of directory
-entries that can be searched; otherwise, the minor hash of the file name
-is computed and used against this second block to find the corresponding
-third block number. That third block number will be a linear array of
-directory entries.
+The actual hash value for an entry name is only 31 bits, the least-significant
+bit is set to 0. However, if there is a hash collision between directory
+entries, the least-significant bit may get set to 1 on interior nodes in the
+case where these two (or more) hash-colliding entries do not fit into one leaf
+node and must be split across multiple nodes.
+
+To look up a name in such a htree, the code calculates the hash of the desired
+file name and uses it to find the leaf node with the range of hash values the
+calculated hash falls into (in other words, a lookup works basically the same
+as it would in a B-Tree keyed by the hash value), and possibly also scanning
+the leaf nodes that follow (in tree order) in case of hash collisions.
 
 To traverse the directory as a linear array (such as the old code does),
 the code simply reads every data block in the directory. The blocks used
@@ -319,7 +319,8 @@ of a data block:
    * - 0x24
      - __le32
      - block
-     - The block number (within the directory file) that goes with hash=0.
+     - The block number (within the directory file) that lead to the left-most
+       leaf node, i.e. the leaf containing entries with the lowest hash values.
    * - 0x28
      - struct dx_entry
      - entries[0]
@@ -442,7 +443,7 @@ The dx_tail structure is 8 bytes long and looks like this:
    * - 0x0
      - u32
      - dt_reserved
-     - Zero.
+     - Unused (but still part of the checksum curiously).
    * - 0x4
      - __le32
      - dt_checksum
@@ -450,4 +451,4 @@ The dx_tail structure is 8 bytes long and looks like this:
 
 The checksum is calculated against the FS UUID, the htree index header
 (dx_root or dx_node), all of the htree indices (dx_entry) that are in
-use, and the tail block (dx_tail).
+use, and the tail block (dx_tail) with the dt_checksum initially set to 0.

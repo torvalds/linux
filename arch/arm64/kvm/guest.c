@@ -591,64 +591,6 @@ static unsigned long num_core_regs(const struct kvm_vcpu *vcpu)
 	return copy_core_reg_indices(vcpu, NULL);
 }
 
-static const u64 timer_reg_list[] = {
-	KVM_REG_ARM_TIMER_CTL,
-	KVM_REG_ARM_TIMER_CNT,
-	KVM_REG_ARM_TIMER_CVAL,
-	KVM_REG_ARM_PTIMER_CTL,
-	KVM_REG_ARM_PTIMER_CNT,
-	KVM_REG_ARM_PTIMER_CVAL,
-};
-
-#define NUM_TIMER_REGS ARRAY_SIZE(timer_reg_list)
-
-static bool is_timer_reg(u64 index)
-{
-	switch (index) {
-	case KVM_REG_ARM_TIMER_CTL:
-	case KVM_REG_ARM_TIMER_CNT:
-	case KVM_REG_ARM_TIMER_CVAL:
-	case KVM_REG_ARM_PTIMER_CTL:
-	case KVM_REG_ARM_PTIMER_CNT:
-	case KVM_REG_ARM_PTIMER_CVAL:
-		return true;
-	}
-	return false;
-}
-
-static int copy_timer_indices(struct kvm_vcpu *vcpu, u64 __user *uindices)
-{
-	for (int i = 0; i < NUM_TIMER_REGS; i++) {
-		if (put_user(timer_reg_list[i], uindices))
-			return -EFAULT;
-		uindices++;
-	}
-
-	return 0;
-}
-
-static int set_timer_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
-{
-	void __user *uaddr = (void __user *)(long)reg->addr;
-	u64 val;
-	int ret;
-
-	ret = copy_from_user(&val, uaddr, KVM_REG_SIZE(reg->id));
-	if (ret != 0)
-		return -EFAULT;
-
-	return kvm_arm_timer_set_reg(vcpu, reg->id, val);
-}
-
-static int get_timer_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
-{
-	void __user *uaddr = (void __user *)(long)reg->addr;
-	u64 val;
-
-	val = kvm_arm_timer_get_reg(vcpu, reg->id);
-	return copy_to_user(uaddr, &val, KVM_REG_SIZE(reg->id)) ? -EFAULT : 0;
-}
-
 static unsigned long num_sve_regs(const struct kvm_vcpu *vcpu)
 {
 	const unsigned int slices = vcpu_sve_slices(vcpu);
@@ -724,7 +666,6 @@ unsigned long kvm_arm_num_regs(struct kvm_vcpu *vcpu)
 	res += num_sve_regs(vcpu);
 	res += kvm_arm_num_sys_reg_descs(vcpu);
 	res += kvm_arm_get_fw_num_regs(vcpu);
-	res += NUM_TIMER_REGS;
 
 	return res;
 }
@@ -755,11 +696,6 @@ int kvm_arm_copy_reg_indices(struct kvm_vcpu *vcpu, u64 __user *uindices)
 		return ret;
 	uindices += kvm_arm_get_fw_num_regs(vcpu);
 
-	ret = copy_timer_indices(vcpu, uindices);
-	if (ret < 0)
-		return ret;
-	uindices += NUM_TIMER_REGS;
-
 	return kvm_arm_copy_sys_reg_indices(vcpu, uindices);
 }
 
@@ -777,9 +713,6 @@ int kvm_arm_get_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 	case KVM_REG_ARM64_SVE:	return get_sve_reg(vcpu, reg);
 	}
 
-	if (is_timer_reg(reg->id))
-		return get_timer_reg(vcpu, reg);
-
 	return kvm_arm_sys_reg_get_reg(vcpu, reg);
 }
 
@@ -796,9 +729,6 @@ int kvm_arm_set_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 		return kvm_arm_set_fw_reg(vcpu, reg);
 	case KVM_REG_ARM64_SVE:	return set_sve_reg(vcpu, reg);
 	}
-
-	if (is_timer_reg(reg->id))
-		return set_timer_reg(vcpu, reg);
 
 	return kvm_arm_sys_reg_set_reg(vcpu, reg);
 }

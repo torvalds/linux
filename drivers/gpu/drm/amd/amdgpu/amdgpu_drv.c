@@ -144,7 +144,8 @@ enum AMDGPU_DEBUG_MASK {
 	AMDGPU_DEBUG_DISABLE_GPU_RING_RESET = BIT(6),
 	AMDGPU_DEBUG_SMU_POOL = BIT(7),
 	AMDGPU_DEBUG_VM_USERPTR = BIT(8),
-	AMDGPU_DEBUG_DISABLE_RAS_CE_LOG = BIT(9)
+	AMDGPU_DEBUG_DISABLE_RAS_CE_LOG = BIT(9),
+	AMDGPU_DEBUG_ENABLE_CE_CS = BIT(10)
 };
 
 unsigned int amdgpu_vram_limit = UINT_MAX;
@@ -2288,6 +2289,11 @@ static void amdgpu_init_debug_options(struct amdgpu_device *adev)
 	if (amdgpu_debug_mask & AMDGPU_DEBUG_DISABLE_RAS_CE_LOG) {
 		pr_info("debug: disable kernel logs of correctable errors\n");
 		adev->debug_disable_ce_logs = true;
+	}
+
+	if (amdgpu_debug_mask & AMDGPU_DEBUG_ENABLE_CE_CS) {
+		pr_info("debug: allowing command submission to CE engine\n");
+		adev->debug_enable_ce_cs = true;
 	}
 }
 

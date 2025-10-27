@@ -11,7 +11,7 @@
 #define KPROBE_TEST_MAGIC_LOWER    0x0000babe
 #define KPROBE_TEST_MAGIC_UPPER    0xcafe0000
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 /* array of addresses to install kprobes */
 extern void *test_kprobes_addresses[];
@@ -19,6 +19,6 @@ extern void *test_kprobes_addresses[];
 /* array of functions that return KPROBE_TEST_MAGIC */
 extern long (*test_kprobes_functions[])(void);
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* TEST_KPROBES_H */

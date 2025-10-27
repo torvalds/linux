@@ -38,8 +38,7 @@ use macros::vtable;
 const CPUFREQ_NAME_LEN: usize = bindings::CPUFREQ_NAME_LEN as usize;
 
 /// Default transition latency value in nanoseconds.
-pub const DEFAULT_TRANSITION_LATENCY_NS: u32 =
-        bindings::CPUFREQ_DEFAULT_TRANSITION_LATENCY_NS;
+pub const DEFAULT_TRANSITION_LATENCY_NS: u32 = bindings::CPUFREQ_DEFAULT_TRANSITION_LATENCY_NS;
 
 /// CPU frequency driver flags.
 pub mod flags {
