@@ -421,20 +421,24 @@ static void sc16is7xx_power(struct uart_port *port, int on)
 }
 
 /*
- * In an amazing feat of design, the Enhanced Features Register (EFR)
- * shares the address of the Interrupt Identification Register (IIR).
- * Access to EFR is switched on by writing a magic value (0xbf) to the
- * Line Control Register (LCR). Any interrupt firing during this time will
- * see the EFR where it expects the IIR to be, leading to
+ * In an amazing feat of design, the enhanced register set shares the
+ * addresses 0x02 and 0x04-0x07 with the general register set.
+ * The special register set also shares the addresses 0x00-0x01 with the
+ * general register set.
+ *
+ * Access to the enhanced or special register set is enabled by writing a magic
+ * value to the Line Control Register (LCR). When enhanced register set access
+ * is enabled, for example, any interrupt firing during this time will see the
+ * EFR where it expects the IIR to be, leading to
  * "Unexpected interrupt" messages.
  *
- * Prevent this possibility by claiming a mutex while accessing the EFR,
- * and claiming the same mutex from within the interrupt handler. This is
- * similar to disabling the interrupt, but that doesn't work because the
- * bulk of the interrupt processing is run as a workqueue job in thread
- * context.
+ * Prevent this possibility by claiming a mutex when access to the enhanced
+ * or special register set is enabled, and claiming the same mutex from within
+ * the interrupt handler. This is similar to disabling the interrupt, but that
+ * doesn't work because the bulk of the interrupt processing is run as a
+ * workqueue job in thread context.
  */
-static void sc16is7xx_efr_lock(struct uart_port *port)
+static void sc16is7xx_regs_lock(struct uart_port *port, u8 register_set)
 {
 	struct sc16is7xx_one *one = to_sc16is7xx_one(port, port);
 
@@ -443,18 +447,18 @@ static void sc16is7xx_efr_lock(struct uart_port *port)
 	/* Backup content of LCR. */
 	one->old_lcr = sc16is7xx_port_read(port, SC16IS7XX_LCR_REG);
 
-	/* Enable access to Enhanced register set */
-	sc16is7xx_port_write(port, SC16IS7XX_LCR_REG, SC16IS7XX_LCR_REG_SET_ENHANCED);
+	/* Enable access to the desired register set */
+	sc16is7xx_port_write(port, SC16IS7XX_LCR_REG, register_set);
 
-	/* Disable cache updates when writing to EFR registers */
+	/* Disable cache updates when writing to non-general registers */
 	regcache_cache_bypass(one->regmap, true);
 }
 
-static void sc16is7xx_efr_unlock(struct uart_port *port)
+static void sc16is7xx_regs_unlock(struct uart_port *port)
 {
 	struct sc16is7xx_one *one = to_sc16is7xx_one(port, port);
 
-	/* Re-enable cache updates when writing to normal registers */
+	/* Re-enable cache updates when writing to general registers */
 	regcache_cache_bypass(one->regmap, false);
 
 	/* Restore original content of LCR */
@@ -580,8 +584,6 @@ static bool sc16is7xx_regmap_noinc(struct device *dev, unsigned int reg)
  */
 static int sc16is7xx_set_baud(struct uart_port *port, int baud)
 {
-	struct sc16is7xx_one *one = to_sc16is7xx_one(port, port);
-	u8 lcr;
 	unsigned int prescaler = 1;
 	unsigned long clk = port->uartclk, div = clk / 16 / baud;
 
@@ -595,23 +597,15 @@ static int sc16is7xx_set_baud(struct uart_port *port, int baud)
 			      SC16IS7XX_MCR_CLKSEL_BIT,
 			      prescaler == 1 ? 0 : SC16IS7XX_MCR_CLKSEL_BIT);
 
-	mutex_lock(&one->lock);
-
-	/* Backup LCR and access special register set (DLL/DLH) */
-	lcr = sc16is7xx_port_read(port, SC16IS7XX_LCR_REG);
-	sc16is7xx_port_write(port, SC16IS7XX_LCR_REG,
-			     SC16IS7XX_LCR_REG_SET_SPECIAL);
+	/* Access special register set (DLL/DLH) */
+	sc16is7xx_regs_lock(port, SC16IS7XX_LCR_REG_SET_SPECIAL);
 
 	/* Write the new divisor */
-	regcache_cache_bypass(one->regmap, true);
 	sc16is7xx_port_write(port, SC16IS7XX_DLH_REG, div / 256);
 	sc16is7xx_port_write(port, SC16IS7XX_DLL_REG, div % 256);
-	regcache_cache_bypass(one->regmap, false);
 
-	/* Restore LCR and access to general register set */
-	sc16is7xx_port_write(port, SC16IS7XX_LCR_REG, lcr);
-
-	mutex_unlock(&one->lock);
+	/* Restore access to general register set */
+	sc16is7xx_regs_unlock(port);
 
 	return DIV_ROUND_CLOSEST((clk / prescaler) / 16, div);
 }
@@ -1108,12 +1102,12 @@ static void sc16is7xx_set_termios(struct uart_port *port,
 	sc16is7xx_port_write(port, SC16IS7XX_LCR_REG, lcr);
 
 	/* Update EFR registers */
-	sc16is7xx_efr_lock(port);
+	sc16is7xx_regs_lock(port, SC16IS7XX_LCR_REG_SET_ENHANCED);
 	sc16is7xx_port_write(port, SC16IS7XX_XON1_REG, termios->c_cc[VSTART]);
 	sc16is7xx_port_write(port, SC16IS7XX_XOFF1_REG, termios->c_cc[VSTOP]);
 	sc16is7xx_port_update(port, SC16IS7XX_EFR_REG,
 			      SC16IS7XX_EFR_FLOWCTRL_BITS, flow);
-	sc16is7xx_efr_unlock(port);
+	sc16is7xx_regs_unlock(port);
 
 	/* Get baud rate generator configuration */
 	baud = uart_get_baud_rate(port, termios, old,
@@ -1631,6 +1625,9 @@ int sc16is7xx_probe(struct device *dev, const struct sc16is7xx_devtype *devtype,
 		if (ret)
 			goto out_ports;
 
+		/* Enable access to general register set */
+		sc16is7xx_port_write(&s->p[i].port, SC16IS7XX_LCR_REG, 0x00);
+
 		/* Disable all interrupts */
 		sc16is7xx_port_write(&s->p[i].port, SC16IS7XX_IER_REG, 0);
 		/* Disable TX/RX */
@@ -1650,20 +1647,11 @@ int sc16is7xx_probe(struct device *dev, const struct sc16is7xx_devtype *devtype,
 
 		port_registered[i] = true;
 
-		/* Enable EFR */
-		sc16is7xx_port_write(&s->p[i].port, SC16IS7XX_LCR_REG,
-				     SC16IS7XX_LCR_REG_SET_ENHANCED);
-
-		regcache_cache_bypass(regmaps[i], true);
-
+		sc16is7xx_regs_lock(&s->p[i].port, SC16IS7XX_LCR_REG_SET_ENHANCED);
 		/* Enable write access to enhanced features */
 		sc16is7xx_port_write(&s->p[i].port, SC16IS7XX_EFR_REG,
 				     SC16IS7XX_EFR_ENABLE_BIT);
-
-		regcache_cache_bypass(regmaps[i], false);
-
-		/* Restore access to general registers */
-		sc16is7xx_port_write(&s->p[i].port, SC16IS7XX_LCR_REG, 0x00);
+		sc16is7xx_regs_unlock(&s->p[i].port);
 
 		/* Go to suspend mode */
 		sc16is7xx_power(&s->p[i].port, 0);
