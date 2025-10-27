@@ -11,6 +11,12 @@
 /* Workaround to allow gradual conversion of architecture code */
 void __weak arch_do_signal_or_restart(struct pt_regs *regs) { }
 
+#ifdef CONFIG_HAVE_GENERIC_TIF_BITS
+#define EXIT_TO_USER_MODE_WORK_LOOP	(EXIT_TO_USER_MODE_WORK & ~_TIF_RSEQ)
+#else
+#define EXIT_TO_USER_MODE_WORK_LOOP	(EXIT_TO_USER_MODE_WORK)
+#endif
+
 static __always_inline unsigned long __exit_to_user_mode_loop(struct pt_regs *regs,
 							      unsigned long ti_work)
 {
@@ -18,7 +24,7 @@ static __always_inline unsigned long __exit_to_user_mode_loop(struct pt_regs *re
 	 * Before returning to user space ensure that all pending work
 	 * items have been completed.
 	 */
-	while (ti_work & EXIT_TO_USER_MODE_WORK) {
+	while (ti_work & EXIT_TO_USER_MODE_WORK_LOOP) {
 
 		local_irq_enable_exit_to_user(ti_work);
 
@@ -68,7 +74,7 @@ __always_inline unsigned long exit_to_user_mode_loop(struct pt_regs *regs,
 	for (;;) {
 		ti_work = __exit_to_user_mode_loop(regs, ti_work);
 
-		if (likely(!rseq_exit_to_user_mode_restart(regs)))
+		if (likely(!rseq_exit_to_user_mode_restart(regs, ti_work)))
 			return ti_work;
 		ti_work = read_thread_flags();
 	}
