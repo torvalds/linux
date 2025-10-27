@@ -15,8 +15,8 @@ static void smbdirect_connection_mr_io_recovery_work(struct work_struct *work);
  * Recovery is done in smbd_mr_recovery_work. The content of list entry changes
  * as MRs are used and recovered for I/O, but the list links will not change
  */
-__maybe_unused /* this is temporary while this file is included in others */
-static int smbdirect_connection_create_mr_list(struct smbdirect_socket *sc)
+__SMBDIRECT_PRIVATE__
+int smbdirect_connection_create_mr_list(struct smbdirect_socket *sc)
 {
 	const struct smbdirect_socket_parameters *sp = &sc->parameters;
 	struct smbdirect_mr_io *mr;
@@ -120,7 +120,8 @@ static void smbdirect_mr_io_free_locked(struct kref *kref)
 	kfree(mr);
 }
 
-static void smbdirect_connection_destroy_mr_list(struct smbdirect_socket *sc)
+__SMBDIRECT_PRIVATE__
+void smbdirect_connection_destroy_mr_list(struct smbdirect_socket *sc)
 {
 	struct smbdirect_mr_io *mr, *tmp;
 	LIST_HEAD(all_list);

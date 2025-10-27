@@ -52,7 +52,8 @@ static int smbdirect_socket_rdma_event_handler(struct rdma_cm_id *id,
 	return -ESTALE;
 }
 
-static int smbdirect_socket_init_new(struct net *net, struct smbdirect_socket *sc)
+__SMBDIRECT_PRIVATE__
+int smbdirect_socket_init_new(struct net *net, struct smbdirect_socket *sc)
 {
 	struct rdma_cm_id *id;
 	int ret;
@@ -111,7 +112,8 @@ alloc_failed:
 }
 __SMBDIRECT_EXPORT_SYMBOL__(smbdirect_socket_create_kern);
 
-static int smbdirect_socket_init_accepting(struct rdma_cm_id *id, struct smbdirect_socket *sc)
+__SMBDIRECT_PRIVATE__
+int smbdirect_socket_init_accepting(struct rdma_cm_id *id, struct smbdirect_socket *sc)
 {
 	smbdirect_socket_init(sc);
 
@@ -308,13 +310,14 @@ static void smbdirect_socket_wake_up_all(struct smbdirect_socket *sc)
 	wake_up_all(&sc->mr_io.cleanup.wait_queue);
 }
 
-static void __smbdirect_socket_schedule_cleanup(struct smbdirect_socket *sc,
-						const char *macro_name,
-						unsigned int lvl,
-						const char *func,
-						unsigned int line,
-						int error,
-						enum smbdirect_socket_status *force_status)
+__SMBDIRECT_PRIVATE__
+void __smbdirect_socket_schedule_cleanup(struct smbdirect_socket *sc,
+					 const char *macro_name,
+					 unsigned int lvl,
+					 const char *func,
+					 unsigned int line,
+					 int error,
+					 enum smbdirect_socket_status *force_status)
 {
 	bool was_first = false;
 
@@ -559,8 +562,8 @@ static void smbdirect_socket_destroy(struct smbdirect_socket *sc)
 		"rdma session destroyed\n");
 }
 
-__maybe_unused /* this is temporary while this file is included in others */
-static void smbdirect_socket_destroy_sync(struct smbdirect_socket *sc)
+__SMBDIRECT_PRIVATE__
+void smbdirect_socket_destroy_sync(struct smbdirect_socket *sc)
 {
 	smbdirect_log_rdma_event(sc, SMBDIRECT_LOG_INFO,
 		"status=%s first_error=%1pe",
@@ -659,13 +662,13 @@ void smbdirect_socket_release(struct smbdirect_socket *sc)
 }
 __SMBDIRECT_EXPORT_SYMBOL__(smbdirect_socket_release);
 
-__maybe_unused /* this is temporary while this file is included in others */
-static int smbdirect_socket_wait_for_credits(struct smbdirect_socket *sc,
-					     enum smbdirect_socket_status expected_status,
-					     int unexpected_errno,
-					     wait_queue_head_t *waitq,
-					     atomic_t *total_credits,
-					     int needed)
+__SMBDIRECT_PRIVATE__
+int smbdirect_socket_wait_for_credits(struct smbdirect_socket *sc,
+				      enum smbdirect_socket_status expected_status,
+				      int unexpected_errno,
+				      wait_queue_head_t *waitq,
+				      atomic_t *total_credits,
+				      int needed)
 {
 	int ret;
 
