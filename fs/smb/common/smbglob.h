@@ -6,8 +6,8 @@
  *              Jeremy Allison (jra@samba.org)
  *
  */
-#ifndef _COMMON_CIFS_GLOB_H
-#define _COMMON_CIFS_GLOB_H
+#ifndef _COMMON_SMB_GLOB_H
+#define _COMMON_SMB_GLOB_H
 
 static inline void inc_rfc1001_len(void *buf, int count)
 {
@@ -27,4 +27,4 @@ static inline void inc_rfc1001_len(void *buf, int count)
 
 #define CIFS_DEFAULT_IOSIZE (1024 * 1024)
 
-#endif	/* _COMMON_CIFS_GLOB_H */
+#endif	/* _COMMON_SMB_GLOB_H */
