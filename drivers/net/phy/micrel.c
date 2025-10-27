@@ -2325,6 +2325,106 @@ static int kszphy_get_sqi_max(struct phy_device *phydev)
 	return KSZ9477_SQI_MAX;
 }
 
+static int kszphy_get_mse_capability(struct phy_device *phydev,
+				     struct phy_mse_capability *cap)
+{
+	/* Capabilities depend on link mode:
+	 * - 1000BASE-T: per-pair SQI registers exist => expose A..D
+	 *   and a WORST selector.
+	 * - 100BASE-TX: HW provides a single MSE/SQI reading in the "channel A"
+	 *   register, but with auto MDI-X there is no MDI-X resolution bit,
+	 *   so we cannot map that register to a specific wire pair reliably.
+	 *   To avoid misleading per-channel data, advertise only LINK.
+	 * Other speeds: no MSE exposure via this driver.
+	 *
+	 * Note: WORST is *not* a hardware selector on this family.
+	 * We expose it because the driver computes it in software
+	 * by scanning per-channel readouts (A..D) and picking the
+	 * maximum average MSE.
+	 */
+	if (phydev->speed == SPEED_1000)
+		cap->supported_caps = PHY_MSE_CAP_CHANNEL_A |
+				      PHY_MSE_CAP_CHANNEL_B |
+				      PHY_MSE_CAP_CHANNEL_C |
+				      PHY_MSE_CAP_CHANNEL_D |
+				      PHY_MSE_CAP_WORST_CHANNEL;
+	else if (phydev->speed == SPEED_100)
+		cap->supported_caps = PHY_MSE_CAP_LINK;
+	else
+		return -EOPNOTSUPP;
+
+	cap->max_average_mse = FIELD_MAX(KSZ9477_MMD_SQI_MASK);
+	cap->refresh_rate_ps = 2000000; /* 2 us */
+	/* Estimated from link modulation (125 MBd per channel) and documented
+	 * refresh rate of 2 us
+	 */
+	cap->num_symbols = 250;
+
+	cap->supported_caps |= PHY_MSE_CAP_AVG;
+
+	return 0;
+}
+
+static int kszphy_get_mse_snapshot(struct phy_device *phydev,
+				   enum phy_mse_channel channel,
+				   struct phy_mse_snapshot *snapshot)
+{
+	u8 num_channels;
+	int ret;
+
+	if (phydev->speed == SPEED_1000)
+		num_channels = 4;
+	else if (phydev->speed == SPEED_100)
+		num_channels = 1;
+	else
+		return -EOPNOTSUPP;
+
+	if (channel == PHY_MSE_CHANNEL_WORST) {
+		u32 worst_val = 0;
+		int i;
+
+		/* WORST is implemented in software: select the maximum
+		 * average MSE across the available per-channel registers.
+		 * Only defined when multiple channels exist (1000BASE-T).
+		 */
+		if (num_channels < 2)
+			return -EOPNOTSUPP;
+
+		for (i = 0; i < num_channels; i++) {
+			ret = phy_read_mmd(phydev, MDIO_MMD_PMAPMD,
+					KSZ9477_MMD_SIGNAL_QUALITY_CHAN_A + i);
+			if (ret < 0)
+				return ret;
+
+			ret = FIELD_GET(KSZ9477_MMD_SQI_MASK, ret);
+			if (ret > worst_val)
+				worst_val = ret;
+		}
+		snapshot->average_mse = worst_val;
+	} else if (channel == PHY_MSE_CHANNEL_LINK && num_channels == 1) {
+		ret = phy_read_mmd(phydev, MDIO_MMD_PMAPMD,
+				   KSZ9477_MMD_SIGNAL_QUALITY_CHAN_A);
+		if (ret < 0)
+			return ret;
+		snapshot->average_mse = FIELD_GET(KSZ9477_MMD_SQI_MASK, ret);
+	} else if (channel >= PHY_MSE_CHANNEL_A &&
+		   channel <= PHY_MSE_CHANNEL_D) {
+		/* Per-channel readouts are valid only for 1000BASE-T. */
+		if (phydev->speed != SPEED_1000)
+			return -EOPNOTSUPP;
+
+		ret = phy_read_mmd(phydev, MDIO_MMD_PMAPMD,
+				   KSZ9477_MMD_SIGNAL_QUALITY_CHAN_A + channel);
+		if (ret < 0)
+			return ret;
+		snapshot->average_mse = FIELD_GET(KSZ9477_MMD_SQI_MASK, ret);
+	} else {
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
 static void kszphy_enable_clk(struct phy_device *phydev)
 {
 	struct kszphy_priv *priv = phydev->priv;
@@ -6497,6 +6597,8 @@ static struct phy_driver ksphy_driver[] = {
 	.cable_test_get_status	= ksz9x31_cable_test_get_status,
 	.get_sqi	= kszphy_get_sqi,
 	.get_sqi_max	= kszphy_get_sqi_max,
+	.get_mse_capability = kszphy_get_mse_capability,
+	.get_mse_snapshot = kszphy_get_mse_snapshot,
 } };
 
 module_phy_driver(ksphy_driver);
