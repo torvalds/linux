@@ -29,6 +29,8 @@ static int links_per_lgr_min = SMC_LINKS_ADD_LNK_MIN;
 static int links_per_lgr_max = SMC_LINKS_ADD_LNK_MAX;
 static int conns_per_lgr_min = SMC_CONN_PER_LGR_MIN;
 static int conns_per_lgr_max = SMC_CONN_PER_LGR_MAX;
+static unsigned int smcr_max_wr_min = 2;
+static unsigned int smcr_max_wr_max = 2048;
 
 static struct ctl_table smc_table[] = {
 	{
@@ -99,6 +101,24 @@ static struct ctl_table smc_table[] = {
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_ONE,
 	},
+	{
+		.procname	= "smcr_max_send_wr",
+		.data		= &init_net.smc.sysctl_smcr_max_send_wr,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &smcr_max_wr_min,
+		.extra2		= &smcr_max_wr_max,
+	},
+	{
+		.procname	= "smcr_max_recv_wr",
+		.data		= &init_net.smc.sysctl_smcr_max_recv_wr,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &smcr_max_wr_min,
+		.extra2		= &smcr_max_wr_max,
+	},
 };
 
 int __net_init smc_sysctl_net_init(struct net *net)
@@ -130,6 +150,8 @@ int __net_init smc_sysctl_net_init(struct net *net)
 	WRITE_ONCE(net->smc.sysctl_rmem, net_smc_rmem_init);
 	net->smc.sysctl_max_links_per_lgr = SMC_LINKS_PER_LGR_MAX_PREFER;
 	net->smc.sysctl_max_conns_per_lgr = SMC_CONN_PER_LGR_PREFER;
+	net->smc.sysctl_smcr_max_send_wr = SMCR_MAX_SEND_WR_DEF;
+	net->smc.sysctl_smcr_max_recv_wr = SMCR_MAX_RECV_WR_DEF;
 	/* disable handshake limitation by default */
 	net->smc.limit_smc_hs = 0;
 
