@@ -1466,6 +1466,8 @@ usage: ${0##*/} OPTS
 EOF
 }
 
+require_command jq
+
 #check for needed privileges
 if [ "$(id -u)" -ne 0 ];then
 	end_test "SKIP: Need root privileges"
