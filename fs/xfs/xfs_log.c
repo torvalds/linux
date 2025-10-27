@@ -1435,13 +1435,6 @@ xlog_alloc_log(
 	init_waitqueue_head(&log->l_flush_wait);
 
 	iclogp = &log->l_iclog;
-	/*
-	 * The amount of memory to allocate for the iclog structure is
-	 * rather funky due to the way the structure is defined.  It is
-	 * done this way so that we can use different sizes for machines
-	 * with different amounts of memory.  See the definition of
-	 * xlog_in_core_t in xfs_log_priv.h for details.
-	 */
 	ASSERT(log->l_iclog_size >= 4096);
 	for (i = 0; i < log->l_iclog_bufs; i++) {
 		size_t bvec_size = howmany(log->l_iclog_size, PAGE_SIZE) *
