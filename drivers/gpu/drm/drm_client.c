@@ -178,6 +178,13 @@ EXPORT_SYMBOL(drm_client_release);
 
 static void drm_client_buffer_delete(struct drm_client_buffer *buffer)
 {
+	int ret;
+
+	ret = drm_mode_rmfb(buffer->client->dev, buffer->fb->base.id, buffer->client->file);
+	if (ret)
+		drm_err(buffer->client->dev,
+			"Error removing FB:%u (%d)\n", buffer->fb->base.id, ret);
+
 	if (buffer->gem) {
 		drm_gem_vunmap(buffer->gem, &buffer->map);
 		drm_gem_object_put(buffer->gem);
@@ -190,8 +197,21 @@ static struct drm_client_buffer *
 drm_client_buffer_create(struct drm_client_dev *client, u32 width, u32 height,
 			 u32 format, u32 handle, u32 pitch)
 {
+	struct drm_mode_fb_cmd2 fb_req = {
+		.width = width,
+		.height = height,
+		.pixel_format = format,
+		.handles = {
+			handle,
+		},
+		.pitches = {
+			pitch,
+		},
+	};
+	struct drm_device *dev = client->dev;
 	struct drm_client_buffer *buffer;
 	struct drm_gem_object *obj;
+	struct drm_framebuffer *fb;
 	int ret;
 
 	buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
@@ -206,10 +226,30 @@ drm_client_buffer_create(struct drm_client_dev *client, u32 width, u32 height,
 		goto err_delete;
 	}
 
+	ret = drm_mode_addfb2(dev, &fb_req, client->file);
+	if (ret)
+		goto err_drm_gem_object_put;
+
+	fb = drm_framebuffer_lookup(dev, client->file, fb_req.fb_id);
+	if (drm_WARN_ON(dev, !fb)) {
+		ret = -ENOENT;
+		goto err_drm_mode_rmfb;
+	}
+
+	/* drop the reference we picked up in framebuffer lookup */
+	drm_framebuffer_put(fb);
+
+	strscpy(fb->comm, client->name, TASK_COMM_LEN);
+
 	buffer->gem = obj;
+	buffer->fb = fb;
 
 	return buffer;
 
+err_drm_mode_rmfb:
+	drm_mode_rmfb(dev, fb_req.fb_id, client->file);
+err_drm_gem_object_put:
+	drm_gem_object_put(obj);
 err_delete:
 	kfree(buffer);
 	return ERR_PTR(ret);
@@ -323,51 +363,6 @@ void drm_client_buffer_vunmap(struct drm_client_buffer *buffer)
 }
 EXPORT_SYMBOL(drm_client_buffer_vunmap);
 
-static void drm_client_buffer_rmfb(struct drm_client_buffer *buffer)
-{
-	int ret;
-
-	if (!buffer->fb)
-		return;
-
-	ret = drm_mode_rmfb(buffer->client->dev, buffer->fb->base.id, buffer->client->file);
-	if (ret)
-		drm_err(buffer->client->dev,
-			"Error removing FB:%u (%d)\n", buffer->fb->base.id, ret);
-
-	buffer->fb = NULL;
-}
-
-static int drm_client_buffer_addfb(struct drm_client_buffer *buffer,
-				   u32 width, u32 height, u32 format,
-				   u32 handle, u32 pitch)
-{
-	struct drm_client_dev *client = buffer->client;
-	struct drm_mode_fb_cmd2 fb_req = { };
-	int ret;
-
-	fb_req.width = width;
-	fb_req.height = height;
-	fb_req.pixel_format = format;
-	fb_req.handles[0] = handle;
-	fb_req.pitches[0] = pitch;
-
-	ret = drm_mode_addfb2(client->dev, &fb_req, client->file);
-	if (ret)
-		return ret;
-
-	buffer->fb = drm_framebuffer_lookup(client->dev, buffer->client->file, fb_req.fb_id);
-	if (WARN_ON(!buffer->fb))
-		return -ENOENT;
-
-	/* drop the reference we picked up in framebuffer lookup */
-	drm_framebuffer_put(buffer->fb);
-
-	strscpy(buffer->fb->comm, client->name, TASK_COMM_LEN);
-
-	return 0;
-}
-
 /**
  * drm_client_framebuffer_create - Create a client framebuffer
  * @client: DRM client
@@ -405,11 +400,6 @@ drm_client_framebuffer_create(struct drm_client_dev *client, u32 width, u32 heig
 		goto err_drm_mode_destroy_dumb;
 	}
 
-	ret = drm_client_buffer_addfb(buffer, width, height, format,
-				      dumb_args.handle, dumb_args.pitch);
-	if (ret)
-		goto err_drm_client_buffer_delete;
-
 	/*
 	 * The handle is only needed for creating the framebuffer, destroy it
 	 * again to solve a circular dependency should anybody export the GEM
@@ -420,8 +410,6 @@ drm_client_framebuffer_create(struct drm_client_dev *client, u32 width, u32 heig
 
 	return buffer;
 
-err_drm_client_buffer_delete:
-	drm_client_buffer_delete(buffer);
 err_drm_mode_destroy_dumb:
 	drm_mode_destroy_dumb(client->dev, dumb_args.handle, client->file);
 	return ERR_PTR(ret);
@@ -437,7 +425,6 @@ void drm_client_framebuffer_delete(struct drm_client_buffer *buffer)
 	if (!buffer)
 		return;
 
-	drm_client_buffer_rmfb(buffer);
 	drm_client_buffer_delete(buffer);
 }
 EXPORT_SYMBOL(drm_client_framebuffer_delete);
