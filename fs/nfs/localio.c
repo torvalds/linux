@@ -485,8 +485,12 @@ nfs_local_iters_init(struct nfs_local_kiocb *iocb, int rw)
 		struct nfs_local_dio local_dio;
 
 		if (nfs_is_local_dio_possible(iocb, rw, len, &local_dio) &&
-		    nfs_local_iters_setup_dio(iocb, rw, v, len, &local_dio) != 0)
+		    nfs_local_iters_setup_dio(iocb, rw, v, len, &local_dio) != 0) {
+			/* Ensure DIO WRITE's IO on stable storage upon completion */
+			if (rw == ITER_SOURCE)
+				iocb->kiocb.ki_flags |= IOCB_DSYNC|IOCB_SYNC;
 			return; /* is DIO-aligned */
+		}
 	}
 
 	/* Use buffered IO */
