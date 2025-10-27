@@ -2773,32 +2773,24 @@ static ssize_t target_lu_gp_lu_gp_id_store(struct config_item *item,
 static ssize_t target_lu_gp_members_show(struct config_item *item, char *page)
 {
 	struct t10_alua_lu_gp *lu_gp = to_lu_gp(item);
-	struct se_device *dev;
-	struct se_hba *hba;
 	struct t10_alua_lu_gp_member *lu_gp_mem;
-	ssize_t len = 0, cur_len;
-	unsigned char buf[LU_GROUP_NAME_BUF] = { };
+	const char *const end = page + PAGE_SIZE;
+	char *cur = page;
 
 	spin_lock(&lu_gp->lu_gp_lock);
 	list_for_each_entry(lu_gp_mem, &lu_gp->lu_gp_mem_list, lu_gp_mem_list) {
-		dev = lu_gp_mem->lu_gp_mem_dev;
-		hba = dev->se_hba;
+		struct se_device *dev = lu_gp_mem->lu_gp_mem_dev;
+		struct se_hba *hba = dev->se_hba;
 
-		cur_len = snprintf(buf, LU_GROUP_NAME_BUF, "%s/%s\n",
+		cur += scnprintf(cur, end - cur, "%s/%s\n",
 			config_item_name(&hba->hba_group.cg_item),
 			config_item_name(&dev->dev_group.cg_item));
-
-		if ((cur_len + len) > PAGE_SIZE || cur_len > LU_GROUP_NAME_BUF) {
-			pr_warn("Ran out of lu_gp_show_attr"
-				"_members buffer\n");
+		if (WARN_ON_ONCE(cur >= end))
 			break;
-		}
-		memcpy(page+len, buf, cur_len);
-		len += cur_len;
 	}
 	spin_unlock(&lu_gp->lu_gp_lock);
 
-	return len;
+	return cur - page;
 }
 
 CONFIGFS_ATTR(target_lu_gp_, lu_gp_id);
