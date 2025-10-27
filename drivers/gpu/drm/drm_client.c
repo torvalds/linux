@@ -377,7 +377,7 @@ void drm_client_buffer_vunmap(struct drm_client_buffer *buffer)
 EXPORT_SYMBOL(drm_client_buffer_vunmap);
 
 /**
- * drm_client_framebuffer_create - Create a client framebuffer
+ * drm_client_buffer_create_dumb - Create a client buffer backed by a dumb buffer
  * @client: DRM client
  * @width: Framebuffer width
  * @height: Framebuffer height
@@ -391,7 +391,7 @@ EXPORT_SYMBOL(drm_client_buffer_vunmap);
  * Pointer to a client buffer or an error pointer on failure.
  */
 struct drm_client_buffer *
-drm_client_framebuffer_create(struct drm_client_dev *client, u32 width, u32 height, u32 format)
+drm_client_buffer_create_dumb(struct drm_client_dev *client, u32 width, u32 height, u32 format)
 {
 	const struct drm_format_info *info = drm_format_info(format);
 	struct drm_device *dev = client->dev;
@@ -427,7 +427,7 @@ err_drm_mode_destroy_dumb:
 	drm_mode_destroy_dumb(client->dev, dumb_args.handle, client->file);
 	return ERR_PTR(ret);
 }
-EXPORT_SYMBOL(drm_client_framebuffer_create);
+EXPORT_SYMBOL(drm_client_buffer_create_dumb);
 
 /**
  * drm_client_framebuffer_flush - Manually flush client framebuffer

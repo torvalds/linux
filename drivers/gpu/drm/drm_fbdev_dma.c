@@ -281,7 +281,7 @@ int drm_fbdev_dma_driver_fbdev_probe(struct drm_fb_helper *fb_helper,
 
 	format = drm_driver_legacy_fb_format(dev, sizes->surface_bpp,
 					     sizes->surface_depth);
-	buffer = drm_client_framebuffer_create(client, sizes->surface_width,
+	buffer = drm_client_buffer_create_dumb(client, sizes->surface_width,
 					       sizes->surface_height, format);
 	if (IS_ERR(buffer))
 		return PTR_ERR(buffer);

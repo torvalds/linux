@@ -204,7 +204,7 @@ static int drm_log_setup_modeset(struct drm_client_dev *client,
 	if (format == DRM_FORMAT_INVALID)
 		return -EINVAL;
 
-	scanout->buffer = drm_client_framebuffer_create(client, width, height, format);
+	scanout->buffer = drm_client_buffer_create_dumb(client, width, height, format);
 	if (IS_ERR(scanout->buffer)) {
 		drm_warn(client->dev, "drm_log can't create framebuffer %d %d %p4cc\n",
 			 width, height, &format);
