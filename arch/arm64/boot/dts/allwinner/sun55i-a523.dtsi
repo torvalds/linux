@@ -200,6 +200,20 @@
 				bias-disable;
 			};
 
+			/omit-if-no-ref/
+			spdif_out_pb_pin: spdif-pb-pin {
+				pins = "PB8";
+				function = "spdif";
+				allwinner,pinmux = <2>;
+			};
+
+			/omit-if-no-ref/
+			spdif_out_pi_pin: spdif-pi-pin {
+				pins = "PI10";
+				function = "spdif";
+				allwinner,pinmux = <2>;
+			};
+
 			uart0_pb_pins: uart0-pb-pins {
 				pins = "PB9", "PB10";
 				allwinner,pinmux = <2>;
