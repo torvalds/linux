@@ -50,18 +50,10 @@
 #define SC16IS7XX_SPR_REG		(0x07) /* Scratch Pad */
 #define SC16IS7XX_TXLVL_REG		(0x08) /* TX FIFO level */
 #define SC16IS7XX_RXLVL_REG		(0x09) /* RX FIFO level */
-#define SC16IS7XX_IODIR_REG		(0x0a) /* I/O Direction
-						* - only on 75x/76x
-						*/
-#define SC16IS7XX_IOSTATE_REG		(0x0b) /* I/O State
-						* - only on 75x/76x
-						*/
-#define SC16IS7XX_IOINTENA_REG		(0x0c) /* I/O Interrupt Enable
-						* - only on 75x/76x
-						*/
-#define SC16IS7XX_IOCONTROL_REG		(0x0e) /* I/O Control
-						* - only on 75x/76x
-						*/
+#define SC16IS7XX_IODIR_REG		(0x0a) /* I/O Direction - only on 75x/76x */
+#define SC16IS7XX_IOSTATE_REG		(0x0b) /* I/O State - only on 75x/76x */
+#define SC16IS7XX_IOINTENA_REG		(0x0c) /* I/O Interrupt Enable - only on 75x/76x */
+#define SC16IS7XX_IOCONTROL_REG		(0x0e) /* I/O Control - only on 75x/76x */
 #define SC16IS7XX_EFCR_REG		(0x0f) /* Extra Features Control */
 
 /* TCR/TLR Register set: Only if ((MCR[2] == 1) && (EFR[4] == 1)) */
@@ -81,12 +73,9 @@
 
 /* IER register bits */
 #define SC16IS7XX_IER_RDI_BIT		BIT(0)   /* Enable RX data interrupt */
-#define SC16IS7XX_IER_THRI_BIT		BIT(1)   /* Enable TX holding register
-						  * interrupt */
-#define SC16IS7XX_IER_RLSI_BIT		BIT(2)   /* Enable RX line status
-						  * interrupt */
-#define SC16IS7XX_IER_MSI_BIT		BIT(3)   /* Enable Modem status
-						  * interrupt */
+#define SC16IS7XX_IER_THRI_BIT		BIT(1)   /* Enable TX holding register interrupt */
+#define SC16IS7XX_IER_RLSI_BIT		BIT(2)   /* Enable RX line status interrupt */
+#define SC16IS7XX_IER_MSI_BIT		BIT(3)   /* Enable Modem status interrupt */
 
 /* IER register bits - write only if (EFR[4] == 1) */
 #define SC16IS7XX_IER_SLEEP_BIT		BIT(4)   /* Enable Sleep mode */
@@ -119,9 +108,8 @@
 							 * - only on 75x/76x
 							 */
 #define SC16IS7XX_IIR_XOFFI_SRC		0x10		/* Received Xoff */
-#define SC16IS7XX_IIR_CTSRTS_SRC	0x20		/* nCTS,nRTS change of state
-							 * from active (LOW)
-							 * to inactive (HIGH)
+#define SC16IS7XX_IIR_CTSRTS_SRC	0x20		/* nCTS,nRTS change of state from active
+							 * (LOW) to inactive (HIGH)
 							 */
 /* LCR register bits */
 #define SC16IS7XX_LCR_LENGTH0_BIT	BIT(0)   /* Word length bit 0 */
@@ -137,8 +125,7 @@
 						  *
 						  * STOP length bit table:
 						  * 0 -> 1 stop bit
-						  * 1 -> 1-1.5 stop bits if
-						  *      word length is 5,
+						  * 1 -> 1-1.5 stop bits if word length is 5,
 						  *      2 stop bits otherwise
 						  */
 #define SC16IS7XX_LCR_PARITY_BIT	BIT(3)   /* Parity bit enable */
@@ -150,31 +137,22 @@
 #define SC16IS7XX_LCR_WORD_LEN_6	(0x01)
 #define SC16IS7XX_LCR_WORD_LEN_7	(0x02)
 #define SC16IS7XX_LCR_WORD_LEN_8	(0x03)
-#define SC16IS7XX_LCR_REG_SET_SPECIAL	SC16IS7XX_LCR_DLAB_BIT /* Special
-								* reg set
-								*/
-#define SC16IS7XX_LCR_REG_SET_ENHANCED	0xBF                   /* Enhanced
-								* reg set
-								*/
+#define SC16IS7XX_LCR_REG_SET_SPECIAL	SC16IS7XX_LCR_DLAB_BIT /* Special reg set */
+#define SC16IS7XX_LCR_REG_SET_ENHANCED	0xBF                   /* Enhanced reg set */
 
 /* MCR register bits */
-#define SC16IS7XX_MCR_DTR_BIT		BIT(0)   /* DTR complement
-						  * - only on 75x/76x
-						  */
+#define SC16IS7XX_MCR_DTR_BIT		BIT(0)   /* DTR complement - only on 75x/76x */
 #define SC16IS7XX_MCR_RTS_BIT		BIT(1)   /* RTS complement */
-#define SC16IS7XX_MCR_TCRTLR_BIT	BIT(2)   /* TCR/TLR register enable */
+#define SC16IS7XX_MCR_TCRTLR_BIT	BIT(2)   /* TCR/TLR registers enable */
 #define SC16IS7XX_MCR_LOOP_BIT		BIT(4)   /* Enable loopback test mode */
 #define SC16IS7XX_MCR_XONANY_BIT	BIT(5)   /* Enable Xon Any
-						  * - write enabled
-						  * if (EFR[4] == 1)
+						  * - write enabled if (EFR[4] == 1)
 						  */
 #define SC16IS7XX_MCR_IRDA_BIT		BIT(6)   /* Enable IrDA mode
-						  * - write enabled
-						  * if (EFR[4] == 1)
+						  * - write enabled if (EFR[4] == 1)
 						  */
 #define SC16IS7XX_MCR_CLKSEL_BIT	BIT(7)   /* Divide clock by 4
-						  * - write enabled
-						  * if (EFR[4] == 1)
+						  * - write enabled if (EFR[4] == 1)
 						  */
 
 /* LSR register bits */
@@ -195,28 +173,19 @@
 
 /* MSR register bits */
 #define SC16IS7XX_MSR_DCTS_BIT		BIT(0)   /* Delta CTS Clear To Send */
-#define SC16IS7XX_MSR_DDSR_BIT		BIT(1)   /* Delta DSR Data Set Ready
-						  * or (IO4)
+#define SC16IS7XX_MSR_DDSR_BIT		BIT(1)   /* Delta DSR Data Set Ready or (IO4)
 						  * - only on 75x/76x
 						  */
-#define SC16IS7XX_MSR_DRI_BIT		BIT(2)   /* Delta RI Ring Indicator
-						  * or (IO7)
+#define SC16IS7XX_MSR_DRI_BIT		BIT(2)   /* Delta RI Ring Indicator or (IO7)
 						  * - only on 75x/76x
 						  */
-#define SC16IS7XX_MSR_DCD_BIT		BIT(3)   /* Delta CD Carrier Detect
-						  * or (IO6)
+#define SC16IS7XX_MSR_DCD_BIT		BIT(3)   /* Delta CD Carrier Detect or (IO6)
 						  * - only on 75x/76x
 						  */
 #define SC16IS7XX_MSR_CTS_BIT		BIT(4)   /* CTS */
-#define SC16IS7XX_MSR_DSR_BIT		BIT(5)   /* DSR (IO4)
-						  * - only on 75x/76x
-						  */
-#define SC16IS7XX_MSR_RI_BIT		BIT(6)   /* RI (IO7)
-						  * - only on 75x/76x
-						  */
-#define SC16IS7XX_MSR_CD_BIT		BIT(7)   /* CD (IO6)
-						  * - only on 75x/76x
-						  */
+#define SC16IS7XX_MSR_DSR_BIT		BIT(5)   /* DSR (IO4) - only on 75x/76x */
+#define SC16IS7XX_MSR_RI_BIT		BIT(6)   /* RI (IO7) - only on 75x/76x */
+#define SC16IS7XX_MSR_CD_BIT		BIT(7)   /* CD (IO6) - only on 75x/76x */
 
 /*
  * TCR register bits
@@ -255,54 +224,42 @@
 #define SC16IS7XX_IOCONTROL_SRESET_BIT	BIT(3)   /* Software Reset */
 
 /* EFCR register bits */
-#define SC16IS7XX_EFCR_9BIT_MODE_BIT	BIT(0)   /* Enable 9-bit or Multidrop
-						  * mode (RS485) */
+#define SC16IS7XX_EFCR_9BIT_MODE_BIT	BIT(0)   /* Enable 9-bit or Multidrop mode (RS485) */
 #define SC16IS7XX_EFCR_RXDISABLE_BIT	BIT(1)   /* Disable receiver */
 #define SC16IS7XX_EFCR_TXDISABLE_BIT	BIT(2)   /* Disable transmitter */
 #define SC16IS7XX_EFCR_AUTO_RS485_BIT	BIT(4)   /* Auto RS485 RTS direction */
 #define SC16IS7XX_EFCR_RTS_INVERT_BIT	BIT(5)   /* RTS output inversion */
 #define SC16IS7XX_EFCR_IRDA_MODE_BIT	BIT(7)   /* IrDA mode
-						  * 0 = rate upto 115.2 kbit/s
-						  *   - Only 75x/76x
-						  * 1 = rate upto 1.152 Mbit/s
-						  *   - Only 76x
+						  * 0 = rate up to 115.2 kbit/s - Only 75x/76x
+						  * 1 = rate up to 1.152 Mbit/s - Only 76x
 						  */
 
 /* EFR register bits */
 #define SC16IS7XX_EFR_AUTORTS_BIT	BIT(6)   /* Auto RTS flow ctrl enable */
 #define SC16IS7XX_EFR_AUTOCTS_BIT	BIT(7)   /* Auto CTS flow ctrl enable */
 #define SC16IS7XX_EFR_XOFF2_DETECT_BIT	BIT(5)   /* Enable Xoff2 detection */
-#define SC16IS7XX_EFR_ENABLE_BIT	BIT(4)   /* Enable enhanced functions
-						  * and writing to IER[7:4],
-						  * FCR[5:4], MCR[7:5]
+#define SC16IS7XX_EFR_ENABLE_BIT	BIT(4)   /* Enable enhanced functions and writing to
+						  * IER[7:4], FCR[5:4], MCR[7:5]
 						  */
 #define SC16IS7XX_EFR_SWFLOW3_BIT	BIT(3)
 #define SC16IS7XX_EFR_SWFLOW2_BIT	BIT(2)
 						 /*
 						  * SWFLOW bits 3 & 2 table:
-						  * 00 -> no transmitter flow
-						  *       control
-						  * 01 -> transmitter generates
-						  *       XON2 and XOFF2
-						  * 10 -> transmitter generates
-						  *       XON1 and XOFF1
-						  * 11 -> transmitter generates
-						  *       XON1, XON2, XOFF1 and
-						  *       XOFF2
+						  * 00 -> no transmitter flow control
+						  * 01 -> transmitter generates XON2 and XOFF2
+						  * 10 -> transmitter generates XON1 and XOFF1
+						  * 11 -> transmitter generates XON1, XON2,
+						  *       XOFF1 and XOFF2
 						  */
 #define SC16IS7XX_EFR_SWFLOW1_BIT	BIT(1)
 #define SC16IS7XX_EFR_SWFLOW0_BIT	BIT(0)
 						 /*
 						  * SWFLOW bits 1 & 0 table:
-						  * 00 -> no received flow
-						  *       control
-						  * 01 -> receiver compares
-						  *       XON2 and XOFF2
-						  * 10 -> receiver compares
-						  *       XON1 and XOFF1
-						  * 11 -> receiver compares
-						  *       XON1, XON2, XOFF1 and
-						  *       XOFF2
+						  * 00 -> no received flow control
+						  * 01 -> receiver compares XON2 and XOFF2
+						  * 10 -> receiver compares XON1 and XOFF1
+						  * 11 -> receiver compares XON1, XON2,
+						  *       XOFF1 and XOFF2
 						  */
 #define SC16IS7XX_EFR_FLOWCTRL_BITS	(SC16IS7XX_EFR_AUTORTS_BIT | \
 					SC16IS7XX_EFR_AUTOCTS_BIT | \
@@ -1152,7 +1109,7 @@ static int sc16is7xx_startup(struct uart_port *port)
 
 	sc16is7xx_power(port, 1);
 
-	/* Reset FIFOs*/
+	/* Reset FIFOs */
 	val = SC16IS7XX_FCR_RXRESET_BIT | SC16IS7XX_FCR_TXRESET_BIT;
 	sc16is7xx_port_write(port, SC16IS7XX_FCR_REG, val);
 	udelay(5);
