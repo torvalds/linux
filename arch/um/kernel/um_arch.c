@@ -252,8 +252,6 @@ unsigned long stub_start;
 unsigned long task_size;
 EXPORT_SYMBOL(task_size);
 
-unsigned long host_task_size;
-
 unsigned long brk_start;
 unsigned long end_iomem;
 EXPORT_SYMBOL(end_iomem);
@@ -306,6 +304,7 @@ int __init linux_main(int argc, char **argv, char **envp)
 {
 	unsigned long avail, diff;
 	unsigned long virtmem_size, max_physmem;
+	unsigned long host_task_size;
 	unsigned long stack;
 	unsigned int i;
 	int add;
