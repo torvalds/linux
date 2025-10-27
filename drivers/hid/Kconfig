@@ -93,7 +93,7 @@ config HID_GENERIC
 	If unsure, say Y.
 
 config HID_HAPTIC
-	tristate "Haptic touchpad support"
+	bool "Haptic touchpad support"
 	default n
 	help
 	Support for touchpads with force sensors and haptic actuators instead of a

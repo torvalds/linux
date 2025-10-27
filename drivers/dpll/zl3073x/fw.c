@@ -37,7 +37,7 @@ struct zl3073x_fw_component_info {
 static const struct zl3073x_fw_component_info component_info[] = {
 	[ZL_FW_COMPONENT_UTIL] = {
 		.name		= "utility",
-		.max_size	= 0x2300,
+		.max_size	= 0x4000,
 		.load_addr	= 0x20000000,
 		.flash_type	= ZL3073X_FLASH_TYPE_NONE,
 	},
