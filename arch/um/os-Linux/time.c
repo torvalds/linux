@@ -17,7 +17,7 @@
 #include <string.h>
 #include "internal.h"
 
-static timer_t event_high_res_timer = 0;
+static timer_t event_high_res_timer[CONFIG_NR_CPUS] = { 0 };
 
 static inline long long timespec_to_ns(const struct timespec *ts)
 {
@@ -32,20 +32,30 @@ long long os_persistent_clock_emulation(void)
 	return timespec_to_ns(&realtime_tp);
 }
 
+#ifndef sigev_notify_thread_id
+#define sigev_notify_thread_id _sigev_un._tid
+#endif
+
 /**
  * os_timer_create() - create an new posix (interval) timer
  */
 int os_timer_create(void)
 {
-	timer_t *t = &event_high_res_timer;
+	timer_t *t = &event_high_res_timer[0];
+	struct sigevent sev = {
+		.sigev_notify = SIGEV_THREAD_ID,
+		.sigev_signo = SIGALRM,
+		.sigev_value.sival_ptr = t,
+		.sigev_notify_thread_id = gettid(),
+	};
 
-	if (timer_create(CLOCK_MONOTONIC, NULL, t) == -1)
+	if (timer_create(CLOCK_MONOTONIC, &sev, t) == -1)
 		return -1;
 
 	return 0;
 }
 
-int os_timer_set_interval(unsigned long long nsecs)
+int os_timer_set_interval(int cpu, unsigned long long nsecs)
 {
 	struct itimerspec its;
 
@@ -55,13 +65,13 @@ int os_timer_set_interval(unsigned long long nsecs)
 	its.it_interval.tv_sec = nsecs / UM_NSEC_PER_SEC;
 	its.it_interval.tv_nsec = nsecs % UM_NSEC_PER_SEC;
 
-	if (timer_settime(event_high_res_timer, 0, &its, NULL) == -1)
+	if (timer_settime(event_high_res_timer[cpu], 0, &its, NULL) == -1)
 		return -errno;
 
 	return 0;
 }
 
-int os_timer_one_shot(unsigned long long nsecs)
+int os_timer_one_shot(int cpu, unsigned long long nsecs)
 {
 	struct itimerspec its = {
 		.it_value.tv_sec = nsecs / UM_NSEC_PER_SEC,
@@ -71,19 +81,20 @@ int os_timer_one_shot(unsigned long long nsecs)
 		.it_interval.tv_nsec = 0, // we cheat here
 	};
 
-	timer_settime(event_high_res_timer, 0, &its, NULL);
+	timer_settime(event_high_res_timer[cpu], 0, &its, NULL);
 	return 0;
 }
 
 /**
  * os_timer_disable() - disable the posix (interval) timer
+ * @cpu: the CPU for which the timer is to be disabled
  */
-void os_timer_disable(void)
+void os_timer_disable(int cpu)
 {
 	struct itimerspec its;
 
 	memset(&its, 0, sizeof(struct itimerspec));
-	timer_settime(event_high_res_timer, 0, &its, NULL);
+	timer_settime(event_high_res_timer[cpu], 0, &its, NULL);
 }
 
 long long os_nsecs(void)

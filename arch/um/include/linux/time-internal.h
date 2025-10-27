@@ -90,4 +90,7 @@ extern unsigned long tt_extra_sched_jiffies;
  * which is intentional since we really shouldn't link it in that case.
  */
 void time_travel_ndelay(unsigned long nsec);
+
+int um_setup_timer(void);
+
 #endif /* __TIMER_INTERNAL_H__ */
