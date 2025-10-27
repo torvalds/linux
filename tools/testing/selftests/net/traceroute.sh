@@ -36,6 +36,35 @@ run_cmd()
 	return $rc
 }
 
+__check_traceroute_version()
+{
+	local cmd=$1; shift
+	local req_ver=$1; shift
+	local ver
+
+	req_ver=$(echo "$req_ver" | sed 's/\.//g')
+	ver=$($cmd -V 2>&1 | grep -Eo '[0-9]+.[0-9]+.[0-9]+' | sed 's/\.//g')
+	if [[ $ver -lt $req_ver ]]; then
+		return 1
+	else
+		return 0
+	fi
+}
+
+check_traceroute6_version()
+{
+	local req_ver=$1; shift
+
+	__check_traceroute_version traceroute6 "$req_ver"
+}
+
+check_traceroute_version()
+{
+	local req_ver=$1; shift
+
+	__check_traceroute_version traceroute "$req_ver"
+}
+
 ################################################################################
 # create namespaces and interconnects
 
@@ -59,6 +88,8 @@ create_ns()
 	ip netns exec ${ns} ip -6 ro add unreachable default metric 8192
 
 	ip netns exec ${ns} sysctl -qw net.ipv4.ip_forward=1
+	ip netns exec ${ns} sysctl -qw net.ipv4.icmp_ratelimit=0
+	ip netns exec ${ns} sysctl -qw net.ipv6.icmp.ratelimit=0
 	ip netns exec ${ns} sysctl -qw net.ipv6.conf.all.keep_addr_on_down=1
 	ip netns exec ${ns} sysctl -qw net.ipv6.conf.all.forwarding=1
 	ip netns exec ${ns} sysctl -qw net.ipv6.conf.default.forwarding=1
@@ -298,6 +329,144 @@ run_traceroute6_vrf()
 }
 
 ################################################################################
+# traceroute6 with ICMP extensions test
+#
+# Verify that in this scenario
+#
+# ----                          ----                          ----
+# |H1|--------------------------|R1|--------------------------|H2|
+# ----            N1            ----            N2            ----
+#
+# ICMP extensions are correctly reported. The loopback interfaces on all the
+# nodes are assigned global addresses and the interfaces connecting the nodes
+# are assigned IPv6 link-local addresses.
+
+cleanup_traceroute6_ext()
+{
+	cleanup_all_ns
+}
+
+setup_traceroute6_ext()
+{
+	# Start clean
+	cleanup_traceroute6_ext
+
+	setup_ns h1 r1 h2
+	create_ns "$h1"
+	create_ns "$r1"
+	create_ns "$h2"
+
+	# Setup N1
+	connect_ns "$h1" eth1 - fe80::1/64 "$r1" eth1 - fe80::2/64
+	# Setup N2
+	connect_ns "$r1" eth2 - fe80::3/64 "$h2" eth2 - fe80::4/64
+
+	# Setup H1
+	ip -n "$h1" address add 2001:db8:1::1/128 dev lo
+	ip -n "$h1" route add ::/0 nexthop via fe80::2 dev eth1
+
+	# Setup R1
+	ip -n "$r1" address add 2001:db8:1::2/128 dev lo
+	ip -n "$r1" route add 2001:db8:1::1/128 nexthop via fe80::1 dev eth1
+	ip -n "$r1" route add 2001:db8:1::3/128 nexthop via fe80::4 dev eth2
+
+	# Setup H2
+	ip -n "$h2" address add 2001:db8:1::3/128 dev lo
+	ip -n "$h2" route add ::/0 nexthop via fe80::3 dev eth2
+
+	# Prime the network
+	ip netns exec "$h1" ping6 -c5 2001:db8:1::3 >/dev/null 2>&1
+}
+
+traceroute6_ext_iio_iif_test()
+{
+	local r1_ifindex h2_ifindex
+	local pkt_len=$1; shift
+
+	# Test that incoming interface info is not appended by default.
+	run_cmd "$h1" "traceroute6 -e 2001:db8:1::3 $pkt_len | grep INC"
+	check_fail $? "Incoming interface info appended by default when should not"
+
+	# Test that the extension is appended when enabled.
+	run_cmd "$r1" "bash -c \"echo 0x01 > /proc/sys/net/ipv6/icmp/errors_extension_mask\""
+	check_err $? "Failed to enable incoming interface info extension on R1"
+
+	run_cmd "$h1" "traceroute6 -e 2001:db8:1::3 $pkt_len | grep INC"
+	check_err $? "Incoming interface info not appended after enable"
+
+	# Test that the extension is not appended when disabled.
+	run_cmd "$r1" "bash -c \"echo 0x00 > /proc/sys/net/ipv6/icmp/errors_extension_mask\""
+	check_err $? "Failed to disable incoming interface info extension on R1"
+
+	run_cmd "$h1" "traceroute6 -e 2001:db8:1::3 $pkt_len | grep INC"
+	check_fail $? "Incoming interface info appended after disable"
+
+	# Test that the extension is sent correctly from both R1 and H2.
+	run_cmd "$r1" "sysctl -w net.ipv6.icmp.errors_extension_mask=0x01"
+	r1_ifindex=$(ip -n "$r1" -j link show dev eth1 | jq '.[]["ifindex"]')
+	run_cmd "$h1" "traceroute6 -e 2001:db8:1::3 $pkt_len | grep '<INC:$r1_ifindex,\"eth1\",mtu=1500>'"
+	check_err $? "Wrong incoming interface info reported from R1"
+
+	run_cmd "$h2" "sysctl -w net.ipv6.icmp.errors_extension_mask=0x01"
+	h2_ifindex=$(ip -n "$h2" -j link show dev eth2 | jq '.[]["ifindex"]')
+	run_cmd "$h1" "traceroute6 -e 2001:db8:1::3 $pkt_len | grep '<INC:$h2_ifindex,\"eth2\",mtu=1500>'"
+	check_err $? "Wrong incoming interface info reported from H2"
+
+	# Add a global address on the incoming interface of R1 and check that
+	# it is reported.
+	run_cmd "$r1" "ip address add 2001:db8:100::1/64 dev eth1 nodad"
+	run_cmd "$h1" "traceroute6 -e 2001:db8:1::3 $pkt_len | grep '<INC:$r1_ifindex,2001:db8:100::1,\"eth1\",mtu=1500>'"
+	check_err $? "Wrong incoming interface info reported from R1 after address addition"
+	run_cmd "$r1" "ip address del 2001:db8:100::1/64 dev eth1"
+
+	# Change name and MTU and make sure the result is still correct.
+	run_cmd "$r1" "ip link set dev eth1 name eth1tag mtu 1501"
+	run_cmd "$h1" "traceroute6 -e 2001:db8:1::3 $pkt_len | grep '<INC:$r1_ifindex,\"eth1tag\",mtu=1501>'"
+	check_err $? "Wrong incoming interface info reported from R1 after name and MTU change"
+	run_cmd "$r1" "ip link set dev eth1tag name eth1 mtu 1500"
+
+	run_cmd "$r1" "sysctl -w net.ipv6.icmp.errors_extension_mask=0x00"
+	run_cmd "$h2" "sysctl -w net.ipv6.icmp.errors_extension_mask=0x00"
+}
+
+run_traceroute6_ext()
+{
+	# Need at least version 2.1.5 for RFC 5837 support.
+	if ! check_traceroute6_version 2.1.5; then
+		log_test_skip "traceroute6 too old, missing ICMP extensions support"
+		return
+	fi
+
+	setup_traceroute6_ext
+
+	RET=0
+
+	## General ICMP extensions tests
+
+	# Test that ICMP extensions are disabled by default.
+	run_cmd "$h1" "sysctl net.ipv6.icmp.errors_extension_mask | grep \"= 0$\""
+	check_err $? "ICMP extensions are not disabled by default"
+
+	# Test that unsupported values are rejected. Do not use "sysctl" as
+	# older versions do not return an error code upon failure.
+	run_cmd "$h1" "bash -c \"echo 0x80 > /proc/sys/net/ipv6/icmp/errors_extension_mask\""
+	check_fail $? "Unsupported sysctl value was not rejected"
+
+	## Extension-specific tests
+
+	# Incoming interface info test. Test with various packet sizes,
+	# including the default one.
+	traceroute6_ext_iio_iif_test
+	traceroute6_ext_iio_iif_test 127
+	traceroute6_ext_iio_iif_test 128
+	traceroute6_ext_iio_iif_test 129
+
+	log_test "IPv6 traceroute with ICMP extensions"
+
+	cleanup_traceroute6_ext
+}
+
+################################################################################
 # traceroute test
 #
 # Verify that traceroute from H1 to H2 shows 1.0.3.1 and 1.0.1.1 when
@@ -438,14 +607,157 @@ run_traceroute_vrf()
 }
 
 ################################################################################
+# traceroute with ICMP extensions test
+#
+# Verify that in this scenario
+#
+# ----                          ----                          ----
+# |H1|--------------------------|R1|--------------------------|H2|
+# ----            N1            ----            N2            ----
+#
+# ICMP extensions are correctly reported. The loopback interfaces on all the
+# nodes are assigned global addresses and the interfaces connecting the nodes
+# are assigned IPv6 link-local addresses.
+
+cleanup_traceroute_ext()
+{
+	cleanup_all_ns
+}
+
+setup_traceroute_ext()
+{
+	# Start clean
+	cleanup_traceroute_ext
+
+	setup_ns h1 r1 h2
+	create_ns "$h1"
+	create_ns "$r1"
+	create_ns "$h2"
+
+	# Setup N1
+	connect_ns "$h1" eth1 - fe80::1/64 "$r1" eth1 - fe80::2/64
+	# Setup N2
+	connect_ns "$r1" eth2 - fe80::3/64 "$h2" eth2 - fe80::4/64
+
+	# Setup H1
+	ip -n "$h1" address add 192.0.2.1/32 dev lo
+	ip -n "$h1" route add 0.0.0.0/0 nexthop via inet6 fe80::2 dev eth1
+
+	# Setup R1
+	ip -n "$r1" address add 192.0.2.2/32 dev lo
+	ip -n "$r1" route add 192.0.2.1/32 nexthop via inet6 fe80::1 dev eth1
+	ip -n "$r1" route add 192.0.2.3/32 nexthop via inet6 fe80::4 dev eth2
+
+	# Setup H2
+	ip -n "$h2" address add 192.0.2.3/32 dev lo
+	ip -n "$h2" route add 0.0.0.0/0 nexthop via inet6 fe80::3 dev eth2
+
+	# Prime the network
+	ip netns exec "$h1" ping -c5 192.0.2.3 >/dev/null 2>&1
+}
+
+traceroute_ext_iio_iif_test()
+{
+	local r1_ifindex h2_ifindex
+	local pkt_len=$1; shift
+
+	# Test that incoming interface info is not appended by default.
+	run_cmd "$h1" "traceroute -e 192.0.2.3 $pkt_len | grep INC"
+	check_fail $? "Incoming interface info appended by default when should not"
+
+	# Test that the extension is appended when enabled.
+	run_cmd "$r1" "bash -c \"echo 0x01 > /proc/sys/net/ipv4/icmp_errors_extension_mask\""
+	check_err $? "Failed to enable incoming interface info extension on R1"
+
+	run_cmd "$h1" "traceroute -e 192.0.2.3 $pkt_len | grep INC"
+	check_err $? "Incoming interface info not appended after enable"
+
+	# Test that the extension is not appended when disabled.
+	run_cmd "$r1" "bash -c \"echo 0x00 > /proc/sys/net/ipv4/icmp_errors_extension_mask\""
+	check_err $? "Failed to disable incoming interface info extension on R1"
+
+	run_cmd "$h1" "traceroute -e 192.0.2.3 $pkt_len | grep INC"
+	check_fail $? "Incoming interface info appended after disable"
+
+	# Test that the extension is sent correctly from both R1 and H2.
+	run_cmd "$r1" "sysctl -w net.ipv4.icmp_errors_extension_mask=0x01"
+	r1_ifindex=$(ip -n "$r1" -j link show dev eth1 | jq '.[]["ifindex"]')
+	run_cmd "$h1" "traceroute -e 192.0.2.3 $pkt_len | grep '<INC:$r1_ifindex,\"eth1\",mtu=1500>'"
+	check_err $? "Wrong incoming interface info reported from R1"
+
+	run_cmd "$h2" "sysctl -w net.ipv4.icmp_errors_extension_mask=0x01"
+	h2_ifindex=$(ip -n "$h2" -j link show dev eth2 | jq '.[]["ifindex"]')
+	run_cmd "$h1" "traceroute -e 192.0.2.3 $pkt_len | grep '<INC:$h2_ifindex,\"eth2\",mtu=1500>'"
+	check_err $? "Wrong incoming interface info reported from H2"
+
+	# Add a global address on the incoming interface of R1 and check that
+	# it is reported.
+	run_cmd "$r1" "ip address add 198.51.100.1/24 dev eth1"
+	run_cmd "$h1" "traceroute -e 192.0.2.3 $pkt_len | grep '<INC:$r1_ifindex,198.51.100.1,\"eth1\",mtu=1500>'"
+	check_err $? "Wrong incoming interface info reported from R1 after address addition"
+	run_cmd "$r1" "ip address del 198.51.100.1/24 dev eth1"
+
+	# Change name and MTU and make sure the result is still correct.
+	# Re-add the route towards H1 since it was deleted when we removed the
+	# last IPv4 address from eth1 on R1.
+	run_cmd "$r1" "ip route add 192.0.2.1/32 nexthop via inet6 fe80::1 dev eth1"
+	run_cmd "$r1" "ip link set dev eth1 name eth1tag mtu 1501"
+	run_cmd "$h1" "traceroute -e 192.0.2.3 $pkt_len | grep '<INC:$r1_ifindex,\"eth1tag\",mtu=1501>'"
+	check_err $? "Wrong incoming interface info reported from R1 after name and MTU change"
+	run_cmd "$r1" "ip link set dev eth1tag name eth1 mtu 1500"
+
+	run_cmd "$r1" "sysctl -w net.ipv4.icmp_errors_extension_mask=0x00"
+	run_cmd "$h2" "sysctl -w net.ipv4.icmp_errors_extension_mask=0x00"
+}
+
+run_traceroute_ext()
+{
+	# Need at least version 2.1.5 for RFC 5837 support.
+	if ! check_traceroute_version 2.1.5; then
+		log_test_skip "traceroute too old, missing ICMP extensions support"
+		return
+	fi
+
+	setup_traceroute_ext
+
+	RET=0
+
+	## General ICMP extensions tests
+
+	# Test that ICMP extensions are disabled by default.
+	run_cmd "$h1" "sysctl net.ipv4.icmp_errors_extension_mask | grep \"= 0$\""
+	check_err $? "ICMP extensions are not disabled by default"
+
+	# Test that unsupported values are rejected. Do not use "sysctl" as
+	# older versions do not return an error code upon failure.
+	run_cmd "$h1" "bash -c \"echo 0x80 > /proc/sys/net/ipv4/icmp_errors_extension_mask\""
+	check_fail $? "Unsupported sysctl value was not rejected"
+
+	## Extension-specific tests
+
+	# Incoming interface info test. Test with various packet sizes,
+	# including the default one.
+	traceroute_ext_iio_iif_test
+	traceroute_ext_iio_iif_test 127
+	traceroute_ext_iio_iif_test 128
+	traceroute_ext_iio_iif_test 129
+
+	log_test "IPv4 traceroute with ICMP extensions"
+
+	cleanup_traceroute_ext
+}
+
+################################################################################
 # Run tests
 
 run_tests()
 {
 	run_traceroute6
 	run_traceroute6_vrf
+	run_traceroute6_ext
 	run_traceroute
 	run_traceroute_vrf
+	run_traceroute_ext
 }
 
 ################################################################################
@@ -462,6 +774,7 @@ done
 
 require_command traceroute6
 require_command traceroute
+require_command jq
 
 run_tests
 
