@@ -1975,7 +1975,6 @@ out_ptp_stop:
 out_set_reset:
 	ravb_set_opmode(ndev, CCC_OPC_RESET);
 out_rpm_put:
-	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 out_napi_off:
 	if (info->nc_queues)
@@ -2404,7 +2403,6 @@ static int ravb_close(struct net_device *ndev)
 	if (error)
 		return error;
 
-	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 
 	return 0;
@@ -3093,7 +3091,6 @@ static int ravb_probe(struct platform_device *pdev)
 	netdev_info(ndev, "Base address at %#x, %pM, IRQ %d.\n",
 		    (u32)ndev->base_addr, ndev->dev_addr, ndev->irq);
 
-	pm_runtime_mark_last_busy(&pdev->dev);
 	pm_runtime_put_autosuspend(&pdev->dev);
 
 	return 0;
@@ -3277,10 +3274,8 @@ static int ravb_resume(struct device *dev)
 	return 0;
 
 out_rpm_put:
-	if (!priv->wol_enabled) {
-		pm_runtime_mark_last_busy(dev);
+	if (!priv->wol_enabled)
 		pm_runtime_put_autosuspend(dev);
-	}
 
 	return ret;
 }
