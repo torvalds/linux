@@ -154,7 +154,7 @@
 #define RTL_8211FVD_PHYID			0x001cc878
 #define RTL_8221B				0x001cc840
 #define RTL_8221B_VB_CG				0x001cc849
-#define RTL_8221B_VN_CG				0x001cc84a
+#define RTL_8221B_VM_CG				0x001cc84a
 #define RTL_8251B				0x001cc862
 #define RTL_8261C				0x001cc890
 
@@ -1523,16 +1523,16 @@ static int rtl8221b_vb_cg_c45_match_phy_device(struct phy_device *phydev,
 	return rtlgen_is_c45_match(phydev, RTL_8221B_VB_CG, true);
 }
 
-static int rtl8221b_vn_cg_c22_match_phy_device(struct phy_device *phydev,
+static int rtl8221b_vm_cg_c22_match_phy_device(struct phy_device *phydev,
 					       const struct phy_driver *phydrv)
 {
-	return rtlgen_is_c45_match(phydev, RTL_8221B_VN_CG, false);
+	return rtlgen_is_c45_match(phydev, RTL_8221B_VM_CG, false);
 }
 
-static int rtl8221b_vn_cg_c45_match_phy_device(struct phy_device *phydev,
+static int rtl8221b_vm_cg_c45_match_phy_device(struct phy_device *phydev,
 					       const struct phy_driver *phydrv)
 {
-	return rtlgen_is_c45_match(phydev, RTL_8221B_VN_CG, true);
+	return rtlgen_is_c45_match(phydev, RTL_8221B_VM_CG, true);
 }
 
 static int rtl_internal_nbaset_match_phy_device(struct phy_device *phydev,
@@ -1879,7 +1879,7 @@ static struct phy_driver realtek_drvs[] = {
 		.suspend        = genphy_c45_pma_suspend,
 		.resume         = rtlgen_c45_resume,
 	}, {
-		.match_phy_device = rtl8221b_vn_cg_c22_match_phy_device,
+		.match_phy_device = rtl8221b_vm_cg_c22_match_phy_device,
 		.name           = "RTL8221B-VM-CG 2.5Gbps PHY (C22)",
 		.probe		= rtl822x_probe,
 		.get_features   = rtl822x_get_features,
@@ -1892,8 +1892,8 @@ static struct phy_driver realtek_drvs[] = {
 		.read_page      = rtl821x_read_page,
 		.write_page     = rtl821x_write_page,
 	}, {
-		.match_phy_device = rtl8221b_vn_cg_c45_match_phy_device,
-		.name           = "RTL8221B-VN-CG 2.5Gbps PHY (C45)",
+		.match_phy_device = rtl8221b_vm_cg_c45_match_phy_device,
+		.name           = "RTL8221B-VM-CG 2.5Gbps PHY (C45)",
 		.probe		= rtl822x_probe,
 		.config_init    = rtl822xb_config_init,
 		.get_rate_matching = rtl822xb_get_rate_matching,

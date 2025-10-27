@@ -243,8 +243,7 @@ struct pcie_link_state {
 	/* Clock PM state */
 	u32 clkpm_capable:1;		/* Clock PM capable? */
 	u32 clkpm_enabled:1;		/* Current Clock PM state */
-	u32 clkpm_default:1;		/* Default Clock PM state by BIOS or
-					   override */
+	u32 clkpm_default:1;		/* Default Clock PM state by BIOS */
 	u32 clkpm_disable:1;		/* Clock PM disabled */
 };
 
@@ -376,18 +375,6 @@ static void pcie_set_clkpm(struct pcie_link_state *link, int enable)
 	pcie_set_clkpm_nocheck(link, enable);
 }
 
-static void pcie_clkpm_override_default_link_state(struct pcie_link_state *link,
-						   int enabled)
-{
-	struct pci_dev *pdev = link->downstream;
-
-	/* For devicetree platforms, enable ClockPM by default */
-	if (of_have_populated_dt() && !enabled) {
-		link->clkpm_default = 1;
-		pci_info(pdev, "ASPM: DT platform, enabling ClockPM\n");
-	}
-}
-
 static void pcie_clkpm_cap_init(struct pcie_link_state *link, int blacklist)
 {
 	int capable = 1, enabled = 1;
@@ -410,7 +397,6 @@ static void pcie_clkpm_cap_init(struct pcie_link_state *link, int blacklist)
 	}
 	link->clkpm_enabled = enabled;
 	link->clkpm_default = enabled;
-	pcie_clkpm_override_default_link_state(link, enabled);
 	link->clkpm_capable = capable;
 	link->clkpm_disable = blacklist ? 1 : 0;
 }
@@ -811,19 +797,17 @@ static void pcie_aspm_override_default_link_state(struct pcie_link_state *link)
 	struct pci_dev *pdev = link->downstream;
 	u32 override;
 
-	/* For devicetree platforms, enable all ASPM states by default */
+	/* For devicetree platforms, enable L0s and L1 by default */
 	if (of_have_populated_dt()) {
-		link->aspm_default = PCIE_LINK_STATE_ASPM_ALL;
+		if (link->aspm_support & PCIE_LINK_STATE_L0S)
+			link->aspm_default |= PCIE_LINK_STATE_L0S;
+		if (link->aspm_support & PCIE_LINK_STATE_L1)
+			link->aspm_default |= PCIE_LINK_STATE_L1;
 		override = link->aspm_default & ~link->aspm_enabled;
 		if (override)
-			pci_info(pdev, "ASPM: DT platform, enabling%s%s%s%s%s%s%s\n",
-				 FLAG(override, L0S_UP, " L0s-up"),
-				 FLAG(override, L0S_DW, " L0s-dw"),
-				 FLAG(override, L1, " L1"),
-				 FLAG(override, L1_1, " ASPM-L1.1"),
-				 FLAG(override, L1_2, " ASPM-L1.2"),
-				 FLAG(override, L1_1_PCIPM, " PCI-PM-L1.1"),
-				 FLAG(override, L1_2_PCIPM, " PCI-PM-L1.2"));
+			pci_info(pdev, "ASPM: default states%s%s\n",
+				 FLAG(override, L0S, " L0s"),
+				 FLAG(override, L1, " L1"));
 	}
 }
 
