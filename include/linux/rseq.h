@@ -5,6 +5,8 @@
 #ifdef CONFIG_RSEQ
 #include <linux/sched.h>
 
+#include <uapi/linux/rseq.h>
+
 void __rseq_handle_notify_resume(struct ksignal *sig, struct pt_regs *regs);
 
 static inline void rseq_handle_notify_resume(struct pt_regs *regs)
@@ -48,7 +50,7 @@ static inline void rseq_virt_userspace_exit(void)
 static inline void rseq_reset(struct task_struct *t)
 {
 	memset(&t->rseq, 0, sizeof(t->rseq));
-	t->rseq.ids.cpu_cid = ~0ULL;
+	t->rseq.ids.cpu_id = RSEQ_CPU_ID_UNINITIALIZED;
 }
 
 static inline void rseq_execve(struct task_struct *t)
@@ -59,15 +61,19 @@ static inline void rseq_execve(struct task_struct *t)
 /*
  * If parent process has a registered restartable sequences area, the
  * child inherits. Unregister rseq for a clone with CLONE_VM set.
+ *
+ * On fork, keep the IDs (CPU, MMCID) of the parent, which avoids a fault
+ * on the COW page on exit to user space, when the child stays on the same
+ * CPU as the parent. That's obviously not guaranteed, but in overcommit
+ * scenarios it is more likely and optimizes for the fork/exec case without
+ * taking the fault.
  */
 static inline void rseq_fork(struct task_struct *t, u64 clone_flags)
 {
-	if (clone_flags & CLONE_VM) {
+	if (clone_flags & CLONE_VM)
 		rseq_reset(t);
-	} else {
+	else
 		t->rseq = current->rseq;
-		t->rseq.ids.cpu_cid = ~0ULL;
-	}
 }
 
 #else /* CONFIG_RSEQ */

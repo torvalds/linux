@@ -42,7 +42,6 @@
 #include <linux/posix-timers_types.h>
 #include <linux/restart_block.h>
 #include <linux/rseq_types.h>
-#include <uapi/linux/rseq.h>
 #include <linux/seqlock_types.h>
 #include <linux/kcsan.h>
 #include <linux/rv.h>
@@ -1408,15 +1407,6 @@ struct task_struct {
 #endif /* CONFIG_NUMA_BALANCING */
 
 	struct rseq_data		rseq;
-#ifdef CONFIG_DEBUG_RSEQ
-	/*
-	 * This is a place holder to save a copy of the rseq fields for
-	 * validation of read-only fields. The struct rseq has a
-	 * variable-length array at the end, so it cannot be used
-	 * directly. Reserve a size large enough for the known fields.
-	 */
-	char				rseq_fields[sizeof(struct rseq)];
-#endif
 
 #ifdef CONFIG_SCHED_MM_CID
 	int				mm_cid;		/* Current cid in mm */

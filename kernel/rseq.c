@@ -88,13 +88,6 @@
 # define RSEQ_EVENT_GUARD	preempt
 #endif
 
-/* The original rseq structure size (including padding) is 32 bytes. */
-#define ORIG_RSEQ_SIZE		32
-
-#define RSEQ_CS_NO_RESTART_FLAGS (RSEQ_CS_FLAG_NO_RESTART_ON_PREEMPT | \
-				  RSEQ_CS_FLAG_NO_RESTART_ON_SIGNAL | \
-				  RSEQ_CS_FLAG_NO_RESTART_ON_MIGRATE)
-
 DEFINE_STATIC_KEY_MAYBE(CONFIG_RSEQ_DEBUG_DEFAULT_ENABLE, rseq_debug_enabled);
 
 static inline void rseq_control_debug(bool on)
@@ -227,159 +220,9 @@ static int __init rseq_debugfs_init(void)
 __initcall(rseq_debugfs_init);
 #endif /* CONFIG_DEBUG_FS */
 
-#ifdef CONFIG_DEBUG_RSEQ
-static struct rseq *rseq_kernel_fields(struct task_struct *t)
+static bool rseq_set_ids(struct task_struct *t, struct rseq_ids *ids, u32 node_id)
 {
-	return (struct rseq *) t->rseq_fields;
-}
-
-static int rseq_validate_ro_fields(struct task_struct *t)
-{
-	static DEFINE_RATELIMIT_STATE(_rs,
-				      DEFAULT_RATELIMIT_INTERVAL,
-				      DEFAULT_RATELIMIT_BURST);
-	u32 cpu_id_start, cpu_id, node_id, mm_cid;
-	struct rseq __user *rseq = t->rseq.usrptr;
-
-	/*
-	 * Validate fields which are required to be read-only by
-	 * user-space.
-	 */
-	if (!user_read_access_begin(rseq, t->rseq.len))
-		goto efault;
-	unsafe_get_user(cpu_id_start, &rseq->cpu_id_start, efault_end);
-	unsafe_get_user(cpu_id, &rseq->cpu_id, efault_end);
-	unsafe_get_user(node_id, &rseq->node_id, efault_end);
-	unsafe_get_user(mm_cid, &rseq->mm_cid, efault_end);
-	user_read_access_end();
-
-	if ((cpu_id_start != rseq_kernel_fields(t)->cpu_id_start ||
-	    cpu_id != rseq_kernel_fields(t)->cpu_id ||
-	    node_id != rseq_kernel_fields(t)->node_id ||
-	    mm_cid != rseq_kernel_fields(t)->mm_cid) && __ratelimit(&_rs)) {
-
-		pr_warn("Detected rseq corruption for pid: %d, name: %s\n"
-			"\tcpu_id_start: %u ?= %u\n"
-			"\tcpu_id:       %u ?= %u\n"
-			"\tnode_id:      %u ?= %u\n"
-			"\tmm_cid:       %u ?= %u\n",
-			t->pid, t->comm,
-			cpu_id_start, rseq_kernel_fields(t)->cpu_id_start,
-			cpu_id, rseq_kernel_fields(t)->cpu_id,
-			node_id, rseq_kernel_fields(t)->node_id,
-			mm_cid, rseq_kernel_fields(t)->mm_cid);
-	}
-
-	/* For now, only print a console warning on mismatch. */
-	return 0;
-
-efault_end:
-	user_read_access_end();
-efault:
-	return -EFAULT;
-}
-
-/*
- * Update an rseq field and its in-kernel copy in lock-step to keep a coherent
- * state.
- */
-#define rseq_unsafe_put_user(t, value, field, error_label)			\
-	do {									\
-		unsafe_put_user(value, &t->rseq.usrptr->field, error_label);	\
-		rseq_kernel_fields(t)->field = value;				\
-	} while (0)
-
-#else
-static int rseq_validate_ro_fields(struct task_struct *t)
-{
-	return 0;
-}
-
-#define rseq_unsafe_put_user(t, value, field, error_label)		\
-	unsafe_put_user(value, &t->rseq.usrptr->field, error_label)
-#endif
-
-static int rseq_update_cpu_node_id(struct task_struct *t)
-{
-	struct rseq __user *rseq = t->rseq.usrptr;
-	u32 cpu_id = raw_smp_processor_id();
-	u32 node_id = cpu_to_node(cpu_id);
-	u32 mm_cid = task_mm_cid(t);
-
-	rseq_stat_inc(rseq_stats.ids);
-
-	/* Validate read-only rseq fields on debug kernels */
-	if (rseq_validate_ro_fields(t))
-		goto efault;
-	WARN_ON_ONCE((int) mm_cid < 0);
-
-	if (!user_write_access_begin(rseq, t->rseq.len))
-		goto efault;
-
-	rseq_unsafe_put_user(t, cpu_id, cpu_id_start, efault_end);
-	rseq_unsafe_put_user(t, cpu_id, cpu_id, efault_end);
-	rseq_unsafe_put_user(t, node_id, node_id, efault_end);
-	rseq_unsafe_put_user(t, mm_cid, mm_cid, efault_end);
-
-	/* Cache the user space values */
-	t->rseq.ids.cpu_id = cpu_id;
-	t->rseq.ids.mm_cid = mm_cid;
-
-	/*
-	 * Additional feature fields added after ORIG_RSEQ_SIZE
-	 * need to be conditionally updated only if
-	 * t->rseq_len != ORIG_RSEQ_SIZE.
-	 */
-	user_write_access_end();
-	trace_rseq_update(t);
-	return 0;
-
-efault_end:
-	user_write_access_end();
-efault:
-	return -EFAULT;
-}
-
-static int rseq_reset_rseq_cpu_node_id(struct task_struct *t)
-{
-	struct rseq __user *rseq = t->rseq.usrptr;
-	u32 cpu_id_start = 0, cpu_id = RSEQ_CPU_ID_UNINITIALIZED, node_id = 0,
-	    mm_cid = 0;
-
-	/*
-	 * Validate read-only rseq fields.
-	 */
-	if (rseq_validate_ro_fields(t))
-		goto efault;
-
-	if (!user_write_access_begin(rseq, t->rseq.len))
-		goto efault;
-
-	/*
-	 * Reset all fields to their initial state.
-	 *
-	 * All fields have an initial state of 0 except cpu_id which is set to
-	 * RSEQ_CPU_ID_UNINITIALIZED, so that any user coming in after
-	 * unregistration can figure out that rseq needs to be registered
-	 * again.
-	 */
-	rseq_unsafe_put_user(t, cpu_id_start, cpu_id_start, efault_end);
-	rseq_unsafe_put_user(t, cpu_id, cpu_id, efault_end);
-	rseq_unsafe_put_user(t, node_id, node_id, efault_end);
-	rseq_unsafe_put_user(t, mm_cid, mm_cid, efault_end);
-
-	/*
-	 * Additional feature fields added after ORIG_RSEQ_SIZE
-	 * need to be conditionally reset only if
-	 * t->rseq_len != ORIG_RSEQ_SIZE.
-	 */
-	user_write_access_end();
-	return 0;
-
-efault_end:
-	user_write_access_end();
-efault:
-	return -EFAULT;
+	return rseq_set_ids_get_csaddr(t, ids, node_id, NULL);
 }
 
 static bool rseq_handle_cs(struct task_struct *t, struct pt_regs *regs)
@@ -410,6 +253,8 @@ efault:
 void __rseq_handle_notify_resume(struct ksignal *ksig, struct pt_regs *regs)
 {
 	struct task_struct *t = current;
+	struct rseq_ids ids;
+	u32 node_id;
 	bool event;
 	int sig;
 
@@ -456,6 +301,8 @@ void __rseq_handle_notify_resume(struct ksignal *ksig, struct pt_regs *regs)
 	scoped_guard(RSEQ_EVENT_GUARD) {
 		event = t->rseq.event.sched_switch;
 		t->rseq.event.sched_switch = false;
+		ids.cpu_id = task_cpu(t);
+		ids.mm_cid = task_mm_cid(t);
 	}
 
 	if (!IS_ENABLED(CONFIG_DEBUG_RSEQ) && !event)
@@ -464,7 +311,8 @@ void __rseq_handle_notify_resume(struct ksignal *ksig, struct pt_regs *regs)
 	if (!rseq_handle_cs(t, regs))
 		goto error;
 
-	if (unlikely(rseq_update_cpu_node_id(t)))
+	node_id = cpu_to_node(ids.cpu_id);
+	if (!rseq_set_ids(t, &ids, node_id))
 		goto error;
 	return;
 
@@ -504,13 +352,33 @@ void rseq_syscall(struct pt_regs *regs)
 }
 #endif
 
+static bool rseq_reset_ids(void)
+{
+	struct rseq_ids ids = {
+		.cpu_id		= RSEQ_CPU_ID_UNINITIALIZED,
+		.mm_cid		= 0,
+	};
+
+	/*
+	 * If this fails, terminate it because this leaves the kernel in
+	 * stupid state as exit to user space will try to fixup the ids
+	 * again.
+	 */
+	if (rseq_set_ids(current, &ids, 0))
+		return true;
+
+	force_sig(SIGSEGV);
+	return false;
+}
+
+/* The original rseq structure size (including padding) is 32 bytes. */
+#define ORIG_RSEQ_SIZE		32
+
 /*
  * sys_rseq - setup restartable sequences for caller thread.
  */
 SYSCALL_DEFINE4(rseq, struct rseq __user *, rseq, u32, rseq_len, int, flags, u32, sig)
 {
-	int ret;
-
 	if (flags & RSEQ_FLAG_UNREGISTER) {
 		if (flags & ~RSEQ_FLAG_UNREGISTER)
 			return -EINVAL;
@@ -521,9 +389,8 @@ SYSCALL_DEFINE4(rseq, struct rseq __user *, rseq, u32, rseq_len, int, flags, u32
 			return -EINVAL;
 		if (current->rseq.sig != sig)
 			return -EPERM;
-		ret = rseq_reset_rseq_cpu_node_id(current);
-		if (ret)
-			return ret;
+		if (!rseq_reset_ids())
+			return -EFAULT;
 		rseq_reset(current);
 		return 0;
 	}
@@ -563,27 +430,22 @@ SYSCALL_DEFINE4(rseq, struct rseq __user *, rseq, u32, rseq_len, int, flags, u32
 	if (!access_ok(rseq, rseq_len))
 		return -EFAULT;
 
-	/*
-	 * If the rseq_cs pointer is non-NULL on registration, clear it to
-	 * avoid a potential segfault on return to user-space. The proper thing
-	 * to do would have been to fail the registration but this would break
-	 * older libcs that reuse the rseq area for new threads without
-	 * clearing the fields. Don't bother reading it, just reset it.
-	 */
-	if (put_user(0UL, &rseq->rseq_cs))
-		return -EFAULT;
+	scoped_user_write_access(rseq, efault) {
+		/*
+		 * If the rseq_cs pointer is non-NULL on registration, clear it to
+		 * avoid a potential segfault on return to user-space. The proper thing
+		 * to do would have been to fail the registration but this would break
+		 * older libcs that reuse the rseq area for new threads without
+		 * clearing the fields. Don't bother reading it, just reset it.
+		 */
+		unsafe_put_user(0UL, &rseq->rseq_cs, efault);
+		/* Initialize IDs in user space */
+		unsafe_put_user(RSEQ_CPU_ID_UNINITIALIZED, &rseq->cpu_id_start, efault);
+		unsafe_put_user(RSEQ_CPU_ID_UNINITIALIZED, &rseq->cpu_id, efault);
+		unsafe_put_user(0U, &rseq->node_id, efault);
+		unsafe_put_user(0U, &rseq->mm_cid, efault);
+	}
 
-#ifdef CONFIG_DEBUG_RSEQ
-	/*
-	 * Initialize the in-kernel rseq fields copy for validation of
-	 * read-only fields.
-	 */
-	if (get_user(rseq_kernel_fields(current)->cpu_id_start, &rseq->cpu_id_start) ||
-	    get_user(rseq_kernel_fields(current)->cpu_id, &rseq->cpu_id) ||
-	    get_user(rseq_kernel_fields(current)->node_id, &rseq->node_id) ||
-	    get_user(rseq_kernel_fields(current)->mm_cid, &rseq->mm_cid))
-		return -EFAULT;
-#endif
 	/*
 	 * Activate the registration by setting the rseq area address, length
 	 * and signature in the task struct.
@@ -599,6 +461,8 @@ SYSCALL_DEFINE4(rseq, struct rseq __user *, rseq, u32, rseq_len, int, flags, u32
 	 */
 	current->rseq.event.has_rseq = true;
 	rseq_sched_switch_event(current);
-
 	return 0;
+
+efault:
+	return -EFAULT;
 }

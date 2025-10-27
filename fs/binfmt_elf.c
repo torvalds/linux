@@ -46,7 +46,7 @@
 #include <linux/cred.h>
 #include <linux/dax.h>
 #include <linux/uaccess.h>
-#include <linux/rseq.h>
+#include <uapi/linux/rseq.h>
 #include <asm/param.h>
 #include <asm/page.h>
 
