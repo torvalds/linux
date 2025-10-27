@@ -1084,6 +1084,20 @@ static bool lnl_fbc_pixel_format_is_valid(const struct intel_plane_state *plane_
 	}
 }
 
+static bool
+xe3p_lpd_fbc_fp16_format_is_valid(const struct intel_plane_state *plane_state)
+{
+	const struct drm_framebuffer *fb = plane_state->hw.fb;
+
+	switch (fb->format->format) {
+	case DRM_FORMAT_ARGB16161616F:
+	case DRM_FORMAT_ABGR16161616F:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static bool xe3p_lpd_fbc_pixel_format_is_valid(const struct intel_plane_state *plane_state)
 {
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
@@ -1091,13 +1105,14 @@ static bool xe3p_lpd_fbc_pixel_format_is_valid(const struct intel_plane_state *p
 	if (lnl_fbc_pixel_format_is_valid(plane_state))
 		return true;
 
+	if (xe3p_lpd_fbc_fp16_format_is_valid(plane_state))
+		return true;
+
 	switch (fb->format->format) {
 	case DRM_FORMAT_XRGB16161616:
 	case DRM_FORMAT_XBGR16161616:
 	case DRM_FORMAT_ARGB16161616:
 	case DRM_FORMAT_ABGR16161616:
-	case DRM_FORMAT_ARGB16161616F:
-	case DRM_FORMAT_ABGR16161616F:
 		return true;
 	default:
 		return false;
