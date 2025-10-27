@@ -327,7 +327,10 @@ static void ni_usb_soft_update_status(struct gpib_board *board, unsigned int ni_
 	board->status &= ~clear_mask;
 	board->status &= ~ni_usb_ibsta_mask;
 	board->status |= ni_usb_ibsta & ni_usb_ibsta_mask;
-	// FIXME should generate events on DTAS and DCAS
+	if (ni_usb_ibsta & DCAS)
+		push_gpib_event(board, EVENT_DEV_CLR);
+	if (ni_usb_ibsta & DTAS)
+		push_gpib_event(board, EVENT_DEV_TRG);
 
 	spin_lock_irqsave(&board->spinlock, flags);
 /* remove set status bits from monitored set why ?***/
@@ -694,8 +697,12 @@ static int ni_usb_read(struct gpib_board *board, u8 *buffer, size_t length,
 		 */
 		break;
 	case NIUSB_ATN_STATE_ERROR:
-		retval = -EIO;
-		dev_err(&usb_dev->dev, "read when ATN set\n");
+		if (status.ibsta & DCAS) {
+			retval = -EINTR;
+		} else {
+			retval = -EIO;
+			dev_dbg(&usb_dev->dev, "read when ATN set stat: 0x%06x\n", status.ibsta);
+		}
 		break;
 	case NIUSB_ADDRESSING_ERROR:
 		retval = -EIO;
