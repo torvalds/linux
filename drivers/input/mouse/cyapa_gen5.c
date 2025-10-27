@@ -2833,7 +2833,6 @@ static int cyapa_pip_event_process(struct cyapa *cyapa,
 		 * process.
 		 */
 		pm_runtime_get_sync(dev);
-		pm_runtime_mark_last_busy(dev);
 		pm_runtime_put_sync_autosuspend(dev);
 		return 0;
 	} else if (report_id != PIP_TOUCH_REPORT_ID &&
