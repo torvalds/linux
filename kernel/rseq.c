@@ -464,7 +464,7 @@ SYSCALL_DEFINE4(rseq, struct rseq __user *, rseq, u32, rseq_len, int, flags, u32
 	 * are updated before returning to user-space.
 	 */
 	current->rseq.event.has_rseq = true;
-	rseq_sched_switch_event(current);
+	rseq_force_update();
 	return 0;
 
 efault:

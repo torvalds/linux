@@ -2209,6 +2209,7 @@ static inline void __set_task_cpu(struct task_struct *p, unsigned int cpu)
 	smp_wmb();
 	WRITE_ONCE(task_thread_info(p)->cpu, cpu);
 	p->wake_cpu = cpu;
+	rseq_sched_set_task_cpu(p, cpu);
 #endif /* CONFIG_SMP */
 }
 
@@ -3807,8 +3808,10 @@ static inline void switch_mm_cid(struct rq *rq,
 		mm_cid_put_lazy(prev);
 		prev->mm_cid = -1;
 	}
-	if (next->mm_cid_active)
+	if (next->mm_cid_active) {
 		next->last_mm_cid = next->mm_cid = mm_cid_get(rq, next, next->mm);
+		rseq_sched_set_task_mm_cid(next, next->mm_cid);
+	}
 }
 
 #else /* !CONFIG_SCHED_MM_CID: */
