@@ -57,6 +57,7 @@ static inline void rseq_virt_userspace_exit(void)
 static inline void rseq_reset(struct task_struct *t)
 {
 	memset(&t->rseq, 0, sizeof(t->rseq));
+	t->rseq.ids.cpu_cid = ~0ULL;
 }
 
 static inline void rseq_execve(struct task_struct *t)
@@ -70,10 +71,12 @@ static inline void rseq_execve(struct task_struct *t)
  */
 static inline void rseq_fork(struct task_struct *t, u64 clone_flags)
 {
-	if (clone_flags & CLONE_VM)
+	if (clone_flags & CLONE_VM) {
 		rseq_reset(t);
-	else
+	} else {
 		t->rseq = current->rseq;
+		t->rseq.ids.cpu_cid = ~0ULL;
+	}
 }
 
 #else /* CONFIG_RSEQ */
