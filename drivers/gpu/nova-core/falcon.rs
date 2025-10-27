@@ -22,6 +22,10 @@ use crate::{
     dma::DmaObject,
     driver::Bar0,
     gpu::Chipset,
+    num::{
+        FromSafeCast,
+        IntoSafeCast, //
+    },
     regs,
     regs::macros::RegisterBase, //
 };
@@ -450,7 +454,7 @@ impl<E: FalconEngine + 'static> Falcon<E> {
             FalconMem::Imem => (load_offsets.src_start, fw.dma_handle()),
             FalconMem::Dmem => (
                 0,
-                fw.dma_handle_with_offset(load_offsets.src_start as usize)?,
+                fw.dma_handle_with_offset(load_offsets.src_start.into_safe_cast())?,
             ),
         };
         if dma_start % DmaAddress::from(DMA_LEN) > 0 {
@@ -476,7 +480,7 @@ impl<E: FalconEngine + 'static> Falcon<E> {
                 dev_err!(self.dev, "DMA transfer length overflow");
                 return Err(EOVERFLOW);
             }
-            Some(upper_bound) if upper_bound as usize > fw.size() => {
+            Some(upper_bound) if usize::from_safe_cast(upper_bound) > fw.size() => {
                 dev_err!(self.dev, "DMA transfer goes beyond range of DMA object");
                 return Err(EINVAL);
             }

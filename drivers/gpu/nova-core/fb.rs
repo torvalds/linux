@@ -17,6 +17,7 @@ use crate::{
     dma::DmaObject,
     driver::Bar0,
     gpu::Chipset,
+    num::usize_as_u64,
     regs, //
 };
 
@@ -112,14 +113,14 @@ impl FbLayout {
 
         let vga_workspace = {
             let vga_base = {
-                const NV_PRAMIN_SIZE: u64 = SZ_1M as u64;
+                const NV_PRAMIN_SIZE: u64 = usize_as_u64(SZ_1M);
                 let base = fb.end - NV_PRAMIN_SIZE;
 
                 if hal.supports_display(bar) {
                     match regs::NV_PDISP_VGA_WORKSPACE_BASE::read(bar).vga_workspace_addr() {
                         Some(addr) => {
                             if addr < base {
-                                const VBIOS_WORKSPACE_SIZE: u64 = SZ_128K as u64;
+                                const VBIOS_WORKSPACE_SIZE: u64 = usize_as_u64(SZ_128K);
 
                                 // Point workspace address to end of framebuffer.
                                 fb.end - VBIOS_WORKSPACE_SIZE
@@ -139,7 +140,7 @@ impl FbLayout {
 
         let frts = {
             const FRTS_DOWN_ALIGN: Alignment = Alignment::new::<SZ_128K>();
-            const FRTS_SIZE: u64 = SZ_1M as u64;
+            const FRTS_SIZE: u64 = usize_as_u64(SZ_1M);
             let frts_base = vga_workspace.start.align_down(FRTS_DOWN_ALIGN) - FRTS_SIZE;
 
             frts_base..frts_base + FRTS_SIZE

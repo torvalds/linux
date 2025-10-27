@@ -46,6 +46,10 @@ use crate::{
         Signed,
         Unsigned, //
     },
+    num::{
+        FromSafeCast,
+        IntoSafeCast, //
+    },
     vbios::Vbios,
 };
 
@@ -267,7 +271,7 @@ impl FirmwareDmaObject<FwsecFirmware, Unsigned> {
         let ucode = bios.fwsec_image().ucode(desc)?;
         let mut dma_object = DmaObject::from_data(dev, ucode)?;
 
-        let hdr_offset = (desc.imem_load_size + desc.interface_offset) as usize;
+        let hdr_offset = usize::from_safe_cast(desc.imem_load_size + desc.interface_offset);
         // SAFETY: we have exclusive access to `dma_object`.
         let hdr: &FalconAppifHdrV1 = unsafe { transmute(&dma_object, hdr_offset) }?;
 
@@ -292,7 +296,10 @@ impl FirmwareDmaObject<FwsecFirmware, Unsigned> {
 
             // SAFETY: we have exclusive access to `dma_object`.
             let dmem_mapper: &mut FalconAppifDmemmapperV3 = unsafe {
-                transmute_mut(&mut dma_object, (desc.imem_load_size + dmem_base) as usize)
+                transmute_mut(
+                    &mut dma_object,
+                    (desc.imem_load_size + dmem_base).into_safe_cast(),
+                )
             }?;
 
             dmem_mapper.init_cmd = match cmd {
@@ -305,7 +312,7 @@ impl FirmwareDmaObject<FwsecFirmware, Unsigned> {
             let frts_cmd: &mut FrtsCmd = unsafe {
                 transmute_mut(
                     &mut dma_object,
-                    (desc.imem_load_size + cmd_in_buffer_offset) as usize,
+                    (desc.imem_load_size + cmd_in_buffer_offset).into_safe_cast(),
                 )
             }?;
 
@@ -353,7 +360,7 @@ impl FwsecFirmware {
         // Patch signature if needed.
         let desc = bios.fwsec_image().header()?;
         let ucode_signed = if desc.signature_count != 0 {
-            let sig_base_img = (desc.imem_load_size + desc.pkc_data_offset) as usize;
+            let sig_base_img = usize::from_safe_cast(desc.imem_load_size + desc.pkc_data_offset);
             let desc_sig_versions = u32::from(desc.signature_versions);
             let reg_fuse_version =
                 falcon.signature_reg_fuse_version(bar, desc.engine_id_mask, desc.ucode_id)?;
@@ -384,7 +391,7 @@ impl FwsecFirmware {
                 // Mask of the bits of `desc_sig_versions` to preserve.
                 let reg_fuse_version_mask = reg_fuse_version_bit.wrapping_sub(1);
 
-                (desc_sig_versions & reg_fuse_version_mask).count_ones() as usize
+                usize::from_safe_cast((desc_sig_versions & reg_fuse_version_mask).count_ones())
             };
 
             dev_dbg!(dev, "patching signature with index {}\n", signature_idx);

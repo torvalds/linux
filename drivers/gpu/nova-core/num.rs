@@ -106,7 +106,6 @@ impl_safe_as!(usize as { u32 });
 ///
 /// assert_eq!(usize::from_safe_cast(0xf00u32), 0xf00u32 as usize);
 /// ```
-#[expect(unused)]
 pub(crate) trait FromSafeCast<T> {
     /// Create a `Self` from `value`. This operation is guaranteed to be lossless.
     fn from_safe_cast(value: T) -> Self;
@@ -150,7 +149,6 @@ impl FromSafeCast<u64> for usize {
 ///
 /// assert_eq!(0xf00u32.into_safe_cast(), 0xf00u32 as usize);
 /// ```
-#[expect(unused)]
 pub(crate) trait IntoSafeCast<T> {
     /// Convert `self` into a `T`. This operation is guaranteed to be lossless.
     fn into_safe_cast(self) -> T;

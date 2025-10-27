@@ -24,6 +24,7 @@ use crate::{
         Chipset, //
     },
     gsp::GSP_PAGE_SIZE,
+    num::FromSafeCast,
 };
 
 /// Ad-hoc and temporary module to extract sections from ELF images.
@@ -245,10 +246,11 @@ impl GspFirmware {
 fn map_into_lvl(sg_table: &SGTable<Owned<VVec<u8>>>, mut dst: VVec<u8>) -> Result<VVec<u8>> {
     for sg_entry in sg_table.iter() {
         // Number of pages we need to map.
-        let num_pages = (sg_entry.dma_len() as usize).div_ceil(GSP_PAGE_SIZE);
+        let num_pages = usize::from_safe_cast(sg_entry.dma_len()).div_ceil(GSP_PAGE_SIZE);
 
         for i in 0..num_pages {
-            let entry = sg_entry.dma_address() + (i as u64 * GSP_PAGE_SIZE as u64);
+            let entry = sg_entry.dma_address()
+                + (u64::from_safe_cast(i) * u64::from_safe_cast(GSP_PAGE_SIZE));
             dst.extend_from_slice(&entry.to_le_bytes(), GFP_KERNEL)?;
         }
     }
