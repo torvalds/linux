@@ -1239,7 +1239,10 @@ static int irq_thread(void *data)
 
 	irq_thread_set_ready(desc, action);
 
-	sched_set_fifo(current);
+	if (action->handler == irq_forced_secondary_handler)
+		sched_set_fifo_secondary(current);
+	else
+		sched_set_fifo(current);
 
 	if (force_irqthreads() && test_bit(IRQTF_FORCED_THREAD,
 					   &action->thread_flags))
