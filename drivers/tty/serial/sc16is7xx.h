@@ -8,7 +8,6 @@
 #include <linux/regmap.h>
 #include <linux/types.h>
 
-#define SC16IS7XX_NAME		"sc16is7xx"
 #define SC16IS7XX_MAX_PORTS	2 /* Maximum number of UART ports per IC. */
 
 struct device;
