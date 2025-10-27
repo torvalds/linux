@@ -41,6 +41,7 @@ o        `                     ~~~~\___/~~~~    ` controller in FPGA is ,.`
  */
 
 #include <linux/bitops.h>
+#include <linux/cleanup.h>
 #include <linux/compiler.h>
 #include <linux/err.h>
 #include <linux/init.h>
@@ -229,9 +230,8 @@ static int bgpio_set(struct gpio_chip *gc, unsigned int gpio, int val)
 {
 	struct gpio_generic_chip *chip = to_gpio_generic_chip(gc);
 	unsigned long mask = bgpio_line2mask(gc, gpio);
-	unsigned long flags;
 
-	raw_spin_lock_irqsave(&chip->lock, flags);
+	guard(raw_spinlock)(&chip->lock);
 
 	if (val)
 		chip->sdata |= mask;
@@ -239,8 +239,6 @@ static int bgpio_set(struct gpio_chip *gc, unsigned int gpio, int val)
 		chip->sdata &= ~mask;
 
 	chip->write_reg(chip->reg_dat, chip->sdata);
-
-	raw_spin_unlock_irqrestore(&chip->lock, flags);
 
 	return 0;
 }
@@ -262,9 +260,9 @@ static int bgpio_set_with_clear(struct gpio_chip *gc, unsigned int gpio,
 static int bgpio_set_set(struct gpio_chip *gc, unsigned int gpio, int val)
 {
 	struct gpio_generic_chip *chip = to_gpio_generic_chip(gc);
-	unsigned long mask = bgpio_line2mask(gc, gpio), flags;
+	unsigned long mask = bgpio_line2mask(gc, gpio);
 
-	raw_spin_lock_irqsave(&chip->lock, flags);
+	guard(raw_spinlock)(&chip->lock);
 
 	if (val)
 		chip->sdata |= mask;
@@ -272,8 +270,6 @@ static int bgpio_set_set(struct gpio_chip *gc, unsigned int gpio, int val)
 		chip->sdata &= ~mask;
 
 	chip->write_reg(chip->reg_set, chip->sdata);
-
-	raw_spin_unlock_irqrestore(&chip->lock, flags);
 
 	return 0;
 }
@@ -303,9 +299,9 @@ static void bgpio_set_multiple_single_reg(struct gpio_chip *gc,
 					  void __iomem *reg)
 {
 	struct gpio_generic_chip *chip = to_gpio_generic_chip(gc);
-	unsigned long flags, set_mask, clear_mask;
+	unsigned long set_mask, clear_mask;
 
-	raw_spin_lock_irqsave(&chip->lock, flags);
+	guard(raw_spinlock)(&chip->lock);
 
 	bgpio_multiple_get_masks(gc, mask, bits, &set_mask, &clear_mask);
 
@@ -313,8 +309,6 @@ static void bgpio_set_multiple_single_reg(struct gpio_chip *gc,
 	chip->sdata &= ~clear_mask;
 
 	chip->write_reg(reg, chip->sdata);
-
-	raw_spin_unlock_irqrestore(&chip->lock, flags);
 }
 
 static int bgpio_set_multiple(struct gpio_chip *gc, unsigned long *mask,
@@ -394,18 +388,15 @@ static int bgpio_simple_dir_out(struct gpio_chip *gc, unsigned int gpio,
 static int bgpio_dir_in(struct gpio_chip *gc, unsigned int gpio)
 {
 	struct gpio_generic_chip *chip = to_gpio_generic_chip(gc);
-	unsigned long flags;
 
-	raw_spin_lock_irqsave(&chip->lock, flags);
+	scoped_guard(raw_spinlock, &chip->lock) {
+		chip->sdir &= ~bgpio_line2mask(gc, gpio);
 
-	chip->sdir &= ~bgpio_line2mask(gc, gpio);
-
-	if (chip->reg_dir_in)
-		chip->write_reg(chip->reg_dir_in, ~chip->sdir);
-	if (chip->reg_dir_out)
-		chip->write_reg(chip->reg_dir_out, chip->sdir);
-
-	raw_spin_unlock_irqrestore(&chip->lock, flags);
+		if (chip->reg_dir_in)
+			chip->write_reg(chip->reg_dir_in, ~chip->sdir);
+		if (chip->reg_dir_out)
+			chip->write_reg(chip->reg_dir_out, chip->sdir);
+	}
 
 	return bgpio_dir_return(gc, gpio, false);
 }
@@ -437,9 +428,8 @@ static int bgpio_get_dir(struct gpio_chip *gc, unsigned int gpio)
 static void bgpio_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
 {
 	struct gpio_generic_chip *chip = to_gpio_generic_chip(gc);
-	unsigned long flags;
 
-	raw_spin_lock_irqsave(&chip->lock, flags);
+	guard(raw_spinlock)(&chip->lock);
 
 	chip->sdir |= bgpio_line2mask(gc, gpio);
 
@@ -447,8 +437,6 @@ static void bgpio_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
 		chip->write_reg(chip->reg_dir_in, ~chip->sdir);
 	if (chip->reg_dir_out)
 		chip->write_reg(chip->reg_dir_out, chip->sdir);
-
-	raw_spin_unlock_irqrestore(&chip->lock, flags);
 }
 
 static int bgpio_dir_out_dir_first(struct gpio_chip *gc, unsigned int gpio,
