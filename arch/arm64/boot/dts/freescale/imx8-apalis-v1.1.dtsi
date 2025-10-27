@@ -31,12 +31,6 @@
 				      3000 1>;
 	};
 
-	/* TODO: LVDS Panel */
-
-	/* TODO: Shared PCIe/SATA Reference Clock */
-
-	/* TODO: PCIe Wi-Fi Reference Clock */
-
 	/*
 	 * Power management bus used to control LDO1OUT of the
 	 * second PMIC PF8100. This is used for controlling voltage levels of
@@ -268,8 +262,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_adc1>;
 };
-
-/* TODO: Asynchronous Sample Rate Converter (ASRC) */
 
 &cpu_alert0 {
 	temperature = <95000>;
