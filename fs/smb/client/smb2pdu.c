@@ -36,7 +36,6 @@
 #include "../common/smb2status.h"
 #include "smb2glob.h"
 #include "cifs_spnego.h"
-#include "../common/smbdirect/smbdirect.h"
 #include "smbdirect.h"
 #include "trace.h"
 #ifdef CONFIG_CIFS_DFS_UPCALL

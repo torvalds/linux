@@ -11,12 +11,8 @@
 #define cifs_rdma_enabled(server)	((server)->rdma)
 
 #include "cifsglob.h"
-#include <rdma/ib_verbs.h>
-#include <rdma/rdma_cm.h>
-#include <linux/mempool.h>
 
 #include "../common/smbdirect/smbdirect.h"
-#include "../common/smbdirect/smbdirect_socket.h"
 
 extern int rdma_readwrite_threshold;
 extern int smbd_max_frmr_depth;
@@ -27,15 +23,6 @@ extern int smbd_max_send_size;
 extern int smbd_send_credit_target;
 extern int smbd_receive_credit_max;
 
-/*
- * The context for the SMBDirect transport
- * Everything related to the transport is here. It has several logical parts
- * 1. RDMA related structures
- * 2. SMBDirect connection parameters
- * 3. Memory registrations
- * 4. Receive and reassembly queues for data receive path
- * 5. mempools for allocating packets
- */
 struct smbd_connection {
 	struct smbdirect_socket *socket;
 	struct workqueue_struct *workqueue;
