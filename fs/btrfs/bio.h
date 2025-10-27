@@ -18,13 +18,6 @@ struct btrfs_inode;
 
 #define BTRFS_BIO_INLINE_CSUM_SIZE	64
 
-/*
- * Maximum number of sectors for a single bio to limit the size of the
- * checksum array.  This matches the number of bio_vecs per bio and thus the
- * I/O size for buffered I/O.
- */
-#define BTRFS_MAX_BIO_SECTORS		(256)
-
 typedef void (*btrfs_bio_end_io_t)(struct btrfs_bio *bbio);
 
 /*
