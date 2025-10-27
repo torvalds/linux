@@ -294,10 +294,7 @@ static unsigned long __init get_top_address(char **envp)
 			top_addr = (unsigned long) envp[i];
 	}
 
-	top_addr &= ~(UM_KERN_PAGE_SIZE - 1);
-	top_addr += UM_KERN_PAGE_SIZE;
-
-	return top_addr;
+	return PAGE_ALIGN(top_addr + 1);
 }
 
 int __init linux_main(int argc, char **argv, char **envp)
@@ -366,8 +363,8 @@ int __init linux_main(int argc, char **argv, char **envp)
 
 	setup_machinename(init_utsname()->machine);
 
-	physmem_size = (physmem_size + PAGE_SIZE - 1) & PAGE_MASK;
-	iomem_size = (iomem_size + PAGE_SIZE - 1) & PAGE_MASK;
+	physmem_size = PAGE_ALIGN(physmem_size);
+	iomem_size = PAGE_ALIGN(iomem_size);
 
 	max_physmem = TASK_SIZE - uml_physmem - iomem_size - MIN_VMALLOC;
 	if (physmem_size > max_physmem) {
