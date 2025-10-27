@@ -105,7 +105,16 @@ class NlError(Exception):
         self.error = -nl_msg.error
 
     def __str__(self):
-        return f"Netlink error: {os.strerror(self.error)}\n{self.nl_msg}"
+        msg = "Netlink error: "
+
+        extack = self.nl_msg.extack.copy() if self.nl_msg.extack else {}
+        if 'msg' in extack:
+            msg += extack['msg'] + ': '
+            del extack['msg']
+        msg += os.strerror(self.error)
+        if extack:
+            msg += ' ' + str(extack)
+        return msg
 
 
 class ConfigError(Exception):
