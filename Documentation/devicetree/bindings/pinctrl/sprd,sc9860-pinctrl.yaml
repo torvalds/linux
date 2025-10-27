@@ -1,0 +1,199 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pinctrl/sprd,sc9860-pinctrl.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Spreadtrum SC9860 Pin Controller
+
+maintainers:
+  - Baolin Wang <baolin.wang@linux.alibaba.com>
+
+description: >
+  The Spreadtrum pin controller are organized in 3 blocks (types).
+
+  The first block comprises some global control registers, and each
+  register contains several bit fields with one bit or several bits
+  to configure for some global common configuration, such as domain
+  pad driving level, system control select and so on ("domain pad
+  driving level": One pin can output 3.0v or 1.8v, depending on the
+  related domain pad driving selection, if the related domain pad
+  select 3.0v, then the pin can output 3.0v. "system control" is used
+  to choose one function (like: UART0) for which system, since we
+  have several systems (AP/CP/CM4) on one SoC.).
+
+  There are too much various configuration that we can not list all
+  of them, so we can not make every Spreadtrum-special configuration
+  as one generic configuration, and maybe it will add more strange
+  global configuration in future. Then we add one "sprd,control" to
+  set these various global control configuration, and we need use
+  magic number for this property.
+
+  Moreover we recognize every fields comprising one bit or several
+  bits in one global control register as one pin, thus we should
+  record every pin's bit offset, bit width and register offset to
+  configure this field (pin).
+
+  The second block comprises some common registers which have unified
+  register definition, and each register described one pin is used
+  to configure the pin sleep mode, function select and sleep related
+  configuration.
+
+  Now we have 4 systems for sleep mode on SC9860 SoC: AP system,
+  PUBCP system, TGLDSP system and AGDSP system. And the pin sleep
+  related configuration are:
+    - input-enable
+    - input-disable
+    - output-high
+    - output-low
+    - bias-pull-up
+    - bias-pull-down
+
+  In some situation we need set the pin sleep mode and pin sleep related
+  configuration, to set the pin sleep related configuration automatically
+  by hardware when the system specified by sleep mode goes into deep
+  sleep mode. For example, if we set the pin sleep mode as PUBCP_SLEEP
+  and set the pin sleep related configuration as "input-enable", which
+  means when PUBCP system goes into deep sleep mode, this pin will be set
+  input enable automatically.
+
+  Moreover we can not use the "sleep" state, since some systems (like:
+  PUBCP system) do not run linux kernel OS (only AP system run linux
+  kernel on SC9860 platform), then we can not select "sleep" state
+  when the PUBCP system goes into deep sleep mode. Thus we introduce
+  "sprd,sleep-mode" property to set pin sleep mode.
+
+  The last block comprises some misc registers which also have unified
+  register definition, and each register described one pin is used to
+  configure drive strength, pull up/down and so on. Especially for pull
+  up, we have two kind pull up resistor: 20K and 4.7K.
+
+properties:
+  compatible:
+    const: sprd,sc9860-pinctrl
+
+  reg:
+    maxItems: 1
+
+additionalProperties:
+  $ref: '#/$defs/pin-node'
+  unevaluatedProperties: false
+
+  properties:
+    function:
+      description: Function to assign to the pins.
+      enum:
+        - func1
+        - func2
+        - func3
+        - func4
+
+    drive-strength:
+      description: Drive strength in mA.
+      $ref: /schemas/types.yaml#/definitions/uint32
+      enum: [2, 4, 6, 8, 10, 12, 14, 16, 20, 21, 24, 25, 27, 29, 31, 33]
+
+    input-schmitt-disable: true
+
+    input-schmitt-enable: true
+
+    bias-pull-up:
+      enum: [20000, 4700]
+
+    sprd,sleep-mode:
+      description: Pin sleep mode selection.
+      $ref: /schemas/types.yaml#/definitions/uint32
+      maximum: 0x1f
+
+    sprd,control:
+      description: Control values referring to databook for global control pins.
+      $ref: /schemas/types.yaml#/definitions/uint32
+
+  patternProperties:
+    'sleep$':
+      $ref: '#/$defs/pin-node'
+      unevaluatedProperties: false
+
+      properties:
+        bias-pull-up:
+          type: boolean
+
+        sleep-hardware-state:
+          description: Indicate these configs in sleep related state.
+          type: boolean
+
+$defs:
+  pin-node:
+    type: object
+    allOf:
+      - $ref: /schemas/pinctrl/pincfg-node.yaml#
+      - $ref: /schemas/pinctrl/pinmux-node.yaml#
+
+    properties:
+      pins:
+        description: Names of pins to configure.
+        $ref: /schemas/types.yaml#/definitions/string-array
+
+      bias-disable:
+        description: Disable pin bias.
+        type: boolean
+
+      bias-pull-down:
+        description: Pull down on pin.
+        type: boolean
+
+      bias-pull-up: true
+
+      input-enable:
+        description: Enable pin input.
+        type: boolean
+
+      input-disable:
+        description: Enable pin output.
+        type: boolean
+
+      output-high:
+        description: Set the pin as an output level high.
+        type: boolean
+
+      output-low:
+        description: Set the pin as an output level low.
+        type: boolean
+
+required:
+  - compatible
+  - reg
+
+examples:
+  - |
+    pin_controller: pinctrl@402a0000 {
+        compatible = "sprd,sc9860-pinctrl";
+        reg = <0x402a0000 0x10000>;
+
+        grp1: sd0 {
+            pins = "SC9860_VIO_SD2_IRTE", "SC9860_VIO_SD0_IRTE";
+            sprd,control = <0x1>;
+        };
+
+        grp2: rfctl_33 {
+            pins = "SC9860_RFCTL33";
+            function = "func2";
+            sprd,sleep-mode = <3>;
+            grp2_sleep_mode: rfctl_33_sleep {
+                pins = "SC9860_RFCTL33";
+                sleep-hardware-state;
+                output-low;
+            };
+        };
+
+        grp3: rfctl_misc_20 {
+            pins = "SC9860_RFCTL20_MISC";
+            drive-strength = <10>;
+            bias-pull-up = <4700>;
+            grp3_sleep_mode: rfctl_misc_sleep {
+                pins = "SC9860_RFCTL20_MISC";
+                sleep-hardware-state;
+                bias-pull-up;
+            };
+        };
+    };
