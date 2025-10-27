@@ -439,6 +439,23 @@ static int skl_plane_max_height(const struct drm_framebuffer *fb,
 	return 4096;
 }
 
+static enum intel_fbc_id skl_fbc_id_for_pipe(enum pipe pipe)
+{
+	return pipe - PIPE_A + INTEL_FBC_A;
+}
+
+static bool skl_plane_has_fbc(struct intel_display *display,
+			      enum intel_fbc_id fbc_id, enum plane_id plane_id)
+{
+	if ((DISPLAY_RUNTIME_INFO(display)->fbc_mask & BIT(fbc_id)) == 0)
+		return false;
+
+	if (DISPLAY_VER(display) >= 20)
+		return icl_is_hdr_plane(display, plane_id);
+	else
+		return plane_id == PLANE_1;
+}
+
 static int icl_plane_max_height(const struct drm_framebuffer *fb,
 				int color_plane,
 				unsigned int rotation)
@@ -874,6 +891,25 @@ static void icl_plane_disable_sel_fetch_arm(struct intel_dsb *dsb,
 	intel_de_write_dsb(display, dsb, SEL_FETCH_PLANE_CTL(pipe, plane->id), 0);
 }
 
+static void x3p_lpd_plane_update_pixel_normalizer(struct intel_dsb *dsb,
+						  struct intel_plane *plane,
+						  bool enable)
+{
+	struct intel_display *display = to_intel_display(plane);
+	enum intel_fbc_id fbc_id = skl_fbc_id_for_pipe(plane->pipe);
+	u32 val;
+
+	/* Only HDR planes have pixel normalizer and don't matter if no FBC */
+	if (!skl_plane_has_fbc(display, fbc_id, plane->id))
+		return;
+
+	val = enable ? PLANE_PIXEL_NORMALIZE_NORM_FACTOR(PLANE_PIXEL_NORMALIZE_NORM_FACTOR_1_0) |
+		       PLANE_PIXEL_NORMALIZE_ENABLE : 0;
+
+	intel_de_write_dsb(display, dsb,
+			   PLANE_PIXEL_NORMALIZE(plane->pipe, plane->id), val);
+}
+
 static void
 icl_plane_disable_arm(struct intel_dsb *dsb,
 		      struct intel_plane *plane,
@@ -889,6 +925,10 @@ icl_plane_disable_arm(struct intel_dsb *dsb,
 	skl_write_plane_wm(dsb, plane, crtc_state);
 
 	icl_plane_disable_sel_fetch_arm(dsb, plane, crtc_state);
+
+	if (DISPLAY_VER(display) >= 35)
+		x3p_lpd_plane_update_pixel_normalizer(dsb, plane, false);
+
 	intel_de_write_dsb(display, dsb, PLANE_CTL(pipe, plane_id), 0);
 	intel_de_write_dsb(display, dsb, PLANE_SURF(pipe, plane_id), 0);
 }
@@ -1617,6 +1657,14 @@ icl_plane_update_arm(struct intel_dsb *dsb,
 		skl_program_plane_scaler(dsb, plane, crtc_state, plane_state);
 
 	icl_plane_update_sel_fetch_arm(dsb, plane, crtc_state, plane_state);
+
+	/*
+	 * In order to have FBC for fp16 formats pixel normalizer block must be
+	 * active. Check if pixel normalizer block need to be enabled for FBC.
+	 * If needed, use normalization factor as 1.0 and enable the block.
+	 */
+	if (intel_fbc_is_enable_pixel_normalizer(plane_state))
+		x3p_lpd_plane_update_pixel_normalizer(dsb, plane, true);
 
 	/*
 	 * The control register self-arms if the plane was previously
@@ -2388,23 +2436,6 @@ void icl_link_nv12_planes(struct intel_plane_state *uv_plane_state,
 			MISSING_CASE(y_plane->id);
 		}
 	}
-}
-
-static enum intel_fbc_id skl_fbc_id_for_pipe(enum pipe pipe)
-{
-	return pipe - PIPE_A + INTEL_FBC_A;
-}
-
-static bool skl_plane_has_fbc(struct intel_display *display,
-			      enum intel_fbc_id fbc_id, enum plane_id plane_id)
-{
-	if ((DISPLAY_RUNTIME_INFO(display)->fbc_mask & BIT(fbc_id)) == 0)
-		return false;
-
-	if (DISPLAY_VER(display) >= 20)
-		return icl_is_hdr_plane(display, plane_id);
-	else
-		return plane_id == PLANE_1;
 }
 
 static struct intel_fbc *skl_plane_fbc(struct intel_display *display,
