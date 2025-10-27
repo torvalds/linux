@@ -302,6 +302,11 @@ static int xe_svm_range_set_default_attr(struct xe_vm *vm, u64 range_start, u64 
 	if (!vma)
 		return -EINVAL;
 
+	if (!(vma->gpuva.flags & XE_VMA_MADV_AUTORESET)) {
+		drm_dbg(&vm->xe->drm, "Skipping madvise reset for vma.\n");
+		return 0;
+	}
+
 	if (xe_vma_has_default_mem_attrs(vma))
 		return 0;
 
@@ -1034,6 +1039,9 @@ retry:
 	if (err)
 		return err;
 
+	dpagemap = xe_vma_resolve_pagemap(vma, tile);
+	if (!dpagemap && !ctx.devmem_only)
+		ctx.device_private_page_owner = NULL;
 	range = xe_svm_range_find_or_insert(vm, fault_addr, vma, &ctx);
 
 	if (IS_ERR(range))
@@ -1054,7 +1062,6 @@ retry:
 
 	range_debug(range, "PAGE FAULT");
 
-	dpagemap = xe_vma_resolve_pagemap(vma, tile);
 	if (--migrate_try_count >= 0 &&
 	    xe_svm_range_needs_migrate_to_vram(range, vma, !!dpagemap || ctx.devmem_only)) {
 		ktime_t migrate_start = xe_svm_stats_ktime_get();
@@ -1073,7 +1080,17 @@ retry:
 				drm_dbg(&vm->xe->drm,
 					"VRAM allocation failed, falling back to retrying fault, asid=%u, errno=%pe\n",
 					vm->usm.asid, ERR_PTR(err));
-				goto retry;
+
+				/*
+				 * In the devmem-only case, mixed mappings may
+				 * be found. The get_pages function will fix
+				 * these up to a single location, allowing the
+				 * page fault handler to make forward progress.
+				 */
+				if (ctx.devmem_only)
+					goto get_pages;
+				else
+					goto retry;
 			} else {
 				drm_err(&vm->xe->drm,
 					"VRAM allocation failed, retry count exceeded, asid=%u, errno=%pe\n",
@@ -1083,6 +1100,7 @@ retry:
 		}
 	}
 
+get_pages:
 	get_pages_start = xe_svm_stats_ktime_get();
 
 	range_debug(range, "GET PAGES");
