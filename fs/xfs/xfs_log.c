@@ -1367,7 +1367,6 @@ xlog_alloc_log(
 	int			num_bblks)
 {
 	struct xlog		*log;
-	xlog_rec_header_t	*head;
 	xlog_in_core_t		**iclogp;
 	xlog_in_core_t		*iclog, *prev_iclog=NULL;
 	int			i;
@@ -1461,22 +1460,21 @@ xlog_alloc_log(
 				GFP_KERNEL | __GFP_RETRY_MAYFAIL);
 		if (!iclog->ic_header)
 			goto out_free_iclog;
-		head = iclog->ic_header;
-		memset(head, 0, sizeof(xlog_rec_header_t));
-		head->h_magicno = cpu_to_be32(XLOG_HEADER_MAGIC_NUM);
-		head->h_version = cpu_to_be32(
+		iclog->ic_header->h_magicno =
+			cpu_to_be32(XLOG_HEADER_MAGIC_NUM);
+		iclog->ic_header->h_version = cpu_to_be32(
 			xfs_has_logv2(log->l_mp) ? 2 : 1);
-		head->h_size = cpu_to_be32(log->l_iclog_size);
-		/* new fields */
-		head->h_fmt = cpu_to_be32(XLOG_FMT);
-		memcpy(&head->h_fs_uuid, &mp->m_sb.sb_uuid, sizeof(uuid_t));
+		iclog->ic_header->h_size = cpu_to_be32(log->l_iclog_size);
+		iclog->ic_header->h_fmt = cpu_to_be32(XLOG_FMT);
+		memcpy(&iclog->ic_header->h_fs_uuid, &mp->m_sb.sb_uuid,
+			sizeof(iclog->ic_header->h_fs_uuid));
 
+		iclog->ic_datap = (void *)iclog->ic_header + log->l_iclog_hsize;
 		iclog->ic_size = log->l_iclog_size - log->l_iclog_hsize;
 		iclog->ic_state = XLOG_STATE_ACTIVE;
 		iclog->ic_log = log;
 		atomic_set(&iclog->ic_refcnt, 0);
 		INIT_LIST_HEAD(&iclog->ic_callbacks);
-		iclog->ic_datap = (void *)iclog->ic_header + log->l_iclog_hsize;
 
 		init_waitqueue_head(&iclog->ic_force_wait);
 		init_waitqueue_head(&iclog->ic_write_wait);
