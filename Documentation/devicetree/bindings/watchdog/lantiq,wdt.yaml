@@ -1,0 +1,57 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/watchdog/lantiq,wdt.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Lantiq WTD watchdog
+
+maintainers:
+  - Hauke Mehrtens <hauke@hauke-m.de>
+
+properties:
+  compatible:
+    oneOf:
+      - enum:
+          - lantiq,falcon-wdt
+          - lantiq,wdt
+          - lantiq,xrx100-wdt
+      - items:
+          - enum:
+              - lantiq,xrx200-wdt
+          - const: lantiq,xrx100-wdt
+
+  reg:
+    maxItems: 1
+
+  lantiq,rcu:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: Phandle to the RCU syscon node
+
+required:
+  - compatible
+  - reg
+
+allOf:
+  - $ref: watchdog.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - lantiq,xrx100-wdt
+              - lantiq,falcon-wdt
+    then:
+      required:
+        - lantiq,rcu
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    watchdog@803f0 {
+        compatible = "lantiq,xrx200-wdt", "lantiq,xrx100-wdt";
+        reg = <0x803f0 0x10>;
+
+        lantiq,rcu = <&rcu0>;
+    };
