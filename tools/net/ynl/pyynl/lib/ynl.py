@@ -100,12 +100,12 @@ class Netlink:
                                   'bitfield32', 'sint', 'uint'])
 
 class NlError(Exception):
-  def __init__(self, nl_msg):
-    self.nl_msg = nl_msg
-    self.error = -nl_msg.error
+    def __init__(self, nl_msg):
+        self.nl_msg = nl_msg
+        self.error = -nl_msg.error
 
-  def __str__(self):
-    return f"Netlink error: {os.strerror(self.error)}\n{self.nl_msg}"
+    def __str__(self):
+        return f"Netlink error: {os.strerror(self.error)}\n{self.nl_msg}"
 
 
 class ConfigError(Exception):
@@ -1039,15 +1039,15 @@ class YnlFamily(SpecFamily):
                     self.check_ntf()
 
     def operation_do_attributes(self, name):
-      """
-      For a given operation name, find and return a supported
-      set of attributes (as a dict).
-      """
-      op = self.find_operation(name)
-      if not op:
-        return None
+        """
+        For a given operation name, find and return a supported
+        set of attributes (as a dict).
+        """
+        op = self.find_operation(name)
+        if not op:
+            return None
 
-      return op['do']['request']['attributes'].copy()
+        return op['do']['request']['attributes'].copy()
 
     def _encode_message(self, op, vals, flags, req_seq):
         nl_flags = Netlink.NLM_F_REQUEST | Netlink.NLM_F_ACK
