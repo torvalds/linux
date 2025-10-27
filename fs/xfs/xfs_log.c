@@ -1368,8 +1368,8 @@ xlog_alloc_log(
 	int			num_bblks)
 {
 	struct xlog		*log;
-	xlog_in_core_t		**iclogp;
-	xlog_in_core_t		*iclog, *prev_iclog=NULL;
+	struct xlog_in_core	**iclogp;
+	struct xlog_in_core	*iclog, *prev_iclog = NULL;
 	int			i;
 	int			error = -ENOMEM;
 	uint			log2_size = 0;
@@ -1813,10 +1813,10 @@ xlog_sync(
  */
 STATIC void
 xlog_dealloc_log(
-	struct xlog	*log)
+	struct xlog		*log)
 {
-	xlog_in_core_t	*iclog, *next_iclog;
-	int		i;
+	struct xlog_in_core	*iclog, *next_iclog;
+	int			i;
 
 	/*
 	 * Destroy the CIL after waiting for iclog IO completion because an
@@ -3293,7 +3293,7 @@ xlog_verify_iclog(
 	int			count)
 {
 	struct xlog_rec_header	*rhead = iclog->ic_header;
-	xlog_in_core_t		*icptr;
+	struct xlog_in_core	*icptr;
 	void			*base_ptr, *ptr;
 	ptrdiff_t		field_offset;
 	uint8_t			clientid;
@@ -3481,11 +3481,10 @@ xlog_force_shutdown(
 
 STATIC int
 xlog_iclogs_empty(
-	struct xlog	*log)
+	struct xlog		*log)
 {
-	xlog_in_core_t	*iclog;
+	struct xlog_in_core	*iclog = log->l_iclog;
 
-	iclog = log->l_iclog;
 	do {
 		/* endianness does not matter here, zero is zero in
 		 * any language.
@@ -3494,6 +3493,7 @@ xlog_iclogs_empty(
 			return 0;
 		iclog = iclog->ic_next;
 	} while (iclog != log->l_iclog);
+
 	return 1;
 }
 
