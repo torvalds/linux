@@ -1241,7 +1241,7 @@ found:
  * @state: the state we're requesting
  * @flags: the modifier flags
  * @gh: the holder structure
- *
+ * @ip: caller's return address for debugging
  */
 
 void __gfs2_holder_init(struct gfs2_glock *gl, unsigned int state, u16 flags,
