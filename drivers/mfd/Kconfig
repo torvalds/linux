@@ -1275,7 +1275,6 @@ config MFD_SPACEMIT_P1
 	tristate "SpacemiT P1 PMIC"
 	depends on ARCH_SPACEMIT || COMPILE_TEST
 	depends on I2C
-	select I2C_K1
 	select MFD_SIMPLE_MFD_I2C
 	help
 	  This option supports the I2C-based SpacemiT P1 PMIC, which
