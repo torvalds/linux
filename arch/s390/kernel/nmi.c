@@ -184,7 +184,7 @@ static notrace void nmi_print_info(void)
 	sclp_emergency_printk(message);
 }
 
-static notrace void s390_handle_damage(void)
+static notrace void __noreturn s390_handle_damage(void)
 {
 	struct lowcore *lc = get_lowcore();
 	union ctlreg0 cr0, cr0_new;
@@ -214,7 +214,6 @@ static notrace void s390_handle_damage(void)
 	lc->mcck_new_psw = psw_save;
 	local_ctl_load(0, &cr0.reg);
 	disabled_wait();
-	while (1);
 }
 NOKPROBE_SYMBOL(s390_handle_damage);
 
