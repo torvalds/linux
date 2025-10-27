@@ -146,6 +146,7 @@ struct xe_sched_job *xe_sched_job_create(struct xe_exec_queue *q,
 	for (i = 0; i < width; ++i)
 		job->ptrs[i].batch_addr = batch_addr[i];
 
+	atomic_inc(&q->job_cnt);
 	xe_pm_runtime_get_noresume(job_to_xe(job));
 	trace_xe_sched_job_create(job);
 	return job;
@@ -177,6 +178,7 @@ void xe_sched_job_destroy(struct kref *ref)
 	dma_fence_put(job->fence);
 	drm_sched_job_cleanup(&job->drm);
 	job_free(job);
+	atomic_dec(&q->job_cnt);
 	xe_exec_queue_put(q);
 	xe_pm_runtime_put(xe);
 }

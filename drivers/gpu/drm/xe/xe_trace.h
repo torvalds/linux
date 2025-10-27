@@ -441,6 +441,29 @@ TRACE_EVENT(xe_eu_stall_data_read,
 		      __entry->read_size, __entry->total_size)
 );
 
+TRACE_EVENT(xe_exec_queue_reach_max_job_count,
+	    TP_PROTO(struct xe_exec_queue *q, int max_cnt),
+	    TP_ARGS(q, max_cnt),
+
+	    TP_STRUCT__entry(__string(dev, __dev_name_eq(q))
+			     __field(enum xe_engine_class, class)
+			     __field(u32, logical_mask)
+			     __field(u16, guc_id)
+			     __field(int, max_cnt)
+			     ),
+
+	    TP_fast_assign(__assign_str(dev);
+			   __entry->class = q->class;
+			   __entry->logical_mask = q->logical_mask;
+			   __entry->guc_id = q->guc->id;
+			   __entry->max_cnt = max_cnt;
+			   ),
+
+	    TP_printk("dev=%s, job count exceeded the maximum limit (%d) per exec queue. engine_class=0x%x, logical_mask=0x%x, guc_id=%d",
+		      __get_str(dev), __entry->max_cnt,
+		      __entry->class, __entry->logical_mask, __entry->guc_id)
+);
+
 #endif
 
 /* This part must be outside protection */
