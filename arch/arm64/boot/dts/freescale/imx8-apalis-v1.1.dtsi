@@ -77,7 +77,7 @@
 		gpio = <&lsio_gpio1 28 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 		regulator-always-on;
-		regulator-name = "wifi_pwrdn_fake_regulator";
+		regulator-name = "Wi-Fi_POWER_DOWN"; /* Wi-Fi module PDn */
 		regulator-settling-time-us = <100>;
 	};
 
