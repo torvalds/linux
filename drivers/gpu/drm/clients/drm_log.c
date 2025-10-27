@@ -100,7 +100,7 @@ static void drm_log_clear_line(struct drm_log_scanout *scanout, u32 line)
 		return;
 	iosys_map_memset(&map, r.y1 * fb->pitches[0], 0, height * fb->pitches[0]);
 	drm_client_buffer_vunmap_local(scanout->buffer);
-	drm_client_framebuffer_flush(scanout->buffer, &r);
+	drm_client_buffer_flush(scanout->buffer, &r);
 }
 
 static void drm_log_draw_line(struct drm_log_scanout *scanout, const char *s,
@@ -133,7 +133,7 @@ static void drm_log_draw_line(struct drm_log_scanout *scanout, const char *s,
 	if (scanout->line >= scanout->rows)
 		scanout->line = 0;
 	drm_client_buffer_vunmap_local(scanout->buffer);
-	drm_client_framebuffer_flush(scanout->buffer, &r);
+	drm_client_buffer_flush(scanout->buffer, &r);
 }
 
 static void drm_log_draw_new_line(struct drm_log_scanout *scanout,

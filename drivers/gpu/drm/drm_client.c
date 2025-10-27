@@ -430,8 +430,8 @@ err_drm_mode_destroy_dumb:
 EXPORT_SYMBOL(drm_client_buffer_create_dumb);
 
 /**
- * drm_client_framebuffer_flush - Manually flush client framebuffer
- * @buffer: DRM client buffer (can be NULL)
+ * drm_client_buffer_flush - Manually flush client buffer
+ * @buffer: DRM client buffer
  * @rect: Damage rectangle (if NULL flushes all)
  *
  * This calls &drm_framebuffer_funcs->dirty (if present) to flush buffer changes
@@ -440,7 +440,7 @@ EXPORT_SYMBOL(drm_client_buffer_create_dumb);
  * Returns:
  * Zero on success or negative error code on failure.
  */
-int drm_client_framebuffer_flush(struct drm_client_buffer *buffer, struct drm_rect *rect)
+int drm_client_buffer_flush(struct drm_client_buffer *buffer, struct drm_rect *rect)
 {
 	if (!buffer || !buffer->fb || !buffer->fb->funcs->dirty)
 		return 0;
@@ -460,4 +460,4 @@ int drm_client_framebuffer_flush(struct drm_client_buffer *buffer, struct drm_re
 	return buffer->fb->funcs->dirty(buffer->fb, buffer->client->file,
 					0, 0, NULL, 0);
 }
-EXPORT_SYMBOL(drm_client_framebuffer_flush);
+EXPORT_SYMBOL(drm_client_buffer_flush);
