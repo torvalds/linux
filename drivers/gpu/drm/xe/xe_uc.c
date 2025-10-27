@@ -218,9 +218,12 @@ int xe_uc_load_hw(struct xe_uc *uc)
 
 	xe_guc_engine_activity_enable_stats(&uc->guc);
 
-	/* We don't fail the driver load if HuC fails to auth, but let's warn */
+	/* We don't fail the driver load if HuC fails to auth */
 	ret = xe_huc_auth(&uc->huc, XE_HUC_AUTH_VIA_GUC);
-	xe_gt_assert(uc_to_gt(uc), !ret);
+	if (ret)
+		xe_gt_err(uc_to_gt(uc),
+			  "HuC authentication failed (%pe), continuing with no HuC\n",
+			  ERR_PTR(ret));
 
 	/* GSC load is async */
 	xe_gsc_load_start(&uc->gsc);
