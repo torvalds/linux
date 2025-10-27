@@ -141,15 +141,18 @@ static unsigned int intel_fbc_plane_stride(const struct intel_plane_state *plane
 	return stride;
 }
 
-static unsigned int intel_fbc_cfb_cpp(void)
+static unsigned int intel_fbc_cfb_cpp(const struct intel_plane_state *plane_state)
 {
-	return 4; /* FBC always 4 bytes per pixel */
+	const struct drm_framebuffer *fb = plane_state->hw.fb;
+	unsigned int cpp = fb->format->cpp[0];
+
+	return max(cpp, 4);
 }
 
 /* plane stride based cfb stride in bytes, assuming 1:1 compression limit */
 static unsigned int intel_fbc_plane_cfb_stride(const struct intel_plane_state *plane_state)
 {
-	unsigned int cpp = intel_fbc_cfb_cpp();
+	unsigned int cpp = intel_fbc_cfb_cpp(plane_state);
 
 	return intel_fbc_plane_stride(plane_state) * cpp;
 }
@@ -203,7 +206,7 @@ static unsigned int intel_fbc_cfb_stride(const struct intel_plane_state *plane_s
 	struct intel_display *display = to_intel_display(plane_state->uapi.plane->dev);
 	unsigned int stride = intel_fbc_plane_cfb_stride(plane_state);
 	unsigned int width = drm_rect_width(&plane_state->uapi.src) >> 16;
-	unsigned int cpp = intel_fbc_cfb_cpp();
+	unsigned int cpp = intel_fbc_cfb_cpp(plane_state);
 
 	return _intel_fbc_cfb_stride(display, cpp, width, stride);
 }
@@ -1081,11 +1084,31 @@ static bool lnl_fbc_pixel_format_is_valid(const struct intel_plane_state *plane_
 	}
 }
 
+static bool xe3p_lpd_fbc_pixel_format_is_valid(const struct intel_plane_state *plane_state)
+{
+	const struct drm_framebuffer *fb = plane_state->hw.fb;
+
+	if (lnl_fbc_pixel_format_is_valid(plane_state))
+		return true;
+
+	switch (fb->format->format) {
+	case DRM_FORMAT_XRGB16161616:
+	case DRM_FORMAT_XBGR16161616:
+	case DRM_FORMAT_ARGB16161616:
+	case DRM_FORMAT_ABGR16161616:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static bool pixel_format_is_valid(const struct intel_plane_state *plane_state)
 {
 	struct intel_display *display = to_intel_display(plane_state->uapi.plane->dev);
 
-	if (DISPLAY_VER(display) >= 20)
+	if (DISPLAY_VER(display) >= 35)
+		return xe3p_lpd_fbc_pixel_format_is_valid(plane_state);
+	else if (DISPLAY_VER(display) >= 20)
 		return lnl_fbc_pixel_format_is_valid(plane_state);
 	else if (DISPLAY_VER(display) >= 5 || display->platform.g4x)
 		return g4x_fbc_pixel_format_is_valid(plane_state);
