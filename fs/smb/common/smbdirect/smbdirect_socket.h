@@ -406,20 +406,6 @@ struct smbdirect_socket {
 	} statistics;
 
 	struct {
-#define SMBDIRECT_LOG_ERR		0x0
-#define SMBDIRECT_LOG_INFO		0x1
-
-#define SMBDIRECT_LOG_OUTGOING			0x1
-#define SMBDIRECT_LOG_INCOMING			0x2
-#define SMBDIRECT_LOG_READ			0x4
-#define SMBDIRECT_LOG_WRITE			0x8
-#define SMBDIRECT_LOG_RDMA_SEND			0x10
-#define SMBDIRECT_LOG_RDMA_RECV			0x20
-#define SMBDIRECT_LOG_KEEP_ALIVE		0x40
-#define SMBDIRECT_LOG_RDMA_EVENT		0x80
-#define SMBDIRECT_LOG_RDMA_MR			0x100
-#define SMBDIRECT_LOG_RDMA_RW			0x200
-#define SMBDIRECT_LOG_NEGOTIATE			0x400
 		void *private_ptr;
 		bool (*needed)(struct smbdirect_socket *sc,
 			       void *private_ptr,

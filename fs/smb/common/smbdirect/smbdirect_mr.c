@@ -330,8 +330,8 @@ static int smbdirect_iter_to_sgt(struct iov_iter *iter,
  * need_invalidate: true if this MR needs to be locally invalidated after I/O
  * return value: the MR registered, NULL if failed.
  */
-__maybe_unused /* this is temporary while this file is included in others */
-static struct smbdirect_mr_io *
+__SMBDIRECT_PUBLIC__
+struct smbdirect_mr_io *
 smbdirect_connection_register_mr_io(struct smbdirect_socket *sc,
 				    struct iov_iter *iter,
 				    bool writing,
@@ -452,10 +452,11 @@ dma_map_error:
 		mutex_unlock(&mr->mutex);
 	return NULL;
 }
+__SMBDIRECT_EXPORT_SYMBOL__(smbdirect_connection_register_mr_io);
 
-__maybe_unused /* this is temporary while this file is included in others */
-static void smbdirect_mr_io_fill_buffer_descriptor(struct smbdirect_mr_io *mr,
-						   struct smbdirect_buffer_descriptor_v1 *v1)
+__SMBDIRECT_PUBLIC__
+void smbdirect_mr_io_fill_buffer_descriptor(struct smbdirect_mr_io *mr,
+					    struct smbdirect_buffer_descriptor_v1 *v1)
 {
 	mutex_lock(&mr->mutex);
 	if (mr->state == SMBDIRECT_MR_REGISTERED) {
@@ -469,6 +470,7 @@ static void smbdirect_mr_io_fill_buffer_descriptor(struct smbdirect_mr_io *mr,
 	}
 	mutex_unlock(&mr->mutex);
 }
+__SMBDIRECT_EXPORT_SYMBOL__(smbdirect_mr_io_fill_buffer_descriptor);
 
 /*
  * Deregister a MR after I/O is done
@@ -476,8 +478,8 @@ static void smbdirect_mr_io_fill_buffer_descriptor(struct smbdirect_mr_io *mr,
  * and we have to locally invalidate the buffer to prevent data is being
  * modified by remote peer after upper layer consumes it
  */
-__maybe_unused /* this is temporary while this file is included in others */
-static void smbdirect_connection_deregister_mr_io(struct smbdirect_mr_io *mr)
+__SMBDIRECT_PUBLIC__
+void smbdirect_connection_deregister_mr_io(struct smbdirect_mr_io *mr)
 {
 	struct smbdirect_socket *sc = mr->socket;
 	int ret = 0;
@@ -559,3 +561,4 @@ put_kref:
 	if (!kref_put(&mr->kref, smbdirect_mr_io_free_locked))
 		mutex_unlock(&mr->mutex);
 }
+__SMBDIRECT_EXPORT_SYMBOL__(smbdirect_connection_deregister_mr_io);

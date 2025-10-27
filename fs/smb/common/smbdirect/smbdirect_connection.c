@@ -703,16 +703,17 @@ static void smbdirect_connection_negotiate_rdma_resources(struct smbdirect_socke
 						peer_responder_resources);
 }
 
-__maybe_unused /* this is temporary while this file is included in others */
-static bool smbdirect_connection_is_connected(struct smbdirect_socket *sc)
+__SMBDIRECT_PUBLIC__
+bool smbdirect_connection_is_connected(struct smbdirect_socket *sc)
 {
 	if (unlikely(!sc || sc->first_error || sc->status != SMBDIRECT_SOCKET_CONNECTED))
 		return false;
 	return true;
 }
+__SMBDIRECT_EXPORT_SYMBOL__(smbdirect_connection_is_connected);
 
-__maybe_unused /* this is temporary while this file is included in others */
-static int smbdirect_connection_wait_for_connected(struct smbdirect_socket *sc)
+__SMBDIRECT_PUBLIC__
+int smbdirect_connection_wait_for_connected(struct smbdirect_socket *sc)
 {
 	const struct smbdirect_socket_parameters *sp = &sc->parameters;
 	union {
@@ -783,6 +784,7 @@ static int smbdirect_connection_wait_for_connected(struct smbdirect_socket *sc)
 
 	return 0;
 }
+__SMBDIRECT_EXPORT_SYMBOL__(smbdirect_connection_wait_for_connected);
 
 static void smbdirect_connection_idle_timer_work(struct work_struct *work)
 {
@@ -1062,11 +1064,12 @@ static int smbdirect_connection_post_send_io(struct smbdirect_socket *sc,
 	return smbdirect_connection_post_send_wr(sc, &msg->wr);
 }
 
-static int smbdirect_connection_send_single_iter(struct smbdirect_socket *sc,
-						 struct smbdirect_send_batch *batch,
-						 struct iov_iter *iter,
-						 unsigned int flags,
-						 u32 remaining_data_length)
+__SMBDIRECT_PUBLIC__
+int smbdirect_connection_send_single_iter(struct smbdirect_socket *sc,
+					  struct smbdirect_send_batch *batch,
+					  struct iov_iter *iter,
+					  unsigned int flags,
+					  u32 remaining_data_length)
 {
 	const struct smbdirect_socket_parameters *sp = &sc->parameters;
 	struct smbdirect_send_batch _batch;
@@ -1249,9 +1252,10 @@ lcredit_failed:
 bcredit_failed:
 	return ret;
 }
+__SMBDIRECT_EXPORT_SYMBOL__(smbdirect_connection_send_single_iter);
 
-__maybe_unused /* this is temporary while this file is included in others */
-static int smbdirect_connection_send_wait_zero_pending(struct smbdirect_socket *sc)
+__SMBDIRECT_PUBLIC__
+int smbdirect_connection_send_wait_zero_pending(struct smbdirect_socket *sc)
 {
 	/*
 	 * As an optimization, we don't wait for individual I/O to finish
@@ -1274,13 +1278,14 @@ static int smbdirect_connection_send_wait_zero_pending(struct smbdirect_socket *
 
 	return 0;
 }
+__SMBDIRECT_EXPORT_SYMBOL__(smbdirect_connection_send_wait_zero_pending);
 
-__maybe_unused /* this is temporary while this file is included in others */
-static int smbdirect_connection_send_iter(struct smbdirect_socket *sc,
-					  struct iov_iter *iter,
-					  unsigned int flags,
-					  bool need_invalidate,
-					  unsigned int remote_key)
+__SMBDIRECT_PUBLIC__
+int smbdirect_connection_send_iter(struct smbdirect_socket *sc,
+				   struct iov_iter *iter,
+				   unsigned int flags,
+				   bool need_invalidate,
+				   unsigned int remote_key)
 {
 	const struct smbdirect_socket_parameters *sp = &sc->parameters;
 	struct smbdirect_send_batch batch;
@@ -1359,6 +1364,7 @@ static int smbdirect_connection_send_iter(struct smbdirect_socket *sc,
 
 	return total_count;
 }
+__SMBDIRECT_EXPORT_SYMBOL__(smbdirect_connection_send_iter);
 
 static void smbdirect_connection_send_io_done(struct ib_cq *cq, struct ib_wc *wc)
 {
@@ -1777,10 +1783,10 @@ static void smbdirect_connection_recv_io_refill_work(struct work_struct *work)
 	}
 }
 
-__maybe_unused /* this is temporary while this file is included in others */
-static int smbdirect_connection_recvmsg(struct smbdirect_socket *sc,
-					struct msghdr *msg,
-					unsigned int flags)
+__SMBDIRECT_PUBLIC__
+int smbdirect_connection_recvmsg(struct smbdirect_socket *sc,
+				 struct msghdr *msg,
+				 unsigned int flags)
 {
 	struct smbdirect_recv_io *response;
 	struct smbdirect_data_transfer *data_transfer;
@@ -1927,6 +1933,7 @@ read_rfc1002_done:
 
 	goto again;
 }
+__SMBDIRECT_EXPORT_SYMBOL__(smbdirect_connection_recvmsg);
 
 static bool smbdirect_map_sges_single_page(struct smbdirect_map_sges *state,
 					   struct page *page, size_t off, size_t len)

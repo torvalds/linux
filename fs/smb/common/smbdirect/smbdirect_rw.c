@@ -105,12 +105,12 @@ static void smbdirect_connection_rdma_write_done(struct ib_cq *cq, struct ib_wc 
 	smbdirect_connection_rdma_rw_done(cq, wc, DMA_TO_DEVICE);
 }
 
-__maybe_unused /* this is temporary while this file is included in others */
-static int smbdirect_connection_rdma_xmit(struct smbdirect_socket *sc,
-					  void *buf, size_t buf_len,
-					  struct smbdirect_buffer_descriptor_v1 *desc,
-					  size_t desc_len,
-					  bool is_read)
+__SMBDIRECT_PUBLIC__
+int smbdirect_connection_rdma_xmit(struct smbdirect_socket *sc,
+				   void *buf, size_t buf_len,
+				   struct smbdirect_buffer_descriptor_v1 *desc,
+				   size_t desc_len,
+				   bool is_read)
 {
 	const struct smbdirect_socket_parameters *sp = &sc->parameters;
 	enum dma_data_direction direction = is_read ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
@@ -253,3 +253,4 @@ free_msg:
 	kfree(msg);
 	goto out;
 }
+__SMBDIRECT_EXPORT_SYMBOL__(smbdirect_connection_rdma_xmit);

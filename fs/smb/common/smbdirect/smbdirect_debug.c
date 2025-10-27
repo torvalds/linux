@@ -7,10 +7,10 @@
 #include "smbdirect_internal.h"
 #include <linux/seq_file.h>
 
-__maybe_unused /* this is temporary while this file is included in others */
-static void smbdirect_connection_legacy_debug_proc_show(struct smbdirect_socket *sc,
-							unsigned int rdma_readwrite_threshold,
-							struct seq_file *m)
+__SMBDIRECT_PUBLIC__
+void smbdirect_connection_legacy_debug_proc_show(struct smbdirect_socket *sc,
+						 unsigned int rdma_readwrite_threshold,
+						 struct seq_file *m)
 {
 	const struct smbdirect_socket_parameters *sp;
 
@@ -86,3 +86,4 @@ static void smbdirect_connection_legacy_debug_proc_show(struct smbdirect_socket 
 		   atomic_read(&sc->mr_io.ready.count),
 		   atomic_read(&sc->mr_io.used.count));
 }
+__SMBDIRECT_EXPORT_SYMBOL__(smbdirect_connection_legacy_debug_proc_show);
