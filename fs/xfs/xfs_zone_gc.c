@@ -117,7 +117,6 @@ struct xfs_gc_bio {
 	struct xfs_rtgroup		*victim_rtg;
 
 	/* Bio used for reads and writes, including the bvec used by it */
-	struct bio_vec			bv;
 	struct bio			bio;	/* must be last */
 };
 
