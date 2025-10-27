@@ -11,11 +11,7 @@
 
 #include <vdso/gettime.h>
 #include <linux/time.h>
-#include <linux/getcpu.h>
 #include <asm/unistd.h>
-
-/* workaround for -Wmissing-prototypes warnings */
-long __vdso_getcpu(unsigned int *cpu, unsigned int *node, struct getcpu_cache *unused);
 
 int __vdso_clock_gettime(clockid_t clock, struct __kernel_timespec *ts)
 {
@@ -56,21 +52,3 @@ __kernel_old_time_t __vdso_time(__kernel_old_time_t *t)
 	return secs;
 }
 __kernel_old_time_t time(__kernel_old_time_t *t) __attribute__((weak, alias("__vdso_time")));
-
-long
-__vdso_getcpu(unsigned int *cpu, unsigned int *node, struct getcpu_cache *unused)
-{
-	/*
-	 * UML does not support SMP, we can cheat here. :)
-	 */
-
-	if (cpu)
-		*cpu = 0;
-	if (node)
-		*node = 0;
-
-	return 0;
-}
-
-long getcpu(unsigned int *cpu, unsigned int *node, struct getcpu_cache *tcache)
-	__attribute__((weak, alias("__vdso_getcpu")));
