@@ -4151,7 +4151,6 @@ static void amdgpu_ras_counte_dw(struct work_struct *work)
 		atomic_set(&con->ras_ue_count, ue_count);
 	}
 
-	pm_runtime_mark_last_busy(dev->dev);
 Out:
 	pm_runtime_put_autosuspend(dev->dev);
 }
