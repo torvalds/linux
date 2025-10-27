@@ -121,6 +121,10 @@ static socklen_t get_addrlen(const struct service_fixture *const srv,
 {
 	switch (srv->protocol.domain) {
 	case AF_UNSPEC:
+		if (minimal)
+			return sizeof(sa_family_t);
+		return sizeof(struct sockaddr_storage);
+
 	case AF_INET:
 		return sizeof(srv->ipv4_addr);
 
@@ -758,6 +762,11 @@ TEST_F(protocol, bind_unspec)
 	bind_fd = socket_variant(&self->srv0);
 	ASSERT_LE(0, bind_fd);
 
+	/* Tries to bind with too small addrlen. */
+	EXPECT_EQ(-EINVAL, bind_variant_addrlen(
+				   bind_fd, &self->unspec_any0,
+				   get_addrlen(&self->unspec_any0, true) - 1));
+
 	/* Allowed bind on AF_UNSPEC/INADDR_ANY. */
 	ret = bind_variant(bind_fd, &self->unspec_any0);
 	if (variant->prot.domain == AF_INET) {
@@ -766,6 +775,8 @@ TEST_F(protocol, bind_unspec)
 			TH_LOG("Failed to bind to unspec/any socket: %s",
 			       strerror(errno));
 		}
+	} else if (variant->prot.domain == AF_INET6) {
+		EXPECT_EQ(-EAFNOSUPPORT, ret);
 	} else {
 		EXPECT_EQ(-EINVAL, ret);
 	}
@@ -792,6 +803,8 @@ TEST_F(protocol, bind_unspec)
 		} else {
 			EXPECT_EQ(0, ret);
 		}
+	} else if (variant->prot.domain == AF_INET6) {
+		EXPECT_EQ(-EAFNOSUPPORT, ret);
 	} else {
 		EXPECT_EQ(-EINVAL, ret);
 	}
@@ -801,7 +814,8 @@ TEST_F(protocol, bind_unspec)
 	bind_fd = socket_variant(&self->srv0);
 	ASSERT_LE(0, bind_fd);
 	ret = bind_variant(bind_fd, &self->unspec_srv0);
-	if (variant->prot.domain == AF_INET) {
+	if (variant->prot.domain == AF_INET ||
+	    variant->prot.domain == AF_INET6) {
 		EXPECT_EQ(-EAFNOSUPPORT, ret);
 	} else {
 		EXPECT_EQ(-EINVAL, ret)
