@@ -186,6 +186,8 @@ static inline void con_debug_leave(void) { }
  *			printing callbacks must not be called.
  * @CON_NBCON:		Console can operate outside of the legacy style console_lock
  *			constraints.
+ * @CON_NBCON_ATOMIC_UNSAFE: The write_atomic() callback is not safe and is
+ *			therefore only used by nbcon_atomic_flush_unsafe().
  */
 enum cons_flags {
 	CON_PRINTBUFFER		= BIT(0),
@@ -197,6 +199,7 @@ enum cons_flags {
 	CON_EXTENDED		= BIT(6),
 	CON_SUSPENDED		= BIT(7),
 	CON_NBCON		= BIT(8),
+	CON_NBCON_ATOMIC_UNSAFE	= BIT(9),
 };
 
 /**
@@ -608,6 +611,7 @@ extern void nbcon_write_context_set_buf(struct nbcon_write_context *wctxt,
 extern bool nbcon_enter_unsafe(struct nbcon_write_context *wctxt);
 extern bool nbcon_exit_unsafe(struct nbcon_write_context *wctxt);
 extern void nbcon_reacquire_nobuf(struct nbcon_write_context *wctxt);
+extern bool nbcon_allow_unsafe_takeover(void);
 extern bool nbcon_kdb_try_acquire(struct console *con,
 				  struct nbcon_write_context *wctxt);
 extern void nbcon_kdb_release(struct nbcon_write_context *wctxt);
@@ -627,9 +631,18 @@ static inline bool console_is_usable(struct console *con, short flags, bool use_
 		return false;
 
 	if (flags & CON_NBCON) {
-		/* The write_atomic() callback is optional. */
-		if (use_atomic && !con->write_atomic)
-			return false;
+		if (use_atomic) {
+			/* The write_atomic() callback is optional. */
+			if (!con->write_atomic)
+				return false;
+
+			/*
+			 * An unsafe write_atomic() callback is only usable
+			 * when unsafe takeovers are allowed.
+			 */
+			if ((flags & CON_NBCON_ATOMIC_UNSAFE) && !nbcon_allow_unsafe_takeover())
+				return false;
+		}
 
 		/*
 		 * For the !use_atomic case, @printk_kthreads_running is not
