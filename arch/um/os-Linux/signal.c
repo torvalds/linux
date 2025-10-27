@@ -20,6 +20,7 @@
 #include <um_malloc.h>
 #include <sys/ucontext.h>
 #include <timetravel.h>
+#include "internal.h"
 
 void (*sig_info[NSIG])(int, struct siginfo *, struct uml_pt_regs *, void *mc) = {
 	[SIGTRAP]	= relay_signal,
@@ -157,6 +158,11 @@ void deliver_alarm(void) {
 void timer_set_signal_handler(void)
 {
 	set_handler(SIGALRM);
+}
+
+int timer_alarm_pending(void)
+{
+	return !!(signals_pending & SIGALRM_MASK);
 }
 
 void set_sigstack(void *sig_stack, int size)

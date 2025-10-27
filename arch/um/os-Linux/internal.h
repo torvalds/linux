@@ -16,6 +16,11 @@ void scan_elf_aux(char **envp);
 void check_tmpexec(void);
 
 /*
+ * signal.c
+ */
+int timer_alarm_pending(void);
+
+/*
  * skas/process.c
  */
 void wait_stub_done(int pid);
