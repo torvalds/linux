@@ -78,7 +78,7 @@
 		enable-active-high;
 		regulator-always-on;
 		regulator-name = "Wi-Fi_POWER_DOWN"; /* Wi-Fi module PDn */
-		regulator-settling-time-us = <100>;
+		startup-delay-us = <100>;
 	};
 
 	reg_pcie_switch: regulator-pcie-switch {
