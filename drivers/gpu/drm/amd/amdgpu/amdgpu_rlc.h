@@ -270,6 +270,15 @@ struct amdgpu_rlcg_reg_access_ctrl {
 	uint32_t grbm_cntl;
 	uint32_t grbm_idx;
 	uint32_t spare_int;
+
+	uint32_t vfi_cmd;
+	uint32_t vfi_stat;
+	uint32_t vfi_addr;
+	uint32_t vfi_data;
+	uint32_t vfi_grbm_cntl;
+	uint32_t vfi_grbm_idx;
+	uint32_t vfi_grbm_cntl_data;
+	uint32_t vfi_grbm_idx_data;
 };
 
 struct amdgpu_rlc {

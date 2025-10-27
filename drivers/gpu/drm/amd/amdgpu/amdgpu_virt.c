@@ -1338,6 +1338,133 @@ bool amdgpu_virt_get_rlcg_reg_access_flag(struct amdgpu_device *adev,
 	return ret;
 }
 
+static u32 amdgpu_virt_rlcg_vfi_reg_rw(struct amdgpu_device *adev, u32 offset, u32 v, u32 flag, u32 xcc_id)
+{
+	uint32_t timeout = 100;
+	uint32_t i;
+
+	struct amdgpu_rlcg_reg_access_ctrl *reg_access_ctrl;
+	void *vfi_cmd;
+	void *vfi_stat;
+	void *vfi_addr;
+	void *vfi_data;
+	void *vfi_grbm_cntl;
+	void *vfi_grbm_idx;
+	uint32_t cmd;
+	uint32_t stat;
+	uint32_t addr = offset;
+	uint32_t data;
+	uint32_t grbm_cntl_data;
+	uint32_t grbm_idx_data;
+
+	unsigned long flags;
+	bool is_err = true;
+
+	if (!adev->gfx.rlc.rlcg_reg_access_supported) {
+		dev_err(adev->dev, "VFi interface is not available\n");
+		return 0;
+	}
+
+	if (adev->gfx.xcc_mask && (((1 << xcc_id) & adev->gfx.xcc_mask) == 0)) {
+		dev_err(adev->dev, "VFi invalid XCC, xcc_id=0x%x\n", xcc_id);
+		return 0;
+	}
+
+	if (amdgpu_device_skip_hw_access(adev))
+		return 0;
+
+	reg_access_ctrl = &adev->gfx.rlc.reg_access_ctrl[xcc_id];
+	vfi_cmd  = (void __iomem *)adev->rmmio + 4 * reg_access_ctrl->vfi_cmd;
+	vfi_stat = (void __iomem *)adev->rmmio + 4 * reg_access_ctrl->vfi_stat;
+	vfi_addr = (void __iomem *)adev->rmmio + 4 * reg_access_ctrl->vfi_addr;
+	vfi_data = (void __iomem *)adev->rmmio + 4 * reg_access_ctrl->vfi_data;
+	vfi_grbm_cntl = (void __iomem *)adev->rmmio + 4 * reg_access_ctrl->vfi_grbm_cntl;
+	vfi_grbm_idx  = (void __iomem *)adev->rmmio + 4 * reg_access_ctrl->vfi_grbm_idx;
+	grbm_cntl_data = reg_access_ctrl->vfi_grbm_cntl_data;
+	grbm_idx_data  = reg_access_ctrl->vfi_grbm_idx_data;
+
+	if (flag == AMDGPU_RLCG_GC_WRITE) {
+		data = v;
+		cmd = AMDGPU_RLCG_VFI_CMD__WR;
+
+		// the GRBM_GFX_CNTL and GRBM_GFX_INDEX are protected by mutex outside this call
+		if (addr == reg_access_ctrl->grbm_cntl) {
+			reg_access_ctrl->vfi_grbm_cntl_data = data;
+			return 0;
+		} else if (addr == reg_access_ctrl->grbm_idx) {
+			reg_access_ctrl->vfi_grbm_idx_data = data;
+			return 0;
+		}
+
+	} else if (flag == AMDGPU_RLCG_GC_READ) {
+		data = 0;
+		cmd = AMDGPU_RLCG_VFI_CMD__RD;
+
+		// the GRBM_GFX_CNTL and GRBM_GFX_INDEX are protected by mutex outside this call
+		if (addr == reg_access_ctrl->grbm_cntl)
+			return grbm_cntl_data;
+		else if (addr == reg_access_ctrl->grbm_idx)
+			return grbm_idx_data;
+
+	} else {
+		dev_err(adev->dev, "VFi invalid access, flag=0x%x\n", flag);
+		return 0;
+	}
+
+	spin_lock_irqsave(&adev->virt.rlcg_reg_lock, flags);
+
+	writel(addr, vfi_addr);
+	writel(data, vfi_data);
+	writel(grbm_cntl_data, vfi_grbm_cntl);
+	writel(grbm_idx_data,  vfi_grbm_idx);
+
+	writel(AMDGPU_RLCG_VFI_STAT__BUSY, vfi_stat);
+	writel(cmd, vfi_cmd);
+
+	for (i = 0; i < timeout; i++) {
+		stat = readl(vfi_stat);
+		if (stat != AMDGPU_RLCG_VFI_STAT__BUSY)
+			break;
+		udelay(10);
+	}
+
+	switch (stat) {
+	case AMDGPU_RLCG_VFI_STAT__DONE:
+		is_err = false;
+		if (cmd == AMDGPU_RLCG_VFI_CMD__RD)
+			data = readl(vfi_data);
+		break;
+	case AMDGPU_RLCG_VFI_STAT__BUSY:
+		dev_err(adev->dev, "VFi access timeout\n");
+		break;
+	case AMDGPU_RLCG_VFI_STAT__INV_CMD:
+		dev_err(adev->dev, "VFi invalid command\n");
+		break;
+	case AMDGPU_RLCG_VFI_STAT__INV_ADDR:
+		dev_err(adev->dev, "VFi invalid address\n");
+		break;
+	case AMDGPU_RLCG_VFI_STAT__ERR:
+		dev_err(adev->dev, "VFi unknown error\n");
+		break;
+	default:
+		dev_err(adev->dev, "VFi unknown status code\n");
+		break;
+	}
+
+	spin_unlock_irqrestore(&adev->virt.rlcg_reg_lock, flags);
+
+	if (is_err)
+		dev_err(adev->dev, "VFi: [grbm_cntl=0x%x grbm_idx=0x%x] addr=0x%x (byte addr 0x%x), data=0x%x, cmd=0x%x\n",
+			grbm_cntl_data, grbm_idx_data,
+			addr, addr * 4, data, cmd);
+	else
+		dev_dbg(adev->dev, "VFi: [grbm_cntl=0x%x grbm_idx=0x%x] addr=0x%x (byte addr 0x%x), data=0x%x, cmd=0x%x\n",
+			grbm_cntl_data, grbm_idx_data,
+			addr, addr * 4, data, cmd);
+
+	return data;
+}
+
 u32 amdgpu_virt_rlcg_reg_rw(struct amdgpu_device *adev, u32 offset, u32 v, u32 flag, u32 xcc_id)
 {
 	struct amdgpu_rlcg_reg_access_ctrl *reg_access_ctrl;
@@ -1350,6 +1477,9 @@ u32 amdgpu_virt_rlcg_reg_rw(struct amdgpu_device *adev, u32 offset, u32 v, u32 f
 	void *scratch_reg3;
 	void *spare_int;
 	unsigned long flags;
+
+	if (amdgpu_ip_version(adev, GC_HWIP, 0) >= IP_VERSION(12, 1, 0))
+		return amdgpu_virt_rlcg_vfi_reg_rw(adev, offset, v, flag, xcc_id);
 
 	if (!adev->gfx.rlc.rlcg_reg_access_supported) {
 		dev_err(adev->dev,

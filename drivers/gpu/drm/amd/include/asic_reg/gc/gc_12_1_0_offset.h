@@ -6917,7 +6917,18 @@
 #define regRLC_SPARE_INT_2_BASE_IDX                                                                     1
 #define regRLC_RLCV_SPARE_INT_1                                                                         0x0992
 #define regRLC_RLCV_SPARE_INT_1_BASE_IDX                                                                1
-
+#define regRLC_VFI_CMD                                                                                  0x099a
+#define regRLC_VFI_CMD_BASE_IDX                                                                         1
+#define regRLC_VFI_STAT                                                                                 0x099b
+#define regRLC_VFI_STAT_BASE_IDX                                                                        1
+#define regRLC_VFI_GRBM_GFX_INDEX                                                                       0x099c
+#define regRLC_VFI_GRBM_GFX_INDEX_BASE_IDX                                                              1
+#define regRLC_VFI_GRBM_GFX_CNTL                                                                        0x099d
+#define regRLC_VFI_GRBM_GFX_CNTL_BASE_IDX                                                               1
+#define regRLC_VFI_ADDR                                                                                 0x099e
+#define regRLC_VFI_ADDR_BASE_IDX                                                                        1
+#define regRLC_VFI_DATA                                                                                 0x099f
+#define regRLC_VFI_DATA_BASE_IDX                                                                        1
 
 // addressBlock: CHIP_XCD_gfxip_xcc_gfx_cpwd_cpwd_pwrdec
 // base address: 0x3c000

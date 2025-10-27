@@ -526,20 +526,26 @@ static void gfx_v12_1_init_rlcg_reg_access_ctrl(struct amdgpu_device *adev)
 	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
 	for (xcc_id = 0; xcc_id < num_xcc; xcc_id++) {
 		reg_access_ctrl = &adev->gfx.rlc.reg_access_ctrl[GET_INST(GC, xcc_id)];
-		reg_access_ctrl->scratch_reg0 =
-			SOC15_REG_OFFSET(GC, GET_INST(GC, xcc_id), regSCRATCH_REG0);
-		reg_access_ctrl->scratch_reg1 =
-			SOC15_REG_OFFSET(GC, GET_INST(GC, xcc_id), regSCRATCH_REG1);
-		reg_access_ctrl->scratch_reg2 =
-			SOC15_REG_OFFSET(GC, GET_INST(GC, xcc_id), regSCRATCH_REG2);
-		reg_access_ctrl->scratch_reg3 =
-			SOC15_REG_OFFSET(GC, GET_INST(GC, xcc_id), regSCRATCH_REG3);
+
 		reg_access_ctrl->grbm_cntl =
 			SOC15_REG_OFFSET(GC, GET_INST(GC, xcc_id), regGRBM_GFX_CNTL);
 		reg_access_ctrl->grbm_idx =
 			SOC15_REG_OFFSET(GC, GET_INST(GC, xcc_id), regGRBM_GFX_INDEX);
-		reg_access_ctrl->spare_int =
-			SOC15_REG_OFFSET(GC, GET_INST(GC, xcc_id), regRLC_SPARE_INT_0);
+
+		reg_access_ctrl->vfi_cmd =
+			SOC15_REG_OFFSET(GC, GET_INST(GC, xcc_id), regRLC_VFI_CMD);
+		reg_access_ctrl->vfi_stat =
+			SOC15_REG_OFFSET(GC, GET_INST(GC, xcc_id), regRLC_VFI_STAT);
+		reg_access_ctrl->vfi_addr =
+			SOC15_REG_OFFSET(GC, GET_INST(GC, xcc_id), regRLC_VFI_ADDR);
+		reg_access_ctrl->vfi_data =
+			SOC15_REG_OFFSET(GC, GET_INST(GC, xcc_id), regRLC_VFI_DATA);
+		reg_access_ctrl->vfi_grbm_cntl =
+			SOC15_REG_OFFSET(GC, GET_INST(GC, xcc_id), regRLC_VFI_GRBM_GFX_CNTL);
+		reg_access_ctrl->vfi_grbm_idx =
+			SOC15_REG_OFFSET(GC, GET_INST(GC, xcc_id), regRLC_VFI_GRBM_GFX_INDEX);
+		reg_access_ctrl->vfi_grbm_cntl_data = 0;
+		reg_access_ctrl->vfi_grbm_idx_data = 0;
 	}
 	adev->gfx.rlc.rlcg_reg_access_supported = true;
 }
