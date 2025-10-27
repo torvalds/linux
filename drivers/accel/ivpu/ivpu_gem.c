@@ -158,9 +158,6 @@ static void ivpu_bo_unbind_locked(struct ivpu_bo *bo)
 		bo->ctx = NULL;
 	}
 
-	if (drm_gem_is_imported(&bo->base.base))
-		return;
-
 	if (bo->base.sgt) {
 		if (bo->base.base.import_attach) {
 			dma_buf_unmap_attachment(bo->base.base.import_attach,
