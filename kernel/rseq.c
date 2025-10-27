@@ -473,12 +473,11 @@ error:
 	force_sigsegv(sig);
 }
 
-#ifdef CONFIG_DEBUG_RSEQ
 /*
  * Terminate the process if a syscall is issued within a restartable
  * sequence.
  */
-void rseq_syscall(struct pt_regs *regs)
+void __rseq_debug_syscall_return(struct pt_regs *regs)
 {
 	struct task_struct *t = current;
 	u64 csaddr;
@@ -495,6 +494,13 @@ void rseq_syscall(struct pt_regs *regs)
 		return;
 fail:
 	force_sig(SIGSEGV);
+}
+
+#ifdef CONFIG_DEBUG_RSEQ
+/* Kept around to keep GENERIC_ENTRY=n architectures supported. */
+void rseq_syscall(struct pt_regs *regs)
+{
+	__rseq_debug_syscall_return(regs);
 }
 #endif
 

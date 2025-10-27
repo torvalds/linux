@@ -146,7 +146,7 @@ static __always_inline void syscall_exit_to_user_mode_work(struct pt_regs *regs)
 			local_irq_enable();
 	}
 
-	rseq_syscall(regs);
+	rseq_debug_syscall_return(regs);
 
 	/*
 	 * Do one-time syscall specific work. If these work items are
