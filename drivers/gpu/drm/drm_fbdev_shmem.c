@@ -63,7 +63,7 @@ static void drm_fbdev_shmem_fb_destroy(struct fb_info *info)
 	drm_fb_helper_fini(fb_helper);
 
 	drm_client_buffer_vunmap(fb_helper->buffer);
-	drm_client_framebuffer_delete(fb_helper->buffer);
+	drm_client_buffer_delete(fb_helper->buffer);
 	drm_client_release(&fb_helper->client);
 }
 
@@ -204,7 +204,7 @@ err_drm_client_buffer_vunmap:
 	fb_helper->buffer = NULL;
 	drm_client_buffer_vunmap(buffer);
 err_drm_client_buffer_delete:
-	drm_client_framebuffer_delete(buffer);
+	drm_client_buffer_delete(buffer);
 	return ret;
 }
 EXPORT_SYMBOL(drm_fbdev_shmem_driver_fbdev_probe);

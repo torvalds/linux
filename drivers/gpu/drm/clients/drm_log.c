@@ -272,7 +272,7 @@ static void drm_log_init_client(struct drm_log *dlog)
 
 err_failed_commit:
 	for (i = 0; i < n_modeset; i++)
-		drm_client_framebuffer_delete(dlog->scanout[i].buffer);
+		drm_client_buffer_delete(dlog->scanout[i].buffer);
 
 err_nomodeset:
 	kfree(dlog->scanout);
@@ -286,7 +286,7 @@ static void drm_log_free_scanout(struct drm_client_dev *client)
 
 	if (dlog->n_scanout) {
 		for (i = 0; i < dlog->n_scanout; i++)
-			drm_client_framebuffer_delete(dlog->scanout[i].buffer);
+			drm_client_buffer_delete(dlog->scanout[i].buffer);
 		dlog->n_scanout = 0;
 		kfree(dlog->scanout);
 		dlog->scanout = NULL;
