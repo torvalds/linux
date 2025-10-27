@@ -348,12 +348,11 @@ int __init linux_main(int argc, char **argv, char **envp)
 	 * so they actually get what they asked for. This should
 	 * add zero for non-exec shield users
 	 */
-
-	diff = UML_ROUND_UP(brk_start) - UML_ROUND_UP(&_end);
+	diff = PAGE_ALIGN(brk_start) - PAGE_ALIGN((unsigned long) &_end);
 	if (diff > 1024 * 1024) {
 		os_info("Adding %ld bytes to physical memory to account for "
 			"exec-shield gap\n", diff);
-		physmem_size += UML_ROUND_UP(brk_start) - UML_ROUND_UP(&_end);
+		physmem_size += diff;
 	}
 
 	uml_physmem = (unsigned long) __binary_start & PAGE_MASK;
