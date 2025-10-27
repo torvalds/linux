@@ -8044,18 +8044,15 @@ static int __balance_push_cpu_stop(void *arg)
 	struct rq_flags rf;
 	int cpu;
 
-	raw_spin_lock_irq(&p->pi_lock);
-	rq_lock(rq, &rf);
-
-	update_rq_clock(rq);
-
-	if (task_rq(p) == rq && task_on_rq_queued(p)) {
+	scoped_guard (raw_spinlock_irq, &p->pi_lock) {
 		cpu = select_fallback_rq(rq->cpu, p);
-		rq = __migrate_task(rq, &rf, p, cpu);
-	}
 
-	rq_unlock(rq, &rf);
-	raw_spin_unlock_irq(&p->pi_lock);
+		rq_lock(rq, &rf);
+		update_rq_clock(rq);
+		if (task_rq(p) == rq && task_on_rq_queued(p))
+			rq = __migrate_task(rq, &rf, p, cpu);
+		rq_unlock(rq, &rf);
+	}
 
 	put_task_struct(p);
 
