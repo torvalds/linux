@@ -931,14 +931,7 @@ EXPORT_SYMBOL(dput);
 void d_make_discardable(struct dentry *dentry)
 {
 	spin_lock(&dentry->d_lock);
-	/*
-	 * By the end of the series we'll add
-	 * WARN_ON(!(dentry->d_flags & DCACHE_PERSISTENT);
-	 * here, but while object removal is done by a few common helpers,
-	 * object creation tends to be open-coded (if nothing else, new inode
-	 * needs to be set up), so adding a warning from the very beginning
-	 * would make for much messier patch series.
-	 */
+	WARN_ON(!(dentry->d_flags & DCACHE_PERSISTENT));
 	dentry->d_flags &= ~DCACHE_PERSISTENT;
 	dentry->d_lockref.count--;
 	rcu_read_lock();
