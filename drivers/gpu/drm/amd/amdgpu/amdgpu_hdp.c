@@ -66,3 +66,19 @@ void amdgpu_hdp_generic_flush(struct amdgpu_device *adev,
 				      0);
 	}
 }
+
+void amdgpu_hdp_invalidate(struct amdgpu_device *adev, struct amdgpu_ring *ring)
+{
+	if (adev->asic_funcs && adev->asic_funcs->invalidate_hdp)
+		adev->asic_funcs->invalidate_hdp(adev, ring);
+	else if (adev->hdp.funcs && adev->hdp.funcs->invalidate_hdp)
+		adev->hdp.funcs->invalidate_hdp(adev, ring);
+}
+
+void amdgpu_hdp_flush(struct amdgpu_device *adev, struct amdgpu_ring *ring)
+{
+	if (adev->asic_funcs && adev->asic_funcs->flush_hdp)
+		adev->asic_funcs->flush_hdp(adev, ring);
+	else if (adev->hdp.funcs && adev->hdp.funcs->flush_hdp)
+		adev->hdp.funcs->flush_hdp(adev, ring);
+}
