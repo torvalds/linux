@@ -1499,6 +1499,75 @@ static int sc16is7xx_reset(struct device *dev, struct regmap *regmap)
 	return 0;
 }
 
+static int sc16is7xx_setup_channel(struct sc16is7xx_one *one, int i,
+				   bool *port_registered)
+{
+	struct uart_port *port = &one->port;
+	int ret;
+
+	ret = ida_alloc_max(&sc16is7xx_lines, SC16IS7XX_MAX_DEVS - 1, GFP_KERNEL);
+	if (ret < 0)
+		return ret;
+
+	port->line = ret;
+
+	/* Initialize port data */
+	port->type	= PORT_SC16IS7XX;
+	port->fifosize	= SC16IS7XX_FIFO_SIZE;
+	port->flags	= UPF_FIXED_TYPE | UPF_LOW_LATENCY;
+	port->iobase	= i;
+	/*
+	 * Use all ones as membase to make sure uart_configure_port() in
+	 * serial_core.c does not abort for SPI/I2C devices where the
+	 * membase address is not applicable.
+	 */
+	port->membase	= (void __iomem *)~0;
+	port->iotype	= UPIO_PORT;
+	port->rs485_config = sc16is7xx_config_rs485;
+	port->rs485_supported = sc16is7xx_rs485_supported;
+	port->ops	= &sc16is7xx_ops;
+	one->old_mctrl	= 0;
+
+	mutex_init(&one->lock);
+
+	ret = uart_get_rs485_mode(port);
+	if (ret)
+		return ret;
+
+	/* Enable access to general register set */
+	sc16is7xx_port_write(port, SC16IS7XX_LCR_REG, 0x00);
+
+	/* Disable all interrupts */
+	sc16is7xx_port_write(port, SC16IS7XX_IER_REG, 0);
+	/* Disable TX/RX */
+	sc16is7xx_port_write(port, SC16IS7XX_EFCR_REG,
+			     SC16IS7XX_EFCR_RXDISABLE_BIT |
+			     SC16IS7XX_EFCR_TXDISABLE_BIT);
+
+	/* Initialize kthread work structs */
+	kthread_init_work(&one->tx_work, sc16is7xx_tx_proc);
+	kthread_init_work(&one->reg_work, sc16is7xx_reg_proc);
+	kthread_init_delayed_work(&one->ms_work, sc16is7xx_ms_proc);
+
+	/* Register port */
+	ret = uart_add_one_port(&sc16is7xx_uart, port);
+	if (ret)
+		return ret;
+
+	*port_registered = true;
+
+	sc16is7xx_regs_lock(port, SC16IS7XX_LCR_REG_SET_ENHANCED);
+	/* Enable write access to enhanced features */
+	sc16is7xx_port_write(port, SC16IS7XX_EFR_REG,
+			     SC16IS7XX_EFR_ENABLE_BIT);
+	sc16is7xx_regs_unlock(port);
+
+	/* Go to suspend mode */
+	sc16is7xx_power(port, 0);
+
+	return 0;
+}
+
 int sc16is7xx_probe(struct device *dev, const struct sc16is7xx_devtype *devtype,
 		    struct regmap *regmaps[], int irq)
 {
@@ -1582,70 +1651,14 @@ int sc16is7xx_probe(struct device *dev, const struct sc16is7xx_devtype *devtype,
 	}
 
 	for (i = 0; i < devtype->nr_uart; ++i) {
-		ret = ida_alloc_max(&sc16is7xx_lines,
-				    SC16IS7XX_MAX_DEVS - 1, GFP_KERNEL);
-		if (ret < 0)
-			goto out_ports;
-
-		s->p[i].port.line = ret;
-
-		/* Initialize port data */
 		s->p[i].port.dev	= dev;
 		s->p[i].port.irq	= irq;
-		s->p[i].port.type	= PORT_SC16IS7XX;
-		s->p[i].port.fifosize	= SC16IS7XX_FIFO_SIZE;
-		s->p[i].port.flags	= UPF_FIXED_TYPE | UPF_LOW_LATENCY;
-		s->p[i].port.iobase	= i;
-		/*
-		 * Use all ones as membase to make sure uart_configure_port() in
-		 * serial_core.c does not abort for SPI/I2C devices where the
-		 * membase address is not applicable.
-		 */
-		s->p[i].port.membase	= (void __iomem *)~0;
-		s->p[i].port.iotype	= UPIO_PORT;
 		s->p[i].port.uartclk	= freq;
-		s->p[i].port.rs485_config = sc16is7xx_config_rs485;
-		s->p[i].port.rs485_supported = sc16is7xx_rs485_supported;
-		s->p[i].port.ops	= &sc16is7xx_ops;
-		s->p[i].old_mctrl	= 0;
 		s->p[i].regmap		= regmaps[i];
 
-		mutex_init(&s->p[i].lock);
-
-		ret = uart_get_rs485_mode(&s->p[i].port);
+		ret = sc16is7xx_setup_channel(&s->p[i], i, &port_registered[i]);
 		if (ret)
 			goto out_ports;
-
-		/* Enable access to general register set */
-		sc16is7xx_port_write(&s->p[i].port, SC16IS7XX_LCR_REG, 0x00);
-
-		/* Disable all interrupts */
-		sc16is7xx_port_write(&s->p[i].port, SC16IS7XX_IER_REG, 0);
-		/* Disable TX/RX */
-		sc16is7xx_port_write(&s->p[i].port, SC16IS7XX_EFCR_REG,
-				     SC16IS7XX_EFCR_RXDISABLE_BIT |
-				     SC16IS7XX_EFCR_TXDISABLE_BIT);
-
-		/* Initialize kthread work structs */
-		kthread_init_work(&s->p[i].tx_work, sc16is7xx_tx_proc);
-		kthread_init_work(&s->p[i].reg_work, sc16is7xx_reg_proc);
-		kthread_init_delayed_work(&s->p[i].ms_work, sc16is7xx_ms_proc);
-
-		/* Register port */
-		ret = uart_add_one_port(&sc16is7xx_uart, &s->p[i].port);
-		if (ret)
-			goto out_ports;
-
-		port_registered[i] = true;
-
-		sc16is7xx_regs_lock(&s->p[i].port, SC16IS7XX_LCR_REG_SET_ENHANCED);
-		/* Enable write access to enhanced features */
-		sc16is7xx_port_write(&s->p[i].port, SC16IS7XX_EFR_REG,
-				     SC16IS7XX_EFR_ENABLE_BIT);
-		sc16is7xx_regs_unlock(&s->p[i].port);
-
-		/* Go to suspend mode */
-		sc16is7xx_power(&s->p[i].port, 0);
 	}
 
 	sc16is7xx_setup_irda_ports(s);
