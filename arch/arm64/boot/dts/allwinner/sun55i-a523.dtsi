@@ -145,6 +145,14 @@
 			interrupt-controller;
 			#interrupt-cells = <3>;
 
+			/omit-if-no-ref/
+			i2s2_pi_pins: i2s2-pi-pins {
+				pins = "PI2", "PI3", "PI4", "PI5";
+				allwinner,pinmux = <5>;
+				function = "i2s2";
+				bias-disable;
+			};
+
 			mmc0_pins: mmc0-pins {
 				pins = "PF0" ,"PF1", "PF2", "PF3", "PF4", "PF5";
 				allwinner,pinmux = <2>;
