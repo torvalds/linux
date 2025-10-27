@@ -1180,8 +1180,7 @@ static int sc16is7xx_startup(struct uart_port *port)
 	/* This bit must be written with LCR[7] = 0 */
 	sc16is7xx_port_update(port, SC16IS7XX_MCR_REG,
 			      SC16IS7XX_MCR_IRDA_BIT,
-			      one->irda_mode ?
-				SC16IS7XX_MCR_IRDA_BIT : 0);
+			      one->irda_mode ? SC16IS7XX_MCR_IRDA_BIT : 0);
 
 	/* Enable the Rx and Tx FIFO */
 	sc16is7xx_port_update(port, SC16IS7XX_EFCR_REG,
