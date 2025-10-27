@@ -1524,32 +1524,19 @@ xlog_pack_data(
 	struct xlog_in_core	*iclog,
 	int			roundoff)
 {
-	int			i, j, k;
-	int			size = iclog->ic_offset + roundoff;
-	__be32			cycle_lsn;
-	char			*dp;
+	struct xlog_rec_header	*rhead = &iclog->ic_header;
+	__be32			cycle_lsn = CYCLE_LSN_DISK(rhead->h_lsn);
+	char			*dp = iclog->ic_datap;
+	int			i;
 
-	cycle_lsn = CYCLE_LSN_DISK(iclog->ic_header.h_lsn);
-
-	dp = iclog->ic_datap;
-	for (i = 0; i < BTOBB(size); i++) {
-		if (i >= XLOG_CYCLE_DATA_SIZE)
-			break;
-		iclog->ic_header.h_cycle_data[i] = *(__be32 *)dp;
+	for (i = 0; i < BTOBB(iclog->ic_offset + roundoff); i++) {
+		*xlog_cycle_data(rhead, i) = *(__be32 *)dp;
 		*(__be32 *)dp = cycle_lsn;
 		dp += BBSIZE;
 	}
 
 	if (xfs_has_logv2(log->l_mp)) {
 		xlog_in_core_2_t *xhdr = iclog->ic_data;
-
-		for ( ; i < BTOBB(size); i++) {
-			j = i / XLOG_CYCLE_DATA_SIZE;
-			k = i % XLOG_CYCLE_DATA_SIZE;
-			xhdr[j].hic_xheader.xh_cycle_data[k] = *(__be32 *)dp;
-			*(__be32 *)dp = cycle_lsn;
-			dp += BBSIZE;
-		}
 
 		for (i = 1; i < log->l_iclog_heads; i++)
 			xhdr[i].hic_xheader.xh_cycle = cycle_lsn;
@@ -3322,13 +3309,12 @@ xlog_verify_iclog(
 	struct xlog_in_core	*iclog,
 	int			count)
 {
-	struct xlog_op_header	*ophead;
+	struct xlog_rec_header	*rhead = &iclog->ic_header;
 	xlog_in_core_t		*icptr;
-	xlog_in_core_2_t	*xhdr;
-	void			*base_ptr, *ptr, *p;
+	void			*base_ptr, *ptr;
 	ptrdiff_t		field_offset;
 	uint8_t			clientid;
-	int			len, i, j, k, op_len;
+	int			len, i, op_len;
 	int			idx;
 
 	/* check validity of iclog pointers */
@@ -3342,11 +3328,10 @@ xlog_verify_iclog(
 	spin_unlock(&log->l_icloglock);
 
 	/* check log magic numbers */
-	if (iclog->ic_header.h_magicno != cpu_to_be32(XLOG_HEADER_MAGIC_NUM))
+	if (rhead->h_magicno != cpu_to_be32(XLOG_HEADER_MAGIC_NUM))
 		xfs_emerg(log->l_mp, "%s: invalid magic num", __func__);
 
-	base_ptr = ptr = &iclog->ic_header;
-	p = &iclog->ic_header;
+	base_ptr = ptr = rhead;
 	for (ptr += BBSIZE; ptr < base_ptr + count; ptr += BBSIZE) {
 		if (*(__be32 *)ptr == cpu_to_be32(XLOG_HEADER_MAGIC_NUM))
 			xfs_emerg(log->l_mp, "%s: unexpected magic num",
@@ -3354,29 +3339,19 @@ xlog_verify_iclog(
 	}
 
 	/* check fields */
-	len = be32_to_cpu(iclog->ic_header.h_num_logops);
+	len = be32_to_cpu(rhead->h_num_logops);
 	base_ptr = ptr = iclog->ic_datap;
-	ophead = ptr;
-	xhdr = iclog->ic_data;
 	for (i = 0; i < len; i++) {
-		ophead = ptr;
+		struct xlog_op_header	*ophead = ptr;
+		void			*p = &ophead->oh_clientid;
 
 		/* clientid is only 1 byte */
-		p = &ophead->oh_clientid;
 		field_offset = p - base_ptr;
 		if (field_offset & 0x1ff) {
 			clientid = ophead->oh_clientid;
 		} else {
 			idx = BTOBBT((void *)&ophead->oh_clientid - iclog->ic_datap);
-			if (idx >= XLOG_CYCLE_DATA_SIZE) {
-				j = idx / XLOG_CYCLE_DATA_SIZE;
-				k = idx % XLOG_CYCLE_DATA_SIZE;
-				clientid = xlog_get_client_id(
-					xhdr[j].hic_xheader.xh_cycle_data[k]);
-			} else {
-				clientid = xlog_get_client_id(
-					iclog->ic_header.h_cycle_data[idx]);
-			}
+			clientid = xlog_get_client_id(*xlog_cycle_data(rhead, idx));
 		}
 		if (clientid != XFS_TRANSACTION && clientid != XFS_LOG) {
 			xfs_warn(log->l_mp,
@@ -3392,13 +3367,7 @@ xlog_verify_iclog(
 			op_len = be32_to_cpu(ophead->oh_len);
 		} else {
 			idx = BTOBBT((void *)&ophead->oh_len - iclog->ic_datap);
-			if (idx >= XLOG_CYCLE_DATA_SIZE) {
-				j = idx / XLOG_CYCLE_DATA_SIZE;
-				k = idx % XLOG_CYCLE_DATA_SIZE;
-				op_len = be32_to_cpu(xhdr[j].hic_xheader.xh_cycle_data[k]);
-			} else {
-				op_len = be32_to_cpu(iclog->ic_header.h_cycle_data[idx]);
-			}
+			op_len = be32_to_cpu(*xlog_cycle_data(rhead, idx));
 		}
 		ptr += sizeof(struct xlog_op_header) + op_len;
 	}

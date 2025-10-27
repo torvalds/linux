@@ -711,4 +711,22 @@ xlog_item_space(
 	return round_up(nbytes, sizeof(uint64_t));
 }
 
+/*
+ * Cycles over XLOG_CYCLE_DATA_SIZE overflow into the extended header that was
+ * added for v2 logs.  Addressing for the cycles array there is off by one,
+ * because the first batch of cycles is in the original header.
+ */
+static inline __be32 *xlog_cycle_data(struct xlog_rec_header *rhead, unsigned i)
+{
+	if (i >= XLOG_CYCLE_DATA_SIZE) {
+		xlog_in_core_2_t *xhdr = (xlog_in_core_2_t *)rhead;
+		unsigned	j = i / XLOG_CYCLE_DATA_SIZE;
+		unsigned	k = i % XLOG_CYCLE_DATA_SIZE;
+
+		return &xhdr[j].hic_xheader.xh_cycle_data[k];
+	}
+
+	return &rhead->h_cycle_data[i];
+}
+
 #endif	/* __XFS_LOG_PRIV_H__ */
