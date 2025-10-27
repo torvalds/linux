@@ -3656,8 +3656,7 @@ repeat:
 	return 0;
 
 put_folio:
-	folio_unlock(folio);
-	folio_put(folio);
+	f2fs_folio_put(folio, true);
 fail:
 	f2fs_write_failed(inode, pos + len);
 	return err;
@@ -3713,8 +3712,7 @@ static int f2fs_write_end(const struct kiocb *iocb,
 					pos + copied);
 	}
 unlock_out:
-	folio_unlock(folio);
-	folio_put(folio);
+	f2fs_folio_put(folio, true);
 	f2fs_update_time(F2FS_I_SB(inode), REQ_TIME);
 	return copied;
 }

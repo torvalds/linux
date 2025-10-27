@@ -1278,7 +1278,7 @@ got_it:
 	err = f2fs_submit_page_bio(&fio);
 	if (err)
 		goto put_encrypted_page;
-	f2fs_put_page(fio.encrypted_page, 0);
+	f2fs_put_page(fio.encrypted_page, false);
 	f2fs_folio_put(folio, true);
 
 	f2fs_update_iostat(sbi, inode, FS_DATA_READ_IO, F2FS_BLKSIZE);
@@ -1286,7 +1286,7 @@ got_it:
 
 	return 0;
 put_encrypted_page:
-	f2fs_put_page(fio.encrypted_page, 1);
+	f2fs_put_page(fio.encrypted_page, true);
 put_folio:
 	f2fs_folio_put(folio, true);
 	return err;
@@ -1442,7 +1442,7 @@ static int move_data_block(struct inode *inode, block_t bidx,
 	f2fs_update_data_blkaddr(&dn, newaddr);
 	set_inode_flag(inode, FI_APPEND_WRITE);
 
-	f2fs_put_page(fio.encrypted_page, 1);
+	f2fs_put_page(fio.encrypted_page, true);
 recover_block:
 	if (err)
 		f2fs_do_replace_block(fio.sbi, &sum, newaddr, fio.old_blkaddr,

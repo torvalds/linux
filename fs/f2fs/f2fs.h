@@ -2971,7 +2971,7 @@ static inline void f2fs_folio_put(struct folio *folio, bool unlock)
 	folio_put(folio);
 }
 
-static inline void f2fs_put_page(struct page *page, int unlock)
+static inline void f2fs_put_page(struct page *page, bool unlock)
 {
 	if (!page)
 		return;
