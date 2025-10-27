@@ -1279,11 +1279,12 @@ xlog_get_iclog_buffer_size(
 	log->l_iclog_size = mp->m_logbsize;
 
 	/*
-	 * # headers = size / 32k - one header holds cycles from 32k of data.
+	 * Combined size of the log record headers.  The first 32k cycles
+	 * are stored directly in the xlog_rec_header, the rest in the
+	 * variable number of xlog_rec_ext_headers at its end.
 	 */
-	log->l_iclog_heads =
-		DIV_ROUND_UP(mp->m_logbsize, XLOG_HEADER_CYCLE_SIZE);
-	log->l_iclog_hsize = log->l_iclog_heads << BBSHIFT;
+	log->l_iclog_hsize = struct_size(log->l_iclog->ic_header, h_ext,
+		DIV_ROUND_UP(mp->m_logbsize, XLOG_HEADER_CYCLE_SIZE) - 1);
 }
 
 void
@@ -1526,7 +1527,7 @@ xlog_pack_data(
 		dp += BBSIZE;
 	}
 
-	for (i = 0; i < log->l_iclog_heads - 1; i++)
+	for (i = 0; i < (log->l_iclog_hsize >> BBSHIFT) - 1; i++)
 		rhead->h_ext[i].xh_cycle = cycle_lsn;
 }
 
