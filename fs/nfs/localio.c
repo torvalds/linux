@@ -414,7 +414,7 @@ nfs_local_iters_setup_dio(struct nfs_local_kiocb *iocb, int rw,
 	/* Setup misaligned end?
 	 * If so, the end is purposely setup to be issued using buffered IO
 	 * before the middle (which will use DIO, if DIO-aligned, with AIO).
-	 * This creates problems if/when the end results in a partial write.
+	 * This creates problems if/when the end results in short read or write.
 	 * So must save index and length of end to handle this corner case.
 	 */
 	if (local_dio->end_len) {
@@ -580,8 +580,9 @@ static void nfs_local_read_done(struct nfs_local_kiocb *iocb)
 	 */
 	hdr->res.replen = 0;
 
-	if (hdr->res.count != hdr->args.count ||
-	    hdr->args.offset + hdr->res.count >= i_size_read(file_inode(filp)))
+	/* nfs_readpage_result() handles short read */
+
+	if (hdr->args.offset + hdr->res.count >= i_size_read(file_inode(filp)))
 		hdr->res.eof = true;
 
 	dprintk("%s: read %ld bytes eof %d.\n", __func__,
@@ -620,6 +621,7 @@ static void nfs_local_call_read(struct work_struct *work)
 		container_of(work, struct nfs_local_kiocb, work);
 	struct file *filp = iocb->kiocb.ki_filp;
 	const struct cred *save_cred;
+	bool force_done = false;
 	ssize_t status;
 	int n_iters;
 
@@ -637,7 +639,21 @@ static void nfs_local_call_read(struct work_struct *work)
 		iocb->kiocb.ki_pos = iocb->offset[i];
 		status = filp->f_op->read_iter(&iocb->kiocb, &iocb->iters[i]);
 		if (status != -EIOCBQUEUED) {
-			if (nfs_local_pgio_done(iocb, status, false)) {
+			if (unlikely(status >= 0 && status < iocb->iters[i].count)) {
+				/* partial read */
+				if (i == iocb->end_iter_index) {
+					/* Must not account DIO partial end, otherwise (due
+					 * to end being issued before middle): the partial
+					 * read accounting in nfs_local_read_done()
+					 * would incorrectly advance hdr->args.offset
+					 */
+					status = 0;
+				} else {
+					/* Partial read at start or middle, force done */
+					force_done = true;
+				}
+			}
+			if (nfs_local_pgio_done(iocb, status, force_done)) {
 				nfs_local_read_iocb_done(iocb);
 				break;
 			}
