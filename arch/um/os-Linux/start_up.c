@@ -22,6 +22,7 @@
 #include <asm/unistd.h>
 #include <init.h>
 #include <os.h>
+#include <smp.h>
 #include <kern_util.h>
 #include <mem_user.h>
 #include <ptrace_user.h>
@@ -480,6 +481,9 @@ void __init os_early_checks(void)
 		if (seccomp_config == 2)
 			fatal("SECCOMP userspace requested but not functional!\n");
 	}
+
+	if (uml_ncpus > 1)
+		fatal("SMP is not supported with PTRACE userspace.\n");
 
 	using_seccomp = 0;
 	check_ptrace();

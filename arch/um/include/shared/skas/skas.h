@@ -15,5 +15,7 @@ extern void handle_syscall(struct uml_pt_regs *regs);
 extern unsigned long current_stub_stack(void);
 extern struct mm_id *current_mm_id(void);
 extern void current_mm_sync(void);
+void initial_jmpbuf_lock(void);
+void initial_jmpbuf_unlock(void);
 
 #endif

@@ -11,9 +11,11 @@
 #include <errno.h>
 #include <signal.h>
 #include <time.h>
+#include <sys/signalfd.h>
 #include <sys/time.h>
 #include <kern_util.h>
 #include <os.h>
+#include <smp.h>
 #include <string.h>
 #include "internal.h"
 
@@ -41,7 +43,8 @@ long long os_persistent_clock_emulation(void)
  */
 int os_timer_create(void)
 {
-	timer_t *t = &event_high_res_timer[0];
+	int cpu = uml_curr_cpu();
+	timer_t *t = &event_high_res_timer[cpu];
 	struct sigevent sev = {
 		.sigev_notify = SIGEV_THREAD_ID,
 		.sigev_signo = SIGALRM,
@@ -105,24 +108,49 @@ long long os_nsecs(void)
 	return timespec_to_ns(&ts);
 }
 
+static __thread int wake_signals;
+
+void os_idle_prepare(void)
+{
+	sigset_t set;
+
+	sigemptyset(&set);
+	sigaddset(&set, SIGALRM);
+	sigaddset(&set, IPI_SIGNAL);
+
+	/*
+	 * We need to use signalfd rather than sigsuspend in idle sleep
+	 * because the IPI signal is a real-time signal that carries data,
+	 * and unlike handling SIGALRM, we cannot simply flag it in
+	 * signals_pending.
+	 */
+	wake_signals = signalfd(-1, &set, SFD_CLOEXEC);
+	if (wake_signals < 0)
+		panic("Failed to create signal FD, errno = %d", errno);
+}
+
 /**
  * os_idle_sleep() - sleep until interrupted
  */
 void os_idle_sleep(void)
 {
-	sigset_t set, old;
+	sigset_t set;
 
-	/* Block SIGALRM while performing the need_resched check. */
+	/*
+	 * Block SIGALRM while performing the need_resched check.
+	 * Note that, because IRQs are disabled, the IPI signal is
+	 * already blocked.
+	 */
 	sigemptyset(&set);
 	sigaddset(&set, SIGALRM);
-	sigprocmask(SIG_BLOCK, &set, &old);
+	sigprocmask(SIG_BLOCK, &set, NULL);
 
 	/*
 	 * Because disabling IRQs does not block SIGALRM, it is also
 	 * necessary to check for any pending timer alarms.
 	 */
 	if (!uml_need_resched() && !timer_alarm_pending())
-		sigsuspend(&old);
+		os_poll(1, &wake_signals);
 
 	/* Restore the signal mask. */
 	sigprocmask(SIG_UNBLOCK, &set, NULL);
