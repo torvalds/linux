@@ -903,6 +903,165 @@ struct phy_led {
 
 #define to_phy_led(d) container_of(d, struct phy_led, led_cdev)
 
+/*
+ * PHY_MSE_CAP_* - Bitmask flags for Mean Square Error (MSE) capabilities
+ *
+ * These flags describe which MSE metrics and selectors are implemented
+ * by the PHY for the current link mode. They are used in
+ * struct phy_mse_capability.supported_caps.
+ *
+ * Standardization:
+ *   The OPEN Alliance (OA) defines the presence of MSE/SQI/pMSE but not their
+ *   numeric scaling, update intervals, or aggregation windows.  See:
+ *     OA 100BASE-T1 TC1 v1.0, sections 6.1.1-6.1.3
+ *     OA 1000BASE-T1 TC12 v2.2, sections 6.1.1-6.1.2
+ *
+ * Description of flags:
+ *
+ *   PHY_MSE_CAP_CHANNEL_A
+ *     Per-pair diagnostics for Channel A are supported.  Mapping to the
+ *     physical wire pair may depend on MDI/MDI-X polarity.
+ *
+ *   PHY_MSE_CAP_CHANNEL_B, _C, _D
+ *     Same as above for channels B-D.
+ *
+ *   PHY_MSE_CAP_WORST_CHANNEL
+ *     The PHY or driver can identify and report the single worst-performing
+ *     channel without querying each one individually.
+ *
+ *   PHY_MSE_CAP_LINK
+ *     The PHY provides only a link-wide aggregate measurement or cannot map
+ *     results to a specific pair (for example 100BASE-TX with unknown
+ *     MDI/MDI-X).
+ *
+ *   PHY_MSE_CAP_AVG
+ *     Average MSE (mean DCQ metric) is supported.  For 100/1000BASE-T1 the OA
+ *     recommends 2^16 symbols, scaled 0..511, but the exact scaling is
+ *     vendor-specific.
+ *
+ *   PHY_MSE_CAP_PEAK
+ *     Peak MSE (current peak within the measurement window) is supported.
+ *     Defined as pMSE for 100BASE-T1; vendor-specific for others.
+ *
+ *   PHY_MSE_CAP_WORST_PEAK
+ *     Latched worst-case peak MSE since the last read (read-to-clear if
+ *     implemented).  Optional in OA 100BASE-T1 TC1 6.1.3.
+ */
+#define PHY_MSE_CAP_CHANNEL_A BIT(0)
+#define PHY_MSE_CAP_CHANNEL_B BIT(1)
+#define PHY_MSE_CAP_CHANNEL_C BIT(2)
+#define PHY_MSE_CAP_CHANNEL_D BIT(3)
+#define PHY_MSE_CAP_WORST_CHANNEL BIT(4)
+#define PHY_MSE_CAP_LINK BIT(5)
+#define PHY_MSE_CAP_AVG BIT(6)
+#define PHY_MSE_CAP_PEAK BIT(7)
+#define PHY_MSE_CAP_WORST_PEAK BIT(8)
+
+/*
+ * enum phy_mse_channel - Identifiers for selecting MSE measurement channels
+ *
+ * PHY_MSE_CHANNEL_A - PHY_MSE_CHANNEL_D
+ *   Select per-pair measurement for the corresponding channel.
+ *
+ * PHY_MSE_CHANNEL_WORST
+ *   Select the single worst-performing channel reported by hardware.
+ *
+ * PHY_MSE_CHANNEL_LINK
+ *   Select link-wide aggregate data (used when per-pair results are
+ *   unavailable).
+ */
+enum phy_mse_channel {
+	PHY_MSE_CHANNEL_A,
+	PHY_MSE_CHANNEL_B,
+	PHY_MSE_CHANNEL_C,
+	PHY_MSE_CHANNEL_D,
+	PHY_MSE_CHANNEL_WORST,
+	PHY_MSE_CHANNEL_LINK,
+};
+
+/**
+ * struct phy_mse_capability - Capabilities of Mean Square Error (MSE)
+ *                             measurement interface
+ *
+ * Standardization notes:
+ *
+ * - Presence of MSE/SQI/pMSE is defined by OPEN Alliance specs, but numeric
+ *   scaling, refresh/update rate and aggregation windows are not fixed and
+ *   are vendor-/product-specific. (OA 100BASE-T1 TC1 v1.0 6.1.*;
+ *   OA 1000BASE-T1 TC12 v2.2 6.1.*)
+ *
+ * - Typical recommendations: 2^16 symbols and 0..511 scaling for MSE; pMSE only
+ *   defined for 100BASE-T1 (sliding window example), others are vendor
+ *   extensions. Drivers must report actual scale/limits here.
+ *
+ * Describes the MSE measurement capabilities for the current link mode. These
+ * properties are dynamic and may change when link settings are modified.
+ * Callers should re-query this capability after any link state change to
+ * ensure they have the most up-to-date information.
+ *
+ * Callers should only request measurements for channels and types that are
+ * indicated as supported by the @supported_caps bitmask. If @supported_caps
+ * is 0, the device provides no MSE diagnostics, and driver operations should
+ * typically return -EOPNOTSUPP.
+ *
+ * Snapshot values for average and peak MSE can be normalized to a 0..1 ratio
+ * by dividing the raw snapshot by the corresponding @max_average_mse or
+ * @max_peak_mse value.
+ *
+ * @max_average_mse: The maximum value for an average MSE snapshot. This
+ *   defines the scale for the measurement. If the PHY_MSE_CAP_AVG capability is
+ *   supported, this value MUST be greater than 0. (vendor-specific units).
+ * @max_peak_mse: The maximum value for a peak MSE snapshot. If either
+ *   PHY_MSE_CAP_PEAK or PHY_MSE_CAP_WORST_PEAK is supported, this value MUST
+ *   be greater than 0. (vendor-specific units).
+ * @refresh_rate_ps: The typical interval, in picoseconds, between hardware
+ *   updates of the MSE values. This is an estimate, and callers should not
+ *   assume synchronous sampling. (vendor-specific units).
+ * @num_symbols: The number of symbols aggregated per hardware sample to
+ *   calculate the MSE. (vendor-specific units).
+ * @supported_caps: A bitmask of PHY_MSE_CAP_* values indicating which
+ *   measurement types (e.g., average, peak) and channels
+ *   (e.g., per-pair or link-wide) are supported.
+ */
+struct phy_mse_capability {
+	u64 max_average_mse;
+	u64 max_peak_mse;
+	u64 refresh_rate_ps;
+	u64 num_symbols;
+	u32 supported_caps;
+};
+
+/**
+ * struct phy_mse_snapshot - A snapshot of Mean Square Error (MSE) diagnostics
+ *
+ * Holds a set of MSE diagnostic values that were all captured from a single
+ * measurement window.
+ *
+ * Values are raw, device-scaled and not normalized. Use struct
+ * phy_mse_capability to interpret the scale and sampling window.
+ *
+ * @average_mse: The average MSE value over the measurement window.
+ *   OPEN Alliance references MSE as a DCQ metric; recommends 2^16 symbols and
+ *   0..511 scaling. Exact scale and refresh are vendor-specific.
+ *   (100BASE-T1 TC1 v1.0 6.1.1; 1000BASE-T1 TC12 v2.2 6.1.1).
+ *
+ * @peak_mse: The peak MSE value observed within the measurement window.
+ *   For 100BASE-T1, "pMSE" is optional and may be implemented via a sliding
+ *   128-symbol window with periodic capture; not standardized for 1000BASE-T1.
+ *   (100BASE-T1 TC1 v1.0 6.1.3, Table "DCQ.peakMSE").
+ *
+ * @worst_peak_mse: A latched high-water mark of the peak MSE since last read
+ *   (read-to-clear if implemented). OPEN Alliance shows a latched "worst case
+ *   peak MSE" for 100BASE-T1 pMSE; availability/semantics outside that are
+ *   vendor-specific. (100BASE-T1 TC1 v1.0 6.1.3, DCQ.peakMSE high byte;
+ *   1000BASE-T1 TC12 v2.2 treats DCQ details as vendor-specific.)
+ */
+struct phy_mse_snapshot {
+	u64 average_mse;
+	u64 peak_mse;
+	u64 worst_peak_mse;
+};
+
 /**
  * struct phy_driver - Driver structure for a particular PHY type
  *
@@ -1183,6 +1342,53 @@ struct phy_driver {
 	int (*get_sqi)(struct phy_device *dev);
 	/** @get_sqi_max: Get the maximum signal quality indication */
 	int (*get_sqi_max)(struct phy_device *dev);
+
+	/**
+	 * @get_mse_capability: Get capabilities and scale of MSE measurement
+	 * @dev:    PHY device
+	 * @cap: Output (filled on success)
+	 *
+	 * Fill @cap with the PHY's MSE capability for the current
+	 * link mode: scale limits (max_average_mse, max_peak_mse), update
+	 * interval (refresh_rate_ps), sample length (num_symbols) and the
+	 * capability bitmask (supported_caps).
+	 *
+	 * Implementations may defer capability report until hardware has
+	 * converged; in that case they should return -EAGAIN and allow the
+	 * caller to retry later.
+	 *
+	 * Return: 0 on success. On failure, returns a negative errno code, such
+	 * as -EOPNOTSUPP if MSE measurement is not supported by the PHY or in
+	 * the current link mode, or -EAGAIN if the capability information is
+	 * not yet available.
+	 */
+	int (*get_mse_capability)(struct phy_device *dev,
+				  struct phy_mse_capability *cap);
+
+	/**
+	 * @get_mse_snapshot: Retrieve a snapshot of MSE diagnostic values
+	 * @dev:      PHY device
+	 * @channel:  Channel identifier (PHY_MSE_CHANNEL_*)
+	 * @snapshot: Output (filled on success)
+	 *
+	 * Fill @snapshot with a correlated set of MSE values from the most
+	 * recent measurement window.
+	 *
+	 * Callers must validate @channel against supported_caps returned by
+	 * get_mse_capability(). Drivers must not coerce @channel; if the
+	 * requested selector is not implemented by the device or current link
+	 * mode, the operation must fail.
+	 *
+	 * worst_peak_mse is latched and must be treated as read-to-clear.
+	 *
+	 * Return: 0 on success. On failure, returns a negative errno code, such
+	 * as -EOPNOTSUPP if MSE measurement is not supported by the PHY or in
+	 * the current link mode, or -EAGAIN if measurements are not yet
+	 * available.
+	 */
+	int (*get_mse_snapshot)(struct phy_device *dev,
+				enum phy_mse_channel channel,
+				struct phy_mse_snapshot *snapshot);
 
 	/* PLCA RS interface */
 	/** @get_plca_cfg: Return the current PLCA configuration */
