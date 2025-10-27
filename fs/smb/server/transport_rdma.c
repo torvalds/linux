@@ -13,30 +13,15 @@
 
 #include <linux/kthread.h>
 #include <linux/list.h>
-#include <linux/mempool.h>
-#include <linux/highmem.h>
-#include <linux/scatterlist.h>
 #include <linux/string_choices.h>
-#include <rdma/ib_verbs.h>
-#include <rdma/rdma_cm.h>
-#include <rdma/rw.h>
 
 #include "glob.h"
 #include "connection.h"
 #include "smb_common.h"
 #include "../common/smb2status.h"
-#include "../common/smbdirect/smbdirect.h"
-#include "../common/smbdirect/smbdirect_pdu.h"
-#include "../common/smbdirect/smbdirect_socket.h"
 #include "transport_rdma.h"
+#include "../common/smbdirect/smbdirect_public.h"
 
-/*
- * This is a temporary solution until all code
- * is moved to smbdirect_all_c_files.c and we
- * have an smbdirect.ko that exports the required
- * functions.
- */
-#include "../common/smbdirect/smbdirect_all_c_files.c"
 
 #define SMB_DIRECT_PORT_IWARP		5445
 #define SMB_DIRECT_PORT_INFINIBAND	445
@@ -709,3 +694,11 @@ static const struct ksmbd_transport_ops ksmbd_smb_direct_transport_ops = {
 	.rdma_write	= smb_direct_rdma_write,
 	.free_transport = smb_direct_free_transport,
 };
+
+/*
+ * This is a temporary solution until all code
+ * is moved to smbdirect_all_c_files.c and we
+ * have an smbdirect.ko that exports the required
+ * functions.
+ */
+#include "../common/smbdirect/smbdirect_all_c_files.c"
