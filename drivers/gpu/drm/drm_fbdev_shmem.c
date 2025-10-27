@@ -135,10 +135,10 @@ int drm_fbdev_shmem_driver_fbdev_probe(struct drm_fb_helper *fb_helper,
 {
 	struct drm_client_dev *client = &fb_helper->client;
 	struct drm_device *dev = fb_helper->dev;
+	struct fb_info *info = fb_helper->info;
 	struct drm_client_buffer *buffer;
 	struct drm_gem_shmem_object *shmem;
 	struct drm_framebuffer *fb;
-	struct fb_info *info;
 	u32 format;
 	struct iosys_map map;
 	int ret;
@@ -168,12 +168,6 @@ int drm_fbdev_shmem_driver_fbdev_probe(struct drm_fb_helper *fb_helper,
 	fb_helper->buffer = buffer;
 	fb_helper->fb = fb;
 
-	info = drm_fb_helper_alloc_info(fb_helper);
-	if (IS_ERR(info)) {
-		ret = PTR_ERR(info);
-		goto err_drm_client_buffer_vunmap;
-	}
-
 	drm_fb_helper_fill_info(info, fb_helper, sizes);
 
 	info->fbops = &drm_fbdev_shmem_fb_ops;
@@ -194,12 +188,10 @@ int drm_fbdev_shmem_driver_fbdev_probe(struct drm_fb_helper *fb_helper,
 	info->fbdefio = &fb_helper->fbdefio;
 	ret = fb_deferred_io_init(info);
 	if (ret)
-		goto err_drm_fb_helper_release_info;
+		goto err_drm_client_buffer_vunmap;
 
 	return 0;
 
-err_drm_fb_helper_release_info:
-	drm_fb_helper_release_info(fb_helper);
 err_drm_client_buffer_vunmap:
 	fb_helper->fb = NULL;
 	fb_helper->buffer = NULL;

@@ -108,7 +108,7 @@ int psb_fbdev_driver_fbdev_probe(struct drm_fb_helper *fb_helper,
 	struct drm_device *dev = fb_helper->dev;
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
-	struct fb_info *info;
+	struct fb_info *info = fb_helper->info;
 	struct drm_framebuffer *fb;
 	struct drm_mode_fb_cmd2 mode_cmd = { };
 	int size;
@@ -167,12 +167,6 @@ int psb_fbdev_driver_fbdev_probe(struct drm_fb_helper *fb_helper,
 	fb_helper->funcs = &psb_fbdev_fb_helper_funcs;
 	fb_helper->fb = fb;
 
-	info = drm_fb_helper_alloc_info(fb_helper);
-	if (IS_ERR(info)) {
-		ret = PTR_ERR(info);
-		goto err_drm_framebuffer_unregister_private;
-	}
-
 	info->fbops = &psb_fbdev_fb_ops;
 
 	/* Accessed stolen memory directly */
@@ -196,10 +190,6 @@ int psb_fbdev_driver_fbdev_probe(struct drm_fb_helper *fb_helper,
 
 	return 0;
 
-err_drm_framebuffer_unregister_private:
-	drm_framebuffer_unregister_private(fb);
-	drm_framebuffer_cleanup(fb);
-	kfree(fb);
 err_drm_gem_object_put:
 	drm_gem_object_put(obj);
 	return ret;

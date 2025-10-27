@@ -459,20 +459,7 @@ int drm_fb_helper_init(struct drm_device *dev,
 }
 EXPORT_SYMBOL(drm_fb_helper_init);
 
-/**
- * drm_fb_helper_alloc_info - allocate fb_info and some of its members
- * @fb_helper: driver-allocated fbdev helper
- *
- * A helper to alloc fb_info and the member cmap. Called by the driver
- * within the struct &drm_driver.fbdev_probe callback function. Drivers do
- * not need to release the allocated fb_info structure themselves, this is
- * automatically done when calling drm_fb_helper_fini().
- *
- * RETURNS:
- * fb_info pointer if things went okay, pointer containing error code
- * otherwise
- */
-struct fb_info *drm_fb_helper_alloc_info(struct drm_fb_helper *fb_helper)
+static struct fb_info *drm_fb_helper_alloc_info(struct drm_fb_helper *fb_helper)
 {
 	struct device *dev = fb_helper->dev->dev;
 	struct fb_info *info;
@@ -499,17 +486,8 @@ err_release:
 	framebuffer_release(info);
 	return ERR_PTR(ret);
 }
-EXPORT_SYMBOL(drm_fb_helper_alloc_info);
 
-/**
- * drm_fb_helper_release_info - release fb_info and its members
- * @fb_helper: driver-allocated fbdev helper
- *
- * A helper to release fb_info and the member cmap.  Drivers do not
- * need to release the allocated fb_info structure themselves, this is
- * automatically done when calling drm_fb_helper_fini().
- */
-void drm_fb_helper_release_info(struct drm_fb_helper *fb_helper)
+static void drm_fb_helper_release_info(struct drm_fb_helper *fb_helper)
 {
 	struct fb_info *info = fb_helper->info;
 
@@ -522,7 +500,6 @@ void drm_fb_helper_release_info(struct drm_fb_helper *fb_helper)
 		fb_dealloc_cmap(&info->cmap);
 	framebuffer_release(info);
 }
-EXPORT_SYMBOL(drm_fb_helper_release_info);
 
 /**
  * drm_fb_helper_unregister_info - unregister fb_info framebuffer device
@@ -1770,6 +1747,11 @@ __drm_fb_helper_initial_config_and_unlock(struct drm_fb_helper *fb_helper)
 	height = dev->mode_config.max_height;
 
 	drm_client_modeset_probe(&fb_helper->client, width, height);
+
+	info = drm_fb_helper_alloc_info(fb_helper);
+	if (IS_ERR(info))
+		return PTR_ERR(info);
+
 	ret = drm_fb_helper_single_fb_probe(fb_helper);
 	if (ret < 0) {
 		if (ret == -EAGAIN) {
@@ -1778,13 +1760,12 @@ __drm_fb_helper_initial_config_and_unlock(struct drm_fb_helper *fb_helper)
 		}
 		mutex_unlock(&fb_helper->lock);
 
-		return ret;
+		goto err_drm_fb_helper_release_info;
 	}
 	drm_setup_crtcs_fb(fb_helper);
 
 	fb_helper->deferred_setup = false;
 
-	info = fb_helper->info;
 	info->var.pixclock = 0;
 
 	/* Need to drop locks to avoid recursive deadlock in
@@ -1804,6 +1785,10 @@ __drm_fb_helper_initial_config_and_unlock(struct drm_fb_helper *fb_helper)
 	mutex_unlock(&kernel_fb_helper_lock);
 
 	return 0;
+
+err_drm_fb_helper_release_info:
+	drm_fb_helper_release_info(fb_helper);
+	return ret;
 }
 
 /**
