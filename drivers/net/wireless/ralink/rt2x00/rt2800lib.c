@@ -24,6 +24,7 @@
 #include <linux/crc-ccitt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/nvmem-consumer.h>
 #include <linux/slab.h>
 
 #include "rt2x00.h"
@@ -10961,6 +10962,36 @@ int rt2800_read_eeprom_efuse(struct rt2x00_dev *rt2x00dev)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(rt2800_read_eeprom_efuse);
+
+int rt2800_read_eeprom_nvmem(struct rt2x00_dev *rt2x00dev)
+{
+	struct device_node *np = rt2x00dev->dev->of_node;
+	unsigned int len = rt2x00dev->ops->eeprom_size;
+	struct nvmem_cell *cell;
+	const void *data;
+	size_t retlen;
+
+	cell = of_nvmem_cell_get(np, "eeprom");
+	if (IS_ERR(cell))
+		return PTR_ERR(cell);
+
+	data = nvmem_cell_read(cell, &retlen);
+	nvmem_cell_put(cell);
+
+	if (IS_ERR(data))
+		return PTR_ERR(data);
+
+	if (retlen != len) {
+		dev_err(rt2x00dev->dev, "invalid eeprom size, required: 0x%04x\n", len);
+		kfree(data);
+		return -EINVAL;
+	}
+
+	memcpy(rt2x00dev->eeprom, data, len);
+	kfree(data);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(rt2800_read_eeprom_nvmem);
 
 static u8 rt2800_get_txmixer_gain_24g(struct rt2x00_dev *rt2x00dev)
 {
