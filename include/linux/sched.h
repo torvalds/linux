@@ -41,6 +41,7 @@
 #include <linux/task_io_accounting.h>
 #include <linux/posix-timers_types.h>
 #include <linux/restart_block.h>
+#include <linux/rseq_types.h>
 #include <uapi/linux/rseq.h>
 #include <linux/seqlock_types.h>
 #include <linux/kcsan.h>
@@ -1406,16 +1407,8 @@ struct task_struct {
 	unsigned long			numa_pages_migrated;
 #endif /* CONFIG_NUMA_BALANCING */
 
-#ifdef CONFIG_RSEQ
-	struct rseq __user		*rseq;
-	u32				rseq_len;
-	u32				rseq_sig;
-	/*
-	 * RmW on rseq_event_pending must be performed atomically
-	 * with respect to preemption.
-	 */
-	bool				rseq_event_pending;
-# ifdef CONFIG_DEBUG_RSEQ
+	struct rseq_data		rseq;
+#ifdef CONFIG_DEBUG_RSEQ
 	/*
 	 * This is a place holder to save a copy of the rseq fields for
 	 * validation of read-only fields. The struct rseq has a
@@ -1423,7 +1416,6 @@ struct task_struct {
 	 * directly. Reserve a size large enough for the known fields.
 	 */
 	char				rseq_fields[sizeof(struct rseq)];
-# endif
 #endif
 
 #ifdef CONFIG_SCHED_MM_CID

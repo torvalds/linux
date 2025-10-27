@@ -103,13 +103,13 @@ static int rseq_validate_ro_fields(struct task_struct *t)
 				      DEFAULT_RATELIMIT_INTERVAL,
 				      DEFAULT_RATELIMIT_BURST);
 	u32 cpu_id_start, cpu_id, node_id, mm_cid;
-	struct rseq __user *rseq = t->rseq;
+	struct rseq __user *rseq = t->rseq.usrptr;
 
 	/*
 	 * Validate fields which are required to be read-only by
 	 * user-space.
 	 */
-	if (!user_read_access_begin(rseq, t->rseq_len))
+	if (!user_read_access_begin(rseq, t->rseq.len))
 		goto efault;
 	unsafe_get_user(cpu_id_start, &rseq->cpu_id_start, efault_end);
 	unsafe_get_user(cpu_id, &rseq->cpu_id, efault_end);
@@ -147,10 +147,10 @@ efault:
  * Update an rseq field and its in-kernel copy in lock-step to keep a coherent
  * state.
  */
-#define rseq_unsafe_put_user(t, value, field, error_label)		\
-	do {								\
-		unsafe_put_user(value, &t->rseq->field, error_label);	\
-		rseq_kernel_fields(t)->field = value;			\
+#define rseq_unsafe_put_user(t, value, field, error_label)			\
+	do {									\
+		unsafe_put_user(value, &t->rseq.usrptr->field, error_label);	\
+		rseq_kernel_fields(t)->field = value;				\
 	} while (0)
 
 #else
@@ -160,12 +160,12 @@ static int rseq_validate_ro_fields(struct task_struct *t)
 }
 
 #define rseq_unsafe_put_user(t, value, field, error_label)		\
-	unsafe_put_user(value, &t->rseq->field, error_label)
+	unsafe_put_user(value, &t->rseq.usrptr->field, error_label)
 #endif
 
 static int rseq_update_cpu_node_id(struct task_struct *t)
 {
-	struct rseq __user *rseq = t->rseq;
+	struct rseq __user *rseq = t->rseq.usrptr;
 	u32 cpu_id = raw_smp_processor_id();
 	u32 node_id = cpu_to_node(cpu_id);
 	u32 mm_cid = task_mm_cid(t);
@@ -176,7 +176,7 @@ static int rseq_update_cpu_node_id(struct task_struct *t)
 	if (rseq_validate_ro_fields(t))
 		goto efault;
 	WARN_ON_ONCE((int) mm_cid < 0);
-	if (!user_write_access_begin(rseq, t->rseq_len))
+	if (!user_write_access_begin(rseq, t->rseq.len))
 		goto efault;
 
 	rseq_unsafe_put_user(t, cpu_id, cpu_id_start, efault_end);
@@ -201,7 +201,7 @@ efault:
 
 static int rseq_reset_rseq_cpu_node_id(struct task_struct *t)
 {
-	struct rseq __user *rseq = t->rseq;
+	struct rseq __user *rseq = t->rseq.usrptr;
 	u32 cpu_id_start = 0, cpu_id = RSEQ_CPU_ID_UNINITIALIZED, node_id = 0,
 	    mm_cid = 0;
 
@@ -211,7 +211,7 @@ static int rseq_reset_rseq_cpu_node_id(struct task_struct *t)
 	if (rseq_validate_ro_fields(t))
 		goto efault;
 
-	if (!user_write_access_begin(rseq, t->rseq_len))
+	if (!user_write_access_begin(rseq, t->rseq.len))
 		goto efault;
 
 	/*
@@ -272,7 +272,7 @@ static int rseq_get_rseq_cs(struct task_struct *t, struct rseq_cs *rseq_cs)
 	u32 sig;
 	int ret;
 
-	ret = rseq_get_rseq_cs_ptr_val(t->rseq, &ptr);
+	ret = rseq_get_rseq_cs_ptr_val(t->rseq.usrptr, &ptr);
 	if (ret)
 		return ret;
 
@@ -305,10 +305,10 @@ static int rseq_get_rseq_cs(struct task_struct *t, struct rseq_cs *rseq_cs)
 	if (ret)
 		return ret;
 
-	if (current->rseq_sig != sig) {
+	if (current->rseq.sig != sig) {
 		printk_ratelimited(KERN_WARNING
 			"Possible attack attempt. Unexpected rseq signature 0x%x, expecting 0x%x (pid=%d, addr=%p).\n",
-			sig, current->rseq_sig, current->pid, usig);
+			sig, current->rseq.sig, current->pid, usig);
 		return -EINVAL;
 	}
 	return 0;
@@ -338,7 +338,7 @@ static int rseq_check_flags(struct task_struct *t, u32 cs_flags)
 		return -EINVAL;
 
 	/* Get thread flags. */
-	ret = get_user(flags, &t->rseq->flags);
+	ret = get_user(flags, &t->rseq.usrptr->flags);
 	if (ret)
 		return ret;
 
@@ -392,13 +392,13 @@ static int rseq_ip_fixup(struct pt_regs *regs, bool abort)
 	 * Clear the rseq_cs pointer and return.
 	 */
 	if (!in_rseq_cs(ip, &rseq_cs))
-		return clear_rseq_cs(t->rseq);
+		return clear_rseq_cs(t->rseq.usrptr);
 	ret = rseq_check_flags(t, rseq_cs.flags);
 	if (ret < 0)
 		return ret;
 	if (!abort)
 		return 0;
-	ret = clear_rseq_cs(t->rseq);
+	ret = clear_rseq_cs(t->rseq.usrptr);
 	if (ret)
 		return ret;
 	trace_rseq_ip_fixup(ip, rseq_cs.start_ip, rseq_cs.post_commit_offset,
@@ -460,8 +460,8 @@ void __rseq_handle_notify_resume(struct ksignal *ksig, struct pt_regs *regs)
 	 * inconsistencies.
 	 */
 	scoped_guard(RSEQ_EVENT_GUARD) {
-		event = t->rseq_event_pending;
-		t->rseq_event_pending = false;
+		event = t->rseq.event.sched_switch;
+		t->rseq.event.sched_switch = false;
 	}
 
 	if (!IS_ENABLED(CONFIG_DEBUG_RSEQ) && !event)
@@ -492,7 +492,7 @@ void rseq_syscall(struct pt_regs *regs)
 	struct task_struct *t = current;
 	struct rseq_cs rseq_cs;
 
-	if (!t->rseq)
+	if (!t->rseq.usrptr)
 		return;
 	if (rseq_get_rseq_cs(t, &rseq_cs) || in_rseq_cs(ip, &rseq_cs))
 		force_sig(SIGSEGV);
@@ -511,33 +511,31 @@ SYSCALL_DEFINE4(rseq, struct rseq __user *, rseq, u32, rseq_len, int, flags, u32
 		if (flags & ~RSEQ_FLAG_UNREGISTER)
 			return -EINVAL;
 		/* Unregister rseq for current thread. */
-		if (current->rseq != rseq || !current->rseq)
+		if (current->rseq.usrptr != rseq || !current->rseq.usrptr)
 			return -EINVAL;
-		if (rseq_len != current->rseq_len)
+		if (rseq_len != current->rseq.len)
 			return -EINVAL;
-		if (current->rseq_sig != sig)
+		if (current->rseq.sig != sig)
 			return -EPERM;
 		ret = rseq_reset_rseq_cpu_node_id(current);
 		if (ret)
 			return ret;
-		current->rseq = NULL;
-		current->rseq_sig = 0;
-		current->rseq_len = 0;
+		rseq_reset(current);
 		return 0;
 	}
 
 	if (unlikely(flags))
 		return -EINVAL;
 
-	if (current->rseq) {
+	if (current->rseq.usrptr) {
 		/*
 		 * If rseq is already registered, check whether
 		 * the provided address differs from the prior
 		 * one.
 		 */
-		if (current->rseq != rseq || rseq_len != current->rseq_len)
+		if (current->rseq.usrptr != rseq || rseq_len != current->rseq.len)
 			return -EINVAL;
-		if (current->rseq_sig != sig)
+		if (current->rseq.sig != sig)
 			return -EPERM;
 		/* Already registered. */
 		return -EBUSY;
@@ -586,15 +584,16 @@ SYSCALL_DEFINE4(rseq, struct rseq __user *, rseq, u32, rseq_len, int, flags, u32
 	 * Activate the registration by setting the rseq area address, length
 	 * and signature in the task struct.
 	 */
-	current->rseq = rseq;
-	current->rseq_len = rseq_len;
-	current->rseq_sig = sig;
+	current->rseq.usrptr = rseq;
+	current->rseq.len = rseq_len;
+	current->rseq.sig = sig;
 
 	/*
 	 * If rseq was previously inactive, and has just been
 	 * registered, ensure the cpu_id_start and cpu_id fields
 	 * are updated before returning to user-space.
 	 */
+	current->rseq.event.has_rseq = true;
 	rseq_sched_switch_event(current);
 
 	return 0;
