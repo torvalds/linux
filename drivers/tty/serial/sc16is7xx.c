@@ -837,9 +837,8 @@ out_port_irq:
 
 static irqreturn_t sc16is7xx_irq(int irq, void *dev_id)
 {
+	struct sc16is7xx_port *s = dev_id;
 	bool keep_polling;
-
-	struct sc16is7xx_port *s = (struct sc16is7xx_port *)dev_id;
 
 	do {
 		int i;
