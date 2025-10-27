@@ -315,6 +315,7 @@ nfs_local_iocb_alloc(struct nfs_pgio_header *hdr,
 
 	iocb->hdr = hdr;
 	iocb->kiocb.ki_flags &= ~IOCB_APPEND;
+	iocb->kiocb.ki_complete = NULL;
 	iocb->aio_complete_work = NULL;
 
 	iocb->end_iter_index = -1;
@@ -484,6 +485,7 @@ nfs_local_iters_init(struct nfs_local_kiocb *iocb, int rw)
 	/* Use buffered IO */
 	iocb->offset[0] = hdr->args.offset;
 	iov_iter_bvec(&iocb->iters[0], rw, iocb->bvec, v, len);
+	iocb->iter_is_dio_aligned[0] = false;
 	iocb->n_iters = 1;
 }
 
@@ -803,7 +805,7 @@ static void nfs_local_call_write(struct work_struct *work)
 			iocb->kiocb.ki_complete = nfs_local_write_aio_complete;
 			iocb->aio_complete_work = nfs_local_write_aio_complete_work;
 		}
-retry:
+
 		iocb->kiocb.ki_pos = iocb->offset[i];
 		status = filp->f_op->write_iter(&iocb->kiocb, &iocb->iters[i]);
 		if (status != -EIOCBQUEUED) {
@@ -823,15 +825,6 @@ retry:
 					nfs_local_pgio_done(iocb->hdr, status);
 					break;
 				}
-			} else if (unlikely(status == -ENOTBLK &&
-					    (iocb->kiocb.ki_flags & IOCB_DIRECT))) {
-				/* VFS will return -ENOTBLK if DIO WRITE fails to
-				 * invalidate the page cache. Retry using buffered IO.
-				 */
-				iocb->kiocb.ki_flags &= ~IOCB_DIRECT;
-				iocb->kiocb.ki_complete = NULL;
-				iocb->aio_complete_work = NULL;
-				goto retry;
 			}
 			nfs_local_pgio_done(iocb->hdr, status);
 			if (iocb->hdr->task.tk_status)
