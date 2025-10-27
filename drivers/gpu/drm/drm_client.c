@@ -188,11 +188,8 @@ static void drm_client_buffer_delete(struct drm_client_buffer *buffer)
 
 static struct drm_client_buffer *
 drm_client_buffer_create(struct drm_client_dev *client, u32 width, u32 height,
-			 u32 format, u32 *handle, u32 *pitch)
+			 u32 format, u32 handle, u32 pitch)
 {
-	const struct drm_format_info *info = drm_format_info(format);
-	struct drm_mode_create_dumb dumb_args = { };
-	struct drm_device *dev = client->dev;
 	struct drm_client_buffer *buffer;
 	struct drm_gem_object *obj;
 	int ret;
@@ -203,28 +200,18 @@ drm_client_buffer_create(struct drm_client_dev *client, u32 width, u32 height,
 
 	buffer->client = client;
 
-	dumb_args.width = width;
-	dumb_args.height = height;
-	dumb_args.bpp = drm_format_info_bpp(info, 0);
-	ret = drm_mode_create_dumb(dev, &dumb_args, client->file);
-	if (ret)
-		goto err_delete;
-
-	obj = drm_gem_object_lookup(client->file, dumb_args.handle);
+	obj = drm_gem_object_lookup(client->file, handle);
 	if (!obj)  {
 		ret = -ENOENT;
 		goto err_delete;
 	}
 
 	buffer->gem = obj;
-	*handle = dumb_args.handle;
-	*pitch = dumb_args.pitch;
 
 	return buffer;
 
 err_delete:
-	drm_client_buffer_delete(buffer);
-
+	kfree(buffer);
 	return ERR_PTR(ret);
 }
 
@@ -398,16 +385,30 @@ static int drm_client_buffer_addfb(struct drm_client_buffer *buffer,
 struct drm_client_buffer *
 drm_client_framebuffer_create(struct drm_client_dev *client, u32 width, u32 height, u32 format)
 {
+	const struct drm_format_info *info = drm_format_info(format);
+	struct drm_device *dev = client->dev;
+	struct drm_mode_create_dumb dumb_args = { };
 	struct drm_client_buffer *buffer;
-	u32 handle, pitch;
 	int ret;
 
-	buffer = drm_client_buffer_create(client, width, height, format,
-					  &handle, &pitch);
-	if (IS_ERR(buffer))
-		return buffer;
+	dumb_args.width = width;
+	dumb_args.height = height;
+	dumb_args.bpp = drm_format_info_bpp(info, 0);
+	ret = drm_mode_create_dumb(dev, &dumb_args, client->file);
+	if (ret)
+		return ERR_PTR(ret);
 
-	ret = drm_client_buffer_addfb(buffer, width, height, format, handle, pitch);
+	buffer = drm_client_buffer_create(client, width, height, format,
+					  dumb_args.handle, dumb_args.pitch);
+	if (IS_ERR(buffer)) {
+		ret = PTR_ERR(buffer);
+		goto err_drm_mode_destroy_dumb;
+	}
+
+	ret = drm_client_buffer_addfb(buffer, width, height, format,
+				      dumb_args.handle, dumb_args.pitch);
+	if (ret)
+		goto err_drm_client_buffer_delete;
 
 	/*
 	 * The handle is only needed for creating the framebuffer, destroy it
@@ -415,14 +416,15 @@ drm_client_framebuffer_create(struct drm_client_dev *client, u32 width, u32 heig
 	 * object as DMA-buf. The framebuffer and our buffer structure are still
 	 * holding references to the GEM object to prevent its destruction.
 	 */
-	drm_mode_destroy_dumb(client->dev, handle, client->file);
-
-	if (ret) {
-		drm_client_buffer_delete(buffer);
-		return ERR_PTR(ret);
-	}
+	drm_mode_destroy_dumb(client->dev, dumb_args.handle, client->file);
 
 	return buffer;
+
+err_drm_client_buffer_delete:
+	drm_client_buffer_delete(buffer);
+err_drm_mode_destroy_dumb:
+	drm_mode_destroy_dumb(client->dev, dumb_args.handle, client->file);
+	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL(drm_client_framebuffer_create);
 
