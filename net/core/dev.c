@@ -12176,6 +12176,35 @@ static void dev_memory_provider_uninstall(struct net_device *dev)
 	}
 }
 
+/* devices must be UP and netdev_lock()'d */
+static void netif_close_many_and_unlock(struct list_head *close_head)
+{
+	struct net_device *dev, *tmp;
+
+	netif_close_many(close_head, false);
+
+	/* ... now unlock them */
+	list_for_each_entry_safe(dev, tmp, close_head, close_list) {
+		netdev_unlock(dev);
+		list_del_init(&dev->close_list);
+	}
+}
+
+static void netif_close_many_and_unlock_cond(struct list_head *close_head)
+{
+#ifdef CONFIG_LOCKDEP
+	/* We can only track up to MAX_LOCK_DEPTH locks per task.
+	 *
+	 * Reserve half the available slots for additional locks possibly
+	 * taken by notifiers and (soft)irqs.
+	 */
+	unsigned int limit = MAX_LOCK_DEPTH / 2;
+
+	if (lockdep_depth(current) > limit)
+		netif_close_many_and_unlock(close_head);
+#endif
+}
+
 void unregister_netdevice_many_notify(struct list_head *head,
 				      u32 portid, const struct nlmsghdr *nlh)
 {
@@ -12208,17 +12237,18 @@ void unregister_netdevice_many_notify(struct list_head *head,
 
 	/* If device is running, close it first. Start with ops locked... */
 	list_for_each_entry(dev, head, unreg_list) {
+		if (!(dev->flags & IFF_UP))
+			continue;
 		if (netdev_need_ops_lock(dev)) {
 			list_add_tail(&dev->close_list, &close_head);
 			netdev_lock(dev);
 		}
+		netif_close_many_and_unlock_cond(&close_head);
 	}
-	netif_close_many(&close_head, true);
-	/* ... now unlock them and go over the rest. */
+	netif_close_many_and_unlock(&close_head);
+	/* ... now go over the rest. */
 	list_for_each_entry(dev, head, unreg_list) {
-		if (netdev_need_ops_lock(dev))
-			netdev_unlock(dev);
-		else
+		if (!netdev_need_ops_lock(dev))
 			list_add_tail(&dev->close_list, &close_head);
 	}
 	netif_close_many(&close_head, true);

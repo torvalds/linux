@@ -409,7 +409,7 @@ int amdgpu_mes_detect_and_reset_hung_queues(struct amdgpu_device *adev,
 		return -EINVAL;
 
 	/* Clear the doorbell array before detection */
-	memset(adev->mes.hung_queue_db_array_cpu_addr, 0,
+	memset(adev->mes.hung_queue_db_array_cpu_addr, AMDGPU_MES_INVALID_DB_OFFSET,
 		adev->mes.hung_queue_db_array_size * sizeof(u32));
 	input.queue_type = queue_type;
 	input.detect_only = detect_only;
@@ -420,12 +420,17 @@ int amdgpu_mes_detect_and_reset_hung_queues(struct amdgpu_device *adev,
 		dev_err(adev->dev, "failed to detect and reset\n");
 	} else {
 		*hung_db_num = 0;
-		for (i = 0; i < adev->mes.hung_queue_db_array_size; i++) {
+		for (i = 0; i < adev->mes.hung_queue_hqd_info_offset; i++) {
 			if (db_array[i] != AMDGPU_MES_INVALID_DB_OFFSET) {
 				hung_db_array[i] = db_array[i];
 				*hung_db_num += 1;
 			}
 		}
+
+		/*
+		 * TODO: return HQD info for MES scheduled user compute queue reset cases
+		 * stored in hung_db_array hqd info offset to full array size
+		 */
 	}
 
 	return r;
@@ -686,14 +691,11 @@ out:
 bool amdgpu_mes_suspend_resume_all_supported(struct amdgpu_device *adev)
 {
 	uint32_t mes_rev = adev->mes.sched_version & AMDGPU_MES_VERSION_MASK;
-	bool is_supported = false;
 
-	if (amdgpu_ip_version(adev, GC_HWIP, 0) >= IP_VERSION(11, 0, 0) &&
-	    amdgpu_ip_version(adev, GC_HWIP, 0) < IP_VERSION(12, 0, 0) &&
-	    mes_rev >= 0x63)
-		is_supported = true;
-
-	return is_supported;
+	return ((amdgpu_ip_version(adev, GC_HWIP, 0) >= IP_VERSION(11, 0, 0) &&
+		 amdgpu_ip_version(adev, GC_HWIP, 0) < IP_VERSION(12, 0, 0) &&
+		 mes_rev >= 0x63) ||
+		amdgpu_ip_version(adev, GC_HWIP, 0) >= IP_VERSION(12, 0, 0));
 }
 
 /* Fix me -- node_id is used to identify the correct MES instances in the future */
