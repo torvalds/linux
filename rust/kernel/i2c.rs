@@ -24,6 +24,7 @@ use crate::{
 
 use core::{
     marker::PhantomData,
+    mem::offset_of,
     ptr::{
         from_ref,
         NonNull, //
@@ -474,6 +475,12 @@ impl<Ctx: device::DeviceContext> I2cClient<Ctx> {
     fn as_raw(&self) -> *mut bindings::i2c_client {
         self.0.get()
     }
+}
+
+// SAFETY: `I2cClient` is a transparent wrapper of `struct i2c_client`.
+// The offset is guaranteed to point to a valid device field inside `I2cClient`.
+unsafe impl<Ctx: device::DeviceContext> device::AsBusDevice<Ctx> for I2cClient<Ctx> {
+    const OFFSET: usize = offset_of!(bindings::i2c_client, dev);
 }
 
 // SAFETY: `I2cClient` is a transparent wrapper of a type that doesn't depend on

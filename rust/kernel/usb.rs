@@ -15,7 +15,14 @@ use crate::{
     types::{AlwaysRefCounted, Opaque},
     ThisModule,
 };
-use core::{marker::PhantomData, mem::MaybeUninit, ptr::NonNull};
+use core::{
+    marker::PhantomData,
+    mem::{
+        offset_of,
+        MaybeUninit, //
+    },
+    ptr::NonNull,
+};
 
 /// An adapter for the registration of USB drivers.
 pub struct Adapter<T: Driver>(T);
@@ -322,6 +329,12 @@ impl<Ctx: device::DeviceContext> Interface<Ctx> {
     fn as_raw(&self) -> *mut bindings::usb_interface {
         self.0.get()
     }
+}
+
+// SAFETY: `usb::Interface` is a transparent wrapper of `struct usb_interface`.
+// The offset is guaranteed to point to a valid device field inside `usb::Interface`.
+unsafe impl<Ctx: device::DeviceContext> device::AsBusDevice<Ctx> for Interface<Ctx> {
+    const OFFSET: usize = offset_of!(bindings::usb_interface, dev);
 }
 
 // SAFETY: `Interface` is a transparent wrapper of a type that doesn't depend on

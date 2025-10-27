@@ -24,6 +24,7 @@ use crate::{
 };
 use core::{
     marker::PhantomData,
+    mem::offset_of,
     ptr::{
         addr_of_mut,
         NonNull, //
@@ -441,6 +442,12 @@ impl Device<device::Core> {
         // SAFETY: `self.as_raw` is guaranteed to be a pointer to a valid `struct pci_dev`.
         unsafe { bindings::pci_set_master(self.as_raw()) };
     }
+}
+
+// SAFETY: `pci::Device` is a transparent wrapper of `struct pci_dev`.
+// The offset is guaranteed to point to a valid device field inside `pci::Device`.
+unsafe impl<Ctx: device::DeviceContext> device::AsBusDevice<Ctx> for Device<Ctx> {
+    const OFFSET: usize = offset_of!(bindings::pci_dev, dev);
 }
 
 // SAFETY: `Device` is a transparent wrapper of a type that doesn't depend on `Device`'s generic

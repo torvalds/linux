@@ -19,6 +19,7 @@ use crate::{
 
 use core::{
     marker::PhantomData,
+    mem::offset_of,
     ptr::{addr_of_mut, NonNull},
 };
 
@@ -285,6 +286,12 @@ impl Device<Bound> {
             // lifetime of the `IoRequest`.
             .map(|resource| unsafe { IoRequest::new(self.as_ref(), resource) })
     }
+}
+
+// SAFETY: `platform::Device` is a transparent wrapper of `struct platform_device`.
+// The offset is guaranteed to point to a valid device field inside `platform::Device`.
+unsafe impl<Ctx: device::DeviceContext> device::AsBusDevice<Ctx> for Device<Ctx> {
+    const OFFSET: usize = offset_of!(bindings::platform_device, dev);
 }
 
 macro_rules! define_irq_accessor_by_index {
