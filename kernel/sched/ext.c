@@ -147,6 +147,7 @@ static struct kset *scx_kset;
 #include <trace/events/sched_ext.h>
 
 static void process_ddsp_deferred_locals(struct rq *rq);
+static u32 reenq_local(struct rq *rq);
 static void scx_kick_cpu(struct scx_sched *sch, s32 cpu, u64 flags);
 static void scx_vexit(struct scx_sched *sch, enum scx_exit_kind kind,
 		      s64 exit_code, const char *fmt, va_list args);
@@ -755,6 +756,11 @@ static int ops_sanitize_err(struct scx_sched *sch, const char *ops_name, s32 err
 static void run_deferred(struct rq *rq)
 {
 	process_ddsp_deferred_locals(rq);
+
+	if (local_read(&rq->scx.reenq_local_deferred)) {
+		local_set(&rq->scx.reenq_local_deferred, 0);
+		reenq_local(rq);
+	}
 }
 
 static void deferred_bal_cb_workfn(struct rq *rq)
@@ -4569,6 +4575,9 @@ static int validate_ops(struct scx_sched *sch, const struct sched_ext_ops *ops)
 	if (ops->flags & SCX_OPS_HAS_CGROUP_WEIGHT)
 		pr_warn("SCX_OPS_HAS_CGROUP_WEIGHT is deprecated and a noop\n");
 
+	if (ops->cpu_acquire || ops->cpu_release)
+		pr_warn("ops->cpu_acquire/release() are deprecated, use sched_switch TP instead\n");
+
 	return 0;
 }
 
@@ -5929,6 +5938,9 @@ __bpf_kfunc_start_defs();
  * Iterate over all of the tasks currently enqueued on the local DSQ of the
  * caller's CPU, and re-enqueue them in the BPF scheduler. Returns the number of
  * processed tasks. Can only be called from ops.cpu_release().
+ *
+ * COMPAT: Will be removed in v6.23 along with the ___v2 suffix on the void
+ * returning variant that can be called from anywhere.
  */
 __bpf_kfunc u32 scx_bpf_reenqueue_local(void)
 {
@@ -6488,6 +6500,24 @@ __bpf_kfunc void scx_bpf_dump_bstr(char *fmt, unsigned long long *data,
 }
 
 /**
+ * scx_bpf_reenqueue_local - Re-enqueue tasks on a local DSQ
+ *
+ * Iterate over all of the tasks currently enqueued on the local DSQ of the
+ * caller's CPU, and re-enqueue them in the BPF scheduler. Can be called from
+ * anywhere.
+ */
+__bpf_kfunc void scx_bpf_reenqueue_local___v2(void)
+{
+	struct rq *rq;
+
+	guard(preempt)();
+
+	rq = this_rq();
+	local_set(&rq->scx.reenq_local_deferred, 1);
+	schedule_deferred(rq);
+}
+
+/**
  * scx_bpf_cpuperf_cap - Query the maximum relative capacity of a CPU
  * @cpu: CPU of interest
  *
@@ -6900,6 +6930,7 @@ BTF_ID_FLAGS(func, bpf_iter_scx_dsq_destroy, KF_ITER_DESTROY)
 BTF_ID_FLAGS(func, scx_bpf_exit_bstr, KF_TRUSTED_ARGS)
 BTF_ID_FLAGS(func, scx_bpf_error_bstr, KF_TRUSTED_ARGS)
 BTF_ID_FLAGS(func, scx_bpf_dump_bstr, KF_TRUSTED_ARGS)
+BTF_ID_FLAGS(func, scx_bpf_reenqueue_local___v2)
 BTF_ID_FLAGS(func, scx_bpf_cpuperf_cap)
 BTF_ID_FLAGS(func, scx_bpf_cpuperf_cur)
 BTF_ID_FLAGS(func, scx_bpf_cpuperf_set)

@@ -279,6 +279,29 @@ static inline void scx_bpf_task_set_dsq_vtime(struct task_struct *p, u64 vtime)
 }
 
 /*
+ * v6.19: The new void variant can be called from anywhere while the older v1
+ * variant can only be called from ops.cpu_release(). The double ___ prefixes on
+ * the v2 variant need to be removed once libbpf is updated to ignore ___ prefix
+ * on kernel side. Drop the wrapper and move the decl to common.bpf.h after
+ * v6.22.
+ */
+u32 scx_bpf_reenqueue_local___v1(void) __ksym __weak;
+void scx_bpf_reenqueue_local___v2___compat(void) __ksym __weak;
+
+static inline bool __COMPAT_scx_bpf_reenqueue_local_from_anywhere(void)
+{
+	return bpf_ksym_exists(scx_bpf_reenqueue_local___v2___compat);
+}
+
+static inline void scx_bpf_reenqueue_local(void)
+{
+	if (__COMPAT_scx_bpf_reenqueue_local_from_anywhere())
+		scx_bpf_reenqueue_local___v2___compat();
+	else
+		scx_bpf_reenqueue_local___v1();
+}
+
+/*
  * Define sched_ext_ops. This may be expanded to define multiple variants for
  * backward compatibility. See compat.h::SCX_OPS_LOAD/ATTACH().
  */
