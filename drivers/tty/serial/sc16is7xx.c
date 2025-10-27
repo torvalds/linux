@@ -149,10 +149,12 @@
 #define SC16IS7XX_LCR_WORD_LEN_6	(0x01)
 #define SC16IS7XX_LCR_WORD_LEN_7	(0x02)
 #define SC16IS7XX_LCR_WORD_LEN_8	(0x03)
-#define SC16IS7XX_LCR_CONF_MODE_A	SC16IS7XX_LCR_DLAB_BIT /* Special
-								* reg set */
-#define SC16IS7XX_LCR_CONF_MODE_B	0xBF                   /* Enhanced
-								* reg set */
+#define SC16IS7XX_LCR_REG_SET_SPECIAL	SC16IS7XX_LCR_DLAB_BIT /* Special
+								* reg set
+								*/
+#define SC16IS7XX_LCR_REG_SET_ENHANCED	0xBF                   /* Enhanced
+								* reg set
+								*/
 
 /* MCR register bits */
 #define SC16IS7XX_MCR_DTR_BIT		BIT(0)   /* DTR complement
@@ -442,7 +444,7 @@ static void sc16is7xx_efr_lock(struct uart_port *port)
 	one->old_lcr = sc16is7xx_port_read(port, SC16IS7XX_LCR_REG);
 
 	/* Enable access to Enhanced register set */
-	sc16is7xx_port_write(port, SC16IS7XX_LCR_REG, SC16IS7XX_LCR_CONF_MODE_B);
+	sc16is7xx_port_write(port, SC16IS7XX_LCR_REG, SC16IS7XX_LCR_REG_SET_ENHANCED);
 
 	/* Disable cache updates when writing to EFR registers */
 	regcache_cache_bypass(one->regmap, true);
@@ -598,7 +600,7 @@ static int sc16is7xx_set_baud(struct uart_port *port, int baud)
 	/* Backup LCR and access special register set (DLL/DLH) */
 	lcr = sc16is7xx_port_read(port, SC16IS7XX_LCR_REG);
 	sc16is7xx_port_write(port, SC16IS7XX_LCR_REG,
-			     SC16IS7XX_LCR_CONF_MODE_A);
+			     SC16IS7XX_LCR_REG_SET_SPECIAL);
 
 	/* Write the new divisor */
 	regcache_cache_bypass(one->regmap, true);
@@ -1650,7 +1652,7 @@ int sc16is7xx_probe(struct device *dev, const struct sc16is7xx_devtype *devtype,
 
 		/* Enable EFR */
 		sc16is7xx_port_write(&s->p[i].port, SC16IS7XX_LCR_REG,
-				     SC16IS7XX_LCR_CONF_MODE_B);
+				     SC16IS7XX_LCR_REG_SET_ENHANCED);
 
 		regcache_cache_bypass(regmaps[i], true);
 
