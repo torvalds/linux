@@ -14,14 +14,11 @@
 #include <linux/pagemap.h>
 #include "bio.h"
 #include "fs.h"
-#include "messages.h"
 
 struct address_space;
-struct page;
 struct inode;
 struct btrfs_inode;
 struct btrfs_ordered_extent;
-struct btrfs_bio;
 
 /*
  * We want to make sure that amount of RAM required to uncompress an extent is

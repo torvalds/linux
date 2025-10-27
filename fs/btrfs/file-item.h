@@ -7,7 +7,7 @@
 #include <linux/list.h>
 #include <uapi/linux/btrfs_tree.h>
 #include "ctree.h"
-#include "accessors.h"
+#include "ordered-data.h"
 
 struct extent_map;
 struct btrfs_file_extent_item;
