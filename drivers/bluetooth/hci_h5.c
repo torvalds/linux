@@ -616,7 +616,6 @@ static int h5_recv(struct hci_uart *hu, const void *data, int count)
 
 	if (hu->serdev) {
 		pm_runtime_get(&hu->serdev->dev);
-		pm_runtime_mark_last_busy(&hu->serdev->dev);
 		pm_runtime_put_autosuspend(&hu->serdev->dev);
 	}
 
@@ -658,7 +657,6 @@ static int h5_enqueue(struct hci_uart *hu, struct sk_buff *skb)
 
 	if (hu->serdev) {
 		pm_runtime_get_sync(&hu->serdev->dev);
-		pm_runtime_mark_last_busy(&hu->serdev->dev);
 		pm_runtime_put_autosuspend(&hu->serdev->dev);
 	}
 
