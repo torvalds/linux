@@ -253,8 +253,6 @@ unsigned long task_size;
 EXPORT_SYMBOL(task_size);
 
 unsigned long brk_start;
-unsigned long end_iomem;
-EXPORT_SYMBOL(end_iomem);
 
 #define MIN_VMALLOC (32 * 1024 * 1024)
 
@@ -363,9 +361,7 @@ int __init linux_main(int argc, char **argv, char **envp)
 	setup_machinename(init_utsname()->machine);
 
 	physmem_size = PAGE_ALIGN(physmem_size);
-	iomem_size = PAGE_ALIGN(iomem_size);
-
-	max_physmem = TASK_SIZE - uml_physmem - iomem_size - MIN_VMALLOC;
+	max_physmem = TASK_SIZE - uml_physmem - MIN_VMALLOC;
 	if (physmem_size > max_physmem) {
 		physmem_size = max_physmem;
 		os_info("Physical memory size shrunk to %llu bytes\n",
@@ -373,7 +369,6 @@ int __init linux_main(int argc, char **argv, char **envp)
 	}
 
 	high_physmem = uml_physmem + physmem_size;
-	end_iomem = high_physmem + iomem_size;
 
 	start_vm = VMALLOC_START;
 

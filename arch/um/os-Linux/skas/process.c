@@ -298,7 +298,6 @@ static int userspace_tramp(void *data)
 		.seccomp = using_seccomp,
 		.stub_start = STUB_START,
 	};
-	struct iomem_region *iomem;
 	int ret;
 
 	if (using_seccomp) {
@@ -331,12 +330,6 @@ static int userspace_tramp(void *data)
 	syscall(__NR_close_range, 0, ~0U, CLOSE_RANGE_CLOEXEC);
 
 	fcntl(init_data.stub_data_fd, F_SETFD, 0);
-
-	/* In SECCOMP mode, these FDs are passed when needed */
-	if (!using_seccomp) {
-		for (iomem = iomem_regions; iomem; iomem = iomem->next)
-			fcntl(iomem->fd, F_SETFD, 0);
-	}
 
 	/* dup2 signaling FD/socket to STDIN */
 	if (dup2(tramp_data->sockpair[0], 0) < 0)

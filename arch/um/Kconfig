@@ -200,12 +200,6 @@ config KERNEL_STACK_ORDER
 	  increase in the size of the state which needs to be saved when handling
 	  signals.
 
-config MMAPPER
-	tristate "iomem emulation driver"
-	help
-	  This driver allows a host file to be used as emulated IO memory inside
-	  UML.
-
 config PGTABLE_LEVELS
 	int
 	default 4 if 64BIT
