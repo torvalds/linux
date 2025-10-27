@@ -521,7 +521,37 @@ static __always_inline bool rseq_exit_to_user_mode_restart(struct pt_regs *regs)
 static inline bool rseq_exit_to_user_mode_restart(struct pt_regs *regs) { return false; }
 #endif /* !CONFIG_GENERIC_ENTRY */
 
-static __always_inline void rseq_exit_to_user_mode(void)
+static __always_inline void rseq_syscall_exit_to_user_mode(void)
+{
+	struct rseq_event *ev = &current->rseq.event;
+
+	rseq_stat_inc(rseq_stats.exit);
+
+	/* Needed to remove the store for the !lockdep case */
+	if (IS_ENABLED(CONFIG_LOCKDEP)) {
+		WARN_ON_ONCE(ev->sched_switch);
+		ev->events = 0;
+	}
+}
+
+static __always_inline void rseq_irqentry_exit_to_user_mode(void)
+{
+	struct rseq_event *ev = &current->rseq.event;
+
+	rseq_stat_inc(rseq_stats.exit);
+
+	lockdep_assert_once(!ev->sched_switch);
+
+	/*
+	 * Ensure that event (especially user_irq) is cleared when the
+	 * interrupt did not result in a schedule and therefore the
+	 * rseq processing could not clear it.
+	 */
+	ev->events = 0;
+}
+
+/* Required to keep ARM64 working */
+static __always_inline void rseq_exit_to_user_mode_legacy(void)
 {
 	struct rseq_event *ev = &current->rseq.event;
 
@@ -551,7 +581,9 @@ static inline bool rseq_exit_to_user_mode_restart(struct pt_regs *regs)
 {
 	return false;
 }
-static inline void rseq_exit_to_user_mode(void) { }
+static inline void rseq_syscall_exit_to_user_mode(void) { }
+static inline void rseq_irqentry_exit_to_user_mode(void) { }
+static inline void rseq_exit_to_user_mode_legacy(void) { }
 static inline void rseq_debug_syscall_return(struct pt_regs *regs) { }
 #endif /* !CONFIG_RSEQ */
 
