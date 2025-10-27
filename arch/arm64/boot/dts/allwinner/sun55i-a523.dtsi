@@ -818,6 +818,62 @@
 			#reset-cells = <1>;
 		};
 
+		i2s0: i2s@7112000 {
+			compatible = "allwinner,sun55i-a523-i2s",
+				     "allwinner,sun50i-r329-i2s";
+			reg = <0x07112000 0x1000>;
+			interrupts = <GIC_SPI 192 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&mcu_ccu CLK_BUS_MCU_I2S0>, <&mcu_ccu CLK_MCU_I2S0>;
+			clock-names = "apb", "mod";
+			resets = <&mcu_ccu RST_BUS_MCU_I2S0>;
+			dmas = <&mcu_dma 3>, <&mcu_dma 3>;
+			dma-names = "rx", "tx";
+			#sound-dai-cells = <0>;
+			status = "disabled";
+		};
+
+		i2s1: i2s@7113000 {
+			compatible = "allwinner,sun55i-a523-i2s",
+				     "allwinner,sun50i-r329-i2s";
+			reg = <0x07113000 0x1000>;
+			interrupts = <GIC_SPI 193 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&mcu_ccu CLK_BUS_MCU_I2S1>, <&mcu_ccu CLK_MCU_I2S1>;
+			clock-names = "apb", "mod";
+			resets = <&mcu_ccu RST_BUS_MCU_I2S1>;
+			dmas = <&mcu_dma 4>, <&mcu_dma 4>;
+			dma-names = "rx", "tx";
+			#sound-dai-cells = <0>;
+			status = "disabled";
+		};
+
+		i2s2: i2s@7114000 {
+			compatible = "allwinner,sun55i-a523-i2s",
+				     "allwinner,sun50i-r329-i2s";
+			reg = <0x07114000 0x1000>;
+			interrupts = <GIC_SPI 194 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&mcu_ccu CLK_BUS_MCU_I2S2>, <&mcu_ccu CLK_MCU_I2S2>;
+			clock-names = "apb", "mod";
+			resets = <&mcu_ccu RST_BUS_MCU_I2S2>;
+			dmas = <&mcu_dma 5>, <&mcu_dma 5>;
+			dma-names = "rx", "tx";
+			#sound-dai-cells = <0>;
+			status = "disabled";
+		};
+
+		i2s3: i2s@7115000 {
+			compatible = "allwinner,sun55i-a523-i2s",
+				     "allwinner,sun50i-r329-i2s";
+			reg = <0x07115000 0x1000>;
+			interrupts = <GIC_SPI 195 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&mcu_ccu CLK_BUS_MCU_I2S3>, <&mcu_ccu CLK_MCU_I2S3>;
+			clock-names = "apb", "mod";
+			resets = <&mcu_ccu RST_BUS_MCU_I2S3>;
+			dmas = <&mcu_dma 6>, <&mcu_dma 6>;
+			dma-names = "rx", "tx";
+			#sound-dai-cells = <0>;
+			status = "disabled";
+		};
+
 		spdif: spdif@7116000 {
 			compatible = "allwinner,sun55i-a523-spdif";
 			reg = <0x07116000 0x400>;
