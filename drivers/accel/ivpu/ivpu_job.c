@@ -1114,6 +1114,5 @@ void ivpu_context_abort_work_fn(struct work_struct *work)
 	mutex_unlock(&vdev->submitted_jobs_lock);
 
 runtime_put:
-	pm_runtime_mark_last_busy(vdev->drm.dev);
 	pm_runtime_put_autosuspend(vdev->drm.dev);
 }

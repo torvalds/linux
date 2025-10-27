@@ -359,7 +359,6 @@ int ivpu_rpm_get(struct ivpu_device *vdev)
 
 void ivpu_rpm_put(struct ivpu_device *vdev)
 {
-	pm_runtime_mark_last_busy(vdev->drm.dev);
 	pm_runtime_put_autosuspend(vdev->drm.dev);
 }
 
@@ -428,7 +427,6 @@ void ivpu_pm_enable(struct ivpu_device *vdev)
 	struct device *dev = vdev->drm.dev;
 
 	pm_runtime_allow(dev);
-	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 }
 
