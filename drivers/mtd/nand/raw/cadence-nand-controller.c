@@ -199,6 +199,7 @@
 
 /* Common settings. */
 #define COMMON_SET				0x1008
+#define OPR_MODE_NVDDR				BIT(0)
 /* 16 bit device connected to the NAND Flash interface. */
 #define		COMMON_SET_DEVICE_16BIT		BIT(8)
 
@@ -211,11 +212,19 @@
 #define		 SKIP_BYTES_OFFSET_VALUE	GENMASK(23, 0)
 
 /* Timings configuration. */
+#define TOGGLE_TIMINGS_0			0x1014
+#define TOGGLE_TIMINGS_1			0x1018
+
 #define ASYNC_TOGGLE_TIMINGS			0x101c
 #define		ASYNC_TOGGLE_TIMINGS_TRH	GENMASK(28, 24)
 #define		ASYNC_TOGGLE_TIMINGS_TRP	GENMASK(20, 16)
 #define		ASYNC_TOGGLE_TIMINGS_TWH	GENMASK(12, 8)
 #define		ASYNC_TOGGLE_TIMINGS_TWP	GENMASK(4, 0)
+
+#define	SYNC_TIMINGS				0x1020
+#define		SYNC_TCKWR			GENMASK(21, 16)
+#define		SYNC_TWRCK			GENMASK(13, 8)
+#define		SYNC_TCAD			GENMASK(5, 0)
 
 #define	TIMINGS0				0x1024
 #define		TIMINGS0_TADL			GENMASK(31, 24)
@@ -226,6 +235,7 @@
 #define	TIMINGS1				0x1028
 #define		TIMINGS1_TRHZ			GENMASK(31, 24)
 #define		TIMINGS1_TWB			GENMASK(23, 16)
+#define		TIMINGS1_TCWAW			GENMASK(15, 8)
 #define		TIMINGS1_TVDLY			GENMASK(7, 0)
 
 #define	TIMINGS2				0x102c
@@ -243,14 +253,23 @@
 
 /* Register controlling DQ related timing. */
 #define PHY_DQ_TIMING				0x2000
+#define		PHY_DQ_TIMING_OE_END	GENMASK(2, 0)
+#define		PHY_DQ_TIMING_OE_START	GENMASK(6, 4)
+#define		PHY_DQ_TIMING_TSEL_END	GENMASK(11, 8)
+#define		PHY_DQ_TIMING_TSEL_START	GENMASK(15, 12)
+
 /* Register controlling DSQ related timing.  */
 #define PHY_DQS_TIMING				0x2004
 #define		PHY_DQS_TIMING_DQS_SEL_OE_END	GENMASK(3, 0)
+#define		PHY_DQS_TIMING_DQS_SEL_OE_START	GENMASK(7, 4)
+#define		PHY_DQS_TIMING_DQS_SEL_TSEL_END	GENMASK(11, 8)
 #define		PHY_DQS_TIMING_PHONY_DQS_SEL	BIT(16)
 #define		PHY_DQS_TIMING_USE_PHONY_DQS	BIT(20)
 
 /* Register controlling the gate and loopback control related timing. */
 #define PHY_GATE_LPBK_CTRL			0x2008
+#define		PHY_GATE_LPBK_CTRL_GATE_CFG		GENMASK(3, 0)
+#define		PHY_GATE_LPBK_CTRL_GATE_CFG_CLOSE	GENMASK(5, 4)
 #define		PHY_GATE_LPBK_CTRL_RDS		GENMASK(24, 19)
 
 /* Register holds the control for the master DLL logic. */
@@ -259,6 +278,12 @@
 
 /* Register holds the control for the slave DLL logic. */
 #define PHY_DLL_SLAVE_CTRL			0x2010
+
+/* Register controls the DQS related timing. */
+#define PHY_IE_TIMING				0x2014
+#define		PHY_IE_TIMING_DQS_IE_START		GENMASK(10, 8)
+#define		PHY_IE_TIMING_DQ_IE_START		GENMASK(18, 16)
+#define		PHY_IE_TIMING_IE_ALWAYS_ON		BIT(20)
 
 /* This register handles the global control settings for the PHY. */
 #define PHY_CTRL				0x2080
@@ -375,15 +400,41 @@
 #define BCH_MAX_NUM_CORR_CAPS		8
 #define BCH_MAX_NUM_SECTOR_SIZES	2
 
+/* NVDDR mode specific parameters and register values based on cadence specs */
+#define NVDDR_PHY_RD_DELAY		29
+#define NVDDR_PHY_RD_DELAY_MAX		31
+#define NVDDR_GATE_CFG_OPT		14
+#define NVDDR_GATE_CFG_STD		7
+#define NVDDR_GATE_CFG_MAX		15
+#define NVDDR_DATA_SEL_OE_START		1
+#define NVDDR_DATA_SEL_OE_START_MAX	7
+#define NVDDR_DATA_SEL_OE_END		6
+#define NVDDR_DATA_SEL_OE_END_MIN	4
+#define NVDDR_DATA_SEL_OE_END_MAX	15
+#define NVDDR_RS_HIGH_WAIT_CNT		7
+#define NVDDR_RS_IDLE_CNT		7
+#define NVDDR_TCWAW_DELAY		250000
+#define NVDDR_TVDLY_DELAY		500000
+#define NVDDR_TOGGLE_TIMINGS_0		0x00000301
+#define NVDDR_TOGGLE_TIMINGS_1		0x0a060102
+#define NVDDR_ASYNC_TOGGLE_TIMINGS	0
+#define NVDDR_PHY_CTRL			0x00004000
+#define NVDDR_PHY_TSEL			0
+#define NVDDR_PHY_DLL_MASTER_CTRL	0x00140004
+#define NVDDR_PHY_DLL_SLAVE_CTRL	0x00003c3c
+
 struct cadence_nand_timings {
 	u32 async_toggle_timings;
+	u32 sync_timings;
 	u32 timings0;
 	u32 timings1;
 	u32 timings2;
 	u32 dll_phy_ctrl;
 	u32 phy_ctrl;
+	u32 phy_dq_timing;
 	u32 phy_dqs_timing;
 	u32 phy_gate_lpbk_ctrl;
+	u32 phy_ie_timing;
 };
 
 /* Command DMA descriptor. */
@@ -2345,11 +2396,9 @@ static inline u32 calc_tdvw(u32 trp_cnt, u32 clk_period, u32 trhoh_min,
 	return (trp_cnt + 1) * clk_period + trhoh_min - trea_max;
 }
 
-static int
-cadence_nand_setup_interface(struct nand_chip *chip, int chipnr,
-			     const struct nand_interface_config *conf)
+static int cadence_nand_setup_sdr_interface(struct nand_chip *chip,
+					    const struct nand_sdr_timings *sdr)
 {
-	const struct nand_sdr_timings *sdr;
 	struct cdns_nand_ctrl *cdns_ctrl = to_cdns_nand_ctrl(chip->controller);
 	struct cdns_nand_chip *cdns_chip = to_cdns_nand_chip(chip);
 	struct cadence_nand_timings *t = &cdns_chip->timings;
@@ -2370,13 +2419,8 @@ cadence_nand_setup_interface(struct nand_chip *chip, int chipnr,
 	u32 dll_phy_dqs_timing = 0, phony_dqs_timing = 0, rd_del_sel = 0;
 	u32 sampling_point;
 
-	sdr = nand_get_sdr_timings(conf);
-	if (IS_ERR(sdr))
-		return PTR_ERR(sdr);
-
 	memset(t, 0, sizeof(*t));
 	/* Sampling point calculation. */
-
 	if (cdns_ctrl->caps2.is_phy_type_dll)
 		phony_dqs_mod = 2;
 	else
@@ -2633,8 +2677,219 @@ cadence_nand_setup_interface(struct nand_chip *chip, int chipnr,
 			PHY_DLL_MASTER_CTRL_BYPASS_MODE);
 		dev_dbg(cdns_ctrl->dev, "PHY_DLL_SLAVE_CTRL_REG_SDR\t%x\n", 0);
 	}
-
 	return 0;
+}
+
+static int
+cadence_nand_setup_nvddr_interface(struct nand_chip *chip,
+				   const struct nand_nvddr_timings *nvddr)
+{
+	struct cdns_nand_ctrl *cdns_ctrl = to_cdns_nand_ctrl(chip->controller);
+	struct cdns_nand_chip *cdns_chip = to_cdns_nand_chip(chip);
+	struct cadence_nand_timings *t = &cdns_chip->timings;
+	u32 board_delay = cdns_ctrl->board_delay;
+	u32 clk_period = DIV_ROUND_DOWN_ULL(1000000000000ULL,
+					    cdns_ctrl->nf_clk_rate);
+	u32 ddr_clk_ctrl_period = clk_period * 2;
+	u32 if_skew = cdns_ctrl->caps1->if_skew;
+	u32 tceh_cnt, tcs_cnt, tadl_cnt, tccs_cnt;
+	u32 twrck_cnt, tcad_cnt, tckwr_cnt = 0;
+	u32 tfeat_cnt, trhz_cnt, tvdly_cnt, tcwaw_cnt;
+	u32 trhw_cnt, twb_cnt, twhr_cnt;
+	u32 oe_start, oe_end, oe_end_dqsd;
+	u32 rd_del_sel = 0;
+	u32 dqs_driven_by_device, dqs_toogle_by_device, gate_open_delay;
+	u32 dll_phy_gate_open_delay, gate_close_delay, ie_start;
+	u32 dll_phy_rd_delay;
+	u32 reg;
+
+	memset(t, 0, sizeof(*t));
+	twrck_cnt = calc_cycl(nvddr->tWRCK_min, ddr_clk_ctrl_period);
+	tcad_cnt = calc_cycl(nvddr->tCAD_min, ddr_clk_ctrl_period);
+
+	reg = FIELD_PREP(SYNC_TWRCK, twrck_cnt);
+	reg |= FIELD_PREP(SYNC_TCAD, tcad_cnt);
+	t->sync_timings = reg;
+	dev_dbg(cdns_ctrl->dev, "SYNC_TIMINGS_NVDDR\t%08x\n", reg);
+
+	tadl_cnt = calc_cycl((nvddr->tADL_min + if_skew), ddr_clk_ctrl_period);
+	tccs_cnt = calc_cycl((nvddr->tCCS_min + if_skew), ddr_clk_ctrl_period);
+	twhr_cnt = calc_cycl((nvddr->tWHR_min + if_skew), ddr_clk_ctrl_period);
+	trhw_cnt = calc_cycl((nvddr->tRHW_min + if_skew), ddr_clk_ctrl_period);
+	reg = FIELD_PREP(TIMINGS0_TADL, tadl_cnt);
+	reg |= FIELD_PREP(TIMINGS0_TCCS, tccs_cnt);
+	reg |= FIELD_PREP(TIMINGS0_TWHR, twhr_cnt);
+	reg |= FIELD_PREP(TIMINGS0_TRHW, trhw_cnt);
+	t->timings0 = reg;
+	dev_dbg(cdns_ctrl->dev, "TIMINGS0_NVDDR\t%08x\n", reg);
+
+	twb_cnt = calc_cycl((nvddr->tWB_max + board_delay),
+			    ddr_clk_ctrl_period);
+	/*
+	 * Because of the two stage syncflop the value must be increased by 3
+	 * first value is related with sync, second value is related
+	 * with output if delay.
+	 */
+	twb_cnt = twb_cnt + 3 + 5;
+	tvdly_cnt = calc_cycl(NVDDR_TVDLY_DELAY + if_skew, ddr_clk_ctrl_period);
+	tcwaw_cnt = calc_cycl(NVDDR_TCWAW_DELAY, ddr_clk_ctrl_period);
+	trhz_cnt = 1;
+	reg = FIELD_PREP(TIMINGS1_TWB, twb_cnt);
+	reg |= FIELD_PREP(TIMINGS1_TVDLY, tvdly_cnt);
+	reg |= FIELD_PREP(TIMINGS1_TRHZ, trhz_cnt);
+	reg |= FIELD_PREP(TIMINGS1_TCWAW, tcwaw_cnt);
+	t->timings1 = reg;
+	dev_dbg(cdns_ctrl->dev, "TIMINGS1_NVDDR\t%08x\n", reg);
+
+	tfeat_cnt = calc_cycl(nvddr->tFEAT_max, ddr_clk_ctrl_period);
+	if (tfeat_cnt < twb_cnt)
+		tfeat_cnt = twb_cnt;
+
+	tceh_cnt = calc_cycl(nvddr->tCEH_min, ddr_clk_ctrl_period);
+	tcs_cnt = calc_cycl((nvddr->tCS_min + if_skew), ddr_clk_ctrl_period);
+	reg = FIELD_PREP(TIMINGS2_TFEAT, tfeat_cnt);
+	reg |= FIELD_PREP(TIMINGS2_CS_HOLD_TIME, tceh_cnt);
+	reg |= FIELD_PREP(TIMINGS2_CS_SETUP_TIME, tcs_cnt);
+	t->timings2 = reg;
+	dev_dbg(cdns_ctrl->dev, "TIMINGS2_NVDDR\t%08x\n", reg);
+
+	reg = FIELD_PREP(DLL_PHY_CTRL_RS_HIGH_WAIT_CNT, NVDDR_RS_HIGH_WAIT_CNT);
+	reg |= FIELD_PREP(DLL_PHY_CTRL_RS_IDLE_CNT, NVDDR_RS_IDLE_CNT);
+	t->dll_phy_ctrl = reg;
+	dev_dbg(cdns_ctrl->dev, "DLL_PHY_CTRL_NVDDR\t%08x\n", reg);
+
+	reg  = PHY_CTRL_SDR_DQS;
+	t->phy_ctrl = reg;
+	dev_dbg(cdns_ctrl->dev, "PHY_CTRL_REG_NVDDR\t%08x\n", reg);
+
+	dqs_driven_by_device = (nvddr->tDQSD_max + board_delay) / 1000 +
+				if_skew;
+	dqs_toogle_by_device = (nvddr->tDQSCK_max + board_delay) / 1000 -
+				if_skew;
+	gate_open_delay = dqs_toogle_by_device / (clk_period / 1000);
+	if (dqs_toogle_by_device > clk_period / 1000) {
+		if (gate_open_delay > NVDDR_GATE_CFG_OPT)
+			dll_phy_gate_open_delay = NVDDR_GATE_CFG_MAX;
+		else
+			dll_phy_gate_open_delay = gate_open_delay + 1;
+		gate_close_delay = 0;
+	} else {
+		twrck_cnt = calc_cycl(dqs_driven_by_device * 1000, clk_period);
+		dll_phy_gate_open_delay = 1;
+		gate_close_delay = 0;
+
+		reg = FIELD_PREP(SYNC_TCKWR, tckwr_cnt);
+		reg |= FIELD_PREP(SYNC_TWRCK, twrck_cnt);
+		reg |= FIELD_PREP(SYNC_TCAD, tcad_cnt);
+		t->sync_timings = reg;
+		dev_dbg(cdns_ctrl->dev, "SYNC_TIMINGS_NVDDR\t%08x\n", reg);
+	}
+
+	if (dll_phy_gate_open_delay > NVDDR_GATE_CFG_STD)
+		ie_start = NVDDR_GATE_CFG_STD;
+	else
+		ie_start = dll_phy_gate_open_delay;
+
+	dll_phy_rd_delay = ((nvddr->tDQSCK_max + board_delay) +
+				(clk_period / 2)) / clk_period;
+	if (dll_phy_rd_delay <= NVDDR_PHY_RD_DELAY)
+		rd_del_sel = dll_phy_rd_delay + 2;
+	else
+		rd_del_sel = NVDDR_PHY_RD_DELAY_MAX;
+
+	reg = FIELD_PREP(PHY_GATE_LPBK_CTRL_GATE_CFG, dll_phy_gate_open_delay);
+	reg |= FIELD_PREP(PHY_GATE_LPBK_CTRL_GATE_CFG_CLOSE, gate_close_delay);
+	reg |= FIELD_PREP(PHY_GATE_LPBK_CTRL_RDS, rd_del_sel);
+	t->phy_gate_lpbk_ctrl = reg;
+	dev_dbg(cdns_ctrl->dev, "PHY_GATE_LPBK_CTRL_REG_NVDDR\t%08x\n", reg);
+
+	oe_end_dqsd = ((nvddr->tDQSD_max / 1000) / ((clk_period / 2) / 1000))
+				+ NVDDR_DATA_SEL_OE_END_MIN;
+	oe_end = (NVDDR_DATA_SEL_OE_END_MIN + oe_end_dqsd) / 2;
+	if (oe_end > NVDDR_DATA_SEL_OE_END_MAX)
+		oe_end = NVDDR_DATA_SEL_OE_END_MAX;
+
+	oe_start = ((nvddr->tDQSHZ_max / 1000) / ((clk_period / 2) / 1000)) + 1;
+	if (oe_start > NVDDR_DATA_SEL_OE_START_MAX)
+		oe_start = NVDDR_DATA_SEL_OE_START_MAX;
+
+	reg = FIELD_PREP(PHY_DQ_TIMING_OE_END, NVDDR_DATA_SEL_OE_END);
+	reg |= FIELD_PREP(PHY_DQ_TIMING_OE_START, NVDDR_DATA_SEL_OE_START);
+	reg |= FIELD_PREP(PHY_DQ_TIMING_TSEL_END, NVDDR_DATA_SEL_OE_END);
+	reg |= FIELD_PREP(PHY_DQ_TIMING_TSEL_START, NVDDR_DATA_SEL_OE_START);
+	t->phy_dq_timing = reg;
+	dev_dbg(cdns_ctrl->dev, "PHY_DQ_TIMING_REG_NVDDR\t%08x\n", reg);
+
+	reg = FIELD_PREP(PHY_DQS_TIMING_DQS_SEL_OE_END, oe_end);
+	reg |= FIELD_PREP(PHY_DQS_TIMING_DQS_SEL_OE_START, oe_start);
+	reg |= FIELD_PREP(PHY_DQS_TIMING_DQS_SEL_TSEL_END, oe_end);
+	t->phy_dqs_timing = reg;
+	dev_dbg(cdns_ctrl->dev, "PHY_DQS_TIMING_REG_NVDDR\t%08x\n", reg);
+
+	reg = FIELD_PREP(PHY_IE_TIMING_DQS_IE_START, ie_start);
+	reg |= FIELD_PREP(PHY_IE_TIMING_DQ_IE_START, ie_start);
+	reg |= FIELD_PREP(PHY_IE_TIMING_IE_ALWAYS_ON, 0);
+	t->phy_ie_timing = reg;
+	dev_dbg(cdns_ctrl->dev, "PHY_IE_TIMING_REG_NVDDR\t%08x\n", reg);
+
+	reg = readl_relaxed(cdns_ctrl->reg + DLL_PHY_CTRL);
+	reg &= ~(DLL_PHY_CTRL_DLL_RST_N |
+		 DLL_PHY_CTRL_EXTENDED_RD_MODE |
+		 DLL_PHY_CTRL_EXTENDED_WR_MODE);
+	writel_relaxed(reg, cdns_ctrl->reg + DLL_PHY_CTRL);
+	writel_relaxed(OPR_MODE_NVDDR, cdns_ctrl->reg + COMMON_SET);
+	writel_relaxed(NVDDR_TOGGLE_TIMINGS_0,
+		       cdns_ctrl->reg + TOGGLE_TIMINGS_0);
+	writel_relaxed(NVDDR_TOGGLE_TIMINGS_1,
+		       cdns_ctrl->reg + TOGGLE_TIMINGS_1);
+	writel_relaxed(NVDDR_ASYNC_TOGGLE_TIMINGS,
+		       cdns_ctrl->reg + ASYNC_TOGGLE_TIMINGS);
+	writel_relaxed(t->sync_timings, cdns_ctrl->reg + SYNC_TIMINGS);
+	writel_relaxed(t->timings0, cdns_ctrl->reg + TIMINGS0);
+	writel_relaxed(t->timings1, cdns_ctrl->reg + TIMINGS1);
+	writel_relaxed(t->timings2, cdns_ctrl->reg + TIMINGS2);
+	writel_relaxed(t->dll_phy_ctrl, cdns_ctrl->reg + DLL_PHY_CTRL);
+	writel_relaxed(t->phy_ctrl, cdns_ctrl->reg + PHY_CTRL);
+	writel_relaxed(NVDDR_PHY_TSEL, cdns_ctrl->reg + PHY_TSEL);
+	writel_relaxed(t->phy_dq_timing, cdns_ctrl->reg + PHY_DQ_TIMING);
+	writel_relaxed(t->phy_dqs_timing, cdns_ctrl->reg + PHY_DQS_TIMING);
+	writel_relaxed(t->phy_gate_lpbk_ctrl,
+		       cdns_ctrl->reg + PHY_GATE_LPBK_CTRL);
+	writel_relaxed(NVDDR_PHY_DLL_MASTER_CTRL,
+		       cdns_ctrl->reg + PHY_DLL_MASTER_CTRL);
+	writel_relaxed(NVDDR_PHY_DLL_SLAVE_CTRL,
+		       cdns_ctrl->reg + PHY_DLL_SLAVE_CTRL);
+	writel_relaxed(t->phy_ie_timing, cdns_ctrl->reg + PHY_IE_TIMING);
+	writel_relaxed((reg | DLL_PHY_CTRL_DLL_RST_N),
+		       cdns_ctrl->reg + DLL_PHY_CTRL);
+	return 0;
+}
+
+static int
+cadence_nand_setup_interface(struct nand_chip *chip, int chipnr,
+			     const struct nand_interface_config *conf)
+{
+	int ret = 0;
+
+	if (chipnr < 0)
+		return ret;
+
+	if (nand_interface_is_sdr(conf)) {
+		const struct nand_sdr_timings *sdr = nand_get_sdr_timings(conf);
+
+		if (IS_ERR(sdr))
+			return PTR_ERR(sdr);
+
+		ret = cadence_nand_setup_sdr_interface(chip, sdr);
+	} else {
+		const struct nand_nvddr_timings *nvddr = nand_get_nvddr_timings(conf);
+
+		if (IS_ERR(nvddr))
+			return PTR_ERR(nvddr);
+
+		ret = cadence_nand_setup_nvddr_interface(chip, nvddr);
+	}
+	return ret;
 }
 
 static int cadence_nand_attach_chip(struct nand_chip *chip)
