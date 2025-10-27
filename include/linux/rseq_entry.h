@@ -10,6 +10,7 @@ struct rseq_stats {
 	unsigned long	exit;
 	unsigned long	signal;
 	unsigned long	slowpath;
+	unsigned long	fastpath;
 	unsigned long	ids;
 	unsigned long	cs;
 	unsigned long	clear;
@@ -245,12 +246,13 @@ rseq_update_user_cs(struct task_struct *t, struct pt_regs *regs, unsigned long c
 {
 	struct rseq_cs __user *ucs = (struct rseq_cs __user *)(unsigned long)csaddr;
 	unsigned long ip = instruction_pointer(regs);
+	unsigned long tasksize = TASK_SIZE;
 	u64 start_ip, abort_ip, offset;
 	u32 usig, __user *uc_sig;
 
 	rseq_stat_inc(rseq_stats.cs);
 
-	if (unlikely(csaddr >= TASK_SIZE)) {
+	if (unlikely(csaddr >= tasksize)) {
 		t->rseq.event.fatal = true;
 		return false;
 	}
@@ -287,7 +289,7 @@ rseq_update_user_cs(struct task_struct *t, struct pt_regs *regs, unsigned long c
 		 * in TLS::rseq::rseq_cs. An RSEQ abort would then evade ROP
 		 * protection.
 		 */
-		if (abort_ip >= TASK_SIZE || abort_ip < sizeof(*uc_sig))
+		if (unlikely(abort_ip >= tasksize || abort_ip < sizeof(*uc_sig)))
 			goto die;
 
 		/* The address is guaranteed to be >= 0 and < TASK_SIZE */
@@ -397,6 +399,128 @@ static rseq_inline bool rseq_update_usr(struct task_struct *t, struct pt_regs *r
 	return rseq_update_user_cs(t, regs, csaddr);
 }
 
+/*
+ * If you want to use this then convert your architecture to the generic
+ * entry code. I'm tired of building workarounds for people who can't be
+ * bothered to make the maintenance of generic infrastructure less
+ * burdensome. Just sucking everything into the architecture code and
+ * thereby making others chase the horrible hacks and keep them working is
+ * neither acceptable nor sustainable.
+ */
+#ifdef CONFIG_GENERIC_ENTRY
+
+/*
+ * This is inlined into the exit path because:
+ *
+ * 1) It's a one time comparison in the fast path when there is no event to
+ *    handle
+ *
+ * 2) The access to the user space rseq memory (TLS) is unlikely to fault
+ *    so the straight inline operation is:
+ *
+ *	- Four 32-bit stores only if CPU ID/ MM CID need to be updated
+ *	- One 64-bit load to retrieve the critical section address
+ *
+ * 3) In the unlikely case that the critical section address is != NULL:
+ *
+ *     - One 64-bit load to retrieve the start IP
+ *     - One 64-bit load to retrieve the offset for calculating the end
+ *     - One 64-bit load to retrieve the abort IP
+ *     - One 64-bit load to retrieve the signature
+ *     - One store to clear the critical section address
+ *
+ * The non-debug case implements only the minimal required checking. It
+ * provides protection against a rogue abort IP in kernel space, which
+ * would be exploitable at least on x86, and also against a rogue CS
+ * descriptor by checking the signature at the abort IP. Any fallout from
+ * invalid critical section descriptors is a user space problem. The debug
+ * case provides the full set of checks and terminates the task if a
+ * condition is not met.
+ *
+ * In case of a fault or an invalid value, this sets TIF_NOTIFY_RESUME and
+ * tells the caller to loop back into exit_to_user_mode_loop(). The rseq
+ * slow path there will handle the failure.
+ */
+static __always_inline bool rseq_exit_user_update(struct pt_regs *regs, struct task_struct *t)
+{
+	/*
+	 * Page faults need to be disabled as this is called with
+	 * interrupts disabled
+	 */
+	guard(pagefault)();
+	if (likely(!t->rseq.event.ids_changed)) {
+		struct rseq __user *rseq = t->rseq.usrptr;
+		/*
+		 * If IDs have not changed rseq_event::user_irq must be true
+		 * See rseq_sched_switch_event().
+		 */
+		u64 csaddr;
+
+		if (unlikely(get_user_inline(csaddr, &rseq->rseq_cs)))
+			return false;
+
+		if (static_branch_unlikely(&rseq_debug_enabled) || unlikely(csaddr)) {
+			if (unlikely(!rseq_update_user_cs(t, regs, csaddr)))
+				return false;
+		}
+		return true;
+	}
+
+	struct rseq_ids ids = {
+		.cpu_id = task_cpu(t),
+		.mm_cid = task_mm_cid(t),
+	};
+	u32 node_id = cpu_to_node(ids.cpu_id);
+
+	return rseq_update_usr(t, regs, &ids, node_id);
+}
+
+static __always_inline bool __rseq_exit_to_user_mode_restart(struct pt_regs *regs)
+{
+	struct task_struct *t = current;
+
+	/*
+	 * If the task did not go through schedule or got the flag enforced
+	 * by the rseq syscall or execve, then nothing to do here.
+	 *
+	 * CPU ID and MM CID can only change when going through a context
+	 * switch.
+	 *
+	 * rseq_sched_switch_event() sets the rseq_event::sched_switch bit
+	 * only when rseq_event::has_rseq is true. That conditional is
+	 * required to avoid setting the TIF bit if RSEQ is not registered
+	 * for a task. rseq_event::sched_switch is cleared when RSEQ is
+	 * unregistered by a task so it's sufficient to check for the
+	 * sched_switch bit alone.
+	 *
+	 * A sane compiler requires three instructions for the nothing to do
+	 * case including clearing the events, but your mileage might vary.
+	 */
+	if (unlikely((t->rseq.event.sched_switch))) {
+		rseq_stat_inc(rseq_stats.fastpath);
+
+		if (unlikely(!rseq_exit_user_update(regs, t)))
+			return true;
+	}
+	/* Clear state so next entry starts from a clean slate */
+	t->rseq.event.events = 0;
+	return false;
+}
+
+static __always_inline bool rseq_exit_to_user_mode_restart(struct pt_regs *regs)
+{
+	if (unlikely(__rseq_exit_to_user_mode_restart(regs))) {
+		current->rseq.event.slowpath = true;
+		set_tsk_thread_flag(current, TIF_NOTIFY_RESUME);
+		return true;
+	}
+	return false;
+}
+
+#else /* CONFIG_GENERIC_ENTRY */
+static inline bool rseq_exit_to_user_mode_restart(struct pt_regs *regs) { return false; }
+#endif /* !CONFIG_GENERIC_ENTRY */
+
 static __always_inline void rseq_exit_to_user_mode(void)
 {
 	struct rseq_event *ev = &current->rseq.event;
@@ -421,9 +545,12 @@ static inline void rseq_debug_syscall_return(struct pt_regs *regs)
 	if (static_branch_unlikely(&rseq_debug_enabled))
 		__rseq_debug_syscall_return(regs);
 }
-
 #else /* CONFIG_RSEQ */
 static inline void rseq_note_user_irq_entry(void) { }
+static inline bool rseq_exit_to_user_mode_restart(struct pt_regs *regs)
+{
+	return false;
+}
 static inline void rseq_exit_to_user_mode(void) { }
 static inline void rseq_debug_syscall_return(struct pt_regs *regs) { }
 #endif /* !CONFIG_RSEQ */
