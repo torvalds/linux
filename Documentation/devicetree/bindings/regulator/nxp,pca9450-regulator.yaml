@@ -41,6 +41,21 @@ properties:
   interrupts:
     maxItems: 1
 
+  inl1-supply:
+    description: Regulator supply for the INL1 pin group, powering LDOx
+
+  inb13-supply:
+    description:
+      Regulator supply for the INB13 pin group, powering BUCK1 and BUCK3.
+
+  inb26-supply:
+    description:
+      Regulator supply for the INB26 pin group, powering BUCK2 and BUCK6.
+
+  inb45-supply:
+    description:
+      Regulator supply for the INB45 pin group, powering BUCK4 and BUCK5.
+
   regulators:
     type: object
     description: |
