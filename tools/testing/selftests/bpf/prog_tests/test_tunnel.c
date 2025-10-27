@@ -534,85 +534,6 @@ static void ping6_dev1(void)
 	close_netns(nstoken);
 }
 
-static int attach_tc_prog(int ifindex, int igr_fd, int egr_fd)
-{
-	DECLARE_LIBBPF_OPTS(bpf_tc_hook, hook, .ifindex = ifindex,
-			    .attach_point = BPF_TC_INGRESS | BPF_TC_EGRESS);
-	DECLARE_LIBBPF_OPTS(bpf_tc_opts, opts1, .handle = 1,
-			    .priority = 1, .prog_fd = igr_fd);
-	DECLARE_LIBBPF_OPTS(bpf_tc_opts, opts2, .handle = 1,
-			    .priority = 1, .prog_fd = egr_fd);
-	int ret;
-
-	ret = bpf_tc_hook_create(&hook);
-	if (!ASSERT_OK(ret, "create tc hook"))
-		return ret;
-
-	if (igr_fd >= 0) {
-		hook.attach_point = BPF_TC_INGRESS;
-		ret = bpf_tc_attach(&hook, &opts1);
-		if (!ASSERT_OK(ret, "bpf_tc_attach")) {
-			bpf_tc_hook_destroy(&hook);
-			return ret;
-		}
-	}
-
-	if (egr_fd >= 0) {
-		hook.attach_point = BPF_TC_EGRESS;
-		ret = bpf_tc_attach(&hook, &opts2);
-		if (!ASSERT_OK(ret, "bpf_tc_attach")) {
-			bpf_tc_hook_destroy(&hook);
-			return ret;
-		}
-	}
-
-	return 0;
-}
-
-static int generic_attach(const char *dev, int igr_fd, int egr_fd)
-{
-	int ifindex;
-
-	if (!ASSERT_OK_FD(igr_fd, "check ingress fd"))
-		return -1;
-	if (!ASSERT_OK_FD(egr_fd, "check egress fd"))
-		return -1;
-
-	ifindex = if_nametoindex(dev);
-	if (!ASSERT_NEQ(ifindex, 0, "get ifindex"))
-		return -1;
-
-	return attach_tc_prog(ifindex, igr_fd, egr_fd);
-}
-
-static int generic_attach_igr(const char *dev, int igr_fd)
-{
-	int ifindex;
-
-	if (!ASSERT_OK_FD(igr_fd, "check ingress fd"))
-		return -1;
-
-	ifindex = if_nametoindex(dev);
-	if (!ASSERT_NEQ(ifindex, 0, "get ifindex"))
-		return -1;
-
-	return attach_tc_prog(ifindex, igr_fd, -1);
-}
-
-static int generic_attach_egr(const char *dev, int egr_fd)
-{
-	int ifindex;
-
-	if (!ASSERT_OK_FD(egr_fd, "check egress fd"))
-		return -1;
-
-	ifindex = if_nametoindex(dev);
-	if (!ASSERT_NEQ(ifindex, 0, "get ifindex"))
-		return -1;
-
-	return attach_tc_prog(ifindex, -1, egr_fd);
-}
-
 static void test_vxlan_tunnel(void)
 {
 	struct test_tunnel_kern *skel = NULL;
@@ -635,12 +556,12 @@ static void test_vxlan_tunnel(void)
 		goto done;
 	get_src_prog_fd = bpf_program__fd(skel->progs.vxlan_get_tunnel_src);
 	set_src_prog_fd = bpf_program__fd(skel->progs.vxlan_set_tunnel_src);
-	if (generic_attach(VXLAN_TUNL_DEV1, get_src_prog_fd, set_src_prog_fd))
+	if (tc_prog_attach(VXLAN_TUNL_DEV1, get_src_prog_fd, set_src_prog_fd))
 		goto done;
 
 	/* load and attach bpf prog to veth dev tc hook point */
 	set_dst_prog_fd = bpf_program__fd(skel->progs.veth_set_outer_dst);
-	if (generic_attach_igr("veth1", set_dst_prog_fd))
+	if (tc_prog_attach("veth1", set_dst_prog_fd, -1))
 		goto done;
 
 	/* load and attach prog set_md to tunnel dev tc hook point at_ns0 */
@@ -648,7 +569,7 @@ static void test_vxlan_tunnel(void)
 	if (!ASSERT_OK_PTR(nstoken, "setns src"))
 		goto done;
 	set_dst_prog_fd = bpf_program__fd(skel->progs.vxlan_set_tunnel_dst);
-	if (generic_attach_egr(VXLAN_TUNL_DEV0, set_dst_prog_fd))
+	if (tc_prog_attach(VXLAN_TUNL_DEV0, -1, set_dst_prog_fd))
 		goto done;
 	close_netns(nstoken);
 
@@ -695,7 +616,7 @@ static void test_ip6vxlan_tunnel(void)
 		goto done;
 	get_src_prog_fd = bpf_program__fd(skel->progs.ip6vxlan_get_tunnel_src);
 	set_src_prog_fd = bpf_program__fd(skel->progs.ip6vxlan_set_tunnel_src);
-	if (generic_attach(IP6VXLAN_TUNL_DEV1, get_src_prog_fd, set_src_prog_fd))
+	if (tc_prog_attach(IP6VXLAN_TUNL_DEV1, get_src_prog_fd, set_src_prog_fd))
 		goto done;
 
 	/* load and attach prog set_md to tunnel dev tc hook point at_ns0 */
@@ -703,7 +624,7 @@ static void test_ip6vxlan_tunnel(void)
 	if (!ASSERT_OK_PTR(nstoken, "setns src"))
 		goto done;
 	set_dst_prog_fd = bpf_program__fd(skel->progs.ip6vxlan_set_tunnel_dst);
-	if (generic_attach_egr(IP6VXLAN_TUNL_DEV0, set_dst_prog_fd))
+	if (tc_prog_attach(IP6VXLAN_TUNL_DEV0, -1, set_dst_prog_fd))
 		goto done;
 	close_netns(nstoken);
 
@@ -764,7 +685,7 @@ static void test_ipip_tunnel(enum ipip_encap encap)
 			skel->progs.ipip_set_tunnel);
 	}
 
-	if (generic_attach(IPIP_TUNL_DEV1, get_src_prog_fd, set_src_prog_fd))
+	if (tc_prog_attach(IPIP_TUNL_DEV1, get_src_prog_fd, set_src_prog_fd))
 		goto done;
 
 	ping_dev0();
@@ -797,7 +718,7 @@ static void test_xfrm_tunnel(void)
 
 	/* attach tc prog to tunnel dev */
 	tc_prog_fd = bpf_program__fd(skel->progs.xfrm_get_state);
-	if (generic_attach_igr("veth1", tc_prog_fd))
+	if (tc_prog_attach("veth1", tc_prog_fd, -1))
 		goto done;
 
 	/* attach xdp prog to tunnel dev */
@@ -870,7 +791,7 @@ static void test_gre_tunnel(enum gre_test test)
 	if (!ASSERT_OK(err, "add tunnel"))
 		goto done;
 
-	if (generic_attach(GRE_TUNL_DEV1, get_fd, set_fd))
+	if (tc_prog_attach(GRE_TUNL_DEV1, get_fd, set_fd))
 		goto done;
 
 	ping_dev0();
@@ -911,7 +832,7 @@ static void test_ip6gre_tunnel(enum ip6gre_test test)
 
 	set_fd = bpf_program__fd(skel->progs.ip6gretap_set_tunnel);
 	get_fd = bpf_program__fd(skel->progs.ip6gretap_get_tunnel);
-	if (generic_attach(IP6GRE_TUNL_DEV1, get_fd, set_fd))
+	if (tc_prog_attach(IP6GRE_TUNL_DEV1, get_fd, set_fd))
 		goto done;
 
 	ping6_veth0();
@@ -954,7 +875,7 @@ static void test_erspan_tunnel(enum erspan_test test)
 
 	set_fd = bpf_program__fd(skel->progs.erspan_set_tunnel);
 	get_fd = bpf_program__fd(skel->progs.erspan_get_tunnel);
-	if (generic_attach(ERSPAN_TUNL_DEV1, get_fd, set_fd))
+	if (tc_prog_attach(ERSPAN_TUNL_DEV1, get_fd, set_fd))
 		goto done;
 
 	ping_dev0();
@@ -990,7 +911,7 @@ static void test_ip6erspan_tunnel(enum erspan_test test)
 
 	set_fd = bpf_program__fd(skel->progs.ip4ip6erspan_set_tunnel);
 	get_fd = bpf_program__fd(skel->progs.ip4ip6erspan_get_tunnel);
-	if (generic_attach(IP6ERSPAN_TUNL_DEV1, get_fd, set_fd))
+	if (tc_prog_attach(IP6ERSPAN_TUNL_DEV1, get_fd, set_fd))
 		goto done;
 
 	ping6_veth0();
@@ -1017,7 +938,7 @@ static void test_geneve_tunnel(void)
 
 	set_fd = bpf_program__fd(skel->progs.geneve_set_tunnel);
 	get_fd = bpf_program__fd(skel->progs.geneve_get_tunnel);
-	if (generic_attach(GENEVE_TUNL_DEV1, get_fd, set_fd))
+	if (tc_prog_attach(GENEVE_TUNL_DEV1, get_fd, set_fd))
 		goto done;
 
 	ping_dev0();
@@ -1044,7 +965,7 @@ static void test_ip6geneve_tunnel(void)
 
 	set_fd = bpf_program__fd(skel->progs.ip6geneve_set_tunnel);
 	get_fd = bpf_program__fd(skel->progs.ip6geneve_get_tunnel);
-	if (generic_attach(IP6GENEVE_TUNL_DEV1, get_fd, set_fd))
+	if (tc_prog_attach(IP6GENEVE_TUNL_DEV1, get_fd, set_fd))
 		goto done;
 
 	ping_dev0();
@@ -1083,7 +1004,7 @@ static void test_ip6tnl_tunnel(enum ip6tnl_test test)
 		get_fd = bpf_program__fd(skel->progs.ip6ip6_get_tunnel);
 		break;
 	}
-	if (generic_attach(IP6TNL_TUNL_DEV1, get_fd, set_fd))
+	if (tc_prog_attach(IP6TNL_TUNL_DEV1, get_fd, set_fd))
 		goto done;
 
 	ping6_veth0();
