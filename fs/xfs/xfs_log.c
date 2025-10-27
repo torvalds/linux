@@ -1533,7 +1533,7 @@ xlog_pack_data(
 
 	dp = iclog->ic_datap;
 	for (i = 0; i < BTOBB(size); i++) {
-		if (i >= (XLOG_HEADER_CYCLE_SIZE / BBSIZE))
+		if (i >= XLOG_CYCLE_DATA_SIZE)
 			break;
 		iclog->ic_header.h_cycle_data[i] = *(__be32 *)dp;
 		*(__be32 *)dp = cycle_lsn;
@@ -1544,8 +1544,8 @@ xlog_pack_data(
 		xlog_in_core_2_t *xhdr = iclog->ic_data;
 
 		for ( ; i < BTOBB(size); i++) {
-			j = i / (XLOG_HEADER_CYCLE_SIZE / BBSIZE);
-			k = i % (XLOG_HEADER_CYCLE_SIZE / BBSIZE);
+			j = i / XLOG_CYCLE_DATA_SIZE;
+			k = i % XLOG_CYCLE_DATA_SIZE;
 			xhdr[j].hic_xheader.xh_cycle_data[k] = *(__be32 *)dp;
 			*(__be32 *)dp = cycle_lsn;
 			dp += BBSIZE;
@@ -3368,9 +3368,9 @@ xlog_verify_iclog(
 			clientid = ophead->oh_clientid;
 		} else {
 			idx = BTOBBT((void *)&ophead->oh_clientid - iclog->ic_datap);
-			if (idx >= (XLOG_HEADER_CYCLE_SIZE / BBSIZE)) {
-				j = idx / (XLOG_HEADER_CYCLE_SIZE / BBSIZE);
-				k = idx % (XLOG_HEADER_CYCLE_SIZE / BBSIZE);
+			if (idx >= XLOG_CYCLE_DATA_SIZE) {
+				j = idx / XLOG_CYCLE_DATA_SIZE;
+				k = idx % XLOG_CYCLE_DATA_SIZE;
 				clientid = xlog_get_client_id(
 					xhdr[j].hic_xheader.xh_cycle_data[k]);
 			} else {
@@ -3392,9 +3392,9 @@ xlog_verify_iclog(
 			op_len = be32_to_cpu(ophead->oh_len);
 		} else {
 			idx = BTOBBT((void *)&ophead->oh_len - iclog->ic_datap);
-			if (idx >= (XLOG_HEADER_CYCLE_SIZE / BBSIZE)) {
-				j = idx / (XLOG_HEADER_CYCLE_SIZE / BBSIZE);
-				k = idx % (XLOG_HEADER_CYCLE_SIZE / BBSIZE);
+			if (idx >= XLOG_CYCLE_DATA_SIZE) {
+				j = idx / XLOG_CYCLE_DATA_SIZE;
+				k = idx % XLOG_CYCLE_DATA_SIZE;
 				op_len = be32_to_cpu(xhdr[j].hic_xheader.xh_cycle_data[k]);
 			} else {
 				op_len = be32_to_cpu(iclog->ic_header.h_cycle_data[idx]);
