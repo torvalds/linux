@@ -176,12 +176,9 @@ struct drm_client_buffer {
 	/**
 	 * @gem: GEM object backing this buffer
 	 *
-	 * FIXME: The dependency on GEM here isn't required, we could
-	 * convert the driver handle to a dma-buf instead and use the
-	 * backend-agnostic dma-buf vmap support instead. This would
-	 * require that the handle2fd prime ioctl is reworked to pull the
-	 * fd_install step out of the driver backend hooks, to make that
-	 * final step optional for internal users.
+	 * FIXME: The DRM framebuffer holds a reference on its GEM
+	 * buffer objects. Do not use this field in new code and
+	 * update existing users.
 	 */
 	struct drm_gem_object *gem;
 
