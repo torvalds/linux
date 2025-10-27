@@ -29,6 +29,7 @@
 #include <linux/crash_dump.h>
 #include <linux/panic_notifier.h>
 #include <linux/vmalloc.h>
+#include <linux/rseq.h>
 
 #include "mshv_eventfd.h"
 #include "mshv.h"
@@ -559,6 +560,8 @@ static long mshv_run_vp_with_root_scheduler(struct mshv_vp *vp)
 				vp->run.flags.intercept_suspend = 1;
 		}
 	} while (!vp->run.flags.intercept_suspend);
+
+	rseq_virt_userspace_exit();
 
 	return ret;
 }
