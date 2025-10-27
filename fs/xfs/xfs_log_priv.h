@@ -716,11 +716,10 @@ xlog_item_space(
 static inline __be32 *xlog_cycle_data(struct xlog_rec_header *rhead, unsigned i)
 {
 	if (i >= XLOG_CYCLE_DATA_SIZE) {
-		xlog_in_core_2_t *xhdr = (xlog_in_core_2_t *)rhead;
 		unsigned	j = i / XLOG_CYCLE_DATA_SIZE;
 		unsigned	k = i % XLOG_CYCLE_DATA_SIZE;
 
-		return &xhdr[j].hic_xheader.xh_cycle_data[k];
+		return &rhead->h_ext[j - 1].xh_cycle_data[k];
 	}
 
 	return &rhead->h_cycle_data[i];

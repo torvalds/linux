@@ -1526,12 +1526,8 @@ xlog_pack_data(
 		dp += BBSIZE;
 	}
 
-	if (xfs_has_logv2(log->l_mp)) {
-		xlog_in_core_2_t *xhdr = (xlog_in_core_2_t *)iclog->ic_header;
-
-		for (i = 1; i < log->l_iclog_heads; i++)
-			xhdr[i].hic_xheader.xh_cycle = cycle_lsn;
-	}
+	for (i = 0; i < log->l_iclog_heads - 1; i++)
+		rhead->h_ext[i].xh_cycle = cycle_lsn;
 }
 
 /*
@@ -1556,16 +1552,11 @@ xlog_cksum(
 
 	/* ... then for additional cycle data for v2 logs ... */
 	if (xfs_has_logv2(log->l_mp)) {
-		union xlog_in_core2 *xhdr = (union xlog_in_core2 *)rhead;
-		int		i;
-		int		xheads;
+		int		xheads, i;
 
-		xheads = DIV_ROUND_UP(size, XLOG_HEADER_CYCLE_SIZE);
-
-		for (i = 1; i < xheads; i++) {
-			crc = crc32c(crc, &xhdr[i].hic_xheader,
-				     sizeof(struct xlog_rec_ext_header));
-		}
+		xheads = DIV_ROUND_UP(size, XLOG_HEADER_CYCLE_SIZE) - 1;
+		for (i = 0; i < xheads; i++)
+			crc = crc32c(crc, &rhead->h_ext[i], XLOG_REC_EXT_SIZE);
 	}
 
 	/* ... and finally for the payload */
