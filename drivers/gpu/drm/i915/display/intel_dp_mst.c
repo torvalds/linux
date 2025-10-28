@@ -299,7 +299,14 @@ int intel_dp_mtp_tu_compute_config(struct intel_dp *intel_dp,
 	 * intel_dp_needs_8b10b_fec().
 	 */
 	crtc_state->fec_enable = intel_dp_needs_8b10b_fec(crtc_state, dsc);
-	if (crtc_state->fec_enable &&
+	/*
+	 * If FEC gets enabled only because of another compressed stream, FEC
+	 * may not be supported for this uncompressed stream on the whole link
+	 * path until the sink DPRX. In this case a downstream branch device
+	 * will disable FEC for the uncompressed stream as expected and so the
+	 * FEC support doesn't need to be checked for this uncompressed stream.
+	 */
+	if (crtc_state->fec_enable && dsc &&
 	    !intel_dp_supports_fec(intel_dp, connector, crtc_state))
 		return -EINVAL;
 
