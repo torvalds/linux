@@ -39,16 +39,6 @@ void pidfs_get_root(struct path *path)
 	path_get(path);
 }
 
-/*
- * Stashes information that userspace needs to access even after the
- * process has been reaped.
- */
-struct pidfs_exit_info {
-	__u64 cgroupid;
-	__s32 exit_code;
-	__u32 coredump_mask;
-};
-
 enum pidfs_attr_mask_bits {
 	PIDFS_ATTR_BIT_EXIT	= 0,
 };
@@ -56,8 +46,11 @@ enum pidfs_attr_mask_bits {
 struct pidfs_attr {
 	unsigned long attr_mask;
 	struct simple_xattrs *xattrs;
-	struct pidfs_exit_info __pei;
-	struct pidfs_exit_info *exit_info;
+	struct /* exit info */ {
+		__u64 cgroupid;
+		__s32 exit_code;
+	};
+	__u32 coredump_mask;
 };
 
 static struct rb_root pidfs_ino_tree = RB_ROOT;
@@ -313,7 +306,6 @@ static long pidfd_info(struct file *file, unsigned int cmd, unsigned long arg)
 	struct pid *pid = pidfd_pid(file);
 	size_t usize = _IOC_SIZE(cmd);
 	struct pidfd_info kinfo = {};
-	struct pidfs_exit_info *exit_info;
 	struct user_namespace *user_ns;
 	struct pidfs_attr *attr;
 	const struct cred *c;
@@ -342,15 +334,15 @@ static long pidfd_info(struct file *file, unsigned int cmd, unsigned long arg)
 			smp_rmb();
 			kinfo.mask |= PIDFD_INFO_EXIT;
 #ifdef CONFIG_CGROUPS
-			kinfo.cgroupid = exit_info->cgroupid;
+			kinfo.cgroupid = attr->cgroupid;
 			kinfo.mask |= PIDFD_INFO_CGROUPID;
 #endif
-			kinfo.exit_code = exit_info->exit_code;
+			kinfo.exit_code = attr->exit_code;
 		}
 	}
 
 	if (mask & PIDFD_INFO_COREDUMP) {
-		kinfo.coredump_mask = READ_ONCE(attr->__pei.coredump_mask);
+		kinfo.coredump_mask = READ_ONCE(attr->coredump_mask);
 		if (kinfo.coredump_mask)
 			kinfo.mask |= PIDFD_INFO_COREDUMP;
 	}
@@ -629,7 +621,6 @@ void pidfs_exit(struct task_struct *tsk)
 {
 	struct pid *pid = task_pid(tsk);
 	struct pidfs_attr *attr;
-	struct pidfs_exit_info *exit_info;
 #ifdef CONFIG_CGROUPS
 	struct cgroup *cgrp;
 #endif
@@ -657,15 +648,13 @@ void pidfs_exit(struct task_struct *tsk)
 	 * is put
 	 */
 
-	exit_info = &attr->__pei;
-
 #ifdef CONFIG_CGROUPS
 	rcu_read_lock();
 	cgrp = task_dfl_cgroup(tsk);
-	exit_info->cgroupid = cgroup_id(cgrp);
+	attr->cgroupid = cgroup_id(cgrp);
 	rcu_read_unlock();
 #endif
-	exit_info->exit_code = tsk->exit_code;
+	attr->exit_code = tsk->exit_code;
 
 	/* Ensure that PIDFD_GET_INFO sees either all or nothing. */
 	smp_wmb();
@@ -676,7 +665,6 @@ void pidfs_exit(struct task_struct *tsk)
 void pidfs_coredump(const struct coredump_params *cprm)
 {
 	struct pid *pid = cprm->pid;
-	struct pidfs_exit_info *exit_info;
 	struct pidfs_attr *attr;
 	__u32 coredump_mask = 0;
 
@@ -685,14 +673,13 @@ void pidfs_coredump(const struct coredump_params *cprm)
 	VFS_WARN_ON_ONCE(!attr);
 	VFS_WARN_ON_ONCE(attr == PIDFS_PID_DEAD);
 
-	exit_info = &attr->__pei;
 	/* Note how we were coredumped. */
 	coredump_mask = pidfs_coredump_mask(cprm->mm_flags);
 	/* Note that we actually did coredump. */
 	coredump_mask |= PIDFD_COREDUMPED;
 	/* If coredumping is set to skip we should never end up here. */
 	VFS_WARN_ON_ONCE(coredump_mask & PIDFD_COREDUMP_SKIP);
-	smp_store_release(&exit_info->coredump_mask, coredump_mask);
+	smp_store_release(&attr->coredump_mask, coredump_mask);
 }
 #endif
 
