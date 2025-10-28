@@ -537,35 +537,29 @@ struct NpdeStruct {
     last_image: u8,
 }
 
+// SAFETY: all bit patterns are valid for `NpdeStruct`.
+unsafe impl FromBytes for NpdeStruct {}
+
 impl NpdeStruct {
     fn new(dev: &device::Device, data: &[u8]) -> Option<Self> {
-        if data.len() < core::mem::size_of::<Self>() {
-            dev_dbg!(dev, "Not enough data for NpdeStruct\n");
-            return None;
-        }
-
-        let mut signature = [0u8; 4];
-        signature.copy_from_slice(&data[0..4]);
+        let (npde, _) = NpdeStruct::from_bytes_copy_prefix(data)?;
 
         // Signature should be "NPDE" (0x4544504E).
-        if &signature != b"NPDE" {
-            dev_dbg!(dev, "Invalid signature for NpdeStruct: {:?}\n", signature);
+        if &npde.signature != b"NPDE" {
+            dev_dbg!(
+                dev,
+                "Invalid signature for NpdeStruct: {:?}\n",
+                npde.signature
+            );
             return None;
         }
 
-        let subimage_len = u16::from_le_bytes([data[8], data[9]]);
-        if subimage_len == 0 {
+        if npde.subimage_len == 0 {
             dev_dbg!(dev, "Invalid subimage length: 0\n");
             return None;
         }
 
-        Some(NpdeStruct {
-            signature,
-            npci_data_ext_rev: u16::from_le_bytes([data[4], data[5]]),
-            npci_data_ext_len: u16::from_le_bytes([data[6], data[7]]),
-            subimage_len,
-            last_image: data[10],
-        })
+        Some(npde)
     }
 
     /// Check if this is the last image in the ROM.
