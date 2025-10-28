@@ -49,7 +49,12 @@ struct pidfs_exit_info {
 	__u32 coredump_mask;
 };
 
+enum pidfs_attr_mask_bits {
+	PIDFS_ATTR_BIT_EXIT	= 0,
+};
+
 struct pidfs_attr {
+	unsigned long attr_mask;
 	struct simple_xattrs *xattrs;
 	struct pidfs_exit_info __pei;
 	struct pidfs_exit_info *exit_info;
@@ -333,8 +338,8 @@ static long pidfd_info(struct file *file, unsigned int cmd, unsigned long arg)
 
 	attr = READ_ONCE(pid->attr);
 	if (mask & PIDFD_INFO_EXIT) {
-		exit_info = READ_ONCE(attr->exit_info);
-		if (exit_info) {
+		if (test_bit(PIDFS_ATTR_BIT_EXIT, &attr->attr_mask)) {
+			smp_rmb();
 			kinfo.mask |= PIDFD_INFO_EXIT;
 #ifdef CONFIG_CGROUPS
 			kinfo.cgroupid = exit_info->cgroupid;
@@ -663,7 +668,8 @@ void pidfs_exit(struct task_struct *tsk)
 	exit_info->exit_code = tsk->exit_code;
 
 	/* Ensure that PIDFD_GET_INFO sees either all or nothing. */
-	smp_store_release(&attr->exit_info, &attr->__pei);
+	smp_wmb();
+	set_bit(PIDFS_ATTR_BIT_EXIT, &attr->attr_mask);
 }
 
 #ifdef CONFIG_COREDUMP
