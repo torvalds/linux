@@ -62,11 +62,9 @@ __init void scan_elf_aux( char **envp)
 		}
 	}
 	if ( ! __kernel_vsyscall || ! vsyscall_ehdr ||
-	     ! elf_aux_hwcap ||
 	     ! page_size || (vsyscall_ehdr % page_size) ) {
 		__kernel_vsyscall = 0;
 		vsyscall_ehdr = 0;
-		elf_aux_hwcap = 0;
 	}
 	else {
 		vsyscall_end = vsyscall_ehdr + page_size;
