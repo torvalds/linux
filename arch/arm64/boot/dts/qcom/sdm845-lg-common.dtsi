@@ -456,10 +456,6 @@
 
 &gpu {
 	status = "okay";
-
-	zap-shader {
-		memory-region = <&gpu_mem>;
-	};
 };
 
 &ipa {

@@ -428,7 +428,6 @@
 	status = "okay";
 
 	zap-shader {
-		memory-region = <&gpu_mem>;
 		firmware-name = "qcom/sdm845/Sony/tama/a630_zap.mbn";
 	};
 };

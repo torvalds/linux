@@ -394,7 +394,6 @@
 	status = "okay";
 
 	zap-shader {
-		memory-region = <&gpu_mem>;
 		firmware-name = "qcom/sdm845/polaris/a630_zap.mbn";
 	};
 };
