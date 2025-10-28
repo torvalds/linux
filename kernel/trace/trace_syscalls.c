@@ -127,6 +127,116 @@ const char *get_syscall_name(int syscall)
 /* Added to user strings or arrays when max limit is reached */
 #define EXTRA "..."
 
+static void get_dynamic_len_ptr(struct syscall_trace_enter *trace,
+				struct syscall_metadata *entry,
+				int *offset_p, int *len_p, unsigned char **ptr_p)
+{
+	unsigned char *ptr;
+	int offset = *offset_p;
+	int val;
+
+	/* This arg points to a user space string */
+	ptr = (void *)trace->args + sizeof(long) * entry->nb_args + offset;
+	val = *(int *)ptr;
+
+	/* The value is a dynamic string (len << 16 | offset) */
+	ptr = (void *)trace + (val & 0xffff);
+	*len_p = val >> 16;
+	offset += 4;
+
+	*ptr_p = ptr;
+	*offset_p = offset;
+}
+
+static enum print_line_t
+sys_enter_openat_print(struct syscall_trace_enter *trace, struct syscall_metadata *entry,
+		       struct trace_seq *s, struct trace_event *event)
+{
+	unsigned char *ptr;
+	int offset = 0;
+	int bits, len;
+	bool done = false;
+	static const struct trace_print_flags __flags[] =
+		{
+			{ O_TMPFILE, "O_TMPFILE" },
+			{ O_WRONLY, "O_WRONLY" },
+			{ O_RDWR, "O_RDWR" },
+			{ O_CREAT, "O_CREAT" },
+			{ O_EXCL, "O_EXCL" },
+			{ O_NOCTTY, "O_NOCTTY" },
+			{ O_TRUNC, "O_TRUNC" },
+			{ O_APPEND, "O_APPEND" },
+			{ O_NONBLOCK, "O_NONBLOCK" },
+			{ O_DSYNC, "O_DSYNC" },
+			{ O_DIRECT, "O_DIRECT" },
+			{ O_LARGEFILE, "O_LARGEFILE" },
+			{ O_DIRECTORY, "O_DIRECTORY" },
+			{ O_NOFOLLOW, "O_NOFOLLOW" },
+			{ O_NOATIME, "O_NOATIME" },
+			{ O_CLOEXEC, "O_CLOEXEC" },
+			{ -1, NULL }
+		};
+
+	trace_seq_printf(s, "%s(", entry->name);
+
+	for (int i = 0; !done && i < entry->nb_args; i++) {
+
+		if (trace_seq_has_overflowed(s))
+			goto end;
+
+		if (i)
+			trace_seq_puts(s, ", ");
+
+		switch (i) {
+		case 2:
+			bits = trace->args[2];
+
+			trace_seq_puts(s, "flags: ");
+
+			/* No need to show mode when not creating the file */
+			if (!(bits & (O_CREAT|O_TMPFILE)))
+				done = true;
+
+			if (!(bits & O_ACCMODE)) {
+				if (!bits) {
+					trace_seq_puts(s, "O_RDONLY");
+					continue;
+				}
+				trace_seq_puts(s, "O_RDONLY|");
+			}
+
+			trace_print_flags_seq(s, "|", bits, __flags);
+			/*
+			 * trace_print_flags_seq() adds a '\0' to the
+			 * buffer, but this needs to append more to the seq.
+			 */
+			if (!trace_seq_has_overflowed(s))
+				trace_seq_pop(s);
+
+			continue;
+		case 3:
+			trace_seq_printf(s, "%s: 0%03o", entry->args[i],
+					 (unsigned int)trace->args[i]);
+			continue;
+		}
+
+		trace_seq_printf(s, "%s: %lu", entry->args[i],
+				 trace->args[i]);
+
+		if (!(BIT(i) & entry->user_mask))
+			continue;
+
+		get_dynamic_len_ptr(trace, entry, &offset, &len, &ptr);
+		trace_seq_printf(s, " \"%.*s\"", len, ptr);
+	}
+
+	trace_seq_putc(s, ')');
+end:
+	trace_seq_putc(s, '\n');
+
+	return trace_handle_return(s);
+}
+
 static enum print_line_t
 print_syscall_enter(struct trace_iterator *iter, int flags,
 		    struct trace_event *event)
@@ -150,6 +260,15 @@ print_syscall_enter(struct trace_iterator *iter, int flags,
 	if (entry->enter_event->event.type != ent->type) {
 		WARN_ON_ONCE(1);
 		goto end;
+	}
+
+	switch (entry->syscall_nr) {
+	case __NR_openat:
+		if (!tr || !(tr->trace_flags & TRACE_ITER_VERBOSE))
+			return sys_enter_openat_print(trace, entry, s, event);
+		break;
+	default:
+		break;
 	}
 
 	trace_seq_printf(s, "%s(", entry->name);
@@ -179,14 +298,7 @@ print_syscall_enter(struct trace_iterator *iter, int flags,
 		if (!(BIT(i) & entry->user_mask))
 			continue;
 
-		/* This arg points to a user space string */
-		ptr = (void *)trace->args + sizeof(long) * entry->nb_args + offset;
-		val = *(int *)ptr;
-
-		/* The value is a dynamic string (len << 16 | offset) */
-		ptr = (void *)ent + (val & 0xffff);
-		len = val >> 16;
-		offset += 4;
+		get_dynamic_len_ptr(trace, entry, &offset, &len, &ptr);
 
 		if (entry->user_arg_size < 0 || entry->user_arg_is_str) {
 			trace_seq_printf(s, " \"%.*s\"", len, ptr);
@@ -269,6 +381,62 @@ print_syscall_exit(struct trace_iterator *iter, int flags,
 	.size = sizeof(_type), .align = __alignof__(_type),		\
 	.is_signed = is_signed_type(_type), .filter_type = FILTER_OTHER }
 
+/* When len=0, we just calculate the needed length */
+#define LEN_OR_ZERO (len ? len - pos : 0)
+
+static int __init
+sys_enter_openat_print_fmt(struct syscall_metadata *entry, char *buf, int len)
+{
+	int pos = 0;
+
+	pos += snprintf(buf + pos, LEN_OR_ZERO,
+			"\"dfd: 0x%%08lx, filename: 0x%%08lx \\\"%%s\\\", flags: %%s%%s, mode: 0%%03o\",");
+	pos += snprintf(buf + pos, LEN_OR_ZERO,
+			" ((unsigned long)(REC->dfd)),");
+	pos += snprintf(buf + pos, LEN_OR_ZERO,
+			" ((unsigned long)(REC->filename)),");
+	pos += snprintf(buf + pos, LEN_OR_ZERO,
+			" __get_str(__filename_val),");
+	pos += snprintf(buf + pos, LEN_OR_ZERO,
+			" (REC->flags & ~3) && !(REC->flags & 3) ? \"O_RDONLY|\" : \"\", ");
+	pos += snprintf(buf + pos, LEN_OR_ZERO,
+			" REC->flags ? __print_flags(REC->flags, \"|\", ");
+	pos += snprintf(buf + pos, LEN_OR_ZERO,
+			"{ 0x%x, \"O_WRONLY\" }, ", O_WRONLY);
+	pos += snprintf(buf + pos, LEN_OR_ZERO,
+			"{ 0x%x, \"O_RDWR\" }, ", O_RDWR);
+	pos += snprintf(buf + pos, LEN_OR_ZERO,
+			"{ 0x%x, \"O_CREAT\" }, ", O_CREAT);
+	pos += snprintf(buf + pos, LEN_OR_ZERO,
+			"{ 0x%x, \"O_EXCL\" }, ", O_EXCL);
+	pos += snprintf(buf + pos, LEN_OR_ZERO,
+			"{ 0x%x, \"O_NOCTTY\" }, ", O_NOCTTY);
+	pos += snprintf(buf + pos, LEN_OR_ZERO,
+			"{ 0x%x, \"O_TRUNC\" }, ", O_TRUNC);
+	pos += snprintf(buf + pos, LEN_OR_ZERO,
+			"{ 0x%x, \"O_APPEND\" }, ", O_APPEND);
+	pos += snprintf(buf + pos, LEN_OR_ZERO,
+			"{ 0x%x, \"O_NONBLOCK\" }, ", O_NONBLOCK);
+	pos += snprintf(buf + pos, LEN_OR_ZERO,
+			"{ 0x%x, \"O_DSYNC\" }, ", O_DSYNC);
+	pos += snprintf(buf + pos, LEN_OR_ZERO,
+			"{ 0x%x, \"O_DIRECT\" }, ", O_DIRECT);
+	pos += snprintf(buf + pos, LEN_OR_ZERO,
+			"{ 0x%x, \"O_LARGEFILE\" }, ", O_LARGEFILE);
+	pos += snprintf(buf + pos, LEN_OR_ZERO,
+			"{ 0x%x, \"O_DIRECTORY\" }, ", O_DIRECTORY);
+	pos += snprintf(buf + pos, LEN_OR_ZERO,
+			"{ 0x%x, \"O_NOFOLLOW\" }, ", O_NOFOLLOW);
+	pos += snprintf(buf + pos, LEN_OR_ZERO,
+			"{ 0x%x, \"O_NOATIME\" }, ", O_NOATIME);
+	pos += snprintf(buf + pos, LEN_OR_ZERO,
+			"{ 0x%x, \"O_CLOEXEC\" }) : \"O_RDONLY\", ", O_CLOEXEC);
+
+	pos += snprintf(buf + pos, LEN_OR_ZERO,
+			" ((unsigned long)(REC->mode))");
+	return pos;
+}
+
 static int __init
 __set_enter_print_fmt(struct syscall_metadata *entry, char *buf, int len)
 {
@@ -276,8 +444,12 @@ __set_enter_print_fmt(struct syscall_metadata *entry, char *buf, int len)
 	int i;
 	int pos = 0;
 
-	/* When len=0, we just calculate the needed length */
-#define LEN_OR_ZERO (len ? len - pos : 0)
+	switch (entry->syscall_nr) {
+	case __NR_openat:
+		return sys_enter_openat_print_fmt(entry, buf, len);
+	default:
+		break;
+	}
 
 	pos += snprintf(buf + pos, LEN_OR_ZERO, "\"");
 	for (i = 0; i < entry->nb_args; i++) {
