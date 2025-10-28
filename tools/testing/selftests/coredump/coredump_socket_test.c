@@ -271,21 +271,25 @@ out:
 			_exit(EXIT_FAILURE);
 
 		close(fd_socket);
+		pause();
 		_exit(EXIT_SUCCESS);
 	}
 
 	pidfd = sys_pidfd_open(pid, 0);
 	ASSERT_GE(pidfd, 0);
 
-	waitpid(pid, &status, 0);
-	ASSERT_TRUE(WIFEXITED(status));
-	ASSERT_EQ(WEXITSTATUS(status), 0);
-
 	ASSERT_TRUE(get_pidfd_info(pidfd, &info));
 	ASSERT_GT((info.mask & PIDFD_INFO_COREDUMP), 0);
 	ASSERT_EQ((info.coredump_mask & PIDFD_COREDUMPED), 0);
 
 	wait_and_check_coredump_server(pid_coredump_server, _metadata, self);
+
+	ASSERT_EQ(sys_pidfd_send_signal(pidfd, SIGKILL, NULL, 0), 0);
+	ASSERT_EQ(close(pidfd), 0);
+
+	waitpid(pid, &status, 0);
+	ASSERT_TRUE(WIFSIGNALED(status));
+	ASSERT_EQ(WTERMSIG(status), SIGKILL);
 
 	ASSERT_NE(stat("/tmp/coredump.file", &st), 0);
 	ASSERT_EQ(errno, ENOENT);
