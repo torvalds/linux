@@ -14,6 +14,7 @@
 #include <linux/pagemap.h>
 #include "bio.h"
 #include "fs.h"
+#include "btrfs_inode.h"
 
 struct address_space;
 struct inode;
@@ -74,7 +75,7 @@ struct compressed_bio {
 
 static inline struct btrfs_fs_info *cb_to_fs_info(const struct compressed_bio *cb)
 {
-	return cb->bbio.fs_info;
+	return cb->bbio.inode->root->fs_info;
 }
 
 /* @range_end must be exclusive. */

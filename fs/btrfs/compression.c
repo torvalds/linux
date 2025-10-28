@@ -67,9 +67,7 @@ static struct compressed_bio *alloc_compressed_bio(struct btrfs_inode *inode,
 
 	bbio = btrfs_bio(bio_alloc_bioset(NULL, BTRFS_MAX_COMPRESSED_PAGES, op,
 					  GFP_NOFS, &btrfs_compressed_bioset));
-	btrfs_bio_init(bbio, inode->root->fs_info, end_io, NULL);
-	bbio->inode = inode;
-	bbio->file_offset = start;
+	btrfs_bio_init(bbio, inode, start, end_io, NULL);
 	return to_compressed_bio(bbio);
 }
 
@@ -354,7 +352,7 @@ static void end_bbio_compressed_write(struct btrfs_bio *bbio)
 
 static void btrfs_add_compressed_bio_folios(struct compressed_bio *cb)
 {
-	struct btrfs_fs_info *fs_info = cb->bbio.fs_info;
+	struct btrfs_fs_info *fs_info = cb->bbio.inode->root->fs_info;
 	struct bio *bio = &cb->bbio.bio;
 	u32 offset = 0;
 
