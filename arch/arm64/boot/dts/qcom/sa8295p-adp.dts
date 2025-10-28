@@ -338,10 +338,10 @@
 
 &gpu {
 	status = "okay";
+};
 
-	zap-shader {
-		firmware-name = "qcom/sa8295p/a690_zap.mbn";
-	};
+&gpu_zap_shader {
+	firmware-name = "qcom/sa8295p/a690_zap.mbn";
 };
 
 &gpu_smmu {

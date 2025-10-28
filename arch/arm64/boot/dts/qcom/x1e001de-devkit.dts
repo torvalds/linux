@@ -763,10 +763,10 @@
 
 &gpu {
 	status = "okay";
+};
 
-	zap-shader {
-		firmware-name = "qcom/x1e80100/Thundercomm/DEVKIT/qcdxkmsuc8380.mbn";
-	};
+&gpu_zap_shader {
+	firmware-name = "qcom/x1e80100/Thundercomm/DEVKIT/qcdxkmsuc8380.mbn";
 };
 
 &i2c1 {

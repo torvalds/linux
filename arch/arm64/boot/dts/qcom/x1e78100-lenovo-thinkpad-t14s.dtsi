@@ -722,10 +722,10 @@
 
 &gpu {
 	status = "okay";
+};
 
-	zap-shader {
-		firmware-name = "qcom/x1e80100/LENOVO/21N1/qcdxkmsuc8380.mbn";
-	};
+&gpu_zap_shader {
+	firmware-name = "qcom/x1e80100/LENOVO/21N1/qcdxkmsuc8380.mbn";
 };
 
 &i2c0 {

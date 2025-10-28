@@ -444,10 +444,10 @@
 
 &gpu {
 	status = "okay";
+};
 
-	zap-shader {
-		firmware-name = "qcom/sc8180x/qcdxkmsuc8180.mbn";
-	};
+&gpu_zap_shader {
+	firmware-name = "qcom/sc8180x/qcdxkmsuc8180.mbn";
 };
 
 &i2c1 {

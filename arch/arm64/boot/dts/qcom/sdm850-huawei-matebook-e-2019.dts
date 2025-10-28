@@ -488,10 +488,10 @@
 
 &gpu {
 	status = "okay";
+};
 
-	zap-shader {
-		firmware-name = "qcom/sdm850/HUAWEI/AL09/qcdxkmsuc850.mbn";
-	};
+&gpu_zap_shader {
+	firmware-name = "qcom/sdm850/HUAWEI/AL09/qcdxkmsuc850.mbn";
 };
 
 &i2c5 {

@@ -67,10 +67,10 @@
 
 &gpu {
 	status = "okay";
+};
 
-	zap-shader {
-		firmware-name = "qcom/sm6115/LENOVO/J606F/a610_zap.mbn";
-	};
+&gpu_zap_shader {
+	firmware-name = "qcom/sm6115/LENOVO/J606F/a610_zap.mbn";
 };
 
 &mdss {

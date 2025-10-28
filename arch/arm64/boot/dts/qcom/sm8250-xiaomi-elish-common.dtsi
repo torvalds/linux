@@ -554,10 +554,10 @@
 
 &gpu {
 	status = "okay";
+};
 
-	zap-shader {
-		firmware-name = "qcom/sm8250/xiaomi/elish/a650_zap.mbn";
-	};
+&gpu_zap_shader {
+	firmware-name = "qcom/sm8250/xiaomi/elish/a650_zap.mbn";
 };
 
 &i2c0 {
