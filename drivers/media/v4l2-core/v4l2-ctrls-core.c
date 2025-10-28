@@ -160,7 +160,13 @@ static void std_init_compound(const struct v4l2_ctrl *ctrl, u32 idx,
 		break;
 	case V4L2_CTRL_TYPE_AV1_SEQUENCE:
 		p_av1_sequence = p;
+		/*
+		 * The initial profile is 0 which only allows YUV 420 subsampled
+		 * data. Set the subsampling flags accordingly.
+		 */
 		p_av1_sequence->bit_depth = 8;
+		p_av1_sequence->flags |= V4L2_AV1_SEQUENCE_FLAG_SUBSAMPLING_X |
+					 V4L2_AV1_SEQUENCE_FLAG_SUBSAMPLING_Y;
 		break;
 	case V4L2_CTRL_TYPE_FWHT_PARAMS:
 		p_fwht_params = p;
