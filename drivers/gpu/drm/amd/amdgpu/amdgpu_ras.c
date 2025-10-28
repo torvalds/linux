@@ -1661,7 +1661,7 @@ static int amdgpu_uniras_error_inject(struct amdgpu_device *adev,
 	inject_req.address = info->address;
 	inject_req.error_type = info->head.type;
 	inject_req.instance_mask = info->instance_mask;
-	inject_req.value = info->value;
+	inject_req.method = info->value;
 
 	return amdgpu_ras_mgr_handle_ras_cmd(adev, RAS_CMD__INJECT_ERROR,
 			&inject_req, sizeof(inject_req), &rsp, sizeof(rsp));
