@@ -693,13 +693,16 @@ int em_dev_register_pd_no_update(struct device *dev, unsigned int nr_states,
 
 unlock:
 	mutex_unlock(&em_pd_mutex);
+	if (ret)
+		return ret;
 
 	mutex_lock(&em_pd_list_mutex);
 	list_add_tail(&dev->em_pd->node, &em_pd_list);
 	mutex_unlock(&em_pd_list_mutex);
 
 	em_notify_pd_created(dev->em_pd);
-	return ret;
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(em_dev_register_pd_no_update);
 
