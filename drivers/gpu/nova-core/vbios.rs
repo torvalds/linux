@@ -374,30 +374,19 @@ struct BitHeader {
     checksum: u8,
 }
 
+// SAFETY: all bit patterns are valid for `BitHeader`.
+unsafe impl FromBytes for BitHeader {}
+
 impl BitHeader {
     fn new(data: &[u8]) -> Result<Self> {
-        if data.len() < core::mem::size_of::<Self>() {
-            return Err(EINVAL);
-        }
-
-        let mut signature = [0u8; 4];
-        signature.copy_from_slice(&data[2..6]);
+        let (header, _) = BitHeader::from_bytes_copy_prefix(data).ok_or(EINVAL)?;
 
         // Check header ID and signature
-        let id = u16::from_le_bytes([data[0], data[1]]);
-        if id != 0xB8FF || &signature != b"BIT\0" {
+        if header.id != 0xB8FF || &header.signature != b"BIT\0" {
             return Err(EINVAL);
         }
 
-        Ok(BitHeader {
-            id,
-            signature,
-            bcd_version: u16::from_le_bytes([data[6], data[7]]),
-            header_size: data[8],
-            token_size: data[9],
-            token_entries: data[10],
-            checksum: data[11],
-        })
+        Ok(header)
     }
 }
 
