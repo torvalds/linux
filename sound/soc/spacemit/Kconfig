@@ -6,8 +6,7 @@ menu "SpacemiT"
 config SND_SOC_K1_I2S
 	tristate "K1 I2S Device Driver"
 	select SND_SOC_GENERIC_DMAENGINE_PCM
-	select CMA
-	select DMA_CMA
+	depends on DMA_CMA
 	help
 	  Say Y or M if you want to add support for I2S driver for
 	  K1 I2S controller. The device supports up to maximum of
