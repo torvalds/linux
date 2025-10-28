@@ -2051,6 +2051,7 @@ static void mptcp_rcv_space_adjust(struct mptcp_sock *msk, int copied)
 
 	msk->rcvq_space.space = msk->rcvq_space.copied;
 	if (mptcp_rcvbuf_grow(sk)) {
+		int copied = msk->rcvq_space.copied;
 
 		/* Make subflows follow along.  If we do not do this, we
 		 * get drops at subflow level if skbs can't be moved to
@@ -2063,8 +2064,11 @@ static void mptcp_rcv_space_adjust(struct mptcp_sock *msk, int copied)
 
 			ssk = mptcp_subflow_tcp_sock(subflow);
 			slow = lock_sock_fast(ssk);
-			tcp_sk(ssk)->rcvq_space.space = msk->rcvq_space.copied;
-			tcp_rcvbuf_grow(ssk);
+			/* subflows can be added before tcp_init_transfer() */
+			if (tcp_sk(ssk)->rcvq_space.space) {
+				tcp_sk(ssk)->rcvq_space.space = copied;
+				tcp_rcvbuf_grow(ssk);
+			}
 			unlock_sock_fast(ssk, slow);
 		}
 	}
