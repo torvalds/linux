@@ -17,8 +17,7 @@
 
 #define __access_ok_vsyscall(addr, size) \
 	  (((unsigned long) (addr) >= FIXADDR_USER_START) && \
-	  ((unsigned long) (addr) + (size) <= FIXADDR_USER_END) && \
-	  ((unsigned long) (addr) + (size) >= (unsigned long)(addr)))
+	  ((unsigned long) (addr) + (size) <= FIXADDR_USER_END))
 
 #define __addr_range_nowrap(addr, size) \
 	((unsigned long) (addr) <= ((unsigned long) (addr) + (size)))
