@@ -383,7 +383,7 @@ static int io_send_setup(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		return 0;
 
 	if (sr->flags & IORING_SEND_VECTORIZED)
-               return io_net_import_vec(req, kmsg, sr->buf, sr->len, ITER_SOURCE);
+		return io_net_import_vec(req, kmsg, sr->buf, sr->len, ITER_SOURCE);
 
 	return import_ubuf(ITER_SOURCE, sr->buf, sr->len, &kmsg->msg.msg_iter);
 }

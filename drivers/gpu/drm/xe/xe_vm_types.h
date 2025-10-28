@@ -46,6 +46,7 @@ struct xe_vm_pgtable_update_op;
 #define XE_VMA_PTE_COMPACT	(DRM_GPUVA_USERBITS << 7)
 #define XE_VMA_DUMPABLE		(DRM_GPUVA_USERBITS << 8)
 #define XE_VMA_SYSTEM_ALLOCATOR	(DRM_GPUVA_USERBITS << 9)
+#define XE_VMA_MADV_AUTORESET	(DRM_GPUVA_USERBITS << 10)
 
 /**
  * struct xe_vma_mem_attr - memory attributes associated with vma
@@ -345,17 +346,10 @@ struct xe_vm {
 struct xe_vma_op_map {
 	/** @vma: VMA to map */
 	struct xe_vma *vma;
+	unsigned int vma_flags;
 	/** @immediate: Immediate bind */
 	bool immediate;
 	/** @read_only: Read only */
-	bool read_only;
-	/** @is_null: is NULL binding */
-	bool is_null;
-	/** @is_cpu_addr_mirror: is CPU address mirror binding */
-	bool is_cpu_addr_mirror;
-	/** @dumpable: whether BO is dumped on GPU hang */
-	bool dumpable;
-	/** @invalidate: invalidate the VMA before bind */
 	bool invalidate_on_bind;
 	/** @pat_index: The pat index to use for this operation. */
 	u16 pat_index;

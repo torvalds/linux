@@ -9,6 +9,7 @@
 #ifndef __CS35L56_HDA_H__
 #define __CS35L56_HDA_H__
 
+#include <linux/container_of.h>
 #include <linux/device.h>
 #include <linux/gpio/consumer.h>
 #include <linux/firmware/cirrus/cs_dsp.h>
@@ -41,6 +42,11 @@ struct cs35l56_hda {
 	struct dentry *debugfs_root;
 #endif
 };
+
+static inline struct cs35l56_hda *cs35l56_hda_from_base(struct cs35l56_base *cs35l56_base)
+{
+	return container_of(cs35l56_base, struct cs35l56_hda, base);
+}
 
 extern const struct dev_pm_ops cs35l56_hda_pm_ops;
 
