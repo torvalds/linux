@@ -293,6 +293,14 @@ static __u32 pidfs_coredump_mask(unsigned long mm_flags)
 	return 0;
 }
 
+/* This must be updated whenever a new flag is added */
+#define PIDFD_INFO_SUPPORTED (PIDFD_INFO_PID | \
+			      PIDFD_INFO_CREDS | \
+			      PIDFD_INFO_CGROUPID | \
+			      PIDFD_INFO_EXIT | \
+			      PIDFD_INFO_COREDUMP | \
+			      PIDFD_INFO_SUPPORTED_MASK)
+
 static long pidfd_info(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct pidfd_info __user *uinfo = (struct pidfd_info __user *)arg;
@@ -306,7 +314,7 @@ static long pidfd_info(struct file *file, unsigned int cmd, unsigned long arg)
 	const struct cred *c;
 	__u64 mask;
 
-	BUILD_BUG_ON(sizeof(struct pidfd_info) != PIDFD_INFO_SIZE_VER1);
+	BUILD_BUG_ON(sizeof(struct pidfd_info) != PIDFD_INFO_SIZE_VER2);
 
 	if (!uinfo)
 		return -EINVAL;
@@ -412,6 +420,13 @@ static long pidfd_info(struct file *file, unsigned int cmd, unsigned long arg)
 		return -ESRCH;
 
 copy_out:
+	if (mask & PIDFD_INFO_SUPPORTED_MASK) {
+		kinfo.mask |= PIDFD_INFO_SUPPORTED_MASK;
+		kinfo.supported_mask = PIDFD_INFO_SUPPORTED;
+	}
+
+	/* Are there bits in the return mask not present in PIDFD_INFO_SUPPORTED? */
+	WARN_ON_ONCE(~PIDFD_INFO_SUPPORTED & kinfo.mask);
 	/*
 	 * If userspace and the kernel have the same struct size it can just
 	 * be copied. If userspace provides an older struct, only the bits that
