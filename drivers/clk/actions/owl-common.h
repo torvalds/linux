@@ -32,7 +32,7 @@ struct owl_clk_desc {
 };
 
 static inline struct owl_clk_common *
-	hw_to_owl_clk_common(const struct clk_hw *hw)
+	hw_to_owl_clk_common(struct clk_hw *hw)
 {
 	return container_of(hw, struct owl_clk_common, hw);
 }

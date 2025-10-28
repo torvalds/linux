@@ -98,7 +98,7 @@ struct owl_pll {
 
 #define mul_mask(m)		((1 << ((m)->width)) - 1)
 
-static inline struct owl_pll *hw_to_owl_pll(const struct clk_hw *hw)
+static inline struct owl_pll *hw_to_owl_pll(struct clk_hw *hw)
 {
 	struct owl_clk_common *common = hw_to_owl_clk_common(hw);
 
