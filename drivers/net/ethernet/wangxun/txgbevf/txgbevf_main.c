@@ -157,6 +157,18 @@ static int txgbevf_sw_init(struct wx *wx)
 
 	wx->set_num_queues = txgbevf_set_num_queues;
 
+	switch (wx->mac.type) {
+	case wx_mac_sp:
+		break;
+	case wx_mac_aml:
+	case wx_mac_aml40:
+		set_bit(WX_FLAG_RX_MERGE_ENABLED, wx->flags);
+		set_bit(WX_FLAG_TXHEAD_WB_ENABLED, wx->flags);
+		break;
+	default:
+		break;
+	}
+
 	return 0;
 err_reset_hw:
 	kfree(wx->vfinfo);
