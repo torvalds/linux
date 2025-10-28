@@ -185,7 +185,7 @@ impl pwm::PwmOps for Th1520PwmDriverData {
         );
 
         Ok(pwm::RoundedWaveform {
-            status: status,
+            status,
             hardware_waveform: wfhw,
         })
     }
