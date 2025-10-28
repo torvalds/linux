@@ -4,18 +4,20 @@
 ARCnet Hardware
 ===============
 
+:Author: Avery Pennarun <apenwarr@worldvisions.ca>
+
 .. note::
 
-   1) This file is a supplement to arcnet.txt.  Please read that for general
+   1) This file is a supplement to arcnet.rst.  Please read that for general
       driver configuration help.
    2) This file is no longer Linux-specific.  It should probably be moved out
       of the kernel sources.  Ideas?
 
 Because so many people (myself included) seem to have obtained ARCnet cards
 without manuals, this file contains a quick introduction to ARCnet hardware,
-some cabling tips, and a listing of all jumper settings I can find. Please
-e-mail apenwarr@worldvisions.ca with any settings for your particular card,
-or any other information you have!
+some cabling tips, and a listing of all jumper settings I can find. If you
+have any settings for your particular card, and/or any other information you
+have, do not hesitate to :ref:`email to netdev <arcnet-netdev>`.
 
 
 Introduction to ARCnet
@@ -72,11 +74,10 @@ level of encapsulation is defined by RFC1201, which I call "packet
 splitting," that allows "virtual packets" to grow as large as 64K each,
 although they are generally kept down to the Ethernet-style 1500 bytes.
 
-For more information on the advantages and disadvantages (mostly the
-advantages) of ARCnet networks, you might try the "ARCnet Trade Association"
-WWW page:
+For more information on ARCnet networks, visit the "ARCNET Resource Center"
+WWW page at:
 
-	http://www.arcnet.com
+	https://www.arcnet.cc
 
 
 Cabling ARCnet Networks
@@ -3226,9 +3227,6 @@ Settings for IRQ Selection (Lower Jumper Line)
 Other Cards
 ===========
 
-I have no information on other models of ARCnet cards at the moment.  Please
-send any and all info to:
-
-	apenwarr@worldvisions.ca
+I have no information on other models of ARCnet cards at the moment.
 
 Thanks.
