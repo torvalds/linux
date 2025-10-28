@@ -45,7 +45,9 @@ extern unsigned long *empty_zero_page;
  * area for the same reason. ;)
  */
 
+#ifndef COMPILE_OFFSETS
 #include <as-layout.h> /* for high_physmem */
+#endif
 
 #define VMALLOC_OFFSET	(__va_space)
 #define VMALLOC_START	((high_physmem + VMALLOC_OFFSET) & ~(VMALLOC_OFFSET-1))
