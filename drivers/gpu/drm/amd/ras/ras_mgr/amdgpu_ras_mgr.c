@@ -37,7 +37,7 @@
 #define MAX_XCD_NUM_PER_AID			2
 
 /* typical ECC bad page rate is 1 bad page per 100MB VRAM */
-#define ESTIMATE_BAD_PAGE_THRESHOLD(size)         ((size)/(100 * 1024 * 1024ULL))
+#define TYPICAL_ECC_BAD_PAGE_RATE (100ULL * SZ_1M)
 
 #define COUNT_BAD_PAGE_THRESHOLD(size) (((size) >> 21) << 4)
 
@@ -129,7 +129,7 @@ static int amdgpu_ras_mgr_init_eeprom_config(struct amdgpu_device *adev,
 	 */
 	if (amdgpu_bad_page_threshold == NONSTOP_OVER_THRESHOLD)
 		eeprom_cfg->eeprom_record_threshold_count =
-				ESTIMATE_BAD_PAGE_THRESHOLD(adev->gmc.mc_vram_size);
+			div64_u64(adev->gmc.mc_vram_size, TYPICAL_ECC_BAD_PAGE_RATE);
 	else if (amdgpu_bad_page_threshold == WARN_NONSTOP_OVER_THRESHOLD)
 		eeprom_cfg->eeprom_record_threshold_count =
 				COUNT_BAD_PAGE_THRESHOLD(RAS_RESERVED_VRAM_SIZE_DEFAULT);
