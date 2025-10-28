@@ -1744,11 +1744,8 @@ static int svm_range_validate_and_map(struct mm_struct *mm,
 			else
 				r = -ENOMEM;
 			WRITE_ONCE(p->svms.faulting_task, NULL);
-			if (r) {
-				amdgpu_hmm_range_free(range);
-				range = NULL;
+			if (r)
 				pr_debug("failed %d to get svm range pages\n", r);
-			}
 		} else {
 			r = -EFAULT;
 		}
@@ -1771,10 +1768,9 @@ static int svm_range_validate_and_map(struct mm_struct *mm,
 			pr_debug("hmm update the range, need validate again\n");
 			r = -EAGAIN;
 		}
-		/* Free the hmm range */
-		if (range)
-			amdgpu_hmm_range_free(range);
 
+		/* Free the hmm range */
+		amdgpu_hmm_range_free(range);
 
 		if (!r && !list_empty(&prange->child_list)) {
 			pr_debug("range split by unmap in parallel, validate again\n");
