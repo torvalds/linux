@@ -18,7 +18,6 @@ obj-y = bugs_$(BITS).o delay.o fault.o \
 ifeq ($(CONFIG_X86_32),y)
 
 obj-y += syscalls_32.o
-obj-$(CONFIG_ELF_CORE) += elfcore.o
 
 subarch-y = ../lib/string_32.o ../lib/atomic64_32.o ../lib/atomic64_cx8_32.o
 subarch-y += ../lib/cmpxchg8b_emu.o ../lib/atomic64_386_32.o

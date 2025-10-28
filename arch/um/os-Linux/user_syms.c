@@ -31,12 +31,6 @@ extern void *memset(void *, int, size_t);
 EXPORT_SYMBOL(memset);
 #endif
 
-#ifdef CONFIG_ARCH_REUSE_HOST_VSYSCALL_AREA
-/* needed for __access_ok() */
-EXPORT_SYMBOL(vsyscall_ehdr);
-EXPORT_SYMBOL(vsyscall_end);
-#endif
-
 #ifdef _FORTIFY_SOURCE
 extern int __sprintf_chk(char *str, int flag, size_t len, const char *format);
 EXPORT_SYMBOL(__sprintf_chk);
