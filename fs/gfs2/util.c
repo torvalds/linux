@@ -131,8 +131,6 @@ static void do_withdraw(struct gfs2_sbd *sdp)
 	 */
 	clear_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags);
 	if (!sb_rdonly(sdp->sd_vfs)) {
-		bool locked = mutex_trylock(&sdp->sd_freeze_mutex);
-
 		wake_up(&sdp->sd_logd_waitq);
 		wake_up(&sdp->sd_quota_wait);
 
@@ -142,17 +140,12 @@ static void do_withdraw(struct gfs2_sbd *sdp)
 
 		sdp->sd_vfs->s_flags |= SB_RDONLY;
 
-		if (locked)
-			mutex_unlock(&sdp->sd_freeze_mutex);
-
 		/*
 		 * Dequeue any pending non-system glock holders that can no
 		 * longer be granted because the file system is withdrawn.
 		 */
 		gfs2_withdraw_glocks(sdp);
 	}
-
-	gfs2_thaw_freeze_initiator(sdp->sd_vfs);
 }
 
 void gfs2_lm(struct gfs2_sbd *sdp, const char *fmt, ...)

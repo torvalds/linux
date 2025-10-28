@@ -817,20 +817,6 @@ static int gfs2_thaw_super(struct super_block *sb, enum freeze_holder who,
 	return error;
 }
 
-void gfs2_thaw_freeze_initiator(struct super_block *sb)
-{
-	struct gfs2_sbd *sdp = sb->s_fs_info;
-
-	mutex_lock(&sdp->sd_freeze_mutex);
-	if (!test_bit(SDF_FREEZE_INITIATOR, &sdp->sd_flags))
-		goto out;
-
-	gfs2_freeze_unlock(sdp);
-
-out:
-	mutex_unlock(&sdp->sd_freeze_mutex);
-}
-
 /**
  * statfs_slow_fill - fill in the sg for a given RG
  * @rgd: the RG

@@ -47,7 +47,6 @@ void gfs2_statfs_change_out(const struct gfs2_statfs_change_host *sc,
 void update_statfs(struct gfs2_sbd *sdp, struct buffer_head *m_bh);
 int gfs2_statfs_sync(struct super_block *sb, int type);
 void gfs2_freeze_func(struct work_struct *work);
-void gfs2_thaw_freeze_initiator(struct super_block *sb);
 
 void free_local_statfs_inodes(struct gfs2_sbd *sdp);
 struct inode *find_local_statfs_inode(struct gfs2_sbd *sdp,
