@@ -3874,15 +3874,9 @@ static void record_steal_time(struct kvm_vcpu *vcpu)
 
 /*
  * Returns true if the MSR in question is managed via XSTATE, i.e. is context
- * switched with the rest of guest FPU state.  Note!  S_CET is _not_ context
- * switched via XSTATE even though it _is_ saved/restored via XSAVES/XRSTORS.
- * Because S_CET is loaded on VM-Enter and VM-Exit via dedicated VMCS fields,
- * the value saved/restored via XSTATE is always the host's value.  That detail
- * is _extremely_ important, as the guest's S_CET must _never_ be resident in
- * hardware while executing in the host.  Loading guest values for U_CET and
- * PL[0-3]_SSP while executing in the kernel is safe, as U_CET is specific to
- * userspace, and PL[0-3]_SSP are only consumed when transitioning to lower
- * privilege levels, i.e. are effectively only consumed by userspace as well.
+ * switched with the rest of guest FPU state.
+ *
+ * Note, S_CET is _not_ saved/restored via XSAVES/XRSTORS.
  */
 static bool is_xstate_managed_msr(struct kvm_vcpu *vcpu, u32 msr)
 {
@@ -3905,6 +3899,11 @@ static bool is_xstate_managed_msr(struct kvm_vcpu *vcpu, u32 msr)
  * MSR that is managed via XSTATE.  Note, the caller is responsible for doing
  * the initial FPU load, this helper only ensures that guest state is resident
  * in hardware (the kernel can load its FPU state in IRQ context).
+ *
+ * Note, loading guest values for U_CET and PL[0-3]_SSP while executing in the
+ * kernel is safe, as U_CET is specific to userspace, and PL[0-3]_SSP are only
+ * consumed when transitioning to lower privilege levels, i.e. are effectively
+ * only consumed by userspace as well.
  */
 static __always_inline void kvm_access_xstate_msr(struct kvm_vcpu *vcpu,
 						  struct msr_data *msr_info,
