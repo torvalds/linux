@@ -131,17 +131,26 @@ int get_peer_pidfd(int fd)
 	int ret = getsockopt(fd, SOL_SOCKET, SO_PEERPIDFD, &fd_peer_pidfd,
 			     &fd_peer_pidfd_len);
 	if (ret < 0) {
-		fprintf(stderr, "%m - Failed to retrieve peer pidfd for coredump socket connection\n");
+		fprintf(stderr, "get_peer_pidfd: getsockopt(SO_PEERPIDFD) failed: %m\n");
 		return -1;
 	}
+	fprintf(stderr, "get_peer_pidfd: successfully retrieved pidfd %d\n", fd_peer_pidfd);
 	return fd_peer_pidfd;
 }
 
 bool get_pidfd_info(int fd_peer_pidfd, struct pidfd_info *info)
 {
+	int ret;
 	memset(info, 0, sizeof(*info));
 	info->mask = PIDFD_INFO_EXIT | PIDFD_INFO_COREDUMP | PIDFD_INFO_COREDUMP_SIGNAL;
-	return ioctl(fd_peer_pidfd, PIDFD_GET_INFO, info) == 0;
+	ret = ioctl(fd_peer_pidfd, PIDFD_GET_INFO, info);
+	if (ret < 0) {
+		fprintf(stderr, "get_pidfd_info: ioctl(PIDFD_GET_INFO) failed: %m\n");
+		return false;
+	}
+	fprintf(stderr, "get_pidfd_info: mask=0x%llx, coredump_mask=0x%x, coredump_signal=%d\n",
+		(unsigned long long)info->mask, info->coredump_mask, info->coredump_signal);
+	return true;
 }
 
 /* Protocol helper functions */
@@ -198,14 +207,23 @@ bool read_coredump_req(int fd, struct coredump_req *req)
 
 	/* Peek the size of the coredump request. */
 	ret = recv(fd, req, field_size, MSG_PEEK | MSG_WAITALL);
-	if (ret != field_size)
+	if (ret != field_size) {
+		fprintf(stderr, "read_coredump_req: peek failed (got %zd, expected %zu): %m\n",
+			ret, field_size);
 		return false;
+	}
 	kernel_size = req->size;
 
-	if (kernel_size < COREDUMP_ACK_SIZE_VER0)
+	if (kernel_size < COREDUMP_ACK_SIZE_VER0) {
+		fprintf(stderr, "read_coredump_req: kernel_size %zu < min %d\n",
+			kernel_size, COREDUMP_ACK_SIZE_VER0);
 		return false;
-	if (kernel_size >= PAGE_SIZE)
+	}
+	if (kernel_size >= PAGE_SIZE) {
+		fprintf(stderr, "read_coredump_req: kernel_size %zu >= PAGE_SIZE %d\n",
+			kernel_size, PAGE_SIZE);
 		return false;
+	}
 
 	/* Use the minimum of user and kernel size to read the full request. */
 	user_size = sizeof(struct coredump_req);
@@ -295,25 +313,35 @@ void process_coredump_worker(int fd_coredump, int fd_peer_pidfd, int fd_core_fil
 
 	/* Set socket to non-blocking mode for edge-triggered epoll */
 	flags = fcntl(fd_coredump, F_GETFL, 0);
-	if (flags < 0)
+	if (flags < 0) {
+		fprintf(stderr, "Worker: fcntl(F_GETFL) failed: %m\n");
 		goto out;
-	if (fcntl(fd_coredump, F_SETFL, flags | O_NONBLOCK) < 0)
+	}
+	if (fcntl(fd_coredump, F_SETFL, flags | O_NONBLOCK) < 0) {
+		fprintf(stderr, "Worker: fcntl(F_SETFL, O_NONBLOCK) failed: %m\n");
 		goto out;
+	}
 
 	epfd = epoll_create1(0);
-	if (epfd < 0)
+	if (epfd < 0) {
+		fprintf(stderr, "Worker: epoll_create1() failed: %m\n");
 		goto out;
+	}
 
 	ev.events = EPOLLIN | EPOLLRDHUP | EPOLLET;
 	ev.data.fd = fd_coredump;
-	if (epoll_ctl(epfd, EPOLL_CTL_ADD, fd_coredump, &ev) < 0)
+	if (epoll_ctl(epfd, EPOLL_CTL_ADD, fd_coredump, &ev) < 0) {
+		fprintf(stderr, "Worker: epoll_ctl(EPOLL_CTL_ADD) failed: %m\n");
 		goto out;
+	}
 
 	for (;;) {
 		struct epoll_event events[1];
 		int n = epoll_wait(epfd, events, 1, -1);
-		if (n < 0)
+		if (n < 0) {
+			fprintf(stderr, "Worker: epoll_wait() failed: %m\n");
 			break;
+		}
 
 		if (events[0].events & (EPOLLIN | EPOLLRDHUP)) {
 			for (;;) {
@@ -322,19 +350,24 @@ void process_coredump_worker(int fd_coredump, int fd_peer_pidfd, int fd_core_fil
 				if (bytes_read < 0) {
 					if (errno == EAGAIN || errno == EWOULDBLOCK)
 						break;
+					fprintf(stderr, "Worker: read() failed: %m\n");
 					goto out;
 				}
 				if (bytes_read == 0)
 					goto done;
 				ssize_t bytes_write = write(fd_core_file, buffer, bytes_read);
-				if (bytes_write != bytes_read)
+				if (bytes_write != bytes_read) {
+					fprintf(stderr, "Worker: write() failed (read=%zd, write=%zd): %m\n",
+						bytes_read, bytes_write);
 					goto out;
+				}
 			}
 		}
 	}
 
 done:
 	exit_code = EXIT_SUCCESS;
+	fprintf(stderr, "Worker: completed successfully\n");
 out:
 	if (epfd >= 0)
 		close(epfd);
