@@ -291,6 +291,14 @@ void process_coredump_worker(int fd_coredump, int fd_peer_pidfd, int fd_core_fil
 	int epfd = -1;
 	int exit_code = EXIT_FAILURE;
 	struct epoll_event ev;
+	int flags;
+
+	/* Set socket to non-blocking mode for edge-triggered epoll */
+	flags = fcntl(fd_coredump, F_GETFL, 0);
+	if (flags < 0)
+		goto out;
+	if (fcntl(fd_coredump, F_SETFL, flags | O_NONBLOCK) < 0)
+		goto out;
 
 	epfd = epoll_create1(0);
 	if (epfd < 0)
