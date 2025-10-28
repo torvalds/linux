@@ -378,7 +378,7 @@ impl platform::Driver for Th1520PwmPlatformDriver {
     }
 }
 
-kernel::module_platform_driver! {
+kernel::module_pwm_platform_driver! {
     type: Th1520PwmPlatformDriver,
     name: "pwm-th1520",
     authors: ["Michal Wilczynski <m.wilczynski@samsung.com>"],
