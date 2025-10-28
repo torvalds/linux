@@ -72,10 +72,6 @@ extern char * elf_aux_platform;
 #define ELF_PLATFORM_FALLBACK "i586"
 #define ELF_PLATFORM (elf_aux_platform ?: ELF_PLATFORM_FALLBACK)
 
-/* No user-accessible fixmap addresses, i.e. vsyscall */
-#define FIXADDR_USER_START      0
-#define FIXADDR_USER_END        0
-
 #else
 
 /* x86-64 relocation types, taken from asm-x86_64/elf.h */
@@ -156,10 +152,6 @@ extern char * elf_aux_platform;
 	(pr_reg)[26] = 0;
 
 #define ELF_PLATFORM "x86_64"
-
-/* No user-accessible fixmap addresses, i.e. vsyscall */
-#define FIXADDR_USER_START      0
-#define FIXADDR_USER_END        0
 
 #define ARCH_HAS_SETUP_ADDITIONAL_PAGES 1
 struct linux_binprm;
