@@ -41,6 +41,7 @@ void pidfs_get_root(struct path *path)
 
 enum pidfs_attr_mask_bits {
 	PIDFS_ATTR_BIT_EXIT	= 0,
+	PIDFS_ATTR_BIT_COREDUMP	= 1,
 };
 
 struct pidfs_attr {
@@ -51,6 +52,7 @@ struct pidfs_attr {
 		__s32 exit_code;
 	};
 	__u32 coredump_mask;
+	__u32 coredump_signal;
 };
 
 static struct rb_root pidfs_ino_tree = RB_ROOT;
@@ -297,7 +299,8 @@ static __u32 pidfs_coredump_mask(unsigned long mm_flags)
 			      PIDFD_INFO_CGROUPID | \
 			      PIDFD_INFO_EXIT | \
 			      PIDFD_INFO_COREDUMP | \
-			      PIDFD_INFO_SUPPORTED_MASK)
+			      PIDFD_INFO_SUPPORTED_MASK | \
+			      PIDFD_INFO_COREDUMP_SIGNAL)
 
 static long pidfd_info(struct file *file, unsigned int cmd, unsigned long arg)
 {
@@ -342,9 +345,12 @@ static long pidfd_info(struct file *file, unsigned int cmd, unsigned long arg)
 	}
 
 	if (mask & PIDFD_INFO_COREDUMP) {
-		kinfo.coredump_mask = READ_ONCE(attr->coredump_mask);
-		if (kinfo.coredump_mask)
-			kinfo.mask |= PIDFD_INFO_COREDUMP;
+		if (test_bit(PIDFS_ATTR_BIT_COREDUMP, &attr->attr_mask)) {
+			smp_rmb();
+			kinfo.mask |= PIDFD_INFO_COREDUMP | PIDFD_INFO_COREDUMP_SIGNAL;
+			kinfo.coredump_mask = attr->coredump_mask;
+			kinfo.coredump_signal = attr->coredump_signal;
+		}
 	}
 
 	task = get_pid_task(pid, PIDTYPE_PID);
@@ -370,6 +376,7 @@ static long pidfd_info(struct file *file, unsigned int cmd, unsigned long arg)
 
 			kinfo.coredump_mask = pidfs_coredump_mask(flags);
 			kinfo.mask |= PIDFD_INFO_COREDUMP;
+			/* No coredump actually took place, so no coredump signal. */
 		}
 	}
 
@@ -666,20 +673,21 @@ void pidfs_coredump(const struct coredump_params *cprm)
 {
 	struct pid *pid = cprm->pid;
 	struct pidfs_attr *attr;
-	__u32 coredump_mask = 0;
 
 	attr = READ_ONCE(pid->attr);
 
 	VFS_WARN_ON_ONCE(!attr);
 	VFS_WARN_ON_ONCE(attr == PIDFS_PID_DEAD);
 
-	/* Note how we were coredumped. */
-	coredump_mask = pidfs_coredump_mask(cprm->mm_flags);
-	/* Note that we actually did coredump. */
-	coredump_mask |= PIDFD_COREDUMPED;
+	/* Note how we were coredumped and that we coredumped. */
+	attr->coredump_mask = pidfs_coredump_mask(cprm->mm_flags) |
+			      PIDFD_COREDUMPED;
 	/* If coredumping is set to skip we should never end up here. */
-	VFS_WARN_ON_ONCE(coredump_mask & PIDFD_COREDUMP_SKIP);
-	smp_store_release(&attr->coredump_mask, coredump_mask);
+	VFS_WARN_ON_ONCE(attr->coredump_mask & PIDFD_COREDUMP_SKIP);
+	/* Expose the signal number that caused the coredump. */
+	attr->coredump_signal = cprm->siginfo->si_signo;
+	smp_wmb();
+	set_bit(PIDFS_ATTR_BIT_COREDUMP, &attr->attr_mask);
 }
 #endif
 
