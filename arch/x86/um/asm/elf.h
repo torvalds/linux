@@ -69,7 +69,8 @@
 } while (0);
 
 extern char * elf_aux_platform;
-#define ELF_PLATFORM (elf_aux_platform)
+#define ELF_PLATFORM_FALLBACK "i586"
+#define ELF_PLATFORM (elf_aux_platform ?: ELF_PLATFORM_FALLBACK)
 
 extern unsigned long vsyscall_ehdr;
 extern unsigned long vsyscall_end;

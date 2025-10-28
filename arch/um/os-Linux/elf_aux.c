@@ -71,7 +71,4 @@ __init void scan_elf_aux( char **envp)
 	else {
 		vsyscall_end = vsyscall_ehdr + page_size;
 	}
-
-	if (!elf_aux_platform)
-		elf_aux_platform = "i586";
 }
