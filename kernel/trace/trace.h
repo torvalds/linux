@@ -1531,6 +1531,23 @@ void trace_buffered_event_enable(void);
 
 void early_enable_events(struct trace_array *tr, char *buf, bool disable_first);
 
+struct trace_user_buf;
+struct trace_user_buf_info {
+	struct trace_user_buf __percpu	*tbuf;
+	size_t				size;
+	int				ref;
+};
+
+typedef int (*trace_user_buf_copy)(char *dst, const char __user *src,
+				  size_t size, void *data);
+int trace_user_fault_init(struct trace_user_buf_info *tinfo, size_t size);
+int trace_user_fault_get(struct trace_user_buf_info *tinfo);
+int trace_user_fault_put(struct trace_user_buf_info *tinfo);
+void trace_user_fault_destroy(struct trace_user_buf_info *tinfo);
+char *trace_user_fault_read(struct trace_user_buf_info *tinfo,
+			    const char __user *ptr, size_t size,
+			    trace_user_buf_copy copy_func, void *data);
+
 static inline void
 __trace_event_discard_commit(struct trace_buffer *buffer,
 			     struct ring_buffer_event *event)

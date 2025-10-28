@@ -7223,52 +7223,43 @@ struct trace_user_buf {
 	char		*buf;
 };
 
-struct trace_user_buf_info {
-	struct trace_user_buf __percpu	*tbuf;
-	int				ref;
-};
-
-
 static DEFINE_MUTEX(trace_user_buffer_mutex);
 static struct trace_user_buf_info *trace_user_buffer;
 
-static void trace_user_fault_buffer_free(struct trace_user_buf_info *tinfo)
+/**
+ * trace_user_fault_destroy - free up allocated memory of a trace user buffer
+ * @tinfo: The descriptor to free up
+ *
+ * Frees any data allocated in the trace info dsecriptor.
+ */
+void trace_user_fault_destroy(struct trace_user_buf_info *tinfo)
 {
 	char *buf;
 	int cpu;
+
+	if (!tinfo || !tinfo->tbuf)
+		return;
 
 	for_each_possible_cpu(cpu) {
 		buf = per_cpu_ptr(tinfo->tbuf, cpu)->buf;
 		kfree(buf);
 	}
 	free_percpu(tinfo->tbuf);
-	kfree(tinfo);
 }
 
-static int trace_user_fault_buffer_enable(void)
+static int user_fault_buffer_enable(struct trace_user_buf_info *tinfo, size_t size)
 {
-	struct trace_user_buf_info *tinfo;
 	char *buf;
 	int cpu;
 
-	guard(mutex)(&trace_user_buffer_mutex);
-
-	if (trace_user_buffer) {
-		trace_user_buffer->ref++;
-		return 0;
-	}
-
-	tinfo = kmalloc(sizeof(*tinfo), GFP_KERNEL);
-	if (!tinfo)
-		return -ENOMEM;
+	lockdep_assert_held(&trace_user_buffer_mutex);
 
 	tinfo->tbuf = alloc_percpu(struct trace_user_buf);
-	if (!tinfo->tbuf) {
-		kfree(tinfo);
+	if (!tinfo->tbuf)
 		return -ENOMEM;
-	}
 
 	tinfo->ref = 1;
+	tinfo->size = size;
 
 	/* Clear each buffer in case of error */
 	for_each_possible_cpu(cpu) {
@@ -7276,42 +7267,165 @@ static int trace_user_fault_buffer_enable(void)
 	}
 
 	for_each_possible_cpu(cpu) {
-		buf = kmalloc_node(TRACE_MARKER_MAX_SIZE, GFP_KERNEL,
+		buf = kmalloc_node(size, GFP_KERNEL,
 				   cpu_to_node(cpu));
-		if (!buf) {
-			trace_user_fault_buffer_free(tinfo);
+		if (!buf)
 			return -ENOMEM;
-		}
 		per_cpu_ptr(tinfo->tbuf, cpu)->buf = buf;
 	}
-
-	trace_user_buffer = tinfo;
 
 	return 0;
 }
 
-static void trace_user_fault_buffer_disable(void)
+/* For internal use. Free and reinitialize */
+static void user_buffer_free(struct trace_user_buf_info **tinfo)
 {
-	struct trace_user_buf_info *tinfo;
+	lockdep_assert_held(&trace_user_buffer_mutex);
+
+	trace_user_fault_destroy(*tinfo);
+	kfree(*tinfo);
+	*tinfo = NULL;
+}
+
+/* For internal use. Initialize and allocate */
+static int user_buffer_init(struct trace_user_buf_info **tinfo, size_t size)
+{
+	bool alloc = false;
+	int ret;
+
+	lockdep_assert_held(&trace_user_buffer_mutex);
+
+	if (!*tinfo) {
+		alloc = true;
+		*tinfo = kzalloc(sizeof(**tinfo), GFP_KERNEL);
+		if (!*tinfo)
+			return -ENOMEM;
+	}
+
+	ret = user_fault_buffer_enable(*tinfo, size);
+	if (ret < 0 && alloc)
+		user_buffer_free(tinfo);
+
+	return ret;
+}
+
+/* For internal use, derefrence and free if necessary */
+static void user_buffer_put(struct trace_user_buf_info **tinfo)
+{
+	guard(mutex)(&trace_user_buffer_mutex);
+
+	if (WARN_ON_ONCE(!*tinfo || !(*tinfo)->ref))
+		return;
+
+	if (--(*tinfo)->ref)
+		return;
+
+	user_buffer_free(tinfo);
+}
+
+/**
+ * trace_user_fault_init - Allocated or reference a per CPU buffer
+ * @tinfo: A pointer to the trace buffer descriptor
+ * @size: The size to allocate each per CPU buffer
+ *
+ * Create a per CPU buffer that can be used to copy from user space
+ * in a task context. When calling trace_user_fault_read(), preemption
+ * must be disabled, and it will enable preemption and copy user
+ * space data to the buffer. If any schedule switches occur, it will
+ * retry until it succeeds without a schedule switch knowing the buffer
+ * is still valid.
+ *
+ * Returns 0 on success, negative on failure.
+ */
+int trace_user_fault_init(struct trace_user_buf_info *tinfo, size_t size)
+{
+	int ret;
+
+	if (!tinfo)
+		return -EINVAL;
 
 	guard(mutex)(&trace_user_buffer_mutex);
 
-	tinfo = trace_user_buffer;
+	ret = user_buffer_init(&tinfo, size);
+	if (ret < 0)
+		trace_user_fault_destroy(tinfo);
 
-	if (WARN_ON_ONCE(!tinfo))
-		return;
-
-	if (--tinfo->ref)
-		return;
-
-	trace_user_fault_buffer_free(tinfo);
-	trace_user_buffer = NULL;
+	return ret;
 }
 
-/* Must be called with preemption disabled */
-static char *trace_user_fault_read(struct trace_user_buf_info *tinfo,
-				   const char __user *ptr, size_t size,
-				   size_t *read_size)
+/**
+ * trace_user_fault_get - up the ref count for the user buffer
+ * @tinfo: A pointer to a pointer to the trace buffer descriptor
+ *
+ * Ups the ref count of the trace buffer.
+ *
+ * Returns the new ref count.
+ */
+int trace_user_fault_get(struct trace_user_buf_info *tinfo)
+{
+	if (!tinfo)
+		return -1;
+
+	guard(mutex)(&trace_user_buffer_mutex);
+
+	tinfo->ref++;
+	return tinfo->ref;
+}
+
+/**
+ * trace_user_fault_put - dereference a per cpu trace buffer
+ * @tinfo: The @tinfo that was passed to trace_user_fault_get()
+ *
+ * Decrement the ref count of @tinfo.
+ *
+ * Returns the new refcount (negative on error).
+ */
+int trace_user_fault_put(struct trace_user_buf_info *tinfo)
+{
+	guard(mutex)(&trace_user_buffer_mutex);
+
+	if (WARN_ON_ONCE(!tinfo || !tinfo->ref))
+		return -1;
+
+	--tinfo->ref;
+	return tinfo->ref;
+}
+
+/**
+ * trace_user_fault_read - Read user space into a per CPU buffer
+ * @tinfo: The @tinfo allocated by trace_user_fault_get()
+ * @ptr: The user space pointer to read
+ * @size: The size of user space to read.
+ * @copy_func: Optional function to use to copy from user space
+ * @data: Data to pass to copy_func if it was supplied
+ *
+ * Preemption must be disabled when this is called, and must not
+ * be enabled while using the returned buffer.
+ * This does the copying from user space into a per CPU buffer.
+ *
+ * The @size must not be greater than the size passed in to
+ * trace_user_fault_init().
+ *
+ * If @copy_func is NULL, trace_user_fault_read() will use copy_from_user(),
+ * otherwise it will call @copy_func. It will call @copy_func with:
+ *
+ *   buffer: the per CPU buffer of the @tinfo.
+ *   ptr: The pointer @ptr to user space to read
+ *   size: The @size of the ptr to read
+ *   data: The @data parameter
+ *
+ * It is expected that @copy_func will return 0 on success and non zero
+ * if there was a fault.
+ *
+ * Returns a pointer to the buffer with the content read from @ptr.
+ *   Preemption must remain disabled while the caller accesses the
+ *   buffer returned by this function.
+ * Returns NULL if there was a fault, or the size passed in is
+ *   greater than the size passed to trace_user_fault_init().
+ */
+char *trace_user_fault_read(struct trace_user_buf_info *tinfo,
+			     const char __user *ptr, size_t size,
+			     trace_user_buf_copy copy_func, void *data)
 {
 	int cpu = smp_processor_id();
 	char *buffer = per_cpu_ptr(tinfo->tbuf, cpu)->buf;
@@ -7319,9 +7433,14 @@ static char *trace_user_fault_read(struct trace_user_buf_info *tinfo,
 	int trys = 0;
 	int ret;
 
-	if (size > TRACE_MARKER_MAX_SIZE)
-		size = TRACE_MARKER_MAX_SIZE;
-	*read_size = 0;
+	lockdep_assert_preemption_disabled();
+
+	/*
+	 * It's up to the caller to not try to copy more than it said
+	 * it would.
+	 */
+	if (size > tinfo->size)
+		return NULL;
 
 	/*
 	 * This acts similar to a seqcount. The per CPU context switches are
@@ -7361,7 +7480,14 @@ static char *trace_user_fault_read(struct trace_user_buf_info *tinfo,
 		 */
 		preempt_enable_notrace();
 
-		ret = __copy_from_user(buffer, ptr, size);
+		/* Make sure preemption is enabled here */
+		lockdep_assert_preemption_enabled();
+
+		if (copy_func) {
+			ret = copy_func(buffer, ptr, size, data);
+		} else {
+			ret = __copy_from_user(buffer, ptr, size);
+		}
 
 		preempt_disable_notrace();
 		migrate_enable();
@@ -7378,7 +7504,6 @@ static char *trace_user_fault_read(struct trace_user_buf_info *tinfo,
 		 */
 	} while (nr_context_switches_cpu(cpu) != cnt);
 
-	*read_size = size;
 	return buffer;
 }
 
@@ -7389,7 +7514,6 @@ tracing_mark_write(struct file *filp, const char __user *ubuf,
 	struct trace_array *tr = filp->private_data;
 	ssize_t written = -ENODEV;
 	unsigned long ip;
-	size_t size;
 	char *buf;
 
 	if (tracing_disabled)
@@ -7407,12 +7531,9 @@ tracing_mark_write(struct file *filp, const char __user *ubuf,
 	/* Must have preemption disabled while having access to the buffer */
 	guard(preempt_notrace)();
 
-	buf = trace_user_fault_read(trace_user_buffer, ubuf, cnt, &size);
+	buf = trace_user_fault_read(trace_user_buffer, ubuf, cnt, NULL, NULL);
 	if (!buf)
 		return -EFAULT;
-
-	if (cnt > size)
-		cnt = size;
 
 	/* The selftests expect this function to be the IP address */
 	ip = _THIS_IP_;
@@ -7473,7 +7594,6 @@ tracing_mark_raw_write(struct file *filp, const char __user *ubuf,
 {
 	struct trace_array *tr = filp->private_data;
 	ssize_t written = -ENODEV;
-	size_t size;
 	char *buf;
 
 	if (tracing_disabled)
@@ -7486,16 +7606,16 @@ tracing_mark_raw_write(struct file *filp, const char __user *ubuf,
 	if (cnt < sizeof(unsigned int))
 		return -EINVAL;
 
+	/* raw write is all or nothing */
+	if (cnt > TRACE_MARKER_MAX_SIZE)
+		return -EINVAL;
+
 	/* Must have preemption disabled while having access to the buffer */
 	guard(preempt_notrace)();
 
-	buf = trace_user_fault_read(trace_user_buffer, ubuf, cnt, &size);
+	buf = trace_user_fault_read(trace_user_buffer, ubuf, cnt, NULL, NULL);
 	if (!buf)
 		return -EFAULT;
-
-	/* raw write is all or nothing */
-	if (cnt > size)
-		return -EINVAL;
 
 	/* The global trace_marker_raw can go to multiple instances */
 	if (tr == &global_trace) {
@@ -7516,20 +7636,26 @@ static int tracing_mark_open(struct inode *inode, struct file *filp)
 {
 	int ret;
 
-	ret = trace_user_fault_buffer_enable();
-	if (ret < 0)
-		return ret;
+	scoped_guard(mutex, &trace_user_buffer_mutex) {
+		if (!trace_user_buffer) {
+			ret = user_buffer_init(&trace_user_buffer, TRACE_MARKER_MAX_SIZE);
+			if (ret < 0)
+				return ret;
+		} else {
+			trace_user_buffer->ref++;
+		}
+	}
 
 	stream_open(inode, filp);
 	ret = tracing_open_generic_tr(inode, filp);
 	if (ret < 0)
-		trace_user_fault_buffer_disable();
+		user_buffer_put(&trace_user_buffer);
 	return ret;
 }
 
 static int tracing_mark_release(struct inode *inode, struct file *file)
 {
-	trace_user_fault_buffer_disable();
+	user_buffer_put(&trace_user_buffer);
 	return tracing_release_generic_tr(inode, file);
 }
 
