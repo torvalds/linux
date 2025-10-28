@@ -34,8 +34,5 @@ config X86_64
 config ARCH_HAS_SC_SIGNALS
 	def_bool !64BIT
 
-config ARCH_REUSE_HOST_VSYSCALL_AREA
-	def_bool !64BIT
-
 config GENERIC_HWEIGHT
 	def_bool y

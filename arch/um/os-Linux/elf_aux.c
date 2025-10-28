@@ -14,12 +14,17 @@
 #include <elf_user.h>
 #include <mem_user.h>
 #include "internal.h"
+#include <linux/swab.h>
 
+#if __BITS_PER_LONG == 64
+typedef Elf64_auxv_t elf_auxv_t;
+#else
 typedef Elf32_auxv_t elf_auxv_t;
+#endif
 
 /* These are initialized very early in boot and never changed */
 char * elf_aux_platform;
-extern long elf_aux_hwcap;
+long elf_aux_hwcap;
 
 __init void scan_elf_aux( char **envp)
 {

@@ -68,9 +68,7 @@
 	pr_reg[16] = PT_REGS_SS(regs);		\
 } while (0);
 
-extern char * elf_aux_platform;
 #define ELF_PLATFORM_FALLBACK "i586"
-#define ELF_PLATFORM (elf_aux_platform ?: ELF_PLATFORM_FALLBACK)
 
 #else
 
@@ -151,7 +149,7 @@ extern char * elf_aux_platform;
 	(pr_reg)[25] = 0;					\
 	(pr_reg)[26] = 0;
 
-#define ELF_PLATFORM "x86_64"
+#define ELF_PLATFORM_FALLBACK "x86_64"
 
 #define ARCH_HAS_SETUP_ADDITIONAL_PAGES 1
 struct linux_binprm;
@@ -179,6 +177,9 @@ struct task_struct;
 
 extern long elf_aux_hwcap;
 #define ELF_HWCAP (elf_aux_hwcap)
+
+extern char *elf_aux_platform;
+#define ELF_PLATFORM (elf_aux_platform ?: ELF_PLATFORM_FALLBACK)
 
 #define SET_PERSONALITY(ex) do {} while(0)
 
