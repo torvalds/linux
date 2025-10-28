@@ -760,3 +760,26 @@ impl<T: PwmOps> Drop for Registration<T> {
         unsafe { bindings::pwmchip_remove(chip_raw); }
     }
 }
+
+/// Declares a kernel module that exposes a single PWM driver.
+///
+/// # Examples
+///
+///```ignore
+/// kernel::module_pwm_platform_driver! {
+///     type: MyDriver,
+///     name: "Module name",
+///     authors: ["Author name"],
+///     description: "Description",
+///     license: "GPL v2",
+/// }
+///```
+#[macro_export]
+macro_rules! module_pwm_platform_driver {
+    ($($user_args:tt)*) => {
+        $crate::module_platform_driver! {
+            $($user_args)*
+            imports_ns: ["PWM"],
+        }
+    };
+}
