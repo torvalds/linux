@@ -1382,7 +1382,7 @@ struct file *file_open_name(struct filename *name, int flags, umode_t mode)
 	int err = build_open_flags(&how, &op);
 	if (err)
 		return ERR_PTR(err);
-	return do_filp_open(AT_FDCWD, name, &op);
+	return do_file_open(AT_FDCWD, name, &op);
 }
 
 /**
@@ -1436,7 +1436,7 @@ static int do_sys_openat2(int dfd, const char __user *filename,
 	if (IS_ERR(tmp))
 		return PTR_ERR(tmp);
 
-	return FD_ADD(how->flags, do_filp_open(dfd, tmp, &op));
+	return FD_ADD(how->flags, do_file_open(dfd, tmp, &op));
 }
 
 int do_sys_open(int dfd, const char __user *filename, int flags, umode_t mode)

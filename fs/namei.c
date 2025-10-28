@@ -4864,7 +4864,7 @@ static struct file *path_openat(struct nameidata *nd,
 	return ERR_PTR(error);
 }
 
-struct file *do_filp_open(int dfd, struct filename *pathname,
+struct file *do_file_open(int dfd, struct filename *pathname,
 		const struct open_flags *op)
 {
 	struct nameidata nd;

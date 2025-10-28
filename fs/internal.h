@@ -190,7 +190,7 @@ struct open_flags {
 	int intent;
 	int lookup_flags;
 };
-extern struct file *do_filp_open(int dfd, struct filename *pathname,
+extern struct file *do_file_open(int dfd, struct filename *pathname,
 		const struct open_flags *op);
 extern struct file *do_file_open_root(const struct path *,
 		const char *, const struct open_flags *);
