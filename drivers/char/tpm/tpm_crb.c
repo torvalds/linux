@@ -179,6 +179,7 @@ static int crb_try_pluton_doorbell(struct crb_priv *priv, bool wait_for_complete
  *
  * @dev:  crb device
  * @priv: crb private data
+ * @loc:  locality
  *
  * Write CRB_CTRL_REQ_GO_IDLE to TPM_CRB_CTRL_REQ
  * The device should respond within TIMEOUT_C by clearing the bit.
@@ -233,6 +234,7 @@ static int crb_go_idle(struct tpm_chip *chip)
  *
  * @dev:  crb device
  * @priv: crb private data
+ * @loc:  locality
  *
  * Write CRB_CTRL_REQ_CMD_READY to TPM_CRB_CTRL_REQ
  * and poll till the device acknowledge it by clearing the bit.
