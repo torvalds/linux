@@ -98,52 +98,74 @@ TEST_F(coredump, socket)
 		close(ipc_sockets[0]);
 
 		fd_server = create_and_listen_unix_socket("/tmp/coredump.socket");
-		if (fd_server < 0)
+		if (fd_server < 0) {
+			fprintf(stderr, "socket test: create_and_listen_unix_socket failed: %m\n");
 			goto out;
+		}
 
-		if (write_nointr(ipc_sockets[1], "1", 1) < 0)
+		if (write_nointr(ipc_sockets[1], "1", 1) < 0) {
+			fprintf(stderr, "socket test: write_nointr to ipc socket failed: %m\n");
 			goto out;
+		}
 
 		close(ipc_sockets[1]);
 
 		fd_coredump = accept4(fd_server, NULL, NULL, SOCK_CLOEXEC);
-		if (fd_coredump < 0)
+		if (fd_coredump < 0) {
+			fprintf(stderr, "socket test: accept4 failed: %m\n");
 			goto out;
+		}
 
 		fd_peer_pidfd = get_peer_pidfd(fd_coredump);
-		if (fd_peer_pidfd < 0)
+		if (fd_peer_pidfd < 0) {
+			fprintf(stderr, "socket test: get_peer_pidfd failed\n");
 			goto out;
+		}
 
-		if (!get_pidfd_info(fd_peer_pidfd, &info))
+		if (!get_pidfd_info(fd_peer_pidfd, &info)) {
+			fprintf(stderr, "socket test: get_pidfd_info failed\n");
 			goto out;
+		}
 
-		if (!(info.mask & PIDFD_INFO_COREDUMP))
+		if (!(info.mask & PIDFD_INFO_COREDUMP)) {
+			fprintf(stderr, "socket test: PIDFD_INFO_COREDUMP not set in mask\n");
 			goto out;
+		}
 
-		if (!(info.coredump_mask & PIDFD_COREDUMPED))
+		if (!(info.coredump_mask & PIDFD_COREDUMPED)) {
+			fprintf(stderr, "socket test: PIDFD_COREDUMPED not set in coredump_mask\n");
 			goto out;
+		}
 
 		fd_core_file = creat("/tmp/coredump.file", 0644);
-		if (fd_core_file < 0)
+		if (fd_core_file < 0) {
+			fprintf(stderr, "socket test: creat coredump file failed: %m\n");
 			goto out;
+		}
 
 		for (;;) {
 			char buffer[4096];
 			ssize_t bytes_read, bytes_write;
 
 			bytes_read = read(fd_coredump, buffer, sizeof(buffer));
-			if (bytes_read < 0)
+			if (bytes_read < 0) {
+				fprintf(stderr, "socket test: read from coredump socket failed: %m\n");
 				goto out;
+			}
 
 			if (bytes_read == 0)
 				break;
 
 			bytes_write = write(fd_core_file, buffer, bytes_read);
-			if (bytes_read != bytes_write)
+			if (bytes_read != bytes_write) {
+				fprintf(stderr, "socket test: write to core file failed (read=%zd, write=%zd): %m\n",
+					bytes_read, bytes_write);
 				goto out;
+			}
 		}
 
 		exit_code = EXIT_SUCCESS;
+		fprintf(stderr, "socket test: completed successfully\n");
 out:
 		if (fd_core_file >= 0)
 			close(fd_core_file);
@@ -208,32 +230,47 @@ TEST_F(coredump, socket_detect_userspace_client)
 		close(ipc_sockets[0]);
 
 		fd_server = create_and_listen_unix_socket("/tmp/coredump.socket");
-		if (fd_server < 0)
+		if (fd_server < 0) {
+			fprintf(stderr, "socket_detect_userspace_client: create_and_listen_unix_socket failed: %m\n");
 			goto out;
+		}
 
-		if (write_nointr(ipc_sockets[1], "1", 1) < 0)
+		if (write_nointr(ipc_sockets[1], "1", 1) < 0) {
+			fprintf(stderr, "socket_detect_userspace_client: write_nointr to ipc socket failed: %m\n");
 			goto out;
+		}
 
 		close(ipc_sockets[1]);
 
 		fd_coredump = accept4(fd_server, NULL, NULL, SOCK_CLOEXEC);
-		if (fd_coredump < 0)
+		if (fd_coredump < 0) {
+			fprintf(stderr, "socket_detect_userspace_client: accept4 failed: %m\n");
 			goto out;
+		}
 
 		fd_peer_pidfd = get_peer_pidfd(fd_coredump);
-		if (fd_peer_pidfd < 0)
+		if (fd_peer_pidfd < 0) {
+			fprintf(stderr, "socket_detect_userspace_client: get_peer_pidfd failed\n");
 			goto out;
+		}
 
-		if (!get_pidfd_info(fd_peer_pidfd, &info))
+		if (!get_pidfd_info(fd_peer_pidfd, &info)) {
+			fprintf(stderr, "socket_detect_userspace_client: get_pidfd_info failed\n");
 			goto out;
+		}
 
-		if (!(info.mask & PIDFD_INFO_COREDUMP))
+		if (!(info.mask & PIDFD_INFO_COREDUMP)) {
+			fprintf(stderr, "socket_detect_userspace_client: PIDFD_INFO_COREDUMP not set in mask\n");
 			goto out;
+		}
 
-		if (info.coredump_mask & PIDFD_COREDUMPED)
+		if (info.coredump_mask & PIDFD_COREDUMPED) {
+			fprintf(stderr, "socket_detect_userspace_client: PIDFD_COREDUMPED incorrectly set (should be userspace client)\n");
 			goto out;
+		}
 
 		exit_code = EXIT_SUCCESS;
+		fprintf(stderr, "socket_detect_userspace_client: completed successfully\n");
 out:
 		if (fd_peer_pidfd >= 0)
 			close(fd_peer_pidfd);
@@ -263,15 +300,20 @@ out:
 			sizeof("/tmp/coredump.socket");
 
 		fd_socket = socket(AF_UNIX, SOCK_STREAM, 0);
-		if (fd_socket < 0)
+		if (fd_socket < 0) {
+			fprintf(stderr, "socket_detect_userspace_client (client): socket failed: %m\n");
 			_exit(EXIT_FAILURE);
+		}
 
 		ret = connect(fd_socket, (const struct sockaddr *)&coredump_sk, coredump_sk_len);
-		if (ret < 0)
+		if (ret < 0) {
+			fprintf(stderr, "socket_detect_userspace_client (client): connect failed: %m\n");
 			_exit(EXIT_FAILURE);
+		}
 
 		close(fd_socket);
 		pause();
+		fprintf(stderr, "socket_detect_userspace_client (client): completed successfully\n");
 		_exit(EXIT_SUCCESS);
 	}
 
@@ -342,17 +384,24 @@ TEST_F(coredump, socket_no_listener)
 		close(ipc_sockets[0]);
 
 		fd_server = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
-		if (fd_server < 0)
+		if (fd_server < 0) {
+			fprintf(stderr, "socket_no_listener: socket failed: %m\n");
 			goto out;
+		}
 
 		ret = bind(fd_server, (const struct sockaddr *)&coredump_sk, coredump_sk_len);
-		if (ret < 0)
+		if (ret < 0) {
+			fprintf(stderr, "socket_no_listener: bind failed: %m\n");
 			goto out;
+		}
 
-		if (write_nointr(ipc_sockets[1], "1", 1) < 0)
+		if (write_nointr(ipc_sockets[1], "1", 1) < 0) {
+			fprintf(stderr, "socket_no_listener: write_nointr to ipc socket failed: %m\n");
 			goto out;
+		}
 
 		exit_code = EXIT_SUCCESS;
+		fprintf(stderr, "socket_no_listener: completed successfully\n");
 out:
 		if (fd_server >= 0)
 			close(fd_server);
