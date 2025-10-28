@@ -335,8 +335,9 @@ static long pidfd_info(struct file *file, unsigned int cmd, unsigned long arg)
 	}
 
 	if (mask & PIDFD_INFO_COREDUMP) {
-		kinfo.mask |= PIDFD_INFO_COREDUMP;
 		kinfo.coredump_mask = READ_ONCE(attr->__pei.coredump_mask);
+		if (kinfo.coredump_mask)
+			kinfo.mask |= PIDFD_INFO_COREDUMP;
 	}
 
 	task = get_pid_task(pid, PIDTYPE_PID);
@@ -355,12 +356,13 @@ static long pidfd_info(struct file *file, unsigned int cmd, unsigned long arg)
 	if (!c)
 		return -ESRCH;
 
-	if ((kinfo.mask & PIDFD_INFO_COREDUMP) && !(kinfo.coredump_mask)) {
+	if ((mask & PIDFD_INFO_COREDUMP) && !kinfo.coredump_mask) {
 		guard(task_lock)(task);
 		if (task->mm) {
 			unsigned long flags = __mm_flags_get_dumpable(task->mm);
 
 			kinfo.coredump_mask = pidfs_coredump_mask(flags);
+			kinfo.mask |= PIDFD_INFO_COREDUMP;
 		}
 	}
 
