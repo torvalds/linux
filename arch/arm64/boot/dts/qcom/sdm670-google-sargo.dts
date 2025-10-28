@@ -406,7 +406,6 @@
 	status = "okay";
 
 	zap-shader {
-		memory-region = <&gpu_mem>;
 		firmware-name = "qcom/sdm670/sargo/a615_zap.mbn";
 	};
 };
