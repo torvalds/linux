@@ -81,12 +81,19 @@ static int amdgpu_dma_buf_attach(struct dma_buf *dmabuf,
 	struct drm_gem_object *obj = dmabuf->priv;
 	struct amdgpu_bo *bo = gem_to_amdgpu_bo(obj);
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
+	int r;
 
 	if (!amdgpu_dmabuf_is_xgmi_accessible(attach_adev, bo) &&
 	    pci_p2pdma_distance(adev->pdev, attach->dev, false) < 0)
 		attach->peer2peer = false;
 
+	r = dma_resv_lock(bo->tbo.base.resv, NULL);
+	if (r)
+		return r;
+
 	amdgpu_vm_bo_update_shared(bo);
+
+	dma_resv_unlock(bo->tbo.base.resv);
 
 	return 0;
 }
