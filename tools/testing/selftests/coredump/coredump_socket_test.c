@@ -188,7 +188,9 @@ TEST_F(coredump, socket_detect_userspace_client)
 	int pidfd, ret, status;
 	pid_t pid, pid_coredump_server;
 	struct stat st;
-	struct pidfd_info info = {};
+	struct pidfd_info info = {
+		.mask = PIDFD_INFO_COREDUMP,
+	};
 	int ipc_sockets[2];
 	char c;
 
