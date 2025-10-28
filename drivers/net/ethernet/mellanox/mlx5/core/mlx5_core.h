@@ -444,6 +444,8 @@ int mlx5_init_one_light(struct mlx5_core_dev *dev);
 void mlx5_uninit_one_light(struct mlx5_core_dev *dev);
 void mlx5_unload_one_light(struct mlx5_core_dev *dev);
 
+void mlx5_query_nic_sw_system_image_guid(struct mlx5_core_dev *mdev, u8 *buf,
+					 u8 *len);
 int mlx5_vport_set_other_func_cap(struct mlx5_core_dev *dev, const void *hca_cap, u16 vport,
 				  u16 opmod);
 #define mlx5_vport_get_other_func_general_cap(dev, vport, out)		\

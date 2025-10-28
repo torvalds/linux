@@ -1379,4 +1379,7 @@ static inline struct net *mlx5_core_net(struct mlx5_core_dev *dev)
 {
 	return devlink_net(priv_to_devlink(dev));
 }
+
+#define MLX5_SW_IMAGE_GUID_MAX_BYTES 9
+
 #endif /* MLX5_DRIVER_H */

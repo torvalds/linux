@@ -553,6 +553,7 @@ EXPORT_SYMBOL(mlx5_is_roce_on);
 
 static int handle_hca_cap_2(struct mlx5_core_dev *dev, void *set_ctx)
 {
+	bool do_set = false;
 	void *set_hca_cap;
 	int err;
 
@@ -563,17 +564,27 @@ static int handle_hca_cap_2(struct mlx5_core_dev *dev, void *set_ctx)
 	if (err)
 		return err;
 
-	if (!MLX5_CAP_GEN_2_MAX(dev, sw_vhca_id_valid) ||
-	    !(dev->priv.sw_vhca_id > 0))
-		return 0;
-
 	set_hca_cap = MLX5_ADDR_OF(set_hca_cap_in, set_ctx,
 				   capability);
 	memcpy(set_hca_cap, dev->caps.hca[MLX5_CAP_GENERAL_2]->cur,
 	       MLX5_ST_SZ_BYTES(cmd_hca_cap_2));
-	MLX5_SET(cmd_hca_cap_2, set_hca_cap, sw_vhca_id_valid, 1);
 
-	return set_caps(dev, set_ctx, MLX5_CAP_GENERAL_2);
+	if (MLX5_CAP_GEN_2_MAX(dev, sw_vhca_id_valid) &&
+	    dev->priv.sw_vhca_id > 0) {
+		MLX5_SET(cmd_hca_cap_2, set_hca_cap, sw_vhca_id_valid, 1);
+		do_set = true;
+	}
+
+	if (MLX5_CAP_GEN_2_MAX(dev, lag_per_mp_group)) {
+		MLX5_SET(cmd_hca_cap_2, set_hca_cap, lag_per_mp_group, 1);
+		do_set = true;
+	}
+
+	/* some FW versions that support querying MLX5_CAP_GENERAL_2
+	 * capabilities but don't support setting them.
+	 * Skip unnecessary update to hca_cap_2 when no changes were introduced
+	 */
+	return do_set ? set_caps(dev, set_ctx, MLX5_CAP_GENERAL_2) : 0;
 }
 
 static int handle_hca_cap(struct mlx5_core_dev *dev, void *set_ctx)

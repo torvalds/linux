@@ -7,11 +7,7 @@
 static void
 mlx5_esw_get_port_parent_id(struct mlx5_core_dev *dev, struct netdev_phys_item_id *ppid)
 {
-	u64 parent_id;
-
-	parent_id = mlx5_query_nic_system_image_guid(dev);
-	ppid->id_len = sizeof(parent_id);
-	memcpy(ppid->id, &parent_id, sizeof(parent_id));
+	mlx5_query_nic_sw_system_image_guid(dev, ppid->id, &ppid->id_len);
 }
 
 static bool mlx5_esw_devlink_port_supported(struct mlx5_eswitch *esw, u16 vport_num)
