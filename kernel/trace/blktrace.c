@@ -364,9 +364,12 @@ static void __blk_add_trace(struct blk_trace *bt, sector_t sector, int bytes,
 		break;
 	}
 
-	if (WARN_ON_ONCE(bt->version == 1 &&
-		     (what >> BLK_TC_SHIFT) > BLK_TC_END_V1))
+	/* Drop trace events for zone operations with blktrace v1 */
+	if (bt->version == 1 && (what >> BLK_TC_SHIFT) > BLK_TC_END_V1) {
+		pr_debug_ratelimited("blktrace v1 cannot trace zone operation 0x%llx\n",
+				(unsigned long long)what);
 		return;
+	}
 
 	if (cgid)
 		what |= __BLK_TA_CGROUP;
