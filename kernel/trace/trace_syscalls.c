@@ -1049,22 +1049,21 @@ static void perf_syscall_enter(void *ignore, struct pt_regs *regs, long id)
 
 static int perf_sysenter_enable(struct trace_event_call *call)
 {
-	int ret = 0;
 	int num;
 
 	num = ((struct syscall_metadata *)call->data)->syscall_nr;
 
-	mutex_lock(&syscall_trace_lock);
-	if (!sys_perf_refcount_enter)
-		ret = register_trace_sys_enter(perf_syscall_enter, NULL);
-	if (ret) {
-		pr_info("event trace: Could not activate syscall entry trace point");
-	} else {
-		set_bit(num, enabled_perf_enter_syscalls);
-		sys_perf_refcount_enter++;
+	guard(mutex)(&syscall_trace_lock);
+	if (!sys_perf_refcount_enter) {
+		int ret = register_trace_sys_enter(perf_syscall_enter, NULL);
+		if (ret) {
+			pr_info("event trace: Could not activate syscall entry trace point");
+			return ret;
+		}
 	}
-	mutex_unlock(&syscall_trace_lock);
-	return ret;
+	set_bit(num, enabled_perf_enter_syscalls);
+	sys_perf_refcount_enter++;
+	return 0;
 }
 
 static void perf_sysenter_disable(struct trace_event_call *call)
@@ -1073,12 +1072,11 @@ static void perf_sysenter_disable(struct trace_event_call *call)
 
 	num = ((struct syscall_metadata *)call->data)->syscall_nr;
 
-	mutex_lock(&syscall_trace_lock);
+	guard(mutex)(&syscall_trace_lock);
 	sys_perf_refcount_enter--;
 	clear_bit(num, enabled_perf_enter_syscalls);
 	if (!sys_perf_refcount_enter)
 		unregister_trace_sys_enter(perf_syscall_enter, NULL);
-	mutex_unlock(&syscall_trace_lock);
 }
 
 static int perf_call_bpf_exit(struct trace_event_call *call, struct pt_regs *regs,
@@ -1155,22 +1153,21 @@ static void perf_syscall_exit(void *ignore, struct pt_regs *regs, long ret)
 
 static int perf_sysexit_enable(struct trace_event_call *call)
 {
-	int ret = 0;
 	int num;
 
 	num = ((struct syscall_metadata *)call->data)->syscall_nr;
 
-	mutex_lock(&syscall_trace_lock);
-	if (!sys_perf_refcount_exit)
-		ret = register_trace_sys_exit(perf_syscall_exit, NULL);
-	if (ret) {
-		pr_info("event trace: Could not activate syscall exit trace point");
-	} else {
-		set_bit(num, enabled_perf_exit_syscalls);
-		sys_perf_refcount_exit++;
+	guard(mutex)(&syscall_trace_lock);
+	if (!sys_perf_refcount_exit) {
+		int ret = register_trace_sys_exit(perf_syscall_exit, NULL);
+		if (ret) {
+			pr_info("event trace: Could not activate syscall exit trace point");
+			return ret;
+		}
 	}
-	mutex_unlock(&syscall_trace_lock);
-	return ret;
+	set_bit(num, enabled_perf_exit_syscalls);
+	sys_perf_refcount_exit++;
+	return 0;
 }
 
 static void perf_sysexit_disable(struct trace_event_call *call)
@@ -1179,12 +1176,11 @@ static void perf_sysexit_disable(struct trace_event_call *call)
 
 	num = ((struct syscall_metadata *)call->data)->syscall_nr;
 
-	mutex_lock(&syscall_trace_lock);
+	guard(mutex)(&syscall_trace_lock);
 	sys_perf_refcount_exit--;
 	clear_bit(num, enabled_perf_exit_syscalls);
 	if (!sys_perf_refcount_exit)
 		unregister_trace_sys_exit(perf_syscall_exit, NULL);
-	mutex_unlock(&syscall_trace_lock);
 }
 
 #endif /* CONFIG_PERF_EVENTS */
