@@ -10,6 +10,7 @@ use kernel::device;
 use kernel::error::Result;
 use kernel::prelude::*;
 use kernel::ptr::{Alignable, Alignment};
+use kernel::transmute::FromBytes;
 use kernel::types::ARef;
 
 /// The offset of the VBIOS ROM in the BAR0 space.
@@ -865,29 +866,34 @@ impl PmuLookupTableEntry {
     }
 }
 
+#[repr(C)]
+struct PmuLookupTableHeader {
+    version: u8,
+    header_len: u8,
+    entry_len: u8,
+    entry_count: u8,
+}
+
+// SAFETY: all bit patterns are valid for `PmuLookupTableHeader`.
+unsafe impl FromBytes for PmuLookupTableHeader {}
+
 /// The [`PmuLookupTableEntry`] structure is used to find the [`PmuLookupTableEntry`] for a given
 /// application ID.
 ///
 /// The table of entries is pointed to by the falcon data pointer in the BIT table, and is used to
 /// locate the Falcon Ucode.
-#[expect(dead_code)]
 struct PmuLookupTable {
-    version: u8,
-    header_len: u8,
-    entry_len: u8,
-    entry_count: u8,
+    header: PmuLookupTableHeader,
     table_data: KVec<u8>,
 }
 
 impl PmuLookupTable {
     fn new(dev: &device::Device, data: &[u8]) -> Result<Self> {
-        if data.len() < 4 {
-            return Err(EINVAL);
-        }
+        let (header, _) = PmuLookupTableHeader::from_bytes_copy_prefix(data).ok_or(EINVAL)?;
 
-        let header_len = usize::from(data[1]);
-        let entry_len = usize::from(data[2]);
-        let entry_count = usize::from(data[3]);
+        let header_len = usize::from(header.header_len);
+        let entry_len = usize::from(header.entry_len);
+        let entry_count = usize::from(header.entry_count);
 
         let required_bytes = header_len + (entry_count * entry_len);
 
@@ -908,27 +914,21 @@ impl PmuLookupTable {
             dev_dbg!(dev, "PMU entry: {:02x?}\n", &data[i..][..entry_len]);
         }
 
-        Ok(PmuLookupTable {
-            version: data[0],
-            header_len: data[1],
-            entry_len: data[2],
-            entry_count: data[3],
-            table_data,
-        })
+        Ok(PmuLookupTable { header, table_data })
     }
 
     fn lookup_index(&self, idx: u8) -> Result<PmuLookupTableEntry> {
-        if idx >= self.entry_count {
+        if idx >= self.header.entry_count {
             return Err(EINVAL);
         }
 
-        let index = (usize::from(idx)) * usize::from(self.entry_len);
+        let index = (usize::from(idx)) * usize::from(self.header.entry_len);
         PmuLookupTableEntry::new(&self.table_data[index..])
     }
 
     // find entry by type value
     fn find_entry_by_type(&self, entry_type: u8) -> Result<PmuLookupTableEntry> {
-        for i in 0..self.entry_count {
+        for i in 0..self.header.entry_count {
             let entry = self.lookup_index(i)?;
             if entry.application_id == entry_type {
                 return Ok(entry);
