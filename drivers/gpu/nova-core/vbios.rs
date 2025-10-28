@@ -709,9 +709,8 @@ impl BiosImage {
 
     /// Check if this is the last image.
     fn is_last(&self) -> bool {
-        // For NBSI images (type == 0x70), return true as they're
-        // considered the last image
-        if self.pcir.code_type == BiosImageType::Nbsi as u8 {
+        // For NBSI images, return true as they're considered the last image.
+        if self.image_type() == Ok(BiosImageType::Nbsi) {
             return true;
         }
 
