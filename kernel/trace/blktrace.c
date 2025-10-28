@@ -384,16 +384,65 @@ static void __blk_add_trace(struct blk_trace *bt, sector_t sector, int bytes,
 
 		buffer = blk_tr->array_buffer.buffer;
 		trace_ctx = tracing_gen_ctx_flags(0);
-		trace_len = sizeof(struct blk_io_trace2) + pdu_len + cgid_len;
+		switch (bt->version) {
+		case 1:
+			trace_len = sizeof(struct blk_io_trace);
+			break;
+		case 2:
+		default:
+			/*
+			 * ftrace always uses v2 (blk_io_trace2) format.
+			 *
+			 * For sysfs-enabled tracing path (enabled via
+			 * /sys/block/DEV/trace/enable), blk_trace_setup_queue()
+			 * never initializes bt->version, leaving it 0 from
+			 * kzalloc(). We must handle version==0 safely here.
+			 *
+			 * Fall through to default to ensure we never hit the
+			 * old bug where default set trace_len=0, causing
+			 * buffer underflow and memory corruption.
+			 *
+			 * Always use v2 format for ftrace and normalize
+			 * bt->version to 2 when uninitialized.
+			 */
+			trace_len = sizeof(struct blk_io_trace2);
+			if (bt->version == 0)
+				bt->version = 2;
+			break;
+		}
+		trace_len += pdu_len + cgid_len;
 		event = trace_buffer_lock_reserve(buffer, TRACE_BLK,
 						  trace_len, trace_ctx);
 		if (!event)
 			return;
 
-		record_blktrace_event(ring_buffer_event_data(event),
-				      pid, cpu, sector, bytes,
-				      what, bt->dev, error, cgid, cgid_len,
-				      pdu_data, pdu_len);
+		switch (bt->version) {
+		case 1:
+			record_blktrace_event(ring_buffer_event_data(event),
+					      pid, cpu, sector, bytes,
+					      what, bt->dev, error, cgid, cgid_len,
+					      pdu_data, pdu_len);
+			break;
+		case 2:
+		default:
+			/*
+			 * Use v2 recording function (record_blktrace_event2)
+			 * which writes blk_io_trace2 structure with correct
+			 * field layout:
+			 *   - 32-bit pid at offset 28
+			 *   - 64-bit action at offset 32
+			 *
+			 * Fall through to default handles version==0 case
+			 * (from sysfs path), ensuring we always use correct
+			 * v2 recording function to match the v2 buffer
+			 * allocated above.
+			 */
+			record_blktrace_event2(ring_buffer_event_data(event),
+					       pid, cpu, sector, bytes,
+					       what, bt->dev, error, cgid, cgid_len,
+					       pdu_data, pdu_len);
+			break;
+		}
 
 		trace_buffer_unlock_commit(blk_tr, buffer, event, trace_ctx);
 		return;
