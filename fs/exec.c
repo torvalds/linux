@@ -1465,6 +1465,9 @@ out_free:
 	return ERR_PTR(retval);
 }
 
+DEFINE_CLASS(bprm, struct linux_binprm *, if (!IS_ERR(_T)) free_bprm(_T),
+	alloc_bprm(fd, name, flags), int fd, struct filename *name, int flags)
+
 int bprm_change_interp(const char *interp, struct linux_binprm *bprm)
 {
 	/* If a binfmt changed the interp, free it first. */
@@ -1779,7 +1782,6 @@ static int do_execveat_common(int fd, struct filename *filename,
 			      struct user_arg_ptr envp,
 			      int flags)
 {
-	struct linux_binprm *bprm;
 	int retval;
 
 	/*
@@ -1796,36 +1798,36 @@ static int do_execveat_common(int fd, struct filename *filename,
 	 * further execve() calls fail. */
 	current->flags &= ~PF_NPROC_EXCEEDED;
 
-	bprm = alloc_bprm(fd, filename, flags);
+	CLASS(bprm, bprm)(fd, filename, flags);
 	if (IS_ERR(bprm))
 		return PTR_ERR(bprm);
 
 	retval = count(argv, MAX_ARG_STRINGS);
 	if (retval < 0)
-		goto out_free;
+		return retval;
 	bprm->argc = retval;
 
 	retval = count(envp, MAX_ARG_STRINGS);
 	if (retval < 0)
-		goto out_free;
+		return retval;
 	bprm->envc = retval;
 
 	retval = bprm_stack_limits(bprm);
 	if (retval < 0)
-		goto out_free;
+		return retval;
 
 	retval = copy_string_kernel(bprm->filename, bprm);
 	if (retval < 0)
-		goto out_free;
+		return retval;
 	bprm->exec = bprm->p;
 
 	retval = copy_strings(bprm->envc, envp, bprm);
 	if (retval < 0)
-		goto out_free;
+		return retval;
 
 	retval = copy_strings(bprm->argc, argv, bprm);
 	if (retval < 0)
-		goto out_free;
+		return retval;
 
 	/*
 	 * When argv is empty, add an empty string ("") as argv[0] to
@@ -1836,24 +1838,19 @@ static int do_execveat_common(int fd, struct filename *filename,
 	if (bprm->argc == 0) {
 		retval = copy_string_kernel("", bprm);
 		if (retval < 0)
-			goto out_free;
+			return retval;
 		bprm->argc = 1;
 
 		pr_warn_once("process '%s' launched '%s' with NULL argv: empty string added\n",
 			     current->comm, bprm->filename);
 	}
 
-	retval = bprm_execve(bprm);
-out_free:
-	free_bprm(bprm);
-	return retval;
+	return bprm_execve(bprm);
 }
 
 int kernel_execve(const char *kernel_filename,
 		  const char *const *argv, const char *const *envp)
 {
-	struct linux_binprm *bprm;
-	int fd = AT_FDCWD;
 	int retval;
 
 	/* It is non-sense for kernel threads to call execve */
@@ -1861,43 +1858,40 @@ int kernel_execve(const char *kernel_filename,
 		return -EINVAL;
 
 	CLASS(filename_kernel, filename)(kernel_filename);
-	bprm = alloc_bprm(fd, filename, 0);
+	CLASS(bprm, bprm)(AT_FDCWD, filename, 0);
 	if (IS_ERR(bprm))
 		return PTR_ERR(bprm);
 
 	retval = count_strings_kernel(argv);
 	if (WARN_ON_ONCE(retval == 0))
-		retval = -EINVAL;
+		return -EINVAL;
 	if (retval < 0)
-		goto out_free;
+		return retval;
 	bprm->argc = retval;
 
 	retval = count_strings_kernel(envp);
 	if (retval < 0)
-		goto out_free;
+		return retval;
 	bprm->envc = retval;
 
 	retval = bprm_stack_limits(bprm);
 	if (retval < 0)
-		goto out_free;
+		return retval;
 
 	retval = copy_string_kernel(bprm->filename, bprm);
 	if (retval < 0)
-		goto out_free;
+		return retval;
 	bprm->exec = bprm->p;
 
 	retval = copy_strings_kernel(bprm->envc, envp, bprm);
 	if (retval < 0)
-		goto out_free;
+		return retval;
 
 	retval = copy_strings_kernel(bprm->argc, argv, bprm);
 	if (retval < 0)
-		goto out_free;
+		return retval;
 
-	retval = bprm_execve(bprm);
-out_free:
-	free_bprm(bprm);
-	return retval;
+	return bprm_execve(bprm);
 }
 
 void set_binfmt(struct linux_binfmt *new)
