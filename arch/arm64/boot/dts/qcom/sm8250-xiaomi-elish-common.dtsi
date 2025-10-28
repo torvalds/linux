@@ -556,7 +556,6 @@
 	status = "okay";
 
 	zap-shader {
-		memory-region = <&gpu_mem>;
 		firmware-name = "qcom/sm8250/xiaomi/elish/a650_zap.mbn";
 	};
 };

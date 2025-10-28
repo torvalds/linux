@@ -426,7 +426,6 @@
 	status = "okay";
 
 	zap-shader {
-		memory-region = <&gpu_mem>;
 		firmware-name = "qcom/sm8250/xiaomi/pipa/a650_zap.mbn";
 	};
 };
