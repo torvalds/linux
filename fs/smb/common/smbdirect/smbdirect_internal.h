@@ -6,6 +6,10 @@
 #ifndef __FS_SMB_COMMON_SMBDIRECT_INTERNAL_H__
 #define __FS_SMB_COMMON_SMBDIRECT_INTERNAL_H__
 
+#ifndef SMBDIRECT_USE_INLINE_C_FILES
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+#endif /* ! SMBDIRECT_USE_INLINE_C_FILES */
+
 #include "smbdirect.h"
 #include "smbdirect_pdu.h"
 #include "smbdirect_socket.h"
