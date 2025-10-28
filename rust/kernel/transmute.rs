@@ -58,6 +58,27 @@ pub unsafe trait FromBytes {
         }
     }
 
+    /// Converts the beginning of `bytes` to a reference to `Self`.
+    ///
+    /// This method is similar to [`Self::from_bytes`], with the difference that `bytes` does not
+    /// need to be the same size of `Self` - the appropriate portion is cut from the beginning of
+    /// `bytes`, and the remainder returned alongside `Self`.
+    fn from_bytes_prefix(bytes: &[u8]) -> Option<(&Self, &[u8])>
+    where
+        Self: Sized,
+    {
+        if bytes.len() < size_of::<Self>() {
+            None
+        } else {
+            // PANIC: We checked that `bytes.len() >= size_of::<Self>`, thus `split_at` cannot
+            // panic.
+            // TODO: replace with `split_at_checked` once the MSRV is >= 1.80.
+            let (prefix, remainder) = bytes.split_at(size_of::<Self>());
+
+            Self::from_bytes(prefix).map(|s| (s, remainder))
+        }
+    }
+
     /// Converts a mutable slice of bytes to a reference to `Self`.
     ///
     /// Succeeds if the reference is properly aligned, and the size of `bytes` is equal to that of
@@ -80,6 +101,27 @@ pub unsafe trait FromBytes {
         }
     }
 
+    /// Converts the beginning of `bytes` to a mutable reference to `Self`.
+    ///
+    /// This method is similar to [`Self::from_bytes_mut`], with the difference that `bytes` does
+    /// not need to be the same size of `Self` - the appropriate portion is cut from the beginning
+    /// of `bytes`, and the remainder returned alongside `Self`.
+    fn from_bytes_mut_prefix(bytes: &mut [u8]) -> Option<(&mut Self, &mut [u8])>
+    where
+        Self: AsBytes + Sized,
+    {
+        if bytes.len() < size_of::<Self>() {
+            None
+        } else {
+            // PANIC: We checked that `bytes.len() >= size_of::<Self>`, thus `split_at_mut` cannot
+            // panic.
+            // TODO: replace with `split_at_mut_checked` once the MSRV is >= 1.80.
+            let (prefix, remainder) = bytes.split_at_mut(size_of::<Self>());
+
+            Self::from_bytes_mut(prefix).map(|s| (s, remainder))
+        }
+    }
+
     /// Creates an owned instance of `Self` by copying `bytes`.
     ///
     /// Unlike [`FromBytes::from_bytes`], which requires aligned input, this method can be used on
@@ -95,6 +137,27 @@ pub unsafe trait FromBytes {
             Some(unsafe { core::ptr::read_unaligned(bytes.as_ptr().cast::<Self>()) })
         } else {
             None
+        }
+    }
+
+    /// Creates an owned instance of `Self` from the beginning of `bytes`.
+    ///
+    /// This method is similar to [`Self::from_bytes_copy`], with the difference that `bytes` does
+    /// not need to be the same size of `Self` - the appropriate portion is cut from the beginning
+    /// of `bytes`, and the remainder returned alongside `Self`.
+    fn from_bytes_copy_prefix(bytes: &[u8]) -> Option<(Self, &[u8])>
+    where
+        Self: Sized,
+    {
+        if bytes.len() < size_of::<Self>() {
+            None
+        } else {
+            // PANIC: We checked that `bytes.len() >= size_of::<Self>`, thus `split_at` cannot
+            // panic.
+            // TODO: replace with `split_at_checked` once the MSRV is >= 1.80.
+            let (prefix, remainder) = bytes.split_at(size_of::<Self>());
+
+            Self::from_bytes_copy(prefix).map(|s| (s, remainder))
         }
     }
 }
