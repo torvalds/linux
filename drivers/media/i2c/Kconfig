@@ -471,7 +471,7 @@ config VIDEO_OV2735
 	tristate "OmniVision OV2735 sensor support"
 	select V4L2_CCI_I2C
 	help
-	  This is a Video4Linux2 sensor driver for the Sony
+	  This is a Video4Linux2 sensor driver for the OmniVision
 	  OV2735 camera.
 
 	  To compile this driver as a module, choose M here: the
