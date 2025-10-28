@@ -259,13 +259,13 @@ impl FirmwareDmaObject<FwsecFirmware, Unsigned> {
         }
 
         // Find the DMEM mapper section in the firmware.
-        for i in 0..hdr.entry_count as usize {
+        for i in 0..usize::from(hdr.entry_count) {
             let app: &FalconAppifV1 =
             // SAFETY: we have exclusive access to `dma_object`.
             unsafe {
                 transmute(
                     &dma_object,
-                    hdr_offset + hdr.header_size as usize + i * hdr.entry_size as usize
+                    hdr_offset + usize::from(hdr.header_size) + i * usize::from(hdr.entry_size)
                 )
             }?;
 

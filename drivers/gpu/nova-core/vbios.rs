@@ -361,7 +361,7 @@ impl PcirStruct {
 
     /// Calculate image size in bytes from 512-byte blocks.
     fn image_size_bytes(&self) -> usize {
-        self.image_len as usize * 512
+        usize::from(self.image_len) * 512
     }
 }
 
@@ -439,13 +439,13 @@ impl BitToken {
         let header = &image.bit_header;
 
         // Offset to the first token entry
-        let tokens_start = image.bit_offset + header.header_size as usize;
+        let tokens_start = image.bit_offset + usize::from(header.header_size);
 
-        for i in 0..header.token_entries as usize {
-            let entry_offset = tokens_start + (i * header.token_size as usize);
+        for i in 0..usize::from(header.token_entries) {
+            let entry_offset = tokens_start + (i * usize::from(header.token_size));
 
             // Make sure we don't go out of bounds
-            if entry_offset + header.token_size as usize > image.base.data.len() {
+            if entry_offset + usize::from(header.token_size) > image.base.data.len() {
                 return Err(EINVAL);
             }
 
@@ -601,7 +601,7 @@ impl NpdeStruct {
 
     /// Calculate image size in bytes from 512-byte blocks.
     fn image_size_bytes(&self) -> usize {
-        self.subimage_len as usize * 512
+        usize::from(self.subimage_len) * 512
     }
 
     /// Try to find NPDE in the data, the NPDE is right after the PCIR.
@@ -613,8 +613,8 @@ impl NpdeStruct {
     ) -> Option<Self> {
         // Calculate the offset where NPDE might be located
         // NPDE should be right after the PCIR structure, aligned to 16 bytes
-        let pcir_offset = rom_header.pci_data_struct_offset as usize;
-        let npde_start = (pcir_offset + pcir.pci_data_struct_len as usize + 0x0F) & !0x0F;
+        let pcir_offset = usize::from(rom_header.pci_data_struct_offset);
+        let npde_start = (pcir_offset + usize::from(pcir.pci_data_struct_len) + 0x0F) & !0x0F;
 
         // Check if we have enough data
         if npde_start + core::mem::size_of::<Self>() > data.len() {
@@ -737,7 +737,7 @@ impl BiosImage {
             .inspect_err(|e| dev_err!(dev, "Failed to create PciRomHeader: {:?}\n", e))?;
 
         // Get the PCI Data Structure using the pointer from the ROM header.
-        let pcir_offset = rom_header.pci_data_struct_offset as usize;
+        let pcir_offset = usize::from(rom_header.pci_data_struct_offset);
         let pcir_data = data
             .get(pcir_offset..pcir_offset + core::mem::size_of::<PcirStruct>())
             .ok_or(EINVAL)
@@ -805,12 +805,12 @@ impl PciAtBiosImage {
         let token = self.get_bit_token(BIT_TOKEN_ID_FALCON_DATA)?;
 
         // Make sure we don't go out of bounds
-        if token.data_offset as usize + 4 > self.base.data.len() {
+        if usize::from(token.data_offset) + 4 > self.base.data.len() {
             return Err(EINVAL);
         }
 
         // read the 4 bytes at the offset specified in the token
-        let offset = token.data_offset as usize;
+        let offset = usize::from(token.data_offset);
         let bytes: [u8; 4] = self.base.data[offset..offset + 4].try_into().map_err(|_| {
             dev_err!(self.base.dev, "Failed to convert data slice to array");
             EINVAL
@@ -886,9 +886,9 @@ impl PmuLookupTable {
             return Err(EINVAL);
         }
 
-        let header_len = data[1] as usize;
-        let entry_len = data[2] as usize;
-        let entry_count = data[3] as usize;
+        let header_len = usize::from(data[1]);
+        let entry_len = usize::from(data[2]);
+        let entry_count = usize::from(data[3]);
 
         let required_bytes = header_len + (entry_count * entry_len);
 
@@ -911,9 +911,9 @@ impl PmuLookupTable {
 
         Ok(PmuLookupTable {
             version: data[0],
-            header_len: header_len as u8,
-            entry_len: entry_len as u8,
-            entry_count: entry_count as u8,
+            header_len: data[1],
+            entry_len: data[2],
+            entry_count: data[3],
             table_data,
         })
     }
@@ -923,7 +923,7 @@ impl PmuLookupTable {
             return Err(EINVAL);
         }
 
-        let index = (idx as usize) * self.entry_len as usize;
+        let index = (usize::from(idx)) * usize::from(self.entry_len);
         PmuLookupTableEntry::new(&self.table_data[index..])
     }
 
@@ -1092,8 +1092,8 @@ impl FwSecBiosImage {
     pub(crate) fn sigs(&self, desc: &FalconUCodeDescV3) -> Result<&[Bcrt30Rsa3kSignature]> {
         // The signatures data follows the descriptor.
         let sigs_data_offset = self.falcon_ucode_offset + core::mem::size_of::<FalconUCodeDescV3>();
-        let sigs_size =
-            desc.signature_count as usize * core::mem::size_of::<Bcrt30Rsa3kSignature>();
+        let sigs_count = usize::from(desc.signature_count);
+        let sigs_size = sigs_count * core::mem::size_of::<Bcrt30Rsa3kSignature>();
 
         // Make sure the data is within bounds.
         if sigs_data_offset + sigs_size > self.base.data.len() {
@@ -1113,7 +1113,7 @@ impl FwSecBiosImage {
                     .as_ptr()
                     .add(sigs_data_offset)
                     .cast::<Bcrt30Rsa3kSignature>(),
-                desc.signature_count as usize,
+                sigs_count,
             )
         })
     }
