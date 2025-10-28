@@ -80,6 +80,19 @@ static inline bool trace_seq_has_overflowed(struct trace_seq *s)
 	return s->full || seq_buf_has_overflowed(&s->seq);
 }
 
+/**
+ * trace_seq_pop - pop off the last written character
+ * @s: trace sequence descriptor
+ *
+ * Removes the last written character to the trace_seq @s.
+ *
+ * Returns the last character or -1 if it is empty.
+ */
+static inline int trace_seq_pop(struct trace_seq *s)
+{
+	return seq_buf_pop(&s->seq);
+}
+
 /*
  * Currently only defined when tracing is enabled.
  */
