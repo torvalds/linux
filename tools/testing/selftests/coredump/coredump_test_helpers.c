@@ -357,6 +357,8 @@ void process_coredump_worker(int fd_coredump, int fd_peer_pidfd, int fd_core_fil
 					goto done;
 				ssize_t bytes_write = write(fd_core_file, buffer, bytes_read);
 				if (bytes_write != bytes_read) {
+					if (bytes_write < 0 && errno == ENOSPC)
+						continue;
 					fprintf(stderr, "Worker: write() failed (read=%zd, write=%zd): %m\n",
 						bytes_read, bytes_write);
 					goto out;

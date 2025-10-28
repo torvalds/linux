@@ -158,8 +158,9 @@ TEST_F(coredump, socket)
 
 			bytes_write = write(fd_core_file, buffer, bytes_read);
 			if (bytes_read != bytes_write) {
-				fprintf(stderr, "socket test: write to core file failed (read=%zd, write=%zd): %m\n",
-					bytes_read, bytes_write);
+				if (bytes_write < 0 && errno == ENOSPC)
+					continue;
+				fprintf(stderr, "socket test: write to core file failed (read=%zd, write=%zd): %m\n", bytes_read, bytes_write);
 				goto out;
 			}
 		}
