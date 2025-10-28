@@ -386,6 +386,7 @@ static int amdgpu_userq_fence_read_wptr(struct amdgpu_usermode_queue *queue,
 	amdgpu_bo_unreserve(queue->vm->root.bo);
 	r = amdgpu_bo_reserve(bo, true);
 	if (r) {
+		amdgpu_bo_unref(&bo);
 		DRM_ERROR("Failed to reserve userqueue wptr bo");
 		return r;
 	}
