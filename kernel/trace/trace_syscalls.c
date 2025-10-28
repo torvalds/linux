@@ -468,6 +468,58 @@ static char *sys_fault_user(struct syscall_metadata *sys_data,
 	return buf;
 }
 
+static int
+syscall_get_data(struct syscall_metadata *sys_data, unsigned long *args,
+		 char **buffer, int *size, int *user_size)
+{
+	struct syscall_user_buffer *sbuf;
+
+	/* If the syscall_buffer is NULL, tracing is being shutdown */
+	sbuf = READ_ONCE(syscall_buffer);
+	if (!sbuf)
+		return -1;
+
+	*buffer = sys_fault_user(sys_data, sbuf, args, user_size);
+	/*
+	 * user_size is the amount of data to append.
+	 * Need to add 4 for the meta field that points to
+	 * the user memory at the end of the event and also
+	 * stores its size.
+	 */
+	*size = 4 + *user_size;
+	return 0;
+}
+
+static void syscall_put_data(struct syscall_metadata *sys_data,
+			     struct syscall_trace_enter *entry,
+			     char *buffer, int size)
+{
+	void *ptr;
+	int val;
+
+	/*
+	 * Set the pointer to point to the meta data of the event
+	 * that has information about the stored user space memory.
+	 */
+	ptr = (void *)entry->args + sizeof(unsigned long) * sys_data->nb_args;
+
+	/*
+	 * The meta data will store the offset of the user data from
+	 * the beginning of the event.
+	 */
+	val  = (ptr - (void *)entry) + 4;
+
+	/* Store the offset and the size into the meta data */
+	*(int *)ptr = val | (size << 16);
+
+	/* Nothing to do if the user space was empty or faulted */
+	if (size) {
+		/* Now store the user space data into the event */
+		ptr += 4;
+		memcpy(ptr, buffer, size);
+	}
+}
+
 static void ftrace_syscall_enter(void *data, struct pt_regs *regs, long id)
 {
 	struct trace_array *tr = data;
@@ -511,21 +563,9 @@ static void ftrace_syscall_enter(void *data, struct pt_regs *regs, long id)
 	syscall_get_arguments(current, regs, args);
 
 	if (mayfault) {
-		struct syscall_user_buffer *sbuf;
-
-		/* If the syscall_buffer is NULL, tracing is being shutdown */
-		sbuf = READ_ONCE(syscall_buffer);
-		if (!sbuf)
+		if (syscall_get_data(sys_data, args, &user_ptr,
+				     &size, &user_size) < 0)
 			return;
-
-		user_ptr = sys_fault_user(sys_data, sbuf, args, &user_size);
-		/*
-		 * user_size is the amount of data to append.
-		 * Need to add 4 for the meta field that points to
-		 * the user memory at the end of the event and also
-		 * stores its size.
-		 */
-		size = 4 + user_size;
 	}
 
 	size += sizeof(*entry) + sizeof(unsigned long) * sys_data->nb_args;
@@ -539,32 +579,8 @@ static void ftrace_syscall_enter(void *data, struct pt_regs *regs, long id)
 
 	memcpy(entry->args, args, sizeof(unsigned long) * sys_data->nb_args);
 
-	if (mayfault) {
-		void *ptr;
-		int val;
-
-		/*
-		 * Set the pointer to point to the meta data of the event
-		 * that has information about the stored user space memory.
-		 */
-		ptr = (void *)entry->args + sizeof(unsigned long) * sys_data->nb_args;
-
-		/*
-		 * The meta data will store the offset of the user data from
-		 * the beginning of the event.
-		 */
-		val  = (ptr - (void *)entry) + 4;
-
-		/* Store the offset and the size into the meta data */
-		*(int *)ptr = val | (user_size << 16);
-
-		/* Nothing to do if the user space was empty or faulted */
-		if (user_size) {
-			/* Now store the user space data into the event */
-			ptr += 4;
-			memcpy(ptr, user_ptr, user_size);
-		}
-	}
+	if (mayfault)
+		syscall_put_data(sys_data, entry, user_ptr, user_size);
 
 	trace_event_buffer_commit(&fbuffer);
 }
@@ -996,9 +1012,12 @@ static void perf_syscall_enter(void *ignore, struct pt_regs *regs, long id)
 	struct hlist_head *head;
 	unsigned long args[6];
 	bool valid_prog_array;
+	bool mayfault;
+	char *user_ptr;
 	int syscall_nr;
+	int user_size;
 	int rctx;
-	int size;
+	int size = 0;
 
 	/*
 	 * Syscall probe called with preemption enabled, but the ring
@@ -1017,13 +1036,24 @@ static void perf_syscall_enter(void *ignore, struct pt_regs *regs, long id)
 	if (!sys_data)
 		return;
 
+	syscall_get_arguments(current, regs, args);
+
+	/* Check if this syscall event faults in user space memory */
+	mayfault = sys_data->user_mask != 0;
+
+	if (mayfault) {
+		if (syscall_get_data(sys_data, args, &user_ptr,
+				     &size, &user_size) < 0)
+			return;
+	}
+
 	head = this_cpu_ptr(sys_data->enter_event->perf_events);
 	valid_prog_array = bpf_prog_array_valid(sys_data->enter_event);
 	if (!valid_prog_array && hlist_empty(head))
 		return;
 
 	/* get the size after alignment with the u32 buffer size field */
-	size = sizeof(unsigned long) * sys_data->nb_args + sizeof(*rec);
+	size += sizeof(unsigned long) * sys_data->nb_args + sizeof(*rec);
 	size = ALIGN(size + sizeof(u32), sizeof(u64));
 	size -= sizeof(u32);
 
@@ -1032,8 +1062,10 @@ static void perf_syscall_enter(void *ignore, struct pt_regs *regs, long id)
 		return;
 
 	rec->nr = syscall_nr;
-	syscall_get_arguments(current, regs, args);
 	memcpy(&rec->args, args, sizeof(unsigned long) * sys_data->nb_args);
+
+	if (mayfault)
+		syscall_put_data(sys_data, rec, user_ptr, user_size);
 
 	if ((valid_prog_array &&
 	     !perf_call_bpf_enter(sys_data->enter_event, fake_regs, sys_data, rec)) ||
@@ -1049,15 +1081,24 @@ static void perf_syscall_enter(void *ignore, struct pt_regs *regs, long id)
 
 static int perf_sysenter_enable(struct trace_event_call *call)
 {
+	struct syscall_metadata *sys_data = call->data;
 	int num;
+	int ret;
 
-	num = ((struct syscall_metadata *)call->data)->syscall_nr;
+	num = sys_data->syscall_nr;
 
 	guard(mutex)(&syscall_trace_lock);
+	if (sys_data->user_mask) {
+		ret = syscall_fault_buffer_enable();
+		if (ret < 0)
+			return ret;
+	}
 	if (!sys_perf_refcount_enter) {
-		int ret = register_trace_sys_enter(perf_syscall_enter, NULL);
+		ret = register_trace_sys_enter(perf_syscall_enter, NULL);
 		if (ret) {
 			pr_info("event trace: Could not activate syscall entry trace point");
+			if (sys_data->user_mask)
+				syscall_fault_buffer_disable();
 			return ret;
 		}
 	}
@@ -1068,15 +1109,18 @@ static int perf_sysenter_enable(struct trace_event_call *call)
 
 static void perf_sysenter_disable(struct trace_event_call *call)
 {
+	struct syscall_metadata *sys_data = call->data;
 	int num;
 
-	num = ((struct syscall_metadata *)call->data)->syscall_nr;
+	num = sys_data->syscall_nr;
 
 	guard(mutex)(&syscall_trace_lock);
 	sys_perf_refcount_enter--;
 	clear_bit(num, enabled_perf_enter_syscalls);
 	if (!sys_perf_refcount_enter)
 		unregister_trace_sys_enter(perf_syscall_enter, NULL);
+	if (sys_data->user_mask)
+		syscall_fault_buffer_disable();
 }
 
 static int perf_call_bpf_exit(struct trace_event_call *call, struct pt_regs *regs,
