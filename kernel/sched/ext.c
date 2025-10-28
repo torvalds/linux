@@ -4753,7 +4753,7 @@ static int scx_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 		const struct sched_class *new_class =
 			__setscheduler_class(p->policy, p->prio);
 
-		if (!tryget_task_struct(p))
+		if (scx_get_task_state(p) != SCX_TASK_READY)
 			continue;
 
 		if (old_class != new_class)
@@ -4763,8 +4763,6 @@ static int scx_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 			p->scx.slice = SCX_SLICE_DFL;
 			p->sched_class = new_class;
 		}
-
-		put_task_struct(p);
 	}
 	scx_task_iter_stop(&sti);
 	percpu_up_write(&scx_fork_rwsem);
