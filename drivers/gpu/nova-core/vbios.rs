@@ -314,45 +314,29 @@ struct PcirStruct {
     max_runtime_image_len: u16,
 }
 
+// SAFETY: all bit patterns are valid for `PcirStruct`.
+unsafe impl FromBytes for PcirStruct {}
+
 impl PcirStruct {
     fn new(dev: &device::Device, data: &[u8]) -> Result<Self> {
-        if data.len() < core::mem::size_of::<PcirStruct>() {
-            dev_err!(dev, "Not enough data for PcirStruct\n");
-            return Err(EINVAL);
-        }
-
-        let mut signature = [0u8; 4];
-        signature.copy_from_slice(&data[0..4]);
+        let (pcir, _) = PcirStruct::from_bytes_copy_prefix(data).ok_or(EINVAL)?;
 
         // Signature should be "PCIR" (0x52494350) or "NPDS" (0x5344504e).
-        if &signature != b"PCIR" && &signature != b"NPDS" {
-            dev_err!(dev, "Invalid signature for PcirStruct: {:?}\n", signature);
+        if &pcir.signature != b"PCIR" && &pcir.signature != b"NPDS" {
+            dev_err!(
+                dev,
+                "Invalid signature for PcirStruct: {:?}\n",
+                pcir.signature
+            );
             return Err(EINVAL);
         }
 
-        let mut class_code = [0u8; 3];
-        class_code.copy_from_slice(&data[13..16]);
-
-        let image_len = u16::from_le_bytes([data[16], data[17]]);
-        if image_len == 0 {
+        if pcir.image_len == 0 {
             dev_err!(dev, "Invalid image length: 0\n");
             return Err(EINVAL);
         }
 
-        Ok(PcirStruct {
-            signature,
-            vendor_id: u16::from_le_bytes([data[4], data[5]]),
-            device_id: u16::from_le_bytes([data[6], data[7]]),
-            device_list_ptr: u16::from_le_bytes([data[8], data[9]]),
-            pci_data_struct_len: u16::from_le_bytes([data[10], data[11]]),
-            pci_data_struct_rev: data[12],
-            class_code,
-            image_len,
-            vendor_rom_rev: u16::from_le_bytes([data[18], data[19]]),
-            code_type: data[20],
-            last_image: data[21],
-            max_runtime_image_len: u16::from_le_bytes([data[22], data[23]]),
-        })
+        Ok(pcir)
     }
 
     /// Check if this is the last image in the ROM.
