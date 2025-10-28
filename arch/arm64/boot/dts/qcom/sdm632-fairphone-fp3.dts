@@ -88,6 +88,27 @@
 	};
 };
 
+&cci {
+	status = "okay";
+};
+
+&cci_i2c0 {
+	/* Sony IMX363 (rear) @ 0x10 */
+
+	eeprom@50 {
+		compatible = "belling,bl24s64", "atmel,24c64";
+		reg = <0x50>;
+		vcc-supply = <&vreg_cam_io_1p8>;
+		read-only;
+	};
+
+	/* ON Semi LC898217 VCM @ 0x72 */
+};
+
+&cci_i2c1 {
+	/* Samsung S5K4H7YX (front) @ 0x10 */
+};
+
 &gpu {
 	status = "okay";
 };
