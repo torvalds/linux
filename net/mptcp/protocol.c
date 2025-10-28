@@ -194,17 +194,18 @@ static bool mptcp_ooo_try_coalesce(struct mptcp_sock *msk, struct sk_buff *to,
  * - mptcp does not maintain a msk-level window clamp
  * - returns true when  the receive buffer is actually updated
  */
-static bool mptcp_rcvbuf_grow(struct sock *sk)
+static bool mptcp_rcvbuf_grow(struct sock *sk, u32 newval)
 {
 	struct mptcp_sock *msk = mptcp_sk(sk);
 	const struct net *net = sock_net(sk);
-	int rcvwin, rcvbuf, cap;
+	u32 rcvwin, rcvbuf, cap;
 
+	msk->rcvq_space.space = newval;
 	if (!READ_ONCE(net->ipv4.sysctl_tcp_moderate_rcvbuf) ||
 	    (sk->sk_userlocks & SOCK_RCVBUF_LOCK))
 		return false;
 
-	rcvwin = msk->rcvq_space.space << 1;
+	rcvwin = newval << 1;
 
 	if (!RB_EMPTY_ROOT(&msk->out_of_order_queue))
 		rcvwin += MPTCP_SKB_CB(msk->ooo_last_skb)->end_seq - msk->ack_seq;
@@ -334,7 +335,7 @@ end:
 	skb_set_owner_r(skb, sk);
 	/* do not grow rcvbuf for not-yet-accepted or orphaned sockets. */
 	if (sk->sk_socket)
-		mptcp_rcvbuf_grow(sk);
+		mptcp_rcvbuf_grow(sk, msk->rcvq_space.space);
 }
 
 static void mptcp_init_skb(struct sock *ssk, struct sk_buff *skb, int offset,
@@ -2049,10 +2050,7 @@ static void mptcp_rcv_space_adjust(struct mptcp_sock *msk, int copied)
 	if (msk->rcvq_space.copied <= msk->rcvq_space.space)
 		goto new_measure;
 
-	msk->rcvq_space.space = msk->rcvq_space.copied;
-	if (mptcp_rcvbuf_grow(sk)) {
-		int copied = msk->rcvq_space.copied;
-
+	if (mptcp_rcvbuf_grow(sk, msk->rcvq_space.copied)) {
 		/* Make subflows follow along.  If we do not do this, we
 		 * get drops at subflow level if skbs can't be moved to
 		 * the mptcp rx queue fast enough (announced rcv_win can
@@ -2065,10 +2063,8 @@ static void mptcp_rcv_space_adjust(struct mptcp_sock *msk, int copied)
 			ssk = mptcp_subflow_tcp_sock(subflow);
 			slow = lock_sock_fast(ssk);
 			/* subflows can be added before tcp_init_transfer() */
-			if (tcp_sk(ssk)->rcvq_space.space) {
-				tcp_sk(ssk)->rcvq_space.space = copied;
-				tcp_rcvbuf_grow(ssk);
-			}
+			if (tcp_sk(ssk)->rcvq_space.space)
+				tcp_rcvbuf_grow(ssk, msk->rcvq_space.copied);
 			unlock_sock_fast(ssk, slow);
 		}
 	}
