@@ -330,6 +330,15 @@
 		enable-active-high;
 	};
 
+	reg_usb_otg1_vbus: regulator-usbotg1-vbus {
+		compatible = "regulator-fixed";
+		regulator-name = "usb_otg1_vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&lsio_gpio4 3 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
 	reg_vref_1v8: regulator-adc-vref {
 		compatible = "regulator-fixed";
 		regulator-name = "vref_1v8";
@@ -846,7 +855,22 @@
 	status = "okay";
 };
 
+&usbphy1 {
+	status = "okay";
+};
+
 &usb3_phy {
+	status = "okay";
+};
+
+&usbotg1 {
+	vbus-supply = <&reg_usb_otg1_vbus>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usbotg1>;
+	srp-disable;
+	hnp-disable;
+	adp-disable;
+	disable-over-current;
 	status = "okay";
 };
 
@@ -1266,6 +1290,12 @@
 		fsl,pins = <
 			IMX8QM_QSPI1A_SS0_B_LSIO_GPIO4_IO19		0x60
 			IMX8QM_USB_SS3_TC3_LSIO_GPIO4_IO06		0x60
+		>;
+	};
+
+	pinctrl_usbotg1: usbotg1grp {
+		fsl,pins = <
+			IMX8QM_USB_SS3_TC0_LSIO_GPIO4_IO03		0x06000021
 		>;
 	};
 
