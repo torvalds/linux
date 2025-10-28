@@ -198,14 +198,22 @@ static bool mptcp_rcvbuf_grow(struct sock *sk, u32 newval)
 {
 	struct mptcp_sock *msk = mptcp_sk(sk);
 	const struct net *net = sock_net(sk);
-	u32 rcvwin, rcvbuf, cap;
+	u32 rcvwin, rcvbuf, cap, oldval;
+	u64 grow;
 
+	oldval = msk->rcvq_space.space;
 	msk->rcvq_space.space = newval;
 	if (!READ_ONCE(net->ipv4.sysctl_tcp_moderate_rcvbuf) ||
 	    (sk->sk_userlocks & SOCK_RCVBUF_LOCK))
 		return false;
 
+	/* DRS is always one RTT late. */
 	rcvwin = newval << 1;
+
+	/* slow start: allow the sender to double its rate. */
+	grow = (u64)rcvwin * (newval - oldval);
+	do_div(grow, oldval);
+	rcvwin += grow << 1;
 
 	if (!RB_EMPTY_ROOT(&msk->out_of_order_queue))
 		rcvwin += MPTCP_SKB_CB(msk->ooo_last_skb)->end_seq - msk->ack_seq;
