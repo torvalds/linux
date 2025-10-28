@@ -41,6 +41,7 @@
  * required by the board dts.
  */
 
+/delete-node/ &gpu_zap_shader;
 /delete-node/ &hyp_mem;
 /delete-node/ &ipa_fw_mem;
 /delete-node/ &xbl_mem;
