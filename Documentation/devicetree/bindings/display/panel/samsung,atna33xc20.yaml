@@ -33,6 +33,8 @@ properties:
               - samsung,atna45dc02
               # Samsung 15.6" 3K (2880x1620 pixels) eDP AMOLED panel
               - samsung,atna56ac03
+              # Samsung 16.0" 3K (2880x1800 pixels) eDP AMOLED panel
+              - samsung,atna60cl08
           - const: samsung,atna33xc20
 
   enable-gpios: true
