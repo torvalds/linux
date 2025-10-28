@@ -7327,7 +7327,7 @@ void amdgpu_device_flush_hdp(struct amdgpu_device *adev,
 			return;
 	}
 
-	amdgpu_asic_flush_hdp(adev, ring);
+	amdgpu_hdp_flush(adev, ring);
 }
 
 void amdgpu_device_invalidate_hdp(struct amdgpu_device *adev,
@@ -7340,7 +7340,7 @@ void amdgpu_device_invalidate_hdp(struct amdgpu_device *adev,
 	if (adev->gmc.xgmi.connected_to_cpu)
 		return;
 
-	amdgpu_asic_invalidate_hdp(adev, ring);
+	amdgpu_hdp_invalidate(adev, ring);
 }
 
 int amdgpu_in_reset(struct amdgpu_device *adev)

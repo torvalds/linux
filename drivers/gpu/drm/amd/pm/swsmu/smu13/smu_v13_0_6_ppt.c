@@ -766,7 +766,7 @@ int smu_v13_0_6_get_metrics_table(struct smu_context *smu, void *metrics_table,
 			return ret;
 		}
 
-		amdgpu_asic_invalidate_hdp(smu->adev, NULL);
+		amdgpu_hdp_invalidate(smu->adev, NULL);
 		memcpy(smu_table->metrics_table, table->cpu_addr, table_size);
 
 		smu_table->metrics_time = jiffies;
@@ -845,7 +845,7 @@ int smu_v13_0_6_get_static_metrics_table(struct smu_context *smu)
 		return ret;
 	}
 
-	amdgpu_asic_invalidate_hdp(smu->adev, NULL);
+	amdgpu_hdp_invalidate(smu->adev, NULL);
 	memcpy(smu_table->metrics_table, table->cpu_addr, table_size);
 
 	return 0;
@@ -2385,7 +2385,7 @@ static int smu_v13_0_6_request_i2c_xfer(struct smu_context *smu,
 
 	memcpy(table->cpu_addr, table_data, table_size);
 	/* Flush hdp cache */
-	amdgpu_asic_flush_hdp(adev, NULL);
+	amdgpu_hdp_flush(adev, NULL);
 	ret = smu_cmn_send_smc_msg(smu, SMU_MSG_RequestI2cTransaction,
 					  NULL);
 

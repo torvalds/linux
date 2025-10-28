@@ -980,7 +980,7 @@ int smu_cmn_update_table(struct smu_context *smu,
 		 * Flush hdp cache: to guard the content seen by
 		 * GPU is consitent with CPU.
 		 */
-		amdgpu_asic_flush_hdp(adev, NULL);
+		amdgpu_hdp_flush(adev, NULL);
 	}
 
 	ret = smu_cmn_send_smc_msg_with_param(smu, drv2smu ?
@@ -992,7 +992,7 @@ int smu_cmn_update_table(struct smu_context *smu,
 		return ret;
 
 	if (!drv2smu) {
-		amdgpu_asic_invalidate_hdp(adev, NULL);
+		amdgpu_hdp_invalidate(adev, NULL);
 		memcpy(table_data, table->cpu_addr, table_size);
 	}
 

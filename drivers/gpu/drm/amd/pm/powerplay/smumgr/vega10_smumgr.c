@@ -60,7 +60,7 @@ static int vega10_copy_table_from_smc(struct pp_hwmgr *hwmgr,
 			priv->smu_tables.entry[table_id].table_id,
 			NULL);
 
-	amdgpu_asic_invalidate_hdp(adev, NULL);
+	amdgpu_hdp_invalidate(adev, NULL);
 
 	memcpy(table, priv->smu_tables.entry[table_id].table,
 			priv->smu_tables.entry[table_id].size);
@@ -90,7 +90,7 @@ static int vega10_copy_table_to_smc(struct pp_hwmgr *hwmgr,
 	memcpy(priv->smu_tables.entry[table_id].table, table,
 			priv->smu_tables.entry[table_id].size);
 
-	amdgpu_asic_flush_hdp(adev, NULL);
+	amdgpu_hdp_flush(adev, NULL);
 
 	smum_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrHigh,

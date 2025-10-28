@@ -342,7 +342,7 @@ static void sdma_v5_2_ring_emit_hdp_flush(struct amdgpu_ring *ring)
 	const struct nbio_hdp_flush_reg *nbio_hf_reg = adev->nbio.hdp_flush_reg;
 
 	if (ring->me > 1) {
-		amdgpu_asic_flush_hdp(adev, ring);
+		amdgpu_hdp_flush(adev, ring);
 	} else {
 		ref_and_mask = nbio_hf_reg->ref_and_mask_sdma0 << ring->me;
 

@@ -449,7 +449,7 @@ static int smu_v13_0_12_get_system_metrics_table(struct smu_context *smu)
 		return ret;
 	}
 
-	amdgpu_asic_invalidate_hdp(smu->adev, NULL);
+	amdgpu_hdp_invalidate(smu->adev, NULL);
 	smu_table_cache_update_time(sys_table, jiffies);
 	memcpy(sys_table->cache.buffer, table->cpu_addr,
 	       smu_v13_0_12_get_system_metrics_size());
