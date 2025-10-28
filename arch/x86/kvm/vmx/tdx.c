@@ -2969,9 +2969,20 @@ static int tdx_td_vcpu_init(struct kvm_vcpu *vcpu, u64 vcpu_rcx)
 		}
 	}
 
-	err = tdh_vp_init(&tdx->vp, vcpu_rcx, vcpu->vcpu_id);
-	if (TDX_BUG_ON(err, TDH_VP_INIT, vcpu->kvm))
-		return -EIO;
+	/*
+	 * tdh_vp_init() can take an exclusive lock of the TDR resource inside
+	 * the TDX-Module.  The TDR resource is also taken as shared in several
+	 * no-fail MMU paths, which could return TDX_OPERAND_BUSY on contention
+	 * (TDX-Module locks are try-lock implementations with no slow path).
+	 * Take mmu_lock for write to reflect the nature of the lock taken by
+	 * the TDX-Module, and to ensure the no-fail MMU paths succeed, e.g. if
+	 * a concurrent PUNCH_HOLE on guest_memfd triggers removal of SPTEs.
+	 */
+	scoped_guard(write_lock, &vcpu->kvm->mmu_lock) {
+		err = tdh_vp_init(&tdx->vp, vcpu_rcx, vcpu->vcpu_id);
+		if (TDX_BUG_ON(err, TDH_VP_INIT, vcpu->kvm))
+			return -EIO;
+	}
 
 	vcpu->arch.mp_state = KVM_MP_STATE_RUNNABLE;
 
