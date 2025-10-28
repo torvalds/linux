@@ -201,7 +201,7 @@ const char *vm_guest_mode_string(uint32_t i)
 		[VM_MODE_P40V48_4K]	= "PA-bits:40,  VA-bits:48,  4K pages",
 		[VM_MODE_P40V48_16K]	= "PA-bits:40,  VA-bits:48, 16K pages",
 		[VM_MODE_P40V48_64K]	= "PA-bits:40,  VA-bits:48, 64K pages",
-		[VM_MODE_PXXV48_4K]	= "PA-bits:ANY, VA-bits:48,  4K pages",
+		[VM_MODE_PXXVYY_4K]	= "PA-bits:ANY, VA-bits:48 or 57, 4K pages",
 		[VM_MODE_P47V64_4K]	= "PA-bits:47,  VA-bits:64,  4K pages",
 		[VM_MODE_P44V64_4K]	= "PA-bits:44,  VA-bits:64,  4K pages",
 		[VM_MODE_P36V48_4K]	= "PA-bits:36,  VA-bits:48,  4K pages",
@@ -228,7 +228,7 @@ const struct vm_guest_mode_params vm_guest_mode_params[] = {
 	[VM_MODE_P40V48_4K]	= { 40, 48,  0x1000, 12 },
 	[VM_MODE_P40V48_16K]	= { 40, 48,  0x4000, 14 },
 	[VM_MODE_P40V48_64K]	= { 40, 48, 0x10000, 16 },
-	[VM_MODE_PXXV48_4K]	= {  0,  0,  0x1000, 12 },
+	[VM_MODE_PXXVYY_4K]	= {  0,  0,  0x1000, 12 },
 	[VM_MODE_P47V64_4K]	= { 47, 64,  0x1000, 12 },
 	[VM_MODE_P44V64_4K]	= { 44, 64,  0x1000, 12 },
 	[VM_MODE_P36V48_4K]	= { 36, 48,  0x1000, 12 },
@@ -310,24 +310,26 @@ struct kvm_vm *____vm_create(struct vm_shape shape)
 	case VM_MODE_P36V47_16K:
 		vm->pgtable_levels = 3;
 		break;
-	case VM_MODE_PXXV48_4K:
+	case VM_MODE_PXXVYY_4K:
 #ifdef __x86_64__
 		kvm_get_cpu_address_width(&vm->pa_bits, &vm->va_bits);
 		kvm_init_vm_address_properties(vm);
-		/*
-		 * Ignore KVM support for 5-level paging (vm->va_bits == 57),
-		 * it doesn't take effect unless a CR4.LA57 is set, which it
-		 * isn't for this mode (48-bit virtual address space).
-		 */
-		TEST_ASSERT(vm->va_bits == 48 || vm->va_bits == 57,
-			    "Linear address width (%d bits) not supported",
-			    vm->va_bits);
+
 		pr_debug("Guest physical address width detected: %d\n",
 			 vm->pa_bits);
-		vm->pgtable_levels = 4;
-		vm->va_bits = 48;
+		pr_debug("Guest virtual address width detected: %d\n",
+			 vm->va_bits);
+
+		if (vm->va_bits == 57) {
+			vm->pgtable_levels = 5;
+		} else {
+			TEST_ASSERT(vm->va_bits == 48,
+				    "Unexpected guest virtual address width: %d",
+				    vm->va_bits);
+			vm->pgtable_levels = 4;
+		}
 #else
-		TEST_FAIL("VM_MODE_PXXV48_4K not supported on non-x86 platforms");
+		TEST_FAIL("VM_MODE_PXXVYY_4K not supported on non-x86 platforms");
 #endif
 		break;
 	case VM_MODE_P47V64_4K:
