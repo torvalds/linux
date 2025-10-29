@@ -1447,4 +1447,180 @@ TEST(ns_different_types_same_owner)
 	ASSERT_LT(u_fd, 0);
 }
 
+/*
+ * Test hierarchical propagation with deep namespace hierarchy.
+ * Create: init_user_ns -> user_A -> user_B -> net_ns
+ * When net_ns is active, both user_A and user_B should be active.
+ * This verifies the conditional recursion in __ns_ref_active_put() works.
+ */
+TEST(ns_deep_hierarchy_propagation)
+{
+	struct file_handle *ua_handle, *ub_handle, *net_handle;
+	int ret, pipefd[2];
+	pid_t pid;
+	int status;
+	__u64 ua_id, ub_id, net_id;
+	char ua_buf[sizeof(*ua_handle) + MAX_HANDLE_SZ];
+	char ub_buf[sizeof(*ub_handle) + MAX_HANDLE_SZ];
+	char net_buf[sizeof(*net_handle) + MAX_HANDLE_SZ];
+
+	ASSERT_EQ(pipe(pipefd), 0);
+	pid = fork();
+	ASSERT_GE(pid, 0);
+
+	if (pid == 0) {
+		close(pipefd[0]);
+
+		/* Create user_A -> user_B -> net hierarchy */
+		if (setup_userns() < 0) {
+			close(pipefd[1]);
+			exit(1);
+		}
+
+		int ua_fd = open("/proc/self/ns/user", O_RDONLY);
+		if (ua_fd < 0) {
+			close(pipefd[1]);
+			exit(1);
+		}
+		if (ioctl(ua_fd, NS_GET_ID, &ua_id) < 0) {
+			close(ua_fd);
+			close(pipefd[1]);
+			exit(1);
+		}
+		close(ua_fd);
+
+		if (setup_userns() < 0) {
+			close(pipefd[1]);
+			exit(1);
+		}
+
+		int ub_fd = open("/proc/self/ns/user", O_RDONLY);
+		if (ub_fd < 0) {
+			close(pipefd[1]);
+			exit(1);
+		}
+		if (ioctl(ub_fd, NS_GET_ID, &ub_id) < 0) {
+			close(ub_fd);
+			close(pipefd[1]);
+			exit(1);
+		}
+		close(ub_fd);
+
+		if (unshare(CLONE_NEWNET) < 0) {
+			close(pipefd[1]);
+			exit(1);
+		}
+
+		int net_fd = open("/proc/self/ns/net", O_RDONLY);
+		if (net_fd < 0) {
+			close(pipefd[1]);
+			exit(1);
+		}
+		if (ioctl(net_fd, NS_GET_ID, &net_id) < 0) {
+			close(net_fd);
+			close(pipefd[1]);
+			exit(1);
+		}
+		close(net_fd);
+
+		/* Send all three namespace IDs */
+		write(pipefd[1], &ua_id, sizeof(ua_id));
+		write(pipefd[1], &ub_id, sizeof(ub_id));
+		write(pipefd[1], &net_id, sizeof(net_id));
+		close(pipefd[1]);
+		exit(0);
+	}
+
+	close(pipefd[1]);
+
+	/* Read all three namespace IDs - fixed size, no parsing needed */
+	ret = read(pipefd[0], &ua_id, sizeof(ua_id));
+	if (ret != sizeof(ua_id)) {
+		close(pipefd[0]);
+		waitpid(pid, NULL, 0);
+		SKIP(return, "Failed to read user_A namespace ID");
+	}
+
+	ret = read(pipefd[0], &ub_id, sizeof(ub_id));
+	if (ret != sizeof(ub_id)) {
+		close(pipefd[0]);
+		waitpid(pid, NULL, 0);
+		SKIP(return, "Failed to read user_B namespace ID");
+	}
+
+	ret = read(pipefd[0], &net_id, sizeof(net_id));
+	close(pipefd[0]);
+	if (ret != sizeof(net_id)) {
+		waitpid(pid, NULL, 0);
+		SKIP(return, "Failed to read network namespace ID");
+	}
+
+	/* Construct file handles from namespace IDs */
+	ua_handle = (struct file_handle *)ua_buf;
+	ua_handle->handle_bytes = sizeof(struct nsfs_file_handle);
+	ua_handle->handle_type = FILEID_NSFS;
+	struct nsfs_file_handle *ua_fh = (struct nsfs_file_handle *)ua_handle->f_handle;
+	ua_fh->ns_id = ua_id;
+	ua_fh->ns_type = 0;
+	ua_fh->ns_inum = 0;
+
+	ub_handle = (struct file_handle *)ub_buf;
+	ub_handle->handle_bytes = sizeof(struct nsfs_file_handle);
+	ub_handle->handle_type = FILEID_NSFS;
+	struct nsfs_file_handle *ub_fh = (struct nsfs_file_handle *)ub_handle->f_handle;
+	ub_fh->ns_id = ub_id;
+	ub_fh->ns_type = 0;
+	ub_fh->ns_inum = 0;
+
+	net_handle = (struct file_handle *)net_buf;
+	net_handle->handle_bytes = sizeof(struct nsfs_file_handle);
+	net_handle->handle_type = FILEID_NSFS;
+	struct nsfs_file_handle *net_fh = (struct nsfs_file_handle *)net_handle->f_handle;
+	net_fh->ns_id = net_id;
+	net_fh->ns_type = 0;
+	net_fh->ns_inum = 0;
+
+	/* Open net_ns before child exits to keep it active */
+	int net_fd = open_by_handle_at(FD_NSFS_ROOT, net_handle, O_RDONLY);
+	if (net_fd < 0) {
+		waitpid(pid, NULL, 0);
+		SKIP(return, "Failed to open network namespace");
+	}
+
+	waitpid(pid, &status, 0);
+	ASSERT_TRUE(WIFEXITED(status));
+	ASSERT_EQ(WEXITSTATUS(status), 0);
+
+	/* With net_ns active, both user_A and user_B should be active */
+	TH_LOG("Testing user_B active (net_ns active causes propagation)");
+	int ub_fd = open_by_handle_at(FD_NSFS_ROOT, ub_handle, O_RDONLY);
+	ASSERT_GE(ub_fd, 0);
+
+	TH_LOG("Testing user_A active (propagated through user_B)");
+	int ua_fd = open_by_handle_at(FD_NSFS_ROOT, ua_handle, O_RDONLY);
+	ASSERT_GE(ua_fd, 0);
+
+	/* Close net_ns - user_B should stay active (we hold direct ref) */
+	TH_LOG("Closing net_ns, user_B should remain active (direct ref held)");
+	close(net_fd);
+	int ub_fd2 = open_by_handle_at(FD_NSFS_ROOT, ub_handle, O_RDONLY);
+	ASSERT_GE(ub_fd2, 0);
+	close(ub_fd2);
+
+	/* Close user_B - user_A should stay active (we hold direct ref) */
+	TH_LOG("Closing user_B, user_A should remain active (direct ref held)");
+	close(ub_fd);
+	int ua_fd2 = open_by_handle_at(FD_NSFS_ROOT, ua_handle, O_RDONLY);
+	ASSERT_GE(ua_fd2, 0);
+	close(ua_fd2);
+
+	/* Close user_A - everything should become inactive */
+	TH_LOG("Closing user_A, all should become inactive");
+	close(ua_fd);
+
+	/* All should now be inactive */
+	ua_fd = open_by_handle_at(FD_NSFS_ROOT, ua_handle, O_RDONLY);
+	ASSERT_LT(ua_fd, 0);
+}
+
 TEST_HARNESS_MAIN
