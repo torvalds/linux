@@ -366,4 +366,86 @@ TEST(userns_active_ref_lifecycle)
 	ASSERT_TRUE(errno == ENOENT || errno == ESTALE);
 }
 
+/*
+ * Test PID namespace active ref tracking
+ */
+TEST(pidns_active_ref_lifecycle)
+{
+	struct file_handle *handle;
+	int mount_id;
+	int ret;
+	int fd;
+	int pipefd[2];
+	pid_t pid;
+	int status;
+	char buf[sizeof(*handle) + MAX_HANDLE_SZ];
+
+	ASSERT_EQ(pipe(pipefd), 0);
+
+	pid = fork();
+	ASSERT_GE(pid, 0);
+
+	if (pid == 0) {
+		/* Child process */
+		close(pipefd[0]);
+
+		/* Create new PID namespace */
+		ret = unshare(CLONE_NEWPID);
+		if (ret < 0) {
+			close(pipefd[1]);
+			exit(1);
+		}
+
+		/* Fork to actually enter the PID namespace */
+		pid_t child = fork();
+		if (child < 0) {
+			close(pipefd[1]);
+			exit(1);
+		}
+
+		if (child == 0) {
+			/* Grandchild - in new PID namespace */
+			fd = open("/proc/self/ns/pid", O_RDONLY);
+			if (fd < 0) {
+				exit(1);
+			}
+
+			handle = (struct file_handle *)buf;
+			handle->handle_bytes = MAX_HANDLE_SZ;
+			ret = name_to_handle_at(fd, "", handle, &mount_id, AT_EMPTY_PATH);
+			close(fd);
+
+			if (ret < 0) {
+				exit(1);
+			}
+
+			/* Send handle to grandparent */
+			write(pipefd[1], buf, sizeof(*handle) + handle->handle_bytes);
+			close(pipefd[1]);
+			exit(0);
+		}
+
+		/* Wait for grandchild */
+		waitpid(child, NULL, 0);
+		exit(0);
+	}
+
+	/* Parent */
+	close(pipefd[1]);
+	ret = read(pipefd[0], buf, sizeof(buf));
+	close(pipefd[0]);
+
+	waitpid(pid, &status, 0);
+	ASSERT_TRUE(WIFEXITED(status));
+	ASSERT_EQ(WEXITSTATUS(status), 0);
+
+	ASSERT_GT(ret, 0);
+	handle = (struct file_handle *)buf;
+
+	/* Namespace should be inactive after all processes exit */
+	fd = open_by_handle_at(FD_NSFS_ROOT, handle, O_RDONLY);
+	ASSERT_LT(fd, 0);
+	ASSERT_TRUE(errno == ENOENT || errno == ESTALE);
+}
+
 TEST_HARNESS_MAIN
