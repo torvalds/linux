@@ -185,6 +185,11 @@ static inline struct mpls_entry_decoded mpls_entry_decode(struct mpls_shim_hdr *
 	return result;
 }
 
+#define mpls_dereference(net, p)					\
+	rcu_dereference_protected(					\
+		(p),							\
+		lockdep_is_held(&(net)->mpls.platform_mutex))
+
 static inline struct mpls_dev *mpls_dev_rcu(const struct net_device *dev)
 {
 	return rcu_dereference(dev->mpls_ptr);
@@ -193,7 +198,7 @@ static inline struct mpls_dev *mpls_dev_rcu(const struct net_device *dev)
 static inline struct mpls_dev *mpls_dev_get(const struct net *net,
 					    const struct net_device *dev)
 {
-	return rcu_dereference_rtnl(dev->mpls_ptr);
+	return mpls_dereference(net, dev->mpls_ptr);
 }
 
 int nla_put_labels(struct sk_buff *skb, int attrtype,  u8 labels,
