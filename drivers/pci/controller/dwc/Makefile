@@ -11,7 +11,10 @@ obj-$(CONFIG_PCI_EXYNOS) += pci-exynos.o
 obj-$(CONFIG_PCIE_FU740) += pcie-fu740.o
 obj-$(CONFIG_PCI_IMX6) += pci-imx6.o
 obj-$(CONFIG_PCIE_SPEAR13XX) += pcie-spear13xx.o
+# ARM32 platforms use hook_fault_code() and cannot support loadable module.
 obj-$(CONFIG_PCI_KEYSTONE) += pci-keystone.o
+# On non-ARM32 platforms, loadable module can be supported.
+obj-$(CONFIG_PCI_KEYSTONE_TRISTATE) += pci-keystone.o
 obj-$(CONFIG_PCI_LAYERSCAPE) += pci-layerscape.o
 obj-$(CONFIG_PCI_LAYERSCAPE_EP) += pci-layerscape-ep.o
 obj-$(CONFIG_PCIE_QCOM_COMMON) += pcie-qcom-common.o
