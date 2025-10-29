@@ -2081,9 +2081,10 @@ static int pp_dpm_clk_default_attr_update(struct amdgpu_device *adev, struct amd
  * for user application to monitor various board reated attributes.
  *
  * The amdgpu driver provides a sysfs API for reporting board attributes. Presently,
- * seven types of attributes are reported. Baseboard temperature and
+ * nine types of attributes are reported. Baseboard temperature and
  * gpu board temperature are reported as binary files. Npm status, current node power limit,
- * max node power limit, node power and global ppt residency is reported as ASCII text file.
+ * max node power limit, node power, global ppt residency, baseboard_power, baseboard_power_limit
+ * is reported as ASCII text file.
  *
  * * .. code-block:: console
  *
@@ -2100,6 +2101,10 @@ static int pp_dpm_clk_default_attr_update(struct amdgpu_device *adev, struct amd
  *      hexdump /sys/bus/pci/devices/.../board/node_power
  *
  *      hexdump /sys/bus/pci/devices/.../board/global_ppt_resid
+ *
+ *      hexdump /sys/bus/pci/devices/.../board/baseboard_power
+ *
+ *      hexdump /sys/bus/pci/devices/.../board/baseboard_power_limit
  */
 
 /**
@@ -2294,6 +2299,52 @@ static ssize_t amdgpu_show_max_node_power_limit(struct device *dev,
 	return sysfs_emit(buf, "%u\n", max_nplimit);
 }
 
+/**
+ * DOC: baseboard_power
+ *
+ * The amdgpu driver provides a sysfs API for retrieving current ubb power in watts.
+ * The file baseboard_power is used for this.
+ */
+static ssize_t amdgpu_show_baseboard_power(struct device *dev,
+					   struct device_attribute *attr, char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	u32 ubbpower;
+	int r;
+
+	/* get the ubb power */
+	r = amdgpu_pm_get_sensor_generic(adev, AMDGPU_PP_SENSOR_UBB_POWER,
+					 (void *)&ubbpower);
+	if (r)
+		return r;
+
+	return sysfs_emit(buf, "%u\n", ubbpower);
+}
+
+/**
+ * DOC: baseboard_power_limit
+ *
+ * The amdgpu driver provides a sysfs API for retrieving threshold ubb power in watts.
+ * The file baseboard_power_limit is used for this.
+ */
+static ssize_t amdgpu_show_baseboard_power_limit(struct device *dev,
+						 struct device_attribute *attr, char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	u32 ubbpowerlimit;
+	int r;
+
+	/* get the ubb power limit */
+	r = amdgpu_pm_get_sensor_generic(adev, AMDGPU_PP_SENSOR_UBB_POWER_LIMIT,
+					 (void *)&ubbpowerlimit);
+	if (r)
+		return r;
+
+	return sysfs_emit(buf, "%u\n", ubbpowerlimit);
+}
+
 static DEVICE_ATTR(baseboard_temp, 0444, amdgpu_get_baseboard_temp_metrics, NULL);
 static DEVICE_ATTR(gpuboard_temp, 0444, amdgpu_get_gpuboard_temp_metrics, NULL);
 static DEVICE_ATTR(cur_node_power_limit, 0444, amdgpu_show_cur_node_power_limit, NULL);
@@ -2301,6 +2352,8 @@ static DEVICE_ATTR(node_power, 0444, amdgpu_show_node_power, NULL);
 static DEVICE_ATTR(global_ppt_resid, 0444, amdgpu_show_global_ppt_resid, NULL);
 static DEVICE_ATTR(max_node_power_limit, 0444, amdgpu_show_max_node_power_limit, NULL);
 static DEVICE_ATTR(npm_status, 0444, amdgpu_show_npm_status, NULL);
+static DEVICE_ATTR(baseboard_power, 0444, amdgpu_show_baseboard_power, NULL);
+static DEVICE_ATTR(baseboard_power_limit, 0444, amdgpu_show_baseboard_power_limit, NULL);
 
 static struct attribute *board_attrs[] = {
 	&dev_attr_baseboard_temp.attr,
@@ -4754,6 +4807,14 @@ int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 						&dev_attr_max_node_power_limit.attr,
 						amdgpu_board_attr_group.name);
 			sysfs_add_file_to_group(&adev->dev->kobj, &dev_attr_npm_status.attr,
+						amdgpu_board_attr_group.name);
+		}
+		if (amdgpu_pm_get_sensor_generic(adev, AMDGPU_PP_SENSOR_UBB_POWER_LIMIT,
+						 (void *)&tmp) != -EOPNOTSUPP) {
+			sysfs_add_file_to_group(&adev->dev->kobj,
+						&dev_attr_baseboard_power_limit.attr,
+						amdgpu_board_attr_group.name);
+			sysfs_add_file_to_group(&adev->dev->kobj, &dev_attr_baseboard_power.attr,
 						amdgpu_board_attr_group.name);
 		}
 	}
