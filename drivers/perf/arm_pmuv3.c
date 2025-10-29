@@ -1475,6 +1475,10 @@ static int name##_pmu_init(struct arm_pmu *cpu_pmu)			\
 
 PMUV3_INIT_SIMPLE(armv8_pmuv3)
 
+PMUV3_INIT_SIMPLE(armv8_c1_nano)
+PMUV3_INIT_SIMPLE(armv8_c1_premium)
+PMUV3_INIT_SIMPLE(armv8_c1_pro)
+PMUV3_INIT_SIMPLE(armv8_c1_ultra)
 PMUV3_INIT_SIMPLE(armv8_cortex_a34)
 PMUV3_INIT_SIMPLE(armv8_cortex_a55)
 PMUV3_INIT_SIMPLE(armv8_cortex_a65)
@@ -1482,11 +1486,14 @@ PMUV3_INIT_SIMPLE(armv8_cortex_a75)
 PMUV3_INIT_SIMPLE(armv8_cortex_a76)
 PMUV3_INIT_SIMPLE(armv8_cortex_a77)
 PMUV3_INIT_SIMPLE(armv8_cortex_a78)
+PMUV3_INIT_SIMPLE(armv9_cortex_a320)
 PMUV3_INIT_SIMPLE(armv9_cortex_a510)
 PMUV3_INIT_SIMPLE(armv9_cortex_a520)
+PMUV3_INIT_SIMPLE(armv9_cortex_a520ae)
 PMUV3_INIT_SIMPLE(armv9_cortex_a710)
 PMUV3_INIT_SIMPLE(armv9_cortex_a715)
 PMUV3_INIT_SIMPLE(armv9_cortex_a720)
+PMUV3_INIT_SIMPLE(armv9_cortex_a720ae)
 PMUV3_INIT_SIMPLE(armv9_cortex_a725)
 PMUV3_INIT_SIMPLE(armv8_cortex_x1)
 PMUV3_INIT_SIMPLE(armv9_cortex_x2)
@@ -1518,6 +1525,10 @@ PMUV3_INIT_MAP_EVENT(armv8_brcm_vulcan, armv8_vulcan_map_event)
 
 static const struct of_device_id armv8_pmu_of_device_ids[] = {
 	{.compatible = "arm,armv8-pmuv3",	.data = armv8_pmuv3_pmu_init},
+	{.compatible = "arm,c1-nano-pmu",	.data = armv8_c1_nano_pmu_init},
+	{.compatible = "arm,c1-premium-pmu",	.data = armv8_c1_premium_pmu_init},
+	{.compatible = "arm,c1-pro-pmu",	.data = armv8_c1_pro_pmu_init},
+	{.compatible = "arm,c1-ultra-pmu",	.data = armv8_c1_ultra_pmu_init},
 	{.compatible = "arm,cortex-a34-pmu",	.data = armv8_cortex_a34_pmu_init},
 	{.compatible = "arm,cortex-a35-pmu",	.data = armv8_cortex_a35_pmu_init},
 	{.compatible = "arm,cortex-a53-pmu",	.data = armv8_cortex_a53_pmu_init},
@@ -1530,11 +1541,14 @@ static const struct of_device_id armv8_pmu_of_device_ids[] = {
 	{.compatible = "arm,cortex-a76-pmu",	.data = armv8_cortex_a76_pmu_init},
 	{.compatible = "arm,cortex-a77-pmu",	.data = armv8_cortex_a77_pmu_init},
 	{.compatible = "arm,cortex-a78-pmu",	.data = armv8_cortex_a78_pmu_init},
+	{.compatible = "arm,cortex-a320-pmu",	.data = armv9_cortex_a320_pmu_init},
 	{.compatible = "arm,cortex-a510-pmu",	.data = armv9_cortex_a510_pmu_init},
 	{.compatible = "arm,cortex-a520-pmu",	.data = armv9_cortex_a520_pmu_init},
+	{.compatible = "arm,cortex-a520ae-pmu",	.data = armv9_cortex_a520ae_pmu_init},
 	{.compatible = "arm,cortex-a710-pmu",	.data = armv9_cortex_a710_pmu_init},
 	{.compatible = "arm,cortex-a715-pmu",	.data = armv9_cortex_a715_pmu_init},
 	{.compatible = "arm,cortex-a720-pmu",	.data = armv9_cortex_a720_pmu_init},
+	{.compatible = "arm,cortex-a720ae-pmu",	.data = armv9_cortex_a720ae_pmu_init},
 	{.compatible = "arm,cortex-a725-pmu",	.data = armv9_cortex_a725_pmu_init},
 	{.compatible = "arm,cortex-x1-pmu",	.data = armv8_cortex_x1_pmu_init},
 	{.compatible = "arm,cortex-x2-pmu",	.data = armv9_cortex_x2_pmu_init},
