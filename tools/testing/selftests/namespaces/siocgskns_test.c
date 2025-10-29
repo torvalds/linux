@@ -401,4 +401,145 @@ TEST(siocgskns_multiple_sockets)
 	}
 }
 
+/*
+ * Test socket keeps netns active after creating process exits.
+ * Verify that as long as the socket FD exists, the namespace remains active.
+ */
+TEST(siocgskns_netns_lifecycle)
+{
+	int sock_fd, netns_fd;
+	int ipc_sockets[2];
+	int syncpipe[2];
+	pid_t pid;
+	int status;
+	char sync_byte;
+	struct stat st;
+	ino_t netns_ino;
+
+	EXPECT_EQ(socketpair(AF_LOCAL, SOCK_STREAM | SOCK_CLOEXEC, 0, ipc_sockets), 0);
+
+	ASSERT_EQ(pipe(syncpipe), 0);
+
+	pid = fork();
+	ASSERT_GE(pid, 0);
+
+	if (pid == 0) {
+		/* Child */
+		close(ipc_sockets[0]);
+		close(syncpipe[1]);
+
+		if (unshare(CLONE_NEWNET) < 0) {
+			close(ipc_sockets[1]);
+			close(syncpipe[0]);
+			exit(1);
+		}
+
+		sock_fd = socket(AF_INET, SOCK_STREAM, 0);
+		if (sock_fd < 0) {
+			close(ipc_sockets[1]);
+			close(syncpipe[0]);
+			exit(1);
+		}
+
+		/* Send socket to parent */
+		struct msghdr msg = {0};
+		struct iovec iov = {0};
+		char buf[1] = {'X'};
+		char cmsg_buf[CMSG_SPACE(sizeof(int))];
+
+		iov.iov_base = buf;
+		iov.iov_len = 1;
+		msg.msg_iov = &iov;
+		msg.msg_iovlen = 1;
+		msg.msg_control = cmsg_buf;
+		msg.msg_controllen = sizeof(cmsg_buf);
+
+		struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msg);
+		cmsg->cmsg_level = SOL_SOCKET;
+		cmsg->cmsg_type = SCM_RIGHTS;
+		cmsg->cmsg_len = CMSG_LEN(sizeof(int));
+		memcpy(CMSG_DATA(cmsg), &sock_fd, sizeof(int));
+
+		if (sendmsg(ipc_sockets[1], &msg, 0) < 0) {
+			close(sock_fd);
+			close(ipc_sockets[1]);
+			close(syncpipe[0]);
+			exit(1);
+		}
+
+		close(sock_fd);
+		close(ipc_sockets[1]);
+
+		/* Wait for parent signal */
+		read(syncpipe[0], &sync_byte, 1);
+		close(syncpipe[0]);
+		exit(0);
+	}
+
+	/* Parent */
+	close(ipc_sockets[1]);
+	close(syncpipe[0]);
+
+	/* Receive socket FD */
+	struct msghdr msg = {0};
+	struct iovec iov = {0};
+	char buf[1];
+	char cmsg_buf[CMSG_SPACE(sizeof(int))];
+
+	iov.iov_base = buf;
+	iov.iov_len = 1;
+	msg.msg_iov = &iov;
+	msg.msg_iovlen = 1;
+	msg.msg_control = cmsg_buf;
+	msg.msg_controllen = sizeof(cmsg_buf);
+
+	ssize_t n = recvmsg(ipc_sockets[0], &msg, 0);
+	close(ipc_sockets[0]);
+	ASSERT_EQ(n, 1);
+
+	struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msg);
+	ASSERT_NE(cmsg, NULL);
+	memcpy(&sock_fd, CMSG_DATA(cmsg), sizeof(int));
+
+	/* Get netns from socket while child is alive */
+	netns_fd = ioctl(sock_fd, SIOCGSKNS);
+	if (netns_fd < 0) {
+		sync_byte = 'G';
+		write(syncpipe[1], &sync_byte, 1);
+		close(syncpipe[1]);
+		close(sock_fd);
+		waitpid(pid, NULL, 0);
+		if (errno == ENOTTY || errno == EINVAL)
+			SKIP(return, "SIOCGSKNS not supported");
+		ASSERT_GE(netns_fd, 0);
+	}
+	ASSERT_EQ(fstat(netns_fd, &st), 0);
+	netns_ino = st.st_ino;
+
+	/* Signal child to exit */
+	sync_byte = 'G';
+	write(syncpipe[1], &sync_byte, 1);
+	close(syncpipe[1]);
+
+	waitpid(pid, &status, 0);
+	ASSERT_TRUE(WIFEXITED(status));
+
+	/*
+	 * Socket FD should still keep namespace active even after
+	 * the creating process exited.
+	 */
+	int test_fd = ioctl(sock_fd, SIOCGSKNS);
+	ASSERT_GE(test_fd, 0);
+
+	struct stat st_test;
+	ASSERT_EQ(fstat(test_fd, &st_test), 0);
+	ASSERT_EQ(st_test.st_ino, netns_ino);
+
+	close(test_fd);
+	close(netns_fd);
+
+	/* Close socket - namespace should become inactive */
+	close(sock_fd);
+}
+
 TEST_HARNESS_MAIN
