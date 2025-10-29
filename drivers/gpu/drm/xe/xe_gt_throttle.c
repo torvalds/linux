@@ -93,7 +93,6 @@ static ssize_t status_show(struct kobject *kobj,
 
 	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, U32_MAX));
 }
-static struct kobj_attribute attr_status = __ATTR_RO(status);
 
 static ssize_t reason_pl1_show(struct kobject *kobj,
 			       struct kobj_attribute *attr, char *buff)
@@ -102,7 +101,6 @@ static ssize_t reason_pl1_show(struct kobject *kobj,
 
 	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, POWER_LIMIT_1_MASK));
 }
-static struct kobj_attribute attr_reason_pl1 = __ATTR_RO(reason_pl1);
 
 static ssize_t reason_pl2_show(struct kobject *kobj,
 			       struct kobj_attribute *attr, char *buff)
@@ -111,7 +109,6 @@ static ssize_t reason_pl2_show(struct kobject *kobj,
 
 	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, POWER_LIMIT_2_MASK));
 }
-static struct kobj_attribute attr_reason_pl2 = __ATTR_RO(reason_pl2);
 
 static ssize_t reason_pl4_show(struct kobject *kobj,
 			       struct kobj_attribute *attr, char *buff)
@@ -120,7 +117,6 @@ static ssize_t reason_pl4_show(struct kobject *kobj,
 
 	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, POWER_LIMIT_4_MASK));
 }
-static struct kobj_attribute attr_reason_pl4 = __ATTR_RO(reason_pl4);
 
 static ssize_t reason_thermal_show(struct kobject *kobj,
 				   struct kobj_attribute *attr, char *buff)
@@ -129,7 +125,6 @@ static ssize_t reason_thermal_show(struct kobject *kobj,
 
 	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, THERMAL_LIMIT_MASK));
 }
-static struct kobj_attribute attr_reason_thermal = __ATTR_RO(reason_thermal);
 
 static ssize_t reason_soc_thermal_show(struct kobject *kobj,
 				       struct kobj_attribute *attr, char *buff)
@@ -138,7 +133,6 @@ static ssize_t reason_soc_thermal_show(struct kobject *kobj,
 
 	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, SOC_THERMAL_LIMIT_MASK));
 }
-static struct kobj_attribute attr_reason_soc_thermal = __ATTR_RO(reason_soc_thermal);
 
 static ssize_t reason_prochot_show(struct kobject *kobj,
 				   struct kobj_attribute *attr, char *buff)
@@ -147,7 +141,6 @@ static ssize_t reason_prochot_show(struct kobject *kobj,
 
 	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, PROCHOT_MASK));
 }
-static struct kobj_attribute attr_reason_prochot = __ATTR_RO(reason_prochot);
 
 static ssize_t reason_ratl_show(struct kobject *kobj,
 				struct kobj_attribute *attr, char *buff)
@@ -156,7 +149,6 @@ static ssize_t reason_ratl_show(struct kobject *kobj,
 
 	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, RATL_MASK));
 }
-static struct kobj_attribute attr_reason_ratl = __ATTR_RO(reason_ratl);
 
 static ssize_t reason_vr_thermalert_show(struct kobject *kobj,
 					 struct kobj_attribute *attr, char *buff)
@@ -165,7 +157,6 @@ static ssize_t reason_vr_thermalert_show(struct kobject *kobj,
 
 	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, VR_THERMALERT_MASK));
 }
-static struct kobj_attribute attr_reason_vr_thermalert = __ATTR_RO(reason_vr_thermalert);
 
 static ssize_t reason_soc_avg_thermal_show(struct kobject *kobj,
 					   struct kobj_attribute *attr, char *buff)
@@ -174,7 +165,6 @@ static ssize_t reason_soc_avg_thermal_show(struct kobject *kobj,
 
 	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, SOC_AVG_THERMAL_MASK));
 }
-static struct kobj_attribute attr_reason_soc_avg_thermal = __ATTR_RO(reason_soc_avg_thermal);
 
 static ssize_t reason_vr_tdc_show(struct kobject *kobj,
 				  struct kobj_attribute *attr, char *buff)
@@ -183,7 +173,6 @@ static ssize_t reason_vr_tdc_show(struct kobject *kobj,
 
 	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, VR_TDC_MASK));
 }
-static struct kobj_attribute attr_reason_vr_tdc = __ATTR_RO(reason_vr_tdc);
 
 static ssize_t reason_fastvmode_show(struct kobject *kobj,
 				     struct kobj_attribute *attr, char *buff)
@@ -192,7 +181,6 @@ static ssize_t reason_fastvmode_show(struct kobject *kobj,
 
 	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, FASTVMODE_MASK));
 }
-static struct kobj_attribute attr_reason_fastvmode = __ATTR_RO(reason_fastvmode);
 
 static ssize_t reason_mem_thermal_show(struct kobject *kobj,
 				       struct kobj_attribute *attr, char *buff)
@@ -201,7 +189,6 @@ static ssize_t reason_mem_thermal_show(struct kobject *kobj,
 
 	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, MEM_THERMAL_MASK));
 }
-static struct kobj_attribute attr_reason_mem_thermal = __ATTR_RO(reason_mem_thermal);
 
 static ssize_t reason_vr_thermal_show(struct kobject *kobj,
 				      struct kobj_attribute *attr, char *buff)
@@ -210,7 +197,6 @@ static ssize_t reason_vr_thermal_show(struct kobject *kobj,
 
 	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, VR_THERMAL_MASK));
 }
-static struct kobj_attribute attr_reason_vr_thermal = __ATTR_RO(reason_vr_thermal);
 
 static ssize_t reason_iccmax_show(struct kobject *kobj,
 				  struct kobj_attribute *attr, char *buff)
@@ -219,7 +205,6 @@ static ssize_t reason_iccmax_show(struct kobject *kobj,
 
 	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, ICCMAX_MASK));
 }
-static struct kobj_attribute attr_reason_iccmax = __ATTR_RO(reason_iccmax);
 
 static ssize_t reason_psys_pl1_show(struct kobject *kobj,
 				    struct kobj_attribute *attr, char *buff)
@@ -228,7 +213,6 @@ static ssize_t reason_psys_pl1_show(struct kobject *kobj,
 
 	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, PSYS_PL1_MASK));
 }
-static struct kobj_attribute attr_reason_psys_pl1 = __ATTR_RO(reason_psys_pl1);
 
 static ssize_t reason_psys_pl2_show(struct kobject *kobj,
 				    struct kobj_attribute *attr, char *buff)
@@ -237,7 +221,6 @@ static ssize_t reason_psys_pl2_show(struct kobject *kobj,
 
 	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, PSYS_PL2_MASK));
 }
-static struct kobj_attribute attr_reason_psys_pl2 = __ATTR_RO(reason_psys_pl2);
 
 static ssize_t reason_p0_freq_show(struct kobject *kobj,
 				   struct kobj_attribute *attr, char *buff)
@@ -246,7 +229,6 @@ static ssize_t reason_p0_freq_show(struct kobject *kobj,
 
 	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, P0_FREQ_MASK));
 }
-static struct kobj_attribute attr_reason_p0_freq = __ATTR_RO(reason_p0_freq);
 
 static ssize_t reason_psys_crit_show(struct kobject *kobj,
 				     struct kobj_attribute *attr, char *buff)
@@ -255,7 +237,19 @@ static ssize_t reason_psys_crit_show(struct kobject *kobj,
 
 	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, PSYS_CRIT_MASK));
 }
-static struct kobj_attribute attr_reason_psys_crit = __ATTR_RO(reason_psys_crit);
+
+#define THROTTLE_ATTR_RO(name) \
+	struct kobj_attribute attr_##name = __ATTR_RO(name)
+
+static THROTTLE_ATTR_RO(status);
+static THROTTLE_ATTR_RO(reason_pl1);
+static THROTTLE_ATTR_RO(reason_pl2);
+static THROTTLE_ATTR_RO(reason_pl4);
+static THROTTLE_ATTR_RO(reason_thermal);
+static THROTTLE_ATTR_RO(reason_prochot);
+static THROTTLE_ATTR_RO(reason_ratl);
+static THROTTLE_ATTR_RO(reason_vr_thermalert);
+static THROTTLE_ATTR_RO(reason_vr_tdc);
 
 static struct attribute *throttle_attrs[] = {
 	&attr_status.attr,
@@ -270,19 +264,32 @@ static struct attribute *throttle_attrs[] = {
 	NULL
 };
 
+static THROTTLE_ATTR_RO(reason_vr_thermal);
+static THROTTLE_ATTR_RO(reason_soc_thermal);
+static THROTTLE_ATTR_RO(reason_mem_thermal);
+static THROTTLE_ATTR_RO(reason_iccmax);
+static THROTTLE_ATTR_RO(reason_soc_avg_thermal);
+static THROTTLE_ATTR_RO(reason_fastvmode);
+static THROTTLE_ATTR_RO(reason_psys_pl1);
+static THROTTLE_ATTR_RO(reason_psys_pl2);
+static THROTTLE_ATTR_RO(reason_p0_freq);
+static THROTTLE_ATTR_RO(reason_psys_crit);
+
 static struct attribute *cri_throttle_attrs[] = {
+	/* Common */
 	&attr_status.attr,
-	&attr_reason_prochot.attr,
-	&attr_reason_soc_thermal.attr,
-	&attr_reason_mem_thermal.attr,
-	&attr_reason_vr_thermal.attr,
-	&attr_reason_iccmax.attr,
-	&attr_reason_ratl.attr,
-	&attr_reason_soc_avg_thermal.attr,
-	&attr_reason_fastvmode.attr,
-	&attr_reason_pl4.attr,
 	&attr_reason_pl1.attr,
 	&attr_reason_pl2.attr,
+	&attr_reason_pl4.attr,
+	&attr_reason_prochot.attr,
+	&attr_reason_ratl.attr,
+	/* CRI */
+	&attr_reason_vr_thermal.attr,
+	&attr_reason_soc_thermal.attr,
+	&attr_reason_mem_thermal.attr,
+	&attr_reason_iccmax.attr,
+	&attr_reason_soc_avg_thermal.attr,
+	&attr_reason_fastvmode.attr,
 	&attr_reason_psys_pl1.attr,
 	&attr_reason_psys_pl2.attr,
 	&attr_reason_p0_freq.attr,
