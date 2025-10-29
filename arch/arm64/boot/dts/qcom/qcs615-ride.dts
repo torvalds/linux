@@ -10,7 +10,7 @@
 #include "talos.dtsi"
 #include "pm8150.dtsi"
 / {
-	model = "Qualcomm Technologies, Inc. QCS615 Ride";
+	model = "Qualcomm Technologies, Inc. QCS615 Ride (IQ-615 Beta EVK)";
 	compatible = "qcom,qcs615-ride", "qcom,qcs615", "qcom,sm6150";
 	chassis-type = "embedded";
 
