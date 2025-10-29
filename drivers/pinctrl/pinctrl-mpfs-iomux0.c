@@ -73,33 +73,33 @@ static const unsigned int mpfs_iomux0_uart4_pins[] = { 11 };
 static const unsigned int mpfs_iomux0_mdio0_pins[] = { 12 };
 static const unsigned int mpfs_iomux0_mdio1_pins[] = { 13 };
 
-#define MPFS_IOMUX0_GROUP(_name) { \
+#define MPFS_IOMUX0_GROUP(_name, _mask) { \
 	.name = #_name "_mssio",	\
 	.pins = mpfs_iomux0_##_name##_pins,	\
-	.mask = BIT(mpfs_iomux0_##_name##_pins[0]),	\
+	.mask = _mask,	\
 	.setting = 0x0,	\
 }, { \
 	.name = #_name "_fabric",	\
 	.pins = mpfs_iomux0_##_name##_pins,	\
-	.mask = BIT(mpfs_iomux0_##_name##_pins[0]),	\
-	.setting = BIT(mpfs_iomux0_##_name##_pins[0]),	\
+	.mask = _mask,	\
+	.setting = _mask,	\
 }
 
 static const struct mpfs_iomux0_pin_group mpfs_iomux0_pin_groups[] = {
-	MPFS_IOMUX0_GROUP(spi0),
-	MPFS_IOMUX0_GROUP(spi1),
-	MPFS_IOMUX0_GROUP(i2c0),
-	MPFS_IOMUX0_GROUP(i2c1),
-	MPFS_IOMUX0_GROUP(can0),
-	MPFS_IOMUX0_GROUP(can1),
-	MPFS_IOMUX0_GROUP(qspi),
-	MPFS_IOMUX0_GROUP(uart0),
-	MPFS_IOMUX0_GROUP(uart1),
-	MPFS_IOMUX0_GROUP(uart2),
-	MPFS_IOMUX0_GROUP(uart3),
-	MPFS_IOMUX0_GROUP(uart4),
-	MPFS_IOMUX0_GROUP(mdio0),
-	MPFS_IOMUX0_GROUP(mdio1),
+	MPFS_IOMUX0_GROUP(spi0, BIT(0)),
+	MPFS_IOMUX0_GROUP(spi1, BIT(1)),
+	MPFS_IOMUX0_GROUP(i2c0, BIT(2)),
+	MPFS_IOMUX0_GROUP(i2c1, BIT(3)),
+	MPFS_IOMUX0_GROUP(can0, BIT(4)),
+	MPFS_IOMUX0_GROUP(can1, BIT(5)),
+	MPFS_IOMUX0_GROUP(qspi, BIT(6)),
+	MPFS_IOMUX0_GROUP(uart0, BIT(7)),
+	MPFS_IOMUX0_GROUP(uart1, BIT(8)),
+	MPFS_IOMUX0_GROUP(uart2, BIT(9)),
+	MPFS_IOMUX0_GROUP(uart3, BIT(10)),
+	MPFS_IOMUX0_GROUP(uart4, BIT(11)),
+	MPFS_IOMUX0_GROUP(mdio0, BIT(12)),
+	MPFS_IOMUX0_GROUP(mdio1, BIT(13)),
 };
 
 static const char * const mpfs_iomux0_spi0_groups[] = { "spi0_mssio", "spi0_fabric" };
