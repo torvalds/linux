@@ -35,7 +35,9 @@ enum blktrace_cat {
 	BLK_TC_ZONE_OPEN	= 1ull << 20,	/* zone open */
 	BLK_TC_ZONE_CLOSE	= 1ull << 21,	/* zone close */
 
-	BLK_TC_END_V2		= 1ull << 21,
+	BLK_TC_WRITE_ZEROES	= 1ull << 22,	/* write-zeroes */
+
+	BLK_TC_END_V2		= 1ull << 22,
 };
 
 #define BLK_TC_SHIFT		(16)
