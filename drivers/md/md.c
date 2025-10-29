@@ -941,7 +941,8 @@ void mddev_unlock(struct mddev *mddev)
 		 * do_md_stop. dm raid only uses md_stop to stop. So dm raid
 		 * doesn't need to check MD_DELETED when getting reconfig lock
 		 */
-		if (test_bit(MD_DELETED, &mddev->flags)) {
+		if (test_bit(MD_DELETED, &mddev->flags) &&
+		    !test_and_set_bit(MD_DO_DELETE, &mddev->flags)) {
 			kobject_del(&mddev->kobj);
 			del_gendisk(mddev->gendisk);
 		}
