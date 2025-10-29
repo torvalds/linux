@@ -3,7 +3,9 @@
 
 #include <linux/nstree.h>
 #include <linux/proc_ns.h>
+#include <linux/rculist.h>
 #include <linux/vfsdebug.h>
+#include <linux/user_namespace.h>
 
 static __cacheline_aligned_in_smp DEFINE_SEQLOCK(ns_tree_lock);
 static struct rb_root ns_unified_tree = RB_ROOT; /* protected by ns_tree_lock */
@@ -83,6 +85,13 @@ static inline struct ns_common *node_to_ns_unified(const struct rb_node *node)
 	return rb_entry(node, struct ns_common, ns_unified_tree_node);
 }
 
+static inline struct ns_common *node_to_ns_owner(const struct rb_node *node)
+{
+	if (!node)
+		return NULL;
+	return rb_entry(node, struct ns_common, ns_owner_tree_node);
+}
+
 static inline int ns_cmp(struct rb_node *a, const struct rb_node *b)
 {
 	struct ns_common *ns_a = node_to_ns(a);
@@ -111,11 +120,27 @@ static inline int ns_cmp_unified(struct rb_node *a, const struct rb_node *b)
 	return 0;
 }
 
+static inline int ns_cmp_owner(struct rb_node *a, const struct rb_node *b)
+{
+	struct ns_common *ns_a = node_to_ns_owner(a);
+	struct ns_common *ns_b = node_to_ns_owner(b);
+	u64 ns_id_a = ns_a->ns_id;
+	u64 ns_id_b = ns_b->ns_id;
+
+	if (ns_id_a < ns_id_b)
+		return -1;
+	if (ns_id_a > ns_id_b)
+		return 1;
+	return 0;
+}
+
 void __ns_tree_add_raw(struct ns_common *ns, struct ns_tree *ns_tree)
 {
 	struct rb_node *node, *prev;
+	const struct proc_ns_operations *ops = ns->ops;
 
 	VFS_WARN_ON_ONCE(!ns->ns_id);
+	VFS_WARN_ON_ONCE(ns->ns_type != ns_tree->type);
 
 	write_seqlock(&ns_tree_lock);
 
@@ -131,6 +156,30 @@ void __ns_tree_add_raw(struct ns_common *ns, struct ns_tree *ns_tree)
 		list_add_rcu(&ns->ns_list_node, &node_to_ns(prev)->ns_list_node);
 
 	rb_find_add_rcu(&ns->ns_unified_tree_node, &ns_unified_tree, ns_cmp_unified);
+
+	if (ops) {
+		struct user_namespace *user_ns;
+
+		VFS_WARN_ON_ONCE(!ops->owner);
+		user_ns = ops->owner(ns);
+		if (user_ns) {
+			struct ns_common *owner = &user_ns->ns;
+			VFS_WARN_ON_ONCE(owner->ns_type != CLONE_NEWUSER);
+
+			/* Insert into owner's rbtree */
+			rb_find_add_rcu(&ns->ns_owner_tree_node, &owner->ns_owner_tree, ns_cmp_owner);
+
+			/* Insert into owner's list in sorted order */
+			prev = rb_prev(&ns->ns_owner_tree_node);
+			if (!prev)
+				list_add_rcu(&ns->ns_owner_entry, &owner->ns_owner);
+			else
+				list_add_rcu(&ns->ns_owner_entry, &node_to_ns_owner(prev)->ns_owner_entry);
+		} else {
+			/* Only the initial user namespace doesn't have an owner. */
+			VFS_WARN_ON_ONCE(ns != to_ns_common(&init_user_ns));
+		}
+	}
 	write_sequnlock(&ns_tree_lock);
 
 	VFS_WARN_ON_ONCE(node);
@@ -146,6 +195,9 @@ void __ns_tree_add_raw(struct ns_common *ns, struct ns_tree *ns_tree)
 
 void __ns_tree_remove(struct ns_common *ns, struct ns_tree *ns_tree)
 {
+	const struct proc_ns_operations *ops = ns->ops;
+	struct user_namespace *user_ns;
+
 	VFS_WARN_ON_ONCE(RB_EMPTY_NODE(&ns->ns_tree_node));
 	VFS_WARN_ON_ONCE(list_empty(&ns->ns_list_node));
 	VFS_WARN_ON_ONCE(ns->ns_type != ns_tree->type);
@@ -153,8 +205,22 @@ void __ns_tree_remove(struct ns_common *ns, struct ns_tree *ns_tree)
 	write_seqlock(&ns_tree_lock);
 	rb_erase(&ns->ns_tree_node, &ns_tree->ns_tree);
 	rb_erase(&ns->ns_unified_tree_node, &ns_unified_tree);
-	list_bidir_del_rcu(&ns->ns_list_node);
 	RB_CLEAR_NODE(&ns->ns_tree_node);
+
+	list_bidir_del_rcu(&ns->ns_list_node);
+
+	/* Remove from owner's rbtree if this namespace has an owner */
+	if (ops) {
+		user_ns = ops->owner(ns);
+		if (user_ns) {
+			struct ns_common *owner = &user_ns->ns;
+			rb_erase(&ns->ns_owner_tree_node, &owner->ns_owner_tree);
+			RB_CLEAR_NODE(&ns->ns_owner_tree_node);
+		}
+
+		list_bidir_del_rcu(&ns->ns_owner_entry);
+	}
+
 	write_sequnlock(&ns_tree_lock);
 }
 EXPORT_SYMBOL_GPL(__ns_tree_remove);

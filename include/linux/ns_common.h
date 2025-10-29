@@ -116,6 +116,12 @@ struct ns_common {
 				struct rb_node ns_tree_node;
 				struct list_head ns_list_node;
 			};
+			struct /* namespace ownership rbtree and list */ {
+				struct rb_root ns_owner_tree; /* rbtree of namespaces owned by this namespace */
+				struct list_head ns_owner; /* list of namespaces owned by this namespace */
+				struct rb_node ns_owner_tree_node; /* node in the owner namespace's rbtree */
+				struct list_head ns_owner_entry; /* node in the owner namespace's ns_owned list */
+			};
 			atomic_t __ns_ref_active; /* do not use directly */
 		};
 		struct rcu_head ns_rcu;
@@ -216,6 +222,8 @@ static __always_inline bool is_initial_namespace(struct ns_common *ns)
 	.__ns_ref		= REFCOUNT_INIT(refs),					\
 	.__ns_ref_active	= ATOMIC_INIT(1),					\
 	.ns_list_node		= LIST_HEAD_INIT(nsname.ns.ns_list_node),		\
+	.ns_owner_entry		= LIST_HEAD_INIT(nsname.ns.ns_owner_entry),		\
+	.ns_owner		= LIST_HEAD_INIT(nsname.ns.ns_owner),			\
 }
 
 #define ns_common_init(__ns)                     \
