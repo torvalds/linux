@@ -69,8 +69,6 @@ struct ns_tree time_ns_tree = {
 	.type = CLONE_NEWTIME,
 };
 
-DEFINE_COOKIE(namespace_cookie);
-
 static inline struct ns_common *node_to_ns(const struct rb_node *node)
 {
 	if (!node)
@@ -285,15 +283,20 @@ struct ns_common *__ns_tree_adjoined_rcu(struct ns_common *ns,
 /**
  * ns_tree_gen_id - generate a new namespace id
  * @ns: namespace to generate id for
+ * @id: if non-zero, this is the initial namespace and this is a fixed id
  *
  * Generates a new namespace id and assigns it to the namespace. All
  * namespaces types share the same id space and thus can be compared
  * directly. IOW, when two ids of two namespace are equal, they are
  * identical.
  */
-u64 ns_tree_gen_id(struct ns_common *ns)
+u64 __ns_tree_gen_id(struct ns_common *ns, u64 id)
 {
-	guard(preempt)();
-	ns->ns_id = gen_cookie_next(&namespace_cookie);
+	static atomic64_t namespace_cookie = ATOMIC64_INIT(NS_LAST_INIT_ID + 1);
+
+	if (id)
+		ns->ns_id = id;
+	else
+		ns->ns_id = atomic64_inc_return(&namespace_cookie);
 	return ns->ns_id;
 }

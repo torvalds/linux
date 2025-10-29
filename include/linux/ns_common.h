@@ -173,6 +173,17 @@ static __always_inline bool is_initial_namespace(struct ns_common *ns)
 		struct user_namespace *:   &init_user_ns,   \
 		struct uts_namespace *:    &init_uts_ns)
 
+#define ns_init_id(__ns)						\
+	_Generic((__ns),						\
+		struct cgroup_namespace *:	CGROUP_NS_INIT_ID,	\
+		struct ipc_namespace *:		IPC_NS_INIT_ID,		\
+		struct mnt_namespace *:		MNT_NS_INIT_ID,		\
+		struct net *:			NET_NS_INIT_ID,		\
+		struct pid_namespace *:		PID_NS_INIT_ID,		\
+		struct time_namespace *:	TIME_NS_INIT_ID,	\
+		struct user_namespace *:	USER_NS_INIT_ID,	\
+		struct uts_namespace *:		UTS_NS_INIT_ID)
+
 #define to_ns_operations(__ns)                                                                         \
 	_Generic((__ns),                                                                               \
 		struct cgroup_namespace *: (IS_ENABLED(CONFIG_CGROUPS) ? &cgroupns_operations : NULL), \
@@ -198,7 +209,7 @@ static __always_inline bool is_initial_namespace(struct ns_common *ns)
 #define NS_COMMON_INIT(nsname, refs)							\
 {											\
 	.ns_type		= ns_common_type(&nsname),				\
-	.ns_id			= 0,							\
+	.ns_id			= ns_init_id(&nsname),					\
 	.inum			= ns_init_inum(&nsname),				\
 	.ops			= to_ns_operations(&nsname),				\
 	.stashed		= NULL,							\
