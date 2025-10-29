@@ -448,4 +448,159 @@ TEST(pidns_active_ref_lifecycle)
 	ASSERT_TRUE(errno == ENOENT || errno == ESTALE);
 }
 
+/*
+ * Test that an open file descriptor keeps a namespace active.
+ * Even after the creating process exits, the namespace should remain
+ * active as long as an fd is held open.
+ */
+TEST(ns_fd_keeps_active)
+{
+	struct file_handle *handle;
+	int mount_id;
+	int ret;
+	int nsfd;
+	int pipe_child_ready[2];
+	int pipe_parent_ready[2];
+	pid_t pid;
+	int status;
+	char buf[sizeof(*handle) + MAX_HANDLE_SZ];
+	char sync_byte;
+	char proc_path[64];
+
+	ASSERT_EQ(pipe(pipe_child_ready), 0);
+	ASSERT_EQ(pipe(pipe_parent_ready), 0);
+
+	pid = fork();
+	ASSERT_GE(pid, 0);
+
+	if (pid == 0) {
+		/* Child process */
+		close(pipe_child_ready[0]);
+		close(pipe_parent_ready[1]);
+
+		TH_LOG("Child: creating new network namespace");
+
+		/* Create new network namespace */
+		ret = unshare(CLONE_NEWNET);
+		if (ret < 0) {
+			TH_LOG("Child: unshare(CLONE_NEWNET) failed: %s", strerror(errno));
+			close(pipe_child_ready[1]);
+			close(pipe_parent_ready[0]);
+			exit(1);
+		}
+
+		TH_LOG("Child: network namespace created successfully");
+
+		/* Get file handle for the namespace */
+		nsfd = open("/proc/self/ns/net", O_RDONLY);
+		if (nsfd < 0) {
+			TH_LOG("Child: failed to open /proc/self/ns/net: %s", strerror(errno));
+			close(pipe_child_ready[1]);
+			close(pipe_parent_ready[0]);
+			exit(1);
+		}
+
+		TH_LOG("Child: opened namespace fd %d", nsfd);
+
+		handle = (struct file_handle *)buf;
+		handle->handle_bytes = MAX_HANDLE_SZ;
+		ret = name_to_handle_at(nsfd, "", handle, &mount_id, AT_EMPTY_PATH);
+		close(nsfd);
+
+		if (ret < 0) {
+			TH_LOG("Child: name_to_handle_at failed: %s", strerror(errno));
+			close(pipe_child_ready[1]);
+			close(pipe_parent_ready[0]);
+			exit(1);
+		}
+
+		TH_LOG("Child: got file handle (bytes=%u)", handle->handle_bytes);
+
+		/* Send file handle to parent */
+		ret = write(pipe_child_ready[1], buf, sizeof(*handle) + handle->handle_bytes);
+		TH_LOG("Child: sent %d bytes of file handle to parent", ret);
+		close(pipe_child_ready[1]);
+
+		/* Wait for parent to open the fd */
+		TH_LOG("Child: waiting for parent to open fd");
+		ret = read(pipe_parent_ready[0], &sync_byte, 1);
+		close(pipe_parent_ready[0]);
+
+		TH_LOG("Child: parent signaled (read %d bytes), exiting now", ret);
+		/* Exit - namespace should stay active because parent holds fd */
+		exit(0);
+	}
+
+	/* Parent process */
+	close(pipe_child_ready[1]);
+	close(pipe_parent_ready[0]);
+
+	TH_LOG("Parent: reading file handle from child");
+
+	/* Read file handle from child */
+	ret = read(pipe_child_ready[0], buf, sizeof(buf));
+	close(pipe_child_ready[0]);
+	ASSERT_GT(ret, 0);
+	handle = (struct file_handle *)buf;
+
+	TH_LOG("Parent: received %d bytes, handle size=%u", ret, handle->handle_bytes);
+
+	/* Open the child's namespace while it's still alive */
+	snprintf(proc_path, sizeof(proc_path), "/proc/%d/ns/net", pid);
+	TH_LOG("Parent: opening child's namespace at %s", proc_path);
+	nsfd = open(proc_path, O_RDONLY);
+	if (nsfd < 0) {
+		TH_LOG("Parent: failed to open %s: %s", proc_path, strerror(errno));
+		close(pipe_parent_ready[1]);
+		kill(pid, SIGKILL);
+		waitpid(pid, NULL, 0);
+		SKIP(return, "Failed to open child's namespace");
+	}
+
+	TH_LOG("Parent: opened child's namespace, got fd %d", nsfd);
+
+	/* Signal child that we have the fd */
+	sync_byte = 'G';
+	write(pipe_parent_ready[1], &sync_byte, 1);
+	close(pipe_parent_ready[1]);
+	TH_LOG("Parent: signaled child that we have the fd");
+
+	/* Wait for child to exit */
+	waitpid(pid, &status, 0);
+	ASSERT_TRUE(WIFEXITED(status));
+	ASSERT_EQ(WEXITSTATUS(status), 0);
+
+	TH_LOG("Child exited, parent holds fd %d to namespace", nsfd);
+
+	/*
+	 * Namespace should still be ACTIVE because we hold an fd.
+	 * We should be able to reopen it via file handle.
+	 */
+	TH_LOG("Attempting to reopen namespace via file handle (should succeed - fd held)");
+	int fd2 = open_by_handle_at(FD_NSFS_ROOT, handle, O_RDONLY);
+	ASSERT_GE(fd2, 0);
+
+	TH_LOG("Successfully reopened namespace via file handle, got fd %d", fd2);
+
+	/* Verify it's the same namespace */
+	struct stat st1, st2;
+	ASSERT_EQ(fstat(nsfd, &st1), 0);
+	ASSERT_EQ(fstat(fd2, &st2), 0);
+	TH_LOG("Namespace inodes: nsfd=%lu, fd2=%lu", st1.st_ino, st2.st_ino);
+	ASSERT_EQ(st1.st_ino, st2.st_ino);
+	close(fd2);
+
+	/* Now close the fd - namespace should become inactive */
+	TH_LOG("Closing fd %d - namespace should become inactive", nsfd);
+	close(nsfd);
+
+	/* Now reopening should fail - namespace is inactive */
+	TH_LOG("Attempting to reopen namespace via file handle (should fail - inactive)");
+	fd2 = open_by_handle_at(FD_NSFS_ROOT, handle, O_RDONLY);
+	ASSERT_LT(fd2, 0);
+	/* Should fail with ENOENT (inactive) or ESTALE (gone) */
+	TH_LOG("Reopen failed as expected: %s (errno=%d)", strerror(errno), errno);
+	ASSERT_TRUE(errno == ENOENT || errno == ESTALE);
+}
+
 TEST_HARNESS_MAIN
