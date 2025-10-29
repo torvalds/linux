@@ -190,7 +190,8 @@ static inline struct mpls_dev *mpls_dev_rcu(const struct net_device *dev)
 	return rcu_dereference(dev->mpls_ptr);
 }
 
-static inline struct mpls_dev *mpls_dev_get(const struct net_device *dev)
+static inline struct mpls_dev *mpls_dev_get(const struct net *net,
+					    const struct net_device *dev)
 {
 	return rcu_dereference_rtnl(dev->mpls_ptr);
 }

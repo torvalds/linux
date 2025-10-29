@@ -708,7 +708,7 @@ static int mpls_nh_assign_dev(struct net *net, struct mpls_route *rt,
 
 	/* Ensure this is a supported device */
 	err = -EINVAL;
-	if (!mpls_dev_get(dev))
+	if (!mpls_dev_get(net, dev))
 		goto errout_put;
 
 	if ((nh->nh_via_table == NEIGH_LINK_TABLE) &&
@@ -1288,7 +1288,7 @@ static int mpls_netconf_get_devconf(struct sk_buff *in_skb,
 	if (!dev)
 		goto errout;
 
-	mdev = mpls_dev_get(dev);
+	mdev = mpls_dev_get(net, dev);
 	if (!mdev)
 		goto errout;
 
@@ -1611,6 +1611,7 @@ static int mpls_dev_notify(struct notifier_block *this, unsigned long event,
 			   void *ptr)
 {
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net *net = dev_net(dev);
 	struct mpls_dev *mdev;
 	unsigned int flags;
 	int err;
@@ -1625,7 +1626,7 @@ static int mpls_dev_notify(struct notifier_block *this, unsigned long event,
 		goto out;
 	}
 
-	mdev = mpls_dev_get(dev);
+	mdev = mpls_dev_get(net, dev);
 	if (!mdev)
 		goto out;
 
@@ -1658,7 +1659,7 @@ static int mpls_dev_notify(struct notifier_block *this, unsigned long event,
 		if (err)
 			goto err;
 
-		mdev = mpls_dev_get(dev);
+		mdev = mpls_dev_get(net, dev);
 		if (mdev) {
 			mpls_dev_sysctl_unregister(dev, mdev);
 			RCU_INIT_POINTER(dev->mpls_ptr, NULL);
@@ -1666,7 +1667,7 @@ static int mpls_dev_notify(struct notifier_block *this, unsigned long event,
 		}
 		break;
 	case NETDEV_CHANGENAME:
-		mdev = mpls_dev_get(dev);
+		mdev = mpls_dev_get(net, dev);
 		if (mdev) {
 			mpls_dev_sysctl_unregister(dev, mdev);
 			err = mpls_dev_sysctl_register(dev, mdev);
