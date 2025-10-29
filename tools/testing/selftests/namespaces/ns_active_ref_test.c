@@ -152,4 +152,128 @@ TEST(ns_inactive_after_exit)
 	ASSERT_TRUE(errno == ENOENT || errno == ESTALE);
 }
 
+/*
+ * Test that a namespace remains active while a process is using it,
+ * even after the creating process exits.
+ */
+TEST(ns_active_with_multiple_processes)
+{
+	struct file_handle *handle;
+	int mount_id;
+	int ret;
+	int fd;
+	int pipefd[2];
+	int syncpipe[2];
+	pid_t pid1, pid2;
+	int status;
+	char buf[sizeof(*handle) + MAX_HANDLE_SZ];
+	char sync_byte;
+
+	/* Create pipes for communication */
+	ASSERT_EQ(pipe(pipefd), 0);
+	ASSERT_EQ(pipe(syncpipe), 0);
+
+	pid1 = fork();
+	ASSERT_GE(pid1, 0);
+
+	if (pid1 == 0) {
+		/* First child - creates namespace */
+		close(pipefd[0]);
+		close(syncpipe[1]);
+
+		/* Create new network namespace */
+		ret = unshare(CLONE_NEWNET);
+		if (ret < 0) {
+			close(pipefd[1]);
+			close(syncpipe[0]);
+			exit(1);
+		}
+
+		/* Open and get handle */
+		fd = open("/proc/self/ns/net", O_RDONLY);
+		if (fd < 0) {
+			close(pipefd[1]);
+			close(syncpipe[0]);
+			exit(1);
+		}
+
+		handle = (struct file_handle *)buf;
+		handle->handle_bytes = MAX_HANDLE_SZ;
+		ret = name_to_handle_at(fd, "", handle, &mount_id, AT_EMPTY_PATH);
+		close(fd);
+
+		if (ret < 0) {
+			close(pipefd[1]);
+			close(syncpipe[0]);
+			exit(1);
+		}
+
+		/* Send handle to parent */
+		write(pipefd[1], buf, sizeof(*handle) + handle->handle_bytes);
+		close(pipefd[1]);
+
+		/* Wait for signal before exiting */
+		read(syncpipe[0], &sync_byte, 1);
+		close(syncpipe[0]);
+		exit(0);
+	}
+
+	/* Parent reads handle */
+	close(pipefd[1]);
+	ret = read(pipefd[0], buf, sizeof(buf));
+	close(pipefd[0]);
+	ASSERT_GT(ret, 0);
+
+	handle = (struct file_handle *)buf;
+
+	/* Create second child that will keep namespace active */
+	pid2 = fork();
+	ASSERT_GE(pid2, 0);
+
+	if (pid2 == 0) {
+		/* Second child - reopens the namespace */
+		close(syncpipe[0]);
+		close(syncpipe[1]);
+
+		/* Open the namespace via handle */
+		fd = open_by_handle_at(FD_NSFS_ROOT, handle, O_RDONLY);
+		if (fd < 0) {
+			exit(1);
+		}
+
+		/* Join the namespace */
+		ret = setns(fd, CLONE_NEWNET);
+		close(fd);
+		if (ret < 0) {
+			exit(1);
+		}
+
+		/* Sleep to keep namespace active */
+		sleep(1);
+		exit(0);
+	}
+
+	/* Let second child enter the namespace */
+	usleep(100000); /* 100ms */
+
+	/* Signal first child to exit */
+	close(syncpipe[0]);
+	sync_byte = 'X';
+	write(syncpipe[1], &sync_byte, 1);
+	close(syncpipe[1]);
+
+	/* Wait for first child */
+	waitpid(pid1, &status, 0);
+	ASSERT_TRUE(WIFEXITED(status));
+
+	/* Namespace should still be active because second child is using it */
+	fd = open_by_handle_at(FD_NSFS_ROOT, handle, O_RDONLY);
+	ASSERT_GE(fd, 0);
+	close(fd);
+
+	/* Wait for second child */
+	waitpid(pid2, &status, 0);
+	ASSERT_TRUE(WIFEXITED(status));
+}
+
 TEST_HARNESS_MAIN
