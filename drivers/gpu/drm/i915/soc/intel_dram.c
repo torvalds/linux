@@ -269,7 +269,7 @@ static int intel_dimm_num_devices(const struct dram_dimm_info *dimm)
 /* Returns total Gb for the whole DIMM */
 static int skl_get_dimm_size(u16 val)
 {
-	return (val & SKL_DRAM_SIZE_MASK) * 8;
+	return REG_FIELD_GET(SKL_DRAM_SIZE_MASK, val) * 8;
 }
 
 static int skl_get_dimm_width(u16 val)
@@ -281,7 +281,7 @@ static int skl_get_dimm_width(u16 val)
 	case SKL_DRAM_WIDTH_X8:
 	case SKL_DRAM_WIDTH_X16:
 	case SKL_DRAM_WIDTH_X32:
-		val = (val & SKL_DRAM_WIDTH_MASK) >> SKL_DRAM_WIDTH_SHIFT;
+		val = REG_FIELD_GET(SKL_DRAM_WIDTH_MASK, val);
 		return 8 << val;
 	default:
 		MISSING_CASE(val);
@@ -294,7 +294,7 @@ static int skl_get_dimm_ranks(u16 val)
 	if (skl_get_dimm_size(val) == 0)
 		return 0;
 
-	val = (val & SKL_DRAM_RANK_MASK) >> SKL_DRAM_RANK_SHIFT;
+	val = REG_FIELD_GET(SKL_DRAM_RANK_MASK, val);
 
 	return val + 1;
 }
@@ -302,7 +302,7 @@ static int skl_get_dimm_ranks(u16 val)
 /* Returns total Gb for the whole DIMM */
 static int icl_get_dimm_size(u16 val)
 {
-	return (val & ICL_DRAM_SIZE_MASK) * 8 / 2;
+	return REG_FIELD_GET(ICL_DRAM_SIZE_MASK, val) * 8 / 2;
 }
 
 static int icl_get_dimm_width(u16 val)
@@ -314,7 +314,7 @@ static int icl_get_dimm_width(u16 val)
 	case ICL_DRAM_WIDTH_X8:
 	case ICL_DRAM_WIDTH_X16:
 	case ICL_DRAM_WIDTH_X32:
-		val = (val & ICL_DRAM_WIDTH_MASK) >> ICL_DRAM_WIDTH_SHIFT;
+		val = REG_FIELD_GET(ICL_DRAM_WIDTH_MASK, val);
 		return 8 << val;
 	default:
 		MISSING_CASE(val);
@@ -327,7 +327,7 @@ static int icl_get_dimm_ranks(u16 val)
 	if (icl_get_dimm_size(val) == 0)
 		return 0;
 
-	val = (val & ICL_DRAM_RANK_MASK) >> ICL_DRAM_RANK_SHIFT;
+	val = REG_FIELD_GET(ICL_DRAM_RANK_MASK, val);
 
 	return val + 1;
 }
