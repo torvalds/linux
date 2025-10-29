@@ -936,6 +936,9 @@ static int enetc_get_phc_index_by_pdev(struct enetc_si *si)
 	case ENETC_REV_4_1:
 		devfn = PCI_DEVFN(24, 0);
 		break;
+	case ENETC_REV_4_3:
+		devfn = PCI_DEVFN(0, 1);
+		break;
 	default:
 		return -1;
 	}
