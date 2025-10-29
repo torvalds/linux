@@ -16,6 +16,7 @@
 #include "internal.h"
 
 static const struct regcache_ops *cache_types[] = {
+	&regcache_flat_sparse_ops,
 	&regcache_rbtree_ops,
 	&regcache_maple_ops,
 	&regcache_flat_ops,
