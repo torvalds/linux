@@ -940,24 +940,23 @@ errout:
 static bool mpls_label_ok(struct net *net, unsigned int *index,
 			  struct netlink_ext_ack *extack)
 {
-	bool is_ok = true;
-
 	/* Reserved labels may not be set */
 	if (*index < MPLS_LABEL_FIRST_UNRESERVED) {
 		NL_SET_ERR_MSG(extack,
 			       "Invalid label - must be MPLS_LABEL_FIRST_UNRESERVED or higher");
-		is_ok = false;
+		return false;
 	}
 
 	/* The full 20 bit range may not be supported. */
-	if (is_ok && *index >= net->mpls.platform_labels) {
+	if (*index >= net->mpls.platform_labels) {
 		NL_SET_ERR_MSG(extack,
 			       "Label >= configured maximum in platform_labels");
-		is_ok = false;
+		return false;
 	}
 
 	*index = array_index_nospec(*index, net->mpls.platform_labels);
-	return is_ok;
+
+	return true;
 }
 
 static int mpls_route_add(struct mpls_route_config *cfg,
