@@ -1282,23 +1282,32 @@ static int mpls_netconf_get_devconf(struct sk_buff *in_skb,
 	if (err < 0)
 		goto errout;
 
-	err = -EINVAL;
-	if (!tb[NETCONFA_IFINDEX])
+	if (!tb[NETCONFA_IFINDEX]) {
+		err = -EINVAL;
 		goto errout;
+	}
 
 	ifindex = nla_get_s32(tb[NETCONFA_IFINDEX]);
-	dev = __dev_get_by_index(net, ifindex);
-	if (!dev)
-		goto errout;
 
-	mdev = mpls_dev_get(net, dev);
-	if (!mdev)
-		goto errout;
-
-	err = -ENOBUFS;
 	skb = nlmsg_new(mpls_netconf_msgsize_devconf(NETCONFA_ALL), GFP_KERNEL);
-	if (!skb)
+	if (!skb) {
+		err = -ENOBUFS;
 		goto errout;
+	}
+
+	rcu_read_lock();
+
+	dev = dev_get_by_index_rcu(net, ifindex);
+	if (!dev) {
+		err = -EINVAL;
+		goto errout_unlock;
+	}
+
+	mdev = mpls_dev_rcu(dev);
+	if (!mdev) {
+		err = -EINVAL;
+		goto errout_unlock;
+	}
 
 	err = mpls_netconf_fill_devconf(skb, mdev,
 					NETLINK_CB(in_skb).portid,
@@ -1307,12 +1316,19 @@ static int mpls_netconf_get_devconf(struct sk_buff *in_skb,
 	if (err < 0) {
 		/* -EMSGSIZE implies BUG in mpls_netconf_msgsize_devconf() */
 		WARN_ON(err == -EMSGSIZE);
-		kfree_skb(skb);
-		goto errout;
+		goto errout_unlock;
 	}
+
 	err = rtnl_unicast(skb, net, NETLINK_CB(in_skb).portid);
+
+	rcu_read_unlock();
 errout:
 	return err;
+
+errout_unlock:
+	rcu_read_unlock();
+	kfree_skb(skb);
+	goto errout;
 }
 
 static int mpls_netconf_dump_devconf(struct sk_buff *skb,
@@ -2776,7 +2792,7 @@ static const struct rtnl_msg_handler mpls_rtnl_msg_handlers[] __initdata_or_modu
 	 RTNL_FLAG_DUMP_UNLOCKED},
 	{THIS_MODULE, PF_MPLS, RTM_GETNETCONF,
 	 mpls_netconf_get_devconf, mpls_netconf_dump_devconf,
-	 RTNL_FLAG_DUMP_UNLOCKED},
+	 RTNL_FLAG_DOIT_UNLOCKED | RTNL_FLAG_DUMP_UNLOCKED},
 };
 
 static int __init mpls_init(void)
