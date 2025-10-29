@@ -307,4 +307,30 @@ TEST(siocgskns_across_setns)
 	close(netns_a_fd);
 }
 
+/*
+ * Test SIOCGSKNS fails on non-socket file descriptors.
+ */
+TEST(siocgskns_non_socket)
+{
+	int fd;
+	int pipefd[2];
+
+	/* Test on regular file */
+	fd = open("/dev/null", O_RDONLY);
+	ASSERT_GE(fd, 0);
+
+	ASSERT_LT(ioctl(fd, SIOCGSKNS), 0);
+	ASSERT_TRUE(errno == ENOTTY || errno == EINVAL);
+	close(fd);
+
+	/* Test on pipe */
+	ASSERT_EQ(pipe(pipefd), 0);
+
+	ASSERT_LT(ioctl(pipefd[0], SIOCGSKNS), 0);
+	ASSERT_TRUE(errno == ENOTTY || errno == EINVAL);
+
+	close(pipefd[0]);
+	close(pipefd[1]);
+}
+
 TEST_HARNESS_MAIN
