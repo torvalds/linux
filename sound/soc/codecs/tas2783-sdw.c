@@ -1280,7 +1280,8 @@ static s32 tas_sdw_probe(struct sdw_slave *peripheral,
 
 	init_waitqueue_head(&tas_dev->fw_wait);
 	dev_set_drvdata(dev, tas_dev);
-	regmap = devm_regmap_init_sdw_mbq_cfg(peripheral,
+	regmap = devm_regmap_init_sdw_mbq_cfg(&peripheral->dev,
+					      peripheral,
 					      &tas_regmap,
 					      &tas2783_mbq_cfg);
 	if (IS_ERR(regmap))
