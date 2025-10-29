@@ -292,7 +292,7 @@ static int __init bcm7038_l1_init_one(struct device_node *dn,
 static LIST_HEAD(bcm7038_l1_intcs_list);
 static DEFINE_RAW_SPINLOCK(bcm7038_l1_intcs_lock);
 
-static int bcm7038_l1_suspend(void)
+static int bcm7038_l1_suspend(void *data)
 {
 	struct bcm7038_l1_chip *intc;
 	int boot_cpu, word;
@@ -318,7 +318,7 @@ static int bcm7038_l1_suspend(void)
 	return 0;
 }
 
-static void bcm7038_l1_resume(void)
+static void bcm7038_l1_resume(void *data)
 {
 	struct bcm7038_l1_chip *intc;
 	int boot_cpu, word;
@@ -339,9 +339,13 @@ static void bcm7038_l1_resume(void)
 	}
 }
 
-static struct syscore_ops bcm7038_l1_syscore_ops = {
+static const struct syscore_ops bcm7038_l1_syscore_ops = {
 	.suspend	= bcm7038_l1_suspend,
 	.resume		= bcm7038_l1_resume,
+};
+
+static struct syscore bcm7038_l1_syscore = {
+	.ops = &bcm7038_l1_syscore_ops,
 };
 
 static int bcm7038_l1_set_wake(struct irq_data *d, unsigned int on)
@@ -431,7 +435,7 @@ static int __init bcm7038_l1_of_init(struct device_node *dn,
 	raw_spin_unlock(&bcm7038_l1_intcs_lock);
 
 	if (list_is_singular(&bcm7038_l1_intcs_list))
-		register_syscore_ops(&bcm7038_l1_syscore_ops);
+		register_syscore(&bcm7038_l1_syscore);
 #endif
 
 	pr_info("registered BCM7038 L1 intc (%pOF, IRQs: %d)\n",

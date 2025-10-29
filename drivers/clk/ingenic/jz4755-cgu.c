@@ -337,7 +337,7 @@ static void __init jz4755_cgu_init(struct device_node *np)
 	if (retval)
 		pr_err("%s: failed to register CGU Clocks\n", __func__);
 
-	ingenic_cgu_register_syscore_ops(cgu);
+	ingenic_cgu_register_syscore(cgu);
 }
 /*
  * CGU has some children devices, this is useful for probing children devices

@@ -592,7 +592,7 @@ static void hfi_disable_instance(void *ptr)
 	hfi_disable();
 }
 
-static void hfi_syscore_resume(void)
+static void hfi_syscore_resume(void *data)
 {
 	/* This code runs only on the boot CPU. */
 	struct hfi_cpu_info *info = &per_cpu(hfi_cpu_info, 0);
@@ -603,7 +603,7 @@ static void hfi_syscore_resume(void)
 		hfi_enable_instance(hfi_instance);
 }
 
-static int hfi_syscore_suspend(void)
+static int hfi_syscore_suspend(void *data)
 {
 	/* No locking needed. There is no concurrency with CPU offline. */
 	hfi_disable();
@@ -611,9 +611,13 @@ static int hfi_syscore_suspend(void)
 	return 0;
 }
 
-static struct syscore_ops hfi_pm_ops = {
+static const struct syscore_ops hfi_pm_ops = {
 	.resume = hfi_syscore_resume,
 	.suspend = hfi_syscore_suspend,
+};
+
+static struct syscore hfi_pm = {
+	.ops = &hfi_pm_ops,
 };
 
 static int hfi_thermal_notify(struct notifier_block *nb, unsigned long state,
@@ -710,7 +714,7 @@ void __init intel_hfi_init(void)
 	if (thermal_genl_register_notifier(&hfi_thermal_nb))
 		goto err_nl_notif;
 
-	register_syscore_ops(&hfi_pm_ops);
+	register_syscore(&hfi_pm);
 
 	return;
 
