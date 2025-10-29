@@ -54,6 +54,11 @@
  * - ``reason_vr_tdc``: VR TDC
  */
 
+struct throttle_attribute {
+	struct kobj_attribute attr;
+	u32 mask;
+};
+
 static struct xe_gt *dev_to_gt(struct device *dev)
 {
 	return kobj_to_gt(dev->kobj.parent);
@@ -62,6 +67,11 @@ static struct xe_gt *dev_to_gt(struct device *dev)
 static struct xe_gt *throttle_to_gt(struct kobject *kobj)
 {
 	return dev_to_gt(kobj_to_dev(kobj));
+}
+
+static struct throttle_attribute *kobj_attribute_to_throttle(struct kobj_attribute *attr)
+{
+	return container_of(attr, struct throttle_attribute, attr);
 }
 
 u32 xe_gt_throttle_get_limit_reasons(struct xe_gt *gt)
@@ -92,214 +102,74 @@ static bool is_throttled_by(struct xe_gt *gt, u32 mask)
 	return xe_gt_throttle_get_limit_reasons(gt) & mask;
 }
 
-static ssize_t status_show(struct kobject *kobj,
+static ssize_t reason_show(struct kobject *kobj,
 			   struct kobj_attribute *attr, char *buff)
 {
+	struct throttle_attribute *ta = kobj_attribute_to_throttle(attr);
 	struct xe_gt *gt = throttle_to_gt(kobj);
 
-	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, U32_MAX));
+	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, ta->mask));
 }
 
-static ssize_t reason_pl1_show(struct kobject *kobj,
-			       struct kobj_attribute *attr, char *buff)
-{
-	struct xe_gt *gt = throttle_to_gt(kobj);
+#define THROTTLE_ATTR_RO(name, _mask)				\
+	struct throttle_attribute attr_##name =	{		\
+		.attr = __ATTR(name, 0444, reason_show, NULL),	\
+		.mask = _mask,					\
+	}
 
-	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, POWER_LIMIT_1_MASK));
-}
-
-static ssize_t reason_pl2_show(struct kobject *kobj,
-			       struct kobj_attribute *attr, char *buff)
-{
-	struct xe_gt *gt = throttle_to_gt(kobj);
-
-	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, POWER_LIMIT_2_MASK));
-}
-
-static ssize_t reason_pl4_show(struct kobject *kobj,
-			       struct kobj_attribute *attr, char *buff)
-{
-	struct xe_gt *gt = throttle_to_gt(kobj);
-
-	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, POWER_LIMIT_4_MASK));
-}
-
-static ssize_t reason_thermal_show(struct kobject *kobj,
-				   struct kobj_attribute *attr, char *buff)
-{
-	struct xe_gt *gt = throttle_to_gt(kobj);
-
-	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, THERMAL_LIMIT_MASK));
-}
-
-static ssize_t reason_soc_thermal_show(struct kobject *kobj,
-				       struct kobj_attribute *attr, char *buff)
-{
-	struct xe_gt *gt = throttle_to_gt(kobj);
-
-	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, SOC_THERMAL_LIMIT_MASK));
-}
-
-static ssize_t reason_prochot_show(struct kobject *kobj,
-				   struct kobj_attribute *attr, char *buff)
-{
-	struct xe_gt *gt = throttle_to_gt(kobj);
-
-	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, PROCHOT_MASK));
-}
-
-static ssize_t reason_ratl_show(struct kobject *kobj,
-				struct kobj_attribute *attr, char *buff)
-{
-	struct xe_gt *gt = throttle_to_gt(kobj);
-
-	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, RATL_MASK));
-}
-
-static ssize_t reason_vr_thermalert_show(struct kobject *kobj,
-					 struct kobj_attribute *attr, char *buff)
-{
-	struct xe_gt *gt = throttle_to_gt(kobj);
-
-	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, VR_THERMALERT_MASK));
-}
-
-static ssize_t reason_soc_avg_thermal_show(struct kobject *kobj,
-					   struct kobj_attribute *attr, char *buff)
-{
-	struct xe_gt *gt = throttle_to_gt(kobj);
-
-	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, SOC_AVG_THERMAL_MASK));
-}
-
-static ssize_t reason_vr_tdc_show(struct kobject *kobj,
-				  struct kobj_attribute *attr, char *buff)
-{
-	struct xe_gt *gt = throttle_to_gt(kobj);
-
-	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, VR_TDC_MASK));
-}
-
-static ssize_t reason_fastvmode_show(struct kobject *kobj,
-				     struct kobj_attribute *attr, char *buff)
-{
-	struct xe_gt *gt = throttle_to_gt(kobj);
-
-	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, FASTVMODE_MASK));
-}
-
-static ssize_t reason_mem_thermal_show(struct kobject *kobj,
-				       struct kobj_attribute *attr, char *buff)
-{
-	struct xe_gt *gt = throttle_to_gt(kobj);
-
-	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, MEM_THERMAL_MASK));
-}
-
-static ssize_t reason_vr_thermal_show(struct kobject *kobj,
-				      struct kobj_attribute *attr, char *buff)
-{
-	struct xe_gt *gt = throttle_to_gt(kobj);
-
-	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, VR_THERMAL_MASK));
-}
-
-static ssize_t reason_iccmax_show(struct kobject *kobj,
-				  struct kobj_attribute *attr, char *buff)
-{
-	struct xe_gt *gt = throttle_to_gt(kobj);
-
-	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, ICCMAX_MASK));
-}
-
-static ssize_t reason_psys_pl1_show(struct kobject *kobj,
-				    struct kobj_attribute *attr, char *buff)
-{
-	struct xe_gt *gt = throttle_to_gt(kobj);
-
-	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, PSYS_PL1_MASK));
-}
-
-static ssize_t reason_psys_pl2_show(struct kobject *kobj,
-				    struct kobj_attribute *attr, char *buff)
-{
-	struct xe_gt *gt = throttle_to_gt(kobj);
-
-	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, PSYS_PL2_MASK));
-}
-
-static ssize_t reason_p0_freq_show(struct kobject *kobj,
-				   struct kobj_attribute *attr, char *buff)
-{
-	struct xe_gt *gt = throttle_to_gt(kobj);
-
-	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, P0_FREQ_MASK));
-}
-
-static ssize_t reason_psys_crit_show(struct kobject *kobj,
-				     struct kobj_attribute *attr, char *buff)
-{
-	struct xe_gt *gt = throttle_to_gt(kobj);
-
-	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, PSYS_CRIT_MASK));
-}
-
-#define THROTTLE_ATTR_RO(name) \
-	struct kobj_attribute attr_##name = __ATTR_RO(name)
-
-static THROTTLE_ATTR_RO(status);
-static THROTTLE_ATTR_RO(reason_pl1);
-static THROTTLE_ATTR_RO(reason_pl2);
-static THROTTLE_ATTR_RO(reason_pl4);
-static THROTTLE_ATTR_RO(reason_thermal);
-static THROTTLE_ATTR_RO(reason_prochot);
-static THROTTLE_ATTR_RO(reason_ratl);
-static THROTTLE_ATTR_RO(reason_vr_thermalert);
-static THROTTLE_ATTR_RO(reason_vr_tdc);
+static THROTTLE_ATTR_RO(status, U32_MAX);
+static THROTTLE_ATTR_RO(reason_pl1, POWER_LIMIT_1_MASK);
+static THROTTLE_ATTR_RO(reason_pl2, POWER_LIMIT_2_MASK);
+static THROTTLE_ATTR_RO(reason_pl4, POWER_LIMIT_4_MASK);
+static THROTTLE_ATTR_RO(reason_thermal, THERMAL_LIMIT_MASK);
+static THROTTLE_ATTR_RO(reason_prochot, PROCHOT_MASK);
+static THROTTLE_ATTR_RO(reason_ratl, RATL_MASK);
+static THROTTLE_ATTR_RO(reason_vr_thermalert, VR_THERMALERT_MASK);
+static THROTTLE_ATTR_RO(reason_vr_tdc, VR_TDC_MASK);
 
 static struct attribute *throttle_attrs[] = {
-	&attr_status.attr,
-	&attr_reason_pl1.attr,
-	&attr_reason_pl2.attr,
-	&attr_reason_pl4.attr,
-	&attr_reason_thermal.attr,
-	&attr_reason_prochot.attr,
-	&attr_reason_ratl.attr,
-	&attr_reason_vr_thermalert.attr,
-	&attr_reason_vr_tdc.attr,
+	&attr_status.attr.attr,
+	&attr_reason_pl1.attr.attr,
+	&attr_reason_pl2.attr.attr,
+	&attr_reason_pl4.attr.attr,
+	&attr_reason_thermal.attr.attr,
+	&attr_reason_prochot.attr.attr,
+	&attr_reason_ratl.attr.attr,
+	&attr_reason_vr_thermalert.attr.attr,
+	&attr_reason_vr_tdc.attr.attr,
 	NULL
 };
 
-static THROTTLE_ATTR_RO(reason_vr_thermal);
-static THROTTLE_ATTR_RO(reason_soc_thermal);
-static THROTTLE_ATTR_RO(reason_mem_thermal);
-static THROTTLE_ATTR_RO(reason_iccmax);
-static THROTTLE_ATTR_RO(reason_soc_avg_thermal);
-static THROTTLE_ATTR_RO(reason_fastvmode);
-static THROTTLE_ATTR_RO(reason_psys_pl1);
-static THROTTLE_ATTR_RO(reason_psys_pl2);
-static THROTTLE_ATTR_RO(reason_p0_freq);
-static THROTTLE_ATTR_RO(reason_psys_crit);
+static THROTTLE_ATTR_RO(reason_vr_thermal, VR_THERMAL_MASK);
+static THROTTLE_ATTR_RO(reason_soc_thermal, SOC_THERMAL_LIMIT_MASK);
+static THROTTLE_ATTR_RO(reason_mem_thermal, MEM_THERMAL_MASK);
+static THROTTLE_ATTR_RO(reason_iccmax, ICCMAX_MASK);
+static THROTTLE_ATTR_RO(reason_soc_avg_thermal, SOC_AVG_THERMAL_MASK);
+static THROTTLE_ATTR_RO(reason_fastvmode, FASTVMODE_MASK);
+static THROTTLE_ATTR_RO(reason_psys_pl1, PSYS_PL1_MASK);
+static THROTTLE_ATTR_RO(reason_psys_pl2, PSYS_PL2_MASK);
+static THROTTLE_ATTR_RO(reason_p0_freq, P0_FREQ_MASK);
+static THROTTLE_ATTR_RO(reason_psys_crit, PSYS_CRIT_MASK);
 
 static struct attribute *cri_throttle_attrs[] = {
 	/* Common */
-	&attr_status.attr,
-	&attr_reason_pl1.attr,
-	&attr_reason_pl2.attr,
-	&attr_reason_pl4.attr,
-	&attr_reason_prochot.attr,
-	&attr_reason_ratl.attr,
+	&attr_status.attr.attr,
+	&attr_reason_pl1.attr.attr,
+	&attr_reason_pl2.attr.attr,
+	&attr_reason_pl4.attr.attr,
+	&attr_reason_prochot.attr.attr,
+	&attr_reason_ratl.attr.attr,
 	/* CRI */
-	&attr_reason_vr_thermal.attr,
-	&attr_reason_soc_thermal.attr,
-	&attr_reason_mem_thermal.attr,
-	&attr_reason_iccmax.attr,
-	&attr_reason_soc_avg_thermal.attr,
-	&attr_reason_fastvmode.attr,
-	&attr_reason_psys_pl1.attr,
-	&attr_reason_psys_pl2.attr,
-	&attr_reason_p0_freq.attr,
-	&attr_reason_psys_crit.attr,
+	&attr_reason_vr_thermal.attr.attr,
+	&attr_reason_soc_thermal.attr.attr,
+	&attr_reason_mem_thermal.attr.attr,
+	&attr_reason_iccmax.attr.attr,
+	&attr_reason_soc_avg_thermal.attr.attr,
+	&attr_reason_fastvmode.attr.attr,
+	&attr_reason_psys_pl1.attr.attr,
+	&attr_reason_psys_pl2.attr.attr,
+	&attr_reason_p0_freq.attr.attr,
+	&attr_reason_psys_crit.attr.attr,
 	NULL
 };
 
