@@ -18616,7 +18616,7 @@ F:	drivers/input/misc/pf1550-onkey.c
 F:	drivers/mfd/pf1550.c
 F:	drivers/power/supply/pf1550-charger.c
 F:	drivers/regulator/pf1550-regulator.c
-F:	include/linux/mfd/pfd1550.h
+F:	include/linux/mfd/pf1550.h
 
 NXP PF8100/PF8121A/PF8200 PMIC REGULATOR DEVICE DRIVER
 M:	Jagan Teki <jagan@amarulasolutions.com>
