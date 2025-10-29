@@ -573,6 +573,35 @@ s64 v4l2_get_link_freq(const struct media_pad *pad, unsigned int mul,
 	return v4l2_get_link_freq_ctrl(sd->ctrl_handler, mul, div);
 }
 EXPORT_SYMBOL_GPL(v4l2_get_link_freq);
+
+int v4l2_get_active_data_lanes(const struct media_pad *pad,
+			       unsigned int max_data_lanes)
+{
+	struct v4l2_mbus_config mbus_config = {};
+	struct v4l2_subdev *sd;
+	unsigned int lanes;
+	int ret;
+
+	sd = media_entity_to_v4l2_subdev(pad->entity);
+	ret = v4l2_subdev_call(sd, pad, get_mbus_config, pad->index,
+			       &mbus_config);
+	if (ret < 0 && ret != -ENOIOCTLCMD)
+		return ret;
+
+	/* This relies on the mbus_config being zeroed at init time */
+	lanes = mbus_config.bus.mipi_csi2.num_data_lanes;
+	if (!lanes)
+		return max_data_lanes;
+
+	if (lanes > max_data_lanes) {
+		dev_dbg(sd->dev, "Active data lanes (%u) exceeds max (%u)\n",
+			lanes, max_data_lanes);
+		return -EINVAL;
+	}
+
+	return lanes;
+}
+EXPORT_SYMBOL_GPL(v4l2_get_active_data_lanes);
 #endif
 
 /*
