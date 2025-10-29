@@ -47,6 +47,13 @@
 #define PCS_PROT_SFI			BIT(4)
 #define PCS_PROT_10G_SXGMII		BIT(6)
 
+#define IMX94_EXT_PIN_CONTROL		0x10
+#define  MAC2_MAC3_SEL			BIT(1)
+
+#define IMX94_NETC_LINK_CFG(a)		(0x4c + (a) * 4)
+#define  NETC_LINK_CFG_MII_PROT		GENMASK(3, 0)
+#define  NETC_LINK_CFG_IO_VAR		GENMASK(19, 16)
+
 /* NETC privileged register block register */
 #define PRB_NETCRR			0x100
 #define  NETCRR_SR			BIT(0)
@@ -67,6 +74,13 @@
 #define IMX95_ENETC0_BUS_DEVFN		0x0
 #define IMX95_ENETC1_BUS_DEVFN		0x40
 #define IMX95_ENETC2_BUS_DEVFN		0x80
+
+#define IMX94_ENETC0_BUS_DEVFN		0x100
+#define IMX94_ENETC1_BUS_DEVFN		0x140
+#define IMX94_ENETC2_BUS_DEVFN		0x180
+#define IMX94_ENETC0_LINK		3
+#define IMX94_ENETC1_LINK		4
+#define IMX94_ENETC2_LINK		5
 
 /* Flags for different platforms */
 #define NETC_HAS_NETCMIX		BIT(0)
@@ -188,6 +202,90 @@ static int imx95_netcmix_init(struct platform_device *pdev)
 	netc_reg_write(priv->netcmix, IMX95_CFG_LINK_PCS_PROT(2),
 		       PCS_PROT_10G_SXGMII);
 	netc_reg_write(priv->netcmix, IMX95_CFG_LINK_MII_PROT, val);
+
+	return 0;
+}
+
+static int imx94_enetc_get_link_id(struct device_node *np)
+{
+	int bus_devfn = netc_of_pci_get_bus_devfn(np);
+
+	/* Parse ENETC link number */
+	switch (bus_devfn) {
+	case IMX94_ENETC0_BUS_DEVFN:
+		return IMX94_ENETC0_LINK;
+	case IMX94_ENETC1_BUS_DEVFN:
+		return IMX94_ENETC1_LINK;
+	case IMX94_ENETC2_BUS_DEVFN:
+		return IMX94_ENETC2_LINK;
+	default:
+		return -EINVAL;
+	}
+}
+
+static int imx94_link_config(struct netc_blk_ctrl *priv,
+			     struct device_node *np, int link_id)
+{
+	phy_interface_t interface;
+	int mii_proto;
+	u32 val;
+
+	/* The node may be disabled and does not have a 'phy-mode'
+	 * or 'phy-connection-type' property.
+	 */
+	if (of_get_phy_mode(np, &interface))
+		return 0;
+
+	mii_proto = netc_get_link_mii_protocol(interface);
+	if (mii_proto < 0)
+		return mii_proto;
+
+	val = mii_proto & NETC_LINK_CFG_MII_PROT;
+	if (val == MII_PROT_SERIAL)
+		val = u32_replace_bits(val, IO_VAR_16FF_16G_SERDES,
+				       NETC_LINK_CFG_IO_VAR);
+
+	netc_reg_write(priv->netcmix, IMX94_NETC_LINK_CFG(link_id), val);
+
+	return 0;
+}
+
+static int imx94_enetc_link_config(struct netc_blk_ctrl *priv,
+				   struct device_node *np)
+{
+	int link_id = imx94_enetc_get_link_id(np);
+
+	if (link_id < 0)
+		return link_id;
+
+	return imx94_link_config(priv, np, link_id);
+}
+
+static int imx94_netcmix_init(struct platform_device *pdev)
+{
+	struct netc_blk_ctrl *priv = platform_get_drvdata(pdev);
+	struct device_node *np = pdev->dev.of_node;
+	u32 val;
+	int err;
+
+	for_each_child_of_node_scoped(np, child) {
+		for_each_child_of_node_scoped(child, gchild) {
+			if (!of_device_is_compatible(gchild, "pci1131,e101"))
+				continue;
+
+			err = imx94_enetc_link_config(priv, gchild);
+			if (err)
+				return err;
+		}
+	}
+
+	/* ENETC 0 and switch port 2 share the same parallel interface.
+	 * Currently, the switch is not supported, so this interface is
+	 * used by ENETC 0 by default.
+	 */
+	val = netc_reg_read(priv->netcmix, IMX94_EXT_PIN_CONTROL);
+	val |= MAC2_MAC3_SEL;
+	netc_reg_write(priv->netcmix, IMX94_EXT_PIN_CONTROL, val);
 
 	return 0;
 }
@@ -340,8 +438,14 @@ static const struct netc_devinfo imx95_devinfo = {
 	.ierb_init = imx95_ierb_init,
 };
 
+static const struct netc_devinfo imx94_devinfo = {
+	.flags = NETC_HAS_NETCMIX,
+	.netcmix_init = imx94_netcmix_init,
+};
+
 static const struct of_device_id netc_blk_ctrl_match[] = {
 	{ .compatible = "nxp,imx95-netc-blk-ctrl", .data = &imx95_devinfo },
+	{ .compatible = "nxp,imx94-netc-blk-ctrl", .data = &imx94_devinfo },
 	{},
 };
 MODULE_DEVICE_TABLE(of, netc_blk_ctrl_match);
