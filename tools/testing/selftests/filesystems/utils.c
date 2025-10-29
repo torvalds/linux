@@ -487,7 +487,7 @@ int setup_userns(void)
 	uid_t uid = getuid();
 	gid_t gid = getgid();
 
-	ret = unshare(CLONE_NEWNS|CLONE_NEWUSER|CLONE_NEWPID);
+	ret = unshare(CLONE_NEWNS|CLONE_NEWUSER);
 	if (ret) {
 		ksft_exit_fail_msg("unsharing mountns and userns: %s\n",
 				   strerror(errno));
