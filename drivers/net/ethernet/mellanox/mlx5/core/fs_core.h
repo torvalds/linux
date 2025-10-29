@@ -205,6 +205,7 @@ struct mlx5_flow_table {
 	};
 	u32				id;
 	u16				vport;
+	u16				esw_owner_vhca_id;
 	unsigned int			max_fte;
 	unsigned int			level;
 	enum fs_flow_table_type		type;

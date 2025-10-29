@@ -939,10 +939,10 @@ static struct mlx5_flow_group *alloc_insert_flow_group(struct mlx5_flow_table *f
 	return fg;
 }
 
-static struct mlx5_flow_table *alloc_flow_table(int level, u16 vport,
-						enum fs_flow_table_type table_type,
-						enum fs_flow_table_op_mod op_mod,
-						u32 flags)
+static struct mlx5_flow_table *
+alloc_flow_table(struct mlx5_flow_table_attr *ft_attr, u16 vport,
+		 enum fs_flow_table_type table_type,
+		 enum fs_flow_table_op_mod op_mod)
 {
 	struct mlx5_flow_table *ft;
 	int ret;
@@ -957,12 +957,13 @@ static struct mlx5_flow_table *alloc_flow_table(int level, u16 vport,
 		return ERR_PTR(ret);
 	}
 
-	ft->level = level;
+	ft->level = ft_attr->level;
 	ft->node.type = FS_TYPE_FLOW_TABLE;
 	ft->op_mod = op_mod;
 	ft->type = table_type;
 	ft->vport = vport;
-	ft->flags = flags;
+	ft->esw_owner_vhca_id = ft_attr->esw_owner_vhca_id;
+	ft->flags = ft_attr->flags;
 	INIT_LIST_HEAD(&ft->fwd_rules);
 	mutex_init(&ft->lock);
 
@@ -1370,10 +1371,7 @@ static struct mlx5_flow_table *__mlx5_create_flow_table(struct mlx5_flow_namespa
 	/* The level is related to the
 	 * priority level range.
 	 */
-	ft = alloc_flow_table(ft_attr->level,
-			      vport,
-			      root->table_type,
-			      op_mod, ft_attr->flags);
+	ft = alloc_flow_table(ft_attr, vport, root->table_type, op_mod);
 	if (IS_ERR(ft)) {
 		err = PTR_ERR(ft);
 		goto unlock_root;

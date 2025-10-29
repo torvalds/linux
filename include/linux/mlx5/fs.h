@@ -71,6 +71,7 @@ enum {
 	MLX5_FLOW_TABLE_UNMANAGED = BIT(3),
 	MLX5_FLOW_TABLE_OTHER_VPORT = BIT(4),
 	MLX5_FLOW_TABLE_UPLINK_VPORT = BIT(5),
+	MLX5_FLOW_TABLE_OTHER_ESWITCH = BIT(6),
 };
 
 #define LEFTOVERS_RULE_NUM	 2
@@ -208,6 +209,7 @@ struct mlx5_flow_table_attr {
 	u32 flags;
 	u16 uid;
 	u16 vport;
+	u16 esw_owner_vhca_id;
 	struct mlx5_flow_table *next_ft;
 
 	struct {
