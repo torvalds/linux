@@ -4,10 +4,11 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/completion.h>
+
+#include <linux/raspberrypi/vchiq_arm.h>
+
 #include "bcm2835.h"
 #include "vc_vchi_audioserv_defs.h"
-
-#include "../interface/vchiq_arm/vchiq_arm.h"
 
 struct bcm2835_audio_instance {
 	struct device *dev;

@@ -11,10 +11,11 @@
 #include <linux/compat.h>
 #include <linux/miscdevice.h>
 
-#include "vchiq_core.h"
+#include <linux/raspberrypi/vchiq_core.h>
+#include <linux/raspberrypi/vchiq_arm.h>
+#include <linux/raspberrypi/vchiq_debugfs.h>
+
 #include "vchiq_ioctl.h"
-#include "vchiq_arm.h"
-#include "vchiq_debugfs.h"
 
 static const char *const ioctl_names[] = {
 	"CONNECT",

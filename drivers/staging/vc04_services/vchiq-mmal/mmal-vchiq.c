@@ -22,11 +22,12 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/completion.h>
+#include <linux/raspberrypi/vchiq.h>
 #include <linux/vmalloc.h>
 #include <media/videobuf2-vmalloc.h>
 
-#include "../include/linux/raspberrypi/vchiq.h"
-#include "../interface/vchiq_arm/vchiq_arm.h"
+#include <linux/raspberrypi/vchiq_arm.h>
+
 #include "mmal-common.h"
 #include "mmal-vchiq.h"
 #include "mmal-msg.h"

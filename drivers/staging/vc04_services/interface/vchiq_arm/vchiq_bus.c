@@ -11,8 +11,8 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 
-#include "vchiq_arm.h"
-#include "vchiq_bus.h"
+#include <linux/raspberrypi/vchiq_arm.h>
+#include <linux/raspberrypi/vchiq_bus.h>
 
 static int vchiq_bus_type_match(struct device *dev, const struct device_driver *drv)
 {

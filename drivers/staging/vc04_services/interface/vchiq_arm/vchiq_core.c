@@ -15,8 +15,8 @@
 #include <linux/rcupdate.h>
 #include <linux/sched/signal.h>
 
-#include "vchiq_arm.h"
-#include "vchiq_core.h"
+#include <linux/raspberrypi/vchiq_arm.h>
+#include <linux/raspberrypi/vchiq_core.h>
 
 #define VCHIQ_SLOT_HANDLER_STACK 8192
 

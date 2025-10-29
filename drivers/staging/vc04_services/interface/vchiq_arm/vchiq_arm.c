@@ -30,11 +30,12 @@
 #include <linux/uaccess.h>
 #include <soc/bcm2835/raspberrypi-firmware.h>
 
-#include "vchiq_core.h"
+#include <linux/raspberrypi/vchiq_core.h>
+#include <linux/raspberrypi/vchiq_arm.h>
+#include <linux/raspberrypi/vchiq_bus.h>
+#include <linux/raspberrypi/vchiq_debugfs.h>
+
 #include "vchiq_ioctl.h"
-#include "vchiq_arm.h"
-#include "vchiq_bus.h"
-#include "vchiq_debugfs.h"
 
 #define DEVICE_NAME "vchiq"
 
