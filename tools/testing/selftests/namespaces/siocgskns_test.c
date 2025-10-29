@@ -256,4 +256,55 @@ TEST(siocgskns_socket_types)
 	close(sock_udp);
 }
 
+/*
+ * Test SIOCGSKNS across setns.
+ * Create a socket in netns A, switch to netns B, verify SIOCGSKNS still
+ * returns netns A.
+ */
+TEST(siocgskns_across_setns)
+{
+	int sock_fd, netns_a_fd, netns_b_fd, result_fd;
+	struct stat st_a;
+
+	/* Get current netns (A) */
+	netns_a_fd = open("/proc/self/ns/net", O_RDONLY);
+	ASSERT_GE(netns_a_fd, 0);
+	ASSERT_EQ(fstat(netns_a_fd, &st_a), 0);
+
+	/* Create socket in netns A */
+	sock_fd = socket(AF_INET, SOCK_STREAM, 0);
+	ASSERT_GE(sock_fd, 0);
+
+	/* Create new netns (B) */
+	ASSERT_EQ(unshare(CLONE_NEWNET), 0);
+
+	netns_b_fd = open("/proc/self/ns/net", O_RDONLY);
+	ASSERT_GE(netns_b_fd, 0);
+
+	/* Get netns from socket created in A */
+	result_fd = ioctl(sock_fd, SIOCGSKNS);
+	if (result_fd < 0) {
+		close(sock_fd);
+		setns(netns_a_fd, CLONE_NEWNET);
+		close(netns_a_fd);
+		close(netns_b_fd);
+		if (errno == ENOTTY || errno == EINVAL)
+			SKIP(return, "SIOCGSKNS not supported");
+		ASSERT_GE(result_fd, 0);
+	}
+
+	/* Verify it still points to netns A */
+	struct stat st_result_stat;
+	ASSERT_EQ(fstat(result_fd, &st_result_stat), 0);
+	ASSERT_EQ(st_a.st_ino, st_result_stat.st_ino);
+
+	close(result_fd);
+	close(sock_fd);
+	close(netns_b_fd);
+
+	/* Restore original netns */
+	ASSERT_EQ(setns(netns_a_fd, CLONE_NEWNET), 0);
+	close(netns_a_fd);
+}
+
 TEST_HARNESS_MAIN
