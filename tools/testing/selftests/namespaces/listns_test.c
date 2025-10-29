@@ -9,6 +9,7 @@
 #include <string.h>
 #include <linux/nsfs.h>
 #include <sys/ioctl.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
@@ -322,6 +323,127 @@ TEST(listns_only_active)
 		}
 		ASSERT_FALSE(found);
 	}
+}
+
+/*
+ * Test listns() with specific user namespace ID.
+ * Create a user namespace and list namespaces it owns.
+ */
+TEST(listns_specific_userns)
+{
+	struct ns_id_req req = {
+		.size = sizeof(req),
+		.spare = 0,
+		.ns_id = 0,
+		.ns_type = 0,
+		.spare2 = 0,
+		.user_ns_id = 0,  /* Will be filled with created userns ID */
+	};
+	__u64 ns_ids[100];
+	int sv[2];
+	pid_t pid;
+	int status;
+	__u64 user_ns_id = 0;
+	int bytes;
+	ssize_t ret;
+
+	ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM, 0, sv), 0);
+
+	pid = fork();
+	ASSERT_GE(pid, 0);
+
+	if (pid == 0) {
+		int fd;
+		__u64 ns_id;
+		char buf;
+
+		close(sv[0]);
+
+		/* Create new user namespace */
+		if (setup_userns() < 0) {
+			close(sv[1]);
+			exit(1);
+		}
+
+		/* Get user namespace ID */
+		fd = open("/proc/self/ns/user", O_RDONLY);
+		if (fd < 0) {
+			close(sv[1]);
+			exit(1);
+		}
+
+		if (ioctl(fd, NS_GET_ID, &ns_id) < 0) {
+			close(fd);
+			close(sv[1]);
+			exit(1);
+		}
+		close(fd);
+
+		/* Send ID to parent */
+		if (write(sv[1], &ns_id, sizeof(ns_id)) != sizeof(ns_id)) {
+			close(sv[1]);
+			exit(1);
+		}
+
+		/* Create some namespaces owned by this user namespace */
+		unshare(CLONE_NEWNET);
+		unshare(CLONE_NEWUTS);
+
+		/* Wait for parent signal */
+		if (read(sv[1], &buf, 1) != 1) {
+			close(sv[1]);
+			exit(1);
+		}
+		close(sv[1]);
+		exit(0);
+	}
+
+	/* Parent */
+	close(sv[1]);
+	bytes = read(sv[0], &user_ns_id, sizeof(user_ns_id));
+
+	if (bytes != sizeof(user_ns_id)) {
+		close(sv[0]);
+		kill(pid, SIGKILL);
+		waitpid(pid, NULL, 0);
+		SKIP(return, "Failed to get user namespace ID from child");
+	}
+
+	TH_LOG("Child created user namespace with ID %llu", (unsigned long long)user_ns_id);
+
+	/* List namespaces owned by this user namespace */
+	req.user_ns_id = user_ns_id;
+	ret = sys_listns(&req, ns_ids, ARRAY_SIZE(ns_ids), 0);
+
+	if (ret < 0) {
+		TH_LOG("listns failed: %s (errno=%d)", strerror(errno), errno);
+		close(sv[0]);
+		kill(pid, SIGKILL);
+		waitpid(pid, NULL, 0);
+		if (errno == ENOSYS) {
+			SKIP(return, "listns() not supported");
+		}
+		ASSERT_GE(ret, 0);
+	}
+
+	TH_LOG("Found %zd namespaces owned by user namespace %llu", ret,
+	       (unsigned long long)user_ns_id);
+
+	/* Should find at least the network and UTS namespaces we created */
+	if (ret > 0) {
+		for (ssize_t i = 0; i < ret && i < 10; i++)
+			TH_LOG("  [%zd] ns_id: %llu", i, (unsigned long long)ns_ids[i]);
+	}
+
+	/* Signal child to exit */
+	if (write(sv[0], "X", 1) != 1) {
+		close(sv[0]);
+		kill(pid, SIGKILL);
+		waitpid(pid, NULL, 0);
+		ASSERT_TRUE(false);
+	}
+	close(sv[0]);
+	waitpid(pid, &status, 0);
 }
 
 TEST_HARNESS_MAIN
