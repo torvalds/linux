@@ -613,6 +613,24 @@ static int sof_pcm_new(struct snd_soc_component *component,
 	snd_pcm_set_managed_buffer(pcm->streams[stream].substream,
 				   SNDRV_DMA_TYPE_DEV_SG, sdev->dev,
 				   0, le32_to_cpu(caps->buffer_size_max));
+
+	/* Set the PCM device name for HDMI playback */
+	if (!strncmp(pcm->id, "HDMI", 4)) {
+		int hdmi_idx;
+
+		/*
+		 * Make sure that the name is in"HDMI<SPACE>x" format as this is
+		 * expected by user space.
+		 * See alsa-lib's __snd_pcm_info_eld_fixup_check() which is
+		 * guarding the __snd_pcm_info_eld_fixup() in
+		 * snd_ctl_hw_pcm_info() and snd_pcm_hw_info() library functions
+		 */
+		if (sscanf(pcm->id, "HDMI%d", &hdmi_idx) == 1)
+			snprintf(pcm->name, sizeof(pcm->name), "HDMI %d",
+				 hdmi_idx);
+		else
+			strscpy(pcm->name, pcm->id, sizeof(pcm->name));
+	}
 capture:
 	stream = SNDRV_PCM_STREAM_CAPTURE;
 
