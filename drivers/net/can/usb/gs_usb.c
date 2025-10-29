@@ -1087,12 +1087,25 @@ static int gs_can_close(struct net_device *netdev)
 	return 0;
 }
 
-static int gs_can_eth_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
+static int gs_can_hwtstamp_get(struct net_device *netdev,
+			       struct kernel_hwtstamp_config *cfg)
 {
 	const struct gs_can *dev = netdev_priv(netdev);
 
 	if (dev->feature & GS_CAN_FEATURE_HW_TIMESTAMP)
-		return can_eth_ioctl_hwts(netdev, ifr, cmd);
+		return can_hwtstamp_get(netdev, cfg);
+
+	return -EOPNOTSUPP;
+}
+
+static int gs_can_hwtstamp_set(struct net_device *netdev,
+			       struct kernel_hwtstamp_config *cfg,
+			       struct netlink_ext_ack *extack)
+{
+	const struct gs_can *dev = netdev_priv(netdev);
+
+	if (dev->feature & GS_CAN_FEATURE_HW_TIMESTAMP)
+		return can_hwtstamp_set(netdev, cfg, extack);
 
 	return -EOPNOTSUPP;
 }
@@ -1101,7 +1114,8 @@ static const struct net_device_ops gs_usb_netdev_ops = {
 	.ndo_open = gs_can_open,
 	.ndo_stop = gs_can_close,
 	.ndo_start_xmit = gs_can_start_xmit,
-	.ndo_eth_ioctl = gs_can_eth_ioctl,
+	.ndo_hwtstamp_get = gs_can_hwtstamp_get,
+	.ndo_hwtstamp_set = gs_can_hwtstamp_set,
 };
 
 static int gs_usb_set_identify(struct net_device *netdev, bool do_identify)
