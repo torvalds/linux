@@ -189,6 +189,13 @@ typedef enum {
   SVI_MAX_TEMP_ENTRIES,   // 13
 } SVI_TEMP_e;
 
+typedef enum{
+  SYSTEM_POWER_UBB_POWER,
+  SYSTEM_POWER_UBB_POWER_THRESHOLD,
+  SYSTEM_POWER_MAX_ENTRIES_WO_RESERVED,
+  SYSTEM_POWER_MAX_ENTRIES  = 4
+} SYSTEM_POWER_e;
+
 #define SMU_METRICS_TABLE_VERSION 0x15
 
 #define SMU_SYSTEM_METRICS_TABLE_VERSION 0x1
@@ -310,6 +317,7 @@ typedef struct {
   uint32_t NodePowerLimit;
   uint32_t NodePower;
   uint32_t GlobalPPTResidencyAcc;
+  uint16_t SystemPower[SYSTEM_POWER_MAX_ENTRIES];           // UBB Current Power and Power Threshold
 } SystemMetricsTable_t;
 #pragma pack(pop)
 
