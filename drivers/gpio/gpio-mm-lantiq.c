@@ -52,8 +52,8 @@ static void ltq_mm_apply(struct ltq_mm *chip)
 /**
  * ltq_mm_set() - gpio_chip->set - set gpios.
  * @gc:     Pointer to gpio_chip device structure.
- * @gpio:   GPIO signal number.
- * @val:    Value to be written to specified signal.
+ * @offset: GPIO signal number.
+ * @value:  Value to be written to specified signal.
  *
  * Set the shadow value and call ltq_mm_apply. Always returns 0.
  */
@@ -73,8 +73,8 @@ static int ltq_mm_set(struct gpio_chip *gc, unsigned int offset, int value)
 /**
  * ltq_mm_dir_out() - gpio_chip->dir_out - set gpio direction.
  * @gc:     Pointer to gpio_chip device structure.
- * @gpio:   GPIO signal number.
- * @val:    Value to be written to specified signal.
+ * @offset: GPIO signal number.
+ * @value:  Value to be written to specified signal.
  *
  * Same as ltq_mm_set, always returns 0.
  */
@@ -85,7 +85,7 @@ static int ltq_mm_dir_out(struct gpio_chip *gc, unsigned offset, int value)
 
 /**
  * ltq_mm_save_regs() - Set initial values of GPIO pins
- * @mm_gc: pointer to memory mapped GPIO chip structure
+ * @chip: Pointer to our private data structure.
  */
 static void ltq_mm_save_regs(struct ltq_mm *chip)
 {
