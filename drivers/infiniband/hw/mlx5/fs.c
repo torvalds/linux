@@ -1874,7 +1874,7 @@ static int mlx5_ib_fill_transport_ns_info(struct mlx5_ib_dev *dev,
 					  u32 *flags, u16 *vport_idx,
 					  u16 *vport,
 					  struct mlx5_core_dev **ft_mdev,
-					  u32 ib_port)
+					  u32 ib_port, u16 *esw_owner_vhca_id)
 {
 	struct mlx5_core_dev *esw_mdev;
 
@@ -1888,8 +1888,13 @@ static int mlx5_ib_fill_transport_ns_info(struct mlx5_ib_dev *dev,
 		return -EINVAL;
 
 	esw_mdev = mlx5_eswitch_get_core_dev(dev->port[ib_port - 1].rep->esw);
-	if (esw_mdev != dev->mdev)
-		return -EOPNOTSUPP;
+	if (esw_mdev != dev->mdev) {
+		if (!MLX5_CAP_ADV_RDMA(dev->mdev,
+				       rdma_transport_manager_other_eswitch))
+			return -EOPNOTSUPP;
+		*flags |= MLX5_FLOW_TABLE_OTHER_ESWITCH;
+		*esw_owner_vhca_id = MLX5_CAP_GEN(esw_mdev, vhca_id);
+	}
 
 	*flags |= MLX5_FLOW_TABLE_OTHER_VPORT;
 	*ft_mdev = esw_mdev;
@@ -1908,6 +1913,7 @@ _get_flow_table(struct mlx5_ib_dev *dev, u16 user_priority,
 	struct mlx5_flow_table_attr ft_attr = {};
 	struct mlx5_flow_namespace *ns = NULL;
 	struct mlx5_ib_flow_prio *prio = NULL;
+	u16 esw_owner_vhca_id = 0;
 	int max_table_size = 0;
 	u16 vport_idx = 0;
 	bool esw_encap;
@@ -1969,7 +1975,8 @@ _get_flow_table(struct mlx5_ib_dev *dev, u16 user_priority,
 			return ERR_PTR(-EINVAL);
 		ret = mlx5_ib_fill_transport_ns_info(dev, ns_type, &flags,
 						     &vport_idx, &vport,
-						     &ft_mdev, ib_port);
+						     &ft_mdev, ib_port,
+						     &esw_owner_vhca_id);
 		if (ret)
 			return ERR_PTR(ret);
 
@@ -2033,6 +2040,7 @@ _get_flow_table(struct mlx5_ib_dev *dev, u16 user_priority,
 	ft_attr.max_fte = max_table_size;
 	ft_attr.flags = flags;
 	ft_attr.vport = vport;
+	ft_attr.esw_owner_vhca_id = esw_owner_vhca_id;
 	ft_attr.autogroup.max_num_groups = MLX5_FS_MAX_TYPES;
 	return _get_prio(ns, prio, &ft_attr);
 }
