@@ -129,7 +129,8 @@ bool mpls_pkt_too_big(const struct sk_buff *skb, unsigned int mtu)
 }
 EXPORT_SYMBOL_GPL(mpls_pkt_too_big);
 
-void mpls_stats_inc_outucastpkts(struct net_device *dev,
+void mpls_stats_inc_outucastpkts(struct net *net,
+				 struct net_device *dev,
 				 const struct sk_buff *skb)
 {
 	struct mpls_dev *mdev;
@@ -141,13 +142,13 @@ void mpls_stats_inc_outucastpkts(struct net_device *dev,
 					   tx_packets,
 					   tx_bytes);
 	} else if (skb->protocol == htons(ETH_P_IP)) {
-		IP_UPD_PO_STATS(dev_net(dev), IPSTATS_MIB_OUT, skb->len);
+		IP_UPD_PO_STATS(net, IPSTATS_MIB_OUT, skb->len);
 #if IS_ENABLED(CONFIG_IPV6)
 	} else if (skb->protocol == htons(ETH_P_IPV6)) {
-		struct inet6_dev *in6dev = __in6_dev_get(dev);
+		struct inet6_dev *in6dev = in6_dev_rcu(dev);
 
 		if (in6dev)
-			IP6_UPD_PO_STATS(dev_net(dev), in6dev,
+			IP6_UPD_PO_STATS(net, in6dev,
 					 IPSTATS_MIB_OUT, skb->len);
 #endif
 	}
@@ -342,7 +343,7 @@ static bool mpls_egress(struct net *net, struct mpls_route *rt,
 static int mpls_forward(struct sk_buff *skb, struct net_device *dev,
 			struct packet_type *pt, struct net_device *orig_dev)
 {
-	struct net *net = dev_net(dev);
+	struct net *net = dev_net_rcu(dev);
 	struct mpls_shim_hdr *hdr;
 	const struct mpls_nh *nh;
 	struct mpls_route *rt;
@@ -434,7 +435,7 @@ static int mpls_forward(struct sk_buff *skb, struct net_device *dev,
 	dec.ttl -= 1;
 	if (unlikely(!new_header_size && dec.bos)) {
 		/* Penultimate hop popping */
-		if (!mpls_egress(dev_net(out_dev), rt, skb, dec))
+		if (!mpls_egress(net, rt, skb, dec))
 			goto err;
 	} else {
 		bool bos;
@@ -451,7 +452,7 @@ static int mpls_forward(struct sk_buff *skb, struct net_device *dev,
 		}
 	}
 
-	mpls_stats_inc_outucastpkts(out_dev, skb);
+	mpls_stats_inc_outucastpkts(net, out_dev, skb);
 
 	/* If via wasn't specified then send out using device address */
 	if (nh->nh_via_table == MPLS_NEIGH_TABLE_UNSPEC)

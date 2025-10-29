@@ -197,7 +197,8 @@ int nla_get_labels(const struct nlattr *nla, u8 max_labels, u8 *labels,
 bool mpls_output_possible(const struct net_device *dev);
 unsigned int mpls_dev_mtu(const struct net_device *dev);
 bool mpls_pkt_too_big(const struct sk_buff *skb, unsigned int mtu);
-void mpls_stats_inc_outucastpkts(struct net_device *dev,
+void mpls_stats_inc_outucastpkts(struct net *net,
+				 struct net_device *dev,
 				 const struct sk_buff *skb);
 
 #endif /* MPLS_INTERNAL_H */
