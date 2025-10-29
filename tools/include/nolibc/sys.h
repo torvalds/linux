@@ -612,8 +612,7 @@ off_t sys_lseek(int fd, off_t offset, int whence)
 	off_t result;
 	int ret;
 
-	/* Only exists on 32bit where nolibc off_t is also 32bit */
-	ret = my_syscall5(__NR_llseek, fd, 0, offset, &loff, whence);
+	ret = my_syscall5(__NR_llseek, fd, offset >> 32, (uint32_t)offset, &loff, whence);
 	if (ret < 0)
 		result = ret;
 	else if (loff != (off_t)loff)
