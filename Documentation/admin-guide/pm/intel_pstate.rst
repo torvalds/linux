@@ -62,6 +62,8 @@ a certain performance scaling algorithm.  Which of them will be in effect
 depends on what kernel command line options are used and on the capabilities of
 the processor.
 
+.. _Active Mode:
+
 Active Mode
 -----------
 
@@ -93,6 +95,8 @@ Which of the P-state selection algorithms is used by default depends on the
 :c:macro:`CONFIG_CPU_FREQ_DEFAULT_GOV_PERFORMANCE` kernel configuration option.
 Namely, if that option is set, the ``performance`` algorithm will be used by
 default, and the other one will be used by default if it is not set.
+
+.. _Active Mode With HWP:
 
 Active Mode With HWP
 ~~~~~~~~~~~~~~~~~~~~
@@ -191,6 +195,8 @@ one.
 This is the default P-state selection algorithm if the
 :c:macro:`CONFIG_CPU_FREQ_DEFAULT_GOV_PERFORMANCE` kernel configuration option
 is not set.
+
+.. _Passive Mode:
 
 Passive Mode
 ------------
@@ -431,6 +437,8 @@ the ``energy_model`` directory in ``debugfs`` (typlically mounted on
 
 User Space Interface in ``sysfs``
 =================================
+
+.. _Global Attributes:
 
 Global Attributes
 -----------------
