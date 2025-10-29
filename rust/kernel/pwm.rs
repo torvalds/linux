@@ -660,7 +660,7 @@ unsafe impl<T: PwmOps + Sync> Sync for Chip<T> {}
 /// A resource guard that ensures `pwmchip_remove` is called on drop.
 ///
 /// This struct is intended to be managed by the `devres` framework by transferring its ownership
-/// via [`Devres::register`]. This ties the lifetime of the PWM chip registration
+/// via [`devres::register`]. This ties the lifetime of the PWM chip registration
 /// to the lifetime of the underlying device.
 pub struct Registration<T: PwmOps> {
     chip: ARef<Chip<T>>,
