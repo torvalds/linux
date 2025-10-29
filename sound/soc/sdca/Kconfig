@@ -25,6 +25,14 @@ config SND_SOC_SDCA_IRQ
 	help
 	  This option enables support for SDCA IRQs.
 
+config SND_SOC_SDCA_FDL
+	bool "SDCA FDL (File DownLoad) support"
+	depends on SND_SOC_SDCA
+	default y
+	help
+	  This option enables support for the File Download using UMP,
+	  typically used for downloading firmware to devices.
+
 config SND_SOC_SDCA_OPTIONAL
 	def_tristate SND_SOC_SDCA || !SND_SOC_SDCA
 
