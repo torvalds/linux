@@ -1616,22 +1616,24 @@ static int mpls_dev_notify(struct notifier_block *this, unsigned long event,
 
 	if (event == NETDEV_REGISTER) {
 		mdev = mpls_add_dev(dev);
-		if (IS_ERR(mdev))
-			return notifier_from_errno(PTR_ERR(mdev));
+		if (IS_ERR(mdev)) {
+			err = PTR_ERR(mdev);
+			goto err;
+		}
 
-		return NOTIFY_OK;
+		goto out;
 	}
 
 	mdev = mpls_dev_get(dev);
 	if (!mdev)
-		return NOTIFY_OK;
+		goto out;
 
 	switch (event) {
 
 	case NETDEV_DOWN:
 		err = mpls_ifdown(dev, event);
 		if (err)
-			return notifier_from_errno(err);
+			goto err;
 		break;
 	case NETDEV_UP:
 		flags = netif_get_flags(dev);
@@ -1647,13 +1649,14 @@ static int mpls_dev_notify(struct notifier_block *this, unsigned long event,
 		} else {
 			err = mpls_ifdown(dev, event);
 			if (err)
-				return notifier_from_errno(err);
+				goto err;
 		}
 		break;
 	case NETDEV_UNREGISTER:
 		err = mpls_ifdown(dev, event);
 		if (err)
-			return notifier_from_errno(err);
+			goto err;
+
 		mdev = mpls_dev_get(dev);
 		if (mdev) {
 			mpls_dev_sysctl_unregister(dev, mdev);
@@ -1667,11 +1670,16 @@ static int mpls_dev_notify(struct notifier_block *this, unsigned long event,
 			mpls_dev_sysctl_unregister(dev, mdev);
 			err = mpls_dev_sysctl_register(dev, mdev);
 			if (err)
-				return notifier_from_errno(err);
+				goto err;
 		}
 		break;
 	}
+
+out:
 	return NOTIFY_OK;
+
+err:
+	return notifier_from_errno(err);
 }
 
 static struct notifier_block mpls_dev_notifier = {
