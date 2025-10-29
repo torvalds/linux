@@ -2251,4 +2251,103 @@ TEST(thread_ns_inactive_after_exit)
 	ASSERT_TRUE(errno == ENOENT || errno == ESTALE);
 }
 
+/*
+ * Test that a namespace remains active while a thread holds an fd to it.
+ * Even after the thread exits, the namespace should remain active as long as
+ * another thread holds a file descriptor to it.
+ */
+TEST(thread_ns_fd_keeps_active)
+{
+	pthread_t thread;
+	struct thread_ns_info info;
+	struct file_handle *handle;
+	int pipefd[2];
+	int syncpipe[2];
+	int ret;
+	char sync_byte;
+	char buf[sizeof(*handle) + MAX_HANDLE_SZ];
+
+	ASSERT_EQ(pipe(pipefd), 0);
+	ASSERT_EQ(pipe(syncpipe), 0);
+
+	info.pipefd = pipefd[1];
+	info.syncfd_read = syncpipe[0];
+	info.syncfd_write = -1;
+	info.exit_code = -1;
+
+	/* Create thread that will create a namespace */
+	ret = pthread_create(&thread, NULL, thread_create_namespace, &info);
+	ASSERT_EQ(ret, 0);
+
+	/* Read namespace ID from thread */
+	__u64 ns_id;
+	ret = read(pipefd[0], &ns_id, sizeof(ns_id));
+	if (ret != sizeof(ns_id)) {
+		sync_byte = 'X';
+		write(syncpipe[1], &sync_byte, 1);
+		pthread_join(thread, NULL);
+		close(pipefd[0]);
+		close(pipefd[1]);
+		close(syncpipe[0]);
+		close(syncpipe[1]);
+		SKIP(return, "Failed to read namespace ID from thread");
+	}
+
+	TH_LOG("Thread created namespace with ID %llu", (unsigned long long)ns_id);
+
+	/* Construct file handle */
+	handle = (struct file_handle *)buf;
+	handle->handle_bytes = sizeof(struct nsfs_file_handle);
+	handle->handle_type = FILEID_NSFS;
+	struct nsfs_file_handle *fh = (struct nsfs_file_handle *)handle->f_handle;
+	fh->ns_id = ns_id;
+	fh->ns_type = 0;
+	fh->ns_inum = 0;
+
+	/* Open namespace while thread is alive */
+	TH_LOG("Opening namespace while thread is alive");
+	int nsfd = open_by_handle_at(FD_NSFS_ROOT, handle, O_RDONLY);
+	ASSERT_GE(nsfd, 0);
+
+	/* Signal thread to exit */
+	TH_LOG("Signaling thread to exit");
+	sync_byte = 'X';
+	write(syncpipe[1], &sync_byte, 1);
+	close(syncpipe[1]);
+
+	/* Wait for thread to exit */
+	pthread_join(thread, NULL);
+	close(pipefd[0]);
+	close(pipefd[1]);
+	close(syncpipe[0]);
+
+	if (info.exit_code != 0) {
+		close(nsfd);
+		SKIP(return, "Thread failed to create namespace");
+	}
+
+	TH_LOG("Thread exited, but main thread holds fd - namespace should remain active");
+
+	/* Namespace should still be active because we hold an fd */
+	int nsfd2 = open_by_handle_at(FD_NSFS_ROOT, handle, O_RDONLY);
+	ASSERT_GE(nsfd2, 0);
+
+	/* Verify it's the same namespace */
+	struct stat st1, st2;
+	ASSERT_EQ(fstat(nsfd, &st1), 0);
+	ASSERT_EQ(fstat(nsfd2, &st2), 0);
+	ASSERT_EQ(st1.st_ino, st2.st_ino);
+	close(nsfd2);
+
+	TH_LOG("Closing fd - namespace should become inactive");
+	close(nsfd);
+
+	/* Now namespace should be inactive */
+	nsfd = open_by_handle_at(FD_NSFS_ROOT, handle, O_RDONLY);
+	ASSERT_LT(nsfd, 0);
+	/* Should fail with ENOENT (inactive) or ESTALE (gone) */
+	TH_LOG("Namespace inactive as expected: %s (errno=%d)", strerror(errno), errno);
+	ASSERT_TRUE(errno == ENOENT || errno == ESTALE);
+}
+
 TEST_HARNESS_MAIN
