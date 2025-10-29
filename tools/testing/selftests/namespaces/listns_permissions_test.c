@@ -128,4 +128,104 @@ TEST(listns_unprivileged_current_only)
 			unexpected_count);
 }
 
+/*
+ * Test that users with CAP_SYS_ADMIN in a user namespace can see
+ * all namespaces owned by that user namespace.
+ */
+TEST(listns_cap_sys_admin_in_userns)
+{
+	struct ns_id_req req = {
+		.size = sizeof(req),
+		.spare = 0,
+		.ns_id = 0,
+		.ns_type = 0,  /* All types */
+		.spare2 = 0,
+		.user_ns_id = 0,  /* Will be set to our created user namespace */
+	};
+	__u64 ns_ids[100];
+	int pipefd[2];
+	pid_t pid;
+	int status;
+	bool success;
+	ssize_t count;
+
+	ASSERT_EQ(pipe(pipefd), 0);
+
+	pid = fork();
+	ASSERT_GE(pid, 0);
+
+	if (pid == 0) {
+		int fd;
+		__u64 userns_id;
+		ssize_t ret;
+		int min_expected;
+		bool success;
+
+		close(pipefd[0]);
+
+		/* Create user namespace - we'll have CAP_SYS_ADMIN in it */
+		if (setup_userns() < 0) {
+			close(pipefd[1]);
+			exit(1);
+		}
+
+		/* Get the user namespace ID */
+		fd = open("/proc/self/ns/user", O_RDONLY);
+		if (fd < 0) {
+			close(pipefd[1]);
+			exit(1);
+		}
+
+		if (ioctl(fd, NS_GET_ID, &userns_id) < 0) {
+			close(fd);
+			close(pipefd[1]);
+			exit(1);
+		}
+		close(fd);
+
+		/* Create several namespaces owned by this user namespace */
+		unshare(CLONE_NEWNET);
+		unshare(CLONE_NEWUTS);
+		unshare(CLONE_NEWIPC);
+
+		/* List namespaces owned by our user namespace */
+		req.user_ns_id = userns_id;
+		ret = sys_listns(&req, ns_ids, ARRAY_SIZE(ns_ids), 0);
+		if (ret < 0) {
+			close(pipefd[1]);
+			exit(1);
+		}
+
+		/*
+		 * We have CAP_SYS_ADMIN in this user namespace,
+		 * so we should see all namespaces owned by it.
+		 * That includes: net, uts, ipc, and the user namespace itself.
+		 */
+		min_expected = 4;
+		success = (ret >= min_expected);
+
+		write(pipefd[1], &success, sizeof(success));
+		write(pipefd[1], &ret, sizeof(ret));
+		close(pipefd[1]);
+		exit(0);
+	}
+
+	/* Parent */
+	close(pipefd[1]);
+
+	success = false;
+	count = 0;
+	read(pipefd[0], &success, sizeof(success));
+	read(pipefd[0], &count, sizeof(count));
+	close(pipefd[0]);
+
+	waitpid(pid, &status, 0);
+	ASSERT_TRUE(WIFEXITED(status));
+	ASSERT_EQ(WEXITSTATUS(status), 0);
+
+	ASSERT_TRUE(success);
+	TH_LOG("User with CAP_SYS_ADMIN saw %zd namespaces owned by their user namespace",
+			count);
+}
+
 TEST_HARNESS_MAIN
