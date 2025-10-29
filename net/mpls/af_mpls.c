@@ -590,19 +590,17 @@ static void mpls_route_update(struct net *net, unsigned index,
 	mpls_rt_free(rt);
 }
 
-static unsigned find_free_label(struct net *net)
+static unsigned int find_free_label(struct net *net)
 {
-	struct mpls_route __rcu **platform_label;
-	size_t platform_labels;
-	unsigned index;
+	unsigned int index;
 
-	platform_label = rtnl_dereference(net->mpls.platform_label);
-	platform_labels = net->mpls.platform_labels;
-	for (index = MPLS_LABEL_FIRST_UNRESERVED; index < platform_labels;
+	for (index = MPLS_LABEL_FIRST_UNRESERVED;
+	     index < net->mpls.platform_labels;
 	     index++) {
-		if (!rtnl_dereference(platform_label[index]))
+		if (!mpls_route_input(net, index))
 			return index;
 	}
+
 	return LABEL_NOT_SPECIFIED;
 }
 
@@ -985,7 +983,6 @@ static bool mpls_label_ok(struct net *net, unsigned int *index,
 static int mpls_route_add(struct mpls_route_config *cfg,
 			  struct netlink_ext_ack *extack)
 {
-	struct mpls_route __rcu **platform_label;
 	struct net *net = cfg->rc_nlinfo.nl_net;
 	struct mpls_route *rt, *old;
 	int err = -EINVAL;
@@ -1013,8 +1010,7 @@ static int mpls_route_add(struct mpls_route_config *cfg,
 	}
 
 	err = -EEXIST;
-	platform_label = rtnl_dereference(net->mpls.platform_label);
-	old = rtnl_dereference(platform_label[index]);
+	old = mpls_route_input(net, index);
 	if ((cfg->rc_nlflags & NLM_F_EXCL) && old)
 		goto errout;
 
@@ -1503,16 +1499,15 @@ static void mpls_dev_destroy_rcu(struct rcu_head *head)
 
 static int mpls_ifdown(struct net_device *dev, int event)
 {
-	struct mpls_route __rcu **platform_label;
 	struct net *net = dev_net(dev);
-	unsigned index;
+	unsigned int index;
 
-	platform_label = rtnl_dereference(net->mpls.platform_label);
 	for (index = 0; index < net->mpls.platform_labels; index++) {
-		struct mpls_route *rt = rtnl_dereference(platform_label[index]);
+		struct mpls_route *rt;
 		bool nh_del = false;
 		u8 alive = 0;
 
+		rt = mpls_route_input(net, index);
 		if (!rt)
 			continue;
 
@@ -1583,15 +1578,14 @@ next:
 
 static void mpls_ifup(struct net_device *dev, unsigned int flags)
 {
-	struct mpls_route __rcu **platform_label;
 	struct net *net = dev_net(dev);
-	unsigned index;
+	unsigned int index;
 	u8 alive;
 
-	platform_label = rtnl_dereference(net->mpls.platform_label);
 	for (index = 0; index < net->mpls.platform_labels; index++) {
-		struct mpls_route *rt = rtnl_dereference(platform_label[index]);
+		struct mpls_route *rt;
 
+		rt = mpls_route_input(net, index);
 		if (!rt)
 			continue;
 
