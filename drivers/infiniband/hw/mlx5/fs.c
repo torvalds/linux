@@ -691,22 +691,13 @@ static bool __maybe_unused mlx5_ib_shared_ft_allowed(struct ib_device *device)
 	return MLX5_CAP_GEN(dev->mdev, shared_object_to_user_object_allowed);
 }
 
-static struct mlx5_ib_flow_prio *_get_prio(struct mlx5_ib_dev *dev,
-					   struct mlx5_flow_namespace *ns,
+static struct mlx5_ib_flow_prio *_get_prio(struct mlx5_flow_namespace *ns,
 					   struct mlx5_ib_flow_prio *prio,
-					   int priority,
-					   int num_entries, int num_groups,
-					   u32 flags, u16 vport)
+					   struct mlx5_flow_table_attr *ft_attr)
 {
-	struct mlx5_flow_table_attr ft_attr = {};
 	struct mlx5_flow_table *ft;
 
-	ft_attr.prio = priority;
-	ft_attr.max_fte = num_entries;
-	ft_attr.flags = flags;
-	ft_attr.vport = vport;
-	ft_attr.autogroup.max_num_groups = num_groups;
-	ft = mlx5_create_auto_grouped_flow_table(ns, &ft_attr);
+	ft = mlx5_create_auto_grouped_flow_table(ns, ft_attr);
 	if (IS_ERR(ft))
 		return ERR_CAST(ft);
 
@@ -720,6 +711,7 @@ static struct mlx5_ib_flow_prio *get_flow_table(struct mlx5_ib_dev *dev,
 						enum flow_table_type ft_type)
 {
 	bool dont_trap = flow_attr->flags & IB_FLOW_ATTR_FLAGS_DONT_TRAP;
+	struct mlx5_flow_table_attr ft_attr = {};
 	struct mlx5_flow_namespace *ns = NULL;
 	enum mlx5_flow_namespace_type fn_type;
 	struct mlx5_ib_flow_prio *prio;
@@ -797,11 +789,14 @@ static struct mlx5_ib_flow_prio *get_flow_table(struct mlx5_ib_dev *dev,
 	max_table_size = min_t(int, num_entries, max_table_size);
 
 	ft = prio->flow_table;
-	if (!ft)
-		return _get_prio(dev, ns, prio, priority, max_table_size,
-				 num_groups, flags, 0);
+	if (ft)
+		return prio;
 
-	return prio;
+	ft_attr.prio = priority;
+	ft_attr.max_fte = max_table_size;
+	ft_attr.flags = flags;
+	ft_attr.autogroup.max_num_groups = num_groups;
+	return _get_prio(ns, prio, &ft_attr);
 }
 
 enum {
@@ -950,6 +945,7 @@ static int get_per_qp_prio(struct mlx5_ib_dev *dev,
 			   enum mlx5_ib_optional_counter_type type)
 {
 	enum mlx5_ib_optional_counter_type per_qp_type;
+	struct mlx5_flow_table_attr ft_attr = {};
 	enum mlx5_flow_namespace_type fn_type;
 	struct mlx5_flow_namespace *ns;
 	struct mlx5_ib_flow_prio *prio;
@@ -1003,7 +999,10 @@ static int get_per_qp_prio(struct mlx5_ib_dev *dev,
 	if (prio->flow_table)
 		return 0;
 
-	prio = _get_prio(dev, ns, prio, priority, MLX5_FS_MAX_POOL_SIZE, 1, 0, 0);
+	ft_attr.prio = priority;
+	ft_attr.max_fte = MLX5_FS_MAX_POOL_SIZE;
+	ft_attr.autogroup.max_num_groups = 1;
+	prio = _get_prio(ns, prio, &ft_attr);
 	if (IS_ERR(prio))
 		return PTR_ERR(prio);
 
@@ -1223,6 +1222,7 @@ int mlx5_ib_fs_add_op_fc(struct mlx5_ib_dev *dev, u32 port_num,
 			 struct mlx5_ib_op_fc *opfc,
 			 enum mlx5_ib_optional_counter_type type)
 {
+	struct mlx5_flow_table_attr ft_attr = {};
 	enum mlx5_flow_namespace_type fn_type;
 	int priority, i, err, spec_num;
 	struct mlx5_flow_act flow_act = {};
@@ -1304,8 +1304,10 @@ int mlx5_ib_fs_add_op_fc(struct mlx5_ib_dev *dev, u32 port_num,
 		if (err)
 			goto free;
 
-		prio = _get_prio(dev, ns, prio, priority,
-				 dev->num_ports * MAX_OPFC_RULES, 1, 0, 0);
+		ft_attr.prio = priority;
+		ft_attr.max_fte = dev->num_ports * MAX_OPFC_RULES;
+		ft_attr.autogroup.max_num_groups = 1;
+		prio = _get_prio(ns, prio, &ft_attr);
 		if (IS_ERR(prio)) {
 			err = PTR_ERR(prio);
 			goto put_prio;
@@ -1903,6 +1905,7 @@ _get_flow_table(struct mlx5_ib_dev *dev, u16 user_priority,
 		bool mcast, u32 ib_port)
 {
 	struct mlx5_core_dev *ft_mdev = dev->mdev;
+	struct mlx5_flow_table_attr ft_attr = {};
 	struct mlx5_flow_namespace *ns = NULL;
 	struct mlx5_ib_flow_prio *prio = NULL;
 	int max_table_size = 0;
@@ -2026,8 +2029,12 @@ _get_flow_table(struct mlx5_ib_dev *dev, u16 user_priority,
 	if (prio->flow_table)
 		return prio;
 
-	return _get_prio(dev, ns, prio, priority, max_table_size,
-			 MLX5_FS_MAX_TYPES, flags, vport);
+	ft_attr.prio = priority;
+	ft_attr.max_fte = max_table_size;
+	ft_attr.flags = flags;
+	ft_attr.vport = vport;
+	ft_attr.autogroup.max_num_groups = MLX5_FS_MAX_TYPES;
+	return _get_prio(ns, prio, &ft_attr);
 }
 
 static struct mlx5_ib_flow_handler *
