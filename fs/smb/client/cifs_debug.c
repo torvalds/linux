@@ -324,7 +324,7 @@ static int cifs_debug_dirs_proc_show(struct seq_file *m, void *v)
 
 	seq_puts(m, "# Version:1\n");
 	seq_puts(m, "# Format:\n");
-	seq_puts(m, "# <tree id> <sess id> <persistent fid> <path>\n");
+	seq_puts(m, "# <tree id> <sess id> <persistent fid> <lease-key> <path>\n");
 
 	spin_lock(&cifs_tcp_ses_lock);
 	list_for_each(stmp, &cifs_tcp_ses_list) {
@@ -343,11 +343,15 @@ static int cifs_debug_dirs_proc_show(struct seq_file *m, void *v)
 						(unsigned long)atomic_long_read(&cfids->total_dirents_entries),
 						(unsigned long long)atomic64_read(&cfids->total_dirents_bytes));
 				list_for_each_entry(cfid, &cfids->entries, entry) {
-					seq_printf(m, "0x%x 0x%llx 0x%llx     %s",
+					seq_printf(m, "0x%x 0x%llx 0x%llx ",
 						tcon->tid,
 						ses->Suid,
-						cfid->fid.persistent_fid,
-						cfid->path);
+						cfid->fid.persistent_fid);
+					if (cfid->has_lease)
+						seq_printf(m, "%pUl ", cfid->fid.lease_key);
+					else
+						seq_puts(m, "- ");
+					seq_printf(m, "%s", cfid->path);
 					if (cfid->file_all_info_is_valid)
 						seq_printf(m, "\tvalid file info");
 					if (cfid->dirents.is_valid)
