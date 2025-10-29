@@ -942,4 +942,168 @@ TEST(ns_bind_mount_keeps_in_tree)
 	unlink(tmpfile);
 }
 
+/*
+ * Test multi-level hierarchy (3+ levels deep).
+ * Grandparent → Parent → Child
+ * When child is active, both parent AND grandparent should be active.
+ */
+TEST(ns_multilevel_hierarchy)
+{
+	struct file_handle *gp_handle, *p_handle, *c_handle;
+	int ret, pipefd[2];
+	pid_t pid;
+	int status;
+	__u64 gp_id, p_id, c_id;
+	char gp_buf[sizeof(*gp_handle) + MAX_HANDLE_SZ];
+	char p_buf[sizeof(*p_handle) + MAX_HANDLE_SZ];
+	char c_buf[sizeof(*c_handle) + MAX_HANDLE_SZ];
+
+	ASSERT_EQ(pipe(pipefd), 0);
+	pid = fork();
+	ASSERT_GE(pid, 0);
+
+	if (pid == 0) {
+		close(pipefd[0]);
+
+		/* Create grandparent user namespace */
+		if (setup_userns() < 0) {
+			close(pipefd[1]);
+			exit(1);
+		}
+
+		int gp_fd = open("/proc/self/ns/user", O_RDONLY);
+		if (gp_fd < 0) {
+			close(pipefd[1]);
+			exit(1);
+		}
+		if (ioctl(gp_fd, NS_GET_ID, &gp_id) < 0) {
+			close(gp_fd);
+			close(pipefd[1]);
+			exit(1);
+		}
+		close(gp_fd);
+
+		/* Create parent user namespace */
+		if (setup_userns() < 0) {
+			close(pipefd[1]);
+			exit(1);
+		}
+
+		int p_fd = open("/proc/self/ns/user", O_RDONLY);
+		if (p_fd < 0) {
+			close(pipefd[1]);
+			exit(1);
+		}
+		if (ioctl(p_fd, NS_GET_ID, &p_id) < 0) {
+			close(p_fd);
+			close(pipefd[1]);
+			exit(1);
+		}
+		close(p_fd);
+
+		/* Create child user namespace */
+		if (setup_userns() < 0) {
+			close(pipefd[1]);
+			exit(1);
+		}
+
+		int c_fd = open("/proc/self/ns/user", O_RDONLY);
+		if (c_fd < 0) {
+			close(pipefd[1]);
+			exit(1);
+		}
+		if (ioctl(c_fd, NS_GET_ID, &c_id) < 0) {
+			close(c_fd);
+			close(pipefd[1]);
+			exit(1);
+		}
+		close(c_fd);
+
+		/* Send all three namespace IDs */
+		write(pipefd[1], &gp_id, sizeof(gp_id));
+		write(pipefd[1], &p_id, sizeof(p_id));
+		write(pipefd[1], &c_id, sizeof(c_id));
+		close(pipefd[1]);
+		exit(0);
+	}
+
+	close(pipefd[1]);
+
+	/* Read all three namespace IDs - fixed size, no parsing needed */
+	ret = read(pipefd[0], &gp_id, sizeof(gp_id));
+	if (ret != sizeof(gp_id)) {
+		close(pipefd[0]);
+		waitpid(pid, NULL, 0);
+		SKIP(return, "Failed to read grandparent namespace ID from child");
+	}
+
+	ret = read(pipefd[0], &p_id, sizeof(p_id));
+	if (ret != sizeof(p_id)) {
+		close(pipefd[0]);
+		waitpid(pid, NULL, 0);
+		SKIP(return, "Failed to read parent namespace ID from child");
+	}
+
+	ret = read(pipefd[0], &c_id, sizeof(c_id));
+	close(pipefd[0]);
+	if (ret != sizeof(c_id)) {
+		waitpid(pid, NULL, 0);
+		SKIP(return, "Failed to read child namespace ID from child");
+	}
+
+	/* Construct file handles from namespace IDs */
+	gp_handle = (struct file_handle *)gp_buf;
+	gp_handle->handle_bytes = sizeof(struct nsfs_file_handle);
+	gp_handle->handle_type = FILEID_NSFS;
+	struct nsfs_file_handle *gp_fh = (struct nsfs_file_handle *)gp_handle->f_handle;
+	gp_fh->ns_id = gp_id;
+	gp_fh->ns_type = 0;
+	gp_fh->ns_inum = 0;
+
+	p_handle = (struct file_handle *)p_buf;
+	p_handle->handle_bytes = sizeof(struct nsfs_file_handle);
+	p_handle->handle_type = FILEID_NSFS;
+	struct nsfs_file_handle *p_fh = (struct nsfs_file_handle *)p_handle->f_handle;
+	p_fh->ns_id = p_id;
+	p_fh->ns_type = 0;
+	p_fh->ns_inum = 0;
+
+	c_handle = (struct file_handle *)c_buf;
+	c_handle->handle_bytes = sizeof(struct nsfs_file_handle);
+	c_handle->handle_type = FILEID_NSFS;
+	struct nsfs_file_handle *c_fh = (struct nsfs_file_handle *)c_handle->f_handle;
+	c_fh->ns_id = c_id;
+	c_fh->ns_type = 0;
+	c_fh->ns_inum = 0;
+
+	/* Open child before process exits */
+	int c_fd = open_by_handle_at(FD_NSFS_ROOT, c_handle, O_RDONLY);
+	if (c_fd < 0) {
+		waitpid(pid, NULL, 0);
+		SKIP(return, "Failed to open child namespace");
+	}
+
+	waitpid(pid, &status, 0);
+	ASSERT_TRUE(WIFEXITED(status));
+	ASSERT_EQ(WEXITSTATUS(status), 0);
+
+	/*
+	 * With 3-level hierarchy and child active:
+	 * - Child is active (we hold fd)
+	 * - Parent should be active (propagated from child)
+	 * - Grandparent should be active (propagated from parent)
+	 */
+	TH_LOG("Testing parent active when child is active");
+	int p_fd = open_by_handle_at(FD_NSFS_ROOT, p_handle, O_RDONLY);
+	ASSERT_GE(p_fd, 0);
+
+	TH_LOG("Testing grandparent active when child is active");
+	int gp_fd = open_by_handle_at(FD_NSFS_ROOT, gp_handle, O_RDONLY);
+	ASSERT_GE(gp_fd, 0);
+
+	close(c_fd);
+	close(p_fd);
+	close(gp_fd);
+}
+
 TEST_HARNESS_MAIN
