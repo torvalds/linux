@@ -49,7 +49,7 @@ int on_open_expect_fault(void *c)
 	if (bpf_dynptr_from_file(file, 0, &dynptr))
 		goto out;
 
-	local_err = bpf_dynptr_read(tmp_buf, user_buf_sz, &dynptr, 0, 0);
+	local_err = bpf_dynptr_read(tmp_buf, user_buf_sz, &dynptr, user_buf_sz, 0);
 	if (local_err == -EFAULT) { /* Expect page fault */
 		local_err = 0;
 		run_success = 1;

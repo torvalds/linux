@@ -52,7 +52,11 @@ static int initialize_file_contents(void)
 	/* page-align base file address */
 	addr = (void *)((unsigned long)addr & ~(page_sz - 1));
 
-	for (off = 0; off < sizeof(file_contents); off += page_sz) {
+	/*
+	 * Page out range 0..512K, use 0..256K for positive tests and
+	 * 256K..512K for negative tests expecting page faults
+	 */
+	for (off = 0; off < sizeof(file_contents) * 2; off += page_sz) {
 		if (!ASSERT_OK(madvise(addr + off, page_sz, MADV_PAGEOUT),
 			       "madvise pageout"))
 			return errno;
