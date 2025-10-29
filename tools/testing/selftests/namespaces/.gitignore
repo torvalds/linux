@@ -5,3 +5,4 @@ ns_active_ref_test
 listns_test
 listns_permissions_test
 siocgskns_test
+cred_change_test
