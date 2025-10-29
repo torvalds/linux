@@ -459,6 +459,7 @@ static void ice_devlink_reinit_down(struct ice_pf *pf)
 	rtnl_lock();
 	ice_vsi_decfg(ice_get_main_vsi(pf));
 	rtnl_unlock();
+	ice_deinit_pf(pf);
 	ice_deinit_dev(pf);
 }
 
@@ -1231,11 +1232,13 @@ static void ice_set_min_max_msix(struct ice_pf *pf)
 static int ice_devlink_reinit_up(struct ice_pf *pf)
 {
 	struct ice_vsi *vsi = ice_get_main_vsi(pf);
+	struct device *dev = ice_pf_to_dev(pf);
+	bool need_dev_deinit = false;
 	int err;
 
 	err = ice_init_hw(&pf->hw);
 	if (err) {
-		dev_err(ice_pf_to_dev(pf), "ice_init_hw failed: %d\n", err);
+		dev_err(dev, "ice_init_hw failed: %d\n", err);
 		return err;
 	}
 
@@ -1246,13 +1249,19 @@ static int ice_devlink_reinit_up(struct ice_pf *pf)
 	if (err)
 		goto unroll_hw_init;
 
+	err = ice_init_pf(pf);
+	if (err) {
+		dev_err(dev, "ice_init_pf failed: %d\n", err);
+		goto unroll_dev_init;
+	}
+
 	vsi->flags = ICE_VSI_FLAG_INIT;
 
 	rtnl_lock();
 	err = ice_vsi_cfg(vsi);
 	rtnl_unlock();
 	if (err)
-		goto err_vsi_cfg;
+		goto unroll_pf_init;
 
 	/* No need to take devl_lock, it's already taken by devlink API */
 	err = ice_load(pf);
@@ -1265,10 +1274,14 @@ err_load:
 	rtnl_lock();
 	ice_vsi_decfg(vsi);
 	rtnl_unlock();
-err_vsi_cfg:
-	ice_deinit_dev(pf);
+unroll_pf_init:
+	ice_deinit_pf(pf);
+unroll_dev_init:
+	need_dev_deinit = true;
 unroll_hw_init:
 	ice_deinit_hw(&pf->hw);
+	if (need_dev_deinit)
+		ice_deinit_dev(pf);
 	return err;
 }
 
