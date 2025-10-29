@@ -138,6 +138,7 @@ extern void cgroup_cancel_fork(struct task_struct *p,
 extern void cgroup_post_fork(struct task_struct *p,
 			     struct kernel_clone_args *kargs);
 void cgroup_task_exit(struct task_struct *p);
+void cgroup_task_dead(struct task_struct *p);
 void cgroup_task_release(struct task_struct *p);
 void cgroup_task_free(struct task_struct *p);
 
@@ -681,6 +682,7 @@ static inline void cgroup_cancel_fork(struct task_struct *p,
 static inline void cgroup_post_fork(struct task_struct *p,
 				    struct kernel_clone_args *kargs) {}
 static inline void cgroup_task_exit(struct task_struct *p) {}
+static inline void cgroup_task_dead(struct task_struct *p) {}
 static inline void cgroup_task_release(struct task_struct *p) {}
 static inline void cgroup_task_free(struct task_struct *p) {}
 
