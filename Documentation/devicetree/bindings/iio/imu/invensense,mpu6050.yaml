@@ -86,7 +86,6 @@ unevaluatedProperties: false
 required:
   - compatible
   - reg
-  - interrupts
 
 examples:
   - |
