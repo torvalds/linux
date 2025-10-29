@@ -9,6 +9,7 @@
 
 static __cacheline_aligned_in_smp DEFINE_SEQLOCK(ns_tree_lock);
 static struct rb_root ns_unified_tree = RB_ROOT; /* protected by ns_tree_lock */
+static LIST_HEAD(ns_unified_list); /* protected by ns_tree_lock */
 
 /**
  * struct ns_tree - Namespace tree
@@ -137,7 +138,13 @@ void __ns_tree_add_raw(struct ns_common *ns, struct ns_tree *ns_tree)
 	else
 		list_add_rcu(&ns->ns_list_node, &node_to_ns(prev)->ns_list_node);
 
+	/* Add to unified tree and list */
 	rb_find_add_rcu(&ns->ns_unified_tree_node, &ns_unified_tree, ns_cmp_unified);
+	prev = rb_prev(&ns->ns_unified_tree_node);
+	if (!prev)
+		list_add_rcu(&ns->ns_unified_list_node, &ns_unified_list);
+	else
+		list_add_rcu(&ns->ns_unified_list_node, &node_to_ns_unified(prev)->ns_unified_list_node);
 
 	if (ops) {
 		struct user_namespace *user_ns;
@@ -186,10 +193,14 @@ void __ns_tree_remove(struct ns_common *ns, struct ns_tree *ns_tree)
 
 	write_seqlock(&ns_tree_lock);
 	rb_erase(&ns->ns_tree_node, &ns_tree->ns_tree);
-	rb_erase(&ns->ns_unified_tree_node, &ns_unified_tree);
 	RB_CLEAR_NODE(&ns->ns_tree_node);
 
 	list_bidir_del_rcu(&ns->ns_list_node);
+
+	rb_erase(&ns->ns_unified_tree_node, &ns_unified_tree);
+	RB_CLEAR_NODE(&ns->ns_unified_tree_node);
+
+	list_bidir_del_rcu(&ns->ns_unified_list_node);
 
 	/* Remove from owner's rbtree if this namespace has an owner */
 	if (ops) {

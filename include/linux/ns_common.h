@@ -111,6 +111,7 @@ struct ns_common {
 			u64 ns_id;
 			struct /* global namespace rbtree and list */ {
 				struct rb_node ns_unified_tree_node;
+				struct list_head ns_unified_list_node;
 			};
 			struct /* per type rbtree and list */ {
 				struct rb_node ns_tree_node;
@@ -224,6 +225,7 @@ static __always_inline bool is_initial_namespace(struct ns_common *ns)
 	.ns_list_node		= LIST_HEAD_INIT(nsname.ns.ns_list_node),		\
 	.ns_owner_entry		= LIST_HEAD_INIT(nsname.ns.ns_owner_entry),		\
 	.ns_owner		= LIST_HEAD_INIT(nsname.ns.ns_owner),			\
+	.ns_unified_list_node	= LIST_HEAD_INIT(nsname.ns.ns_unified_list_node),	\
 }
 
 #define ns_common_init(__ns)                     \
