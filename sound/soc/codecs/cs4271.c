@@ -10,6 +10,7 @@
  * DAPM support not implemented.
  */
 
+#include <linux/clk.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
@@ -163,6 +164,7 @@ struct cs4271_private {
 	/* enable soft reset workaround */
 	bool				enable_soft_reset;
 	struct regulator_bulk_data      supplies[ARRAY_SIZE(supply_names)];
+	struct clk *clk;
 };
 
 static const struct snd_soc_dapm_widget cs4271_dapm_widgets[] = {
@@ -505,6 +507,7 @@ static int cs4271_soc_suspend(struct snd_soc_component *component)
 		return ret;
 
 	regcache_mark_dirty(cs4271->regmap);
+	clk_disable_unprepare(cs4271->clk);
 	regulator_bulk_disable(ARRAY_SIZE(cs4271->supplies), cs4271->supplies);
 
 	return 0;
@@ -519,6 +522,12 @@ static int cs4271_soc_resume(struct snd_soc_component *component)
 				    cs4271->supplies);
 	if (ret < 0) {
 		dev_err(component->dev, "Failed to enable regulators: %d\n", ret);
+		return ret;
+	}
+
+	ret = clk_prepare_enable(cs4271->clk);
+	if (ret) {
+		dev_err(component->dev, "Failed to enable clk: %d\n", ret);
 		return ret;
 	}
 
@@ -576,22 +585,29 @@ static int cs4271_component_probe(struct snd_soc_component *component)
 		cs4271->enable_soft_reset = cs4271plat->enable_soft_reset;
 	}
 
+	ret = clk_prepare_enable(cs4271->clk);
+	if (ret) {
+		dev_err(component->dev, "Failed to enable clk: %d\n", ret);
+		goto err_disable_regulators;
+	}
+
 	/* Reset codec */
 	cs4271_reset(component);
 
 	ret = regcache_sync(cs4271->regmap);
 	if (ret < 0)
-		goto err_disable_regulators;
+		goto err_disable_clk;
 
 	ret = regmap_update_bits(cs4271->regmap, CS4271_MODE2,
 				 CS4271_MODE2_PDN | CS4271_MODE2_CPEN,
 				 CS4271_MODE2_PDN | CS4271_MODE2_CPEN);
 	if (ret < 0)
-		goto err_disable_regulators;
+		goto err_disable_clk;
 	ret = regmap_update_bits(cs4271->regmap, CS4271_MODE2,
 				 CS4271_MODE2_PDN, 0);
 	if (ret < 0)
-		goto err_disable_regulators;
+		goto err_disable_clk;
+
 	/* Power-up sequence requires 85 uS */
 	udelay(85);
 
@@ -602,6 +618,8 @@ static int cs4271_component_probe(struct snd_soc_component *component)
 
 	return 0;
 
+err_disable_clk:
+	clk_disable_unprepare(cs4271->clk);
 err_disable_regulators:
 	regulator_bulk_disable(ARRAY_SIZE(cs4271->supplies), cs4271->supplies);
 	return ret;
@@ -616,6 +634,7 @@ static void cs4271_component_remove(struct snd_soc_component *component)
 
 	regcache_mark_dirty(cs4271->regmap);
 	regulator_bulk_disable(ARRAY_SIZE(cs4271->supplies), cs4271->supplies);
+	clk_disable_unprepare(cs4271->clk);
 };
 
 static const struct snd_soc_component_driver soc_component_dev_cs4271 = {
@@ -649,6 +668,10 @@ static int cs4271_common_probe(struct device *dev,
 		return dev_err_probe(dev, PTR_ERR(cs4271->reset),
 				     "error retrieving RESET GPIO\n");
 	gpiod_set_consumer_name(cs4271->reset, "CS4271 Reset");
+
+	cs4271->clk = devm_clk_get_optional(dev, "mclk");
+	if (IS_ERR(cs4271->clk))
+		return dev_err_probe(dev, PTR_ERR(cs4271->clk), "Failed to get mclk\n");
 
 	for (i = 0; i < ARRAY_SIZE(supply_names); i++)
 		cs4271->supplies[i].supply = supply_names[i];
