@@ -1106,4 +1106,174 @@ TEST(ns_multilevel_hierarchy)
 	close(gp_fd);
 }
 
+/*
+ * Test multiple children sharing same parent.
+ * Parent should stay active as long as ANY child is active.
+ */
+TEST(ns_multiple_children_same_parent)
+{
+	struct file_handle *p_handle, *c1_handle, *c2_handle;
+	int ret, pipefd[2];
+	pid_t pid;
+	int status;
+	__u64 p_id, c1_id, c2_id;
+	char p_buf[sizeof(*p_handle) + MAX_HANDLE_SZ];
+	char c1_buf[sizeof(*c1_handle) + MAX_HANDLE_SZ];
+	char c2_buf[sizeof(*c2_handle) + MAX_HANDLE_SZ];
+
+	ASSERT_EQ(pipe(pipefd), 0);
+	pid = fork();
+	ASSERT_GE(pid, 0);
+
+	if (pid == 0) {
+		close(pipefd[0]);
+
+		/* Create parent user namespace */
+		if (setup_userns() < 0) {
+			close(pipefd[1]);
+			exit(1);
+		}
+
+		int p_fd = open("/proc/self/ns/user", O_RDONLY);
+		if (p_fd < 0) {
+			close(pipefd[1]);
+			exit(1);
+		}
+		if (ioctl(p_fd, NS_GET_ID, &p_id) < 0) {
+			close(p_fd);
+			close(pipefd[1]);
+			exit(1);
+		}
+		close(p_fd);
+
+		/* Create first child user namespace */
+		if (setup_userns() < 0) {
+			close(pipefd[1]);
+			exit(1);
+		}
+
+		int c1_fd = open("/proc/self/ns/user", O_RDONLY);
+		if (c1_fd < 0) {
+			close(pipefd[1]);
+			exit(1);
+		}
+		if (ioctl(c1_fd, NS_GET_ID, &c1_id) < 0) {
+			close(c1_fd);
+			close(pipefd[1]);
+			exit(1);
+		}
+		close(c1_fd);
+
+		/* Return to parent user namespace and create second child */
+		/* We can't actually do this easily, so let's create a sibling namespace
+		 * by creating a network namespace instead */
+		if (unshare(CLONE_NEWNET) < 0) {
+			close(pipefd[1]);
+			exit(1);
+		}
+
+		int c2_fd = open("/proc/self/ns/net", O_RDONLY);
+		if (c2_fd < 0) {
+			close(pipefd[1]);
+			exit(1);
+		}
+		if (ioctl(c2_fd, NS_GET_ID, &c2_id) < 0) {
+			close(c2_fd);
+			close(pipefd[1]);
+			exit(1);
+		}
+		close(c2_fd);
+
+		/* Send all namespace IDs */
+		write(pipefd[1], &p_id, sizeof(p_id));
+		write(pipefd[1], &c1_id, sizeof(c1_id));
+		write(pipefd[1], &c2_id, sizeof(c2_id));
+		close(pipefd[1]);
+		exit(0);
+	}
+
+	close(pipefd[1]);
+
+	/* Read all three namespace IDs - fixed size, no parsing needed */
+	ret = read(pipefd[0], &p_id, sizeof(p_id));
+	if (ret != sizeof(p_id)) {
+		close(pipefd[0]);
+		waitpid(pid, NULL, 0);
+		SKIP(return, "Failed to read parent namespace ID");
+	}
+
+	ret = read(pipefd[0], &c1_id, sizeof(c1_id));
+	if (ret != sizeof(c1_id)) {
+		close(pipefd[0]);
+		waitpid(pid, NULL, 0);
+		SKIP(return, "Failed to read first child namespace ID");
+	}
+
+	ret = read(pipefd[0], &c2_id, sizeof(c2_id));
+	close(pipefd[0]);
+	if (ret != sizeof(c2_id)) {
+		waitpid(pid, NULL, 0);
+		SKIP(return, "Failed to read second child namespace ID");
+	}
+
+	/* Construct file handles from namespace IDs */
+	p_handle = (struct file_handle *)p_buf;
+	p_handle->handle_bytes = sizeof(struct nsfs_file_handle);
+	p_handle->handle_type = FILEID_NSFS;
+	struct nsfs_file_handle *p_fh = (struct nsfs_file_handle *)p_handle->f_handle;
+	p_fh->ns_id = p_id;
+	p_fh->ns_type = 0;
+	p_fh->ns_inum = 0;
+
+	c1_handle = (struct file_handle *)c1_buf;
+	c1_handle->handle_bytes = sizeof(struct nsfs_file_handle);
+	c1_handle->handle_type = FILEID_NSFS;
+	struct nsfs_file_handle *c1_fh = (struct nsfs_file_handle *)c1_handle->f_handle;
+	c1_fh->ns_id = c1_id;
+	c1_fh->ns_type = 0;
+	c1_fh->ns_inum = 0;
+
+	c2_handle = (struct file_handle *)c2_buf;
+	c2_handle->handle_bytes = sizeof(struct nsfs_file_handle);
+	c2_handle->handle_type = FILEID_NSFS;
+	struct nsfs_file_handle *c2_fh = (struct nsfs_file_handle *)c2_handle->f_handle;
+	c2_fh->ns_id = c2_id;
+	c2_fh->ns_type = 0;
+	c2_fh->ns_inum = 0;
+
+	/* Open both children before process exits */
+	int c1_fd = open_by_handle_at(FD_NSFS_ROOT, c1_handle, O_RDONLY);
+	int c2_fd = open_by_handle_at(FD_NSFS_ROOT, c2_handle, O_RDONLY);
+
+	if (c1_fd < 0 || c2_fd < 0) {
+		if (c1_fd >= 0) close(c1_fd);
+		if (c2_fd >= 0) close(c2_fd);
+		waitpid(pid, NULL, 0);
+		SKIP(return, "Failed to open child namespaces");
+	}
+
+	waitpid(pid, &status, 0);
+	ASSERT_TRUE(WIFEXITED(status));
+	ASSERT_EQ(WEXITSTATUS(status), 0);
+
+	/* Parent should be active (both children active) */
+	TH_LOG("Both children active - parent should be active");
+	int p_fd = open_by_handle_at(FD_NSFS_ROOT, p_handle, O_RDONLY);
+	ASSERT_GE(p_fd, 0);
+	close(p_fd);
+
+	/* Close first child - parent should STILL be active */
+	TH_LOG("Closing first child - parent should still be active");
+	close(c1_fd);
+	p_fd = open_by_handle_at(FD_NSFS_ROOT, p_handle, O_RDONLY);
+	ASSERT_GE(p_fd, 0);
+	close(p_fd);
+
+	/* Close second child - NOW parent should become inactive */
+	TH_LOG("Closing second child - parent should become inactive");
+	close(c2_fd);
+	p_fd = open_by_handle_at(FD_NSFS_ROOT, p_handle, O_RDONLY);
+	ASSERT_LT(p_fd, 0);
+}
+
 TEST_HARNESS_MAIN
