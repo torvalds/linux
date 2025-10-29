@@ -2153,7 +2153,7 @@ static int mpls_valid_fib_dump_req(struct net *net, const struct nlmsghdr *nlh,
 
 		if (i == RTA_OIF) {
 			ifindex = nla_get_u32(tb[i]);
-			filter->dev = __dev_get_by_index(net, ifindex);
+			filter->dev = dev_get_by_index_rcu(net, ifindex);
 			if (!filter->dev)
 				return -ENODEV;
 			filter->filter_set = 1;
@@ -2191,20 +2191,19 @@ static int mpls_dump_routes(struct sk_buff *skb, struct netlink_callback *cb)
 	struct net *net = sock_net(skb->sk);
 	struct mpls_route __rcu **platform_label;
 	struct fib_dump_filter filter = {
-		.rtnl_held = true,
+		.rtnl_held = false,
 	};
 	unsigned int flags = NLM_F_MULTI;
 	size_t platform_labels;
 	unsigned int index;
+	int err;
 
-	ASSERT_RTNL();
+	rcu_read_lock();
 
 	if (cb->strict_check) {
-		int err;
-
 		err = mpls_valid_fib_dump_req(net, nlh, &filter, cb);
 		if (err < 0)
-			return err;
+			goto err;
 
 		/* for MPLS, there is only 1 table with fixed type and flags.
 		 * If either are set in the filter then return nothing.
@@ -2212,14 +2211,14 @@ static int mpls_dump_routes(struct sk_buff *skb, struct netlink_callback *cb)
 		if ((filter.table_id && filter.table_id != RT_TABLE_MAIN) ||
 		    (filter.rt_type && filter.rt_type != RTN_UNICAST) ||
 		     filter.flags)
-			return skb->len;
+			goto unlock;
 	}
 
 	index = cb->args[0];
 	if (index < MPLS_LABEL_FIRST_UNRESERVED)
 		index = MPLS_LABEL_FIRST_UNRESERVED;
 
-	platform_label = rtnl_dereference(net->mpls.platform_label);
+	platform_label = rcu_dereference(net->mpls.platform_label);
 	platform_labels = net->mpls.platform_labels;
 
 	if (filter.filter_set)
@@ -2228,7 +2227,7 @@ static int mpls_dump_routes(struct sk_buff *skb, struct netlink_callback *cb)
 	for (; index < platform_labels; index++) {
 		struct mpls_route *rt;
 
-		rt = rtnl_dereference(platform_label[index]);
+		rt = rcu_dereference(platform_label[index]);
 		if (!rt)
 			continue;
 
@@ -2243,7 +2242,13 @@ static int mpls_dump_routes(struct sk_buff *skb, struct netlink_callback *cb)
 	}
 	cb->args[0] = index;
 
+unlock:
+	rcu_read_unlock();
 	return skb->len;
+
+err:
+	rcu_read_unlock();
+	return err;
 }
 
 static inline size_t lfib_nlmsg_size(struct mpls_route *rt)
@@ -2767,7 +2772,8 @@ static struct rtnl_af_ops mpls_af_ops __read_mostly = {
 static const struct rtnl_msg_handler mpls_rtnl_msg_handlers[] __initdata_or_module = {
 	{THIS_MODULE, PF_MPLS, RTM_NEWROUTE, mpls_rtm_newroute, NULL, 0},
 	{THIS_MODULE, PF_MPLS, RTM_DELROUTE, mpls_rtm_delroute, NULL, 0},
-	{THIS_MODULE, PF_MPLS, RTM_GETROUTE, mpls_getroute, mpls_dump_routes, 0},
+	{THIS_MODULE, PF_MPLS, RTM_GETROUTE, mpls_getroute, mpls_dump_routes,
+	 RTNL_FLAG_DUMP_UNLOCKED},
 	{THIS_MODULE, PF_MPLS, RTM_GETNETCONF,
 	 mpls_netconf_get_devconf, mpls_netconf_dump_devconf,
 	 RTNL_FLAG_DUMP_UNLOCKED},
