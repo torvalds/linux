@@ -530,10 +530,23 @@ static struct mpls_route *mpls_rt_alloc(u8 num_nh, u8 max_alen, u8 max_labels)
 	return rt;
 }
 
+static void mpls_rt_free_rcu(struct rcu_head *head)
+{
+	struct mpls_route *rt;
+
+	rt = container_of(head, struct mpls_route, rt_rcu);
+
+	change_nexthops(rt) {
+		netdev_put(nh->nh_dev, &nh->nh_dev_tracker);
+	} endfor_nexthops(rt);
+
+	kfree(rt);
+}
+
 static void mpls_rt_free(struct mpls_route *rt)
 {
 	if (rt)
-		kfree_rcu(rt, rt_rcu);
+		call_rcu(&rt->rt_rcu, mpls_rt_free_rcu);
 }
 
 static void mpls_notify_route(struct net *net, unsigned index,
@@ -587,6 +600,7 @@ static unsigned find_free_label(struct net *net)
 
 #if IS_ENABLED(CONFIG_INET)
 static struct net_device *inet_fib_lookup_dev(struct net *net,
+					      struct mpls_nh *nh,
 					      const void *addr)
 {
 	struct net_device *dev;
@@ -599,14 +613,14 @@ static struct net_device *inet_fib_lookup_dev(struct net *net,
 		return ERR_CAST(rt);
 
 	dev = rt->dst.dev;
-	dev_hold(dev);
-
+	netdev_hold(dev, &nh->nh_dev_tracker, GFP_KERNEL);
 	ip_rt_put(rt);
 
 	return dev;
 }
 #else
 static struct net_device *inet_fib_lookup_dev(struct net *net,
+					      struct mpls_nh *nh,
 					      const void *addr)
 {
 	return ERR_PTR(-EAFNOSUPPORT);
@@ -615,6 +629,7 @@ static struct net_device *inet_fib_lookup_dev(struct net *net,
 
 #if IS_ENABLED(CONFIG_IPV6)
 static struct net_device *inet6_fib_lookup_dev(struct net *net,
+					       struct mpls_nh *nh,
 					       const void *addr)
 {
 	struct net_device *dev;
@@ -631,13 +646,14 @@ static struct net_device *inet6_fib_lookup_dev(struct net *net,
 		return ERR_CAST(dst);
 
 	dev = dst->dev;
-	dev_hold(dev);
+	netdev_hold(dev, &nh->nh_dev_tracker, GFP_KERNEL);
 	dst_release(dst);
 
 	return dev;
 }
 #else
 static struct net_device *inet6_fib_lookup_dev(struct net *net,
+					       struct mpls_nh *nh,
 					       const void *addr)
 {
 	return ERR_PTR(-EAFNOSUPPORT);
@@ -653,16 +669,17 @@ static struct net_device *find_outdev(struct net *net,
 	if (!oif) {
 		switch (nh->nh_via_table) {
 		case NEIGH_ARP_TABLE:
-			dev = inet_fib_lookup_dev(net, mpls_nh_via(rt, nh));
+			dev = inet_fib_lookup_dev(net, nh, mpls_nh_via(rt, nh));
 			break;
 		case NEIGH_ND_TABLE:
-			dev = inet6_fib_lookup_dev(net, mpls_nh_via(rt, nh));
+			dev = inet6_fib_lookup_dev(net, nh, mpls_nh_via(rt, nh));
 			break;
 		case NEIGH_LINK_TABLE:
 			break;
 		}
 	} else {
-		dev = dev_get_by_index(net, oif);
+		dev = netdev_get_by_index(net, oif,
+					  &nh->nh_dev_tracker, GFP_KERNEL);
 	}
 
 	if (!dev)
@@ -671,8 +688,7 @@ static struct net_device *find_outdev(struct net *net,
 	if (IS_ERR(dev))
 		return dev;
 
-	/* The caller is holding rtnl anyways, so release the dev reference */
-	dev_put(dev);
+	nh->nh_dev = dev;
 
 	return dev;
 }
@@ -686,20 +702,17 @@ static int mpls_nh_assign_dev(struct net *net, struct mpls_route *rt,
 	dev = find_outdev(net, rt, nh, oif);
 	if (IS_ERR(dev)) {
 		err = PTR_ERR(dev);
-		dev = NULL;
 		goto errout;
 	}
 
 	/* Ensure this is a supported device */
 	err = -EINVAL;
 	if (!mpls_dev_get(dev))
-		goto errout;
+		goto errout_put;
 
 	if ((nh->nh_via_table == NEIGH_LINK_TABLE) &&
 	    (dev->addr_len != nh->nh_via_alen))
-		goto errout;
-
-	nh->nh_dev = dev;
+		goto errout_put;
 
 	if (!(dev->flags & IFF_UP)) {
 		nh->nh_flags |= RTNH_F_DEAD;
@@ -713,6 +726,9 @@ static int mpls_nh_assign_dev(struct net *net, struct mpls_route *rt,
 
 	return 0;
 
+errout_put:
+	netdev_put(nh->nh_dev, &nh->nh_dev_tracker);
+	nh->nh_dev = NULL;
 errout:
 	return err;
 }
@@ -890,7 +906,8 @@ static int mpls_nh_build_multi(struct mpls_route_config *cfg,
 	struct nlattr *nla_via, *nla_newdst;
 	int remaining = cfg->rc_mp_len;
 	int err = 0;
-	u8 nhs = 0;
+
+	rt->rt_nhn = 0;
 
 	change_nexthops(rt) {
 		int attrlen;
@@ -926,10 +943,8 @@ static int mpls_nh_build_multi(struct mpls_route_config *cfg,
 			rt->rt_nhn_alive--;
 
 		rtnh = rtnh_next(rtnh, &remaining);
-		nhs++;
+		rt->rt_nhn++;
 	} endfor_nexthops(rt);
-
-	rt->rt_nhn = nhs;
 
 	return 0;
 
@@ -1523,8 +1538,12 @@ static int mpls_ifdown(struct net_device *dev, int event)
 		change_nexthops(rt) {
 			unsigned int nh_flags = nh->nh_flags;
 
-			if (nh->nh_dev != dev)
+			if (nh->nh_dev != dev) {
+				if (nh_del)
+					netdev_hold(nh->nh_dev, &nh->nh_dev_tracker,
+						    GFP_KERNEL);
 				goto next;
+			}
 
 			switch (event) {
 			case NETDEV_DOWN:
@@ -2518,10 +2537,13 @@ static int resize_platform_label_table(struct net *net, size_t limit)
 	/* In case the predefined labels need to be populated */
 	if (limit > MPLS_LABEL_IPV4NULL) {
 		struct net_device *lo = net->loopback_dev;
+
 		rt0 = mpls_rt_alloc(1, lo->addr_len, 0);
 		if (IS_ERR(rt0))
 			goto nort0;
+
 		rt0->rt_nh->nh_dev = lo;
+		netdev_hold(lo, &rt0->rt_nh->nh_dev_tracker, GFP_KERNEL);
 		rt0->rt_protocol = RTPROT_KERNEL;
 		rt0->rt_payload_type = MPT_IPV4;
 		rt0->rt_ttl_propagate = MPLS_TTL_PROP_DEFAULT;
@@ -2532,10 +2554,13 @@ static int resize_platform_label_table(struct net *net, size_t limit)
 	}
 	if (limit > MPLS_LABEL_IPV6NULL) {
 		struct net_device *lo = net->loopback_dev;
+
 		rt2 = mpls_rt_alloc(1, lo->addr_len, 0);
 		if (IS_ERR(rt2))
 			goto nort2;
+
 		rt2->rt_nh->nh_dev = lo;
+		netdev_hold(lo, &rt2->rt_nh->nh_dev_tracker, GFP_KERNEL);
 		rt2->rt_protocol = RTPROT_KERNEL;
 		rt2->rt_payload_type = MPT_IPV6;
 		rt2->rt_ttl_propagate = MPLS_TTL_PROP_DEFAULT;
