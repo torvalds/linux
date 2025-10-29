@@ -20,7 +20,7 @@
 
 /* those are commonly provided by sys/types.h */
 typedef unsigned int          dev_t;
-typedef unsigned long         ino_t;
+typedef uint64_t              ino_t;
 typedef unsigned int         mode_t;
 typedef   signed int          pid_t;
 typedef unsigned int          uid_t;
