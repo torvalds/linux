@@ -3,3 +3,4 @@ file_handle_test
 init_ino_test
 ns_active_ref_test
 listns_test
+listns_permissions_test
