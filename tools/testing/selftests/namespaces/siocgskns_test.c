@@ -163,8 +163,7 @@ TEST(siocgskns_keeps_netns_active)
 	/* Wait for child to exit */
 	waitpid(pid, &status, 0);
 	ASSERT_TRUE(WIFEXITED(status));
-	if (WEXITSTATUS(status) != 0)
-		SKIP(close(sock_fd); return, "Child failed to create namespace");
+	ASSERT_EQ(WEXITSTATUS(status), 0);
 
 	/* Get network namespace from socket */
 	netns_fd = ioctl(sock_fd, SIOCGSKNS);
@@ -193,6 +192,68 @@ TEST(siocgskns_keeps_netns_active)
 
 	/* Try SIOCGSKNS again - should fail since socket is closed */
 	ASSERT_LT(ioctl(sock_fd, SIOCGSKNS), 0);
+}
+
+/*
+ * Test SIOCGSKNS with different socket types (TCP, UDP, RAW).
+ */
+TEST(siocgskns_socket_types)
+{
+	int sock_tcp, sock_udp, sock_raw;
+	int netns_tcp, netns_udp, netns_raw;
+	struct stat st_tcp, st_udp, st_raw;
+
+	/* TCP socket */
+	sock_tcp = socket(AF_INET, SOCK_STREAM, 0);
+	ASSERT_GE(sock_tcp, 0);
+
+	/* UDP socket */
+	sock_udp = socket(AF_INET, SOCK_DGRAM, 0);
+	ASSERT_GE(sock_udp, 0);
+
+	/* RAW socket (may require privileges) */
+	sock_raw = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
+	if (sock_raw < 0 && (errno == EPERM || errno == EACCES)) {
+		sock_raw = -1; /* Skip raw socket test */
+	}
+
+	/* Test SIOCGSKNS on TCP */
+	netns_tcp = ioctl(sock_tcp, SIOCGSKNS);
+	if (netns_tcp < 0) {
+		close(sock_tcp);
+		close(sock_udp);
+		if (sock_raw >= 0) close(sock_raw);
+		if (errno == ENOTTY || errno == EINVAL)
+			SKIP(return, "SIOCGSKNS not supported");
+		ASSERT_GE(netns_tcp, 0);
+	}
+
+	/* Test SIOCGSKNS on UDP */
+	netns_udp = ioctl(sock_udp, SIOCGSKNS);
+	ASSERT_GE(netns_udp, 0);
+
+	/* Test SIOCGSKNS on RAW (if available) */
+	if (sock_raw >= 0) {
+		netns_raw = ioctl(sock_raw, SIOCGSKNS);
+		ASSERT_GE(netns_raw, 0);
+	}
+
+	/* Verify all return the same network namespace */
+	ASSERT_EQ(fstat(netns_tcp, &st_tcp), 0);
+	ASSERT_EQ(fstat(netns_udp, &st_udp), 0);
+	ASSERT_EQ(st_tcp.st_ino, st_udp.st_ino);
+
+	if (sock_raw >= 0) {
+		ASSERT_EQ(fstat(netns_raw, &st_raw), 0);
+		ASSERT_EQ(st_tcp.st_ino, st_raw.st_ino);
+		close(netns_raw);
+		close(sock_raw);
+	}
+
+	close(netns_tcp);
+	close(netns_udp);
+	close(sock_tcp);
+	close(sock_udp);
 }
 
 TEST_HARNESS_MAIN
