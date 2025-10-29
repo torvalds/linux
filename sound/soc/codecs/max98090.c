@@ -1144,7 +1144,7 @@ static const struct snd_soc_dapm_widget max98090_dapm_widgets[] = {
 
 	SND_SOC_DAPM_AIF_OUT("AIFOUTL", "HiFi Capture", 0,
 		SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("AIFOUTR", "HiFi Capture", 1,
+	SND_SOC_DAPM_AIF_OUT("AIFOUTR", "HiFi Capture", 0,
 		SND_SOC_NOPM, 0, 0),
 
 	SND_SOC_DAPM_MUX("LBENL Mux", SND_SOC_NOPM,
@@ -1242,9 +1242,9 @@ static const struct snd_soc_dapm_widget max98091_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("DMIC34_HPF", M98090_REG_FILTER_CONFIG,
 		M98090_FLT_DMIC34HPF_SHIFT, 0, NULL, 0),
 
-	SND_SOC_DAPM_AIF_OUT("AIFOUT2L", "HiFi Capture", 2,
+	SND_SOC_DAPM_AIF_OUT("AIFOUT2L", "HiFi Capture", 0,
 		SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("AIFOUT2R", "HiFi Capture", 3,
+	SND_SOC_DAPM_AIF_OUT("AIFOUT2R", "HiFi Capture", 0,
 		SND_SOC_NOPM, 0, 0),
 };
 
