@@ -200,7 +200,10 @@ impl pwm::PwmOps for Th1520PwmDriverData {
         let rate_hz = data.clk.rate().as_hz() as u64;
 
         if wfhw.period_cycles == 0 {
-            dev_dbg!(chip.device(), "HW state has zero period, reporting as disabled.\n");
+            dev_dbg!(
+                chip.device(),
+                "HW state has zero period, reporting as disabled.\n"
+            );
             *wf = pwm::Waveform::default();
             return Ok(());
         }
@@ -277,7 +280,10 @@ impl pwm::PwmOps for Th1520PwmDriverData {
             if was_enabled {
                 iomap.try_write32(wfhw.ctrl_val, th1520_pwm_ctrl(hwpwm))?;
                 iomap.try_write32(0, th1520_pwm_fp(hwpwm))?;
-                iomap.try_write32(wfhw.ctrl_val | TH1520_PWM_CFG_UPDATE, th1520_pwm_ctrl(hwpwm))?;
+                iomap.try_write32(
+                    wfhw.ctrl_val | TH1520_PWM_CFG_UPDATE,
+                    th1520_pwm_ctrl(hwpwm),
+                )?;
             }
             return Ok(());
         }
@@ -285,7 +291,10 @@ impl pwm::PwmOps for Th1520PwmDriverData {
         iomap.try_write32(wfhw.ctrl_val, th1520_pwm_ctrl(hwpwm))?;
         iomap.try_write32(wfhw.period_cycles, th1520_pwm_per(hwpwm))?;
         iomap.try_write32(wfhw.duty_cycles, th1520_pwm_fp(hwpwm))?;
-        iomap.try_write32(wfhw.ctrl_val | TH1520_PWM_CFG_UPDATE, th1520_pwm_ctrl(hwpwm))?;
+        iomap.try_write32(
+            wfhw.ctrl_val | TH1520_PWM_CFG_UPDATE,
+            th1520_pwm_ctrl(hwpwm),
+        )?;
 
         // The `TH1520_PWM_START` bit must be written in a separate, final transaction, and
         // only when enabling the channel from a disabled state.
