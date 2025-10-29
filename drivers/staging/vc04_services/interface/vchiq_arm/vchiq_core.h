@@ -171,6 +171,21 @@ struct vchiq_slot_info {
 	short release_count;
 };
 
+/*
+ * VCHIQ is a reliable connection-oriented datagram protocol.
+ *
+ * A VCHIQ service is equivalent to a TCP connection, except:
+ * + FOURCCs are used for the rendezvous, and port numbers are assigned at the
+ *   time the connection is established.
+ * + There is less of a distinction between server and client sockets, the only
+ *   difference being which end makes the first move.
+ * + For a multi-client server, the server creates new "listening" services as
+ *   the existing one becomes connected - there is no need to specify the
+ *   maximum number of clients up front.
+ * + Data transfer is reliable but packetized (messages have defined ends).
+ * + Messages can be either short (capable of fitting in a slot) and in-band,
+ *   or copied between external buffers (bulk transfers).
+ */
 struct vchiq_service {
 	struct vchiq_service_base base;
 	unsigned int handle;
@@ -286,6 +301,23 @@ struct vchiq_shared_state {
 	int debug[DEBUG_MAX];
 };
 
+/*
+ * vchiq_slot_zero describes the memory shared between the ARM host and the
+ * VideoCore VPU. The "master" and "slave" states are owned by the respective
+ * sides but visible to the other; the slots are shared, and the remaining
+ * fields are read-only.
+ *
+ * In the configuration used by this implementation, the memory is allocated
+ * by the host, the VPU is the master (the side which controls the DMA for bulk
+ * transfers), and the host is the slave.
+ *
+ * The ownership of slots changes with use:
+ * + When empty they are owned by the sender.
+ * + When partially filled they are shared with the receiver.
+ * + When completely full they are owned by the receiver.
+ * + When the receiver has finished processing the contents, they are recycled
+ *   back to the sender.
+ */
 struct vchiq_slot_zero {
 	int magic;
 	short version;
@@ -300,6 +332,10 @@ struct vchiq_slot_zero {
 	struct vchiq_slot_info slots[VCHIQ_MAX_SLOTS];
 };
 
+/*
+ * This is the private runtime state used by each side. The same structure was
+ * originally used by both sides, but implementations have since diverged.
+ */
 struct vchiq_state {
 	struct device *dev;
 	int id;
@@ -321,13 +357,27 @@ struct vchiq_state {
 	struct mutex mutex;
 	struct vchiq_instance **instance;
 
-	/* Processes incoming messages */
+	/* Processes all incoming messages which aren't synchronous */
 	struct task_struct *slot_handler_thread;
 
-	/* Processes recycled slots */
+	/*
+	 * Slots which have been fully processed and released by the (peer)
+	 * receiver are added to the receiver queue, which is asynchronously
+	 * processed by the recycle thread.
+	 */
 	struct task_struct *recycle_thread;
 
-	/* Processes synchronous messages */
+	/*
+	 * Processes incoming synchronous messages
+	 *
+	 * The synchronous message channel is shared between all synchronous
+	 * services, and provides a way for urgent messages to bypass
+	 * potentially long queues of asynchronous messages in the normal slots.
+	 *
+	 * There can be only one outstanding synchronous message in
+	 * each direction, and as a precious shared resource synchronous
+	 * services should be used sparingly.
+	 */
 	struct task_struct *sync_thread;
 
 	/* Local implementation of the trigger remote event */
