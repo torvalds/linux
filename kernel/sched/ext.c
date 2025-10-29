@@ -6532,7 +6532,7 @@ __bpf_kfunc void scx_bpf_cpuperf_set(s32 cpu, u32 perf)
 
 	guard(rcu)();
 
-	sch = rcu_dereference(sch);
+	sch = rcu_dereference(scx_root);
 	if (unlikely(!sch))
 		return;
 
