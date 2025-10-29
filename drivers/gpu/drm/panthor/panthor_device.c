@@ -121,7 +121,7 @@ static void panthor_device_reset_cleanup(struct drm_device *ddev, void *data)
 {
 	struct panthor_device *ptdev = container_of(ddev, struct panthor_device, base);
 
-	cancel_work_sync(&ptdev->reset.work);
+	disable_work_sync(&ptdev->reset.work);
 	destroy_workqueue(ptdev->reset.wq);
 }
 
