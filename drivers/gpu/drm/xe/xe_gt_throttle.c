@@ -8,7 +8,6 @@
 #include <regs/xe_gt_regs.h>
 #include "xe_device.h"
 #include "xe_gt.h"
-#include "xe_gt_printk.h"
 #include "xe_gt_sysfs.h"
 #include "xe_gt_throttle.h"
 #include "xe_mmio.h"
@@ -57,32 +56,25 @@ dev_to_gt(struct device *dev)
 
 u32 xe_gt_throttle_get_limit_reasons(struct xe_gt *gt)
 {
-	u32 reg;
-
-	xe_pm_runtime_get(gt_to_xe(gt));
-	if (xe_gt_is_media_type(gt))
-		reg = xe_mmio_read32(&gt->mmio, MTL_MEDIA_PERF_LIMIT_REASONS);
-	else
-		reg = xe_mmio_read32(&gt->mmio, GT0_PERF_LIMIT_REASONS);
-	xe_pm_runtime_put(gt_to_xe(gt));
-
-	return reg;
-}
-
-static u32 read_status(struct xe_gt *gt)
-{
 	struct xe_device *xe = gt_to_xe(gt);
-	u32 status, mask;
+	struct xe_reg reg;
+	u32 val, mask;
+
+	if (xe_gt_is_media_type(gt))
+		reg = MTL_MEDIA_PERF_LIMIT_REASONS;
+	else
+		reg = GT0_PERF_LIMIT_REASONS;
 
 	if (xe->info.platform == XE_CRESCENTISLAND)
 		mask = CRI_PERF_LIMIT_REASONS_MASK;
 	else
 		mask = GT0_PERF_LIMIT_REASONS_MASK;
 
-	status = xe_gt_throttle_get_limit_reasons(gt) & mask;
-	xe_gt_dbg(gt, "throttle reasons: 0x%08x\n", status);
+	xe_pm_runtime_get(xe);
+	val = xe_mmio_read32(&gt->mmio, reg) & mask;
+	xe_pm_runtime_put(xe);
 
-	return status;
+	return val;
 }
 
 static bool is_throttled_by(struct xe_gt *gt, u32 mask)
@@ -96,7 +88,7 @@ static ssize_t status_show(struct kobject *kobj,
 	struct device *dev = kobj_to_dev(kobj);
 	struct xe_gt *gt = dev_to_gt(dev);
 
-	return sysfs_emit(buff, "%u\n", !!read_status(gt));
+	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, U32_MAX));
 }
 static struct kobj_attribute attr_status = __ATTR_RO(status);
 
