@@ -49,7 +49,7 @@ int __gfs2_trans_begin(struct gfs2_trans *tr, struct gfs2_sbd *sdp,
 	}
 	BUG_ON(blocks == 0 && revokes == 0);
 
-	if (!test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags))
+	if (gfs2_withdrawn(sdp))
 		return -EROFS;
 
 	tr->tr_ip = ip;
@@ -85,25 +85,30 @@ int __gfs2_trans_begin(struct gfs2_trans *tr, struct gfs2_sbd *sdp,
 	 */
 
 	down_read(&sdp->sd_log_flush_lock);
+	if (unlikely(!test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags)))
+		goto out_not_live;
 	if (gfs2_log_try_reserve(sdp, tr, &extra_revokes))
 		goto reserved;
+
 	up_read(&sdp->sd_log_flush_lock);
 	gfs2_log_reserve(sdp, tr, &extra_revokes);
 	down_read(&sdp->sd_log_flush_lock);
+	if (unlikely(!test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags))) {
+		revokes = tr->tr_revokes + extra_revokes;
+		gfs2_log_release_revokes(sdp, revokes);
+		gfs2_log_release(sdp, tr->tr_reserved);
+		goto out_not_live;
+	}
 
 reserved:
 	gfs2_log_release_revokes(sdp, extra_revokes);
-	if (unlikely(!test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags))) {
-		gfs2_log_release_revokes(sdp, tr->tr_revokes);
-		up_read(&sdp->sd_log_flush_lock);
-		gfs2_log_release(sdp, tr->tr_reserved);
-		sb_end_intwrite(sdp->sd_vfs);
-		return -EROFS;
-	}
-
 	current->journal_info = tr;
-
 	return 0;
+
+out_not_live:
+	up_read(&sdp->sd_log_flush_lock);
+	sb_end_intwrite(sdp->sd_vfs);
+	return -EROFS;
 }
 
 int gfs2_trans_begin(struct gfs2_sbd *sdp, unsigned int blocks,

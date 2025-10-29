@@ -117,35 +117,30 @@ void gfs2_freeze_unlock(struct gfs2_sbd *sdp)
 
 static void do_withdraw(struct gfs2_sbd *sdp)
 {
+	down_write(&sdp->sd_log_flush_lock);
+	if (!test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags)) {
+		up_write(&sdp->sd_log_flush_lock);
+		return;
+	}
+	clear_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags);
+	up_write(&sdp->sd_log_flush_lock);
+
 	gfs2_ail_drain(sdp); /* frees all transactions */
 
+	wake_up(&sdp->sd_logd_waitq);
+	wake_up(&sdp->sd_quota_wait);
+
+	wait_event_timeout(sdp->sd_log_waitq,
+			   gfs2_log_is_empty(sdp),
+			   HZ * 5);
+
+	sdp->sd_vfs->s_flags |= SB_RDONLY;
+
 	/*
-	 * Don't tell dlm we're bailing until we have no more buffers in the
-	 * wind. If journal had an IO error, the log code should just purge
-	 * the outstanding buffers rather than submitting new IO.
-	 *
-	 * During a normal unmount, gfs2_make_fs_ro calls gfs2_log_shutdown
-	 * which clears SDF_JOURNAL_LIVE. In a withdraw, we must not write
-	 * any UNMOUNT log header, so we can't call gfs2_log_shutdown, and
-	 * therefore we need to clear SDF_JOURNAL_LIVE manually.
+	 * Dequeue any pending non-system glock holders that can no
+	 * longer be granted because the file system is withdrawn.
 	 */
-	clear_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags);
-	if (!sb_rdonly(sdp->sd_vfs)) {
-		wake_up(&sdp->sd_logd_waitq);
-		wake_up(&sdp->sd_quota_wait);
-
-		wait_event_timeout(sdp->sd_log_waitq,
-				   gfs2_log_is_empty(sdp),
-				   HZ * 5);
-
-		sdp->sd_vfs->s_flags |= SB_RDONLY;
-
-		/*
-		 * Dequeue any pending non-system glock holders that can no
-		 * longer be granted because the file system is withdrawn.
-		 */
-		gfs2_withdraw_glocks(sdp);
-	}
+	gfs2_withdraw_glocks(sdp);
 }
 
 void gfs2_lm(struct gfs2_sbd *sdp, const char *fmt, ...)

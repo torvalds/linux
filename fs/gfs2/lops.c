@@ -210,9 +210,6 @@ static void gfs2_end_log_write(struct bio *bio)
 			fs_err(sdp, "Error %d writing to journal, jid=%u\n",
 			       err, sdp->sd_jdesc->jd_jid);
 		gfs2_withdraw(sdp);
-		/* prevent more writes to the journal */
-		clear_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags);
-		wake_up(&sdp->sd_logd_waitq);
 	}
 
 	bio_for_each_segment_all(bvec, bio, iter_all) {
