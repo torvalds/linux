@@ -38,6 +38,8 @@ void ivpu_bo_free(struct ivpu_bo *bo);
 int ivpu_bo_create_ioctl(struct drm_device *dev, void *data, struct drm_file *file);
 int ivpu_bo_info_ioctl(struct drm_device *dev, void *data, struct drm_file *file);
 int ivpu_bo_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file);
+int ivpu_bo_create_from_userptr_ioctl(struct drm_device *dev, void *data,
+				      struct drm_file *file);
 
 void ivpu_bo_list(struct drm_device *dev, struct drm_printer *p);
 void ivpu_bo_list_print(struct drm_device *dev);
@@ -73,6 +75,11 @@ static inline bool ivpu_bo_is_snooped(struct ivpu_bo *bo)
 		return true;
 
 	return ivpu_bo_cache_mode(bo) == DRM_IVPU_BO_CACHED;
+}
+
+static inline bool ivpu_bo_is_read_only(struct ivpu_bo *bo)
+{
+	return bo->flags & DRM_IVPU_BO_READ_ONLY;
 }
 
 static inline void *ivpu_to_cpu_addr(struct ivpu_bo *bo, u32 vpu_addr)
