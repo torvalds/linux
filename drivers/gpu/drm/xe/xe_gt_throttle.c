@@ -48,10 +48,14 @@
  * device/gt#/freq0/throttle/reason_psys_crit - Frequency throttle due to PSYS critical
  */
 
-static struct xe_gt *
-dev_to_gt(struct device *dev)
+static struct xe_gt *dev_to_gt(struct device *dev)
 {
 	return kobj_to_gt(dev->kobj.parent);
+}
+
+static struct xe_gt *throttle_to_gt(struct kobject *kobj)
+{
+	return dev_to_gt(kobj_to_dev(kobj));
 }
 
 u32 xe_gt_throttle_get_limit_reasons(struct xe_gt *gt)
@@ -85,8 +89,7 @@ static bool is_throttled_by(struct xe_gt *gt, u32 mask)
 static ssize_t status_show(struct kobject *kobj,
 			   struct kobj_attribute *attr, char *buff)
 {
-	struct device *dev = kobj_to_dev(kobj);
-	struct xe_gt *gt = dev_to_gt(dev);
+	struct xe_gt *gt = throttle_to_gt(kobj);
 
 	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, U32_MAX));
 }
@@ -95,8 +98,7 @@ static struct kobj_attribute attr_status = __ATTR_RO(status);
 static ssize_t reason_pl1_show(struct kobject *kobj,
 			       struct kobj_attribute *attr, char *buff)
 {
-	struct device *dev = kobj_to_dev(kobj);
-	struct xe_gt *gt = dev_to_gt(dev);
+	struct xe_gt *gt = throttle_to_gt(kobj);
 
 	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, POWER_LIMIT_1_MASK));
 }
@@ -105,8 +107,7 @@ static struct kobj_attribute attr_reason_pl1 = __ATTR_RO(reason_pl1);
 static ssize_t reason_pl2_show(struct kobject *kobj,
 			       struct kobj_attribute *attr, char *buff)
 {
-	struct device *dev = kobj_to_dev(kobj);
-	struct xe_gt *gt = dev_to_gt(dev);
+	struct xe_gt *gt = throttle_to_gt(kobj);
 
 	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, POWER_LIMIT_2_MASK));
 }
@@ -115,8 +116,7 @@ static struct kobj_attribute attr_reason_pl2 = __ATTR_RO(reason_pl2);
 static ssize_t reason_pl4_show(struct kobject *kobj,
 			       struct kobj_attribute *attr, char *buff)
 {
-	struct device *dev = kobj_to_dev(kobj);
-	struct xe_gt *gt = dev_to_gt(dev);
+	struct xe_gt *gt = throttle_to_gt(kobj);
 
 	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, POWER_LIMIT_4_MASK));
 }
@@ -125,8 +125,7 @@ static struct kobj_attribute attr_reason_pl4 = __ATTR_RO(reason_pl4);
 static ssize_t reason_thermal_show(struct kobject *kobj,
 				   struct kobj_attribute *attr, char *buff)
 {
-	struct device *dev = kobj_to_dev(kobj);
-	struct xe_gt *gt = dev_to_gt(dev);
+	struct xe_gt *gt = throttle_to_gt(kobj);
 
 	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, THERMAL_LIMIT_MASK));
 }
@@ -135,8 +134,7 @@ static struct kobj_attribute attr_reason_thermal = __ATTR_RO(reason_thermal);
 static ssize_t reason_soc_thermal_show(struct kobject *kobj,
 				       struct kobj_attribute *attr, char *buff)
 {
-	struct device *dev = kobj_to_dev(kobj);
-	struct xe_gt *gt = dev_to_gt(dev);
+	struct xe_gt *gt = throttle_to_gt(kobj);
 
 	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, SOC_THERMAL_LIMIT_MASK));
 }
@@ -145,8 +143,7 @@ static struct kobj_attribute attr_reason_soc_thermal = __ATTR_RO(reason_soc_ther
 static ssize_t reason_prochot_show(struct kobject *kobj,
 				   struct kobj_attribute *attr, char *buff)
 {
-	struct device *dev = kobj_to_dev(kobj);
-	struct xe_gt *gt = dev_to_gt(dev);
+	struct xe_gt *gt = throttle_to_gt(kobj);
 
 	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, PROCHOT_MASK));
 }
@@ -155,8 +152,7 @@ static struct kobj_attribute attr_reason_prochot = __ATTR_RO(reason_prochot);
 static ssize_t reason_ratl_show(struct kobject *kobj,
 				struct kobj_attribute *attr, char *buff)
 {
-	struct device *dev = kobj_to_dev(kobj);
-	struct xe_gt *gt = dev_to_gt(dev);
+	struct xe_gt *gt = throttle_to_gt(kobj);
 
 	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, RATL_MASK));
 }
@@ -165,8 +161,7 @@ static struct kobj_attribute attr_reason_ratl = __ATTR_RO(reason_ratl);
 static ssize_t reason_vr_thermalert_show(struct kobject *kobj,
 					 struct kobj_attribute *attr, char *buff)
 {
-	struct device *dev = kobj_to_dev(kobj);
-	struct xe_gt *gt = dev_to_gt(dev);
+	struct xe_gt *gt = throttle_to_gt(kobj);
 
 	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, VR_THERMALERT_MASK));
 }
@@ -175,8 +170,7 @@ static struct kobj_attribute attr_reason_vr_thermalert = __ATTR_RO(reason_vr_the
 static ssize_t reason_soc_avg_thermal_show(struct kobject *kobj,
 					   struct kobj_attribute *attr, char *buff)
 {
-	struct device *dev = kobj_to_dev(kobj);
-	struct xe_gt *gt = dev_to_gt(dev);
+	struct xe_gt *gt = throttle_to_gt(kobj);
 
 	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, SOC_AVG_THERMAL_MASK));
 }
@@ -185,8 +179,7 @@ static struct kobj_attribute attr_reason_soc_avg_thermal = __ATTR_RO(reason_soc_
 static ssize_t reason_vr_tdc_show(struct kobject *kobj,
 				  struct kobj_attribute *attr, char *buff)
 {
-	struct device *dev = kobj_to_dev(kobj);
-	struct xe_gt *gt = dev_to_gt(dev);
+	struct xe_gt *gt = throttle_to_gt(kobj);
 
 	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, VR_TDC_MASK));
 }
@@ -195,8 +188,7 @@ static struct kobj_attribute attr_reason_vr_tdc = __ATTR_RO(reason_vr_tdc);
 static ssize_t reason_fastvmode_show(struct kobject *kobj,
 				     struct kobj_attribute *attr, char *buff)
 {
-	struct device *dev = kobj_to_dev(kobj);
-	struct xe_gt *gt = dev_to_gt(dev);
+	struct xe_gt *gt = throttle_to_gt(kobj);
 
 	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, FASTVMODE_MASK));
 }
@@ -205,8 +197,7 @@ static struct kobj_attribute attr_reason_fastvmode = __ATTR_RO(reason_fastvmode)
 static ssize_t reason_mem_thermal_show(struct kobject *kobj,
 				       struct kobj_attribute *attr, char *buff)
 {
-	struct device *dev = kobj_to_dev(kobj);
-	struct xe_gt *gt = dev_to_gt(dev);
+	struct xe_gt *gt = throttle_to_gt(kobj);
 
 	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, MEM_THERMAL_MASK));
 }
@@ -215,8 +206,7 @@ static struct kobj_attribute attr_reason_mem_thermal = __ATTR_RO(reason_mem_ther
 static ssize_t reason_vr_thermal_show(struct kobject *kobj,
 				      struct kobj_attribute *attr, char *buff)
 {
-	struct device *dev = kobj_to_dev(kobj);
-	struct xe_gt *gt = dev_to_gt(dev);
+	struct xe_gt *gt = throttle_to_gt(kobj);
 
 	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, VR_THERMAL_MASK));
 }
@@ -225,8 +215,7 @@ static struct kobj_attribute attr_reason_vr_thermal = __ATTR_RO(reason_vr_therma
 static ssize_t reason_iccmax_show(struct kobject *kobj,
 				  struct kobj_attribute *attr, char *buff)
 {
-	struct device *dev = kobj_to_dev(kobj);
-	struct xe_gt *gt = dev_to_gt(dev);
+	struct xe_gt *gt = throttle_to_gt(kobj);
 
 	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, ICCMAX_MASK));
 }
@@ -235,8 +224,7 @@ static struct kobj_attribute attr_reason_iccmax = __ATTR_RO(reason_iccmax);
 static ssize_t reason_psys_pl1_show(struct kobject *kobj,
 				    struct kobj_attribute *attr, char *buff)
 {
-	struct device *dev = kobj_to_dev(kobj);
-	struct xe_gt *gt = dev_to_gt(dev);
+	struct xe_gt *gt = throttle_to_gt(kobj);
 
 	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, PSYS_PL1_MASK));
 }
@@ -245,8 +233,7 @@ static struct kobj_attribute attr_reason_psys_pl1 = __ATTR_RO(reason_psys_pl1);
 static ssize_t reason_psys_pl2_show(struct kobject *kobj,
 				    struct kobj_attribute *attr, char *buff)
 {
-	struct device *dev = kobj_to_dev(kobj);
-	struct xe_gt *gt = dev_to_gt(dev);
+	struct xe_gt *gt = throttle_to_gt(kobj);
 
 	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, PSYS_PL2_MASK));
 }
@@ -255,8 +242,7 @@ static struct kobj_attribute attr_reason_psys_pl2 = __ATTR_RO(reason_psys_pl2);
 static ssize_t reason_p0_freq_show(struct kobject *kobj,
 				   struct kobj_attribute *attr, char *buff)
 {
-	struct device *dev = kobj_to_dev(kobj);
-	struct xe_gt *gt = dev_to_gt(dev);
+	struct xe_gt *gt = throttle_to_gt(kobj);
 
 	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, P0_FREQ_MASK));
 }
@@ -265,8 +251,7 @@ static struct kobj_attribute attr_reason_p0_freq = __ATTR_RO(reason_p0_freq);
 static ssize_t reason_psys_crit_show(struct kobject *kobj,
 				     struct kobj_attribute *attr, char *buff)
 {
-	struct device *dev = kobj_to_dev(kobj);
-	struct xe_gt *gt = dev_to_gt(dev);
+	struct xe_gt *gt = throttle_to_gt(kobj);
 
 	return sysfs_emit(buff, "%u\n", is_throttled_by(gt, PSYS_CRIT_MASK));
 }
