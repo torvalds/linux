@@ -442,4 +442,123 @@ TEST(listns_current_user_permissions)
 	TH_LOG("LISTNS_CURRENT_USER returned %zd namespaces", count);
 }
 
+/*
+ * Test that CAP_SYS_ADMIN in parent user namespace allows seeing
+ * child user namespace's owned namespaces.
+ */
+TEST(listns_parent_userns_cap_sys_admin)
+{
+	int pipefd[2];
+	pid_t pid;
+	int status;
+	bool found_child_userns;
+	ssize_t count;
+
+	ASSERT_EQ(pipe(pipefd), 0);
+
+	pid = fork();
+	ASSERT_GE(pid, 0);
+
+	if (pid == 0) {
+		int fd;
+		__u64 parent_userns_id;
+		__u64 child_userns_id;
+		struct ns_id_req req;
+		__u64 ns_ids[100];
+		ssize_t ret;
+		bool found_child_userns;
+
+		close(pipefd[0]);
+
+		/* Create parent user namespace - we have CAP_SYS_ADMIN in it */
+		if (setup_userns() < 0) {
+			close(pipefd[1]);
+			exit(1);
+		}
+
+		/* Get parent user namespace ID */
+		fd = open("/proc/self/ns/user", O_RDONLY);
+		if (fd < 0) {
+			close(pipefd[1]);
+			exit(1);
+		}
+
+		if (ioctl(fd, NS_GET_ID, &parent_userns_id) < 0) {
+			close(fd);
+			close(pipefd[1]);
+			exit(1);
+		}
+		close(fd);
+
+		/* Create child user namespace */
+		if (setup_userns() < 0) {
+			close(pipefd[1]);
+			exit(1);
+		}
+
+		/* Get child user namespace ID */
+		fd = open("/proc/self/ns/user", O_RDONLY);
+		if (fd < 0) {
+			close(pipefd[1]);
+			exit(1);
+		}
+
+		if (ioctl(fd, NS_GET_ID, &child_userns_id) < 0) {
+			close(fd);
+			close(pipefd[1]);
+			exit(1);
+		}
+		close(fd);
+
+		/* Create namespaces owned by child user namespace */
+		if (unshare(CLONE_NEWNET) < 0) {
+			close(pipefd[1]);
+			exit(1);
+		}
+
+		/* List namespaces owned by parent user namespace */
+		req.size = sizeof(req);
+		req.spare = 0;
+		req.ns_id = 0;
+		req.ns_type = 0;
+		req.spare2 = 0;
+		req.user_ns_id = parent_userns_id;
+
+		ret = sys_listns(&req, ns_ids, ARRAY_SIZE(ns_ids), 0);
+
+		/* Should see child user namespace in the list */
+		found_child_userns = false;
+		if (ret > 0) {
+			for (ssize_t i = 0; i < ret; i++) {
+				if (ns_ids[i] == child_userns_id) {
+					found_child_userns = true;
+					break;
+				}
+			}
+		}
+
+		write(pipefd[1], &found_child_userns, sizeof(found_child_userns));
+		write(pipefd[1], &ret, sizeof(ret));
+		close(pipefd[1]);
+		exit(0);
+	}
+
+	/* Parent */
+	close(pipefd[1]);
+
+	found_child_userns = false;
+	count = 0;
+	read(pipefd[0], &found_child_userns, sizeof(found_child_userns));
+	read(pipefd[0], &count, sizeof(count));
+	close(pipefd[0]);
+
+	waitpid(pid, &status, 0);
+	ASSERT_TRUE(WIFEXITED(status));
+	ASSERT_EQ(WEXITSTATUS(status), 0);
+
+	ASSERT_TRUE(found_child_userns);
+	TH_LOG("Process with CAP_SYS_ADMIN in parent user namespace saw child user namespace (total: %zd)",
+			count);
+}
+
 TEST_HARNESS_MAIN
