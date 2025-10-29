@@ -530,23 +530,6 @@ void ihold(struct inode *inode)
 }
 EXPORT_SYMBOL(ihold);
 
-static void __inode_add_lru(struct inode *inode, bool rotate)
-{
-	if (inode_state_read(inode) & (I_DIRTY_ALL | I_SYNC | I_FREEING | I_WILL_FREE))
-		return;
-	if (icount_read(inode))
-		return;
-	if (!(inode->i_sb->s_flags & SB_ACTIVE))
-		return;
-	if (!mapping_shrinkable(&inode->i_data))
-		return;
-
-	if (list_lru_add_obj(&inode->i_sb->s_inode_lru, &inode->i_lru))
-		this_cpu_inc(nr_unused);
-	else if (rotate)
-		inode_state_set(inode, I_REFERENCED);
-}
-
 struct wait_queue_head *inode_bit_waitqueue(struct wait_bit_queue_entry *wqe,
 					    struct inode *inode, u32 bit)
 {
@@ -584,18 +567,38 @@ void wait_on_new_inode(struct inode *inode)
 }
 EXPORT_SYMBOL(wait_on_new_inode);
 
+static void __inode_lru_list_add(struct inode *inode, bool rotate)
+{
+	lockdep_assert_held(&inode->i_lock);
+
+	if (inode_state_read(inode) & (I_DIRTY_ALL | I_SYNC | I_FREEING | I_WILL_FREE))
+		return;
+	if (icount_read(inode))
+		return;
+	if (!(inode->i_sb->s_flags & SB_ACTIVE))
+		return;
+	if (!mapping_shrinkable(&inode->i_data))
+		return;
+
+	if (list_lru_add_obj(&inode->i_sb->s_inode_lru, &inode->i_lru))
+		this_cpu_inc(nr_unused);
+	else if (rotate)
+		inode_state_set(inode, I_REFERENCED);
+}
+
 /*
  * Add inode to LRU if needed (inode is unused and clean).
- *
- * Needs inode->i_lock held.
  */
-void inode_add_lru(struct inode *inode)
+void inode_lru_list_add(struct inode *inode)
 {
-	__inode_add_lru(inode, false);
+	__inode_lru_list_add(inode, false);
 }
 
 static void inode_lru_list_del(struct inode *inode)
 {
+	if (list_empty(&inode->i_lru))
+		return;
+
 	if (list_lru_del_obj(&inode->i_sb->s_inode_lru, &inode->i_lru))
 		this_cpu_dec(nr_unused);
 }
@@ -1920,7 +1923,7 @@ static void iput_final(struct inode *inode)
 	if (!drop &&
 	    !(inode_state_read(inode) & I_DONTCACHE) &&
 	    (sb->s_flags & SB_ACTIVE)) {
-		__inode_add_lru(inode, true);
+		__inode_lru_list_add(inode, true);
 		spin_unlock(&inode->i_lock);
 		return;
 	}
@@ -1944,8 +1947,7 @@ static void iput_final(struct inode *inode)
 		inode_state_replace(inode, I_WILL_FREE, I_FREEING);
 	}
 
-	if (!list_empty(&inode->i_lru))
-		inode_lru_list_del(inode);
+	inode_lru_list_del(inode);
 	spin_unlock(&inode->i_lock);
 
 	evict(inode);

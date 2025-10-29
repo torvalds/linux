@@ -1452,7 +1452,7 @@ static void inode_sync_complete(struct inode *inode)
 
 	inode_state_clear(inode, I_SYNC);
 	/* If inode is clean an unused, put it into LRU now... */
-	inode_add_lru(inode);
+	inode_lru_list_add(inode);
 	/* Called with inode->i_lock which ensures memory ordering. */
 	inode_wake_up_bit(inode, __I_SYNC);
 }

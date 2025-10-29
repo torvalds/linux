@@ -811,7 +811,7 @@ static int __remove_mapping(struct address_space *mapping, struct folio *folio,
 		__filemap_remove_folio(folio, shadow);
 		xa_unlock_irq(&mapping->i_pages);
 		if (mapping_shrinkable(mapping))
-			inode_add_lru(mapping->host);
+			inode_lru_list_add(mapping->host);
 		spin_unlock(&mapping->host->i_lock);
 
 		if (free_folio)
