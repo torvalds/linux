@@ -766,6 +766,50 @@ int send_recv_data(int lfd, int fd, uint32_t total_bytes)
 	return err;
 }
 
+int tc_prog_attach(const char *dev, int ingress_fd, int egress_fd)
+{
+	int ifindex, ret;
+
+	if (!ASSERT_TRUE(ingress_fd >= 0 || egress_fd >= 0,
+			 "at least one program fd is valid"))
+		return -1;
+
+	ifindex = if_nametoindex(dev);
+	if (!ASSERT_NEQ(ifindex, 0, "get ifindex"))
+		return -1;
+
+	DECLARE_LIBBPF_OPTS(bpf_tc_hook, hook, .ifindex = ifindex,
+			    .attach_point = BPF_TC_INGRESS | BPF_TC_EGRESS);
+	DECLARE_LIBBPF_OPTS(bpf_tc_opts, opts1, .handle = 1,
+			    .priority = 1, .prog_fd = ingress_fd);
+	DECLARE_LIBBPF_OPTS(bpf_tc_opts, opts2, .handle = 1,
+			    .priority = 1, .prog_fd = egress_fd);
+
+	ret = bpf_tc_hook_create(&hook);
+	if (!ASSERT_OK(ret, "create tc hook"))
+		return ret;
+
+	if (ingress_fd >= 0) {
+		hook.attach_point = BPF_TC_INGRESS;
+		ret = bpf_tc_attach(&hook, &opts1);
+		if (!ASSERT_OK(ret, "bpf_tc_attach")) {
+			bpf_tc_hook_destroy(&hook);
+			return ret;
+		}
+	}
+
+	if (egress_fd >= 0) {
+		hook.attach_point = BPF_TC_EGRESS;
+		ret = bpf_tc_attach(&hook, &opts2);
+		if (!ASSERT_OK(ret, "bpf_tc_attach")) {
+			bpf_tc_hook_destroy(&hook);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
 #ifdef TRAFFIC_MONITOR
 struct tmonitor_ctx {
 	pcap_t *pcap;
