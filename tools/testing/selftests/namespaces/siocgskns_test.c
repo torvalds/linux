@@ -333,4 +333,72 @@ TEST(siocgskns_non_socket)
 	close(pipefd[1]);
 }
 
+/*
+ * Test multiple sockets keep the same network namespace active.
+ * Create multiple sockets, verify closing some doesn't affect others.
+ */
+TEST(siocgskns_multiple_sockets)
+{
+	int socks[5];
+	int netns_fds[5];
+	int i;
+	struct stat st;
+	ino_t netns_ino;
+
+	/* Create new network namespace */
+	ASSERT_EQ(unshare(CLONE_NEWNET), 0);
+
+	/* Create multiple sockets */
+	for (i = 0; i < 5; i++) {
+		socks[i] = socket(AF_INET, SOCK_STREAM, 0);
+		ASSERT_GE(socks[i], 0);
+	}
+
+	/* Get netns from all sockets */
+	for (i = 0; i < 5; i++) {
+		netns_fds[i] = ioctl(socks[i], SIOCGSKNS);
+		if (netns_fds[i] < 0) {
+			int j;
+			for (j = 0; j <= i; j++) {
+				close(socks[j]);
+				if (j < i && netns_fds[j] >= 0)
+					close(netns_fds[j]);
+			}
+			if (errno == ENOTTY || errno == EINVAL)
+				SKIP(return, "SIOCGSKNS not supported");
+			ASSERT_GE(netns_fds[i], 0);
+		}
+	}
+
+	/* Verify all point to same netns */
+	ASSERT_EQ(fstat(netns_fds[0], &st), 0);
+	netns_ino = st.st_ino;
+
+	for (i = 1; i < 5; i++) {
+		ASSERT_EQ(fstat(netns_fds[i], &st), 0);
+		ASSERT_EQ(st.st_ino, netns_ino);
+	}
+
+	/* Close some sockets */
+	for (i = 0; i < 3; i++) {
+		close(socks[i]);
+	}
+
+	/* Remaining netns FDs should still be valid */
+	for (i = 3; i < 5; i++) {
+		char path[64];
+		snprintf(path, sizeof(path), "/proc/self/fd/%d", netns_fds[i]);
+		int test_fd = open(path, O_RDONLY);
+		ASSERT_GE(test_fd, 0);
+		close(test_fd);
+	}
+
+	/* Cleanup */
+	for (i = 0; i < 5; i++) {
+		if (i >= 3)
+			close(socks[i]);
+		close(netns_fds[i]);
+	}
+}
+
 TEST_HARNESS_MAIN
