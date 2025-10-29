@@ -440,6 +440,12 @@ attribute-sets:
         doc: |
           Capable pin provides list of pins that can be bound to create a
           reference-sync pin pair.
+      -
+        name: phase-adjust-gran
+        type: u32
+        doc: |
+          Granularity of phase adjustment, in picoseconds. The value of
+          phase adjustment must be a multiple of this granularity.
 
   -
     name: pin-parent-device
@@ -616,6 +622,7 @@ operations:
             - capabilities
             - parent-device
             - parent-pin
+            - phase-adjust-gran
             - phase-adjust-min
             - phase-adjust-max
             - phase-adjust
