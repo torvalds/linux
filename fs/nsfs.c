@@ -471,6 +471,45 @@ static int nsfs_encode_fh(struct inode *inode, u32 *fh, int *max_len,
 	return FILEID_NSFS;
 }
 
+bool is_current_namespace(struct ns_common *ns)
+{
+	switch (ns->ns_type) {
+#ifdef CONFIG_CGROUPS
+	case CLONE_NEWCGROUP:
+		return current_in_namespace(to_cg_ns(ns));
+#endif
+#ifdef CONFIG_IPC_NS
+	case CLONE_NEWIPC:
+		return current_in_namespace(to_ipc_ns(ns));
+#endif
+	case CLONE_NEWNS:
+		return current_in_namespace(to_mnt_ns(ns));
+#ifdef CONFIG_NET_NS
+	case CLONE_NEWNET:
+		return current_in_namespace(to_net_ns(ns));
+#endif
+#ifdef CONFIG_PID_NS
+	case CLONE_NEWPID:
+		return current_in_namespace(to_pid_ns(ns));
+#endif
+#ifdef CONFIG_TIME_NS
+	case CLONE_NEWTIME:
+		return current_in_namespace(to_time_ns(ns));
+#endif
+#ifdef CONFIG_USER_NS
+	case CLONE_NEWUSER:
+		return current_in_namespace(to_user_ns(ns));
+#endif
+#ifdef CONFIG_UTS_NS
+	case CLONE_NEWUTS:
+		return current_in_namespace(to_uts_ns(ns));
+#endif
+	default:
+		VFS_WARN_ON_ONCE(true);
+		return false;
+	}
+}
+
 static struct dentry *nsfs_fh_to_dentry(struct super_block *sb, struct fid *fh,
 					int fh_len, int fh_type)
 {

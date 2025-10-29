@@ -129,8 +129,10 @@ struct ns_common {
 	};
 };
 
+bool is_current_namespace(struct ns_common *ns);
 int __ns_common_init(struct ns_common *ns, u32 ns_type, const struct proc_ns_operations *ops, int inum);
 void __ns_common_free(struct ns_common *ns);
+struct ns_common *__must_check ns_owner(struct ns_common *ns);
 
 static __always_inline bool is_initial_namespace(struct ns_common *ns)
 {

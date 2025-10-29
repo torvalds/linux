@@ -98,7 +98,7 @@ void __ns_common_free(struct ns_common *ns)
 	proc_free_inum(ns->inum);
 }
 
-static struct ns_common *ns_owner(struct ns_common *ns)
+struct ns_common *__must_check ns_owner(struct ns_common *ns)
 {
 	struct user_namespace *owner;
 
