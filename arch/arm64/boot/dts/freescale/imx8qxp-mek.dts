@@ -404,6 +404,8 @@
 	pinctrl-0 = <&pinctrl_fec1>;
 	phy-mode = "rgmii-id";
 	phy-handle = <&ethphy0>;
+	nvmem-cells = <&fec_mac0>;
+	nvmem-cell-names = "mac-address";
 	fsl,magic-packet;
 	status = "okay";
 
