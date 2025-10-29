@@ -100,7 +100,6 @@ allOf:
         clocks:
           maxItems: 1
 
-
   - if:
       properties:
         compatible:
