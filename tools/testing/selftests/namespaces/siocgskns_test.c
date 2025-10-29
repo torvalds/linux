@@ -576,4 +576,207 @@ TEST(siocgskns_ipv6)
 	close(current_netns_fd);
 }
 
+/*
+ * Test that socket-kept netns appears in listns() output.
+ * Verify that a network namespace kept alive by a socket FD appears in
+ * listns() output even after the creating process exits, and that it
+ * disappears when the socket is closed.
+ */
+TEST(siocgskns_listns_visibility)
+{
+	int sock_fd, netns_fd, owner_fd;
+	int ipc_sockets[2];
+	pid_t pid;
+	int status;
+	__u64 netns_id, owner_id;
+	struct ns_id_req req = {
+		.size = sizeof(req),
+		.spare = 0,
+		.ns_id = 0,
+		.ns_type = CLONE_NEWNET,
+		.spare2 = 0,
+		.user_ns_id = 0,
+	};
+	__u64 ns_ids[256];
+	int ret, i;
+	bool found_netns = false;
+
+	EXPECT_EQ(socketpair(AF_LOCAL, SOCK_STREAM | SOCK_CLOEXEC, 0, ipc_sockets), 0);
+
+	pid = fork();
+	ASSERT_GE(pid, 0);
+
+	if (pid == 0) {
+		/* Child: create new netns and socket */
+		close(ipc_sockets[0]);
+
+		if (unshare(CLONE_NEWNET) < 0) {
+			close(ipc_sockets[1]);
+			exit(1);
+		}
+
+		sock_fd = socket(AF_INET, SOCK_DGRAM, 0);
+		if (sock_fd < 0) {
+			close(ipc_sockets[1]);
+			exit(1);
+		}
+
+		/* Send socket FD to parent via SCM_RIGHTS */
+		struct msghdr msg = {0};
+		struct iovec iov = {0};
+		char buf[1] = {'X'};
+		char cmsg_buf[CMSG_SPACE(sizeof(int))];
+
+		iov.iov_base = buf;
+		iov.iov_len = 1;
+		msg.msg_iov = &iov;
+		msg.msg_iovlen = 1;
+		msg.msg_control = cmsg_buf;
+		msg.msg_controllen = sizeof(cmsg_buf);
+
+		struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msg);
+		cmsg->cmsg_level = SOL_SOCKET;
+		cmsg->cmsg_type = SCM_RIGHTS;
+		cmsg->cmsg_len = CMSG_LEN(sizeof(int));
+		memcpy(CMSG_DATA(cmsg), &sock_fd, sizeof(int));
+
+		if (sendmsg(ipc_sockets[1], &msg, 0) < 0) {
+			close(sock_fd);
+			close(ipc_sockets[1]);
+			exit(1);
+		}
+
+		close(sock_fd);
+		close(ipc_sockets[1]);
+		exit(0);
+	}
+
+	/* Parent: receive socket FD */
+	close(ipc_sockets[1]);
+
+	struct msghdr msg = {0};
+	struct iovec iov = {0};
+	char buf[1];
+	char cmsg_buf[CMSG_SPACE(sizeof(int))];
+
+	iov.iov_base = buf;
+	iov.iov_len = 1;
+	msg.msg_iov = &iov;
+	msg.msg_iovlen = 1;
+	msg.msg_control = cmsg_buf;
+	msg.msg_controllen = sizeof(cmsg_buf);
+
+	ssize_t n = recvmsg(ipc_sockets[0], &msg, 0);
+	close(ipc_sockets[0]);
+	ASSERT_EQ(n, 1);
+
+	struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msg);
+	ASSERT_NE(cmsg, NULL);
+	memcpy(&sock_fd, CMSG_DATA(cmsg), sizeof(int));
+
+	/* Wait for child to exit */
+	waitpid(pid, &status, 0);
+	ASSERT_TRUE(WIFEXITED(status));
+	ASSERT_EQ(WEXITSTATUS(status), 0);
+
+	/* Get network namespace from socket */
+	netns_fd = ioctl(sock_fd, SIOCGSKNS);
+	if (netns_fd < 0) {
+		close(sock_fd);
+		if (errno == ENOTTY || errno == EINVAL)
+			SKIP(return, "SIOCGSKNS not supported");
+		ASSERT_GE(netns_fd, 0);
+	}
+
+	/* Get namespace ID */
+	ret = ioctl(netns_fd, NS_GET_ID, &netns_id);
+	if (ret < 0) {
+		close(sock_fd);
+		close(netns_fd);
+		if (errno == ENOTTY || errno == EINVAL)
+			SKIP(return, "NS_GET_ID not supported");
+		ASSERT_EQ(ret, 0);
+	}
+
+	/* Get owner user namespace */
+	owner_fd = ioctl(netns_fd, NS_GET_USERNS);
+	if (owner_fd < 0) {
+		close(sock_fd);
+		close(netns_fd);
+		if (errno == ENOTTY || errno == EINVAL)
+			SKIP(return, "NS_GET_USERNS not supported");
+		ASSERT_GE(owner_fd, 0);
+	}
+
+	/* Get owner namespace ID */
+	ret = ioctl(owner_fd, NS_GET_ID, &owner_id);
+	if (ret < 0) {
+		close(owner_fd);
+		close(sock_fd);
+		close(netns_fd);
+		ASSERT_EQ(ret, 0);
+	}
+	close(owner_fd);
+
+	/* Namespace should appear in listns() output */
+	ret = sys_listns(&req, ns_ids, ARRAY_SIZE(ns_ids), 0);
+	if (ret < 0) {
+		close(sock_fd);
+		close(netns_fd);
+		if (errno == ENOSYS)
+			SKIP(return, "listns() not supported");
+		TH_LOG("listns failed: %s", strerror(errno));
+		ASSERT_GE(ret, 0);
+	}
+
+	/* Search for our network namespace in the list */
+	for (i = 0; i < ret; i++) {
+		if (ns_ids[i] == netns_id) {
+			found_netns = true;
+			break;
+		}
+	}
+
+	ASSERT_TRUE(found_netns);
+	TH_LOG("Found netns %llu in listns() output (kept alive by socket)", netns_id);
+
+	/* Now verify with owner filtering */
+	req.user_ns_id = owner_id;
+	found_netns = false;
+
+	ret = sys_listns(&req, ns_ids, ARRAY_SIZE(ns_ids), 0);
+	ASSERT_GE(ret, 0);
+
+	for (i = 0; i < ret; i++) {
+		if (ns_ids[i] == netns_id) {
+			found_netns = true;
+			break;
+		}
+	}
+
+	ASSERT_TRUE(found_netns);
+	TH_LOG("Found netns %llu owned by userns %llu", netns_id, owner_id);
+
+	/* Close socket - namespace should become inactive and disappear from listns() */
+	close(sock_fd);
+	close(netns_fd);
+
+	/* Verify it's no longer in listns() output */
+	req.user_ns_id = 0;
+	found_netns = false;
+
+	ret = sys_listns(&req, ns_ids, ARRAY_SIZE(ns_ids), 0);
+	ASSERT_GE(ret, 0);
+
+	for (i = 0; i < ret; i++) {
+		if (ns_ids[i] == netns_id) {
+			found_netns = true;
+			break;
+		}
+	}
+
+	ASSERT_FALSE(found_netns);
+	TH_LOG("Netns %llu correctly disappeared from listns() after socket closed", netns_id);
+}
+
 TEST_HARNESS_MAIN
