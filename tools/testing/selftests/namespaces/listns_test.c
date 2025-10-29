@@ -54,4 +54,65 @@ TEST(listns_basic_unified)
 	}
 }
 
+/*
+ * Test listns() with type filtering.
+ * List only network namespaces.
+ */
+TEST(listns_filter_by_type)
+{
+	struct ns_id_req req = {
+		.size = sizeof(req),
+		.spare = 0,
+		.ns_id = 0,
+		.ns_type = CLONE_NEWNET,  /* Only network namespaces */
+		.spare2 = 0,
+		.user_ns_id = 0,
+	};
+	__u64 ns_ids[100];
+	ssize_t ret;
+
+	ret = sys_listns(&req, ns_ids, ARRAY_SIZE(ns_ids), 0);
+	if (ret < 0) {
+		if (errno == ENOSYS)
+			SKIP(return, "listns() not supported");
+		TH_LOG("listns failed: %s (errno=%d)", strerror(errno), errno);
+		ASSERT_TRUE(false);
+	}
+	ASSERT_GE(ret, 0);
+
+	/* Should find at least init_net */
+	ASSERT_GT(ret, 0);
+	TH_LOG("Found %zd active network namespaces", ret);
+
+	/* Verify we can open each namespace and it's actually a network namespace */
+	for (ssize_t i = 0; i < ret && i < 5; i++) {
+		struct nsfs_file_handle nsfh = {
+			.ns_id = ns_ids[i],
+			.ns_type = CLONE_NEWNET,
+			.ns_inum = 0,
+		};
+		struct file_handle *fh;
+		int fd;
+
+		fh = (struct file_handle *)malloc(sizeof(*fh) + sizeof(nsfh));
+		ASSERT_NE(fh, NULL);
+		fh->handle_bytes = sizeof(nsfh);
+		fh->handle_type = 0;
+		memcpy(fh->f_handle, &nsfh, sizeof(nsfh));
+
+		fd = open_by_handle_at(-10003, fh, O_RDONLY);
+		free(fh);
+
+		if (fd >= 0) {
+			int ns_type;
+			/* Verify it's a network namespace via ioctl */
+			ns_type = ioctl(fd, NS_GET_NSTYPE);
+			if (ns_type >= 0) {
+				ASSERT_EQ(ns_type, CLONE_NEWNET);
+			}
+			close(fd);
+		}
+	}
+}
+
 TEST_HARNESS_MAIN
