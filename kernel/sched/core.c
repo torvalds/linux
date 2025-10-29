@@ -2999,8 +2999,6 @@ static int __set_cpus_allowed_ptr_locked(struct task_struct *p,
 	unsigned int dest_cpu;
 	int ret = 0;
 
-	update_rq_clock(rq);
-
 	if (kthread || is_migration_disabled(p)) {
 		/*
 		 * Kernel threads are allowed on online && !active CPUs,
