@@ -107,8 +107,7 @@ static const u8 *mipi_exec_send_packet(struct intel_dsi *intel_dsi,
 	u16 len;
 	enum port port;
 	ssize_t ret;
-
-	drm_dbg_kms(display->drm, "\n");
+	bool hs_mode;
 
 	flags = *data++;
 	type = *data++;
@@ -130,12 +129,17 @@ static const u8 *mipi_exec_send_packet(struct intel_dsi *intel_dsi,
 		goto out;
 	}
 
-	if ((flags >> MIPI_TRANSFER_MODE_SHIFT) & 1)
+	hs_mode = (flags >> MIPI_TRANSFER_MODE_SHIFT) & 1;
+	if (hs_mode)
 		dsi_device->mode_flags &= ~MIPI_DSI_MODE_LPM;
 	else
 		dsi_device->mode_flags |= MIPI_DSI_MODE_LPM;
 
 	dsi_device->channel = (flags >> MIPI_VIRTUAL_CHANNEL_SHIFT) & 3;
+
+	drm_dbg_kms(display->drm, "DSI packet: Port %c (seq %u), Flags 0x%02x, VC %u, %s, Type 0x%02x, Length %u, Data %*ph\n",
+		    port_name(port), seq_port, flags, dsi_device->channel,
+		    hs_mode ? "HS" : "LP", type, len, (int)len, data);
 
 	switch (type) {
 	case MIPI_DSI_GENERIC_SHORT_WRITE_0_PARAM:
