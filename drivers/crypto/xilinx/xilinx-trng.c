@@ -345,7 +345,7 @@ static int xtrng_probe(struct platform_device *pdev)
 	rng->dev = &pdev->dev;
 	rng->rng_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(rng->rng_base)) {
-		dev_err(&pdev->dev, "Failed to map resource %ld\n", PTR_ERR(rng->rng_base));
+		dev_err(&pdev->dev, "Failed to map resource %pe\n", rng->rng_base);
 		return PTR_ERR(rng->rng_base);
 	}
 
