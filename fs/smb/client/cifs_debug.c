@@ -249,9 +249,9 @@ static int cifs_debug_files_proc_show(struct seq_file *m, void *v)
 	seq_puts(m, "# Format:\n");
 	seq_puts(m, "# <tree id> <ses id> <persistent fid> <flags> <count> <pid> <uid>");
 #ifdef CONFIG_CIFS_DEBUG2
-	seq_puts(m, " <filename> <lease> <mid>\n");
+	seq_puts(m, " <filename> <lease> <lease-key> <mid>\n");
 #else
-	seq_puts(m, " <filename> <lease>\n");
+	seq_puts(m, " <filename> <lease> <lease-key>\n");
 #endif /* CIFS_DEBUG2 */
 	spin_lock(&cifs_tcp_ses_lock);
 	list_for_each_entry(server, &cifs_tcp_ses_list, tcp_ses_list) {
@@ -274,6 +274,7 @@ static int cifs_debug_files_proc_show(struct seq_file *m, void *v)
 
 					/* Append lease/oplock caching state as RHW letters */
 					inode = d_inode(cfile->dentry);
+					cinode = NULL;
 					n = 0;
 					if (inode) {
 						cinode = CIFS_I(inode);
@@ -290,6 +291,12 @@ static int cifs_debug_files_proc_show(struct seq_file *m, void *v)
 						seq_printf(m, "%s", lease);
 					else
 						seq_puts(m, "NONE");
+
+					seq_puts(m, " ");
+					if (cinode && cinode->lease_granted)
+						seq_printf(m, "%pUl", cinode->lease_key);
+					else
+						seq_puts(m, "-");
 
 #ifdef CONFIG_CIFS_DEBUG2
 					seq_printf(m, " %llu", cfile->fid.mid);
