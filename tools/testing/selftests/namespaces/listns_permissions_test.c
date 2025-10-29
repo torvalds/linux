@@ -561,4 +561,91 @@ TEST(listns_parent_userns_cap_sys_admin)
 			count);
 }
 
+/*
+ * Test that we can see user namespaces we have CAP_SYS_ADMIN inside of.
+ * This is different from seeing namespaces owned by a user namespace.
+ */
+TEST(listns_cap_sys_admin_inside_userns)
+{
+	int pipefd[2];
+	pid_t pid;
+	int status;
+	bool found_ours;
+
+	ASSERT_EQ(pipe(pipefd), 0);
+
+	pid = fork();
+	ASSERT_GE(pid, 0);
+
+	if (pid == 0) {
+		int fd;
+		__u64 our_userns_id;
+		struct ns_id_req req;
+		__u64 ns_ids[100];
+		ssize_t ret;
+		bool found_ours;
+
+		close(pipefd[0]);
+
+		/* Create user namespace - we have CAP_SYS_ADMIN inside it */
+		if (setup_userns() < 0) {
+			close(pipefd[1]);
+			exit(1);
+		}
+
+		/* Get our user namespace ID */
+		fd = open("/proc/self/ns/user", O_RDONLY);
+		if (fd < 0) {
+			close(pipefd[1]);
+			exit(1);
+		}
+
+		if (ioctl(fd, NS_GET_ID, &our_userns_id) < 0) {
+			close(fd);
+			close(pipefd[1]);
+			exit(1);
+		}
+		close(fd);
+
+		/* List all user namespaces globally */
+		req.size = sizeof(req);
+		req.spare = 0;
+		req.ns_id = 0;
+		req.ns_type = CLONE_NEWUSER;
+		req.spare2 = 0;
+		req.user_ns_id = 0;
+
+		ret = sys_listns(&req, ns_ids, ARRAY_SIZE(ns_ids), 0);
+
+		/* We should be able to see our own user namespace */
+		found_ours = false;
+		if (ret > 0) {
+			for (ssize_t i = 0; i < ret; i++) {
+				if (ns_ids[i] == our_userns_id) {
+					found_ours = true;
+					break;
+				}
+			}
+		}
+
+		write(pipefd[1], &found_ours, sizeof(found_ours));
+		close(pipefd[1]);
+		exit(0);
+	}
+
+	/* Parent */
+	close(pipefd[1]);
+
+	found_ours = false;
+	read(pipefd[0], &found_ours, sizeof(found_ours));
+	close(pipefd[0]);
+
+	waitpid(pid, &status, 0);
+	ASSERT_TRUE(WIFEXITED(status));
+	ASSERT_EQ(WEXITSTATUS(status), 0);
+
+	ASSERT_TRUE(found_ours);
+	TH_LOG("Process can see user namespace it has CAP_SYS_ADMIN inside of");
+}
+
 TEST_HARNESS_MAIN
