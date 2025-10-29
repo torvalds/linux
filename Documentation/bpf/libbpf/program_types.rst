@@ -100,10 +100,26 @@ described in more detail in the footnotes.
 |                                           |                                        | ``uretprobe.s+`` [#uprobe]_      | Yes       |
 +                                           +                                        +----------------------------------+-----------+
 |                                           |                                        | ``usdt+`` [#usdt]_               |           |
++                                           +                                        +----------------------------------+-----------+
+|                                           |                                        | ``usdt.s+`` [#usdt]_             | Yes       |
 +                                           +----------------------------------------+----------------------------------+-----------+
 |                                           | ``BPF_TRACE_KPROBE_MULTI``             | ``kprobe.multi+`` [#kpmulti]_    |           |
 +                                           +                                        +----------------------------------+-----------+
 |                                           |                                        | ``kretprobe.multi+`` [#kpmulti]_ |           |
++                                           +----------------------------------------+----------------------------------+-----------+
+|                                           | ``BPF_TRACE_KPROBE_SESSION``           | ``kprobe.session+`` [#kpmulti]_  |           |
++                                           +----------------------------------------+----------------------------------+-----------+
+|                                           | ``BPF_TRACE_UPROBE_MULTI``             | ``uprobe.multi+`` [#upmul]_      |           |
++                                           +                                        +----------------------------------+-----------+
+|                                           |                                        | ``uprobe.multi.s+`` [#upmul]_    | Yes       |
++                                           +                                        +----------------------------------+-----------+
+|                                           |                                        | ``uretprobe.multi+`` [#upmul]_   |           |
++                                           +                                        +----------------------------------+-----------+
+|                                           |                                        | ``uretprobe.multi.s+`` [#upmul]_ | Yes       |
++                                           +----------------------------------------+----------------------------------+-----------+
+|                                           | ``BPF_TRACE_UPROBE_SESSION``           | ``uprobe.session+`` [#upmul]_    |           |
++                                           +                                        +----------------------------------+-----------+
+|                                           |                                        | ``uprobe.session.s+`` [#upmul]_  | Yes       |
 +-------------------------------------------+----------------------------------------+----------------------------------+-----------+
 | ``BPF_PROG_TYPE_LIRC_MODE2``              | ``BPF_LIRC_MODE2``                     | ``lirc_mode2``                   |           |
 +-------------------------------------------+----------------------------------------+----------------------------------+-----------+
@@ -219,6 +235,8 @@ described in more detail in the footnotes.
              non-negative integer.
 .. [#ksyscall] The ``ksyscall`` attach format is ``ksyscall/<syscall>``.
 .. [#uprobe] The ``uprobe`` attach format is ``uprobe[.s]/<path>:<function>[+<offset>]``.
+.. [#upmul] The ``uprobe.multi`` attach format is ``uprobe.multi[.s]/<path>:<function-pattern>``
+            where ``function-pattern`` supports ``*`` and ``?`` wildcards.
 .. [#usdt] The ``usdt`` attach format is ``usdt/<path>:<provider>:<name>``.
 .. [#kpmulti] The ``kprobe.multi`` attach format is ``kprobe.multi/<pattern>`` where ``pattern``
               supports ``*`` and ``?`` wildcards. Valid characters for pattern are
