@@ -496,15 +496,22 @@ static struct dentry *nsfs_fh_to_dentry(struct super_block *sb, struct fid *fh,
 		return NULL;
 	}
 
+	if (!fid->ns_id)
+		return NULL;
+	/* Either both are set or both are unset. */
+	if (!fid->ns_inum != !fid->ns_type)
+		return NULL;
+
 	scoped_guard(rcu) {
 		ns = ns_tree_lookup_rcu(fid->ns_id, fid->ns_type);
 		if (!ns)
 			return NULL;
 
 		VFS_WARN_ON_ONCE(ns->ns_id != fid->ns_id);
-		VFS_WARN_ON_ONCE(ns->ns_type != fid->ns_type);
 
-		if (ns->inum != fid->ns_inum)
+		if (fid->ns_inum && (fid->ns_inum != ns->inum))
+			return NULL;
+		if (fid->ns_type && (fid->ns_type != ns->ns_type))
 			return NULL;
 
 		/*
