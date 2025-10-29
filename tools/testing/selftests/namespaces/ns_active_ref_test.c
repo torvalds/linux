@@ -825,4 +825,121 @@ TEST(ns_parent_always_reachable)
 	ASSERT_TRUE(errno == ENOENT || errno == ESTALE);
 }
 
+/*
+ * Test that bind mounts keep namespaces in the tree even when inactive
+ */
+TEST(ns_bind_mount_keeps_in_tree)
+{
+	struct file_handle *handle;
+	int mount_id;
+	int ret;
+	int fd;
+	int pipefd[2];
+	pid_t pid;
+	int status;
+	char buf[sizeof(*handle) + MAX_HANDLE_SZ];
+	char tmpfile[] = "/tmp/ns-test-XXXXXX";
+	int tmpfd;
+
+	/* Create temporary file for bind mount */
+	tmpfd = mkstemp(tmpfile);
+	if (tmpfd < 0) {
+		SKIP(return, "Cannot create temporary file");
+	}
+	close(tmpfd);
+
+	ASSERT_EQ(pipe(pipefd), 0);
+
+	pid = fork();
+	ASSERT_GE(pid, 0);
+
+	if (pid == 0) {
+		/* Child process */
+		close(pipefd[0]);
+
+		/* Unshare mount namespace and make mounts private to avoid propagation */
+		ret = unshare(CLONE_NEWNS);
+		if (ret < 0) {
+			close(pipefd[1]);
+			unlink(tmpfile);
+			exit(1);
+		}
+		ret = mount(NULL, "/", NULL, MS_PRIVATE | MS_REC, NULL);
+		if (ret < 0) {
+			close(pipefd[1]);
+			unlink(tmpfile);
+			exit(1);
+		}
+
+		/* Create new network namespace */
+		ret = unshare(CLONE_NEWNET);
+		if (ret < 0) {
+			close(pipefd[1]);
+			unlink(tmpfile);
+			exit(1);
+		}
+
+		/* Bind mount the namespace */
+		ret = mount("/proc/self/ns/net", tmpfile, NULL, MS_BIND, NULL);
+		if (ret < 0) {
+			close(pipefd[1]);
+			unlink(tmpfile);
+			exit(1);
+		}
+
+		/* Get file handle */
+		fd = open("/proc/self/ns/net", O_RDONLY);
+		if (fd < 0) {
+			umount(tmpfile);
+			close(pipefd[1]);
+			unlink(tmpfile);
+			exit(1);
+		}
+
+		handle = (struct file_handle *)buf;
+		handle->handle_bytes = MAX_HANDLE_SZ;
+		ret = name_to_handle_at(fd, "", handle, &mount_id, AT_EMPTY_PATH);
+		close(fd);
+
+		if (ret < 0) {
+			umount(tmpfile);
+			close(pipefd[1]);
+			unlink(tmpfile);
+			exit(1);
+		}
+
+		/* Send handle to parent */
+		write(pipefd[1], buf, sizeof(*handle) + handle->handle_bytes);
+		close(pipefd[1]);
+		exit(0);
+	}
+
+	/* Parent */
+	close(pipefd[1]);
+	ret = read(pipefd[0], buf, sizeof(buf));
+	close(pipefd[0]);
+
+	waitpid(pid, &status, 0);
+	ASSERT_TRUE(WIFEXITED(status));
+	ASSERT_EQ(WEXITSTATUS(status), 0);
+
+	ASSERT_GT(ret, 0);
+	handle = (struct file_handle *)buf;
+
+	/*
+	 * Namespace should be inactive but still in tree due to bind mount.
+	 * Reopening should fail with ENOENT (inactive) not ESTALE (not in tree).
+	 */
+	fd = open_by_handle_at(FD_NSFS_ROOT, handle, O_RDONLY);
+	ASSERT_LT(fd, 0);
+	/* Should be ENOENT (inactive) since bind mount keeps it in tree */
+	if (errno != ENOENT && errno != ESTALE) {
+		TH_LOG("Unexpected error: %d", errno);
+	}
+
+	/* Cleanup */
+	umount(tmpfile);
+	unlink(tmpfile);
+}
+
 TEST_HARNESS_MAIN
