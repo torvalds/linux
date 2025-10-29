@@ -7,6 +7,8 @@
 #include <linux/bitmap.h>
 #include <linux/string_helpers.h>
 
+#include <drm/drm_print.h>
+
 #include "i915_drv.h"
 #include "intel_gt_debugfs.h"
 #include "intel_gt_regs.h"

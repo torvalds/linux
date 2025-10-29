@@ -9,6 +9,7 @@
 #include <drm/drm_blend.h>
 #include <drm/drm_gem.h>
 #include <drm/drm_modeset_helper.h>
+#include <drm/drm_print.h>
 
 #include "i915_drv.h"
 #include "i915_utils.h"

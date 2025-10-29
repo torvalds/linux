@@ -21,6 +21,8 @@
  * SOFTWARE.
  */
 
+#include <drm/drm_print.h>
+
 #include "i915_drv.h"
 #include "i915_pvinfo.h"
 #include "i915_vgpu.h"

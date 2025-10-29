@@ -5,6 +5,8 @@
 
 #include <linux/iopoll.h>
 
+#include <drm/drm_print.h>
+
 #include "i915_drv.h"
 #include "i915_irq.h"
 #include "i915_reg.h"

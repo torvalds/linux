@@ -8,6 +8,7 @@
 #include <linux/pm_opp.h>
 
 #include <drm/drm_managed.h>
+#include <drm/drm_print.h>
 
 #include "panthor_devfreq.h"
 #include "panthor_device.h"

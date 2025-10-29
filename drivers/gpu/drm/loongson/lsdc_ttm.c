@@ -8,6 +8,7 @@
 #include <drm/drm_gem.h>
 #include <drm/drm_managed.h>
 #include <drm/drm_prime.h>
+#include <drm/drm_print.h>
 
 #include "lsdc_drv.h"
 #include "lsdc_ttm.h"

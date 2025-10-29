@@ -2,6 +2,7 @@
 /* Copyright 2019 Linaro, Ltd, Rob Herring <robh@kernel.org> */
 
 #include <drm/panfrost_drm.h>
+#include <drm/drm_print.h>
 
 #include <linux/atomic.h>
 #include <linux/bitfield.h>

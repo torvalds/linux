@@ -9,6 +9,7 @@
  **************************************************************************/
 
 #include <drm/drm_drv.h>
+#include <drm/drm_print.h>
 #include <drm/drm_vblank.h>
 
 #include "power.h"

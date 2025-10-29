@@ -37,6 +37,7 @@
 #include <linux/mman.h>
 
 #include <drm/drm_cache.h>
+#include <drm/drm_print.h>
 #include <drm/drm_vma_manager.h>
 
 #include "gem/i915_gem_clflush.h"

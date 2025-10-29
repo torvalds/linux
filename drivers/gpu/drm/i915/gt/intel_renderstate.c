@@ -3,6 +3,8 @@
  * Copyright © 2014 Intel Corporation
  */
 
+#include <drm/drm_print.h>
+
 #include "gem/i915_gem_internal.h"
 
 #include "i915_drv.h"

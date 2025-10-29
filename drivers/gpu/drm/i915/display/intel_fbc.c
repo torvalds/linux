@@ -43,6 +43,7 @@
 
 #include <drm/drm_blend.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_print.h>
 
 #include "gem/i915_gem_stolen.h"
 

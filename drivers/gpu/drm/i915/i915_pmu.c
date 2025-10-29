@@ -6,6 +6,8 @@
 
 #include <linux/pm_runtime.h>
 
+#include <drm/drm_print.h>
+
 #include "gt/intel_engine.h"
 #include "gt/intel_engine_pm.h"
 #include "gt/intel_engine_regs.h"

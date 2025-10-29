@@ -24,6 +24,7 @@
 #include <linux/debugfs.h>
 #include <linux/kernel.h>
 
+#include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 
 #include "i915_drv.h"

@@ -40,6 +40,7 @@
 #include <linux/shmem_fs.h>
 #include <drm/drm_cache.h>
 #include <drm/drm_device.h>
+#include <drm/drm_print.h>
 #include <drm/drm_util.h>
 #include <drm/ttm/ttm_backup.h>
 #include <drm/ttm/ttm_bo.h>

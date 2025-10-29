@@ -43,6 +43,7 @@
 #include <drm/drm_gem.h>
 #include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_panic.h>
+#include <drm/drm_print.h>
 
 #include "gem/i915_gem_object.h"
 #include "i915_scheduler_types.h"

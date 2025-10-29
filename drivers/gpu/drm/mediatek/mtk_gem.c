@@ -11,6 +11,7 @@
 #include <drm/drm_gem.h>
 #include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_prime.h>
+#include <drm/drm_print.h>
 
 #include "mtk_drm_drv.h"
 #include "mtk_gem.h"

@@ -5,9 +5,10 @@
 
 #include <linux/shmem_fs.h>
 
+#include <drm/drm_buddy.h>
+#include <drm/drm_print.h>
 #include <drm/ttm/ttm_placement.h>
 #include <drm/ttm/ttm_tt.h>
-#include <drm/drm_buddy.h>
 
 #include "i915_drv.h"
 #include "i915_ttm_buddy_manager.h"

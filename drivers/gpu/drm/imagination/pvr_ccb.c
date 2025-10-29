@@ -10,6 +10,7 @@
 #include "pvr_power.h"
 
 #include <drm/drm_managed.h>
+#include <drm/drm_print.h>
 #include <linux/compiler.h>
 #include <linux/delay.h>
 #include <linux/jiffies.h>

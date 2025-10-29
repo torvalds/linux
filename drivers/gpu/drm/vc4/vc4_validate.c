@@ -43,6 +43,8 @@
  * to use) happens.
  */
 
+#include <drm/drm_print.h>
+
 #include "uapi/drm/vc4_drm.h"
 #include "vc4_drv.h"
 #include "vc4_packet.h"

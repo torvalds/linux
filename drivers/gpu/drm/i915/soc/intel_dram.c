@@ -6,6 +6,7 @@
 #include <linux/string_helpers.h>
 
 #include <drm/drm_managed.h>
+#include <drm/drm_print.h>
 
 #include "../display/intel_display_core.h" /* FIXME */
 

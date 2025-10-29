@@ -5,6 +5,8 @@
 
 #include <drm/drm_fb_helper.h>
 
+#include <drm/drm_print.h>
+
 #include "gem/i915_gem_lmem.h"
 
 #include "i915_drv.h"

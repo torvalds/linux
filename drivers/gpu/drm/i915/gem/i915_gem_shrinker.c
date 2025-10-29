@@ -12,6 +12,8 @@
 #include <linux/dma-buf.h>
 #include <linux/vmalloc.h>
 
+#include <drm/drm_print.h>
+
 #include "gt/intel_gt_requests.h"
 #include "gt/intel_gt.h"
 

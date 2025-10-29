@@ -28,6 +28,7 @@
 #include <drm/drm.h>
 #include <drm/drm_file.h>
 #include <drm/drm_debugfs.h>
+#include <drm/drm_print.h>
 #include <drm/qxl_drm.h>
 #include <drm/ttm/ttm_bo.h>
 #include <drm/ttm/ttm_placement.h>

@@ -24,6 +24,7 @@
  */
 
 #include <drm/drm.h>
+#include <drm/drm_print.h>
 
 #include "qxl_drv.h"
 #include "qxl_object.h"

@@ -5,6 +5,7 @@
 
 #include <linux/prandom.h>
 
+#include <drm/drm_print.h>
 #include <uapi/drm/i915_drm.h>
 
 #include "intel_memory_region.h"

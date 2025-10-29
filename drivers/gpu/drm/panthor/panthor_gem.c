@@ -8,6 +8,7 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 
+#include <drm/drm_print.h>
 #include <drm/panthor_drm.h>
 
 #include "panthor_device.h"

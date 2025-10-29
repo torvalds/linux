@@ -48,6 +48,7 @@
 #include <linux/nospec.h>
 
 #include <drm/drm_edid.h>
+#include <drm/drm_print.h>
 
 #include "i915_drv.h"
 #include "intel_gvt.h"
