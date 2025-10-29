@@ -10,7 +10,8 @@ TEST_GEN_PROGS := nsid_test \
 		  listns_permissions_test \
 		  siocgskns_test \
 		  cred_change_test \
-		  stress_test
+		  stress_test \
+		  listns_pagination_bug
 
 include ../lib.mk
 
@@ -20,4 +21,5 @@ $(OUTPUT)/listns_permissions_test: ../filesystems/utils.c
 $(OUTPUT)/siocgskns_test: ../filesystems/utils.c
 $(OUTPUT)/cred_change_test: ../filesystems/utils.c
 $(OUTPUT)/stress_test: ../filesystems/utils.c
+$(OUTPUT)/listns_pagination_bug: ../filesystems/utils.c
 

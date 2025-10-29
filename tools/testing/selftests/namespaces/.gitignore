@@ -7,3 +7,4 @@ listns_permissions_test
 siocgskns_test
 cred_change_test
 stress_test
+listns_pagination_bug
