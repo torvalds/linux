@@ -267,69 +267,121 @@ static int intel_dimm_num_devices(const struct dram_dimm_info *dimm)
 }
 
 /* Returns total Gb for the whole DIMM */
-static int skl_get_dimm_size(u16 val)
+static int skl_get_dimm_s_size(u32 val)
 {
-	return REG_FIELD_GET(SKL_DRAM_SIZE_MASK, val) * 8;
+	return REG_FIELD_GET(SKL_DIMM_S_SIZE_MASK, val) * 8;
 }
 
-static int skl_get_dimm_width(u16 val)
+static int skl_get_dimm_l_size(u32 val)
 {
-	if (skl_get_dimm_size(val) == 0)
+	return REG_FIELD_GET(SKL_DIMM_L_SIZE_MASK, val) * 8;
+}
+
+static int skl_get_dimm_s_width(u32 val)
+{
+	if (skl_get_dimm_s_size(val) == 0)
 		return 0;
 
-	switch (val & SKL_DRAM_WIDTH_MASK) {
-	case SKL_DRAM_WIDTH_X8:
-	case SKL_DRAM_WIDTH_X16:
-	case SKL_DRAM_WIDTH_X32:
-		val = REG_FIELD_GET(SKL_DRAM_WIDTH_MASK, val);
-		return 8 << val;
+	switch (val & SKL_DIMM_S_WIDTH_MASK) {
+	case SKL_DIMM_S_WIDTH_X8:
+	case SKL_DIMM_S_WIDTH_X16:
+	case SKL_DIMM_S_WIDTH_X32:
+		return 8 << REG_FIELD_GET(SKL_DIMM_S_WIDTH_MASK, val);
 	default:
 		MISSING_CASE(val);
 		return 0;
 	}
 }
 
-static int skl_get_dimm_ranks(u16 val)
+static int skl_get_dimm_l_width(u32 val)
 {
-	if (skl_get_dimm_size(val) == 0)
+	if (skl_get_dimm_l_size(val) == 0)
 		return 0;
 
-	val = REG_FIELD_GET(SKL_DRAM_RANK_MASK, val);
+	switch (val & SKL_DIMM_L_WIDTH_MASK) {
+	case SKL_DIMM_L_WIDTH_X8:
+	case SKL_DIMM_L_WIDTH_X16:
+	case SKL_DIMM_L_WIDTH_X32:
+		return 8 << REG_FIELD_GET(SKL_DIMM_L_WIDTH_MASK, val);
+	default:
+		MISSING_CASE(val);
+		return 0;
+	}
+}
 
-	return val + 1;
+static int skl_get_dimm_s_ranks(u32 val)
+{
+	if (skl_get_dimm_s_size(val) == 0)
+		return 0;
+
+	return REG_FIELD_GET(SKL_DIMM_S_RANK_MASK, val) + 1;
+}
+
+static int skl_get_dimm_l_ranks(u32 val)
+{
+	if (skl_get_dimm_l_size(val) == 0)
+		return 0;
+
+	return REG_FIELD_GET(SKL_DIMM_L_RANK_MASK, val) + 1;
 }
 
 /* Returns total Gb for the whole DIMM */
-static int icl_get_dimm_size(u16 val)
+static int icl_get_dimm_s_size(u32 val)
 {
-	return REG_FIELD_GET(ICL_DRAM_SIZE_MASK, val) * 8 / 2;
+	return REG_FIELD_GET(ICL_DIMM_S_SIZE_MASK, val) * 8 / 2;
 }
 
-static int icl_get_dimm_width(u16 val)
+static int icl_get_dimm_l_size(u32 val)
 {
-	if (icl_get_dimm_size(val) == 0)
+	return REG_FIELD_GET(ICL_DIMM_L_SIZE_MASK, val) * 8 / 2;
+}
+
+static int icl_get_dimm_s_width(u32 val)
+{
+	if (icl_get_dimm_s_size(val) == 0)
 		return 0;
 
-	switch (val & ICL_DRAM_WIDTH_MASK) {
-	case ICL_DRAM_WIDTH_X8:
-	case ICL_DRAM_WIDTH_X16:
-	case ICL_DRAM_WIDTH_X32:
-		val = REG_FIELD_GET(ICL_DRAM_WIDTH_MASK, val);
-		return 8 << val;
+	switch (val & ICL_DIMM_S_WIDTH_MASK) {
+	case ICL_DIMM_S_WIDTH_X8:
+	case ICL_DIMM_S_WIDTH_X16:
+	case ICL_DIMM_S_WIDTH_X32:
+		return 8 << REG_FIELD_GET(ICL_DIMM_S_WIDTH_MASK, val);
 	default:
 		MISSING_CASE(val);
 		return 0;
 	}
 }
 
-static int icl_get_dimm_ranks(u16 val)
+static int icl_get_dimm_l_width(u32 val)
 {
-	if (icl_get_dimm_size(val) == 0)
+	if (icl_get_dimm_l_size(val) == 0)
 		return 0;
 
-	val = REG_FIELD_GET(ICL_DRAM_RANK_MASK, val);
+	switch (val & ICL_DIMM_L_WIDTH_MASK) {
+	case ICL_DIMM_L_WIDTH_X8:
+	case ICL_DIMM_L_WIDTH_X16:
+	case ICL_DIMM_L_WIDTH_X32:
+		return 8 << REG_FIELD_GET(ICL_DIMM_L_WIDTH_MASK, val);
+	default:
+		MISSING_CASE(val);
+		return 0;
+	}
+}
 
-	return val + 1;
+static int icl_get_dimm_s_ranks(u32 val)
+{
+	if (icl_get_dimm_s_size(val) == 0)
+		return 0;
+
+	return REG_FIELD_GET(ICL_DIMM_S_RANK_MASK, val) + 1;
+}
+
+static int icl_get_dimm_l_ranks(u32 val)
+{
+	if (icl_get_dimm_l_size(val) == 0)
+		return 0;
+
+	return REG_FIELD_GET(ICL_DIMM_L_RANK_MASK, val) + 1;
 }
 
 static bool
@@ -340,24 +392,50 @@ skl_is_16gb_dimm(const struct dram_dimm_info *dimm)
 }
 
 static void
-skl_dram_get_dimm_info(struct drm_i915_private *i915,
-		       struct dram_dimm_info *dimm,
-		       int channel, char dimm_name, u16 val)
+skl_dram_print_dimm_info(struct drm_i915_private *i915,
+			 struct dram_dimm_info *dimm,
+			 int channel, char dimm_name)
 {
-	if (GRAPHICS_VER(i915) >= 11) {
-		dimm->size = icl_get_dimm_size(val);
-		dimm->width = icl_get_dimm_width(val);
-		dimm->ranks = icl_get_dimm_ranks(val);
-	} else {
-		dimm->size = skl_get_dimm_size(val);
-		dimm->width = skl_get_dimm_width(val);
-		dimm->ranks = skl_get_dimm_ranks(val);
-	}
-
 	drm_dbg_kms(&i915->drm,
 		    "CH%u DIMM %c size: %u Gb, width: X%u, ranks: %u, 16Gb+ DIMMs: %s\n",
 		    channel, dimm_name, dimm->size, dimm->width, dimm->ranks,
 		    str_yes_no(skl_is_16gb_dimm(dimm)));
+}
+
+static void
+skl_dram_get_dimm_l_info(struct drm_i915_private *i915,
+			 struct dram_dimm_info *dimm,
+			 int channel, u32 val)
+{
+	if (GRAPHICS_VER(i915) >= 11) {
+		dimm->size = icl_get_dimm_l_size(val);
+		dimm->width = icl_get_dimm_l_width(val);
+		dimm->ranks = icl_get_dimm_l_ranks(val);
+	} else {
+		dimm->size = skl_get_dimm_l_size(val);
+		dimm->width = skl_get_dimm_l_width(val);
+		dimm->ranks = skl_get_dimm_l_ranks(val);
+	}
+
+	skl_dram_print_dimm_info(i915, dimm, channel, 'L');
+}
+
+static void
+skl_dram_get_dimm_s_info(struct drm_i915_private *i915,
+			 struct dram_dimm_info *dimm,
+			 int channel, u32 val)
+{
+	if (GRAPHICS_VER(i915) >= 11) {
+		dimm->size = icl_get_dimm_s_size(val);
+		dimm->width = icl_get_dimm_s_width(val);
+		dimm->ranks = icl_get_dimm_s_ranks(val);
+	} else {
+		dimm->size = skl_get_dimm_s_size(val);
+		dimm->width = skl_get_dimm_s_width(val);
+		dimm->ranks = skl_get_dimm_s_ranks(val);
+	}
+
+	skl_dram_print_dimm_info(i915, dimm, channel, 'S');
 }
 
 static int
@@ -365,10 +443,8 @@ skl_dram_get_channel_info(struct drm_i915_private *i915,
 			  struct dram_channel_info *ch,
 			  int channel, u32 val)
 {
-	skl_dram_get_dimm_info(i915, &ch->dimm_l,
-			       channel, 'L', val & 0xffff);
-	skl_dram_get_dimm_info(i915, &ch->dimm_s,
-			       channel, 'S', val >> 16);
+	skl_dram_get_dimm_l_info(i915, &ch->dimm_l, channel, val);
+	skl_dram_get_dimm_s_info(i915, &ch->dimm_s, channel, val);
 
 	if (ch->dimm_l.size == 0 && ch->dimm_s.size == 0) {
 		drm_dbg_kms(&i915->drm, "CH%u not populated\n", channel);
