@@ -92,46 +92,28 @@ static inline struct ns_common *node_to_ns_owner(const struct rb_node *node)
 	return rb_entry(node, struct ns_common, ns_owner_tree_node);
 }
 
-static inline int ns_cmp(struct rb_node *a, const struct rb_node *b)
+static int ns_id_cmp(u64 id_a, u64 id_b)
 {
-	struct ns_common *ns_a = node_to_ns(a);
-	struct ns_common *ns_b = node_to_ns(b);
-	u64 ns_id_a = ns_a->ns_id;
-	u64 ns_id_b = ns_b->ns_id;
-
-	if (ns_id_a < ns_id_b)
+	if (id_a < id_b)
 		return -1;
-	if (ns_id_a > ns_id_b)
+	if (id_a > id_b)
 		return 1;
 	return 0;
 }
 
-static inline int ns_cmp_unified(struct rb_node *a, const struct rb_node *b)
+static int ns_cmp(struct rb_node *a, const struct rb_node *b)
 {
-	struct ns_common *ns_a = node_to_ns_unified(a);
-	struct ns_common *ns_b = node_to_ns_unified(b);
-	u64 ns_id_a = ns_a->ns_id;
-	u64 ns_id_b = ns_b->ns_id;
-
-	if (ns_id_a < ns_id_b)
-		return -1;
-	if (ns_id_a > ns_id_b)
-		return 1;
-	return 0;
+	return ns_id_cmp(node_to_ns(a)->ns_id, node_to_ns(b)->ns_id);
 }
 
-static inline int ns_cmp_owner(struct rb_node *a, const struct rb_node *b)
+static int ns_cmp_unified(struct rb_node *a, const struct rb_node *b)
 {
-	struct ns_common *ns_a = node_to_ns_owner(a);
-	struct ns_common *ns_b = node_to_ns_owner(b);
-	u64 ns_id_a = ns_a->ns_id;
-	u64 ns_id_b = ns_b->ns_id;
+	return ns_id_cmp(node_to_ns_unified(a)->ns_id, node_to_ns_unified(b)->ns_id);
+}
 
-	if (ns_id_a < ns_id_b)
-		return -1;
-	if (ns_id_a > ns_id_b)
-		return 1;
-	return 0;
+static int ns_cmp_owner(struct rb_node *a, const struct rb_node *b)
+{
+	return ns_id_cmp(node_to_ns_owner(a)->ns_id, node_to_ns_owner(b)->ns_id);
 }
 
 void __ns_tree_add_raw(struct ns_common *ns, struct ns_tree *ns_tree)
