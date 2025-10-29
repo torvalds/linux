@@ -127,6 +127,7 @@ void __ns_common_free(struct ns_common *ns);
 	.ops			= to_ns_operations(&nsname),				\
 	.stashed		= NULL,							\
 	.__ns_ref		= REFCOUNT_INIT(refs),					\
+	.ns_list_node		= LIST_HEAD_INIT(nsname.ns.ns_list_node),		\
 }
 
 #define ns_common_init(__ns)                     \
