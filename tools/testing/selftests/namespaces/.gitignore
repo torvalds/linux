@@ -1,3 +1,4 @@
 nsid_test
 file_handle_test
 init_ino_test
+ns_active_ref_test
