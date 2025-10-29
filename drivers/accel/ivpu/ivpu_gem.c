@@ -315,7 +315,6 @@ static void ivpu_gem_bo_free(struct drm_gem_object *obj)
 
 	mutex_lock(&vdev->bo_list_lock);
 	list_del(&bo->bo_list_node);
-	mutex_unlock(&vdev->bo_list_lock);
 
 	drm_WARN_ON(&vdev->drm, !drm_gem_is_imported(&bo->base.base) &&
 		    !dma_resv_test_signaled(obj->resv, DMA_RESV_USAGE_READ));
@@ -325,6 +324,8 @@ static void ivpu_gem_bo_free(struct drm_gem_object *obj)
 	ivpu_bo_lock(bo);
 	ivpu_bo_unbind_locked(bo);
 	ivpu_bo_unlock(bo);
+
+	mutex_unlock(&vdev->bo_list_lock);
 
 	drm_WARN_ON(&vdev->drm, bo->mmu_mapped);
 	drm_WARN_ON(&vdev->drm, bo->ctx);
