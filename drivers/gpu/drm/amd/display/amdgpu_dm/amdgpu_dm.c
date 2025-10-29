@@ -8690,7 +8690,7 @@ static int amdgpu_dm_connector_get_modes(struct drm_connector *connector)
 			amdgpu_dm_connector->num_modes +=
 				drm_add_modes_noedid(connector, 1920, 1080);
 
-		if (amdgpu_dm_connector->dc_sink->edid_caps.analog) {
+		if (amdgpu_dm_connector->dc_sink && amdgpu_dm_connector->dc_sink->edid_caps.analog) {
 			/* Analog monitor connected by DAC load detection.
 			 * Add common modes. It will be up to the user to select one that works.
 			 */
