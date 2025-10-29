@@ -33,6 +33,12 @@ static int gve_ptp_gettimex64(struct ptp_clock_info *info,
 	return -EOPNOTSUPP;
 }
 
+static int gve_ptp_settime64(struct ptp_clock_info *info,
+			     const struct timespec64 *ts)
+{
+	return -EOPNOTSUPP;
+}
+
 static long gve_ptp_do_aux_work(struct ptp_clock_info *info)
 {
 	const struct gve_ptp *ptp = container_of(info, struct gve_ptp, info);
@@ -55,6 +61,7 @@ static const struct ptp_clock_info gve_ptp_caps = {
 	.owner          = THIS_MODULE,
 	.name		= "gve clock",
 	.gettimex64	= gve_ptp_gettimex64,
+	.settime64	= gve_ptp_settime64,
 	.do_aux_work	= gve_ptp_do_aux_work,
 };
 
