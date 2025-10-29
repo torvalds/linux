@@ -228,4 +228,142 @@ TEST(listns_cap_sys_admin_in_userns)
 			count);
 }
 
+/*
+ * Test that users cannot see namespaces from unrelated user namespaces.
+ * Create two sibling user namespaces, verify they can't see each other's
+ * owned namespaces.
+ */
+TEST(listns_cannot_see_sibling_userns_namespaces)
+{
+	int pipefd[2];
+	pid_t pid1, pid2;
+	int status;
+	__u64 netns_a_id;
+	int pipefd2[2];
+	bool found_sibling_netns;
+
+	ASSERT_EQ(pipe(pipefd), 0);
+
+	/* Fork first child - creates user namespace A */
+	pid1 = fork();
+	ASSERT_GE(pid1, 0);
+
+	if (pid1 == 0) {
+		int fd;
+		__u64 netns_a_id;
+		char buf;
+
+		close(pipefd[0]);
+
+		/* Create user namespace A */
+		if (setup_userns() < 0) {
+			close(pipefd[1]);
+			exit(1);
+		}
+
+		/* Create network namespace owned by user namespace A */
+		if (unshare(CLONE_NEWNET) < 0) {
+			close(pipefd[1]);
+			exit(1);
+		}
+
+		/* Get network namespace ID */
+		fd = open("/proc/self/ns/net", O_RDONLY);
+		if (fd < 0) {
+			close(pipefd[1]);
+			exit(1);
+		}
+
+		if (ioctl(fd, NS_GET_ID, &netns_a_id) < 0) {
+			close(fd);
+			close(pipefd[1]);
+			exit(1);
+		}
+		close(fd);
+
+		/* Send namespace ID to parent */
+		write(pipefd[1], &netns_a_id, sizeof(netns_a_id));
+
+		/* Keep alive for sibling to check */
+		read(pipefd[1], &buf, 1);
+		close(pipefd[1]);
+		exit(0);
+	}
+
+	/* Parent reads namespace A ID */
+	close(pipefd[1]);
+	netns_a_id = 0;
+	read(pipefd[0], &netns_a_id, sizeof(netns_a_id));
+
+	TH_LOG("User namespace A created network namespace with ID %llu",
+	       (unsigned long long)netns_a_id);
+
+	/* Fork second child - creates user namespace B */
+	ASSERT_EQ(pipe(pipefd2), 0);
+
+	pid2 = fork();
+	ASSERT_GE(pid2, 0);
+
+	if (pid2 == 0) {
+		struct ns_id_req req = {
+			.size = sizeof(req),
+			.spare = 0,
+			.ns_id = 0,
+			.ns_type = CLONE_NEWNET,
+			.spare2 = 0,
+			.user_ns_id = 0,
+		};
+		__u64 ns_ids[100];
+		ssize_t ret;
+		bool found_sibling_netns;
+
+		close(pipefd[0]);
+		close(pipefd2[0]);
+
+		/* Create user namespace B (sibling to A) */
+		if (setup_userns() < 0) {
+			close(pipefd2[1]);
+			exit(1);
+		}
+
+		/* Try to list all network namespaces */
+		ret = sys_listns(&req, ns_ids, ARRAY_SIZE(ns_ids), 0);
+
+		found_sibling_netns = false;
+		if (ret > 0) {
+			for (ssize_t i = 0; i < ret; i++) {
+				if (ns_ids[i] == netns_a_id) {
+					found_sibling_netns = true;
+					break;
+				}
+			}
+		}
+
+		/* We should NOT see the sibling's network namespace */
+		write(pipefd2[1], &found_sibling_netns, sizeof(found_sibling_netns));
+		close(pipefd2[1]);
+		exit(0);
+	}
+
+	/* Parent reads result from second child */
+	close(pipefd2[1]);
+	found_sibling_netns = false;
+	read(pipefd2[0], &found_sibling_netns, sizeof(found_sibling_netns));
+	close(pipefd2[0]);
+
+	/* Signal first child to exit */
+	close(pipefd[0]);
+
+	/* Wait for both children */
+	waitpid(pid2, &status, 0);
+	ASSERT_TRUE(WIFEXITED(status));
+
+	waitpid(pid1, &status, 0);
+	ASSERT_TRUE(WIFEXITED(status));
+
+	/* Second child should NOT have seen first child's namespace */
+	ASSERT_FALSE(found_sibling_netns);
+	TH_LOG("User namespace B correctly could not see sibling namespace A's network namespace");
+}
+
 TEST_HARNESS_MAIN
