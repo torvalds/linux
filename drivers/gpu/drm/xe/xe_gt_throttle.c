@@ -17,35 +17,41 @@
 /**
  * DOC: Xe GT Throttle
  *
- * Provides sysfs entries and other helpers for frequency throttle reasons in GT
- *
- * device/gt#/freq0/throttle/status - Overall status
- * device/gt#/freq0/throttle/reason_pl1 - Frequency throttle due to PL1
- * device/gt#/freq0/throttle/reason_pl2 - Frequency throttle due to PL2
- * device/gt#/freq0/throttle/reason_pl4 - Frequency throttle due to PL4, Iccmax etc.
- * device/gt#/freq0/throttle/reason_thermal - Frequency throttle due to thermal
- * device/gt#/freq0/throttle/reason_prochot - Frequency throttle due to prochot
- * device/gt#/freq0/throttle/reason_ratl - Frequency throttle due to RATL
- * device/gt#/freq0/throttle/reason_vr_thermalert - Frequency throttle due to VR THERMALERT
- * device/gt#/freq0/throttle/reason_vr_tdc -  Frequency throttle due to VR TDC
+ * The GT frequency may be throttled by hardware/firmware for various reasons
+ * that are provided through attributes under the ``freq0/throttle/`` directory.
+ * Their availability depend on the platform and some may not be visible if that
+ * reason is not available.
  *
  * The following attributes are available on Crescent Island platform:
- * device/gt#/freq0/throttle/status - Overall throttle status
- * device/gt#/freq0/throttle/reason_pl1 - Frequency throttle due to package PL1
- * device/gt#/freq0/throttle/reason_pl2 - Frequency throttle due to package PL2
- * device/gt#/freq0/throttle/reason_pl4 - Frequency throttle due to PL4
- * device/gt#/freq0/throttle/reason_prochot - Frequency throttle due to prochot
- * device/gt#/freq0/throttle/reason_soc_thermal - Frequency throttle due to SoC thermal
- * device/gt#/freq0/throttle/reason_mem_thermal - Frequency throttle due to memory thermal
- * device/gt#/freq0/throttle/reason_vr_thermal - Frequency throttle due to VR thermal
- * device/gt#/freq0/throttle/reason_iccmax - Frequency throttle due to ICCMAX
- * device/gt#/freq0/throttle/reason_ratl - Frequency throttle due to RATL thermal algorithm
- * device/gt#/freq0/throttle/reason_soc_avg_thermal - Frequency throttle due to SoC average temp
- * device/gt#/freq0/throttle/reason_fastvmode - Frequency throttle due to VR is hitting FastVMode
- * device/gt#/freq0/throttle/reason_psys_pl1 - Frequency throttle due to PSYS PL1
- * device/gt#/freq0/throttle/reason_psys_pl2 - Frequency throttle due to PSYS PL2
- * device/gt#/freq0/throttle/reason_p0_freq - Frequency throttle due to P0 frequency
- * device/gt#/freq0/throttle/reason_psys_crit - Frequency throttle due to PSYS critical
+ *
+ * - ``status``: Overall throttle status
+ * - ``reason_pl1``: package PL1
+ * - ``reason_pl2``: package PL2
+ * - ``reason_pl4``: package PL4
+ * - ``reason_prochot``: prochot
+ * - ``reason_soc_thermal``: SoC thermal
+ * - ``reason_mem_thermal``: Memory thermal
+ * - ``reason_vr_thermal``: VR thermal
+ * - ``reason_iccmax``: ICCMAX
+ * - ``reason_ratl``: RATL thermal algorithm
+ * - ``reason_soc_avg_thermal``: SoC average temp
+ * - ``reason_fastvmode``: VR is hitting FastVMode
+ * - ``reason_psys_pl1``: PSYS PL1
+ * - ``reason_psys_pl2``: PSYS PL2
+ * - ``reason_p0_freq``: P0 frequency
+ * - ``reason_psys_crit``: PSYS critical
+ *
+ * Other platforms support the following reasons:
+ *
+ * - ``status``: Overall status
+ * - ``reason_pl1``: package PL1
+ * - ``reason_pl2``: package PL2
+ * - ``reason_pl4``: package PL4, Iccmax etc.
+ * - ``reason_thermal``: thermal
+ * - ``reason_prochot``: prochot
+ * - ``reason_ratl``: RATL hermal algorithm
+ * - ``reason_vr_thermalert``: VR THERMALERT
+ * - ``reason_vr_tdc``: VR TDC
  */
 
 static struct xe_gt *dev_to_gt(struct device *dev)
