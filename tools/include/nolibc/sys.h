@@ -613,8 +613,6 @@ off_t sys_lseek(int fd, off_t offset, int whence)
 	ret = my_syscall5(__NR_llseek, fd, offset >> 32, (uint32_t)offset, &loff, whence);
 	if (ret < 0)
 		result = ret;
-	else if (loff != (off_t)loff)
-		result = -EOVERFLOW;
 	else
 		result = loff;
 
