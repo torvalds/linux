@@ -109,6 +109,9 @@ struct ns_common {
 	union {
 		struct {
 			u64 ns_id;
+			struct /* global namespace rbtree and list */ {
+				struct rb_node ns_unified_tree_node;
+			};
 			struct /* per type rbtree and list */ {
 				struct rb_node ns_tree_node;
 				struct list_head ns_list_node;
