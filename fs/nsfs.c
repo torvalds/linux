@@ -58,6 +58,8 @@ const struct dentry_operations ns_dentry_operations = {
 static void nsfs_evict(struct inode *inode)
 {
 	struct ns_common *ns = inode->i_private;
+
+	__ns_ref_active_put(ns);
 	clear_inode(inode);
 	ns->ops->put(ns);
 }
@@ -419,6 +421,16 @@ static int nsfs_init_inode(struct inode *inode, void *data)
 	inode->i_mode |= S_IRUGO;
 	inode->i_fop = &ns_file_operations;
 	inode->i_ino = ns->inum;
+
+	/*
+	 * Bring the namespace subtree back to life if we have to. This
+	 * can happen when e.g., all processes using a network namespace
+	 * and all namespace files or namespace file bind-mounts have
+	 * died but there are still sockets pinning it. The SIOCGSKNS
+	 * ioctl on such a socket will resurrect the relevant namespace
+	 * subtree.
+	 */
+	__ns_ref_active_resurrect(ns);
 	return 0;
 }
 
@@ -495,7 +507,17 @@ static struct dentry *nsfs_fh_to_dentry(struct super_block *sb, struct fid *fh,
 		if (ns->inum != fid->ns_inum)
 			return NULL;
 
-		if (!__ns_ref_get(ns))
+		/*
+		 * This is racy because we're not actually taking an
+		 * active reference. IOW, it could happen that the
+		 * namespace becomes inactive after this check.
+		 * We don't care because nsfs_init_inode() will just
+		 * resurrect the relevant namespace tree for us. If it
+		 * has been active here we just allow it's resurrection.
+		 * We could try to take an active reference here and
+		 * then drop it again. But really, why bother.
+		 */
+		if (!ns_get_unless_inactive(ns))
 			return NULL;
 	}
 
@@ -614,4 +636,28 @@ void __init nsfs_init(void)
 	nsfs_mnt->mnt_sb->s_flags &= ~SB_NOUSER;
 	nsfs_root_path.mnt = nsfs_mnt;
 	nsfs_root_path.dentry = nsfs_mnt->mnt_root;
+}
+
+void nsproxy_ns_active_get(struct nsproxy *ns)
+{
+	ns_ref_active_get(ns->mnt_ns);
+	ns_ref_active_get(ns->uts_ns);
+	ns_ref_active_get(ns->ipc_ns);
+	ns_ref_active_get(ns->pid_ns_for_children);
+	ns_ref_active_get(ns->cgroup_ns);
+	ns_ref_active_get(ns->net_ns);
+	ns_ref_active_get(ns->time_ns);
+	ns_ref_active_get(ns->time_ns_for_children);
+}
+
+void nsproxy_ns_active_put(struct nsproxy *ns)
+{
+	ns_ref_active_put(ns->mnt_ns);
+	ns_ref_active_put(ns->uts_ns);
+	ns_ref_active_put(ns->ipc_ns);
+	ns_ref_active_put(ns->pid_ns_for_children);
+	ns_ref_active_put(ns->cgroup_ns);
+	ns_ref_active_put(ns->net_ns);
+	ns_ref_active_put(ns->time_ns);
+	ns_ref_active_put(ns->time_ns_for_children);
 }

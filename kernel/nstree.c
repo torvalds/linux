@@ -123,6 +123,14 @@ void __ns_tree_add_raw(struct ns_common *ns, struct ns_tree *ns_tree)
 	write_sequnlock(&ns_tree->ns_tree_lock);
 
 	VFS_WARN_ON_ONCE(node);
+
+	/*
+	 * Take an active reference on the owner namespace. This ensures
+	 * that the owner remains visible while any of its child namespaces
+	 * are active. For init namespaces this is a no-op as ns_owner()
+	 * returns NULL for namespaces owned by init_user_ns.
+	 */
+	__ns_ref_active_get_owner(ns);
 }
 
 void __ns_tree_remove(struct ns_common *ns, struct ns_tree *ns_tree)

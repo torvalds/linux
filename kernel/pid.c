@@ -112,8 +112,12 @@ static void delayed_put_pid(struct rcu_head *rhp)
 void free_pid(struct pid *pid)
 {
 	int i;
+	struct pid_namespace *active_ns;
 
 	lockdep_assert_not_held(&tasklist_lock);
+
+	active_ns = pid->numbers[pid->level].ns;
+	ns_ref_active_put(active_ns);
 
 	spin_lock(&pidmap_lock);
 	for (i = 0; i <= pid->level; i++) {
@@ -278,6 +282,7 @@ struct pid *alloc_pid(struct pid_namespace *ns, pid_t *set_tid,
 	}
 	spin_unlock(&pidmap_lock);
 	idr_preload_end();
+	ns_ref_active_get(ns);
 
 	return pid;
 
