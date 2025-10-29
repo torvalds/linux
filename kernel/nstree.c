@@ -194,11 +194,6 @@ struct ns_common *ns_tree_lookup_rcu(u64 ns_id, int ns_type)
 			break;
 	} while (read_seqretry(&ns_tree->ns_tree_lock, seq));
 
-	if (!node)
-		return NULL;
-
-	VFS_WARN_ON_ONCE(node_to_ns(node)->ns_type != ns_type);
-
 	return node_to_ns(node);
 }
 
