@@ -109,8 +109,10 @@ struct ns_common {
 	union {
 		struct {
 			u64 ns_id;
-			struct rb_node ns_tree_node;
-			struct list_head ns_list_node;
+			struct /* per type rbtree and list */ {
+				struct rb_node ns_tree_node;
+				struct list_head ns_list_node;
+			};
 			atomic_t __ns_ref_active; /* do not use directly */
 		};
 		struct rcu_head ns_rcu;
