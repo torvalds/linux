@@ -9,6 +9,7 @@
 #include <string.h>
 #include <linux/nsfs.h>
 #include <sys/mount.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -2348,6 +2349,324 @@ TEST(thread_ns_fd_keeps_active)
 	/* Should fail with ENOENT (inactive) or ESTALE (gone) */
 	TH_LOG("Namespace inactive as expected: %s (errno=%d)", strerror(errno), errno);
 	ASSERT_TRUE(errno == ENOENT || errno == ESTALE);
+}
+
+/* Structure for thread data in subprocess */
+struct thread_sleep_data {
+	int syncfd_read;
+};
+
+static void *thread_sleep_and_wait(void *arg)
+{
+	struct thread_sleep_data *data = (struct thread_sleep_data *)arg;
+	char sync_byte;
+
+	/* Wait for signal to exit - read will unblock when pipe is closed */
+	(void)read(data->syncfd_read, &sync_byte, 1);
+	return NULL;
+}
+
+/*
+ * Test that namespaces become inactive after subprocess with multiple threads exits.
+ * Create a subprocess that unshares user and network namespaces, then creates two
+ * threads that share those namespaces. Verify that after all threads and subprocess
+ * exit, the namespaces are no longer listed by listns() and cannot be opened by
+ * open_by_handle_at().
+ */
+TEST(thread_subprocess_ns_inactive_after_all_exit)
+{
+	int pipefd[2];
+	int sv[2];
+	pid_t pid;
+	int status;
+	__u64 user_id, net_id;
+	struct file_handle *user_handle, *net_handle;
+	char user_buf[sizeof(*user_handle) + MAX_HANDLE_SZ];
+	char net_buf[sizeof(*net_handle) + MAX_HANDLE_SZ];
+	char sync_byte;
+	int ret;
+
+	ASSERT_EQ(pipe(pipefd), 0);
+	ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM, 0, sv), 0);
+
+	pid = fork();
+	ASSERT_GE(pid, 0);
+
+	if (pid == 0) {
+		/* Child process */
+		close(pipefd[0]);
+		close(sv[0]);
+
+		/* Create user namespace with mappings */
+		if (setup_userns() < 0) {
+			fprintf(stderr, "Child: setup_userns() failed: %s\n", strerror(errno));
+			close(pipefd[1]);
+			close(sv[1]);
+			exit(1);
+		}
+		fprintf(stderr, "Child: setup_userns() succeeded\n");
+
+		/* Get user namespace ID */
+		int user_fd = open("/proc/self/ns/user", O_RDONLY);
+		if (user_fd < 0) {
+			fprintf(stderr, "Child: open(/proc/self/ns/user) failed: %s\n", strerror(errno));
+			close(pipefd[1]);
+			close(sv[1]);
+			exit(1);
+		}
+
+		if (ioctl(user_fd, NS_GET_ID, &user_id) < 0) {
+			fprintf(stderr, "Child: ioctl(NS_GET_ID) for user ns failed: %s\n", strerror(errno));
+			close(user_fd);
+			close(pipefd[1]);
+			close(sv[1]);
+			exit(1);
+		}
+		close(user_fd);
+		fprintf(stderr, "Child: user ns ID = %llu\n", (unsigned long long)user_id);
+
+		/* Unshare network namespace */
+		if (unshare(CLONE_NEWNET) < 0) {
+			fprintf(stderr, "Child: unshare(CLONE_NEWNET) failed: %s\n", strerror(errno));
+			close(pipefd[1]);
+			close(sv[1]);
+			exit(1);
+		}
+		fprintf(stderr, "Child: unshare(CLONE_NEWNET) succeeded\n");
+
+		/* Get network namespace ID */
+		int net_fd = open("/proc/self/ns/net", O_RDONLY);
+		if (net_fd < 0) {
+			fprintf(stderr, "Child: open(/proc/self/ns/net) failed: %s\n", strerror(errno));
+			close(pipefd[1]);
+			close(sv[1]);
+			exit(1);
+		}
+
+		if (ioctl(net_fd, NS_GET_ID, &net_id) < 0) {
+			fprintf(stderr, "Child: ioctl(NS_GET_ID) for net ns failed: %s\n", strerror(errno));
+			close(net_fd);
+			close(pipefd[1]);
+			close(sv[1]);
+			exit(1);
+		}
+		close(net_fd);
+		fprintf(stderr, "Child: net ns ID = %llu\n", (unsigned long long)net_id);
+
+		/* Send namespace IDs to parent */
+		if (write(pipefd[1], &user_id, sizeof(user_id)) != sizeof(user_id)) {
+			fprintf(stderr, "Child: write(user_id) failed: %s\n", strerror(errno));
+			exit(1);
+		}
+		if (write(pipefd[1], &net_id, sizeof(net_id)) != sizeof(net_id)) {
+			fprintf(stderr, "Child: write(net_id) failed: %s\n", strerror(errno));
+			exit(1);
+		}
+		close(pipefd[1]);
+		fprintf(stderr, "Child: sent namespace IDs to parent\n");
+
+		/* Create two threads that share the namespaces */
+		pthread_t thread1, thread2;
+		struct thread_sleep_data data;
+		data.syncfd_read = sv[1];
+
+		int ret_thread = pthread_create(&thread1, NULL, thread_sleep_and_wait, &data);
+		if (ret_thread != 0) {
+			fprintf(stderr, "Child: pthread_create(thread1) failed: %s\n", strerror(ret_thread));
+			close(sv[1]);
+			exit(1);
+		}
+		fprintf(stderr, "Child: created thread1\n");
+
+		ret_thread = pthread_create(&thread2, NULL, thread_sleep_and_wait, &data);
+		if (ret_thread != 0) {
+			fprintf(stderr, "Child: pthread_create(thread2) failed: %s\n", strerror(ret_thread));
+			close(sv[1]);
+			pthread_cancel(thread1);
+			exit(1);
+		}
+		fprintf(stderr, "Child: created thread2\n");
+
+		/* Wait for threads to complete - they will unblock when parent writes */
+		fprintf(stderr, "Child: waiting for threads to exit\n");
+		pthread_join(thread1, NULL);
+		fprintf(stderr, "Child: thread1 exited\n");
+		pthread_join(thread2, NULL);
+		fprintf(stderr, "Child: thread2 exited\n");
+
+		close(sv[1]);
+
+		/* Exit - namespaces should become inactive */
+		fprintf(stderr, "Child: all threads joined, exiting with success\n");
+		exit(0);
+	}
+
+	/* Parent process */
+	close(pipefd[1]);
+	close(sv[1]);
+
+	TH_LOG("Parent: waiting to read namespace IDs from child");
+
+	/* Read namespace IDs from child */
+	ret = read(pipefd[0], &user_id, sizeof(user_id));
+	if (ret != sizeof(user_id)) {
+		TH_LOG("Parent: failed to read user_id, ret=%d, errno=%s", ret, strerror(errno));
+		close(pipefd[0]);
+		sync_byte = 'X';
+		(void)write(sv[0], &sync_byte, 1);
+		close(sv[0]);
+		waitpid(pid, NULL, 0);
+		SKIP(return, "Failed to read user namespace ID from child");
+	}
+
+	ret = read(pipefd[0], &net_id, sizeof(net_id));
+	close(pipefd[0]);
+	if (ret != sizeof(net_id)) {
+		TH_LOG("Parent: failed to read net_id, ret=%d, errno=%s", ret, strerror(errno));
+		sync_byte = 'X';
+		(void)write(sv[0], &sync_byte, 1);
+		close(sv[0]);
+		waitpid(pid, NULL, 0);
+		SKIP(return, "Failed to read network namespace ID from child");
+	}
+
+	TH_LOG("Child created user ns %llu and net ns %llu with 2 threads",
+	       (unsigned long long)user_id, (unsigned long long)net_id);
+
+	/* Construct file handles */
+	user_handle = (struct file_handle *)user_buf;
+	user_handle->handle_bytes = sizeof(struct nsfs_file_handle);
+	user_handle->handle_type = FILEID_NSFS;
+	struct nsfs_file_handle *user_fh = (struct nsfs_file_handle *)user_handle->f_handle;
+	user_fh->ns_id = user_id;
+	user_fh->ns_type = 0;
+	user_fh->ns_inum = 0;
+
+	net_handle = (struct file_handle *)net_buf;
+	net_handle->handle_bytes = sizeof(struct nsfs_file_handle);
+	net_handle->handle_type = FILEID_NSFS;
+	struct nsfs_file_handle *net_fh = (struct nsfs_file_handle *)net_handle->f_handle;
+	net_fh->ns_id = net_id;
+	net_fh->ns_type = 0;
+	net_fh->ns_inum = 0;
+
+	/* Verify namespaces are active while subprocess and threads are alive */
+	TH_LOG("Verifying namespaces are active while subprocess with threads is running");
+	int user_fd = open_by_handle_at(FD_NSFS_ROOT, user_handle, O_RDONLY);
+	ASSERT_GE(user_fd, 0);
+
+	int net_fd = open_by_handle_at(FD_NSFS_ROOT, net_handle, O_RDONLY);
+	ASSERT_GE(net_fd, 0);
+
+	close(user_fd);
+	close(net_fd);
+
+	/* Also verify they appear in listns() */
+	TH_LOG("Verifying namespaces appear in listns() while active");
+	struct ns_id_req req = {
+		.size = sizeof(struct ns_id_req),
+		.spare = 0,
+		.ns_id = 0,
+		.ns_type = CLONE_NEWUSER,
+		.spare2 = 0,
+		.user_ns_id = 0,
+	};
+	__u64 ns_ids[256];
+	int nr_ids = sys_listns(&req, ns_ids, 256, 0);
+	if (nr_ids < 0) {
+		TH_LOG("listns() not available, skipping listns verification");
+	} else {
+		/* Check if user_id is in the list */
+		int found_user = 0;
+		for (int i = 0; i < nr_ids; i++) {
+			if (ns_ids[i] == user_id) {
+				found_user = 1;
+				break;
+			}
+		}
+		ASSERT_TRUE(found_user);
+		TH_LOG("User namespace found in listns() as expected");
+
+		/* Check network namespace */
+		req.ns_type = CLONE_NEWNET;
+		nr_ids = sys_listns(&req, ns_ids, 256, 0);
+		if (nr_ids >= 0) {
+			int found_net = 0;
+			for (int i = 0; i < nr_ids; i++) {
+				if (ns_ids[i] == net_id) {
+					found_net = 1;
+					break;
+				}
+			}
+			ASSERT_TRUE(found_net);
+			TH_LOG("Network namespace found in listns() as expected");
+		}
+	}
+
+	/* Signal threads to exit */
+	TH_LOG("Signaling threads to exit");
+	sync_byte = 'X';
+	/* Write two bytes - one for each thread */
+	ASSERT_EQ(write(sv[0], &sync_byte, 1), 1);
+	ASSERT_EQ(write(sv[0], &sync_byte, 1), 1);
+	close(sv[0]);
+
+	/* Wait for child process to exit */
+	waitpid(pid, &status, 0);
+	ASSERT_TRUE(WIFEXITED(status));
+	if (WEXITSTATUS(status) != 0) {
+		TH_LOG("Child process failed with exit code %d", WEXITSTATUS(status));
+		SKIP(return, "Child process failed");
+	}
+
+	TH_LOG("Subprocess and all threads have exited successfully");
+
+	/* Verify namespaces are now inactive - open_by_handle_at should fail */
+	TH_LOG("Verifying namespaces are inactive after subprocess and threads exit");
+	user_fd = open_by_handle_at(FD_NSFS_ROOT, user_handle, O_RDONLY);
+	ASSERT_LT(user_fd, 0);
+	TH_LOG("User namespace inactive as expected: %s (errno=%d)",
+	       strerror(errno), errno);
+	ASSERT_TRUE(errno == ENOENT || errno == ESTALE);
+
+	net_fd = open_by_handle_at(FD_NSFS_ROOT, net_handle, O_RDONLY);
+	ASSERT_LT(net_fd, 0);
+	TH_LOG("Network namespace inactive as expected: %s (errno=%d)",
+	       strerror(errno), errno);
+	ASSERT_TRUE(errno == ENOENT || errno == ESTALE);
+
+	/* Verify namespaces do NOT appear in listns() */
+	TH_LOG("Verifying namespaces do NOT appear in listns() when inactive");
+	memset(&req, 0, sizeof(req));
+	req.size = sizeof(struct ns_id_req);
+	req.ns_type = CLONE_NEWUSER;
+	nr_ids = sys_listns(&req, ns_ids, 256, 0);
+	if (nr_ids >= 0) {
+		int found_user = 0;
+		for (int i = 0; i < nr_ids; i++) {
+			if (ns_ids[i] == user_id) {
+				found_user = 1;
+				break;
+			}
+		}
+		ASSERT_FALSE(found_user);
+		TH_LOG("User namespace correctly not listed in listns()");
+
+		/* Check network namespace */
+		req.ns_type = CLONE_NEWNET;
+		nr_ids = sys_listns(&req, ns_ids, 256, 0);
+		if (nr_ids >= 0) {
+			int found_net = 0;
+			for (int i = 0; i < nr_ids; i++) {
+				if (ns_ids[i] == net_id) {
+					found_net = 1;
+					break;
+				}
+			}
+			ASSERT_FALSE(found_net);
+			TH_LOG("Network namespace correctly not listed in listns()");
+		}
+	}
 }
 
 TEST_HARNESS_MAIN
