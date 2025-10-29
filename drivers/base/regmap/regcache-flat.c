@@ -89,6 +89,11 @@ static int regcache_flat_read(struct regmap *map,
 	struct regcache_flat_data *cache = map->cache;
 	unsigned int index = regcache_flat_get_index(map, reg);
 
+	/* legacy behavior: ignore validity, but warn the user */
+	if (unlikely(!test_bit(index, cache->valid)))
+		dev_warn_once(map->dev,
+			"using zero-initialized flat cache, this may cause unexpected behavior");
+
 	*value = cache->data[index];
 
 	return 0;
@@ -110,17 +115,6 @@ static int regcache_flat_sparse_read(struct regmap *map,
 
 static int regcache_flat_write(struct regmap *map, unsigned int reg,
 			       unsigned int value)
-{
-	struct regcache_flat_data *cache = map->cache;
-	unsigned int index = regcache_flat_get_index(map, reg);
-
-	cache->data[index] = value;
-
-	return 0;
-}
-
-static int regcache_flat_sparse_write(struct regmap *map, unsigned int reg,
-				      unsigned int value)
 {
 	struct regcache_flat_data *cache = map->cache;
 	unsigned int index = regcache_flat_get_index(map, reg);
@@ -158,6 +152,6 @@ struct regcache_ops regcache_flat_sparse_ops = {
 	.init = regcache_flat_init,
 	.exit = regcache_flat_exit,
 	.read = regcache_flat_sparse_read,
-	.write = regcache_flat_sparse_write,
+	.write = regcache_flat_write,
 	.drop = regcache_flat_drop,
 };
