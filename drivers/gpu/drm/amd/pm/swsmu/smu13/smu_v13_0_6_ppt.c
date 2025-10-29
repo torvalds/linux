@@ -1860,6 +1860,13 @@ static int smu_v13_0_6_read_sensor(struct smu_context *smu,
 			return ret;
 		*size = 4;
 		break;
+	case AMDGPU_PP_SENSOR_UBB_POWER:
+	case AMDGPU_PP_SENSOR_UBB_POWER_LIMIT:
+		ret = smu_v13_0_12_get_system_power(smu, sensor, (uint32_t *)data);
+		if (ret)
+			return ret;
+		*size = 4;
+		break;
 	case AMDGPU_PP_SENSOR_GPU_AVG_POWER:
 	default:
 		ret = -EOPNOTSUPP;

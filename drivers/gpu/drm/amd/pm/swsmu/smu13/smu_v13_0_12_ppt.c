@@ -601,6 +601,40 @@ static bool smu_v13_0_12_is_temp_metrics_supported(struct smu_context *smu,
 	return false;
 }
 
+int smu_v13_0_12_get_system_power(struct smu_context *smu,
+				  enum amd_pp_sensors sensor,
+				  uint32_t *value)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+	struct smu_table *tables = smu_table->tables;
+	SystemMetricsTable_t *metrics;
+	struct smu_table *sys_table;
+	int ret;
+
+	if (!smu_v13_0_6_cap_supported(smu, SMU_CAP(SYSTEM_POWER_METRICS)))
+		return -EOPNOTSUPP;
+
+	ret = smu_v13_0_12_get_system_metrics_table(smu);
+	if (ret)
+		return ret;
+
+	sys_table = &tables[SMU_TABLE_PMFW_SYSTEM_METRICS];
+	metrics = (SystemMetricsTable_t *)sys_table->cache.buffer;
+
+	switch (sensor) {
+	case AMDGPU_PP_SENSOR_UBB_POWER:
+		*value = metrics->SystemPower[SYSTEM_POWER_UBB_POWER];
+		break;
+	case AMDGPU_PP_SENSOR_UBB_POWER_LIMIT:
+		*value = metrics->SystemPower[SYSTEM_POWER_UBB_POWER_THRESHOLD];
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return ret;
+}
+
 int smu_v13_0_12_get_npm_data(struct smu_context *smu,
 			      enum amd_pp_sensors sensor,
 			      uint32_t *value)
