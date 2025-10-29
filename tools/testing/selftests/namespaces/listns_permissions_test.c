@@ -648,4 +648,112 @@ TEST(listns_cap_sys_admin_inside_userns)
 	TH_LOG("Process can see user namespace it has CAP_SYS_ADMIN inside of");
 }
 
+/*
+ * Test that dropping CAP_SYS_ADMIN restricts what we can see.
+ */
+TEST(listns_drop_cap_sys_admin)
+{
+	cap_t caps;
+	cap_value_t cap_list[1] = { CAP_SYS_ADMIN };
+
+	/* This test needs to start with CAP_SYS_ADMIN */
+	caps = cap_get_proc();
+	if (!caps) {
+		SKIP(return, "Cannot get capabilities");
+	}
+
+	cap_flag_value_t cap_val;
+	if (cap_get_flag(caps, CAP_SYS_ADMIN, CAP_EFFECTIVE, &cap_val) < 0) {
+		cap_free(caps);
+		SKIP(return, "Cannot check CAP_SYS_ADMIN");
+	}
+
+	if (cap_val != CAP_SET) {
+		cap_free(caps);
+		SKIP(return, "Test needs CAP_SYS_ADMIN to start");
+	}
+	cap_free(caps);
+
+	int pipefd[2];
+	pid_t pid;
+	int status;
+	bool correct;
+	ssize_t count_before, count_after;
+
+	ASSERT_EQ(pipe(pipefd), 0);
+
+	pid = fork();
+	ASSERT_GE(pid, 0);
+
+	if (pid == 0) {
+		struct ns_id_req req = {
+			.size = sizeof(req),
+			.spare = 0,
+			.ns_id = 0,
+			.ns_type = CLONE_NEWNET,
+			.spare2 = 0,
+			.user_ns_id = LISTNS_CURRENT_USER,
+		};
+		__u64 ns_ids_before[100];
+		ssize_t count_before;
+		__u64 ns_ids_after[100];
+		ssize_t count_after;
+		bool correct;
+
+		close(pipefd[0]);
+
+		/* Create user namespace */
+		if (setup_userns() < 0) {
+			close(pipefd[1]);
+			exit(1);
+		}
+
+		/* Count namespaces with CAP_SYS_ADMIN */
+		count_before = sys_listns(&req, ns_ids_before, ARRAY_SIZE(ns_ids_before), 0);
+
+		/* Drop CAP_SYS_ADMIN */
+		caps = cap_get_proc();
+		if (caps) {
+			cap_set_flag(caps, CAP_EFFECTIVE, 1, cap_list, CAP_CLEAR);
+			cap_set_flag(caps, CAP_PERMITTED, 1, cap_list, CAP_CLEAR);
+			cap_set_proc(caps);
+			cap_free(caps);
+		}
+
+		/* Ensure we can't regain the capability */
+		prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
+
+		/* Count namespaces without CAP_SYS_ADMIN */
+		count_after = sys_listns(&req, ns_ids_after, ARRAY_SIZE(ns_ids_after), 0);
+
+		/* Without CAP_SYS_ADMIN, we should see same or fewer namespaces */
+		correct = (count_after <= count_before);
+
+		write(pipefd[1], &correct, sizeof(correct));
+		write(pipefd[1], &count_before, sizeof(count_before));
+		write(pipefd[1], &count_after, sizeof(count_after));
+		close(pipefd[1]);
+		exit(0);
+	}
+
+	/* Parent */
+	close(pipefd[1]);
+
+	correct = false;
+	count_before = 0;
+	count_after = 0;
+	read(pipefd[0], &correct, sizeof(correct));
+	read(pipefd[0], &count_before, sizeof(count_before));
+	read(pipefd[0], &count_after, sizeof(count_after));
+	close(pipefd[0]);
+
+	waitpid(pid, &status, 0);
+	ASSERT_TRUE(WIFEXITED(status));
+	ASSERT_EQ(WEXITSTATUS(status), 0);
+
+	ASSERT_TRUE(correct);
+	TH_LOG("With CAP_SYS_ADMIN: %zd namespaces, without: %zd namespaces",
+			count_before, count_after);
+}
+
 TEST_HARNESS_MAIN
