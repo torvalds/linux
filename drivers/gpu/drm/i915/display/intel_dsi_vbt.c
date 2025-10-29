@@ -106,6 +106,7 @@ static const u8 *mipi_exec_send_packet(struct intel_dsi *intel_dsi,
 	u8 type, flags, seq_port;
 	u16 len;
 	enum port port;
+	ssize_t ret;
 
 	drm_dbg_kms(display->drm, "\n");
 
@@ -138,35 +139,38 @@ static const u8 *mipi_exec_send_packet(struct intel_dsi *intel_dsi,
 
 	switch (type) {
 	case MIPI_DSI_GENERIC_SHORT_WRITE_0_PARAM:
-		mipi_dsi_generic_write(dsi_device, NULL, 0);
+		ret = mipi_dsi_generic_write(dsi_device, NULL, 0);
 		break;
 	case MIPI_DSI_GENERIC_SHORT_WRITE_1_PARAM:
-		mipi_dsi_generic_write(dsi_device, data, 1);
+		ret = mipi_dsi_generic_write(dsi_device, data, 1);
 		break;
 	case MIPI_DSI_GENERIC_SHORT_WRITE_2_PARAM:
-		mipi_dsi_generic_write(dsi_device, data, 2);
+		ret = mipi_dsi_generic_write(dsi_device, data, 2);
 		break;
 	case MIPI_DSI_GENERIC_READ_REQUEST_0_PARAM:
 	case MIPI_DSI_GENERIC_READ_REQUEST_1_PARAM:
 	case MIPI_DSI_GENERIC_READ_REQUEST_2_PARAM:
-		drm_dbg_kms(display->drm, "Generic Read not yet implemented or used\n");
+		ret = -EOPNOTSUPP;
 		break;
 	case MIPI_DSI_GENERIC_LONG_WRITE:
-		mipi_dsi_generic_write(dsi_device, data, len);
+		ret = mipi_dsi_generic_write(dsi_device, data, len);
 		break;
 	case MIPI_DSI_DCS_SHORT_WRITE:
-		mipi_dsi_dcs_write_buffer(dsi_device, data, 1);
+		ret = mipi_dsi_dcs_write_buffer(dsi_device, data, 1);
 		break;
 	case MIPI_DSI_DCS_SHORT_WRITE_PARAM:
-		mipi_dsi_dcs_write_buffer(dsi_device, data, 2);
+		ret = mipi_dsi_dcs_write_buffer(dsi_device, data, 2);
 		break;
 	case MIPI_DSI_DCS_READ:
-		drm_dbg_kms(display->drm, "DCS Read not yet implemented or used\n");
+		ret = -EOPNOTSUPP;
 		break;
 	case MIPI_DSI_DCS_LONG_WRITE:
-		mipi_dsi_dcs_write_buffer(dsi_device, data, len);
+		ret = mipi_dsi_dcs_write_buffer(dsi_device, data, len);
 		break;
 	}
+
+	if (ret < 0)
+		drm_err(display->drm, "DSI send packet failed with %pe\n", ERR_PTR(ret));
 
 	if (DISPLAY_VER(display) < 11)
 		vlv_dsi_wait_for_fifo_empty(intel_dsi, port);
