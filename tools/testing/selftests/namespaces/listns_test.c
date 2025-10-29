@@ -201,4 +201,127 @@ TEST(listns_current_user)
 		TH_LOG("  [%zd] ns_id: %llu", i, (unsigned long long)ns_ids[i]);
 }
 
+/*
+ * Test that listns() only returns active namespaces.
+ * Create a namespace, let it become inactive, verify it's not listed.
+ */
+TEST(listns_only_active)
+{
+	struct ns_id_req req = {
+		.size = sizeof(req),
+		.spare = 0,
+		.ns_id = 0,
+		.ns_type = CLONE_NEWNET,
+		.spare2 = 0,
+		.user_ns_id = 0,
+	};
+	__u64 ns_ids_before[100], ns_ids_after[100];
+	ssize_t ret_before, ret_after;
+	int pipefd[2];
+	pid_t pid;
+	__u64 new_ns_id = 0;
+	int status;
+
+	/* Get initial list */
+	ret_before = sys_listns(&req, ns_ids_before, ARRAY_SIZE(ns_ids_before), 0);
+	if (ret_before < 0) {
+		if (errno == ENOSYS)
+			SKIP(return, "listns() not supported");
+		TH_LOG("listns failed: %s (errno=%d)", strerror(errno), errno);
+		ASSERT_TRUE(false);
+	}
+	ASSERT_GE(ret_before, 0);
+
+	TH_LOG("Before: %zd active network namespaces", ret_before);
+
+	/* Create a new namespace in a child process and get its ID */
+	ASSERT_EQ(pipe(pipefd), 0);
+
+	pid = fork();
+	ASSERT_GE(pid, 0);
+
+	if (pid == 0) {
+		int fd;
+		__u64 ns_id;
+
+		close(pipefd[0]);
+
+		/* Create new network namespace */
+		if (unshare(CLONE_NEWNET) < 0) {
+			close(pipefd[1]);
+			exit(1);
+		}
+
+		/* Get its ID */
+		fd = open("/proc/self/ns/net", O_RDONLY);
+		if (fd < 0) {
+			close(pipefd[1]);
+			exit(1);
+		}
+
+		if (ioctl(fd, NS_GET_ID, &ns_id) < 0) {
+			close(fd);
+			close(pipefd[1]);
+			exit(1);
+		}
+		close(fd);
+
+		/* Send ID to parent */
+		write(pipefd[1], &ns_id, sizeof(ns_id));
+		close(pipefd[1]);
+
+		/* Keep namespace active briefly */
+		usleep(100000);
+		exit(0);
+	}
+
+	/* Parent reads the new namespace ID */
+	{
+		int bytes;
+
+		close(pipefd[1]);
+		bytes = read(pipefd[0], &new_ns_id, sizeof(new_ns_id));
+		close(pipefd[0]);
+
+		if (bytes == sizeof(new_ns_id)) {
+			__u64 ns_ids_during[100];
+			int ret_during;
+
+			TH_LOG("Child created namespace with ID %llu", (unsigned long long)new_ns_id);
+
+			/* List namespaces while child is still alive - should see new one */
+			ret_during = sys_listns(&req, ns_ids_during, ARRAY_SIZE(ns_ids_during), 0);
+			ASSERT_GE(ret_during, 0);
+			TH_LOG("During: %d active network namespaces", ret_during);
+
+			/* Should have more namespaces than before */
+			ASSERT_GE(ret_during, ret_before);
+		}
+	}
+
+	/* Wait for child to exit */
+	waitpid(pid, &status, 0);
+
+	/* Give time for namespace to become inactive */
+	usleep(100000);
+
+	/* List namespaces after child exits - should not see new one */
+	ret_after = sys_listns(&req, ns_ids_after, ARRAY_SIZE(ns_ids_after), 0);
+	ASSERT_GE(ret_after, 0);
+	TH_LOG("After: %zd active network namespaces", ret_after);
+
+	/* Verify the new namespace ID is not in the after list */
+	if (new_ns_id != 0) {
+		bool found = false;
+
+		for (ssize_t i = 0; i < ret_after; i++) {
+			if (ns_ids_after[i] == new_ns_id) {
+				found = true;
+				break;
+			}
+		}
+		ASSERT_FALSE(found);
+	}
+}
+
 TEST_HARNESS_MAIN
