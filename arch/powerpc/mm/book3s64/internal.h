@@ -22,6 +22,13 @@ static inline bool stress_hpt(void)
 	return static_branch_unlikely(&stress_hpt_key);
 }
 
+extern bool no_slb_preload;
+DECLARE_STATIC_KEY_FALSE(no_slb_preload_key);
+static inline bool slb_preload_disabled(void)
+{
+	return static_branch_unlikely(&no_slb_preload_key);
+}
+
 void hpt_do_stress(unsigned long ea, unsigned long hpte_group);
 
 void exit_lazy_flush_tlb(struct mm_struct *mm, bool always_flush);

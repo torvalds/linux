@@ -1329,6 +1329,9 @@ static void __init htab_initialize(void)
 	if (stress_slb_enabled)
 		static_branch_enable(&stress_slb_key);
 
+	if (no_slb_preload)
+		static_branch_enable(&no_slb_preload_key);
+
 	if (stress_hpt_enabled) {
 		unsigned long tmp;
 		static_branch_enable(&stress_hpt_key);

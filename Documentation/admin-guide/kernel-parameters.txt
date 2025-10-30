@@ -7192,6 +7192,9 @@
 			them frequently to increase the rate of SLB faults
 			on kernel addresses.
 
+	no_slb_preload	[PPC,EARLY]
+			Disables slb preloading for userspace.
+
 	sunrpc.min_resvport=
 	sunrpc.max_resvport=
 			[NFS,SUNRPC]

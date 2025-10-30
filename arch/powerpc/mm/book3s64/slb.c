@@ -42,6 +42,15 @@ early_param("stress_slb", parse_stress_slb);
 
 __ro_after_init DEFINE_STATIC_KEY_FALSE(stress_slb_key);
 
+bool no_slb_preload __initdata;
+static int __init parse_no_slb_preload(char *p)
+{
+	no_slb_preload = true;
+	return 0;
+}
+early_param("no_slb_preload", parse_no_slb_preload);
+__ro_after_init DEFINE_STATIC_KEY_FALSE(no_slb_preload_key);
+
 static void assert_slb_presence(bool present, unsigned long ea)
 {
 #ifdef CONFIG_DEBUG_VM
@@ -299,6 +308,9 @@ static void preload_add(struct thread_info *ti, unsigned long ea)
 	unsigned char idx;
 	unsigned long esid;
 
+	if (slb_preload_disabled())
+		return;
+
 	if (mmu_has_feature(MMU_FTR_1T_SEGMENT)) {
 		/* EAs are stored >> 28 so 256MB segments don't need clearing */
 		if (ea & ESID_MASK_1T)
@@ -411,6 +423,9 @@ void switch_slb(struct task_struct *tsk, struct mm_struct *mm)
 	get_paca()->slb_used_bitmap = get_paca()->slb_kern_bitmap;
 
 	copy_mm_to_paca(mm);
+
+	if (slb_preload_disabled())
+		return;
 
 	/*
 	 * We gradually age out SLBs after a number of context switches to
