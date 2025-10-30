@@ -1835,9 +1835,34 @@ static int pf_get_preempt_timeout(struct xe_gt *gt, unsigned int vfid)
 }
 
 /**
- * xe_gt_sriov_pf_config_set_preempt_timeout - Configure preemption timeout for the VF.
+ * xe_gt_sriov_pf_config_set_preempt_timeout_locked() - Configure PF/VF preemption timeout.
  * @gt: the &xe_gt
- * @vfid: the VF identifier
+ * @vfid: the PF or VF identifier
+ * @preempt_timeout: requested preemption timeout in microseconds (0 is infinity)
+ *
+ * This function can only be called on PF with the master mutex hold.
+ * It will log the provisioned value or an error in case of the failure.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_gt_sriov_pf_config_set_preempt_timeout_locked(struct xe_gt *gt, unsigned int vfid,
+						     u32 preempt_timeout)
+{
+	int err;
+
+	lockdep_assert_held(xe_gt_sriov_pf_master_mutex(gt));
+
+	err = pf_provision_preempt_timeout(gt, vfid, preempt_timeout);
+
+	return pf_config_set_u32_done(gt, vfid, preempt_timeout,
+				      pf_get_preempt_timeout(gt, vfid),
+				      "preemption timeout", preempt_timeout_unit, err);
+}
+
+/**
+ * xe_gt_sriov_pf_config_set_preempt_timeout() - Configure PF/VF preemption timeout.
+ * @gt: the &xe_gt
+ * @vfid: the PF or VF identifier
  * @preempt_timeout: requested preemption timeout in microseconds (0 is infinity)
  *
  * This function can only be called on PF.
@@ -1847,35 +1872,41 @@ static int pf_get_preempt_timeout(struct xe_gt *gt, unsigned int vfid)
 int xe_gt_sriov_pf_config_set_preempt_timeout(struct xe_gt *gt, unsigned int vfid,
 					      u32 preempt_timeout)
 {
-	int err;
+	guard(mutex)(xe_gt_sriov_pf_master_mutex(gt));
 
-	mutex_lock(xe_gt_sriov_pf_master_mutex(gt));
-	err = pf_provision_preempt_timeout(gt, vfid, preempt_timeout);
-	mutex_unlock(xe_gt_sriov_pf_master_mutex(gt));
-
-	return pf_config_set_u32_done(gt, vfid, preempt_timeout,
-				      xe_gt_sriov_pf_config_get_preempt_timeout(gt, vfid),
-				      "preemption timeout", preempt_timeout_unit, err);
+	return xe_gt_sriov_pf_config_set_preempt_timeout_locked(gt, vfid, preempt_timeout);
 }
 
 /**
- * xe_gt_sriov_pf_config_get_preempt_timeout - Get VF's preemption timeout.
+ * xe_gt_sriov_pf_config_get_preempt_timeout_locked() - Get PF/VF preemption timeout.
  * @gt: the &xe_gt
- * @vfid: the VF identifier
+ * @vfid: the PF or VF identifier
+ *
+ * This function can only be called on PF with the master mutex hold.
+ *
+ * Return: preemption timeout in microseconds (or 0 if infinity).
+ */
+u32 xe_gt_sriov_pf_config_get_preempt_timeout_locked(struct xe_gt *gt, unsigned int vfid)
+{
+	lockdep_assert_held(xe_gt_sriov_pf_master_mutex(gt));
+
+	return pf_get_preempt_timeout(gt, vfid);
+}
+
+/**
+ * xe_gt_sriov_pf_config_get_preempt_timeout() - Get PF/VF preemption timeout.
+ * @gt: the &xe_gt
+ * @vfid: the PF or VF identifier
  *
  * This function can only be called on PF.
  *
- * Return: VF's (or PF's) preemption timeout in microseconds.
+ * Return: preemption timeout in microseconds (or 0 if infinity).
  */
 u32 xe_gt_sriov_pf_config_get_preempt_timeout(struct xe_gt *gt, unsigned int vfid)
 {
-	u32 preempt_timeout;
+	guard(mutex)(xe_gt_sriov_pf_master_mutex(gt));
 
-	mutex_lock(xe_gt_sriov_pf_master_mutex(gt));
-	preempt_timeout = pf_get_preempt_timeout(gt, vfid);
-	mutex_unlock(xe_gt_sriov_pf_master_mutex(gt));
-
-	return preempt_timeout;
+	return pf_get_preempt_timeout(gt, vfid);
 }
 
 static const char *sched_priority_unit(u32 priority)
