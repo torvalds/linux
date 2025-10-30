@@ -916,8 +916,7 @@ int kvmppc_xive_attach_escalation(struct kvm_vcpu *vcpu, u8 prio,
 	 * it fires once.
 	 */
 	if (single_escalation) {
-		struct irq_data *d = irq_get_irq_data(xc->esc_virq[prio]);
-		struct xive_irq_data *xd = irq_data_get_irq_handler_data(d);
+		struct xive_irq_data *xd = irq_get_chip_data(xc->esc_virq[prio]);
 
 		xive_vm_esb_load(xd, XIVE_ESB_SET_PQ_01);
 		vcpu->arch.xive_esc_raddr = xd->eoi_page;
@@ -1612,7 +1611,7 @@ int kvmppc_xive_set_mapped(struct kvm *kvm, unsigned long guest_irq,
 
 	/* Grab info about irq */
 	state->pt_number = hw_irq;
-	state->pt_data = irq_data_get_irq_handler_data(host_data);
+	state->pt_data = irq_data_get_irq_chip_data(host_data);
 
 	/*
 	 * Configure the IRQ to match the existing configuration of
@@ -1787,8 +1786,7 @@ void kvmppc_xive_disable_vcpu_interrupts(struct kvm_vcpu *vcpu)
  */
 void xive_cleanup_single_escalation(struct kvm_vcpu *vcpu, int irq)
 {
-	struct irq_data *d = irq_get_irq_data(irq);
-	struct xive_irq_data *xd = irq_data_get_irq_handler_data(d);
+	struct xive_irq_data *xd = irq_get_chip_data(irq);
 
 	/*
 	 * This slightly odd sequence gives the right result
@@ -2827,9 +2825,7 @@ int kvmppc_xive_debug_show_queues(struct seq_file *m, struct kvm_vcpu *vcpu)
 				   i0, i1);
 		}
 		if (xc->esc_virq[i]) {
-			struct irq_data *d = irq_get_irq_data(xc->esc_virq[i]);
-			struct xive_irq_data *xd =
-				irq_data_get_irq_handler_data(d);
+			struct xive_irq_data *xd = irq_get_chip_data(xc->esc_virq[i]);
 			u64 pq = xive_vm_esb_load(xd, XIVE_ESB_GET);
 
 			seq_printf(m, "    ESC %d %c%c EOI @%llx",
