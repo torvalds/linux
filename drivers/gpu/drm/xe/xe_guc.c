@@ -1617,6 +1617,40 @@ int xe_guc_start(struct xe_guc *guc)
 	return xe_guc_submit_start(guc);
 }
 
+/**
+ * xe_guc_runtime_suspend() - GuC runtime suspend
+ * @guc: The GuC object
+ *
+ * Stop further runs of submission tasks on given GuC and runtime suspend
+ * GuC CT.
+ */
+void xe_guc_runtime_suspend(struct xe_guc *guc)
+{
+	xe_guc_submit_pause(guc);
+	xe_guc_submit_disable(guc);
+	xe_guc_ct_runtime_suspend(&guc->ct);
+}
+
+/**
+ * xe_guc_runtime_resume() - GuC runtime resume
+ * @guc: The GuC object
+ *
+ * Runtime resume GuC CT and allow further runs of submission tasks on
+ * given GuC.
+ */
+void xe_guc_runtime_resume(struct xe_guc *guc)
+{
+	/*
+	 * Runtime PM flows are not applicable for VFs, so it's safe to
+	 * directly enable IRQ.
+	 */
+	guc_enable_irq(guc);
+
+	xe_guc_ct_runtime_resume(&guc->ct);
+	xe_guc_submit_enable(guc);
+	xe_guc_submit_unpause(guc);
+}
+
 void xe_guc_print_info(struct xe_guc *guc, struct drm_printer *p)
 {
 	struct xe_gt *gt = guc_to_gt(guc);

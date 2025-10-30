@@ -717,6 +717,33 @@ void xe_guc_ct_stop(struct xe_guc_ct *ct)
 	stop_g2h_handler(ct);
 }
 
+/**
+ * xe_guc_ct_runtime_suspend() - GuC CT runtime suspend
+ * @ct: the &xe_guc_ct
+ *
+ * Set GuC CT to disabled state.
+ */
+void xe_guc_ct_runtime_suspend(struct xe_guc_ct *ct)
+{
+	/*
+	 * Since we're already in runtime suspend path, we shouldn't have pending
+	 * messages. But if there happen to be any, we'd probably want them to be
+	 * thrown as errors for further investigation.
+	 */
+	xe_guc_ct_disable(ct);
+}
+
+/**
+ * xe_guc_ct_runtime_resume() - GuC CT runtime resume
+ * @ct: the &xe_guc_ct
+ *
+ * Restart GuC CT and set it to enabled state.
+ */
+void xe_guc_ct_runtime_resume(struct xe_guc_ct *ct)
+{
+	xe_guc_ct_restart(ct);
+}
+
 static bool h2g_has_room(struct xe_guc_ct *ct, u32 cmd_len)
 {
 	struct guc_ctb *h2g = &ct->ctbs.h2g;
