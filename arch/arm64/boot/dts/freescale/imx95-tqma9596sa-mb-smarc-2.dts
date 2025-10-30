@@ -259,7 +259,6 @@
 	status = "okay";
 };
 
-
 /* X16 */
 &usdhc2 {
 	no-mmc;
