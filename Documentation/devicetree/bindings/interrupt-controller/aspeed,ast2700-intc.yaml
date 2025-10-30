@@ -25,13 +25,14 @@ properties:
   interrupt-controller: true
 
   '#interrupt-cells':
-    const: 2
+    const: 1
     description:
       The first cell is the IRQ number, the second cell is the trigger
       type as defined in interrupt.txt in this directory.
 
   interrupts:
-    maxItems: 6
+    minItems: 1
+    maxItems: 10
     description: |
       Depend to which INTC0 or INTC1 used.
       INTC0 and INTC1 are two kinds of interrupt controller with enable and raw
@@ -74,13 +75,17 @@ examples:
         interrupt-controller@12101b00 {
             compatible = "aspeed,ast2700-intc-ic";
             reg = <0 0x12101b00 0 0x10>;
-            #interrupt-cells = <2>;
+            #interrupt-cells = <1>;
             interrupt-controller;
             interrupts = <GIC_SPI 192 IRQ_TYPE_LEVEL_HIGH>,
                          <GIC_SPI 193 IRQ_TYPE_LEVEL_HIGH>,
                          <GIC_SPI 194 IRQ_TYPE_LEVEL_HIGH>,
                          <GIC_SPI 195 IRQ_TYPE_LEVEL_HIGH>,
                          <GIC_SPI 196 IRQ_TYPE_LEVEL_HIGH>,
-                         <GIC_SPI 197 IRQ_TYPE_LEVEL_HIGH>;
+                         <GIC_SPI 197 IRQ_TYPE_LEVEL_HIGH>,
+                         <GIC_SPI 198 IRQ_TYPE_LEVEL_HIGH>,
+                         <GIC_SPI 199 IRQ_TYPE_LEVEL_HIGH>,
+                         <GIC_SPI 200 IRQ_TYPE_LEVEL_HIGH>,
+                         <GIC_SPI 201 IRQ_TYPE_LEVEL_HIGH>;
         };
     };
