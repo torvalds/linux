@@ -22,6 +22,9 @@
  * :
  * ├── sriov_admin/
  *     ├── ...
+ *     ├── .bulk_profile
+ *     │   ├── exec_quantum_ms
+ *     │   └── preempt_timeout_us
  *     ├── pf/
  *     │   ├── ...
  *     │   └── profile
@@ -84,7 +87,40 @@ struct xe_sriov_vf_attr xe_sriov_vf_attr_##NAME = \
 
 /* device level attributes go here */
 
+#define DEFINE_SIMPLE_BULK_PROVISIONING_SRIOV_DEV_ATTR_WO(NAME, ITEM, TYPE)		\
+											\
+static ssize_t xe_sriov_dev_attr_##NAME##_store(struct xe_device *xe,			\
+						const char *buf, size_t count)		\
+{											\
+	TYPE value;									\
+	int err;									\
+											\
+	err = kstrto##TYPE(buf, 0, &value);						\
+	if (err)									\
+		return err;								\
+											\
+	err = xe_sriov_pf_provision_bulk_apply_##ITEM(xe, value);			\
+	return err ?: count;								\
+}											\
+											\
+static XE_SRIOV_DEV_ATTR_WO(NAME)
+
+DEFINE_SIMPLE_BULK_PROVISIONING_SRIOV_DEV_ATTR_WO(exec_quantum_ms, eq, u32);
+DEFINE_SIMPLE_BULK_PROVISIONING_SRIOV_DEV_ATTR_WO(preempt_timeout_us, pt, u32);
+
+static struct attribute *bulk_profile_dev_attrs[] = {
+	&xe_sriov_dev_attr_exec_quantum_ms.attr,
+	&xe_sriov_dev_attr_preempt_timeout_us.attr,
+	NULL
+};
+
+static const struct attribute_group bulk_profile_dev_attr_group = {
+	.name = ".bulk_profile",
+	.attrs = bulk_profile_dev_attrs,
+};
+
 static const struct attribute_group *xe_sriov_dev_attr_groups[] = {
+	&bulk_profile_dev_attr_group,
 	NULL
 };
 
