@@ -22,13 +22,21 @@ static struct perf_event_attr hw_attr = {
 
 static rqspinlock_t lock_a;
 static rqspinlock_t lock_b;
+static rqspinlock_t lock_c;
+
+enum rqsl_mode {
+	RQSL_MODE_AA = 0,
+	RQSL_MODE_ABBA,
+	RQSL_MODE_ABBCCA,
+};
+
+static int test_mode = RQSL_MODE_AA;
+module_param(test_mode, int, 0644);
+MODULE_PARM_DESC(test_mode,
+		 "rqspinlock test mode: 0 = AA, 1 = ABBA, 2 = ABBCCA");
 
 static struct perf_event **rqsl_evts;
 static int rqsl_nevts;
-
-static bool test_ab = false;
-module_param(test_ab, bool, 0644);
-MODULE_PARM_DESC(test_ab, "Test ABBA situations instead of AA situations");
 
 static struct task_struct **rqsl_threads;
 static int rqsl_nthreads;
@@ -36,9 +44,39 @@ static atomic_t rqsl_ready_cpus = ATOMIC_INIT(0);
 
 static int pause = 0;
 
-static bool nmi_locks_a(int cpu)
+static const char *rqsl_mode_names[] = {
+	[RQSL_MODE_AA] = "AA",
+	[RQSL_MODE_ABBA] = "ABBA",
+	[RQSL_MODE_ABBCCA] = "ABBCCA",
+};
+
+struct rqsl_lock_pair {
+	rqspinlock_t *worker_lock;
+	rqspinlock_t *nmi_lock;
+};
+
+static struct rqsl_lock_pair rqsl_get_lock_pair(int cpu)
 {
-	return (cpu & 1) && test_ab;
+	int mode = READ_ONCE(test_mode);
+
+	switch (mode) {
+	default:
+	case RQSL_MODE_AA:
+		return (struct rqsl_lock_pair){ &lock_a, &lock_a };
+	case RQSL_MODE_ABBA:
+		if (cpu & 1)
+			return (struct rqsl_lock_pair){ &lock_b, &lock_a };
+		return (struct rqsl_lock_pair){ &lock_a, &lock_b };
+	case RQSL_MODE_ABBCCA:
+		switch (cpu % 3) {
+		case 0:
+			return (struct rqsl_lock_pair){ &lock_a, &lock_b };
+		case 1:
+			return (struct rqsl_lock_pair){ &lock_b, &lock_c };
+		default:
+			return (struct rqsl_lock_pair){ &lock_c, &lock_a };
+		}
+	}
 }
 
 static int rqspinlock_worker_fn(void *arg)
@@ -51,19 +89,17 @@ static int rqspinlock_worker_fn(void *arg)
 		atomic_inc(&rqsl_ready_cpus);
 
 		while (!kthread_should_stop()) {
+			struct rqsl_lock_pair locks = rqsl_get_lock_pair(cpu);
+			rqspinlock_t *worker_lock = locks.worker_lock;
+
 			if (READ_ONCE(pause)) {
 				msleep(1000);
 				continue;
 			}
-			if (nmi_locks_a(cpu))
-				ret = raw_res_spin_lock_irqsave(&lock_b, flags);
-			else
-				ret = raw_res_spin_lock_irqsave(&lock_a, flags);
+			ret = raw_res_spin_lock_irqsave(worker_lock, flags);
 			mdelay(20);
-			if (nmi_locks_a(cpu) && !ret)
-				raw_res_spin_unlock_irqrestore(&lock_b, flags);
-			else if (!ret)
-				raw_res_spin_unlock_irqrestore(&lock_a, flags);
+			if (!ret)
+				raw_res_spin_unlock_irqrestore(worker_lock, flags);
 			cpu_relax();
 		}
 		return 0;
@@ -91,6 +127,7 @@ static int rqspinlock_worker_fn(void *arg)
 static void nmi_cb(struct perf_event *event, struct perf_sample_data *data,
 		   struct pt_regs *regs)
 {
+	struct rqsl_lock_pair locks;
 	int cpu = smp_processor_id();
 	unsigned long flags;
 	int ret;
@@ -98,17 +135,13 @@ static void nmi_cb(struct perf_event *event, struct perf_sample_data *data,
 	if (!cpu || READ_ONCE(pause))
 		return;
 
-	if (nmi_locks_a(cpu))
-		ret = raw_res_spin_lock_irqsave(&lock_a, flags);
-	else
-		ret = raw_res_spin_lock_irqsave(test_ab ? &lock_b : &lock_a, flags);
+	locks = rqsl_get_lock_pair(cpu);
+	ret = raw_res_spin_lock_irqsave(locks.nmi_lock, flags);
 
 	mdelay(10);
 
-	if (nmi_locks_a(cpu) && !ret)
-		raw_res_spin_unlock_irqrestore(&lock_a, flags);
-	else if (!ret)
-		raw_res_spin_unlock_irqrestore(test_ab ? &lock_b : &lock_a, flags);
+	if (!ret)
+		raw_res_spin_unlock_irqrestore(locks.nmi_lock, flags);
 }
 
 static void free_rqsl_threads(void)
@@ -142,13 +175,19 @@ static int bpf_test_rqspinlock_init(void)
 	int i, ret;
 	int ncpus = num_online_cpus();
 
-	pr_err("Mode = %s\n", test_ab ? "ABBA" : "AA");
+	if (test_mode < RQSL_MODE_AA || test_mode > RQSL_MODE_ABBCCA) {
+		pr_err("Invalid mode %d\n", test_mode);
+		return -EINVAL;
+	}
+
+	pr_err("Mode = %s\n", rqsl_mode_names[test_mode]);
 
 	if (ncpus < 3)
 		return -ENOTSUPP;
 
 	raw_res_spin_lock_init(&lock_a);
 	raw_res_spin_lock_init(&lock_b);
+	raw_res_spin_lock_init(&lock_c);
 
 	rqsl_evts = kcalloc(ncpus - 1, sizeof(*rqsl_evts), GFP_KERNEL);
 	if (!rqsl_evts)

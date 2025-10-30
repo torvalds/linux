@@ -110,8 +110,8 @@ void serial_test_res_spin_lock_stress(void)
 	ASSERT_OK(load_module("bpf_test_rqspinlock.ko", false), "load module AA");
 	sleep(5);
 	unload_module("bpf_test_rqspinlock", false);
-
-	ASSERT_OK(load_module_params("bpf_test_rqspinlock.ko", "test_ab=1", false), "load module ABBA");
-	sleep(5);
-	unload_module("bpf_test_rqspinlock", false);
+	/*
+	 * Insert bpf_test_rqspinlock.ko manually with test_mode=[1|2] to test
+	 * other cases (ABBA, ABBCCA).
+	 */
 }

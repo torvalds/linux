@@ -572,6 +572,14 @@ queue:
 	val = res_atomic_cond_read_acquire(&lock->val, !(VAL & _Q_LOCKED_PENDING_MASK) ||
 					   RES_CHECK_TIMEOUT(ts, ret, _Q_LOCKED_PENDING_MASK));
 
+	/* Disable queue destruction when we detect deadlocks. */
+	if (ret == -EDEADLK) {
+		if (!next)
+			next = smp_cond_load_relaxed(&node->next, (VAL));
+		arch_mcs_spin_unlock_contended(&next->locked);
+		goto err_release_node;
+	}
+
 waitq_timeout:
 	if (ret) {
 		/*
