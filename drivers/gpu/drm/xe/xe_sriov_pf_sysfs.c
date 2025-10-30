@@ -13,6 +13,7 @@
 #include "xe_pm.h"
 #include "xe_sriov.h"
 #include "xe_sriov_pf.h"
+#include "xe_sriov_pf_control.h"
 #include "xe_sriov_pf_helpers.h"
 #include "xe_sriov_pf_provision.h"
 #include "xe_sriov_pf_sysfs.h"
@@ -54,6 +55,7 @@ static int emit_choice(char *buf, int choice, const char * const *array, size_t 
  *     ├── vf1/
  *     │   ├── ...
  *     │   ├── device -> ../../../BDF.1
+ *     │   ├── stop
  *     │   └── profile
  *     │       ├── exec_quantum_ms
  *     │       ├── preempt_timeout_us
@@ -293,8 +295,55 @@ static const struct attribute_group profile_vf_attr_group = {
 	.is_visible = profile_vf_attr_is_visible,
 };
 
+#define DEFINE_SIMPLE_CONTROL_SRIOV_VF_ATTR(NAME)					\
+											\
+static ssize_t xe_sriov_vf_attr_##NAME##_store(struct xe_device *xe, unsigned int vfid,	\
+					       const char *buf, size_t count)		\
+{											\
+	bool yes;									\
+	int err;									\
+											\
+	if (!vfid)									\
+		return -EPERM;								\
+											\
+	err = kstrtobool(buf, &yes);							\
+	if (err)									\
+		return err;								\
+	if (!yes)									\
+		return count;								\
+											\
+	err = xe_sriov_pf_control_##NAME##_vf(xe, vfid);				\
+	return err ?: count;								\
+}											\
+											\
+static XE_SRIOV_VF_ATTR_WO(NAME)
+
+DEFINE_SIMPLE_CONTROL_SRIOV_VF_ATTR(stop);
+
+static struct attribute *control_vf_attrs[] = {
+	&xe_sriov_vf_attr_stop.attr,
+	NULL
+};
+
+static umode_t control_vf_attr_is_visible(struct kobject *kobj,
+					  struct attribute *attr, int index)
+{
+	struct xe_sriov_kobj *vkobj = to_xe_sriov_kobj(kobj);
+
+	if (vkobj->vfid == PFID)
+		return 0;
+
+	return attr->mode;
+}
+
+static const struct attribute_group control_vf_attr_group = {
+	.attrs = control_vf_attrs,
+	.is_visible = control_vf_attr_is_visible,
+};
+
 static const struct attribute_group *xe_sriov_vf_attr_groups[] = {
 	&profile_vf_attr_group,
+	&control_vf_attr_group,
 	NULL
 };
 
