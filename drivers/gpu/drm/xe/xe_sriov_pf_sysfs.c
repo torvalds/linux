@@ -24,7 +24,8 @@
  *     ├── ...
  *     ├── .bulk_profile
  *     │   ├── exec_quantum_ms
- *     │   └── preempt_timeout_us
+ *     │   ├── preempt_timeout_us
+ *     │   └── sched_priority
  *     ├── pf/
  *     │   ├── ...
  *     │   └── profile
@@ -108,9 +109,48 @@ static XE_SRIOV_DEV_ATTR_WO(NAME)
 DEFINE_SIMPLE_BULK_PROVISIONING_SRIOV_DEV_ATTR_WO(exec_quantum_ms, eq, u32);
 DEFINE_SIMPLE_BULK_PROVISIONING_SRIOV_DEV_ATTR_WO(preempt_timeout_us, pt, u32);
 
+static const char * const sched_priority_names[] = {
+	[GUC_SCHED_PRIORITY_LOW] = "low",
+	[GUC_SCHED_PRIORITY_NORMAL] = "normal",
+	[GUC_SCHED_PRIORITY_HIGH] = "high",
+};
+
+static bool sched_priority_high_allowed(unsigned int vfid)
+{
+	/* As of today GuC FW allows to select 'high' priority only for the PF. */
+	return vfid == PFID;
+}
+
+static bool sched_priority_bulk_high_allowed(struct xe_device *xe)
+{
+	/* all VFs are equal - it's sufficient to check VF1 only */
+	return sched_priority_high_allowed(VFID(1));
+}
+
+static ssize_t xe_sriov_dev_attr_sched_priority_store(struct xe_device *xe,
+						      const char *buf, size_t count)
+{
+	size_t num_priorities = ARRAY_SIZE(sched_priority_names);
+	int match;
+	int err;
+
+	if (!sched_priority_bulk_high_allowed(xe))
+		num_priorities--;
+
+	match = __sysfs_match_string(sched_priority_names, num_priorities, buf);
+	if (match < 0)
+		return -EINVAL;
+
+	err = xe_sriov_pf_provision_bulk_apply_priority(xe, match);
+	return err ?: count;
+}
+
+static XE_SRIOV_DEV_ATTR_WO(sched_priority);
+
 static struct attribute *bulk_profile_dev_attrs[] = {
 	&xe_sriov_dev_attr_exec_quantum_ms.attr,
 	&xe_sriov_dev_attr_preempt_timeout_us.attr,
+	&xe_sriov_dev_attr_sched_priority.attr,
 	NULL
 };
 
