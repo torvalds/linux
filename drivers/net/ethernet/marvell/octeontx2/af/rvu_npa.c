@@ -464,6 +464,23 @@ int rvu_mbox_handler_npa_lf_free(struct rvu *rvu, struct msg_req *req,
 	return 0;
 }
 
+static void npa_aq_ndc_config(struct rvu *rvu, struct rvu_block *block)
+{
+	u64 cfg;
+
+	if (is_cn20k(rvu->pdev)) /* NDC not applicable to cn20k */
+		return;
+
+	/* Do not bypass NDC cache */
+	cfg = rvu_read64(rvu, block->addr, NPA_AF_NDC_CFG);
+	cfg &= ~0x03DULL;
+#ifdef CONFIG_NDC_DIS_DYNAMIC_CACHING
+	/* Disable caching of stack pages */
+	cfg |= 0x10ULL;
+#endif
+	rvu_write64(rvu, block->addr, NPA_AF_NDC_CFG, cfg);
+}
+
 static int npa_aq_init(struct rvu *rvu, struct rvu_block *block)
 {
 	u64 cfg;
@@ -479,14 +496,7 @@ static int npa_aq_init(struct rvu *rvu, struct rvu_block *block)
 	rvu_write64(rvu, block->addr, NPA_AF_GEN_CFG, cfg);
 #endif
 
-	/* Do not bypass NDC cache */
-	cfg = rvu_read64(rvu, block->addr, NPA_AF_NDC_CFG);
-	cfg &= ~0x03DULL;
-#ifdef CONFIG_NDC_DIS_DYNAMIC_CACHING
-	/* Disable caching of stack pages */
-	cfg |= 0x10ULL;
-#endif
-	rvu_write64(rvu, block->addr, NPA_AF_NDC_CFG, cfg);
+	npa_aq_ndc_config(rvu, block);
 
 	/* For CN10K NPA BATCH DMA set 35 cache lines */
 	if (!is_rvu_otx2(rvu)) {
@@ -566,6 +576,9 @@ int rvu_ndc_fix_locked_cacheline(struct rvu *rvu, int blkaddr)
 {
 	int bank, max_bank, line, max_line, err;
 	u64 reg, ndc_af_const;
+
+	if (is_cn20k(rvu->pdev)) /* NDC not applicable to cn20k */
+		return 0;
 
 	/* Set the ENABLE bit(63) to '0' */
 	reg = rvu_read64(rvu, blkaddr, NDC_AF_CAMS_RD_INTERVAL);
