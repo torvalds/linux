@@ -9,6 +9,7 @@
 #include <drm/drm_managed.h>
 
 #include "xe_assert.h"
+#include "xe_pci_sriov.h"
 #include "xe_pm.h"
 #include "xe_sriov.h"
 #include "xe_sriov_pf.h"
@@ -45,12 +46,14 @@ static int emit_choice(char *buf, int choice, const char * const *array, size_t 
  *     │   └── sched_priority
  *     ├── pf/
  *     │   ├── ...
+ *     │   ├── device -> ../../../BDF
  *     │   └── profile
  *     │       ├── exec_quantum_ms
  *     │       ├── preempt_timeout_us
  *     │       └── sched_priority
  *     ├── vf1/
  *     │   ├── ...
+ *     │   ├── device -> ../../../BDF.1
  *     │   └── profile
  *     │       ├── exec_quantum_ms
  *     │       ├── preempt_timeout_us
@@ -414,6 +417,11 @@ static int pf_sysfs_error(struct xe_device *xe, int err, const char *what)
 	return err;
 }
 
+static void pf_sysfs_note(struct xe_device *xe, int err, const char *what)
+{
+	xe_sriov_dbg(xe, "Failed to setup sysfs %s (%pe)\n", what, ERR_PTR(err));
+}
+
 static void action_put_kobject(void *arg)
 {
 	struct kobject *kobj = arg;
@@ -480,6 +488,29 @@ static int pf_setup_tree(struct xe_device *xe)
 	return 0;
 }
 
+static void action_rm_device_link(void *arg)
+{
+	struct kobject *kobj = arg;
+
+	sysfs_remove_link(kobj, "device");
+}
+
+static int pf_link_pf_device(struct xe_device *xe)
+{
+	struct kobject *kobj = xe->sriov.pf.vfs[PFID].kobj;
+	int err;
+
+	err = sysfs_create_link(kobj, &xe->drm.dev->kobj, "device");
+	if (err)
+		return pf_sysfs_error(xe, err, "PF device link");
+
+	err = devm_add_action_or_reset(xe->drm.dev, action_rm_device_link, kobj);
+	if (err)
+		return pf_sysfs_error(xe, err, "PF unlink action");
+
+	return 0;
+}
+
 /**
  * xe_sriov_pf_sysfs_init() - Setup PF's SR-IOV sysfs tree.
  * @xe: the PF &xe_device to setup sysfs
@@ -501,5 +532,67 @@ int xe_sriov_pf_sysfs_init(struct xe_device *xe)
 	if (err)
 		return err;
 
+	err = pf_link_pf_device(xe);
+	if (err)
+		return err;
+
 	return 0;
+}
+
+/**
+ * xe_sriov_pf_sysfs_link_vfs() - Add VF's links in SR-IOV sysfs tree.
+ * @xe: the &xe_device where to update sysfs
+ * @num_vfs: number of enabled VFs to link
+ *
+ * This function is specific for the PF driver.
+ *
+ * This function will add symbolic links between VFs represented in the SR-IOV
+ * sysfs tree maintained by the PF and enabled VF PCI devices.
+ *
+ * The @xe_sriov_pf_sysfs_unlink_vfs() shall be used to remove those links.
+ */
+void xe_sriov_pf_sysfs_link_vfs(struct xe_device *xe, unsigned int num_vfs)
+{
+	unsigned int totalvfs = xe_sriov_pf_get_totalvfs(xe);
+	struct pci_dev *pf_pdev = to_pci_dev(xe->drm.dev);
+	struct pci_dev *vf_pdev = NULL;
+	unsigned int n;
+	int err;
+
+	xe_assert(xe, IS_SRIOV_PF(xe));
+	xe_assert(xe, num_vfs <= totalvfs);
+
+	for (n = 1; n <= num_vfs; n++) {
+		vf_pdev = xe_pci_sriov_get_vf_pdev(pf_pdev, VFID(n));
+		if (!vf_pdev)
+			return pf_sysfs_note(xe, -ENOENT, "VF link");
+
+		err = sysfs_create_link(xe->sriov.pf.vfs[VFID(n)].kobj,
+					&vf_pdev->dev.kobj, "device");
+
+		/* must balance xe_pci_sriov_get_vf_pdev() */
+		pci_dev_put(vf_pdev);
+
+		if (err)
+			return pf_sysfs_note(xe, err, "VF link");
+	}
+}
+
+/**
+ * xe_sriov_pf_sysfs_unlink_vfs() - Remove VF's links from SR-IOV sysfs tree.
+ * @xe: the &xe_device where to update sysfs
+ * @num_vfs: number of VFs to unlink
+ *
+ * This function shall be called only on the PF.
+ * This function will remove "device" links added by @xe_sriov_sysfs_link_vfs().
+ */
+void xe_sriov_pf_sysfs_unlink_vfs(struct xe_device *xe, unsigned int num_vfs)
+{
+	unsigned int n;
+
+	xe_assert(xe, IS_SRIOV_PF(xe));
+	xe_assert(xe, num_vfs <= xe_sriov_pf_get_totalvfs(xe));
+
+	for (n = 1; n <= num_vfs; n++)
+		sysfs_remove_link(xe->sriov.pf.vfs[VFID(n)].kobj, "device");
 }
