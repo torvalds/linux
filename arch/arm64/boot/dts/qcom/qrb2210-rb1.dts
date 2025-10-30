@@ -7,7 +7,7 @@
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/leds/common.h>
-#include "qcm2290.dtsi"
+#include "agatti.dtsi"
 #include "pm4125.dtsi"
 
 / {
