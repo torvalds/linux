@@ -41,6 +41,7 @@ struct intel_cdclk_vals;
 struct intel_color_funcs;
 struct intel_crtc;
 struct intel_crtc_state;
+struct intel_display_parent_interface;
 struct intel_dmc;
 struct intel_dpll_global_funcs;
 struct intel_dpll_mgr;
@@ -290,6 +291,9 @@ struct intel_display {
 
 	/* Intel PCH: where the south display engine lives */
 	enum intel_pch pch_type;
+
+	/* Parent, or core, driver functions exposed to display */
+	const struct intel_display_parent_interface *parent;
 
 	/* Display functions */
 	struct {

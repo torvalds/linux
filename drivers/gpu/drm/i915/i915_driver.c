@@ -47,6 +47,7 @@
 #include <drm/drm_managed.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/intel/display_member.h>
+#include <drm/intel/display_parent_interface.h>
 
 #include "display/i9xx_display_sr.h"
 #include "display/intel_bw.h"
@@ -738,6 +739,14 @@ static void i915_welcome_messages(struct drm_i915_private *dev_priv)
 			 "DRM_I915_DEBUG_RUNTIME_PM enabled\n");
 }
 
+static const struct intel_display_parent_interface parent = {
+};
+
+const struct intel_display_parent_interface *i915_driver_parent_interface(void)
+{
+	return &parent;
+}
+
 /* Ensure drm and display members are placed properly. */
 INTEL_DISPLAY_MEMBER_STATIC_ASSERT(struct drm_i915_private, drm, display);
 
@@ -762,7 +771,7 @@ i915_driver_create(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* Set up device info and initial runtime info. */
 	intel_device_info_driver_create(i915, pdev->device, match_info);
 
-	display = intel_display_device_probe(pdev);
+	display = intel_display_device_probe(pdev, &parent);
 	if (IS_ERR(display))
 		return ERR_CAST(display);
 

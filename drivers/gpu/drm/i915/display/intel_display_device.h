@@ -13,6 +13,7 @@
 
 struct drm_printer;
 struct intel_display;
+struct intel_display_parent_interface;
 struct pci_dev;
 
 /*
@@ -313,7 +314,8 @@ struct intel_display_device_info {
 
 bool intel_display_device_present(struct intel_display *display);
 bool intel_display_device_enabled(struct intel_display *display);
-struct intel_display *intel_display_device_probe(struct pci_dev *pdev);
+struct intel_display *intel_display_device_probe(struct pci_dev *pdev,
+						 const struct intel_display_parent_interface *parent);
 void intel_display_device_remove(struct intel_display *display);
 void intel_display_device_info_runtime_init(struct intel_display *display);
 
