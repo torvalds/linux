@@ -2397,7 +2397,7 @@ static bool acpi_scan_clear_dep_queue(struct acpi_device *adev)
 	 * initial enumeration of devices is complete, put it into the unbound
 	 * workqueue.
 	 */
-	queue_work(system_unbound_wq, &cdw->work);
+	queue_work(system_dfl_wq, &cdw->work);
 
 	return true;
 }
