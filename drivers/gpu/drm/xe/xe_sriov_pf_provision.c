@@ -154,6 +154,34 @@ int xe_sriov_pf_provision_set_mode(struct xe_device *xe, enum xe_sriov_provision
 }
 
 /**
+ * xe_sriov_pf_provision_bulk_apply_eq() - Change execution quantum for all VFs and PF.
+ * @xe: the PF &xe_device
+ * @eq: execution quantum in [ms] to set
+ *
+ * Change execution quantum (EQ) provisioning on all tiles/GTs.
+ *
+ * This function can only be called on PF.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_sriov_pf_provision_bulk_apply_eq(struct xe_device *xe, u32 eq)
+{
+	struct xe_gt *gt;
+	unsigned int id;
+	int result = 0;
+	int err;
+
+	guard(mutex)(xe_sriov_pf_master_mutex(xe));
+
+	for_each_gt(gt, xe, id) {
+		err = xe_gt_sriov_pf_config_bulk_set_exec_quantum_locked(gt, eq);
+		result = result ?: err;
+	}
+
+	return result;
+}
+
+/**
  * xe_sriov_pf_provision_apply_vf_eq() - Change VF's execution quantum.
  * @xe: the PF &xe_device
  * @vfid: the VF identifier
@@ -224,6 +252,34 @@ int xe_sriov_pf_provision_query_vf_eq(struct xe_device *xe, unsigned int vfid, u
 	}
 
 	return !count ? -ENODATA : 0;
+}
+
+/**
+ * xe_sriov_pf_provision_bulk_apply_pt() - Change preemption timeout for all VFs and PF.
+ * @xe: the PF &xe_device
+ * @pt: preemption timeout in [us] to set
+ *
+ * Change preemption timeout (PT) provisioning on all tiles/GTs.
+ *
+ * This function can only be called on PF.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_sriov_pf_provision_bulk_apply_pt(struct xe_device *xe, u32 pt)
+{
+	struct xe_gt *gt;
+	unsigned int id;
+	int result = 0;
+	int err;
+
+	guard(mutex)(xe_sriov_pf_master_mutex(xe));
+
+	for_each_gt(gt, xe, id) {
+		err = xe_gt_sriov_pf_config_bulk_set_preempt_timeout_locked(gt, pt);
+		result = result ?: err;
+	}
+
+	return result;
 }
 
 /**
