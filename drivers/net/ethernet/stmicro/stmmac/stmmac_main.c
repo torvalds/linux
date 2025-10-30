@@ -7445,7 +7445,7 @@ static int stmmac_dl_ts_coarse_get(struct devlink *dl, u32 id,
 }
 
 static const struct devlink_param stmmac_devlink_params[] = {
-	DEVLINK_PARAM_DRIVER(STMMAC_DEVLINK_PARAM_ID_TS_COARSE, "ts_coarse",
+	DEVLINK_PARAM_DRIVER(STMMAC_DEVLINK_PARAM_ID_TS_COARSE, "phc_coarse_adj",
 			     DEVLINK_PARAM_TYPE_BOOL,
 			     BIT(DEVLINK_PARAM_CMODE_RUNTIME),
 			     stmmac_dl_ts_coarse_get,
