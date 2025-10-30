@@ -16,6 +16,8 @@
 #define INT3400_ODVP_CHANGED 0x88
 #define INT3400_KEEP_ALIVE 0xA0
 #define INT3400_FAKE_TEMP (20 * 1000) /* faked temp sensor with 20C */
+/* UUID prefix length for comparison - sufficient for all UUIDs */
+#define INT3400_UUID_PREFIX_LEN 7
 
 enum int3400_thermal_uuid {
 	INT3400_THERMAL_ACTIVE = 0,
@@ -199,7 +201,7 @@ static ssize_t current_uuid_store(struct device *dev,
 
 	for (i = 0; i < INT3400_THERMAL_MAXIMUM_UUID; ++i) {
 		if (!strncmp(buf, int3400_thermal_uuids[i],
-			     sizeof(int3400_thermal_uuids[i]) - 1)) {
+			     INT3400_UUID_PREFIX_LEN)) {
 			/*
 			 * If we have a list of supported UUIDs, make sure
 			 * this one is supported.
