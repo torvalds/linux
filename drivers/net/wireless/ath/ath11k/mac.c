@@ -10640,7 +10640,7 @@ static int __ath11k_mac_register(struct ath11k *ar)
 	if (!ab->hw_params.supports_monitor)
 		/* There's a race between calling ieee80211_register_hw()
 		 * and here where the monitor mode is enabled for a little
-		 * while. But that time is so short and in practise it make
+		 * while. But that time is so short and in practice it doesn't make
 		 * a difference in real life.
 		 */
 		ar->hw->wiphy->interface_modes &= ~BIT(NL80211_IFTYPE_MONITOR);
