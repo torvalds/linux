@@ -1732,47 +1732,79 @@ static int pf_get_exec_quantum(struct xe_gt *gt, unsigned int vfid)
 }
 
 /**
- * xe_gt_sriov_pf_config_set_exec_quantum - Configure execution quantum for the VF.
+ * xe_gt_sriov_pf_config_set_exec_quantum_locked() - Configure PF/VF execution quantum.
  * @gt: the &xe_gt
- * @vfid: the VF identifier
+ * @vfid: the PF or VF identifier
+ * @exec_quantum: requested execution quantum in milliseconds (0 is infinity)
+ *
+ * This function can only be called on PF with the master mutex hold.
+ * It will log the provisioned value or an error in case of the failure.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_gt_sriov_pf_config_set_exec_quantum_locked(struct xe_gt *gt, unsigned int vfid,
+						  u32 exec_quantum)
+{
+	int err;
+
+	lockdep_assert_held(xe_gt_sriov_pf_master_mutex(gt));
+
+	err = pf_provision_exec_quantum(gt, vfid, exec_quantum);
+
+	return pf_config_set_u32_done(gt, vfid, exec_quantum,
+				      pf_get_exec_quantum(gt, vfid),
+				      "execution quantum", exec_quantum_unit, err);
+}
+
+/**
+ * xe_gt_sriov_pf_config_set_exec_quantum() - Configure PF/VF execution quantum.
+ * @gt: the &xe_gt
+ * @vfid: the PF or VF identifier
  * @exec_quantum: requested execution quantum in milliseconds (0 is infinity)
  *
  * This function can only be called on PF.
+ * It will log the provisioned value or an error in case of the failure.
  *
  * Return: 0 on success or a negative error code on failure.
  */
 int xe_gt_sriov_pf_config_set_exec_quantum(struct xe_gt *gt, unsigned int vfid,
 					   u32 exec_quantum)
 {
-	int err;
+	guard(mutex)(xe_gt_sriov_pf_master_mutex(gt));
 
-	mutex_lock(xe_gt_sriov_pf_master_mutex(gt));
-	err = pf_provision_exec_quantum(gt, vfid, exec_quantum);
-	mutex_unlock(xe_gt_sriov_pf_master_mutex(gt));
-
-	return pf_config_set_u32_done(gt, vfid, exec_quantum,
-				      xe_gt_sriov_pf_config_get_exec_quantum(gt, vfid),
-				      "execution quantum", exec_quantum_unit, err);
+	return xe_gt_sriov_pf_config_set_exec_quantum_locked(gt, vfid, exec_quantum);
 }
 
 /**
- * xe_gt_sriov_pf_config_get_exec_quantum - Get VF's execution quantum.
+ * xe_gt_sriov_pf_config_get_exec_quantum_locked() - Get PF/VF execution quantum.
  * @gt: the &xe_gt
- * @vfid: the VF identifier
+ * @vfid: the PF or VF identifier
+ *
+ * This function can only be called on PF with the master mutex hold.
+ *
+ * Return: execution quantum in milliseconds (or 0 if infinity).
+ */
+u32 xe_gt_sriov_pf_config_get_exec_quantum_locked(struct xe_gt *gt, unsigned int vfid)
+{
+	lockdep_assert_held(xe_gt_sriov_pf_master_mutex(gt));
+
+	return pf_get_exec_quantum(gt, vfid);
+}
+
+/**
+ * xe_gt_sriov_pf_config_get_exec_quantum() - Get PF/VF execution quantum.
+ * @gt: the &xe_gt
+ * @vfid: the PF or VF identifier
  *
  * This function can only be called on PF.
  *
- * Return: VF's (or PF's) execution quantum in milliseconds.
+ * Return: execution quantum in milliseconds (or 0 if infinity).
  */
 u32 xe_gt_sriov_pf_config_get_exec_quantum(struct xe_gt *gt, unsigned int vfid)
 {
-	u32 exec_quantum;
+	guard(mutex)(xe_gt_sriov_pf_master_mutex(gt));
 
-	mutex_lock(xe_gt_sriov_pf_master_mutex(gt));
-	exec_quantum = pf_get_exec_quantum(gt, vfid);
-	mutex_unlock(xe_gt_sriov_pf_master_mutex(gt));
-
-	return exec_quantum;
+	return pf_get_exec_quantum(gt, vfid);
 }
 
 static const char *preempt_timeout_unit(u32 preempt_timeout)
