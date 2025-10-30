@@ -33,6 +33,17 @@
 #define COL_DET_ENABLE			BIT(15)
 #define COL_DET_DISABLE			0x0000
 
+/* LAN8670/1/2 Rev.D0 Link Status Selection Register */
+#define LAN867X_REG_LINK_STATUS_CTRL	0x0012
+#define LINK_STATUS_CONFIGURATION	GENMASK(12, 11)
+#define LINK_STATUS_SEMAPHORE		BIT(0)
+
+/* Link Status Configuration */
+#define LINK_STATUS_CONFIG_PLCA_STATUS	0x1
+#define LINK_STATUS_CONFIG_SEMAPHORE	0x2
+
+#define LINK_STATUS_SEMAPHORE_SET	0x1
+
 #define LAN865X_CFGPARAM_READ_ENABLE BIT(1)
 
 /* The arrays below are pulled from the following table from AN1699
@@ -393,6 +404,32 @@ static int lan867x_revb1_config_init(struct phy_device *phydev)
 	return 0;
 }
 
+static int lan867x_revd0_link_active_selection(struct phy_device *phydev,
+					       bool plca_enabled)
+{
+	u16 value;
+
+	if (plca_enabled) {
+		/* 0x1 - When PLCA is enabled: link status reflects plca_status.
+		 */
+		value = FIELD_PREP(LINK_STATUS_CONFIGURATION,
+				   LINK_STATUS_CONFIG_PLCA_STATUS);
+	} else {
+		/* 0x2 - Link status is controlled by the value written into the
+		 * LINK_STATUS_SEMAPHORE bit written. Here the link semaphore
+		 * bit is written with 0x1 to set the link always active in
+		 * CSMA/CD mode as it doesn't support autoneg.
+		 */
+		value = FIELD_PREP(LINK_STATUS_CONFIGURATION,
+				   LINK_STATUS_CONFIG_SEMAPHORE) |
+			FIELD_PREP(LINK_STATUS_SEMAPHORE,
+				   LINK_STATUS_SEMAPHORE_SET);
+	}
+
+	return phy_write_mmd(phydev, MDIO_MMD_VEND2,
+			     LAN867X_REG_LINK_STATUS_CTRL, value);
+}
+
 /* As per LAN8650/1 Rev.B0/B1 AN1760 (Revision F (DS60001760G - June 2024)) and
  * LAN8670/1/2 Rev.C1/C2 AN1699 (Revision E (DS60001699F - June 2024)), under
  * normal operation, the device should be operated in PLCA mode. Disabling
@@ -408,6 +445,14 @@ static int lan86xx_plca_set_cfg(struct phy_device *phydev,
 				const struct phy_plca_cfg *plca_cfg)
 {
 	int ret;
+
+	/* Link status selection must be configured for LAN8670/1/2 Rev.D0 */
+	if (phydev->phy_id == PHY_ID_LAN867X_REVD0) {
+		ret = lan867x_revd0_link_active_selection(phydev,
+							  plca_cfg->enabled);
+		if (ret)
+			return ret;
+	}
 
 	ret = genphy_c45_plca_set_cfg(phydev, plca_cfg);
 	if (ret)
@@ -439,7 +484,11 @@ static int lan867x_revd0_config_init(struct phy_device *phydev)
 			return ret;
 	}
 
-	return 0;
+	/* Initially the PHY will be in CSMA/CD mode by default. So it is
+	 * required to set the link always active as it doesn't support
+	 * autoneg.
+	 */
+	return lan867x_revd0_link_active_selection(phydev, false);
 }
 
 static int lan86xx_read_status(struct phy_device *phydev)
