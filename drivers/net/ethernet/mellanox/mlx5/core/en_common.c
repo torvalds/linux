@@ -282,5 +282,8 @@ int mlx5e_modify_tirs_lb(struct mlx5_core_dev *mdev, bool enable_uc_lb,
 int mlx5e_refresh_tirs(struct mlx5_core_dev *mdev, bool enable_uc_lb,
 		       bool enable_mc_lb)
 {
+	if (MLX5_CAP_GEN(mdev, tis_tir_td_order))
+		return 0; /* refresh not needed */
+
 	return mlx5e_modify_tirs_lb(mdev, enable_uc_lb, enable_mc_lb);
 }
