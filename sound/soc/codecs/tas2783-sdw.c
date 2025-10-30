@@ -762,10 +762,17 @@ static void tas2783_fw_ready(const struct firmware *fmw, void *context)
 		goto out;
 	}
 
-	mutex_lock(&tas_dev->pde_lock);
 	img_sz = fmw->size;
 	buf = fmw->data;
 	offset += FW_DL_OFFSET;
+	if (offset >= (img_sz - FW_FL_HDR)) {
+		dev_err(tas_dev->dev,
+			"firmware is too small");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	mutex_lock(&tas_dev->pde_lock);
 	while (offset < (img_sz - FW_FL_HDR)) {
 		memset(&hdr, 0, sizeof(hdr));
 		offset += read_header(&buf[offset], &hdr);
@@ -775,6 +782,14 @@ static void tas2783_fw_ready(const struct firmware *fmw, void *context)
 			hdr.length, offset);
 		/* size also includes the header */
 		file_blk_size = hdr.length - FW_FL_HDR;
+
+		/* make sure that enough data is there */
+		if (offset + file_blk_size > img_sz) {
+			ret = -EINVAL;
+			dev_err(tas_dev->dev,
+				"corrupt firmware file");
+			break;
+		}
 
 		switch (hdr.file_id) {
 		case 0:
@@ -808,7 +823,8 @@ static void tas2783_fw_ready(const struct firmware *fmw, void *context)
 			break;
 	}
 	mutex_unlock(&tas_dev->pde_lock);
-	tas2783_update_calibdata(tas_dev);
+	if (!ret)
+		tas2783_update_calibdata(tas_dev);
 
 out:
 	if (!ret)
