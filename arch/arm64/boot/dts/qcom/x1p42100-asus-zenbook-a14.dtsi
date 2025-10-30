@@ -6,7 +6,7 @@
 
 /dts-v1/;
 
-#include "x1p42100.dtsi"
+#include "purwa.dtsi"
 #include "x1-asus-zenbook-a14.dtsi"
 
 /delete-node/ &pmc8380_6;

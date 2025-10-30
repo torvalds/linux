@@ -5,7 +5,7 @@
 
 /dts-v1/;
 
-#include "x1p42100.dtsi"
+#include "purwa.dtsi"
 #include "x1-crd.dtsi"
 
 /delete-node/ &pmc8380_6;
