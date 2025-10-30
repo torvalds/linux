@@ -493,7 +493,8 @@ static int imx335_update_controls(struct imx335 *imx335,
 	if (ret)
 		return ret;
 
-	ret = __v4l2_ctrl_s_ctrl(imx335->hblank_ctrl, mode->hblank);
+	ret = __v4l2_ctrl_modify_range(imx335->hblank_ctrl, mode->hblank,
+				       mode->hblank, 1, mode->hblank);
 	if (ret)
 		return ret;
 
