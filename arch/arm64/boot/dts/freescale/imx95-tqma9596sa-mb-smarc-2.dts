@@ -39,6 +39,8 @@
 		serial5 = &lpuart6;
 		serial6 = &lpuart7;
 		serial7 = &lpuart8;
+		spi0 = &flexspi1;
+		spi1 = &lpspi3;
 	};
 
 	chosen {
