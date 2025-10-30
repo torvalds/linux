@@ -1012,13 +1012,19 @@ static int imx335_set_framefmt(struct imx335 *imx335)
 }
 
 /**
- * imx335_start_streaming() - Start sensor stream
- * @imx335: pointer to imx335 device
+ * imx335_enable_streams() - Enable sensor streams
+ * @sd: V4L2 subdevice
+ * @state: V4L2 subdevice state
+ * @pad: The pad to enable
+ * @streams_mask: Bitmask of streams to enable
  *
  * Return: 0 if successful, error code otherwise.
  */
-static int imx335_start_streaming(struct imx335 *imx335)
+static int imx335_enable_streams(struct v4l2_subdev *sd,
+				 struct v4l2_subdev_state *state, u32 pad,
+				 u64 streams_mask)
 {
+	struct imx335 *imx335 = to_imx335(sd);
 	const struct imx335_reg_list *reg_list;
 	int ret;
 
@@ -1092,37 +1098,24 @@ err_rpm_put:
 }
 
 /**
- * imx335_stop_streaming() - Stop sensor stream
- * @imx335: pointer to imx335 device
- */
-static void imx335_stop_streaming(struct imx335 *imx335)
-{
-	cci_write(imx335->cci, IMX335_REG_MODE_SELECT,
-		  IMX335_MODE_STANDBY, NULL);
-	pm_runtime_put(imx335->dev);
-}
-
-/**
- * imx335_set_stream() - Enable sensor streaming
- * @sd: pointer to imx335 subdevice
- * @enable: set to enable sensor streaming
+ * imx335_disable_streams() - Disable sensor streams
+ * @sd: V4L2 subdevice
+ * @state: V4L2 subdevice state
+ * @pad: The pad to disable
+ * @streams_mask: Bitmask of streams to disable
  *
  * Return: 0 if successful, error code otherwise.
  */
-static int imx335_set_stream(struct v4l2_subdev *sd, int enable)
+static int imx335_disable_streams(struct v4l2_subdev *sd,
+				  struct v4l2_subdev_state *state, u32 pad,
+				  u64 streams_mask)
 {
 	struct imx335 *imx335 = to_imx335(sd);
-	struct v4l2_subdev_state *state;
-	int ret = 0;
+	int ret;
 
-	state = v4l2_subdev_lock_and_get_active_state(sd);
-
-	if (enable)
-		ret = imx335_start_streaming(imx335);
-	else
-		imx335_stop_streaming(imx335);
-
-	v4l2_subdev_unlock_state(state);
+	ret = cci_write(imx335->cci, IMX335_REG_MODE_SELECT,
+			IMX335_MODE_STANDBY, NULL);
+	pm_runtime_put(imx335->dev);
 
 	return ret;
 }
@@ -1242,7 +1235,7 @@ done_endpoint_free:
 
 /* V4l2 subdevice ops */
 static const struct v4l2_subdev_video_ops imx335_video_ops = {
-	.s_stream = imx335_set_stream,
+	.s_stream = v4l2_subdev_s_stream_helper,
 };
 
 static const struct v4l2_subdev_pad_ops imx335_pad_ops = {
@@ -1252,6 +1245,8 @@ static const struct v4l2_subdev_pad_ops imx335_pad_ops = {
 	.set_selection = imx335_get_selection,
 	.get_fmt = v4l2_subdev_get_fmt,
 	.set_fmt = imx335_set_pad_format,
+	.enable_streams = imx335_enable_streams,
+	.disable_streams = imx335_disable_streams,
 };
 
 static const struct v4l2_subdev_ops imx335_subdev_ops = {
