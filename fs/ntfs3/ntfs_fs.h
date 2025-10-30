@@ -777,7 +777,7 @@ bool mi_remove_attr(struct ntfs_inode *ni, struct mft_inode *mi,
 		    struct ATTRIB *attr);
 bool mi_resize_attr(struct mft_inode *mi, struct ATTRIB *attr, int bytes);
 int mi_pack_runs(struct mft_inode *mi, struct ATTRIB *attr,
-		 struct runs_tree *run, CLST len);
+		 const struct runs_tree *run, CLST len);
 static inline bool mi_is_ref(const struct mft_inode *mi,
 			     const struct MFT_REF *ref)
 {
@@ -812,7 +812,7 @@ void run_truncate_head(struct runs_tree *run, CLST vcn);
 void run_truncate_around(struct runs_tree *run, CLST vcn);
 bool run_add_entry(struct runs_tree *run, CLST vcn, CLST lcn, CLST len,
 		   bool is_mft);
-bool run_collapse_range(struct runs_tree *run, CLST vcn, CLST len);
+bool run_collapse_range(struct runs_tree *run, CLST vcn, CLST len, CLST sub);
 bool run_insert_range(struct runs_tree *run, CLST vcn, CLST len);
 bool run_get_entry(const struct runs_tree *run, size_t index, CLST *vcn,
 		   CLST *lcn, CLST *len);

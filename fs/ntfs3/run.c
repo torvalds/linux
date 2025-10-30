@@ -487,7 +487,7 @@ requires_new_range:
  * Helper for attr_collapse_range(),
  * which is helper for fallocate(collapse_range).
  */
-bool run_collapse_range(struct runs_tree *run, CLST vcn, CLST len)
+bool run_collapse_range(struct runs_tree *run, CLST vcn, CLST len, CLST sub)
 {
 	size_t index, eat;
 	struct ntfs_run *r, *e, *eat_start, *eat_end;
@@ -511,7 +511,7 @@ bool run_collapse_range(struct runs_tree *run, CLST vcn, CLST len)
 			/* Collapse a middle part of normal run, split. */
 			if (!run_add_entry(run, vcn, SPARSE_LCN, len, false))
 				return false;
-			return run_collapse_range(run, vcn, len);
+			return run_collapse_range(run, vcn, len, sub);
 		}
 
 		r += 1;
@@ -544,6 +544,13 @@ bool run_collapse_range(struct runs_tree *run, CLST vcn, CLST len)
 	eat = eat_end - eat_start;
 	memmove(eat_start, eat_end, (e - eat_end) * sizeof(*r));
 	run->count -= eat;
+
+	if (sub) {
+		e -= eat;
+		for (r = run->runs; r < e; r++) {
+			r->vcn -= sub;
+		}
+	}
 
 	return true;
 }
