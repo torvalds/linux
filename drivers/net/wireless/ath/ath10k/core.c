@@ -1186,7 +1186,7 @@ static int ath10k_download_fw(struct ath10k *ar)
 	u32 address, data_len;
 	const void *data;
 	int ret;
-	struct pm_qos_request latency_qos;
+	struct pm_qos_request latency_qos = {};
 
 	address = ar->hw_params.patch_load_addr;
 
@@ -1220,7 +1220,6 @@ static int ath10k_download_fw(struct ath10k *ar)
 			    ret);
 	}
 
-	memset(&latency_qos, 0, sizeof(latency_qos));
 	cpu_latency_qos_add_request(&latency_qos, 0);
 
 	ret = ath10k_bmi_fast_download(ar, address, data, data_len);
