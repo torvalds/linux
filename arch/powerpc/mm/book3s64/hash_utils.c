@@ -952,7 +952,7 @@ static int __init htab_dt_scan_hugepage_blocks(unsigned long node,
 	block_size = be64_to_cpu(addr_prop[1]);
 	if (block_size != (16 * GB))
 		return 0;
-	printk(KERN_INFO "Huge page(16GB) memory: "
+	pr_info("Huge page(16GB) memory: "
 			"addr = 0x%lX size = 0x%lX pages = %d\n",
 			phys_addr, block_size, expected_pages);
 	if (phys_addr + block_size * expected_pages <= memblock_end_of_DRAM()) {
@@ -1135,7 +1135,7 @@ static void __init htab_init_page_sizes(void)
 		mmu_vmemmap_psize = mmu_virtual_psize;
 #endif /* CONFIG_SPARSEMEM_VMEMMAP */
 
-	printk(KERN_DEBUG "Page orders: linear mapping = %d, "
+	pr_info("Page orders: linear mapping = %d, "
 	       "virtual = %d, io = %d"
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
 	       ", vmemmap = %d"
@@ -1313,7 +1313,7 @@ static void __init htab_initialize(void)
 	if (mmu_has_feature(MMU_FTR_1T_SEGMENT)) {
 		mmu_kernel_ssize = MMU_SEGSIZE_1T;
 		mmu_highuser_ssize = MMU_SEGSIZE_1T;
-		printk(KERN_INFO "Using 1TB segments\n");
+		pr_info("Using 1TB segments\n");
 	}
 
 	if (stress_slb_enabled)
@@ -1869,7 +1869,7 @@ int hash_page_mm(struct mm_struct *mm, unsigned long ea,
 			 * in vmalloc space, so switch vmalloc
 			 * to 4k pages
 			 */
-			printk(KERN_ALERT "Reducing vmalloc segment "
+			pr_alert("Reducing vmalloc segment "
 			       "to 4kB pages because of "
 			       "non-cacheable mapping\n");
 			psize = mmu_vmalloc_psize = MMU_PAGE_4K;
