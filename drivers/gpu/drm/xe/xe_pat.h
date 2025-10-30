@@ -29,6 +29,11 @@ struct xe_pat_table_entry {
 #define XE_COH_NONE          1
 #define XE_COH_AT_LEAST_1WAY 2
 	u16 coh_mode;
+
+	/**
+	 * @valid: Set to 1 if the entry is valid, 0 if it's reserved.
+	 */
+	u16 valid;
 };
 
 /**
