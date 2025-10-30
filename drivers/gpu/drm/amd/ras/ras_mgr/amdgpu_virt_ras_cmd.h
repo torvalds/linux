@@ -30,8 +30,17 @@ struct remote_batch_trace_mgr {
 	struct ras_cmd_batch_trace_record_rsp  batch_trace;
 };
 
+struct vram_blocks_ecc {
+	struct amdgpu_bo *bo;
+	uint64_t mc_addr;
+	void *cpu_addr;
+	uint32_t size;
+	bool auto_update_actived;
+};
+
 struct amdgpu_virt_ras_cmd {
 	struct remote_batch_trace_mgr batch_mgr;
+	struct vram_blocks_ecc blocks_ecc;
 };
 
 int amdgpu_virt_ras_sw_init(struct amdgpu_device *adev);

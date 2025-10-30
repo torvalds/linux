@@ -235,9 +235,90 @@ static int amdgpu_virt_ras_get_cper_records(struct ras_core_context *ras_core,
 	return RAS_CMD__SUCCESS;
 }
 
+static int __fill_get_blocks_ecc_cmd(struct amdgpu_device *adev,
+			struct vram_blocks_ecc *blks_ecc)
+{
+	struct ras_cmd_ctx *rcmd;
+
+	if (!blks_ecc || !blks_ecc->bo || !blks_ecc->cpu_addr)
+		return -EINVAL;
+
+	rcmd = (struct ras_cmd_ctx *)blks_ecc->cpu_addr;
+
+	rcmd->cmd_id = RAS_CMD__GET_ALL_BLOCK_ECC_STATUS;
+	rcmd->input_size = sizeof(struct ras_cmd_blocks_ecc_req);
+	rcmd->output_buf_size = blks_ecc->size - sizeof(*rcmd);
+
+	return 0;
+}
+
+static int __set_cmd_auto_update(struct amdgpu_device *adev,
+			enum ras_cmd_id cmd_id, uint64_t gpa_addr, uint32_t len, bool reg)
+{
+	struct ras_cmd_auto_update_req req = {0};
+	struct ras_cmd_auto_update_rsp rsp = {0};
+	int ret;
+
+	req.mode = reg ? 1 : 0;
+	req.cmd_id = cmd_id;
+	req.addr = gpa_addr;
+	req.len = len;
+	ret = amdgpu_ras_mgr_handle_ras_cmd(adev, RAS_CMD__SET_CMD_AUTO_UPDATE,
+		&req, sizeof(req), &rsp, sizeof(rsp));
+
+	return ret;
+}
+
+static int amdgpu_virt_ras_get_block_ecc(struct ras_core_context *ras_core,
+				struct ras_cmd_ctx *cmd, void *data)
+{
+	struct amdgpu_device *adev = ras_core->dev;
+	struct amdgpu_ras_mgr *ras_mgr = amdgpu_ras_mgr_get_context(adev);
+	struct amdgpu_virt_ras_cmd *virt_ras =
+			(struct amdgpu_virt_ras_cmd *)ras_mgr->virt_ras_cmd;
+	struct vram_blocks_ecc *blks_ecc = &virt_ras->blocks_ecc;
+	struct ras_cmd_ctx *blks_ecc_cmd_ctx;
+	struct ras_cmd_blocks_ecc_rsp *blks_ecc_rsp;
+	struct ras_cmd_block_ecc_info_req *input_data =
+			(struct ras_cmd_block_ecc_info_req *)cmd->input_buff_raw;
+	struct ras_cmd_block_ecc_info_rsp *output_data =
+			(struct ras_cmd_block_ecc_info_rsp *)cmd->output_buff_raw;
+	int ret = 0;
+
+	if (cmd->input_size != sizeof(struct ras_cmd_block_ecc_info_req))
+		return RAS_CMD__ERROR_INVALID_INPUT_SIZE;
+
+	if (input_data->block_id >= MAX_RAS_BLOCK_NUM)
+		return RAS_CMD__ERROR_INVALID_INPUT_DATA;
+
+	if (__fill_get_blocks_ecc_cmd(adev, blks_ecc))
+		return RAS_CMD__ERROR_GENERIC;
+
+	if (!virt_ras->blocks_ecc.auto_update_actived) {
+		ret = __set_cmd_auto_update(adev, RAS_CMD__GET_ALL_BLOCK_ECC_STATUS,
+				blks_ecc->mc_addr - adev->gmc.vram_start,
+				blks_ecc->size, true);
+		if (ret)
+			return ret;
+
+		blks_ecc->auto_update_actived = true;
+	}
+
+	blks_ecc_cmd_ctx = blks_ecc->cpu_addr;
+	blks_ecc_rsp = (struct ras_cmd_blocks_ecc_rsp *)blks_ecc_cmd_ctx->output_buff_raw;
+
+	output_data->ce_count = blks_ecc_rsp->blocks[input_data->block_id].ce_count;
+	output_data->ue_count = blks_ecc_rsp->blocks[input_data->block_id].ue_count;
+	output_data->de_count = blks_ecc_rsp->blocks[input_data->block_id].de_count;
+
+	cmd->output_size = sizeof(struct ras_cmd_block_ecc_info_rsp);
+	return RAS_CMD__SUCCESS;
+}
+
 static struct ras_cmd_func_map amdgpu_virt_ras_cmd_maps[] = {
 	{RAS_CMD__GET_CPER_SNAPSHOT, amdgpu_virt_ras_get_cper_snapshot},
 	{RAS_CMD__GET_CPER_RECORD, amdgpu_virt_ras_get_cper_records},
+	{RAS_CMD__GET_BLOCK_ECC_STATUS, amdgpu_virt_ras_get_block_ecc},
 };
 
 int amdgpu_virt_ras_handle_cmd(struct ras_core_context *ras_core,
@@ -294,10 +375,41 @@ int amdgpu_virt_ras_sw_fini(struct amdgpu_device *adev)
 
 int amdgpu_virt_ras_hw_init(struct amdgpu_device *adev)
 {
+	struct amdgpu_ras_mgr *ras_mgr = amdgpu_ras_mgr_get_context(adev);
+	struct amdgpu_virt_ras_cmd *virt_ras =
+			(struct amdgpu_virt_ras_cmd *)ras_mgr->virt_ras_cmd;
+	struct vram_blocks_ecc *blks_ecc = &virt_ras->blocks_ecc;
+
+	memset(blks_ecc, 0, sizeof(*blks_ecc));
+	blks_ecc->size = PAGE_SIZE;
+	if (amdgpu_bo_create_kernel(adev, blks_ecc->size,
+			PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM,
+			&blks_ecc->bo, &blks_ecc->mc_addr,
+			(void **)&blks_ecc->cpu_addr))
+		return -ENOMEM;
+
 	return 0;
 }
 
 int amdgpu_virt_ras_hw_fini(struct amdgpu_device *adev)
 {
+	struct amdgpu_ras_mgr *ras_mgr = amdgpu_ras_mgr_get_context(adev);
+	struct amdgpu_virt_ras_cmd *virt_ras =
+			(struct amdgpu_virt_ras_cmd *)ras_mgr->virt_ras_cmd;
+	struct vram_blocks_ecc *blks_ecc = &virt_ras->blocks_ecc;
+
+	if (blks_ecc->bo) {
+		__set_cmd_auto_update(adev,
+			RAS_CMD__GET_ALL_BLOCK_ECC_STATUS,
+			blks_ecc->mc_addr - adev->gmc.vram_start,
+			blks_ecc->size, false);
+
+		memset(blks_ecc->cpu_addr, 0, blks_ecc->size);
+		amdgpu_bo_free_kernel(&blks_ecc->bo,
+			&blks_ecc->mc_addr, &blks_ecc->cpu_addr);
+
+		memset(blks_ecc, 0, sizeof(*blks_ecc));
+	}
+
 	return 0;
 }
