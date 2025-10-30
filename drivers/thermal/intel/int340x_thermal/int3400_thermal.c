@@ -114,7 +114,7 @@ static ssize_t available_uuids_show(struct device *dev,
 	int length = 0;
 
 	if (!priv->uuid_bitmap)
-		return sprintf(buf, "UNKNOWN\n");
+		return sysfs_emit(buf, "UNKNOWN\n");
 
 	for (i = 0; i < INT3400_THERMAL_MAXIMUM_UUID; i++) {
 		if (priv->uuid_bitmap & (1 << i))
@@ -131,7 +131,7 @@ static ssize_t current_uuid_show(struct device *dev,
 	int i, length = 0;
 
 	if (priv->current_uuid_index >= 0)
-		return sprintf(buf, "%s\n",
+		return sysfs_emit(buf, "%s\n",
 			       int3400_thermal_uuids[priv->current_uuid_index]);
 
 	for (i = 0; i <= INT3400_THERMAL_CRITICAL; i++) {
@@ -142,7 +142,7 @@ static ssize_t current_uuid_show(struct device *dev,
 	if (length)
 		return length;
 
-	return sprintf(buf, "INVALID\n");
+	return sysfs_emit(buf, "INVALID\n");
 }
 
 static int int3400_thermal_run_osc(acpi_handle handle, char *uuid_str, int *enable)
@@ -342,7 +342,7 @@ static ssize_t odvp_show(struct device *dev, struct device_attribute *attr,
 
 	odvp_attr = container_of(attr, struct odvp_attr, attr);
 
-	return sprintf(buf, "%d\n", odvp_attr->priv->odvp[odvp_attr->odvp]);
+	return sysfs_emit(buf, "%d\n", odvp_attr->priv->odvp[odvp_attr->odvp]);
 }
 
 static void cleanup_odvp(struct int3400_thermal_priv *priv)
