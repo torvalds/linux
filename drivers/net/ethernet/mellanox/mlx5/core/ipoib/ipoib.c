@@ -563,9 +563,9 @@ int mlx5i_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 	switch (cmd) {
 	case SIOCSHWTSTAMP:
-		return mlx5e_hwstamp_set(priv, ifr);
+		return mlx5e_hwtstamp_set(priv, ifr);
 	case SIOCGHWTSTAMP:
-		return mlx5e_hwstamp_get(priv, ifr);
+		return mlx5e_hwtstamp_get(priv, ifr);
 	default:
 		return -EOPNOTSUPP;
 	}

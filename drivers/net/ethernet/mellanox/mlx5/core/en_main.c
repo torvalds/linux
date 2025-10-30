@@ -4740,7 +4740,7 @@ static int mlx5e_hwstamp_config_ptp_rx(struct mlx5e_priv *priv, bool ptp_rx)
 					&new_params.ptp_rx, true);
 }
 
-int mlx5e_hwstamp_set(struct mlx5e_priv *priv, struct ifreq *ifr)
+int mlx5e_hwtstamp_set(struct mlx5e_priv *priv, struct ifreq *ifr)
 {
 	struct hwtstamp_config config;
 	bool rx_cqe_compress_def;
@@ -4818,7 +4818,7 @@ err_unlock:
 	return err;
 }
 
-int mlx5e_hwstamp_get(struct mlx5e_priv *priv, struct ifreq *ifr)
+int mlx5e_hwtstamp_get(struct mlx5e_priv *priv, struct ifreq *ifr)
 {
 	struct hwtstamp_config *cfg = &priv->tstamp;
 
@@ -4834,9 +4834,9 @@ static int mlx5e_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 	switch (cmd) {
 	case SIOCSHWTSTAMP:
-		return mlx5e_hwstamp_set(priv, ifr);
+		return mlx5e_hwtstamp_set(priv, ifr);
 	case SIOCGHWTSTAMP:
-		return mlx5e_hwstamp_get(priv, ifr);
+		return mlx5e_hwtstamp_get(priv, ifr);
 	default:
 		return -EOPNOTSUPP;
 	}
