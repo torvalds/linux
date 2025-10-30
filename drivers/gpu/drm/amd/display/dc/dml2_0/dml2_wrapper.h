@@ -312,5 +312,7 @@ bool dml2_validate_only(struct dc_state *context, enum dc_validate_mode validate
 bool dml2_validate_and_build_resource(const struct dc *in_dc, struct dc_state *context,
 		enum dc_validate_mode validate_mode);
 
+struct dml2_context *dml2_allocate_memory(void);
+
 #endif //_DML2_WRAPPER_H_
 

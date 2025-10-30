@@ -32,8 +32,9 @@
 #include "dml2_mall_phantom.h"
 #include "dml2_dc_resource_mgmt.h"
 #include "dml21_wrapper.h"
+#include "dml2_wrapper_fpu.h"
 
-static void initialize_dml2_ip_params(struct dml2_context *dml2, const struct dc *in_dc, struct ip_params_st *out)
+void initialize_dml2_ip_params(struct dml2_context *dml2, const struct dc *in_dc, struct ip_params_st *out)
 {
 	if (dml2->config.use_native_soc_bb_construction)
 		dml2_init_ip_params(dml2, in_dc, out);
@@ -41,7 +42,7 @@ static void initialize_dml2_ip_params(struct dml2_context *dml2, const struct dc
 		dml2_translate_ip_params(in_dc, out);
 }
 
-static void initialize_dml2_soc_bbox(struct dml2_context *dml2, const struct dc *in_dc, struct soc_bounding_box_st *out)
+void initialize_dml2_soc_bbox(struct dml2_context *dml2, const struct dc *in_dc, struct soc_bounding_box_st *out)
 {
 	if (dml2->config.use_native_soc_bb_construction)
 		dml2_init_socbb_params(dml2, in_dc, out);
@@ -49,7 +50,7 @@ static void initialize_dml2_soc_bbox(struct dml2_context *dml2, const struct dc 
 		dml2_translate_socbb_params(in_dc, out);
 }
 
-static void initialize_dml2_soc_states(struct dml2_context *dml2,
+void initialize_dml2_soc_states(struct dml2_context *dml2,
 	const struct dc *in_dc, const struct soc_bounding_box_st *in_bbox, struct soc_states_st *out)
 {
 	if (dml2->config.use_native_soc_bb_construction)
@@ -545,71 +546,9 @@ void dml2_apply_debug_options(const struct dc *dc, struct dml2_context *dml2)
 	}
 }
 
-static inline struct dml2_context *dml2_allocate_memory(void)
+inline struct dml2_context *dml2_allocate_memory(void)
 {
 	return (struct dml2_context *) vzalloc(sizeof(struct dml2_context));
-}
-
-static void dml2_init(const struct dc *in_dc, const struct dml2_configuration_options *config, struct dml2_context **dml2)
-{
-	if ((in_dc->debug.using_dml21) && (in_dc->ctx->dce_version >= DCN_VERSION_4_01)) {
-		dml21_reinit(in_dc, *dml2, config);
-		return;
-	}
-
-	// Store config options
-	(*dml2)->config = *config;
-
-	switch (in_dc->ctx->dce_version) {
-	case DCN_VERSION_3_5:
-		(*dml2)->v20.dml_core_ctx.project = dml_project_dcn35;
-		break;
-	case DCN_VERSION_3_51:
-		(*dml2)->v20.dml_core_ctx.project = dml_project_dcn351;
-		break;
-	case DCN_VERSION_3_6:
-		(*dml2)->v20.dml_core_ctx.project = dml_project_dcn36;
-		break;
-	case DCN_VERSION_3_2:
-		(*dml2)->v20.dml_core_ctx.project = dml_project_dcn32;
-		break;
-	case DCN_VERSION_3_21:
-		(*dml2)->v20.dml_core_ctx.project = dml_project_dcn321;
-		break;
-	case DCN_VERSION_4_01:
-		(*dml2)->v20.dml_core_ctx.project = dml_project_dcn401;
-		break;
-	default:
-		(*dml2)->v20.dml_core_ctx.project = dml_project_default;
-		break;
-	}
-
-	DC_FP_START();
-
-	initialize_dml2_ip_params(*dml2, in_dc, &(*dml2)->v20.dml_core_ctx.ip);
-
-	initialize_dml2_soc_bbox(*dml2, in_dc, &(*dml2)->v20.dml_core_ctx.soc);
-
-	initialize_dml2_soc_states(*dml2, in_dc, &(*dml2)->v20.dml_core_ctx.soc, &(*dml2)->v20.dml_core_ctx.states);
-
-	DC_FP_END();
-}
-
-bool dml2_create(const struct dc *in_dc, const struct dml2_configuration_options *config, struct dml2_context **dml2)
-{
-	// TODO : Temporarily add DCN_VERSION_3_2 for N-1 validation. Remove DCN_VERSION_3_2 after N-1 validation phase is complete.
-	if ((in_dc->debug.using_dml21) && (in_dc->ctx->dce_version >= DCN_VERSION_4_01))
-		return dml21_create(in_dc, dml2, config);
-
-	// Allocate Mode Lib Ctx
-	*dml2 = dml2_allocate_memory();
-
-	if (!(*dml2))
-		return false;
-
-	dml2_init(in_dc, config, dml2);
-
-	return true;
 }
 
 void dml2_destroy(struct dml2_context *dml2)
@@ -663,14 +602,3 @@ bool dml2_create_copy(struct dml2_context **dst_dml2,
 	return true;
 }
 
-void dml2_reinit(const struct dc *in_dc,
-				 const struct dml2_configuration_options *config,
-				 struct dml2_context **dml2)
-{
-	if ((in_dc->debug.using_dml21) && (in_dc->ctx->dce_version >= DCN_VERSION_4_01)) {
-		dml21_reinit(in_dc, *dml2, config);
-		return;
-	}
-
-	dml2_init(in_dc, config, dml2);
-}
