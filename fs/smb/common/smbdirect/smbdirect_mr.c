@@ -13,7 +13,6 @@
  * Recovery is done in smbd_mr_recovery_work. The content of list entry changes
  * as MRs are used and recovered for I/O, but the list links will not change
  */
-__SMBDIRECT_PRIVATE__
 int smbdirect_connection_create_mr_list(struct smbdirect_socket *sc)
 {
 	const struct smbdirect_socket_parameters *sp = &sc->parameters;
@@ -116,7 +115,6 @@ static void smbdirect_mr_io_free_locked(struct kref *kref)
 	kfree(mr);
 }
 
-__SMBDIRECT_PRIVATE__
 void smbdirect_connection_destroy_mr_list(struct smbdirect_socket *sc)
 {
 	struct smbdirect_mr_io *mr, *tmp;
@@ -263,7 +261,6 @@ static int smbdirect_iter_to_sgt(struct iov_iter *iter,
  * need_invalidate: true if this MR needs to be locally invalidated after I/O
  * return value: the MR registered, NULL if failed.
  */
-__SMBDIRECT_PUBLIC__
 struct smbdirect_mr_io *
 smbdirect_connection_register_mr_io(struct smbdirect_socket *sc,
 				    struct iov_iter *iter,
@@ -385,7 +382,6 @@ dma_map_error:
 }
 __SMBDIRECT_EXPORT_SYMBOL__(smbdirect_connection_register_mr_io);
 
-__SMBDIRECT_PUBLIC__
 void smbdirect_mr_io_fill_buffer_descriptor(struct smbdirect_mr_io *mr,
 					    struct smbdirect_buffer_descriptor_v1 *v1)
 {
@@ -409,7 +405,6 @@ __SMBDIRECT_EXPORT_SYMBOL__(smbdirect_mr_io_fill_buffer_descriptor);
  * and we have to locally invalidate the buffer to prevent data is being
  * modified by remote peer after upper layer consumes it
  */
-__SMBDIRECT_PUBLIC__
 void smbdirect_connection_deregister_mr_io(struct smbdirect_mr_io *mr)
 {
 	struct smbdirect_socket *sc = mr->socket;

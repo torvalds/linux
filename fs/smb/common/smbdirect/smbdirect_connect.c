@@ -16,7 +16,6 @@ static int smbdirect_connect_negotiate_start(struct smbdirect_socket *sc);
 static void smbdirect_connect_negotiate_send_done(struct ib_cq *cq, struct ib_wc *wc);
 static void smbdirect_connect_negotiate_recv_done(struct ib_cq *cq, struct ib_wc *wc);
 
-__SMBDIRECT_PUBLIC__
 int smbdirect_connect(struct smbdirect_socket *sc, const struct sockaddr *dst)
 {
 	const struct sockaddr *src = NULL;
@@ -895,7 +894,6 @@ static void smbdirect_connect_negotiate_recv_work(struct work_struct *work)
 	smbdirect_connection_negotiation_done(sc);
 }
 
-__SMBDIRECT_PUBLIC__
 int smbdirect_connect_sync(struct smbdirect_socket *sc,
 			   const struct sockaddr *dst)
 {

@@ -10,7 +10,6 @@
 static int smbdirect_listen_rdma_event_handler(struct rdma_cm_id *id,
 					       struct rdma_cm_event *event);
 
-__SMBDIRECT_PUBLIC__
 int smbdirect_socket_listen(struct smbdirect_socket *sc, int backlog)
 {
 	int ret;

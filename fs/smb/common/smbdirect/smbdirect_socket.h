@@ -277,10 +277,6 @@ struct smbdirect_socket {
 		struct {
 			atomic_t count;
 			/*
-			 * woken when count is decremented
-			 */
-			wait_queue_head_t dec_wait_queue;
-			/*
 			 * woken when count reached zero
 			 */
 			wait_queue_head_t zero_wait_queue;
@@ -393,13 +389,6 @@ struct smbdirect_socket {
 		struct {
 			atomic_t count;
 		} used;
-
-		struct work_struct recovery_work;
-
-		/* Used by transport to wait until all MRs are returned */
-		struct {
-			wait_queue_head_t wait_queue;
-		} cleanup;
 	} mr_io;
 
 	/*
@@ -616,7 +605,6 @@ static __always_inline void smbdirect_socket_init(struct smbdirect_socket *sc)
 	init_waitqueue_head(&sc->send_io.credits.wait_queue);
 
 	atomic_set(&sc->send_io.pending.count, 0);
-	init_waitqueue_head(&sc->send_io.pending.dec_wait_queue);
 	init_waitqueue_head(&sc->send_io.pending.zero_wait_queue);
 
 	sc->recv_io.mem.gfp_mask = GFP_KERNEL;
@@ -644,9 +632,6 @@ static __always_inline void smbdirect_socket_init(struct smbdirect_socket *sc)
 	atomic_set(&sc->mr_io.ready.count, 0);
 	init_waitqueue_head(&sc->mr_io.ready.wait_queue);
 	atomic_set(&sc->mr_io.used.count, 0);
-	INIT_WORK(&sc->mr_io.recovery_work, __smbdirect_socket_disabled_work);
-	disable_work_sync(&sc->mr_io.recovery_work);
-	init_waitqueue_head(&sc->mr_io.cleanup.wait_queue);
 
 	sc->logging.private_ptr = NULL;
 	sc->logging.needed = __smbdirect_log_needed;

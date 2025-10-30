@@ -7,7 +7,6 @@
 #include "smbdirect_internal.h"
 #include <linux/seq_file.h>
 
-__SMBDIRECT_PUBLIC__
 void smbdirect_connection_legacy_debug_proc_show(struct smbdirect_socket *sc,
 						 unsigned int rdma_readwrite_threshold,
 						 struct seq_file *m)

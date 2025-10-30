@@ -105,7 +105,6 @@ static void smbdirect_connection_rdma_write_done(struct ib_cq *cq, struct ib_wc 
 	smbdirect_connection_rdma_rw_done(cq, wc, DMA_TO_DEVICE);
 }
 
-__SMBDIRECT_PUBLIC__
 int smbdirect_connection_rdma_xmit(struct smbdirect_socket *sc,
 				   void *buf, size_t buf_len,
 				   struct smbdirect_buffer_descriptor_v1 *desc,

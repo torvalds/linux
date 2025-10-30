@@ -22,7 +22,6 @@ static ssize_t smbdirect_map_sges_from_iter(struct iov_iter *iter, size_t len,
 static void smbdirect_connection_recv_io_refill_work(struct work_struct *work);
 static void smbdirect_connection_send_immediate_work(struct work_struct *work);
 
-__maybe_unused /* this is temporary while this file is included in others */
 static void smbdirect_connection_qp_event_handler(struct ib_event *event, void *context)
 {
 	struct smbdirect_socket *sc = context;
@@ -143,7 +142,6 @@ static int smbdirect_connection_rdma_event_handler(struct rdma_cm_id *id,
 	return 0;
 }
 
-__SMBDIRECT_PRIVATE__
 void smbdirect_connection_rdma_established(struct smbdirect_socket *sc)
 {
 	smbdirect_log_rdma_event(sc, SMBDIRECT_LOG_INFO,
@@ -157,7 +155,6 @@ void smbdirect_connection_rdma_established(struct smbdirect_socket *sc)
 	sc->rdma.expected_event = RDMA_CM_EVENT_DISCONNECTED;
 }
 
-__SMBDIRECT_PRIVATE__
 void smbdirect_connection_negotiation_done(struct smbdirect_socket *sc)
 {
 	if (unlikely(sc->first_error))
@@ -242,7 +239,6 @@ static u32 smbdirect_rdma_rw_send_wrs(struct ib_device *dev,
 	return factor * attr->cap.max_rdma_ctxs;
 }
 
-__SMBDIRECT_PRIVATE__
 int smbdirect_connection_create_qp(struct smbdirect_socket *sc)
 {
 	const struct smbdirect_socket_parameters *sp = &sc->parameters;
@@ -400,7 +396,6 @@ err:
 	return ret;
 }
 
-__SMBDIRECT_PRIVATE__
 void smbdirect_connection_destroy_qp(struct smbdirect_socket *sc)
 {
 	if (sc->ib.qp) {
@@ -422,7 +417,6 @@ void smbdirect_connection_destroy_qp(struct smbdirect_socket *sc)
 	}
 }
 
-__SMBDIRECT_PRIVATE__
 int smbdirect_connection_create_mem_pools(struct smbdirect_socket *sc)
 {
 	const struct smbdirect_socket_parameters *sp = &sc->parameters;
@@ -500,7 +494,6 @@ err:
 	return -ENOMEM;
 }
 
-__SMBDIRECT_PRIVATE__
 void smbdirect_connection_destroy_mem_pools(struct smbdirect_socket *sc)
 {
 	struct smbdirect_recv_io *recv_io, *next_io;
@@ -528,7 +521,6 @@ void smbdirect_connection_destroy_mem_pools(struct smbdirect_socket *sc)
 	sc->send_io.mem.cache = NULL;
 }
 
-__SMBDIRECT_PRIVATE__
 struct smbdirect_send_io *smbdirect_connection_alloc_send_io(struct smbdirect_socket *sc)
 {
 	struct smbdirect_send_io *msg;
@@ -543,7 +535,6 @@ struct smbdirect_send_io *smbdirect_connection_alloc_send_io(struct smbdirect_so
 	return msg;
 }
 
-__SMBDIRECT_PRIVATE__
 void smbdirect_connection_free_send_io(struct smbdirect_send_io *msg)
 {
 	struct smbdirect_socket *sc = msg->socket;
@@ -575,7 +566,6 @@ void smbdirect_connection_free_send_io(struct smbdirect_send_io *msg)
 	mempool_free(msg, sc->send_io.mem.pool);
 }
 
-__SMBDIRECT_PRIVATE__
 struct smbdirect_recv_io *smbdirect_connection_get_recv_io(struct smbdirect_socket *sc)
 {
 	struct smbdirect_recv_io *msg = NULL;
@@ -595,7 +585,6 @@ struct smbdirect_recv_io *smbdirect_connection_get_recv_io(struct smbdirect_sock
 	return msg;
 }
 
-__SMBDIRECT_PRIVATE__
 void smbdirect_connection_put_recv_io(struct smbdirect_recv_io *msg)
 {
 	struct smbdirect_socket *sc = msg->socket;
@@ -617,7 +606,6 @@ void smbdirect_connection_put_recv_io(struct smbdirect_recv_io *msg)
 	queue_work(sc->workqueues.refill, &sc->recv_io.posted.refill_work);
 }
 
-__SMBDIRECT_PRIVATE__
 void smbdirect_connection_reassembly_append_recv_io(struct smbdirect_socket *sc,
 						    struct smbdirect_recv_io *msg,
 						    u32 data_length)
@@ -639,7 +627,6 @@ void smbdirect_connection_reassembly_append_recv_io(struct smbdirect_socket *sc,
 	sc->statistics.enqueue_reassembly_queue++;
 }
 
-__SMBDIRECT_PRIVATE__
 struct smbdirect_recv_io *
 smbdirect_connection_reassembly_first_recv_io(struct smbdirect_socket *sc)
 {
@@ -652,7 +639,6 @@ smbdirect_connection_reassembly_first_recv_io(struct smbdirect_socket *sc)
 	return msg;
 }
 
-__SMBDIRECT_PRIVATE__
 void smbdirect_connection_negotiate_rdma_resources(struct smbdirect_socket *sc,
 						   u8 peer_initiator_depth,
 						   u8 peer_responder_resources,
@@ -714,7 +700,6 @@ void smbdirect_connection_negotiate_rdma_resources(struct smbdirect_socket *sc,
 						peer_responder_resources);
 }
 
-__SMBDIRECT_PUBLIC__
 bool smbdirect_connection_is_connected(struct smbdirect_socket *sc)
 {
 	if (unlikely(!sc || sc->first_error || sc->status != SMBDIRECT_SOCKET_CONNECTED))
@@ -723,7 +708,6 @@ bool smbdirect_connection_is_connected(struct smbdirect_socket *sc)
 }
 __SMBDIRECT_EXPORT_SYMBOL__(smbdirect_connection_is_connected);
 
-__SMBDIRECT_PUBLIC__
 int smbdirect_connection_wait_for_connected(struct smbdirect_socket *sc)
 {
 	const struct smbdirect_socket_parameters *sp = &sc->parameters;
@@ -797,7 +781,6 @@ int smbdirect_connection_wait_for_connected(struct smbdirect_socket *sc)
 }
 __SMBDIRECT_EXPORT_SYMBOL__(smbdirect_connection_wait_for_connected);
 
-__SMBDIRECT_PRIVATE__
 void smbdirect_connection_idle_timer_work(struct work_struct *work)
 {
 	struct smbdirect_socket *sc =
@@ -829,7 +812,6 @@ void smbdirect_connection_idle_timer_work(struct work_struct *work)
 	queue_work(sc->workqueues.immediate, &sc->idle.immediate_work);
 }
 
-__SMBDIRECT_PRIVATE__
 u16 smbdirect_connection_grant_recv_credits(struct smbdirect_socket *sc)
 {
 	int missing;
@@ -867,7 +849,6 @@ u16 smbdirect_connection_grant_recv_credits(struct smbdirect_socket *sc)
 	return new_credits;
 }
 
-__maybe_unused /* this is temporary while this file is included in others */
 static bool smbdirect_connection_request_keep_alive(struct smbdirect_socket *sc)
 {
 	const struct smbdirect_socket_parameters *sp = &sc->parameters;
@@ -886,7 +867,6 @@ static bool smbdirect_connection_request_keep_alive(struct smbdirect_socket *sc)
 	return false;
 }
 
-__SMBDIRECT_PRIVATE__
 int smbdirect_connection_post_send_wr(struct smbdirect_socket *sc,
 				      struct ib_send_wr *wr)
 {
@@ -919,7 +899,6 @@ static void smbdirect_connection_send_batch_init(struct smbdirect_send_batch *ba
 	batch->credit = 0;
 }
 
-__SMBDIRECT_PUBLIC__
 int smbdirect_connection_send_batch_flush(struct smbdirect_socket *sc,
 					  struct smbdirect_send_batch *batch,
 					  bool is_last)
@@ -981,7 +960,6 @@ release_credit:
 }
 __SMBDIRECT_EXPORT_SYMBOL__(smbdirect_connection_send_batch_flush);
 
-__SMBDIRECT_PUBLIC__
 struct smbdirect_send_batch *
 smbdirect_init_send_batch_storage(struct smbdirect_send_batch_storage *storage,
 				  bool need_invalidate_rkey,
@@ -1098,7 +1076,6 @@ static int smbdirect_connection_post_send_io(struct smbdirect_socket *sc,
 	return smbdirect_connection_post_send_wr(sc, &msg->wr);
 }
 
-__SMBDIRECT_PUBLIC__
 int smbdirect_connection_send_single_iter(struct smbdirect_socket *sc,
 					  struct smbdirect_send_batch *batch,
 					  struct iov_iter *iter,
@@ -1288,7 +1265,6 @@ bcredit_failed:
 }
 __SMBDIRECT_EXPORT_SYMBOL__(smbdirect_connection_send_single_iter);
 
-__SMBDIRECT_PUBLIC__
 int smbdirect_connection_send_wait_zero_pending(struct smbdirect_socket *sc)
 {
 	/*
@@ -1314,7 +1290,6 @@ int smbdirect_connection_send_wait_zero_pending(struct smbdirect_socket *sc)
 }
 __SMBDIRECT_EXPORT_SYMBOL__(smbdirect_connection_send_wait_zero_pending);
 
-__SMBDIRECT_PUBLIC__
 int smbdirect_connection_send_iter(struct smbdirect_socket *sc,
 				   struct iov_iter *iter,
 				   unsigned int flags,
@@ -1465,8 +1440,6 @@ skip_free:
 
 	if (atomic_dec_and_test(&sc->send_io.pending.count))
 		wake_up(&sc->send_io.pending.zero_wait_queue);
-
-	wake_up(&sc->send_io.pending.dec_wait_queue);
 }
 
 static void smbdirect_connection_send_immediate_work(struct work_struct *work)
@@ -1490,7 +1463,6 @@ static void smbdirect_connection_send_immediate_work(struct work_struct *work)
 	}
 }
 
-__SMBDIRECT_PRIVATE__
 int smbdirect_connection_post_recv_io(struct smbdirect_recv_io *msg)
 {
 	struct smbdirect_socket *sc = msg->socket;
@@ -1532,7 +1504,6 @@ int smbdirect_connection_post_recv_io(struct smbdirect_recv_io *msg)
 	return ret;
 }
 
-__SMBDIRECT_PRIVATE__
 void smbdirect_connection_recv_io_done(struct ib_cq *cq, struct ib_wc *wc)
 {
 	struct smbdirect_recv_io *recv_io =
@@ -1702,7 +1673,6 @@ error:
 	smbdirect_socket_schedule_cleanup(sc, -ECONNABORTED);
 }
 
-__SMBDIRECT_PRIVATE__
 int smbdirect_connection_recv_io_refill(struct smbdirect_socket *sc)
 {
 	int missing;
@@ -1818,7 +1788,6 @@ static void smbdirect_connection_recv_io_refill_work(struct work_struct *work)
 	}
 }
 
-__SMBDIRECT_PUBLIC__
 int smbdirect_connection_recvmsg(struct smbdirect_socket *sc,
 				 struct msghdr *msg,
 				 unsigned int flags)

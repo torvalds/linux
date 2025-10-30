@@ -15,7 +15,6 @@ static int smbdirect_accept_init_params(struct smbdirect_socket *sc);
 static void smbdirect_accept_negotiate_recv_done(struct ib_cq *cq, struct ib_wc *wc);
 static void smbdirect_accept_negotiate_send_done(struct ib_cq *cq, struct ib_wc *wc);
 
-__SMBDIRECT_PUBLIC__
 int smbdirect_accept_connect_request(struct smbdirect_socket *sc,
 				     const struct rdma_conn_param *param)
 {
@@ -161,7 +160,6 @@ create_qp_failed:
 init_params_failed:
 	return ret;
 }
-__SMBDIRECT_EXPORT_SYMBOL__(smbdirect_accept_connect_request);
 
 static int smbdirect_accept_init_params(struct smbdirect_socket *sc)
 {
@@ -793,7 +791,6 @@ static long smbdirect_socket_wait_for_accept(struct smbdirect_socket *lsc, long 
 	return 0;
 }
 
-__SMBDIRECT_PUBLIC__
 struct smbdirect_socket *smbdirect_socket_accept(struct smbdirect_socket *lsc,
 						 long timeo,
 						 struct proto_accept_arg *arg)
