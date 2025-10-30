@@ -1080,7 +1080,7 @@ M:	Austin Zheng <austin.zheng@amd.com>
 M:	Jun Lei <jun.lei@amd.com>
 S:	Supported
 F:	drivers/gpu/drm/amd/display/dc/dml/
-F:	drivers/gpu/drm/amd/display/dc/dml2/
+F:	drivers/gpu/drm/amd/display/dc/dml2_0/
 
 AMD FAM15H PROCESSOR POWER MONITORING DRIVER
 M:	Huang Rui <ray.huang@amd.com>
