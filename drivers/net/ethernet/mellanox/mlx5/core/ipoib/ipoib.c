@@ -427,6 +427,7 @@ static void mlx5i_destroy_flow_steering(struct mlx5e_priv *priv)
 static int mlx5i_init_rx(struct mlx5e_priv *priv)
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
+	enum mlx5e_rx_res_features features;
 	int err;
 
 	priv->fs = mlx5e_fs_init(priv->profile, mdev,
@@ -445,7 +446,9 @@ static int mlx5i_init_rx(struct mlx5e_priv *priv)
 		goto err_destroy_q_counters;
 	}
 
-	priv->rx_res = mlx5e_rx_res_create(priv->mdev, 0, priv->max_nch, priv->drop_rq.rqn,
+	features = MLX5E_RX_RES_FEATURE_SELF_LB_BLOCK;
+	priv->rx_res = mlx5e_rx_res_create(priv->mdev, features, priv->max_nch,
+					   priv->drop_rq.rqn,
 					   &priv->channels.params.packet_merge,
 					   priv->channels.params.num_channels);
 	if (IS_ERR(priv->rx_res)) {
