@@ -2169,14 +2169,15 @@ static void guc_exec_queue_pause(struct xe_guc *guc, struct xe_exec_queue *q)
 }
 
 /**
- * xe_guc_submit_pause - Stop further runs of submission tasks on given GuC.
+ * xe_guc_submit_pause_vf - Stop further runs of submission tasks for VF.
  * @guc: the &xe_guc struct instance whose scheduler is to be disabled
  */
-void xe_guc_submit_pause(struct xe_guc *guc)
+void xe_guc_submit_pause_vf(struct xe_guc *guc)
 {
 	struct xe_exec_queue *q;
 	unsigned long index;
 
+	xe_gt_assert(guc_to_gt(guc), IS_SRIOV_VF(guc_to_xe(guc)));
 	xe_gt_assert(guc_to_gt(guc), vf_recovery(guc));
 
 	mutex_lock(&guc->submission_state.lock);
@@ -2267,14 +2268,15 @@ static void guc_exec_queue_unpause_prepare(struct xe_guc *guc,
 }
 
 /**
- * xe_guc_submit_unpause_prepare - Prepare unpause submission tasks on given GuC.
+ * xe_guc_submit_unpause_prepare_vf - Prepare unpause submission tasks for VF.
  * @guc: the &xe_guc struct instance whose scheduler is to be prepared for unpause
  */
-void xe_guc_submit_unpause_prepare(struct xe_guc *guc)
+void xe_guc_submit_unpause_prepare_vf(struct xe_guc *guc)
 {
 	struct xe_exec_queue *q;
 	unsigned long index;
 
+	xe_gt_assert(guc_to_gt(guc), IS_SRIOV_VF(guc_to_xe(guc)));
 	xe_gt_assert(guc_to_gt(guc), vf_recovery(guc));
 
 	mutex_lock(&guc->submission_state.lock);
@@ -2342,13 +2344,15 @@ static void guc_exec_queue_unpause(struct xe_guc *guc, struct xe_exec_queue *q)
 }
 
 /**
- * xe_guc_submit_unpause - Allow further runs of submission tasks on given GuC.
+ * xe_guc_submit_unpause_vf - Allow further runs of submission tasks for VF.
  * @guc: the &xe_guc struct instance whose scheduler is to be enabled
  */
-void xe_guc_submit_unpause(struct xe_guc *guc)
+void xe_guc_submit_unpause_vf(struct xe_guc *guc)
 {
 	struct xe_exec_queue *q;
 	unsigned long index;
+
+	xe_gt_assert(guc_to_gt(guc), IS_SRIOV_VF(guc_to_xe(guc)));
 
 	mutex_lock(&guc->submission_state.lock);
 	xa_for_each(&guc->submission_state.exec_queue_lookup, index, q) {
