@@ -941,6 +941,16 @@ static ssize_t ntfs_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 		file->f_ra.ra_pages = 0;
 	}
 
+	/* Check minimum alignment for dio. */
+	if (iocb->ki_flags & IOCB_DIRECT) {
+		struct super_block *sb = inode->i_sb;
+		struct ntfs_sb_info *sbi = sb->s_fs_info;
+		if ((iocb->ki_pos | iov_iter_alignment(iter)) &
+		    sbi->bdev_blocksize_mask) {
+			iocb->ki_flags &= ~IOCB_DIRECT;
+		}
+	}
+
 	return generic_file_read_iter(iocb, iter);
 }
 

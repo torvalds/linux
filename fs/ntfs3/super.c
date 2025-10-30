@@ -1075,6 +1075,7 @@ read_boot:
 		dev_size += sector_size - 1;
 	}
 
+	sbi->bdev_blocksize_mask = max(boot_sector_size, sector_size) - 1;
 	sbi->mft.lbo = mlcn << cluster_bits;
 	sbi->mft.lbo2 = mlcn2 << cluster_bits;
 

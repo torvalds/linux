@@ -212,6 +212,7 @@ struct ntfs_sb_info {
 
 	u32 discard_granularity;
 	u64 discard_granularity_mask_inv; // ~(discard_granularity_mask_inv-1)
+	u32 bdev_blocksize_mask; // bdev_logical_block_size(bdev) - 1;
 
 	u32 cluster_size; // bytes per cluster
 	u32 cluster_mask; // == cluster_size - 1
