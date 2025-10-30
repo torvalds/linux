@@ -172,15 +172,11 @@
 };
 
 &flexcan1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_flexcan1>;
 	xceiver-supply = <&reg_3v3>;
 	status = "okay";
 };
 
 &flexcan3 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_flexcan3>;
 	xceiver-supply = <&reg_3v3>;
 	status = "okay";
 };
