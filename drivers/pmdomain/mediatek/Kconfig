@@ -32,6 +32,7 @@ config MTK_MFG_PM_DOMAIN
 	depends on PM
 	depends on OF
 	depends on COMMON_CLK
+	select MAILBOX
 	select PM_GENERIC_DOMAINS
 	imply MTK_GPUEB_MBOX
 	help
