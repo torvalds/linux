@@ -7389,7 +7389,7 @@ int amdgpu_dm_connector_atomic_set_property(struct drm_connector *connector,
 		default:
 			dm_new_state->abm_sysfs_forbidden = true;
 			dm_new_state->abm_level = val;
-		};
+		}
 		ret = 0;
 	}
 
