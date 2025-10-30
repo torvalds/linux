@@ -1394,8 +1394,8 @@ static void __init htab_initialize(void)
 		size = end - base;
 		base = (unsigned long)__va(base);
 
-		DBG("creating mapping for region: %lx..%lx (prot: %lx)\n",
-		    base, size, prot);
+		pr_debug("creating mapping for region: 0x%pa..0x%pa (prot: %lx)\n",
+				&base, &size, prot);
 
 		if ((base + size) >= H_VMALLOC_START) {
 			pr_warn("Outside the supported range\n");
