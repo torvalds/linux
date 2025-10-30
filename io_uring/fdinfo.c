@@ -5,6 +5,7 @@
 #include <linux/file.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#include <linux/nospec.h>
 #include <linux/io_uring.h>
 
 #include <uapi/linux/io_uring.h>
@@ -107,6 +108,9 @@ static void __io_uring_show_fdinfo(struct io_ring_ctx *ctx, struct seq_file *m)
 
 		sqe = &ctx->sq_sqes[sq_idx << sq_shift];
 		opcode = READ_ONCE(sqe->opcode);
+		if (opcode >= IORING_OP_LAST)
+			continue;
+		opcode = array_index_nospec(opcode, IORING_OP_LAST);
 		if (sq_shift) {
 			sqe128 = true;
 		} else if (io_issue_defs[opcode].is_128) {
