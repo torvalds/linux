@@ -27,6 +27,7 @@
 #include "ras_sys.h"
 #include "amdgpu_ras_mgr.h"
 #include "amdgpu_ras_cmd.h"
+#include "amdgpu_virt_ras_cmd.h"
 #include "amdgpu_ras_process.h"
 #include "amdgpu_ras_eeprom_i2c.h"
 #include "amdgpu_ras_mp1_v13_0.h"
@@ -316,6 +317,16 @@ static int amdgpu_ras_mgr_sw_init(struct amdgpu_ip_block *ip_block)
 	amdgpu_ras_process_init(adev);
 	ras_core_sw_init(ras_mgr->ras_core);
 	amdgpu_ras_mgr_init_event_mgr(ras_mgr->ras_core);
+
+	if (amdgpu_sriov_vf(adev)) {
+		ret = amdgpu_virt_ras_sw_init(adev);
+		if (ret) {
+			RAS_DEV_ERR(adev,
+				"Virt ras sw_init failed! ret:%d\n", ret);
+			goto err;
+		}
+	}
+
 	return 0;
 
 err:
@@ -334,6 +345,9 @@ static int amdgpu_ras_mgr_sw_fini(struct amdgpu_ip_block *ip_block)
 
 	if (!ras_mgr)
 		return 0;
+
+	if (amdgpu_sriov_vf(adev))
+		amdgpu_virt_ras_sw_fini(adev);
 
 	amdgpu_ras_process_fini(adev);
 	ras_core_sw_fini(ras_mgr->ras_core);
@@ -359,9 +373,13 @@ static int amdgpu_ras_mgr_hw_init(struct amdgpu_ip_block *ip_block)
 	if (!ras_mgr || !ras_mgr->ras_core)
 		return -EINVAL;
 
-	ret = ras_core_hw_init(ras_mgr->ras_core);
+	if (amdgpu_sriov_vf(adev))
+		ret = amdgpu_virt_ras_hw_init(adev);
+	else
+		ret = ras_core_hw_init(ras_mgr->ras_core);
+
 	if (ret) {
-		RAS_DEV_ERR(adev, "Failed to initialize ras core!\n");
+		RAS_DEV_ERR(adev, "Failed to initialize hw_init!, ret:%d\n", ret);
 		return ret;
 	}
 
@@ -385,7 +403,10 @@ static int amdgpu_ras_mgr_hw_fini(struct amdgpu_ip_block *ip_block)
 	if (!ras_mgr || !ras_mgr->ras_core)
 		return -EINVAL;
 
-	ras_core_hw_fini(ras_mgr->ras_core);
+	if (amdgpu_sriov_vf(adev))
+		amdgpu_virt_ras_hw_fini(adev);
+	else
+		ras_core_hw_fini(ras_mgr->ras_core);
 
 	ras_mgr->ras_is_ready = false;
 
@@ -423,9 +444,6 @@ int amdgpu_enable_uniras(struct amdgpu_device *adev, bool enable)
 	if (!ras_mgr || !ras_mgr->ras_core)
 		return -EPERM;
 
-	if (amdgpu_sriov_vf(adev))
-		return -EPERM;
-
 	RAS_DEV_INFO(adev, "Enable amdgpu unified ras!");
 	return ras_core_set_status(ras_mgr->ras_core, enable);
 }
@@ -435,9 +453,6 @@ bool amdgpu_uniras_enabled(struct amdgpu_device *adev)
 	struct amdgpu_ras_mgr *ras_mgr = amdgpu_ras_mgr_get_context(adev);
 
 	if (!ras_mgr || !ras_mgr->ras_core)
-		return false;
-
-	if (amdgpu_sriov_vf(adev))
 		return false;
 
 	return ras_core_is_enabled(ras_mgr->ras_core);
@@ -603,7 +618,7 @@ int amdgpu_ras_mgr_handle_ras_cmd(struct amdgpu_device *adev,
 	uint32_t ctx_buf_size = PAGE_SIZE;
 	int ret;
 
-	if (!amdgpu_ras_mgr_is_ready(adev))
+	if (!amdgpu_sriov_vf(adev) && !amdgpu_ras_mgr_is_ready(adev))
 		return -EPERM;
 
 	cmd_ctx = kzalloc(ctx_buf_size, GFP_KERNEL);

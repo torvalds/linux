@@ -50,6 +50,7 @@ struct amdgpu_ras_mgr {
 	struct ras_core_context *ras_core;
 	struct delayed_work retire_page_dwork;
 	struct ras_event_manager ras_event_mgr;
+	void *virt_ras_cmd;
 	uint64_t last_poison_consumption_seqno;
 	bool ras_is_ready;
 
