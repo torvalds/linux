@@ -2147,6 +2147,14 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 	if (!dcb->funcs->is_accelerated_mode(dcb)) {
 		disable_vbios_mode_if_required(dc, context);
 		dc->hwss.enable_accelerated_mode(dc, context);
+	} else if (get_seamless_boot_stream_count(dc->current_state) > 0) {
+		/* If the previous Stream still retains the apply seamless boot flag,
+		 * it means the OS has not actually performed a flip yet.
+		 * At this point, if we receive dc_commit_streams again, we should
+		 * once more check whether the actual HW timing matches what the OS
+		 * has provided
+		 */
+		disable_vbios_mode_if_required(dc, context);
 	}
 
 	if (dc->hwseq->funcs.wait_for_pipe_update_if_needed) {
