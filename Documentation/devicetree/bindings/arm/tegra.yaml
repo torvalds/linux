@@ -189,6 +189,11 @@ properties:
               - nvidia,p2371-2180
               - nvidia,p2571
               - nvidia,p2894-0050-a08
+              - nvidia,p3450-0000
+          - const: nvidia,tegra210
+      - items:
+          - const: nvidia,p3541-0000
+          - const: nvidia,p3450-0000
           - const: nvidia,tegra210
       - description: Jetson TX2 Developer Kit
         items:
