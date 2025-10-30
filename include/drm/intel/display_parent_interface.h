@@ -7,6 +7,23 @@
 #include <linux/types.h>
 
 struct drm_device;
+struct ref_tracker;
+
+struct intel_display_rpm_interface {
+	struct ref_tracker *(*get)(const struct drm_device *drm);
+	struct ref_tracker *(*get_raw)(const struct drm_device *drm);
+	struct ref_tracker *(*get_if_in_use)(const struct drm_device *drm);
+	struct ref_tracker *(*get_noresume)(const struct drm_device *drm);
+
+	void (*put)(const struct drm_device *drm, struct ref_tracker *wakeref);
+	void (*put_raw)(const struct drm_device *drm, struct ref_tracker *wakeref);
+	void (*put_unchecked)(const struct drm_device *drm);
+
+	bool (*suspended)(const struct drm_device *drm);
+	void (*assert_held)(const struct drm_device *drm);
+	void (*assert_block)(const struct drm_device *drm);
+	void (*assert_unblock)(const struct drm_device *drm);
+};
 
 /**
  * struct intel_display_parent_interface - services parent driver provides to display
@@ -21,6 +38,8 @@ struct drm_device;
  * check the optional pointers.
  */
 struct intel_display_parent_interface {
+	/** @rpm: Runtime PM functions */
+	const struct intel_display_rpm_interface *rpm;
 };
 
 #endif
