@@ -30,7 +30,6 @@ static struct cgroup_namespace *alloc_cgroup_ns(void)
 	ret = ns_common_init(new_ns);
 	if (ret)
 		return ERR_PTR(ret);
-	ns_tree_add(new_ns);
 	return no_free_ptr(new_ns);
 }
 
@@ -86,6 +85,7 @@ struct cgroup_namespace *copy_cgroup_ns(u64 flags,
 	new_ns->ucounts = ucounts;
 	new_ns->root_cset = cset;
 
+	ns_tree_add(new_ns);
 	return new_ns;
 }
 

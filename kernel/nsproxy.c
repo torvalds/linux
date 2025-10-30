@@ -26,6 +26,7 @@
 #include <linux/syscalls.h>
 #include <linux/cgroup.h>
 #include <linux/perf_event.h>
+#include <linux/nstree.h>
 
 static struct kmem_cache *nsproxy_cachep;
 
@@ -179,12 +180,15 @@ int copy_namespaces(u64 flags, struct task_struct *tsk)
 	if ((flags & CLONE_VM) == 0)
 		timens_on_fork(new_ns, tsk);
 
+	nsproxy_ns_active_get(new_ns);
 	tsk->nsproxy = new_ns;
 	return 0;
 }
 
 void free_nsproxy(struct nsproxy *ns)
 {
+	nsproxy_ns_active_put(ns);
+
 	put_mnt_ns(ns->mnt_ns);
 	put_uts_ns(ns->uts_ns);
 	put_ipc_ns(ns->ipc_ns);
@@ -232,6 +236,9 @@ void switch_task_namespaces(struct task_struct *p, struct nsproxy *new)
 
 	might_sleep();
 
+	if (new)
+		nsproxy_ns_active_get(new);
+
 	task_lock(p);
 	ns = p->nsproxy;
 	p->nsproxy = new;
@@ -241,9 +248,25 @@ void switch_task_namespaces(struct task_struct *p, struct nsproxy *new)
 		put_nsproxy(ns);
 }
 
-void exit_task_namespaces(struct task_struct *p)
+void exit_nsproxy_namespaces(struct task_struct *p)
 {
 	switch_task_namespaces(p, NULL);
+}
+
+void switch_cred_namespaces(const struct cred *old, const struct cred *new)
+{
+	ns_ref_active_get(new->user_ns);
+	ns_ref_active_put(old->user_ns);
+}
+
+void get_cred_namespaces(struct task_struct *tsk)
+{
+	ns_ref_active_get(tsk->real_cred->user_ns);
+}
+
+void exit_cred_namespaces(struct task_struct *tsk)
+{
+	ns_ref_active_put(tsk->real_cred->user_ns);
 }
 
 int exec_task_namespaces(void)

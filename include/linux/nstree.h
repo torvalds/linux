@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
+/* Copyright (c) 2025 Christian Brauner <brauner@kernel.org> */
 #ifndef _LINUX_NSTREE_H
 #define _LINUX_NSTREE_H
 
@@ -8,6 +9,7 @@
 #include <linux/seqlock.h>
 #include <linux/rculist.h>
 #include <linux/cookie.h>
+#include <uapi/linux/nsfs.h>
 
 extern struct ns_tree cgroup_ns_tree;
 extern struct ns_tree ipc_ns_tree;
@@ -29,7 +31,11 @@ extern struct ns_tree uts_ns_tree;
 		struct user_namespace *:   &(user_ns_tree),	\
 		struct uts_namespace *:    &(uts_ns_tree))
 
-u64 ns_tree_gen_id(struct ns_common *ns);
+#define ns_tree_gen_id(__ns)                 \
+	__ns_tree_gen_id(to_ns_common(__ns), \
+			 (((__ns) == ns_init_ns(__ns)) ? ns_init_id(__ns) : 0))
+
+u64 __ns_tree_gen_id(struct ns_common *ns, u64 id);
 void __ns_tree_add_raw(struct ns_common *ns, struct ns_tree *ns_tree);
 void __ns_tree_remove(struct ns_common *ns, struct ns_tree *ns_tree);
 struct ns_common *ns_tree_lookup_rcu(u64 ns_id, int ns_type);
@@ -37,9 +43,9 @@ struct ns_common *__ns_tree_adjoined_rcu(struct ns_common *ns,
 					 struct ns_tree *ns_tree,
 					 bool previous);
 
-static inline void __ns_tree_add(struct ns_common *ns, struct ns_tree *ns_tree)
+static inline void __ns_tree_add(struct ns_common *ns, struct ns_tree *ns_tree, u64 id)
 {
-	ns_tree_gen_id(ns);
+	__ns_tree_gen_id(ns, id);
 	__ns_tree_add_raw(ns, ns_tree);
 }
 
@@ -59,7 +65,9 @@ static inline void __ns_tree_add(struct ns_common *ns, struct ns_tree *ns_tree)
  * This function assigns a new id to the namespace and adds it to the
  * appropriate namespace tree and list.
  */
-#define ns_tree_add(__ns) __ns_tree_add(to_ns_common(__ns), to_ns_tree(__ns))
+#define ns_tree_add(__ns)                                   \
+	__ns_tree_add(to_ns_common(__ns), to_ns_tree(__ns), \
+		      (((__ns) == ns_init_ns(__ns)) ? ns_init_id(__ns) : 0))
 
 /**
  * ns_tree_remove - Remove a namespace from a namespace tree

@@ -93,7 +93,10 @@ static inline struct cred *nsset_cred(struct nsset *set)
  */
 
 int copy_namespaces(u64 flags, struct task_struct *tsk);
-void exit_task_namespaces(struct task_struct *tsk);
+void switch_cred_namespaces(const struct cred *old, const struct cred *new);
+void exit_nsproxy_namespaces(struct task_struct *tsk);
+void get_cred_namespaces(struct task_struct *tsk);
+void exit_cred_namespaces(struct task_struct *tsk);
 void switch_task_namespaces(struct task_struct *tsk, struct nsproxy *new);
 int exec_task_namespaces(void);
 void free_nsproxy(struct nsproxy *ns);
