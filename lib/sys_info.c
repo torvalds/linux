@@ -1,30 +1,29 @@
 // SPDX-License-Identifier: GPL-2.0-only
-#include <linux/sched/debug.h>
+#include <linux/bitops.h>
 #include <linux/console.h>
+#include <linux/log2.h>
 #include <linux/kernel.h>
 #include <linux/ftrace.h>
-#include <linux/sysctl.h>
 #include <linux/nmi.h>
+#include <linux/sched/debug.h>
+#include <linux/string.h>
+#include <linux/sysctl.h>
 
 #include <linux/sys_info.h>
-
-struct sys_info_name {
-	unsigned long bit;
-	const char *name;
-};
 
 /*
  * When 'si_names' gets updated,  please make sure the 'sys_info_avail'
  * below is updated accordingly.
  */
-static const struct sys_info_name  si_names[] = {
-	{ SYS_INFO_TASKS,		"tasks" },
-	{ SYS_INFO_MEM,			"mem" },
-	{ SYS_INFO_TIMERS,		"timers" },
-	{ SYS_INFO_LOCKS,		"locks" },
-	{ SYS_INFO_FTRACE,		"ftrace" },
-	{ SYS_INFO_ALL_BT,		"all_bt" },
-	{ SYS_INFO_BLOCKED_TASKS,	"blocked_tasks" },
+static const char * const si_names[] = {
+	[ilog2(SYS_INFO_TASKS)]			= "tasks",
+	[ilog2(SYS_INFO_MEM)]			= "mem",
+	[ilog2(SYS_INFO_TIMERS)]		= "timers",
+	[ilog2(SYS_INFO_LOCKS)]			= "locks",
+	[ilog2(SYS_INFO_FTRACE)]		= "ftrace",
+	[ilog2(SYS_INFO_PANIC_CONSOLE_REPLAY)]	= "",
+	[ilog2(SYS_INFO_ALL_BT)]		= "all_bt",
+	[ilog2(SYS_INFO_BLOCKED_TASKS)]		= "blocked_tasks",
 };
 
 /* Expecting string like "xxx_sys_info=tasks,mem,timers,locks,ftrace,..." */
@@ -36,12 +35,9 @@ unsigned long sys_info_parse_param(char *str)
 
 	s = str;
 	while ((name = strsep(&s, ",")) && *name) {
-		for (i = 0; i < ARRAY_SIZE(si_names); i++) {
-			if (!strcmp(name, si_names[i].name)) {
-				si_bits |= si_names[i].bit;
-				break;
-			}
-		}
+		i = match_string(si_names, ARRAY_SIZE(si_names), name);
+		if (i >= 0)
+			__set_bit(i, &si_bits);
 	}
 
 	return si_bits;
@@ -85,10 +81,10 @@ int sysctl_sys_info_handler(const struct ctl_table *ro_table, int write,
 		si_bits = READ_ONCE(*si_bits_global);
 
 		names[0] = '\0';
-		for (i = 0; i < ARRAY_SIZE(si_names); i++) {
-			if (si_bits & si_names[i].bit) {
+		for_each_set_bit(i, &si_bits, ARRAY_SIZE(si_names)) {
+			if (*si_names[i]) {
 				len += scnprintf(names + len, sizeof(names) - len,
-					"%s%s", delim, si_names[i].name);
+						 "%s%s", delim, si_names[i]);
 				delim = ",";
 			}
 		}
