@@ -92,7 +92,7 @@ int mlx5e_poll_rx_cq(struct mlx5e_cq *cq, int budget);
 void mlx5e_free_rx_descs(struct mlx5e_rq *rq);
 void mlx5e_free_rx_missing_descs(struct mlx5e_rq *rq);
 
-static inline bool mlx5e_rx_hw_stamp(struct hwtstamp_config *config)
+static inline bool mlx5e_rx_hw_stamp(struct kernel_hwtstamp_config *config)
 {
 	return config->rx_filter == HWTSTAMP_FILTER_ALL;
 }
