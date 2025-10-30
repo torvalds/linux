@@ -178,6 +178,7 @@ xe-$(CONFIG_PCI_IOV) += \
 	xe_sriov_pf_debugfs.o \
 	xe_sriov_pf_provision.o \
 	xe_sriov_pf_service.o \
+	xe_sriov_pf_sysfs.o \
 	xe_tile_sriov_pf_debugfs.o
 
 # include helpers for tests even when XE is built-in
