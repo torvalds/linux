@@ -3,7 +3,7 @@
  * Driver for Microchip 10BASE-T1S PHYs
  *
  * Support: Microchip Phys:
- *  lan8670/1/2 Rev.B1/C1/C2
+ *  lan8670/1/2 Rev.B1/C1/C2/D0
  *  lan8650/1 Rev.B0/B1 Internal PHYs
  */
 
@@ -14,6 +14,7 @@
 #define PHY_ID_LAN867X_REVB1 0x0007C162
 #define PHY_ID_LAN867X_REVC1 0x0007C164
 #define PHY_ID_LAN867X_REVC2 0x0007C165
+#define PHY_ID_LAN867X_REVD0 0x0007C166
 /* Both Rev.B0 and B1 clause 22 PHYID's are same due to B1 chip limitation */
 #define PHY_ID_LAN865X_REVB 0x0007C1B3
 
@@ -107,6 +108,21 @@ static const u16 lan865x_revb_sqi_fixup_values[12] = {
 
 static const u16 lan865x_revb_sqi_fixup_cfg_regs[3] = {
 	0x00AD, 0x00AE, 0x00AF,
+};
+
+/* LAN867x Rev.D0 configuration parameters from AN1699
+ * As per the Configuration Application Note AN1699 published in the below link,
+ * https://www.microchip.com/en-us/application-notes/an1699
+ * Revision G (DS60001699G - October 2025)
+ */
+static const u16 lan867x_revd0_fixup_regs[8] = {
+	0x0037, 0x008A, 0x0118, 0x00D6,
+	0x0082, 0x00FD, 0x00FD, 0x0091,
+};
+
+static const u16 lan867x_revd0_fixup_values[8] = {
+	0x0800, 0xBFC0, 0x029C, 0x1001,
+	0x001C, 0x0C0B, 0x8C07, 0x9660,
 };
 
 /* Pulled from AN1760 describing 'indirect read'
@@ -407,6 +423,25 @@ static int lan86xx_plca_set_cfg(struct phy_device *phydev,
 			      COL_DET_CTRL0_ENABLE_BIT_MASK, COL_DET_ENABLE);
 }
 
+static int lan867x_revd0_config_init(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = lan867x_check_reset_complete(phydev);
+	if (ret)
+		return ret;
+
+	for (int i = 0; i < ARRAY_SIZE(lan867x_revd0_fixup_regs); i++) {
+		ret = phy_write_mmd(phydev, MDIO_MMD_VEND2,
+				    lan867x_revd0_fixup_regs[i],
+				    lan867x_revd0_fixup_values[i]);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int lan86xx_read_status(struct phy_device *phydev)
 {
 	/* The phy has some limitations, namely:
@@ -482,6 +517,15 @@ static struct phy_driver microchip_t1s_driver[] = {
 		.get_plca_status    = genphy_c45_plca_get_status,
 	},
 	{
+		PHY_ID_MATCH_EXACT(PHY_ID_LAN867X_REVD0),
+		.name               = "LAN867X Rev.D0",
+		.features           = PHY_BASIC_T1S_P2MP_FEATURES,
+		.config_init        = lan867x_revd0_config_init,
+		.get_plca_cfg	    = genphy_c45_plca_get_cfg,
+		.set_plca_cfg	    = lan86xx_plca_set_cfg,
+		.get_plca_status    = genphy_c45_plca_get_status,
+	},
+	{
 		PHY_ID_MATCH_EXACT(PHY_ID_LAN865X_REVB),
 		.name               = "LAN865X Rev.B0/B1 Internal Phy",
 		.features           = PHY_BASIC_T1S_P2MP_FEATURES,
@@ -501,6 +545,7 @@ static const struct mdio_device_id __maybe_unused tbl[] = {
 	{ PHY_ID_MATCH_EXACT(PHY_ID_LAN867X_REVB1) },
 	{ PHY_ID_MATCH_EXACT(PHY_ID_LAN867X_REVC1) },
 	{ PHY_ID_MATCH_EXACT(PHY_ID_LAN867X_REVC2) },
+	{ PHY_ID_MATCH_EXACT(PHY_ID_LAN867X_REVD0) },
 	{ PHY_ID_MATCH_EXACT(PHY_ID_LAN865X_REVB) },
 	{ }
 };
