@@ -1,0 +1,61 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/ufs/amd,versal2-ufs.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: AMD Versal Gen 2 UFS Host Controller
+
+maintainers:
+  - Sai Krishna Potthuri <sai.krishna.potthuri@amd.com>
+
+allOf:
+  - $ref: ufs-common.yaml
+
+properties:
+  compatible:
+    const: amd,versal2-ufs
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    items:
+      - const: core
+
+  power-domains:
+    maxItems: 1
+
+  resets:
+    maxItems: 2
+
+  reset-names:
+    items:
+      - const: host
+      - const: phy
+
+required:
+  - reg
+  - clocks
+  - clock-names
+  - resets
+  - reset-names
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    ufs@f10b0000 {
+        compatible = "amd,versal2-ufs";
+        reg = <0xf10b0000 0x1000>;
+        clocks = <&ufs_core_clk>;
+        clock-names = "core";
+        resets = <&scmi_reset 4>, <&scmi_reset 35>;
+        reset-names = "host", "phy";
+        interrupts = <GIC_SPI 234 IRQ_TYPE_LEVEL_HIGH>;
+        freq-table-hz = <0 0>;
+    };
