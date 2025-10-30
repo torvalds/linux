@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #ifndef __BOOT_COMPRESSED
-#define has_cpuflag(f)                  boot_cpu_has(f)
+#define has_cpuflag(f)                  cpu_feature_enabled(f)
 #endif
 
 static enum es_result vc_check_opcode_bytes(struct es_em_ctxt *ctxt,

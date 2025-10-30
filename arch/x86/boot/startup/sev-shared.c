@@ -12,7 +12,7 @@
 #include <asm/setup_data.h>
 
 #ifndef __BOOT_COMPRESSED
-#define has_cpuflag(f)			boot_cpu_has(f)
+#define has_cpuflag(f)			cpu_feature_enabled(f)
 #else
 #undef WARN
 #define WARN(condition, format...) (!!(condition))
