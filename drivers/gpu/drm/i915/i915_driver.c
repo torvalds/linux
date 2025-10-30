@@ -740,6 +740,7 @@ static void i915_welcome_messages(struct drm_i915_private *dev_priv)
 }
 
 static const struct intel_display_parent_interface parent = {
+	.rpm = &i915_display_rpm_interface,
 };
 
 const struct intel_display_parent_interface *i915_driver_parent_interface(void)
