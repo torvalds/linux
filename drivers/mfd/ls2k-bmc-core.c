@@ -484,7 +484,7 @@ static int ls2k_bmc_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	ls2k_bmc_cells[LS2K_BMC_DISPLAY].platform_data = &pd;
 	ls2k_bmc_cells[LS2K_BMC_DISPLAY].pdata_size = sizeof(pd);
-	base = dev->resource[0].start + LS2K_DISPLAY_RES_START;
+	base = pci_resource_start(dev, 0) + LS2K_DISPLAY_RES_START;
 
 	/* Remove conflicting efifb device */
 	ret = aperture_remove_conflicting_devices(base, SZ_4M, "simple-framebuffer");
@@ -493,7 +493,7 @@ static int ls2k_bmc_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	return devm_mfd_add_devices(&dev->dev, PLATFORM_DEVID_AUTO,
 				    ls2k_bmc_cells, ARRAY_SIZE(ls2k_bmc_cells),
-				    &dev->resource[0], 0, NULL);
+				    pci_resource_n(dev, 0), 0, NULL);
 }
 
 static struct pci_device_id ls2k_bmc_devices[] = {
