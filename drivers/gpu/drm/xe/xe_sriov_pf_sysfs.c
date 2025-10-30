@@ -17,6 +17,23 @@
 #include "xe_sriov_pf_sysfs.h"
 #include "xe_sriov_printk.h"
 
+static int emit_choice(char *buf, int choice, const char * const *array, size_t size)
+{
+	int pos = 0;
+	int n;
+
+	for (n = 0; n < size; n++) {
+		pos += sysfs_emit_at(buf, pos, "%s%s%s%s",
+				    n ? " " : "",
+				    n == choice ? "[" : "",
+				    array[n],
+				    n == choice ? "]" : "");
+	}
+	pos += sysfs_emit_at(buf, pos, "\n");
+
+	return pos;
+}
+
 /*
  * /sys/bus/pci/drivers/xe/BDF/
  * :
@@ -30,12 +47,14 @@
  *     │   ├── ...
  *     │   └── profile
  *     │       ├── exec_quantum_ms
- *     │       └── preempt_timeout_us
+ *     │       ├── preempt_timeout_us
+ *     │       └── sched_priority
  *     ├── vf1/
  *     │   ├── ...
  *     │   └── profile
  *     │       ├── exec_quantum_ms
- *     │       └── preempt_timeout_us
+ *     │       ├── preempt_timeout_us
+ *     │       └── sched_priority
  *     ├── vf2/
  *     :
  *     └── vfN/
@@ -114,6 +133,12 @@ static const char * const sched_priority_names[] = {
 	[GUC_SCHED_PRIORITY_NORMAL] = "normal",
 	[GUC_SCHED_PRIORITY_HIGH] = "high",
 };
+
+static bool sched_priority_change_allowed(unsigned int vfid)
+{
+	/* As of today GuC FW allows to selectively change only the PF priority. */
+	return vfid == PFID;
+}
 
 static bool sched_priority_high_allowed(unsigned int vfid)
 {
@@ -199,15 +224,70 @@ static XE_SRIOV_VF_ATTR(NAME)
 DEFINE_SIMPLE_PROVISIONING_SRIOV_VF_ATTR(exec_quantum_ms, eq, u32, "%u\n");
 DEFINE_SIMPLE_PROVISIONING_SRIOV_VF_ATTR(preempt_timeout_us, pt, u32, "%u\n");
 
+static ssize_t xe_sriov_vf_attr_sched_priority_show(struct xe_device *xe, unsigned int vfid,
+						    char *buf)
+{
+	size_t num_priorities = ARRAY_SIZE(sched_priority_names);
+	u32 priority;
+	int err;
+
+	err = xe_sriov_pf_provision_query_vf_priority(xe, vfid, &priority);
+	if (err)
+		return err;
+
+	if (!sched_priority_high_allowed(vfid))
+		num_priorities--;
+
+	xe_assert(xe, priority < num_priorities);
+	return emit_choice(buf, priority, sched_priority_names, num_priorities);
+}
+
+static ssize_t xe_sriov_vf_attr_sched_priority_store(struct xe_device *xe, unsigned int vfid,
+						     const char *buf, size_t count)
+{
+	size_t num_priorities = ARRAY_SIZE(sched_priority_names);
+	int match;
+	int err;
+
+	if (!sched_priority_change_allowed(vfid))
+		return -EOPNOTSUPP;
+
+	if (!sched_priority_high_allowed(vfid))
+		num_priorities--;
+
+	match = __sysfs_match_string(sched_priority_names, num_priorities, buf);
+	if (match < 0)
+		return -EINVAL;
+
+	err = xe_sriov_pf_provision_apply_vf_priority(xe, vfid, match);
+	return err ?: count;
+}
+
+static XE_SRIOV_VF_ATTR(sched_priority);
+
 static struct attribute *profile_vf_attrs[] = {
 	&xe_sriov_vf_attr_exec_quantum_ms.attr,
 	&xe_sriov_vf_attr_preempt_timeout_us.attr,
+	&xe_sriov_vf_attr_sched_priority.attr,
 	NULL
 };
+
+static umode_t profile_vf_attr_is_visible(struct kobject *kobj,
+					  struct attribute *attr, int index)
+{
+	struct xe_sriov_kobj *vkobj = to_xe_sriov_kobj(kobj);
+
+	if (attr == &xe_sriov_vf_attr_sched_priority.attr &&
+	    !sched_priority_change_allowed(vkobj->vfid))
+		return attr->mode & 0444;
+
+	return attr->mode;
+}
 
 static const struct attribute_group profile_vf_attr_group = {
 	.name = "profile",
 	.attrs = profile_vf_attrs,
+	.is_visible = profile_vf_attr_is_visible,
 };
 
 static const struct attribute_group *xe_sriov_vf_attr_groups[] = {
