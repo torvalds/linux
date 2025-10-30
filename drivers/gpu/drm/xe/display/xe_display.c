@@ -35,6 +35,7 @@
 #include "intel_hotplug.h"
 #include "intel_opregion.h"
 #include "skl_watermark.h"
+#include "xe_display_rpm.h"
 #include "xe_module.h"
 
 /* Ensure drm and display members are placed properly. */
@@ -517,6 +518,7 @@ static void display_device_remove(struct drm_device *dev, void *arg)
 }
 
 static const struct intel_display_parent_interface parent = {
+	.rpm = &xe_display_rpm_interface,
 };
 
 /**
