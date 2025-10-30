@@ -3968,6 +3968,7 @@ extern void balance_callbacks(struct rq *rq, struct balance_callback *head);
 struct sched_change_ctx {
 	u64			prio;
 	struct task_struct	*p;
+	const struct sched_class *class;
 	int			flags;
 	bool			queued;
 	bool			running;
