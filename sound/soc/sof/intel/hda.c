@@ -1260,7 +1260,15 @@ static struct snd_soc_acpi_adr_device *find_acpi_adr_device(struct device *dev,
 								    "AMP", *amp_index);
 			break;
 		}
+	} else if (!strcmp(name_prefix, "AMP")) {
+		adr_dev[index].name_prefix = devm_kasprintf(dev, GFP_KERNEL, "%s%d",
+							    name_prefix,
+							    *amp_index);
 	} else {
+		/*
+		 * The name_prefix will be the amp name if it is not "Left" or "AMP", set it to
+		 * <name_prefix>-<amp_index> format. Like rt1320-1
+		 */
 		adr_dev[index].name_prefix = devm_kasprintf(dev, GFP_KERNEL, "%s-%d",
 							    name_prefix,
 							    *amp_index);
