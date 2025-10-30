@@ -30,18 +30,6 @@ static void pf_reset_vfs(struct xe_device *xe, unsigned int num_vfs)
 		xe_sriov_pf_control_reset_vf(xe, n);
 }
 
-static struct pci_dev *xe_pci_pf_get_vf_dev(struct xe_device *xe, unsigned int vf_id)
-{
-	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
-
-	xe_assert(xe, IS_SRIOV_PF(xe));
-
-	/* caller must use pci_dev_put() */
-	return pci_get_domain_bus_and_slot(pci_domain_nr(pdev->bus),
-			pdev->bus->number,
-			pci_iov_virtfn_devfn(pdev, vf_id));
-}
-
 static void pf_link_vfs(struct xe_device *xe, int num_vfs)
 {
 	struct pci_dev *pdev_pf = to_pci_dev(xe->drm.dev);
@@ -60,7 +48,7 @@ static void pf_link_vfs(struct xe_device *xe, int num_vfs)
 	 * enforce correct resume order.
 	 */
 	for (n = 1; n <= num_vfs; n++) {
-		pdev_vf = xe_pci_pf_get_vf_dev(xe, n - 1);
+		pdev_vf = xe_pci_sriov_get_vf_pdev(pdev_pf, n);
 
 		/* unlikely, something weird is happening, abort */
 		if (!pdev_vf) {
@@ -227,4 +215,26 @@ int xe_pci_sriov_configure(struct pci_dev *pdev, int num_vfs)
 	xe_pm_runtime_put(xe);
 
 	return ret;
+}
+
+/**
+ * xe_pci_sriov_get_vf_pdev() - Lookup the VF's PCI device using the VF identifier.
+ * @pdev: the PF's &pci_dev
+ * @vfid: VF identifier (1-based)
+ *
+ * The caller must decrement the reference count by calling pci_dev_put().
+ *
+ * Return: the VF's &pci_dev or NULL if the VF device was not found.
+ */
+struct pci_dev *xe_pci_sriov_get_vf_pdev(struct pci_dev *pdev, unsigned int vfid)
+{
+	struct xe_device *xe = pdev_to_xe_device(pdev);
+
+	xe_assert(xe, dev_is_pf(&pdev->dev));
+	xe_assert(xe, vfid);
+	xe_assert(xe, vfid <= pci_sriov_get_totalvfs(pdev));
+
+	return pci_get_domain_bus_and_slot(pci_domain_nr(pdev->bus),
+					   pdev->bus->number,
+					   pci_iov_virtfn_devfn(pdev, vfid - 1));
 }
