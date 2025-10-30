@@ -19,6 +19,12 @@
 #include "ntfs.h"
 #include "ntfs_fs.h"
 
+/*
+ * cifx, btrfs, exfat, ext4, f2fs use this constant.
+ * Hope this value will become common to all fs.
+ */
+#define NTFS3_IOC_SHUTDOWN _IOR('X', 125, __u32)
+
 static int ntfs_ioctl_fitrim(struct ntfs_sb_info *sbi, unsigned long arg)
 {
 	struct fstrim_range __user *user_range;
@@ -74,12 +80,46 @@ static int ntfs_ioctl_set_volume_label(struct ntfs_sb_info *sbi, u8 __user *buf)
 }
 
 /*
+ * ntfs_force_shutdown - helper function. Called from ioctl
+ */
+static int ntfs_force_shutdown(struct super_block *sb, u32 flags)
+{
+	int err;
+	struct ntfs_sb_info *sbi = sb->s_fs_info;
+
+	if (unlikely(ntfs3_forced_shutdown(sb)))
+		return 0;
+
+	/* No additional options yet (flags). */
+	err = bdev_freeze(sb->s_bdev);
+	if (err)
+		return err;
+	set_bit(NTFS_FLAGS_SHUTDOWN_BIT, &sbi->flags);
+	bdev_thaw(sb->s_bdev);
+	return 0;
+}
+
+static int ntfs_ioctl_shutdown(struct super_block *sb, unsigned long arg)
+{
+	u32 flags;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	if (get_user(flags, (__u32 __user *)arg))
+		return -EFAULT;
+
+	return ntfs_force_shutdown(sb, flags);
+}
+
+/*
  * ntfs_ioctl - file_operations::unlocked_ioctl
  */
 long ntfs_ioctl(struct file *filp, u32 cmd, unsigned long arg)
 {
 	struct inode *inode = file_inode(filp);
-	struct ntfs_sb_info *sbi = inode->i_sb->s_fs_info;
+	struct super_block *sb = inode->i_sb;
+	struct ntfs_sb_info *sbi = sb->s_fs_info;
 
 	/* Avoid any operation if inode is bad. */
 	if (unlikely(is_bad_ni(ntfs_i(inode))))
@@ -92,6 +132,8 @@ long ntfs_ioctl(struct file *filp, u32 cmd, unsigned long arg)
 		return ntfs_ioctl_get_volume_label(sbi, (u8 __user *)arg);
 	case FS_IOC_SETFSLABEL:
 		return ntfs_ioctl_set_volume_label(sbi, (u8 __user *)arg);
+	case NTFS3_IOC_SHUTDOWN:
+		return ntfs_ioctl_shutdown(sb, arg);
 	}
 	return -ENOTTY; /* Inappropriate ioctl for device. */
 }
