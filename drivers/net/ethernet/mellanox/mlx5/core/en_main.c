@@ -735,7 +735,7 @@ static int mlx5e_init_rxq_rq(struct mlx5e_channel *c, struct mlx5e_params *param
 	rq->pdev         = c->pdev;
 	rq->netdev       = c->netdev;
 	rq->priv         = c->priv;
-	rq->tstamp       = c->tstamp;
+	rq->tstamp       = &c->priv->tstamp;
 	rq->clock        = mdev->clock;
 	rq->icosq        = &c->icosq;
 	rq->ix           = c->ix;
@@ -2803,7 +2803,6 @@ static int mlx5e_open_channel(struct mlx5e_priv *priv, int ix,
 
 	c->priv     = priv;
 	c->mdev     = mdev;
-	c->tstamp   = &priv->tstamp;
 	c->ix       = ix;
 	c->vec_ix   = vec_ix;
 	c->sd_ix    = mlx5_sd_ch_ix_get_dev_ix(mdev, ix);

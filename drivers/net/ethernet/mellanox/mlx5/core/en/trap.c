@@ -144,7 +144,6 @@ static struct mlx5e_trap *mlx5e_open_trap(struct mlx5e_priv *priv)
 
 	t->priv     = priv;
 	t->mdev     = priv->mdev;
-	t->tstamp   = &priv->tstamp;
 	t->pdev     = mlx5_core_dma_dev(priv->mdev);
 	t->netdev   = priv->netdev;
 	t->mkey_be  = cpu_to_be32(priv->mdev->mlx5e_res.hw_objs.mkey);
