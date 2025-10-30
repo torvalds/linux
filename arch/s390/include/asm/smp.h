@@ -43,7 +43,7 @@ extern int __cpu_up(unsigned int cpu, struct task_struct *tidle);
 extern void arch_send_call_function_single_ipi(int cpu);
 extern void arch_send_call_function_ipi_mask(const struct cpumask *mask);
 
-extern void smp_call_ipl_cpu(void (*func)(void *), void *);
+extern void __noreturn smp_call_ipl_cpu(void (*func)(void *), void *data);
 extern void smp_emergency_stop(void);
 
 extern int smp_find_processor_id(u16 address);
