@@ -924,7 +924,8 @@ static int pf_config_bulk_set_u32_done(struct xe_gt *gt, unsigned int first, uns
 				       const char *what, const char *(*unit)(u32),
 				       unsigned int last, int err)
 {
-	xe_gt_assert(gt, first);
+	char name[8];
+
 	xe_gt_assert(gt, num_vfs);
 	xe_gt_assert(gt, first <= last);
 
@@ -932,8 +933,9 @@ static int pf_config_bulk_set_u32_done(struct xe_gt *gt, unsigned int first, uns
 		return pf_config_set_u32_done(gt, first, value, get(gt, first), what, unit, err);
 
 	if (unlikely(err)) {
-		xe_gt_sriov_notice(gt, "Failed to bulk provision VF%u..VF%u with %s\n",
-				   first, first + num_vfs - 1, what);
+		xe_gt_sriov_notice(gt, "Failed to bulk provision %s..VF%u with %s\n",
+				   xe_sriov_function_name(first, name, sizeof(name)),
+				   first + num_vfs - 1, what);
 		if (last > first)
 			pf_config_bulk_set_u32_done(gt, first, last - first, value,
 						    get, what, unit, last, 0);
@@ -942,8 +944,9 @@ static int pf_config_bulk_set_u32_done(struct xe_gt *gt, unsigned int first, uns
 
 	/* pick actual value from first VF - bulk provisioning shall be equal across all VFs */
 	value = get(gt, first);
-	xe_gt_sriov_info(gt, "VF%u..VF%u provisioned with %u%s %s\n",
-			 first, first + num_vfs - 1, value, unit(value), what);
+	xe_gt_sriov_info(gt, "%s..VF%u provisioned with %u%s %s\n",
+			 xe_sriov_function_name(first, name, sizeof(name)),
+			 first + num_vfs - 1, value, unit(value), what);
 	return 0;
 }
 
