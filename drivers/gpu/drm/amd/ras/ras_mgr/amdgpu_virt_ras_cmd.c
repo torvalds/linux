@@ -413,3 +413,18 @@ int amdgpu_virt_ras_hw_fini(struct amdgpu_device *adev)
 
 	return 0;
 }
+
+int amdgpu_virt_ras_pre_reset(struct amdgpu_device *adev)
+{
+	struct amdgpu_ras_mgr *ras_mgr = amdgpu_ras_mgr_get_context(adev);
+	struct amdgpu_virt_ras_cmd *virt_ras =
+		(struct amdgpu_virt_ras_cmd *)ras_mgr->virt_ras_cmd;
+
+	virt_ras->blocks_ecc.auto_update_actived = false;
+	return 0;
+}
+
+int amdgpu_virt_ras_post_reset(struct amdgpu_device *adev)
+{
+	return 0;
+}

@@ -49,5 +49,6 @@ int amdgpu_virt_ras_hw_init(struct amdgpu_device *adev);
 int amdgpu_virt_ras_hw_fini(struct amdgpu_device *adev);
 int amdgpu_virt_ras_handle_cmd(struct ras_core_context *ras_core,
 		struct ras_cmd_ctx *cmd);
-
+int amdgpu_virt_ras_pre_reset(struct amdgpu_device *adev);
+int amdgpu_virt_ras_post_reset(struct amdgpu_device *adev);
 #endif

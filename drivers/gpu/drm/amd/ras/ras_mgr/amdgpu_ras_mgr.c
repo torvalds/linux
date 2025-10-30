@@ -642,6 +642,9 @@ int amdgpu_ras_mgr_handle_ras_cmd(struct amdgpu_device *adev,
 
 int amdgpu_ras_mgr_pre_reset(struct amdgpu_device *adev)
 {
+	if (amdgpu_sriov_vf(adev))
+		return amdgpu_virt_ras_pre_reset(adev);
+
 	if (!amdgpu_ras_mgr_is_ready(adev)) {
 		RAS_DEV_ERR(adev, "Invalid ras suspend!\n");
 		return -EPERM;
@@ -653,6 +656,9 @@ int amdgpu_ras_mgr_pre_reset(struct amdgpu_device *adev)
 
 int amdgpu_ras_mgr_post_reset(struct amdgpu_device *adev)
 {
+	if (amdgpu_sriov_vf(adev))
+		return amdgpu_virt_ras_post_reset(adev);
+
 	if (!amdgpu_ras_mgr_is_ready(adev)) {
 		RAS_DEV_ERR(adev, "Invalid ras resume!\n");
 		return -EPERM;
