@@ -444,7 +444,7 @@ static int pwm_mediatek_probe(struct platform_device *pdev)
 	soc = of_device_get_match_data(&pdev->dev);
 
 	chip = devm_pwmchip_alloc(&pdev->dev, soc->num_pwms,
-				  sizeof(*pc) + soc->num_pwms * sizeof(*pc->clk_pwms));
+				  struct_size(pc, clk_pwms, soc->num_pwms));
 	if (IS_ERR(chip))
 		return PTR_ERR(chip);
 	pc = to_pwm_mediatek_chip(chip);
