@@ -37,7 +37,8 @@ static int ucsi_cmd(void *data, u64 val)
 	case UCSI_SET_USB:
 	case UCSI_SET_POWER_LEVEL:
 	case UCSI_READ_POWER_LEVEL:
-		ret = ucsi_send_command(ucsi, val, NULL, 0);
+		ucsi->message_in_size = 0;
+		ret = ucsi_send_command(ucsi, val);
 		break;
 	case UCSI_GET_CAPABILITY:
 	case UCSI_GET_CONNECTOR_CAPABILITY:
@@ -52,9 +53,9 @@ static int ucsi_cmd(void *data, u64 val)
 	case UCSI_GET_ATTENTION_VDO:
 	case UCSI_GET_CAM_CS:
 	case UCSI_GET_LPM_PPM_INFO:
-		ret = ucsi_send_command(ucsi, val,
-					&ucsi->debugfs->response,
-					sizeof(ucsi->debugfs->response));
+		ucsi->message_in_size = sizeof(ucsi->debugfs->response);
+		ret = ucsi_send_command(ucsi, val);
+		memcpy(&ucsi->debugfs->response, ucsi->message_in, sizeof(ucsi->debugfs->response));
 		break;
 	default:
 		ret = -EOPNOTSUPP;
