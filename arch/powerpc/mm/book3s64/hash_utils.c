@@ -47,6 +47,7 @@
 #include <asm/mmu.h>
 #include <asm/mmu_context.h>
 #include <asm/page.h>
+#include <asm/pgalloc.h>
 #include <asm/types.h>
 #include <linux/uaccess.h>
 #include <asm/machdep.h>
@@ -449,6 +450,7 @@ static __init void hash_kfence_map_pool(void)
 {
 	unsigned long kfence_pool_start, kfence_pool_end;
 	unsigned long prot = pgprot_val(PAGE_KERNEL);
+	unsigned int pshift = mmu_psize_defs[mmu_linear_psize].shift;
 
 	if (!kfence_pool)
 		return;
@@ -459,6 +461,7 @@ static __init void hash_kfence_map_pool(void)
 	BUG_ON(htab_bolt_mapping(kfence_pool_start, kfence_pool_end,
 				    kfence_pool, prot, mmu_linear_psize,
 				    mmu_kernel_ssize));
+	update_page_count(mmu_linear_psize, KFENCE_POOL_SIZE >> pshift);
 	memblock_clear_nomap(kfence_pool, KFENCE_POOL_SIZE);
 }
 
@@ -1234,6 +1237,7 @@ int hash__create_section_mapping(unsigned long start, unsigned long end,
 				 int nid, pgprot_t prot)
 {
 	int rc;
+	unsigned int pshift = mmu_psize_defs[mmu_linear_psize].shift;
 
 	if (end >= H_VMALLOC_START) {
 		pr_warn("Outside the supported range\n");
@@ -1251,17 +1255,22 @@ int hash__create_section_mapping(unsigned long start, unsigned long end,
 					      mmu_kernel_ssize);
 		BUG_ON(rc2 && (rc2 != -ENOENT));
 	}
+	update_page_count(mmu_linear_psize, (end - start) >> pshift);
 	return rc;
 }
 
 int hash__remove_section_mapping(unsigned long start, unsigned long end)
 {
+	unsigned int pshift = mmu_psize_defs[mmu_linear_psize].shift;
+
 	int rc = htab_remove_mapping(start, end, mmu_linear_psize,
 				     mmu_kernel_ssize);
 
 	if (resize_hpt_for_hotplug(memblock_phys_mem_size()) == -ENOSPC)
 		pr_warn("Hash collision while resizing HPT\n");
 
+	if (!rc)
+		update_page_count(mmu_linear_psize, -((end - start) >> pshift));
 	return rc;
 }
 #endif /* CONFIG_MEMORY_HOTPLUG */
@@ -1304,6 +1313,7 @@ static void __init htab_initialize(void)
 	unsigned long prot;
 	phys_addr_t base = 0, size = 0, end, limit = MEMBLOCK_ALLOC_ANYWHERE;
 	u64 i;
+	unsigned int pshift = mmu_psize_defs[mmu_linear_psize].shift;
 
 	DBG(" -> htab_initialize()\n");
 
@@ -1404,6 +1414,8 @@ static void __init htab_initialize(void)
 
 		BUG_ON(htab_bolt_mapping(base, base + size, __pa(base),
 				prot, mmu_linear_psize, mmu_kernel_ssize));
+
+		update_page_count(mmu_linear_psize, size >> pshift);
 	}
 	hash_kfence_map_pool();
 	memblock_set_current_limit(MEMBLOCK_ALLOC_ANYWHERE);
@@ -1425,6 +1437,8 @@ static void __init htab_initialize(void)
 		BUG_ON(htab_bolt_mapping(tce_alloc_start, tce_alloc_end,
 					 __pa(tce_alloc_start), prot,
 					 mmu_linear_psize, mmu_kernel_ssize));
+		update_page_count(mmu_linear_psize,
+				  (tce_alloc_end - tce_alloc_start) >> pshift);
 	}
 
 
