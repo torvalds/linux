@@ -9,6 +9,7 @@
 #include <linux/bits.h>
 #include <linux/cleanup.h>
 #include <linux/devfreq.h>
+#include <linux/devfreq-governor.h>
 #include <linux/device.h>
 #include <linux/dev_printk.h>
 #include <linux/errno.h>
@@ -25,8 +26,6 @@
 #include <linux/topology.h>
 #include <linux/units.h>
 #include <acpi/pcc.h>
-
-#include "governor.h"
 
 struct hisi_uncore_pcc_data {
 	u16 status;
