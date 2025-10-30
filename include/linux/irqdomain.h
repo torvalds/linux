@@ -48,7 +48,7 @@ struct irq_fwspec {
  * struct irq_fwspec_info - firmware provided IRQ information structure
  *
  * @flags:		Information validity flags
- * @cpumask:		Affinity mask for this interrupt
+ * @affinity:		Affinity mask for this interrupt
  *
  * This structure reports firmware-specific information about an
  * interrupt. The only significant information is the affinity of a
