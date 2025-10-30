@@ -334,7 +334,7 @@ void mlx5i_destroy_underlay_qp(struct mlx5_core_dev *mdev, u32 qpn)
 
 int mlx5i_update_nic_rx(struct mlx5e_priv *priv)
 {
-	return mlx5e_refresh_tirs(priv, true, true);
+	return mlx5e_refresh_tirs(priv->mdev, true, true);
 }
 
 int mlx5i_create_tis(struct mlx5_core_dev *mdev, u32 underlay_qpn, u32 *tisn)

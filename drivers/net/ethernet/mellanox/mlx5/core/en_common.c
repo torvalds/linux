@@ -247,10 +247,9 @@ void mlx5e_destroy_mdev_resources(struct mlx5_core_dev *mdev)
 	memset(res, 0, sizeof(*res));
 }
 
-int mlx5e_refresh_tirs(struct mlx5e_priv *priv, bool enable_uc_lb,
-		       bool enable_mc_lb)
+int mlx5e_modify_tirs_lb(struct mlx5_core_dev *mdev, bool enable_uc_lb,
+			 bool enable_mc_lb)
 {
-	struct mlx5_core_dev *mdev = priv->mdev;
 	struct mlx5e_tir *tir;
 	u8 lb_flags = 0;
 	int err  = 0;
@@ -285,7 +284,16 @@ int mlx5e_refresh_tirs(struct mlx5e_priv *priv, bool enable_uc_lb,
 
 	kvfree(in);
 	if (err)
-		netdev_err(priv->netdev, "refresh tir(0x%x) failed, %d\n", tirn, err);
+		mlx5_core_err(mdev,
+			      "modify tir(0x%x) enable_lb uc(%d) mc(%d) failed, %d\n",
+			      tirn,
+			      enable_uc_lb, enable_mc_lb, err);
 
 	return err;
+}
+
+int mlx5e_refresh_tirs(struct mlx5_core_dev *mdev, bool enable_uc_lb,
+		       bool enable_mc_lb)
+{
+	return mlx5e_modify_tirs_lb(mdev, enable_uc_lb, enable_mc_lb);
 }
