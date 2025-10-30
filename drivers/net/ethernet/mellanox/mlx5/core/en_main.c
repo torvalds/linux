@@ -3383,7 +3383,8 @@ static int mlx5e_switch_priv_channels(struct mlx5e_priv *priv,
 		}
 	}
 
-	mlx5e_close_channels(old_chs);
+	if (!MLX5_CAP_GEN(priv->mdev, tis_tir_td_order))
+		mlx5e_close_channels(old_chs);
 	priv->profile->update_rx(priv);
 
 	mlx5e_selq_apply(&priv->selq);
@@ -3430,6 +3431,9 @@ int mlx5e_safe_switch_params(struct mlx5e_priv *priv,
 					 preactivate, context);
 	if (err)
 		goto err_close;
+
+	if (MLX5_CAP_GEN(priv->mdev, tis_tir_td_order))
+		mlx5e_close_channels(old_chs);
 
 	kfree(new_chs);
 	kfree(old_chs);
