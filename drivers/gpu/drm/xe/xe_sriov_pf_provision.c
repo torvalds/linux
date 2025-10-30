@@ -152,3 +152,138 @@ int xe_sriov_pf_provision_set_mode(struct xe_device *xe, enum xe_sriov_provision
 	xe->sriov.pf.provision.mode = mode;
 	return 0;
 }
+
+/**
+ * xe_sriov_pf_provision_apply_vf_eq() - Change VF's execution quantum.
+ * @xe: the PF &xe_device
+ * @vfid: the VF identifier
+ * @eq: execution quantum in [ms] to set
+ *
+ * Change VF's execution quantum (EQ) provisioning on all tiles/GTs.
+ *
+ * This function can only be called on PF.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_sriov_pf_provision_apply_vf_eq(struct xe_device *xe, unsigned int vfid, u32 eq)
+{
+	struct xe_gt *gt;
+	unsigned int id;
+	int result = 0;
+	int err;
+
+	guard(mutex)(xe_sriov_pf_master_mutex(xe));
+
+	for_each_gt(gt, xe, id) {
+		err = xe_gt_sriov_pf_config_set_exec_quantum_locked(gt, vfid, eq);
+		result = result ?: err;
+	}
+
+	return result;
+}
+
+static int pf_report_unclean(struct xe_gt *gt, unsigned int vfid,
+			     const char *what, u32 found, u32 expected)
+{
+	char name[8];
+
+	xe_sriov_dbg(gt_to_xe(gt), "%s on GT%u has %s=%u (expected %u)\n",
+		     xe_sriov_function_name(vfid, name, sizeof(name)),
+		     gt->info.id, what, found, expected);
+	return -EUCLEAN;
+}
+
+/**
+ * xe_sriov_pf_provision_query_vf_eq() - Query VF's execution quantum.
+ * @xe: the PF &xe_device
+ * @vfid: the VF identifier
+ * @eq: placeholder for the returned execution quantum in [ms]
+ *
+ * Query VF's execution quantum (EQ) provisioning from all tiles/GTs.
+ * If values across tiles/GTs are inconsistent then -EUCLEAN error will be returned.
+ *
+ * This function can only be called on PF.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_sriov_pf_provision_query_vf_eq(struct xe_device *xe, unsigned int vfid, u32 *eq)
+{
+	struct xe_gt *gt;
+	unsigned int id;
+	int count = 0;
+	u32 value;
+
+	guard(mutex)(xe_sriov_pf_master_mutex(xe));
+
+	for_each_gt(gt, xe, id) {
+		value = xe_gt_sriov_pf_config_get_exec_quantum_locked(gt, vfid);
+		if (!count++)
+			*eq = value;
+		else if (value != *eq)
+			return pf_report_unclean(gt, vfid, "EQ", value, *eq);
+	}
+
+	return !count ? -ENODATA : 0;
+}
+
+/**
+ * xe_sriov_pf_provision_apply_vf_pt() - Change VF's preemption timeout.
+ * @xe: the PF &xe_device
+ * @vfid: the VF identifier
+ * @pt: preemption timeout in [us] to set
+ *
+ * Change VF's preemption timeout (PT) provisioning on all tiles/GTs.
+ *
+ * This function can only be called on PF.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_sriov_pf_provision_apply_vf_pt(struct xe_device *xe, unsigned int vfid, u32 pt)
+{
+	struct xe_gt *gt;
+	unsigned int id;
+	int result = 0;
+	int err;
+
+	guard(mutex)(xe_sriov_pf_master_mutex(xe));
+
+	for_each_gt(gt, xe, id) {
+		err = xe_gt_sriov_pf_config_set_preempt_timeout_locked(gt, vfid, pt);
+		result = result ?: err;
+	}
+
+	return result;
+}
+
+/**
+ * xe_sriov_pf_provision_query_vf_pt() - Query VF's preemption timeout.
+ * @xe: the PF &xe_device
+ * @vfid: the VF identifier
+ * @pt: placeholder for the returned preemption timeout in [us]
+ *
+ * Query VF's preemption timeout (PT) provisioning from all tiles/GTs.
+ * If values across tiles/GTs are inconsistent then -EUCLEAN error will be returned.
+ *
+ * This function can only be called on PF.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_sriov_pf_provision_query_vf_pt(struct xe_device *xe, unsigned int vfid, u32 *pt)
+{
+	struct xe_gt *gt;
+	unsigned int id;
+	int count = 0;
+	u32 value;
+
+	guard(mutex)(xe_sriov_pf_master_mutex(xe));
+
+	for_each_gt(gt, xe, id) {
+		value = xe_gt_sriov_pf_config_get_preempt_timeout_locked(gt, vfid);
+		if (!count++)
+			*pt = value;
+		else if (value != *pt)
+			return pf_report_unclean(gt, vfid, "PT", value, *pt);
+	}
+
+	return !count ? -ENODATA : 0;
+}

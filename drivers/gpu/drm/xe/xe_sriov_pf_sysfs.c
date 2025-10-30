@@ -13,6 +13,7 @@
 #include "xe_sriov.h"
 #include "xe_sriov_pf.h"
 #include "xe_sriov_pf_helpers.h"
+#include "xe_sriov_pf_provision.h"
 #include "xe_sriov_pf_sysfs.h"
 #include "xe_sriov_printk.h"
 
@@ -23,10 +24,14 @@
  *     ├── ...
  *     ├── pf/
  *     │   ├── ...
- *     │   └── ...
+ *     │   └── profile
+ *     │       ├── exec_quantum_ms
+ *     │       └── preempt_timeout_us
  *     ├── vf1/
  *     │   ├── ...
- *     │   └── ...
+ *     │   └── profile
+ *     │       ├── exec_quantum_ms
+ *     │       └── preempt_timeout_us
  *     ├── vf2/
  *     :
  *     └── vfN/
@@ -85,7 +90,52 @@ static const struct attribute_group *xe_sriov_dev_attr_groups[] = {
 
 /* and VF-level attributes go here */
 
+#define DEFINE_SIMPLE_PROVISIONING_SRIOV_VF_ATTR(NAME, ITEM, TYPE, FORMAT)		\
+static ssize_t xe_sriov_vf_attr_##NAME##_show(struct xe_device *xe, unsigned int vfid,	\
+					      char *buf)				\
+{											\
+	TYPE value = 0;									\
+	int err;									\
+											\
+	err = xe_sriov_pf_provision_query_vf_##ITEM(xe, vfid, &value);			\
+	if (err)									\
+		return err;								\
+											\
+	return sysfs_emit(buf, FORMAT, value);						\
+}											\
+											\
+static ssize_t xe_sriov_vf_attr_##NAME##_store(struct xe_device *xe, unsigned int vfid,	\
+					       const char *buf, size_t count)		\
+{											\
+	TYPE value;									\
+	int err;									\
+											\
+	err = kstrto##TYPE(buf, 0, &value);						\
+	if (err)									\
+		return err;								\
+											\
+	err = xe_sriov_pf_provision_apply_vf_##ITEM(xe, vfid, value);			\
+	return err ?: count;								\
+}											\
+											\
+static XE_SRIOV_VF_ATTR(NAME)
+
+DEFINE_SIMPLE_PROVISIONING_SRIOV_VF_ATTR(exec_quantum_ms, eq, u32, "%u\n");
+DEFINE_SIMPLE_PROVISIONING_SRIOV_VF_ATTR(preempt_timeout_us, pt, u32, "%u\n");
+
+static struct attribute *profile_vf_attrs[] = {
+	&xe_sriov_vf_attr_exec_quantum_ms.attr,
+	&xe_sriov_vf_attr_preempt_timeout_us.attr,
+	NULL
+};
+
+static const struct attribute_group profile_vf_attr_group = {
+	.name = "profile",
+	.attrs = profile_vf_attrs,
+};
+
 static const struct attribute_group *xe_sriov_vf_attr_groups[] = {
+	&profile_vf_attr_group,
 	NULL
 };
 
