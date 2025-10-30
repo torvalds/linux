@@ -12137,9 +12137,6 @@ int kvm_arch_vcpu_ioctl_get_mpstate(struct kvm_vcpu *vcpu,
 	int r;
 
 	vcpu_load(vcpu);
-	if (kvm_mpx_supported())
-		kvm_load_guest_fpu(vcpu);
-
 	kvm_vcpu_srcu_read_lock(vcpu);
 
 	r = kvm_apic_accept_events(vcpu);
@@ -12156,9 +12153,6 @@ int kvm_arch_vcpu_ioctl_get_mpstate(struct kvm_vcpu *vcpu,
 
 out:
 	kvm_vcpu_srcu_read_unlock(vcpu);
-
-	if (kvm_mpx_supported())
-		kvm_put_guest_fpu(vcpu);
 	vcpu_put(vcpu);
 	return r;
 }
@@ -12788,6 +12782,7 @@ static void kvm_xstate_reset(struct kvm_vcpu *vcpu, bool init_event)
 {
 	struct fpstate *fpstate = vcpu->arch.guest_fpu.fpstate;
 	u64 xfeatures_mask;
+	bool fpu_in_use;
 	int i;
 
 	/*
@@ -12811,13 +12806,23 @@ static void kvm_xstate_reset(struct kvm_vcpu *vcpu, bool init_event)
 	BUILD_BUG_ON(sizeof(xfeatures_mask) * BITS_PER_BYTE <= XFEATURE_MAX);
 
 	/*
-	 * All paths that lead to INIT are required to load the guest's FPU
-	 * state (because most paths are buried in KVM_RUN).
+	 * Unload guest FPU state (if necessary) before zeroing XSTATE fields
+	 * as the kernel can only modify the state when its resident in memory,
+	 * i.e. when it's not loaded into hardware.
+	 *
+	 * WARN if the vCPU's desire to run, i.e. whether or not its in KVM_RUN,
+	 * doesn't match the loaded/in-use state of the FPU, as KVM_RUN is the
+	 * only path that can trigger INIT emulation _and_ loads FPU state, and
+	 * KVM_RUN should _always_ load FPU state.
 	 */
-	kvm_put_guest_fpu(vcpu);
+	WARN_ON_ONCE(vcpu->wants_to_run != fpstate->in_use);
+	fpu_in_use = fpstate->in_use;
+	if (fpu_in_use)
+		kvm_put_guest_fpu(vcpu);
 	for_each_set_bit(i, (unsigned long *)&xfeatures_mask, XFEATURE_MAX)
 		fpstate_clear_xstate_component(fpstate, i);
-	kvm_load_guest_fpu(vcpu);
+	if (fpu_in_use)
+		kvm_load_guest_fpu(vcpu);
 }
 
 void kvm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
