@@ -54,7 +54,7 @@ static void fill_section_hdr(struct ras_core_context *ras_core,
 				enum ras_cper_severity sev, struct ras_log_info *trace)
 {
 	struct device_system_info dev_info = {0};
-	char record_id[16];
+	char record_id[32];
 
 	hdr->signature[0]		= 'C';
 	hdr->signature[1]		= 'P';
@@ -71,7 +71,7 @@ static void fill_section_hdr(struct ras_core_context *ras_core,
 
 	cper_get_timestamp(ras_core, &hdr->timestamp, trace->timestamp);
 
-	snprintf(record_id, 9, "%d:%llX", dev_info.socket_id,
+	snprintf(record_id, sizeof(record_id), "%d:%llX", dev_info.socket_id,
 		    RAS_LOG_SEQNO_TO_BATCH_IDX(trace->seqno));
 	memcpy(hdr->record_id, record_id, 8);
 
