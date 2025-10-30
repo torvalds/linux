@@ -735,7 +735,7 @@ static int mlx5e_init_rxq_rq(struct mlx5e_channel *c, struct mlx5e_params *param
 	rq->pdev         = c->pdev;
 	rq->netdev       = c->netdev;
 	rq->priv         = c->priv;
-	rq->tstamp       = &c->priv->tstamp;
+	rq->hwtstamp_config = &c->priv->hwtstamp_config;
 	rq->clock        = mdev->clock;
 	rq->icosq        = &c->icosq;
 	rq->ix           = c->ix;
@@ -3444,8 +3444,8 @@ int mlx5e_safe_reopen_channels(struct mlx5e_priv *priv)
 
 void mlx5e_timestamp_init(struct mlx5e_priv *priv)
 {
-	priv->tstamp.tx_type   = HWTSTAMP_TX_OFF;
-	priv->tstamp.rx_filter = HWTSTAMP_FILTER_NONE;
+	priv->hwtstamp_config.tx_type   = HWTSTAMP_TX_OFF;
+	priv->hwtstamp_config.rx_filter = HWTSTAMP_FILTER_NONE;
 }
 
 static void mlx5e_modify_admin_state(struct mlx5_core_dev *mdev,
@@ -4805,7 +4805,7 @@ int mlx5e_hwtstamp_set(struct mlx5e_priv *priv, struct ifreq *ifr)
 	if (err)
 		goto err_unlock;
 
-	memcpy(&priv->tstamp, &config, sizeof(config));
+	memcpy(&priv->hwtstamp_config, &config, sizeof(config));
 	mutex_unlock(&priv->state_lock);
 
 	/* might need to fix some features */
@@ -4820,7 +4820,7 @@ err_unlock:
 
 int mlx5e_hwtstamp_get(struct mlx5e_priv *priv, struct ifreq *ifr)
 {
-	struct hwtstamp_config *cfg = &priv->tstamp;
+	struct hwtstamp_config *cfg = &priv->hwtstamp_config;
 
 	if (!MLX5_CAP_GEN(priv->mdev, device_frequency_khz))
 		return -EOPNOTSUPP;

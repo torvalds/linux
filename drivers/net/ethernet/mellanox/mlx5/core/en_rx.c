@@ -1602,7 +1602,7 @@ static inline bool mlx5e_build_rx_skb(struct mlx5_cqe64 *cqe,
 		stats->lro_bytes += cqe_bcnt;
 	}
 
-	if (unlikely(mlx5e_rx_hw_stamp(rq->tstamp)))
+	if (unlikely(mlx5e_rx_hw_stamp(rq->hwtstamp_config)))
 		skb_hwtstamps(skb)->hwtstamp = mlx5e_cqe_ts_to_ns(rq->ptp_cyc2time,
 								  rq->clock, get_cqe_ts(cqe));
 	skb_record_rx_queue(skb, rq->ix);
@@ -2708,7 +2708,7 @@ static inline void mlx5i_complete_rx_cqe(struct mlx5e_rq *rq,
 		stats->csum_none++;
 	}
 
-	if (unlikely(mlx5e_rx_hw_stamp(&priv->tstamp)))
+	if (unlikely(mlx5e_rx_hw_stamp(&priv->hwtstamp_config)))
 		skb_hwtstamps(skb)->hwtstamp = mlx5e_cqe_ts_to_ns(rq->ptp_cyc2time,
 								  rq->clock, get_cqe_ts(cqe));
 	skb_record_rx_queue(skb, rq->ix);
