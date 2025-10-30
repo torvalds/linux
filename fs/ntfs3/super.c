@@ -284,9 +284,9 @@ static const struct fs_parameter_spec ntfs_fs_parameters[] = {
 	fsparam_flag("hide_dot_files",	Opt_hide_dot_files),
 	fsparam_flag("windows_names",	Opt_windows_names),
 	fsparam_flag("showmeta",	Opt_showmeta),
-	fsparam_flag("acl",		Opt_acl),
+	fsparam_flag_no("acl",		Opt_acl),
 	fsparam_string("iocharset",	Opt_iocharset),
-	fsparam_flag("prealloc",	Opt_prealloc),
+	fsparam_flag_no("prealloc",	Opt_prealloc),
 	fsparam_flag("nocase",		Opt_nocase),
 	{}
 };
@@ -395,7 +395,7 @@ static int ntfs_fs_parse_param(struct fs_context *fc,
 		param->string = NULL;
 		break;
 	case Opt_prealloc:
-		opts->prealloc = 1;
+		opts->prealloc = !result.negated;
 		break;
 	case Opt_nocase:
 		opts->nocase = 1;
@@ -1259,12 +1259,12 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	sb->s_export_op = &ntfs_export_ops;
 	sb->s_time_gran = NTFS_TIME_GRAN; // 100 nsec
 	sb->s_xattr = ntfs_xattr_handlers;
-	set_default_d_op(sb, sbi->options->nocase ? &ntfs_dentry_ops : NULL);
+	set_default_d_op(sb, options->nocase ? &ntfs_dentry_ops : NULL);
 
-	sbi->options->nls = ntfs_load_nls(sbi->options->nls_name);
-	if (IS_ERR(sbi->options->nls)) {
-		sbi->options->nls = NULL;
-		errorf(fc, "Cannot load nls %s", fc_opts->nls_name);
+	options->nls = ntfs_load_nls(options->nls_name);
+	if (IS_ERR(options->nls)) {
+		options->nls = NULL;
+		errorf(fc, "Cannot load nls %s", options->nls_name);
 		err = -EINVAL;
 		goto out;
 	}
@@ -1676,10 +1676,11 @@ load_root:
 put_inode_out:
 	iput(inode);
 out:
-	if (sbi && sbi->options) {
-		unload_nls(sbi->options->nls);
-		kfree(sbi->options->nls_name);
-		kfree(sbi->options);
+	/* sbi->options == options */
+	if (options) {
+		unload_nls(options->nls);
+		kfree(options->nls_name);
+		kfree(options);
 		sbi->options = NULL;
 	}
 
@@ -1808,6 +1809,12 @@ static int __ntfs_init_fs_context(struct fs_context *fc)
 	opts->fs_gid = current_gid();
 	opts->fs_fmask_inv = ~current_umask();
 	opts->fs_dmask_inv = ~current_umask();
+	opts->prealloc = 1;
+
+#ifdef CONFIG_NTFS3_FS_POSIX_ACL
+	/* Set the default value 'acl' */
+	fc->sb_flags |= SB_POSIXACL;
+#endif
 
 	if (fc->purpose == FS_CONTEXT_FOR_RECONFIGURE)
 		goto ok;
