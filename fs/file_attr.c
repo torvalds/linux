@@ -459,9 +459,6 @@ SYSCALL_DEFINE5(file_setattr, int, dfd, const char __user *, filename,
 		return error;
 
 	name = getname_maybe_null(filename, at_flags);
-	if (IS_ERR(name))
-		return PTR_ERR(name);
-
 	if (!name && dfd >= 0) {
 		CLASS(fd, f)(dfd);
 		if (fd_empty(f))
