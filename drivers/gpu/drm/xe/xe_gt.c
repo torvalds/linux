@@ -49,6 +49,7 @@
 #include "xe_map.h"
 #include "xe_migrate.h"
 #include "xe_mmio.h"
+#include "xe_pagefault.h"
 #include "xe_pat.h"
 #include "xe_pm.h"
 #include "xe_mocs.h"
@@ -853,6 +854,7 @@ static void gt_reset_worker(struct work_struct *w)
 
 	xe_uc_gucrc_disable(&gt->uc);
 	xe_uc_stop_prepare(&gt->uc);
+	xe_pagefault_reset(gt_to_xe(gt), gt);
 	xe_gt_pagefault_reset(gt);
 
 	xe_uc_stop(&gt->uc);

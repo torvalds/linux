@@ -129,6 +129,28 @@ err_out:
 	return err;
 }
 
+static void xe_pagefault_queue_reset(struct xe_device *xe, struct xe_gt *gt,
+				     struct xe_pagefault_queue *pf_queue)
+{
+	u32 i;
+
+	/* Driver load failure guard / USM not enabled guard */
+	if (!pf_queue->data)
+		return;
+
+	/* Squash all pending faults on the GT */
+
+	spin_lock_irq(&pf_queue->lock);
+	for (i = pf_queue->tail; i != pf_queue->head;
+	     i = (i + xe_pagefault_entry_size()) % pf_queue->size) {
+		struct xe_pagefault *pf = pf_queue->data + i;
+
+		if (pf->gt == gt)
+			pf->gt = NULL;
+	}
+	spin_unlock_irq(&pf_queue->lock);
+}
+
 /**
  * xe_pagefault_reset() - Page fault reset for a GT
  * @xe: xe device instance
@@ -139,7 +161,10 @@ err_out:
  */
 void xe_pagefault_reset(struct xe_device *xe, struct xe_gt *gt)
 {
-	/* TODO - implement */
+	int i;
+
+	for (i = 0; i < XE_PAGEFAULT_QUEUE_COUNT; ++i)
+		xe_pagefault_queue_reset(xe, gt, xe->usm.pf_queue + i);
 }
 
 /**
