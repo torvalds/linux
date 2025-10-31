@@ -4,15 +4,12 @@
 #include <linux/fs.h>
 #include <linux/firmware.h>
 #include "mt7925.h"
+#include "regd.h"
 #include "mcu.h"
 #include "mac.h"
 
 #define MT_STA_BFER			BIT(0)
 #define MT_STA_BFEE			BIT(1)
-
-static bool mt7925_disable_clc;
-module_param_named(disable_clc, mt7925_disable_clc, bool, 0644);
-MODULE_PARM_DESC(disable_clc, "disable CLC support");
 
 int mt7925_mcu_parse_response(struct mt76_dev *mdev, int cmd,
 			      struct sk_buff *skb, int seq)
@@ -688,8 +685,7 @@ static int mt7925_load_clc(struct mt792x_dev *dev, const char *fw_name)
 	int ret, i, len, offset = 0;
 
 	dev->phy.clc_chan_conf = 0xff;
-	if (mt7925_disable_clc ||
-	    mt76_is_usb(&dev->mt76))
+	if (!mt7925_regd_clc_supported(dev))
 		return 0;
 
 	if (mt76_is_mmio(&dev->mt76)) {
@@ -3382,6 +3378,9 @@ int mt7925_mcu_set_clc(struct mt792x_dev *dev, u8 *alpha2,
 {
 	struct mt792x_phy *phy = (struct mt792x_phy *)&dev->phy;
 	int i, ret;
+
+	if (!ARRAY_SIZE(phy->clc))
+		return -ESRCH;
 
 	/* submit all clc config */
 	for (i = 0; i < ARRAY_SIZE(phy->clc); i++) {

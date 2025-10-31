@@ -9,6 +9,7 @@
 void mt7925_regd_be_ctrl(struct mt792x_dev *dev, u8 *alpha2);
 void mt7925_regd_update(struct mt792x_dev *dev);
 void mt7925_regd_notifier(struct wiphy *wiphy, struct regulatory_request *req);
+bool mt7925_regd_clc_supported(struct mt792x_dev *dev);
 
 #endif
 
