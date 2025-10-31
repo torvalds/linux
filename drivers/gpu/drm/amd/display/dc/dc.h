@@ -899,6 +899,7 @@ struct dc_debug_data {
 	uint32_t ltFailCount;
 	uint32_t i2cErrorCount;
 	uint32_t auxErrorCount;
+	struct pipe_topology_history topology_history;
 };
 
 struct dc_phy_addr_space_config {
