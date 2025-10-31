@@ -644,7 +644,8 @@ static bool ufshcd_print_tr_iter(struct request *req, void *priv)
 	struct Scsi_Host *shost = sdev->host;
 	struct ufs_hba *hba = shost_priv(shost);
 
-	ufshcd_print_tr(hba, blk_mq_rq_to_pdu(req), *(bool *)priv);
+	if (!blk_mq_is_reserved_rq(req))
+		ufshcd_print_tr(hba, blk_mq_rq_to_pdu(req), *(bool *)priv);
 
 	return true;
 }
@@ -5753,7 +5754,7 @@ static bool ufshcd_mcq_force_compl_one(struct request *rq, void *priv)
 	struct ufs_hba *hba = shost_priv(shost);
 	struct ufs_hw_queue *hwq = ufshcd_mcq_req_to_hwq(hba, rq);
 
-	if (!hwq)
+	if (blk_mq_is_reserved_rq(rq) || !hwq)
 		return true;
 
 	ufshcd_mcq_compl_all_cqes_lock(hba, hwq);
@@ -5780,7 +5781,7 @@ static bool ufshcd_mcq_compl_one(struct request *rq, void *priv)
 	struct ufs_hba *hba = shost_priv(shost);
 	struct ufs_hw_queue *hwq = ufshcd_mcq_req_to_hwq(hba, rq);
 
-	if (hwq)
+	if (!blk_mq_is_reserved_rq(rq) && hwq)
 		ufshcd_mcq_poll_cqe_lock(hba, hwq);
 
 	return true;
@@ -6647,6 +6648,9 @@ static bool ufshcd_abort_one(struct request *rq, void *priv)
 	struct scsi_device *sdev = cmd->device;
 	struct Scsi_Host *shost = sdev->host;
 	struct ufs_hba *hba = shost_priv(shost);
+
+	if (blk_mq_is_reserved_rq(rq))
+		return true;
 
 	*ret = ufshcd_try_to_abort_task(hba, tag);
 	dev_err(hba->dev, "Aborting tag %d / CDB %#02x %s\n", tag,
@@ -7597,7 +7601,7 @@ static bool ufshcd_clear_lu_cmds(struct request *req, void *priv)
 	const u64 lun = *(u64 *)priv;
 	const u32 tag = req->tag;
 
-	if (sdev->lun != lun)
+	if (blk_mq_is_reserved_rq(req) || sdev->lun != lun)
 		return true;
 
 	if (ufshcd_clear_cmd(hba, tag) < 0) {
