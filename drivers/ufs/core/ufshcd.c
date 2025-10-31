@@ -3265,8 +3265,6 @@ retry:
 
 	if (likely(time_left)) {
 		err = ufshcd_get_tr_ocs(lrbp, NULL);
-		if (!err)
-			err = ufshcd_dev_cmd_completion(hba, lrbp);
 	} else {
 		err = -ETIMEDOUT;
 		dev_dbg(hba->dev, "%s: dev_cmd request timedout, tag %d\n",
@@ -3376,6 +3374,7 @@ static int ufshcd_exec_dev_cmd(struct ufs_hba *hba,
 {
 	const u32 tag = hba->reserved_slot;
 	struct scsi_cmnd *cmd = ufshcd_tag_to_cmd(hba, tag);
+	struct ufshcd_lrb *lrbp = scsi_cmd_priv(cmd);
 	int err;
 
 	/* Protects use of hba->reserved_slot. */
@@ -3385,7 +3384,11 @@ static int ufshcd_exec_dev_cmd(struct ufs_hba *hba,
 	if (unlikely(err))
 		return err;
 
-	return ufshcd_issue_dev_cmd(hba, cmd, tag, timeout);
+	err = ufshcd_issue_dev_cmd(hba, cmd, tag, timeout);
+	if (err)
+		return err;
+
+	return ufshcd_dev_cmd_completion(hba, lrbp);
 }
 
 /**
@@ -7412,12 +7415,9 @@ static int ufshcd_issue_devman_upiu_cmd(struct ufs_hba *hba,
 
 	memset(lrbp->ucd_rsp_ptr, 0, sizeof(struct utp_upiu_rsp));
 
-	/*
-	 * ignore the returning value here - ufshcd_check_query_response is
-	 * bound to fail since dev_cmd.query and dev_cmd.type were left empty.
-	 * read the response directly ignoring all errors.
-	 */
-	ufshcd_issue_dev_cmd(hba, cmd, tag, dev_cmd_timeout);
+	err = ufshcd_issue_dev_cmd(hba, cmd, tag, dev_cmd_timeout);
+	if (err)
+		return err;
 
 	/* just copy the upiu response as it is */
 	memcpy(rsp_upiu, lrbp->ucd_rsp_ptr, sizeof(*rsp_upiu));
@@ -7563,7 +7563,10 @@ int ufshcd_advanced_rpmb_req_handler(struct ufs_hba *hba, struct utp_upiu_req *r
 	memset(lrbp->ucd_rsp_ptr, 0, sizeof(struct utp_upiu_rsp));
 
 	err = ufshcd_issue_dev_cmd(hba, cmd, tag, ADVANCED_RPMB_REQ_TIMEOUT);
+	if (err)
+		return err;
 
+	err = ufshcd_dev_cmd_completion(hba, lrbp);
 	if (!err) {
 		/* Just copy the upiu response as it is */
 		memcpy(rsp_upiu, lrbp->ucd_rsp_ptr, sizeof(*rsp_upiu));
