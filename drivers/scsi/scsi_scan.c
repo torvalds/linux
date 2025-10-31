@@ -349,6 +349,9 @@ static struct scsi_device *scsi_alloc_sdev(struct scsi_target *starget,
 
 	scsi_sysfs_device_initialize(sdev);
 
+	if (scsi_device_is_pseudo_dev(sdev))
+		return sdev;
+
 	depth = sdev->host->cmd_per_lun ?: 1;
 
 	/*
@@ -1070,6 +1073,9 @@ static int scsi_add_lun(struct scsi_device *sdev, unsigned char *inq_result,
 
 	sdev->sdev_bflags = *bflags;
 
+	if (scsi_device_is_pseudo_dev(sdev))
+		return SCSI_SCAN_LUN_PRESENT;
+
 	/*
 	 * No need to freeze the queue as it isn't reachable to anyone else yet.
 	 */
@@ -1212,6 +1218,12 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
 		sdev = scsi_alloc_sdev(starget, lun, hostdata);
 	if (!sdev)
 		goto out;
+
+	if (scsi_device_is_pseudo_dev(sdev)) {
+		if (bflagsp)
+			*bflagsp = BLIST_NOLUN;
+		return SCSI_SCAN_LUN_PRESENT;
+	}
 
 	result = kmalloc(result_len, GFP_KERNEL);
 	if (!result)
@@ -2084,12 +2096,65 @@ void scsi_forget_host(struct Scsi_Host *shost)
  restart:
 	spin_lock_irqsave(shost->host_lock, flags);
 	list_for_each_entry(sdev, &shost->__devices, siblings) {
-		if (sdev->sdev_state == SDEV_DEL)
+		if (scsi_device_is_pseudo_dev(sdev) ||
+		    sdev->sdev_state == SDEV_DEL)
 			continue;
 		spin_unlock_irqrestore(shost->host_lock, flags);
 		__scsi_remove_device(sdev);
 		goto restart;
 	}
 	spin_unlock_irqrestore(shost->host_lock, flags);
+
+	/*
+	 * Remove the pseudo device last since it may be needed during removal
+	 * of other SCSI devices.
+	 */
+	if (shost->pseudo_sdev)
+		__scsi_remove_device(shost->pseudo_sdev);
 }
 
+/**
+ * scsi_get_pseudo_sdev() - Attach a pseudo SCSI device to a SCSI host
+ * @shost: Host that needs a pseudo SCSI device
+ *
+ * Lock status: None assumed.
+ *
+ * Returns:     The scsi_device or NULL
+ *
+ * Notes:
+ *	Attach a single scsi_device to the Scsi_Host. The primary aim for this
+ *	device is to serve as a container from which SCSI commands can be
+ *	allocated. Each SCSI command will carry a command tag allocated by the
+ *	block layer. These SCSI commands can be used by the LLDD to send
+ *	internal or passthrough commands without having to manage tag allocation
+ *	inside the LLDD.
+ */
+struct scsi_device *scsi_get_pseudo_sdev(struct Scsi_Host *shost)
+{
+	struct scsi_device *sdev = NULL;
+	struct scsi_target *starget;
+
+	guard(mutex)(&shost->scan_mutex);
+
+	if (!scsi_host_scan_allowed(shost))
+		goto out;
+
+	starget = scsi_alloc_target(&shost->shost_gendev, 0, shost->max_id);
+	if (!starget)
+		goto out;
+
+	sdev = scsi_alloc_sdev(starget, U64_MAX, NULL);
+	if (!sdev) {
+		scsi_target_reap(starget);
+		goto put_target;
+	}
+
+	sdev->borken = 0;
+
+put_target:
+	/* See also the get_device(dev) call in scsi_alloc_target(). */
+	put_device(&starget->dev);
+
+out:
+	return sdev;
+}

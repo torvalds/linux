@@ -831,8 +831,11 @@ struct scsi_device *__scsi_iterate_devices(struct Scsi_Host *shost,
 	spin_lock_irqsave(shost->host_lock, flags);
 	while (list->next != &shost->__devices) {
 		next = list_entry(list->next, struct scsi_device, siblings);
-		/* skip devices that we can't get a reference to */
-		if (!scsi_device_get(next))
+		/*
+		 * Skip pseudo devices and also devices we can't get a
+		 * reference to.
+		 */
+		if (!scsi_device_is_pseudo_dev(next) && !scsi_device_get(next))
 			break;
 		next = NULL;
 		list = list->next;

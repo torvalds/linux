@@ -307,6 +307,14 @@ int scsi_add_host_with_dma(struct Scsi_Host *shost, struct device *dev,
 	if (error)
 		goto out_del_dev;
 
+	if (shost->nr_reserved_cmds) {
+		shost->pseudo_sdev = scsi_get_pseudo_sdev(shost);
+		if (!shost->pseudo_sdev) {
+			error = -ENOMEM;
+			goto out_del_dev;
+		}
+	}
+
 	scsi_proc_host_add(shost);
 	scsi_autopm_put_host(shost);
 	return error;

@@ -1406,6 +1406,9 @@ int scsi_sysfs_add_sdev(struct scsi_device *sdev)
 	int error;
 	struct scsi_target *starget = sdev->sdev_target;
 
+	if (WARN_ON_ONCE(scsi_device_is_pseudo_dev(sdev)))
+		return -EINVAL;
+
 	error = scsi_target_add(starget);
 	if (error)
 		return error;
@@ -1513,7 +1516,7 @@ void __scsi_remove_device(struct scsi_device *sdev)
 	kref_put(&sdev->host->tagset_refcnt, scsi_mq_free_tags);
 	cancel_work_sync(&sdev->requeue_work);
 
-	if (sdev->host->hostt->sdev_destroy)
+	if (!scsi_device_is_pseudo_dev(sdev) && sdev->host->hostt->sdev_destroy)
 		sdev->host->hostt->sdev_destroy(sdev);
 	transport_destroy_device(dev);
 

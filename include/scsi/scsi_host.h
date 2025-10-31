@@ -722,6 +722,12 @@ struct Scsi_Host {
 	struct device		shost_gendev, shost_dev;
 
 	/*
+	 * A SCSI device structure used for sending internal commands to the
+	 * HBA. There is no corresponding logical unit inside the SCSI device.
+	 */
+	struct scsi_device *pseudo_sdev;
+
+	/*
 	 * Points to the transport data (if any) which is allocated
 	 * separately
 	 */
