@@ -155,10 +155,6 @@ static void xp_disable_drv_zc(struct xsk_buff_pool *pool)
 	}
 }
 
-#define NETDEV_XDP_ACT_ZC	(NETDEV_XDP_ACT_BASIC |		\
-				 NETDEV_XDP_ACT_REDIRECT |	\
-				 NETDEV_XDP_ACT_XSK_ZEROCOPY)
-
 int xp_assign_dev(struct xsk_buff_pool *pool,
 		  struct net_device *netdev, u16 queue_id, u16 flags)
 {
@@ -200,7 +196,7 @@ int xp_assign_dev(struct xsk_buff_pool *pool,
 		/* For copy-mode, we are done. */
 		return 0;
 
-	if ((netdev->xdp_features & NETDEV_XDP_ACT_ZC) != NETDEV_XDP_ACT_ZC) {
+	if ((netdev->xdp_features & NETDEV_XDP_ACT_XSK) != NETDEV_XDP_ACT_XSK) {
 		err = -EOPNOTSUPP;
 		goto err_unreg_pool;
 	}
