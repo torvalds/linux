@@ -194,6 +194,7 @@ __le64 *irdma_qp_get_next_send_wqe(struct irdma_qp_uk *qp, u32 *wqe_idx,
 	qp->sq_wrtrk_array[*wqe_idx].wrid = info->wr_id;
 	qp->sq_wrtrk_array[*wqe_idx].wr_len = total_size;
 	qp->sq_wrtrk_array[*wqe_idx].quanta = quanta;
+	qp->sq_wrtrk_array[*wqe_idx].signaled = info->signaled;
 
 	return wqe;
 }
@@ -1355,6 +1356,10 @@ int irdma_uk_cq_poll_cmpl(struct irdma_cq_uk *cq,
 			info->wr_id = qp->sq_wrtrk_array[wqe_idx].wrid;
 			if (!info->comp_status)
 				info->bytes_xfered = qp->sq_wrtrk_array[wqe_idx].wr_len;
+			if (!qp->sq_wrtrk_array[wqe_idx].signaled) {
+				ret_code = -EFAULT;
+				goto exit;
+			}
 			info->op_type = (u8)FIELD_GET(IRDMACQ_OP, qword3);
 			IRDMA_RING_SET_TAIL(qp->sq_ring,
 					    wqe_idx + qp->sq_wrtrk_array[wqe_idx].quanta);
