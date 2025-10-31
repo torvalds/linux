@@ -521,7 +521,7 @@ int qcom_smem_alloc(unsigned host, unsigned item, size_t size)
 		return -EINVAL;
 	}
 
-	if (WARN_ON(item >= __smem->item_count))
+	if (item >= __smem->item_count)
 		return -EINVAL;
 
 	ret = hwspin_lock_timeout_irqsave(__smem->hwlock,
@@ -694,7 +694,7 @@ void *qcom_smem_get(unsigned host, unsigned item, size_t *size)
 	if (IS_ERR(__smem))
 		return __smem;
 
-	if (WARN_ON(item >= __smem->item_count))
+	if (item >= __smem->item_count)
 		return ERR_PTR(-EINVAL);
 
 	if (host < SMEM_HOST_COUNT && __smem->partitions[host].virt_base) {
