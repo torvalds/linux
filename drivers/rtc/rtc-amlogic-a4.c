@@ -361,38 +361,26 @@ static int aml_rtc_probe(struct platform_device *pdev)
 				     "failed to get_enable rtc sys clk\n");
 	aml_rtc_init(rtc);
 
-	device_init_wakeup(dev, true);
+	devm_device_init_wakeup(dev);
 	platform_set_drvdata(pdev, rtc);
 
 	rtc->rtc_dev = devm_rtc_allocate_device(dev);
-	if (IS_ERR(rtc->rtc_dev)) {
-		ret = PTR_ERR(rtc->rtc_dev);
-		goto err_clk;
-	}
+	if (IS_ERR(rtc->rtc_dev))
+		return PTR_ERR(rtc->rtc_dev);
 
 	ret = devm_request_irq(dev, rtc->irq, aml_rtc_handler,
 			       IRQF_ONESHOT, "aml-rtc alarm", rtc);
 	if (ret) {
 		dev_err_probe(dev, ret, "IRQ%d request failed, ret = %d\n",
 			      rtc->irq, ret);
-		goto err_clk;
+		return ret;
 	}
 
 	rtc->rtc_dev->ops = &aml_rtc_ops;
 	rtc->rtc_dev->range_min = 0;
 	rtc->rtc_dev->range_max = U32_MAX;
 
-	ret = devm_rtc_register_device(rtc->rtc_dev);
-	if (ret) {
-		dev_err_probe(&pdev->dev, ret, "Failed to register RTC device: %d\n", ret);
-		goto err_clk;
-	}
-
-	return 0;
-err_clk:
-	device_init_wakeup(dev, false);
-
-	return ret;
+	return devm_rtc_register_device(rtc->rtc_dev);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -420,11 +408,6 @@ static int aml_rtc_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(aml_rtc_pm_ops,
 			 aml_rtc_suspend, aml_rtc_resume);
 
-static void aml_rtc_remove(struct platform_device *pdev)
-{
-	device_init_wakeup(&pdev->dev, false);
-}
-
 static const struct aml_rtc_config a5_rtc_config = {
 };
 
@@ -447,7 +430,6 @@ MODULE_DEVICE_TABLE(of, aml_rtc_device_id);
 
 static struct platform_driver aml_rtc_driver = {
 	.probe = aml_rtc_probe,
-	.remove = aml_rtc_remove,
 	.driver = {
 		.name = "aml-rtc",
 		.pm = &aml_rtc_pm_ops,
