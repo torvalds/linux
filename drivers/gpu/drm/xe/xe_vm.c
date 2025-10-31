@@ -1731,8 +1731,13 @@ void xe_vm_close_and_put(struct xe_vm *vm)
 
 	down_write(&vm->lock);
 	for_each_tile(tile, xe, id) {
-		if (vm->q[id])
+		if (vm->q[id]) {
+			int i;
+
 			xe_exec_queue_last_fence_put(vm->q[id], vm);
+			for_each_tlb_inval(i)
+				xe_exec_queue_tlb_inval_last_fence_put(vm->q[id], vm, i);
+		}
 	}
 	up_write(&vm->lock);
 

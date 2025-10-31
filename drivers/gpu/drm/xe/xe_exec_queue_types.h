@@ -146,6 +146,11 @@ struct xe_exec_queue {
 		 * dependency scheduler
 		 */
 		struct xe_dep_scheduler *dep_scheduler;
+		/**
+		 * @last_fence: last fence for tlb invalidation, protected by
+		 * vm->lock in write mode
+		 */
+		struct dma_fence *last_fence;
 	} tlb_inval[XE_EXEC_QUEUE_TLB_INVAL_COUNT];
 
 	/** @pxp: PXP info tracking */

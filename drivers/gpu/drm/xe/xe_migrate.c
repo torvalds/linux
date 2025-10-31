@@ -2333,6 +2333,20 @@ void xe_migrate_job_unlock(struct xe_migrate *m, struct xe_exec_queue *q)
 		xe_vm_assert_held(q->vm);	/* User queues VM's should be locked */
 }
 
+#if IS_ENABLED(CONFIG_PROVE_LOCKING)
+/**
+ * xe_migrate_job_lock_assert() - Assert migrate job lock held of queue
+ * @q: Migrate queue
+ */
+void xe_migrate_job_lock_assert(struct xe_exec_queue *q)
+{
+	struct xe_migrate *m = gt_to_tile(q->gt)->migrate;
+
+	xe_gt_assert(q->gt, q == m->q);
+	lockdep_assert_held(&m->job_mutex);
+}
+#endif
+
 #if IS_ENABLED(CONFIG_DRM_XE_KUNIT_TEST)
 #include "tests/xe_migrate.c"
 #endif
