@@ -336,8 +336,18 @@ static int iomap_dio_bio_iter(struct iomap_iter *iter, struct iomap_dio *dio)
 	int nr_pages, ret = 0;
 	u64 copied = 0;
 	size_t orig_count;
+	unsigned int alignment;
 
-	if ((pos | length) & (bdev_logical_block_size(iomap->bdev) - 1))
+	/*
+	 * File systems that write out of place and always allocate new blocks
+	 * need each bio to be block aligned as that's the unit of allocation.
+	 */
+	if (dio->flags & IOMAP_DIO_FSBLOCK_ALIGNED)
+		alignment = fs_block_size;
+	else
+		alignment = bdev_logical_block_size(iomap->bdev);
+
+	if ((pos | length) & (alignment - 1))
 		return -EINVAL;
 
 	if (dio->flags & IOMAP_DIO_WRITE) {
@@ -434,7 +444,7 @@ static int iomap_dio_bio_iter(struct iomap_iter *iter, struct iomap_dio *dio)
 		bio->bi_end_io = iomap_dio_bio_end_io;
 
 		ret = bio_iov_iter_get_pages(bio, dio->submit.iter,
-				bdev_logical_block_size(iomap->bdev) - 1);
+					     alignment - 1);
 		if (unlikely(ret)) {
 			/*
 			 * We have to stop part way through an IO. We must fall
@@ -638,6 +648,9 @@ __iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 
 	if (iocb->ki_flags & IOCB_NOWAIT)
 		iomi.flags |= IOMAP_NOWAIT;
+
+	if (dio_flags & IOMAP_DIO_FSBLOCK_ALIGNED)
+		dio->flags |= IOMAP_DIO_FSBLOCK_ALIGNED;
 
 	if (iov_iter_rw(iter) == READ) {
 		/* reads can always complete inline */
