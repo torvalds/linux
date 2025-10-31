@@ -272,7 +272,7 @@ static int __init dm_init(void)
 	int r, i;
 
 #if (IS_ENABLED(CONFIG_IMA) && !IS_ENABLED(CONFIG_IMA_DISABLE_HTABLE))
-	DMWARN("CONFIG_IMA_DISABLE_HTABLE is disabled."
+	DMINFO("CONFIG_IMA_DISABLE_HTABLE is disabled."
 	       " Duplicate IMA measurements will not be recorded in the IMA log.");
 #endif
 
