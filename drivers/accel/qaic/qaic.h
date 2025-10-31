@@ -202,6 +202,8 @@ struct qaic_device {
 	struct mhi_device	*ssr_ch;
 	/* Work queue for tasks related to MHI SSR device */
 	struct workqueue_struct	*ssr_wq;
+	/* Buffer to collect SSR crashdump via SSR MHI channel */
+	void			*ssr_mhi_buf;
 	/* DBC which is under SSR. Sentinel U32_MAX would mean that no SSR in progress */
 	u32			ssr_dbc;
 };

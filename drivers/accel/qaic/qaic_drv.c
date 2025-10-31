@@ -449,7 +449,7 @@ static struct qaic_device *create_qdev(struct pci_dev *pdev,
 	if (ret)
 		return NULL;
 
-	ret = qaic_ssr_init(qdev);
+	ret = qaic_ssr_init(qdev, drm);
 	if (ret)
 		pci_info(pdev, "QAIC SSR crashdump collection not supported.\n");
 
