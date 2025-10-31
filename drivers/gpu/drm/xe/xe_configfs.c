@@ -27,7 +27,7 @@
  * Overview
  * ========
  *
- * Configfs is a filesystem-based manager of kernel objects. XE KMD registers a
+ * Configfs is a filesystem-based manager of kernel objects. Xe KMD registers a
  * configfs subsystem called ``xe`` that creates a directory in the mounted
  * configfs directory. The user can create devices under this directory and
  * configure them as necessary. See Documentation/filesystems/configfs.rst for
@@ -301,7 +301,6 @@ struct engine_info {
 /* Some helpful macros to aid on the sizing of buffer allocation when parsing */
 #define MAX_ENGINE_CLASS_CHARS 5
 #define MAX_ENGINE_INSTANCE_CHARS 2
-#define MAX_GT_TYPE_CHARS 7
 
 static const struct engine_info engine_info[] = {
 	{ .cls = "rcs", .mask = XE_HW_ENGINE_RCS_MASK, .engine_class = XE_ENGINE_CLASS_RENDER },
@@ -313,7 +312,7 @@ static const struct engine_info engine_info[] = {
 };
 
 static const struct {
-	const char name[MAX_GT_TYPE_CHARS + 1];
+	const char *name;
 	enum xe_gt_type type;
 } gt_types[] = {
 	{ .name = "primary", .type = XE_GT_TYPE_MAIN },

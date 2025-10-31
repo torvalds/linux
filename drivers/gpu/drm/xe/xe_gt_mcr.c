@@ -268,13 +268,14 @@ static const struct xe_mmio_range xe3p_xpc_gam_grp1_steering_table[] = {
 	{},
 };
 
-static const struct xe_mmio_range xe3p_xpc_psmi_grp19_steering_table[] = {
-	{ 0x00B500, 0x00B5FF },
+static const struct xe_mmio_range xe3p_xpc_node_steering_table[] = {
+	{ 0x00B000, 0x00B0FF },
+	{ 0x00D880, 0x00D8FF },
 	{},
 };
 
 static const struct xe_mmio_range xe3p_xpc_instance0_steering_table[] = {
-	{ 0x00B600, 0x00B6FF },		/* PSMI0 */
+	{ 0x00B500, 0x00B6FF },		/* PSMI */
 	{ 0x00C800, 0x00CFFF },		/* GAMCTRL */
 	{ 0x00F000, 0x00F0FF },		/* GAMCTRL */
 	{},
@@ -282,9 +283,22 @@ static const struct xe_mmio_range xe3p_xpc_instance0_steering_table[] = {
 
 static void init_steering_l3bank(struct xe_gt *gt)
 {
+	struct xe_device *xe = gt_to_xe(gt);
 	struct xe_mmio *mmio = &gt->mmio;
 
-	if (GRAPHICS_VERx100(gt_to_xe(gt)) >= 1270) {
+	if (GRAPHICS_VER(xe) >= 35) {
+		unsigned int first_bank = xe_l3_bank_mask_ffs(gt->fuse_topo.l3_bank_mask);
+		const int banks_per_node = 4;
+		unsigned int node = first_bank / banks_per_node;
+
+		/* L3BANK ranges place node in grpID, bank in instanceid */
+		gt->steering[L3BANK].group_target = node;
+		gt->steering[L3BANK].instance_target = first_bank % banks_per_node;
+
+		/* NODE ranges split the node across grpid and instanceid */
+		gt->steering[NODE].group_target = node >> 1;
+		gt->steering[NODE].instance_target = node & 1;
+	} else if (GRAPHICS_VERx100(xe) >= 1270) {
 		u32 mslice_mask = REG_FIELD_GET(MEML3_EN_MASK,
 						xe_mmio_read32(mmio, MIRROR_FUSE3));
 		u32 bank_mask = REG_FIELD_GET(GT_L3_EXC_MASK,
@@ -297,7 +311,7 @@ static void init_steering_l3bank(struct xe_gt *gt)
 		gt->steering[L3BANK].group_target = __ffs(mslice_mask);
 		gt->steering[L3BANK].instance_target =
 			bank_mask & BIT(0) ? 0 : 2;
-	} else if (gt_to_xe(gt)->info.platform == XE_DG2) {
+	} else if (xe->info.platform == XE_DG2) {
 		u32 mslice_mask = REG_FIELD_GET(MEML3_EN_MASK,
 						xe_mmio_read32(mmio, MIRROR_FUSE3));
 		u32 bank = __ffs(mslice_mask) * 8;
@@ -452,12 +466,6 @@ static void init_steering_sqidi_psmi(struct xe_gt *gt)
 	gt->steering[SQIDI_PSMI].instance_target = select & 0x1;
 }
 
-static void init_steering_psmi(struct xe_gt *gt)
-{
-	gt->steering[PSMI19].group_target = 19;
-	gt->steering[PSMI19].instance_target = 0;
-}
-
 static void init_steering_gam1(struct xe_gt *gt)
 {
 	gt->steering[GAM1].group_target = 1;
@@ -469,12 +477,12 @@ static const struct {
 	void (*init)(struct xe_gt *gt);
 } xe_steering_types[] = {
 	[L3BANK] =	{ "L3BANK",	init_steering_l3bank },
+	[NODE] =	{ "NODE",	NULL }, /* initialized by l3bank init */
 	[MSLICE] =	{ "MSLICE",	init_steering_mslice },
 	[LNCF] =	{ "LNCF",	NULL }, /* initialized by mslice init */
 	[DSS] =		{ "DSS / XeCore", init_steering_dss },
 	[OADDRM] =	{ "OADDRM / GPMXMT", init_steering_oaddrm },
 	[SQIDI_PSMI] =  { "SQIDI_PSMI", init_steering_sqidi_psmi },
-	[PSMI19] =	{ "PSMI[19]",	init_steering_psmi },
 	[GAM1] =	{ "GAMWKRS / STLB / GAMREQSTRM", init_steering_gam1 },
 	[INSTANCE0] =	{ "INSTANCE 0",	NULL },
 	[IMPLICIT_STEERING] = { "IMPLICIT", NULL },
@@ -524,7 +532,8 @@ void xe_gt_mcr_init_early(struct xe_gt *gt)
 			gt->steering[DSS].ranges = xe3p_xpc_xecore_steering_table;
 			gt->steering[GAM1].ranges = xe3p_xpc_gam_grp1_steering_table;
 			gt->steering[INSTANCE0].ranges = xe3p_xpc_instance0_steering_table;
-			gt->steering[PSMI19].ranges = xe3p_xpc_psmi_grp19_steering_table;
+			gt->steering[L3BANK].ranges = xelpg_l3bank_steering_table;
+			gt->steering[NODE].ranges = xe3p_xpc_node_steering_table;
 		} else if (GRAPHICS_VER(xe) >= 20) {
 			gt->steering[DSS].ranges = xe2lpg_dss_steering_table;
 			gt->steering[SQIDI_PSMI].ranges = xe2lpg_sqidi_psmi_steering_table;

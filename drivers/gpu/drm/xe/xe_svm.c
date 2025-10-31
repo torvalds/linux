@@ -633,7 +633,7 @@ err_out:
 
 	/*
 	 * XXX: We can't derive the GT here (or anywhere in this functions, but
-	 * compute always uses the primary GT so accumlate stats on the likely
+	 * compute always uses the primary GT so accumulate stats on the likely
 	 * GT of the fault.
 	 */
 	if (gt)

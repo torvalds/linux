@@ -893,4 +893,8 @@
 	MACRO__(0xD744, ## __VA_ARGS__), \
 	MACRO__(0xD745, ## __VA_ARGS__)
 
+/* CRI */
+#define INTEL_CRI_IDS(MACRO__, ...) \
+	MACRO__(0x674C, ## __VA_ARGS__)
+
 #endif /* __PCIIDS_H__ */

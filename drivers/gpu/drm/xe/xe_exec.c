@@ -33,7 +33,7 @@
  * - Binding at exec time
  * - Flow controlling the ring at exec time
  *
- * In XE we avoid all of this complication by not allowing a BO list to be
+ * In Xe we avoid all of this complication by not allowing a BO list to be
  * passed into an exec, using the dma-buf implicit sync uAPI, have binds as
  * separate operations, and using the DRM scheduler to flow control the ring.
  * Let's deep dive on each of these.

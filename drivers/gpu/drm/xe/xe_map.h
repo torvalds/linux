@@ -14,9 +14,9 @@
  * DOC: Map layer
  *
  * All access to any memory shared with a device (both sysmem and vram) in the
- * XE driver should go through this layer (xe_map). This layer is built on top
+ * Xe driver should go through this layer (xe_map). This layer is built on top
  * of :ref:`driver-api/device-io:Generalizing Access to System and I/O Memory`
- * and with extra hooks into the XE driver that allows adding asserts to memory
+ * and with extra hooks into the Xe driver that allows adding asserts to memory
  * accesses (e.g. for blocking runtime_pm D3Cold on Discrete Graphics).
  */
 

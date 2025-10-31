@@ -160,11 +160,11 @@ err_free:
 }
 
 /**
- * xe_sched_job_destroy - Destroy XE schedule job
- * @ref: reference to XE schedule job
+ * xe_sched_job_destroy - Destroy Xe schedule job
+ * @ref: reference to Xe schedule job
  *
  * Called when ref == 0, drop a reference to job's xe_engine + fence, cleanup
- * base DRM schedule job, and free memory for XE schedule job.
+ * base DRM schedule job, and free memory for Xe schedule job.
  */
 void xe_sched_job_destroy(struct kref *ref)
 {

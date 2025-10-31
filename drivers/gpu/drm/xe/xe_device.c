@@ -1217,7 +1217,7 @@ static void xe_device_wedged_fini(struct drm_device *drm, void *arg)
  *
  *   /sys/bus/pci/devices/<device>/survivability_mode
  *
- * - Admin/userpsace consumer can use firmware flashing tools like fwupd to flash
+ * - Admin/userspace consumer can use firmware flashing tools like fwupd to flash
  *   firmware and restore device to normal operation.
  */
 

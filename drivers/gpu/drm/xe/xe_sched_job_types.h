@@ -32,7 +32,7 @@ struct xe_job_ptrs {
 };
 
 /**
- * struct xe_sched_job - XE schedule job (batch buffer tracking)
+ * struct xe_sched_job - Xe schedule job (batch buffer tracking)
  */
 struct xe_sched_job {
 	/** @drm: base DRM scheduler job */

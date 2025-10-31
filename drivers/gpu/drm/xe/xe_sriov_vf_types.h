@@ -34,10 +34,10 @@ struct xe_device_vf {
 	/** @migration: VF Migration state data */
 	struct {
 		/**
-		 * @migration.enabled: flag indicating if migration support
-		 * was enabled or not due to missing prerequisites
+		 * @migration.disabled: flag indicating if migration support
+		 * was turned off due to missing prerequisites
 		 */
-		bool enabled;
+		bool disabled;
 	} migration;
 
 	/** @ccs: VF CCS state data */
