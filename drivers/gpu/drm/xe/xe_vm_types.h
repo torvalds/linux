@@ -221,11 +221,6 @@ struct xe_vm {
 #define XE_VM_FLAG_GSC			BIT(8)
 	unsigned long flags;
 
-	/** @composite_fence_ctx: context composite fence */
-	u64 composite_fence_ctx;
-	/** @composite_fence_seqno: seqno for composite fence */
-	u32 composite_fence_seqno;
-
 	/**
 	 * @lock: outer most lock, protects objects of anything attached to this
 	 * VM

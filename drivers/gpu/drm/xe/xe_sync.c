@@ -14,7 +14,7 @@
 #include <drm/drm_syncobj.h>
 #include <uapi/drm/xe_drm.h>
 
-#include "xe_device_types.h"
+#include "xe_device.h"
 #include "xe_exec_queue.h"
 #include "xe_macros.h"
 #include "xe_sched_job_types.h"
@@ -297,26 +297,67 @@ xe_sync_in_fence_get(struct xe_sync_entry *sync, int num_sync,
 	struct dma_fence **fences = NULL;
 	struct dma_fence_array *cf = NULL;
 	struct dma_fence *fence;
-	int i, num_in_fence = 0, current_fence = 0;
+	int i, num_fence = 0, current_fence = 0;
 
 	lockdep_assert_held(&vm->lock);
 
 	/* Count in-fences */
 	for (i = 0; i < num_sync; ++i) {
 		if (sync[i].fence) {
-			++num_in_fence;
+			++num_fence;
 			fence = sync[i].fence;
 		}
 	}
 
 	/* Easy case... */
-	if (!num_in_fence) {
+	if (!num_fence) {
+		if (q->flags & EXEC_QUEUE_FLAG_VM) {
+			struct xe_exec_queue *__q;
+			struct xe_tile *tile;
+			u8 id;
+
+			for_each_tile(tile, vm->xe, id)
+				num_fence += (1 + XE_MAX_GT_PER_TILE);
+
+			fences = kmalloc_array(num_fence, sizeof(*fences),
+					       GFP_KERNEL);
+			if (!fences)
+				return ERR_PTR(-ENOMEM);
+
+			fences[current_fence++] =
+				xe_exec_queue_last_fence_get(q, vm);
+			for_each_tlb_inval(i)
+				fences[current_fence++] =
+					xe_exec_queue_tlb_inval_last_fence_get(q, vm, i);
+			list_for_each_entry(__q, &q->multi_gt_list,
+					    multi_gt_link) {
+				fences[current_fence++] =
+					xe_exec_queue_last_fence_get(__q, vm);
+				for_each_tlb_inval(i)
+					fences[current_fence++] =
+						xe_exec_queue_tlb_inval_last_fence_get(__q, vm, i);
+			}
+
+			xe_assert(vm->xe, current_fence == num_fence);
+			cf = dma_fence_array_create(num_fence, fences,
+						    dma_fence_context_alloc(1),
+						    1, false);
+			if (!cf)
+				goto err_out;
+
+			return &cf->base;
+		}
+
 		fence = xe_exec_queue_last_fence_get(q, vm);
 		return fence;
 	}
 
-	/* Create composite fence */
-	fences = kmalloc_array(num_in_fence + 1, sizeof(*fences), GFP_KERNEL);
+	/*
+	 * Create composite fence - FIXME - the below code doesn't work. This is
+	 * unused in Mesa so we are ok for the moment. Perhaps we just disable
+	 * this entire code path if number of in fences != 0.
+	 */
+	fences = kmalloc_array(num_fence + 1, sizeof(*fences), GFP_KERNEL);
 	if (!fences)
 		return ERR_PTR(-ENOMEM);
 	for (i = 0; i < num_sync; ++i) {
@@ -326,14 +367,10 @@ xe_sync_in_fence_get(struct xe_sync_entry *sync, int num_sync,
 		}
 	}
 	fences[current_fence++] = xe_exec_queue_last_fence_get(q, vm);
-	cf = dma_fence_array_create(num_in_fence, fences,
-				    vm->composite_fence_ctx,
-				    vm->composite_fence_seqno++,
-				    false);
-	if (!cf) {
-		--vm->composite_fence_seqno;
+	cf = dma_fence_array_create(num_fence, fences,
+				    dma_fence_context_alloc(1), 1, false);
+	if (!cf)
 		goto err_out;
-	}
 
 	return &cf->base;
 
