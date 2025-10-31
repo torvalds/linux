@@ -666,8 +666,8 @@ void test_tc_tunnel(void)
 		ret = build_subtest_name(cfg, cfg->name, TEST_NAME_MAX_LEN);
 		if (ret < 0 || !test__start_subtest(cfg->name))
 			continue;
-		subtest_setup(skel, cfg);
-		run_test(cfg);
+		if (subtest_setup(skel, cfg) == 0)
+			run_test(cfg);
 		subtest_cleanup(cfg);
 	}
 	cleanup();
