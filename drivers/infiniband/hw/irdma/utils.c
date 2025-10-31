@@ -452,6 +452,7 @@ struct irdma_cqp_request *irdma_alloc_and_get_cqp_request(struct irdma_cqp *cqp,
 	cqp_request->waiting = wait;
 	refcount_set(&cqp_request->refcnt, 1);
 	memset(&cqp_request->compl_info, 0, sizeof(cqp_request->compl_info));
+	memset(&cqp_request->info, 0, sizeof(cqp_request->info));
 
 	return cqp_request;
 }
@@ -1068,7 +1069,6 @@ int irdma_cqp_qp_create_cmd(struct irdma_sc_dev *dev, struct irdma_sc_qp *qp)
 
 	cqp_info = &cqp_request->info;
 	qp_info = &cqp_request->info.in.u.qp_create.info;
-	memset(qp_info, 0, sizeof(*qp_info));
 	qp_info->cq_num_valid = true;
 	qp_info->next_iwarp_state = IRDMA_QP_STATE_RTS;
 	cqp_info->cqp_cmd = IRDMA_OP_QP_CREATE;
@@ -1343,7 +1343,6 @@ int irdma_cqp_qp_destroy_cmd(struct irdma_sc_dev *dev, struct irdma_sc_qp *qp)
 		return -ENOMEM;
 
 	cqp_info = &cqp_request->info;
-	memset(cqp_info, 0, sizeof(*cqp_info));
 	cqp_info->cqp_cmd = IRDMA_OP_QP_DESTROY;
 	cqp_info->post_sq = 1;
 	cqp_info->in.u.qp_destroy.qp = qp;
@@ -1749,7 +1748,6 @@ int irdma_cqp_gather_stats_cmd(struct irdma_sc_dev *dev,
 		return -ENOMEM;
 
 	cqp_info = &cqp_request->info;
-	memset(cqp_info, 0, sizeof(*cqp_info));
 	cqp_info->cqp_cmd = IRDMA_OP_STATS_GATHER;
 	cqp_info->post_sq = 1;
 	cqp_info->in.u.stats_gather.info = pestat->gather_info;
@@ -1789,7 +1787,6 @@ int irdma_cqp_stats_inst_cmd(struct irdma_sc_vsi *vsi, u8 cmd,
 		return -ENOMEM;
 
 	cqp_info = &cqp_request->info;
-	memset(cqp_info, 0, sizeof(*cqp_info));
 	cqp_info->cqp_cmd = cmd;
 	cqp_info->post_sq = 1;
 	cqp_info->in.u.stats_manage.info = *stats_info;
@@ -1890,7 +1887,6 @@ int irdma_cqp_ws_node_cmd(struct irdma_sc_dev *dev, u8 cmd,
 		return -ENOMEM;
 
 	cqp_info = &cqp_request->info;
-	memset(cqp_info, 0, sizeof(*cqp_info));
 	cqp_info->cqp_cmd = cmd;
 	cqp_info->post_sq = 1;
 	cqp_info->in.u.ws_node.info = *node_info;

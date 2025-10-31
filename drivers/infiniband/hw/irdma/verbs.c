@@ -771,7 +771,6 @@ static int irdma_cqp_create_qp_cmd(struct irdma_qp *iwqp)
 
 	cqp_info = &cqp_request->info;
 	qp_info = &cqp_request->info.in.u.qp_create.info;
-	memset(qp_info, 0, sizeof(*qp_info));
 	qp_info->mac_valid = true;
 	qp_info->cq_num_valid = true;
 	qp_info->next_iwarp_state = IRDMA_QP_STATE_IDLE;
@@ -3102,7 +3101,6 @@ static int irdma_hw_alloc_stag(struct irdma_device *iwdev,
 
 	cqp_info = &cqp_request->info;
 	info = &cqp_info->in.u.alloc_stag.info;
-	memset(info, 0, sizeof(*info));
 	info->page_size = PAGE_SIZE;
 	info->stag_idx = iwmr->stag >> IRDMA_CQPSQ_STAG_IDX_S;
 	info->pd_id = iwpd->sc_pd.pd_id;
@@ -3252,7 +3250,6 @@ static int irdma_hwreg_mr(struct irdma_device *iwdev, struct irdma_mr *iwmr,
 
 	cqp_info = &cqp_request->info;
 	stag_info = &cqp_info->in.u.mr_reg_non_shared.info;
-	memset(stag_info, 0, sizeof(*stag_info));
 	stag_info->va = iwpbl->user_base;
 	stag_info->stag_idx = iwmr->stag >> IRDMA_CQPSQ_STAG_IDX_S;
 	stag_info->stag_key = (u8)iwmr->stag;
@@ -3646,7 +3643,6 @@ static int irdma_hwdereg_mr(struct ib_mr *ib_mr)
 
 	cqp_info = &cqp_request->info;
 	info = &cqp_info->in.u.dealloc_stag.info;
-	memset(info, 0, sizeof(*info));
 	info->pd_id = iwpd->sc_pd.pd_id;
 	info->stag_idx = ib_mr->rkey >> IRDMA_CQPSQ_STAG_IDX_S;
 	info->mr = true;

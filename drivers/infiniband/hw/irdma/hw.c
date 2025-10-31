@@ -2365,7 +2365,6 @@ static int irdma_cqp_manage_apbvt_cmd(struct irdma_device *iwdev,
 
 	cqp_info = &cqp_request->info;
 	info = &cqp_info->in.u.manage_apbvt_entry.info;
-	memset(info, 0, sizeof(*info));
 	info->add = add_port;
 	info->port = accel_local_port;
 	cqp_info->cqp_cmd = IRDMA_OP_MANAGE_APBVT_ENTRY;
@@ -2474,7 +2473,6 @@ void irdma_manage_arp_cache(struct irdma_pci_f *rf,
 	if (action == IRDMA_ARP_ADD) {
 		cqp_info->cqp_cmd = IRDMA_OP_ADD_ARP_CACHE_ENTRY;
 		info = &cqp_info->in.u.add_arp_cache_entry.info;
-		memset(info, 0, sizeof(*info));
 		info->arp_index = (u16)arp_index;
 		info->permanent = true;
 		ether_addr_copy(info->mac_addr, mac_addr);
@@ -2533,7 +2531,6 @@ int irdma_manage_qhash(struct irdma_device *iwdev, struct irdma_cm_info *cminfo,
 
 	cqp_info = &cqp_request->info;
 	info = &cqp_info->in.u.manage_qhash_table_entry.info;
-	memset(info, 0, sizeof(*info));
 	info->vsi = &iwdev->vsi;
 	info->manage = mtype;
 	info->entry_type = etype;
