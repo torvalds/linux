@@ -29,6 +29,10 @@ static void ionic_tx_clean(struct ionic_queue *q,
 
 static inline void ionic_txq_post(struct ionic_queue *q, bool ring_dbell)
 {
+	/* Ensure TX descriptor writes reach memory before NIC reads them.
+	 * Prevents device from fetching stale descriptors.
+	 */
+	dma_wmb();
 	ionic_q_post(q, ring_dbell);
 }
 
