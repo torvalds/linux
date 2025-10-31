@@ -86,6 +86,19 @@
 		regulator-name = "usbh_vbus";
 	};
 
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		linux,cma {
+			compatible = "shared-dma-pool";
+			linux,cma-default;
+			reusable;
+			size = <0 0x1a000000>;
+		};
+	};
+
 	sound-card {
 		compatible = "simple-audio-card";
 		simple-audio-card,bitclock-master = <&dailink_master>;
