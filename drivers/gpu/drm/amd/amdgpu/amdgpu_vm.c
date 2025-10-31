@@ -484,15 +484,19 @@ int amdgpu_vm_lock_done_list(struct amdgpu_vm *vm, struct drm_exec *exec,
 	spin_lock(&vm->status_lock);
 	while (!list_is_head(prev->next, &vm->done)) {
 		bo_va = list_entry(prev->next, typeof(*bo_va), base.vm_status);
-		spin_unlock(&vm->status_lock);
 
 		bo = bo_va->base.bo;
 		if (bo) {
+			amdgpu_bo_ref(bo);
+			spin_unlock(&vm->status_lock);
+
 			ret = drm_exec_prepare_obj(exec, &bo->tbo.base, 1);
+			amdgpu_bo_unref(&bo);
 			if (unlikely(ret))
 				return ret;
+
+			spin_lock(&vm->status_lock);
 		}
-		spin_lock(&vm->status_lock);
 		prev = prev->next;
 	}
 	spin_unlock(&vm->status_lock);
