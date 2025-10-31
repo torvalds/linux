@@ -1302,10 +1302,9 @@ static bool ublk_start_io(const struct ublk_queue *ubq, struct request *req,
 	return true;
 }
 
-static void ublk_dispatch_req(struct ublk_queue *ubq,
-			      struct request *req,
-			      unsigned int issue_flags)
+static void ublk_dispatch_req(struct ublk_queue *ubq, struct request *req)
 {
+	unsigned int issue_flags = IO_URING_CMD_TASK_WORK_ISSUE_FLAGS;
 	int tag = req->tag;
 	struct ublk_io *io = &ubq->ios[tag];
 
@@ -1348,13 +1347,13 @@ static void ublk_dispatch_req(struct ublk_queue *ubq,
 		ublk_complete_io_cmd(io, req, UBLK_IO_RES_OK, issue_flags);
 }
 
-static void ublk_cmd_tw_cb(struct io_uring_cmd *cmd,
-			   unsigned int issue_flags)
+static void ublk_cmd_tw_cb(struct io_tw_req tw_req, io_tw_token_t tw)
 {
+	struct io_uring_cmd *cmd = io_uring_cmd_from_tw(tw_req);
 	struct ublk_uring_cmd_pdu *pdu = ublk_get_uring_cmd_pdu(cmd);
 	struct ublk_queue *ubq = pdu->ubq;
 
-	ublk_dispatch_req(ubq, pdu->req, issue_flags);
+	ublk_dispatch_req(ubq, pdu->req);
 }
 
 static void ublk_queue_cmd(struct ublk_queue *ubq, struct request *rq)
@@ -1366,9 +1365,9 @@ static void ublk_queue_cmd(struct ublk_queue *ubq, struct request *rq)
 	io_uring_cmd_complete_in_task(cmd, ublk_cmd_tw_cb);
 }
 
-static void ublk_cmd_list_tw_cb(struct io_uring_cmd *cmd,
-		unsigned int issue_flags)
+static void ublk_cmd_list_tw_cb(struct io_tw_req tw_req, io_tw_token_t tw)
 {
+	struct io_uring_cmd *cmd = io_uring_cmd_from_tw(tw_req);
 	struct ublk_uring_cmd_pdu *pdu = ublk_get_uring_cmd_pdu(cmd);
 	struct request *rq = pdu->req_list;
 	struct request *next;
@@ -1376,7 +1375,7 @@ static void ublk_cmd_list_tw_cb(struct io_uring_cmd *cmd,
 	do {
 		next = rq->rq_next;
 		rq->rq_next = NULL;
-		ublk_dispatch_req(rq->mq_hctx->driver_data, rq, issue_flags);
+		ublk_dispatch_req(rq->mq_hctx->driver_data, rq);
 		rq = next;
 	} while (rq);
 }
@@ -2523,9 +2522,10 @@ fail_put:
 	return NULL;
 }
 
-static void ublk_ch_uring_cmd_cb(struct io_uring_cmd *cmd,
-		unsigned int issue_flags)
+static void ublk_ch_uring_cmd_cb(struct io_tw_req tw_req, io_tw_token_t tw)
 {
+	unsigned int issue_flags = IO_URING_CMD_TASK_WORK_ISSUE_FLAGS;
+	struct io_uring_cmd *cmd = io_uring_cmd_from_tw(tw_req);
 	int ret = ublk_ch_uring_cmd_local(cmd, issue_flags);
 
 	if (ret != -EIOCBQUEUED)
