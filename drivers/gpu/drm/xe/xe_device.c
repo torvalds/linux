@@ -983,21 +983,21 @@ void xe_device_remove(struct xe_device *xe)
 
 void xe_device_shutdown(struct xe_device *xe)
 {
+	struct xe_gt *gt;
+	u8 id;
+
 	drm_dbg(&xe->drm, "Shutting down device\n");
 
-	if (xe_driver_flr_disabled(xe)) {
-		struct xe_gt *gt;
-		u8 id;
+	xe_display_pm_shutdown(xe);
 
-		xe_display_pm_shutdown(xe);
+	xe_irq_suspend(xe);
 
-		xe_irq_suspend(xe);
+	for_each_gt(gt, xe, id)
+		xe_gt_shutdown(gt);
 
-		for_each_gt(gt, xe, id)
-			xe_gt_shutdown(gt);
+	xe_display_pm_shutdown_late(xe);
 
-		xe_display_pm_shutdown_late(xe);
-	} else {
+	if (!xe_driver_flr_disabled(xe)) {
 		/* BOOM! */
 		__xe_driver_flr(xe);
 	}
