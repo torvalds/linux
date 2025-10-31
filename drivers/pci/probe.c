@@ -672,6 +672,7 @@ static void pci_init_host_bridge(struct pci_host_bridge *bridge)
 	bridge->native_dpc = 1;
 	bridge->domain_nr = PCI_DOMAIN_NR_NOT_SET;
 	bridge->native_cxl_error = 1;
+	pci_ide_init_host_bridge(bridge);
 
 	device_initialize(&bridge->dev);
 }
