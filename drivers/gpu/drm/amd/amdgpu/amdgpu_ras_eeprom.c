@@ -459,6 +459,9 @@ int amdgpu_ras_eeprom_reset_table(struct amdgpu_ras_eeprom_control *control)
 			hdr->tbl_size = RAS_TABLE_HEADER_SIZE +
 					RAS_TABLE_V2_1_INFO_SIZE;
 			rai->rma_status = GPU_HEALTH_USABLE;
+
+			control->ras_record_offset = RAS_RECORD_START_V2_1;
+			control->ras_max_record_count = RAS_MAX_RECORD_COUNT_V2_1;
 			/**
 			 * GPU health represented as a percentage.
 			 * 0 means worst health, 100 means fully health.
@@ -469,6 +472,9 @@ int amdgpu_ras_eeprom_reset_table(struct amdgpu_ras_eeprom_control *control)
 		} else {
 			hdr->first_rec_offset = RAS_RECORD_START;
 			hdr->tbl_size = RAS_TABLE_HEADER_SIZE;
+
+			control->ras_record_offset = RAS_RECORD_START;
+			control->ras_max_record_count = RAS_MAX_RECORD_COUNT;
 		}
 
 		csum = __calc_hdr_byte_sum(control);
