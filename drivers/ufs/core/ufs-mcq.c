@@ -479,9 +479,6 @@ int ufshcd_mcq_init(struct ufs_hba *hba)
 		mutex_init(&hwq->sq_mutex);
 	}
 
-	/* The very first HW queue serves device commands */
-	hba->dev_cmd_queue = &hba->uhq[0];
-
 	host->host_tagset = 1;
 	return 0;
 }
@@ -536,6 +533,7 @@ int ufshcd_mcq_sq_cleanup(struct ufs_hba *hba, int task_tag)
 {
 	struct scsi_cmnd *cmd = ufshcd_tag_to_cmd(hba, task_tag);
 	struct ufshcd_lrb *lrbp = scsi_cmd_priv(cmd);
+	struct request *rq = scsi_cmd_to_rq(cmd);
 	struct ufs_hw_queue *hwq;
 	void __iomem *reg, *opr_sqd_base;
 	u32 nexus, id, val;
@@ -544,15 +542,12 @@ int ufshcd_mcq_sq_cleanup(struct ufs_hba *hba, int task_tag)
 	if (hba->quirks & UFSHCD_QUIRK_MCQ_BROKEN_RTC)
 		return -ETIMEDOUT;
 
-	if (task_tag != hba->reserved_slot) {
-		if (!cmd)
-			return -EINVAL;
-		hwq = ufshcd_mcq_req_to_hwq(hba, scsi_cmd_to_rq(cmd));
-		if (!hwq)
-			return 0;
-	} else {
-		hwq = hba->dev_cmd_queue;
-	}
+	if (!cmd)
+		return -EINVAL;
+
+	hwq = ufshcd_mcq_req_to_hwq(hba, rq);
+	if (!hwq)
+		return 0;
 
 	id = hwq->id;
 

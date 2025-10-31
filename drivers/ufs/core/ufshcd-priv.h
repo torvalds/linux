@@ -369,30 +369,7 @@ static inline bool ufs_is_valid_unit_desc_lun(struct ufs_dev_info *dev_info, u8 
 static inline struct scsi_cmnd *ufshcd_tag_to_cmd(struct ufs_hba *hba, u32 tag)
 {
 	struct blk_mq_tags *tags = hba->host->tag_set.shared_tags;
-	struct request *rq;
-
-	/*
-	 * Handle reserved tags differently because the UFS driver does not
-	 * call blk_mq_alloc_request() for allocating reserved requests.
-	 * Allocating reserved tags with blk_mq_alloc_request() would require
-	 * the following:
-	 * - Allocate an additional request queue from &hba->host->tag_set for
-	 *   allocating reserved requests from.
-	 * - For that request queue, allocate a SCSI device.
-	 * - Calling blk_mq_alloc_request(hba->dev_mgmt_queue, REQ_OP_DRV_OUT,
-	 *   BLK_MQ_REQ_RESERVED) for allocating a reserved request and
-	 *   blk_mq_free_request() for freeing reserved requests.
-	 * - Set the .device pointer for these reserved requests.
-	 * - Submit reserved requests with blk_execute_rq().
-	 * - Modify ufshcd_queuecommand() such that it handles reserved requests
-	 *   in another way than SCSI requests.
-	 * - Modify ufshcd_compl_one_cqe() such that it calls scsi_done() for
-	 *   device management commands.
-	 * - Modify all callback functions called by blk_mq_tagset_busy_iter()
-	 *   calls in the UFS driver and skip device management commands.
-	 */
-	rq = tag < UFSHCD_NUM_RESERVED ? tags->static_rqs[tag] :
-					 blk_mq_tag_to_rq(tags, tag);
+	struct request *rq = blk_mq_tag_to_rq(tags, tag);
 
 	if (WARN_ON_ONCE(!rq))
 		return NULL;
