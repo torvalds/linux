@@ -88,13 +88,29 @@
 
 /*
  * Support -ffunction-sections by matching .text and .text.*,
- * but exclude '.text..*'.
+ * but exclude '.text..*', .text.startup[.*], and .text.exit[.*].
  *
- * Special .text.* sections that are typically grouped separately, such as
+ * .text.startup and .text.startup.* are matched later by INIT_TEXT.
+ * .text.exit and .text.exit.* are matched later by EXIT_TEXT.
+ *
+ * Other .text.* sections that are typically grouped separately, such as
  * .text.unlikely or .text.hot, must be matched explicitly before using
  * TEXT_MAIN.
  */
-#define TEXT_MAIN .text .text.[0-9a-zA-Z_]*
+#define TEXT_MAIN							\
+	.text								\
+	.text.[_0-9A-Za-df-rt-z]*					\
+	.text.s[_0-9A-Za-su-z]*						\
+	.text.st[_0-9A-Zb-z]*						\
+	.text.sta[_0-9A-Za-qs-z]*					\
+	.text.star[_0-9A-Za-su-z]*					\
+	.text.start[_0-9A-Za-tv-z]*					\
+	.text.startu[_0-9A-Za-oq-z]*					\
+	.text.startup[_0-9A-Za-z]*					\
+	.text.e[_0-9A-Za-wy-z]*						\
+	.text.ex[_0-9A-Za-hj-z]*					\
+	.text.exi[_0-9A-Za-su-z]*					\
+	.text.exit[_0-9A-Za-z]*
 
 /*
  * Support -fdata-sections by matching .data, .data.*, and others,
@@ -713,16 +729,16 @@
 
 #define INIT_TEXT							\
 	*(.init.text .init.text.*)					\
-	*(.text.startup)
+	*(.text.startup .text.startup.*)
 
 #define EXIT_DATA							\
 	*(.exit.data .exit.data.*)					\
 	*(.fini_array .fini_array.*)					\
-	*(.dtors .dtors.*)						\
+	*(.dtors .dtors.*)
 
 #define EXIT_TEXT							\
 	*(.exit.text)							\
-	*(.text.exit)							\
+	*(.text.exit .text.exit.*)
 
 #define EXIT_CALL							\
 	*(.exitcall.exit)
