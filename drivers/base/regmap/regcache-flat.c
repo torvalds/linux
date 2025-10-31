@@ -30,7 +30,6 @@ struct regcache_flat_data {
 static int regcache_flat_init(struct regmap *map)
 {
 	int i;
-	size_t cache_data_size;
 	unsigned int cache_size;
 	struct regcache_flat_data *cache;
 
@@ -38,14 +37,7 @@ static int regcache_flat_init(struct regmap *map)
 		return -EINVAL;
 
 	cache_size = regcache_flat_get_index(map, map->max_register) + 1;
-	cache_data_size = struct_size(cache, data, cache_size);
-
-	if (cache_data_size == SIZE_MAX) {
-		dev_err(map->dev, "cannot allocate regmap cache");
-		return -ENOMEM;
-	}
-
-	cache = kzalloc(cache_data_size, map->alloc_flags);
+	cache = kzalloc(struct_size(cache, data, cache_size), map->alloc_flags);
 	if (!cache)
 		return -ENOMEM;
 
