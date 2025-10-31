@@ -2028,6 +2028,7 @@ static int irdma_resize_cq(struct ib_cq *ibcq, int entries,
 	struct irdma_pci_f *rf;
 	struct irdma_cq_buf *cq_buf = NULL;
 	unsigned long flags;
+	u8 cqe_size;
 	int ret;
 
 	iwdev = to_iwdev(ibcq->device);
@@ -2044,7 +2045,7 @@ static int irdma_resize_cq(struct ib_cq *ibcq, int entries,
 		return -EINVAL;
 
 	if (!iwcq->user_mode) {
-		entries++;
+		entries += 2;
 
 		if (!iwcq->sc_cq.cq_uk.avoid_mem_cflct &&
 		    dev->hw_attrs.uk_attrs.hw_rev >= IRDMA_GEN_2)
@@ -2052,6 +2053,10 @@ static int irdma_resize_cq(struct ib_cq *ibcq, int entries,
 
 		if (entries & 1)
 			entries += 1; /* cq size must be an even number */
+
+		cqe_size = iwcq->sc_cq.cq_uk.avoid_mem_cflct ? 64 : 32;
+		if (entries * cqe_size == IRDMA_HW_PAGE_SIZE)
+			entries += 2;
 	}
 
 	info.cq_size = max(entries, 4);
@@ -2482,6 +2487,7 @@ static int irdma_create_cq(struct ib_cq *ibcq,
 	int err_code;
 	int entries = attr->cqe;
 	bool cqe_64byte_ena;
+	u8 cqe_size;
 
 	err_code = cq_validate_flags(attr->flags, dev->hw_attrs.uk_attrs.hw_rev);
 	if (err_code)
@@ -2507,6 +2513,7 @@ static int irdma_create_cq(struct ib_cq *ibcq,
 	ukinfo->cq_id = cq_num;
 	cqe_64byte_ena = dev->hw_attrs.uk_attrs.feature_flags & IRDMA_FEATURE_64_BYTE_CQE ?
 			 true : false;
+	cqe_size = cqe_64byte_ena ? 64 : 32;
 	ukinfo->avoid_mem_cflct = cqe_64byte_ena;
 	iwcq->ibcq.cqe = info.cq_uk_init_info.cq_size;
 	if (attr->comp_vector < rf->ceqs_count)
@@ -2579,12 +2586,15 @@ static int irdma_create_cq(struct ib_cq *ibcq,
 			goto cq_free_rsrc;
 		}
 
-		entries++;
+		entries += 2;
 		if (!cqe_64byte_ena && dev->hw_attrs.uk_attrs.hw_rev >= IRDMA_GEN_2)
 			entries *= 2;
 
 		if (entries & 1)
 			entries += 1; /* cq size must be an even number */
+
+		if (entries * cqe_size == IRDMA_HW_PAGE_SIZE)
+			entries += 2;
 
 		ukinfo->cq_size = entries;
 
@@ -4500,7 +4510,7 @@ static int irdma_req_notify_cq(struct ib_cq *ibcq,
 	}
 
 	if ((notify_flags & IB_CQ_REPORT_MISSED_EVENTS) &&
-	    (!irdma_cq_empty(iwcq) || !list_empty(&iwcq->cmpl_generated)))
+	    (!irdma_uk_cq_empty(ukcq) || !list_empty(&iwcq->cmpl_generated)))
 		ret = 1;
 	spin_unlock_irqrestore(&iwcq->lock, flags);
 

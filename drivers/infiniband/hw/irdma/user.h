@@ -429,6 +429,7 @@ struct irdma_wqe_uk_ops {
 				   struct irdma_bind_window *op_info);
 };
 
+bool irdma_uk_cq_empty(struct irdma_cq_uk *cq);
 int irdma_uk_cq_poll_cmpl(struct irdma_cq_uk *cq,
 			  struct irdma_cq_poll_info *info);
 void irdma_uk_cq_request_notification(struct irdma_cq_uk *cq,
