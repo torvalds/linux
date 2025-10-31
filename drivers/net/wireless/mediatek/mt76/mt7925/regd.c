@@ -173,6 +173,10 @@ void mt7925_regd_notifier(struct wiphy *wiphy, struct regulatory_request *req)
 	struct mt76_connac_pm *pm = &dev->pm;
 	struct mt76_dev *mdev = &dev->mt76;
 
+	if (req->initiator == NL80211_REGDOM_SET_BY_USER &&
+	    !dev->regd_user)
+		dev->regd_user = true;
+
 	/* allow world regdom at the first boot only */
 	if (!memcmp(req->alpha2, "00", 2) &&
 	    mdev->alpha2[0] && mdev->alpha2[1])
@@ -224,7 +228,8 @@ int mt7925_regd_change(struct mt792x_phy *phy, char *alpha2)
 		return 0;
 
 	if (!mt7925_regd_is_valid_alpha2(alpha2) ||
-	    !mt7925_regd_clc_supported(dev))
+	    !mt7925_regd_clc_supported(dev) ||
+	    dev->regd_user)
 		return -EINVAL;
 
 	if (mdev->alpha2[0] != '0' && mdev->alpha2[1] != '0')

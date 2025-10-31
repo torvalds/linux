@@ -231,6 +231,7 @@ struct mt792x_dev {
 	bool hw_init_done:1;
 	bool fw_assert:1;
 	bool has_eht:1;
+	bool regd_user:1;
 	bool regd_in_progress:1;
 	bool aspm_supported:1;
 	bool hif_idle:1;
