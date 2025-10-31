@@ -216,7 +216,7 @@ struct array_buffer {
 	int				cpu;
 };
 
-#define TRACE_FLAGS_MAX_SIZE		32
+#define TRACE_FLAGS_MAX_SIZE		64
 
 struct trace_options {
 	struct tracer			*tracer;
@@ -390,7 +390,7 @@ struct trace_array {
 	int			buffer_percent;
 	unsigned int		n_err_log_entries;
 	struct tracer		*current_trace;
-	unsigned int		trace_flags;
+	u64			trace_flags;
 	unsigned char		trace_flags_index[TRACE_FLAGS_MAX_SIZE];
 	unsigned int		flags;
 	raw_spinlock_t		start_lock;
@@ -631,7 +631,7 @@ struct tracer {
 					    u32 old_flags, u32 bit, int set);
 	/* Return 0 if OK with change, else return non-zero */
 	int			(*flag_changed)(struct trace_array *tr,
-						u32 mask, int set);
+						u64 mask, int set);
 	struct tracer		*next;
 	struct tracer_flags	*flags;
 	int			enabled;
@@ -1345,11 +1345,11 @@ extern int trace_get_user(struct trace_parser *parser, const char __user *ubuf,
 # define FUNCTION_FLAGS						\
 		C(FUNCTION,		"function-trace"),	\
 		C(FUNC_FORK,		"function-fork"),
-# define FUNCTION_DEFAULT_FLAGS		TRACE_ITER_FUNCTION
+# define FUNCTION_DEFAULT_FLAGS		TRACE_ITER(FUNCTION)
 #else
 # define FUNCTION_FLAGS
 # define FUNCTION_DEFAULT_FLAGS		0UL
-# define TRACE_ITER_FUNC_FORK		0UL
+# define TRACE_ITER_FUNC_FORK_BIT	-1
 #endif
 
 #ifdef CONFIG_STACKTRACE
@@ -1391,7 +1391,7 @@ extern int trace_get_user(struct trace_parser *parser, const char __user *ubuf,
 		C(MARKERS,		"markers"),		\
 		C(EVENT_FORK,		"event-fork"),		\
 		C(TRACE_PRINTK,		"trace_printk_dest"),	\
-		C(COPY_MARKER,		"copy_trace_marker"),\
+		C(COPY_MARKER,		"copy_trace_marker"),	\
 		C(PAUSE_ON_TRACE,	"pause-on-trace"),	\
 		C(HASH_PTR,		"hash-ptr"),	/* Print hashed pointer */ \
 		FUNCTION_FLAGS					\
@@ -1413,20 +1413,17 @@ enum trace_iterator_bits {
 };
 
 /*
- * By redefining C, we can make TRACE_FLAGS a list of masks that
- * use the bits as defined above.
+ * And use TRACE_ITER(flag) to define the bit masks.
  */
-#undef C
-#define C(a, b) TRACE_ITER_##a = (1 << TRACE_ITER_##a##_BIT)
-
-enum trace_iterator_flags { TRACE_FLAGS };
+#define TRACE_ITER(flag)		\
+	(TRACE_ITER_##flag##_BIT < 0 ? 0 : 1ULL << (TRACE_ITER_##flag##_BIT))
 
 /*
  * TRACE_ITER_SYM_MASK masks the options in trace_flags that
  * control the output of kernel symbols.
  */
 #define TRACE_ITER_SYM_MASK \
-	(TRACE_ITER_PRINT_PARENT|TRACE_ITER_SYM_OFFSET|TRACE_ITER_SYM_ADDR)
+	(TRACE_ITER(PRINT_PARENT)|TRACE_ITER(SYM_OFFSET)|TRACE_ITER(SYM_ADDR))
 
 extern struct tracer nop_trace;
 
@@ -1435,7 +1432,7 @@ extern int enable_branch_tracing(struct trace_array *tr);
 extern void disable_branch_tracing(void);
 static inline int trace_branch_enable(struct trace_array *tr)
 {
-	if (tr->trace_flags & TRACE_ITER_BRANCH)
+	if (tr->trace_flags & TRACE_ITER(BRANCH))
 		return enable_branch_tracing(tr);
 	return 0;
 }
@@ -2064,8 +2061,8 @@ extern const char *__stop___tracepoint_str[];
 
 void trace_printk_control(bool enabled);
 void trace_printk_start_comm(void);
-int trace_keep_overwrite(struct tracer *tracer, u32 mask, int set);
-int set_tracer_flag(struct trace_array *tr, unsigned int mask, int enabled);
+int trace_keep_overwrite(struct tracer *tracer, u64 mask, int set);
+int set_tracer_flag(struct trace_array *tr, u64 mask, int enabled);
 
 /* Used from boot time tracer */
 extern int trace_set_options(struct trace_array *tr, char *option);

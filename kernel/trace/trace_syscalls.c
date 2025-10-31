@@ -157,7 +157,7 @@ print_syscall_enter(struct trace_iterator *iter, int flags,
 			trace_seq_puts(s, ", ");
 
 		/* parameter types */
-		if (tr && tr->trace_flags & TRACE_ITER_VERBOSE)
+		if (tr && tr->trace_flags & TRACE_ITER(VERBOSE))
 			trace_seq_printf(s, "%s ", entry->types[i]);
 
 		/* parameter values */
