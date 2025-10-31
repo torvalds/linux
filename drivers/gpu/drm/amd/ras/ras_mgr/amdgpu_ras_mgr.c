@@ -259,7 +259,8 @@ static struct ras_core_context *amdgpu_ras_mgr_create_ras_core(struct amdgpu_dev
 	init_config.nbio_ip_version = amdgpu_ip_version(adev, NBIO_HWIP, 0);
 	init_config.psp_ip_version = amdgpu_ip_version(adev, MP1_HWIP, 0);
 
-	if (init_config.umc_ip_version == IP_VERSION(12, 0, 0))
+	if (init_config.umc_ip_version == IP_VERSION(12, 0, 0) ||
+	    init_config.umc_ip_version == IP_VERSION(12, 5, 0))
 		init_config.aca_ip_version = IP_VERSION(1, 0, 0);
 
 	init_config.sys_fn = &amdgpu_ras_sys_fn;
