@@ -8,6 +8,7 @@
 #include "mt7925.h"
 #include "mac.h"
 #include "mcu.h"
+#include "regd.h"
 #include "../dma.h"
 
 static const struct pci_device_id mt7925_pci_device_table[] = {
