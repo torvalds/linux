@@ -409,7 +409,7 @@ static inline void btrfs_cleanup_ordered_extents(struct btrfs_inode *inode,
 			continue;
 		}
 
-		index = folio_end(folio) >> PAGE_SHIFT;
+		index = folio_next_index(folio);
 		/*
 		 * Here we just clear all Ordered bits for every page in the
 		 * range, then btrfs_mark_ordered_io_finished() will handle
@@ -2336,7 +2336,8 @@ int btrfs_run_delalloc_range(struct btrfs_inode *inode, struct folio *locked_fol
 	 * The range must cover part of the @locked_folio, or a return of 1
 	 * can confuse the caller.
 	 */
-	ASSERT(!(end <= folio_pos(locked_folio) || start >= folio_end(locked_folio)));
+	ASSERT(!(end <= folio_pos(locked_folio) ||
+		 start >= folio_next_pos(locked_folio)));
 
 	if (should_nocow(inode, start, end)) {
 		ret = run_delalloc_nocow(inode, locked_folio, start, end);
@@ -2743,7 +2744,7 @@ static void btrfs_writepage_fixup_worker(struct btrfs_work *work)
 	struct btrfs_inode *inode = fixup->inode;
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	u64 page_start = folio_pos(folio);
-	u64 page_end = folio_end(folio) - 1;
+	u64 page_end = folio_next_pos(folio) - 1;
 	int ret = 0;
 	bool free_delalloc_space = true;
 
@@ -4855,7 +4856,7 @@ again:
 	 */
 
 	zero_start = max_t(u64, folio_pos(folio), start);
-	zero_end = folio_end(folio);
+	zero_end = folio_next_pos(folio);
 	folio_zero_range(folio, zero_start - folio_pos(folio),
 			 zero_end - zero_start);
 
@@ -5038,7 +5039,7 @@ again:
 		 * not reach disk, it still affects our page caches.
 		 */
 		zero_start = max_t(u64, folio_pos(folio), start);
-		zero_end = min_t(u64, folio_end(folio) - 1, end);
+		zero_end = min_t(u64, folio_next_pos(folio) - 1, end);
 	} else {
 		zero_start = max_t(u64, block_start, start);
 		zero_end = min_t(u64, block_end, end);

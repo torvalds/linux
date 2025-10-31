@@ -186,7 +186,8 @@ static void btrfs_subpage_assert(const struct btrfs_fs_info *fs_info,
 	 * unmapped page like dummy extent buffer pages.
 	 */
 	if (folio->mapping)
-		ASSERT(folio_pos(folio) <= start && start + len <= folio_end(folio),
+		ASSERT(folio_pos(folio) <= start &&
+		       start + len <= folio_next_pos(folio),
 		       "start=%llu len=%u folio_pos=%llu folio_size=%zu",
 		       start, len, folio_pos(folio), folio_size(folio));
 }
@@ -217,7 +218,7 @@ static void btrfs_subpage_clamp_range(struct folio *folio, u64 *start, u32 *len)
 	if (folio_pos(folio) >= orig_start + orig_len)
 		*len = 0;
 	else
-		*len = min_t(u64, folio_end(folio), orig_start + orig_len) - *start;
+		*len = min_t(u64, folio_next_pos(folio), orig_start + orig_len) - *start;
 }
 
 static bool btrfs_subpage_end_and_test_lock(const struct btrfs_fs_info *fs_info,
