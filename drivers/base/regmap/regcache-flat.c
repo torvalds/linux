@@ -29,7 +29,6 @@ struct regcache_flat_data {
 
 static int regcache_flat_init(struct regmap *map)
 {
-	int i;
 	unsigned int cache_size;
 	struct regcache_flat_data *cache;
 
@@ -47,14 +46,6 @@ static int regcache_flat_init(struct regmap *map)
 
 	map->cache = cache;
 
-	for (i = 0; i < map->num_reg_defaults; i++) {
-		unsigned int reg = map->reg_defaults[i].reg;
-		unsigned int index = regcache_flat_get_index(map, reg);
-
-		cache->data[index] = map->reg_defaults[i].def;
-		__set_bit(index, cache->valid);
-	}
-
 	return 0;
 
 err_free:
@@ -71,6 +62,22 @@ static int regcache_flat_exit(struct regmap *map)
 
 	kfree(cache);
 	map->cache = NULL;
+
+	return 0;
+}
+
+static int regcache_flat_populate(struct regmap *map)
+{
+	struct regcache_flat_data *cache = map->cache;
+	unsigned int i;
+
+	for (i = 0; i < map->num_reg_defaults; i++) {
+		unsigned int reg = map->reg_defaults[i].reg;
+		unsigned int index = regcache_flat_get_index(map, reg);
+
+		cache->data[index] = map->reg_defaults[i].def;
+		__set_bit(index, cache->valid);
+	}
 
 	return 0;
 }
@@ -134,6 +141,7 @@ struct regcache_ops regcache_flat_ops = {
 	.name = "flat",
 	.init = regcache_flat_init,
 	.exit = regcache_flat_exit,
+	.populate = regcache_flat_populate,
 	.read = regcache_flat_read,
 	.write = regcache_flat_write,
 };
@@ -143,6 +151,7 @@ struct regcache_ops regcache_flat_sparse_ops = {
 	.name = "flat-sparse",
 	.init = regcache_flat_init,
 	.exit = regcache_flat_exit,
+	.populate = regcache_flat_populate,
 	.read = regcache_flat_sparse_read,
 	.write = regcache_flat_write,
 	.drop = regcache_flat_drop,
