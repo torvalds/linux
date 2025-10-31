@@ -490,7 +490,7 @@
 /* On-module PCIe for Wi-Fi */
 &pcieb {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_pcieb>;
+	pinctrl-0 = <&pinctrl_pcieb>, <&pinctrl_wifi>;
 	phys = <&hsio_phy 0 PHY_TYPE_PCIE 0>;
 	phy-names = "pcie-phy";
 	reset-gpios = <&lsio_gpio4 0 GPIO_ACTIVE_LOW>;
