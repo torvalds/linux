@@ -2476,7 +2476,7 @@ static inline int ufshcd_hba_capabilities(struct ufs_hba *hba)
 	hba->nutrs = (hba->capabilities & MASK_TRANSFER_REQUESTS_SLOTS_SDB) + 1;
 	hba->nutmrs =
 	((hba->capabilities & MASK_TASK_MANAGEMENT_REQUEST_SLOTS) >> 16) + 1;
-	hba->reserved_slot = hba->nutrs - 1;
+	hba->reserved_slot = 0;
 
 	hba->nortt = FIELD_GET(MASK_NUMBER_OUTSTANDING_RTT, hba->capabilities) + 1;
 
@@ -8945,7 +8945,6 @@ static int ufshcd_alloc_mcq(struct ufs_hba *hba)
 		goto err;
 
 	hba->host->can_queue = hba->nutrs - UFSHCD_NUM_RESERVED;
-	hba->reserved_slot = hba->nutrs - UFSHCD_NUM_RESERVED;
 
 	return 0;
 err:
@@ -9184,6 +9183,7 @@ static const struct scsi_host_template ufshcd_driver_template = {
 	.proc_name		= UFSHCD,
 	.map_queues		= ufshcd_map_queues,
 	.queuecommand		= ufshcd_queuecommand,
+	.nr_reserved_cmds	= UFSHCD_NUM_RESERVED,
 	.mq_poll		= ufshcd_poll,
 	.sdev_init		= ufshcd_sdev_init,
 	.sdev_configure		= ufshcd_sdev_configure,
