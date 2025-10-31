@@ -755,6 +755,7 @@ struct dma_fence *xe_vma_rebind(struct xe_vm *vm, struct xe_vma *vma, u8 tile_ma
 	xe_assert(vm->xe, xe_vm_in_fault_mode(vm));
 
 	xe_vma_ops_init(&vops, vm, NULL, NULL, 0);
+	vops.flags |= XE_VMA_OPS_FLAG_SKIP_TLB_WAIT;
 	for_each_tile(tile, vm->xe, id) {
 		vops.pt_update_ops[id].wait_vm_bookkeep = true;
 		vops.pt_update_ops[tile->id].q =
@@ -845,6 +846,7 @@ struct dma_fence *xe_vm_range_rebind(struct xe_vm *vm,
 	xe_assert(vm->xe, xe_vma_is_cpu_addr_mirror(vma));
 
 	xe_vma_ops_init(&vops, vm, NULL, NULL, 0);
+	vops.flags |= XE_VMA_OPS_FLAG_SKIP_TLB_WAIT;
 	for_each_tile(tile, vm->xe, id) {
 		vops.pt_update_ops[id].wait_vm_bookkeep = true;
 		vops.pt_update_ops[tile->id].q =
@@ -3111,8 +3113,13 @@ static struct dma_fence *ops_execute(struct xe_vm *vm,
 	if (number_tiles == 0)
 		return ERR_PTR(-ENODATA);
 
-	for_each_tile(tile, vm->xe, id)
-		n_fence += (1 + XE_MAX_GT_PER_TILE);
+	if (vops->flags & XE_VMA_OPS_FLAG_SKIP_TLB_WAIT) {
+		for_each_tile(tile, vm->xe, id)
+			++n_fence;
+	} else {
+		for_each_tile(tile, vm->xe, id)
+			n_fence += (1 + XE_MAX_GT_PER_TILE);
+	}
 
 	fences = kmalloc_array(n_fence, sizeof(*fences), GFP_KERNEL);
 	if (!fences) {
@@ -3153,6 +3160,9 @@ static struct dma_fence *ops_execute(struct xe_vm *vm,
 
 collect_fences:
 		fences[current_fence++] = fence ?: dma_fence_get_stub();
+		if (vops->flags & XE_VMA_OPS_FLAG_SKIP_TLB_WAIT)
+			continue;
+
 		xe_migrate_job_lock(tile->migrate, q);
 		for_each_tlb_inval(i)
 			fences[current_fence++] =
