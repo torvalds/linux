@@ -98,7 +98,6 @@ struct qcom_icc_node {
 	const char *name;
 	u16 links[MAX_LINKS];
 	u16 id;
-	struct qcom_icc_node **link_nodes;
 	struct icc_node *node;
 	u16 num_links;
 	u16 channels;
@@ -108,6 +107,7 @@ struct qcom_icc_node {
 	struct qcom_icc_bcm *bcms[MAX_BCM_PER_NODE];
 	size_t num_bcms;
 	const struct qcom_icc_qosbox *qosbox;
+	struct qcom_icc_node *link_nodes[];
 };
 
 /**
