@@ -216,6 +216,9 @@ int scsi_device_max_queue_depth(struct scsi_device *sdev)
  */
 int scsi_change_queue_depth(struct scsi_device *sdev, int depth)
 {
+	if (!sdev->budget_map.map)
+		return -EINVAL;
+
 	depth = min_t(int, depth, scsi_device_max_queue_depth(sdev));
 
 	if (depth > 0) {
@@ -255,6 +258,8 @@ EXPORT_SYMBOL(scsi_change_queue_depth);
  */
 int scsi_track_queue_full(struct scsi_device *sdev, int depth)
 {
+	if (!sdev->budget_map.map)
+		return 0;
 
 	/*
 	 * Don't let QUEUE_FULLs on the same
