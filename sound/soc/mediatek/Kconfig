@@ -246,6 +246,16 @@ config SND_SOC_MT8188_MT6359
 	  Select Y if you have such device.
 	  If unsure select "N".
 
+config SND_SOC_MT8189
+	tristate "ASoC support for Mediatek MT8189 chip"
+	depends on ARCH_MEDIATEK
+	select SND_SOC_MEDIATEK
+	help
+	  This adds ASoC driver for Mediatek MT8189 boards
+	  that can be used with other codecs.
+	  Select Y if you have such device.
+	  If unsure select "N".
+
 config SND_SOC_MT8192
 	tristate "ASoC support for Mediatek MT8192 chip"
 	depends on ARCH_MEDIATEK
