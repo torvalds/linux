@@ -132,24 +132,26 @@ static void umem_reset_alloc(struct xsk_umem_info *umem)
 	umem->next_buffer = 0;
 }
 
-static void enable_busy_poll(struct xsk_socket_info *xsk)
+static int enable_busy_poll(struct xsk_socket_info *xsk)
 {
 	int sock_opt;
 
 	sock_opt = 1;
 	if (setsockopt(xsk_socket__fd(xsk->xsk), SOL_SOCKET, SO_PREFER_BUSY_POLL,
 		       (void *)&sock_opt, sizeof(sock_opt)) < 0)
-		exit_with_error(errno);
+		return -errno;
 
 	sock_opt = 20;
 	if (setsockopt(xsk_socket__fd(xsk->xsk), SOL_SOCKET, SO_BUSY_POLL,
 		       (void *)&sock_opt, sizeof(sock_opt)) < 0)
-		exit_with_error(errno);
+		return -errno;
 
 	sock_opt = xsk->batch_size;
 	if (setsockopt(xsk_socket__fd(xsk->xsk), SOL_SOCKET, SO_BUSY_POLL_BUDGET,
 		       (void *)&sock_opt, sizeof(sock_opt)) < 0)
-		exit_with_error(errno);
+		return -errno;
+
+	return 0;
 }
 
 int xsk_configure_socket(struct xsk_socket_info *xsk, struct xsk_umem_info *umem,
@@ -759,7 +761,7 @@ static bool is_metadata_correct(struct pkt *pkt, void *buffer, u64 addr)
 	return true;
 }
 
-static bool is_adjust_tail_supported(struct xsk_xdp_progs *skel_rx)
+static int is_adjust_tail_supported(struct xsk_xdp_progs *skel_rx, bool *supported)
 {
 	struct bpf_map *data_map;
 	int adjust_value = 0;
@@ -769,19 +771,21 @@ static bool is_adjust_tail_supported(struct xsk_xdp_progs *skel_rx)
 	data_map = bpf_object__find_map_by_name(skel_rx->obj, "xsk_xdp_.bss");
 	if (!data_map || !bpf_map__is_internal(data_map)) {
 		ksft_print_msg("Error: could not find bss section of XDP program\n");
-		exit_with_error(errno);
+		return -EINVAL;
 	}
 
 	ret = bpf_map_lookup_elem(bpf_map__fd(data_map), &key, &adjust_value);
 	if (ret) {
 		ksft_print_msg("Error: bpf_map_lookup_elem failed with error %d\n", ret);
-		exit_with_error(errno);
+		return ret;
 	}
 
 	/* Set the 'adjust_value' variable to -EOPNOTSUPP in the XDP program if the adjust_tail
 	 * helper is not supported. Skip the adjust_tail test case in this scenario.
 	 */
-	return adjust_value != -EOPNOTSUPP;
+	*supported = adjust_value != -EOPNOTSUPP;
+
+	return 0;
 }
 
 static bool is_frag_valid(struct xsk_umem_info *umem, u64 addr, u32 len, u32 expected_pkt_nb,
@@ -1433,7 +1437,7 @@ static int validate_tx_invalid_descs(struct ifobject *ifobject)
 	return TEST_PASS;
 }
 
-static void xsk_configure(struct test_spec *test, struct ifobject *ifobject,
+static int xsk_configure(struct test_spec *test, struct ifobject *ifobject,
 			  struct xsk_umem_info *umem, bool tx)
 {
 	int i, ret;
@@ -1450,24 +1454,34 @@ static void xsk_configure(struct test_spec *test, struct ifobject *ifobject,
 
 			/* Retry if it fails as xsk_socket__create() is asynchronous */
 			if (ctr >= SOCK_RECONF_CTR)
-				exit_with_error(-ret);
+				return ret;
 			usleep(USLEEP_MAX);
 		}
-		if (ifobject->busy_poll)
-			enable_busy_poll(&ifobject->xsk_arr[i]);
+		if (ifobject->busy_poll) {
+			ret = enable_busy_poll(&ifobject->xsk_arr[i]);
+			if (ret)
+				return ret;
+		}
 	}
+
+	return 0;
 }
 
-static void thread_common_ops_tx(struct test_spec *test, struct ifobject *ifobject)
+static int thread_common_ops_tx(struct test_spec *test, struct ifobject *ifobject)
 {
-	xsk_configure(test, ifobject, test->ifobj_rx->umem, true);
+	int ret = xsk_configure(test, ifobject, test->ifobj_rx->umem, true);
+
+	if (ret)
+		return ret;
 	ifobject->xsk = &ifobject->xsk_arr[0];
 	ifobject->xskmap = test->ifobj_rx->xskmap;
 	memcpy(ifobject->umem, test->ifobj_rx->umem, sizeof(struct xsk_umem_info));
 	ifobject->umem->base_addr = 0;
+
+	return 0;
 }
 
-static void xsk_populate_fill_ring(struct xsk_umem_info *umem, struct pkt_stream *pkt_stream,
+static int xsk_populate_fill_ring(struct xsk_umem_info *umem, struct pkt_stream *pkt_stream,
 				   bool fill_up)
 {
 	u32 rx_frame_size = umem->frame_size - XDP_PACKET_HEADROOM;
@@ -1481,7 +1495,7 @@ static void xsk_populate_fill_ring(struct xsk_umem_info *umem, struct pkt_stream
 
 	ret = xsk_ring_prod__reserve(&umem->fq, buffers_to_fill, &idx);
 	if (ret != buffers_to_fill)
-		exit_with_error(ENOSPC);
+		return -ENOSPC;
 
 	while (filled < buffers_to_fill) {
 		struct pkt *pkt = pkt_stream_get_next_rx_pkt(pkt_stream, &nb_pkts);
@@ -1509,9 +1523,11 @@ static void xsk_populate_fill_ring(struct xsk_umem_info *umem, struct pkt_stream
 
 	pkt_stream_reset(pkt_stream);
 	umem_reset_alloc(umem);
+
+	return 0;
 }
 
-static void thread_common_ops(struct test_spec *test, struct ifobject *ifobject)
+static int thread_common_ops(struct test_spec *test, struct ifobject *ifobject)
 {
 	LIBBPF_OPTS(bpf_xdp_query_opts, opts);
 	int mmap_flags;
@@ -1531,27 +1547,34 @@ static void thread_common_ops(struct test_spec *test, struct ifobject *ifobject)
 
 	bufs = mmap(NULL, umem_sz, PROT_READ | PROT_WRITE, mmap_flags, -1, 0);
 	if (bufs == MAP_FAILED)
-		exit_with_error(errno);
+		return -errno;
 
 	ret = xsk_configure_umem(ifobject, ifobject->umem, bufs, umem_sz);
 	if (ret)
-		exit_with_error(-ret);
+		return ret;
 
-	xsk_configure(test, ifobject, ifobject->umem, false);
+	ret = xsk_configure(test, ifobject, ifobject->umem, false);
+	if (ret)
+		return ret;
 
 	ifobject->xsk = &ifobject->xsk_arr[0];
 
 	if (!ifobject->rx_on)
-		return;
+		return 0;
 
-	xsk_populate_fill_ring(ifobject->umem, ifobject->xsk->pkt_stream, ifobject->use_fill_ring);
+	ret = xsk_populate_fill_ring(ifobject->umem, ifobject->xsk->pkt_stream,
+				     ifobject->use_fill_ring);
+	if (ret)
+		return ret;
 
 	for (i = 0; i < test->nb_sockets; i++) {
 		ifobject->xsk = &ifobject->xsk_arr[i];
 		ret = xsk_update_xskmap(ifobject->xskmap, ifobject->xsk->xsk, i);
 		if (ret)
-			exit_with_error(errno);
+			return ret;
 	}
+
+	return 0;
 }
 
 void *worker_testapp_validate_tx(void *arg)
@@ -1561,10 +1584,17 @@ void *worker_testapp_validate_tx(void *arg)
 	int err;
 
 	if (test->current_step == 1) {
-		if (!ifobject->shared_umem)
-			thread_common_ops(test, ifobject);
-		else
-			thread_common_ops_tx(test, ifobject);
+		if (!ifobject->shared_umem) {
+			if (thread_common_ops(test, ifobject)) {
+				test->fail = true;
+				pthread_exit(NULL);
+			}
+		} else {
+			if (thread_common_ops_tx(test, ifobject)) {
+				test->fail = true;
+				pthread_exit(NULL);
+			}
+		}
 	}
 
 	err = send_pkts(test, ifobject);
@@ -1584,18 +1614,22 @@ void *worker_testapp_validate_rx(void *arg)
 	int err;
 
 	if (test->current_step == 1) {
-		thread_common_ops(test, ifobject);
+		err = thread_common_ops(test, ifobject);
 	} else {
 		xsk_clear_xskmap(ifobject->xskmap);
 		err = xsk_update_xskmap(ifobject->xskmap, ifobject->xsk->xsk, 0);
-		if (err) {
+		if (err)
 			ksft_print_msg("Error: Failed to update xskmap, error %s\n",
 				       strerror(-err));
-			exit_with_error(-err);
-		}
 	}
 
 	pthread_barrier_wait(&barr);
+
+	/* We leave only now in case of error to avoid getting stuck in the barrier */
+	if (err) {
+		test->fail = true;
+		pthread_exit(NULL);
+	}
 
 	err = receive_pkts(test);
 
@@ -1603,10 +1637,18 @@ void *worker_testapp_validate_rx(void *arg)
 		err = ifobject->validation_func(ifobject);
 
 	if (err) {
-		if (test->adjust_tail && !is_adjust_tail_supported(ifobject->xdp_progs))
-			test->adjust_tail_support = false;
-		else
+		if (!test->adjust_tail) {
 			test->fail = true;
+		} else {
+			bool supported;
+
+			if (is_adjust_tail_supported(ifobject->xdp_progs, &supported))
+				test->fail = true;
+			else if (!supported)
+				test->adjust_tail_support = false;
+			else
+				test->fail = true;
+		}
 	}
 
 	pthread_exit(NULL);
