@@ -94,6 +94,7 @@ struct cmdq {
 struct gce_plat {
 	u32 thread_nr;
 	u8 shift;
+	dma_addr_t mminfra_offset;
 	bool control_by_sw;
 	bool sw_ddr_en;
 	bool gce_vm;
@@ -103,13 +104,13 @@ struct gce_plat {
 static inline u32 cmdq_convert_gce_addr(dma_addr_t addr, const struct gce_plat *pdata)
 {
 	/* Convert DMA addr (PA or IOVA) to GCE readable addr */
-	return addr >> pdata->shift;
+	return (addr + pdata->mminfra_offset) >> pdata->shift;
 }
 
 static inline dma_addr_t cmdq_revert_gce_addr(u32 addr, const struct gce_plat *pdata)
 {
 	/* Revert GCE readable addr to DMA addr (PA or IOVA) */
-	return (dma_addr_t)addr << pdata->shift;
+	return ((dma_addr_t)addr << pdata->shift) - pdata->mminfra_offset;
 }
 
 void cmdq_get_mbox_priv(struct mbox_chan *chan, struct cmdq_mbox_priv *priv)
@@ -117,6 +118,7 @@ void cmdq_get_mbox_priv(struct mbox_chan *chan, struct cmdq_mbox_priv *priv)
 	struct cmdq *cmdq = container_of(chan->mbox, struct cmdq, mbox);
 
 	priv->shift_pa = cmdq->pdata->shift;
+	priv->mminfra_offset = cmdq->pdata->mminfra_offset;
 }
 EXPORT_SYMBOL(cmdq_get_mbox_priv);
 
