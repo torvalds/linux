@@ -302,10 +302,6 @@ retry:
 		goto err_put_job;
 
 	if (!xe_vm_in_lr_mode(vm)) {
-		err = xe_sched_job_last_fence_add_dep(job, vm);
-		if (err)
-			goto err_put_job;
-
 		err = xe_svm_notifier_lock_interruptible(vm);
 		if (err)
 			goto err_put_job;
