@@ -30,6 +30,7 @@
 #include "qaic.h"
 #include "qaic_debugfs.h"
 #include "qaic_ras.h"
+#include "qaic_ssr.h"
 #include "qaic_timesync.h"
 #include "sahara.h"
 
@@ -390,6 +391,7 @@ void qaic_dev_reset_clean_local_state(struct qaic_device *qdev)
 	qaic_notify_reset(qdev);
 
 	/* start tearing things down */
+	qaic_clean_up_ssr(qdev);
 	for (i = 0; i < qdev->num_dbc; ++i)
 		release_dbc(qdev, i);
 }
@@ -439,10 +441,17 @@ static struct qaic_device *create_qdev(struct pci_dev *pdev,
 	qdev->qts_wq = qaicm_wq_init(drm, "qaic_ts");
 	if (IS_ERR(qdev->qts_wq))
 		return NULL;
+	qdev->ssr_wq = qaicm_wq_init(drm, "qaic_ssr");
+	if (IS_ERR(qdev->ssr_wq))
+		return NULL;
 
 	ret = qaicm_srcu_init(drm, &qdev->dev_lock);
 	if (ret)
 		return NULL;
+
+	ret = qaic_ssr_init(qdev);
+	if (ret)
+		pci_info(pdev, "QAIC SSR crashdump collection not supported.\n");
 
 	qdev->qddev = qddev;
 	qdev->pdev = pdev;
@@ -799,9 +808,16 @@ static int __init qaic_init(void)
 	ret = qaic_ras_register();
 	if (ret)
 		pr_debug("qaic: qaic_ras_register failed %d\n", ret);
+	ret = qaic_ssr_register();
+	if (ret) {
+		pr_debug("qaic: qaic_ssr_register failed %d\n", ret);
+		goto free_bootlog;
+	}
 
 	return 0;
 
+free_bootlog:
+	qaic_bootlog_unregister();
 free_mhi:
 	mhi_driver_unregister(&qaic_mhi_driver);
 free_pci:
@@ -827,6 +843,7 @@ static void __exit qaic_exit(void)
 	 * reinitializing the link_up state after the cleanup is done.
 	 */
 	link_up = true;
+	qaic_ssr_unregister();
 	qaic_ras_unregister();
 	qaic_bootlog_unregister();
 	qaic_timesync_deinit();

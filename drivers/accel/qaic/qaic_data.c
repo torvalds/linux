@@ -1047,6 +1047,11 @@ int qaic_attach_slice_bo_ioctl(struct drm_device *dev, void *data, struct drm_fi
 		goto unlock_ch_srcu;
 	}
 
+	if (dbc->id == qdev->ssr_dbc) {
+		ret = -EPIPE;
+		goto unlock_ch_srcu;
+	}
+
 	ret = qaic_prepare_bo(qdev, bo, &args->hdr);
 	if (ret)
 		goto unlock_ch_srcu;
@@ -1367,6 +1372,11 @@ static int __qaic_execute_bo_ioctl(struct drm_device *dev, void *data, struct dr
 	rcu_id = srcu_read_lock(&dbc->ch_lock);
 	if (!dbc->usr || dbc->usr->handle != usr->handle) {
 		ret = -EPERM;
+		goto release_ch_rcu;
+	}
+
+	if (dbc->id == qdev->ssr_dbc) {
+		ret = -EPIPE;
 		goto release_ch_rcu;
 	}
 
@@ -1722,6 +1732,11 @@ int qaic_wait_bo_ioctl(struct drm_device *dev, void *data, struct drm_file *file
 		goto unlock_ch_srcu;
 	}
 
+	if (dbc->id == qdev->ssr_dbc) {
+		ret = -EPIPE;
+		goto unlock_ch_srcu;
+	}
+
 	obj = drm_gem_object_lookup(file_priv, args->handle);
 	if (!obj) {
 		ret = -ENOENT;
@@ -1741,6 +1756,9 @@ int qaic_wait_bo_ioctl(struct drm_device *dev, void *data, struct drm_file *file
 
 	if (!dbc->usr)
 		ret = -EPERM;
+
+	if (dbc->id == qdev->ssr_dbc)
+		ret = -EPIPE;
 
 put_obj:
 	drm_gem_object_put(obj);
@@ -1945,6 +1963,17 @@ static void empty_xfer_list(struct qaic_device *qdev, struct dma_bridge_chan *db
 	spin_unlock_irqrestore(&dbc->xfer_lock, flags);
 }
 
+static void sync_empty_xfer_list(struct qaic_device *qdev, struct dma_bridge_chan *dbc)
+{
+	empty_xfer_list(qdev, dbc);
+	synchronize_srcu(&dbc->ch_lock);
+	/*
+	 * Threads holding channel lock, may add more elements in the xfer_list.
+	 * Flush out these elements from xfer_list.
+	 */
+	empty_xfer_list(qdev, dbc);
+}
+
 int disable_dbc(struct qaic_device *qdev, u32 dbc_id, struct qaic_user *usr)
 {
 	if (!qdev->dbc[dbc_id].usr || qdev->dbc[dbc_id].usr->handle != usr->handle)
@@ -1973,13 +2002,7 @@ void wakeup_dbc(struct qaic_device *qdev, u32 dbc_id)
 	struct dma_bridge_chan *dbc = &qdev->dbc[dbc_id];
 
 	dbc->usr = NULL;
-	empty_xfer_list(qdev, dbc);
-	synchronize_srcu(&dbc->ch_lock);
-	/*
-	 * Threads holding channel lock, may add more elements in the xfer_list.
-	 * Flush out these elements from xfer_list.
-	 */
-	empty_xfer_list(qdev, dbc);
+	sync_empty_xfer_list(qdev, dbc);
 }
 
 void release_dbc(struct qaic_device *qdev, u32 dbc_id)
@@ -2019,4 +2042,31 @@ void qaic_data_get_fifo_info(struct dma_bridge_chan *dbc, u32 *head, u32 *tail)
 
 	*head = readl(dbc->dbc_base + REQHP_OFF);
 	*tail = readl(dbc->dbc_base + REQTP_OFF);
+}
+
+/*
+ * qaic_dbc_enter_ssr - Prepare to enter in sub system reset(SSR) for given DBC ID.
+ * @qdev: qaic device handle
+ * @dbc_id: ID of the DBC which will enter SSR
+ *
+ * The device will automatically deactivate the workload as not
+ * all errors can be silently recovered. The user will be
+ * notified and will need to decide the required recovery
+ * action to take.
+ */
+void qaic_dbc_enter_ssr(struct qaic_device *qdev, u32 dbc_id)
+{
+	qdev->ssr_dbc = dbc_id;
+	release_dbc(qdev, dbc_id);
+}
+
+/*
+ * qaic_dbc_exit_ssr - Prepare to exit from sub system reset(SSR) for given DBC ID.
+ * @qdev: qaic device handle
+ *
+ * The DBC returns to an operational state and begins accepting work after exiting SSR.
+ */
+void qaic_dbc_exit_ssr(struct qaic_device *qdev)
+{
+	qdev->ssr_dbc = QAIC_SSR_DBC_SENTINEL;
 }
