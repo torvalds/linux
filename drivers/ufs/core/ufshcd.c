@@ -599,7 +599,7 @@ static void ufshcd_print_tr(struct ufs_hba *hba, struct scsi_cmnd *cmd,
 			    bool pr_prdt)
 {
 	struct ufshcd_lrb *lrbp = scsi_cmd_priv(cmd);
-	const int tag = lrbp->task_tag;
+	const int tag = scsi_cmd_to_rq(cmd)->tag;
 	int prdt_length;
 
 	if (hba->monitor.enabled) {
@@ -2369,6 +2369,7 @@ static inline void ufshcd_send_command(struct ufs_hba *hba,
 				       struct ufs_hw_queue *hwq)
 {
 	struct ufshcd_lrb *lrbp = scsi_cmd_priv(cmd);
+	const int tag = scsi_cmd_to_rq(cmd)->tag;
 	unsigned long flags;
 
 	if (hba->monitor.enabled) {
@@ -2397,11 +2398,10 @@ static inline void ufshcd_send_command(struct ufs_hba *hba,
 	} else {
 		spin_lock_irqsave(&hba->outstanding_lock, flags);
 		if (hba->vops && hba->vops->setup_xfer_req)
-			hba->vops->setup_xfer_req(hba, lrbp->task_tag,
+			hba->vops->setup_xfer_req(hba, tag,
 						  ufshcd_is_scsi_cmd(cmd));
-		__set_bit(lrbp->task_tag, &hba->outstanding_reqs);
-		ufshcd_writel(hba, 1 << lrbp->task_tag,
-			      REG_UTP_TRANSFER_REQ_DOOR_BELL);
+		__set_bit(tag, &hba->outstanding_reqs);
+		ufshcd_writel(hba, 1 << tag, REG_UTP_TRANSFER_REQ_DOOR_BELL);
 		spin_unlock_irqrestore(&hba->outstanding_lock, flags);
 	}
 }
@@ -2798,6 +2798,7 @@ static void ufshcd_prepare_utp_scsi_cmd_upiu(struct scsi_cmnd *cmd,
 					     u8 upiu_flags)
 {
 	struct ufshcd_lrb *lrbp = scsi_cmd_priv(cmd);
+	const int tag = scsi_cmd_to_rq(cmd)->tag;
 	struct utp_upiu_req *ucd_req_ptr = lrbp->ucd_req_ptr;
 	unsigned short cdb_len;
 
@@ -2805,11 +2806,11 @@ static void ufshcd_prepare_utp_scsi_cmd_upiu(struct scsi_cmnd *cmd,
 		.transaction_code = UPIU_TRANSACTION_COMMAND,
 		.flags = upiu_flags,
 		.lun = lrbp->lun,
-		.task_tag = lrbp->task_tag,
+		.task_tag = tag,
 		.command_set_type = UPIU_COMMAND_SET_TYPE_SCSI,
 	};
 
-	WARN_ON_ONCE(ucd_req_ptr->header.task_tag != lrbp->task_tag);
+	WARN_ON_ONCE(ucd_req_ptr->header.task_tag != tag);
 
 	ucd_req_ptr->sc.exp_data_transfer_len = cpu_to_be32(cmd->sdb.length);
 
@@ -2830,6 +2831,7 @@ static void ufshcd_prepare_utp_query_req_upiu(struct ufs_hba *hba,
 {
 	struct ufshcd_lrb *lrbp = scsi_cmd_priv(cmd);
 	struct utp_upiu_req *ucd_req_ptr = lrbp->ucd_req_ptr;
+	const int tag = scsi_cmd_to_rq(cmd)->tag;
 	struct ufs_query *query = &hba->dev_cmd.query;
 	u16 len = be16_to_cpu(query->request.upiu_req.length);
 
@@ -2838,7 +2840,7 @@ static void ufshcd_prepare_utp_query_req_upiu(struct ufs_hba *hba,
 		.transaction_code = UPIU_TRANSACTION_QUERY_REQ,
 		.flags = upiu_flags,
 		.lun = lrbp->lun,
-		.task_tag = lrbp->task_tag,
+		.task_tag = tag,
 		.query_function = query->request.query_func,
 		/* Data segment length only need for WRITE_DESC */
 		.data_segment_length =
@@ -2861,12 +2863,13 @@ static inline void ufshcd_prepare_utp_nop_upiu(struct scsi_cmnd *cmd)
 {
 	struct ufshcd_lrb *lrbp = scsi_cmd_priv(cmd);
 	struct utp_upiu_req *ucd_req_ptr = lrbp->ucd_req_ptr;
+	const int tag = scsi_cmd_to_rq(cmd)->tag;
 
 	memset(ucd_req_ptr, 0, sizeof(struct utp_upiu_req));
 
 	ucd_req_ptr->header = (struct utp_upiu_header){
 		.transaction_code = UPIU_TRANSACTION_NOP_OUT,
-		.task_tag = lrbp->task_tag,
+		.task_tag = tag,
 	};
 }
 
@@ -2951,7 +2954,6 @@ static void __ufshcd_setup_cmd(struct ufs_hba *hba, struct scsi_cmnd *cmd,
 
 	memset(lrbp->ucd_req_ptr, 0, sizeof(*lrbp->ucd_req_ptr));
 
-	lrbp->task_tag = tag;
 	lrbp->lun = lun;
 	ufshcd_prepare_lrbp_crypto(ufshcd_is_scsi_cmd(cmd) ?
 				   scsi_cmd_to_rq(cmd) : NULL, lrbp);
@@ -3249,6 +3251,8 @@ ufshcd_dev_cmd_completion(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 static int ufshcd_wait_for_dev_cmd(struct ufs_hba *hba,
 		struct ufshcd_lrb *lrbp, int max_timeout)
 {
+	struct scsi_cmnd *cmd = (struct scsi_cmnd *)lrbp - 1;
+	const int tag = scsi_cmd_to_rq(cmd)->tag;
 	unsigned long time_left = msecs_to_jiffies(max_timeout);
 	unsigned long flags;
 	bool pending;
@@ -3265,18 +3269,18 @@ retry:
 	} else {
 		err = -ETIMEDOUT;
 		dev_dbg(hba->dev, "%s: dev_cmd request timedout, tag %d\n",
-			__func__, lrbp->task_tag);
+			__func__, tag);
 
 		/* MCQ mode */
 		if (hba->mcq_enabled) {
 			/* successfully cleared the command, retry if needed */
-			if (ufshcd_clear_cmd(hba, lrbp->task_tag) == 0)
+			if (ufshcd_clear_cmd(hba, tag) == 0)
 				err = -EAGAIN;
 			return err;
 		}
 
 		/* SDB mode */
-		if (ufshcd_clear_cmd(hba, lrbp->task_tag) == 0) {
+		if (ufshcd_clear_cmd(hba, tag) == 0) {
 			/* successfully cleared the command, retry if needed */
 			err = -EAGAIN;
 			/*
@@ -3285,11 +3289,9 @@ retry:
 			 * variable.
 			 */
 			spin_lock_irqsave(&hba->outstanding_lock, flags);
-			pending = test_bit(lrbp->task_tag,
-					   &hba->outstanding_reqs);
+			pending = test_bit(tag, &hba->outstanding_reqs);
 			if (pending)
-				__clear_bit(lrbp->task_tag,
-					    &hba->outstanding_reqs);
+				__clear_bit(tag, &hba->outstanding_reqs);
 			spin_unlock_irqrestore(&hba->outstanding_lock, flags);
 
 			if (!pending) {
@@ -3302,11 +3304,10 @@ retry:
 			}
 		} else {
 			dev_err(hba->dev, "%s: failed to clear tag %d\n",
-				__func__, lrbp->task_tag);
+				__func__, tag);
 
 			spin_lock_irqsave(&hba->outstanding_lock, flags);
-			pending = test_bit(lrbp->task_tag,
-					   &hba->outstanding_reqs);
+			pending = test_bit(tag, &hba->outstanding_reqs);
 			spin_unlock_irqrestore(&hba->outstanding_lock, flags);
 
 			if (!pending) {
@@ -5468,6 +5469,7 @@ static inline int ufshcd_transfer_rsp_status(struct ufs_hba *hba,
 					     struct cq_entry *cqe)
 {
 	struct ufshcd_lrb *lrbp = scsi_cmd_priv(cmd);
+	const int tag = scsi_cmd_to_rq(cmd)->tag;
 	int result = 0;
 	int scsi_status;
 	enum utp_ocs ocs;
@@ -5539,10 +5541,8 @@ static inline int ufshcd_transfer_rsp_status(struct ufs_hba *hba,
 	case OCS_ABORTED:
 	case OCS_INVALID_COMMAND_STATUS:
 		result |= DID_REQUEUE << 16;
-		dev_warn(hba->dev,
-				"OCS %s from controller for tag %d\n",
-				(ocs == OCS_ABORTED ? "aborted" : "invalid"),
-				lrbp->task_tag);
+		dev_warn(hba->dev, "OCS %s from controller for tag %d\n",
+			 ocs == OCS_ABORTED ? "aborted" : "invalid", tag);
 		break;
 	case OCS_INVALID_CMD_TABLE_ATTR:
 	case OCS_INVALID_PRDT_ATTR:
@@ -5555,9 +5555,8 @@ static inline int ufshcd_transfer_rsp_status(struct ufs_hba *hba,
 	case OCS_GENERAL_CRYPTO_ERROR:
 	default:
 		result |= DID_ERROR << 16;
-		dev_err(hba->dev,
-				"OCS error from controller = %x for tag %d\n",
-				ocs, lrbp->task_tag);
+		dev_err(hba->dev, "OCS error from controller = %x for tag %d\n",
+			ocs, tag);
 		ufshcd_print_evt_hist(hba);
 		ufshcd_print_host_state(hba);
 		break;
@@ -7692,8 +7691,8 @@ int ufshcd_try_to_abort_task(struct ufs_hba *hba, int tag)
 	u8 resp = 0xF;
 
 	for (poll_cnt = 100; poll_cnt; poll_cnt--) {
-		err = ufshcd_issue_tm_cmd(hba, lrbp->lun, lrbp->task_tag,
-				UFS_QUERY_TASK, &resp);
+		err = ufshcd_issue_tm_cmd(hba, lrbp->lun, tag, UFS_QUERY_TASK,
+					  &resp);
 		if (!err && resp == UPIU_TASK_MANAGEMENT_FUNC_SUCCEEDED) {
 			/* cmd pending in the device */
 			dev_err(hba->dev, "%s: cmd pending in the device. tag = %d\n",
@@ -7726,8 +7725,7 @@ int ufshcd_try_to_abort_task(struct ufs_hba *hba, int tag)
 	if (!poll_cnt)
 		return -EBUSY;
 
-	err = ufshcd_issue_tm_cmd(hba, lrbp->lun, lrbp->task_tag,
-			UFS_ABORT_TASK, &resp);
+	err = ufshcd_issue_tm_cmd(hba, lrbp->lun, tag, UFS_ABORT_TASK, &resp);
 	if (err || resp != UPIU_TASK_MANAGEMENT_FUNC_COMPL) {
 		if (!err) {
 			err = resp; /* service response error */
@@ -7837,7 +7835,7 @@ static int ufshcd_abort(struct scsi_cmnd *cmd)
 		goto release;
 	}
 
-	err = ufshcd_try_to_abort_task(hba, lrbp->task_tag);
+	err = ufshcd_try_to_abort_task(hba, tag);
 	if (err) {
 		dev_err(hba->dev, "%s: failed with err %d\n", __func__, err);
 		ufshcd_set_req_abort_skip(hba, hba->outstanding_reqs);
