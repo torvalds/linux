@@ -1069,6 +1069,8 @@ static int receive_pkts(struct test_spec *test)
 	u32 sock_num = 0;
 	int res, ret;
 
+	bitmap_zero(bitmap, test->nb_sockets);
+
 	ret = gettimeofday(&tv_now, NULL);
 	if (ret)
 		exit_with_error(errno);
@@ -1258,6 +1260,8 @@ static int send_pkts(struct test_spec *test, struct ifobject *ifobject)
 	bool timeout = !is_umem_valid(test->ifobj_rx);
 	DECLARE_BITMAP(bitmap, test->nb_sockets);
 	u32 i, ret;
+
+	bitmap_zero(bitmap, test->nb_sockets);
 
 	while (!(all_packets_sent(test, bitmap))) {
 		for (i = 0; i < test->nb_sockets; i++) {
