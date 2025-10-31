@@ -479,7 +479,7 @@ static struct pkt_stream *__pkt_stream_generate(u32 nb_pkts, u32 pkt_len, u32 nb
 
 	pkt_stream = __pkt_stream_alloc(nb_pkts);
 	if (!pkt_stream)
-		exit_with_error(ENOMEM);
+		return NULL;
 
 	pkt_stream->nb_pkts = nb_pkts;
 	pkt_stream->max_pkt_len = pkt_len;
@@ -503,37 +503,56 @@ static struct pkt_stream *pkt_stream_clone(struct pkt_stream *pkt_stream)
 	return pkt_stream_generate(pkt_stream->nb_pkts, pkt_stream->pkts[0].len);
 }
 
-static void pkt_stream_replace_ifobject(struct ifobject *ifobj, u32 nb_pkts, u32 pkt_len)
+static int pkt_stream_replace_ifobject(struct ifobject *ifobj, u32 nb_pkts, u32 pkt_len)
 {
 	ifobj->xsk->pkt_stream = pkt_stream_generate(nb_pkts, pkt_len);
+
+	if (!ifobj->xsk->pkt_stream)
+		return -ENOMEM;
+
+	return 0;
 }
 
-static void pkt_stream_replace(struct test_spec *test, u32 nb_pkts, u32 pkt_len)
+static int pkt_stream_replace(struct test_spec *test, u32 nb_pkts, u32 pkt_len)
 {
-	pkt_stream_replace_ifobject(test->ifobj_tx, nb_pkts, pkt_len);
-	pkt_stream_replace_ifobject(test->ifobj_rx, nb_pkts, pkt_len);
+	int ret;
+
+	ret = pkt_stream_replace_ifobject(test->ifobj_tx, nb_pkts, pkt_len);
+	if (ret)
+		return ret;
+
+	return pkt_stream_replace_ifobject(test->ifobj_rx, nb_pkts, pkt_len);
 }
 
-static void __pkt_stream_replace_half(struct ifobject *ifobj, u32 pkt_len,
+static int __pkt_stream_replace_half(struct ifobject *ifobj, u32 pkt_len,
 				      int offset)
 {
 	struct pkt_stream *pkt_stream;
 	u32 i;
 
 	pkt_stream = pkt_stream_clone(ifobj->xsk->pkt_stream);
+	if (!pkt_stream)
+		return -ENOMEM;
+
 	for (i = 1; i < ifobj->xsk->pkt_stream->nb_pkts; i += 2)
 		pkt_stream_pkt_set(pkt_stream, &pkt_stream->pkts[i], offset, pkt_len);
 
 	ifobj->xsk->pkt_stream = pkt_stream;
+
+	return 0;
 }
 
-static void pkt_stream_replace_half(struct test_spec *test, u32 pkt_len, int offset)
+static int pkt_stream_replace_half(struct test_spec *test, u32 pkt_len, int offset)
 {
-	__pkt_stream_replace_half(test->ifobj_tx, pkt_len, offset);
-	__pkt_stream_replace_half(test->ifobj_rx, pkt_len, offset);
+	int ret = __pkt_stream_replace_half(test->ifobj_tx, pkt_len, offset);
+
+	if (ret)
+		return ret;
+
+	return __pkt_stream_replace_half(test->ifobj_rx, pkt_len, offset);
 }
 
-static void pkt_stream_receive_half(struct test_spec *test)
+static int pkt_stream_receive_half(struct test_spec *test)
 {
 	struct pkt_stream *pkt_stream = test->ifobj_tx->xsk->pkt_stream;
 	u32 i;
@@ -547,14 +566,19 @@ static void pkt_stream_receive_half(struct test_spec *test)
 
 	test->ifobj_rx->xsk->pkt_stream = pkt_stream_generate(pkt_stream->nb_pkts,
 							      pkt_stream->pkts[0].len);
+	if (!test->ifobj_rx->xsk->pkt_stream)
+		return -ENOMEM;
+
 	pkt_stream = test->ifobj_rx->xsk->pkt_stream;
 	for (i = 1; i < pkt_stream->nb_pkts; i += 2)
 		pkt_stream->pkts[i].valid = false;
 
 	pkt_stream->nb_valid_entries /= 2;
+
+	return 0;
 }
 
-static void pkt_stream_even_odd_sequence(struct test_spec *test)
+static int pkt_stream_even_odd_sequence(struct test_spec *test)
 {
 	struct pkt_stream *pkt_stream;
 	u32 i;
@@ -563,13 +587,19 @@ static void pkt_stream_even_odd_sequence(struct test_spec *test)
 		pkt_stream = test->ifobj_tx->xsk_arr[i].pkt_stream;
 		pkt_stream = __pkt_stream_generate(pkt_stream->nb_pkts / 2,
 						   pkt_stream->pkts[0].len, i, 2);
+		if (!pkt_stream)
+			return -ENOMEM;
 		test->ifobj_tx->xsk_arr[i].pkt_stream = pkt_stream;
 
 		pkt_stream = test->ifobj_rx->xsk_arr[i].pkt_stream;
 		pkt_stream = __pkt_stream_generate(pkt_stream->nb_pkts / 2,
 						   pkt_stream->pkts[0].len, i, 2);
+		if (!pkt_stream)
+			return -ENOMEM;
 		test->ifobj_rx->xsk_arr[i].pkt_stream = pkt_stream;
 	}
+
+	return 0;
 }
 
 static void release_even_odd_sequence(struct test_spec *test)
@@ -628,7 +658,7 @@ static struct pkt_stream *__pkt_stream_generate_custom(struct ifobject *ifobj, s
 
 	pkt_stream = __pkt_stream_alloc(nb_frames);
 	if (!pkt_stream)
-		exit_with_error(ENOMEM);
+		return NULL;
 
 	for (i = 0; i < nb_frames; i++) {
 		struct pkt *pkt = &pkt_stream->pkts[pkt_nb];
@@ -671,15 +701,21 @@ static struct pkt_stream *__pkt_stream_generate_custom(struct ifobject *ifobj, s
 	return pkt_stream;
 }
 
-static void pkt_stream_generate_custom(struct test_spec *test, struct pkt *pkts, u32 nb_pkts)
+static int pkt_stream_generate_custom(struct test_spec *test, struct pkt *pkts, u32 nb_pkts)
 {
 	struct pkt_stream *pkt_stream;
 
 	pkt_stream = __pkt_stream_generate_custom(test->ifobj_tx, pkts, nb_pkts, true);
+	if (!pkt_stream)
+		return -ENOMEM;
 	test->ifobj_tx->xsk->pkt_stream = pkt_stream;
 
 	pkt_stream = __pkt_stream_generate_custom(test->ifobj_rx, pkts, nb_pkts, false);
+	if (!pkt_stream)
+		return -ENOMEM;
 	test->ifobj_rx->xsk->pkt_stream = pkt_stream;
+
+	return 0;
 }
 
 static void pkt_print_data(u32 *data, u32 cnt)
@@ -1945,24 +1981,28 @@ int testapp_stats_rx_dropped(struct test_spec *test)
 		return TEST_SKIP;
 	}
 
-	pkt_stream_replace_half(test, MIN_PKT_SIZE * 4, 0);
+	if (pkt_stream_replace_half(test, MIN_PKT_SIZE * 4, 0))
+		return TEST_FAILURE;
 	test->ifobj_rx->umem->frame_headroom = test->ifobj_rx->umem->frame_size -
 		XDP_PACKET_HEADROOM - MIN_PKT_SIZE * 3;
-	pkt_stream_receive_half(test);
+	if (pkt_stream_receive_half(test))
+		return TEST_FAILURE;
 	test->ifobj_rx->validation_func = validate_rx_dropped;
 	return testapp_validate_traffic(test);
 }
 
 int testapp_stats_tx_invalid_descs(struct test_spec *test)
 {
-	pkt_stream_replace_half(test, XSK_UMEM__INVALID_FRAME_SIZE, 0);
+	if (pkt_stream_replace_half(test, XSK_UMEM__INVALID_FRAME_SIZE, 0))
+		return TEST_FAILURE;
 	test->ifobj_tx->validation_func = validate_tx_invalid_descs;
 	return testapp_validate_traffic(test);
 }
 
 int testapp_stats_rx_full(struct test_spec *test)
 {
-	pkt_stream_replace(test, DEFAULT_UMEM_BUFFERS + DEFAULT_UMEM_BUFFERS / 2, MIN_PKT_SIZE);
+	if (pkt_stream_replace(test, DEFAULT_UMEM_BUFFERS + DEFAULT_UMEM_BUFFERS / 2, MIN_PKT_SIZE))
+		return TEST_FAILURE;
 	test->ifobj_rx->xsk->pkt_stream = pkt_stream_generate(DEFAULT_UMEM_BUFFERS, MIN_PKT_SIZE);
 
 	test->ifobj_rx->xsk->rxqsize = DEFAULT_UMEM_BUFFERS;
@@ -1973,7 +2013,8 @@ int testapp_stats_rx_full(struct test_spec *test)
 
 int testapp_stats_fill_empty(struct test_spec *test)
 {
-	pkt_stream_replace(test, DEFAULT_UMEM_BUFFERS + DEFAULT_UMEM_BUFFERS / 2, MIN_PKT_SIZE);
+	if (pkt_stream_replace(test, DEFAULT_UMEM_BUFFERS + DEFAULT_UMEM_BUFFERS / 2, MIN_PKT_SIZE))
+		return TEST_FAILURE;
 	test->ifobj_rx->xsk->pkt_stream = pkt_stream_generate(DEFAULT_UMEM_BUFFERS, MIN_PKT_SIZE);
 
 	test->ifobj_rx->use_fill_ring = false;
@@ -1986,7 +2027,8 @@ int testapp_send_receive_unaligned(struct test_spec *test)
 	test->ifobj_tx->umem->unaligned_mode = true;
 	test->ifobj_rx->umem->unaligned_mode = true;
 	/* Let half of the packets straddle a 4K buffer boundary */
-	pkt_stream_replace_half(test, MIN_PKT_SIZE, -MIN_PKT_SIZE / 2);
+	if (pkt_stream_replace_half(test, MIN_PKT_SIZE, -MIN_PKT_SIZE / 2))
+		return TEST_FAILURE;
 
 	return testapp_validate_traffic(test);
 }
@@ -1996,7 +2038,8 @@ int testapp_send_receive_unaligned_mb(struct test_spec *test)
 	test->mtu = MAX_ETH_JUMBO_SIZE;
 	test->ifobj_tx->umem->unaligned_mode = true;
 	test->ifobj_rx->umem->unaligned_mode = true;
-	pkt_stream_replace(test, DEFAULT_PKT_CNT, MAX_ETH_JUMBO_SIZE);
+	if (pkt_stream_replace(test, DEFAULT_PKT_CNT, MAX_ETH_JUMBO_SIZE))
+		return TEST_FAILURE;
 	return testapp_validate_traffic(test);
 }
 
@@ -2004,14 +2047,16 @@ int testapp_single_pkt(struct test_spec *test)
 {
 	struct pkt pkts[] = {{0, MIN_PKT_SIZE, 0, true}};
 
-	pkt_stream_generate_custom(test, pkts, ARRAY_SIZE(pkts));
+	if (pkt_stream_generate_custom(test, pkts, ARRAY_SIZE(pkts)))
+		return TEST_FAILURE;
 	return testapp_validate_traffic(test);
 }
 
 int testapp_send_receive_mb(struct test_spec *test)
 {
 	test->mtu = MAX_ETH_JUMBO_SIZE;
-	pkt_stream_replace(test, DEFAULT_PKT_CNT, MAX_ETH_JUMBO_SIZE);
+	if (pkt_stream_replace(test, DEFAULT_PKT_CNT, MAX_ETH_JUMBO_SIZE))
+		return TEST_FAILURE;
 
 	return testapp_validate_traffic(test);
 }
@@ -2052,7 +2097,8 @@ int testapp_invalid_desc_mb(struct test_spec *test)
 	}
 
 	test->mtu = MAX_ETH_JUMBO_SIZE;
-	pkt_stream_generate_custom(test, pkts, ARRAY_SIZE(pkts));
+	if (pkt_stream_generate_custom(test, pkts, ARRAY_SIZE(pkts)))
+		return TEST_FAILURE;
 	return testapp_validate_traffic(test);
 }
 
@@ -2097,7 +2143,8 @@ int testapp_invalid_desc(struct test_spec *test)
 		pkts[6].offset += umem_size;
 	}
 
-	pkt_stream_generate_custom(test, pkts, ARRAY_SIZE(pkts));
+	if (pkt_stream_generate_custom(test, pkts, ARRAY_SIZE(pkts)))
+		return TEST_FAILURE;
 	return testapp_validate_traffic(test);
 }
 
@@ -2109,7 +2156,8 @@ int testapp_xdp_drop(struct test_spec *test)
 	test_spec_set_xdp_prog(test, skel_rx->progs.xsk_xdp_drop, skel_tx->progs.xsk_xdp_drop,
 			       skel_rx->maps.xsk, skel_tx->maps.xsk);
 
-	pkt_stream_receive_half(test);
+	if (pkt_stream_receive_half(test))
+		return TEST_FAILURE;
 	return testapp_validate_traffic(test);
 }
 
@@ -2141,7 +2189,8 @@ int testapp_xdp_shared_umem(struct test_spec *test)
 			       skel_tx->progs.xsk_xdp_shared_umem,
 			       skel_rx->maps.xsk, skel_tx->maps.xsk);
 
-	pkt_stream_even_odd_sequence(test);
+	if (pkt_stream_even_odd_sequence(test))
+		return TEST_FAILURE;
 
 	ret = testapp_validate_traffic(test);
 
@@ -2155,7 +2204,8 @@ int testapp_poll_txq_tmout(struct test_spec *test)
 	test->ifobj_tx->use_poll = true;
 	/* create invalid frame by set umem frame_size and pkt length equal to 2048 */
 	test->ifobj_tx->umem->frame_size = 2048;
-	pkt_stream_replace(test, 2 * DEFAULT_PKT_CNT, 2048);
+	if (pkt_stream_replace(test, 2 * DEFAULT_PKT_CNT, 2048))
+		return TEST_FAILURE;
 	return testapp_validate_traffic_single_thread(test, test->ifobj_tx);
 }
 
@@ -2169,7 +2219,7 @@ int testapp_too_many_frags(struct test_spec *test)
 {
 	struct pkt *pkts;
 	u32 max_frags, i;
-	int ret;
+	int ret = TEST_FAILURE;
 
 	if (test->mode == TEST_MODE_ZC) {
 		max_frags = test->ifobj_tx->xdp_zc_max_segs;
@@ -2213,9 +2263,12 @@ int testapp_too_many_frags(struct test_spec *test)
 	pkts[2 * max_frags + 1].len = MIN_PKT_SIZE;
 	pkts[2 * max_frags + 1].valid = true;
 
-	pkt_stream_generate_custom(test, pkts, 2 * max_frags + 2);
-	ret = testapp_validate_traffic(test);
+	if (pkt_stream_generate_custom(test, pkts, 2 * max_frags + 2)) {
+		free(pkts);
+		return TEST_FAILURE;
+	}
 
+	ret = testapp_validate_traffic(test);
 	free(pkts);
 	return ret;
 }
@@ -2289,7 +2342,8 @@ int testapp_send_receive_2k_frame(struct test_spec *test)
 {
 	test->ifobj_tx->umem->frame_size = 2048;
 	test->ifobj_rx->umem->frame_size = 2048;
-	pkt_stream_replace(test, DEFAULT_PKT_CNT, MIN_PKT_SIZE);
+	if (pkt_stream_replace(test, DEFAULT_PKT_CNT, MIN_PKT_SIZE))
+		return TEST_FAILURE;
 	return testapp_validate_traffic(test);
 }
 
@@ -2411,7 +2465,13 @@ int testapp_hw_sw_max_ring_size(struct test_spec *test)
 	 */
 	test->ifobj_tx->xsk->batch_size = test->ifobj_tx->ring.tx_max_pending - 8;
 	test->ifobj_rx->xsk->batch_size = test->ifobj_tx->ring.tx_max_pending - 8;
-	pkt_stream_replace(test, max_descs, MIN_PKT_SIZE);
+	if (pkt_stream_replace(test, max_descs, MIN_PKT_SIZE)) {
+		clean_sockets(test, test->ifobj_tx);
+		clean_sockets(test, test->ifobj_rx);
+		clean_umem(test, test->ifobj_rx, test->ifobj_tx);
+		return TEST_FAILURE;
+	}
+
 	return testapp_validate_traffic(test);
 }
 
@@ -2437,8 +2497,13 @@ static int testapp_adjust_tail(struct test_spec *test, u32 value, u32 pkt_len)
 	test->adjust_tail = true;
 	test->total_steps = 1;
 
-	pkt_stream_replace_ifobject(test->ifobj_tx, DEFAULT_BATCH_SIZE, pkt_len);
-	pkt_stream_replace_ifobject(test->ifobj_rx, DEFAULT_BATCH_SIZE, pkt_len + value);
+	ret = pkt_stream_replace_ifobject(test->ifobj_tx, DEFAULT_BATCH_SIZE, pkt_len);
+	if (ret)
+		return TEST_FAILURE;
+
+	ret = pkt_stream_replace_ifobject(test->ifobj_rx, DEFAULT_BATCH_SIZE, pkt_len + value);
+	if (ret)
+		return TEST_FAILURE;
 
 	ret = testapp_xdp_adjust_tail(test, value);
 	if (ret)
@@ -2490,7 +2555,8 @@ int testapp_tx_queue_consumer(struct test_spec *test)
 	}
 
 	nr_packets = MAX_TX_BUDGET_DEFAULT + 1;
-	pkt_stream_replace(test, nr_packets, MIN_PKT_SIZE);
+	if (pkt_stream_replace(test, nr_packets, MIN_PKT_SIZE))
+		return TEST_FAILURE;
 	test->ifobj_tx->xsk->batch_size = nr_packets;
 	test->ifobj_tx->xsk->check_consumer = true;
 
