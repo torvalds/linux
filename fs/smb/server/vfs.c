@@ -67,9 +67,6 @@ static int ksmbd_vfs_path_lookup(struct ksmbd_share_config *share_conf,
 	}
 
 	filename = getname_kernel(pathname);
-	if (IS_ERR(filename))
-		return PTR_ERR(filename);
-
 	err = vfs_path_parent_lookup(filename, flags,
 				     path, &last, &type,
 				     root_share_path);
