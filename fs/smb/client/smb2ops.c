@@ -2799,11 +2799,12 @@ smb2_query_info_compound(const unsigned int xid, struct cifs_tcon *tcon,
 	struct cifs_fid fid;
 	int rc;
 	__le16 *utf16_path;
-	struct cached_fid *cfid = NULL;
+	struct cached_fid *cfid;
 	int retries = 0, cur_sleep = 1;
 
 replay_again:
 	/* reinitialize for possible replay */
+	cfid = NULL;
 	flags = CIFS_CP_CREATE_CLOSE_OP;
 	oplock = SMB2_OPLOCK_LEVEL_NONE;
 	server = cifs_pick_channel(ses);
