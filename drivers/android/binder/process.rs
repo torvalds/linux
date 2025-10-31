@@ -1623,15 +1623,6 @@ impl Process {
         }
     }
 
-    pub(crate) fn compat_ioctl(
-        this: ArcBorrow<'_, Process>,
-        file: &File,
-        cmd: u32,
-        arg: usize,
-    ) -> Result {
-        Self::ioctl(this, file, cmd, arg)
-    }
-
     pub(crate) fn mmap(
         this: ArcBorrow<'_, Process>,
         _file: &File,
