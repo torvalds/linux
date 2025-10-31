@@ -2344,3 +2344,24 @@ void dc_dmub_srv_release_hw(const struct dc *dc)
 
 	dm_execute_dmub_cmd(dc->ctx, &cmd,  DM_DMUB_WAIT_TYPE_WAIT);
 }
+
+void dc_dmub_srv_log_preos_dmcub_info(struct dc_dmub_srv *dc_dmub_srv)
+{
+	struct dmub_srv *dmub;
+
+	if (!dc_dmub_srv || !dc_dmub_srv->dmub)
+		return;
+
+	dmub = dc_dmub_srv->dmub;
+
+	if (dmub_srv_get_preos_info(dmub)) {
+		DC_LOG_DEBUG("%s: PreOS DMCUB Info", __func__);
+		DC_LOG_DEBUG("fw_version				: 0x%08x", dmub->preos_info.fw_version);
+		DC_LOG_DEBUG("boot_options				: 0x%08x", dmub->preos_info.boot_options);
+		DC_LOG_DEBUG("boot_status				: 0x%08x", dmub->preos_info.boot_status);
+		DC_LOG_DEBUG("trace_buffer_phy_addr		: 0x%016llx", dmub->preos_info.trace_buffer_phy_addr);
+		DC_LOG_DEBUG("trace_buffer_size_bytes	: 0x%08x", dmub->preos_info.trace_buffer_size);
+		DC_LOG_DEBUG("fb_base					: 0x%016llx", dmub->preos_info.fb_base);
+		DC_LOG_DEBUG("fb_offset					: 0x%016llx", dmub->preos_info.fb_offset);
+	}
+}

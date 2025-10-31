@@ -1670,7 +1670,6 @@ static ssize_t amdgpu_gfx_set_run_cleaner_shader(struct device *dev,
 
 	ret = amdgpu_gfx_run_cleaner_shader(adev, value);
 
-	pm_runtime_mark_last_busy(ddev->dev);
 	pm_runtime_put_autosuspend(ddev->dev);
 
 	if (ret)

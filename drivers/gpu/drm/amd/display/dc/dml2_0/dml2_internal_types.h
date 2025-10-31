@@ -23,7 +23,7 @@
  * Authors: AMD
  *
  */
- 
+
 #ifndef __DML2_INTERNAL_TYPES_H__
 #define __DML2_INTERNAL_TYPES_H__
 

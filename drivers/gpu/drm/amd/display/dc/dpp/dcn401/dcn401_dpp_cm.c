@@ -141,6 +141,7 @@ void dpp401_set_cursor_position(
 	}
 
 	dpp_base->pos.cur0_ctl.bits.cur0_enable = cur_en;
+	dpp_base->att.cur0_ctl.bits.cur0_enable = cur_en;
 }
 
 void dpp401_set_optional_cursor_attributes(

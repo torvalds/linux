@@ -2453,6 +2453,7 @@ static const struct dccg_funcs dccg35_funcs = {
 	.disable_symclk_se = dccg35_disable_symclk_se,
 	.set_dtbclk_p_src = dccg35_set_dtbclk_p_src,
 	.dccg_root_gate_disable_control = dccg35_root_gate_disable_control,
+	.dccg_read_reg_state = dccg31_read_reg_state,
 };
 
 struct dccg *dccg35_create(

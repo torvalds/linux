@@ -103,7 +103,7 @@ static bool amdgpu_read_bios_from_vram(struct amdgpu_device *adev)
 {
 	uint8_t __iomem *bios = NULL;
 	resource_size_t vram_base;
-	resource_size_t size = 256 * 1024; /* ??? */
+	u32 size = 256U * 1024U; /* ??? */
 
 	if (!(adev->flags & AMD_IS_APU))
 		if (amdgpu_device_need_post(adev))
@@ -126,7 +126,7 @@ static bool amdgpu_read_bios_from_vram(struct amdgpu_device *adev)
 	 */
 	if (amdgpu_sriov_vf(adev) && adev->virt.is_dynamic_crit_regn_enabled) {
 		if (amdgpu_virt_get_dynamic_data_info(adev,
-				AMD_SRIOV_MSG_VBIOS_IMG_TABLE_ID, adev->bios, (uint64_t *)&size)) {
+				AMD_SRIOV_MSG_VBIOS_IMG_TABLE_ID, adev->bios, &size)) {
 			amdgpu_bios_release(adev);
 			return false;
 		}

@@ -274,7 +274,6 @@ enum dml_clk_cfg_policy {
 	dml_use_state_freq = 2
 };
 
-
 struct soc_state_bounding_box_st {
 	dml_float_t socclk_mhz;
 	dml_float_t dscclk_mhz;
@@ -1894,7 +1893,7 @@ struct display_mode_lib_scratch_st {
 	struct CalculatePrefetchSchedule_params_st CalculatePrefetchSchedule_params;
 };
 
-/// @brief Represent the overall soc/ip environment. It contains data structure represent the soc/ip characteristic and also structures that hold calculation output
+/// @brief Represent the overall soc/ip enviroment. It contains data structure represent the soc/ip characteristic and also structures that hold calculation output
 struct display_mode_lib_st {
 	dml_uint_t project;
 

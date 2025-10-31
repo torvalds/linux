@@ -52,7 +52,7 @@
 #define __DML_VBA_DEBUG__
 #define __DML_VBA_ENABLE_INLINE_CHECK_                  0
 #define __DML_VBA_MIN_VSTARTUP__                        9       //<brief At which vstartup the DML start to try if the mode can be supported
-#define __DML_ARB_TO_RET_DELAY__                        7 + 95  //<brief Delay in DCFCLK from ARB to DET (1st num is ARB to SDPIF, 2nd number is SDPIF to DET)
+#define __DML_ARB_TO_RET_DELAY__                        (7 + 95)  //<brief Delay in DCFCLK from ARB to DET (1st num is ARB to SDPIF, 2nd number is SDPIF to DET)
 #define __DML_MIN_DCFCLK_FACTOR__                       1.15    //<brief fudge factor for min dcfclk calclation
 #define __DML_MAX_VRATIO_PRE__                          4.0     //<brief Prefetch schedule max vratio
 #define __DML_MAX_VRATIO_PRE_OTO__                      4.0     //<brief Prefetch schedule max vratio for one to one scheduling calculation for prefetch

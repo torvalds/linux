@@ -301,6 +301,7 @@ void dml2_init_socbb_params(struct dml2_context *dml2, const struct dc *in_dc, s
 		out->pct_ideal_dram_bw_after_urgent_pixel_only = 65.0;
 		break;
 
+
 	case dml_project_dcn401:
 		out->pct_ideal_fabric_bw_after_urgent = 76;			//67;
 		out->max_avg_sdp_bw_use_normal_percent = 75;		//80;
@@ -424,6 +425,8 @@ void dml2_init_soc_states(struct dml2_context *dml2, const struct dc *in_dc,
 		p->in_states->state_array[1].dcfclk_mhz = 1434.0;
 		p->in_states->state_array[1].dram_speed_mts = 1000 * transactions_per_mem_clock;
 		break;
+
+
 	case dml_project_dcn401:
 		p->in_states->num_states = 2;
 		transactions_per_mem_clock = 16;

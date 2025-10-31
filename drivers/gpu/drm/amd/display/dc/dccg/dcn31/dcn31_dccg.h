@@ -236,4 +236,6 @@ void dccg31_disable_dscclk(struct dccg *dccg, int inst);
 
 void dccg31_enable_dscclk(struct dccg *dccg, int inst);
 
+void dccg31_read_reg_state(struct dccg *dccg, struct dcn_dccg_reg_state *dccg_reg_state);
+
 #endif //__DCN31_DCCG_H__

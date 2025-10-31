@@ -51,6 +51,30 @@
 
 #define MAX_LINKS (MAX_DPIA + MAX_CONNECTOR + MAX_VIRTUAL_LINKS)
 
+/**
+ * define MAX_DIG_LINK_ENCODERS - maximum number of digital encoders
+ *
+ * Digital encoders are ENGINE_ID_DIGA...G, there are at most 7,
+ * although not every GPU may have that many.
+ */
+#define MAX_DIG_LINK_ENCODERS 7
+
+/**
+ * define MAX_DAC_LINK_ENCODERS - maximum number of analog link encoders
+ *
+ * Analog encoders are ENGINE_ID_DACA/B, there are at most 2,
+ * although not every GPU may have that many. Modern GPUs typically
+ * don't have analog encoders.
+ */
+#define MAX_DAC_LINK_ENCODERS 2
+
+/**
+ * define MAX_LINK_ENCODERS - maximum number link encoders in total
+ *
+ * This includes both analog and digital encoders.
+ */
+#define MAX_LINK_ENCODERS (MAX_DIG_LINK_ENCODERS + MAX_DAC_LINK_ENCODERS)
+
 #define MAX_DIG_LINK_ENCODERS 7
 #define MAX_DWB_PIPES	1
 #define MAX_HPO_DP2_ENCODERS	4

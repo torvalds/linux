@@ -59,7 +59,8 @@
 	uint32_t DPG_COLOUR_G_Y; \
 	uint32_t DPG_COLOUR_R_CR; \
 	uint32_t DPG_RAMP_CONTROL; \
-	uint32_t DPG_STATUS
+	uint32_t DPG_STATUS; \
+	uint32_t DSCRM_DSC_FORWARD_CONFIG
 
 #define OPP_DPG_MASK_SH_LIST(mask_sh) \
 	OPP_SF(DPG0_DPG_CONTROL, DPG_EN, mask_sh), \
@@ -171,4 +172,7 @@ void opp2_program_left_edge_extra_pixel (
 
 uint32_t opp2_get_left_edge_extra_pixel_count(struct output_pixel_processor *opp,
 		enum dc_pixel_encoding pixel_encoding, bool is_primary);
+
+void opp2_read_reg_state(struct output_pixel_processor *opp, struct dcn_opp_reg_state *opp_reg_state);
+
 #endif

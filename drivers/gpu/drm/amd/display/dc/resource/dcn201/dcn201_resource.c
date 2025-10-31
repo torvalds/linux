@@ -614,8 +614,11 @@ static const struct dc_debug_options debug_defaults_drv = {
 		.sanity_checks = false,
 		.underflow_assert_delay_us = 0xFFFFFFFF,
 		.enable_tri_buf = true,
-		.enable_legacy_fast_update = true,
 		.using_dml2 = false,
+};
+
+static const struct dc_check_config config_defaults = {
+		.enable_legacy_fast_update = true,
 };
 
 static void dcn201_dpp_destroy(struct dpp **dpp)
@@ -1151,6 +1154,7 @@ static bool dcn201_resource_construct(
 	dc->caps.color.mpc.ocsc = 1;
 
 	dc->debug = debug_defaults_drv;
+	dc->check_config = config_defaults;
 
 	/*a0 only, remove later*/
 	dc->work_arounds.no_connect_phy_config  = true;

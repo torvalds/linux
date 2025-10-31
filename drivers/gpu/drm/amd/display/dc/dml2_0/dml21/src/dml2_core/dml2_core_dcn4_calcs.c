@@ -1303,6 +1303,7 @@ static double TruncToValidBPP(
 		MinDSCBPP = 8;
 		MaxDSCBPP = 16;
 	} else {
+
 		if (Output == dml2_hdmi || Output == dml2_hdmifrl) {
 			NonDSCBPP0 = 24;
 			NonDSCBPP1 = 24;
@@ -1320,6 +1321,7 @@ static double TruncToValidBPP(
 			MaxDSCBPP = 16;
 		}
 	}
+
 	if (Output == dml2_dp2p0) {
 		MaxLinkBPP = LinkBitRate * Lanes / PixelClock * 128.0 / 132.0 * 383.0 / 384.0 * 65536.0 / 65540.0;
 	} else if (DSCEnable && Output == dml2_dp) {
@@ -4047,7 +4049,9 @@ static bool ValidateODMMode(enum dml2_odm_mode ODMMode,
 	bool UseDSC,
 	unsigned int NumberOfDSCSlices,
 	unsigned int TotalNumberOfActiveDPP,
+	unsigned int TotalNumberOfActiveOPP,
 	unsigned int MaxNumDPP,
+	unsigned int MaxNumOPP,
 	double DISPCLKRequired,
 	unsigned int NumberOfDPPRequired,
 	unsigned int MaxHActiveForDSC,
@@ -4063,7 +4067,7 @@ static bool ValidateODMMode(enum dml2_odm_mode ODMMode,
 
 	if (DISPCLKRequired > MaxDispclk)
 		return false;
-	if ((TotalNumberOfActiveDPP + NumberOfDPPRequired) > MaxNumDPP)
+	if ((TotalNumberOfActiveDPP + NumberOfDPPRequired) > MaxNumDPP || (TotalNumberOfActiveOPP + NumberOfDPPRequired) > MaxNumOPP)
 		return false;
 	if (are_odm_segments_symmetrical) {
 		if (HActive % (NumberOfDPPRequired * pixels_per_clock_cycle))
@@ -4109,7 +4113,9 @@ static noinline_for_stack void CalculateODMMode(
 	double MaxDispclk,
 	bool DSCEnable,
 	unsigned int TotalNumberOfActiveDPP,
+	unsigned int TotalNumberOfActiveOPP,
 	unsigned int MaxNumDPP,
+	unsigned int MaxNumOPP,
 	double PixelClock,
 	unsigned int NumberOfDSCSlices,
 
@@ -4179,7 +4185,9 @@ static noinline_for_stack void CalculateODMMode(
 			UseDSC,
 			NumberOfDSCSlices,
 			TotalNumberOfActiveDPP,
+			TotalNumberOfActiveOPP,
 			MaxNumDPP,
+			MaxNumOPP,
 			DISPCLKRequired,
 			NumberOfDPPRequired,
 			MaxHActiveForDSC,
@@ -8358,6 +8366,7 @@ static bool dml_core_mode_support(struct dml2_core_calcs_mode_support_ex *in_out
 	CalculateSwathAndDETConfiguration(&mode_lib->scratch, CalculateSwathAndDETConfiguration_params);
 
 	mode_lib->ms.TotalNumberOfActiveDPP = 0;
+	mode_lib->ms.TotalNumberOfActiveOPP = 0;
 	mode_lib->ms.support.TotalAvailablePipesSupport = true;
 
 	for (k = 0; k < mode_lib->ms.num_active_planes; ++k) {
@@ -8393,7 +8402,9 @@ static bool dml_core_mode_support(struct dml2_core_calcs_mode_support_ex *in_out
 			mode_lib->ms.max_dispclk_freq_mhz,
 			false, // DSCEnable
 			mode_lib->ms.TotalNumberOfActiveDPP,
+			mode_lib->ms.TotalNumberOfActiveOPP,
 			mode_lib->ip.max_num_dpp,
+			mode_lib->ip.max_num_opp,
 			((double)display_cfg->stream_descriptors[display_cfg->plane_descriptors[k].stream_index].timing.pixel_clock_khz / 1000),
 			mode_lib->ms.support.NumberOfDSCSlices[k],
 
@@ -8412,7 +8423,9 @@ static bool dml_core_mode_support(struct dml2_core_calcs_mode_support_ex *in_out
 			mode_lib->ms.max_dispclk_freq_mhz,
 			true, // DSCEnable
 			mode_lib->ms.TotalNumberOfActiveDPP,
+			mode_lib->ms.TotalNumberOfActiveOPP,
 			mode_lib->ip.max_num_dpp,
+			mode_lib->ip.max_num_opp,
 			((double)display_cfg->stream_descriptors[display_cfg->plane_descriptors[k].stream_index].timing.pixel_clock_khz / 1000),
 			mode_lib->ms.support.NumberOfDSCSlices[k],
 
@@ -8516,20 +8529,23 @@ static bool dml_core_mode_support(struct dml2_core_calcs_mode_support_ex *in_out
 	for (k = 0; k < mode_lib->ms.num_active_planes; ++k) {
 		mode_lib->ms.MPCCombine[k] = false;
 		mode_lib->ms.NoOfDPP[k] = 1;
+		mode_lib->ms.NoOfOPP[k] = 1;
 
 		if (mode_lib->ms.ODMMode[k] == dml2_odm_mode_combine_4to1) {
 			mode_lib->ms.MPCCombine[k] = false;
 			mode_lib->ms.NoOfDPP[k] = 4;
+			mode_lib->ms.NoOfOPP[k] = 4;
 		} else if (mode_lib->ms.ODMMode[k] == dml2_odm_mode_combine_3to1) {
 			mode_lib->ms.MPCCombine[k] = false;
 			mode_lib->ms.NoOfDPP[k] = 3;
+			mode_lib->ms.NoOfOPP[k] = 3;
 		} else if (mode_lib->ms.ODMMode[k] == dml2_odm_mode_combine_2to1) {
 			mode_lib->ms.MPCCombine[k] = false;
 			mode_lib->ms.NoOfDPP[k] = 2;
+			mode_lib->ms.NoOfOPP[k] = 2;
 		} else if (display_cfg->plane_descriptors[k].overrides.mpcc_combine_factor == 2) {
 			mode_lib->ms.MPCCombine[k] = true;
 			mode_lib->ms.NoOfDPP[k] = 2;
-			mode_lib->ms.TotalNumberOfActiveDPP++;
 		} else if (display_cfg->plane_descriptors[k].overrides.mpcc_combine_factor == 1) {
 			mode_lib->ms.MPCCombine[k] = false;
 			mode_lib->ms.NoOfDPP[k] = 1;
@@ -8540,7 +8556,6 @@ static bool dml_core_mode_support(struct dml2_core_calcs_mode_support_ex *in_out
 			if ((mode_lib->ms.MinDPPCLKUsingSingleDPP[k] > mode_lib->ms.max_dppclk_freq_mhz) || !mode_lib->ms.SingleDPPViewportSizeSupportPerSurface[k]) {
 				mode_lib->ms.MPCCombine[k] = true;
 				mode_lib->ms.NoOfDPP[k] = 2;
-				mode_lib->ms.TotalNumberOfActiveDPP++;
 			}
 		}
 #if defined(__DML_VBA_DEBUG__)
@@ -8548,7 +8563,15 @@ static bool dml_core_mode_support(struct dml2_core_calcs_mode_support_ex *in_out
 #endif
 	}
 
+	mode_lib->ms.TotalNumberOfActiveDPP = 0;
+	mode_lib->ms.TotalNumberOfActiveOPP = 0;
+	for (k = 0; k < mode_lib->ms.num_active_planes; ++k) {
+		mode_lib->ms.TotalNumberOfActiveDPP += mode_lib->ms.NoOfDPP[k];
+		mode_lib->ms.TotalNumberOfActiveOPP += mode_lib->ms.NoOfOPP[k];
+	}
 	if (mode_lib->ms.TotalNumberOfActiveDPP > (unsigned int)mode_lib->ip.max_num_dpp)
+		mode_lib->ms.support.TotalAvailablePipesSupport = false;
+	if (mode_lib->ms.TotalNumberOfActiveOPP > (unsigned int)mode_lib->ip.max_num_opp)
 		mode_lib->ms.support.TotalAvailablePipesSupport = false;
 
 

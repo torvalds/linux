@@ -612,6 +612,8 @@ static ssize_t amdgpu_ras_debugfs_ctrl_write(struct file *f,
 	return size;
 }
 
+static int amdgpu_uniras_clear_badpages_info(struct amdgpu_device *adev);
+
 /**
  * DOC: AMDGPU RAS debugfs EEPROM table reset interface
  *
@@ -635,6 +637,11 @@ static ssize_t amdgpu_ras_debugfs_eeprom_write(struct file *f,
 	struct amdgpu_device *adev =
 		(struct amdgpu_device *)file_inode(f)->i_private;
 	int ret;
+
+	if (amdgpu_uniras_enabled(adev)) {
+		ret = amdgpu_uniras_clear_badpages_info(adev);
+		return ret ? ret : size;
+	}
 
 	ret = amdgpu_ras_eeprom_reset_table(
 		&(amdgpu_ras_get_context(adev)->eeprom_control));
@@ -1543,6 +1550,21 @@ out_fini_err_data:
 	return ret;
 }
 
+static int amdgpu_uniras_clear_badpages_info(struct amdgpu_device *adev)
+{
+	struct ras_cmd_dev_handle req = {0};
+	int ret;
+
+	ret = amdgpu_ras_mgr_handle_ras_cmd(adev, RAS_CMD__CLEAR_BAD_PAGE_INFO,
+				&req, sizeof(req), NULL, 0);
+	if (ret) {
+		dev_err(adev->dev, "Failed to clear bad pages info, ret: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
 static int amdgpu_uniras_query_block_ecc(struct amdgpu_device *adev,
 			struct ras_query_if *info)
 {
@@ -1928,12 +1950,42 @@ static ssize_t amdgpu_ras_sysfs_features_read(struct device *dev,
 	return sysfs_emit(buf, "feature mask: 0x%x\n", con->features);
 }
 
+static bool amdgpu_ras_get_version_info(struct amdgpu_device *adev, u32 *major,
+			u32 *minor, u32 *rev)
+{
+	int i;
+
+	if (!adev || !major || !minor || !rev || !amdgpu_uniras_enabled(adev))
+		return false;
+
+	for (i = 0; i < adev->num_ip_blocks; i++) {
+		if (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_RAS) {
+			*major = adev->ip_blocks[i].version->major;
+			*minor = adev->ip_blocks[i].version->minor;
+			*rev = adev->ip_blocks[i].version->rev;
+			return true;
+		}
+	}
+
+	return false;
+}
+
 static ssize_t amdgpu_ras_sysfs_version_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct amdgpu_ras *con =
 		container_of(attr, struct amdgpu_ras, version_attr);
-	return sysfs_emit(buf, "table version: 0x%x\n", con->eeprom_control.tbl_hdr.version);
+	u32 major, minor, rev;
+	ssize_t size = 0;
+
+	size += sysfs_emit_at(buf, size, "table version: 0x%x\n",
+			con->eeprom_control.tbl_hdr.version);
+
+	if (amdgpu_ras_get_version_info(con->adev, &major, &minor, &rev))
+		size += sysfs_emit_at(buf, size, "ras version: %u.%u.%u\n",
+			major, minor, rev);
+
+	return size;
 }
 
 static ssize_t amdgpu_ras_sysfs_schema_show(struct device *dev,
@@ -4099,7 +4151,6 @@ static void amdgpu_ras_counte_dw(struct work_struct *work)
 		atomic_set(&con->ras_ue_count, ue_count);
 	}
 
-	pm_runtime_mark_last_busy(dev->dev);
 Out:
 	pm_runtime_put_autosuspend(dev->dev);
 }

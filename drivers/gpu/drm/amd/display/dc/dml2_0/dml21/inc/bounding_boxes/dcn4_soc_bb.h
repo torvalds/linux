@@ -2,7 +2,6 @@
 //
 // Copyright 2024 Advanced Micro Devices, Inc.
 
-
 #ifndef __DML_DML_DCN4_SOC_BB__
 #define __DML_DML_DCN4_SOC_BB__
 

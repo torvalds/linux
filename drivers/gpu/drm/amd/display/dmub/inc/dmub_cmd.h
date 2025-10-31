@@ -485,7 +485,13 @@ union replay_debug_flags {
 		 */
 		uint32_t enable_visual_confirm_debug : 1;
 
-		uint32_t reserved : 18;
+		/**
+		 * 0x4000 (bit 14)
+		 * @debug_log_enabled: Debug Log Enabled
+		 */
+		uint32_t debug_log_enabled : 1;
+
+		uint32_t reserved : 17;
 	} bitfields;
 
 	uint32_t u32All;
@@ -4608,9 +4614,9 @@ struct dmub_cmd_replay_set_coasting_vtotal_data {
 	 */
 	uint16_t coasting_vtotal_high;
 	/**
-	 * Explicit padding to 4 byte boundary.
+	 * frame skip number.
 	 */
-	uint8_t pad[2];
+	uint16_t frame_skip_number;
 };
 
 /**

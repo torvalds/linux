@@ -367,4 +367,11 @@ bool dc_dmub_srv_is_cursor_offload_enabled(const struct dc *dc);
  * @dc - pointer to DC object
  */
 void dc_dmub_srv_release_hw(const struct dc *dc);
+
+/**
+ * dc_dmub_srv_log_preos_dmcub_info() - Logs preos dmcub fw info.
+ *
+ * @dc - pointer to DC object
+ */
+void dc_dmub_srv_log_preos_dmcub_info(struct dc_dmub_srv *dc_dmub_srv);
 #endif /* _DMUB_DC_SRV_H_ */

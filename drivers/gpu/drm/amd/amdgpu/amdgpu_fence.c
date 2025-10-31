@@ -250,7 +250,6 @@ bool amdgpu_fence_process(struct amdgpu_ring *ring)
 		drv->signalled_wptr = am_fence->wptr;
 		dma_fence_signal(fence);
 		dma_fence_put(fence);
-		pm_runtime_mark_last_busy(adev_to_drm(adev)->dev);
 		pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
 	} while (last_seq != seq);
 
@@ -928,7 +927,6 @@ static int gpu_recover_get(void *data, u64 *val)
 
 	*val = atomic_read(&adev->reset_domain->reset_res);
 
-	pm_runtime_mark_last_busy(dev->dev);
 	pm_runtime_put_autosuspend(dev->dev);
 
 	return 0;

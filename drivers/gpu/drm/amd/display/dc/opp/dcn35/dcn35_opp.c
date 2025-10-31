@@ -51,3 +51,16 @@ void dcn35_opp_set_fgcg(struct dcn20_opp *oppn20, bool enable)
 {
 	REG_UPDATE(OPP_TOP_CLK_CONTROL, OPP_FGCG_REP_DIS, !enable);
 }
+
+void dcn35_opp_read_reg_state(struct output_pixel_processor *opp, struct dcn_opp_reg_state *opp_reg_state)
+{
+	struct dcn20_opp *oppn20 = TO_DCN20_OPP(opp);
+
+	opp_reg_state->dpg_control = REG_READ(DPG_CONTROL);
+	opp_reg_state->fmt_control = REG_READ(FMT_CONTROL);
+	opp_reg_state->opp_abm_control = REG_READ(OPP_ABM_CONTROL);
+	opp_reg_state->opp_pipe_control = REG_READ(OPP_PIPE_CONTROL);
+	opp_reg_state->opp_pipe_crc_control = REG_READ(OPP_PIPE_CRC_CONTROL);
+	opp_reg_state->oppbuf_control = REG_READ(OPPBUF_CONTROL);
+	opp_reg_state->dscrm_dsc_forward_config = REG_READ(DSCRM_DSC_FORWARD_CONFIG);
+}

@@ -95,7 +95,7 @@
 #define DC_LOGGER \
 	dc->ctx->logger
 #define DC_LOGGER_INIT(logger)
-#include "dml2/dml2_wrapper.h"
+#include "dml2_0/dml2_wrapper.h"
 
 #define UNABLE_TO_SPLIT -1
 
@@ -444,6 +444,14 @@ bool resource_construct(
 			pool->stream_enc[i] = create_funcs->create_stream_encoder(i, ctx);
 			if (pool->stream_enc[i] == NULL)
 				DC_ERR("DC: failed to create stream_encoder!\n");
+			pool->stream_enc_count++;
+		}
+
+		for (i = 0; i < caps->num_analog_stream_encoder; i++) {
+			pool->stream_enc[caps->num_stream_encoder + i] =
+				create_funcs->create_stream_encoder(ENGINE_ID_DACA + i, ctx);
+			if (pool->stream_enc[caps->num_stream_encoder + i] == NULL)
+				DC_ERR("DC: failed to create analog stream_encoder %d!\n", i);
 			pool->stream_enc_count++;
 		}
 	}
@@ -2690,17 +2698,40 @@ static inline int find_fixed_dio_link_enc(const struct dc_link *link)
 }
 
 static inline int find_free_dio_link_enc(const struct resource_context *res_ctx,
-		const struct dc_link *link, const struct resource_pool *pool)
+		const struct dc_link *link, const struct resource_pool *pool, struct dc_stream_state *stream)
 {
-	int i;
+	int i, j = -1;
+	int stream_enc_inst = -1;
 	int enc_count = pool->dig_link_enc_count;
 
-	/* for dpia, check preferred encoder first and then the next one */
-	for (i = 0; i < enc_count; i++)
-		if (res_ctx->dio_link_enc_ref_cnts[(link->dpia_preferred_eng_id + i) % enc_count] == 0)
-			break;
+	/* Find stream encoder instance for the stream */
+	if (stream) {
+		for (i = 0; i < pool->pipe_count; i++) {
+			if ((res_ctx->pipe_ctx[i].stream == stream) &&
+				(res_ctx->pipe_ctx[i].stream_res.stream_enc != NULL)) {
+				stream_enc_inst = res_ctx->pipe_ctx[i].stream_res.stream_enc->id;
+				break;
+			}
+		}
+	}
 
-	return (i >= 0 && i < enc_count) ? (link->dpia_preferred_eng_id + i) % enc_count : -1;
+	/* Assign dpia preferred > stream enc instance > available */
+	for (i = 0; i < enc_count; i++) {
+		if (res_ctx->dio_link_enc_ref_cnts[i] == 0) {
+			if (j == -1)
+				j = i;
+
+			if (link->dpia_preferred_eng_id == i) {
+				j = i;
+				break;
+			}
+
+			if (stream_enc_inst == i) {
+				j = stream_enc_inst;
+			}
+		}
+	}
+	return j;
 }
 
 static inline void acquire_dio_link_enc(
@@ -2781,7 +2812,7 @@ static bool add_dio_link_enc_to_ctx(const struct dc *dc,
 		retain_dio_link_enc(res_ctx, enc_index);
 	} else {
 		if (stream->link->is_dig_mapping_flexible)
-			enc_index = find_free_dio_link_enc(res_ctx, stream->link, pool);
+			enc_index = find_free_dio_link_enc(res_ctx, stream->link, pool, stream);
 		else {
 			int link_index = 0;
 
@@ -2791,7 +2822,7 @@ static bool add_dio_link_enc_to_ctx(const struct dc *dc,
 			 * one into the acquiring link.
 			 */
 			if (enc_index >= 0 && is_dio_enc_acquired_by_other_link(stream->link, enc_index, &link_index)) {
-				int new_enc_index = find_free_dio_link_enc(res_ctx, dc->links[link_index], pool);
+				int new_enc_index = find_free_dio_link_enc(res_ctx, dc->links[link_index], pool, stream);
 
 				if (new_enc_index >= 0)
 					swap_dio_link_enc_to_muxable_ctx(context, pool, new_enc_index, enc_index);
@@ -5201,7 +5232,7 @@ struct link_encoder *get_temp_dio_link_enc(
 		enc_index = link->eng_id;
 
 	if (enc_index < 0)
-		enc_index = find_free_dio_link_enc(res_ctx, link, pool);
+		enc_index = find_free_dio_link_enc(res_ctx, link, pool, NULL);
 
 	if (enc_index >= 0)
 		link_enc = pool->link_encoders[enc_index];

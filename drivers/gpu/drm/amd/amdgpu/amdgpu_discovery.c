@@ -311,7 +311,7 @@ static int amdgpu_discovery_read_binary_from_mem(struct amdgpu_device *adev,
 			 */
 			if (amdgpu_virt_get_dynamic_data_info(adev,
 						AMD_SRIOV_MSG_IPD_TABLE_ID, binary,
-						(uint64_t *)&adev->discovery.size)) {
+						&adev->discovery.size)) {
 				dev_err(adev->dev,
 						"failed to read discovery info from dynamic critical region.");
 				ret = -EINVAL;
