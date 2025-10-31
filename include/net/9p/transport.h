@@ -46,7 +46,7 @@ struct p9_trans_module {
 	char *name;		/* name of transport */
 	int maxsize;		/* max message size of transport */
 	bool pooled_rbuffers;
-	int def;		/* this transport should be default */
+	bool def;		/* this transport should be default */
 	bool supports_vmalloc;	/* can work with vmalloc'd buffers */
 	struct module *owner;
 	int (*create)(struct p9_client *client,

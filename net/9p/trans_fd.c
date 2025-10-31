@@ -1100,7 +1100,7 @@ static struct p9_trans_module p9_tcp_trans = {
 	.name = "tcp",
 	.maxsize = MAX_SOCK_BUF,
 	.pooled_rbuffers = false,
-	.def = 0,
+	.def = false,
 	.supports_vmalloc = true,
 	.create = p9_fd_create_tcp,
 	.close = p9_fd_close,
@@ -1115,7 +1115,7 @@ MODULE_ALIAS_9P("tcp");
 static struct p9_trans_module p9_unix_trans = {
 	.name = "unix",
 	.maxsize = MAX_SOCK_BUF,
-	.def = 0,
+	.def = false,
 	.supports_vmalloc = true,
 	.create = p9_fd_create_unix,
 	.close = p9_fd_close,
@@ -1130,7 +1130,7 @@ MODULE_ALIAS_9P("unix");
 static struct p9_trans_module p9_fd_trans = {
 	.name = "fd",
 	.maxsize = MAX_SOCK_BUF,
-	.def = 0,
+	.def = false,
 	.supports_vmalloc = true,
 	.create = p9_fd_create,
 	.close = p9_fd_close,
