@@ -11,8 +11,9 @@
 
 static const struct ubuf_info_ops io_ubuf_ops;
 
-static void io_notif_tw_complete(struct io_kiocb *notif, io_tw_token_t tw)
+static void io_notif_tw_complete(struct io_tw_req tw_req, io_tw_token_t tw)
 {
+	struct io_kiocb *notif = tw_req.req;
 	struct io_notif_data *nd = io_notif_to_data(notif);
 	struct io_ring_ctx *ctx = notif->ctx;
 
@@ -34,7 +35,7 @@ static void io_notif_tw_complete(struct io_kiocb *notif, io_tw_token_t tw)
 		}
 
 		nd = nd->next;
-		io_req_task_complete(notif, tw);
+		io_req_task_complete((struct io_tw_req){notif}, tw);
 	} while (nd);
 }
 

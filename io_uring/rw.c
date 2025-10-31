@@ -564,8 +564,9 @@ static inline int io_fixup_rw_res(struct io_kiocb *req, long res)
 	return res;
 }
 
-void io_req_rw_complete(struct io_kiocb *req, io_tw_token_t tw)
+void io_req_rw_complete(struct io_tw_req tw_req, io_tw_token_t tw)
 {
+	struct io_kiocb *req = tw_req.req;
 	struct io_rw *rw = io_kiocb_to_cmd(req, struct io_rw);
 	struct kiocb *kiocb = &rw->kiocb;
 
@@ -581,7 +582,7 @@ void io_req_rw_complete(struct io_kiocb *req, io_tw_token_t tw)
 		req->cqe.flags |= io_put_kbuf(req, req->cqe.res, NULL);
 
 	io_req_rw_cleanup(req, 0);
-	io_req_task_complete(req, tw);
+	io_req_task_complete(tw_req, tw);
 }
 
 static void io_complete_rw(struct kiocb *kiocb, long res)
