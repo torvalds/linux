@@ -19,6 +19,7 @@ enum aie2_msg_opcode {
 	MSG_OP_CHAIN_EXEC_BUFFER_CF        = 0x12,
 	MSG_OP_CHAIN_EXEC_DPU              = 0x13,
 	MSG_OP_CONFIG_DEBUG_BO             = 0x14,
+	MSG_OP_CHAIN_EXEC_NPU              = 0x18,
 	MSG_OP_MAX_XRT_OPCODE,
 	MSG_OP_SUSPEND                     = 0x101,
 	MSG_OP_RESUME                      = 0x102,
@@ -148,6 +149,16 @@ struct exec_dpu_req {
 	__u32	cu_idx;
 	__u32	payload[35];
 } __packed;
+
+enum exec_npu_type {
+	EXEC_NPU_TYPE_NON_ELF		= 0x1,
+	EXEC_NPU_TYPE_PARTIAL_ELF	= 0x2,
+};
+
+union exec_req {
+	struct execute_buffer_req ebuf;
+	struct exec_dpu_req dpu_req;
+};
 
 struct execute_buffer_resp {
 	enum aie2_msg_status	status;
@@ -320,9 +331,6 @@ struct async_event_msg_resp {
 } __packed;
 
 #define MAX_CHAIN_CMDBUF_SIZE SZ_4K
-#define slot_has_space(slot, offset, payload_size)		\
-	(MAX_CHAIN_CMDBUF_SIZE >= (offset) + (payload_size) +	\
-	 sizeof(typeof(slot)))
 
 struct cmd_chain_slot_execbuf_cf {
 	__u32 cu_idx;
@@ -340,11 +348,39 @@ struct cmd_chain_slot_dpu {
 	__u32 args[] __counted_by(arg_cnt);
 };
 
+#define MAX_NPU_ARGS_SIZE (26 * sizeof(__u32))
+struct cmd_chain_slot_npu {
+	enum exec_npu_type type;
+	u64 inst_buf_addr;
+	u64 save_buf_addr;
+	u64 restore_buf_addr;
+	u32 inst_size;
+	u32 save_size;
+	u32 restore_size;
+	u32 inst_prop_cnt;
+	u32 cu_idx;
+	u32 arg_cnt;
+	u32 args[] __counted_by(arg_cnt);
+} __packed;
+
 struct cmd_chain_req {
 	__u64 buf_addr;
 	__u32 buf_size;
 	__u32 count;
 } __packed;
+
+struct cmd_chain_npu_req {
+	u32 flags;
+	u32 reserved;
+	u64 buf_addr;
+	u32 buf_size;
+	u32 count;
+} __packed;
+
+union exec_chain_req {
+	struct cmd_chain_npu_req npu_req;
+	struct cmd_chain_req req;
+};
 
 struct cmd_chain_resp {
 	enum aie2_msg_status	status;

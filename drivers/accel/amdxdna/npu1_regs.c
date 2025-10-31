@@ -63,12 +63,18 @@ const struct dpm_clk_freq npu1_dpm_clk_table[] = {
 	{ 0 }
 };
 
+static const struct aie2_fw_feature_tbl npu1_fw_feature_table[] = {
+	{ .feature = AIE2_NPU_COMMAND, .min_minor = 8 },
+	{ 0 }
+};
+
 static const struct amdxdna_dev_priv npu1_dev_priv = {
 	.fw_path        = "amdnpu/1502_00/npu.sbin",
 	.protocol_major = 0x5,
 	.protocol_minor = 0x7,
 	.rt_config	= npu1_default_rt_cfg,
 	.dpm_clk_tbl	= npu1_dpm_clk_table,
+	.fw_feature_tbl = npu1_fw_feature_table,
 	.col_align	= COL_ALIGN_NONE,
 	.mbox_dev_addr  = NPU1_MBOX_BAR_BASE,
 	.mbox_size      = 0, /* Use BAR size */

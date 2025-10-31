@@ -113,14 +113,14 @@ void *amdxdna_cmd_get_payload(struct amdxdna_gem_obj *abo, u32 *size)
 	return &cmd->data[num_masks];
 }
 
-int amdxdna_cmd_get_cu_idx(struct amdxdna_gem_obj *abo)
+u32 amdxdna_cmd_get_cu_idx(struct amdxdna_gem_obj *abo)
 {
 	struct amdxdna_cmd *cmd = abo->mem.kva;
 	u32 num_masks, i;
 	u32 *cu_mask;
 
 	if (amdxdna_cmd_get_op(abo) == ERT_CMD_CHAIN)
-		return -1;
+		return INVALID_CU_IDX;
 
 	num_masks = 1 + FIELD_GET(AMDXDNA_CMD_EXTRA_CU_MASK, cmd->header);
 	cu_mask = cmd->data;
@@ -129,7 +129,7 @@ int amdxdna_cmd_get_cu_idx(struct amdxdna_gem_obj *abo)
 			return ffs(cu_mask[i]) - 1;
 	}
 
-	return -1;
+	return INVALID_CU_IDX;
 }
 
 /*
