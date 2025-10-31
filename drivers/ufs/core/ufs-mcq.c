@@ -534,8 +534,8 @@ static int ufshcd_mcq_sq_start(struct ufs_hba *hba, struct ufs_hw_queue *hwq)
  */
 int ufshcd_mcq_sq_cleanup(struct ufs_hba *hba, int task_tag)
 {
-	struct ufshcd_lrb *lrbp = &hba->lrb[task_tag];
-	struct scsi_cmnd *cmd = lrbp->cmd;
+	struct scsi_cmnd *cmd = ufshcd_tag_to_cmd(hba, task_tag);
+	struct ufshcd_lrb *lrbp = scsi_cmd_priv(cmd);
 	struct ufs_hw_queue *hwq;
 	void __iomem *reg, *opr_sqd_base;
 	u32 nexus, id, val;
@@ -618,7 +618,8 @@ static void ufshcd_mcq_nullify_sqe(struct utp_transfer_req_desc *utrd)
 static bool ufshcd_mcq_sqe_search(struct ufs_hba *hba,
 				  struct ufs_hw_queue *hwq, int task_tag)
 {
-	struct ufshcd_lrb *lrbp = &hba->lrb[task_tag];
+	struct scsi_cmnd *cmd = ufshcd_tag_to_cmd(hba, task_tag);
+	struct ufshcd_lrb *lrbp = scsi_cmd_priv(cmd);
 	struct utp_transfer_req_desc *utrd;
 	__le64  cmd_desc_base_addr;
 	bool ret = false;
@@ -669,7 +670,7 @@ int ufshcd_mcq_abort(struct scsi_cmnd *cmd)
 	struct Scsi_Host *host = cmd->device->host;
 	struct ufs_hba *hba = shost_priv(host);
 	int tag = scsi_cmd_to_rq(cmd)->tag;
-	struct ufshcd_lrb *lrbp = &hba->lrb[tag];
+	struct ufshcd_lrb *lrbp = scsi_cmd_priv(cmd);
 	struct ufs_hw_queue *hwq;
 	int err;
 
