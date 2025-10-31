@@ -304,7 +304,7 @@ static int hinic3_open_channel(struct net_device *netdev)
 
 	err = hinic3_configure(netdev);
 	if (err) {
-		netdev_err(netdev, "Failed to init txrxq irq\n");
+		netdev_err(netdev, "Failed to configure device resources\n");
 		goto err_uninit_qps_irq;
 	}
 
