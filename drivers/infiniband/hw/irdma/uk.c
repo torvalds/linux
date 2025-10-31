@@ -1309,6 +1309,8 @@ int irdma_uk_cq_poll_cmpl(struct irdma_cq_uk *cq,
 	info->op_type = (u8)FIELD_GET(IRDMACQ_OP, qword3);
 
 	if (info->q_type == IRDMA_CQE_QTYPE_RQ && is_srq) {
+		unsigned long flags;
+
 		srq = qp->srq_uk;
 
 		get_64bit_val(cqe, 8, &info->wr_id);
@@ -1321,8 +1323,11 @@ int irdma_uk_cq_poll_cmpl(struct irdma_cq_uk *cq,
 		} else {
 			info->stag_invalid_set = false;
 		}
+		spin_lock_irqsave(srq->lock, flags);
 		IRDMA_RING_MOVE_TAIL(srq->srq_ring);
+		spin_unlock_irqrestore(srq->lock, flags);
 		pring = &srq->srq_ring;
+
 	} else if (info->q_type == IRDMA_CQE_QTYPE_RQ && !is_srq) {
 		u32 array_idx;
 

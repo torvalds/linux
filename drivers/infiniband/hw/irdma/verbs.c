@@ -2388,6 +2388,7 @@ static int irdma_create_srq(struct ib_srq *ibsrq,
 	info.vsi = &iwdev->vsi;
 	info.pd = &iwpd->sc_pd;
 
+	iwsrq->sc_srq.srq_uk.lock = &iwsrq->lock;
 	err_code = irdma_sc_srq_init(&iwsrq->sc_srq, &info);
 	if (err_code)
 		goto free_dmem;
