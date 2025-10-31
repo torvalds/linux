@@ -140,6 +140,7 @@ int cmdq_pkt_create(struct cmdq_client *client, struct cmdq_pkt *pkt, size_t siz
 	}
 
 	pkt->pa_base = dma_addr;
+	cmdq_get_mbox_priv(client->chan, &pkt->priv);
 
 	return 0;
 }
