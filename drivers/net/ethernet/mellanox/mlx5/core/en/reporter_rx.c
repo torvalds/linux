@@ -318,7 +318,8 @@ mlx5e_rx_reporter_diagnose_common_ptp_config(struct mlx5e_priv *priv, struct mlx
 					     struct devlink_fmsg *fmsg)
 {
 	mlx5e_health_fmsg_named_obj_nest_start(fmsg, "PTP");
-	devlink_fmsg_u32_pair_put(fmsg, "filter_type", priv->tstamp.rx_filter);
+	devlink_fmsg_u32_pair_put(fmsg, "filter_type",
+				  priv->hwtstamp_config.rx_filter);
 	mlx5e_rx_reporter_diagnose_generic_rq(&ptp_ch->rq, fmsg);
 	mlx5e_health_fmsg_named_obj_nest_end(fmsg);
 }

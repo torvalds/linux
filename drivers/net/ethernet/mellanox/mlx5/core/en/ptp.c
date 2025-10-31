@@ -713,7 +713,7 @@ static int mlx5e_init_ptp_rq(struct mlx5e_ptp *c, struct mlx5e_params *params,
 	rq->netdev       = priv->netdev;
 	rq->priv         = priv;
 	rq->clock        = mdev->clock;
-	rq->tstamp       = &priv->tstamp;
+	rq->hwtstamp_config = &priv->hwtstamp_config;
 	rq->mdev         = mdev;
 	rq->hw_mtu       = MLX5E_SW2HW_MTU(params, params->sw_mtu);
 	rq->stats        = &c->priv->ptp_stats.rq;
@@ -896,7 +896,6 @@ int mlx5e_ptp_open(struct mlx5e_priv *priv, struct mlx5e_params *params,
 
 	c->priv     = priv;
 	c->mdev     = priv->mdev;
-	c->tstamp   = &priv->tstamp;
 	c->pdev     = mlx5_core_dma_dev(priv->mdev);
 	c->netdev   = priv->netdev;
 	c->mkey_be  = cpu_to_be32(priv->mdev->mlx5e_res.hw_objs.mkey);

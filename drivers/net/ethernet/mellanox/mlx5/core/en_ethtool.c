@@ -2273,7 +2273,7 @@ static int set_pflag_rx_cqe_compress(struct net_device *netdev,
 	if (!MLX5_CAP_GEN(mdev, cqe_compression))
 		return -EOPNOTSUPP;
 
-	rx_filter = priv->tstamp.rx_filter != HWTSTAMP_FILTER_NONE;
+	rx_filter = priv->hwtstamp_config.rx_filter != HWTSTAMP_FILTER_NONE;
 	err = mlx5e_modify_rx_cqe_compression_locked(priv, enable, rx_filter);
 	if (err)
 		return err;

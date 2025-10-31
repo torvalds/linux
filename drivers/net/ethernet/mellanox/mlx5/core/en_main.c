@@ -735,7 +735,7 @@ static int mlx5e_init_rxq_rq(struct mlx5e_channel *c, struct mlx5e_params *param
 	rq->pdev         = c->pdev;
 	rq->netdev       = c->netdev;
 	rq->priv         = c->priv;
-	rq->tstamp       = c->tstamp;
+	rq->hwtstamp_config = &c->priv->hwtstamp_config;
 	rq->clock        = mdev->clock;
 	rq->icosq        = &c->icosq;
 	rq->ix           = c->ix;
@@ -2803,7 +2803,6 @@ static int mlx5e_open_channel(struct mlx5e_priv *priv, int ix,
 
 	c->priv     = priv;
 	c->mdev     = mdev;
-	c->tstamp   = &priv->tstamp;
 	c->ix       = ix;
 	c->vec_ix   = vec_ix;
 	c->sd_ix    = mlx5_sd_ch_ix_get_dev_ix(mdev, ix);
@@ -3445,8 +3444,8 @@ int mlx5e_safe_reopen_channels(struct mlx5e_priv *priv)
 
 void mlx5e_timestamp_init(struct mlx5e_priv *priv)
 {
-	priv->tstamp.tx_type   = HWTSTAMP_TX_OFF;
-	priv->tstamp.rx_filter = HWTSTAMP_FILTER_NONE;
+	priv->hwtstamp_config.tx_type   = HWTSTAMP_TX_OFF;
+	priv->hwtstamp_config.rx_filter = HWTSTAMP_FILTER_NONE;
 }
 
 static void mlx5e_modify_admin_state(struct mlx5_core_dev *mdev,
@@ -4741,22 +4740,23 @@ static int mlx5e_hwstamp_config_ptp_rx(struct mlx5e_priv *priv, bool ptp_rx)
 					&new_params.ptp_rx, true);
 }
 
-int mlx5e_hwstamp_set(struct mlx5e_priv *priv, struct ifreq *ifr)
+int mlx5e_hwtstamp_set(struct mlx5e_priv *priv,
+		       struct kernel_hwtstamp_config *config,
+		       struct netlink_ext_ack *extack)
 {
-	struct hwtstamp_config config;
 	bool rx_cqe_compress_def;
 	bool ptp_rx;
 	int err;
 
 	if (!MLX5_CAP_GEN(priv->mdev, device_frequency_khz) ||
-	    (mlx5_clock_get_ptp_index(priv->mdev) == -1))
+	    (mlx5_clock_get_ptp_index(priv->mdev) == -1)) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Timestamps are not supported on this device");
 		return -EOPNOTSUPP;
-
-	if (copy_from_user(&config, ifr->ifr_data, sizeof(config)))
-		return -EFAULT;
+	}
 
 	/* TX HW timestamp */
-	switch (config.tx_type) {
+	switch (config->tx_type) {
 	case HWTSTAMP_TX_OFF:
 	case HWTSTAMP_TX_ON:
 		break;
@@ -4768,7 +4768,7 @@ int mlx5e_hwstamp_set(struct mlx5e_priv *priv, struct ifreq *ifr)
 	rx_cqe_compress_def = priv->channels.params.rx_cqe_compress_def;
 
 	/* RX HW timestamp */
-	switch (config.rx_filter) {
+	switch (config->rx_filter) {
 	case HWTSTAMP_FILTER_NONE:
 		ptp_rx = false;
 		break;
@@ -4787,7 +4787,7 @@ int mlx5e_hwstamp_set(struct mlx5e_priv *priv, struct ifreq *ifr)
 	case HWTSTAMP_FILTER_PTP_V2_SYNC:
 	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
 	case HWTSTAMP_FILTER_NTP_ALL:
-		config.rx_filter = HWTSTAMP_FILTER_ALL;
+		config->rx_filter = HWTSTAMP_FILTER_ALL;
 		/* ptp_rx is set if both HW TS is set and CQE
 		 * compression is set
 		 */
@@ -4800,47 +4800,50 @@ int mlx5e_hwstamp_set(struct mlx5e_priv *priv, struct ifreq *ifr)
 
 	if (!mlx5e_profile_feature_cap(priv->profile, PTP_RX))
 		err = mlx5e_hwstamp_config_no_ptp_rx(priv,
-						     config.rx_filter != HWTSTAMP_FILTER_NONE);
+						     config->rx_filter != HWTSTAMP_FILTER_NONE);
 	else
 		err = mlx5e_hwstamp_config_ptp_rx(priv, ptp_rx);
 	if (err)
 		goto err_unlock;
 
-	memcpy(&priv->tstamp, &config, sizeof(config));
+	priv->hwtstamp_config = *config;
 	mutex_unlock(&priv->state_lock);
 
 	/* might need to fix some features */
 	netdev_update_features(priv->netdev);
 
-	return copy_to_user(ifr->ifr_data, &config,
-			    sizeof(config)) ? -EFAULT : 0;
+	return 0;
 err_unlock:
 	mutex_unlock(&priv->state_lock);
 	return err;
 }
 
-int mlx5e_hwstamp_get(struct mlx5e_priv *priv, struct ifreq *ifr)
+static int mlx5e_hwtstamp_set_ndo(struct net_device *netdev,
+				  struct kernel_hwtstamp_config *config,
+				  struct netlink_ext_ack *extack)
 {
-	struct hwtstamp_config *cfg = &priv->tstamp;
+	struct mlx5e_priv *priv = netdev_priv(netdev);
 
+	return mlx5e_hwtstamp_set(priv, config, extack);
+}
+
+int mlx5e_hwtstamp_get(struct mlx5e_priv *priv,
+		       struct kernel_hwtstamp_config *config)
+{
 	if (!MLX5_CAP_GEN(priv->mdev, device_frequency_khz))
 		return -EOPNOTSUPP;
 
-	return copy_to_user(ifr->ifr_data, cfg, sizeof(*cfg)) ? -EFAULT : 0;
+	*config = priv->hwtstamp_config;
+
+	return 0;
 }
 
-static int mlx5e_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+static int mlx5e_hwtstamp_get_ndo(struct net_device *dev,
+				  struct kernel_hwtstamp_config *config)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
 
-	switch (cmd) {
-	case SIOCSHWTSTAMP:
-		return mlx5e_hwstamp_set(priv, ifr);
-	case SIOCGHWTSTAMP:
-		return mlx5e_hwstamp_get(priv, ifr);
-	default:
-		return -EOPNOTSUPP;
-	}
+	return mlx5e_hwtstamp_get(priv, config);
 }
 
 #ifdef CONFIG_MLX5_ESWITCH
@@ -5281,13 +5284,14 @@ const struct net_device_ops mlx5e_netdev_ops = {
 	.ndo_set_features        = mlx5e_set_features,
 	.ndo_fix_features        = mlx5e_fix_features,
 	.ndo_change_mtu          = mlx5e_change_nic_mtu,
-	.ndo_eth_ioctl            = mlx5e_ioctl,
 	.ndo_set_tx_maxrate      = mlx5e_set_tx_maxrate,
 	.ndo_features_check      = mlx5e_features_check,
 	.ndo_tx_timeout          = mlx5e_tx_timeout,
 	.ndo_bpf		 = mlx5e_xdp,
 	.ndo_xdp_xmit            = mlx5e_xdp_xmit,
 	.ndo_xsk_wakeup          = mlx5e_xsk_wakeup,
+	.ndo_hwtstamp_get        = mlx5e_hwtstamp_get_ndo,
+	.ndo_hwtstamp_set        = mlx5e_hwtstamp_set_ndo,
 #ifdef CONFIG_MLX5_EN_ARFS
 	.ndo_rx_flow_steer	 = mlx5e_rx_flow_steer,
 #endif
