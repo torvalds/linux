@@ -1062,6 +1062,8 @@ retry_lock:
 	/* Validate User Ptr BOs */
 	list_for_each_entry(bo_va, &vm->done, base.vm_status) {
 		bo = bo_va->base.bo;
+		if (!bo)
+			continue;
 
 		if (!amdgpu_ttm_tt_is_userptr(bo->tbo.ttm))
 			continue;
