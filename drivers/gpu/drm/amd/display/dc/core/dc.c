@@ -3849,7 +3849,7 @@ static bool dc_dmub_should_send_dirty_rect_cmd(struct dc *dc, struct dc_stream_s
 void dc_dmub_update_dirty_rect(struct dc *dc,
 			       int surface_count,
 			       struct dc_stream_state *stream,
-			       struct dc_surface_update *srf_updates,
+			       const struct dc_surface_update *srf_updates,
 			       struct dc_state *context)
 {
 	union dmub_rb_cmd cmd;
@@ -4154,7 +4154,7 @@ static void commit_planes_for_stream_fast(struct dc *dc,
 }
 
 static void commit_planes_for_stream(struct dc *dc,
-		struct dc_surface_update *srf_updates,
+		const struct dc_surface_update *srf_updates,
 		int surface_count,
 		struct dc_stream_state *stream,
 		struct dc_stream_update *stream_update,
@@ -7175,3 +7175,350 @@ bool dc_get_qos_info(struct dc *dc, struct dc_qos_info *info)
 
 	return true;
 }
+
+enum update_v3_flow {
+	UPDATE_V3_FLOW_INVALID,
+	UPDATE_V3_FLOW_NO_NEW_CONTEXT_CONTEXT_FAST,
+	UPDATE_V3_FLOW_NO_NEW_CONTEXT_CONTEXT_FULL,
+	UPDATE_V3_FLOW_NEW_CONTEXT_SEAMLESS,
+	UPDATE_V3_FLOW_NEW_CONTEXT_MINIMAL_NEW,
+	UPDATE_V3_FLOW_NEW_CONTEXT_MINIMAL_CURRENT,
+};
+
+struct dc_update_scratch_space {
+	struct dc *dc;
+	struct dc_surface_update *surface_updates;
+	int surface_count;
+	struct dc_stream_state *stream;
+	struct dc_stream_update *stream_update;
+	bool update_v3;
+	bool do_clear_update_flags;
+	enum surface_update_type update_type;
+	struct dc_state *new_context;
+	enum update_v3_flow flow;
+	struct dc_state *backup_context;
+	struct dc_state *intermediate_context;
+	struct pipe_split_policy_backup intermediate_policy;
+	struct dc_surface_update intermediate_updates[MAX_SURFACES];
+	int intermediate_count;
+};
+
+size_t dc_update_scratch_space_size(void)
+{
+	return sizeof(struct dc_update_scratch_space);
+}
+
+static bool update_planes_and_stream_prepare_v2(
+		struct dc_update_scratch_space *scratch
+)
+{
+	// v2 is too tangled to break into stages, so just execute everything under lock
+	dc_exit_ips_for_hw_access(scratch->dc);
+	return update_planes_and_stream_v2(
+		scratch->dc,
+		scratch->surface_updates,
+		scratch->surface_count,
+		scratch->stream,
+		scratch->stream_update
+	);
+}
+
+static void update_planes_and_stream_execute_v2(
+		const struct dc_update_scratch_space *scratch
+)
+{
+	// Nothing to do, see `update_planes_and_stream_prepare_v2`
+	(void) scratch;
+}
+
+static bool update_planes_and_stream_cleanup_v2(
+		const struct dc_update_scratch_space *scratch
+)
+{
+	if (scratch->do_clear_update_flags)
+		clear_update_flags(scratch->surface_updates, scratch->surface_count, scratch->stream);
+
+	return false;
+}
+
+static void update_planes_and_stream_cleanup_v3_intermediate(
+		struct dc_update_scratch_space *scratch,
+		bool backup
+);
+
+static bool update_planes_and_stream_prepare_v3_intermediate_seamless(
+		struct dc_update_scratch_space *scratch
+)
+{
+	return is_pipe_topology_transition_seamless_with_intermediate_step(
+			scratch->dc,
+			scratch->dc->current_state,
+			scratch->intermediate_context,
+			scratch->new_context
+	);
+}
+
+static bool update_planes_and_stream_prepare_v3(
+		struct dc_update_scratch_space *scratch
+)
+{
+	dc_exit_ips_for_hw_access(scratch->dc);
+
+	if (!update_planes_and_stream_state(
+			scratch->dc,
+			scratch->surface_updates,
+			scratch->surface_count,
+			scratch->stream,
+			scratch->stream_update,
+			&scratch->update_type,
+			&scratch->new_context
+	)) {
+		return false;
+	}
+
+	if (scratch->new_context == scratch->dc->current_state) {
+		ASSERT(scratch->update_type < UPDATE_TYPE_FULL);
+
+		// TODO: Do we need this to be alive in execute?
+		struct dc_fast_update fast_update[MAX_SURFACES] = { 0 };
+
+		populate_fast_updates(
+				fast_update,
+				scratch->surface_updates,
+				scratch->surface_count,
+				scratch->stream_update
+		);
+		const bool fast = fast_update_only(
+				scratch->dc,
+				fast_update,
+				scratch->surface_updates,
+				scratch->surface_count,
+				scratch->stream_update,
+				scratch->stream
+		)
+		// TODO: Can this be used to skip `populate_fast_updates`?
+				&& !scratch->dc->check_config.enable_legacy_fast_update;
+		scratch->flow = fast
+				? UPDATE_V3_FLOW_NO_NEW_CONTEXT_CONTEXT_FAST
+				: UPDATE_V3_FLOW_NO_NEW_CONTEXT_CONTEXT_FULL;
+		return true;
+	}
+
+	ASSERT(scratch->update_type >= UPDATE_TYPE_FULL);
+
+	const bool seamless = scratch->dc->hwss.is_pipe_topology_transition_seamless(
+			scratch->dc,
+			scratch->dc->current_state,
+			scratch->new_context
+	);
+	if (seamless) {
+		scratch->flow = UPDATE_V3_FLOW_NEW_CONTEXT_SEAMLESS;
+		return true;
+	}
+
+	scratch->intermediate_context = create_minimal_transition_state(
+		scratch->dc,
+		scratch->new_context,
+		&scratch->intermediate_policy
+	);
+	if (scratch->intermediate_context) {
+		if (update_planes_and_stream_prepare_v3_intermediate_seamless(scratch)) {
+			scratch->flow = UPDATE_V3_FLOW_NEW_CONTEXT_MINIMAL_NEW;
+			return true;
+		}
+
+		update_planes_and_stream_cleanup_v3_intermediate(scratch, false);
+	}
+
+	restore_planes_and_stream_state(&scratch->dc->scratch.current_state, scratch->stream);
+	scratch->backup_context = scratch->dc->current_state;
+	dc_state_retain(scratch->backup_context);
+	scratch->intermediate_context = create_minimal_transition_state(
+			scratch->dc,
+			scratch->backup_context,
+			&scratch->intermediate_policy
+	);
+	if (scratch->intermediate_context) {
+		if (update_planes_and_stream_prepare_v3_intermediate_seamless(scratch)) {
+			scratch->flow = UPDATE_V3_FLOW_NEW_CONTEXT_MINIMAL_CURRENT;
+			scratch->intermediate_count = initialize_empty_surface_updates(
+					scratch->stream, scratch->intermediate_updates
+			);
+			return true;
+		}
+
+		update_planes_and_stream_cleanup_v3_intermediate(scratch, true);
+	}
+
+	scratch->flow = UPDATE_V3_FLOW_INVALID;
+	dc_state_release(scratch->backup_context);
+	restore_planes_and_stream_state(&scratch->dc->scratch.new_state, scratch->stream);
+	return false;
+}
+
+static void update_planes_and_stream_execute_v3_commit(
+		const struct dc_update_scratch_space *scratch,
+		bool intermediate_update,
+		bool intermediate_context
+)
+{
+	commit_planes_for_stream(
+			scratch->dc,
+			intermediate_update ? scratch->intermediate_updates : scratch->surface_updates,
+			intermediate_update ? scratch->intermediate_count : scratch->surface_count,
+			scratch->stream,
+			intermediate_context ? NULL : scratch->stream_update,
+			intermediate_context ? UPDATE_TYPE_FULL : scratch->update_type,
+			// `dc->current_state` only used in `NO_NEW_CONTEXT`, where it is equal to `new_context`
+			intermediate_context ? scratch->intermediate_context : scratch->new_context
+	);
+}
+
+static void update_planes_and_stream_execute_v3(
+		const struct dc_update_scratch_space *scratch
+)
+{
+	switch (scratch->flow) {
+	case UPDATE_V3_FLOW_NO_NEW_CONTEXT_CONTEXT_FAST:
+		commit_planes_for_stream_fast(
+				scratch->dc,
+				scratch->surface_updates,
+				scratch->surface_count,
+				scratch->stream,
+				scratch->stream_update,
+				scratch->update_type,
+				scratch->new_context
+		);
+		break;
+
+	case UPDATE_V3_FLOW_NO_NEW_CONTEXT_CONTEXT_FULL:
+	case UPDATE_V3_FLOW_NEW_CONTEXT_SEAMLESS:
+		update_planes_and_stream_execute_v3_commit(scratch, false, false);
+		break;
+
+	case UPDATE_V3_FLOW_NEW_CONTEXT_MINIMAL_NEW:
+		update_planes_and_stream_execute_v3_commit(scratch, false, true);
+		update_planes_and_stream_execute_v3_commit(scratch, false, false);
+		break;
+
+	case UPDATE_V3_FLOW_NEW_CONTEXT_MINIMAL_CURRENT:
+		update_planes_and_stream_execute_v3_commit(scratch, true, true);
+		update_planes_and_stream_execute_v3_commit(scratch, false, false);
+		break;
+
+	case UPDATE_V3_FLOW_INVALID:
+	default:
+		ASSERT(false);
+	}
+}
+
+static void update_planes_and_stream_cleanup_v3_new_context(
+		struct dc_update_scratch_space *scratch
+)
+{
+	swap_and_release_current_context(scratch->dc, scratch->new_context, scratch->stream);
+}
+
+static void update_planes_and_stream_cleanup_v3_intermediate(
+		struct dc_update_scratch_space *scratch,
+		bool backup
+)
+{
+	release_minimal_transition_state(
+			scratch->dc,
+			scratch->intermediate_context,
+			backup ? scratch->backup_context : scratch->new_context,
+			&scratch->intermediate_policy
+	);
+}
+
+static bool update_planes_and_stream_cleanup_v3(
+		struct dc_update_scratch_space *scratch
+)
+{
+	switch (scratch->flow) {
+	case UPDATE_V3_FLOW_NO_NEW_CONTEXT_CONTEXT_FAST:
+	case UPDATE_V3_FLOW_NO_NEW_CONTEXT_CONTEXT_FULL:
+		// No cleanup required
+		break;
+
+	case UPDATE_V3_FLOW_NEW_CONTEXT_SEAMLESS:
+		update_planes_and_stream_cleanup_v3_new_context(scratch);
+		break;
+
+	case UPDATE_V3_FLOW_NEW_CONTEXT_MINIMAL_NEW:
+		update_planes_and_stream_cleanup_v3_intermediate(scratch, false);
+		update_planes_and_stream_cleanup_v3_new_context(scratch);
+		break;
+
+	case UPDATE_V3_FLOW_NEW_CONTEXT_MINIMAL_CURRENT:
+		swap_and_release_current_context(scratch->dc, scratch->intermediate_context, scratch->stream);
+		dc_state_retain(scratch->dc->current_state);
+		update_planes_and_stream_cleanup_v3_intermediate(scratch, true);
+		dc_state_release(scratch->backup_context);
+		restore_planes_and_stream_state(&scratch->dc->scratch.new_state, scratch->stream);
+		update_planes_and_stream_cleanup_v3_new_context(scratch);
+		break;
+
+	case UPDATE_V3_FLOW_INVALID:
+	default:
+		ASSERT(false);
+	}
+
+	if (scratch->do_clear_update_flags)
+		clear_update_flags(scratch->surface_updates, scratch->surface_count, scratch->stream);
+
+	return false;
+}
+
+struct dc_update_scratch_space *dc_update_planes_and_stream_init(
+		struct dc *dc,
+		struct dc_surface_update *surface_updates,
+		int surface_count,
+		struct dc_stream_state *stream,
+		struct dc_stream_update *stream_update
+)
+{
+	const enum dce_version version = dc->ctx->dce_version;
+	struct dc_update_scratch_space *scratch = stream->update_scratch;
+
+	*scratch = (struct dc_update_scratch_space){
+		.dc = dc,
+		.surface_updates = surface_updates,
+		.surface_count = surface_count,
+		.stream = stream,
+		.stream_update = stream_update,
+		.update_v3 = version >= DCN_VERSION_4_01 || version == DCN_VERSION_3_2 || version == DCN_VERSION_3_21,
+		.do_clear_update_flags = version >= DCN_VERSION_3_2 || version == DCN_VERSION_3_01,
+	};
+
+	return scratch;
+}
+
+bool dc_update_planes_and_stream_prepare(
+		struct dc_update_scratch_space *scratch
+)
+{
+	return scratch->update_v3
+			? update_planes_and_stream_prepare_v3(scratch)
+			: update_planes_and_stream_prepare_v2(scratch);
+}
+
+void dc_update_planes_and_stream_execute(
+		const struct dc_update_scratch_space *scratch
+)
+{
+	scratch->update_v3
+			? update_planes_and_stream_execute_v3(scratch)
+			: update_planes_and_stream_execute_v2(scratch);
+}
+
+bool dc_update_planes_and_stream_cleanup(
+		struct dc_update_scratch_space *scratch
+)
+{
+	return scratch->update_v3
+			? update_planes_and_stream_cleanup_v3(scratch)
+			: update_planes_and_stream_cleanup_v2(scratch);
+}
+

@@ -151,6 +151,7 @@ static void dc_stream_free(struct kref *kref)
 	struct dc_stream_state *stream = container_of(kref, struct dc_stream_state, refcount);
 
 	dc_stream_destruct(stream);
+	kfree(stream->update_scratch);
 	kfree(stream);
 }
 
@@ -164,26 +165,32 @@ void dc_stream_release(struct dc_stream_state *stream)
 struct dc_stream_state *dc_create_stream_for_sink(
 		struct dc_sink *sink)
 {
-	struct dc_stream_state *stream;
+	struct dc_stream_state *stream = NULL;
 
 	if (sink == NULL)
-		return NULL;
+		goto fail;
 
 	stream = kzalloc(sizeof(struct dc_stream_state), GFP_KERNEL);
 	if (stream == NULL)
-		goto alloc_fail;
+		goto fail;
+
+	stream->update_scratch = kzalloc((int32_t) dc_update_scratch_space_size(), GFP_KERNEL);
+	if (stream->update_scratch == NULL)
+		goto fail;
 
 	if (dc_stream_construct(stream, sink) == false)
-		goto construct_fail;
+		goto fail;
 
 	kref_init(&stream->refcount);
 
 	return stream;
 
-construct_fail:
-	kfree(stream);
+fail:
+	if (stream) {
+		kfree(stream->update_scratch);
+		kfree(stream);
+	}
 
-alloc_fail:
 	return NULL;
 }
 
@@ -194,6 +201,16 @@ struct dc_stream_state *dc_copy_stream(const struct dc_stream_state *stream)
 	new_stream = kmemdup(stream, sizeof(struct dc_stream_state), GFP_KERNEL);
 	if (!new_stream)
 		return NULL;
+
+	// Scratch is not meant to be reused across copies, as might have self-referential pointers
+	new_stream->update_scratch = kzalloc(
+			(int32_t) dc_update_scratch_space_size(),
+			GFP_KERNEL
+	);
+	if (!new_stream->update_scratch) {
+		kfree(new_stream);
+		return NULL;
+	}
 
 	if (new_stream->sink)
 		dc_sink_retain(new_stream->sink);
