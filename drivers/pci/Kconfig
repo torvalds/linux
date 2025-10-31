@@ -122,6 +122,9 @@ config XEN_PCIDEV_FRONTEND
 config PCI_ATS
 	bool
 
+config PCI_IDE
+	bool
+
 config PCI_DOE
 	bool "Enable PCI Data Object Exchange (DOE) support"
 	help
