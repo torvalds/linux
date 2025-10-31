@@ -2517,6 +2517,12 @@ static inline struct filename *refname(struct filename *name)
 	return name;
 }
 
+DEFINE_CLASS(filename, struct filename *, putname(_T), getname(p), const char __user *p)
+EXTEND_CLASS(filename, _kernel, getname_kernel(p), const char *p)
+EXTEND_CLASS(filename, _flags, getname_flags(p, f), const char __user *p, unsigned int f)
+EXTEND_CLASS(filename, _uflags, getname_uflags(p, f), const char __user *p, unsigned int f)
+EXTEND_CLASS(filename, _maybe_null, getname_maybe_null(p, f), const char __user *p, unsigned int f)
+
 extern int finish_open(struct file *file, struct dentry *dentry,
 			int (*open)(struct inode *, struct file *));
 extern int finish_no_open(struct file *file, struct dentry *dentry);
