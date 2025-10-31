@@ -514,3 +514,70 @@ void pci_ide_init_host_bridge(struct pci_host_bridge *hb)
 	hb->nr_ide_streams = 256;
 	ida_init(&hb->ide_stream_ida);
 }
+
+static ssize_t available_secure_streams_show(struct device *dev,
+					     struct device_attribute *attr,
+					     char *buf)
+{
+	struct pci_host_bridge *hb = to_pci_host_bridge(dev);
+	int nr = READ_ONCE(hb->nr_ide_streams);
+	int avail = nr;
+
+	if (!nr)
+		return -ENXIO;
+
+	/*
+	 * Yes, this is inefficient and racy, but it is only for occasional
+	 * platform resource surveys. Worst case is bounded to 256 streams.
+	 */
+	for (int i = 0; i < nr; i++)
+		if (ida_exists(&hb->ide_stream_ida, i))
+			avail--;
+	return sysfs_emit(buf, "%d\n", avail);
+}
+static DEVICE_ATTR_RO(available_secure_streams);
+
+static struct attribute *pci_ide_attrs[] = {
+	&dev_attr_available_secure_streams.attr,
+	NULL
+};
+
+static umode_t pci_ide_attr_visible(struct kobject *kobj, struct attribute *a, int n)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct pci_host_bridge *hb = to_pci_host_bridge(dev);
+
+	if (a == &dev_attr_available_secure_streams.attr)
+		if (!hb->nr_ide_streams)
+			return 0;
+
+	return a->mode;
+}
+
+const struct attribute_group pci_ide_attr_group = {
+	.attrs = pci_ide_attrs,
+	.is_visible = pci_ide_attr_visible,
+};
+
+/**
+ * pci_ide_set_nr_streams() - sets size of the pool of IDE Stream resources
+ * @hb: host bridge boundary for the stream pool
+ * @nr: number of streams
+ *
+ * Platform PCI init and/or expert test module use only. Limit IDE
+ * Stream establishment by setting the number of stream resources
+ * available at the host bridge. Platform init code must set this before
+ * the first pci_ide_stream_alloc() call if the platform has less than the
+ * default of 256 streams per host-bridge.
+ *
+ * The "PCI_IDE" symbol namespace is required because this is typically
+ * a detail that is settled in early PCI init. I.e. this export is not
+ * for endpoint drivers.
+ */
+void pci_ide_set_nr_streams(struct pci_host_bridge *hb, u16 nr)
+{
+	hb->nr_ide_streams = min(nr, 256);
+	WARN_ON_ONCE(!ida_is_empty(&hb->ide_stream_ida));
+	sysfs_update_group(&hb->dev.kobj, &pci_ide_attr_group);
+}
+EXPORT_SYMBOL_NS_GPL(pci_ide_set_nr_streams, "PCI_IDE");
