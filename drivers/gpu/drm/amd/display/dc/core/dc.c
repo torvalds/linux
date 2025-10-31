@@ -2857,7 +2857,7 @@ static struct surface_update_descriptor det_surface_update(
 	}
 	if (u->in_transfer_func) {
 		update_flags->bits.in_transfer_func_change = 1;
-		elevate_update_type(&overall_type, UPDATE_TYPE_FAST, LOCK_DESCRIPTOR_STREAM);
+		elevate_update_type(&overall_type, UPDATE_TYPE_MED, LOCK_DESCRIPTOR_STREAM);
 	}
 
 	if (u->input_csc_color_matrix) {
