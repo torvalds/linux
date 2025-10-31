@@ -591,6 +591,9 @@ struct amdgpu_ras {
 
 	/* Protect poison injection */
 	struct mutex poison_lock;
+
+	/* Disable/Enable uniras switch */
+	bool uniras_enabled;
 };
 
 struct ras_fs_data {

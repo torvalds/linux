@@ -283,6 +283,18 @@ static int amdgpu_ras_mgr_sw_init(struct amdgpu_ip_block *ip_block)
 	struct amdgpu_ras_mgr *ras_mgr;
 	int ret = 0;
 
+	/* Disabled by default */
+	con->uniras_enabled = false;
+
+	/* Enabled only in debug mode */
+	if (adev->debug_enable_ras_aca) {
+		con->uniras_enabled = true;
+		RAS_DEV_INFO(adev, "Debug amdgpu uniras!");
+	}
+
+	if (!con->uniras_enabled)
+		return 0;
+
 	ras_mgr = kzalloc(sizeof(*ras_mgr), GFP_KERNEL);
 	if (!ras_mgr)
 		return -EINVAL;
@@ -315,6 +327,9 @@ static int amdgpu_ras_mgr_sw_fini(struct amdgpu_ip_block *ip_block)
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct amdgpu_ras_mgr *ras_mgr = (struct amdgpu_ras_mgr *)con->ras_mgr;
 
+	if (!con->uniras_enabled)
+		return 0;
+
 	if (!ras_mgr)
 		return 0;
 
@@ -332,12 +347,11 @@ static int amdgpu_ras_mgr_sw_fini(struct amdgpu_ip_block *ip_block)
 static int amdgpu_ras_mgr_hw_init(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_device *adev = ip_block->adev;
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct amdgpu_ras_mgr *ras_mgr = amdgpu_ras_mgr_get_context(adev);
 	int ret;
 
-	/* Currently only debug mode can enable the ras module
-	 */
-	if (!adev->debug_enable_ras_aca)
+	if (!con->uniras_enabled)
 		return 0;
 
 	if (!ras_mgr || !ras_mgr->ras_core)
@@ -360,11 +374,10 @@ static int amdgpu_ras_mgr_hw_init(struct amdgpu_ip_block *ip_block)
 static int amdgpu_ras_mgr_hw_fini(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_device *adev = ip_block->adev;
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct amdgpu_ras_mgr *ras_mgr = amdgpu_ras_mgr_get_context(adev);
 
-	/* Currently only debug mode can enable the ras module
-	 */
-	if (!adev->debug_enable_ras_aca)
+	if (!con->uniras_enabled)
 		return 0;
 
 	if (!ras_mgr || !ras_mgr->ras_core)
