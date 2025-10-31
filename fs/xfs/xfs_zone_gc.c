@@ -175,7 +175,7 @@ xfs_zoned_need_gc(
 	s64			available, free, threshold;
 	s32			remainder;
 
-	if (!xfs_group_marked(mp, XG_TYPE_RTG, XFS_RTG_RECLAIMABLE))
+	if (!xfs_zoned_have_reclaimable(mp->m_zone_info))
 		return false;
 
 	available = xfs_estimate_freecounter(mp, XC_FREE_RTAVAILABLE);

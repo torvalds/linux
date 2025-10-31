@@ -172,7 +172,7 @@ xfs_zoned_reserve_available(
 		 * processing a pending GC request give up as we're fully out
 		 * of space.
 		 */
-		if (!xfs_group_marked(mp, XG_TYPE_RTG, XFS_RTG_RECLAIMABLE) &&
+		if (!xfs_zoned_have_reclaimable(mp->m_zone_info) &&
 		    !xfs_is_zonegc_running(mp))
 			break;
 
