@@ -13,3 +13,6 @@ snd-soc-mt8189-afe-objs += \
 	mt8189-dai-tdm.o
 
 obj-$(CONFIG_SND_SOC_MT8189) += snd-soc-mt8189-afe.o
+
+# machine driver
+obj-$(CONFIG_SND_SOC_MT8189_NAU8825) += mt8189-nau8825.o
