@@ -1514,7 +1514,7 @@ irqreturn_t dbc_irq_handler(int irq, void *data)
 	return IRQ_WAKE_THREAD;
 }
 
-void irq_polling_work(struct work_struct *work)
+void qaic_irq_polling_work(struct work_struct *work)
 {
 	struct dma_bridge_chan *dbc = container_of(work, struct dma_bridge_chan,  poll_work);
 	unsigned long flags;

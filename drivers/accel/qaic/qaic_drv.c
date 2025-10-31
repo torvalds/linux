@@ -562,7 +562,7 @@ static int init_msi(struct qaic_device *qdev, struct pci_dev *pdev)
 			qdev->dbc[i].irq = pci_irq_vector(pdev, qdev->single_msi ? 0 : i + 1);
 			if (!qdev->single_msi)
 				disable_irq_nosync(qdev->dbc[i].irq);
-			INIT_WORK(&qdev->dbc[i].poll_work, irq_polling_work);
+			INIT_WORK(&qdev->dbc[i].poll_work, qaic_irq_polling_work);
 		}
 	}
 
