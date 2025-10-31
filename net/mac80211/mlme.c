@@ -2508,6 +2508,16 @@ static void ieee80211_csa_switch_work(struct wiphy *wiphy,
 
 	link->u.mgd.csa.waiting_bcn = true;
 
+	/*
+	 * The next beacon really should always be different, so this should
+	 * have no effect whatsoever. However, some APs (we observed this in
+	 * an Asus AXE11000), the beacon after the CSA might be identical to
+	 * the last beacon on the old channel - in this case we'd ignore it.
+	 * Resetting the CRC will lead us to handle it better (albeit with a
+	 * disconnect, but clearly the AP is broken.)
+	 */
+	link->u.mgd.beacon_crc_valid = false;
+
 	/* apply new TPE restrictions immediately on the new channel */
 	if (link->u.mgd.csa.ap_chandef.chan->band == NL80211_BAND_6GHZ &&
 	    link->u.mgd.conn.mode >= IEEE80211_CONN_MODE_HE) {
@@ -6610,8 +6620,8 @@ static void ieee80211_rx_mgmt_probe_resp(struct ieee80211_link_data *link,
 	 * Response frame shall be set to the broadcast address [..]"
 	 * So, on 6GHz band we should also accept broadcast responses.
 	 */
-	channel = ieee80211_get_channel(sdata->local->hw.wiphy,
-					rx_status->freq);
+	channel = ieee80211_get_channel_khz(sdata->local->hw.wiphy,
+					    ieee80211_rx_status_to_khz(rx_status));
 	if (!channel)
 		return;
 
