@@ -1725,7 +1725,10 @@ static int __testapp_validate_traffic(struct test_spec *test, struct ifobject *i
 			testapp_clean_xsk_umem(ifobj2);
 	}
 
-	return !!test->fail;
+	if (test->fail)
+		return TEST_FAILURE;
+
+	return TEST_PASS;
 }
 
 static int testapp_validate_traffic(struct test_spec *test)
