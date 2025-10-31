@@ -133,8 +133,12 @@ static void set_subtest_addresses(struct subtest_cfg *cfg)
 
 static int run_server(struct subtest_cfg *cfg)
 {
-	struct nstoken *nstoken = open_netns(SERVER_NS);
 	int family = cfg->ipproto == 6 ? AF_INET6 : AF_INET;
+	struct nstoken *nstoken;
+
+	nstoken = open_netns(SERVER_NS);
+	if (!ASSERT_OK_PTR(nstoken, "open server ns"))
+		return -1;
 
 	cfg->server_fd = start_reuseport_server(family, SOCK_STREAM,
 						cfg->server_addr, TEST_PORT,
@@ -319,6 +323,10 @@ static int configure_encapsulation(struct subtest_cfg *cfg)
 static int configure_kernel_decapsulation(struct subtest_cfg *cfg)
 {
 	struct nstoken *nstoken = open_netns(SERVER_NS);
+	int ret = -1;
+
+	if (!ASSERT_OK_PTR(nstoken, "open server ns"))
+		return ret;
 
 	if (cfg->configure_fou_rx_port &&
 	    !ASSERT_OK(add_fou_rx_port(cfg), "configure FOU RX port"))
@@ -337,11 +345,11 @@ static int configure_kernel_decapsulation(struct subtest_cfg *cfg)
 	SYS(fail, "sysctl -qw net.ipv4.conf.all.rp_filter=0");
 	SYS(fail, "sysctl -qw net.ipv4.conf.testtun0.rp_filter=0");
 	SYS(fail, "ip link set dev testtun0 up");
-	close_netns(nstoken);
-	return 0;
+
+	ret = 0;
 fail:
 	close_netns(nstoken);
-	return -1;
+	return ret;
 }
 
 static void remove_kernel_decapsulation(struct subtest_cfg *cfg)
@@ -356,6 +364,10 @@ static void remove_kernel_decapsulation(struct subtest_cfg *cfg)
 static int configure_ebpf_decapsulation(struct subtest_cfg *cfg)
 {
 	struct nstoken *nstoken = open_netns(SERVER_NS);
+	int ret = -1;
+
+	if (!ASSERT_OK_PTR(nstoken, "open server ns"))
+		return ret;
 
 	if (!cfg->expect_kern_decap_failure)
 		SYS(fail, "ip link del testtun0");
@@ -363,16 +375,19 @@ static int configure_ebpf_decapsulation(struct subtest_cfg *cfg)
 	if (!ASSERT_OK(tc_prog_attach("veth2", cfg->server_ingress_prog_fd, -1),
 		       "attach_program"))
 		goto fail;
-	close_netns(nstoken);
-	return 0;
+
+	ret = 0;
 fail:
 	close_netns(nstoken);
-	return -1;
+	return ret;
 }
 
 static void run_test(struct subtest_cfg *cfg)
 {
 	struct nstoken *nstoken = open_netns(CLIENT_NS);
+
+	if (!ASSERT_OK_PTR(nstoken, "open client ns"))
+		return;
 
 	if (!ASSERT_OK(run_server(cfg), "run server"))
 		goto fail;
@@ -407,7 +422,7 @@ fail:
 
 static int setup(void)
 {
-	struct nstoken *nstoken = NULL;
+	struct nstoken *nstoken_client, *nstoken_server;
 	int fd, err;
 
 	fd = open("/dev/urandom", O_RDONLY);
@@ -424,52 +439,75 @@ static int setup(void)
 	    !ASSERT_OK(make_netns(SERVER_NS), "create server ns"))
 		goto fail;
 
-	nstoken = open_netns(CLIENT_NS);
-	SYS(fail, "ip link add %s type veth peer name %s",
+	nstoken_client = open_netns(CLIENT_NS);
+	if (!ASSERT_OK_PTR(nstoken_client, "open client ns"))
+		goto fail_delete_ns;
+	SYS(fail_close_ns_client, "ip link add %s type veth peer name %s",
 	    "veth1 mtu 1500 netns " CLIENT_NS " address " MAC_ADDR_VETH1,
 	    "veth2 mtu 1500 netns " SERVER_NS " address " MAC_ADDR_VETH2);
-	SYS(fail, "ethtool -K veth1 tso off");
-	SYS(fail, "ip link set veth1 up");
-	close_netns(nstoken);
-	nstoken = open_netns(SERVER_NS);
-	SYS(fail, "ip link set veth2 up");
-	close_netns(nstoken);
+	SYS(fail_close_ns_client, "ethtool -K veth1 tso off");
+	SYS(fail_close_ns_client, "ip link set veth1 up");
+	nstoken_server = open_netns(SERVER_NS);
+	if (!ASSERT_OK_PTR(nstoken_server, "open server ns"))
+		goto fail_close_ns_client;
+	SYS(fail_close_ns_server, "ip link set veth2 up");
 
+	close_netns(nstoken_server);
+	close_netns(nstoken_client);
 	return 0;
+
+fail_close_ns_server:
+	close_netns(nstoken_server);
+fail_close_ns_client:
+	close_netns(nstoken_client);
+fail_delete_ns:
+	SYS_NOFAIL("ip netns del " CLIENT_NS);
+	SYS_NOFAIL("ip netns del " SERVER_NS);
 fail:
-	close_netns(nstoken);
-	return 1;
+	return -1;
 }
 
 static int subtest_setup(struct test_tc_tunnel *skel, struct subtest_cfg *cfg)
 {
-	struct nstoken *nstoken;
+	struct nstoken *nstoken_client, *nstoken_server;
+	int ret = -1;
 
 	set_subtest_addresses(cfg);
 	if (!ASSERT_OK(set_subtest_progs(cfg, skel),
 		       "find subtest progs"))
-		return -1;
+		goto fail;
 	if (cfg->extra_decap_mod_args_cb)
 		cfg->extra_decap_mod_args_cb(cfg, cfg->extra_decap_mod_args);
 
-	nstoken = open_netns(CLIENT_NS);
-	SYS(fail, "ip -4 addr add " IP4_ADDR_VETH1 "/24 dev veth1");
-	SYS(fail, "ip -4 route flush table main");
-	SYS(fail, "ip -4 route add " IP4_ADDR_VETH2 " mtu 1450 dev veth1");
-	SYS(fail, "ip -6 addr add " IP6_ADDR_VETH1 "/64 dev veth1 nodad");
-	SYS(fail, "ip -6 route flush table main");
-	SYS(fail, "ip -6 route add " IP6_ADDR_VETH2 " mtu 1430 dev veth1");
-	close_netns(nstoken);
+	nstoken_client = open_netns(CLIENT_NS);
+	if (!ASSERT_OK_PTR(nstoken_client, "open client ns"))
+		goto fail;
+	SYS(fail_close_client_ns,
+	    "ip -4 addr add " IP4_ADDR_VETH1 "/24 dev veth1");
+	SYS(fail_close_client_ns, "ip -4 route flush table main");
+	SYS(fail_close_client_ns,
+	    "ip -4 route add " IP4_ADDR_VETH2 " mtu 1450 dev veth1");
+	SYS(fail_close_client_ns,
+	    "ip -6 addr add " IP6_ADDR_VETH1 "/64 dev veth1 nodad");
+	SYS(fail_close_client_ns, "ip -6 route flush table main");
+	SYS(fail_close_client_ns,
+	    "ip -6 route add " IP6_ADDR_VETH2 " mtu 1430 dev veth1");
+	nstoken_server = open_netns(SERVER_NS);
+	if (!ASSERT_OK_PTR(nstoken_server, "open server ns"))
+		goto fail_close_client_ns;
+	SYS(fail_close_server_ns,
+	    "ip -4 addr add " IP4_ADDR_VETH2 "/24 dev veth2");
+	SYS(fail_close_server_ns,
+	    "ip -6 addr add " IP6_ADDR_VETH2 "/64 dev veth2 nodad");
 
-	nstoken = open_netns(SERVER_NS);
-	SYS(fail, "ip -4 addr add " IP4_ADDR_VETH2 "/24 dev veth2");
-	SYS(fail, "ip -6 addr add " IP6_ADDR_VETH2 "/64 dev veth2 nodad");
-	close_netns(nstoken);
+	ret = 0;
 
-	return 0;
+fail_close_server_ns:
+	close_netns(nstoken_server);
+fail_close_client_ns:
+	close_netns(nstoken_client);
 fail:
-	close_netns(nstoken);
-	return -1;
+	return ret;
 }
 
 
@@ -478,15 +516,19 @@ static void subtest_cleanup(struct subtest_cfg *cfg)
 	struct nstoken *nstoken;
 
 	nstoken = open_netns(CLIENT_NS);
-	SYS_NOFAIL("tc qdisc delete dev veth1 parent ffff:fff1");
-	SYS_NOFAIL("ip a flush veth1");
-	close_netns(nstoken);
+	if (ASSERT_OK_PTR(nstoken, "open clien ns")) {
+		SYS_NOFAIL("tc qdisc delete dev veth1 parent ffff:fff1");
+		SYS_NOFAIL("ip a flush veth1");
+		close_netns(nstoken);
+	}
 	nstoken = open_netns(SERVER_NS);
-	SYS_NOFAIL("tc qdisc delete dev veth2 parent ffff:fff1");
-	SYS_NOFAIL("ip a flush veth2");
-	if (!cfg->expect_kern_decap_failure)
-		remove_kernel_decapsulation(cfg);
-	close_netns(nstoken);
+	if (ASSERT_OK_PTR(nstoken, "open clien ns")) {
+		SYS_NOFAIL("tc qdisc delete dev veth2 parent ffff:fff1");
+		SYS_NOFAIL("ip a flush veth2");
+		if (!cfg->expect_kern_decap_failure)
+			remove_kernel_decapsulation(cfg);
+		close_netns(nstoken);
+	}
 }
 
 static void cleanup(void)
