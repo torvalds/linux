@@ -6752,20 +6752,59 @@ static bool scsi_debug_stop_cmnd(struct scsi_cmnd *cmnd)
 	return false;
 }
 
+struct sdebug_abort_cmd {
+	u32 unique_tag;
+};
+
+enum sdebug_internal_cmd_type {
+	SCSI_DEBUG_ABORT_CMD,
+};
+
+struct sdebug_internal_cmd {
+	enum sdebug_internal_cmd_type type;
+
+	union {
+		struct sdebug_abort_cmd abort_cmd;
+	};
+};
+
+union sdebug_priv {
+	struct sdebug_scsi_cmd cmd;
+	struct sdebug_internal_cmd internal_cmd;
+};
+
 /*
- * Called from scsi_debug_abort() only, which is for timed-out cmd.
+ * Abort SCSI command @cmnd. Only called from scsi_debug_abort(). Although
+ * it would be possible to call scsi_debug_stop_cmnd() directly, an internal
+ * command is allocated and submitted to trigger the reserved command
+ * infrastructure.
  */
 static bool scsi_debug_abort_cmnd(struct scsi_cmnd *cmnd)
 {
-	struct sdebug_scsi_cmd *sdsc = scsi_cmd_priv(cmnd);
-	unsigned long flags;
-	bool res;
+	struct Scsi_Host *shost = cmnd->device->host;
+	struct request *rq = scsi_cmd_to_rq(cmnd);
+	u32 unique_tag = blk_mq_unique_tag(rq);
+	struct sdebug_internal_cmd *internal_cmd;
+	struct scsi_cmnd *abort_cmd;
+	struct request *abort_rq;
+	blk_status_t res;
 
-	spin_lock_irqsave(&sdsc->lock, flags);
-	res = scsi_debug_stop_cmnd(cmnd);
-	spin_unlock_irqrestore(&sdsc->lock, flags);
-
-	return res;
+	abort_cmd = scsi_get_internal_cmd(shost->pseudo_sdev, DMA_NONE,
+					  BLK_MQ_REQ_RESERVED);
+	if (!abort_cmd)
+		return false;
+	internal_cmd = scsi_cmd_priv(abort_cmd);
+	*internal_cmd = (struct sdebug_internal_cmd) {
+		.type = SCSI_DEBUG_ABORT_CMD,
+		.abort_cmd = {
+			.unique_tag = unique_tag,
+		},
+	};
+	abort_rq = scsi_cmd_to_rq(abort_cmd);
+	abort_rq->timeout = secs_to_jiffies(3);
+	res = blk_execute_rq(abort_rq, true);
+	scsi_put_internal_cmd(abort_cmd);
+	return res == BLK_STS_OK;
 }
 
 /*
@@ -9220,6 +9259,56 @@ out_handle:
 	return ret;
 }
 
+/* Process @scp, a request to abort a SCSI command by tag. */
+static void scsi_debug_abort_cmd(struct Scsi_Host *shost, struct scsi_cmnd *scp)
+{
+	struct sdebug_internal_cmd *internal_cmd = scsi_cmd_priv(scp);
+	struct sdebug_abort_cmd *abort_cmd = &internal_cmd->abort_cmd;
+	const u32 unique_tag = abort_cmd->unique_tag;
+	struct scsi_cmnd *to_be_aborted_scmd =
+		scsi_host_find_tag(shost, unique_tag);
+	struct sdebug_scsi_cmd *to_be_aborted_sdsc =
+		scsi_cmd_priv(to_be_aborted_scmd);
+	bool res = false;
+
+	if (!to_be_aborted_scmd) {
+		pr_err("%s: command with tag %#x not found\n", __func__,
+		       unique_tag);
+		return;
+	}
+
+	scoped_guard(spinlock_irqsave, &to_be_aborted_sdsc->lock)
+		res = scsi_debug_stop_cmnd(to_be_aborted_scmd);
+
+	if (res)
+		pr_info("%s: aborted command with tag %#x\n",
+			__func__, unique_tag);
+	else
+		pr_err("%s: failed to abort command with tag %#x\n",
+		       __func__, unique_tag);
+
+	set_host_byte(scp, res ? DID_OK : DID_ERROR);
+}
+
+static int scsi_debug_process_reserved_command(struct Scsi_Host *shost,
+					       struct scsi_cmnd *scp)
+{
+	struct sdebug_internal_cmd *internal_cmd = scsi_cmd_priv(scp);
+
+	switch (internal_cmd->type) {
+	case SCSI_DEBUG_ABORT_CMD:
+		scsi_debug_abort_cmd(shost, scp);
+		break;
+	default:
+		WARN_ON_ONCE(true);
+		set_host_byte(scp, DID_ERROR);
+		break;
+	}
+
+	scsi_done(scp);
+	return 0;
+}
+
 static int scsi_debug_queuecommand(struct Scsi_Host *shost,
 				   struct scsi_cmnd *scp)
 {
@@ -9420,6 +9509,9 @@ static int sdebug_init_cmd_priv(struct Scsi_Host *shost, struct scsi_cmnd *cmd)
 	struct sdebug_scsi_cmd *sdsc = scsi_cmd_priv(cmd);
 	struct sdebug_defer *sd_dp = &sdsc->sd_dp;
 
+	if (blk_mq_is_reserved_rq(scsi_cmd_to_rq(cmd)))
+		return 0;
+
 	spin_lock_init(&sdsc->lock);
 	hrtimer_setup(&sd_dp->hrt, sdebug_q_cmd_hrt_complete, CLOCK_MONOTONIC,
 		      HRTIMER_MODE_REL_PINNED);
@@ -9439,6 +9531,7 @@ static const struct scsi_host_template sdebug_driver_template = {
 	.sdev_destroy =		scsi_debug_sdev_destroy,
 	.ioctl =		scsi_debug_ioctl,
 	.queuecommand =		scsi_debug_queuecommand,
+	.queue_reserved_command = scsi_debug_process_reserved_command,
 	.change_queue_depth =	sdebug_change_qdepth,
 	.map_queues =		sdebug_map_queues,
 	.mq_poll =		sdebug_blk_mq_poll,
@@ -9448,6 +9541,7 @@ static const struct scsi_host_template sdebug_driver_template = {
 	.eh_bus_reset_handler = scsi_debug_bus_reset,
 	.eh_host_reset_handler = scsi_debug_host_reset,
 	.can_queue =		SDEBUG_CANQUEUE,
+	.nr_reserved_cmds =	1,
 	.this_id =		7,
 	.sg_tablesize =		SG_MAX_SEGMENTS,
 	.cmd_per_lun =		DEF_CMD_PER_LUN,
@@ -9456,7 +9550,7 @@ static const struct scsi_host_template sdebug_driver_template = {
 	.module =		THIS_MODULE,
 	.skip_settle_delay =	1,
 	.track_queue_depth =	1,
-	.cmd_size = sizeof(struct sdebug_scsi_cmd),
+	.cmd_size = sizeof(union sdebug_priv),
 	.init_cmd_priv = sdebug_init_cmd_priv,
 	.target_alloc =		sdebug_target_alloc,
 	.target_destroy =	sdebug_target_destroy,
