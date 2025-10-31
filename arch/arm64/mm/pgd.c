@@ -56,7 +56,7 @@ void __init pgtable_cache_init(void)
 	 * With 52-bit physical addresses, the architecture requires the
 	 * top-level table to be aligned to at least 64 bytes.
 	 */
-	BUILD_BUG_ON(PGD_SIZE < 64);
+	BUILD_BUG_ON(!IS_ALIGNED(PGD_SIZE, 64));
 #endif
 
 	/*
