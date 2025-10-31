@@ -184,8 +184,6 @@ static void rbtree_debugfs_init(struct regmap *map)
 static int regcache_rbtree_init(struct regmap *map)
 {
 	struct regcache_rbtree_ctx *rbtree_ctx;
-	int i;
-	int ret;
 
 	map->cache = kmalloc(sizeof *rbtree_ctx, map->alloc_flags);
 	if (!map->cache)
@@ -195,19 +193,7 @@ static int regcache_rbtree_init(struct regmap *map)
 	rbtree_ctx->root = RB_ROOT;
 	rbtree_ctx->cached_rbnode = NULL;
 
-	for (i = 0; i < map->num_reg_defaults; i++) {
-		ret = regcache_rbtree_write(map,
-					    map->reg_defaults[i].reg,
-					    map->reg_defaults[i].def);
-		if (ret)
-			goto err;
-	}
-
 	return 0;
-
-err:
-	regcache_rbtree_exit(map);
-	return ret;
 }
 
 static int regcache_rbtree_exit(struct regmap *map)
@@ -235,6 +221,22 @@ static int regcache_rbtree_exit(struct regmap *map)
 	/* release the resources */
 	kfree(map->cache);
 	map->cache = NULL;
+
+	return 0;
+}
+
+static int regcache_rbtree_populate(struct regmap *map)
+{
+	unsigned int i;
+	int ret;
+
+	for (i = 0; i < map->num_reg_defaults; i++) {
+		ret = regcache_rbtree_write(map,
+					    map->reg_defaults[i].reg,
+					    map->reg_defaults[i].def);
+		if (ret)
+			return ret;
+	}
 
 	return 0;
 }
@@ -546,6 +548,7 @@ struct regcache_ops regcache_rbtree_ops = {
 	.name = "rbtree",
 	.init = regcache_rbtree_init,
 	.exit = regcache_rbtree_exit,
+	.populate = regcache_rbtree_populate,
 #ifdef CONFIG_DEBUG_FS
 	.debugfs_init = rbtree_debugfs_init,
 #endif
