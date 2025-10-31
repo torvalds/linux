@@ -83,6 +83,17 @@ mt7925_regd_channel_update(struct wiphy *wiphy, struct mt792x_dev *dev)
 			dev->phy.clc_chan_conf &= ~MT7925_UNII_6G_IS_VALID;
 	}
 
+	sband = wiphy->bands[NL80211_BAND_2GHZ];
+	if (!sband)
+		return;
+
+	for (i = 0; i < sband->n_channels; i++) {
+		ch = &sband->channels[i];
+
+		if (!dev->has_eht)
+			ch->flags |= IEEE80211_CHAN_NO_EHT;
+	}
+
 	sband = wiphy->bands[NL80211_BAND_5GHZ];
 	if (!sband)
 		return;
@@ -93,6 +104,9 @@ mt7925_regd_channel_update(struct wiphy *wiphy, struct mt792x_dev *dev)
 		/* UNII-4 */
 		if (IS_UNII_INVALID(0, 5845, 5925, ch->center_freq))
 			ch->flags |= IEEE80211_CHAN_DISABLED;
+
+		if (!dev->has_eht)
+			ch->flags |= IEEE80211_CHAN_NO_EHT;
 	}
 
 	sband = wiphy->bands[NL80211_BAND_6GHZ];
@@ -108,6 +122,9 @@ mt7925_regd_channel_update(struct wiphy *wiphy, struct mt792x_dev *dev)
 		    IS_UNII_INVALID(3, 6525, 6875, ch->center_freq) ||
 		    IS_UNII_INVALID(4, 6875, 7125, ch->center_freq))
 			ch->flags |= IEEE80211_CHAN_DISABLED;
+
+		if (!dev->has_eht)
+			ch->flags |= IEEE80211_CHAN_NO_EHT;
 	}
 }
 
@@ -128,6 +145,7 @@ int mt7925_mcu_regd_update(struct mt792x_dev *dev, u8 *alpha2,
 	if (ret < 0)
 		goto err;
 
+	mt7925_regd_be_ctrl(dev, alpha2);
 	mt7925_regd_channel_update(wiphy, dev);
 
 	ret = mt7925_mcu_set_channel_domain(hw->priv);

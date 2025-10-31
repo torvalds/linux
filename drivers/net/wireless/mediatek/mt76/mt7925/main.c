@@ -1369,8 +1369,6 @@ void mt7925_scan_work(struct work_struct *work)
 				if (!is_valid_alpha2(evt->alpha2))
 					break;
 
-				mt7925_regd_be_ctrl(phy->dev, evt->alpha2);
-
 				if (mdev->alpha2[0] != '0' && mdev->alpha2[1] != '0')
 					break;
 
