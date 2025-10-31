@@ -197,3 +197,64 @@ void mt7925_regd_notifier(struct wiphy *wiphy, struct regulatory_request *req)
 			       req->country_ie_env);
 	return;
 }
+
+static bool
+mt7925_regd_is_valid_alpha2(const char *alpha2)
+{
+	if (!alpha2)
+		return false;
+
+	if (alpha2[0] == '0' && alpha2[1] == '0')
+		return true;
+
+	if (isalpha(alpha2[0]) && isalpha(alpha2[1]))
+		return true;
+
+	return false;
+}
+
+int mt7925_regd_change(struct mt792x_phy *phy, char *alpha2)
+{
+	struct wiphy *wiphy = phy->mt76->hw->wiphy;
+	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
+	struct mt792x_dev *dev = mt792x_hw_dev(hw);
+	struct mt76_dev *mdev = &dev->mt76;
+
+	if (dev->hw_full_reset)
+		return 0;
+
+	if (!mt7925_regd_is_valid_alpha2(alpha2) ||
+	    !mt7925_regd_clc_supported(dev))
+		return -EINVAL;
+
+	if (mdev->alpha2[0] != '0' && mdev->alpha2[1] != '0')
+		return 0;
+
+	/* do not need to update the same country twice */
+	if (!memcmp(alpha2, mdev->alpha2, 2))
+		return 0;
+
+	if (phy->chip_cap & MT792x_CHIP_CAP_11D_EN) {
+		return regulatory_hint(wiphy, alpha2);
+	} else {
+		return mt7925_mcu_set_clc(dev, alpha2, ENVIRON_INDOOR);
+	}
+}
+EXPORT_SYMBOL_GPL(mt7925_regd_change);
+
+int mt7925_regd_init(struct mt792x_phy *phy)
+{
+	struct wiphy *wiphy = phy->mt76->hw->wiphy;
+	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
+	struct mt792x_dev *dev = mt792x_hw_dev(hw);
+	struct mt76_dev *mdev = &dev->mt76;
+
+	if (phy->chip_cap & MT792x_CHIP_CAP_11D_EN) {
+		wiphy->regulatory_flags |= REGULATORY_COUNTRY_IE_IGNORE |
+					   REGULATORY_DISABLE_BEACON_HINTS;
+	} else {
+		memzero_explicit(&mdev->alpha2, sizeof(mdev->alpha2));
+	}
+
+	return 0;
+}

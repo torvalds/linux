@@ -91,8 +91,6 @@ int mt7925_mac_init(struct mt792x_dev *dev)
 
 	mt7925_mac_init_basic_rates(dev);
 
-	memzero_explicit(&dev->mt76.alpha2, sizeof(dev->mt76.alpha2));
-
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mt7925_mac_init);

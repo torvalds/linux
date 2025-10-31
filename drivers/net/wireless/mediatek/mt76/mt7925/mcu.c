@@ -755,6 +755,7 @@ static int mt7925_load_clc(struct mt792x_dev *dev, const char *fw_name)
 		}
 	}
 
+	ret = mt7925_regd_init(phy);
 out:
 	release_firmware(fw);
 

@@ -6,6 +6,7 @@
 #include <linux/timekeeping.h>
 #include "mt7925.h"
 #include "../dma.h"
+#include "regd.h"
 #include "mac.h"
 #include "mcu.h"
 
@@ -1329,9 +1330,7 @@ void mt7925_mac_reset_work(struct work_struct *work)
 					    mt7925_vif_connect_iter, NULL);
 	mt76_connac_power_save_sched(&dev->mt76.phy, pm);
 
-	mt792x_mutex_acquire(dev);
-	mt7925_mcu_set_clc(dev, "00", ENVIRON_INDOOR);
-	mt792x_mutex_release(dev);
+	mt7925_regd_change(&dev->phy, "00");
 }
 
 void mt7925_coredump_work(struct work_struct *work)
