@@ -1184,6 +1184,10 @@ struct replay_settings {
 	uint32_t coasting_vtotal_table[PR_COASTING_TYPE_NUM];
 	/* Defer Update Coasting vtotal table */
 	uint32_t defer_update_coasting_vtotal_table[PR_COASTING_TYPE_NUM];
+	/* Skip frame number table */
+	uint32_t frame_skip_number_table[PR_COASTING_TYPE_NUM];
+	/* Defer skip frame number table */
+	uint32_t defer_frame_skip_number_table[PR_COASTING_TYPE_NUM];
 	/* Maximum link off frame count */
 	uint32_t link_off_frame_count;
 	/* Replay pseudo vtotal for low refresh rate*/
@@ -1192,6 +1196,8 @@ struct replay_settings {
 	uint16_t last_pseudo_vtotal;
 	/* Replay desync error */
 	uint32_t replay_desync_error_fail_count;
+	/* The frame skip number dal send to DMUB */
+	uint16_t frame_skip_number;
 };
 
 /* To split out "global" and "per-panel" config settings.

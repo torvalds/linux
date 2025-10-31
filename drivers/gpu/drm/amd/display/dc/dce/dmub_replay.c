@@ -213,7 +213,8 @@ static bool dmub_replay_copy_settings(struct dmub_replay *dmub,
  */
 static void dmub_replay_set_coasting_vtotal(struct dmub_replay *dmub,
 		uint32_t coasting_vtotal,
-		uint8_t panel_inst)
+		uint8_t panel_inst,
+		uint16_t frame_skip_number)
 {
 	union dmub_rb_cmd cmd;
 	struct dc_context *dc = dmub->ctx;
@@ -227,6 +228,7 @@ static void dmub_replay_set_coasting_vtotal(struct dmub_replay *dmub,
 	pCmd->header.payload_bytes = sizeof(struct dmub_cmd_replay_set_coasting_vtotal_data);
 	pCmd->replay_set_coasting_vtotal_data.coasting_vtotal = (coasting_vtotal & 0xFFFF);
 	pCmd->replay_set_coasting_vtotal_data.coasting_vtotal_high = (coasting_vtotal & 0xFFFF0000) >> 16;
+	pCmd->replay_set_coasting_vtotal_data.frame_skip_number = frame_skip_number;
 
 	dc_wake_and_execute_dmub_cmd(dc, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 }
@@ -283,7 +285,7 @@ static void dmub_replay_residency(struct dmub_replay *dmub, uint8_t panel_inst,
  * Set REPLAY power optimization flags and coasting vtotal.
  */
 static void dmub_replay_set_power_opt_and_coasting_vtotal(struct dmub_replay *dmub,
-		unsigned int power_opt, uint8_t panel_inst, uint32_t coasting_vtotal)
+		unsigned int power_opt, uint8_t panel_inst, uint32_t coasting_vtotal, uint16_t frame_skip_number)
 {
 	union dmub_rb_cmd cmd;
 	struct dc_context *dc = dmub->ctx;
@@ -301,6 +303,7 @@ static void dmub_replay_set_power_opt_and_coasting_vtotal(struct dmub_replay *dm
 	pCmd->replay_set_power_opt_data.panel_inst = panel_inst;
 	pCmd->replay_set_coasting_vtotal_data.coasting_vtotal = (coasting_vtotal & 0xFFFF);
 	pCmd->replay_set_coasting_vtotal_data.coasting_vtotal_high = (coasting_vtotal & 0xFFFF0000) >> 16;
+	pCmd->replay_set_coasting_vtotal_data.frame_skip_number = frame_skip_number;
 
 	dc_wake_and_execute_dmub_cmd(dc, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 }
