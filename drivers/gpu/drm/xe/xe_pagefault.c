@@ -3,6 +3,8 @@
  * Copyright © 2025 Intel Corporation
  */
 
+#include <linux/circ_buf.h>
+
 #include <drm/drm_managed.h>
 
 #include "xe_device.h"
@@ -167,6 +169,14 @@ void xe_pagefault_reset(struct xe_device *xe, struct xe_gt *gt)
 		xe_pagefault_queue_reset(xe, gt, xe->usm.pf_queue + i);
 }
 
+static bool xe_pagefault_queue_full(struct xe_pagefault_queue *pf_queue)
+{
+	lockdep_assert_held(&pf_queue->lock);
+
+	return CIRC_SPACE(pf_queue->head, pf_queue->tail, pf_queue->size) <=
+		xe_pagefault_entry_size();
+}
+
 /**
  * xe_pagefault_handler() - Page fault handler
  * @xe: xe device instance
@@ -179,6 +189,24 @@ void xe_pagefault_reset(struct xe_device *xe, struct xe_gt *gt)
  */
 int xe_pagefault_handler(struct xe_device *xe, struct xe_pagefault *pf)
 {
-	/* TODO - implement */
-	return 0;
+	struct xe_pagefault_queue *pf_queue = xe->usm.pf_queue +
+		(pf->consumer.asid % XE_PAGEFAULT_QUEUE_COUNT);
+	unsigned long flags;
+	bool full;
+
+	spin_lock_irqsave(&pf_queue->lock, flags);
+	full = xe_pagefault_queue_full(pf_queue);
+	if (!full) {
+		memcpy(pf_queue->data + pf_queue->head, pf, sizeof(*pf));
+		pf_queue->head = (pf_queue->head + xe_pagefault_entry_size()) %
+			pf_queue->size;
+		queue_work(xe->usm.pf_wq, &pf_queue->worker);
+	} else {
+		drm_warn(&xe->drm,
+			 "PageFault Queue (%d) full, shouldn't be possible\n",
+			 pf->consumer.asid % XE_PAGEFAULT_QUEUE_COUNT);
+	}
+	spin_unlock_irqrestore(&pf_queue->lock, flags);
+
+	return full ? -ENOSPC : 0;
 }
