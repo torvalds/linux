@@ -44,9 +44,10 @@ static LIST_HEAD(pm_vt_switch_list);
  * no_console_suspend argument has been passed on the command line, VT
  * switches will occur.
  */
-void pm_vt_switch_required(struct device *dev, bool required)
+int pm_vt_switch_required(struct device *dev, bool required)
 {
 	struct pm_vt_switch *entry, *tmp;
+	int ret = 0;
 
 	mutex_lock(&vt_switch_mutex);
 	list_for_each_entry(tmp, &pm_vt_switch_list, head) {
@@ -58,8 +59,10 @@ void pm_vt_switch_required(struct device *dev, bool required)
 	}
 
 	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
-	if (!entry)
+	if (!entry) {
+		ret = -ENOMEM;
 		goto out;
+		}
 
 	entry->required = required;
 	entry->dev = dev;
@@ -67,6 +70,7 @@ void pm_vt_switch_required(struct device *dev, bool required)
 	list_add(&entry->head, &pm_vt_switch_list);
 out:
 	mutex_unlock(&vt_switch_mutex);
+	return ret;
 }
 EXPORT_SYMBOL(pm_vt_switch_required);
 

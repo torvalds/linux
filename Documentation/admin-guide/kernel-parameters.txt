@@ -1907,6 +1907,16 @@
 			/sys/power/pm_test). Only available when CONFIG_PM_DEBUG
 			is set. Default value is 5.
 
+	hibernate_compression_threads=
+			[HIBERNATION]
+			Set the number of threads used for compressing or decompressing
+			hibernation images.
+
+			Format: <integer>
+			Default: 3
+			Minimum: 1
+			Example: hibernate_compression_threads=4
+
 	highmem=nn[KMG]	[KNL,BOOT,EARLY] forces the highmem zone to have an exact
 			size of <nn>. This works even on boxes that have no
 			highmem otherwise. This also works to reduce highmem
