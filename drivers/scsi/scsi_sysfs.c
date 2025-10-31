@@ -648,10 +648,14 @@ static ssize_t
 sdev_store_timeout (struct device *dev, struct device_attribute *attr,
 		    const char *buf, size_t count)
 {
-	struct scsi_device *sdev;
-	int timeout;
-	sdev = to_scsi_device(dev);
-	sscanf (buf, "%d\n", &timeout);
+	struct scsi_device *sdev = to_scsi_device(dev);
+	int ret, timeout;
+
+	ret = kstrtoint(buf, 0, &timeout);
+	if (ret)
+		return ret;
+	if (timeout <= 0)
+		return -EINVAL;
 	blk_queue_rq_timeout(sdev->request_queue, timeout * HZ);
 	return count;
 }
