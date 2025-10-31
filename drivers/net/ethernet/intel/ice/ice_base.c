@@ -2,6 +2,7 @@
 /* Copyright (c) 2019, Intel Corporation. */
 
 #include <net/xdp_sock_drv.h>
+#include <linux/net/intel/libie/rx.h>
 #include "ice_base.h"
 #include "ice_lib.h"
 #include "ice_dcb_lib.h"
@@ -462,19 +463,6 @@ u16 ice_calc_ts_ring_count(struct ice_tx_ring *tx_ring)
 }
 
 /**
- * ice_rx_offset - Return expected offset into page to access data
- * @rx_ring: Ring we are requesting offset of
- *
- * Returns the offset value for ring into the data buffer.
- */
-static unsigned int ice_rx_offset(struct ice_rx_ring *rx_ring)
-{
-	if (ice_ring_uses_build_skb(rx_ring))
-		return ICE_SKB_PAD;
-	return 0;
-}
-
-/**
  * ice_setup_rx_ctx - Configure a receive ring context
  * @ring: The Rx ring to configure
  *
@@ -536,8 +524,29 @@ static int ice_setup_rx_ctx(struct ice_rx_ring *ring)
 	else
 		rlan_ctx.l2tsel = 1;
 
-	rlan_ctx.dtype = ICE_RX_DTYPE_NO_SPLIT;
-	rlan_ctx.hsplit_0 = ICE_RLAN_RX_HSPLIT_0_NO_SPLIT;
+	if (ring->hdr_pp) {
+		rlan_ctx.hbuf = ring->rx_hdr_len >> ICE_RLAN_CTX_HBUF_S;
+		rlan_ctx.dtype = ICE_RX_DTYPE_HEADER_SPLIT;
+
+		/*
+		 * If the frame is TCP/UDP/SCTP, it will be split by the
+		 * payload.
+		 * If not, but it's an IPv4/IPv6 frame, it will be split by
+		 * the IP header.
+		 * If not IP, it will be split by the Ethernet header.
+		 *
+		 * In any case, the header buffer will never be left empty.
+		 */
+		rlan_ctx.hsplit_0 = ICE_RLAN_RX_HSPLIT_0_SPLIT_L2 |
+				    ICE_RLAN_RX_HSPLIT_0_SPLIT_IP |
+				    ICE_RLAN_RX_HSPLIT_0_SPLIT_TCP_UDP |
+				    ICE_RLAN_RX_HSPLIT_0_SPLIT_SCTP;
+	} else {
+		rlan_ctx.hbuf = 0;
+		rlan_ctx.dtype = ICE_RX_DTYPE_NO_SPLIT;
+		rlan_ctx.hsplit_0 = ICE_RLAN_RX_HSPLIT_0_NO_SPLIT;
+	}
+
 	rlan_ctx.hsplit_1 = ICE_RLAN_RX_HSPLIT_1_NO_SPLIT;
 
 	/* This controls whether VLAN is stripped from inner headers
@@ -549,7 +558,7 @@ static int ice_setup_rx_ctx(struct ice_rx_ring *ring)
 	/* Max packet size for this queue - must not be set to a larger value
 	 * than 5 x DBUF
 	 */
-	rlan_ctx.rxmax = min_t(u32, ring->max_frame,
+	rlan_ctx.rxmax = min_t(u32, vsi->max_frame,
 			       ICE_MAX_CHAINED_RX_BUFS * ring->rx_buf_len);
 
 	/* Rx queue threshold in units of 64 */
@@ -586,14 +595,6 @@ static int ice_setup_rx_ctx(struct ice_rx_ring *ring)
 	if (vsi->type == ICE_VSI_VF)
 		return 0;
 
-	/* configure Rx buffer alignment */
-	if (!vsi->netdev || test_bit(ICE_FLAG_LEGACY_RX, vsi->back->flags))
-		ice_clear_ring_build_skb_ena(ring);
-	else
-		ice_set_ring_build_skb_ena(ring);
-
-	ring->rx_offset = ice_rx_offset(ring);
-
 	/* init queue specific tail register */
 	ring->tail = hw->hw_addr + QRX_TAIL(pf_q);
 	writel(0, ring->tail);
@@ -601,36 +602,51 @@ static int ice_setup_rx_ctx(struct ice_rx_ring *ring)
 	return 0;
 }
 
-static void ice_xsk_pool_fill_cb(struct ice_rx_ring *ring)
+static int ice_rxq_pp_create(struct ice_rx_ring *rq)
 {
-	void *ctx_ptr = &ring->pkt_ctx;
-	struct xsk_cb_desc desc = {};
+	struct libeth_fq fq = {
+		.count		= rq->count,
+		.nid		= NUMA_NO_NODE,
+		.hsplit		= rq->vsi->hsplit,
+		.xdp		= ice_is_xdp_ena_vsi(rq->vsi),
+		.buf_len	= LIBIE_MAX_RX_BUF_LEN,
+	};
+	int err;
 
-	XSK_CHECK_PRIV_TYPE(struct ice_xdp_buff);
-	desc.src = &ctx_ptr;
-	desc.off = offsetof(struct ice_xdp_buff, pkt_ctx) -
-		   sizeof(struct xdp_buff);
-	desc.bytes = sizeof(ctx_ptr);
-	xsk_pool_fill_cb(ring->xsk_pool, &desc);
-}
+	err = libeth_rx_fq_create(&fq, &rq->q_vector->napi);
+	if (err)
+		return err;
 
-/**
- * ice_get_frame_sz - calculate xdp_buff::frame_sz
- * @rx_ring: the ring being configured
- *
- * Return frame size based on underlying PAGE_SIZE
- */
-static unsigned int ice_get_frame_sz(struct ice_rx_ring *rx_ring)
-{
-	unsigned int frame_sz;
+	rq->pp = fq.pp;
+	rq->rx_fqes = fq.fqes;
+	rq->truesize = fq.truesize;
+	rq->rx_buf_len = fq.buf_len;
 
-#if (PAGE_SIZE >= 8192)
-	frame_sz = rx_ring->rx_buf_len;
-#else
-	frame_sz = ice_rx_pg_size(rx_ring) / 2;
-#endif
+	if (!fq.hsplit)
+		return 0;
 
-	return frame_sz;
+	fq = (struct libeth_fq){
+		.count		= rq->count,
+		.type		= LIBETH_FQE_HDR,
+		.nid		= NUMA_NO_NODE,
+		.xdp		= ice_is_xdp_ena_vsi(rq->vsi),
+	};
+
+	err = libeth_rx_fq_create(&fq, &rq->q_vector->napi);
+	if (err)
+		goto destroy;
+
+	rq->hdr_pp = fq.pp;
+	rq->hdr_fqes = fq.fqes;
+	rq->hdr_truesize = fq.truesize;
+	rq->rx_hdr_len = fq.buf_len;
+
+	return 0;
+
+destroy:
+	ice_rxq_pp_destroy(rq);
+
+	return err;
 }
 
 /**
@@ -642,7 +658,8 @@ static unsigned int ice_get_frame_sz(struct ice_rx_ring *rx_ring)
 static int ice_vsi_cfg_rxq(struct ice_rx_ring *ring)
 {
 	struct device *dev = ice_pf_to_dev(ring->vsi->back);
-	u32 num_bufs = ICE_RX_DESC_UNUSED(ring);
+	u32 num_bufs = ICE_DESC_UNUSED(ring);
+	u32 rx_buf_len;
 	int err;
 
 	if (ring->vsi->type == ICE_VSI_PF || ring->vsi->type == ICE_VSI_SF) {
@@ -656,15 +673,19 @@ static int ice_vsi_cfg_rxq(struct ice_rx_ring *ring)
 		}
 
 		ice_rx_xsk_pool(ring);
+		err = ice_realloc_rx_xdp_bufs(ring, ring->xsk_pool);
+		if (err)
+			return err;
+
 		if (ring->xsk_pool) {
 			xdp_rxq_info_unreg(&ring->xdp_rxq);
 
-			ring->rx_buf_len =
+			rx_buf_len =
 				xsk_pool_get_rx_frame_size(ring->xsk_pool);
 			err = __xdp_rxq_info_reg(&ring->xdp_rxq, ring->netdev,
 						 ring->q_index,
 						 ring->q_vector->napi.napi_id,
-						 ring->rx_buf_len);
+						 rx_buf_len);
 			if (err)
 				return err;
 			err = xdp_rxq_info_reg_mem_model(&ring->xdp_rxq,
@@ -673,36 +694,33 @@ static int ice_vsi_cfg_rxq(struct ice_rx_ring *ring)
 			if (err)
 				return err;
 			xsk_pool_set_rxq_info(ring->xsk_pool, &ring->xdp_rxq);
-			ice_xsk_pool_fill_cb(ring);
 
 			dev_info(dev, "Registered XDP mem model MEM_TYPE_XSK_BUFF_POOL on Rx ring %d\n",
 				 ring->q_index);
 		} else {
+			err = ice_rxq_pp_create(ring);
+			if (err)
+				return err;
+
 			if (!xdp_rxq_info_is_reg(&ring->xdp_rxq)) {
 				err = __xdp_rxq_info_reg(&ring->xdp_rxq, ring->netdev,
 							 ring->q_index,
 							 ring->q_vector->napi.napi_id,
 							 ring->rx_buf_len);
 				if (err)
-					return err;
+					goto err_destroy_fq;
 			}
-
-			err = xdp_rxq_info_reg_mem_model(&ring->xdp_rxq,
-							 MEM_TYPE_PAGE_SHARED,
-							 NULL);
-			if (err)
-				return err;
+			xdp_rxq_info_attach_page_pool(&ring->xdp_rxq,
+						      ring->pp);
 		}
 	}
 
-	xdp_init_buff(&ring->xdp, ice_get_frame_sz(ring), &ring->xdp_rxq);
 	ring->xdp.data = NULL;
-	ring->xdp_ext.pkt_ctx = &ring->pkt_ctx;
 	err = ice_setup_rx_ctx(ring);
 	if (err) {
 		dev_err(dev, "ice_setup_rx_ctx failed for RxQ %d, err %d\n",
 			ring->q_index, err);
-		return err;
+		goto err_destroy_fq;
 	}
 
 	if (ring->xsk_pool) {
@@ -730,9 +748,17 @@ static int ice_vsi_cfg_rxq(struct ice_rx_ring *ring)
 	if (ring->vsi->type == ICE_VSI_CTRL)
 		ice_init_ctrl_rx_descs(ring, num_bufs);
 	else
-		ice_alloc_rx_bufs(ring, num_bufs);
+		err = ice_alloc_rx_bufs(ring, num_bufs);
+
+	if (err)
+		goto err_destroy_fq;
 
 	return 0;
+
+err_destroy_fq:
+	ice_rxq_pp_destroy(ring);
+
+	return err;
 }
 
 int ice_vsi_cfg_single_rxq(struct ice_vsi *vsi, u16 q_idx)
@@ -753,18 +779,10 @@ int ice_vsi_cfg_single_rxq(struct ice_vsi *vsi, u16 q_idx)
  */
 static void ice_vsi_cfg_frame_size(struct ice_vsi *vsi, struct ice_rx_ring *ring)
 {
-	if (!vsi->netdev || test_bit(ICE_FLAG_LEGACY_RX, vsi->back->flags)) {
-		ring->max_frame = ICE_MAX_FRAME_LEGACY_RX;
-		ring->rx_buf_len = ICE_RXBUF_1664;
-#if (PAGE_SIZE < 8192)
-	} else if (!ICE_2K_TOO_SMALL_WITH_PADDING &&
-		   (vsi->netdev->mtu <= ETH_DATA_LEN)) {
-		ring->max_frame = ICE_RXBUF_1536 - NET_IP_ALIGN;
-		ring->rx_buf_len = ICE_RXBUF_1536 - NET_IP_ALIGN;
-#endif
+	if (!vsi->netdev) {
+		vsi->max_frame = ICE_MAX_FRAME_LEGACY_RX;
 	} else {
-		ring->max_frame = ICE_AQ_SET_MAC_FRAME_SIZE_MAX;
-		ring->rx_buf_len = ICE_RXBUF_3072;
+		vsi->max_frame = ICE_AQ_SET_MAC_FRAME_SIZE_MAX;
 	}
 }
 
