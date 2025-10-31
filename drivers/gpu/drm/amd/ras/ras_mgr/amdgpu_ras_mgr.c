@@ -172,12 +172,13 @@ static int amdgpu_ras_mgr_init_nbio_config(struct amdgpu_device *adev,
 
 	switch (config->nbio_ip_version) {
 	case IP_VERSION(7, 9, 0):
+	case IP_VERSION(7, 9, 1):
 		nbio_cfg->nbio_sys_fn = &amdgpu_ras_nbio_sys_func_v7_9;
 		break;
 	default:
 		RAS_DEV_ERR(adev,
 			"The nbio(0x%x) ras config is not right!\n",
-			config->mp1_ip_version);
+			config->nbio_ip_version);
 		ret = -EINVAL;
 		break;
 	}
