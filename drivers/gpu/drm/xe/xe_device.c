@@ -52,6 +52,7 @@
 #include "xe_nvm.h"
 #include "xe_oa.h"
 #include "xe_observation.h"
+#include "xe_pagefault.h"
 #include "xe_pat.h"
 #include "xe_pcode.h"
 #include "xe_pm.h"
@@ -895,6 +896,10 @@ int xe_device_probe(struct xe_device *xe)
 		if (err)
 			return err;
 	}
+
+	err = xe_pagefault_init(xe);
+	if (err)
+		return err;
 
 	if (xe->tiles->media_gt &&
 	    XE_GT_WA(xe->tiles->media_gt, 15015404425_disable))
