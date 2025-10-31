@@ -27,7 +27,6 @@
 #include "xe_device.h"
 #include "xe_drm_client.h"
 #include "xe_exec_queue.h"
-#include "xe_gt_pagefault.h"
 #include "xe_migrate.h"
 #include "xe_pat.h"
 #include "xe_pm.h"
