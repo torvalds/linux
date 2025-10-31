@@ -50,6 +50,11 @@ static const uint8_t DP_VGA_LVDS_CONVERTER_ID_2[] = "sivarT";
 /* Nutmeg */
 static const uint8_t DP_VGA_LVDS_CONVERTER_ID_3[] = "dnomlA";
 
+static const unsigned int pwr_default_min_brightness_millinits = 1000;
+static const unsigned int pwr_default_sdr_brightness_millinits = 270000;
+static const unsigned int pwr_default_min_backlight_pwm = 0xC0C;
+static const unsigned int pwr_default_max_backlight_pwm = 0xFFFF;
+
 void dp_set_panel_mode(struct dc_link *link, enum dp_panel_mode panel_mode)
 {
 	union dpcd_edp_config edp_config_set;
@@ -309,7 +314,7 @@ static bool read_default_bl_aux(struct dc_link *link, uint32_t *backlight_millin
 	return true;
 }
 
-bool set_default_brightness_aux(struct dc_link *link)
+bool set_default_brightness(struct dc_link *link)
 {
 	uint32_t default_backlight;
 
@@ -320,8 +325,23 @@ bool set_default_brightness_aux(struct dc_link *link)
 		if (default_backlight < 1000 || default_backlight > 5000000)
 			default_backlight = 150000;
 
-		return edp_set_backlight_level_nits(link, true,
-				default_backlight, 0);
+		if (link->backlight_control_type == BACKLIGHT_CONTROL_VESA_AUX &&
+			link->dc->caps.dmub_caps.aux_backlight_support) {
+			struct set_backlight_level_params backlight_level_params = { 0 };
+
+			backlight_level_params.aux_inst =  link->ddc->ddc_pin->hw_info.ddc_channel;
+			backlight_level_params.control_type = BACKLIGHT_CONTROL_VESA_AUX;
+			backlight_level_params.backlight_pwm_u16_16 = default_backlight;
+			backlight_level_params.transition_time_in_ms = 0;
+			// filled in the driver BL default values
+			backlight_level_params.min_luminance = pwr_default_min_brightness_millinits;
+			backlight_level_params.max_luminance = pwr_default_sdr_brightness_millinits;
+			backlight_level_params.min_backlight_pwm = pwr_default_min_backlight_pwm;
+			backlight_level_params.max_backlight_pwm = pwr_default_max_backlight_pwm;
+			return edp_set_backlight_level(link, &backlight_level_params);
+		} else
+			return edp_set_backlight_level_nits(link, true,
+					default_backlight, 0);
 	}
 	return false;
 }

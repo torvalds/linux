@@ -2167,7 +2167,7 @@ void detect_edp_sink_caps(struct dc_link *link)
 	link->dpcd_caps.set_power_state_capable_edp =
 				(general_edp_cap & DP_EDP_SET_POWER_CAP) ? true : false;
 
-	set_default_brightness_aux(link);
+	set_default_brightness(link);
 
 	core_link_read_dpcd(link, DP_EDP_DPCD_REV,
 		&link->dpcd_caps.edp_rev,
