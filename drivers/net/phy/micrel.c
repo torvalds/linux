@@ -5965,6 +5965,9 @@ static int lan8842_probe(struct phy_device *phydev)
 
 #define LAN8814_POWER_MGMT_VAL5		LAN8814_POWER_MGMT_B_C_D
 
+#define LAN8814_EEE_WAKE_TX_TIMER			0x0e
+#define LAN8814_EEE_WAKE_TX_TIMER_MAX_VAL		0x1f
+
 static const struct lanphy_reg_data short_center_tap_errata[] = {
 	{ LAN8814_PAGE_POWER_REGS,
 	  LAN8814_POWER_MGMT_MODE_3_ANEG_MDI,
@@ -6004,6 +6007,12 @@ static const struct lanphy_reg_data short_center_tap_errata[] = {
 	  LAN8814_POWER_MGMT_VAL4 },
 };
 
+static const struct lanphy_reg_data waketx_timer_errata[] = {
+	{ LAN8814_PAGE_EEE,
+	  LAN8814_EEE_WAKE_TX_TIMER,
+	  LAN8814_EEE_WAKE_TX_TIMER_MAX_VAL },
+};
+
 static int lanphy_write_reg_data(struct phy_device *phydev,
 				 const struct lanphy_reg_data *data,
 				 size_t num)
@@ -6022,8 +6031,15 @@ static int lanphy_write_reg_data(struct phy_device *phydev,
 
 static int lan8842_erratas(struct phy_device *phydev)
 {
-	return lanphy_write_reg_data(phydev, short_center_tap_errata,
+	int ret;
+
+	ret = lanphy_write_reg_data(phydev, short_center_tap_errata,
 				    ARRAY_SIZE(short_center_tap_errata));
+	if (ret)
+		return ret;
+
+	return lanphy_write_reg_data(phydev, waketx_timer_errata,
+				     ARRAY_SIZE(waketx_timer_errata));
 }
 
 static int lan8842_config_init(struct phy_device *phydev)
