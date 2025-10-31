@@ -37,7 +37,8 @@ ccflags-y := -I$(FULL_AMD_PATH)/include/asic_reg \
 	-I$(FULL_AMD_DISPLAY_PATH)/modules/inc \
 	-I$(FULL_AMD_DISPLAY_PATH)/dc \
 	-I$(FULL_AMD_DISPLAY_PATH)/amdgpu_dm \
-	-I$(FULL_AMD_PATH)/amdkfd
+	-I$(FULL_AMD_PATH)/amdkfd \
+	-I$(FULL_AMD_PATH)/ras/ras_mgr
 
 # Locally disable W=1 warnings enabled in drm subsystem Makefile
 subdir-ccflags-y += -Wno-override-init
@@ -323,5 +324,10 @@ amdgpu-y += \
 	isp_v4_1_0.o \
 	isp_v4_1_1.o
 endif
+
+AMD_GPU_RAS_PATH := ../ras
+AMD_GPU_RAS_FULL_PATH := $(FULL_AMD_PATH)/ras
+include $(AMD_GPU_RAS_FULL_PATH)/Makefile
+amdgpu-y += $(AMD_GPU_RAS_FILES)
 
 obj-$(CONFIG_DRM_AMDGPU)+= amdgpu.o

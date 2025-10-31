@@ -41,6 +41,7 @@ struct dsc_config {
 	enum dc_color_depth color_depth;  /* Bits per component */
 	bool is_odm;
 	struct dc_dsc_config dc_dsc_cfg;
+	uint32_t dsc_padding;
 };
 
 

@@ -629,6 +629,112 @@ struct dmub_visual_confirm_color {
 	uint16_t panel_inst;
 };
 
+/**
+ * struct dmub_cursor_offload_pipe_data_dcn30_v1 - DCN30+ per pipe data.
+ */
+struct dmub_cursor_offload_pipe_data_dcn30_v1 {
+	uint32_t CURSOR0_0_CURSOR_SURFACE_ADDRESS;
+	uint32_t CURSOR0_0_CURSOR_SURFACE_ADDRESS_HIGH;
+	uint32_t CURSOR0_0_CURSOR_SIZE__CURSOR_WIDTH : 16;
+	uint32_t CURSOR0_0_CURSOR_SIZE__CURSOR_HEIGHT : 16;
+	uint32_t CURSOR0_0_CURSOR_POSITION__CURSOR_X_POSITION : 16;
+	uint32_t CURSOR0_0_CURSOR_POSITION__CURSOR_Y_POSITION : 16;
+	uint32_t CURSOR0_0_CURSOR_HOT_SPOT__CURSOR_HOT_SPOT_X : 16;
+	uint32_t CURSOR0_0_CURSOR_HOT_SPOT__CURSOR_HOT_SPOT_Y : 16;
+	uint32_t CURSOR0_0_CURSOR_DST_OFFSET__CURSOR_DST_X_OFFSET : 13;
+	uint32_t CURSOR0_0_CURSOR_CONTROL__CURSOR_ENABLE : 1;
+	uint32_t CURSOR0_0_CURSOR_CONTROL__CURSOR_MODE : 3;
+	uint32_t CURSOR0_0_CURSOR_CONTROL__CURSOR_2X_MAGNIFY : 1;
+	uint32_t CURSOR0_0_CURSOR_CONTROL__CURSOR_PITCH : 2;
+	uint32_t CURSOR0_0_CURSOR_CONTROL__CURSOR_LINES_PER_CHUNK : 5;
+	uint32_t reserved0[4];
+	uint32_t CNVC_CUR0_CURSOR0_CONTROL__CUR0_ENABLE : 1;
+	uint32_t CNVC_CUR0_CURSOR0_CONTROL__CUR0_MODE : 3;
+	uint32_t CNVC_CUR0_CURSOR0_CONTROL__CUR0_EXPANSION_MODE : 1;
+	uint32_t CNVC_CUR0_CURSOR0_CONTROL__CUR0_ROM_EN : 1;
+	uint32_t CNVC_CUR0_CURSOR0_COLOR0__CUR0_COLOR0 : 24;
+	uint32_t CNVC_CUR0_CURSOR0_COLOR1__CUR0_COLOR1 : 24;
+	uint32_t CNVC_CUR0_CURSOR0_FP_SCALE_BIAS__CUR0_FP_BIAS : 16;
+	uint32_t CNVC_CUR0_CURSOR0_FP_SCALE_BIAS__CUR0_FP_SCALE, : 16;
+	uint32_t reserved1[5];
+	uint32_t HUBPREQ0_CURSOR_SETTINGS__CURSOR0_DST_Y_OFFSET : 8;
+	uint32_t HUBPREQ0_CURSOR_SETTINGS__CURSOR0_CHUNK_HDL_ADJUST : 8;
+	uint32_t reserved2[3];
+};
+
+/**
+ * struct dmub_cursor_offload_pipe_data_dcn401_v1 - DCN401 per pipe data.
+ */
+struct dmub_cursor_offload_pipe_data_dcn401_v1 {
+	uint32_t CURSOR0_0_CURSOR_SURFACE_ADDRESS;
+	uint32_t CURSOR0_0_CURSOR_SURFACE_ADDRESS_HIGH;
+	uint32_t CURSOR0_0_CURSOR_SIZE__CURSOR_WIDTH : 16;
+	uint32_t CURSOR0_0_CURSOR_SIZE__CURSOR_HEIGHT : 16;
+	uint32_t CURSOR0_0_CURSOR_POSITION__CURSOR_X_POSITION : 16;
+	uint32_t CURSOR0_0_CURSOR_POSITION__CURSOR_Y_POSITION : 16;
+	uint32_t CURSOR0_0_CURSOR_HOT_SPOT__CURSOR_HOT_SPOT_X : 16;
+	uint32_t CURSOR0_0_CURSOR_HOT_SPOT__CURSOR_HOT_SPOT_Y : 16;
+	uint32_t CURSOR0_0_CURSOR_DST_OFFSET__CURSOR_DST_X_OFFSET : 13;
+	uint32_t CURSOR0_0_CURSOR_CONTROL__CURSOR_ENABLE : 1;
+	uint32_t CURSOR0_0_CURSOR_CONTROL__CURSOR_MODE : 3;
+	uint32_t CURSOR0_0_CURSOR_CONTROL__CURSOR_2X_MAGNIFY : 1;
+	uint32_t CURSOR0_0_CURSOR_CONTROL__CURSOR_PITCH : 2;
+	uint32_t CURSOR0_0_CURSOR_CONTROL__CURSOR_LINES_PER_CHUNK : 5;
+	uint32_t reserved0[4];
+	uint32_t CM_CUR0_CURSOR0_CONTROL__CUR0_ENABLE : 1;
+	uint32_t CM_CUR0_CURSOR0_CONTROL__CUR0_MODE : 3;
+	uint32_t CM_CUR0_CURSOR0_CONTROL__CUR0_EXPANSION_MODE : 1;
+	uint32_t CM_CUR0_CURSOR0_CONTROL__CUR0_ROM_EN : 1;
+	uint32_t CM_CUR0_CURSOR0_COLOR0__CUR0_COLOR0 : 24;
+	uint32_t CM_CUR0_CURSOR0_COLOR1__CUR0_COLOR1 : 24;
+	uint32_t CM_CUR0_CURSOR0_FP_SCALE_BIAS_G_Y__CUR0_FP_BIAS_G_Y : 16;
+	uint32_t CM_CUR0_CURSOR0_FP_SCALE_BIAS_G_Y__CUR0_FP_SCALE_G_Y, : 16;
+	uint32_t CM_CUR0_CURSOR0_FP_SCALE_BIAS_RB_CRCB__CUR0_FP_BIAS_RB_CRCB : 16;
+	uint32_t CM_CUR0_CURSOR0_FP_SCALE_BIAS_RB_CRCB__CUR0_FP_SCALE_RB_CRCB : 16;
+	uint32_t reserved1[4];
+	uint32_t HUBPREQ0_CURSOR_SETTINGS__CURSOR0_DST_Y_OFFSET : 8;
+	uint32_t HUBPREQ0_CURSOR_SETTINGS__CURSOR0_CHUNK_HDL_ADJUST : 8;
+	uint32_t HUBP0_DCHUBP_MALL_CONFIG__USE_MALL_FOR_CURSOR : 1;
+	uint32_t reserved2[3];
+};
+
+/**
+ * struct dmub_cursor_offload_pipe_data_v1 - Per pipe data for cursor offload.
+ */
+struct dmub_cursor_offload_pipe_data_v1 {
+	union {
+		struct dmub_cursor_offload_pipe_data_dcn30_v1 dcn30; /**< DCN30 cursor data. */
+		struct dmub_cursor_offload_pipe_data_dcn401_v1 dcn401; /**< DCN401 cursor data. */
+		uint8_t payload[96]; /**< Guarantees the cursor pipe data size per-pipe. */
+	};
+};
+
+/**
+ * struct dmub_cursor_offload_payload_data_v1 - A payload of stream data.
+ */
+struct dmub_cursor_offload_payload_data_v1 {
+	uint32_t write_idx_start; /**< Write index, updated before pipe_data is written. */
+	uint32_t write_idx_finish; /**< Write index, updated after pipe_data is written. */
+	uint32_t pipe_mask; /**< Mask of pipes to update. */
+	uint32_t reserved; /**< Reserved for future use. */
+	struct dmub_cursor_offload_pipe_data_v1 pipe_data[6]; /**< Per-pipe cursor data. */
+};
+
+/**
+ * struct dmub_cursor_offload_stream_v1 - Per-stream data for cursor offload.
+ */
+struct dmub_cursor_offload_stream_v1 {
+	struct dmub_cursor_offload_payload_data_v1 payloads[4]; /**< A small buffer of cursor payloads. */
+	uint32_t write_idx; /**< The index of the last written payload. */
+};
+
+/**
+ * struct dmub_cursor_offload_v1 - Cursor offload feature state.
+ */
+struct dmub_cursor_offload_v1 {
+	struct dmub_cursor_offload_stream_v1 offload_streams[6]; /**< Per-stream cursor offload data */
+};
+
 //==============================================================================
 //</DMUB_TYPES>=================================================================
 //==============================================================================
@@ -648,7 +754,8 @@ struct dmub_visual_confirm_color {
 union dmub_fw_meta_feature_bits {
 	struct {
 		uint32_t shared_state_link_detection : 1; /**< 1 supports link detection via shared state */
-		uint32_t reserved : 31;
+		uint32_t cursor_offload_v1_support: 1; /**< 1 supports cursor offload */
+		uint32_t reserved : 30;
 	} bits; /**< status bits */
 	uint32_t all; /**< 32-bit access to status bits */
 };
@@ -814,6 +921,28 @@ enum dmub_ips_comand_type {
 };
 
 /**
+ * enum dmub_cursor_offload_comand_type - Cursor offload subcommands.
+ */
+enum dmub_cursor_offload_comand_type {
+	/**
+	 * Initializes the cursor offload feature.
+	 */
+	DMUB_CMD__CURSOR_OFFLOAD_INIT = 0,
+	/**
+	 * Enables cursor offloading for a stream and updates the timing parameters.
+	 */
+	DMUB_CMD__CURSOR_OFFLOAD_STREAM_ENABLE = 1,
+	/**
+	 * Disables cursor offloading for a given stream.
+	 */
+	DMUB_CMD__CURSOR_OFFLOAD_STREAM_DISABLE = 2,
+	/**
+	 * Programs the latest data for a given stream.
+	 */
+	DMUB_CMD__CURSOR_OFFLOAD_STREAM_PROGRAM = 3,
+};
+
+/**
  * union dmub_fw_boot_options - Boot option definitions for SCRATCH14
  */
 union dmub_fw_boot_options {
@@ -844,7 +973,8 @@ union dmub_fw_boot_options {
 		uint32_t disable_sldo_opt: 1; /**< 1 to disable SLDO optimizations */
 		uint32_t lower_hbr3_phy_ssc: 1; /**< 1 to lower hbr3 phy ssc to 0.125 percent */
 		uint32_t override_hbr3_pll_vco: 1; /**< 1 to override the hbr3 pll vco to 0 */
-		uint32_t reserved : 5; /**< reserved */
+		uint32_t disable_dpia_bw_allocation: 1; /**< 1 to disable the USB4 DPIA BW allocation */
+		uint32_t reserved : 4; /**< reserved */
 	} bits; /**< boot bits */
 	uint32_t all; /**< 32-bit access to bits */
 };
@@ -877,6 +1007,7 @@ enum dmub_shared_state_feature_id {
 	DMUB_SHARED_SHARE_FEATURE__IPS_FW = 1,
 	DMUB_SHARED_SHARE_FEATURE__IPS_DRIVER = 2,
 	DMUB_SHARED_SHARE_FEATURE__DEBUG_SETUP = 3,
+	DMUB_SHARED_STATE_FEATURE__CURSOR_OFFLOAD_V1 = 4,
 	DMUB_SHARED_STATE_FEATURE__LAST, /* Total number of features. */
 };
 
@@ -958,6 +1089,22 @@ struct dmub_shared_state_ips_driver {
 }; /* 248-bytes, fixed */
 
 /**
+ * struct dmub_shared_state_cursor_offload_v1 - Header metadata for cursor offload.
+ */
+struct dmub_shared_state_cursor_offload_stream_v1 {
+	uint32_t last_write_idx; /**< Last write index */
+	uint8_t reserved[28]; /**< Reserved bytes. */
+}; /* 32-bytes, fixed */
+
+/**
+ * struct dmub_shared_state_cursor_offload_v1 - Header metadata for cursor offload.
+ */
+struct dmub_shared_state_cursor_offload_v1 {
+	struct dmub_shared_state_cursor_offload_stream_v1 offload_streams[6]; /**< stream state, 32-bytes each */
+	uint8_t reserved[56]; /**< reserved for future use */
+}; /* 248-bytes, fixed */
+
+/**
  * enum dmub_shared_state_feature_common - Generic payload.
  */
 struct dmub_shared_state_feature_common {
@@ -983,6 +1130,7 @@ struct dmub_shared_state_feature_block {
 		struct dmub_shared_state_ips_fw ips_fw; /**< IPS firmware state */
 		struct dmub_shared_state_ips_driver ips_driver; /**< IPS driver state */
 		struct dmub_shared_state_debug_setup debug_setup; /**< Debug setup */
+		struct dmub_shared_state_cursor_offload_v1 cursor_offload_v1; /**< Cursor offload */
 	} data; /**< Shared state data. */
 }; /* 256-bytes, fixed */
 
@@ -1572,6 +1720,19 @@ enum dmub_cmd_type {
 	 */
 	DMUB_CMD__IPS = 91,
 
+	/**
+	 * Command type use for Cursor offload.
+	 */
+	DMUB_CMD__CURSOR_OFFLOAD = 92,
+
+	/**
+	 * Command type used for all SMART_POWER_HDR commands.
+	 */
+	DMUB_CMD__SMART_POWER_HDR = 93,
+
+	/**
+	 * Command type use for VBIOS shared commands.
+	 */
 	DMUB_CMD__VBIOS = 128,
 };
 
@@ -4238,6 +4399,45 @@ enum replay_enable {
 };
 
 /**
+ * Data passed from driver to FW in a DMUB_CMD__SMART_POWER_HDR_ENABLE command.
+ */
+struct dmub_rb_cmd_smart_power_hdr_enable_data {
+	/**
+	 * SMART_POWER_HDR enable or disable.
+	 */
+	uint8_t enable;
+	/**
+	 * Panel Instance.
+	 * Panel isntance to identify which replay_state to use
+	 * Currently the support is only for 0 or 1
+	 */
+	uint8_t panel_inst;
+
+	uint16_t peak_nits;
+	/**
+	 * OTG HW instance.
+	 */
+	uint8_t otg_inst;
+	/**
+	 * DIG FE HW instance.
+	 */
+	uint8_t digfe_inst;
+	/**
+	 * DIG BE HW instance.
+	 */
+	uint8_t digbe_inst;
+	uint8_t debugcontrol;
+	/*
+	 * vertical interrupt trigger line
+	 */
+	uint32_t triggerline;
+
+	uint16_t fixed_max_cll;
+
+	uint8_t pad[2];
+};
+
+/**
  * Data passed from driver to FW in a DMUB_CMD__REPLAY_ENABLE command.
  */
 struct dmub_rb_cmd_replay_enable_data {
@@ -4571,6 +4771,58 @@ union dmub_replay_cmd_set {
 };
 
 /**
+ * SMART POWER HDR command sub-types.
+ */
+enum dmub_cmd_smart_power_hdr_type {
+
+	/**
+	 * Enable/Disable SMART_POWER_HDR.
+	 */
+	DMUB_CMD__SMART_POWER_HDR_ENABLE = 1,
+	/**
+	 * Get current MaxCLL value if SMART POWER HDR is enabled.
+	 */
+	DMUB_CMD__SMART_POWER_HDR_GETMAXCLL = 2,
+};
+
+/**
+ * Definition of a DMUB_CMD__SMART_POWER_HDR command.
+ */
+struct dmub_rb_cmd_smart_power_hdr_enable {
+	/**
+	 * Command header.
+	 */
+	struct dmub_cmd_header header;
+
+	struct dmub_rb_cmd_smart_power_hdr_enable_data data;
+};
+
+struct dmub_cmd_smart_power_hdr_getmaxcll_input {
+	uint8_t panel_inst;
+	uint8_t pad[3];
+};
+
+struct dmub_cmd_smart_power_hdr_getmaxcll_output {
+	uint16_t current_max_cll;
+	uint8_t pad[2];
+};
+
+/**
+ * Definition of a DMUB_CMD__SMART_POWER_HDR command.
+ */
+struct dmub_rb_cmd_smart_power_hdr_getmaxcll {
+	struct dmub_cmd_header header; /**< Command header */
+	/**
+	 * Data passed from driver to FW in a DMUB_CMD__SMART_POWER_HDR_GETMAXCLL command.
+	 */
+	union dmub_cmd_smart_power_hdr_getmaxcll_data {
+		struct dmub_cmd_smart_power_hdr_getmaxcll_input input; /**< Input */
+		struct dmub_cmd_smart_power_hdr_getmaxcll_output output; /**< Output */
+		uint32_t output_raw; /**< Raw data output */
+	} data;
+};
+
+/**
  * Set of HW components that can be locked.
  *
  * Note: If updating with more HW components, fields
@@ -4652,6 +4904,7 @@ enum hw_lock_client {
 	 */
 	HW_LOCK_CLIENT_REPLAY		= 4,
 	HW_LOCK_CLIENT_FAMS2 = 5,
+	HW_LOCK_CLIENT_CURSOR_OFFLOAD = 6,
 	/**
 	 * Invalid client.
 	 */
@@ -6064,6 +6317,40 @@ struct dmub_rb_cmd_ips_query_residency_info {
 };
 
 /**
+ * struct dmub_cmd_cursor_offload_init_data - Payload for cursor offload init command.
+ */
+struct dmub_cmd_cursor_offload_init_data {
+	union dmub_addr state_addr; /**< State address for dmub_cursor_offload */
+	uint32_t state_size; /**< State size for dmub_cursor_offload */
+};
+
+/**
+ * struct dmub_rb_cmd_cursor_offload_init - Data for initializing cursor offload.
+ */
+struct dmub_rb_cmd_cursor_offload_init {
+	struct dmub_cmd_header header;
+	struct dmub_cmd_cursor_offload_init_data init_data;
+};
+
+/**
+ * struct dmub_cmd_cursor_offload_stream_data - Payload for cursor offload stream command.
+ */
+struct dmub_cmd_cursor_offload_stream_data {
+	uint32_t otg_inst: 4; /**< OTG instance to control  */
+	uint32_t reserved: 28; /**< Reserved for future use */
+	uint32_t line_time_in_ns; /**< Line time in ns for the OTG */
+	uint32_t v_total_max; /**< OTG v_total_max */
+};
+
+/**
+ * struct dmub_rb_cmd_cursor_offload_stream_cntl - Controls a stream for cursor offload.
+ */
+struct dmub_rb_cmd_cursor_offload_stream_cntl {
+	struct dmub_cmd_header header;
+	struct dmub_cmd_cursor_offload_stream_data data;
+};
+
+/**
  * union dmub_rb_cmd - DMUB inbox command.
  */
 union dmub_rb_cmd {
@@ -6392,6 +6679,26 @@ union dmub_rb_cmd {
 	struct dmub_rb_cmd_ips_residency_cntl ips_residency_cntl;
 
 	struct dmub_rb_cmd_ips_query_residency_info ips_query_residency_info;
+	/**
+	 * Definition of a DMUB_CMD__CURSOR_OFFLOAD_INIT command.
+	 */
+	struct dmub_rb_cmd_cursor_offload_init cursor_offload_init;
+	/**
+	 * Definition of a DMUB_CMD__CURSOR_OFFLOAD control commands.
+	 * - DMUB_CMD__CURSOR_OFFLOAD_STREAM_ENABLE
+	 * - DMUB_CMD__CURSOR_OFFLOAD_STREAM_DISABLE
+	 * - DMUB_CMD__CURSOR_OFFLOAD_STREAM_PROGRAM
+	 * - DMUB_CMD__CURSOR_OFFLOAD_STREAM_UPDATE_DRR
+	 */
+	struct dmub_rb_cmd_cursor_offload_stream_cntl cursor_offload_stream_ctnl;
+	/**
+	 * Definition of a DMUB_CMD__SMART_POWER_HDR_ENABLE command.
+	 */
+	struct dmub_rb_cmd_smart_power_hdr_enable smart_power_hdr_enable;
+	/**
+	 * Definition of a DMUB_CMD__DMUB_CMD__SMART_POWER_HDR_GETMAXCLL command.
+	 */
+	struct dmub_rb_cmd_smart_power_hdr_getmaxcll smart_power_hdr_getmaxcll;
 };
 
 /**

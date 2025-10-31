@@ -168,17 +168,13 @@ void amdgpu_hmm_unregister(struct amdgpu_bo *bo)
 int amdgpu_hmm_range_get_pages(struct mmu_interval_notifier *notifier,
 			       uint64_t start, uint64_t npages, bool readonly,
 			       void *owner,
-			       struct hmm_range **phmm_range)
+			       struct amdgpu_hmm_range *range)
 {
-	struct hmm_range *hmm_range;
 	unsigned long end;
 	unsigned long timeout;
 	unsigned long *pfns;
 	int r = 0;
-
-	hmm_range = kzalloc(sizeof(*hmm_range), GFP_KERNEL);
-	if (unlikely(!hmm_range))
-		return -ENOMEM;
+	struct hmm_range *hmm_range = &range->hmm_range;
 
 	pfns = kvmalloc_array(npages, sizeof(*pfns), GFP_KERNEL);
 	if (unlikely(!pfns)) {
@@ -221,28 +217,76 @@ retry:
 	hmm_range->start = start;
 	hmm_range->hmm_pfns = pfns;
 
-	*phmm_range = hmm_range;
-
 	return 0;
 
 out_free_pfns:
 	kvfree(pfns);
 out_free_range:
-	kfree(hmm_range);
-
 	if (r == -EBUSY)
 		r = -EAGAIN;
 	return r;
 }
 
-bool amdgpu_hmm_range_get_pages_done(struct hmm_range *hmm_range)
+/**
+ * amdgpu_hmm_range_valid - check if an HMM range is still valid
+ * @range: pointer to the &struct amdgpu_hmm_range to validate
+ *
+ * Determines whether the given HMM range @range is still valid by
+ * checking for invalidations via the MMU notifier sequence. This is
+ * typically used to verify that the range has not been invalidated
+ * by concurrent address space updates before it is accessed.
+ *
+ * Return:
+ * * true if @range is valid and can be used safely
+ * * false if @range is NULL or has been invalidated
+ */
+bool amdgpu_hmm_range_valid(struct amdgpu_hmm_range *range)
 {
-	bool r;
+	if (!range)
+		return false;
 
-	r = mmu_interval_read_retry(hmm_range->notifier,
-				    hmm_range->notifier_seq);
-	kvfree(hmm_range->hmm_pfns);
-	kfree(hmm_range);
+	return !mmu_interval_read_retry(range->hmm_range.notifier,
+					range->hmm_range.notifier_seq);
+}
 
-	return r;
+/**
+ * amdgpu_hmm_range_alloc - allocate and initialize an AMDGPU HMM range
+ * @bo: optional buffer object to associate with this HMM range
+ *
+ * Allocates memory for amdgpu_hmm_range and associates it with the @bo passed.
+ * The reference count of the @bo is incremented.
+ *
+ * Return:
+ * Pointer to a newly allocated struct amdgpu_hmm_range on success,
+ * or NULL if memory allocation fails.
+ */
+struct amdgpu_hmm_range *amdgpu_hmm_range_alloc(struct amdgpu_bo *bo)
+{
+	struct amdgpu_hmm_range *range;
+
+	range = kzalloc(sizeof(*range), GFP_KERNEL);
+	if (!range)
+		return NULL;
+
+	range->bo = amdgpu_bo_ref(bo);
+	return range;
+}
+
+/**
+ * amdgpu_hmm_range_free - release an AMDGPU HMM range
+ * @range: pointer to the range object to free
+ *
+ * Releases all resources held by @range, including the associated
+ * hmm_pfns and the dropping reference of associated bo if any.
+ *
+ * Return: void
+ */
+void amdgpu_hmm_range_free(struct amdgpu_hmm_range *range)
+{
+	if (!range)
+		return;
+
+	kvfree(range->hmm_range.hmm_pfns);
+	amdgpu_bo_unref(&range->bo);
+	kfree(range);
 }

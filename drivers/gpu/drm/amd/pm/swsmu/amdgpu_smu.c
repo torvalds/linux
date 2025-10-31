@@ -68,7 +68,7 @@ static int smu_handle_task(struct smu_context *smu,
 static int smu_reset(struct smu_context *smu);
 static int smu_set_fan_speed_pwm(void *handle, u32 speed);
 static int smu_set_fan_control_mode(void *handle, u32 value);
-static int smu_set_power_limit(void *handle, uint32_t limit);
+static int smu_set_power_limit(void *handle, uint32_t limit_type, uint32_t limit);
 static int smu_set_fan_speed_rpm(void *handle, uint32_t speed);
 static int smu_set_gfx_cgpg(struct smu_context *smu, bool enabled);
 static int smu_set_mp1_state(void *handle, enum pp_mp1_state mp1_state);
@@ -508,11 +508,14 @@ static void smu_restore_dpm_user_profile(struct smu_context *smu)
 	/* Enable restore flag */
 	smu->user_dpm_profile.flags |= SMU_DPM_USER_PROFILE_RESTORE;
 
-	/* set the user dpm power limit */
-	if (smu->user_dpm_profile.power_limit) {
-		ret = smu_set_power_limit(smu, smu->user_dpm_profile.power_limit);
+	/* set the user dpm power limits */
+	for (int i = SMU_DEFAULT_PPT_LIMIT; i < SMU_LIMIT_TYPE_COUNT; i++) {
+		if (!smu->user_dpm_profile.power_limits[i])
+			continue;
+		ret = smu_set_power_limit(smu, i,
+					  smu->user_dpm_profile.power_limits[i]);
 		if (ret)
-			dev_err(smu->adev->dev, "Failed to set power limit value\n");
+			dev_err(smu->adev->dev, "Failed to set %d power limit value\n", i);
 	}
 
 	/* set the user dpm clock configurations */
@@ -609,6 +612,17 @@ bool is_support_cclk_dpm(struct amdgpu_device *adev)
 	return true;
 }
 
+int amdgpu_smu_ras_send_msg(struct amdgpu_device *adev, enum smu_message_type msg,
+			    uint32_t param, uint32_t *read_arg)
+{
+	struct smu_context *smu = adev->powerplay.pp_handle;
+	int ret = -EOPNOTSUPP;
+
+	if (smu->ppt_funcs && smu->ppt_funcs->ras_send_msg)
+		ret = smu->ppt_funcs->ras_send_msg(smu, msg, param, read_arg);
+
+	return ret;
+}
 
 static int smu_sys_get_pp_table(void *handle,
 				char **table)
@@ -2225,7 +2239,6 @@ static int smu_resume(struct amdgpu_ip_block *ip_block)
 	int ret;
 	struct amdgpu_device *adev = ip_block->adev;
 	struct smu_context *smu = adev->powerplay.pp_handle;
-	struct smu_dpm_context *smu_dpm_ctx = &(smu->smu_dpm);
 
 	if (amdgpu_sriov_multi_vf_mode(adev))
 		return 0;
@@ -2256,18 +2269,6 @@ static int smu_resume(struct amdgpu_ip_block *ip_block)
 	smu->disable_uclk_switch = 0;
 
 	adev->pm.dpm_enabled = true;
-
-	if (smu->current_power_limit) {
-		ret = smu_set_power_limit(smu, smu->current_power_limit);
-		if (ret && ret != -EOPNOTSUPP)
-			return ret;
-	}
-
-	if (smu_dpm_ctx->dpm_level == AMD_DPM_FORCED_LEVEL_MANUAL && smu->od_enabled) {
-		ret = smu_od_edit_dpm_table(smu, PP_OD_COMMIT_DPM_TABLE, NULL, 0);
-		if (ret)
-			return ret;
-	}
 
 	dev_info(adev->dev, "SMU is resumed successfully!\n");
 
@@ -2958,37 +2959,34 @@ int smu_get_power_limit(void *handle,
 	return ret;
 }
 
-static int smu_set_power_limit(void *handle, uint32_t limit)
+static int smu_set_power_limit(void *handle, uint32_t limit_type, uint32_t limit)
 {
 	struct smu_context *smu = handle;
-	uint32_t limit_type = limit >> 24;
 	int ret = 0;
 
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
 		return -EOPNOTSUPP;
 
-	limit &= (1<<24)-1;
-	if (limit_type != SMU_DEFAULT_PPT_LIMIT)
-		if (smu->ppt_funcs->set_power_limit)
-			return smu->ppt_funcs->set_power_limit(smu, limit_type, limit);
-
-	if ((limit > smu->max_power_limit) || (limit < smu->min_power_limit)) {
-		dev_err(smu->adev->dev,
-			"New power limit (%d) is out of range [%d,%d]\n",
-			limit, smu->min_power_limit, smu->max_power_limit);
-		return -EINVAL;
+	if (limit_type == SMU_DEFAULT_PPT_LIMIT) {
+		if (!limit)
+			limit = smu->current_power_limit;
+		if ((limit > smu->max_power_limit) || (limit < smu->min_power_limit)) {
+			dev_err(smu->adev->dev,
+				"New power limit (%d) is out of range [%d,%d]\n",
+				limit, smu->min_power_limit, smu->max_power_limit);
+			return -EINVAL;
+		}
 	}
-
-	if (!limit)
-		limit = smu->current_power_limit;
 
 	if (smu->ppt_funcs->set_power_limit) {
 		ret = smu->ppt_funcs->set_power_limit(smu, limit_type, limit);
-		if (!ret && !(smu->user_dpm_profile.flags & SMU_DPM_USER_PROFILE_RESTORE))
-			smu->user_dpm_profile.power_limit = limit;
+		if (ret)
+			return ret;
+		if (!(smu->user_dpm_profile.flags & SMU_DPM_USER_PROFILE_RESTORE))
+			smu->user_dpm_profile.power_limits[limit_type] = limit;
 	}
 
-	return ret;
+	return 0;
 }
 
 static int smu_print_smuclk_levels(struct smu_context *smu, enum smu_clk_type clk_type, char *buf)

@@ -255,7 +255,7 @@ struct dml2_implicit_svp_meta {
 	unsigned long v_front_porch;
 };
 
-struct dml2_fams2_per_method_common_meta {
+struct dml2_pstate_per_method_common_meta {
 	/* generic params */
 	unsigned int allow_start_otg_vline;
 	unsigned int allow_end_otg_vline;
@@ -265,7 +265,7 @@ struct dml2_fams2_per_method_common_meta {
 	double period_us;
 };
 
-struct dml2_fams2_meta {
+struct dml2_pstate_meta {
 	bool valid;
 	double otg_vline_time_us;
 	unsigned int scheduling_delay_otg_vlines;
@@ -280,14 +280,14 @@ struct dml2_fams2_meta {
 	unsigned int max_vtotal;
 	double min_refresh_rate_hz;
 	double max_frame_time_us;
-	unsigned int dram_clk_change_blackout_otg_vlines;
+	unsigned int blackout_otg_vlines;
 	struct {
 		double max_vactive_det_fill_delay_us;
 		unsigned int max_vactive_det_fill_delay_otg_vlines;
-		struct dml2_fams2_per_method_common_meta common;
+		struct dml2_pstate_per_method_common_meta common;
 	} method_vactive;
 	struct {
-		struct dml2_fams2_per_method_common_meta common;
+		struct dml2_pstate_per_method_common_meta common;
 	} method_vblank;
 	struct {
 		unsigned int programming_delay_otg_vlines;
@@ -296,13 +296,22 @@ struct dml2_fams2_meta {
 		unsigned long phantom_vactive;
 		unsigned long phantom_vfp;
 		unsigned long phantom_vtotal;
-		struct dml2_fams2_per_method_common_meta common;
+		struct dml2_pstate_per_method_common_meta common;
 	} method_subvp;
 	struct {
 		unsigned int programming_delay_otg_vlines;
 		unsigned int stretched_vtotal;
-		struct dml2_fams2_per_method_common_meta common;
+		struct dml2_pstate_per_method_common_meta common;
 	} method_drr;
+};
+
+/* mask of synchronized timings by stream index */
+struct dml2_pmo_synchronized_timing_groups {
+	unsigned int num_timing_groups;
+	unsigned int synchronized_timing_group_masks[DML2_MAX_PLANES];
+	bool group_is_drr_enabled[DML2_MAX_PLANES];
+	bool group_is_drr_active[DML2_MAX_PLANES];
+	double group_line_time_us[DML2_MAX_PLANES];
 };
 
 struct dml2_optimization_stage3_state {
@@ -319,7 +328,7 @@ struct dml2_optimization_stage3_state {
 
 	// Meta-data for FAMS2
 	bool fams2_required;
-	struct dml2_fams2_meta stream_fams2_meta[DML2_MAX_PLANES];
+	struct dml2_pstate_meta stream_pstate_meta[DML2_MAX_PLANES];
 
 	int min_clk_index_for_latency;
 };
@@ -472,6 +481,7 @@ struct dml2_core_scratch {
 };
 
 struct dml2_core_instance {
+	enum dml2_project_id project_id;
 	struct dml2_mcg_min_clock_table *minimum_clock_table;
 	struct dml2_core_internal_state_inputs inputs;
 	struct dml2_core_internal_state_intermediates intermediates;
@@ -619,6 +629,12 @@ struct dml2_pmo_optimize_for_stutter_in_out {
 #define PMO_DCN4_MAX_NUM_VARIANTS 2
 #define PMO_DCN4_MAX_BASE_STRATEGIES 10
 
+struct dml2_scheduling_check_locals {
+	struct dml2_pstate_per_method_common_meta group_common_pstate_meta[DML2_MAX_PLANES];
+	unsigned int sorted_group_gtl_disallow_index[DML2_MAX_PLANES];
+	unsigned int sorted_group_gtl_period_index[DML2_MAX_PLANES];
+};
+
 struct dml2_pmo_scratch {
 	union {
 		struct {
@@ -648,7 +664,7 @@ struct dml2_pmo_scratch {
 			// Stores all the implicit SVP meta information indexed by stream index of the display
 			// configuration under inspection, built at optimization stage init
 			struct dml2_implicit_svp_meta stream_svp_meta[DML2_MAX_PLANES];
-			struct dml2_fams2_meta stream_fams2_meta[DML2_MAX_PLANES];
+			struct dml2_pstate_meta stream_pstate_meta[DML2_MAX_PLANES];
 
 			unsigned int optimal_vblank_reserved_time_for_stutter_us[DML2_PMO_STUTTER_CANDIDATE_LIST_SIZE];
 			unsigned int num_stutter_candidates;
@@ -663,7 +679,7 @@ struct dml2_pmo_scratch {
 			double group_line_time_us[DML2_MAX_PLANES];
 
 			/* scheduling check locals */
-			struct dml2_fams2_per_method_common_meta group_common_fams2_meta[DML2_MAX_PLANES];
+			struct dml2_pstate_per_method_common_meta group_common_pstate_meta[DML2_MAX_PLANES];
 			unsigned int sorted_group_gtl_disallow_index[DML2_MAX_PLANES];
 			unsigned int sorted_group_gtl_period_index[DML2_MAX_PLANES];
 			double group_phase_offset[DML2_MAX_PLANES];

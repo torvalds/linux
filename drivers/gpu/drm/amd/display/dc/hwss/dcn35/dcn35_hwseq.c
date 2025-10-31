@@ -364,6 +364,7 @@ static void update_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable)
 		dsc_cfg.dc_dsc_cfg = stream->timing.dsc_cfg;
 		ASSERT(dsc_cfg.dc_dsc_cfg.num_slices_h % opp_cnt == 0);
 		dsc_cfg.dc_dsc_cfg.num_slices_h /= opp_cnt;
+		dsc_cfg.dsc_padding = pipe_ctx->dsc_padding_params.dsc_hactive_padding;
 
 		dsc->funcs->dsc_set_config(dsc, &dsc_cfg, &dsc_optc_cfg);
 		dsc->funcs->dsc_enable(dsc, pipe_ctx->stream_res.opp->inst);
@@ -816,8 +817,6 @@ void dcn35_enable_plane(struct dc *dc, struct pipe_ctx *pipe_ctx,
 			       struct dc_state *context)
 {
 	struct dpp *dpp = pipe_ctx->plane_res.dpp;
-	struct dccg *dccg = dc->res_pool->dccg;
-
 
 	/* enable DCFCLK current DCHUB */
 	pipe_ctx->plane_res.hubp->funcs->hubp_clk_cntl(pipe_ctx->plane_res.hubp, true);
@@ -825,7 +824,6 @@ void dcn35_enable_plane(struct dc *dc, struct pipe_ctx *pipe_ctx,
 	/* initialize HUBP on power up */
 	pipe_ctx->plane_res.hubp->funcs->hubp_init(pipe_ctx->plane_res.hubp);
 	/*make sure DPPCLK is on*/
-	dccg->funcs->dccg_root_gate_disable_control(dccg, dpp->inst, true);
 	dpp->funcs->dpp_dppclk_control(dpp, false, true);
 	/* make sure OPP_PIPE_CLOCK_EN = 1 */
 	pipe_ctx->stream_res.opp->funcs->opp_pipe_clock_control(
@@ -859,7 +857,6 @@ void dcn35_plane_atomic_disable(struct dc *dc, struct pipe_ctx *pipe_ctx)
 {
 	struct hubp *hubp = pipe_ctx->plane_res.hubp;
 	struct dpp *dpp = pipe_ctx->plane_res.dpp;
-	struct dccg *dccg = dc->res_pool->dccg;
 
 
 	dc->hwss.wait_for_mpcc_disconnect(dc, dc->res_pool, pipe_ctx);
@@ -878,7 +875,6 @@ void dcn35_plane_atomic_disable(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	hubp->funcs->hubp_clk_cntl(hubp, false);
 
 	dpp->funcs->dpp_dppclk_control(dpp, false, false);
-	dccg->funcs->dccg_root_gate_disable_control(dccg, dpp->inst, false);
 
 	hubp->power_gated = true;
 
@@ -1591,4 +1587,142 @@ void dcn35_hardware_release(struct dc *dc)
 	/*power up required HW block*/
 	if (dc->hwss.hw_block_power_up)
 		dc->hwss.hw_block_power_up(dc, &pg_update_state);
+}
+
+void dcn35_abort_cursor_offload_update(struct dc *dc, const struct pipe_ctx *pipe)
+{
+	if (!dc_dmub_srv_is_cursor_offload_enabled(dc))
+		return;
+
+	/*
+	 * Insert a blank update to modify the write index and set pipe_mask to 0.
+	 *
+	 * While the DMU is interlocked with driver full pipe programming via
+	 * the DMU HW lock, if the cursor update begins to execute after a full
+	 * pipe programming occurs there are two possible issues:
+	 *
+	 * 1. Outdated cursor information is programmed, replacing the current update
+	 * 2. The cursor update in firmware holds the cursor lock, preventing
+	 *    the current update from being latched atomically in the same frame
+	 *    as the rest of the update.
+	 *
+	 * This blank update, treated as a no-op, will allow the firmware to skip
+	 * the programming.
+	 */
+
+	if (dc->hwss.begin_cursor_offload_update)
+		dc->hwss.begin_cursor_offload_update(dc, pipe);
+
+	if (dc->hwss.commit_cursor_offload_update)
+		dc->hwss.commit_cursor_offload_update(dc, pipe);
+}
+
+void dcn35_begin_cursor_offload_update(struct dc *dc, const struct pipe_ctx *pipe)
+{
+	volatile struct dmub_cursor_offload_v1 *cs = dc->ctx->dmub_srv->dmub->cursor_offload_v1;
+	const struct pipe_ctx *top_pipe = resource_get_otg_master(pipe);
+	uint32_t stream_idx, write_idx, payload_idx;
+
+	if (!top_pipe)
+		return;
+
+	stream_idx = top_pipe->pipe_idx;
+	write_idx = cs->offload_streams[stream_idx].write_idx + 1; /*  new payload (+1) */
+	payload_idx = write_idx % ARRAY_SIZE(cs->offload_streams[stream_idx].payloads);
+
+	cs->offload_streams[stream_idx].payloads[payload_idx].write_idx_start = write_idx;
+
+	if (pipe->plane_res.hubp)
+		pipe->plane_res.hubp->cursor_offload = true;
+
+	if (pipe->plane_res.dpp)
+		pipe->plane_res.dpp->cursor_offload = true;
+}
+
+void dcn35_commit_cursor_offload_update(struct dc *dc, const struct pipe_ctx *pipe)
+{
+	volatile struct dmub_cursor_offload_v1 *cs = dc->ctx->dmub_srv->dmub->cursor_offload_v1;
+	volatile struct dmub_shared_state_cursor_offload_stream_v1 *shared_stream;
+	const struct pipe_ctx *top_pipe = resource_get_otg_master(pipe);
+	uint32_t stream_idx, write_idx, payload_idx;
+
+	if (pipe->plane_res.hubp)
+		pipe->plane_res.hubp->cursor_offload = false;
+
+	if (pipe->plane_res.dpp)
+		pipe->plane_res.dpp->cursor_offload = false;
+
+	if (!top_pipe)
+		return;
+
+	stream_idx = top_pipe->pipe_idx;
+	write_idx = cs->offload_streams[stream_idx].write_idx + 1; /*  new payload (+1) */
+	payload_idx = write_idx % ARRAY_SIZE(cs->offload_streams[stream_idx].payloads);
+
+	shared_stream = &dc->ctx->dmub_srv->dmub->shared_state[DMUB_SHARED_STATE_FEATURE__CURSOR_OFFLOAD_V1]
+				 .data.cursor_offload_v1.offload_streams[stream_idx];
+
+	shared_stream->last_write_idx = write_idx;
+
+	cs->offload_streams[stream_idx].write_idx = write_idx;
+	cs->offload_streams[stream_idx].payloads[payload_idx].write_idx_finish = write_idx;
+}
+
+void dcn35_update_cursor_offload_pipe(struct dc *dc, const struct pipe_ctx *pipe)
+{
+	volatile struct dmub_cursor_offload_v1 *cs = dc->ctx->dmub_srv->dmub->cursor_offload_v1;
+	const struct pipe_ctx *top_pipe = resource_get_otg_master(pipe);
+	const struct hubp *hubp = pipe->plane_res.hubp;
+	const struct dpp *dpp = pipe->plane_res.dpp;
+	volatile struct dmub_cursor_offload_pipe_data_dcn30_v1 *p;
+	uint32_t stream_idx, write_idx, payload_idx;
+
+	if (!top_pipe || !hubp || !dpp)
+		return;
+
+	stream_idx = top_pipe->pipe_idx;
+	write_idx = cs->offload_streams[stream_idx].write_idx + 1; /*  new payload (+1) */
+	payload_idx = write_idx % ARRAY_SIZE(cs->offload_streams[stream_idx].payloads);
+
+	p = &cs->offload_streams[stream_idx].payloads[payload_idx].pipe_data[pipe->pipe_idx].dcn30;
+
+	p->CURSOR0_0_CURSOR_SURFACE_ADDRESS = hubp->att.SURFACE_ADDR;
+	p->CURSOR0_0_CURSOR_SURFACE_ADDRESS_HIGH = hubp->att.SURFACE_ADDR_HIGH;
+	p->CURSOR0_0_CURSOR_SIZE__CURSOR_WIDTH = hubp->att.size.bits.width;
+	p->CURSOR0_0_CURSOR_SIZE__CURSOR_HEIGHT = hubp->att.size.bits.height;
+	p->CURSOR0_0_CURSOR_POSITION__CURSOR_X_POSITION = hubp->pos.position.bits.x_pos;
+	p->CURSOR0_0_CURSOR_POSITION__CURSOR_Y_POSITION = hubp->pos.position.bits.y_pos;
+	p->CURSOR0_0_CURSOR_HOT_SPOT__CURSOR_HOT_SPOT_X = hubp->pos.hot_spot.bits.x_hot;
+	p->CURSOR0_0_CURSOR_HOT_SPOT__CURSOR_HOT_SPOT_Y = hubp->pos.hot_spot.bits.y_hot;
+	p->CURSOR0_0_CURSOR_DST_OFFSET__CURSOR_DST_X_OFFSET = hubp->pos.dst_offset.bits.dst_x_offset;
+	p->CURSOR0_0_CURSOR_CONTROL__CURSOR_ENABLE = hubp->pos.cur_ctl.bits.cur_enable;
+	p->CURSOR0_0_CURSOR_CONTROL__CURSOR_MODE = hubp->att.cur_ctl.bits.mode;
+	p->CURSOR0_0_CURSOR_CONTROL__CURSOR_2X_MAGNIFY = hubp->pos.cur_ctl.bits.cur_2x_magnify;
+	p->CURSOR0_0_CURSOR_CONTROL__CURSOR_PITCH = hubp->att.cur_ctl.bits.pitch;
+	p->CURSOR0_0_CURSOR_CONTROL__CURSOR_LINES_PER_CHUNK = hubp->pos.cur_ctl.bits.line_per_chunk;
+
+	p->CNVC_CUR0_CURSOR0_CONTROL__CUR0_ENABLE = dpp->att.cur0_ctl.bits.cur0_enable;
+	p->CNVC_CUR0_CURSOR0_CONTROL__CUR0_MODE = dpp->att.cur0_ctl.bits.mode;
+	p->CNVC_CUR0_CURSOR0_CONTROL__CUR0_EXPANSION_MODE = dpp->att.cur0_ctl.bits.expansion_mode;
+	p->CNVC_CUR0_CURSOR0_CONTROL__CUR0_ROM_EN = dpp->att.cur0_ctl.bits.cur0_rom_en;
+	p->CNVC_CUR0_CURSOR0_COLOR0__CUR0_COLOR0 = 0x000000;
+	p->CNVC_CUR0_CURSOR0_COLOR1__CUR0_COLOR1 = 0xFFFFFF;
+	p->CNVC_CUR0_CURSOR0_FP_SCALE_BIAS__CUR0_FP_BIAS = dpp->att.fp_scale_bias.bits.fp_bias;
+	p->CNVC_CUR0_CURSOR0_FP_SCALE_BIAS__CUR0_FP_SCALE = dpp->att.fp_scale_bias.bits.fp_scale;
+
+	p->HUBPREQ0_CURSOR_SETTINGS__CURSOR0_DST_Y_OFFSET = hubp->att.settings.bits.dst_y_offset;
+	p->HUBPREQ0_CURSOR_SETTINGS__CURSOR0_CHUNK_HDL_ADJUST = hubp->att.settings.bits.chunk_hdl_adjust;
+
+	cs->offload_streams[stream_idx].payloads[payload_idx].pipe_mask |= (1u << pipe->pipe_idx);
+}
+
+void dcn35_notify_cursor_offload_drr_update(struct dc *dc, struct dc_state *context,
+					    const struct dc_stream_state *stream)
+{
+	dc_dmub_srv_control_cursor_offload(dc, context, stream, true);
+}
+
+void dcn35_program_cursor_offload_now(struct dc *dc, const struct pipe_ctx *pipe)
+{
+	dc_dmub_srv_program_cursor_now(dc, pipe);
 }

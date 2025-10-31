@@ -71,7 +71,7 @@ struct kgd_mem {
 	struct mutex lock;
 	struct amdgpu_bo *bo;
 	struct dma_buf *dmabuf;
-	struct hmm_range *range;
+	struct amdgpu_hmm_range *range;
 	struct list_head attachments;
 	/* protected by amdkfd_process_info.lock */
 	struct list_head validate_list;

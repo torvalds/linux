@@ -354,7 +354,7 @@ enum mod_hdcp_status mod_hdcp_add_display(struct mod_hdcp *hdcp,
 	/* reset retry counters */
 	reset_retry_counts(hdcp);
 
-	/* reset error trace */
+	/* reset trace */
 	memset(&hdcp->connection.trace, 0, sizeof(hdcp->connection.trace));
 
 	/* add display to connection */
@@ -400,7 +400,7 @@ enum mod_hdcp_status mod_hdcp_remove_display(struct mod_hdcp *hdcp,
 	/* clear retry counters */
 	reset_retry_counts(hdcp);
 
-	/* reset error trace */
+	/* reset trace */
 	memset(&hdcp->connection.trace, 0, sizeof(hdcp->connection.trace));
 
 	/* remove display */
@@ -464,7 +464,7 @@ enum mod_hdcp_status mod_hdcp_update_display(struct mod_hdcp *hdcp,
 	/* clear retry counters */
 	reset_retry_counts(hdcp);
 
-	/* reset error trace */
+	/* reset trace */
 	memset(&hdcp->connection.trace, 0, sizeof(hdcp->connection.trace));
 
 	/* set new adjustment */

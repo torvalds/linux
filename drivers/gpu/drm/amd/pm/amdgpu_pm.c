@@ -108,8 +108,9 @@ const char * const amdgpu_pp_profile_name[] = {
 static int amdgpu_pm_dev_state_check(struct amdgpu_device *adev, bool runpm)
 {
 	bool runpm_check = runpm ? adev->in_runpm : false;
+	bool full_init = (adev->init_lvl->level == AMDGPU_INIT_LEVEL_DEFAULT);
 
-	if (amdgpu_in_reset(adev))
+	if (amdgpu_in_reset(adev) || !full_init)
 		return -EBUSY;
 
 	if (adev->in_suspend && !runpm_check)
@@ -3390,13 +3391,12 @@ static ssize_t amdgpu_hwmon_set_power_cap(struct device *dev,
 		return err;
 
 	value = value / 1000000; /* convert to Watt */
-	value |= limit_type << 24;
 
 	err = amdgpu_pm_get_access(adev);
 	if (err < 0)
 		return err;
 
-	err = amdgpu_dpm_set_power_limit(adev, value);
+	err = amdgpu_dpm_set_power_limit(adev, limit_type, value);
 
 	amdgpu_pm_put_access(adev);
 

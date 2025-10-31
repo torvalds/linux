@@ -1894,7 +1894,7 @@ struct display_mode_lib_scratch_st {
 	struct CalculatePrefetchSchedule_params_st CalculatePrefetchSchedule_params;
 };
 
-/// @brief Represent the overall soc/ip enviroment. It contains data structure represent the soc/ip characteristic and also structures that hold calculation output
+/// @brief Represent the overall soc/ip environment. It contains data structure represent the soc/ip characteristic and also structures that hold calculation output
 struct display_mode_lib_st {
 	dml_uint_t project;
 

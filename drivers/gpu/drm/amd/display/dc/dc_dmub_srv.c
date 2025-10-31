@@ -442,7 +442,6 @@ bool dc_dmub_srv_p_state_delegate(struct dc *dc, bool should_manage_pstate, stru
 	int i = 0, k = 0;
 	int ramp_up_num_steps = 1; // TODO: Ramp is currently disabled. Reenable it.
 	uint8_t visual_confirm_enabled;
-	int pipe_idx = 0;
 	struct dc_stream_status *stream_status = NULL;
 
 	if (dc == NULL)
@@ -457,7 +456,7 @@ bool dc_dmub_srv_p_state_delegate(struct dc *dc, bool should_manage_pstate, stru
 	cmd.fw_assisted_mclk_switch.config_data.visual_confirm_enabled = visual_confirm_enabled;
 
 	if (should_manage_pstate) {
-		for (i = 0, pipe_idx = 0; i < dc->res_pool->pipe_count; i++) {
+		for (i = 0; i < dc->res_pool->pipe_count; i++) {
 			struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 
 			if (!pipe->stream)
@@ -472,7 +471,6 @@ bool dc_dmub_srv_p_state_delegate(struct dc *dc, bool should_manage_pstate, stru
 				cmd.fw_assisted_mclk_switch.config_data.vactive_stretch_margin_us = dc->debug.fpo_vactive_margin_us;
 				break;
 			}
-			pipe_idx++;
 		}
 	}
 
@@ -872,7 +870,7 @@ void dc_dmub_setup_subvp_dmub_command(struct dc *dc,
 		bool enable)
 {
 	uint8_t cmd_pipe_index = 0;
-	uint32_t i, pipe_idx;
+	uint32_t i;
 	uint8_t subvp_count = 0;
 	union dmub_rb_cmd cmd;
 	struct pipe_ctx *subvp_pipes[2];
@@ -899,7 +897,7 @@ void dc_dmub_setup_subvp_dmub_command(struct dc *dc,
 
 	if (enable) {
 		// For each pipe that is a "main" SUBVP pipe, fill in pipe data for DMUB SUBVP cmd
-		for (i = 0, pipe_idx = 0; i < dc->res_pool->pipe_count; i++) {
+		for (i = 0; i < dc->res_pool->pipe_count; i++) {
 			struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 			pipe_mall_type = dc_state_get_pipe_subvp_type(context, pipe);
 
@@ -922,7 +920,6 @@ void dc_dmub_setup_subvp_dmub_command(struct dc *dc,
 				populate_subvp_cmd_vblank_pipe_info(dc, context, &cmd, pipe, cmd_pipe_index++);
 
 			}
-			pipe_idx++;
 		}
 		if (subvp_count == 2) {
 			update_subvp_prefetch_end_to_mall_start(dc, context, &cmd, subvp_pipes);
@@ -1172,6 +1169,100 @@ void dc_dmub_srv_enable_dpia_trace(const struct dc *dc)
 void dc_dmub_srv_subvp_save_surf_addr(const struct dc_dmub_srv *dc_dmub_srv, const struct dc_plane_address *addr, uint8_t subvp_index)
 {
 	dmub_srv_subvp_save_surf_addr(dc_dmub_srv->dmub, addr, subvp_index);
+}
+
+void dc_dmub_srv_cursor_offload_init(struct dc *dc)
+{
+	struct dmub_rb_cmd_cursor_offload_init *init;
+	struct dc_dmub_srv *dc_dmub_srv = dc->ctx->dmub_srv;
+	union dmub_rb_cmd cmd;
+
+	if (!dc->config.enable_cursor_offload)
+		return;
+
+	if (!dc_dmub_srv->dmub->meta_info.feature_bits.bits.cursor_offload_v1_support)
+		return;
+
+	if (!dc_dmub_srv->dmub->cursor_offload_fb.gpu_addr || !dc_dmub_srv->dmub->cursor_offload_fb.cpu_addr)
+		return;
+
+	if (!dc_dmub_srv->dmub->cursor_offload_v1)
+		return;
+
+	if (!dc_dmub_srv->dmub->shared_state)
+		return;
+
+	memset(&cmd, 0, sizeof(cmd));
+
+	init = &cmd.cursor_offload_init;
+	init->header.type = DMUB_CMD__CURSOR_OFFLOAD;
+	init->header.sub_type = DMUB_CMD__CURSOR_OFFLOAD_INIT;
+	init->header.payload_bytes = sizeof(init->init_data);
+	init->init_data.state_addr.quad_part = dc_dmub_srv->dmub->cursor_offload_fb.gpu_addr;
+	init->init_data.state_size = dc_dmub_srv->dmub->cursor_offload_fb.size;
+
+	dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
+
+	dc_dmub_srv->cursor_offload_enabled = true;
+}
+
+void dc_dmub_srv_control_cursor_offload(struct dc *dc, struct dc_state *context,
+					const struct dc_stream_state *stream, bool enable)
+{
+	struct pipe_ctx const *pipe_ctx;
+	struct dmub_rb_cmd_cursor_offload_stream_cntl *cntl;
+	union dmub_rb_cmd cmd;
+
+	if (!dc_dmub_srv_is_cursor_offload_enabled(dc))
+		return;
+
+	if (!stream)
+		return;
+
+	pipe_ctx = resource_get_otg_master_for_stream(&context->res_ctx, stream);
+	if (!pipe_ctx || !pipe_ctx->stream_res.tg || pipe_ctx->stream != stream)
+		return;
+
+	memset(&cmd, 0, sizeof(cmd));
+
+	cntl = &cmd.cursor_offload_stream_ctnl;
+	cntl->header.type = DMUB_CMD__CURSOR_OFFLOAD;
+	cntl->header.sub_type =
+		enable ? DMUB_CMD__CURSOR_OFFLOAD_STREAM_ENABLE : DMUB_CMD__CURSOR_OFFLOAD_STREAM_DISABLE;
+	cntl->header.payload_bytes = sizeof(cntl->data);
+
+	cntl->data.otg_inst = pipe_ctx->stream_res.tg->inst;
+	cntl->data.line_time_in_ns = 1u + (uint32_t)(div64_u64(stream->timing.h_total * 1000000ull,
+							       stream->timing.pix_clk_100hz / 10));
+
+	cntl->data.v_total_max = stream->adjust.v_total_max > stream->timing.v_total ?
+					 stream->adjust.v_total_max :
+					 stream->timing.v_total;
+
+	dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd,
+				     enable ? DM_DMUB_WAIT_TYPE_NO_WAIT : DM_DMUB_WAIT_TYPE_WAIT);
+}
+
+void dc_dmub_srv_program_cursor_now(struct dc *dc, const struct pipe_ctx *pipe)
+{
+	struct dmub_rb_cmd_cursor_offload_stream_cntl *cntl;
+	union dmub_rb_cmd cmd;
+
+	if (!dc_dmub_srv_is_cursor_offload_enabled(dc))
+		return;
+
+	if (!pipe || !pipe->stream || !pipe->stream_res.tg)
+		return;
+
+	memset(&cmd, 0, sizeof(cmd));
+
+	cntl = &cmd.cursor_offload_stream_ctnl;
+	cntl->header.type = DMUB_CMD__CURSOR_OFFLOAD;
+	cntl->header.sub_type = DMUB_CMD__CURSOR_OFFLOAD_STREAM_PROGRAM;
+	cntl->header.payload_bytes = sizeof(cntl->data);
+	cntl->data.otg_inst = pipe->stream_res.tg->inst;
+
+	dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_NO_WAIT);
 }
 
 bool dc_dmub_srv_is_hw_pwr_up(struct dc_dmub_srv *dc_dmub_srv, bool wait)
@@ -2229,6 +2320,11 @@ bool dmub_lsdma_send_poll_reg_write_command(struct dc_dmub_srv *dc_dmub_srv, uin
 		DC_ERROR("LSDMA Poll Reg failed in DMUB");
 
 	return result;
+}
+
+bool dc_dmub_srv_is_cursor_offload_enabled(const struct dc *dc)
+{
+	return dc->ctx->dmub_srv && dc->ctx->dmub_srv->cursor_offload_enabled;
 }
 
 void dc_dmub_srv_release_hw(const struct dc *dc)

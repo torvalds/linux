@@ -70,6 +70,8 @@ struct dml2_pmo_options {
 	bool disable_dyn_odm;
 	bool disable_dyn_odm_for_multi_stream;
 	bool disable_dyn_odm_for_stream_with_svp;
+	struct dml2_pmo_pstate_strategy *override_strategy_lists[DML2_MAX_PLANES];
+	unsigned int num_override_strategies_per_list[DML2_MAX_PLANES];
 };
 
 struct dml2_options {
@@ -193,6 +195,14 @@ struct dml2_mcache_surface_allocation {
 	} informative;
 };
 
+enum dml2_pstate_type {
+	dml2_pstate_type_uclk,
+	dml2_pstate_type_ppt,
+	dml2_pstate_type_temp_read,
+	dml2_pstate_type_dummy_pstate,
+	dml2_pstate_type_count
+};
+
 enum dml2_pstate_method {
 	dml2_pstate_method_na = 0,
 	/* hw exclusive modes */
@@ -310,6 +320,7 @@ struct dml2_mode_support_info {
 	bool NumberOfOTGSupport;
 	bool NumberOfHDMIFRLSupport;
 	bool NumberOfDP2p0Support;
+	bool NumberOfTDLUT33cubeSupport;
 	bool WritebackScaleRatioAndTapsSupport;
 	bool CursorSupport;
 	bool PitchSupport;
@@ -357,6 +368,8 @@ struct dml2_mode_support_info {
 	unsigned int AlignedCPitch[DML2_MAX_PLANES];
 	bool g6_temp_read_support;
 	bool temp_read_or_ppt_support;
+	bool qos_bandwidth_support;
+	bool dcfclk_support;
 }; // dml2_mode_support_info
 
 struct dml2_display_cfg_programming {
