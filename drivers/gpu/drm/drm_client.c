@@ -168,6 +168,10 @@ void drm_client_release(struct drm_client_dev *client)
 
 	drm_client_modeset_free(client);
 	drm_client_close(client);
+
+	if (client->funcs && client->funcs->free)
+		client->funcs->free(client);
+
 	drm_dev_put(dev);
 }
 EXPORT_SYMBOL(drm_client_release);

@@ -39,12 +39,13 @@ void drm_client_dev_unregister(struct drm_device *dev)
 	mutex_lock(&dev->clientlist_mutex);
 	list_for_each_entry_safe(client, tmp, &dev->clientlist, list) {
 		list_del(&client->list);
-		if (client->funcs && client->funcs->unregister) {
+		/*
+		 * Unregistering consumes and frees the client.
+		 */
+		if (client->funcs && client->funcs->unregister)
 			client->funcs->unregister(client);
-		} else {
+		else
 			drm_client_release(client);
-			kfree(client);
-		}
 	}
 	mutex_unlock(&dev->clientlist_mutex);
 }

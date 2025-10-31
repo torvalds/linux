@@ -1959,7 +1959,7 @@ int disable_dbc(struct qaic_device *qdev, u32 dbc_id, struct qaic_user *usr)
  * enable_dbc - Enable the DBC. DBCs are disabled by removing the context of
  * user. Add user context back to DBC to enable it. This function trusts the
  * DBC ID passed and expects the DBC to be disabled.
- * @qdev: Qranium device handle
+ * @qdev: qaic device handle
  * @dbc_id: ID of the DBC
  * @usr: User context
  */

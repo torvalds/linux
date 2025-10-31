@@ -31,7 +31,7 @@
 #define MANAGE_MAGIC_NUMBER		((__force __le32)0x43494151) /* "QAIC" in little endian */
 #define QAIC_DBC_Q_GAP			SZ_256
 #define QAIC_DBC_Q_BUF_ALIGN		SZ_4K
-#define QAIC_MANAGE_EXT_MSG_LENGTH	SZ_64K /* Max DMA message length */
+#define QAIC_MANAGE_WIRE_MSG_LENGTH	SZ_64K /* Max DMA message length */
 #define QAIC_WRAPPER_MAX_SIZE		SZ_4K
 #define QAIC_MHI_RETRY_WAIT_MS		100
 #define QAIC_MHI_RETRY_MAX		20
@@ -368,7 +368,7 @@ static int encode_passthrough(struct qaic_device *qdev, void *trans, struct wrap
 	if (in_trans->hdr.len % 8 != 0)
 		return -EINVAL;
 
-	if (size_add(msg_hdr_len, in_trans->hdr.len) > QAIC_MANAGE_EXT_MSG_LENGTH)
+	if (size_add(msg_hdr_len, in_trans->hdr.len) > QAIC_MANAGE_WIRE_MSG_LENGTH)
 		return -ENOSPC;
 
 	trans_wrapper = add_wrapper(wrappers,
@@ -496,7 +496,7 @@ static int encode_addr_size_pairs(struct dma_xfer *xfer, struct wrapper_list *wr
 
 	nents = sgt->nents;
 	nents_dma = nents;
-	*size = QAIC_MANAGE_EXT_MSG_LENGTH - msg_hdr_len - sizeof(**out_trans);
+	*size = QAIC_MANAGE_WIRE_MSG_LENGTH - msg_hdr_len - sizeof(**out_trans);
 	for_each_sgtable_dma_sg(sgt, sg, i) {
 		*size -= sizeof(*asp);
 		/* Save 1K for possible follow-up transactions. */
@@ -577,7 +577,7 @@ static int encode_dma(struct qaic_device *qdev, void *trans, struct wrapper_list
 
 	/* There should be enough space to hold at least one ASP entry. */
 	if (size_add(msg_hdr_len, sizeof(*out_trans) + sizeof(struct wire_addr_size_pair)) >
-	    QAIC_MANAGE_EXT_MSG_LENGTH)
+	    QAIC_MANAGE_WIRE_MSG_LENGTH)
 		return -ENOMEM;
 
 	xfer = kmalloc(sizeof(*xfer), GFP_KERNEL);
@@ -646,7 +646,7 @@ static int encode_activate(struct qaic_device *qdev, void *trans, struct wrapper
 	msg = &wrapper->msg;
 	msg_hdr_len = le32_to_cpu(msg->hdr.len);
 
-	if (size_add(msg_hdr_len, sizeof(*out_trans)) > QAIC_MANAGE_MAX_MSG_LENGTH)
+	if (size_add(msg_hdr_len, sizeof(*out_trans)) > QAIC_MANAGE_WIRE_MSG_LENGTH)
 		return -ENOSPC;
 
 	if (!in_trans->queue_size)
@@ -731,7 +731,7 @@ static int encode_status(struct qaic_device *qdev, void *trans, struct wrapper_l
 	msg = &wrapper->msg;
 	msg_hdr_len = le32_to_cpu(msg->hdr.len);
 
-	if (size_add(msg_hdr_len, in_trans->hdr.len) > QAIC_MANAGE_MAX_MSG_LENGTH)
+	if (size_add(msg_hdr_len, in_trans->hdr.len) > QAIC_MANAGE_WIRE_MSG_LENGTH)
 		return -ENOSPC;
 
 	trans_wrapper = add_wrapper(wrappers, sizeof(*trans_wrapper));
@@ -1054,7 +1054,7 @@ static void *msg_xfer(struct qaic_device *qdev, struct wrapper_list *wrappers, u
 	init_completion(&elem.xfer_done);
 	if (likely(!qdev->cntl_lost_buf)) {
 		/*
-		 * The max size of request to device is QAIC_MANAGE_EXT_MSG_LENGTH.
+		 * The max size of request to device is QAIC_MANAGE_WIRE_MSG_LENGTH.
 		 * The max size of response from device is QAIC_MANAGE_MAX_MSG_LENGTH.
 		 */
 		out_buf = kmalloc(QAIC_MANAGE_MAX_MSG_LENGTH, GFP_KERNEL);
