@@ -813,21 +813,18 @@ static int do_gt_restart(struct xe_gt *gt)
 	return 0;
 }
 
-static int gt_reset(struct xe_gt *gt)
+static void gt_reset_worker(struct work_struct *w)
 {
+	struct xe_gt *gt = container_of(w, typeof(*gt), reset.worker);
 	unsigned int fw_ref;
 	int err;
 
-	if (xe_device_wedged(gt_to_xe(gt))) {
-		err = -ECANCELED;
+	if (xe_device_wedged(gt_to_xe(gt)))
 		goto err_pm_put;
-	}
 
 	/* We only support GT resets with GuC submission */
-	if (!xe_device_uc_enabled(gt_to_xe(gt))) {
-		err = -ENODEV;
+	if (!xe_device_uc_enabled(gt_to_xe(gt)))
 		goto err_pm_put;
-	}
 
 	xe_gt_info(gt, "reset started\n");
 
@@ -864,30 +861,24 @@ static int gt_reset(struct xe_gt *gt)
 		goto err_out;
 
 	xe_force_wake_put(gt_to_fw(gt), fw_ref);
+
+	/* Pair with get while enqueueing the work in xe_gt_reset_async() */
 	xe_pm_runtime_put(gt_to_xe(gt));
 
 	xe_gt_info(gt, "reset done\n");
 
-	return 0;
+	return;
 
 err_out:
 	xe_force_wake_put(gt_to_fw(gt), fw_ref);
 	XE_WARN_ON(xe_uc_start(&gt->uc));
+
 err_fail:
 	xe_gt_err(gt, "reset failed (%pe)\n", ERR_PTR(err));
-
 	xe_device_declare_wedged(gt_to_xe(gt));
+
 err_pm_put:
 	xe_pm_runtime_put(gt_to_xe(gt));
-
-	return err;
-}
-
-static void gt_reset_worker(struct work_struct *w)
-{
-	struct xe_gt *gt = container_of(w, typeof(*gt), reset.worker);
-
-	gt_reset(gt);
 }
 
 void xe_gt_reset_async(struct xe_gt *gt)
@@ -899,6 +890,8 @@ void xe_gt_reset_async(struct xe_gt *gt)
 		return;
 
 	xe_gt_info(gt, "reset queued\n");
+
+	/* Pair with put in gt_reset_worker() if work is enqueued */
 	xe_pm_runtime_get_noresume(gt_to_xe(gt));
 	if (!queue_work(gt->ordered_wq, &gt->reset.worker))
 		xe_pm_runtime_put(gt_to_xe(gt));
