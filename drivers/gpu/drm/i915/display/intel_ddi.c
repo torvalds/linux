@@ -72,6 +72,7 @@
 #include "intel_hotplug.h"
 #include "intel_hti.h"
 #include "intel_lspcon.h"
+#include "intel_lt_phy.h"
 #include "intel_mg_phy_regs.h"
 #include "intel_modeset_lock.h"
 #include "intel_panel.h"
@@ -5231,7 +5232,11 @@ void intel_ddi_init(struct intel_display *display,
 	encoder->cloneable = 0;
 	encoder->pipe_mask = ~0;
 
-	if (DISPLAY_VER(display) >= 14) {
+	if (HAS_LT_PHY(display)) {
+		encoder->enable_clock = intel_xe3plpd_pll_enable;
+		encoder->disable_clock = intel_xe3plpd_pll_disable;
+		encoder->port_pll_type = intel_mtl_port_pll_type;
+	} else if (DISPLAY_VER(display) >= 14) {
 		encoder->enable_clock = intel_mtl_pll_enable;
 		encoder->disable_clock = intel_mtl_pll_disable;
 		encoder->port_pll_type = intel_mtl_port_pll_type;

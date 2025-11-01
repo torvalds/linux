@@ -1705,3 +1705,24 @@ void intel_lt_phy_pll_disable(struct intel_encoder *encoder)
 
 	intel_lt_phy_transaction_end(encoder, wakeref);
 }
+
+void intel_xe3plpd_pll_enable(struct intel_encoder *encoder,
+			      const struct intel_crtc_state *crtc_state)
+{
+	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
+
+	if (intel_tc_port_in_tbt_alt_mode(dig_port))
+		intel_mtl_tbt_pll_enable(encoder, crtc_state);
+	else
+		intel_lt_phy_pll_enable(encoder, crtc_state);
+}
+
+void intel_xe3plpd_pll_disable(struct intel_encoder *encoder)
+{
+	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
+
+	if (intel_tc_port_in_tbt_alt_mode(dig_port))
+		intel_mtl_tbt_pll_disable(encoder);
+	else
+		intel_lt_phy_pll_disable(encoder);
+}

@@ -20,6 +20,9 @@ intel_lt_phy_pll_calc_state(struct intel_crtc_state *crtc_state,
 			    struct intel_encoder *encoder);
 int intel_lt_phy_calc_port_clock(struct intel_encoder *encoder,
 				 const struct intel_crtc_state *crtc_state);
+void intel_xe3plpd_pll_enable(struct intel_encoder *encoder,
+			      const struct intel_crtc_state *crtc_state);
+void intel_xe3plpd_pll_disable(struct intel_encoder *encoder);
 
 #define HAS_LT_PHY(display) (DISPLAY_VER(display) >= 35)
 

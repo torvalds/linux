@@ -63,5 +63,8 @@ int intel_mtl_tbt_calc_port_clock(struct intel_encoder *encoder);
 void intel_cx0_pll_power_save_wa(struct intel_display *display);
 void intel_lnl_mac_transmit_lfps(struct intel_encoder *encoder,
 				 const struct intel_crtc_state *crtc_state);
+void intel_mtl_tbt_pll_enable(struct intel_encoder *encoder,
+			      const struct intel_crtc_state *crtc_state);
+void intel_mtl_tbt_pll_disable(struct intel_encoder *encoder);
 
 #endif /* __INTEL_CX0_PHY_H__ */
