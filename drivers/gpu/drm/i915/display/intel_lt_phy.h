@@ -28,6 +28,9 @@ void intel_lt_phy_dump_hw_state(struct intel_display *display,
 bool
 intel_lt_phy_pll_compare_hw_state(const struct intel_lt_phy_pll_state *a,
 				  const struct intel_lt_phy_pll_state *b);
+void intel_lt_phy_pll_readout_hw_state(struct intel_encoder *encoder,
+				       const struct intel_crtc_state *crtc_state,
+				       struct intel_lt_phy_pll_state *pll_state);
 void intel_xe3plpd_pll_enable(struct intel_encoder *encoder,
 			      const struct intel_crtc_state *crtc_state);
 void intel_xe3plpd_pll_disable(struct intel_encoder *encoder);

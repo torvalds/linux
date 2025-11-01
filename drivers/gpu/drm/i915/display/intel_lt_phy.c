@@ -1886,6 +1886,39 @@ intel_lt_phy_pll_compare_hw_state(const struct intel_lt_phy_pll_state *a,
 	return true;
 }
 
+void intel_lt_phy_pll_readout_hw_state(struct intel_encoder *encoder,
+				       const struct intel_crtc_state *crtc_state,
+				       struct intel_lt_phy_pll_state *pll_state)
+{
+	u8 owned_lane_mask;
+	u8 lane;
+	intel_wakeref_t wakeref;
+	int i, j, k;
+
+	pll_state->tbt_mode = intel_tc_port_in_tbt_alt_mode(enc_to_dig_port(encoder));
+	if (pll_state->tbt_mode)
+		return;
+
+	owned_lane_mask = intel_lt_phy_get_owned_lane_mask(encoder);
+	lane = owned_lane_mask & INTEL_LT_PHY_LANE0 ? : INTEL_LT_PHY_LANE1;
+	wakeref = intel_lt_phy_transaction_begin(encoder);
+
+	pll_state->config[0] = intel_lt_phy_read(encoder, lane, LT_PHY_VDR_0_CONFIG);
+	pll_state->config[1] = intel_lt_phy_read(encoder, INTEL_LT_PHY_LANE0, LT_PHY_VDR_1_CONFIG);
+	pll_state->config[2] = intel_lt_phy_read(encoder, lane, LT_PHY_VDR_2_CONFIG);
+
+	for (i = 0; i <= 12; i++) {
+		for (j = 3, k = 0; j >= 0; j--, k++)
+			pll_state->data[i][k] =
+				intel_lt_phy_read(encoder, INTEL_LT_PHY_LANE0,
+						  LT_PHY_VDR_X_DATAY(i, j));
+	}
+
+	pll_state->clock =
+		intel_lt_phy_calc_port_clock(encoder, crtc_state);
+	intel_lt_phy_transaction_end(encoder, wakeref);
+}
+
 void intel_xe3plpd_pll_enable(struct intel_encoder *encoder,
 			      const struct intel_crtc_state *crtc_state)
 {
