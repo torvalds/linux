@@ -839,7 +839,7 @@ static int ublk_process_io(struct ublk_thread *t)
 static void ublk_thread_set_sched_affinity(const struct ublk_thread *t,
 		cpu_set_t *cpuset)
 {
-        if (sched_setaffinity(0, sizeof(*cpuset), cpuset) < 0)
+	if (pthread_setaffinity_np(pthread_self(), sizeof(*cpuset), cpuset) < 0)
 		ublk_err("ublk dev %u thread %u set affinity failed",
 				t->dev->dev_info.dev_id, t->idx);
 }
@@ -862,15 +862,21 @@ static void *ublk_io_handler_fn(void *data)
 	t->dev = info->dev;
 	t->idx = info->idx;
 
+	/*
+	 * IO perf is sensitive with queue pthread affinity on NUMA machine
+	 *
+	 * Set sched_affinity at beginning, so following allocated memory/pages
+	 * could be CPU/NUMA aware.
+	 */
+	if (info->affinity)
+		ublk_thread_set_sched_affinity(t, info->affinity);
+
 	ret = ublk_thread_init(t, info->extra_flags);
 	if (ret) {
 		ublk_err("ublk dev %d thread %u init failed\n",
 				dev_id, t->idx);
 		return NULL;
 	}
-	/* IO perf is sensitive with queue pthread affinity on NUMA machine*/
-	if (info->affinity)
-		ublk_thread_set_sched_affinity(t, info->affinity);
 	sem_post(info->ready);
 
 	ublk_dbg(UBLK_DBG_THREAD, "tid %d: ublk dev %d thread %u started\n",
