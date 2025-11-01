@@ -5,9 +5,13 @@
 #include <linux/module.h>
 #include <linux/usb.h>
 #include "rtw8852b.h"
+#include "reg.h"
 #include "usb.h"
 
 static const struct rtw89_usb_info rtw8852b_usb_info = {
+	.usb_host_request_2		= R_AX_USB_HOST_REQUEST_2,
+	.usb_wlan0_1			= R_AX_USB_WLAN0_1,
+	.hci_func_en			= R_AX_HCI_FUNC_EN,
 	.bulkout_id = {
 		[RTW89_DMA_ACH0] = 3,
 		[RTW89_DMA_ACH1] = 4,

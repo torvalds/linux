@@ -21,6 +21,9 @@
 #define RTW89_MAX_BULKOUT_NUM		7
 
 struct rtw89_usb_info {
+	u32 usb_host_request_2;
+	u32 usb_wlan0_1;
+	u32 hci_func_en;
 	u8 bulkout_id[RTW89_DMA_CH_NUM];
 };
 
