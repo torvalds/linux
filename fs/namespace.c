@@ -3082,13 +3082,12 @@ static struct file *vfs_open_tree(int dfd, const char __user *filename, unsigned
 		lookup_flags &= ~LOOKUP_AUTOMOUNT;
 	if (flags & AT_SYMLINK_NOFOLLOW)
 		lookup_flags &= ~LOOKUP_FOLLOW;
-	if (flags & AT_EMPTY_PATH)
-		lookup_flags |= LOOKUP_EMPTY;
 
 	if (detached && !may_mount())
 		return ERR_PTR(-EPERM);
 
-	ret = user_path_at(dfd, filename, lookup_flags, &path);
+	CLASS(filename_uflags, name)(filename, flags);
+	ret = filename_lookup(dfd, name, lookup_flags, &path, NULL);
 	if (unlikely(ret))
 		return ERR_PTR(ret);
 
