@@ -80,7 +80,7 @@ core_param(ignore_rlimit_data, ignore_rlimit_data, bool, 0644);
 /* Update vma->vm_page_prot to reflect vma->vm_flags. */
 void vma_set_page_prot(struct vm_area_struct *vma)
 {
-	unsigned long vm_flags = vma->vm_flags;
+	vm_flags_t vm_flags = vma->vm_flags;
 	pgprot_t vm_page_prot;
 
 	vm_page_prot = vm_pgprot_modify(vma->vm_page_prot, vm_flags);
@@ -127,18 +127,15 @@ SYSCALL_DEFINE1(brk, unsigned long, brk)
 
 	origbrk = mm->brk;
 
+	min_brk = mm->start_brk;
 #ifdef CONFIG_COMPAT_BRK
 	/*
 	 * CONFIG_COMPAT_BRK can still be overridden by setting
 	 * randomize_va_space to 2, which will still cause mm->start_brk
 	 * to be arbitrarily shifted
 	 */
-	if (current->brk_randomized)
-		min_brk = mm->start_brk;
-	else
+	if (!current->brk_randomized)
 		min_brk = mm->end_data;
-#else
-	min_brk = mm->start_brk;
 #endif
 	if (brk < min_brk)
 		goto out;
@@ -228,12 +225,12 @@ static inline unsigned long round_hint_to_min(unsigned long hint)
 	return hint;
 }
 
-bool mlock_future_ok(struct mm_struct *mm, unsigned long flags,
+bool mlock_future_ok(const struct mm_struct *mm, vm_flags_t vm_flags,
 			unsigned long bytes)
 {
 	unsigned long locked_pages, limit_pages;
 
-	if (!(flags & VM_LOCKED) || capable(CAP_IPC_LOCK))
+	if (!(vm_flags & VM_LOCKED) || capable(CAP_IPC_LOCK))
 		return true;
 
 	locked_pages = bytes >> PAGE_SHIFT;
@@ -475,7 +472,7 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
 				vm_flags &= ~VM_MAYEXEC;
 			}
 
-			if (!file_has_valid_mmap_hooks(file))
+			if (!can_mmap_file(file))
 				return -ENODEV;
 			if (vm_flags & (VM_GROWSDOWN|VM_GROWSUP))
 				return -EINVAL;
@@ -805,7 +802,7 @@ unsigned long mm_get_unmapped_area_vmflags(struct mm_struct *mm, struct file *fi
 					   unsigned long pgoff, unsigned long flags,
 					   vm_flags_t vm_flags)
 {
-	if (test_bit(MMF_TOPDOWN, &mm->flags))
+	if (mm_flags_test(MMF_TOPDOWN, mm))
 		return arch_get_unmapped_area_topdown(filp, addr, len, pgoff,
 						      flags, vm_flags);
 	return arch_get_unmapped_area(filp, addr, len, pgoff, flags, vm_flags);
@@ -871,9 +868,8 @@ mm_get_unmapped_area(struct mm_struct *mm, struct file *file,
 		     unsigned long addr, unsigned long len,
 		     unsigned long pgoff, unsigned long flags)
 {
-	if (test_bit(MMF_TOPDOWN, &mm->flags))
-		return arch_get_unmapped_area_topdown(file, addr, len, pgoff, flags, 0);
-	return arch_get_unmapped_area(file, addr, len, pgoff, flags, 0);
+	return mm_get_unmapped_area_vmflags(mm, file, addr, len,
+					    pgoff, flags, 0);
 }
 EXPORT_SYMBOL(mm_get_unmapped_area);
 
@@ -1207,7 +1203,7 @@ out:
 	return ret;
 }
 
-int vm_brk_flags(unsigned long addr, unsigned long request, unsigned long flags)
+int vm_brk_flags(unsigned long addr, unsigned long request, vm_flags_t vm_flags)
 {
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma = NULL;
@@ -1224,7 +1220,7 @@ int vm_brk_flags(unsigned long addr, unsigned long request, unsigned long flags)
 		return 0;
 
 	/* Until we need other flags, refuse anything except VM_EXEC. */
-	if ((flags & (~VM_EXEC)) != 0)
+	if ((vm_flags & (~VM_EXEC)) != 0)
 		return -EINVAL;
 
 	if (mmap_write_lock_killable(mm))
@@ -1239,7 +1235,7 @@ int vm_brk_flags(unsigned long addr, unsigned long request, unsigned long flags)
 		goto munmap_failed;
 
 	vma = vma_prev(&vmi);
-	ret = do_brk_flags(&vmi, vma, addr, len, flags);
+	ret = do_brk_flags(&vmi, vma, addr, len, vm_flags);
 	populate = ((mm->def_flags & VM_LOCKED) != 0);
 	mmap_write_unlock(mm);
 	userfaultfd_unmap_complete(mm, &uf);
@@ -1288,7 +1284,7 @@ void exit_mmap(struct mm_struct *mm)
 	 * Set MMF_OOM_SKIP to hide this task from the oom killer/reaper
 	 * because the memory has been already freed.
 	 */
-	set_bit(MMF_OOM_SKIP, &mm->flags);
+	mm_flags_set(MMF_OOM_SKIP, mm);
 	mmap_write_lock(mm);
 	mt_clear_in_rcu(&mm->mm_mt);
 	vma_iter_set(&vmi, vma->vm_end);
@@ -1444,7 +1440,7 @@ static vm_fault_t special_mapping_fault(struct vm_fault *vmf)
 static struct vm_area_struct *__install_special_mapping(
 	struct mm_struct *mm,
 	unsigned long addr, unsigned long len,
-	unsigned long vm_flags, void *priv,
+	vm_flags_t vm_flags, void *priv,
 	const struct vm_operations_struct *ops)
 {
 	int ret;
@@ -1496,7 +1492,7 @@ bool vma_is_special_mapping(const struct vm_area_struct *vma,
 struct vm_area_struct *_install_special_mapping(
 	struct mm_struct *mm,
 	unsigned long addr, unsigned long len,
-	unsigned long vm_flags, const struct vm_special_mapping *spec)
+	vm_flags_t vm_flags, const struct vm_special_mapping *spec)
 {
 	return __install_special_mapping(mm, addr, len, vm_flags, (void *)spec,
 					&special_mapping_vmops);
@@ -1863,14 +1859,14 @@ loop_out:
 			mas_set_range(&vmi.mas, mpnt->vm_start, mpnt->vm_end - 1);
 			mas_store(&vmi.mas, XA_ZERO_ENTRY);
 			/* Avoid OOM iterating a broken tree */
-			set_bit(MMF_OOM_SKIP, &mm->flags);
+			mm_flags_set(MMF_OOM_SKIP, mm);
 		}
 		/*
 		 * The mm_struct is going to exit, but the locks will be dropped
 		 * first.  Set the mm_struct as unstable is advisable as it is
 		 * not fully initialised.
 		 */
-		set_bit(MMF_UNSTABLE, &mm->flags);
+		mm_flags_set(MMF_UNSTABLE, mm);
 	}
 out:
 	mmap_write_unlock(mm);

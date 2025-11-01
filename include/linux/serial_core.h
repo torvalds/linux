@@ -443,8 +443,8 @@ struct uart_port {
 	spinlock_t		lock;			/* port lock */
 	unsigned long		iobase;			/* in/out[bwl] */
 	unsigned char __iomem	*membase;		/* read/write[bwl] */
-	unsigned int		(*serial_in)(struct uart_port *, int);
-	void			(*serial_out)(struct uart_port *, int, int);
+	u32			(*serial_in)(struct uart_port *, unsigned int offset);
+	void			(*serial_out)(struct uart_port *, unsigned int offset, u32 val);
 	void			(*set_termios)(struct uart_port *,
 				               struct ktermios *new,
 				               const struct ktermios *old);
@@ -788,6 +788,19 @@ static inline void uart_port_unlock_irqrestore(struct uart_port *up, unsigned lo
 	spin_unlock_irqrestore(&up->lock, flags);
 }
 
+DEFINE_GUARD(uart_port_lock, struct uart_port *, uart_port_lock(_T), uart_port_unlock(_T));
+DEFINE_GUARD_COND(uart_port_lock, _try, uart_port_trylock(_T));
+
+DEFINE_GUARD(uart_port_lock_irq, struct uart_port *, uart_port_lock_irq(_T),
+	     uart_port_unlock_irq(_T));
+
+DEFINE_LOCK_GUARD_1(uart_port_lock_irqsave, struct uart_port,
+                    uart_port_lock_irqsave(_T->lock, &_T->flags),
+                    uart_port_unlock_irqrestore(_T->lock, _T->flags),
+                    unsigned long flags);
+DEFINE_LOCK_GUARD_1_COND(uart_port_lock_irqsave, _try,
+			 uart_port_trylock_irqsave(_T->lock, &_T->flags));
+
 static inline int serial_port_in(struct uart_port *up, int offset)
 {
 	return up->serial_in(up, offset);
@@ -1101,8 +1114,6 @@ static inline bool uart_console_registered(struct uart_port *port)
 	return uart_console(port) && console_is_registered(port->cons);
 }
 
-struct uart_port *uart_get_console(struct uart_port *ports, int nr,
-				   struct console *c);
 int uart_parse_earlycon(char *p, enum uart_iotype *iotype,
 			resource_size_t *addr, char **options);
 void uart_parse_options(const char *options, int *baud, int *parity, int *bits,

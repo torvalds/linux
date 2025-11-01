@@ -371,7 +371,7 @@ static int sgpio_pinconf_get(struct pinctrl_dev *pctldev,
 		val = !bank->is_input;
 		break;
 
-	case PIN_CONFIG_OUTPUT:
+	case PIN_CONFIG_LEVEL:
 		if (bank->is_input)
 			return -EINVAL;
 		val = sgpio_output_get(priv, &addr);
@@ -402,7 +402,7 @@ static int sgpio_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 		arg = pinconf_to_config_argument(configs[cfg]);
 
 		switch (param) {
-		case PIN_CONFIG_OUTPUT:
+		case PIN_CONFIG_LEVEL:
 			if (bank->is_input)
 				return -EINVAL;
 			err = sgpio_output_set(priv, &addr, arg);
@@ -824,7 +824,7 @@ static int microchip_sgpio_register_bank(struct device *dev,
 	pctl_desc->confops = &sgpio_confops;
 	pctl_desc->owner = THIS_MODULE;
 
-	pins = devm_kzalloc(dev, sizeof(*pins)*ngpios, GFP_KERNEL);
+	pins = devm_kcalloc(dev, ngpios, sizeof(*pins), GFP_KERNEL);
 	if (!pins)
 		return -ENOMEM;
 
@@ -858,7 +858,7 @@ static int microchip_sgpio_register_bank(struct device *dev,
 	gc->direction_input	= microchip_sgpio_direction_input;
 	gc->direction_output	= microchip_sgpio_direction_output;
 	gc->get			= microchip_sgpio_get_value;
-	gc->set_rv		= microchip_sgpio_set_value;
+	gc->set			= microchip_sgpio_set_value;
 	gc->request		= gpiochip_generic_request;
 	gc->free		= gpiochip_generic_free;
 	gc->of_xlate		= microchip_sgpio_of_xlate;

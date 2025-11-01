@@ -76,6 +76,7 @@
 	panel {
 		compatible = "vxt,vl050-8048nt-c01";
 		backlight = <&backlight>;
+		power-supply = <&reg_3p3v>;
 
 		port {
 			panel_in: endpoint {

@@ -39,8 +39,8 @@
 };
 
 &pio {
-	da7219_pins: da7219_pins {
-		pins1 {
+	da7219_pins: da7219-pins {
+		pins-intn {
 			pinmux = <PINMUX_GPIO165__FUNC_GPIO165>;
 			input-enable;
 			bias-pull-up;

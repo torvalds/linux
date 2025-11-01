@@ -86,6 +86,7 @@ static void smu_cmn_read_arg(struct smu_context *smu,
 #define SMU_RESP_BUSY_OTHER     0xFC
 #define SMU_RESP_DEBUG_END      0xFB
 
+#define SMU_RESP_UNEXP (~0U)
 /**
  * __smu_cmn_poll_stat -- poll for a status from the SMU
  * @smu: a pointer to SMU context
@@ -171,6 +172,15 @@ static void __smu_cmn_reg_print_error(struct smu_context *smu,
 		dev_err_ratelimited(adev->dev,
 				    "SMU: I'm debugging!");
 		break;
+	case SMU_RESP_UNEXP:
+		if (amdgpu_device_bus_status_check(smu->adev)) {
+			/* print error immediately if device is off the bus */
+			dev_err(adev->dev,
+				"SMU: response:0x%08X for index:%d param:0x%08X message:%s?",
+				reg_c2pmsg_90, msg_index, param, message);
+			break;
+		}
+		fallthrough;
 	default:
 		dev_err_ratelimited(adev->dev,
 				    "SMU: response:0x%08X for index:%d param:0x%08X message:%s?",
@@ -246,11 +256,12 @@ static int __smu_cmn_ras_filter_msg(struct smu_context *smu,
 {
 	struct amdgpu_device *adev = smu->adev;
 	uint32_t flags, resp;
-	bool fed_status;
+	bool fed_status, pri;
 
 	flags = __smu_cmn_get_msg_flags(smu, msg);
 	*poll = true;
 
+	pri = !!(flags & SMU_MSG_NO_PRECHECK);
 	/* When there is RAS fatal error, FW won't process non-RAS priority
 	 * messages. Don't allow any messages other than RAS priority messages.
 	 */
@@ -262,15 +273,18 @@ static int __smu_cmn_ras_filter_msg(struct smu_context *smu,
 				smu_get_message_name(smu, msg));
 			return -EACCES;
 		}
+	}
 
+	if (pri || fed_status) {
 		/* FW will ignore non-priority messages when a RAS fatal error
-		 * is detected. Hence it is possible that a previous message
-		 * wouldn't have got response. Allow to continue without polling
-		 * for response status for priority messages.
+		 * or reset condition is detected. Hence it is possible that a
+		 * previous message wouldn't have got response. Allow to
+		 * continue without polling for response status for priority
+		 * messages.
 		 */
 		resp = RREG32(smu->resp_reg);
 		dev_dbg(adev->dev,
-			"Sending RAS priority message %s response status: %x",
+			"Sending priority message %s response status: %x",
 			smu_get_message_name(smu, msg), resp);
 		if (resp == 0)
 			*poll = false;
@@ -955,7 +969,7 @@ int smu_cmn_update_table(struct smu_context *smu,
 						      table_index);
 	uint32_t table_size;
 	int ret = 0;
-	if (!table_data || table_id >= SMU_TABLE_COUNT || table_id < 0)
+	if (!table_data || table_index >= SMU_TABLE_COUNT || table_id < 0)
 		return -EINVAL;
 
 	table_size = smu_table->tables[table_index].size;

@@ -14,7 +14,7 @@ description: |
   Qualcomm global clock control module provides the clocks, resets and power
   domains on SDX75
 
-  See also:: include/dt-bindings/clock/qcom,sdx75-gcc.h
+  See also: include/dt-bindings/clock/qcom,sdx75-gcc.h
 
 properties:
   compatible:

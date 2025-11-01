@@ -568,20 +568,6 @@ static int tnl_update_pmtu(struct net_device *dev, struct sk_buff *skb,
 	return 0;
 }
 
-static void ip_tunnel_adj_headroom(struct net_device *dev, unsigned int headroom)
-{
-	/* we must cap headroom to some upperlimit, else pskb_expand_head
-	 * will overflow header offsets in skb_headers_offset_update().
-	 */
-	static const unsigned int max_allowed = 512;
-
-	if (headroom > max_allowed)
-		headroom = max_allowed;
-
-	if (headroom > READ_ONCE(dev->needed_headroom))
-		WRITE_ONCE(dev->needed_headroom, headroom);
-}
-
 void ip_md_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 		       u8 proto, int tunnel_hlen)
 {
@@ -668,7 +654,7 @@ void ip_md_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 	ip_tunnel_adj_headroom(dev, headroom);
 
 	iptunnel_xmit(NULL, rt, skb, fl4.saddr, fl4.daddr, proto, tos, ttl,
-		      df, !net_eq(tunnel->net, dev_net(dev)));
+		      df, !net_eq(tunnel->net, dev_net(dev)), 0);
 	return;
 tx_error:
 	DEV_STATS_INC(dev, tx_errors);
@@ -857,7 +843,7 @@ void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 	ip_tunnel_adj_headroom(dev, max_headroom);
 
 	iptunnel_xmit(NULL, rt, skb, fl4.saddr, fl4.daddr, protocol, tos, ttl,
-		      df, !net_eq(tunnel->net, dev_net(dev)));
+		      df, !net_eq(tunnel->net, dev_net(dev)), 0);
 	return;
 
 #if IS_ENABLED(CONFIG_IPV6)

@@ -133,4 +133,6 @@ void hubbub3_force_pstate_change_control(struct hubbub *hubbub,
 
 void hubbub3_init_watermarks(struct hubbub *hubbub);
 
+void hubbub3_read_reg_state(struct hubbub *hubbub, struct dcn_hubbub_reg_state *hubbub_reg_state);
+
 #endif

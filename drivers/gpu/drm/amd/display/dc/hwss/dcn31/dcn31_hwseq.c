@@ -45,7 +45,7 @@
 #include "link_hwss.h"
 #include "dpcd_defs.h"
 #include "dce/dmub_outbox.h"
-#include "link.h"
+#include "link_service.h"
 #include "dcn10/dcn10_hwseq.h"
 #include "dcn21/dcn21_hwseq.h"
 #include "inc/link_enc_cfg.h"
@@ -562,6 +562,19 @@ static void dcn31_reset_back_end_for_pipe(
 	else if (pipe_ctx->stream_res.audio)
 		dc->hwss.disable_audio_stream(pipe_ctx);
 
+	/* Temporary workaround to perform DSC programming ahead of pipe reset
+	 * for smartmux/SPRS
+	 * TODO: Remove SmartMux/SPRS checks once movement of DSC programming is generalized
+	 */
+	if (pipe_ctx->stream->timing.flags.DSC) {
+		if ((pipe_ctx->stream->signal == SIGNAL_TYPE_EDP &&
+			((link->dc->config.smart_mux_version && link->dc->is_switch_in_progress_dest)
+			|| link->is_dds || link->skip_implict_edp_power_control)) &&
+			(dc_is_dp_signal(pipe_ctx->stream->signal) ||
+			dc_is_virtual_signal(pipe_ctx->stream->signal)))
+			dc->link_srv->set_dsc_enable(pipe_ctx, false);
+	}
+
 	/* free acquired resources */
 	if (pipe_ctx->stream_res.audio) {
 		/*disable az_endpoint*/
@@ -697,7 +710,8 @@ bool dcn31_set_backlight_level(struct pipe_ctx *pipe_ctx,
 			panel_cntl->inst,
 			panel_cntl->pwrseq_inst);
 
-	dmub_abm_set_backlight(dc, backlight_level_params, panel_cntl->inst);
+	if (backlight_level_params->control_type != BACKLIGHT_CONTROL_AMD_AUX)
+		dmub_abm_set_backlight(dc, backlight_level_params, panel_cntl->inst);
 
 	return true;
 }

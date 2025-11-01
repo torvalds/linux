@@ -29,6 +29,7 @@
 #include <linux/init.h>
 #include <linux/iopoll.h>
 #include <linux/kernel.h>
+#include <linux/minmax.h>
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/seq_file.h>
@@ -122,6 +123,14 @@ bool drm_dp_clock_recovery_ok(const u8 link_status[DP_LINK_STATUS_SIZE],
 	return true;
 }
 EXPORT_SYMBOL(drm_dp_clock_recovery_ok);
+
+bool drm_dp_post_lt_adj_req_in_progress(const u8 link_status[DP_LINK_STATUS_SIZE])
+{
+	u8 lane_align = dp_link_status(link_status, DP_LANE_ALIGN_STATUS_UPDATED);
+
+	return lane_align & DP_POST_LT_ADJ_REQ_IN_PROGRESS;
+}
+EXPORT_SYMBOL(drm_dp_post_lt_adj_req_in_progress);
 
 u8 drm_dp_get_adjust_request_voltage(const u8 link_status[DP_LINK_STATUS_SIZE],
 				     int lane)
@@ -742,7 +751,7 @@ ssize_t drm_dp_dpcd_read(struct drm_dp_aux *aux, unsigned int offset,
 	int ret;
 
 	if (dpcd_access_needs_probe(aux)) {
-		ret = drm_dp_dpcd_probe(aux, DP_LANE0_1_STATUS);
+		ret = drm_dp_dpcd_probe(aux, DP_TRAINING_PATTERN_SET);
 		if (ret < 0)
 			return ret;
 	}
@@ -3957,23 +3966,33 @@ EXPORT_SYMBOL(drm_dp_pcon_convert_rgb_to_ycbcr);
  * Returns: %0 on success, negative error code on failure
  */
 int drm_edp_backlight_set_level(struct drm_dp_aux *aux, const struct drm_edp_backlight_info *bl,
-				u16 level)
+				u32 level)
 {
 	int ret;
-	u8 buf[2] = { 0 };
+	unsigned int offset = DP_EDP_BACKLIGHT_BRIGHTNESS_MSB;
+	u8 buf[3] = { 0 };
+	size_t len = 2;
 
 	/* The panel uses the PWM for controlling brightness levels */
-	if (!bl->aux_set)
+	if (!(bl->aux_set || bl->luminance_set))
 		return 0;
 
-	if (bl->lsb_reg_used) {
+	if (bl->luminance_set) {
+		level = level * 1000;
+		level &= 0xffffff;
+		buf[0] = (level & 0x0000ff);
+		buf[1] = (level & 0x00ff00) >> 8;
+		buf[2] = (level & 0xff0000) >> 16;
+		offset = DP_EDP_PANEL_TARGET_LUMINANCE_VALUE;
+		len = 3;
+	} else if (bl->lsb_reg_used) {
 		buf[0] = (level & 0xff00) >> 8;
 		buf[1] = (level & 0x00ff);
 	} else {
 		buf[0] = level;
 	}
 
-	ret = drm_dp_dpcd_write_data(aux, DP_EDP_BACKLIGHT_BRIGHTNESS_MSB, buf, sizeof(buf));
+	ret = drm_dp_dpcd_write_data(aux, offset, buf, len);
 	if (ret < 0) {
 		drm_err(aux->drm_dev,
 			"%s: Failed to write aux backlight level: %d\n",
@@ -4036,7 +4055,7 @@ drm_edp_backlight_set_enable(struct drm_dp_aux *aux, const struct drm_edp_backli
  * Returns: %0 on success, negative error code on failure.
  */
 int drm_edp_backlight_enable(struct drm_dp_aux *aux, const struct drm_edp_backlight_info *bl,
-			     const u16 level)
+			     const u32 level)
 {
 	int ret;
 	u8 dpcd_buf;
@@ -4045,6 +4064,9 @@ int drm_edp_backlight_enable(struct drm_dp_aux *aux, const struct drm_edp_backli
 		dpcd_buf = DP_EDP_BACKLIGHT_CONTROL_MODE_DPCD;
 	else
 		dpcd_buf = DP_EDP_BACKLIGHT_CONTROL_MODE_PWM;
+
+	if (bl->luminance_set)
+		dpcd_buf |= DP_EDP_PANEL_LUMINANCE_CONTROL_ENABLE;
 
 	if (bl->pwmgen_bit_count) {
 		ret = drm_dp_dpcd_write_byte(aux, DP_EDP_PWMGEN_BIT_COUNT, bl->pwmgen_bit_count);
@@ -4115,22 +4137,61 @@ drm_edp_backlight_probe_max(struct drm_dp_aux *aux, struct drm_edp_backlight_inf
 {
 	int fxp, fxp_min, fxp_max, fxp_actual, f = 1;
 	int ret;
-	u8 pn, pn_min, pn_max;
+	u8 pn, pn_min, pn_max, bit_count;
 
 	if (!bl->aux_set)
 		return 0;
 
-	ret = drm_dp_dpcd_read_byte(aux, DP_EDP_PWMGEN_BIT_COUNT, &pn);
+	ret = drm_dp_dpcd_read_byte(aux, DP_EDP_PWMGEN_BIT_COUNT, &bit_count);
 	if (ret < 0) {
 		drm_dbg_kms(aux->drm_dev, "%s: Failed to read pwmgen bit count cap: %d\n",
 			    aux->name, ret);
 		return -ENODEV;
 	}
 
-	pn &= DP_EDP_PWMGEN_BIT_COUNT_MASK;
+	bit_count &= DP_EDP_PWMGEN_BIT_COUNT_MASK;
+
+	ret = drm_dp_dpcd_read_byte(aux, DP_EDP_PWMGEN_BIT_COUNT_CAP_MIN, &pn_min);
+	if (ret < 0) {
+		drm_dbg_kms(aux->drm_dev, "%s: Failed to read pwmgen bit count cap min: %d\n",
+			    aux->name, ret);
+		return -ENODEV;
+	}
+	pn_min &= DP_EDP_PWMGEN_BIT_COUNT_MASK;
+
+	ret = drm_dp_dpcd_read_byte(aux, DP_EDP_PWMGEN_BIT_COUNT_CAP_MAX, &pn_max);
+	if (ret < 0) {
+		drm_dbg_kms(aux->drm_dev, "%s: Failed to read pwmgen bit count cap max: %d\n",
+			    aux->name, ret);
+		return -ENODEV;
+	}
+	pn_max &= DP_EDP_PWMGEN_BIT_COUNT_MASK;
+
+	if (unlikely(pn_min > pn_max)) {
+		drm_dbg_kms(aux->drm_dev, "%s: Invalid pwmgen bit count cap min/max returned: %d %d\n",
+			    aux->name, pn_min, pn_max);
+		return -EINVAL;
+	}
+
+	/*
+	 * Per VESA eDP Spec v1.4b, section 3.3.10.2:
+	 * If DP_EDP_PWMGEN_BIT_COUNT is less than DP_EDP_PWMGEN_BIT_COUNT_CAP_MIN,
+	 * the sink must use the MIN value as the effective PWM bit count.
+	 * Clamp the reported value to the [MIN, MAX] capability range to ensure
+	 * correct brightness scaling on compliant eDP panels.
+	 * Only enable this logic if the [MIN, MAX] range is valid in regard to Spec.
+	 */
+	pn = bit_count;
+	if (bit_count < pn_min)
+		pn = clamp(bit_count, pn_min, pn_max);
+
 	bl->max = (1 << pn) - 1;
-	if (!driver_pwm_freq_hz)
+	if (!driver_pwm_freq_hz) {
+		if (pn != bit_count)
+			goto bit_count_write_back;
+
 		return 0;
+	}
 
 	/*
 	 * Set PWM Frequency divider to match desired frequency provided by the driver.
@@ -4154,21 +4215,6 @@ drm_edp_backlight_probe_max(struct drm_dp_aux *aux, struct drm_edp_backlight_inf
 	 * - FxP is within 25% of desired value.
 	 *   Note: 25% is arbitrary value and may need some tweak.
 	 */
-	ret = drm_dp_dpcd_read_byte(aux, DP_EDP_PWMGEN_BIT_COUNT_CAP_MIN, &pn_min);
-	if (ret < 0) {
-		drm_dbg_kms(aux->drm_dev, "%s: Failed to read pwmgen bit count cap min: %d\n",
-			    aux->name, ret);
-		return 0;
-	}
-	ret = drm_dp_dpcd_read_byte(aux, DP_EDP_PWMGEN_BIT_COUNT_CAP_MAX, &pn_max);
-	if (ret < 0) {
-		drm_dbg_kms(aux->drm_dev, "%s: Failed to read pwmgen bit count cap max: %d\n",
-			    aux->name, ret);
-		return 0;
-	}
-	pn_min &= DP_EDP_PWMGEN_BIT_COUNT_MASK;
-	pn_max &= DP_EDP_PWMGEN_BIT_COUNT_MASK;
-
 	/* Ensure frequency is within 25% of desired value */
 	fxp_min = DIV_ROUND_CLOSEST(fxp * 3, 4);
 	fxp_max = DIV_ROUND_CLOSEST(fxp * 5, 4);
@@ -4186,12 +4232,17 @@ drm_edp_backlight_probe_max(struct drm_dp_aux *aux, struct drm_edp_backlight_inf
 			break;
 	}
 
+bit_count_write_back:
 	ret = drm_dp_dpcd_write_byte(aux, DP_EDP_PWMGEN_BIT_COUNT, pn);
 	if (ret < 0) {
 		drm_dbg_kms(aux->drm_dev, "%s: Failed to write aux pwmgen bit count: %d\n",
 			    aux->name, ret);
 		return 0;
 	}
+
+	if (!driver_pwm_freq_hz)
+		return 0;
+
 	bl->pwmgen_bit_count = pn;
 	bl->max = (1 << pn) - 1;
 
@@ -4209,7 +4260,7 @@ drm_edp_backlight_probe_state(struct drm_dp_aux *aux, struct drm_edp_backlight_i
 			      u8 *current_mode)
 {
 	int ret;
-	u8 buf[2];
+	u8 buf[3];
 	u8 mode_reg;
 
 	ret = drm_dp_dpcd_read_byte(aux, DP_EDP_BACKLIGHT_MODE_SET_REGISTER, &mode_reg);
@@ -4226,17 +4277,37 @@ drm_edp_backlight_probe_state(struct drm_dp_aux *aux, struct drm_edp_backlight_i
 	if (*current_mode == DP_EDP_BACKLIGHT_CONTROL_MODE_DPCD) {
 		int size = 1 + bl->lsb_reg_used;
 
-		ret = drm_dp_dpcd_read_data(aux, DP_EDP_BACKLIGHT_BRIGHTNESS_MSB, buf, size);
-		if (ret < 0) {
-			drm_dbg_kms(aux->drm_dev, "%s: Failed to read backlight level: %d\n",
-				    aux->name, ret);
-			return ret;
-		}
+		if (bl->luminance_set) {
+			ret = drm_dp_dpcd_read_data(aux, DP_EDP_PANEL_TARGET_LUMINANCE_VALUE,
+						    buf, sizeof(buf));
+			if (ret < 0) {
+				drm_dbg_kms(aux->drm_dev,
+					    "%s: Failed to read backlight level: %d\n",
+					    aux->name, ret);
+				return ret;
+			}
 
-		if (bl->lsb_reg_used)
-			return (buf[0] << 8) | buf[1];
-		else
-			return buf[0];
+			/*
+			 * Incase luminance is set we want to send the value back in nits but
+			 * since DP_EDP_PANEL_TARGET_LUMINANCE stores values in millinits we
+			 * need to divide by 1000.
+			 */
+			return (buf[0] | buf[1] << 8 | buf[2] << 16) / 1000;
+		} else {
+			ret = drm_dp_dpcd_read_data(aux, DP_EDP_BACKLIGHT_BRIGHTNESS_MSB,
+						    buf, size);
+			if (ret < 0) {
+				drm_dbg_kms(aux->drm_dev,
+					    "%s: Failed to read backlight level: %d\n",
+					    aux->name, ret);
+				return ret;
+			}
+
+			if (bl->lsb_reg_used)
+				return (buf[0] << 8) | buf[1];
+			else
+				return buf[0];
+		}
 	}
 
 	/*
@@ -4251,10 +4322,12 @@ drm_edp_backlight_probe_state(struct drm_dp_aux *aux, struct drm_edp_backlight_i
  * interface.
  * @aux: The DP aux device to use for probing
  * @bl: The &drm_edp_backlight_info struct to fill out with information on the backlight
+ * @max_luminance: max luminance when need luminance is set as true
  * @driver_pwm_freq_hz: Optional PWM frequency from the driver in hz
  * @edp_dpcd: A cached copy of the eDP DPCD
  * @current_level: Where to store the probed brightness level, if any
  * @current_mode: Where to store the currently set backlight control mode
+ * @need_luminance: Tells us if a we want to manipulate backlight using luminance values
  *
  * Initializes a &drm_edp_backlight_info struct by probing @aux for it's backlight capabilities,
  * along with also probing the current and maximum supported brightness levels.
@@ -4266,8 +4339,9 @@ drm_edp_backlight_probe_state(struct drm_dp_aux *aux, struct drm_edp_backlight_i
  */
 int
 drm_edp_backlight_init(struct drm_dp_aux *aux, struct drm_edp_backlight_info *bl,
+		       u32 max_luminance,
 		       u16 driver_pwm_freq_hz, const u8 edp_dpcd[EDP_DISPLAY_CTL_CAP_SIZE],
-		       u16 *current_level, u8 *current_mode)
+		       u32 *current_level, u8 *current_mode, bool need_luminance)
 {
 	int ret;
 
@@ -4277,18 +4351,26 @@ drm_edp_backlight_init(struct drm_dp_aux *aux, struct drm_edp_backlight_info *bl
 		bl->aux_set = true;
 	if (edp_dpcd[2] & DP_EDP_BACKLIGHT_BRIGHTNESS_BYTE_COUNT)
 		bl->lsb_reg_used = true;
+	if ((edp_dpcd[0] & DP_EDP_15) && edp_dpcd[3] &
+	    (DP_EDP_PANEL_LUMINANCE_CONTROL_CAPABLE) && need_luminance)
+		bl->luminance_set = true;
 
 	/* Sanity check caps */
-	if (!bl->aux_set && !(edp_dpcd[2] & DP_EDP_BACKLIGHT_BRIGHTNESS_PWM_PIN_CAP)) {
+	if (!bl->aux_set && !(edp_dpcd[2] & DP_EDP_BACKLIGHT_BRIGHTNESS_PWM_PIN_CAP) &&
+	    !bl->luminance_set) {
 		drm_dbg_kms(aux->drm_dev,
-			    "%s: Panel supports neither AUX or PWM brightness control? Aborting\n",
+			    "%s: Panel does not support AUX, PWM or luminance-based brightness control. Aborting\n",
 			    aux->name);
 		return -EINVAL;
 	}
 
-	ret = drm_edp_backlight_probe_max(aux, bl, driver_pwm_freq_hz, edp_dpcd);
-	if (ret < 0)
-		return ret;
+	if (bl->luminance_set) {
+		bl->max = max_luminance;
+	} else {
+		ret = drm_edp_backlight_probe_max(aux, bl, driver_pwm_freq_hz, edp_dpcd);
+		if (ret < 0)
+			return ret;
+	}
 
 	ret = drm_edp_backlight_probe_state(aux, bl, current_mode);
 	if (ret < 0)
@@ -4367,7 +4449,7 @@ int drm_panel_dp_aux_backlight(struct drm_panel *panel, struct drm_dp_aux *aux)
 {
 	struct dp_aux_backlight *bl;
 	struct backlight_properties props = { 0 };
-	u16 current_level;
+	u32 current_level;
 	u8 current_mode;
 	u8 edp_dpcd[EDP_DISPLAY_CTL_CAP_SIZE];
 	int ret;
@@ -4391,8 +4473,8 @@ int drm_panel_dp_aux_backlight(struct drm_panel *panel, struct drm_dp_aux *aux)
 
 	bl->aux = aux;
 
-	ret = drm_edp_backlight_init(aux, &bl->info, 0, edp_dpcd,
-				     &current_level, &current_mode);
+	ret = drm_edp_backlight_init(aux, &bl->info, 0, 0, edp_dpcd,
+				     &current_level, &current_mode, false);
 	if (ret < 0)
 		return ret;
 

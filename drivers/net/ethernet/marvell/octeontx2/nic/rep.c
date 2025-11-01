@@ -244,10 +244,10 @@ static int rvu_rep_devlink_port_register(struct rep_dev *rep)
 
 	if (!(rep->pcifunc & RVU_PFVF_FUNC_MASK)) {
 		attrs.flavour = DEVLINK_PORT_FLAVOUR_PHYSICAL;
-		attrs.phys.port_number = rvu_get_pf(rep->pcifunc);
+		attrs.phys.port_number = rvu_get_pf(priv->pdev, rep->pcifunc);
 	} else {
 		attrs.flavour = DEVLINK_PORT_FLAVOUR_PCI_VF;
-		attrs.pci_vf.pf = rvu_get_pf(rep->pcifunc);
+		attrs.pci_vf.pf = rvu_get_pf(priv->pdev, rep->pcifunc);
 		attrs.pci_vf.vf = rep->pcifunc & RVU_PFVF_FUNC_MASK;
 	}
 
@@ -371,7 +371,8 @@ static void rvu_rep_get_stats(struct work_struct *work)
 	stats->rx_mcast_frames = rsp->rx.mcast;
 	stats->tx_bytes = rsp->tx.octs;
 	stats->tx_frames = rsp->tx.ucast + rsp->tx.bcast + rsp->tx.mcast;
-	stats->tx_drops = rsp->tx.drop;
+	stats->tx_drops = rsp->tx.drop +
+			  (unsigned long)atomic_long_read(&stats->tx_discards);
 exit:
 	mutex_unlock(&priv->mbox.lock);
 }
@@ -418,6 +419,16 @@ static netdev_tx_t rvu_rep_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct otx2_nic *pf = rep->mdev;
 	struct otx2_snd_queue *sq;
 	struct netdev_queue *txq;
+	struct rep_stats *stats;
+
+	/* Check for minimum and maximum packet length */
+	if (skb->len <= ETH_HLEN ||
+	    (!skb_shinfo(skb)->gso_size && skb->len > pf->tx_max_pktlen)) {
+		stats = &rep->stats;
+		atomic_long_inc(&stats->tx_discards);
+		dev_kfree_skb(skb);
+		return NETDEV_TX_OK;
+	}
 
 	sq = &pf->qset.sq[rep->rep_id];
 	txq = netdev_get_tx_queue(dev, 0);
@@ -672,7 +683,8 @@ int rvu_rep_create(struct otx2_nic *priv, struct netlink_ext_ack *extack)
 		rep->pcifunc = pcifunc;
 
 		snprintf(ndev->name, sizeof(ndev->name), "Rpf%dvf%d",
-			 rvu_get_pf(pcifunc), (pcifunc & RVU_PFVF_FUNC_MASK));
+			 rvu_get_pf(priv->pdev, pcifunc),
+			 (pcifunc & RVU_PFVF_FUNC_MASK));
 
 		ndev->hw_features = (NETIF_F_RXCSUM | NETIF_F_IP_CSUM |
 			       NETIF_F_IPV6_CSUM | NETIF_F_RXHASH |

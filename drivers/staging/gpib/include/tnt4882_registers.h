@@ -32,11 +32,11 @@ enum {
 	CMDR = 0x1c,	// command register
 	TIMER = 0x1e,	// timer register
 
-	STS1 = 0x10,		/* T488 Status Register 1 */
-	STS2 = 0x1c,		/* T488 Status Register 2 */
+	STS1 = 0x10,	// T488 Status Register 1
+	STS2 = 0x1c,	// T488 Status Register 2
 	ISR0 = IMR0,
-	ISR3 = 0x1a,		/* T488 Interrupt Status Register 3 */
-	BCR = 0x1f,		/* bus control/status register */
+	ISR3 = 0x1a,	// T488 Interrupt Status Register 3
+	BCR = 0x1f,	// bus control/status register
 	BSR = BCR,
 };
 
@@ -107,11 +107,11 @@ enum imr0_bits {
 
 /* ISR0 -- Interrupt Status Register 0 */
 enum isr0_bits {
-	TNT_SYNC_BIT = 0x1, /* handshake sync */
-	TNT_TO_BIT = 0x2, /* timeout */
-	TNT_ATNI_BIT = 0x4, /* ATN interrupt */
+	TNT_SYNC_BIT = 0x1,	/* handshake sync */
+	TNT_TO_BIT = 0x2,	/* timeout */
+	TNT_ATNI_BIT = 0x4,	/* ATN interrupt */
 	TNT_IFCI_BIT = 0x8,	/* interface clear interrupt */
-	TNT_EOS_BIT = 0x10, /* end of string */
+	TNT_EOS_BIT = 0x10,	/* end of string */
 	TNT_NL_BIT = 0x20,	/* new line receive */
 	TNT_STBO_BIT = 0x40,	/* status byte out  */
 	TNT_NBA_BIT = 0x80,	/* new byte available */
@@ -129,7 +129,7 @@ enum isr3_bits {
 };
 
 enum keyreg_bits {
-	MSTD = 0x20,	// enable 350ns T1 delay
+	MSTD = 0x20,	/* enable 350ns T1 delay */
 };
 
 /* STS1 -- Status Register 1 (read only) */
@@ -157,7 +157,7 @@ enum tnt4882_aux_cmds {
 	AUX_9914 = 0x15,	// switch to 9914 mode
 	AUX_REQT = 0x18,
 	AUX_REQF = 0x19,
-	AUX_PAGEIN = 0x50,	/* page in alternate registers */
+	AUX_PAGEIN = 0x50,	// page in alternate registers
 	AUX_HLDI = 0x51,	// rfd holdoff immediately
 	AUX_CLEAR_END = 0x55,
 	AUX_7210 = 0x99,	// switch to 7210 mode
@@ -183,7 +183,7 @@ enum auxi_bits {
 
 enum sasr_bits {
 	ACRDY_BIT = 0x4,	/* acceptor ready state */
-	ADHS_BIT = 0x8,	/* acceptor data holdoff state */
+	ADHS_BIT = 0x8,		/* acceptor data holdoff state */
 	ANHS2_BIT = 0x10,	/* acceptor not ready holdoff immediately state */
 	ANHS1_BIT = 0x20,	/* acceptor not ready holdoff state */
 	AEHS_BIT = 0x40,	/* acceptor end holdoff state */

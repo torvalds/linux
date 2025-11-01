@@ -273,6 +273,8 @@ struct fsnotify_group {
 			int f_flags; /* event_f_flags from fanotify_init() */
 			struct ucounts *ucounts;
 			mempool_t error_events_pool;
+			/* chained on perm_group_list */
+			struct list_head perm_grp_list;
 		} fanotify_data;
 #endif /* CONFIG_FANOTIFY */
 	};

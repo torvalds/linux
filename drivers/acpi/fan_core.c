@@ -102,7 +102,7 @@ match_fps:
 			break;
 	}
 	if (i == fan->fps_count) {
-		dev_dbg(&device->dev, "Invalid control value returned\n");
+		dev_dbg(&device->dev, "No matching fps control value\n");
 		return -EINVAL;
 	}
 
@@ -202,18 +202,6 @@ static const struct thermal_cooling_device_ops fan_cooling_ops = {
  *                               Driver Interface
  * --------------------------------------------------------------------------
 */
-
-static bool acpi_fan_has_fst(struct acpi_device *device)
-{
-	return acpi_has_method(device->handle, "_FST");
-}
-
-static bool acpi_fan_is_acpi4(struct acpi_device *device)
-{
-	return acpi_has_method(device->handle, "_FIF") &&
-	       acpi_has_method(device->handle, "_FPS") &&
-	       acpi_has_method(device->handle, "_FSL");
-}
 
 static int acpi_fan_get_fif(struct acpi_device *device)
 {
@@ -331,9 +319,11 @@ static int acpi_fan_probe(struct platform_device *pdev)
 	device->driver_data = fan;
 	platform_set_drvdata(pdev, fan);
 
-	if (acpi_fan_has_fst(device)) {
+	if (acpi_has_method(device->handle, "_FST")) {
 		fan->has_fst = true;
-		fan->acpi4 = acpi_fan_is_acpi4(device);
+		fan->acpi4 = acpi_has_method(device->handle, "_FIF") &&
+				acpi_has_method(device->handle, "_FPS") &&
+				acpi_has_method(device->handle, "_FSL");
 	}
 
 	if (fan->acpi4) {

@@ -56,7 +56,7 @@ static int thead_dwmac_set_phy_if(struct plat_stmmacenet_data *plat)
 	struct thead_dwmac *dwmac = plat->bsp_priv;
 	u32 phyif;
 
-	switch (plat->mac_interface) {
+	switch (plat->phy_interface) {
 	case PHY_INTERFACE_MODE_MII:
 		phyif = PHY_INTF_MII_GMII;
 		break;
@@ -67,8 +67,8 @@ static int thead_dwmac_set_phy_if(struct plat_stmmacenet_data *plat)
 		phyif = PHY_INTF_RGMII;
 		break;
 	default:
-		dev_err(dwmac->dev, "unsupported phy interface %d\n",
-			plat->mac_interface);
+		dev_err(dwmac->dev, "unsupported phy interface %s\n",
+			phy_modes(plat->phy_interface));
 		return -EINVAL;
 	}
 
@@ -81,7 +81,7 @@ static int thead_dwmac_set_txclk_dir(struct plat_stmmacenet_data *plat)
 	struct thead_dwmac *dwmac = plat->bsp_priv;
 	u32 txclk_dir;
 
-	switch (plat->mac_interface) {
+	switch (plat->phy_interface) {
 	case PHY_INTERFACE_MODE_MII:
 		txclk_dir = TXCLK_DIR_INPUT;
 		break;
@@ -92,8 +92,8 @@ static int thead_dwmac_set_txclk_dir(struct plat_stmmacenet_data *plat)
 		txclk_dir = TXCLK_DIR_OUTPUT;
 		break;
 	default:
-		dev_err(dwmac->dev, "unsupported phy interface %d\n",
-			plat->mac_interface);
+		dev_err(dwmac->dev, "unsupported phy interface %s\n",
+			phy_modes(plat->phy_interface));
 		return -EINVAL;
 	}
 
@@ -112,7 +112,7 @@ static int thead_set_clk_tx_rate(void *bsp_priv, struct clk *clk_tx_i,
 
 	plat = dwmac->plat;
 
-	switch (plat->mac_interface) {
+	switch (plat->phy_interface) {
 	/* For MII, rxc/txc is provided by phy */
 	case PHY_INTERFACE_MODE_MII:
 		return 0;
@@ -143,8 +143,8 @@ static int thead_set_clk_tx_rate(void *bsp_priv, struct clk *clk_tx_i,
 		return 0;
 
 	default:
-		dev_err(dwmac->dev, "unsupported phy interface %d\n",
-			plat->mac_interface);
+		dev_err(dwmac->dev, "unsupported phy interface %s\n",
+			phy_modes(plat->phy_interface));
 		return -EINVAL;
 	}
 }
@@ -152,9 +152,9 @@ static int thead_set_clk_tx_rate(void *bsp_priv, struct clk *clk_tx_i,
 static int thead_dwmac_enable_clk(struct plat_stmmacenet_data *plat)
 {
 	struct thead_dwmac *dwmac = plat->bsp_priv;
-	u32 reg;
+	u32 reg, div;
 
-	switch (plat->mac_interface) {
+	switch (plat->phy_interface) {
 	case PHY_INTERFACE_MODE_MII:
 		reg = GMAC_RX_CLK_EN | GMAC_TX_CLK_EN;
 		break;
@@ -164,14 +164,21 @@ static int thead_dwmac_enable_clk(struct plat_stmmacenet_data *plat)
 	case PHY_INTERFACE_MODE_RGMII_RXID:
 	case PHY_INTERFACE_MODE_RGMII_TXID:
 		/* use pll */
+		div = clk_get_rate(plat->stmmac_clk) / rgmii_clock(SPEED_1000);
+		reg = FIELD_PREP(GMAC_PLLCLK_DIV_EN, 1) |
+		      FIELD_PREP(GMAC_PLLCLK_DIV_NUM, div);
+
+		writel(0, dwmac->apb_base + GMAC_PLLCLK_DIV);
+		writel(reg, dwmac->apb_base + GMAC_PLLCLK_DIV);
+
 		writel(GMAC_GTXCLK_SEL_PLL, dwmac->apb_base + GMAC_GTXCLK_SEL);
 		reg = GMAC_TX_CLK_EN | GMAC_TX_CLK_N_EN | GMAC_TX_CLK_OUT_EN |
 		      GMAC_RX_CLK_EN | GMAC_RX_CLK_N_EN;
 		break;
 
 	default:
-		dev_err(dwmac->dev, "unsupported phy interface %d\n",
-			plat->mac_interface);
+		dev_err(dwmac->dev, "unsupported phy interface %s\n",
+			phy_modes(plat->phy_interface));
 		return -EINVAL;
 	}
 
@@ -211,6 +218,7 @@ static int thead_dwmac_probe(struct platform_device *pdev)
 	struct stmmac_resources stmmac_res;
 	struct plat_stmmacenet_data *plat;
 	struct thead_dwmac *dwmac;
+	struct clk *apb_clk;
 	void __iomem *apb;
 	int ret;
 
@@ -223,6 +231,19 @@ static int thead_dwmac_probe(struct platform_device *pdev)
 	if (IS_ERR(plat))
 		return dev_err_probe(&pdev->dev, PTR_ERR(plat),
 				     "dt configuration failed\n");
+
+	/*
+	 * The APB clock is essential for accessing glue registers. However,
+	 * old devicetrees don't describe it correctly. We continue to probe
+	 * and emit a warning if it isn't present.
+	 */
+	apb_clk = devm_clk_get_enabled(&pdev->dev, "apb");
+	if (PTR_ERR(apb_clk) == -ENOENT)
+		dev_warn(&pdev->dev,
+			 "cannot get apb clock, link may break after speed changes\n");
+	else if (IS_ERR(apb_clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(apb_clk),
+				     "failed to get apb clock\n");
 
 	dwmac = devm_kzalloc(&pdev->dev, sizeof(*dwmac), GFP_KERNEL);
 	if (!dwmac)

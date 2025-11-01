@@ -1,0 +1,134 @@
+What:          /sys/class/intel_pmt/features-<PCI BDF>/
+Date:          2025-04-24
+KernelVersion: 6.16
+Contact:       david.e.box@linux.intel.com
+Description:
+               The `features-<PCI BDF>/` directory represents the "features"
+               capability exposed by Intel PMT (Platform Monitoring Technology)
+               for the given PCI device.
+
+               Each directory corresponds to a PMT feature and contains
+               attributes describing the available telemetry, monitoring, or
+               control functionalities.
+
+Directory Structure:
+
+  /sys/class/intel_pmt/features-<PCI BDF>/
+  ├── accelerator_telemetry/		# Per-accelerator telemetry data
+  ├── crash_log/			# Contains system crash telemetry logs
+  ├── per_core_environment_telemetry/	# Environmental telemetry per core
+  ├── per_core_performance_telemetry/	# Performance telemetry per core
+  ├── per_rmid_energy_telemetry/	# Energy telemetry for RMIDs
+  ├── per_rmid_perf_telemetry/		# Performance telemetry for RMIDs
+  ├── tpmi_control/			# TPMI-related controls and telemetry
+  ├── tracing/				# PMT tracing features
+  └── uncore_telemetry/			# Uncore telemetry data
+
+Common Files (Present in all feature directories):
+
+  caps
+    - Read-only
+    - Lists available capabilities for this feature.
+
+  guids
+    - Read-only
+    - Lists GUIDs associated with this feature.
+
+Additional Attributes (Conditional Presence):
+
+  max_command_size
+    - Read-only
+    - Present if the feature supports out-of-band MCTP access.
+    - Maximum supported MCTP command size for out-of-band PMT access (bytes).
+
+  max_stream_size
+    - Read-only
+    - Present if the feature supports out-of-band MCTP access.
+    - Maximum supported MCTP stream size (bytes).
+
+  min_watcher_period_ms
+    - Read-only
+    - Present if the feature supports the watcher API.
+      The watcher API provides a writable control interface that allows user
+      configuration of monitoring behavior, such as setting the sampling or
+      reporting interval.
+    - Minimum supported time period for the watcher interface (milliseconds).
+
+  num_rmids
+    - Read-only
+    - Present if the feature supports RMID (Resource Monitoring ID) telemetry.
+      RMIDs are identifiers used by hardware to track and report resource usage,
+      such as memory bandwidth or energy consumption, on a per-logical-entity
+      basis (e.g., per core, thread, or process group).
+    - Maximum number of RMIDs tracked simultaneously.
+
+Example:
+For a device with PCI BDF `0000:00:03.1`, the directory tree could look like:
+
+  /sys/class/intel_pmt/features-0000:00:03.1/
+  ├── accelerator_telemetry/
+  │   ├── caps
+  │   ├── guids
+  │   ├── max_command_size
+  │   ├── max_stream_size
+  │   ├── min_watcher_period_ms
+  ├── crash_log/
+  │   ├── caps
+  │   ├── guids
+  │   ├── max_command_size
+  │   ├── max_stream_size
+  ├── per_core_environment_telemetry/
+  │   ├── caps
+  │   ├── guids
+  │   ├── max_command_size
+  │   ├── max_stream_size
+  │   ├── min_watcher_period_ms
+  ├── per_rmid_energy_telemetry/
+  │   ├── caps
+  │   ├── guids
+  │   ├── max_command_size
+  │   ├── max_stream_size
+  │   ├── min_watcher_period_ms
+  │   ├── num_rmids
+  ├── tpmi_control/
+  │   ├── caps
+  │   ├── guids
+  ├── tracing/
+  │   ├── caps
+  │   ├── guids
+  ├── uncore_telemetry/
+  │   ├── caps
+  │   ├── guids
+  │   ├── max_command_size
+  │   ├── max_stream_size
+  │   ├── min_watcher_period_ms
+
+Notes:
+  - Some attributes are only present if the corresponding feature supports
+    the capability (e.g., `max_command_size` for MCTP-capable features).
+  - Features supporting RMIDs include `num_rmids`.
+  - Features supporting the watcher API include `min_watcher_period_ms`.
+  - The `caps` file provides additional information about the functionality
+    of the feature.
+
+Example 'caps' content for the 'tracing' feature:
+
+  /sys/class/intel_pmt/features-0000:00:03.1/
+  ├── tracing/
+  │   ├── caps
+
+	telemetry                                Available: No
+	watcher                                  Available: Yes
+	crashlog                                 Available: No
+	streaming                                Available: No
+	threashold                               Available: No
+	window                                   Available: No
+	config                                   Available: Yes
+	tracing                                  Available: No
+	inband                                   Available: Yes
+	oob                                      Available: Yes
+	secure_chan                              Available: No
+	pmt_sp                                   Available: Yes
+	pmt_sp_policy                            Available: Yes
+	mailbox                                  Available: Yes
+	bios_lock                                Available: Yes

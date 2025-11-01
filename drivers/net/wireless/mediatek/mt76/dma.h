@@ -31,7 +31,12 @@
 #define MT_DMA_CTL_PN_CHK_FAIL		BIT(13)
 #define MT_DMA_CTL_VER_MASK		BIT(7)
 
-#define MT_DMA_RRO_EN		BIT(13)
+#define MT_DMA_SDP0			GENMASK(15, 0)
+#define MT_DMA_TOKEN_ID			GENMASK(31, 16)
+#define MT_DMA_MAGIC_MASK		GENMASK(31, 28)
+#define MT_DMA_RRO_EN			BIT(13)
+
+#define MT_DMA_MAGIC_CNT		16
 
 #define MT_DMA_WED_IND_CMD_CNT		8
 #define MT_DMA_WED_IND_REASON		GENMASK(15, 12)
@@ -52,6 +57,21 @@ struct mt76_wed_rro_desc {
 	__le32 buf0;
 	__le32 buf1;
 } __packed __aligned(4);
+
+/* data1 */
+#define RRO_RXDMAD_DATA1_LS_MASK		BIT(30)
+#define RRO_RXDMAD_DATA1_SDL0_MASK		GENMASK(29, 16)
+/* data2 */
+#define RRO_RXDMAD_DATA2_RX_TOKEN_ID_MASK	GENMASK(31, 16)
+#define RRO_RXDMAD_DATA2_IND_REASON_MASK	GENMASK(15, 12)
+/* data3 */
+#define RRO_RXDMAD_DATA3_MAGIC_CNT_MASK		GENMASK(31, 28)
+struct mt76_rro_rxdmad_c {
+	__le32 data0;
+	__le32 data1;
+	__le32 data2;
+	__le32 data3;
+};
 
 enum mt76_qsel {
 	MT_QSEL_MGMT,
@@ -81,14 +101,13 @@ void mt76_dma_attach(struct mt76_dev *dev);
 void mt76_dma_cleanup(struct mt76_dev *dev);
 int mt76_dma_rx_fill(struct mt76_dev *dev, struct mt76_queue *q,
 		     bool allow_direct);
-void __mt76_dma_queue_reset(struct mt76_dev *dev, struct mt76_queue *q,
-			    bool reset_idx);
-void mt76_dma_queue_reset(struct mt76_dev *dev, struct mt76_queue *q);
+void mt76_dma_queue_reset(struct mt76_dev *dev, struct mt76_queue *q,
+			  bool reset_idx);
 
 static inline void
 mt76_dma_reset_tx_queue(struct mt76_dev *dev, struct mt76_queue *q)
 {
-	dev->queue_ops->reset_q(dev, q);
+	dev->queue_ops->reset_q(dev, q, true);
 	if (mtk_wed_device_active(&dev->mmio.wed))
 		mt76_wed_dma_setup(dev, q, true);
 }

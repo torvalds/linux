@@ -23,11 +23,14 @@ properties:
           - enum:
               - qcom,sc7180-refgen-regulator
               - qcom,sc8180x-refgen-regulator
+              - qcom,sdm670-refgen-regulator
               - qcom,sm8150-refgen-regulator
           - const: qcom,sdm845-refgen-regulator
 
       - items:
           - enum:
+              - qcom,qcs8300-refgen-regulator
+              - qcom,sa8775p-refgen-regulator
               - qcom,sc7280-refgen-regulator
               - qcom,sc8280xp-refgen-regulator
               - qcom,sm6350-refgen-regulator

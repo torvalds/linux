@@ -169,7 +169,7 @@ static int mtk_pinconf_get(struct pinctrl_dev *pctldev,
 		if (!ret)
 			err = -EINVAL;
 		break;
-	case PIN_CONFIG_OUTPUT:
+	case PIN_CONFIG_LEVEL:
 		err = mtk_hw_get_value(hw, desc, PINCTRL_PIN_REG_DIR, &ret);
 		if (err)
 			break;
@@ -292,7 +292,7 @@ static int mtk_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 		/* regard all non-zero value as enable */
 		err = mtk_hw_set_value(hw, desc, PINCTRL_PIN_REG_SR, !!arg);
 		break;
-	case PIN_CONFIG_OUTPUT:
+	case PIN_CONFIG_LEVEL:
 		err = mtk_hw_set_value(hw, desc, PINCTRL_PIN_REG_DO,
 				       arg);
 		if (err)
@@ -949,7 +949,7 @@ static int mtk_build_gpiochip(struct mtk_pinctrl *hw)
 	chip->direction_input	= mtk_gpio_direction_input;
 	chip->direction_output	= mtk_gpio_direction_output;
 	chip->get		= mtk_gpio_get;
-	chip->set_rv		= mtk_gpio_set;
+	chip->set		= mtk_gpio_set;
 	chip->to_irq		= mtk_gpio_to_irq;
 	chip->set_config	= mtk_gpio_set_config;
 	chip->base		= -1;

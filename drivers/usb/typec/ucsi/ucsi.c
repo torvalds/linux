@@ -531,13 +531,12 @@ ucsi_register_altmodes_nvidia(struct ucsi_connector *con, u8 recipient)
 	 * Update the original altmode table as some ppms may report
 	 * multiple DP altmodes.
 	 */
-	if (recipient == UCSI_RECIPIENT_CON)
-		multi_dp = ucsi->ops->update_altmodes(ucsi, orig, updated);
+	multi_dp = ucsi->ops->update_altmodes(ucsi, recipient, orig, updated);
 
 	/* now register altmodes */
 	for (i = 0; i < max_altmodes; i++) {
 		memset(&desc, 0, sizeof(desc));
-		if (multi_dp && recipient == UCSI_RECIPIENT_CON) {
+		if (multi_dp) {
 			desc.svid = updated[i].svid;
 			desc.vdo = updated[i].mid;
 		} else {
@@ -1218,9 +1217,11 @@ static void ucsi_handle_connector_change(struct work_struct *work)
 	struct ucsi_connector *con = container_of(work, struct ucsi_connector,
 						  work);
 	struct ucsi *ucsi = con->ucsi;
+	u8 curr_scale, volt_scale;
 	enum typec_role role;
 	u16 change;
 	int ret;
+	u32 val;
 
 	mutex_lock(&con->lock);
 
@@ -1246,6 +1247,7 @@ static void ucsi_handle_connector_change(struct work_struct *work)
 
 	if (change & UCSI_CONSTAT_POWER_DIR_CHANGE) {
 		typec_set_pwr_role(con->port, role);
+		ucsi_port_psy_changed(con);
 
 		/* Complete pending power role swap */
 		if (!completion_done(&con->complete))
@@ -1290,6 +1292,21 @@ static void ucsi_handle_connector_change(struct work_struct *work)
 
 	if (change & UCSI_CONSTAT_BC_CHANGE)
 		ucsi_port_psy_changed(con);
+
+	if (con->ucsi->version >= UCSI_VERSION_2_1 &&
+	    UCSI_CONSTAT(con, PWR_READING_READY_V2_1)) {
+		curr_scale = UCSI_CONSTAT(con, CURRENT_SCALE_V2_1);
+		volt_scale = UCSI_CONSTAT(con, VOLTAGE_SCALE_V2_1);
+
+		val = UCSI_CONSTAT(con, PEAK_CURRENT_V2_1);
+		con->peak_current = UCSI_CONSTAT_CURR_SCALE_MULT * curr_scale * val;
+
+		val = UCSI_CONSTAT(con, AVG_CURRENT_V2_1);
+		con->avg_current = UCSI_CONSTAT_CURR_SCALE_MULT * curr_scale * val;
+
+		val = UCSI_CONSTAT(con, VBUS_VOLTAGE_V2_1);
+		con->vbus_voltage = UCSI_CONSTAT_VOLT_SCALE_MULT * volt_scale * val;
+	}
 
 out_unlock:
 	mutex_unlock(&con->lock);

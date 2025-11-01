@@ -20,7 +20,7 @@
 		pwms = <&pwm4 0 50000 0>;
 		power-supply = <&reg_vdd_3v3_s>;
 		enable-gpios = <&gpio5 1 GPIO_ACTIVE_HIGH>;
-		brightness-levels= <0 4 8 16 32 64 128 255>;
+		brightness-levels = <0 4 8 16 32 64 128 255>;
 	};
 
 	panel {

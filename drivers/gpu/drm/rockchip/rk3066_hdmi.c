@@ -450,7 +450,7 @@ struct drm_encoder_helper_funcs rk3066_hdmi_encoder_helper_funcs = {
 };
 
 static enum drm_connector_status
-rk3066_hdmi_bridge_detect(struct drm_bridge *bridge)
+rk3066_hdmi_bridge_detect(struct drm_bridge *bridge, struct drm_connector *connector)
 {
 	struct rk3066_hdmi *hdmi = bridge_to_rk3066_hdmi(bridge);
 

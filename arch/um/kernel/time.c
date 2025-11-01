@@ -986,26 +986,26 @@ static int setup_time_travel(char *str)
 __setup("time-travel", setup_time_travel);
 __uml_help(setup_time_travel,
 "time-travel\n"
-"This option just enables basic time travel mode, in which the clock/timers\n"
-"inside the UML instance skip forward when there's nothing to do, rather than\n"
-"waiting for real time to elapse. However, instance CPU speed is limited by\n"
-"the real CPU speed, so e.g. a 10ms timer will always fire after ~10ms wall\n"
-"clock (but quicker when there's nothing to do).\n"
+"    This option just enables basic time travel mode, in which the clock/timers\n"
+"    inside the UML instance skip forward when there's nothing to do, rather than\n"
+"    waiting for real time to elapse. However, instance CPU speed is limited by\n"
+"    the real CPU speed, so e.g. a 10ms timer will always fire after ~10ms wall\n"
+"    clock (but quicker when there's nothing to do).\n"
 "\n"
 "time-travel=inf-cpu\n"
-"This enables time travel mode with infinite processing power, in which there\n"
-"are no wall clock timers, and any CPU processing happens - as seen from the\n"
-"guest - instantly. This can be useful for accurate simulation regardless of\n"
-"debug overhead, physical CPU speed, etc. but is somewhat dangerous as it can\n"
-"easily lead to getting stuck (e.g. if anything in the system busy loops).\n"
+"    This enables time travel mode with infinite processing power, in which there\n"
+"    are no wall clock timers, and any CPU processing happens - as seen from the\n"
+"    guest - instantly. This can be useful for accurate simulation regardless of\n"
+"    debug overhead, physical CPU speed, etc. but is somewhat dangerous as it can\n"
+"    easily lead to getting stuck (e.g. if anything in the system busy loops).\n"
 "\n"
 "time-travel=ext:[ID:]/path/to/socket\n"
-"This enables time travel mode similar to =inf-cpu, except the system will\n"
-"use the given socket to coordinate with a central scheduler, in order to\n"
-"have more than one system simultaneously be on simulated time. The virtio\n"
-"driver code in UML knows about this so you can also simulate networks and\n"
-"devices using it, assuming the device has the right capabilities.\n"
-"The optional ID is a 64-bit integer that's sent to the central scheduler.\n");
+"    This enables time travel mode similar to =inf-cpu, except the system will\n"
+"    use the given socket to coordinate with a central scheduler, in order to\n"
+"    have more than one system simultaneously be on simulated time. The virtio\n"
+"    driver code in UML knows about this so you can also simulate networks and\n"
+"    devices using it, assuming the device has the right capabilities.\n"
+"    The optional ID is a 64-bit integer that's sent to the central scheduler.\n\n");
 
 static int setup_time_travel_start(char *str)
 {
@@ -1022,8 +1022,9 @@ static int setup_time_travel_start(char *str)
 __setup("time-travel-start=", setup_time_travel_start);
 __uml_help(setup_time_travel_start,
 "time-travel-start=<nanoseconds>\n"
-"Configure the UML instance's wall clock to start at this value rather than\n"
-"the host's wall clock at the time of UML boot.\n");
+"    Configure the UML instance's wall clock to start at this value rather than\n"
+"    the host's wall clock at the time of UML boot.\n\n");
+
 static struct kobject *bc_time_kobject;
 
 static ssize_t bc_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)

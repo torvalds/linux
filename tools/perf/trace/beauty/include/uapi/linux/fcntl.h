@@ -90,10 +90,28 @@
 #define DN_ATTRIB	0x00000020	/* File changed attibutes */
 #define DN_MULTISHOT	0x80000000	/* Don't remove notifier */
 
+/* Reserved kernel ranges [-100], [-10000, -40000]. */
 #define AT_FDCWD		-100    /* Special value for dirfd used to
 					   indicate openat should use the
 					   current working directory. */
 
+/*
+ * The concept of process and threads in userland and the kernel is a confusing
+ * one - within the kernel every thread is a 'task' with its own individual PID,
+ * however from userland's point of view threads are grouped by a single PID,
+ * which is that of the 'thread group leader', typically the first thread
+ * spawned.
+ *
+ * To cut the Gideon knot, for internal kernel usage, we refer to
+ * PIDFD_SELF_THREAD to refer to the current thread (or task from a kernel
+ * perspective), and PIDFD_SELF_THREAD_GROUP to refer to the current thread
+ * group leader...
+ */
+#define PIDFD_SELF_THREAD		-10000 /* Current thread. */
+#define PIDFD_SELF_THREAD_GROUP		-10001 /* Current thread group leader. */
+
+#define FD_PIDFS_ROOT			-10002 /* Root of the pidfs filesystem */
+#define FD_INVALID			-10009 /* Invalid file descriptor: -10000 - EBADF = -10009 */
 
 /* Generic flags for the *at(2) family of syscalls. */
 

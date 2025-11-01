@@ -447,7 +447,7 @@ static int cobalt_cobaltc(struct cobalt *cobalt, unsigned int cmd, void *arg)
 	return 0;
 }
 
-static int cobalt_g_register(struct file *file, void *priv_fh,
+static int cobalt_g_register(struct file *file, void *priv,
 		struct v4l2_dbg_register *reg)
 {
 	struct cobalt_stream *s = video_drvdata(file);
@@ -456,7 +456,7 @@ static int cobalt_g_register(struct file *file, void *priv_fh,
 	return cobalt_cobaltc(cobalt, VIDIOC_DBG_G_REGISTER, reg);
 }
 
-static int cobalt_s_register(struct file *file, void *priv_fh,
+static int cobalt_s_register(struct file *file, void *priv,
 		const struct v4l2_dbg_register *reg)
 {
 	struct cobalt_stream *s = video_drvdata(file);
@@ -467,7 +467,7 @@ static int cobalt_s_register(struct file *file, void *priv_fh,
 }
 #endif
 
-static int cobalt_querycap(struct file *file, void *priv_fh,
+static int cobalt_querycap(struct file *file, void *priv,
 				struct v4l2_capability *vcap)
 {
 	struct cobalt_stream *s = video_drvdata(file);
@@ -562,7 +562,7 @@ static void cobalt_video_input_status_show(struct cobalt_stream *s)
 	cobalt_info("rx%d: Packer: %x\n", rx, ioread32(&packer->control));
 }
 
-static int cobalt_log_status(struct file *file, void *priv_fh)
+static int cobalt_log_status(struct file *file, void *priv)
 {
 	struct cobalt_stream *s = video_drvdata(file);
 	struct cobalt *cobalt = s->cobalt;
@@ -596,7 +596,7 @@ static int cobalt_log_status(struct file *file, void *priv_fh)
 	return 0;
 }
 
-static int cobalt_enum_dv_timings(struct file *file, void *priv_fh,
+static int cobalt_enum_dv_timings(struct file *file, void *priv,
 				    struct v4l2_enum_dv_timings *timings)
 {
 	struct cobalt_stream *s = video_drvdata(file);
@@ -613,7 +613,7 @@ static int cobalt_enum_dv_timings(struct file *file, void *priv_fh,
 			pad, enum_dv_timings, timings);
 }
 
-static int cobalt_s_dv_timings(struct file *file, void *priv_fh,
+static int cobalt_s_dv_timings(struct file *file, void *priv,
 				    struct v4l2_dv_timings *timings)
 {
 	struct cobalt_stream *s = video_drvdata(file);
@@ -641,7 +641,7 @@ static int cobalt_s_dv_timings(struct file *file, void *priv_fh,
 	return err;
 }
 
-static int cobalt_g_dv_timings(struct file *file, void *priv_fh,
+static int cobalt_g_dv_timings(struct file *file, void *priv,
 				    struct v4l2_dv_timings *timings)
 {
 	struct cobalt_stream *s = video_drvdata(file);
@@ -654,7 +654,7 @@ static int cobalt_g_dv_timings(struct file *file, void *priv_fh,
 			pad, g_dv_timings, 0, timings);
 }
 
-static int cobalt_query_dv_timings(struct file *file, void *priv_fh,
+static int cobalt_query_dv_timings(struct file *file, void *priv,
 				    struct v4l2_dv_timings *timings)
 {
 	struct cobalt_stream *s = video_drvdata(file);
@@ -667,7 +667,7 @@ static int cobalt_query_dv_timings(struct file *file, void *priv_fh,
 			pad, query_dv_timings, 0, timings);
 }
 
-static int cobalt_dv_timings_cap(struct file *file, void *priv_fh,
+static int cobalt_dv_timings_cap(struct file *file, void *priv,
 				    struct v4l2_dv_timings_cap *cap)
 {
 	struct cobalt_stream *s = video_drvdata(file);
@@ -677,7 +677,7 @@ static int cobalt_dv_timings_cap(struct file *file, void *priv_fh,
 			pad, dv_timings_cap, cap);
 }
 
-static int cobalt_enum_fmt_vid_cap(struct file *file, void *priv_fh,
+static int cobalt_enum_fmt_vid_cap(struct file *file, void *priv,
 		struct v4l2_fmtdesc *f)
 {
 	switch (f->index) {
@@ -697,7 +697,7 @@ static int cobalt_enum_fmt_vid_cap(struct file *file, void *priv_fh,
 	return 0;
 }
 
-static int cobalt_g_fmt_vid_cap(struct file *file, void *priv_fh,
+static int cobalt_g_fmt_vid_cap(struct file *file, void *priv,
 		struct v4l2_format *f)
 {
 	struct cobalt_stream *s = video_drvdata(file);
@@ -726,7 +726,7 @@ static int cobalt_g_fmt_vid_cap(struct file *file, void *priv_fh,
 	return 0;
 }
 
-static int cobalt_try_fmt_vid_cap(struct file *file, void *priv_fh,
+static int cobalt_try_fmt_vid_cap(struct file *file, void *priv,
 		struct v4l2_format *f)
 {
 	struct cobalt_stream *s = video_drvdata(file);
@@ -787,7 +787,7 @@ static int cobalt_try_fmt_vid_cap(struct file *file, void *priv_fh,
 	return 0;
 }
 
-static int cobalt_s_fmt_vid_cap(struct file *file, void *priv_fh,
+static int cobalt_s_fmt_vid_cap(struct file *file, void *priv,
 		struct v4l2_format *f)
 {
 	struct cobalt_stream *s = video_drvdata(file);
@@ -796,7 +796,7 @@ static int cobalt_s_fmt_vid_cap(struct file *file, void *priv_fh,
 	if (vb2_is_busy(&s->q))
 		return -EBUSY;
 
-	if (cobalt_try_fmt_vid_cap(file, priv_fh, f))
+	if (cobalt_try_fmt_vid_cap(file, priv, f))
 		return -EINVAL;
 
 	s->width = pix->width;
@@ -821,7 +821,7 @@ static int cobalt_s_fmt_vid_cap(struct file *file, void *priv_fh,
 	return 0;
 }
 
-static int cobalt_try_fmt_vid_out(struct file *file, void *priv_fh,
+static int cobalt_try_fmt_vid_out(struct file *file, void *priv,
 		struct v4l2_format *f)
 {
 	struct v4l2_pix_format *pix = &f->fmt.pix;
@@ -862,7 +862,7 @@ static int cobalt_try_fmt_vid_out(struct file *file, void *priv_fh,
 	return 0;
 }
 
-static int cobalt_g_fmt_vid_out(struct file *file, void *priv_fh,
+static int cobalt_g_fmt_vid_out(struct file *file, void *priv,
 		struct v4l2_format *f)
 {
 	struct cobalt_stream *s = video_drvdata(file);
@@ -882,7 +882,7 @@ static int cobalt_g_fmt_vid_out(struct file *file, void *priv_fh,
 	return 0;
 }
 
-static int cobalt_enum_fmt_vid_out(struct file *file, void *priv_fh,
+static int cobalt_enum_fmt_vid_out(struct file *file, void *priv,
 		struct v4l2_fmtdesc *f)
 {
 	switch (f->index) {
@@ -899,7 +899,7 @@ static int cobalt_enum_fmt_vid_out(struct file *file, void *priv_fh,
 	return 0;
 }
 
-static int cobalt_s_fmt_vid_out(struct file *file, void *priv_fh,
+static int cobalt_s_fmt_vid_out(struct file *file, void *priv,
 		struct v4l2_format *f)
 {
 	struct cobalt_stream *s = video_drvdata(file);
@@ -909,7 +909,7 @@ static int cobalt_s_fmt_vid_out(struct file *file, void *priv_fh,
 	};
 	u32 code;
 
-	if (cobalt_try_fmt_vid_out(file, priv_fh, f))
+	if (cobalt_try_fmt_vid_out(file, priv, f))
 		return -EINVAL;
 
 	if (vb2_is_busy(&s->q) && (pix->pixelformat != s->pixfmt ||
@@ -942,7 +942,7 @@ static int cobalt_s_fmt_vid_out(struct file *file, void *priv_fh,
 	return 0;
 }
 
-static int cobalt_enum_input(struct file *file, void *priv_fh,
+static int cobalt_enum_input(struct file *file, void *priv,
 				 struct v4l2_input *inp)
 {
 	struct cobalt_stream *s = video_drvdata(file);
@@ -963,7 +963,7 @@ static int cobalt_enum_input(struct file *file, void *priv_fh,
 			video, g_input_status, &inp->status);
 }
 
-static int cobalt_g_input(struct file *file, void *priv_fh, unsigned int *i)
+static int cobalt_g_input(struct file *file, void *priv, unsigned int *i)
 {
 	struct cobalt_stream *s = video_drvdata(file);
 
@@ -971,7 +971,7 @@ static int cobalt_g_input(struct file *file, void *priv_fh, unsigned int *i)
 	return 0;
 }
 
-static int cobalt_s_input(struct file *file, void *priv_fh, unsigned int i)
+static int cobalt_s_input(struct file *file, void *priv, unsigned int i)
 {
 	struct cobalt_stream *s = video_drvdata(file);
 
@@ -990,7 +990,7 @@ static int cobalt_s_input(struct file *file, void *priv_fh, unsigned int i)
 			ADV76XX_PAD_HDMI_PORT_A, 0, 0);
 }
 
-static int cobalt_enum_output(struct file *file, void *priv_fh,
+static int cobalt_enum_output(struct file *file, void *priv,
 				 struct v4l2_output *out)
 {
 	if (out->index)
@@ -1001,18 +1001,18 @@ static int cobalt_enum_output(struct file *file, void *priv_fh,
 	return 0;
 }
 
-static int cobalt_g_output(struct file *file, void *priv_fh, unsigned int *i)
+static int cobalt_g_output(struct file *file, void *priv, unsigned int *i)
 {
 	*i = 0;
 	return 0;
 }
 
-static int cobalt_s_output(struct file *file, void *priv_fh, unsigned int i)
+static int cobalt_s_output(struct file *file, void *priv, unsigned int i)
 {
 	return i ? -EINVAL : 0;
 }
 
-static int cobalt_g_edid(struct file *file, void *fh, struct v4l2_edid *edid)
+static int cobalt_g_edid(struct file *file, void *priv, struct v4l2_edid *edid)
 {
 	struct cobalt_stream *s = video_drvdata(file);
 	u32 pad = edid->pad;
@@ -1026,7 +1026,7 @@ static int cobalt_g_edid(struct file *file, void *fh, struct v4l2_edid *edid)
 	return ret;
 }
 
-static int cobalt_s_edid(struct file *file, void *fh, struct v4l2_edid *edid)
+static int cobalt_s_edid(struct file *file, void *priv, struct v4l2_edid *edid)
 {
 	struct cobalt_stream *s = video_drvdata(file);
 	u32 pad = edid->pad;
@@ -1050,7 +1050,7 @@ static int cobalt_subscribe_event(struct v4l2_fh *fh,
 	return v4l2_ctrl_subscribe_event(fh, sub);
 }
 
-static int cobalt_g_parm(struct file *file, void *fh, struct v4l2_streamparm *a)
+static int cobalt_g_parm(struct file *file, void *priv, struct v4l2_streamparm *a)
 {
 	struct cobalt_stream *s = video_drvdata(file);
 	struct v4l2_fract fps;
@@ -1065,7 +1065,7 @@ static int cobalt_g_parm(struct file *file, void *fh, struct v4l2_streamparm *a)
 	return 0;
 }
 
-static int cobalt_g_pixelaspect(struct file *file, void *fh,
+static int cobalt_g_pixelaspect(struct file *file, void *priv,
 				int type, struct v4l2_fract *f)
 {
 	struct cobalt_stream *s = video_drvdata(file);
@@ -1084,7 +1084,7 @@ static int cobalt_g_pixelaspect(struct file *file, void *fh,
 	return err;
 }
 
-static int cobalt_g_selection(struct file *file, void *fh,
+static int cobalt_g_selection(struct file *file, void *priv,
 			      struct v4l2_selection *sel)
 {
 	struct cobalt_stream *s = video_drvdata(file);

@@ -59,4 +59,14 @@ static inline void arch_exit_to_user_mode_prepare(struct pt_regs *regs,
 
 #define arch_exit_to_user_mode_prepare arch_exit_to_user_mode_prepare
 
+static __always_inline bool arch_in_rcu_eqs(void)
+{
+	if (IS_ENABLED(CONFIG_KVM))
+		return current->flags & PF_VCPU;
+
+	return false;
+}
+
+#define arch_in_rcu_eqs arch_in_rcu_eqs
+
 #endif

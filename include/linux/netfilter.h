@@ -92,6 +92,7 @@ enum nf_hook_ops_type {
 	NF_HOOK_OP_UNDEFINED,
 	NF_HOOK_OP_NF_TABLES,
 	NF_HOOK_OP_BPF,
+	NF_HOOK_OP_NFT_FT,
 };
 
 struct nf_hook_ops {

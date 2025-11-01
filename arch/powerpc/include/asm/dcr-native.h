@@ -7,7 +7,7 @@
 #ifndef _ASM_POWERPC_DCR_NATIVE_H
 #define _ASM_POWERPC_DCR_NATIVE_H
 #ifdef __KERNEL__
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/spinlock.h>
 #include <asm/cputable.h>
@@ -139,6 +139,6 @@ static inline void __dcri_clrset(int base_addr, int base_data, int reg,
 							      DCRN_ ## base ## _CONFIG_DATA,	\
 							      reg, clr, set)
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_DCR_NATIVE_H */

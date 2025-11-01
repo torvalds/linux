@@ -43,6 +43,7 @@ static int session_write_header(char *path)
 
 	session->evlist = evlist__new_default();
 	TEST_ASSERT_VAL("can't get evlist", session->evlist);
+	session->evlist->session = session;
 
 	perf_header__set_feat(&session->header, HEADER_CPU_TOPOLOGY);
 	perf_header__set_feat(&session->header, HEADER_NRCPUS);
@@ -69,9 +70,11 @@ static int check_cpu_topology(char *path, struct perf_cpu_map *map)
 	int i;
 	struct aggr_cpu_id id;
 	struct perf_cpu cpu;
+	struct perf_env *env;
 
 	session = perf_session__new(&data, NULL);
 	TEST_ASSERT_VAL("can't get session", !IS_ERR(session));
+	env = perf_session__env(session);
 	cpu__setup_cpunode_map();
 
 	/* On platforms with large numbers of CPUs process_cpu_topology()
@@ -95,9 +98,7 @@ static int check_cpu_topology(char *path, struct perf_cpu_map *map)
 	 *  condition is true (see do_core_id_test in header.c). So always
 	 *  run this test on those platforms.
 	 */
-	if (!session->header.env.cpu
-			&& strncmp(session->header.env.arch, "s390", 4)
-			&& strncmp(session->header.env.arch, "aarch64", 7))
+	if (!env->cpu && strncmp(env->arch, "s390", 4) && strncmp(env->arch, "aarch64", 7))
 		return TEST_SKIP;
 
 	/*
@@ -106,20 +107,20 @@ static int check_cpu_topology(char *path, struct perf_cpu_map *map)
 	 * physical_package_id will be set to -1. Hence skip this
 	 * test if physical_package_id returns -1 for cpu from perf_cpu_map.
 	 */
-	if (!strncmp(session->header.env.arch, "ppc64le", 7)) {
+	if (!strncmp(env->arch, "ppc64le", 7)) {
 		if (cpu__get_socket_id(perf_cpu_map__cpu(map, 0)) == -1)
 			return TEST_SKIP;
 	}
 
-	TEST_ASSERT_VAL("Session header CPU map not set", session->header.env.cpu);
+	TEST_ASSERT_VAL("Session header CPU map not set", env->cpu);
 
-	for (i = 0; i < session->header.env.nr_cpus_avail; i++) {
+	for (i = 0; i < env->nr_cpus_avail; i++) {
 		cpu.cpu = i;
 		if (!perf_cpu_map__has(map, cpu))
 			continue;
 		pr_debug("CPU %d, core %d, socket %d\n", i,
-			 session->header.env.cpu[i].core_id,
-			 session->header.env.cpu[i].socket_id);
+			 env->cpu[i].core_id,
+			 env->cpu[i].socket_id);
 	}
 
 	// Test that CPU ID contains socket, die, core and CPU
@@ -129,13 +130,12 @@ static int check_cpu_topology(char *path, struct perf_cpu_map *map)
 				cpu.cpu == id.cpu.cpu);
 
 		TEST_ASSERT_VAL("Cpu map - Core ID doesn't match",
-			session->header.env.cpu[cpu.cpu].core_id == id.core);
+			env->cpu[cpu.cpu].core_id == id.core);
 		TEST_ASSERT_VAL("Cpu map - Socket ID doesn't match",
-			session->header.env.cpu[cpu.cpu].socket_id ==
-			id.socket);
+			env->cpu[cpu.cpu].socket_id == id.socket);
 
 		TEST_ASSERT_VAL("Cpu map - Die ID doesn't match",
-			session->header.env.cpu[cpu.cpu].die_id == id.die);
+			env->cpu[cpu.cpu].die_id == id.die);
 		TEST_ASSERT_VAL("Cpu map - Node ID is set", id.node == -1);
 		TEST_ASSERT_VAL("Cpu map - Thread IDX is set", id.thread_idx == -1);
 	}
@@ -144,14 +144,13 @@ static int check_cpu_topology(char *path, struct perf_cpu_map *map)
 	perf_cpu_map__for_each_cpu(cpu, i, map) {
 		id = aggr_cpu_id__core(cpu, NULL);
 		TEST_ASSERT_VAL("Core map - Core ID doesn't match",
-			session->header.env.cpu[cpu.cpu].core_id == id.core);
+			env->cpu[cpu.cpu].core_id == id.core);
 
 		TEST_ASSERT_VAL("Core map - Socket ID doesn't match",
-			session->header.env.cpu[cpu.cpu].socket_id ==
-			id.socket);
+			env->cpu[cpu.cpu].socket_id == id.socket);
 
 		TEST_ASSERT_VAL("Core map - Die ID doesn't match",
-			session->header.env.cpu[cpu.cpu].die_id == id.die);
+			env->cpu[cpu.cpu].die_id == id.die);
 		TEST_ASSERT_VAL("Core map - Node ID is set", id.node == -1);
 		TEST_ASSERT_VAL("Core map - Thread IDX is set", id.thread_idx == -1);
 	}
@@ -160,11 +159,10 @@ static int check_cpu_topology(char *path, struct perf_cpu_map *map)
 	perf_cpu_map__for_each_cpu(cpu, i, map) {
 		id = aggr_cpu_id__die(cpu, NULL);
 		TEST_ASSERT_VAL("Die map - Socket ID doesn't match",
-			session->header.env.cpu[cpu.cpu].socket_id ==
-			id.socket);
+			env->cpu[cpu.cpu].socket_id == id.socket);
 
 		TEST_ASSERT_VAL("Die map - Die ID doesn't match",
-			session->header.env.cpu[cpu.cpu].die_id == id.die);
+			env->cpu[cpu.cpu].die_id == id.die);
 
 		TEST_ASSERT_VAL("Die map - Node ID is set", id.node == -1);
 		TEST_ASSERT_VAL("Die map - Core is set", id.core == -1);
@@ -176,8 +174,7 @@ static int check_cpu_topology(char *path, struct perf_cpu_map *map)
 	perf_cpu_map__for_each_cpu(cpu, i, map) {
 		id = aggr_cpu_id__socket(cpu, NULL);
 		TEST_ASSERT_VAL("Socket map - Socket ID doesn't match",
-			session->header.env.cpu[cpu.cpu].socket_id ==
-			id.socket);
+			env->cpu[cpu.cpu].socket_id == id.socket);
 
 		TEST_ASSERT_VAL("Socket map - Node ID is set", id.node == -1);
 		TEST_ASSERT_VAL("Socket map - Die ID is set", id.die == -1);

@@ -181,7 +181,7 @@ static void qede_ptp_task(struct work_struct *work)
 }
 
 /* Read the PHC. This API is invoked with ptp_lock held. */
-static u64 qede_ptp_read_cc(const struct cyclecounter *cc)
+static u64 qede_ptp_read_cc(struct cyclecounter *cc)
 {
 	struct qede_dev *edev;
 	struct qede_ptp *ptp;

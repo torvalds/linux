@@ -252,8 +252,7 @@ static void service_work_queue(struct simple_work_queue *queue)
 		 * This speeds up some performance tests; that "other work" might include other VDO
 		 * threads.
 		 */
-		if (need_resched())
-			cond_resched();
+		cond_resched();
 	}
 
 	run_finish_hook(queue);

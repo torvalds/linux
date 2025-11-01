@@ -21,6 +21,8 @@
 #include <linux/reboot.h>
 #include <linux/btf.h>
 #include <linux/objtool.h>
+#include <linux/delay.h>
+#include <linux/panic.h>
 
 #include <asm/page.h>
 #include <asm/sections.h>
@@ -32,6 +34,11 @@
 
 /* Per cpu memory for storing cpu states in case of system crash. */
 note_buf_t __percpu *crash_notes;
+
+/* time to wait for possible DMA to finish before starting the kdump kernel
+ * when a CMA reservation is used
+ */
+#define CMA_DMA_TIMEOUT_SEC 10
 
 #ifdef CONFIG_CRASH_DUMP
 
@@ -97,6 +104,14 @@ int kexec_crash_loaded(void)
 }
 EXPORT_SYMBOL_GPL(kexec_crash_loaded);
 
+static void crash_cma_clear_pending_dma(void)
+{
+	if (!crashk_cma_cnt)
+		return;
+
+	mdelay(CMA_DMA_TIMEOUT_SEC * 1000);
+}
+
 /*
  * No panic_cpu check version of crash_kexec().  This function is called
  * only when panic_cpu holds the current CPU number; this is the only CPU
@@ -119,6 +134,7 @@ void __noclone __crash_kexec(struct pt_regs *regs)
 			crash_setup_regs(&fixed_regs, regs);
 			crash_save_vmcoreinfo();
 			machine_crash_shutdown(&fixed_regs);
+			crash_cma_clear_pending_dma();
 			machine_kexec(kexec_crash_image);
 		}
 		kexec_unlock();
@@ -128,17 +144,7 @@ STACK_FRAME_NON_STANDARD(__crash_kexec);
 
 __bpf_kfunc void crash_kexec(struct pt_regs *regs)
 {
-	int old_cpu, this_cpu;
-
-	/*
-	 * Only one CPU is allowed to execute the crash_kexec() code as with
-	 * panic().  Otherwise parallel calls of panic() and crash_kexec()
-	 * may stop each other.  To exclude them, we use panic_cpu here too.
-	 */
-	old_cpu = PANIC_CPU_INVALID;
-	this_cpu = raw_smp_processor_id();
-
-	if (atomic_try_cmpxchg(&panic_cpu, &old_cpu, this_cpu)) {
+	if (panic_try_start()) {
 		/* This is the 1st CPU which comes here, so go ahead. */
 		__crash_kexec(regs);
 
@@ -146,7 +152,7 @@ __bpf_kfunc void crash_kexec(struct pt_regs *regs)
 		 * Reset panic_cpu to allow another panic()/crash_kexec()
 		 * call.
 		 */
-		atomic_set(&panic_cpu, PANIC_CPU_INVALID);
+		panic_reset();
 	}
 }
 
@@ -259,6 +265,20 @@ int crash_prepare_elf64_headers(struct crash_mem *mem, int need_kernel_map,
 	return 0;
 }
 
+/**
+ * crash_exclude_mem_range - exclude a mem range for existing ranges
+ * @mem: mem->range contains an array of ranges sorted in ascending order
+ * @mstart: the start of to-be-excluded range
+ * @mend: the start of to-be-excluded range
+ *
+ * If you are unsure if a range split will happen, to avoid function call
+ * failure because of -ENOMEM, always make sure
+ *    mem->max_nr_ranges == mem->nr_ranges + 1
+ * before calling the function each time.
+ *
+ * returns 0 if a memory range is excluded successfully
+ * return -ENOMEM if mem->ranges doesn't have space to hold split ranges
+ */
 int crash_exclude_mem_range(struct crash_mem *mem,
 			    unsigned long long mstart, unsigned long long mend)
 {
@@ -318,6 +338,7 @@ int crash_exclude_mem_range(struct crash_mem *mem,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(crash_exclude_mem_range);
 
 ssize_t crash_get_memory_size(void)
 {

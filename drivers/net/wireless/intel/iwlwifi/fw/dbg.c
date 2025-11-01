@@ -830,7 +830,7 @@ iwl_fw_error_dump_file(struct iwl_fw_runtime *fwrt,
 	}
 
 	/* reading RXF/TXF sizes */
-	if (test_bit(STATUS_FW_ERROR, &fwrt->trans->status)) {
+	if (iwl_trans_is_fw_error(fwrt->trans)) {
 		fifo_len = iwl_fw_rxf_len(fwrt, mem_cfg);
 		fifo_len += iwl_fw_txf_len(fwrt, mem_cfg);
 
@@ -1106,6 +1106,7 @@ static int iwl_dump_ini_prph_phy_iter_common(struct iwl_fw_runtime *fwrt,
 	u32 prph_val;
 	u32 dphy_state;
 	u32 dphy_addr;
+	u32 prph_stts;
 	int i;
 
 	range->internal_base_addr = cpu_to_le32(addr);
@@ -1133,6 +1134,21 @@ static int iwl_dump_ini_prph_phy_iter_common(struct iwl_fw_runtime *fwrt,
 
 		iwl_write_prph_no_grab(fwrt->trans, indirect_wr_addr,
 				       WMAL_INDRCT_CMD(addr + i));
+
+		if (fwrt->trans->info.hw_rf_id != IWL_CFG_RF_TYPE_JF1 &&
+		    fwrt->trans->info.hw_rf_id != IWL_CFG_RF_TYPE_JF2 &&
+		    fwrt->trans->info.hw_rf_id != IWL_CFG_RF_TYPE_HR1 &&
+		    fwrt->trans->info.hw_rf_id != IWL_CFG_RF_TYPE_HR2) {
+			udelay(2);
+			prph_stts = iwl_read_prph_no_grab(fwrt->trans,
+							  WMAL_MRSPF_STTS);
+
+			/* Abort dump if status is 0xA5A5A5A2 or FIFO1 empty */
+			if (prph_stts == WMAL_TIMEOUT_VAL ||
+			    !WMAL_MRSPF_STTS_IS_FIFO1_NOT_EMPTY(prph_stts))
+				break;
+		}
+
 		prph_val = iwl_read_prph_no_grab(fwrt->trans,
 						 indirect_rd_addr);
 		*val++ = cpu_to_le32(prph_val);
@@ -2377,7 +2393,7 @@ static u32 iwl_dump_ini_info(struct iwl_fw_runtime *fwrt,
 	struct iwl_fw_ini_dump_cfg_name *cfg_name;
 	u32 size = sizeof(*tlv) + sizeof(*dump);
 	u32 num_of_cfg_names = 0;
-	u32 hw_type, is_cdb, is_jacket;
+	u32 hw_type, is_cdb;
 
 	list_for_each_entry(node, &fwrt->trans->dbg.debug_info_tlv_list, list) {
 		size += sizeof(*cfg_name);
@@ -2410,11 +2426,7 @@ static u32 iwl_dump_ini_info(struct iwl_fw_runtime *fwrt,
 	hw_type = CSR_HW_REV_TYPE(fwrt->trans->info.hw_rev);
 
 	is_cdb = CSR_HW_RFID_IS_CDB(fwrt->trans->info.hw_rf_id);
-	is_jacket = !!(iwl_read_umac_prph(fwrt->trans, WFPM_OTP_CFG1_ADDR) &
-				WFPM_OTP_CFG1_IS_JACKET_BIT);
-
-	/* Use bits 12 and 13 to indicate jacket/CDB, respectively */
-	hw_type |= (is_jacket | (is_cdb << 1)) << IWL_JACKET_CDB_SHIFT;
+	hw_type |= IWL_CDB_MASK(is_cdb);
 
 	dump->hw_type = cpu_to_le32(hw_type);
 
@@ -2458,36 +2470,6 @@ static u32 iwl_dump_ini_info(struct iwl_fw_runtime *fwrt,
 	 * the first TLV in the dump
 	 */
 	list_add(&entry->list, list);
-
-	return entry->size;
-}
-
-static u32 iwl_dump_ini_file_name_info(struct iwl_fw_runtime *fwrt,
-				       struct list_head *list)
-{
-	struct iwl_fw_ini_dump_entry *entry;
-	struct iwl_dump_file_name_info *tlv;
-	u32 len = strnlen(fwrt->trans->dbg.dump_file_name_ext,
-			  IWL_FW_INI_MAX_NAME);
-
-	if (!fwrt->trans->dbg.dump_file_name_ext_valid)
-		return 0;
-
-	entry = vzalloc(sizeof(*entry) + sizeof(*tlv) + len);
-	if (!entry)
-		return 0;
-
-	entry->size = sizeof(*tlv) + len;
-
-	tlv = (void *)entry->data;
-	tlv->type = cpu_to_le32(IWL_INI_DUMP_NAME_TYPE);
-	tlv->len = cpu_to_le32(len);
-	memcpy(tlv->data, fwrt->trans->dbg.dump_file_name_ext, len);
-
-	/* add the dump file name extension tlv to the list */
-	list_add_tail(&entry->list, list);
-
-	fwrt->trans->dbg.dump_file_name_ext_valid = false;
 
 	return entry->size;
 }
@@ -2748,7 +2730,6 @@ static u32 iwl_dump_ini_trigger(struct iwl_fw_runtime *fwrt,
 					 &iwl_dump_ini_region_ops[IWL_FW_INI_REGION_DRAM_IMR]);
 
 	if (size) {
-		size += iwl_dump_ini_file_name_info(fwrt, list);
 		size += iwl_dump_ini_info(fwrt, trigger, list);
 	}
 
@@ -2962,7 +2943,7 @@ IWL_EXPORT_SYMBOL(iwl_fw_dbg_collect_desc);
 int iwl_fw_dbg_error_collect(struct iwl_fw_runtime *fwrt,
 			     enum iwl_fw_dbg_trigger trig_type)
 {
-	if (!test_bit(STATUS_DEVICE_ENABLED, &fwrt->trans->status))
+	if (!iwl_trans_device_enabled(fwrt->trans))
 		return -EIO;
 
 	if (iwl_trans_dbg_ini_valid(fwrt->trans)) {
@@ -3008,6 +2989,7 @@ int iwl_fw_dbg_collect(struct iwl_fw_runtime *fwrt,
 	struct iwl_fw_dump_desc *desc;
 	unsigned int delay = 0;
 	bool monitor_only = false;
+	int ret;
 
 	if (trigger) {
 		u16 occurrences = le16_to_cpu(trigger->occurrences) - 1;
@@ -3038,7 +3020,11 @@ int iwl_fw_dbg_collect(struct iwl_fw_runtime *fwrt,
 	desc->trig_desc.type = cpu_to_le32(trig);
 	memcpy(desc->trig_desc.data, str, len);
 
-	return iwl_fw_dbg_collect_desc(fwrt, desc, monitor_only, delay);
+	ret = iwl_fw_dbg_collect_desc(fwrt, desc, monitor_only, delay);
+	if (ret)
+		kfree(desc);
+
+	return ret;
 }
 IWL_EXPORT_SYMBOL(iwl_fw_dbg_collect);
 
@@ -3046,7 +3032,7 @@ int iwl_fw_dbg_collect_trig(struct iwl_fw_runtime *fwrt,
 			    struct iwl_fw_dbg_trigger_tlv *trigger,
 			    const char *fmt, ...)
 {
-	int ret, len = 0;
+	int len = 0;
 	char buf[64];
 
 	if (iwl_trans_dbg_ini_valid(fwrt->trans))
@@ -3068,13 +3054,8 @@ int iwl_fw_dbg_collect_trig(struct iwl_fw_runtime *fwrt,
 		len = strlen(buf) + 1;
 	}
 
-	ret = iwl_fw_dbg_collect(fwrt, le32_to_cpu(trigger->id), buf, len,
-				 trigger);
-
-	if (ret)
-		return ret;
-
-	return 0;
+	return iwl_fw_dbg_collect(fwrt, le32_to_cpu(trigger->id), buf, len,
+				  trigger);
 }
 IWL_EXPORT_SYMBOL(iwl_fw_dbg_collect_trig);
 
@@ -3135,7 +3116,7 @@ static void iwl_send_dbg_dump_complete_cmd(struct iwl_fw_runtime *fwrt,
 		.len[0] = sizeof(hcmd_data),
 	};
 
-	if (test_bit(STATUS_FW_ERROR, &fwrt->trans->status))
+	if (iwl_trans_is_fw_error(fwrt->trans))
 		return;
 
 	if (fw_has_capa(&fwrt->fw->ucode_capa,
@@ -3164,13 +3145,13 @@ static void iwl_fw_dbg_collect_sync(struct iwl_fw_runtime *fwrt, u8 wk_idx)
 		goto out;
 	}
 
-	if (!test_bit(STATUS_DEVICE_ENABLED, &fwrt->trans->status)) {
+	if (!iwl_trans_device_enabled(fwrt->trans)) {
 		IWL_ERR(fwrt, "Device is not enabled - cannot dump error\n");
 		goto out;
 	}
 
 	/* there's no point in fw dump if the bus is dead */
-	if (test_bit(STATUS_TRANS_DEAD, &fwrt->trans->status)) {
+	if (iwl_trans_is_dead(fwrt->trans)) {
 		IWL_ERR(fwrt, "Skip fw error dump since bus is dead\n");
 		goto out;
 	}

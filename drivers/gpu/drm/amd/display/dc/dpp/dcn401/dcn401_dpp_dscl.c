@@ -78,16 +78,6 @@ enum dscl_autocal_mode {
 	AUTOCAL_MODE_AUTOREPLICATE = 3
 };
 
-enum dscl_mode_sel {
-	DSCL_MODE_SCALING_444_BYPASS = 0,
-	DSCL_MODE_SCALING_444_RGB_ENABLE = 1,
-	DSCL_MODE_SCALING_444_YCBCR_ENABLE = 2,
-	DSCL_MODE_SCALING_420_YCBCR_ENABLE = 3,
-	DSCL_MODE_SCALING_420_LUMA_BYPASS = 4,
-	DSCL_MODE_SCALING_420_CHROMA_BYPASS = 5,
-	DSCL_MODE_DSCL_BYPASS = 6
-};
-
 static int dpp401_dscl_get_pixel_depth_val(enum lb_pixel_depth depth)
 {
 	if (depth == LB_PIXEL_DEPTH_30BPP)
@@ -122,7 +112,7 @@ static bool dpp401_dscl_is_420_format(enum pixel_format format)
 		return false;
 }
 
-static enum dscl_mode_sel dpp401_dscl_get_dscl_mode(
+static enum dcn401_dscl_mode_sel dpp401_dscl_get_dscl_mode(
 		struct dpp *dpp_base,
 		const struct scaler_data *data,
 		bool dbg_always_scale)
@@ -132,7 +122,7 @@ static enum dscl_mode_sel dpp401_dscl_get_dscl_mode(
 	if (dpp_base->caps->dscl_data_proc_format == DSCL_DATA_PRCESSING_FIXED_FORMAT) {
 		/* DSCL is processing data in fixed format */
 		if (data->format == PIXEL_FORMAT_FP16)
-			return DSCL_MODE_DSCL_BYPASS;
+			return DCN401_DSCL_MODE_DSCL_BYPASS;
 	}
 
 	if (data->ratios.horz.value == one
@@ -140,20 +130,20 @@ static enum dscl_mode_sel dpp401_dscl_get_dscl_mode(
 			&& data->ratios.horz_c.value == one
 			&& data->ratios.vert_c.value == one
 			&& !dbg_always_scale)
-		return DSCL_MODE_SCALING_444_BYPASS;
+		return DCN401_DSCL_MODE_SCALING_444_BYPASS;
 
 	if (!dpp401_dscl_is_420_format(data->format)) {
 		if (dpp401_dscl_is_video_format(data->format))
-			return DSCL_MODE_SCALING_444_YCBCR_ENABLE;
+			return DCN401_DSCL_MODE_SCALING_444_YCBCR_ENABLE;
 		else
-			return DSCL_MODE_SCALING_444_RGB_ENABLE;
+			return DCN401_DSCL_MODE_SCALING_444_RGB_ENABLE;
 	}
 	if (data->ratios.horz.value == one && data->ratios.vert.value == one)
-		return DSCL_MODE_SCALING_420_LUMA_BYPASS;
+		return DCN401_DSCL_MODE_SCALING_420_LUMA_BYPASS;
 	if (data->ratios.horz_c.value == one && data->ratios.vert_c.value == one)
-		return DSCL_MODE_SCALING_420_CHROMA_BYPASS;
+		return DCN401_DSCL_MODE_SCALING_420_CHROMA_BYPASS;
 
-	return DSCL_MODE_SCALING_420_YCBCR_ENABLE;
+	return DCN401_DSCL_MODE_SCALING_420_YCBCR_ENABLE;
 }
 
 static void dpp401_power_on_dscl(
@@ -1071,7 +1061,7 @@ void dpp401_dscl_set_scaler_manual_scale(struct dpp *dpp_base,
 	uint32_t v_num_taps_c = scl_data->taps.v_taps_c - 1;
 	uint32_t h_num_taps = scl_data->taps.h_taps - 1;
 	uint32_t h_num_taps_c = scl_data->taps.h_taps_c - 1;
-	enum dscl_mode_sel dscl_mode = dpp401_dscl_get_dscl_mode(
+	enum dcn401_dscl_mode_sel dscl_mode = dpp401_dscl_get_dscl_mode(
 			dpp_base, scl_data, dpp_base->ctx->dc->debug.always_scale);
 	bool ycbcr = scl_data->format >= PIXEL_FORMAT_VIDEO_BEGIN
 				&& scl_data->format <= PIXEL_FORMAT_VIDEO_END;
@@ -1102,7 +1092,7 @@ void dpp401_dscl_set_scaler_manual_scale(struct dpp *dpp_base,
 	dpp->scl_data = *scl_data;
 
 	if ((dpp->base.ctx->dc->config.use_spl) && (!dpp->base.ctx->dc->debug.disable_spl)) {
-		dscl_mode = (enum dscl_mode_sel) scl_data->dscl_prog_data.dscl_mode;
+		dscl_mode = (enum dcn401_dscl_mode_sel) scl_data->dscl_prog_data.dscl_mode;
 		rect = (struct rect *)&scl_data->dscl_prog_data.recout;
 		mpc_width = scl_data->dscl_prog_data.mpc_size.width;
 		mpc_height = scl_data->dscl_prog_data.mpc_size.height;
@@ -1112,7 +1102,7 @@ void dpp401_dscl_set_scaler_manual_scale(struct dpp *dpp_base,
 		h_num_taps_c = scl_data->dscl_prog_data.taps.h_taps_c;
 	}
 	if (dpp_base->ctx->dc->debug.enable_mem_low_power.bits.dscl) {
-		if (dscl_mode != DSCL_MODE_DSCL_BYPASS)
+		if (dscl_mode != DCN401_DSCL_MODE_DSCL_BYPASS)
 			dpp401_power_on_dscl(dpp_base, true);
 	}
 
@@ -1139,7 +1129,7 @@ void dpp401_dscl_set_scaler_manual_scale(struct dpp *dpp_base,
 	/* SCL mode */
 	REG_UPDATE(SCL_MODE, DSCL_MODE, dscl_mode);
 
-	if (dscl_mode == DSCL_MODE_DSCL_BYPASS) {
+	if (dscl_mode == DCN401_DSCL_MODE_DSCL_BYPASS) {
 		if (dpp_base->ctx->dc->debug.enable_mem_low_power.bits.dscl)
 			dpp401_power_on_dscl(dpp_base, false);
 		return;
@@ -1149,7 +1139,7 @@ void dpp401_dscl_set_scaler_manual_scale(struct dpp *dpp_base,
 	lb_config =  dpp401_dscl_find_lb_memory_config(dpp, scl_data);
 	dpp401_dscl_set_lb(dpp, &scl_data->lb_params, lb_config);
 
-	if (dscl_mode == DSCL_MODE_SCALING_444_BYPASS) {
+	if (dscl_mode == DCN401_DSCL_MODE_SCALING_444_BYPASS) {
 		if (dpp->base.ctx->dc->config.prefer_easf)
 			dpp401_dscl_disable_easf(dpp_base, scl_data);
 		dpp401_dscl_program_isharp(dpp_base, scl_data, program_isharp_1dlut, &bs_coeffs_updated);

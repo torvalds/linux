@@ -74,7 +74,7 @@ static int panfrost_devfreq_get_dev_status(struct device *dev,
 
 	spin_unlock_irqrestore(&pfdevfreq->lock, irqflags);
 
-	dev_dbg(pfdev->dev, "busy %lu total %lu %lu %% freq %lu MHz\n",
+	dev_dbg(pfdev->base.dev, "busy %lu total %lu %lu %% freq %lu MHz\n",
 		status->busy_time, status->total_time,
 		status->busy_time / (status->total_time / 100),
 		status->current_frequency / 1000 / 1000);
@@ -119,7 +119,7 @@ int panfrost_devfreq_init(struct panfrost_device *pfdev)
 	int ret;
 	struct dev_pm_opp *opp;
 	unsigned long cur_freq;
-	struct device *dev = &pfdev->pdev->dev;
+	struct device *dev = pfdev->base.dev;
 	struct devfreq *devfreq;
 	struct thermal_cooling_device *cooling;
 	struct panfrost_devfreq *pfdevfreq = &pfdev->pfdevfreq;

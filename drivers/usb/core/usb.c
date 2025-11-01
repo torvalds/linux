@@ -670,6 +670,7 @@ struct usb_device *usb_alloc_dev(struct usb_device *parent,
 	set_dev_node(&dev->dev, dev_to_node(bus->sysdev));
 	dev->state = USB_STATE_ATTACHED;
 	dev->lpm_disable_count = 1;
+	dev->offload_usage = 0;
 	atomic_set(&dev->urbnum, 0);
 
 	INIT_LIST_HEAD(&dev->ep0.urb_list);
@@ -1029,6 +1030,136 @@ void usb_free_coherent(struct usb_device *dev, size_t size, void *addr,
 	hcd_buffer_free(dev->bus, size, addr, dma);
 }
 EXPORT_SYMBOL_GPL(usb_free_coherent);
+
+/**
+ * usb_alloc_noncoherent - allocate dma-noncoherent buffer for URB_NO_xxx_DMA_MAP
+ * @dev: device the buffer will be used with
+ * @size: requested buffer size
+ * @mem_flags: affect whether allocation may block
+ * @dma: used to return DMA address of buffer
+ * @dir: DMA transfer direction
+ * @table: used to return sg_table of allocated memory
+ *
+ * To explicit manage the memory ownership for the kernel vs the device by
+ * USB core, the user needs save sg_table to urb->sgt. Then USB core will
+ * do DMA sync for CPU and device properly.
+ *
+ * When the buffer is no longer used, free it with usb_free_noncoherent().
+ *
+ * Return: Either null (indicating no buffer could be allocated), or the
+ * cpu-space pointer to a buffer that may be used to perform DMA to the
+ * specified device.  Such cpu-space buffers are returned along with the DMA
+ * address (through the pointer provided).
+ */
+void *usb_alloc_noncoherent(struct usb_device *dev, size_t size,
+			    gfp_t mem_flags, dma_addr_t *dma,
+			    enum dma_data_direction dir,
+			    struct sg_table **table)
+{
+	struct device *dmadev;
+	struct sg_table *sgt;
+	void *buffer;
+
+	if (!dev || !dev->bus)
+		return NULL;
+
+	dmadev = bus_to_hcd(dev->bus)->self.sysdev;
+
+	sgt = dma_alloc_noncontiguous(dmadev, size, dir, mem_flags, 0);
+	if (!sgt)
+		return NULL;
+
+	buffer = dma_vmap_noncontiguous(dmadev, size, sgt);
+	if (!buffer) {
+		dma_free_noncontiguous(dmadev, size, sgt, dir);
+		return NULL;
+	}
+
+	*table = sgt;
+	*dma = sg_dma_address(sgt->sgl);
+
+	return buffer;
+}
+EXPORT_SYMBOL_GPL(usb_alloc_noncoherent);
+
+/**
+ * usb_free_noncoherent - free memory allocated with usb_alloc_noncoherent()
+ * @dev: device the buffer was used with
+ * @size: requested buffer size
+ * @addr: CPU address of buffer
+ * @dir: DMA transfer direction
+ * @table: describe the allocated and DMA mapped memory,
+ *
+ * This reclaims an I/O buffer, letting it be reused.  The memory must have
+ * been allocated using usb_alloc_noncoherent(), and the parameters must match
+ * those provided in that allocation request.
+ */
+void usb_free_noncoherent(struct usb_device *dev, size_t size,
+			  void *addr, enum dma_data_direction dir,
+			  struct sg_table *table)
+{
+	struct device *dmadev;
+
+	if (!dev || !dev->bus)
+		return;
+	if (!addr)
+		return;
+
+	dmadev = bus_to_hcd(dev->bus)->self.sysdev;
+	dma_vunmap_noncontiguous(dmadev, addr);
+	dma_free_noncontiguous(dmadev, size, table, dir);
+}
+EXPORT_SYMBOL_GPL(usb_free_noncoherent);
+
+/**
+ * usb_endpoint_max_periodic_payload - Get maximum payload bytes per service
+ *				       interval
+ * @udev: The USB device
+ * @ep: The endpoint
+ *
+ * Returns: the maximum number of bytes isochronous or interrupt endpoint @ep
+ * can transfer during a service interval, or 0 for other endpoints.
+ */
+u32 usb_endpoint_max_periodic_payload(struct usb_device *udev,
+				      const struct usb_host_endpoint *ep)
+{
+	if (!usb_endpoint_xfer_isoc(&ep->desc) &&
+	    !usb_endpoint_xfer_int(&ep->desc))
+		return 0;
+
+	switch (udev->speed) {
+	case USB_SPEED_SUPER_PLUS:
+		if (USB_SS_SSP_ISOC_COMP(ep->ss_ep_comp.bmAttributes))
+			return le32_to_cpu(ep->ssp_isoc_ep_comp.dwBytesPerInterval);
+		fallthrough;
+	case USB_SPEED_SUPER:
+		return le16_to_cpu(ep->ss_ep_comp.wBytesPerInterval);
+	default:
+		if (usb_endpoint_is_hs_isoc_double(udev, ep))
+			return le32_to_cpu(ep->eusb2_isoc_ep_comp.dwBytesPerInterval);
+		return usb_endpoint_maxp(&ep->desc) * usb_endpoint_maxp_mult(&ep->desc);
+	}
+}
+EXPORT_SYMBOL_GPL(usb_endpoint_max_periodic_payload);
+
+/**
+ * usb_endpoint_is_hs_isoc_double - Tell whether an endpoint uses USB 2
+ *                                  Isochronous Double IN Bandwidth
+ * @udev: The USB device
+ * @ep: The endpoint
+ *
+ * Returns: true if an endpoint @ep conforms to USB 2 Isochronous Double IN
+ * Bandwidth ECN, false otherwise.
+ */
+bool usb_endpoint_is_hs_isoc_double(struct usb_device *udev,
+				    const struct usb_host_endpoint *ep)
+{
+	return ep->eusb2_isoc_ep_comp.bDescriptorType &&
+		le16_to_cpu(udev->descriptor.bcdUSB) == 0x220 &&
+		usb_endpoint_is_isoc_in(&ep->desc) &&
+		!le16_to_cpu(ep->desc.wMaxPacketSize);
+}
+EXPORT_SYMBOL_GPL(usb_endpoint_is_hs_isoc_double);
 
 /*
  * Notifications of device and interface registration

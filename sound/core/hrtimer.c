@@ -6,6 +6,7 @@
 
 #include <linux/init.h>
 #include <linux/slab.h>
+#include <linux/string.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/hrtimer.h>
@@ -43,7 +44,7 @@ static enum hrtimer_restart snd_hrtimer_callback(struct hrtimer *hrt)
 	}
 
 	/* calculate the drift */
-	delta = ktime_sub(hrt->base->get_time(), hrtimer_get_expires(hrt));
+	delta = ktime_sub(hrtimer_cb_get_time(hrt), hrtimer_get_expires(hrt));
 	if (delta > 0)
 		ticks += ktime_divns(delta, ticks * resolution);
 
@@ -138,7 +139,7 @@ static int __init snd_hrtimer_init(void)
 		return err;
 
 	timer->module = THIS_MODULE;
-	strcpy(timer->name, "HR timer");
+	strscpy(timer->name, "HR timer");
 	timer->hw = hrtimer_hw;
 	timer->hw.resolution = resolution;
 	timer->hw.ticks = NANO_SEC / resolution;

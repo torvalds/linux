@@ -22,8 +22,8 @@
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("IRQ bypass manager utility module");
 
-static LIST_HEAD(producers);
-static LIST_HEAD(consumers);
+static DEFINE_XARRAY(producers);
+static DEFINE_XARRAY(consumers);
 static DEFINE_MUTEX(lock);
 
 /* @lock must be held when calling connect */
@@ -51,6 +51,10 @@ static int __connect(struct irq_bypass_producer *prod,
 	if (prod->start)
 		prod->start(prod);
 
+	if (!ret) {
+		prod->consumer = cons;
+		cons->producer = prod;
+	}
 	return ret;
 }
 
@@ -72,56 +76,49 @@ static void __disconnect(struct irq_bypass_producer *prod,
 		cons->start(cons);
 	if (prod->start)
 		prod->start(prod);
+
+	prod->consumer = NULL;
+	cons->producer = NULL;
 }
 
 /**
  * irq_bypass_register_producer - register IRQ bypass producer
  * @producer: pointer to producer structure
+ * @eventfd: pointer to the eventfd context associated with the producer
+ * @irq: Linux IRQ number of the underlying producer device
  *
- * Add the provided IRQ producer to the list of producers and connect
- * with any matching token found on the IRQ consumers list.
+ * Add the provided IRQ producer to the set of producers and connect with the
+ * consumer with a matching eventfd, if one exists.
  */
-int irq_bypass_register_producer(struct irq_bypass_producer *producer)
+int irq_bypass_register_producer(struct irq_bypass_producer *producer,
+				 struct eventfd_ctx *eventfd, int irq)
 {
-	struct irq_bypass_producer *tmp;
+	unsigned long index = (unsigned long)eventfd;
 	struct irq_bypass_consumer *consumer;
 	int ret;
 
-	if (!producer->token)
+	if (WARN_ON_ONCE(producer->eventfd))
 		return -EINVAL;
 
-	might_sleep();
+	producer->irq = irq;
 
-	if (!try_module_get(THIS_MODULE))
-		return -ENODEV;
+	guard(mutex)(&lock);
 
-	mutex_lock(&lock);
+	ret = xa_insert(&producers, index, producer, GFP_KERNEL);
+	if (ret)
+		return ret;
 
-	list_for_each_entry(tmp, &producers, node) {
-		if (tmp->token == producer->token) {
-			ret = -EBUSY;
-			goto out_err;
+	consumer = xa_load(&consumers, index);
+	if (consumer) {
+		ret = __connect(producer, consumer);
+		if (ret) {
+			WARN_ON_ONCE(xa_erase(&producers, index) != producer);
+			return ret;
 		}
 	}
 
-	list_for_each_entry(consumer, &consumers, node) {
-		if (consumer->token == producer->token) {
-			ret = __connect(producer, consumer);
-			if (ret)
-				goto out_err;
-			break;
-		}
-	}
-
-	list_add(&producer->node, &producers);
-
-	mutex_unlock(&lock);
-
+	producer->eventfd = eventfd;
 	return 0;
-out_err:
-	mutex_unlock(&lock);
-	module_put(THIS_MODULE);
-	return ret;
 }
 EXPORT_SYMBOL_GPL(irq_bypass_register_producer);
 
@@ -129,95 +126,65 @@ EXPORT_SYMBOL_GPL(irq_bypass_register_producer);
  * irq_bypass_unregister_producer - unregister IRQ bypass producer
  * @producer: pointer to producer structure
  *
- * Remove a previously registered IRQ producer from the list of producers
- * and disconnect it from any connected IRQ consumer.
+ * Remove a previously registered IRQ producer (note, it's safe to call this
+ * even if registration was unsuccessful).  Disconnect from the associated
+ * consumer, if one exists.
  */
 void irq_bypass_unregister_producer(struct irq_bypass_producer *producer)
 {
-	struct irq_bypass_producer *tmp;
-	struct irq_bypass_consumer *consumer;
+	unsigned long index = (unsigned long)producer->eventfd;
 
-	if (!producer->token)
+	if (!producer->eventfd)
 		return;
 
-	might_sleep();
+	guard(mutex)(&lock);
 
-	if (!try_module_get(THIS_MODULE))
-		return; /* nothing in the list anyway */
+	if (producer->consumer)
+		__disconnect(producer, producer->consumer);
 
-	mutex_lock(&lock);
-
-	list_for_each_entry(tmp, &producers, node) {
-		if (tmp->token != producer->token)
-			continue;
-
-		list_for_each_entry(consumer, &consumers, node) {
-			if (consumer->token == producer->token) {
-				__disconnect(producer, consumer);
-				break;
-			}
-		}
-
-		list_del(&producer->node);
-		module_put(THIS_MODULE);
-		break;
-	}
-
-	mutex_unlock(&lock);
-
-	module_put(THIS_MODULE);
+	WARN_ON_ONCE(xa_erase(&producers, index) != producer);
+	producer->eventfd = NULL;
 }
 EXPORT_SYMBOL_GPL(irq_bypass_unregister_producer);
 
 /**
  * irq_bypass_register_consumer - register IRQ bypass consumer
  * @consumer: pointer to consumer structure
+ * @eventfd: pointer to the eventfd context associated with the consumer
  *
- * Add the provided IRQ consumer to the list of consumers and connect
- * with any matching token found on the IRQ producer list.
+ * Add the provided IRQ consumer to the set of consumers and connect with the
+ * producer with a matching eventfd, if one exists.
  */
-int irq_bypass_register_consumer(struct irq_bypass_consumer *consumer)
+int irq_bypass_register_consumer(struct irq_bypass_consumer *consumer,
+				 struct eventfd_ctx *eventfd)
 {
-	struct irq_bypass_consumer *tmp;
+	unsigned long index = (unsigned long)eventfd;
 	struct irq_bypass_producer *producer;
 	int ret;
 
-	if (!consumer->token ||
-	    !consumer->add_producer || !consumer->del_producer)
+	if (WARN_ON_ONCE(consumer->eventfd))
 		return -EINVAL;
 
-	might_sleep();
+	if (!consumer->add_producer || !consumer->del_producer)
+		return -EINVAL;
 
-	if (!try_module_get(THIS_MODULE))
-		return -ENODEV;
+	guard(mutex)(&lock);
 
-	mutex_lock(&lock);
+	ret = xa_insert(&consumers, index, consumer, GFP_KERNEL);
+	if (ret)
+		return ret;
 
-	list_for_each_entry(tmp, &consumers, node) {
-		if (tmp->token == consumer->token || tmp == consumer) {
-			ret = -EBUSY;
-			goto out_err;
+	producer = xa_load(&producers, index);
+	if (producer) {
+		ret = __connect(producer, consumer);
+		if (ret) {
+			WARN_ON_ONCE(xa_erase(&consumers, index) != consumer);
+			return ret;
 		}
 	}
 
-	list_for_each_entry(producer, &producers, node) {
-		if (producer->token == consumer->token) {
-			ret = __connect(producer, consumer);
-			if (ret)
-				goto out_err;
-			break;
-		}
-	}
-
-	list_add(&consumer->node, &consumers);
-
-	mutex_unlock(&lock);
-
+	consumer->eventfd = eventfd;
 	return 0;
-out_err:
-	mutex_unlock(&lock);
-	module_put(THIS_MODULE);
-	return ret;
 }
 EXPORT_SYMBOL_GPL(irq_bypass_register_consumer);
 
@@ -225,42 +192,23 @@ EXPORT_SYMBOL_GPL(irq_bypass_register_consumer);
  * irq_bypass_unregister_consumer - unregister IRQ bypass consumer
  * @consumer: pointer to consumer structure
  *
- * Remove a previously registered IRQ consumer from the list of consumers
- * and disconnect it from any connected IRQ producer.
+ * Remove a previously registered IRQ consumer (note, it's safe to call this
+ * even if registration was unsuccessful).  Disconnect from the associated
+ * producer, if one exists.
  */
 void irq_bypass_unregister_consumer(struct irq_bypass_consumer *consumer)
 {
-	struct irq_bypass_consumer *tmp;
-	struct irq_bypass_producer *producer;
+	unsigned long index = (unsigned long)consumer->eventfd;
 
-	if (!consumer->token)
+	if (!consumer->eventfd)
 		return;
 
-	might_sleep();
+	guard(mutex)(&lock);
 
-	if (!try_module_get(THIS_MODULE))
-		return; /* nothing in the list anyway */
+	if (consumer->producer)
+		__disconnect(consumer->producer, consumer);
 
-	mutex_lock(&lock);
-
-	list_for_each_entry(tmp, &consumers, node) {
-		if (tmp != consumer)
-			continue;
-
-		list_for_each_entry(producer, &producers, node) {
-			if (producer->token == consumer->token) {
-				__disconnect(producer, consumer);
-				break;
-			}
-		}
-
-		list_del(&consumer->node);
-		module_put(THIS_MODULE);
-		break;
-	}
-
-	mutex_unlock(&lock);
-
-	module_put(THIS_MODULE);
+	WARN_ON_ONCE(xa_erase(&consumers, index) != consumer);
+	consumer->eventfd = NULL;
 }
 EXPORT_SYMBOL_GPL(irq_bypass_unregister_consumer);

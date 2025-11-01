@@ -756,8 +756,7 @@ xfs_iext_count_extend(
 	if (nr_exts < ifp->if_nextents)
 		return -EFBIG;
 
-	if (XFS_TEST_ERROR(false, mp, XFS_ERRTAG_REDUCE_MAX_IEXTENTS) &&
-	    nr_exts > 10)
+	if (XFS_TEST_ERROR(mp, XFS_ERRTAG_REDUCE_MAX_IEXTENTS) && nr_exts > 10)
 		return -EFBIG;
 
 	if (nr_exts > xfs_iext_max_nextents(has_large, whichfork)) {

@@ -11,11 +11,12 @@ maintainers:
 
 description: |
   This module is part of the sl28cpld multi-function device. For more
-  details see ../mfd/kontron,sl28cpld.yaml.
+  details see ../embedded-controller/kontron,sl28cpld.yaml.
 
 properties:
   compatible:
     enum:
+      - kontron,sa67mcu-hwmon
       - kontron,sl28cpld-fan
 
   reg:

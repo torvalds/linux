@@ -123,6 +123,12 @@ enum fid_type {
 	FILEID_BCACHEFS_WITH_PARENT = 0xb2,
 
 	/*
+	 *
+	 * 64 bit namespace identifier, 32 bit namespace type, 32 bit inode number.
+	 */
+	FILEID_NSFS = 0xf1,
+
+	/*
 	 * 64 bit unique kernfs id
 	 */
 	FILEID_KERNFS = 0xfe,
@@ -230,7 +236,7 @@ struct handle_to_path_ctx {
  *    directory.  The name should be stored in the @name (with the
  *    understanding that it is already pointing to a %NAME_MAX+1 sized
  *    buffer.   get_name() should return %0 on success, a negative error code
- *    or error.  @get_name will be called without @parent->i_mutex held.
+ *    or error.  @get_name will be called without @parent->i_rwsem held.
  *
  * get_parent:
  *    @get_parent should find the parent directory for the given @child which
@@ -247,7 +253,7 @@ struct handle_to_path_ctx {
  *    @commit_metadata should commit metadata changes to stable storage.
  *
  * Locking rules:
- *    get_parent is called with child->d_inode->i_mutex down
+ *    get_parent is called with child->d_inode->i_rwsem down
  *    get_name is not (which is possibly inconsistent)
  */
 
@@ -270,7 +276,7 @@ struct export_operations {
 	int (*commit_blocks)(struct inode *inode, struct iomap *iomaps,
 			     int nr_iomaps, struct iattr *iattr);
 	int (*permission)(struct handle_to_path_ctx *ctx, unsigned int oflags);
-	struct file * (*open)(struct path *path, unsigned int oflags);
+	struct file * (*open)(const struct path *path, unsigned int oflags);
 #define	EXPORT_OP_NOWCC			(0x1) /* don't collect v3 wcc data */
 #define	EXPORT_OP_NOSUBTREECHK		(0x2) /* no subtree checking */
 #define	EXPORT_OP_CLOSE_BEFORE_UNLINK	(0x4) /* close files before unlink */

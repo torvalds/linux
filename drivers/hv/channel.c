@@ -18,6 +18,7 @@
 #include <linux/uio.h>
 #include <linux/interrupt.h>
 #include <linux/set_memory.h>
+#include <linux/export.h>
 #include <asm/page.h>
 #include <asm/mshyperv.h>
 
@@ -924,7 +925,7 @@ static int vmbus_close_internal(struct vmbus_channel *channel)
 
 	/* Send a closing message */
 
-	msg = &channel->close_msg.msg;
+	msg = &channel->close_msg;
 
 	msg->header.msgtype = CHANNELMSG_CLOSECHANNEL;
 	msg->child_relid = channel->offermsg.child_relid;

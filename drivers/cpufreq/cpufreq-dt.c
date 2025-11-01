@@ -104,7 +104,7 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 
 	transition_latency = dev_pm_opp_get_max_transition_latency(cpu_dev);
 	if (!transition_latency)
-		transition_latency = CPUFREQ_ETERNAL;
+		transition_latency = CPUFREQ_DEFAULT_TRANSITION_LATENCY_NS;
 
 	cpumask_copy(policy->cpus, priv->cpus);
 	policy->driver_data = priv;
@@ -328,6 +328,17 @@ static struct platform_driver dt_cpufreq_platdrv = {
 	.remove		= dt_cpufreq_remove,
 };
 module_platform_driver(dt_cpufreq_platdrv);
+
+struct platform_device *cpufreq_dt_pdev_register(struct device *dev)
+{
+	struct platform_device_info cpufreq_dt_devinfo = {};
+
+	cpufreq_dt_devinfo.name = "cpufreq-dt";
+	cpufreq_dt_devinfo.parent = dev;
+
+	return platform_device_register_full(&cpufreq_dt_devinfo);
+}
+EXPORT_SYMBOL_GPL(cpufreq_dt_pdev_register);
 
 MODULE_ALIAS("platform:cpufreq-dt");
 MODULE_AUTHOR("Viresh Kumar <viresh.kumar@linaro.org>");

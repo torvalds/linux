@@ -130,7 +130,6 @@ struct tcp_ao_info {
 	u32			snd_sne;
 	u32			rcv_sne;
 	refcount_t		refcnt;		/* Protects twsk destruction */
-	struct rcu_head		rcu;
 };
 
 #ifdef CONFIG_TCP_MD5SIG

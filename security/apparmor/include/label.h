@@ -19,6 +19,7 @@
 #include "lib.h"
 
 struct aa_ns;
+struct aa_ruleset;
 
 #define LOCAL_VEC_ENTRIES 8
 #define DEFINE_VEC(T, V)						\
@@ -109,7 +110,7 @@ struct label_it {
 	int i, j;
 };
 
-/* struct aa_label - lazy labeling struct
+/* struct aa_label_base - base info of label
  * @count: ref count of active users
  * @node: rbtree position
  * @rcu: rcu callback struct
@@ -118,7 +119,10 @@ struct label_it {
  * @flags: stale and other flags - values may change under label set lock
  * @secid: secid that references this label
  * @size: number of entries in @ent[]
- * @ent: set of profiles for label, actual size determined by @size
+ * @mediates: bitmask for label_mediates
+ * profile: label vec when embedded in a profile FLAG_PROFILE is set
+ * rules: variable length rules in a profile FLAG_PROFILE is set
+ * vec: vector of profiles comprising the compound label
  */
 struct aa_label {
 	struct kref count;
@@ -129,7 +133,18 @@ struct aa_label {
 	long flags;
 	u32 secid;
 	int size;
-	struct aa_profile *vec[];
+	u64 mediates;
+	union {
+		struct {
+			/* only used is the label is a profile, size of
+			 * rules[] is determined by the profile
+			 * profile[1] is poison or null as guard
+			 */
+			struct aa_profile *profile[2];
+			DECLARE_FLEX_ARRAY(struct aa_ruleset *, rules);
+		};
+		DECLARE_FLEX_ARRAY(struct aa_profile *, vec);
+	};
 };
 
 #define last_error(E, FN)				\
@@ -231,20 +246,17 @@ int aa_label_next_confined(struct aa_label *l, int i);
 #define fn_for_each_not_in_set(L1, L2, P, FN)				\
 	fn_for_each2_XXX((L1), (L2), P, FN, _not_in_set)
 
-#define LABEL_MEDIATES(L, C)						\
-({									\
-	struct aa_profile *profile;					\
-	struct label_it i;						\
-	int ret = 0;							\
-	label_for_each(i, (L), profile) {				\
-		if (RULE_MEDIATES(&profile->rules, (C))) {		\
-			ret = 1;					\
-			break;						\
-		}							\
-	}								\
-	ret;								\
-})
+static inline bool label_mediates(struct aa_label *L, unsigned char C)
+{
+	return (L)->mediates & (((u64) 1) << (C));
+}
 
+static inline bool label_mediates_safe(struct aa_label *L, unsigned char C)
+{
+	if (C > AA_CLASS_LAST)
+		return false;
+	return label_mediates(L, C);
+}
 
 void aa_labelset_destroy(struct aa_labelset *ls);
 void aa_labelset_init(struct aa_labelset *ls);
@@ -415,6 +427,13 @@ static inline void aa_put_label(struct aa_label *l)
 {
 	if (l)
 		kref_put(&l->count, aa_label_kref);
+}
+
+/* wrapper fn to indicate semantics of the check */
+static inline bool __aa_subj_label_is_cached(struct aa_label *subj_label,
+					  struct aa_label *obj_label)
+{
+	return aa_label_is_subset(obj_label, subj_label);
 }
 
 

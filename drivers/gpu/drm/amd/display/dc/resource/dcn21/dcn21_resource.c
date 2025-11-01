@@ -626,8 +626,11 @@ static const struct dc_debug_options debug_defaults_drv = {
 		.usbc_combo_phy_reset_wa = true,
 		.dmub_command_table = true,
 		.use_max_lb = true,
-		.enable_legacy_fast_update = true,
 		.using_dml2 = false,
+};
+
+static const struct dc_check_config config_defaults = {
+		.enable_legacy_fast_update = true,
 };
 
 static const struct dc_panel_config panel_config_defaults = {
@@ -769,7 +772,7 @@ bool dcn21_fast_validate_bw(struct dc *dc,
 			    int *pipe_cnt_out,
 			    int *pipe_split_from,
 			    int *vlevel_out,
-			    bool fast_validate)
+			    enum dc_validate_mode validate_mode)
 {
 	bool out = false;
 	int split[MAX_PIPES] = { 0 };
@@ -783,7 +786,7 @@ bool dcn21_fast_validate_bw(struct dc *dc,
 	dcn20_merge_pipes_for_validate(dc, context);
 
 	DC_FP_START();
-	pipe_cnt = dc->res_pool->funcs->populate_dml_pipes(dc, context, pipes, fast_validate);
+	pipe_cnt = dc->res_pool->funcs->populate_dml_pipes(dc, context, pipes, validate_mode);
 	DC_FP_END();
 
 	*pipe_cnt_out = pipe_cnt;
@@ -924,7 +927,7 @@ validate_out:
  * dcn20_validate_bandwidth in dcn20_resource.c.
  */
 static enum dc_status dcn21_validate_bandwidth(struct dc *dc, struct dc_state *context,
-		bool fast_validate)
+		enum dc_validate_mode validate_mode)
 {
 	bool voltage_supported;
 	display_e2e_pipe_params_st *pipes;
@@ -934,7 +937,7 @@ static enum dc_status dcn21_validate_bandwidth(struct dc *dc, struct dc_state *c
 		return DC_FAIL_BANDWIDTH_VALIDATE;
 
 	DC_FP_START();
-	voltage_supported = dcn21_validate_bandwidth_fp(dc, context, fast_validate, pipes);
+	voltage_supported = dcn21_validate_bandwidth_fp(dc, context, validate_mode, pipes);
 	DC_FP_END();
 
 	kfree(pipes);
@@ -1458,6 +1461,7 @@ static bool dcn21_resource_construct(
 	dc->caps.color.mpc.ocsc = 1;
 
 	dc->caps.dp_hdmi21_pcon_support = true;
+	dc->check_config = config_defaults;
 
 	if (dc->ctx->dce_environment == DCE_ENV_PRODUCTION_DRV)
 		dc->debug = debug_defaults_drv;
@@ -1683,6 +1687,8 @@ static bool dcn21_resource_construct(
 
 	for (i = 0; i < dc->caps.max_planes; ++i)
 		dc->caps.planes[i] = plane_cap;
+
+	dc->caps.max_odm_combine_factor = 2;
 
 	dc->cap_funcs = cap_funcs;
 

@@ -156,6 +156,15 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 		};
+
+		wifi: wifi@180c0000 {
+			compatible = "qca,ar9130-wifi";
+			reg = <0x180c0000 0x230000>;
+
+			interrupts = <2>;
+
+			status = "disabled";
+		};
 	};
 
 	usb_phy: usb-phy {

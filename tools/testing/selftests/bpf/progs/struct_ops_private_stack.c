@@ -7,7 +7,7 @@
 
 char _license[] SEC("license") = "GPL";
 
-#if defined(__TARGET_ARCH_x86)
+#if defined(__TARGET_ARCH_x86) || defined(__TARGET_ARCH_arm64)
 bool skip __attribute((__section__(".data"))) = false;
 #else
 bool skip = true;

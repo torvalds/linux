@@ -170,6 +170,14 @@ struct forensic_data {
 #define SPCV_MSGU_CFG_TABLE_TRANSFER_DEBUG_INFO  0x80
 #define MAIN_MERRDCTO_MERRDCES		         0xA0/* DWORD 0x28) */
 
+/**
+ * enum fatal_error_reporter: Indicates the originator of the fatal error
+ */
+enum fatal_error_reporter {
+	REPORTER_DRIVER,
+	REPORTER_FIRMWARE,
+};
+
 struct pm8001_dispatch {
 	char *name;
 	int (*chip_init)(struct pm8001_hba_info *pm8001_ha);
@@ -539,6 +547,10 @@ struct pm8001_hba_info {
 	u32 ci_offset;
 	u32 pi_offset;
 	u32 max_memcnt;
+	u32 iop_log_start;
+	u32 iop_log_end;
+	u32 iop_log_count;
+	struct mutex iop_log_lock;
 };
 
 struct pm8001_work {
@@ -715,6 +727,8 @@ ssize_t pm80xx_get_non_fatal_dump(struct device *cdev,
 		struct device_attribute *attr, char *buf);
 ssize_t pm8001_get_gsm_dump(struct device *cdev, u32, char *buf);
 int pm80xx_fatal_errors(struct pm8001_hba_info *pm8001_ha);
+void pm80xx_fatal_error_uevent_emit(struct pm8001_hba_info *pm8001_ha,
+	enum fatal_error_reporter error_reporter);
 void pm8001_free_dev(struct pm8001_device *pm8001_dev);
 /* ctl shared API */
 extern const struct attribute_group *pm8001_host_groups[];
@@ -788,6 +802,7 @@ void pm8001_setds_completion(struct domain_device *dev);
 void pm8001_tmf_aborted(struct sas_task *task);
 void pm80xx_show_pending_commands(struct pm8001_hba_info *pm8001_ha,
 				  struct pm8001_device *dev);
+u32 pm80xx_get_local_phy_id(struct domain_device *dev);
 
 #endif
 

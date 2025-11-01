@@ -53,7 +53,7 @@ void kvm_vgic_early_init(struct kvm *kvm)
 {
 	struct vgic_dist *dist = &kvm->arch.vgic;
 
-	xa_init_flags(&dist->lpi_xa, XA_FLAGS_LOCK_IRQ);
+	xa_init(&dist->lpi_xa);
 }
 
 /* CREATION */
@@ -157,6 +157,7 @@ int kvm_vgic_create(struct kvm *kvm, u32 type)
 
 	kvm->arch.vgic.in_kernel = true;
 	kvm->arch.vgic.vgic_model = type;
+	kvm->arch.vgic.implementation_rev = KVM_VGIC_IMP_REV_LATEST;
 
 	kvm->arch.vgic.vgic_dist_base = VGIC_ADDR_UNDEF;
 
@@ -164,6 +165,9 @@ int kvm_vgic_create(struct kvm *kvm, u32 type)
 		kvm->arch.vgic.vgic_cpu_base = VGIC_ADDR_UNDEF;
 	else
 		INIT_LIST_HEAD(&kvm->arch.vgic.rd_regions);
+
+	if (type == KVM_DEV_TYPE_ARM_VGIC_V3)
+		kvm->arch.vgic.nassgicap = system_supports_direct_sgis();
 
 out_unlock:
 	mutex_unlock(&kvm->arch.config_lock);
@@ -204,7 +208,7 @@ static int kvm_vgic_dist_init(struct kvm *kvm, unsigned int nr_spis)
 		raw_spin_lock_init(&irq->irq_lock);
 		irq->vcpu = NULL;
 		irq->target_vcpu = vcpu0;
-		kref_init(&irq->refcount);
+		refcount_set(&irq->refcount, 0);
 		switch (dist->vgic_model) {
 		case KVM_DEV_TYPE_ARM_VGIC_V2:
 			irq->targets = 0;
@@ -273,7 +277,7 @@ static int vgic_allocate_private_irqs_locked(struct kvm_vcpu *vcpu, u32 type)
 		irq->intid = i;
 		irq->vcpu = NULL;
 		irq->target_vcpu = vcpu;
-		kref_init(&irq->refcount);
+		refcount_set(&irq->refcount, 0);
 		if (vgic_irq_is_sgi(i)) {
 			/* SGIs */
 			irq->enabled = 1;
@@ -391,11 +395,10 @@ int vgic_init(struct kvm *kvm)
 		goto out;
 
 	/*
-	 * If we have GICv4.1 enabled, unconditionally request enable the
-	 * v4 support so that we get HW-accelerated vSGIs. Otherwise, only
-	 * enable it if we present a virtual ITS to the guest.
+	 * Ensure vPEs are allocated if direct IRQ injection (e.g. vSGIs,
+	 * vLPIs) is supported.
 	 */
-	if (vgic_supports_direct_msis(kvm)) {
+	if (vgic_supports_direct_irqs(kvm)) {
 		ret = vgic_v4_init(kvm);
 		if (ret)
 			goto out;
@@ -409,15 +412,7 @@ int vgic_init(struct kvm *kvm)
 		goto out;
 
 	vgic_debug_init(kvm);
-
-	/*
-	 * If userspace didn't set the GIC implementation revision,
-	 * default to the latest and greatest. You know want it.
-	 */
-	if (!dist->implementation_rev)
-		dist->implementation_rev = KVM_VGIC_IMP_REV_LATEST;
 	dist->initialized = true;
-
 out:
 	return ret;
 }
@@ -443,7 +438,7 @@ static void kvm_vgic_dist_destroy(struct kvm *kvm)
 		dist->vgic_cpu_base = VGIC_ADDR_UNDEF;
 	}
 
-	if (vgic_supports_direct_msis(kvm))
+	if (vgic_supports_direct_irqs(kvm))
 		vgic_v4_teardown(kvm);
 
 	xa_destroy(&dist->lpi_xa);
@@ -559,7 +554,6 @@ int vgic_lazy_init(struct kvm *kvm)
  * Also map the virtual CPU interface into the VM.
  * v2 calls vgic_init() if not already done.
  * v3 and derivatives return an error if the VGIC is not initialized.
- * vgic_ready() returns true if this function has succeeded.
  */
 int kvm_vgic_map_resources(struct kvm *kvm)
 {
@@ -568,12 +562,12 @@ int kvm_vgic_map_resources(struct kvm *kvm)
 	gpa_t dist_base;
 	int ret = 0;
 
-	if (likely(vgic_ready(kvm)))
+	if (likely(smp_load_acquire(&dist->ready)))
 		return 0;
 
 	mutex_lock(&kvm->slots_lock);
 	mutex_lock(&kvm->arch.config_lock);
-	if (vgic_ready(kvm))
+	if (dist->ready)
 		goto out;
 
 	if (!irqchip_in_kernel(kvm))
@@ -599,14 +593,7 @@ int kvm_vgic_map_resources(struct kvm *kvm)
 		goto out_slots;
 	}
 
-	/*
-	 * kvm_io_bus_register_dev() guarantees all readers see the new MMIO
-	 * registration before returning through synchronize_srcu(), which also
-	 * implies a full memory barrier. As such, marking the distributor as
-	 * 'ready' here is guaranteed to be ordered after all vCPUs having seen
-	 * a completely configured distributor.
-	 */
-	dist->ready = true;
+	smp_store_release(&dist->ready, true);
 	goto out_slots;
 out:
 	mutex_unlock(&kvm->arch.config_lock);
@@ -674,10 +661,12 @@ void kvm_vgic_init_cpu_hardware(void)
 	 * We want to make sure the list registers start out clear so that we
 	 * only have the program the used registers.
 	 */
-	if (kvm_vgic_global_state.type == VGIC_V2)
+	if (kvm_vgic_global_state.type == VGIC_V2) {
 		vgic_v2_init_lrs();
-	else
+	} else if (kvm_vgic_global_state.type == VGIC_V3 ||
+		   kvm_vgic_global_state.has_gcie_v3_compat) {
 		kvm_call_hyp(__vgic_v3_init_lrs);
+	}
 }
 
 /**
@@ -721,6 +710,9 @@ int kvm_vgic_hyp_init(void)
 			static_branch_enable(&kvm_vgic_global_state.gicv3_cpuif);
 			kvm_info("GIC system register CPU interface enabled\n");
 		}
+		break;
+	case GIC_V5:
+		ret = vgic_v5_probe(gic_kvm_info);
 		break;
 	default:
 		ret = -ENODEV;

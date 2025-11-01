@@ -80,7 +80,7 @@ int snd_emu10k1_timer(struct snd_emu10k1 *emu, int device)
 	tid.subdevice = 0;
 	err = snd_timer_new(emu->card, "EMU10K1", &tid, &timer);
 	if (err >= 0) {
-		strcpy(timer->name, "EMU10K1 timer");
+		strscpy(timer->name, "EMU10K1 timer");
 		timer->private_data = emu;
 		timer->hw = snd_emu10k1_timer_hw;
 	}

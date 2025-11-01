@@ -14,6 +14,7 @@
 
 #include "../fs/internal.h"
 
+#include "filetable.h"
 #include "io_uring.h"
 #include "rsrc.h"
 #include "openclose.h"
@@ -416,8 +417,6 @@ int io_pipe(struct io_kiocb *req, unsigned int issue_flags)
 	ret = create_pipe_files(files, p->flags);
 	if (ret)
 		return ret;
-	files[0]->f_mode |= FMODE_NOWAIT;
-	files[1]->f_mode |= FMODE_NOWAIT;
 
 	if (!!p->file_slot)
 		ret = io_pipe_fixed(req, files, issue_flags);

@@ -136,6 +136,9 @@ static void iwl_dealloc_ucode(struct iwl_drv *drv)
 	kfree(drv->fw.phy_integration_ver);
 	kfree(drv->trans->dbg.pc_data);
 	drv->trans->dbg.pc_data = NULL;
+	kvfree(drv->fw.pnvm_data);
+	drv->fw.pnvm_data = NULL;
+	drv->fw.pnvm_size = 0;
 
 	for (i = 0; i < IWL_UCODE_TYPE_MAX; i++)
 		iwl_free_fw_img(drv, drv->fw.img + i);
@@ -233,10 +236,9 @@ const char *iwl_drv_get_fwname_pre(struct iwl_trans *trans, char *buf)
 		mac = "sc";
 		break;
 	case IWL_CFG_MAC_TYPE_SC2:
-		mac = "sc2";
-		break;
+	/* Uses the same firmware as SC2 */
 	case IWL_CFG_MAC_TYPE_SC2F:
-		mac = "sc2f";
+		mac = "sc2";
 		break;
 	case IWL_CFG_MAC_TYPE_BR:
 		mac = "br";
@@ -298,13 +300,17 @@ static void iwl_get_ucode_api_versions(struct iwl_trans *trans,
 	const struct iwl_family_base_params *base = trans->mac_cfg->base;
 	const struct iwl_rf_cfg *cfg = trans->cfg;
 
-	if (!base->ucode_api_max) {
+	/* if the MAC doesn't have range or if its range it higher than the RF's */
+	if (!base->ucode_api_max ||
+	    (cfg->ucode_api_max && base->ucode_api_min > cfg->ucode_api_max)) {
 		*api_min = cfg->ucode_api_min;
 		*api_max = cfg->ucode_api_max;
 		return;
 	}
 
-	if (!cfg->ucode_api_max) {
+	/* if the RF doesn't have range or if its range it higher than the MAC's */
+	if (!cfg->ucode_api_max ||
+	    (base->ucode_api_max && cfg->ucode_api_min > base->ucode_api_max)) {
 		*api_min = base->ucode_api_min;
 		*api_max = base->ucode_api_max;
 		return;
@@ -331,10 +337,18 @@ static int iwl_request_firmware(struct iwl_drv *drv, bool first)
 		return -EINVAL;
 	}
 
+	if (CSR_HW_RFID_TYPE(drv->trans->info.hw_rf_id) == IWL_CFG_RF_TYPE_WH &&
+	    CSR_HW_RFID_STEP(drv->trans->info.hw_rf_id) == SILICON_A_STEP) {
+		IWL_ERR(drv, "WH A step is not supported\n");
+		return -EINVAL;
+	}
+
 	fw_name_pre = iwl_drv_get_fwname_pre(drv->trans, _fw_name_pre);
 
 	if (first)
 		drv->fw_index = ucode_api_max;
+	else if (drv->fw_index == ENCODE_CORE_AS_API(99))
+		drv->fw_index = 101; /* last API-scheme number below core 99 */
 	else
 		drv->fw_index--;
 
@@ -342,13 +356,15 @@ static int iwl_request_firmware(struct iwl_drv *drv, bool first)
 		IWL_ERR(drv, "no suitable firmware found!\n");
 
 		if (ucode_api_min == ucode_api_max) {
-			IWL_ERR(drv, "%s-%d is required\n", fw_name_pre,
-				ucode_api_max);
+			IWL_ERR(drv, "%s-" FW_API_FMT " is required\n",
+				fw_name_pre, FW_API_ARG(ucode_api_max));
 		} else {
-			IWL_ERR(drv, "minimum version required: %s-%d\n",
-				fw_name_pre, ucode_api_min);
-			IWL_ERR(drv, "maximum version supported: %s-%d\n",
-				fw_name_pre, ucode_api_max);
+			IWL_ERR(drv,
+				"minimum version required: %s-" FW_API_FMT "\n",
+				fw_name_pre, FW_API_ARG(ucode_api_min));
+			IWL_ERR(drv,
+				"maximum version supported: %s-" FW_API_FMT "\n",
+				fw_name_pre, FW_API_ARG(ucode_api_max));
 		}
 
 		IWL_ERR(drv,
@@ -356,8 +372,9 @@ static int iwl_request_firmware(struct iwl_drv *drv, bool first)
 		return -ENOENT;
 	}
 
-	snprintf(drv->firmware_name, sizeof(drv->firmware_name), "%s-%d.ucode",
-		 fw_name_pre, drv->fw_index);
+	snprintf(drv->firmware_name, sizeof(drv->firmware_name),
+		 "%s-" FW_API_FMT ".ucode",
+		 fw_name_pre, FW_API_ARG(drv->fw_index));
 
 	IWL_DEBUG_FW_INFO(drv, "attempting to load firmware '%s'\n",
 			  drv->firmware_name);
@@ -1276,8 +1293,8 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 
 			if (tlv_len != sizeof(*fseq_ver))
 				goto invalid_tlv_len;
-			IWL_INFO(drv, "TLV_FW_FSEQ_VERSION: %.32s\n",
-				 fseq_ver->version);
+			IWL_DEBUG_INFO(drv, "TLV_FW_FSEQ_VERSION: %.32s\n",
+				       fseq_ver->version);
 			}
 			break;
 		case IWL_UCODE_TLV_FW_NUM_STATIONS:
@@ -1399,6 +1416,15 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 				return -ENOMEM;
 			drv->trans->dbg.num_pc =
 				tlv_len / sizeof(struct iwl_pc_data);
+			break;
+		case IWL_UCODE_TLV_PNVM_DATA:
+			if (drv->fw.pnvm_data)
+				break;
+			drv->fw.pnvm_data =
+				kvmemdup(tlv_data, tlv_len, GFP_KERNEL);
+			if (!drv->fw.pnvm_data)
+				return -ENOMEM;
+			drv->fw.pnvm_size = tlv_len;
 			break;
 		default:
 			IWL_DEBUG_INFO(drv, "unknown TLV: %d\n", tlv_type);
@@ -1529,7 +1555,7 @@ _iwl_op_mode_start(struct iwl_drv *drv, struct iwlwifi_opmode_table *op)
 		if (!IS_ERR(op_mode))
 			return op_mode;
 
-		if (test_bit(STATUS_TRANS_DEAD, &drv->trans->status))
+		if (iwl_trans_is_dead(drv->trans))
 			break;
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
@@ -1573,6 +1599,7 @@ static void _iwl_op_mode_stop(struct iwl_drv *drv)
  */
 static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 {
+	unsigned int min_core, max_core, loaded_core;
 	struct iwl_drv *drv = context;
 	struct iwl_fw *fw = &drv->fw;
 	const struct iwl_ucode_header *ucode;
@@ -1635,11 +1662,24 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	 * firmware filename ... but we don't check for that and only rely
 	 * on the API version read from firmware header from here on forward
 	 */
-	if (api_ver < api_min || api_ver > api_max) {
+
+	/*
+	 * if -cN.ucode file was loaded, core version == file version,
+	 * otherwise core version == file version (API version) - 3
+	 */
+	if (iwl_api_is_core_number(drv->fw_index))
+		loaded_core = api_ver;
+	else
+		loaded_core = api_ver - API_TO_CORE_OFFS;
+
+	min_core = iwl_api_to_core(api_min);
+	max_core = iwl_api_to_core(api_max);
+
+	if (loaded_core < min_core || loaded_core > max_core) {
 		IWL_ERR(drv,
 			"Driver unable to support your firmware API. "
-			"Driver supports v%u, firmware is v%u.\n",
-			api_max, api_ver);
+			"Driver supports FW core %u..%u, firmware is %u.\n",
+			min_core, max_core, loaded_core);
 		goto try_again;
 	}
 
@@ -2036,8 +2076,6 @@ static int __init iwl_drv_init(void)
 
 	for (i = 0; i < ARRAY_SIZE(iwlwifi_opmode_table); i++)
 		INIT_LIST_HEAD(&iwlwifi_opmode_table[i].drv);
-
-	pr_info(DRV_DESCRIPTION "\n");
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	/* Create the root of iwlwifi debugfs subsystem. */

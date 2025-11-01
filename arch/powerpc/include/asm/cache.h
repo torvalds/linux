@@ -37,7 +37,7 @@
 #define ARCH_DMA_MINALIGN	L1_CACHE_BYTES
 #endif
 
-#if !defined(__ASSEMBLY__)
+#if !defined(__ASSEMBLER__)
 #ifdef CONFIG_PPC64
 
 struct ppc_cache_info {
@@ -145,6 +145,6 @@ static inline void iccci(void *addr)
 	asm volatile ("iccci 0, %0" : : "r"(addr) : "memory");
 }
 
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_CACHE_H */

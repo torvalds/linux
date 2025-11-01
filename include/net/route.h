@@ -153,7 +153,7 @@ static inline void inet_sk_init_flowi4(const struct inet_sock *inet,
 			   ip_sock_rt_tos(sk), ip_sock_rt_scope(sk),
 			   sk->sk_protocol, inet_sk_flowi_flags(sk), daddr,
 			   inet->inet_saddr, inet->inet_dport,
-			   inet->inet_sport, sk->sk_uid);
+			   inet->inet_sport, sk_uid(sk));
 	security_sk_classify_flow(sk, flowi4_to_flowi_common(fl4));
 }
 
@@ -189,7 +189,7 @@ static inline struct rtable *ip_route_output(struct net *net, __be32 daddr,
 {
 	struct flowi4 fl4 = {
 		.flowi4_oif = oif,
-		.flowi4_tos = inet_dscp_to_dsfield(dscp),
+		.flowi4_dscp = dscp,
 		.flowi4_scope = scope,
 		.daddr = daddr,
 		.saddr = saddr,
@@ -331,7 +331,7 @@ static inline void ip_route_connect_init(struct flowi4 *fl4, __be32 dst,
 
 	flowi4_init_output(fl4, oif, READ_ONCE(sk->sk_mark), ip_sock_rt_tos(sk),
 			   ip_sock_rt_scope(sk), protocol, flow_flags, dst,
-			   src, dport, sport, sk->sk_uid);
+			   src, dport, sport, sk_uid(sk));
 }
 
 static inline struct rtable *ip_route_connect(struct flowi4 *fl4, __be32 dst,
@@ -390,7 +390,7 @@ static inline int ip4_dst_hoplimit(const struct dst_entry *dst)
 		const struct net *net;
 
 		rcu_read_lock();
-		net = dev_net_rcu(dst->dev);
+		net = dst_dev_net_rcu(dst);
 		hoplimit = READ_ONCE(net->ipv4.sysctl_ip_default_ttl);
 		rcu_read_unlock();
 	}

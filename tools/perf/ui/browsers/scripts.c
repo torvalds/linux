@@ -94,7 +94,7 @@ static int check_ev_match(int dir_fd, const char *scriptname, struct perf_sessio
 	FILE *fp;
 
 	{
-		char filename[FILENAME_MAX + 5];
+		char filename[NAME_MAX + 5];
 		int fd;
 
 		scnprintf(filename, sizeof(filename), "bin/%s-record", scriptname);

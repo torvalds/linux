@@ -359,8 +359,8 @@ static void i40e_client_add_instance(struct i40e_pf *pf)
 	if (i40e_client_get_params(vsi, &cdev->lan_info.params))
 		goto free_cdev;
 
-	mac = list_first_entry(&cdev->lan_info.netdev->dev_addrs.list,
-			       struct netdev_hw_addr, list);
+	mac = list_first_entry_or_null(&cdev->lan_info.netdev->dev_addrs.list,
+				       struct netdev_hw_addr, list);
 	if (mac)
 		ether_addr_copy(cdev->lan_info.lanmac, mac->addr);
 	else
@@ -682,9 +682,7 @@ static int i40e_client_update_vsi_ctxt(struct i40e_info *ldev,
 	if (err) {
 		dev_info(&pf->pdev->dev,
 			 "couldn't get PF vsi config, err %pe aq_err %s\n",
-			 ERR_PTR(err),
-			 i40e_aq_str(&pf->hw,
-				     pf->hw.aq.asq_last_status));
+			 ERR_PTR(err), libie_aq_str(pf->hw.aq.asq_last_status));
 		return -ENOENT;
 	}
 
@@ -711,8 +709,7 @@ static int i40e_client_update_vsi_ctxt(struct i40e_info *ldev,
 			dev_info(&pf->pdev->dev,
 				 "update VSI ctxt for PE failed, err %pe aq_err %s\n",
 				 ERR_PTR(err),
-				 i40e_aq_str(&pf->hw,
-					     pf->hw.aq.asq_last_status));
+				 libie_aq_str(pf->hw.aq.asq_last_status));
 		}
 	}
 	return err;

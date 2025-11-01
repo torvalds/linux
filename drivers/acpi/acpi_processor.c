@@ -275,7 +275,7 @@ static inline int acpi_processor_hotadd_init(struct acpi_processor *pr,
 
 static int acpi_processor_get_info(struct acpi_device *device)
 {
-	union acpi_object object = { 0 };
+	union acpi_object object = { .processor = { 0 } };
 	struct acpi_buffer buffer = { sizeof(union acpi_object), &object };
 	struct acpi_processor *pr = acpi_driver_data(device);
 	int device_declaration = 0;
@@ -815,7 +815,7 @@ bool acpi_processor_claim_cst_control(void)
 	cst_control_claimed = true;
 	return true;
 }
-EXPORT_SYMBOL_GPL(acpi_processor_claim_cst_control);
+EXPORT_SYMBOL_NS_GPL(acpi_processor_claim_cst_control, "ACPI_PROCESSOR_IDLE");
 
 /**
  * acpi_processor_evaluate_cst - Evaluate the processor _CST control method.
@@ -994,5 +994,5 @@ end:
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(acpi_processor_evaluate_cst);
+EXPORT_SYMBOL_NS_GPL(acpi_processor_evaluate_cst, "ACPI_PROCESSOR_IDLE");
 #endif /* CONFIG_ACPI_PROCESSOR_CSTATE */

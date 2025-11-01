@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 dtb-$(CONFIG_ARCH_IXP4XX) += \
+	intel-ixp42x-actiontec-mi424wr-ac.dtb \
+	intel-ixp42x-actiontec-mi424wr-d.dtb \
 	intel-ixp42x-linksys-nslu2.dtb \
 	intel-ixp42x-linksys-wrv54g.dtb \
 	intel-ixp42x-freecom-fsg-3.dtb \

@@ -19,7 +19,7 @@
 
 /* forward declaration */
 struct iavf_hw;
-typedef void (*IAVF_ADMINQ_CALLBACK)(struct iavf_hw *, struct iavf_aq_desc *);
+typedef void (*IAVF_ADMINQ_CALLBACK)(struct iavf_hw *, struct libie_aq_desc *);
 
 /* Data type manipulation macros. */
 
@@ -461,38 +461,6 @@ enum iavf_tx_ctx_desc_cmd_bits {
 	IAVF_TX_CTX_DESC_SWTCH_LOCAL	= 0x20,
 	IAVF_TX_CTX_DESC_SWTCH_VSI	= 0x30,
 	IAVF_TX_CTX_DESC_SWPE		= 0x40
-};
-
-/* Packet Classifier Types for filters */
-enum iavf_filter_pctype {
-	/* Note: Values 0-28 are reserved for future use.
-	 * Value 29, 30, 32 are not supported on XL710 and X710.
-	 */
-	IAVF_FILTER_PCTYPE_NONF_UNICAST_IPV4_UDP	= 29,
-	IAVF_FILTER_PCTYPE_NONF_MULTICAST_IPV4_UDP	= 30,
-	IAVF_FILTER_PCTYPE_NONF_IPV4_UDP		= 31,
-	IAVF_FILTER_PCTYPE_NONF_IPV4_TCP_SYN_NO_ACK	= 32,
-	IAVF_FILTER_PCTYPE_NONF_IPV4_TCP		= 33,
-	IAVF_FILTER_PCTYPE_NONF_IPV4_SCTP		= 34,
-	IAVF_FILTER_PCTYPE_NONF_IPV4_OTHER		= 35,
-	IAVF_FILTER_PCTYPE_FRAG_IPV4			= 36,
-	/* Note: Values 37-38 are reserved for future use.
-	 * Value 39, 40, 42 are not supported on XL710 and X710.
-	 */
-	IAVF_FILTER_PCTYPE_NONF_UNICAST_IPV6_UDP	= 39,
-	IAVF_FILTER_PCTYPE_NONF_MULTICAST_IPV6_UDP	= 40,
-	IAVF_FILTER_PCTYPE_NONF_IPV6_UDP		= 41,
-	IAVF_FILTER_PCTYPE_NONF_IPV6_TCP_SYN_NO_ACK	= 42,
-	IAVF_FILTER_PCTYPE_NONF_IPV6_TCP		= 43,
-	IAVF_FILTER_PCTYPE_NONF_IPV6_SCTP		= 44,
-	IAVF_FILTER_PCTYPE_NONF_IPV6_OTHER		= 45,
-	IAVF_FILTER_PCTYPE_FRAG_IPV6			= 46,
-	/* Note: Value 47 is reserved for future use */
-	IAVF_FILTER_PCTYPE_FCOE_OX			= 48,
-	IAVF_FILTER_PCTYPE_FCOE_RX			= 49,
-	IAVF_FILTER_PCTYPE_FCOE_OTHER			= 50,
-	/* Note: Values 51-62 are reserved for future use */
-	IAVF_FILTER_PCTYPE_L2_PAYLOAD			= 63,
 };
 
 #define IAVF_TXD_CTX_QW1_TSO_LEN_SHIFT	30

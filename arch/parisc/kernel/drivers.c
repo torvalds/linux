@@ -995,6 +995,7 @@ static __init int qemu_print_iodc_data(struct device *lin_dev, void *data)
 	struct pdc_system_map_mod_info pdc_mod_info;
 	struct pdc_module_path mod_path;
 
+	memset(&iodc_data, 0, sizeof(iodc_data));
 	status = pdc_iodc_read(&count, hpa, 0,
 		&iodc_data, sizeof(iodc_data));
 	if (status != PDC_OK) {
@@ -1012,6 +1013,11 @@ static __init int qemu_print_iodc_data(struct device *lin_dev, void *data)
 
 	mod_index = 0;
 	do {
+		/* initialize device path for old machines */
+		memset(&mod_path, 0xff, sizeof(mod_path));
+		get_node_path(dev->dev.parent, &mod_path.path);
+		mod_path.path.mod = dev->hw_path;
+		memset(&pdc_mod_info, 0, sizeof(pdc_mod_info));
 		status = pdc_system_map_find_mods(&pdc_mod_info,
 				&mod_path, mod_index++);
 	} while (status == PDC_OK && pdc_mod_info.mod_addr != hpa);

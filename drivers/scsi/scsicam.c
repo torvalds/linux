@@ -30,9 +30,9 @@
  *              starting at offset %0x1be.
  * Returns: partition table in kmalloc(GFP_KERNEL) memory, or NULL on error.
  */
-unsigned char *scsi_bios_ptable(struct block_device *dev)
+unsigned char *scsi_bios_ptable(struct gendisk *dev)
 {
-	struct address_space *mapping = bdev_whole(dev)->bd_mapping;
+	struct address_space *mapping = dev->part0->bd_mapping;
 	unsigned char *res = NULL;
 	struct folio *folio;
 
@@ -48,7 +48,7 @@ EXPORT_SYMBOL(scsi_bios_ptable);
 
 /**
  * scsi_partsize - Parse cylinders/heads/sectors from PC partition table
- * @bdev: block device to parse
+ * @disk: gendisk of the disk to parse
  * @capacity: size of the disk in sectors
  * @geom: output in form of [hds, cylinders, sectors]
  *
@@ -57,7 +57,7 @@ EXPORT_SYMBOL(scsi_bios_ptable);
  *
  * Returns: %false on failure, %true on success.
  */
-bool scsi_partsize(struct block_device *bdev, sector_t capacity, int geom[3])
+bool scsi_partsize(struct gendisk *disk, sector_t capacity, int geom[3])
 {
 	int cyl, ext_cyl, end_head, end_cyl, end_sector;
 	unsigned int logical_end, physical_end, ext_physical_end;
@@ -65,7 +65,7 @@ bool scsi_partsize(struct block_device *bdev, sector_t capacity, int geom[3])
 	void *buf;
 	int ret = false;
 
-	buf = scsi_bios_ptable(bdev);
+	buf = scsi_bios_ptable(disk);
 	if (!buf)
 		return false;
 
@@ -205,7 +205,7 @@ static int setsize(unsigned long capacity, unsigned int *cyls, unsigned int *hds
 
 /**
  * scsicam_bios_param - Determine geometry of a disk in cylinders/heads/sectors.
- * @bdev: which device
+ * @disk: which device
  * @capacity: size of the disk in sectors
  * @ip: return value: ip[0]=heads, ip[1]=sectors, ip[2]=cylinders
  *
@@ -215,13 +215,13 @@ static int setsize(unsigned long capacity, unsigned int *cyls, unsigned int *hds
  *
  * Returns : -1 on failure, 0 on success.
  */
-int scsicam_bios_param(struct block_device *bdev, sector_t capacity, int *ip)
+int scsicam_bios_param(struct gendisk *disk, sector_t capacity, int *ip)
 {
 	u64 capacity64 = capacity;	/* Suppress gcc warning */
 	int ret = 0;
 
 	/* try to infer mapping from partition table */
-	if (scsi_partsize(bdev, capacity, ip))
+	if (scsi_partsize(disk, capacity, ip))
 		return 0;
 
 	if (capacity64 < (1ULL << 32)) {

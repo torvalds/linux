@@ -1,0 +1,591 @@
+/* SPDX-License-Identifier: GPL-2.0-only
+ *
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ */
+
+/* PPE hardware register and table declarations. */
+#ifndef __PPE_REGS_H__
+#define __PPE_REGS_H__
+
+#include <linux/bitfield.h>
+
+/* PPE scheduler configurations for buffer manager block. */
+#define PPE_BM_SCH_CTRL_ADDR			0xb000
+#define PPE_BM_SCH_CTRL_INC			4
+#define PPE_BM_SCH_CTRL_SCH_DEPTH		GENMASK(7, 0)
+#define PPE_BM_SCH_CTRL_SCH_OFFSET		GENMASK(14, 8)
+#define PPE_BM_SCH_CTRL_SCH_EN			BIT(31)
+
+/* PPE drop counters. */
+#define PPE_DROP_CNT_TBL_ADDR			0xb024
+#define PPE_DROP_CNT_TBL_ENTRIES		8
+#define PPE_DROP_CNT_TBL_INC			4
+
+/* BM port drop counters. */
+#define PPE_DROP_STAT_TBL_ADDR			0xe000
+#define PPE_DROP_STAT_TBL_ENTRIES		30
+#define PPE_DROP_STAT_TBL_INC			0x10
+
+/* Egress VLAN counters. */
+#define PPE_EG_VSI_COUNTER_TBL_ADDR		0x41000
+#define PPE_EG_VSI_COUNTER_TBL_ENTRIES		64
+#define PPE_EG_VSI_COUNTER_TBL_INC		0x10
+
+/* Port TX counters. */
+#define PPE_PORT_TX_COUNTER_TBL_ADDR		0x45000
+#define PPE_PORT_TX_COUNTER_TBL_ENTRIES		8
+#define PPE_PORT_TX_COUNTER_TBL_INC		0x10
+
+/* Virtual port TX counters. */
+#define PPE_VPORT_TX_COUNTER_TBL_ADDR		0x47000
+#define PPE_VPORT_TX_COUNTER_TBL_ENTRIES	256
+#define PPE_VPORT_TX_COUNTER_TBL_INC		0x10
+
+/* Queue counters. */
+#define PPE_QUEUE_TX_COUNTER_TBL_ADDR		0x4a000
+#define PPE_QUEUE_TX_COUNTER_TBL_ENTRIES	300
+#define PPE_QUEUE_TX_COUNTER_TBL_INC		0x10
+
+/* RSS settings are to calculate the random RSS hash value generated during
+ * packet receive to ARM cores. This hash is then used to generate the queue
+ * offset used to determine the queue used to transmit the packet to ARM cores.
+ */
+#define PPE_RSS_HASH_MASK_ADDR			0xb4318
+#define PPE_RSS_HASH_MASK_HASH_MASK		GENMASK(20, 0)
+#define PPE_RSS_HASH_MASK_FRAGMENT		BIT(28)
+
+#define PPE_RSS_HASH_SEED_ADDR			0xb431c
+#define PPE_RSS_HASH_SEED_VAL			GENMASK(31, 0)
+
+#define PPE_RSS_HASH_MIX_ADDR			0xb4320
+#define PPE_RSS_HASH_MIX_ENTRIES		11
+#define PPE_RSS_HASH_MIX_INC			4
+#define PPE_RSS_HASH_MIX_VAL			GENMASK(4, 0)
+
+#define PPE_RSS_HASH_FIN_ADDR			0xb4350
+#define PPE_RSS_HASH_FIN_ENTRIES		5
+#define PPE_RSS_HASH_FIN_INC			4
+#define PPE_RSS_HASH_FIN_INNER			GENMASK(4, 0)
+#define PPE_RSS_HASH_FIN_OUTER			GENMASK(9, 5)
+
+#define PPE_RSS_HASH_MASK_IPV4_ADDR		0xb4380
+#define PPE_RSS_HASH_MASK_IPV4_HASH_MASK	GENMASK(20, 0)
+#define PPE_RSS_HASH_MASK_IPV4_FRAGMENT		BIT(28)
+
+#define PPE_RSS_HASH_SEED_IPV4_ADDR		0xb4384
+#define PPE_RSS_HASH_SEED_IPV4_VAL		GENMASK(31, 0)
+
+#define PPE_RSS_HASH_MIX_IPV4_ADDR		0xb4390
+#define PPE_RSS_HASH_MIX_IPV4_ENTRIES		5
+#define PPE_RSS_HASH_MIX_IPV4_INC		4
+#define PPE_RSS_HASH_MIX_IPV4_VAL		GENMASK(4, 0)
+
+#define PPE_RSS_HASH_FIN_IPV4_ADDR		0xb43b0
+#define PPE_RSS_HASH_FIN_IPV4_ENTRIES		5
+#define PPE_RSS_HASH_FIN_IPV4_INC		4
+#define PPE_RSS_HASH_FIN_IPV4_INNER		GENMASK(4, 0)
+#define PPE_RSS_HASH_FIN_IPV4_OUTER		GENMASK(9, 5)
+
+#define PPE_BM_SCH_CFG_TBL_ADDR			0xc000
+#define PPE_BM_SCH_CFG_TBL_ENTRIES		128
+#define PPE_BM_SCH_CFG_TBL_INC			0x10
+#define PPE_BM_SCH_CFG_TBL_PORT_NUM		GENMASK(3, 0)
+#define PPE_BM_SCH_CFG_TBL_DIR			BIT(4)
+#define PPE_BM_SCH_CFG_TBL_VALID		BIT(5)
+#define PPE_BM_SCH_CFG_TBL_SECOND_PORT_VALID	BIT(6)
+#define PPE_BM_SCH_CFG_TBL_SECOND_PORT		GENMASK(11, 8)
+
+/* PPE service code configuration for the ingress direction functions,
+ * including bypass configuration for relevant PPE switch core functions
+ * such as flow entry lookup bypass.
+ */
+#define PPE_SERVICE_TBL_ADDR			0x15000
+#define PPE_SERVICE_TBL_ENTRIES			256
+#define PPE_SERVICE_TBL_INC			0x10
+#define PPE_SERVICE_W0_BYPASS_BITMAP		GENMASK(31, 0)
+#define PPE_SERVICE_W1_RX_CNT_EN		BIT(0)
+
+#define PPE_SERVICE_SET_BYPASS_BITMAP(tbl_cfg, value)	\
+	FIELD_MODIFY(PPE_SERVICE_W0_BYPASS_BITMAP, tbl_cfg, value)
+#define PPE_SERVICE_SET_RX_CNT_EN(tbl_cfg, value)	\
+	FIELD_MODIFY(PPE_SERVICE_W1_RX_CNT_EN, (tbl_cfg) + 0x1, value)
+
+/* PPE port egress VLAN configurations. */
+#define PPE_PORT_EG_VLAN_TBL_ADDR		0x20020
+#define PPE_PORT_EG_VLAN_TBL_ENTRIES		8
+#define PPE_PORT_EG_VLAN_TBL_INC		4
+#define PPE_PORT_EG_VLAN_TBL_VLAN_TYPE		BIT(0)
+#define PPE_PORT_EG_VLAN_TBL_CTAG_MODE		GENMASK(2, 1)
+#define PPE_PORT_EG_VLAN_TBL_STAG_MODE		GENMASK(4, 3)
+#define PPE_PORT_EG_VLAN_TBL_VSI_TAG_MODE_EN	BIT(5)
+#define PPE_PORT_EG_VLAN_TBL_PCP_PROP_CMD	BIT(6)
+#define PPE_PORT_EG_VLAN_TBL_DEI_PROP_CMD	BIT(7)
+#define PPE_PORT_EG_VLAN_TBL_TX_COUNTING_EN	BIT(8)
+
+/* PPE queue counters enable/disable control. */
+#define PPE_EG_BRIDGE_CONFIG_ADDR		0x20044
+#define PPE_EG_BRIDGE_CONFIG_QUEUE_CNT_EN	BIT(2)
+
+/* PPE service code configuration on the egress direction. */
+#define PPE_EG_SERVICE_TBL_ADDR			0x43000
+#define PPE_EG_SERVICE_TBL_ENTRIES		256
+#define PPE_EG_SERVICE_TBL_INC			0x10
+#define PPE_EG_SERVICE_W0_UPDATE_ACTION		GENMASK(31, 0)
+#define PPE_EG_SERVICE_W1_NEXT_SERVCODE		GENMASK(7, 0)
+#define PPE_EG_SERVICE_W1_HW_SERVICE		GENMASK(13, 8)
+#define PPE_EG_SERVICE_W1_OFFSET_SEL		BIT(14)
+#define PPE_EG_SERVICE_W1_TX_CNT_EN		BIT(15)
+
+#define PPE_EG_SERVICE_SET_UPDATE_ACTION(tbl_cfg, value)	\
+	FIELD_MODIFY(PPE_EG_SERVICE_W0_UPDATE_ACTION, tbl_cfg, value)
+#define PPE_EG_SERVICE_SET_NEXT_SERVCODE(tbl_cfg, value)	\
+	FIELD_MODIFY(PPE_EG_SERVICE_W1_NEXT_SERVCODE, (tbl_cfg) + 0x1, value)
+#define PPE_EG_SERVICE_SET_HW_SERVICE(tbl_cfg, value)	\
+	FIELD_MODIFY(PPE_EG_SERVICE_W1_HW_SERVICE, (tbl_cfg) + 0x1, value)
+#define PPE_EG_SERVICE_SET_OFFSET_SEL(tbl_cfg, value)	\
+	FIELD_MODIFY(PPE_EG_SERVICE_W1_OFFSET_SEL, (tbl_cfg) + 0x1, value)
+#define PPE_EG_SERVICE_SET_TX_CNT_EN(tbl_cfg, value)	\
+	FIELD_MODIFY(PPE_EG_SERVICE_W1_TX_CNT_EN, (tbl_cfg) + 0x1, value)
+
+/* PPE port bridge configuration */
+#define PPE_PORT_BRIDGE_CTRL_ADDR		0x60300
+#define PPE_PORT_BRIDGE_CTRL_ENTRIES		8
+#define PPE_PORT_BRIDGE_CTRL_INC		4
+#define PPE_PORT_BRIDGE_NEW_LRN_EN		BIT(0)
+#define PPE_PORT_BRIDGE_STA_MOVE_LRN_EN		BIT(3)
+#define PPE_PORT_BRIDGE_TXMAC_EN		BIT(16)
+
+/* PPE port control configurations for the traffic to the multicast queues. */
+#define PPE_MC_MTU_CTRL_TBL_ADDR		0x60a00
+#define PPE_MC_MTU_CTRL_TBL_ENTRIES		8
+#define PPE_MC_MTU_CTRL_TBL_INC			4
+#define PPE_MC_MTU_CTRL_TBL_MTU			GENMASK(13, 0)
+#define PPE_MC_MTU_CTRL_TBL_MTU_CMD		GENMASK(15, 14)
+#define PPE_MC_MTU_CTRL_TBL_TX_CNT_EN		BIT(16)
+
+/* PPE VSI configurations */
+#define PPE_VSI_TBL_ADDR			0x63800
+#define PPE_VSI_TBL_ENTRIES			64
+#define PPE_VSI_TBL_INC				0x10
+#define PPE_VSI_W0_MEMBER_PORT_BITMAP		GENMASK(7, 0)
+#define PPE_VSI_W0_UUC_BITMAP			GENMASK(15, 8)
+#define PPE_VSI_W0_UMC_BITMAP			GENMASK(23, 16)
+#define PPE_VSI_W0_BC_BITMAP			GENMASK(31, 24)
+#define PPE_VSI_W1_NEW_ADDR_LRN_EN		BIT(0)
+#define PPE_VSI_W1_NEW_ADDR_FWD_CMD		GENMASK(2, 1)
+#define PPE_VSI_W1_STATION_MOVE_LRN_EN		BIT(3)
+#define PPE_VSI_W1_STATION_MOVE_FWD_CMD		GENMASK(5, 4)
+
+#define PPE_VSI_SET_MEMBER_PORT_BITMAP(tbl_cfg, value)		\
+	FIELD_MODIFY(PPE_VSI_W0_MEMBER_PORT_BITMAP, tbl_cfg, value)
+#define PPE_VSI_SET_UUC_BITMAP(tbl_cfg, value)			\
+	FIELD_MODIFY(PPE_VSI_W0_UUC_BITMAP, tbl_cfg, value)
+#define PPE_VSI_SET_UMC_BITMAP(tbl_cfg, value)			\
+	FIELD_MODIFY(PPE_VSI_W0_UMC_BITMAP, tbl_cfg, value)
+#define PPE_VSI_SET_BC_BITMAP(tbl_cfg, value)			\
+	FIELD_MODIFY(PPE_VSI_W0_BC_BITMAP, tbl_cfg, value)
+#define PPE_VSI_SET_NEW_ADDR_LRN_EN(tbl_cfg, value)		\
+	FIELD_MODIFY(PPE_VSI_W1_NEW_ADDR_LRN_EN, (tbl_cfg) + 0x1, value)
+#define PPE_VSI_SET_NEW_ADDR_FWD_CMD(tbl_cfg, value)		\
+	FIELD_MODIFY(PPE_VSI_W1_NEW_ADDR_FWD_CMD, (tbl_cfg) + 0x1, value)
+#define PPE_VSI_SET_STATION_MOVE_LRN_EN(tbl_cfg, value)		\
+	FIELD_MODIFY(PPE_VSI_W1_STATION_MOVE_LRN_EN, (tbl_cfg) + 0x1, value)
+#define PPE_VSI_SET_STATION_MOVE_FWD_CMD(tbl_cfg, value)	\
+	FIELD_MODIFY(PPE_VSI_W1_STATION_MOVE_FWD_CMD, (tbl_cfg) + 0x1, value)
+
+/* PPE port control configurations for the traffic to the unicast queues. */
+#define PPE_MRU_MTU_CTRL_TBL_ADDR		0x65000
+#define PPE_MRU_MTU_CTRL_TBL_ENTRIES		256
+#define PPE_MRU_MTU_CTRL_TBL_INC		0x10
+#define PPE_MRU_MTU_CTRL_W0_MRU			GENMASK(13, 0)
+#define PPE_MRU_MTU_CTRL_W0_MRU_CMD		GENMASK(15, 14)
+#define PPE_MRU_MTU_CTRL_W0_MTU			GENMASK(29, 16)
+#define PPE_MRU_MTU_CTRL_W0_MTU_CMD		GENMASK(31, 30)
+#define PPE_MRU_MTU_CTRL_W1_RX_CNT_EN		BIT(0)
+#define PPE_MRU_MTU_CTRL_W1_TX_CNT_EN		BIT(1)
+#define PPE_MRU_MTU_CTRL_W1_SRC_PROFILE		GENMASK(3, 2)
+#define PPE_MRU_MTU_CTRL_W1_INNER_PREC_LOW	BIT(31)
+#define PPE_MRU_MTU_CTRL_W2_INNER_PREC_HIGH	GENMASK(1, 0)
+
+#define PPE_MRU_MTU_CTRL_SET_MRU(tbl_cfg, value)	\
+	FIELD_MODIFY(PPE_MRU_MTU_CTRL_W0_MRU, tbl_cfg, value)
+#define PPE_MRU_MTU_CTRL_SET_MRU_CMD(tbl_cfg, value)	\
+	FIELD_MODIFY(PPE_MRU_MTU_CTRL_W0_MRU_CMD, tbl_cfg, value)
+#define PPE_MRU_MTU_CTRL_SET_MTU(tbl_cfg, value)	\
+	FIELD_MODIFY(PPE_MRU_MTU_CTRL_W0_MTU, tbl_cfg, value)
+#define PPE_MRU_MTU_CTRL_SET_MTU_CMD(tbl_cfg, value)	\
+	FIELD_MODIFY(PPE_MRU_MTU_CTRL_W0_MTU_CMD, tbl_cfg, value)
+#define PPE_MRU_MTU_CTRL_SET_RX_CNT_EN(tbl_cfg, value)	\
+	FIELD_MODIFY(PPE_MRU_MTU_CTRL_W1_RX_CNT_EN, (tbl_cfg) + 0x1, value)
+#define PPE_MRU_MTU_CTRL_SET_TX_CNT_EN(tbl_cfg, value)	\
+	FIELD_MODIFY(PPE_MRU_MTU_CTRL_W1_TX_CNT_EN, (tbl_cfg) + 0x1, value)
+
+/* PPE service code configuration for destination port and counter. */
+#define PPE_IN_L2_SERVICE_TBL_ADDR		0x66000
+#define PPE_IN_L2_SERVICE_TBL_ENTRIES		256
+#define PPE_IN_L2_SERVICE_TBL_INC		0x10
+#define PPE_IN_L2_SERVICE_TBL_DST_PORT_ID_VALID	BIT(0)
+#define PPE_IN_L2_SERVICE_TBL_DST_PORT_ID	GENMASK(4, 1)
+#define PPE_IN_L2_SERVICE_TBL_DST_DIRECTION	BIT(5)
+#define PPE_IN_L2_SERVICE_TBL_DST_BYPASS_BITMAP	GENMASK(29, 6)
+#define PPE_IN_L2_SERVICE_TBL_RX_CNT_EN		BIT(30)
+#define PPE_IN_L2_SERVICE_TBL_TX_CNT_EN		BIT(31)
+
+/* L2 Port configurations */
+#define PPE_L2_VP_PORT_TBL_ADDR			0x98000
+#define PPE_L2_VP_PORT_TBL_ENTRIES		256
+#define PPE_L2_VP_PORT_TBL_INC			0x10
+#define PPE_L2_VP_PORT_W0_INVALID_VSI_FWD_EN	BIT(0)
+#define PPE_L2_VP_PORT_W0_DST_INFO		GENMASK(9, 2)
+
+#define PPE_L2_PORT_SET_INVALID_VSI_FWD_EN(tbl_cfg, value)	\
+	FIELD_MODIFY(PPE_L2_VP_PORT_W0_INVALID_VSI_FWD_EN, tbl_cfg, value)
+#define PPE_L2_PORT_SET_DST_INFO(tbl_cfg, value)		\
+	FIELD_MODIFY(PPE_L2_VP_PORT_W0_DST_INFO, tbl_cfg, value)
+
+/* Port RX and RX drop counters. */
+#define PPE_PORT_RX_CNT_TBL_ADDR		0x150000
+#define PPE_PORT_RX_CNT_TBL_ENTRIES		256
+#define PPE_PORT_RX_CNT_TBL_INC			0x20
+
+/* Physical port RX and RX drop counters. */
+#define PPE_PHY_PORT_RX_CNT_TBL_ADDR		0x156000
+#define PPE_PHY_PORT_RX_CNT_TBL_ENTRIES		8
+#define PPE_PHY_PORT_RX_CNT_TBL_INC		0x20
+
+/* Counters for the packet to CPU port. */
+#define PPE_DROP_CPU_CNT_TBL_ADDR		0x160000
+#define PPE_DROP_CPU_CNT_TBL_ENTRIES		1280
+#define PPE_DROP_CPU_CNT_TBL_INC		0x10
+
+/* VLAN counters. */
+#define PPE_VLAN_CNT_TBL_ADDR			0x178000
+#define PPE_VLAN_CNT_TBL_ENTRIES		64
+#define PPE_VLAN_CNT_TBL_INC			0x10
+
+/* PPE L2 counters. */
+#define PPE_PRE_L2_CNT_TBL_ADDR			0x17c000
+#define PPE_PRE_L2_CNT_TBL_ENTRIES		64
+#define PPE_PRE_L2_CNT_TBL_INC			0x20
+
+/* Port TX drop counters. */
+#define PPE_PORT_TX_DROP_CNT_TBL_ADDR		0x17d000
+#define PPE_PORT_TX_DROP_CNT_TBL_ENTRIES	8
+#define PPE_PORT_TX_DROP_CNT_TBL_INC		0x10
+
+/* Virtual port TX counters. */
+#define PPE_VPORT_TX_DROP_CNT_TBL_ADDR		0x17e000
+#define PPE_VPORT_TX_DROP_CNT_TBL_ENTRIES	256
+#define PPE_VPORT_TX_DROP_CNT_TBL_INC		0x10
+
+/* Counters for the tunnel packet. */
+#define PPE_TPR_PKT_CNT_TBL_ADDR		0x1d0080
+#define PPE_TPR_PKT_CNT_TBL_ENTRIES		8
+#define PPE_TPR_PKT_CNT_TBL_INC			4
+
+/* Counters for the all packet received. */
+#define PPE_IPR_PKT_CNT_TBL_ADDR		0x1e0080
+#define PPE_IPR_PKT_CNT_TBL_ENTRIES		8
+#define PPE_IPR_PKT_CNT_TBL_INC			4
+
+/* PPE service code configuration for the tunnel packet. */
+#define PPE_TL_SERVICE_TBL_ADDR			0x306000
+#define PPE_TL_SERVICE_TBL_ENTRIES		256
+#define PPE_TL_SERVICE_TBL_INC			4
+#define PPE_TL_SERVICE_TBL_BYPASS_BITMAP	GENMASK(31, 0)
+
+/* Port scheduler global config. */
+#define PPE_PSCH_SCH_DEPTH_CFG_ADDR		0x400000
+#define PPE_PSCH_SCH_DEPTH_CFG_INC		4
+#define PPE_PSCH_SCH_DEPTH_CFG_SCH_DEPTH	GENMASK(7, 0)
+
+/* PPE queue level scheduler configurations. */
+#define PPE_L0_FLOW_MAP_TBL_ADDR		0x402000
+#define PPE_L0_FLOW_MAP_TBL_ENTRIES		300
+#define PPE_L0_FLOW_MAP_TBL_INC			0x10
+#define PPE_L0_FLOW_MAP_TBL_FLOW_ID		GENMASK(5, 0)
+#define PPE_L0_FLOW_MAP_TBL_C_PRI		GENMASK(8, 6)
+#define PPE_L0_FLOW_MAP_TBL_E_PRI		GENMASK(11, 9)
+#define PPE_L0_FLOW_MAP_TBL_C_NODE_WT		GENMASK(21, 12)
+#define PPE_L0_FLOW_MAP_TBL_E_NODE_WT		GENMASK(31, 22)
+
+#define PPE_L0_C_FLOW_CFG_TBL_ADDR		0x404000
+#define PPE_L0_C_FLOW_CFG_TBL_ENTRIES		512
+#define PPE_L0_C_FLOW_CFG_TBL_INC		0x10
+#define PPE_L0_C_FLOW_CFG_TBL_NODE_ID		GENMASK(7, 0)
+#define PPE_L0_C_FLOW_CFG_TBL_NODE_CREDIT_UNIT	BIT(8)
+
+#define PPE_L0_E_FLOW_CFG_TBL_ADDR		0x406000
+#define PPE_L0_E_FLOW_CFG_TBL_ENTRIES		512
+#define PPE_L0_E_FLOW_CFG_TBL_INC		0x10
+#define PPE_L0_E_FLOW_CFG_TBL_NODE_ID		GENMASK(7, 0)
+#define PPE_L0_E_FLOW_CFG_TBL_NODE_CREDIT_UNIT	BIT(8)
+
+#define PPE_L0_FLOW_PORT_MAP_TBL_ADDR		0x408000
+#define PPE_L0_FLOW_PORT_MAP_TBL_ENTRIES	300
+#define PPE_L0_FLOW_PORT_MAP_TBL_INC		0x10
+#define PPE_L0_FLOW_PORT_MAP_TBL_PORT_NUM	GENMASK(3, 0)
+
+#define PPE_L0_COMP_CFG_TBL_ADDR		0x428000
+#define PPE_L0_COMP_CFG_TBL_ENTRIES		300
+#define PPE_L0_COMP_CFG_TBL_INC			0x10
+#define PPE_L0_COMP_CFG_TBL_SHAPER_METER_LEN	GENMASK(1, 0)
+#define PPE_L0_COMP_CFG_TBL_NODE_METER_LEN	GENMASK(3, 2)
+
+/* PPE queue to Ethernet DMA ring mapping table. */
+#define PPE_RING_Q_MAP_TBL_ADDR			0x42a000
+#define PPE_RING_Q_MAP_TBL_ENTRIES		24
+#define PPE_RING_Q_MAP_TBL_INC			0x40
+
+/* Table addresses for per-queue dequeue setting. */
+#define PPE_DEQ_OPR_TBL_ADDR			0x430000
+#define PPE_DEQ_OPR_TBL_ENTRIES			300
+#define PPE_DEQ_OPR_TBL_INC			0x10
+#define PPE_DEQ_OPR_TBL_DEQ_DISABLE		BIT(0)
+
+/* PPE flow level scheduler configurations. */
+#define PPE_L1_FLOW_MAP_TBL_ADDR		0x440000
+#define PPE_L1_FLOW_MAP_TBL_ENTRIES		64
+#define PPE_L1_FLOW_MAP_TBL_INC			0x10
+#define PPE_L1_FLOW_MAP_TBL_FLOW_ID		GENMASK(3, 0)
+#define PPE_L1_FLOW_MAP_TBL_C_PRI		GENMASK(6, 4)
+#define PPE_L1_FLOW_MAP_TBL_E_PRI		GENMASK(9, 7)
+#define PPE_L1_FLOW_MAP_TBL_C_NODE_WT		GENMASK(19, 10)
+#define PPE_L1_FLOW_MAP_TBL_E_NODE_WT		GENMASK(29, 20)
+
+#define PPE_L1_C_FLOW_CFG_TBL_ADDR		0x442000
+#define PPE_L1_C_FLOW_CFG_TBL_ENTRIES		64
+#define PPE_L1_C_FLOW_CFG_TBL_INC		0x10
+#define PPE_L1_C_FLOW_CFG_TBL_NODE_ID		GENMASK(5, 0)
+#define PPE_L1_C_FLOW_CFG_TBL_NODE_CREDIT_UNIT	BIT(6)
+
+#define PPE_L1_E_FLOW_CFG_TBL_ADDR		0x444000
+#define PPE_L1_E_FLOW_CFG_TBL_ENTRIES		64
+#define PPE_L1_E_FLOW_CFG_TBL_INC		0x10
+#define PPE_L1_E_FLOW_CFG_TBL_NODE_ID		GENMASK(5, 0)
+#define PPE_L1_E_FLOW_CFG_TBL_NODE_CREDIT_UNIT	BIT(6)
+
+#define PPE_L1_FLOW_PORT_MAP_TBL_ADDR		0x446000
+#define PPE_L1_FLOW_PORT_MAP_TBL_ENTRIES	64
+#define PPE_L1_FLOW_PORT_MAP_TBL_INC		0x10
+#define PPE_L1_FLOW_PORT_MAP_TBL_PORT_NUM	GENMASK(3, 0)
+
+#define PPE_L1_COMP_CFG_TBL_ADDR		0x46a000
+#define PPE_L1_COMP_CFG_TBL_ENTRIES		64
+#define PPE_L1_COMP_CFG_TBL_INC			0x10
+#define PPE_L1_COMP_CFG_TBL_SHAPER_METER_LEN	GENMASK(1, 0)
+#define PPE_L1_COMP_CFG_TBL_NODE_METER_LEN	GENMASK(3, 2)
+
+/* PPE port scheduler configurations for egress. */
+#define PPE_PSCH_SCH_CFG_TBL_ADDR		0x47a000
+#define PPE_PSCH_SCH_CFG_TBL_ENTRIES		128
+#define PPE_PSCH_SCH_CFG_TBL_INC		0x10
+#define PPE_PSCH_SCH_CFG_TBL_DES_PORT		GENMASK(3, 0)
+#define PPE_PSCH_SCH_CFG_TBL_ENS_PORT		GENMASK(7, 4)
+#define PPE_PSCH_SCH_CFG_TBL_ENS_PORT_BITMAP	GENMASK(15, 8)
+#define PPE_PSCH_SCH_CFG_TBL_DES_SECOND_PORT_EN	BIT(16)
+#define PPE_PSCH_SCH_CFG_TBL_DES_SECOND_PORT	GENMASK(20, 17)
+
+/* There are 15 BM ports and 4 BM groups supported by PPE.
+ * BM port (0-7) is for EDMA port 0, BM port (8-13) is for
+ * PPE physical port 1-6 and BM port 14 is for EIP port.
+ */
+#define PPE_BM_PORT_FC_MODE_ADDR		0x600100
+#define PPE_BM_PORT_FC_MODE_ENTRIES		15
+#define PPE_BM_PORT_FC_MODE_INC			0x4
+#define PPE_BM_PORT_FC_MODE_EN			BIT(0)
+
+#define PPE_BM_PORT_GROUP_ID_ADDR		0x600180
+#define PPE_BM_PORT_GROUP_ID_ENTRIES		15
+#define PPE_BM_PORT_GROUP_ID_INC		0x4
+#define PPE_BM_PORT_GROUP_ID_SHARED_GROUP_ID	GENMASK(1, 0)
+
+/* Counters for PPE buffers used for packets cached. */
+#define PPE_BM_USED_CNT_TBL_ADDR		0x6001c0
+#define PPE_BM_USED_CNT_TBL_ENTRIES		15
+#define PPE_BM_USED_CNT_TBL_INC			0x4
+#define PPE_BM_USED_CNT_VAL			GENMASK(10, 0)
+
+/* Counters for PPE buffers used for packets received after pause frame sent. */
+#define PPE_BM_REACT_CNT_TBL_ADDR		0x600240
+#define PPE_BM_REACT_CNT_TBL_ENTRIES		15
+#define PPE_BM_REACT_CNT_TBL_INC		0x4
+#define PPE_BM_REACT_CNT_VAL			GENMASK(8, 0)
+
+#define PPE_BM_SHARED_GROUP_CFG_ADDR		0x600290
+#define PPE_BM_SHARED_GROUP_CFG_ENTRIES		4
+#define PPE_BM_SHARED_GROUP_CFG_INC		0x4
+#define PPE_BM_SHARED_GROUP_CFG_SHARED_LIMIT	GENMASK(10, 0)
+
+#define PPE_BM_PORT_FC_CFG_TBL_ADDR		0x601000
+#define PPE_BM_PORT_FC_CFG_TBL_ENTRIES		15
+#define PPE_BM_PORT_FC_CFG_TBL_INC		0x10
+#define PPE_BM_PORT_FC_W0_REACT_LIMIT		GENMASK(8, 0)
+#define PPE_BM_PORT_FC_W0_RESUME_THRESHOLD	GENMASK(17, 9)
+#define PPE_BM_PORT_FC_W0_RESUME_OFFSET		GENMASK(28, 18)
+#define PPE_BM_PORT_FC_W0_CEILING_LOW		GENMASK(31, 29)
+#define PPE_BM_PORT_FC_W1_CEILING_HIGH		GENMASK(7, 0)
+#define PPE_BM_PORT_FC_W1_WEIGHT		GENMASK(10, 8)
+#define PPE_BM_PORT_FC_W1_DYNAMIC		BIT(11)
+#define PPE_BM_PORT_FC_W1_PRE_ALLOC		GENMASK(22, 12)
+
+#define PPE_BM_PORT_FC_SET_REACT_LIMIT(tbl_cfg, value)	\
+	FIELD_MODIFY(PPE_BM_PORT_FC_W0_REACT_LIMIT, tbl_cfg, value)
+#define PPE_BM_PORT_FC_SET_RESUME_THRESHOLD(tbl_cfg, value)	\
+	FIELD_MODIFY(PPE_BM_PORT_FC_W0_RESUME_THRESHOLD, tbl_cfg, value)
+#define PPE_BM_PORT_FC_SET_RESUME_OFFSET(tbl_cfg, value)	\
+	FIELD_MODIFY(PPE_BM_PORT_FC_W0_RESUME_OFFSET, tbl_cfg, value)
+#define PPE_BM_PORT_FC_SET_CEILING_LOW(tbl_cfg, value)	\
+	FIELD_MODIFY(PPE_BM_PORT_FC_W0_CEILING_LOW, tbl_cfg, value)
+#define PPE_BM_PORT_FC_SET_CEILING_HIGH(tbl_cfg, value)	\
+	FIELD_MODIFY(PPE_BM_PORT_FC_W1_CEILING_HIGH, (tbl_cfg) + 0x1, value)
+#define PPE_BM_PORT_FC_SET_WEIGHT(tbl_cfg, value)	\
+	FIELD_MODIFY(PPE_BM_PORT_FC_W1_WEIGHT, (tbl_cfg) + 0x1, value)
+#define PPE_BM_PORT_FC_SET_DYNAMIC(tbl_cfg, value)	\
+	FIELD_MODIFY(PPE_BM_PORT_FC_W1_DYNAMIC, (tbl_cfg) + 0x1, value)
+#define PPE_BM_PORT_FC_SET_PRE_ALLOC(tbl_cfg, value)	\
+	FIELD_MODIFY(PPE_BM_PORT_FC_W1_PRE_ALLOC, (tbl_cfg) + 0x1, value)
+
+/* The queue base configurations based on destination port,
+ * service code or CPU code.
+ */
+#define PPE_UCAST_QUEUE_MAP_TBL_ADDR		0x810000
+#define PPE_UCAST_QUEUE_MAP_TBL_ENTRIES		3072
+#define PPE_UCAST_QUEUE_MAP_TBL_INC		0x10
+#define PPE_UCAST_QUEUE_MAP_TBL_PROFILE_ID	GENMASK(3, 0)
+#define PPE_UCAST_QUEUE_MAP_TBL_QUEUE_ID	GENMASK(11, 4)
+
+/* The queue offset configurations based on RSS hash value. */
+#define PPE_UCAST_HASH_MAP_TBL_ADDR		0x830000
+#define PPE_UCAST_HASH_MAP_TBL_ENTRIES		4096
+#define PPE_UCAST_HASH_MAP_TBL_INC		0x10
+#define PPE_UCAST_HASH_MAP_TBL_HASH		GENMASK(7, 0)
+
+/* The queue offset configurations based on PPE internal priority. */
+#define PPE_UCAST_PRIORITY_MAP_TBL_ADDR		0x842000
+#define PPE_UCAST_PRIORITY_MAP_TBL_ENTRIES	256
+#define PPE_UCAST_PRIORITY_MAP_TBL_INC		0x10
+#define PPE_UCAST_PRIORITY_MAP_TBL_CLASS	GENMASK(3, 0)
+
+/* PPE unicast queue (0-255) configurations. */
+#define PPE_AC_UNICAST_QUEUE_CFG_TBL_ADDR	0x848000
+#define PPE_AC_UNICAST_QUEUE_CFG_TBL_ENTRIES	256
+#define PPE_AC_UNICAST_QUEUE_CFG_TBL_INC	0x10
+#define PPE_AC_UNICAST_QUEUE_CFG_W0_EN		BIT(0)
+#define PPE_AC_UNICAST_QUEUE_CFG_W0_WRED_EN	BIT(1)
+#define PPE_AC_UNICAST_QUEUE_CFG_W0_FC_EN	BIT(2)
+#define PPE_AC_UNICAST_QUEUE_CFG_W0_CLR_AWARE	BIT(3)
+#define PPE_AC_UNICAST_QUEUE_CFG_W0_GRP_ID	GENMASK(5, 4)
+#define PPE_AC_UNICAST_QUEUE_CFG_W0_PRE_LIMIT	GENMASK(16, 6)
+#define PPE_AC_UNICAST_QUEUE_CFG_W0_DYNAMIC	BIT(17)
+#define PPE_AC_UNICAST_QUEUE_CFG_W0_WEIGHT	GENMASK(20, 18)
+#define PPE_AC_UNICAST_QUEUE_CFG_W0_THRESHOLD	GENMASK(31, 21)
+#define PPE_AC_UNICAST_QUEUE_CFG_W3_GRN_RESUME	GENMASK(23, 13)
+
+#define PPE_AC_UNICAST_QUEUE_SET_EN(tbl_cfg, value)	\
+	FIELD_MODIFY(PPE_AC_UNICAST_QUEUE_CFG_W0_EN, tbl_cfg, value)
+#define PPE_AC_UNICAST_QUEUE_SET_GRP_ID(tbl_cfg, value)	\
+	FIELD_MODIFY(PPE_AC_UNICAST_QUEUE_CFG_W0_GRP_ID, tbl_cfg, value)
+#define PPE_AC_UNICAST_QUEUE_SET_PRE_LIMIT(tbl_cfg, value)	\
+	FIELD_MODIFY(PPE_AC_UNICAST_QUEUE_CFG_W0_PRE_LIMIT, tbl_cfg, value)
+#define PPE_AC_UNICAST_QUEUE_SET_DYNAMIC(tbl_cfg, value)	\
+	FIELD_MODIFY(PPE_AC_UNICAST_QUEUE_CFG_W0_DYNAMIC, tbl_cfg, value)
+#define PPE_AC_UNICAST_QUEUE_SET_WEIGHT(tbl_cfg, value)	\
+	FIELD_MODIFY(PPE_AC_UNICAST_QUEUE_CFG_W0_WEIGHT, tbl_cfg, value)
+#define PPE_AC_UNICAST_QUEUE_SET_THRESHOLD(tbl_cfg, value)	\
+	FIELD_MODIFY(PPE_AC_UNICAST_QUEUE_CFG_W0_THRESHOLD, tbl_cfg, value)
+#define PPE_AC_UNICAST_QUEUE_SET_GRN_RESUME(tbl_cfg, value)	\
+	FIELD_MODIFY(PPE_AC_UNICAST_QUEUE_CFG_W3_GRN_RESUME, (tbl_cfg) + 0x3, value)
+
+/* PPE multicast queue (256-299) configurations. */
+#define PPE_AC_MULTICAST_QUEUE_CFG_TBL_ADDR	0x84a000
+#define PPE_AC_MULTICAST_QUEUE_CFG_TBL_ENTRIES	44
+#define PPE_AC_MULTICAST_QUEUE_CFG_TBL_INC	0x10
+#define PPE_AC_MULTICAST_QUEUE_CFG_W0_EN	BIT(0)
+#define PPE_AC_MULTICAST_QUEUE_CFG_W0_FC_EN	BIT(1)
+#define PPE_AC_MULTICAST_QUEUE_CFG_W0_CLR_AWARE	BIT(2)
+#define PPE_AC_MULTICAST_QUEUE_CFG_W0_GRP_ID	GENMASK(4, 3)
+#define PPE_AC_MULTICAST_QUEUE_CFG_W0_PRE_LIMIT	GENMASK(15, 5)
+#define PPE_AC_MULTICAST_QUEUE_CFG_W0_THRESHOLD	GENMASK(26, 16)
+#define PPE_AC_MULTICAST_QUEUE_CFG_W2_RESUME	GENMASK(17, 7)
+
+#define PPE_AC_MULTICAST_QUEUE_SET_EN(tbl_cfg, value)	\
+	FIELD_MODIFY(PPE_AC_MULTICAST_QUEUE_CFG_W0_EN, tbl_cfg, value)
+#define PPE_AC_MULTICAST_QUEUE_SET_GRN_GRP_ID(tbl_cfg, value)	\
+	FIELD_MODIFY(PPE_AC_MULTICAST_QUEUE_CFG_W0_GRP_ID, tbl_cfg, value)
+#define PPE_AC_MULTICAST_QUEUE_SET_GRN_PRE_LIMIT(tbl_cfg, value)	\
+	FIELD_MODIFY(PPE_AC_MULTICAST_QUEUE_CFG_W0_PRE_LIMIT, tbl_cfg, value)
+#define PPE_AC_MULTICAST_QUEUE_SET_GRN_THRESHOLD(tbl_cfg, value)	\
+	FIELD_MODIFY(PPE_AC_MULTICAST_QUEUE_CFG_W0_THRESHOLD, tbl_cfg, value)
+#define PPE_AC_MULTICAST_QUEUE_SET_GRN_RESUME(tbl_cfg, value)	\
+	FIELD_MODIFY(PPE_AC_MULTICAST_QUEUE_CFG_W2_RESUME, (tbl_cfg) + 0x2, value)
+
+/* PPE admission control group (0-3) configurations */
+#define PPE_AC_GRP_CFG_TBL_ADDR			0x84c000
+#define PPE_AC_GRP_CFG_TBL_ENTRIES		0x4
+#define PPE_AC_GRP_CFG_TBL_INC			0x10
+#define PPE_AC_GRP_W0_AC_EN			BIT(0)
+#define PPE_AC_GRP_W0_AC_FC_EN			BIT(1)
+#define PPE_AC_GRP_W0_CLR_AWARE			BIT(2)
+#define PPE_AC_GRP_W0_THRESHOLD_LOW		GENMASK(31, 25)
+#define PPE_AC_GRP_W1_THRESHOLD_HIGH		GENMASK(3, 0)
+#define PPE_AC_GRP_W1_BUF_LIMIT			GENMASK(14, 4)
+#define PPE_AC_GRP_W2_RESUME_GRN		GENMASK(15, 5)
+#define PPE_AC_GRP_W2_PRE_ALLOC			GENMASK(26, 16)
+
+#define PPE_AC_GRP_SET_BUF_LIMIT(tbl_cfg, value)	\
+	FIELD_MODIFY(PPE_AC_GRP_W1_BUF_LIMIT, (tbl_cfg) + 0x1, value)
+
+/* Counters for packets handled by unicast queues (0-255). */
+#define PPE_AC_UNICAST_QUEUE_CNT_TBL_ADDR	0x84e000
+#define PPE_AC_UNICAST_QUEUE_CNT_TBL_ENTRIES	256
+#define PPE_AC_UNICAST_QUEUE_CNT_TBL_INC	0x10
+#define PPE_AC_UNICAST_QUEUE_CNT_TBL_PEND_CNT	GENMASK(12, 0)
+
+/* Counters for packets handled by multicast queues (256-299). */
+#define PPE_AC_MULTICAST_QUEUE_CNT_TBL_ADDR	0x852000
+#define PPE_AC_MULTICAST_QUEUE_CNT_TBL_ENTRIES	44
+#define PPE_AC_MULTICAST_QUEUE_CNT_TBL_INC	0x10
+#define PPE_AC_MULTICAST_QUEUE_CNT_TBL_PEND_CNT	GENMASK(12, 0)
+
+/* Table addresses for per-queue enqueue setting. */
+#define PPE_ENQ_OPR_TBL_ADDR			0x85c000
+#define PPE_ENQ_OPR_TBL_ENTRIES			300
+#define PPE_ENQ_OPR_TBL_INC			0x10
+#define PPE_ENQ_OPR_TBL_ENQ_DISABLE		BIT(0)
+
+/* Unicast drop count includes the possible drops with WRED for the green,
+ * yellow and red categories.
+ */
+#define PPE_UNICAST_DROP_CNT_TBL_ADDR		0x9e0000
+#define PPE_UNICAST_DROP_CNT_TBL_ENTRIES	1536
+#define PPE_UNICAST_DROP_CNT_TBL_INC		0x10
+#define PPE_UNICAST_DROP_TYPES			6
+#define PPE_UNICAST_DROP_FORCE_OFFSET		3
+
+/* There are 16 multicast queues dedicated to CPU port 0. Multicast drop
+ * count includes the force drop for green, yellow and red category packets.
+ */
+#define PPE_P0_MULTICAST_DROP_CNT_TBL_ADDR	0x9f0000
+#define PPE_P0_MULTICAST_DROP_CNT_TBL_ENTRIES	48
+#define PPE_P0_MULTICAST_DROP_CNT_TBL_INC	0x10
+#define PPE_P0_MULTICAST_QUEUE_NUM		16
+
+/* Each PPE physical port has four dedicated multicast queues, providing
+ * a total of 12 entries per port. The multicast drop count includes forced
+ * drops for green, yellow, and red category packets.
+ */
+#define PPE_MULTICAST_QUEUE_PORT_ADDR_INC	0x1000
+#define PPE_MULTICAST_DROP_CNT_TBL_INC		0x10
+#define PPE_MULTICAST_DROP_TYPES		3
+#define PPE_MULTICAST_QUEUE_NUM			4
+#define PPE_MULTICAST_DROP_CNT_TBL_ENTRIES	12
+
+#define PPE_CPU_PORT_MULTICAST_FORCE_DROP_CNT_TBL_ADDR(mq_offset)	\
+	(PPE_P0_MULTICAST_DROP_CNT_TBL_ADDR +				\
+	 (mq_offset) * PPE_P0_MULTICAST_DROP_CNT_TBL_INC *		\
+	 PPE_MULTICAST_DROP_TYPES)
+
+#define PPE_P1_MULTICAST_DROP_CNT_TBL_ADDR	\
+	(PPE_P0_MULTICAST_DROP_CNT_TBL_ADDR + PPE_MULTICAST_QUEUE_PORT_ADDR_INC)
+#endif

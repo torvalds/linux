@@ -20,7 +20,7 @@
 #define MFEATURE_LPAR		9
 #define MFEATURE_DIAG288	10
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/bitops.h>
 #include <asm/alternative.h>
@@ -100,5 +100,5 @@ DEFINE_MACHINE_HAS_FEATURE(lpar, MFEATURE_LPAR)
 #define machine_is_kvm	machine_has_kvm
 #define machine_is_lpar	machine_has_lpar
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 #endif /* __ASM_S390_MACHINE_H */

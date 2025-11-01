@@ -4,7 +4,7 @@
 #
 
 config SENSORS_LIS3_SPI
-	tristate "STMicroeletronics LIS3LV02Dx three-axis digital accelerometer (SPI)"
+	tristate "STMicroelectronics LIS3LV02Dx three-axis digital accelerometer (SPI)"
 	depends on !ACPI && SPI_MASTER && INPUT
 	select SENSORS_LIS3LV02D
 	help
@@ -20,7 +20,7 @@ config SENSORS_LIS3_SPI
 	  is called lis3lv02d_spi.
 
 config SENSORS_LIS3_I2C
-	tristate "STMicroeletronics LIS3LV02Dx three-axis digital accelerometer (I2C)"
+	tristate "STMicroelectronics LIS3LV02Dx three-axis digital accelerometer (I2C)"
 	depends on I2C && INPUT
 	select SENSORS_LIS3LV02D
 	help

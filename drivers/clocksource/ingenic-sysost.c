@@ -127,18 +127,23 @@ static u8 ingenic_ost_get_prescale(unsigned long rate, unsigned long req_rate)
 	return 2; /* /16 divider */
 }
 
-static long ingenic_ost_round_rate(struct clk_hw *hw, unsigned long req_rate,
-		unsigned long *parent_rate)
+static int ingenic_ost_determine_rate(struct clk_hw *hw,
+				      struct clk_rate_request *req)
 {
-	unsigned long rate = *parent_rate;
+	unsigned long rate = req->best_parent_rate;
 	u8 prescale;
 
-	if (req_rate > rate)
-		return rate;
+	if (req->rate > rate) {
+		req->rate = rate;
 
-	prescale = ingenic_ost_get_prescale(rate, req_rate);
+		return 0;
+	}
 
-	return rate >> (prescale * 2);
+	prescale = ingenic_ost_get_prescale(rate, req->rate);
+
+	req->rate = rate >> (prescale * 2);
+
+	return 0;
 }
 
 static int ingenic_ost_percpu_timer_set_rate(struct clk_hw *hw, unsigned long req_rate,
@@ -175,14 +180,14 @@ static int ingenic_ost_global_timer_set_rate(struct clk_hw *hw, unsigned long re
 
 static const struct clk_ops ingenic_ost_percpu_timer_ops = {
 	.recalc_rate	= ingenic_ost_percpu_timer_recalc_rate,
-	.round_rate		= ingenic_ost_round_rate,
-	.set_rate		= ingenic_ost_percpu_timer_set_rate,
+	.determine_rate = ingenic_ost_determine_rate,
+	.set_rate	= ingenic_ost_percpu_timer_set_rate,
 };
 
 static const struct clk_ops ingenic_ost_global_timer_ops = {
 	.recalc_rate	= ingenic_ost_global_timer_recalc_rate,
-	.round_rate		= ingenic_ost_round_rate,
-	.set_rate		= ingenic_ost_global_timer_set_rate,
+	.determine_rate = ingenic_ost_determine_rate,
+	.set_rate	= ingenic_ost_global_timer_set_rate,
 };
 
 static const char * const ingenic_ost_clk_parents[] = { "ext" };

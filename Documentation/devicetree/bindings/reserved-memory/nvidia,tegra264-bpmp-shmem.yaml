@@ -36,12 +36,13 @@ required:
 examples:
   - |
     reserved-memory {
-       #address-cells = <2>;
-       #size-cells = <2>;
-       dram_cpu_bpmp_mail: shmem@f1be0000 {
-           compatible = "nvidia,tegra264-bpmp-shmem";
-           reg = <0x0 0xf1be0000 0x0 0x2000>;
-           no-map;
-       };
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        shmem@f1be0000 {
+            compatible = "nvidia,tegra264-bpmp-shmem";
+            reg = <0x0 0xf1be0000 0x0 0x2000>;
+            no-map;
+        };
     };
 ...

@@ -18,7 +18,7 @@ SYNOPSIS
 
 *OPTIONS* := { |COMMON_OPTIONS| |
 { **-f** | **--bpffs** } | { **-m** | **--mapcompat** } | { **-n** | **--nomount** } |
-{ **-L** | **--use-loader** } }
+{ **-L** | **--use-loader** } | [ { **-S** | **--sign** } **-k** <private_key.pem> **-i** <certificate.x509> ] }
 
 *COMMANDS* :=
 { **show** | **list** | **dump xlated** | **dump jited** | **pin** | **load** |
@@ -35,6 +35,7 @@ PROG COMMANDS
 | **bpftool** **prog attach** *PROG* *ATTACH_TYPE* [*MAP*]
 | **bpftool** **prog detach** *PROG* *ATTACH_TYPE* [*MAP*]
 | **bpftool** **prog tracelog**
+| **bpftool** **prog tracelog** [ { **stdout** | **stderr**  } *PROG* ]
 | **bpftool** **prog run** *PROG* **data_in** *FILE* [**data_out** *FILE* [**data_size_out** *L*]] [**ctx_in** *FILE* [**ctx_out** *FILE* [**ctx_size_out** *M*]]] [**repeat** *N*]
 | **bpftool** **prog profile** *PROG* [**duration** *DURATION*] *METRICs*
 | **bpftool** **prog help**
@@ -179,6 +180,12 @@ bpftool prog tracelog
     purposes. For streaming data from BPF programs to user space, one can use
     perf events (see also **bpftool-map**\ (8)).
 
+bpftool prog tracelog { stdout | stderr } *PROG*
+    Dump the BPF stream of the program. BPF programs can write to these streams
+    at runtime with the **bpf_stream_vprintk**\ () kfunc. The kernel may write
+    error messages to the standard error stream. This facility should be used
+    only for debugging purposes.
+
 bpftool prog run *PROG* data_in *FILE* [data_out *FILE* [data_size_out *L*]] [ctx_in *FILE* [ctx_out *FILE* [ctx_size_out *M*]]] [repeat *N*]
     Run BPF program *PROG* in the kernel testing infrastructure for BPF,
     meaning that the program works on the data and context provided by the
@@ -240,6 +247,18 @@ OPTIONS
     the **bpf_trace_printk**\ () helper to log each step of loading BTF,
     creating the maps, and loading the programs (see **bpftool prog tracelog**
     as a way to dump those messages).
+
+-S, --sign
+    Enable signing of the BPF program before loading. This option must be
+    used with **-k** and **-i**. Using this flag implicitly enables
+    **--use-loader**.
+
+-k <private_key.pem>
+    Path to the private key file in PEM format, required when signing.
+
+-i <certificate.x509>
+    Path to the X.509 certificate file in PEM or DER format, required when
+    signing.
 
 EXAMPLES
 ========

@@ -9,12 +9,6 @@
 #ifndef _LINUX_HFS_FS_H
 #define _LINUX_HFS_FS_H
 
-#ifdef pr_fmt
-#undef pr_fmt
-#endif
-
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/mutex.h>
@@ -24,34 +18,9 @@
 
 #include <asm/byteorder.h>
 #include <linux/uaccess.h>
+#include <linux/hfs_common.h>
 
 #include "hfs.h"
-
-#define DBG_BNODE_REFS	0x00000001
-#define DBG_BNODE_MOD	0x00000002
-#define DBG_CAT_MOD	0x00000004
-#define DBG_INODE	0x00000008
-#define DBG_SUPER	0x00000010
-#define DBG_EXTENT	0x00000020
-#define DBG_BITMAP	0x00000040
-
-//#define DBG_MASK	(DBG_EXTENT|DBG_INODE|DBG_BNODE_MOD|DBG_CAT_MOD|DBG_BITMAP)
-//#define DBG_MASK	(DBG_BNODE_MOD|DBG_CAT_MOD|DBG_INODE)
-//#define DBG_MASK	(DBG_CAT_MOD|DBG_BNODE_REFS|DBG_INODE|DBG_EXTENT)
-#define DBG_MASK	(0)
-
-#define hfs_dbg(flg, fmt, ...)					\
-do {								\
-	if (DBG_##flg & DBG_MASK)				\
-		printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__);	\
-} while (0)
-
-#define hfs_dbg_cont(flg, fmt, ...)				\
-do {								\
-	if (DBG_##flg & DBG_MASK)				\
-		pr_cont(fmt, ##__VA_ARGS__);			\
-} while (0)
-
 
 /*
  * struct hfs_inode_info
@@ -112,13 +81,13 @@ struct hfs_sb_info {
 						   the extents b-tree */
 	struct hfs_btree *cat_tree;			/* Information about
 						   the catalog b-tree */
-	u32 file_count;				/* The number of
+	atomic64_t file_count;			/* The number of
 						   regular files in
 						   the filesystem */
-	u32 folder_count;			/* The number of
+	atomic64_t folder_count;		/* The number of
 						   directories in the
 						   filesystem */
-	u32 next_id;				/* The next available
+	atomic64_t next_id;			/* The next available
 						   file id number */
 	u32 clumpablks;				/* The number of allocation
 						   blocks to try to add when
@@ -190,6 +159,7 @@ extern const struct inode_operations hfs_dir_inode_operations;
 
 /* extent.c */
 extern int hfs_ext_keycmp(const btree_key *, const btree_key *);
+extern u16 hfs_ext_find_block(struct hfs_extent *ext, u16 off);
 extern int hfs_free_fork(struct super_block *, struct hfs_cat_file *, int);
 extern int hfs_ext_write_extent(struct inode *);
 extern int hfs_extend_file(struct inode *);
@@ -201,7 +171,7 @@ extern int hfs_get_block(struct inode *, sector_t, struct buffer_head *, int);
 extern const struct address_space_operations hfs_aops;
 extern const struct address_space_operations hfs_btree_aops;
 
-int hfs_write_begin(struct file *file, struct address_space *mapping,
+int hfs_write_begin(const struct kiocb *iocb, struct address_space *mapping,
 		loff_t pos, unsigned len, struct folio **foliop, void **fsdata);
 extern struct inode *hfs_new_inode(struct inode *, const struct qstr *, umode_t);
 extern void hfs_inode_write_fork(struct inode *, struct hfs_extent *, __be32 *, __be32 *);

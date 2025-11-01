@@ -1469,7 +1469,7 @@ static int navi10_print_clk_levels(struct smu_context *smu,
 			enum smu_clk_type clk_type, char *buf)
 {
 	uint16_t *curve_settings;
-	int i, levels, size = 0, ret = 0;
+	int i, levels, size = 0, ret = 0, start_offset = 0;
 	uint32_t cur_value = 0, value = 0, count = 0;
 	uint32_t freq_values[3] = {0};
 	uint32_t mark_index = 0;
@@ -1484,6 +1484,7 @@ static int navi10_print_clk_levels(struct smu_context *smu,
 	uint32_t min_value, max_value;
 
 	smu_cmn_get_sysfs_buf(&buf, &size);
+	start_offset = size;
 
 	switch (clk_type) {
 	case SMU_GFXCLK:
@@ -1497,11 +1498,11 @@ static int navi10_print_clk_levels(struct smu_context *smu,
 	case SMU_DCEFCLK:
 		ret = navi10_get_current_clk_freq_by_table(smu, clk_type, &cur_value);
 		if (ret)
-			return size;
+			return size - start_offset;
 
 		ret = smu_v11_0_get_dpm_level_count(smu, clk_type, &count);
 		if (ret)
-			return size;
+			return size - start_offset;
 
 		ret = navi10_is_support_fine_grained_dpm(smu, clk_type);
 		if (ret < 0)
@@ -1511,7 +1512,7 @@ static int navi10_print_clk_levels(struct smu_context *smu,
 			for (i = 0; i < count; i++) {
 				ret = smu_v11_0_get_dpm_freq_by_index(smu, clk_type, i, &value);
 				if (ret)
-					return size;
+					return size - start_offset;
 
 				size += sysfs_emit_at(buf, size, "%d: %uMhz %s\n", i, value,
 						cur_value == value ? "*" : "");
@@ -1519,10 +1520,10 @@ static int navi10_print_clk_levels(struct smu_context *smu,
 		} else {
 			ret = smu_v11_0_get_dpm_freq_by_index(smu, clk_type, 0, &freq_values[0]);
 			if (ret)
-				return size;
+				return size - start_offset;
 			ret = smu_v11_0_get_dpm_freq_by_index(smu, clk_type, count - 1, &freq_values[2]);
 			if (ret)
-				return size;
+				return size - start_offset;
 
 			freq_values[1] = cur_value;
 			mark_index = cur_value == freq_values[0] ? 0 :
@@ -1653,7 +1654,7 @@ static int navi10_print_clk_levels(struct smu_context *smu,
 		break;
 	}
 
-	return size;
+	return size - start_offset;
 }
 
 static int navi10_force_clk_levels(struct smu_context *smu,
@@ -2444,7 +2445,8 @@ static int navi10_update_pcie_parameters(struct smu_context *smu,
 	struct smu_11_0_dpm_context *dpm_context = smu->smu_dpm.dpm_context;
 	PPTable_t *pptable = smu->smu_table.driver_pptable;
 	uint32_t smu_pcie_arg;
-	int ret, i;
+	int ret = 0;
+	int i;
 
 	/* lclk dpm table setup */
 	for (i = 0; i < MAX_PCIE_CONF; i++) {
@@ -2453,25 +2455,27 @@ static int navi10_update_pcie_parameters(struct smu_context *smu,
 	}
 
 	for (i = 0; i < NUM_LINK_LEVELS; i++) {
-		smu_pcie_arg = (i << 16) |
-			((pptable->PcieGenSpeed[i] <= pcie_gen_cap) ? (pptable->PcieGenSpeed[i] << 8) :
-				(pcie_gen_cap << 8)) | ((pptable->PcieLaneCount[i] <= pcie_width_cap) ?
-					pptable->PcieLaneCount[i] : pcie_width_cap);
-		ret = smu_cmn_send_smc_msg_with_param(smu,
-					  SMU_MSG_OverridePcieParameters,
-					  smu_pcie_arg,
-					  NULL);
-
-		if (ret)
-			return ret;
-
-		if (pptable->PcieGenSpeed[i] > pcie_gen_cap)
-			dpm_context->dpm_tables.pcie_table.pcie_gen[i] = pcie_gen_cap;
-		if (pptable->PcieLaneCount[i] > pcie_width_cap)
-			dpm_context->dpm_tables.pcie_table.pcie_lane[i] = pcie_width_cap;
+		if (pptable->PcieGenSpeed[i] > pcie_gen_cap ||
+			pptable->PcieLaneCount[i] > pcie_width_cap) {
+			dpm_context->dpm_tables.pcie_table.pcie_gen[i] =
+									pptable->PcieGenSpeed[i] > pcie_gen_cap ?
+									pcie_gen_cap : pptable->PcieGenSpeed[i];
+			dpm_context->dpm_tables.pcie_table.pcie_lane[i] =
+									pptable->PcieLaneCount[i] > pcie_width_cap ?
+									pcie_width_cap : pptable->PcieLaneCount[i];
+			smu_pcie_arg = i << 16;
+			smu_pcie_arg |= pcie_gen_cap << 8;
+			smu_pcie_arg |= pcie_width_cap;
+			ret = smu_cmn_send_smc_msg_with_param(smu,
+							SMU_MSG_OverridePcieParameters,
+							smu_pcie_arg,
+							NULL);
+			if (ret)
+				break;
+		}
 	}
 
-	return 0;
+	return ret;
 }
 
 static inline void navi10_dump_od_table(struct smu_context *smu,
@@ -3142,10 +3146,10 @@ static int navi10_i2c_control_init(struct smu_context *smu)
 		control->quirks = &navi10_i2c_control_quirks;
 		i2c_set_adapdata(control, smu_i2c);
 
-		res = i2c_add_adapter(control);
+		res = devm_i2c_add_adapter(adev->dev, control);
 		if (res) {
 			DRM_ERROR("Failed to register hw i2c, err: %d\n", res);
-			goto Out_err;
+			return res;
 		}
 	}
 
@@ -3153,27 +3157,12 @@ static int navi10_i2c_control_init(struct smu_context *smu)
 	adev->pm.fru_eeprom_i2c_bus = &adev->pm.smu_i2c[1].adapter;
 
 	return 0;
-Out_err:
-	for ( ; i >= 0; i--) {
-		struct amdgpu_smu_i2c_bus *smu_i2c = &adev->pm.smu_i2c[i];
-		struct i2c_adapter *control = &smu_i2c->adapter;
-
-		i2c_del_adapter(control);
-	}
-	return res;
 }
 
 static void navi10_i2c_control_fini(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
-	int i;
 
-	for (i = 0; i < MAX_SMU_I2C_BUSES; i++) {
-		struct amdgpu_smu_i2c_bus *smu_i2c = &adev->pm.smu_i2c[i];
-		struct i2c_adapter *control = &smu_i2c->adapter;
-
-		i2c_del_adapter(control);
-	}
 	adev->pm.ras_eeprom_i2c_bus = NULL;
 	adev->pm.fru_eeprom_i2c_bus = NULL;
 }

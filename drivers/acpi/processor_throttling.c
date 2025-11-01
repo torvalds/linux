@@ -235,7 +235,7 @@ static int acpi_processor_throttling_notifier(unsigned long event, void *data)
 		if (pr->throttling_platform_limit > target_state)
 			target_state = pr->throttling_platform_limit;
 		if (target_state >= p_throttling->state_count) {
-			pr_warn("Exceed the limit of T-state \n");
+			pr_warn("Exceed the limit of T-state\n");
 			target_state = p_throttling->state_count - 1;
 		}
 		p_tstate->target_state = target_state;

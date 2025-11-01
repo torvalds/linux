@@ -72,10 +72,10 @@ static int intel_hdcp_gsc_initialize_message(struct xe_device *xe,
 	int ret = 0;
 
 	/* allocate object of two page for HDCP command memory and store it */
-	bo = xe_bo_create_pin_map(xe, xe_device_get_root_tile(xe), NULL, PAGE_SIZE * 2,
-				  ttm_bo_type_kernel,
-				  XE_BO_FLAG_SYSTEM |
-				  XE_BO_FLAG_GGTT);
+	bo = xe_bo_create_pin_map_novm(xe, xe_device_get_root_tile(xe), PAGE_SIZE * 2,
+				       ttm_bo_type_kernel,
+				       XE_BO_FLAG_SYSTEM |
+				       XE_BO_FLAG_GGTT, false);
 
 	if (IS_ERR(bo)) {
 		drm_err(&xe->drm, "Failed to allocate bo for HDCP streaming command!\n");
@@ -85,7 +85,7 @@ static int intel_hdcp_gsc_initialize_message(struct xe_device *xe,
 
 	cmd_in = xe_bo_ggtt_addr(bo);
 	cmd_out = cmd_in + PAGE_SIZE;
-	xe_map_memset(xe, &bo->vmap, 0, 0, bo->size);
+	xe_map_memset(xe, &bo->vmap, 0, 0, xe_bo_size(bo));
 
 	gsc_context->hdcp_bo = bo;
 	gsc_context->hdcp_cmd_in = cmd_in;

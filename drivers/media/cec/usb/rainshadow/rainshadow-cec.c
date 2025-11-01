@@ -2,7 +2,7 @@
 /*
  * RainShadow Tech HDMI CEC driver
  *
- * Copyright 2016 Hans Verkuil <hverkuil@xs4all.nl
+ * Copyright 2016 Hans Verkuil <hverkuil@kernel.org>
  */
 
 /*
@@ -31,7 +31,7 @@
 
 #include <media/cec.h>
 
-MODULE_AUTHOR("Hans Verkuil <hverkuil@xs4all.nl>");
+MODULE_AUTHOR("Hans Verkuil <hverkuil@kernel.org>");
 MODULE_DESCRIPTION("RainShadow Tech HDMI CEC driver");
 MODULE_LICENSE("GPL");
 
@@ -171,11 +171,12 @@ static irqreturn_t rain_interrupt(struct serio *serio, unsigned char data,
 {
 	struct rain *rain = serio_get_drvdata(serio);
 
+	spin_lock(&rain->buf_lock);
 	if (rain->buf_len == DATA_SIZE) {
+		spin_unlock(&rain->buf_lock);
 		dev_warn_once(rain->dev, "buffer overflow\n");
 		return IRQ_HANDLED;
 	}
-	spin_lock(&rain->buf_lock);
 	rain->buf_len++;
 	rain->buf[rain->buf_wr_idx] = data;
 	rain->buf_wr_idx = (rain->buf_wr_idx + 1) & 0xff;

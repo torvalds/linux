@@ -8,7 +8,7 @@
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2007, Michael Wu <flamingice@sourmilk.net>
  * Copyright 2009	Johannes Berg <johannes@sipsolutions.net>
- * Copyright (C) 2019, 2022-2024 Intel Corporation
+ * Copyright (C) 2019, 2022-2025 Intel Corporation
  */
 #include <linux/export.h>
 #include <net/mac80211.h>
@@ -39,7 +39,7 @@ static void ieee80211_offchannel_ps_enable(struct ieee80211_sub_if_data *sdata)
 	if (local->hw.conf.flags & IEEE80211_CONF_PS) {
 		offchannel_ps_enabled = true;
 		local->hw.conf.flags &= ~IEEE80211_CONF_PS;
-		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);
+		ieee80211_hw_config(local, -1, IEEE80211_CONF_CHANGE_PS);
 	}
 
 	if (!offchannel_ps_enabled ||
@@ -567,6 +567,7 @@ static int ieee80211_start_roc_work(struct ieee80211_local *local,
 {
 	struct ieee80211_roc_work *roc, *tmp;
 	bool queued = false, combine_started = true;
+	struct cfg80211_scan_request *req;
 	int ret;
 
 	lockdep_assert_wiphy(local->hw.wiphy);
@@ -612,9 +613,11 @@ static int ieee80211_start_roc_work(struct ieee80211_local *local,
 		roc->mgmt_tx_cookie = *cookie;
 	}
 
+	req = wiphy_dereference(local->hw.wiphy, local->scan_req);
+
 	/* if there's no need to queue, handle it immediately */
 	if (list_empty(&local->roc_list) &&
-	    !local->scanning && !ieee80211_is_radar_required(local)) {
+	    !local->scanning && !ieee80211_is_radar_required(local, req)) {
 		/* if not HW assist, just queue & schedule work */
 		if (!local->ops->remain_on_channel) {
 			list_add_tail(&roc->list, &local->roc_list);
@@ -894,6 +897,7 @@ int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 		need_offchan = true;
 		break;
 	case NL80211_IFTYPE_NAN:
+		break;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -907,6 +911,8 @@ int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	/* Check if the operating channel is the requested channel */
 	if (!params->chan && mlo_sta) {
 		need_offchan = false;
+	} else if (sdata->vif.type == NL80211_IFTYPE_NAN) {
+		/* Frames can be sent during NAN schedule */
 	} else if (!need_offchan) {
 		struct ieee80211_chanctx_conf *chanctx_conf = NULL;
 		int i;

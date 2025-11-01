@@ -4,7 +4,7 @@
  *
  *  Derived from ivtv-driver.h
  *
- *  Copyright (C) 2007  Hans Verkuil <hverkuil@xs4all.nl>
+ *  Copyright (C) 2007  Hans Verkuil <hverkuil@kernel.org>
  *  Copyright (C) 2008  Andy Walls <awalls@md.metrocast.net>
  */
 
@@ -271,18 +271,6 @@ struct cx18_options {
 #define CX18_SLICED_TYPE_WSS_625        (5)
 #define CX18_SLICED_TYPE_VPS            (7)
 
-/**
- * list_entry_is_past_end - check if a previous loop cursor is off list end
- * @pos:	the type * previously used as a loop cursor.
- * @head:	the head for your list.
- * @member:	the name of the list_head within the struct.
- *
- * Check if the entry's list_head is the head of the list, thus it's not a
- * real entry but was the loop cursor that walked past the end
- */
-#define list_entry_is_past_end(pos, head, member) \
-	(&pos->member == (head))
-
 struct cx18_vb2_buffer {
 	/* Common video buffer sub-system struct */
 	struct vb2_v4l2_buffer vb;
@@ -426,7 +414,7 @@ static inline struct cx18_open_id *fh2id(struct v4l2_fh *fh)
 
 static inline struct cx18_open_id *file2id(struct file *file)
 {
-	return fh2id(file->private_data);
+	return fh2id(file_to_v4l2_fh(file));
 }
 
 /* forward declaration of struct defined in cx18-cards.h */

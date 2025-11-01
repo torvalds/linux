@@ -25,8 +25,6 @@
 
 #include <linux/unaligned.h>
 
-#define APDS9160_REGMAP_NAME "apds9160_regmap"
-
 /* Main control register */
 #define APDS9160_REG_CTRL 0x00
 #define APDS9160_CTRL_SWRESET BIT(4) /* 1: Activate reset */
@@ -161,7 +159,7 @@ static const struct regmap_access_table apds9160_volatile_table = {
 };
 
 static const struct regmap_config apds9160_regmap_config = {
-	.name = APDS9160_REGMAP_NAME,
+	.name = "apds9160_regmap",
 	.reg_bits = 8,
 	.val_bits = 8,
 	.use_single_read = true,

@@ -28,7 +28,7 @@ DECLARE_EVENT_CLASS(page_ref_mod_template,
 
 	TP_fast_assign(
 		__entry->pfn = page_to_pfn(page);
-		__entry->flags = page->flags;
+		__entry->flags = page->flags.f;
 		__entry->count = page_ref_count(page);
 		__entry->mapcount = atomic_read(&page->_mapcount);
 		__entry->mapping = page->mapping;
@@ -77,7 +77,7 @@ DECLARE_EVENT_CLASS(page_ref_mod_and_test_template,
 
 	TP_fast_assign(
 		__entry->pfn = page_to_pfn(page);
-		__entry->flags = page->flags;
+		__entry->flags = page->flags.f;
 		__entry->count = page_ref_count(page);
 		__entry->mapcount = atomic_read(&page->_mapcount);
 		__entry->mapping = page->mapping;

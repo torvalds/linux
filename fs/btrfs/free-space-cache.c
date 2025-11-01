@@ -366,7 +366,7 @@ fail:
 static void readahead_cache(struct inode *inode)
 {
 	struct file_ra_state ra;
-	unsigned long last_index;
+	pgoff_t last_index;
 
 	file_ra_state_init(&ra, inode->i_mapping);
 	last_index = (i_size_read(inode) - 1) >> PAGE_SHIFT;
@@ -2282,7 +2282,7 @@ static bool use_bitmap(struct btrfs_free_space_ctl *ctl,
 		 * If this block group has some small extents we don't want to
 		 * use up all of our free slots in the cache with them, we want
 		 * to reserve them to larger extents, however if we have plenty
-		 * of cache left then go ahead an dadd them, no sense in adding
+		 * of cache left then go ahead and add them, no sense in adding
 		 * the overhead of a bitmap if we don't have to.
 		 */
 		if (info->bytes <= fs_info->sectorsize * 8) {
@@ -3192,7 +3192,7 @@ static u64 btrfs_alloc_from_bitmap(struct btrfs_block_group *block_group,
 				   u64 *max_extent_size)
 {
 	struct btrfs_free_space_ctl *ctl = block_group->free_space_ctl;
-	int err;
+	int ret2;
 	u64 search_start = cluster->window_start;
 	u64 search_bytes = bytes;
 	u64 ret = 0;
@@ -3200,8 +3200,8 @@ static u64 btrfs_alloc_from_bitmap(struct btrfs_block_group *block_group,
 	search_start = min_start;
 	search_bytes = bytes;
 
-	err = search_bitmap(ctl, entry, &search_start, &search_bytes, true);
-	if (err) {
+	ret2 = search_bitmap(ctl, entry, &search_start, &search_bytes, true);
+	if (ret2) {
 		*max_extent_size = max(get_max_extent_size(entry),
 				       *max_extent_size);
 		return 0;
@@ -3829,7 +3829,7 @@ out_unlock:
 
 /*
  * If we break out of trimming a bitmap prematurely, we should reset the
- * trimming bit.  In a rather contrieved case, it's possible to race here so
+ * trimming bit.  In a rather contrived case, it's possible to race here so
  * reset the state to BTRFS_TRIM_STATE_UNTRIMMED.
  *
  * start = start of bitmap
@@ -4142,7 +4142,7 @@ int btrfs_set_free_space_cache_v1_active(struct btrfs_fs_info *fs_info, bool act
 	if (!active) {
 		set_bit(BTRFS_FS_CLEANUP_SPACE_CACHE_V1, &fs_info->flags);
 		ret = cleanup_free_space_cache_v1(fs_info, trans);
-		if (ret) {
+		if (unlikely(ret)) {
 			btrfs_abort_transaction(trans, ret);
 			btrfs_end_transaction(trans);
 			goto out;

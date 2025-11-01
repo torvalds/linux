@@ -719,20 +719,20 @@ static int test__checkevent_pmu_partial_time_callgraph(struct evlist *evlist)
 
 static int test__checkevent_pmu_events(struct evlist *evlist)
 {
-	struct evsel *evsel = evlist__first(evlist);
+	struct evsel *evsel;
 
-	TEST_ASSERT_VAL("wrong number of entries", 1 == evlist->core.nr_entries);
-	TEST_ASSERT_VAL("wrong type", PERF_TYPE_RAW == evsel->core.attr.type ||
-				      strcmp(evsel->pmu->name, "cpu"));
-	TEST_ASSERT_VAL("wrong exclude_user",
-			!evsel->core.attr.exclude_user);
-	TEST_ASSERT_VAL("wrong exclude_kernel",
-			evsel->core.attr.exclude_kernel);
-	TEST_ASSERT_VAL("wrong exclude_hv", evsel->core.attr.exclude_hv);
-	TEST_ASSERT_VAL("wrong precise_ip", !evsel->core.attr.precise_ip);
-	TEST_ASSERT_VAL("wrong pinned", !evsel->core.attr.pinned);
-	TEST_ASSERT_VAL("wrong exclusive", !evsel->core.attr.exclusive);
+	TEST_ASSERT_VAL("wrong number of entries", 1 <= evlist->core.nr_entries);
 
+	evlist__for_each_entry(evlist, evsel) {
+		TEST_ASSERT_VAL("wrong type", PERF_TYPE_RAW == evsel->core.attr.type ||
+					      strcmp(evsel->pmu->name, "cpu"));
+		TEST_ASSERT_VAL("wrong exclude_user", !evsel->core.attr.exclude_user);
+		TEST_ASSERT_VAL("wrong exclude_kernel", evsel->core.attr.exclude_kernel);
+		TEST_ASSERT_VAL("wrong exclude_hv", evsel->core.attr.exclude_hv);
+		TEST_ASSERT_VAL("wrong precise_ip", !evsel->core.attr.precise_ip);
+		TEST_ASSERT_VAL("wrong pinned", !evsel->core.attr.pinned);
+		TEST_ASSERT_VAL("wrong exclusive", !evsel->core.attr.exclusive);
+	}
 	return TEST_OK;
 }
 
@@ -1736,6 +1736,53 @@ static int test__intel_pt(struct evlist *evlist)
 	return TEST_OK;
 }
 
+static bool test__acr_valid(void)
+{
+	struct perf_pmu *pmu = NULL;
+
+	while ((pmu = perf_pmus__scan_core(pmu)) != NULL) {
+		if (perf_pmu__has_format(pmu, "acr_mask"))
+			return true;
+	}
+
+	return false;
+}
+
+static int test__ratio_to_prev(struct evlist *evlist)
+{
+	struct evsel *evsel;
+	int ret;
+
+	TEST_ASSERT_VAL("wrong number of entries", 2 * perf_pmus__num_core_pmus() == evlist->core.nr_entries);
+
+	 evlist__for_each_entry(evlist, evsel) {
+		if (!perf_pmu__has_format(evsel->pmu, "acr_mask"))
+			return TEST_OK;
+
+		if (evsel == evlist__first(evlist)) {
+			TEST_ASSERT_VAL("wrong config2", 0 == evsel->core.attr.config2);
+			TEST_ASSERT_VAL("wrong leader", evsel__is_group_leader(evsel));
+			TEST_ASSERT_VAL("wrong core.nr_members", evsel->core.nr_members == 2);
+			TEST_ASSERT_VAL("wrong group_idx", evsel__group_idx(evsel) == 0);
+			ret = assert_hw(&evsel->core, PERF_COUNT_HW_CPU_CYCLES, "cycles");
+		} else {
+			TEST_ASSERT_VAL("wrong config2", 0 == evsel->core.attr.config2);
+			TEST_ASSERT_VAL("wrong leader", !evsel__is_group_leader(evsel));
+			TEST_ASSERT_VAL("wrong core.nr_members", evsel->core.nr_members == 0);
+			TEST_ASSERT_VAL("wrong group_idx", evsel__group_idx(evsel) == 1);
+			ret = assert_hw(&evsel->core, PERF_COUNT_HW_INSTRUCTIONS, "instructions");
+		}
+		if (ret)
+			return ret;
+		/*
+		 * The period value gets configured within evlist__config,
+		 * while this test executes only parse events method.
+		 */
+		TEST_ASSERT_VAL("wrong period", 0 == evsel->core.attr.sample_period);
+	}
+	return TEST_OK;
+}
+
 static int test__checkevent_complex_name(struct evlist *evlist)
 {
 	struct evsel *evsel = evlist__first(evlist);
@@ -2249,6 +2296,13 @@ static const struct evlist_test test__events[] = {
 		.check = test__checkevent_tracepoint,
 		/* 4 */
 	},
+	{
+		.name  = "{cycles,instructions/period=200000,ratio-to-prev=2.0/}",
+		.valid = test__acr_valid,
+		.check = test__ratio_to_prev,
+		/* 5 */
+	},
+
 };
 
 static const struct evlist_test test__events_pmu[] = {

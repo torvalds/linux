@@ -74,7 +74,6 @@ struct memory_target {
 	struct node_cache_attrs cache_attrs;
 	u8 gen_port_device_handle[ACPI_SRAT_DEVICE_HANDLE_SIZE];
 	bool registered;
-	bool ext_updated;	/* externally updated */
 };
 
 struct memory_initiator {
@@ -367,35 +366,6 @@ static void hmat_update_target_access(struct memory_target *target,
 		break;
 	}
 }
-
-int hmat_update_target_coordinates(int nid, struct access_coordinate *coord,
-				   enum access_coordinate_class access)
-{
-	struct memory_target *target;
-	int pxm;
-
-	if (nid == NUMA_NO_NODE)
-		return -EINVAL;
-
-	pxm = node_to_pxm(nid);
-	guard(mutex)(&target_lock);
-	target = find_mem_target(pxm);
-	if (!target)
-		return -ENODEV;
-
-	hmat_update_target_access(target, ACPI_HMAT_READ_LATENCY,
-				  coord->read_latency, access);
-	hmat_update_target_access(target, ACPI_HMAT_WRITE_LATENCY,
-				  coord->write_latency, access);
-	hmat_update_target_access(target, ACPI_HMAT_READ_BANDWIDTH,
-				  coord->read_bandwidth, access);
-	hmat_update_target_access(target, ACPI_HMAT_WRITE_BANDWIDTH,
-				  coord->write_bandwidth, access);
-	target->ext_updated = true;
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(hmat_update_target_coordinates);
 
 static __init void hmat_add_locality(struct acpi_hmat_locality *hmat_loc)
 {
@@ -773,10 +743,6 @@ static void hmat_update_target_attrs(struct memory_target *target,
 	u32 best = 0;
 	int i;
 
-	/* Don't update if an external agent has changed the data.  */
-	if (target->ext_updated)
-		return;
-
 	/* Don't update for generic port if there's no device handle */
 	if ((access == NODE_ACCESS_CLASS_GENPORT_SINK_LOCAL ||
 	     access == NODE_ACCESS_CLASS_GENPORT_SINK_CPU) &&
@@ -962,10 +928,10 @@ static int hmat_callback(struct notifier_block *self,
 			 unsigned long action, void *arg)
 {
 	struct memory_target *target;
-	struct memory_notify *mnb = arg;
-	int pxm, nid = mnb->status_change_nid;
+	struct node_notify *nn = arg;
+	int pxm, nid = nn->nid;
 
-	if (nid == NUMA_NO_NODE || action != MEM_ONLINE)
+	if (action != NODE_ADDED_FIRST_MEMORY)
 		return NOTIFY_OK;
 
 	pxm = node_to_pxm(nid);
@@ -1118,7 +1084,7 @@ static __init int hmat_init(void)
 	hmat_register_targets();
 
 	/* Keep the table and structures if the notifier may use them */
-	if (hotplug_memory_notifier(hmat_callback, HMAT_CALLBACK_PRI))
+	if (hotplug_node_notifier(hmat_callback, HMAT_CALLBACK_PRI))
 		goto out_put;
 
 	if (!hmat_set_default_dram_perf())

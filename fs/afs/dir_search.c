@@ -188,7 +188,7 @@ bad:
 /*
  * Search the appropriate hash chain in the contents of an AFS directory.
  */
-int afs_dir_search(struct afs_vnode *dvnode, struct qstr *name,
+int afs_dir_search(struct afs_vnode *dvnode, const struct qstr *name,
 		   struct afs_fid *_fid, afs_dataversion_t *_dir_version)
 {
 	struct afs_dir_iter iter = { .dvnode = dvnode, };

@@ -445,7 +445,7 @@ static ssize_t temp1_resolution_show(struct device *dev,
 
 	val = FIELD_GET(MAX31827_CONFIGURATION_RESOLUTION_MASK, val);
 
-	return scnprintf(buf, PAGE_SIZE, "%u\n", max31827_resolutions[val]);
+	return sysfs_emit(buf, "%u\n", max31827_resolutions[val]);
 }
 
 static ssize_t temp1_resolution_store(struct device *dev,

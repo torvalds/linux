@@ -23,6 +23,13 @@ void ice_xsk_clean_rx_ring(struct ice_rx_ring *rx_ring);
 void ice_xsk_clean_xdp_ring(struct ice_tx_ring *xdp_ring);
 bool ice_xmit_zc(struct ice_tx_ring *xdp_ring, struct xsk_buff_pool *xsk_pool);
 int ice_realloc_zc_buf(struct ice_vsi *vsi, bool zc);
+void ice_qvec_cfg_msix(struct ice_vsi *vsi, struct ice_q_vector *q_vector,
+		       u16 qid);
+void ice_qvec_toggle_napi(struct ice_vsi *vsi, struct ice_q_vector *q_vector,
+			  bool enable);
+void ice_qvec_ena_irq(struct ice_vsi *vsi, struct ice_q_vector *q_vector);
+void ice_qvec_dis_irq(struct ice_vsi *vsi, struct ice_rx_ring *rx_ring,
+		      struct ice_q_vector *q_vector);
 #else
 static inline bool ice_xmit_zc(struct ice_tx_ring __always_unused *xdp_ring,
 			       struct xsk_buff_pool __always_unused *xsk_pool)
@@ -75,5 +82,20 @@ ice_realloc_zc_buf(struct ice_vsi __always_unused *vsi,
 {
 	return 0;
 }
+
+static inline void
+ice_qvec_cfg_msix(struct ice_vsi *vsi, struct ice_q_vector *q_vector,
+		  u16 qid) { }
+
+static inline void
+ice_qvec_toggle_napi(struct ice_vsi *vsi, struct ice_q_vector *q_vector,
+		     bool enable) { }
+
+static inline void
+ice_qvec_ena_irq(struct ice_vsi *vsi, struct ice_q_vector *q_vector) { }
+
+static inline void
+ice_qvec_dis_irq(struct ice_vsi *vsi, struct ice_rx_ring *rx_ring,
+		 struct ice_q_vector *q_vector) { }
 #endif /* CONFIG_XDP_SOCKETS */
 #endif /* !_ICE_XSK_H_ */

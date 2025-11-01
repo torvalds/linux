@@ -3,17 +3,25 @@
  * Copyright © 2023-2024 Intel Corporation
  */
 
+#include <linux/debugfs.h>
+#include <drm/drm_debugfs.h>
 #include <drm/drm_managed.h>
 
 #include "xe_assert.h"
+#include "xe_configfs.h"
 #include "xe_device.h"
+#include "xe_gt_sriov_pf.h"
 #include "xe_module.h"
 #include "xe_sriov.h"
 #include "xe_sriov_pf.h"
+#include "xe_sriov_pf_helpers.h"
+#include "xe_sriov_pf_service.h"
 #include "xe_sriov_printk.h"
 
 static unsigned int wanted_max_vfs(struct xe_device *xe)
 {
+	if (IS_ENABLED(CONFIG_CONFIGFS_FS))
+		return xe_configfs_get_max_vfs(to_pci_dev(xe->drm.dev));
 	return xe_modparam.max_vfs;
 }
 
@@ -80,9 +88,73 @@ bool xe_sriov_pf_readiness(struct xe_device *xe)
  */
 int xe_sriov_pf_init_early(struct xe_device *xe)
 {
+	int err;
+
 	xe_assert(xe, IS_SRIOV_PF(xe));
 
-	return drmm_mutex_init(&xe->drm, &xe->sriov.pf.master_lock);
+	xe->sriov.pf.vfs = drmm_kcalloc(&xe->drm, 1 + xe_sriov_pf_get_totalvfs(xe),
+					sizeof(*xe->sriov.pf.vfs), GFP_KERNEL);
+	if (!xe->sriov.pf.vfs)
+		return -ENOMEM;
+
+	err = drmm_mutex_init(&xe->drm, &xe->sriov.pf.master_lock);
+	if (err)
+		return err;
+
+	xe_sriov_pf_service_init(xe);
+
+	return 0;
+}
+
+/**
+ * xe_sriov_pf_init_late() - Late initialization of the SR-IOV PF.
+ * @xe: the &xe_device to initialize
+ *
+ * This function can only be called on PF.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_sriov_pf_init_late(struct xe_device *xe)
+{
+	struct xe_gt *gt;
+	unsigned int id;
+	int err;
+
+	xe_assert(xe, IS_SRIOV_PF(xe));
+
+	for_each_gt(gt, xe, id) {
+		err = xe_gt_sriov_pf_init(gt);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+/**
+ * xe_sriov_pf_wait_ready() - Wait until PF is ready to operate.
+ * @xe: the &xe_device to test
+ *
+ * This function can only be called on PF.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_sriov_pf_wait_ready(struct xe_device *xe)
+{
+	struct xe_gt *gt;
+	unsigned int id;
+	int err;
+
+	if (xe_device_wedged(xe))
+		return -ECANCELED;
+
+	for_each_gt(gt, xe, id) {
+		err = xe_gt_sriov_pf_wait_ready(gt);
+		if (err)
+			return err;
+	}
+
+	return 0;
 }
 
 /**

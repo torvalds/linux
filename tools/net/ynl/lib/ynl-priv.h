@@ -106,7 +106,6 @@ ynl_gemsg_start_req(struct ynl_sock *ys, __u32 id, __u8 cmd, __u8 version);
 struct nlmsghdr *
 ynl_gemsg_start_dump(struct ynl_sock *ys, __u32 id, __u8 cmd, __u8 version);
 
-int ynl_attr_validate(struct ynl_parse_arg *yarg, const struct nlattr *attr);
 int ynl_submsg_failed(struct ynl_parse_arg *yarg, const char *field_name,
 		      const char *sel_name);
 
@@ -466,5 +465,14 @@ ynl_attr_put_sint(struct nlmsghdr *nlh, __u16 type, __s64 data)
 		ynl_attr_put_s32(nlh, type, data);
 	else
 		ynl_attr_put_s64(nlh, type, data);
+}
+
+int __ynl_attr_validate(struct ynl_parse_arg *yarg, const struct nlattr *attr,
+			unsigned int type);
+
+static inline int ynl_attr_validate(struct ynl_parse_arg *yarg,
+				    const struct nlattr *attr)
+{
+	return __ynl_attr_validate(yarg, attr, ynl_attr_type(attr));
 }
 #endif

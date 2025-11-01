@@ -4,8 +4,22 @@ menu "Android"
 config ANDROID_BINDER_IPC
 	bool "Android Binder IPC Driver"
 	depends on MMU
+	depends on NET
 	default n
 	help
+	  Binder is used in Android for both communication between processes,
+	  and remote method invocation.
+
+	  This means one Android process can call a method/routine in another
+	  Android process, using Binder to identify, invoke and pass arguments
+	  between said processes.
+
+config ANDROID_BINDER_IPC_RUST
+	bool "Rust version of Android Binder IPC Driver"
+	depends on RUST && MMU && !ANDROID_BINDER_IPC
+	help
+	  This enables the Rust implementation of the Binder driver.
+
 	  Binder is used in Android for both communication between processes,
 	  and remote method invocation.
 
@@ -27,7 +41,7 @@ config ANDROID_BINDERFS
 
 config ANDROID_BINDER_DEVICES
 	string "Android Binder devices"
-	depends on ANDROID_BINDER_IPC
+	depends on ANDROID_BINDER_IPC || ANDROID_BINDER_IPC_RUST
 	default "binder,hwbinder,vndbinder"
 	help
 	  Default value for the binder.devices parameter.
@@ -37,14 +51,15 @@ config ANDROID_BINDER_DEVICES
 	  created. Each binder device has its own context manager, and is
 	  therefore logically separated from the other devices.
 
-config ANDROID_BINDER_IPC_SELFTEST
-	bool "Android Binder IPC Driver Selftest"
-	depends on ANDROID_BINDER_IPC
+config ANDROID_BINDER_ALLOC_KUNIT_TEST
+	tristate "KUnit Tests for Android Binder Alloc" if !KUNIT_ALL_TESTS
+	depends on ANDROID_BINDER_IPC && KUNIT
+	default KUNIT_ALL_TESTS
 	help
-	  This feature allows binder selftest to run.
+	  This feature builds the binder alloc KUnit tests.
 
-	  Binder selftest checks the allocation and free of binder buffers
-	  exhaustively with combinations of various buffer sizes and
-	  alignments.
+	  Each test case runs using a pared-down binder_alloc struct and
+	  test-specific freelist, which allows this KUnit module to be loaded
+	  for testing without interfering with a running system.
 
 endmenu

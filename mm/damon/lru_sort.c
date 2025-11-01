@@ -112,6 +112,13 @@ static unsigned long monitor_region_end __read_mostly;
 module_param(monitor_region_end, ulong, 0600);
 
 /*
+ * Scale factor for DAMON_LRU_SORT to ops address conversion.
+ *
+ * This parameter must not be set to 0.
+ */
+static unsigned long addr_unit __read_mostly = 1;
+
+/*
  * PID of the DAMON thread
  *
  * If DAMON_LRU_SORT is enabled, this becomes the PID of the worker thread.
@@ -198,7 +205,21 @@ static int damon_lru_sort_apply_parameters(void)
 	if (err)
 		return err;
 
-	err = damon_set_attrs(ctx, &damon_lru_sort_mon_attrs);
+	/*
+	 * If monitor_region_start/end are unset, always silently
+	 * reset addr_unit to 1.
+	 */
+	if (!monitor_region_start && !monitor_region_end)
+		addr_unit = 1;
+	param_ctx->addr_unit = addr_unit;
+	param_ctx->min_sz_region = max(DAMON_MIN_REGION / addr_unit, 1);
+
+	if (!damon_lru_sort_mon_attrs.sample_interval) {
+		err = -EINVAL;
+		goto out;
+	}
+
+	err = damon_set_attrs(param_ctx, &damon_lru_sort_mon_attrs);
 	if (err)
 		goto out;
 
@@ -230,6 +251,39 @@ out:
 	return err;
 }
 
+static int damon_lru_sort_handle_commit_inputs(void)
+{
+	int err;
+
+	if (!commit_inputs)
+		return 0;
+
+	err = damon_lru_sort_apply_parameters();
+	commit_inputs = false;
+	return err;
+}
+
+static int damon_lru_sort_damon_call_fn(void *arg)
+{
+	struct damon_ctx *c = arg;
+	struct damos *s;
+
+	/* update the stats parameter */
+	damon_for_each_scheme(s, c) {
+		if (s->action == DAMOS_LRU_PRIO)
+			damon_lru_sort_hot_stat = s->stat;
+		else if (s->action == DAMOS_LRU_DEPRIO)
+			damon_lru_sort_cold_stat = s->stat;
+	}
+
+	return damon_lru_sort_handle_commit_inputs();
+}
+
+static struct damon_call_control call_control = {
+	.fn = damon_lru_sort_damon_call_fn,
+	.repeat = true,
+};
+
 static int damon_lru_sort_turn(bool on)
 {
 	int err;
@@ -249,8 +303,32 @@ static int damon_lru_sort_turn(bool on)
 	if (err)
 		return err;
 	kdamond_pid = ctx->kdamond->pid;
+	return damon_call(ctx, &call_control);
+}
+
+static int damon_lru_sort_addr_unit_store(const char *val,
+		const struct kernel_param *kp)
+{
+	unsigned long input_addr_unit;
+	int err = kstrtoul(val, 0, &input_addr_unit);
+
+	if (err)
+		return err;
+	if (!input_addr_unit)
+		return -EINVAL;
+
+	addr_unit = input_addr_unit;
 	return 0;
 }
+
+static const struct kernel_param_ops addr_unit_param_ops = {
+	.set = damon_lru_sort_addr_unit_store,
+	.get = param_get_ulong,
+};
+
+module_param_cb(addr_unit, &addr_unit_param_ops, &addr_unit, 0600);
+MODULE_PARM_DESC(addr_unit,
+	"Scale factor for DAMON_LRU_SORT to ops address conversion (default: 1)");
 
 static int damon_lru_sort_enabled_store(const char *val,
 		const struct kernel_param *kp)
@@ -267,7 +345,7 @@ static int damon_lru_sort_enabled_store(const char *val,
 		return 0;
 
 	/* Called before init function.  The function will handle this. */
-	if (!ctx)
+	if (!damon_initialized())
 		goto set_param_out;
 
 	err = damon_lru_sort_turn(enable);
@@ -288,52 +366,27 @@ module_param_cb(enabled, &enabled_param_ops, &enabled, 0600);
 MODULE_PARM_DESC(enabled,
 	"Enable or disable DAMON_LRU_SORT (default: disabled)");
 
-static int damon_lru_sort_handle_commit_inputs(void)
+static int __init damon_lru_sort_init(void)
 {
 	int err;
 
-	if (!commit_inputs)
-		return 0;
-
-	err = damon_lru_sort_apply_parameters();
-	commit_inputs = false;
-	return err;
-}
-
-static int damon_lru_sort_after_aggregation(struct damon_ctx *c)
-{
-	struct damos *s;
-
-	/* update the stats parameter */
-	damon_for_each_scheme(s, c) {
-		if (s->action == DAMOS_LRU_PRIO)
-			damon_lru_sort_hot_stat = s->stat;
-		else if (s->action == DAMOS_LRU_DEPRIO)
-			damon_lru_sort_cold_stat = s->stat;
+	if (!damon_initialized()) {
+		err = -ENOMEM;
+		goto out;
 	}
-
-	return damon_lru_sort_handle_commit_inputs();
-}
-
-static int damon_lru_sort_after_wmarks_check(struct damon_ctx *c)
-{
-	return damon_lru_sort_handle_commit_inputs();
-}
-
-static int __init damon_lru_sort_init(void)
-{
-	int err = damon_modules_new_paddr_ctx_target(&ctx, &target);
-
+	err = damon_modules_new_paddr_ctx_target(&ctx, &target);
 	if (err)
-		return err;
+		goto out;
 
-	ctx->callback.after_wmarks_check = damon_lru_sort_after_wmarks_check;
-	ctx->callback.after_aggregation = damon_lru_sort_after_aggregation;
+	call_control.data = ctx;
 
 	/* 'enabled' has set before this function, probably via command line */
 	if (enabled)
 		err = damon_lru_sort_turn(true);
 
+out:
+	if (err && enabled)
+		enabled = false;
 	return err;
 }
 

@@ -19,10 +19,3 @@ necessarily the case that no blocks are in use -- if ``meta_bg`` is set,
 the bitmaps and group descriptor live inside the group. Unfortunately,
 ext2fs_test_block_bitmap2() will return '0' for those locations,
 which produces confusing debugfs output.
-
-Inode Table
------------
-Inode tables are statically allocated at mkfs time.  Each block group
-descriptor points to the start of the table, and the superblock records
-the number of inodes per group.  See the section on inodes for more
-information.

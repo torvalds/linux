@@ -452,7 +452,7 @@ struct iwl_roc_notif {
  *	listen mode. Will be fragmented. Valid only on the P2P Device MAC.
  *	Valid only on the P2P Device MAC. The firmware will take into account
  *	the duration, the interval and the repetition count.
- * @SESSION_PROTECT_CONF_P2P_GO_NEGOTIATION: Schedule the P2P Device to be be
+ * @SESSION_PROTECT_CONF_P2P_GO_NEGOTIATION: Schedule the P2P Device to be
  *	able to run the GO Negotiation. Will not be fragmented and not
  *	repetitive. Valid only on the P2P Device MAC. Only the duration will
  *	be taken into account.

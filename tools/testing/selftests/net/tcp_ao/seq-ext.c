@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Check that after SEQ number wrap-around:
  * 1. SEQ-extension has upper bytes set
- * 2. TCP conneciton is alive and no TCPAOBad segments
+ * 2. TCP connection is alive and no TCPAOBad segments
  * In order to test (2), the test doesn't just adjust seq number for a queue
  * on a connected socket, but migrates it to another sk+port number, so
  * that there won't be any delayed packets that will fail to verify

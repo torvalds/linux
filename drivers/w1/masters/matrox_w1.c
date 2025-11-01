@@ -47,7 +47,6 @@ struct matrox_device {
 
 	unsigned long phys_addr;
 	void __iomem *virt_addr;
-	unsigned long found;
 
 	struct w1_bus_master *bus_master;
 };
@@ -158,8 +157,6 @@ static int matrox_w1_probe(struct pci_dev *pdev, const struct pci_device_id *ent
 
 	pci_set_drvdata(pdev, dev);
 
-	dev->found = 1;
-
 	dev_info(&pdev->dev, "Matrox G400 GPIO transport layer for 1-wire.\n");
 
 	return 0;
@@ -176,10 +173,9 @@ static void matrox_w1_remove(struct pci_dev *pdev)
 {
 	struct matrox_device *dev = pci_get_drvdata(pdev);
 
-	if (dev->found) {
-		w1_remove_master_device(dev->bus_master);
-		iounmap(dev->virt_addr);
-	}
+	w1_remove_master_device(dev->bus_master);
+	iounmap(dev->virt_addr);
+
 	kfree(dev);
 }
 

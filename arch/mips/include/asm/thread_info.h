@@ -11,7 +11,7 @@
 #ifdef __KERNEL__
 
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <asm/processor.h>
 
@@ -73,7 +73,7 @@ static inline struct thread_info *current_thread_info(void)
 register unsigned long current_stack_pointer __asm__("sp");
 #endif
 
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 
 /* thread information allocation */
 #if defined(CONFIG_PAGE_SIZE_4KB) && defined(CONFIG_32BIT)

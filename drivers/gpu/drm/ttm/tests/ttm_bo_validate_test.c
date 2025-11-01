@@ -144,7 +144,7 @@ static void ttm_bo_init_reserved_sys_man(struct kunit *test)
 				  drm_mm_node_allocated(&bo->base.vma_node.vm_node));
 
 	ttm_resource_free(bo, &bo->resource);
-	ttm_bo_put(bo);
+	ttm_bo_fini(bo);
 }
 
 static void ttm_bo_init_reserved_mock_man(struct kunit *test)
@@ -186,7 +186,7 @@ static void ttm_bo_init_reserved_mock_man(struct kunit *test)
 				  drm_mm_node_allocated(&bo->base.vma_node.vm_node));
 
 	ttm_resource_free(bo, &bo->resource);
-	ttm_bo_put(bo);
+	ttm_bo_fini(bo);
 	ttm_mock_manager_fini(priv->ttm_dev, mem_type);
 }
 
@@ -221,7 +221,7 @@ static void ttm_bo_init_reserved_resv(struct kunit *test)
 	KUNIT_EXPECT_PTR_EQ(test, bo->base.resv, &resv);
 
 	ttm_resource_free(bo, &bo->resource);
-	ttm_bo_put(bo);
+	ttm_bo_fini(bo);
 }
 
 static void ttm_bo_validate_basic(struct kunit *test)
@@ -265,7 +265,7 @@ static void ttm_bo_validate_basic(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, bo->resource->placement,
 			DRM_BUDDY_TOPDOWN_ALLOCATION);
 
-	ttm_bo_put(bo);
+	ttm_bo_fini(bo);
 	ttm_mock_manager_fini(priv->ttm_dev, snd_mem);
 }
 
@@ -292,7 +292,7 @@ static void ttm_bo_validate_invalid_placement(struct kunit *test)
 
 	KUNIT_EXPECT_EQ(test, err, -ENOMEM);
 
-	ttm_bo_put(bo);
+	ttm_bo_fini(bo);
 }
 
 static void ttm_bo_validate_failed_alloc(struct kunit *test)
@@ -321,7 +321,7 @@ static void ttm_bo_validate_failed_alloc(struct kunit *test)
 
 	KUNIT_EXPECT_EQ(test, err, -ENOMEM);
 
-	ttm_bo_put(bo);
+	ttm_bo_fini(bo);
 	ttm_bad_manager_fini(priv->ttm_dev, mem_type);
 }
 
@@ -353,7 +353,7 @@ static void ttm_bo_validate_pinned(struct kunit *test)
 	ttm_bo_unpin(bo);
 	dma_resv_unlock(bo->base.resv);
 
-	ttm_bo_put(bo);
+	ttm_bo_fini(bo);
 }
 
 static const struct ttm_bo_validate_test_case ttm_mem_type_cases[] = {
@@ -403,7 +403,7 @@ static void ttm_bo_validate_same_placement(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, err, 0);
 	KUNIT_EXPECT_EQ(test, ctx_val.bytes_moved, 0);
 
-	ttm_bo_put(bo);
+	ttm_bo_fini(bo);
 
 	if (params->mem_type != TTM_PL_SYSTEM)
 		ttm_mock_manager_fini(priv->ttm_dev, params->mem_type);
@@ -452,7 +452,7 @@ static void ttm_bo_validate_busy_placement(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, bo->resource->mem_type, snd_mem);
 	KUNIT_ASSERT_TRUE(test, list_is_singular(&man->lru[bo->priority]));
 
-	ttm_bo_put(bo);
+	ttm_bo_fini(bo);
 	ttm_bad_manager_fini(priv->ttm_dev, fst_mem);
 	ttm_mock_manager_fini(priv->ttm_dev, snd_mem);
 }
@@ -495,7 +495,7 @@ static void ttm_bo_validate_multihop(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, ctx_val.bytes_moved, size * 2);
 	KUNIT_EXPECT_EQ(test, bo->resource->mem_type, final_mem);
 
-	ttm_bo_put(bo);
+	ttm_bo_fini(bo);
 
 	ttm_mock_manager_fini(priv->ttm_dev, fst_mem);
 	ttm_mock_manager_fini(priv->ttm_dev, tmp_mem);
@@ -542,14 +542,15 @@ static void ttm_bo_validate_no_placement_signaled(struct kunit *test)
 		bo->ttm = old_tt;
 	}
 
-	err = ttm_resource_alloc(bo, place, &bo->resource, NULL);
-	KUNIT_EXPECT_EQ(test, err, 0);
-	KUNIT_ASSERT_EQ(test, man->usage, size);
-
 	placement = kunit_kzalloc(test, sizeof(*placement), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, placement);
 
 	ttm_bo_reserve(bo, false, false, NULL);
+
+	err = ttm_resource_alloc(bo, place, &bo->resource, NULL);
+	KUNIT_EXPECT_EQ(test, err, 0);
+	KUNIT_ASSERT_EQ(test, man->usage, size);
+
 	err = ttm_bo_validate(bo, placement, &ctx);
 	ttm_bo_unreserve(bo);
 
@@ -566,7 +567,7 @@ static void ttm_bo_validate_no_placement_signaled(struct kunit *test)
 		KUNIT_ASSERT_TRUE(test, flags & TTM_TT_FLAG_ZERO_ALLOC);
 	}
 
-	ttm_bo_put(bo);
+	ttm_bo_fini(bo);
 }
 
 static int threaded_dma_resv_signal(void *arg)
@@ -634,7 +635,7 @@ static void ttm_bo_validate_no_placement_not_signaled(struct kunit *test)
 	/* Make sure we have an idle object at this point */
 	dma_resv_wait_timeout(bo->base.resv, usage, false, MAX_SCHEDULE_TIMEOUT);
 
-	ttm_bo_put(bo);
+	ttm_bo_fini(bo);
 }
 
 static void ttm_bo_validate_move_fence_signaled(struct kunit *test)
@@ -667,7 +668,7 @@ static void ttm_bo_validate_move_fence_signaled(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, bo->resource->mem_type, mem_type);
 	KUNIT_EXPECT_EQ(test, ctx.bytes_moved, size);
 
-	ttm_bo_put(bo);
+	ttm_bo_fini(bo);
 	dma_fence_put(man->move);
 }
 
@@ -752,59 +753,9 @@ static void ttm_bo_validate_move_fence_not_signaled(struct kunit *test)
 	else
 		KUNIT_EXPECT_EQ(test, bo->resource->mem_type, fst_mem);
 
-	ttm_bo_put(bo);
+	ttm_bo_fini(bo);
 	ttm_mock_manager_fini(priv->ttm_dev, fst_mem);
 	ttm_mock_manager_fini(priv->ttm_dev, snd_mem);
-}
-
-static void ttm_bo_validate_swapout(struct kunit *test)
-{
-	unsigned long size_big, size = ALIGN(BO_SIZE, PAGE_SIZE);
-	enum ttm_bo_type bo_type = ttm_bo_type_device;
-	struct ttm_buffer_object *bo_small, *bo_big;
-	struct ttm_test_devices *priv = test->priv;
-	struct ttm_operation_ctx ctx = { };
-	struct ttm_placement *placement;
-	u32 mem_type = TTM_PL_TT;
-	struct ttm_place *place;
-	struct sysinfo si;
-	int err;
-
-	si_meminfo(&si);
-	size_big = ALIGN(((u64)si.totalram * si.mem_unit / 2), PAGE_SIZE);
-
-	ttm_mock_manager_init(priv->ttm_dev, mem_type, size_big + size);
-
-	place = ttm_place_kunit_init(test, mem_type, 0);
-	placement = ttm_placement_kunit_init(test, place, 1);
-
-	bo_small = kunit_kzalloc(test, sizeof(*bo_small), GFP_KERNEL);
-	KUNIT_ASSERT_NOT_NULL(test, bo_small);
-
-	drm_gem_private_object_init(priv->drm, &bo_small->base, size);
-
-	err = ttm_bo_init_reserved(priv->ttm_dev, bo_small, bo_type, placement,
-				   PAGE_SIZE, &ctx, NULL, NULL,
-				   &dummy_ttm_bo_destroy);
-	KUNIT_EXPECT_EQ(test, err, 0);
-	dma_resv_unlock(bo_small->base.resv);
-
-	bo_big = ttm_bo_kunit_init(test, priv, size_big, NULL);
-
-	dma_resv_lock(bo_big->base.resv, NULL);
-	err = ttm_bo_validate(bo_big, placement, &ctx);
-	dma_resv_unlock(bo_big->base.resv);
-
-	KUNIT_EXPECT_EQ(test, err, 0);
-	KUNIT_EXPECT_NOT_NULL(test, bo_big->resource);
-	KUNIT_EXPECT_EQ(test, bo_big->resource->mem_type, mem_type);
-	KUNIT_EXPECT_EQ(test, bo_small->resource->mem_type, TTM_PL_SYSTEM);
-	KUNIT_EXPECT_TRUE(test, bo_small->ttm->page_flags & TTM_TT_FLAG_SWAPPED);
-
-	ttm_bo_put(bo_big);
-	ttm_bo_put(bo_small);
-
-	ttm_mock_manager_fini(priv->ttm_dev, mem_type);
 }
 
 static void ttm_bo_validate_happy_evict(struct kunit *test)
@@ -856,8 +807,8 @@ static void ttm_bo_validate_happy_evict(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, bos[1].resource->mem_type, mem_type);
 
 	for (i = 0; i < bo_no; i++)
-		ttm_bo_put(&bos[i]);
-	ttm_bo_put(bo_val);
+		ttm_bo_fini(&bos[i]);
+	ttm_bo_fini(bo_val);
 
 	ttm_mock_manager_fini(priv->ttm_dev, mem_type);
 	ttm_mock_manager_fini(priv->ttm_dev, mem_multihop);
@@ -901,12 +852,12 @@ static void ttm_bo_validate_all_pinned_evict(struct kunit *test)
 
 	KUNIT_EXPECT_EQ(test, err, -ENOMEM);
 
-	ttm_bo_put(bo_small);
+	ttm_bo_fini(bo_small);
 
 	ttm_bo_reserve(bo_big, false, false, NULL);
 	ttm_bo_unpin(bo_big);
 	dma_resv_unlock(bo_big->base.resv);
-	ttm_bo_put(bo_big);
+	ttm_bo_fini(bo_big);
 
 	ttm_mock_manager_fini(priv->ttm_dev, mem_type);
 	ttm_mock_manager_fini(priv->ttm_dev, mem_multihop);
@@ -965,13 +916,13 @@ static void ttm_bo_validate_allowed_only_evict(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, bo_evictable->resource->mem_type, mem_type_evict);
 	KUNIT_EXPECT_EQ(test, ctx_val.bytes_moved, size * 2 + BO_SIZE);
 
-	ttm_bo_put(bo);
-	ttm_bo_put(bo_evictable);
+	ttm_bo_fini(bo);
+	ttm_bo_fini(bo_evictable);
 
 	ttm_bo_reserve(bo_pinned, false, false, NULL);
 	ttm_bo_unpin(bo_pinned);
 	dma_resv_unlock(bo_pinned->base.resv);
-	ttm_bo_put(bo_pinned);
+	ttm_bo_fini(bo_pinned);
 
 	ttm_mock_manager_fini(priv->ttm_dev, mem_type);
 	ttm_mock_manager_fini(priv->ttm_dev, mem_multihop);
@@ -1022,8 +973,8 @@ static void ttm_bo_validate_deleted_evict(struct kunit *test)
 	KUNIT_EXPECT_NULL(test, bo_big->ttm);
 	KUNIT_EXPECT_NULL(test, bo_big->resource);
 
-	ttm_bo_put(bo_small);
-	ttm_bo_put(bo_big);
+	ttm_bo_fini(bo_small);
+	ttm_bo_fini(bo_big);
 	ttm_mock_manager_fini(priv->ttm_dev, mem_type);
 }
 
@@ -1074,8 +1025,8 @@ static void ttm_bo_validate_busy_domain_evict(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, bo_init->resource->mem_type, mem_type);
 	KUNIT_EXPECT_NULL(test, bo_val->resource);
 
-	ttm_bo_put(bo_init);
-	ttm_bo_put(bo_val);
+	ttm_bo_fini(bo_init);
+	ttm_bo_fini(bo_val);
 
 	ttm_mock_manager_fini(priv->ttm_dev, mem_type);
 	ttm_bad_manager_fini(priv->ttm_dev, mem_type_evict);
@@ -1119,8 +1070,8 @@ static void ttm_bo_validate_evict_gutting(struct kunit *test)
 	KUNIT_ASSERT_NULL(test, bo_evict->resource);
 	KUNIT_ASSERT_TRUE(test, bo_evict->ttm->page_flags & TTM_TT_FLAG_ZERO_ALLOC);
 
-	ttm_bo_put(bo_evict);
-	ttm_bo_put(bo);
+	ttm_bo_fini(bo_evict);
+	ttm_bo_fini(bo);
 
 	ttm_mock_manager_fini(priv->ttm_dev, mem_type);
 }
@@ -1177,9 +1128,9 @@ static void ttm_bo_validate_recrusive_evict(struct kunit *test)
 	ttm_mock_manager_fini(priv->ttm_dev, mem_type);
 	ttm_mock_manager_fini(priv->ttm_dev, mem_type_evict);
 
-	ttm_bo_put(bo_val);
-	ttm_bo_put(bo_tt);
-	ttm_bo_put(bo_mock);
+	ttm_bo_fini(bo_val);
+	ttm_bo_fini(bo_tt);
+	ttm_bo_fini(bo_mock);
 }
 
 static struct kunit_case ttm_bo_validate_test_cases[] = {
@@ -1201,7 +1152,6 @@ static struct kunit_case ttm_bo_validate_test_cases[] = {
 	KUNIT_CASE(ttm_bo_validate_move_fence_signaled),
 	KUNIT_CASE_PARAM(ttm_bo_validate_move_fence_not_signaled,
 			 ttm_bo_validate_wait_gen_params),
-	KUNIT_CASE(ttm_bo_validate_swapout),
 	KUNIT_CASE(ttm_bo_validate_happy_evict),
 	KUNIT_CASE(ttm_bo_validate_all_pinned_evict),
 	KUNIT_CASE(ttm_bo_validate_allowed_only_evict),

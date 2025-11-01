@@ -761,7 +761,7 @@ static void intel_dsi_pre_enable(struct intel_atomic_state *state,
 
 	if (display->platform.valleyview || display->platform.cherryview) {
 		/* Disable DPOunit clock gating, can stall pipe */
-		intel_de_rmw(display, DSPCLK_GATE_D(display),
+		intel_de_rmw(display, VLV_DSPCLK_GATE_D,
 			     0, DPOUNIT_CLOCK_GATE_DISABLE);
 	}
 
@@ -918,7 +918,7 @@ static void intel_dsi_post_disable(struct intel_atomic_state *state,
 	} else {
 		vlv_dsi_pll_disable(encoder);
 
-		intel_de_rmw(display, DSPCLK_GATE_D(display),
+		intel_de_rmw(display, VLV_DSPCLK_GATE_D,
 			     DPOUNIT_CLOCK_GATE_DISABLE, 0);
 	}
 
@@ -1591,8 +1591,8 @@ static void vlv_dsi_add_properties(struct intel_connector *connector)
 
 static void vlv_dphy_param_init(struct intel_dsi *intel_dsi)
 {
+	struct intel_display *display = to_intel_display(&intel_dsi->base);
 	struct intel_connector *connector = intel_dsi->attached_connector;
-	struct intel_display *display = to_intel_display(connector);
 	struct mipi_config *mipi_config = connector->panel.vbt.dsi.config;
 	u32 tlpx_ns, extra_byte_count, tlpx_ui;
 	u32 ui_num, ui_den;

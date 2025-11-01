@@ -161,14 +161,13 @@ static void snd_pdacf_ak4117_change(struct ak4117 *ak4117, unsigned char c0, uns
 
 	if (!(c0 & AK4117_UNLCK))
 		return;
-	mutex_lock(&chip->reg_lock);
+	guard(mutex)(&chip->reg_lock);
 	val = chip->regmap[PDAUDIOCF_REG_SCR>>1];
 	if (ak4117->rcs0 & AK4117_UNLCK)
 		val |= PDAUDIOCF_BLUE_LED_OFF;
 	else
 		val &= ~PDAUDIOCF_BLUE_LED_OFF;
 	pdacf_reg_write(chip, PDAUDIOCF_REG_SCR, val);
-	mutex_unlock(&chip->reg_lock);
 }
 
 int snd_pdacf_ak4117_create(struct snd_pdacf *chip)

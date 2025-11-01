@@ -1,0 +1,37 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/marvell/marvell,orion5x.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Marvell Orion5x SoC Family
+
+maintainers:
+  - Andrew Lunn <andrew@lunn.ch>
+  - Gregory Clement <gregory.clement@bootlin.com>
+
+properties:
+  $nodename:
+    const: '/'
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - netgear,wnr854t
+          - const: marvell,orion5x-88f5181
+          - const: marvell,orion5x
+      - items:
+          - enum:
+              - buffalo,kurobox-pro
+              - buffalo,lschl
+              - buffalo,lsgl
+              - buffalo,lswsgl
+              - buffalo,lswtgl
+              - lacie,ethernet-disk-mini-v2
+              - lacie,d2-network
+              - marvell,rd-88f5182-nas
+              - maxtor,shared-storage-2
+          - const: marvell,orion5x-88f5182
+          - const: marvell,orion5x
+
+additionalProperties: true

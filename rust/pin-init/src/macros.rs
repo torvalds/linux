@@ -831,6 +831,17 @@ macro_rules! __pin_data {
             $($fields)*
         }
 
+        $crate::__pin_data!(make_pin_projections:
+            @vis($vis),
+            @name($name),
+            @impl_generics($($impl_generics)*),
+            @ty_generics($($ty_generics)*),
+            @decl_generics($($decl_generics)*),
+            @where($($whr)*),
+            @pinned($($pinned)*),
+            @not_pinned($($not_pinned)*),
+        );
+
         // We put the rest into this const item, because it then will not be accessible to anything
         // outside.
         const _: () = {
@@ -980,6 +991,56 @@ macro_rules! __pin_data {
             stringify!($($rest)*),
         );
     };
+    (make_pin_projections:
+        @vis($vis:vis),
+        @name($name:ident),
+        @impl_generics($($impl_generics:tt)*),
+        @ty_generics($($ty_generics:tt)*),
+        @decl_generics($($decl_generics:tt)*),
+        @where($($whr:tt)*),
+        @pinned($($(#[$($p_attr:tt)*])* $pvis:vis $p_field:ident : $p_type:ty),* $(,)?),
+        @not_pinned($($(#[$($attr:tt)*])* $fvis:vis $field:ident : $type:ty),* $(,)?),
+    ) => {
+        $crate::macros::paste! {
+            #[doc(hidden)]
+            $vis struct [< $name Projection >] <'__pin, $($decl_generics)*> {
+                $($(#[$($p_attr)*])* $pvis $p_field : ::core::pin::Pin<&'__pin mut $p_type>,)*
+                $($(#[$($attr)*])* $fvis $field : &'__pin mut $type,)*
+                ___pin_phantom_data: ::core::marker::PhantomData<&'__pin mut ()>,
+            }
+
+            impl<$($impl_generics)*> $name<$($ty_generics)*>
+            where $($whr)*
+            {
+                /// Pin-projects all fields of `Self`.
+                ///
+                /// These fields are structurally pinned:
+                $(#[doc = ::core::concat!(" - `", ::core::stringify!($p_field), "`")])*
+                ///
+                /// These fields are **not** structurally pinned:
+                $(#[doc = ::core::concat!(" - `", ::core::stringify!($field), "`")])*
+                #[inline]
+                $vis fn project<'__pin>(
+                    self: ::core::pin::Pin<&'__pin mut Self>,
+                ) -> [< $name Projection >] <'__pin, $($ty_generics)*> {
+                    // SAFETY: we only give access to `&mut` for fields not structurally pinned.
+                    let this = unsafe { ::core::pin::Pin::get_unchecked_mut(self) };
+                    [< $name Projection >] {
+                        $(
+                            // SAFETY: `$p_field` is structurally pinned.
+                            $(#[$($p_attr)*])*
+                            $p_field : unsafe { ::core::pin::Pin::new_unchecked(&mut this.$p_field) },
+                        )*
+                        $(
+                            $(#[$($attr)*])*
+                            $field : &mut this.$field,
+                        )*
+                        ___pin_phantom_data: ::core::marker::PhantomData,
+                    }
+                }
+            }
+        }
+    };
     (make_pin_data:
         @pin_data($pin_data:ident),
         @impl_generics($($impl_generics:tt)*),
@@ -988,38 +1049,56 @@ macro_rules! __pin_data {
         @pinned($($(#[$($p_attr:tt)*])* $pvis:vis $p_field:ident : $p_type:ty),* $(,)?),
         @not_pinned($($(#[$($attr:tt)*])* $fvis:vis $field:ident : $type:ty),* $(,)?),
     ) => {
-        // For every field, we create a projection function according to its projection type. If a
-        // field is structurally pinned, then it must be initialized via `PinInit`, if it is not
-        // structurally pinned, then it can be initialized via `Init`.
-        //
-        // The functions are `unsafe` to prevent accidentally calling them.
-        #[allow(dead_code)]
-        #[expect(clippy::missing_safety_doc)]
-        impl<$($impl_generics)*> $pin_data<$($ty_generics)*>
-        where $($whr)*
-        {
-            $(
-                $(#[$($p_attr)*])*
-                $pvis unsafe fn $p_field<E>(
-                    self,
-                    slot: *mut $p_type,
-                    init: impl $crate::PinInit<$p_type, E>,
-                ) -> ::core::result::Result<(), E> {
-                    // SAFETY: TODO.
-                    unsafe { $crate::PinInit::__pinned_init(init, slot) }
-                }
-            )*
-            $(
-                $(#[$($attr)*])*
-                $fvis unsafe fn $field<E>(
-                    self,
-                    slot: *mut $type,
-                    init: impl $crate::Init<$type, E>,
-                ) -> ::core::result::Result<(), E> {
-                    // SAFETY: TODO.
-                    unsafe { $crate::Init::__init(init, slot) }
-                }
-            )*
+        $crate::macros::paste! {
+            // For every field, we create a projection function according to its projection type. If a
+            // field is structurally pinned, then it must be initialized via `PinInit`, if it is not
+            // structurally pinned, then it can be initialized via `Init`.
+            //
+            // The functions are `unsafe` to prevent accidentally calling them.
+            #[allow(dead_code)]
+            #[expect(clippy::missing_safety_doc)]
+            impl<$($impl_generics)*> $pin_data<$($ty_generics)*>
+            where $($whr)*
+            {
+                $(
+                    $(#[$($p_attr)*])*
+                    $pvis unsafe fn $p_field<E>(
+                        self,
+                        slot: *mut $p_type,
+                        init: impl $crate::PinInit<$p_type, E>,
+                    ) -> ::core::result::Result<(), E> {
+                        // SAFETY: TODO.
+                        unsafe { $crate::PinInit::__pinned_init(init, slot) }
+                    }
+
+                    $(#[$($p_attr)*])*
+                    $pvis unsafe fn [<__project_ $p_field>]<'__slot>(
+                        self,
+                        slot: &'__slot mut $p_type,
+                    ) -> ::core::pin::Pin<&'__slot mut $p_type> {
+                        ::core::pin::Pin::new_unchecked(slot)
+                    }
+                )*
+                $(
+                    $(#[$($attr)*])*
+                    $fvis unsafe fn $field<E>(
+                        self,
+                        slot: *mut $type,
+                        init: impl $crate::Init<$type, E>,
+                    ) -> ::core::result::Result<(), E> {
+                        // SAFETY: TODO.
+                        unsafe { $crate::Init::__init(init, slot) }
+                    }
+
+                    $(#[$($attr)*])*
+                    $fvis unsafe fn [<__project_ $field>]<'__slot>(
+                        self,
+                        slot: &'__slot mut $type,
+                    ) -> &'__slot mut $type {
+                        slot
+                    }
+                )*
+            }
         }
     };
 }
@@ -1030,7 +1109,7 @@ macro_rules! __pin_data {
 ///
 /// This macro has multiple internal call configurations, these are always the very first ident:
 /// - nothing: this is the base case and called by the `{try_}{pin_}init!` macros.
-/// - `with_update_parsed`: when the `..Zeroable::zeroed()` syntax has been handled.
+/// - `with_update_parsed`: when the `..Zeroable::init_zeroed()` syntax has been handled.
 /// - `init_slot`: recursively creates the code that initializes all fields in `slot`.
 /// - `make_initializer`: recursively create the struct initializer that guarantees that every
 ///   field has been initialized exactly once.
@@ -1059,7 +1138,7 @@ macro_rules! __init_internal {
             @data($data, $($use_data)?),
             @has_data($has_data, $get_data),
             @construct_closure($construct_closure),
-            @zeroed(), // Nothing means default behavior.
+            @init_zeroed(), // Nothing means default behavior.
         )
     };
     (
@@ -1074,7 +1153,7 @@ macro_rules! __init_internal {
         @has_data($has_data:ident, $get_data:ident),
         // `pin_init_from_closure` or `init_from_closure`.
         @construct_closure($construct_closure:ident),
-        @munch_fields(..Zeroable::zeroed()),
+        @munch_fields(..Zeroable::init_zeroed()),
     ) => {
         $crate::__init_internal!(with_update_parsed:
             @this($($this)?),
@@ -1084,7 +1163,7 @@ macro_rules! __init_internal {
             @data($data, $($use_data)?),
             @has_data($has_data, $get_data),
             @construct_closure($construct_closure),
-            @zeroed(()), // `()` means zero all fields not mentioned.
+            @init_zeroed(()), // `()` means zero all fields not mentioned.
         )
     };
     (
@@ -1124,7 +1203,7 @@ macro_rules! __init_internal {
         @has_data($has_data:ident, $get_data:ident),
         // `pin_init_from_closure` or `init_from_closure`.
         @construct_closure($construct_closure:ident),
-        @zeroed($($init_zeroed:expr)?),
+        @init_zeroed($($init_zeroed:expr)?),
     ) => {{
         // We do not want to allow arbitrary returns, so we declare this type as the `Ok` return
         // type and shadow it later when we insert the arbitrary user code. That way there will be
@@ -1196,11 +1275,26 @@ macro_rules! __init_internal {
         @data($data:ident),
         @slot($slot:ident),
         @guards($($guards:ident,)*),
-        @munch_fields($(..Zeroable::zeroed())? $(,)?),
+        @munch_fields($(..Zeroable::init_zeroed())? $(,)?),
     ) => {
         // Endpoint of munching, no fields are left. If execution reaches this point, all fields
         // have been initialized. Therefore we can now dismiss the guards by forgetting them.
         $(::core::mem::forget($guards);)*
+    };
+    (init_slot($($use_data:ident)?):
+        @data($data:ident),
+        @slot($slot:ident),
+        @guards($($guards:ident,)*),
+        // arbitrary code block
+        @munch_fields(_: { $($code:tt)* }, $($rest:tt)*),
+    ) => {
+        { $($code)* }
+        $crate::__init_internal!(init_slot($($use_data)?):
+            @data($data),
+            @slot($slot),
+            @guards($($guards,)*),
+            @munch_fields($($rest)*),
+        );
     };
     (init_slot($use_data:ident): // `use_data` is present, so we use the `data` to init fields.
         @data($data:ident),
@@ -1216,6 +1310,13 @@ macro_rules! __init_internal {
         // return when an error/panic occurs.
         // We also use the `data` to require the correct trait (`Init` or `PinInit`) for `$field`.
         unsafe { $data.$field(::core::ptr::addr_of_mut!((*$slot).$field), init)? };
+        // SAFETY:
+        // - the project function does the correct field projection,
+        // - the field has been initialized,
+        // - the reference is only valid until the end of the initializer.
+        #[allow(unused_variables)]
+        let $field = $crate::macros::paste!(unsafe { $data.[< __project_ $field >](&mut (*$slot).$field) });
+
         // Create the drop guard:
         //
         // We rely on macro hygiene to make it impossible for users to access this local variable.
@@ -1247,6 +1348,14 @@ macro_rules! __init_internal {
         // SAFETY: `slot` is valid, because we are inside of an initializer closure, we
         // return when an error/panic occurs.
         unsafe { $crate::Init::__init(init, ::core::ptr::addr_of_mut!((*$slot).$field))? };
+
+        // SAFETY:
+        // - the field is not structurally pinned, since the line above must compile,
+        // - the field has been initialized,
+        // - the reference is only valid until the end of the initializer.
+        #[allow(unused_variables)]
+        let $field = unsafe { &mut (*$slot).$field };
+
         // Create the drop guard:
         //
         // We rely on macro hygiene to make it impossible for users to access this local variable.
@@ -1265,7 +1374,7 @@ macro_rules! __init_internal {
             );
         }
     };
-    (init_slot($($use_data:ident)?):
+    (init_slot(): // No `use_data`, so all fields are not structurally pinned
         @data($data:ident),
         @slot($slot:ident),
         @guards($($guards:ident,)*),
@@ -1279,6 +1388,15 @@ macro_rules! __init_internal {
             // SAFETY: The memory at `slot` is uninitialized.
             unsafe { ::core::ptr::write(::core::ptr::addr_of_mut!((*$slot).$field), $field) };
         }
+
+        #[allow(unused_variables)]
+        // SAFETY:
+        // - the field is not structurally pinned, since no `use_data` was required to create this
+        //   initializer,
+        // - the field has been initialized,
+        // - the reference is only valid until the end of the initializer.
+        let $field = unsafe { &mut (*$slot).$field };
+
         // Create the drop guard:
         //
         // We rely on macro hygiene to make it impossible for users to access this local variable.
@@ -1289,7 +1407,46 @@ macro_rules! __init_internal {
                 $crate::__internal::DropGuard::new(::core::ptr::addr_of_mut!((*$slot).$field))
             };
 
-            $crate::__init_internal!(init_slot($($use_data)?):
+            $crate::__init_internal!(init_slot():
+                @data($data),
+                @slot($slot),
+                @guards([< __ $field _guard >], $($guards,)*),
+                @munch_fields($($rest)*),
+            );
+        }
+    };
+    (init_slot($use_data:ident):
+        @data($data:ident),
+        @slot($slot:ident),
+        @guards($($guards:ident,)*),
+        // Init by-value.
+        @munch_fields($field:ident $(: $val:expr)?, $($rest:tt)*),
+    ) => {
+        {
+            $(let $field = $val;)?
+            // Initialize the field.
+            //
+            // SAFETY: The memory at `slot` is uninitialized.
+            unsafe { ::core::ptr::write(::core::ptr::addr_of_mut!((*$slot).$field), $field) };
+        }
+        // SAFETY:
+        // - the project function does the correct field projection,
+        // - the field has been initialized,
+        // - the reference is only valid until the end of the initializer.
+        #[allow(unused_variables)]
+        let $field = $crate::macros::paste!(unsafe { $data.[< __project_ $field >](&mut (*$slot).$field) });
+
+        // Create the drop guard:
+        //
+        // We rely on macro hygiene to make it impossible for users to access this local variable.
+        // We use `paste!` to create new hygiene for `$field`.
+        $crate::macros::paste! {
+            // SAFETY: We forget the guard later when initialization has succeeded.
+            let [< __ $field _guard >] = unsafe {
+                $crate::__internal::DropGuard::new(::core::ptr::addr_of_mut!((*$slot).$field))
+            };
+
+            $crate::__init_internal!(init_slot($use_data):
                 @data($data),
                 @slot($slot),
                 @guards([< __ $field _guard >], $($guards,)*),
@@ -1300,11 +1457,25 @@ macro_rules! __init_internal {
     (make_initializer:
         @slot($slot:ident),
         @type_name($t:path),
-        @munch_fields(..Zeroable::zeroed() $(,)?),
+        @munch_fields(_: { $($code:tt)* }, $($rest:tt)*),
+        @acc($($acc:tt)*),
+    ) => {
+        // code blocks are ignored for the initializer check
+        $crate::__init_internal!(make_initializer:
+            @slot($slot),
+            @type_name($t),
+            @munch_fields($($rest)*),
+            @acc($($acc)*),
+        );
+    };
+    (make_initializer:
+        @slot($slot:ident),
+        @type_name($t:path),
+        @munch_fields(..Zeroable::init_zeroed() $(,)?),
         @acc($($acc:tt)*),
     ) => {
         // Endpoint, nothing more to munch, create the initializer. Since the users specified
-        // `..Zeroable::zeroed()`, the slot will already have been zeroed and all field that have
+        // `..Zeroable::init_zeroed()`, the slot will already have been zeroed and all field that have
         // not been overwritten are thus zero and initialized. We still check that all fields are
         // actually accessible by using the struct update syntax ourselves.
         // We are inside of a closure that is never executed and thus we can abuse `slot` to

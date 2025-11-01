@@ -81,7 +81,7 @@ static int wait_ready(struct panfrost_device *pfdev, u32 as_nr)
 	if (ret) {
 		/* The GPU hung, let's trigger a reset */
 		panfrost_device_schedule_reset(pfdev);
-		dev_err(pfdev->dev, "AS_ACTIVE bit stuck\n");
+		dev_err(pfdev->base.dev, "AS_ACTIVE bit stuck\n");
 	}
 
 	return ret;
@@ -222,7 +222,7 @@ static int mmu_cfg_init_aarch64_4k(struct panfrost_mmu *mmu)
 	struct io_pgtable_cfg *pgtbl_cfg = &mmu->pgtbl_cfg;
 	struct panfrost_device *pfdev = mmu->pfdev;
 
-	if (drm_WARN_ON(pfdev->ddev, pgtbl_cfg->arm_lpae_s1_cfg.ttbr &
+	if (drm_WARN_ON(&pfdev->base, pgtbl_cfg->arm_lpae_s1_cfg.ttbr &
 				     ~AS_TRANSTAB_AARCH64_4K_ADDR_MASK))
 		return -EINVAL;
 
@@ -253,12 +253,12 @@ static int panfrost_mmu_cfg_init(struct panfrost_mmu *mmu,
 		return mmu_cfg_init_mali_lpae(mmu);
 	default:
 		/* This should never happen */
-		drm_WARN(pfdev->ddev, 1, "Invalid pgtable format");
+		drm_WARN(&pfdev->base, 1, "Invalid pgtable format");
 		return -EINVAL;
 	}
 }
 
-u32 panfrost_mmu_as_get(struct panfrost_device *pfdev, struct panfrost_mmu *mmu)
+int panfrost_mmu_as_get(struct panfrost_device *pfdev, struct panfrost_mmu *mmu)
 {
 	int as;
 
@@ -300,7 +300,10 @@ u32 panfrost_mmu_as_get(struct panfrost_device *pfdev, struct panfrost_mmu *mmu)
 			if (!atomic_read(&lru_mmu->as_count))
 				break;
 		}
-		WARN_ON(&lru_mmu->list == &pfdev->as_lru_list);
+		if (WARN_ON(&lru_mmu->list == &pfdev->as_lru_list)) {
+			as = -EBUSY;
+			goto out;
+		}
 
 		list_del_init(&lru_mmu->list);
 		as = lru_mmu->as;
@@ -315,7 +318,9 @@ u32 panfrost_mmu_as_get(struct panfrost_device *pfdev, struct panfrost_mmu *mmu)
 	atomic_set(&mmu->as_count, 1);
 	list_add(&mmu->list, &pfdev->as_lru_list);
 
-	dev_dbg(pfdev->dev, "Assigned AS%d to mmu %p, alloc_mask=%lx", as, mmu, pfdev->as_alloc_mask);
+	dev_dbg(pfdev->base.dev,
+		"Assigned AS%d to mmu %p, alloc_mask=%lx",
+		as, mmu, pfdev->as_alloc_mask);
 
 	panfrost_mmu_enable(pfdev, mmu);
 
@@ -381,13 +386,30 @@ static void panfrost_mmu_flush_range(struct panfrost_device *pfdev,
 	if (mmu->as < 0)
 		return;
 
-	pm_runtime_get_noresume(pfdev->dev);
+	pm_runtime_get_noresume(pfdev->base.dev);
 
 	/* Flush the PTs only if we're already awake */
-	if (pm_runtime_active(pfdev->dev))
+	if (pm_runtime_active(pfdev->base.dev))
 		mmu_hw_do_operation(pfdev, mmu, iova, size, AS_COMMAND_FLUSH_PT);
 
-	pm_runtime_put_autosuspend(pfdev->dev);
+	pm_runtime_put_autosuspend(pfdev->base.dev);
+}
+
+static void mmu_unmap_range(struct panfrost_mmu *mmu, u64 iova, size_t len)
+{
+	struct io_pgtable_ops *ops = mmu->pgtbl_ops;
+	size_t pgsize, unmapped_len = 0;
+	size_t unmapped_page, pgcount;
+
+	while (unmapped_len < len) {
+		pgsize = get_pgsize(iova, len - unmapped_len, &pgcount);
+
+		unmapped_page = ops->unmap_pages(ops, iova, pgsize, pgcount, NULL);
+		WARN_ON(unmapped_page != pgsize * pgcount);
+
+		iova += pgsize * pgcount;
+		unmapped_len += pgsize * pgcount;
+	}
 }
 
 static int mmu_map_sg(struct panfrost_device *pfdev, struct panfrost_mmu *mmu,
@@ -396,22 +418,30 @@ static int mmu_map_sg(struct panfrost_device *pfdev, struct panfrost_mmu *mmu,
 	unsigned int count;
 	struct scatterlist *sgl;
 	struct io_pgtable_ops *ops = mmu->pgtbl_ops;
+	size_t total_mapped = 0;
 	u64 start_iova = iova;
+	int ret;
 
 	for_each_sgtable_dma_sg(sgt, sgl, count) {
 		unsigned long paddr = sg_dma_address(sgl);
 		size_t len = sg_dma_len(sgl);
 
-		dev_dbg(pfdev->dev, "map: as=%d, iova=%llx, paddr=%lx, len=%zx", mmu->as, iova, paddr, len);
+		dev_dbg(pfdev->base.dev,
+			"map: as=%d, iova=%llx, paddr=%lx, len=%zx",
+			mmu->as, iova, paddr, len);
 
 		while (len) {
 			size_t pgcount, mapped = 0;
 			size_t pgsize = get_pgsize(iova | paddr, len, &pgcount);
 
-			ops->map_pages(ops, iova, paddr, pgsize, pgcount, prot,
+			ret = ops->map_pages(ops, iova, paddr, pgsize, pgcount, prot,
 				       GFP_KERNEL, &mapped);
+			if (ret)
+				goto err_unmap_pages;
+
 			/* Don't get stuck if things have gone wrong */
 			mapped = max(mapped, pgsize);
+			total_mapped += mapped;
 			iova += mapped;
 			paddr += mapped;
 			len -= mapped;
@@ -421,6 +451,10 @@ static int mmu_map_sg(struct panfrost_device *pfdev, struct panfrost_mmu *mmu,
 	panfrost_mmu_flush_range(pfdev, mmu, start_iova, iova - start_iova);
 
 	return 0;
+
+err_unmap_pages:
+	mmu_unmap_range(mmu, start_iova, total_mapped);
+	return ret;
 }
 
 int panfrost_mmu_map(struct panfrost_gem_mapping *mapping)
@@ -431,6 +465,7 @@ int panfrost_mmu_map(struct panfrost_gem_mapping *mapping)
 	struct panfrost_device *pfdev = to_panfrost_device(obj->dev);
 	struct sg_table *sgt;
 	int prot = IOMMU_READ | IOMMU_WRITE | IOMMU_CACHE;
+	int ret;
 
 	if (WARN_ON(mapping->active))
 		return 0;
@@ -442,11 +477,18 @@ int panfrost_mmu_map(struct panfrost_gem_mapping *mapping)
 	if (WARN_ON(IS_ERR(sgt)))
 		return PTR_ERR(sgt);
 
-	mmu_map_sg(pfdev, mapping->mmu, mapping->mmnode.start << PAGE_SHIFT,
-		   prot, sgt);
+	ret = mmu_map_sg(pfdev, mapping->mmu, mapping->mmnode.start << PAGE_SHIFT,
+			 prot, sgt);
+	if (ret)
+		goto err_put_pages;
+
 	mapping->active = true;
 
 	return 0;
+
+err_put_pages:
+	drm_gem_shmem_put_pages_locked(shmem);
+	return ret;
 }
 
 void panfrost_mmu_unmap(struct panfrost_gem_mapping *mapping)
@@ -462,7 +504,7 @@ void panfrost_mmu_unmap(struct panfrost_gem_mapping *mapping)
 	if (WARN_ON(!mapping->active))
 		return;
 
-	dev_dbg(pfdev->dev, "unmap: as=%d, iova=%llx, len=%zx",
+	dev_dbg(pfdev->base.dev, "unmap: as=%d, iova=%llx, len=%zx",
 		mapping->mmu->as, iova, len);
 
 	while (unmapped_len < len) {
@@ -559,7 +601,7 @@ static int panfrost_mmu_map_fault_addr(struct panfrost_device *pfdev, int as,
 
 	bo = bomapping->obj;
 	if (!bo->is_heap) {
-		dev_WARN(pfdev->dev, "matching BO is not heap type (GPU VA = %llx)",
+		dev_WARN(pfdev->base.dev, "matching BO is not heap type (GPU VA = %llx)",
 			 bomapping->mmnode.start << PAGE_SHIFT);
 		ret = -EINVAL;
 		goto err_bo;
@@ -595,10 +637,12 @@ static int panfrost_mmu_map_fault_addr(struct panfrost_device *pfdev, int as,
 		refcount_set(&bo->base.pages_use_count, 1);
 	} else {
 		pages = bo->base.pages;
-		if (pages[page_offset]) {
-			/* Pages are already mapped, bail out. */
-			goto out;
-		}
+	}
+
+	sgt = &bo->sgts[page_offset / (SZ_2M / PAGE_SIZE)];
+	if (sgt->sgl) {
+		/* Pages are already mapped, bail out. */
+		goto out;
 	}
 
 	mapping = bo->base.base.filp->f_mapping;
@@ -620,23 +664,24 @@ static int panfrost_mmu_map_fault_addr(struct panfrost_device *pfdev, int as,
 		}
 	}
 
-	sgt = &bo->sgts[page_offset / (SZ_2M / PAGE_SIZE)];
 	ret = sg_alloc_table_from_pages(sgt, pages + page_offset,
 					NUM_FAULT_PAGES, 0, SZ_2M, GFP_KERNEL);
 	if (ret)
 		goto err_unlock;
 
-	ret = dma_map_sgtable(pfdev->dev, sgt, DMA_BIDIRECTIONAL, 0);
+	ret = dma_map_sgtable(pfdev->base.dev, sgt, DMA_BIDIRECTIONAL, 0);
 	if (ret)
 		goto err_map;
 
-	mmu_map_sg(pfdev, bomapping->mmu, addr,
-		   IOMMU_WRITE | IOMMU_READ | IOMMU_CACHE | IOMMU_NOEXEC, sgt);
+	ret = mmu_map_sg(pfdev, bomapping->mmu, addr,
+			 IOMMU_WRITE | IOMMU_READ | IOMMU_CACHE | IOMMU_NOEXEC, sgt);
+	if (ret)
+		goto err_mmu_map_sg;
 
 	bomapping->active = true;
 	bo->heap_rss_size += SZ_2M;
 
-	dev_dbg(pfdev->dev, "mapped page fault @ AS%d %llx", as, addr);
+	dev_dbg(pfdev->base.dev, "mapped page fault @ AS%d %llx", as, addr);
 
 out:
 	dma_resv_unlock(obj->resv);
@@ -645,6 +690,8 @@ out:
 
 	return 0;
 
+err_mmu_map_sg:
+	dma_unmap_sgtable(pfdev->base.dev, sgt, DMA_BIDIRECTIONAL, 0);
 err_map:
 	sg_free_table(sgt);
 err_unlock:
@@ -662,13 +709,12 @@ static void panfrost_mmu_release_ctx(struct kref *kref)
 
 	spin_lock(&pfdev->as_lock);
 	if (mmu->as >= 0) {
-		pm_runtime_get_noresume(pfdev->dev);
-		if (pm_runtime_active(pfdev->dev))
+		pm_runtime_get_noresume(pfdev->base.dev);
+		if (pm_runtime_active(pfdev->base.dev))
 			panfrost_mmu_disable(pfdev, mmu->as);
-		pm_runtime_put_autosuspend(pfdev->dev);
+		pm_runtime_put_autosuspend(pfdev->base.dev);
 
 		clear_bit(mmu->as, &pfdev->as_alloc_mask);
-		clear_bit(mmu->as, &pfdev->as_in_use_mask);
 		list_del(&mmu->list);
 	}
 	spin_unlock(&pfdev->as_lock);
@@ -726,7 +772,7 @@ struct panfrost_mmu *panfrost_mmu_ctx_create(struct panfrost_device *pfdev)
 
 	if (pfdev->comp->gpu_quirks & BIT(GPU_QUIRK_FORCE_AARCH64_PGTABLE)) {
 		if (!panfrost_has_hw_feature(pfdev, HW_FEATURE_AARCH64_MMU)) {
-			dev_err_once(pfdev->dev,
+			dev_err_once(pfdev->base.dev,
 				     "AARCH64_4K page table not supported\n");
 			return ERR_PTR(-EINVAL);
 		}
@@ -755,7 +801,7 @@ struct panfrost_mmu *panfrost_mmu_ctx_create(struct panfrost_device *pfdev)
 		.oas		= pa_bits,
 		.coherent_walk	= pfdev->coherent,
 		.tlb		= &mmu_tlb_ops,
-		.iommu_dev	= pfdev->dev,
+		.iommu_dev	= pfdev->base.dev,
 	};
 
 	mmu->pgtbl_ops = alloc_io_pgtable_ops(fmt, &mmu->pgtbl_cfg, mmu);
@@ -848,7 +894,7 @@ static irqreturn_t panfrost_mmu_irq_handler_thread(int irq, void *data)
 
 		if (ret) {
 			/* terminal fault, print info about the fault */
-			dev_err(pfdev->dev,
+			dev_err(pfdev->base.dev,
 				"Unhandled Page fault in AS%d at VA 0x%016llX\n"
 				"Reason: %s\n"
 				"raw fault status: 0x%X\n"
@@ -896,18 +942,18 @@ int panfrost_mmu_init(struct panfrost_device *pfdev)
 {
 	int err;
 
-	pfdev->mmu_irq = platform_get_irq_byname(to_platform_device(pfdev->dev), "mmu");
+	pfdev->mmu_irq = platform_get_irq_byname(to_platform_device(pfdev->base.dev), "mmu");
 	if (pfdev->mmu_irq < 0)
 		return pfdev->mmu_irq;
 
-	err = devm_request_threaded_irq(pfdev->dev, pfdev->mmu_irq,
+	err = devm_request_threaded_irq(pfdev->base.dev, pfdev->mmu_irq,
 					panfrost_mmu_irq_handler,
 					panfrost_mmu_irq_handler_thread,
 					IRQF_SHARED, KBUILD_MODNAME "-mmu",
 					pfdev);
 
 	if (err) {
-		dev_err(pfdev->dev, "failed to request mmu irq");
+		dev_err(pfdev->base.dev, "failed to request mmu irq");
 		return err;
 	}
 

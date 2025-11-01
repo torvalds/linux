@@ -1,0 +1,61 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/input/ti,tca8418.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: TI TCA8418 I2C/SMBus keypad scanner
+
+maintainers:
+  - Frank Li <Frank.Li@nxp.com>
+
+properties:
+  compatible:
+    enum:
+      - ti,tca8418
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+allOf:
+  - $ref: matrix-keymap.yaml#
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/input/input.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        keypad@34 {
+            compatible = "ti,tca8418";
+            reg = <0x34>;
+            interrupt-parent = <&gpio5>;
+            interrupts = <11 IRQ_TYPE_EDGE_FALLING>;
+            keypad,num-rows = <4>;
+            keypad,num-columns = <4>;
+            linux,keymap = < MATRIX_KEY(0x00, 0x01, BTN_0)
+                             MATRIX_KEY(0x00, 0x00, BTN_1)
+                             MATRIX_KEY(0x01, 0x01, BTN_2)
+                             MATRIX_KEY(0x01, 0x00, BTN_3)
+                             MATRIX_KEY(0x02, 0x00, BTN_4)
+                             MATRIX_KEY(0x00, 0x03, BTN_5)
+                             MATRIX_KEY(0x00, 0x02, BTN_6)
+                             MATRIX_KEY(0x01, 0x03, BTN_7)
+                             MATRIX_KEY(0x01, 0x02, BTN_8)
+                             MATRIX_KEY(0x02, 0x02, BTN_9)
+            >;
+        };
+    };

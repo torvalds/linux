@@ -578,14 +578,14 @@
 		hdmim0_tx0_scl: hdmim0-tx0-scl {
 			rockchip,pins =
 				/* hdmim0_tx0_scl */
-				<4 RK_PB7 5 &pcfg_pull_none>;
+				<4 RK_PB7 5 &pcfg_pull_none_drv_level_5_smt>;
 		};
 
 		/omit-if-no-ref/
 		hdmim0_tx0_sda: hdmim0-tx0-sda {
 			rockchip,pins =
 				/* hdmim0_tx0_sda */
-				<4 RK_PC0 5 &pcfg_pull_none>;
+				<4 RK_PC0 5 &pcfg_pull_none_drv_level_1_smt>;
 		};
 
 		/omit-if-no-ref/
@@ -640,14 +640,14 @@
 		hdmim1_tx0_scl: hdmim1-tx0-scl {
 			rockchip,pins =
 				/* hdmim1_tx0_scl */
-				<0 RK_PD5 11 &pcfg_pull_none>;
+				<0 RK_PD5 11 &pcfg_pull_none_drv_level_5_smt>;
 		};
 
 		/omit-if-no-ref/
 		hdmim1_tx0_sda: hdmim1-tx0-sda {
 			rockchip,pins =
 				/* hdmim1_tx0_sda */
-				<0 RK_PD4 11 &pcfg_pull_none>;
+				<0 RK_PD4 11 &pcfg_pull_none_drv_level_1_smt>;
 		};
 
 		/omit-if-no-ref/
@@ -668,14 +668,14 @@
 		hdmim1_tx1_scl: hdmim1-tx1-scl {
 			rockchip,pins =
 				/* hdmim1_tx1_scl */
-				<3 RK_PC6 5 &pcfg_pull_none>;
+				<3 RK_PC6 5 &pcfg_pull_none_drv_level_5_smt>;
 		};
 
 		/omit-if-no-ref/
 		hdmim1_tx1_sda: hdmim1-tx1-sda {
 			rockchip,pins =
 				/* hdmim1_tx1_sda */
-				<3 RK_PC5 5 &pcfg_pull_none>;
+				<3 RK_PC5 5 &pcfg_pull_none_drv_level_1_smt>;
 		};
 		/omit-if-no-ref/
 		hdmim2_rx_cec: hdmim2-rx-cec {
@@ -709,14 +709,14 @@
 		hdmim2_tx0_scl: hdmim2-tx0-scl {
 			rockchip,pins =
 				/* hdmim2_tx0_scl */
-				<3 RK_PC7 5 &pcfg_pull_none>;
+				<3 RK_PC7 5 &pcfg_pull_none_drv_level_5_smt>;
 		};
 
 		/omit-if-no-ref/
 		hdmim2_tx0_sda: hdmim2-tx0-sda {
 			rockchip,pins =
 				/* hdmim2_tx0_sda */
-				<3 RK_PD0 5 &pcfg_pull_none>;
+				<3 RK_PD0 5 &pcfg_pull_none_drv_level_1_smt>;
 		};
 
 		/omit-if-no-ref/
@@ -730,14 +730,14 @@
 		hdmim2_tx1_scl: hdmim2-tx1-scl {
 			rockchip,pins =
 				/* hdmim2_tx1_scl */
-				<1 RK_PA4 5 &pcfg_pull_none>;
+				<1 RK_PA4 5 &pcfg_pull_none_drv_level_5_smt>;
 		};
 
 		/omit-if-no-ref/
 		hdmim2_tx1_sda: hdmim2-tx1-sda {
 			rockchip,pins =
 				/* hdmim2_tx1_sda */
-				<1 RK_PA3 5 &pcfg_pull_none>;
+				<1 RK_PA3 5 &pcfg_pull_none_drv_level_1_smt>;
 		};
 
 		/omit-if-no-ref/

@@ -28,4 +28,6 @@ int bmi160_enable_irq(struct regmap *regmap, bool enable);
 
 int bmi160_probe_trigger(struct iio_dev *indio_dev, int irq, u32 irq_type);
 
+extern const struct dev_pm_ops bmi160_core_pm_ops;
+
 #endif  /* BMI160_H_ */

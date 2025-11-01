@@ -615,6 +615,7 @@ int amdgpu_gfx_cp_ecc_error_irq(struct amdgpu_device *adev,
 				  struct amdgpu_iv_entry *entry);
 uint32_t amdgpu_kiq_rreg(struct amdgpu_device *adev, uint32_t reg, uint32_t xcc_id);
 void amdgpu_kiq_wreg(struct amdgpu_device *adev, uint32_t reg, uint32_t v, uint32_t xcc_id);
+int amdgpu_kiq_hdp_flush(struct amdgpu_device *adev);
 int amdgpu_gfx_get_num_kcq(struct amdgpu_device *adev);
 void amdgpu_gfx_cp_init_microcode(struct amdgpu_device *adev, uint32_t ucode_id);
 
@@ -642,9 +643,9 @@ void amdgpu_gfx_enforce_isolation_ring_end_use(struct amdgpu_ring *ring);
 void amdgpu_gfx_profile_idle_work_handler(struct work_struct *work);
 void amdgpu_gfx_profile_ring_begin_use(struct amdgpu_ring *ring);
 void amdgpu_gfx_profile_ring_end_use(struct amdgpu_ring *ring);
-u32 amdgpu_gfx_csb_preamble_start(volatile u32 *buffer);
-u32 amdgpu_gfx_csb_data_parser(struct amdgpu_device *adev, volatile u32 *buffer, u32 count);
-void amdgpu_gfx_csb_preamble_end(volatile u32 *buffer, u32 count);
+u32 amdgpu_gfx_csb_preamble_start(u32 *buffer);
+u32 amdgpu_gfx_csb_data_parser(struct amdgpu_device *adev, u32 *buffer, u32 count);
+void amdgpu_gfx_csb_preamble_end(u32 *buffer, u32 count);
 
 void amdgpu_debugfs_gfx_sched_mask_init(struct amdgpu_device *adev);
 void amdgpu_debugfs_compute_sched_mask_init(struct amdgpu_device *adev);

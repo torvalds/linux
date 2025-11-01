@@ -2303,7 +2303,7 @@ SYSCALL_DEFINE3(semop, int, semid, struct sembuf __user *, tsops,
  * parent and child tasks.
  */
 
-int copy_semundo(unsigned long clone_flags, struct task_struct *tsk)
+int copy_semundo(u64 clone_flags, struct task_struct *tsk)
 {
 	struct sem_undo_list *undo_list;
 	int error;

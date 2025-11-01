@@ -234,7 +234,6 @@ struct mt792x_dev {
 	bool aspm_supported:1;
 	bool hif_idle:1;
 	bool hif_resumed:1;
-	bool sar_inited:1;
 	bool regd_change:1;
 	wait_queue_head_t wait;
 
@@ -412,7 +411,8 @@ void mt792x_sta_statistics(struct ieee80211_hw *hw,
 			   struct ieee80211_vif *vif,
 			   struct ieee80211_sta *sta,
 			   struct station_info *sinfo);
-void mt792x_set_coverage_class(struct ieee80211_hw *hw, s16 coverage_class);
+void mt792x_set_coverage_class(struct ieee80211_hw *hw, int radio_idx,
+			       s16 coverage_class);
 void mt792x_dma_cleanup(struct mt792x_dev *dev);
 int mt792x_dma_enable(struct mt792x_dev *dev);
 int mt792x_wpdma_reset(struct mt792x_dev *dev, bool force);

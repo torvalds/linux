@@ -318,7 +318,7 @@ struct scsi_host_template {
 	 *
 	 * Status: OPTIONAL
 	 */
-	int (* bios_param)(struct scsi_device *, struct block_device *,
+	int (* bios_param)(struct scsi_device *, struct gendisk *,
 			sector_t, int []);
 
 	/*

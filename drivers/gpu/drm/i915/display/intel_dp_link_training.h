@@ -23,7 +23,7 @@ void intel_dp_link_training_set_bw(struct intel_dp *intel_dp,
 				   int link_bw, int rate_select, int lane_count,
 				   bool enhanced_framing);
 
-void intel_dp_get_adjust_train(struct intel_dp *intel_dp,
+bool intel_dp_get_adjust_train(struct intel_dp *intel_dp,
 			       const struct intel_crtc_state *crtc_state,
 			       enum drm_dp_phy dp_phy,
 			       const u8 link_status[DP_LINK_STATUS_SIZE]);

@@ -64,28 +64,66 @@ static ssize_t queue_requests_show(struct gendisk *disk, char *page)
 static ssize_t
 queue_requests_store(struct gendisk *disk, const char *page, size_t count)
 {
-	unsigned long nr;
-	int ret, err;
-	unsigned int memflags;
 	struct request_queue *q = disk->queue;
-
-	if (!queue_is_mq(q))
-		return -EINVAL;
+	struct blk_mq_tag_set *set = q->tag_set;
+	struct elevator_tags *et = NULL;
+	unsigned int memflags;
+	unsigned long nr;
+	int ret;
 
 	ret = queue_var_store(&nr, page, count);
 	if (ret < 0)
 		return ret;
 
-	memflags = blk_mq_freeze_queue(q);
-	mutex_lock(&q->elevator_lock);
+	/*
+	 * Serialize updating nr_requests with concurrent queue_requests_store()
+	 * and switching elevator.
+	 */
+	down_write(&set->update_nr_hwq_lock);
+
+	if (nr == q->nr_requests)
+		goto unlock;
+
 	if (nr < BLKDEV_MIN_RQ)
 		nr = BLKDEV_MIN_RQ;
 
-	err = blk_mq_update_nr_requests(disk->queue, nr);
-	if (err)
-		ret = err;
+	/*
+	 * Switching elevator is protected by update_nr_hwq_lock:
+	 *  - read lock is held from elevator sysfs attribute;
+	 *  - write lock is held from updating nr_hw_queues;
+	 * Hence it's safe to access q->elevator here with write lock held.
+	 */
+	if (nr <= set->reserved_tags ||
+	    (q->elevator && nr > MAX_SCHED_RQ) ||
+	    (!q->elevator && nr > set->queue_depth)) {
+		ret = -EINVAL;
+		goto unlock;
+	}
+
+	if (!blk_mq_is_shared_tags(set->flags) && q->elevator &&
+	    nr > q->elevator->et->nr_requests) {
+		/*
+		 * Tags will grow, allocate memory before freezing queue to
+		 * prevent deadlock.
+		 */
+		et = blk_mq_alloc_sched_tags(set, q->nr_hw_queues, nr);
+		if (!et) {
+			ret = -ENOMEM;
+			goto unlock;
+		}
+	}
+
+	memflags = blk_mq_freeze_queue(q);
+	mutex_lock(&q->elevator_lock);
+	et = blk_mq_update_nr_requests(q, et, nr);
 	mutex_unlock(&q->elevator_lock);
 	blk_mq_unfreeze_queue(q, memflags);
+
+	if (et)
+		blk_mq_free_sched_tags(et, set);
+
+unlock:
+	up_write(&set->update_nr_hwq_lock);
 	return ret;
 }
 
@@ -161,6 +199,8 @@ static ssize_t queue_##_field##_show(struct gendisk *disk, char *page)	\
 QUEUE_SYSFS_LIMIT_SHOW_SECTORS_TO_BYTES(max_discard_sectors)
 QUEUE_SYSFS_LIMIT_SHOW_SECTORS_TO_BYTES(max_hw_discard_sectors)
 QUEUE_SYSFS_LIMIT_SHOW_SECTORS_TO_BYTES(max_write_zeroes_sectors)
+QUEUE_SYSFS_LIMIT_SHOW_SECTORS_TO_BYTES(max_hw_wzeroes_unmap_sectors)
+QUEUE_SYSFS_LIMIT_SHOW_SECTORS_TO_BYTES(max_wzeroes_unmap_sectors)
 QUEUE_SYSFS_LIMIT_SHOW_SECTORS_TO_BYTES(atomic_write_max_sectors)
 QUEUE_SYSFS_LIMIT_SHOW_SECTORS_TO_BYTES(atomic_write_boundary_sectors)
 QUEUE_SYSFS_LIMIT_SHOW_SECTORS_TO_BYTES(max_zone_append_sectors)
@@ -202,6 +242,24 @@ static int queue_max_discard_sectors_store(struct gendisk *disk,
 		return -EINVAL;
 
 	lim->max_user_discard_sectors = max_discard_bytes >> SECTOR_SHIFT;
+	return 0;
+}
+
+static int queue_max_wzeroes_unmap_sectors_store(struct gendisk *disk,
+		const char *page, size_t count, struct queue_limits *lim)
+{
+	unsigned long max_zeroes_bytes, max_hw_zeroes_bytes;
+	ssize_t ret;
+
+	ret = queue_var_store(&max_zeroes_bytes, page, count);
+	if (ret < 0)
+		return ret;
+
+	max_hw_zeroes_bytes = lim->max_hw_wzeroes_unmap_sectors << SECTOR_SHIFT;
+	if (max_zeroes_bytes != 0 && max_zeroes_bytes != max_hw_zeroes_bytes)
+		return -EINVAL;
+
+	lim->max_user_wzeroes_unmap_sectors = max_zeroes_bytes >> SECTOR_SHIFT;
 	return 0;
 }
 
@@ -514,6 +572,10 @@ QUEUE_LIM_RO_ENTRY(queue_atomic_write_unit_min, "atomic_write_unit_min_bytes");
 
 QUEUE_RO_ENTRY(queue_write_same_max, "write_same_max_bytes");
 QUEUE_LIM_RO_ENTRY(queue_max_write_zeroes_sectors, "write_zeroes_max_bytes");
+QUEUE_LIM_RO_ENTRY(queue_max_hw_wzeroes_unmap_sectors,
+		"write_zeroes_unmap_max_hw_bytes");
+QUEUE_LIM_RW_ENTRY(queue_max_wzeroes_unmap_sectors,
+		"write_zeroes_unmap_max_bytes");
 QUEUE_LIM_RO_ENTRY(queue_max_zone_append_sectors, "zone_append_max_bytes");
 QUEUE_LIM_RO_ENTRY(queue_zone_write_granularity, "zone_write_granularity");
 
@@ -596,6 +658,11 @@ static ssize_t queue_wb_lat_store(struct gendisk *disk, const char *page,
 	if (val < -1)
 		return -EINVAL;
 
+	/*
+	 * Ensure that the queue is idled, in case the latency update
+	 * ends up either enabling or disabling wbt completely. We can't
+	 * have IO inflight if that happens.
+	 */
 	memflags = blk_mq_freeze_queue(q);
 
 	rqos = wbt_rq_qos(q);
@@ -614,11 +681,6 @@ static ssize_t queue_wb_lat_store(struct gendisk *disk, const char *page,
 	if (wbt_get_min_lat(q) == val)
 		goto out;
 
-	/*
-	 * Ensure that the queue is idled, in case the latency update
-	 * ends up either enabling or disabling wbt completely. We can't
-	 * have IO inflight if that happens.
-	 */
 	blk_mq_quiesce_queue(q);
 
 	mutex_lock(&disk->rqos_state_mutex);
@@ -662,6 +724,8 @@ static struct attribute *queue_attrs[] = {
 	&queue_atomic_write_unit_min_entry.attr,
 	&queue_atomic_write_unit_max_entry.attr,
 	&queue_max_write_zeroes_sectors_entry.attr,
+	&queue_max_hw_wzeroes_unmap_sectors_entry.attr,
+	&queue_max_wzeroes_unmap_sectors_entry.attr,
 	&queue_max_zone_append_sectors_entry.attr,
 	&queue_zone_write_granularity_entry.attr,
 	&queue_rotational_entry.attr,
@@ -821,7 +885,7 @@ static void blk_queue_release(struct kobject *kobj)
 	/* nothing to do here, all data is associated with the parent gendisk */
 }
 
-static const struct kobj_type blk_queue_ktype = {
+const struct kobj_type blk_queue_ktype = {
 	.default_groups = blk_queue_attr_groups,
 	.sysfs_ops	= &queue_sysfs_ops,
 	.release	= blk_queue_release,
@@ -849,15 +913,14 @@ int blk_register_queue(struct gendisk *disk)
 	struct request_queue *q = disk->queue;
 	int ret;
 
-	kobject_init(&disk->queue_kobj, &blk_queue_ktype);
 	ret = kobject_add(&disk->queue_kobj, &disk_to_dev(disk)->kobj, "queue");
 	if (ret < 0)
-		goto out_put_queue_kobj;
+		return ret;
 
 	if (queue_is_mq(q)) {
 		ret = blk_mq_sysfs_register(disk);
 		if (ret)
-			goto out_put_queue_kobj;
+			goto out_del_queue_kobj;
 	}
 	mutex_lock(&q->sysfs_lock);
 
@@ -877,9 +940,9 @@ int blk_register_queue(struct gendisk *disk)
 
 	if (queue_is_mq(q))
 		elevator_set_default(q);
-	wbt_enable_default(disk);
 
 	blk_queue_flag_set(QUEUE_FLAG_REGISTERED, q);
+	wbt_enable_default(disk);
 
 	/* Now everything is ready and send out KOBJ_ADD uevent */
 	kobject_uevent(&disk->queue_kobj, KOBJ_ADD);
@@ -908,8 +971,8 @@ out_debugfs_remove:
 	mutex_unlock(&q->sysfs_lock);
 	if (queue_is_mq(q))
 		blk_mq_sysfs_unregister(disk);
-out_put_queue_kobj:
-	kobject_put(&disk->queue_kobj);
+out_del_queue_kobj:
+	kobject_del(&disk->queue_kobj);
 	return ret;
 }
 

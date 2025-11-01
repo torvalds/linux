@@ -646,7 +646,7 @@ static const struct inode_operations msdos_dir_inode_operations = {
 static void setup(struct super_block *sb)
 {
 	MSDOS_SB(sb)->dir_ops = &msdos_dir_inode_operations;
-	sb->s_d_op = &msdos_dentry_operations;
+	set_default_d_op(sb, &msdos_dentry_operations);
 	sb->s_flags |= SB_NOATIME;
 }
 

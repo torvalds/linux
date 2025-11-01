@@ -13,6 +13,7 @@
 #include <linux/scatterlist.h>
 #include <linux/export.h>
 #include <linux/slab.h>
+#include <linux/t10-pi.h>
 
 #include "blk.h"
 
@@ -54,63 +55,70 @@ new_segment:
 	return segments;
 }
 
-/**
- * blk_rq_map_integrity_sg - Map integrity metadata into a scatterlist
- * @rq:		request to map
- * @sglist:	target scatterlist
- *
- * Description: Map the integrity vectors in request into a
- * scatterlist.  The scatterlist must be big enough to hold all
- * elements.  I.e. sized using blk_rq_count_integrity_sg() or
- * rq->nr_integrity_segments.
- */
-int blk_rq_map_integrity_sg(struct request *rq, struct scatterlist *sglist)
+int blk_get_meta_cap(struct block_device *bdev, unsigned int cmd,
+		     struct logical_block_metadata_cap __user *argp)
 {
-	struct bio_vec iv, ivprv = { NULL };
-	struct request_queue *q = rq->q;
-	struct scatterlist *sg = NULL;
-	struct bio *bio = rq->bio;
-	unsigned int segments = 0;
-	struct bvec_iter iter;
-	int prev = 0;
+	struct blk_integrity *bi;
+	struct logical_block_metadata_cap meta_cap = {};
+	size_t usize = _IOC_SIZE(cmd);
 
-	bio_for_each_integrity_vec(iv, bio, iter) {
-		if (prev) {
-			if (!biovec_phys_mergeable(q, &ivprv, &iv))
-				goto new_segment;
-			if (sg->length + iv.bv_len > queue_max_segment_size(q))
-				goto new_segment;
+	if (!extensible_ioctl_valid(cmd, FS_IOC_GETLBMD_CAP, LBMD_SIZE_VER0))
+		return -ENOIOCTLCMD;
 
-			sg->length += iv.bv_len;
-		} else {
-new_segment:
-			if (!sg)
-				sg = sglist;
-			else {
-				sg_unmark_end(sg);
-				sg = sg_next(sg);
-			}
+	bi = blk_get_integrity(bdev->bd_disk);
+	if (!bi)
+		goto out;
 
-			sg_set_page(sg, iv.bv_page, iv.bv_len, iv.bv_offset);
-			segments++;
-		}
+	if (bi->flags & BLK_INTEGRITY_DEVICE_CAPABLE)
+		meta_cap.lbmd_flags |= LBMD_PI_CAP_INTEGRITY;
+	if (bi->flags & BLK_INTEGRITY_REF_TAG)
+		meta_cap.lbmd_flags |= LBMD_PI_CAP_REFTAG;
+	meta_cap.lbmd_interval = 1 << bi->interval_exp;
+	meta_cap.lbmd_size = bi->metadata_size;
+	meta_cap.lbmd_pi_size = bi->pi_tuple_size;
+	meta_cap.lbmd_pi_offset = bi->pi_offset;
+	meta_cap.lbmd_opaque_size = bi->metadata_size - bi->pi_tuple_size;
+	if (meta_cap.lbmd_opaque_size && !bi->pi_offset)
+		meta_cap.lbmd_opaque_offset = bi->pi_tuple_size;
 
-		prev = 1;
-		ivprv = iv;
+	switch (bi->csum_type) {
+	case BLK_INTEGRITY_CSUM_NONE:
+		meta_cap.lbmd_guard_tag_type = LBMD_PI_CSUM_NONE;
+		break;
+	case BLK_INTEGRITY_CSUM_IP:
+		meta_cap.lbmd_guard_tag_type = LBMD_PI_CSUM_IP;
+		break;
+	case BLK_INTEGRITY_CSUM_CRC:
+		meta_cap.lbmd_guard_tag_type = LBMD_PI_CSUM_CRC16_T10DIF;
+		break;
+	case BLK_INTEGRITY_CSUM_CRC64:
+		meta_cap.lbmd_guard_tag_type = LBMD_PI_CSUM_CRC64_NVME;
+		break;
 	}
 
-	if (sg)
-		sg_mark_end(sg);
+	if (bi->csum_type != BLK_INTEGRITY_CSUM_NONE)
+		meta_cap.lbmd_app_tag_size = 2;
 
-	/*
-	 * Something must have been wrong if the figured number of segment
-	 * is bigger than number of req's physical integrity segments
-	 */
-	BUG_ON(segments > rq->nr_integrity_segments);
-	BUG_ON(segments > queue_max_integrity_segments(q));
-	return segments;
+	if (bi->flags & BLK_INTEGRITY_REF_TAG) {
+		switch (bi->csum_type) {
+		case BLK_INTEGRITY_CSUM_CRC64:
+			meta_cap.lbmd_ref_tag_size =
+				sizeof_field(struct crc64_pi_tuple, ref_tag);
+			break;
+		case BLK_INTEGRITY_CSUM_CRC:
+		case BLK_INTEGRITY_CSUM_IP:
+			meta_cap.lbmd_ref_tag_size =
+				sizeof_field(struct t10_pi_tuple, ref_tag);
+			break;
+		default:
+			break;
+		}
+	}
+
+out:
+	return copy_struct_to_user(argp, usize, &meta_cap, sizeof(meta_cap),
+				   NULL);
 }
-EXPORT_SYMBOL(blk_rq_map_integrity_sg);
 
 int blk_rq_integrity_map_user(struct request *rq, void __user *ubuf,
 			      ssize_t bytes)
@@ -239,7 +247,7 @@ static ssize_t format_show(struct device *dev, struct device_attribute *attr,
 {
 	struct blk_integrity *bi = dev_to_bi(dev);
 
-	if (!bi->tuple_size)
+	if (!bi->metadata_size)
 		return sysfs_emit(page, "none\n");
 	return sysfs_emit(page, "%s\n", blk_integrity_profile_name(bi));
 }

@@ -2,7 +2,7 @@
 #ifndef _ASM_POWERPC_NOHASH_PGTABLE_H
 #define _ASM_POWERPC_NOHASH_PGTABLE_H
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 static inline pte_basic_t pte_update(struct mm_struct *mm, unsigned long addr, pte_t *p,
 				     unsigned long clr, unsigned long set, int huge);
 #endif
@@ -27,7 +27,7 @@ static inline pte_basic_t pte_update(struct mm_struct *mm, unsigned long addr, p
 #define PAGE_KERNEL_RO	__pgprot(_PAGE_BASE | _PAGE_KERNEL_RO)
 #define PAGE_KERNEL_ROX	__pgprot(_PAGE_BASE | _PAGE_KERNEL_ROX)
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 extern int icache_44x_need_flush;
 
@@ -373,5 +373,5 @@ static inline void __set_pte_at(struct mm_struct *mm, unsigned long addr,
 int map_kernel_page(unsigned long va, phys_addr_t pa, pgprot_t prot);
 void unmap_kernel_page(unsigned long va);
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 #endif

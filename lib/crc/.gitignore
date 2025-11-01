@@ -1,0 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0-only
+/crc32table.h
+/crc64table.h
+/gen_crc32table
+/gen_crc64table

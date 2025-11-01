@@ -59,9 +59,8 @@ static unsigned
 snd_pmac_burgundy_rcw(struct snd_pmac *chip, unsigned addr)
 {
 	unsigned val = 0;
-	unsigned long flags;
 
-	spin_lock_irqsave(&chip->reg_lock, flags);
+	guard(spinlock_irqsave)(&chip->reg_lock);
 
 	out_le32(&chip->awacs->codec_ctrl, addr + 0x100000);
 	snd_pmac_burgundy_busy_wait(chip);
@@ -83,8 +82,6 @@ snd_pmac_burgundy_rcw(struct snd_pmac *chip, unsigned addr)
 	snd_pmac_burgundy_extend_wait(chip);
 	val += ((in_le32(&chip->awacs->codec_stat)>>4) & 0xff) <<24;
 
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
-
 	return val;
 }
 
@@ -100,16 +97,13 @@ static unsigned
 snd_pmac_burgundy_rcb(struct snd_pmac *chip, unsigned int addr)
 {
 	unsigned val = 0;
-	unsigned long flags;
 
-	spin_lock_irqsave(&chip->reg_lock, flags);
+	guard(spinlock_irqsave)(&chip->reg_lock);
 
 	out_le32(&chip->awacs->codec_ctrl, addr + 0x100000);
 	snd_pmac_burgundy_busy_wait(chip);
 	snd_pmac_burgundy_extend_wait(chip);
 	val += (in_le32(&chip->awacs->codec_stat) >> 4) & 0xff;
-
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
 
 	return val;
 }
@@ -665,7 +659,7 @@ int snd_pmac_burgundy_init(struct snd_pmac *chip)
 	/*
 	 * build burgundy mixers
 	 */
-	strcpy(chip->card->mixername, "PowerMac Burgundy");
+	strscpy(chip->card->mixername, "PowerMac Burgundy");
 
 	for (i = 0; i < ARRAY_SIZE(snd_pmac_burgundy_mixers); i++) {
 		err = snd_ctl_add(chip->card,

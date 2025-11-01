@@ -33,14 +33,16 @@
  *
  */
 
-#include "i915_drv.h"
-#include "i915_reg.h"
 #include "gt/intel_context.h"
 #include "gt/intel_engine_regs.h"
 #include "gt/intel_gpu_commands.h"
 #include "gt/intel_gt_regs.h"
 #include "gt/intel_ring.h"
+
 #include "gvt.h"
+#include "i915_drv.h"
+#include "i915_reg.h"
+#include "i915_wait_util.h"
 #include "trace.h"
 
 #define GEN9_MOCS_SIZE		64

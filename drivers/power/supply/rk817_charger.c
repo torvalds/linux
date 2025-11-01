@@ -1046,7 +1046,7 @@ static void rk817_charging_monitor(struct work_struct *work)
 	rk817_read_props(charger);
 
 	/* Run every 8 seconds like the BSP driver did. */
-	queue_delayed_work(system_wq, &charger->work, msecs_to_jiffies(8000));
+	queue_delayed_work(system_percpu_wq, &charger->work, msecs_to_jiffies(8000));
 }
 
 static void rk817_cleanup_node(void *data)
@@ -1206,7 +1206,7 @@ static int rk817_charger_probe(struct platform_device *pdev)
 		return ret;
 
 	/* Force the first update immediately. */
-	mod_delayed_work(system_wq, &charger->work, 0);
+	mod_delayed_work(system_percpu_wq, &charger->work, 0);
 
 	return 0;
 }
@@ -1226,7 +1226,7 @@ static int __maybe_unused rk817_resume(struct device *dev)
 	struct rk817_charger *charger = dev_get_drvdata(dev);
 
 	/* force an immediate update */
-	mod_delayed_work(system_wq, &charger->work, 0);
+	mod_delayed_work(system_percpu_wq, &charger->work, 0);
 
 	return 0;
 }

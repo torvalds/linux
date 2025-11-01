@@ -644,8 +644,6 @@ radeon_crtc_set_config(struct drm_mode_set *set,
 		if (crtc->enabled)
 			active = true;
 
-	pm_runtime_mark_last_busy(dev->dev);
-
 	rdev = dev->dev_private;
 	/* if we have active crtcs and we don't have a power ref,
 	   take the current one */
@@ -926,10 +924,10 @@ static void avivo_get_fb_ref_div(unsigned nom, unsigned den, unsigned post_div,
 				 unsigned *fb_div, unsigned *ref_div)
 {
 	/* limit reference * post divider to a maximum */
-	ref_div_max = max(min(100 / post_div, ref_div_max), 1u);
+	ref_div_max = clamp(100 / post_div, 1u, ref_div_max);
 
 	/* get matching reference and feedback divider */
-	*ref_div = min(max(den/post_div, 1u), ref_div_max);
+	*ref_div = clamp(den / post_div, 1u, ref_div_max);
 	*fb_div = DIV_ROUND_CLOSEST(nom * *ref_div * post_div, den);
 
 	/* limit fb divider to its maximum */
@@ -1297,12 +1295,13 @@ static const struct drm_framebuffer_funcs radeon_fb_funcs = {
 int
 radeon_framebuffer_init(struct drm_device *dev,
 			struct drm_framebuffer *fb,
+			const struct drm_format_info *info,
 			const struct drm_mode_fb_cmd2 *mode_cmd,
 			struct drm_gem_object *obj)
 {
 	int ret;
 	fb->obj[0] = obj;
-	drm_helper_mode_fill_fb_struct(dev, fb, mode_cmd);
+	drm_helper_mode_fill_fb_struct(dev, fb, info, mode_cmd);
 	ret = drm_framebuffer_init(dev, fb, &radeon_fb_funcs);
 	if (ret) {
 		fb->obj[0] = NULL;
@@ -1314,6 +1313,7 @@ radeon_framebuffer_init(struct drm_device *dev,
 static struct drm_framebuffer *
 radeon_user_framebuffer_create(struct drm_device *dev,
 			       struct drm_file *file_priv,
+			       const struct drm_format_info *info,
 			       const struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct drm_gem_object *obj;
@@ -1340,7 +1340,7 @@ radeon_user_framebuffer_create(struct drm_device *dev,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	ret = radeon_framebuffer_init(dev, fb, mode_cmd, obj);
+	ret = radeon_framebuffer_init(dev, fb, info, mode_cmd, obj);
 	if (ret) {
 		kfree(fb);
 		drm_gem_object_put(obj);

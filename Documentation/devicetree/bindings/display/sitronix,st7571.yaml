@@ -28,6 +28,11 @@ properties:
     description:
       Display supports 4-level grayscale.
 
+  sitronix,inverted:
+    type: boolean
+    description:
+      Display pixels are inverted, i.e. 0 is white and 1 is black.
+
   reset-gpios: true
   width-mm: true
   height-mm: true

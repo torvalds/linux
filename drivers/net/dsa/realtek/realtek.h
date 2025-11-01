@@ -19,9 +19,6 @@
 
 struct phylink_mac_ops;
 struct realtek_ops;
-struct dentry;
-struct inode;
-struct file;
 
 struct rtl8366_mib_counter {
 	unsigned int	base;

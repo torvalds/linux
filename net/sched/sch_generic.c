@@ -740,6 +740,8 @@ static int pfifo_fast_enqueue(struct sk_buff *skb, struct Qdisc *qdisc,
 	err = skb_array_produce(q, skb);
 
 	if (unlikely(err)) {
+		tcf_set_drop_reason(skb, SKB_DROP_REASON_QDISC_OVERLIMIT);
+
 		if (qdisc_is_percpu_stats(qdisc))
 			return qdisc_drop_cpu(skb, qdisc, to_free);
 		else

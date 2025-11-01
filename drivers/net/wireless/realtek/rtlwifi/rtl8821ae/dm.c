@@ -756,10 +756,7 @@ static void rtl8821ae_dm_dig(struct ieee80211_hw *hw)
 		rtl_dbg(rtlpriv, COMP_DIG, DBG_LOUD,
 			"DIG AfterLink\n");
 		if (first_connect) {
-			if (dm_digtable->rssi_val_min <= dig_max_of_min)
-				current_igi = dm_digtable->rssi_val_min;
-			else
-				current_igi = dig_max_of_min;
+			current_igi = min(dm_digtable->rssi_val_min, dig_max_of_min);
 			rtl_dbg(rtlpriv, COMP_DIG, DBG_LOUD,
 				"First Connect\n");
 		} else {

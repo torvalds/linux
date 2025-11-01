@@ -107,6 +107,7 @@ properties:
               - compulab,cm-t335
               - moxa,uc-8100-me-t
               - novatech,am335x-lxm
+              - seeed,am335x-bone-green-eco
               - ti,am335x-bone
               - ti,am335x-evm
               - ti,am3359-icev2

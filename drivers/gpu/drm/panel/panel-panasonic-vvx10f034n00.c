@@ -166,9 +166,6 @@ static int wuxga_nt_panel_add(struct wuxga_nt_panel *wuxga_nt)
 	if (IS_ERR(wuxga_nt->supply))
 		return PTR_ERR(wuxga_nt->supply);
 
-	drm_panel_init(&wuxga_nt->base, &wuxga_nt->dsi->dev,
-		       &wuxga_nt_panel_funcs, DRM_MODE_CONNECTOR_DSI);
-
 	ret = drm_panel_of_backlight(&wuxga_nt->base);
 	if (ret)
 		return ret;
@@ -196,9 +193,12 @@ static int wuxga_nt_panel_probe(struct mipi_dsi_device *dsi)
 			MIPI_DSI_CLOCK_NON_CONTINUOUS |
 			MIPI_DSI_MODE_LPM;
 
-	wuxga_nt = devm_kzalloc(&dsi->dev, sizeof(*wuxga_nt), GFP_KERNEL);
-	if (!wuxga_nt)
-		return -ENOMEM;
+	wuxga_nt = devm_drm_panel_alloc(&dsi->dev, __typeof(*wuxga_nt), base,
+					&wuxga_nt_panel_funcs,
+					DRM_MODE_CONNECTOR_DSI);
+
+	if (IS_ERR(wuxga_nt))
+		return PTR_ERR(wuxga_nt);
 
 	mipi_dsi_set_drvdata(dsi, wuxga_nt);
 

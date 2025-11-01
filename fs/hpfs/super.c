@@ -404,15 +404,11 @@ static int hpfs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 		break;
 	case Opt_timeshift:
 		{
-			int m = 1;
 			char *rhs = param->string;
 			int timeshift;
 
-			if (*rhs == '-') m = -1;
-			if (*rhs == '+' || *rhs == '-') rhs++;
-			timeshift = simple_strtoul(rhs, &rhs, 0) * m;
-			if (*rhs)
-					return -EINVAL;
+			if (kstrtoint(rhs, 0, &timeshift))
+				return -EINVAL;
 			ctx->timeshift = timeshift;
 			break;
 		}
@@ -554,7 +550,7 @@ static int hpfs_fill_super(struct super_block *s, struct fs_context *fc)
 	/* Fill superblock stuff */
 	s->s_magic = HPFS_SUPER_MAGIC;
 	s->s_op = &hpfs_sops;
-	s->s_d_op = &hpfs_dentry_operations;
+	set_default_d_op(s, &hpfs_dentry_operations);
 	s->s_time_min =  local_to_gmt(s, 0);
 	s->s_time_max =  local_to_gmt(s, U32_MAX);
 

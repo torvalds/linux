@@ -25,7 +25,6 @@ MODULE_LICENSE("GPL");
 
 static void snd_opl2_command(struct snd_opl3 * opl3, unsigned short cmd, unsigned char val)
 {
-	unsigned long flags;
 	unsigned long port;
 
 	/*
@@ -35,20 +34,17 @@ static void snd_opl2_command(struct snd_opl3 * opl3, unsigned short cmd, unsigne
 
 	port = (cmd & OPL3_RIGHT) ? opl3->r_port : opl3->l_port;
 
-	spin_lock_irqsave(&opl3->reg_lock, flags);
+	guard(spinlock_irqsave)(&opl3->reg_lock);
 
 	outb((unsigned char) cmd, port);
 	udelay(10);
 
 	outb((unsigned char) val, port + 1);
 	udelay(30);
-
-	spin_unlock_irqrestore(&opl3->reg_lock, flags);
 }
 
 static void snd_opl3_command(struct snd_opl3 * opl3, unsigned short cmd, unsigned char val)
 {
-	unsigned long flags;
 	unsigned long port;
 
 	/*
@@ -58,7 +54,7 @@ static void snd_opl3_command(struct snd_opl3 * opl3, unsigned short cmd, unsigne
 
 	port = (cmd & OPL3_RIGHT) ? opl3->r_port : opl3->l_port;
 
-	spin_lock_irqsave(&opl3->reg_lock, flags);
+	guard(spinlock_irqsave)(&opl3->reg_lock);
 
 	outb((unsigned char) cmd, port);
 	inb(opl3->l_port);
@@ -67,8 +63,6 @@ static void snd_opl3_command(struct snd_opl3 * opl3, unsigned short cmd, unsigne
 	outb((unsigned char) val, port + 1);
 	inb(opl3->l_port);
 	inb(opl3->l_port);
-
-	spin_unlock_irqrestore(&opl3->reg_lock, flags);
 }
 
 static int snd_opl3_detect(struct snd_opl3 * opl3)
@@ -142,34 +136,30 @@ static int snd_opl3_detect(struct snd_opl3 * opl3)
 
 static int snd_opl3_timer1_start(struct snd_timer * timer)
 {
-	unsigned long flags;
 	unsigned char tmp;
 	unsigned int ticks;
 	struct snd_opl3 *opl3;
 
 	opl3 = snd_timer_chip(timer);
-	spin_lock_irqsave(&opl3->timer_lock, flags);
+	guard(spinlock_irqsave)(&opl3->timer_lock);
 	ticks = timer->sticks;
 	tmp = (opl3->timer_enable | OPL3_TIMER1_START) & ~OPL3_TIMER1_MASK;
 	opl3->timer_enable = tmp;
 	opl3->command(opl3, OPL3_LEFT | OPL3_REG_TIMER1, 256 - ticks);	/* timer 1 count */
 	opl3->command(opl3, OPL3_LEFT | OPL3_REG_TIMER_CONTROL, tmp);	/* enable timer 1 IRQ */
-	spin_unlock_irqrestore(&opl3->timer_lock, flags);
 	return 0;
 }
 
 static int snd_opl3_timer1_stop(struct snd_timer * timer)
 {
-	unsigned long flags;
 	unsigned char tmp;
 	struct snd_opl3 *opl3;
 
 	opl3 = snd_timer_chip(timer);
-	spin_lock_irqsave(&opl3->timer_lock, flags);
+	guard(spinlock_irqsave)(&opl3->timer_lock);
 	tmp = (opl3->timer_enable | OPL3_TIMER1_MASK) & ~OPL3_TIMER1_START;
 	opl3->timer_enable = tmp;
 	opl3->command(opl3, OPL3_LEFT | OPL3_REG_TIMER_CONTROL, tmp);	/* disable timer #1 */
-	spin_unlock_irqrestore(&opl3->timer_lock, flags);
 	return 0;
 }
 
@@ -179,34 +169,30 @@ static int snd_opl3_timer1_stop(struct snd_timer * timer)
 
 static int snd_opl3_timer2_start(struct snd_timer * timer)
 {
-	unsigned long flags;
 	unsigned char tmp;
 	unsigned int ticks;
 	struct snd_opl3 *opl3;
 
 	opl3 = snd_timer_chip(timer);
-	spin_lock_irqsave(&opl3->timer_lock, flags);
+	guard(spinlock_irqsave)(&opl3->timer_lock);
 	ticks = timer->sticks;
 	tmp = (opl3->timer_enable | OPL3_TIMER2_START) & ~OPL3_TIMER2_MASK;
 	opl3->timer_enable = tmp;
 	opl3->command(opl3, OPL3_LEFT | OPL3_REG_TIMER2, 256 - ticks);	/* timer 1 count */
 	opl3->command(opl3, OPL3_LEFT | OPL3_REG_TIMER_CONTROL, tmp);	/* enable timer 1 IRQ */
-	spin_unlock_irqrestore(&opl3->timer_lock, flags);
 	return 0;
 }
 
 static int snd_opl3_timer2_stop(struct snd_timer * timer)
 {
-	unsigned long flags;
 	unsigned char tmp;
 	struct snd_opl3 *opl3;
 
 	opl3 = snd_timer_chip(timer);
-	spin_lock_irqsave(&opl3->timer_lock, flags);
+	guard(spinlock_irqsave)(&opl3->timer_lock);
 	tmp = (opl3->timer_enable | OPL3_TIMER2_MASK) & ~OPL3_TIMER2_START;
 	opl3->timer_enable = tmp;
 	opl3->command(opl3, OPL3_LEFT | OPL3_REG_TIMER_CONTROL, tmp);	/* disable timer #1 */
-	spin_unlock_irqrestore(&opl3->timer_lock, flags);
 	return 0;
 }
 
@@ -245,7 +231,7 @@ static int snd_opl3_timer1_init(struct snd_opl3 * opl3, int timer_no)
 	tid.subdevice = 0;
 	err = snd_timer_new(opl3->card, "AdLib timer #1", &tid, &timer);
 	if (err >= 0) {
-		strcpy(timer->name, "AdLib timer #1");
+		strscpy(timer->name, "AdLib timer #1");
 		timer->private_data = opl3;
 		timer->hw = snd_opl3_timer1;
 	}
@@ -266,7 +252,7 @@ static int snd_opl3_timer2_init(struct snd_opl3 * opl3, int timer_no)
 	tid.subdevice = 0;
 	err = snd_timer_new(opl3->card, "AdLib timer #2", &tid, &timer);
 	if (err >= 0) {
-		strcpy(timer->name, "AdLib timer #2");
+		strscpy(timer->name, "AdLib timer #2");
 		timer->private_data = opl3;
 		timer->hw = snd_opl3_timer2;
 	}
@@ -497,18 +483,18 @@ int snd_opl3_hwdep_new(struct snd_opl3 * opl3,
 	if (device == 0)
 		hw->oss_type = SNDRV_OSS_DEVICE_TYPE_DMFM;
 #endif
-	strcpy(hw->name, hw->id);
+	strscpy(hw->name, hw->id);
 	switch (opl3->hardware & OPL3_HW_MASK) {
 	case OPL3_HW_OPL2:
-		strcpy(hw->name, "OPL2 FM");
+		strscpy(hw->name, "OPL2 FM");
 		hw->iface = SNDRV_HWDEP_IFACE_OPL2;
 		break;
 	case OPL3_HW_OPL3:
-		strcpy(hw->name, "OPL3 FM");
+		strscpy(hw->name, "OPL3 FM");
 		hw->iface = SNDRV_HWDEP_IFACE_OPL3;
 		break;
 	case OPL3_HW_OPL4:
-		strcpy(hw->name, "OPL4 FM");
+		strscpy(hw->name, "OPL4 FM");
 		hw->iface = SNDRV_HWDEP_IFACE_OPL4;
 		break;
 	}
@@ -524,7 +510,7 @@ int snd_opl3_hwdep_new(struct snd_opl3 * opl3,
 #if IS_ENABLED(CONFIG_SND_SEQUENCER)
 	if (snd_seq_device_new(card, seq_device, SNDRV_SEQ_DEV_ID_OPL3,
 			       sizeof(struct snd_opl3 *), &opl3->seq_dev) >= 0) {
-		strcpy(opl3->seq_dev->name, hw->name);
+		strscpy(opl3->seq_dev->name, hw->name);
 		*(struct snd_opl3 **)SNDRV_SEQ_DEVICE_ARGPTR(opl3->seq_dev) = opl3;
 	}
 #endif

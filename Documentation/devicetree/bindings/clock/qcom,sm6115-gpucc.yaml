@@ -13,7 +13,7 @@ description: |
   Qualcomm graphics clock control module provides clocks, resets and power
   domains on Qualcomm SoCs.
 
-  See also:: include/dt-bindings/clock/qcom,sm6115-gpucc.h
+  See also: include/dt-bindings/clock/qcom,sm6115-gpucc.h
 
 properties:
   compatible:

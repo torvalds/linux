@@ -9,7 +9,7 @@
  * Copyright 2007, Michael Wu <flamingice@sourmilk.net>
  * Copyright 2013-2015  Intel Mobile Communications GmbH
  * Copyright 2016-2017  Intel Deutschland GmbH
- * Copyright (C) 2018-2024 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  */
 
 #include <linux/if_arp.h>
@@ -586,7 +586,8 @@ static int ieee80211_start_sw_scan(struct ieee80211_local *local,
 	return 0;
 }
 
-static bool __ieee80211_can_leave_ch(struct ieee80211_sub_if_data *sdata)
+static bool __ieee80211_can_leave_ch(struct ieee80211_sub_if_data *sdata,
+				     struct cfg80211_scan_request *req)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_sub_if_data *sdata_iter;
@@ -594,7 +595,7 @@ static bool __ieee80211_can_leave_ch(struct ieee80211_sub_if_data *sdata)
 
 	lockdep_assert_wiphy(local->hw.wiphy);
 
-	if (!ieee80211_is_radar_required(local))
+	if (!ieee80211_is_radar_required(local, req))
 		return true;
 
 	if (!regulatory_pre_cac_allowed(local->hw.wiphy))
@@ -610,9 +611,10 @@ static bool __ieee80211_can_leave_ch(struct ieee80211_sub_if_data *sdata)
 }
 
 static bool ieee80211_can_scan(struct ieee80211_local *local,
-			       struct ieee80211_sub_if_data *sdata)
+			       struct ieee80211_sub_if_data *sdata,
+			       struct cfg80211_scan_request *req)
 {
-	if (!__ieee80211_can_leave_ch(sdata))
+	if (!__ieee80211_can_leave_ch(sdata, req))
 		return false;
 
 	if (!list_empty(&local->roc_list))
@@ -627,15 +629,19 @@ static bool ieee80211_can_scan(struct ieee80211_local *local,
 
 void ieee80211_run_deferred_scan(struct ieee80211_local *local)
 {
+	struct cfg80211_scan_request *req;
+
 	lockdep_assert_wiphy(local->hw.wiphy);
 
 	if (!local->scan_req || local->scanning)
 		return;
 
+	req = wiphy_dereference(local->hw.wiphy, local->scan_req);
 	if (!ieee80211_can_scan(local,
 				rcu_dereference_protected(
 					local->scan_sdata,
-					lockdep_is_held(&local->hw.wiphy->mtx))))
+					lockdep_is_held(&local->hw.wiphy->mtx)),
+				req))
 		return;
 
 	wiphy_delayed_work_queue(local->hw.wiphy, &local->scan_work,
@@ -732,10 +738,10 @@ static int __ieee80211_start_scan(struct ieee80211_sub_if_data *sdata,
 	    !(sdata->vif.active_links & BIT(req->tsf_report_link_id)))
 		return -EINVAL;
 
-	if (!__ieee80211_can_leave_ch(sdata))
+	if (!__ieee80211_can_leave_ch(sdata, req))
 		return -EBUSY;
 
-	if (!ieee80211_can_scan(local, sdata)) {
+	if (!ieee80211_can_scan(local, sdata, req)) {
 		/* wait for the work to finish/time out */
 		rcu_assign_pointer(local->scan_req, req);
 		rcu_assign_pointer(local->scan_sdata, sdata);
@@ -794,6 +800,7 @@ static int __ieee80211_start_scan(struct ieee80211_sub_if_data *sdata,
 		local->hw_scan_req->req.scan_6ghz_params =
 			req->scan_6ghz_params;
 		local->hw_scan_req->req.scan_6ghz = req->scan_6ghz;
+		local->hw_scan_req->req.first_part = req->first_part;
 
 		/*
 		 * After allocating local->hw_scan_req, we must
@@ -989,15 +996,15 @@ static void ieee80211_scan_state_set_channel(struct ieee80211_local *local,
 	local->scan_chandef.freq1_offset = chan->freq_offset;
 	local->scan_chandef.center_freq2 = 0;
 
-	/* For scanning on the S1G band, detect the channel width according to
-	 * the channel being scanned.
-	 */
+	/* For S1G, only scan the 1MHz primaries. */
 	if (chan->band == NL80211_BAND_S1GHZ) {
-		local->scan_chandef.width = ieee80211_s1g_channel_width(chan);
+		local->scan_chandef.width = NL80211_CHAN_WIDTH_1;
+		local->scan_chandef.s1g_primary_2mhz = false;
 		goto set_channel;
 	}
 
-	/* If scanning on oper channel, use whatever channel-type
+	/*
+	 * If scanning on oper channel, use whatever channel-type
 	 * is currently in use.
 	 */
 	if (chan == local->hw.conf.chandef.chan)
@@ -1206,7 +1213,8 @@ int ieee80211_request_ibss_scan(struct ieee80211_sub_if_data *sdata,
 
 		for (band = 0; band < NUM_NL80211_BANDS; band++) {
 			if (!local->hw.wiphy->bands[band] ||
-			    band == NL80211_BAND_6GHZ)
+			    band == NL80211_BAND_6GHZ ||
+			    band == NL80211_BAND_S1GHZ)
 				continue;
 
 			max_n = local->hw.wiphy->bands[band]->n_channels;

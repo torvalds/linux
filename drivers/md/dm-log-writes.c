@@ -414,7 +414,7 @@ static int log_super(struct log_writes_c *lc)
 	}
 
 	/*
-	 * Super sector should be writen in-order, otherwise the
+	 * Super sector should be written in-order, otherwise the
 	 * nr_entries could be rewritten incorrectly by an old bio.
 	 */
 	wait_for_completion_io(&lc->super_done);
@@ -893,7 +893,7 @@ static struct dax_device *log_writes_dax_pgoff(struct dm_target *ti,
 
 static long log_writes_dax_direct_access(struct dm_target *ti, pgoff_t pgoff,
 		long nr_pages, enum dax_access_mode mode, void **kaddr,
-		pfn_t *pfn)
+		unsigned long *pfn)
 {
 	struct dax_device *dax_dev = log_writes_dax_pgoff(ti, &pgoff);
 

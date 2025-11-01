@@ -24,6 +24,7 @@ properties:
       - const: nvidia,tegra186-gpcdma
       - items:
           - enum:
+              - nvidia,tegra264-gpcdma
               - nvidia,tegra234-gpcdma
               - nvidia,tegra194-gpcdma
           - const: nvidia,tegra186-gpcdma

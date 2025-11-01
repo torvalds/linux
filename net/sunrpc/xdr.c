@@ -37,19 +37,6 @@ xdr_encode_netobj(__be32 *p, const struct xdr_netobj *obj)
 }
 EXPORT_SYMBOL_GPL(xdr_encode_netobj);
 
-__be32 *
-xdr_decode_netobj(__be32 *p, struct xdr_netobj *obj)
-{
-	unsigned int	len;
-
-	if ((len = be32_to_cpu(*p++)) > XDR_MAX_NETOBJ)
-		return NULL;
-	obj->len  = len;
-	obj->data = (u8 *) p;
-	return p + XDR_QUADLEN(len);
-}
-EXPORT_SYMBOL_GPL(xdr_decode_netobj);
-
 /**
  * xdr_encode_opaque_fixed - Encode fixed length opaque data
  * @p: pointer to current position in XDR buffer.
@@ -101,21 +88,6 @@ xdr_encode_string(__be32 *p, const char *string)
 	return xdr_encode_array(p, string, strlen(string));
 }
 EXPORT_SYMBOL_GPL(xdr_encode_string);
-
-__be32 *
-xdr_decode_string_inplace(__be32 *p, char **sp,
-			  unsigned int *lenp, unsigned int maxlen)
-{
-	u32 len;
-
-	len = be32_to_cpu(*p++);
-	if (len > maxlen)
-		return NULL;
-	*lenp = len;
-	*sp = (char *) p;
-	return p + XDR_QUADLEN(len);
-}
-EXPORT_SYMBOL_GPL(xdr_decode_string_inplace);
 
 /**
  * xdr_terminate_string - '\0'-terminate a string residing in an xdr_buf
@@ -993,21 +965,18 @@ EXPORT_SYMBOL_GPL(xdr_init_encode);
  * xdr_init_encode_pages - Initialize an xdr_stream for encoding into pages
  * @xdr: pointer to xdr_stream struct
  * @buf: pointer to XDR buffer into which to encode data
- * @pages: list of pages to decode into
- * @rqst: pointer to controlling rpc_rqst, for debugging
  *
  */
-void xdr_init_encode_pages(struct xdr_stream *xdr, struct xdr_buf *buf,
-			   struct page **pages, struct rpc_rqst *rqst)
+void xdr_init_encode_pages(struct xdr_stream *xdr, struct xdr_buf *buf)
 {
 	xdr_reset_scratch_buffer(xdr);
 
 	xdr->buf = buf;
-	xdr->page_ptr = pages;
+	xdr->page_ptr = buf->pages;
 	xdr->iov = NULL;
-	xdr->p = page_address(*pages);
+	xdr->p = page_address(*xdr->page_ptr);
 	xdr->end = (void *)xdr->p + min_t(u32, buf->buflen, PAGE_SIZE);
-	xdr->rqst = rqst;
+	xdr->rqst = NULL;
 }
 EXPORT_SYMBOL_GPL(xdr_init_encode_pages);
 
@@ -2246,88 +2215,6 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(xdr_process_buf);
-
-/**
- * xdr_stream_decode_opaque - Decode variable length opaque
- * @xdr: pointer to xdr_stream
- * @ptr: location to store opaque data
- * @size: size of storage buffer @ptr
- *
- * Return values:
- *   On success, returns size of object stored in *@ptr
- *   %-EBADMSG on XDR buffer overflow
- *   %-EMSGSIZE on overflow of storage buffer @ptr
- */
-ssize_t xdr_stream_decode_opaque(struct xdr_stream *xdr, void *ptr, size_t size)
-{
-	ssize_t ret;
-	void *p;
-
-	ret = xdr_stream_decode_opaque_inline(xdr, &p, size);
-	if (ret <= 0)
-		return ret;
-	memcpy(ptr, p, ret);
-	return ret;
-}
-EXPORT_SYMBOL_GPL(xdr_stream_decode_opaque);
-
-/**
- * xdr_stream_decode_opaque_dup - Decode and duplicate variable length opaque
- * @xdr: pointer to xdr_stream
- * @ptr: location to store pointer to opaque data
- * @maxlen: maximum acceptable object size
- * @gfp_flags: GFP mask to use
- *
- * Return values:
- *   On success, returns size of object stored in *@ptr
- *   %-EBADMSG on XDR buffer overflow
- *   %-EMSGSIZE if the size of the object would exceed @maxlen
- *   %-ENOMEM on memory allocation failure
- */
-ssize_t xdr_stream_decode_opaque_dup(struct xdr_stream *xdr, void **ptr,
-		size_t maxlen, gfp_t gfp_flags)
-{
-	ssize_t ret;
-	void *p;
-
-	ret = xdr_stream_decode_opaque_inline(xdr, &p, maxlen);
-	if (ret > 0) {
-		*ptr = kmemdup(p, ret, gfp_flags);
-		if (*ptr != NULL)
-			return ret;
-		ret = -ENOMEM;
-	}
-	*ptr = NULL;
-	return ret;
-}
-EXPORT_SYMBOL_GPL(xdr_stream_decode_opaque_dup);
-
-/**
- * xdr_stream_decode_string - Decode variable length string
- * @xdr: pointer to xdr_stream
- * @str: location to store string
- * @size: size of storage buffer @str
- *
- * Return values:
- *   On success, returns length of NUL-terminated string stored in *@str
- *   %-EBADMSG on XDR buffer overflow
- *   %-EMSGSIZE on overflow of storage buffer @str
- */
-ssize_t xdr_stream_decode_string(struct xdr_stream *xdr, char *str, size_t size)
-{
-	ssize_t ret;
-	void *p;
-
-	ret = xdr_stream_decode_opaque_inline(xdr, &p, size);
-	if (ret > 0) {
-		memcpy(str, p, ret);
-		str[ret] = '\0';
-		return strlen(str);
-	}
-	*str = '\0';
-	return ret;
-}
-EXPORT_SYMBOL_GPL(xdr_stream_decode_string);
 
 /**
  * xdr_stream_decode_string_dup - Decode and duplicate variable length string

@@ -534,8 +534,7 @@ static int mchp_corespi_probe(struct platform_device *pdev)
 
 	host = devm_spi_alloc_host(&pdev->dev, sizeof(*spi));
 	if (!host)
-		return dev_err_probe(&pdev->dev, -ENOMEM,
-				     "unable to allocate host for SPI controller\n");
+		return -ENOMEM;
 
 	platform_set_drvdata(pdev, host);
 

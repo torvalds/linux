@@ -10,6 +10,7 @@
 #include <linux/netdevice.h>
 #include <linux/if_vlan.h>
 #include <linux/phylink.h>
+#include <linux/dim.h>
 #include <net/ip.h>
 
 #define WX_NCSI_SUP                             0x8000
@@ -167,9 +168,12 @@
 #define WX_RDB_PL_CFG_L2HDR          BIT(3)
 #define WX_RDB_PL_CFG_TUN_TUNHDR     BIT(4)
 #define WX_RDB_PL_CFG_TUN_OUTL2HDR   BIT(5)
+#define WX_RDB_PL_CFG_RSS_EN         BIT(24)
+#define WX_RDB_PL_CFG_RSS_MASK       GENMASK(23, 16)
 #define WX_RDB_RSSTBL(_i)            (0x19400 + ((_i) * 4))
 #define WX_RDB_RSSRK(_i)             (0x19480 + ((_i) * 4))
 #define WX_RDB_RA_CTL                0x194F4
+#define WX_RDB_RA_CTL_MULTI_RSS      BIT(0)
 #define WX_RDB_RA_CTL_RSS_EN         BIT(2) /* RSS Enable */
 #define WX_RDB_RA_CTL_RSS_IPV4_TCP   BIT(16)
 #define WX_RDB_RA_CTL_RSS_IPV4       BIT(17)
@@ -177,8 +181,12 @@
 #define WX_RDB_RA_CTL_RSS_IPV6_TCP   BIT(21)
 #define WX_RDB_RA_CTL_RSS_IPV4_UDP   BIT(22)
 #define WX_RDB_RA_CTL_RSS_IPV6_UDP   BIT(23)
+#define WX_RDB_RA_CTL_RSS_MASK       GENMASK(23, 16)
 #define WX_RDB_FDIR_MATCH            0x19558
 #define WX_RDB_FDIR_MISS             0x1955C
+/* VM RSS */
+#define WX_RDB_VMRSSRK(_i, _p)       (0x1A000 + ((_i) * 4) + ((_p) * 0x40))
+#define WX_RDB_VMRSSTBL(_i, _p)      (0x1B000 + ((_i) * 4) + ((_p) * 0x40))
 
 /******************************* PSR Registers *******************************/
 /* psr control */
@@ -825,6 +833,11 @@ struct wx_bus_info {
 
 struct wx_mbx_info {
 	u16 size;
+	u32 mailbox;
+	u32 udelay;
+	u32 timeout;
+	/* lock mbx access */
+	spinlock_t mbx_lock;
 };
 
 struct wx_thermal_sensor_data {
@@ -909,7 +922,6 @@ enum wx_reset_type {
 struct wx_cb {
 	dma_addr_t dma;
 	u16     append_cnt;      /* number of skb's appended */
-	bool    page_released;
 	bool    dma_released;
 };
 
@@ -998,7 +1010,6 @@ struct wx_tx_buffer {
 struct wx_rx_buffer {
 	struct sk_buff *skb;
 	dma_addr_t dma;
-	dma_addr_t page_dma;
 	struct page *page;
 	unsigned int page_offset;
 };
@@ -1030,6 +1041,7 @@ struct wx_ring_container {
 	unsigned int total_packets;     /* total packets processed this int */
 	u8 count;                       /* total number of rings in vector */
 	u8 itr;                         /* current ITR setting for ring */
+	struct dim dim;                 /* data for net_dim algorithm */
 };
 struct wx_ring {
 	struct wx_ring *next;           /* pointer to next ring in q_vector */
@@ -1085,6 +1097,8 @@ struct wx_q_vector {
 	struct wx_ring_container rx, tx;
 	struct napi_struct napi;
 	struct rcu_head rcu;    /* to avoid race with update stats on free */
+
+	u16 total_events;       /* number of interrupts processed */
 
 	char name[IFNAMSIZ + 17];
 
@@ -1185,12 +1199,28 @@ struct vf_macvlans {
 	u8 vf_macvlan[ETH_ALEN];
 };
 
+#define WX_RSS_FIELD_IPV4_TCP      BIT(0)
+#define WX_RSS_FIELD_IPV4          BIT(1)
+#define WX_RSS_FIELD_IPV4_SCTP     BIT(2)
+#define WX_RSS_FIELD_IPV6_SCTP     BIT(3)
+#define WX_RSS_FIELD_IPV6_TCP      BIT(4)
+#define WX_RSS_FIELD_IPV6          BIT(5)
+#define WX_RSS_FIELD_IPV4_UDP      BIT(6)
+#define WX_RSS_FIELD_IPV6_UDP      BIT(7)
+
+struct wx_rss_flow_map {
+	u8 flow_type;
+	u32 data;
+	u8 flag;
+};
+
 enum wx_pf_flags {
 	WX_FLAG_MULTI_64_FUNC,
 	WX_FLAG_SWFW_RING,
 	WX_FLAG_VMDQ_ENABLED,
 	WX_FLAG_VLAN_PROMISC,
 	WX_FLAG_SRIOV_ENABLED,
+	WX_FLAG_IRQ_VECTOR_SHARED,
 	WX_FLAG_FDIR_CAPABLE,
 	WX_FLAG_FDIR_HASH,
 	WX_FLAG_FDIR_PERFECT,
@@ -1200,6 +1230,8 @@ enum wx_pf_flags {
 	WX_FLAG_PTP_PPS_ENABLED,
 	WX_FLAG_NEED_LINK_CONFIG,
 	WX_FLAG_NEED_SFP_RESET,
+	WX_FLAG_NEED_UPDATE_LINK,
+	WX_FLAG_NEED_DO_RESET,
 	WX_PF_FLAGS_NBITS               /* must be last */
 };
 
@@ -1210,6 +1242,7 @@ struct wx {
 
 	void *priv;
 	u8 __iomem *hw_addr;
+	u8 __iomem *b4_addr; /* vf only */
 	struct pci_dev *pdev;
 	struct net_device *netdev;
 	struct wx_bus_info bus;
@@ -1261,6 +1294,7 @@ struct wx {
 	int num_rx_queues;
 	u16 rx_itr_setting;
 	u16 rx_work_limit;
+	bool adaptive_itr;
 
 	int num_q_vectors;      /* current number of q_vectors for device */
 	int max_q_vectors;      /* upper limit of q_vectors for device */
@@ -1284,10 +1318,13 @@ struct wx {
 	u32 *isb_mem;
 	u32 isb_tag[WX_ISB_MAX];
 	bool misc_irq_domain;
+	u32 eims_other;
+	u32 eims_enable_mask;
 
 #define WX_MAX_RETA_ENTRIES 128
 #define WX_RSS_INDIR_TBL_MAX 64
 	u8 rss_indir_tbl[WX_MAX_RETA_ENTRIES];
+	u8 rss_flags;
 	bool rss_enabled;
 #define WX_RSS_KEY_SIZE     40  /* size of RSS Hash Key in bytes */
 	u32 *rss_key;
@@ -1315,6 +1352,7 @@ struct wx {
 	int (*setup_tc)(struct net_device *netdev, u8 tc);
 	void (*do_reset)(struct net_device *netdev);
 	int (*ptp_setup_sdp)(struct wx *wx);
+	void (*set_num_queues)(struct wx *wx);
 
 	bool pps_enabled;
 	u64 pps_width;
@@ -1343,7 +1381,7 @@ struct wx {
 };
 
 #define WX_INTR_ALL (~0ULL)
-#define WX_INTR_Q(i) BIT((i) + 1)
+#define WX_INTR_Q(i) BIT((i))
 
 /* register operations */
 #define wr32(a, reg, value)	writel((value), ((a)->hw_addr + (reg)))

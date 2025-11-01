@@ -1113,8 +1113,7 @@ xfs_refcount_still_have_space(
 	 * refcount continue update "error" has been injected.
 	 */
 	if (cur->bc_refc.nr_ops > 2 &&
-	    XFS_TEST_ERROR(false, cur->bc_mp,
-			XFS_ERRTAG_REFCOUNT_CONTINUE_UPDATE))
+	    XFS_TEST_ERROR(cur->bc_mp, XFS_ERRTAG_REFCOUNT_CONTINUE_UPDATE))
 		return false;
 
 	if (cur->bc_refc.nr_ops == 0)
@@ -1398,7 +1397,7 @@ xfs_refcount_finish_one(
 
 	trace_xfs_refcount_deferred(mp, ri);
 
-	if (XFS_TEST_ERROR(false, mp, XFS_ERRTAG_REFCOUNT_FINISH_ONE))
+	if (XFS_TEST_ERROR(mp, XFS_ERRTAG_REFCOUNT_FINISH_ONE))
 		return -EIO;
 
 	/*
@@ -1511,7 +1510,7 @@ xfs_rtrefcount_finish_one(
 
 	trace_xfs_refcount_deferred(mp, ri);
 
-	if (XFS_TEST_ERROR(false, mp, XFS_ERRTAG_REFCOUNT_FINISH_ONE))
+	if (XFS_TEST_ERROR(mp, XFS_ERRTAG_REFCOUNT_FINISH_ONE))
 		return -EIO;
 
 	/*
@@ -2099,9 +2098,7 @@ xfs_refcount_recover_cow_leftovers(
 	 * recording the CoW debris we cancel the (empty) transaction
 	 * and everything goes away cleanly.
 	 */
-	error = xfs_trans_alloc_empty(mp, &tp);
-	if (error)
-		return error;
+	tp = xfs_trans_alloc_empty(mp);
 
 	if (isrt) {
 		xfs_rtgroup_lock(to_rtg(xg), XFS_RTGLOCK_REFCOUNT);

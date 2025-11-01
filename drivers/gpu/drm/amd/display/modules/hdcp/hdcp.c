@@ -29,6 +29,7 @@ static void push_error_status(struct mod_hdcp *hdcp,
 		enum mod_hdcp_status status)
 {
 	struct mod_hdcp_trace *trace = &hdcp->connection.trace;
+	const uint8_t retry_limit = hdcp->connection.link.adjust.retry_limit;
 
 	if (trace->error_count < MAX_NUM_OF_ERROR_TRACE) {
 		trace->errors[trace->error_count].status = status;
@@ -39,11 +40,11 @@ static void push_error_status(struct mod_hdcp *hdcp,
 
 	if (is_hdcp1(hdcp)) {
 		hdcp->connection.hdcp1_retry_count++;
-		if (hdcp->connection.hdcp1_retry_count == MAX_NUM_OF_ATTEMPTS)
+		if (hdcp->connection.hdcp1_retry_count == retry_limit)
 			hdcp->connection.link.adjust.hdcp1.disable = 1;
 	} else if (is_hdcp2(hdcp)) {
 		hdcp->connection.hdcp2_retry_count++;
-		if (hdcp->connection.hdcp2_retry_count == MAX_NUM_OF_ATTEMPTS)
+		if (hdcp->connection.hdcp2_retry_count == retry_limit)
 			hdcp->connection.link.adjust.hdcp2.disable = 1;
 	}
 }
@@ -353,7 +354,7 @@ enum mod_hdcp_status mod_hdcp_add_display(struct mod_hdcp *hdcp,
 	/* reset retry counters */
 	reset_retry_counts(hdcp);
 
-	/* reset error trace */
+	/* reset trace */
 	memset(&hdcp->connection.trace, 0, sizeof(hdcp->connection.trace));
 
 	/* add display to connection */
@@ -399,7 +400,7 @@ enum mod_hdcp_status mod_hdcp_remove_display(struct mod_hdcp *hdcp,
 	/* clear retry counters */
 	reset_retry_counts(hdcp);
 
-	/* reset error trace */
+	/* reset trace */
 	memset(&hdcp->connection.trace, 0, sizeof(hdcp->connection.trace));
 
 	/* remove display */
@@ -463,7 +464,7 @@ enum mod_hdcp_status mod_hdcp_update_display(struct mod_hdcp *hdcp,
 	/* clear retry counters */
 	reset_retry_counts(hdcp);
 
-	/* reset error trace */
+	/* reset trace */
 	memset(&hdcp->connection.trace, 0, sizeof(hdcp->connection.trace));
 
 	/* set new adjustment */

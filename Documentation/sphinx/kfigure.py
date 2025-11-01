@@ -1,4 +1,5 @@
 # -*- coding: utf-8; mode: python -*-
+# SPDX-License-Identifier: GPL-2.0
 # pylint: disable=C0103, R0903, R0912, R0915
 """
     scalable figure and image handling

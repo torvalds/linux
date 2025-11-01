@@ -130,11 +130,6 @@ DEFINE_EVENT(cache_tag_log, cache_tag_unassign,
 	TP_ARGS(tag)
 );
 
-DEFINE_EVENT(cache_tag_log, cache_tag_flush_all,
-	TP_PROTO(struct cache_tag *tag),
-	TP_ARGS(tag)
-);
-
 DECLARE_EVENT_CLASS(cache_tag_flush,
 	TP_PROTO(struct cache_tag *tag, unsigned long start, unsigned long end,
 		 unsigned long addr, unsigned long pages, unsigned long mask),

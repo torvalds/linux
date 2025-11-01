@@ -150,6 +150,8 @@ static int mt7921s_probe(struct sdio_func *func,
 	if (ret)
 		goto error;
 
+	atomic_set(&mdev->bus_hung, false);
+
 	mdev->rev = (mt76_rr(dev, MT_HW_CHIPID) << 16) |
 		    (mt76_rr(dev, MT_HW_REV) & 0xff);
 	dev_dbg(mdev->dev, "ASIC revision: %04x\n", mdev->rev);

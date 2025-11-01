@@ -919,7 +919,7 @@ static int versal_pinctrl_prepare_pin_desc(struct device *dev,
 	if (ret)
 		return ret;
 
-	pins = devm_kzalloc(dev, sizeof(*pins) * *npins, GFP_KERNEL);
+	pins = devm_kcalloc(dev, *npins, sizeof(*pins), GFP_KERNEL);
 	if (!pins)
 		return -ENOMEM;
 

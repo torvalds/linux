@@ -45,15 +45,14 @@ static void load_runtime_stat(struct evlist *evlist, struct value *vals)
 	}
 }
 
-static double compute_single(struct rblist *metric_events, struct evlist *evlist,
-			     const char *name)
+static double compute_single(struct evlist *evlist, const char *name)
 {
 	struct metric_expr *mexp;
 	struct metric_event *me;
 	struct evsel *evsel;
 
 	evlist__for_each_entry(evlist, evsel) {
-		me = metricgroup__lookup(metric_events, evsel, false);
+		me = metricgroup__lookup(&evlist->metric_events, evsel, false);
 		if (me != NULL) {
 			list_for_each_entry (mexp, &me->head, nd) {
 				if (strcmp(mexp->metric_name, name))
@@ -69,9 +68,6 @@ static int __compute_metric(const char *name, struct value *vals,
 			    const char *name1, double *ratio1,
 			    const char *name2, double *ratio2)
 {
-	struct rblist metric_events = {
-		.nr_entries = 0,
-	};
 	const struct pmu_metrics_table *pme_test;
 	struct perf_cpu_map *cpus;
 	struct evlist *evlist;
@@ -95,8 +91,7 @@ static int __compute_metric(const char *name, struct value *vals,
 
 	/* Parse the metric into metric_events list. */
 	pme_test = find_core_metrics_table("testarch", "testcpu");
-	err = metricgroup__parse_groups_test(evlist, pme_test, name,
-					     &metric_events);
+	err = metricgroup__parse_groups_test(evlist, pme_test, name);
 	if (err)
 		goto out;
 
@@ -109,13 +104,12 @@ static int __compute_metric(const char *name, struct value *vals,
 
 	/* And execute the metric */
 	if (name1 && ratio1)
-		*ratio1 = compute_single(&metric_events, evlist, name1);
+		*ratio1 = compute_single(evlist, name1);
 	if (name2 && ratio2)
-		*ratio2 = compute_single(&metric_events, evlist, name2);
+		*ratio2 = compute_single(evlist, name2);
 
 out:
 	/* ... cleanup. */
-	metricgroup__rblist_exit(&metric_events);
 	evlist__free_stats(evlist);
 	perf_cpu_map__put(cpus);
 	evlist__delete(evlist);

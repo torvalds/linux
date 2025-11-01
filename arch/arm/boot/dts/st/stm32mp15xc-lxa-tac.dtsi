@@ -262,7 +262,7 @@ baseboard_eeprom: &sip_eeprom {
 	status = "okay";
 
 	usbhub: usbhub@2c {
-		compatible ="microchip,usb2514b";
+		compatible = "microchip,usb2514b";
 		reg = <0x2c>;
 		vdd-supply = <&v3v3>;
 		reset-gpios = <&gpiob 6 GPIO_ACTIVE_LOW>;

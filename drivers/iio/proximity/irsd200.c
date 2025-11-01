@@ -763,10 +763,9 @@ static irqreturn_t irsd200_trigger_handler(int irq, void *pollf)
 	struct {
 		s16 channel;
 		aligned_s64 ts;
-	} scan;
+	} scan = { };
 	int ret;
 
-	memset(&scan, 0, sizeof(scan));
 	ret = irsd200_read_data(data, &scan.channel);
 	if (ret)
 		goto end;
@@ -863,8 +862,7 @@ static int irsd200_probe(struct i2c_client *client)
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
-		return dev_err_probe(&client->dev, -ENOMEM,
-				     "Could not allocate iio device\n");
+		return -ENOMEM;
 
 	data = iio_priv(indio_dev);
 	data->dev = &client->dev;
@@ -885,9 +883,8 @@ static int irsd200_probe(struct i2c_client *client)
 
 	ret = devm_regulator_get_enable(data->dev, "vdd");
 	if (ret)
-		return dev_err_probe(
-			data->dev, ret,
-			"Could not get and enable regulator (%d)\n", ret);
+		return dev_err_probe(data->dev, ret,
+				     "Could not get and enable regulator\n");
 
 	ret = irsd200_setup(data);
 	if (ret)
@@ -905,23 +902,20 @@ static int irsd200_probe(struct i2c_client *client)
 	ret = devm_iio_triggered_buffer_setup(data->dev, indio_dev, NULL,
 					      irsd200_trigger_handler, NULL);
 	if (ret)
-		return dev_err_probe(
-			data->dev, ret,
-			"Could not setup iio triggered buffer (%d)\n", ret);
+		return dev_err_probe(data->dev, ret,
+				     "Could not setup iio triggered buffer\n");
 
 	ret = devm_request_threaded_irq(data->dev, client->irq, NULL,
 					irsd200_irq_thread,
 					IRQF_TRIGGER_RISING | IRQF_ONESHOT,
 					NULL, indio_dev);
 	if (ret)
-		return dev_err_probe(data->dev, ret,
-				     "Could not request irq (%d)\n", ret);
+		return dev_err_probe(data->dev, ret, "Could not request irq\n");
 
 	trigger = devm_iio_trigger_alloc(data->dev, "%s-dev%d", indio_dev->name,
 					 iio_device_id(indio_dev));
 	if (!trigger)
-		return dev_err_probe(data->dev, -ENOMEM,
-				     "Could not allocate iio trigger\n");
+		return -ENOMEM;
 
 	trigger->ops = &irsd200_trigger_ops;
 	iio_trigger_set_drvdata(trigger, data);
@@ -929,14 +923,12 @@ static int irsd200_probe(struct i2c_client *client)
 	ret = devm_iio_trigger_register(data->dev, trigger);
 	if (ret)
 		return dev_err_probe(data->dev, ret,
-				     "Could not register iio trigger (%d)\n",
-				     ret);
+				     "Could not register iio trigger\n");
 
 	ret = devm_iio_device_register(data->dev, indio_dev);
 	if (ret)
 		return dev_err_probe(data->dev, ret,
-				     "Could not register iio device (%d)\n",
-				     ret);
+				     "Could not register iio device\n");
 
 	return 0;
 }

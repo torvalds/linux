@@ -2,7 +2,7 @@
 /* Copyright (c) 2014 Mahesh Bandewar <maheshb@google.com>
  */
 
-#include <net/inet_dscp.h>
+#include <net/flow.h>
 #include <net/ip.h>
 
 #include "ipvlan.h"
@@ -433,7 +433,7 @@ static noinline_for_stack int ipvlan_process_v4_outbound(struct sk_buff *skb)
 	ip4h = ip_hdr(skb);
 	fl4.daddr = ip4h->daddr;
 	fl4.saddr = ip4h->saddr;
-	fl4.flowi4_tos = inet_dscp_to_dsfield(ip4h_dscp(ip4h));
+	fl4.flowi4_dscp = ip4h_dscp(ip4h);
 
 	rt = ip_route_output_flow(net, &fl4, NULL);
 	if (IS_ERR(rt))

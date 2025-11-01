@@ -17,9 +17,9 @@
 #include "clk.h"
 
 /* clock separated gate register offset */
-#define CLKGATE_SEPERATED_ENABLE		0x0
-#define CLKGATE_SEPERATED_DISABLE		0x4
-#define CLKGATE_SEPERATED_STATUS		0x8
+#define CLKGATE_SEPARATED_ENABLE		0x0
+#define CLKGATE_SEPARATED_DISABLE		0x4
+#define CLKGATE_SEPARATED_STATUS		0x8
 
 struct clkgate_separated {
 	struct clk_hw	hw;
@@ -40,7 +40,7 @@ static int clkgate_separated_enable(struct clk_hw *hw)
 		spin_lock_irqsave(sclk->lock, flags);
 	reg = BIT(sclk->bit_idx);
 	writel_relaxed(reg, sclk->enable);
-	readl_relaxed(sclk->enable + CLKGATE_SEPERATED_STATUS);
+	readl_relaxed(sclk->enable + CLKGATE_SEPARATED_STATUS);
 	if (sclk->lock)
 		spin_unlock_irqrestore(sclk->lock, flags);
 	return 0;
@@ -56,8 +56,8 @@ static void clkgate_separated_disable(struct clk_hw *hw)
 	if (sclk->lock)
 		spin_lock_irqsave(sclk->lock, flags);
 	reg = BIT(sclk->bit_idx);
-	writel_relaxed(reg, sclk->enable + CLKGATE_SEPERATED_DISABLE);
-	readl_relaxed(sclk->enable + CLKGATE_SEPERATED_STATUS);
+	writel_relaxed(reg, sclk->enable + CLKGATE_SEPARATED_DISABLE);
+	readl_relaxed(sclk->enable + CLKGATE_SEPARATED_STATUS);
 	if (sclk->lock)
 		spin_unlock_irqrestore(sclk->lock, flags);
 }
@@ -68,7 +68,7 @@ static int clkgate_separated_is_enabled(struct clk_hw *hw)
 	u32 reg;
 
 	sclk = container_of(hw, struct clkgate_separated, hw);
-	reg = readl_relaxed(sclk->enable + CLKGATE_SEPERATED_STATUS);
+	reg = readl_relaxed(sclk->enable + CLKGATE_SEPARATED_STATUS);
 	reg &= BIT(sclk->bit_idx);
 
 	return reg ? 1 : 0;
@@ -100,7 +100,7 @@ struct clk *hisi_register_clkgate_sep(struct device *dev, const char *name,
 	init.parent_names = (parent_name ? &parent_name : NULL);
 	init.num_parents = (parent_name ? 1 : 0);
 
-	sclk->enable = reg + CLKGATE_SEPERATED_ENABLE;
+	sclk->enable = reg + CLKGATE_SEPARATED_ENABLE;
 	sclk->bit_idx = bit_idx;
 	sclk->flags = clk_gate_flags;
 	sclk->hw.init = &init;

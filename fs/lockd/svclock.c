@@ -980,7 +980,7 @@ nlmsvc_grant_reply(struct nlm_cookie *cookie, __be32 status)
 	struct file_lock	*fl;
 	int			error;
 
-	dprintk("grant_reply: looking for cookie %x, s=%d \n",
+	dprintk("grant_reply: looking for cookie %x, s=%d\n",
 		*(unsigned int *)(cookie->data), status);
 	if (!(block = nlmsvc_find_block(cookie)))
 		return;

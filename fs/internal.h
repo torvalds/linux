@@ -53,7 +53,7 @@ extern int finish_clean_context(struct fs_context *fc);
  * namei.c
  */
 extern int filename_lookup(int dfd, struct filename *name, unsigned flags,
-			   struct path *path, struct path *root);
+			   struct path *path, const struct path *root);
 int do_rmdir(int dfd, struct filename *name);
 int do_unlinkat(int dfd, struct filename *name);
 int may_linkat(struct mnt_idmap *idmap, const struct path *link);
@@ -84,9 +84,9 @@ void mnt_put_write_access_file(struct file *file);
 extern void dissolve_on_fput(struct vfsmount *);
 extern bool may_mount(void);
 
-int path_mount(const char *dev_name, struct path *path,
+int path_mount(const char *dev_name, const struct path *path,
 		const char *type_page, unsigned long flags, void *data_page);
-int path_umount(struct path *path, int flags);
+int path_umount(const struct path *path, int flags);
 
 int show_path(struct seq_file *m, struct dentry *root);
 
@@ -101,6 +101,7 @@ extern void chroot_fs_refs(const struct path *, const struct path *);
 struct file *alloc_empty_file(int flags, const struct cred *cred);
 struct file *alloc_empty_file_noaccount(int flags, const struct cred *cred);
 struct file *alloc_empty_backing_file(int flags, const struct cred *cred);
+void backing_file_set_user_path(struct file *f, const struct path *path);
 
 static inline void file_put_write_access(struct file *file)
 {
@@ -322,12 +323,15 @@ struct mnt_idmap *alloc_mnt_idmap(struct user_namespace *mnt_userns);
 struct mnt_idmap *mnt_idmap_get(struct mnt_idmap *idmap);
 void mnt_idmap_put(struct mnt_idmap *idmap);
 struct stashed_operations {
+	struct dentry *(*stash_dentry)(struct dentry **stashed,
+				       struct dentry *dentry);
 	void (*put_data)(void *data);
 	int (*init_inode)(struct inode *inode, void *data);
 };
 int path_from_stashed(struct dentry **stashed, struct vfsmount *mnt, void *data,
 		      struct path *path);
 void stashed_dentry_prune(struct dentry *dentry);
+struct dentry *stash_dentry(struct dentry **stashed, struct dentry *dentry);
 struct dentry *stashed_dentry_get(struct dentry **stashed);
 /**
  * path_mounted - check whether path is mounted
@@ -350,3 +354,5 @@ int anon_inode_getattr(struct mnt_idmap *idmap, const struct path *path,
 		       unsigned int query_flags);
 int anon_inode_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		       struct iattr *attr);
+void pidfs_get_root(struct path *path);
+void nsfs_get_root(struct path *path);

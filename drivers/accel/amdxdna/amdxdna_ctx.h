@@ -95,6 +95,17 @@ struct amdxdna_hwctx {
 #define drm_job_to_xdna_job(j) \
 	container_of(j, struct amdxdna_sched_job, base)
 
+enum amdxdna_job_opcode {
+	SYNC_DEBUG_BO,
+	ATTACH_DEBUG_BO,
+	DETACH_DEBUG_BO,
+};
+
+struct amdxdna_drv_cmd {
+	enum amdxdna_job_opcode	opcode;
+	u32			result;
+};
+
 struct amdxdna_sched_job {
 	struct drm_sched_job	base;
 	struct kref		refcnt;
@@ -106,6 +117,7 @@ struct amdxdna_sched_job {
 	struct dma_fence	*out_fence;
 	bool			job_done;
 	u64			seq;
+	struct amdxdna_drv_cmd	*drv_cmd;
 	struct amdxdna_gem_obj	*cmd_bo;
 	size_t			bo_cnt;
 	struct drm_gem_object	*bos[] __counted_by(bo_cnt);
@@ -139,19 +151,15 @@ amdxdna_cmd_get_state(struct amdxdna_gem_obj *abo)
 void *amdxdna_cmd_get_payload(struct amdxdna_gem_obj *abo, u32 *size);
 int amdxdna_cmd_get_cu_idx(struct amdxdna_gem_obj *abo);
 
-static inline u32 amdxdna_hwctx_col_map(struct amdxdna_hwctx *hwctx)
-{
-	return GENMASK(hwctx->start_col + hwctx->num_col - 1,
-		       hwctx->start_col);
-}
-
 void amdxdna_sched_job_cleanup(struct amdxdna_sched_job *job);
 void amdxdna_hwctx_remove_all(struct amdxdna_client *client);
-void amdxdna_hwctx_suspend(struct amdxdna_client *client);
-void amdxdna_hwctx_resume(struct amdxdna_client *client);
+int amdxdna_hwctx_walk(struct amdxdna_client *client, void *arg,
+		       int (*walk)(struct amdxdna_hwctx *hwctx, void *arg));
+int amdxdna_hwctx_sync_debug_bo(struct amdxdna_client *client, u32 debug_bo_hdl);
 
 int amdxdna_cmd_submit(struct amdxdna_client *client,
-		       u32 cmd_bo_hdls, u32 *arg_bo_hdls, u32 arg_bo_cnt,
+		       struct amdxdna_drv_cmd *drv_cmd, u32 cmd_bo_hdls,
+		       u32 *arg_bo_hdls, u32 arg_bo_cnt,
 		       u32 hwctx_hdl, u64 *seq);
 
 int amdxdna_cmd_wait(struct amdxdna_client *client, u32 hwctx_hdl,

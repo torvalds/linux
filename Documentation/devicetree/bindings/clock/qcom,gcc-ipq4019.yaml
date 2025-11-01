@@ -15,7 +15,7 @@ description: |
   Qualcomm global clock control module provides the clocks, resets and power
   domains on IPQ4019.
 
-  See also:: include/dt-bindings/clock/qcom,gcc-ipq4019.h
+  See also: include/dt-bindings/clock/qcom,gcc-ipq4019.h
 
 allOf:
   - $ref: qcom,gcc.yaml#

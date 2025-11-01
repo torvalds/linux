@@ -34,27 +34,6 @@ TRACE_EVENT(binder_ioctl,
 	TP_printk("cmd=0x%x arg=0x%lx", __entry->cmd, __entry->arg)
 );
 
-DECLARE_EVENT_CLASS(binder_lock_class,
-	TP_PROTO(const char *tag),
-	TP_ARGS(tag),
-	TP_STRUCT__entry(
-		__field(const char *, tag)
-	),
-	TP_fast_assign(
-		__entry->tag = tag;
-	),
-	TP_printk("tag=%s", __entry->tag)
-);
-
-#define DEFINE_BINDER_LOCK_EVENT(name)	\
-DEFINE_EVENT(binder_lock_class, name,	\
-	TP_PROTO(const char *func), \
-	TP_ARGS(func))
-
-DEFINE_BINDER_LOCK_EVENT(binder_lock);
-DEFINE_BINDER_LOCK_EVENT(binder_locked);
-DEFINE_BINDER_LOCK_EVENT(binder_unlock);
-
 DECLARE_EVENT_CLASS(binder_function_return_class,
 	TP_PROTO(int ret),
 	TP_ARGS(ret),
@@ -421,6 +400,43 @@ TRACE_EVENT(binder_return,
 		  _IOC_NR(__entry->cmd) < ARRAY_SIZE(binder_return_strings) ?
 			  binder_return_strings[_IOC_NR(__entry->cmd)] :
 			  "unknown")
+);
+
+TRACE_EVENT(binder_netlink_report,
+	TP_PROTO(const char *context,
+		 struct binder_transaction *t,
+		 u32 data_size,
+		 u32 error),
+	TP_ARGS(context, t, data_size, error),
+	TP_STRUCT__entry(
+		__field(const char *, context)
+		__field(u32, error)
+		__field(int, from_pid)
+		__field(int, from_tid)
+		__field(int, to_pid)
+		__field(int, to_tid)
+		__field(bool, is_reply)
+		__field(unsigned int, flags)
+		__field(unsigned int, code)
+		__field(size_t, data_size)
+	),
+	TP_fast_assign(
+		__entry->context = context;
+		__entry->error = error;
+		__entry->from_pid = t->from_pid;
+		__entry->from_tid = t->from_tid;
+		__entry->to_pid = t->to_proc ? t->to_proc->pid : 0;
+		__entry->to_tid = t->to_thread ? t->to_thread->pid : 0;
+		__entry->is_reply = t->is_reply;
+		__entry->flags = t->flags;
+		__entry->code = t->code;
+		__entry->data_size = data_size;
+	),
+	TP_printk("from %d:%d to %d:%d context=%s error=%d is_reply=%d flags=0x%x code=0x%x size=%zu",
+		  __entry->from_pid, __entry->from_tid,
+		  __entry->to_pid, __entry->to_tid,
+		  __entry->context, __entry->error, __entry->is_reply,
+		  __entry->flags, __entry->code, __entry->data_size)
 );
 
 #endif /* _BINDER_TRACE_H */

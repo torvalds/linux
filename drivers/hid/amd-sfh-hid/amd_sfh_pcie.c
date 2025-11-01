@@ -29,6 +29,7 @@
 #define ACEL_EN		BIT(0)
 #define GYRO_EN		BIT(1)
 #define MAGNO_EN	BIT(2)
+#define OP_EN		BIT(15)
 #define HPD_EN		BIT(16)
 #define ALS_EN		BIT(19)
 #define ACS_EN		BIT(22)
@@ -231,6 +232,9 @@ int amd_mp2_get_sensor_num(struct amd_mp2_dev *privdata, u8 *sensor_id)
 
 	if (MAGNO_EN & activestatus)
 		sensor_id[num_of_sensors++] = mag_idx;
+
+	if (OP_EN & activestatus)
+		sensor_id[num_of_sensors++] = op_idx;
 
 	if (ALS_EN & activestatus)
 		sensor_id[num_of_sensors++] = als_idx;
@@ -461,6 +465,10 @@ static int amd_mp2_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	privdata->cl_data = devm_kzalloc(&pdev->dev, sizeof(struct amdtp_cl_data), GFP_KERNEL);
 	if (!privdata->cl_data)
 		return -ENOMEM;
+
+	rc = devm_mutex_init(&pdev->dev, &privdata->lock);
+	if (rc)
+		return rc;
 
 	privdata->sfh1_1_ops = (const struct amd_sfh1_1_ops *)id->driver_data;
 	if (privdata->sfh1_1_ops) {

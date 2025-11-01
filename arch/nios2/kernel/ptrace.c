@@ -95,7 +95,7 @@ enum nios2_regset {
 
 static const struct user_regset nios2_regsets[] = {
 	[REGSET_GENERAL] = {
-		.core_note_type = NT_PRSTATUS,
+		USER_REGSET_NOTE_TYPE(PRSTATUS),
 		.n = NUM_PTRACE_REG,
 		.size = sizeof(unsigned long),
 		.align = sizeof(unsigned long),

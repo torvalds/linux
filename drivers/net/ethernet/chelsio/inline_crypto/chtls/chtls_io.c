@@ -1096,8 +1096,7 @@ new_buf:
 			copy = size;
 
 		if (msg->msg_flags & MSG_SPLICE_PAGES) {
-			err = skb_splice_from_iter(skb, &msg->msg_iter, copy,
-						   sk->sk_allocation);
+			err = skb_splice_from_iter(skb, &msg->msg_iter, copy);
 			if (err < 0) {
 				if (err == -EMSGSIZE)
 					goto new_buf;
@@ -1435,7 +1434,7 @@ static int chtls_pt_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 		continue;
 found_ok_skb:
 		if (!skb->len) {
-			skb_dst_set(skb, NULL);
+			skb_dstref_steal(skb);
 			__skb_unlink(skb, &sk->sk_receive_queue);
 			kfree_skb(skb);
 

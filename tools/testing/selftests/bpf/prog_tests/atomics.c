@@ -165,10 +165,16 @@ static void test_xchg(struct atomics_lskel *skel)
 void test_atomics(void)
 {
 	struct atomics_lskel *skel;
+	int err;
 
-	skel = atomics_lskel__open_and_load();
-	if (!ASSERT_OK_PTR(skel, "atomics skeleton load"))
+	skel = atomics_lskel__open();
+	if (!ASSERT_OK_PTR(skel, "atomics skeleton open"))
 		return;
+
+	skel->keyring_id = KEY_SPEC_SESSION_KEYRING;
+	err = atomics_lskel__load(skel);
+	if (!ASSERT_OK(err, "atomics skeleton load"))
+		goto cleanup;
 
 	if (skel->data->skip_tests) {
 		printf("%s:SKIP:no ENABLE_ATOMICS_TESTS (missing Clang BPF atomics support)",

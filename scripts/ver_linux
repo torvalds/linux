@@ -25,8 +25,6 @@ BEGIN {
 	printversion("Module-init-tools", version("depmod -V"))
 	printversion("E2fsprogs", version("tune2fs"))
 	printversion("Jfsutils", version("fsck.jfs -V"))
-	printversion("Reiserfsprogs", version("reiserfsck -V"))
-	printversion("Reiser4fsprogs", version("fsck.reiser4 -V"))
 	printversion("Xfsprogs", version("xfs_db -V"))
 	printversion("Pcmciautils", version("pccardctl -V"))
 	printversion("Pcmcia-cs", version("cardmgr -V"))

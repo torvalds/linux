@@ -90,7 +90,9 @@ struct hl_fpriv;
 #define HL_COMMON_USER_CQ_INTERRUPT_ID	0xFFF
 #define HL_COMMON_DEC_INTERRUPT_ID	0xFFE
 
-#define HL_STATE_DUMP_HIST_LEN		5
+#define HL_STATE_DUMP_HIST_LEN			5
+#define HL_DBGFS_CFG_ACCESS_HIST_LEN		20
+#define HL_DBGFS_CFG_ACCESS_HIST_TIMEOUT_SEC	2 /* 2s */
 
 /* Default value for device reset trigger , an invalid value */
 #define HL_RESET_TRIGGER_DEFAULT	0xFF
@@ -702,6 +704,7 @@ struct hl_hints_range {
  * @supports_advanced_cpucp_rc: true if new cpucp opcodes are supported.
  * @supports_engine_modes: true if changing engines/engine_cores modes is supported.
  * @support_dynamic_resereved_fw_size: true if we support dynamic reserved size for fw.
+ * @supports_nvme: indicates whether the asic supports NVMe P2P DMA.
  */
 struct asic_fixed_properties {
 	struct hw_queue_properties	*hw_queues_props;
@@ -822,6 +825,7 @@ struct asic_fixed_properties {
 	u8				supports_advanced_cpucp_rc;
 	u8				supports_engine_modes;
 	u8				support_dynamic_resereved_fw_size;
+	u8				supports_nvme;
 };
 
 /**
@@ -2274,6 +2278,9 @@ struct hl_vm {
 	u8			init_done;
 };
 
+#ifdef CONFIG_HL_HLDIO
+#include "hldio.h"
+#endif
 
 /*
  * DEBUG, PROFILING STRUCTURE
@@ -2344,7 +2351,6 @@ struct hl_fpriv {
 	struct mutex			ctx_lock;
 };
 
-
 /*
  * DebugFS
  */
@@ -2371,6 +2377,7 @@ struct hl_debugfs_entry {
 	const struct hl_info_list	*info_ent;
 	struct hl_dbg_device_entry	*dev_entry;
 };
+
 
 /**
  * struct hl_dbg_device_entry - ASIC specific debugfs manager.
@@ -2403,6 +2410,7 @@ struct hl_debugfs_entry {
  * @i2c_addr: generic u8 debugfs file for address value to use in i2c_data_read.
  * @i2c_reg: generic u8 debugfs file for register value to use in i2c_data_read.
  * @i2c_len: generic u8 debugfs file for length value to use in i2c_data_read.
+ * @dio_stats: Direct I/O statistics
  */
 struct hl_dbg_device_entry {
 	struct dentry			*root;
@@ -2434,6 +2442,35 @@ struct hl_dbg_device_entry {
 	u8				i2c_addr;
 	u8				i2c_reg;
 	u8				i2c_len;
+#ifdef CONFIG_HL_HLDIO
+	struct hl_dio_stats	dio_stats;
+#endif
+};
+
+/**
+ * struct hl_debugfs_cfg_access_entry - single debugfs config access object, member of
+ * hl_debugfs_cfg_access.
+ * @seconds_since_epoch: seconds since January 1, 1970, used for time comparisons.
+ * @debugfs_type: the debugfs operation requested, can be READ32, WRITE32, READ64 or WRITE64.
+ * @addr: the requested address to access.
+ * @valid: if set, this entry has valid data for dumping at interrupt time.
+ */
+struct hl_debugfs_cfg_access_entry {
+	ktime_t				seconds_since_epoch;
+	enum debugfs_access_type	debugfs_type;
+	u64				addr;
+	bool				valid;
+};
+
+/**
+ * struct hl_debugfs_cfg_access - saves debugfs config region access requests history.
+ * @cfg_access_list: list of objects describing config region access requests.
+ * @head: next valid index to add new entry to in cfg_access_list.
+ */
+struct hl_debugfs_cfg_access {
+	struct hl_debugfs_cfg_access_entry	cfg_access_list[HL_DBGFS_CFG_ACCESS_HIST_LEN];
+	u32					head;
+	spinlock_t			lock; /* protects head and entries */
 };
 
 /**
@@ -3281,6 +3318,7 @@ struct eq_heartbeat_debug_info {
  * @hl_chip_info: ASIC's sensors information.
  * @device_status_description: device status description.
  * @hl_debugfs: device's debugfs manager.
+ * @debugfs_cfg_accesses: list of last debugfs config region accesses.
  * @cb_pool: list of pre allocated CBs.
  * @cb_pool_lock: protects the CB pool.
  * @internal_cb_pool_virt_addr: internal command buffer pool virtual address.
@@ -3305,6 +3343,7 @@ struct eq_heartbeat_debug_info {
  * @captured_err_info: holds information about errors.
  * @reset_info: holds current device reset information.
  * @heartbeat_debug_info: counters used to debug heartbeat failures.
+ * @hldio: describes habanalabs direct storage interaction interface.
  * @irq_affinity_mask: mask of available CPU cores for user and decoder interrupt handling.
  * @stream_master_qid_arr: pointer to array with QIDs of master streams.
  * @fw_inner_major_ver: the major of current loaded preboot inner version.
@@ -3357,6 +3396,7 @@ struct eq_heartbeat_debug_info {
  *                    addresses.
  * @is_in_dram_scrub: true if dram scrub operation is on going.
  * @disabled: is device disabled.
+ * @cpld_shutdown: is cpld shutdown.
  * @late_init_done: is late init stage was done during initialization.
  * @hwmon_initialized: is H/W monitor sensors was initialized.
  * @reset_on_lockup: true if a reset should be done in case of stuck CS, false
@@ -3461,6 +3501,7 @@ struct hl_device {
 	struct hwmon_chip_info		*hl_chip_info;
 
 	struct hl_dbg_device_entry	hl_debugfs;
+	struct hl_debugfs_cfg_access	debugfs_cfg_accesses;
 
 	struct list_head		cb_pool;
 	spinlock_t			cb_pool_lock;
@@ -3496,7 +3537,9 @@ struct hl_device {
 	struct hl_reset_info		reset_info;
 
 	struct eq_heartbeat_debug_info	heartbeat_debug_info;
-
+#ifdef CONFIG_HL_HLDIO
+	struct hl_dio			hldio;
+#endif
 	cpumask_t			irq_affinity_mask;
 
 	u32				*stream_master_qid_arr;
@@ -3532,6 +3575,7 @@ struct hl_device {
 	u16				cpu_pci_msb_addr;
 	u8				is_in_dram_scrub;
 	u8				disabled;
+	u8				cpld_shutdown;
 	u8				late_init_done;
 	u8				hwmon_initialized;
 	u8				reset_on_lockup;
@@ -4089,6 +4133,7 @@ void hl_init_cpu_for_irq(struct hl_device *hdev);
 void hl_set_irq_affinity(struct hl_device *hdev, int irq);
 void hl_eq_heartbeat_event_handle(struct hl_device *hdev);
 void hl_handle_clk_change_event(struct hl_device *hdev, u16 event_type, u64 *event_mask);
+void hl_eq_cpld_shutdown_event_handle(struct hl_device *hdev, u16 event_id, u64 *event_mask);
 
 #ifdef CONFIG_DEBUG_FS
 
@@ -4110,6 +4155,7 @@ void hl_debugfs_add_ctx_mem_hash(struct hl_device *hdev, struct hl_ctx *ctx);
 void hl_debugfs_remove_ctx_mem_hash(struct hl_device *hdev, struct hl_ctx *ctx);
 void hl_debugfs_set_state_dump(struct hl_device *hdev, char *data,
 					unsigned long length);
+void hl_debugfs_cfg_access_history_dump(struct hl_device *hdev);
 
 #else
 
@@ -4182,6 +4228,10 @@ static inline void hl_debugfs_remove_ctx_mem_hash(struct hl_device *hdev,
 
 static inline void hl_debugfs_set_state_dump(struct hl_device *hdev,
 					char *data, unsigned long length)
+{
+}
+
+static inline void hl_debugfs_cfg_access_history_dump(struct hl_device *hdev)
 {
 }
 

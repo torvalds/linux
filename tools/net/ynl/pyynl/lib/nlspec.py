@@ -501,7 +501,7 @@ class SpecFamily(SpecElement):
         return SpecStruct(self, elem)
 
     def new_sub_message(self, elem):
-        return SpecSubMessage(self, elem);
+        return SpecSubMessage(self, elem)
 
     def new_operation(self, elem, req_val, rsp_val):
         return SpecOperation(self, elem, req_val, rsp_val)

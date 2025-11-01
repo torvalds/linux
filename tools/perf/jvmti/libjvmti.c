@@ -141,11 +141,11 @@ copy_class_filename(const char * class_sign, const char * file_name, char * resu
 	* Assume path name is class hierarchy, this is a common practice with Java programs
 	*/
 	if (*class_sign == 'L') {
-		int j, i = 0;
+		size_t j, i = 0;
 		char *p = strrchr(class_sign, '/');
 		if (p) {
 			/* drop the 'L' prefix and copy up to the final '/' */
-			for (i = 0; i < (p - class_sign); i++)
+			for (i = 0; i < (size_t)(p - class_sign); i++)
 				result[i] = class_sign[i+1];
 		}
 		/*

@@ -1,0 +1,81 @@
+// SPDX-License-Identifier: GPL-2.0+ OR MIT
+/*
+ * GPIO pin mappings for Apple T602x SoCs.
+ *
+ * Copyright The Asahi Linux Contributors
+ */
+
+&pinctrl_ap {
+	i2c0_pins: i2c0-pins {
+		pinmux = <APPLE_PINMUX(63, 1)>,
+			<APPLE_PINMUX(64, 1)>;
+	};
+
+	i2c1_pins: i2c1-pins {
+		pinmux = <APPLE_PINMUX(65, 1)>,
+			<APPLE_PINMUX(66, 1)>;
+	};
+
+	i2c2_pins: i2c2-pins {
+		pinmux = <APPLE_PINMUX(67, 1)>,
+			<APPLE_PINMUX(68, 1)>;
+	};
+
+	i2c3_pins: i2c3-pins {
+		pinmux = <APPLE_PINMUX(69, 1)>,
+			<APPLE_PINMUX(70, 1)>;
+	};
+
+	i2c4_pins: i2c4-pins {
+		pinmux = <APPLE_PINMUX(71, 1)>,
+			<APPLE_PINMUX(72, 1)>;
+	};
+
+	i2c5_pins: i2c5-pins {
+		pinmux = <APPLE_PINMUX(73, 1)>,
+			<APPLE_PINMUX(74, 1)>;
+	};
+
+	i2c6_pins: i2c6-pins {
+		pinmux = <APPLE_PINMUX(75, 1)>,
+			<APPLE_PINMUX(76, 1)>;
+	};
+
+	i2c7_pins: i2c7-pins {
+		pinmux = <APPLE_PINMUX(77, 1)>,
+			<APPLE_PINMUX(78, 1)>;
+	};
+
+	i2c8_pins: i2c8-pins {
+		pinmux = <APPLE_PINMUX(79, 1)>,
+			<APPLE_PINMUX(80, 1)>;
+	};
+
+	spi1_pins: spi1-pins {
+		pinmux = <APPLE_PINMUX(155, 1)>, /* SDI */
+			<APPLE_PINMUX(156, 1)>,  /* SDO */
+			<APPLE_PINMUX(157, 1)>,  /* SCK */
+			<APPLE_PINMUX(158, 1)>;  /* CS */
+	};
+
+	spi2_pins: spi2-pins {
+		pinmux = <APPLE_PINMUX(159, 1)>, /* SDI */
+			<APPLE_PINMUX(160, 1)>,  /* SDO */
+			<APPLE_PINMUX(161, 1)>,  /* SCK */
+			<APPLE_PINMUX(162, 1)>;  /* CS */
+	};
+
+	spi4_pins: spi4-pins {
+		pinmux = <APPLE_PINMUX(167, 1)>, /* SDI */
+			<APPLE_PINMUX(168, 1)>,  /* SDO */
+			<APPLE_PINMUX(169, 1)>,  /* SCK */
+			<APPLE_PINMUX(170, 1)>;  /* CS */
+	};
+
+	pcie_pins: pcie-pins {
+		pinmux = <APPLE_PINMUX(0, 1)>,
+				<APPLE_PINMUX(1, 1)>,
+				<APPLE_PINMUX(2, 1)>,
+				<APPLE_PINMUX(3, 1)>;
+	};
+};

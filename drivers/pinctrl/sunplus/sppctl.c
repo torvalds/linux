@@ -461,13 +461,15 @@ static int sppctl_gpio_get(struct gpio_chip *chip, unsigned int offset)
 	return (reg & BIT(bit_off)) ? 1 : 0;
 }
 
-static void sppctl_gpio_set(struct gpio_chip *chip, unsigned int offset, int val)
+static int sppctl_gpio_set(struct gpio_chip *chip, unsigned int offset, int val)
 {
 	struct sppctl_gpio_chip *spp_gchip = gpiochip_get_data(chip);
 	u32 reg_off, reg;
 
 	reg = sppctl_prep_moon_reg_and_offset(offset, &reg_off, val);
 	sppctl_gpio_out_writel(spp_gchip, reg, reg_off);
+
+	return 0;
 }
 
 static int sppctl_gpio_set_config(struct gpio_chip *chip, unsigned int offset,
@@ -486,7 +488,7 @@ static int sppctl_gpio_set_config(struct gpio_chip *chip, unsigned int offset,
 	case PIN_CONFIG_INPUT_ENABLE:
 		break;
 
-	case PIN_CONFIG_OUTPUT:
+	case PIN_CONFIG_LEVEL:
 		return sppctl_gpio_direction_output(chip, offset, 0);
 
 	case PIN_CONFIG_PERSIST_STATE:
@@ -578,7 +580,7 @@ static int sppctl_pin_config_get(struct pinctrl_dev *pctldev, unsigned int pin,
 		arg = 0;
 		break;
 
-	case PIN_CONFIG_OUTPUT:
+	case PIN_CONFIG_LEVEL:
 		if (!sppctl_first_get(&pctl->spp_gchip->chip, pin))
 			return -EINVAL;
 		if (!sppctl_master_get(&pctl->spp_gchip->chip, pin))

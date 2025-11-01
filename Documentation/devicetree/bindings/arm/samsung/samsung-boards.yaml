@@ -14,12 +14,6 @@ properties:
     const: '/'
   compatible:
     oneOf:
-      - description: S3C2416 based boards
-        items:
-          - enum:
-              - samsung,smdk2416                # Samsung SMDK2416
-          - const: samsung,s3c2416
-
       - description: S3C6410 based boards
         items:
           - enum:
@@ -44,6 +38,12 @@ properties:
               - samsung,galaxys                 # Samsung Galaxy S (i9000)
           - const: samsung,aries
           - const: samsung,s5pv210
+
+      - description: Exynos2200 based boards
+        items:
+          - enum:
+              - samsung,g0s                     # Samsung Galaxy S22+ (SM-S906B)
+          - const: samsung,exynos2200
 
       - description: Exynos3250 based boards
         items:

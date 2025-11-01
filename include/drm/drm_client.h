@@ -29,6 +29,16 @@ struct drm_client_funcs {
 	struct module *owner;
 
 	/**
+	 * @free:
+	 *
+	 * Called when the client gets unregistered. Implementations should
+	 * release all client-specific data and free the memory.
+	 *
+	 * This callback is optional.
+	 */
+	void (*free)(struct drm_client_dev *client);
+
+	/**
 	 * @unregister:
 	 *
 	 * Called when &drm_device is unregistered. The client should respond by
@@ -70,13 +80,8 @@ struct drm_client_funcs {
 	 * Called when suspending the device.
 	 *
 	 * This callback is optional.
-	 *
-	 * FIXME: Some callers hold the console lock when invoking this
-	 *        function. This interferes with fbdev emulation, which
-	 *        also tries to acquire the lock. Push the console lock
-	 *        into the callback and remove 'holds_console_lock'.
 	 */
-	int (*suspend)(struct drm_client_dev *client, bool holds_console_lock);
+	int (*suspend)(struct drm_client_dev *client);
 
 	/**
 	 * @resume:
@@ -84,13 +89,8 @@ struct drm_client_funcs {
 	 * Called when resuming the device from suspend.
 	 *
 	 * This callback is optional.
-	 *
-	 * FIXME: Some callers hold the console lock when invoking this
-	 *        function. This interferes with fbdev emulation, which
-	 *        also tries to acquire the lock. Push the console lock
-	 *        into the callback and remove 'holds_console_lock'.
 	 */
-	int (*resume)(struct drm_client_dev *client, bool holds_console_lock);
+	int (*resume)(struct drm_client_dev *client);
 };
 
 /**
@@ -220,6 +220,7 @@ int drm_client_modeset_check(struct drm_client_dev *client);
 int drm_client_modeset_commit_locked(struct drm_client_dev *client);
 int drm_client_modeset_commit(struct drm_client_dev *client);
 int drm_client_modeset_dpms(struct drm_client_dev *client, int mode);
+int drm_client_modeset_wait_for_vblank(struct drm_client_dev *client, unsigned int crtc_index);
 
 /**
  * drm_client_for_each_modeset() - Iterate over client modesets

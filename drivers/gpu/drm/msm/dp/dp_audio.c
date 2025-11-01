@@ -265,8 +265,8 @@ static struct msm_dp_audio_private *msm_dp_audio_get_data(struct msm_dp *msm_dp_
 	return container_of(msm_dp_audio, struct msm_dp_audio_private, msm_dp_audio);
 }
 
-int msm_dp_audio_prepare(struct drm_connector *connector,
-			 struct drm_bridge *bridge,
+int msm_dp_audio_prepare(struct drm_bridge *bridge,
+			 struct drm_connector *connector,
 			 struct hdmi_codec_daifmt *daifmt,
 			 struct hdmi_codec_params *params)
 {
@@ -308,8 +308,8 @@ end:
 	return rc;
 }
 
-void msm_dp_audio_shutdown(struct drm_connector *connector,
-			   struct drm_bridge *bridge)
+void msm_dp_audio_shutdown(struct drm_bridge *bridge,
+			   struct drm_connector *connecter)
 {
 	struct msm_dp_audio_private *audio;
 	struct msm_dp *msm_dp_display;

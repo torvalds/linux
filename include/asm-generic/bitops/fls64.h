@@ -16,7 +16,7 @@
  * at position 64.
  */
 #if BITS_PER_LONG == 32
-static __always_inline int fls64(__u64 x)
+static __always_inline __attribute_const__ int fls64(__u64 x)
 {
 	__u32 h = x >> 32;
 	if (h)
@@ -24,7 +24,7 @@ static __always_inline int fls64(__u64 x)
 	return fls(x);
 }
 #elif BITS_PER_LONG == 64
-static __always_inline int fls64(__u64 x)
+static __always_inline __attribute_const__ int fls64(__u64 x)
 {
 	if (x == 0)
 		return 0;

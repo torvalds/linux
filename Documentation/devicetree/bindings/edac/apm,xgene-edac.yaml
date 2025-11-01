@@ -1,0 +1,203 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/edac/apm,xgene-edac.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: APM X-Gene SoC EDAC
+
+maintainers:
+  - Khuong Dinh <khuong@os.amperecomputing.com>
+
+description: >
+  EDAC node is defined to describe on-chip error detection and correction.
+
+  The following error types are supported:
+
+    memory controller  - Memory controller
+    PMD (L1/L2)        - Processor module unit (PMD) L1/L2 cache
+    L3                 - L3 cache controller
+    SoC                - SoC IPs such as Ethernet, SATA, etc
+
+properties:
+  compatible:
+    const: apm,xgene-edac
+
+  reg:
+    items:
+      - description: CPU bus (PCP) resource
+
+  '#address-cells':
+    const: 2
+
+  '#size-cells':
+    const: 2
+
+  ranges: true
+
+  interrupts:
+    description: Interrupt-specifier for MCU, PMD, L3, or SoC error IRQ(s).
+    items:
+      - description: MCU error IRQ
+      - description: PMD error IRQ
+      - description: L3 error IRQ
+      - description: SoC error IRQ
+    minItems: 1
+
+  regmap-csw:
+    description: Regmap of the CPU switch fabric (CSW) resource.
+    $ref: /schemas/types.yaml#/definitions/phandle
+
+  regmap-mcba:
+    description: Regmap of the MCB-A (memory bridge) resource.
+    $ref: /schemas/types.yaml#/definitions/phandle
+
+  regmap-mcbb:
+    description: Regmap of the MCB-B (memory bridge) resource.
+    $ref: /schemas/types.yaml#/definitions/phandle
+
+  regmap-efuse:
+    description: Regmap of the PMD efuse resource.
+    $ref: /schemas/types.yaml#/definitions/phandle
+
+  regmap-rb:
+    description: Regmap of the register bus resource (optional for compatibility).
+    $ref: /schemas/types.yaml#/definitions/phandle
+
+required:
+  - compatible
+  - regmap-csw
+  - regmap-mcba
+  - regmap-mcbb
+  - regmap-efuse
+  - reg
+  - interrupts
+
+# Child-node bindings
+patternProperties:
+  '^edacmc@':
+    description: Memory controller subnode
+    type: object
+    additionalProperties: false
+
+    properties:
+      compatible:
+        const: apm,xgene-edac-mc
+
+      reg:
+        maxItems: 1
+
+      memory-controller:
+        description: Instance number of the memory controller.
+        $ref: /schemas/types.yaml#/definitions/uint32
+        maximum: 3
+
+    required:
+      - compatible
+      - reg
+      - memory-controller
+
+
+  '^edacpmd@':
+    description: PMD subnode
+    type: object
+    additionalProperties: false
+
+    properties:
+      compatible:
+        const: apm,xgene-edac-pmd
+
+      reg:
+        maxItems: 1
+
+      pmd-controller:
+        description: Instance number of the PMD controller.
+        $ref: /schemas/types.yaml#/definitions/uint32
+        maximum: 3
+
+    required:
+      - compatible
+      - reg
+      - pmd-controller
+
+  '^edacl3@':
+    description: L3 subnode
+    type: object
+    additionalProperties: false
+
+    properties:
+      compatible:
+        enum:
+          - apm,xgene-edac-l3
+          - apm,xgene-edac-l3-v2
+
+      reg:
+        maxItems: 1
+
+    required:
+      - compatible
+      - reg
+
+  '^edacsoc@':
+    description: SoC subnode
+    type: object
+    additionalProperties: false
+
+    properties:
+      compatible:
+        enum:
+          - apm,xgene-edac-soc
+          - apm,xgene-edac-soc-v1
+
+      reg:
+        maxItems: 1
+
+    required:
+      - compatible
+      - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    bus {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        edac@78800000 {
+            compatible = "apm,xgene-edac";
+            reg = <0x0 0x78800000 0x0 0x100>;
+            #address-cells = <2>;
+            #size-cells = <2>;
+            ranges;
+            interrupts = <0x0 0x20 0x4>, <0x0 0x21 0x4>, <0x0 0x27 0x4>;
+
+            regmap-csw = <&csw>;
+            regmap-mcba = <&mcba>;
+            regmap-mcbb = <&mcbb>;
+            regmap-efuse = <&efuse>;
+            regmap-rb = <&rb>;
+
+            edacmc@7e800000 {
+                compatible = "apm,xgene-edac-mc";
+                reg = <0x0 0x7e800000 0x0 0x1000>;
+                memory-controller = <0>;
+            };
+
+            edacpmd@7c000000 {
+                compatible = "apm,xgene-edac-pmd";
+                reg = <0x0 0x7c000000 0x0 0x200000>;
+                pmd-controller = <0>;
+            };
+
+            edacl3@7e600000 {
+                compatible = "apm,xgene-edac-l3";
+                reg = <0x0 0x7e600000 0x0 0x1000>;
+            };
+
+            edacsoc@7e930000 {
+                compatible = "apm,xgene-edac-soc-v1";
+                reg = <0x0 0x7e930000 0x0 0x1000>;
+            };
+        };
+    };

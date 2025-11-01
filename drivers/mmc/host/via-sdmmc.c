@@ -1100,7 +1100,7 @@ static int via_sd_probe(struct pci_dev *pcidev,
 	pci_write_config_byte(pcidev, VIA_CRDR_PCI_WORK_MODE, 0);
 	pci_write_config_byte(pcidev, VIA_CRDR_PCI_DBG_MODE, 0);
 
-	mmc = mmc_alloc_host(sizeof(struct via_crdr_mmc_host), &pcidev->dev);
+	mmc = devm_mmc_alloc_host(&pcidev->dev, sizeof(*sdhost));
 	if (!mmc) {
 		ret = -ENOMEM;
 		goto release;
@@ -1115,7 +1115,7 @@ static int via_sd_probe(struct pci_dev *pcidev,
 	sdhost->mmiobase = ioremap(base, len);
 	if (!sdhost->mmiobase) {
 		ret = -ENOMEM;
-		goto free_mmc_host;
+		goto release;
 	}
 
 	sdhost->sdhc_mmiobase =
@@ -1160,8 +1160,6 @@ static int via_sd_probe(struct pci_dev *pcidev,
 
 unmap:
 	iounmap(sdhost->mmiobase);
-free_mmc_host:
-	mmc_free_host(mmc);
 release:
 	pci_release_regions(pcidev);
 disable:
@@ -1212,7 +1210,6 @@ static void via_sd_remove(struct pci_dev *pcidev)
 	writeb(gatt, sdhost->pcictrl_mmiobase + VIA_CRDR_PCICLKGATT);
 
 	iounmap(sdhost->mmiobase);
-	mmc_free_host(sdhost->mmc);
 	pci_release_regions(pcidev);
 	pci_disable_device(pcidev);
 
@@ -1221,7 +1218,7 @@ static void via_sd_remove(struct pci_dev *pcidev)
 		pci_name(pcidev), (int)pcidev->vendor, (int)pcidev->device);
 }
 
-static void __maybe_unused via_init_sdc_pm(struct via_crdr_mmc_host *host)
+static void via_init_sdc_pm(struct via_crdr_mmc_host *host)
 {
 	struct sdhcreg *pm_sdhcreg;
 	void __iomem *addrbase;
@@ -1255,7 +1252,7 @@ static void __maybe_unused via_init_sdc_pm(struct via_crdr_mmc_host *host)
 	via_print_sdchc(host);
 }
 
-static int __maybe_unused via_sd_suspend(struct device *dev)
+static int via_sd_suspend(struct device *dev)
 {
 	struct via_crdr_mmc_host *host;
 	unsigned long flags;
@@ -1272,7 +1269,7 @@ static int __maybe_unused via_sd_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused via_sd_resume(struct device *dev)
+static int via_sd_resume(struct device *dev)
 {
 	struct via_crdr_mmc_host *sdhost;
 	u8 gatt;
@@ -1298,14 +1295,14 @@ static int __maybe_unused via_sd_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(via_sd_pm_ops, via_sd_suspend, via_sd_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(via_sd_pm_ops, via_sd_suspend, via_sd_resume);
 
 static struct pci_driver via_sd_driver = {
 	.name = DRV_NAME,
 	.id_table = via_ids,
 	.probe = via_sd_probe,
 	.remove = via_sd_remove,
-	.driver.pm = &via_sd_pm_ops,
+	.driver.pm = pm_sleep_ptr(&via_sd_pm_ops),
 };
 
 module_pci_driver(via_sd_driver);

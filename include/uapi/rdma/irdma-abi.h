@@ -20,11 +20,14 @@ enum irdma_memreg_type {
 	IRDMA_MEMREG_TYPE_MEM  = 0,
 	IRDMA_MEMREG_TYPE_QP   = 1,
 	IRDMA_MEMREG_TYPE_CQ   = 2,
+	IRDMA_MEMREG_TYPE_SRQ  = 3,
 };
 
 enum {
 	IRDMA_ALLOC_UCTX_USE_RAW_ATTR = 1 << 0,
 	IRDMA_ALLOC_UCTX_MIN_HW_WQ_SIZE = 1 << 1,
+	IRDMA_ALLOC_UCTX_MAX_HW_SRQ_QUANTA = 1 << 2,
+	IRDMA_SUPPORT_WQE_FORMAT_V2 = 1 << 3,
 };
 
 struct irdma_alloc_ucontext_req {
@@ -54,7 +57,8 @@ struct irdma_alloc_ucontext_resp {
 	__u8 rsvd2;
 	__aligned_u64 comp_mask;
 	__u16 min_hw_wq_size;
-	__u8 rsvd3[6];
+	__u32 max_hw_srq_quanta;
+	__u8 rsvd3[2];
 };
 
 struct irdma_alloc_pd_resp {
@@ -69,6 +73,16 @@ struct irdma_resize_cq_req {
 struct irdma_create_cq_req {
 	__aligned_u64 user_cq_buf;
 	__aligned_u64 user_shadow_area;
+};
+
+struct irdma_create_srq_req {
+	__aligned_u64 user_srq_buf;
+	__aligned_u64 user_shadow_area;
+};
+
+struct irdma_create_srq_resp {
+	__u32 srq_id;
+	__u32 srq_size;
 };
 
 struct irdma_create_qp_req {

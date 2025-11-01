@@ -65,8 +65,6 @@ static void drm_fbdev_shmem_fb_destroy(struct fb_info *info)
 	drm_client_buffer_vunmap(fb_helper->buffer);
 	drm_client_framebuffer_delete(fb_helper->buffer);
 	drm_client_release(&fb_helper->client);
-	drm_fb_helper_unprepare(fb_helper);
-	kfree(fb_helper);
 }
 
 static const struct fb_ops drm_fbdev_shmem_fb_ops = {

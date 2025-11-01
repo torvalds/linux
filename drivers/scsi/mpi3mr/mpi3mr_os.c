@@ -49,6 +49,13 @@ static void mpi3mr_send_event_ack(struct mpi3mr_ioc *mrioc, u8 event,
 
 #define MPI3_EVENT_WAIT_FOR_DEVICES_TO_REFRESH	(0xFFFE)
 
+/*
+ * SAS Log info code for a NCQ collateral abort after an NCQ error:
+ * IOC_LOGINFO_PREFIX_PL | PL_LOGINFO_CODE_SATA_NCQ_FAIL_ALL_CMDS_AFTR_ERR
+ * See: drivers/message/fusion/lsi/mpi_log_sas.h
+ */
+#define IOC_LOGINFO_SATA_NCQ_FAIL_AFTER_ERR	0x31080000
+
 /**
  * mpi3mr_host_tag_for_scmd - Get host tag for a scmd
  * @mrioc: Adapter instance reference
@@ -1301,6 +1308,12 @@ static void mpi3mr_update_tgtdev(struct mpi3mr_ioc *mrioc,
 		if (vdinf->vd_state == MPI3_DEVICE0_VD_STATE_OFFLINE)
 			tgtdev->is_hidden = 1;
 		tgtdev->non_stl = 1;
+		tgtdev->dev_spec.vd_inf.reset_to =
+			max_t(u8, vdinf->vd_reset_to,
+			      MPI3MR_INTADMCMD_TIMEOUT);
+		tgtdev->dev_spec.vd_inf.abort_to =
+			max_t(u8, vdinf->vd_abort_to,
+			      MPI3MR_INTADMCMD_TIMEOUT);
 		tgtdev->dev_spec.vd_inf.tg_id = vdinf_io_throttle_group;
 		tgtdev->dev_spec.vd_inf.tg_high =
 		    le16_to_cpu(vdinf->io_throttle_group_high) * 2048;
@@ -2042,8 +2055,8 @@ static void mpi3mr_fwevt_bh(struct mpi3mr_ioc *mrioc,
 	if (!fwevt->process_evt)
 		goto evt_ack;
 
-	dprint_event_bh(mrioc, "processing event(0x%02x) in the bottom half handler\n",
-	    fwevt->event_id);
+	dprint_event_bh(mrioc, "processing event(0x%02x) -(0x%08x) in the bottom half handler\n",
+			fwevt->event_id, fwevt->evt_ctx);
 
 	switch (fwevt->event_id) {
 	case MPI3_EVENT_DEVICE_ADDED:
@@ -2859,12 +2872,14 @@ static void mpi3mr_preparereset_evt_th(struct mpi3mr_ioc *mrioc,
 		    "prepare for reset event top half with rc=start\n");
 		if (mrioc->prepare_for_reset)
 			return;
+		scsi_block_requests(mrioc->shost);
 		mrioc->prepare_for_reset = 1;
 		mrioc->prepare_for_reset_timeout_counter = 0;
 	} else if (evtdata->reason_code == MPI3_EVENT_PREPARE_RESET_RC_ABORT) {
 		dprint_event_th(mrioc,
 		    "prepare for reset top half with rc=abort\n");
 		mrioc->prepare_for_reset = 0;
+		scsi_unblock_requests(mrioc->shost);
 		mrioc->prepare_for_reset_timeout_counter = 0;
 	}
 	if ((event_reply->msg_flags & MPI3_EVENT_NOTIFY_MSGFLAGS_ACK_MASK)
@@ -3069,8 +3084,8 @@ void mpi3mr_os_handle_events(struct mpi3mr_ioc *mrioc,
 	}
 	if (process_evt_bh || ack_req) {
 		dprint_event_th(mrioc,
-			"scheduling bottom half handler for event(0x%02x),ack_required=%d\n",
-			evt_type, ack_req);
+		    "scheduling bottom half handler for event(0x%02x) - (0x%08x), ack_required=%d\n",
+		    evt_type, le32_to_cpu(event_reply->event_context), ack_req);
 		sz = event_reply->event_data_length * 4;
 		fwevt = mpi3mr_alloc_fwevt(sz);
 		if (!fwevt) {
@@ -3430,7 +3445,18 @@ void mpi3mr_process_op_reply_desc(struct mpi3mr_ioc *mrioc,
 		scmd->result = DID_NO_CONNECT << 16;
 		break;
 	case MPI3_IOCSTATUS_SCSI_IOC_TERMINATED:
-		scmd->result = DID_SOFT_ERROR << 16;
+		if (ioc_loginfo == IOC_LOGINFO_SATA_NCQ_FAIL_AFTER_ERR) {
+			/*
+			 * This is a ATA NCQ command aborted due to another NCQ
+			 * command failure. We must retry this command
+			 * immediately but without incrementing its retry
+			 * counter.
+			 */
+			WARN_ON_ONCE(xfer_count != 0);
+			scmd->result = DID_IMM_RETRY << 16;
+		} else {
+			scmd->result = DID_SOFT_ERROR << 16;
+		}
 		break;
 	case MPI3_IOCSTATUS_SCSI_TASK_TERMINATED:
 	case MPI3_IOCSTATUS_SCSI_EXT_TERMINATED:
@@ -3897,11 +3923,13 @@ int mpi3mr_issue_tm(struct mpi3mr_ioc *mrioc, u8 tm_type,
 	if (scsi_tgt_priv_data)
 		atomic_inc(&scsi_tgt_priv_data->block_io);
 
-	if (tgtdev && (tgtdev->dev_type == MPI3_DEVICE_DEVFORM_PCIE)) {
-		if (cmd_priv && tgtdev->dev_spec.pcie_inf.abort_to)
-			timeout = tgtdev->dev_spec.pcie_inf.abort_to;
-		else if (!cmd_priv && tgtdev->dev_spec.pcie_inf.reset_to)
-			timeout = tgtdev->dev_spec.pcie_inf.reset_to;
+	if (tgtdev) {
+		if (tgtdev->dev_type == MPI3_DEVICE_DEVFORM_PCIE)
+			timeout = cmd_priv ? tgtdev->dev_spec.pcie_inf.abort_to
+					   : tgtdev->dev_spec.pcie_inf.reset_to;
+		else if (tgtdev->dev_type == MPI3_DEVICE_DEVFORM_VD)
+			timeout = cmd_priv ? tgtdev->dev_spec.vd_inf.abort_to
+					   : tgtdev->dev_spec.vd_inf.reset_to;
 	}
 
 	init_completion(&drv_cmd->done);
@@ -4013,7 +4041,7 @@ out:
 /**
  * mpi3mr_bios_param - BIOS param callback
  * @sdev: SCSI device reference
- * @bdev: Block device reference
+ * @unused: gendisk reference
  * @capacity: Capacity in logical sectors
  * @params: Parameter array
  *
@@ -4022,7 +4050,7 @@ out:
  * Return: 0 always
  */
 static int mpi3mr_bios_param(struct scsi_device *sdev,
-	struct block_device *bdev, sector_t capacity, int params[])
+	struct gendisk *unused, sector_t capacity, int params[])
 {
 	int heads;
 	int sectors;
@@ -5365,6 +5393,8 @@ mpi3mr_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	spin_lock_init(&mrioc->tgtdev_lock);
 	spin_lock_init(&mrioc->watchdog_lock);
 	spin_lock_init(&mrioc->chain_buf_lock);
+	spin_lock_init(&mrioc->adm_req_q_bar_writeq_lock);
+	spin_lock_init(&mrioc->adm_reply_q_bar_writeq_lock);
 	spin_lock_init(&mrioc->sas_node_lock);
 	spin_lock_init(&mrioc->trigger_lock);
 

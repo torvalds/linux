@@ -610,7 +610,7 @@ static int ovl_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
  * Introducing security_inode_fileattr_get/set() hooks would solve this issue
  * properly.
  */
-static int ovl_security_fileattr(const struct path *realpath, struct fileattr *fa,
+static int ovl_security_fileattr(const struct path *realpath, struct file_kattr *fa,
 				 bool set)
 {
 	struct file *file;
@@ -637,7 +637,7 @@ static int ovl_security_fileattr(const struct path *realpath, struct fileattr *f
 	return err;
 }
 
-int ovl_real_fileattr_set(const struct path *realpath, struct fileattr *fa)
+int ovl_real_fileattr_set(const struct path *realpath, struct file_kattr *fa)
 {
 	int err;
 
@@ -649,7 +649,7 @@ int ovl_real_fileattr_set(const struct path *realpath, struct fileattr *fa)
 }
 
 int ovl_fileattr_set(struct mnt_idmap *idmap,
-		     struct dentry *dentry, struct fileattr *fa)
+		     struct dentry *dentry, struct file_kattr *fa)
 {
 	struct inode *inode = d_inode(dentry);
 	struct path upperpath;
@@ -697,7 +697,7 @@ out:
 }
 
 /* Convert inode protection flags to fileattr flags */
-static void ovl_fileattr_prot_flags(struct inode *inode, struct fileattr *fa)
+static void ovl_fileattr_prot_flags(struct inode *inode, struct file_kattr *fa)
 {
 	BUILD_BUG_ON(OVL_PROT_FS_FLAGS_MASK & ~FS_COMMON_FL);
 	BUILD_BUG_ON(OVL_PROT_FSX_FLAGS_MASK & ~FS_XFLAG_COMMON);
@@ -712,7 +712,7 @@ static void ovl_fileattr_prot_flags(struct inode *inode, struct fileattr *fa)
 	}
 }
 
-int ovl_real_fileattr_get(const struct path *realpath, struct fileattr *fa)
+int ovl_real_fileattr_get(const struct path *realpath, struct file_kattr *fa)
 {
 	int err;
 
@@ -726,7 +726,7 @@ int ovl_real_fileattr_get(const struct path *realpath, struct fileattr *fa)
 	return err;
 }
 
-int ovl_fileattr_get(struct dentry *dentry, struct fileattr *fa)
+int ovl_fileattr_get(struct dentry *dentry, struct file_kattr *fa)
 {
 	struct inode *inode = d_inode(dentry);
 	struct path realpath;
@@ -1280,6 +1280,7 @@ struct inode *ovl_get_inode(struct super_block *sb,
 	}
 	ovl_fill_inode(inode, realinode->i_mode, realinode->i_rdev);
 	ovl_inode_init(inode, oip, ino, fsid);
+	WARN_ON_ONCE(!!IS_CASEFOLDED(inode) != ofs->casefold);
 
 	if (upperdentry && ovl_is_impuredir(sb, upperdentry))
 		ovl_set_flag(OVL_IMPURE, inode);

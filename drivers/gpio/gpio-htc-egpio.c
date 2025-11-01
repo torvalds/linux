@@ -324,7 +324,7 @@ static int __init egpio_probe(struct platform_device *pdev)
 		chip->parent          = &pdev->dev;
 		chip->owner           = THIS_MODULE;
 		chip->get             = egpio_get;
-		chip->set_rv          = egpio_set;
+		chip->set             = egpio_set;
 		chip->direction_input = egpio_direction_input;
 		chip->direction_output = egpio_direction_output;
 		chip->get_direction   = egpio_get_direction;

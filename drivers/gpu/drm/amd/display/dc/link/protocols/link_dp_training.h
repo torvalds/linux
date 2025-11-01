@@ -26,7 +26,7 @@
 
 #ifndef __DC_LINK_DP_TRAINING_H__
 #define __DC_LINK_DP_TRAINING_H__
-#include "link.h"
+#include "link_service.h"
 
 bool perform_link_training_with_retries(
 	const struct dc_link_settings *link_setting,

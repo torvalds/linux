@@ -286,7 +286,7 @@ int __init am43xx_dt_clk_init(void)
 	/*
 	 * cpsw_cpts_rft_clk  has got the choice of 3 clocksources
 	 * dpll_core_m4_ck, dpll_core_m5_ck and dpll_disp_m2_ck.
-	 * By default dpll_core_m4_ck is selected, witn this as clock
+	 * By default dpll_core_m4_ck is selected, with this as clock
 	 * source the CPTS doesnot work properly. It gives clockcheck errors
 	 * while running PTP.
 	 * clockcheck: clock jumped backward or running slower than expected!

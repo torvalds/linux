@@ -210,8 +210,6 @@
 #define P2F_USB_FM_VALID	BIT(0)
 #define P2F_RG_FRCK_EN		BIT(8)
 
-#define U3P_REF_CLK		26	/* MHZ */
-#define U3P_SLEW_RATE_COEF	28
 #define U3P_SR_COEF_DIVISOR	1000
 #define U3P_FM_DET_CYCLE_CNT	1024
 
@@ -277,20 +275,24 @@ enum mtk_phy_version {
 	MTK_PHY_V3,
 };
 
+/**
+ * mtk_phy_pdata - SoC specific platform data
+ * @avoid_rx_sen_degradation: Avoid TX Sensitivity level degradation (MT6795/8173 only)
+ * @sw_pll_48m_to_26m:        Workaround for V3 IP (MT8195) - switch the 48MHz PLL from
+ *                            fractional mode to integer to output 26MHz for U2PHY
+ * @sw_efuse_supported:       Switches off eFuse auto-load from PHY and applies values
+ *                            read from different nvmem (usually different eFuse array)
+ *                            that is pointed at in the device tree node for this PHY
+ * @slew_ref_clk_mhz:         Default reference clock (in MHz) for slew rate calibration
+ * @slew_rate_coefficient:    Coefficient for slew rate calibration
+ * @version:                  PHY IP Version
+ */
 struct mtk_phy_pdata {
-	/* avoid RX sensitivity level degradation only for mt8173 */
 	bool avoid_rx_sen_degradation;
-	/*
-	 * workaround only for mt8195, HW fix it for others of V3,
-	 * u2phy should use integer mode instead of fractional mode of
-	 * 48M PLL, fix it by switching PLL to 26M from default 48M
-	 */
 	bool sw_pll_48m_to_26m;
-	/*
-	 * Some SoCs (e.g. mt8195) drop a bit when use auto load efuse,
-	 * support sw way, also support it for v2/v3 optionally.
-	 */
 	bool sw_efuse_supported;
+	u8 slew_ref_clock_mhz;
+	u8 slew_rate_coefficient;
 	enum mtk_phy_version version;
 };
 
@@ -686,12 +688,14 @@ static void hs_slew_rate_calibrate(struct mtk_tphy *tphy,
 	int fm_out;
 	u32 tmp;
 
-	/* HW V3 doesn't support slew rate cal anymore */
-	if (tphy->pdata->version == MTK_PHY_V3)
-		return;
-
-	/* use force value */
-	if (instance->eye_src)
+	/*
+	 * If a fixed HS slew rate (EYE) value was supplied, don't run the
+	 * calibration sequence and prefer using that value instead; also,
+	 * if there is no reference clock for slew calibration or there is
+	 * no slew coefficient, this means that the slew rate calibration
+	 * sequence is not supported.
+	 */
+	if (instance->eye_src || !tphy->src_ref_clk || !tphy->src_coef)
 		return;
 
 	/* enable USB ring oscillator */
@@ -1516,12 +1520,16 @@ static const struct phy_ops mtk_tphy_ops = {
 
 static const struct mtk_phy_pdata tphy_v1_pdata = {
 	.avoid_rx_sen_degradation = false,
+	.slew_ref_clock_mhz = 26,
+	.slew_rate_coefficient = 28,
 	.version = MTK_PHY_V1,
 };
 
 static const struct mtk_phy_pdata tphy_v2_pdata = {
 	.avoid_rx_sen_degradation = false,
 	.sw_efuse_supported = true,
+	.slew_ref_clock_mhz = 26,
+	.slew_rate_coefficient = 28,
 	.version = MTK_PHY_V2,
 };
 
@@ -1532,6 +1540,8 @@ static const struct mtk_phy_pdata tphy_v3_pdata = {
 
 static const struct mtk_phy_pdata mt8173_pdata = {
 	.avoid_rx_sen_degradation = true,
+	.slew_ref_clock_mhz = 26,
+	.slew_rate_coefficient = 28,
 	.version = MTK_PHY_V1,
 };
 
@@ -1561,7 +1571,7 @@ static int mtk_tphy_probe(struct platform_device *pdev)
 	struct resource *sif_res;
 	struct mtk_tphy *tphy;
 	struct resource res;
-	int port;
+	int port, ret;
 
 	tphy = devm_kzalloc(dev, sizeof(*tphy), GFP_KERNEL);
 	if (!tphy)
@@ -1591,15 +1601,14 @@ static int mtk_tphy_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (tphy->pdata->version < MTK_PHY_V3) {
-		tphy->src_ref_clk = U3P_REF_CLK;
-		tphy->src_coef = U3P_SLEW_RATE_COEF;
-		/* update parameters of slew rate calibrate if exist */
-		device_property_read_u32(dev, "mediatek,src-ref-clk-mhz",
-					 &tphy->src_ref_clk);
-		device_property_read_u32(dev, "mediatek,src-coef",
-					 &tphy->src_coef);
-	}
+	/* Optional properties for slew calibration variation */
+	ret = device_property_read_u32(dev, "mediatek,src-ref-clk-mhz", &tphy->src_ref_clk);
+	if (ret)
+		tphy->src_ref_clk = tphy->pdata->slew_ref_clock_mhz;
+
+	ret = device_property_read_u32(dev, "mediatek,src-coef", &tphy->src_coef);
+	if (ret)
+		tphy->src_coef = tphy->pdata->slew_rate_coefficient;
 
 	port = 0;
 	for_each_child_of_node_scoped(np, child_np) {

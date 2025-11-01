@@ -19,7 +19,7 @@ this uses bootconfig file to describe tracing feature programming.
 Options in the Boot Config
 ==========================
 
-Here is the list of available options list for boot time tracing in
+Here is the list of available options for boot time tracing in
 boot config file [1]_. All options are under "ftrace." or "kernel."
 prefix. See kernel parameters for the options which starts
 with "kernel." prefix [2]_.
@@ -198,8 +198,8 @@ Most of the subsystems and architecture dependent drivers will be initialized
 after that (arch_initcall or subsys_initcall). Thus, you can trace those with
 boot-time tracing.
 If you want to trace events before core_initcall, you can use the options
-starting with ``kernel``. Some of them will be enabled eariler than the initcall
-processing (for example,. ``kernel.ftrace=function`` and ``kernel.trace_event``
+starting with ``kernel``. Some of them will be enabled earlier than the initcall
+processing (for example, ``kernel.ftrace=function`` and ``kernel.trace_event``
 will start before the initcall.)
 
 

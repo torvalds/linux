@@ -29,13 +29,11 @@ TC_INDIRECT_SCOPE int tunnel_key_act(struct sk_buff *skb,
 {
 	struct tcf_tunnel_key *t = to_tunnel_key(a);
 	struct tcf_tunnel_key_params *params;
-	int action;
 
 	params = rcu_dereference_bh(t->params);
 
 	tcf_lastuse_update(&t->tcf_tm);
 	tcf_action_update_bstats(&t->common, skb);
-	action = READ_ONCE(t->tcf_action);
 
 	switch (params->tcft_action) {
 	case TCA_TUNNEL_KEY_ACT_RELEASE:
@@ -51,7 +49,7 @@ TC_INDIRECT_SCOPE int tunnel_key_act(struct sk_buff *skb,
 		break;
 	}
 
-	return action;
+	return params->action;
 }
 
 static const struct nla_policy
@@ -532,6 +530,7 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 	params_new->tcft_action = parm->t_action;
 	params_new->tcft_enc_metadata = metadata;
 
+	params_new->action = parm->action;
 	spin_lock_bh(&t->tcf_lock);
 	goto_ch = tcf_action_set_ctrlact(*a, parm->action, goto_ch);
 	params_new = rcu_replace_pointer(t->params, params_new,
@@ -726,10 +725,9 @@ static int tunnel_key_dump(struct sk_buff *skb, struct tc_action *a,
 	};
 	struct tcf_t tm;
 
-	spin_lock_bh(&t->tcf_lock);
-	params = rcu_dereference_protected(t->params,
-					   lockdep_is_held(&t->tcf_lock));
-	opt.action   = t->tcf_action;
+	rcu_read_lock();
+	params = rcu_dereference(t->params);
+	opt.action   = params->action;
 	opt.t_action = params->tcft_action;
 
 	if (nla_put(skb, TCA_TUNNEL_KEY_PARMS, sizeof(opt), &opt))
@@ -766,12 +764,12 @@ static int tunnel_key_dump(struct sk_buff *skb, struct tc_action *a,
 	if (nla_put_64bit(skb, TCA_TUNNEL_KEY_TM, sizeof(tm),
 			  &tm, TCA_TUNNEL_KEY_PAD))
 		goto nla_put_failure;
-	spin_unlock_bh(&t->tcf_lock);
+	rcu_read_unlock();
 
 	return skb->len;
 
 nla_put_failure:
-	spin_unlock_bh(&t->tcf_lock);
+	rcu_read_unlock();
 	nlmsg_trim(skb, b);
 	return -1;
 }

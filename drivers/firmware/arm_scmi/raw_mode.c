@@ -475,7 +475,8 @@ static void scmi_xfer_raw_worker(struct work_struct *work)
 			raw->desc->ops->mark_txdone(rw->cinfo, ret, xfer);
 
 		trace_scmi_xfer_end(xfer->transfer_id, xfer->hdr.id,
-				    xfer->hdr.protocol_id, xfer->hdr.seq, ret);
+				    xfer->hdr.protocol_id, xfer->hdr.seq,
+				    ret, scmi_inflight_count(raw->handle));
 
 		/* Wait also for an async delayed response if needed */
 		if (!ret && xfer->async_done) {
@@ -642,7 +643,8 @@ static int scmi_do_xfer_raw_start(struct scmi_raw_mode_info *raw,
 
 	trace_scmi_xfer_begin(xfer->transfer_id, xfer->hdr.id,
 			      xfer->hdr.protocol_id, xfer->hdr.seq,
-			      xfer->hdr.poll_completion);
+			      xfer->hdr.poll_completion,
+			      scmi_inflight_count(raw->handle));
 
 	ret = raw->desc->ops->send_message(rw->cinfo, xfer);
 	if (ret) {

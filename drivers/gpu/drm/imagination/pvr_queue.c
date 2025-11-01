@@ -803,7 +803,7 @@ static void pvr_queue_start(struct pvr_queue *queue)
  * the scheduler, and re-assign parent fences in the middle.
  *
  * Return:
- *  * DRM_GPU_SCHED_STAT_NOMINAL.
+ *  * DRM_GPU_SCHED_STAT_RESET.
  */
 static enum drm_gpu_sched_stat
 pvr_queue_timedout_job(struct drm_sched_job *s_job)
@@ -854,7 +854,7 @@ pvr_queue_timedout_job(struct drm_sched_job *s_job)
 
 	drm_sched_start(sched, 0);
 
-	return DRM_GPU_SCHED_STAT_NOMINAL;
+	return DRM_GPU_SCHED_STAT_RESET;
 }
 
 /**

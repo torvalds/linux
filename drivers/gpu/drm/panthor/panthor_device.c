@@ -18,6 +18,7 @@
 #include "panthor_device.h"
 #include "panthor_fw.h"
 #include "panthor_gpu.h"
+#include "panthor_hw.h"
 #include "panthor_mmu.h"
 #include "panthor_regs.h"
 #include "panthor_sched.h"
@@ -171,6 +172,8 @@ int panthor_device_init(struct panthor_device *ptdev)
 	struct page *p;
 	int ret;
 
+	ptdev->soc_data = of_device_get_match_data(ptdev->base.dev);
+
 	init_completion(&ptdev->unplug.done);
 	ret = drmm_mutex_init(&ptdev->base, &ptdev->unplug.lock);
 	if (ret)
@@ -243,6 +246,10 @@ int panthor_device_init(struct panthor_device *ptdev)
 		if (ret)
 			return ret;
 	}
+
+	ret = panthor_hw_init(ptdev);
+	if (ret)
+		goto err_rpm_put;
 
 	ret = panthor_gpu_init(ptdev);
 	if (ret)

@@ -701,6 +701,7 @@ void print_function_args(struct trace_seq *s, unsigned long *args,
 	struct btf *btf;
 	s32 tid, nr = 0;
 	int a, p, x;
+	u16 encode;
 
 	trace_seq_printf(s, "(");
 
@@ -744,7 +745,12 @@ void print_function_args(struct trace_seq *s, unsigned long *args,
 			trace_seq_printf(s, "0x%lx", arg);
 			break;
 		case BTF_KIND_INT:
-			trace_seq_printf(s, "%ld", arg);
+			encode = btf_int_encoding(t);
+			/* Print unsigned ints as hex */
+			if (encode & BTF_INT_SIGNED)
+				trace_seq_printf(s, "%ld", arg);
+			else
+				trace_seq_printf(s, "0x%lx", arg);
 			break;
 		case BTF_KIND_ENUM:
 			trace_seq_printf(s, "%ld", arg);

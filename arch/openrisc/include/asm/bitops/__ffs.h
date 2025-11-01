@@ -11,7 +11,7 @@
 
 #ifdef CONFIG_OPENRISC_HAVE_INST_FF1
 
-static inline unsigned long __ffs(unsigned long x)
+static inline __attribute_const__ unsigned long __ffs(unsigned long x)
 {
 	int ret;
 

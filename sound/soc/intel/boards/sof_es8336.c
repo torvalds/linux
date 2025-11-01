@@ -276,7 +276,7 @@ static int sof_es8316_init(struct snd_soc_pcm_runtime *runtime)
 	int num_routes;
 	int ret;
 
-	card->dapm.idle_bias_off = true;
+	card->dapm.idle_bias = false;
 
 	if (quirk & SOC_ES8336_HEADSET_MIC1) {
 		custom_map = sof_es8316_headset_mic1_map;
@@ -818,6 +818,16 @@ static const struct platform_device_id board_ids[] = {
 	},
 	{
 		.name = "arl_es83x6_c1_h02",
+		.driver_data = (kernel_ulong_t)(SOF_ES8336_SSP_CODEC(1) |
+					SOF_NO_OF_HDMI_CAPTURE_SSP(2) |
+					SOF_HDMI_CAPTURE_1_SSP(0) |
+					SOF_HDMI_CAPTURE_2_SSP(2) |
+					SOF_SSP_HDMI_CAPTURE_PRESENT |
+					SOF_ES8336_SPEAKERS_EN_GPIO1_QUIRK |
+					SOF_ES8336_JD_INVERTED),
+	},
+	{
+		.name = "ptl_es83x6_c1_h02",
 		.driver_data = (kernel_ulong_t)(SOF_ES8336_SSP_CODEC(1) |
 					SOF_NO_OF_HDMI_CAPTURE_SSP(2) |
 					SOF_HDMI_CAPTURE_1_SSP(0) |

@@ -45,7 +45,7 @@ static void test_hv_cpuid(struct kvm_vcpu *vcpu, bool evmcs_expected)
 
 		TEST_ASSERT((entry->function >= 0x40000000) &&
 			    (entry->function <= 0x40000082),
-			    "function %x is our of supported range",
+			    "function %x is out of supported range",
 			    entry->function);
 
 		TEST_ASSERT(entry->index == 0,

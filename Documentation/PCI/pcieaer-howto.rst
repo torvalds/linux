@@ -70,16 +70,16 @@ AER error output
 ----------------
 
 When a PCIe AER error is captured, an error message will be output to
-console. If it's a correctable error, it is output as an info message.
+console. If it's a correctable error, it is output as a warning message.
 Otherwise, it is printed as an error. So users could choose different
 log level to filter out correctable error messages.
 
 Below shows an example::
 
-  0000:50:00.0: PCIe Bus Error: severity=Uncorrected (Fatal), type=Transaction Layer, id=0500(Requester ID)
+  0000:50:00.0: PCIe Bus Error: severity=Uncorrectable (Fatal), type=Transaction Layer, (Requester ID)
   0000:50:00.0:   device [8086:0329] error status/mask=00100000/00000000
-  0000:50:00.0:    [20] Unsupported Request    (First)
-  0000:50:00.0:   TLP Header: 04000001 00200a03 05010000 00050100
+  0000:50:00.0:    [20] UnsupReq               (First)
+  0000:50:00.0:   TLP Header: 0x04000001 0x00200a03 0x05010000 0x00050100
 
 In the example, 'Requester ID' means the ID of the device that sent
 the error message to the Root Port. Please refer to PCIe specs for other
@@ -138,7 +138,7 @@ error message to the Root Port above it when it captures
 an error. The Root Port, upon receiving an error reporting message,
 internally processes and logs the error message in its AER
 Capability structure. Error information being logged includes storing
-the error reporting agent's requestor ID into the Error Source
+the error reporting agent's Requester ID into the Error Source
 Identification Registers and setting the error bits of the Root Error
 Status Register accordingly. If AER error reporting is enabled in the Root
 Error Command Register, the Root Port generates an interrupt when an
@@ -152,18 +152,6 @@ the device driver.
 Provide callbacks
 -----------------
 
-callback reset_link to reset PCIe link
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-This callback is used to reset the PCIe physical link when a
-fatal error happens. The Root Port AER service driver provides a
-default reset_link function, but different Upstream Ports might
-have different specifications to reset the PCIe link, so
-Upstream Port drivers may provide their own reset_link functions.
-
-Section 3.2.2.2 provides more detailed info on when to call
-reset_link.
-
 PCI error-recovery callbacks
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -174,8 +162,8 @@ when performing error recovery actions.
 Data struct pci_driver has a pointer, err_handler, to point to
 pci_error_handlers who consists of a couple of callback function
 pointers. The AER driver follows the rules defined in
-pci-error-recovery.rst except PCIe-specific parts (e.g.
-reset_link). Please refer to pci-error-recovery.rst for detailed
+pci-error-recovery.rst except PCIe-specific parts (see
+below). Please refer to pci-error-recovery.rst for detailed
 definitions of the callbacks.
 
 The sections below specify when to call the error callback functions.
@@ -189,10 +177,21 @@ software intervention or any loss of data. These errors do not
 require any recovery actions. The AER driver clears the device's
 correctable error status register accordingly and logs these errors.
 
-Non-correctable (non-fatal and fatal) errors
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Uncorrectable (non-fatal and fatal) errors
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-If an error message indicates a non-fatal error, performing link reset
+The AER driver performs a Secondary Bus Reset to recover from
+uncorrectable errors. The reset is applied at the port above
+the originating device: If the originating device is an Endpoint,
+only the Endpoint is reset. If on the other hand the originating
+device has subordinate devices, those are all affected by the
+reset as well.
+
+If the originating device is a Root Complex Integrated Endpoint,
+there's no port above where a Secondary Bus Reset could be applied.
+In this case, the AER driver instead applies a Function Level Reset.
+
+If an error message indicates a non-fatal error, performing a reset
 at upstream is not required. The AER driver calls error_detected(dev,
 pci_channel_io_normal) to all drivers associated within a hierarchy in
 question. For example::
@@ -204,38 +203,34 @@ Downstream Port B and Endpoint.
 
 A driver may return PCI_ERS_RESULT_CAN_RECOVER,
 PCI_ERS_RESULT_DISCONNECT, or PCI_ERS_RESULT_NEED_RESET, depending on
-whether it can recover or the AER driver calls mmio_enabled as next.
+whether it can recover without a reset, considers the device unrecoverable
+or needs a reset for recovery. If all affected drivers agree that they can
+recover without a reset, it is skipped. Should one driver request a reset,
+it overrides all other drivers.
 
 If an error message indicates a fatal error, kernel will broadcast
 error_detected(dev, pci_channel_io_frozen) to all drivers within
-a hierarchy in question. Then, performing link reset at upstream is
-necessary. As different kinds of devices might use different approaches
-to reset link, AER port service driver is required to provide the
-function to reset link via callback parameter of pcie_do_recovery()
-function. If reset_link is not NULL, recovery function will use it
-to reset the link. If error_detected returns PCI_ERS_RESULT_CAN_RECOVER
-and reset_link returns PCI_ERS_RESULT_RECOVERED, the error handling goes
-to mmio_enabled.
+a hierarchy in question. Then, performing a reset at upstream is
+necessary. If error_detected returns PCI_ERS_RESULT_CAN_RECOVER
+to indicate that recovery without a reset is possible, the error
+handling goes to mmio_enabled, but afterwards a reset is still
+performed.
 
-Frequent Asked Questions
-------------------------
+In other words, for non-fatal errors, drivers may opt in to a reset.
+But for fatal errors, they cannot opt out of a reset, based on the
+assumption that the link is unreliable.
+
+Frequently Asked Questions
+--------------------------
 
 Q:
   What happens if a PCIe device driver does not provide an
   error recovery handler (pci_driver->err_handler is equal to NULL)?
 
 A:
-  The devices attached with the driver won't be recovered. If the
-  error is fatal, kernel will print out warning messages. Please refer
-  to section 3 for more information.
-
-Q:
-  What happens if an upstream port service driver does not provide
-  callback reset_link?
-
-A:
-  Fatal error recovery will fail if the errors are reported by the
-  upstream ports who are attached by the service driver.
+  The devices attached with the driver won't be recovered.
+  The kernel will print out informational messages to identify
+  unrecoverable devices.
 
 
 Software error injection

@@ -173,8 +173,10 @@ struct acpi_exception_info {
 #define AE_AML_TARGET_TYPE              EXCEP_AML (0x0023)
 #define AE_AML_PROTOCOL                 EXCEP_AML (0x0024)
 #define AE_AML_BUFFER_LENGTH            EXCEP_AML (0x0025)
+#define AE_AML_TOO_FEW_ARGUMENTS        EXCEP_AML (0x0026)
+#define AE_AML_TOO_MANY_ARGUMENTS       EXCEP_AML (0x0027)
 
-#define AE_CODE_AML_MAX                 0x0025
+#define AE_CODE_AML_MAX                 0x0027
 
 /*
  * Internal exceptions used for control
@@ -353,7 +355,11 @@ static const struct acpi_exception_info acpi_gbl_exception_names_aml[] = {
 		  "A target operand of an incorrect type was encountered"),
 	EXCEP_TXT("AE_AML_PROTOCOL", "Violation of a fixed ACPI protocol"),
 	EXCEP_TXT("AE_AML_BUFFER_LENGTH",
-		  "The length of the buffer is invalid/incorrect")
+		  "The length of the buffer is invalid/incorrect"),
+	EXCEP_TXT("AE_AML_TOO_FEW_ARGUMENTS",
+		  "There are fewer than expected method arguments"),
+	EXCEP_TXT("AE_AML_TOO_MANY_ARGUMENTS",
+		  "There are too many arguments for this method")
 };
 
 static const struct acpi_exception_info acpi_gbl_exception_names_ctrl[] = {

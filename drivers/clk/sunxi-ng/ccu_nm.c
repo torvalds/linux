@@ -116,39 +116,39 @@ static unsigned long ccu_nm_recalc_rate(struct clk_hw *hw,
 	return rate;
 }
 
-static long ccu_nm_round_rate(struct clk_hw *hw, unsigned long rate,
-			      unsigned long *parent_rate)
+static int ccu_nm_determine_rate(struct clk_hw *hw,
+				 struct clk_rate_request *req)
 {
 	struct ccu_nm *nm = hw_to_ccu_nm(hw);
 	struct _ccu_nm _nm;
 
 	if (nm->common.features & CCU_FEATURE_FIXED_POSTDIV)
-		rate *= nm->fixed_post_div;
+		req->rate *= nm->fixed_post_div;
 
-	if (rate < nm->min_rate) {
-		rate = nm->min_rate;
+	if (req->rate < nm->min_rate) {
+		req->rate = nm->min_rate;
 		if (nm->common.features & CCU_FEATURE_FIXED_POSTDIV)
-			rate /= nm->fixed_post_div;
-		return rate;
+			req->rate /= nm->fixed_post_div;
+		return 0;
 	}
 
-	if (nm->max_rate && rate > nm->max_rate) {
-		rate = nm->max_rate;
+	if (nm->max_rate && req->rate > nm->max_rate) {
+		req->rate = nm->max_rate;
 		if (nm->common.features & CCU_FEATURE_FIXED_POSTDIV)
-			rate /= nm->fixed_post_div;
-		return rate;
+			req->rate /= nm->fixed_post_div;
+		return 0;
 	}
 
-	if (ccu_frac_helper_has_rate(&nm->common, &nm->frac, rate)) {
+	if (ccu_frac_helper_has_rate(&nm->common, &nm->frac, req->rate)) {
 		if (nm->common.features & CCU_FEATURE_FIXED_POSTDIV)
-			rate /= nm->fixed_post_div;
-		return rate;
+			req->rate /= nm->fixed_post_div;
+		return 0;
 	}
 
-	if (ccu_sdm_helper_has_rate(&nm->common, &nm->sdm, rate)) {
+	if (ccu_sdm_helper_has_rate(&nm->common, &nm->sdm, req->rate)) {
 		if (nm->common.features & CCU_FEATURE_FIXED_POSTDIV)
-			rate /= nm->fixed_post_div;
-		return rate;
+			req->rate /= nm->fixed_post_div;
+		return 0;
 	}
 
 	_nm.min_n = nm->n.min ?: 1;
@@ -156,12 +156,13 @@ static long ccu_nm_round_rate(struct clk_hw *hw, unsigned long rate,
 	_nm.min_m = 1;
 	_nm.max_m = nm->m.max ?: 1 << nm->m.width;
 
-	rate = ccu_nm_find_best(&nm->common, *parent_rate, rate, &_nm);
+	req->rate = ccu_nm_find_best(&nm->common, req->best_parent_rate,
+				     req->rate, &_nm);
 
 	if (nm->common.features & CCU_FEATURE_FIXED_POSTDIV)
-		rate /= nm->fixed_post_div;
+		req->rate /= nm->fixed_post_div;
 
-	return rate;
+	return 0;
 }
 
 static int ccu_nm_set_rate(struct clk_hw *hw, unsigned long rate,
@@ -233,7 +234,7 @@ const struct clk_ops ccu_nm_ops = {
 	.is_enabled	= ccu_nm_is_enabled,
 
 	.recalc_rate	= ccu_nm_recalc_rate,
-	.round_rate	= ccu_nm_round_rate,
+	.determine_rate = ccu_nm_determine_rate,
 	.set_rate	= ccu_nm_set_rate,
 };
 EXPORT_SYMBOL_NS_GPL(ccu_nm_ops, "SUNXI_CCU");

@@ -12,6 +12,22 @@
 #include <linux/time.h>
 
 /**
+ * timekeeper_ids - IDs for various time keepers in the kernel
+ * @TIMEKEEPER_CORE:		The central core timekeeper managing system time
+ * @TIMEKEEPER_AUX_FIRST:	The first AUX timekeeper
+ * @TIMEKEEPER_AUX_LAST:	The last AUX timekeeper
+ * @TIMEKEEPERS_MAX:		The maximum number of timekeepers managed
+ */
+enum timekeeper_ids {
+	TIMEKEEPER_CORE,
+#ifdef CONFIG_POSIX_AUX_CLOCKS
+	TIMEKEEPER_AUX_FIRST,
+	TIMEKEEPER_AUX_LAST = TIMEKEEPER_AUX_FIRST + MAX_AUX_CLOCKS - 1,
+#endif
+	TIMEKEEPERS_MAX,
+};
+
+/**
  * struct tk_read_base - base structure for timekeeping readout
  * @clock:	Current clocksource used for timekeeping.
  * @mask:	Bitmask for two's complement subtraction of non 64bit clocks
@@ -51,12 +67,16 @@ struct tk_read_base {
  * @offs_real:			Offset clock monotonic -> clock realtime
  * @offs_boot:			Offset clock monotonic -> clock boottime
  * @offs_tai:			Offset clock monotonic -> clock tai
+ * @offs_aux:			Offset clock monotonic -> clock AUX
  * @coarse_nsec:		The nanoseconds part for coarse time getters
+ * @id:				The timekeeper ID
  * @tkr_raw:			The readout base structure for CLOCK_MONOTONIC_RAW
  * @raw_sec:			CLOCK_MONOTONIC_RAW  time in seconds
  * @clock_was_set_seq:		The sequence number of clock was set events
  * @cs_was_changed_seq:		The sequence number of clocksource change events
+ * @clock_valid:		Indicator for valid clock
  * @monotonic_to_boot:		CLOCK_MONOTONIC to CLOCK_BOOTTIME offset
+ * @monotonic_to_aux:		CLOCK_MONOTONIC to CLOCK_AUX offset
  * @cycle_interval:		Number of clock cycles in one NTP interval
  * @xtime_interval:		Number of clock shifted nano seconds in one NTP
  *				interval.
@@ -95,13 +115,19 @@ struct tk_read_base {
  * @monotonic_to_boottime is a timespec64 representation of @offs_boot to
  * accelerate the VDSO update for CLOCK_BOOTTIME.
  *
+ * @offs_aux is used by the auxiliary timekeepers which do not utilize any
+ * of the regular timekeeper offset fields.
+ *
+ * @monotonic_to_aux is a timespec64 representation of @offs_aux to
+ * accelerate the VDSO update for CLOCK_AUX.
+ *
  * The cacheline ordering of the structure is optimized for in kernel usage of
  * the ktime_get() and ktime_get_ts64() family of time accessors. Struct
  * timekeeper is prepended in the core timekeeping code with a sequence count,
  * which results in the following cacheline layout:
  *
  * 0:	seqcount, tkr_mono
- * 1:	xtime_sec ... coarse_nsec
+ * 1:	xtime_sec ... id
  * 2:	tkr_raw, raw_sec
  * 3,4: Internal variables
  *
@@ -121,8 +147,12 @@ struct timekeeper {
 	struct timespec64	wall_to_monotonic;
 	ktime_t			offs_real;
 	ktime_t			offs_boot;
-	ktime_t			offs_tai;
+	union {
+		ktime_t		offs_tai;
+		ktime_t		offs_aux;
+	};
 	u32			coarse_nsec;
+	enum timekeeper_ids	id;
 
 	/* Cacheline 2: */
 	struct tk_read_base	tkr_raw;
@@ -131,8 +161,12 @@ struct timekeeper {
 	/* Cachline 3 and 4 (timekeeping internal variables): */
 	unsigned int		clock_was_set_seq;
 	u8			cs_was_changed_seq;
+	u8			clock_valid;
 
-	struct timespec64	monotonic_to_boot;
+	union {
+		struct timespec64	monotonic_to_boot;
+		struct timespec64	monotonic_to_aux;
+	};
 
 	u64			cycle_interval;
 	u64			xtime_interval;
@@ -161,6 +195,12 @@ static inline void update_vsyscall(struct timekeeper *tk)
 static inline void update_vsyscall_tz(void)
 {
 }
+#endif
+
+#if defined(CONFIG_GENERIC_GETTIMEOFDAY) && defined(CONFIG_POSIX_AUX_CLOCKS)
+extern void vdso_time_update_aux(struct timekeeper *tk);
+#else
+static inline void vdso_time_update_aux(struct timekeeper *tk) { }
 #endif
 
 #endif /* _LINUX_TIMEKEEPER_INTERNAL_H */

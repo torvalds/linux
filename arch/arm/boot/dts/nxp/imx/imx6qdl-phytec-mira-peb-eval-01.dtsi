@@ -13,14 +13,14 @@
 		pinctrl-0 = <&pinctrl_gpio_keys>;
 		status = "disabled";
 
-		power {
+		key-power {
 			label = "Power Button";
 			gpios = <&gpio5 28 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_WAKEUP>;
 			wakeup-source;
 		};
 
-		sleep {
+		key-sleep {
 			label = "Sleep Button";
 			gpios = <&gpio6 18 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_SLEEP>;
@@ -35,19 +35,19 @@
 
 		user-led1 {
 			gpios = <&gpio7 1 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "gpio";
+			linux,default-trigger = "none";
 			default-state = "on";
 		};
 
 		user-led2 {
 			gpios = <&gpio7 0 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "gpio";
+			linux,default-trigger = "none";
 			default-state = "on";
 		};
 
 		user-led3 {
 			gpios = <&gpio5 29 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "gpio";
+			linux,default-trigger = "none";
 			default-state = "on";
 		};
 	};

@@ -210,13 +210,17 @@ static void sd_cleanup(struct mlx5_core_dev *dev)
 static int sd_register(struct mlx5_core_dev *dev)
 {
 	struct mlx5_devcom_comp_dev *devcom, *pos;
+	struct mlx5_devcom_match_attr attr = {};
 	struct mlx5_core_dev *peer, *primary;
 	struct mlx5_sd *sd, *primary_sd;
 	int err, i;
 
 	sd = mlx5_get_sd(dev);
+	attr.key.val = sd->group_id;
+	attr.flags = MLX5_DEVCOM_MATCH_FLAGS_NS;
+	attr.net = mlx5_core_net(dev);
 	devcom = mlx5_devcom_register_component(dev->priv.devc, MLX5_DEVCOM_SD_GROUP,
-						sd->group_id, NULL, dev);
+						&attr, NULL, dev);
 	if (IS_ERR(devcom))
 		return PTR_ERR(devcom);
 

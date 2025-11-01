@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2024 Intel Corporation
+ * Copyright (C) 2024-2025 Intel Corporation
  */
 #ifndef __iwl_utils_h__
 #define __iwl_utils_h__
@@ -52,5 +52,7 @@ u32 iwl_find_ie_offset(u8 *beacon, u8 eid, u32 frame_size)
 
 	return ie - beacon;
 }
+
+s8 iwl_average_neg_dbm(const u8 *neg_dbm_values, u8 len);
 
 #endif /* __iwl_utils_h__ */

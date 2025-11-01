@@ -411,6 +411,7 @@ void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
  * with the mac80211 subsystem.  This should be performed prior to calling
  * ieee80211_register_hw
  *
+ * Return: negative error code, or 0 on success
  */
 int iwl_mvm_rate_control_register(void);
 

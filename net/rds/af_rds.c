@@ -242,7 +242,7 @@ static __poll_t rds_poll(struct file *file, struct socket *sock,
 	if (rs->rs_snd_bytes < rds_sk_sndbuf(rs))
 		mask |= (EPOLLOUT | EPOLLWRNORM);
 	if (sk->sk_err || !skb_queue_empty(&sk->sk_error_queue))
-		mask |= POLLERR;
+		mask |= EPOLLERR;
 	read_unlock_irqrestore(&rs->rs_recv_lock, flags);
 
 	/* clear state any time we wake a seen-congested socket */
@@ -598,7 +598,7 @@ static int rds_connect(struct socket *sock, struct sockaddr *uaddr,
 		}
 
 		if (addr_type & IPV6_ADDR_LINKLOCAL) {
-			/* If socket is arleady bound to a link local address,
+			/* If socket is already bound to a link local address,
 			 * the peer address must be on the same link.
 			 */
 			if (sin6->sin6_scope_id == 0 ||

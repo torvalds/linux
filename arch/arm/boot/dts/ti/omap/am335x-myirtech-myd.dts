@@ -143,7 +143,7 @@
 
 	sgtl5000: sgtl5000@a {
 		compatible = "fsl,sgtl5000";
-		reg =<0xa>;
+		reg = <0xa>;
 		clocks = <&clk12m>;
 		micbias-resistor-k-ohms = <4>;
 		micbias-voltage-m-volts = <2250>;
@@ -155,7 +155,7 @@
 
 	tda9988: tda9988@70 {
 		compatible = "nxp,tda998x";
-		reg =<0x70>;
+		reg = <0x70>;
 		audio-ports = <TDA998x_I2S 1>;
 
 		#sound-dai-cells = <0>;

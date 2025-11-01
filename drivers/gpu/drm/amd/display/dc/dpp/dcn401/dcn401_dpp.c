@@ -231,7 +231,7 @@ static struct dpp_funcs dcn401_dpp_funcs = {
 	.dpp_program_regamma_pwl	= NULL,
 	.dpp_set_pre_degam			= dpp3_set_pre_degam,
 	.dpp_program_input_lut		= NULL,
-	.dpp_full_bypass			= dpp401_full_bypass,
+	.dpp_full_bypass			= NULL,
 	.dpp_setup					= dpp401_dpp_setup,
 	.dpp_program_degamma_pwl	= NULL,
 	.dpp_program_cm_dealpha		= dpp3_program_cm_dealpha,
@@ -248,6 +248,7 @@ static struct dpp_funcs dcn401_dpp_funcs = {
 	.set_optional_cursor_attributes	= dpp401_set_optional_cursor_attributes,
 	.dpp_dppclk_control			= dpp1_dppclk_control,
 	.dpp_set_hdr_multiplier		= dpp3_set_hdr_multiplier,
+	.dpp_read_reg_state			= dpp30_read_reg_state,
 	.set_cursor_matrix			= dpp401_set_cursor_matrix,
 };
 

@@ -157,12 +157,6 @@ void gcs_free(struct task_struct *task)
 	if (!system_supports_gcs())
 		return;
 
-	/*
-	 * When fork() with CLONE_VM fails, the child (tsk) already
-	 * has a GCS allocated, and exit_thread() calls this function
-	 * to free it.  In this case the parent (current) and the
-	 * child share the same mm struct.
-	 */
 	if (!task->mm || task->mm != current->mm)
 		return;
 

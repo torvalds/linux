@@ -379,7 +379,7 @@ static int sdhci_iproc_probe(struct platform_device *pdev)
 
 	ret = mmc_of_parse(host->mmc);
 	if (ret)
-		goto err;
+		return ret;
 
 	sdhci_get_property(pdev);
 
@@ -387,10 +387,8 @@ static int sdhci_iproc_probe(struct platform_device *pdev)
 
 	if (dev->of_node) {
 		pltfm_host->clk = devm_clk_get_enabled(dev, NULL);
-		if (IS_ERR(pltfm_host->clk)) {
-			ret = PTR_ERR(pltfm_host->clk);
-			goto err;
-		}
+		if (IS_ERR(pltfm_host->clk))
+			return PTR_ERR(pltfm_host->clk);
 	}
 
 	if (iproc_host->data->missing_caps) {
@@ -399,15 +397,7 @@ static int sdhci_iproc_probe(struct platform_device *pdev)
 				  &iproc_host->data->caps1);
 	}
 
-	ret = sdhci_add_host(host);
-	if (ret)
-		goto err;
-
-	return 0;
-
-err:
-	sdhci_pltfm_free(pdev);
-	return ret;
+	return sdhci_add_host(host);
 }
 
 static void sdhci_iproc_shutdown(struct platform_device *pdev)

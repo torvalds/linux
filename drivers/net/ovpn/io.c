@@ -62,6 +62,13 @@ static void ovpn_netdev_write(struct ovpn_peer *peer, struct sk_buff *skb)
 	unsigned int pkt_len;
 	int ret;
 
+	/*
+	 * GSO state from the transport layer is not valid for the tunnel/data
+	 * path. Reset all GSO fields to prevent any further GSO processing
+	 * from entering an inconsistent state.
+	 */
+	skb_gso_reset(skb);
+
 	/* we can't guarantee the packet wasn't corrupted before entering the
 	 * VPN, therefore we give other layers a chance to check that
 	 */

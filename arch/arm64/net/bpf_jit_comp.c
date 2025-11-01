@@ -10,6 +10,7 @@
 #include <linux/arm-smccc.h>
 #include <linux/bitfield.h>
 #include <linux/bpf.h>
+#include <linux/cfi.h>
 #include <linux/filter.h>
 #include <linux/memory.h>
 #include <linux/printk.h>
@@ -30,6 +31,7 @@
 #define TMP_REG_2 (MAX_BPF_JIT_REG + 1)
 #define TCCNT_PTR (MAX_BPF_JIT_REG + 2)
 #define TMP_REG_3 (MAX_BPF_JIT_REG + 3)
+#define PRIVATE_SP (MAX_BPF_JIT_REG + 4)
 #define ARENA_VM_START (MAX_BPF_JIT_REG + 5)
 
 #define check_imm(bits, imm) do {				\
@@ -68,6 +70,8 @@ static const int bpf2a64[] = {
 	[TCCNT_PTR] = A64_R(26),
 	/* temporary register for blinding constants */
 	[BPF_REG_AX] = A64_R(9),
+	/* callee saved register for private stack pointer */
+	[PRIVATE_SP] = A64_R(27),
 	/* callee saved register for kern_vm_start address */
 	[ARENA_VM_START] = A64_R(28),
 };
@@ -86,6 +90,7 @@ struct jit_ctx {
 	u64 user_vm_start;
 	u64 arena_vm_start;
 	bool fp_used;
+	bool priv_sp_used;
 	bool write;
 };
 
@@ -98,10 +103,22 @@ struct bpf_plt {
 #define PLT_TARGET_SIZE   sizeof_field(struct bpf_plt, target)
 #define PLT_TARGET_OFFSET offsetof(struct bpf_plt, target)
 
+/* Memory size/value to protect private stack overflow/underflow */
+#define PRIV_STACK_GUARD_SZ    16
+#define PRIV_STACK_GUARD_VAL   0xEB9F12345678eb9fULL
+
 static inline void emit(const u32 insn, struct jit_ctx *ctx)
 {
 	if (ctx->image != NULL && ctx->write)
 		ctx->image[ctx->idx] = cpu_to_le32(insn);
+
+	ctx->idx++;
+}
+
+static inline void emit_u32_data(const u32 data, struct jit_ctx *ctx)
+{
+	if (ctx->image != NULL && ctx->write)
+		ctx->image[ctx->idx] = data;
 
 	ctx->idx++;
 }
@@ -164,6 +181,12 @@ static inline void emit_bti(u32 insn, struct jit_ctx *ctx)
 {
 	if (IS_ENABLED(CONFIG_ARM64_BTI_KERNEL))
 		emit(insn, ctx);
+}
+
+static inline void emit_kcfi(u32 hash, struct jit_ctx *ctx)
+{
+	if (IS_ENABLED(CONFIG_CFI))
+		emit_u32_data(hash, ctx);
 }
 
 /*
@@ -387,8 +410,11 @@ static void find_used_callee_regs(struct jit_ctx *ctx)
 	if (reg_used & 8)
 		ctx->used_callee_reg[i++] = bpf2a64[BPF_REG_9];
 
-	if (reg_used & 16)
+	if (reg_used & 16) {
 		ctx->used_callee_reg[i++] = bpf2a64[BPF_REG_FP];
+		if (ctx->priv_sp_used)
+			ctx->used_callee_reg[i++] = bpf2a64[PRIVATE_SP];
+	}
 
 	if (ctx->arena_vm_start)
 		ctx->used_callee_reg[i++] = bpf2a64[ARENA_VM_START];
@@ -412,6 +438,7 @@ static void push_callee_regs(struct jit_ctx *ctx)
 		emit(A64_PUSH(A64_R(23), A64_R(24), A64_SP), ctx);
 		emit(A64_PUSH(A64_R(25), A64_R(26), A64_SP), ctx);
 		emit(A64_PUSH(A64_R(27), A64_R(28), A64_SP), ctx);
+		ctx->fp_used = true;
 	} else {
 		find_used_callee_regs(ctx);
 		for (i = 0; i + 1 < ctx->nr_used_callee_reg; i += 2) {
@@ -461,6 +488,19 @@ static void pop_callee_regs(struct jit_ctx *ctx)
 	}
 }
 
+static void emit_percpu_ptr(const u8 dst_reg, void __percpu *ptr,
+			    struct jit_ctx *ctx)
+{
+	const u8 tmp = bpf2a64[TMP_REG_1];
+
+	emit_a64_mov_i64(dst_reg, (__force const u64)ptr, ctx);
+	if (cpus_have_cap(ARM64_HAS_VIRT_HOST_EXTN))
+		emit(A64_MRS_TPIDR_EL2(tmp), ctx);
+	else
+		emit(A64_MRS_TPIDR_EL1(tmp), ctx);
+	emit(A64_ADD(1, dst_reg, dst_reg, tmp), ctx);
+}
+
 #define BTI_INSNS (IS_ENABLED(CONFIG_ARM64_BTI_KERNEL) ? 1 : 0)
 #define PAC_INSNS (IS_ENABLED(CONFIG_ARM64_PTR_AUTH_KERNEL) ? 1 : 0)
 
@@ -476,7 +516,8 @@ static int build_prologue(struct jit_ctx *ctx, bool ebpf_from_cbpf)
 	const bool is_main_prog = !bpf_is_subprog(prog);
 	const u8 fp = bpf2a64[BPF_REG_FP];
 	const u8 arena_vm_base = bpf2a64[ARENA_VM_START];
-	const int idx0 = ctx->idx;
+	const u8 priv_sp = bpf2a64[PRIVATE_SP];
+	void __percpu *priv_stack_ptr;
 	int cur_offset;
 
 	/*
@@ -501,6 +542,9 @@ static int build_prologue(struct jit_ctx *ctx, bool ebpf_from_cbpf)
 	 *                          low
 	 *
 	 */
+
+	emit_kcfi(is_main_prog ? cfi_bpf_hash : cfi_bpf_subprog_hash, ctx);
+	const int idx0 = ctx->idx;
 
 	/* bpf function may be invoked by 3 instruction types:
 	 * 1. bl, attached via freplace to bpf prog via short jump
@@ -551,15 +595,23 @@ static int build_prologue(struct jit_ctx *ctx, bool ebpf_from_cbpf)
 		emit(A64_SUB_I(1, A64_SP, A64_FP, 96), ctx);
 	}
 
-	if (ctx->fp_used)
-		/* Set up BPF prog stack base register */
-		emit(A64_MOV(1, fp, A64_SP), ctx);
-
 	/* Stack must be multiples of 16B */
 	ctx->stack_size = round_up(prog->aux->stack_depth, 16);
 
+	if (ctx->fp_used) {
+		if (ctx->priv_sp_used) {
+			/* Set up private stack pointer */
+			priv_stack_ptr = prog->aux->priv_stack_ptr + PRIV_STACK_GUARD_SZ;
+			emit_percpu_ptr(priv_sp, priv_stack_ptr, ctx);
+			emit(A64_ADD_I(1, fp, priv_sp, ctx->stack_size), ctx);
+		} else {
+			/* Set up BPF prog stack base register */
+			emit(A64_MOV(1, fp, A64_SP), ctx);
+		}
+	}
+
 	/* Set up function call stack */
-	if (ctx->stack_size)
+	if (ctx->stack_size && !ctx->priv_sp_used)
 		emit(A64_SUB_I(1, A64_SP, A64_SP, ctx->stack_size), ctx);
 
 	if (ctx->arena_vm_start)
@@ -623,7 +675,7 @@ static int emit_bpf_tail_call(struct jit_ctx *ctx)
 	emit(A64_STR64I(tcc, ptr, 0), ctx);
 
 	/* restore SP */
-	if (ctx->stack_size)
+	if (ctx->stack_size && !ctx->priv_sp_used)
 		emit(A64_ADD_I(1, A64_SP, A64_SP, ctx->stack_size), ctx);
 
 	pop_callee_regs(ctx);
@@ -991,7 +1043,7 @@ static void build_epilogue(struct jit_ctx *ctx, bool was_classic)
 	const u8 ptr = bpf2a64[TCCNT_PTR];
 
 	/* We're done with BPF stack */
-	if (ctx->stack_size)
+	if (ctx->stack_size && !ctx->priv_sp_used)
 		emit(A64_ADD_I(1, A64_SP, A64_SP, ctx->stack_size), ctx);
 
 	pop_callee_regs(ctx);
@@ -1014,19 +1066,53 @@ static void build_epilogue(struct jit_ctx *ctx, bool was_classic)
 	emit(A64_RET(A64_LR), ctx);
 }
 
-#define BPF_FIXUP_OFFSET_MASK	GENMASK(26, 0)
+/*
+ * Metadata encoding for exception handling in JITed code.
+ *
+ * Format of `fixup` field in `struct exception_table_entry`:
+ *
+ * Bit layout of `fixup` (32-bit):
+ *
+ * +-----------+--------+-----------+-----------+----------+
+ * |   31-27   | 26-22  |     21    |   20-16   |   15-0   |
+ * |           |        |           |           |          |
+ * | FIXUP_REG | Unused | ARENA_ACC | ARENA_REG |  OFFSET  |
+ * +-----------+--------+-----------+-----------+----------+
+ *
+ * - OFFSET (16 bits): Offset used to compute address for Load/Store instruction.
+ * - ARENA_REG (5 bits): Register that is used to calculate the address for load/store when
+ *                       accessing the arena region.
+ * - ARENA_ACCESS (1 bit): This bit is set when the faulting instruction accessed the arena region.
+ * - FIXUP_REG (5 bits): Destination register for the load instruction (cleared on fault) or set to
+ *                       DONT_CLEAR if it is a store instruction.
+ */
+
+#define BPF_FIXUP_OFFSET_MASK      GENMASK(15, 0)
+#define BPF_FIXUP_ARENA_REG_MASK   GENMASK(20, 16)
+#define BPF_ARENA_ACCESS           BIT(21)
 #define BPF_FIXUP_REG_MASK	GENMASK(31, 27)
 #define DONT_CLEAR 5 /* Unused ARM64 register from BPF's POV */
 
 bool ex_handler_bpf(const struct exception_table_entry *ex,
 		    struct pt_regs *regs)
 {
-	off_t offset = FIELD_GET(BPF_FIXUP_OFFSET_MASK, ex->fixup);
 	int dst_reg = FIELD_GET(BPF_FIXUP_REG_MASK, ex->fixup);
+	s16 off = FIELD_GET(BPF_FIXUP_OFFSET_MASK, ex->fixup);
+	int arena_reg = FIELD_GET(BPF_FIXUP_ARENA_REG_MASK, ex->fixup);
+	bool is_arena = !!(ex->fixup & BPF_ARENA_ACCESS);
+	bool is_write = (dst_reg == DONT_CLEAR);
+	unsigned long addr;
+
+	if (is_arena) {
+		addr = regs->regs[arena_reg] + off;
+		bpf_prog_report_arena_violation(is_write, addr, regs->pc);
+	}
 
 	if (dst_reg != DONT_CLEAR)
 		regs->regs[dst_reg] = 0;
-	regs->pc = (unsigned long)&ex->fixup - offset;
+	/* Skip the faulting instruction */
+	regs->pc += AARCH64_INSN_SIZE;
+
 	return true;
 }
 
@@ -1036,7 +1122,9 @@ static int add_exception_handler(const struct bpf_insn *insn,
 				 int dst_reg)
 {
 	off_t ins_offset;
-	off_t fixup_offset;
+	s16 off = insn->off;
+	bool is_arena;
+	int arena_reg;
 	unsigned long pc;
 	struct exception_table_entry *ex;
 
@@ -1045,10 +1133,15 @@ static int add_exception_handler(const struct bpf_insn *insn,
 		return 0;
 
 	if (BPF_MODE(insn->code) != BPF_PROBE_MEM &&
-		BPF_MODE(insn->code) != BPF_PROBE_MEMSX &&
-			BPF_MODE(insn->code) != BPF_PROBE_MEM32 &&
-				BPF_MODE(insn->code) != BPF_PROBE_ATOMIC)
+	    BPF_MODE(insn->code) != BPF_PROBE_MEMSX &&
+	    BPF_MODE(insn->code) != BPF_PROBE_MEM32 &&
+	    BPF_MODE(insn->code) != BPF_PROBE_MEM32SX &&
+	    BPF_MODE(insn->code) != BPF_PROBE_ATOMIC)
 		return 0;
+
+	is_arena = (BPF_MODE(insn->code) == BPF_PROBE_MEM32) ||
+		   (BPF_MODE(insn->code) == BPF_PROBE_MEM32SX) ||
+		   (BPF_MODE(insn->code) == BPF_PROBE_ATOMIC);
 
 	if (!ctx->prog->aux->extable ||
 	    WARN_ON_ONCE(ctx->exentry_idx >= ctx->prog->aux->num_exentries))
@@ -1068,22 +1161,6 @@ static int add_exception_handler(const struct bpf_insn *insn,
 		return -ERANGE;
 
 	/*
-	 * Since the extable follows the program, the fixup offset is always
-	 * negative and limited to BPF_JIT_REGION_SIZE. Store a positive value
-	 * to keep things simple, and put the destination register in the upper
-	 * bits. We don't need to worry about buildtime or runtime sort
-	 * modifying the upper bits because the table is already sorted, and
-	 * isn't part of the main exception table.
-	 *
-	 * The fixup_offset is set to the next instruction from the instruction
-	 * that may fault. The execution will jump to this after handling the
-	 * fault.
-	 */
-	fixup_offset = (long)&ex->fixup - (pc + AARCH64_INSN_SIZE);
-	if (!FIELD_FIT(BPF_FIXUP_OFFSET_MASK, fixup_offset))
-		return -ERANGE;
-
-	/*
 	 * The offsets above have been calculated using the RO buffer but we
 	 * need to use the R/W buffer for writes.
 	 * switch ex to rw buffer for writing.
@@ -1095,8 +1172,26 @@ static int add_exception_handler(const struct bpf_insn *insn,
 	if (BPF_CLASS(insn->code) != BPF_LDX)
 		dst_reg = DONT_CLEAR;
 
-	ex->fixup = FIELD_PREP(BPF_FIXUP_OFFSET_MASK, fixup_offset) |
-		    FIELD_PREP(BPF_FIXUP_REG_MASK, dst_reg);
+	ex->fixup = FIELD_PREP(BPF_FIXUP_REG_MASK, dst_reg);
+
+	if (is_arena) {
+		ex->fixup |= BPF_ARENA_ACCESS;
+		/*
+		 * insn->src_reg/dst_reg holds the address in the arena region with upper 32-bits
+		 * being zero because of a preceding addr_space_cast(r<n>, 0x0, 0x1) instruction.
+		 * This address is adjusted with the addition of arena_vm_start (see the
+		 * implementation of BPF_PROBE_MEM32 and BPF_PROBE_ATOMIC) before being used for the
+		 * memory access. Pass the reg holding the unmodified 32-bit address to
+		 * ex_handler_bpf.
+		 */
+		if (BPF_CLASS(insn->code) == BPF_LDX)
+			arena_reg = bpf2a64[insn->src_reg];
+		else
+			arena_reg = bpf2a64[insn->dst_reg];
+
+		ex->fixup |=  FIELD_PREP(BPF_FIXUP_OFFSET_MASK, off) |
+			      FIELD_PREP(BPF_FIXUP_ARENA_REG_MASK, arena_reg);
+	}
 
 	ex->type = EX_TYPE_BPF;
 
@@ -1120,6 +1215,7 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx,
 	const u8 tmp2 = bpf2a64[TMP_REG_2];
 	const u8 fp = bpf2a64[BPF_REG_FP];
 	const u8 arena_vm_base = bpf2a64[ARENA_VM_START];
+	const u8 priv_sp = bpf2a64[PRIVATE_SP];
 	const s16 off = insn->off;
 	const s32 imm = insn->imm;
 	const int i = insn - ctx->prog->insnsi;
@@ -1505,7 +1601,13 @@ emit_cond_jmp:
 		if (ret < 0)
 			return ret;
 		emit_call(func_addr, ctx);
-		emit(A64_MOV(1, r0, A64_R(0)), ctx);
+		/*
+		 * Call to arch_bpf_timed_may_goto() is emitted by the
+		 * verifier and called with custom calling convention with
+		 * first argument and return value in BPF_REG_AX (x9).
+		 */
+		if (func_addr != (u64)arch_bpf_timed_may_goto)
+			emit(A64_MOV(1, r0, A64_R(0)), ctx);
 		break;
 	}
 	/* tail call */
@@ -1559,19 +1661,24 @@ emit_cond_jmp:
 	case BPF_LDX | BPF_PROBE_MEM32 | BPF_H:
 	case BPF_LDX | BPF_PROBE_MEM32 | BPF_W:
 	case BPF_LDX | BPF_PROBE_MEM32 | BPF_DW:
-		if (BPF_MODE(insn->code) == BPF_PROBE_MEM32) {
+	case BPF_LDX | BPF_PROBE_MEM32SX | BPF_B:
+	case BPF_LDX | BPF_PROBE_MEM32SX | BPF_H:
+	case BPF_LDX | BPF_PROBE_MEM32SX | BPF_W:
+		if (BPF_MODE(insn->code) == BPF_PROBE_MEM32 ||
+		    BPF_MODE(insn->code) == BPF_PROBE_MEM32SX) {
 			emit(A64_ADD(1, tmp2, src, arena_vm_base), ctx);
 			src = tmp2;
 		}
 		if (src == fp) {
-			src_adj = A64_SP;
+			src_adj = ctx->priv_sp_used ? priv_sp : A64_SP;
 			off_adj = off + ctx->stack_size;
 		} else {
 			src_adj = src;
 			off_adj = off;
 		}
 		sign_extend = (BPF_MODE(insn->code) == BPF_MEMSX ||
-				BPF_MODE(insn->code) == BPF_PROBE_MEMSX);
+				BPF_MODE(insn->code) == BPF_PROBE_MEMSX ||
+				 BPF_MODE(insn->code) == BPF_PROBE_MEM32SX);
 		switch (BPF_SIZE(code)) {
 		case BPF_W:
 			if (is_lsi_offset(off_adj, 2)) {
@@ -1630,17 +1737,14 @@ emit_cond_jmp:
 			return ret;
 		break;
 
-	/* speculation barrier */
+	/* speculation barrier against v1 and v4 */
 	case BPF_ST | BPF_NOSPEC:
-		/*
-		 * Nothing required here.
-		 *
-		 * In case of arm64, we rely on the firmware mitigation of
-		 * Speculative Store Bypass as controlled via the ssbd kernel
-		 * parameter. Whenever the mitigation is enabled, it works
-		 * for all of the kernel code with no need to provide any
-		 * additional instructions.
-		 */
+		if (alternative_has_cap_likely(ARM64_HAS_SB)) {
+			emit(A64_SB, ctx);
+		} else {
+			emit(A64_DSB_NSH, ctx);
+			emit(A64_ISB, ctx);
+		}
 		break;
 
 	/* ST: *(size *)(dst + off) = imm */
@@ -1657,7 +1761,7 @@ emit_cond_jmp:
 			dst = tmp2;
 		}
 		if (dst == fp) {
-			dst_adj = A64_SP;
+			dst_adj = ctx->priv_sp_used ? priv_sp : A64_SP;
 			off_adj = off + ctx->stack_size;
 		} else {
 			dst_adj = dst;
@@ -1719,7 +1823,7 @@ emit_cond_jmp:
 			dst = tmp2;
 		}
 		if (dst == fp) {
-			dst_adj = A64_SP;
+			dst_adj = ctx->priv_sp_used ? priv_sp : A64_SP;
 			off_adj = off + ctx->stack_size;
 		} else {
 			dst_adj = dst;
@@ -1782,9 +1886,11 @@ emit_cond_jmp:
 		if (ret)
 			return ret;
 
-		ret = add_exception_handler(insn, ctx, dst);
-		if (ret)
-			return ret;
+		if (BPF_MODE(insn->code) == BPF_PROBE_ATOMIC) {
+			ret = add_exception_handler(insn, ctx, dst);
+			if (ret)
+				return ret;
+		}
 		break;
 
 	default:
@@ -1862,6 +1968,39 @@ static inline void bpf_flush_icache(void *start, void *end)
 	flush_icache_range((unsigned long)start, (unsigned long)end);
 }
 
+static void priv_stack_init_guard(void __percpu *priv_stack_ptr, int alloc_size)
+{
+	int cpu, underflow_idx = (alloc_size - PRIV_STACK_GUARD_SZ) >> 3;
+	u64 *stack_ptr;
+
+	for_each_possible_cpu(cpu) {
+		stack_ptr = per_cpu_ptr(priv_stack_ptr, cpu);
+		stack_ptr[0] = PRIV_STACK_GUARD_VAL;
+		stack_ptr[1] = PRIV_STACK_GUARD_VAL;
+		stack_ptr[underflow_idx] = PRIV_STACK_GUARD_VAL;
+		stack_ptr[underflow_idx + 1] = PRIV_STACK_GUARD_VAL;
+	}
+}
+
+static void priv_stack_check_guard(void __percpu *priv_stack_ptr, int alloc_size,
+				   struct bpf_prog *prog)
+{
+	int cpu, underflow_idx = (alloc_size - PRIV_STACK_GUARD_SZ) >> 3;
+	u64 *stack_ptr;
+
+	for_each_possible_cpu(cpu) {
+		stack_ptr = per_cpu_ptr(priv_stack_ptr, cpu);
+		if (stack_ptr[0] != PRIV_STACK_GUARD_VAL ||
+		    stack_ptr[1] != PRIV_STACK_GUARD_VAL ||
+		    stack_ptr[underflow_idx] != PRIV_STACK_GUARD_VAL ||
+		    stack_ptr[underflow_idx + 1] != PRIV_STACK_GUARD_VAL) {
+			pr_err("BPF private stack overflow/underflow detected for prog %sx\n",
+			       bpf_jit_get_prog_name(prog));
+			break;
+		}
+	}
+}
+
 struct arm64_jit_data {
 	struct bpf_binary_header *header;
 	u8 *ro_image;
@@ -1874,9 +2013,11 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 	int image_size, prog_size, extable_size, extable_align, extable_offset;
 	struct bpf_prog *tmp, *orig_prog = prog;
 	struct bpf_binary_header *header;
-	struct bpf_binary_header *ro_header;
+	struct bpf_binary_header *ro_header = NULL;
 	struct arm64_jit_data *jit_data;
+	void __percpu *priv_stack_ptr = NULL;
 	bool was_classic = bpf_prog_was_classic(prog);
+	int priv_stack_alloc_sz;
 	bool tmp_blinded = false;
 	bool extra_pass = false;
 	struct jit_ctx ctx;
@@ -1908,6 +2049,23 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 		}
 		prog->aux->jit_data = jit_data;
 	}
+	priv_stack_ptr = prog->aux->priv_stack_ptr;
+	if (!priv_stack_ptr && prog->aux->jits_use_priv_stack) {
+		/* Allocate actual private stack size with verifier-calculated
+		 * stack size plus two memory guards to protect overflow and
+		 * underflow.
+		 */
+		priv_stack_alloc_sz = round_up(prog->aux->stack_depth, 16) +
+				      2 * PRIV_STACK_GUARD_SZ;
+		priv_stack_ptr = __alloc_percpu_gfp(priv_stack_alloc_sz, 16, GFP_KERNEL);
+		if (!priv_stack_ptr) {
+			prog = orig_prog;
+			goto out_priv_stack;
+		}
+
+		priv_stack_init_guard(priv_stack_ptr, priv_stack_alloc_sz);
+		prog->aux->priv_stack_ptr = priv_stack_ptr;
+	}
 	if (jit_data->ctx.offset) {
 		ctx = jit_data->ctx;
 		ro_image_ptr = jit_data->ro_image;
@@ -1930,6 +2088,9 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 
 	ctx.user_vm_start = bpf_arena_get_user_vm_start(prog->aux->arena);
 	ctx.arena_vm_start = bpf_arena_get_kern_vm_start(prog->aux->arena);
+
+	if (priv_stack_ptr)
+		ctx.priv_sp_used = true;
 
 	/* Pass 1: Estimate the maximum image size.
 	 *
@@ -2058,9 +2219,9 @@ skip_init_ctx:
 		jit_data->ro_header = ro_header;
 	}
 
-	prog->bpf_func = (void *)ctx.ro_image;
+	prog->bpf_func = (void *)ctx.ro_image + cfi_get_offset();
 	prog->jited = 1;
-	prog->jited_len = prog_size;
+	prog->jited_len = prog_size - cfi_get_offset();
 
 	if (!prog->is_func || extra_pass) {
 		int i;
@@ -2070,7 +2231,12 @@ skip_init_ctx:
 			ctx.offset[i] *= AARCH64_INSN_SIZE;
 		bpf_prog_fill_jited_linfo(prog, ctx.offset + 1);
 out_off:
+		if (!ro_header && priv_stack_ptr) {
+			free_percpu(priv_stack_ptr);
+			prog->aux->priv_stack_ptr = NULL;
+		}
 		kvfree(ctx.offset);
+out_priv_stack:
 		kfree(jit_data);
 		prog->aux->jit_data = NULL;
 	}
@@ -2087,6 +2253,11 @@ out_free_hdr:
 		bpf_jit_binary_pack_free(ro_header, header);
 	}
 	goto out_off;
+}
+
+bool bpf_jit_supports_private_stack(void)
+{
+	return true;
 }
 
 bool bpf_jit_supports_kfunc_call(void)
@@ -2243,11 +2414,6 @@ static int calc_arg_aux(const struct btf_func_model *m,
 
 	/* the rest arguments are passed through stack */
 	for (; i < m->nr_args; i++) {
-		/* We can not know for sure about exact alignment needs for
-		 * struct passed on stack, so deny those
-		 */
-		if (m->arg_flags[i] & BTF_FMODEL_STRUCT_ARG)
-			return -ENOTSUPP;
 		stack_slots = (m->arg_size[i] + 7) / 8;
 		a->bstack_for_args += stack_slots * 8;
 		a->ostack_for_args = a->ostack_for_args + stack_slots * 8;
@@ -2434,6 +2600,12 @@ static int prepare_trampoline(struct jit_ctx *ctx, struct bpf_tramp_image *im,
 	/* return address locates above FP */
 	retaddr_off = stack_size + 8;
 
+	if (flags & BPF_TRAMP_F_INDIRECT) {
+		/*
+		 * Indirect call for bpf_struct_ops
+		 */
+		emit_kcfi(cfi_get_func_hash(func_addr), ctx);
+	}
 	/* bpf trampoline may be invoked by 3 instruction types:
 	 * 1. bl, attached to bpf prog or kernel function via short jump
 	 * 2. br, attached to bpf prog or kernel function via long jump
@@ -2651,7 +2823,6 @@ int arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *ro_image,
 		goto out;
 	}
 
-	bpf_flush_icache(ro_image, ro_image + size);
 out:
 	kvfree(image);
 	return ret;
@@ -2911,6 +3082,22 @@ bool bpf_jit_supports_percpu_insn(void)
 	return true;
 }
 
+bool bpf_jit_bypass_spec_v4(void)
+{
+	/* In case of arm64, we rely on the firmware mitigation of Speculative
+	 * Store Bypass as controlled via the ssbd kernel parameter. Whenever
+	 * the mitigation is enabled, it works for all of the kernel code with
+	 * no need to provide any additional instructions. Therefore, skip
+	 * inserting nospec insns against Spectre v4.
+	 */
+	return true;
+}
+
+bool bpf_jit_supports_timed_may_goto(void)
+{
+	return true;
+}
+
 bool bpf_jit_inlines_helper_call(s32 imm)
 {
 	switch (imm) {
@@ -2928,6 +3115,8 @@ void bpf_jit_free(struct bpf_prog *prog)
 	if (prog->jited) {
 		struct arm64_jit_data *jit_data = prog->aux->jit_data;
 		struct bpf_binary_header *hdr;
+		void __percpu *priv_stack_ptr;
+		int priv_stack_alloc_sz;
 
 		/*
 		 * If we fail the final pass of JIT (from jit_subprogs),
@@ -2935,12 +3124,19 @@ void bpf_jit_free(struct bpf_prog *prog)
 		 * before freeing it.
 		 */
 		if (jit_data) {
-			bpf_arch_text_copy(&jit_data->ro_header->size, &jit_data->header->size,
-					   sizeof(jit_data->header->size));
+			bpf_jit_binary_pack_finalize(jit_data->ro_header, jit_data->header);
 			kfree(jit_data);
 		}
+		prog->bpf_func -= cfi_get_offset();
 		hdr = bpf_jit_binary_pack_hdr(prog);
 		bpf_jit_binary_pack_free(hdr, NULL);
+		priv_stack_ptr = prog->aux->priv_stack_ptr;
+		if (priv_stack_ptr) {
+			priv_stack_alloc_sz = round_up(prog->aux->stack_depth, 16) +
+					      2 * PRIV_STACK_GUARD_SZ;
+			priv_stack_check_guard(priv_stack_ptr, priv_stack_alloc_sz, prog);
+			free_percpu(prog->aux->priv_stack_ptr);
+		}
 		WARN_ON_ONCE(!bpf_prog_kallsyms_verify_off(prog));
 	}
 

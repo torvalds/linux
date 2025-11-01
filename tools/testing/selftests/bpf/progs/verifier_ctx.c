@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Converted from tools/testing/selftests/bpf/verifier/ctx.c */
 
-#include <linux/bpf.h>
+#include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
 #include "bpf_misc.h"
 
@@ -217,5 +217,79 @@ __naked void null_check_8_null_bind(void)
 	: __imm(bpf_get_socket_cookie)
 	: __clobber_all);
 }
+
+#define narrow_load(type, ctx, field)					\
+	SEC(type)							\
+	__description("narrow load on field " #field " of " #ctx)	\
+	__failure __msg("invalid bpf_context access")			\
+	__naked void invalid_narrow_load##ctx##field(void)		\
+	{								\
+		asm volatile ("						\
+		r1 = *(u32 *)(r1 + %[off]);				\
+		r0 = 0;							\
+		exit;"							\
+		:							\
+		: __imm_const(off, offsetof(struct ctx, field) + 4)	\
+		: __clobber_all);					\
+	}
+
+narrow_load("cgroup/getsockopt", bpf_sockopt, sk);
+narrow_load("cgroup/getsockopt", bpf_sockopt, optval);
+narrow_load("cgroup/getsockopt", bpf_sockopt, optval_end);
+narrow_load("tc", __sk_buff, sk);
+narrow_load("cgroup/bind4", bpf_sock_addr, sk);
+narrow_load("sockops", bpf_sock_ops, sk);
+narrow_load("sockops", bpf_sock_ops, skb_data);
+narrow_load("sockops", bpf_sock_ops, skb_data_end);
+narrow_load("sockops", bpf_sock_ops, skb_hwtstamp);
+
+#define unaligned_access(type, ctx, field)					\
+	SEC(type)								\
+	__description("unaligned access on field " #field " of " #ctx)		\
+	__failure __msg("invalid bpf_context access")				\
+	__naked void unaligned_ctx_access_##ctx##field(void)			\
+	{									\
+		asm volatile ("							\
+		r1 = *(u%[size] *)(r1 + %[off]);				\
+		r0 = 0;								\
+		exit;"								\
+		:								\
+		: __imm_const(size, sizeof_field(struct ctx, field) * 8),	\
+		  __imm_const(off, offsetof(struct ctx, field) + 1)		\
+		: __clobber_all);						\
+	}
+
+unaligned_access("flow_dissector", __sk_buff, data);
+unaligned_access("netfilter", bpf_nf_ctx, skb);
+
+#define padding_access(type, ctx, prev_field, sz)			\
+	SEC(type)							\
+	__description("access on " #ctx " padding after " #prev_field)	\
+	__naked void padding_ctx_access_##ctx(void)			\
+	{								\
+		asm volatile ("						\
+		r1 = *(u%[size] *)(r1 + %[off]);			\
+		r0 = 0;							\
+		exit;"							\
+		:							\
+		: __imm_const(size, sz * 8),				\
+		  __imm_const(off, offsetofend(struct ctx, prev_field))	\
+		: __clobber_all);					\
+	}
+
+__failure __msg("invalid bpf_context access")
+padding_access("cgroup/bind4", bpf_sock_addr, msg_src_ip6[3], 4);
+
+__success
+padding_access("sk_lookup", bpf_sk_lookup, remote_port, 2);
+
+__failure __msg("invalid bpf_context access")
+padding_access("tc", __sk_buff, tstamp_type, 2);
+
+__failure __msg("invalid bpf_context access")
+padding_access("cgroup/post_bind4", bpf_sock, dst_port, 2);
+
+__failure __msg("invalid bpf_context access")
+padding_access("sk_reuseport", sk_reuseport_md, hash, 4);
 
 char _license[] SEC("license") = "GPL";

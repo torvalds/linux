@@ -31,7 +31,7 @@
 #include "dml/dcn31/dcn31_fpu.h"
 #include "dml/dml_inline_defs.h"
 
-#include "link.h"
+#include "link_service.h"
 
 #define DC_LOGGER_INIT(logger)
 
@@ -437,7 +437,7 @@ static unsigned int get_vertical_back_porch(struct dc_crtc_timing *timing)
 int dcn35_populate_dml_pipes_from_context_fpu(struct dc *dc,
 					      struct dc_state *context,
 					      display_e2e_pipe_params_st *pipes,
-					      bool fast_validate)
+					      enum dc_validate_mode validate_mode)
 {
 	int i, pipe_cnt;
 	struct resource_context *res_ctx = &context->res_ctx;
@@ -445,8 +445,10 @@ int dcn35_populate_dml_pipes_from_context_fpu(struct dc *dc,
 	bool upscaled = false;
 	const unsigned int max_allowed_vblank_nom = 1023;
 
+	dc_assert_fp_enabled();
+
 	dcn31_populate_dml_pipes_from_context(dc, context, pipes,
-					      fast_validate);
+					      validate_mode);
 
 	for (i = 0, pipe_cnt = 0; i < dc->res_pool->pipe_count; i++) {
 		struct dc_crtc_timing *timing;
@@ -498,9 +500,7 @@ int dcn35_populate_dml_pipes_from_context_fpu(struct dc *dc,
 
 		pipes[pipe_cnt].pipe.src.unbounded_req_mode = false;
 
-		DC_FP_START();
 		dcn31_zero_pipe_dcc_fraction(pipes, pipe_cnt);
-		DC_FP_END();
 
 		pipes[pipe_cnt].pipe.dest.vfront_porch = timing->v_front_porch;
 		pipes[pipe_cnt].pipe.src.dcc_rate = 3;
@@ -580,6 +580,8 @@ void dcn35_decide_zstate_support(struct dc *dc, struct dc_state *context)
 	enum dcn_zstate_support_state support = DCN_ZSTATE_SUPPORT_DISALLOW;
 	unsigned int i, plane_count = 0;
 	DC_LOGGER_INIT(dc->ctx->logger);
+
+	dc_assert_fp_enabled();
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		if (context->res_ctx.pipe_ctx[i].plane_state)

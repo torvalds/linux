@@ -108,15 +108,15 @@ Description:
 		number of a "General Purpose Events" (GPE).
 
 		A GPE vectors to a specified handler in AML, which
-		can do a anything the BIOS writer wants from
+		can do anything the BIOS writer wants from
 		OS context.  GPE 0x12, for example, would vector
 		to a level or edge handler called _L12 or _E12.
 		The handler may do its business and return.
-		Or the handler may send send a Notify event
+		Or the handler may send a Notify event
 		to a Linux device driver registered on an ACPI device,
 		such as a battery, or a processor.
 
-		To figure out where all the SCI's are coming from,
+		To figure out where all the SCIs are coming from,
 		/sys/firmware/acpi/interrupts contains a file listing
 		every possible source, and the count of how many
 		times it has triggered::

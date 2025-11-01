@@ -15,23 +15,62 @@ Parameters
    * - Name
      - Mode
      - Validation
+     - Notes
    * - ``enable_roce``
      - driverinit
-     - Type: Boolean
-
-       If the device supports RoCE disablement, RoCE enablement state controls
+     - Boolean
+     - If the device supports RoCE disablement, RoCE enablement state controls
        device support for RoCE capability. Otherwise, the control occurs in the
        driver stack. When RoCE is disabled at the driver level, only raw
        ethernet QPs are supported.
    * - ``io_eq_size``
      - driverinit
      - The range is between 64 and 4096.
+     -
    * - ``event_eq_size``
      - driverinit
      - The range is between 64 and 4096.
+     -
    * - ``max_macs``
      - driverinit
      - The range is between 1 and 2^31. Only power of 2 values are supported.
+     -
+   * - ``enable_sriov``
+     - permanent
+     - Boolean
+     - Applies to each physical function (PF) independently, if the device
+       supports it. Otherwise, it applies symmetrically to all PFs.
+   * - ``total_vfs``
+     - permanent
+     - The range is between 1 and a device-specific max.
+     - Applies to each physical function (PF) independently, if the device
+       supports it. Otherwise, it applies symmetrically to all PFs.
+
+Note: permanent parameters such as ``enable_sriov`` and ``total_vfs`` require FW reset to take effect
+
+.. code-block:: bash
+
+   # setup parameters
+   devlink dev param set pci/0000:01:00.0 name enable_sriov value true cmode permanent
+   devlink dev param set pci/0000:01:00.0 name total_vfs value 8 cmode permanent
+
+   # Fw reset
+   devlink dev reload pci/0000:01:00.0 action fw_activate
+
+   # for PCI related config such as sriov PCI reset/rescan is required:
+   echo 1 >/sys/bus/pci/devices/0000:01:00.0/remove
+   echo 1 >/sys/bus/pci/rescan
+   grep ^ /sys/bus/pci/devices/0000:01:00.0/sriov_*
+
+   * - ``num_doorbells``
+     - driverinit
+     - This controls the number of channel doorbells used by the netdev. In all
+       cases, an additional doorbell is allocated and used for non-channel
+       communication (e.g. for PTP, HWS, etc.). Supported values are:
+
+       - 0: No channel-specific doorbells, use the global one for everything.
+       - [1, max_num_channels]: Spread netdev channels equally across these
+         doorbells.
 
 The ``mlx5`` driver also implements the following driver-specific
 parameters.
@@ -116,6 +155,68 @@ parameters.
      - u32
      - driverinit
      - Control the size (in packets) of the hairpin queues.
+   * - ``pcie_cong_inbound_high``
+     - u16
+     - driverinit
+     - High threshold configuration for PCIe congestion events. The firmware
+       will send an event once device side inbound PCIe traffic went
+       above the configured high threshold for a long enough period (at least
+       200ms).
+
+       See pci_bw_inbound_high ethtool stat.
+
+       Units are 0.01 %. Accepted values are in range [0, 10000].
+       pcie_cong_inbound_low < pcie_cong_inbound_high.
+       Default value: 9000 (Corresponds to 90%).
+   * - ``pcie_cong_inbound_low``
+     - u16
+     - driverinit
+     - Low threshold configuration for PCIe congestion events. The firmware
+       will send an event once device side inbound PCIe traffic went
+       below the configured low threshold, only after having been previously in
+       a congested state.
+
+       See pci_bw_inbound_low ethtool stat.
+
+       Units are 0.01 %. Accepted values are in range [0, 10000].
+       pcie_cong_inbound_low < pcie_cong_inbound_high.
+       Default value: 7500.
+   * - ``pcie_cong_outbound_high``
+     - u16
+     - driverinit
+     - High threshold configuration for PCIe congestion events. The firmware
+       will send an event once device side outbound PCIe traffic went
+       above the configured high threshold for a long enough period (at least
+       200ms).
+
+       See pci_bw_outbound_high ethtool stat.
+
+       Units are 0.01 %. Accepted values are in range [0, 10000].
+       pcie_cong_outbound_low < pcie_cong_outbound_high.
+       Default value: 9000 (Corresponds to 90%).
+   * - ``pcie_cong_outbound_low``
+     - u16
+     - driverinit
+     - Low threshold configuration for PCIe congestion events. The firmware
+       will send an event once device side outbound PCIe traffic went
+       below the configured low threshold, only after having been previously in
+       a congested state.
+
+       See pci_bw_outbound_low ethtool stat.
+
+       Units are 0.01 %. Accepted values are in range [0, 10000].
+       pcie_cong_outbound_low < pcie_cong_outbound_high.
+       Default value: 7500.
+
+   * - ``cqe_compress_type``
+     - string
+     - permanent
+     - Configure which mechanism/algorithm should be used by the NIC that will
+       affect the rate (aggressiveness) of compressed CQEs depending on PCIe bus
+       conditions and other internal NIC factors. This mode affects all queues
+       that enable compression.
+       * ``balanced`` : Merges fewer CQEs, resulting in a moderate compression ratio but maintaining a balance between bandwidth savings and performance
+       * ``aggressive`` : Merges more CQEs into a single entry, achieving a higher compression rate and maximizing performance, particularly under high traffic loads
 
 The ``mlx5`` driver supports reloading via ``DEVLINK_CMD_RELOAD``
 
@@ -284,6 +385,12 @@ Description of the vnic counters:
         amount of Interconnect Host Memory (ICM) consumed by the vnic in
         granularity of 4KB. ICM is host memory allocated by SW upon HCA request
         and is used for storing data structures that control HCA operation.
+- bar_uar_access
+        number of WRITE or READ access operations to the UAR on the PCIe BAR.
+- odp_local_triggered_page_fault
+        number of locally-triggered page-faults due to ODP.
+- odp_remote_triggered_page_fault
+        number of remotly-triggered page-faults due to ODP.
 
 User commands examples:
 

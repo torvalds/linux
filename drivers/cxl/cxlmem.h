@@ -254,7 +254,7 @@ enum security_cmd_enabled_bits {
  * @max_errors: Maximum media error records held in device cache
  * @enabled_cmds: All poison commands enabled in the CEL
  * @list_out: The poison list payload returned by device
- * @lock: Protect reads of the poison list
+ * @mutex: Protect reads of the poison list
  *
  * Reads of the poison list are synchronized to ensure that a reader
  * does not get an incomplete list because their request overlapped
@@ -265,7 +265,7 @@ struct cxl_poison_state {
 	u32 max_errors;
 	DECLARE_BITMAP(enabled_cmds, CXL_POISON_ENABLED_MAX);
 	struct cxl_mbox_poison_out *list_out;
-	struct mutex lock;  /* Protect reads of poison list */
+	struct mutex mutex;  /* Protect reads of poison list */
 };
 
 /*
@@ -634,6 +634,14 @@ struct cxl_mbox_identify {
 		  0x13, 0xb7, 0x74)
 
 /*
+ * Memory Sparing Event Record UUID
+ * CXL rev 3.2 section 8.2.10.2.1.4: Table 8-60
+ */
+#define CXL_EVENT_MEM_SPARING_UUID                                          \
+	UUID_INIT(0xe71f3a40, 0x2d29, 0x4092, 0x8a, 0x39, 0x4d, 0x1c, 0x96, \
+		  0x6c, 0x7c, 0x65)
+
+/*
  * Get Event Records output payload
  * CXL rev 3.0 section 8.2.9.2.2; Table 8-50
  */
@@ -861,6 +869,8 @@ int cxl_mem_get_poison(struct cxl_memdev *cxlmd, u64 offset, u64 len,
 int cxl_trigger_poison_list(struct cxl_memdev *cxlmd);
 int cxl_inject_poison(struct cxl_memdev *cxlmd, u64 dpa);
 int cxl_clear_poison(struct cxl_memdev *cxlmd, u64 dpa);
+int cxl_inject_poison_locked(struct cxl_memdev *cxlmd, u64 dpa);
+int cxl_clear_poison_locked(struct cxl_memdev *cxlmd, u64 dpa);
 
 #ifdef CONFIG_CXL_EDAC_MEM_FEATURES
 int devm_cxl_memdev_edac_register(struct cxl_memdev *cxlmd);

@@ -3,5 +3,11 @@
 # Generic DPLL drivers configuration
 #
 
+menu "DPLL device support"
+
 config DPLL
 	bool
+
+source "drivers/dpll/zl3073x/Kconfig"
+
+endmenu

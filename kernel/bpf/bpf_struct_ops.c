@@ -808,7 +808,7 @@ static long bpf_struct_ops_map_update_elem(struct bpf_map *map, void *key,
 			goto reset_unlock;
 		}
 		bpf_link_init(&link->link, BPF_LINK_TYPE_STRUCT_OPS,
-			      &bpf_struct_ops_link_lops, prog);
+			      &bpf_struct_ops_link_lops, prog, prog->expected_attach_type);
 		*plink++ = &link->link;
 
 		ksym = kzalloc(sizeof(*ksym), GFP_USER);
@@ -1174,6 +1174,18 @@ void bpf_struct_ops_put(const void *kdata)
 	bpf_map_put(&st_map->map);
 }
 
+u32 bpf_struct_ops_id(const void *kdata)
+{
+	struct bpf_struct_ops_value *kvalue;
+	struct bpf_struct_ops_map *st_map;
+
+	kvalue = container_of(kdata, struct bpf_struct_ops_value, data);
+	st_map = container_of(kvalue, struct bpf_struct_ops_map, kvalue);
+
+	return st_map->map.id;
+}
+EXPORT_SYMBOL_GPL(bpf_struct_ops_id);
+
 static bool bpf_struct_ops_valid_to_reg(struct bpf_map *map)
 {
 	struct bpf_struct_ops_map *st_map = (struct bpf_struct_ops_map *)map;
@@ -1351,7 +1363,8 @@ int bpf_struct_ops_link_create(union bpf_attr *attr)
 		err = -ENOMEM;
 		goto err_out;
 	}
-	bpf_link_init(&link->link, BPF_LINK_TYPE_STRUCT_OPS, &bpf_struct_ops_map_lops, NULL);
+	bpf_link_init(&link->link, BPF_LINK_TYPE_STRUCT_OPS, &bpf_struct_ops_map_lops, NULL,
+		      attr->link_create.attach_type);
 
 	err = bpf_link_prime(&link->link, &link_primer);
 	if (err)

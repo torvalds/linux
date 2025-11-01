@@ -232,6 +232,8 @@ static void iwlagn_tx_cmd_build_hwcrypto(struct iwl_priv *priv,
  * that may be %NULL, for example during TX or key setup. In
  * that case, we need to use the broadcast station, so this
  * inline wraps that pattern.
+ *
+ * Return: station ID for mac80211 station (or broadcast if %NULL)
  */
 static int iwl_sta_id_or_broadcast(struct iwl_rxon_context *context,
 				   struct ieee80211_sta *sta)

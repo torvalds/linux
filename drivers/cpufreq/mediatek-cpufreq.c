@@ -123,7 +123,7 @@ static int mtk_cpufreq_voltage_tracking(struct mtk_cpu_dvfs_info *info,
 						      soc_data->sram_max_volt);
 				return ret;
 			}
-		} else if (pre_vproc > new_vproc) {
+		} else {
 			vproc = max(new_vproc,
 				    pre_vsram - soc_data->max_volt_shift);
 			ret = regulator_set_voltage(proc_reg, vproc,
@@ -320,7 +320,6 @@ static int mtk_cpufreq_opp_notifier(struct notifier_block *nb,
 	struct dev_pm_opp *new_opp;
 	struct mtk_cpu_dvfs_info *info;
 	unsigned long freq, volt;
-	struct cpufreq_policy *policy;
 	int ret = 0;
 
 	info = container_of(nb, struct mtk_cpu_dvfs_info, opp_nb);
@@ -353,12 +352,12 @@ static int mtk_cpufreq_opp_notifier(struct notifier_block *nb,
 			}
 
 			dev_pm_opp_put(new_opp);
-			policy = cpufreq_cpu_get(info->opp_cpu);
-			if (policy) {
+
+			struct cpufreq_policy *policy __free(put_cpufreq_policy)
+				= cpufreq_cpu_get(info->opp_cpu);
+			if (policy)
 				cpufreq_driver_target(policy, freq / 1000,
 						      CPUFREQ_RELATION_L);
-				cpufreq_cpu_put(policy);
-			}
 		}
 	}
 
@@ -404,9 +403,11 @@ static int mtk_cpu_dvfs_info_init(struct mtk_cpu_dvfs_info *info, int cpu)
 	}
 
 	info->cpu_clk = clk_get(cpu_dev, "cpu");
-	if (IS_ERR(info->cpu_clk))
-		return dev_err_probe(cpu_dev, PTR_ERR(info->cpu_clk),
-				     "cpu%d: failed to get cpu clk\n", cpu);
+	if (IS_ERR(info->cpu_clk)) {
+		ret = PTR_ERR(info->cpu_clk);
+		dev_err_probe(cpu_dev, ret, "cpu%d: failed to get cpu clk\n", cpu);
+		goto out_put_cci_dev;
+	}
 
 	info->inter_clk = clk_get(cpu_dev, "intermediate");
 	if (IS_ERR(info->inter_clk)) {
@@ -552,6 +553,10 @@ out_free_inter_clock:
 out_free_mux_clock:
 	clk_put(info->cpu_clk);
 
+out_put_cci_dev:
+	if (info->soc_data->ccifreq_supported)
+		put_device(info->cci_dev);
+
 	return ret;
 }
 
@@ -569,6 +574,8 @@ static void mtk_cpu_dvfs_info_release(struct mtk_cpu_dvfs_info *info)
 	clk_put(info->inter_clk);
 	dev_pm_opp_of_cpumask_remove_table(&info->cpus);
 	dev_pm_opp_unregister_notifier(info->cpu_dev, &info->opp_nb);
+	if (info->soc_data->ccifreq_supported)
+		put_device(info->cci_dev);
 }
 
 static int mtk_cpufreq_init(struct cpufreq_policy *policy)

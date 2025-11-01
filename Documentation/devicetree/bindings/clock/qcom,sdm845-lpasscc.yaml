@@ -12,7 +12,7 @@ maintainers:
 description: |
   Qualcomm SDM845 LPASS (Low Power Audio SubSystem) Clock Controller.
 
-  See also:: include/dt-bindings/clock/qcom,lpass-sdm845.h
+  See also: include/dt-bindings/clock/qcom,lpass-sdm845.h
 
 properties:
   compatible:

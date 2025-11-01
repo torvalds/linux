@@ -63,6 +63,7 @@
 
 	panel: panel {
 		compatible = "innolux,at070tn92";
+		power-supply = <&vcc>;
 
 		port {
 			panel_input: endpoint {
@@ -543,7 +544,7 @@
 	pinctrl-0 = <&enet_rmii_pins>;
 	phy-handle = <&phy1>;
 
-	mdio0 {
+	mdio {
 		#address-cells = <1>;
 		#size-cells = <0>;
 		compatible = "snps,dwmac-mdio";
@@ -569,8 +570,9 @@
 	pinctrl-0 = <&spifi_pins>;
 
 	/* Atmel AT25DF321A */
-	flash {
+	flash@0 {
 		compatible = "jedec,spi-nor";
+		reg = <0>;
 		spi-max-frequency = <51000000>;
 		spi-cpol;
 		spi-cpha;

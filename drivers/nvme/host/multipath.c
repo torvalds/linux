@@ -182,12 +182,14 @@ void nvme_mpath_start_request(struct request *rq)
 	struct nvme_ns *ns = rq->q->queuedata;
 	struct gendisk *disk = ns->head->disk;
 
-	if (READ_ONCE(ns->head->subsys->iopolicy) == NVME_IOPOLICY_QD) {
+	if ((READ_ONCE(ns->head->subsys->iopolicy) == NVME_IOPOLICY_QD) &&
+	    !(nvme_req(rq)->flags & NVME_MPATH_CNT_ACTIVE)) {
 		atomic_inc(&ns->ctrl->nr_active);
 		nvme_req(rq)->flags |= NVME_MPATH_CNT_ACTIVE;
 	}
 
-	if (!blk_queue_io_stat(disk->queue) || blk_rq_is_passthrough(rq))
+	if (!blk_queue_io_stat(disk->queue) || blk_rq_is_passthrough(rq) ||
+	    (nvme_req(rq)->flags & NVME_MPATH_IO_STATS))
 		return;
 
 	nvme_req(rq)->flags |= NVME_MPATH_IO_STATS;
@@ -690,8 +692,8 @@ static void nvme_remove_head(struct nvme_ns_head *head)
 		nvme_cdev_del(&head->cdev, &head->cdev_device);
 		synchronize_srcu(&head->srcu);
 		del_gendisk(head->disk);
-		nvme_put_ns_head(head);
 	}
+	nvme_put_ns_head(head);
 }
 
 static void nvme_remove_head_work(struct work_struct *work)
@@ -1200,7 +1202,8 @@ void nvme_mpath_add_sysfs_link(struct nvme_ns_head *head)
 	 */
 	srcu_idx = srcu_read_lock(&head->srcu);
 
-	list_for_each_entry_rcu(ns, &head->list, siblings) {
+	list_for_each_entry_srcu(ns, &head->list, siblings,
+				 srcu_read_lock_held(&head->srcu)) {
 		/*
 		 * Ensure that ns path disk node is already added otherwise we
 		 * may get invalid kobj name for target
@@ -1291,6 +1294,9 @@ void nvme_mpath_remove_disk(struct nvme_ns_head *head)
 {
 	bool remove = false;
 
+	if (!head->disk)
+		return;
+
 	mutex_lock(&head->subsys->lock);
 	/*
 	 * We are called when all paths have been removed, and at that point
@@ -1311,7 +1317,7 @@ void nvme_mpath_remove_disk(struct nvme_ns_head *head)
 		 */
 		if (!try_module_get(THIS_MODULE))
 			goto out;
-		queue_delayed_work(nvme_wq, &head->remove_work,
+		mod_delayed_work(nvme_wq, &head->remove_work,
 				head->delayed_removal_secs * HZ);
 	} else {
 		list_del_init(&head->entry);

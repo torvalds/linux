@@ -62,33 +62,33 @@ examples:
     #include <dt-bindings/gpio/gpio.h>
 
     npe: npe@c8006000 {
-         compatible = "intel,ixp4xx-network-processing-engine";
-         reg = <0xc8006000 0x1000>, <0xc8007000 0x1000>, <0xc8008000 0x1000>;
-         #address-cells = <1>;
-         #size-cells = <0>;
+        compatible = "intel,ixp4xx-network-processing-engine";
+        reg = <0xc8006000 0x1000>, <0xc8007000 0x1000>, <0xc8008000 0x1000>;
+        #address-cells = <1>;
+        #size-cells = <0>;
 
-         hss@0 {
-             compatible = "intel,ixp4xx-hss";
-             reg = <0>;
-             intel,npe-handle = <&npe 0>;
-             intel,queue-chl-rxtrig = <&qmgr 12>;
-             intel,queue-chl-txready = <&qmgr 34>;
-             intel,queue-pkt-rx = <&qmgr 13>;
-             intel,queue-pkt-tx = <&qmgr 14>, <&qmgr 15>, <&qmgr 16>, <&qmgr 17>;
-             intel,queue-pkt-rxfree = <&qmgr 18>, <&qmgr 19>, <&qmgr 20>, <&qmgr 21>;
-             intel,queue-pkt-txdone = <&qmgr 22>;
-             cts-gpios = <&gpio0 10 GPIO_ACTIVE_LOW>;
-             rts-gpios = <&gpio0 14 GPIO_ACTIVE_LOW>;
-             dcd-gpios = <&gpio0 6 GPIO_ACTIVE_LOW>;
-             dtr-gpios = <&gpio_74 2 GPIO_ACTIVE_LOW>;
-             clk-internal-gpios = <&gpio_74 0 GPIO_ACTIVE_HIGH>;
-         };
+        hss@0 {
+            compatible = "intel,ixp4xx-hss";
+            reg = <0>;
+            intel,npe-handle = <&npe 0>;
+            intel,queue-chl-rxtrig = <&qmgr 12>;
+            intel,queue-chl-txready = <&qmgr 34>;
+            intel,queue-pkt-rx = <&qmgr 13>;
+            intel,queue-pkt-tx = <&qmgr 14>, <&qmgr 15>, <&qmgr 16>, <&qmgr 17>;
+            intel,queue-pkt-rxfree = <&qmgr 18>, <&qmgr 19>, <&qmgr 20>, <&qmgr 21>;
+            intel,queue-pkt-txdone = <&qmgr 22>;
+            cts-gpios = <&gpio0 10 GPIO_ACTIVE_LOW>;
+            rts-gpios = <&gpio0 14 GPIO_ACTIVE_LOW>;
+            dcd-gpios = <&gpio0 6 GPIO_ACTIVE_LOW>;
+            dtr-gpios = <&gpio_74 2 GPIO_ACTIVE_LOW>;
+            clk-internal-gpios = <&gpio_74 0 GPIO_ACTIVE_HIGH>;
+        };
 
-         crypto {
-             compatible = "intel,ixp4xx-crypto";
-             intel,npe-handle = <&npe 2>;
-             queue-rx = <&qmgr 30>;
-             queue-txready = <&qmgr 29>;
-         };
+        crypto {
+            compatible = "intel,ixp4xx-crypto";
+            intel,npe-handle = <&npe 2>;
+            queue-rx = <&qmgr 30>;
+            queue-txready = <&qmgr 29>;
+        };
     };
 ...

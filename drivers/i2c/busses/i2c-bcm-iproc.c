@@ -1041,7 +1041,7 @@ static int bcm_iproc_i2c_unreg_slave(struct i2c_client *slave)
 }
 
 static struct i2c_algorithm bcm_iproc_algo = {
-	.master_xfer = bcm_iproc_i2c_xfer,
+	.xfer = bcm_iproc_i2c_xfer,
 	.functionality = bcm_iproc_i2c_functionality,
 	.reg_slave = bcm_iproc_i2c_reg_slave,
 	.unreg_slave = bcm_iproc_i2c_unreg_slave,

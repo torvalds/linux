@@ -86,12 +86,6 @@ static int xtensa_impwire_get_value(struct gpio_chip *gc, unsigned offset)
 	return !!(impwire & BIT(offset));
 }
 
-static void xtensa_impwire_set_value(struct gpio_chip *gc, unsigned offset,
-				    int value)
-{
-	BUG(); /* output only; should never be called */
-}
-
 static int xtensa_expstate_get_direction(struct gpio_chip *gc, unsigned offset)
 {
 	return GPIO_LINE_DIRECTION_OUT; /* output only */
@@ -109,7 +103,7 @@ static int xtensa_expstate_get_value(struct gpio_chip *gc, unsigned offset)
 	return !!(expstate & BIT(offset));
 }
 
-static void xtensa_expstate_set_value(struct gpio_chip *gc, unsigned offset,
+static int xtensa_expstate_set_value(struct gpio_chip *gc, unsigned int offset,
 				     int value)
 {
 	unsigned long flags, saved_cpenable;
@@ -120,6 +114,8 @@ static void xtensa_expstate_set_value(struct gpio_chip *gc, unsigned offset,
 	__asm__ __volatile__("wrmsk_expstate %0, %1"
 			     :: "a" (val), "a" (mask));
 	disable_cp(flags, saved_cpenable);
+
+	return 0;
 }
 
 static struct gpio_chip impwire_chip = {
@@ -128,7 +124,6 @@ static struct gpio_chip impwire_chip = {
 	.ngpio		= 32,
 	.get_direction	= xtensa_impwire_get_direction,
 	.get		= xtensa_impwire_get_value,
-	.set		= xtensa_impwire_set_value,
 };
 
 static struct gpio_chip expstate_chip = {

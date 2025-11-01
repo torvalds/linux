@@ -56,8 +56,8 @@ extern struct list_head mrioc_list;
 extern int prot_mask;
 extern atomic64_t event_counter;
 
-#define MPI3MR_DRIVER_VERSION	"8.13.0.5.50"
-#define MPI3MR_DRIVER_RELDATE	"20-February-2025"
+#define MPI3MR_DRIVER_VERSION	"8.15.0.5.50"
+#define MPI3MR_DRIVER_RELDATE	"12-August-2025"
 
 #define MPI3MR_DRIVER_NAME	"mpi3mr"
 #define MPI3MR_DRIVER_LICENSE	"GPL"
@@ -697,6 +697,8 @@ struct tgt_dev_vd {
 	u16 tg_id;
 	u32 tg_high;
 	u32 tg_low;
+	u8 abort_to;
+	u8 reset_to;
 	struct mpi3mr_throttle_group_info *tg;
 };
 
@@ -738,6 +740,8 @@ enum mpi3mr_dev_state {
  * @wwid: World wide ID
  * @enclosure_logical_id: Enclosure logical identifier
  * @dev_spec: Device type specific information
+ * @abort_to: Timeout for abort TM
+ * @reset_to: Timeout for Target/LUN reset TM
  * @ref_count: Reference count
  * @state: device state
  */
@@ -1137,6 +1141,8 @@ struct scmd_priv {
  * @logdata_buf: Circular buffer to store log data entries
  * @logdata_buf_idx: Index of entry in buffer to store
  * @logdata_entry_sz: log data entry size
+ * @adm_req_q_bar_writeq_lock: Admin request queue lock
+ * @adm_reply_q_bar_writeq_lock: Admin reply queue lock
  * @pend_large_data_sz: Counter to track pending large data
  * @io_throttle_data_length: I/O size to track in 512b blocks
  * @io_throttle_high: I/O size to start throttle in 512b blocks
@@ -1185,7 +1191,7 @@ struct mpi3mr_ioc {
 	char name[MPI3MR_NAME_LENGTH];
 	char driver_name[MPI3MR_NAME_LENGTH];
 
-	volatile struct mpi3_sysif_registers __iomem *sysif_regs;
+	struct mpi3_sysif_registers __iomem *sysif_regs;
 	resource_size_t sysif_regs_phys;
 	int bars;
 	u64 dma_mask;
@@ -1339,6 +1345,8 @@ struct mpi3mr_ioc {
 	u8 *logdata_buf;
 	u16 logdata_buf_idx;
 	u16 logdata_entry_sz;
+	spinlock_t adm_req_q_bar_writeq_lock;
+	spinlock_t adm_reply_q_bar_writeq_lock;
 
 	atomic_t pend_large_data_sz;
 	u32 io_throttle_data_length;

@@ -122,18 +122,8 @@ static struct i2c_driver stmpe_i2c_driver = {
 	.remove		= stmpe_i2c_remove,
 	.id_table	= stmpe_i2c_id,
 };
-
-static int __init stmpe_init(void)
-{
-	return i2c_add_driver(&stmpe_i2c_driver);
-}
-subsys_initcall(stmpe_init);
-
-static void __exit stmpe_exit(void)
-{
-	i2c_del_driver(&stmpe_i2c_driver);
-}
-module_exit(stmpe_exit);
+module_i2c_driver(stmpe_i2c_driver);
 
 MODULE_DESCRIPTION("STMPE MFD I2C Interface Driver");
 MODULE_AUTHOR("Rabin Vincent <rabin.vincent@stericsson.com>");
+MODULE_LICENSE("GPL");

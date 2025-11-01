@@ -10,6 +10,7 @@
 #include <linux/tc_act/tc_vlan.h>
 
 struct tcf_vlan_params {
+	int		  action;
 	int               tcfv_action;
 	unsigned char     tcfv_push_dst[ETH_ALEN];
 	unsigned char     tcfv_push_src[ETH_ALEN];
@@ -25,15 +26,6 @@ struct tcf_vlan {
 	struct tcf_vlan_params __rcu *vlan_p;
 };
 #define to_vlan(a) ((struct tcf_vlan *)a)
-
-static inline bool is_tcf_vlan(const struct tc_action *a)
-{
-#ifdef CONFIG_NET_CLS_ACT
-	if (a->ops && a->ops->id == TCA_ID_VLAN)
-		return true;
-#endif
-	return false;
-}
 
 static inline u32 tcf_vlan_action(const struct tc_action *a)
 {

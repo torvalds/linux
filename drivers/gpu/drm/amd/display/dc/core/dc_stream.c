@@ -224,6 +224,14 @@ struct dc_stream_status *dc_stream_get_status(
 	return dc_state_get_stream_status(dc->current_state, stream);
 }
 
+const struct dc_stream_status *dc_stream_get_status_const(
+	const struct dc_stream_state *stream)
+{
+	struct dc *dc = stream->ctx->dc;
+
+	return dc_state_get_stream_status(dc->current_state, stream);
+}
+
 void program_cursor_attributes(
 	struct dc *dc,
 	struct dc_stream_state *stream)
@@ -231,6 +239,7 @@ void program_cursor_attributes(
 	int i;
 	struct resource_context *res_ctx;
 	struct pipe_ctx *pipe_to_program = NULL;
+	bool enable_cursor_offload = dc_dmub_srv_is_cursor_offload_enabled(dc);
 
 	if (!stream)
 		return;
@@ -245,9 +254,14 @@ void program_cursor_attributes(
 
 		if (!pipe_to_program) {
 			pipe_to_program = pipe_ctx;
-			dc->hwss.cursor_lock(dc, pipe_to_program, true);
-			if (pipe_to_program->next_odm_pipe)
-				dc->hwss.cursor_lock(dc, pipe_to_program->next_odm_pipe, true);
+
+			if (enable_cursor_offload && dc->hwss.begin_cursor_offload_update) {
+				dc->hwss.begin_cursor_offload_update(dc, pipe_ctx);
+			} else {
+				dc->hwss.cursor_lock(dc, pipe_to_program, true);
+				if (pipe_to_program->next_odm_pipe)
+					dc->hwss.cursor_lock(dc, pipe_to_program->next_odm_pipe, true);
+			}
 		}
 
 		dc->hwss.set_cursor_attribute(pipe_ctx);
@@ -255,12 +269,18 @@ void program_cursor_attributes(
 			dc_send_update_cursor_info_to_dmu(pipe_ctx, i);
 		if (dc->hwss.set_cursor_sdr_white_level)
 			dc->hwss.set_cursor_sdr_white_level(pipe_ctx);
+		if (enable_cursor_offload && dc->hwss.update_cursor_offload_pipe)
+			dc->hwss.update_cursor_offload_pipe(dc, pipe_ctx);
 	}
 
 	if (pipe_to_program) {
-		dc->hwss.cursor_lock(dc, pipe_to_program, false);
-		if (pipe_to_program->next_odm_pipe)
-			dc->hwss.cursor_lock(dc, pipe_to_program->next_odm_pipe, false);
+		if (enable_cursor_offload && dc->hwss.commit_cursor_offload_update) {
+			dc->hwss.commit_cursor_offload_update(dc, pipe_to_program);
+		} else {
+			dc->hwss.cursor_lock(dc, pipe_to_program, false);
+			if (pipe_to_program->next_odm_pipe)
+				dc->hwss.cursor_lock(dc, pipe_to_program->next_odm_pipe, false);
+		}
 	}
 }
 
@@ -316,6 +336,9 @@ bool dc_stream_set_cursor_attributes(
 {
 	bool result = false;
 
+	if (!stream)
+		return false;
+
 	if (dc_stream_check_cursor_attributes(stream, stream->ctx->dc->current_state, attributes)) {
 		stream->cursor_attributes = *attributes;
 		result = true;
@@ -331,7 +354,10 @@ bool dc_stream_program_cursor_attributes(
 	struct dc  *dc;
 	bool reset_idle_optimizations = false;
 
-	dc = stream ? stream->ctx->dc : NULL;
+	if (!stream)
+		return false;
+
+	dc = stream->ctx->dc;
 
 	if (dc_stream_set_cursor_attributes(stream, attributes)) {
 		dc_z10_restore(dc);
@@ -360,6 +386,7 @@ void program_cursor_position(
 	int i;
 	struct resource_context *res_ctx;
 	struct pipe_ctx *pipe_to_program = NULL;
+	bool enable_cursor_offload = dc_dmub_srv_is_cursor_offload_enabled(dc);
 
 	if (!stream)
 		return;
@@ -378,16 +405,27 @@ void program_cursor_position(
 
 		if (!pipe_to_program) {
 			pipe_to_program = pipe_ctx;
-			dc->hwss.cursor_lock(dc, pipe_to_program, true);
+
+			if (enable_cursor_offload && dc->hwss.begin_cursor_offload_update)
+				dc->hwss.begin_cursor_offload_update(dc, pipe_ctx);
+			else
+				dc->hwss.cursor_lock(dc, pipe_to_program, true);
 		}
 
 		dc->hwss.set_cursor_position(pipe_ctx);
+		if (enable_cursor_offload && dc->hwss.update_cursor_offload_pipe)
+			dc->hwss.update_cursor_offload_pipe(dc, pipe_ctx);
+
 		if (dc->ctx->dmub_srv)
 			dc_send_update_cursor_info_to_dmu(pipe_ctx, i);
 	}
 
-	if (pipe_to_program)
-		dc->hwss.cursor_lock(dc, pipe_to_program, false);
+	if (pipe_to_program) {
+		if (enable_cursor_offload && dc->hwss.commit_cursor_offload_update)
+			dc->hwss.commit_cursor_offload_update(dc, pipe_to_program);
+		else
+			dc->hwss.cursor_lock(dc, pipe_to_program, false);
+	}
 }
 
 bool dc_stream_set_cursor_position(
@@ -849,10 +887,79 @@ void dc_stream_log(const struct dc *dc, const struct dc_stream_state *stream)
 			stream->sink->sink_signal != SIGNAL_TYPE_NONE) {
 
 			DC_LOG_DC(
-					"\tdispname: %s signal: %x\n",
+					"\tsignal: %x dispname: %s manufacturer_id: 0x%x product_id: 0x%x\n",
+					stream->signal,
 					stream->sink->edid_caps.display_name,
-					stream->signal);
+					stream->sink->edid_caps.manufacturer_id,
+					stream->sink->edid_caps.product_id);
 		}
+	}
+}
+
+/*
+*	dc_stream_get_3dlut()
+*	Requirements:
+*	1. Is stream already owns an RMCM instance, return it.
+*	2. If it doesn't and we don't need to allocate, return NULL.
+*	3. If there's a free RMCM instance, assign to stream and return it.
+*	4. If no free RMCM instances, return NULL.
+*/
+
+struct dc_rmcm_3dlut *dc_stream_get_3dlut_for_stream(
+	const struct dc *dc,
+	const struct dc_stream_state *stream,
+	bool allocate_one)
+{
+	unsigned int num_rmcm = dc->caps.color.mpc.num_rmcm_3dluts;
+
+	// see if one is allocated for this stream
+	for (int i = 0; i < num_rmcm; i++) {
+		if (dc->res_pool->rmcm_3dlut[i].isInUse &&
+			dc->res_pool->rmcm_3dlut[i].stream == stream)
+			return &dc->res_pool->rmcm_3dlut[i];
+	}
+
+	//case: not found one, and dont need to allocate
+	if (!allocate_one)
+		return NULL;
+
+	//see if there is an unused 3dlut, allocate
+	for (int i = 0; i < num_rmcm; i++) {
+		if (!dc->res_pool->rmcm_3dlut[i].isInUse) {
+			dc->res_pool->rmcm_3dlut[i].isInUse = true;
+			dc->res_pool->rmcm_3dlut[i].stream = stream;
+			return &dc->res_pool->rmcm_3dlut[i];
+		}
+	}
+
+	//dont have a 3dlut
+	return NULL;
+}
+
+
+void dc_stream_release_3dlut_for_stream(
+	const struct dc *dc,
+	const struct dc_stream_state *stream)
+{
+	struct dc_rmcm_3dlut *rmcm_3dlut =
+		dc_stream_get_3dlut_for_stream(dc, stream, false);
+
+	if (rmcm_3dlut) {
+		rmcm_3dlut->isInUse = false;
+		rmcm_3dlut->stream  = NULL;
+		rmcm_3dlut->protection_bits = 0;
+	}
+}
+
+
+void dc_stream_init_rmcm_3dlut(struct dc *dc)
+{
+	unsigned int num_rmcm = dc->caps.color.mpc.num_rmcm_3dluts;
+
+	for (int i = 0; i < num_rmcm; i++) {
+		dc->res_pool->rmcm_3dlut[i].isInUse = false;
+		dc->res_pool->rmcm_3dlut[i].stream = NULL;
+		dc->res_pool->rmcm_3dlut[i].protection_bits = 0;
 	}
 }
 

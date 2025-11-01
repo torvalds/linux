@@ -39,7 +39,8 @@ int octeon_setup_response_list(struct octeon_device *oct)
 	}
 	spin_lock_init(&oct->cmd_resp_wqlock);
 
-	oct->dma_comp_wq.wq = alloc_workqueue("dma-comp", WQ_MEM_RECLAIM, 0);
+	oct->dma_comp_wq.wq = alloc_workqueue("dma-comp",
+					      WQ_MEM_RECLAIM | WQ_PERCPU, 0);
 	if (!oct->dma_comp_wq.wq) {
 		dev_err(&oct->pci_dev->dev, "failed to create wq thread\n");
 		return -ENOMEM;

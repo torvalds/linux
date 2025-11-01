@@ -1,0 +1,44 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/spi/nxp,lpc3220-spi.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NXP LPC3220 SPI controller
+
+maintainers:
+  - Frank Li <Frank.Li@nxp.com>
+
+properties:
+  compatible:
+    enum:
+      - nxp,lpc3220-spi
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+allOf:
+  - $ref: spi-controller.yaml#
+
+unevaluatedProperties: false
+
+required:
+  - compatible
+  - reg
+  - clocks
+
+examples:
+  - |
+    #include <dt-bindings/clock/lpc32xx-clock.h>
+
+    spi@20088000 {
+        compatible = "nxp,lpc3220-spi";
+        reg = <0x20088000 0x1000>;
+        clocks = <&clk LPC32XX_CLK_SPI1>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+    };
+

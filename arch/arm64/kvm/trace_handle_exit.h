@@ -113,7 +113,7 @@ TRACE_EVENT(kvm_sys_access,
 		  __entry->vcpu_pc, __entry->name ?: "UNKN",
 		  __entry->Op0, __entry->Op1, __entry->CRn,
 		  __entry->CRm, __entry->Op2,
-		  __entry->is_write ? "write" : "read")
+		  str_write_read(__entry->is_write))
 );
 
 TRACE_EVENT(kvm_set_guest_debug,

@@ -5,6 +5,9 @@
 #ifndef __RTW89_WOW_H__
 #define __RTW89_WOW_H__
 
+#define RTW89_KEY_TKIP_PN_IV16 GENMASK_ULL(15, 0)
+#define RTW89_KEY_TKIP_PN_IV32 GENMASK_ULL(47, 16)
+
 #define RTW89_KEY_PN_0 GENMASK_ULL(7, 0)
 #define RTW89_KEY_PN_1 GENMASK_ULL(15, 8)
 #define RTW89_KEY_PN_2 GENMASK_ULL(23, 16)
@@ -24,6 +27,8 @@
 #define RTW89_WOW_VALID_CHECK 0xDD
 #define RTW89_WOW_SYMBOL_CHK_PTK BIT(0)
 #define RTW89_WOW_SYMBOL_CHK_GTK BIT(1)
+
+#define RTW89_MIC_KEY_LEN 8
 
 enum rtw89_wake_reason {
 	RTW89_WOW_RSN_RX_PTK_REKEY = 0x1,
@@ -73,6 +78,7 @@ struct rtw89_set_key_info_iter_data {
 	u32 igtk_cipher;
 	bool rx_ready;
 	bool error;
+	bool tkip_gtk_swapped;
 };
 
 static inline int rtw89_wow_get_sec_hdr_len(struct rtw89_dev *rtwdev)
@@ -116,9 +122,21 @@ static inline bool rtw_wow_has_mgd_features(struct rtw89_dev *rtwdev)
 	return !bitmap_empty(rtw_wow->flags, RTW89_WOW_FLAG_NUM);
 }
 
+void __rtw89_wow_parse_akm(struct rtw89_dev *rtwdev, struct sk_buff *skb);
+
+static inline
+void rtw89_wow_parse_akm(struct rtw89_dev *rtwdev, struct sk_buff *skb)
+{
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+
+	if (likely(!ieee80211_is_assoc_req(hdr->frame_control)))
+		return;
+
+	__rtw89_wow_parse_akm(rtwdev, skb);
+}
+
 int rtw89_wow_suspend(struct rtw89_dev *rtwdev, struct cfg80211_wowlan *wowlan);
 int rtw89_wow_resume(struct rtw89_dev *rtwdev);
-void rtw89_wow_parse_akm(struct rtw89_dev *rtwdev, struct sk_buff *skb);
 #else
 static inline
 void rtw89_wow_parse_akm(struct rtw89_dev *rtwdev, struct sk_buff *skb)

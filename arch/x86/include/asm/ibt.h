@@ -59,19 +59,15 @@ static __always_inline __attribute_const__ u32 gen_endbr(void)
 static __always_inline __attribute_const__ u32 gen_endbr_poison(void)
 {
 	/*
-	 * 4 byte NOP that isn't NOP4 (in fact it is OSP NOP3), such that it
-	 * will be unique to (former) ENDBR sites.
+	 * 4 byte NOP that isn't NOP4, such that it will be unique to (former)
+	 * ENDBR sites. Additionally it carries UDB as immediate.
 	 */
-	return 0x001f0f66; /* osp nopl (%rax) */
+	return 0xd6401f0f; /* nopl -42(%rax) */
 }
 
 static inline bool __is_endbr(u32 val)
 {
 	if (val == gen_endbr_poison())
-		return true;
-
-	/* See cfi_fineibt_bhi_preamble() */
-	if (IS_ENABLED(CONFIG_FINEIBT_BHI) && val == 0x001f0ff5)
 		return true;
 
 	val &= ~0x01000000U; /* ENDBR32 -> ENDBR64 */

@@ -30,17 +30,17 @@
     {
         "EventCode": "0x0394",
         "EventName": "L2D_CACHE_REFILL_L3D_CACHE_PRF",
-        "BriefDescription": "This event counts L2D_CACHE_REFILL_L3D_CACHE caused by prefetch access."
+        "BriefDescription": "This event counts L2D_CACHE_REFILL_L3D_CACHE caused by hardware prefetch or software prefetch."
     },
     {
         "EventCode": "0x0395",
         "EventName": "L2D_CACHE_REFILL_L3D_CACHE_HWPRF",
-        "BriefDescription": "This event counts L2D_CACHE_REFILL_L3D_CACHE caused by hardware prefetch access."
+        "BriefDescription": "This event counts L2D_CACHE_REFILL_L3D_CACHE caused by hardware prefetch."
     },
     {
         "EventCode": "0x0396",
         "EventName": "L2D_CACHE_REFILL_L3D_MISS",
-        "BriefDescription": "This event counts operations that cause a miss of the L3 cache."
+        "BriefDescription": "This event counts operations that cause a miss of the L3 cache. Note: This event may count inaccurately."
     },
     {
         "EventCode": "0x0397",
@@ -60,17 +60,17 @@
     {
         "EventCode": "0x039A",
         "EventName": "L2D_CACHE_REFILL_L3D_MISS_PRF",
-        "BriefDescription": "This event counts L2D_CACHE_REFILL_L3D_MISS caused by prefetch access."
+        "BriefDescription": "This event counts L2D_CACHE_REFILL_L3D_MISS caused by hardware prefetch or software prefetch. Note: This event may count inaccurately."
     },
     {
         "EventCode": "0x039B",
         "EventName": "L2D_CACHE_REFILL_L3D_MISS_HWPRF",
-        "BriefDescription": "This event counts L2D_CACHE_REFILL_L3D_MISS caused by hardware prefetch access."
+        "BriefDescription": "This event counts L2D_CACHE_REFILL_L3D_MISS caused by hardware prefetch. Note: This event may count inaccurately."
     },
     {
         "EventCode": "0x039C",
         "EventName": "L2D_CACHE_REFILL_L3D_HIT",
-        "BriefDescription": "This event counts operations that cause a hit of the L3 cache."
+        "BriefDescription": "This event counts operations that cause a hit of the L3 cache. Note: This event may count inaccurately."
     },
     {
         "EventCode": "0x039D",
@@ -90,70 +90,65 @@
     {
         "EventCode": "0x03A0",
         "EventName": "L2D_CACHE_REFILL_L3D_HIT_PRF",
-        "BriefDescription": "This event counts L2D_CACHE_REFILL_L3D_HIT caused by prefetch access."
+        "BriefDescription": "This event counts L2D_CACHE_REFILL_L3D_HIT caused by hardware prefetch or software prefetch. Note: This event may count inaccurately."
     },
     {
         "EventCode": "0x03A1",
         "EventName": "L2D_CACHE_REFILL_L3D_HIT_HWPRF",
-        "BriefDescription": "This event counts L2D_CACHE_REFILL_L3D_HIT caused by hardware prefetch access."
-    },
-    {
-        "EventCode": "0x03A2",
-        "EventName": "L2D_CACHE_REFILL_L3D_MISS_PFTGT_HIT",
-        "BriefDescription": "This event counts the number of L3 cache misses where the requests hit the PFTGT buffer."
+        "BriefDescription": "This event counts L2D_CACHE_REFILL_L3D_HIT caused by hardware prefetch. Note: This event may count inaccurately."
     },
     {
         "EventCode": "0x03A3",
-        "EventName": "L2D_CACHE_REFILL_L3D_MISS_PFTGT_HIT_DM",
-        "BriefDescription": "This event counts L2D_CACHE_REFILL_L3D_MISS_PFTGT_HIT caused by demand access."
+        "EventName": "L2D_CACHE_REFILL_L3D_MISS_DM_PFTGT_HIT",
+        "BriefDescription": "This event counts the number of L3 cache misses caused by demand access where the requests hit the PFTGT buffer."
     },
     {
         "EventCode": "0x03A4",
-        "EventName": "L2D_CACHE_REFILL_L3D_MISS_PFTGT_HIT_DM_RD",
-        "BriefDescription": "This event counts L2D_CACHE_REFILL_L3D_MISS_PFTGT_HIT caused by demand read access."
+        "EventName": "L2D_CACHE_REFILL_L3D_MISS_DM_RD_PFTGT_HIT",
+        "BriefDescription": "This event counts L2D_CACHE_REFILL_L3D_MISS_DM_PFTGT_HIT caused by read access."
     },
     {
         "EventCode": "0x03A5",
-        "EventName": "L2D_CACHE_REFILL_L3D_MISS_PFTGT_HIT_DM_WR",
-        "BriefDescription": "This event counts L2D_CACHE_REFILL_L3D_MISS_PFTGT_HIT caused by demand write access."
+        "EventName": "L2D_CACHE_REFILL_L3D_MISS_DM_WR_PFTGT_HIT",
+        "BriefDescription": "This event counts L2D_CACHE_REFILL_L3D_MISS_DM_PFTGT_HIT caused by write access."
     },
     {
         "EventCode": "0x03A6",
-        "EventName": "L2D_CACHE_REFILL_L3D_MISS_L_MEM",
-        "BriefDescription": "This event counts the number of L3 cache misses where the requests access the memory in the same socket as the requests."
+        "EventName": "L2D_CACHE_REFILL_L3D_MISS_DM_L_MEM",
+        "BriefDescription": "This event counts L2D_CACHE_REFILL_L3D_MISS_DM where the requests access the memory in the same socket as the requests."
     },
     {
         "EventCode": "0x03A7",
-        "EventName": "L2D_CACHE_REFILL_L3D_MISS_FR_MEM",
-        "BriefDescription": "This event counts the number of L3 cache misses where the requests access the memory in the different socket from the requests."
+        "EventName": "L2D_CACHE_REFILL_L3D_MISS_DM_FR_MEM",
+        "BriefDescription": "This event counts L2D_CACHE_REFILL_L3D_MISS_DM where the requests access the memory in the different socket from the requests."
     },
     {
         "EventCode": "0x03A8",
-        "EventName": "L2D_CACHE_REFILL_L3D_MISS_L_L2",
-        "BriefDescription": "This event counts the number of L3 cache misses where the requests access the different L2 cache from the requests in the same Numa nodes as the requests."
+        "EventName": "L2D_CACHE_REFILL_L3D_MISS_DM_L_L2",
+        "BriefDescription": "This event counts L2D_CACHE_REFILL_L3D_MISS_DM where the requests access the different L2 cache from the requests in the same Numa nodes as the requests."
     },
     {
         "EventCode": "0x03A9",
-        "EventName": "L2D_CACHE_REFILL_L3D_MISS_NR_L2",
-        "BriefDescription": "This event counts the number of L3 cache misses where the requests access L2 cache in the different Numa nodes from the requests in the same socket as the requests."
+        "EventName": "L2D_CACHE_REFILL_L3D_MISS_DM_NR_L2",
+        "BriefDescription": "This event counts L2D_CACHE_REFILL_L3D_MISS_DM where the requests access L2 cache in the different Numa nodes from the requests in the same socket as the requests."
     },
     {
         "EventCode": "0x03AA",
-        "EventName": "L2D_CACHE_REFILL_L3D_MISS_NR_L3",
-        "BriefDescription": "This event counts the number of L3 cache misses where the requests access L3 cache in the different Numa nodes from the requests in the same socket as the requests."
+        "EventName": "L2D_CACHE_REFILL_L3D_MISS_DM_NR_L3",
+        "BriefDescription": "This event counts L2D_CACHE_REFILL_L3D_MISS_DM where the requests access L3 cache in the different Numa nodes from the requests in the same socket as the requests."
     },
     {
         "EventCode": "0x03AB",
-        "EventName": "L2D_CACHE_REFILL_L3D_MISS_FR_L2",
-        "BriefDescription": "This event counts the number of L3 cache misses where the requests access L2 cache in the different socket from the requests."
+        "EventName": "L2D_CACHE_REFILL_L3D_MISS_DM_FR_L2",
+        "BriefDescription": "This event counts L2D_CACHE_REFILL_L3D_MISS_DM where the requests access L2 cache in the different socket from the requests."
     },
     {
         "EventCode": "0x03AC",
-        "EventName": "L2D_CACHE_REFILL_L3D_MISS_FR_L3",
-        "BriefDescription": "This event counts the number of L3 cache misses where the requests access L3 cache in the different socket from the requests."
+        "EventName": "L2D_CACHE_REFILL_L3D_MISS_DM_FR_L3",
+        "BriefDescription": "This event counts L2D_CACHE_REFILL_L3D_MISS_DM where the requests access L3 cache in the different socket from the requests."
     },
     {
         "ArchStdEvent": "L3D_CACHE_LMISS_RD",
-        "BriefDescription": "This event counts access counted by L3D_CACHE that is not completed by the L3D cache, and  a Memory-read operation, as defined by the L2D_CACHE_REFILL_L3D_MISS events."
+        "BriefDescription": "This event counts access counted by L3D_CACHE that is not completed by the L3 cache, and a Memory-read operation, as defined by the L2D_CACHE_REFILL_L3D_MISS events. Note: This event may count inaccurately."
     }
 ]

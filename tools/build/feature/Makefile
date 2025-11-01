@@ -8,7 +8,6 @@ FILES=                                          \
          test-libdw.bin                         \
          test-eventfd.bin                       \
          test-fortify-source.bin                \
-         test-get_current_dir_name.bin          \
          test-glibc.bin                         \
          test-gtk2.bin                          \
          test-gtk2-infobar.bin                  \
@@ -34,11 +33,9 @@ FILES=                                          \
          test-libperl.bin                       \
          test-libpython.bin                     \
          test-libslang.bin                      \
-         test-libslang-include-subdir.bin       \
          test-libtraceevent.bin                 \
          test-libcpupower.bin                   \
          test-libtracefs.bin                    \
-         test-libcrypto.bin                     \
          test-libunwind.bin                     \
          test-libunwind-debug-frame.bin         \
          test-libunwind-x86.bin                 \
@@ -94,7 +91,7 @@ else
   # paths are used instead.
   ifdef CROSS_COMPILE
     ifeq ($(PKG_CONFIG_LIBDIR)$(PKG_CONFIG_PATH)$(PKG_CONFIG_SYSROOT_DIR),)
-      CROSS_ARCH = $(shell $(CC) -dumpmachine)
+      CROSS_ARCH = $(notdir $(CROSS_COMPILE:%-=%))
       PKG_CONFIG_LIBDIR := /usr/local/$(CROSS_ARCH)/lib/pkgconfig/
       PKG_CONFIG_LIBDIR := $(PKG_CONFIG_LIBDIR):/usr/local/lib/$(CROSS_ARCH)/pkgconfig/
       PKG_CONFIG_LIBDIR := $(PKG_CONFIG_LIBDIR):/usr/lib/$(CROSS_ARCH)/pkgconfig/
@@ -145,9 +142,6 @@ $(OUTPUT)test-libelf.bin:
 	$(BUILD) -lelf
 
 $(OUTPUT)test-eventfd.bin:
-	$(BUILD)
-
-$(OUTPUT)test-get_current_dir_name.bin:
 	$(BUILD)
 
 $(OUTPUT)test-glibc.bin:
@@ -234,9 +228,6 @@ $(OUTPUT)test-libunwind-debug-frame-aarch64.bin:
 $(OUTPUT)test-libslang.bin:
 	$(BUILD) -lslang
 
-$(OUTPUT)test-libslang-include-subdir.bin:
-	$(BUILD) -lslang
-
 $(OUTPUT)test-libtraceevent.bin:
 	$(BUILD) -ltraceevent
 
@@ -245,9 +236,6 @@ $(OUTPUT)test-libcpupower.bin:
 
 $(OUTPUT)test-libtracefs.bin:
 	 $(BUILD) $(shell $(PKG_CONFIG) --cflags libtracefs 2>/dev/null) -ltracefs
-
-$(OUTPUT)test-libcrypto.bin:
-	$(BUILD) -lcrypto
 
 $(OUTPUT)test-gtk2.bin:
 	$(BUILD) $(shell $(PKG_CONFIG) --libs --cflags gtk+-2.0 2>/dev/null) -Wno-deprecated-declarations
@@ -319,10 +307,10 @@ $(OUTPUT)test-libcapstone.bin:
 	$(BUILD) # -lcapstone provided by $(FEATURE_CHECK_LDFLAGS-libcapstone)
 
 $(OUTPUT)test-compile-32.bin:
-	$(CC) -m32 -o $@ test-compile.c
+	$(CC) -m32 -Wall -Werror -o $@ test-compile.c
 
 $(OUTPUT)test-compile-x32.bin:
-	$(CC) -mx32 -o $@ test-compile.c
+	$(CC) -mx32 -Wall -Werror -o $@ test-compile.c
 
 $(OUTPUT)test-zlib.bin:
 	$(BUILD) -lz
@@ -337,27 +325,6 @@ $(OUTPUT)test-bpf.bin:
 	$(BUILD)
 
 $(OUTPUT)test-libbpf.bin:
-	$(BUILD) -lbpf
-
-$(OUTPUT)test-libbpf-btf__load_from_kernel_by_id.bin:
-	$(BUILD) -lbpf
-
-$(OUTPUT)test-libbpf-bpf_prog_load.bin:
-	$(BUILD) -lbpf
-
-$(OUTPUT)test-libbpf-bpf_map_create.bin:
-	$(BUILD) -lbpf
-
-$(OUTPUT)test-libbpf-bpf_object__next_program.bin:
-	$(BUILD) -lbpf
-
-$(OUTPUT)test-libbpf-bpf_object__next_map.bin:
-	$(BUILD) -lbpf
-
-$(OUTPUT)test-libbpf-bpf_program__set_insns.bin:
-	$(BUILD) -lbpf
-
-$(OUTPUT)test-libbpf-btf__raw_data.bin:
 	$(BUILD) -lbpf
 
 $(OUTPUT)test-sdt.bin:

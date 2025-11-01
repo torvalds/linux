@@ -59,6 +59,7 @@
 #define HRTIMER_ACTIVE_ALL	(HRTIMER_ACTIVE_SOFT | HRTIMER_ACTIVE_HARD)
 
 static void retrigger_next_event(void *arg);
+static ktime_t __hrtimer_cb_get_time(clockid_t clock_id);
 
 /*
  * The timer bases:
@@ -76,42 +77,34 @@ DEFINE_PER_CPU(struct hrtimer_cpu_base, hrtimer_bases) =
 		{
 			.index = HRTIMER_BASE_MONOTONIC,
 			.clockid = CLOCK_MONOTONIC,
-			.get_time = &ktime_get,
 		},
 		{
 			.index = HRTIMER_BASE_REALTIME,
 			.clockid = CLOCK_REALTIME,
-			.get_time = &ktime_get_real,
 		},
 		{
 			.index = HRTIMER_BASE_BOOTTIME,
 			.clockid = CLOCK_BOOTTIME,
-			.get_time = &ktime_get_boottime,
 		},
 		{
 			.index = HRTIMER_BASE_TAI,
 			.clockid = CLOCK_TAI,
-			.get_time = &ktime_get_clocktai,
 		},
 		{
 			.index = HRTIMER_BASE_MONOTONIC_SOFT,
 			.clockid = CLOCK_MONOTONIC,
-			.get_time = &ktime_get,
 		},
 		{
 			.index = HRTIMER_BASE_REALTIME_SOFT,
 			.clockid = CLOCK_REALTIME,
-			.get_time = &ktime_get_real,
 		},
 		{
 			.index = HRTIMER_BASE_BOOTTIME_SOFT,
 			.clockid = CLOCK_BOOTTIME,
-			.get_time = &ktime_get_boottime,
 		},
 		{
 			.index = HRTIMER_BASE_TAI_SOFT,
 			.clockid = CLOCK_TAI,
-			.get_time = &ktime_get_clocktai,
 		},
 	},
 	.csd = CSD_INIT(retrigger_next_event, NULL)
@@ -208,7 +201,7 @@ static bool hrtimer_suitable_target(struct hrtimer *timer, struct hrtimer_clock_
 	/*
 	 * The offline local CPU can't be the default target if the
 	 * next remote target event is after this timer. Keep the
-	 * elected new base. An IPI will we issued to reprogram
+	 * elected new base. An IPI will be issued to reprogram
 	 * it as a last resort.
 	 */
 	if (!hrtimer_base_is_online(this_cpu_base))
@@ -787,10 +780,10 @@ static void retrigger_next_event(void *arg)
 	 * of the next expiring timer is enough. The return from the SMP
 	 * function call will take care of the reprogramming in case the
 	 * CPU was in a NOHZ idle sleep.
+	 *
+	 * In periodic low resolution mode, the next softirq expiration
+	 * must also be updated.
 	 */
-	if (!hrtimer_hres_active(base) && !tick_nohz_active)
-		return;
-
 	raw_spin_lock(&base->lock);
 	hrtimer_update_base(base);
 	if (hrtimer_hres_active(base))
@@ -1253,7 +1246,7 @@ static int __hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim,
 	remove_hrtimer(timer, base, true, force_local);
 
 	if (mode & HRTIMER_MODE_REL)
-		tim = ktime_add_safe(tim, base->get_time());
+		tim = ktime_add_safe(tim, __hrtimer_cb_get_time(base->clockid));
 
 	tim = hrtimer_update_lowres(timer, tim, mode);
 
@@ -1574,10 +1567,10 @@ u64 hrtimer_next_event_without(const struct hrtimer *exclude)
 static inline int hrtimer_clockid_to_base(clockid_t clock_id)
 {
 	switch (clock_id) {
-	case CLOCK_REALTIME:
-		return HRTIMER_BASE_REALTIME;
 	case CLOCK_MONOTONIC:
 		return HRTIMER_BASE_MONOTONIC;
+	case CLOCK_REALTIME:
+		return HRTIMER_BASE_REALTIME;
 	case CLOCK_BOOTTIME:
 		return HRTIMER_BASE_BOOTTIME;
 	case CLOCK_TAI:
@@ -1587,6 +1580,29 @@ static inline int hrtimer_clockid_to_base(clockid_t clock_id)
 		return HRTIMER_BASE_MONOTONIC;
 	}
 }
+
+static ktime_t __hrtimer_cb_get_time(clockid_t clock_id)
+{
+	switch (clock_id) {
+	case CLOCK_MONOTONIC:
+		return ktime_get();
+	case CLOCK_REALTIME:
+		return ktime_get_real();
+	case CLOCK_BOOTTIME:
+		return ktime_get_boottime();
+	case CLOCK_TAI:
+		return ktime_get_clocktai();
+	default:
+		WARN(1, "Invalid clockid %d. Using MONOTONIC\n", clock_id);
+		return ktime_get();
+	}
+}
+
+ktime_t hrtimer_cb_get_time(const struct hrtimer *timer)
+{
+	return __hrtimer_cb_get_time(timer->base->clockid);
+}
+EXPORT_SYMBOL_GPL(hrtimer_cb_get_time);
 
 static void __hrtimer_setup(struct hrtimer *timer,
 			    enum hrtimer_restart (*function)(struct hrtimer *),
@@ -2295,11 +2311,6 @@ int hrtimers_cpu_dying(unsigned int dying_cpu)
 				     &new_base->clock_base[i]);
 	}
 
-	/*
-	 * The migration might have changed the first expiring softirq
-	 * timer on this CPU. Update it.
-	 */
-	__hrtimer_get_next_event(new_base, HRTIMER_ACTIVE_SOFT);
 	/* Tell the other CPU to retrigger the next event */
 	smp_call_function_single(ncpu, retrigger_next_event, NULL, 0);
 

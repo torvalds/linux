@@ -552,6 +552,10 @@ static int rtsx_usb_reset_chip(struct rtsx_ucr *ucr)
 	ret = rtsx_usb_send_cmd(ucr, MODE_C, 100);
 	if (ret)
 		return ret;
+	/* config OCP */
+	rtsx_usb_write_register(ucr, OCPCTL, MS_OCP_DETECT_EN, MS_OCP_DETECT_EN);
+	rtsx_usb_write_register(ucr, OCPPARA1, 0xF0, 0x50);
+	rtsx_usb_write_register(ucr, OCPPARA2, 0x7, 0x3);
 
 	/* config non-crystal mode */
 	rtsx_usb_read_register(ucr, CFG_MODE, &val);
@@ -698,6 +702,12 @@ static void rtsx_usb_disconnect(struct usb_interface *intf)
 }
 
 #ifdef CONFIG_PM
+static int rtsx_usb_resume_child(struct device *dev, void *data)
+{
+	pm_request_resume(dev);
+	return 0;
+}
+
 static int rtsx_usb_suspend(struct usb_interface *intf, pm_message_t message)
 {
 	struct rtsx_ucr *ucr =
@@ -713,20 +723,19 @@ static int rtsx_usb_suspend(struct usb_interface *intf, pm_message_t message)
 			mutex_unlock(&ucr->dev_mutex);
 
 			/* Defer the autosuspend if card exists */
-			if (val & (SD_CD | MS_CD))
+			if (val & (SD_CD | MS_CD)) {
+				device_for_each_child(&intf->dev, NULL, rtsx_usb_resume_child);
 				return -EAGAIN;
+			} else {
+				/* if the card does not exists, clear OCP status */
+				rtsx_usb_write_register(ucr, OCPCTL, MS_OCP_CLEAR, MS_OCP_CLEAR);
+			}
 		} else {
 			/* There is an ongoing operation*/
 			return -EAGAIN;
 		}
 	}
 
-	return 0;
-}
-
-static int rtsx_usb_resume_child(struct device *dev, void *data)
-{
-	pm_request_resume(dev);
 	return 0;
 }
 

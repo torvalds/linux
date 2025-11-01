@@ -1,0 +1,121 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/qcom,glymur-gcc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm Global Clock & Reset Controller on Glymur SoC
+
+maintainers:
+  - Taniya Das <taniya.das@oss.qualcomm.com>
+
+description: |
+  Qualcomm global clock control module provides the clocks, resets and power
+  domains on Glymur SoC.
+
+  See also: include/dt-bindings/clock/qcom,glymur-gcc.h
+
+properties:
+  compatible:
+    const: qcom,glymur-gcc
+
+  clocks:
+    items:
+      - description: Board XO source
+      - description: Board XO_A source
+      - description: Sleep clock source
+      - description: USB 0 Phy DP0 GMUX clock source
+      - description: USB 0 Phy DP1 GMUX clock source
+      - description: USB 0 Phy PCIE PIPEGMUX clock source
+      - description: USB 0 Phy PIPEGMUX clock source
+      - description: USB 0 Phy SYS PCIE PIPEGMUX clock source
+      - description: USB 1 Phy DP0 GMUX 2 clock source
+      - description: USB 1 Phy DP1 GMUX 2 clock source
+      - description: USB 1 Phy PCIE PIPEGMUX clock source
+      - description: USB 1 Phy PIPEGMUX clock source
+      - description: USB 1 Phy SYS PCIE PIPEGMUX clock source
+      - description: USB 2 Phy DP0 GMUX 2 clock source
+      - description: USB 2 Phy DP1 GMUX 2 clock source
+      - description: USB 2 Phy PCIE PIPEGMUX clock source
+      - description: USB 2 Phy PIPEGMUX clock source
+      - description: USB 2 Phy SYS PCIE PIPEGMUX clock source
+      - description: PCIe 3a pipe clock
+      - description: PCIe 3b pipe clock
+      - description: PCIe 4 pipe clock
+      - description: PCIe 5 pipe clock
+      - description: PCIe 6 pipe clock
+      - description: QUSB4 0 PHY RX 0 clock source
+      - description: QUSB4 0 PHY RX 1 clock source
+      - description: QUSB4 1 PHY RX 0 clock source
+      - description: QUSB4 1 PHY RX 1 clock source
+      - description: QUSB4 2 PHY RX 0 clock source
+      - description: QUSB4 2 PHY RX 1 clock source
+      - description: UFS PHY RX Symbol 0 clock source
+      - description: UFS PHY RX Symbol 1 clock source
+      - description: UFS PHY TX Symbol 0 clock source
+      - description: USB3 PHY 0 pipe clock source
+      - description: USB3 PHY 1 pipe clock source
+      - description: USB3 PHY 2 pipe clock source
+      - description: USB3 UNI PHY pipe 0 clock source
+      - description: USB3 UNI PHY pipe 1 clock source
+      - description: USB4 PHY 0 pcie pipe clock source
+      - description: USB4 PHY 0 Max pipe clock source
+      - description: USB4 PHY 1 pcie pipe clock source
+      - description: USB4 PHY 1 Max pipe clock source
+      - description: USB4 PHY 2 pcie pipe clock source
+      - description: USB4 PHY 2 Max pipe clock source
+
+required:
+  - compatible
+  - clocks
+  - '#power-domain-cells'
+
+allOf:
+  - $ref: qcom,gcc.yaml#
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/qcom,rpmh.h>
+    clock-controller@100000 {
+      compatible = "qcom,glymur-gcc";
+      reg = <0x100000 0x1f9000>;
+      clocks = <&rpmhcc RPMH_CXO_CLK>,
+               <&rpmhcc RPMH_CXO_CLK_A>,
+               <&sleep_clk>,
+               <&usb_0_phy_dp0_gmux>,
+               <&usb_0_phy_dp1_gmux>,
+               <&usb_0_phy_pcie_pipegmux>,
+               <&usb_0_phy_pipegmux>,
+               <&usb_0_phy_sys_pcie_pipegmux>,
+               <&usb_1_phy_dp0_gmux_2>,
+               <&usb_1_phy_dp1_gmux_2>,
+               <&usb_1_phy_pcie_pipegmux>,
+               <&usb_1_phy_pipegmux>,
+               <&usb_1_phy_sys_pcie_pipegmux>,
+               <&usb_2_phy_dp0_gmux 2>,
+               <&usb_2_phy_dp1_gmux 2>,
+               <&usb_2_phy_pcie_pipegmux>,
+               <&usb_2_phy_pipegmux>,
+               <&usb_2_phy_sys_pcie_pipegmux>,
+               <&pcie_3a_pipe>, <&pcie_3b_pipe>,
+               <&pcie_4_pipe>, <&pcie_5_pipe>,
+               <&pcie_6_pipe>,
+               <&qusb4_0_phy_rx_0>, <&qusb4_0_phy_rx_1>,
+               <&qusb4_1_phy_rx_0>, <&qusb4_1_phy_rx_1>,
+               <&qusb4_2_phy_rx_0>, <&qusb4_2_phy_rx_1>,
+               <&ufs_phy_rx_symbol_0>, <&ufs_phy_rx_symbol_1>,
+               <&ufs_phy_tx_symbol_0>,
+               <&usb3_phy_0_pipe>, <&usb3_phy_1_pipe>,
+               <&usb3_phy_2_pipe>,
+               <&usb3_uni_phy_pipe_0>, <&usb3_uni_phy_pipe_1>,
+               <&usb4_phy_0_pcie_pipe>, <&usb4_phy_0_max_pipe>,
+               <&usb4_phy_1_pcie_pipe>, <&usb4_phy_1_max_pipe>,
+               <&usb4_phy_2_pcie_pipe>, <&usb4_phy_2_max_pipe>;
+      #clock-cells = <1>;
+      #reset-cells = <1>;
+      #power-domain-cells = <1>;
+    };
+
+...

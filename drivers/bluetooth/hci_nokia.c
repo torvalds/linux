@@ -439,7 +439,7 @@ static int nokia_setup(struct hci_uart *hu)
 
 	if (btdev->man_id == NOKIA_ID_BCM2048) {
 		hu->hdev->set_bdaddr = btbcm_set_bdaddr;
-		set_bit(HCI_QUIRK_INVALID_BDADDR, &hu->hdev->quirks);
+		hci_set_quirk(hu->hdev, HCI_QUIRK_INVALID_BDADDR);
 		dev_dbg(dev, "bcm2048 has invalid bluetooth address!");
 	}
 

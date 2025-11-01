@@ -23,8 +23,6 @@
 #include <linux/iio/triggered_buffer.h>
 
 #define VCNL4035_DRV_NAME	"vcnl4035"
-#define VCNL4035_IRQ_NAME	"vcnl4035_event"
-#define VCNL4035_REGMAP_NAME	"vcnl4035_regmap"
 
 /* Device registers */
 #define VCNL4035_ALS_CONF	0x00
@@ -143,17 +141,12 @@ static const struct iio_trigger_ops vcnl4035_trigger_ops = {
 
 static int vcnl4035_set_pm_runtime_state(struct vcnl4035_data *data, bool on)
 {
-	int ret;
 	struct device *dev = &data->client->dev;
 
-	if (on) {
-		ret = pm_runtime_resume_and_get(dev);
-	} else {
-		pm_runtime_mark_last_busy(dev);
-		ret = pm_runtime_put_autosuspend(dev);
-	}
+	if (on)
+		return pm_runtime_resume_and_get(dev);
 
-	return ret;
+	return pm_runtime_put_autosuspend(dev);
 }
 
 static int vcnl4035_read_info_raw(struct iio_dev *indio_dev,
@@ -503,7 +496,7 @@ static bool vcnl4035_is_volatile_reg(struct device *dev, unsigned int reg)
 }
 
 static const struct regmap_config vcnl4035_regmap_config = {
-	.name		= VCNL4035_REGMAP_NAME,
+	.name		= "vcnl4035_regmap",
 	.reg_bits	= 8,
 	.val_bits	= 16,
 	.max_register	= VCNL4035_DEV_ID,
@@ -545,7 +538,7 @@ static int vcnl4035_probe_trigger(struct iio_dev *indio_dev)
 	ret = devm_request_threaded_irq(&data->client->dev, data->client->irq,
 			NULL, vcnl4035_drdy_irq_thread,
 			IRQF_TRIGGER_LOW | IRQF_ONESHOT,
-			VCNL4035_IRQ_NAME, indio_dev);
+			"vcnl4035_event", indio_dev);
 	if (ret < 0)
 		dev_err(&data->client->dev, "request irq %d for trigger0 failed\n",
 				data->client->irq);

@@ -32,6 +32,7 @@ class KsftTerminate(KeyboardInterrupt):
 
 
 def ksft_pr(*objs, **kwargs):
+    kwargs["flush"] = True
     print("#", *objs, **kwargs)
 
 
@@ -71,6 +72,11 @@ def ksft_true(a, comment=""):
         _fail("Check failed", a, "does not eval to True", comment)
 
 
+def ksft_not_none(a, comment=""):
+    if a is None:
+        _fail("Check failed", a, "is None", comment)
+
+
 def ksft_in(a, b, comment=""):
     if a not in b:
         _fail("Check failed", a, "not in", b, comment)
@@ -89,6 +95,11 @@ def ksft_is(a, b, comment=""):
 def ksft_ge(a, b, comment=""):
     if a < b:
         _fail("Check failed", a, "<", b, comment)
+
+
+def ksft_gt(a, b, comment=""):
+    if a <= b:
+        _fail("Check failed", a, "<=", b, comment)
 
 
 def ksft_lt(a, b, comment=""):
@@ -139,7 +150,7 @@ def ktap_result(ok, cnt=1, case="", comment=""):
         res += "." + str(case.__name__)
     if comment:
         res += " # " + comment
-    print(res)
+    print(res, flush=True)
 
 
 def ksft_flush_defer():
@@ -227,8 +238,8 @@ def ksft_run(cases=None, globs=None, case_pfx=None, args=()):
 
     totals = {"pass": 0, "fail": 0, "skip": 0, "xfail": 0}
 
-    print("TAP version 13")
-    print("1.." + str(len(cases)))
+    print("TAP version 13", flush=True)
+    print("1.." + str(len(cases)), flush=True)
 
     global KSFT_RESULT
     cnt = 0

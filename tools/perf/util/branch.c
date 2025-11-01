@@ -46,7 +46,7 @@ const char *branch_new_type_name(int new_type)
 		"FAULT_DATA",
 		"FAULT_INST",
 /*
- * TODO: This switch should happen on 'session->header.env.arch'
+ * TODO: This switch should happen on 'perf_session__env(session)->arch'
  * instead, because an arm64 platform perf recording could be
  * opened for analysis on other platforms as well.
  */

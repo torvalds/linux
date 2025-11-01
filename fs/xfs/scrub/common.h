@@ -7,7 +7,7 @@
 #define __XFS_SCRUB_COMMON_H__
 
 int xchk_trans_alloc(struct xfs_scrub *sc, uint resblks);
-int xchk_trans_alloc_empty(struct xfs_scrub *sc);
+void xchk_trans_alloc_empty(struct xfs_scrub *sc);
 void xchk_trans_cancel(struct xfs_scrub *sc);
 
 bool xchk_process_error(struct xfs_scrub *sc, xfs_agnumber_t agno,

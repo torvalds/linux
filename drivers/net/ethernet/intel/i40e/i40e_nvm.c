@@ -997,7 +997,7 @@ static int i40e_nvmupd_exec_aq(struct i40e_hw *hw,
 			       u8 *bytes, int *perrno)
 {
 	struct i40e_asq_cmd_details cmd_details;
-	struct i40e_aq_desc *aq_desc;
+	struct libie_aq_desc *aq_desc;
 	u32 buff_size = 0;
 	u8 *buff = NULL;
 	u32 aq_desc_len;
@@ -1011,7 +1011,7 @@ static int i40e_nvmupd_exec_aq(struct i40e_hw *hw,
 	memset(&cmd_details, 0, sizeof(cmd_details));
 	cmd_details.wb_desc = &hw->nvm_wb_desc;
 
-	aq_desc_len = sizeof(struct i40e_aq_desc);
+	aq_desc_len = sizeof(struct libie_aq_desc);
 	memset(&hw->nvm_wb_desc, 0, aq_desc_len);
 
 	/* get the aq descriptor */
@@ -1022,7 +1022,7 @@ static int i40e_nvmupd_exec_aq(struct i40e_hw *hw,
 		*perrno = -EINVAL;
 		return -EINVAL;
 	}
-	aq_desc = (struct i40e_aq_desc *)bytes;
+	aq_desc = (struct libie_aq_desc *)bytes;
 
 	/* if data buffer needed, make sure it's ready */
 	aq_data_len = cmd->data_size - aq_desc_len;
@@ -1053,7 +1053,7 @@ static int i40e_nvmupd_exec_aq(struct i40e_hw *hw,
 		i40e_debug(hw, I40E_DEBUG_NVM,
 			   "%s err %pe aq_err %s\n",
 			   __func__, ERR_PTR(status),
-			   i40e_aq_str(hw, hw->aq.asq_last_status));
+			   libie_aq_str(hw->aq.asq_last_status));
 		*perrno = i40e_aq_rc_to_posix(status, hw->aq.asq_last_status);
 		return status;
 	}
@@ -1087,7 +1087,7 @@ static int i40e_nvmupd_get_aq_result(struct i40e_hw *hw,
 
 	i40e_debug(hw, I40E_DEBUG_NVM, "NVMUPD: %s\n", __func__);
 
-	aq_desc_len = sizeof(struct i40e_aq_desc);
+	aq_desc_len = sizeof(struct libie_aq_desc);
 	aq_total_len = aq_desc_len + le16_to_cpu(hw->nvm_wb_desc.datalen);
 
 	/* check offset range */
@@ -1154,7 +1154,7 @@ static int i40e_nvmupd_get_aq_event(struct i40e_hw *hw,
 
 	i40e_debug(hw, I40E_DEBUG_NVM, "NVMUPD: %s\n", __func__);
 
-	aq_desc_len = sizeof(struct i40e_aq_desc);
+	aq_desc_len = sizeof(struct libie_aq_desc);
 	aq_total_len = aq_desc_len + le16_to_cpu(hw->nvm_aq_event_desc.datalen);
 
 	/* check copylength range */
@@ -1442,7 +1442,7 @@ retry:
 	 * so here we try to reacquire the semaphore then retry the write.
 	 * We only do one retry, then give up.
 	 */
-	if (status && hw->aq.asq_last_status == I40E_AQ_RC_EBUSY &&
+	if (status && hw->aq.asq_last_status == LIBIE_AQ_RC_EBUSY &&
 	    !retry_attempt) {
 		u32 old_asq_status = hw->aq.asq_last_status;
 		int old_status = status;
@@ -1628,9 +1628,9 @@ void i40e_nvmupd_clear_wait_state(struct i40e_hw *hw)
  * @desc: AdminQ descriptor
  **/
 void i40e_nvmupd_check_wait_event(struct i40e_hw *hw, u16 opcode,
-				  struct i40e_aq_desc *desc)
+				  struct libie_aq_desc *desc)
 {
-	u32 aq_desc_len = sizeof(struct i40e_aq_desc);
+	u32 aq_desc_len = sizeof(struct libie_aq_desc);
 
 	if (opcode == hw->nvm_wait_opcode) {
 		memcpy(&hw->nvm_aq_event_desc, desc, aq_desc_len);

@@ -39,6 +39,7 @@ properties:
   clock-frequency:
     description:
       Frequency of the eclk clock in Hz.
+    deprecated: true
 
   dovdd-supply:
     description:
@@ -100,7 +101,6 @@ required:
   - reg
   - clocks
   - clock-names
-  - clock-frequency
   - dovdd-supply
   - avdd-supply
   - dvdd-supply
@@ -127,7 +127,6 @@ examples:
 
             clocks = <&ov02a10_clk>;
             clock-names = "eclk";
-            clock-frequency = <24000000>;
 
             rotation = <180>;
 

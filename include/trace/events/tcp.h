@@ -13,17 +13,11 @@
 #include <linux/sock_diag.h>
 #include <net/rstreason.h>
 
-/*
- * tcp event with arguments sk and skb
- *
- * Note: this class requires a valid sk pointer; while skb pointer could
- *       be NULL.
- */
-DECLARE_EVENT_CLASS(tcp_event_sk_skb,
+TRACE_EVENT(tcp_retransmit_skb,
 
-	TP_PROTO(const struct sock *sk, const struct sk_buff *skb),
+	TP_PROTO(const struct sock *sk, const struct sk_buff *skb, int err),
 
-	TP_ARGS(sk, skb),
+	TP_ARGS(sk, skb, err),
 
 	TP_STRUCT__entry(
 		__field(const void *, skbaddr)
@@ -36,6 +30,7 @@ DECLARE_EVENT_CLASS(tcp_event_sk_skb,
 		__array(__u8, daddr, 4)
 		__array(__u8, saddr_v6, 16)
 		__array(__u8, daddr_v6, 16)
+		__field(int, err)
 	),
 
 	TP_fast_assign(
@@ -58,21 +53,17 @@ DECLARE_EVENT_CLASS(tcp_event_sk_skb,
 
 		TP_STORE_ADDRS(__entry, inet->inet_saddr, inet->inet_daddr,
 			      sk->sk_v6_rcv_saddr, sk->sk_v6_daddr);
+
+		__entry->err = err;
 	),
 
-	TP_printk("skbaddr=%p skaddr=%p family=%s sport=%hu dport=%hu saddr=%pI4 daddr=%pI4 saddrv6=%pI6c daddrv6=%pI6c state=%s",
+	TP_printk("skbaddr=%p skaddr=%p family=%s sport=%hu dport=%hu saddr=%pI4 daddr=%pI4 saddrv6=%pI6c daddrv6=%pI6c state=%s err=%d",
 		  __entry->skbaddr, __entry->skaddr,
 		  show_family_name(__entry->family),
 		  __entry->sport, __entry->dport, __entry->saddr, __entry->daddr,
 		  __entry->saddr_v6, __entry->daddr_v6,
-		  show_tcp_state_name(__entry->state))
-);
-
-DEFINE_EVENT(tcp_event_sk_skb, tcp_retransmit_skb,
-
-	TP_PROTO(const struct sock *sk, const struct sk_buff *skb),
-
-	TP_ARGS(sk, skb)
+		  show_tcp_state_name(__entry->state),
+		  __entry->err)
 );
 
 #undef FN
@@ -692,6 +683,7 @@ DEFINE_EVENT(tcp_ao_event, tcp_ao_handshake_failure,
 	TP_ARGS(sk, skb, keyid, rnext, maclen)
 );
 
+#ifdef CONFIG_TCP_AO
 DEFINE_EVENT(tcp_ao_event, tcp_ao_wrong_maclen,
 	TP_PROTO(const struct sock *sk, const struct sk_buff *skb,
 		 const __u8 keyid, const __u8 rnext, const __u8 maclen),
@@ -830,6 +822,7 @@ DEFINE_EVENT(tcp_ao_event_sne, tcp_ao_rcv_sne_update,
 	TP_PROTO(const struct sock *sk, __u32 new_sne),
 	TP_ARGS(sk, new_sne)
 );
+#endif /* CONFIG_TCP_AO */
 
 #endif /* _TRACE_TCP_H */
 

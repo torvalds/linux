@@ -47,8 +47,7 @@ source lib.sh
 
 h1_create()
 {
-	simple_if_init $h1 192.0.2.1/28
-	defer simple_if_fini $h1 192.0.2.1/28
+	adf_simple_if_init $h1 192.0.2.1/28
 
 	tc qdisc add dev $h1 clsact
 	defer tc qdisc del dev $h1 clsact
@@ -60,24 +59,23 @@ h1_create()
 
 switch_create()
 {
-	ip_link_add br1 type bridge vlan_filtering 0 mcast_snooping 0
+	adf_ip_link_add br1 type bridge vlan_filtering 0 mcast_snooping 0
 	# Make sure the bridge uses the MAC address of the local port and not
 	# that of the VxLAN's device.
-	ip_link_set_addr br1 $(mac_get $swp1)
-	ip_link_set_up br1
+	adf_ip_link_set_addr br1 $(mac_get $swp1)
+	adf_ip_link_set_up br1
 
-	ip_link_set_up $rp1
-	ip_addr_add $rp1 192.0.2.17/28
-	ip_route_add 192.0.2.32/28 nexthop via 192.0.2.18
+	adf_ip_link_set_up $rp1
+	adf_ip_addr_add $rp1 192.0.2.17/28
+	adf_ip_route_add 192.0.2.32/28 nexthop via 192.0.2.18
 
-	ip_link_set_master $swp1 br1
-	ip_link_set_up $swp1
+	adf_ip_link_set_master $swp1 br1
+	adf_ip_link_set_up $swp1
 }
 
 vrp2_create()
 {
-	simple_if_init $rp2 192.0.2.18/28
-	defer simple_if_fini $rp2 192.0.2.18/28
+	adf_simple_if_init $rp2 192.0.2.18/28
 }
 
 setup_prepare()
@@ -88,11 +86,8 @@ setup_prepare()
 	rp1=${NETIFS[p3]}
 	rp2=${NETIFS[p4]}
 
-	vrf_prepare
-	defer vrf_cleanup
-
-	forwarding_enable
-	defer forwarding_restore
+	adf_vrf_prepare
+	adf_forwarding_enable
 
 	h1_create
 	switch_create
@@ -200,10 +195,10 @@ vxlan_ping_do()
 
 vxlan_device_add()
 {
-	ip_link_add vx1 up type vxlan id 1000		\
+	adf_ip_link_add vx1 up type vxlan id 1000		\
 		local 192.0.2.17 dstport "$VXPORT"	\
 		nolearning noudpcsum tos inherit ttl 100 "$@"
-	ip_link_set_master vx1 br1
+	adf_ip_link_set_master vx1 br1
 }
 
 vxlan_all_reserved_bits()

@@ -26,7 +26,7 @@ struct sprd_gate {
  * CLK_GATE_BIG_ENDIAN		BIT(2)
  * so we define new flags from	BIT(3)
  */
-#define SPRD_GATE_NON_AON BIT(3) /* not alway powered on, check before read */
+#define SPRD_GATE_NON_AON BIT(3) /* not always powered on, check before read */
 
 #define SPRD_SC_GATE_CLK_HW_INIT_FN(_struct, _name, _parent, _reg,	\
 				    _sc_offset, _enable_mask, _flags,	\

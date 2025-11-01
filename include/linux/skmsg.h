@@ -315,7 +315,7 @@ static inline bool sk_psock_test_state(const struct sk_psock *psock,
 
 static inline void sock_drop(struct sock *sk, struct sk_buff *skb)
 {
-	sk_drops_add(sk, skb);
+	sk_drops_skbadd(sk, skb);
 	kfree_skb(skb);
 }
 

@@ -213,17 +213,33 @@ int amdgpu_amdkfd_reserve_mem_limit(struct amdgpu_device *adev,
 	spin_lock(&kfd_mem_limit.mem_limit_lock);
 
 	if (kfd_mem_limit.system_mem_used + system_mem_needed >
-	    kfd_mem_limit.max_system_mem_limit)
+	    kfd_mem_limit.max_system_mem_limit) {
 		pr_debug("Set no_system_mem_limit=1 if using shared memory\n");
+		if (!no_system_mem_limit) {
+			ret = -ENOMEM;
+			goto release;
+		}
+	}
 
-	if ((kfd_mem_limit.system_mem_used + system_mem_needed >
-	     kfd_mem_limit.max_system_mem_limit && !no_system_mem_limit) ||
-	    (kfd_mem_limit.ttm_mem_used + ttm_mem_needed >
-	     kfd_mem_limit.max_ttm_mem_limit) ||
-	    (adev && xcp_id >= 0 && adev->kfd.vram_used[xcp_id] + vram_needed >
-	     vram_size - reserved_for_pt - reserved_for_ras - atomic64_read(&adev->vram_pin_size))) {
+	if (kfd_mem_limit.ttm_mem_used + ttm_mem_needed >
+		kfd_mem_limit.max_ttm_mem_limit) {
 		ret = -ENOMEM;
 		goto release;
+	}
+
+	/*if is_app_apu is false and apu_prefer_gtt is true, it is an APU with
+	 * carve out < gtt. In that case, VRAM allocation will go to gtt domain, skip
+	 * VRAM check since ttm_mem_limit check already cover this allocation
+	 */
+
+	if (adev && xcp_id >= 0 && (!adev->apu_prefer_gtt || adev->gmc.is_app_apu)) {
+		uint64_t vram_available =
+			vram_size - reserved_for_pt - reserved_for_ras -
+			atomic64_read(&adev->vram_pin_size);
+		if (adev->kfd.vram_used[xcp_id] + vram_needed > vram_available) {
+			ret = -ENOMEM;
+			goto release;
+		}
 	}
 
 	/* Update memory accounting by decreasing available system
@@ -494,7 +510,8 @@ static int vm_update_pds(struct amdgpu_vm *vm, struct amdgpu_sync *sync)
 	return amdgpu_sync_fence(sync, vm->last_update, GFP_KERNEL);
 }
 
-static uint64_t get_pte_flags(struct amdgpu_device *adev, struct kgd_mem *mem)
+static uint64_t get_pte_flags(struct amdgpu_device *adev, struct amdgpu_vm *vm,
+			      struct kgd_mem *mem)
 {
 	uint32_t mapping_flags = AMDGPU_VM_PAGE_READABLE |
 				 AMDGPU_VM_MTYPE_DEFAULT;
@@ -504,7 +521,7 @@ static uint64_t get_pte_flags(struct amdgpu_device *adev, struct kgd_mem *mem)
 	if (mem->alloc_flags & KFD_IOC_ALLOC_MEM_FLAGS_EXECUTABLE)
 		mapping_flags |= AMDGPU_VM_PAGE_EXECUTABLE;
 
-	return amdgpu_gem_va_map_flags(adev, mapping_flags);
+	return mapping_flags;
 }
 
 /**
@@ -961,7 +978,7 @@ static int kfd_mem_attach(struct amdgpu_device *adev, struct kgd_mem *mem,
 			goto unwind;
 		}
 		attachment[i]->va = va;
-		attachment[i]->pte_flags = get_pte_flags(adev, mem);
+		attachment[i]->pte_flags = get_pte_flags(adev, vm, mem);
 		attachment[i]->adev = adev;
 		list_add(&attachment[i]->list, &mem->attachments);
 
@@ -1040,7 +1057,7 @@ static int init_user_pages(struct kgd_mem *mem, uint64_t user_addr,
 	struct amdkfd_process_info *process_info = mem->process_info;
 	struct amdgpu_bo *bo = mem->bo;
 	struct ttm_operation_ctx ctx = { true, false };
-	struct hmm_range *range;
+	struct amdgpu_hmm_range *range;
 	int ret = 0;
 
 	mutex_lock(&process_info->lock);
@@ -1072,8 +1089,15 @@ static int init_user_pages(struct kgd_mem *mem, uint64_t user_addr,
 		return 0;
 	}
 
-	ret = amdgpu_ttm_tt_get_user_pages(bo, bo->tbo.ttm->pages, &range);
+	range = amdgpu_hmm_range_alloc(NULL);
+	if (unlikely(!range)) {
+		ret = -ENOMEM;
+		goto unregister_out;
+	}
+
+	ret = amdgpu_ttm_tt_get_user_pages(bo, range);
 	if (ret) {
+		amdgpu_hmm_range_free(range);
 		if (ret == -EAGAIN)
 			pr_debug("Failed to get user pages, try again\n");
 		else
@@ -1086,6 +1110,9 @@ static int init_user_pages(struct kgd_mem *mem, uint64_t user_addr,
 		pr_err("%s: Failed to reserve BO\n", __func__);
 		goto release_out;
 	}
+
+	amdgpu_ttm_tt_set_user_pages(bo->tbo.ttm, range);
+
 	amdgpu_bo_placement_from_domain(bo, mem->domain);
 	ret = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 	if (ret)
@@ -1093,7 +1120,7 @@ static int init_user_pages(struct kgd_mem *mem, uint64_t user_addr,
 	amdgpu_bo_unreserve(bo);
 
 release_out:
-	amdgpu_ttm_tt_get_user_pages_done(bo->tbo.ttm, range);
+	amdgpu_hmm_range_free(range);
 unregister_out:
 	if (ret)
 		amdgpu_hmm_unregister(bo);
@@ -1626,11 +1653,15 @@ size_t amdgpu_amdkfd_get_available_memory(struct amdgpu_device *adev,
 	uint64_t vram_available, system_mem_available, ttm_mem_available;
 
 	spin_lock(&kfd_mem_limit.mem_limit_lock);
-	vram_available = KFD_XCP_MEMORY_SIZE(adev, xcp_id)
-		- adev->kfd.vram_used_aligned[xcp_id]
-		- atomic64_read(&adev->vram_pin_size)
-		- reserved_for_pt
-		- reserved_for_ras;
+	if (adev->apu_prefer_gtt && !adev->gmc.is_app_apu)
+		vram_available = KFD_XCP_MEMORY_SIZE(adev, xcp_id)
+			- adev->kfd.vram_used_aligned[xcp_id];
+	else
+		vram_available = KFD_XCP_MEMORY_SIZE(adev, xcp_id)
+			- adev->kfd.vram_used_aligned[xcp_id]
+			- atomic64_read(&adev->vram_pin_size)
+			- reserved_for_pt
+			- reserved_for_ras;
 
 	if (adev->apu_prefer_gtt) {
 		system_mem_available = no_system_mem_limit ?
@@ -1892,7 +1923,7 @@ int amdgpu_amdkfd_gpuvm_free_memory_of_gpu(
 	if (amdgpu_ttm_tt_get_usermm(mem->bo->tbo.ttm)) {
 		amdgpu_hmm_unregister(mem->bo);
 		mutex_lock(&process_info->notifier_lock);
-		amdgpu_ttm_tt_discard_user_pages(mem->bo->tbo.ttm, mem->range);
+		amdgpu_hmm_range_free(mem->range);
 		mutex_unlock(&process_info->notifier_lock);
 	}
 
@@ -1930,9 +1961,7 @@ int amdgpu_amdkfd_gpuvm_free_memory_of_gpu(
 	 */
 	if (size) {
 		if (!is_imported &&
-		   (mem->bo->preferred_domains == AMDGPU_GEM_DOMAIN_VRAM ||
-		   (adev->apu_prefer_gtt &&
-		    mem->bo->preferred_domains == AMDGPU_GEM_DOMAIN_GTT)))
+		   mem->alloc_flags & KFD_IOC_ALLOC_MEM_FLAGS_VRAM)
 			*size = bo_size;
 		else
 			*size = 0;
@@ -2305,10 +2334,9 @@ void amdgpu_amdkfd_gpuvm_unmap_gtt_bo_from_kernel(struct kgd_mem *mem)
 int amdgpu_amdkfd_gpuvm_get_vm_fault_info(struct amdgpu_device *adev,
 					  struct kfd_vm_fault_info *mem)
 {
-	if (atomic_read(&adev->gmc.vm_fault_info_updated) == 1) {
+	if (atomic_read_acquire(&adev->gmc.vm_fault_info_updated) == 1) {
 		*mem = *adev->gmc.vm_fault_info;
-		mb(); /* make sure read happened */
-		atomic_set(&adev->gmc.vm_fault_info_updated, 0);
+		atomic_set_release(&adev->gmc.vm_fault_info_updated, 0);
 	}
 	return 0;
 }
@@ -2519,7 +2547,7 @@ static int update_invalid_user_pages(struct amdkfd_process_info *process_info,
 
 		bo = mem->bo;
 
-		amdgpu_ttm_tt_discard_user_pages(bo->tbo.ttm, mem->range);
+		amdgpu_hmm_range_free(mem->range);
 		mem->range = NULL;
 
 		/* BO reservations and getting user pages (hmm_range_fault)
@@ -2543,10 +2571,14 @@ static int update_invalid_user_pages(struct amdkfd_process_info *process_info,
 			}
 		}
 
+		mem->range = amdgpu_hmm_range_alloc(NULL);
+		if (unlikely(!mem->range))
+			return -ENOMEM;
 		/* Get updated user pages */
-		ret = amdgpu_ttm_tt_get_user_pages(bo, bo->tbo.ttm->pages,
-						   &mem->range);
+		ret = amdgpu_ttm_tt_get_user_pages(bo, mem->range);
 		if (ret) {
+			amdgpu_hmm_range_free(mem->range);
+			mem->range = NULL;
 			pr_debug("Failed %d to get user pages\n", ret);
 
 			/* Return -EFAULT bad address error as success. It will
@@ -2563,16 +2595,23 @@ static int update_invalid_user_pages(struct amdkfd_process_info *process_info,
 			 * from the KFD, trigger a segmentation fault in VM debug mode.
 			 */
 			if (amdgpu_ttm_adev(bo->tbo.bdev)->debug_vm_userptr) {
+				struct kfd_process *p;
+
 				pr_err("Pid %d unmapped memory before destroying userptr at GPU addr 0x%llx\n",
 								pid_nr(process_info->pid), mem->va);
 
 				// Send GPU VM fault to user space
-				kfd_signal_vm_fault_event_with_userptr(kfd_lookup_process_by_pid(process_info->pid),
-								mem->va);
+				p = kfd_lookup_process_by_pid(process_info->pid);
+				if (p) {
+					kfd_signal_vm_fault_event_with_userptr(p, mem->va);
+					kfd_unref_process(p);
+				}
 			}
 
 			ret = 0;
 		}
+
+		amdgpu_ttm_tt_set_user_pages(bo->tbo.ttm, mem->range);
 
 		mutex_lock(&process_info->notifier_lock);
 
@@ -2712,8 +2751,8 @@ static int confirm_valid_user_pages_locked(struct amdkfd_process_info *process_i
 			continue;
 
 		/* Only check mem with hmm range associated */
-		valid = amdgpu_ttm_tt_get_user_pages_done(
-					mem->bo->tbo.ttm, mem->range);
+		valid = amdgpu_hmm_range_valid(mem->range);
+		amdgpu_hmm_range_free(mem->range);
 
 		mem->range = NULL;
 		if (!valid) {
@@ -2969,9 +3008,22 @@ int amdgpu_amdkfd_gpuvm_restore_process_bos(void *info, struct dma_fence __rcu *
 		struct amdgpu_device *adev = amdgpu_ttm_adev(
 			peer_vm->root.bo->tbo.bdev);
 
+		struct amdgpu_fpriv *fpriv =
+			container_of(peer_vm, struct amdgpu_fpriv, vm);
+
+		ret = amdgpu_vm_bo_update(adev, fpriv->prt_va, false);
+		if (ret) {
+			dev_dbg(adev->dev,
+				"Memory eviction: handle PRT moved failed, pid %8d. Try again.\n",
+				pid_nr(process_info->pid));
+			goto validate_map_fail;
+		}
+
 		ret = amdgpu_vm_handle_moved(adev, peer_vm, &exec.ticket);
 		if (ret) {
-			pr_debug("Memory eviction: handle moved failed. Try again\n");
+			dev_dbg(adev->dev,
+				"Memory eviction: handle moved failed, pid %8d. Try again.\n",
+				pid_nr(process_info->pid));
 			goto validate_map_fail;
 		}
 	}

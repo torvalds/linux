@@ -118,6 +118,9 @@
 #define IMX334_REG_TP			CCI_REG8(0x329e)
 #define IMX334_TP_COLOR_HBARS		0xa
 #define IMX334_TP_COLOR_VBARS		0xb
+#define IMX334_TP_BLACK			0x0
+#define IMX334_TP_WHITE			0x1
+#define IMX334_TP_BLACK_GREY		0xc
 
 #define IMX334_TPG_EN_DOUT		CCI_REG8(0x329c)
 #define IMX334_TP_ENABLE		0x1
@@ -398,12 +401,18 @@ static const char * const imx334_test_pattern_menu[] = {
 	"Disabled",
 	"Vertical Color Bars",
 	"Horizontal Color Bars",
+	"Black and Grey Bars",
+	"Black Color",
+	"White Color",
 };
 
 static const int imx334_test_pattern_val[] = {
 	IMX334_TP_DISABLE,
 	IMX334_TP_COLOR_HBARS,
 	IMX334_TP_COLOR_VBARS,
+	IMX334_TP_BLACK_GREY,
+	IMX334_TP_BLACK,
+	IMX334_TP_WHITE,
 };
 
 static const struct cci_reg_sequence raw10_framefmt_regs[] = {
@@ -997,7 +1006,7 @@ static int imx334_parse_hw_config(struct imx334 *imx334)
 				     "failed to get reset gpio\n");
 
 	/* Get sensor input clock */
-	imx334->inclk = devm_clk_get(imx334->dev, NULL);
+	imx334->inclk = devm_v4l2_sensor_clk_get(imx334->dev, NULL);
 	if (IS_ERR(imx334->inclk))
 		return dev_err_probe(imx334->dev, PTR_ERR(imx334->inclk),
 					 "could not get inclk\n");
@@ -1070,6 +1079,10 @@ static int imx334_power_on(struct device *dev)
 	struct imx334 *imx334 = to_imx334(sd);
 	int ret;
 
+	/*
+	 * Note: Misinterpretation of reset assertion - do not re-use this code.
+	 * XCLR pin is using incorrect (for reset signal) logical level.
+	 */
 	gpiod_set_value_cansleep(imx334->reset_gpio, 1);
 
 	ret = clk_prepare_enable(imx334->inclk);

@@ -407,15 +407,21 @@ struct mlx5hws_action *mlx5_fc_get_hws_action(struct mlx5hws_context *ctx,
 {
 	struct mlx5_fs_hws_create_action_ctx create_ctx;
 	struct mlx5_fc_bulk *fc_bulk = counter->bulk;
+	struct mlx5hws_action *hws_action;
 
 	create_ctx.hws_ctx = ctx;
 	create_ctx.id = fc_bulk->base_id;
 	create_ctx.actions_type = MLX5HWS_ACTION_TYP_CTR;
 
-	return mlx5_fs_get_hws_action(&fc_bulk->hws_data, &create_ctx);
+	mlx5_fc_local_get(counter);
+	hws_action = mlx5_fs_get_hws_action(&fc_bulk->hws_data, &create_ctx);
+	if (!hws_action)
+		mlx5_fc_local_put(counter);
+	return hws_action;
 }
 
 void mlx5_fc_put_hws_action(struct mlx5_fc *counter)
 {
 	mlx5_fs_put_hws_action(&counter->bulk->hws_data);
+	mlx5_fc_local_put(counter);
 }

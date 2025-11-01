@@ -245,14 +245,19 @@ static inline int mmc_blksz_for_byte_mode(const struct mmc_card *c)
 	return c->quirks & MMC_QUIRK_BLKSZ_FOR_BYTE_MODE;
 }
 
+static inline int mmc_card_nonstd_func_interface(const struct mmc_card *c)
+{
+	return c->quirks & MMC_QUIRK_NONSTD_FUNC_IF;
+}
+
 static inline int mmc_card_disable_cd(const struct mmc_card *c)
 {
 	return c->quirks & MMC_QUIRK_DISABLE_CD;
 }
 
-static inline int mmc_card_nonstd_func_interface(const struct mmc_card *c)
+static inline int mmc_card_blk_no_cmd23(const struct mmc_card *c)
 {
-	return c->quirks & MMC_QUIRK_NONSTD_FUNC_IF;
+	return c->quirks & MMC_QUIRK_BLK_NO_CMD23;
 }
 
 static inline int mmc_card_broken_byte_mode_512(const struct mmc_card *c)

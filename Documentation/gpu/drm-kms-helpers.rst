@@ -92,6 +92,18 @@ GEM Atomic Helper Reference
 .. kernel-doc:: drivers/gpu/drm/drm_gem_atomic_helper.c
    :export:
 
+VBLANK Helper Reference
+-----------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_vblank_helper.c
+   :doc: overview
+
+.. kernel-doc:: include/drm/drm_vblank_helper.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_vblank_helper.c
+   :export:
+
 Simple KMS Helper Reference
 ===========================
 

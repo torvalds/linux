@@ -264,7 +264,7 @@ static struct ata_port_operations atiixp_port_ops = {
 	.bmdma_start 	= atiixp_bmdma_start,
 	.bmdma_stop	= atiixp_bmdma_stop,
 
-	.prereset	= atiixp_prereset,
+	.reset.prereset	= atiixp_prereset,
 	.cable_detect	= atiixp_cable_detect,
 	.set_piomode	= atiixp_set_piomode,
 	.set_dmamode	= atiixp_set_dmamode,

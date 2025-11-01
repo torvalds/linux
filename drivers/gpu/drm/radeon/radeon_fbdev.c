@@ -53,10 +53,10 @@ static void radeon_fbdev_destroy_pinned_object(struct drm_gem_object *gobj)
 }
 
 static int radeon_fbdev_create_pinned_object(struct drm_fb_helper *fb_helper,
+					     const struct drm_format_info *info,
 					     struct drm_mode_fb_cmd2 *mode_cmd,
 					     struct drm_gem_object **gobj_p)
 {
-	const struct drm_format_info *info;
 	struct radeon_device *rdev = fb_helper->dev->dev_private;
 	struct drm_gem_object *gobj = NULL;
 	struct radeon_bo *rbo = NULL;
@@ -67,7 +67,6 @@ static int radeon_fbdev_create_pinned_object(struct drm_fb_helper *fb_helper,
 	int height = mode_cmd->height;
 	u32 cpp;
 
-	info = drm_get_format_info(rdev_to_drm(rdev), mode_cmd);
 	cpp = info->cpp[0];
 
 	/* need to align pitch with crtc limits */
@@ -155,7 +154,6 @@ static int radeon_fbdev_fb_open(struct fb_info *info, int user)
 	return 0;
 
 err_pm_runtime_mark_last_busy:
-	pm_runtime_mark_last_busy(rdev_to_drm(rdev)->dev);
 	pm_runtime_put_autosuspend(rdev_to_drm(rdev)->dev);
 	return ret;
 }
@@ -165,7 +163,6 @@ static int radeon_fbdev_fb_release(struct fb_info *info, int user)
 	struct drm_fb_helper *fb_helper = info->par;
 	struct radeon_device *rdev = fb_helper->dev->dev_private;
 
-	pm_runtime_mark_last_busy(rdev_to_drm(rdev)->dev);
 	pm_runtime_put_autosuspend(rdev_to_drm(rdev)->dev);
 
 	return 0;
@@ -185,8 +182,6 @@ static void radeon_fbdev_fb_destroy(struct fb_info *info)
 	radeon_fbdev_destroy_pinned_object(gobj);
 
 	drm_client_release(&fb_helper->client);
-	drm_fb_helper_unprepare(fb_helper);
-	kfree(fb_helper);
 }
 
 static const struct fb_ops radeon_fbdev_fb_ops = {
@@ -205,6 +200,7 @@ int radeon_fbdev_driver_fbdev_probe(struct drm_fb_helper *fb_helper,
 				    struct drm_fb_helper_surface_size *sizes)
 {
 	struct radeon_device *rdev = fb_helper->dev->dev_private;
+	const struct drm_format_info *format_info;
 	struct drm_mode_fb_cmd2 mode_cmd = { };
 	struct fb_info *info;
 	struct drm_gem_object *gobj;
@@ -223,7 +219,9 @@ int radeon_fbdev_driver_fbdev_probe(struct drm_fb_helper *fb_helper,
 	mode_cmd.pixel_format = drm_mode_legacy_fb_format(sizes->surface_bpp,
 							  sizes->surface_depth);
 
-	ret = radeon_fbdev_create_pinned_object(fb_helper, &mode_cmd, &gobj);
+	format_info = drm_get_format_info(rdev_to_drm(rdev), mode_cmd.pixel_format,
+					  mode_cmd.modifier[0]);
+	ret = radeon_fbdev_create_pinned_object(fb_helper, format_info, &mode_cmd, &gobj);
 	if (ret) {
 		DRM_ERROR("failed to create fbcon object %d\n", ret);
 		return ret;
@@ -235,7 +233,7 @@ int radeon_fbdev_driver_fbdev_probe(struct drm_fb_helper *fb_helper,
 		ret = -ENOMEM;
 		goto err_radeon_fbdev_destroy_pinned_object;
 	}
-	ret = radeon_framebuffer_init(rdev_to_drm(rdev), fb, &mode_cmd, gobj);
+	ret = radeon_framebuffer_init(rdev_to_drm(rdev), fb, format_info, &mode_cmd, gobj);
 	if (ret) {
 		DRM_ERROR("failed to initialize framebuffer %d\n", ret);
 		goto err_kfree;

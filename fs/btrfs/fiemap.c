@@ -153,7 +153,7 @@ static int emit_fiemap_extent(struct fiemap_extent_info *fieinfo,
 	if (cache_end > offset) {
 		if (offset == cache->offset) {
 			/*
-			 * We cached a dealloc range (found in the io tree) for
+			 * We cached a delalloc range (found in the io tree) for
 			 * a hole or prealloc extent and we have now found a
 			 * file extent item for the same offset. What we have
 			 * now is more recent and up to date, so discard what
@@ -320,7 +320,7 @@ static int fiemap_next_leaf_item(struct btrfs_inode *inode, struct btrfs_path *p
 	 * the cost of allocating a new one.
 	 */
 	ASSERT(test_bit(EXTENT_BUFFER_UNMAPPED, &clone->bflags));
-	atomic_inc(&clone->refs);
+	refcount_inc(&clone->refs);
 
 	ret = btrfs_next_leaf(inode->root, path);
 	if (ret != 0)

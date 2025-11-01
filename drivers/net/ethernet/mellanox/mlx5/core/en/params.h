@@ -51,6 +51,7 @@ struct mlx5e_create_sq_param {
 	u32                         tisn;
 	u8                          tis_lst_sz;
 	u8                          min_inline_mode;
+	u32                         uar_page;
 };
 
 /* Striding RQ dynamic parameters */
@@ -95,12 +96,6 @@ bool mlx5e_rx_mpwqe_is_linear_skb(struct mlx5_core_dev *mdev,
 u8 mlx5e_mpwqe_get_log_rq_size(struct mlx5_core_dev *mdev,
 			       struct mlx5e_params *params,
 			       struct mlx5e_xsk_param *xsk);
-u8 mlx5e_shampo_get_log_hd_entry_size(struct mlx5_core_dev *mdev,
-				      struct mlx5e_params *params);
-u8 mlx5e_shampo_get_log_rsrv_size(struct mlx5_core_dev *mdev,
-				  struct mlx5e_params *params);
-u8 mlx5e_shampo_get_log_pkt_per_rsrv(struct mlx5_core_dev *mdev,
-				     struct mlx5e_params *params);
 u32 mlx5e_shampo_hd_per_wqe(struct mlx5_core_dev *mdev,
 			    struct mlx5e_params *params,
 			    struct mlx5e_rq_param *rq_param);
@@ -138,7 +133,6 @@ void mlx5e_build_tx_cq_param(struct mlx5_core_dev *mdev,
 			     struct mlx5e_cq_param *param);
 void mlx5e_build_xdpsq_param(struct mlx5_core_dev *mdev,
 			     struct mlx5e_params *params,
-			     struct mlx5e_xsk_param *xsk,
 			     struct mlx5e_sq_param *param);
 int mlx5e_build_channel_param(struct mlx5_core_dev *mdev,
 			      struct mlx5e_params *params,

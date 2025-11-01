@@ -29,7 +29,7 @@
 #include "dcn20_stream_encoder.h"
 #include "reg_helper.h"
 #include "hw_shared.h"
-#include "link.h"
+#include "link_service.h"
 #include "dpcd_defs.h"
 
 #define DC_LOGGER \

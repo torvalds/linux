@@ -278,7 +278,8 @@
 	__SMU_DUMMY_MAP(MALLPowerState), \
 	__SMU_DUMMY_MAP(ResetSDMA), \
 	__SMU_DUMMY_MAP(ResetVCN), \
-	__SMU_DUMMY_MAP(GetStaticMetricsTable),
+	__SMU_DUMMY_MAP(GetStaticMetricsTable), \
+	__SMU_DUMMY_MAP(GetSystemMetricsTable),
 
 #undef __SMU_DUMMY_MAP
 #define __SMU_DUMMY_MAP(type)	SMU_MSG_##type
@@ -305,6 +306,8 @@ enum smu_clk_type {
 	SMU_MCLK,
 	SMU_PCIE,
 	SMU_LCLK,
+	SMU_ISPICLK,
+	SMU_ISPXCLK,
 	SMU_OD_CCLK,
 	SMU_OD_SCLK,
 	SMU_OD_MCLK,
@@ -467,6 +470,7 @@ enum smu_feature_mask {
 /* Message category flags */
 #define SMU_MSG_VF_FLAG			(1U << 0)
 #define SMU_MSG_RAS_PRI			(1U << 1)
+#define SMU_MSG_NO_PRECHECK		(1U << 2)
 
 /* Firmware capability flags */
 #define SMU_FW_CAP_RAS_PRI		(1U << 0)

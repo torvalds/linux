@@ -20,7 +20,7 @@ static int ixgbe_get_invariants_X550_x(struct ixgbe_hw *hw)
 	struct ixgbe_phy_info *phy = &hw->phy;
 	struct ixgbe_link_info *link = &hw->link;
 
-	/* Start with X540 invariants, since so simular */
+	/* Start with X540 invariants, since so similar */
 	ixgbe_get_invariants_X540(hw);
 
 	if (mac->ops.get_media_type(hw) != ixgbe_media_type_copper)
@@ -48,7 +48,7 @@ static int ixgbe_get_invariants_X550_a(struct ixgbe_hw *hw)
 	struct ixgbe_mac_info *mac = &hw->mac;
 	struct ixgbe_phy_info *phy = &hw->phy;
 
-	/* Start with X540 invariants, since so simular */
+	/* Start with X540 invariants, since so similar */
 	ixgbe_get_invariants_X540(hw);
 
 	if (mac->ops.get_media_type(hw) != ixgbe_media_type_copper)
@@ -685,7 +685,7 @@ static int ixgbe_iosf_wait(struct ixgbe_hw *hw, u32 *ctrl)
 	return 0;
 }
 
-/** ixgbe_read_iosf_sb_reg_x550 - Writes a value to specified register of the
+/** ixgbe_read_iosf_sb_reg_x550 - Reads a value to specified register of the
  *  IOSF device
  *  @hw: pointer to hardware structure
  *  @reg_addr: 32 bit PHY register to write
@@ -847,7 +847,7 @@ static int ixgbe_read_iosf_sb_reg_x550a(struct ixgbe_hw *hw, u32 reg_addr,
 
 /** ixgbe_read_ee_hostif_buffer_X550- Read EEPROM word(s) using hostif
  *  @hw: pointer to hardware structure
- *  @offset: offset of  word in the EEPROM to read
+ *  @offset: offset of word in the EEPROM to read
  *  @words: number of words
  *  @data: word(s) read from the EEPROM
  *
@@ -1060,9 +1060,9 @@ static int ixgbe_calc_checksum_X550(struct ixgbe_hw *hw, u16 *buffer,
 			return status;
 	}
 
-	checksum = (u16)IXGBE_EEPROM_SUM - checksum;
+	checksum = IXGBE_EEPROM_SUM - checksum;
 
-	return (int)checksum;
+	return checksum;
 }
 
 /** ixgbe_calc_eeprom_checksum_X550 - Calculates and returns the checksum
@@ -1163,7 +1163,7 @@ static int ixgbe_validate_eeprom_checksum_X550(struct ixgbe_hw *hw,
 	return status;
 }
 
-/** ixgbe_write_ee_hostif_X550 - Write EEPROM word using hostif
+/** ixgbe_write_ee_hostif_data_X550 - Write EEPROM word using hostif
  *  @hw: pointer to hardware structure
  *  @offset: offset of  word in the EEPROM to write
  *  @data: word write to the EEPROM
@@ -1253,7 +1253,7 @@ static int ixgbe_get_bus_info_X550em(struct ixgbe_hw *hw)
 
 /**
  * ixgbe_fw_recovery_mode_X550 - Check FW NVM recovery mode
- * @hw: pointer t hardware structure
+ * @hw: pointer to hardware structure
  *
  * Returns true if in FW NVM recovery mode.
  */
@@ -1267,7 +1267,7 @@ static bool ixgbe_fw_recovery_mode_X550(struct ixgbe_hw *hw)
 
 /** ixgbe_disable_rx_x550 - Disable RX unit
  *
- *  Enables the Rx DMA unit for x550
+ *  Disables the Rx DMA unit for x550
  **/
 static void ixgbe_disable_rx_x550(struct ixgbe_hw *hw)
 {
@@ -1754,7 +1754,7 @@ ixgbe_setup_mac_link_sfp_n(struct ixgbe_hw *hw, ixgbe_link_speed speed,
 	ret_val = ixgbe_supported_sfp_modules_X550em(hw, &setup_linear);
 
 	/* If no SFP module present, then return success. Return success since
-	 * SFP not present error is not excepted in the setup MAC link flow.
+	 * SFP not present error is not accepted in the setup MAC link flow.
 	 */
 	if (ret_val == -ENOENT)
 		return 0;
@@ -1804,7 +1804,7 @@ ixgbe_setup_mac_link_sfp_x550a(struct ixgbe_hw *hw, ixgbe_link_speed speed,
 	ret_val = ixgbe_supported_sfp_modules_X550em(hw, &setup_linear);
 
 	/* If no SFP module present, then return success. Return success since
-	 * SFP not present error is not excepted in the setup MAC link flow.
+	 * SFP not present error is not accepted in the setup MAC link flow.
 	 */
 	if (ret_val == -ENOENT)
 		return 0;
@@ -2318,13 +2318,13 @@ static int ixgbe_get_link_capabilities_X550em(struct ixgbe_hw *hw,
 }
 
 /**
- * ixgbe_get_lasi_ext_t_x550em - Determime external Base T PHY interrupt cause
+ * ixgbe_get_lasi_ext_t_x550em - Determine external Base T PHY interrupt cause
  * @hw: pointer to hardware structure
  * @lsc: pointer to boolean flag which indicates whether external Base T
  *	 PHY interrupt is lsc
  * @is_overtemp: indicate whether an overtemp event encountered
  *
- * Determime if external Base T PHY interrupt cause is high temperature
+ * Determine if external Base T PHY interrupt cause is high temperature
  * failure alarm or link status change.
  **/
 static int ixgbe_get_lasi_ext_t_x550em(struct ixgbe_hw *hw, bool *lsc,
@@ -2628,7 +2628,7 @@ static int ixgbe_ext_phy_t_x550em_get_link(struct ixgbe_hw *hw, bool *link_up)
 }
 
 /** ixgbe_setup_internal_phy_t_x550em - Configure KR PHY to X557 link
- *  @hw: point to hardware structure
+ *  @hw: pointer to hardware structure
  *
  *  Configures the link between the integrated KR PHY and the external X557 PHY
  *  The driver will call this function when it gets a link status change
@@ -2669,7 +2669,7 @@ static int ixgbe_setup_internal_phy_t_x550em(struct ixgbe_hw *hw)
 	if (status)
 		return status;
 
-	/* If link is not still up, then no setup is necessary so return */
+	/* If the link is still not up, no setup is necessary */
 	status = ixgbe_ext_phy_t_x550em_get_link(hw, &link_up);
 	if (status)
 		return status;
@@ -2745,7 +2745,7 @@ static int ixgbe_led_off_t_x550em(struct ixgbe_hw *hw, u32 led_idx)
 	if (led_idx >= IXGBE_X557_MAX_LED_INDEX)
 		return -EINVAL;
 
-	/* To turn on the LED, set mode to ON. */
+	/* To turn off the LED, set mode to OFF. */
 	hw->phy.ops.read_reg(hw, IXGBE_X557_LED_PROVISIONING + led_idx,
 			     MDIO_MMD_VEND1, &phy_data);
 	phy_data &= ~IXGBE_X557_LED_MANUAL_SET_MASK;
@@ -2768,7 +2768,7 @@ static int ixgbe_led_off_t_x550em(struct ixgbe_hw *hw, u32 led_idx)
  *  Sends driver version number to firmware through the manageability
  *  block.  On success return 0
  *  else returns -EBUSY when encountering an error acquiring
- *  semaphore, -EIO when command fails or -ENIVAL when incorrect
+ *  semaphore, -EIO when command fails or -EINVAL when incorrect
  *  params passed.
  **/
 int ixgbe_set_fw_drv_ver_x550(struct ixgbe_hw *hw, u8 maj, u8 min,
@@ -2812,7 +2812,7 @@ int ixgbe_set_fw_drv_ver_x550(struct ixgbe_hw *hw, u8 maj, u8 min,
 	return ret_val;
 }
 
-/** ixgbe_get_lcd_x550em - Determine lowest common denominator
+/** ixgbe_get_lcd_t_x550em - Determine lowest common denominator
  *  @hw: pointer to hardware structure
  *  @lcd_speed: pointer to lowest common link speed
  *
@@ -3175,7 +3175,7 @@ static void ixgbe_read_mng_if_sel_x550em(struct ixgbe_hw *hw)
 	hw->phy.nw_mng_if_sel = IXGBE_READ_REG(hw, IXGBE_NW_MNG_IF_SEL);
 
 	/* If X552 (X550EM_a) and MDIO is connected to external PHY, then set
-	 * PHY address. This register field was has only been used for X552.
+	 * PHY address. This register field has only been used for X552.
 	 */
 	if (hw->mac.type == ixgbe_mac_x550em_a &&
 	    hw->phy.nw_mng_if_sel & IXGBE_NW_MNG_IF_SEL_MDIO_ACT) {
@@ -3316,7 +3316,7 @@ static enum ixgbe_media_type ixgbe_get_media_type_X550em(struct ixgbe_hw *hw)
 	return media_type;
 }
 
-/** ixgbe_init_ext_t_x550em - Start (unstall) the external Base T PHY.
+/** ixgbe_init_ext_t_x550em - Start (uninstall) the external Base T PHY.
  ** @hw: pointer to hardware structure
  **/
 static int ixgbe_init_ext_t_x550em(struct ixgbe_hw *hw)
@@ -3735,7 +3735,7 @@ static int ixgbe_acquire_swfw_sync_x550em_a(struct ixgbe_hw *hw, u32 mask)
  * @hw: pointer to hardware structure
  * @mask: Mask to specify which semaphore to release
  *
- * Release the SWFW semaphore and puts the shared PHY token as needed
+ * Release the SWFW semaphore and puts back the shared PHY token as needed
  */
 static void ixgbe_release_swfw_sync_x550em_a(struct ixgbe_hw *hw, u32 mask)
 {
@@ -3756,7 +3756,7 @@ static void ixgbe_release_swfw_sync_x550em_a(struct ixgbe_hw *hw, u32 mask)
  * @phy_data: Pointer to read data from PHY register
  *
  * Reads a value from a specified PHY register using the SWFW lock and PHY
- * Token. The PHY Token is needed since the MDIO is shared between to MAC
+ * Token. The PHY Token is needed since the MDIO is shared between two MAC
  * instances.
  */
 static int ixgbe_read_phy_reg_x550a(struct ixgbe_hw *hw, u32 reg_addr,
@@ -3798,6 +3798,122 @@ static int ixgbe_write_phy_reg_x550a(struct ixgbe_hw *hw, u32 reg_addr,
 	hw->mac.ops.release_swfw_sync(hw, mask);
 
 	return status;
+}
+
+static void ixgbe_set_mdd_x550(struct ixgbe_hw *hw, bool ena)
+{
+	u32 reg_dma, reg_rdr;
+
+	reg_dma = IXGBE_READ_REG(hw, IXGBE_DMATXCTL);
+	reg_rdr = IXGBE_READ_REG(hw, IXGBE_RDRXCTL);
+
+	if (ena) {
+		reg_dma |= (IXGBE_DMATXCTL_MDP_EN | IXGBE_DMATXCTL_MBINTEN);
+		reg_rdr |= (IXGBE_RDRXCTL_MDP_EN | IXGBE_RDRXCTL_MBINTEN);
+	} else {
+		reg_dma &= ~(IXGBE_DMATXCTL_MDP_EN | IXGBE_DMATXCTL_MBINTEN);
+		reg_rdr &= ~(IXGBE_RDRXCTL_MDP_EN | IXGBE_RDRXCTL_MBINTEN);
+	}
+
+	IXGBE_WRITE_REG(hw, IXGBE_DMATXCTL, reg_dma);
+	IXGBE_WRITE_REG(hw, IXGBE_RDRXCTL, reg_rdr);
+}
+
+/**
+ * ixgbe_enable_mdd_x550 - enable malicious driver detection
+ * @hw: pointer to hardware structure
+ */
+void ixgbe_enable_mdd_x550(struct ixgbe_hw *hw)
+{
+	ixgbe_set_mdd_x550(hw, true);
+}
+
+/**
+ * ixgbe_disable_mdd_x550 - disable malicious driver detection
+ * @hw: pointer to hardware structure
+ */
+void ixgbe_disable_mdd_x550(struct ixgbe_hw *hw)
+{
+	ixgbe_set_mdd_x550(hw, false);
+}
+
+/**
+ * ixgbe_restore_mdd_vf_x550 - restore VF that was disabled during MDD event
+ * @hw: pointer to hardware structure
+ * @vf: vf index
+ */
+void ixgbe_restore_mdd_vf_x550(struct ixgbe_hw *hw, u32 vf)
+{
+	u32 idx, reg, val, num_qs, start_q, bitmask;
+
+	/* Map VF to queues */
+	reg = IXGBE_READ_REG(hw, IXGBE_MRQC);
+	switch (reg & IXGBE_MRQC_MRQE_MASK) {
+	case IXGBE_MRQC_VMDQRT8TCEN:
+		num_qs = IXGBE_16VFS_QUEUES;
+		bitmask = IXGBE_16VFS_BITMASK;
+		break;
+	case IXGBE_MRQC_VMDQRSS32EN:
+	case IXGBE_MRQC_VMDQRT4TCEN:
+		num_qs = IXGBE_32VFS_QUEUES;
+		bitmask = IXGBE_32VFS_BITMASK;
+		break;
+	default:
+		num_qs = IXGBE_64VFS_QUEUES;
+		bitmask = IXGBE_64VFS_BITMASK;
+		break;
+	}
+	start_q = vf * num_qs;
+
+	/* Release vf's queues by clearing WQBR_TX and WQBR_RX (RW1C) */
+	idx = start_q / IXGBE_QUEUES_PER_REG;
+	val = bitmask << (start_q % IXGBE_QUEUES_PER_REG);
+	IXGBE_WRITE_REG(hw, IXGBE_WQBR_TX(idx), val);
+	IXGBE_WRITE_REG(hw, IXGBE_WQBR_RX(idx), val);
+}
+
+/**
+ * ixgbe_handle_mdd_x550 - handle malicious driver detection event
+ * @hw: pointer to hardware structure
+ * @vf_bitmap: output vf bitmap of malicious vfs
+ */
+void ixgbe_handle_mdd_x550(struct ixgbe_hw *hw, unsigned long *vf_bitmap)
+{
+	u32 i, j, reg, q, div, vf;
+	unsigned long wqbr;
+
+	/* figure out pool size for mapping to vf's */
+	reg = IXGBE_READ_REG(hw, IXGBE_MRQC);
+	switch (reg & IXGBE_MRQC_MRQE_MASK) {
+	case IXGBE_MRQC_VMDQRT8TCEN:
+		div = IXGBE_16VFS_QUEUES;
+		break;
+	case IXGBE_MRQC_VMDQRSS32EN:
+	case IXGBE_MRQC_VMDQRT4TCEN:
+		div = IXGBE_32VFS_QUEUES;
+		break;
+	default:
+		div = IXGBE_64VFS_QUEUES;
+		break;
+	}
+
+	/* Read WQBR_TX and WQBR_RX and check for malicious queues */
+	for (i = 0; i < IXGBE_QUEUES_REG_AMOUNT; i++) {
+		wqbr = IXGBE_READ_REG(hw, IXGBE_WQBR_TX(i)) |
+		       IXGBE_READ_REG(hw, IXGBE_WQBR_RX(i));
+		if (!wqbr)
+			continue;
+
+		/* Get malicious queue */
+		for_each_set_bit(j, (unsigned long *)&wqbr,
+				 IXGBE_QUEUES_PER_REG) {
+			/* Get queue from bitmask */
+			q = j + (i * IXGBE_QUEUES_PER_REG);
+			/* Map queue to vf */
+			vf = q / div;
+			set_bit(vf, vf_bitmap);
+		}
+	}
 }
 
 #define X550_COMMON_MAC \
@@ -3863,6 +3979,10 @@ static const struct ixgbe_mac_operations mac_ops_X550 = {
 	.prot_autoc_write	= prot_autoc_write_generic,
 	.setup_fc		= ixgbe_setup_fc_generic,
 	.fc_autoneg		= ixgbe_fc_autoneg,
+	.enable_mdd		= ixgbe_enable_mdd_x550,
+	.disable_mdd		= ixgbe_disable_mdd_x550,
+	.restore_mdd_vf		= ixgbe_restore_mdd_vf_x550,
+	.handle_mdd		= ixgbe_handle_mdd_x550,
 };
 
 static const struct ixgbe_mac_operations mac_ops_X550EM_x = {

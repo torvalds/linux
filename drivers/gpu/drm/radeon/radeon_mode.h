@@ -40,6 +40,7 @@
 
 struct drm_fb_helper;
 struct drm_fb_helper_surface_size;
+struct drm_format_info;
 
 struct edid;
 struct drm_edid;
@@ -890,6 +891,7 @@ extern void
 radeon_combios_encoder_dpms_scratch_regs(struct drm_encoder *encoder, bool on);
 int radeon_framebuffer_init(struct drm_device *dev,
 			     struct drm_framebuffer *rfb,
+			     const struct drm_format_info *info,
 			     const struct drm_mode_fb_cmd2 *mode_cmd,
 			     struct drm_gem_object *obj);
 

@@ -103,6 +103,10 @@ extern const int phy_basic_ports_array[3];
  * @PHY_INTERFACE_MODE_QUSGMII: Quad Universal SGMII
  * @PHY_INTERFACE_MODE_1000BASEKX: 1000Base-KX - with Clause 73 AN
  * @PHY_INTERFACE_MODE_10G_QXGMII: 10G-QXGMII - 4 ports over 10G USXGMII
+ * @PHY_INTERFACE_MODE_50GBASER: 50GBase-R - with Clause 134 FEC
+ * @PHY_INTERFACE_MODE_LAUI: 50 Gigabit Attachment Unit Interface
+ * @PHY_INTERFACE_MODE_100GBASEP: 100GBase-P - with Clause 134 FEC
+ * @PHY_INTERFACE_MODE_MIILITE: MII-Lite - MII without RXER TXER CRS COL
  * @PHY_INTERFACE_MODE_MAX: Book keeping
  *
  * Describes the interface between the MAC and PHY.
@@ -144,6 +148,10 @@ typedef enum {
 	PHY_INTERFACE_MODE_QUSGMII,
 	PHY_INTERFACE_MODE_1000BASEKX,
 	PHY_INTERFACE_MODE_10G_QXGMII,
+	PHY_INTERFACE_MODE_50GBASER,
+	PHY_INTERFACE_MODE_LAUI,
+	PHY_INTERFACE_MODE_100GBASEP,
+	PHY_INTERFACE_MODE_MIILITE,
 	PHY_INTERFACE_MODE_MAX,
 } phy_interface_t;
 
@@ -159,6 +167,16 @@ static inline void phy_interface_zero(unsigned long *intf)
 static inline bool phy_interface_empty(const unsigned long *intf)
 {
 	return bitmap_empty(intf, PHY_INTERFACE_MODE_MAX);
+}
+
+static inline void phy_interface_copy(unsigned long *d, const unsigned long *s)
+{
+	bitmap_copy(d, s, PHY_INTERFACE_MODE_MAX);
+}
+
+static inline unsigned int phy_interface_weight(const unsigned long *intf)
+{
+	return bitmap_weight(intf, PHY_INTERFACE_MODE_MAX);
 }
 
 static inline void phy_interface_and(unsigned long *dst, const unsigned long *a,
@@ -260,6 +278,14 @@ static inline const char *phy_modes(phy_interface_t interface)
 		return "qusgmii";
 	case PHY_INTERFACE_MODE_10G_QXGMII:
 		return "10g-qxgmii";
+	case PHY_INTERFACE_MODE_50GBASER:
+		return "50gbase-r";
+	case PHY_INTERFACE_MODE_LAUI:
+		return "laui";
+	case PHY_INTERFACE_MODE_100GBASEP:
+		return "100gbase-p";
+	case PHY_INTERFACE_MODE_MIILITE:
+		return "mii-lite";
 	default:
 		return "unknown";
 	}
@@ -269,8 +295,10 @@ static inline const char *phy_modes(phy_interface_t interface)
  * rgmii_clock - map link speed to the clock rate
  * @speed: link speed value
  *
- * Description: maps RGMII supported link speeds
- * into the clock rates.
+ * Description: maps RGMII supported link speeds into the clock rates.
+ * This can also be used for MII, GMII, and RMII interface modes as the
+ * clock rates are identical, but the caller must be aware that errors
+ * for unsupported clock rates will not be signalled.
  *
  * Returns: clock rate or negative errno
  */
@@ -395,8 +423,10 @@ struct mii_bus {
 	/** @shared_lock: protect access to the shared element */
 	struct mutex shared_lock;
 
+#if IS_ENABLED(CONFIG_PHY_PACKAGE)
 	/** @shared: shared state across different PHYs */
 	struct phy_package_shared *shared[PHY_MAX_ADDR];
+#endif
 };
 #define to_mii_bus(d) container_of(d, struct mii_bus, dev)
 
@@ -489,7 +519,7 @@ enum phy_state {
  * struct phy_c45_device_ids - 802.3-c45 Device Identifiers
  * @devices_in_package: IEEE 802.3 devices in package register value.
  * @mmds_present: bit vector of MMDs present.
- * @device_ids: The device identifer for each present device.
+ * @device_ids: The device identifier for each present device.
  */
 struct phy_c45_device_ids {
 	u32 devices_in_package;
@@ -526,6 +556,7 @@ struct macsec_ops;
  * @mac_managed_pm: Set true if MAC driver takes of suspending/resuming PHY
  * @wol_enabled: Set to true if the PHY or the attached MAC have Wake-on-LAN
  * 		 enabled.
+ * @is_genphy_driven: PHY is driven by one of the generic PHY drivers
  * @state: State of the PHY for management purposes
  * @dev_flags: Device-specific flags used by the PHY driver.
  *
@@ -629,6 +660,7 @@ struct phy_device {
 	unsigned is_on_sfp_module:1;
 	unsigned mac_managed_pm:1;
 	unsigned wol_enabled:1;
+	unsigned is_genphy_driven:1;
 
 	unsigned autoneg:1;
 	/* The most recently read link state */
@@ -702,9 +734,11 @@ struct phy_device {
 	/* For use by PHYs to maintain extra state */
 	void *priv;
 
+#if IS_ENABLED(CONFIG_PHY_PACKAGE)
 	/* shared data pointer */
 	/* For use by PHYs inside the same package that need a shared state. */
 	struct phy_package_shared *shared;
+#endif
 
 	/* Reporting cable test results */
 	struct sk_buff *skb;
@@ -1244,9 +1278,13 @@ struct phy_driver {
 #define to_phy_driver(d) container_of_const(to_mdio_common_driver(d),		\
 				      struct phy_driver, mdiodrv)
 
-#define PHY_ID_MATCH_EXACT(id) .phy_id = (id), .phy_id_mask = GENMASK(31, 0)
-#define PHY_ID_MATCH_MODEL(id) .phy_id = (id), .phy_id_mask = GENMASK(31, 4)
-#define PHY_ID_MATCH_VENDOR(id) .phy_id = (id), .phy_id_mask = GENMASK(31, 10)
+#define PHY_ID_MATCH_EXTACT_MASK GENMASK(31, 0)
+#define PHY_ID_MATCH_MODEL_MASK GENMASK(31, 4)
+#define PHY_ID_MATCH_VENDOR_MASK GENMASK(31, 10)
+
+#define PHY_ID_MATCH_EXACT(id) .phy_id = (id), .phy_id_mask = PHY_ID_MATCH_EXTACT_MASK
+#define PHY_ID_MATCH_MODEL(id) .phy_id = (id), .phy_id_mask = PHY_ID_MATCH_MODEL_MASK
+#define PHY_ID_MATCH_VENDOR(id) .phy_id = (id), .phy_id_mask = PHY_ID_MATCH_VENDOR_MASK
 
 /**
  * phy_id_compare - compare @id1 with @id2 taking account of @mask
@@ -1260,6 +1298,32 @@ struct phy_driver {
 static inline bool phy_id_compare(u32 id1, u32 id2, u32 mask)
 {
 	return !((id1 ^ id2) & mask);
+}
+
+/**
+ * phy_id_compare_vendor - compare @id with @vendor mask
+ * @id: PHY ID
+ * @vendor_mask: PHY Vendor mask
+ *
+ * Return: true if the bits from @id match @vendor using the
+ *	   generic PHY Vendor mask.
+ */
+static inline bool phy_id_compare_vendor(u32 id, u32 vendor_mask)
+{
+	return phy_id_compare(id, vendor_mask, PHY_ID_MATCH_VENDOR_MASK);
+}
+
+/**
+ * phy_id_compare_model - compare @id with @model mask
+ * @id: PHY ID
+ * @model_mask: PHY Model mask
+ *
+ * Return: true if the bits from @id match @model using the
+ *	   generic PHY Model mask.
+ */
+static inline bool phy_id_compare_model(u32 id, u32 model_mask)
+{
+	return phy_id_compare(id, model_mask, PHY_ID_MATCH_MODEL_MASK);
 }
 
 /**
@@ -1289,6 +1353,17 @@ int phy_interface_num_ports(phy_interface_t interface);
 static inline bool phy_is_started(struct phy_device *phydev)
 {
 	return phydev->state >= PHY_UP;
+}
+
+/**
+ * phy_driver_is_genphy - Convenience function to check whether PHY is driven
+ *                        by one of the generic PHY drivers
+ * @phydev: The phy_device struct
+ * Return: true if PHY is driven by one of the genphy drivers
+ */
+static inline bool phy_driver_is_genphy(struct phy_device *phydev)
+{
+	return phydev->is_genphy_driven;
 }
 
 /**
@@ -1941,9 +2016,6 @@ int genphy_c45_ethtool_set_eee(struct phy_device *phydev,
 			       struct ethtool_keee *data);
 int genphy_c45_an_config_eee_aneg(struct phy_device *phydev);
 
-/* Generic C45 PHY driver */
-extern struct phy_driver genphy_c45_driver;
-
 /* The gen10g_* functions are the old Clause 45 stub */
 int gen10g_config_aneg(struct phy_device *phydev);
 
@@ -1958,9 +2030,7 @@ static inline int phy_read_status(struct phy_device *phydev)
 		return genphy_read_status(phydev);
 }
 
-void phy_driver_unregister(struct phy_driver *drv);
 void phy_drivers_unregister(struct phy_driver *drv, int n);
-int phy_driver_register(struct phy_driver *new_driver, struct module *owner);
 int phy_drivers_register(struct phy_driver *new_driver, int n,
 			 struct module *owner);
 void phy_error(struct phy_device *phydev);
@@ -1997,8 +2067,8 @@ bool phy_validate_pause(struct phy_device *phydev,
 			struct ethtool_pauseparam *pp);
 void phy_get_pause(struct phy_device *phydev, bool *tx_pause, bool *rx_pause);
 
-s32 phy_get_internal_delay(struct phy_device *phydev, struct device *dev,
-			   const int *delay_values, int size, bool is_rx);
+s32 phy_get_internal_delay(struct phy_device *phydev, const int *delay_values,
+			   int size, bool is_rx);
 
 int phy_get_tx_amplitude_gain(struct phy_device *phydev, struct device *dev,
 			      enum ethtool_link_mode_bit_indices linkmode,
@@ -2062,16 +2132,6 @@ int __phy_hwtstamp_set(struct phy_device *phydev,
 extern const struct bus_type mdio_bus_type;
 extern const struct class mdio_bus_class;
 
-struct mdio_board_info {
-	const char	*bus_id;
-	char		modalias[MDIO_NAME_SIZE];
-	int		mdio_addr;
-	const void	*platform_data;
-};
-
-int mdiobus_register_board_info(const struct mdio_board_info *info,
-				unsigned int n);
-
 /**
  * phy_module_driver() - Helper macro for registering PHY drivers
  * @__phy_drivers: array of PHY drivers to register
@@ -2095,8 +2155,5 @@ module_exit(phy_module_exit)
 
 #define module_phy_driver(__phy_drivers)				\
 	phy_module_driver(__phy_drivers, ARRAY_SIZE(__phy_drivers))
-
-bool phy_driver_is_genphy(struct phy_device *phydev);
-bool phy_driver_is_genphy_10g(struct phy_device *phydev);
 
 #endif /* __PHY_H */

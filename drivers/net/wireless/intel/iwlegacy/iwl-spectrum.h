@@ -50,28 +50,4 @@ struct ieee80211_measurement_params {
 	__le16 duration;
 } __packed;
 
-struct ieee80211_info_element {
-	u8 id;
-	u8 len;
-	u8 data[];
-} __packed;
-
-struct ieee80211_measurement_request {
-	struct ieee80211_info_element ie;
-	u8 token;
-	u8 mode;
-	u8 type;
-	struct ieee80211_measurement_params params[];
-} __packed;
-
-struct ieee80211_measurement_report {
-	struct ieee80211_info_element ie;
-	u8 token;
-	u8 mode;
-	u8 type;
-	union {
-		struct ieee80211_basic_report basic[0];
-	} u;
-} __packed;
-
 #endif

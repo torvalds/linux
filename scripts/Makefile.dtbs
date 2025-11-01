@@ -97,6 +97,7 @@ DTC_FLAGS += -Wno-unit_address_vs_reg \
              -Wno-avoid_unnecessary_addr_size \
              -Wno-alias_paths \
              -Wno-graph_child_address \
+             -Wno-interrupt_map \
              -Wno-simple_bus_reg
 else
 DTC_FLAGS += -Wunique_unit_address_if_enabled

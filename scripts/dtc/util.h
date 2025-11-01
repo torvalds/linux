@@ -42,6 +42,11 @@ static inline void NORETURN PRINTF(1, 2) die(const char *str, ...)
 	exit(1);
 }
 
+/**
+ * Writes path to fp, escaping spaces with a backslash.
+ */
+void fprint_path_escaped(FILE *fp, const char *path);
+
 static inline void *xmalloc(size_t len)
 {
 	void *new = malloc(len);

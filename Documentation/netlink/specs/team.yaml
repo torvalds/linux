@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
-
+---
 name: team
 
 protocol: genetlink-legacy
@@ -25,8 +25,9 @@ definitions:
 attribute-sets:
   -
     name: team
-    doc:
-      The team nested layout of get/set msg looks like
+    doc: |
+      The team nested layout of get/set msg looks like::
+
           [TEAM_ATTR_LIST_OPTION]
               [TEAM_ATTR_ITEM_OPTION]
                   [TEAM_ATTR_OPTION_*], ...
@@ -39,6 +40,7 @@ attribute-sets:
               [TEAM_ATTR_ITEM_PORT]
                   [TEAM_ATTR_PORT_*], ...
               ...
+
     name-prefix: team-attr-
     attributes:
       -
@@ -152,7 +154,7 @@ operations:
       doc: No operation
       value: 0
       attribute-set: team
-      dont-validate: [ strict ]
+      dont-validate: [strict]
 
       do:
         # Actually it only reply the team netlink family
@@ -164,8 +166,8 @@ operations:
       name: options-set
       doc: Set team options
       attribute-set: team
-      dont-validate: [ strict ]
-      flags: [ admin-perm ]
+      dont-validate: [strict]
+      flags: [admin-perm]
 
       do:
         request: &option_attrs
@@ -178,8 +180,8 @@ operations:
       name: options-get
       doc: Get team options info
       attribute-set: team
-      dont-validate: [ strict ]
-      flags: [ admin-perm ]
+      dont-validate: [strict]
+      flags: [admin-perm]
 
       do:
         request:
@@ -191,8 +193,8 @@ operations:
       name: port-list-get
       doc: Get team ports info
       attribute-set: team
-      dont-validate: [ strict ]
-      flags: [ admin-perm ]
+      dont-validate: [strict]
+      flags: [admin-perm]
 
       do:
         request:

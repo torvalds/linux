@@ -5,6 +5,6 @@
     },
     {
         "ArchStdEvent": "LL_CACHE_MISS_RD",
-        "BriefDescription": "This event counts access counted by L3D_CACHE that is not completed by the L3D cache, and a Memory-read operation, as defined by the L2D_CACHE_REFILL_L3D_MISS events."
+        "BriefDescription": "This event counts access counted by L3D_CACHE that is not completed by the L3 cache, and a Memory-read operation, as defined by the L2D_CACHE_REFILL_L3D_MISS events. Note: This event may count inaccurately."
     }
 ]

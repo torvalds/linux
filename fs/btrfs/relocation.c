@@ -90,10 +90,15 @@
  * map address of tree root to tree
  */
 struct mapping_node {
-	struct {
-		struct rb_node rb_node;
-		u64 bytenr;
-	}; /* Use rb_simle_node for search/insert */
+	union {
+		/* Use rb_simple_node for search/insert */
+		struct {
+			struct rb_node rb_node;
+			u64 bytenr;
+		};
+
+		struct rb_simple_node simple_node;
+	};
 	void *data;
 };
 
@@ -106,10 +111,15 @@ struct mapping_tree {
  * present a tree block to process
  */
 struct tree_block {
-	struct {
-		struct rb_node rb_node;
-		u64 bytenr;
-	}; /* Use rb_simple_node for search/insert */
+	union {
+		/* Use rb_simple_node for search/insert */
+		struct {
+			struct rb_node rb_node;
+			u64 bytenr;
+		};
+
+		struct rb_simple_node simple_node;
+	};
 	u64 owner;
 	struct btrfs_key key;
 	u8 level;
@@ -480,8 +490,7 @@ static int __add_reloc_root(struct btrfs_root *root)
 	node->data = root;
 
 	spin_lock(&rc->reloc_root_tree.lock);
-	rb_node = rb_simple_insert(&rc->reloc_root_tree.rb_root,
-				   node->bytenr, &node->rb_node);
+	rb_node = rb_simple_insert(&rc->reloc_root_tree.rb_root, &node->simple_node);
 	spin_unlock(&rc->reloc_root_tree.lock);
 	if (rb_node) {
 		btrfs_err(fs_info,
@@ -564,8 +573,7 @@ static int __update_reloc_root(struct btrfs_root *root)
 
 	spin_lock(&rc->reloc_root_tree.lock);
 	node->bytenr = root->node->start;
-	rb_node = rb_simple_insert(&rc->reloc_root_tree.rb_root,
-				   node->bytenr, &node->rb_node);
+	rb_node = rb_simple_insert(&rc->reloc_root_tree.rb_root, &node->simple_node);
 	spin_unlock(&rc->reloc_root_tree.lock);
 	if (rb_node)
 		btrfs_backref_panic(fs_info, node->bytenr, -EEXIST);
@@ -593,6 +601,25 @@ static struct btrfs_root *create_reloc_root(struct btrfs_trans_handle *trans,
 
 	if (btrfs_root_id(root) == objectid) {
 		u64 commit_root_gen;
+
+		/*
+		 * Relocation will wait for cleaner thread, and any half-dropped
+		 * subvolume will be fully cleaned up at mount time.
+		 * So here we shouldn't hit a subvolume with non-zero drop_progress.
+		 *
+		 * If this isn't the case, error out since it can make us attempt to
+		 * drop references for extents that were already dropped before.
+		 */
+		if (unlikely(btrfs_disk_key_objectid(&root->root_item.drop_progress))) {
+			struct btrfs_key cpu_key;
+
+			btrfs_disk_key_to_cpu(&cpu_key, &root->root_item.drop_progress);
+			btrfs_err(fs_info,
+	"cannot relocate partially dropped subvolume %llu, drop progress key (%llu %u %llu)",
+				  objectid, cpu_key.objectid, cpu_key.type, cpu_key.offset);
+			ret = -EUCLEAN;
+			goto fail;
+		}
 
 		/* called by btrfs_init_reloc_root */
 		ret = btrfs_copy_root(trans, root, root->commit_root, &eb,
@@ -794,7 +821,7 @@ static int get_new_location(struct inode *reloc_inode, u64 *new_bytenr,
 			    u64 bytenr, u64 num_bytes)
 {
 	struct btrfs_root *root = BTRFS_I(reloc_inode)->root;
-	struct btrfs_path *path;
+	BTRFS_PATH_AUTO_FREE(path);
 	struct btrfs_file_extent_item *fi;
 	struct extent_buffer *leaf;
 	int ret;
@@ -807,11 +834,9 @@ static int get_new_location(struct inode *reloc_inode, u64 *new_bytenr,
 	ret = btrfs_lookup_file_extent(NULL, root, path,
 			btrfs_ino(BTRFS_I(reloc_inode)), bytenr, 0);
 	if (ret < 0)
-		goto out;
-	if (ret > 0) {
-		ret = -ENOENT;
-		goto out;
-	}
+		return ret;
+	if (ret > 0)
+		return -ENOENT;
 
 	leaf = path->nodes[0];
 	fi = btrfs_item_ptr(leaf, path->slots[0],
@@ -822,16 +847,11 @@ static int get_new_location(struct inode *reloc_inode, u64 *new_bytenr,
 	       btrfs_file_extent_encryption(leaf, fi) ||
 	       btrfs_file_extent_other_encoding(leaf, fi));
 
-	if (num_bytes != btrfs_file_extent_disk_num_bytes(leaf, fi)) {
-		ret = -EINVAL;
-		goto out;
-	}
+	if (num_bytes != btrfs_file_extent_disk_num_bytes(leaf, fi))
+		return -EINVAL;
 
 	*new_bytenr = btrfs_file_extent_disk_bytenr(leaf, fi);
-	ret = 0;
-out:
-	btrfs_free_path(path);
-	return ret;
+	return 0;
 }
 
 /*
@@ -947,7 +967,7 @@ int replace_file_extents(struct btrfs_trans_handle *trans,
 		btrfs_init_data_ref(&ref, key.objectid, key.offset,
 				    btrfs_root_id(root), false);
 		ret = btrfs_inc_extent_ref(trans, &ref);
-		if (ret) {
+		if (unlikely(ret)) {
 			btrfs_abort_transaction(trans, ret);
 			break;
 		}
@@ -961,7 +981,7 @@ int replace_file_extents(struct btrfs_trans_handle *trans,
 		btrfs_init_data_ref(&ref, key.objectid, key.offset,
 				    btrfs_root_id(root), false);
 		ret = btrfs_free_extent(trans, &ref);
-		if (ret) {
+		if (unlikely(ret)) {
 			btrfs_abort_transaction(trans, ret);
 			break;
 		}
@@ -1172,7 +1192,7 @@ again:
 		ref.ref_root = btrfs_root_id(src);
 		btrfs_init_tree_ref(&ref, level - 1, 0, true);
 		ret = btrfs_inc_extent_ref(trans, &ref);
-		if (ret) {
+		if (unlikely(ret)) {
 			btrfs_abort_transaction(trans, ret);
 			break;
 		}
@@ -1185,7 +1205,7 @@ again:
 		ref.ref_root = btrfs_root_id(dest);
 		btrfs_init_tree_ref(&ref, level - 1, 0, true);
 		ret = btrfs_inc_extent_ref(trans, &ref);
-		if (ret) {
+		if (unlikely(ret)) {
 			btrfs_abort_transaction(trans, ret);
 			break;
 		}
@@ -1199,7 +1219,7 @@ again:
 		ref.ref_root = btrfs_root_id(src);
 		btrfs_init_tree_ref(&ref, level - 1, 0, true);
 		ret = btrfs_free_extent(trans, &ref);
-		if (ret) {
+		if (unlikely(ret)) {
 			btrfs_abort_transaction(trans, ret);
 			break;
 		}
@@ -1213,7 +1233,7 @@ again:
 		ref.ref_root = btrfs_root_id(dest);
 		btrfs_init_tree_ref(&ref, level - 1, 0, true);
 		ret = btrfs_free_extent(trans, &ref);
-		if (ret) {
+		if (unlikely(ret)) {
 			btrfs_abort_transaction(trans, ret);
 			break;
 		}
@@ -1463,7 +1483,7 @@ static int clean_dirty_subvols(struct reloc_control *rc)
 				 * ->reloc_root.  If it fails however we must
 				 * drop the ref ourselves.
 				 */
-				ret2 = btrfs_drop_snapshot(reloc_root, 0, 1);
+				ret2 = btrfs_drop_snapshot(reloc_root, false, true);
 				if (ret2 < 0) {
 					btrfs_put_root(reloc_root);
 					if (!ret)
@@ -1473,7 +1493,7 @@ static int clean_dirty_subvols(struct reloc_control *rc)
 			btrfs_put_root(root);
 		} else {
 			/* Orphan reloc tree, just clean it up */
-			ret2 = btrfs_drop_snapshot(root, 0, 1);
+			ret2 = btrfs_drop_snapshot(root, false, true);
 			if (ret2 < 0) {
 				btrfs_put_root(root);
 				if (!ret)
@@ -1516,7 +1536,7 @@ static noinline_for_stack int merge_reloc_root(struct reloc_control *rc,
 
 	if (btrfs_disk_key_objectid(&root_item->drop_progress) == 0) {
 		level = btrfs_root_level(root_item);
-		atomic_inc(&reloc_root->node->refs);
+		refcount_inc(&reloc_root->node->refs);
 		path->nodes[level] = reloc_root->node;
 		path->slots[level] = 0;
 	} else {
@@ -1764,7 +1784,7 @@ again:
 		list_add(&reloc_root->root_list, &reloc_roots);
 		btrfs_put_root(root);
 
-		if (ret) {
+		if (unlikely(ret)) {
 			btrfs_abort_transaction(trans, ret);
 			if (!err)
 				err = ret;
@@ -1933,7 +1953,7 @@ static int record_reloc_root_in_trans(struct btrfs_trans_handle *trans,
 		DEBUG_WARN("error %ld reading root for reloc root", PTR_ERR(root));
 		return PTR_ERR(root);
 	}
-	if (root->reloc_root != reloc_root) {
+	if (unlikely(root->reloc_root != reloc_root)) {
 		DEBUG_WARN("unexpected reloc root found");
 		btrfs_err(fs_info,
 			  "root %llu has two reloc roots associated with it",
@@ -2004,7 +2024,7 @@ struct btrfs_root *select_reloc_root(struct btrfs_trans_handle *trans,
 	if (!root)
 		return ERR_PTR(-ENOENT);
 
-	if (next->new_bytenr) {
+	if (unlikely(next->new_bytenr)) {
 		/*
 		 * We just created the reloc root, so we shouldn't have
 		 * ->new_bytenr set yet. If it is then we have multiple roots
@@ -2063,7 +2083,7 @@ struct btrfs_root *select_one_root(struct btrfs_backref_node *node)
 		 * This can occur if we have incomplete extent refs leading all
 		 * the way up a particular path, in this case return -EUCLEAN.
 		 */
-		if (!root)
+		if (unlikely(!root))
 			return ERR_PTR(-EUCLEAN);
 
 		/* No other choice for non-shareable tree */
@@ -2250,7 +2270,7 @@ static int do_relocation(struct btrfs_trans_handle *trans,
 
 		bytenr = btrfs_node_blockptr(upper->eb, slot);
 		if (lowest) {
-			if (bytenr != node->bytenr) {
+			if (unlikely(bytenr != node->bytenr)) {
 				btrfs_err(root->fs_info,
 		"lowest leaf/node mismatch: bytenr %llu node->bytenr %llu slot %d upper %llu",
 					  bytenr, node->bytenr, slot,
@@ -2305,7 +2325,7 @@ static int do_relocation(struct btrfs_trans_handle *trans,
 			if (!ret)
 				ret = btrfs_drop_subtree(trans, root, eb,
 							 upper->eb);
-			if (ret)
+			if (unlikely(ret))
 				btrfs_abort_transaction(trans, ret);
 		}
 next:
@@ -2427,7 +2447,7 @@ static int get_tree_block_key(struct btrfs_fs_info *fs_info,
 	eb = read_tree_block(fs_info, block->bytenr, &check);
 	if (IS_ERR(eb))
 		return PTR_ERR(eb);
-	if (!extent_buffer_uptodate(eb)) {
+	if (unlikely(!extent_buffer_uptodate(eb))) {
 		free_extent_buffer(eb);
 		return -EIO;
 	}
@@ -2492,7 +2512,7 @@ static int relocate_tree_block(struct btrfs_trans_handle *trans,
 			 * normal user in the case of corruption.
 			 */
 			ASSERT(node->new_bytenr == 0);
-			if (node->new_bytenr) {
+			if (unlikely(node->new_bytenr)) {
 				btrfs_err(root->fs_info,
 				  "bytenr %llu has improper references to it",
 					  node->bytenr);
@@ -2617,7 +2637,7 @@ int relocate_tree_blocks(struct btrfs_trans_handle *trans,
 		 * tree.
 		 */
 		if (block->owner &&
-		    (!is_fstree(block->owner) ||
+		    (!btrfs_is_fstree(block->owner) ||
 		     block->owner == BTRFS_DATA_RELOC_TREE_OBJECTID)) {
 			ret = relocate_cowonly_block(trans, rc, block, path);
 			if (ret)
@@ -2658,66 +2678,24 @@ static noinline_for_stack int prealloc_file_extent_cluster(struct reloc_control 
 	u64 num_bytes;
 	int nr;
 	int ret = 0;
-	u64 i_size = i_size_read(&inode->vfs_inode);
 	u64 prealloc_start = cluster->start - offset;
 	u64 prealloc_end = cluster->end - offset;
 	u64 cur_offset = prealloc_start;
 
 	/*
-	 * For subpage case, previous i_size may not be aligned to PAGE_SIZE.
-	 * This means the range [i_size, PAGE_END + 1) is filled with zeros by
-	 * btrfs_do_readpage() call of previously relocated file cluster.
+	 * For blocksize < folio size case (either bs < page size or large folios),
+	 * beyond i_size, all blocks are filled with zero.
 	 *
-	 * If the current cluster starts in the above range, btrfs_do_readpage()
+	 * If the current cluster covers the above range, btrfs_do_readpage()
 	 * will skip the read, and relocate_one_folio() will later writeback
 	 * the padding zeros as new data, causing data corruption.
 	 *
-	 * Here we have to manually invalidate the range (i_size, PAGE_END + 1).
+	 * Here we have to invalidate the cache covering our cluster.
 	 */
-	if (!PAGE_ALIGNED(i_size)) {
-		struct address_space *mapping = inode->vfs_inode.i_mapping;
-		struct btrfs_fs_info *fs_info = inode->root->fs_info;
-		const u32 sectorsize = fs_info->sectorsize;
-		struct folio *folio;
-
-		ASSERT(sectorsize < PAGE_SIZE);
-		ASSERT(IS_ALIGNED(i_size, sectorsize));
-
-		/*
-		 * Subpage can't handle page with DIRTY but without UPTODATE
-		 * bit as it can lead to the following deadlock:
-		 *
-		 * btrfs_read_folio()
-		 * | Page already *locked*
-		 * |- btrfs_lock_and_flush_ordered_range()
-		 *    |- btrfs_start_ordered_extent()
-		 *       |- extent_write_cache_pages()
-		 *          |- lock_page()
-		 *             We try to lock the page we already hold.
-		 *
-		 * Here we just writeback the whole data reloc inode, so that
-		 * we will be ensured to have no dirty range in the page, and
-		 * are safe to clear the uptodate bits.
-		 *
-		 * This shouldn't cause too much overhead, as we need to write
-		 * the data back anyway.
-		 */
-		ret = filemap_write_and_wait(mapping);
-		if (ret < 0)
-			return ret;
-
-		folio = filemap_lock_folio(mapping, i_size >> PAGE_SHIFT);
-		/*
-		 * If page is freed we don't need to do anything then, as we
-		 * will re-read the whole page anyway.
-		 */
-		if (!IS_ERR(folio)) {
-			btrfs_subpage_clear_uptodate(fs_info, folio, i_size,
-					round_up(i_size, PAGE_SIZE) - i_size);
-			folio_unlock(folio);
-			folio_put(folio);
-		}
-	}
+	ret = filemap_invalidate_inode(&inode->vfs_inode, true, prealloc_start,
+				       prealloc_end);
+	if (ret < 0)
+		return ret;
 
 	BUG_ON(cluster->start != cluster->boundary[0]);
 	ret = btrfs_alloc_data_chunk_ondemand(inode,
@@ -2806,13 +2784,15 @@ static u64 get_cluster_boundary_end(const struct file_extent_cluster *cluster,
 
 static int relocate_one_folio(struct reloc_control *rc,
 			      struct file_ra_state *ra,
-			      int *cluster_nr, unsigned long index)
+			      int *cluster_nr, u64 *file_offset_ret)
 {
 	const struct file_extent_cluster *cluster = &rc->cluster;
 	struct inode *inode = rc->data_inode;
 	struct btrfs_fs_info *fs_info = inode_to_fs_info(inode);
+	const u64 orig_file_offset = *file_offset_ret;
 	u64 offset = BTRFS_I(inode)->reloc_block_group_start;
-	const unsigned long last_index = (cluster->end - offset) >> PAGE_SHIFT;
+	const pgoff_t last_index = (cluster->end - offset) >> PAGE_SHIFT;
+	const pgoff_t index = orig_file_offset >> PAGE_SHIFT;
 	gfp_t mask = btrfs_alloc_write_mask(inode->i_mapping);
 	struct folio *folio;
 	u64 folio_start;
@@ -2845,8 +2825,6 @@ again:
 			return PTR_ERR(folio);
 	}
 
-	WARN_ON(folio_order(folio));
-
 	if (folio_test_readahead(folio) && !use_rst)
 		page_cache_async_readahead(inode->i_mapping, ra, NULL,
 					   folio, last_index + 1 - index);
@@ -2854,7 +2832,7 @@ again:
 	if (!folio_test_uptodate(folio)) {
 		btrfs_read_folio(NULL, folio);
 		folio_lock(folio);
-		if (!folio_test_uptodate(folio)) {
+		if (unlikely(!folio_test_uptodate(folio))) {
 			ret = -EIO;
 			goto release_folio;
 		}
@@ -2875,7 +2853,7 @@ again:
 		goto release_folio;
 
 	folio_start = folio_pos(folio);
-	folio_end = folio_start + PAGE_SIZE - 1;
+	folio_end = folio_start + folio_size(folio) - 1;
 
 	/*
 	 * Start from the cluster, as for subpage case, the cluster can start
@@ -2923,7 +2901,8 @@ again:
 		 * EXTENT_BOUNDARY bit prevents current extent from being merged
 		 * with previous extent.
 		 */
-		if (in_range(cluster->boundary[*cluster_nr] - offset, folio_start, PAGE_SIZE)) {
+		if (in_range(cluster->boundary[*cluster_nr] - offset,
+			     folio_start, folio_size(folio))) {
 			u64 boundary_start = cluster->boundary[*cluster_nr] -
 						offset;
 			u64 boundary_end = boundary_start +
@@ -2953,6 +2932,7 @@ again:
 	btrfs_throttle(fs_info);
 	if (btrfs_should_cancel_balance(fs_info))
 		ret = -ECANCELED;
+	*file_offset_ret = folio_end + 1;
 	return ret;
 
 release_folio:
@@ -2966,8 +2946,7 @@ static int relocate_file_extent_cluster(struct reloc_control *rc)
 	struct inode *inode = rc->data_inode;
 	const struct file_extent_cluster *cluster = &rc->cluster;
 	u64 offset = BTRFS_I(inode)->reloc_block_group_start;
-	unsigned long index;
-	unsigned long last_index;
+	u64 cur_file_offset = cluster->start - offset;
 	struct file_ra_state *ra;
 	int cluster_nr = 0;
 	int ret = 0;
@@ -2989,10 +2968,11 @@ static int relocate_file_extent_cluster(struct reloc_control *rc)
 	if (ret)
 		goto out;
 
-	last_index = (cluster->end - offset) >> PAGE_SHIFT;
-	for (index = (cluster->start - offset) >> PAGE_SHIFT;
-	     index <= last_index && !ret; index++)
-		ret = relocate_one_folio(rc, ra, &cluster_nr, index);
+	while (cur_file_offset < cluster->end - offset) {
+		ret = relocate_one_folio(rc, ra, &cluster_nr, &cur_file_offset);
+		if (ret)
+			break;
+	}
 	if (ret == 0)
 		WARN_ON(cluster_nr != cluster->nr);
 out:
@@ -3155,7 +3135,7 @@ static int add_tree_block(struct reloc_control *rc,
 	block->key_ready = false;
 	block->owner = owner;
 
-	rb_node = rb_simple_insert(blocks, block->bytenr, &block->rb_node);
+	rb_node = rb_simple_insert(blocks, &block->simple_node);
 	if (rb_node)
 		btrfs_backref_panic(rc->extent_root->fs_info, block->bytenr,
 				    -EEXIST);
@@ -3171,7 +3151,7 @@ static int __add_tree_block(struct reloc_control *rc,
 			    struct rb_root *blocks)
 {
 	struct btrfs_fs_info *fs_info = rc->extent_root->fs_info;
-	struct btrfs_path *path;
+	BTRFS_PATH_AUTO_FREE(path);
 	struct btrfs_key key;
 	int ret;
 	bool skinny = btrfs_fs_incompat(fs_info, SKINNY_METADATA);
@@ -3199,7 +3179,7 @@ again:
 	path->skip_locking = 1;
 	ret = btrfs_search_slot(NULL, rc->extent_root, &key, path, 0, 0);
 	if (ret < 0)
-		goto out;
+		return ret;
 
 	if (ret > 0 && skinny) {
 		if (path->slots[0]) {
@@ -3226,14 +3206,10 @@ again:
 	     "tree block extent item (%llu) is not found in extent tree",
 		     bytenr);
 		WARN_ON(1);
-		ret = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 
-	ret = add_tree_block(rc, &key, path, blocks);
-out:
-	btrfs_free_path(path);
-	return ret;
+	return add_tree_block(rc, &key, path, blocks);
 }
 
 static int delete_block_group_cache(struct btrfs_block_group *block_group,
@@ -3523,7 +3499,7 @@ static noinline_for_stack int relocate_block_group(struct reloc_control *rc)
 	struct rb_root blocks = RB_ROOT;
 	struct btrfs_key key;
 	struct btrfs_trans_handle *trans = NULL;
-	struct btrfs_path *path;
+	BTRFS_PATH_AUTO_FREE(path);
 	struct btrfs_extent_item *ei;
 	u64 flags;
 	int ret;
@@ -3643,7 +3619,7 @@ restart:
 	}
 
 	btrfs_release_path(path);
-	btrfs_clear_extent_bits(&rc->processed_blocks, 0, (u64)-1, EXTENT_DIRTY);
+	btrfs_clear_extent_bit(&rc->processed_blocks, 0, (u64)-1, EXTENT_DIRTY, NULL);
 
 	if (trans) {
 		btrfs_end_transaction_throttle(trans);
@@ -3692,14 +3668,13 @@ out_free:
 	if (ret < 0 && !err)
 		err = ret;
 	btrfs_free_block_rsv(fs_info, rc->block_rsv);
-	btrfs_free_path(path);
 	return err;
 }
 
 static int __insert_orphan_inode(struct btrfs_trans_handle *trans,
 				 struct btrfs_root *root, u64 objectid)
 {
-	struct btrfs_path *path;
+	BTRFS_PATH_AUTO_FREE(path);
 	struct btrfs_inode_item *item;
 	struct extent_buffer *leaf;
 	int ret;
@@ -3710,7 +3685,7 @@ static int __insert_orphan_inode(struct btrfs_trans_handle *trans,
 
 	ret = btrfs_insert_empty_inode(trans, root, path, objectid);
 	if (ret)
-		goto out;
+		return ret;
 
 	leaf = path->nodes[0];
 	item = btrfs_item_ptr(leaf, path->slots[0], struct btrfs_inode_item);
@@ -3720,15 +3695,13 @@ static int __insert_orphan_inode(struct btrfs_trans_handle *trans,
 	btrfs_set_inode_mode(leaf, item, S_IFREG | 0600);
 	btrfs_set_inode_flags(leaf, item, BTRFS_INODE_NOCOMPRESS |
 					  BTRFS_INODE_PREALLOC);
-out:
-	btrfs_free_path(path);
-	return ret;
+	return 0;
 }
 
 static void delete_orphan_inode(struct btrfs_trans_handle *trans,
 				struct btrfs_root *root, u64 objectid)
 {
-	struct btrfs_path *path;
+	BTRFS_PATH_AUTO_FREE(path);
 	struct btrfs_key key;
 	int ret = 0;
 
@@ -3751,7 +3724,6 @@ static void delete_orphan_inode(struct btrfs_trans_handle *trans,
 out:
 	if (ret)
 		btrfs_abort_transaction(trans, ret);
-	btrfs_free_path(path);
 }
 
 /*
@@ -3808,6 +3780,7 @@ out:
 /*
  * Mark start of chunk relocation that is cancellable. Check if the cancellation
  * has been requested meanwhile and don't start in that case.
+ * NOTE: if this returns an error, reloc_chunk_end() must not be called.
  *
  * Return:
  *   0             success
@@ -3824,10 +3797,8 @@ static int reloc_chunk_start(struct btrfs_fs_info *fs_info)
 
 	if (atomic_read(&fs_info->reloc_cancel_req) > 0) {
 		btrfs_info(fs_info, "chunk relocation canceled on start");
-		/*
-		 * On cancel, clear all requests but let the caller mark
-		 * the end after cleanup operations.
-		 */
+		/* On cancel, clear all requests. */
+		clear_and_wake_up_bit(BTRFS_FS_RELOC_RUNNING, &fs_info->flags);
 		atomic_set(&fs_info->reloc_cancel_req, 0);
 		return -ECANCELED;
 	}
@@ -3836,9 +3807,11 @@ static int reloc_chunk_start(struct btrfs_fs_info *fs_info)
 
 /*
  * Mark end of chunk relocation that is cancellable and wake any waiters.
+ * NOTE: call only if a previous call to reloc_chunk_start() succeeded.
  */
 static void reloc_chunk_end(struct btrfs_fs_info *fs_info)
 {
+	ASSERT(test_bit(BTRFS_FS_RELOC_RUNNING, &fs_info->flags));
 	/* Requested after start, clear bit first so any waiters can continue */
 	if (atomic_read(&fs_info->reloc_cancel_req) > 0)
 		btrfs_info(fs_info, "chunk relocation canceled during operation");
@@ -3880,7 +3853,7 @@ static void free_reloc_control(struct reloc_control *rc)
  */
 static void describe_relocation(struct btrfs_block_group *block_group)
 {
-	char buf[128] = {'\0'};
+	char buf[128] = "NONE";
 
 	btrfs_describe_block_groups(block_group->flags, buf, sizeof(buf));
 
@@ -3900,7 +3873,8 @@ static const char *stage_to_string(enum reloc_stage stage)
 /*
  * function to relocate all extents in a block group.
  */
-int btrfs_relocate_block_group(struct btrfs_fs_info *fs_info, u64 group_start)
+int btrfs_relocate_block_group(struct btrfs_fs_info *fs_info, u64 group_start,
+			       bool verbose)
 {
 	struct btrfs_block_group *bg;
 	struct btrfs_root *extent_root = btrfs_extent_root(fs_info, group_start);
@@ -3992,7 +3966,8 @@ int btrfs_relocate_block_group(struct btrfs_fs_info *fs_info, u64 group_start)
 		goto out;
 	}
 
-	describe_relocation(rc->block_group);
+	if (verbose)
+		describe_relocation(rc->block_group);
 
 	btrfs_wait_block_group_reservations(rc->block_group);
 	btrfs_wait_nocow_writers(rc->block_group);
@@ -4036,8 +4011,10 @@ int btrfs_relocate_block_group(struct btrfs_fs_info *fs_info, u64 group_start)
 		if (rc->extents_found == 0)
 			break;
 
-		btrfs_info(fs_info, "found %llu extents, stage: %s",
-			   rc->extents_found, stage_to_string(finishes_stage));
+		if (verbose)
+			btrfs_info(fs_info, "found %llu extents, stage: %s",
+				   rc->extents_found,
+				   stage_to_string(finishes_stage));
 	}
 
 	WARN_ON(rc->block_group->pinned > 0);
@@ -4047,9 +4024,9 @@ out:
 	if (err && rw)
 		btrfs_dec_block_group_ro(rc->block_group);
 	iput(rc->data_inode);
+	reloc_chunk_end(fs_info);
 out_put_bg:
 	btrfs_put_block_group(bg);
-	reloc_chunk_end(fs_info);
 	free_reloc_control(rc);
 	return err;
 }
@@ -4232,8 +4209,8 @@ out_clean:
 		ret = ret2;
 out_unset:
 	unset_reloc_control(rc);
-out_end:
 	reloc_chunk_end(fs_info);
+out_end:
 	free_reloc_control(rc);
 out:
 	free_reloc_roots(&reloc_roots);
@@ -4339,7 +4316,7 @@ int btrfs_reloc_cow_block(struct btrfs_trans_handle *trans,
 		}
 
 		btrfs_backref_drop_node_buffer(node);
-		atomic_inc(&cow->refs);
+		refcount_inc(&cow->refs);
 		node->eb = cow;
 		node->new_bytenr = cow->start;
 

@@ -19,7 +19,9 @@ struct cxl_event_record_hdr {
 	__le64 timestamp;
 	u8 maint_op_class;
 	u8 maint_op_sub_class;
-	u8 reserved[14];
+	__le16 ld_id;
+	u8 head_id;
+	u8 reserved[11];
 } __packed;
 
 struct cxl_event_media_hdr {
@@ -108,11 +110,43 @@ struct cxl_event_mem_module {
 	u8 reserved[0x2a];
 } __packed;
 
+/*
+ * Memory Sparing Event Record - MSER
+ * CXL rev 3.2 section 8.2.10.2.1.4; Table 8-60
+ */
+struct cxl_event_mem_sparing {
+	struct cxl_event_record_hdr hdr;
+	/*
+	 * The fields maintenance operation class and maintenance operation
+	 * subclass defined in the Memory Sparing Event Record are the
+	 * duplication of the same in the common event record. Thus defined
+	 * as reserved and to be removed after the spec correction.
+	 */
+	u8 rsv1;
+	u8 rsv2;
+	u8 flags;
+	u8 result;
+	__le16 validity_flags;
+	u8 reserved1[6];
+	__le16 res_avail;
+	u8 channel;
+	u8 rank;
+	u8 nibble_mask[3];
+	u8 bank_group;
+	u8 bank;
+	u8 row[3];
+	__le16 column;
+	u8 component_id[CXL_EVENT_GEN_MED_COMP_ID_SIZE];
+	u8 sub_channel;
+	u8 reserved2[0x25];
+} __packed;
+
 union cxl_event {
 	struct cxl_event_generic generic;
 	struct cxl_event_gen_media gen_media;
 	struct cxl_event_dram dram;
 	struct cxl_event_mem_module mem_module;
+	struct cxl_event_mem_sparing mem_sparing;
 	/* dram & gen_media event header */
 	struct cxl_event_media_hdr media_hdr;
 } __packed;
@@ -131,6 +165,7 @@ enum cxl_event_type {
 	CXL_CPER_EVENT_GEN_MEDIA,
 	CXL_CPER_EVENT_DRAM,
 	CXL_CPER_EVENT_MEM_MODULE,
+	CXL_CPER_EVENT_MEM_SPARING,
 };
 
 #define CPER_CXL_DEVICE_ID_VALID		BIT(0)

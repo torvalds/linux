@@ -404,7 +404,6 @@ struct efx_rx_page_state {
  * @old_rx_packets: Value of @rx_packets as of last efx_init_rx_queue()
  * @old_rx_bytes: Value of @rx_bytes as of last efx_init_rx_queue()
  * @xdp_rxq_info: XDP specific RX queue information.
- * @xdp_rxq_info_valid: Is xdp_rxq_info valid data?.
  */
 struct efx_rx_queue {
 	struct efx_nic *efx;
@@ -443,7 +442,6 @@ struct efx_rx_queue {
 	unsigned long old_rx_packets;
 	unsigned long old_rx_bytes;
 	struct xdp_rxq_info xdp_rxq_info;
-	bool xdp_rxq_info_valid;
 };
 
 enum efx_sync_events_state {

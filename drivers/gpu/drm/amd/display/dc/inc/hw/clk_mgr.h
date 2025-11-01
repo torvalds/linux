@@ -100,6 +100,17 @@ struct dcn301_clk_internal {
 #define MAX_NUM_DPM_LVL		8
 #define WM_SET_COUNT 		4
 
+enum clk_type {
+	CLK_TYPE_DCFCLK,
+	CLK_TYPE_FCLK,
+	CLK_TYPE_MCLK,
+	CLK_TYPE_SOCCLK,
+	CLK_TYPE_DTBCLK,
+	CLK_TYPE_DISPCLK,
+	CLK_TYPE_DPPCLK,
+	CLK_TYPE_DSCCLK,
+	CLK_TYPE_COUNT
+};
 
 struct clk_limit_table_entry {
 	unsigned int voltage; /* milivolts withh 2 fractional bits */
@@ -324,6 +335,11 @@ struct clk_mgr_funcs {
 
 	int (*get_dispclk_from_dentist)(struct clk_mgr *clk_mgr_base);
 
+	bool (*is_dc_mode_present)(struct clk_mgr *clk_mgr);
+
+	uint32_t (*set_smartmux_switch)(struct clk_mgr *clk_mgr, uint32_t pins_to_set);
+
+	unsigned int (*get_max_clock_khz)(struct clk_mgr *clk_mgr_base, enum clk_type clk_type);
 };
 
 struct clk_mgr {

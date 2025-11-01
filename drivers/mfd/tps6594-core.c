@@ -1,20 +1,29 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Core functions for TI TPS65224/TPS6594/TPS6593/LP8764 PMICs
+ * Core functions for following TI PMICs:
+ *  - LP8764
+ *  - TPS65224
+ *  - TPS652G1
+ *  - TPS6593
+ *  - TPS6594
  *
  * Copyright (C) 2023 BayLibre Incorporated - https://www.baylibre.com/
  */
 
+#include <linux/bitfield.h>
 #include <linux/completion.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/reboot.h>
 
 #include <linux/mfd/core.h>
 #include <linux/mfd/tps6594.h>
 
 #define TPS6594_CRC_SYNC_TIMEOUT_MS 150
+#define TPS65224_EN_SEL_PB 1
+#define TPS65224_GPIO3_SEL_PB 3
 
 /* Completion to synchronize CRC feature enabling on all PMICs */
 static DECLARE_COMPLETION(tps6594_crc_comp);
@@ -121,6 +130,12 @@ static const struct resource tps6594_rtc_resources[] = {
 	DEFINE_RES_IRQ_NAMED(TPS6594_IRQ_TIMER, TPS6594_IRQ_NAME_TIMER),
 	DEFINE_RES_IRQ_NAMED(TPS6594_IRQ_ALARM, TPS6594_IRQ_NAME_ALARM),
 	DEFINE_RES_IRQ_NAMED(TPS6594_IRQ_POWER_UP, TPS6594_IRQ_NAME_POWERUP),
+};
+
+static const struct resource tps6594_pwrbutton_resources[] = {
+	DEFINE_RES_IRQ_NAMED(TPS65224_IRQ_PB_FALL, TPS65224_IRQ_NAME_PB_FALL),
+	DEFINE_RES_IRQ_NAMED(TPS65224_IRQ_PB_RISE, TPS65224_IRQ_NAME_PB_RISE),
+	DEFINE_RES_IRQ_NAMED(TPS65224_IRQ_PB_SHORT, TPS65224_IRQ_NAME_PB_SHORT),
 };
 
 static const struct mfd_cell tps6594_common_cells[] = {
@@ -313,8 +328,6 @@ static const struct resource tps65224_pfsm_resources[] = {
 	DEFINE_RES_IRQ_NAMED(TPS65224_IRQ_REG_UNLOCK, TPS65224_IRQ_NAME_REG_UNLOCK),
 	DEFINE_RES_IRQ_NAMED(TPS65224_IRQ_TWARN, TPS65224_IRQ_NAME_TWARN),
 	DEFINE_RES_IRQ_NAMED(TPS65224_IRQ_PB_LONG, TPS65224_IRQ_NAME_PB_LONG),
-	DEFINE_RES_IRQ_NAMED(TPS65224_IRQ_PB_FALL, TPS65224_IRQ_NAME_PB_FALL),
-	DEFINE_RES_IRQ_NAMED(TPS65224_IRQ_PB_RISE, TPS65224_IRQ_NAME_PB_RISE),
 	DEFINE_RES_IRQ_NAMED(TPS65224_IRQ_TSD_ORD, TPS65224_IRQ_NAME_TSD_ORD),
 	DEFINE_RES_IRQ_NAMED(TPS65224_IRQ_BIST_FAIL, TPS65224_IRQ_NAME_BIST_FAIL),
 	DEFINE_RES_IRQ_NAMED(TPS65224_IRQ_REG_CRC_ERR, TPS65224_IRQ_NAME_REG_CRC_ERR),
@@ -340,6 +353,12 @@ static const struct mfd_cell tps65224_common_cells[] = {
 	MFD_CELL_RES("tps6594-pfsm", tps65224_pfsm_resources),
 	MFD_CELL_RES("tps6594-pinctrl", tps65224_pinctrl_resources),
 	MFD_CELL_RES("tps6594-regulator", tps65224_regulator_resources),
+};
+
+static const struct mfd_cell tps6594_pwrbutton_cell = {
+	.name = "tps6594-pwrbutton",
+	.resources = tps6594_pwrbutton_resources,
+	.num_resources = ARRAY_SIZE(tps6594_pwrbutton_resources),
 };
 
 static const struct regmap_irq tps65224_irqs[] = {
@@ -414,6 +433,61 @@ static const unsigned int tps65224_irq_reg[] = {
 	TPS6594_REG_INT_FSM_ERR,
 };
 
+/* TPS652G1 Resources */
+
+static const struct mfd_cell tps652g1_common_cells[] = {
+	MFD_CELL_RES("tps6594-pfsm", tps65224_pfsm_resources),
+	MFD_CELL_RES("tps6594-pinctrl", tps65224_pinctrl_resources),
+	MFD_CELL_NAME("tps6594-regulator"),
+};
+
+static const struct regmap_irq tps652g1_irqs[] = {
+	/* INT_GPIO register */
+	REGMAP_IRQ_REG(TPS65224_IRQ_GPIO1, 2, TPS65224_BIT_GPIO1_INT),
+	REGMAP_IRQ_REG(TPS65224_IRQ_GPIO2, 2, TPS65224_BIT_GPIO2_INT),
+	REGMAP_IRQ_REG(TPS65224_IRQ_GPIO3, 2, TPS65224_BIT_GPIO3_INT),
+	REGMAP_IRQ_REG(TPS65224_IRQ_GPIO4, 2, TPS65224_BIT_GPIO4_INT),
+	REGMAP_IRQ_REG(TPS65224_IRQ_GPIO5, 2, TPS65224_BIT_GPIO5_INT),
+	REGMAP_IRQ_REG(TPS65224_IRQ_GPIO6, 2, TPS65224_BIT_GPIO6_INT),
+
+	/* INT_STARTUP register */
+	REGMAP_IRQ_REG(TPS65224_IRQ_VSENSE, 3, TPS65224_BIT_VSENSE_INT),
+	REGMAP_IRQ_REG(TPS65224_IRQ_ENABLE, 3, TPS6594_BIT_ENABLE_INT),
+	REGMAP_IRQ_REG(TPS65224_IRQ_PB_SHORT, 3, TPS65224_BIT_PB_SHORT_INT),
+	REGMAP_IRQ_REG(TPS65224_IRQ_FSD, 3, TPS6594_BIT_FSD_INT),
+	REGMAP_IRQ_REG(TPS65224_IRQ_SOFT_REBOOT, 3, TPS6594_BIT_SOFT_REBOOT_INT),
+
+	/* INT_MISC register */
+	REGMAP_IRQ_REG(TPS65224_IRQ_BIST_PASS, 4, TPS6594_BIT_BIST_PASS_INT),
+	REGMAP_IRQ_REG(TPS65224_IRQ_EXT_CLK, 4, TPS6594_BIT_EXT_CLK_INT),
+	REGMAP_IRQ_REG(TPS65224_IRQ_REG_UNLOCK, 4, TPS65224_BIT_REG_UNLOCK_INT),
+	REGMAP_IRQ_REG(TPS65224_IRQ_TWARN, 4, TPS6594_BIT_TWARN_INT),
+	REGMAP_IRQ_REG(TPS65224_IRQ_PB_LONG, 4, TPS65224_BIT_PB_LONG_INT),
+	REGMAP_IRQ_REG(TPS65224_IRQ_PB_FALL, 4, TPS65224_BIT_PB_FALL_INT),
+	REGMAP_IRQ_REG(TPS65224_IRQ_PB_RISE, 4, TPS65224_BIT_PB_RISE_INT),
+	REGMAP_IRQ_REG(TPS65224_IRQ_ADC_CONV_READY, 4, TPS65224_BIT_ADC_CONV_READY_INT),
+
+	/* INT_MODERATE_ERR register */
+	REGMAP_IRQ_REG(TPS65224_IRQ_TSD_ORD, 5, TPS6594_BIT_TSD_ORD_INT),
+	REGMAP_IRQ_REG(TPS65224_IRQ_BIST_FAIL, 5, TPS6594_BIT_BIST_FAIL_INT),
+	REGMAP_IRQ_REG(TPS65224_IRQ_REG_CRC_ERR, 5, TPS6594_BIT_REG_CRC_ERR_INT),
+	REGMAP_IRQ_REG(TPS65224_IRQ_RECOV_CNT, 5, TPS6594_BIT_RECOV_CNT_INT),
+
+	/* INT_SEVERE_ERR register */
+	REGMAP_IRQ_REG(TPS65224_IRQ_TSD_IMM, 6, TPS6594_BIT_TSD_IMM_INT),
+	REGMAP_IRQ_REG(TPS65224_IRQ_VCCA_OVP, 6, TPS6594_BIT_VCCA_OVP_INT),
+	REGMAP_IRQ_REG(TPS65224_IRQ_PFSM_ERR, 6, TPS6594_BIT_PFSM_ERR_INT),
+	REGMAP_IRQ_REG(TPS65224_IRQ_BG_XMON, 6, TPS65224_BIT_BG_XMON_INT),
+
+	/* INT_FSM_ERR register */
+	REGMAP_IRQ_REG(TPS65224_IRQ_IMM_SHUTDOWN, 7, TPS6594_BIT_IMM_SHUTDOWN_INT),
+	REGMAP_IRQ_REG(TPS65224_IRQ_ORD_SHUTDOWN, 7, TPS6594_BIT_ORD_SHUTDOWN_INT),
+	REGMAP_IRQ_REG(TPS65224_IRQ_MCU_PWR_ERR, 7, TPS6594_BIT_MCU_PWR_ERR_INT),
+	REGMAP_IRQ_REG(TPS65224_IRQ_SOC_PWR_ERR, 7, TPS6594_BIT_SOC_PWR_ERR_INT),
+	REGMAP_IRQ_REG(TPS65224_IRQ_COMM_ERR, 7, TPS6594_BIT_COMM_ERR_INT),
+	REGMAP_IRQ_REG(TPS65224_IRQ_I2C2_ERR, 7, TPS65224_BIT_I2C2_ERR_INT),
+};
+
 static inline unsigned int tps6594_get_irq_reg(struct regmap_irq_chip_data *data,
 					       unsigned int base, int index)
 {
@@ -443,7 +517,7 @@ static int tps6594_handle_post_irq(void *irq_drv_data)
 	 * a new interrupt.
 	 */
 	if (tps->use_crc) {
-		if (tps->chip_id == TPS65224) {
+		if (tps->chip_id == TPS65224 || tps->chip_id == TPS652G1) {
 			regmap_reg = TPS6594_REG_INT_FSM_ERR;
 			mask_val = TPS6594_BIT_COMM_ERR_INT;
 		} else {
@@ -481,6 +555,18 @@ static struct regmap_irq_chip tps65224_irq_chip = {
 	.handle_post_irq = tps6594_handle_post_irq,
 };
 
+static struct regmap_irq_chip tps652g1_irq_chip = {
+	.ack_base = TPS6594_REG_INT_BUCK,
+	.ack_invert = 1,
+	.clear_ack = 1,
+	.init_ack_masked = 1,
+	.num_regs = ARRAY_SIZE(tps65224_irq_reg),
+	.irqs = tps652g1_irqs,
+	.num_irqs = ARRAY_SIZE(tps652g1_irqs),
+	.get_irq_reg = tps65224_get_irq_reg,
+	.handle_post_irq = tps6594_handle_post_irq,
+};
+
 static const struct regmap_range tps6594_volatile_ranges[] = {
 	regmap_reg_range(TPS6594_REG_INT_TOP, TPS6594_REG_STAT_READBACK_ERR),
 	regmap_reg_range(TPS6594_REG_RTC_STATUS, TPS6594_REG_RTC_STATUS),
@@ -507,7 +593,7 @@ static int tps6594_check_crc_mode(struct tps6594 *tps, bool primary_pmic)
 	int ret;
 	unsigned int regmap_reg, mask_val;
 
-	if (tps->chip_id == TPS65224) {
+	if (tps->chip_id == TPS65224 || tps->chip_id == TPS652G1) {
 		regmap_reg = TPS6594_REG_CONFIG_2;
 		mask_val = TPS65224_BIT_I2C1_SPI_CRC_EN;
 	} else {
@@ -537,7 +623,7 @@ static int tps6594_set_crc_feature(struct tps6594 *tps)
 	int ret;
 	unsigned int regmap_reg, mask_val;
 
-	if (tps->chip_id == TPS65224) {
+	if (tps->chip_id == TPS65224 || tps->chip_id == TPS652G1) {
 		regmap_reg = TPS6594_REG_CONFIG_2;
 		mask_val = TPS65224_BIT_I2C1_SPI_CRC_EN;
 	} else {
@@ -604,11 +690,25 @@ static int tps6594_enable_crc(struct tps6594 *tps)
 	return ret;
 }
 
+static int tps6594_power_off_handler(struct sys_off_data *data)
+{
+	struct tps6594 *tps = data->cb_data;
+	int ret;
+
+	ret = regmap_update_bits(tps->regmap, TPS6594_REG_FSM_I2C_TRIGGERS,
+				 TPS6594_BIT_TRIGGER_I2C(0), TPS6594_BIT_TRIGGER_I2C(0));
+	if (ret)
+		return notifier_from_errno(ret);
+
+	return NOTIFY_DONE;
+}
+
 int tps6594_device_init(struct tps6594 *tps, bool enable_crc)
 {
 	struct device *dev = tps->dev;
 	int ret;
 	struct regmap_irq_chip *irq_chip;
+	unsigned int pwr_on, gpio3_cfg;
 	const struct mfd_cell *cells;
 	int n_cells;
 
@@ -628,6 +728,10 @@ int tps6594_device_init(struct tps6594 *tps, bool enable_crc)
 		irq_chip = &tps65224_irq_chip;
 		n_cells = ARRAY_SIZE(tps65224_common_cells);
 		cells = tps65224_common_cells;
+	} else if (tps->chip_id == TPS652G1) {
+		irq_chip = &tps652g1_irq_chip;
+		n_cells = ARRAY_SIZE(tps652g1_common_cells);
+		cells = tps652g1_common_cells;
 	} else {
 		irq_chip = &tps6594_irq_chip;
 		n_cells = ARRAY_SIZE(tps6594_common_cells);
@@ -651,13 +755,40 @@ int tps6594_device_init(struct tps6594 *tps, bool enable_crc)
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to add common child devices\n");
 
-	/* No RTC for LP8764 and TPS65224 */
-	if (tps->chip_id != LP8764 && tps->chip_id != TPS65224) {
+	/* If either the PB/EN/VSENSE or GPIO3 is configured as PB, register a driver for it */
+	if (tps->chip_id == TPS65224 || tps->chip_id == TPS652G1) {
+		ret = regmap_read(tps->regmap, TPS6594_REG_NPWRON_CONF, &pwr_on);
+		if (ret)
+			return dev_err_probe(dev, ret, "Failed to read PB/EN/VSENSE config\n");
+
+		ret = regmap_read(tps->regmap, TPS6594_REG_GPIOX_CONF(2), &gpio3_cfg);
+		if (ret)
+			return dev_err_probe(dev, ret, "Failed to read GPIO3 config\n");
+
+		if (FIELD_GET(TPS65224_MASK_EN_PB_VSENSE_CONFIG, pwr_on) == TPS65224_EN_SEL_PB ||
+		    FIELD_GET(TPS65224_MASK_GPIO_SEL, gpio3_cfg) == TPS65224_GPIO3_SEL_PB) {
+			ret = devm_mfd_add_devices(dev, PLATFORM_DEVID_AUTO,
+						   &tps6594_pwrbutton_cell, 1, NULL, 0,
+						   regmap_irq_get_domain(tps->irq_data));
+			if (ret)
+				return dev_err_probe(dev, ret,
+						     "Failed to add power button device.\n");
+		}
+	}
+
+	/* No RTC for LP8764, TPS65224 and TPS652G1 */
+	if (tps->chip_id != LP8764 && tps->chip_id != TPS65224 && tps->chip_id != TPS652G1) {
 		ret = devm_mfd_add_devices(dev, PLATFORM_DEVID_AUTO, tps6594_rtc_cells,
 					   ARRAY_SIZE(tps6594_rtc_cells), NULL, 0,
 					   regmap_irq_get_domain(tps->irq_data));
 		if (ret)
 			return dev_err_probe(dev, ret, "Failed to add RTC child device\n");
+	}
+
+	if (of_device_is_system_power_controller(dev->of_node)) {
+		ret = devm_register_power_off_handler(tps->dev, tps6594_power_off_handler, tps);
+		if (ret)
+			return dev_err_probe(dev, ret, "Failed to register power-off handler\n");
 	}
 
 	return 0;

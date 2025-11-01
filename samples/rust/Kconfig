@@ -62,6 +62,28 @@ config SAMPLE_RUST_DMA
 
 	  If unsure, say N.
 
+config SAMPLE_RUST_DEBUGFS
+	tristate "DebugFS Test Module"
+	depends on DEBUG_FS
+	help
+	  This option builds the Rust DebugFS Test module sample.
+
+	  To compile this as a module, choose M here:
+	  the module will be called rust_debugfs.
+
+	  If unsure, say N.
+
+config SAMPLE_RUST_DEBUGFS_SCOPED
+	tristate "Scoped DebugFS Test Module"
+	depends on DEBUG_FS
+	help
+	  This option builds the Rust Scoped DebugFS Test module sample.
+
+	  To compile this as a module, choose M here:
+	  the module will be called rust_debugfs_scoped.
+
+	  If unsure, say N.
+
 config SAMPLE_RUST_DRIVER_PCI
 	tristate "PCI Driver"
 	depends on PCI
@@ -80,6 +102,17 @@ config SAMPLE_RUST_DRIVER_PLATFORM
 
 	  To compile this as a module, choose M here:
 	  the module will be called rust_driver_platform.
+
+	  If unsure, say N.
+
+config SAMPLE_RUST_DRIVER_USB
+	tristate "USB Driver"
+	depends on USB = y && BROKEN
+	help
+	  This option builds the Rust USB driver sample.
+
+	  To compile this as a module, choose M here:
+	  the module will be called rust_driver_usb.
 
 	  If unsure, say N.
 

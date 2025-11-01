@@ -75,9 +75,7 @@ static inline u32 rdpkru(void)
 	 * "rdpkru" instruction.  Places PKRU contents in to EAX,
 	 * clears EDX and requires that ecx=0.
 	 */
-	asm volatile(".byte 0x0f,0x01,0xee\n\t"
-		     : "=a" (pkru), "=d" (edx)
-		     : "c" (ecx));
+	asm volatile("rdpkru" : "=a" (pkru), "=d" (edx) : "c" (ecx));
 	return pkru;
 }
 
@@ -89,8 +87,7 @@ static inline void wrpkru(u32 pkru)
 	 * "wrpkru" instruction.  Loads contents in EAX to PKRU,
 	 * requires that ecx = edx = 0.
 	 */
-	asm volatile(".byte 0x0f,0x01,0xef\n\t"
-		     : : "a" (pkru), "c"(ecx), "d"(edx));
+	asm volatile("wrpkru" : : "a" (pkru), "c"(ecx), "d"(edx));
 }
 
 #else
@@ -104,9 +101,36 @@ static inline void wrpkru(u32 pkru)
 }
 #endif
 
+/*
+ * Write back all modified lines in all levels of cache associated with this
+ * logical processor to main memory, and then invalidate all caches.  Depending
+ * on the micro-architecture, WBINVD (and WBNOINVD below) may or may not affect
+ * lower level caches associated with another logical processor that shares any
+ * level of this processor's cache hierarchy.
+ */
 static __always_inline void wbinvd(void)
 {
-	asm volatile("wbinvd": : :"memory");
+	asm volatile("wbinvd" : : : "memory");
+}
+
+/* Instruction encoding provided for binutils backwards compatibility. */
+#define ASM_WBNOINVD _ASM_BYTES(0xf3,0x0f,0x09)
+
+/*
+ * Write back all modified lines in all levels of cache associated with this
+ * logical processor to main memory, but do NOT explicitly invalidate caches,
+ * i.e. leave all/most cache lines in the hierarchy in non-modified state.
+ */
+static __always_inline void wbnoinvd(void)
+{
+	/*
+	 * Explicitly encode WBINVD if X86_FEATURE_WBNOINVD is unavailable even
+	 * though WBNOINVD is backwards compatible (it's simply WBINVD with an
+	 * ignored REP prefix), to guarantee that WBNOINVD isn't used if it
+	 * needs to be avoided for any reason.  For all supported usage in the
+	 * kernel, WBINVD is functionally a superset of WBNOINVD.
+	 */
+	alternative("wbinvd", ASM_WBNOINVD, X86_FEATURE_WBNOINVD);
 }
 
 static inline unsigned long __read_cr4(void)
@@ -260,8 +284,7 @@ static inline int enqcmds(void __iomem *dst, const void *src)
 	 * See movdir64b()'s comment on operand specification.
 	 */
 	asm volatile(".byte 0xf3, 0x0f, 0x38, 0xf8, 0x02, 0x66, 0x90"
-		     CC_SET(z)
-		     : CC_OUT(z) (zf), "+m" (*__dst)
+		     : "=@ccz" (zf), "+m" (*__dst)
 		     : "m" (*__src), "a" (__dst), "d" (__src));
 
 	/* Submission failure is indicated via EFLAGS.ZF=1 */

@@ -92,7 +92,7 @@
 	leds: leds {
 		compatible = "gpio-leds";
 
-		led0{
+		led0 {
 			label = "buzzer";
 			gpios = <&gpiof 2 GPIO_ACTIVE_HIGH>;
 			default-state = "off";

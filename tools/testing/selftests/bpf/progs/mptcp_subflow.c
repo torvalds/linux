@@ -117,7 +117,7 @@ int _getsockopt_subflow(struct bpf_sockopt *ctx)
 		return 1;
 
 	msk = bpf_core_cast(sk, struct mptcp_sock);
-	if (msk->pm.subflows != 1) {
+	if (msk->pm.extra_subflows != 1) {
 		ctx->retval = -1;
 		return 1;
 	}

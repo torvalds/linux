@@ -10,7 +10,7 @@
 
 #ifdef CONFIG_OPENRISC_HAVE_INST_FF1
 
-static inline int ffs(int x)
+static inline __attribute_const__ int ffs(int x)
 {
 	int ret;
 

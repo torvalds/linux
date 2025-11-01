@@ -146,6 +146,7 @@ config IXGBE
 	tristate "Intel(R) 10GbE PCI Express adapters support"
 	depends on PCI
 	depends on PTP_1588_CLOCK_OPTIONAL
+	select LIBIE_FWLOG
 	select MDIO
 	select NET_DEVLINK
 	select PLDMFW
@@ -231,6 +232,7 @@ config I40E
 	depends on PCI
 	select AUXILIARY_BUS
 	select LIBIE
+	select LIBIE_ADMINQ
 	select NET_DEVLINK
 	help
 	  This driver supports Intel(R) Ethernet Controller XL710 Family of
@@ -260,6 +262,7 @@ config I40E_DCB
 config IAVF
 	tristate
 	select LIBIE
+	select LIBIE_ADMINQ
 	select NET_SHAPER
 
 config I40EVF
@@ -294,6 +297,8 @@ config ICE
 	select AUXILIARY_BUS
 	select DIMLIB
 	select LIBIE
+	select LIBIE_ADMINQ
+	select LIBIE_FWLOG
 	select NET_DEVLINK
 	select PACKING
 	select PLDMFW

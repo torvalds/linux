@@ -101,7 +101,7 @@ static int sdw_drv_probe(struct device *dev)
 	/*
 	 * attach to power domain but don't turn on (last arg)
 	 */
-	ret = dev_pm_domain_attach(dev, false);
+	ret = dev_pm_domain_attach(dev, 0);
 	if (ret)
 		return ret;
 
@@ -114,7 +114,6 @@ static int sdw_drv_probe(struct device *dev)
 
 	ret = drv->probe(slave, id);
 	if (ret) {
-		dev_pm_domain_detach(dev, false);
 		ida_free(&slave->bus->slave_ida, slave->index);
 		return ret;
 	}
@@ -179,8 +178,6 @@ static int sdw_drv_remove(struct device *dev)
 
 	if (drv->remove)
 		ret = drv->remove(slave);
-
-	dev_pm_domain_detach(dev, false);
 
 	ida_free(&slave->bus->slave_ida, slave->index);
 

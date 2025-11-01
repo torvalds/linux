@@ -474,35 +474,6 @@ static inline bool is_coresight_device(void __iomem *base)
 	return cid == CORESIGHT_CID;
 }
 
-/*
- * Attempt to find and enable "APB clock" for the given device
- *
- * Returns:
- *
- * clk   - Clock is found and enabled
- * NULL  - clock is not found
- * ERROR - Clock is found but failed to enable
- */
-static inline struct clk *coresight_get_enable_apb_pclk(struct device *dev)
-{
-	struct clk *pclk;
-	int ret;
-
-	pclk = clk_get(dev, "apb_pclk");
-	if (IS_ERR(pclk)) {
-		pclk = clk_get(dev, "apb");
-		if (IS_ERR(pclk))
-			return NULL;
-	}
-
-	ret = clk_prepare_enable(pclk);
-	if (ret) {
-		clk_put(pclk);
-		return ERR_PTR(ret);
-	}
-	return pclk;
-}
-
 #define CORESIGHT_PIDRn(i)	(0xFE0 + ((i) * 4))
 
 static inline u32 coresight_get_pid(struct csdev_access *csa)
@@ -733,4 +704,6 @@ void coresight_remove_driver(struct amba_driver *amba_drv,
 			     struct platform_driver *pdev_drv);
 int coresight_etm_get_trace_id(struct coresight_device *csdev, enum cs_mode mode,
 			       struct coresight_device *sink);
+int coresight_get_enable_clocks(struct device *dev, struct clk **pclk,
+				struct clk **atclk);
 #endif		/* _LINUX_COREISGHT_H */

@@ -1,0 +1,62 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/phy/img,pistachio-usb-phy.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Imagination Pistachio USB PHY
+
+maintainers:
+  - Andrew Bresticker <abrestic@chromium.org>
+
+properties:
+  compatible:
+    const: img,pistachio-usb-phy
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    items:
+      - const: usb_phy
+
+  '#phy-cells':
+    const: 0
+
+  phy-supply:
+    description: USB VBUS supply. Must supply 5.0V.
+
+  img,refclk:
+    description:
+      Reference clock source for the USB PHY. See
+      <dt-bindings/phy/phy-pistachio-usb.h> for valid values.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  img,cr-top:
+    description: CR_TOP syscon phandle.
+    $ref: /schemas/types.yaml#/definitions/phandle
+
+required:
+  - compatible
+  - clocks
+  - clock-names
+  - '#phy-cells'
+  - img,refclk
+  - img,cr-top
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/phy/phy-pistachio-usb.h>
+    #include <dt-bindings/clock/pistachio-clk.h>
+
+    usb-phy {
+        compatible = "img,pistachio-usb-phy";
+        clocks = <&clk_core CLK_USB_PHY>;
+        clock-names = "usb_phy";
+        #phy-cells = <0>;
+        phy-supply = <&usb_vbus>;
+        img,refclk = <REFCLK_CLK_CORE>;
+        img,cr-top = <&cr_top>;
+    };

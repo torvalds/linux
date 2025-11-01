@@ -543,7 +543,7 @@
  * Queue control unit (QCU) registers [5211+]
  *
  * Card has 12 TX Queues but i see that only 0-9 are used (?)
- * both in binary HAL (see ah.h) and ar5k. Each queue has it's own
+ * both in binary HAL (see ah.h) and ar5k. Each queue has its own
  * TXDP at addresses 0x0800 - 0x082c, a CBR (Constant Bit Rate)
  * configuration register (0x08c0 - 0x08ec), a ready time configuration
  * register (0x0900 - 0x092c), a misc configuration register (0x09c0 -

@@ -3397,7 +3397,7 @@ static int ni_enable_smc_cac(struct radeon_device *rdev,
 				if (PPSMC_Result_OK != smc_result)
 					ret = -EINVAL;
 
-				ni_pi->cac_enabled = (PPSMC_Result_OK == smc_result) ? true : false;
+				ni_pi->cac_enabled = PPSMC_Result_OK == smc_result;
 			}
 		} else if (ni_pi->cac_enabled) {
 			smc_result = rv770_send_msg_to_smc(rdev, PPSMC_MSG_DisableCac);

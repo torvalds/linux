@@ -50,6 +50,7 @@ struct dentry;
 /* Command Status and Connector Change Indication (CCI) bits */
 #define UCSI_CCI_CONNECTOR(_c_)		(((_c_) & GENMASK(7, 1)) >> 1)
 #define UCSI_CCI_LENGTH(_c_)		(((_c_) & GENMASK(15, 8)) >> 8)
+#define UCSI_SET_CCI_LENGTH(_c_)	((_c_) << 8)
 #define UCSI_CCI_NOT_SUPPORTED		BIT(25)
 #define UCSI_CCI_CANCEL_COMPLETE	BIT(26)
 #define UCSI_CCI_RESET_COMPLETE		BIT(27)
@@ -82,7 +83,8 @@ struct ucsi_operations {
 	int (*sync_control)(struct ucsi *ucsi, u64 command, u32 *cci,
 			    void *data, size_t size);
 	int (*async_control)(struct ucsi *ucsi, u64 command);
-	bool (*update_altmodes)(struct ucsi *ucsi, struct ucsi_altmode *orig,
+	bool (*update_altmodes)(struct ucsi *ucsi, u8 recipient,
+				struct ucsi_altmode *orig,
 				struct ucsi_altmode *updated);
 	void (*update_connector)(struct ucsi_connector *con);
 	void (*connector_status)(struct ucsi_connector *con);
@@ -129,6 +131,7 @@ void ucsi_connector_change(struct ucsi *ucsi, u8 num);
 #define UCSI_GET_PD_MESSAGE			0x15
 #define UCSI_GET_CAM_CS			0x18
 #define UCSI_SET_SINK_PATH			0x1c
+#define UCSI_READ_POWER_LEVEL			0x1e
 #define UCSI_SET_USB				0x21
 #define UCSI_GET_LPM_PPM_INFO			0x22
 
@@ -357,6 +360,14 @@ struct ucsi_cable_property {
 #define   UCSI_CONSTAT_BC_SLOW_CHARGING		2
 #define   UCSI_CONSTAT_BC_TRICKLE_CHARGING	3
 #define UCSI_CONSTAT_PD_VERSION_V1_2		UCSI_DECLARE_BITFIELD_V1_2(70, 16)
+#define UCSI_CONSTAT_PWR_READING_READY_V2_1	UCSI_DECLARE_BITFIELD_V2_1(89, 1)
+#define UCSI_CONSTAT_CURRENT_SCALE_V2_1		UCSI_DECLARE_BITFIELD_V2_1(90, 3)
+#define UCSI_CONSTAT_PEAK_CURRENT_V2_1		UCSI_DECLARE_BITFIELD_V2_1(93, 16)
+#define UCSI_CONSTAT_AVG_CURRENT_V2_1		UCSI_DECLARE_BITFIELD_V2_1(109, 16)
+#define UCSI_CONSTAT_VOLTAGE_SCALE_V2_1		UCSI_DECLARE_BITFIELD_V2_1(125, 4)
+#define UCSI_CONSTAT_VBUS_VOLTAGE_V2_1		UCSI_DECLARE_BITFIELD_V2_1(129, 16)
+#define UCSI_CONSTAT_CURR_SCALE_MULT		5
+#define UCSI_CONSTAT_VOLT_SCALE_MULT		5
 
 /* Connector Status Change Bits.  */
 #define UCSI_CONSTAT_EXT_SUPPLY_CHANGE		BIT(1)
@@ -481,9 +492,10 @@ struct ucsi {
 #define UCSI_MAX_SVID		5
 #define UCSI_MAX_ALTMODES	(UCSI_MAX_SVID * 6)
 
-#define UCSI_TYPEC_VSAFE5V	5000
-#define UCSI_TYPEC_1_5_CURRENT	1500
-#define UCSI_TYPEC_3_0_CURRENT	3000
+#define UCSI_TYPEC_VSAFE5V		5000
+#define UCSI_TYPEC_DEFAULT_CURRENT	 100
+#define UCSI_TYPEC_1_5_CURRENT		1500
+#define UCSI_TYPEC_3_0_CURRENT		3000
 
 struct ucsi_connector {
 	int num;
@@ -515,6 +527,10 @@ struct ucsi_connector {
 	u32 rdo;
 	u32 src_pdos[PDO_MAX_OBJECTS];
 	int num_pdos;
+
+	u32 peak_current;
+	u32 avg_current;
+	u32 vbus_voltage;
 
 	/* USB PD objects */
 	struct usb_power_delivery *pd;

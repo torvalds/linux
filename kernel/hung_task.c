@@ -23,6 +23,7 @@
 #include <linux/sched/debug.h>
 #include <linux/sched/sysctl.h>
 #include <linux/hung_task.h>
+#include <linux/rwsem.h>
 
 #include <trace/events/sched.h>
 
@@ -94,12 +95,45 @@ static struct notifier_block panic_block = {
 	.notifier_call = hung_task_panic,
 };
 
+static bool task_is_hung(struct task_struct *t, unsigned long timeout)
+{
+	unsigned long switch_count = t->nvcsw + t->nivcsw;
+	unsigned int state = READ_ONCE(t->__state);
+
+	/*
+	 * skip the TASK_KILLABLE tasks -- these can be killed
+	 * skip the TASK_IDLE tasks -- those are genuinely idle
+	 * skip the TASK_FROZEN task -- it reasonably stops scheduling by freezer
+	 */
+	if (!(state & TASK_UNINTERRUPTIBLE) ||
+	    (state & (TASK_WAKEKILL | TASK_NOLOAD | TASK_FROZEN)))
+		return false;
+
+	/*
+	 * When a freshly created task is scheduled once, changes its state to
+	 * TASK_UNINTERRUPTIBLE without having ever been switched out once, it
+	 * musn't be checked.
+	 */
+	if (unlikely(!switch_count))
+		return false;
+
+	if (switch_count != t->last_switch_count) {
+		t->last_switch_count = switch_count;
+		t->last_switch_time = jiffies;
+		return false;
+	}
+	if (time_is_after_jiffies(t->last_switch_time + timeout * HZ))
+		return false;
+
+	return true;
+}
 
 #ifdef CONFIG_DETECT_HUNG_TASK_BLOCKER
-static void debug_show_blocker(struct task_struct *task)
+static void debug_show_blocker(struct task_struct *task, unsigned long timeout)
 {
 	struct task_struct *g, *t;
 	unsigned long owner, blocker, blocker_type;
+	const char *rwsem_blocked_by, *rwsem_blocked_as;
 
 	RCU_LOCKDEP_WARN(!rcu_read_lock_held(), "No rcu lock held");
 
@@ -111,12 +145,20 @@ static void debug_show_blocker(struct task_struct *task)
 
 	switch (blocker_type) {
 	case BLOCKER_TYPE_MUTEX:
-		owner = mutex_get_owner(
-			(struct mutex *)hung_task_blocker_to_lock(blocker));
+		owner = mutex_get_owner(hung_task_blocker_to_lock(blocker));
 		break;
 	case BLOCKER_TYPE_SEM:
-		owner = sem_last_holder(
-			(struct semaphore *)hung_task_blocker_to_lock(blocker));
+		owner = sem_last_holder(hung_task_blocker_to_lock(blocker));
+		break;
+	case BLOCKER_TYPE_RWSEM_READER:
+	case BLOCKER_TYPE_RWSEM_WRITER:
+		owner = (unsigned long)rwsem_owner(
+					hung_task_blocker_to_lock(blocker));
+		rwsem_blocked_as = (blocker_type == BLOCKER_TYPE_RWSEM_READER) ?
+					"reader" : "writer";
+		rwsem_blocked_by = is_rwsem_reader_owned(
+					hung_task_blocker_to_lock(blocker)) ?
+					"reader" : "writer";
 		break;
 	default:
 		WARN_ON_ONCE(1);
@@ -132,6 +174,11 @@ static void debug_show_blocker(struct task_struct *task)
 			break;
 		case BLOCKER_TYPE_SEM:
 			pr_err("INFO: task %s:%d is blocked on a semaphore, but the last holder is not found.\n",
+			       task->comm, task->pid);
+			break;
+		case BLOCKER_TYPE_RWSEM_READER:
+		case BLOCKER_TYPE_RWSEM_WRITER:
+			pr_err("INFO: task %s:%d is blocked on an rw-semaphore, but the owner is not found.\n",
 			       task->comm, task->pid);
 			break;
 		}
@@ -152,42 +199,28 @@ static void debug_show_blocker(struct task_struct *task)
 			pr_err("INFO: task %s:%d blocked on a semaphore likely last held by task %s:%d\n",
 			       task->comm, task->pid, t->comm, t->pid);
 			break;
+		case BLOCKER_TYPE_RWSEM_READER:
+		case BLOCKER_TYPE_RWSEM_WRITER:
+			pr_err("INFO: task %s:%d <%s> blocked on an rw-semaphore likely owned by task %s:%d <%s>\n",
+			       task->comm, task->pid, rwsem_blocked_as, t->comm,
+			       t->pid, rwsem_blocked_by);
+			break;
 		}
-		sched_show_task(t);
+		/* Avoid duplicated task dump, skip if the task is also hung. */
+		if (!task_is_hung(t, timeout))
+			sched_show_task(t);
 		return;
 	}
 }
 #else
-static inline void debug_show_blocker(struct task_struct *task)
+static inline void debug_show_blocker(struct task_struct *task, unsigned long timeout)
 {
 }
 #endif
 
 static void check_hung_task(struct task_struct *t, unsigned long timeout)
 {
-	unsigned long switch_count = t->nvcsw + t->nivcsw;
-
-	/*
-	 * Ensure the task is not frozen.
-	 * Also, skip vfork and any other user process that freezer should skip.
-	 */
-	if (unlikely(READ_ONCE(t->__state) & TASK_FROZEN))
-		return;
-
-	/*
-	 * When a freshly created task is scheduled once, changes its state to
-	 * TASK_UNINTERRUPTIBLE without having ever been switched out once, it
-	 * musn't be checked.
-	 */
-	if (unlikely(!switch_count))
-		return;
-
-	if (switch_count != t->last_switch_count) {
-		t->last_switch_count = switch_count;
-		t->last_switch_time = jiffies;
-		return;
-	}
-	if (time_is_after_jiffies(t->last_switch_time + timeout * HZ))
+	if (!task_is_hung(t, timeout))
 		return;
 
 	/*
@@ -222,7 +255,7 @@ static void check_hung_task(struct task_struct *t, unsigned long timeout)
 		pr_err("\"echo 0 > /proc/sys/kernel/hung_task_timeout_secs\""
 			" disables this message.\n");
 		sched_show_task(t);
-		debug_show_blocker(t);
+		debug_show_blocker(t, timeout);
 		hung_task_show_lock = true;
 
 		if (sysctl_hung_task_all_cpu_backtrace)
@@ -278,7 +311,6 @@ static void check_hung_uninterruptible_tasks(unsigned long timeout)
 	hung_task_show_lock = false;
 	rcu_read_lock();
 	for_each_process_thread(g, t) {
-		unsigned int state;
 
 		if (!max_count--)
 			goto unlock;
@@ -287,15 +319,8 @@ static void check_hung_uninterruptible_tasks(unsigned long timeout)
 				goto unlock;
 			last_break = jiffies;
 		}
-		/*
-		 * skip the TASK_KILLABLE tasks -- these can be killed
-		 * skip the TASK_IDLE tasks -- those are genuinely idle
-		 */
-		state = READ_ONCE(t->__state);
-		if ((state & TASK_UNINTERRUPTIBLE) &&
-		    !(state & TASK_WAKEKILL) &&
-		    !(state & TASK_NOLOAD))
-			check_hung_task(t, timeout);
+
+		check_hung_task(t, timeout);
 	}
  unlock:
 	rcu_read_unlock();

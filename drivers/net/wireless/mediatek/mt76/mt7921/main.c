@@ -135,6 +135,8 @@ mt7921_init_he_caps(struct mt792x_phy *phy, enum nl80211_band band,
 			if (is_mt7922(phy->mt76->dev)) {
 				he_cap_elem->phy_cap_info[0] |=
 					IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_160MHZ_IN_5G;
+				he_cap_elem->phy_cap_info[4] |=
+					IEEE80211_HE_PHY_CAP4_BEAMFORMEE_MAX_STS_ABOVE_80MHZ_4;
 				he_cap_elem->phy_cap_info[8] |=
 					IEEE80211_HE_PHY_CAP8_20MHZ_IN_160MHZ_HE_PPDU |
 					IEEE80211_HE_PHY_CAP8_80MHZ_IN_160MHZ_HE_PPDU;
@@ -624,7 +626,7 @@ void mt7921_set_runtime_pm(struct mt792x_dev *dev)
 	mt76_connac_mcu_set_deep_sleep(&dev->mt76, pm->ds_enable);
 }
 
-static int mt7921_config(struct ieee80211_hw *hw, u32 changed)
+static int mt7921_config(struct ieee80211_hw *hw, int radio_idx, u32 changed)
 {
 	struct mt792x_dev *dev = mt792x_hw_dev(hw);
 	struct mt792x_phy *phy = mt792x_hw_phy(hw);
@@ -907,7 +909,8 @@ void mt7921_mac_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 }
 EXPORT_SYMBOL_GPL(mt7921_mac_sta_remove);
 
-static int mt7921_set_rts_threshold(struct ieee80211_hw *hw, u32 val)
+static int mt7921_set_rts_threshold(struct ieee80211_hw *hw, int radio_idx,
+				    u32 val)
 {
 	struct mt792x_dev *dev = mt792x_hw_dev(hw);
 
@@ -1088,7 +1091,8 @@ mt7921_stop_sched_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 }
 
 static int
-mt7921_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
+mt7921_set_antenna(struct ieee80211_hw *hw, int radio_idx,
+		   u32 tx_ant, u32 rx_ant)
 {
 	struct mt792x_dev *dev = mt792x_hw_dev(hw);
 	struct mt792x_phy *phy = mt792x_hw_phy(hw);
@@ -1179,6 +1183,9 @@ static void mt7921_sta_set_decap_offload(struct ieee80211_hw *hw,
 {
 	struct mt792x_sta *msta = (struct mt792x_sta *)sta->drv_priv;
 	struct mt792x_dev *dev = mt792x_hw_dev(hw);
+
+	if (!msta->deflink.wcid.sta)
+		return;
 
 	mt792x_mutex_acquire(dev);
 
@@ -1454,11 +1461,8 @@ static int mt7921_pre_channel_switch(struct ieee80211_hw *hw,
 	if (vif->type != NL80211_IFTYPE_STATION || !vif->cfg.assoc)
 		return -EOPNOTSUPP;
 
-	/* Avoid beacon loss due to the CAC(Channel Availability Check) time
-	 * of the AP.
-	 */
 	if (!cfg80211_chandef_usable(hw->wiphy, &chsw->chandef,
-				     IEEE80211_CHAN_RADAR))
+				     IEEE80211_CHAN_DISABLED))
 		return -EOPNOTSUPP;
 
 	return 0;

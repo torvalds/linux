@@ -60,30 +60,34 @@ list_lru_from_memcg_idx(struct list_lru *lru, int nid, int idx)
 	return &lru->node[nid].lru;
 }
 
+static inline bool lock_list_lru(struct list_lru_one *l, bool irq)
+{
+	if (irq)
+		spin_lock_irq(&l->lock);
+	else
+		spin_lock(&l->lock);
+	if (unlikely(READ_ONCE(l->nr_items) == LONG_MIN)) {
+		if (irq)
+			spin_unlock_irq(&l->lock);
+		else
+			spin_unlock(&l->lock);
+		return false;
+	}
+	return true;
+}
+
 static inline struct list_lru_one *
 lock_list_lru_of_memcg(struct list_lru *lru, int nid, struct mem_cgroup *memcg,
 		       bool irq, bool skip_empty)
 {
 	struct list_lru_one *l;
-	long nr_items;
 
 	rcu_read_lock();
 again:
 	l = list_lru_from_memcg_idx(lru, nid, memcg_kmem_id(memcg));
-	if (likely(l)) {
-		if (irq)
-			spin_lock_irq(&l->lock);
-		else
-			spin_lock(&l->lock);
-		nr_items = READ_ONCE(l->nr_items);
-		if (likely(nr_items != LONG_MIN)) {
-			rcu_read_unlock();
-			return l;
-		}
-		if (irq)
-			spin_unlock_irq(&l->lock);
-		else
-			spin_unlock(&l->lock);
+	if (likely(l) && lock_list_lru(l, irq)) {
+		rcu_read_unlock();
+		return l;
 	}
 	/*
 	 * Caller may simply bail out if raced with reparenting or

@@ -312,14 +312,14 @@ int fdt_next_subnode(const void *fdt, int offset)
 	return offset;
 }
 
-const char *fdt_find_string_(const char *strtab, int tabsize, const char *s)
+const char *fdt_find_string_len_(const char *strtab, int tabsize, const char *s,
+				 int slen)
 {
-	int len = strlen(s) + 1;
-	const char *last = strtab + tabsize - len;
+	const char *last = strtab + tabsize - (slen + 1);
 	const char *p;
 
 	for (p = strtab; p <= last; p++)
-		if (memcmp(p, s, len) == 0)
+		if (memcmp(p, s, slen) == 0 && p[slen] == '\0')
 			return p;
 	return NULL;
 }

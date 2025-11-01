@@ -44,12 +44,12 @@ static void hfs_write_failed(struct address_space *mapping, loff_t to)
 	}
 }
 
-int hfs_write_begin(struct file *file, struct address_space *mapping,
+int hfs_write_begin(const struct kiocb *iocb, struct address_space *mapping,
 		loff_t pos, unsigned len, struct folio **foliop, void **fsdata)
 {
 	int ret;
 
-	ret = cont_write_begin(file, mapping, pos, len, foliop, fsdata,
+	ret = cont_write_begin(iocb, mapping, pos, len, foliop, fsdata,
 				hfs_get_block,
 				&HFS_I(mapping->host)->phys_size);
 	if (unlikely(ret))
@@ -183,6 +183,10 @@ struct inode *hfs_new_inode(struct inode *dir, const struct qstr *name, umode_t 
 {
 	struct super_block *sb = dir->i_sb;
 	struct inode *inode = new_inode(sb);
+	s64 next_id;
+	s64 file_count;
+	s64 folder_count;
+
 	if (!inode)
 		return NULL;
 
@@ -190,7 +194,9 @@ struct inode *hfs_new_inode(struct inode *dir, const struct qstr *name, umode_t 
 	INIT_LIST_HEAD(&HFS_I(inode)->open_dir_list);
 	spin_lock_init(&HFS_I(inode)->open_dir_lock);
 	hfs_cat_build_key(sb, (btree_key *)&HFS_I(inode)->cat_key, dir->i_ino, name);
-	inode->i_ino = HFS_SB(sb)->next_id++;
+	next_id = atomic64_inc_return(&HFS_SB(sb)->next_id);
+	BUG_ON(next_id > U32_MAX);
+	inode->i_ino = (u32)next_id;
 	inode->i_mode = mode;
 	inode->i_uid = current_fsuid();
 	inode->i_gid = current_fsgid();
@@ -202,7 +208,8 @@ struct inode *hfs_new_inode(struct inode *dir, const struct qstr *name, umode_t 
 	HFS_I(inode)->tz_secondswest = sys_tz.tz_minuteswest * 60;
 	if (S_ISDIR(mode)) {
 		inode->i_size = 2;
-		HFS_SB(sb)->folder_count++;
+		folder_count = atomic64_inc_return(&HFS_SB(sb)->folder_count);
+		BUG_ON(folder_count > U32_MAX);
 		if (dir->i_ino == HFS_ROOT_CNID)
 			HFS_SB(sb)->root_dirs++;
 		inode->i_op = &hfs_dir_inode_operations;
@@ -211,7 +218,8 @@ struct inode *hfs_new_inode(struct inode *dir, const struct qstr *name, umode_t 
 		inode->i_mode &= ~HFS_SB(inode->i_sb)->s_dir_umask;
 	} else if (S_ISREG(mode)) {
 		HFS_I(inode)->clump_blocks = HFS_SB(sb)->clumpablks;
-		HFS_SB(sb)->file_count++;
+		file_count = atomic64_inc_return(&HFS_SB(sb)->file_count);
+		BUG_ON(file_count > U32_MAX);
 		if (dir->i_ino == HFS_ROOT_CNID)
 			HFS_SB(sb)->root_files++;
 		inode->i_op = &hfs_file_inode_operations;
@@ -241,16 +249,19 @@ void hfs_delete_inode(struct inode *inode)
 {
 	struct super_block *sb = inode->i_sb;
 
-	hfs_dbg(INODE, "delete_inode: %lu\n", inode->i_ino);
+	hfs_dbg("ino %lu\n", inode->i_ino);
 	if (S_ISDIR(inode->i_mode)) {
-		HFS_SB(sb)->folder_count--;
+		BUG_ON(atomic64_read(&HFS_SB(sb)->folder_count) > U32_MAX);
+		atomic64_dec(&HFS_SB(sb)->folder_count);
 		if (HFS_I(inode)->cat_key.ParID == cpu_to_be32(HFS_ROOT_CNID))
 			HFS_SB(sb)->root_dirs--;
 		set_bit(HFS_FLG_MDB_DIRTY, &HFS_SB(sb)->flags);
 		hfs_mark_mdb_dirty(sb);
 		return;
 	}
-	HFS_SB(sb)->file_count--;
+
+	BUG_ON(atomic64_read(&HFS_SB(sb)->file_count) > U32_MAX);
+	atomic64_dec(&HFS_SB(sb)->file_count);
 	if (HFS_I(inode)->cat_key.ParID == cpu_to_be32(HFS_ROOT_CNID))
 		HFS_SB(sb)->root_files--;
 	if (S_ISREG(inode->i_mode)) {
@@ -425,7 +436,7 @@ int hfs_write_inode(struct inode *inode, struct writeback_control *wbc)
 	hfs_cat_rec rec;
 	int res;
 
-	hfs_dbg(INODE, "hfs_write_inode: %lu\n", inode->i_ino);
+	hfs_dbg("ino %lu\n", inode->i_ino);
 	res = hfs_ext_write_extent(inode);
 	if (res)
 		return res;
@@ -690,8 +701,9 @@ static const struct file_operations hfs_file_operations = {
 	.llseek		= generic_file_llseek,
 	.read_iter	= generic_file_read_iter,
 	.write_iter	= generic_file_write_iter,
-	.mmap		= generic_file_mmap,
+	.mmap_prepare	= generic_file_mmap_prepare,
 	.splice_read	= filemap_splice_read,
+	.splice_write	= iter_file_splice_write,
 	.fsync		= hfs_file_fsync,
 	.open		= hfs_file_open,
 	.release	= hfs_file_release,

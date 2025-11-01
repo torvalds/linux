@@ -2280,6 +2280,7 @@ nv13b_chipset = {
 	.acr      = { 0x00000001, gp10b_acr_new },
 	.bar      = { 0x00000001, gm20b_bar_new },
 	.bus      = { 0x00000001, gf100_bus_new },
+	.clk      = { 0x00000001, gp10b_clk_new },
 	.fault    = { 0x00000001, gp10b_fault_new },
 	.fb       = { 0x00000001, gp10b_fb_new },
 	.fuse     = { 0x00000001, gm107_fuse_new },

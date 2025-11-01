@@ -126,7 +126,7 @@ static int trace_filter_parse(struct snd_sof_dev *sdev, char *string,
 		capacity += TRACE_FILTER_ELEMENTS_PER_ENTRY;
 		entry = strchr(entry + 1, entry_delimiter[0]);
 	}
-	*out = kmalloc(capacity * sizeof(**out), GFP_KERNEL);
+	*out = kmalloc_array(capacity, sizeof(**out), GFP_KERNEL);
 	if (!*out)
 		return -ENOMEM;
 
@@ -172,7 +172,6 @@ static int ipc3_trace_update_filter(struct snd_sof_dev *sdev, int num_elems,
 		goto error;
 	}
 	ret = sof_ipc_tx_message_no_reply(sdev->ipc, msg, msg->hdr.size);
-	pm_runtime_mark_last_busy(sdev->dev);
 	pm_runtime_put_autosuspend(sdev->dev);
 
 error:

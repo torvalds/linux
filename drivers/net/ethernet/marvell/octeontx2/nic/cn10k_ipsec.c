@@ -481,7 +481,7 @@ static int cn10k_outb_write_sa(struct otx2_nic *pf, struct qmem *sa_info)
 		goto set_available;
 
 	/* Trigger CTX flush to write dirty data back to DRAM */
-	reg_val = FIELD_PREP(CPT_LF_CTX_FLUSH, sa_iova >> 7);
+	reg_val = FIELD_PREP(CPT_LF_CTX_FLUSH_CPTR, sa_iova >> 7);
 	otx2_write64(pf, CN10K_CPT_LF_CTX_FLUSH, reg_val);
 
 set_available:
@@ -798,7 +798,8 @@ int cn10k_ipsec_init(struct net_device *netdev)
 	pf->ipsec.sa_size = sa_size;
 
 	INIT_WORK(&pf->ipsec.sa_work, cn10k_ipsec_sa_wq_handler);
-	pf->ipsec.sa_workq = alloc_workqueue("cn10k_ipsec_sa_workq", 0, 0);
+	pf->ipsec.sa_workq = alloc_workqueue("cn10k_ipsec_sa_workq",
+					     WQ_PERCPU, 0);
 	if (!pf->ipsec.sa_workq) {
 		netdev_err(pf->netdev, "SA alloc workqueue failed\n");
 		return -ENOMEM;

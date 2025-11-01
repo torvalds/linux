@@ -342,24 +342,20 @@ static int snd_p16v_pcm_prepare_capture(struct snd_pcm_substream *substream)
 
 static void snd_p16v_intr_enable(struct snd_emu10k1 *emu, unsigned int intrenb)
 {
-	unsigned long flags;
 	unsigned int enable;
 
-	spin_lock_irqsave(&emu->emu_lock, flags);
+	guard(spinlock_irqsave)(&emu->emu_lock);
 	enable = inl(emu->port + INTE2) | intrenb;
 	outl(enable, emu->port + INTE2);
-	spin_unlock_irqrestore(&emu->emu_lock, flags);
 }
 
 static void snd_p16v_intr_disable(struct snd_emu10k1 *emu, unsigned int intrenb)
 {
-	unsigned long flags;
 	unsigned int disable;
 
-	spin_lock_irqsave(&emu->emu_lock, flags);
+	guard(spinlock_irqsave)(&emu->emu_lock);
 	disable = inl(emu->port + INTE2) & (~intrenb);
 	outl(disable, emu->port + INTE2);
-	spin_unlock_irqrestore(&emu->emu_lock, flags);
 }
 
 static void snd_p16v_interrupt(struct snd_emu10k1 *emu)
@@ -573,7 +569,7 @@ int snd_p16v_pcm(struct snd_emu10k1 *emu, int device)
 
 	pcm->info_flags = 0;
 	pcm->dev_subclass = SNDRV_PCM_SUBCLASS_GENERIC_MIX;
-	strcpy(pcm->name, "p16v");
+	strscpy(pcm->name, "p16v");
 	emu->pcm_p16v = pcm;
 	emu->p16v_interrupt = snd_p16v_interrupt;
 

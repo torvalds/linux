@@ -593,7 +593,7 @@ static int attach_one_algo(struct xfrm_algo **algpp, u8 *props,
 	if (!p)
 		return -ENOMEM;
 
-	strcpy(p->alg_name, algo->name);
+	strscpy(p->alg_name, algo->name);
 	*algpp = p;
 	return 0;
 }
@@ -620,7 +620,7 @@ static int attach_crypt(struct xfrm_state *x, struct nlattr *rta,
 	if (!p)
 		return -ENOMEM;
 
-	strcpy(p->alg_name, algo->name);
+	strscpy(p->alg_name, algo->name);
 	x->ealg = p;
 	x->geniv = algo->uinfo.encr.geniv;
 	return 0;
@@ -649,7 +649,7 @@ static int attach_auth(struct xfrm_algo_auth **algpp, u8 *props,
 	if (!p)
 		return -ENOMEM;
 
-	strcpy(p->alg_name, algo->name);
+	strscpy(p->alg_name, algo->name);
 	p->alg_key_len = ualg->alg_key_len;
 	p->alg_trunc_len = algo->uinfo.auth.icv_truncbits;
 	memcpy(p->alg_key, ualg->alg_key, (ualg->alg_key_len + 7) / 8);
@@ -684,7 +684,7 @@ static int attach_auth_trunc(struct xfrm_algo_auth **algpp, u8 *props,
 	if (!p)
 		return -ENOMEM;
 
-	strcpy(p->alg_name, algo->name);
+	strscpy(p->alg_name, algo->name);
 	if (!p->alg_trunc_len)
 		p->alg_trunc_len = algo->uinfo.auth.icv_truncbits;
 
@@ -714,7 +714,7 @@ static int attach_aead(struct xfrm_state *x, struct nlattr *rta,
 	if (!p)
 		return -ENOMEM;
 
-	strcpy(p->alg_name, algo->name);
+	strscpy(p->alg_name, algo->name);
 	x->aead = p;
 	x->geniv = algo->uinfo.aead.geniv;
 	return 0;
@@ -977,6 +977,7 @@ static struct xfrm_state *xfrm_state_construct(struct net *net,
 	/* override default values from above */
 	xfrm_update_ae_params(x, attrs, 0);
 
+	xfrm_set_type_offload(x, attrs[XFRMA_OFFLOAD_DEV]);
 	/* configure the hardware if offload is requested */
 	if (attrs[XFRMA_OFFLOAD_DEV]) {
 		err = xfrm_dev_state_add(net, x,
@@ -2634,7 +2635,7 @@ static int xfrm_flush_sa(struct sk_buff *skb, struct nlmsghdr *nlh,
 	struct xfrm_usersa_flush *p = nlmsg_data(nlh);
 	int err;
 
-	err = xfrm_state_flush(net, p->proto, true, false);
+	err = xfrm_state_flush(net, p->proto, true);
 	if (err) {
 		if (err == -ESRCH) /* empty table */
 			return 0;

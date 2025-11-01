@@ -155,6 +155,13 @@ int k3_rproc_release(struct k3_rproc *kproc)
 }
 EXPORT_SYMBOL_GPL(k3_rproc_release);
 
+static void k3_rproc_free_channel(void *data)
+{
+	struct k3_rproc *kproc = data;
+
+	mbox_free_channel(kproc->mbox);
+}
+
 int k3_rproc_request_mbox(struct rproc *rproc)
 {
 	struct k3_rproc *kproc = rproc->priv;
@@ -173,19 +180,9 @@ int k3_rproc_request_mbox(struct rproc *rproc)
 		return dev_err_probe(dev, PTR_ERR(kproc->mbox),
 				     "mbox_request_channel failed\n");
 
-	/*
-	 * Ping the remote processor, this is only for sanity-sake for now;
-	 * there is no functional effect whatsoever.
-	 *
-	 * Note that the reply will _not_ arrive immediately: this message
-	 * will wait in the mailbox fifo until the remote processor is booted.
-	 */
-	ret = mbox_send_message(kproc->mbox, (void *)RP_MBOX_ECHO_REQUEST);
-	if (ret < 0) {
-		dev_err(dev, "mbox_send_message failed (%pe)\n", ERR_PTR(ret));
-		mbox_free_channel(kproc->mbox);
+	ret = devm_add_action_or_reset(dev, k3_rproc_free_channel, kproc);
+	if (ret)
 		return ret;
-	}
 
 	return 0;
 }
@@ -450,7 +447,7 @@ int k3_rproc_of_get_memories(struct platform_device *pdev,
 		kproc->mem[i].dev_addr = data->mems[i].dev_addr;
 		kproc->mem[i].size = resource_size(res);
 
-		dev_dbg(dev, "memory %8s: bus addr %pa size 0x%zx va %pK da 0x%x\n",
+		dev_dbg(dev, "memory %8s: bus addr %pa size 0x%zx va %p da 0x%x\n",
 			data->mems[i].name, &kproc->mem[i].bus_addr,
 			kproc->mem[i].size, kproc->mem[i].cpu_addr,
 			kproc->mem[i].dev_addr);
@@ -528,7 +525,7 @@ int k3_reserved_mem_init(struct k3_rproc *kproc)
 			return -ENOMEM;
 		}
 
-		dev_dbg(dev, "reserved memory%d: bus addr %pa size 0x%zx va %pK da 0x%x\n",
+		dev_dbg(dev, "reserved memory%d: bus addr %pa size 0x%zx va %p da 0x%x\n",
 			i + 1, &kproc->rmem[i].bus_addr,
 			kproc->rmem[i].size, kproc->rmem[i].cpu_addr,
 			kproc->rmem[i].dev_addr);

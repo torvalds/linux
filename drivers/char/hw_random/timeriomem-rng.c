@@ -150,7 +150,7 @@ static int timeriomem_rng_probe(struct platform_device *pdev)
 		priv->rng_ops.quality = pdata->quality;
 	}
 
-	priv->period = ns_to_ktime(period * NSEC_PER_USEC);
+	priv->period = us_to_ktime(period);
 	init_completion(&priv->completion);
 	hrtimer_setup(&priv->timer, timeriomem_rng_trigger, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
 

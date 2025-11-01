@@ -1751,12 +1751,6 @@ static int csi_subscribe_event(struct v4l2_subdev *sd, struct v4l2_fh *fh,
 	return v4l2_event_subscribe(fh, sub, 0, NULL);
 }
 
-static int csi_unsubscribe_event(struct v4l2_subdev *sd, struct v4l2_fh *fh,
-				 struct v4l2_event_subscription *sub)
-{
-	return v4l2_event_unsubscribe(fh, sub);
-}
-
 static int csi_registered(struct v4l2_subdev *sd)
 {
 	struct csi_priv *priv = v4l2_get_subdevdata(sd);
@@ -1872,7 +1866,7 @@ static const struct media_entity_operations csi_entity_ops = {
 
 static const struct v4l2_subdev_core_ops csi_core_ops = {
 	.subscribe_event = csi_subscribe_event,
-	.unsubscribe_event = csi_unsubscribe_event,
+	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
 };
 
 static const struct v4l2_subdev_video_ops csi_video_ops = {

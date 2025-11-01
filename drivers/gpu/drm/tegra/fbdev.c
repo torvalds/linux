@@ -53,8 +53,6 @@ static void tegra_fbdev_fb_destroy(struct fb_info *info)
 	drm_framebuffer_remove(fb);
 
 	drm_client_release(&helper->client);
-	drm_fb_helper_unprepare(helper);
-	kfree(helper);
 }
 
 static const struct fb_ops tegra_fb_ops = {
@@ -106,7 +104,9 @@ int tegra_fbdev_driver_fbdev_probe(struct drm_fb_helper *helper,
 		return PTR_ERR(info);
 	}
 
-	fb = tegra_fb_alloc(drm, &cmd, &bo, 1);
+	fb = tegra_fb_alloc(drm,
+			    drm_get_format_info(drm, cmd.pixel_format, cmd.modifier[0]),
+			    &cmd, &bo, 1);
 	if (IS_ERR(fb)) {
 		err = PTR_ERR(fb);
 		dev_err(drm->dev, "failed to allocate DRM framebuffer: %d\n",

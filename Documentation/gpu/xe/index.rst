@@ -14,6 +14,7 @@ DG2, etc is provided to prototype the driver.
    xe_mm
    xe_map
    xe_migrate
+   xe_exec_queue
    xe_cs
    xe_pm
    xe_gt_freq
@@ -25,5 +26,6 @@ DG2, etc is provided to prototype the driver.
    xe_tile
    xe_debugging
    xe_devcoredump
+   xe_device
    xe-drm-usage-stats.rst
    xe_configfs

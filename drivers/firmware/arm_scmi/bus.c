@@ -323,6 +323,31 @@ static struct attribute *scmi_device_attributes_attrs[] = {
 };
 ATTRIBUTE_GROUPS(scmi_device_attributes);
 
+static int scmi_pm_suspend(struct device *dev)
+{
+	const struct device_driver *drv = dev->driver;
+
+	if (drv && drv->pm && drv->pm->suspend)
+		return drv->pm->suspend(dev);
+
+	return 0;
+}
+
+static int scmi_pm_resume(struct device *dev)
+{
+	const struct device_driver *drv = dev->driver;
+
+	if (drv && drv->pm && drv->pm->resume)
+		return drv->pm->resume(dev);
+
+	return 0;
+}
+
+static const struct dev_pm_ops scmi_dev_pm_ops = {
+	.suspend = pm_sleep_ptr(scmi_pm_suspend),
+	.resume = pm_sleep_ptr(scmi_pm_resume),
+};
+
 const struct bus_type scmi_bus_type = {
 	.name =	"scmi_protocol",
 	.match = scmi_dev_match,
@@ -330,6 +355,7 @@ const struct bus_type scmi_bus_type = {
 	.remove = scmi_dev_remove,
 	.uevent	= scmi_device_uevent,
 	.dev_groups = scmi_device_attributes_groups,
+	.pm = &scmi_dev_pm_ops,
 };
 EXPORT_SYMBOL_GPL(scmi_bus_type);
 
@@ -375,8 +401,8 @@ static void scmi_device_release(struct device *dev)
 
 static void __scmi_device_destroy(struct scmi_device *scmi_dev)
 {
-	pr_debug("(%s) Destroying SCMI device '%s' for protocol 0x%x (%s)\n",
-		 of_node_full_name(scmi_dev->dev.parent->of_node),
+	pr_debug("(%pOF) Destroying SCMI device '%s' for protocol 0x%x (%s)\n",
+		 scmi_dev->dev.parent->of_node,
 		 dev_name(&scmi_dev->dev), scmi_dev->protocol_id,
 		 scmi_dev->name);
 
@@ -448,9 +474,8 @@ __scmi_device_create(struct device_node *np, struct device *parent,
 	if (retval)
 		goto put_dev;
 
-	pr_debug("(%s) Created SCMI device '%s' for protocol 0x%x (%s)\n",
-		 of_node_full_name(parent->of_node),
-		 dev_name(&scmi_dev->dev), protocol, name);
+	pr_debug("(%pOF) Created SCMI device '%s' for protocol 0x%x (%s)\n",
+		 parent->of_node, dev_name(&scmi_dev->dev), protocol, name);
 
 	return scmi_dev;
 put_dev:
@@ -467,8 +492,8 @@ _scmi_device_create(struct device_node *np, struct device *parent,
 
 	sdev = __scmi_device_create(np, parent, protocol, name);
 	if (!sdev)
-		pr_err("(%s) Failed to create device for protocol 0x%x (%s)\n",
-		       of_node_full_name(parent->of_node), protocol, name);
+		pr_err("(%pOF) Failed to create device for protocol 0x%x (%s)\n",
+		       parent->of_node, protocol, name);
 
 	return sdev;
 }

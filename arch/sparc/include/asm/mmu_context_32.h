@@ -2,7 +2,7 @@
 #ifndef __SPARC_MMU_CONTEXT_H
 #define __SPARC_MMU_CONTEXT_H
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <asm-generic/mm_hooks.h>
 
@@ -29,6 +29,6 @@ void switch_mm(struct mm_struct *old_mm, struct mm_struct *mm,
 
 #include <asm-generic/mmu_context.h>
 
-#endif /* !(__ASSEMBLY__) */
+#endif /* !(__ASSEMBLER__) */
 
 #endif /* !(__SPARC_MMU_CONTEXT_H) */

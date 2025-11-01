@@ -55,18 +55,14 @@ static __poll_t hwdep_poll(struct snd_hwdep *hwdep, struct file *file,
 			       poll_table *wait)
 {
 	struct snd_dice *dice = hwdep->private_data;
-	__poll_t events;
 
 	poll_wait(file, &dice->hwdep_wait, wait);
 
-	spin_lock_irq(&dice->lock);
+	guard(spinlock_irq)(&dice->lock);
 	if (dice->dev_lock_changed || dice->notification_bits != 0)
-		events = EPOLLIN | EPOLLRDNORM;
+		return EPOLLIN | EPOLLRDNORM;
 	else
-		events = 0;
-	spin_unlock_irq(&dice->lock);
-
-	return events;
+		return 0;
 }
 
 static int hwdep_get_info(struct snd_dice *dice, void __user *arg)
@@ -90,48 +86,35 @@ static int hwdep_get_info(struct snd_dice *dice, void __user *arg)
 
 static int hwdep_lock(struct snd_dice *dice)
 {
-	int err;
-
-	spin_lock_irq(&dice->lock);
+	guard(spinlock_irq)(&dice->lock);
 
 	if (dice->dev_lock_count == 0) {
 		dice->dev_lock_count = -1;
-		err = 0;
+		return 0;
 	} else {
-		err = -EBUSY;
+		return -EBUSY;
 	}
-
-	spin_unlock_irq(&dice->lock);
-
-	return err;
 }
 
 static int hwdep_unlock(struct snd_dice *dice)
 {
-	int err;
-
-	spin_lock_irq(&dice->lock);
+	guard(spinlock_irq)(&dice->lock);
 
 	if (dice->dev_lock_count == -1) {
 		dice->dev_lock_count = 0;
-		err = 0;
+		return 0;
 	} else {
-		err = -EBADFD;
+		return -EBADFD;
 	}
-
-	spin_unlock_irq(&dice->lock);
-
-	return err;
 }
 
 static int hwdep_release(struct snd_hwdep *hwdep, struct file *file)
 {
 	struct snd_dice *dice = hwdep->private_data;
 
-	spin_lock_irq(&dice->lock);
+	guard(spinlock_irq)(&dice->lock);
 	if (dice->dev_lock_count == -1)
 		dice->dev_lock_count = 0;
-	spin_unlock_irq(&dice->lock);
 
 	return 0;
 }
@@ -179,7 +162,7 @@ int snd_dice_create_hwdep(struct snd_dice *dice)
 	err = snd_hwdep_new(dice->card, "DICE", 0, &hwdep);
 	if (err < 0)
 		return err;
-	strcpy(hwdep->name, "DICE");
+	strscpy(hwdep->name, "DICE");
 	hwdep->iface = SNDRV_HWDEP_IFACE_FW_DICE;
 	hwdep->ops = ops;
 	hwdep->private_data = dice;

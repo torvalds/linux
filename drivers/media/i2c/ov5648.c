@@ -1061,8 +1061,8 @@ static int ov5648_sw_standby(struct ov5648_sensor *sensor, int standby)
 
 static int ov5648_chip_id_check(struct ov5648_sensor *sensor)
 {
-	u16 regs[] = { OV5648_CHIP_ID_H_REG, OV5648_CHIP_ID_L_REG };
-	u8 values[] = { OV5648_CHIP_ID_H_VALUE, OV5648_CHIP_ID_L_VALUE };
+	static const u16 regs[] = { OV5648_CHIP_ID_H_REG, OV5648_CHIP_ID_L_REG };
+	static const u8 values[] = { OV5648_CHIP_ID_H_VALUE, OV5648_CHIP_ID_L_VALUE };
 	unsigned int i;
 	u8 value;
 	int ret;
@@ -2521,10 +2521,10 @@ static int ov5648_probe(struct i2c_client *client)
 
 	/* External Clock */
 
-	sensor->xvclk = devm_clk_get(dev, NULL);
+	sensor->xvclk = devm_v4l2_sensor_clk_get(dev, NULL);
 	if (IS_ERR(sensor->xvclk)) {
-		dev_err(dev, "failed to get external clock\n");
-		ret = PTR_ERR(sensor->xvclk);
+		ret = dev_err_probe(dev, PTR_ERR(sensor->xvclk),
+				    "failed to get external clock\n");
 		goto error_endpoint;
 	}
 

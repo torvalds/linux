@@ -29,6 +29,7 @@ properties:
 
   clock-frequency:
     description: Frequency of the xclk clock in Hz.
+    deprecated: true
 
   vdda-supply:
     description: Analog voltage supply, 2.8 volts
@@ -89,8 +90,11 @@ examples:
         camera@3c {
             compatible = "ovti,ov7251";
             reg = <0x3c>;
+
             clocks = <&clks 1>;
-            clock-frequency = <24000000>;
+            assigned-clocks = <&clks 1>;
+            assigned-clock-rates = <24000000>;
+
             vdddo-supply = <&ov7251_vdddo_1v8>;
             vdda-supply = <&ov7251_vdda_2v8>;
             vddd-supply = <&ov7251_vddd_1v5>;

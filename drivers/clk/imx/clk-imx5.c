@@ -454,7 +454,7 @@ static void __init mx51_clocks_init(struct device_node *np)
 	 * longer supported. Set to one for better power saving.
 	 *
 	 * The effect of not setting these bits is that MIPI clocks can't be
-	 * enabled without the IPU clock being enabled aswell.
+	 * enabled without the IPU clock being enabled as well.
 	 */
 	val = readl(MXC_CCM_CCDR);
 	val |= 1 << 18;

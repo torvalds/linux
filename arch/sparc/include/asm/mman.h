@@ -4,7 +4,7 @@
 
 #include <uapi/asm/mman.h>
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #define arch_mmap_check(addr,len,flags)	sparc_mmap_check(addr,len)
 int sparc_mmap_check(unsigned long addr, unsigned long len);
 
@@ -28,7 +28,7 @@ static inline void ipi_set_tstate_mcde(void *arg)
 }
 
 #define arch_calc_vm_prot_bits(prot, pkey) sparc_calc_vm_prot_bits(prot)
-static inline unsigned long sparc_calc_vm_prot_bits(unsigned long prot)
+static inline vm_flags_t sparc_calc_vm_prot_bits(unsigned long prot)
 {
 	if (adi_capable() && (prot & PROT_ADI)) {
 		struct pt_regs *regs;
@@ -58,7 +58,7 @@ static inline int sparc_validate_prot(unsigned long prot, unsigned long addr)
 /* arch_validate_flags() - Ensure combination of flags is valid for a
  *	VMA.
  */
-static inline bool arch_validate_flags(unsigned long vm_flags)
+static inline bool arch_validate_flags(vm_flags_t vm_flags)
 {
 	/* If ADI is being enabled on this VMA, check for ADI
 	 * capability on the platform and ensure VMA is suitable
@@ -87,5 +87,5 @@ static inline bool arch_validate_flags(unsigned long vm_flags)
 }
 #endif /* CONFIG_SPARC64 */
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 #endif /* __SPARC_MMAN_H__ */

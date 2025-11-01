@@ -57,7 +57,7 @@ impl<'a> ModInfoBuilder<'a> {
                 {cfg}
                 #[doc(hidden)]
                 #[cfg_attr(not(target_os = \"macos\"), link_section = \".modinfo\")]
-                #[used]
+                #[used(compiler)]
                 pub static __{module}_{counter}: [u8; {length}] = *{string};
             ",
             cfg = if builtin {
@@ -94,7 +94,6 @@ struct ModuleInfo {
     type_: String,
     license: String,
     name: String,
-    author: Option<String>,
     authors: Option<Vec<String>>,
     description: Option<String>,
     alias: Option<Vec<String>>,
@@ -108,7 +107,6 @@ impl ModuleInfo {
         const EXPECTED_KEYS: &[&str] = &[
             "type",
             "name",
-            "author",
             "authors",
             "description",
             "license",
@@ -134,7 +132,6 @@ impl ModuleInfo {
             match key.as_str() {
                 "type" => info.type_ = expect_ident(it),
                 "name" => info.name = expect_string_ascii(it),
-                "author" => info.author = Some(expect_string(it)),
                 "authors" => info.authors = Some(expect_string_array(it)),
                 "description" => info.description = Some(expect_string(it)),
                 "license" => info.license = expect_string_ascii(it),
@@ -179,9 +176,6 @@ pub(crate) fn module(ts: TokenStream) -> TokenStream {
     // Rust does not allow hyphens in identifiers, use underscore instead.
     let ident = info.name.replace('-', "_");
     let mut modinfo = ModInfoBuilder::new(ident.as_ref());
-    if let Some(author) = info.author {
-        modinfo.emit("author", &author);
-    }
     if let Some(authors) = info.authors {
         for author in authors {
             modinfo.emit("author", &author);
@@ -249,7 +243,7 @@ pub(crate) fn module(ts: TokenStream) -> TokenStream {
                     // key or a new section. For the moment, keep it simple.
                     #[cfg(MODULE)]
                     #[doc(hidden)]
-                    #[used]
+                    #[used(compiler)]
                     static __IS_RUST_MODULE: () = ();
 
                     static mut __MOD: ::core::mem::MaybeUninit<{type_}> =
@@ -273,7 +267,7 @@ pub(crate) fn module(ts: TokenStream) -> TokenStream {
 
                     #[cfg(MODULE)]
                     #[doc(hidden)]
-                    #[used]
+                    #[used(compiler)]
                     #[link_section = \".init.data\"]
                     static __UNIQUE_ID___addressable_init_module: unsafe extern \"C\" fn() -> i32 = init_module;
 
@@ -293,7 +287,7 @@ pub(crate) fn module(ts: TokenStream) -> TokenStream {
 
                     #[cfg(MODULE)]
                     #[doc(hidden)]
-                    #[used]
+                    #[used(compiler)]
                     #[link_section = \".exit.data\"]
                     static __UNIQUE_ID___addressable_cleanup_module: extern \"C\" fn() = cleanup_module;
 
@@ -303,7 +297,7 @@ pub(crate) fn module(ts: TokenStream) -> TokenStream {
                     #[cfg(not(CONFIG_HAVE_ARCH_PREL32_RELOCATIONS))]
                     #[doc(hidden)]
                     #[link_section = \"{initcall_section}\"]
-                    #[used]
+                    #[used(compiler)]
                     pub static __{ident}_initcall: extern \"C\" fn() ->
                         ::kernel::ffi::c_int = __{ident}_init;
 

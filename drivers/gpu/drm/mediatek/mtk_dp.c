@@ -2118,7 +2118,8 @@ static void mtk_dp_update_plugged_status(struct mtk_dp *mtk_dp)
 	mutex_unlock(&mtk_dp->update_plugged_status_lock);
 }
 
-static enum drm_connector_status mtk_dp_bdg_detect(struct drm_bridge *bridge)
+static enum drm_connector_status
+mtk_dp_bdg_detect(struct drm_bridge *bridge, struct drm_connector *connector)
 {
 	struct mtk_dp *mtk_dp = mtk_dp_from_bridge(bridge);
 	enum drm_connector_status ret = connector_status_disconnected;

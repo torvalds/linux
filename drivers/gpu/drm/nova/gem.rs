@@ -4,7 +4,7 @@ use kernel::{
     drm,
     drm::{gem, gem::BaseObject},
     prelude::*,
-    types::ARef,
+    sync::aref::ARef,
 };
 
 use crate::{
@@ -16,14 +16,12 @@ use crate::{
 #[pin_data]
 pub(crate) struct NovaObject {}
 
-impl gem::BaseDriverObject<gem::Object<NovaObject>> for NovaObject {
+impl gem::DriverObject for NovaObject {
+    type Driver = NovaDriver;
+
     fn new(_dev: &NovaDevice, _size: usize) -> impl PinInit<Self, Error> {
         try_pin_init!(NovaObject {})
     }
-}
-
-impl gem::DriverObject for NovaObject {
-    type Driver = NovaDriver;
 }
 
 impl NovaObject {

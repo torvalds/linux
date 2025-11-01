@@ -69,7 +69,7 @@ static uint32_t dcn30_smu_wait_for_response(struct clk_mgr_internal *clk_mgr, un
 
 	/* handle DALSMC_Result_CmdRejectedBusy? */
 
-	TRACE_SMU_DELAY(delay_us * (initial_max_retries - max_retries), clk_mgr->base.ctx);
+	TRACE_SMU_MSG_DELAY(0, 0, delay_us * (initial_max_retries - max_retries), clk_mgr->base.ctx);
 
 	return reg;
 }

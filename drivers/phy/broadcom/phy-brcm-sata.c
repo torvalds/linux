@@ -832,7 +832,7 @@ static int brcm_sata_phy_probe(struct platform_device *pdev)
 		return PTR_ERR(provider);
 	}
 
-	dev_info(dev, "registered %d port(s)\n", count);
+	dev_dbg(dev, "registered %d port(s)\n", count);
 
 	return 0;
 }
@@ -850,4 +850,3 @@ MODULE_DESCRIPTION("Broadcom SATA PHY driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Marc Carino");
 MODULE_AUTHOR("Brian Norris");
-MODULE_ALIAS("platform:phy-brcm-sata");

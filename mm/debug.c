@@ -129,47 +129,13 @@ static void __dump_folio(struct folio *folio, struct page *page,
 
 static void __dump_page(const struct page *page)
 {
-	struct folio *foliop, folio;
-	struct page precise;
-	unsigned long head;
-	unsigned long pfn = page_to_pfn(page);
-	unsigned long idx, nr_pages = 1;
-	int loops = 5;
+	struct page_snapshot ps;
 
-again:
-	memcpy(&precise, page, sizeof(*page));
-	head = precise.compound_head;
-	if ((head & 1) == 0) {
-		foliop = (struct folio *)&precise;
-		idx = 0;
-		if (!folio_test_large(foliop))
-			goto dump;
-		foliop = (struct folio *)page;
-	} else {
-		foliop = (struct folio *)(head - 1);
-		idx = folio_page_idx(foliop, page);
-	}
-
-	if (idx < MAX_FOLIO_NR_PAGES) {
-		memcpy(&folio, foliop, 2 * sizeof(struct page));
-		nr_pages = folio_nr_pages(&folio);
-		if (nr_pages > 1)
-			memcpy(&folio.__page_2, &foliop->__page_2,
-			       sizeof(struct page));
-		foliop = &folio;
-	}
-
-	if (idx > nr_pages) {
-		if (loops-- > 0)
-			goto again;
+	snapshot_page(&ps, page);
+	if (!snapshot_page_is_faithful(&ps))
 		pr_warn("page does not match folio\n");
-		precise.compound_head &= ~1UL;
-		foliop = (struct folio *)&precise;
-		idx = 0;
-	}
 
-dump:
-	__dump_folio(foliop, &precise, pfn, idx);
+	__dump_folio(&ps.folio_snapshot, &ps.page_snapshot, ps.pfn, ps.idx);
 }
 
 void dump_page(const struct page *page, const char *reason)
@@ -216,7 +182,7 @@ void dump_mm(const struct mm_struct *mm)
 		"start_code %lx end_code %lx start_data %lx end_data %lx\n"
 		"start_brk %lx brk %lx start_stack %lx\n"
 		"arg_start %lx arg_end %lx env_start %lx env_end %lx\n"
-		"binfmt %px flags %lx\n"
+		"binfmt %px flags %*pb\n"
 #ifdef CONFIG_AIO
 		"ioctx_table %px\n"
 #endif
@@ -245,7 +211,7 @@ void dump_mm(const struct mm_struct *mm)
 		mm->start_code, mm->end_code, mm->start_data, mm->end_data,
 		mm->start_brk, mm->brk, mm->start_stack,
 		mm->arg_start, mm->arg_end, mm->env_start, mm->env_end,
-		mm->binfmt, mm->flags,
+		mm->binfmt, NUM_MM_FLAG_BITS, __mm_flags_get_bitmap(mm),
 #ifdef CONFIG_AIO
 		mm->ioctx_table,
 #endif
@@ -290,7 +256,7 @@ void dump_vmg(const struct vma_merge_struct *vmg, const char *reason)
 		vmg->vmi, vmg->vmi ? vma_iter_addr(vmg->vmi) : 0,
 		vmg->vmi ? vma_iter_end(vmg->vmi) : 0,
 		vmg->prev, vmg->middle, vmg->next, vmg->target,
-		vmg->start, vmg->end, vmg->flags,
+		vmg->start, vmg->end, vmg->vm_flags,
 		vmg->file, vmg->anon_vma, vmg->policy,
 #ifdef CONFIG_USERFAULTFD
 		vmg->uffd_ctx.ctx,

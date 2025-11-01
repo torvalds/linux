@@ -259,7 +259,7 @@ config DEBUG_INFO_NONE
 config DEBUG_INFO_DWARF_TOOLCHAIN_DEFAULT
 	bool "Rely on the toolchain's implicit default DWARF version"
 	select DEBUG_INFO
-	depends on !CC_IS_CLANG || AS_IS_LLVM || CLANG_VERSION < 140000 || (AS_IS_GNU && AS_VERSION >= 23502 && AS_HAS_NON_CONST_ULEB128)
+	depends on !CC_IS_CLANG || AS_IS_LLVM || (AS_IS_GNU && AS_VERSION >= 23502 && AS_HAS_NON_CONST_ULEB128)
 	help
 	  The implicit default version of DWARF debug info produced by a
 	  toolchain changes over time.
@@ -1066,12 +1066,6 @@ config PANIC_ON_OOPS
 	  corruption or other issues.
 
 	  Say N if unsure.
-
-config PANIC_ON_OOPS_VALUE
-	int
-	range 0 1
-	default 0 if !PANIC_ON_OOPS
-	default 1 if PANIC_ON_OOPS
 
 config PANIC_TIMEOUT
 	int "panic timeout"
@@ -2460,6 +2454,15 @@ config SCANF_KUNIT_TEST
 
 	  If unsure, say N.
 
+config SEQ_BUF_KUNIT_TEST
+	tristate "KUnit test for seq_buf" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  This builds unit tests for the seq_buf library.
+
+	  If unsure, say N.
+
 config STRING_KUNIT_TEST
 	tristate "KUnit test string functions at runtime" if !KUNIT_ALL_TESTS
 	depends on KUNIT
@@ -2469,6 +2472,20 @@ config STRING_HELPERS_KUNIT_TEST
 	tristate "KUnit test string helpers at runtime" if !KUNIT_ALL_TESTS
 	depends on KUNIT
 	default KUNIT_ALL_TESTS
+
+config FFS_KUNIT_TEST
+	tristate "KUnit test ffs-family functions at runtime" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  This builds KUnit tests for ffs-family bit manipulation functions
+	  including ffs(), __ffs(), fls(), __fls(), fls64(), and __ffs64().
+
+	  These tests validate mathematical correctness, edge case handling,
+	  and cross-architecture consistency of bit scanning functions.
+
+	  For more information on KUnit and unit tests in general,
+	  please refer to Documentation/dev-tools/kunit/.
 
 config TEST_KSTRTOX
 	tristate "Test kstrto*() family of functions at runtime"
@@ -2506,8 +2523,8 @@ config TEST_IDA
 	tristate "Perform selftest on IDA functions"
 
 config TEST_MISC_MINOR
-	tristate "miscdevice KUnit test" if !KUNIT_ALL_TESTS
-	depends on KUNIT
+	bool "miscdevice KUnit test" if !KUNIT_ALL_TESTS
+	depends on KUNIT=y
 	default KUNIT_ALL_TESTS
 	help
 	  Kunit test for miscdevice API, specially its behavior in respect to
@@ -2595,6 +2612,19 @@ config FIND_BIT_BENCHMARK
 	help
 	  This builds the "test_find_bit" module that measure find_*_bit()
 	  functions performance.
+
+	  If unsure, say N.
+
+config FIND_BIT_BENCHMARK_RUST
+	tristate "Test find_bit functions in Rust"
+	depends on RUST
+	help
+	  This builds the "find_bit_benchmark_rust" module. It is a micro
+          benchmark that measures the performance of Rust functions that
+          correspond to the find_*_bit() operations in C. It follows the
+          FIND_BIT_BENCHMARK closely but will in general not yield same
+          numbers due to extra bounds checks and overhead of foreign
+          function calls.
 
 	  If unsure, say N.
 
@@ -2885,6 +2915,7 @@ config FORTIFY_KUNIT_TEST
 config LONGEST_SYM_KUNIT_TEST
 	tristate "Test the longest symbol possible" if !KUNIT_ALL_TESTS
 	depends on KUNIT && KPROBES
+	depends on !PREFIX_SYMBOLS && !CFI && !GCOV_KERNEL
 	default KUNIT_ALL_TESTS
 	help
 	  Tests the longest symbol possible
@@ -2900,27 +2931,6 @@ config HW_BREAKPOINT_KUNIT_TEST
 	  Tests for hw_breakpoint constraints accounting.
 
 	  If unsure, say N.
-
-config CRC_KUNIT_TEST
-	tristate "KUnit tests for CRC functions" if !KUNIT_ALL_TESTS
-	depends on KUNIT
-	default KUNIT_ALL_TESTS
-	select CRC7
-	select CRC16
-	select CRC_T10DIF
-	select CRC32
-	select CRC64
-	help
-	  Unit tests for the CRC library functions.
-
-	  This is intended to help people writing architecture-specific
-	  optimized versions.  If unsure, say N.
-
-config CRC_BENCHMARK
-	bool "Benchmark for the CRC functions"
-	depends on CRC_KUNIT_TEST
-	help
-	  Include benchmarks in the KUnit test suite for the CRC functions.
 
 config SIPHASH_KUNIT_TEST
 	tristate "Perform selftest on siphash functions" if !KUNIT_ALL_TESTS
@@ -3222,6 +3232,37 @@ config TEST_OBJPOOL
 	  This builds the "test_objpool" module that should be used for
 	  correctness verification and concurrent testings of objects
 	  allocation and reclamation.
+
+	  If unsure, say N.
+
+config TEST_KEXEC_HANDOVER
+	bool "Test for Kexec HandOver"
+	default n
+	depends on KEXEC_HANDOVER
+	help
+	  This option enables test for Kexec HandOver (KHO).
+	  The test consists of two parts: saving kernel data before kexec and
+	  restoring the data after kexec and verifying that it was properly
+	  handed over. This test module creates and saves data on the boot of
+	  the first kernel and restores and verifies the data on the boot of
+	  kexec'ed kernel.
+
+	  For detailed documentation about KHO, see Documentation/core-api/kho.
+
+	  To run the test run:
+
+	  tools/testing/selftests/kho/vmtest.sh -h
+
+	  If unsure, say N.
+
+config RATELIMIT_KUNIT_TEST
+	tristate "KUnit Test for correctness and stress of ratelimit" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  This builds the "test_ratelimit" module that should be used
+	  for correctness verification and concurrent testings of rate
+	  limiting.
 
 	  If unsure, say N.
 

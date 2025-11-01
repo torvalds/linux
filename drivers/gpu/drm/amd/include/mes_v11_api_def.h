@@ -238,7 +238,8 @@ union MESAPI_SET_HW_RESOURCES {
 				uint32_t enable_mes_sch_stb_log : 1;
 				uint32_t limit_single_process : 1;
 				uint32_t is_strix_tmz_wa_enabled  :1;
-				uint32_t reserved : 13;
+				uint32_t enable_lr_compute_wa : 1;
+				uint32_t reserved : 12;
 			};
 			uint32_t	uint32_t_all;
 		};
@@ -344,7 +345,8 @@ union MESAPI__REMOVE_QUEUE {
 			uint32_t unmap_kiq_utility_queue  : 1;
 			uint32_t preempt_legacy_gfx_queue : 1;
 			uint32_t unmap_legacy_queue       : 1;
-			uint32_t reserved                 : 28;
+			uint32_t remove_queue_after_reset : 1;
+			uint32_t reserved                 : 27;
 		};
 		struct MES_API_STATUS	    api_status;
 

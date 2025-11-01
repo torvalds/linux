@@ -344,7 +344,7 @@ static void  bnx2x_dcbx_get_pfc_feature(struct bnx2x *bp,
 	}
 }
 
-/* maps unmapped priorities to to the same COS as L2 */
+/* maps unmapped priorities to the same COS as L2 */
 static void bnx2x_dcbx_map_nw(struct bnx2x *bp)
 {
 	int i;

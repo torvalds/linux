@@ -68,7 +68,6 @@ FEATURE_TESTS_BASIC :=                  \
         libdw                           \
         eventfd                         \
         fortify-source                  \
-        get_current_dir_name            \
         gettid				\
         glibc                           \
         libbfd                          \
@@ -80,13 +79,10 @@ FEATURE_TESTS_BASIC :=                  \
         libelf-zstd                     \
         libnuma                         \
         numa_num_possible_cpus          \
-        libperl                         \
         libpython                       \
         libslang                        \
         libtraceevent                   \
-        libtracefs                      \
         libcpupower                     \
-        libcrypto                       \
         pthread-attr-setaffinity-np     \
         pthread-barrier     		\
         reallocarray                    \
@@ -122,16 +118,11 @@ FEATURE_TESTS_EXTRA :=                  \
          libbfd-liberty                 \
          libbfd-liberty-z               \
          libopencsd                     \
+         libperl                        \
          cxx                            \
          llvm                           \
          clang                          \
          libbpf                         \
-         libbpf-btf__load_from_kernel_by_id \
-         libbpf-bpf_prog_load           \
-         libbpf-bpf_object__next_program \
-         libbpf-bpf_object__next_map    \
-         libbpf-bpf_program__set_insns  \
-         libbpf-bpf_create_map		\
          libpfm4                        \
          libdebuginfod			\
          clang-bpf-co-re		\
@@ -150,9 +141,7 @@ FEATURE_DISPLAY ?=              \
          libelf                 \
          libnuma                \
          numa_num_possible_cpus \
-         libperl                \
          libpython              \
-         libcrypto              \
          libcapstone            \
          llvm-perf              \
          zlib                   \

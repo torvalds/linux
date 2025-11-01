@@ -103,8 +103,9 @@ properties:
           - const: arm,juno-r2
           - const: arm,juno
           - const: arm,vexpress
-      - description: Arm AEMv8a Versatile Express Real-Time System Model
-          (VE RTSM) is a programmers view of the Versatile Express with Arm
+      - description: Arm AEMv8a (Architecture Envelope Model)
+          Versatile Express Real-Time System Model (VE RTSM)
+          is a programmers view of the Versatile Express with Arm
           v8A hardware. See ARM DUI 0575D.
         items:
           - const: arm,rtsm_ve,aemv8a
@@ -139,7 +140,7 @@ patternProperties:
       the connection between the motherboard and any tiles. Sometimes the
       compatible is placed directly under this node, sometimes it is placed
       in a subnode named "motherboard-bus". Sometimes the compatible includes
-      "arm,vexpress,v2?-p1" sometimes (on software models) is is just
+      "arm,vexpress,v2?-p1" sometimes (on software models) it is just
       "simple-bus". If the compatible is placed in the "motherboard-bus" node,
       it is stricter and always has two compatibles.
     type: object

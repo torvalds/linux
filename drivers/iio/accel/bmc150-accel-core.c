@@ -25,9 +25,6 @@
 
 #include "bmc150-accel.h"
 
-#define BMC150_ACCEL_DRV_NAME			"bmc150_accel"
-#define BMC150_ACCEL_IRQ_NAME			"bmc150_accel_event"
-
 #define BMC150_ACCEL_REG_CHIP_ID		0x00
 
 #define BMC150_ACCEL_REG_INT_STATUS_2		0x0B
@@ -335,13 +332,10 @@ static int bmc150_accel_set_power_state(struct bmc150_accel_data *data, bool on)
 	struct device *dev = regmap_get_device(data->regmap);
 	int ret;
 
-	if (on) {
+	if (on)
 		ret = pm_runtime_resume_and_get(dev);
-	} else {
-		pm_runtime_mark_last_busy(dev);
+	else
 		ret = pm_runtime_put_autosuspend(dev);
-	}
-
 	if (ret < 0) {
 		dev_err(dev,
 			"Failed: %s for %d\n", __func__, on);
@@ -1706,7 +1700,7 @@ int bmc150_accel_core_probe(struct device *dev, struct regmap *regmap, int irq,
 						bmc150_accel_irq_handler,
 						bmc150_accel_irq_thread_handler,
 						IRQF_TRIGGER_RISING,
-						BMC150_ACCEL_IRQ_NAME,
+						"bmc150_accel_event",
 						indio_dev);
 		if (ret)
 			goto err_buffer_cleanup;

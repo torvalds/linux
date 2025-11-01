@@ -100,23 +100,25 @@
 			memcpy-bus-width = <32>;
 		};
 
-		spifi: flash-controller@40003000 {
+		spifi: spi@40003000 {
 			compatible = "nxp,lpc1773-spifi";
 			reg = <0x40003000 0x1000>, <0x14000000 0x4000000>;
 			reg-names = "spifi", "flash";
 			interrupts = <30>;
 			clocks = <&ccu1 CLK_SPIFI>, <&ccu1 CLK_CPU_SPIFI>;
 			clock-names = "spifi", "reg";
+			#address-cells = <1>;
+			#size-cells = <0>;
 			resets = <&rgu 53>;
 			status = "disabled";
 		};
 
-		mmcsd: mmcsd@40004000 {
+		mmcsd: mmc@40004000 {
 			compatible = "snps,dw-mshc";
 			reg = <0x40004000 0x1000>;
 			interrupts = <6>;
-			clocks = <&ccu2 CLK_SDIO>, <&ccu1 CLK_CPU_SDIO>;
-			clock-names = "ciu", "biu";
+			clocks = <&ccu1 CLK_CPU_SDIO>, <&ccu2 CLK_SDIO>;
+			clock-names = "biu", "ciu";
 			resets = <&rgu 20>;
 			status = "disabled";
 		};
@@ -534,4 +536,8 @@
 					<&pinctrl LPC_GPIO(7,19) LPC_PIN(f,5)  7>;
 		};
 	};
+};
+
+&nvic {
+	arm,num-irq-priority-bits = <3>;
 };

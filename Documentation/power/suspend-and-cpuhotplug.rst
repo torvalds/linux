@@ -13,7 +13,7 @@ infrastructure uses it internally? And where do they share common code?
 
 Well, a picture is worth a thousand words... So ASCII art follows :-)
 
-[This depicts the current design in the kernel, and focusses only on the
+[This depicts the current design in the kernel, and focuses only on the
 interactions involving the freezer and CPU hotplug and also tries to explain
 the locking involved. It outlines the notifications involved as well.
 But please note that here, only the call paths are illustrated, with the aim

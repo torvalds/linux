@@ -13,10 +13,11 @@
 #		arguments are properly reported.
 #
 
-# include working environment
-. ../common/init.sh
-
+DIR_PATH="$(dirname $0)"
 TEST_RESULT=0
+
+# include working environment
+. "$DIR_PATH/../common/init.sh"
 
 if ! check_kprobes_available; then
 	print_overall_skipped

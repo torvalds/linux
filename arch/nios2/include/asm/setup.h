@@ -8,7 +8,7 @@
 
 #include <asm-generic/setup.h>
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #ifdef __KERNEL__
 
 extern char exception_handler_hook[];
@@ -18,6 +18,6 @@ extern char fast_handler_end[];
 extern void pagetable_init(void);
 
 #endif/* __KERNEL__ */
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* _ASM_NIOS2_SETUP_H */

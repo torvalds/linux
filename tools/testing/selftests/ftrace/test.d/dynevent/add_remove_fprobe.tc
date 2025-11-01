@@ -16,29 +16,10 @@ ocnt=`cat enabled_functions | wc -l`
 
 echo "f:myevent1 $PLACE" >> dynamic_events
 
-# Make sure the event is attached and is the only one
-grep -q $PLACE enabled_functions
-cnt=`cat enabled_functions | wc -l`
-if [ $cnt -ne $((ocnt + 1)) ]; then
-	exit_fail
-fi
-
 echo "f:myevent2 $PLACE%return" >> dynamic_events
-
-# It should till be the only attached function
-cnt=`cat enabled_functions | wc -l`
-if [ $cnt -ne $((ocnt + 1)) ]; then
-	exit_fail
-fi
 
 # add another event
 echo "f:myevent3 $PLACE2" >> dynamic_events
-
-grep -q $PLACE2 enabled_functions
-cnt=`cat enabled_functions | wc -l`
-if [ $cnt -ne $((ocnt + 2)) ]; then
-	exit_fail
-fi
 
 grep -q myevent1 dynamic_events
 grep -q myevent2 dynamic_events
@@ -46,6 +27,30 @@ grep -q myevent3 dynamic_events
 test -d events/fprobes/myevent1
 test -d events/fprobes/myevent2
 
+echo 1 > events/fprobes/myevent1/enable
+# Make sure the event is attached and is the only one
+grep -q $PLACE enabled_functions
+cnt=`cat enabled_functions | wc -l`
+if [ $cnt -ne $((ocnt + 1)) ]; then
+	exit_fail
+fi
+
+echo 1 > events/fprobes/myevent2/enable
+# It should till be the only attached function
+cnt=`cat enabled_functions | wc -l`
+if [ $cnt -ne $((ocnt + 1)) ]; then
+	exit_fail
+fi
+
+echo 1 > events/fprobes/myevent3/enable
+# If the function is different, the attached function should be increased
+grep -q $PLACE2 enabled_functions
+cnt=`cat enabled_functions | wc -l`
+if [ $cnt -ne $((ocnt + 2)) ]; then
+	exit_fail
+fi
+
+echo 0 > events/fprobes/myevent2/enable
 echo "-:myevent2" >> dynamic_events
 
 grep -q myevent1 dynamic_events
@@ -57,6 +62,7 @@ if [ $cnt -ne $((ocnt + 2)) ]; then
 	exit_fail
 fi
 
+echo 0 > events/fprobes/enable
 echo > dynamic_events
 
 # Should have none left
@@ -67,12 +73,14 @@ fi
 
 echo "f:myevent4 $PLACE" >> dynamic_events
 
+echo 1 > events/fprobes/myevent4/enable
 # Should only have one enabled
 cnt=`cat enabled_functions | wc -l`
 if [ $cnt -ne $((ocnt + 1)) ]; then
 	exit_fail
 fi
 
+echo 0 > events/fprobes/enable
 echo > dynamic_events
 
 # Should have none left

@@ -57,9 +57,6 @@ struct readdir_cd {
 	__be32			err;	/* 0, nfserr, or nfserr_eof */
 };
 
-/* Maximum number of operations per session compound */
-#define NFSD_MAX_OPS_PER_COMPOUND	50
-
 struct nfsd_genl_rqstp {
 	struct sockaddr		rq_daddr;
 	struct sockaddr		rq_saddr;
@@ -72,7 +69,7 @@ struct nfsd_genl_rqstp {
 
 	/* NFSv4 compound */
 	u32			rq_opcnt;
-	u32			rq_opnum[NFSD_MAX_OPS_PER_COMPOUND];
+	u32			rq_opnum[16];
 };
 
 extern struct svc_program	nfsd_programs[];
@@ -155,6 +152,15 @@ static inline void nfsd_debugfs_exit(void) {}
 #endif
 
 extern bool nfsd_disable_splice_read __read_mostly;
+
+enum {
+	/* Any new NFSD_IO enum value must be added at the end */
+	NFSD_IO_BUFFERED,
+	NFSD_IO_DONTCACHE,
+};
+
+extern u64 nfsd_io_cache_read __read_mostly;
+extern u64 nfsd_io_cache_write __read_mostly;
 
 extern int nfsd_max_blksize;
 
@@ -283,6 +289,7 @@ void		nfsd_lockd_shutdown(void);
 #define	nfserr_cb_path_down	cpu_to_be32(NFSERR_CB_PATH_DOWN)
 #define	nfserr_locked		cpu_to_be32(NFSERR_LOCKED)
 #define	nfserr_wrongsec		cpu_to_be32(NFSERR_WRONGSEC)
+#define nfserr_delay			cpu_to_be32(NFS4ERR_DELAY)
 #define nfserr_badiomode		cpu_to_be32(NFS4ERR_BADIOMODE)
 #define nfserr_badlayout		cpu_to_be32(NFS4ERR_BADLAYOUT)
 #define nfserr_bad_session_digest	cpu_to_be32(NFS4ERR_BAD_SESSION_DIGEST)
@@ -337,14 +344,8 @@ void		nfsd_lockd_shutdown(void);
  * cannot conflict with any existing be32 nfserr value.
  */
 enum {
-	NFSERR_DROPIT = NFS4ERR_FIRST_FREE,
-/* if a request fails due to kmalloc failure, it gets dropped.
- *  Client should resend eventually
- */
-#define	nfserr_dropit		cpu_to_be32(NFSERR_DROPIT)
-
 /* end-of-file indicator in readdir */
-	NFSERR_EOF,
+	NFSERR_EOF = NFS4ERR_FIRST_FREE,
 #define	nfserr_eof		cpu_to_be32(NFSERR_EOF)
 
 /* replay detected */

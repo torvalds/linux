@@ -991,7 +991,7 @@ static int snd_mixer_oss_build_input(struct snd_mixer_oss *mixer,
 	struct slot *pslot;
 	struct snd_kcontrol *kctl;
 	struct snd_mixer_oss_slot *rslot;
-	char str[64];	
+	const char *str;
 	
 	/* check if already assigned */
 	if (mixer->slots[ptr->oss_id].get_volume && ! replace_old)
@@ -1014,11 +1014,11 @@ static int snd_mixer_oss_build_input(struct snd_mixer_oss *mixer,
 			
 		if (kctl->info(kctl, uinfo))
 			return 0;
-		strcpy(str, ptr->name);
+		str = ptr->name;
 		if (!strcmp(str, "Master"))
-			strcpy(str, "Mix");
-		if (!strcmp(str, "Master Mono"))
-			strcpy(str, "Mix Mono");
+			str = "Mix";
+		else if (!strcmp(str, "Master Mono"))
+			str = "Mix Mono";
 		slot.capture_item = 0;
 		if (!strcmp(uinfo->value.enumerated.name, str)) {
 			slot.present |= SNDRV_MIXER_OSS_PRESENT_CAPTURE;

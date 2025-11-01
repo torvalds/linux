@@ -342,6 +342,61 @@ static int aldebaran_get_allowed_feature_mask(struct smu_context *smu,
 	return 0;
 }
 
+static int aldebaran_get_dpm_ultimate_freq(struct smu_context *smu,
+					   enum smu_clk_type clk_type,
+					   uint32_t *min, uint32_t *max)
+{
+	struct smu_13_0_dpm_context *dpm_context = smu->smu_dpm.dpm_context;
+	struct smu_13_0_dpm_table *dpm_table;
+	uint32_t min_clk, max_clk;
+
+	if (amdgpu_sriov_vf(smu->adev)) {
+		switch (clk_type) {
+		case SMU_MCLK:
+		case SMU_UCLK:
+			dpm_table = &dpm_context->dpm_tables.uclk_table;
+			break;
+		case SMU_GFXCLK:
+		case SMU_SCLK:
+			dpm_table = &dpm_context->dpm_tables.gfx_table;
+			break;
+		case SMU_SOCCLK:
+			dpm_table = &dpm_context->dpm_tables.soc_table;
+			break;
+		case SMU_FCLK:
+			dpm_table = &dpm_context->dpm_tables.fclk_table;
+			break;
+		case SMU_VCLK:
+			dpm_table = &dpm_context->dpm_tables.vclk_table;
+			break;
+		case SMU_DCLK:
+			dpm_table = &dpm_context->dpm_tables.dclk_table;
+			break;
+		default:
+			return -EINVAL;
+		}
+
+		min_clk = dpm_table->min;
+		max_clk = dpm_table->max;
+
+		if (min) {
+			if (!min_clk)
+				return -ENODATA;
+			*min = min_clk;
+		}
+		if (max) {
+			if (!max_clk)
+				return -ENODATA;
+			*max = max_clk;
+		}
+
+	} else {
+		return smu_v13_0_get_dpm_ultimate_freq(smu, clk_type, min, max);
+	}
+
+	return 0;
+}
+
 static int aldebaran_set_default_dpm_table(struct smu_context *smu)
 {
 	struct smu_13_0_dpm_context *dpm_context = smu->smu_dpm.dpm_context;
@@ -1586,33 +1641,22 @@ static int aldebaran_i2c_control_init(struct smu_context *smu)
 	control->quirks = &aldebaran_i2c_control_quirks;
 	i2c_set_adapdata(control, smu_i2c);
 
-	res = i2c_add_adapter(control);
+	res = devm_i2c_add_adapter(adev->dev, control);
 	if (res) {
 		DRM_ERROR("Failed to register hw i2c, err: %d\n", res);
-		goto Out_err;
+		return res;
 	}
 
 	adev->pm.ras_eeprom_i2c_bus = &adev->pm.smu_i2c[0].adapter;
 	adev->pm.fru_eeprom_i2c_bus = &adev->pm.smu_i2c[0].adapter;
 
 	return 0;
-Out_err:
-	i2c_del_adapter(control);
-
-	return res;
 }
 
 static void aldebaran_i2c_control_fini(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
-	int i;
 
-	for (i = 0; i < MAX_SMU_I2C_BUSES; i++) {
-		struct amdgpu_smu_i2c_bus *smu_i2c = &adev->pm.smu_i2c[i];
-		struct i2c_adapter *control = &smu_i2c->adapter;
-
-		i2c_del_adapter(control);
-	}
 	adev->pm.ras_eeprom_i2c_bus = NULL;
 	adev->pm.fru_eeprom_i2c_bus = NULL;
 }
@@ -1726,7 +1770,7 @@ static ssize_t aldebaran_get_gpu_metrics(struct smu_context *smu,
 
 	ret = smu_cmn_get_metrics_table(smu,
 					&metrics,
-					true);
+					false);
 	if (ret)
 		return ret;
 
@@ -2081,7 +2125,7 @@ static const struct pptable_funcs aldebaran_ppt_funcs = {
 	.set_azalia_d3_pme = smu_v13_0_set_azalia_d3_pme,
 	.get_max_sustainable_clocks_by_dc = smu_v13_0_get_max_sustainable_clocks_by_dc,
 	.get_bamaco_support = aldebaran_get_bamaco_support,
-	.get_dpm_ultimate_freq = smu_v13_0_get_dpm_ultimate_freq,
+	.get_dpm_ultimate_freq = aldebaran_get_dpm_ultimate_freq,
 	.set_soft_freq_limited_range = aldebaran_set_soft_freq_limited_range,
 	.od_edit_dpm_table = aldebaran_usr_edit_dpm_table,
 	.set_df_cstate = aldebaran_set_df_cstate,

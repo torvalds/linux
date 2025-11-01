@@ -81,7 +81,7 @@ void dmub_dcn401_reset(struct dmub_srv *dmub)
 		dmub->hw_funcs.set_gpint(dmub, cmd);
 
 		for (; i < timeout_us; i++) {
-			scratch = dmub->hw_funcs.get_gpint_response(dmub);
+			scratch = REG_READ(DMCUB_SCRATCH7);
 			if (scratch == DMUB_GPINT__STOP_FW_RESPONSE)
 				break;
 
@@ -97,10 +97,23 @@ void dmub_dcn401_reset(struct dmub_srv *dmub)
 		}
 	}
 
+	if (enabled) {
+		REG_UPDATE(DMCUB_CNTL2, DMCUB_SOFT_RESET, 1);
+		udelay(1);
+		REG_UPDATE(DMCUB_CNTL, DMCUB_ENABLE, 0);
+	}
+
 	if (i >= timeout_us) {
 		/* timeout should never occur */
 		BREAK_TO_DEBUGGER();
 	}
+
+	REG_UPDATE(DMCUB_REGION3_CW2_TOP_ADDRESS, DMCUB_REGION3_CW2_ENABLE, 0);
+	REG_UPDATE(DMCUB_REGION3_CW3_TOP_ADDRESS, DMCUB_REGION3_CW3_ENABLE, 0);
+	REG_UPDATE(DMCUB_REGION3_CW4_TOP_ADDRESS, DMCUB_REGION3_CW4_ENABLE, 0);
+	REG_UPDATE(DMCUB_REGION3_CW5_TOP_ADDRESS, DMCUB_REGION3_CW5_ENABLE, 0);
+	REG_UPDATE(DMCUB_REGION3_CW6_TOP_ADDRESS, DMCUB_REGION3_CW6_ENABLE, 0);
+	REG_UPDATE(DMCUB_REGION3_CW7_TOP_ADDRESS, DMCUB_REGION3_CW7_ENABLE, 0);
 
 	REG_WRITE(DMCUB_INBOX1_RPTR, 0);
 	REG_WRITE(DMCUB_INBOX1_WPTR, 0);
@@ -134,7 +147,6 @@ void dmub_dcn401_backdoor_load(struct dmub_srv *dmub,
 
 	/* reset and disable DMCUB and MMHUBBUB DMUIF */
 	REG_UPDATE(DMCUB_SEC_CNTL, DMCUB_SEC_RESET, 1);
-	REG_UPDATE(MMHUBBUB_SOFT_RESET, DMUIF_SOFT_RESET, 1);
 	REG_UPDATE(DMCUB_CNTL, DMCUB_ENABLE, 0);
 
 	dmub_dcn401_translate_addr(&cw0->offset, fb_base, fb_offset, &offset);
@@ -168,7 +180,6 @@ void dmub_dcn401_backdoor_load_zfb_mode(struct dmub_srv *dmub,
 
 	/* reset and disable DMCUB and MMHUBBUB DMUIF */
 	REG_UPDATE(DMCUB_SEC_CNTL, DMCUB_SEC_RESET, 1);
-	REG_UPDATE(MMHUBBUB_SOFT_RESET, DMUIF_SOFT_RESET, 1);
 	REG_UPDATE(DMCUB_CNTL, DMCUB_ENABLE, 0);
 
 	offset = cw0->offset;
@@ -413,7 +424,7 @@ uint32_t dmub_dcn401_get_current_time(struct dmub_srv *dmub)
 
 void dmub_dcn401_get_diagnostic_data(struct dmub_srv *dmub)
 {
-	uint32_t is_dmub_enabled, is_soft_reset, is_sec_reset;
+	uint32_t is_dmub_enabled, is_soft_reset, is_sec_reset, is_pwait;
 	uint32_t is_traceport_enabled, is_cw0_enabled, is_cw6_enabled;
 	struct dmub_timeout_info timeout = {0};
 
@@ -463,6 +474,9 @@ void dmub_dcn401_get_diagnostic_data(struct dmub_srv *dmub)
 
 	REG_GET(DMCUB_CNTL, DMCUB_ENABLE, &is_dmub_enabled);
 	dmub->debug.is_dmcub_enabled = is_dmub_enabled;
+
+	REG_GET(DMCUB_CNTL, DMCUB_PWAIT_MODE_STATUS, &is_pwait);
+	dmub->debug.is_pwait = is_pwait;
 
 	REG_GET(DMCUB_CNTL2, DMCUB_SOFT_RESET, &is_soft_reset);
 	dmub->debug.is_dmcub_soft_reset = is_soft_reset;

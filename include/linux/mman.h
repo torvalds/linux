@@ -137,7 +137,7 @@ static inline bool arch_validate_flags(unsigned long flags)
 /*
  * Combine the mmap "prot" argument into "vm_flags" used internally.
  */
-static inline unsigned long
+static inline vm_flags_t
 calc_vm_prot_bits(unsigned long prot, unsigned long pkey)
 {
 	return _calc_vm_trans(prot, PROT_READ,  VM_READ ) |
@@ -149,7 +149,7 @@ calc_vm_prot_bits(unsigned long prot, unsigned long pkey)
 /*
  * Combine the mmap "flags" argument into "vm_flags" used internally.
  */
-static inline unsigned long
+static inline vm_flags_t
 calc_vm_flag_bits(struct file *file, unsigned long flags)
 {
 	return _calc_vm_trans(flags, MAP_GROWSDOWN,  VM_GROWSDOWN ) |
@@ -201,7 +201,7 @@ static inline bool arch_memory_deny_write_exec_supported(void)
 static inline bool map_deny_write_exec(unsigned long old, unsigned long new)
 {
 	/* If MDWE is disabled, we have nothing to deny. */
-	if (!test_bit(MMF_HAS_MDWE, &current->mm->flags))
+	if (!mm_flags_test(MMF_HAS_MDWE, current->mm))
 		return false;
 
 	/* If the new VMA is not executable, we have nothing to deny. */

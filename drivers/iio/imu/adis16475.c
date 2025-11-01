@@ -1930,7 +1930,6 @@ static int adis16475_config_irq_pin(struct adis16475 *st)
 	return 0;
 }
 
-
 static int adis16475_probe(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev;

@@ -12,7 +12,7 @@
  * BO management
  * =============
  *
- * TTM manages (placement, eviction, etc...) all BOs in XE.
+ * TTM manages (placement, eviction, etc...) all BOs in Xe.
  *
  * BO creation
  * ===========
@@ -29,7 +29,7 @@
  * a kernel BO (e.g. engine state, memory for page tables, etc...). These BOs
  * are typically mapped in the GGTT (any kernel BOs aside memory for page tables
  * are in the GGTT), are pinned (can't move or be evicted at runtime), have a
- * vmap (XE can access the memory via xe_map layer) and have contiguous physical
+ * vmap (Xe can access the memory via xe_map layer) and have contiguous physical
  * memory.
  *
  * More details of why kernel BOs are pinned and contiguous below.
@@ -40,7 +40,7 @@
  * A user BO is created via the DRM_IOCTL_XE_GEM_CREATE IOCTL. Once it is
  * created the BO can be mmap'd (via DRM_IOCTL_XE_GEM_MMAP_OFFSET) for user
  * access and it can be bound for GPU access (via DRM_IOCTL_XE_VM_BIND). All
- * user BOs are evictable and user BOs are never pinned by XE. The allocation of
+ * user BOs are evictable and user BOs are never pinned by Xe. The allocation of
  * the backing store can be deferred from creation time until first use which is
  * either mmap, bind, or pagefault.
  *
@@ -84,7 +84,7 @@
  * ====================
  *
  * All eviction (or in other words, moving a BO from one memory location to
- * another) is routed through TTM with a callback into XE.
+ * another) is routed through TTM with a callback into Xe.
  *
  * Runtime eviction
  * ----------------

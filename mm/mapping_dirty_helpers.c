@@ -129,7 +129,7 @@ static int wp_clean_pmd_entry(pmd_t *pmd, unsigned long addr, unsigned long end,
 	pmd_t pmdval = pmdp_get_lockless(pmd);
 
 	/* Do not split a huge pmd, present or migrated */
-	if (pmd_trans_huge(pmdval) || pmd_devmap(pmdval)) {
+	if (pmd_trans_huge(pmdval)) {
 		WARN_ON(pmd_write(pmdval) || pmd_dirty(pmdval));
 		walk->action = ACTION_CONTINUE;
 	}
@@ -152,7 +152,7 @@ static int wp_clean_pud_entry(pud_t *pud, unsigned long addr, unsigned long end,
 	pud_t pudval = READ_ONCE(*pud);
 
 	/* Do not split a huge pud */
-	if (pud_trans_huge(pudval) || pud_devmap(pudval)) {
+	if (pud_trans_huge(pudval)) {
 		WARN_ON(pud_write(pudval) || pud_dirty(pudval));
 		walk->action = ACTION_CONTINUE;
 	}
@@ -218,7 +218,7 @@ static void wp_clean_post_vma(struct mm_walk *walk)
 static int wp_clean_test_walk(unsigned long start, unsigned long end,
 			      struct mm_walk *walk)
 {
-	unsigned long vm_flags = READ_ONCE(walk->vma->vm_flags);
+	vm_flags_t vm_flags = READ_ONCE(walk->vma->vm_flags);
 
 	/* Skip non-applicable VMAs */
 	if ((vm_flags & (VM_SHARED | VM_MAYWRITE | VM_HUGETLB)) !=

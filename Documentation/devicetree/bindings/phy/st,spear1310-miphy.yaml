@@ -1,0 +1,53 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/phy/st,spear1310-miphy.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: ST SPEAr miphy
+
+maintainers:
+  - Pratyush Anand <pratyush.anand@gmail.com>
+
+description:
+  ST Microelectronics SPEAr miphy is a phy controller supporting PCIe and SATA.
+
+properties:
+  compatible:
+    enum:
+      - st,spear1310-miphy
+      - st,spear1340-miphy
+
+  reg:
+    maxItems: 1
+
+  misc:
+    description: Phandle for the syscon node to access misc registers.
+    $ref: /schemas/types.yaml#/definitions/phandle
+
+  '#phy-cells':
+    description: >
+      Cell[0] indicates interface type: 0 = SATA, 1 = PCIe.
+    const: 1
+
+  phy-id:
+    description: Instance id of the phy. Required when multiple PHYs are present.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+required:
+  - compatible
+  - reg
+  - misc
+  - '#phy-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    miphy@1000 {
+        compatible = "st,spear1310-miphy";
+        reg = <0x1000 0x100>;
+        misc = <&syscon>;
+        #phy-cells = <1>;
+        phy-id = <0>;
+    };

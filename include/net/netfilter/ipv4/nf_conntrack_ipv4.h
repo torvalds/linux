@@ -13,9 +13,6 @@
 extern const struct nf_conntrack_l4proto nf_conntrack_l4proto_tcp;
 extern const struct nf_conntrack_l4proto nf_conntrack_l4proto_udp;
 extern const struct nf_conntrack_l4proto nf_conntrack_l4proto_icmp;
-#ifdef CONFIG_NF_CT_PROTO_DCCP
-extern const struct nf_conntrack_l4proto nf_conntrack_l4proto_dccp;
-#endif
 #ifdef CONFIG_NF_CT_PROTO_SCTP
 extern const struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp;
 #endif

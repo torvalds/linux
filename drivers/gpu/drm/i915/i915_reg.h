@@ -385,7 +385,6 @@
 #define VLV_PCBR	_MMIO(VLV_DISPLAY_BASE + 0x2120)
 #define VLV_PCBR_ADDR_SHIFT	12
 
-#define   DISPLAY_PLANE_FLIP_PENDING(plane) (1 << (11 - (plane))) /* A and B only */
 #define EIR		_MMIO(0x20b0)
 #define EMR		_MMIO(0x20b4)
 #define ESR		_MMIO(0x20b8)
@@ -413,9 +412,9 @@
 #define FW_BLC		_MMIO(0x20d8)
 #define FW_BLC2		_MMIO(0x20dc)
 #define FW_BLC_SELF	_MMIO(0x20e0) /* 915+ only */
-#define   FW_BLC_SELF_EN_MASK      (1 << 31)
-#define   FW_BLC_SELF_FIFO_MASK    (1 << 16) /* 945 only */
-#define   FW_BLC_SELF_EN           (1 << 15) /* 945 only */
+#define   FW_BLC_SELF_EN_MASK      REG_BIT(31)
+#define   FW_BLC_SELF_FIFO_MASK    REG_BIT(16) /* 945 only */
+#define   FW_BLC_SELF_EN           REG_BIT(15) /* 945 only */
 #define MM_BURST_LENGTH     0x00700000
 #define MM_FIFO_WATERMARK   0x0001F000
 #define LM_BURST_LENGTH     0x00000700
@@ -614,7 +613,8 @@
 #define  DSTATE_GFX_CLOCK_GATING		(1 << 1)
 #define  DSTATE_DOT_CLOCK_GATING		(1 << 0)
 
-#define DSPCLK_GATE_D(__i915)		_MMIO(DISPLAY_MMIO_BASE(__i915) + 0x6200)
+#define DSPCLK_GATE_D			_MMIO(0x6200)
+#define VLV_DSPCLK_GATE_D		_MMIO(VLV_DISPLAY_BASE + 0x6200)
 # define DPUNIT_B_CLOCK_GATE_DISABLE		(1 << 30) /* 965 */
 # define VSUNIT_CLOCK_GATE_DISABLE		(1 << 29) /* 965 */
 # define VRHUNIT_CLOCK_GATE_DISABLE		(1 << 28) /* 965 */
@@ -763,8 +763,7 @@
  */
 #define GEN9_CLKGATE_DIS_0		_MMIO(0x46530)
 #define   DARBF_GATING_DIS		REG_BIT(27)
-#define   MTL_PIPEDMC_GATING_DIS_A	REG_BIT(15)
-#define   MTL_PIPEDMC_GATING_DIS_B	REG_BIT(14)
+#define   MTL_PIPEDMC_GATING_DIS(pipe)	REG_BIT(15 - (pipe))
 #define   PWM2_GATING_DIS		REG_BIT(14)
 #define   PWM1_GATING_DIS		REG_BIT(13)
 
@@ -1204,16 +1203,6 @@
  * 3DSTATE_SO_BUFFERs that the next streamed vertex output goes to.
  */
 #define GEN7_SO_WRITE_OFFSET(n)		_MMIO(0x5280 + (n) * 4)
-
-/* SKL Fuse Status */
-enum skl_power_gate {
-	SKL_PG0,
-	SKL_PG1,
-	SKL_PG2,
-	ICL_PG3,
-	ICL_PG4,
-};
-
 
 #define GEN9_TIMESTAMP_OVERRIDE				_MMIO(0x44074)
 #define  GEN9_TIMESTAMP_OVERRIDE_US_COUNTER_DIVIDER_SHIFT	0

@@ -4,7 +4,7 @@
 #
 # Copyright (c) 2024-2025, OpenVPN Inc.
 #
-
+---
 name: ovpn
 
 protocol: genetlink
@@ -19,7 +19,7 @@ definitions:
   -
     type: enum
     name: cipher-alg
-    entries: [ none, aes-gcm, chacha20-poly1305 ]
+    entries: [none, aes-gcm, chacha20-poly1305]
   -
     type: enum
     name: del-peer-reason
@@ -32,7 +32,7 @@ definitions:
   -
     type: enum
     name: key-slot
-    entries: [ primary, secondary ]
+    entries: [primary, secondary]
 
 attribute-sets:
   -
@@ -42,8 +42,8 @@ attribute-sets:
         name: id
         type: u32
         doc: >-
-          The unique ID of the peer in the device context. To be used to identify
-          peers during operations for a specific device
+          The unique ID of the peer in the device context. To be used to
+          identify peers during operations for a specific device
         checks:
           max: 0xFFFFFF
       -
@@ -161,6 +161,66 @@ attribute-sets:
         type: uint
         doc: Number of packets transmitted at the transport level
   -
+    name: peer-new-input
+    subset-of: peer
+    attributes:
+      -
+        name: id
+      -
+        name: remote-ipv4
+      -
+        name: remote-ipv6
+      -
+        name: remote-ipv6-scope-id
+      -
+        name: remote-port
+      -
+        name: socket
+      -
+        name: vpn-ipv4
+      -
+        name: vpn-ipv6
+      -
+        name: local-ipv4
+      -
+        name: local-ipv6
+      -
+        name: keepalive-interval
+      -
+        name: keepalive-timeout
+  -
+    name: peer-set-input
+    subset-of: peer
+    attributes:
+      -
+        name: id
+      -
+        name: remote-ipv4
+      -
+        name: remote-ipv6
+      -
+        name: remote-ipv6-scope-id
+      -
+        name: remote-port
+      -
+        name: vpn-ipv4
+      -
+        name: vpn-ipv6
+      -
+        name: local-ipv4
+      -
+        name: local-ipv6
+      -
+        name: keepalive-interval
+      -
+        name: keepalive-timeout
+  -
+    name: peer-del-input
+    subset-of: peer
+    attributes:
+      -
+        name: id
+  -
     name: keyconf
     attributes:
       -
@@ -216,6 +276,33 @@ attribute-sets:
           obtain the actual cipher IV
         checks:
           exact-len: nonce-tail-size
+
+  -
+    name: keyconf-get
+    subset-of: keyconf
+    attributes:
+      -
+        name: peer-id
+      -
+        name: slot
+      -
+        name: key-id
+      -
+        name: cipher-alg
+  -
+    name: keyconf-swap-input
+    subset-of: keyconf
+    attributes:
+      -
+        name: peer-id
+  -
+    name: keyconf-del-input
+    subset-of: keyconf
+    attributes:
+      -
+        name: peer-id
+      -
+        name: slot
   -
     name: ovpn
     attributes:
@@ -235,13 +322,67 @@ attribute-sets:
         type: nest
         doc: Peer specific cipher configuration
         nested-attributes: keyconf
+  -
+    name: ovpn-peer-new-input
+    subset-of: ovpn
+    attributes:
+      -
+        name: ifindex
+      -
+        name: peer
+        nested-attributes: peer-new-input
+  -
+    name: ovpn-peer-set-input
+    subset-of: ovpn
+    attributes:
+      -
+        name: ifindex
+      -
+        name: peer
+        nested-attributes: peer-set-input
+  -
+    name: ovpn-peer-del-input
+    subset-of: ovpn
+    attributes:
+      -
+        name: ifindex
+      -
+        name: peer
+        nested-attributes: peer-del-input
+  -
+    name: ovpn-keyconf-get
+    subset-of: ovpn
+    attributes:
+      -
+        name: ifindex
+      -
+        name: keyconf
+        nested-attributes: keyconf-get
+  -
+    name: ovpn-keyconf-swap-input
+    subset-of: ovpn
+    attributes:
+      -
+        name: ifindex
+      -
+        name: keyconf
+        nested-attributes: keyconf-swap-input
+  -
+    name: ovpn-keyconf-del-input
+    subset-of: ovpn
+    attributes:
+      -
+        name: ifindex
+      -
+        name: keyconf
+        nested-attributes: keyconf-del-input
 
 operations:
   list:
     -
       name: peer-new
-      attribute-set: ovpn
-      flags: [ admin-perm ]
+      attribute-set: ovpn-peer-new-input
+      flags: [admin-perm]
       doc: Add a remote peer
       do:
         pre: ovpn-nl-pre-doit
@@ -252,8 +393,8 @@ operations:
             - peer
     -
       name: peer-set
-      attribute-set: ovpn
-      flags: [ admin-perm ]
+      attribute-set: ovpn-peer-set-input
+      flags: [admin-perm]
       doc: modify a remote peer
       do:
         pre: ovpn-nl-pre-doit
@@ -265,7 +406,7 @@ operations:
     -
       name: peer-get
       attribute-set: ovpn
-      flags: [ admin-perm ]
+      flags: [admin-perm]
       doc: Retrieve data about existing remote peers (or a specific one)
       do:
         pre: ovpn-nl-pre-doit
@@ -286,8 +427,8 @@ operations:
             - peer
     -
       name: peer-del
-      attribute-set: ovpn
-      flags: [ admin-perm ]
+      attribute-set: ovpn-peer-del-input
+      flags: [admin-perm]
       doc: Delete existing remote peer
       do:
         pre: ovpn-nl-pre-doit
@@ -305,7 +446,7 @@ operations:
     -
       name: key-new
       attribute-set: ovpn
-      flags: [ admin-perm ]
+      flags: [admin-perm]
       doc: Add a cipher key for a specific peer
       do:
         pre: ovpn-nl-pre-doit
@@ -316,8 +457,8 @@ operations:
             - keyconf
     -
       name: key-get
-      attribute-set: ovpn
-      flags: [ admin-perm ]
+      attribute-set: ovpn-keyconf-get
+      flags: [admin-perm]
       doc: Retrieve non-sensitive data about peer key and cipher
       do:
         pre: ovpn-nl-pre-doit
@@ -331,8 +472,8 @@ operations:
             - keyconf
     -
       name: key-swap
-      attribute-set: ovpn
-      flags: [ admin-perm ]
+      attribute-set: ovpn-keyconf-swap-input
+      flags: [admin-perm]
       doc: Swap primary and secondary session keys for a specific peer
       do:
         pre: ovpn-nl-pre-doit
@@ -350,8 +491,8 @@ operations:
       mcgrp: peers
     -
       name: key-del
-      attribute-set: ovpn
-      flags: [ admin-perm ]
+      attribute-set: ovpn-keyconf-del-input
+      flags: [admin-perm]
       doc: Delete cipher key for a specific peer
       do:
         pre: ovpn-nl-pre-doit

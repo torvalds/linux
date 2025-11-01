@@ -630,9 +630,9 @@ struct fdp1_ctx {
 	struct fdp1_field_buffer	*previous;
 };
 
-static inline struct fdp1_ctx *fh_to_ctx(struct v4l2_fh *fh)
+static inline struct fdp1_ctx *file_to_ctx(struct file *filp)
 {
-	return container_of(fh, struct fdp1_ctx, fh);
+	return container_of(file_to_v4l2_fh(filp), struct fdp1_ctx, fh);
 }
 
 static struct fdp1_q_data *get_q_data(struct fdp1_ctx *ctx,
@@ -1406,8 +1406,8 @@ static int fdp1_enum_fmt_vid_out(struct file *file, void *priv,
 
 static int fdp1_g_fmt(struct file *file, void *priv, struct v4l2_format *f)
 {
+	struct fdp1_ctx *ctx = file_to_ctx(file);
 	struct fdp1_q_data *q_data;
-	struct fdp1_ctx *ctx = fh_to_ctx(priv);
 
 	if (!v4l2_m2m_get_vq(ctx->fh.m2m_ctx, f->type))
 		return -EINVAL;
@@ -1584,7 +1584,7 @@ static void fdp1_try_fmt_capture(struct fdp1_ctx *ctx,
 
 static int fdp1_try_fmt(struct file *file, void *priv, struct v4l2_format *f)
 {
-	struct fdp1_ctx *ctx = fh_to_ctx(priv);
+	struct fdp1_ctx *ctx = file_to_ctx(file);
 
 	if (f->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
 		fdp1_try_fmt_output(ctx, NULL, &f->fmt.pix_mp);
@@ -1655,7 +1655,7 @@ static void fdp1_set_format(struct fdp1_ctx *ctx,
 
 static int fdp1_s_fmt(struct file *file, void *priv, struct v4l2_format *f)
 {
-	struct fdp1_ctx *ctx = fh_to_ctx(priv);
+	struct fdp1_ctx *ctx = file_to_ctx(file);
 	struct v4l2_m2m_ctx *m2m_ctx = ctx->fh.m2m_ctx;
 	struct vb2_queue *vq = v4l2_m2m_get_vq(m2m_ctx, f->type);
 
@@ -2088,7 +2088,6 @@ static int fdp1_open(struct file *file)
 	}
 
 	v4l2_fh_init(&ctx->fh, video_devdata(file));
-	file->private_data = &ctx->fh;
 	ctx->fdp1 = fdp1;
 
 	/* Initialise Queues */
@@ -2137,7 +2136,7 @@ static int fdp1_open(struct file *file)
 	if (ret < 0)
 		goto error_pm;
 
-	v4l2_fh_add(&ctx->fh);
+	v4l2_fh_add(&ctx->fh, file);
 
 	dprintk(fdp1, "Created instance: %p, m2m_ctx: %p\n",
 		ctx, ctx->fh.m2m_ctx);
@@ -2158,11 +2157,11 @@ done:
 static int fdp1_release(struct file *file)
 {
 	struct fdp1_dev *fdp1 = video_drvdata(file);
-	struct fdp1_ctx *ctx = fh_to_ctx(file->private_data);
+	struct fdp1_ctx *ctx = file_to_ctx(file);
 
 	dprintk(fdp1, "Releasing instance %p\n", ctx);
 
-	v4l2_fh_del(&ctx->fh);
+	v4l2_fh_del(&ctx->fh, file);
 	v4l2_fh_exit(&ctx->fh);
 	v4l2_ctrl_handler_free(&ctx->hdl);
 	mutex_lock(&fdp1->dev_mutex);
@@ -2409,7 +2408,7 @@ static void fdp1_remove(struct platform_device *pdev)
 	rcar_fcp_put(fdp1->fcp);
 }
 
-static int __maybe_unused fdp1_pm_runtime_suspend(struct device *dev)
+static int fdp1_pm_runtime_suspend(struct device *dev)
 {
 	struct fdp1_dev *fdp1 = dev_get_drvdata(dev);
 
@@ -2418,7 +2417,7 @@ static int __maybe_unused fdp1_pm_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused fdp1_pm_runtime_resume(struct device *dev)
+static int fdp1_pm_runtime_resume(struct device *dev)
 {
 	struct fdp1_dev *fdp1 = dev_get_drvdata(dev);
 
@@ -2429,9 +2428,7 @@ static int __maybe_unused fdp1_pm_runtime_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops fdp1_pm_ops = {
-	SET_RUNTIME_PM_OPS(fdp1_pm_runtime_suspend,
-			   fdp1_pm_runtime_resume,
-			   NULL)
+	RUNTIME_PM_OPS(fdp1_pm_runtime_suspend, fdp1_pm_runtime_resume, NULL)
 };
 
 static const struct of_device_id fdp1_dt_ids[] = {
@@ -2446,7 +2443,7 @@ static struct platform_driver fdp1_pdrv = {
 	.driver		= {
 		.name	= DRIVER_NAME,
 		.of_match_table = fdp1_dt_ids,
-		.pm	= &fdp1_pm_ops,
+		.pm	= pm_ptr(&fdp1_pm_ops),
 	},
 };
 

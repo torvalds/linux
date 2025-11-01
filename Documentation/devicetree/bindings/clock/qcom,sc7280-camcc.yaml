@@ -13,7 +13,7 @@ description: |
   Qualcomm camera clock control module provides the clocks, resets and
   power domains on SC7280.
 
-  See also:: include/dt-bindings/clock/qcom,camcc-sc7280.h
+  See also: include/dt-bindings/clock/qcom,camcc-sc7280.h
 
 allOf:
   - $ref: qcom,gcc.yaml#

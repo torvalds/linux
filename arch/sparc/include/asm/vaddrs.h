@@ -31,7 +31,7 @@
  */
 #define SRMMU_NOCACHE_ALCRATIO	64	/* 256 pages per 64MB of system RAM */
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #include <asm/kmap_size.h>
 
 enum fixed_addresses {

@@ -63,7 +63,7 @@
 
 		port {
 			dp1_connector_in: endpoint {
-				remote-endpoint = <&mdss0_dp2_phy_out>;
+				remote-endpoint = <&mdss0_dp2_out>;
 			};
 		};
 	};
@@ -565,6 +565,18 @@
 	status = "okay";
 };
 
+&gpi_dma0 {
+	status = "okay";
+};
+
+&gpi_dma1 {
+	status = "okay";
+};
+
+&gpi_dma2 {
+	status = "okay";
+};
+
 &gpu {
 	status = "okay";
 
@@ -602,15 +614,10 @@
 	data-lanes = <0 1 2 3>;
 
 	status = "okay";
+};
 
-	ports {
-		port@1 {
-			reg = <1>;
-			mdss0_dp2_phy_out: endpoint {
-				remote-endpoint = <&dp1_connector_in>;
-			};
-		};
-	};
+&mdss0_dp2_out {
+	remote-endpoint = <&dp1_connector_in>;
 };
 
 &mdss0_dp2_phy {

@@ -10,6 +10,8 @@ source lib.sh
 checktool "nft --version" "run test without nft tool"
 checktool "iperf3 --version" "run test without iperf3 tool"
 
+read kernel_tainted < /proc/sys/kernel/tainted
+
 # how many seconds to torture the kernel?
 # default to 80% of max run time but don't exceed 48s
 TEST_RUNTIME=$((${kselftest_timeout:-60} * 8 / 10))
@@ -135,7 +137,8 @@ else
 	wait
 fi
 
-[[ $(</proc/sys/kernel/tainted) -eq 0 ]] || {
+
+[[ $kernel_tainted -eq 0 && $(</proc/sys/kernel/tainted) -ne 0 ]] && {
 	echo "FAIL: Kernel is tainted!"
 	exit $ksft_fail
 }

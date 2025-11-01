@@ -60,33 +60,6 @@ pgd_alloc(struct mm_struct *mm)
 }
 
 
-/*
- * BAD_PAGE is the page that is used for page faults when linux
- * is out-of-memory. Older versions of linux just did a
- * do_exit(), but using this instead means there is less risk
- * for a process dying in kernel mode, possibly leaving an inode
- * unused etc..
- *
- * BAD_PAGETABLE is the accompanying page-table: it is initialized
- * to point to BAD_PAGE entries.
- *
- * ZERO_PAGE is a special page that is used for zero-initialized
- * data and COW.
- */
-pmd_t *
-__bad_pagetable(void)
-{
-	memset(absolute_pointer(EMPTY_PGT), 0, PAGE_SIZE);
-	return (pmd_t *) EMPTY_PGT;
-}
-
-pte_t
-__bad_page(void)
-{
-	memset(absolute_pointer(EMPTY_PGE), 0, PAGE_SIZE);
-	return pte_mkdirty(mk_pte(virt_to_page(EMPTY_PGE), PAGE_SHARED));
-}
-
 static inline unsigned long
 load_PCB(struct pcb_struct *pcb)
 {

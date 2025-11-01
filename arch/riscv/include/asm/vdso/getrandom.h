@@ -5,7 +5,7 @@
 #ifndef __ASM_VDSO_GETRANDOM_H
 #define __ASM_VDSO_GETRANDOM_H
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <asm/unistd.h>
 
@@ -18,13 +18,13 @@ static __always_inline ssize_t getrandom_syscall(void *_buffer, size_t _len, uns
 	register unsigned int flags asm("a2") = _flags;
 
 	asm volatile ("ecall\n"
-		      : "+r" (ret)
+		      : "=r" (ret)
 		      : "r" (nr), "r" (buffer), "r" (len), "r" (flags)
 		      : "memory");
 
 	return ret;
 }
 
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 
 #endif /* __ASM_VDSO_GETRANDOM_H */

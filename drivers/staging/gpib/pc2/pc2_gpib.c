@@ -36,7 +36,7 @@ static const int pc2_2a_iosize = 16;
 static const int pc2a_reg_offset = 0x400;
 static const int pc2_reg_offset = 1;
 
-//interrupt service routine
+// interrupt service routine
 static irqreturn_t pc2_interrupt(int irq, void *arg);
 static irqreturn_t pc2a_interrupt(int irq, void *arg);
 
@@ -593,7 +593,7 @@ static struct gpib_interface pc2a_cb7210_interface = {
 	.parallel_poll_configure =	pc2_parallel_poll_configure,
 	.parallel_poll_response =	pc2_parallel_poll_response,
 	.local_parallel_poll_mode = NULL, // XXX
-	.line_status =	NULL, //XXX
+	.line_status =	NULL, // XXX
 	.update_status =	pc2_update_status,
 	.primary_address =	pc2_primary_address,
 	.secondary_address =	pc2_secondary_address,

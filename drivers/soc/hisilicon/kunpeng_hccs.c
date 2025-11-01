@@ -1295,11 +1295,11 @@ static int hccs_get_all_spec_port_idle_sta(struct hccs_dev *hdev, u8 port_type,
 				if (ret) {
 					dev_err(hdev->dev,
 						"hccs%u on chip%u/die%u get idle status failed, ret = %d.\n",
-						k, i, j, ret);
+						port->port_id, chip->chip_id, die->die_id, ret);
 					return ret;
 				} else if (idle == 0) {
 					dev_info(hdev->dev, "hccs%u on chip%u/die%u is busy.\n",
-						k, i, j);
+						 port->port_id, chip->chip_id, die->die_id);
 					return 0;
 				}
 			}
@@ -1464,7 +1464,7 @@ static ssize_t dec_lane_of_type_store(struct kobject *kobj, struct kobj_attribut
 		goto out;
 	if (!all_in_idle) {
 		ret = -EBUSY;
-		dev_err(hdev->dev, "please don't decrese lanes on high load with %s, ret = %d.\n",
+		dev_err(hdev->dev, "please don't decrease lanes on high load with %s, ret = %d.\n",
 			hccs_port_type_to_name(hdev, port_type), ret);
 		goto out;
 	}

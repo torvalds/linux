@@ -64,7 +64,8 @@ specific debugfs path ``/sys/kernel/debug/iio/iio:deviceX``.
 Usage examples
 --------------
 
-. code-block:: bash
+.. code-block:: bash
+
 	root:/sys/bus/iio/devices/iio:device0# cat data_source
 	normal
 	root:/sys/bus/iio/devices/iio:device0# echo -n ramp-16bit > data_source

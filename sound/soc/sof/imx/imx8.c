@@ -40,6 +40,19 @@ struct imx8m_chip_data {
 	struct reset_control *run_stall;
 };
 
+static int imx8_shutdown(struct snd_sof_dev *sdev)
+{
+	/*
+	 * Force the DSP to stall. After the firmware image is loaded,
+	 * the stall will be removed during run() by a matching
+	 * imx_sc_pm_cpu_start() call.
+	 */
+	imx_sc_pm_cpu_start(get_chip_pdata(sdev), IMX_SC_R_DSP, false,
+			    RESET_VECTOR_VADDR);
+
+	return 0;
+}
+
 /*
  * DSP control.
  */
@@ -158,8 +171,7 @@ static int imx8m_probe(struct snd_sof_dev *sdev)
 
 	chip = devm_kzalloc(sdev->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
-		return dev_err_probe(sdev->dev, -ENOMEM,
-				     "failed to allocate chip data\n");
+		return -ENOMEM;
 
 	chip->dap = devm_ioremap(sdev->dev, IMX8M_DAP_DEBUG, IMX8M_DAP_DEBUG_SIZE);
 	if (!chip->dap)
@@ -281,11 +293,13 @@ static int imx8_ops_init(struct snd_sof_dev *sdev)
 static const struct imx_chip_ops imx8_chip_ops = {
 	.probe = imx8_probe,
 	.core_kick = imx8_run,
+	.core_shutdown = imx8_shutdown,
 };
 
 static const struct imx_chip_ops imx8x_chip_ops = {
 	.probe = imx8_probe,
 	.core_kick = imx8x_run,
+	.core_shutdown = imx8_shutdown,
 };
 
 static const struct imx_chip_ops imx8m_chip_ops = {

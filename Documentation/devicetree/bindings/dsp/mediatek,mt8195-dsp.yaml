@@ -81,25 +81,25 @@ examples:
     #include <dt-bindings/interrupt-controller/arm-gic.h>
     #include <dt-bindings/interrupt-controller/irq.h>
     dsp@10803000 {
-       compatible =  "mediatek,mt8195-dsp";
-       reg = <0x10803000  0x1000>,
-             <0x10840000  0x40000>;
-       reg-names = "cfg", "sram";
-       clocks = <&topckgen 10>, //CLK_TOP_ADSP
-                <&clk26m>,
-                <&topckgen 107>, //CLK_TOP_AUDIO_LOCAL_BUS
-                <&topckgen 136>, //CLK_TOP_MAINPLL_D7_D2
-                <&scp_adsp 0>, //CLK_SCP_ADSP_AUDIODSP
-                <&topckgen 34>; //CLK_TOP_AUDIO_H
-       clock-names = "adsp_sel",
-                     "clk26m_ck",
-                     "audio_local_bus",
-                     "mainpll_d7_d2",
-                     "scp_adsp_audiodsp",
-                     "audio_h";
-       memory-region = <&adsp_dma_mem_reserved>,
-                       <&adsp_mem_reserved>;
-       power-domains = <&spm 6>; //MT8195_POWER_DOMAIN_ADSP
-       mbox-names = "rx", "tx";
-       mboxes = <&adsp_mailbox0>, <&adsp_mailbox1>;
+        compatible =  "mediatek,mt8195-dsp";
+        reg = <0x10803000 0x1000>,
+              <0x10840000 0x40000>;
+        reg-names = "cfg", "sram";
+        clocks = <&topckgen 10>, //CLK_TOP_ADSP
+                 <&clk26m>,
+                 <&topckgen 107>, //CLK_TOP_AUDIO_LOCAL_BUS
+                 <&topckgen 136>, //CLK_TOP_MAINPLL_D7_D2
+                 <&scp_adsp 0>, //CLK_SCP_ADSP_AUDIODSP
+                 <&topckgen 34>; //CLK_TOP_AUDIO_H
+        clock-names = "adsp_sel",
+                      "clk26m_ck",
+                      "audio_local_bus",
+                      "mainpll_d7_d2",
+                      "scp_adsp_audiodsp",
+                      "audio_h";
+        memory-region = <&adsp_dma_mem_reserved>,
+                        <&adsp_mem_reserved>;
+        power-domains = <&spm 6>; //MT8195_POWER_DOMAIN_ADSP
+        mbox-names = "rx", "tx";
+        mboxes = <&adsp_mailbox0>, <&adsp_mailbox1>;
     };

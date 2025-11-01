@@ -31,7 +31,7 @@ Description:
 		* rm_all: Removes all the configured SLAs.
 			* Inputs: None
 
-		This attribute is only available for qat_4xxx devices.
+		This attribute is only available for qat_4xxx and qat_6xxx devices.
 
 What:		/sys/bus/pci/devices/<BDF>/qat_rl/rp
 Date:		January 2024
@@ -68,7 +68,7 @@ Description:
 			## Write
 			# echo 0x5 > /sys/bus/pci/devices/<BDF>/qat_rl/rp
 
-		This attribute is only available for qat_4xxx devices.
+		This attribute is only available for qat_4xxx and qat_6xxx devices.
 
 What:		/sys/bus/pci/devices/<BDF>/qat_rl/id
 Date:		January 2024
@@ -101,7 +101,7 @@ Description:
 			# cat /sys/bus/pci/devices/<BDF>/qat_rl/rp
 			0x5  ## ring pair ID 0 and ring pair ID 2
 
-		This attribute is only available for qat_4xxx devices.
+		This attribute is only available for qat_4xxx and qat_6xxx devices.
 
 What:		/sys/bus/pci/devices/<BDF>/qat_rl/cir
 Date:		January 2024
@@ -135,7 +135,7 @@ Description:
 			# cat /sys/bus/pci/devices/<BDF>/qat_rl/cir
 			500
 
-		This attribute is only available for qat_4xxx devices.
+		This attribute is only available for qat_4xxx and qat_6xxx devices.
 
 What:		/sys/bus/pci/devices/<BDF>/qat_rl/pir
 Date:		January 2024
@@ -169,7 +169,7 @@ Description:
 			# cat /sys/bus/pci/devices/<BDF>/qat_rl/pir
 			750
 
-		This attribute is only available for qat_4xxx devices.
+		This attribute is only available for qat_4xxx and qat_6xxx devices.
 
 What:		/sys/bus/pci/devices/<BDF>/qat_rl/srv
 Date:		January 2024
@@ -202,7 +202,7 @@ Description:
 			# cat /sys/bus/pci/devices/<BDF>/qat_rl/srv
 			dc
 
-		This attribute is only available for qat_4xxx devices.
+		This attribute is only available for qat_4xxx and qat_6xxx devices.
 
 What:		/sys/bus/pci/devices/<BDF>/qat_rl/cap_rem
 Date:		January 2024
@@ -223,4 +223,4 @@ Description:
 			# cat /sys/bus/pci/devices/<BDF>/qat_rl/cap_rem
 			0
 
-		This attribute is only available for qat_4xxx devices.
+		This attribute is only available for qat_4xxx and qat_6xxx devices.

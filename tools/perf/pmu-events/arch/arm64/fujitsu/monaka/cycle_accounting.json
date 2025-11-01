@@ -12,12 +12,12 @@
     {
         "EventCode": "0x0184",
         "EventName": "LD_COMP_WAIT",
-        "BriefDescription": "This event counts every cycle that no instruction was committed because the oldest and uncommitted load/store/prefetch operation waits for L1D cache, L2 cache and memory access."
+        "BriefDescription": "This event counts every cycle that no instruction was committed because the oldest and uncommitted load/store/prefetch operation waits for L1D cache, L2 cache, L3 cache and memory access."
     },
     {
         "EventCode": "0x0185",
         "EventName": "LD_COMP_WAIT_EX",
-        "BriefDescription": "This event counts every cycle that no instruction was committed because the oldest and uncommitted integer load operation waits for L1D cache, L2 cache and memory access."
+        "BriefDescription": "This event counts every cycle that no instruction was committed because the oldest and uncommitted integer load operation waits for L1D cache, L2 cache, L3 cache and memory access."
     },
     {
         "EventCode": "0x0186",

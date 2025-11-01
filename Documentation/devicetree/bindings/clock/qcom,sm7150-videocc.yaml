@@ -15,7 +15,7 @@ description: |
   Qualcomm video clock control module provides the clocks, resets and power
   domains on SM7150.
 
-  See also:: include/dt-bindings/clock/qcom,videocc-sm7150.h
+  See also: include/dt-bindings/clock/qcom,videocc-sm7150.h
 
 properties:
   compatible:

@@ -63,7 +63,7 @@ extern int lockdep_tasklist_lock_is_held(void);
 extern asmlinkage void schedule_tail(struct task_struct *prev);
 extern void init_idle(struct task_struct *idle, int cpu);
 
-extern int sched_fork(unsigned long clone_flags, struct task_struct *p);
+extern int sched_fork(u64 clone_flags, struct task_struct *p);
 extern int sched_cgroup_fork(struct task_struct *p, struct kernel_clone_args *kargs);
 extern void sched_cancel_fork(struct task_struct *p);
 extern void sched_post_fork(struct task_struct *p);
@@ -109,11 +109,7 @@ int kernel_wait(pid_t pid, int *stat);
 extern void free_task(struct task_struct *tsk);
 
 /* sched_exec is called by processes performing an exec */
-#ifdef CONFIG_SMP
 extern void sched_exec(void);
-#else
-#define sched_exec()   {}
-#endif
 
 static inline struct task_struct *get_task_struct(struct task_struct *t)
 {
@@ -135,24 +131,17 @@ static inline void put_task_struct(struct task_struct *t)
 		return;
 
 	/*
-	 * In !RT, it is always safe to call __put_task_struct().
-	 * Under RT, we can only call it in preemptible context.
-	 */
-	if (!IS_ENABLED(CONFIG_PREEMPT_RT) || preemptible()) {
-		static DEFINE_WAIT_OVERRIDE_MAP(put_task_map, LD_WAIT_SLEEP);
-
-		lock_map_acquire_try(&put_task_map);
-		__put_task_struct(t);
-		lock_map_release(&put_task_map);
-		return;
-	}
-
-	/*
-	 * under PREEMPT_RT, we can't call put_task_struct
+	 * Under PREEMPT_RT, we can't call __put_task_struct
 	 * in atomic context because it will indirectly
-	 * acquire sleeping locks.
+	 * acquire sleeping locks. The same is true if the
+	 * current process has a mutex enqueued (blocked on
+	 * a PI chain).
 	 *
-	 * call_rcu() will schedule delayed_put_task_struct_rcu()
+	 * In !RT, it is always safe to call __put_task_struct().
+	 * Though, in order to simplify the code, resort to the
+	 * deferred call too.
+	 *
+	 * call_rcu() will schedule __put_task_struct_rcu_cb()
 	 * to be called in process context.
 	 *
 	 * __put_task_struct() is called when
@@ -165,7 +154,7 @@ static inline void put_task_struct(struct task_struct *t)
 	 *
 	 * delayed_free_task() also uses ->rcu, but it is only called
 	 * when it fails to fork a process. Therefore, there is no
-	 * way it can conflict with put_task_struct().
+	 * way it can conflict with __put_task_struct().
 	 */
 	call_rcu(&t->rcu, __put_task_struct_rcu_cb);
 }
@@ -221,9 +210,8 @@ static inline struct vm_struct *task_stack_vm_area(const struct task_struct *t)
  * pins the final release of task.io_context.  Also protects ->cpuset and
  * ->cgroup.subsys[]. And ->vfork_done. And ->sysvshm.shm_clist.
  *
- * Nests both inside and outside of read_lock(&tasklist_lock).
- * It must not be nested with write_lock_irq(&tasklist_lock),
- * neither inside nor outside.
+ * Nests inside of read_lock(&tasklist_lock). It must not be nested with
+ * write_lock_irq(&tasklist_lock), neither inside nor outside.
  */
 static inline void task_lock(struct task_struct *p)
 {

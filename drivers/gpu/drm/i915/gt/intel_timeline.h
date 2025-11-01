@@ -9,6 +9,7 @@
 #include <linux/lockdep.h>
 
 #include "i915_active.h"
+#include "i915_list_util.h"
 #include "i915_syncmap.h"
 #include "intel_timeline_types.h"
 

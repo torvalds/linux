@@ -1,0 +1,60 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright 2025 Josua Mayer <josua@solid-run.com>
+ */
+
+/ {
+	rfkill-m2-gnss {
+		compatible = "rfkill-gpio";
+		pinctrl-names = "default";
+		pinctrl-0 = <&m2_gnss_rfkill_pins>;
+		label = "m.2 GNSS";
+		radio-type = "gps";
+		/* rfkill-gpio inverts internally */
+		shutdown-gpios = <&gpio1 7 GPIO_ACTIVE_HIGH>;
+	};
+
+	/* M.2 is B-keyed, so w-disable is for WWAN */
+	rfkill-m2-wwan {
+		compatible = "rfkill-gpio";
+		pinctrl-names = "default";
+		pinctrl-0 = <&m2_wwan_rfkill_pins>;
+		label = "m.2 WWAN";
+		radio-type = "wwan";
+		/* rfkill-gpio inverts internally */
+		shutdown-gpios = <&gpio1 13 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+&iomuxc {
+	m2_gnss_rfkill_pins: pinctrl-m2-gnss-rfkill-grp {
+		fsl,pins = <
+			/* weak i/o, open drain */
+			MX8MP_IOMUXC_GPIO1_IO07__GPIO1_IO07		0x20
+		>;
+	};
+
+	m2_reset_pins: pinctrl-m2-reset-grp {
+		fsl,pins = <
+			/*
+			 * 3.3V domain on SoC, set open-drain to ensure
+			 * 1.8V logic on connector
+			 */
+			MX8MP_IOMUXC_GPIO1_IO06__GPIO1_IO06		0x20
+		>;
+	};
+
+	m2_wwan_rfkill_pins: pinctrl-m2-wwan-rfkill-grp {
+		fsl,pins = <
+			/* weak i/o, open drain */
+			MX8MP_IOMUXC_GPIO1_IO13__GPIO1_IO13		0x20
+		>;
+	};
+
+	m2_wwan_wake_pins: pinctrl-m2-wwan-wake-grp {
+		fsl,pins = <
+			/* weak i/o, open drain */
+			MX8MP_IOMUXC_GPIO1_IO12__GPIO1_IO12		0x20
+		>;
+	};
+};

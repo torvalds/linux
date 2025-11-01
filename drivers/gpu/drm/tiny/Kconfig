@@ -82,6 +82,21 @@ config DRM_PANEL_MIPI_DBI
 	  https://github.com/notro/panel-mipi-dbi/wiki.
 	  To compile this driver as a module, choose M here.
 
+config DRM_PIXPAPER
+        tristate "DRM support for PIXPAPER display panels"
+        depends on DRM && SPI
+        select DRM_CLIENT_SELECTION
+        select DRM_GEM_SHMEM_HELPER
+        select DRM_KMS_HELPER
+        help
+	  DRM driver for the Mayqueen Pixpaper e-ink display panel.
+
+	  This driver supports small e-paper displays connected over SPI,
+	  with a resolution of 122x250 and XRGB8888 framebuffer format.
+	  It is intended for low-power embedded applications.
+
+	  If M is selected, the module will be built as pixpaper.ko.
+
 config TINYDRM_HX8357D
 	tristate "DRM support for HX8357D display panels"
 	depends on DRM && SPI

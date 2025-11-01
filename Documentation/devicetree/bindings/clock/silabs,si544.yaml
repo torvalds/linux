@@ -1,0 +1,54 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/silabs,si544.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Silicon Labs SI514/SI544 clock generator
+
+maintainers:
+  - Mike Looijmans <mike.looijmans@topic.nl>
+
+description: >
+  Silicon Labs 514/544 programmable I2C clock generator. Details about the device
+  can be found in the datasheet:
+
+    https://www.silabs.com/Support%20Documents/TechnicalDocs/si514.pdf
+    https://www.silabs.com/documents/public/data-sheets/si544-datasheet.pdf
+
+properties:
+  compatible:
+    enum:
+      - silabs,si514
+      - silabs,si544a
+      - silabs,si544b
+      - silabs,si544c
+
+  reg:
+    maxItems: 1
+
+  "#clock-cells":
+    const: 0
+
+  clock-output-names:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - "#clock-cells"
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        clock-controller@55 {
+            reg = <0x55>;
+            #clock-cells = <0>;
+            compatible = "silabs,si544b";
+        };
+    };

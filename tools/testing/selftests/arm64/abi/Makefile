@@ -12,4 +12,4 @@ $(OUTPUT)/syscall-abi: syscall-abi.c syscall-abi-asm.S
 $(OUTPUT)/tpidr2: tpidr2.c
 	$(CC) -fno-asynchronous-unwind-tables -fno-ident -s -Os -nostdlib \
 		-static -include ../../../../include/nolibc/nolibc.h \
-		-ffreestanding -Wall $^ -o $@ -lgcc
+		-I../.. -ffreestanding -Wall $^ -o $@ -lgcc

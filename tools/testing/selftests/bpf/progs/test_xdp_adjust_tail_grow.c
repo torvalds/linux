@@ -19,7 +19,9 @@ int _xdp_adjust_tail_grow(struct xdp_md *xdp)
 	/* Data length determine test case */
 
 	if (data_len == 54) { /* sizeof(pkt_v4) */
-		offset = 4096; /* test too large offset */
+		offset = 4096; /* test too large offset, 4k page size */
+	} else if (data_len == 53) { /* sizeof(pkt_v4) - 1 */
+		offset = 65536; /* test too large offset, 64k page size */
 	} else if (data_len == 74) { /* sizeof(pkt_v6) */
 		offset = 40;
 	} else if (data_len == 64) {
@@ -31,6 +33,10 @@ int _xdp_adjust_tail_grow(struct xdp_md *xdp)
 		offset = 10;
 	} else if (data_len == 9001) {
 		offset = 4096;
+	} else if (data_len == 90000) {
+		offset = 10; /* test a small offset, 64k page size */
+	} else if (data_len == 90001) {
+		offset = 65536; /* test too large offset, 64k page size */
 	} else {
 		return XDP_ABORTED; /* No matching test */
 	}

@@ -134,6 +134,8 @@ v3d_reset(struct v3d_dev *v3d)
 	if (false)
 		v3d_idle_axi(v3d, 0);
 
+	v3d_irq_disable(v3d);
+
 	v3d_idle_gca(v3d);
 	v3d_reset_sms(v3d);
 	v3d_reset_v3d(v3d);
@@ -269,10 +271,12 @@ v3d_gem_init(struct drm_device *dev)
 		queue->fence_context = dma_fence_context_alloc(1);
 		memset(&queue->stats, 0, sizeof(queue->stats));
 		seqcount_init(&queue->stats.lock);
+
+		spin_lock_init(&queue->queue_lock);
+		spin_lock_init(&queue->fence_lock);
 	}
 
 	spin_lock_init(&v3d->mm_lock);
-	spin_lock_init(&v3d->job_lock);
 	ret = drmm_mutex_init(dev, &v3d->bo_lock);
 	if (ret)
 		return ret;
@@ -322,6 +326,7 @@ void
 v3d_gem_destroy(struct drm_device *dev)
 {
 	struct v3d_dev *v3d = to_v3d_dev(dev);
+	enum v3d_queue q;
 
 	v3d_sched_fini(v3d);
 	v3d_gemfs_fini(v3d);
@@ -329,10 +334,8 @@ v3d_gem_destroy(struct drm_device *dev)
 	/* Waiting for jobs to finish would need to be done before
 	 * unregistering V3D.
 	 */
-	WARN_ON(v3d->bin_job);
-	WARN_ON(v3d->render_job);
-	WARN_ON(v3d->tfu_job);
-	WARN_ON(v3d->csd_job);
+	for (q = 0; q < V3D_MAX_QUEUES; q++)
+		WARN_ON(v3d->queue[q].active_job);
 
 	drm_mm_takedown(&v3d->mm);
 

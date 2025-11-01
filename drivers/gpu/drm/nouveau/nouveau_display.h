@@ -8,8 +8,11 @@
 
 #include <drm/drm_framebuffer.h>
 
+struct drm_format_info;
+
 int
 nouveau_framebuffer_new(struct drm_device *dev,
+			const struct drm_format_info *info,
 			const struct drm_mode_fb_cmd2 *mode_cmd,
 			struct drm_gem_object *gem,
 			struct drm_framebuffer **pfb);
@@ -67,5 +70,6 @@ nouveau_framebuffer_get_layout(struct drm_framebuffer *fb, uint32_t *tile_mode,
 
 struct drm_framebuffer *
 nouveau_user_framebuffer_create(struct drm_device *, struct drm_file *,
+				const struct drm_format_info *,
 				const struct drm_mode_fb_cmd2 *);
 #endif

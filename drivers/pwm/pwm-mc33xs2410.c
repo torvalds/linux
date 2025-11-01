@@ -17,11 +17,14 @@
  *   behavior of the output pin that is neither the old nor the new state,
  *   rather something in between.
  */
+#define DEFAULT_SYMBOL_NAMESPACE		"PWM_MC33XS2410"
 
+#include <linux/auxiliary_bus.h>
 #include <linux/bitfield.h>
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/math64.h>
+#include <linux/mc33xs2410.h>
 #include <linux/minmax.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -120,12 +123,19 @@ static int mc33xs2410_read_reg(struct spi_device *spi, u8 reg, u16 *val, u8 flag
 	return mc33xs2410_read_regs(spi, &reg, flag, val, 1);
 }
 
-static int mc33xs2410_read_reg_ctrl(struct spi_device *spi, u8 reg, u16 *val)
+int mc33xs2410_read_reg_ctrl(struct spi_device *spi, u8 reg, u16 *val)
 {
 	return mc33xs2410_read_reg(spi, reg, val, MC33XS2410_FRAME_IN_DATA_RD);
 }
+EXPORT_SYMBOL_GPL(mc33xs2410_read_reg_ctrl);
 
-static int mc33xs2410_modify_reg(struct spi_device *spi, u8 reg, u8 mask, u8 val)
+int mc33xs2410_read_reg_diag(struct spi_device *spi, u8 reg, u16 *val)
+{
+	return mc33xs2410_read_reg(spi, reg, val, 0);
+}
+EXPORT_SYMBOL_GPL(mc33xs2410_read_reg_diag);
+
+int mc33xs2410_modify_reg(struct spi_device *spi, u8 reg, u8 mask, u8 val)
 {
 	u16 tmp;
 	int ret;
@@ -139,6 +149,7 @@ static int mc33xs2410_modify_reg(struct spi_device *spi, u8 reg, u8 mask, u8 val
 
 	return mc33xs2410_write_reg(spi, reg, tmp);
 }
+EXPORT_SYMBOL_GPL(mc33xs2410_modify_reg);
 
 static u8 mc33xs2410_pwm_get_freq(u64 period)
 {
@@ -314,6 +325,7 @@ static int mc33xs2410_reset(struct device *dev)
 static int mc33xs2410_probe(struct spi_device *spi)
 {
 	struct device *dev = &spi->dev;
+	struct auxiliary_device *adev;
 	struct pwm_chip *chip;
 	int ret;
 
@@ -360,6 +372,10 @@ static int mc33xs2410_probe(struct spi_device *spi)
 	ret = devm_pwmchip_add(dev, chip);
 	if (ret < 0)
 		return dev_err_probe(dev, ret, "Failed to add pwm chip\n");
+
+	adev = devm_auxiliary_device_create(dev, "hwmon", NULL);
+	if (!adev)
+		return dev_err_probe(dev, -ENODEV, "Failed to register hwmon device\n");
 
 	return 0;
 }

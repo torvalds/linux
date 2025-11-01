@@ -242,10 +242,8 @@ static int ti_dac_probe(struct spi_device *spi)
 	int ret;
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*ti_dac));
-	if (!indio_dev) {
-		dev_err(dev, "can not allocate iio device\n");
+	if (!indio_dev)
 		return -ENOMEM;
-	}
 
 	spi->mode = SPI_MODE_1;
 	spi->bits_per_word = 16;

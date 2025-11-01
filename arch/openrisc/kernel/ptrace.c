@@ -124,7 +124,7 @@ enum or1k_regset {
 
 static const struct user_regset or1k_regsets[] = {
 	[REGSET_GENERAL] = {
-			    .core_note_type = NT_PRSTATUS,
+			    USER_REGSET_NOTE_TYPE(PRSTATUS),
 			    .n = ELF_NGREG,
 			    .size = sizeof(long),
 			    .align = sizeof(long),
@@ -133,7 +133,7 @@ static const struct user_regset or1k_regsets[] = {
 			    },
 #ifdef CONFIG_FPU
 	[REGSET_FPU] = {
-			    .core_note_type = NT_PRFPREG,
+			    USER_REGSET_NOTE_TYPE(PRFPREG),
 			    .n = sizeof(struct __or1k_fpu_state) / sizeof(long),
 			    .size = sizeof(long),
 			    .align = sizeof(long),

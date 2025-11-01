@@ -244,7 +244,8 @@ static const struct v4l2_ctrl_config vivid_ctrl_u8_pixel_array = {
 	.min = 0x00,
 	.max = 0xff,
 	.step = 1,
-	.dims = { 640 / PIXEL_ARRAY_DIV, 360 / PIXEL_ARRAY_DIV },
+	.dims = { DIV_ROUND_UP(360, PIXEL_ARRAY_DIV),
+		  DIV_ROUND_UP(640, PIXEL_ARRAY_DIV) },
 };
 
 static const struct v4l2_ctrl_config vivid_ctrl_s32_array = {

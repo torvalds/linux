@@ -79,17 +79,9 @@ static int sdhci_dove_probe(struct platform_device *pdev)
 
 	ret = mmc_of_parse(host->mmc);
 	if (ret)
-		goto err_sdhci_add;
+		return ret;
 
-	ret = sdhci_add_host(host);
-	if (ret)
-		goto err_sdhci_add;
-
-	return 0;
-
-err_sdhci_add:
-	sdhci_pltfm_free(pdev);
-	return ret;
+	return sdhci_add_host(host);
 }
 
 static const struct of_device_id sdhci_dove_of_match_table[] = {

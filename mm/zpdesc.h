@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* zpdesc.h: zswap.zpool memory descriptor
+/* zpdesc.h: zsmalloc pool memory descriptor
  *
  * Written by Alex Shi <alexs@kernel.org>
  *	      Hyeonggon Yoo <42.hyeyoo@gmail.com>
@@ -11,14 +11,14 @@
 #include <linux/pagemap.h>
 
 /*
- * struct zpdesc -	Memory descriptor for zpool memory.
+ * struct zpdesc -	Memory descriptor for zsmalloc pool memory.
  * @flags:		Page flags, mostly unused by zsmalloc.
  * @lru:		Indirectly used by page migration.
  * @movable_ops:	Used by page migration.
- * @next:		Next zpdesc in a zspage in zsmalloc zpool.
- * @handle:		For huge zspage in zsmalloc zpool.
+ * @next:		Next zpdesc in a zspage in zsmalloc pool.
+ * @handle:		For huge zspage in zsmalloc pool.
  * @zspage:		Points to the zspage this zpdesc is a part of.
- * @first_obj_offset:	First object offset in zsmalloc zpool.
+ * @first_obj_offset:	First object offset in zsmalloc pool.
  * @_refcount:		The number of references to this zpdesc.
  *
  * This struct overlays struct page for now. Do not modify without a good
@@ -79,8 +79,8 @@ static_assert(sizeof(struct zpdesc) <= sizeof(struct page));
  * zpdesc_folio - The folio allocated for a zpdesc
  * @zp: The zpdesc.
  *
- * Zpdescs are descriptors for zpool memory. The zpool memory itself is
- * allocated as folios that contain the zpool objects, and zpdesc uses specific
+ * Zpdescs are descriptors for zsmalloc memory. The memory itself is allocated
+ * as folios that contain the zsmalloc objects, and zpdesc uses specific
  * fields in the first struct page of the folio - those fields are now accessed
  * by struct zpdesc.
  *
@@ -152,25 +152,14 @@ static inline struct zpdesc *pfn_zpdesc(unsigned long pfn)
 	return page_zpdesc(pfn_to_page(pfn));
 }
 
-static inline void __zpdesc_set_movable(struct zpdesc *zpdesc,
-					const struct movable_operations *mops)
+static inline void __zpdesc_set_movable(struct zpdesc *zpdesc)
 {
-	__SetPageMovable(zpdesc_page(zpdesc), mops);
+	SetPageMovableOps(zpdesc_page(zpdesc));
 }
 
 static inline void __zpdesc_set_zsmalloc(struct zpdesc *zpdesc)
 {
 	__SetPageZsmalloc(zpdesc_page(zpdesc));
-}
-
-static inline void __zpdesc_clear_zsmalloc(struct zpdesc *zpdesc)
-{
-	__ClearPageZsmalloc(zpdesc_page(zpdesc));
-}
-
-static inline bool zpdesc_is_isolated(struct zpdesc *zpdesc)
-{
-	return PageIsolated(zpdesc_page(zpdesc));
 }
 
 static inline struct zone *zpdesc_zone(struct zpdesc *zpdesc)

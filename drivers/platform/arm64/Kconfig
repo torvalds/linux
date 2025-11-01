@@ -70,4 +70,24 @@ config EC_LENOVO_YOGA_C630
 
 	  Say M or Y here to include this support.
 
+config EC_LENOVO_THINKPAD_T14S
+	tristate "Lenovo Thinkpad T14s Embedded Controller driver"
+	depends on ARCH_QCOM || COMPILE_TEST
+	depends on I2C
+	depends on INPUT
+	select INPUT_SPARSEKMAP
+	select LEDS_CLASS
+	select NEW_LEDS
+	select SND_CTL_LED if SND
+	help
+	  Driver for the Embedded Controller in the Qualcomm Snapdragon-based
+	  Lenovo Thinkpad T14s, which provides access to keyboard backlight
+	  and status LEDs.
+
+	  This driver provides support for the mentioned laptop where this
+	  information is not properly exposed via the standard Qualcomm
+	  devices.
+
+	  Say M or Y here to include this support.
+
 endif # ARM64_PLATFORM_DEVICES

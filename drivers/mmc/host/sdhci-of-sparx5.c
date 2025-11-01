@@ -185,11 +185,9 @@ static int sdhci_sparx5_probe(struct platform_device *pdev)
 	sdhci_sparx5->host = host;
 
 	pltfm_host->clk = devm_clk_get_enabled(&pdev->dev, "core");
-	if (IS_ERR(pltfm_host->clk)) {
-		ret = PTR_ERR(pltfm_host->clk);
-		dev_err(&pdev->dev, "failed to get and enable core clk: %d\n", ret);
-		goto free_pltfm;
-	}
+	if (IS_ERR(pltfm_host->clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(pltfm_host->clk),
+				     "failed to get and enable core clk\n");
 
 	if (!of_property_read_u32(np, "microchip,clock-delay", &value) &&
 	    (value > 0 && value <= MSHC_DLY_CC_MAX))
@@ -199,14 +197,12 @@ static int sdhci_sparx5_probe(struct platform_device *pdev)
 
 	ret = mmc_of_parse(host->mmc);
 	if (ret)
-		goto free_pltfm;
+		return ret;
 
 	sdhci_sparx5->cpu_ctrl = syscon_regmap_lookup_by_compatible(syscon);
-	if (IS_ERR(sdhci_sparx5->cpu_ctrl)) {
-		dev_err(&pdev->dev, "No CPU syscon regmap !\n");
-		ret = PTR_ERR(sdhci_sparx5->cpu_ctrl);
-		goto free_pltfm;
-	}
+	if (IS_ERR(sdhci_sparx5->cpu_ctrl))
+		return dev_err_probe(&pdev->dev, PTR_ERR(sdhci_sparx5->cpu_ctrl),
+				     "No CPU syscon regmap !\n");
 
 	if (sdhci_sparx5->delay_clock >= 0)
 		sparx5_set_delay(host, sdhci_sparx5->delay_clock);
@@ -222,7 +218,7 @@ static int sdhci_sparx5_probe(struct platform_device *pdev)
 
 	ret = sdhci_add_host(host);
 	if (ret)
-		goto free_pltfm;
+		return ret;
 
 	/* Set AXI bus master to use un-cached access (for DMA) */
 	if (host->flags & (SDHCI_USE_SDMA | SDHCI_USE_ADMA) &&
@@ -234,10 +230,6 @@ static int sdhci_sparx5_probe(struct platform_device *pdev)
 	pr_debug("%s: SDHC type:    0x%08x\n",
 		 mmc_hostname(host->mmc), sdhci_readl(host, MSHC2_TYPE));
 
-	return ret;
-
-free_pltfm:
-	sdhci_pltfm_free(pdev);
 	return ret;
 }
 

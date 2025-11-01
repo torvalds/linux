@@ -1745,7 +1745,7 @@ static void myrb_sdev_destroy(struct scsi_device *sdev)
 	kfree(sdev->hostdata);
 }
 
-static int myrb_biosparam(struct scsi_device *sdev, struct block_device *bdev,
+static int myrb_biosparam(struct scsi_device *sdev, struct gendisk *unused,
 		sector_t capacity, int geom[])
 {
 	struct myrb_hba *cb = shost_priv(sdev->host);

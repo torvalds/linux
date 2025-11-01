@@ -273,9 +273,8 @@ int mana_ib_create_queue(struct mana_ib_dev *mdev, u64 addr, u32 size,
 
 	umem = ib_umem_get(&mdev->ib_dev, addr, size, IB_ACCESS_LOCAL_WRITE);
 	if (IS_ERR(umem)) {
-		err = PTR_ERR(umem);
-		ibdev_dbg(&mdev->ib_dev, "Failed to get umem, %d\n", err);
-		return err;
+		ibdev_dbg(&mdev->ib_dev, "Failed to get umem, %pe\n", umem);
+		return PTR_ERR(umem);
 	}
 
 	err = mana_ib_create_zero_offset_dma_region(mdev, umem, &queue->gdma_region);
@@ -563,8 +562,14 @@ int mana_ib_get_port_immutable(struct ib_device *ibdev, u32 port_num,
 	immutable->gid_tbl_len = attr.gid_tbl_len;
 
 	if (mana_ib_is_rnic(dev)) {
-		immutable->core_cap_flags = RDMA_CORE_PORT_IBA_ROCE_UDP_ENCAP;
-		immutable->max_mad_size = IB_MGMT_MAD_SIZE;
+		if (port_num == 1) {
+			immutable->core_cap_flags = RDMA_CORE_PORT_IBA_ROCE_UDP_ENCAP;
+			immutable->max_mad_size = IB_MGMT_MAD_SIZE;
+		} else {
+			immutable->core_cap_flags = RDMA_CORE_CAP_PROT_ROCE_UDP_ENCAP
+						    | RDMA_CORE_CAP_ETH_AH;
+			immutable->max_mad_size = 0;
+		}
 	} else {
 		immutable->core_cap_flags = RDMA_CORE_PORT_RAW_PACKET;
 	}
@@ -633,8 +638,9 @@ int mana_ib_query_port(struct ib_device *ibdev, u32 port,
 	props->pkey_tbl_len = 1;
 	if (mana_ib_is_rnic(dev)) {
 		props->gid_tbl_len = 16;
-		props->port_cap_flags = IB_PORT_CM_SUP;
 		props->ip_gids = true;
+		if (port == 1)
+			props->port_cap_flags = IB_PORT_CM_SUP;
 	}
 
 	return 0;

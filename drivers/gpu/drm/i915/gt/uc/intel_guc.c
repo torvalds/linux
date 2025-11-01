@@ -8,15 +8,17 @@
 #include "gt/intel_gt_irq.h"
 #include "gt/intel_gt_pm_irq.h"
 #include "gt/intel_gt_regs.h"
+
+#include "i915_drv.h"
+#include "i915_irq.h"
+#include "i915_reg.h"
+#include "i915_wait_util.h"
 #include "intel_guc.h"
 #include "intel_guc_ads.h"
 #include "intel_guc_capture.h"
 #include "intel_guc_print.h"
 #include "intel_guc_slpc.h"
 #include "intel_guc_submission.h"
-#include "i915_drv.h"
-#include "i915_irq.h"
-#include "i915_reg.h"
 
 /**
  * DOC: GuC
@@ -313,8 +315,13 @@ static u32 guc_ctl_wa_flags(struct intel_guc *guc)
 	 *
 	 * The same WA bit is used for both and 22011391025 is applicable to
 	 * all DG2.
+	 *
+	 * Platforms post DG2 prevent this issue in hardware by stalling
+	 * submissions. With this flag GuC will schedule as to avoid such
+	 * stalls.
 	 */
-	if (IS_DG2(gt->i915))
+	if (IS_DG2(gt->i915) ||
+	    (CCS_MASK(gt) && GRAPHICS_VER_FULL(gt->i915) >= IP_VER(12, 70)))
 		flags |= GUC_WA_DUAL_QUEUE;
 
 	/* Wa_22011802037: graphics version 11/12 */

@@ -108,7 +108,7 @@ static void guest_test_hvc(const struct test_hvc_info *hc_info)
 
 	for (i = 0; i < hvc_info_arr_sz; i++, hc_info++) {
 		memset(&res, 0, sizeof(res));
-		smccc_hvc(hc_info->func_id, hc_info->arg1, 0, 0, 0, 0, 0, 0, &res);
+		do_smccc(hc_info->func_id, hc_info->arg1, 0, 0, 0, 0, 0, 0, &res);
 
 		switch (stage) {
 		case TEST_STAGE_HVC_IFACE_FEAT_DISABLED:

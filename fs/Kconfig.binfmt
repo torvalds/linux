@@ -184,4 +184,13 @@ config EXEC_KUNIT_TEST
 	  This builds the exec KUnit tests, which tests boundary conditions
 	  of various aspects of the exec internals.
 
+config ARCH_HAS_ELF_CORE_EFLAGS
+	bool
+	depends on BINFMT_ELF && ELF_CORE
+	default n
+	help
+	  Select this option if the architecture makes use of the e_flags
+	  field in the ELF header to store ABI or other architecture-specific
+	  information that should be preserved in core dumps.
+
 endmenu

@@ -326,10 +326,14 @@ struct sof_ipc4_base_module_cfg {
 #define SOF_IPC4_MOD_INSTANCE_SHIFT		16
 #define SOF_IPC4_MOD_INSTANCE_MASK		GENMASK(23, 16)
 #define SOF_IPC4_MOD_INSTANCE(x)		((x) << SOF_IPC4_MOD_INSTANCE_SHIFT)
+#define SOF_IPC4_MOD_INSTANCE_GET(x)		(((x) & SOF_IPC4_MOD_INSTANCE_MASK) \
+						 >> SOF_IPC4_MOD_INSTANCE_SHIFT)
 
 #define SOF_IPC4_MOD_ID_SHIFT			0
 #define SOF_IPC4_MOD_ID_MASK			GENMASK(15, 0)
 #define SOF_IPC4_MOD_ID(x)			((x) << SOF_IPC4_MOD_ID_SHIFT)
+#define SOF_IPC4_MOD_ID_GET(x)			(((x) & SOF_IPC4_MOD_ID_MASK) \
+						 >> SOF_IPC4_MOD_ID_SHIFT)
 
 /* init module ipc msg */
 #define SOF_IPC4_MOD_EXT_PARAM_SIZE_SHIFT	0
@@ -497,6 +501,8 @@ struct sof_ipc4_intel_mic_privacy_cap {
 #define SOF_IPC4_LOG_CORE_MASK			GENMASK(15, 12)
 #define SOF_IPC4_LOG_CORE_GET(x)		(((x) & SOF_IPC4_LOG_CORE_MASK) >> \
 						 SOF_IPC4_LOG_CORE_SHIFT)
+
+#define SOF_IPC4_FW_READY_LIB_RESTORED		BIT(15)
 
 /* Value of notification type field - must fit into 8 bits */
 enum sof_ipc4_notification_type {

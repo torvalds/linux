@@ -44,6 +44,8 @@ struct cs42l43_codec {
 	struct device *dev;
 	struct cs42l43 *core;
 	struct snd_soc_component *component;
+	struct irq_domain *dom;
+	unsigned int shutter_irqs[4];
 
 	struct clk *mclk;
 
@@ -88,8 +90,6 @@ struct cs42l43_codec {
 
 	struct delayed_work tip_sense_work;
 	struct delayed_work bias_sense_timeout;
-	struct delayed_work button_press_work;
-	struct work_struct button_release_work;
 	struct completion type_detect;
 	struct completion load_detect;
 
@@ -99,7 +99,6 @@ struct cs42l43_codec {
 	int jack_override;
 	bool suspend_jack_debounce;
 
-	struct work_struct hp_ilimit_work;
 	struct delayed_work hp_ilimit_clear_work;
 	bool hp_ilimited;
 	int hp_ilimit_count;
@@ -133,9 +132,8 @@ static inline int cs42l43_sdw_add_peripheral(struct snd_pcm_substream *substream
 int cs42l43_set_jack(struct snd_soc_component *component,
 		     struct snd_soc_jack *jack, void *d);
 void cs42l43_bias_sense_timeout(struct work_struct *work);
+void cs42l43_clear_jack(struct cs42l43_codec *priv);
 void cs42l43_tip_sense_work(struct work_struct *work);
-void cs42l43_button_press_work(struct work_struct *work);
-void cs42l43_button_release_work(struct work_struct *work);
 irqreturn_t cs42l43_bias_detect_clamp(int irq, void *data);
 irqreturn_t cs42l43_button_press(int irq, void *data);
 irqreturn_t cs42l43_button_release(int irq, void *data);

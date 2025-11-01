@@ -388,7 +388,7 @@ static int mxs_spi_transfer_one(struct spi_controller *host,
 		       TXRX_DEASSERT_CS : 0;
 
 		/*
-		 * Small blocks can be transfered via PIO.
+		 * Small blocks can be transferred via PIO.
 		 * Measured by empiric means:
 		 *
 		 * dd if=/dev/mtdblock0 of=/dev/null bs=1024k count=1

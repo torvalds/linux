@@ -274,10 +274,6 @@ are the following:
 	The time it takes to switch the CPUs belonging to this policy from one
 	P-state to another, in nanoseconds.
 
-	If unknown or if known to be so high that the scaling driver does not
-	work with the `ondemand`_ governor, -1 (:c:macro:`CPUFREQ_ETERNAL`)
-	will be returned by reads from this attribute.
-
 ``related_cpus``
 	List of all (online and offline) CPUs belonging to this policy.
 
@@ -398,7 +394,9 @@ policy limits change after that.
 
 This governor does not do anything by itself.  Instead, it allows user space
 to set the CPU frequency for the policy it is attached to by writing to the
-``scaling_setspeed`` attribute of that policy.
+``scaling_setspeed`` attribute of that policy. Though the intention may be to
+set an exact frequency for the policy, the actual frequency may vary depending
+on hardware coordination, thermal and power limits, and other factors.
 
 ``schedutil``
 -------------

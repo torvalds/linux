@@ -232,10 +232,6 @@ static int stk1160_start_streaming(struct stk1160 *dev)
 
 	/* submit urbs and enables IRQ */
 	for (i = 0; i < dev->isoc_ctl.num_bufs; i++) {
-		struct stk1160_urb *stk_urb = &dev->isoc_ctl.urb_ctl[i];
-
-		dma_sync_sgtable_for_device(stk1160_get_dmadev(dev), stk_urb->sgt,
-					    DMA_FROM_DEVICE);
 		rc = usb_submit_urb(dev->isoc_ctl.urb_ctl[i].urb, GFP_KERNEL);
 		if (rc) {
 			stk1160_err("cannot submit urb[%d] (%d)\n", i, rc);

@@ -244,7 +244,7 @@ int ixgbe_setup_fc_generic(struct ixgbe_hw *hw)
 	 */
 	if (hw->phy.media_type == ixgbe_media_type_backplane) {
 		/* Need the SW/FW semaphore around AUTOC writes if 82599 and
-		 * LESM is on, likewise reset_pipeline requries the lock as
+		 * LESM is on, likewise reset_pipeline requires the lock as
 		 * it also writes AUTOC.
 		 */
 		ret_val = hw->mac.ops.prot_autoc_write(hw, reg_bp, locked);
@@ -301,7 +301,7 @@ int ixgbe_start_hw_generic(struct ixgbe_hw *hw)
 			return ret_val;
 	}
 
-	/* Cashe bit indicating need for crosstalk fix */
+	/* Cache bit indicating need for crosstalk fix */
 	switch (hw->mac.type) {
 	case ixgbe_mac_82599EB:
 	case ixgbe_mac_X550EM_x:
@@ -1739,9 +1739,9 @@ int ixgbe_calc_eeprom_checksum_generic(struct ixgbe_hw *hw)
 		}
 	}
 
-	checksum = (u16)IXGBE_EEPROM_SUM - checksum;
+	checksum = IXGBE_EEPROM_SUM - checksum;
 
-	return (int)checksum;
+	return checksum;
 }
 
 /**

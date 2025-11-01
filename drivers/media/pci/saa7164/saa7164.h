@@ -180,11 +180,21 @@ struct saa7164_encoder_fh {
 	atomic_t v4l_reading;
 };
 
+static inline struct saa7164_encoder_fh *to_saa7164_encoder_fh(struct file *filp)
+{
+	return container_of(file_to_v4l2_fh(filp), struct saa7164_encoder_fh, fh);
+}
+
 struct saa7164_vbi_fh {
 	struct v4l2_fh fh;
 	struct saa7164_port *port;
 	atomic_t v4l_reading;
 };
+
+static inline struct saa7164_vbi_fh *to_saa7164_vbi_fh(struct file *filp)
+{
+	return container_of(file_to_v4l2_fh(filp), struct saa7164_vbi_fh, fh);
+}
 
 struct saa7164_histogram_bucket {
 	u32 val;
@@ -508,7 +518,6 @@ int saa7164_bus_get(struct saa7164_dev *dev, struct tmComResInfo* msg,
 int saa7164_cmd_send(struct saa7164_dev *dev,
 	u8 id, enum tmComResCmd command, u16 controlselector,
 	u16 size, void *buf);
-void saa7164_cmd_signal(struct saa7164_dev *dev, u8 seqno);
 int saa7164_irq_dequeue(struct saa7164_dev *dev);
 
 /* ----------------------------------------------------------- */
@@ -570,7 +579,6 @@ extern int saa7164_dvb_unregister(struct saa7164_port *port);
 extern struct saa7164_buffer *saa7164_buffer_alloc(
 	struct saa7164_port *port, u32 len);
 extern int saa7164_buffer_dealloc(struct saa7164_buffer *buf);
-extern void saa7164_buffer_display(struct saa7164_buffer *buf);
 extern int saa7164_buffer_activate(struct saa7164_buffer *buf, int i);
 extern int saa7164_buffer_cfg_port(struct saa7164_port *port);
 extern struct saa7164_user_buffer *saa7164_buffer_alloc_user(

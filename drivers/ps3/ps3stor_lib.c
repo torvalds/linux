@@ -8,6 +8,7 @@
 
 #include <linux/dma-mapping.h>
 #include <linux/module.h>
+#include <linux/string_choices.h>
 
 #include <asm/lv1call.h>
 #include <asm/ps3stor.h>
@@ -265,7 +266,7 @@ u64 ps3stor_read_write_sectors(struct ps3_storage_device *dev, u64 lpar,
 			       u64 start_sector, u64 sectors, int write)
 {
 	unsigned int region_id = dev->regions[dev->region_idx].id;
-	const char *op = write ? "write" : "read";
+	const char *op = str_write_read(write);
 	int res;
 
 	dev_dbg(&dev->sbd.core, "%s:%u: %s %llu sectors starting at %llu\n",

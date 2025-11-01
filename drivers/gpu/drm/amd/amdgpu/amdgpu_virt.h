@@ -54,6 +54,12 @@
 
 #define AMDGPU_VF2PF_UPDATE_MAX_RETRY_LIMIT 2
 
+/* Signature used to validate the SR-IOV dynamic critical region init data header ("INDA") */
+#define AMDGPU_SRIOV_CRIT_DATA_SIGNATURE "INDA"
+#define AMDGPU_SRIOV_CRIT_DATA_SIG_LEN   4
+
+#define IS_SRIOV_CRIT_REGN_ENTRY_VALID(hdr, id) ((hdr)->valid_tables & (1 << (id)))
+
 enum amdgpu_sriov_vf_mode {
 	SRIOV_VF_MODE_BARE_METAL = 0,
 	SRIOV_VF_MODE_ONE_VF,
@@ -98,6 +104,7 @@ struct amdgpu_virt_ops {
 	int (*req_ras_err_count)(struct amdgpu_device *adev);
 	int (*req_ras_cper_dump)(struct amdgpu_device *adev, u64 vf_rptr);
 	int (*req_bad_pages)(struct amdgpu_device *adev);
+	int (*req_ras_chk_criti)(struct amdgpu_device *adev, u64 addr);
 };
 
 /*
@@ -152,8 +159,10 @@ enum AMDGIM_REG_ACCESS_FLAG {
 	AMDGIM_FEATURE_MMHUB_REG_RLC_EN   = (1 << 1),
 	/* Use RLC to program GC regs */
 	AMDGIM_FEATURE_GC_REG_RLC_EN      = (1 << 2),
-	/* Use PSP to program L1_TLB_CNTL*/
+	/* Use PSP to program L1_TLB_CNTL */
 	AMDGIM_FEATURE_L1_TLB_CNTL_PSP_EN = (1 << 3),
+	/* Use RLCG to program SQ_CONFIG1 */
+	AMDGIM_FEATURE_REG_ACCESS_SQ_CONFIG = (1 << 4),
 };
 
 struct amdgim_pf2vf_info_v1 {
@@ -250,8 +259,18 @@ struct amdgpu_virt_ras_err_handler_data {
 struct amdgpu_virt_ras {
 	struct ratelimit_state ras_error_cnt_rs;
 	struct ratelimit_state ras_cper_dump_rs;
+	struct ratelimit_state ras_chk_criti_rs;
 	struct mutex ras_telemetry_mutex;
 	uint64_t cper_rptr;
+};
+
+#define AMDGPU_VIRT_CAPS_LIST(X) X(AMDGPU_VIRT_CAP_POWER_LIMIT)
+
+DECLARE_ATTR_CAP_CLASS(amdgpu_virt, AMDGPU_VIRT_CAPS_LIST);
+
+struct amdgpu_virt_region {
+	uint32_t offset;
+	uint32_t size_kb;
 };
 
 /* GPU virtualization */
@@ -265,12 +284,14 @@ struct amdgpu_virt {
 	struct amdgpu_irq_src		rcv_irq;
 
 	struct work_struct		flr_work;
-	struct work_struct		bad_pages_work;
+	struct work_struct		req_bad_pages_work;
+	struct work_struct		handle_bad_pages_work;
 
 	struct amdgpu_mm_table		mm_table;
 	const struct amdgpu_virt_ops	*ops;
 	struct amdgpu_vf_error_buffer	vf_errors;
 	struct amdgpu_virt_fw_reserve	fw_reserve;
+	struct amdgpu_virt_caps virt_caps;
 	uint32_t gim_feature;
 	uint32_t reg_access_mode;
 	int req_init_data_ver;
@@ -278,6 +299,12 @@ struct amdgpu_virt {
 	struct amdgpu_virt_ras_err_handler_data *virt_eh_data;
 	bool ras_init_done;
 	uint32_t reg_access;
+
+	/* dynamic(v2) critical regions */
+	struct amdgpu_virt_region init_data_header;
+	struct amdgpu_virt_region crit_regn;
+	struct amdgpu_virt_region crit_regn_tbl[AMD_SRIOV_MSG_MAX_TABLE_ID];
+	bool is_dynamic_crit_regn_enabled;
 
 	/* vf2pf message */
 	struct delayed_work vf2pf_work;
@@ -301,6 +328,9 @@ struct amdgpu_virt {
 	union amd_sriov_ras_caps ras_telemetry_en_caps;
 	struct amdgpu_virt_ras ras;
 	struct amd_sriov_ras_telemetry_error_count count_cache;
+
+	/* hibernate and resume with different VF feature for xgmi enabled system */
+	bool is_xgmi_node_migrate_enabled;
 };
 
 struct amdgpu_video_codec_info;
@@ -342,6 +372,10 @@ struct amdgpu_video_codec_info;
 
 #define amdgpu_sriov_rlcg_error_report_enabled(adev) \
         (amdgpu_sriov_reg_indirect_mmhub(adev) || amdgpu_sriov_reg_indirect_gc(adev))
+
+#define amdgpu_sriov_reg_access_sq_config(adev) \
+(amdgpu_sriov_vf((adev)) && \
+	((adev)->virt.reg_access & (AMDGIM_FEATURE_REG_ACCESS_SQ_CONFIG)))
 
 #define amdgpu_passthrough(adev) \
 ((adev)->virt.caps & AMDGPU_PASSTHROUGH_MODE)
@@ -386,6 +420,10 @@ static inline bool is_virtual_machine(void)
 	((adev)->virt.gim_feature & AMDGIM_FEATURE_VCN_RB_DECOUPLE)
 #define amdgpu_sriov_is_mes_info_enable(adev) \
 	((adev)->virt.gim_feature & AMDGIM_FEATURE_MES_INFO_ENABLE)
+
+#define amdgpu_virt_xgmi_migrate_enabled(adev) \
+	((adev)->virt.is_xgmi_node_migrate_enabled && (adev)->gmc.xgmi.node_segment_size != 0)
+
 bool amdgpu_virt_mmio_blocked(struct amdgpu_device *adev);
 void amdgpu_virt_init_setting(struct amdgpu_device *adev);
 int amdgpu_virt_request_full_gpu(struct amdgpu_device *adev, bool init);
@@ -402,6 +440,10 @@ void amdgpu_virt_init_data_exchange(struct amdgpu_device *adev);
 void amdgpu_virt_exchange_data(struct amdgpu_device *adev);
 void amdgpu_virt_fini_data_exchange(struct amdgpu_device *adev);
 void amdgpu_virt_init(struct amdgpu_device *adev);
+
+int amdgpu_virt_init_critical_region(struct amdgpu_device *adev);
+int amdgpu_virt_get_dynamic_data_info(struct amdgpu_device *adev,
+	int data_id, uint8_t *binary, u32 *size);
 
 bool amdgpu_virt_can_access_debugfs(struct amdgpu_device *adev);
 int amdgpu_virt_enable_access_debugfs(struct amdgpu_device *adev);
@@ -434,4 +476,5 @@ int amdgpu_virt_ras_telemetry_post_reset(struct amdgpu_device *adev);
 bool amdgpu_virt_ras_telemetry_block_en(struct amdgpu_device *adev,
 					enum amdgpu_ras_block block);
 void amdgpu_virt_request_bad_pages(struct amdgpu_device *adev);
+int amdgpu_virt_check_vf_critical_region(struct amdgpu_device *adev, u64 addr, bool *hit);
 #endif

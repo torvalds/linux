@@ -330,7 +330,7 @@ static int qcom_vadc7_scale_hw_calib_die_temp(
 				const struct adc5_data *data,
 				u16 adc_code, int *result_mdec);
 
-static struct qcom_adc5_scale_type scale_adc5_fn[] = {
+static const struct qcom_adc5_scale_type scale_adc5_fn[] = {
 	[SCALE_HW_CALIB_DEFAULT] = {qcom_vadc_scale_hw_calib_volt},
 	[SCALE_HW_CALIB_THERM_100K_PULLUP] = {qcom_vadc_scale_hw_calib_therm},
 	[SCALE_HW_CALIB_XOTHERM] = {qcom_vadc_scale_hw_calib_therm},

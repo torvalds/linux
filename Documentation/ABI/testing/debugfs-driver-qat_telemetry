@@ -32,7 +32,7 @@ Description:	(RW) Enables/disables the reporting of telemetry metrics.
 
 		  echo 0 > /sys/kernel/debug/qat_4xxx_0000:6b:00.0/telemetry/control
 
-		This attribute is only available for qat_4xxx devices.
+		This attribute is only available for qat_4xxx and qat_6xxx devices.
 
 What:		/sys/kernel/debug/qat_<device>_<BDF>/telemetry/device_data
 Date:		March 2024
@@ -57,6 +57,7 @@ Description:	(RO) Reports device telemetry counters.
 		gp_lat_acc_avg		average get to put latency [ns]
 		bw_in			PCIe, write bandwidth [Mbps]
 		bw_out			PCIe, read bandwidth [Mbps]
+		re_acc_avg		average ring empty time [ns]
 		at_page_req_lat_avg	Address Translator(AT), average page
 					request latency [ns]
 		at_trans_lat_avg	AT, average page translation latency [ns]
@@ -67,6 +68,10 @@ Description:	(RO) Reports device telemetry counters.
 		exec_xlt<N>		execution count of Translator slice N
 		util_dcpr<N>		utilization of Decompression slice N [%]
 		exec_dcpr<N>		execution count of Decompression slice N
+		util_cnv<N>		utilization of Compression and verify slice N [%]
+		exec_cnv<N>		execution count of Compression and verify slice N
+		util_dcprz<N>		utilization of Decompression slice N [%]
+		exec_dcprz<N>		execution count of Decompression slice N
 		util_pke<N>		utilization of PKE N [%]
 		exec_pke<N>		execution count of PKE N
 		util_ucs<N>		utilization of UCS slice N [%]
@@ -81,6 +86,32 @@ Description:	(RO) Reports device telemetry counters.
 		exec_cph<N>		execution count of Cipher slice N
 		util_ath<N>		utilization of Authentication slice N [%]
 		exec_ath<N>		execution count of Authentication slice N
+		cmdq_wait_cnv<N>	wait time for cmdq N to get Compression and verify
+					slice ownership
+		cmdq_exec_cnv<N>	Compression and verify slice execution time while
+					owned by cmdq N
+		cmdq_drain_cnv<N>	time taken for cmdq N to release Compression and
+					verify slice ownership
+		cmdq_wait_dcprz<N>	wait time for cmdq N to get Decompression
+					slice N ownership
+		cmdq_exec_dcprz<N>	Decompression slice execution time while
+					owned by cmdq N
+		cmdq_drain_dcprz<N>	time taken for cmdq N to release Decompression
+					slice ownership
+		cmdq_wait_pke<N>	wait time for cmdq N to get PKE slice ownership
+		cmdq_exec_pke<N>	PKE slice execution time while owned by cmdq N
+		cmdq_drain_pke<N>	time taken for cmdq N to release PKE slice
+					ownership
+		cmdq_wait_ucs<N>	wait time for cmdq N to get UCS slice ownership
+		cmdq_exec_ucs<N>	UCS slice execution time while owned by cmdq N
+		cmdq_drain_ucs<N>	time taken for cmdq N to release UCS slice
+					ownership
+		cmdq_wait_ath<N>	wait time for cmdq N to get Authentication slice
+					ownership
+		cmdq_exec_ath<N>	Authentication slice execution time while owned
+					by cmdq N
+		cmdq_drain_ath<N>	time taken for cmdq N to release Authentication
+					slice ownership
 		=======================	========================================
 
 		The telemetry report file can be read with the following command::
@@ -100,7 +131,7 @@ Description:	(RO) Reports device telemetry counters.
 		If a device lacks of a specific accelerator, the corresponding
 		attribute is not reported.
 
-		This attribute is only available for qat_4xxx devices.
+		This attribute is only available for qat_4xxx and qat_6xxx devices.
 
 What:		/sys/kernel/debug/qat_<device>_<BDF>/telemetry/rp_<A/B/C/D>_data
 Date:		March 2024
@@ -225,4 +256,4 @@ Description:	(RW) Selects up to 4 Ring Pairs (RP) to monitor, one per file,
 		``rp2srv`` from sysfs.
 		See Documentation/ABI/testing/sysfs-driver-qat for details.
 
-		This attribute is only available for qat_4xxx devices.
+		This attribute is only available for qat_4xxx and qat_6xxx devices.

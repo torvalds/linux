@@ -190,12 +190,12 @@ static void __init gic_prio_init(void)
 
 	/*
 	 * How priority values are used by the GIC depends on two things:
-	 * the security state of the GIC (controlled by the GICD_CTRL.DS bit)
+	 * the security state of the GIC (controlled by the GICD_CTLR.DS bit)
 	 * and if Group 0 interrupts can be delivered to Linux in the non-secure
 	 * world as FIQs (controlled by the SCR_EL3.FIQ bit). These affect the
 	 * way priorities are presented in ICC_PMR_EL1 and in the distributor:
 	 *
-	 * GICD_CTRL.DS | SCR_EL3.FIQ | ICC_PMR_EL1 | Distributor
+	 * GICD_CTLR.DS | SCR_EL3.FIQ | ICC_PMR_EL1 | Distributor
 	 * -------------------------------------------------------
 	 *      1       |      -      |  unchanged  |  unchanged
 	 * -------------------------------------------------------
@@ -223,7 +223,7 @@ static void __init gic_prio_init(void)
 		dist_prio_nmi = __gicv3_prio_to_ns(dist_prio_nmi);
 	}
 
-	pr_info("GICD_CTRL.DS=%d, SCR_EL3.FIQ=%d\n",
+	pr_info("GICD_CTLR.DS=%d, SCR_EL3.FIQ=%d\n",
 		cpus_have_security_disabled,
 		!cpus_have_group0);
 }
@@ -1766,8 +1766,9 @@ static int gic_irq_domain_select(struct irq_domain *d,
 				 struct irq_fwspec *fwspec,
 				 enum irq_domain_bus_token bus_token)
 {
-	unsigned int type, ret, ppi_idx;
+	unsigned int type, ppi_idx;
 	irq_hw_number_t hwirq;
+	int ret;
 
 	/* Not for us */
 	if (fwspec->fwnode != d->fwnode)

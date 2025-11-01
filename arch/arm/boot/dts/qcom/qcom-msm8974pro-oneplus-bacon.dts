@@ -13,6 +13,7 @@
 	qcom,board-id = <8 0>;
 
 	aliases {
+		mmc0 = &sdhc_1;
 		serial0 = &blsp1_uart2;
 	};
 

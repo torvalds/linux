@@ -366,7 +366,6 @@ static int cedrus_open(struct file *file)
 	}
 
 	v4l2_fh_init(&ctx->fh, video_devdata(file));
-	file->private_data = &ctx->fh;
 	ctx->dev = dev;
 	ctx->bit_depth = 8;
 
@@ -383,7 +382,7 @@ static int cedrus_open(struct file *file)
 	if (ret)
 		goto err_m2m_release;
 
-	v4l2_fh_add(&ctx->fh);
+	v4l2_fh_add(&ctx->fh, file);
 
 	mutex_unlock(&dev->dev_mutex);
 
@@ -401,12 +400,11 @@ err_free:
 static int cedrus_release(struct file *file)
 {
 	struct cedrus_dev *dev = video_drvdata(file);
-	struct cedrus_ctx *ctx = container_of(file->private_data,
-					      struct cedrus_ctx, fh);
+	struct cedrus_ctx *ctx = cedrus_file2ctx(file);
 
 	mutex_lock(&dev->dev_mutex);
 
-	v4l2_fh_del(&ctx->fh);
+	v4l2_fh_del(&ctx->fh, file);
 	v4l2_m2m_ctx_release(ctx->fh.m2m_ctx);
 
 	v4l2_ctrl_handler_free(&ctx->hdl);

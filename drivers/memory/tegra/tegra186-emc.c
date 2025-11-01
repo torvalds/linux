@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2019 NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (C) 2019-2025 NVIDIA CORPORATION.  All rights reserved.
  */
 
 #include <linux/clk.h>
@@ -393,6 +393,9 @@ static const struct of_device_id tegra186_emc_of_match[] = {
 #endif
 #if defined(CONFIG_ARCH_TEGRA_234_SOC)
 	{ .compatible = "nvidia,tegra234-emc" },
+#endif
+#if defined(CONFIG_ARCH_TEGRA_264_SOC)
+	{ .compatible = "nvidia,tegra264-emc" },
 #endif
 	{ /* sentinel */ }
 };

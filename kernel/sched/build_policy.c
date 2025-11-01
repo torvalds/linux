@@ -50,16 +50,15 @@
 #include "idle.c"
 
 #include "rt.c"
+#include "cpudeadline.c"
 
-#ifdef CONFIG_SMP
-# include "cpudeadline.c"
-# include "pelt.c"
-#endif
+#include "pelt.c"
 
 #include "cputime.c"
 #include "deadline.c"
 
 #ifdef CONFIG_SCHED_CLASS_EXT
+# include "ext_internal.h"
 # include "ext.c"
 # include "ext_idle.c"
 #endif

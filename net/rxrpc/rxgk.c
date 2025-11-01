@@ -475,7 +475,7 @@ static int rxgk_verify_packet_integrity(struct rxrpc_call *call,
 	struct krb5_buffer metadata;
 	unsigned int offset = sp->offset, len = sp->len;
 	size_t data_offset = 0, data_len = len;
-	u32 ac;
+	u32 ac = 0;
 	int ret = -ENOMEM;
 
 	_enter("");
@@ -499,9 +499,10 @@ static int rxgk_verify_packet_integrity(struct rxrpc_call *call,
 	ret = rxgk_verify_mic_skb(gk->krb5, gk->rx_Kc, &metadata,
 				  skb, &offset, &len, &ac);
 	kfree(hdr);
-	if (ret == -EPROTO) {
-		rxrpc_abort_eproto(call, skb, ac,
-				   rxgk_abort_1_verify_mic_eproto);
+	if (ret < 0) {
+		if (ret != -ENOMEM)
+			rxrpc_abort_eproto(call, skb, ac,
+					   rxgk_abort_1_verify_mic_eproto);
 	} else {
 		sp->offset = offset;
 		sp->len = len;
@@ -524,15 +525,16 @@ static int rxgk_verify_packet_encrypted(struct rxrpc_call *call,
 	struct rxgk_header hdr;
 	unsigned int offset = sp->offset, len = sp->len;
 	int ret;
-	u32 ac;
+	u32 ac = 0;
 
 	_enter("");
 
 	ret = rxgk_decrypt_skb(gk->krb5, gk->rx_enc, skb, &offset, &len, &ac);
-	if (ret == -EPROTO)
-		rxrpc_abort_eproto(call, skb, ac, rxgk_abort_2_decrypt_eproto);
-	if (ret < 0)
+	if (ret < 0) {
+		if (ret != -ENOMEM)
+			rxrpc_abort_eproto(call, skb, ac, rxgk_abort_2_decrypt_eproto);
 		goto error;
+	}
 
 	if (len < sizeof(hdr)) {
 		ret = rxrpc_abort_eproto(call, skb, RXGK_PACKETSHORT,

@@ -14,8 +14,6 @@
 #include <linux/device.h>
 #include <linux/phy.h>
 #include <linux/netdevice.h>
-#include <linux/phy_fixed.h>
-#include <linux/phylink.h>
 #include <linux/etherdevice.h>
 #include <linux/libfdt_env.h>
 #include <linux/platform_device.h>

@@ -1264,7 +1264,9 @@ static inline int move_dirty_folio_in_page_array(struct address_space *mapping,
 								0,
 								gfp_flags);
 		if (IS_ERR(pages[index])) {
-			if (PTR_ERR(pages[index]) == -EINVAL) {
+			int err = PTR_ERR(pages[index]);
+
+			if (err == -EINVAL) {
 				pr_err_client(cl, "inode->i_blkbits=%hhu\n",
 						inode->i_blkbits);
 			}
@@ -1273,7 +1275,7 @@ static inline int move_dirty_folio_in_page_array(struct address_space *mapping,
 			BUG_ON(ceph_wbc->locked_pages == 0);
 
 			pages[index] = NULL;
-			return PTR_ERR(pages[index]);
+			return err;
 		}
 	} else {
 		pages[index] = &folio->page;
@@ -1687,6 +1689,7 @@ get_more_pages:
 
 process_folio_batch:
 		rc = ceph_process_folio_batch(mapping, wbc, &ceph_wbc);
+		ceph_shift_unused_folios_left(&ceph_wbc.fbatch);
 		if (rc)
 			goto release_folios;
 
@@ -1695,8 +1698,6 @@ process_folio_batch:
 			goto release_folios;
 
 		if (ceph_wbc.processed_in_fbatch) {
-			ceph_shift_unused_folios_left(&ceph_wbc.fbatch);
-
 			if (folio_batch_count(&ceph_wbc.fbatch) == 0 &&
 			    ceph_wbc.locked_pages < ceph_wbc.max_pages) {
 				doutc(cl, "reached end fbatch, trying for more\n");
@@ -1864,10 +1865,12 @@ static int ceph_netfs_check_write_begin(struct file *file, loff_t pos, unsigned 
  * We are only allowed to write into/dirty the page if the page is
  * clean, or already dirty within the same snap context.
  */
-static int ceph_write_begin(struct file *file, struct address_space *mapping,
+static int ceph_write_begin(const struct kiocb *iocb,
+			    struct address_space *mapping,
 			    loff_t pos, unsigned len,
 			    struct folio **foliop, void **fsdata)
 {
+	struct file *file = iocb->ki_filp;
 	struct inode *inode = file_inode(file);
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	int r;
@@ -1885,10 +1888,12 @@ static int ceph_write_begin(struct file *file, struct address_space *mapping,
  * we don't do anything in here that simple_write_end doesn't do
  * except adjust dirty page accounting
  */
-static int ceph_write_end(struct file *file, struct address_space *mapping,
-			  loff_t pos, unsigned len, unsigned copied,
+static int ceph_write_end(const struct kiocb *iocb,
+			  struct address_space *mapping, loff_t pos,
+			  unsigned len, unsigned copied,
 			  struct folio *folio, void *fsdata)
 {
+	struct file *file = iocb->ki_filp;
 	struct inode *inode = file_inode(file);
 	struct ceph_client *cl = ceph_inode_to_client(inode);
 	bool check_cap = false;
@@ -2330,13 +2335,13 @@ static const struct vm_operations_struct ceph_vmops = {
 	.page_mkwrite	= ceph_page_mkwrite,
 };
 
-int ceph_mmap(struct file *file, struct vm_area_struct *vma)
+int ceph_mmap_prepare(struct vm_area_desc *desc)
 {
-	struct address_space *mapping = file->f_mapping;
+	struct address_space *mapping = desc->file->f_mapping;
 
 	if (!mapping->a_ops->read_folio)
 		return -ENOEXEC;
-	vma->vm_ops = &ceph_vmops;
+	desc->vm_ops = &ceph_vmops;
 	return 0;
 }
 

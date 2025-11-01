@@ -34,22 +34,6 @@ When mounting an XFS filesystem, the following options are accepted.
 	to the file. Specifying a fixed ``allocsize`` value turns off
 	the dynamic behaviour.
 
-  attr2 or noattr2
-	The options enable/disable an "opportunistic" improvement to
-	be made in the way inline extended attributes are stored
-	on-disk.  When the new form is used for the first time when
-	``attr2`` is selected (either when setting or removing extended
-	attributes) the on-disk superblock feature bit field will be
-	updated to reflect this format being in use.
-
-	The default behaviour is determined by the on-disk feature
-	bit indicating that ``attr2`` behaviour is active. If either
-	mount option is set, then that becomes the new default used
-	by the filesystem.
-
-	CRC enabled filesystems always use the ``attr2`` format, and so
-	will reject the ``noattr2`` mount option if it is set.
-
   discard or nodiscard (default)
 	Enable/disable the issuing of commands to let the block
 	device reclaim space freed by the filesystem.  This is
@@ -74,12 +58,6 @@ When mounting an XFS filesystem, the following options are accepted.
 	Make the data allocator use the filestreams allocation mode
 	across the entire filesystem rather than just on directories
 	configured to use it.
-
-  ikeep or noikeep (default)
-	When ``ikeep`` is specified, XFS does not delete empty inode
-	clusters and keeps them around on disk.  When ``noikeep`` is
-	specified, empty inode clusters are returned to the free
-	space pool.
 
   inode32 or inode64 (default)
 	When ``inode32`` is specified, it indicates that XFS limits
@@ -253,9 +231,8 @@ latest version and try again.
 
 The deprecation will take place in two parts.  Support for mounting V4
 filesystems can now be disabled at kernel build time via Kconfig option.
-The option will default to yes until September 2025, at which time it
-will be changed to default to no.  In September 2030, support will be
-removed from the codebase entirely.
+These options were changed to default to no in September 2025.  In
+September 2030, support will be removed from the codebase entirely.
 
 Note: Distributors may choose to withdraw V4 format support earlier than
 the dates listed above.
@@ -268,8 +245,6 @@ Deprecated Mount Options
 ============================    ================
 Mounting with V4 filesystem     September 2030
 Mounting ascii-ci filesystem    September 2030
-ikeep/noikeep			September 2025
-attr2/noattr2			September 2025
 ============================    ================
 
 
@@ -285,6 +260,8 @@ Removed Mount Options
   osyncisdsync/osyncisosync	v4.0
   barrier			v4.19
   nobarrier			v4.19
+  ikeep/noikeep			v6.18
+  attr2/noattr2			v6.18
 ===========================     =======
 
 sysctls
@@ -312,9 +289,6 @@ The following sysctls are available for the XFS filesystem:
 	removes unused preallocation from clean inodes and releases
 	the unused space back to the free pool.
 
-  fs.xfs.speculative_cow_prealloc_lifetime
-	This is an alias for speculative_prealloc_lifetime.
-
   fs.xfs.error_level		(Min: 0  Default: 3  Max: 11)
 	A volume knob for error reporting when internal errors occur.
 	This will generate detailed messages & backtraces for filesystem
@@ -340,17 +314,6 @@ The following sysctls are available for the XFS filesystem:
 		XFS_PTAG_VERIFIER_ERROR         0x00000100
 
 	This option is intended for debugging only.
-
-  fs.xfs.irix_symlink_mode	(Min: 0  Default: 0  Max: 1)
-	Controls whether symlinks are created with mode 0777 (default)
-	or whether their mode is affected by the umask (irix mode).
-
-  fs.xfs.irix_sgid_inherit	(Min: 0  Default: 0  Max: 1)
-	Controls files created in SGID directories.
-	If the group ID of the new file does not match the effective group
-	ID or one of the supplementary group IDs of the parent dir, the
-	ISGID bit is cleared if the irix_sgid_inherit compatibility sysctl
-	is set.
 
   fs.xfs.inherit_sync		(Min: 0  Default: 1  Max: 1)
 	Setting this to "1" will cause the "sync" flag set
@@ -387,24 +350,20 @@ The following sysctls are available for the XFS filesystem:
 Deprecated Sysctls
 ==================
 
-===========================================     ================
-  Name                                          Removal Schedule
-===========================================     ================
-fs.xfs.irix_sgid_inherit                        September 2025
-fs.xfs.irix_symlink_mode                        September 2025
-fs.xfs.speculative_cow_prealloc_lifetime        September 2025
-===========================================     ================
-
+None currently.
 
 Removed Sysctls
 ===============
 
-=============================	=======
-  Name				Removed
-=============================	=======
-  fs.xfs.xfsbufd_centisec	v4.0
-  fs.xfs.age_buffer_centisecs	v4.0
-=============================	=======
+==========================================   =======
+  Name                                       Removed
+==========================================   =======
+  fs.xfs.xfsbufd_centisec                    v4.0
+  fs.xfs.age_buffer_centisecs                v4.0
+  fs.xfs.irix_symlink_mode                   v6.18
+  fs.xfs.irix_sgid_inherit                   v6.18
+  fs.xfs.speculative_cow_prealloc_lifetime   v6.18
+==========================================   =======
 
 Error handling
 ==============

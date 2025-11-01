@@ -48,7 +48,7 @@
 
 #define HV_RNG_NUM_CONTROL		4
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 extern unsigned long sun4v_rng_get_diag_ctl(void);
 extern unsigned long sun4v_rng_ctl_read_v1(unsigned long ctl_regs_ra,
 					   unsigned long *state,
@@ -147,6 +147,6 @@ struct n2rng {
 #define N2RNG_BUSY_LIMIT	100
 #define N2RNG_HCHECK_LIMIT	100
 
-#endif /* !(__ASSEMBLY__) */
+#endif /* !(__ASSEMBLER__) */
 
 #endif /* _N2RNG_H */

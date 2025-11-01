@@ -7,7 +7,7 @@
 #include <asm/feature-fixups.h>
 #include <asm/ppc-opcode.h>
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 extern unsigned int __start___lwsync_fixup, __stop___lwsync_fixup;
 extern void do_lwsync_fixups(unsigned long value, void *fixup_start,
 			     void *fixup_end);
@@ -40,7 +40,7 @@ static inline void ppc_after_tlbiel_barrier(void)
 	 */
 	asm volatile(ASM_FTR_IFSET(PPC_CP_ABORT, "", %0) : : "i" (CPU_FTR_ARCH_31) : "memory");
 }
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #if defined(__powerpc64__)
 #    define LWSYNC	lwsync

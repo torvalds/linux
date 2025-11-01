@@ -139,19 +139,23 @@ pll_get_params(struct pistachio_clk_pll *pll, unsigned long fref,
 	return NULL;
 }
 
-static long pll_round_rate(struct clk_hw *hw, unsigned long rate,
-			   unsigned long *parent_rate)
+static int pll_determine_rate(struct clk_hw *hw, struct clk_rate_request *req)
 {
 	struct pistachio_clk_pll *pll = to_pistachio_pll(hw);
 	unsigned int i;
 
 	for (i = 0; i < pll->nr_rates; i++) {
-		if (i > 0 && pll->rates[i].fref == *parent_rate &&
-		    pll->rates[i].fout <= rate)
-			return pll->rates[i - 1].fout;
+		if (i > 0 && pll->rates[i].fref == req->best_parent_rate &&
+		    pll->rates[i].fout <= req->rate) {
+			req->rate = pll->rates[i - 1].fout;
+
+			return 0;
+		}
 	}
 
-	return pll->rates[0].fout;
+	req->rate = pll->rates[0].fout;
+
+	return 0;
 }
 
 static int pll_gf40lp_frac_enable(struct clk_hw *hw)
@@ -300,7 +304,7 @@ static const struct clk_ops pll_gf40lp_frac_ops = {
 	.disable = pll_gf40lp_frac_disable,
 	.is_enabled = pll_gf40lp_frac_is_enabled,
 	.recalc_rate = pll_gf40lp_frac_recalc_rate,
-	.round_rate = pll_round_rate,
+	.determine_rate = pll_determine_rate,
 	.set_rate = pll_gf40lp_frac_set_rate,
 };
 
@@ -432,7 +436,7 @@ static const struct clk_ops pll_gf40lp_laint_ops = {
 	.disable = pll_gf40lp_laint_disable,
 	.is_enabled = pll_gf40lp_laint_is_enabled,
 	.recalc_rate = pll_gf40lp_laint_recalc_rate,
-	.round_rate = pll_round_rate,
+	.determine_rate = pll_determine_rate,
 	.set_rate = pll_gf40lp_laint_set_rate,
 };
 

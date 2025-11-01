@@ -35,7 +35,6 @@ int vmci_doorbell_create(struct vmci_handle *handle, u32 flags,
 			 u32 priv_flags,
 			 vmci_callback notify_cb, void *client_data);
 int vmci_doorbell_destroy(struct vmci_handle handle);
-int vmci_doorbell_notify(struct vmci_handle handle, u32 priv_flags);
 u32 vmci_get_context_id(void);
 bool vmci_is_context_owner(u32 context_id, kuid_t uid);
 int vmci_register_vsock_callback(vmci_vsock_cb callback);
@@ -61,12 +60,6 @@ s64 vmci_qpair_produce_free_space(const struct vmci_qp *qpair);
 s64 vmci_qpair_produce_buf_ready(const struct vmci_qp *qpair);
 s64 vmci_qpair_consume_free_space(const struct vmci_qp *qpair);
 s64 vmci_qpair_consume_buf_ready(const struct vmci_qp *qpair);
-ssize_t vmci_qpair_enqueue(struct vmci_qp *qpair,
-			   const void *buf, size_t buf_size, int mode);
-ssize_t vmci_qpair_dequeue(struct vmci_qp *qpair,
-			   void *buf, size_t buf_size, int mode);
-ssize_t vmci_qpair_peek(struct vmci_qp *qpair, void *buf, size_t buf_size,
-			int mode);
 ssize_t vmci_qpair_enquev(struct vmci_qp *qpair,
 			  struct msghdr *msg, size_t iov_size, int mode);
 ssize_t vmci_qpair_dequev(struct vmci_qp *qpair,

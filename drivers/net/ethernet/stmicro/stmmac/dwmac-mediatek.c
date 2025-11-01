@@ -523,7 +523,7 @@ static int mediatek_dwmac_clk_init(struct mediatek_dwmac_plat_data *plat)
 	return ret;
 }
 
-static int mediatek_dwmac_init(struct platform_device *pdev, void *priv)
+static int mediatek_dwmac_init(struct device *dev, void *priv)
 {
 	struct mediatek_dwmac_plat_data *plat = priv;
 	const struct mediatek_dwmac_variant *variant = plat->variant;
@@ -532,7 +532,7 @@ static int mediatek_dwmac_init(struct platform_device *pdev, void *priv)
 	if (variant->dwmac_set_phy_interface) {
 		ret = variant->dwmac_set_phy_interface(plat);
 		if (ret) {
-			dev_err(plat->dev, "failed to set phy interface, err = %d\n", ret);
+			dev_err(dev, "failed to set phy interface, err = %d\n", ret);
 			return ret;
 		}
 	}
@@ -540,7 +540,7 @@ static int mediatek_dwmac_init(struct platform_device *pdev, void *priv)
 	if (variant->dwmac_set_delay) {
 		ret = variant->dwmac_set_delay(plat);
 		if (ret) {
-			dev_err(plat->dev, "failed to set delay value, err = %d\n", ret);
+			dev_err(dev, "failed to set delay value, err = %d\n", ret);
 			return ret;
 		}
 	}
@@ -589,7 +589,7 @@ static int mediatek_dwmac_common_data(struct platform_device *pdev,
 	plat->maxmtu = ETH_DATA_LEN;
 	plat->host_dma_width = priv_plat->variant->dma_bit_mask;
 	plat->bsp_priv = priv_plat;
-	plat->init = mediatek_dwmac_init;
+	plat->resume = mediatek_dwmac_init;
 	plat->clks_config = mediatek_dwmac_clks_config;
 
 	plat->safety_feat_cfg = devm_kzalloc(&pdev->dev,
@@ -654,7 +654,7 @@ static int mediatek_dwmac_probe(struct platform_device *pdev)
 		return PTR_ERR(plat_dat);
 
 	mediatek_dwmac_common_data(pdev, plat_dat, priv_plat);
-	mediatek_dwmac_init(pdev, priv_plat);
+	mediatek_dwmac_init(&pdev->dev, priv_plat);
 
 	ret = mediatek_dwmac_clks_config(priv_plat, true);
 	if (ret)

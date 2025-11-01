@@ -1071,6 +1071,7 @@ static const struct hubbub_funcs hubbub31_funcs = {
 	.program_compbuf_size = dcn31_program_compbuf_size,
 	.init_crb = dcn31_init_crb,
 	.hubbub_read_state = hubbub2_read_state,
+	.hubbub_read_reg_state = hubbub3_read_reg_state
 };
 
 void hubbub31_construct(struct dcn20_hubbub *hubbub31,

@@ -86,7 +86,7 @@ static const struct bin_attribute *const bin_attrs[] = {
 
 static const struct attribute_group cbmem_entry_group = {
 	.attrs = attrs,
-	.bin_attrs_new = bin_attrs,
+	.bin_attrs = bin_attrs,
 };
 
 static const struct attribute_group *dev_groups[] = {

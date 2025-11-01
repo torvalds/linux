@@ -218,16 +218,16 @@ int kvm_emu_iocsr(larch_inst inst, struct kvm_run *run, struct kvm_vcpu *vcpu)
 		}
 		trace_kvm_iocsr(KVM_TRACE_IOCSR_WRITE, run->iocsr_io.len, addr, val);
 	} else {
+		vcpu->arch.io_gpr = rd; /* Set register id for iocsr read completion */
 		idx = srcu_read_lock(&vcpu->kvm->srcu);
-		ret = kvm_io_bus_read(vcpu, KVM_IOCSR_BUS, addr, run->iocsr_io.len, val);
+		ret = kvm_io_bus_read(vcpu, KVM_IOCSR_BUS, addr,
+				      run->iocsr_io.len, run->iocsr_io.data);
 		srcu_read_unlock(&vcpu->kvm->srcu, idx);
-		if (ret == 0)
+		if (ret == 0) {
+			kvm_complete_iocsr_read(vcpu, run);
 			ret = EMULATE_DONE;
-		else {
+		} else
 			ret = EMULATE_DO_IOCSR;
-			/* Save register id for iocsr read completion */
-			vcpu->arch.io_gpr = rd;
-		}
 		trace_kvm_iocsr(KVM_TRACE_IOCSR_READ, run->iocsr_io.len, addr, NULL);
 	}
 
@@ -289,9 +289,11 @@ static int kvm_trap_handle_gspr(struct kvm_vcpu *vcpu)
 	er = EMULATE_FAIL;
 	switch (((inst.word >> 24) & 0xff)) {
 	case 0x0: /* CPUCFG GSPR */
+		trace_kvm_exit_cpucfg(vcpu, KVM_TRACE_EXIT_CPUCFG);
 		er = kvm_emu_cpucfg(vcpu, inst);
 		break;
 	case 0x4: /* CSR{RD,WR,XCHG} GSPR */
+		trace_kvm_exit_csr(vcpu, KVM_TRACE_EXIT_CSR);
 		er = kvm_handle_csr(vcpu, inst);
 		break;
 	case 0x6: /* Cache, Idle and IOCSR GSPR */
@@ -466,6 +468,8 @@ int kvm_emu_mmio_read(struct kvm_vcpu *vcpu, larch_inst inst)
 	if (ret == EMULATE_DO_MMIO) {
 		trace_kvm_mmio(KVM_TRACE_MMIO_READ, run->mmio.len, run->mmio.phys_addr, NULL);
 
+		vcpu->arch.io_gpr = rd; /* Set for kvm_complete_mmio_read() use */
+
 		/*
 		 * If mmio device such as PCH-PIC is emulated in KVM,
 		 * it need not return to user space to handle the mmio
@@ -473,16 +477,15 @@ int kvm_emu_mmio_read(struct kvm_vcpu *vcpu, larch_inst inst)
 		 */
 		idx = srcu_read_lock(&vcpu->kvm->srcu);
 		ret = kvm_io_bus_read(vcpu, KVM_MMIO_BUS, vcpu->arch.badv,
-				      run->mmio.len, &vcpu->arch.gprs[rd]);
+				      run->mmio.len, run->mmio.data);
 		srcu_read_unlock(&vcpu->kvm->srcu, idx);
 		if (!ret) {
+			kvm_complete_mmio_read(vcpu, run);
 			update_pc(&vcpu->arch);
 			vcpu->mmio_needed = 0;
 			return EMULATE_DONE;
 		}
 
-		/* Set for kvm_complete_mmio_read() use */
-		vcpu->arch.io_gpr = rd;
 		run->mmio.is_write = 0;
 		vcpu->mmio_is_write = 0;
 		return EMULATE_DO_MMIO;
@@ -776,10 +779,8 @@ static long kvm_save_notify(struct kvm_vcpu *vcpu)
 		return 0;
 	default:
 		return KVM_HCALL_INVALID_CODE;
-	};
-
-	return KVM_HCALL_INVALID_CODE;
-};
+	}
+}
 
 /*
  * kvm_handle_lsx_disabled() - Guest used LSX while disabled in root.
@@ -821,32 +822,25 @@ static int kvm_handle_lbt_disabled(struct kvm_vcpu *vcpu, int ecode)
 	return RESUME_GUEST;
 }
 
-static int kvm_send_pv_ipi(struct kvm_vcpu *vcpu)
+static void kvm_send_pv_ipi(struct kvm_vcpu *vcpu)
 {
-	unsigned int min, cpu, i;
-	unsigned long ipi_bitmap;
+	unsigned int min, cpu;
 	struct kvm_vcpu *dest;
+	DECLARE_BITMAP(ipi_bitmap, BITS_PER_LONG * 2) = {
+		kvm_read_reg(vcpu, LOONGARCH_GPR_A1),
+		kvm_read_reg(vcpu, LOONGARCH_GPR_A2)
+	};
 
 	min = kvm_read_reg(vcpu, LOONGARCH_GPR_A3);
-	for (i = 0; i < 2; i++, min += BITS_PER_LONG) {
-		ipi_bitmap = kvm_read_reg(vcpu, LOONGARCH_GPR_A1 + i);
-		if (!ipi_bitmap)
+	for_each_set_bit(cpu, ipi_bitmap, BITS_PER_LONG * 2) {
+		dest = kvm_get_vcpu_by_cpuid(vcpu->kvm, cpu + min);
+		if (!dest)
 			continue;
 
-		cpu = find_first_bit((void *)&ipi_bitmap, BITS_PER_LONG);
-		while (cpu < BITS_PER_LONG) {
-			dest = kvm_get_vcpu_by_cpuid(vcpu->kvm, cpu + min);
-			cpu = find_next_bit((void *)&ipi_bitmap, BITS_PER_LONG, cpu + 1);
-			if (!dest)
-				continue;
-
-			/* Send SWI0 to dest vcpu to emulate IPI interrupt */
-			kvm_queue_irq(dest, INT_SWI0);
-			kvm_vcpu_kick(dest);
-		}
+		/* Send SWI0 to dest vcpu to emulate IPI interrupt */
+		kvm_queue_irq(dest, INT_SWI0);
+		kvm_vcpu_kick(dest);
 	}
-
-	return 0;
 }
 
 /*

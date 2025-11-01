@@ -51,7 +51,7 @@ EXPORT_SYMBOL(rtc_year_days);
  */
 void rtc_time64_to_tm(time64_t time, struct rtc_time *tm)
 {
-	int days, secs;
+	int secs;
 
 	u64 u64tmp;
 	u32 u32tmp, udays, century, day_of_century, year_of_century, year,
@@ -59,28 +59,26 @@ void rtc_time64_to_tm(time64_t time, struct rtc_time *tm)
 	bool is_Jan_or_Feb, is_leap_year;
 
 	/*
-	 * Get days and seconds while preserving the sign to
-	 * handle negative time values (dates before 1970-01-01)
+	 * The time represented by `time` is given in seconds since 1970-01-01
+	 * (UTC). As the division done below might misbehave for negative
+	 * values, we convert it to seconds since 0000-03-01 and then assume it
+	 * will be non-negative.
+	 * Below we do 4 * udays + 3 which should fit into a 32 bit unsigned
+	 * variable. So the latest date this algorithm works for is 1073741823
+	 * days after 0000-03-01 which is in the year 2939805.
 	 */
-	days = div_s64_rem(time, 86400, &secs);
+	time += (u64)719468 * 86400;
+
+	udays = div_s64_rem(time, 86400, &secs);
 
 	/*
-	 * We need 0 <= secs < 86400 which isn't given for negative
-	 * values of time. Fixup accordingly.
+	 * day of the week, 0000-03-01 was a Wednesday (in the proleptic
+	 * Gregorian calendar)
 	 */
-	if (secs < 0) {
-		days -= 1;
-		secs += 86400;
-	}
-
-	/* day of the week, 1970-01-01 was a Thursday */
-	tm->tm_wday = (days + 4) % 7;
-	/* Ensure tm_wday is always positive */
-	if (tm->tm_wday < 0)
-		tm->tm_wday += 7;
+	tm->tm_wday = (udays + 3) % 7;
 
 	/*
-	 * The following algorithm is, basically, Proposition 6.3 of Neri
+	 * The following algorithm is, basically, Figure 12 of Neri
 	 * and Schneider [1]. In a few words: it works on the computational
 	 * (fictitious) calendar where the year starts in March, month = 2
 	 * (*), and finishes in February, month = 13. This calendar is
@@ -100,14 +98,14 @@ void rtc_time64_to_tm(time64_t time, struct rtc_time *tm)
 	 * (using just arithmetics) it's easy to convert it to the
 	 * corresponding date in the Gregorian calendar.
 	 *
-	 * [1] "Euclidean Affine Functions and Applications to Calendar
-	 * Algorithms". https://arxiv.org/abs/2102.06959
+	 * [1] Neri C, Schneider L. Euclidean affine functions and their
+	 *     application to calendar algorithms. Softw Pract Exper.
+	 *     2023;53(4):937-970. doi: 10.1002/spe.3172
+	 *     https://doi.org/10.1002/spe.3172
 	 *
 	 * (*) The numbering of months follows rtc_time more closely and
 	 * thus, is slightly different from [1].
 	 */
-
-	udays		= days + 719468;
 
 	u32tmp		= 4 * udays + 3;
 	century		= u32tmp / 146097;

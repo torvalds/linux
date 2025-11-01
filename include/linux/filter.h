@@ -78,11 +78,14 @@ struct ctl_table_header;
 /* unused opcode to mark special atomic instruction */
 #define BPF_PROBE_ATOMIC 0xe0
 
+/* unused opcode to mark special ldsx instruction. Same as BPF_NOSPEC */
+#define BPF_PROBE_MEM32SX 0xc0
+
 /* unused opcode to mark call to interpreter with arguments */
 #define BPF_CALL_ARGS	0xe0
 
 /* unused opcode to mark speculation barrier for mitigating
- * Speculative Store Bypass
+ * Spectre v1 and v4
  */
 #define BPF_NOSPEC	0xc0
 
@@ -997,12 +1000,6 @@ static inline u32 bpf_prog_insn_size(const struct bpf_prog *prog)
 	return prog->len * sizeof(struct bpf_insn);
 }
 
-static inline u32 bpf_prog_tag_scratch_size(const struct bpf_prog *prog)
-{
-	return round_up(bpf_prog_insn_size(prog) +
-			sizeof(__be64) + 1, SHA1_BLOCK_SIZE);
-}
-
 static inline unsigned int bpf_prog_size(unsigned int proglen)
 {
 	return max(sizeof(struct bpf_prog),
@@ -1073,10 +1070,20 @@ bpf_jit_binary_lock_ro(struct bpf_binary_header *hdr)
 	return set_memory_rox((unsigned long)hdr, hdr->size >> PAGE_SHIFT);
 }
 
-int sk_filter_trim_cap(struct sock *sk, struct sk_buff *skb, unsigned int cap);
+int sk_filter_trim_cap(struct sock *sk, struct sk_buff *skb, unsigned int cap,
+		       enum skb_drop_reason *reason);
+
 static inline int sk_filter(struct sock *sk, struct sk_buff *skb)
 {
-	return sk_filter_trim_cap(sk, skb, 1);
+	enum skb_drop_reason ignore_reason;
+
+	return sk_filter_trim_cap(sk, skb, 1, &ignore_reason);
+}
+
+static inline int sk_filter_reason(struct sock *sk, struct sk_buff *skb,
+				   enum skb_drop_reason *reason)
+{
+	return sk_filter_trim_cap(sk, skb, 1, reason);
 }
 
 struct bpf_prog *bpf_prog_select_runtime(struct bpf_prog *fp, int *err);
@@ -1278,13 +1285,15 @@ int bpf_jit_get_func_addr(const struct bpf_prog *prog,
 			  const struct bpf_insn *insn, bool extra_pass,
 			  u64 *func_addr, bool *func_addr_fixed);
 
+const char *bpf_jit_get_prog_name(struct bpf_prog *prog);
+
 struct bpf_prog *bpf_jit_blind_constants(struct bpf_prog *fp);
 void bpf_jit_prog_release_other(struct bpf_prog *fp, struct bpf_prog *fp_other);
 
 static inline void bpf_jit_dump(unsigned int flen, unsigned int proglen,
 				u32 pass, void *image)
 {
-	pr_err("flen=%u proglen=%u pass=%u image=%pK from=%s pid=%d\n", flen,
+	pr_err("flen=%u proglen=%u pass=%u image=%p from=%s pid=%d\n", flen,
 	       proglen, pass, image, current->comm, task_pid_nr(current));
 
 	if (image)
@@ -1772,6 +1781,7 @@ int __bpf_xdp_store_bytes(struct xdp_buff *xdp, u32 offset, void *buf, u32 len);
 void *bpf_xdp_pointer(struct xdp_buff *xdp, u32 offset, u32 len);
 void bpf_xdp_copy_buf(struct xdp_buff *xdp, unsigned long off,
 		      void *buf, unsigned long len, bool flush);
+void *bpf_skb_meta_pointer(struct sk_buff *skb, u32 offset);
 #else /* CONFIG_NET */
 static inline int __bpf_skb_load_bytes(const struct sk_buff *skb, u32 offset,
 				       void *to, u32 len)
@@ -1805,6 +1815,11 @@ static inline void *bpf_xdp_pointer(struct xdp_buff *xdp, u32 offset, u32 len)
 static inline void bpf_xdp_copy_buf(struct xdp_buff *xdp, unsigned long off, void *buf,
 				    unsigned long len, bool flush)
 {
+}
+
+static inline void *bpf_skb_meta_pointer(struct sk_buff *skb, u32 offset)
+{
+	return ERR_PTR(-EOPNOTSUPP);
 }
 #endif /* CONFIG_NET */
 

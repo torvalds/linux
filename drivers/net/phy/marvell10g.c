@@ -466,12 +466,11 @@ static int mv3310_set_edpd(struct phy_device *phydev, u16 edpd)
 static int mv3310_sfp_insert(void *upstream, const struct sfp_eeprom_id *id)
 {
 	struct phy_device *phydev = upstream;
-	__ETHTOOL_DECLARE_LINK_MODE_MASK(support) = { 0, };
-	DECLARE_PHY_INTERFACE_MASK(interfaces);
+	const struct sfp_module_caps *caps;
 	phy_interface_t iface;
 
-	sfp_parse_support(phydev->sfp_bus, id, support, interfaces);
-	iface = sfp_select_interface(phydev->sfp_bus, support);
+	caps = sfp_get_module_caps(phydev->sfp_bus);
+	iface = sfp_select_interface(phydev->sfp_bus, caps->link_modes);
 
 	if (iface != PHY_INTERFACE_MODE_10GBASER) {
 		dev_err(&phydev->mdio.dev, "incompatible SFP module inserted\n");

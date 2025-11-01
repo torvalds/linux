@@ -1376,7 +1376,8 @@ void ath6kl_cfg80211_tkip_micerr_event(struct ath6kl_vif *vif, u8 keyid,
 				     GFP_KERNEL);
 }
 
-static int ath6kl_cfg80211_set_wiphy_params(struct wiphy *wiphy, u32 changed)
+static int ath6kl_cfg80211_set_wiphy_params(struct wiphy *wiphy, int radio_idx,
+					    u32 changed)
 {
 	struct ath6kl *ar = (struct ath6kl *)wiphy_priv(wiphy);
 	struct ath6kl_vif *vif;
@@ -1405,6 +1406,7 @@ static int ath6kl_cfg80211_set_wiphy_params(struct wiphy *wiphy, u32 changed)
 
 static int ath6kl_cfg80211_set_txpower(struct wiphy *wiphy,
 				       struct wireless_dev *wdev,
+				       int radio_idx,
 				       enum nl80211_tx_power_setting type,
 				       int mbm)
 {
@@ -1441,6 +1443,7 @@ static int ath6kl_cfg80211_set_txpower(struct wiphy *wiphy,
 
 static int ath6kl_cfg80211_get_txpower(struct wiphy *wiphy,
 				       struct wireless_dev *wdev,
+				       int radio_idx,
 				       unsigned int link_id,
 				       int *dbm)
 {
@@ -3242,7 +3245,7 @@ static int ath6kl_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 					wait, buf, len, no_cck);
 }
 
-static int ath6kl_get_antenna(struct wiphy *wiphy,
+static int ath6kl_get_antenna(struct wiphy *wiphy, int radio_idx,
 			      u32 *tx_ant, u32 *rx_ant)
 {
 	struct ath6kl *ar = wiphy_priv(wiphy);

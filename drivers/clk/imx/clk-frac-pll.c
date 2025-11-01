@@ -119,19 +119,19 @@ static unsigned long clk_pll_recalc_rate(struct clk_hw *hw,
 	return rate;
 }
 
-static long clk_pll_round_rate(struct clk_hw *hw, unsigned long rate,
-			       unsigned long *prate)
+static int clk_pll_determine_rate(struct clk_hw *hw,
+				  struct clk_rate_request *req)
 {
-	u64 parent_rate = *prate;
+	u64 parent_rate = req->best_parent_rate;
 	u32 divff, divfi;
 	u64 temp64;
 
 	parent_rate *= 8;
-	rate *= 2;
-	temp64 = rate;
+	req->rate *= 2;
+	temp64 = req->rate;
 	do_div(temp64, parent_rate);
 	divfi = temp64;
-	temp64 = rate - divfi * parent_rate;
+	temp64 = req->rate - divfi * parent_rate;
 	temp64 *= PLL_FRAC_DENOM;
 	do_div(temp64, parent_rate);
 	divff = temp64;
@@ -140,9 +140,11 @@ static long clk_pll_round_rate(struct clk_hw *hw, unsigned long rate,
 	temp64 *= divff;
 	do_div(temp64, PLL_FRAC_DENOM);
 
-	rate = parent_rate * divfi + temp64;
+	req->rate = parent_rate * divfi + temp64;
 
-	return rate / 2;
+	req->rate = req->rate / 2;
+
+	return 0;
 }
 
 /*
@@ -198,7 +200,7 @@ static const struct clk_ops clk_frac_pll_ops = {
 	.unprepare	= clk_pll_unprepare,
 	.is_prepared	= clk_pll_is_prepared,
 	.recalc_rate	= clk_pll_recalc_rate,
-	.round_rate	= clk_pll_round_rate,
+	.determine_rate = clk_pll_determine_rate,
 	.set_rate	= clk_pll_set_rate,
 };
 

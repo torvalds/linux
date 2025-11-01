@@ -17,8 +17,8 @@
 
 #define pr_fmt(fmt) "microcode: " fmt
 
-#include <linux/platform_device.h>
 #include <linux/stop_machine.h>
+#include <linux/device/faux.h>
 #include <linux/syscore_ops.h>
 #include <linux/miscdevice.h>
 #include <linux/capability.h>
@@ -43,10 +43,19 @@
 #include "internal.h"
 
 static struct microcode_ops *microcode_ops;
-static bool dis_ucode_ldr = false;
+static bool dis_ucode_ldr;
 
 bool force_minrev = IS_ENABLED(CONFIG_MICROCODE_LATE_FORCE_MINREV);
-module_param(force_minrev, bool, S_IRUSR | S_IWUSR);
+
+/*
+ * Those below should be behind CONFIG_MICROCODE_DBG ifdeffery but in
+ * order to not uglify the code with ifdeffery and use IS_ENABLED()
+ * instead, leave them in. When microcode debugging is not enabled,
+ * those are meaningless anyway.
+ */
+/* base microcode revision for debugging */
+u32 base_rev;
+u32 microcode_rev[NR_CPUS] = {};
 
 /*
  * Synchronization.
@@ -119,11 +128,40 @@ bool __init microcode_loader_disabled(void)
 	 *    overwritten.
 	 */
 	if (!cpuid_feature() ||
-	    native_cpuid_ecx(1) & BIT(31) ||
+	    ((native_cpuid_ecx(1) & BIT(31)) &&
+	      !IS_ENABLED(CONFIG_MICROCODE_DBG)) ||
 	    amd_check_current_patch_level())
 		dis_ucode_ldr = true;
 
 	return dis_ucode_ldr;
+}
+
+static void early_parse_cmdline(void)
+{
+	char cmd_buf[64] = {};
+	char *s, *p = cmd_buf;
+
+	if (cmdline_find_option(boot_command_line, "microcode", cmd_buf, sizeof(cmd_buf)) > 0) {
+		while ((s = strsep(&p, ","))) {
+			if (IS_ENABLED(CONFIG_MICROCODE_DBG)) {
+				if (strstr(s, "base_rev=")) {
+					/* advance to the option arg */
+					strsep(&s, "=");
+					if (kstrtouint(s, 16, &base_rev)) { ; }
+				}
+			}
+
+			if (!strcmp("force_minrev", s))
+				force_minrev = true;
+
+			if (!strcmp(s, "dis_ucode_ldr"))
+				dis_ucode_ldr = true;
+		}
+	}
+
+	/* old, compat option */
+	if (cmdline_find_option_bool(boot_command_line, "dis_ucode_ldr") > 0)
+		dis_ucode_ldr = true;
 }
 
 void __init load_ucode_bsp(void)
@@ -131,8 +169,7 @@ void __init load_ucode_bsp(void)
 	unsigned int cpuid_1_eax;
 	bool intel = true;
 
-	if (cmdline_find_option_bool(boot_command_line, "dis_ucode_ldr") > 0)
-		dis_ucode_ldr = true;
+	early_parse_cmdline();
 
 	if (microcode_loader_disabled())
 		return;
@@ -249,7 +286,7 @@ static void reload_early_microcode(unsigned int cpu)
 }
 
 /* fake device for request_firmware */
-static struct platform_device	*microcode_pdev;
+static struct faux_device *microcode_fdev;
 
 #ifdef CONFIG_MICROCODE_LATE_LOADING
 /*
@@ -690,7 +727,7 @@ static int load_late_locked(void)
 	if (!setup_cpus())
 		return -EBUSY;
 
-	switch (microcode_ops->request_microcode_fw(0, &microcode_pdev->dev)) {
+	switch (microcode_ops->request_microcode_fw(0, &microcode_fdev->dev)) {
 	case UCODE_NEW:
 		return load_late_stop_cpus(false);
 	case UCODE_NEW_SAFE:
@@ -841,9 +878,9 @@ static int __init microcode_init(void)
 	if (early_data.new_rev)
 		pr_info_once("Updated early from: 0x%08x\n", early_data.old_rev);
 
-	microcode_pdev = platform_device_register_simple("microcode", -1, NULL, 0);
-	if (IS_ERR(microcode_pdev))
-		return PTR_ERR(microcode_pdev);
+	microcode_fdev = faux_device_create("microcode", NULL, NULL);
+	if (!microcode_fdev)
+		return -ENODEV;
 
 	dev_root = bus_get_dev_root(&cpu_subsys);
 	if (dev_root) {
@@ -862,7 +899,7 @@ static int __init microcode_init(void)
 	return 0;
 
  out_pdev:
-	platform_device_unregister(microcode_pdev);
+	faux_device_destroy(microcode_fdev);
 	return error;
 
 }

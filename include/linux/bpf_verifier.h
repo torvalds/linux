@@ -26,28 +26,6 @@
 /* Patch buffer size */
 #define INSN_BUF_SIZE 32
 
-/* Liveness marks, used for registers and spilled-regs (in stack slots).
- * Read marks propagate upwards until they find a write mark; they record that
- * "one of this state's descendants read this reg" (and therefore the reg is
- * relevant for states_equal() checks).
- * Write marks collect downwards and do not propagate; they record that "the
- * straight-line code that reached this state (from its parent) wrote this reg"
- * (and therefore that reads propagated from this state or its descendants
- * should not propagate to its parent).
- * A state with a write mark can receive read marks; it just won't propagate
- * them to its parent, since the write mark is a property, not of the state,
- * but of the link between it and its parent.  See mark_reg_read() and
- * mark_stack_slot_read() in kernel/bpf/verifier.c.
- */
-enum bpf_reg_liveness {
-	REG_LIVE_NONE = 0, /* reg hasn't been read or written this branch */
-	REG_LIVE_READ32 = 0x1, /* reg was read, so we're sensitive to initial value */
-	REG_LIVE_READ64 = 0x2, /* likewise, but full 64-bit content matters */
-	REG_LIVE_READ = REG_LIVE_READ32 | REG_LIVE_READ64,
-	REG_LIVE_WRITTEN = 0x4, /* reg was written first, screening off later reads */
-	REG_LIVE_DONE = 0x8, /* liveness won't be updating this register anymore */
-};
-
 #define ITER_PREFIX "bpf_iter_"
 
 enum bpf_iter_state {
@@ -212,8 +190,6 @@ struct bpf_reg_state {
 	 * allowed and has the same effect as bpf_sk_release(sk).
 	 */
 	u32 ref_obj_id;
-	/* parentage chain for liveness checking */
-	struct bpf_reg_state *parent;
 	/* Inside the callee two registers can be both PTR_TO_STACK like
 	 * R1=fp-8 and R2=fp-8, but one of them points to this function stack
 	 * while another to the caller's stack. To differentiate them 'frameno'
@@ -226,7 +202,6 @@ struct bpf_reg_state {
 	 * patching which only happens after main verification finished.
 	 */
 	s32 subreg_def;
-	enum bpf_reg_liveness live;
 	/* if (!precise && SCALAR_VALUE) min/max/tnum don't affect safety */
 	bool precise;
 };
@@ -344,7 +319,7 @@ struct bpf_func_state {
 
 #define MAX_CALL_FRAMES 8
 
-/* instruction history flags, used in bpf_insn_hist_entry.flags field */
+/* instruction history flags, used in bpf_jmp_history_entry.flags field */
 enum {
 	/* instruction references stack slot through PTR_TO_STACK register;
 	 * we also store stack's frame number in lower 3 bits (MAX_CALL_FRAMES is 8)
@@ -366,7 +341,7 @@ enum {
 static_assert(INSN_F_FRAMENO_MASK + 1 >= MAX_CALL_FRAMES);
 static_assert(INSN_F_SPI_MASK + 1 >= MAX_BPF_STACK / 8);
 
-struct bpf_insn_hist_entry {
+struct bpf_jmp_history_entry {
 	u32 idx;
 	/* insn idx can't be bigger than 1 million */
 	u32 prev_idx : 20;
@@ -445,36 +420,25 @@ struct bpf_verifier_state {
 
 	bool speculative;
 	bool in_sleepable;
+	bool cleaned;
 
 	/* first and last insn idx of this verifier state */
 	u32 first_insn_idx;
 	u32 last_insn_idx;
-	/* If this state is a part of states loop this field points to some
-	 * parent of this state such that:
-	 * - it is also a member of the same states loop;
-	 * - DFS states traversal starting from initial state visits loop_entry
-	 *   state before this state.
-	 * Used to compute topmost loop entry for state loops.
-	 * State loops might appear because of open coded iterators logic.
-	 * See get_loop_entry() for more information.
+	/* if this state is a backedge state then equal_state
+	 * records cached state to which this state is equal.
 	 */
-	struct bpf_verifier_state *loop_entry;
-	/* Sub-range of env->insn_hist[] corresponding to this state's
-	 * instruction history.
-	 * Backtracking is using it to go from last to first.
-	 * For most states instruction history is short, 0-3 instructions.
+	struct bpf_verifier_state *equal_state;
+	/* jmp history recorded from first to last.
+	 * backtracking is using it to go from last to first.
+	 * For most states jmp_history_cnt is [0-3].
 	 * For loops can go up to ~40.
 	 */
-	u32 insn_hist_start;
-	u32 insn_hist_end;
+	struct bpf_jmp_history_entry *jmp_history;
+	u32 jmp_history_cnt;
 	u32 dfs_depth;
 	u32 callback_unroll_depth;
 	u32 may_goto_depth;
-	/* If this state was ever pointed-to by other state's loop_entry field
-	 * this flag would be set to true. Used to avoid freeing such states
-	 * while they are still in use.
-	 */
-	u32 used_as_loop_entry;
 };
 
 #define bpf_get_spilled_reg(slot, frame, mask)				\
@@ -580,7 +544,8 @@ struct bpf_insn_aux_data {
 	u64 map_key_state; /* constant (32 bit) key tracking for maps */
 	int ctx_field_size; /* the ctx field size for load insn, maybe 0 */
 	u32 seen; /* this insn was processed by the verifier at env->pass_cnt */
-	bool sanitize_stack_spill; /* subject to Spectre v4 sanitation */
+	bool nospec; /* do not execute this instruction speculatively */
+	bool nospec_result; /* result is unsafe under speculation, nospec must follow */
 	bool zext_dst; /* this insn zero extends dst reg */
 	bool needs_zext; /* alu op needs to clear upper bits */
 	bool storage_get_func_atomic; /* bpf_*_storage_get() with atomic memory alloc */
@@ -609,6 +574,11 @@ struct bpf_insn_aux_data {
 	 * accepts callback function as a parameter.
 	 */
 	bool calls_callback;
+	/*
+	 * CFG strongly connected component this instruction belongs to,
+	 * zero if it is a singleton SCC.
+	 */
+	u32 scc;
 	/* registers alive before this instruction. */
 	u16 live_regs_before;
 };
@@ -671,6 +641,7 @@ struct bpf_subprog_info {
 	/* 'start' has to be the first field otherwise find_subprog() won't work */
 	u32 start; /* insn idx of function entry point */
 	u32 linfo_idx; /* The idx to the main_prog->aux->linfo */
+	u32 postorder_start; /* The idx to the env->cfg.insn_postorder */
 	u16 stack_depth; /* max. stack depth used by this function */
 	u16 stack_extra;
 	/* offsets in range [stack_depth .. fastcall_stack_off)
@@ -717,6 +688,40 @@ struct bpf_idset {
 	u32 count;
 	u32 ids[BPF_ID_MAP_SIZE];
 };
+
+/* see verifier.c:compute_scc_callchain() */
+struct bpf_scc_callchain {
+	/* call sites from bpf_verifier_state->frame[*]->callsite leading to this SCC */
+	u32 callsites[MAX_CALL_FRAMES - 1];
+	/* last frame in a chain is identified by SCC id */
+	u32 scc;
+};
+
+/* verifier state waiting for propagate_backedges() */
+struct bpf_scc_backedge {
+	struct bpf_scc_backedge *next;
+	struct bpf_verifier_state state;
+};
+
+struct bpf_scc_visit {
+	struct bpf_scc_callchain callchain;
+	/* first state in current verification path that entered SCC
+	 * identified by the callchain
+	 */
+	struct bpf_verifier_state *entry_state;
+	struct bpf_scc_backedge *backedges; /* list of backedges */
+	u32 num_backedges;
+};
+
+/* An array of bpf_scc_visit structs sharing tht same bpf_scc_callchain->scc
+ * but having different bpf_scc_callchain->callsites.
+ */
+struct bpf_scc_info {
+	u32 num_visits;
+	struct bpf_scc_visit visits[];
+};
+
+struct bpf_liveness;
 
 /* single container for all structs
  * one verifier_env per bpf_check() call
@@ -768,16 +773,17 @@ struct bpf_verifier_env {
 	struct {
 		int *insn_state;
 		int *insn_stack;
-		/* vector of instruction indexes sorted in post-order */
+		/*
+		 * vector of instruction indexes sorted in post-order, grouped by subprogram,
+		 * see bpf_subprog_info->postorder_start.
+		 */
 		int *insn_postorder;
 		int cur_stack;
 		/* current position in the insn_postorder vector */
 		int cur_postorder;
 	} cfg;
 	struct backtrack_state bt;
-	struct bpf_insn_hist_entry *insn_hist;
-	struct bpf_insn_hist_entry *cur_hist_ent;
-	u32 insn_hist_cap;
+	struct bpf_jmp_history_entry *cur_hist_ent;
 	u32 pass_cnt; /* number of times do_check() was called */
 	u32 subprog_cnt;
 	/* number of instructions analyzed by the verifier */
@@ -799,6 +805,7 @@ struct bpf_verifier_env {
 	u32 longest_mark_read_walk;
 	u32 free_list_size;
 	u32 explored_states_size;
+	u32 num_backedges;
 	bpfptr_t fd_array;
 
 	/* bit mask to keep track of whether a register has been accessed
@@ -816,6 +823,11 @@ struct bpf_verifier_env {
 	char tmp_str_buf[TMP_STR_BUF_LEN];
 	struct bpf_insn insn_buf[INSN_BUF_SIZE];
 	struct bpf_insn epilogue_buf[INSN_BUF_SIZE];
+	struct bpf_scc_callchain callchain_buf;
+	struct bpf_liveness *liveness;
+	/* array of pointers to bpf_scc_info indexed by SCC id */
+	struct bpf_scc_info **scc_info;
+	u32 scc_cnt;
 };
 
 static inline struct bpf_func_info_aux *subprog_aux(struct bpf_verifier_env *env, int subprog)
@@ -846,13 +858,15 @@ __printf(3, 4) void verbose_linfo(struct bpf_verifier_env *env,
 #define verifier_bug_if(cond, env, fmt, args...)						\
 	({											\
 		bool __cond = (cond);								\
-		if (unlikely(__cond)) {								\
-			BPF_WARN_ONCE(1, "verifier bug: " fmt "(" #cond ")\n", ##args);		\
-			bpf_log(&env->log, "verifier bug: " fmt "(" #cond ")\n", ##args);	\
-		}										\
+		if (unlikely(__cond))								\
+			verifier_bug(env, fmt " (" #cond ")", ##args);				\
 		(__cond);									\
 	})
-#define verifier_bug(env, fmt, args...) verifier_bug_if(1, env, fmt, ##args)
+#define verifier_bug(env, fmt, args...)								\
+	({											\
+		BPF_WARN_ONCE(1, "verifier bug: " fmt "\n", ##args);				\
+		bpf_log(&env->log, "verifier bug: " fmt "\n", ##args);				\
+	})
 
 static inline struct bpf_func_state *cur_func(struct bpf_verifier_env *env)
 {
@@ -933,6 +947,7 @@ static inline bool bpf_prog_check_recur(const struct bpf_prog *prog)
 	case BPF_PROG_TYPE_STRUCT_OPS:
 		return prog->aux->jits_use_priv_stack;
 	case BPF_PROG_TYPE_LSM:
+	case BPF_PROG_TYPE_SYSCALL:
 		return false;
 	default:
 		return true;
@@ -1032,5 +1047,22 @@ void print_verifier_state(struct bpf_verifier_env *env, const struct bpf_verifie
 			  u32 frameno, bool print_all);
 void print_insn_state(struct bpf_verifier_env *env, const struct bpf_verifier_state *vstate,
 		      u32 frameno);
+
+struct bpf_subprog_info *bpf_find_containing_subprog(struct bpf_verifier_env *env, int off);
+int bpf_jmp_offset(struct bpf_insn *insn);
+int bpf_insn_successors(struct bpf_prog *prog, u32 idx, u32 succ[2]);
+void bpf_fmt_stack_mask(char *buf, ssize_t buf_sz, u64 stack_mask);
+bool bpf_calls_callback(struct bpf_verifier_env *env, int insn_idx);
+
+int bpf_stack_liveness_init(struct bpf_verifier_env *env);
+void bpf_stack_liveness_free(struct bpf_verifier_env *env);
+int bpf_update_live_stack(struct bpf_verifier_env *env);
+int bpf_mark_stack_read(struct bpf_verifier_env *env, u32 frameno, u32 insn_idx, u64 mask);
+void bpf_mark_stack_write(struct bpf_verifier_env *env, u32 frameno, u64 mask);
+int bpf_reset_stack_write_marks(struct bpf_verifier_env *env, u32 insn_idx);
+int bpf_commit_stack_write_marks(struct bpf_verifier_env *env);
+int bpf_live_stack_query_init(struct bpf_verifier_env *env, struct bpf_verifier_state *st);
+bool bpf_stack_slot_alive(struct bpf_verifier_env *env, u32 frameno, u32 spi);
+void bpf_reset_live_stack_callchain(struct bpf_verifier_env *env);
 
 #endif /* _LINUX_BPF_VERIFIER_H */

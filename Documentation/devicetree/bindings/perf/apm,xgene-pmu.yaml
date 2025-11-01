@@ -1,0 +1,142 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/perf/apm,xgene-pmu.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: APM X-Gene SoC PMU
+
+maintainers:
+  - Khuong Dinh <khuong@os.amperecomputing.com>
+
+description: |
+  This is APM X-Gene SoC PMU (Performance Monitoring Unit) module.
+  The following PMU devices are supported:
+
+    L3C            - L3 cache controller
+    IOB            - IO bridge
+    MCB            - Memory controller bridge
+    MC             - Memory controller
+
+properties:
+  compatible:
+    enum:
+      - apm,xgene-pmu
+      - apm,xgene-pmu-v2
+
+  "#address-cells":
+    const: 2
+
+  "#size-cells":
+    const: 2
+
+  ranges: true
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  regmap-csw:
+    $ref: /schemas/types.yaml#/definitions/phandle
+
+  regmap-mcba:
+    $ref: /schemas/types.yaml#/definitions/phandle
+
+  regmap-mcbb:
+    $ref: /schemas/types.yaml#/definitions/phandle
+
+required:
+  - compatible
+  - regmap-csw
+  - regmap-mcba
+  - regmap-mcbb
+  - reg
+  - interrupts
+
+additionalProperties:
+  type: object
+  additionalProperties: false
+
+  properties:
+    compatible:
+      enum:
+        - apm,xgene-pmu-l3c
+        - apm,xgene-pmu-iob
+        - apm,xgene-pmu-mcb
+        - apm,xgene-pmu-mc
+
+    reg:
+      maxItems: 1
+
+    enable-bit-index:
+      description:
+        Specifies which bit enables the associated resource in MCB or MC subnodes.
+      $ref: /schemas/types.yaml#/definitions/uint32
+      maximum: 31
+
+examples:
+  - |
+    bus {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        pmu@78810000 {
+            compatible = "apm,xgene-pmu-v2";
+            reg = <0x0 0x78810000 0x0 0x1000>;
+            #address-cells = <2>;
+            #size-cells = <2>;
+            ranges;
+            regmap-csw = <&csw>;
+            regmap-mcba = <&mcba>;
+            regmap-mcbb = <&mcbb>;
+            interrupts = <0x0 0x22 0x4>;
+
+            pmul3c@7e610000 {
+                compatible = "apm,xgene-pmu-l3c";
+                reg = <0x0 0x7e610000 0x0 0x1000>;
+            };
+
+            pmuiob@7e940000 {
+                compatible = "apm,xgene-pmu-iob";
+                reg = <0x0 0x7e940000 0x0 0x1000>;
+            };
+
+            pmucmcb@7e710000 {
+                compatible = "apm,xgene-pmu-mcb";
+                reg = <0x0 0x7e710000 0x0 0x1000>;
+                enable-bit-index = <0>;
+            };
+
+            pmucmcb@7e730000 {
+                compatible = "apm,xgene-pmu-mcb";
+                reg = <0x0 0x7e730000 0x0 0x1000>;
+                enable-bit-index = <1>;
+            };
+
+            pmucmc@7e810000 {
+                compatible = "apm,xgene-pmu-mc";
+                reg = <0x0 0x7e810000 0x0 0x1000>;
+                enable-bit-index = <0>;
+            };
+
+            pmucmc@7e850000 {
+                compatible = "apm,xgene-pmu-mc";
+                reg = <0x0 0x7e850000 0x0 0x1000>;
+                enable-bit-index = <1>;
+            };
+
+            pmucmc@7e890000 {
+                compatible = "apm,xgene-pmu-mc";
+                reg = <0x0 0x7e890000 0x0 0x1000>;
+                enable-bit-index = <2>;
+            };
+
+            pmucmc@7e8d0000 {
+                compatible = "apm,xgene-pmu-mc";
+                reg = <0x0 0x7e8d0000 0x0 0x1000>;
+                enable-bit-index = <3>;
+            };
+        };
+    };

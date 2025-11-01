@@ -1,15 +1,16 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (c) 2022 Intel Corporation.
 
-#include <linux/unaligned.h>
 #include <linux/acpi.h>
 #include <linux/clk.h>
-#include <linux/i2c.h>
-#include <linux/gpio/consumer.h>
-#include <linux/module.h>
 #include <linux/delay.h>
+#include <linux/gpio/consumer.h>
+#include <linux/i2c.h>
+#include <linux/module.h>
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
+#include <linux/unaligned.h>
+
 #include <media/v4l2-common.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
@@ -1305,6 +1306,8 @@ static const char * const ov08x40_supply_names[] = {
 };
 
 struct ov08x40 {
+	struct device *dev;
+
 	struct v4l2_subdev sd;
 	struct media_pad pad;
 
@@ -1513,7 +1516,6 @@ static int ov08x40_write_reg(struct ov08x40 *ov08x,
 static int ov08x40_write_regs(struct ov08x40 *ov08x,
 			      const struct ov08x40_reg *regs, u32 len)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&ov08x->sd);
 	int ret;
 	u32 i;
 
@@ -1522,7 +1524,7 @@ static int ov08x40_write_regs(struct ov08x40 *ov08x,
 					regs[i].val);
 
 		if (ret) {
-			dev_err_ratelimited(&client->dev,
+			dev_err_ratelimited(ov08x->dev,
 					    "Failed to write reg 0x%4.4x. error = %d\n",
 					    regs[i].address, ret);
 
@@ -1648,7 +1650,7 @@ static int ov08x40_set_ctrl_hflip(struct ov08x40 *ov08x, u32 ctrl_val)
 
 	return ov08x40_write_reg(ov08x, OV08X40_REG_MIRROR,
 				 OV08X40_REG_VALUE_08BIT,
-				 ctrl_val ? val | BIT(2) : val & ~BIT(2));
+				 ctrl_val ? val & ~BIT(2) : val | BIT(2));
 }
 
 static int ov08x40_set_ctrl_vflip(struct ov08x40 *ov08x, u32 ctrl_val)
@@ -1670,7 +1672,6 @@ static int ov08x40_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct ov08x40 *ov08x = container_of(ctrl->handler,
 					     struct ov08x40, ctrl_handler);
-	struct i2c_client *client = v4l2_get_subdevdata(&ov08x->sd);
 	s64 max;
 	int exp;
 	int fll;
@@ -1699,7 +1700,7 @@ static int ov08x40_set_ctrl(struct v4l2_ctrl *ctrl)
 	 * Applying V4L2 control value only happens
 	 * when power is up for streaming
 	 */
-	if (!pm_runtime_get_if_in_use(&client->dev))
+	if (!pm_runtime_get_if_in_use(ov08x->dev))
 		return 0;
 
 	switch (ctrl->id) {
@@ -1737,13 +1738,13 @@ static int ov08x40_set_ctrl(struct v4l2_ctrl *ctrl)
 		ov08x40_set_ctrl_vflip(ov08x, ctrl->val);
 		break;
 	default:
-		dev_info(&client->dev,
+		dev_info(ov08x->dev,
 			 "ctrl(id:0x%x,val:0x%x) is not handled\n",
 			 ctrl->id, ctrl->val);
 		break;
 	}
 
-	pm_runtime_put(&client->dev);
+	pm_runtime_put(ov08x->dev);
 
 	return ret;
 }
@@ -1912,7 +1913,6 @@ ov08x40_set_pad_format(struct v4l2_subdev *sd,
 
 static int ov08x40_start_streaming(struct ov08x40 *ov08x)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&ov08x->sd);
 	const struct ov08x40_reg_list *reg_list;
 	int ret, link_freq_index;
 
@@ -1920,7 +1920,7 @@ static int ov08x40_start_streaming(struct ov08x40 *ov08x)
 	ret = ov08x40_write_reg(ov08x, OV08X40_REG_SOFTWARE_RST,
 				OV08X40_REG_VALUE_08BIT, OV08X40_SOFTWARE_RST);
 	if (ret) {
-		dev_err(&client->dev, "%s failed to set powerup registers\n",
+		dev_err(ov08x->dev, "%s failed to set powerup registers\n",
 			__func__);
 		return ret;
 	}
@@ -1930,14 +1930,14 @@ static int ov08x40_start_streaming(struct ov08x40 *ov08x)
 
 	ret = ov08x40_write_reg_list(ov08x, reg_list);
 	if (ret) {
-		dev_err(&client->dev, "%s failed to set plls\n", __func__);
+		dev_err(ov08x->dev, "%s failed to set plls\n", __func__);
 		return ret;
 	}
 
 	reg_list = &ov08x40_global_setting;
 	ret = ov08x40_write_reg_list(ov08x, reg_list);
 	if (ret) {
-		dev_err(&client->dev, "%s failed to set global setting\n",
+		dev_err(ov08x->dev, "%s failed to set global setting\n",
 			__func__);
 		return ret;
 	}
@@ -1946,7 +1946,7 @@ static int ov08x40_start_streaming(struct ov08x40 *ov08x)
 	reg_list = &ov08x->cur_mode->reg_list;
 	ret = ov08x40_write_reg_list(ov08x, reg_list);
 	if (ret) {
-		dev_err(&client->dev, "%s failed to set mode\n", __func__);
+		dev_err(ov08x->dev, "%s failed to set mode\n", __func__);
 		return ret;
 	}
 
@@ -1962,7 +1962,7 @@ static int ov08x40_start_streaming(struct ov08x40 *ov08x)
 	}
 
 	if (ret) {
-		dev_err(&client->dev, "%s failed to set regs\n", __func__);
+		dev_err(ov08x->dev, "%s failed to set regs\n", __func__);
 		return ret;
 	}
 
@@ -1986,7 +1986,6 @@ static int ov08x40_stop_streaming(struct ov08x40 *ov08x)
 /* Verify chip ID */
 static int ov08x40_identify_module(struct ov08x40 *ov08x)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&ov08x->sd);
 	int ret;
 	u32 val;
 
@@ -1996,17 +1995,17 @@ static int ov08x40_identify_module(struct ov08x40 *ov08x)
 	ret = ov08x40_read_reg(ov08x, OV08X40_REG_CHIP_ID,
 			       OV08X40_REG_VALUE_24BIT, &val);
 	if (ret) {
-		dev_err(&client->dev, "error reading chip-id register: %d\n", ret);
+		dev_err(ov08x->dev, "error reading chip-id register: %d\n", ret);
 		return ret;
 	}
 
 	if (val != OV08X40_CHIP_ID) {
-		dev_err(&client->dev, "chip id mismatch: %x!=%x\n",
+		dev_err(ov08x->dev, "chip id mismatch: %x!=%x\n",
 			OV08X40_CHIP_ID, val);
 		return -ENXIO;
 	}
 
-	dev_dbg(&client->dev, "chip id 0x%x\n", val);
+	dev_dbg(ov08x->dev, "chip id 0x%x\n", val);
 	ov08x->identified = true;
 
 	return 0;
@@ -2015,13 +2014,12 @@ static int ov08x40_identify_module(struct ov08x40 *ov08x)
 static int ov08x40_set_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct ov08x40 *ov08x = to_ov08x40(sd);
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret = 0;
 
 	mutex_lock(&ov08x->mutex);
 
 	if (enable) {
-		ret = pm_runtime_resume_and_get(&client->dev);
+		ret = pm_runtime_resume_and_get(ov08x->dev);
 		if (ret < 0)
 			goto err_unlock;
 
@@ -2038,7 +2036,7 @@ static int ov08x40_set_stream(struct v4l2_subdev *sd, int enable)
 			goto err_rpm_put;
 	} else {
 		ov08x40_stop_streaming(ov08x);
-		pm_runtime_put(&client->dev);
+		pm_runtime_put(ov08x->dev);
 	}
 
 	mutex_unlock(&ov08x->mutex);
@@ -2046,7 +2044,7 @@ static int ov08x40_set_stream(struct v4l2_subdev *sd, int enable)
 	return ret;
 
 err_rpm_put:
-	pm_runtime_put(&client->dev);
+	pm_runtime_put(ov08x->dev);
 err_unlock:
 	mutex_unlock(&ov08x->mutex);
 
@@ -2079,7 +2077,6 @@ static const struct v4l2_subdev_internal_ops ov08x40_internal_ops = {
 
 static int ov08x40_init_controls(struct ov08x40 *ov08x)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&ov08x->sd);
 	struct v4l2_fwnode_device_properties props;
 	struct v4l2_ctrl_handler *ctrl_hdlr;
 	s64 exposure_max;
@@ -2160,12 +2157,12 @@ static int ov08x40_init_controls(struct ov08x40 *ov08x)
 
 	if (ctrl_hdlr->error) {
 		ret = ctrl_hdlr->error;
-		dev_err(&client->dev, "%s control init failed (%d)\n",
+		dev_err(ov08x->dev, "%s control init failed (%d)\n",
 			__func__, ret);
 		goto error;
 	}
 
-	ret = v4l2_fwnode_device_parse(&client->dev, &props);
+	ret = v4l2_fwnode_device_parse(ov08x->dev, &props);
 	if (ret)
 		goto error;
 
@@ -2191,11 +2188,12 @@ static void ov08x40_free_controls(struct ov08x40 *ov08x)
 	mutex_destroy(&ov08x->mutex);
 }
 
-static int ov08x40_check_hwcfg(struct ov08x40 *ov08x, struct device *dev)
+static int ov08x40_check_hwcfg(struct ov08x40 *ov08x)
 {
 	struct v4l2_fwnode_endpoint bus_cfg = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY
 	};
+	struct device *dev = ov08x->dev;
 	struct fwnode_handle *ep;
 	struct fwnode_handle *fwnode = dev_fwnode(dev);
 	unsigned int i;
@@ -2232,23 +2230,14 @@ static int ov08x40_check_hwcfg(struct ov08x40 *ov08x, struct device *dev)
 	if (ret)
 		goto out_err;
 
-	ov08x->xvclk = devm_clk_get_optional(dev, NULL);
+	ov08x->xvclk = devm_v4l2_sensor_clk_get(dev, NULL);
 	if (IS_ERR(ov08x->xvclk)) {
 		ret = dev_err_probe(dev, PTR_ERR(ov08x->xvclk),
 				    "getting xvclk\n");
 		goto out_err;
 	}
-	if (ov08x->xvclk) {
-		xvclk_rate = clk_get_rate(ov08x->xvclk);
-	} else {
-		ret = fwnode_property_read_u32(dev_fwnode(dev), "clock-frequency",
-					       &xvclk_rate);
-		if (ret) {
-			dev_err(dev, "can't get clock frequency\n");
-			goto out_err;
-		}
-	}
 
+	xvclk_rate = clk_get_rate(ov08x->xvclk);
 	if (xvclk_rate != OV08X40_XVCLK) {
 		dev_err(dev, "external clock %d is not supported\n",
 			xvclk_rate);
@@ -2294,19 +2283,21 @@ static int ov08x40_probe(struct i2c_client *client)
 	if (!ov08x)
 		return -ENOMEM;
 
+	ov08x->dev = &client->dev;
+
 	/* Check HW config */
-	ret = ov08x40_check_hwcfg(ov08x, &client->dev);
+	ret = ov08x40_check_hwcfg(ov08x);
 	if (ret)
 		return ret;
 
 	/* Initialize subdev */
 	v4l2_i2c_subdev_init(&ov08x->sd, client, &ov08x40_subdev_ops);
 
-	full_power = acpi_dev_state_d0(&client->dev);
+	full_power = acpi_dev_state_d0(ov08x->dev);
 	if (full_power) {
-		ret = ov08x40_power_on(&client->dev);
+		ret = ov08x40_power_on(ov08x->dev);
 		if (ret) {
-			dev_err(&client->dev, "failed to power on\n");
+			dev_err(ov08x->dev, "failed to power on\n");
 			return ret;
 		}
 
@@ -2333,7 +2324,7 @@ static int ov08x40_probe(struct i2c_client *client)
 	ov08x->pad.flags = MEDIA_PAD_FL_SOURCE;
 	ret = media_entity_pads_init(&ov08x->sd.entity, 1, &ov08x->pad);
 	if (ret) {
-		dev_err(&client->dev, "%s failed:%d\n", __func__, ret);
+		dev_err(ov08x->dev, "%s failed:%d\n", __func__, ret);
 		goto error_handler_free;
 	}
 
@@ -2342,9 +2333,9 @@ static int ov08x40_probe(struct i2c_client *client)
 		goto error_media_entity;
 
 	if (full_power)
-		pm_runtime_set_active(&client->dev);
-	pm_runtime_enable(&client->dev);
-	pm_runtime_idle(&client->dev);
+		pm_runtime_set_active(ov08x->dev);
+	pm_runtime_enable(ov08x->dev);
+	pm_runtime_idle(ov08x->dev);
 
 	return 0;
 
@@ -2355,7 +2346,7 @@ error_handler_free:
 	ov08x40_free_controls(ov08x);
 
 probe_power_off:
-	ov08x40_power_off(&client->dev);
+	ov08x40_power_off(ov08x->dev);
 
 	return ret;
 }
@@ -2369,10 +2360,10 @@ static void ov08x40_remove(struct i2c_client *client)
 	media_entity_cleanup(&sd->entity);
 	ov08x40_free_controls(ov08x);
 
-	pm_runtime_disable(&client->dev);
-	if (!pm_runtime_status_suspended(&client->dev))
-		ov08x40_power_off(&client->dev);
-	pm_runtime_set_suspended(&client->dev);
+	pm_runtime_disable(ov08x->dev);
+	if (!pm_runtime_status_suspended(ov08x->dev))
+		ov08x40_power_off(ov08x->dev);
+	pm_runtime_set_suspended(ov08x->dev);
 }
 
 static DEFINE_RUNTIME_DEV_PM_OPS(ov08x40_pm_ops, ov08x40_power_off,

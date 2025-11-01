@@ -1427,7 +1427,6 @@ int cs35l45_probe(struct cs35l45_private *cs35l45)
 
 	pm_runtime_set_autosuspend_delay(cs35l45->dev, 3000);
 	pm_runtime_use_autosuspend(cs35l45->dev);
-	pm_runtime_mark_last_busy(cs35l45->dev);
 	pm_runtime_set_active(cs35l45->dev);
 	pm_runtime_get_noresume(cs35l45->dev);
 	pm_runtime_enable(cs35l45->dev);

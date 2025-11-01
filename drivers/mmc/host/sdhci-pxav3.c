@@ -20,9 +20,11 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
 #include <linux/mbus.h>
+#include <linux/units.h>
 
 #include "sdhci.h"
 #include "sdhci-pltfm.h"
@@ -51,6 +53,9 @@ struct sdhci_pxa {
 	struct clk *clk_io;
 	u8	power_mode;
 	void __iomem *sdio3_conf_reg;
+	struct pinctrl *pinctrl;
+	struct pinctrl_state *pins_default;
+	struct pinctrl_state *pins_uhs;
 };
 
 /*
@@ -313,8 +318,20 @@ static void pxav3_set_power(struct sdhci_host *host, unsigned char mode,
 		mmc_regulator_set_ocr(mmc, mmc->supply.vmmc, vdd);
 }
 
+static void pxav3_set_clock(struct sdhci_host *host, unsigned int clock)
+{
+	struct sdhci_pltfm_host *phost = sdhci_priv(host);
+	struct sdhci_pxa *pxa = sdhci_pltfm_priv(phost);
+	struct pinctrl_state *pins = clock < 100 * HZ_PER_MHZ ? pxa->pins_default : pxa->pins_uhs;
+
+	if (pins)
+		pinctrl_select_state(pxa->pinctrl, pins);
+
+	sdhci_set_clock(host, clock);
+}
+
 static const struct sdhci_ops pxav3_sdhci_ops = {
-	.set_clock = sdhci_set_clock,
+	.set_clock = pxav3_set_clock,
 	.set_power = pxav3_set_power,
 	.platform_send_init_74_clocks = pxav3_gen_init_74_clocks,
 	.get_max_clock = sdhci_pltfm_clk_get_max_clock,
@@ -366,6 +383,19 @@ static inline struct sdhci_pxa_platdata *pxav3_get_mmc_pdata(struct device *dev)
 }
 #endif
 
+static struct pinctrl_state *pxav3_lookup_pinstate(struct device *dev, struct pinctrl *pinctrl,
+						   const char *name)
+{
+	struct pinctrl_state *pins = pinctrl_lookup_state(pinctrl, name);
+
+	if (IS_ERR(pins)) {
+		dev_dbg(dev, "could not get pinstate '%s': %ld\n", name, PTR_ERR(pins));
+		return NULL;
+	}
+
+	return pins;
+}
+
 static int sdhci_pxav3_probe(struct platform_device *pdev)
 {
 	struct sdhci_pltfm_host *pltfm_host;
@@ -389,8 +419,7 @@ static int sdhci_pxav3_probe(struct platform_device *pdev)
 		pxa->clk_io = devm_clk_get(dev, NULL);
 	if (IS_ERR(pxa->clk_io)) {
 		dev_err(dev, "failed to get io clock\n");
-		ret = PTR_ERR(pxa->clk_io);
-		goto err_clk_get;
+		return PTR_ERR(pxa->clk_io);
 	}
 	pltfm_host->clk = pxa->clk_io;
 	clk_prepare_enable(pxa->clk_io);
@@ -441,6 +470,15 @@ static int sdhci_pxav3_probe(struct platform_device *pdev)
 			host->mmc->pm_caps |= pdata->pm_caps;
 	}
 
+	pxa->pinctrl = devm_pinctrl_get(dev);
+	if (!IS_ERR(pxa->pinctrl)) {
+		pxa->pins_default = pxav3_lookup_pinstate(dev, pxa->pinctrl, "default");
+		if (pxa->pins_default)
+			pxa->pins_uhs = pxav3_lookup_pinstate(dev, pxa->pinctrl, "state_uhs");
+	} else {
+		dev_dbg(dev, "could not get pinctrl handle: %ld\n", PTR_ERR(pxa->pinctrl));
+	}
+
 	pm_runtime_get_noresume(&pdev->dev);
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_set_autosuspend_delay(&pdev->dev, PXAV3_RPM_DELAY_MS);
@@ -466,8 +504,6 @@ err_of_parse:
 err_mbus_win:
 	clk_disable_unprepare(pxa->clk_io);
 	clk_disable_unprepare(pxa->clk_core);
-err_clk_get:
-	sdhci_pltfm_free(pdev);
 	return ret;
 }
 
@@ -485,11 +521,8 @@ static void sdhci_pxav3_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(pxa->clk_io);
 	clk_disable_unprepare(pxa->clk_core);
-
-	sdhci_pltfm_free(pdev);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int sdhci_pxav3_suspend(struct device *dev)
 {
 	int ret;
@@ -499,7 +532,6 @@ static int sdhci_pxav3_suspend(struct device *dev)
 	if (host->tuning_mode != SDHCI_TUNING_MODE_3)
 		mmc_retune_needed(host->mmc);
 	ret = sdhci_suspend_host(host);
-	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 
 	return ret;
@@ -512,24 +544,18 @@ static int sdhci_pxav3_resume(struct device *dev)
 
 	pm_runtime_get_sync(dev);
 	ret = sdhci_resume_host(host);
-	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 
 	return ret;
 }
-#endif
 
-#ifdef CONFIG_PM
 static int sdhci_pxav3_runtime_suspend(struct device *dev)
 {
 	struct sdhci_host *host = dev_get_drvdata(dev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct sdhci_pxa *pxa = sdhci_pltfm_priv(pltfm_host);
-	int ret;
 
-	ret = sdhci_runtime_suspend_host(host);
-	if (ret)
-		return ret;
+	sdhci_runtime_suspend_host(host);
 
 	if (host->tuning_mode != SDHCI_TUNING_MODE_3)
 		mmc_retune_needed(host->mmc);
@@ -551,14 +577,13 @@ static int sdhci_pxav3_runtime_resume(struct device *dev)
 	if (!IS_ERR(pxa->clk_core))
 		clk_prepare_enable(pxa->clk_core);
 
-	return sdhci_runtime_resume_host(host, 0);
+	sdhci_runtime_resume_host(host, 0);
+	return 0;
 }
-#endif
 
 static const struct dev_pm_ops sdhci_pxav3_pmops = {
-	SET_SYSTEM_SLEEP_PM_OPS(sdhci_pxav3_suspend, sdhci_pxav3_resume)
-	SET_RUNTIME_PM_OPS(sdhci_pxav3_runtime_suspend,
-		sdhci_pxav3_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(sdhci_pxav3_suspend, sdhci_pxav3_resume)
+	RUNTIME_PM_OPS(sdhci_pxav3_runtime_suspend, sdhci_pxav3_runtime_resume, NULL)
 };
 
 static struct platform_driver sdhci_pxav3_driver = {
@@ -566,7 +591,7 @@ static struct platform_driver sdhci_pxav3_driver = {
 		.name	= "sdhci-pxav3",
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(sdhci_pxav3_of_match),
-		.pm	= &sdhci_pxav3_pmops,
+		.pm	= pm_ptr(&sdhci_pxav3_pmops),
 	},
 	.probe		= sdhci_pxav3_probe,
 	.remove		= sdhci_pxav3_remove,

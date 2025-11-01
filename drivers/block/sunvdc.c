@@ -119,9 +119,8 @@ static inline u32 vdc_tx_dring_avail(struct vio_dring_state *dr)
 	return vio_dring_avail(dr, VDC_TX_RING_SIZE);
 }
 
-static int vdc_getgeo(struct block_device *bdev, struct hd_geometry *geo)
+static int vdc_getgeo(struct gendisk *disk, struct hd_geometry *geo)
 {
-	struct gendisk *disk = bdev->bd_disk;
 	sector_t nsect = get_capacity(disk);
 	sector_t cylinders = nsect;
 
@@ -957,8 +956,10 @@ static bool vdc_port_mpgroup_check(struct vio_dev *vdev)
 	dev = device_find_child(vdev->dev.parent, &port_data,
 				vdc_device_probed);
 
-	if (dev)
+	if (dev) {
+		put_device(dev);
 		return true;
+	}
 
 	return false;
 }
@@ -1187,7 +1188,7 @@ static void vdc_ldc_reset(struct vdc_port *port)
 	}
 
 	if (port->ldc_timeout)
-		mod_delayed_work(system_wq, &port->ldc_reset_timer_work,
+		mod_delayed_work(system_percpu_wq, &port->ldc_reset_timer_work,
 			  round_jiffies(jiffies + HZ * port->ldc_timeout));
 	mod_timer(&port->vio.timer, round_jiffies(jiffies + HZ));
 	return;
@@ -1215,7 +1216,7 @@ static int __init vdc_init(void)
 {
 	int err;
 
-	sunvdc_wq = alloc_workqueue("sunvdc", 0, 0);
+	sunvdc_wq = alloc_workqueue("sunvdc", WQ_PERCPU, 0);
 	if (!sunvdc_wq)
 		return -ENOMEM;
 

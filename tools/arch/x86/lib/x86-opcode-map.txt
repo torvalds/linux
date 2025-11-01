@@ -27,6 +27,11 @@
 #  (evo): this opcode is changed by EVEX prefix (EVEX opcode)
 #  (v): this opcode requires VEX prefix.
 #  (v1): this opcode only supports 128bit VEX.
+#  (xop): this opcode accepts XOP prefix.
+#
+# XOP Superscripts
+#  (W=0): this opcode requires XOP.W == 0
+#  (W=1): this opcode requires XOP.W == 1
 #
 # Last Prefix Superscripts
 #  - (66): the last prefix is 0x66
@@ -194,7 +199,7 @@ AVXcode:
 8c: MOV Ev,Sw
 8d: LEA Gv,M
 8e: MOV Sw,Ew
-8f: Grp1A (1A) | POP Ev (d64)
+8f: Grp1A (1A) | POP Ev (d64) | XOP (Prefix)
 # 0x90 - 0x9f
 90: NOP | PAUSE (F3) | XCHG r8,rAX
 91: XCHG rCX/r9,rAX
@@ -1106,6 +1111,84 @@ AVXcode: 7
 f8: URDMSR Rq,Id (F2),(v1),(11B) | UWRMSR Id,Rq (F3),(v1),(11B)
 EndTable
 
+# From AMD64 Architecture Programmer's Manual Vol3, Appendix A.1.5
+Table: XOP map 8h
+Referrer:
+XOPcode: 0
+85: VPMACSSWW Vo,Ho,Wo,Lo
+86: VPMACSSWD Vo,Ho,Wo,Lo
+87: VPMACSSDQL Vo,Ho,Wo,Lo
+8e: VPMACSSDD Vo,Ho,Wo,Lo
+8f: VPMACSSDQH Vo,Ho,Wo,Lo
+95: VPMACSWW Vo,Ho,Wo,Lo
+96: VPMACSWD Vo,Ho,Wo,Lo
+97: VPMACSDQL Vo,Ho,Wo,Lo
+9e: VPMACSDD Vo,Ho,Wo,Lo
+9f: VPMACSDQH Vo,Ho,Wo,Lo
+a2: VPCMOV Vx,Hx,Wx,Lx (W=0) | VPCMOV Vx,Hx,Lx,Wx (W=1)
+a3: VPPERM Vo,Ho,Wo,Lo (W=0) | VPPERM Vo,Ho,Lo,Wo (W=1)
+a6: VPMADCSSWD Vo,Ho,Wo,Lo
+b6: VPMADCSWD Vo,Ho,Wo,Lo
+c0: VPROTB Vo,Wo,Ib
+c1: VPROTW Vo,Wo,Ib
+c2: VPROTD Vo,Wo,Ib
+c3: VPROTQ Vo,Wo,Ib
+cc: VPCOMccB Vo,Ho,Wo,Ib
+cd: VPCOMccW Vo,Ho,Wo,Ib
+ce: VPCOMccD Vo,Ho,Wo,Ib
+cf: VPCOMccQ Vo,Ho,Wo,Ib
+ec: VPCOMccUB Vo,Ho,Wo,Ib
+ed: VPCOMccUW Vo,Ho,Wo,Ib
+ee: VPCOMccUD Vo,Ho,Wo,Ib
+ef: VPCOMccUQ Vo,Ho,Wo,Ib
+EndTable
+
+Table: XOP map 9h
+Referrer:
+XOPcode: 1
+01: GrpXOP1
+02: GrpXOP2
+12: GrpXOP3
+80: VFRCZPS Vx,Wx
+81: VFRCZPD Vx,Wx
+82: VFRCZSS Vq,Wss
+83: VFRCZSD Vq,Wsd
+90: VPROTB Vo,Wo,Ho (W=0) | VPROTB Vo,Ho,Wo (W=1)
+91: VPROTW Vo,Wo,Ho (W=0) | VPROTB Vo,Ho,Wo (W=1)
+92: VPROTD Vo,Wo,Ho (W=0) | VPROTB Vo,Ho,Wo (W=1)
+93: VPROTQ Vo,Wo,Ho (W=0) | VPROTB Vo,Ho,Wo (W=1)
+94: VPSHLB Vo,Wo,Ho (W=0) | VPSHLB Vo,Ho,Wo (W=1)
+95: VPSHLW Vo,Wo,Ho (W=0) | VPSHLW Vo,Ho,Wo (W=1)
+96: VPSHLD Vo,Wo,Ho (W=0) | VPSHLD Vo,Ho,Wo (W=1)
+97: VPSHLQ Vo,Wo,Ho (W=0) | VPSHLQ Vo,Ho,Wo (W=1)
+98: VPSHAB Vo,Wo,Ho (W=0) | VPSHAB Vo,Ho,Wo (W=1)
+99: VPSHAW Vo,Wo,Ho (W=0) | VPSHAW Vo,Ho,Wo (W=1)
+9a: VPSHAD Vo,Wo,Ho (W=0) | VPSHAD Vo,Ho,Wo (W=1)
+9b: VPSHAQ Vo,Wo,Ho (W=0) | VPSHAQ Vo,Ho,Wo (W=1)
+c1: VPHADDBW Vo,Wo
+c2: VPHADDBD Vo,Wo
+c3: VPHADDBQ Vo,Wo
+c6: VPHADDWD Vo,Wo
+c7: VPHADDWQ Vo,Wo
+cb: VPHADDDQ Vo,Wo
+d1: VPHADDUBWD Vo,Wo
+d2: VPHADDUBD Vo,Wo
+d3: VPHADDUBQ Vo,Wo
+d6: VPHADDUWD Vo,Wo
+d7: VPHADDUWQ Vo,Wo
+db: VPHADDUDQ Vo,Wo
+e1: VPHSUBBW Vo,Wo
+e2: VPHSUBWD Vo,Wo
+e3: VPHSUBDQ Vo,Wo
+EndTable
+
+Table: XOP map Ah
+Referrer:
+XOPcode: 2
+10: BEXTR Gy,Ey,Id
+12: GrpXOP4
+EndTable
+
 GrpTable: Grp1
 0: ADD
 1: OR
@@ -1319,4 +1402,30 @@ GrpTable: GrpRNG
 2: xcrypt-cbc
 4: xcrypt-cfb
 5: xcrypt-ofb
+EndTable
+
+# GrpXOP1-4 is shown in AMD APM Vol.3 Appendix A as XOP group #1-4
+GrpTable: GrpXOP1
+1: BLCFILL By,Ey (xop)
+2: BLSFILL By,Ey (xop)
+3: BLCS By,Ey (xop)
+4: TZMSK By,Ey (xop)
+5: BLCIC By,Ey (xop)
+6: BLSIC By,Ey (xop)
+7: T1MSKC By,Ey (xop)
+EndTable
+
+GrpTable: GrpXOP2
+1: BLCMSK By,Ey (xop)
+6: BLCI By,Ey (xop)
+EndTable
+
+GrpTable: GrpXOP3
+0: LLWPCB Ry (xop)
+1: SLWPCB Ry (xop)
+EndTable
+
+GrpTable: GrpXOP4
+0: LWPINS By,Ed,Id (xop)
+1: LWPVAL By,Ed,Id (xop)
 EndTable

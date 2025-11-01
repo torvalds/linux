@@ -92,7 +92,7 @@ static u8 soc_rev;
  *
  * There are some gates that do not have an associated reset; these are
  * handled by using -1 as the index for the reset, and the consumer must
- * explictly assert/deassert reset lines as required.
+ * explicitly assert/deassert reset lines as required.
  *
  * Clocks marked with CLK_IS_CRITICAL:
  *

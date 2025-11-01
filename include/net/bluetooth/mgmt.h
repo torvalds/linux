@@ -53,10 +53,15 @@ struct mgmt_hdr {
 } __packed;
 
 struct mgmt_tlv {
-	__le16 type;
-	__u8   length;
+	/* New members MUST be added within the __struct_group() macro below. */
+	__struct_group(mgmt_tlv_hdr, __hdr, __packed,
+		__le16 type;
+		__u8   length;
+	);
 	__u8   value[];
 } __packed;
+static_assert(offsetof(struct mgmt_tlv, value) == sizeof(struct mgmt_tlv_hdr),
+	      "struct member likely outside of __struct_group()");
 
 struct mgmt_addr_info {
 	bdaddr_t	bdaddr;

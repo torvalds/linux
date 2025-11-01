@@ -42,11 +42,11 @@ static struct bpf_align_test tests[] = {
 		.matches = {
 			{0, "R1", "ctx()"},
 			{0, "R10", "fp0"},
-			{0, "R3_w", "2"},
-			{1, "R3_w", "4"},
-			{2, "R3_w", "8"},
-			{3, "R3_w", "16"},
-			{4, "R3_w", "32"},
+			{0, "R3", "2"},
+			{1, "R3", "4"},
+			{2, "R3", "8"},
+			{3, "R3", "16"},
+			{4, "R3", "32"},
 		},
 	},
 	{
@@ -70,17 +70,17 @@ static struct bpf_align_test tests[] = {
 		.matches = {
 			{0, "R1", "ctx()"},
 			{0, "R10", "fp0"},
-			{0, "R3_w", "1"},
-			{1, "R3_w", "2"},
-			{2, "R3_w", "4"},
-			{3, "R3_w", "8"},
-			{4, "R3_w", "16"},
-			{5, "R3_w", "1"},
-			{6, "R4_w", "32"},
-			{7, "R4_w", "16"},
-			{8, "R4_w", "8"},
-			{9, "R4_w", "4"},
-			{10, "R4_w", "2"},
+			{0, "R3", "1"},
+			{1, "R3", "2"},
+			{2, "R3", "4"},
+			{3, "R3", "8"},
+			{4, "R3", "16"},
+			{5, "R3", "1"},
+			{6, "R4", "32"},
+			{7, "R4", "16"},
+			{8, "R4", "8"},
+			{9, "R4", "4"},
+			{10, "R4", "2"},
 		},
 	},
 	{
@@ -99,12 +99,12 @@ static struct bpf_align_test tests[] = {
 		.matches = {
 			{0, "R1", "ctx()"},
 			{0, "R10", "fp0"},
-			{0, "R3_w", "4"},
-			{1, "R3_w", "8"},
-			{2, "R3_w", "10"},
-			{3, "R4_w", "8"},
-			{4, "R4_w", "12"},
-			{5, "R4_w", "14"},
+			{0, "R3", "4"},
+			{1, "R3", "8"},
+			{2, "R3", "10"},
+			{3, "R4", "8"},
+			{4, "R4", "12"},
+			{5, "R4", "14"},
 		},
 	},
 	{
@@ -121,10 +121,10 @@ static struct bpf_align_test tests[] = {
 		.matches = {
 			{0, "R1", "ctx()"},
 			{0, "R10", "fp0"},
-			{0, "R3_w", "7"},
-			{1, "R3_w", "7"},
-			{2, "R3_w", "14"},
-			{3, "R3_w", "56"},
+			{0, "R3", "7"},
+			{1, "R3", "7"},
+			{2, "R3", "14"},
+			{3, "R3", "56"},
 		},
 	},
 
@@ -162,19 +162,19 @@ static struct bpf_align_test tests[] = {
 		},
 		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 		.matches = {
-			{6, "R0_w", "pkt(off=8,r=8)"},
-			{6, "R3_w", "var_off=(0x0; 0xff)"},
-			{7, "R3_w", "var_off=(0x0; 0x1fe)"},
-			{8, "R3_w", "var_off=(0x0; 0x3fc)"},
-			{9, "R3_w", "var_off=(0x0; 0x7f8)"},
-			{10, "R3_w", "var_off=(0x0; 0xff0)"},
-			{12, "R3_w", "pkt_end()"},
-			{17, "R4_w", "var_off=(0x0; 0xff)"},
-			{18, "R4_w", "var_off=(0x0; 0x1fe0)"},
-			{19, "R4_w", "var_off=(0x0; 0xff0)"},
-			{20, "R4_w", "var_off=(0x0; 0x7f8)"},
-			{21, "R4_w", "var_off=(0x0; 0x3fc)"},
-			{22, "R4_w", "var_off=(0x0; 0x1fe)"},
+			{6, "R0", "pkt(off=8,r=8)"},
+			{6, "R3", "var_off=(0x0; 0xff)"},
+			{7, "R3", "var_off=(0x0; 0x1fe)"},
+			{8, "R3", "var_off=(0x0; 0x3fc)"},
+			{9, "R3", "var_off=(0x0; 0x7f8)"},
+			{10, "R3", "var_off=(0x0; 0xff0)"},
+			{12, "R3", "pkt_end()"},
+			{17, "R4", "var_off=(0x0; 0xff)"},
+			{18, "R4", "var_off=(0x0; 0x1fe0)"},
+			{19, "R4", "var_off=(0x0; 0xff0)"},
+			{20, "R4", "var_off=(0x0; 0x7f8)"},
+			{21, "R4", "var_off=(0x0; 0x3fc)"},
+			{22, "R4", "var_off=(0x0; 0x1fe)"},
 		},
 	},
 	{
@@ -195,16 +195,16 @@ static struct bpf_align_test tests[] = {
 		},
 		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 		.matches = {
-			{6, "R3_w", "var_off=(0x0; 0xff)"},
-			{7, "R4_w", "var_off=(0x0; 0xff)"},
-			{8, "R4_w", "var_off=(0x0; 0xff)"},
-			{9, "R4_w", "var_off=(0x0; 0xff)"},
-			{10, "R4_w", "var_off=(0x0; 0x1fe)"},
-			{11, "R4_w", "var_off=(0x0; 0xff)"},
-			{12, "R4_w", "var_off=(0x0; 0x3fc)"},
-			{13, "R4_w", "var_off=(0x0; 0xff)"},
-			{14, "R4_w", "var_off=(0x0; 0x7f8)"},
-			{15, "R4_w", "var_off=(0x0; 0xff0)"},
+			{6, "R3", "var_off=(0x0; 0xff)"},
+			{7, "R4", "var_off=(0x0; 0xff)"},
+			{8, "R4", "var_off=(0x0; 0xff)"},
+			{9, "R4", "var_off=(0x0; 0xff)"},
+			{10, "R4", "var_off=(0x0; 0x1fe)"},
+			{11, "R4", "var_off=(0x0; 0xff)"},
+			{12, "R4", "var_off=(0x0; 0x3fc)"},
+			{13, "R4", "var_off=(0x0; 0xff)"},
+			{14, "R4", "var_off=(0x0; 0x7f8)"},
+			{15, "R4", "var_off=(0x0; 0xff0)"},
 		},
 	},
 	{
@@ -235,14 +235,14 @@ static struct bpf_align_test tests[] = {
 		},
 		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 		.matches = {
-			{2, "R5_w", "pkt(r=0)"},
-			{4, "R5_w", "pkt(off=14,r=0)"},
-			{5, "R4_w", "pkt(off=14,r=0)"},
+			{2, "R5", "pkt(r=0)"},
+			{4, "R5", "pkt(off=14,r=0)"},
+			{5, "R4", "pkt(off=14,r=0)"},
 			{9, "R2", "pkt(r=18)"},
 			{10, "R5", "pkt(off=14,r=18)"},
-			{10, "R4_w", "var_off=(0x0; 0xff)"},
-			{13, "R4_w", "var_off=(0x0; 0xffff)"},
-			{14, "R4_w", "var_off=(0x0; 0xffff)"},
+			{10, "R4", "var_off=(0x0; 0xff)"},
+			{13, "R4", "var_off=(0x0; 0xffff)"},
+			{14, "R4", "var_off=(0x0; 0xffff)"},
 		},
 	},
 	{
@@ -299,12 +299,12 @@ static struct bpf_align_test tests[] = {
 			/* Calculated offset in R6 has unknown value, but known
 			 * alignment of 4.
 			 */
-			{6, "R2_w", "pkt(r=8)"},
-			{7, "R6_w", "var_off=(0x0; 0x3fc)"},
+			{6, "R2", "pkt(r=8)"},
+			{7, "R6", "var_off=(0x0; 0x3fc)"},
 			/* Offset is added to packet pointer R5, resulting in
 			 * known fixed offset, and variable offset from R6.
 			 */
-			{11, "R5_w", "pkt(id=1,off=14,"},
+			{11, "R5", "pkt(id=1,off=14,"},
 			/* At the time the word size load is performed from R5,
 			 * it's total offset is NET_IP_ALIGN + reg->off (0) +
 			 * reg->aux_off (14) which is 16.  Then the variable
@@ -320,12 +320,12 @@ static struct bpf_align_test tests[] = {
 			 * instruction to validate R5 state. We also check
 			 * that R4 is what it should be in such case.
 			 */
-			{18, "R4_w", "var_off=(0x0; 0x3fc)"},
-			{18, "R5_w", "var_off=(0x0; 0x3fc)"},
+			{18, "R4", "var_off=(0x0; 0x3fc)"},
+			{18, "R5", "var_off=(0x0; 0x3fc)"},
 			/* Constant offset is added to R5, resulting in
 			 * reg->off of 14.
 			 */
-			{19, "R5_w", "pkt(id=2,off=14,"},
+			{19, "R5", "pkt(id=2,off=14,"},
 			/* At the time the word size load is performed from R5,
 			 * its total fixed offset is NET_IP_ALIGN + reg->off
 			 * (14) which is 16.  Then the variable offset is 4-byte
@@ -337,21 +337,21 @@ static struct bpf_align_test tests[] = {
 			/* Constant offset is added to R5 packet pointer,
 			 * resulting in reg->off value of 14.
 			 */
-			{26, "R5_w", "pkt(off=14,r=8)"},
+			{26, "R5", "pkt(off=14,r=8)"},
 			/* Variable offset is added to R5, resulting in a
 			 * variable offset of (4n). See comment for insn #18
 			 * for R4 = R5 trick.
 			 */
-			{28, "R4_w", "var_off=(0x0; 0x3fc)"},
-			{28, "R5_w", "var_off=(0x0; 0x3fc)"},
+			{28, "R4", "var_off=(0x0; 0x3fc)"},
+			{28, "R5", "var_off=(0x0; 0x3fc)"},
 			/* Constant is added to R5 again, setting reg->off to 18. */
-			{29, "R5_w", "pkt(id=3,off=18,"},
+			{29, "R5", "pkt(id=3,off=18,"},
 			/* And once more we add a variable; resulting var_off
 			 * is still (4n), fixed offset is not changed.
 			 * Also, we create a new reg->id.
 			 */
-			{31, "R4_w", "var_off=(0x0; 0x7fc)"},
-			{31, "R5_w", "var_off=(0x0; 0x7fc)"},
+			{31, "R4", "var_off=(0x0; 0x7fc)"},
+			{31, "R5", "var_off=(0x0; 0x7fc)"},
 			/* At the time the word size load is performed from R5,
 			 * its total fixed offset is NET_IP_ALIGN + reg->off (18)
 			 * which is 20.  Then the variable offset is (4n), so
@@ -397,12 +397,12 @@ static struct bpf_align_test tests[] = {
 			/* Calculated offset in R6 has unknown value, but known
 			 * alignment of 4.
 			 */
-			{6, "R2_w", "pkt(r=8)"},
-			{7, "R6_w", "var_off=(0x0; 0x3fc)"},
+			{6, "R2", "pkt(r=8)"},
+			{7, "R6", "var_off=(0x0; 0x3fc)"},
 			/* Adding 14 makes R6 be (4n+2) */
-			{8, "R6_w", "var_off=(0x2; 0x7fc)"},
+			{8, "R6", "var_off=(0x2; 0x7fc)"},
 			/* Packet pointer has (4n+2) offset */
-			{11, "R5_w", "var_off=(0x2; 0x7fc)"},
+			{11, "R5", "var_off=(0x2; 0x7fc)"},
 			{12, "R4", "var_off=(0x2; 0x7fc)"},
 			/* At the time the word size load is performed from R5,
 			 * its total fixed offset is NET_IP_ALIGN + reg->off (0)
@@ -414,11 +414,11 @@ static struct bpf_align_test tests[] = {
 			/* Newly read value in R6 was shifted left by 2, so has
 			 * known alignment of 4.
 			 */
-			{17, "R6_w", "var_off=(0x0; 0x3fc)"},
+			{17, "R6", "var_off=(0x0; 0x3fc)"},
 			/* Added (4n) to packet pointer's (4n+2) var_off, giving
 			 * another (4n+2).
 			 */
-			{19, "R5_w", "var_off=(0x2; 0xffc)"},
+			{19, "R5", "var_off=(0x2; 0xffc)"},
 			{20, "R4", "var_off=(0x2; 0xffc)"},
 			/* At the time the word size load is performed from R5,
 			 * its total fixed offset is NET_IP_ALIGN + reg->off (0)
@@ -459,18 +459,18 @@ static struct bpf_align_test tests[] = {
 		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 		.result = REJECT,
 		.matches = {
-			{3, "R5_w", "pkt_end()"},
+			{3, "R5", "pkt_end()"},
 			/* (ptr - ptr) << 2 == unknown, (4n) */
-			{5, "R5_w", "var_off=(0x0; 0xfffffffffffffffc)"},
+			{5, "R5", "var_off=(0x0; 0xfffffffffffffffc)"},
 			/* (4n) + 14 == (4n+2).  We blow our bounds, because
 			 * the add could overflow.
 			 */
-			{6, "R5_w", "var_off=(0x2; 0xfffffffffffffffc)"},
+			{6, "R5", "var_off=(0x2; 0xfffffffffffffffc)"},
 			/* Checked s>=0 */
 			{9, "R5", "var_off=(0x2; 0x7ffffffffffffffc)"},
 			/* packet pointer + nonnegative (4n+2) */
-			{11, "R6_w", "var_off=(0x2; 0x7ffffffffffffffc)"},
-			{12, "R4_w", "var_off=(0x2; 0x7ffffffffffffffc)"},
+			{11, "R6", "var_off=(0x2; 0x7ffffffffffffffc)"},
+			{12, "R4", "var_off=(0x2; 0x7ffffffffffffffc)"},
 			/* NET_IP_ALIGN + (4n+2) == (4n), alignment is fine.
 			 * We checked the bounds, but it might have been able
 			 * to overflow if the packet pointer started in the
@@ -478,7 +478,7 @@ static struct bpf_align_test tests[] = {
 			 * So we did not get a 'range' on R6, and the access
 			 * attempt will fail.
 			 */
-			{15, "R6_w", "var_off=(0x2; 0x7ffffffffffffffc)"},
+			{15, "R6", "var_off=(0x2; 0x7ffffffffffffffc)"},
 		}
 	},
 	{
@@ -513,12 +513,12 @@ static struct bpf_align_test tests[] = {
 			/* Calculated offset in R6 has unknown value, but known
 			 * alignment of 4.
 			 */
-			{6, "R2_w", "pkt(r=8)"},
-			{8, "R6_w", "var_off=(0x0; 0x3fc)"},
+			{6, "R2", "pkt(r=8)"},
+			{8, "R6", "var_off=(0x0; 0x3fc)"},
 			/* Adding 14 makes R6 be (4n+2) */
-			{9, "R6_w", "var_off=(0x2; 0x7fc)"},
+			{9, "R6", "var_off=(0x2; 0x7fc)"},
 			/* New unknown value in R7 is (4n) */
-			{10, "R7_w", "var_off=(0x0; 0x3fc)"},
+			{10, "R7", "var_off=(0x0; 0x3fc)"},
 			/* Subtracting it from R6 blows our unsigned bounds */
 			{11, "R6", "var_off=(0x2; 0xfffffffffffffffc)"},
 			/* Checked s>= 0 */
@@ -566,16 +566,16 @@ static struct bpf_align_test tests[] = {
 			/* Calculated offset in R6 has unknown value, but known
 			 * alignment of 4.
 			 */
-			{6, "R2_w", "pkt(r=8)"},
-			{9, "R6_w", "var_off=(0x0; 0x3c)"},
+			{6, "R2", "pkt(r=8)"},
+			{9, "R6", "var_off=(0x0; 0x3c)"},
 			/* Adding 14 makes R6 be (4n+2) */
-			{10, "R6_w", "var_off=(0x2; 0x7c)"},
+			{10, "R6", "var_off=(0x2; 0x7c)"},
 			/* Subtracting from packet pointer overflows ubounds */
-			{13, "R5_w", "var_off=(0xffffffffffffff82; 0x7c)"},
+			{13, "R5", "var_off=(0xffffffffffffff82; 0x7c)"},
 			/* New unknown value in R7 is (4n), >= 76 */
-			{14, "R7_w", "var_off=(0x0; 0x7fc)"},
+			{14, "R7", "var_off=(0x0; 0x7fc)"},
 			/* Adding it to packet pointer gives nice bounds again */
-			{16, "R5_w", "var_off=(0x2; 0x7fc)"},
+			{16, "R5", "var_off=(0x2; 0x7fc)"},
 			/* At the time the word size load is performed from R5,
 			 * its total fixed offset is NET_IP_ALIGN + reg->off (0)
 			 * which is 2.  Then the variable offset is (4n+2), so

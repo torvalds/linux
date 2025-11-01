@@ -143,6 +143,7 @@ void drm_crtc_fill_gamma_555(struct drm_crtc *crtc, drm_crtc_set_lut_func set_ga
 void drm_crtc_load_palette_8(struct drm_crtc *crtc, const struct drm_color_lut *lut,
 			     drm_crtc_set_lut_func set_palette);
 
+void drm_crtc_fill_palette_332(struct drm_crtc *crtc, drm_crtc_set_lut_func set_palette);
 void drm_crtc_fill_palette_8(struct drm_crtc *crtc, drm_crtc_set_lut_func set_palette);
 
 #endif

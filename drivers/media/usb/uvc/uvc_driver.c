@@ -137,6 +137,9 @@ struct uvc_entity *uvc_entity_by_id(struct uvc_device *dev, int id)
 {
 	struct uvc_entity *entity;
 
+	if (id == UVC_INVALID_ENTITY_ID)
+		return NULL;
+
 	list_for_each_entry(entity, &dev->entities, list) {
 		if (entity->id == id)
 			return entity;
@@ -183,8 +186,6 @@ static void uvc_stream_delete(struct uvc_streaming *stream)
 	if (stream->async_wq)
 		destroy_workqueue(stream->async_wq);
 
-	mutex_destroy(&stream->mutex);
-
 	usb_put_intf(stream->intf);
 
 	kfree(stream->formats);
@@ -200,8 +201,6 @@ static struct uvc_streaming *uvc_stream_new(struct uvc_device *dev,
 	stream = kzalloc(sizeof(*stream), GFP_KERNEL);
 	if (stream == NULL)
 		return NULL;
-
-	mutex_init(&stream->mutex);
 
 	stream->dev = dev;
 	stream->intf = usb_get_intf(intf);
@@ -343,6 +342,9 @@ static int uvc_parse_format(struct uvc_device *dev,
 	unsigned int i, n;
 	u8 ftype;
 	int ret;
+
+	if (buflen < 4)
+		return -EINVAL;
 
 	format->type = buffer[2];
 	format->index = buffer[3];
@@ -536,7 +538,7 @@ static int uvc_parse_streaming(struct uvc_device *dev,
 	unsigned int nformats = 0, nframes = 0, nintervals = 0;
 	unsigned int size, i, n, p;
 	u32 *interval;
-	u16 psize;
+	u32 psize;
 	int ret = -EINVAL;
 
 	if (intf->cur_altsetting->desc.bInterfaceSubClass
@@ -772,7 +774,7 @@ static int uvc_parse_streaming(struct uvc_device *dev,
 				streaming->header.bEndpointAddress);
 		if (ep == NULL)
 			continue;
-		psize = uvc_endpoint_max_bpi(dev->udev, ep);
+		psize = usb_endpoint_max_periodic_payload(dev->udev, ep);
 		if (psize > streaming->maxpsize)
 			streaming->maxpsize = psize;
 	}
@@ -792,13 +794,26 @@ static const u8 uvc_media_transport_input_guid[16] =
 	UVC_GUID_UVC_MEDIA_TRANSPORT_INPUT;
 static const u8 uvc_processing_guid[16] = UVC_GUID_UVC_PROCESSING;
 
-static struct uvc_entity *uvc_alloc_entity(u16 type, u16 id,
-		unsigned int num_pads, unsigned int extra_size)
+static struct uvc_entity *uvc_alloc_new_entity(struct uvc_device *dev, u16 type,
+					       u16 id, unsigned int num_pads,
+					       unsigned int extra_size)
 {
 	struct uvc_entity *entity;
 	unsigned int num_inputs;
 	unsigned int size;
 	unsigned int i;
+
+	/* Per UVC 1.1+ spec 3.7.2, the ID should be non-zero. */
+	if (id == 0) {
+		dev_err(&dev->intf->dev, "Found Unit with invalid ID 0\n");
+		id = UVC_INVALID_ENTITY_ID;
+	}
+
+	/* Per UVC 1.1+ spec 3.7.2, the ID is unique. */
+	if (uvc_entity_by_id(dev, id)) {
+		dev_err(&dev->intf->dev, "Found multiple Units with ID %u\n", id);
+		id = UVC_INVALID_ENTITY_ID;
+	}
 
 	extra_size = roundup(extra_size, sizeof(*entity->pads));
 	if (num_pads)
@@ -809,7 +824,7 @@ static struct uvc_entity *uvc_alloc_entity(u16 type, u16 id,
 	     + num_inputs;
 	entity = kzalloc(size, GFP_KERNEL);
 	if (entity == NULL)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	entity->id = id;
 	entity->type = type;
@@ -879,7 +894,7 @@ static int uvc_parse_vendor_control(struct uvc_device *dev,
 	unsigned int n, p;
 	int handled = 0;
 
-	switch (le16_to_cpu(dev->udev->descriptor.idVendor)) {
+	switch (le16_to_cpu(udev->descriptor.idVendor)) {
 	case 0x046d:		/* Logitech */
 		if (buffer[1] != 0x41 || buffer[2] != 0x01)
 			break;
@@ -921,10 +936,10 @@ static int uvc_parse_vendor_control(struct uvc_device *dev,
 			break;
 		}
 
-		unit = uvc_alloc_entity(UVC_VC_EXTENSION_UNIT, buffer[3],
-					p + 1, 2*n);
-		if (unit == NULL)
-			return -ENOMEM;
+		unit = uvc_alloc_new_entity(dev, UVC_VC_EXTENSION_UNIT,
+					    buffer[3], p + 1, 2 * n);
+		if (IS_ERR(unit))
+			return PTR_ERR(unit);
 
 		memcpy(unit->guid, &buffer[4], 16);
 		unit->extension.bNumControls = buffer[20];
@@ -1033,10 +1048,10 @@ static int uvc_parse_standard_control(struct uvc_device *dev,
 			return -EINVAL;
 		}
 
-		term = uvc_alloc_entity(type | UVC_TERM_INPUT, buffer[3],
-					1, n + p);
-		if (term == NULL)
-			return -ENOMEM;
+		term = uvc_alloc_new_entity(dev, type | UVC_TERM_INPUT,
+					    buffer[3], 1, n + p);
+		if (IS_ERR(term))
+			return PTR_ERR(term);
 
 		if (UVC_ENTITY_TYPE(term) == UVC_ITT_CAMERA) {
 			term->camera.bControlSize = n;
@@ -1092,10 +1107,10 @@ static int uvc_parse_standard_control(struct uvc_device *dev,
 			return 0;
 		}
 
-		term = uvc_alloc_entity(type | UVC_TERM_OUTPUT, buffer[3],
-					1, 0);
-		if (term == NULL)
-			return -ENOMEM;
+		term = uvc_alloc_new_entity(dev, type | UVC_TERM_OUTPUT,
+					    buffer[3], 1, 0);
+		if (IS_ERR(term))
+			return PTR_ERR(term);
 
 		memcpy(term->baSourceID, &buffer[7], 1);
 
@@ -1114,9 +1129,10 @@ static int uvc_parse_standard_control(struct uvc_device *dev,
 			return -EINVAL;
 		}
 
-		unit = uvc_alloc_entity(buffer[2], buffer[3], p + 1, 0);
-		if (unit == NULL)
-			return -ENOMEM;
+		unit = uvc_alloc_new_entity(dev, buffer[2], buffer[3],
+					    p + 1, 0);
+		if (IS_ERR(unit))
+			return PTR_ERR(unit);
 
 		memcpy(unit->baSourceID, &buffer[5], p);
 
@@ -1136,9 +1152,9 @@ static int uvc_parse_standard_control(struct uvc_device *dev,
 			return -EINVAL;
 		}
 
-		unit = uvc_alloc_entity(buffer[2], buffer[3], 2, n);
-		if (unit == NULL)
-			return -ENOMEM;
+		unit = uvc_alloc_new_entity(dev, buffer[2], buffer[3], 2, n);
+		if (IS_ERR(unit))
+			return PTR_ERR(unit);
 
 		memcpy(unit->baSourceID, &buffer[4], 1);
 		unit->processing.wMaxMultiplier =
@@ -1165,9 +1181,10 @@ static int uvc_parse_standard_control(struct uvc_device *dev,
 			return -EINVAL;
 		}
 
-		unit = uvc_alloc_entity(buffer[2], buffer[3], p + 1, n);
-		if (unit == NULL)
-			return -ENOMEM;
+		unit = uvc_alloc_new_entity(dev, buffer[2], buffer[3],
+					    p + 1, n);
+		if (IS_ERR(unit))
+			return PTR_ERR(unit);
 
 		memcpy(unit->guid, &buffer[4], 16);
 		unit->extension.bNumControls = buffer[20];
@@ -1312,9 +1329,10 @@ static int uvc_gpio_parse(struct uvc_device *dev)
 		return dev_err_probe(&dev->intf->dev, irq,
 				     "No IRQ for privacy GPIO\n");
 
-	unit = uvc_alloc_entity(UVC_EXT_GPIO_UNIT, UVC_EXT_GPIO_UNIT_ID, 0, 1);
-	if (!unit)
-		return -ENOMEM;
+	unit = uvc_alloc_new_entity(dev, UVC_EXT_GPIO_UNIT,
+				    UVC_EXT_GPIO_UNIT_ID, 0, 1);
+	if (IS_ERR(unit))
+		return PTR_ERR(unit);
 
 	unit->gpio.gpio_privacy = gpio_privacy;
 	unit->gpio.irq = irq;
@@ -1865,8 +1883,8 @@ static int uvc_scan_device(struct uvc_device *dev)
 		uvc_scan_fallback(dev);
 
 	if (list_empty(&dev->chains)) {
-		dev_info(&dev->udev->dev, "No valid video chain found.\n");
-		return -1;
+		dev_info(&dev->intf->dev, "No valid video chain found.\n");
+		return -ENODEV;
 	}
 
 	/* Add GPIO entity to the first chain. */
@@ -1955,35 +1973,11 @@ static void uvc_unregister_video(struct uvc_device *dev)
 
 	list_for_each_entry(stream, &dev->streams, list) {
 		/* Nothing to do here, continue. */
-		if (!video_is_registered(&stream->vdev))
+		if (!video_is_registered(&stream->queue.vdev))
 			continue;
 
-		/*
-		 * For stream->vdev we follow the same logic as:
-		 * vb2_video_unregister_device().
-		 */
-
-		/* 1. Take a reference to vdev */
-		get_device(&stream->vdev.dev);
-
-		/* 2. Ensure that no new ioctls can be called. */
-		video_unregister_device(&stream->vdev);
-
-		/* 3. Wait for old ioctls to finish. */
-		mutex_lock(&stream->mutex);
-
-		/* 4. Stop streaming. */
-		uvc_queue_release(&stream->queue);
-
-		mutex_unlock(&stream->mutex);
-
-		put_device(&stream->vdev.dev);
-
-		/*
-		 * For stream->meta.vdev we can directly call:
-		 * vb2_video_unregister_device().
-		 */
-		vb2_video_unregister_device(&stream->meta.vdev);
+		vb2_video_unregister_device(&stream->queue.vdev);
+		vb2_video_unregister_device(&stream->meta.queue.vdev);
 
 		/*
 		 * Now both vdevs are not streaming and all the ioctls will
@@ -2005,12 +1999,12 @@ static void uvc_unregister_video(struct uvc_device *dev)
 
 int uvc_register_video_device(struct uvc_device *dev,
 			      struct uvc_streaming *stream,
-			      struct video_device *vdev,
 			      struct uvc_video_queue *queue,
 			      enum v4l2_buf_type type,
 			      const struct v4l2_file_operations *fops,
 			      const struct v4l2_ioctl_ops *ioctl_ops)
 {
+	struct video_device *vdev = &queue->vdev;
 	int ret;
 
 	/* Initialize the video buffers queue. */
@@ -2030,6 +2024,8 @@ int uvc_register_video_device(struct uvc_device *dev,
 	vdev->ioctl_ops = ioctl_ops;
 	vdev->release = uvc_release;
 	vdev->prio = &stream->chain->prio;
+	vdev->queue = &queue->queue;
+	vdev->lock = &queue->mutex;
 	if (type == V4L2_BUF_TYPE_VIDEO_OUTPUT)
 		vdev->vfl_dir = VFL_DIR_TX;
 	else
@@ -2090,9 +2086,9 @@ static int uvc_register_video(struct uvc_device *dev,
 	uvc_debugfs_init_stream(stream);
 
 	/* Register the device with V4L. */
-	return uvc_register_video_device(dev, stream, &stream->vdev,
-					 &stream->queue, stream->type,
-					 &uvc_fops, &uvc_ioctl_ops);
+	return uvc_register_video_device(dev, stream, &stream->queue,
+					 stream->type, &uvc_fops,
+					 &uvc_ioctl_ops);
 }
 
 /*
@@ -2111,7 +2107,7 @@ static int uvc_register_terms(struct uvc_device *dev,
 
 		stream = uvc_stream_by_id(dev, term->id);
 		if (stream == NULL) {
-			dev_info(&dev->udev->dev,
+			dev_info(&dev->intf->dev,
 				 "No streaming interface found for terminal %u.",
 				 term->id);
 			continue;
@@ -2128,7 +2124,7 @@ static int uvc_register_terms(struct uvc_device *dev,
 		 */
 		uvc_meta_register(stream);
 
-		term->vdev = &stream->vdev;
+		term->vdev = &stream->queue.vdev;
 	}
 
 	return 0;
@@ -2147,7 +2143,7 @@ static int uvc_register_chains(struct uvc_device *dev)
 #ifdef CONFIG_MEDIA_CONTROLLER
 		ret = uvc_mc_register_entities(chain);
 		if (ret < 0)
-			dev_info(&dev->udev->dev,
+			dev_info(&dev->intf->dev,
 				 "Failed to register entities (%d).\n", ret);
 #endif
 	}
@@ -2239,7 +2235,6 @@ static int uvc_probe(struct usb_interface *intf,
 	/* Parse the Video Class control descriptor. */
 	ret = uvc_parse_control(dev);
 	if (ret < 0) {
-		ret = -ENODEV;
 		uvc_dbg(dev, PROBE, "Unable to parse UVC descriptors\n");
 		goto error;
 	}
@@ -2249,23 +2244,23 @@ static int uvc_probe(struct usb_interface *intf,
 	if (ret < 0)
 		goto error;
 
-	dev_info(&dev->udev->dev, "Found UVC %u.%02x device %s (%04x:%04x)\n",
+	dev_info(&dev->intf->dev, "Found UVC %u.%02x device %s (%04x:%04x)\n",
 		 dev->uvc_version >> 8, dev->uvc_version & 0xff,
 		 udev->product ? udev->product : "<unnamed>",
 		 le16_to_cpu(udev->descriptor.idVendor),
 		 le16_to_cpu(udev->descriptor.idProduct));
 
 	if (dev->quirks != dev->info->quirks) {
-		dev_info(&dev->udev->dev,
+		dev_info(&dev->intf->dev,
 			 "Forcing device quirks to 0x%x by module parameter for testing purpose.\n",
 			 dev->quirks);
-		dev_info(&dev->udev->dev,
+		dev_info(&dev->intf->dev,
 			 "Please report required quirks to the linux-media mailing list.\n");
 	}
 
 	if (dev->info->uvc_version) {
 		dev->uvc_version = dev->info->uvc_version;
-		dev_info(&dev->udev->dev, "Forcing UVC version to %u.%02x\n",
+		dev_info(&dev->intf->dev, "Forcing UVC version to %u.%02x\n",
 			 dev->uvc_version >> 8, dev->uvc_version & 0xff);
 	}
 
@@ -2275,22 +2270,19 @@ static int uvc_probe(struct usb_interface *intf,
 		goto error;
 
 	/* Scan the device for video chains. */
-	if (uvc_scan_device(dev) < 0) {
-		ret = -ENODEV;
+	ret = uvc_scan_device(dev);
+	if (ret < 0)
 		goto error;
-	}
 
 	/* Initialize controls. */
-	if (uvc_ctrl_init_device(dev) < 0) {
-		ret = -ENODEV;
+	ret = uvc_ctrl_init_device(dev);
+	if (ret < 0)
 		goto error;
-	}
 
 	/* Register video device nodes. */
-	if (uvc_register_chains(dev) < 0) {
-		ret = -ENODEV;
+	ret = uvc_register_chains(dev);
+	if (ret < 0)
 		goto error;
-	}
 
 #ifdef CONFIG_MEDIA_CONTROLLER
 	/* Register the media device node */
@@ -2304,15 +2296,22 @@ static int uvc_probe(struct usb_interface *intf,
 	/* Initialize the interrupt URB. */
 	ret = uvc_status_init(dev);
 	if (ret < 0) {
-		dev_info(&dev->udev->dev,
+		dev_info(&dev->intf->dev,
 			 "Unable to initialize the status endpoint (%d), status interrupt will not be supported.\n",
 			 ret);
 	}
 
 	ret = uvc_gpio_init_irq(dev);
 	if (ret < 0) {
-		dev_err(&dev->udev->dev,
+		dev_err(&dev->intf->dev,
 			"Unable to request privacy GPIO IRQ (%d)\n", ret);
+		goto error;
+	}
+
+	ret = uvc_meta_init(dev);
+	if (ret < 0) {
+		dev_err(&dev->intf->dev,
+			"Error initializing the metadata formats (%d)\n", ret);
 		goto error;
 	}
 
@@ -2398,9 +2397,12 @@ static int __uvc_resume(struct usb_interface *intf, int reset)
 	list_for_each_entry(stream, &dev->streams, list) {
 		if (stream->intf == intf) {
 			ret = uvc_video_resume(stream, reset);
-			if (ret < 0)
-				uvc_queue_streamoff(&stream->queue,
-						    stream->queue.queue.type);
+			if (ret < 0) {
+				mutex_lock(&stream->queue.mutex);
+				vb2_streamoff(&stream->queue.queue,
+					      stream->queue.queue.type);
+				mutex_unlock(&stream->queue.mutex);
+			}
 			return ret;
 		}
 	}
@@ -2514,6 +2516,15 @@ static const struct uvc_device_info uvc_quirk_force_y8 = {
  * Sort these by vendor/product ID.
  */
 static const struct usb_device_id uvc_ids[] = {
+	/* HP Webcam HD 2300 */
+	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE
+				| USB_DEVICE_ID_MATCH_INT_INFO,
+	  .idVendor		= 0x03f0,
+	  .idProduct		= 0xe207,
+	  .bInterfaceClass	= USB_CLASS_VIDEO,
+	  .bInterfaceSubClass	= 1,
+	  .bInterfaceProtocol	= 0,
+	  .driver_info		= (kernel_ulong_t)&uvc_quirk_stream_no_fid },
 	/* Quanta ACER HD User Facing */
 	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE
 				| USB_DEVICE_ID_MATCH_INT_INFO,

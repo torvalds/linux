@@ -455,7 +455,7 @@ static void radeon_test_ring_sync2(struct radeon_device *rdev,
 
 	r = radeon_ring_lock(rdev, ringC, 64);
 	if (r) {
-		DRM_ERROR("Failed to lock ring B %p\n", ringC);
+		DRM_ERROR("Failed to lock ring C %p\n", ringC);
 		goto out_cleanup;
 	}
 	radeon_semaphore_emit_signal(rdev, ringC->idx, semaphore);
@@ -481,7 +481,7 @@ static void radeon_test_ring_sync2(struct radeon_device *rdev,
 
 	r = radeon_ring_lock(rdev, ringC, 64);
 	if (r) {
-		DRM_ERROR("Failed to lock ring B %p\n", ringC);
+		DRM_ERROR("Failed to lock ring C %p\n", ringC);
 		goto out_cleanup;
 	}
 	radeon_semaphore_emit_signal(rdev, ringC->idx, semaphore);

@@ -31,19 +31,28 @@
 #define MPTCP_INFO_FLAG_FALLBACK		_BITUL(0)
 #define MPTCP_INFO_FLAG_REMOTE_KEY_RECEIVED	_BITUL(1)
 
-#define MPTCP_PM_ADDR_FLAG_SIGNAL                      (1 << 0)
-#define MPTCP_PM_ADDR_FLAG_SUBFLOW                     (1 << 1)
-#define MPTCP_PM_ADDR_FLAG_BACKUP                      (1 << 2)
-#define MPTCP_PM_ADDR_FLAG_FULLMESH                    (1 << 3)
-#define MPTCP_PM_ADDR_FLAG_IMPLICIT                    (1 << 4)
+#define MPTCP_PM_EV_FLAG_DENY_JOIN_ID0		_BITUL(0)
+#define MPTCP_PM_EV_FLAG_SERVER_SIDE		_BITUL(1)
+
+#define MPTCP_PM_ADDR_FLAG_SIGNAL		_BITUL(0)
+#define MPTCP_PM_ADDR_FLAG_SUBFLOW		_BITUL(1)
+#define MPTCP_PM_ADDR_FLAG_BACKUP		_BITUL(2)
+#define MPTCP_PM_ADDR_FLAG_FULLMESH		_BITUL(3)
+#define MPTCP_PM_ADDR_FLAG_IMPLICIT		_BITUL(4)
+#define MPTCP_PM_ADDR_FLAG_LAMINAR		_BITUL(5)
 
 struct mptcp_info {
 	__u8	mptcpi_subflows;
+	#define mptcpi_extra_subflows mptcpi_subflows
 	__u8	mptcpi_add_addr_signal;
 	__u8	mptcpi_add_addr_accepted;
 	__u8	mptcpi_subflows_max;
+	#define mptcpi_limit_extra_subflows mptcpi_subflows_max
 	__u8	mptcpi_add_addr_signal_max;
+	#define mptcpi_endp_signal_max mptcpi_add_addr_signal_max
 	__u8	mptcpi_add_addr_accepted_max;
+	#define mptcpi_limit_add_addr_accepted mptcpi_add_addr_accepted_max
+	/* 16-bit hole that can no longer be filled */
 	__u32	mptcpi_flags;
 	__u32	mptcpi_token;
 	__u64	mptcpi_write_seq;
@@ -51,14 +60,17 @@ struct mptcp_info {
 	__u64	mptcpi_rcv_nxt;
 	__u8	mptcpi_local_addr_used;
 	__u8	mptcpi_local_addr_max;
+	#define mptcpi_endp_subflow_max mptcpi_local_addr_max
 	__u8	mptcpi_csum_enabled;
+	/* 8-bit hole that can no longer be filled */
 	__u32	mptcpi_retransmits;
 	__u64	mptcpi_bytes_retrans;
 	__u64	mptcpi_bytes_sent;
 	__u64	mptcpi_bytes_received;
 	__u64	mptcpi_bytes_acked;
 	__u8	mptcpi_subflows_total;
-	__u8	reserved[3];
+	__u8	mptcpi_endp_laminar_max;
+	__u8	reserved[2];
 	__u32	mptcpi_last_data_sent;
 	__u32	mptcpi_last_data_recv;
 	__u32	mptcpi_last_ack_recv;

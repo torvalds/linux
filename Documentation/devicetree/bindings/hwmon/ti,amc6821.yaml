@@ -32,6 +32,12 @@ properties:
     $ref: fan-common.yaml#
     unevaluatedProperties: false
 
+    properties:
+      cooling-levels:
+        description: PWM duty cycle values corresponding to thermal cooling states.
+        items:
+          maximum: 255
+
   "#pwm-cells":
     const: 2
     description: |

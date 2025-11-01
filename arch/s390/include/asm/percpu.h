@@ -16,10 +16,9 @@
  * For 64 bit module code, the module may be more than 4G above the
  * per cpu area, use weak definitions to force the compiler to
  * generate external references.
+ * Therefore, we have enabled CONFIG_ARCH_MODULE_NEEDS_WEAK_PER_CPU
+ * in the Kconfig.
  */
-#if defined(MODULE)
-#define ARCH_NEEDS_WEAK_PER_CPU
-#endif
 
 /*
  * We use a compare-and-swap loop since that uses less cpu cycles than
@@ -74,13 +73,13 @@
 	if (__builtin_constant_p(val__) &&				\
 	    ((szcast)val__ > -129) && ((szcast)val__ < 128)) {		\
 		asm volatile(						\
-			op2 "   %[ptr__],%[val__]\n"			\
+			op2 "   %[ptr__],%[val__]"			\
 			: [ptr__] "+Q" (*ptr__) 			\
 			: [val__] "i" ((szcast)val__)			\
 			: "cc");					\
 	} else {							\
 		asm volatile(						\
-			op1 "   %[old__],%[val__],%[ptr__]\n"		\
+			op1 "   %[old__],%[val__],%[ptr__]"		\
 			: [old__] "=d" (old__), [ptr__] "+Q" (*ptr__)	\
 			: [val__] "d" (val__)				\
 			: "cc");					\
@@ -99,7 +98,7 @@
 	preempt_disable_notrace();					\
 	ptr__ = raw_cpu_ptr(&(pcp));	 				\
 	asm volatile(							\
-		op "    %[old__],%[val__],%[ptr__]\n"			\
+		op "    %[old__],%[val__],%[ptr__]"			\
 		: [old__] "=d" (old__), [ptr__] "+Q" (*ptr__)		\
 		: [val__] "d" (val__)					\
 		: "cc");						\
@@ -118,7 +117,7 @@
 	preempt_disable_notrace();					\
 	ptr__ = raw_cpu_ptr(&(pcp));	 				\
 	asm volatile(							\
-		op "    %[old__],%[val__],%[ptr__]\n"			\
+		op "    %[old__],%[val__],%[ptr__]"			\
 		: [old__] "=d" (old__), [ptr__] "+Q" (*ptr__)		\
 		: [val__] "d" (val__)					\
 		: "cc");						\

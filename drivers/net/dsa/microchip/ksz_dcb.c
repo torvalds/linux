@@ -16,10 +16,12 @@
  * Therefore, we define the base offset as 0x00 here to align with that logic.
  */
 #define KSZ8_REG_PORT_1_CTRL_0			0x00
+#define KSZ8463_REG_PORT_1_CTRL_0		0x6C
 #define KSZ8_PORT_DIFFSERV_ENABLE		BIT(6)
 #define KSZ8_PORT_802_1P_ENABLE			BIT(5)
 #define KSZ8_PORT_BASED_PRIO_M			GENMASK(4, 3)
 
+#define KSZ8463_REG_TOS_DSCP_CTRL		0x16
 #define KSZ88X3_REG_TOS_DSCP_CTRL		0x60
 #define KSZ8765_REG_TOS_DSCP_CTRL		0x90
 
@@ -98,6 +100,8 @@ static void ksz_get_default_port_prio_reg(struct ksz_device *dev, int *reg,
 		*reg = KSZ8_REG_PORT_1_CTRL_0;
 		*mask = KSZ8_PORT_BASED_PRIO_M;
 		*shift = __bf_shf(KSZ8_PORT_BASED_PRIO_M);
+		if (ksz_is_ksz8463(dev))
+			*reg = KSZ8463_REG_PORT_1_CTRL_0;
 	} else {
 		*reg = KSZ9477_REG_PORT_MRI_MAC_CTRL;
 		*mask = KSZ9477_PORT_BASED_PRIO_M;
@@ -122,10 +126,12 @@ static void ksz_get_dscp_prio_reg(struct ksz_device *dev, int *reg,
 		*reg = KSZ8765_REG_TOS_DSCP_CTRL;
 		*per_reg = 4;
 		*mask = GENMASK(1, 0);
-	} else if (ksz_is_ksz88x3(dev)) {
+	} else if (ksz_is_ksz88x3(dev) || ksz_is_ksz8463(dev)) {
 		*reg = KSZ88X3_REG_TOS_DSCP_CTRL;
 		*per_reg = 4;
 		*mask = GENMASK(1, 0);
+		if (ksz_is_ksz8463(dev))
+			*reg = KSZ8463_REG_TOS_DSCP_CTRL;
 	} else {
 		*reg = KSZ9477_REG_DIFFSERV_PRIO_MAP;
 		*per_reg = 2;
@@ -151,6 +157,8 @@ static void ksz_get_apptrust_map_and_reg(struct ksz_device *dev,
 		*map = ksz8_apptrust_map_to_bit;
 		*reg = KSZ8_REG_PORT_1_CTRL_0;
 		*mask = KSZ8_PORT_DIFFSERV_ENABLE | KSZ8_PORT_802_1P_ENABLE;
+		if (ksz_is_ksz8463(dev))
+			*reg = KSZ8463_REG_PORT_1_CTRL_0;
 	} else {
 		*map = ksz9477_apptrust_map_to_bit;
 		*reg = KSZ9477_REG_PORT_MRI_PRIO_CTRL;

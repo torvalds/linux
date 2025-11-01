@@ -66,6 +66,7 @@ struct mlx5e_ptp {
 	struct mlx5_core_dev      *mdev;
 	struct hwtstamp_config    *tstamp;
 	DECLARE_BITMAP(state, MLX5E_PTP_STATE_NUM_STATES);
+	struct mlx5_sq_bfreg      *bfreg;
 };
 
 static inline bool mlx5e_use_ptpsq(struct sk_buff *skb)

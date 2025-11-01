@@ -708,7 +708,7 @@ struct gpio_desc *of_find_gpio(struct device_node *np, const char *con_id,
 			       unsigned int idx, unsigned long *flags)
 {
 	char propname[32]; /* 32 is max size of property name */
-	enum of_gpio_flags of_flags;
+	enum of_gpio_flags of_flags = 0;
 	const of_find_gpio_quirk *q;
 	struct gpio_desc *desc;
 
@@ -878,7 +878,7 @@ static void of_gpiochip_remove_hog(struct gpio_chip *chip,
 {
 	struct gpio_desc *desc;
 
-	for_each_gpio_desc_with_flag(chip, desc, FLAG_IS_HOGGED)
+	for_each_gpio_desc_with_flag(chip, desc, GPIOD_FLAG_IS_HOGGED)
 		if (READ_ONCE(desc->hog) == hog)
 			gpiochip_free_own_desc(desc);
 }

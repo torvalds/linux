@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2024 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2025 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.  *
  * Copyright (C) 2009-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -1328,6 +1328,9 @@ struct cq_context {
 #define LPFC_CQ_CNT_512		0x1
 #define LPFC_CQ_CNT_1024	0x2
 #define LPFC_CQ_CNT_WORD7	0x3
+#define lpfc_cq_context_cqe_sz_SHIFT	25
+#define lpfc_cq_context_cqe_sz_MASK	0x00000003
+#define lpfc_cq_context_cqe_sz_WORD	word0
 #define lpfc_cq_context_autovalid_SHIFT 15
 #define lpfc_cq_context_autovalid_MASK  0x00000001
 #define lpfc_cq_context_autovalid_WORD  word0
@@ -1383,9 +1386,9 @@ struct lpfc_mbx_cq_create_set {
 #define lpfc_mbx_cq_create_set_valid_SHIFT	29
 #define lpfc_mbx_cq_create_set_valid_MASK	0x00000001
 #define lpfc_mbx_cq_create_set_valid_WORD	word1
-#define lpfc_mbx_cq_create_set_cqe_cnt_SHIFT	27
-#define lpfc_mbx_cq_create_set_cqe_cnt_MASK	0x00000003
-#define lpfc_mbx_cq_create_set_cqe_cnt_WORD	word1
+#define lpfc_mbx_cq_create_set_cqecnt_SHIFT	27
+#define lpfc_mbx_cq_create_set_cqecnt_MASK	0x00000003
+#define lpfc_mbx_cq_create_set_cqecnt_WORD	word1
 #define lpfc_mbx_cq_create_set_cqe_size_SHIFT	25
 #define lpfc_mbx_cq_create_set_cqe_size_MASK	0x00000003
 #define lpfc_mbx_cq_create_set_cqe_size_WORD	word1
@@ -1398,13 +1401,16 @@ struct lpfc_mbx_cq_create_set {
 #define lpfc_mbx_cq_create_set_clswm_SHIFT	12
 #define lpfc_mbx_cq_create_set_clswm_MASK	0x00000003
 #define lpfc_mbx_cq_create_set_clswm_WORD	word1
+#define lpfc_mbx_cq_create_set_cqe_cnt_hi_SHIFT	0
+#define lpfc_mbx_cq_create_set_cqe_cnt_hi_MASK	0x0000001F
+#define lpfc_mbx_cq_create_set_cqe_cnt_hi_WORD	word1
 			uint32_t word2;
 #define lpfc_mbx_cq_create_set_arm_SHIFT	31
 #define lpfc_mbx_cq_create_set_arm_MASK		0x00000001
 #define lpfc_mbx_cq_create_set_arm_WORD		word2
-#define lpfc_mbx_cq_create_set_cq_cnt_SHIFT	16
-#define lpfc_mbx_cq_create_set_cq_cnt_MASK	0x00007FFF
-#define lpfc_mbx_cq_create_set_cq_cnt_WORD	word2
+#define lpfc_mbx_cq_create_set_cqe_cnt_lo_SHIFT	16
+#define lpfc_mbx_cq_create_set_cqe_cnt_lo_MASK	0x00007FFF
+#define lpfc_mbx_cq_create_set_cqe_cnt_lo_WORD	word2
 #define lpfc_mbx_cq_create_set_num_cq_SHIFT	0
 #define lpfc_mbx_cq_create_set_num_cq_MASK	0x0000FFFF
 #define lpfc_mbx_cq_create_set_num_cq_WORD	word2
@@ -4903,18 +4909,18 @@ struct send_frame_wqe {
 
 #define ELS_RDF_REG_TAG_CNT		4
 struct lpfc_els_rdf_reg_desc {
-	struct fc_df_desc_fpin_reg	reg_desc;	/* descriptor header */
+	struct fc_df_desc_fpin_reg_hdr	reg_desc;	/* descriptor header */
 	__be32				desc_tags[ELS_RDF_REG_TAG_CNT];
 							/* tags in reg_desc */
 };
 
 struct lpfc_els_rdf_req {
-	struct fc_els_rdf		rdf;	   /* hdr up to descriptors */
+	struct fc_els_rdf_hdr		rdf;	   /* hdr up to descriptors */
 	struct lpfc_els_rdf_reg_desc	reg_d1;	/* 1st descriptor */
 };
 
 struct lpfc_els_rdf_rsp {
-	struct fc_els_rdf_resp		rdf_resp;  /* hdr up to descriptors */
+	struct fc_els_rdf_resp_hdr	rdf_resp;  /* hdr up to descriptors */
 	struct lpfc_els_rdf_reg_desc	reg_d1;	/* 1st descriptor */
 };
 

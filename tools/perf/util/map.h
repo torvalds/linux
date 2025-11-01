@@ -133,13 +133,13 @@ static inline u64 map__unmap_ip(const struct map *map, u64 ip_or_rip)
 }
 
 /* rip/ip <-> addr suitable for passing to `objdump --start-address=` */
-u64 map__rip_2objdump(struct map *map, u64 rip);
+u64 map__rip_2objdump(const struct map *map, u64 rip);
 
 /* objdump address -> memory address */
-u64 map__objdump_2mem(struct map *map, u64 ip);
+u64 map__objdump_2mem(const struct map *map, u64 ip);
 
 /* objdump address -> rip */
-u64 map__objdump_2rip(struct map *map, u64 ip);
+u64 map__objdump_2rip(const struct map *map, u64 ip);
 
 struct symbol;
 struct thread;
@@ -173,11 +173,10 @@ struct thread;
 	__map__for_each_symbol_by_name(map, sym_name, (pos), idx)
 
 struct dso_id;
-struct build_id;
 
 struct map *map__new(struct machine *machine, u64 start, u64 len,
-		     u64 pgoff, struct dso_id *id, u32 prot, u32 flags,
-		     struct build_id *bid, char *filename, struct thread *thread);
+		     u64 pgoff, const struct dso_id *id, u32 prot, u32 flags,
+		     char *filename, struct thread *thread);
 struct map *map__new2(u64 start, struct dso *dso);
 void map__delete(struct map *map);
 struct map *map__clone(struct map *map);

@@ -68,9 +68,7 @@ static void decompress_error(char *m)
 {
 	if (bootdebug)
 		boot_rb_dump();
-	boot_emerg("Decompression error: %s\n", m);
-	boot_emerg(" -- System halted\n");
-	disabled_wait();
+	boot_panic("Decompression error: %s\n", m);
 }
 
 unsigned long mem_safe_offset(void)

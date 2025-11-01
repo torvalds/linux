@@ -275,76 +275,80 @@ static void ni16550_set_mctrl(struct uart_port *port, unsigned int mctrl)
 
 static int ni16550_probe(struct platform_device *pdev)
 {
+	struct uart_8250_port *uart __free(kfree) = NULL;
 	const struct ni16550_device_info *info;
 	struct device *dev = &pdev->dev;
-	struct uart_8250_port uart = {};
 	unsigned int txfifosz, rxfifosz;
-	unsigned int prescaler;
 	struct ni16550_data *data;
+	unsigned int prescaler;
 	const char *portmode;
 	bool rs232_property;
 	int ret;
+
+	uart = kzalloc(sizeof(*uart), GFP_KERNEL);
+	if (!uart)
+		return -ENOMEM;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
-	spin_lock_init(&uart.port.lock);
+	spin_lock_init(&uart->port.lock);
 
-	ret = ni16550_get_regs(pdev, &uart.port);
+	ret = ni16550_get_regs(pdev, &uart->port);
 	if (ret < 0)
 		return ret;
 
 	/* early setup so that serial_in()/serial_out() work */
-	serial8250_set_defaults(&uart);
+	serial8250_set_defaults(uart);
 
 	info = device_get_match_data(dev);
 
-	uart.port.dev		= dev;
-	uart.port.flags		= UPF_BOOT_AUTOCONF | UPF_FIXED_PORT | UPF_FIXED_TYPE;
-	uart.port.startup	= ni16550_port_startup;
-	uart.port.shutdown	= ni16550_port_shutdown;
+	uart->port.dev		= dev;
+	uart->port.flags	= UPF_BOOT_AUTOCONF | UPF_FIXED_PORT | UPF_FIXED_TYPE;
+	uart->port.startup	= ni16550_port_startup;
+	uart->port.shutdown	= ni16550_port_shutdown;
 
 	/*
 	 * Hardware instantiation of FIFO sizes are held in registers.
 	 */
-	txfifosz = ni16550_read_fifo_size(&uart, NI16550_TFS_OFFSET);
-	rxfifosz = ni16550_read_fifo_size(&uart, NI16550_RFS_OFFSET);
+	txfifosz = ni16550_read_fifo_size(uart, NI16550_TFS_OFFSET);
+	rxfifosz = ni16550_read_fifo_size(uart, NI16550_RFS_OFFSET);
 
 	dev_dbg(dev, "NI 16550 has TX FIFO size %u, RX FIFO size %u\n",
 		txfifosz, rxfifosz);
 
-	uart.port.type		= PORT_16550A;
-	uart.port.fifosize	= txfifosz;
-	uart.tx_loadsz		= txfifosz;
-	uart.fcr		= UART_FCR_ENABLE_FIFO | UART_FCR_R_TRIG_10;
-	uart.capabilities	= UART_CAP_FIFO | UART_CAP_AFE | UART_CAP_EFR;
+	uart->port.type		= PORT_16550A;
+	uart->port.fifosize	= txfifosz;
+	uart->tx_loadsz		= txfifosz;
+	uart->fcr		= UART_FCR_ENABLE_FIFO | UART_FCR_R_TRIG_10;
+	uart->capabilities	= UART_CAP_FIFO | UART_CAP_AFE | UART_CAP_EFR;
 
 	/*
 	 * Declaration of the base clock frequency can come from one of:
 	 * - static declaration in this driver (for older ACPI IDs)
 	 * - a "clock-frequency" ACPI
 	 */
-	uart.port.uartclk = info->uartclk;
+	uart->port.uartclk = info->uartclk;
 
-	ret = uart_read_port_properties(&uart.port);
+	ret = uart_read_port_properties(&uart->port);
 	if (ret)
 		return ret;
 
-	if (!uart.port.uartclk) {
+	if (!uart->port.uartclk) {
 		data->clk = devm_clk_get_enabled(dev, NULL);
 		if (!IS_ERR(data->clk))
-			uart.port.uartclk = clk_get_rate(data->clk);
+			uart->port.uartclk = clk_get_rate(data->clk);
 	}
 
-	if (!uart.port.uartclk)
+	if (!uart->port.uartclk)
 		return dev_err_probe(dev, -ENODEV, "unable to determine clock frequency!\n");
 
 	prescaler = info->prescaler;
 	device_property_read_u32(dev, "clock-prescaler", &prescaler);
 	if (prescaler) {
-		uart.port.set_mctrl = ni16550_set_mctrl;
-		ni16550_config_prescaler(&uart, (u8)prescaler);
+		uart->port.set_mctrl = ni16550_set_mctrl;
+		ni16550_config_prescaler(uart, (u8)prescaler);
 	}
 
 	/*
@@ -362,7 +366,7 @@ static int ni16550_probe(struct platform_device *pdev)
 		dev_dbg(dev, "port is in %s mode (via device property)\n",
 			rs232_property ? "RS-232" : "RS-485");
 	} else if (info->flags & NI_HAS_PMR) {
-		rs232_property = is_pmr_rs232_mode(&uart);
+		rs232_property = is_pmr_rs232_mode(uart);
 
 		dev_dbg(dev, "port is in %s mode (via PMR)\n",
 			rs232_property ? "RS-232" : "RS-485");
@@ -377,10 +381,10 @@ static int ni16550_probe(struct platform_device *pdev)
 		 * Neither the 'transceiver' property nor the PMR indicate
 		 * that this is an RS-232 port, so it must be an RS-485 one.
 		 */
-		ni16550_rs485_setup(&uart.port);
+		ni16550_rs485_setup(&uart->port);
 	}
 
-	ret = serial8250_register_8250_port(&uart);
+	ret = serial8250_register_8250_port(uart);
 	if (ret < 0)
 		return ret;
 	data->line = ret;

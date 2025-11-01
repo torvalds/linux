@@ -34,6 +34,10 @@ void rxe_dealloc(struct ib_device *ib_dev)
 	mutex_destroy(&rxe->usdev_lock);
 }
 
+static const struct ib_device_ops rxe_ib_dev_odp_ops = {
+	.advise_mr = rxe_ib_advise_mr,
+};
+
 /* initialize rxe device parameters */
 static void rxe_init_device_param(struct rxe_dev *rxe, struct net_device *ndev)
 {
@@ -103,6 +107,9 @@ static void rxe_init_device_param(struct rxe_dev *rxe, struct net_device *ndev)
 		rxe->attr.odp_caps.per_transport_caps.rc_odp_caps |= IB_ODP_SUPPORT_SRQ_RECV;
 		rxe->attr.odp_caps.per_transport_caps.rc_odp_caps |= IB_ODP_SUPPORT_FLUSH;
 		rxe->attr.odp_caps.per_transport_caps.rc_odp_caps |= IB_ODP_SUPPORT_ATOMIC_WRITE;
+
+		/* set handler for ODP prefetching API - ibv_advise_mr(3) */
+		ib_set_device_ops(&rxe->ib_dev, &rxe_ib_dev_odp_ops);
 	}
 }
 

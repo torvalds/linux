@@ -251,7 +251,7 @@ void dwmac_dma_flush_tx_fifo(void __iomem *ioaddr)
 void stmmac_set_mac_addr(void __iomem *ioaddr, const u8 addr[6],
 			 unsigned int high, unsigned int low)
 {
-	unsigned long data;
+	u32 data;
 
 	data = (addr[5] << 8) | addr[4];
 	/* For MAC Addr registers we have to set the Address Enable (AE)

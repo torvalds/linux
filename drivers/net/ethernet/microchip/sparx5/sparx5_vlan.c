@@ -167,16 +167,6 @@ void sparx5_update_fwd(struct sparx5 *sparx5)
 	/* Divide up fwd mask in 32 bit words */
 	bitmap_to_arr32(mask, sparx5->bridge_fwd_mask, SPX5_PORTS);
 
-	/* Update flood masks */
-	for (port = sparx5_get_pgid(sparx5, PGID_UC_FLOOD);
-	     port <= sparx5_get_pgid(sparx5, PGID_BCAST); port++) {
-		spx5_wr(mask[0], sparx5, ANA_AC_PGID_CFG(port));
-		if (is_sparx5(sparx5)) {
-			spx5_wr(mask[1], sparx5, ANA_AC_PGID_CFG1(port));
-			spx5_wr(mask[2], sparx5, ANA_AC_PGID_CFG2(port));
-		}
-	}
-
 	/* Update SRC masks */
 	for (port = 0; port < sparx5->data->consts->n_ports; port++) {
 		if (test_bit(port, sparx5->bridge_fwd_mask)) {

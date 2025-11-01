@@ -63,6 +63,9 @@ struct smsc95xx_priv {
 	u32 hash_hi;
 	u32 hash_lo;
 	u32 wolopts;
+	bool pause_rx;
+	bool pause_tx;
+	bool pause_autoneg;
 	spinlock_t mac_cr_lock;
 	u8 features;
 	u8 suspend_flags;
@@ -537,16 +540,23 @@ static void smsc95xx_set_multicast(struct net_device *netdev)
 
 static int smsc95xx_phy_update_flowcontrol(struct usbnet *dev)
 {
-	u32 flow = 0, afc_cfg;
 	struct smsc95xx_priv *pdata = dev->driver_priv;
-	bool tx_pause, rx_pause;
+	u32 flow = 0, afc_cfg;
 
 	int ret = smsc95xx_read_reg(dev, AFC_CFG, &afc_cfg);
 	if (ret < 0)
 		return ret;
 
 	if (pdata->phydev->duplex == DUPLEX_FULL) {
-		phy_get_pause(pdata->phydev, &tx_pause, &rx_pause);
+		bool tx_pause, rx_pause;
+
+		if (pdata->phydev->autoneg == AUTONEG_ENABLE &&
+		    pdata->pause_autoneg) {
+			phy_get_pause(pdata->phydev, &tx_pause, &rx_pause);
+		} else {
+			tx_pause = pdata->pause_tx;
+			rx_pause = pdata->pause_rx;
+		}
 
 		if (rx_pause)
 			flow = 0xFFFF0002;
@@ -772,6 +782,55 @@ static int smsc95xx_ethtool_get_sset_count(struct net_device *ndev, int sset)
 	}
 }
 
+static void smsc95xx_get_pauseparam(struct net_device *ndev,
+				    struct ethtool_pauseparam *pause)
+{
+	struct smsc95xx_priv *pdata;
+	struct usbnet *dev;
+
+	dev = netdev_priv(ndev);
+	pdata = dev->driver_priv;
+
+	pause->autoneg = pdata->pause_autoneg;
+	pause->rx_pause = pdata->pause_rx;
+	pause->tx_pause = pdata->pause_tx;
+}
+
+static int smsc95xx_set_pauseparam(struct net_device *ndev,
+				   struct ethtool_pauseparam *pause)
+{
+	bool pause_autoneg_rx, pause_autoneg_tx;
+	struct smsc95xx_priv *pdata;
+	struct phy_device *phydev;
+	struct usbnet *dev;
+
+	dev = netdev_priv(ndev);
+	pdata = dev->driver_priv;
+	phydev = ndev->phydev;
+
+	if (!phydev)
+		return -ENODEV;
+
+	pdata->pause_rx = pause->rx_pause;
+	pdata->pause_tx = pause->tx_pause;
+	pdata->pause_autoneg = pause->autoneg;
+
+	if (pause->autoneg) {
+		pause_autoneg_rx = pause->rx_pause;
+		pause_autoneg_tx = pause->tx_pause;
+	} else {
+		pause_autoneg_rx = false;
+		pause_autoneg_tx = false;
+	}
+
+	phy_set_asym_pause(ndev->phydev, pause_autoneg_rx, pause_autoneg_tx);
+	if (phydev->link && (!pause->autoneg ||
+			     phydev->autoneg == AUTONEG_DISABLE))
+		smsc95xx_mac_update_fullduplex(dev);
+
+	return 0;
+}
+
 static const struct ethtool_ops smsc95xx_ethtool_ops = {
 	.get_link	= smsc95xx_get_link,
 	.nway_reset	= phy_ethtool_nway_reset,
@@ -791,6 +850,8 @@ static const struct ethtool_ops smsc95xx_ethtool_ops = {
 	.self_test	= net_selftest,
 	.get_strings	= smsc95xx_ethtool_get_strings,
 	.get_sset_count	= smsc95xx_ethtool_get_sset_count,
+	.get_pauseparam	= smsc95xx_get_pauseparam,
+	.set_pauseparam	= smsc95xx_set_pauseparam,
 };
 
 static int smsc95xx_ioctl(struct net_device *netdev, struct ifreq *rq, int cmd)
@@ -1226,6 +1287,11 @@ static int smsc95xx_bind(struct usbnet *dev, struct usb_interface *intf)
 	dev->net->min_mtu = ETH_MIN_MTU;
 	dev->net->max_mtu = ETH_DATA_LEN;
 	dev->hard_mtu = dev->net->mtu + dev->net->hard_header_len;
+
+	pdata->pause_tx = true;
+	pdata->pause_rx = true;
+	pdata->pause_autoneg = true;
+	phy_support_asym_pause(pdata->phydev);
 
 	ret = phy_connect_direct(dev->net, pdata->phydev,
 				 &smsc95xx_handle_link_change,

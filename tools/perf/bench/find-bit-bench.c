@@ -37,7 +37,7 @@ static noinline void workload(int val)
 	accumulator++;
 }
 
-#if (defined(__i386__) || defined(__x86_64__)) && defined(__GCC_ASM_FLAG_OUTPUTS__)
+#if defined(__i386__) || defined(__x86_64__)
 static bool asm_test_bit(long nr, const unsigned long *addr)
 {
 	bool oldbit;

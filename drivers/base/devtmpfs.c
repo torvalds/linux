@@ -176,7 +176,7 @@ static int dev_mkdir(const char *name, umode_t mode)
 	struct dentry *dentry;
 	struct path path;
 
-	dentry = kern_path_create(AT_FDCWD, name, &path, LOOKUP_DIRECTORY);
+	dentry = start_creating_path(AT_FDCWD, name, &path, LOOKUP_DIRECTORY);
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
 
@@ -184,7 +184,7 @@ static int dev_mkdir(const char *name, umode_t mode)
 	if (!IS_ERR(dentry))
 		/* mark as kernel-created inode */
 		d_inode(dentry)->i_private = &thread;
-	done_path_create(&path, dentry);
+	end_creating_path(&path, dentry);
 	return PTR_ERR_OR_ZERO(dentry);
 }
 
@@ -222,10 +222,10 @@ static int handle_create(const char *nodename, umode_t mode, kuid_t uid,
 	struct path path;
 	int err;
 
-	dentry = kern_path_create(AT_FDCWD, nodename, &path, 0);
+	dentry = start_creating_path(AT_FDCWD, nodename, &path, 0);
 	if (dentry == ERR_PTR(-ENOENT)) {
 		create_path(nodename);
-		dentry = kern_path_create(AT_FDCWD, nodename, &path, 0);
+		dentry = start_creating_path(AT_FDCWD, nodename, &path, 0);
 	}
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
@@ -246,7 +246,7 @@ static int handle_create(const char *nodename, umode_t mode, kuid_t uid,
 		/* mark as kernel-created inode */
 		d_inode(dentry)->i_private = &thread;
 	}
-	done_path_create(&path, dentry);
+	end_creating_path(&path, dentry);
 	return err;
 }
 
@@ -256,7 +256,7 @@ static int dev_rmdir(const char *name)
 	struct dentry *dentry;
 	int err;
 
-	dentry = kern_path_locked(name, &parent);
+	dentry = start_removing_path(name, &parent);
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
 	if (d_inode(dentry)->i_private == &thread)
@@ -265,9 +265,7 @@ static int dev_rmdir(const char *name)
 	else
 		err = -EPERM;
 
-	dput(dentry);
-	inode_unlock(d_inode(parent.dentry));
-	path_put(&parent);
+	end_removing_path(&parent, dentry);
 	return err;
 }
 
@@ -325,7 +323,7 @@ static int handle_remove(const char *nodename, struct device *dev)
 	int deleted = 0;
 	int err = 0;
 
-	dentry = kern_path_locked(nodename, &parent);
+	dentry = start_removing_path(nodename, &parent);
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
 
@@ -349,10 +347,8 @@ static int handle_remove(const char *nodename, struct device *dev)
 		if (!err || err == -ENOENT)
 			deleted = 1;
 	}
-	dput(dentry);
-	inode_unlock(d_inode(parent.dentry));
+	end_removing_path(&parent, dentry);
 
-	path_put(&parent);
 	if (deleted && strchr(nodename, '/'))
 		delete_path(nodename);
 	return err;

@@ -116,10 +116,8 @@ static void netfs_free_request_rcu(struct rcu_head *rcu)
 	netfs_stat_d(&netfs_n_rh_rreq);
 }
 
-static void netfs_free_request(struct work_struct *work)
+static void netfs_deinit_request(struct netfs_io_request *rreq)
 {
-	struct netfs_io_request *rreq =
-		container_of(work, struct netfs_io_request, cleanup_work);
 	struct netfs_inode *ictx = netfs_inode(rreq->inode);
 	unsigned int i;
 
@@ -149,6 +147,14 @@ static void netfs_free_request(struct work_struct *work)
 
 	if (atomic_dec_and_test(&ictx->io_count))
 		wake_up_var(&ictx->io_count);
+}
+
+static void netfs_free_request(struct work_struct *work)
+{
+	struct netfs_io_request *rreq =
+		container_of(work, struct netfs_io_request, cleanup_work);
+
+	netfs_deinit_request(rreq);
 	call_rcu(&rreq->rcu, netfs_free_request_rcu);
 }
 
@@ -163,8 +169,26 @@ void netfs_put_request(struct netfs_io_request *rreq, enum netfs_rreq_ref_trace 
 		dead = __refcount_dec_and_test(&rreq->ref, &r);
 		trace_netfs_rreq_ref(debug_id, r - 1, what);
 		if (dead)
-			WARN_ON(!queue_work(system_unbound_wq, &rreq->cleanup_work));
+			WARN_ON(!queue_work(system_dfl_wq, &rreq->cleanup_work));
 	}
+}
+
+/*
+ * Free a request (synchronously) that was just allocated but has
+ * failed before it could be submitted.
+ */
+void netfs_put_failed_request(struct netfs_io_request *rreq)
+{
+	int r = refcount_read(&rreq->ref);
+
+	/* new requests have two references (see
+	 * netfs_alloc_request(), and this function is only allowed on
+	 * new request objects
+	 */
+	WARN_ON_ONCE(r != 2);
+
+	trace_netfs_rreq_ref(rreq->debug_id, r, netfs_rreq_trace_put_failed);
+	netfs_free_request(&rreq->cleanup_work);
 }
 
 /*

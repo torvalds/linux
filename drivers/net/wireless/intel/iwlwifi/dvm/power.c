@@ -368,7 +368,7 @@ int iwl_power_update_mode(struct iwl_priv *priv, bool force)
 /* initialize to default */
 void iwl_power_initialize(struct iwl_priv *priv)
 {
-	priv->power_data.bus_pm = priv->trans->pm_support;
+	priv->power_data.bus_pm = iwl_trans_is_pm_supported(priv->trans);
 
 	priv->power_data.debug_sleep_level_override = -1;
 

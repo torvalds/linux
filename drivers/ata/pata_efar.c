@@ -243,7 +243,7 @@ static struct ata_port_operations efar_ops = {
 	.cable_detect		= efar_cable_detect,
 	.set_piomode		= efar_set_piomode,
 	.set_dmamode		= efar_set_dmamode,
-	.prereset		= efar_pre_reset,
+	.reset.prereset		= efar_pre_reset,
 };
 
 

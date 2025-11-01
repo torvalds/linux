@@ -1119,7 +1119,7 @@ struct host_cmd_ds_get_hw_spec {
 	__le32 fw_cap_info;
 	__le32 dot_11n_dev_cap;
 	u8 dev_mcs_support;
-	__le16 mp_end_port;	/* SDIO only, reserved for other interfacces */
+	__le16 mp_end_port;	/* SDIO only, reserved for other interfaces */
 	__le16 mgmt_buf_count;	/* mgmt IE buffer count */
 	__le32 reserved_5;
 	__le32 reserved_6;
@@ -1739,7 +1739,7 @@ struct host_cmd_ds_11n_cfg {
 struct host_cmd_ds_txbuf_cfg {
 	__le16 action;
 	__le16 buff_size;
-	__le16 mp_end_port;	/* SDIO only, reserved for other interfacces */
+	__le16 mp_end_port;	/* SDIO only, reserved for other interfaces */
 	__le16 reserved3;
 } __packed;
 

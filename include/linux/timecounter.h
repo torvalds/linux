@@ -28,7 +28,7 @@
  * @shift:		cycle to nanosecond divisor (power of two)
  */
 struct cyclecounter {
-	u64 (*read)(const struct cyclecounter *cc);
+	u64 (*read)(struct cyclecounter *cc);
 	u64 mask;
 	u32 mult;
 	u32 shift;
@@ -53,7 +53,7 @@ struct cyclecounter {
  * @frac:		accumulated fractional nanoseconds
  */
 struct timecounter {
-	const struct cyclecounter *cc;
+	struct cyclecounter *cc;
 	u64 cycle_last;
 	u64 nsec;
 	u64 mask;
@@ -100,7 +100,7 @@ static inline void timecounter_adjtime(struct timecounter *tc, s64 delta)
  * the time stamp counter by the number of elapsed nanoseconds.
  */
 extern void timecounter_init(struct timecounter *tc,
-			     const struct cyclecounter *cc,
+			     struct cyclecounter *cc,
 			     u64 start_tstamp);
 
 /**

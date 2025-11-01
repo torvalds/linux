@@ -95,7 +95,6 @@ void mdio_device_remove(struct mdio_device *mdiodev);
 void mdio_device_reset(struct mdio_device *mdiodev, int value);
 int mdio_driver_register(struct mdio_driver *drv);
 void mdio_driver_unregister(struct mdio_driver *drv);
-int mdio_device_bus_match(struct device *dev, const struct device_driver *drv);
 
 static inline void mdio_device_get(struct mdio_device *mdiodev)
 {

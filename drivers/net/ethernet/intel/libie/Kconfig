@@ -8,3 +8,18 @@ config LIBIE
 	  libie (Intel Ethernet library) is a common library built on top of
 	  libeth and containing vendor-specific routines shared between several
 	  Intel Ethernet drivers.
+
+config LIBIE_ADMINQ
+	tristate
+	help
+	  Helper functions used by Intel Ethernet drivers for administration
+	  queue command interface (aka adminq).
+
+config LIBIE_FWLOG
+	tristate
+	select LIBIE_ADMINQ
+	help
+	  Library to support firmware logging on device that have support
+	  for it. Firmware logging is using admin queue interface to communicate
+	  with the device. Debugfs is a user interface used to config logging
+	  and dump all collected logs.

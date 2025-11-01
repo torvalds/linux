@@ -45,6 +45,34 @@
 	firmware-name = "nvm_00440302_i2s_eu.bin";
 };
 
+&dsi0 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	panel: panel@0 {
+		/* compatible will be set in board dts */
+		reg = <0>;
+		enable-gpios = <&pio 45 0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&panel_pins_default>;
+		avdd-supply = <&ppvarn_lcd>;
+		avee-supply = <&ppvarp_lcd>;
+		pp1800-supply = <&pp1800_lcd>;
+		backlight = <&backlight_lcd0>;
+		rotation = <270>;
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&dsi_out>;
+			};
+		};
+	};
+};
+
+&dsi_out {
+	remote-endpoint = <&panel_in>;
+};
+
 &i2c0 {
 	status = "okay";
 
@@ -296,35 +324,35 @@
 		"",
 		"";
 
-	ppvarp_lcd_en: ppvarp-lcd-en {
+	ppvarp_lcd_en: ppvarp-lcd-en-pins {
 		pins1 {
 			pinmux = <PINMUX_GPIO66__FUNC_GPIO66>;
 			output-low;
 		};
 	};
 
-	ppvarn_lcd_en: ppvarn-lcd-en {
+	ppvarn_lcd_en: ppvarn-lcd-en-pins {
 		pins1 {
 			pinmux = <PINMUX_GPIO166__FUNC_GPIO166>;
 			output-low;
 		};
 	};
 
-	pp1800_lcd_en: pp1800-lcd-en {
+	pp1800_lcd_en: pp1800-lcd-en-pins {
 		pins1 {
 			pinmux = <PINMUX_GPIO36__FUNC_GPIO36>;
 			output-low;
 		};
 	};
 
-	open_touch: open_touch {
-		irq_pin {
+	open_touch: opentouch-pins {
+		pins-intn {
 			pinmux = <PINMUX_GPIO155__FUNC_GPIO155>;
 			input-enable;
 			bias-pull-up;
 		};
 
-		rst_pin {
+		pins-rst {
 			pinmux = <PINMUX_GPIO156__FUNC_GPIO156>;
 
 			/*

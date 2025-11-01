@@ -338,7 +338,7 @@ static int sco_connect(struct sock *sk)
 
 	hcon = hci_connect_sco(hdev, type, &sco_pi(sk)->dst,
 			       sco_pi(sk)->setting, &sco_pi(sk)->codec,
-			       sk->sk_sndtimeo);
+			       READ_ONCE(sk->sk_sndtimeo));
 	if (IS_ERR(hcon)) {
 		err = PTR_ERR(hcon);
 		goto unlock;
@@ -367,7 +367,7 @@ static int sco_connect(struct sock *sk)
 		sk->sk_state = BT_CONNECTED;
 	} else {
 		sk->sk_state = BT_CONNECT;
-		sco_sock_set_timer(sk, sk->sk_sndtimeo);
+		sco_sock_set_timer(sk, READ_ONCE(sk->sk_sndtimeo));
 	}
 
 	release_sock(sk);
@@ -497,6 +497,13 @@ static void sco_sock_kill(struct sock *sk)
 		return;
 
 	BT_DBG("sk %p state %d", sk, sk->sk_state);
+
+	/* Sock is dead, so set conn->sk to NULL to avoid possible UAF */
+	if (sco_pi(sk)->conn) {
+		sco_conn_lock(sco_pi(sk)->conn);
+		sco_pi(sk)->conn->sk = NULL;
+		sco_conn_unlock(sco_pi(sk)->conn);
+	}
 
 	/* Kill poor orphan */
 	bt_sock_unlink(&sco_sk_list, sk);

@@ -332,7 +332,7 @@
 #define TOE_STATE (TOE_CONNECTION_TYPE << PROTOCOL_STATE_BIT_OFFSET)
 #define RDMA_STATE (RDMA_CONNECTION_TYPE << PROTOCOL_STATE_BIT_OFFSET)
 
-/* microcode fixed page page size 4K (chains and ring segments) */
+/* microcode fixed page size 4K (chains and ring segments) */
 #define MC_PAGE_SIZE 4096
 
 /* Number of indices per slow-path SB */

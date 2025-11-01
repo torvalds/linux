@@ -106,11 +106,15 @@
 		compatible = "st,24c128", "atmel,24c128";
 		reg = <0x57>;
 		pagesize = <16>;
-		#address-cells = <1>;
-		#size-cells = <1>;
 
-		eth0_macaddress: macaddress@3f80 {
-			reg = <0x3f80 6>;
+		nvmem-layout {
+			compatible = "fixed-layout";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			eth0_macaddress: macaddress@3f80 {
+				reg = <0x3f80 6>;
+			};
 		};
 	};
 };
@@ -182,7 +186,7 @@
 			"CK_33M_BMC", "LFRAME", "SERIRQ", "S_PLTRST";
 
 	/* Assert BMC_READY so BIOS doesn't sit around waiting for it */
-	bmc-ready {
+	bmc-ready-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(J, 0) GPIO_ACTIVE_LOW>;
 		output-high;

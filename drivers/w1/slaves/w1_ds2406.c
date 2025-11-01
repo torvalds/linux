@@ -94,7 +94,7 @@ static const struct bin_attribute w1_f12_sysfs_bin_files[NB_SYSFS_BIN_FILES] = {
 			.mode = 0444,
 		},
 		.size = 1,
-		.read_new = w1_f12_read_state,
+		.read = w1_f12_read_state,
 	},
 	{
 		.attr = {
@@ -102,7 +102,7 @@ static const struct bin_attribute w1_f12_sysfs_bin_files[NB_SYSFS_BIN_FILES] = {
 			.mode = 0664,
 		},
 		.size = 1,
-		.write_new = w1_f12_write_output,
+		.write = w1_f12_write_output,
 	}
 };
 

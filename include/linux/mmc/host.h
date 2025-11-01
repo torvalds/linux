@@ -337,11 +337,15 @@ struct mmc_slot {
 
 struct regulator;
 struct mmc_pwrseq;
+struct notifier_block;
 
 struct mmc_supply {
 	struct regulator *vmmc;		/* Card power supply */
 	struct regulator *vqmmc;	/* Optional Vccq supply */
 	struct regulator *vqmmc2;	/* Optional supply for phy */
+
+	struct notifier_block vmmc_nb;	/* Notifier for vmmc */
+	struct work_struct uv_work;	/* Undervoltage work */
 };
 
 struct mmc_ctx {
@@ -494,6 +498,13 @@ struct mmc_host {
 	unsigned int		can_dma_map_merge:1; /* merging can be used */
 	unsigned int		vqmmc_enabled:1; /* vqmmc regulator is enabled */
 
+	/*
+	 * Indicates if an undervoltage event has already been handled.
+	 * This prevents repeated regulator notifiers from triggering
+	 * multiple REGULATOR_EVENT_UNDER_VOLTAGE events.
+	 */
+	unsigned int		undervoltage:1;	 /* Undervoltage state */
+
 	int			rescan_disable;	/* disable card detection */
 	int			rescan_entered;	/* used with nonremovable devices */
 
@@ -565,6 +576,7 @@ struct mmc_host {
 	int			hsq_depth;
 
 	u32			err_stats[MMC_ERR_MAX];
+	u32			max_sd_hs_hz;
 	unsigned long		private[] ____cacheline_aligned;
 };
 
@@ -743,5 +755,6 @@ int mmc_send_status(struct mmc_card *card, u32 *status);
 int mmc_send_tuning(struct mmc_host *host, u32 opcode, int *cmd_error);
 int mmc_send_abort_tuning(struct mmc_host *host, u32 opcode);
 int mmc_get_ext_csd(struct mmc_card *card, u8 **new_ext_csd);
+int mmc_read_tuning(struct mmc_host *host, unsigned int blksz, unsigned int blocks);
 
 #endif /* LINUX_MMC_HOST_H */

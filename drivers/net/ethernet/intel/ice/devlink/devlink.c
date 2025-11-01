@@ -293,7 +293,7 @@ static int ice_devlink_info_get(struct devlink *devlink,
 	err = ice_discover_dev_caps(hw, &ctx->dev_caps);
 	if (err) {
 		dev_dbg(dev, "Failed to discover device capabilities, status %d aq_err %s\n",
-			err, ice_aq_str(hw->adminq.sq_last_status));
+			err, libie_aq_str(hw->adminq.sq_last_status));
 		NL_SET_ERR_MSG_MOD(extack, "Unable to discover device capabilities");
 		goto out_free_ctx;
 	}
@@ -302,7 +302,7 @@ static int ice_devlink_info_get(struct devlink *devlink,
 		err = ice_get_inactive_orom_ver(hw, &ctx->pending_orom);
 		if (err) {
 			dev_dbg(dev, "Unable to read inactive Option ROM version data, status %d aq_err %s\n",
-				err, ice_aq_str(hw->adminq.sq_last_status));
+				err, libie_aq_str(hw->adminq.sq_last_status));
 
 			/* disable display of pending Option ROM */
 			ctx->dev_caps.common_cap.nvm_update_pending_orom = false;
@@ -313,7 +313,7 @@ static int ice_devlink_info_get(struct devlink *devlink,
 		err = ice_get_inactive_nvm_ver(hw, &ctx->pending_nvm);
 		if (err) {
 			dev_dbg(dev, "Unable to read inactive NVM version data, status %d aq_err %s\n",
-				err, ice_aq_str(hw->adminq.sq_last_status));
+				err, libie_aq_str(hw->adminq.sq_last_status));
 
 			/* disable display of pending Option ROM */
 			ctx->dev_caps.common_cap.nvm_update_pending_nvm = false;
@@ -324,7 +324,7 @@ static int ice_devlink_info_get(struct devlink *devlink,
 		err = ice_get_inactive_netlist_ver(hw, &ctx->pending_netlist);
 		if (err) {
 			dev_dbg(dev, "Unable to read inactive Netlist version data, status %d aq_err %s\n",
-				err, ice_aq_str(hw->adminq.sq_last_status));
+				err, libie_aq_str(hw->adminq.sq_last_status));
 
 			/* disable display of pending Option ROM */
 			ctx->dev_caps.common_cap.nvm_update_pending_netlist = false;
@@ -440,7 +440,7 @@ ice_devlink_reload_empr_start(struct ice_pf *pf,
 	err = ice_aq_nvm_update_empr(hw);
 	if (err) {
 		dev_err(dev, "Failed to trigger EMP device reset to reload firmware, err %d aq_err %s\n",
-			err, ice_aq_str(hw->adminq.sq_last_status));
+			err, libie_aq_str(hw->adminq.sq_last_status));
 		NL_SET_ERR_MSG_MOD(extack, "Failed to trigger EMP device reset to reload firmware");
 		return err;
 	}

@@ -178,14 +178,14 @@ struct fnode *hpfs_map_fnode(struct super_block *s, ino_t ino, struct buffer_hea
 			}
 			if (!fnode_is_dir(fnode)) {
 				if ((unsigned)fnode->btree.n_used_nodes + (unsigned)fnode->btree.n_free_nodes !=
-				    (bp_internal(&fnode->btree) ? 12 : 8)) {
+				    (bp_internal(GET_BTREE_PTR(&fnode->btree)) ? 12 : 8)) {
 					hpfs_error(s,
 					   "bad number of nodes in fnode %08lx",
 					    (unsigned long)ino);
 					goto bail;
 				}
 				if (le16_to_cpu(fnode->btree.first_free) !=
-				    8 + fnode->btree.n_used_nodes * (bp_internal(&fnode->btree) ? 8 : 12)) {
+				    8 + fnode->btree.n_used_nodes * (bp_internal(GET_BTREE_PTR(&fnode->btree)) ? 8 : 12)) {
 					hpfs_error(s,
 					    "bad first_free pointer in fnode %08lx",
 					    (unsigned long)ino);
@@ -233,12 +233,12 @@ struct anode *hpfs_map_anode(struct super_block *s, anode_secno ano, struct buff
 				goto bail;
 			}
 			if ((unsigned)anode->btree.n_used_nodes + (unsigned)anode->btree.n_free_nodes !=
-			    (bp_internal(&anode->btree) ? 60 : 40)) {
+			    (bp_internal(GET_BTREE_PTR(&anode->btree)) ? 60 : 40)) {
 				hpfs_error(s, "bad number of nodes in anode %08x", ano);
 				goto bail;
 			}
 			if (le16_to_cpu(anode->btree.first_free) !=
-			    8 + anode->btree.n_used_nodes * (bp_internal(&anode->btree) ? 8 : 12)) {
+			    8 + anode->btree.n_used_nodes * (bp_internal(GET_BTREE_PTR(&anode->btree)) ? 8 : 12)) {
 				hpfs_error(s, "bad first_free pointer in anode %08x", ano);
 				goto bail;
 			}

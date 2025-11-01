@@ -340,12 +340,15 @@ static u32 vfe_src_pad_code(struct vfe_line *line, u32 sink_code,
 		}
 		break;
 	case CAMSS_660:
+	case CAMSS_2290:
 	case CAMSS_7280:
 	case CAMSS_8x96:
 	case CAMSS_8250:
 	case CAMSS_8280XP:
+	case CAMSS_8300:
 	case CAMSS_845:
 	case CAMSS_8550:
+	case CAMSS_8775P:
 	case CAMSS_X1E80100:
 		switch (sink_code) {
 		case MEDIA_BUS_FMT_YUYV8_1X16:
@@ -910,7 +913,24 @@ static int vfe_match_clock_names(struct vfe_device *vfe,
 
 	return (!strcmp(clock->name, vfe_name) ||
 		!strcmp(clock->name, vfe_lite_name) ||
-		!strcmp(clock->name, "vfe_lite"));
+		!strcmp(clock->name, "vfe_lite") ||
+		!strcmp(clock->name, "camnoc_axi"));
+}
+
+/*
+ * vfe_check_clock_levels - Calculate and set clock rates on VFE module
+ * @clock: clocks data
+ *
+ * Return false if there is no non-zero clock level and true otherwise.
+ */
+static bool vfe_check_clock_levels(struct camss_clock *clock)
+{
+	int i;
+
+	for (i = 0; i < clock->nfreqs; i++)
+		if (clock->freq[i])
+			return true;
+	return false;
 }
 
 /*
@@ -936,7 +956,7 @@ static int vfe_set_clock_rates(struct vfe_device *vfe)
 	for (i = 0; i < vfe->nclocks; i++) {
 		struct camss_clock *clock = &vfe->clock[i];
 
-		if (vfe_match_clock_names(vfe, clock)) {
+		if (vfe_match_clock_names(vfe, clock) && vfe_check_clock_levels(clock)) {
 			u64 min_rate = 0;
 			long rate;
 
@@ -1017,7 +1037,7 @@ static int vfe_check_clock_rates(struct vfe_device *vfe)
 	for (i = 0; i < vfe->nclocks; i++) {
 		struct camss_clock *clock = &vfe->clock[i];
 
-		if (vfe_match_clock_names(vfe, clock)) {
+		if (vfe_match_clock_names(vfe, clock) && vfe_check_clock_levels(clock)) {
 			u64 min_rate = 0;
 			unsigned long rate;
 
@@ -1972,8 +1992,10 @@ static int vfe_bpl_align(struct vfe_device *vfe)
 	case CAMSS_7280:
 	case CAMSS_8250:
 	case CAMSS_8280XP:
+	case CAMSS_8300:
 	case CAMSS_845:
 	case CAMSS_8550:
+	case CAMSS_8775P:
 	case CAMSS_X1E80100:
 		ret = 16;
 		break;

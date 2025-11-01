@@ -6,12 +6,12 @@
  */
 #ifndef __LIBNVDIMM_H__
 #define __LIBNVDIMM_H__
-#include <linux/kernel.h>
+
+#include <linux/io.h>
 #include <linux/sizes.h>
+#include <linux/spinlock.h>
 #include <linux/types.h>
 #include <linux/uuid.h>
-#include <linux/spinlock.h>
-#include <linux/bio.h>
 
 struct badrange_entry {
 	u64 start;
@@ -80,7 +80,9 @@ typedef int (*ndctl_fn)(struct nvdimm_bus_descriptor *nd_desc,
 		struct nvdimm *nvdimm, unsigned int cmd, void *buf,
 		unsigned int buf_len, int *cmd_rc);
 
+struct attribute_group;
 struct device_node;
+struct module;
 struct nvdimm_bus_descriptor {
 	const struct attribute_group **attr_groups;
 	unsigned long cmd_mask;
@@ -121,6 +123,8 @@ struct nd_mapping_desc {
 	int position;
 };
 
+struct bio;
+struct resource;
 struct nd_region;
 struct nd_region_desc {
 	struct resource *res;
@@ -146,8 +150,6 @@ static inline void __iomem *devm_nvdimm_ioremap(struct device *dev,
 {
 	return (void __iomem *) devm_nvdimm_memremap(dev, offset, size, 0);
 }
-
-struct nvdimm_bus;
 
 /*
  * Note that separate bits for locked + unlocked are defined so that
@@ -237,6 +239,9 @@ struct nvdimm_fw_ops {
 	enum nvdimm_fwa_result (*activate_result)(struct nvdimm *nvdimm);
 	int (*arm)(struct nvdimm *nvdimm, enum nvdimm_fwa_trigger arg);
 };
+
+struct kobject;
+struct nvdimm_bus;
 
 void badrange_init(struct badrange *badrange);
 int badrange_add(struct badrange *badrange, u64 addr, u64 length);

@@ -109,6 +109,7 @@ impl CpuId {
     /// unexpectedly due to preemption or CPU migration. It should only be
     /// used when the context ensures that the task remains on the same CPU
     /// or the users could use a stale (yet valid) CPU ID.
+    #[inline]
     pub fn current() -> Self {
         // SAFETY: raw_smp_processor_id() always returns a valid CPU ID.
         unsafe { Self::from_u32_unchecked(bindings::raw_smp_processor_id()) }
@@ -147,5 +148,5 @@ pub unsafe fn from_cpu(cpu: CpuId) -> Result<&'static Device> {
 
     // SAFETY: The pointer returned by `get_cpu_device()`, if not `NULL`, is a valid pointer to
     // a `struct device` and is never freed by the C code.
-    Ok(unsafe { Device::as_ref(ptr) })
+    Ok(unsafe { Device::from_raw(ptr) })
 }

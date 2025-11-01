@@ -33,10 +33,6 @@ NUM_NETIFS=6
 source lib.sh
 source tc_common.sh
 
-require_command $MCD
-require_command $MC_CLI
-table_name=selftests
-
 h1_create()
 {
 	simple_if_init $h1 198.51.100.2/28 2001:db8:1::2/64
@@ -149,25 +145,6 @@ router_destroy()
 	ip link set dev $rp1 down
 }
 
-start_mcd()
-{
-	SMCROUTEDIR="$(mktemp -d)"
-
-	for ((i = 1; i <= $NUM_NETIFS; ++i)); do
-		echo "phyint ${NETIFS[p$i]} enable" >> \
-			$SMCROUTEDIR/$table_name.conf
-	done
-
-	$MCD -N -I $table_name -f $SMCROUTEDIR/$table_name.conf \
-		-P $SMCROUTEDIR/$table_name.pid
-}
-
-kill_mcd()
-{
-	pkill $MCD
-	rm -rf $SMCROUTEDIR
-}
-
 setup_prepare()
 {
 	h1=${NETIFS[p1]}
@@ -179,7 +156,7 @@ setup_prepare()
 	rp3=${NETIFS[p5]}
 	h3=${NETIFS[p6]}
 
-	start_mcd
+	adf_mcd_start || exit "$EXIT_STATUS"
 
 	vrf_prepare
 
@@ -206,7 +183,7 @@ cleanup()
 
 	vrf_cleanup
 
-	kill_mcd
+	defer_scopes_cleanup
 }
 
 create_mcast_sg()
@@ -214,9 +191,9 @@ create_mcast_sg()
 	local if_name=$1; shift
 	local s_addr=$1; shift
 	local mcast=$1; shift
-	local dest_ifs=${@}
+	local dest_ifs=("${@}")
 
-	$MC_CLI -I $table_name add $if_name $s_addr $mcast $dest_ifs
+	mc_cli add "$if_name" "$s_addr" "$mcast" "${dest_ifs[@]}"
 }
 
 delete_mcast_sg()
@@ -224,9 +201,9 @@ delete_mcast_sg()
 	local if_name=$1; shift
 	local s_addr=$1; shift
 	local mcast=$1; shift
-	local dest_ifs=${@}
+	local dest_ifs=("${@}")
 
-        $MC_CLI -I $table_name remove $if_name $s_addr $mcast $dest_ifs
+        mc_cli remove "$if_name" "$s_addr" "$mcast" "${dest_ifs[@]}"
 }
 
 mcast_v4()

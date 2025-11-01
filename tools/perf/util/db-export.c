@@ -181,7 +181,7 @@ static int db_ids_from_al(struct db_export *dbe, struct addr_location *al,
 	if (al->map) {
 		struct dso *dso = map__dso(al->map);
 
-		err = db_export__dso(dbe, dso, maps__machine(al->maps));
+		err = db_export__dso(dbe, dso, maps__machine(thread__maps(al->thread)));
 		if (err)
 			return err;
 		*dso_db_id = dso__db_id(dso);
@@ -256,6 +256,7 @@ static struct call_path *call_path_from_sample(struct db_export *dbe,
 		al.map = map__get(node->ms.map);
 		al.maps = maps__get(thread__maps(thread));
 		al.addr = node->ip;
+		al.thread = thread__get(thread);
 
 		if (al.map && !al.sym)
 			al.sym = dso__find_symbol(map__dso(al.map), al.addr);
@@ -358,14 +359,18 @@ int db_export__sample(struct db_export *dbe, union perf_event *event,
 	};
 	struct thread *main_thread;
 	struct comm *comm = NULL;
-	struct machine *machine;
+	struct machine *machine = NULL;
 	int err;
+
+	if (thread__maps(thread))
+		machine = maps__machine(thread__maps(thread));
+	if (!machine)
+		return -1;
 
 	err = db_export__evsel(dbe, evsel);
 	if (err)
 		return err;
 
-	machine = maps__machine(al->maps);
 	err = db_export__machine(dbe, machine);
 	if (err)
 		return err;

@@ -186,7 +186,7 @@ struct drm_crtc_state {
 	 * this case the driver will send the VBLANK event on its own when the
 	 * writeback job is complete.
 	 */
-	bool no_vblank : 1;
+	bool no_vblank;
 
 	/**
 	 * @plane_mask: Bitmask of drm_plane_mask(plane) of planes attached to

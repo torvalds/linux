@@ -18,6 +18,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/of_reserved_mem.h>
 #include <linux/platform_data/cros_ec_commands.h>
 #include <linux/platform_data/cros_ec_proto.h>
 #include <linux/platform_device.h>
@@ -961,7 +962,6 @@ static int cros_ec_codec_platform_probe(struct platform_device *pdev)
 	struct ec_response_ec_codec_get_capabilities r;
 	int ret;
 #ifdef CONFIG_OF
-	struct device_node *node;
 	struct resource res;
 	u64 ec_shm_size;
 	const __be32 *regaddr_p;
@@ -981,22 +981,18 @@ static int cros_ec_codec_platform_probe(struct platform_device *pdev)
 			priv->ec_shm_addr, priv->ec_shm_len);
 	}
 
-	node = of_parse_phandle(dev->of_node, "memory-region", 0);
-	if (node) {
-		ret = of_address_to_resource(node, 0, &res);
-		if (!ret) {
-			priv->ap_shm_phys_addr = res.start;
-			priv->ap_shm_len = resource_size(&res);
-			priv->ap_shm_addr =
-				(uint64_t)(uintptr_t)devm_ioremap_wc(
-					dev, priv->ap_shm_phys_addr,
-					priv->ap_shm_len);
-			priv->ap_shm_last_alloc = priv->ap_shm_phys_addr;
+	ret = of_reserved_mem_region_to_resource(dev->of_node, 0, &res);
+	if (!ret) {
+		priv->ap_shm_phys_addr = res.start;
+		priv->ap_shm_len = resource_size(&res);
+		priv->ap_shm_addr =
+			(uint64_t)(uintptr_t)devm_ioremap_wc(
+				dev, priv->ap_shm_phys_addr,
+				priv->ap_shm_len);
+		priv->ap_shm_last_alloc = priv->ap_shm_phys_addr;
 
-			dev_dbg(dev, "ap_shm_phys_addr=%#llx len=%#x\n",
-				priv->ap_shm_phys_addr, priv->ap_shm_len);
-		}
-		of_node_put(node);
+		dev_dbg(dev, "ap_shm_phys_addr=%#llx len=%#x\n",
+			priv->ap_shm_phys_addr, priv->ap_shm_len);
 	}
 #endif
 

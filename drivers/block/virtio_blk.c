@@ -829,9 +829,9 @@ out:
 }
 
 /* We provide getgeo only to please some old bootloader/partitioning tools */
-static int virtblk_getgeo(struct block_device *bd, struct hd_geometry *geo)
+static int virtblk_getgeo(struct gendisk *disk, struct hd_geometry *geo)
 {
-	struct virtio_blk *vblk = bd->bd_disk->private_data;
+	struct virtio_blk *vblk = disk->private_data;
 	int ret = 0;
 
 	mutex_lock(&vblk->vdev_mutex);
@@ -853,7 +853,7 @@ static int virtblk_getgeo(struct block_device *bd, struct hd_geometry *geo)
 		/* some standard values, similar to sd */
 		geo->heads = 1 << 6;
 		geo->sectors = 1 << 5;
-		geo->cylinders = get_capacity(bd->bd_disk) >> 11;
+		geo->cylinders = get_capacity(disk) >> 11;
 	}
 out:
 	mutex_unlock(&vblk->vdev_mutex);
@@ -976,9 +976,8 @@ static int init_vq(struct virtio_blk *vblk)
 		return -EINVAL;
 	}
 
-	num_vqs = min_t(unsigned int,
-			min_not_zero(num_request_queues, nr_cpu_ids),
-			num_vqs);
+	num_vqs = blk_mq_num_possible_queues(
+			min_not_zero(num_request_queues, num_vqs));
 
 	num_poll_vqs = min_t(unsigned int, poll_queues, num_vqs - 1);
 
@@ -1683,7 +1682,7 @@ static int __init virtio_blk_init(void)
 {
 	int error;
 
-	virtblk_wq = alloc_workqueue("virtio-blk", 0, 0);
+	virtblk_wq = alloc_workqueue("virtio-blk", WQ_PERCPU, 0);
 	if (!virtblk_wq)
 		return -ENOMEM;
 

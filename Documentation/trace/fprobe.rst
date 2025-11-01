@@ -81,7 +81,7 @@ Same as ftrace, the registered callbacks will start being called some time
 after the register_fprobe() is called and before it returns. See
 :file:`Documentation/trace/ftrace.rst`.
 
-Also, the unregister_fprobe() will guarantee that the both enter and exit
+Also, the unregister_fprobe() will guarantee that both enter and exit
 handlers are no longer being called by functions after unregister_fprobe()
 returns as same as unregister_ftrace_function().
 

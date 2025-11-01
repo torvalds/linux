@@ -75,8 +75,8 @@ struct netns_sctp {
 	/* Whether Cookie Preservative is enabled(1) or not(0) */
 	int cookie_preserve_enable;
 
-	/* The namespace default hmac alg */
-	char *sctp_hmac_alg;
+	/* Whether cookie authentication is enabled(1) or not(0) */
+	int cookie_auth_enable;
 
 	/* Valid.Cookie.Life	    - 60  seconds  */
 	unsigned int valid_cookie_life;

@@ -3,8 +3,9 @@
 use super::HasHrTimer;
 use super::HrTimer;
 use super::HrTimerCallback;
+use super::HrTimerCallbackContext;
 use super::HrTimerHandle;
-use super::Ktime;
+use super::HrTimerMode;
 use super::RawHrTimerCallback;
 use super::UnsafeHrTimerPointer;
 use core::pin::Pin;
@@ -54,9 +55,13 @@ where
     T: HasHrTimer<T>,
     T: HrTimerCallback<Pointer<'a> = Self>,
 {
+    type TimerMode = <T as HasHrTimer<T>>::TimerMode;
     type TimerHandle = PinHrTimerHandle<'a, T>;
 
-    unsafe fn start(self, expires: Ktime) -> Self::TimerHandle {
+    unsafe fn start(
+        self,
+        expires: <<T as HasHrTimer<T>>::TimerMode as HrTimerMode>::Expires,
+    ) -> Self::TimerHandle {
         // Cast to pointer
         let self_ptr: *const T = self.get_ref();
 
@@ -79,7 +84,7 @@ where
 
     unsafe extern "C" fn run(ptr: *mut bindings::hrtimer) -> bindings::hrtimer_restart {
         // `HrTimer` is `repr(C)`
-        let timer_ptr = ptr as *mut HrTimer<T>;
+        let timer_ptr = ptr.cast::<HrTimer<T>>();
 
         // SAFETY: By the safety requirement of this function, `timer_ptr`
         // points to a `HrTimer<T>` contained in an `T`.
@@ -99,6 +104,12 @@ where
         // here.
         let receiver_pin = unsafe { Pin::new_unchecked(receiver_ref) };
 
-        T::run(receiver_pin).into_c()
+        // SAFETY:
+        // - By C API contract `timer_ptr` is the pointer that we passed when queuing the timer, so
+        //   it is a valid pointer to a `HrTimer<T>` embedded in a `T`.
+        // - We are within `RawHrTimerCallback::run`
+        let context = unsafe { HrTimerCallbackContext::from_raw(timer_ptr) };
+
+        T::run(receiver_pin, context).into_c()
     }
 }

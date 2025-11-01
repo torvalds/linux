@@ -1163,7 +1163,7 @@ static int __set_oom_adj(struct file *file, int oom_adj, bool legacy)
 		struct task_struct *p = find_lock_task_mm(task);
 
 		if (p) {
-			if (test_bit(MMF_MULTIPROCESS, &p->mm->flags)) {
+			if (mm_flags_test(MMF_MULTIPROCESS, p->mm)) {
 				mm = p->mm;
 				mmgrab(mm);
 			}
@@ -2704,8 +2704,7 @@ static struct dentry *proc_pident_instantiate(struct dentry *dentry,
 		inode->i_fop = p->fop;
 	ei->op = p->op;
 	pid_update_inode(task, inode);
-	d_set_d_op(dentry, &pid_dentry_operations);
-	return d_splice_alias(inode, dentry);
+	return d_splice_alias_ops(inode, dentry, &pid_dentry_operations);
 }
 
 static struct dentry *proc_pident_lookup(struct inode *dir, 
@@ -2963,8 +2962,10 @@ static ssize_t proc_coredump_filter_read(struct file *file, char __user *buf,
 	ret = 0;
 	mm = get_task_mm(task);
 	if (mm) {
+		unsigned long flags = __mm_flags_get_dumpable(mm);
+
 		len = snprintf(buffer, sizeof(buffer), "%08lx\n",
-			       ((mm->flags & MMF_DUMP_FILTER_MASK) >>
+			       ((flags & MMF_DUMP_FILTER_MASK) >>
 				MMF_DUMP_FILTER_SHIFT));
 		mmput(mm);
 		ret = simple_read_from_buffer(buf, count, ppos, buffer, len);
@@ -3003,9 +3004,9 @@ static ssize_t proc_coredump_filter_write(struct file *file,
 
 	for (i = 0, mask = 1; i < MMF_DUMP_FILTER_BITS; i++, mask <<= 1) {
 		if (val & mask)
-			set_bit(i + MMF_DUMP_FILTER_SHIFT, &mm->flags);
+			mm_flags_set(i + MMF_DUMP_FILTER_SHIFT, mm);
 		else
-			clear_bit(i + MMF_DUMP_FILTER_SHIFT, &mm->flags);
+			mm_flags_clear(i + MMF_DUMP_FILTER_SHIFT, mm);
 	}
 
 	mmput(mm);
@@ -3275,7 +3276,7 @@ static int proc_pid_ksm_stat(struct seq_file *m, struct pid_namespace *ns,
 		seq_printf(m, "ksm_merging_pages %lu\n", mm->ksm_merging_pages);
 		seq_printf(m, "ksm_process_profit %ld\n", ksm_process_profit(mm));
 		seq_printf(m, "ksm_merge_any: %s\n",
-				test_bit(MMF_VM_MERGE_ANY, &mm->flags) ? "yes" : "no");
+				mm_flags_test(MMF_VM_MERGE_ANY, mm) ? "yes" : "no");
 		ret = mmap_read_lock_killable(mm);
 		if (ret) {
 			mmput(mm);
@@ -3291,7 +3292,7 @@ static int proc_pid_ksm_stat(struct seq_file *m, struct pid_namespace *ns,
 }
 #endif /* CONFIG_KSM */
 
-#ifdef CONFIG_STACKLEAK_METRICS
+#ifdef CONFIG_KSTACK_ERASE_METRICS
 static int proc_stack_depth(struct seq_file *m, struct pid_namespace *ns,
 				struct pid *pid, struct task_struct *task)
 {
@@ -3304,7 +3305,7 @@ static int proc_stack_depth(struct seq_file *m, struct pid_namespace *ns,
 							prev_depth, depth);
 	return 0;
 }
-#endif /* CONFIG_STACKLEAK_METRICS */
+#endif /* CONFIG_KSTACK_ERASE_METRICS */
 
 /*
  * Thread groups
@@ -3411,7 +3412,7 @@ static const struct pid_entry tgid_base_stuff[] = {
 #ifdef CONFIG_LIVEPATCH
 	ONE("patch_state",  S_IRUSR, proc_pid_patch_state),
 #endif
-#ifdef CONFIG_STACKLEAK_METRICS
+#ifdef CONFIG_KSTACK_ERASE_METRICS
 	ONE("stack_depth", S_IRUGO, proc_stack_depth),
 #endif
 #ifdef CONFIG_PROC_PID_ARCH_STATUS
@@ -3501,8 +3502,7 @@ static struct dentry *proc_pid_instantiate(struct dentry * dentry,
 	set_nlink(inode, nlink_tgid);
 	pid_update_inode(task, inode);
 
-	d_set_d_op(dentry, &pid_dentry_operations);
-	return d_splice_alias(inode, dentry);
+	return d_splice_alias_ops(inode, dentry, &pid_dentry_operations);
 }
 
 struct dentry *proc_pid_lookup(struct dentry *dentry, unsigned int flags)
@@ -3804,8 +3804,7 @@ static struct dentry *proc_task_instantiate(struct dentry *dentry,
 	set_nlink(inode, nlink_tid);
 	pid_update_inode(task, inode);
 
-	d_set_d_op(dentry, &pid_dentry_operations);
-	return d_splice_alias(inode, dentry);
+	return d_splice_alias_ops(inode, dentry, &pid_dentry_operations);
 }
 
 static struct dentry *proc_task_lookup(struct inode *dir, struct dentry * dentry, unsigned int flags)
@@ -3948,7 +3947,7 @@ static int proc_task_readdir(struct file *file, struct dir_context *ctx)
 		tid = task_pid_nr_ns(task, ns);
 		if (!tid)
 			continue;	/* The task has just exited. */
-		len = snprintf(name, sizeof(name), "%u", tid);
+		len = snprintf(name, sizeof(name), "%d", tid);
 		if (!proc_fill_cache(file, ctx, name, len,
 				proc_task_instantiate, task, NULL)) {
 			/* returning this tgid failed, save it as the first

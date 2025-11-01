@@ -173,31 +173,6 @@ Contact: Simona Vetter
 
 Level: Intermediate
 
-Get rid of dev->struct_mutex from GEM drivers
----------------------------------------------
-
-``dev->struct_mutex`` is the Big DRM Lock from legacy days and infested
-everything. Nowadays in modern drivers the only bit where it's mandatory is
-serializing GEM buffer object destruction. Which unfortunately means drivers
-have to keep track of that lock and either call ``unreference`` or
-``unreference_locked`` depending upon context.
-
-Core GEM doesn't have a need for ``struct_mutex`` any more since kernel 4.8,
-and there's a GEM object ``free`` callback for any drivers which are
-entirely ``struct_mutex`` free.
-
-For drivers that need ``struct_mutex`` it should be replaced with a driver-
-private lock. The tricky part is the BO free functions, since those can't
-reliably take that lock any more. Instead state needs to be protected with
-suitable subordinate locks or some cleanup work pushed to a worker thread. For
-performance-critical drivers it might also be better to go with a more
-fine-grained per-buffer object and per-context lockings scheme. Currently only
-the ``msm`` and `i915` drivers use ``struct_mutex``.
-
-Contact: Simona Vetter, respective driver maintainers
-
-Level: Advanced
-
 Move Buffer Object Locking to dma_resv_lock()
 ---------------------------------------------
 
@@ -497,19 +472,19 @@ Contact: Douglas Anderson <dianders@chromium.org>
 
 Level: Intermediate
 
-Transition away from using mipi_dsi_*_write_seq()
--------------------------------------------------
+Transition away from using deprecated MIPI DSI functions
+--------------------------------------------------------
 
-The macros mipi_dsi_generic_write_seq() and mipi_dsi_dcs_write_seq() are
-non-intuitive because, if there are errors, they return out of the *caller's*
-function. We should move all callers to use mipi_dsi_generic_write_seq_multi()
-and mipi_dsi_dcs_write_seq_multi() macros instead.
+There are many functions defined in ``drm_mipi_dsi.c`` which have been
+deprecated. Each deprecated function was deprecated in favor of its `multi`
+variant (e.g. `mipi_dsi_generic_write()` and `mipi_dsi_generic_write_multi()`).
+The `multi` variant of a function includes improved error handling and logic
+which makes it more convenient to make several calls in a row, as most MIPI
+drivers do.
 
-Once all callers are transitioned, the macros and the functions that they call,
-mipi_dsi_generic_write_chatty() and mipi_dsi_dcs_write_buffer_chatty(), can
-probably be removed. Alternatively, if people feel like the _multi() variants
-are overkill for some use cases, we could keep the mipi_dsi_*_write_seq()
-variants but change them not to return out of the caller.
+Drivers should be updated to use undeprecated functions. Once all usages of the
+deprecated MIPI DSI functions have been removed, their definitions may be
+removed from ``drm_mipi_dsi.c``.
 
 Contact: Douglas Anderson <dianders@chromium.org>
 
@@ -648,6 +623,43 @@ Contact: Thomas Zimmermann <tzimmermann@suse.de>, Simona Vetter
 
 Level: Advanced
 
+Implement a new DUMB_CREATE2 ioctl
+----------------------------------
+
+The current DUMB_CREATE ioctl is not well defined. Instead of a pixel and
+framebuffer format, it only accepts a color mode of vague semantics. Assuming
+a linear framebuffer, the color mode gives an idea of the supported pixel
+format. But userspace effectively has to guess the correct values. It really
+only works reliably with framebuffers in XRGB8888. Userspace has begun to
+workaround these limitations by computing arbitrary format's buffer sizes and
+calculating their sizes in terms of XRGB8888 pixels.
+
+One possible solution is a new ioctl DUMB_CREATE2. It should accept a DRM
+format and a format modifier to resolve the color mode's ambiguity. As
+framebuffers can be multi-planar, the new ioctl has to return the buffer size,
+pitch and GEM handle for each individual color plane.
+
+In the first step, the new ioctl can be limited to the current features of
+the existing DUMB_CREATE. Individual drivers can then be extended to support
+multi-planar formats. Rockchip might require this and would be a good candidate.
+
+It might also be helpful to userspace to query information about the size of
+a potential buffer, if allocated. Userspace would supply geometry and format;
+the kernel would return minimal allocation sizes and scanline pitch. There is
+interest to allocate that memory from another device and provide it to the
+DRM driver (say via dma-buf).
+
+Another requested feature is the ability to allocate a buffer by size, without
+format. Accelators use this for their buffer allocation and it could likely be
+generalized.
+
+In addition to the kernel implementation, there must be user-space support
+for the new ioctl. There's code in Mesa that might be able to use the new
+call.
+
+Contact: Thomas Zimmermann <tzimmermann@suse.de>
+
+Level: Advanced
 
 Better Testing
 ==============

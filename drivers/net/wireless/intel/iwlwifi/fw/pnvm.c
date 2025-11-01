@@ -11,6 +11,7 @@
 #include "fw/api/nvm-reg.h"
 #include "fw/api/alive.h"
 #include "fw/uefi.h"
+#include "fw/img.h"
 
 #define IWL_PNVM_REDUCED_CAP_BIT BIT(25)
 
@@ -236,11 +237,12 @@ static int iwl_pnvm_parse(struct iwl_trans *trans, const u8 *data,
 	return -ENOENT;
 }
 
-static int iwl_pnvm_get_from_fs(struct iwl_trans *trans, u8 **data, size_t *len)
+static u8 *iwl_pnvm_get_from_fs(struct iwl_trans *trans, size_t *len)
 {
 	const struct firmware *pnvm;
 	char pnvm_name[MAX_PNVM_NAME];
 	size_t new_len;
+	u8 *data;
 	int ret;
 
 	iwl_pnvm_get_fs_name(trans, pnvm_name, sizeof(pnvm_name));
@@ -249,29 +251,73 @@ static int iwl_pnvm_get_from_fs(struct iwl_trans *trans, u8 **data, size_t *len)
 	if (ret) {
 		IWL_DEBUG_FW(trans, "PNVM file %s not found %d\n",
 			     pnvm_name, ret);
-		return ret;
+		return NULL;
 	}
 
 	new_len = pnvm->size;
-	*data = kvmemdup(pnvm->data, pnvm->size, GFP_KERNEL);
+	data = kvmemdup(pnvm->data, pnvm->size, GFP_KERNEL);
 	release_firmware(pnvm);
 
-	if (!*data)
-		return -ENOMEM;
+	if (!data)
+		return NULL;
 
 	*len = new_len;
 
-	return 0;
+	return data;
 }
 
-static u8 *iwl_get_pnvm_image(struct iwl_trans *trans_p, size_t *len,
-			      __le32 sku_id[3])
+/**
+ * enum iwl_pnvm_source - different PNVM possible sources
+ *
+ * @IWL_PNVM_SOURCE_NONE: No PNVM.
+ * @IWL_PNVM_SOURCE_BIOS: PNVM should be read from BIOS.
+ * @IWL_PNVM_SOURCE_EXTERNAL: read .pnvm external file
+ * @IWL_PNVM_SOURCE_EMBEDDED: PNVM is embedded in the .ucode file.
+ */
+enum iwl_pnvm_source {
+	IWL_PNVM_SOURCE_NONE,
+	IWL_PNVM_SOURCE_BIOS,
+	IWL_PNVM_SOURCE_EXTERNAL,
+	IWL_PNVM_SOURCE_EMBEDDED
+};
+
+static enum iwl_pnvm_source iwl_select_pnvm_source(struct iwl_trans *trans,
+						   bool intel_sku)
 {
-	struct pnvm_sku_package *package;
-	u8 *image = NULL;
 
 	/* Get PNVM from BIOS for non-Intel SKU */
-	if (sku_id[2]) {
+	if (!intel_sku)
+		return IWL_PNVM_SOURCE_BIOS;
+
+	/* Before those devices, PNVM didn't exist at all */
+	if (trans->mac_cfg->device_family < IWL_DEVICE_FAMILY_AX210)
+		return IWL_PNVM_SOURCE_NONE;
+
+	/* After those devices, we moved to embedded PNVM */
+	if (trans->mac_cfg->device_family > IWL_DEVICE_FAMILY_AX210)
+		return IWL_PNVM_SOURCE_EMBEDDED;
+
+	/* For IWL_DEVICE_FAMILY_AX210, depends on the CRF */
+	if (CSR_HW_RFID_TYPE(trans->info.hw_rf_id) == IWL_CFG_RF_TYPE_GF)
+		return IWL_PNVM_SOURCE_EXTERNAL;
+
+	return IWL_PNVM_SOURCE_NONE;
+}
+
+static const u8 *iwl_get_pnvm_image(struct iwl_trans *trans_p, size_t *len,
+				    __le32 sku_id[3], const struct iwl_fw *fw)
+{
+	struct pnvm_sku_package *package;
+	enum iwl_pnvm_source pnvm_src =
+		iwl_select_pnvm_source(trans_p, sku_id[2] == 0);
+	u8 *image = NULL;
+
+	IWL_DEBUG_FW(trans_p, "PNVM source %d\n", pnvm_src);
+
+	if (pnvm_src == IWL_PNVM_SOURCE_NONE)
+		return NULL;
+
+	if (pnvm_src == IWL_PNVM_SOURCE_BIOS) {
 		package = iwl_uefi_get_pnvm(trans_p, len);
 		if (!IS_ERR_OR_NULL(package)) {
 			if (*len >= sizeof(*package)) {
@@ -288,21 +334,35 @@ static u8 *iwl_get_pnvm_image(struct iwl_trans *trans_p, size_t *len,
 			if (image)
 				return image;
 		}
+
+		/* PNVM doesn't exist in BIOS. Find the fallback source */
+		pnvm_src = iwl_select_pnvm_source(trans_p, true);
+		IWL_DEBUG_FW(trans_p, "PNVM in BIOS doesn't exist, try %d\n",
+			     pnvm_src);
 	}
 
-	/* If it's not available, or for Intel SKU, try from the filesystem */
-	if (iwl_pnvm_get_from_fs(trans_p, &image, len))
-		return NULL;
-	return image;
+	if (pnvm_src == IWL_PNVM_SOURCE_EXTERNAL) {
+		image = iwl_pnvm_get_from_fs(trans_p, len);
+		if (image)
+			return image;
+	}
+
+	if (pnvm_src == IWL_PNVM_SOURCE_EMBEDDED && fw->pnvm_data) {
+		*len = fw->pnvm_size;
+		return fw->pnvm_data;
+	}
+
+	IWL_ERR(trans_p, "Couldn't get PNVM from required source: %d\n", pnvm_src);
+	return NULL;
 }
 
 static void
 iwl_pnvm_load_pnvm_to_trans(struct iwl_trans *trans,
-			    const struct iwl_ucode_capabilities *capa,
+			    const struct iwl_fw *fw,
 			    __le32 sku_id[3])
 {
 	struct iwl_pnvm_image *pnvm_data = NULL;
-	u8 *data = NULL;
+	const u8 *data = NULL;
 	size_t length;
 	int ret;
 
@@ -313,7 +373,7 @@ iwl_pnvm_load_pnvm_to_trans(struct iwl_trans *trans,
 	if (trans->pnvm_loaded)
 		goto set;
 
-	data = iwl_get_pnvm_image(trans, &length, sku_id);
+	data = iwl_get_pnvm_image(trans, &length, sku_id, fw);
 	if (!data) {
 		trans->fail_to_parse_pnvm_image = true;
 		return;
@@ -329,15 +389,17 @@ iwl_pnvm_load_pnvm_to_trans(struct iwl_trans *trans,
 		goto free;
 	}
 
-	ret = iwl_trans_load_pnvm(trans, pnvm_data, capa);
+	ret = iwl_trans_load_pnvm(trans, pnvm_data, &fw->ucode_capa);
 	if (ret)
 		goto free;
-	IWL_INFO(trans, "loaded PNVM version %08x\n", pnvm_data->version);
+	IWL_DEBUG_INFO(trans, "loaded PNVM version %08x\n", pnvm_data->version);
 
 set:
-	iwl_trans_set_pnvm(trans, capa);
+	iwl_trans_set_pnvm(trans, &fw->ucode_capa);
 free:
-	kvfree(data);
+	/* free only if it was allocated, i.e. not just embedded PNVM data */
+	if (data != fw->pnvm_data)
+		kvfree(data);
 	kfree(pnvm_data);
 }
 
@@ -392,8 +454,7 @@ free:
 
 int iwl_pnvm_load(struct iwl_trans *trans,
 		  struct iwl_notif_wait_data *notif_wait,
-		  const struct iwl_ucode_capabilities *capa,
-		  __le32 sku_id[3])
+		  const struct iwl_fw *fw, __le32 sku_id[3])
 {
 	struct iwl_notification_wait pnvm_wait;
 	static const u16 ntf_cmds[] = { WIDE_ID(REGULATORY_AND_NVM_GROUP,
@@ -403,8 +464,8 @@ int iwl_pnvm_load(struct iwl_trans *trans,
 	if (!sku_id[0] && !sku_id[1] && !sku_id[2])
 		return 0;
 
-	iwl_pnvm_load_pnvm_to_trans(trans, capa, sku_id);
-	iwl_pnvm_load_reduce_power_to_trans(trans, capa, sku_id);
+	iwl_pnvm_load_pnvm_to_trans(trans, fw, sku_id);
+	iwl_pnvm_load_reduce_power_to_trans(trans, &fw->ucode_capa, sku_id);
 
 	iwl_init_notification_wait(notif_wait, &pnvm_wait,
 				   ntf_cmds, ARRAY_SIZE(ntf_cmds),

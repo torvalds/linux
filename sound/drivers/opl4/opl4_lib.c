@@ -47,10 +47,9 @@ EXPORT_SYMBOL(snd_opl4_read);
 
 void snd_opl4_read_memory(struct snd_opl4 *opl4, char *buf, int offset, int size)
 {
-	unsigned long flags;
 	u8 memcfg;
 
-	spin_lock_irqsave(&opl4->reg_lock, flags);
+	guard(spinlock_irqsave)(&opl4->reg_lock);
 
 	memcfg = snd_opl4_read(opl4, OPL4_REG_MEMORY_CONFIGURATION);
 	snd_opl4_write(opl4, OPL4_REG_MEMORY_CONFIGURATION, memcfg | OPL4_MODE_BIT);
@@ -65,18 +64,15 @@ void snd_opl4_read_memory(struct snd_opl4 *opl4, char *buf, int offset, int size
 	insb(opl4->pcm_port + 1, buf, size);
 
 	snd_opl4_write(opl4, OPL4_REG_MEMORY_CONFIGURATION, memcfg);
-
-	spin_unlock_irqrestore(&opl4->reg_lock, flags);
 }
 
 EXPORT_SYMBOL(snd_opl4_read_memory);
 
 void snd_opl4_write_memory(struct snd_opl4 *opl4, const char *buf, int offset, int size)
 {
-	unsigned long flags;
 	u8 memcfg;
 
-	spin_lock_irqsave(&opl4->reg_lock, flags);
+	guard(spinlock_irqsave)(&opl4->reg_lock);
 
 	memcfg = snd_opl4_read(opl4, OPL4_REG_MEMORY_CONFIGURATION);
 	snd_opl4_write(opl4, OPL4_REG_MEMORY_CONFIGURATION, memcfg | OPL4_MODE_BIT);
@@ -91,8 +87,6 @@ void snd_opl4_write_memory(struct snd_opl4 *opl4, const char *buf, int offset, i
 	outsb(opl4->pcm_port + 1, buf, size);
 
 	snd_opl4_write(opl4, OPL4_REG_MEMORY_CONFIGURATION, memcfg);
-
-	spin_unlock_irqrestore(&opl4->reg_lock, flags);
 }
 
 EXPORT_SYMBOL(snd_opl4_write_memory);
@@ -152,7 +146,7 @@ static int snd_opl4_create_seq_dev(struct snd_opl4 *opl4, int seq_device)
 	opl4->seq_dev_num = seq_device;
 	if (snd_seq_device_new(opl4->card, seq_device, SNDRV_SEQ_DEV_ID_OPL4,
 			       sizeof(struct snd_opl4 *), &opl4->seq_dev) >= 0) {
-		strcpy(opl4->seq_dev->name, "OPL4 Wavetable");
+		strscpy(opl4->seq_dev->name, "OPL4 Wavetable");
 		*(struct snd_opl4 **)SNDRV_SEQ_DEVICE_ARGPTR(opl4->seq_dev) = opl4;
 		opl4->seq_dev->private_data = opl4;
 		opl4->seq_dev->private_free = snd_opl4_seq_dev_free;

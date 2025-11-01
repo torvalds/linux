@@ -4,7 +4,7 @@
 #
 # Copyright (c) 2023, Oracle and/or its affiliates.
 #
-
+---
 name: handshake
 
 protocol: genetlink
@@ -16,17 +16,17 @@ definitions:
     type: enum
     name: handler-class
     value-start: 0
-    entries: [ none, tlshd, max ]
+    entries: [none, tlshd, max]
   -
     type: enum
     name: msg-type
     value-start: 0
-    entries: [ unspec, clienthello, serverhello ]
+    entries: [unspec, clienthello, serverhello]
   -
     type: enum
     name: auth
     value-start: 0
-    entries: [ unspec, unauth, psk, x509 ]
+    entries: [unspec, unauth, psk, x509]
 
 attribute-sets:
   -
@@ -71,6 +71,9 @@ attribute-sets:
       -
         name: peername
         type: string
+      -
+        name: keyring
+        type: u32
   -
     name: done
     attributes:
@@ -95,7 +98,7 @@ operations:
       name: accept
       doc: Handler retrieves next queued handshake request
       attribute-set: accept
-      flags: [ admin-perm ]
+      flags: [admin-perm]
       do:
         request:
           attributes:
@@ -109,6 +112,7 @@ operations:
             - peer-identity
             - certificate
             - peername
+            - keyring
     -
       name: done
       doc: Handler reports handshake completion

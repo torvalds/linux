@@ -6,6 +6,7 @@
 #ifndef _LINUX_WORKQUEUE_H
 #define _LINUX_WORKQUEUE_H
 
+#include <linux/alloc_tag.h>
 #include <linux/timer.h>
 #include <linux/linkage.h>
 #include <linux/bitops.h>
@@ -401,6 +402,7 @@ enum wq_flags {
 	 * http://thread.gmane.org/gmane.linux.kernel/1480396
 	 */
 	WQ_POWER_EFFICIENT	= 1 << 7,
+	WQ_PERCPU		= 1 << 8, /* bound to a specific cpu */
 
 	__WQ_DESTROYING		= 1 << 15, /* internal: workqueue is destroying */
 	__WQ_DRAINING		= 1 << 16, /* internal: workqueue is draining */
@@ -408,7 +410,7 @@ enum wq_flags {
 	__WQ_LEGACY		= 1 << 18, /* internal: create*_workqueue() */
 
 	/* BH wq only allows the following flags */
-	__WQ_BH_ALLOWS		= WQ_BH | WQ_HIGHPRI,
+	__WQ_BH_ALLOWS		= WQ_BH | WQ_HIGHPRI | WQ_PERCPU,
 };
 
 enum wq_consts {
@@ -427,38 +429,40 @@ enum wq_consts {
 /*
  * System-wide workqueues which are always present.
  *
- * system_wq is the one used by schedule[_delayed]_work[_on]().
+ * system_percpu_wq is the one used by schedule[_delayed]_work[_on]().
  * Multi-CPU multi-threaded.  There are users which expect relatively
  * short queue flush time.  Don't queue works which can run for too
  * long.
  *
- * system_highpri_wq is similar to system_wq but for work items which
+ * system_highpri_wq is similar to system_percpu_wq but for work items which
  * require WQ_HIGHPRI.
  *
- * system_long_wq is similar to system_wq but may host long running
+ * system_long_wq is similar to system_percpu_wq but may host long running
  * works.  Queue flushing might take relatively long.
  *
- * system_unbound_wq is unbound workqueue.  Workers are not bound to
+ * system_dfl_wq is unbound workqueue.  Workers are not bound to
  * any specific CPU, not concurrency managed, and all queued works are
  * executed immediately as long as max_active limit is not reached and
  * resources are available.
  *
- * system_freezable_wq is equivalent to system_wq except that it's
+ * system_freezable_wq is equivalent to system_percpu_wq except that it's
  * freezable.
  *
  * *_power_efficient_wq are inclined towards saving power and converted
  * into WQ_UNBOUND variants if 'wq_power_efficient' is enabled; otherwise,
  * they are same as their non-power-efficient counterparts - e.g.
- * system_power_efficient_wq is identical to system_wq if
+ * system_power_efficient_wq is identical to system_percpu_wq if
  * 'wq_power_efficient' is disabled.  See WQ_POWER_EFFICIENT for more info.
  *
  * system_bh[_highpri]_wq are convenience interface to softirq. BH work items
  * are executed in the queueing CPU's BH context in the queueing order.
  */
-extern struct workqueue_struct *system_wq;
+extern struct workqueue_struct *system_wq; /* use system_percpu_wq, this will be removed */
+extern struct workqueue_struct *system_percpu_wq;
 extern struct workqueue_struct *system_highpri_wq;
 extern struct workqueue_struct *system_long_wq;
 extern struct workqueue_struct *system_unbound_wq;
+extern struct workqueue_struct *system_dfl_wq;
 extern struct workqueue_struct *system_freezable_wq;
 extern struct workqueue_struct *system_power_efficient_wq;
 extern struct workqueue_struct *system_freezable_power_efficient_wq;
@@ -498,14 +502,15 @@ void workqueue_softirq_dead(unsigned int cpu);
  * min_active which is set to min(@max_active, %WQ_DFL_MIN_ACTIVE). This means
  * that the sum of per-node max_active's may be larger than @max_active.
  *
- * For detailed information on %WQ_* flags, please refer to
+ * For detailed information on %WQ_\* flags, please refer to
  * Documentation/core-api/workqueue.rst.
  *
  * RETURNS:
  * Pointer to the allocated workqueue on success, %NULL on failure.
  */
 __printf(1, 4) struct workqueue_struct *
-alloc_workqueue(const char *fmt, unsigned int flags, int max_active, ...);
+alloc_workqueue_noprof(const char *fmt, unsigned int flags, int max_active, ...);
+#define alloc_workqueue(...)	alloc_hooks(alloc_workqueue_noprof(__VA_ARGS__))
 
 #ifdef CONFIG_LOCKDEP
 /**
@@ -544,8 +549,8 @@ alloc_workqueue_lockdep_map(const char *fmt, unsigned int flags, int max_active,
  * Pointer to the allocated workqueue on success, %NULL on failure.
  */
 #define alloc_ordered_workqueue_lockdep_map(fmt, flags, lockdep_map, args...)	\
-	alloc_workqueue_lockdep_map(fmt, WQ_UNBOUND | __WQ_ORDERED | (flags),	\
-				    1, lockdep_map, ##args)
+	alloc_hooks(alloc_workqueue_lockdep_map(fmt, WQ_UNBOUND | __WQ_ORDERED | (flags),\
+						1, lockdep_map, ##args))
 #endif
 
 /**
@@ -565,7 +570,7 @@ alloc_workqueue_lockdep_map(const char *fmt, unsigned int flags, int max_active,
 	alloc_workqueue(fmt, WQ_UNBOUND | __WQ_ORDERED | (flags), 1, ##args)
 
 #define create_workqueue(name)						\
-	alloc_workqueue("%s", __WQ_LEGACY | WQ_MEM_RECLAIM, 1, (name))
+	alloc_workqueue("%s", __WQ_LEGACY | WQ_MEM_RECLAIM | WQ_PERCPU, 1, (name))
 #define create_freezable_workqueue(name)				\
 	alloc_workqueue("%s", __WQ_LEGACY | WQ_FREEZABLE | WQ_UNBOUND |	\
 			WQ_MEM_RECLAIM, 1, (name))
@@ -577,7 +582,9 @@ alloc_workqueue_lockdep_map(const char *fmt, unsigned int flags, int max_active,
 
 extern void destroy_workqueue(struct workqueue_struct *wq);
 
-struct workqueue_attrs *alloc_workqueue_attrs(void);
+struct workqueue_attrs *alloc_workqueue_attrs_noprof(void);
+#define alloc_workqueue_attrs(...)	alloc_hooks(alloc_workqueue_attrs_noprof(__VA_ARGS__))
+
 void free_workqueue_attrs(struct workqueue_attrs *attrs);
 int apply_workqueue_attrs(struct workqueue_struct *wq,
 			  const struct workqueue_attrs *attrs);
@@ -701,7 +708,7 @@ static inline bool mod_delayed_work(struct workqueue_struct *wq,
  */
 static inline bool schedule_work_on(int cpu, struct work_struct *work)
 {
-	return queue_work_on(cpu, system_wq, work);
+	return queue_work_on(cpu, system_percpu_wq, work);
 }
 
 /**
@@ -720,7 +727,7 @@ static inline bool schedule_work_on(int cpu, struct work_struct *work)
  */
 static inline bool schedule_work(struct work_struct *work)
 {
-	return queue_work(system_wq, work);
+	return queue_work(system_percpu_wq, work);
 }
 
 /**
@@ -763,21 +770,21 @@ extern void __warn_flushing_systemwide_wq(void)
 #define flush_scheduled_work()						\
 ({									\
 	__warn_flushing_systemwide_wq();				\
-	__flush_workqueue(system_wq);					\
+	__flush_workqueue(system_percpu_wq);					\
 })
 
 #define flush_workqueue(wq)						\
 ({									\
 	struct workqueue_struct *_wq = (wq);				\
 									\
-	if ((__builtin_constant_p(_wq == system_wq) &&			\
-	     _wq == system_wq) ||					\
+	if ((__builtin_constant_p(_wq == system_percpu_wq) &&			\
+	     _wq == system_percpu_wq) ||					\
 	    (__builtin_constant_p(_wq == system_highpri_wq) &&		\
 	     _wq == system_highpri_wq) ||				\
 	    (__builtin_constant_p(_wq == system_long_wq) &&		\
 	     _wq == system_long_wq) ||					\
-	    (__builtin_constant_p(_wq == system_unbound_wq) &&		\
-	     _wq == system_unbound_wq) ||				\
+	    (__builtin_constant_p(_wq == system_dfl_wq) &&		\
+	     _wq == system_dfl_wq) ||				\
 	    (__builtin_constant_p(_wq == system_freezable_wq) &&	\
 	     _wq == system_freezable_wq) ||				\
 	    (__builtin_constant_p(_wq == system_power_efficient_wq) &&	\
@@ -800,7 +807,7 @@ extern void __warn_flushing_systemwide_wq(void)
 static inline bool schedule_delayed_work_on(int cpu, struct delayed_work *dwork,
 					    unsigned long delay)
 {
-	return queue_delayed_work_on(cpu, system_wq, dwork, delay);
+	return queue_delayed_work_on(cpu, system_percpu_wq, dwork, delay);
 }
 
 /**
@@ -814,7 +821,7 @@ static inline bool schedule_delayed_work_on(int cpu, struct delayed_work *dwork,
 static inline bool schedule_delayed_work(struct delayed_work *dwork,
 					 unsigned long delay)
 {
-	return queue_delayed_work(system_wq, dwork, delay);
+	return queue_delayed_work(system_percpu_wq, dwork, delay);
 }
 
 #ifndef CONFIG_SMP
@@ -840,19 +847,6 @@ long work_on_cpu_key(int cpu, long (*fn)(void *),
 	work_on_cpu_key(_cpu, _fn, _arg, &__key);	\
 })
 
-long work_on_cpu_safe_key(int cpu, long (*fn)(void *),
-			  void *arg, struct lock_class_key *key);
-
-/*
- * A new key is defined for each caller to make sure the work
- * associated with the function doesn't share its locking class.
- */
-#define work_on_cpu_safe(_cpu, _fn, _arg)		\
-({							\
-	static struct lock_class_key __key;		\
-							\
-	work_on_cpu_safe_key(_cpu, _fn, _arg, &__key);	\
-})
 #endif /* CONFIG_SMP */
 
 #ifdef CONFIG_FREEZER

@@ -1375,7 +1375,7 @@
 	BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 1),
 	/* write into map value */
 	BPF_ST_MEM(BPF_DW, BPF_REG_0, 0, 0),
-	/* fetch secound map_value_ptr from the stack */
+	/* fetch second map_value_ptr from the stack */
 	BPF_LDX_MEM(BPF_DW, BPF_REG_0, BPF_REG_10, -16),
 	BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 1),
 	/* write into map value */
@@ -1439,7 +1439,7 @@
 	/* second time with fp-16 */
 	BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 1, 0, 4),
 	BPF_JMP_IMM(BPF_JNE, BPF_REG_0, 1, 2),
-	/* fetch secound map_value_ptr from the stack */
+	/* fetch second map_value_ptr from the stack */
 	BPF_LDX_MEM(BPF_DW, BPF_REG_0, BPF_REG_7, 0),
 	/* write into map value */
 	BPF_ST_MEM(BPF_DW, BPF_REG_0, 0, 0),
@@ -1493,7 +1493,7 @@
 	/* second time with fp-16 */
 	BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 1, 0, 4),
 	BPF_JMP_IMM(BPF_JNE, BPF_REG_0, 0, 2),
-	/* fetch secound map_value_ptr from the stack */
+	/* fetch second map_value_ptr from the stack */
 	BPF_LDX_MEM(BPF_DW, BPF_REG_0, BPF_REG_7, 0),
 	/* write into map value */
 	BPF_ST_MEM(BPF_DW, BPF_REG_0, 0, 0),
@@ -2380,7 +2380,7 @@
 	 */
 	BPF_JMP_REG(BPF_JGT, BPF_REG_6, BPF_REG_7, 1),
 	BPF_MOV64_REG(BPF_REG_9, BPF_REG_8),
-	/* r9 = *r9                ; verifier get's to this point via two paths:
+	/* r9 = *r9                ; verifier gets to this point via two paths:
 	 *                         ; (I) one including r9 = r8, verified first;
 	 *                         ; (II) one excluding r9 = r8, verified next.
 	 *                         ; After load of *r9 to r9 the frame[0].fp[-24].id == r9.id.
@@ -2408,4 +2408,28 @@
 	.result_unpriv = REJECT,
 	.errstr_unpriv = "",
 	.prog_type = BPF_PROG_TYPE_CGROUP_SKB,
+},
+{
+	"calls: several args with ref_obj_id",
+	.insns = {
+	/* Reserve at least sizeof(struct iphdr) bytes in the ring buffer.
+	 * With a smaller size, the verifier would reject the call to
+	 * bpf_tcp_raw_gen_syncookie_ipv4 before we can reach the
+	 * ref_obj_id error.
+	 */
+	BPF_MOV64_IMM(BPF_REG_2, 20),
+	BPF_MOV64_IMM(BPF_REG_3, 0),
+	BPF_LD_MAP_FD(BPF_REG_1, 0),
+	BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_ringbuf_reserve),
+	/* if r0 == 0 goto <exit> */
+	BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 3),
+	BPF_MOV64_REG(BPF_REG_1, BPF_REG_0),
+	BPF_MOV64_REG(BPF_REG_2, BPF_REG_0),
+	BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_tcp_raw_gen_syncookie_ipv4),
+	BPF_EXIT_INSN(),
+	},
+	.fixup_map_ringbuf = { 2 },
+	.result = REJECT,
+	.errstr = "more than one arg with ref_obj_id",
+	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 },

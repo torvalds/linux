@@ -4,9 +4,33 @@
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc1",
         "EventName": "ASSISTS.PAGE_FAULT",
-        "PublicDescription": "ASSISTS.PAGE_FAULT Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "UMask": "0x8"
+    },
+    {
+        "BriefDescription": "HW_INTERRUPTS.MASKED",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xcb",
+        "EventName": "HW_INTERRUPTS.MASKED",
+        "SampleAfterValue": "100003",
+        "UMask": "0x2"
+    },
+    {
+        "BriefDescription": "HW_INTERRUPTS.PENDING_AND_MASKED",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xcb",
+        "EventName": "HW_INTERRUPTS.PENDING_AND_MASKED",
+        "SampleAfterValue": "100003",
+        "UMask": "0x4"
+    },
+    {
+        "BriefDescription": "Number of hardware interrupts received by the processor.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xcb",
+        "EventName": "HW_INTERRUPTS.RECEIVED",
+        "PublicDescription": "Counts the number of hardware interruptions received by the processor.",
+        "SampleAfterValue": "203",
+        "UMask": "0x1"
     },
     {
         "BriefDescription": "Counts streaming stores that have any type of response.",
@@ -25,7 +49,7 @@
         "CounterMask": "1",
         "EventCode": "0x2d",
         "EventName": "XQ.FULL_CYCLES",
-        "PublicDescription": "number of cycles when the thread is active and the uncore cannot take any further requests (for example prefetches, loads or stores initiated by the Core that miss the L2 cache). Available PDIST counters: 0",
+        "PublicDescription": "number of cycles when the thread is active and the uncore cannot take any further requests (for example prefetches, loads or stores initiated by the Core that miss the L2 cache).",
         "SampleAfterValue": "1000003",
         "UMask": "0x1"
     }

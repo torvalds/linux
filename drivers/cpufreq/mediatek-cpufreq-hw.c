@@ -24,6 +24,8 @@
 #define POLL_USEC			1000
 #define TIMEOUT_USEC			300000
 
+#define FDVFS_FDIV_HZ (26 * 1000)
+
 enum {
 	REG_FREQ_LUT_TABLE,
 	REG_FREQ_ENABLE,
@@ -35,7 +37,14 @@ enum {
 	REG_ARRAY_SIZE,
 };
 
-struct mtk_cpufreq_data {
+struct mtk_cpufreq_priv {
+	struct device *dev;
+	const struct mtk_cpufreq_variant *variant;
+	void __iomem *fdvfs;
+};
+
+struct mtk_cpufreq_domain {
+	struct mtk_cpufreq_priv *parent;
 	struct cpufreq_frequency_table *table;
 	void __iomem *reg_bases[REG_ARRAY_SIZE];
 	struct resource *res;
@@ -43,20 +52,51 @@ struct mtk_cpufreq_data {
 	int nr_opp;
 };
 
-static const u16 cpufreq_mtk_offsets[REG_ARRAY_SIZE] = {
-	[REG_FREQ_LUT_TABLE]	= 0x0,
-	[REG_FREQ_ENABLE]	= 0x84,
-	[REG_FREQ_PERF_STATE]	= 0x88,
-	[REG_FREQ_HW_STATE]	= 0x8c,
-	[REG_EM_POWER_TBL]	= 0x90,
-	[REG_FREQ_LATENCY]	= 0x110,
+struct mtk_cpufreq_variant {
+	int (*init)(struct mtk_cpufreq_priv *priv);
+	const u16 reg_offsets[REG_ARRAY_SIZE];
+	const bool is_hybrid_dvfs;
+};
+
+static const struct mtk_cpufreq_variant cpufreq_mtk_base_variant = {
+	.reg_offsets = {
+		[REG_FREQ_LUT_TABLE]	= 0x0,
+		[REG_FREQ_ENABLE]	= 0x84,
+		[REG_FREQ_PERF_STATE]	= 0x88,
+		[REG_FREQ_HW_STATE]	= 0x8c,
+		[REG_EM_POWER_TBL]	= 0x90,
+		[REG_FREQ_LATENCY]	= 0x110,
+	},
+};
+
+static int mtk_cpufreq_hw_mt8196_init(struct mtk_cpufreq_priv *priv)
+{
+	priv->fdvfs = devm_of_iomap(priv->dev, priv->dev->of_node, 0, NULL);
+	if (IS_ERR(priv->fdvfs))
+		return dev_err_probe(priv->dev, PTR_ERR(priv->fdvfs),
+				     "failed to get fdvfs iomem\n");
+
+	return 0;
+}
+
+static const struct mtk_cpufreq_variant cpufreq_mtk_mt8196_variant = {
+	.init = mtk_cpufreq_hw_mt8196_init,
+	.reg_offsets = {
+		[REG_FREQ_LUT_TABLE]	= 0x0,
+		[REG_FREQ_ENABLE]	= 0x84,
+		[REG_FREQ_PERF_STATE]	= 0x88,
+		[REG_FREQ_HW_STATE]	= 0x8c,
+		[REG_EM_POWER_TBL]	= 0x90,
+		[REG_FREQ_LATENCY]	= 0x114,
+	},
+	.is_hybrid_dvfs = true,
 };
 
 static int __maybe_unused
 mtk_cpufreq_get_cpu_power(struct device *cpu_dev, unsigned long *uW,
 			  unsigned long *KHz)
 {
-	struct mtk_cpufreq_data *data;
+	struct mtk_cpufreq_domain *data;
 	struct cpufreq_policy *policy;
 	int i;
 
@@ -80,19 +120,38 @@ mtk_cpufreq_get_cpu_power(struct device *cpu_dev, unsigned long *uW,
 	return 0;
 }
 
+static void mtk_cpufreq_hw_fdvfs_switch(unsigned int target_freq,
+					struct cpufreq_policy *policy)
+{
+	struct mtk_cpufreq_domain *data = policy->driver_data;
+	struct mtk_cpufreq_priv *priv = data->parent;
+	unsigned int cpu;
+
+	target_freq = DIV_ROUND_UP(target_freq, FDVFS_FDIV_HZ);
+	for_each_cpu(cpu, policy->real_cpus) {
+		writel_relaxed(target_freq, priv->fdvfs + cpu * 4);
+	}
+}
+
 static int mtk_cpufreq_hw_target_index(struct cpufreq_policy *policy,
 				       unsigned int index)
 {
-	struct mtk_cpufreq_data *data = policy->driver_data;
+	struct mtk_cpufreq_domain *data = policy->driver_data;
+	unsigned int target_freq;
 
-	writel_relaxed(index, data->reg_bases[REG_FREQ_PERF_STATE]);
+	if (data->parent->fdvfs) {
+		target_freq = policy->freq_table[index].frequency;
+		mtk_cpufreq_hw_fdvfs_switch(target_freq, policy);
+	} else {
+		writel_relaxed(index, data->reg_bases[REG_FREQ_PERF_STATE]);
+	}
 
 	return 0;
 }
 
 static unsigned int mtk_cpufreq_hw_get(unsigned int cpu)
 {
-	struct mtk_cpufreq_data *data;
+	struct mtk_cpufreq_domain *data;
 	struct cpufreq_policy *policy;
 	unsigned int index;
 
@@ -111,18 +170,21 @@ static unsigned int mtk_cpufreq_hw_get(unsigned int cpu)
 static unsigned int mtk_cpufreq_hw_fast_switch(struct cpufreq_policy *policy,
 					       unsigned int target_freq)
 {
-	struct mtk_cpufreq_data *data = policy->driver_data;
+	struct mtk_cpufreq_domain *data = policy->driver_data;
 	unsigned int index;
 
 	index = cpufreq_table_find_index_dl(policy, target_freq, false);
 
-	writel_relaxed(index, data->reg_bases[REG_FREQ_PERF_STATE]);
+	if (data->parent->fdvfs)
+		mtk_cpufreq_hw_fdvfs_switch(target_freq, policy);
+	else
+		writel_relaxed(index, data->reg_bases[REG_FREQ_PERF_STATE]);
 
 	return policy->freq_table[index].frequency;
 }
 
 static int mtk_cpu_create_freq_table(struct platform_device *pdev,
-				     struct mtk_cpufreq_data *data)
+				     struct mtk_cpufreq_domain *data)
 {
 	struct device *dev = &pdev->dev;
 	u32 temp, i, freq, prev_freq = 0;
@@ -157,9 +219,9 @@ static int mtk_cpu_create_freq_table(struct platform_device *pdev,
 
 static int mtk_cpu_resources_init(struct platform_device *pdev,
 				  struct cpufreq_policy *policy,
-				  const u16 *offsets)
+				  struct mtk_cpufreq_priv *priv)
 {
-	struct mtk_cpufreq_data *data;
+	struct mtk_cpufreq_domain *data;
 	struct device *dev = &pdev->dev;
 	struct resource *res;
 	struct of_phandle_args args;
@@ -179,6 +241,15 @@ static int mtk_cpu_resources_init(struct platform_device *pdev,
 
 	index = args.args[0];
 	of_node_put(args.np);
+
+	/*
+	 * In a cpufreq with hybrid DVFS, such as the MT8196, the first declared
+	 * register range is for FDVFS, followed by the frequency domain MMIOs.
+	 */
+	if (priv->variant->is_hybrid_dvfs)
+		index++;
+
+	data->parent = priv;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, index);
 	if (!res) {
@@ -202,7 +273,7 @@ static int mtk_cpu_resources_init(struct platform_device *pdev,
 	data->res = res;
 
 	for (i = REG_FREQ_LUT_TABLE; i < REG_ARRAY_SIZE; i++)
-		data->reg_bases[i] = base + offsets[i];
+		data->reg_bases[i] = base + priv->variant->reg_offsets[i];
 
 	ret = mtk_cpu_create_freq_table(pdev, data);
 	if (ret) {
@@ -223,7 +294,7 @@ static int mtk_cpufreq_hw_cpu_init(struct cpufreq_policy *policy)
 {
 	struct platform_device *pdev = cpufreq_get_driver_data();
 	int sig, pwr_hw = CPUFREQ_HW_STATUS | SVS_HW_STATUS;
-	struct mtk_cpufreq_data *data;
+	struct mtk_cpufreq_domain *data;
 	unsigned int latency;
 	int ret;
 
@@ -238,7 +309,7 @@ static int mtk_cpufreq_hw_cpu_init(struct cpufreq_policy *policy)
 
 	latency = readl_relaxed(data->reg_bases[REG_FREQ_LATENCY]) * 1000;
 	if (!latency)
-		latency = CPUFREQ_ETERNAL;
+		latency = CPUFREQ_DEFAULT_TRANSITION_LATENCY_NS;
 
 	policy->cpuinfo.transition_latency = latency;
 	policy->fast_switch_possible = true;
@@ -262,7 +333,7 @@ static int mtk_cpufreq_hw_cpu_init(struct cpufreq_policy *policy)
 
 static void mtk_cpufreq_hw_cpu_exit(struct cpufreq_policy *policy)
 {
-	struct mtk_cpufreq_data *data = policy->driver_data;
+	struct mtk_cpufreq_domain *data = policy->driver_data;
 	struct resource *res = data->res;
 	void __iomem *base = data->base;
 
@@ -275,7 +346,7 @@ static void mtk_cpufreq_hw_cpu_exit(struct cpufreq_policy *policy)
 static void mtk_cpufreq_register_em(struct cpufreq_policy *policy)
 {
 	struct em_data_callback em_cb = EM_DATA_CB(mtk_cpufreq_get_cpu_power);
-	struct mtk_cpufreq_data *data = policy->driver_data;
+	struct mtk_cpufreq_domain *data = policy->driver_data;
 
 	em_dev_register_perf_domain(get_cpu_device(policy->cpu), data->nr_opp,
 				    &em_cb, policy->cpus, true);
@@ -297,6 +368,7 @@ static struct cpufreq_driver cpufreq_mtk_hw_driver = {
 
 static int mtk_cpufreq_hw_driver_probe(struct platform_device *pdev)
 {
+	struct mtk_cpufreq_priv *priv;
 	const void *data;
 	int ret, cpu;
 	struct device *cpu_dev;
@@ -320,7 +392,20 @@ static int mtk_cpufreq_hw_driver_probe(struct platform_device *pdev)
 	if (!data)
 		return -EINVAL;
 
-	platform_set_drvdata(pdev, (void *) data);
+	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	priv->variant = data;
+	priv->dev = &pdev->dev;
+
+	if (priv->variant->init) {
+		ret = priv->variant->init(priv);
+		if (ret)
+			return ret;
+	}
+
+	platform_set_drvdata(pdev, priv);
 	cpufreq_mtk_hw_driver.driver_data = pdev;
 
 	ret = cpufreq_register_driver(&cpufreq_mtk_hw_driver);
@@ -336,7 +421,8 @@ static void mtk_cpufreq_hw_driver_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id mtk_cpufreq_hw_match[] = {
-	{ .compatible = "mediatek,cpufreq-hw", .data = &cpufreq_mtk_offsets },
+	{ .compatible = "mediatek,cpufreq-hw", .data = &cpufreq_mtk_base_variant },
+	{ .compatible = "mediatek,mt8196-cpufreq-hw", .data = &cpufreq_mtk_mt8196_variant },
 	{}
 };
 MODULE_DEVICE_TABLE(of, mtk_cpufreq_hw_match);

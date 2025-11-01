@@ -221,11 +221,6 @@ void mpc401_program_lut_read_write_control(
 		bool lut_bank_a,
 		int mpcc_id);
 
-void mpc401_program_3dlut_size(
-		struct mpc *mpc,
-		bool is_17x17x17,
-		int mpcc_id);
-
 void mpc401_set_gamut_remap(
 	struct mpc *mpc,
 	int mpcc_id,
@@ -240,6 +235,19 @@ void mpc401_update_3dlut_fast_load_select(
 	struct mpc *mpc,
 	int mpcc_id,
 	int hubp_idx);
+
+void mpc_program_gamut_remap(
+	struct mpc *mpc,
+	unsigned int mpcc_id,
+	const uint16_t *regval,
+	enum mpcc_gamut_remap_id gamut_remap_block_id,
+	enum mpcc_gamut_remap_mode_select mode_select);
+
+void mpc_read_gamut_remap(struct mpc *mpc,
+	int mpcc_id,
+	uint16_t *regval,
+	enum mpcc_gamut_remap_id gamut_remap_block_id,
+	uint32_t *mode_select);
 
 void mpc401_update_3dlut_fast_load_select(
 	struct mpc *mpc,

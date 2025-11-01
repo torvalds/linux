@@ -464,7 +464,6 @@ static int dlm_do_recovery(struct dlm_ctxt *dlm)
 	}
 
 	if (dlm->reco.dead_node == O2NM_INVALID_NODE_NUM) {
-		// mlog(0, "nothing to recover!  sleeping now!\n");
 		spin_unlock(&dlm->spinlock);
 		/* return to main thread loop and sleep. */
 		return 0;
@@ -2632,7 +2631,7 @@ again:
 					 dlm_reco_master_ready(dlm),
 					 msecs_to_jiffies(1000));
 		if (!dlm_reco_master_ready(dlm)) {
-			mlog(0, "%s: reco master taking awhile\n",
+			mlog(0, "%s: reco master taking a while\n",
 			     dlm->name);
 			goto again;
 		}

@@ -98,7 +98,7 @@ static void snd_ac97_proc_read_main(struct snd_ac97 *ac97, struct snd_info_buffe
 	static const char *spdif_rates_cs4205[4] = { " Rate=48kHz", " Rate=44.1kHz", " Rate=res", " Rate=res" };
 	static const char *double_rate_slots[4] = { "10/11", "7/8", "reserved", "reserved" };
 
-	snd_ac97_get_name(NULL, ac97->id, name, 0);
+	snd_ac97_get_name(NULL, ac97->id, name, sizeof(name), 0);
 	snd_iprintf(buffer, "%d-%d/%d: %s\n\n", ac97->addr, ac97->num, subidx, name);
 
 	if ((ac97->scaps & AC97_SCAP_AUDIO) == 0)
@@ -329,7 +329,7 @@ static void snd_ac97_proc_read(struct snd_info_entry *entry, struct snd_info_buf
 {
 	struct snd_ac97 *ac97 = entry->private_data;
 	
-	mutex_lock(&ac97->page_mutex);
+	guard(mutex)(&ac97->page_mutex);
 	if ((ac97->id & 0xffffff40) == AC97_ID_AD1881) {	// Analog Devices AD1881/85/86
 		int idx;
 		for (idx = 0; idx < 3; idx++)
@@ -355,7 +355,6 @@ static void snd_ac97_proc_read(struct snd_info_entry *entry, struct snd_info_buf
 	} else {
 		snd_ac97_proc_read_main(ac97, buffer, 0);
 	}
-	mutex_unlock(&ac97->page_mutex);
 }
 
 #ifdef CONFIG_SND_DEBUG
@@ -365,7 +364,8 @@ static void snd_ac97_proc_regs_write(struct snd_info_entry *entry, struct snd_in
 	struct snd_ac97 *ac97 = entry->private_data;
 	char line[64];
 	unsigned int reg, val;
-	mutex_lock(&ac97->page_mutex);
+
+	guard(mutex)(&ac97->page_mutex);
 	while (!snd_info_get_line(buffer, line, sizeof(line))) {
 		if (sscanf(line, "%x %x", &reg, &val) != 2)
 			continue;
@@ -373,7 +373,6 @@ static void snd_ac97_proc_regs_write(struct snd_info_entry *entry, struct snd_in
 		if (reg < 0x80 && (reg & 1) == 0 && val <= 0xffff)
 			snd_ac97_write_cache(ac97, reg, val);
 	}
-	mutex_unlock(&ac97->page_mutex);
 }
 #endif
 
@@ -392,7 +391,7 @@ static void snd_ac97_proc_regs_read(struct snd_info_entry *entry,
 {
 	struct snd_ac97 *ac97 = entry->private_data;
 
-	mutex_lock(&ac97->page_mutex);
+	guard(mutex)(&ac97->page_mutex);
 	if ((ac97->id & 0xffffff40) == AC97_ID_AD1881) {	// Analog Devices AD1881/85/86
 
 		int idx;
@@ -408,7 +407,6 @@ static void snd_ac97_proc_regs_read(struct snd_info_entry *entry,
 	} else {
 		snd_ac97_proc_regs_read_main(ac97, buffer, 0);
 	}	
-	mutex_unlock(&ac97->page_mutex);
 }
 
 void snd_ac97_proc_init(struct snd_ac97 * ac97)

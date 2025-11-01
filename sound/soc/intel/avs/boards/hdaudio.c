@@ -16,7 +16,7 @@
 #include "../utils.h"
 
 static int avs_create_dai_links(struct device *dev, struct hda_codec *codec, int pcm_count,
-				const char *platform_name, struct snd_soc_dai_link **links)
+				struct snd_soc_dai_link **links)
 {
 	struct snd_soc_dai_link_component *platform;
 	struct snd_soc_dai_link *dl;
@@ -29,7 +29,7 @@ static int avs_create_dai_links(struct device *dev, struct hda_codec *codec, int
 	if (!dl || !platform)
 		return -ENOMEM;
 
-	platform->name = platform_name;
+	platform->name = dev_name(dev);
 	pcm = list_first_entry(&codec->pcm_list_head, struct hda_pcm, list);
 
 	for (i = 0; i < pcm_count; i++, pcm = list_next_entry(pcm, list)) {
@@ -142,7 +142,7 @@ static int avs_probing_link_init(struct snd_soc_pcm_runtime *rtm)
 	list_for_each_entry(pcm, &codec->pcm_list_head, list)
 		pcm_count++;
 
-	ret = avs_create_dai_links(card->dev, codec, pcm_count, mach->mach_params.platform, &links);
+	ret = avs_create_dai_links(card->dev, codec, pcm_count, &links);
 	if (ret < 0) {
 		dev_err(card->dev, "create links failed: %d\n", ret);
 		return ret;
@@ -197,7 +197,7 @@ static int avs_hdaudio_probe(struct platform_device *pdev)
 	if (!binder->codecs->name)
 		return -ENOMEM;
 
-	binder->platforms->name = mach->mach_params.platform;
+	binder->platforms->name = dev_name(dev);
 	binder->num_platforms = 1;
 	binder->codecs->dai_name = "codec-probing-DAI";
 	binder->num_codecs = 1;
@@ -207,7 +207,10 @@ static int avs_hdaudio_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	if (pdata->obsolete_card_names) {
-		card->name = binder->codecs->name;
+		card->name = devm_kasprintf(dev, GFP_KERNEL, "hdaudioB%dD%d", codec->bus->core.idx,
+					    codec->core.addr);
+		if (!card->name)
+			return -ENOMEM;
 	} else {
 		card->driver_name = "avs_hdaudio";
 		if (hda_codec_is_display(codec))

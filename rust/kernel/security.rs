@@ -8,8 +8,45 @@
 
 use crate::{
     bindings,
+    cred::Credential,
     error::{to_result, Result},
+    fs::File,
 };
+
+/// Calls the security modules to determine if the given task can become the manager of a binder
+/// context.
+#[inline]
+pub fn binder_set_context_mgr(mgr: &Credential) -> Result {
+    // SAFETY: `mrg.0` is valid because the shared reference guarantees a nonzero refcount.
+    to_result(unsafe { bindings::security_binder_set_context_mgr(mgr.as_ptr()) })
+}
+
+/// Calls the security modules to determine if binder transactions are allowed from task `from` to
+/// task `to`.
+#[inline]
+pub fn binder_transaction(from: &Credential, to: &Credential) -> Result {
+    // SAFETY: `from` and `to` are valid because the shared references guarantee nonzero refcounts.
+    to_result(unsafe { bindings::security_binder_transaction(from.as_ptr(), to.as_ptr()) })
+}
+
+/// Calls the security modules to determine if task `from` is allowed to send binder objects
+/// (owned by itself or other processes) to task `to` through a binder transaction.
+#[inline]
+pub fn binder_transfer_binder(from: &Credential, to: &Credential) -> Result {
+    // SAFETY: `from` and `to` are valid because the shared references guarantee nonzero refcounts.
+    to_result(unsafe { bindings::security_binder_transfer_binder(from.as_ptr(), to.as_ptr()) })
+}
+
+/// Calls the security modules to determine if task `from` is allowed to send the given file to
+/// task `to` (which would get its own file descriptor) through a binder transaction.
+#[inline]
+pub fn binder_transfer_file(from: &Credential, to: &Credential, file: &File) -> Result {
+    // SAFETY: `from`, `to` and `file` are valid because the shared references guarantee nonzero
+    // refcounts.
+    to_result(unsafe {
+        bindings::security_binder_transfer_file(from.as_ptr(), to.as_ptr(), file.as_ptr())
+    })
+}
 
 /// A security context string.
 ///

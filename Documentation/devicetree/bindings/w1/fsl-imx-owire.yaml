@@ -24,6 +24,9 @@ properties:
   reg:
     maxItems: 1
 
+  interrupts:
+    maxItems: 1
+
   clocks:
     maxItems: 1
 
@@ -40,5 +43,6 @@ examples:
     owire@63fa4000 {
         compatible = "fsl,imx53-owire", "fsl,imx21-owire";
         reg = <0x63fa4000 0x4000>;
+        interrupts = <88>;
         clocks = <&clks IMX5_CLK_OWIRE_GATE>;
     };

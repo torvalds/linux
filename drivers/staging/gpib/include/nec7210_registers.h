@@ -11,7 +11,7 @@ enum nec7210_chipset {
 	NEC7210,	// The original
 	TNT4882,	// NI
 	NAT4882,	// NI
-	CB7210,	// measurement computing
+	CB7210,		// measurement computing
 	IOT7210,	// iotech
 	IGPIB7210,	// Ines
 	TNT5004,	// NI (minor differences to TNT4882)
@@ -48,7 +48,7 @@ enum nec7210_read_regs {
 	ADR1,	// address 2
 };
 
-//bit definitions common to nec-7210 compatible registers
+// bit definitions common to nec-7210 compatible registers
 
 // ISR1: interrupt status register 1
 enum isr1_bits {

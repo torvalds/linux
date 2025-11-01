@@ -36,12 +36,12 @@ static irqreturn_t panfrost_gpu_irq_handler(int irq, void *data)
 		u64 address = (u64) gpu_read(pfdev, GPU_FAULT_ADDRESS_HI) << 32;
 		address |= gpu_read(pfdev, GPU_FAULT_ADDRESS_LO);
 
-		dev_warn(pfdev->dev, "GPU Fault 0x%08x (%s) at 0x%016llx\n",
+		dev_warn(pfdev->base.dev, "GPU Fault 0x%08x (%s) at 0x%016llx\n",
 			 fault_status, panfrost_exception_name(fault_status & 0xFF),
 			 address);
 
 		if (state & GPU_IRQ_MULTIPLE_FAULT)
-			dev_warn(pfdev->dev, "There were multiple GPU faults - some have not been reported\n");
+			dev_warn(pfdev->base.dev, "There were multiple GPU faults - some have not been reported\n");
 
 		gpu_write(pfdev, GPU_INT_MASK, 0);
 	}
@@ -72,13 +72,13 @@ int panfrost_gpu_soft_reset(struct panfrost_device *pfdev)
 		val, val & GPU_IRQ_RESET_COMPLETED, 10, 10000);
 
 	if (ret) {
-		dev_err(pfdev->dev, "gpu soft reset timed out, attempting hard reset\n");
+		dev_err(pfdev->base.dev, "gpu soft reset timed out, attempting hard reset\n");
 
 		gpu_write(pfdev, GPU_CMD, GPU_CMD_HARD_RESET);
 		ret = readl_relaxed_poll_timeout(pfdev->iomem + GPU_INT_RAWSTAT, val,
 						 val & GPU_IRQ_RESET_COMPLETED, 100, 10000);
 		if (ret) {
-			dev_err(pfdev->dev, "gpu hard reset timed out\n");
+			dev_err(pfdev->base.dev, "gpu hard reset timed out\n");
 			return ret;
 		}
 	}
@@ -95,7 +95,7 @@ int panfrost_gpu_soft_reset(struct panfrost_device *pfdev)
 	 * All in-flight jobs should have released their cycle
 	 * counter references upon reset, but let us make sure
 	 */
-	if (drm_WARN_ON(pfdev->ddev, atomic_read(&pfdev->cycle_counter.use_count) != 0))
+	if (drm_WARN_ON(&pfdev->base, atomic_read(&pfdev->cycle_counter.use_count) != 0))
 		atomic_set(&pfdev->cycle_counter.use_count, 0);
 
 	return 0;
@@ -240,9 +240,10 @@ static const struct panfrost_model gpu_models[] = {
 	/* MediaTek MT8188 Mali-G57 MC3 */
 	GPU_MODEL(g57, 0x9093,
 		GPU_REV(g57, 0, 0)),
+	{0},
 };
 
-static void panfrost_gpu_init_features(struct panfrost_device *pfdev)
+static int panfrost_gpu_init_features(struct panfrost_device *pfdev)
 {
 	u32 gpu_id, num_js, major, minor, status, rev;
 	const char *name = "unknown";
@@ -327,16 +328,22 @@ static void panfrost_gpu_init_features(struct panfrost_device *pfdev)
 		break;
 	}
 
+	if (!model->name) {
+		dev_err(pfdev->base.dev, "GPU model not found: mali-%s id rev %#x %#x\n",
+			name, gpu_id, rev);
+		return -ENODEV;
+	}
+
 	bitmap_from_u64(pfdev->features.hw_features, hw_feat);
 	bitmap_from_u64(pfdev->features.hw_issues, hw_issues);
 
-	dev_info(pfdev->dev, "mali-%s id 0x%x major 0x%x minor 0x%x status 0x%x",
+	dev_info(pfdev->base.dev, "mali-%s id 0x%x major 0x%x minor 0x%x status 0x%x",
 		 name, gpu_id, major, minor, status);
-	dev_info(pfdev->dev, "features: %64pb, issues: %64pb",
+	dev_info(pfdev->base.dev, "features: %64pb, issues: %64pb",
 		 pfdev->features.hw_features,
 		 pfdev->features.hw_issues);
 
-	dev_info(pfdev->dev, "Features: L2:0x%08x Shader:0x%08x Tiler:0x%08x Mem:0x%0x MMU:0x%08x AS:0x%x JS:0x%x",
+	dev_info(pfdev->base.dev, "Features: L2:0x%08x Shader:0x%08x Tiler:0x%08x Mem:0x%0x MMU:0x%08x AS:0x%x JS:0x%x",
 		 pfdev->features.l2_features,
 		 pfdev->features.core_features,
 		 pfdev->features.tiler_features,
@@ -345,8 +352,10 @@ static void panfrost_gpu_init_features(struct panfrost_device *pfdev)
 		 pfdev->features.as_present,
 		 pfdev->features.js_present);
 
-	dev_info(pfdev->dev, "shader_present=0x%0llx l2_present=0x%0llx",
+	dev_info(pfdev->base.dev, "shader_present=0x%0llx l2_present=0x%0llx",
 		 pfdev->features.shader_present, pfdev->features.l2_present);
+
+	return 0;
 }
 
 void panfrost_cycle_counter_get(struct panfrost_device *pfdev)
@@ -411,7 +420,7 @@ static u64 panfrost_get_core_mask(struct panfrost_device *pfdev)
 	 */
 	core_mask = ~(pfdev->features.l2_present - 1) &
 		     (pfdev->features.l2_present - 2);
-	dev_info_once(pfdev->dev, "using only 1st core group (%lu cores from %lu)\n",
+	dev_info_once(pfdev->base.dev, "using only 1st core group (%lu cores from %lu)\n",
 		      hweight64(core_mask),
 		      hweight64(pfdev->features.shader_present));
 
@@ -432,7 +441,7 @@ void panfrost_gpu_power_on(struct panfrost_device *pfdev)
 		val, val == (pfdev->features.l2_present & core_mask),
 		10, 20000);
 	if (ret)
-		dev_err(pfdev->dev, "error powering up gpu L2");
+		dev_err(pfdev->base.dev, "error powering up gpu L2");
 
 	gpu_write(pfdev, SHADER_PWRON_LO,
 		  pfdev->features.shader_present & core_mask);
@@ -440,13 +449,13 @@ void panfrost_gpu_power_on(struct panfrost_device *pfdev)
 		val, val == (pfdev->features.shader_present & core_mask),
 		10, 20000);
 	if (ret)
-		dev_err(pfdev->dev, "error powering up gpu shader");
+		dev_err(pfdev->base.dev, "error powering up gpu shader");
 
 	gpu_write(pfdev, TILER_PWRON_LO, pfdev->features.tiler_present);
 	ret = readl_relaxed_poll_timeout(pfdev->iomem + TILER_READY_LO,
 		val, val == pfdev->features.tiler_present, 10, 1000);
 	if (ret)
-		dev_err(pfdev->dev, "error powering up gpu tiler");
+		dev_err(pfdev->base.dev, "error powering up gpu tiler");
 }
 
 void panfrost_gpu_power_off(struct panfrost_device *pfdev)
@@ -458,19 +467,19 @@ void panfrost_gpu_power_off(struct panfrost_device *pfdev)
 	ret = readl_relaxed_poll_timeout(pfdev->iomem + SHADER_PWRTRANS_LO,
 					 val, !val, 1, 2000);
 	if (ret)
-		dev_err(pfdev->dev, "shader power transition timeout");
+		dev_err(pfdev->base.dev, "shader power transition timeout");
 
 	gpu_write(pfdev, TILER_PWROFF_LO, pfdev->features.tiler_present);
 	ret = readl_relaxed_poll_timeout(pfdev->iomem + TILER_PWRTRANS_LO,
 					 val, !val, 1, 2000);
 	if (ret)
-		dev_err(pfdev->dev, "tiler power transition timeout");
+		dev_err(pfdev->base.dev, "tiler power transition timeout");
 
 	gpu_write(pfdev, L2_PWROFF_LO, pfdev->features.l2_present);
 	ret = readl_poll_timeout(pfdev->iomem + L2_PWRTRANS_LO,
 				 val, !val, 0, 2000);
 	if (ret)
-		dev_err(pfdev->dev, "l2 power transition timeout");
+		dev_err(pfdev->base.dev, "l2 power transition timeout");
 }
 
 void panfrost_gpu_suspend_irq(struct panfrost_device *pfdev)
@@ -489,23 +498,26 @@ int panfrost_gpu_init(struct panfrost_device *pfdev)
 	if (err)
 		return err;
 
-	panfrost_gpu_init_features(pfdev);
-
-	err = dma_set_mask_and_coherent(pfdev->dev,
-		DMA_BIT_MASK(FIELD_GET(0xff00, pfdev->features.mmu_features)));
+	err = panfrost_gpu_init_features(pfdev);
 	if (err)
 		return err;
 
-	dma_set_max_seg_size(pfdev->dev, UINT_MAX);
+	err = dma_set_mask_and_coherent(pfdev->base.dev,
+					DMA_BIT_MASK(FIELD_GET(0xff00,
+							       pfdev->features.mmu_features)));
+	if (err)
+		return err;
 
-	pfdev->gpu_irq = platform_get_irq_byname(to_platform_device(pfdev->dev), "gpu");
+	dma_set_max_seg_size(pfdev->base.dev, UINT_MAX);
+
+	pfdev->gpu_irq = platform_get_irq_byname(to_platform_device(pfdev->base.dev), "gpu");
 	if (pfdev->gpu_irq < 0)
 		return pfdev->gpu_irq;
 
-	err = devm_request_irq(pfdev->dev, pfdev->gpu_irq, panfrost_gpu_irq_handler,
+	err = devm_request_irq(pfdev->base.dev, pfdev->gpu_irq, panfrost_gpu_irq_handler,
 			       IRQF_SHARED, KBUILD_MODNAME "-gpu", pfdev);
 	if (err) {
-		dev_err(pfdev->dev, "failed to request gpu irq");
+		dev_err(pfdev->base.dev, "failed to request gpu irq");
 		return err;
 	}
 
@@ -525,9 +537,9 @@ u32 panfrost_gpu_get_latest_flush_id(struct panfrost_device *pfdev)
 
 	if (panfrost_has_hw_feature(pfdev, HW_FEATURE_FLUSH_REDUCTION)) {
 		/* Flush reduction only makes sense when the GPU is kept powered on between jobs */
-		if (pm_runtime_get_if_in_use(pfdev->dev)) {
+		if (pm_runtime_get_if_in_use(pfdev->base.dev)) {
 			flush_id = gpu_read(pfdev, GPU_LATEST_FLUSH_ID);
-			pm_runtime_put(pfdev->dev);
+			pm_runtime_put(pfdev->base.dev);
 			return flush_id;
 		}
 	}

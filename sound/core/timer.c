@@ -1195,7 +1195,7 @@ static int snd_timer_register_system(void)
 	err = snd_timer_global_new("system", SNDRV_TIMER_GLOBAL_SYSTEM, &timer);
 	if (err < 0)
 		return err;
-	strcpy(timer->name, "system timer");
+	strscpy(timer->name, "system timer");
 	timer->hw = snd_timer_system;
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (priv == NULL) {
@@ -2139,13 +2139,13 @@ static int snd_utimer_create(struct snd_timer_uinfo *utimer_info,
 		goto err_take_id;
 	}
 
+	utimer->id = utimer_id;
+
 	utimer->name = kasprintf(GFP_KERNEL, "snd-utimer%d", utimer_id);
 	if (!utimer->name) {
 		err = -ENOMEM;
 		goto err_get_name;
 	}
-
-	utimer->id = utimer_id;
 
 	tid.dev_sclass = SNDRV_TIMER_SCLASS_APPLICATION;
 	tid.dev_class = SNDRV_TIMER_CLASS_GLOBAL;

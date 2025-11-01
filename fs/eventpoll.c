@@ -46,10 +46,10 @@
  *
  * 1) epnested_mutex (mutex)
  * 2) ep->mtx (mutex)
- * 3) ep->lock (rwlock)
+ * 3) ep->lock (spinlock)
  *
  * The acquire order is the one listed above, from 1 to 3.
- * We need a rwlock (ep->lock) because we manipulate objects
+ * We need a spinlock (ep->lock) because we manipulate objects
  * from inside the poll callback, that might be triggered from
  * a wake_up() that in turn might be called from IRQ context.
  * So we can't sleep inside the poll callback and hence we need
@@ -195,7 +195,7 @@ struct eventpoll {
 	struct list_head rdllist;
 
 	/* Lock which protects rdllist and ovflist */
-	rwlock_t lock;
+	spinlock_t lock;
 
 	/* RB tree root used to store monitored fd structs */
 	struct rb_root_cached rbr;
@@ -218,6 +218,7 @@ struct eventpoll {
 	/* used to optimize loop detection check */
 	u64 gen;
 	struct hlist_head refs;
+	u8 loop_check_depth;
 
 	/*
 	 * usage count, used together with epitem->dying to
@@ -740,10 +741,10 @@ static void ep_start_scan(struct eventpoll *ep, struct list_head *txlist)
 	 * in a lockless way.
 	 */
 	lockdep_assert_irqs_enabled();
-	write_lock_irq(&ep->lock);
+	spin_lock_irq(&ep->lock);
 	list_splice_init(&ep->rdllist, txlist);
 	WRITE_ONCE(ep->ovflist, NULL);
-	write_unlock_irq(&ep->lock);
+	spin_unlock_irq(&ep->lock);
 }
 
 static void ep_done_scan(struct eventpoll *ep,
@@ -751,7 +752,7 @@ static void ep_done_scan(struct eventpoll *ep,
 {
 	struct epitem *epi, *nepi;
 
-	write_lock_irq(&ep->lock);
+	spin_lock_irq(&ep->lock);
 	/*
 	 * During the time we spent inside the "sproc" callback, some
 	 * other events might have been queued by the poll callback.
@@ -792,7 +793,7 @@ static void ep_done_scan(struct eventpoll *ep,
 			wake_up(&ep->wq);
 	}
 
-	write_unlock_irq(&ep->lock);
+	spin_unlock_irq(&ep->lock);
 }
 
 static void ep_get(struct eventpoll *ep)
@@ -867,10 +868,10 @@ static bool __ep_remove(struct eventpoll *ep, struct epitem *epi, bool force)
 
 	rb_erase_cached(&epi->rbn, &ep->rbr);
 
-	write_lock_irq(&ep->lock);
+	spin_lock_irq(&ep->lock);
 	if (ep_is_linked(epi))
 		list_del_init(&epi->rdllink);
-	write_unlock_irq(&ep->lock);
+	spin_unlock_irq(&ep->lock);
 
 	wakeup_source_unregister(ep_wakeup_source(epi));
 	/*
@@ -883,7 +884,7 @@ static bool __ep_remove(struct eventpoll *ep, struct epitem *epi, bool force)
 	kfree_rcu(epi, rcu);
 
 	percpu_counter_dec(&ep->user->epoll_watches);
-	return ep_refcount_dec_and_test(ep);
+	return true;
 }
 
 /*
@@ -891,14 +892,14 @@ static bool __ep_remove(struct eventpoll *ep, struct epitem *epi, bool force)
  */
 static void ep_remove_safe(struct eventpoll *ep, struct epitem *epi)
 {
-	WARN_ON_ONCE(__ep_remove(ep, epi, false));
+	if (__ep_remove(ep, epi, false))
+		WARN_ON_ONCE(ep_refcount_dec_and_test(ep));
 }
 
 static void ep_clear_and_put(struct eventpoll *ep)
 {
 	struct rb_node *rbp, *next;
 	struct epitem *epi;
-	bool dispose;
 
 	/* We need to release all tasks waiting for these file */
 	if (waitqueue_active(&ep->poll_wait))
@@ -931,10 +932,8 @@ static void ep_clear_and_put(struct eventpoll *ep)
 		cond_resched();
 	}
 
-	dispose = ep_refcount_dec_and_test(ep);
 	mutex_unlock(&ep->mtx);
-
-	if (dispose)
+	if (ep_refcount_dec_and_test(ep))
 		ep_free(ep);
 }
 
@@ -1137,7 +1136,7 @@ again:
 		dispose = __ep_remove(ep, epi, true);
 		mutex_unlock(&ep->mtx);
 
-		if (dispose)
+		if (dispose && ep_refcount_dec_and_test(ep))
 			ep_free(ep);
 		goto again;
 	}
@@ -1153,7 +1152,7 @@ static int ep_alloc(struct eventpoll **pep)
 		return -ENOMEM;
 
 	mutex_init(&ep->mtx);
-	rwlock_init(&ep->lock);
+	spin_lock_init(&ep->lock);
 	init_waitqueue_head(&ep->wq);
 	init_waitqueue_head(&ep->poll_wait);
 	INIT_LIST_HEAD(&ep->rdllist);
@@ -1241,99 +1240,9 @@ struct file *get_epoll_tfile_raw_ptr(struct file *file, int tfd,
 #endif /* CONFIG_KCMP */
 
 /*
- * Adds a new entry to the tail of the list in a lockless way, i.e.
- * multiple CPUs are allowed to call this function concurrently.
- *
- * Beware: it is necessary to prevent any other modifications of the
- *         existing list until all changes are completed, in other words
- *         concurrent list_add_tail_lockless() calls should be protected
- *         with a read lock, where write lock acts as a barrier which
- *         makes sure all list_add_tail_lockless() calls are fully
- *         completed.
- *
- *        Also an element can be locklessly added to the list only in one
- *        direction i.e. either to the tail or to the head, otherwise
- *        concurrent access will corrupt the list.
- *
- * Return: %false if element has been already added to the list, %true
- * otherwise.
- */
-static inline bool list_add_tail_lockless(struct list_head *new,
-					  struct list_head *head)
-{
-	struct list_head *prev;
-
-	/*
-	 * This is simple 'new->next = head' operation, but cmpxchg()
-	 * is used in order to detect that same element has been just
-	 * added to the list from another CPU: the winner observes
-	 * new->next == new.
-	 */
-	if (!try_cmpxchg(&new->next, &new, head))
-		return false;
-
-	/*
-	 * Initially ->next of a new element must be updated with the head
-	 * (we are inserting to the tail) and only then pointers are atomically
-	 * exchanged.  XCHG guarantees memory ordering, thus ->next should be
-	 * updated before pointers are actually swapped and pointers are
-	 * swapped before prev->next is updated.
-	 */
-
-	prev = xchg(&head->prev, new);
-
-	/*
-	 * It is safe to modify prev->next and new->prev, because a new element
-	 * is added only to the tail and new->next is updated before XCHG.
-	 */
-
-	prev->next = new;
-	new->prev = prev;
-
-	return true;
-}
-
-/*
- * Chains a new epi entry to the tail of the ep->ovflist in a lockless way,
- * i.e. multiple CPUs are allowed to call this function concurrently.
- *
- * Return: %false if epi element has been already chained, %true otherwise.
- */
-static inline bool chain_epi_lockless(struct epitem *epi)
-{
-	struct eventpoll *ep = epi->ep;
-
-	/* Fast preliminary check */
-	if (epi->next != EP_UNACTIVE_PTR)
-		return false;
-
-	/* Check that the same epi has not been just chained from another CPU */
-	if (cmpxchg(&epi->next, EP_UNACTIVE_PTR, NULL) != EP_UNACTIVE_PTR)
-		return false;
-
-	/* Atomically exchange tail */
-	epi->next = xchg(&ep->ovflist, epi);
-
-	return true;
-}
-
-/*
  * This is the callback that is passed to the wait queue wakeup
  * mechanism. It is called by the stored file descriptors when they
  * have events to report.
- *
- * This callback takes a read lock in order not to contend with concurrent
- * events from another file descriptor, thus all modifications to ->rdllist
- * or ->ovflist are lockless.  Read lock is paired with the write lock from
- * ep_start/done_scan(), which stops all list modifications and guarantees
- * that lists state is seen correctly.
- *
- * Another thing worth to mention is that ep_poll_callback() can be called
- * concurrently for the same @epi from different CPUs if poll table was inited
- * with several wait queues entries.  Plural wakeup from different CPUs of a
- * single wait queue is serialized by wq.lock, but the case when multiple wait
- * queues are used should be detected accordingly.  This is detected using
- * cmpxchg() operation.
  */
 static int ep_poll_callback(wait_queue_entry_t *wait, unsigned mode, int sync, void *key)
 {
@@ -1344,7 +1253,7 @@ static int ep_poll_callback(wait_queue_entry_t *wait, unsigned mode, int sync, v
 	unsigned long flags;
 	int ewake = 0;
 
-	read_lock_irqsave(&ep->lock, flags);
+	spin_lock_irqsave(&ep->lock, flags);
 
 	ep_set_busy_poll_napi_id(epi);
 
@@ -1373,12 +1282,15 @@ static int ep_poll_callback(wait_queue_entry_t *wait, unsigned mode, int sync, v
 	 * chained in ep->ovflist and requeued later on.
 	 */
 	if (READ_ONCE(ep->ovflist) != EP_UNACTIVE_PTR) {
-		if (chain_epi_lockless(epi))
+		if (epi->next == EP_UNACTIVE_PTR) {
+			epi->next = READ_ONCE(ep->ovflist);
+			WRITE_ONCE(ep->ovflist, epi);
 			ep_pm_stay_awake_rcu(epi);
+		}
 	} else if (!ep_is_linked(epi)) {
 		/* In the usual case, add event to ready list. */
-		if (list_add_tail_lockless(&epi->rdllink, &ep->rdllist))
-			ep_pm_stay_awake_rcu(epi);
+		list_add_tail(&epi->rdllink, &ep->rdllist);
+		ep_pm_stay_awake_rcu(epi);
 	}
 
 	/*
@@ -1411,7 +1323,7 @@ static int ep_poll_callback(wait_queue_entry_t *wait, unsigned mode, int sync, v
 		pwake++;
 
 out_unlock:
-	read_unlock_irqrestore(&ep->lock, flags);
+	spin_unlock_irqrestore(&ep->lock, flags);
 
 	/* We have to call this outside the lock */
 	if (pwake)
@@ -1746,7 +1658,7 @@ static int ep_insert(struct eventpoll *ep, const struct epoll_event *event,
 	}
 
 	/* We have to drop the new item inside our item list to keep track of it */
-	write_lock_irq(&ep->lock);
+	spin_lock_irq(&ep->lock);
 
 	/* record NAPI ID of new item if present */
 	ep_set_busy_poll_napi_id(epi);
@@ -1763,7 +1675,7 @@ static int ep_insert(struct eventpoll *ep, const struct epoll_event *event,
 			pwake++;
 	}
 
-	write_unlock_irq(&ep->lock);
+	spin_unlock_irq(&ep->lock);
 
 	/* We have to call this outside the lock */
 	if (pwake)
@@ -1827,7 +1739,7 @@ static int ep_modify(struct eventpoll *ep, struct epitem *epi,
 	 * list, push it inside.
 	 */
 	if (ep_item_poll(epi, &pt, 1)) {
-		write_lock_irq(&ep->lock);
+		spin_lock_irq(&ep->lock);
 		if (!ep_is_linked(epi)) {
 			list_add_tail(&epi->rdllink, &ep->rdllist);
 			ep_pm_stay_awake(epi);
@@ -1838,7 +1750,7 @@ static int ep_modify(struct eventpoll *ep, struct epitem *epi,
 			if (waitqueue_active(&ep->poll_wait))
 				pwake++;
 		}
-		write_unlock_irq(&ep->lock);
+		spin_unlock_irq(&ep->lock);
 	}
 
 	/* We have to call this outside the lock */
@@ -2090,7 +2002,7 @@ static int ep_poll(struct eventpoll *ep, struct epoll_event __user *events,
 		init_wait(&wait);
 		wait.func = ep_autoremove_wake_function;
 
-		write_lock_irq(&ep->lock);
+		spin_lock_irq(&ep->lock);
 		/*
 		 * Barrierless variant, waitqueue_active() is called under
 		 * the same lock on wakeup ep_poll_callback() side, so it
@@ -2109,7 +2021,7 @@ static int ep_poll(struct eventpoll *ep, struct epoll_event __user *events,
 		if (!eavail)
 			__add_wait_queue_exclusive(&ep->wq, &wait);
 
-		write_unlock_irq(&ep->lock);
+		spin_unlock_irq(&ep->lock);
 
 		if (!eavail)
 			timed_out = !ep_schedule_timeout(to) ||
@@ -2125,7 +2037,7 @@ static int ep_poll(struct eventpoll *ep, struct epoll_event __user *events,
 		eavail = 1;
 
 		if (!list_empty_careful(&wait.entry)) {
-			write_lock_irq(&ep->lock);
+			spin_lock_irq(&ep->lock);
 			/*
 			 * If the thread timed out and is not on the wait queue,
 			 * it means that the thread was woken up after its
@@ -2136,28 +2048,29 @@ static int ep_poll(struct eventpoll *ep, struct epoll_event __user *events,
 			if (timed_out)
 				eavail = list_empty(&wait.entry);
 			__remove_wait_queue(&ep->wq, &wait);
-			write_unlock_irq(&ep->lock);
+			spin_unlock_irq(&ep->lock);
 		}
 	}
 }
 
 /**
- * ep_loop_check_proc - verify that adding an epoll file inside another
- *                      epoll structure does not violate the constraints, in
- *                      terms of closed loops, or too deep chains (which can
- *                      result in excessive stack usage).
+ * ep_loop_check_proc - verify that adding an epoll file @ep inside another
+ *                      epoll file does not create closed loops, and
+ *                      determine the depth of the subtree starting at @ep
  *
  * @ep: the &struct eventpoll to be currently checked.
  * @depth: Current depth of the path being checked.
  *
- * Return: %zero if adding the epoll @file inside current epoll
- *          structure @ep does not violate the constraints, or %-1 otherwise.
+ * Return: depth of the subtree, or INT_MAX if we found a loop or went too deep.
  */
 static int ep_loop_check_proc(struct eventpoll *ep, int depth)
 {
-	int error = 0;
+	int result = 0;
 	struct rb_node *rbp;
 	struct epitem *epi;
+
+	if (ep->gen == loop_check_gen)
+		return ep->loop_check_depth;
 
 	mutex_lock_nested(&ep->mtx, depth + 1);
 	ep->gen = loop_check_gen;
@@ -2166,13 +2079,11 @@ static int ep_loop_check_proc(struct eventpoll *ep, int depth)
 		if (unlikely(is_file_epoll(epi->ffd.file))) {
 			struct eventpoll *ep_tovisit;
 			ep_tovisit = epi->ffd.file->private_data;
-			if (ep_tovisit->gen == loop_check_gen)
-				continue;
 			if (ep_tovisit == inserting_into || depth > EP_MAX_NESTS)
-				error = -1;
+				result = INT_MAX;
 			else
-				error = ep_loop_check_proc(ep_tovisit, depth + 1);
-			if (error != 0)
+				result = max(result, ep_loop_check_proc(ep_tovisit, depth + 1) + 1);
+			if (result > EP_MAX_NESTS)
 				break;
 		} else {
 			/*
@@ -2186,9 +2097,25 @@ static int ep_loop_check_proc(struct eventpoll *ep, int depth)
 			list_file(epi->ffd.file);
 		}
 	}
+	ep->loop_check_depth = result;
 	mutex_unlock(&ep->mtx);
 
-	return error;
+	return result;
+}
+
+/* ep_get_upwards_depth_proc - determine depth of @ep when traversed upwards */
+static int ep_get_upwards_depth_proc(struct eventpoll *ep, int depth)
+{
+	int result = 0;
+	struct epitem *epi;
+
+	if (ep->gen == loop_check_gen)
+		return ep->loop_check_depth;
+	hlist_for_each_entry_rcu(epi, &ep->refs, fllink)
+		result = max(result, ep_get_upwards_depth_proc(epi->ep, depth + 1) + 1);
+	ep->gen = loop_check_gen;
+	ep->loop_check_depth = result;
+	return result;
 }
 
 /**
@@ -2204,8 +2131,22 @@ static int ep_loop_check_proc(struct eventpoll *ep, int depth)
  */
 static int ep_loop_check(struct eventpoll *ep, struct eventpoll *to)
 {
+	int depth, upwards_depth;
+
 	inserting_into = ep;
-	return ep_loop_check_proc(to, 0);
+	/*
+	 * Check how deep down we can get from @to, and whether it is possible
+	 * to loop up to @ep.
+	 */
+	depth = ep_loop_check_proc(to, 0);
+	if (depth > EP_MAX_NESTS)
+		return -1;
+	/* Check how far up we can go from @ep. */
+	rcu_read_lock();
+	upwards_depth = ep_get_upwards_depth_proc(ep, 0);
+	rcu_read_unlock();
+
+	return (depth+1+upwards_depth > EP_MAX_NESTS) ? -1 : 0;
 }
 
 static void clear_tfile_check_list(void)

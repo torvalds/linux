@@ -21,19 +21,19 @@
     },
     {
         "ArchStdEvent": "L2D_CACHE_RD",
-        "BriefDescription": "This event counts L2D CACHE caused by read access."
+        "BriefDescription": "This event counts L2D_CACHE caused by read access."
     },
     {
         "ArchStdEvent": "L2D_CACHE_WR",
-        "BriefDescription": "This event counts L2D CACHE caused by write access."
+        "BriefDescription": "This event counts L2D_CACHE caused by write access."
     },
     {
         "ArchStdEvent": "L2D_CACHE_REFILL_RD",
-        "BriefDescription": "This event counts L2D CACHE_REFILL caused by read access."
+        "BriefDescription": "This event counts L2D_CACHE_REFILL caused by read access."
     },
     {
         "ArchStdEvent": "L2D_CACHE_REFILL_WR",
-        "BriefDescription": "This event counts L2D CACHE_REFILL caused by write access."
+        "BriefDescription": "This event counts L2D_CACHE_REFILL caused by write access."
     },
     {
         "ArchStdEvent": "L2D_CACHE_WB_VICTIM",
@@ -57,7 +57,7 @@
     {
         "EventCode": "0x0305",
         "EventName": "L2D_CACHE_HWPRF_ADJACENT",
-        "BriefDescription": "This event counts L2D_CACHE caused by hardware adjacent prefetch access."
+        "BriefDescription": "This event counts L2D_CACHE caused by hardware adjacent prefetch."
     },
     {
         "EventCode": "0x0308",
@@ -111,7 +111,7 @@
     },
     {
         "ArchStdEvent": "L2D_CACHE_LMISS_RD",
-        "BriefDescription": "This event counts operations that cause a refill of the L2D cache that incurs additional latency."
+        "BriefDescription": "This event counts operations that cause a refill of the L2 cache that incurs additional latency."
     },
     {
         "ArchStdEvent": "L2D_CACHE_MISS",
@@ -119,23 +119,23 @@
     },
     {
         "ArchStdEvent": "L2D_CACHE_HWPRF",
-        "BriefDescription": "This event counts access counted by L2D_CACHE that is due to a hardware prefetch."
+        "BriefDescription": "This event counts L2D_CACHE caused by hardware prefetch."
     },
     {
         "ArchStdEvent": "L2D_CACHE_REFILL_HWPRF",
-        "BriefDescription": "This event counts hardware prefetch counted by L2D_CACHE_HWPRF that causes a refill of the Level 2 cache, or any Level 1 data and instruction cache of this PE, from outside of those caches."
+        "BriefDescription": "This event counts L2D_CACHE_REFILL caused by hardware prefetch."
     },
     {
         "ArchStdEvent": "L2D_CACHE_HIT_RD",
-        "BriefDescription": "This event counts demand read counted by L2D_CACHE_RD that hits in the Level 2 data cache."
+        "BriefDescription": "This event counts demand read counted by L2D_CACHE_RD that hits in the Level 2 cache."
     },
     {
         "ArchStdEvent": "L2D_CACHE_HIT_WR",
-        "BriefDescription": "This event counts demand write counted by L2D_CACHE_WR that hits in the Level 2 data cache."
+        "BriefDescription": "This event counts demand write counted by L2D_CACHE_WR that hits in the Level 2 cache."
     },
     {
         "ArchStdEvent": "L2D_CACHE_HIT",
-        "BriefDescription": "This event counts access counted by L2D_CACHE that hits in the Level 2 data cache."
+        "BriefDescription": "This event counts access counted by L2D_CACHE that hits in the Level 2 cache."
     },
     {
         "ArchStdEvent": "L2D_LFB_HIT_RD",
@@ -147,14 +147,14 @@
     },
     {
         "ArchStdEvent": "L2D_CACHE_PRF",
-        "BriefDescription": "This event counts fetch counted by either Level 2 data hardware prefetch or Level 2 data software prefetch."
+        "BriefDescription": "This event counts L2D_CACHE caused by hardware prefetch or software prefetch."
     },
     {
         "ArchStdEvent": "L2D_CACHE_REFILL_PRF",
-        "BriefDescription": "This event counts hardware prefetch counted by L2D_CACHE_PRF that causes a refill of the Level 2 data cache from outside of the Level 1 data cache."
+        "BriefDescription": "This event counts L2D_CACHE_REFILL caused by hardware prefetch or software prefetch."
     },
     {
         "ArchStdEvent": "L2D_CACHE_REFILL_PERCYC",
-        "BriefDescription": "The counter counts by the number of cache refills counted by L2D_CACHE_REFILL in progress on each Processor cycle."
+        "BriefDescription": "This counter counts by the number of cache refills counted by L2D_CACHE_REFILL in progress on each Processor cycle."
     }
 ]

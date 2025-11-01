@@ -62,7 +62,7 @@
 		regulator-max-microvolt = <3700000>;
 	};
 
-	i2c_pmic: i2c-pmic {
+	i2c_pmic: i2c-3 {
 		compatible = "i2c-gpio";
 		sda-gpios = <&gpj4 0 GPIO_ACTIVE_HIGH>;
 		scl-gpios = <&gpj4 3 GPIO_ACTIVE_HIGH>;

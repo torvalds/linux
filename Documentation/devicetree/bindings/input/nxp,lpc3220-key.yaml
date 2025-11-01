@@ -1,0 +1,61 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/input/nxp,lpc3220-key.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NXP LPC32xx Key Scan Interface
+
+maintainers:
+  - Frank Li <Frank.Li@nxp.com>
+
+properties:
+  compatible:
+    const: nxp,lpc3220-key
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  nxp,debounce-delay-ms:
+    description: Debounce delay in ms
+
+  nxp,scan-delay-ms:
+    description: Repeated scan period in ms
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - nxp,debounce-delay-ms
+  - nxp,scan-delay-ms
+  - linux,keymap
+
+allOf:
+  - $ref: matrix-keymap.yaml#
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/clock/lpc32xx-clock.h>
+
+    key@40050000 {
+        compatible = "nxp,lpc3220-key";
+        reg = <0x40050000 0x1000>;
+        clocks = <&clk LPC32XX_CLK_KEY>;
+        interrupt-parent = <&sic1>;
+        interrupts = <22 IRQ_TYPE_LEVEL_HIGH>;
+        keypad,num-rows = <1>;
+        keypad,num-columns = <1>;
+        nxp,debounce-delay-ms = <3>;
+        nxp,scan-delay-ms = <34>;
+        linux,keymap = <0x00000002>;
+    };

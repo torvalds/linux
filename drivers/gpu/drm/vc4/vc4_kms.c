@@ -530,6 +530,7 @@ static int vc4_atomic_commit_setup(struct drm_atomic_state *state)
 
 static struct drm_framebuffer *vc4_fb_create(struct drm_device *dev,
 					     struct drm_file *file_priv,
+					     const struct drm_format_info *info,
 					     const struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
@@ -568,7 +569,7 @@ static struct drm_framebuffer *vc4_fb_create(struct drm_device *dev,
 		mode_cmd = &mode_cmd_local;
 	}
 
-	return drm_gem_fb_create(dev, file_priv, mode_cmd);
+	return drm_gem_fb_create(dev, file_priv, info, mode_cmd);
 }
 
 /* Our CTM has some peculiar limitations: we can only enable it for one CRTC

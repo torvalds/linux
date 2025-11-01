@@ -102,8 +102,6 @@ struct ia_css_yuvpp_settings {
 struct osys_object;
 
 struct ia_css_pipe {
-	/* TODO: Remove stop_requested and use stop_requested in the pipeline */
-	bool                            stop_requested;
 	struct ia_css_pipe_config       config;
 	struct ia_css_pipe_extra_config extra_config;
 	struct ia_css_pipe_info         info;

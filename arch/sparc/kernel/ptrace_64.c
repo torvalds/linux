@@ -420,7 +420,7 @@ static const struct user_regset sparc64_regsets[] = {
 	 *	TSTATE, TPC, TNPC, Y
 	 */
 	[REGSET_GENERAL] = {
-		.core_note_type = NT_PRSTATUS,
+		USER_REGSET_NOTE_TYPE(PRSTATUS),
 		.n = 36,
 		.size = sizeof(u64), .align = sizeof(u64),
 		.regset_get = genregs64_get, .set = genregs64_set
@@ -432,7 +432,7 @@ static const struct user_regset sparc64_regsets[] = {
 	 *	FPRS
 	 */
 	[REGSET_FP] = {
-		.core_note_type = NT_PRFPREG,
+		USER_REGSET_NOTE_TYPE(PRFPREG),
 		.n = 35,
 		.size = sizeof(u64), .align = sizeof(u64),
 		.regset_get = fpregs64_get, .set = fpregs64_set
@@ -750,7 +750,7 @@ static const struct user_regset sparc32_regsets[] = {
 	 *	PSR, PC, nPC, Y, WIM, TBR
 	 */
 	[REGSET_GENERAL] = {
-		.core_note_type = NT_PRSTATUS,
+		USER_REGSET_NOTE_TYPE(PRSTATUS),
 		.n = 38,
 		.size = sizeof(u32), .align = sizeof(u32),
 		.regset_get = genregs32_get, .set = genregs32_set
@@ -766,7 +766,7 @@ static const struct user_regset sparc32_regsets[] = {
 	 *	FPU QUEUE (64 32-bit ints)
 	 */
 	[REGSET_FP] = {
-		.core_note_type = NT_PRFPREG,
+		USER_REGSET_NOTE_TYPE(PRFPREG),
 		.n = 99,
 		.size = sizeof(u32), .align = sizeof(u32),
 		.regset_get = fpregs32_get, .set = fpregs32_set

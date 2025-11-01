@@ -38,10 +38,12 @@
 #include "print_insn.h"
 #include "archinsn.h"
 #include <linux/bitmap.h>
+#include <linux/compiler.h>
 #include <linux/kernel.h>
 #include <linux/stringify.h>
 #include <linux/time64.h>
 #include <linux/zalloc.h>
+#include <linux/unaligned.h>
 #include <sys/utsname.h>
 #include "asm/bug.h"
 #include "util/mem-events.h"
@@ -50,6 +52,7 @@
 #include <errno.h>
 #include <inttypes.h>
 #include <signal.h>
+#include <stdio.h>
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -221,7 +224,7 @@ enum {
 	OUTPUT_TYPE_MAX
 };
 
-// We need to refactor the evsel->priv use in in 'perf script' to allow for
+// We need to refactor the evsel->priv use in 'perf script' to allow for
 // using that area, that is being used only in some cases.
 #define OUTPUT_TYPE_UNSET -1
 
@@ -712,7 +715,7 @@ static int perf_session__check_output_opt(struct perf_session *session)
 		}
 	}
 
-	if (tod && !session->header.env.clock.enabled) {
+	if (tod && !perf_session__env(session)->clock.enabled) {
 		pr_err("Can't provide 'tod' time, missing clock data. "
 		       "Please record with -k/--clockid option.\n");
 		return -1;
@@ -757,7 +760,7 @@ tod_scnprintf(struct perf_script *script, char *buf, int buflen,
 	if (buflen < 64 || !script)
 		return buf;
 
-	env = &script->session->header.env;
+	env = perf_session__env(script->session);
 	if (!env->clock.enabled) {
 		scnprintf(buf, buflen, "disabled");
 		return buf;
@@ -1222,7 +1225,6 @@ static int any_dump_insn(struct evsel *evsel __maybe_unused,
 			 u8 *inbuf, int inlen, int *lenp,
 			 FILE *fp)
 {
-#ifdef HAVE_LIBCAPSTONE_SUPPORT
 	if (PRINT_FIELD(BRSTACKDISASM)) {
 		int printed = fprintf_insn_asm(x->machine, x->thread, x->cpumode, x->is64bit,
 					       (uint8_t *)inbuf, inlen, ip, lenp,
@@ -1231,7 +1233,6 @@ static int any_dump_insn(struct evsel *evsel __maybe_unused,
 		if (printed > 0)
 			return printed;
 	}
-#endif
 	return fprintf(fp, "%s", dump_insn(x, ip, inbuf, inlen, lenp));
 }
 
@@ -2001,6 +2002,33 @@ static int perf_sample__fprintf_synth_iflag_chg(struct perf_sample *sample, FILE
 	return len + perf_sample__fprintf_pt_spacing(len, fp);
 }
 
+#ifdef HAVE_AUXTRACE_SUPPORT
+static int perf_sample__fprintf_synth_vpadtl(struct perf_sample *data, FILE *fp)
+{
+	struct powerpc_vpadtl_entry *dtl = (struct powerpc_vpadtl_entry *)data->raw_data;
+	int len;
+
+	len = fprintf(fp, "timebase: %" PRIu64 " dispatch_reason:%s, preempt_reason:%s,\n"
+			"enqueue_to_dispatch_time:%d, ready_to_enqueue_time:%d,"
+			"waiting_to_ready_time:%d, processor_id: %d",
+			get_unaligned_be64(&dtl->timebase),
+			dispatch_reasons[dtl->dispatch_reason],
+			preempt_reasons[dtl->preempt_reason],
+			be32_to_cpu(dtl->enqueue_to_dispatch_time),
+			be32_to_cpu(dtl->ready_to_enqueue_time),
+			be32_to_cpu(dtl->waiting_to_ready_time),
+			be16_to_cpu(dtl->processor_id));
+
+	return len;
+}
+#else
+static int perf_sample__fprintf_synth_vpadtl(struct perf_sample *data __maybe_unused,
+		FILE *fp __maybe_unused)
+{
+	return 0;
+}
+#endif
+
 static int perf_sample__fprintf_synth(struct perf_sample *sample,
 				      struct evsel *evsel, FILE *fp)
 {
@@ -2023,6 +2051,8 @@ static int perf_sample__fprintf_synth(struct perf_sample *sample,
 		return perf_sample__fprintf_synth_evt(sample, fp);
 	case PERF_SYNTH_INTEL_IFLAG_CHG:
 		return perf_sample__fprintf_synth_iflag_chg(sample, fp);
+	case PERF_SYNTH_POWERPC_VPA_DTL:
+		return perf_sample__fprintf_synth_vpadtl(sample, fp);
 	default:
 		break;
 	}
@@ -2134,8 +2164,7 @@ static void perf_sample__fprint_metric(struct perf_script *script,
 			perf_stat__print_shadow_stats(&stat_config, ev2,
 						      evsel_script(ev2)->val,
 						      sample->cpu,
-						      &ctx,
-						      NULL);
+						      &ctx);
 		}
 		evsel_script(leader)->gnum = 0;
 	}
@@ -2251,7 +2280,7 @@ static void process_event(struct perf_script *script,
 		fprintf(fp, "%16" PRIu16, sample->ins_lat);
 
 	if (PRINT_FIELD(RETIRE_LAT))
-		fprintf(fp, "%16" PRIu16, sample->retire_lat);
+		fprintf(fp, "%16" PRIu16, sample->weight3);
 
 	if (PRINT_FIELD(CGROUP)) {
 		const char *cgrp_name;
@@ -2533,7 +2562,7 @@ static int process_attr(const struct perf_tool *tool, union perf_event *event,
 	 * on events sample_type.
 	 */
 	sample_type = evlist__combined_sample_type(evlist);
-	callchain_param_setup(sample_type, perf_env__arch((*pevlist)->env));
+	callchain_param_setup(sample_type, perf_env__arch(perf_session__env(scr->session)));
 
 	/* Enable fields for callchain entries */
 	if (symbol_conf.use_callchain &&
@@ -2755,6 +2784,14 @@ process_bpf_events(const struct perf_tool *tool __maybe_unused,
 			   sample->tid);
 }
 
+static int
+process_bpf_metadata_event(struct perf_session *session __maybe_unused,
+			   union perf_event *event)
+{
+	perf_event__fprintf(event, NULL, stdout);
+	return 0;
+}
+
 static int process_text_poke_events(const struct perf_tool *tool,
 				    union perf_event *event,
 				    struct perf_sample *sample,
@@ -2877,8 +2914,9 @@ static int __cmd_script(struct perf_script *script)
 		script->tool.finished_round = process_finished_round_event;
 	}
 	if (script->show_bpf_events) {
-		script->tool.ksymbol = process_bpf_events;
-		script->tool.bpf     = process_bpf_events;
+		script->tool.ksymbol	  = process_bpf_events;
+		script->tool.bpf	  = process_bpf_events;
+		script->tool.bpf_metadata = process_bpf_metadata_event;
 	}
 	if (script->show_text_poke_events) {
 		script->tool.ksymbol   = process_bpf_events;
@@ -3853,6 +3891,7 @@ int cmd_script(int argc, const char **argv)
 		"perf script [<options>] <top-script> [script-args]",
 		NULL
 	};
+	struct perf_env *env;
 
 	perf_set_singlethreaded();
 
@@ -4099,6 +4138,7 @@ script_found:
 	if (IS_ERR(session))
 		return PTR_ERR(session);
 
+	env = perf_session__env(session);
 	if (header || header_only) {
 		script.tool.show_feat_hdr = SHOW_FEAT_HEADER;
 		perf_session__fprintf_info(session, stdout, show_full_info);
@@ -4108,17 +4148,17 @@ script_found:
 	if (show_full_info)
 		script.tool.show_feat_hdr = SHOW_FEAT_HEADER_FULL_INFO;
 
-	if (symbol__init(&session->header.env) < 0)
+	if (symbol__init(env) < 0)
 		goto out_delete;
 
 	uname(&uts);
 	if (data.is_pipe) { /* Assume pipe_mode indicates native_arch */
 		native_arch = true;
-	} else if (session->header.env.arch) {
-		if (!strcmp(uts.machine, session->header.env.arch))
+	} else if (env->arch) {
+		if (!strcmp(uts.machine, env->arch))
 			native_arch = true;
 		else if (!strcmp(uts.machine, "x86_64") &&
-			 !strcmp(session->header.env.arch, "i386"))
+			 !strcmp(env->arch, "i386"))
 			native_arch = true;
 	}
 

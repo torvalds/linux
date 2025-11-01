@@ -497,15 +497,19 @@ static int synic_set_irq(struct kvm_vcpu_hv_synic *synic, u32 sint)
 	return ret;
 }
 
-int kvm_hv_synic_set_irq(struct kvm *kvm, u32 vpidx, u32 sint)
+int kvm_hv_synic_set_irq(struct kvm_kernel_irq_routing_entry *e, struct kvm *kvm,
+			 int irq_source_id, int level, bool line_status)
 {
 	struct kvm_vcpu_hv_synic *synic;
 
-	synic = synic_get(kvm, vpidx);
+	if (!level)
+		return -1;
+
+	synic = synic_get(kvm, e->hv_sint.vcpu);
 	if (!synic)
 		return -EINVAL;
 
-	return synic_set_irq(synic, sint);
+	return synic_set_irq(synic, e->hv_sint.sint);
 }
 
 void kvm_hv_synic_send_eoi(struct kvm_vcpu *vcpu, int vector)
@@ -919,7 +923,7 @@ bool kvm_hv_assist_page_enabled(struct kvm_vcpu *vcpu)
 		return false;
 	return vcpu->arch.pv_eoi.msr_val & KVM_MSR_ENABLED;
 }
-EXPORT_SYMBOL_GPL(kvm_hv_assist_page_enabled);
+EXPORT_SYMBOL_FOR_KVM_INTERNAL(kvm_hv_assist_page_enabled);
 
 int kvm_hv_get_assist_page(struct kvm_vcpu *vcpu)
 {
@@ -931,7 +935,7 @@ int kvm_hv_get_assist_page(struct kvm_vcpu *vcpu)
 	return kvm_read_guest_cached(vcpu->kvm, &vcpu->arch.pv_eoi.data,
 				     &hv_vcpu->vp_assist_page, sizeof(struct hv_vp_assist_page));
 }
-EXPORT_SYMBOL_GPL(kvm_hv_get_assist_page);
+EXPORT_SYMBOL_FOR_KVM_INTERNAL(kvm_hv_get_assist_page);
 
 static void stimer_prepare_msg(struct kvm_vcpu_hv_stimer *stimer)
 {
@@ -1164,15 +1168,15 @@ void kvm_hv_setup_tsc_page(struct kvm *kvm,
 	BUILD_BUG_ON(sizeof(tsc_seq) != sizeof(hv->tsc_ref.tsc_sequence));
 	BUILD_BUG_ON(offsetof(struct ms_hyperv_tsc_page, tsc_sequence) != 0);
 
-	mutex_lock(&hv->hv_lock);
+	guard(mutex)(&hv->hv_lock);
 
 	if (hv->hv_tsc_page_status == HV_TSC_PAGE_BROKEN ||
 	    hv->hv_tsc_page_status == HV_TSC_PAGE_SET ||
 	    hv->hv_tsc_page_status == HV_TSC_PAGE_UNSET)
-		goto out_unlock;
+		return;
 
 	if (!(hv->hv_tsc_page & HV_X64_MSR_TSC_REFERENCE_ENABLE))
-		goto out_unlock;
+		return;
 
 	gfn = hv->hv_tsc_page >> HV_X64_MSR_TSC_REFERENCE_ADDRESS_SHIFT;
 	/*
@@ -1188,7 +1192,7 @@ void kvm_hv_setup_tsc_page(struct kvm *kvm,
 			goto out_err;
 
 		hv->hv_tsc_page_status = HV_TSC_PAGE_SET;
-		goto out_unlock;
+		return;
 	}
 
 	/*
@@ -1224,12 +1228,10 @@ void kvm_hv_setup_tsc_page(struct kvm *kvm,
 		goto out_err;
 
 	hv->hv_tsc_page_status = HV_TSC_PAGE_SET;
-	goto out_unlock;
+	return;
 
 out_err:
 	hv->hv_tsc_page_status = HV_TSC_PAGE_BROKEN;
-out_unlock:
-	mutex_unlock(&hv->hv_lock);
 }
 
 void kvm_hv_request_tsc_page_update(struct kvm *kvm)
@@ -1979,6 +1981,9 @@ int kvm_hv_vcpu_flush_tlb(struct kvm_vcpu *vcpu)
 		if (entries[i] == KVM_HV_TLB_FLUSHALL_ENTRY)
 			goto out_flush_all;
 
+		if (is_noncanonical_invlpg_address(entries[i], vcpu))
+			continue;
+
 		/*
 		 * Lower 12 bits of 'address' encode the number of additional
 		 * pages to flush.
@@ -2001,11 +2006,11 @@ out_flush_all:
 static u64 kvm_hv_flush_tlb(struct kvm_vcpu *vcpu, struct kvm_hv_hcall *hc)
 {
 	struct kvm_vcpu_hv *hv_vcpu = to_hv_vcpu(vcpu);
+	unsigned long *vcpu_mask = hv_vcpu->vcpu_mask;
 	u64 *sparse_banks = hv_vcpu->sparse_banks;
 	struct kvm *kvm = vcpu->kvm;
 	struct hv_tlb_flush_ex flush_ex;
 	struct hv_tlb_flush flush;
-	DECLARE_BITMAP(vcpu_mask, KVM_MAX_VCPUS);
 	struct kvm_vcpu_hv_tlb_flush_fifo *tlb_flush_fifo;
 	/*
 	 * Normally, there can be no more than 'KVM_HV_TLB_FLUSH_FIFO_SIZE'

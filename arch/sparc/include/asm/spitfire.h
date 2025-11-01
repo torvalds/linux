@@ -68,7 +68,7 @@
 #define CPU_ID_M8		('8')
 #define CPU_ID_SONOMA1		('N')
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 enum ultra_tlb_layout {
 	spitfire = 0,
@@ -363,6 +363,6 @@ static inline void cheetah_put_itlb_data(int entry, unsigned long data)
 			       "i" (ASI_ITLB_DATA_ACCESS));
 }
 
-#endif /* !(__ASSEMBLY__) */
+#endif /* !(__ASSEMBLER__) */
 #endif /* CONFIG_SPARC64 */
 #endif /* !(_SPARC64_SPITFIRE_H) */

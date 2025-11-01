@@ -88,30 +88,6 @@ enum dscl_mode_sel {
 	DSCL_MODE_DSCL_BYPASS = 6
 };
 
-void dpp401_full_bypass(struct dpp *dpp_base)
-{
-	struct dcn401_dpp *dpp = TO_DCN401_DPP(dpp_base);
-
-	/* Input pixel format: ARGB8888 */
-	REG_SET(CNVC_SURFACE_PIXEL_FORMAT, 0,
-			CNVC_SURFACE_PIXEL_FORMAT, 0x8);
-
-	/* Zero expansion */
-	REG_SET_3(FORMAT_CONTROL, 0,
-			CNVC_BYPASS, 0,
-			FORMAT_CONTROL__ALPHA_EN, 0,
-			FORMAT_EXPANSION_MODE, 0);
-
-	/* COLOR_KEYER_CONTROL.COLOR_KEYER_EN = 0 this should be default */
-	if (dpp->tf_mask->CM_BYPASS_EN)
-		REG_SET(CM_CONTROL, 0, CM_BYPASS_EN, 1);
-	else
-		REG_SET(CM_CONTROL, 0, CM_BYPASS, 1);
-
-	/* Setting degamma bypass for now */
-	REG_SET(CM_DGAM_CONTROL, 0, CM_DGAM_LUT_MODE, 0);
-}
-
 void dpp401_set_cursor_attributes(
 	struct dpp *dpp_base,
 	struct dc_cursor_attributes *cursor_attributes)
@@ -127,17 +103,21 @@ void dpp401_set_cursor_attributes(
 		}
 	}
 
-	REG_UPDATE_3(CURSOR0_CONTROL,
-		CUR0_MODE, color_format,
-		CUR0_EXPANSION_MODE, 0,
-		CUR0_ROM_EN, cur_rom_en);
+	if (!dpp_base->cursor_offload)
+		REG_UPDATE_3(CURSOR0_CONTROL,
+			CUR0_MODE, color_format,
+			CUR0_EXPANSION_MODE, 0,
+			CUR0_ROM_EN, cur_rom_en);
 
 	if (color_format == CURSOR_MODE_MONO) {
 		/* todo: clarify what to program these to */
-		REG_UPDATE(CURSOR0_COLOR0,
-			CUR0_COLOR0, 0x00000000);
-		REG_UPDATE(CURSOR0_COLOR1,
-			CUR0_COLOR1, 0xFFFFFFFF);
+
+		if (!dpp_base->cursor_offload) {
+			REG_UPDATE(CURSOR0_COLOR0,
+				CUR0_COLOR0, 0x00000000);
+			REG_UPDATE(CURSOR0_COLOR1,
+				CUR0_COLOR1, 0xFFFFFFFF);
+		}
 	}
 
 	dpp_base->att.cur0_ctl.bits.expansion_mode = 0;
@@ -156,10 +136,12 @@ void dpp401_set_cursor_position(
 	uint32_t cur_en = pos->enable ? 1 : 0;
 
 	if (dpp_base->pos.cur0_ctl.bits.cur0_enable != cur_en) {
-		REG_UPDATE(CURSOR0_CONTROL, CUR0_ENABLE, cur_en);
-
-		dpp_base->pos.cur0_ctl.bits.cur0_enable = cur_en;
+		if (!dpp_base->cursor_offload)
+			REG_UPDATE(CURSOR0_CONTROL, CUR0_ENABLE, cur_en);
 	}
+
+	dpp_base->pos.cur0_ctl.bits.cur0_enable = cur_en;
+	dpp_base->att.cur0_ctl.bits.cur0_enable = cur_en;
 }
 
 void dpp401_set_optional_cursor_attributes(
@@ -169,10 +151,17 @@ void dpp401_set_optional_cursor_attributes(
 	struct dcn401_dpp *dpp = TO_DCN401_DPP(dpp_base);
 
 	if (attr) {
-		REG_UPDATE(CURSOR0_FP_SCALE_BIAS_G_Y, CUR0_FP_BIAS_G_Y, attr->bias);
-		REG_UPDATE(CURSOR0_FP_SCALE_BIAS_G_Y, CUR0_FP_SCALE_G_Y, attr->scale);
-		REG_UPDATE(CURSOR0_FP_SCALE_BIAS_RB_CRCB, CUR0_FP_BIAS_RB_CRCB, attr->bias);
-		REG_UPDATE(CURSOR0_FP_SCALE_BIAS_RB_CRCB, CUR0_FP_SCALE_RB_CRCB, attr->scale);
+		if (!dpp_base->cursor_offload) {
+			REG_UPDATE(CURSOR0_FP_SCALE_BIAS_G_Y, CUR0_FP_BIAS_G_Y, attr->bias);
+			REG_UPDATE(CURSOR0_FP_SCALE_BIAS_G_Y, CUR0_FP_SCALE_G_Y, attr->scale);
+			REG_UPDATE(CURSOR0_FP_SCALE_BIAS_RB_CRCB, CUR0_FP_BIAS_RB_CRCB, attr->bias);
+			REG_UPDATE(CURSOR0_FP_SCALE_BIAS_RB_CRCB, CUR0_FP_SCALE_RB_CRCB, attr->scale);
+		}
+
+		dpp_base->att.fp_scale_bias_g_y.bits.fp_bias_g_y = attr->bias;
+		dpp_base->att.fp_scale_bias_g_y.bits.fp_scale_g_y = attr->scale;
+		dpp_base->att.fp_scale_bias_rb_crcb.bits.fp_bias_rb_crcb = attr->bias;
+		dpp_base->att.fp_scale_bias_rb_crcb.bits.fp_scale_rb_crcb = attr->scale;
 	}
 }
 

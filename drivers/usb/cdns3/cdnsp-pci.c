@@ -85,7 +85,7 @@ static int cdnsp_pci_probe(struct pci_dev *pdev,
 		cdnsp = kzalloc(sizeof(*cdnsp), GFP_KERNEL);
 		if (!cdnsp) {
 			ret = -ENOMEM;
-			goto disable_pci;
+			goto put_pci;
 		}
 	}
 
@@ -167,9 +167,6 @@ static int cdnsp_pci_probe(struct pci_dev *pdev,
 free_cdnsp:
 	if (!pci_is_enabled(func))
 		kfree(cdnsp);
-
-disable_pci:
-	pci_disable_device(pdev);
 
 put_pci:
 	pci_dev_put(func);

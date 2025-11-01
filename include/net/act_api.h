@@ -33,7 +33,10 @@ struct tc_action {
 	struct tcf_t			tcfa_tm;
 	struct gnet_stats_basic_sync	tcfa_bstats;
 	struct gnet_stats_basic_sync	tcfa_bstats_hw;
-	struct gnet_stats_queue		tcfa_qstats;
+
+	atomic_t			tcfa_drops;
+	atomic_t			tcfa_overlimits;
+
 	struct net_rate_estimator __rcu *tcfa_rate_est;
 	spinlock_t			tcfa_lock;
 	struct gnet_stats_basic_sync __percpu *cpu_bstats;
@@ -53,7 +56,6 @@ struct tc_action {
 #define tcf_action	common.tcfa_action
 #define tcf_tm		common.tcfa_tm
 #define tcf_bstats	common.tcfa_bstats
-#define tcf_qstats	common.tcfa_qstats
 #define tcf_rate_est	common.tcfa_rate_est
 #define tcf_lock	common.tcfa_lock
 
@@ -76,19 +78,24 @@ static inline void tcf_lastuse_update(struct tcf_t *tm)
 {
 	unsigned long now = jiffies;
 
-	if (tm->lastuse != now)
-		tm->lastuse = now;
-	if (unlikely(!tm->firstuse))
-		tm->firstuse = now;
+	if (READ_ONCE(tm->lastuse) != now)
+		WRITE_ONCE(tm->lastuse, now);
+	if (unlikely(!READ_ONCE(tm->firstuse)))
+		WRITE_ONCE(tm->firstuse, now);
 }
 
 static inline void tcf_tm_dump(struct tcf_t *dtm, const struct tcf_t *stm)
 {
-	dtm->install = jiffies_to_clock_t(jiffies - stm->install);
-	dtm->lastuse = jiffies_to_clock_t(jiffies - stm->lastuse);
-	dtm->firstuse = stm->firstuse ?
-		jiffies_to_clock_t(jiffies - stm->firstuse) : 0;
-	dtm->expires = jiffies_to_clock_t(stm->expires);
+	unsigned long firstuse, now = jiffies;
+
+	dtm->install = jiffies_to_clock_t(now - READ_ONCE(stm->install));
+	dtm->lastuse = jiffies_to_clock_t(now - READ_ONCE(stm->lastuse));
+
+	firstuse = READ_ONCE(stm->firstuse);
+	dtm->firstuse = firstuse ?
+		jiffies_to_clock_t(now - firstuse) : 0;
+
+	dtm->expires = jiffies_to_clock_t(READ_ONCE(stm->expires));
 }
 
 static inline enum flow_action_hw_stats tc_act_hw_stats(u8 hw_stats)
@@ -170,14 +177,12 @@ static inline void tc_action_net_exit(struct list_head *net_list,
 {
 	struct net *net;
 
-	rtnl_lock();
 	list_for_each_entry(net, net_list, exit_list) {
 		struct tc_action_net *tn = net_generic(net, id);
 
 		tcf_idrinfo_destroy(tn->ops, tn->idrinfo);
 		kfree(tn->idrinfo);
 	}
-	rtnl_unlock();
 }
 
 int tcf_generic_walker(struct tc_action_net *tn, struct sk_buff *skb,
@@ -238,9 +243,7 @@ static inline void tcf_action_inc_drop_qstats(struct tc_action *a)
 		qstats_drop_inc(this_cpu_ptr(a->cpu_qstats));
 		return;
 	}
-	spin_lock(&a->tcfa_lock);
-	qstats_drop_inc(&a->tcfa_qstats);
-	spin_unlock(&a->tcfa_lock);
+	atomic_inc(&a->tcfa_drops);
 }
 
 static inline void tcf_action_inc_overlimit_qstats(struct tc_action *a)
@@ -249,9 +252,7 @@ static inline void tcf_action_inc_overlimit_qstats(struct tc_action *a)
 		qstats_overlimit_inc(this_cpu_ptr(a->cpu_qstats));
 		return;
 	}
-	spin_lock(&a->tcfa_lock);
-	qstats_overlimit_inc(&a->tcfa_qstats);
-	spin_unlock(&a->tcfa_lock);
+	atomic_inc(&a->tcfa_overlimits);
 }
 
 void tcf_action_update_stats(struct tc_action *a, u64 bytes, u64 packets,

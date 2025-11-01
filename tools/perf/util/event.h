@@ -117,6 +117,7 @@ enum perf_synth_id {
 	PERF_SYNTH_INTEL_PSB,
 	PERF_SYNTH_INTEL_EVT,
 	PERF_SYNTH_INTEL_IFLAG_CHG,
+	PERF_SYNTH_POWERPC_VPA_DTL,
 };
 
 /*
@@ -254,6 +255,25 @@ struct perf_synth_intel_iflag_chg {
 	u64	branch_ip; /* If via_branch */
 };
 
+/*
+ * The powerpc VPA DTL entries are of below format
+ */
+struct powerpc_vpadtl_entry {
+	u8      dispatch_reason;
+	u8      preempt_reason;
+	u16     processor_id;
+	u32     enqueue_to_dispatch_time;
+	u32     ready_to_enqueue_time;
+	u32     waiting_to_ready_time;
+	u64     timebase;
+	u64     fault_addr;
+	u64     srr0;
+	u64     srr1;
+};
+
+extern const char *dispatch_reasons[11];
+extern const char *preempt_reasons[10];
+
 static inline void *perf_synth__raw_data(void *p)
 {
 	return p + 4;
@@ -370,6 +390,7 @@ size_t perf_event__fprintf_namespaces(union perf_event *event, FILE *fp);
 size_t perf_event__fprintf_cgroup(union perf_event *event, FILE *fp);
 size_t perf_event__fprintf_ksymbol(union perf_event *event, FILE *fp);
 size_t perf_event__fprintf_bpf(union perf_event *event, FILE *fp);
+size_t perf_event__fprintf_bpf_metadata(union perf_event *event, FILE *fp);
 size_t perf_event__fprintf_text_poke(union perf_event *event, struct machine *machine,FILE *fp);
 size_t perf_event__fprintf(union perf_event *event, struct machine *machine, FILE *fp);
 
@@ -389,11 +410,6 @@ extern unsigned int proc_map_timeout;
 
 #define PAGE_SIZE_NAME_LEN	32
 char *get_page_size_name(u64 size, char *str);
-
-void arch_perf_parse_sample_weight(struct perf_sample *data, const __u64 *array, u64 type);
-void arch_perf_synthesize_sample_weight(const struct perf_sample *data, __u64 *array, u64 type);
-const char *arch_perf_header_entry(const char *se_header);
-int arch_support_sort_key(const char *sort_key);
 
 static inline bool perf_event_header__cpumode_is_guest(u8 cpumode)
 {

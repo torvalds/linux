@@ -31,13 +31,6 @@
 #define CHECK_BINSEARCH__
 
 /*
- * If EXT_STATS is defined then stats numbers are collected.
- * These number will be displayed at umount time.
- */
-#define EXT_STATS_
-
-
-/*
  * ext4_inode has i_block array (60 bytes total).
  * The first 12 bytes store ext4_extent_header;
  * the remainder stores an array of ext4_extent.

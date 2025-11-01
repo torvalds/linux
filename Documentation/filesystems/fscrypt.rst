@@ -147,9 +147,8 @@ However, these ioctls have some limitations:
   were wiped.  To partially solve this, you can add init_on_free=1 to
   your kernel command line.  However, this has a performance cost.
 
-- Secret keys might still exist in CPU registers, in crypto
-  accelerator hardware (if used by the crypto API to implement any of
-  the algorithms), or in other places not explicitly considered here.
+- Secret keys might still exist in CPU registers or in other places
+  not explicitly considered here.
 
 Full system compromise
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -406,9 +405,12 @@ the work is done by XChaCha12, which is much faster than AES when AES
 acceleration is unavailable.  For more information about Adiantum, see
 `the Adiantum paper <https://eprint.iacr.org/2018/720.pdf>`_.
 
-The (AES-128-CBC-ESSIV, AES-128-CBC-CTS) pair exists only to support
-systems whose only form of AES acceleration is an off-CPU crypto
-accelerator such as CAAM or CESA that does not support XTS.
+The (AES-128-CBC-ESSIV, AES-128-CBC-CTS) pair was added to try to
+provide a more efficient option for systems that lack AES instructions
+in the CPU but do have a non-inline crypto engine such as CAAM or CESA
+that supports AES-CBC (and not AES-XTS).  This is deprecated.  It has
+been shown that just doing AES on the CPU is actually faster.
+Moreover, Adiantum is faster still and is recommended on such systems.
 
 The remaining mode pairs are the "national pride ciphers":
 
@@ -467,14 +469,6 @@ API, but the filenames mode still does.
         - CONFIG_CRYPTO_SHA256 or another SHA-256 implementation
     - Recommended:
         - AES-CBC acceleration
-
-fscrypt also uses HMAC-SHA512 for key derivation, so enabling SHA-512
-acceleration is recommended:
-
-- SHA-512
-    - Recommended:
-        - arm64: CONFIG_CRYPTO_SHA512_ARM64_CE
-        - x86: CONFIG_CRYPTO_SHA512_SSSE3
 
 Contents encryption
 -------------------
@@ -1326,22 +1320,13 @@ this by validating all top-level encryption policies prior to access.
 Inline encryption support
 =========================
 
-By default, fscrypt uses the kernel crypto API for all cryptographic
-operations (other than HKDF, which fscrypt partially implements
-itself).  The kernel crypto API supports hardware crypto accelerators,
-but only ones that work in the traditional way where all inputs and
-outputs (e.g. plaintexts and ciphertexts) are in memory.  fscrypt can
-take advantage of such hardware, but the traditional acceleration
-model isn't particularly efficient and fscrypt hasn't been optimized
-for it.
-
-Instead, many newer systems (especially mobile SoCs) have *inline
-encryption hardware* that can encrypt/decrypt data while it is on its
-way to/from the storage device.  Linux supports inline encryption
-through a set of extensions to the block layer called *blk-crypto*.
-blk-crypto allows filesystems to attach encryption contexts to bios
-(I/O requests) to specify how the data will be encrypted or decrypted
-in-line.  For more information about blk-crypto, see
+Many newer systems (especially mobile SoCs) have *inline encryption
+hardware* that can encrypt/decrypt data while it is on its way to/from
+the storage device.  Linux supports inline encryption through a set of
+extensions to the block layer called *blk-crypto*.  blk-crypto allows
+filesystems to attach encryption contexts to bios (I/O requests) to
+specify how the data will be encrypted or decrypted in-line.  For more
+information about blk-crypto, see
 :ref:`Documentation/block/inline-encryption.rst <inline_encryption>`.
 
 On supported filesystems (currently ext4 and f2fs), fscrypt can use

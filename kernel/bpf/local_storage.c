@@ -165,7 +165,7 @@ static long cgroup_storage_update_elem(struct bpf_map *map, void *key,
 	}
 
 	new = bpf_map_kmalloc_node(map, struct_size(new, data, map->value_size),
-				   __GFP_ZERO | GFP_NOWAIT | __GFP_NOWARN,
+				   __GFP_ZERO | GFP_NOWAIT,
 				   map->numa_node);
 	if (!new)
 		return -ENOMEM;
@@ -394,17 +394,10 @@ static int cgroup_storage_check_btf(const struct bpf_map *map,
 		if (!btf_member_is_reg_int(btf, key_type, m, offset, size))
 			return -EINVAL;
 	} else {
-		u32 int_data;
-
 		/*
 		 * Key is expected to be u64, which stores the cgroup_inode_id
 		 */
-
-		if (BTF_INFO_KIND(key_type->info) != BTF_KIND_INT)
-			return -EINVAL;
-
-		int_data = *(u32 *)(key_type + 1);
-		if (BTF_INT_BITS(int_data) != 64 || BTF_INT_OFFSET(int_data))
+		if (!btf_type_is_i64(key_type))
 			return -EINVAL;
 	}
 

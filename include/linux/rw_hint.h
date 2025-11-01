@@ -14,6 +14,7 @@ enum rw_hint {
 	WRITE_LIFE_MEDIUM	= RWH_WRITE_LIFE_MEDIUM,
 	WRITE_LIFE_LONG		= RWH_WRITE_LIFE_LONG,
 	WRITE_LIFE_EXTREME	= RWH_WRITE_LIFE_EXTREME,
+	WRITE_LIFE_HINT_NR,
 } __packed;
 
 /* Sparse ignores __packed annotations on enums, hence the #ifndef below. */

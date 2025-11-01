@@ -12,11 +12,22 @@ void test_fentry_fexit(void)
 	int err, prog_fd, i;
 	LIBBPF_OPTS(bpf_test_run_opts, topts);
 
-	fentry_skel = fentry_test_lskel__open_and_load();
+	fentry_skel = fentry_test_lskel__open();
 	if (!ASSERT_OK_PTR(fentry_skel, "fentry_skel_load"))
 		goto close_prog;
-	fexit_skel = fexit_test_lskel__open_and_load();
+
+	fentry_skel->keyring_id	= KEY_SPEC_SESSION_KEYRING;
+	err = fentry_test_lskel__load(fentry_skel);
+	if (!ASSERT_OK(err, "fentry_skel_load"))
+		goto close_prog;
+
+	fexit_skel = fexit_test_lskel__open();
 	if (!ASSERT_OK_PTR(fexit_skel, "fexit_skel_load"))
+		goto close_prog;
+
+	fexit_skel->keyring_id	= KEY_SPEC_SESSION_KEYRING;
+	err = fexit_test_lskel__load(fexit_skel);
+	if (!ASSERT_OK(err, "fexit_skel_load"))
 		goto close_prog;
 
 	err = fentry_test_lskel__attach(fentry_skel);

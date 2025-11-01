@@ -117,10 +117,13 @@ int ksmbd_vfs_xattr_stream_name(char *stream_name, char **xattr_stream_name,
 int ksmbd_vfs_remove_xattr(struct mnt_idmap *idmap,
 			   const struct path *path, char *attr_name,
 			   bool get_write);
+int ksmbd_vfs_kern_path(struct ksmbd_work *work, char *name,
+			unsigned int flags,
+			struct path *path, bool caseless);
 int ksmbd_vfs_kern_path_locked(struct ksmbd_work *work, char *name,
-			       unsigned int flags, struct path *parent_path,
+			       unsigned int flags,
 			       struct path *path, bool caseless);
-void ksmbd_vfs_kern_path_unlock(struct path *parent_path, struct path *path);
+void ksmbd_vfs_kern_path_unlock(const struct path *path);
 struct dentry *ksmbd_vfs_kern_path_create(struct ksmbd_work *work,
 					  const char *name,
 					  unsigned int flags,
@@ -161,8 +164,8 @@ int ksmbd_vfs_get_dos_attrib_xattr(struct mnt_idmap *idmap,
 				   struct dentry *dentry,
 				   struct xattr_dos_attrib *da);
 int ksmbd_vfs_set_init_posix_acl(struct mnt_idmap *idmap,
-				 struct path *path);
+				 const struct path *path);
 int ksmbd_vfs_inherit_posix_acl(struct mnt_idmap *idmap,
-				struct path *path,
+				const struct path *path,
 				struct inode *parent_inode);
 #endif /* __KSMBD_VFS_H__ */

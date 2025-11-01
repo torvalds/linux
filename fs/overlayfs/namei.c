@@ -230,12 +230,26 @@ static int ovl_lookup_single(struct dentry *base, struct ovl_lookup_data *d,
 			     struct dentry **ret, bool drop_negative)
 {
 	struct ovl_fs *ofs = OVL_FS(d->sb);
-	struct dentry *this;
+	struct dentry *this = NULL;
+	const char *warn;
 	struct path path;
 	int err;
 	bool last_element = !post[0];
 	bool is_upper = d->layer->idx == 0;
 	char val;
+
+	/*
+	 * We allow filesystems that are case-folding capable as long as the
+	 * layers are consistently enabled in the stack, enabled for every dir
+	 * or disabled in all dirs. If someone has modified case folding on a
+	 * directory on underlying layer, the warranty of the ovl stack is
+	 * voided.
+	 */
+	if (ofs->casefold != ovl_dentry_casefolded(base)) {
+		warn = "parent wrong casefold";
+		err = -ESTALE;
+		goto out_warn;
+	}
 
 	this = ovl_lookup_positive_unlocked(d, name, base, namelen, drop_negative);
 	if (IS_ERR(this)) {
@@ -246,10 +260,17 @@ static int ovl_lookup_single(struct dentry *base, struct ovl_lookup_data *d,
 		goto out_err;
 	}
 
+	if (ofs->casefold != ovl_dentry_casefolded(this)) {
+		warn = "child wrong casefold";
+		err = -EREMOTE;
+		goto out_warn;
+	}
+
 	if (ovl_dentry_weird(this)) {
 		/* Don't support traversing automounts and other weirdness */
+		warn = "unsupported object type";
 		err = -EREMOTE;
-		goto out_err;
+		goto out_warn;
 	}
 
 	path.dentry = this;
@@ -283,8 +304,9 @@ static int ovl_lookup_single(struct dentry *base, struct ovl_lookup_data *d,
 	} else {
 		if (ovl_lookup_trap_inode(d->sb, this)) {
 			/* Caught in a trap of overlapping layers */
+			warn = "overlapping layers";
 			err = -ELOOP;
-			goto out_err;
+			goto out_warn;
 		}
 
 		if (last_element)
@@ -316,6 +338,10 @@ put_and_out:
 	this = NULL;
 	goto out;
 
+out_warn:
+	pr_warn_ratelimited("failed lookup in %s (%pd2, name='%.*s', err=%i): %s\n",
+			    is_upper ? "upper" : "lower", base,
+			    namelen, name, err, warn);
 out_err:
 	dput(this);
 	return err;
@@ -1393,7 +1419,7 @@ out:
 bool ovl_lower_positive(struct dentry *dentry)
 {
 	struct ovl_entry *poe = OVL_E(dentry->d_parent);
-	struct qstr *name = &dentry->d_name;
+	const struct qstr *name = &dentry->d_name;
 	const struct cred *old_cred;
 	unsigned int i;
 	bool positive = false;
@@ -1416,9 +1442,15 @@ bool ovl_lower_positive(struct dentry *dentry)
 		struct dentry *this;
 		struct ovl_path *parentpath = &ovl_lowerstack(poe)[i];
 
+		/*
+		 * We need to make a non-const copy of dentry->d_name,
+		 * because lookup_one_positive_unlocked() will hash name
+		 * with parentpath base, which is on another (lower fs).
+		 */
 		this = lookup_one_positive_unlocked(
 				mnt_idmap(parentpath->layer->mnt),
-				name, parentpath->dentry);
+				&QSTR_LEN(name->name, name->len),
+				parentpath->dentry);
 		if (IS_ERR(this)) {
 			switch (PTR_ERR(this)) {
 			case -ENOENT:

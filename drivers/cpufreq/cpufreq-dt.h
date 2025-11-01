@@ -22,4 +22,6 @@ struct cpufreq_dt_platform_data {
 	int (*resume)(struct cpufreq_policy *policy);
 };
 
+struct platform_device *cpufreq_dt_pdev_register(struct device *dev);
+
 #endif /* __CPUFREQ_DT_H__ */

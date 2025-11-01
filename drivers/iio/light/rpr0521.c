@@ -69,8 +69,6 @@
 #define RPR0521_DEFAULT_MEAS_TIME	0x06 /* ALS - 100ms, PXS - 100ms */
 
 #define RPR0521_DRV_NAME		"RPR0521"
-#define RPR0521_IRQ_NAME		"rpr0521_event"
-#define RPR0521_REGMAP_NAME		"rpr0521_regmap"
 
 #define RPR0521_SLEEP_DELAY_MS	2000
 
@@ -360,12 +358,10 @@ static int rpr0521_set_power_state(struct rpr0521_data *data, bool on,
 	 * Note: If either measurement is re-enabled before _suspend(),
 	 * both stay enabled until _suspend().
 	 */
-	if (on) {
+	if (on)
 		ret = pm_runtime_resume_and_get(&data->client->dev);
-	} else {
-		pm_runtime_mark_last_busy(&data->client->dev);
+	else
 		ret = pm_runtime_put_autosuspend(&data->client->dev);
-	}
 	if (ret < 0) {
 		dev_err(&data->client->dev,
 			"Failed: rpr0521_set_power_state for %d, ret %d\n",
@@ -459,8 +455,8 @@ static irqreturn_t rpr0521_trigger_consumer_handler(int irq, void *p)
 		data->scan.channels,
 		(3 * 2) + 1);	/* 3 * 16-bit + (discarded) int clear reg. */
 	if (!err)
-		iio_push_to_buffers_with_timestamp(indio_dev,
-						   &data->scan, pf->timestamp);
+		iio_push_to_buffers_with_ts(indio_dev, &data->scan,
+					    sizeof(data->scan), pf->timestamp);
 	else
 		dev_err(&data->client->dev,
 			"Trigger consumer can't read from sensor.\n");
@@ -914,7 +910,7 @@ static bool rpr0521_is_volatile_reg(struct device *dev, unsigned int reg)
 }
 
 static const struct regmap_config rpr0521_regmap_config = {
-	.name		= RPR0521_REGMAP_NAME,
+	.name		= "rpr0521_regmap",
 
 	.reg_bits	= 8,
 	.val_bits	= 8,
@@ -991,7 +987,7 @@ static int rpr0521_probe(struct i2c_client *client)
 		ret = devm_request_threaded_irq(&client->dev, client->irq,
 			rpr0521_drdy_irq_handler, rpr0521_drdy_irq_thread,
 			IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
-			RPR0521_IRQ_NAME, indio_dev);
+			"rpr0521_event", indio_dev);
 		if (ret < 0) {
 			dev_err(&client->dev, "request irq %d for trigger0 failed\n",
 				client->irq);

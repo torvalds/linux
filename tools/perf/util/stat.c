@@ -526,7 +526,7 @@ static int evsel__merge_aggr_counters(struct evsel *evsel, struct evsel *alias)
 		struct perf_counts_values *aggr_counts_a = &ps_a->aggr[i].counts;
 		struct perf_counts_values *aggr_counts_b = &ps_b->aggr[i].counts;
 
-		/* NB: don't increase aggr.nr for aliases */
+		ps_a->aggr[i].nr += ps_b->aggr[i].nr;
 
 		aggr_counts_a->val += aggr_counts_b->val;
 		aggr_counts_a->ena += aggr_counts_b->ena;
@@ -715,62 +715,4 @@ size_t perf_event__fprintf_stat_config(union perf_event *event, FILE *fp)
 	ret += fprintf(fp, "... interval  %u\n", sc.interval);
 
 	return ret;
-}
-
-int create_perf_stat_counter(struct evsel *evsel,
-			     struct perf_stat_config *config,
-			     struct target *target,
-			     int cpu_map_idx)
-{
-	struct perf_event_attr *attr = &evsel->core.attr;
-	struct evsel *leader = evsel__leader(evsel);
-
-	attr->read_format = PERF_FORMAT_TOTAL_TIME_ENABLED |
-			    PERF_FORMAT_TOTAL_TIME_RUNNING;
-
-	/*
-	 * The event is part of non trivial group, let's enable
-	 * the group read (for leader) and ID retrieval for all
-	 * members.
-	 */
-	if (leader->core.nr_members > 1)
-		attr->read_format |= PERF_FORMAT_ID|PERF_FORMAT_GROUP;
-
-	attr->inherit = !config->no_inherit && list_empty(&evsel->bpf_counter_list);
-
-	/*
-	 * Some events get initialized with sample_(period/type) set,
-	 * like tracepoints. Clear it up for counting.
-	 */
-	attr->sample_period = 0;
-
-	if (config->identifier)
-		attr->sample_type = PERF_SAMPLE_IDENTIFIER;
-
-	if (config->all_user) {
-		attr->exclude_kernel = 1;
-		attr->exclude_user   = 0;
-	}
-
-	if (config->all_kernel) {
-		attr->exclude_kernel = 0;
-		attr->exclude_user   = 1;
-	}
-
-	/*
-	 * Disabling all counters initially, they will be enabled
-	 * either manually by us or by kernel via enable_on_exec
-	 * set later.
-	 */
-	if (evsel__is_group_leader(evsel)) {
-		attr->disabled = 1;
-
-		if (target__enable_on_exec(target))
-			attr->enable_on_exec = 1;
-	}
-
-	if (target__has_cpu(target) && !target__has_per_thread(target))
-		return evsel__open_per_cpu(evsel, evsel__cpus(evsel), cpu_map_idx);
-
-	return evsel__open_per_thread(evsel, evsel->core.threads);
 }

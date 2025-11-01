@@ -104,6 +104,11 @@ static const struct imx_ddr_devtype_data imx93_devtype_data = {
 	.filter_ver = DDR_PERF_AXI_FILTER_V1
 };
 
+static const struct imx_ddr_devtype_data imx94_devtype_data = {
+	.identifier = "imx94",
+	.filter_ver = DDR_PERF_AXI_FILTER_V2
+};
+
 static const struct imx_ddr_devtype_data imx95_devtype_data = {
 	.identifier = "imx95",
 	.filter_ver = DDR_PERF_AXI_FILTER_V2
@@ -122,6 +127,7 @@ static inline bool axi_filter_v2(struct ddr_pmu *pmu)
 static const struct of_device_id imx_ddr_pmu_dt_ids[] = {
 	{ .compatible = "fsl,imx91-ddr-pmu", .data = &imx91_devtype_data },
 	{ .compatible = "fsl,imx93-ddr-pmu", .data = &imx93_devtype_data },
+	{ .compatible = "fsl,imx94-ddr-pmu", .data = &imx94_devtype_data },
 	{ .compatible = "fsl,imx95-ddr-pmu", .data = &imx95_devtype_data },
 	{ /* sentinel */ }
 };
@@ -461,9 +467,11 @@ static void imx93_ddr_perf_monitor_config(struct ddr_pmu *pmu, int event,
 					  int counter, int axi_id, int axi_mask)
 {
 	u32 pmcfg1, pmcfg2;
-	u32 mask[] = {  MX93_PMCFG1_RD_TRANS_FILT_EN,
-			MX93_PMCFG1_WR_TRANS_FILT_EN,
-			MX93_PMCFG1_RD_BT_FILT_EN };
+	static const u32 mask[] = {
+		MX93_PMCFG1_RD_TRANS_FILT_EN,
+		MX93_PMCFG1_WR_TRANS_FILT_EN,
+		MX93_PMCFG1_RD_BT_FILT_EN
+	};
 
 	pmcfg1 = readl_relaxed(pmu->base + PMCFG1);
 

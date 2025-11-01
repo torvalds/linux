@@ -1772,6 +1772,7 @@ int acp_legacy_dai_links_create(struct snd_soc_card *card)
 			break;
 		case ACP70_PCI_ID:
 		case ACP71_PCI_ID:
+		case ACP72_PCI_ID:
 			links[i].platforms = platform_acp70_component;
 			links[i].num_platforms = ARRAY_SIZE(platform_acp70_component);
 			break;

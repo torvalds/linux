@@ -28,7 +28,7 @@ flush_pids()
 }
 
 # This function is used in the cleanup trap
-#shellcheck disable=SC2317
+#shellcheck disable=SC2317,SC2329
 cleanup()
 {
 	ip netns pids "${ns}" | xargs --no-run-if-empty kill -SIGKILL &>/dev/null

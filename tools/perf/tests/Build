@@ -20,7 +20,6 @@ perf-test-y += hists_link.o
 perf-test-y += hists_filter.o
 perf-test-y += hists_output.o
 perf-test-y += hists_cumulate.o
-perf-test-y += python-use.o
 perf-test-y += bp_signal.o
 perf-test-y += bp_signal_overflow.o
 perf-test-y += bp_account.o
@@ -69,12 +68,12 @@ perf-test-y += symbols.o
 perf-test-y += util.o
 perf-test-y += hwmon_pmu.o
 perf-test-y += tool_pmu.o
+perf-test-y += subcmd-help.o
 
 ifeq ($(SRCARCH),$(filter $(SRCARCH),x86 arm arm64 powerpc))
 perf-test-$(CONFIG_DWARF_UNWIND) += dwarf-unwind.o
 endif
 
-CFLAGS_python-use.o   += -DPYTHONPATH="BUILD_STR($(OUTPUT)python)" -DPYTHON="BUILD_STR($(PYTHON_WORD))"
 CFLAGS_dwarf-unwind.o += -fno-optimize-sibling-calls
 
 perf-test-y += workloads/
@@ -89,7 +88,7 @@ endif
 
 $(OUTPUT)%.shellcheck_log: %
 	$(call rule_mkdir)
-	$(Q)$(call echo-cmd,test)shellcheck -a -S warning "$<" > $@ || (cat $@ && rm $@ && false)
+	$(Q)$(call echo-cmd,test)$(SHELLCHECK) "$<" > $@ || (cat $@ && rm $@ && false)
 
 perf-test-y += $(SHELL_TEST_LOGS)
 

@@ -1,0 +1,89 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+config CRYPTO_LIB_BLAKE2S_KUNIT_TEST
+	tristate "KUnit tests for BLAKE2s" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS || CRYPTO_SELFTESTS
+	select CRYPTO_LIB_BENCHMARK_VISIBLE
+	# No need to select CRYPTO_LIB_BLAKE2S here, as that option doesn't
+	# exist; the BLAKE2s code is always built-in for the /dev/random driver.
+	help
+	  KUnit tests for the BLAKE2s cryptographic hash function.
+
+config CRYPTO_LIB_CURVE25519_KUNIT_TEST
+	tristate "KUnit tests for Curve25519" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS || CRYPTO_SELFTESTS
+	select CRYPTO_LIB_BENCHMARK_VISIBLE
+	select CRYPTO_LIB_CURVE25519
+	help
+	  KUnit tests for the Curve25519 Diffie-Hellman function.
+
+config CRYPTO_LIB_MD5_KUNIT_TEST
+	tristate "KUnit tests for MD5" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS || CRYPTO_SELFTESTS
+	select CRYPTO_LIB_BENCHMARK_VISIBLE
+	select CRYPTO_LIB_MD5
+	help
+	  KUnit tests for the MD5 cryptographic hash function and its
+	  corresponding HMAC.
+
+config CRYPTO_LIB_POLY1305_KUNIT_TEST
+	tristate "KUnit tests for Poly1305" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS || CRYPTO_SELFTESTS
+	select CRYPTO_LIB_BENCHMARK_VISIBLE
+	select CRYPTO_LIB_POLY1305
+	help
+	  KUnit tests for the Poly1305 library functions.
+
+config CRYPTO_LIB_SHA1_KUNIT_TEST
+	tristate "KUnit tests for SHA-1" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS || CRYPTO_SELFTESTS
+	select CRYPTO_LIB_BENCHMARK_VISIBLE
+	select CRYPTO_LIB_SHA1
+	help
+	  KUnit tests for the SHA-1 cryptographic hash function and its
+	  corresponding HMAC.
+
+# Option is named *_SHA256_KUNIT_TEST, though both SHA-224 and SHA-256 tests are
+# included, for consistency with the naming used elsewhere (e.g. CRYPTO_SHA256).
+config CRYPTO_LIB_SHA256_KUNIT_TEST
+	tristate "KUnit tests for SHA-224 and SHA-256" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS || CRYPTO_SELFTESTS
+	select CRYPTO_LIB_BENCHMARK_VISIBLE
+	select CRYPTO_LIB_SHA256
+	help
+	  KUnit tests for the SHA-224 and SHA-256 cryptographic hash functions
+	  and their corresponding HMACs.
+
+# Option is named *_SHA512_KUNIT_TEST, though both SHA-384 and SHA-512 tests are
+# included, for consistency with the naming used elsewhere (e.g. CRYPTO_SHA512).
+config CRYPTO_LIB_SHA512_KUNIT_TEST
+	tristate "KUnit tests for SHA-384 and SHA-512" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS || CRYPTO_SELFTESTS
+	select CRYPTO_LIB_BENCHMARK_VISIBLE
+	select CRYPTO_LIB_SHA512
+	help
+	  KUnit tests for the SHA-384 and SHA-512 cryptographic hash functions
+	  and their corresponding HMACs.
+
+config CRYPTO_LIB_BENCHMARK_VISIBLE
+	bool
+
+config CRYPTO_LIB_BENCHMARK
+	bool "Include benchmarks in KUnit tests for cryptographic functions"
+	depends on CRYPTO_LIB_BENCHMARK_VISIBLE
+	help
+	  Include benchmarks in the KUnit tests for cryptographic functions.
+	  The benchmark results are printed to the kernel log when the
+	  corresponding KUnit test suite runs.
+
+	  This is useful for evaluating the performance of the cryptographic
+	  functions.  However, it will increase the runtime of the KUnit tests.
+
+	  If you're only interested in correctness testing, leave this disabled.

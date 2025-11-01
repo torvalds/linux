@@ -14,7 +14,11 @@ enum ice_lag_role {
 	ICE_LAG_UNSET
 };
 
-#define ICE_LAG_INVALID_PORT 0xFF
+#define ICE_LAG_INVALID_PORT		0xFF
+#define ICE_LAGP_IDX			0
+#define ICE_LAGS_IDX			1
+#define ICE_LAGP_M			0x1
+#define ICE_LAGS_M			0x2
 
 #define ICE_LAG_RESET_RETRIES		5
 #define ICE_SW_DEFAULT_PROFILE		0
@@ -41,12 +45,26 @@ struct ice_lag {
 	u8 active_port; /* lport value for the current active port */
 	u8 bonded:1; /* currently bonded */
 	u8 primary:1; /* this is primary */
+	u8 bond_aa:1; /* is this bond active-active */
+	u8 need_fltr_cfg:1; /* fltrs for A/A bond still need to be make */
+	u8 port_bitmap:2; /* bitmap of active ports */
+	u8 bond_lport_pri; /* lport values for primary PF */
+	u8 bond_lport_sec; /* lport values for secondary PF */
+
+	/* q_home keeps track of which interface the q is currently on */
+	u8 q_home[ICE_MAX_SRIOV_VFS][ICE_MAX_RSS_QS_PER_VF];
+
+	/* placeholder VSI for hanging VF queues from on secondary interface */
+	struct ice_vsi *sec_vf[ICE_MAX_SRIOV_VFS];
+
 	u16 pf_recipe;
 	u16 lport_recipe;
+	u16 act_act_recipe;
 	u16 pf_rx_rule_id;
 	u16 pf_tx_rule_id;
 	u16 cp_rule_idx;
 	u16 lport_rule_idx;
+	u16 act_act_rule_idx;
 	u8 role;
 };
 
@@ -64,10 +82,12 @@ struct ice_lag_work {
 	} info;
 };
 
-void ice_lag_move_new_vf_nodes(struct ice_vf *vf);
+void ice_lag_aa_failover(struct ice_lag *lag, u8 dest, struct ice_pf *e_pf);
 int ice_init_lag(struct ice_pf *pf);
 void ice_deinit_lag(struct ice_pf *pf);
 void ice_lag_rebuild(struct ice_pf *pf);
 bool ice_lag_is_switchdev_running(struct ice_pf *pf);
 void ice_lag_move_vf_nodes_cfg(struct ice_lag *lag, u8 src_prt, u8 dst_prt);
+u8 ice_lag_prepare_vf_reset(struct ice_lag *lag);
+void ice_lag_complete_vf_reset(struct ice_lag *lag, u8 act_prt);
 #endif /* _ICE_LAG_H_ */

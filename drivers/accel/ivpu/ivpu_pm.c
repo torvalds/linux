@@ -54,7 +54,7 @@ static void ivpu_pm_prepare_cold_boot(struct ivpu_device *vdev)
 static void ivpu_pm_prepare_warm_boot(struct ivpu_device *vdev)
 {
 	struct ivpu_fw_info *fw = vdev->fw;
-	struct vpu_boot_params *bp = ivpu_bo_vaddr(fw->mem);
+	struct vpu_boot_params *bp = ivpu_bo_vaddr(fw->mem_bp);
 
 	if (!bp->save_restore_ret_address) {
 		ivpu_pm_prepare_cold_boot(vdev);
@@ -417,10 +417,10 @@ void ivpu_pm_init(struct ivpu_device *vdev)
 	ivpu_dbg(vdev, PM, "Autosuspend delay = %d\n", delay);
 }
 
-void ivpu_pm_cancel_recovery(struct ivpu_device *vdev)
+void ivpu_pm_disable_recovery(struct ivpu_device *vdev)
 {
 	drm_WARN_ON(&vdev->drm, delayed_work_pending(&vdev->pm->job_timeout_work));
-	cancel_work_sync(&vdev->pm->recovery_work);
+	disable_work_sync(&vdev->pm->recovery_work);
 }
 
 void ivpu_pm_enable(struct ivpu_device *vdev)
@@ -502,6 +502,11 @@ void ivpu_pm_irq_dct_work_fn(struct work_struct *work)
 	else
 		ret = ivpu_pm_dct_disable(vdev);
 
-	if (!ret)
-		ivpu_hw_btrs_dct_set_status(vdev, enable, vdev->pm->dct_active_percent);
+	if (!ret) {
+		/* Convert percent to U1.7 format */
+		u8 val = DIV_ROUND_CLOSEST(vdev->pm->dct_active_percent * 128, 100);
+
+		ivpu_hw_btrs_dct_set_status(vdev, enable, val);
+	}
+
 }

@@ -129,7 +129,7 @@ static __always_inline void *get_stub_data(void)
 		"subl %0,%%esp ;"					\
 		"movl %1, %%eax ; "					\
 		"call *%%eax ;"						\
-		:: "i" ((1 + STUB_DATA_PAGES) * UM_KERN_PAGE_SIZE),	\
+		:: "i" (STUB_SIZE),					\
 		   "i" (&fn))
 
 static __always_inline void

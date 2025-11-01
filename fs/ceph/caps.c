@@ -4957,24 +4957,20 @@ int ceph_encode_dentry_release(void **p, struct dentry *dentry,
 	cl = ceph_inode_to_client(dir);
 	spin_lock(&dentry->d_lock);
 	if (ret && di->lease_session && di->lease_session->s_mds == mds) {
+		int len = dentry->d_name.len;
 		doutc(cl, "%p mds%d seq %d\n",  dentry, mds,
 		      (int)di->lease_seq);
 		rel->dname_seq = cpu_to_le32(di->lease_seq);
 		__ceph_mdsc_drop_dentry_lease(dentry);
+		memcpy(*p, dentry->d_name.name, len);
 		spin_unlock(&dentry->d_lock);
 		if (IS_ENCRYPTED(dir) && fscrypt_has_encryption_key(dir)) {
-			int ret2 = ceph_encode_encrypted_fname(dir, dentry, *p);
-
-			if (ret2 < 0)
-				return ret2;
-
-			rel->dname_len = cpu_to_le32(ret2);
-			*p += ret2;
-		} else {
-			rel->dname_len = cpu_to_le32(dentry->d_name.len);
-			memcpy(*p, dentry->d_name.name, dentry->d_name.len);
-			*p += dentry->d_name.len;
+			len = ceph_encode_encrypted_dname(dir, *p, len);
+			if (len < 0)
+				return len;
 		}
+		rel->dname_len = cpu_to_le32(len);
+		*p += len;
 	} else {
 		spin_unlock(&dentry->d_lock);
 	}

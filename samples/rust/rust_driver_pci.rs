@@ -4,7 +4,7 @@
 //!
 //! To make this driver probe, QEMU must be run with `-device pci-testdev`.
 
-use kernel::{bindings, c_str, device::Core, devres::Devres, pci, prelude::*, types::ARef};
+use kernel::{c_str, device::Core, devres::Devres, pci, prelude::*, sync::aref::ARef};
 
 struct Regs;
 
@@ -18,16 +18,19 @@ impl Regs {
 
 type Bar0 = pci::Bar<{ Regs::END }>;
 
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 struct TestIndex(u8);
 
 impl TestIndex {
     const NO_EVENTFD: Self = Self(0);
 }
 
+#[pin_data(PinnedDrop)]
 struct SampleDriver {
     pdev: ARef<pci::Device>,
+    #[pin]
     bar: Devres<Bar0>,
+    index: TestIndex,
 }
 
 kernel::pci_device_table!(
@@ -35,7 +38,7 @@ kernel::pci_device_table!(
     MODULE_PCI_TABLE,
     <SampleDriver as pci::Driver>::IdInfo,
     [(
-        pci::DeviceId::from_id(bindings::PCI_VENDOR_ID_REDHAT, 0x5),
+        pci::DeviceId::from_id(pci::Vendor::REDHAT, 0x5),
         TestIndex::NO_EVENTFD
     )]
 );
@@ -63,23 +66,23 @@ impl pci::Driver for SampleDriver {
     const ID_TABLE: pci::IdTable<Self::IdInfo> = &PCI_TABLE;
 
     fn probe(pdev: &pci::Device<Core>, info: &Self::IdInfo) -> Result<Pin<KBox<Self>>> {
+        let vendor = pdev.vendor_id();
         dev_dbg!(
             pdev.as_ref(),
-            "Probe Rust PCI driver sample (PCI ID: 0x{:x}, 0x{:x}).\n",
-            pdev.vendor_id(),
+            "Probe Rust PCI driver sample (PCI ID: {}, 0x{:x}).\n",
+            vendor,
             pdev.device_id()
         );
 
         pdev.enable_device_mem()?;
         pdev.set_master();
 
-        let bar = pdev.iomap_region_sized::<{ Regs::END }>(0, c_str!("rust_driver_pci"))?;
-
-        let drvdata = KBox::new(
-            Self {
+        let drvdata = KBox::pin_init(
+            try_pin_init!(Self {
+                bar <- pdev.iomap_region_sized::<{ Regs::END }>(0, c_str!("rust_driver_pci")),
                 pdev: pdev.into(),
-                bar,
-            },
+                index: *info,
+            }),
             GFP_KERNEL,
         )?;
 
@@ -90,12 +93,20 @@ impl pci::Driver for SampleDriver {
             Self::testdev(info, bar)?
         );
 
-        Ok(drvdata.into())
+        Ok(drvdata)
+    }
+
+    fn unbind(pdev: &pci::Device<Core>, this: Pin<&Self>) {
+        if let Ok(bar) = this.bar.access(pdev.as_ref()) {
+            // Reset pci-testdev by writing a new test index.
+            bar.write8(this.index.0, Regs::TEST);
+        }
     }
 }
 
-impl Drop for SampleDriver {
-    fn drop(&mut self) {
+#[pinned_drop]
+impl PinnedDrop for SampleDriver {
+    fn drop(self: Pin<&mut Self>) {
         dev_dbg!(self.pdev.as_ref(), "Remove Rust PCI driver sample.\n");
     }
 }

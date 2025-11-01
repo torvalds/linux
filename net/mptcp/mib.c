@@ -80,7 +80,11 @@ static const struct snmp_mib mptcp_snmp_list[] = {
 	SNMP_MIB_ITEM("RcvWndConflict", MPTCP_MIB_RCVWNDCONFLICT),
 	SNMP_MIB_ITEM("MPCurrEstab", MPTCP_MIB_CURRESTAB),
 	SNMP_MIB_ITEM("Blackhole", MPTCP_MIB_BLACKHOLE),
-	SNMP_MIB_SENTINEL
+	SNMP_MIB_ITEM("MPCapableDataFallback", MPTCP_MIB_MPCAPABLEDATAFALLBACK),
+	SNMP_MIB_ITEM("MD5SigFallback", MPTCP_MIB_MD5SIGFALLBACK),
+	SNMP_MIB_ITEM("DssFallback", MPTCP_MIB_DSSFALLBACK),
+	SNMP_MIB_ITEM("SimultConnectFallback", MPTCP_MIB_SIMULTCONNFALLBACK),
+	SNMP_MIB_ITEM("FallbackFailed", MPTCP_MIB_FALLBACKFAILED),
 };
 
 /* mptcp_mib_alloc - allocate percpu mib counters
@@ -103,22 +107,23 @@ bool mptcp_mib_alloc(struct net *net)
 
 void mptcp_seq_show(struct seq_file *seq)
 {
-	unsigned long sum[ARRAY_SIZE(mptcp_snmp_list) - 1];
+	unsigned long sum[ARRAY_SIZE(mptcp_snmp_list)];
+	const int cnt = ARRAY_SIZE(mptcp_snmp_list);
 	struct net *net = seq->private;
 	int i;
 
 	seq_puts(seq, "MPTcpExt:");
-	for (i = 0; mptcp_snmp_list[i].name; i++)
+	for (i = 0; i < cnt; i++)
 		seq_printf(seq, " %s", mptcp_snmp_list[i].name);
 
 	seq_puts(seq, "\nMPTcpExt:");
 
 	memset(sum, 0, sizeof(sum));
 	if (net->mib.mptcp_statistics)
-		snmp_get_cpu_field_batch(sum, mptcp_snmp_list,
-					 net->mib.mptcp_statistics);
+		snmp_get_cpu_field_batch_cnt(sum, mptcp_snmp_list, cnt,
+					     net->mib.mptcp_statistics);
 
-	for (i = 0; mptcp_snmp_list[i].name; i++)
+	for (i = 0; i < cnt; i++)
 		seq_printf(seq, " %lu", sum[i]);
 
 	seq_putc(seq, '\n');

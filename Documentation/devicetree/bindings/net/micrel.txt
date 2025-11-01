@@ -26,7 +26,7 @@ Optional properties:
 	Setting the RMII Reference Clock Select bit enables 25 MHz rather
 	than 50 MHz clock mode.
 
-	Note that this option in only needed for certain PHY revisions with a
+	Note that this option is only needed for certain PHY revisions with a
 	non-standard, inverted function of this configuration bit.
 	Specifically, a clock reference ("rmii-ref" below) is always needed to
 	actually select a mode.

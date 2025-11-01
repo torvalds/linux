@@ -27,6 +27,7 @@ config MEDIATEK_GE_SOC_PHY
 	depends on ARCH_AIROHA || (ARCH_MEDIATEK && NVMEM_MTK_EFUSE) || \
 		   COMPILE_TEST
 	select MTK_NET_PHYLIB
+	select PHY_PACKAGE
 	help
 	  Supports MediaTek SoC built-in Gigabit Ethernet PHYs.
 

@@ -1478,12 +1478,12 @@ static void btt_submit_bio(struct bio *bio)
 	bio_endio(bio);
 }
 
-static int btt_getgeo(struct block_device *bd, struct hd_geometry *geo)
+static int btt_getgeo(struct gendisk *disk, struct hd_geometry *geo)
 {
 	/* some standard values */
 	geo->heads = 1 << 6;
 	geo->sectors = 1 << 5;
-	geo->cylinders = get_capacity(bd->bd_disk) >> 11;
+	geo->cylinders = get_capacity(disk) >> 11;
 	return 0;
 }
 
@@ -1506,7 +1506,7 @@ static int btt_blk_init(struct btt *btt)
 	int rc;
 
 	if (btt_meta_size(btt) && IS_ENABLED(CONFIG_BLK_DEV_INTEGRITY)) {
-		lim.integrity.tuple_size = btt_meta_size(btt);
+		lim.integrity.metadata_size = btt_meta_size(btt);
 		lim.integrity.tag_size = btt_meta_size(btt);
 	}
 

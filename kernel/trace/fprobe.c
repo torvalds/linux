@@ -352,7 +352,7 @@ static void fprobe_return(struct ftrace_graph_ret *trace,
 	size_words = SIZE_IN_LONG(size);
 	ret_ip = ftrace_regs_get_instruction_pointer(fregs);
 
-	preempt_disable();
+	preempt_disable_notrace();
 
 	curr = 0;
 	while (size_words > curr) {
@@ -368,7 +368,7 @@ static void fprobe_return(struct ftrace_graph_ret *trace,
 		}
 		curr += size;
 	}
-	preempt_enable();
+	preempt_enable_notrace();
 }
 NOKPROBE_SYMBOL(fprobe_return);
 
@@ -428,8 +428,9 @@ static int fprobe_addr_list_add(struct fprobe_addr_list *alist, unsigned long ad
 {
 	unsigned long *addrs;
 
-	if (alist->index >= alist->size)
-		return -ENOMEM;
+	/* Previously we failed to expand the list. */
+	if (alist->index == alist->size)
+		return -ENOSPC;
 
 	alist->addrs[alist->index++] = addr;
 	if (alist->index < alist->size)
@@ -489,7 +490,7 @@ static int fprobe_module_callback(struct notifier_block *nb,
 	for (i = 0; i < FPROBE_IP_TABLE_SIZE; i++)
 		fprobe_remove_node_in_module(mod, &fprobe_ip_table[i], &alist);
 
-	if (alist.index < alist.size && alist.index > 0)
+	if (alist.index > 0)
 		ftrace_set_filter_ips(&fprobe_graph_ops.ops,
 				      alist.addrs, alist.index, 1, 0);
 	mutex_unlock(&fprobe_mutex);
@@ -647,6 +648,11 @@ static int fprobe_init(struct fprobe *fp, unsigned long *addrs, int num)
 }
 
 #define FPROBE_IPS_MAX	INT_MAX
+
+int fprobe_count_ips_from_filter(const char *filter, const char *notfilter)
+{
+	return get_ips_from_filter(filter, notfilter, NULL, NULL, FPROBE_IPS_MAX);
+}
 
 /**
  * register_fprobe() - Register fprobe to ftrace by pattern.

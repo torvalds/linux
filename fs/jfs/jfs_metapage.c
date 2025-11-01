@@ -169,7 +169,7 @@ static int __metapage_migrate_folio(struct address_space *mapping,
 	}
 
 	rc = filemap_migrate_folio(mapping, dst, src, mode);
-	if (rc != MIGRATEPAGE_SUCCESS)
+	if (rc)
 		return rc;
 
 	for (i = 0; i < MPS_PER_PAGE; i++) {
@@ -199,7 +199,7 @@ static int __metapage_migrate_folio(struct address_space *mapping,
 		}
 	}
 
-	return MIGRATEPAGE_SUCCESS;
+	return 0;
 }
 #endif	/* CONFIG_MIGRATION */
 
@@ -242,7 +242,7 @@ static int __metapage_migrate_folio(struct address_space *mapping,
 		return -EAGAIN;
 
 	rc = filemap_migrate_folio(mapping, dst, src, mode);
-	if (rc != MIGRATEPAGE_SUCCESS)
+	if (rc)
 		return rc;
 
 	if (unlikely(insert_metapage(dst, mp)))
@@ -253,7 +253,7 @@ static int __metapage_migrate_folio(struct address_space *mapping,
 	mp->folio = dst;
 	remove_metapage(src, mp);
 
-	return MIGRATEPAGE_SUCCESS;
+	return 0;
 }
 #endif	/* CONFIG_MIGRATION */
 
@@ -421,7 +421,7 @@ static void metapage_write_end_io(struct bio *bio)
 }
 
 static int metapage_write_folio(struct folio *folio,
-		struct writeback_control *wbc, void *unused)
+		struct writeback_control *wbc)
 {
 	struct bio *bio = NULL;
 	int block_offset;	/* block offset of mp within page */
@@ -550,10 +550,12 @@ static int metapage_writepages(struct address_space *mapping,
 		struct writeback_control *wbc)
 {
 	struct blk_plug plug;
+	struct folio *folio = NULL;
 	int err;
 
 	blk_start_plug(&plug);
-	err = write_cache_pages(mapping, wbc, metapage_write_folio, NULL);
+	while ((folio = writeback_iter(mapping, wbc, folio, &err)))
+		err = metapage_write_folio(folio, wbc);
 	blk_finish_plug(&plug);
 
 	return err;
@@ -813,7 +815,7 @@ static int metapage_write_one(struct folio *folio)
 
 	if (folio_clear_dirty_for_io(folio)) {
 		folio_get(folio);
-		ret = metapage_write_folio(folio, &wbc, NULL);
+		ret = metapage_write_folio(folio, &wbc);
 		if (ret == 0)
 			folio_wait_writeback(folio);
 		folio_put(folio);

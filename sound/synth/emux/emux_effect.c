@@ -168,7 +168,6 @@ snd_emux_send_effect(struct snd_emux_port *port, struct snd_midi_channel *chan,
 	unsigned char *srcp, *origp;
 	struct snd_emux *emu;
 	struct snd_emux_effect_table *fx;
-	unsigned long flags;
 
 	emu = port->emu;
 	fx = chan->private;
@@ -195,22 +194,22 @@ snd_emux_send_effect(struct snd_emux_port *port, struct snd_midi_channel *chan,
 		offset++;
 #endif
 	/* modify the register values */
-	spin_lock_irqsave(&emu->voice_lock, flags);
-	for (i = 0; i < emu->max_voices; i++) {
-		struct snd_emux_voice *vp = &emu->voices[i];
-		if (!STATE_IS_PLAYING(vp->state) || vp->chan != chan)
-			continue;
-		srcp = (unsigned char*)&vp->reg.parm + offset;
-		origp = (unsigned char*)&vp->zone->v.parm + offset;
-		if (parm_defs[i].type & PARM_IS_BYTE) {
-			*srcp = *origp;
-			effect_set_byte(srcp, chan, type);
-		} else {
-			*(unsigned short*)srcp = *(unsigned short*)origp;
-			effect_set_word((unsigned short*)srcp, chan, type);
+	scoped_guard(spinlock_irqsave, &emu->voice_lock) {
+		for (i = 0; i < emu->max_voices; i++) {
+			struct snd_emux_voice *vp = &emu->voices[i];
+			if (!STATE_IS_PLAYING(vp->state) || vp->chan != chan)
+				continue;
+			srcp = (unsigned char *)&vp->reg.parm + offset;
+			origp = (unsigned char *)&vp->zone->v.parm + offset;
+			if (parm_defs[i].type & PARM_IS_BYTE) {
+				*srcp = *origp;
+				effect_set_byte(srcp, chan, type);
+			} else {
+				*(unsigned short *)srcp = *(unsigned short *)origp;
+				effect_set_word((unsigned short *)srcp, chan, type);
+			}
 		}
 	}
-	spin_unlock_irqrestore(&emu->voice_lock, flags);
 
 	/* activate them */
 	snd_emux_update_channel(port, chan, parm_defs[type].update);

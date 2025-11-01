@@ -1,6 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
 
+#include <linux/kernel.h>
 #include <linux/sched/task.h>
+
+void rust_helper_might_resched(void)
+{
+	might_resched();
+}
 
 struct task_struct *rust_helper_get_current(void)
 {

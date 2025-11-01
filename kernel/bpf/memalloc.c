@@ -736,7 +736,7 @@ static void destroy_mem_alloc(struct bpf_mem_alloc *ma, int rcu_in_progress)
 	/* Defer barriers into worker to let the rest of map memory to be freed */
 	memset(ma, 0, sizeof(*ma));
 	INIT_WORK(&copy->work, free_mem_alloc_deferred);
-	queue_work(system_unbound_wq, &copy->work);
+	queue_work(system_dfl_wq, &copy->work);
 }
 
 void bpf_mem_alloc_destroy(struct bpf_mem_alloc *ma)

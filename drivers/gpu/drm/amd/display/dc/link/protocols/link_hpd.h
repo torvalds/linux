@@ -26,7 +26,7 @@
 
 #ifndef __DC_LINK_HPD_H__
 #define __DC_LINK_HPD_H__
-#include "link.h"
+#include "link_service.h"
 
 enum hpd_source_id get_hpd_line(struct dc_link *link);
 /*

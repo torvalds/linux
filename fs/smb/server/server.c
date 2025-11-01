@@ -365,6 +365,7 @@ static void server_ctrl_handle_init(struct server_ctrl_struct *ctrl)
 		return;
 	}
 
+	pr_info("running\n");
 	WRITE_ONCE(server_conf.state, SERVER_STATE_RUNNING);
 }
 

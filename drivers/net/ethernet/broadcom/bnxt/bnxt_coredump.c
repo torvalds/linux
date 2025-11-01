@@ -10,7 +10,7 @@
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/pci.h>
-#include "bnxt_hsi.h"
+#include <linux/bnxt/hsi.h>
 #include "bnxt.h"
 #include "bnxt_hwrm.h"
 #include "bnxt_coredump.h"
@@ -36,6 +36,8 @@ static const u16 bnxt_bstore_to_seg_id[] = {
 	[BNXT_CTX_CA1]			= BNXT_CTX_MEM_SEG_CA1,
 	[BNXT_CTX_CA2]			= BNXT_CTX_MEM_SEG_CA2,
 	[BNXT_CTX_RIGP1]		= BNXT_CTX_MEM_SEG_RIGP1,
+	[BNXT_CTX_KONG]			= BNXT_CTX_MEM_SEG_KONG,
+	[BNXT_CTX_QPC]			= BNXT_CTX_MEM_SEG_QPC,
 };
 
 static int bnxt_dbg_hwrm_log_buffer_flush(struct bnxt *bp, u16 type, u32 flags,
@@ -359,7 +361,7 @@ static u32 bnxt_get_ctx_coredump(struct bnxt *bp, void *buf, u32 offset,
 
 	if (buf)
 		buf += offset;
-	for (type = 0 ; type <= BNXT_CTX_RIGP1; type++) {
+	for (type = 0; type < BNXT_CTX_V2_MAX; type++) {
 		struct bnxt_ctx_mem_type *ctxm = &ctx->ctx_arr[type];
 		bool trace = bnxt_bs_trace_avail(bp, type);
 		u32 seg_id = bnxt_bstore_to_seg_id[type];
@@ -368,23 +370,27 @@ static u32 bnxt_get_ctx_coredump(struct bnxt *bp, void *buf, u32 offset,
 		if (!ctxm->mem_valid || !seg_id)
 			continue;
 
-		if (trace)
+		if (trace) {
 			extra_hlen = BNXT_SEG_RCD_LEN;
+			if (buf) {
+				u16 trace_type = bnxt_bstore_to_trace[type];
+
+				bnxt_fill_drv_seg_record(bp, &record, ctxm,
+							 trace_type);
+			}
+		}
+
 		if (buf)
 			data = buf + BNXT_SEG_HDR_LEN + extra_hlen;
+
 		seg_len = bnxt_copy_ctx_mem(bp, ctxm, data, 0) + extra_hlen;
 		if (buf) {
 			bnxt_fill_coredump_seg_hdr(bp, &seg_hdr, NULL, seg_len,
 						   0, 0, 0, comp_id, seg_id);
 			memcpy(buf, &seg_hdr, BNXT_SEG_HDR_LEN);
 			buf += BNXT_SEG_HDR_LEN;
-			if (trace) {
-				u16 trace_type = bnxt_bstore_to_trace[type];
-
-				bnxt_fill_drv_seg_record(bp, &record, ctxm,
-							 trace_type);
+			if (trace)
 				memcpy(buf, &record, BNXT_SEG_RCD_LEN);
-			}
 			buf += seg_len;
 		}
 		len += BNXT_SEG_HDR_LEN + seg_len;

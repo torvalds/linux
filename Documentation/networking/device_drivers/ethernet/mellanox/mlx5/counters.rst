@@ -1341,3 +1341,40 @@ Device Counters
      - The number of times the device owned queue had not enough buffers
        allocated.
      - Error
+
+   * - `pci_bw_inbound_high`
+     - The number of times the device crossed the high inbound pcie bandwidth
+       threshold. To be compared to pci_bw_inbound_low to check if the device
+       is in a congested state.
+       If pci_bw_inbound_high == pci_bw_inbound_low then the device is not congested.
+       If pci_bw_inbound_high > pci_bw_inbound_low then the device is congested.
+     - Informative
+
+   * - `pci_bw_inbound_low`
+     - The number of times the device crossed the low inbound PCIe bandwidth
+       threshold. To be compared to pci_bw_inbound_high to check if the device
+       is in a congested state.
+       If pci_bw_inbound_high == pci_bw_inbound_low then the device is not congested.
+       If pci_bw_inbound_high > pci_bw_inbound_low then the device is congested.
+     - Informative
+
+   * - `pci_bw_outbound_high`
+     - The number of times the device crossed the high outbound pcie bandwidth
+       threshold. To be compared to pci_bw_outbound_low to check if the device
+       is in a congested state.
+       If pci_bw_outbound_high == pci_bw_outbound_low then the device is not congested.
+       If pci_bw_outbound_high > pci_bw_outbound_low then the device is congested.
+     - Informative
+
+   * - `pci_bw_outbound_low`
+     - The number of times the device crossed the low outbound PCIe bandwidth
+       threshold. To be compared to pci_bw_outbound_high to check if the device
+       is in a congested state.
+       If pci_bw_outbound_high == pci_bw_outbound_low then the device is not congested.
+       If pci_bw_outbound_high > pci_bw_outbound_low then the device is congested.
+     - Informative
+
+   * - `pci_bw_stale_event`
+     - The number of times the device fired a PCIe congestion event but on query
+       there was no change in state.
+     - Informative

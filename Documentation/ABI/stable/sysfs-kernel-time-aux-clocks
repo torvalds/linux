@@ -1,0 +1,5 @@
+What:		/sys/kernel/time/aux_clocks/<ID>/enable
+Date:		May 2025
+Contact:	Thomas Gleixner <tglx@linutronix.de>
+Description:
+		Controls the enablement of auxiliary clock timekeepers.

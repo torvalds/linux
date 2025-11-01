@@ -149,7 +149,7 @@ int __init init_mknod(const char *filename, umode_t mode, unsigned int dev)
 	else if (!(S_ISBLK(mode) || S_ISCHR(mode)))
 		return -EINVAL;
 
-	dentry = kern_path_create(AT_FDCWD, filename, &path, 0);
+	dentry = start_creating_path(AT_FDCWD, filename, &path, 0);
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
 
@@ -158,7 +158,7 @@ int __init init_mknod(const char *filename, umode_t mode, unsigned int dev)
 	if (!error)
 		error = vfs_mknod(mnt_idmap(path.mnt), path.dentry->d_inode,
 				  dentry, mode, new_decode_dev(dev));
-	done_path_create(&path, dentry);
+	end_creating_path(&path, dentry);
 	return error;
 }
 
@@ -173,7 +173,7 @@ int __init init_link(const char *oldname, const char *newname)
 	if (error)
 		return error;
 
-	new_dentry = kern_path_create(AT_FDCWD, newname, &new_path, 0);
+	new_dentry = start_creating_path(AT_FDCWD, newname, &new_path, 0);
 	error = PTR_ERR(new_dentry);
 	if (IS_ERR(new_dentry))
 		goto out;
@@ -191,7 +191,7 @@ int __init init_link(const char *oldname, const char *newname)
 	error = vfs_link(old_path.dentry, idmap, new_path.dentry->d_inode,
 			 new_dentry, NULL);
 out_dput:
-	done_path_create(&new_path, new_dentry);
+	end_creating_path(&new_path, new_dentry);
 out:
 	path_put(&old_path);
 	return error;
@@ -203,14 +203,14 @@ int __init init_symlink(const char *oldname, const char *newname)
 	struct path path;
 	int error;
 
-	dentry = kern_path_create(AT_FDCWD, newname, &path, 0);
+	dentry = start_creating_path(AT_FDCWD, newname, &path, 0);
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
 	error = security_path_symlink(&path, dentry, oldname);
 	if (!error)
 		error = vfs_symlink(mnt_idmap(path.mnt), path.dentry->d_inode,
 				    dentry, oldname);
-	done_path_create(&path, dentry);
+	end_creating_path(&path, dentry);
 	return error;
 }
 
@@ -225,7 +225,8 @@ int __init init_mkdir(const char *pathname, umode_t mode)
 	struct path path;
 	int error;
 
-	dentry = kern_path_create(AT_FDCWD, pathname, &path, LOOKUP_DIRECTORY);
+	dentry = start_creating_path(AT_FDCWD, pathname, &path,
+				     LOOKUP_DIRECTORY);
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
 	mode = mode_strip_umask(d_inode(path.dentry), mode);
@@ -236,7 +237,7 @@ int __init init_mkdir(const char *pathname, umode_t mode)
 		if (IS_ERR(dentry))
 			error = PTR_ERR(dentry);
 	}
-	done_path_create(&path, dentry);
+	end_creating_path(&path, dentry);
 	return error;
 }
 

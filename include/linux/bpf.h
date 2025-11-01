@@ -7,6 +7,7 @@
 #include <uapi/linux/bpf.h>
 #include <uapi/linux/filter.h>
 
+#include <crypto/sha2.h>
 #include <linux/workqueue.h>
 #include <linux/file.h>
 #include <linux/percpu.h>
@@ -109,6 +110,7 @@ struct bpf_map_ops {
 	long (*map_pop_elem)(struct bpf_map *map, void *value);
 	long (*map_peek_elem)(struct bpf_map *map, void *value);
 	void *(*map_lookup_percpu_elem)(struct bpf_map *map, void *key, u32 cpu);
+	int (*map_get_hash)(struct bpf_map *map, u32 hash_buf_size, void *hash_buf);
 
 	/* funcs called by prog_array and perf_event_array map */
 	void *(*map_fd_get_ptr)(struct bpf_map *map, struct file *map_file,
@@ -206,7 +208,22 @@ enum btf_field_type {
 	BPF_WORKQUEUE  = (1 << 10),
 	BPF_UPTR       = (1 << 11),
 	BPF_RES_SPIN_LOCK = (1 << 12),
+	BPF_TASK_WORK  = (1 << 13),
 };
+
+enum bpf_cgroup_storage_type {
+	BPF_CGROUP_STORAGE_SHARED,
+	BPF_CGROUP_STORAGE_PERCPU,
+	__BPF_CGROUP_STORAGE_MAX
+#define MAX_BPF_CGROUP_STORAGE_TYPE __BPF_CGROUP_STORAGE_MAX
+};
+
+#ifdef CONFIG_CGROUP_BPF
+# define for_each_cgroup_storage_type(stype) \
+	for (stype = 0; stype < MAX_BPF_CGROUP_STORAGE_TYPE; stype++)
+#else
+# define for_each_cgroup_storage_type(stype) for (; false; )
+#endif /* CONFIG_CGROUP_BPF */
 
 typedef void (*btf_dtor_kfunc_t)(void *);
 
@@ -245,6 +262,7 @@ struct btf_record {
 	int timer_off;
 	int wq_off;
 	int refcount_off;
+	int task_work_off;
 	struct btf_field fields[];
 };
 
@@ -260,7 +278,22 @@ struct bpf_list_node_kern {
 	void *owner;
 } __attribute__((aligned(8)));
 
+/* 'Ownership' of program-containing map is claimed by the first program
+ * that is going to use this map or by the first program which FD is
+ * stored in the map to make sure that all callers and callees have the
+ * same prog type, JITed flag and xdp_has_frags flag.
+ */
+struct bpf_map_owner {
+	enum bpf_prog_type type;
+	bool jited;
+	bool xdp_has_frags;
+	u64 storage_cookie[MAX_BPF_CGROUP_STORAGE_TYPE];
+	const struct btf_type *attach_func_proto;
+	enum bpf_attach_type expected_attach_type;
+};
+
 struct bpf_map {
+	u8 sha[SHA256_DIGEST_SIZE];
 	const struct bpf_map_ops *ops;
 	struct bpf_map *inner_map_meta;
 #ifdef CONFIG_SECURITY
@@ -292,24 +325,16 @@ struct bpf_map {
 		struct rcu_head rcu;
 	};
 	atomic64_t writecnt;
-	/* 'Ownership' of program-containing map is claimed by the first program
-	 * that is going to use this map or by the first program which FD is
-	 * stored in the map to make sure that all callers and callees have the
-	 * same prog type, JITed flag and xdp_has_frags flag.
-	 */
-	struct {
-		const struct btf_type *attach_func_proto;
-		spinlock_t lock;
-		enum bpf_prog_type type;
-		bool jited;
-		bool xdp_has_frags;
-	} owner;
+	spinlock_t owner_lock;
+	struct bpf_map_owner *owner;
 	bool bypass_spec_v1;
 	bool frozen; /* write-once; write-protected by freeze_mutex */
 	bool free_after_mult_rcu_gp;
 	bool free_after_rcu_gp;
 	atomic64_t sleepable_refcnt;
 	s64 __percpu *elem_count;
+	u64 cookie; /* write-once */
+	char *excl_prog_sha;
 };
 
 static inline const char *btf_field_type_name(enum btf_field_type type)
@@ -340,6 +365,8 @@ static inline const char *btf_field_type_name(enum btf_field_type type)
 		return "bpf_rb_node";
 	case BPF_REFCOUNT:
 		return "bpf_refcount";
+	case BPF_TASK_WORK:
+		return "bpf_task_work";
 	default:
 		WARN_ON_ONCE(1);
 		return "unknown";
@@ -378,6 +405,8 @@ static inline u32 btf_field_type_size(enum btf_field_type type)
 		return sizeof(struct bpf_rb_node);
 	case BPF_REFCOUNT:
 		return sizeof(struct bpf_refcount);
+	case BPF_TASK_WORK:
+		return sizeof(struct bpf_task_work);
 	default:
 		WARN_ON_ONCE(1);
 		return 0;
@@ -410,6 +439,8 @@ static inline u32 btf_field_type_align(enum btf_field_type type)
 		return __alignof__(struct bpf_rb_node);
 	case BPF_REFCOUNT:
 		return __alignof__(struct bpf_refcount);
+	case BPF_TASK_WORK:
+		return __alignof__(struct bpf_task_work);
 	default:
 		WARN_ON_ONCE(1);
 		return 0;
@@ -441,6 +472,7 @@ static inline void bpf_obj_init_field(const struct btf_field *field, void *addr)
 	case BPF_KPTR_REF:
 	case BPF_KPTR_PERCPU:
 	case BPF_UPTR:
+	case BPF_TASK_WORK:
 		break;
 	default:
 		WARN_ON_ONCE(1);
@@ -577,6 +609,7 @@ void copy_map_value_locked(struct bpf_map *map, void *dst, void *src,
 			   bool lock_src);
 void bpf_timer_cancel_and_free(void *timer);
 void bpf_wq_cancel_and_free(void *timer);
+void bpf_task_work_cancel_and_free(void *timer);
 void bpf_list_head_free(const struct btf_field *field, void *list_head,
 			struct bpf_spin_lock *spin_lock);
 void bpf_rb_root_free(const struct btf_field *field, void *rb_root,
@@ -749,12 +782,15 @@ enum bpf_type_flag {
 	 */
 	MEM_WRITE		= BIT(18 + BPF_BASE_TYPE_BITS),
 
+	/* DYNPTR points to skb_metadata_end()-skb_metadata_len() */
+	DYNPTR_TYPE_SKB_META	= BIT(19 + BPF_BASE_TYPE_BITS),
+
 	__BPF_TYPE_FLAG_MAX,
 	__BPF_TYPE_LAST_FLAG	= __BPF_TYPE_FLAG_MAX - 1,
 };
 
 #define DYNPTR_TYPE_FLAG_MASK	(DYNPTR_TYPE_LOCAL | DYNPTR_TYPE_RINGBUF | DYNPTR_TYPE_SKB \
-				 | DYNPTR_TYPE_XDP)
+				 | DYNPTR_TYPE_XDP | DYNPTR_TYPE_SKB_META)
 
 /* Max number of base types. */
 #define BPF_BASE_TYPE_LIMIT	(1UL << BPF_BASE_TYPE_BITS)
@@ -1082,14 +1118,6 @@ struct bpf_prog_offload {
 	u32			jited_len;
 };
 
-enum bpf_cgroup_storage_type {
-	BPF_CGROUP_STORAGE_SHARED,
-	BPF_CGROUP_STORAGE_PERCPU,
-	__BPF_CGROUP_STORAGE_MAX
-};
-
-#define MAX_BPF_CGROUP_STORAGE_TYPE __BPF_CGROUP_STORAGE_MAX
-
 /* The longest tracepoint has 12 args.
  * See include/trace/bpf_probe.h
  */
@@ -1100,7 +1128,7 @@ enum bpf_cgroup_storage_type {
  */
 #define MAX_BPF_FUNC_REG_ARGS 5
 
-/* The argument is a structure. */
+/* The argument is a structure or a union. */
 #define BTF_FMODEL_STRUCT_ARG		BIT(0)
 
 /* The argument is signed. */
@@ -1348,6 +1376,8 @@ enum bpf_dynptr_type {
 	BPF_DYNPTR_TYPE_SKB,
 	/* Underlying data is a xdp_buff */
 	BPF_DYNPTR_TYPE_XDP,
+	/* Points to skb_metadata_end()-skb_metadata_len() */
+	BPF_DYNPTR_TYPE_SKB_META,
 };
 
 int bpf_dynptr_check_size(u32 size);
@@ -1538,6 +1568,37 @@ struct btf_mod_pair {
 
 struct bpf_kfunc_desc_tab;
 
+enum bpf_stream_id {
+	BPF_STDOUT = 1,
+	BPF_STDERR = 2,
+};
+
+struct bpf_stream_elem {
+	struct llist_node node;
+	int total_len;
+	int consumed_len;
+	char str[];
+};
+
+enum {
+	/* 100k bytes */
+	BPF_STREAM_MAX_CAPACITY = 100000ULL,
+};
+
+struct bpf_stream {
+	atomic_t capacity;
+	struct llist_head log;	/* list of in-flight stream elements in LIFO order */
+
+	struct mutex lock;  /* lock protecting backlog_{head,tail} */
+	struct llist_node *backlog_head; /* list of in-flight stream elements in FIFO order */
+	struct llist_node *backlog_tail; /* tail of the list above */
+};
+
+struct bpf_stream_stage {
+	struct llist_head log;
+	int len;
+};
+
 struct bpf_prog_aux {
 	atomic64_t refcnt;
 	u32 used_map_cnt;
@@ -1578,6 +1639,7 @@ struct bpf_prog_aux {
 	bool priv_stack_requested;
 	bool changes_pkt_data;
 	bool might_sleep;
+	bool kprobe_write_ctx;
 	u64 prog_array_member_cnt; /* counts how many times as member of prog_array */
 	struct mutex ext_mutex; /* mutex for is_extended and prog_array_member_cnt */
 	struct bpf_arena *arena;
@@ -1587,6 +1649,7 @@ struct bpf_prog_aux {
 	/* function name for valid attach_btf_id */
 	const char *attach_func_name;
 	struct bpf_prog **func;
+	struct bpf_prog_aux *main_prog_aux;
 	void *jit_data; /* JIT specific data. arch dependent */
 	struct bpf_jit_poke_descriptor *poke_tab;
 	struct bpf_kfunc_desc_tab *kfunc_tab;
@@ -1646,6 +1709,7 @@ struct bpf_prog_aux {
 		struct work_struct work;
 		struct rcu_head	rcu;
 	};
+	struct bpf_stream stream[2];
 };
 
 struct bpf_prog {
@@ -1669,7 +1733,10 @@ struct bpf_prog {
 	enum bpf_attach_type	expected_attach_type; /* For some prog types */
 	u32			len;		/* Number of filter blocks */
 	u32			jited_len;	/* Size of jited insns in bytes */
-	u8			tag[BPF_TAG_SIZE];
+	union {
+		u8 digest[SHA256_DIGEST_SIZE];
+		u8 tag[BPF_TAG_SIZE];
+	};
 	struct bpf_prog_stats __percpu *stats;
 	int __percpu		*active;
 	unsigned int		(*bpf_func)(const void *ctx,
@@ -1697,11 +1764,10 @@ struct bpf_link {
 	enum bpf_link_type type;
 	const struct bpf_link_ops *ops;
 	struct bpf_prog *prog;
-	/* whether BPF link itself has "sleepable" semantics, which can differ
-	 * from underlying BPF program having a "sleepable" semantics, as BPF
-	 * link's semantics is determined by target attach hook
-	 */
-	bool sleepable;
+
+	u32 flags;
+	enum bpf_attach_type attach_type;
+
 	/* rcu is used before freeing, work can be used to schedule that
 	 * RCU-based freeing before that, so they never overlap
 	 */
@@ -1709,6 +1775,11 @@ struct bpf_link {
 		struct rcu_head rcu;
 		struct work_struct work;
 	};
+	/* whether BPF link itself has "sleepable" semantics, which can differ
+	 * from underlying BPF program having a "sleepable" semantics, as BPF
+	 * link's semantics is determined by target attach hook
+	 */
+	bool sleepable;
 };
 
 struct bpf_link_ops {
@@ -1748,7 +1819,6 @@ struct bpf_shim_tramp_link {
 
 struct bpf_tracing_link {
 	struct bpf_tramp_link link;
-	enum bpf_attach_type attach_type;
 	struct bpf_trampoline *trampoline;
 	struct bpf_prog *tgt_prog;
 };
@@ -1940,6 +2010,7 @@ static inline void bpf_module_put(const void *data, struct module *owner)
 		module_put(owner);
 }
 int bpf_struct_ops_link_create(union bpf_attr *attr);
+u32 bpf_struct_ops_id(const void *kdata);
 
 #ifdef CONFIG_NET
 /* Define it here to avoid the use of forward declaration */
@@ -2001,11 +2072,13 @@ int bpf_prog_ctx_arg_info_init(struct bpf_prog *prog,
 
 #if defined(CONFIG_CGROUP_BPF) && defined(CONFIG_BPF_LSM)
 int bpf_trampoline_link_cgroup_shim(struct bpf_prog *prog,
-				    int cgroup_atype);
+				    int cgroup_atype,
+				    enum bpf_attach_type attach_type);
 void bpf_trampoline_unlink_cgroup_shim(struct bpf_prog *prog);
 #else
 static inline int bpf_trampoline_link_cgroup_shim(struct bpf_prog *prog,
-						  int cgroup_atype)
+						  int cgroup_atype,
+						  enum bpf_attach_type attach_type)
 {
 	return -EOPNOTSUPP;
 }
@@ -2069,6 +2142,16 @@ static inline bool bpf_map_flags_access_ok(u32 access_flags)
 {
 	return (access_flags & (BPF_F_RDONLY_PROG | BPF_F_WRONLY_PROG)) !=
 	       (BPF_F_RDONLY_PROG | BPF_F_WRONLY_PROG);
+}
+
+static inline struct bpf_map_owner *bpf_map_owner_alloc(struct bpf_map *map)
+{
+	return kzalloc(sizeof(*map->owner), GFP_ATOMIC);
+}
+
+static inline void bpf_map_owner_free(struct bpf_map *map)
+{
+	kfree(map->owner);
 }
 
 struct bpf_event_entry {
@@ -2288,6 +2371,9 @@ bpf_prog_run_array_uprobe(const struct bpf_prog_array *array,
 	return ret;
 }
 
+bool bpf_jit_bypass_spec_v1(void);
+bool bpf_jit_bypass_spec_v4(void);
+
 #ifdef CONFIG_BPF_SYSCALL
 DECLARE_PER_CPU(int, bpf_prog_active);
 extern struct mutex bpf_stats_enabled_mutex;
@@ -2314,6 +2400,7 @@ extern const struct super_operations bpf_super_ops;
 extern const struct file_operations bpf_map_fops;
 extern const struct file_operations bpf_prog_fops;
 extern const struct file_operations bpf_iter_fops;
+extern const struct file_operations bpf_token_fops;
 
 #define BPF_PROG_TYPE(_id, _name, prog_ctx_type, kern_ctx_type) \
 	extern const struct bpf_prog_ops _name ## _prog_ops; \
@@ -2350,6 +2437,7 @@ struct btf_record *btf_record_dup(const struct btf_record *rec);
 bool btf_record_equal(const struct btf_record *rec_a, const struct btf_record *rec_b);
 void bpf_obj_free_timer(const struct btf_record *rec, void *obj);
 void bpf_obj_free_workqueue(const struct btf_record *rec, void *obj);
+void bpf_obj_free_task_work(const struct btf_record *rec, void *obj);
 void bpf_obj_free_fields(const struct btf_record *rec, void *obj);
 void __bpf_obj_drop_impl(void *p, const struct btf_record *rec, bool percpu);
 
@@ -2405,11 +2493,14 @@ int  generic_map_delete_batch(struct bpf_map *map,
 struct bpf_map *bpf_map_get_curr_or_next(u32 *id);
 struct bpf_prog *bpf_prog_get_curr_or_next(u32 *id);
 
+
 int bpf_map_alloc_pages(const struct bpf_map *map, int nid,
 			unsigned long nr_pages, struct page **page_array);
 #ifdef CONFIG_MEMCG
 void *bpf_map_kmalloc_node(const struct bpf_map *map, size_t size, gfp_t flags,
 			   int node);
+void *bpf_map_kmalloc_nolock(const struct bpf_map *map, size_t size, gfp_t flags,
+			     int node);
 void *bpf_map_kzalloc(const struct bpf_map *map, size_t size, gfp_t flags);
 void *bpf_map_kvcalloc(struct bpf_map *map, size_t n, size_t size,
 		       gfp_t flags);
@@ -2422,6 +2513,8 @@ void __percpu *bpf_map_alloc_percpu(const struct bpf_map *map, size_t size,
  */
 #define bpf_map_kmalloc_node(_map, _size, _flags, _node)	\
 		kmalloc_node(_size, _flags, _node)
+#define bpf_map_kmalloc_nolock(_map, _size, _flags, _node)	\
+		kmalloc_nolock(_size, _flags, _node)
 #define bpf_map_kzalloc(_map, _size, _flags)			\
 		kzalloc(_size, _flags)
 #define bpf_map_kvcalloc(_map, _n, _size, _flags)		\
@@ -2475,22 +2568,27 @@ static inline bool bpf_allow_uninit_stack(const struct bpf_token *token)
 
 static inline bool bpf_bypass_spec_v1(const struct bpf_token *token)
 {
-	return cpu_mitigations_off() || bpf_token_capable(token, CAP_PERFMON);
+	return bpf_jit_bypass_spec_v1() ||
+		cpu_mitigations_off() ||
+		bpf_token_capable(token, CAP_PERFMON);
 }
 
 static inline bool bpf_bypass_spec_v4(const struct bpf_token *token)
 {
-	return cpu_mitigations_off() || bpf_token_capable(token, CAP_PERFMON);
+	return bpf_jit_bypass_spec_v4() ||
+		cpu_mitigations_off() ||
+		bpf_token_capable(token, CAP_PERFMON);
 }
 
 int bpf_map_new_fd(struct bpf_map *map, int flags);
 int bpf_prog_new_fd(struct bpf_prog *prog);
 
 void bpf_link_init(struct bpf_link *link, enum bpf_link_type type,
-		   const struct bpf_link_ops *ops, struct bpf_prog *prog);
+		   const struct bpf_link_ops *ops, struct bpf_prog *prog,
+		   enum bpf_attach_type attach_type);
 void bpf_link_init_sleepable(struct bpf_link *link, enum bpf_link_type type,
 			     const struct bpf_link_ops *ops, struct bpf_prog *prog,
-			     bool sleepable);
+			     enum bpf_attach_type attach_type, bool sleepable);
 int bpf_link_prime(struct bpf_link *link, struct bpf_link_primer *primer);
 int bpf_link_settle(struct bpf_link_primer *primer);
 void bpf_link_cleanup(struct bpf_link_primer *primer);
@@ -2505,6 +2603,9 @@ void bpf_token_inc(struct bpf_token *token);
 void bpf_token_put(struct bpf_token *token);
 int bpf_token_create(union bpf_attr *attr);
 struct bpf_token *bpf_token_get_from_fd(u32 ufd);
+int bpf_token_get_info_by_fd(struct bpf_token *token,
+			     const union bpf_attr *attr,
+			     union bpf_attr __user *uattr);
 
 bool bpf_token_allow_cmd(const struct bpf_token *token, enum bpf_cmd cmd);
 bool bpf_token_allow_map_type(const struct bpf_token *token, enum bpf_map_type type);
@@ -2627,7 +2728,7 @@ int bpf_percpu_hash_update(struct bpf_map *map, void *key, void *value,
 int bpf_percpu_array_update(struct bpf_map *map, void *key, void *value,
 			    u64 flags);
 
-int bpf_stackmap_copy(struct bpf_map *map, void *key, void *value);
+int bpf_stackmap_extract(struct bpf_map *map, void *key, void *value, bool delete);
 
 int bpf_fd_array_map_update_elem(struct bpf_map *map, struct file *map_file,
 				 void *key, void *value, u64 map_flags);
@@ -2804,6 +2905,7 @@ void bpf_dynptr_init(struct bpf_dynptr_kern *ptr, void *data,
 		     enum bpf_dynptr_type type, u32 offset, u32 size);
 void bpf_dynptr_set_null(struct bpf_dynptr_kern *ptr);
 void bpf_dynptr_set_rdonly(struct bpf_dynptr_kern *ptr);
+void bpf_prog_report_arena_violation(bool write, unsigned long addr, unsigned long fault_ip);
 
 #else /* !CONFIG_BPF_SYSCALL */
 static inline struct bpf_prog *bpf_prog_get(u32 ufd)
@@ -2842,13 +2944,13 @@ bpf_prog_inc_not_zero(struct bpf_prog *prog)
 
 static inline void bpf_link_init(struct bpf_link *link, enum bpf_link_type type,
 				 const struct bpf_link_ops *ops,
-				 struct bpf_prog *prog)
+				 struct bpf_prog *prog, enum bpf_attach_type attach_type)
 {
 }
 
 static inline void bpf_link_init_sleepable(struct bpf_link *link, enum bpf_link_type type,
 					   const struct bpf_link_ops *ops, struct bpf_prog *prog,
-					   bool sleepable)
+					   enum bpf_attach_type attach_type, bool sleepable)
 {
 }
 
@@ -2901,6 +3003,13 @@ static inline void bpf_token_put(struct bpf_token *token)
 static inline struct bpf_token *bpf_token_get_from_fd(u32 ufd)
 {
 	return ERR_PTR(-EOPNOTSUPP);
+}
+
+static inline int bpf_token_get_info_by_fd(struct bpf_token *token,
+					   const union bpf_attr *attr,
+					   union bpf_attr __user *uattr)
+{
+	return -EOPNOTSUPP;
 }
 
 static inline void __dev_flush(struct list_head *flush_list)
@@ -3082,6 +3191,11 @@ static inline void bpf_dynptr_set_null(struct bpf_dynptr_kern *ptr)
 }
 
 static inline void bpf_dynptr_set_rdonly(struct bpf_dynptr_kern *ptr)
+{
+}
+
+static inline void bpf_prog_report_arena_violation(bool write, unsigned long addr,
+						   unsigned long fault_ip)
 {
 }
 #endif /* CONFIG_BPF_SYSCALL */
@@ -3326,6 +3440,38 @@ static inline int bpf_fd_reuseport_array_update_elem(struct bpf_map *map,
 #endif /* CONFIG_BPF_SYSCALL */
 #endif /* defined(CONFIG_INET) && defined(CONFIG_BPF_SYSCALL) */
 
+#if defined(CONFIG_KEYS) && defined(CONFIG_BPF_SYSCALL)
+
+struct bpf_key *bpf_lookup_user_key(s32 serial, u64 flags);
+struct bpf_key *bpf_lookup_system_key(u64 id);
+void bpf_key_put(struct bpf_key *bkey);
+int bpf_verify_pkcs7_signature(struct bpf_dynptr *data_p,
+			       struct bpf_dynptr *sig_p,
+			       struct bpf_key *trusted_keyring);
+
+#else
+static inline struct bpf_key *bpf_lookup_user_key(u32 serial, u64 flags)
+{
+	return NULL;
+}
+
+static inline struct bpf_key *bpf_lookup_system_key(u64 id)
+{
+	return NULL;
+}
+
+static inline void bpf_key_put(struct bpf_key *bkey)
+{
+}
+
+static inline int bpf_verify_pkcs7_signature(struct bpf_dynptr *data_p,
+					     struct bpf_dynptr *sig_p,
+					     struct bpf_key *trusted_keyring)
+{
+	return -EOPNOTSUPP;
+}
+#endif /* defined(CONFIG_KEYS) && defined(CONFIG_BPF_SYSCALL) */
+
 /* verifier prototypes for helper functions called from eBPF programs */
 extern const struct bpf_func_proto bpf_map_lookup_elem_proto;
 extern const struct bpf_func_proto bpf_map_update_elem_proto;
@@ -3543,6 +3689,16 @@ bool btf_id_set_contains(const struct btf_id_set *set, u32 id);
 #define MAX_BPRINTF_VARARGS		12
 #define MAX_BPRINTF_BUF			1024
 
+/* Per-cpu temp buffers used by printf-like helpers to store the bprintf binary
+ * arguments representation.
+ */
+#define MAX_BPRINTF_BIN_ARGS	512
+
+struct bpf_bprintf_buffers {
+	char bin_args[MAX_BPRINTF_BIN_ARGS];
+	char buf[MAX_BPRINTF_BUF];
+};
+
 struct bpf_bprintf_data {
 	u32 *bin_args;
 	char *buf;
@@ -3550,9 +3706,33 @@ struct bpf_bprintf_data {
 	bool get_buf;
 };
 
-int bpf_bprintf_prepare(char *fmt, u32 fmt_size, const u64 *raw_args,
+int bpf_bprintf_prepare(const char *fmt, u32 fmt_size, const u64 *raw_args,
 			u32 num_args, struct bpf_bprintf_data *data);
 void bpf_bprintf_cleanup(struct bpf_bprintf_data *data);
+int bpf_try_get_buffers(struct bpf_bprintf_buffers **bufs);
+void bpf_put_buffers(void);
+
+void bpf_prog_stream_init(struct bpf_prog *prog);
+void bpf_prog_stream_free(struct bpf_prog *prog);
+int bpf_prog_stream_read(struct bpf_prog *prog, enum bpf_stream_id stream_id, void __user *buf, int len);
+void bpf_stream_stage_init(struct bpf_stream_stage *ss);
+void bpf_stream_stage_free(struct bpf_stream_stage *ss);
+__printf(2, 3)
+int bpf_stream_stage_printk(struct bpf_stream_stage *ss, const char *fmt, ...);
+int bpf_stream_stage_commit(struct bpf_stream_stage *ss, struct bpf_prog *prog,
+			    enum bpf_stream_id stream_id);
+int bpf_stream_stage_dump_stack(struct bpf_stream_stage *ss);
+
+#define bpf_stream_printk(ss, ...) bpf_stream_stage_printk(&ss, __VA_ARGS__)
+#define bpf_stream_dump_stack(ss) bpf_stream_stage_dump_stack(&ss)
+
+#define bpf_stream_stage(ss, prog, stream_id, expr)            \
+	({                                                     \
+		bpf_stream_stage_init(&ss);                    \
+		(expr);                                        \
+		bpf_stream_stage_commit(&ss, prog, stream_id); \
+		bpf_stream_stage_free(&ss);                    \
+	})
 
 #ifdef CONFIG_BPF_LSM
 void bpf_cgroup_atype_get(u32 attach_btf_id, int cgroup_atype);
@@ -3587,5 +3767,9 @@ static inline bool bpf_is_subprog(const struct bpf_prog *prog)
 {
 	return prog->aux->func_idx != 0;
 }
+
+int bpf_prog_get_file_line(struct bpf_prog *prog, unsigned long ip, const char **filep,
+			   const char **linep, int *nump);
+struct bpf_prog *bpf_prog_find_from_stack(void);
 
 #endif /* _LINUX_BPF_H */

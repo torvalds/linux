@@ -12,9 +12,13 @@
 #define CTX_RING_START			(0x08 + 1)
 #define CTX_RING_CTL			(0x0a + 1)
 #define CTX_BB_PER_CTX_PTR		(0x12 + 1)
+#define CTX_CS_INDIRECT_CTX		(0x14 + 1)
+#define CTX_CS_INDIRECT_CTX_OFFSET	(0x16 + 1)
 #define CTX_TIMESTAMP			(0x22 + 1)
 #define CTX_TIMESTAMP_UDW		(0x24 + 1)
 #define CTX_INDIRECT_RING_STATE		(0x26 + 1)
+#define CTX_ACC_CTR_THOLD		(0x2a + 1)
+#define CTX_ASID			(0x2e + 1)
 #define CTX_PDP0_UDW			(0x30 + 1)
 #define CTX_PDP0_LDW			(0x32 + 1)
 

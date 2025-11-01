@@ -90,7 +90,7 @@ bool ice_check_sq_alive(struct ice_hw *hw, struct ice_ctl_q_info *cq)
 static int
 ice_alloc_ctrlq_sq_ring(struct ice_hw *hw, struct ice_ctl_q_info *cq)
 {
-	size_t size = cq->num_sq_entries * sizeof(struct ice_aq_desc);
+	size_t size = cq->num_sq_entries * sizeof(struct libie_aq_desc);
 
 	cq->sq.desc_buf.va = dmam_alloc_coherent(ice_hw_to_dev(hw), size,
 						 &cq->sq.desc_buf.pa,
@@ -110,7 +110,7 @@ ice_alloc_ctrlq_sq_ring(struct ice_hw *hw, struct ice_ctl_q_info *cq)
 static int
 ice_alloc_ctrlq_rq_ring(struct ice_hw *hw, struct ice_ctl_q_info *cq)
 {
-	size_t size = cq->num_rq_entries * sizeof(struct ice_aq_desc);
+	size_t size = cq->num_rq_entries * sizeof(struct libie_aq_desc);
 
 	cq->rq.desc_buf.va = dmam_alloc_coherent(ice_hw_to_dev(hw), size,
 						 &cq->rq.desc_buf.pa,
@@ -159,7 +159,7 @@ ice_alloc_rq_bufs(struct ice_hw *hw, struct ice_ctl_q_info *cq)
 
 	/* allocate the mapped buffers */
 	for (i = 0; i < cq->num_rq_entries; i++) {
-		struct ice_aq_desc *desc;
+		struct libie_aq_desc *desc;
 		struct ice_dma_mem *bi;
 
 		bi = &cq->rq.r.rq_bi[i];
@@ -173,9 +173,9 @@ ice_alloc_rq_bufs(struct ice_hw *hw, struct ice_ctl_q_info *cq)
 		/* now configure the descriptors for use */
 		desc = ICE_CTL_Q_DESC(cq->rq, i);
 
-		desc->flags = cpu_to_le16(ICE_AQ_FLAG_BUF);
-		if (cq->rq_buf_size > ICE_AQ_LG_BUF)
-			desc->flags |= cpu_to_le16(ICE_AQ_FLAG_LB);
+		desc->flags = cpu_to_le16(LIBIE_AQ_FLAG_BUF);
+		if (cq->rq_buf_size > LIBIE_AQ_LG_BUF)
+			desc->flags |= cpu_to_le16(LIBIE_AQ_FLAG_LB);
 		desc->opcode = 0;
 		/* This is in accordance with control queue design, there is no
 		 * register for buffer size configuration
@@ -858,7 +858,7 @@ static u16 ice_clean_sq(struct ice_hw *hw, struct ice_ctl_q_info *cq)
 {
 	struct ice_ctl_q_ring *sq = &cq->sq;
 	u16 ntc = sq->next_to_clean;
-	struct ice_aq_desc *desc;
+	struct libie_aq_desc *desc;
 
 	desc = ICE_CTL_Q_DESC(*sq, ntc);
 
@@ -912,7 +912,7 @@ static const char *ice_ctl_q_str(enum ice_ctl_q qtype)
 static void ice_debug_cq(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 			 void *desc, void *buf, u16 buf_len, bool response)
 {
-	struct ice_aq_desc *cq_desc = desc;
+	struct libie_aq_desc *cq_desc = desc;
 	u16 datalen, flags;
 
 	if (!IS_ENABLED(CONFIG_DYNAMIC_DEBUG) &&
@@ -939,7 +939,8 @@ static void ice_debug_cq(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 	 * by the DD and/or CMP flag set or a command with the RD flag set.
 	 */
 	if (buf && cq_desc->datalen &&
-	    (flags & (ICE_AQ_FLAG_DD | ICE_AQ_FLAG_CMP | ICE_AQ_FLAG_RD))) {
+	    (flags & (LIBIE_AQ_FLAG_DD | LIBIE_AQ_FLAG_CMP |
+		      LIBIE_AQ_FLAG_RD))) {
 		char prefix[] = KBUILD_MODNAME " 0x12341234 0x12341234 ";
 
 		sprintf(prefix, KBUILD_MODNAME " 0x%08X 0x%08X ",
@@ -992,11 +993,11 @@ static bool ice_sq_done(struct ice_hw *hw, struct ice_ctl_q_info *cq)
  */
 int
 ice_sq_send_cmd(struct ice_hw *hw, struct ice_ctl_q_info *cq,
-		struct ice_aq_desc *desc, void *buf, u16 buf_size,
+		struct libie_aq_desc *desc, void *buf, u16 buf_size,
 		struct ice_sq_cd *cd)
 {
 	struct ice_dma_mem *dma_buf = NULL;
-	struct ice_aq_desc *desc_on_ring;
+	struct libie_aq_desc *desc_on_ring;
 	bool cmd_completed = false;
 	int status = 0;
 	u16 retval = 0;
@@ -1007,7 +1008,7 @@ ice_sq_send_cmd(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 		return -EBUSY;
 	mutex_lock(&cq->sq_lock);
 
-	cq->sq_last_status = ICE_AQ_RC_OK;
+	cq->sq_last_status = LIBIE_AQ_RC_OK;
 
 	if (!cq->sq.count) {
 		ice_debug(hw, ICE_DBG_AQ_MSG, "Control Send queue not initialized.\n");
@@ -1028,9 +1029,9 @@ ice_sq_send_cmd(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 			goto sq_send_command_error;
 		}
 
-		desc->flags |= cpu_to_le16(ICE_AQ_FLAG_BUF);
-		if (buf_size > ICE_AQ_LG_BUF)
-			desc->flags |= cpu_to_le16(ICE_AQ_FLAG_LB);
+		desc->flags |= cpu_to_le16(LIBIE_AQ_FLAG_BUF);
+		if (buf_size > LIBIE_AQ_LG_BUF)
+			desc->flags |= cpu_to_le16(LIBIE_AQ_FLAG_LB);
 	}
 
 	val = rd32(hw, cq->sq.head);
@@ -1112,9 +1113,9 @@ ice_sq_send_cmd(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 			retval &= 0xff;
 		}
 		cmd_completed = true;
-		if (!status && retval != ICE_AQ_RC_OK)
+		if (!status && retval != LIBIE_AQ_RC_OK)
 			status = -EIO;
-		cq->sq_last_status = (enum ice_aq_err)retval;
+		cq->sq_last_status = (enum libie_aq_err)retval;
 	}
 
 	ice_debug(hw, ICE_DBG_AQ_MSG, "ATQ: desc and buffer writeback:\n");
@@ -1149,12 +1150,12 @@ sq_send_command_error:
  *
  * Fill the desc with default values
  */
-void ice_fill_dflt_direct_cmd_desc(struct ice_aq_desc *desc, u16 opcode)
+void ice_fill_dflt_direct_cmd_desc(struct libie_aq_desc *desc, u16 opcode)
 {
 	/* zero out the desc */
 	memset(desc, 0, sizeof(*desc));
 	desc->opcode = cpu_to_le16(opcode);
-	desc->flags = cpu_to_le16(ICE_AQ_FLAG_SI);
+	desc->flags = cpu_to_le16(LIBIE_AQ_FLAG_SI);
 }
 
 /**
@@ -1172,9 +1173,9 @@ int
 ice_clean_rq_elem(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 		  struct ice_rq_event_info *e, u16 *pending)
 {
+	enum libie_aq_err rq_last_status;
 	u16 ntc = cq->rq.next_to_clean;
-	enum ice_aq_err rq_last_status;
-	struct ice_aq_desc *desc;
+	struct libie_aq_desc *desc;
 	struct ice_dma_mem *bi;
 	int ret_code = 0;
 	u16 desc_idx;
@@ -1207,9 +1208,9 @@ ice_clean_rq_elem(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 	desc = ICE_CTL_Q_DESC(cq->rq, ntc);
 	desc_idx = ntc;
 
-	rq_last_status = (enum ice_aq_err)le16_to_cpu(desc->retval);
+	rq_last_status = (enum libie_aq_err)le16_to_cpu(desc->retval);
 	flags = le16_to_cpu(desc->flags);
-	if (flags & ICE_AQ_FLAG_ERR) {
+	if (flags & LIBIE_AQ_FLAG_ERR) {
 		ret_code = -EIO;
 		ice_debug(hw, ICE_DBG_AQ_MSG, "Control Receive Queue Event 0x%04X received with error 0x%X\n",
 			  le16_to_cpu(desc->opcode), rq_last_status);
@@ -1230,9 +1231,9 @@ ice_clean_rq_elem(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 	bi = &cq->rq.r.rq_bi[ntc];
 	memset(desc, 0, sizeof(*desc));
 
-	desc->flags = cpu_to_le16(ICE_AQ_FLAG_BUF);
-	if (cq->rq_buf_size > ICE_AQ_LG_BUF)
-		desc->flags |= cpu_to_le16(ICE_AQ_FLAG_LB);
+	desc->flags = cpu_to_le16(LIBIE_AQ_FLAG_BUF);
+	if (cq->rq_buf_size > LIBIE_AQ_LG_BUF)
+		desc->flags |= cpu_to_le16(LIBIE_AQ_FLAG_LB);
 	desc->datalen = cpu_to_le16(bi->size);
 	desc->params.generic.addr_high = cpu_to_le32(upper_32_bits(bi->pa));
 	desc->params.generic.addr_low = cpu_to_le32(lower_32_bits(bi->pa));

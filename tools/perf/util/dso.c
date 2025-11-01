@@ -217,7 +217,7 @@ int dso__read_binary_type_filename(const struct dso *dso,
 			break;
 		}
 
-		build_id__sprintf(dso__bid_const(dso), build_id_hex);
+		build_id__snprintf(dso__bid(dso), build_id_hex, sizeof(build_id_hex));
 		len = __symbol__join_symfs(filename, size, "/usr/lib/debug/.build-id/");
 		snprintf(filename + len, size - len, "%.2s/%s.debug",
 			 build_id_hex, build_id_hex + 2);
@@ -1382,64 +1382,76 @@ static void dso__set_long_name_id(struct dso *dso, const char *name, bool name_a
 
 static int __dso_id__cmp(const struct dso_id *a, const struct dso_id *b)
 {
-	if (a->maj > b->maj) return -1;
-	if (a->maj < b->maj) return 1;
+	if (a->mmap2_valid && b->mmap2_valid) {
+		if (a->maj > b->maj) return -1;
+		if (a->maj < b->maj) return 1;
 
-	if (a->min > b->min) return -1;
-	if (a->min < b->min) return 1;
+		if (a->min > b->min) return -1;
+		if (a->min < b->min) return 1;
 
-	if (a->ino > b->ino) return -1;
-	if (a->ino < b->ino) return 1;
-
-	/*
-	 * Synthesized MMAP events have zero ino_generation, avoid comparing
-	 * them with MMAP events with actual ino_generation.
-	 *
-	 * I found it harmful because the mismatch resulted in a new
-	 * dso that did not have a build ID whereas the original dso did have a
-	 * build ID. The build ID was essential because the object was not found
-	 * otherwise. - Adrian
-	 */
-	if (a->ino_generation && b->ino_generation) {
+		if (a->ino > b->ino) return -1;
+		if (a->ino < b->ino) return 1;
+	}
+	if (a->mmap2_ino_generation_valid && b->mmap2_ino_generation_valid) {
 		if (a->ino_generation > b->ino_generation) return -1;
 		if (a->ino_generation < b->ino_generation) return 1;
 	}
-
+	if (build_id__is_defined(&a->build_id) && build_id__is_defined(&b->build_id)) {
+		if (a->build_id.size != b->build_id.size)
+			return a->build_id.size < b->build_id.size ? -1 : 1;
+		return memcmp(a->build_id.data, b->build_id.data, a->build_id.size);
+	}
 	return 0;
 }
 
-bool dso_id__empty(const struct dso_id *id)
-{
-	if (!id)
-		return true;
+const struct dso_id dso_id_empty = {
+	{
+		.maj = 0,
+		.min = 0,
+		.ino = 0,
+		.ino_generation = 0,
+	},
+	.mmap2_valid = false,
+	.mmap2_ino_generation_valid = false,
+	{
+		.size = 0,
+	}
+};
 
-	return !id->maj && !id->min && !id->ino && !id->ino_generation;
-}
-
-void __dso__inject_id(struct dso *dso, const struct dso_id *id)
+void __dso__improve_id(struct dso *dso, const struct dso_id *id)
 {
 	struct dsos *dsos = dso__dsos(dso);
 	struct dso_id *dso_id = dso__id(dso);
+	bool changed = false;
 
 	/* dsos write lock held by caller. */
 
-	dso_id->maj = id->maj;
-	dso_id->min = id->min;
-	dso_id->ino = id->ino;
-	dso_id->ino_generation = id->ino_generation;
-
-	if (dsos)
+	if (id->mmap2_valid && !dso_id->mmap2_valid) {
+		dso_id->maj = id->maj;
+		dso_id->min = id->min;
+		dso_id->ino = id->ino;
+		dso_id->mmap2_valid = true;
+		changed = true;
+	}
+	if (id->mmap2_ino_generation_valid && !dso_id->mmap2_ino_generation_valid) {
+		dso_id->ino_generation = id->ino_generation;
+		dso_id->mmap2_ino_generation_valid = true;
+		changed = true;
+	}
+	if (build_id__is_defined(&id->build_id) && !build_id__is_defined(&dso_id->build_id)) {
+		dso_id->build_id = id->build_id;
+		changed = true;
+	}
+	if (changed && dsos)
 		dsos->sorted = false;
 }
 
 int dso_id__cmp(const struct dso_id *a, const struct dso_id *b)
 {
-	/*
-	 * The second is always dso->id, so zeroes if not set, assume passing
-	 * NULL for a means a zeroed id
-	 */
-	if (dso_id__empty(a) || dso_id__empty(b))
+	if (a == &dso_id_empty || b == &dso_id_empty) {
+		/* There is no valid data to compare so the comparison always returns identical. */
 		return 0;
+	}
 
 	return __dso_id__cmp(a, b);
 }
@@ -1540,7 +1552,6 @@ struct dso *dso__new_id(const char *name, const struct dso_id *id)
 		dso->loaded = 0;
 		dso->rel = 0;
 		dso->sorted_by_name = 0;
-		dso->has_build_id = 0;
 		dso->has_srcline = 1;
 		dso->a2l_fails = 1;
 		dso->kernel = DSO_SPACE__USER;
@@ -1612,6 +1623,10 @@ struct dso *dso__get(struct dso *dso)
 
 void dso__put(struct dso *dso)
 {
+#ifdef REFCNT_CHECKING
+	if (dso && dso__data(dso) && refcount_read(&RC_CHK_ACCESS(dso)->refcnt) == 2)
+		dso__data_close(dso);
+#endif
 	if (dso && refcount_dec_and_test(&RC_CHK_ACCESS(dso)->refcnt))
 		dso__delete(dso);
 	else
@@ -1645,15 +1660,14 @@ int dso__swap_init(struct dso *dso, unsigned char eidata)
 	return 0;
 }
 
-void dso__set_build_id(struct dso *dso, struct build_id *bid)
+void dso__set_build_id(struct dso *dso, const struct build_id *bid)
 {
-	RC_CHK_ACCESS(dso)->bid = *bid;
-	RC_CHK_ACCESS(dso)->has_build_id = 1;
+	dso__id(dso)->build_id = *bid;
 }
 
-bool dso__build_id_equal(const struct dso *dso, struct build_id *bid)
+bool dso__build_id_equal(const struct dso *dso, const struct build_id *bid)
 {
-	const struct build_id *dso_bid = dso__bid_const(dso);
+	const struct build_id *dso_bid = dso__bid(dso);
 
 	if (dso_bid->size > bid->size && dso_bid->size == BUILD_ID_SIZE) {
 		/*
@@ -1672,18 +1686,20 @@ bool dso__build_id_equal(const struct dso *dso, struct build_id *bid)
 void dso__read_running_kernel_build_id(struct dso *dso, struct machine *machine)
 {
 	char path[PATH_MAX];
+	struct build_id bid = { .size = 0, };
 
 	if (machine__is_default_guest(machine))
 		return;
 	sprintf(path, "%s/sys/kernel/notes", machine->root_dir);
-	if (sysfs__read_build_id(path, dso__bid(dso)) == 0)
-		dso__set_has_build_id(dso);
+	sysfs__read_build_id(path, &bid);
+	dso__set_build_id(dso, &bid);
 }
 
 int dso__kernel_module_get_build_id(struct dso *dso,
 				    const char *root_dir)
 {
 	char filename[PATH_MAX];
+	struct build_id bid = { .size = 0, };
 	/*
 	 * kernel module short names are of the form "[module]" and
 	 * we need just "module" here.
@@ -1694,9 +1710,8 @@ int dso__kernel_module_get_build_id(struct dso *dso,
 		 "%s/sys/module/%.*s/notes/.note.gnu.build-id",
 		 root_dir, (int)strlen(name) - 1, name);
 
-	if (sysfs__read_build_id(filename, dso__bid(dso)) == 0)
-		dso__set_has_build_id(dso);
-
+	sysfs__read_build_id(filename, &bid);
+	dso__set_build_id(dso, &bid);
 	return 0;
 }
 
@@ -1704,7 +1719,7 @@ static size_t dso__fprintf_buildid(struct dso *dso, FILE *fp)
 {
 	char sbuild_id[SBUILD_ID_SIZE];
 
-	build_id__sprintf(dso__bid(dso), sbuild_id);
+	build_id__snprintf(dso__bid(dso), sbuild_id, sizeof(sbuild_id));
 	return fprintf(fp, "%s", sbuild_id);
 }
 
@@ -1782,4 +1797,116 @@ bool is_perf_pid_map_name(const char *dso_name)
 	int tid;
 
 	return perf_pid_map_tid(dso_name, &tid);
+}
+
+struct find_file_offset_data {
+	u64 ip;
+	u64 offset;
+};
+
+/* This will be called for each PHDR in an ELF binary */
+static int find_file_offset(u64 start, u64 len, u64 pgoff, void *arg)
+{
+	struct find_file_offset_data *data = arg;
+
+	if (start <= data->ip && data->ip < start + len) {
+		data->offset = pgoff + data->ip - start;
+		return 1;
+	}
+	return 0;
+}
+
+static const u8 *__dso__read_symbol(struct dso *dso, const char *symfs_filename,
+				    u64 start, size_t len,
+				    u8 **out_buf, u64 *out_buf_len, bool *is_64bit)
+{
+	struct nscookie nsc;
+	int fd;
+	ssize_t count;
+	struct find_file_offset_data data = {
+		.ip = start,
+	};
+	u8 *code_buf = NULL;
+	int saved_errno;
+
+	nsinfo__mountns_enter(dso__nsinfo(dso), &nsc);
+	fd = open(symfs_filename, O_RDONLY);
+	saved_errno = errno;
+	nsinfo__mountns_exit(&nsc);
+	if (fd < 0) {
+		errno = saved_errno;
+		return NULL;
+	}
+	if (file__read_maps(fd, /*exe=*/true, find_file_offset, &data, is_64bit) <= 0) {
+		close(fd);
+		errno = ENOENT;
+		return NULL;
+	}
+	code_buf = malloc(len);
+	if (code_buf == NULL) {
+		close(fd);
+		errno = ENOMEM;
+		return NULL;
+	}
+	count = pread(fd, code_buf, len, data.offset);
+	saved_errno = errno;
+	close(fd);
+	if ((u64)count != len) {
+		free(code_buf);
+		errno = saved_errno;
+		return NULL;
+	}
+	*out_buf = code_buf;
+	*out_buf_len = len;
+	return code_buf;
+}
+
+/*
+ * Read a symbol into memory for disassembly by a library like capstone of
+ * libLLVM. If memory is allocated out_buf holds it.
+ */
+const u8 *dso__read_symbol(struct dso *dso, const char *symfs_filename,
+			   const struct map *map, const struct symbol *sym,
+			   u8 **out_buf, u64 *out_buf_len, bool *is_64bit)
+{
+	u64 start = map__rip_2objdump(map, sym->start);
+	u64 end = map__rip_2objdump(map, sym->end);
+	size_t len = end - start;
+
+	*out_buf = NULL;
+	*out_buf_len = 0;
+	*is_64bit = false;
+
+	if (dso__binary_type(dso) == DSO_BINARY_TYPE__BPF_IMAGE) {
+		/*
+		 * Note, there is fallback BPF image disassembly in the objdump
+		 * version but it currently does nothing.
+		 */
+		errno = EOPNOTSUPP;
+		return NULL;
+	}
+	if (dso__binary_type(dso) == DSO_BINARY_TYPE__BPF_PROG_INFO) {
+#ifdef HAVE_LIBBPF_SUPPORT
+		struct bpf_prog_info_node *info_node;
+		struct perf_bpil *info_linear;
+
+		*is_64bit = sizeof(void *) == sizeof(u64);
+		info_node = perf_env__find_bpf_prog_info(dso__bpf_prog(dso)->env,
+							 dso__bpf_prog(dso)->id);
+		if (!info_node) {
+			errno = SYMBOL_ANNOTATE_ERRNO__BPF_MISSING_BTF;
+			return NULL;
+		}
+		info_linear = info_node->info_linear;
+		assert(len <= info_linear->info.jited_prog_len);
+		*out_buf_len = len;
+		return (const u8 *)(uintptr_t)(info_linear->info.jited_prog_insns);
+#else
+		pr_debug("No BPF program disassembly support\n");
+		errno = EOPNOTSUPP;
+		return NULL;
+#endif
+	}
+	return __dso__read_symbol(dso, symfs_filename, start, len,
+				  out_buf, out_buf_len, is_64bit);
 }

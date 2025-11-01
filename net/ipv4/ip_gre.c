@@ -28,6 +28,7 @@
 #include <linux/etherdevice.h>
 #include <linux/if_ether.h>
 
+#include <net/flow.h>
 #include <net/sock.h>
 #include <net/ip.h>
 #include <net/icmp.h>
@@ -44,7 +45,6 @@
 #include <net/gre.h>
 #include <net/dst_metadata.h>
 #include <net/erspan.h>
-#include <net/inet_dscp.h>
 
 /*
    Problems & solutions
@@ -930,7 +930,7 @@ static int ipgre_open(struct net_device *dev)
 	if (ipv4_is_multicast(t->parms.iph.daddr)) {
 		struct flowi4 fl4 = {
 			.flowi4_oif = t->parms.link,
-			.flowi4_tos = inet_dscp_to_dsfield(ip4h_dscp(&t->parms.iph)),
+			.flowi4_dscp = ip4h_dscp(&t->parms.iph),
 			.flowi4_scope = RT_SCOPE_UNIVERSE,
 			.flowi4_proto = IPPROTO_GRE,
 			.saddr = t->parms.iph.saddr,

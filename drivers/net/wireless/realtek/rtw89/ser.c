@@ -205,7 +205,6 @@ static void rtw89_ser_hdl_work(struct work_struct *work)
 
 static int ser_send_msg(struct rtw89_ser *ser, u8 event)
 {
-	struct rtw89_dev *rtwdev = container_of(ser, struct rtw89_dev, ser);
 	struct ser_msg *msg = NULL;
 
 	if (test_bit(RTW89_SER_DRV_STOP_RUN, ser->flags))
@@ -221,7 +220,7 @@ static int ser_send_msg(struct rtw89_ser *ser, u8 event)
 	list_add(&msg->list, &ser->msg_q);
 	spin_unlock_irq(&ser->msg_q_lock);
 
-	ieee80211_queue_work(rtwdev->hw, &ser->ser_hdl_work);
+	schedule_work(&ser->ser_hdl_work);
 	return 0;
 }
 
@@ -492,6 +491,7 @@ static void ser_reset_trx_st_hdl(struct rtw89_ser *ser, u8 evt)
 	case SER_EV_STATE_IN:
 		wiphy_lock(wiphy);
 		wiphy_delayed_work_cancel(wiphy, &rtwdev->track_work);
+		wiphy_delayed_work_cancel(wiphy, &rtwdev->track_ps_work);
 		wiphy_unlock(wiphy);
 		drv_stop_tx(ser);
 
@@ -501,7 +501,9 @@ static void ser_reset_trx_st_hdl(struct rtw89_ser *ser, u8 evt)
 		}
 
 		drv_stop_rx(ser);
+		wiphy_lock(wiphy);
 		drv_trx_reset(ser);
+		wiphy_unlock(wiphy);
 
 		/* wait m3 */
 		hal_send_m2_event(ser);
@@ -525,6 +527,8 @@ static void ser_reset_trx_st_hdl(struct rtw89_ser *ser, u8 evt)
 		drv_resume_tx(ser);
 		wiphy_delayed_work_queue(wiphy, &rtwdev->track_work,
 					 RTW89_TRACK_WORK_PERIOD);
+		wiphy_delayed_work_queue(wiphy, &rtwdev->track_ps_work,
+					 RTW89_TRACK_PS_WORK_PERIOD);
 		break;
 
 	default:
@@ -566,21 +570,22 @@ static void ser_mac_mem_dump(struct rtw89_dev *rtwdev, u8 *buf,
 	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
 	u32 filter_model_addr = mac->filter_model_addr;
 	u32 indir_access_addr = mac->indir_access_addr;
+	u32 mem_page_size = mac->mem_page_size;
 	u32 *ptr = (u32 *)buf;
 	u32 base_addr, start_page, residue;
 	u32 cnt = 0;
 	u32 i;
 
-	start_page = start_addr / MAC_MEM_DUMP_PAGE_SIZE;
-	residue = start_addr % MAC_MEM_DUMP_PAGE_SIZE;
+	start_page = start_addr / mem_page_size;
+	residue = start_addr % mem_page_size;
 	base_addr = mac->mem_base_addrs[sel];
-	base_addr += start_page * MAC_MEM_DUMP_PAGE_SIZE;
+	base_addr += start_page * mem_page_size;
 
 	while (cnt < len) {
 		rtw89_write32(rtwdev, filter_model_addr, base_addr);
 
 		for (i = indir_access_addr + residue;
-		     i < indir_access_addr + MAC_MEM_DUMP_PAGE_SIZE;
+		     i < indir_access_addr + mem_page_size;
 		     i += 4, ptr++) {
 			*ptr = rtw89_read32(rtwdev, i);
 			cnt += 4;
@@ -589,7 +594,7 @@ static void ser_mac_mem_dump(struct rtw89_dev *rtwdev, u8 *buf,
 		}
 
 		residue = 0;
-		base_addr += MAC_MEM_DUMP_PAGE_SIZE;
+		base_addr += mem_page_size;
 	}
 }
 

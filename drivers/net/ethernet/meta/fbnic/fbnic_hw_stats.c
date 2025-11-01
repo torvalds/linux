@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) Meta Platforms, Inc. and affiliates. */
 
+#include <linux/rtnetlink.h>
+
 #include "fbnic.h"
 
 static void fbnic_hw_stat_rst32(struct fbnic_dev *fbd, u32 reg,
@@ -421,9 +423,9 @@ static void fbnic_get_hw_rxq_stats32(struct fbnic_dev *fbd,
 void fbnic_get_hw_q_stats(struct fbnic_dev *fbd,
 			  struct fbnic_hw_q_stats *hw_q)
 {
-	spin_lock(&fbd->hw_stats_lock);
+	spin_lock(&fbd->hw_stats.lock);
 	fbnic_get_hw_rxq_stats32(fbd, hw_q);
-	spin_unlock(&fbd->hw_stats_lock);
+	spin_unlock(&fbd->hw_stats.lock);
 }
 
 static void fbnic_reset_pcie_stats_asic(struct fbnic_dev *fbd,
@@ -510,20 +512,68 @@ static void fbnic_get_pcie_stats_asic64(struct fbnic_dev *fbd,
 			   &pcie->ob_rd_no_np_cred);
 }
 
+static void fbnic_reset_phy_stats(struct fbnic_dev *fbd,
+				  struct fbnic_phy_stats *phy_stats)
+{
+	const struct fbnic_mac *mac = fbd->mac;
+
+	mac->get_fec_stats(fbd, true, &phy_stats->fec);
+	mac->get_pcs_stats(fbd, true, &phy_stats->pcs);
+}
+
+static void fbnic_get_phy_stats32(struct fbnic_dev *fbd,
+				  struct fbnic_phy_stats *phy_stats)
+{
+	const struct fbnic_mac *mac = fbd->mac;
+
+	mac->get_fec_stats(fbd, false, &phy_stats->fec);
+	mac->get_pcs_stats(fbd, false, &phy_stats->pcs);
+}
+
+static void fbnic_reset_hw_mac_stats(struct fbnic_dev *fbd,
+				     struct fbnic_mac_stats *mac_stats)
+{
+	const struct fbnic_mac *mac = fbd->mac;
+
+	mac->get_eth_mac_stats(fbd, true, &mac_stats->eth_mac);
+	mac->get_pause_stats(fbd, true, &mac_stats->pause);
+	mac->get_eth_ctrl_stats(fbd, true, &mac_stats->eth_ctrl);
+	mac->get_rmon_stats(fbd, true, &mac_stats->rmon);
+}
+
 void fbnic_reset_hw_stats(struct fbnic_dev *fbd)
 {
-	spin_lock(&fbd->hw_stats_lock);
+	spin_lock(&fbd->hw_stats.lock);
+	fbnic_reset_phy_stats(fbd, &fbd->hw_stats.phy);
 	fbnic_reset_tmi_stats(fbd, &fbd->hw_stats.tmi);
 	fbnic_reset_tti_stats(fbd, &fbd->hw_stats.tti);
 	fbnic_reset_rpc_stats(fbd, &fbd->hw_stats.rpc);
 	fbnic_reset_rxb_stats(fbd, &fbd->hw_stats.rxb);
 	fbnic_reset_hw_rxq_stats(fbd, fbd->hw_stats.hw_q);
 	fbnic_reset_pcie_stats_asic(fbd, &fbd->hw_stats.pcie);
-	spin_unlock(&fbd->hw_stats_lock);
+	spin_unlock(&fbd->hw_stats.lock);
+
+	/* Once registered, the only other access to MAC stats is via the
+	 * ethtool API which is protected by the rtnl_lock. The call to
+	 * fbnic_reset_hw_stats() during PCI recovery is also protected
+	 * by the rtnl_lock hence, we don't need the spinlock to access
+	 * the MAC stats.
+	 */
+	if (fbd->netdev)
+		ASSERT_RTNL();
+	fbnic_reset_hw_mac_stats(fbd, &fbd->hw_stats.mac);
+}
+
+void fbnic_init_hw_stats(struct fbnic_dev *fbd)
+{
+	spin_lock_init(&fbd->hw_stats.lock);
+
+	fbnic_reset_hw_stats(fbd);
 }
 
 static void __fbnic_get_hw_stats32(struct fbnic_dev *fbd)
 {
+	fbnic_get_phy_stats32(fbd, &fbd->hw_stats.phy);
 	fbnic_get_tmi_stats32(fbd, &fbd->hw_stats.tmi);
 	fbnic_get_tti_stats32(fbd, &fbd->hw_stats.tti);
 	fbnic_get_rpc_stats32(fbd, &fbd->hw_stats.rpc);
@@ -533,19 +583,19 @@ static void __fbnic_get_hw_stats32(struct fbnic_dev *fbd)
 
 void fbnic_get_hw_stats32(struct fbnic_dev *fbd)
 {
-	spin_lock(&fbd->hw_stats_lock);
+	spin_lock(&fbd->hw_stats.lock);
 	__fbnic_get_hw_stats32(fbd);
-	spin_unlock(&fbd->hw_stats_lock);
+	spin_unlock(&fbd->hw_stats.lock);
 }
 
 void fbnic_get_hw_stats(struct fbnic_dev *fbd)
 {
-	spin_lock(&fbd->hw_stats_lock);
+	spin_lock(&fbd->hw_stats.lock);
 	__fbnic_get_hw_stats32(fbd);
 
 	fbnic_get_tmi_stats(fbd, &fbd->hw_stats.tmi);
 	fbnic_get_tti_stats(fbd, &fbd->hw_stats.tti);
 	fbnic_get_rxb_stats(fbd, &fbd->hw_stats.rxb);
 	fbnic_get_pcie_stats_asic64(fbd, &fbd->hw_stats.pcie);
-	spin_unlock(&fbd->hw_stats_lock);
+	spin_unlock(&fbd->hw_stats.lock);
 }

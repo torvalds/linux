@@ -131,6 +131,8 @@ static inline int cpu_to_coregroup_id(int cpu)
 #ifdef CONFIG_SMP
 #include <asm/cputable.h>
 
+struct cpumask *cpu_coregroup_mask(int cpu);
+
 #ifdef CONFIG_PPC64
 #include <asm/smp.h>
 

@@ -69,7 +69,7 @@ static void drm_connector_hdmi_cec_adapter_unregister(struct drm_device *dev, vo
 	struct drm_connector *connector = res;
 	struct drm_connector_hdmi_cec_data *data = connector->cec.data;
 
-	cec_delete_adapter(data->adapter);
+	cec_unregister_adapter(data->adapter);
 
 	if (data->funcs->uninit)
 		data->funcs->uninit(connector);

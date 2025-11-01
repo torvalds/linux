@@ -28,6 +28,7 @@
 #define AA_CLASS_SIGNAL		10
 #define AA_CLASS_XMATCH		11
 #define AA_CLASS_NET		14
+#define AA_CLASS_NETV9		15
 #define AA_CLASS_LABEL		16
 #define AA_CLASS_POSIX_MQUEUE	17
 #define AA_CLASS_MODULE		19
@@ -38,12 +39,13 @@
 #define AA_CLASS_X		31
 #define AA_CLASS_DBUS		32
 
+/* NOTE: if AA_CLASS_LAST > 63 need to update label->mediates */
 #define AA_CLASS_LAST		AA_CLASS_DBUS
 
 /* Control parameters settable through module/boot flags */
 extern enum audit_mode aa_g_audit;
 extern bool aa_g_audit_header;
-extern bool aa_g_debug;
+extern int aa_g_debug;
 extern bool aa_g_hash_policy;
 extern bool aa_g_export_binary;
 extern int aa_g_rawdata_compression_level;

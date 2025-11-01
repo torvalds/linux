@@ -148,6 +148,9 @@
  * @__reserved1:	    Reserved field.
  * @cfg8b_w1:		    Compound descriptor command queue origin produced
  *			    by qDMA and dynamic debug field.
+ * @__reserved2:	    Reserved field.
+ * @cmd:		    Command for QDMA (see FSL_QDMA_CMD_RWTTYPE and
+ *			     others).
  * @data:		    Pointer to the memory 40-bit address, describes DMA
  *			    source information and DMA destination information.
  */

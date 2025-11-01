@@ -3,6 +3,7 @@
  * Copyright 2024 NXP
  */
 
+#include <dt-bindings/clock/nxp,imx95-clock.h>
 #include <dt-bindings/dma/fsl-edma.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
@@ -259,35 +260,35 @@
 	sai1_mclk: clock-sai-mclk1 {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
-		clock-frequency= <0>;
+		clock-frequency = <0>;
 		clock-output-names = "sai1_mclk";
 	};
 
 	sai2_mclk: clock-sai-mclk2 {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
-		clock-frequency= <0>;
+		clock-frequency = <0>;
 		clock-output-names = "sai2_mclk";
 	};
 
 	sai3_mclk: clock-sai-mclk3 {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
-		clock-frequency= <0>;
+		clock-frequency = <0>;
 		clock-output-names = "sai3_mclk";
 	};
 
 	sai4_mclk: clock-sai-mclk4 {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
-		clock-frequency= <0>;
+		clock-frequency = <0>;
 		clock-output-names = "sai4_mclk";
 	};
 
 	sai5_mclk: clock-sai-mclk5 {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
-		clock-frequency= <0>;
+		clock-frequency = <0>;
 		clock-output-names = "sai5_mclk";
 	};
 
@@ -350,8 +351,16 @@
 				reg = <0x19>;
 			};
 
+			scmi_lmm: protocol@80 {
+				reg = <0x80>;
+			};
+
 			scmi_bbm: protocol@81 {
 				reg = <0x81>;
+			};
+
+			scmi_cpu: protocol@82 {
+				reg = <0x82>;
 			};
 
 			scmi_misc: protocol@84 {
@@ -482,6 +491,110 @@
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
+
+		etm0: etm@40840000 {
+			compatible = "arm,coresight-etm4x", "arm,primecell";
+			reg = <0x0 0x40840000 0x0 0x10000>;
+			arm,primecell-periphid = <0xbb95d>;
+			cpu = <&A55_0>;
+			clocks = <&scmi_clk IMX95_CLK_A55PERIPH>;
+			clock-names = "apb_pclk";
+			status = "disabled";
+
+			out-ports {
+				port {
+					etm0_out_port: endpoint {
+						remote-endpoint = <&ca_funnel_in_port0>;
+					};
+				};
+			};
+		};
+
+		funnel0: funnel {
+			/*
+			 * non-configurable funnel don't show up on the AMBA
+			 * bus.  As such no need to add "arm,primecell".
+			 */
+			compatible = "arm,coresight-static-funnel";
+			status = "disabled";
+
+			in-ports {
+				port {
+					ca_funnel_in_port0: endpoint {
+						remote-endpoint = <&etm0_out_port>;
+					};
+				};
+			};
+
+			out-ports {
+				port {
+					ca_funnel_out_port0: endpoint {
+						remote-endpoint = <&hugo_funnel_in_port0>;
+					};
+				};
+			};
+		};
+
+		funnel1: funnel-sys {
+			compatible = "arm,coresight-static-funnel";
+			status = "disabled";
+
+			in-ports {
+				port {
+					hugo_funnel_in_port0: endpoint {
+						remote-endpoint = <&ca_funnel_out_port0>;
+					};
+				};
+			};
+
+			out-ports {
+				port {
+					hugo_funnel_out_port0: endpoint {
+						remote-endpoint = <&etf_in_port>;
+					};
+				};
+			};
+		};
+
+		etf: etf@41030000 {
+			compatible = "arm,coresight-tmc", "arm,primecell";
+			reg = <0x0 0x41030000 0x0 0x1000>;
+			clocks = <&scmi_clk IMX95_CLK_A55PERIPH>;
+			clock-names = "apb_pclk";
+			status = "disabled";
+
+			in-ports {
+				port {
+					etf_in_port: endpoint {
+						remote-endpoint = <&hugo_funnel_out_port0>;
+					};
+				};
+			};
+
+			out-ports {
+				port {
+					etf_out_port: endpoint {
+						remote-endpoint = <&etr_in_port>;
+					};
+				};
+			};
+		};
+
+		etr: etr@41040000 {
+			compatible = "arm,coresight-tmc", "arm,primecell";
+			reg = <0x0 0x41040000 0x0 0x1000>;
+			clocks = <&scmi_clk IMX95_CLK_A55PERIPH>;
+			clock-names = "apb_pclk";
+			status = "disabled";
+
+			in-ports {
+				port {
+					etr_in_port: endpoint {
+						remote-endpoint = <&etf_out_port>;
+					};
+				};
+			};
+		};
 
 		aips2: bus@42000000 {
 			compatible = "fsl,aips-bus", "simple-bus";
@@ -688,15 +801,14 @@
 			};
 
 			i3c2: i3c@42520000 {
-				compatible = "silvaco,i3c-master-v1";
+				compatible = "nxp,imx95-i3c", "silvaco,i3c-master-v1";
 				reg = <0x42520000 0x10000>;
 				interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <3>;
 				#size-cells = <0>;
 				clocks = <&scmi_clk IMX95_CLK_BUSAON>,
-					 <&scmi_clk IMX95_CLK_I3C2>,
 					 <&scmi_clk IMX95_CLK_I3C2SLOW>;
-				clock-names = "pclk", "fast_clk", "slow_clk";
+				clock-names = "pclk", "fast_clk";
 				status = "disabled";
 			};
 
@@ -913,7 +1025,7 @@
 				interrupts = <GIC_SPI 68 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&scmi_clk IMX95_CLK_LPUART7>;
 				clock-names = "ipg";
-				dmas = <&edma2 26 0 FSL_EDMA_RX>, <&edma2 25 0 0>;
+				dmas = <&edma2 88 0 FSL_EDMA_RX>, <&edma2 87 0 0>;
 				dma-names = "rx", "tx";
 				status = "disabled";
 			};
@@ -925,7 +1037,7 @@
 				interrupts = <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&scmi_clk IMX95_CLK_LPUART8>;
 				clock-names = "ipg";
-				dmas = <&edma2 28 0 FSL_EDMA_RX>, <&edma2 27 0 0>;
+				dmas = <&edma2 90 0 FSL_EDMA_RX>, <&edma2 89 0 0>;
 				dma-names = "rx", "tx";
 				status = "disabled";
 			};
@@ -1100,7 +1212,7 @@
 				assigned-clock-rates = <400000000>;
 				bus-width = <8>;
 				fsl,tuning-start-tap = <1>;
-				fsl,tuning-step= <2>;
+				fsl,tuning-step = <2>;
 				status = "disabled";
 			};
 
@@ -1117,7 +1229,7 @@
 				assigned-clock-rates = <400000000>;
 				bus-width = <4>;
 				fsl,tuning-start-tap = <1>;
-				fsl,tuning-step= <2>;
+				fsl,tuning-step = <2>;
 				status = "disabled";
 			};
 
@@ -1134,7 +1246,7 @@
 				assigned-clock-rates = <400000000>;
 				bus-width = <4>;
 				fsl,tuning-start-tap = <1>;
-				fsl,tuning-step= <2>;
+				fsl,tuning-step = <2>;
 				status = "disabled";
 			};
 		};
@@ -1152,6 +1264,7 @@
 				 <&scmi_clk IMX95_CLK_BUSWAKEUP>;
 			clock-names = "gpio", "port";
 			gpio-ranges = <&scmi_iomuxc 0 4 32>;
+			ngpios = <32>;
 		};
 
 		gpio3: gpio@43820000 {
@@ -1168,6 +1281,7 @@
 			clock-names = "gpio", "port";
 			gpio-ranges = <&scmi_iomuxc 0 104 8>, <&scmi_iomuxc 8 74 18>,
 				      <&scmi_iomuxc 26 42 2>, <&scmi_iomuxc 28 0 4>;
+			ngpios = <32>;
 		};
 
 		gpio4: gpio@43840000 {
@@ -1183,6 +1297,7 @@
 				 <&scmi_clk IMX95_CLK_BUSWAKEUP>;
 			clock-names = "gpio", "port";
 			gpio-ranges = <&scmi_iomuxc 0 46 28>, <&scmi_iomuxc 28 44 2>;
+			ngpios = <30>;
 		};
 
 		gpio5: gpio@43850000 {
@@ -1198,6 +1313,7 @@
 				 <&scmi_clk IMX95_CLK_BUSWAKEUP>;
 			clock-names = "gpio", "port";
 			gpio-ranges = <&scmi_iomuxc 0 92 12>, <&scmi_iomuxc 12 36 6>;
+			ngpios = <18>;
 		};
 
 		aips1: bus@44000000 {
@@ -1256,6 +1372,15 @@
 				status = "disabled";
 			};
 
+			system_counter: timer@44290000 {
+				compatible = "nxp,imx95-sysctr-timer";
+				reg = <0x44290000 0x30000>;
+				interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&osc_24m>;
+				clock-names = "per";
+				nxp,no-divider;
+			};
+
 			tpm1: pwm@44310000 {
 				compatible = "fsl,imx7ulp-pwm";
 				reg = <0x44310000 0x1000>;
@@ -1273,15 +1398,14 @@
 			};
 
 			i3c1: i3c@44330000 {
-				compatible = "silvaco,i3c-master-v1";
+				compatible = "nxp,imx95-i3c", "silvaco,i3c-master-v1";
 				reg = <0x44330000 0x10000>;
 				interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <3>;
 				#size-cells = <0>;
 				clocks = <&scmi_clk IMX95_CLK_BUSAON>,
-					 <&scmi_clk IMX95_CLK_I3C1>,
 					 <&scmi_clk IMX95_CLK_I3C1SLOW>;
-				clock-names = "pclk", "fast_clk", "slow_clk";
+				clock-names = "pclk", "fast_clk";
 				status = "disabled";
 			};
 
@@ -1480,10 +1604,31 @@
 			};
 		};
 
+		mailbox@47300000 {
+			compatible = "fsl,imx95-mu-v2x";
+			reg = <0x0 0x47300000 0x0 0x10000>;
+			interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
+			#mbox-cells = <2>;
+		};
+
 		mailbox@47320000 {
 			compatible = "fsl,imx95-mu-v2x";
 			reg = <0x0 0x47320000 0x0 0x10000>;
 			interrupts = <GIC_SPI 254 IRQ_TYPE_LEVEL_HIGH>;
+			#mbox-cells = <2>;
+		};
+
+		mailbox@47330000 {
+			compatible = "fsl,imx95-mu-v2x";
+			reg = <0x0 0x47330000 0x0 0x10000>;
+			interrupts = <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>;
+			#mbox-cells = <2>;
+		};
+
+		mailbox@47340000 {
+			compatible = "fsl,imx95-mu-v2x";
+			reg = <0x0 0x47340000 0x0 0x10000>;
+			interrupts = <GIC_SPI 239 IRQ_TYPE_LEVEL_HIGH>;
 			#mbox-cells = <2>;
 		};
 
@@ -1508,7 +1653,27 @@
 				 <&scmi_clk IMX95_CLK_M33>;
 			clock-names = "gpio", "port";
 			gpio-ranges = <&scmi_iomuxc 0 112 16>;
+			ngpios = <16>;
 			status = "disabled";
+		};
+
+		ocotp: efuse@47510000 {
+			compatible = "fsl,imx95-ocotp", "syscon";
+			reg = <0x0 0x47510000 0x0 0x10000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			eth_mac0: mac-address@0 {
+				reg = <0x0514 0x6>;
+			};
+
+			eth_mac1: mac-address@1 {
+				reg = <0x1514 0x6>;
+			};
+
+			eth_mac2: mac-address@2 {
+				reg = <0x2514 0x6>;
+			};
 		};
 
 		elemu0: mailbox@47520000 {
@@ -1681,9 +1846,9 @@
 				 <&scmi_clk IMX95_CLK_HSIOPCIEAUX>,
 				 <&hsio_blk_ctl 0>;
 			clock-names = "pcie", "pcie_bus", "pcie_phy", "pcie_aux", "ref";
-			assigned-clocks =<&scmi_clk IMX95_CLK_HSIOPLL_VCO>,
-					 <&scmi_clk IMX95_CLK_HSIOPLL>,
-					 <&scmi_clk IMX95_CLK_HSIOPCIEAUX>;
+			assigned-clocks = <&scmi_clk IMX95_CLK_HSIOPLL_VCO>,
+					  <&scmi_clk IMX95_CLK_HSIOPLL>,
+					  <&scmi_clk IMX95_CLK_HSIOPCIEAUX>;
 			assigned-clock-rates = <3600000000>, <100000000>, <10000000>;
 			assigned-clock-parents = <0>, <0>,
 						 <&scmi_clk IMX95_CLK_SYSPLL1_PFD1_DIV2>;
@@ -1708,19 +1873,20 @@
 			      <0x9 0 1 0>;
 			reg-names = "dbi","atu", "dbi2", "app", "dma", "addr_space";
 			num-lanes = <1>;
-			interrupts = <GIC_SPI 317 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 311 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "dma";
 			clocks = <&scmi_clk IMX95_CLK_HSIO>,
 				 <&scmi_clk IMX95_CLK_HSIOPLL>,
 				 <&scmi_clk IMX95_CLK_HSIOPLL_VCO>,
 				 <&scmi_clk IMX95_CLK_HSIOPCIEAUX>;
 			clock-names = "pcie", "pcie_bus", "pcie_phy", "pcie_aux";
-			assigned-clocks =<&scmi_clk IMX95_CLK_HSIOPLL_VCO>,
-					 <&scmi_clk IMX95_CLK_HSIOPLL>,
-					 <&scmi_clk IMX95_CLK_HSIOPCIEAUX>;
+			assigned-clocks = <&scmi_clk IMX95_CLK_HSIOPLL_VCO>,
+					  <&scmi_clk IMX95_CLK_HSIOPLL>,
+					  <&scmi_clk IMX95_CLK_HSIOPCIEAUX>;
 			assigned-clock-rates = <3600000000>, <100000000>, <10000000>;
 			assigned-clock-parents = <0>, <0>,
 						 <&scmi_clk IMX95_CLK_SYSPLL1_PFD1_DIV2>;
+			msi-map = <0x0 &its 0x98 0x1>;
 			power-domains = <&scmi_devpd IMX95_PD_HSIO_TOP>;
 			status = "disabled";
 		};
@@ -1755,9 +1921,9 @@
 				 <&scmi_clk IMX95_CLK_HSIOPCIEAUX>,
 				 <&hsio_blk_ctl 0>;
 			clock-names = "pcie", "pcie_bus", "pcie_phy", "pcie_aux", "ref";
-			assigned-clocks =<&scmi_clk IMX95_CLK_HSIOPLL_VCO>,
-					 <&scmi_clk IMX95_CLK_HSIOPLL>,
-					 <&scmi_clk IMX95_CLK_HSIOPCIEAUX>;
+			assigned-clocks = <&scmi_clk IMX95_CLK_HSIOPLL_VCO>,
+					  <&scmi_clk IMX95_CLK_HSIOPLL>,
+					  <&scmi_clk IMX95_CLK_HSIOPCIEAUX>;
 			assigned-clock-rates = <3600000000>, <100000000>, <10000000>;
 			assigned-clock-parents = <0>, <0>,
 						 <&scmi_clk IMX95_CLK_SYSPLL1_PFD1_DIV2>;
@@ -1791,14 +1957,57 @@
 				 <&scmi_clk IMX95_CLK_HSIOPLL_VCO>,
 				 <&scmi_clk IMX95_CLK_HSIOPCIEAUX>;
 			clock-names = "pcie", "pcie_bus", "pcie_phy", "pcie_aux";
-			assigned-clocks =<&scmi_clk IMX95_CLK_HSIOPLL_VCO>,
-					 <&scmi_clk IMX95_CLK_HSIOPLL>,
-					 <&scmi_clk IMX95_CLK_HSIOPCIEAUX>;
+			assigned-clocks = <&scmi_clk IMX95_CLK_HSIOPLL_VCO>,
+					  <&scmi_clk IMX95_CLK_HSIOPLL>,
+					  <&scmi_clk IMX95_CLK_HSIOPCIEAUX>;
 			assigned-clock-rates = <3600000000>, <100000000>, <10000000>;
 			assigned-clock-parents = <0>, <0>,
 						 <&scmi_clk IMX95_CLK_SYSPLL1_PFD1_DIV2>;
 			power-domains = <&scmi_devpd IMX95_PD_HSIO_TOP>;
 			status = "disabled";
+		};
+
+		vpu_blk_ctrl: clock-controller@4c410000 {
+			compatible = "nxp,imx95-vpu-csr", "syscon";
+			reg = <0x0 0x4c410000 0x0 0x10000>;
+			#clock-cells = <1>;
+			clocks = <&scmi_clk IMX95_CLK_VPUAPB>;
+			power-domains = <&scmi_devpd IMX95_PD_VPU>;
+			assigned-clocks = <&scmi_clk IMX95_CLK_VPUAPB>,
+					  <&scmi_clk IMX95_CLK_VPU>,
+					  <&scmi_clk IMX95_CLK_VPUJPEG>;
+			assigned-clock-parents = <&scmi_clk IMX95_CLK_SYSPLL1_PFD1_DIV2>,
+						 <&scmi_clk IMX95_CLK_SYSPLL1_PFD2>,
+						 <&scmi_clk IMX95_CLK_SYSPLL1_PFD0>;
+			assigned-clock-rates = <133333333>, <667000000>, <500000000>;
+		};
+
+		jpegdec: jpegdec@4c500000 {
+			compatible = "nxp,imx95-jpgdec", "nxp,imx8qxp-jpgdec";
+			reg = <0x0 0x4C500000 0x0 0x00050000>;
+			interrupts = <GIC_SPI 295 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 296 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 297 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 298 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&scmi_clk IMX95_CLK_VPU>,
+				 <&vpu_blk_ctrl IMX95_CLK_VPUBLK_JPEG_DEC>;
+			assigned-clocks = <&vpu_blk_ctrl IMX95_CLK_VPUBLK_JPEG_DEC>;
+			assigned-clock-parents = <&scmi_clk IMX95_CLK_VPUJPEG>;
+			power-domains = <&scmi_devpd IMX95_PD_VPU>;
+		};
+
+		jpegenc: jpegenc@4c550000 {
+			compatible = "nxp,imx95-jpgenc", "nxp,imx8qxp-jpgenc";
+			reg = <0x0 0x4C550000 0x0 0x00050000>;
+			interrupts = <GIC_SPI 291 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 292 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 293 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 294 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&scmi_clk IMX95_CLK_VPU>,
+				 <&vpu_blk_ctrl IMX95_CLK_VPUBLK_JPEG_ENC>;
+			assigned-clocks = <&vpu_blk_ctrl IMX95_CLK_VPUBLK_JPEG_ENC>;
+			assigned-clock-parents = <&scmi_clk IMX95_CLK_VPUJPEG>;
+			power-domains = <&scmi_devpd IMX95_PD_VPU>;
 		};
 
 		netcmix_blk_ctrl: syscon@4c810000 {
@@ -1861,6 +2070,14 @@
 					  <0x90 &its 0x65 0x1>, //ENETC2 VF0
 					  <0xa0 &its 0x66 0x1>, //ENETC2 VF1
 					  <0xc0 &its 0x67 0x1>; //NETC Timer
+				iommu-map = <0x0 &smmu 0x20 0x1>,
+					    <0x10 &smmu 0x21 0x1>,
+					    <0x20 &smmu 0x22 0x1>,
+					    <0x40 &smmu 0x23 0x1>,
+					    <0x80 &smmu 0x24 0x1>,
+					    <0x90 &smmu 0x25 0x1>,
+					    <0xa0 &smmu 0x26 0x1>,
+					    <0xc0 &smmu 0x27 0x1>;
 					 /* ENETC0~2 and Timer BAR0 - non-prefetchable memory */
 				ranges = <0x82000000 0x0 0x4cc00000  0x0 0x4cc00000  0x0 0xe0000
 					 /* Timer BAR2 - prefetchable memory */
@@ -1893,6 +2110,7 @@
 				};
 
 				netc_timer: ethernet@18,0 {
+					compatible = "pci1131,ee02";
 					reg = <0x00c000 0 0 0 0>;
 					status = "disabled";
 				};

@@ -140,7 +140,7 @@ static inline bool raid1_add_bio_to_plug(struct mddev *mddev, struct bio *bio,
 	 * If bitmap is not enabled, it's safe to submit the io directly, and
 	 * this can get optimal performance.
 	 */
-	if (!mddev->bitmap_ops->enabled(mddev)) {
+	if (!md_bitmap_enabled(mddev, true)) {
 		raid1_submit_write(bio);
 		return true;
 	}
@@ -283,7 +283,7 @@ static inline int raid1_check_read_range(struct md_rdev *rdev,
 static inline bool raid1_should_read_first(struct mddev *mddev,
 					   sector_t this_sector, int len)
 {
-	if ((mddev->recovery_cp < this_sector + len))
+	if ((mddev->resync_offset < this_sector + len))
 		return true;
 
 	if (mddev_is_clustered(mddev) &&

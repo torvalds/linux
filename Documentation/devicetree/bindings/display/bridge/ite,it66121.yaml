@@ -84,7 +84,10 @@ required:
   - interrupts
   - ports
 
-additionalProperties: false
+allOf:
+  - $ref: /schemas/sound/dai-common.yaml#
+
+unevaluatedProperties: false
 
 examples:
   - |

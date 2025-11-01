@@ -44,6 +44,7 @@ uint32_t amdgpu_display_supported_domains(struct amdgpu_device *adev,
 struct drm_framebuffer *
 amdgpu_display_user_framebuffer_create(struct drm_device *dev,
 				       struct drm_file *file_priv,
+				       const struct drm_format_info *info,
 				       const struct drm_mode_fb_cmd2 *mode_cmd);
 const struct drm_format_info *
 amdgpu_lookup_format_info(u32 format, uint64_t modifier);
@@ -53,5 +54,12 @@ int amdgpu_display_resume_helper(struct amdgpu_device *adev);
 
 int amdgpu_display_get_scanout_buffer(struct drm_plane *plane,
 				      struct drm_scanout_buffer *sb);
+
+#define ABM_SYSFS_CONTROL	-1
+#define ABM_LEVEL_OFF		0
+#define ABM_LEVEL_MIN		1
+#define ABM_LEVEL_BIAS_MIN	2
+#define ABM_LEVEL_BIAS_MAX	3
+#define ABM_LEVEL_MAX		4
 
 #endif

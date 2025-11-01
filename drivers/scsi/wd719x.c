@@ -544,7 +544,7 @@ static int wd719x_host_reset(struct scsi_cmnd *cmd)
 	return wd719x_chip_init(wd) == 0 ? SUCCESS : FAILED;
 }
 
-static int wd719x_biosparam(struct scsi_device *sdev, struct block_device *bdev,
+static int wd719x_biosparam(struct scsi_device *sdev, struct gendisk *unused,
 			    sector_t capacity, int geom[])
 {
 	if (capacity >= 0x200000) {

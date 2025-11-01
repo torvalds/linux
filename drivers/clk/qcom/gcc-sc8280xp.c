@@ -6775,10 +6775,6 @@ static struct gdsc pcie_1_tunnel_gdsc = {
 	.flags = VOTABLE | RETAIN_FF_ENABLE,
 };
 
-/*
- * The Qualcomm PCIe driver does not yet implement suspend so to keep the
- * PCIe power domains always-on for now.
- */
 static struct gdsc pcie_2a_gdsc = {
 	.gdscr = 0x9d004,
 	.collapse_ctrl = 0x52128,

@@ -389,8 +389,8 @@ static u32 pcf_func(struct i2c_adapter *adap)
 
 /* exported algorithm data: */
 static const struct i2c_algorithm pcf_algo = {
-	.master_xfer	= pcf_xfer,
-	.functionality	= pcf_func,
+	.xfer = pcf_xfer,
+	.functionality = pcf_func,
 };
 
 /*

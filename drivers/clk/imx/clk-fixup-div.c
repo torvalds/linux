@@ -18,7 +18,7 @@
  * @fixup: a hook to fixup the write value
  *
  * The imx fixup divider clock is a subclass of basic clk_divider
- * with an addtional fixup hook.
+ * with an additional fixup hook.
  */
 struct clk_fixup_div {
 	struct clk_divider divider;
@@ -41,12 +41,12 @@ static unsigned long clk_fixup_div_recalc_rate(struct clk_hw *hw,
 	return fixup_div->ops->recalc_rate(&fixup_div->divider.hw, parent_rate);
 }
 
-static long clk_fixup_div_round_rate(struct clk_hw *hw, unsigned long rate,
-			       unsigned long *prate)
+static int clk_fixup_div_determine_rate(struct clk_hw *hw,
+					struct clk_rate_request *req)
 {
 	struct clk_fixup_div *fixup_div = to_clk_fixup_div(hw);
 
-	return fixup_div->ops->round_rate(&fixup_div->divider.hw, rate, prate);
+	return fixup_div->ops->determine_rate(&fixup_div->divider.hw, req);
 }
 
 static int clk_fixup_div_set_rate(struct clk_hw *hw, unsigned long rate,
@@ -81,7 +81,7 @@ static int clk_fixup_div_set_rate(struct clk_hw *hw, unsigned long rate,
 
 static const struct clk_ops clk_fixup_div_ops = {
 	.recalc_rate = clk_fixup_div_recalc_rate,
-	.round_rate = clk_fixup_div_round_rate,
+	.determine_rate = clk_fixup_div_determine_rate,
 	.set_rate = clk_fixup_div_set_rate,
 };
 

@@ -34,6 +34,7 @@
 #include <linux/memblock.h>
 #include <linux/highmem.h>
 #include <linux/slab.h>
+#include <net/flow.h>
 #include <net/net_namespace.h>
 #include <net/protocol.h>
 #include <net/ip.h>
@@ -437,7 +438,7 @@ static void sctp_v4_get_dst(struct sctp_transport *t, union sctp_addr *saddr,
 	fl4->fl4_dport = daddr->v4.sin_port;
 	fl4->flowi4_proto = IPPROTO_SCTP;
 	if (asoc) {
-		fl4->flowi4_tos = inet_dscp_to_dsfield(dscp);
+		fl4->flowi4_dscp = dscp;
 		fl4->flowi4_scope = ip_sock_rt_scope(asoc->base.sk);
 		fl4->flowi4_oif = asoc->base.sk->sk_bound_dev_if;
 		fl4->fl4_sport = htons(asoc->base.bind_addr.port);
@@ -1103,7 +1104,8 @@ static inline int sctp_v4_xmit(struct sk_buff *skb, struct sctp_transport *t)
 	skb_set_inner_ipproto(skb, IPPROTO_SCTP);
 	udp_tunnel_xmit_skb(dst_rtable(dst), sk, skb, fl4->saddr,
 			    fl4->daddr, dscp, ip4_dst_hoplimit(dst), df,
-			    sctp_sk(sk)->udp_port, t->encap_port, false, false);
+			    sctp_sk(sk)->udp_port, t->encap_port, false, false,
+			    0);
 	return 0;
 }
 
@@ -1333,14 +1335,9 @@ static int __net_init sctp_defaults_init(struct net *net)
 	/* Whether Cookie Preservative is enabled(1) or not(0) */
 	net->sctp.cookie_preserve_enable 	= 1;
 
-	/* Default sctp sockets to use md5 as their hmac alg */
-#if defined (CONFIG_SCTP_DEFAULT_COOKIE_HMAC_MD5)
-	net->sctp.sctp_hmac_alg			= "md5";
-#elif defined (CONFIG_SCTP_DEFAULT_COOKIE_HMAC_SHA1)
-	net->sctp.sctp_hmac_alg			= "sha1";
-#else
-	net->sctp.sctp_hmac_alg			= NULL;
-#endif
+	/* Whether cookie authentication is enabled(1) or not(0) */
+	net->sctp.cookie_auth_enable =
+		!IS_ENABLED(CONFIG_SCTP_DEFAULT_COOKIE_HMAC_NONE);
 
 	/* Max.Burst		    - 4 */
 	net->sctp.max_burst			= SCTP_DEFAULT_MAX_BURST;

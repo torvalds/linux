@@ -148,7 +148,7 @@ struct cred {
 
 extern void __put_cred(struct cred *);
 extern void exit_creds(struct task_struct *);
-extern int copy_creds(struct task_struct *, unsigned long);
+extern int copy_creds(struct task_struct *, u64);
 extern const struct cred *get_task_cred(struct task_struct *);
 extern struct cred *cred_alloc_blank(void);
 extern struct cred *prepare_creds(void);
@@ -262,6 +262,8 @@ static inline void put_cred(const struct cred *cred)
 {
 	put_cred_many(cred, 1);
 }
+
+DEFINE_FREE(put_cred, struct cred *, if (!IS_ERR_OR_NULL(_T)) put_cred(_T))
 
 /**
  * current_cred - Access the current task's subjective credentials

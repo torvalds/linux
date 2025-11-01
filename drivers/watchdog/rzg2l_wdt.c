@@ -310,9 +310,7 @@ static int rzg2l_wdt_probe(struct platform_device *pdev)
 	watchdog_set_nowayout(&priv->wdev, nowayout);
 	watchdog_stop_on_unregister(&priv->wdev);
 
-	ret = watchdog_init_timeout(&priv->wdev, 0, dev);
-	if (ret)
-		dev_warn(dev, "Specified timeout invalid, using default");
+	watchdog_init_timeout(&priv->wdev, 0, dev);
 
 	return devm_watchdog_register_device(&pdev->dev, &priv->wdev);
 }

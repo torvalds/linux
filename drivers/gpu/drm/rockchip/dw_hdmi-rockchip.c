@@ -4,6 +4,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/hw_bitfield.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -53,8 +54,6 @@
 #define RK3568_GRF_VO_CON1		0x0364
 #define RK3568_HDMI_SDAIN_MSK		BIT(15)
 #define RK3568_HDMI_SCLIN_MSK		BIT(14)
-
-#define HIWORD_UPDATE(val, mask)	(val | (mask) << 16)
 
 /**
  * struct rockchip_hdmi_chip_data - splite the grf setting of kind of chips
@@ -213,17 +212,13 @@ static int rockchip_hdmi_parse_dt(struct rockchip_hdmi *hdmi)
 
 	if (IS_ERR(hdmi->ref_clk)) {
 		ret = PTR_ERR(hdmi->ref_clk);
-		if (ret != -EPROBE_DEFER)
-			dev_err(hdmi->dev, "failed to get reference clock\n");
-		return ret;
+		return dev_err_probe(hdmi->dev, ret, "failed to get reference clock\n");
 	}
 
 	hdmi->grf_clk = devm_clk_get_optional(hdmi->dev, "grf");
 	if (IS_ERR(hdmi->grf_clk)) {
 		ret = PTR_ERR(hdmi->grf_clk);
-		if (ret != -EPROBE_DEFER)
-			dev_err(hdmi->dev, "failed to get grf clock\n");
-		return ret;
+		return dev_err_probe(hdmi->dev, ret, "failed to get grf clock\n");
 	}
 
 	ret = devm_regulator_get_enable(hdmi->dev, "avdd-0v9");
@@ -359,17 +354,14 @@ static void dw_hdmi_rk3228_setup_hpd(struct dw_hdmi *dw_hdmi, void *data)
 
 	dw_hdmi_phy_setup_hpd(dw_hdmi, data);
 
-	regmap_write(hdmi->regmap,
-		RK3228_GRF_SOC_CON6,
-		HIWORD_UPDATE(RK3228_HDMI_HPD_VSEL | RK3228_HDMI_SDA_VSEL |
-			      RK3228_HDMI_SCL_VSEL,
-			      RK3228_HDMI_HPD_VSEL | RK3228_HDMI_SDA_VSEL |
-			      RK3228_HDMI_SCL_VSEL));
+	regmap_write(hdmi->regmap, RK3228_GRF_SOC_CON6,
+		     FIELD_PREP_WM16(RK3228_HDMI_HPD_VSEL, 1) |
+		     FIELD_PREP_WM16(RK3228_HDMI_SDA_VSEL, 1) |
+		     FIELD_PREP_WM16(RK3228_HDMI_SCL_VSEL, 1));
 
-	regmap_write(hdmi->regmap,
-		RK3228_GRF_SOC_CON2,
-		HIWORD_UPDATE(RK3228_HDMI_SDAIN_MSK | RK3228_HDMI_SCLIN_MSK,
-			      RK3228_HDMI_SDAIN_MSK | RK3228_HDMI_SCLIN_MSK));
+	regmap_write(hdmi->regmap, RK3228_GRF_SOC_CON2,
+		     FIELD_PREP_WM16(RK3228_HDMI_SDAIN_MSK, 1) |
+		     FIELD_PREP_WM16(RK3328_HDMI_SCLIN_MSK, 1));
 }
 
 static enum drm_connector_status
@@ -381,15 +373,13 @@ dw_hdmi_rk3328_read_hpd(struct dw_hdmi *dw_hdmi, void *data)
 	status = dw_hdmi_phy_read_hpd(dw_hdmi, data);
 
 	if (status == connector_status_connected)
-		regmap_write(hdmi->regmap,
-			RK3328_GRF_SOC_CON4,
-			HIWORD_UPDATE(RK3328_HDMI_SDA_5V | RK3328_HDMI_SCL_5V,
-				      RK3328_HDMI_SDA_5V | RK3328_HDMI_SCL_5V));
+		regmap_write(hdmi->regmap, RK3328_GRF_SOC_CON4,
+			     FIELD_PREP_WM16(RK3328_HDMI_SDA_5V, 1) |
+			     FIELD_PREP_WM16(RK3328_HDMI_SCL_5V, 1));
 	else
-		regmap_write(hdmi->regmap,
-			RK3328_GRF_SOC_CON4,
-			HIWORD_UPDATE(0, RK3328_HDMI_SDA_5V |
-					 RK3328_HDMI_SCL_5V));
+		regmap_write(hdmi->regmap, RK3328_GRF_SOC_CON4,
+			     FIELD_PREP_WM16(RK3328_HDMI_SDA_5V, 0) |
+			     FIELD_PREP_WM16(RK3328_HDMI_SCL_5V, 0));
 	return status;
 }
 
@@ -400,21 +390,21 @@ static void dw_hdmi_rk3328_setup_hpd(struct dw_hdmi *dw_hdmi, void *data)
 	dw_hdmi_phy_setup_hpd(dw_hdmi, data);
 
 	/* Enable and map pins to 3V grf-controlled io-voltage */
-	regmap_write(hdmi->regmap,
-		RK3328_GRF_SOC_CON4,
-		HIWORD_UPDATE(0, RK3328_HDMI_HPD_SARADC | RK3328_HDMI_CEC_5V |
-				 RK3328_HDMI_SDA_5V | RK3328_HDMI_SCL_5V |
-				 RK3328_HDMI_HPD_5V));
-	regmap_write(hdmi->regmap,
-		RK3328_GRF_SOC_CON3,
-		HIWORD_UPDATE(0, RK3328_HDMI_SDA5V_GRF | RK3328_HDMI_SCL5V_GRF |
-				 RK3328_HDMI_HPD5V_GRF |
-				 RK3328_HDMI_CEC5V_GRF));
-	regmap_write(hdmi->regmap,
-		RK3328_GRF_SOC_CON2,
-		HIWORD_UPDATE(RK3328_HDMI_SDAIN_MSK | RK3328_HDMI_SCLIN_MSK,
-			      RK3328_HDMI_SDAIN_MSK | RK3328_HDMI_SCLIN_MSK |
-			      RK3328_HDMI_HPD_IOE));
+	regmap_write(hdmi->regmap, RK3328_GRF_SOC_CON4,
+		     FIELD_PREP_WM16(RK3328_HDMI_HPD_SARADC, 0) |
+		     FIELD_PREP_WM16(RK3328_HDMI_CEC_5V, 0) |
+		     FIELD_PREP_WM16(RK3328_HDMI_SDA_5V, 0) |
+		     FIELD_PREP_WM16(RK3328_HDMI_SCL_5V, 0) |
+		     FIELD_PREP_WM16(RK3328_HDMI_HPD_5V, 0));
+	regmap_write(hdmi->regmap, RK3328_GRF_SOC_CON3,
+		     FIELD_PREP_WM16(RK3328_HDMI_SDA5V_GRF, 0) |
+		     FIELD_PREP_WM16(RK3328_HDMI_SCL5V_GRF, 0) |
+		     FIELD_PREP_WM16(RK3328_HDMI_HPD5V_GRF, 0) |
+		     FIELD_PREP_WM16(RK3328_HDMI_CEC5V_GRF, 0));
+	regmap_write(hdmi->regmap, RK3328_GRF_SOC_CON2,
+		     FIELD_PREP_WM16(RK3328_HDMI_SDAIN_MSK, 1) |
+		     FIELD_PREP_WM16(RK3328_HDMI_SCLIN_MSK, 1) |
+		     FIELD_PREP_WM16(RK3328_HDMI_HPD_IOE, 0));
 
 	dw_hdmi_rk3328_read_hpd(dw_hdmi, data);
 }
@@ -442,8 +432,8 @@ static const struct dw_hdmi_plat_data rk3228_hdmi_drv_data = {
 
 static struct rockchip_hdmi_chip_data rk3288_chip_data = {
 	.lcdsel_grf_reg = RK3288_GRF_SOC_CON6,
-	.lcdsel_big = HIWORD_UPDATE(0, RK3288_HDMI_LCDC_SEL),
-	.lcdsel_lit = HIWORD_UPDATE(RK3288_HDMI_LCDC_SEL, RK3288_HDMI_LCDC_SEL),
+	.lcdsel_big = FIELD_PREP_WM16_CONST(RK3288_HDMI_LCDC_SEL, 0),
+	.lcdsel_lit = FIELD_PREP_WM16_CONST(RK3288_HDMI_LCDC_SEL, 1),
 	.max_tmds_clock = 340000,
 };
 
@@ -479,8 +469,8 @@ static const struct dw_hdmi_plat_data rk3328_hdmi_drv_data = {
 
 static struct rockchip_hdmi_chip_data rk3399_chip_data = {
 	.lcdsel_grf_reg = RK3399_GRF_SOC_CON20,
-	.lcdsel_big = HIWORD_UPDATE(0, RK3399_HDMI_LCDC_SEL),
-	.lcdsel_lit = HIWORD_UPDATE(RK3399_HDMI_LCDC_SEL, RK3399_HDMI_LCDC_SEL),
+	.lcdsel_big = FIELD_PREP_WM16_CONST(RK3399_HDMI_LCDC_SEL, 0),
+	.lcdsel_lit = FIELD_PREP_WM16_CONST(RK3399_HDMI_LCDC_SEL, 1),
 	.max_tmds_clock = 594000,
 };
 
@@ -573,17 +563,13 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 
 	ret = rockchip_hdmi_parse_dt(hdmi);
 	if (ret) {
-		if (ret != -EPROBE_DEFER)
-			dev_err(hdmi->dev, "Unable to parse OF data\n");
-		return ret;
+		return dev_err_probe(hdmi->dev, ret, "Unable to parse OF data\n");
 	}
 
 	hdmi->phy = devm_phy_optional_get(dev, "hdmi");
 	if (IS_ERR(hdmi->phy)) {
 		ret = PTR_ERR(hdmi->phy);
-		if (ret != -EPROBE_DEFER)
-			dev_err(hdmi->dev, "failed to get phy\n");
-		return ret;
+		return dev_err_probe(hdmi->dev, ret, "failed to get phy\n");
 	}
 
 	if (hdmi->phy) {
@@ -597,10 +583,8 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 
 	if (hdmi->chip_data == &rk3568_chip_data) {
 		regmap_write(hdmi->regmap, RK3568_GRF_VO_CON1,
-			     HIWORD_UPDATE(RK3568_HDMI_SDAIN_MSK |
-					   RK3568_HDMI_SCLIN_MSK,
-					   RK3568_HDMI_SDAIN_MSK |
-					   RK3568_HDMI_SCLIN_MSK));
+			     FIELD_PREP_WM16(RK3568_HDMI_SDAIN_MSK, 1) |
+			     FIELD_PREP_WM16(RK3568_HDMI_SCLIN_MSK, 1));
 	}
 
 	drm_encoder_helper_add(encoder, &dw_hdmi_rockchip_encoder_helper_funcs);

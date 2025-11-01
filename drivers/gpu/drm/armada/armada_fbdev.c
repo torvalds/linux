@@ -28,8 +28,6 @@ static void armada_fbdev_fb_destroy(struct fb_info *info)
 	fbh->fb->funcs->destroy(fbh->fb);
 
 	drm_client_release(&fbh->client);
-	drm_fb_helper_unprepare(fbh);
-	kfree(fbh);
 }
 
 static const struct fb_ops armada_fb_ops = {
@@ -78,7 +76,10 @@ int armada_fbdev_driver_fbdev_probe(struct drm_fb_helper *fbh,
 		return -ENOMEM;
 	}
 
-	dfb = armada_framebuffer_create(dev, &mode, obj);
+	dfb = armada_framebuffer_create(dev,
+					drm_get_format_info(dev, mode.pixel_format,
+							    mode.modifier[0]),
+					&mode, obj);
 
 	/*
 	 * A reference is now held by the framebuffer object if

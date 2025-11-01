@@ -10,6 +10,7 @@
 #include <linux/slab.h>
 #include <sound/hdaudio_ext.h>
 #include "avs.h"
+#include "debug.h"
 #include "messages.h"
 #include "registers.h"
 #include "trace.h"
@@ -141,7 +142,6 @@ static void avs_dsp_recovery(struct avs_dev *adev)
 	if (ret < 0)
 		dev_err(adev->dev, "dsp reboot failed: %d\n", ret);
 
-	pm_runtime_mark_last_busy(adev->dev);
 	pm_runtime_enable(adev->dev);
 	pm_request_autosuspend(adev->dev);
 

@@ -801,7 +801,7 @@ static void stm32_dma3_chan_start(struct stm32_dma3_chan *chan)
 
 	chan->dma_status = DMA_IN_PROGRESS;
 
-	dev_dbg(chan2dev(chan), "vchan %pK: started\n", &chan->vchan);
+	dev_dbg(chan2dev(chan), "vchan %p: started\n", &chan->vchan);
 }
 
 static int stm32_dma3_chan_suspend(struct stm32_dma3_chan *chan, bool susp)
@@ -1452,7 +1452,7 @@ static int stm32_dma3_pause(struct dma_chan *c)
 
 	chan->dma_status = DMA_PAUSED;
 
-	dev_dbg(chan2dev(chan), "vchan %pK: paused\n", &chan->vchan);
+	dev_dbg(chan2dev(chan), "vchan %p: paused\n", &chan->vchan);
 
 	return 0;
 }
@@ -1465,7 +1465,7 @@ static int stm32_dma3_resume(struct dma_chan *c)
 
 	chan->dma_status = DMA_IN_PROGRESS;
 
-	dev_dbg(chan2dev(chan), "vchan %pK: resumed\n", &chan->vchan);
+	dev_dbg(chan2dev(chan), "vchan %p: resumed\n", &chan->vchan);
 
 	return 0;
 }
@@ -1490,7 +1490,7 @@ static int stm32_dma3_terminate_all(struct dma_chan *c)
 	spin_unlock_irqrestore(&chan->vchan.lock, flags);
 	vchan_dma_desc_free_list(&chan->vchan, &head);
 
-	dev_dbg(chan2dev(chan), "vchan %pK: terminated\n", &chan->vchan);
+	dev_dbg(chan2dev(chan), "vchan %p: terminated\n", &chan->vchan);
 
 	return 0;
 }
@@ -1543,7 +1543,7 @@ static void stm32_dma3_issue_pending(struct dma_chan *c)
 	spin_lock_irqsave(&chan->vchan.lock, flags);
 
 	if (vchan_issue_pending(&chan->vchan) && !chan->swdesc) {
-		dev_dbg(chan2dev(chan), "vchan %pK: issued\n", &chan->vchan);
+		dev_dbg(chan2dev(chan), "vchan %p: issued\n", &chan->vchan);
 		stm32_dma3_chan_start(chan);
 	}
 

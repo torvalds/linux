@@ -229,16 +229,16 @@ static inline const struct rt6_info *skb_rt6_info(const struct sk_buff *skb)
  *	Store a destination cache entry in a socket
  */
 static inline void ip6_dst_store(struct sock *sk, struct dst_entry *dst,
-				 const struct in6_addr *daddr,
-				 const struct in6_addr *saddr)
+				 bool daddr_set,
+				 bool saddr_set)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
 
 	np->dst_cookie = rt6_get_cookie(dst_rt6_info(dst));
 	sk_setup_caps(sk, dst);
-	np->daddr_cache = daddr;
+	np->daddr_cache = daddr_set;
 #ifdef CONFIG_IPV6_SUBTREES
-	np->saddr_cache = saddr;
+	np->saddr_cache = saddr_set;
 #endif
 }
 
@@ -274,7 +274,7 @@ static inline unsigned int ip6_skb_dst_mtu(const struct sk_buff *skb)
 	unsigned int mtu;
 
 	if (np && READ_ONCE(np->pmtudisc) >= IPV6_PMTUDISC_PROBE) {
-		mtu = READ_ONCE(dst->dev->mtu);
+		mtu = READ_ONCE(dst_dev(dst)->mtu);
 		mtu -= lwtunnel_headroom(dst->lwtstate, mtu);
 	} else {
 		mtu = dst_mtu(dst);
@@ -337,7 +337,7 @@ static inline unsigned int ip6_dst_mtu_maybe_forward(const struct dst_entry *dst
 
 	mtu = IPV6_MIN_MTU;
 	rcu_read_lock();
-	idev = __in6_dev_get(dst->dev);
+	idev = __in6_dev_get(dst_dev_rcu(dst));
 	if (idev)
 		mtu = READ_ONCE(idev->cnf.mtu6);
 	rcu_read_unlock();

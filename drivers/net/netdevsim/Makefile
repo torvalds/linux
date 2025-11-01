@@ -18,6 +18,10 @@ ifneq ($(CONFIG_PSAMPLE),)
 netdevsim-objs += psample.o
 endif
 
+ifneq ($(CONFIG_INET_PSP),)
+netdevsim-objs += psp.o
+endif
+
 ifneq ($(CONFIG_MACSEC),)
 netdevsim-objs += macsec.o
 endif

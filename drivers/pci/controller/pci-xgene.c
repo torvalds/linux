@@ -12,6 +12,7 @@
 #include <linux/jiffies.h>
 #include <linux/memblock.h>
 #include <linux/init.h>
+#include <linux/irqdomain.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_pci.h>
@@ -53,11 +54,9 @@
 #define XGENE_V1_PCI_EXP_CAP		0x40
 
 /* PCIe IP version */
-#define XGENE_PCIE_IP_VER_UNKN		0
 #define XGENE_PCIE_IP_VER_1		1
 #define XGENE_PCIE_IP_VER_2		2
 
-#if defined(CONFIG_PCI_XGENE) || (defined(CONFIG_ACPI) && defined(CONFIG_PCI_QUIRKS))
 struct xgene_pcie {
 	struct device_node	*node;
 	struct device		*dev;
@@ -188,7 +187,6 @@ static int xgene_pcie_config_read32(struct pci_bus *bus, unsigned int devfn,
 
 	return PCIBIOS_SUCCESSFUL;
 }
-#endif
 
 #if defined(CONFIG_ACPI) && defined(CONFIG_PCI_QUIRKS)
 static int xgene_get_csr_resource(struct acpi_device *adev,
@@ -279,7 +277,6 @@ const struct pci_ecam_ops xgene_v2_pcie_ecam_ops = {
 };
 #endif
 
-#if defined(CONFIG_PCI_XGENE)
 static u64 xgene_pcie_set_ib_mask(struct xgene_pcie *port, u32 addr,
 				  u32 flags, u64 size)
 {
@@ -594,6 +591,24 @@ static struct pci_ops xgene_pcie_ops = {
 	.write = pci_generic_config_write32,
 };
 
+static bool xgene_check_pcie_msi_ready(void)
+{
+	struct device_node *np;
+	struct irq_domain *d;
+
+	if (!IS_ENABLED(CONFIG_PCI_XGENE_MSI))
+		return true;
+
+	np = of_find_compatible_node(NULL, NULL, "apm,xgene1-msi");
+	if (!np)
+		return true;
+
+	d = irq_find_matching_host(np, DOMAIN_BUS_PCI_MSI);
+	of_node_put(np);
+
+	return d && irq_domain_is_msi_parent(d);
+}
+
 static int xgene_pcie_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -601,6 +616,10 @@ static int xgene_pcie_probe(struct platform_device *pdev)
 	struct xgene_pcie *port;
 	struct pci_host_bridge *bridge;
 	int ret;
+
+	if (!xgene_check_pcie_msi_ready())
+		return dev_err_probe(&pdev->dev, -EPROBE_DEFER,
+				     "MSI driver not ready\n");
 
 	bridge = devm_pci_alloc_host_bridge(dev, sizeof(*port));
 	if (!bridge)
@@ -610,10 +629,7 @@ static int xgene_pcie_probe(struct platform_device *pdev)
 
 	port->node = of_node_get(dn);
 	port->dev = dev;
-
-	port->version = XGENE_PCIE_IP_VER_UNKN;
-	if (of_device_is_compatible(port->node, "apm,xgene-pcie"))
-		port->version = XGENE_PCIE_IP_VER_1;
+	port->version = XGENE_PCIE_IP_VER_1;
 
 	ret = xgene_pcie_map_reg(port, pdev);
 	if (ret)
@@ -647,4 +663,3 @@ static struct platform_driver xgene_pcie_driver = {
 	.probe = xgene_pcie_probe,
 };
 builtin_platform_driver(xgene_pcie_driver);
-#endif

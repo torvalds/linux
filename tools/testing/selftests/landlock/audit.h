@@ -20,12 +20,10 @@
 #include <sys/time.h>
 #include <unistd.h>
 
+#include "../kselftest.h"
+
 #ifndef ARRAY_SIZE
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
-#endif
-
-#ifndef __maybe_unused
-#define __maybe_unused __attribute__((__unused__))
 #endif
 
 #define REGEX_LANDLOCK_PREFIX "^audit([0-9.:]\\+): domain=\\([0-9a-f]\\+\\)"
@@ -403,11 +401,12 @@ static int audit_init_filter_exe(struct audit_filter *filter, const char *path)
 	/* It is assume that there is not already filtering rules. */
 	filter->record_type = AUDIT_EXE;
 	if (!path) {
-		filter->exe_len = readlink("/proc/self/exe", filter->exe,
-					   sizeof(filter->exe) - 1);
-		if (filter->exe_len < 0)
+		int ret = readlink("/proc/self/exe", filter->exe,
+				   sizeof(filter->exe) - 1);
+		if (ret < 0)
 			return -errno;
 
+		filter->exe_len = ret;
 		return 0;
 	}
 

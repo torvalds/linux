@@ -7,6 +7,12 @@
 #include <linux/preempt.h>
 #include <linux/sched.h>
 
+#ifdef CONFIG_MEMBARRIER
+# define RSEQ_EVENT_GUARD	irq
+#else
+# define RSEQ_EVENT_GUARD	preempt
+#endif
+
 /*
  * Map the event mask on the user-space ABI enum rseq_cs_flags
  * for direct mask checks.
@@ -41,9 +47,8 @@ static inline void rseq_handle_notify_resume(struct ksignal *ksig,
 static inline void rseq_signal_deliver(struct ksignal *ksig,
 				       struct pt_regs *regs)
 {
-	preempt_disable();
-	__set_bit(RSEQ_EVENT_SIGNAL_BIT, &current->rseq_event_mask);
-	preempt_enable();
+	scoped_guard(RSEQ_EVENT_GUARD)
+		__set_bit(RSEQ_EVENT_SIGNAL_BIT, &current->rseq_event_mask);
 	rseq_handle_notify_resume(ksig, regs);
 }
 
@@ -65,7 +70,7 @@ static inline void rseq_migrate(struct task_struct *t)
  * If parent process has a registered restartable sequences area, the
  * child inherits. Unregister rseq for a clone with CLONE_VM set.
  */
-static inline void rseq_fork(struct task_struct *t, unsigned long clone_flags)
+static inline void rseq_fork(struct task_struct *t, u64 clone_flags)
 {
 	if (clone_flags & CLONE_VM) {
 		t->rseq = NULL;
@@ -107,7 +112,7 @@ static inline void rseq_preempt(struct task_struct *t)
 static inline void rseq_migrate(struct task_struct *t)
 {
 }
-static inline void rseq_fork(struct task_struct *t, unsigned long clone_flags)
+static inline void rseq_fork(struct task_struct *t, u64 clone_flags)
 {
 }
 static inline void rseq_execve(struct task_struct *t)

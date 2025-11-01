@@ -6,8 +6,6 @@
 #ifndef __INTEL_PCH__
 #define __INTEL_PCH__
 
-#include "intel_display_conversion.h"
-
 struct intel_display;
 
 /*
@@ -36,7 +34,7 @@ enum intel_pch {
 	PCH_LNL,
 };
 
-#define INTEL_PCH_TYPE(_display)		(__to_intel_display(_display)->pch_type)
+#define INTEL_PCH_TYPE(_display)		((_display)->pch_type)
 #define HAS_PCH_DG2(display)			(INTEL_PCH_TYPE(display) == PCH_DG2)
 #define HAS_PCH_ADP(display)			(INTEL_PCH_TYPE(display) == PCH_ADP)
 #define HAS_PCH_DG1(display)			(INTEL_PCH_TYPE(display) == PCH_DG1)

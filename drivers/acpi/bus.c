@@ -1406,7 +1406,7 @@ static int __init acpi_bus_init(void)
 		goto error1;
 
 	/*
-	 * Register the for all standard device notifications.
+	 * Register for all standard device notifications.
 	 */
 	status =
 	    acpi_install_notify_handler(ACPI_ROOT_OBJECT, ACPI_SYSTEM_NOTIFY,

@@ -460,6 +460,8 @@ struct basic_in	{
 	enum spl_color_space color_space;	//	Color Space
 	unsigned int max_luminance;	//	Max Luminance TODO: Is determined in dc_hw_sequencer.c is_sdr
 	bool film_grain_applied;	//	Film Grain Applied // TODO: To check from where to get this?
+	int custom_width; // Width for non-standard segmentation - used when != 0
+	int custom_x;     // Start x for non-standard segmentation - used when custom_width != 0
 };
 
 // Basic output information
@@ -543,6 +545,7 @@ struct spl_in	{
 	enum linear_light_scaling lls_pref;	//	Linear Light Scaling
 	bool prefer_easf;
 	bool disable_easf;
+	bool override_easf; /* If true, keep EASF enabled but use provided in_taps */
 	struct spl_debug debug;
 	bool is_fullscreen;
 	bool is_hdr_on;

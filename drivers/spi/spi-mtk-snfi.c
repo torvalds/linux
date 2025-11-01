@@ -1139,7 +1139,6 @@ static int mtk_snand_write_page_cache(struct mtk_snand *snf,
 	// Prepare for custom write interrupt
 	nfi_write32(snf, NFI_INTR_EN, NFI_IRQ_INTR_EN | NFI_IRQ_CUS_PG);
 	reinit_completion(&snf->op_done);
-	;
 
 	// Trigger NFI into custom mode
 	nfi_write16(snf, NFI_CMD, NFI_CMD_DUMMY_WRITE);

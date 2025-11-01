@@ -186,7 +186,7 @@ static int tagged_addr_ctrl_set(struct task_struct *target,
 
 static const struct user_regset riscv_user_regset[] = {
 	[REGSET_X] = {
-		.core_note_type = NT_PRSTATUS,
+		USER_REGSET_NOTE_TYPE(PRSTATUS),
 		.n = ELF_NGREG,
 		.size = sizeof(elf_greg_t),
 		.align = sizeof(elf_greg_t),
@@ -195,7 +195,7 @@ static const struct user_regset riscv_user_regset[] = {
 	},
 #ifdef CONFIG_FPU
 	[REGSET_F] = {
-		.core_note_type = NT_PRFPREG,
+		USER_REGSET_NOTE_TYPE(PRFPREG),
 		.n = ELF_NFPREG,
 		.size = sizeof(elf_fpreg_t),
 		.align = sizeof(elf_fpreg_t),
@@ -205,7 +205,7 @@ static const struct user_regset riscv_user_regset[] = {
 #endif
 #ifdef CONFIG_RISCV_ISA_V
 	[REGSET_V] = {
-		.core_note_type = NT_RISCV_VECTOR,
+		USER_REGSET_NOTE_TYPE(RISCV_VECTOR),
 		.align = 16,
 		.n = ((32 * RISCV_MAX_VLENB) +
 		      sizeof(struct __riscv_v_regset_state)) / sizeof(__u32),
@@ -216,7 +216,7 @@ static const struct user_regset riscv_user_regset[] = {
 #endif
 #ifdef CONFIG_RISCV_ISA_SUPM
 	[REGSET_TAGGED_ADDR_CTRL] = {
-		.core_note_type = NT_RISCV_TAGGED_ADDR_CTRL,
+		USER_REGSET_NOTE_TYPE(RISCV_TAGGED_ADDR_CTRL),
 		.n = 1,
 		.size = sizeof(long),
 		.align = sizeof(long),
@@ -380,7 +380,7 @@ static int compat_riscv_gpr_set(struct task_struct *target,
 
 static const struct user_regset compat_riscv_user_regset[] = {
 	[REGSET_X] = {
-		.core_note_type = NT_PRSTATUS,
+		USER_REGSET_NOTE_TYPE(PRSTATUS),
 		.n = ELF_NGREG,
 		.size = sizeof(compat_elf_greg_t),
 		.align = sizeof(compat_elf_greg_t),
@@ -389,7 +389,7 @@ static const struct user_regset compat_riscv_user_regset[] = {
 	},
 #ifdef CONFIG_FPU
 	[REGSET_F] = {
-		.core_note_type = NT_PRFPREG,
+		USER_REGSET_NOTE_TYPE(PRFPREG),
 		.n = ELF_NFPREG,
 		.size = sizeof(elf_fpreg_t),
 		.align = sizeof(elf_fpreg_t),

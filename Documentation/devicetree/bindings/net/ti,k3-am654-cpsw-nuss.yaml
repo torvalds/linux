@@ -284,7 +284,7 @@ examples:
                     ti,syscon-efuse = <&mcu_conf 0x200>;
                     phys = <&phy_gmii_sel 1>;
 
-                    phy-mode = "rgmii-rxid";
+                    phy-mode = "rgmii-id";
                     phy-handle = <&phy0>;
                 };
             };

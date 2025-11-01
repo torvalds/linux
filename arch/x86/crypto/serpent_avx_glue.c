@@ -12,6 +12,7 @@
 #include <linux/types.h>
 #include <linux/crypto.h>
 #include <linux/err.h>
+#include <linux/export.h>
 #include <crypto/algapi.h>
 #include <crypto/serpent.h>
 

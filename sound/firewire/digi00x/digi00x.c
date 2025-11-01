@@ -30,9 +30,9 @@ static int name_card(struct snd_dg00x *dg00x)
 
 	model = skip_spaces(name);
 
-	strcpy(dg00x->card->driver, "Digi00x");
-	strcpy(dg00x->card->shortname, model);
-	strcpy(dg00x->card->mixername, model);
+	strscpy(dg00x->card->driver, "Digi00x");
+	strscpy(dg00x->card->shortname, model);
+	strscpy(dg00x->card->mixername, model);
 	snprintf(dg00x->card->longname, sizeof(dg00x->card->longname),
 		 "Digidesign %s, GUID %08x%08x at %s, S%d", model,
 		 fw_dev->config_rom[3], fw_dev->config_rom[4],
@@ -116,9 +116,8 @@ static void snd_dg00x_update(struct fw_unit *unit)
 
 	snd_dg00x_transaction_reregister(dg00x);
 
-	mutex_lock(&dg00x->mutex);
+	guard(mutex)(&dg00x->mutex);
 	snd_dg00x_stream_update_duplex(dg00x);
-	mutex_unlock(&dg00x->mutex);
 }
 
 static void snd_dg00x_remove(struct fw_unit *unit)

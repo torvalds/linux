@@ -1910,14 +1910,28 @@
 
 				device_type = "pci";
 
-				interrupts = <GIC_SPI 405 IRQ_TYPE_LEVEL_HIGH>;
-				interrupt-names = "msi";
+				interrupts = <GIC_SPI 405 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 406 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 407 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 408 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 409 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 410 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 411 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 412 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "msi0",
+						  "msi1",
+						  "msi2",
+						  "msi3",
+						  "msi4",
+						  "msi5",
+						  "msi6",
+						  "msi7";
 				#interrupt-cells = <1>;
 				interrupt-map-mask = <0 0 0 0x7>;
-				interrupt-map = <0 0 0 1 &intc 0 244 IRQ_TYPE_LEVEL_HIGH>, /* int_a */
-						<0 0 0 2 &intc 0 245 IRQ_TYPE_LEVEL_HIGH>, /* int_b */
-						<0 0 0 3 &intc 0 247 IRQ_TYPE_LEVEL_HIGH>, /* int_c */
-						<0 0 0 4 &intc 0 248 IRQ_TYPE_LEVEL_HIGH>; /* int_d */
+				interrupt-map = <0 0 0 1 &intc GIC_SPI 244 IRQ_TYPE_LEVEL_HIGH>, /* int_a */
+						<0 0 0 2 &intc GIC_SPI 245 IRQ_TYPE_LEVEL_HIGH>, /* int_b */
+						<0 0 0 3 &intc GIC_SPI 247 IRQ_TYPE_LEVEL_HIGH>, /* int_c */
+						<0 0 0 4 &intc GIC_SPI 248 IRQ_TYPE_LEVEL_HIGH>; /* int_d */
 
 				pinctrl-names = "default", "sleep";
 				pinctrl-0 = <&pcie0_state_on>;
@@ -1973,14 +1987,28 @@
 
 				device_type = "pci";
 
-				interrupts = <GIC_SPI 413 IRQ_TYPE_LEVEL_HIGH>;
-				interrupt-names = "msi";
+				interrupts = <GIC_SPI 413 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 414 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 415 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 416 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 417 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 418 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 419 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 420 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "msi0",
+						  "msi1",
+						  "msi2",
+						  "msi3",
+						  "msi4",
+						  "msi5",
+						  "msi6",
+						  "msi7";
 				#interrupt-cells = <1>;
 				interrupt-map-mask = <0 0 0 0x7>;
-				interrupt-map = <0 0 0 1 &intc 0 272 IRQ_TYPE_LEVEL_HIGH>, /* int_a */
-						<0 0 0 2 &intc 0 273 IRQ_TYPE_LEVEL_HIGH>, /* int_b */
-						<0 0 0 3 &intc 0 274 IRQ_TYPE_LEVEL_HIGH>, /* int_c */
-						<0 0 0 4 &intc 0 275 IRQ_TYPE_LEVEL_HIGH>; /* int_d */
+				interrupt-map = <0 0 0 1 &intc GIC_SPI 272 IRQ_TYPE_LEVEL_HIGH>, /* int_a */
+						<0 0 0 2 &intc GIC_SPI 273 IRQ_TYPE_LEVEL_HIGH>, /* int_b */
+						<0 0 0 3 &intc GIC_SPI 274 IRQ_TYPE_LEVEL_HIGH>, /* int_c */
+						<0 0 0 4 &intc GIC_SPI 275 IRQ_TYPE_LEVEL_HIGH>; /* int_d */
 
 				pinctrl-names = "default", "sleep";
 				pinctrl-0 = <&pcie1_state_on>;
@@ -2034,14 +2062,28 @@
 
 				device_type = "pci";
 
-				interrupts = <GIC_SPI 421 IRQ_TYPE_LEVEL_HIGH>;
-				interrupt-names = "msi";
+				interrupts = <GIC_SPI 421 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 422 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 423 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 424 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 425 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 426 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 427 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 428 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "msi0",
+						  "msi1",
+						  "msi2",
+						  "msi3",
+						  "msi4",
+						  "msi5",
+						  "msi6",
+						  "msi7";
 				#interrupt-cells = <1>;
 				interrupt-map-mask = <0 0 0 0x7>;
-				interrupt-map = <0 0 0 1 &intc 0 142 IRQ_TYPE_LEVEL_HIGH>, /* int_a */
-						<0 0 0 2 &intc 0 143 IRQ_TYPE_LEVEL_HIGH>, /* int_b */
-						<0 0 0 3 &intc 0 144 IRQ_TYPE_LEVEL_HIGH>, /* int_c */
-						<0 0 0 4 &intc 0 145 IRQ_TYPE_LEVEL_HIGH>; /* int_d */
+				interrupt-map = <0 0 0 1 &intc GIC_SPI 142 IRQ_TYPE_LEVEL_HIGH>, /* int_a */
+						<0 0 0 2 &intc GIC_SPI 143 IRQ_TYPE_LEVEL_HIGH>, /* int_b */
+						<0 0 0 3 &intc GIC_SPI 144 IRQ_TYPE_LEVEL_HIGH>, /* int_c */
+						<0 0 0 4 &intc GIC_SPI 145 IRQ_TYPE_LEVEL_HIGH>; /* int_d */
 
 				pinctrl-names = "default", "sleep";
 				pinctrl-0 = <&pcie2_state_on>;
@@ -3724,6 +3766,7 @@
 
 		intc: interrupt-controller@9bc0000 {
 			compatible = "qcom,msm8996-gic-v3", "arm,gic-v3";
+			#address-cells = <0>;
 			#interrupt-cells = <3>;
 			interrupt-controller;
 			#redistributor-regions = <1>;

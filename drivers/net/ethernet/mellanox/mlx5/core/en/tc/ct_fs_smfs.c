@@ -148,8 +148,8 @@ mlx5_ct_fs_smfs_matcher_get(struct mlx5_ct_fs *fs, bool nat, bool ipv4, bool tcp
 	dr_matcher = mlx5_ct_fs_smfs_matcher_create(fs, tbl, ipv4, tcp, gre, prio);
 	if (IS_ERR(dr_matcher)) {
 		netdev_warn(fs->netdev,
-			    "ct_fs_smfs: failed to create matcher (nat %d, ipv4 %d, tcp %d, gre %d), err: %ld\n",
-			    nat, ipv4, tcp, gre, PTR_ERR(dr_matcher));
+			    "ct_fs_smfs: failed to create matcher (nat %d, ipv4 %d, tcp %d, gre %d), err: %pe\n",
+			    nat, ipv4, tcp, gre, dr_matcher);
 
 		smfs_matcher = ERR_CAST(dr_matcher);
 		goto out_unlock;

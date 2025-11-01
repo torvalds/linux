@@ -3,6 +3,7 @@ Linux USB API
 =============
 
 .. toctree::
+   :maxdepth: 1
 
    usb
    gadget

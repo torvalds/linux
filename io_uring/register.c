@@ -18,6 +18,7 @@
 #include <linux/io_uring.h>
 #include <linux/io_uring_types.h>
 
+#include "filetable.h"
 #include "io_uring.h"
 #include "opdef.h"
 #include "tctx.h"
@@ -31,6 +32,7 @@
 #include "msg_ring.h"
 #include "memmap.h"
 #include "zcrx.h"
+#include "query.h"
 
 #define IORING_MAX_RESTRICTIONS	(IORING_RESTRICTION_LAST + \
 				 IORING_REGISTER_LAST + IORING_OP_LAST)
@@ -46,13 +48,9 @@ static __cold int io_probe(struct io_ring_ctx *ctx, void __user *arg,
 		nr_args = IORING_OP_LAST;
 
 	size = struct_size(p, ops, nr_args);
-	p = kzalloc(size, GFP_KERNEL);
-	if (!p)
-		return -ENOMEM;
-
-	ret = -EFAULT;
-	if (copy_from_user(p, arg, size))
-		goto out;
+	p = memdup_user(arg, size);
+	if (IS_ERR(p))
+		return PTR_ERR(p);
 	ret = -EINVAL;
 	if (memchr_inv(p, 0, size))
 		goto out;
@@ -396,7 +394,8 @@ static void io_register_free_rings(struct io_ring_ctx *ctx,
 
 #define RESIZE_FLAGS	(IORING_SETUP_CQSIZE | IORING_SETUP_CLAMP)
 #define COPY_FLAGS	(IORING_SETUP_NO_SQARRAY | IORING_SETUP_SQE128 | \
-			 IORING_SETUP_CQE32 | IORING_SETUP_NO_MMAP)
+			 IORING_SETUP_CQE32 | IORING_SETUP_NO_MMAP | \
+			 IORING_SETUP_CQE_MIXED)
 
 static int io_register_resize_rings(struct io_ring_ctx *ctx, void __user *arg)
 {
@@ -407,10 +406,6 @@ static int io_register_resize_rings(struct io_ring_ctx *ctx, void __user *arg)
 	struct io_uring_params p;
 	int ret;
 
-	/* for single issuer, must be owner resizing */
-	if (ctx->flags & IORING_SETUP_SINGLE_ISSUER &&
-	    current != ctx->submitter_task)
-		return -EEXIST;
 	/* limited to DEFER_TASKRUN for now */
 	if (!(ctx->flags & IORING_SETUP_DEFER_TASKRUN))
 		return -EINVAL;
@@ -425,13 +420,6 @@ static int io_register_resize_rings(struct io_ring_ctx *ctx, void __user *arg)
 	ret = io_uring_fill_params(p.sq_entries, &p);
 	if (unlikely(ret))
 		return ret;
-
-	/* nothing to do, but copy params back */
-	if (p.sq_entries == ctx->sq_entries && p.cq_entries == ctx->cq_entries) {
-		if (copy_to_user(arg, &p, sizeof(p)))
-			return -EFAULT;
-		return 0;
-	}
 
 	size = rings_size(p.flags, p.sq_entries, p.cq_entries,
 				&sq_array_offset);
@@ -618,6 +606,7 @@ static int io_register_mem_region(struct io_ring_ctx *ctx, void __user *uarg)
 	if (ret)
 		return ret;
 	if (copy_to_user(rd_uptr, &rd, sizeof(rd))) {
+		guard(mutex)(&ctx->mmap_lock);
 		io_free_region(ctx, &ctx->param_region);
 		return -EFAULT;
 	}
@@ -835,6 +824,12 @@ static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 			break;
 		ret = io_register_mem_region(ctx, arg);
 		break;
+	case IORING_REGISTER_QUERY:
+		ret = io_query(ctx, arg, nr_args);
+		break;
+	case IORING_REGISTER_ZCRX_REFILL:
+		ret = io_zcrx_return_bufs(ctx, arg, nr_args);
+		break;
 	default:
 		ret = -EINVAL;
 		break;
@@ -877,6 +872,23 @@ struct file *io_uring_register_get_file(unsigned int fd, bool registered)
 	return ERR_PTR(-EOPNOTSUPP);
 }
 
+static int io_uring_register_send_msg_ring(void __user *arg, unsigned int nr_args)
+{
+	struct io_uring_sqe sqe;
+
+	if (!arg || nr_args != 1)
+		return -EINVAL;
+	if (copy_from_user(&sqe, arg, sizeof(sqe)))
+		return -EFAULT;
+	/* no flags supported */
+	if (sqe.flags)
+		return -EINVAL;
+	if (sqe.opcode != IORING_OP_MSG_RING)
+		return -EINVAL;
+
+	return io_uring_sync_msg_ring(&sqe);
+}
+
 /*
  * "blind" registration opcodes are ones where there's no ring given, and
  * hence the source fd must be -1.
@@ -885,21 +897,11 @@ static int io_uring_register_blind(unsigned int opcode, void __user *arg,
 				   unsigned int nr_args)
 {
 	switch (opcode) {
-	case IORING_REGISTER_SEND_MSG_RING: {
-		struct io_uring_sqe sqe;
-
-		if (!arg || nr_args != 1)
-			return -EINVAL;
-		if (copy_from_user(&sqe, arg, sizeof(sqe)))
-			return -EFAULT;
-		/* no flags supported */
-		if (sqe.flags)
-			return -EINVAL;
-		if (sqe.opcode == IORING_OP_MSG_RING)
-			return io_uring_sync_msg_ring(&sqe);
-		}
+	case IORING_REGISTER_SEND_MSG_RING:
+		return io_uring_register_send_msg_ring(arg, nr_args);
+	case IORING_REGISTER_QUERY:
+		return io_query(NULL, arg, nr_args);
 	}
-
 	return -EINVAL;
 }
 

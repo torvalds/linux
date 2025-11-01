@@ -384,7 +384,7 @@ static int mtk_pconf_parse_conf(struct pinctrl_dev *pctldev,
 		mtk_pmx_gpio_set_direction(pctldev, NULL, pin, true);
 		ret = mtk_pconf_set_ies_smt(pctl, pin, arg, param);
 		break;
-	case PIN_CONFIG_OUTPUT:
+	case PIN_CONFIG_LEVEL:
 		mtk_gpio_set(pctl->chip, pin, arg);
 		ret = mtk_pmx_gpio_set_direction(pctldev, NULL, pin, false);
 		break;
@@ -898,7 +898,7 @@ static const struct gpio_chip mtk_gpio_chip = {
 	.direction_input	= pinctrl_gpio_direction_input,
 	.direction_output	= mtk_gpio_direction_output,
 	.get			= mtk_gpio_get,
-	.set_rv			= mtk_gpio_set,
+	.set			= mtk_gpio_set,
 	.to_irq			= mtk_gpio_to_irq,
 	.set_config		= mtk_gpio_set_config,
 };

@@ -64,7 +64,7 @@ static int smc_diag_msg_attrs_fill(struct sock *sk, struct sk_buff *skb,
 	if (nla_put_u8(skb, SMC_DIAG_SHUTDOWN, sk->sk_shutdown))
 		return 1;
 
-	r->diag_uid = from_kuid_munged(user_ns, sock_i_uid(sk));
+	r->diag_uid = from_kuid_munged(user_ns, sk_uid(sk));
 	r->diag_inode = sock_i_ino(sk);
 	return 0;
 }
@@ -175,7 +175,7 @@ static int __smc_diag_dump(struct sock *sk, struct sk_buff *skb,
 		dinfo.linkid = *((u32 *)conn->lgr->id);
 		dinfo.peer_gid = conn->lgr->peer_gid.gid;
 		dinfo.peer_gid_ext = conn->lgr->peer_gid.gid_ext;
-		smcd->ops->get_local_gid(smcd, &smcd_gid);
+		copy_to_smcdgid(&smcd_gid, &smcd->dibs->gid);
 		dinfo.my_gid = smcd_gid.gid;
 		dinfo.my_gid_ext = smcd_gid.gid_ext;
 		dinfo.token = conn->rmb_desc->token;

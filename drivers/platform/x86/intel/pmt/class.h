@@ -20,6 +20,7 @@
 #define GET_ADDRESS(v)		((v) & GENMASK(31, 3))
 
 struct pci_dev;
+extern struct class intel_pmt_class;
 
 struct telem_endpoint {
 	struct pci_dev		*pcidev;
@@ -39,22 +40,25 @@ struct intel_pmt_header {
 
 struct intel_pmt_entry {
 	struct telem_endpoint	*ep;
+	struct pci_dev		*pcidev;
 	struct intel_pmt_header	header;
 	struct bin_attribute	pmt_bin_attr;
+	const struct attribute_group *attr_grp;
 	struct kobject		*kobj;
 	void __iomem		*disc_table;
 	void __iomem		*base;
 	struct pmt_callbacks	*cb;
 	unsigned long		base_addr;
 	size_t			size;
+	u64			feature_flags;
 	u32			guid;
+	u32			num_rmids; /* Number of Resource Monitoring IDs */
 	int			devid;
 };
 
 struct intel_pmt_namespace {
 	const char *name;
 	struct xarray *xa;
-	const struct attribute_group *attr_grp;
 	int (*pmt_header_decode)(struct intel_pmt_entry *entry,
 				 struct device *dev);
 	int (*pmt_add_endpoint)(struct intel_vsec_device *ivdev,
@@ -69,4 +73,10 @@ int intel_pmt_dev_create(struct intel_pmt_entry *entry,
 			 struct intel_vsec_device *dev, int idx);
 void intel_pmt_dev_destroy(struct intel_pmt_entry *entry,
 			   struct intel_pmt_namespace *ns);
+#if IS_ENABLED(CONFIG_INTEL_PMT_DISCOVERY)
+void intel_pmt_get_features(struct intel_pmt_entry *entry);
+#else
+static inline void intel_pmt_get_features(struct intel_pmt_entry *entry) {}
+#endif
+
 #endif

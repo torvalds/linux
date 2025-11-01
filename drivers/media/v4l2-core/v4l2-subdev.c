@@ -26,6 +26,30 @@
 #include <media/v4l2-fh.h>
 #include <media/v4l2-ioctl.h>
 
+/**
+ * struct v4l2_subdev_stream_config - Used for storing stream configuration.
+ *
+ * @pad: pad number
+ * @stream: stream number
+ * @enabled: has the stream been enabled with v4l2_subdev_enable_streams()
+ * @fmt: &struct v4l2_mbus_framefmt
+ * @crop: &struct v4l2_rect to be used for crop
+ * @compose: &struct v4l2_rect to be used for compose
+ * @interval: frame interval
+ *
+ * This structure stores configuration for a stream.
+ */
+struct v4l2_subdev_stream_config {
+	u32 pad;
+	u32 stream;
+	bool enabled;
+
+	struct v4l2_mbus_framefmt fmt;
+	struct v4l2_rect crop;
+	struct v4l2_rect compose;
+	struct v4l2_fract interval;
+};
+
 #if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
 /*
  * The Streams API is an experimental feature. To use the Streams API, set
@@ -86,8 +110,7 @@ static int subdev_open(struct file *file)
 	}
 
 	v4l2_fh_init(&subdev_fh->vfh, vdev);
-	v4l2_fh_add(&subdev_fh->vfh);
-	file->private_data = &subdev_fh->vfh;
+	v4l2_fh_add(&subdev_fh->vfh, file);
 
 	if (sd->v4l2_dev->mdev && sd->entity.graph_obj.mdev->dev) {
 		struct module *owner;
@@ -110,7 +133,7 @@ static int subdev_open(struct file *file)
 
 err:
 	module_put(subdev_fh->owner);
-	v4l2_fh_del(&subdev_fh->vfh);
+	v4l2_fh_del(&subdev_fh->vfh, file);
 	v4l2_fh_exit(&subdev_fh->vfh);
 	subdev_fh_free(subdev_fh);
 	kfree(subdev_fh);
@@ -122,17 +145,16 @@ static int subdev_close(struct file *file)
 {
 	struct video_device *vdev = video_devdata(file);
 	struct v4l2_subdev *sd = vdev_to_v4l2_subdev(vdev);
-	struct v4l2_fh *vfh = file->private_data;
+	struct v4l2_fh *vfh = file_to_v4l2_fh(file);
 	struct v4l2_subdev_fh *subdev_fh = to_v4l2_subdev_fh(vfh);
 
 	if (sd->internal_ops && sd->internal_ops->close)
 		sd->internal_ops->close(sd, subdev_fh);
 	module_put(subdev_fh->owner);
-	v4l2_fh_del(vfh);
+	v4l2_fh_del(vfh, file);
 	v4l2_fh_exit(vfh);
 	subdev_fh_free(subdev_fh);
 	kfree(subdev_fh);
-	file->private_data = NULL;
 
 	return 0;
 }
@@ -612,7 +634,7 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg,
 {
 	struct video_device *vdev = video_devdata(file);
 	struct v4l2_subdev *sd = vdev_to_v4l2_subdev(vdev);
-	struct v4l2_fh *vfh = file->private_data;
+	struct v4l2_fh *vfh = file_to_v4l2_fh(file);
 	struct v4l2_subdev_fh *subdev_fh = to_v4l2_subdev_fh(vfh);
 	bool ro_subdev = test_bit(V4L2_FL_SUBDEV_RO_DEVNODE, &vdev->flags);
 	bool streams_subdev = sd->flags & V4L2_SUBDEV_FL_STREAMS;
@@ -1004,6 +1026,7 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg,
 		struct v4l2_subdev_route *routes =
 			(struct v4l2_subdev_route *)(uintptr_t)routing->routes;
 		struct v4l2_subdev_krouting krouting = {};
+		unsigned int num_active_routes = 0;
 		unsigned int i;
 
 		if (!v4l2_subdev_enable_streams_api)
@@ -1041,7 +1064,20 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg,
 			if (!(pads[route->source_pad].flags &
 			      MEDIA_PAD_FL_SOURCE))
 				return -EINVAL;
+
+			if (route->flags & V4L2_SUBDEV_ROUTE_FL_ACTIVE)
+				num_active_routes++;
 		}
+
+		/*
+		 * Drivers that implement routing need to report a frame
+		 * descriptor accordingly, with up to one entry per route. Until
+		 * the frame descriptors entries get allocated dynamically,
+		 * limit the number of active routes to
+		 * V4L2_FRAME_DESC_ENTRY_MAX.
+		 */
+		if (num_active_routes > V4L2_FRAME_DESC_ENTRY_MAX)
+			return -E2BIG;
 
 		/*
 		 * If the driver doesn't support setting routing, just return
@@ -1121,7 +1157,7 @@ static long subdev_do_ioctl_lock(struct file *file, unsigned int cmd, void *arg)
 
 	if (video_is_registered(vdev)) {
 		struct v4l2_subdev *sd = vdev_to_v4l2_subdev(vdev);
-		struct v4l2_fh *vfh = file->private_data;
+		struct v4l2_fh *vfh = file_to_v4l2_fh(file);
 		struct v4l2_subdev_fh *subdev_fh = to_v4l2_subdev_fh(vfh);
 		struct v4l2_subdev_state *state;
 
@@ -1178,7 +1214,7 @@ static __poll_t subdev_poll(struct file *file, poll_table *wait)
 {
 	struct video_device *vdev = video_devdata(file);
 	struct v4l2_subdev *sd = vdev_to_v4l2_subdev(vdev);
-	struct v4l2_fh *fh = file->private_data;
+	struct v4l2_fh *fh = file_to_v4l2_fh(file);
 
 	if (!(sd->flags & V4L2_SUBDEV_FL_HAS_EVENTS))
 		return EPOLLERR;
@@ -2219,6 +2255,9 @@ static void v4l2_subdev_collect_streams(struct v4l2_subdev *sd,
 		*found_streams = BIT_ULL(0);
 		*enabled_streams =
 			(sd->enabled_pads & BIT_ULL(pad)) ? BIT_ULL(0) : 0;
+		dev_dbg(sd->dev,
+			"collect_streams: sub-device \"%s\" does not support streams\n",
+			sd->entity.name);
 		return;
 	}
 
@@ -2236,6 +2275,10 @@ static void v4l2_subdev_collect_streams(struct v4l2_subdev *sd,
 		if (cfg->enabled)
 			*enabled_streams |= BIT_ULL(cfg->stream);
 	}
+
+	dev_dbg(sd->dev,
+		"collect_streams: \"%s\":%u: found %#llx enabled %#llx\n",
+		sd->entity.name, pad, *found_streams, *enabled_streams);
 }
 
 static void v4l2_subdev_set_streams_enabled(struct v4l2_subdev *sd,
@@ -2270,6 +2313,9 @@ int v4l2_subdev_enable_streams(struct v4l2_subdev *sd, u32 pad,
 	u64 found_streams;
 	bool use_s_stream;
 	int ret;
+
+	dev_dbg(dev, "enable streams \"%s\":%u/%#llx\n", sd->entity.name, pad,
+		streams_mask);
 
 	/* A few basic sanity checks first. */
 	if (pad >= sd->entity.num_pads)
@@ -2317,8 +2363,6 @@ int v4l2_subdev_enable_streams(struct v4l2_subdev *sd, u32 pad,
 		ret = -EALREADY;
 		goto done;
 	}
-
-	dev_dbg(dev, "enable streams %u:%#llx\n", pad, streams_mask);
 
 	already_streaming = v4l2_subdev_is_streaming(sd);
 
@@ -2371,6 +2415,9 @@ int v4l2_subdev_disable_streams(struct v4l2_subdev *sd, u32 pad,
 	bool use_s_stream;
 	int ret;
 
+	dev_dbg(dev, "disable streams \"%s\":%u/%#llx\n", sd->entity.name, pad,
+		streams_mask);
+
 	/* A few basic sanity checks first. */
 	if (pad >= sd->entity.num_pads)
 		return -EINVAL;
@@ -2417,8 +2464,6 @@ int v4l2_subdev_disable_streams(struct v4l2_subdev *sd, u32 pad,
 		ret = -EALREADY;
 		goto done;
 	}
-
-	dev_dbg(dev, "disable streams %u:%#llx\n", pad, streams_mask);
 
 	if (!use_s_stream) {
 		/* Call the .disable_streams() operation. */

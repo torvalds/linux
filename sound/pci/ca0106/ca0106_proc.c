@@ -281,16 +281,14 @@ static void snd_ca0106_proc_reg_write32(struct snd_info_entry *entry,
 				       struct snd_info_buffer *buffer)
 {
 	struct snd_ca0106 *emu = entry->private_data;
-	unsigned long flags;
         char line[64];
         u32 reg, val;
         while (!snd_info_get_line(buffer, line, sizeof(line))) {
                 if (sscanf(line, "%x %x", &reg, &val) != 2)
                         continue;
 		if (reg < 0x40 && val <= 0xffffffff) {
-			spin_lock_irqsave(&emu->emu_lock, flags);
+			guard(spinlock_irqsave)(&emu->emu_lock);
 			outl(val, emu->port + (reg & 0xfffffffc));
-			spin_unlock_irqrestore(&emu->emu_lock, flags);
 		}
         }
 }
@@ -300,13 +298,13 @@ static void snd_ca0106_proc_reg_read32(struct snd_info_entry *entry,
 {
 	struct snd_ca0106 *emu = entry->private_data;
 	unsigned long value;
-	unsigned long flags;
 	int i;
+
 	snd_iprintf(buffer, "Registers:\n\n");
 	for(i = 0; i < 0x20; i+=4) {
-		spin_lock_irqsave(&emu->emu_lock, flags);
-		value = inl(emu->port + i);
-		spin_unlock_irqrestore(&emu->emu_lock, flags);
+		scoped_guard(spinlock_irqsave, &emu->emu_lock) {
+			value = inl(emu->port + i);
+		}
 		snd_iprintf(buffer, "Register %02X: %08lX\n", i, value);
 	}
 }
@@ -316,13 +314,13 @@ static void snd_ca0106_proc_reg_read16(struct snd_info_entry *entry,
 {
 	struct snd_ca0106 *emu = entry->private_data;
         unsigned int value;
-	unsigned long flags;
 	int i;
+
 	snd_iprintf(buffer, "Registers:\n\n");
 	for(i = 0; i < 0x20; i+=2) {
-		spin_lock_irqsave(&emu->emu_lock, flags);
-		value = inw(emu->port + i);
-		spin_unlock_irqrestore(&emu->emu_lock, flags);
+		scoped_guard(spinlock_irqsave, &emu->emu_lock) {
+			value = inw(emu->port + i);
+		}
 		snd_iprintf(buffer, "Register %02X: %04X\n", i, value);
 	}
 }
@@ -332,13 +330,13 @@ static void snd_ca0106_proc_reg_read8(struct snd_info_entry *entry,
 {
 	struct snd_ca0106 *emu = entry->private_data;
 	unsigned int value;
-	unsigned long flags;
 	int i;
+
 	snd_iprintf(buffer, "Registers:\n\n");
 	for(i = 0; i < 0x20; i+=1) {
-		spin_lock_irqsave(&emu->emu_lock, flags);
-		value = inb(emu->port + i);
-		spin_unlock_irqrestore(&emu->emu_lock, flags);
+		scoped_guard(spinlock_irqsave, &emu->emu_lock) {
+			value = inb(emu->port + i);
+		}
 		snd_iprintf(buffer, "Register %02X: %02X\n", i, value);
 	}
 }

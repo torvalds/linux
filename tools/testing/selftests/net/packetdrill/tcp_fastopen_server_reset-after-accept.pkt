@@ -1,0 +1,37 @@
+// SPDX-License-Identifier: GPL-2.0
+//
+// Send a RST to a TFO socket after it has been accepted.
+//
+// First read() will return all the data and this is consistent
+// with the non-TFO case. Second read will return -1
+
+`./defaults.sh`
+
+    0 socket(..., SOCK_STREAM|SOCK_NONBLOCK, IPPROTO_TCP) = 3
+   +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+   +0 bind(3, ..., ...) = 0
+   +0 listen(3, 1) = 0
+   +0 setsockopt(3, SOL_TCP, TCP_FASTOPEN, [1], 4) = 0
+
+   +0 < S 0:10(10) win 32792 <mss 1460,sackOK,nop,nop,FO TFO_COOKIE,nop,nop>
+   +0 > S. 0:0(0) ack 11 <mss 1460,nop,nop,sackOK>
+
+   +0 accept(3, ..., ...) = 4
+   +0 %{ assert (tcpi_options & TCPI_OPT_SYN_DATA) != 0, tcpi_options }%
+   +0 %{ assert tcpi_state == TCP_SYN_RECV, tcpi_state }%
+
+// 1st read will return the data from SYN.
+// tcp_reset() sets sk->sk_err to ECONNRESET for SYN_RECV.
+   +0 < R. 11:11(0) win 32792
+   +0 %{ assert tcpi_state == TCP_CLOSE, tcpi_state }%
+
+// This one w/o ACK bit will cause the same effect.
+// +0 < R 11:11(0) win 32792
+// See Step 2 in tcp_validate_incoming().
+
+// found_ok_skb in tcp_recvmsg_locked()
+   +0 read(4, ..., 512) = 10
+
+// !copied && sk->sk_err -> sock_error(sk)
+   +0 read(4, ..., 512) = -1 ECONNRESET (Connection reset by peer)
+   +0 close(4) = 0

@@ -8,8 +8,8 @@
 #include <linux/bits.h>
 #include <linux/kvm.h>
 #include <linux/irqreturn.h>
-#include <linux/kref.h>
 #include <linux/mutex.h>
+#include <linux/refcount.h>
 #include <linux/spinlock.h>
 #include <linux/static_key.h>
 #include <linux/types.h>
@@ -38,6 +38,7 @@
 enum vgic_type {
 	VGIC_V2,		/* Good ol' GICv2 */
 	VGIC_V3,		/* New fancy GICv3 */
+	VGIC_V5,		/* Newer, fancier GICv5 */
 };
 
 /* same for all guests, as depending only on the _host's_ GIC model */
@@ -77,8 +78,11 @@ struct vgic_global {
 	/* Pseudo GICv3 from outer space */
 	bool			no_hw_deactivation;
 
-	/* GIC system register CPU interface */
+	/* GICv3 system register CPU interface */
 	struct static_key_false gicv3_cpuif;
+
+	/* GICv3 compat mode on a GICv5 host */
+	bool			has_gcie_v3_compat;
 
 	u32			ich_vtr_el2;
 };
@@ -135,10 +139,13 @@ struct vgic_irq {
 	bool pending_latch;		/* The pending latch state used to calculate
 					 * the pending state for both level
 					 * and edge triggered IRQs. */
-	bool active;			/* not used for LPIs */
+	bool active;
+	bool pending_release;		/* Used for LPIs only, unreferenced IRQ
+					 * pending a release */
+
 	bool enabled;
 	bool hw;			/* Tied to HW IRQ */
-	struct kref refcount;		/* Used for LPIs */
+	refcount_t refcount;		/* Used for LPIs */
 	u32 hwintid;			/* HW INTID number */
 	unsigned int host_irq;		/* linux irq corresponding to hwintid */
 	union {
@@ -264,6 +271,9 @@ struct vgic_dist {
 	/* distributor enabled */
 	bool			enabled;
 
+	/* Supports SGIs without active state */
+	bool			nassgicap;
+
 	/* Wants SGIs without active state */
 	bool			nassgireq;
 
@@ -368,6 +378,7 @@ struct vgic_cpu {
 
 extern struct static_key_false vgic_v2_cpuif_trap;
 extern struct static_key_false vgic_v3_cpuif_trap;
+extern struct static_key_false vgic_v3_has_v2_compat;
 
 int kvm_set_legacy_vgic_v2_addr(struct kvm *kvm, struct kvm_arm_device_addr *dev_addr);
 void kvm_vgic_early_init(struct kvm *kvm);
@@ -399,7 +410,6 @@ u64 vgic_v3_get_misr(struct kvm_vcpu *vcpu);
 
 #define irqchip_in_kernel(k)	(!!((k)->arch.vgic.in_kernel))
 #define vgic_initialized(k)	((k)->arch.vgic.initialized)
-#define vgic_ready(k)		((k)->arch.vgic.ready)
 #define vgic_valid_spi(k, i)	(((i) >= VGIC_NR_PRIVATE_IRQS) && \
 			((i) < (k)->arch.vgic.nr_spis + VGIC_NR_PRIVATE_IRQS))
 
@@ -434,7 +444,7 @@ struct kvm_kernel_irq_routing_entry;
 int kvm_vgic_v4_set_forwarding(struct kvm *kvm, int irq,
 			       struct kvm_kernel_irq_routing_entry *irq_entry);
 
-int kvm_vgic_v4_unset_forwarding(struct kvm *kvm, int host_irq);
+void kvm_vgic_v4_unset_forwarding(struct kvm *kvm, int host_irq);
 
 int vgic_v4_load(struct kvm_vcpu *vcpu);
 void vgic_v4_commit(struct kvm_vcpu *vcpu);

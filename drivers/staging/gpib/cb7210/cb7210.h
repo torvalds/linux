@@ -56,10 +56,10 @@ enum cb7210_page_in {
 };
 
 enum hs_regs {
-	//write registers
+	// write registers
 	HS_MODE = 0x8,	/* HS_MODE register */
 	HS_INT_LEVEL = 0x9,	/* HS_INT_LEVEL register */
-	//read registers
+	// read registers
 	HS_STATUS = 0x8,	/* HS_STATUS register */
 };
 

@@ -169,15 +169,15 @@ static int sama5d2_piobu_get(struct gpio_chip *chip, unsigned int pin)
 /*
  * sama5d2_piobu_set() - gpiochip set
  */
-static void sama5d2_piobu_set(struct gpio_chip *chip, unsigned int pin,
-			      int value)
+static int sama5d2_piobu_set(struct gpio_chip *chip, unsigned int pin,
+			     int value)
 {
 	if (!value)
 		value = PIOBU_LOW;
 	else
 		value = PIOBU_HIGH;
 
-	sama5d2_piobu_write_value(chip, pin, PIOBU_SOD, value);
+	return sama5d2_piobu_write_value(chip, pin, PIOBU_SOD, value);
 }
 
 static int sama5d2_piobu_probe(struct platform_device *pdev)

@@ -450,6 +450,7 @@ union bpf_iter_link_info {
  *		* **struct bpf_map_info**
  *		* **struct bpf_btf_info**
  *		* **struct bpf_link_info**
+ *		* **struct bpf_token_info**
  *
  *	Return
  *		Returns zero on success. On error, -1 is returned and *errno*
@@ -906,6 +907,17 @@ union bpf_iter_link_info {
  *		A new file descriptor (a nonnegative integer), or -1 if an
  *		error occurred (in which case, *errno* is set appropriately).
  *
+ * BPF_PROG_STREAM_READ_BY_FD
+ *	Description
+ *		Read data of a program's BPF stream. The program is identified
+ *		by *prog_fd*, and the stream is identified by the *stream_id*.
+ *		The data is copied to a buffer pointed to by *stream_buf*, and
+ *		filled less than or equal to *stream_buf_len* bytes.
+ *
+ *	Return
+ *		Number of bytes read from the stream on success, or -1 if an
+ *		error occurred (in which case, *errno* is set appropriately).
+ *
  * NOTES
  *	eBPF objects (maps and programs) can be shared between processes.
  *
@@ -961,6 +973,7 @@ enum bpf_cmd {
 	BPF_LINK_DETACH,
 	BPF_PROG_BIND_MAP,
 	BPF_TOKEN_CREATE,
+	BPF_PROG_STREAM_READ_BY_FD,
 	__MAX_BPF_CMD,
 };
 
@@ -1463,6 +1476,11 @@ struct bpf_stack_build_id {
 
 #define BPF_OBJ_NAME_LEN 16U
 
+enum {
+	BPF_STREAM_STDOUT = 1,
+	BPF_STREAM_STDERR = 2,
+};
+
 union bpf_attr {
 	struct { /* anonymous struct used by BPF_MAP_CREATE command */
 		__u32	map_type;	/* one of enum bpf_map_type */
@@ -1504,6 +1522,12 @@ union bpf_attr {
 		 * If provided, map_flags should have BPF_F_TOKEN_FD flag set.
 		 */
 		__s32	map_token_fd;
+
+		/* Hash of the program that has exclusive access to the map.
+		 */
+		__aligned_u64 excl_prog_hash;
+		/* Size of the passed excl_prog_hash. */
+		__u32 excl_prog_hash_size;
 	};
 
 	struct { /* anonymous struct used by BPF_MAP_*_ELEM and BPF_MAP_FREEZE commands */
@@ -1587,6 +1611,16 @@ union bpf_attr {
 		 * continuous.
 		 */
 		__u32		fd_array_cnt;
+		/* Pointer to a buffer containing the signature of the BPF
+		 * program.
+		 */
+		__aligned_u64   signature;
+		/* Size of the signature buffer in bytes. */
+		__u32 		signature_size;
+		/* ID of the kernel keyring to be used for signature
+		 * verification.
+		 */
+		__s32		keyring_id;
 	};
 
 	struct { /* anonymous struct used by BPF_OBJ_* commands */
@@ -1794,6 +1828,13 @@ union bpf_attr {
 				};
 				__u64		expected_revision;
 			} netkit;
+			struct {
+				union {
+					__u32	relative_fd;
+					__u32	relative_id;
+				};
+				__u64		expected_revision;
+			} cgroup;
 		};
 	} link_create;
 
@@ -1841,6 +1882,13 @@ union bpf_attr {
 		__u32		flags;
 		__u32		bpffs_fd;
 	} token_create;
+
+	struct {
+		__aligned_u64	stream_buf;
+		__u32		stream_buf_len;
+		__u32		stream_id;
+		__u32		prog_fd;
+	} prog_stream_read;
 
 } __attribute__((aligned(8)));
 
@@ -2403,7 +2451,7 @@ union bpf_attr {
  * 		into it. An example is available in file
  * 		*samples/bpf/trace_output_user.c* in the Linux kernel source
  * 		tree (the eBPF program counterpart is in
- * 		*samples/bpf/trace_output_kern.c*).
+ *		*samples/bpf/trace_output.bpf.c*).
  *
  * 		**bpf_perf_event_output**\ () achieves better performance
  * 		than **bpf_trace_printk**\ () for sharing data with user
@@ -4843,7 +4891,7 @@ union bpf_attr {
  *
  *		**-ENOENT** if the bpf_local_storage cannot be found.
  *
- * long bpf_d_path(struct path *path, char *buf, u32 sz)
+ * long bpf_d_path(const struct path *path, char *buf, u32 sz)
  *	Description
  *		Return full path for given **struct path** object, which
  *		needs to be the kernel BTF *path* object. The path is
@@ -6634,6 +6682,8 @@ struct bpf_map_info {
 	__u32 btf_value_type_id;
 	__u32 btf_vmlinux_id;
 	__u64 map_extra;
+	__aligned_u64 hash;
+	__u32 hash_size;
 } __attribute__((aligned(8)));
 
 struct bpf_btf_info {
@@ -6653,11 +6703,15 @@ struct bpf_link_info {
 		struct {
 			__aligned_u64 tp_name; /* in/out: tp_name buffer ptr */
 			__u32 tp_name_len;     /* in/out: tp_name buffer len */
+			__u32 :32;
+			__u64 cookie;
 		} raw_tracepoint;
 		struct {
 			__u32 attach_type;
 			__u32 target_obj_id; /* prog_id for PROG_EXT, otherwise btf object id */
 			__u32 target_btf_id; /* BTF type id inside the object */
+			__u32 :32;
+			__u64 cookie;
 		} tracing;
 		struct {
 			__u64 cgroup_id;
@@ -6766,6 +6820,13 @@ struct bpf_link_info {
 			__u32 attach_type;
 		} sockmap;
 	};
+} __attribute__((aligned(8)));
+
+struct bpf_token_info {
+	__u64 allowed_cmds;
+	__u64 allowed_maps;
+	__u64 allowed_progs;
+	__u64 allowed_attachs;
 } __attribute__((aligned(8)));
 
 /* User bpf_sock_addr struct to access socket fields and sockaddr struct passed
@@ -7373,6 +7434,10 @@ struct bpf_spin_lock {
 
 struct bpf_timer {
 	__u64 __opaque[2];
+} __attribute__((aligned(8)));
+
+struct bpf_task_work {
+	__u64 __opaque;
 } __attribute__((aligned(8)));
 
 struct bpf_wq {

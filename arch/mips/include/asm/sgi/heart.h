@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2004-2007 Stanislaw Skowronek <skylark@unaligned.org>
  *		 2009 Johannes Dickgreber <tanzy@gmx.de>
- *		 2007-2015 Joshua Kinard <kumba@gentoo.org>
+ *		 2007-2015 Joshua Kinard <linux@kumba.dev>
  */
 #ifndef __ASM_SGI_HEART_H
 #define __ASM_SGI_HEART_H

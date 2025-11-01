@@ -75,7 +75,7 @@ static ssize_t fsl_timer_wakeup_store(struct device *dev,
 	if (kstrtoll(buf, 0, &interval))
 		return -EINVAL;
 
-	mutex_lock(&sysfs_lock);
+	guard(mutex)(&sysfs_lock);
 
 	if (fsl_wakeup->timer) {
 		disable_irq_wake(fsl_wakeup->timer->irq);
@@ -83,30 +83,22 @@ static ssize_t fsl_timer_wakeup_store(struct device *dev,
 		fsl_wakeup->timer = NULL;
 	}
 
-	if (!interval) {
-		mutex_unlock(&sysfs_lock);
+	if (!interval)
 		return count;
-	}
 
 	fsl_wakeup->timer = mpic_request_timer(fsl_mpic_timer_irq,
 						fsl_wakeup, interval);
-	if (!fsl_wakeup->timer) {
-		mutex_unlock(&sysfs_lock);
+	if (!fsl_wakeup->timer)
 		return -EINVAL;
-	}
 
 	ret = enable_irq_wake(fsl_wakeup->timer->irq);
 	if (ret) {
 		mpic_free_timer(fsl_wakeup->timer);
 		fsl_wakeup->timer = NULL;
-		mutex_unlock(&sysfs_lock);
-
 		return ret;
 	}
 
 	mpic_start_timer(fsl_wakeup->timer);
-
-	mutex_unlock(&sysfs_lock);
 
 	return count;
 }

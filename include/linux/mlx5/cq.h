@@ -41,7 +41,6 @@ struct mlx5_core_cq {
 	int			cqe_sz;
 	__be32		       *set_ci_db;
 	__be32		       *arm_db;
-	struct mlx5_uars_page  *uar;
 	refcount_t		refcount;
 	struct completion	free;
 	unsigned		vector;

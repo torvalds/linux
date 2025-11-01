@@ -25,7 +25,7 @@ int __exfat_write_inode(struct inode *inode, int sync)
 	struct super_block *sb = inode->i_sb;
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
 	struct exfat_inode_info *ei = EXFAT_I(inode);
-	bool is_dir = (ei->type == TYPE_DIR) ? true : false;
+	bool is_dir = (ei->type == TYPE_DIR);
 	struct timespec64 ts;
 
 	if (inode->i_ino == EXFAT_ROOT_INO)
@@ -446,9 +446,10 @@ static void exfat_write_failed(struct address_space *mapping, loff_t to)
 	}
 }
 
-static int exfat_write_begin(struct file *file, struct address_space *mapping,
-		loff_t pos, unsigned int len,
-		struct folio **foliop, void **fsdata)
+static int exfat_write_begin(const struct kiocb *iocb,
+			     struct address_space *mapping,
+			     loff_t pos, unsigned int len,
+			     struct folio **foliop, void **fsdata)
 {
 	int ret;
 
@@ -463,15 +464,16 @@ static int exfat_write_begin(struct file *file, struct address_space *mapping,
 	return ret;
 }
 
-static int exfat_write_end(struct file *file, struct address_space *mapping,
-		loff_t pos, unsigned int len, unsigned int copied,
-		struct folio *folio, void *fsdata)
+static int exfat_write_end(const struct kiocb *iocb,
+			   struct address_space *mapping,
+			   loff_t pos, unsigned int len, unsigned int copied,
+			   struct folio *folio, void *fsdata)
 {
 	struct inode *inode = mapping->host;
 	struct exfat_inode_info *ei = EXFAT_I(inode);
 	int err;
 
-	err = generic_write_end(file, mapping, pos, len, copied, folio, fsdata);
+	err = generic_write_end(iocb, mapping, pos, len, copied, folio, fsdata);
 	if (err < len)
 		exfat_write_failed(mapping, pos+len);
 

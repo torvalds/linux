@@ -203,6 +203,7 @@ struct dc_stream_state {
 	struct dc_info_packet hfvsif_infopacket;
 	struct dc_info_packet vtem_infopacket;
 	struct dc_info_packet adaptive_sync_infopacket;
+	struct dc_info_packet avi_infopacket;
 	uint8_t dsc_packed_pps[128];
 	struct rect src; /* composition area */
 	struct rect dst; /* stream addressable area */
@@ -335,6 +336,8 @@ struct dc_stream_update {
 	struct dc_info_packet *hfvsif_infopacket;
 	struct dc_info_packet *vtem_infopacket;
 	struct dc_info_packet *adaptive_sync_infopacket;
+	struct dc_info_packet *avi_infopacket;
+
 	bool *dpms_off;
 	bool integer_scaling_update;
 	bool *allow_freesync;
@@ -470,12 +473,11 @@ void dc_enable_stereo(
 /* Triggers multi-stream synchronization. */
 void dc_trigger_sync(struct dc *dc, struct dc_state *context);
 
-enum surface_update_type dc_check_update_surfaces_for_stream(
-		struct dc *dc,
+struct surface_update_descriptor dc_check_update_surfaces_for_stream(
+		const struct dc_check_config *check_config,
 		struct dc_surface_update *updates,
 		int surface_count,
-		struct dc_stream_update *stream_update,
-		const struct dc_stream_status *stream_status);
+		struct dc_stream_update *stream_update);
 
 /**
  * Create a new default stream for the requested sink
@@ -489,8 +491,8 @@ void update_stream_signal(struct dc_stream_state *stream, struct dc_sink *sink);
 void dc_stream_retain(struct dc_stream_state *dc_stream);
 void dc_stream_release(struct dc_stream_state *dc_stream);
 
-struct dc_stream_status *dc_stream_get_status(
-	struct dc_stream_state *dc_stream);
+struct dc_stream_status *dc_stream_get_status(struct dc_stream_state *dc_stream);
+const struct dc_stream_status *dc_stream_get_status_const(const struct dc_stream_state *dc_stream);
 
 /*******************************************************************************
  * Cursor interfaces - To manages the cursor within a stream
@@ -578,6 +580,17 @@ bool dc_stream_set_gamut_remap(struct dc *dc,
 
 bool dc_stream_program_csc_matrix(struct dc *dc,
 				  struct dc_stream_state *stream);
+
+struct dc_rmcm_3dlut *dc_stream_get_3dlut_for_stream(
+	const struct dc *dc,
+	const struct dc_stream_state *stream,
+	bool allocate_one);
+
+void dc_stream_release_3dlut_for_stream(
+	const struct dc *dc,
+	const struct dc_stream_state *stream);
+
+void dc_stream_init_rmcm_3dlut(struct dc *dc);
 
 struct pipe_ctx *dc_stream_get_pipe_ctx(struct dc_stream_state *stream);
 

@@ -15,7 +15,7 @@ static int remove_ctl(struct snd_card *card, const char *name)
 {
 	struct snd_ctl_elem_id id;
 	memset(&id, 0, sizeof(id));
-	strcpy(id.name, name);
+	strscpy(id.name, name);
 	id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
 	return snd_ctl_remove_id(card, &id);
 }

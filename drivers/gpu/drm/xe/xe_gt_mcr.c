@@ -46,8 +46,6 @@
  * MCR registers are not available on Virtual Function (VF).
  */
 
-#define STEER_SEMAPHORE		XE_REG(0xFD0)
-
 static inline struct xe_reg to_xe_reg(struct xe_reg_mcr reg_mcr)
 {
 	return reg_mcr.__reg;
@@ -171,6 +169,15 @@ static const struct xe_mmio_range xelpg_dss_steering_table[] = {
 	{},
 };
 
+static const struct xe_mmio_range xe3p_xpc_xecore_steering_table[] = {
+	{ 0x008140, 0x00817F },         /* SLICE, XeCore, SLICE */
+	{ 0x009480, 0x00955F },         /* SLICE, XeCore */
+	{ 0x00D800, 0x00D87F },		/* SLICE */
+	{ 0x00DC00, 0x00E9FF },         /* SLICE, rsvd, XeCore, rsvd, XeCore, rsvd, XeCore */
+	{ 0x013000, 0x0135FF },         /* XeCore, SLICE */
+	{},
+};
+
 static const struct xe_mmio_range xelpmp_oaddrm_steering_table[] = {
 	{ 0x393200, 0x39323F },
 	{ 0x393400, 0x3934FF },
@@ -238,21 +245,60 @@ static const struct xe_mmio_range xe2lpm_instance0_steering_table[] = {
 };
 
 static const struct xe_mmio_range xe3lpm_instance0_steering_table[] = {
-	{ 0x384000, 0x3847DF },         /* GAM, rsvd, GAM */
+	{ 0x384000, 0x3841FF },         /* GAM */
+	{ 0x384400, 0x3847DF },         /* GAM */
 	{ 0x384900, 0x384AFF },         /* GAM */
 	{ 0x389560, 0x3895FF },         /* MEDIAINF */
 	{ 0x38B600, 0x38B8FF },         /* L3BANK */
 	{ 0x38C800, 0x38D07F },         /* GAM, MEDIAINF */
-	{ 0x38D0D0, 0x38F0FF },		/* MEDIAINF, GAM */
+	{ 0x38D0D0, 0x38F0FF },         /* MEDIAINF, rsvd, GAM */
 	{ 0x393C00, 0x393C7F },         /* MEDIAINF */
+	{},
+};
+
+/*
+ * Different "GAM" ranges have different rules; GAMWKRS, STLB, and GAMREQSTRM
+ * range subtypes need to be steered to (1,0), while all other GAM subtypes
+ * are steered to (0,0) and are included in the "INSTANCE0" table farther
+ * down.
+ */
+static const struct xe_mmio_range xe3p_xpc_gam_grp1_steering_table[] = {
+	{ 0x004000, 0x004AFF },		/* GAMREQSTRM, rsvd, STLB, GAMWKRS, GAMREQSTRM */
+	{ 0x00F100, 0x00FFFF },		/* GAMWKRS */
+	{},
+};
+
+static const struct xe_mmio_range xe3p_xpc_node_steering_table[] = {
+	{ 0x00B000, 0x00B0FF },
+	{ 0x00D880, 0x00D8FF },
+	{},
+};
+
+static const struct xe_mmio_range xe3p_xpc_instance0_steering_table[] = {
+	{ 0x00B500, 0x00B6FF },		/* PSMI */
+	{ 0x00C800, 0x00CFFF },		/* GAMCTRL */
+	{ 0x00F000, 0x00F0FF },		/* GAMCTRL */
 	{},
 };
 
 static void init_steering_l3bank(struct xe_gt *gt)
 {
+	struct xe_device *xe = gt_to_xe(gt);
 	struct xe_mmio *mmio = &gt->mmio;
 
-	if (GRAPHICS_VERx100(gt_to_xe(gt)) >= 1270) {
+	if (GRAPHICS_VER(xe) >= 35) {
+		unsigned int first_bank = xe_l3_bank_mask_ffs(gt->fuse_topo.l3_bank_mask);
+		const int banks_per_node = 4;
+		unsigned int node = first_bank / banks_per_node;
+
+		/* L3BANK ranges place node in grpID, bank in instanceid */
+		gt->steering[L3BANK].group_target = node;
+		gt->steering[L3BANK].instance_target = first_bank % banks_per_node;
+
+		/* NODE ranges split the node across grpid and instanceid */
+		gt->steering[NODE].group_target = node >> 1;
+		gt->steering[NODE].instance_target = node & 1;
+	} else if (GRAPHICS_VERx100(xe) >= 1270) {
 		u32 mslice_mask = REG_FIELD_GET(MEML3_EN_MASK,
 						xe_mmio_read32(mmio, MIRROR_FUSE3));
 		u32 bank_mask = REG_FIELD_GET(GT_L3_EXC_MASK,
@@ -265,7 +311,7 @@ static void init_steering_l3bank(struct xe_gt *gt)
 		gt->steering[L3BANK].group_target = __ffs(mslice_mask);
 		gt->steering[L3BANK].instance_target =
 			bank_mask & BIT(0) ? 0 : 2;
-	} else if (gt_to_xe(gt)->info.platform == XE_DG2) {
+	} else if (xe->info.platform == XE_DG2) {
 		u32 mslice_mask = REG_FIELD_GET(MEML3_EN_MASK,
 						xe_mmio_read32(mmio, MIRROR_FUSE3));
 		u32 bank = __ffs(mslice_mask) * 8;
@@ -364,7 +410,7 @@ fallback:
  * @group: pointer to storage for steering group ID
  * @instance: pointer to storage for steering instance ID
  */
-void xe_gt_mcr_get_dss_steering(struct xe_gt *gt, unsigned int dss, u16 *group, u16 *instance)
+void xe_gt_mcr_get_dss_steering(const struct xe_gt *gt, unsigned int dss, u16 *group, u16 *instance)
 {
 	xe_gt_assert(gt, dss < XE_MAX_DSS_FUSE_BITS);
 
@@ -420,10 +466,10 @@ static void init_steering_sqidi_psmi(struct xe_gt *gt)
 	gt->steering[SQIDI_PSMI].instance_target = select & 0x1;
 }
 
-static void init_steering_inst0(struct xe_gt *gt)
+static void init_steering_gam1(struct xe_gt *gt)
 {
-	gt->steering[INSTANCE0].group_target = 0;	/* unused */
-	gt->steering[INSTANCE0].instance_target = 0;	/* unused */
+	gt->steering[GAM1].group_target = 1;
+	gt->steering[GAM1].instance_target = 0;
 }
 
 static const struct {
@@ -431,12 +477,14 @@ static const struct {
 	void (*init)(struct xe_gt *gt);
 } xe_steering_types[] = {
 	[L3BANK] =	{ "L3BANK",	init_steering_l3bank },
+	[NODE] =	{ "NODE",	NULL }, /* initialized by l3bank init */
 	[MSLICE] =	{ "MSLICE",	init_steering_mslice },
 	[LNCF] =	{ "LNCF",	NULL }, /* initialized by mslice init */
-	[DSS] =		{ "DSS",	init_steering_dss },
+	[DSS] =		{ "DSS / XeCore", init_steering_dss },
 	[OADDRM] =	{ "OADDRM / GPMXMT", init_steering_oaddrm },
 	[SQIDI_PSMI] =  { "SQIDI_PSMI", init_steering_sqidi_psmi },
-	[INSTANCE0] =	{ "INSTANCE 0",	init_steering_inst0 },
+	[GAM1] =	{ "GAMWKRS / STLB / GAMREQSTRM", init_steering_gam1 },
+	[INSTANCE0] =	{ "INSTANCE 0",	NULL },
 	[IMPLICIT_STEERING] = { "IMPLICIT", NULL },
 };
 
@@ -446,25 +494,17 @@ static const struct {
  *
  * Perform early software only initialization of the MCR lock to allow
  * the synchronization on accessing the STEER_SEMAPHORE register and
- * use the xe_gt_mcr_multicast_write() function.
+ * use the xe_gt_mcr_multicast_write() function, plus the minimum
+ * safe MCR registers required for VRAM/CCS probing.
  */
 void xe_gt_mcr_init_early(struct xe_gt *gt)
 {
+	struct xe_device *xe = gt_to_xe(gt);
+
 	BUILD_BUG_ON(IMPLICIT_STEERING + 1 != NUM_STEERING_TYPES);
 	BUILD_BUG_ON(ARRAY_SIZE(xe_steering_types) != NUM_STEERING_TYPES);
 
 	spin_lock_init(&gt->mcr_lock);
-}
-
-/**
- * xe_gt_mcr_init - Normal initialization of the MCR support
- * @gt: GT structure
- *
- * Perform normal initialization of the MCR for all usages.
- */
-void xe_gt_mcr_init(struct xe_gt *gt)
-{
-	struct xe_device *xe = gt_to_xe(gt);
 
 	if (IS_SRIOV_VF(xe))
 		return;
@@ -482,7 +522,19 @@ void xe_gt_mcr_init(struct xe_gt *gt)
 			gt->steering[OADDRM].ranges = xelpmp_oaddrm_steering_table;
 		}
 	} else {
-		if (GRAPHICS_VER(xe) >= 20) {
+		if (GRAPHICS_VERx100(xe) == 3511) {
+			/*
+			 * TODO: there are some ranges in bspec with missing
+			 * termination: [0x00B000, 0x00B0FF] and
+			 * [0x00D880, 0x00D8FF] (NODE); [0x00B100, 0x00B3FF]
+			 * (L3BANK). Update them here once bspec is updated.
+			 */
+			gt->steering[DSS].ranges = xe3p_xpc_xecore_steering_table;
+			gt->steering[GAM1].ranges = xe3p_xpc_gam_grp1_steering_table;
+			gt->steering[INSTANCE0].ranges = xe3p_xpc_instance0_steering_table;
+			gt->steering[L3BANK].ranges = xelpg_l3bank_steering_table;
+			gt->steering[NODE].ranges = xe3p_xpc_node_steering_table;
+		} else if (GRAPHICS_VER(xe) >= 20) {
 			gt->steering[DSS].ranges = xe2lpg_dss_steering_table;
 			gt->steering[SQIDI_PSMI].ranges = xe2lpg_sqidi_psmi_steering_table;
 			gt->steering[INSTANCE0].ranges = xe2lpg_instance0_steering_table;
@@ -505,10 +557,27 @@ void xe_gt_mcr_init(struct xe_gt *gt)
 		}
 	}
 
+	/* Mark instance 0 as initialized, we need this early for VRAM and CCS probe. */
+	gt->steering[INSTANCE0].initialized = true;
+}
+
+/**
+ * xe_gt_mcr_init - Normal initialization of the MCR support
+ * @gt: GT structure
+ *
+ * Perform normal initialization of the MCR for all usages.
+ */
+void xe_gt_mcr_init(struct xe_gt *gt)
+{
+	if (IS_SRIOV_VF(gt_to_xe(gt)))
+		return;
+
 	/* Select non-terminated steering target for each type */
-	for (int i = 0; i < NUM_STEERING_TYPES; i++)
+	for (int i = 0; i < NUM_STEERING_TYPES; i++) {
+		gt->steering[i].initialized = true;
 		if (gt->steering[i].ranges && xe_steering_types[i].init)
 			xe_steering_types[i].init(gt);
+	}
 }
 
 /**
@@ -530,7 +599,7 @@ void xe_gt_mcr_set_implicit_defaults(struct xe_gt *gt)
 		u32 steer_val = REG_FIELD_PREP(MCR_SLICE_MASK, 0) |
 			REG_FIELD_PREP(MCR_SUBSLICE_MASK, 2);
 
-		xe_mmio_write32(&gt->mmio, MCFG_MCR_SELECTOR, steer_val);
+		xe_mmio_write32(&gt->mmio, STEER_SEMAPHORE, steer_val);
 		xe_mmio_write32(&gt->mmio, SF_MCR_SELECTOR, steer_val);
 		/*
 		 * For GAM registers, all reads should be directed to instance 1
@@ -570,6 +639,10 @@ bool xe_gt_mcr_get_nonterminated_steering(struct xe_gt *gt,
 
 		for (int i = 0; gt->steering[type].ranges[i].end > 0; i++) {
 			if (xe_mmio_in_range(&gt->mmio, &gt->steering[type].ranges[i], reg)) {
+				drm_WARN(&gt_to_xe(gt)->drm, !gt->steering[type].initialized,
+					 "Uninitialized usage of MCR register %s/%#x\n",
+					 xe_steering_types[type].name, reg.addr);
+
 				*group = gt->steering[type].group_target;
 				*instance = gt->steering[type].instance_target;
 				return true;

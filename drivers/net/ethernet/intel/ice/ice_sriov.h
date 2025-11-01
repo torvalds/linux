@@ -3,9 +3,9 @@
 
 #ifndef _ICE_SRIOV_H_
 #define _ICE_SRIOV_H_
-#include "ice_virtchnl_fdir.h"
+#include "virt/fdir.h"
 #include "ice_vf_lib.h"
-#include "ice_virtchnl.h"
+#include "virt/virtchnl.h"
 
 /* Static VF transaction/status register def */
 #define VF_DEVICE_STATUS		0xAA
@@ -64,6 +64,7 @@ bool
 ice_vc_validate_pattern(struct ice_vf *vf, struct virtchnl_proto_hdrs *proto);
 u32 ice_sriov_get_vf_total_msix(struct pci_dev *pdev);
 int ice_sriov_set_msix_vec_count(struct pci_dev *vf_dev, int msix_vec_count);
+int ice_vf_vsi_dis_single_txq(struct ice_vf *vf, struct ice_vsi *vsi, u16 q_id);
 #else /* CONFIG_PCI_IOV */
 static inline void ice_process_vflr_event(struct ice_pf *pf) { }
 static inline void ice_free_vfs(struct ice_pf *pf) { }
@@ -161,6 +162,12 @@ static inline u32 ice_sriov_get_vf_total_msix(struct pci_dev *pdev)
 
 static inline int
 ice_sriov_set_msix_vec_count(struct pci_dev *vf_dev, int msix_vec_count)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int ice_vf_vsi_dis_single_txq(struct ice_vf *vf,
+					    struct ice_vsi *vsi, u16 q_id)
 {
 	return -EOPNOTSUPP;
 }

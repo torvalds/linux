@@ -78,13 +78,10 @@ struct btrfs_inode_extref *btrfs_find_name_in_ext_backref(
 }
 
 /* Returns NULL if no extref found */
-struct btrfs_inode_extref *
-btrfs_lookup_inode_extref(struct btrfs_trans_handle *trans,
-			  struct btrfs_root *root,
-			  struct btrfs_path *path,
-			  const struct fscrypt_str *name,
-			  u64 inode_objectid, u64 ref_objectid, int ins_len,
-			  int cow)
+struct btrfs_inode_extref *btrfs_lookup_inode_extref(struct btrfs_root *root,
+						     struct btrfs_path *path,
+						     const struct fscrypt_str *name,
+						     u64 inode_objectid, u64 ref_objectid)
 {
 	int ret;
 	struct btrfs_key key;
@@ -93,7 +90,7 @@ btrfs_lookup_inode_extref(struct btrfs_trans_handle *trans,
 	key.type = BTRFS_INODE_EXTREF_KEY;
 	key.offset = btrfs_extref_hash(ref_objectid, name->name, name->len);
 
-	ret = btrfs_search_slot(trans, root, &key, path, ins_len, cow);
+	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 	if (ret < 0)
 		return ERR_PTR(ret);
 	if (ret > 0)
@@ -140,7 +137,7 @@ static int btrfs_del_inode_extref(struct btrfs_trans_handle *trans,
 	 */
 	extref = btrfs_find_name_in_ext_backref(path->nodes[0], path->slots[0],
 						ref_objectid, name);
-	if (!extref) {
+	if (unlikely(!extref)) {
 		btrfs_abort_transaction(trans, -ENOENT);
 		return -ENOENT;
 	}
@@ -630,7 +627,7 @@ delete:
 		if (control->clear_extent_range) {
 			ret = btrfs_inode_clear_file_extent_range(control->inode,
 						  clear_start, clear_len);
-			if (ret) {
+			if (unlikely(ret)) {
 				btrfs_abort_transaction(trans, ret);
 				break;
 			}
@@ -669,7 +666,7 @@ delete:
 			btrfs_init_data_ref(&ref, control->ino, extent_offset,
 					    btrfs_root_id(root), false);
 			ret = btrfs_free_extent(trans, &ref);
-			if (ret) {
+			if (unlikely(ret)) {
 				btrfs_abort_transaction(trans, ret);
 				break;
 			}
@@ -687,7 +684,7 @@ delete:
 				ret = btrfs_del_items(trans, root, path,
 						pending_del_slot,
 						pending_del_nr);
-				if (ret) {
+				if (unlikely(ret)) {
 					btrfs_abort_transaction(trans, ret);
 					break;
 				}
@@ -720,13 +717,12 @@ delete:
 	}
 out:
 	if (ret >= 0 && pending_del_nr) {
-		int err;
+		int ret2;
 
-		err = btrfs_del_items(trans, root, path, pending_del_slot,
-				      pending_del_nr);
-		if (err) {
-			btrfs_abort_transaction(trans, err);
-			ret = err;
+		ret2 = btrfs_del_items(trans, root, path, pending_del_slot, pending_del_nr);
+		if (unlikely(ret2)) {
+			btrfs_abort_transaction(trans, ret2);
+			ret = ret2;
 		}
 	}
 

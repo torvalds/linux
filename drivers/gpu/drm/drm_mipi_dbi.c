@@ -230,7 +230,13 @@ int mipi_dbi_buf_copy(void *dst, struct iosys_map *src, struct drm_framebuffer *
 	case DRM_FORMAT_XRGB8888:
 		switch (dbidev->pixel_format) {
 		case DRM_FORMAT_RGB565:
-			drm_fb_xrgb8888_to_rgb565(&dst_map, NULL, src, fb, clip, fmtcnv_state, swap);
+			if (swap) {
+				drm_fb_xrgb8888_to_rgb565be(&dst_map, NULL, src, fb, clip,
+							    fmtcnv_state);
+			} else {
+				drm_fb_xrgb8888_to_rgb565(&dst_map, NULL, src, fb, clip,
+							  fmtcnv_state);
+			}
 			break;
 		case DRM_FORMAT_RGB888:
 			drm_fb_xrgb8888_to_rgb888(&dst_map, NULL, src, fb, clip, fmtcnv_state);
@@ -685,7 +691,7 @@ int mipi_dbi_dev_init(struct mipi_dbi_dev *dbidev,
 		      const struct drm_simple_display_pipe_funcs *funcs,
 		      const struct drm_display_mode *mode, unsigned int rotation)
 {
-	size_t bufsize = mode->vdisplay * mode->hdisplay * sizeof(u16);
+	size_t bufsize = (u32)mode->vdisplay * mode->hdisplay * sizeof(u16);
 
 	dbidev->drm.mode_config.preferred_depth = 16;
 

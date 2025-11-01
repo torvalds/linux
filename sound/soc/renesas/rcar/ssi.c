@@ -680,31 +680,30 @@ static void __rsnd_ssi_interrupt(struct rsnd_mod *mod,
 	bool elapsed = false;
 	bool stop = false;
 
-	spin_lock(&priv->lock);
+	scoped_guard(spinlock, &priv->lock) {
 
-	/* ignore all cases if not working */
-	if (!rsnd_io_is_working(io))
-		goto rsnd_ssi_interrupt_out;
+		/* ignore all cases if not working */
+		if (!rsnd_io_is_working(io))
+			break;
 
-	status = rsnd_ssi_status_get(mod);
+		status = rsnd_ssi_status_get(mod);
 
-	/* PIO only */
-	if (!is_dma && (status & DIRQ))
-		elapsed = rsnd_ssi_pio_interrupt(mod, io);
+		/* PIO only */
+		if (!is_dma && (status & DIRQ))
+			elapsed = rsnd_ssi_pio_interrupt(mod, io);
 
-	/* DMA only */
-	if (is_dma && (status & (UIRQ | OIRQ))) {
-		rsnd_print_irq_status(dev, "%s err status : 0x%08x\n",
-				      rsnd_mod_name(mod), status);
+		/* DMA only */
+		if (is_dma && (status & (UIRQ | OIRQ))) {
+			rsnd_print_irq_status(dev, "%s err status : 0x%08x\n",
+					      rsnd_mod_name(mod), status);
 
-		stop = true;
+			stop = true;
+		}
+
+		stop |= rsnd_ssiu_busif_err_status_clear(mod);
+
+		rsnd_ssi_status_clear(mod);
 	}
-
-	stop |= rsnd_ssiu_busif_err_status_clear(mod);
-
-	rsnd_ssi_status_clear(mod);
-rsnd_ssi_interrupt_out:
-	spin_unlock(&priv->lock);
 
 	if (elapsed)
 		snd_pcm_period_elapsed(io->substream);
@@ -1115,7 +1114,6 @@ void rsnd_parse_connect_ssi(struct rsnd_dai *rdai,
 	struct rsnd_priv *priv = rsnd_rdai_to_priv(rdai);
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct device_node *node;
-	struct device_node *np;
 	int i;
 
 	node = rsnd_ssi_of_node(priv);
@@ -1123,14 +1121,12 @@ void rsnd_parse_connect_ssi(struct rsnd_dai *rdai,
 		return;
 
 	i = 0;
-	for_each_child_of_node(node, np) {
+	for_each_child_of_node_scoped(node, np) {
 		struct rsnd_mod *mod;
 
 		i = rsnd_node_fixed_index(dev, np, SSI_NAME, i);
-		if (i < 0) {
-			of_node_put(np);
+		if (i < 0)
 			break;
-		}
 
 		mod = rsnd_ssi_mod_get(priv, i);
 
@@ -1163,7 +1159,6 @@ int __rsnd_ssi_is_pin_sharing(struct rsnd_mod *mod)
 int rsnd_ssi_probe(struct rsnd_priv *priv)
 {
 	struct device_node *node;
-	struct device_node *np;
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct rsnd_mod_ops *ops;
 	struct clk *clk;
@@ -1191,14 +1186,13 @@ int rsnd_ssi_probe(struct rsnd_priv *priv)
 	priv->ssi_nr	= nr;
 
 	i = 0;
-	for_each_child_of_node(node, np) {
+	for_each_child_of_node_scoped(node, np) {
 		if (!of_device_is_available(np))
 			goto skip;
 
 		i = rsnd_node_fixed_index(dev, np, SSI_NAME, i);
 		if (i < 0) {
 			ret = -EINVAL;
-			of_node_put(np);
 			goto rsnd_ssi_probe_done;
 		}
 
@@ -1210,7 +1204,6 @@ int rsnd_ssi_probe(struct rsnd_priv *priv)
 		clk = devm_clk_get(dev, name);
 		if (IS_ERR(clk)) {
 			ret = PTR_ERR(clk);
-			of_node_put(np);
 			goto rsnd_ssi_probe_done;
 		}
 
@@ -1223,7 +1216,6 @@ int rsnd_ssi_probe(struct rsnd_priv *priv)
 		ssi->irq = irq_of_parse_and_map(np, 0);
 		if (!ssi->irq) {
 			ret = -EINVAL;
-			of_node_put(np);
 			goto rsnd_ssi_probe_done;
 		}
 
@@ -1234,10 +1226,9 @@ int rsnd_ssi_probe(struct rsnd_priv *priv)
 
 		ret = rsnd_mod_init(priv, rsnd_mod_get(ssi), ops, clk,
 				    RSND_MOD_SSI, i);
-		if (ret) {
-			of_node_put(np);
+		if (ret)
 			goto rsnd_ssi_probe_done;
-		}
+
 skip:
 		i++;
 	}

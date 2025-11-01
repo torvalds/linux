@@ -891,7 +891,7 @@ static int x25_accept(struct socket *sock, struct socket *newsock,
 	if (sk->sk_state != TCP_LISTEN)
 		goto out2;
 
-	rc = x25_wait_for_data(sk, sk->sk_rcvtimeo);
+	rc = x25_wait_for_data(sk, READ_ONCE(sk->sk_rcvtimeo));
 	if (rc)
 		goto out2;
 	skb = skb_dequeue(&sk->sk_receive_queue);

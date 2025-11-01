@@ -107,6 +107,7 @@ extern const struct address_space_operations squashfs_aops;
 
 /* inode.c */
 extern const struct inode_operations squashfs_inode_ops;
+extern const struct file_operations squashfs_file_operations;
 
 /* namei.c */
 extern const struct inode_operations squashfs_dir_inode_ops;

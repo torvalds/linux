@@ -108,10 +108,12 @@ static int sprd_gpio_get(struct gpio_chip *chip, unsigned int offset)
 	return sprd_gpio_read(chip, offset, SPRD_GPIO_DATA);
 }
 
-static void sprd_gpio_set(struct gpio_chip *chip, unsigned int offset,
-			  int value)
+static int sprd_gpio_set(struct gpio_chip *chip, unsigned int offset,
+			 int value)
 {
 	sprd_gpio_update(chip, offset, SPRD_GPIO_DATA, value);
+
+	return 0;
 }
 
 static void sprd_gpio_irq_mask(struct irq_data *data)

@@ -346,7 +346,6 @@ struct ixgbevf_adapter {
 	int num_rx_queues;
 	struct ixgbevf_ring *rx_ring[MAX_TX_QUEUES]; /* One per active queue */
 	u64 hw_csum_rx_error;
-	u64 hw_rx_no_dma_resources;
 	int num_msix_vectors;
 	u64 alloc_rx_page_failed;
 	u64 alloc_rx_buff_failed;
@@ -363,8 +362,13 @@ struct ixgbevf_adapter {
 	/* structs defined in ixgbe_vf.h */
 	struct ixgbe_hw hw;
 	u16 msg_enable;
-	/* Interrupt Throttle Rate */
-	u32 eitr_param;
+
+	u32 pf_features;
+#define IXGBEVF_PF_SUP_IPSEC		BIT(0)
+#define IXGBEVF_PF_SUP_ESX_MBX		BIT(1)
+
+#define IXGBEVF_SUPPORTED_FEATURES	(IXGBEVF_PF_SUP_IPSEC | \
+					IXGBEVF_PF_SUP_ESX_MBX)
 
 	struct ixgbevf_hw_stats stats;
 

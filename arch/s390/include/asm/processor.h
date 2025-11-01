@@ -26,7 +26,7 @@
 
 #define RESTART_FLAG_CTLREGS	_AC(1 << 0, U)
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/cpumask.h>
 #include <linux/linkage.h>
@@ -163,7 +163,7 @@ static __always_inline void __stackleak_poison(unsigned long erase_low,
 		"2:	stg	%[poison],0(%[addr])\n"
 		"	j	4f\n"
 		"3:	mvc	8(1,%[addr]),0(%[addr])\n"
-		"4:\n"
+		"4:"
 		: [addr] "+&a" (erase_low), [count] "+&d" (count), [tmp] "=&a" (tmp)
 		: [poison] "d" (poison)
 		: "memory", "cc"
@@ -418,6 +418,6 @@ static __always_inline void bpon(void)
 		);
 }
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* __ASM_S390_PROCESSOR_H */

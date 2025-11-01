@@ -91,7 +91,7 @@ static int psp_v3_1_bootloader_load_sysdrv(struct psp_context *psp)
 
 	/* Wait for bootloader to signify that is ready having bit 31 of C2PMSG_35 set to 1 */
 	ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_35),
-			   0x80000000, 0x80000000, false);
+			   0x80000000, 0x80000000, 0);
 	if (ret)
 		return ret;
 
@@ -109,7 +109,7 @@ static int psp_v3_1_bootloader_load_sysdrv(struct psp_context *psp)
 	mdelay(20);
 
 	ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_35),
-			   0x80000000, 0x80000000, false);
+			   0x80000000, 0x80000000, 0);
 
 	return ret;
 }
@@ -130,7 +130,7 @@ static int psp_v3_1_bootloader_load_sos(struct psp_context *psp)
 
 	/* Wait for bootloader to signify that is ready having bit 31 of C2PMSG_35 set to 1 */
 	ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_35),
-			   0x80000000, 0x80000000, false);
+			   0x80000000, 0x80000000, 0);
 	if (ret)
 		return ret;
 
@@ -147,8 +147,8 @@ static int psp_v3_1_bootloader_load_sos(struct psp_context *psp)
 	/* there might be handshake issue with hardware which needs delay */
 	mdelay(20);
 	ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_81),
-			   RREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_81),
-			   0, true);
+			   RREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_81), 0,
+			   PSP_WAITREG_CHANGED);
 	return ret;
 }
 
@@ -168,7 +168,7 @@ static void psp_v3_1_reroute_ih(struct psp_context *psp)
 
 	mdelay(20);
 	psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_64),
-		     0x80000000, 0x8000FFFF, false);
+		     0x80000000, 0x8000FFFF, 0);
 
 	/* Change IH ring for UMC */
 	tmp = REG_SET_FIELD(0, IH_CLIENT_CFG_DATA, CREDIT_RETURN_ADDR, 0x1216b);
@@ -180,7 +180,7 @@ static void psp_v3_1_reroute_ih(struct psp_context *psp)
 
 	mdelay(20);
 	psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_64),
-		     0x80000000, 0x8000FFFF, false);
+		     0x80000000, 0x8000FFFF, 0);
 }
 
 static int psp_v3_1_ring_create(struct psp_context *psp,
@@ -217,9 +217,9 @@ static int psp_v3_1_ring_create(struct psp_context *psp,
 		mdelay(20);
 
 		/* Wait for response flag (bit 31) in C2PMSG_101 */
-		ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0,
-					mmMP0_SMN_C2PMSG_101), 0x80000000,
-					0x8000FFFF, false);
+		ret = psp_wait_for(
+			psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_101),
+			0x80000000, 0x8000FFFF, 0);
 	} else {
 
 		/* Write low address of the ring to C2PMSG_69 */
@@ -240,10 +240,9 @@ static int psp_v3_1_ring_create(struct psp_context *psp,
 		mdelay(20);
 
 		/* Wait for response flag (bit 31) in C2PMSG_64 */
-		ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0,
-					mmMP0_SMN_C2PMSG_64), 0x80000000,
-					0x8000FFFF, false);
-
+		ret = psp_wait_for(
+			psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_64),
+			0x80000000, 0x8000FFFF, 0);
 	}
 	return ret;
 }
@@ -267,11 +266,13 @@ static int psp_v3_1_ring_stop(struct psp_context *psp,
 
 	/* Wait for response flag (bit 31) */
 	if (amdgpu_sriov_vf(adev))
-		ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_101),
-				   0x80000000, 0x80000000, false);
+		ret = psp_wait_for(
+			psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_101),
+			0x80000000, 0x80000000, 0);
 	else
-		ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_64),
-				   0x80000000, 0x80000000, false);
+		ret = psp_wait_for(
+			psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_64),
+			0x80000000, 0x80000000, 0);
 
 	return ret;
 }
@@ -311,7 +312,7 @@ static int psp_v3_1_mode1_reset(struct psp_context *psp)
 
 	offset = SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_64);
 
-	ret = psp_wait_for(psp, offset, 0x80000000, 0x8000FFFF, false);
+	ret = psp_wait_for(psp, offset, 0x80000000, 0x8000FFFF, 0);
 
 	if (ret) {
 		DRM_INFO("psp is not working correctly before mode1 reset!\n");
@@ -325,7 +326,7 @@ static int psp_v3_1_mode1_reset(struct psp_context *psp)
 
 	offset = SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_33);
 
-	ret = psp_wait_for(psp, offset, 0x80000000, 0x80000000, false);
+	ret = psp_wait_for(psp, offset, 0x80000000, 0x80000000, 0);
 
 	if (ret) {
 		DRM_INFO("psp mode 1 reset failed!\n");

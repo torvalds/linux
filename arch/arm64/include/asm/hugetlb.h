@@ -21,12 +21,12 @@ extern bool arch_hugetlb_migration_supported(struct hstate *h);
 
 static inline void arch_clear_hugetlb_flags(struct folio *folio)
 {
-	clear_bit(PG_dcache_clean, &folio->flags);
+	clear_bit(PG_dcache_clean, &folio->flags.f);
 
 #ifdef CONFIG_ARM64_MTE
 	if (system_supports_mte()) {
-		clear_bit(PG_mte_tagged, &folio->flags);
-		clear_bit(PG_mte_lock, &folio->flags);
+		clear_bit(PG_mte_tagged, &folio->flags.f);
+		clear_bit(PG_mte_lock, &folio->flags.f);
 	}
 #endif
 }

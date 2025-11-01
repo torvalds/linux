@@ -750,7 +750,7 @@ compliance:
 - Test your driver with the appropriate in-kernel real-time test cases for both
   level and edge IRQs
 
-* [1] http://www.spinics.net/lists/linux-omap/msg120425.html
+* [1] https://lore.kernel.org/r/1437496011-11486-1-git-send-email-bigeasy@linutronix.de/
 * [2] https://lore.kernel.org/r/1443209283-20781-2-git-send-email-grygorii.strashko@ti.com
 * [3] https://lore.kernel.org/r/1443209283-20781-3-git-send-email-grygorii.strashko@ti.com
 

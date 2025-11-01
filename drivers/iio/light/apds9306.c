@@ -537,7 +537,6 @@ static int apds9306_read_data(struct apds9306_data *data, int *val, int reg)
 
 	*val = get_unaligned_le24(&buff);
 
-	pm_runtime_mark_last_busy(data->dev);
 	pm_runtime_put_autosuspend(data->dev);
 
 	return 0;
@@ -744,20 +743,27 @@ static int apds9306_event_period_set(struct apds9306_data *data, int val)
 	return regmap_field_write(rf->int_persist_val, val);
 }
 
+static int apds9306_get_thresh_reg(int dir)
+{
+	if (dir == IIO_EV_DIR_RISING)
+		return APDS9306_ALS_THRES_UP_0_REG;
+	else if (dir == IIO_EV_DIR_FALLING)
+		return APDS9306_ALS_THRES_LOW_0_REG;
+	else
+		return -EINVAL;
+}
+
 static int apds9306_event_thresh_get(struct apds9306_data *data, int dir,
 				     int *val)
 {
-	int var, ret;
+	int reg, ret;
 	u8 buff[3];
 
-	if (dir == IIO_EV_DIR_RISING)
-		var = APDS9306_ALS_THRES_UP_0_REG;
-	else if (dir == IIO_EV_DIR_FALLING)
-		var = APDS9306_ALS_THRES_LOW_0_REG;
-	else
-		return -EINVAL;
+	reg = apds9306_get_thresh_reg(dir);
+	if (reg < 0)
+		return reg;
 
-	ret = regmap_bulk_read(data->regmap, var, buff, sizeof(buff));
+	ret = regmap_bulk_read(data->regmap, reg, buff, sizeof(buff));
 	if (ret)
 		return ret;
 
@@ -769,22 +775,19 @@ static int apds9306_event_thresh_get(struct apds9306_data *data, int dir,
 static int apds9306_event_thresh_set(struct apds9306_data *data, int dir,
 				     int val)
 {
-	int var;
+	int reg;
 	u8 buff[3];
 
-	if (dir == IIO_EV_DIR_RISING)
-		var = APDS9306_ALS_THRES_UP_0_REG;
-	else if (dir == IIO_EV_DIR_FALLING)
-		var = APDS9306_ALS_THRES_LOW_0_REG;
-	else
-		return -EINVAL;
+	reg = apds9306_get_thresh_reg(dir);
+	if (reg < 0)
+		return reg;
 
 	if (!in_range(val, 0, APDS9306_ALS_THRES_VAL_MAX))
 		return -EINVAL;
 
 	put_unaligned_le24(val, buff);
 
-	return regmap_bulk_write(data->regmap, var, buff, sizeof(buff));
+	return regmap_bulk_write(data->regmap, reg, buff, sizeof(buff));
 }
 
 static int apds9306_event_thresh_adaptive_get(struct apds9306_data *data, int *val)
@@ -1117,7 +1120,6 @@ static int apds9306_write_event_config(struct iio_dev *indio_dev,
 			if (ret)
 				return ret;
 
-			pm_runtime_mark_last_busy(data->dev);
 			pm_runtime_put_autosuspend(data->dev);
 
 			return 0;
@@ -1305,7 +1307,7 @@ static int apds9306_probe(struct i2c_client *client)
 
 	ret = devm_add_action_or_reset(dev, apds9306_powerdown, data);
 	if (ret)
-		return dev_err_probe(dev, ret, "failed to add action or reset\n");
+		return ret;
 
 	ret = devm_iio_device_register(dev, indio_dev);
 	if (ret)

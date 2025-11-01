@@ -67,7 +67,7 @@ static int lpc18xx_rs485_config(struct uart_port *port, struct ktermios *termios
 	return 0;
 }
 
-static void lpc18xx_uart_serial_out(struct uart_port *p, int offset, int value)
+static void lpc18xx_uart_serial_out(struct uart_port *p, unsigned int offset, u32 value)
 {
 	/*
 	 * For DMA mode one must ensure that the UART_FCR_DMA_SELECT

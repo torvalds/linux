@@ -102,7 +102,7 @@ enum hfi_matrix_coefficients {
 
 struct iris_hfi_prop_type_handle {
 	u32 type;
-	int (*handle)(struct iris_inst *inst);
+	int (*handle)(struct iris_inst *inst, u32 plane);
 };
 
 struct iris_hfi_command_ops {
@@ -140,6 +140,7 @@ struct hfi_subscription_params {
 	u32	color_info;
 	u32	profile;
 	u32	level;
+	u32	tier;
 };
 
 u32 iris_hfi_get_v4l2_color_primaries(u32 hfi_primaries);

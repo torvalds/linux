@@ -159,7 +159,7 @@ bool malidp_format_mod_supported(struct drm_device *drm,
 	}
 
 	if (!fourcc_mod_is_vendor(modifier, ARM)) {
-		DRM_ERROR("Unknown modifier (not Arm)\n");
+		DRM_DEBUG_KMS("Unknown modifier (not Arm)\n");
 		return false;
 	}
 
@@ -263,7 +263,7 @@ static int malidp_se_check_scaling(struct malidp_plane *mp,
 				   struct drm_plane_state *state)
 {
 	struct drm_crtc_state *crtc_state =
-		drm_atomic_get_existing_crtc_state(state->state, state->crtc);
+		drm_atomic_get_new_crtc_state(state->state, state->crtc);
 	struct malidp_crtc_state *mc;
 	u32 src_w, src_h;
 	int ret;

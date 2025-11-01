@@ -81,10 +81,9 @@ static u32 n64mi_read_reg(struct n64audio *priv, const u8 reg)
 static void n64audio_push(struct n64audio *priv)
 {
 	struct snd_pcm_runtime *runtime = priv->chan.substream->runtime;
-	unsigned long flags;
 	u32 count;
 
-	spin_lock_irqsave(&priv->chan.lock, flags);
+	guard(spinlock_irqsave)(&priv->chan.lock);
 
 	count = priv->chan.writesize;
 
@@ -104,15 +103,12 @@ static void n64audio_push(struct n64audio *priv)
 	priv->chan.nextpos %= priv->chan.bufsize;
 
 	runtime->delay = runtime->period_size;
-
-	spin_unlock_irqrestore(&priv->chan.lock, flags);
 }
 
 static irqreturn_t n64audio_isr(int irq, void *dev_id)
 {
 	struct n64audio *priv = dev_id;
 	const u32 intrs = n64mi_read_reg(priv, MI_INTR_REG);
-	unsigned long flags;
 
 	// Check it's ours
 	if (!(intrs & MI_INTR_AI))
@@ -121,11 +117,9 @@ static irqreturn_t n64audio_isr(int irq, void *dev_id)
 	n64audio_write_reg(priv, AI_STATUS_REG, 1);
 
 	if (priv->chan.substream && snd_pcm_running(priv->chan.substream)) {
-		spin_lock_irqsave(&priv->chan.lock, flags);
-
-		priv->chan.pos = priv->chan.nextpos;
-
-		spin_unlock_irqrestore(&priv->chan.lock, flags);
+		scoped_guard(spinlock_irqsave, &priv->chan.lock) {
+			priv->chan.pos = priv->chan.nextpos;
+		}
 
 		snd_pcm_period_elapsed(priv->chan.substream);
 		if (priv->chan.substream && snd_pcm_running(priv->chan.substream))
@@ -221,7 +215,7 @@ static int n64audio_pcm_prepare(struct snd_pcm_substream *substream)
 		rate = 16;
 	n64audio_write_reg(priv, AI_BITCLOCK_REG, rate - 1);
 
-	spin_lock_irq(&priv->chan.lock);
+	guard(spinlock_irq)(&priv->chan.lock);
 
 	/* Setup the pseudo-dma transfer pointers.  */
 	priv->chan.pos = 0;
@@ -230,7 +224,6 @@ static int n64audio_pcm_prepare(struct snd_pcm_substream *substream)
 	priv->chan.writesize = snd_pcm_lib_period_bytes(substream);
 	priv->chan.bufsize = snd_pcm_lib_buffer_bytes(substream);
 
-	spin_unlock_irq(&priv->chan.lock);
 	return 0;
 }
 

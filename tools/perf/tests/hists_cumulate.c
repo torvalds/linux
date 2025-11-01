@@ -295,7 +295,7 @@ static int test1(struct evsel *evsel, struct machine *machine)
 	symbol_conf.cumulate_callchain = false;
 	evsel__reset_sample_bit(evsel, CALLCHAIN);
 
-	setup_sorting(NULL);
+	setup_sorting(/*evlist=*/NULL, machine->env);
 	callchain_register_param(&callchain_param);
 
 	err = add_hist_entries(hists, machine);
@@ -442,7 +442,7 @@ static int test2(struct evsel *evsel, struct machine *machine)
 	symbol_conf.cumulate_callchain = false;
 	evsel__set_sample_bit(evsel, CALLCHAIN);
 
-	setup_sorting(NULL);
+	setup_sorting(/*evlist=*/NULL, machine->env);
 	callchain_register_param(&callchain_param);
 
 	err = add_hist_entries(hists, machine);
@@ -500,7 +500,7 @@ static int test3(struct evsel *evsel, struct machine *machine)
 	symbol_conf.cumulate_callchain = true;
 	evsel__reset_sample_bit(evsel, CALLCHAIN);
 
-	setup_sorting(NULL);
+	setup_sorting(/*evlist=*/NULL, machine->env);
 	callchain_register_param(&callchain_param);
 
 	err = add_hist_entries(hists, machine);
@@ -684,7 +684,7 @@ static int test4(struct evsel *evsel, struct machine *machine)
 	symbol_conf.cumulate_callchain = true;
 	evsel__set_sample_bit(evsel, CALLCHAIN);
 
-	setup_sorting(NULL);
+	setup_sorting(/*evlist=*/NULL, machine->env);
 
 	callchain_param = callchain_param_default;
 	callchain_register_param(&callchain_param);

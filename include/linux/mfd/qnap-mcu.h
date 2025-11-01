@@ -7,6 +7,8 @@
 #ifndef _LINUX_QNAP_MCU_H_
 #define _LINUX_QNAP_MCU_H_
 
+#include <linux/types.h>
+
 struct qnap_mcu;
 
 struct qnap_mcu_variant {

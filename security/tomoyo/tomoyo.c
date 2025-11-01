@@ -514,7 +514,7 @@ struct lsm_blob_sizes tomoyo_blob_sizes __ro_after_init = {
  * Returns 0.
  */
 static int tomoyo_task_alloc(struct task_struct *task,
-			     unsigned long clone_flags)
+			     u64 clone_flags)
 {
 	struct tomoyo_task *old = tomoyo_task(current);
 	struct tomoyo_task *new = tomoyo_task(task);

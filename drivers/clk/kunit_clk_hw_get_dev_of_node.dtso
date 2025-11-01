@@ -1,0 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
+/dts-v1/;
+/plugin/;
+
+&{/} {
+	kunit-clock-controller {
+		compatible = "test,clk-hw-get-dev-of-node";
+		#clock-cells = <0>;
+	};
+};

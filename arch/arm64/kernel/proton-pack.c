@@ -884,6 +884,7 @@ static u8 spectre_bhb_loop_affected(void)
 	static const struct midr_range spectre_bhb_k38_list[] = {
 		MIDR_ALL_VERSIONS(MIDR_CORTEX_A715),
 		MIDR_ALL_VERSIONS(MIDR_CORTEX_A720),
+		MIDR_ALL_VERSIONS(MIDR_CORTEX_A720AE),
 		{},
 	};
 	static const struct midr_range spectre_bhb_k32_list[] = {

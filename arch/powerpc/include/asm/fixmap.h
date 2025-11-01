@@ -14,7 +14,7 @@
 #ifndef _ASM_FIXMAP_H
 #define _ASM_FIXMAP_H
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #include <linux/sizes.h>
 #include <linux/pgtable.h>
 #include <asm/page.h>
@@ -111,5 +111,5 @@ static inline void __set_fixmap(enum fixed_addresses idx,
 #define VIRT_IMMR_BASE (__fix_to_virt(FIX_IMMR_BASE))
 #endif
 
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 #endif

@@ -802,7 +802,6 @@ static int ravb_rx_gbeth(struct net_device *ndev, int budget, int q)
 	const struct ravb_hw_info *info = priv->info;
 	struct net_device_stats *stats;
 	struct ravb_rx_desc *desc;
-	struct sk_buff *skb;
 	int rx_packets = 0;
 	u8  desc_status;
 	u16 desc_len;
@@ -815,6 +814,8 @@ static int ravb_rx_gbeth(struct net_device *ndev, int budget, int q)
 	stats = &priv->stats[q];
 
 	for (i = 0; i < limit; i++, priv->cur_rx[q]++) {
+		struct sk_buff *skb = NULL;
+
 		entry = priv->cur_rx[q] % priv->num_rx_ring[q];
 		desc = &priv->rx_ring[q].desc[entry];
 		if (rx_packets == budget || desc->die_dt == DT_FEMPTY)
@@ -3075,7 +3076,7 @@ static int ravb_probe(struct platform_device *pdev)
 	if (info->coalesce_irqs) {
 		netdev_sw_irq_coalesce_default_on(ndev);
 		if (num_present_cpus() == 1)
-			dev_set_threaded(ndev, true);
+			netif_threaded_enable(ndev);
 	}
 
 	/* Network device register */

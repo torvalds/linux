@@ -8,11 +8,12 @@
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
+#include <linux/unaligned.h>
+
 #include <media/v4l2-cci.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-fwnode.h>
-#include <linux/unaligned.h>
 
 #define IMX258_REG_MODE_SELECT		CCI_REG8(0x0100)
 #define IMX258_MODE_STANDBY		0x00
@@ -645,6 +646,8 @@ static const struct imx258_mode supported_modes[] = {
 };
 
 struct imx258 {
+	struct device *dev;
+
 	struct v4l2_subdev sd;
 	struct media_pad pad;
 	struct regmap *regmap;
@@ -751,7 +754,6 @@ static int imx258_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct imx258 *imx258 =
 		container_of(ctrl->handler, struct imx258, ctrl_handler);
-	struct i2c_client *client = v4l2_get_subdevdata(&imx258->sd);
 	int ret = 0;
 
 	/*
@@ -765,7 +767,7 @@ static int imx258_set_ctrl(struct v4l2_ctrl *ctrl)
 	 * Applying V4L2 control value only happens
 	 * when power is up for streaming
 	 */
-	if (pm_runtime_get_if_in_use(&client->dev) == 0)
+	if (pm_runtime_get_if_in_use(imx258->dev) == 0)
 		return 0;
 
 	switch (ctrl->id) {
@@ -811,14 +813,14 @@ static int imx258_set_ctrl(struct v4l2_ctrl *ctrl)
 				NULL);
 		break;
 	default:
-		dev_info(&client->dev,
+		dev_info(imx258->dev,
 			 "ctrl(id:0x%x,val:0x%x) is not handled\n",
 			 ctrl->id, ctrl->val);
 		ret = -EINVAL;
 		break;
 	}
 
-	pm_runtime_put(&client->dev);
+	pm_runtime_put(imx258->dev);
 
 	return ret;
 }
@@ -1013,14 +1015,13 @@ static int imx258_get_selection(struct v4l2_subdev *sd,
 /* Start streaming */
 static int imx258_start_streaming(struct imx258 *imx258)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&imx258->sd);
 	const struct imx258_reg_list *reg_list;
 	const struct imx258_link_freq_config *link_freq_cfg;
 	int ret, link_freq_index;
 
 	ret = cci_write(imx258->regmap, IMX258_REG_RESET, 0x01, NULL);
 	if (ret) {
-		dev_err(&client->dev, "%s failed to reset sensor\n", __func__);
+		dev_err(imx258->dev, "%s failed to reset sensor\n", __func__);
 		return ret;
 	}
 
@@ -1034,21 +1035,21 @@ static int imx258_start_streaming(struct imx258 *imx258)
 	reg_list = &link_freq_cfg->link_cfg[imx258->lane_mode_idx].reg_list;
 	ret = cci_multi_reg_write(imx258->regmap, reg_list->regs, reg_list->num_of_regs, NULL);
 	if (ret) {
-		dev_err(&client->dev, "%s failed to set plls\n", __func__);
+		dev_err(imx258->dev, "%s failed to set plls\n", __func__);
 		return ret;
 	}
 
 	ret = cci_multi_reg_write(imx258->regmap, mode_common_regs,
 				  ARRAY_SIZE(mode_common_regs), NULL);
 	if (ret) {
-		dev_err(&client->dev, "%s failed to set common regs\n", __func__);
+		dev_err(imx258->dev, "%s failed to set common regs\n", __func__);
 		return ret;
 	}
 
 	ret = cci_multi_reg_write(imx258->regmap, imx258->variant_cfg->regs,
 				  imx258->variant_cfg->num_regs, NULL);
 	if (ret) {
-		dev_err(&client->dev, "%s failed to set variant config\n",
+		dev_err(imx258->dev, "%s failed to set variant config\n",
 			__func__);
 		return ret;
 	}
@@ -1057,7 +1058,7 @@ static int imx258_start_streaming(struct imx258 *imx258)
 			!!(imx258->csi2_flags & V4L2_MBUS_CSI2_NONCONTINUOUS_CLOCK),
 			NULL);
 	if (ret) {
-		dev_err(&client->dev, "%s failed to set clock lane mode\n", __func__);
+		dev_err(imx258->dev, "%s failed to set clock lane mode\n", __func__);
 		return ret;
 	}
 
@@ -1065,7 +1066,7 @@ static int imx258_start_streaming(struct imx258 *imx258)
 	reg_list = &imx258->cur_mode->reg_list;
 	ret = cci_multi_reg_write(imx258->regmap, reg_list->regs, reg_list->num_of_regs, NULL);
 	if (ret) {
-		dev_err(&client->dev, "%s failed to set mode\n", __func__);
+		dev_err(imx258->dev, "%s failed to set mode\n", __func__);
 		return ret;
 	}
 
@@ -1082,14 +1083,13 @@ static int imx258_start_streaming(struct imx258 *imx258)
 /* Stop streaming */
 static int imx258_stop_streaming(struct imx258 *imx258)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&imx258->sd);
 	int ret;
 
 	/* set stream off register */
 	ret = cci_write(imx258->regmap, IMX258_REG_MODE_SELECT,
 			IMX258_MODE_STANDBY, NULL);
 	if (ret)
-		dev_err(&client->dev, "%s failed to set stream\n", __func__);
+		dev_err(imx258->dev, "%s failed to set stream\n", __func__);
 
 	/*
 	 * Return success even if it was an error, as there is nothing the
@@ -1135,13 +1135,12 @@ static int imx258_power_off(struct device *dev)
 static int imx258_set_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct imx258 *imx258 = to_imx258(sd);
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret = 0;
 
 	mutex_lock(&imx258->mutex);
 
 	if (enable) {
-		ret = pm_runtime_resume_and_get(&client->dev);
+		ret = pm_runtime_resume_and_get(imx258->dev);
 		if (ret < 0)
 			goto err_unlock;
 
@@ -1154,7 +1153,7 @@ static int imx258_set_stream(struct v4l2_subdev *sd, int enable)
 			goto err_rpm_put;
 	} else {
 		imx258_stop_streaming(imx258);
-		pm_runtime_put(&client->dev);
+		pm_runtime_put(imx258->dev);
 	}
 
 	mutex_unlock(&imx258->mutex);
@@ -1162,7 +1161,7 @@ static int imx258_set_stream(struct v4l2_subdev *sd, int enable)
 	return ret;
 
 err_rpm_put:
-	pm_runtime_put(&client->dev);
+	pm_runtime_put(imx258->dev);
 err_unlock:
 	mutex_unlock(&imx258->mutex);
 
@@ -1172,20 +1171,19 @@ err_unlock:
 /* Verify chip ID */
 static int imx258_identify_module(struct imx258 *imx258)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&imx258->sd);
 	int ret;
 	u64 val;
 
 	ret = cci_read(imx258->regmap, IMX258_REG_CHIP_ID,
 		       &val, NULL);
 	if (ret) {
-		dev_err(&client->dev, "failed to read chip id %x\n",
+		dev_err(imx258->dev, "failed to read chip id %x\n",
 			IMX258_CHIP_ID);
 		return ret;
 	}
 
 	if (val != IMX258_CHIP_ID) {
-		dev_err(&client->dev, "chip id mismatch: %x!=%llx\n",
+		dev_err(imx258->dev, "chip id mismatch: %x!=%llx\n",
 			IMX258_CHIP_ID, val);
 		return -EIO;
 	}
@@ -1217,7 +1215,6 @@ static const struct v4l2_subdev_internal_ops imx258_internal_ops = {
 /* Initialize control handlers */
 static int imx258_init_controls(struct imx258 *imx258)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&imx258->sd);
 	const struct imx258_link_freq_config *link_freq_cfgs;
 	struct v4l2_fwnode_device_properties props;
 	struct v4l2_ctrl_handler *ctrl_hdlr;
@@ -1308,12 +1305,12 @@ static int imx258_init_controls(struct imx258 *imx258)
 
 	if (ctrl_hdlr->error) {
 		ret = ctrl_hdlr->error;
-		dev_err(&client->dev, "%s control init failed (%d)\n",
+		dev_err(imx258->dev, "%s control init failed (%d)\n",
 				__func__, ret);
 		goto error;
 	}
 
-	ret = v4l2_fwnode_device_parse(&client->dev, &props);
+	ret = v4l2_fwnode_device_parse(imx258->dev, &props);
 	if (ret)
 		goto error;
 
@@ -1339,15 +1336,14 @@ static void imx258_free_controls(struct imx258 *imx258)
 	mutex_destroy(&imx258->mutex);
 }
 
-static int imx258_get_regulators(struct imx258 *imx258,
-				 struct i2c_client *client)
+static int imx258_get_regulators(struct imx258 *imx258)
 {
 	unsigned int i;
 
 	for (i = 0; i < IMX258_NUM_SUPPLIES; i++)
 		imx258->supplies[i].supply = imx258_supply_name[i];
 
-	return devm_regulator_bulk_get(&client->dev,
+	return devm_regulator_bulk_get(imx258->dev,
 				    IMX258_NUM_SUPPLIES, imx258->supplies);
 }
 
@@ -1365,30 +1361,27 @@ static int imx258_probe(struct i2c_client *client)
 	if (!imx258)
 		return -ENOMEM;
 
+	imx258->dev = &client->dev;
+
 	imx258->regmap = devm_cci_regmap_init_i2c(client, 16);
 	if (IS_ERR(imx258->regmap)) {
 		ret = PTR_ERR(imx258->regmap);
-		dev_err(&client->dev, "failed to initialize CCI: %d\n", ret);
+		dev_err(imx258->dev, "failed to initialize CCI: %d\n", ret);
 		return ret;
 	}
 
-	ret = imx258_get_regulators(imx258, client);
+	ret = imx258_get_regulators(imx258);
 	if (ret)
-		return dev_err_probe(&client->dev, ret,
+		return dev_err_probe(imx258->dev, ret,
 				     "failed to get regulators\n");
 
-	imx258->clk = devm_clk_get_optional(&client->dev, NULL);
+	imx258->clk = devm_v4l2_sensor_clk_get_legacy(imx258->dev, NULL, false,
+						      0);
 	if (IS_ERR(imx258->clk))
-		return dev_err_probe(&client->dev, PTR_ERR(imx258->clk),
+		return dev_err_probe(imx258->dev, PTR_ERR(imx258->clk),
 				     "error getting clock\n");
-	if (!imx258->clk) {
-		dev_dbg(&client->dev,
-			"no clock provided, using clock-frequency property\n");
 
-		device_property_read_u32(&client->dev, "clock-frequency", &val);
-	} else {
-		val = clk_get_rate(imx258->clk);
-	}
+	val = clk_get_rate(imx258->clk);
 
 	switch (val) {
 	case 19200000:
@@ -1400,32 +1393,32 @@ static int imx258_probe(struct i2c_client *client)
 		imx258->link_freq_menu_items = link_freq_menu_items_24;
 		break;
 	default:
-		dev_err(&client->dev, "input clock frequency of %u not supported\n",
+		dev_err(imx258->dev, "input clock frequency of %u not supported\n",
 			val);
 		return -EINVAL;
 	}
 
-	endpoint = fwnode_graph_get_next_endpoint(dev_fwnode(&client->dev), NULL);
+	endpoint = fwnode_graph_get_next_endpoint(dev_fwnode(imx258->dev), NULL);
 	if (!endpoint) {
-		dev_err(&client->dev, "Endpoint node not found\n");
+		dev_err(imx258->dev, "Endpoint node not found\n");
 		return -EINVAL;
 	}
 
 	ret = v4l2_fwnode_endpoint_alloc_parse(endpoint, &ep);
 	fwnode_handle_put(endpoint);
 	if (ret) {
-		dev_err(&client->dev, "Parsing endpoint node failed\n");
+		dev_err(imx258->dev, "Parsing endpoint node failed\n");
 		return ret;
 	}
 
-	ret = v4l2_link_freq_to_bitmap(&client->dev,
+	ret = v4l2_link_freq_to_bitmap(imx258->dev,
 				       ep.link_frequencies,
 				       ep.nr_of_link_frequencies,
 				       imx258->link_freq_menu_items,
 				       ARRAY_SIZE(link_freq_menu_items_19_2),
 				       &imx258->link_freq_bitmap);
 	if (ret) {
-		dev_err(&client->dev, "Link frequency not supported\n");
+		dev_err(imx258->dev, "Link frequency not supported\n");
 		goto error_endpoint_free;
 	}
 
@@ -1438,7 +1431,7 @@ static int imx258_probe(struct i2c_client *client)
 		imx258->lane_mode_idx = IMX258_4_LANE_MODE;
 		break;
 	default:
-		dev_err(&client->dev, "Invalid data lanes: %u\n",
+		dev_err(imx258->dev, "Invalid data lanes: %u\n",
 			ep.bus.mipi_csi2.num_data_lanes);
 		ret = -EINVAL;
 		goto error_endpoint_free;
@@ -1446,7 +1439,7 @@ static int imx258_probe(struct i2c_client *client)
 
 	imx258->csi2_flags = ep.bus.mipi_csi2.flags;
 
-	imx258->variant_cfg = device_get_match_data(&client->dev);
+	imx258->variant_cfg = device_get_match_data(imx258->dev);
 	if (!imx258->variant_cfg)
 		imx258->variant_cfg = &imx258_cfg;
 
@@ -1454,7 +1447,7 @@ static int imx258_probe(struct i2c_client *client)
 	v4l2_i2c_subdev_init(&imx258->sd, client, &imx258_subdev_ops);
 
 	/* Will be powered off via pm_runtime_idle */
-	ret = imx258_power_on(&client->dev);
+	ret = imx258_power_on(imx258->dev);
 	if (ret)
 		goto error_endpoint_free;
 
@@ -1486,9 +1479,9 @@ static int imx258_probe(struct i2c_client *client)
 	if (ret < 0)
 		goto error_media_entity;
 
-	pm_runtime_set_active(&client->dev);
-	pm_runtime_enable(&client->dev);
-	pm_runtime_idle(&client->dev);
+	pm_runtime_set_active(imx258->dev);
+	pm_runtime_enable(imx258->dev);
+	pm_runtime_idle(imx258->dev);
 	v4l2_fwnode_endpoint_free(&ep);
 
 	return 0;
@@ -1500,7 +1493,7 @@ error_handler_free:
 	imx258_free_controls(imx258);
 
 error_identify:
-	imx258_power_off(&client->dev);
+	imx258_power_off(imx258->dev);
 
 error_endpoint_free:
 	v4l2_fwnode_endpoint_free(&ep);
@@ -1517,10 +1510,10 @@ static void imx258_remove(struct i2c_client *client)
 	media_entity_cleanup(&sd->entity);
 	imx258_free_controls(imx258);
 
-	pm_runtime_disable(&client->dev);
-	if (!pm_runtime_status_suspended(&client->dev))
-		imx258_power_off(&client->dev);
-	pm_runtime_set_suspended(&client->dev);
+	pm_runtime_disable(imx258->dev);
+	if (!pm_runtime_status_suspended(imx258->dev))
+		imx258_power_off(imx258->dev);
+	pm_runtime_set_suspended(imx258->dev);
 }
 
 static const struct dev_pm_ops imx258_pm_ops = {

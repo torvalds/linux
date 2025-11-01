@@ -22,9 +22,6 @@
 #include <linux/iio/triggered_buffer.h>
 #include <linux/iio/trigger_consumer.h>
 
-#define KMX61_DRV_NAME "kmx61"
-#define KMX61_IRQ_NAME "kmx61_event"
-
 #define KMX61_REG_WHO_AM_I	0x00
 #define KMX61_REG_INS1		0x01
 #define KMX61_REG_INS2		0x02
@@ -750,12 +747,10 @@ static int kmx61_set_power_state(struct kmx61_data *data, bool on, u8 device)
 		data->mag_ps = on;
 	}
 
-	if (on) {
+	if (on)
 		ret = pm_runtime_resume_and_get(&data->client->dev);
-	} else {
-		pm_runtime_mark_last_busy(&data->client->dev);
+	else
 		ret = pm_runtime_put_autosuspend(&data->client->dev);
-	}
 	if (ret < 0) {
 		dev_err(&data->client->dev,
 			"Failed: kmx61_set_power_state for %d, ret %d\n",
@@ -1312,7 +1307,7 @@ static int kmx61_probe(struct i2c_client *client)
 						kmx61_data_rdy_trig_poll,
 						kmx61_event_handler,
 						IRQF_TRIGGER_RISING,
-						KMX61_IRQ_NAME,
+						"kmx61_event",
 						data);
 		if (ret)
 			goto err_chip_uninit;
@@ -1494,7 +1489,7 @@ MODULE_DEVICE_TABLE(i2c, kmx61_id);
 
 static struct i2c_driver kmx61_driver = {
 	.driver = {
-		.name = KMX61_DRV_NAME,
+		.name = "kmx61",
 		.pm = pm_ptr(&kmx61_pm_ops),
 	},
 	.probe		= kmx61_probe,

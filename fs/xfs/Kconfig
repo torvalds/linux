@@ -25,7 +25,7 @@ config XFS_FS
 config XFS_SUPPORT_V4
 	bool "Support deprecated V4 (crc=0) format"
 	depends on XFS_FS
-	default y
+	default n
 	help
 	  The V4 filesystem format lacks certain features that are supported
 	  by the V5 format, such as metadata checksumming, strengthened
@@ -40,7 +40,7 @@ config XFS_SUPPORT_V4
 	  filesystem is a V4 filesystem.  If no such string is found, please
 	  upgrade xfsprogs to the latest version and try again.
 
-	  This option will become default N in September 2025.  Support for the
+	  This option became default N in September 2025.  Support for the
 	  V4 format will be removed entirely in September 2030.  Distributors
 	  can say N here to withdraw support earlier.
 
@@ -50,7 +50,7 @@ config XFS_SUPPORT_V4
 config XFS_SUPPORT_ASCII_CI
 	bool "Support deprecated case-insensitive ascii (ascii-ci=1) format"
 	depends on XFS_FS
-	default y
+	default n
 	help
 	  The ASCII case insensitivity filesystem feature only works correctly
 	  on systems that have been coerced into using ISO 8859-1, and it does
@@ -67,7 +67,7 @@ config XFS_SUPPORT_ASCII_CI
 	  filesystem is a case-insensitive filesystem.  If no such string is
 	  found, please upgrade xfsprogs to the latest version and try again.
 
-	  This option will become default N in September 2025.  Support for the
+	  This option became default N in September 2025.  Support for the
 	  feature will be removed entirely in September 2030.  Distributors
 	  can say N here to withdraw support earlier.
 
@@ -105,6 +105,7 @@ config XFS_POSIX_ACL
 config XFS_RT
 	bool "XFS Realtime subvolume support"
 	depends on XFS_FS
+	default BLK_DEV_ZONED
 	help
 	  If you say Y here you will be able to mount and use XFS filesystems
 	  which contain a realtime subvolume.  The realtime subvolume is a
@@ -136,7 +137,7 @@ config XFS_BTREE_IN_MEM
 
 config XFS_ONLINE_SCRUB
 	bool "XFS online metadata check support"
-	default n
+	default y
 	depends on XFS_FS
 	depends on TMPFS && SHMEM
 	select XFS_LIVE_HOOKS
@@ -149,11 +150,7 @@ config XFS_ONLINE_SCRUB
 	  advantage here is to look for problems proactively so that
 	  they can be dealt with in a controlled manner.
 
-	  This feature is considered EXPERIMENTAL.  Use with caution!
-
 	  See the xfs_scrub man page in section 8 for additional information.
-
-	  If unsure, say N.
 
 config XFS_ONLINE_SCRUB_STATS
 	bool "XFS online metadata check usage data collection"
@@ -170,11 +167,9 @@ config XFS_ONLINE_SCRUB_STATS
 
 	  Usage data are collected in /sys/kernel/debug/xfs/scrub.
 
-	  If unsure, say N.
-
 config XFS_ONLINE_REPAIR
 	bool "XFS online metadata repair support"
-	default n
+	default y
 	depends on XFS_FS && XFS_ONLINE_SCRUB
 	select XFS_BTREE_IN_MEM
 	help
@@ -185,11 +180,7 @@ config XFS_ONLINE_REPAIR
 	  formatted with secondary metadata, such as reverse mappings and inode
 	  parent pointers.
 
-	  This feature is considered EXPERIMENTAL.  Use with caution!
-
 	  See the xfs_scrub man page in section 8 for additional information.
-
-	  If unsure, say N.
 
 config XFS_WARN
 	bool "XFS Verbose Warnings"

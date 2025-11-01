@@ -1656,7 +1656,7 @@ static int ocelot_pinconf_get(struct pinctrl_dev *pctldev,
 			return err;
 		break;
 
-	case PIN_CONFIG_OUTPUT:
+	case PIN_CONFIG_LEVEL:
 		err = regmap_read(info->map, REG(OCELOT_GPIO_OUT, info, pin),
 				  &val);
 		if (err)
@@ -1735,7 +1735,7 @@ static int ocelot_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 
 		case PIN_CONFIG_OUTPUT_ENABLE:
 		case PIN_CONFIG_INPUT_ENABLE:
-		case PIN_CONFIG_OUTPUT:
+		case PIN_CONFIG_LEVEL:
 			p = pin % 32;
 			if (arg)
 				regmap_write(info->map,
@@ -1997,7 +1997,7 @@ static int ocelot_gpio_direction_output(struct gpio_chip *chip,
 static const struct gpio_chip ocelot_gpiolib_chip = {
 	.request = gpiochip_generic_request,
 	.free = gpiochip_generic_free,
-	.set_rv = ocelot_gpio_set,
+	.set = ocelot_gpio_set,
 	.get = ocelot_gpio_get,
 	.get_direction = ocelot_gpio_get_direction,
 	.direction_input = pinctrl_gpio_direction_input,

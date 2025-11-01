@@ -471,16 +471,13 @@ static irqreturn_t snd_intel8x0m_interrupt(int irq, void *dev_id)
 	unsigned int status;
 	unsigned int i;
 
-	spin_lock(&chip->reg_lock);
+	guard(spinlock)(&chip->reg_lock);
 	status = igetdword(chip, chip->int_sta_reg);
-	if (status == 0xffffffff) { /* we are not yet resumed */
-		spin_unlock(&chip->reg_lock);
+	if (status == 0xffffffff) /* we are not yet resumed */
 		return IRQ_NONE;
-	}
 	if ((status & chip->int_sta_mask) == 0) {
 		if (status)
 			iputdword(chip, chip->int_sta_reg, status);
-		spin_unlock(&chip->reg_lock);
 		return IRQ_NONE;
 	}
 
@@ -492,7 +489,6 @@ static irqreturn_t snd_intel8x0m_interrupt(int irq, void *dev_id)
 
 	/* ack them */
 	iputdword(chip, chip->int_sta_reg, status & chip->int_sta_mask);
-	spin_unlock(&chip->reg_lock);
 	
 	return IRQ_HANDLED;
 }
@@ -678,7 +674,7 @@ static int snd_intel8x0m_pcm1(struct intel8x0m *chip, int device,
 	if (rec->suffix)
 		sprintf(name, "Intel ICH - %s", rec->suffix);
 	else
-		strcpy(name, "Intel ICH");
+		strscpy(name, "Intel ICH");
 	err = snd_pcm_new(chip->card, name, device,
 			  rec->playback_ops ? 1 : 0,
 			  rec->capture_ops ? 1 : 0, &pcm);
@@ -696,7 +692,7 @@ static int snd_intel8x0m_pcm1(struct intel8x0m *chip, int device,
 	if (rec->suffix)
 		sprintf(pcm->name, "%s - %s", chip->card->shortname, rec->suffix);
 	else
-		strcpy(pcm->name, chip->card->shortname);
+		strscpy(pcm->name, chip->card->shortname);
 	chip->pcm[device] = pcm;
 
 	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
@@ -1184,11 +1180,11 @@ static int __snd_intel8x0m_probe(struct pci_dev *pci,
 		return err;
 	chip = card->private_data;
 
-	strcpy(card->driver, "ICH-MODEM");
-	strcpy(card->shortname, "Intel ICH");
+	strscpy(card->driver, "ICH-MODEM");
+	strscpy(card->shortname, "Intel ICH");
 	for (name = shortnames; name->id; name++) {
 		if (pci->device == name->id) {
-			strcpy(card->shortname, name->s);
+			strscpy(card->shortname, name->s);
 			break;
 		}
 	}

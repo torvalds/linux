@@ -135,7 +135,7 @@ additionalProperties:
               description:
                 Pin bank index.
             - minimum: 0
-              maximum: 13
+              maximum: 14
               description:
                 Mux 0 means GPIO and mux 1 to N means
                 the specific device function.

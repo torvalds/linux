@@ -20,8 +20,6 @@
 #define CS35L56_SDW_GEN_INT_MASK_1	0xc1
 #define CS35L56_SDW_INT_MASK_CODEC_IRQ	BIT(0)
 
-#define CS35L56_SDW_INVALID_BUS_SCALE	0xf
-
 #define CS35L56_RX_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE)
 #define CS35L56_TX_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE \
 			    | SNDRV_PCM_FMTBIT_S32_LE)
@@ -38,6 +36,7 @@ struct cs35l56_private {
 	struct snd_soc_component *component;
 	struct regulator_bulk_data supplies[CS35L56_NUM_BULK_SUPPLIES];
 	struct sdw_slave *sdw_peripheral;
+	const char *fallback_fw_suffix;
 	struct work_struct sdw_irq_work;
 	bool sdw_irq_no_unmask;
 	bool soft_resetting;
@@ -51,7 +50,8 @@ struct cs35l56_private {
 	u8 asp_slot_count;
 	bool tdm_mode;
 	bool sysclk_set;
-	u8 old_sdw_clock_scale;
+	u8 sdw_link_num;
+	u8 sdw_unique_id;
 };
 
 extern const struct dev_pm_ops cs35l56_pm_ops_i2c_spi;

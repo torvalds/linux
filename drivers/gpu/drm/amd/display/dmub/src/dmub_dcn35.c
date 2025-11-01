@@ -92,18 +92,14 @@ void dmub_dcn35_reset(struct dmub_srv *dmub)
 	uint32_t in_reset, is_enabled, scratch, i, pwait_mode;
 
 	REG_GET(DMCUB_CNTL2, DMCUB_SOFT_RESET, &in_reset);
+	REG_GET(DMCUB_CNTL, DMCUB_ENABLE, &is_enabled);
 
-	if (in_reset == 0) {
+	if (in_reset == 0 && is_enabled != 0) {
 		cmd.bits.status = 1;
 		cmd.bits.command_code = DMUB_GPINT__STOP_FW;
 		cmd.bits.param = 0;
 
 		dmub->hw_funcs.set_gpint(dmub, cmd);
-
-		/**
-		 * Timeout covers both the ACK and the wait
-		 * for remaining work to finish.
-		 */
 
 		for (i = 0; i < timeout; ++i) {
 			if (dmub->hw_funcs.is_gpint_acked(dmub, cmd))
@@ -130,11 +126,9 @@ void dmub_dcn35_reset(struct dmub_srv *dmub)
 		/* Force reset in case we timed out, DMCUB is likely hung. */
 	}
 
-	REG_GET(DMCUB_CNTL, DMCUB_ENABLE, &is_enabled);
-
 	if (is_enabled) {
 		REG_UPDATE(DMCUB_CNTL2, DMCUB_SOFT_RESET, 1);
-		REG_UPDATE(MMHUBBUB_SOFT_RESET, DMUIF_SOFT_RESET, 1);
+		udelay(1);
 		REG_UPDATE(DMCUB_CNTL, DMCUB_ENABLE, 0);
 	}
 
@@ -160,11 +154,7 @@ void dmub_dcn35_reset_release(struct dmub_srv *dmub)
 		     LONO_SOCCLK_GATE_DISABLE, 1,
 		     LONO_DMCUBCLK_GATE_DISABLE, 1);
 
-	REG_UPDATE(MMHUBBUB_SOFT_RESET, DMUIF_SOFT_RESET, 1);
-	udelay(1);
 	REG_UPDATE_2(DMCUB_CNTL, DMCUB_ENABLE, 1, DMCUB_TRACEPORT_EN, 1);
-	REG_UPDATE(DMCUB_CNTL2, DMCUB_SOFT_RESET, 1);
-	udelay(1);
 	REG_UPDATE(MMHUBBUB_SOFT_RESET, DMUIF_SOFT_RESET, 0);
 	REG_UPDATE(DMCUB_CNTL2, DMCUB_SOFT_RESET, 0);
 }
@@ -410,13 +400,14 @@ union dmub_fw_boot_options dmub_dcn35_get_fw_boot_option(struct dmub_srv *dmub)
 void dmub_dcn35_enable_dmub_boot_options(struct dmub_srv *dmub, const struct dmub_srv_hw_params *params)
 {
 	union dmub_fw_boot_options boot_options = {0};
-	union dmub_fw_boot_options cur_boot_options = {0};
 
-	cur_boot_options = dmub_dcn35_get_fw_boot_option(dmub);
+	if (!dmub->dpia_supported) {
+		dmub->dpia_supported = dmub_dcn35_get_fw_boot_option(dmub).bits.enable_dpia;
+	}
 
 	boot_options.bits.z10_disable = params->disable_z10;
 	boot_options.bits.dpia_supported = params->dpia_supported;
-	boot_options.bits.enable_dpia = cur_boot_options.bits.enable_dpia && !params->disable_dpia;
+	boot_options.bits.enable_dpia = dmub->dpia_supported && !params->disable_dpia;
 	boot_options.bits.usb4_cm_version = params->usb4_cm_version;
 	boot_options.bits.dpia_hpd_int_enable_supported = params->dpia_hpd_int_enable_supported;
 	boot_options.bits.power_optimization = params->power_optimization;
@@ -427,6 +418,7 @@ void dmub_dcn35_enable_dmub_boot_options(struct dmub_srv *dmub, const struct dmu
 	boot_options.bits.disable_sldo_opt = params->disable_sldo_opt;
 	boot_options.bits.enable_non_transparent_setconfig = params->enable_non_transparent_setconfig;
 	boot_options.bits.lower_hbr3_phy_ssc = params->lower_hbr3_phy_ssc;
+	boot_options.bits.disable_dpia_bw_allocation = params->disable_dpia_bw_allocation;
 
 	REG_WRITE(DMCUB_SCRATCH14, boot_options.all);
 }
@@ -464,7 +456,7 @@ uint32_t dmub_dcn35_get_current_time(struct dmub_srv *dmub)
 
 void dmub_dcn35_get_diagnostic_data(struct dmub_srv *dmub)
 {
-	uint32_t is_dmub_enabled, is_soft_reset;
+	uint32_t is_dmub_enabled, is_soft_reset, is_pwait;
 	uint32_t is_traceport_enabled, is_cw6_enabled;
 	struct dmub_timeout_info timeout = {0};
 
@@ -515,6 +507,9 @@ void dmub_dcn35_get_diagnostic_data(struct dmub_srv *dmub)
 	REG_GET(DMCUB_CNTL, DMCUB_ENABLE, &is_dmub_enabled);
 	dmub->debug.is_dmcub_enabled = is_dmub_enabled;
 
+	REG_GET(DMCUB_CNTL, DMCUB_PWAIT_MODE_STATUS, &is_pwait);
+	dmub->debug.is_pwait = is_pwait;
+
 	REG_GET(DMCUB_CNTL2, DMCUB_SOFT_RESET, &is_soft_reset);
 	dmub->debug.is_dmcub_soft_reset = is_soft_reset;
 
@@ -526,6 +521,45 @@ void dmub_dcn35_get_diagnostic_data(struct dmub_srv *dmub)
 
 	dmub->debug.gpint_datain0 = REG_READ(DMCUB_GPINT_DATAIN0);
 }
+
+bool dmub_dcn35_get_preos_fw_info(struct dmub_srv *dmub)
+{
+	uint64_t region3_cw5_offset;
+	uint32_t top_addr, top_addr_enable, offset_low;
+	uint32_t offset_high, base_addr, fw_version;
+	bool is_vbios_fw = false;
+
+	memset(&dmub->preos_info, 0, sizeof(dmub->preos_info));
+
+	fw_version = REG_READ(DMCUB_SCRATCH1);
+	is_vbios_fw = ((fw_version >> 6) & 0x01) ? true : false;
+	if (!is_vbios_fw)
+		return false;
+
+	dmub->preos_info.boot_status = REG_READ(DMCUB_SCRATCH0);
+	dmub->preos_info.fw_version = REG_READ(DMCUB_SCRATCH1);
+	dmub->preos_info.boot_options = REG_READ(DMCUB_SCRATCH14);
+	REG_GET(DMCUB_REGION3_CW5_TOP_ADDRESS,
+		DMCUB_REGION3_CW5_ENABLE, &top_addr_enable);
+	if (top_addr_enable) {
+		dmub_dcn35_get_fb_base_offset(dmub,
+			&dmub->preos_info.fb_base, &dmub->preos_info.fb_offset);
+		offset_low = REG_READ(DMCUB_REGION3_CW5_OFFSET);
+		offset_high = REG_READ(DMCUB_REGION3_CW5_OFFSET_HIGH);
+		region3_cw5_offset = ((uint64_t)offset_high << 32) | offset_low;
+		dmub->preos_info.trace_buffer_phy_addr = region3_cw5_offset
+			- dmub->preos_info.fb_base + dmub->preos_info.fb_offset;
+
+		REG_GET(DMCUB_REGION3_CW5_TOP_ADDRESS,
+			DMCUB_REGION3_CW5_TOP_ADDRESS, &top_addr);
+		base_addr = REG_READ(DMCUB_REGION3_CW5_BASE_ADDRESS) & 0x1FFFFFFF;
+		dmub->preos_info.trace_buffer_size =
+			(top_addr > base_addr) ? (top_addr - base_addr + 1) : 0;
+	}
+
+	return true;
+}
+
 void dmub_dcn35_configure_dmub_in_system_memory(struct dmub_srv *dmub)
 {
 	/* DMCUB_REGION3_TMR_AXI_SPACE values:

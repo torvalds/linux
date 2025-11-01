@@ -57,7 +57,7 @@ static int kernfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 
 const struct super_operations kernfs_sops = {
 	.statfs		= kernfs_statfs,
-	.drop_inode	= generic_delete_inode,
+	.drop_inode	= inode_just_drop,
 	.evict_inode	= kernfs_evict_inode,
 
 	.show_options	= kernfs_sop_show_options,
@@ -318,7 +318,7 @@ static int kernfs_fill_super(struct super_block *sb, struct kernfs_fs_context *k
 		return -ENOMEM;
 	}
 	sb->s_root = root;
-	sb->s_d_op = &kernfs_dops;
+	set_default_d_op(sb, &kernfs_dops);
 	return 0;
 }
 

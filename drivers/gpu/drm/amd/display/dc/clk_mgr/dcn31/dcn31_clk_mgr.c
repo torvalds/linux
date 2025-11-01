@@ -47,7 +47,7 @@
 #include "dcn30/dcn30_clk_mgr.h"
 
 #include "dc_dmub_srv.h"
-#include "link.h"
+#include "link_service.h"
 
 #include "logger_types.h"
 

@@ -7,6 +7,7 @@
 
 #include "fsverity_private.h"
 
+#include <linux/export.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
 
@@ -42,18 +43,18 @@ int fsverity_init_merkle_tree_params(struct merkle_tree_params *params,
 	memset(params, 0, sizeof(*params));
 
 	hash_alg = fsverity_get_hash_alg(inode, hash_algorithm);
-	if (IS_ERR(hash_alg))
-		return PTR_ERR(hash_alg);
+	if (!hash_alg)
+		return -EINVAL;
 	params->hash_alg = hash_alg;
 	params->digest_size = hash_alg->digest_size;
 
-	params->hashstate = fsverity_prepare_hash_state(hash_alg, salt,
-							salt_size);
-	if (IS_ERR(params->hashstate)) {
-		err = PTR_ERR(params->hashstate);
-		params->hashstate = NULL;
-		fsverity_err(inode, "Error %d preparing hash state", err);
-		goto out_err;
+	if (salt_size) {
+		params->hashstate =
+			fsverity_prepare_hash_state(hash_alg, salt, salt_size);
+		if (!params->hashstate) {
+			err = -ENOMEM;
+			goto out_err;
+		}
 	}
 
 	/*
@@ -158,18 +159,15 @@ out_err:
  * Compute the file digest by hashing the fsverity_descriptor excluding the
  * builtin signature and with the sig_size field set to 0.
  */
-static int compute_file_digest(const struct fsverity_hash_alg *hash_alg,
-			       struct fsverity_descriptor *desc,
-			       u8 *file_digest)
+static void compute_file_digest(const struct fsverity_hash_alg *hash_alg,
+				struct fsverity_descriptor *desc,
+				u8 *file_digest)
 {
 	__le32 sig_size = desc->sig_size;
-	int err;
 
 	desc->sig_size = 0;
-	err = fsverity_hash_buffer(hash_alg, desc, sizeof(*desc), file_digest);
+	fsverity_hash_buffer(hash_alg, desc, sizeof(*desc), file_digest);
 	desc->sig_size = sig_size;
-
-	return err;
 }
 
 /*
@@ -201,12 +199,7 @@ struct fsverity_info *fsverity_create_info(const struct inode *inode,
 
 	memcpy(vi->root_hash, desc->root_hash, vi->tree_params.digest_size);
 
-	err = compute_file_digest(vi->tree_params.hash_alg, desc,
-				  vi->file_digest);
-	if (err) {
-		fsverity_err(inode, "Error %d computing file digest", err);
-		goto fail;
-	}
+	compute_file_digest(vi->tree_params.hash_alg, desc, vi->file_digest);
 
 	err = fsverity_verify_signature(vi, desc->signature,
 					le32_to_cpu(desc->sig_size));
@@ -251,17 +244,17 @@ fail:
 void fsverity_set_info(struct inode *inode, struct fsverity_info *vi)
 {
 	/*
-	 * Multiple tasks may race to set ->i_verity_info, so use
-	 * cmpxchg_release().  This pairs with the smp_load_acquire() in
-	 * fsverity_get_info().  I.e., here we publish ->i_verity_info with a
-	 * RELEASE barrier so that other tasks can ACQUIRE it.
+	 * Multiple tasks may race to set the inode's verity info pointer, so
+	 * use cmpxchg_release().  This pairs with the smp_load_acquire() in
+	 * fsverity_get_info().  I.e., publish the pointer with a RELEASE
+	 * barrier so that other tasks can ACQUIRE it.
 	 */
-	if (cmpxchg_release(&inode->i_verity_info, NULL, vi) != NULL) {
-		/* Lost the race, so free the fsverity_info we allocated. */
+	if (cmpxchg_release(fsverity_info_addr(inode), NULL, vi) != NULL) {
+		/* Lost the race, so free the verity info we allocated. */
 		fsverity_free_info(vi);
 		/*
-		 * Afterwards, the caller may access ->i_verity_info directly,
-		 * so make sure to ACQUIRE the winning fsverity_info.
+		 * Afterwards, the caller may access the inode's verity info
+		 * directly, so make sure to ACQUIRE the winning verity info.
 		 */
 		(void)fsverity_get_info(inode);
 	}
@@ -357,7 +350,6 @@ int fsverity_get_descriptor(struct inode *inode,
 	return 0;
 }
 
-/* Ensure the inode has an ->i_verity_info */
 static int ensure_verity_info(struct inode *inode)
 {
 	struct fsverity_info *vi = fsverity_get_info(inode);
@@ -402,8 +394,10 @@ EXPORT_SYMBOL_GPL(__fsverity_prepare_setattr);
 
 void __fsverity_cleanup_inode(struct inode *inode)
 {
-	fsverity_free_info(inode->i_verity_info);
-	inode->i_verity_info = NULL;
+	struct fsverity_info **vi_addr = fsverity_info_addr(inode);
+
+	fsverity_free_info(*vi_addr);
+	*vi_addr = NULL;
 }
 EXPORT_SYMBOL_GPL(__fsverity_cleanup_inode);
 

@@ -27,7 +27,7 @@ properties:
     const: 1
 
 patternProperties:
-  "@[a-f0-9]+$":
+  "@[a-f0-9]+(,[0-7])?$":
     type: object
     $ref: fixed-cell.yaml
     unevaluatedProperties: false

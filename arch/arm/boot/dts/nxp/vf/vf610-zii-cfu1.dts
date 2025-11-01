@@ -68,8 +68,8 @@
 		pinctrl-0 = <&pinctrl_optical>;
 		pinctrl-names = "default";
 		i2c-bus = <&i2c0>;
-		los-gpio = <&gpio4 4 GPIO_ACTIVE_HIGH>;
-		tx-disable-gpio = <&gpio3 22 GPIO_ACTIVE_HIGH>;
+		los-gpios = <&gpio4 4 GPIO_ACTIVE_HIGH>;
+		tx-disable-gpios = <&gpio3 22 GPIO_ACTIVE_HIGH>;
 	};
 
 	supply-voltage-monitor {
@@ -333,7 +333,7 @@
 		>;
 	};
 
-	pinctrl_leds_debug: pinctrl-leds-debug {
+	pinctrl_leds_debug: pinctrl-leds-debuggrp {
 		fsl,pins = <
 			VF610_PAD_PTD3__GPIO_82			0x31c2
 			VF610_PAD_PTE3__GPIO_108		0x31c2

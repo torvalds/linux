@@ -874,7 +874,6 @@ static void setup_itct_v3_hw(struct hisi_hba *hisi_hba,
 	struct device *dev = hisi_hba->dev;
 	u64 qw0, device_id = sas_dev->device_id;
 	struct hisi_sas_itct *itct = &hisi_hba->itct[device_id];
-	struct domain_device *parent_dev = device->parent;
 	struct asd_sas_port *sas_port = device->port;
 	struct hisi_sas_port *port = to_hisi_sas_port(sas_port);
 	u64 sas_addr;
@@ -891,7 +890,7 @@ static void setup_itct_v3_hw(struct hisi_hba *hisi_hba,
 		break;
 	case SAS_SATA_DEV:
 	case SAS_SATA_PENDING:
-		if (parent_dev && dev_is_expander(parent_dev->dev_type))
+		if (dev_parent_is_expander(device))
 			qw0 = HISI_SAS_DEV_TYPE_STP << ITCT_HDR_DEV_TYPE_OFF;
 		else
 			qw0 = HISI_SAS_DEV_TYPE_SATA << ITCT_HDR_DEV_TYPE_OFF;
@@ -1476,7 +1475,6 @@ static void prep_ata_v3_hw(struct hisi_hba *hisi_hba,
 {
 	struct sas_task *task = slot->task;
 	struct domain_device *device = task->dev;
-	struct domain_device *parent_dev = device->parent;
 	struct hisi_sas_device *sas_dev = device->lldd_dev;
 	struct hisi_sas_cmd_hdr *hdr = slot->cmd_hdr;
 	struct asd_sas_port *sas_port = device->port;
@@ -1487,7 +1485,7 @@ static void prep_ata_v3_hw(struct hisi_hba *hisi_hba,
 	u32 dw1 = 0, dw2 = 0;
 
 	hdr->dw0 = cpu_to_le32(port->id << CMD_HDR_PORT_OFF);
-	if (parent_dev && dev_is_expander(parent_dev->dev_type)) {
+	if (dev_parent_is_expander(device)) {
 		hdr->dw0 |= cpu_to_le32(3 << CMD_HDR_CMD_OFF);
 	} else {
 		phy_id = device->phy->identify.phy_identifier;
@@ -2409,7 +2407,7 @@ static void slot_complete_v3_hw(struct hisi_hba *hisi_hba,
 
 		if (slot_err_v3_hw(hisi_hba, task, slot)) {
 			if (ts->stat != SAS_DATA_UNDERRUN)
-				dev_info(dev, "erroneous completion iptt=%d task=%pK dev id=%d addr=%016llx CQ hdr: 0x%x 0x%x 0x%x 0x%x Error info: 0x%x 0x%x 0x%x 0x%x\n",
+				dev_info(dev, "erroneous completion iptt=%d task=%p dev id=%d addr=%016llx CQ hdr: 0x%x 0x%x 0x%x 0x%x Error info: 0x%x 0x%x 0x%x 0x%x\n",
 					slot->idx, task, sas_dev->device_id,
 					SAS_ADDR(device->sas_addr),
 					dw0, dw1, complete_hdr->act, dw3,
@@ -2470,7 +2468,7 @@ out:
 	spin_lock_irqsave(&task->task_state_lock, flags);
 	if (task->task_state_flags & SAS_TASK_STATE_ABORTED) {
 		spin_unlock_irqrestore(&task->task_state_lock, flags);
-		dev_info(dev, "slot complete: task(%pK) aborted\n", task);
+		dev_info(dev, "slot complete: task(%p) aborted\n", task);
 		return;
 	}
 	task->task_state_flags |= SAS_TASK_STATE_DONE;
@@ -2481,7 +2479,7 @@ out:
 		spin_lock_irqsave(&device->done_lock, flags);
 		if (test_bit(SAS_HA_FROZEN, &ha->state)) {
 			spin_unlock_irqrestore(&device->done_lock, flags);
-			dev_info(dev, "slot complete: task(%pK) ignored\n",
+			dev_info(dev, "slot complete: task(%p) ignored\n",
 				 task);
 			return;
 		}

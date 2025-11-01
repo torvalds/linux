@@ -105,9 +105,9 @@ static int name_card(struct snd_oxfw *oxfw, const struct ieee1394_device_id *ent
 		m = model;
 	}
 
-	strcpy(oxfw->card->driver, d);
-	strcpy(oxfw->card->mixername, m);
-	strcpy(oxfw->card->shortname, m);
+	strscpy(oxfw->card->driver, d);
+	strscpy(oxfw->card->mixername, m);
+	strscpy(oxfw->card->shortname, m);
 
 	scnprintf(oxfw->card->longname, sizeof(oxfw->card->longname),
 		  "%s %s (OXFW%x %04x), GUID %08x%08x at %s, S%d",
@@ -283,9 +283,8 @@ static void oxfw_bus_reset(struct fw_unit *unit)
 	fcp_bus_reset(oxfw->unit);
 
 	if (oxfw->has_output || oxfw->has_input) {
-		mutex_lock(&oxfw->mutex);
+		guard(mutex)(&oxfw->mutex);
 		snd_oxfw_stream_update_duplex(oxfw);
-		mutex_unlock(&oxfw->mutex);
 	}
 
 	if (oxfw->quirks & SND_OXFW_QUIRK_SCS_TRANSACTION)

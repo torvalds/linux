@@ -99,17 +99,19 @@ hws_debug_dump_matcher_attr(struct seq_file *f, struct mlx5hws_matcher *matcher)
 {
 	struct mlx5hws_matcher_attr *attr = &matcher->attr;
 
-	seq_printf(f, "%d,0x%llx,%d,%d,%d,%d,%d,%d,%d,%d\n",
+	seq_printf(f, "%d,0x%llx,%d,%d,%d,%d,%d,%d,%d,%d,-1,-1,%d,%d\n",
 		   MLX5HWS_DEBUG_RES_TYPE_MATCHER_ATTR,
 		   HWS_PTR_TO_ID(matcher),
 		   attr->priority,
 		   attr->mode,
-		   attr->table.sz_row_log,
-		   attr->table.sz_col_log,
+		   attr->size[MLX5HWS_MATCHER_SIZE_TYPE_RX].table.sz_row_log,
+		   attr->size[MLX5HWS_MATCHER_SIZE_TYPE_RX].table.sz_col_log,
 		   attr->optimize_using_rule_idx,
 		   attr->optimize_flow_src,
 		   attr->insert_mode,
-		   attr->distribute_mode);
+		   attr->distribute_mode,
+		   attr->size[MLX5HWS_MATCHER_SIZE_TYPE_TX].table.sz_row_log,
+		   attr->size[MLX5HWS_MATCHER_SIZE_TYPE_TX].table.sz_col_log);
 
 	return 0;
 }
@@ -118,7 +120,6 @@ static int hws_debug_dump_matcher(struct seq_file *f, struct mlx5hws_matcher *ma
 {
 	enum mlx5hws_table_type tbl_type = matcher->tbl->type;
 	struct mlx5hws_cmd_ft_query_attr ft_attr = {0};
-	struct mlx5hws_pool *ste_pool;
 	u64 icm_addr_0 = 0;
 	u64 icm_addr_1 = 0;
 	u32 ste_0_id = -1;
@@ -133,12 +134,9 @@ static int hws_debug_dump_matcher(struct seq_file *f, struct mlx5hws_matcher *ma
 		   matcher->end_ft_id,
 		   matcher->col_matcher ? HWS_PTR_TO_ID(matcher->col_matcher) : 0);
 
-	ste_pool = matcher->match_ste.pool;
-	if (ste_pool) {
-		ste_0_id = mlx5hws_pool_get_base_id(ste_pool);
-		if (tbl_type == MLX5HWS_TABLE_TYPE_FDB)
-			ste_1_id = mlx5hws_pool_get_base_mirror_id(ste_pool);
-	}
+	ste_0_id = matcher->match_ste.ste_0_base;
+	if (tbl_type == MLX5HWS_TABLE_TYPE_FDB)
+		ste_1_id = matcher->match_ste.ste_1_base;
 
 	seq_printf(f, ",%d,%d,%d,%d",
 		   matcher->match_ste.rtc_0_id,

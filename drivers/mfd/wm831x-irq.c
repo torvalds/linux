@@ -587,13 +587,11 @@ int wm831x_irq_init(struct wm831x *wm831x, int irq)
 	}
 
 	if (irq_base)
-		domain = irq_domain_create_legacy(of_fwnode_handle(wm831x->dev->of_node),
-						  ARRAY_SIZE(wm831x_irqs), irq_base, 0,
-						  &wm831x_irq_domain_ops, wm831x);
+		domain = irq_domain_create_legacy(dev_fwnode(wm831x->dev), ARRAY_SIZE(wm831x_irqs),
+						  irq_base, 0, &wm831x_irq_domain_ops, wm831x);
 	else
-		domain = irq_domain_create_linear(of_fwnode_handle(wm831x->dev->of_node),
-						  ARRAY_SIZE(wm831x_irqs), &wm831x_irq_domain_ops,
-						  wm831x);
+		domain = irq_domain_create_linear(dev_fwnode(wm831x->dev), ARRAY_SIZE(wm831x_irqs),
+						  &wm831x_irq_domain_ops, wm831x);
 
 	if (!domain) {
 		dev_warn(wm831x->dev, "Failed to allocate IRQ domain\n");

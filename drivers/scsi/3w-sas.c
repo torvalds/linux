@@ -122,7 +122,7 @@ static const struct bin_attribute twl_sysfs_aen_read_attr = {
 		.mode = S_IRUSR,
 	},
 	.size = 0,
-	.read_new = twl_sysfs_aen_read
+	.read = twl_sysfs_aen_read
 };
 
 /* This function returns driver compatibility info through sysfs */
@@ -153,7 +153,7 @@ static const struct bin_attribute twl_sysfs_compat_info_attr = {
 		.mode = S_IRUSR,
 	},
 	.size = 0,
-	.read_new = twl_sysfs_compat_info
+	.read = twl_sysfs_compat_info
 };
 
 /* Show some statistics about the card */
@@ -1404,7 +1404,7 @@ out:
 } /* End twl_reset_device_extension() */
 
 /* This funciton returns unit geometry in cylinders/heads/sectors */
-static int twl_scsi_biosparam(struct scsi_device *sdev, struct block_device *bdev, sector_t capacity, int geom[])
+static int twl_scsi_biosparam(struct scsi_device *sdev, struct gendisk *unused, sector_t capacity, int geom[])
 {
 	int heads, sectors;
 

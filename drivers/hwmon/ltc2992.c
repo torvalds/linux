@@ -339,8 +339,8 @@ static int ltc2992_config_gpio(struct ltc2992_state *st)
 	st->gc.ngpio = ARRAY_SIZE(st->gpio_names);
 	st->gc.get = ltc2992_gpio_get;
 	st->gc.get_multiple = ltc2992_gpio_get_multiple;
-	st->gc.set_rv = ltc2992_gpio_set;
-	st->gc.set_multiple_rv = ltc2992_gpio_set_multiple;
+	st->gc.set = ltc2992_gpio_set;
+	st->gc.set_multiple = ltc2992_gpio_set_multiple;
 
 	ret = devm_gpiochip_add_data(&st->client->dev, &st->gc, st);
 	if (ret)

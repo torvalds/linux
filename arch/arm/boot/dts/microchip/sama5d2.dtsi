@@ -32,6 +32,8 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a5";
 			reg = <0>;
+			d-cache-size = <0x8000>;	// L1, 32 KB
+			i-cache-size = <0x8000>;	// L1, 32 KB
 			next-level-cache = <&L2>;
 		};
 	};
@@ -160,6 +162,7 @@
 			interrupts = <63 IRQ_TYPE_LEVEL_HIGH 4>;
 			cache-unified;
 			cache-level = <2>;
+			cache-size = <0x20000>;		// L2, 128 KB
 		};
 
 		ebi: ebi@10000000 {

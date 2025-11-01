@@ -50,13 +50,17 @@ typedef union {
 
 /* Reuses the bits in struct page */
 struct slab {
-	unsigned long __page_flags;
+	memdesc_flags_t flags;
 
 	struct kmem_cache *slab_cache;
 	union {
 		struct {
 			union {
 				struct list_head slab_list;
+				struct { /* For deferred deactivate_slab() */
+					struct llist_node llnode;
+					void *flush_freelist;
+				};
 #ifdef CONFIG_SLUB_CPU_PARTIAL
 				struct {
 					struct slab *next;
@@ -99,7 +103,7 @@ struct slab {
 
 #define SLAB_MATCH(pg, sl)						\
 	static_assert(offsetof(struct page, pg) == offsetof(struct slab, sl))
-SLAB_MATCH(flags, __page_flags);
+SLAB_MATCH(flags, flags);
 SLAB_MATCH(compound_head, slab_cache);	/* Ensure bit 0 is clear */
 SLAB_MATCH(_refcount, __page_refcount);
 #ifdef CONFIG_MEMCG
@@ -167,30 +171,6 @@ static_assert(IS_ALIGNED(offsetof(struct slab, freelist), sizeof(freelist_aba_t)
  */
 #define slab_page(s) folio_page(slab_folio(s), 0)
 
-/*
- * If network-based swap is enabled, sl*b must keep track of whether pages
- * were allocated from pfmemalloc reserves.
- */
-static inline bool slab_test_pfmemalloc(const struct slab *slab)
-{
-	return folio_test_active(slab_folio(slab));
-}
-
-static inline void slab_set_pfmemalloc(struct slab *slab)
-{
-	folio_set_active(slab_folio(slab));
-}
-
-static inline void slab_clear_pfmemalloc(struct slab *slab)
-{
-	folio_clear_active(slab_folio(slab));
-}
-
-static inline void __slab_clear_pfmemalloc(struct slab *slab)
-{
-	__folio_clear_active(slab_folio(slab));
-}
-
 static inline void *slab_address(const struct slab *slab)
 {
 	return folio_address(slab_folio(slab));
@@ -198,12 +178,12 @@ static inline void *slab_address(const struct slab *slab)
 
 static inline int slab_nid(const struct slab *slab)
 {
-	return folio_nid(slab_folio(slab));
+	return memdesc_nid(slab->flags);
 }
 
 static inline pg_data_t *slab_pgdat(const struct slab *slab)
 {
-	return folio_pgdat(slab_folio(slab));
+	return NODE_DATA(slab_nid(slab));
 }
 
 static inline struct slab *virt_to_slab(const void *addr)
@@ -258,7 +238,9 @@ struct kmem_cache_order_objects {
 struct kmem_cache {
 #ifndef CONFIG_SLUB_TINY
 	struct kmem_cache_cpu __percpu *cpu_slab;
+	struct lock_class_key lock_key;
 #endif
+	struct slub_percpu_sheaves __percpu *cpu_sheaves;
 	/* Used for retrieving partial slabs, etc. */
 	slab_flags_t flags;
 	unsigned long min_partial;
@@ -272,6 +254,7 @@ struct kmem_cache {
 	/* Number of per cpu partial slabs to keep around */
 	unsigned int cpu_partial_slabs;
 #endif
+	unsigned int sheaf_capacity;
 	struct kmem_cache_order_objects oo;
 
 	/* Allocation and freeing of slabs */
@@ -457,6 +440,9 @@ static inline bool is_kmalloc_normal(struct kmem_cache *s)
 	return !(s->flags & (SLAB_CACHE_DMA|SLAB_ACCOUNT|SLAB_RECLAIM_ACCOUNT));
 }
 
+bool __kfree_rcu_sheaf(struct kmem_cache *s, void *obj);
+void flush_all_rcu_sheaves(void);
+
 #define SLAB_CORE_FLAGS (SLAB_HWCACHE_ALIGN | SLAB_CACHE_DMA | \
 			 SLAB_CACHE_DMA32 | SLAB_PANIC | \
 			 SLAB_TYPESAFE_BY_RCU | SLAB_DEBUG_OBJECTS | \
@@ -550,8 +536,12 @@ static inline struct slabobj_ext *slab_obj_exts(struct slab *slab)
 	unsigned long obj_exts = READ_ONCE(slab->obj_exts);
 
 #ifdef CONFIG_MEMCG
-	VM_BUG_ON_PAGE(obj_exts && !(obj_exts & MEMCG_DATA_OBJEXTS),
-							slab_page(slab));
+	/*
+	 * obj_exts should be either NULL, a valid pointer with
+	 * MEMCG_DATA_OBJEXTS bit set or be equal to OBJEXTS_ALLOC_FAIL.
+	 */
+	VM_BUG_ON_PAGE(obj_exts && !(obj_exts & MEMCG_DATA_OBJEXTS) &&
+		       obj_exts != OBJEXTS_ALLOC_FAIL, slab_page(slab));
 	VM_BUG_ON_PAGE(obj_exts & MEMCG_DATA_KMEM, slab_page(slab));
 #endif
 	return (struct slabobj_ext *)(obj_exts & ~OBJEXTS_FLAGS_MASK);
@@ -679,6 +669,8 @@ void __kmem_obj_info(struct kmem_obj_info *kpp, void *object, struct slab *slab)
 
 void __check_heap_object(const void *ptr, unsigned long n,
 			 const struct slab *slab, bool to_user);
+
+void defer_free_barrier(void);
 
 static inline bool slub_debug_orig_size(struct kmem_cache *s)
 {

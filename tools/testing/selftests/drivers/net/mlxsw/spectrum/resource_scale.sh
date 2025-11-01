@@ -55,7 +55,7 @@ for current_test in ${TESTS:-$ALL_TESTS}; do
 				continue
 			fi
 			${current_test}_setup_prepare
-			setup_wait $num_netifs
+			setup_wait_n $num_netifs
 			# Update target in case occupancy of a certain resource
 			# changed following the test setup.
 			target=$(${current_test}_get_target "$should_fail")

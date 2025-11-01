@@ -23,6 +23,7 @@
 #include <linux/err.h>
 #include <linux/perf_event.h>
 #include <linux/sizes.h>
+#include <linux/keyctl.h>
 
 #include <bpf/bpf.h>
 #include <bpf/btf.h>
@@ -714,7 +715,7 @@ prog_dump(struct bpf_prog_info *info, enum dump_mode mode,
 
 	if (mode == DUMP_JITED) {
 		if (info->jited_prog_len == 0 || !info->jited_prog_insns) {
-			p_info("no instructions returned");
+			p_err("error retrieving jit dump: no instructions returned or kernel.kptr_restrict set?");
 			return -1;
 		}
 		buf = u64_to_ptr(info->jited_prog_insns);
@@ -1062,7 +1063,7 @@ static int parse_attach_detach_args(int argc, char **argv, int *progfd,
 	if (!REQ_ARGS(2))
 		return -EINVAL;
 
-	*mapfd = map_parse_fd(&argc, &argv);
+	*mapfd = map_parse_fd(&argc, &argv, 0);
 	if (*mapfd < 0)
 		return *mapfd;
 
@@ -1111,6 +1112,52 @@ static int do_detach(int argc, char **argv)
 	if (json_output)
 		jsonw_null(json_wtr);
 	return 0;
+}
+
+enum prog_tracelog_mode {
+	TRACE_STDOUT,
+	TRACE_STDERR,
+};
+
+static int
+prog_tracelog_stream(int prog_fd, enum prog_tracelog_mode mode)
+{
+	FILE *file = mode == TRACE_STDOUT ? stdout : stderr;
+	int stream_id = mode == TRACE_STDOUT ? 1 : 2;
+	char buf[512];
+	int ret;
+
+	ret = 0;
+	do {
+		ret = bpf_prog_stream_read(prog_fd, stream_id, buf, sizeof(buf), NULL);
+		if (ret > 0)
+			fwrite(buf, sizeof(buf[0]), ret, file);
+	} while (ret > 0);
+
+	fflush(file);
+	return ret ? -1 : 0;
+}
+
+static int do_tracelog_any(int argc, char **argv)
+{
+	enum prog_tracelog_mode mode;
+	int fd;
+
+	if (argc == 0)
+		return do_tracelog(argc, argv);
+	if (!is_prefix(*argv, "stdout") && !is_prefix(*argv, "stderr"))
+		usage();
+	mode = is_prefix(*argv, "stdout") ? TRACE_STDOUT : TRACE_STDERR;
+	NEXT_ARG();
+
+	if (!REQ_ARGS(2))
+		return -1;
+
+	fd = prog_parse_fd(&argc, &argv);
+	if (fd < 0)
+		return -1;
+
+	return prog_tracelog_stream(fd, mode);
 }
 
 static int check_single_stdin(char *file_data_in, char *file_ctx_in)
@@ -1608,7 +1655,7 @@ static int load_with_options(int argc, char **argv, bool first_prog_only)
 			}
 			NEXT_ARG();
 
-			fd = map_parse_fd(&argc, &argv);
+			fd = map_parse_fd(&argc, &argv, 0);
 			if (fd < 0)
 				goto err_free_reuse_maps;
 
@@ -1884,6 +1931,8 @@ static int try_loader(struct gen_loader_opts *gen)
 {
 	struct bpf_load_and_run_opts opts = {};
 	struct bpf_loader_ctx *ctx;
+	char sig_buf[MAX_SIG_SIZE];
+	__u8 prog_sha[SHA256_DIGEST_LENGTH];
 	int ctx_sz = sizeof(*ctx) + 64 * max(sizeof(struct bpf_map_desc),
 					     sizeof(struct bpf_prog_desc));
 	int log_buf_sz = (1u << 24) - 1;
@@ -1907,6 +1956,26 @@ static int try_loader(struct gen_loader_opts *gen)
 	opts.insns = gen->insns;
 	opts.insns_sz = gen->insns_sz;
 	fds_before = count_open_fds();
+
+	if (sign_progs) {
+		opts.excl_prog_hash = prog_sha;
+		opts.excl_prog_hash_sz = sizeof(prog_sha);
+		opts.signature = sig_buf;
+		opts.signature_sz = MAX_SIG_SIZE;
+		opts.keyring_id = KEY_SPEC_SESSION_KEYRING;
+
+		err = bpftool_prog_sign(&opts);
+		if (err < 0) {
+			p_err("failed to sign program");
+			goto out;
+		}
+
+		err = register_session_key(cert_path);
+		if (err < 0) {
+			p_err("failed to add session key");
+			goto out;
+		}
+	}
 	err = bpf_load_and_run(&opts);
 	fd_delta = count_open_fds() - fds_before;
 	if (err < 0 || verifier_logs) {
@@ -1915,6 +1984,7 @@ static int try_loader(struct gen_loader_opts *gen)
 			fprintf(stderr, "loader prog leaked %d FDs\n",
 				fd_delta);
 	}
+out:
 	free(log_buf);
 	return err;
 }
@@ -1941,6 +2011,9 @@ static int do_loader(int argc, char **argv)
 		p_err("failed to open object file");
 		goto err_close_obj;
 	}
+
+	if (sign_progs)
+		gen.gen_hash = true;
 
 	err = bpf_object__gen_loader(obj, &gen);
 	if (err)
@@ -2216,7 +2289,7 @@ static void profile_print_readings(void)
 
 static char *profile_target_name(int tgt_fd)
 {
-	struct bpf_func_info func_info;
+	struct bpf_func_info func_info = {};
 	struct bpf_prog_info info = {};
 	__u32 info_len = sizeof(info);
 	const struct btf_type *t;
@@ -2493,6 +2566,7 @@ static int do_help(int argc, char **argv)
 		"                         [repeat N]\n"
 		"       %1$s %2$s profile PROG [duration DURATION] METRICs\n"
 		"       %1$s %2$s tracelog\n"
+		"       %1$s %2$s tracelog { stdout | stderr } PROG\n"
 		"       %1$s %2$s help\n"
 		"\n"
 		"       " HELP_SPEC_MAP "\n"
@@ -2515,7 +2589,7 @@ static int do_help(int argc, char **argv)
 		"       METRIC := { cycles | instructions | l1d_loads | llc_misses | itlb_misses | dtlb_misses }\n"
 		"       " HELP_SPEC_OPTIONS " |\n"
 		"                    {-f|--bpffs} | {-m|--mapcompat} | {-n|--nomount} |\n"
-		"                    {-L|--use-loader} }\n"
+		"                    {-L|--use-loader} | [ {-S|--sign } {-k} <private_key.pem> {-i} <certificate.x509> ] \n"
 		"",
 		bin_name, argv[-2]);
 
@@ -2532,7 +2606,7 @@ static const struct cmd cmds[] = {
 	{ "loadall",	do_loadall },
 	{ "attach",	do_attach },
 	{ "detach",	do_detach },
-	{ "tracelog",	do_tracelog },
+	{ "tracelog",	do_tracelog_any },
 	{ "run",	do_run },
 	{ "profile",	do_profile },
 	{ 0 }

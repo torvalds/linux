@@ -202,7 +202,7 @@
 	SOC_SINGLE_EXT_TLV(xname, reg, shift, max, invert, \
 			   snd_soc_get_volsw, wsa881x_put_pa_gain, tlv_array)
 
-static struct reg_default wsa881x_defaults[] = {
+static const struct reg_default wsa881x_defaults[] = {
 	{ WSA881X_CHIP_ID0, 0x00 },
 	{ WSA881X_CHIP_ID1, 0x00 },
 	{ WSA881X_CHIP_ID2, 0x00 },
@@ -346,7 +346,7 @@ static const struct reg_sequence wsa881x_vi_txfe_en_2_0[] = {
 };
 
 /* Default register reset values for WSA881x rev 2.0 */
-static struct reg_sequence wsa881x_rev_2_0[] = {
+static const struct reg_sequence wsa881x_rev_2_0[] = {
 	{ WSA881X_RESET_CTL, 0x00, 0x00 },
 	{ WSA881X_TADC_VALUE_CTL, 0x01, 0x00 },
 	{ WSA881X_INTR_MASK, 0x1B, 0x00 },
@@ -775,7 +775,6 @@ static int wsa881x_put_pa_gain(struct snd_kcontrol *kc,
 		usleep_range(1000, 1010);
 	}
 
-	pm_runtime_mark_last_busy(comp->dev);
 	pm_runtime_put_autosuspend(comp->dev);
 
 	return 1;

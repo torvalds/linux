@@ -646,8 +646,7 @@ xfs_iget_cache_miss(
 		goto out_destroy;
 
 	/*
-	 * For version 5 superblocks, if we are initialising a new inode and we
-	 * are not utilising the XFS_FEAT_IKEEP inode cluster mode, we can
+	 * For version 5 superblocks, if we are initialising a new inode, we
 	 * simply build the new inode core with a random generation number.
 	 *
 	 * For version 4 (and older) superblocks, log recovery is dependent on
@@ -655,8 +654,7 @@ xfs_iget_cache_miss(
 	 * value and hence we must also read the inode off disk even when
 	 * initializing new inodes.
 	 */
-	if (xfs_has_v3inodes(mp) &&
-	    (flags & XFS_IGET_CREATE) && !xfs_has_ikeep(mp)) {
+	if (xfs_has_v3inodes(mp) && (flags & XFS_IGET_CREATE)) {
 		VFS_I(ip)->i_generation = get_random_u32();
 	} else {
 		struct xfs_buf		*bp;
@@ -893,10 +891,7 @@ xfs_metafile_iget(
 	struct xfs_trans	*tp;
 	int			error;
 
-	error = xfs_trans_alloc_empty(mp, &tp);
-	if (error)
-		return error;
-
+	tp = xfs_trans_alloc_empty(mp);
 	error = xfs_trans_metafile_iget(tp, ino, metafile_type, ipp);
 	xfs_trans_cancel(tp);
 	return error;
@@ -979,7 +974,15 @@ xfs_reclaim_inode(
 	 */
 	if (xlog_is_shutdown(ip->i_mount->m_log)) {
 		xfs_iunpin_wait(ip);
+		/*
+		 * Avoid a ABBA deadlock on the inode cluster buffer vs
+		 * concurrent xfs_ifree_cluster() trying to mark the inode
+		 * stale. We don't need the inode locked to run the flush abort
+		 * code, but the flush abort needs to lock the cluster buffer.
+		 */
+		xfs_iunlock(ip, XFS_ILOCK_EXCL);
 		xfs_iflush_shutdown_abort(ip);
+		xfs_ilock(ip, XFS_ILOCK_EXCL);
 		goto reclaim;
 	}
 	if (xfs_ipincount(ip))

@@ -118,6 +118,7 @@ struct gk20a_clk {
 	const struct gk20a_clk_pllg_params *params;
 	struct gk20a_pll pll;
 	u32 parent_rate;
+	struct gk20a_devfreq *devfreq;
 
 	u32 (*div_to_pl)(u32);
 	u32 (*pl_to_div)(u32);

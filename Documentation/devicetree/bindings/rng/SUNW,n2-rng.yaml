@@ -1,0 +1,50 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/rng/SUNW,n2-rng.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: SUN UltraSPARC HWRNG
+
+maintainers:
+  - David S. Miller <davem@davemloft.net>
+
+properties:
+  compatible:
+    enum:
+      - SUNW,n2-rng  # for Niagara 2 Platform (SUN UltraSPARC T2 CPU)
+      - SUNW,vf-rng  # for Victoria Falls Platform (SUN UltraSPARC T2 Plus CPU)
+      # for Rainbow/Yosemite Falls Platform (SUN SPARC T3/T4),
+      #  (UltraSPARC KT/Niagara 3 - development names)
+      #  more recent systems (after Oracle acquisition of SUN)
+      - SUNW,kt-rng
+      - ORCL,m4-rng  # for SPARC T5/M5
+      - ORCL,m7-rng  # for SPARC T7/M7
+
+  reg:
+    maxItems: 1
+
+  "rng-#units":
+    description: Number of RNG units
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 1
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+# PS: see as well prtconfs.git by DaveM
+examples:
+  - |
+    bus {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        rng@e {
+            compatible = "ORCL,m4-rng";
+            reg = <0xe>;
+            rng-#units = <2>;
+        };
+    };

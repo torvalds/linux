@@ -392,7 +392,8 @@ static int ath12k_ce_rx_post_pipe(struct ath12k_ce_pipe *pipe)
 
 		ret = ath12k_ce_rx_buf_enqueue_pipe(pipe, skb, paddr);
 		if (ret) {
-			ath12k_warn(ab, "failed to enqueue rx buf: %d\n", ret);
+			ath12k_dbg(ab, ATH12K_DBG_CE, "failed to enqueue rx buf: %d\n",
+				   ret);
 			dma_unmap_single(ab->dev, paddr,
 					 skb->len + skb_tailroom(skb),
 					 DMA_FROM_DEVICE);
@@ -432,9 +433,6 @@ static int ath12k_ce_completed_recv_next(struct ath12k_ce_pipe *pipe,
 		ret = -EIO;
 		goto err;
 	}
-
-	/* Make sure descriptor is read after the head pointer. */
-	dma_rmb();
 
 	*nbytes = ath12k_hal_ce_dst_status_get_length(desc);
 
@@ -481,7 +479,7 @@ static void ath12k_ce_recv_process_cb(struct ath12k_ce_pipe *pipe)
 	}
 
 	while ((skb = __skb_dequeue(&list))) {
-		ath12k_dbg(ab, ATH12K_DBG_AHB, "rx ce pipe %d len %d\n",
+		ath12k_dbg(ab, ATH12K_DBG_CE, "rx ce pipe %d len %d\n",
 			   pipe->pipe_num, skb->len);
 		pipe->recv_cb(ab, skb);
 	}
@@ -581,7 +579,7 @@ static int ath12k_ce_init_ring(struct ath12k_base *ab,
 			       struct ath12k_ce_ring *ce_ring,
 			       int ce_id, enum hal_ring_type type)
 {
-	struct hal_srng_params params = { 0 };
+	struct hal_srng_params params = {};
 	int ret;
 
 	params.ring_base_paddr = ce_ring->base_addr_ce_space;

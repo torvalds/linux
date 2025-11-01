@@ -312,7 +312,6 @@ struct wcd9335_codec {
 	u32 num_rx_port;
 	u32 num_tx_port;
 
-	int sido_input_src;
 	enum wcd9335_sido_voltage sido_voltage;
 
 	struct wcd_slim_codec_dai_data dai[NUM_CODEC_DAIS];
@@ -4725,8 +4724,6 @@ static const struct snd_soc_dapm_widget wcd9335_dapm_widgets[] = {
 
 static void wcd9335_enable_sido_buck(struct snd_soc_component *component)
 {
-	struct wcd9335_codec *wcd = dev_get_drvdata(component->dev);
-
 	snd_soc_component_update_bits(component, WCD9335_ANA_RCO,
 					WCD9335_ANA_RCO_BG_EN_MASK,
 					WCD9335_ANA_RCO_BG_ENABLE);
@@ -4740,7 +4737,6 @@ static void wcd9335_enable_sido_buck(struct snd_soc_component *component)
 					WCD9335_ANA_BUCK_CTL_VOUT_D_VREF_EXT);
 	/* 100us sleep needed after VREF settings */
 	usleep_range(100, 110);
-	wcd->sido_input_src = SIDO_SOURCE_RCO_BG;
 }
 
 static int wcd9335_enable_efuse_sensing(struct snd_soc_component *comp)
@@ -4871,7 +4867,6 @@ static int wcd9335_probe(struct wcd9335_codec *wcd)
 	memcpy(wcd->rx_chs, wcd9335_rx_chs, sizeof(wcd9335_rx_chs));
 	memcpy(wcd->tx_chs, wcd9335_tx_chs, sizeof(wcd9335_tx_chs));
 
-	wcd->sido_input_src = SIDO_SOURCE_INTERNAL;
 	wcd->sido_voltage = SIDO_VOLTAGE_NOMINAL_MV;
 
 	return devm_snd_soc_register_component(dev, &wcd9335_component_drv,

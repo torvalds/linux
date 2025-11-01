@@ -214,7 +214,7 @@ config QCOM_Q6V5_MSS
 	  handled by QCOM_Q6V5_PAS driver.
 
 config QCOM_Q6V5_PAS
-	tristate "Qualcomm Hexagon v5 Peripheral Authentication Service support"
+	tristate "Qualcomm Peripheral Authentication Service support"
 	depends on OF && ARCH_QCOM
 	depends on QCOM_SMEM
 	depends on RPMSG_QCOM_SMD || RPMSG_QCOM_SMD=n
@@ -229,11 +229,10 @@ config QCOM_Q6V5_PAS
 	select QCOM_RPROC_COMMON
 	select QCOM_SCM
 	help
-	  Say y here to support the TrustZone based Peripheral Image Loader
-	  for the Qualcomm Hexagon v5 based remote processors. This is commonly
-	  used to control subsystems such as ADSP (Audio DSP),
-	  CDSP (Compute DSP), MPSS (Modem Peripheral SubSystem), and
-	  SLPI (Sensor Low Power Island).
+	  Say y here to support the TrustZone based Peripheral Image Loader for
+	  the Qualcomm remote processors. This is commonly used to control
+	  subsystems such as ADSP (Audio DSP), CDSP (Compute DSP), MPSS (Modem
+	  Peripheral SubSystem), and SLPI (Sensor Low Power Island).
 
 config QCOM_Q6V5_WCSS
 	tristate "Qualcomm Hexagon based WCSS Peripheral Image Loader"

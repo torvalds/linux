@@ -18,6 +18,7 @@ static void drm_aux_bridge_release(struct device *dev)
 {
 	struct auxiliary_device *adev = to_auxiliary_dev(dev);
 
+	of_node_put(dev->of_node);
 	ida_free(&drm_aux_bridge_ida, adev->id);
 
 	kfree(adev);
@@ -65,6 +66,7 @@ int drm_aux_bridge_register(struct device *parent)
 
 	ret = auxiliary_device_init(adev);
 	if (ret) {
+		of_node_put(adev->dev.of_node);
 		ida_free(&drm_aux_bridge_ida, adev->id);
 		kfree(adev);
 		return ret;

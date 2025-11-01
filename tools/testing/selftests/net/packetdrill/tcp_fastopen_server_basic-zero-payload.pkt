@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: GPL-2.0
+//
+// Basic TFO server test
+//
+// Test zero-payload packet w/ valid TFO cookie - a TFO socket will
+// still be created and accepted but read() will not return until a
+// later pkt with 10 byte.
+
+`./defaults.sh`
+
+    0 socket(..., SOCK_STREAM|SOCK_NONBLOCK, IPPROTO_TCP) = 3
+   +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+   +0 bind(3, ..., ...) = 0
+   +0 listen(3, 1) = 0
+   +0 setsockopt(3, SOL_TCP, TCP_FASTOPEN, [1], 4) = 0
+
+   +0 < S 0:0(0) win 32792 <mss 1460,sackOK,nop,nop,FO TFO_COOKIE,nop,nop>
+   +0 > S. 0:0(0) ack 1 <mss 1460,nop,nop,sackOK>
+   +0 accept(3, ..., ...) = 4
+   +0 %{ assert (tcpi_options & TCPI_OPT_SYN_DATA) == 0, tcpi_options }%
+
+// A TFO socket is created and is writable.
+   +0 write(4, ..., 100) = 100
+   +0 > P. 1:101(100) ack 1
+   +0...0.300 read(4, ..., 512) = 10
+  +.3 < P. 1:11(10) ack 1 win 5840

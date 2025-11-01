@@ -323,6 +323,8 @@ struct hantro_postproc_regs {
 	struct hantro_reg output_fmt;
 	struct hantro_reg orig_width;
 	struct hantro_reg display_width;
+	struct hantro_reg input_width_ext;
+	struct hantro_reg input_height_ext;
 };
 
 struct hantro_vp9_decoded_buffer_info {
@@ -380,9 +382,9 @@ extern int hantro_debug;
 	pr_err("%s:%d: " fmt, __func__, __LINE__, ##args)
 
 /* Structure access helpers. */
-static __always_inline struct hantro_ctx *fh_to_ctx(struct v4l2_fh *fh)
+static __always_inline struct hantro_ctx *file_to_ctx(struct file *filp)
 {
-	return container_of(fh, struct hantro_ctx, fh);
+	return container_of(file_to_v4l2_fh(filp), struct hantro_ctx, fh);
 }
 
 /* Register accessors. */

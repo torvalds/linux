@@ -20,15 +20,10 @@ struct tpacket_kbdq_core {
 	unsigned int	feature_req_word;
 	unsigned int	hdrlen;
 	unsigned char	reset_pending_on_curr_blk;
-	unsigned char   delete_blk_timer;
 	unsigned short	kactive_blk_num;
 	unsigned short	blk_sizeof_priv;
 
-	/* last_kactive_blk_num:
-	 * trick to see if user-space has caught up
-	 * in order to avoid refreshing timer when every single pkt arrives.
-	 */
-	unsigned short	last_kactive_blk_num;
+	unsigned short  version;
 
 	char		*pkblk_start;
 	char		*pkblk_end;
@@ -38,6 +33,7 @@ struct tpacket_kbdq_core {
 	uint64_t	knxt_seq_num;
 	char		*prev;
 	char		*nxt_offset;
+
 	struct sk_buff	*skb;
 
 	rwlock_t	blk_fill_in_prog_lock;
@@ -45,12 +41,10 @@ struct tpacket_kbdq_core {
 	/* Default is set to 8ms */
 #define DEFAULT_PRB_RETIRE_TOV	(8)
 
-	unsigned short  retire_blk_tov;
-	unsigned short  version;
-	unsigned long	tov_in_jiffies;
+	ktime_t		interval_ktime;
 
 	/* timer to retire an outstanding block */
-	struct timer_list retire_blk_timer;
+	struct hrtimer  retire_blk_timer;
 };
 
 struct pgv {

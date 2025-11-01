@@ -326,6 +326,8 @@ struct amdgpu_mode_info {
 	struct drm_property *audio_property;
 	/* FMT dithering */
 	struct drm_property *dither_property;
+	/* Adaptive Backlight Modulation (power feature) */
+	struct drm_property *abm_level_property;
 	/* hardcoded DFP edid from BIOS */
 	const struct drm_edid *bios_hardcoded_edid;
 
@@ -496,8 +498,6 @@ struct amdgpu_crtc {
 	struct drm_connector *connector;
 	/* for dpm */
 	u32 line_time;
-	u32 wm_low;
-	u32 wm_high;
 	u32 lb_vblank_lead_lines;
 	struct drm_display_mode hw_mode;
 	/* for virtual dce */

@@ -1,0 +1,110 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/gpio/trivial-gpio.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Trivial 2-cell GPIO controllers
+
+maintainers:
+  - Bartosz Golaszewski <brgl@bgdev.pl>
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - cirrus,ep7312-gpio
+          - const: cirrus,ep7209-gpio
+      - enum:
+          - apm,xgene-gpio
+          - cirrus,ep7209-gpio
+          - cznic,moxtet-gpio
+          - dlg,slg7xl45106
+          - fcs,fxl6408
+          - gateworks,pld-gpio
+          - ibm,ppc4xx-gpio
+          - loongson,ls1x-gpio
+          - maxim,max77620
+          - nintendo,hollywood-gpio
+          - nxp,pca9570
+          - nxp,pca9571
+          - rockchip,rk3328-grf-gpio
+          - snps,creg-gpio-hsdk
+          - technologic,ts4800-gpio
+          - technologic,ts4900-gpio
+          - technologic,ts7970-gpio
+          - ti,741g125 # for 741G125 (1-bit Input),
+          - ti,741g174 # for 741G74 (1-bit Output),
+          - ti,742g125 # for 742G125 (2-bit Input),
+          - ti,7474    # for 7474 (2-bit Output),
+          - ti,74125   # for 74125 (4-bit Input),
+          - ti,74175   # for 74175 (4-bit Output),
+          - ti,74365   # for 74365 (6-bit Input),
+          - ti,74174   # for 74174 (6-bit Output),
+          - ti,74244   # for 74244 (8-bit Input),
+          - ti,74273   # for 74273 (8-bit Output),
+          - ti,741624  # for 741624 (16-bit Input),
+          - ti,7416374 # for 7416374 (16-bit Output).
+          - ti,lp3943-gpio
+          - ti,palmas-gpio
+          - ti,tpic2810
+          - ti,tps80036-gpio
+          - ti,tps65913-gpio
+          - ti,tps65914-gpio
+
+  reg:
+    maxItems: 1
+
+  '#gpio-cells':
+    const: 2
+
+  gpio-controller: true
+
+  gpio-line-names: true
+
+  ngpios: true
+
+  # Don't add more properties
+
+patternProperties:
+  "^(hog-[0-9]+|.+-hog(-[0-9]+)?)$":
+    type: object
+    required:
+      - gpio-hog
+
+required:
+  - compatible
+  - '#gpio-cells'
+  - gpio-controller
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - maxim,max77620
+              - rockchip,rk3328-grf-gpio
+              - ti,lp3943-gpio
+              - ti,palmas-gpio
+              - ti,tps80036-gpio
+              - ti,tps65913-gpio
+              - ti,tps65914-gpio
+    then:
+      properties:
+        reg: false
+    else:
+      required:
+        - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    gpio@1701c000 {
+        compatible = "apm,xgene-gpio";
+        reg = <0x1701c000 0x40>;
+        gpio-controller;
+        #gpio-cells = <2>;
+    };

@@ -59,6 +59,8 @@ struct btrfs_space_info;
 #define BTRFS_MIN_BLOCKSIZE	(SZ_4K)
 #endif
 
+#define BTRFS_MAX_BLOCKSIZE	(SZ_64K)
+
 #define BTRFS_MAX_EXTENT_SIZE SZ_128M
 
 #define BTRFS_OLDEST_GENERATION	0ULL
@@ -102,6 +104,8 @@ enum {
 	BTRFS_FS_STATE_RO,
 	/* Track if a transaction abort has been reported on this filesystem */
 	BTRFS_FS_STATE_TRANS_ABORTED,
+	/* Track if log replay has failed. */
+	BTRFS_FS_STATE_LOG_REPLAY_ABORTED,
 	/*
 	 * Bio operations should be blocked on this filesystem because a source
 	 * or target device is being destroyed as part of a device replace
@@ -243,6 +247,7 @@ enum {
 	BTRFS_MOUNT_NOSPACECACHE		= (1ULL << 30),
 	BTRFS_MOUNT_IGNOREMETACSUMS		= (1ULL << 31),
 	BTRFS_MOUNT_IGNORESUPERFLAGS		= (1ULL << 32),
+	BTRFS_MOUNT_REF_TRACKER			= (1ULL << 33),
 };
 
 /*
@@ -280,7 +285,7 @@ enum {
 
 #ifdef CONFIG_BTRFS_EXPERIMENTAL
 	/*
-	 * Features under developmen like Extent tree v2 support is enabled
+	 * Features under development like Extent tree v2 support is enabled
 	 * only under CONFIG_BTRFS_EXPERIMENTAL
 	 */
 #define BTRFS_FEATURE_INCOMPAT_SUPP		\
@@ -302,6 +307,16 @@ enum {
 #define BTRFS_DEFAULT_COMMIT_INTERVAL	(30)
 #define BTRFS_WARNING_COMMIT_INTERVAL	(300)
 #define BTRFS_DEFAULT_MAX_INLINE	(2048)
+
+enum btrfs_compression_type {
+	BTRFS_COMPRESS_NONE  = 0,
+	BTRFS_COMPRESS_ZLIB  = 1,
+	BTRFS_COMPRESS_LZO   = 2,
+	BTRFS_COMPRESS_ZSTD  = 3,
+	BTRFS_NR_COMPRESS_TYPES = 4,
+
+	BTRFS_DEFRAG_DONT_COMPRESS,
+};
 
 struct btrfs_dev_replace {
 	/* See #define above */
@@ -420,6 +435,8 @@ struct btrfs_commit_stats {
 	u64 last_commit_dur;
 	/* The total commit duration in ns */
 	u64 total_commit_dur;
+	/* Start of the last critical section in ns. */
+	u64 critical_section_start_time;
 };
 
 struct btrfs_fs_info {
@@ -502,6 +519,9 @@ struct btrfs_fs_info {
 	 */
 	u64 last_trans_log_full_commit;
 	unsigned long long mount_opt;
+
+	/* Compress related structures. */
+	void *compr_wsm[BTRFS_NR_COMPRESS_TYPES];
 
 	int compress_type;
 	int compress_level;
@@ -713,8 +733,6 @@ struct btrfs_fs_info {
 	u32 data_chunk_allocations;
 	u32 metadata_ratio;
 
-	void *bdev_holder;
-
 	/* Private scrub information */
 	struct mutex scrub_lock;
 	atomic_t scrubs_running;
@@ -737,12 +755,6 @@ struct btrfs_fs_info {
 	/* Holds configuration and tracking. Protected by qgroup_lock. */
 	struct rb_root qgroup_tree;
 	spinlock_t qgroup_lock;
-
-	/*
-	 * Used to avoid frequently calling ulist_alloc()/ulist_free()
-	 * when doing qgroup accounting, it must be protected by qgroup_lock.
-	 */
-	struct ulist *qgroup_ulist;
 
 	/*
 	 * Protect user change for quota operations. If a transaction is needed,
@@ -779,7 +791,7 @@ struct btrfs_fs_info {
 
 	struct btrfs_delayed_root *delayed_root;
 
-	/* Entries are eb->start / sectorsize */
+	/* Entries are eb->start >> nodesize_bits */
 	struct xarray buffer_tree;
 
 	/* Next backup root to be overwritten */
@@ -811,9 +823,12 @@ struct btrfs_fs_info {
 
 	/* Cached block sizes */
 	u32 nodesize;
+	u32 nodesize_bits;
 	u32 sectorsize;
 	/* ilog2 of sectorsize, use to avoid 64bit division */
 	u32 sectorsize_bits;
+	u32 block_min_order;
+	u32 block_max_order;
 	u32 csum_size;
 	u32 csums_per_leaf;
 	u32 stripesize;
@@ -883,12 +898,10 @@ struct btrfs_fs_info {
 	struct lockdep_map btrfs_trans_pending_ordered_map;
 	struct lockdep_map btrfs_ordered_extent_map;
 
-#ifdef CONFIG_BTRFS_FS_REF_VERIFY
+#ifdef CONFIG_BTRFS_DEBUG
 	spinlock_t ref_verify_lock;
 	struct rb_root block_tree;
-#endif
 
-#ifdef CONFIG_BTRFS_DEBUG
 	struct kobject *debug_kobj;
 	struct list_head allocated_roots;
 
@@ -908,6 +921,12 @@ struct btrfs_fs_info {
 static inline gfp_t btrfs_alloc_write_mask(struct address_space *mapping)
 {
 	return mapping_gfp_constraint(mapping, ~__GFP_FS);
+}
+
+/* Return the minimal folio size of the fs. */
+static inline unsigned int btrfs_min_folio_size(struct btrfs_fs_info *fs_info)
+{
+	return 1U << (PAGE_SHIFT + fs_info->block_min_order);
 }
 
 static inline u64 btrfs_get_fs_generation(const struct btrfs_fs_info *fs_info)
@@ -1002,6 +1021,7 @@ static inline unsigned int btrfs_blocks_per_folio(const struct btrfs_fs_info *fs
 	return folio_size(folio) >> fs_info->sectorsize_bits;
 }
 
+bool __attribute_const__ btrfs_supported_blocksize(u32 blocksize);
 bool btrfs_exclop_start(struct btrfs_fs_info *fs_info,
 			enum btrfs_exclusive_operation type);
 bool btrfs_exclop_start_try_lock(struct btrfs_fs_info *fs_info,
@@ -1112,9 +1132,9 @@ static inline void btrfs_wake_unfinished_drop(struct btrfs_fs_info *fs_info)
 
 #define EXPORT_FOR_TESTS
 
-static inline int btrfs_is_testing(const struct btrfs_fs_info *fs_info)
+static inline bool btrfs_is_testing(const struct btrfs_fs_info *fs_info)
 {
-	return test_bit(BTRFS_FS_STATE_DUMMY_FS_INFO, &fs_info->fs_state);
+	return unlikely(test_bit(BTRFS_FS_STATE_DUMMY_FS_INFO, &fs_info->fs_state));
 }
 
 void btrfs_test_destroy_inode(struct inode *inode);
@@ -1123,9 +1143,9 @@ void btrfs_test_destroy_inode(struct inode *inode);
 
 #define EXPORT_FOR_TESTS static
 
-static inline int btrfs_is_testing(const struct btrfs_fs_info *fs_info)
+static inline bool btrfs_is_testing(const struct btrfs_fs_info *fs_info)
 {
-	return 0;
+	return false;
 }
 #endif
 

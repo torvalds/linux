@@ -183,7 +183,7 @@ static bool is_fw_header(struct rtlwifi_firmware_header *hdr)
 	return (le16_to_cpu(hdr->signature) & 0xfff0) == 0x2300;
 }
 
-static struct rtl_hal_ops rtl8723e_hal_ops = {
+static const struct rtl_hal_ops rtl8723e_hal_ops = {
 	.init_sw_vars = rtl8723e_init_sw_vars,
 	.deinit_sw_vars = rtl8723e_deinit_sw_vars,
 	.read_eeprom_info = rtl8723e_read_eeprom_info,

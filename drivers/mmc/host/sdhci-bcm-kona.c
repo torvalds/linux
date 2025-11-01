@@ -304,8 +304,6 @@ err_clk_disable:
 	clk_disable_unprepare(pltfm_priv->clk);
 
 err_pltfm_free:
-	sdhci_pltfm_free(pdev);
-
 	dev_err(dev, "Probing of sdhci-pltfm failed: %d\n", ret);
 	return ret;
 }

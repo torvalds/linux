@@ -249,15 +249,15 @@ static void hci_devcd_dump(struct hci_dev *hdev)
 
 	size = hdev->dump.tail - hdev->dump.head;
 
-	/* Emit a devcoredump with the available data */
-	dev_coredumpv(&hdev->dev, hdev->dump.head, size, GFP_KERNEL);
-
 	/* Send a copy to monitor as a diagnostic packet */
 	skb = bt_skb_alloc(size, GFP_ATOMIC);
 	if (skb) {
 		skb_put_data(skb, hdev->dump.head, size);
 		hci_recv_diag(hdev, skb);
 	}
+
+	/* Emit a devcoredump with the available data */
+	dev_coredumpv(&hdev->dev, hdev->dump.head, size, GFP_KERNEL);
 }
 
 static void hci_devcd_handle_pkt_complete(struct hci_dev *hdev,

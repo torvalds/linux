@@ -1209,7 +1209,7 @@ EXPORT_SYMBOL_GPL(fat_alloc_new_dir);
 
 static int fat_add_new_entries(struct inode *dir, void *slots, int nr_slots,
 			       int *nr_cluster, struct msdos_dir_entry **de,
-			       struct buffer_head **bh, loff_t *i_pos)
+			       struct buffer_head **bh)
 {
 	struct super_block *sb = dir->i_sb;
 	struct msdos_sb_info *sbi = MSDOS_SB(sb);
@@ -1269,7 +1269,6 @@ static int fat_add_new_entries(struct inode *dir, void *slots, int nr_slots,
 	get_bh(bhs[n]);
 	*bh = bhs[n];
 	*de = (struct msdos_dir_entry *)((*bh)->b_data + offset);
-	*i_pos = fat_make_i_pos(sb, *bh, *de);
 
 	/* Second stage: clear the rest of cluster, and write outs */
 	err = fat_zeroed_cluster(dir, start_blknr, ++n, bhs, MAX_BUF_PER_PAGE);
@@ -1298,7 +1297,7 @@ int fat_add_entries(struct inode *dir, void *slots, int nr_slots,
 	struct buffer_head *bh, *prev, *bhs[3]; /* 32*slots (672bytes) */
 	struct msdos_dir_entry *de;
 	int err, free_slots, i, nr_bhs;
-	loff_t pos, i_pos;
+	loff_t pos;
 
 	sinfo->nr_slots = nr_slots;
 
@@ -1386,7 +1385,7 @@ found:
 		 * add the cluster to dir.
 		 */
 		cluster = fat_add_new_entries(dir, slots, nr_slots, &nr_cluster,
-					      &de, &bh, &i_pos);
+					      &de, &bh);
 		if (cluster < 0) {
 			err = cluster;
 			goto error_remove;

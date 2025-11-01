@@ -21,7 +21,7 @@ test_set_remote()
 {
 	RET=0
 
-	ip_link_add vx up type vxlan id 2000 dstport 4789
+	adf_ip_link_add vx up type vxlan id 2000 dstport 4789
 	bridge fdb ap dev vx 00:00:00:00:00:00 dst 192.0.2.20 self permanent
 	bridge fdb ap dev vx 00:00:00:00:00:00 dst 192.0.2.30 self permanent
 	check_remotes "fdb append"
@@ -74,12 +74,12 @@ test_change_mc_remote()
 {
 	check_command netstat || return
 
-	ip_link_add v1 up type veth peer name v2
-	ip_link_set_up v2
+	adf_ip_link_add v1 up type veth peer name v2
+	adf_ip_link_set_up v2
 
 	RET=0
 
-	ip_link_add vx up type vxlan dstport 4789 \
+	adf_ip_link_add vx up type vxlan dstport 4789 \
 		local 192.0.2.1 $(fmt_remote 224.1.1.1) dev v1 vni 1000
 
 	check_membership "group=224.1.1.1 fail=0" \

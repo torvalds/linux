@@ -358,16 +358,15 @@ static int dsp_set_digital_mode(struct echoaudio *chip, u8 mode)
 
 	if (incompatible_clock) {	/* Switch to 48KHz, internal */
 		chip->sample_rate = 48000;
-		spin_lock_irq(&chip->lock);
+		guard(spinlock_irq)(&chip->lock);
 		set_input_clock(chip, ECHO_CLOCK_INTERNAL);
-		spin_unlock_irq(&chip->lock);
 	}
 
 	/* switch_asic() can sleep */
 	if (switch_asic(chip, asic) < 0)
 		return -EIO;
 
-	spin_lock_irq(&chip->lock);
+	guard(spinlock_irq)(&chip->lock);
 
 	/* Tweak the control register */
 	control_reg = le32_to_cpu(chip->comm_page->control_register);
@@ -387,7 +386,6 @@ static int dsp_set_digital_mode(struct echoaudio *chip, u8 mode)
 	}
 
 	err = write_control_reg(chip, control_reg, true);
-	spin_unlock_irq(&chip->lock);
 	if (err < 0)
 		return err;
 	chip->digital_mode = mode;

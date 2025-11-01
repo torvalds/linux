@@ -11,6 +11,7 @@
 #include <linux/net.h>
 #include <linux/igmp.h>
 #include <linux/workqueue.h>
+#include <net/flow.h>
 #include <net/pkt_sched.h>
 #include <net/net_namespace.h>
 #include <net/ip.h>
@@ -28,6 +29,7 @@
 #include <net/addrconf.h>
 #include <net/ip6_route.h>
 #include <net/inet_common.h>
+#include <net/inet_dscp.h>
 #include <net/ip6_checksum.h>
 
 static struct workqueue_struct *amt_wq;
@@ -979,7 +981,7 @@ static void amt_event_send_request(struct amt_dev *amt)
 	amt->req_cnt++;
 out:
 	exp = min_t(u32, (1 * (1 << amt->req_cnt)), AMT_MAX_REQ_TIMEOUT);
-	mod_delayed_work(amt_wq, &amt->req_wq, msecs_to_jiffies(exp * 1000));
+	mod_delayed_work(amt_wq, &amt->req_wq, secs_to_jiffies(exp));
 }
 
 static void amt_req_work(struct work_struct *work)
@@ -1018,7 +1020,7 @@ static bool amt_send_membership_update(struct amt_dev *amt,
 	fl4.flowi4_oif         = amt->stream_dev->ifindex;
 	fl4.daddr              = amt->remote_ip;
 	fl4.saddr              = amt->local_ip;
-	fl4.flowi4_tos         = AMT_TOS;
+	fl4.flowi4_dscp        = inet_dsfield_to_dscp(AMT_TOS);
 	fl4.flowi4_proto       = IPPROTO_UDP;
 	rt = ip_route_output_key(amt->net, &fl4);
 	if (IS_ERR(rt)) {
@@ -1046,7 +1048,8 @@ static bool amt_send_membership_update(struct amt_dev *amt,
 			    amt->gw_port,
 			    amt->relay_port,
 			    false,
-			    false);
+			    false,
+			    0);
 	amt_update_gw_status(amt, AMT_STATUS_SENT_UPDATE, true);
 	return false;
 }
@@ -1103,7 +1106,8 @@ static void amt_send_multicast_data(struct amt_dev *amt,
 			    amt->relay_port,
 			    tunnel->source_port,
 			    false,
-			    false);
+			    false,
+			    0);
 }
 
 static bool amt_send_membership_query(struct amt_dev *amt,
@@ -1131,7 +1135,7 @@ static bool amt_send_membership_query(struct amt_dev *amt,
 	fl4.flowi4_oif         = amt->stream_dev->ifindex;
 	fl4.daddr              = tunnel->ip4;
 	fl4.saddr              = amt->local_ip;
-	fl4.flowi4_tos         = AMT_TOS;
+	fl4.flowi4_dscp        = inet_dsfield_to_dscp(AMT_TOS);
 	fl4.flowi4_proto       = IPPROTO_UDP;
 	rt = ip_route_output_key(amt->net, &fl4);
 	if (IS_ERR(rt)) {
@@ -1161,7 +1165,8 @@ static bool amt_send_membership_query(struct amt_dev *amt,
 			    amt->relay_port,
 			    tunnel->source_port,
 			    false,
-			    false);
+			    false,
+			    0);
 	amt_update_relay_status(tunnel, AMT_STATUS_SENT_QUERY, true);
 	return false;
 }

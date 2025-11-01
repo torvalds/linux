@@ -18,10 +18,13 @@
 #include "xe_gt.h"
 #include "xe_guc.h"
 #include "xe_hw_engine.h"
+#include "xe_hw_error.h"
+#include "xe_i2c.h"
 #include "xe_memirq.h"
 #include "xe_mmio.h"
 #include "xe_pxp.h"
 #include "xe_sriov.h"
+#include "xe_tile.h"
 
 /*
  * Interrupt registers for a unit are always consecutive and ordered
@@ -136,68 +139,112 @@ void xe_irq_enable_hwe(struct xe_gt *gt)
 {
 	struct xe_device *xe = gt_to_xe(gt);
 	struct xe_mmio *mmio = &gt->mmio;
-	u32 ccs_mask, bcs_mask;
-	u32 irqs, dmask, smask;
-	u32 gsc_mask = 0;
-	u32 heci_mask = 0;
+	u32 common_mask, val, gsc_mask = 0, heci_mask = 0,
+	    rcs_mask = 0, bcs_mask = 0, vcs_mask = 0, vecs_mask = 0,
+	    ccs_mask = 0;
 
 	if (xe_device_uses_memirq(xe))
 		return;
 
 	if (xe_device_uc_enabled(xe)) {
-		irqs = GT_RENDER_USER_INTERRUPT |
-			GT_RENDER_PIPECTL_NOTIFY_INTERRUPT;
+		common_mask = GT_MI_USER_INTERRUPT |
+			      GT_FLUSH_COMPLETE_INTERRUPT;
+
+		/* Enable Compute Walker Interrupt for non-MSIX platforms */
+		if (GRAPHICS_VERx100(xe) >= 3511 && !xe_device_has_msix(xe)) {
+			rcs_mask |= GT_COMPUTE_WALKER_INTERRUPT;
+			ccs_mask |= GT_COMPUTE_WALKER_INTERRUPT;
+		}
 	} else {
-		irqs = GT_RENDER_USER_INTERRUPT |
-		       GT_CS_MASTER_ERROR_INTERRUPT |
-		       GT_CONTEXT_SWITCH_INTERRUPT |
-		       GT_WAIT_SEMAPHORE_INTERRUPT;
+		common_mask = GT_MI_USER_INTERRUPT |
+			      GT_CS_MASTER_ERROR_INTERRUPT |
+			      GT_CONTEXT_SWITCH_INTERRUPT |
+			      GT_WAIT_SEMAPHORE_INTERRUPT;
 	}
 
-	ccs_mask = xe_hw_engine_mask_per_class(gt, XE_ENGINE_CLASS_COMPUTE);
-	bcs_mask = xe_hw_engine_mask_per_class(gt, XE_ENGINE_CLASS_COPY);
+	rcs_mask |= common_mask;
+	bcs_mask |= common_mask;
+	vcs_mask |= common_mask;
+	vecs_mask |= common_mask;
+	ccs_mask |= common_mask;
 
-	dmask = irqs << 16 | irqs;
-	smask = irqs << 16;
+	if (xe_gt_is_main_type(gt)) {
+		/*
+		 * For enabling the interrupts, the information about fused off
+		 * engines doesn't matter much, but this also allows to check if
+		 * the engine is available architecturally in the platform
+		 */
+		u32 ccs_fuse_mask = xe_hw_engine_mask_per_class(gt, XE_ENGINE_CLASS_COMPUTE);
+		u32 bcs_fuse_mask = xe_hw_engine_mask_per_class(gt, XE_ENGINE_CLASS_COPY);
 
-	if (!xe_gt_is_media_type(gt)) {
 		/* Enable interrupts for each engine class */
-		xe_mmio_write32(mmio, RENDER_COPY_INTR_ENABLE, dmask);
-		if (ccs_mask)
-			xe_mmio_write32(mmio, CCS_RSVD_INTR_ENABLE, smask);
+		xe_mmio_write32(mmio, RENDER_COPY_INTR_ENABLE,
+				REG_FIELD_PREP(ENGINE1_MASK, rcs_mask) |
+				REG_FIELD_PREP(ENGINE0_MASK, bcs_mask));
+		if (ccs_fuse_mask)
+			xe_mmio_write32(mmio, CCS_RSVD_INTR_ENABLE,
+					REG_FIELD_PREP(ENGINE1_MASK, ccs_mask));
 
 		/* Unmask interrupts for each engine instance */
-		xe_mmio_write32(mmio, RCS0_RSVD_INTR_MASK, ~smask);
-		xe_mmio_write32(mmio, BCS_RSVD_INTR_MASK, ~smask);
-		if (bcs_mask & (BIT(1)|BIT(2)))
-			xe_mmio_write32(mmio, XEHPC_BCS1_BCS2_INTR_MASK, ~dmask);
-		if (bcs_mask & (BIT(3)|BIT(4)))
-			xe_mmio_write32(mmio, XEHPC_BCS3_BCS4_INTR_MASK, ~dmask);
-		if (bcs_mask & (BIT(5)|BIT(6)))
-			xe_mmio_write32(mmio, XEHPC_BCS5_BCS6_INTR_MASK, ~dmask);
-		if (bcs_mask & (BIT(7)|BIT(8)))
-			xe_mmio_write32(mmio, XEHPC_BCS7_BCS8_INTR_MASK, ~dmask);
-		if (ccs_mask & (BIT(0)|BIT(1)))
-			xe_mmio_write32(mmio, CCS0_CCS1_INTR_MASK, ~dmask);
-		if (ccs_mask & (BIT(2)|BIT(3)))
-			xe_mmio_write32(mmio, CCS2_CCS3_INTR_MASK, ~dmask);
+		val = ~REG_FIELD_PREP(ENGINE1_MASK, rcs_mask);
+		xe_mmio_write32(mmio, RCS0_RSVD_INTR_MASK, val);
+		val = ~REG_FIELD_PREP(ENGINE1_MASK, bcs_mask);
+		xe_mmio_write32(mmio, BCS_RSVD_INTR_MASK, val);
+
+		val = ~(REG_FIELD_PREP(ENGINE1_MASK, bcs_mask) |
+			REG_FIELD_PREP(ENGINE0_MASK, bcs_mask));
+		if (bcs_fuse_mask & (BIT(1)|BIT(2)))
+			xe_mmio_write32(mmio, XEHPC_BCS1_BCS2_INTR_MASK, val);
+		if (bcs_fuse_mask & (BIT(3)|BIT(4)))
+			xe_mmio_write32(mmio, XEHPC_BCS3_BCS4_INTR_MASK, val);
+		if (bcs_fuse_mask & (BIT(5)|BIT(6)))
+			xe_mmio_write32(mmio, XEHPC_BCS5_BCS6_INTR_MASK, val);
+		if (bcs_fuse_mask & (BIT(7)|BIT(8)))
+			xe_mmio_write32(mmio, XEHPC_BCS7_BCS8_INTR_MASK, val);
+
+		val = ~(REG_FIELD_PREP(ENGINE1_MASK, ccs_mask) |
+			REG_FIELD_PREP(ENGINE0_MASK, ccs_mask));
+		if (ccs_fuse_mask & (BIT(0)|BIT(1)))
+			xe_mmio_write32(mmio, CCS0_CCS1_INTR_MASK, val);
+		if (ccs_fuse_mask & (BIT(2)|BIT(3)))
+			xe_mmio_write32(mmio, CCS2_CCS3_INTR_MASK, val);
 	}
 
 	if (xe_gt_is_media_type(gt) || MEDIA_VER(xe) < 13) {
+		u32 vcs_fuse_mask = xe_hw_engine_mask_per_class(gt, XE_ENGINE_CLASS_VIDEO_DECODE);
+		u32 vecs_fuse_mask = xe_hw_engine_mask_per_class(gt, XE_ENGINE_CLASS_VIDEO_ENHANCE);
+		u32 other_fuse_mask = xe_hw_engine_mask_per_class(gt, XE_ENGINE_CLASS_OTHER);
+
 		/* Enable interrupts for each engine class */
-		xe_mmio_write32(mmio, VCS_VECS_INTR_ENABLE, dmask);
+		xe_mmio_write32(mmio, VCS_VECS_INTR_ENABLE,
+				REG_FIELD_PREP(ENGINE1_MASK, vcs_mask) |
+				REG_FIELD_PREP(ENGINE0_MASK, vecs_mask));
 
 		/* Unmask interrupts for each engine instance */
-		xe_mmio_write32(mmio, VCS0_VCS1_INTR_MASK, ~dmask);
-		xe_mmio_write32(mmio, VCS2_VCS3_INTR_MASK, ~dmask);
-		xe_mmio_write32(mmio, VECS0_VECS1_INTR_MASK, ~dmask);
+		val = ~(REG_FIELD_PREP(ENGINE1_MASK, vcs_mask) |
+			REG_FIELD_PREP(ENGINE0_MASK, vcs_mask));
+		if (vcs_fuse_mask & (BIT(0) | BIT(1)))
+			xe_mmio_write32(mmio, VCS0_VCS1_INTR_MASK, val);
+		if (vcs_fuse_mask & (BIT(2) | BIT(3)))
+			xe_mmio_write32(mmio, VCS2_VCS3_INTR_MASK, val);
+		if (vcs_fuse_mask & (BIT(4) | BIT(5)))
+			xe_mmio_write32(mmio, VCS4_VCS5_INTR_MASK, val);
+		if (vcs_fuse_mask & (BIT(6) | BIT(7)))
+			xe_mmio_write32(mmio, VCS6_VCS7_INTR_MASK, val);
+
+		val = ~(REG_FIELD_PREP(ENGINE1_MASK, vecs_mask) |
+			REG_FIELD_PREP(ENGINE0_MASK, vecs_mask));
+		if (vecs_fuse_mask & (BIT(0) | BIT(1)))
+			xe_mmio_write32(mmio, VECS0_VECS1_INTR_MASK, val);
+		if (vecs_fuse_mask & (BIT(2) | BIT(3)))
+			xe_mmio_write32(mmio, VECS2_VECS3_INTR_MASK, val);
 
 		/*
 		 * the heci2 interrupt is enabled via the same register as the
 		 * GSCCS interrupts, but it has its own mask register.
 		 */
-		if (xe_hw_engine_mask_per_class(gt, XE_ENGINE_CLASS_OTHER)) {
-			gsc_mask = irqs | GSC_ER_COMPLETE;
+		if (other_fuse_mask) {
+			gsc_mask = common_mask | GSC_ER_COMPLETE;
 			heci_mask = GSC_IRQ_INTF(1);
 		} else if (xe->info.has_heci_gscfi) {
 			gsc_mask = GSC_IRQ_INTF(1);
@@ -260,7 +307,7 @@ gt_engine_identity(struct xe_device *xe,
 static void
 gt_other_irq_handler(struct xe_gt *gt, const u8 instance, const u16 iir)
 {
-	if (instance == OTHER_GUC_INSTANCE && !xe_gt_is_media_type(gt))
+	if (instance == OTHER_GUC_INSTANCE && xe_gt_is_main_type(gt))
 		return xe_guc_irq_handler(&gt->uc.guc, iir);
 	if (instance == OTHER_MEDIA_GUC_INSTANCE && xe_gt_is_media_type(gt))
 		return xe_guc_irq_handler(&gt->uc.guc, iir);
@@ -466,6 +513,7 @@ static irqreturn_t dg1_irq_handler(int irq, void *arg)
 		xe_mmio_write32(mmio, GFX_MSTR_IRQ, master_ctl);
 
 		gt_irq_handler(tile, master_ctl, intr_dw, identity);
+		xe_hw_error_irq_handler(tile, master_ctl);
 
 		/*
 		 * Display interrupts (including display backlight operations
@@ -476,6 +524,7 @@ static irqreturn_t dg1_irq_handler(int irq, void *arg)
 			if (xe->info.has_heci_cscfi)
 				xe_heci_csc_irq_handler(xe, master_ctl);
 			xe_display_irq_handler(xe, master_ctl);
+			xe_i2c_irq_handler(xe, master_ctl);
 			gu_misc_iir = gu_misc_irq_ack(xe, master_ctl);
 		}
 	}
@@ -489,11 +538,15 @@ static irqreturn_t dg1_irq_handler(int irq, void *arg)
 static void gt_irq_reset(struct xe_tile *tile)
 {
 	struct xe_mmio *mmio = &tile->mmio;
+	u32 ccs_mask = ~0;
+	u32 bcs_mask = ~0;
 
-	u32 ccs_mask = xe_hw_engine_mask_per_class(tile->primary_gt,
-						   XE_ENGINE_CLASS_COMPUTE);
-	u32 bcs_mask = xe_hw_engine_mask_per_class(tile->primary_gt,
-						   XE_ENGINE_CLASS_COPY);
+	if (tile->primary_gt) {
+		ccs_mask = xe_hw_engine_mask_per_class(tile->primary_gt,
+						       XE_ENGINE_CLASS_COMPUTE);
+		bcs_mask = xe_hw_engine_mask_per_class(tile->primary_gt,
+						       XE_ENGINE_CLASS_COPY);
+	}
 
 	/* Disable RCS, BCS, VCS and VECS class engines. */
 	xe_mmio_write32(mmio, RENDER_COPY_INTR_ENABLE, 0);
@@ -550,7 +603,7 @@ static void xelp_irq_reset(struct xe_tile *tile)
 
 static void dg1_irq_reset(struct xe_tile *tile)
 {
-	if (tile->id == 0)
+	if (xe_tile_is_root(tile))
 		dg1_intr_disable(tile_to_xe(tile));
 
 	gt_irq_reset(tile);
@@ -611,6 +664,7 @@ static void xe_irq_reset(struct xe_device *xe)
 	tile = xe_device_get_root_tile(xe);
 	mask_and_disable(tile, GU_MISC_IRQ_OFFSET);
 	xe_display_irq_reset(xe);
+	xe_i2c_irq_reset(xe);
 
 	/*
 	 * The tile's top-level status register should be the last one
@@ -651,7 +705,8 @@ static void xe_irq_postinstall(struct xe_device *xe)
 			xe_memirq_postinstall(&tile->memirq);
 	}
 
-	xe_display_irq_postinstall(xe, xe_root_mmio_gt(xe));
+	xe_display_irq_postinstall(xe);
+	xe_i2c_irq_postinstall(xe);
 
 	/*
 	 * ASLE backlight operations are reported via GUnit GSE interrupts
@@ -752,6 +807,8 @@ int xe_irq_install(struct xe_device *xe)
 	unsigned int irq_flags = PCI_IRQ_MSI;
 	int nvec = 1;
 	int err;
+
+	xe_hw_error_init(xe);
 
 	xe_irq_reset(xe);
 

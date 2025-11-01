@@ -7,8 +7,10 @@
 */
 
 #include "fuse_i.h"
+#include "fuse_dev_i.h"
 #include "dev_uring_i.h"
 
+#include <linux/dax.h>
 #include <linux/pagemap.h>
 #include <linux/slab.h>
 #include <linux/file.h>
@@ -33,6 +35,7 @@ MODULE_LICENSE("GPL");
 static struct kmem_cache *fuse_inode_cachep;
 struct list_head fuse_conn_list;
 DEFINE_MUTEX(fuse_mutex);
+DECLARE_WAIT_QUEUE_HEAD(fuse_dev_waitq);
 
 static int set_global_limit(const char *val, const struct kernel_param *kp);
 
@@ -100,14 +103,11 @@ static struct inode *fuse_alloc_inode(struct super_block *sb)
 	if (!fi)
 		return NULL;
 
-	fi->i_time = 0;
+	/* Initialize private data (i.e. everything except fi->inode) */
+	BUILD_BUG_ON(offsetof(struct fuse_inode, inode) != 0);
+	memset((void *) fi + sizeof(fi->inode), 0, sizeof(*fi) - sizeof(fi->inode));
+
 	fi->inval_mask = ~0;
-	fi->nodeid = 0;
-	fi->nlookup = 0;
-	fi->attr_version = 0;
-	fi->orig_ino = 0;
-	fi->state = 0;
-	fi->submount_lookup = NULL;
 	mutex_init(&fi->mutex);
 	spin_lock_init(&fi->lock);
 	fi->forget = fuse_alloc_forget();
@@ -161,6 +161,9 @@ static void fuse_evict_inode(struct inode *inode)
 
 	/* Will write inode on close/munmap and in all other dirtiers */
 	WARN_ON(inode->i_state & I_DIRTY_INODE);
+
+	if (FUSE_IS_DAX(inode))
+		dax_break_layout_final(inode);
 
 	truncate_inode_pages_final(&inode->i_data);
 	clear_inode(inode);
@@ -285,10 +288,10 @@ void fuse_change_attributes_common(struct inode *inode, struct fuse_attr *attr,
 		}
 	}
 
-	if (attr->blksize != 0)
-		inode->i_blkbits = ilog2(attr->blksize);
+	if (attr->blksize)
+		fi->cached_i_blkbits = ilog2(attr->blksize);
 	else
-		inode->i_blkbits = inode->i_sb->s_blocksize_bits;
+		fi->cached_i_blkbits = fc->blkbits;
 
 	/*
 	 * Don't set the sticky bit in i_mode, unless we want the VFS
@@ -580,6 +583,17 @@ int fuse_reverse_inval_inode(struct fuse_conn *fc, u64 nodeid,
 	}
 	iput(inode);
 	return 0;
+}
+
+void fuse_try_prune_one_inode(struct fuse_conn *fc, u64 nodeid)
+{
+	struct inode *inode;
+
+	inode = fuse_ilookup(fc, nodeid,  NULL);
+	if (!inode)
+		return;
+	d_prune_aliases(inode);
+	iput(inode);
 }
 
 bool fuse_lock_inode(struct inode *inode)
@@ -1205,7 +1219,7 @@ static const struct super_operations fuse_super_operations = {
 	.free_inode     = fuse_free_inode,
 	.evict_inode	= fuse_evict_inode,
 	.write_inode	= fuse_write_inode,
-	.drop_inode	= generic_delete_inode,
+	.drop_inode	= inode_just_drop,
 	.umount_begin	= fuse_umount_begin,
 	.statfs		= fuse_statfs,
 	.sync_fs	= fuse_sync_fs,
@@ -1269,7 +1283,7 @@ static void set_request_timeout(struct fuse_conn *fc, unsigned int timeout)
 {
 	fc->timeout.req_timeout = secs_to_jiffies(timeout);
 	INIT_DELAYED_WORK(&fc->timeout.work, fuse_check_timeout);
-	queue_delayed_work(system_wq, &fc->timeout.work,
+	queue_delayed_work(system_percpu_wq, &fc->timeout.work,
 			   fuse_timeout_timer_freq);
 }
 
@@ -1465,7 +1479,7 @@ static void process_init_reply(struct fuse_mount *fm, struct fuse_args *args,
 	wake_up_all(&fc->blocked_waitq);
 }
 
-void fuse_send_init(struct fuse_mount *fm)
+static struct fuse_init_args *fuse_new_init(struct fuse_mount *fm)
 {
 	struct fuse_init_args *ia;
 	u64 flags;
@@ -1524,10 +1538,30 @@ void fuse_send_init(struct fuse_mount *fm)
 	ia->args.out_args[0].value = &ia->out;
 	ia->args.force = true;
 	ia->args.nocreds = true;
-	ia->args.end = process_init_reply;
 
-	if (fuse_simple_background(fm, &ia->args, GFP_KERNEL) != 0)
-		process_init_reply(fm, &ia->args, -ENOTCONN);
+	return ia;
+}
+
+int fuse_send_init(struct fuse_mount *fm)
+{
+	struct fuse_init_args *ia = fuse_new_init(fm);
+	int err;
+
+	if (fm->fc->sync_init) {
+		err = fuse_simple_request(fm, &ia->args);
+		/* Ignore size of init reply */
+		if (err > 0)
+			err = 0;
+	} else {
+		ia->args.end = process_init_reply;
+		err = fuse_simple_background(fm, &ia->args, GFP_KERNEL);
+		if (!err)
+			return 0;
+	}
+	process_init_reply(fm, &ia->args, err);
+	if (fm->fc->conn_error)
+		return -ENOTCONN;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(fuse_send_init);
 
@@ -1557,8 +1591,6 @@ static int fuse_bdi_init(struct fuse_conn *fc, struct super_block *sb)
 	if (err)
 		return err;
 
-	/* fuse does it's own writeback accounting */
-	sb->s_bdi->capabilities &= ~BDI_CAP_WRITEBACK_ACCT;
 	sb->s_bdi->capabilities |= BDI_CAP_STRICTLIMIT;
 
 	/*
@@ -1715,7 +1747,7 @@ static int fuse_fill_super_submount(struct super_block *sb,
 	fi = get_fuse_inode(root);
 	fi->nlookup--;
 
-	sb->s_d_op = &fuse_dentry_operations;
+	set_default_d_op(sb, &fuse_dentry_operations);
 	sb->s_root = d_make_root(root);
 	if (!sb->s_root)
 		return -ENOMEM;
@@ -1806,10 +1838,22 @@ int fuse_fill_super_common(struct super_block *sb, struct fuse_fs_context *ctx)
 		err = -EINVAL;
 		if (!sb_set_blocksize(sb, ctx->blksize))
 			goto err;
+		/*
+		 * This is a workaround until fuse hooks into iomap for reads.
+		 * Use PAGE_SIZE for the blocksize else if the writeback cache
+		 * is enabled, buffered writes go through iomap and a read may
+		 * overwrite partially written data if blocksize < PAGE_SIZE
+		 */
+		fc->blkbits = sb->s_blocksize_bits;
+		if (ctx->blksize != PAGE_SIZE &&
+		    !sb_set_blocksize(sb, PAGE_SIZE))
+			goto err;
 #endif
+		fc->sync_fs = 1;
 	} else {
 		sb->s_blocksize = PAGE_SIZE;
 		sb->s_blocksize_bits = PAGE_SHIFT;
+		fc->blkbits = sb->s_blocksize_bits;
 	}
 
 	sb->s_subtype = ctx->subtype;
@@ -1850,17 +1894,19 @@ int fuse_fill_super_common(struct super_block *sb, struct fuse_fs_context *ctx)
 
 	err = -ENOMEM;
 	root = fuse_get_root_inode(sb, ctx->rootmode);
-	sb->s_d_op = &fuse_root_dentry_operations;
+	set_default_d_op(sb, &fuse_dentry_operations);
 	root_dentry = d_make_root(root);
 	if (!root_dentry)
 		goto err_dev_free;
-	/* Root dentry doesn't have .d_revalidate */
-	sb->s_d_op = &fuse_dentry_operations;
 
 	mutex_lock(&fuse_mutex);
 	err = -EINVAL;
-	if (ctx->fudptr && *ctx->fudptr)
-		goto err_unlock;
+	if (ctx->fudptr && *ctx->fudptr) {
+		if (*ctx->fudptr == FUSE_DEV_SYNC_INIT)
+			fc->sync_init = 1;
+		else
+			goto err_unlock;
+	}
 
 	err = fuse_ctl_add_conn(fc);
 	if (err)
@@ -1868,8 +1914,10 @@ int fuse_fill_super_common(struct super_block *sb, struct fuse_fs_context *ctx)
 
 	list_add_tail(&fc->entry, &fuse_conn_list);
 	sb->s_root = root_dentry;
-	if (ctx->fudptr)
+	if (ctx->fudptr) {
 		*ctx->fudptr = fud;
+		wake_up_all(&fuse_dev_waitq);
+	}
 	mutex_unlock(&fuse_mutex);
 	return 0;
 
@@ -1890,6 +1938,7 @@ EXPORT_SYMBOL_GPL(fuse_fill_super_common);
 static int fuse_fill_super(struct super_block *sb, struct fs_context *fsc)
 {
 	struct fuse_fs_context *ctx = fsc->fs_private;
+	struct fuse_mount *fm;
 	int err;
 
 	if (!ctx->file || !ctx->rootmode_present ||
@@ -1910,8 +1959,10 @@ static int fuse_fill_super(struct super_block *sb, struct fs_context *fsc)
 		return err;
 	/* file->private_data shall be visible on all CPUs after this */
 	smp_mb();
-	fuse_send_init(get_fuse_mount_super(sb));
-	return 0;
+
+	fm = get_fuse_mount_super(sb);
+
+	return fuse_send_init(fm);
 }
 
 /*
@@ -1972,7 +2023,7 @@ static int fuse_get_tree(struct fs_context *fsc)
 	 * Allow creating a fuse mount with an already initialized fuse
 	 * connection
 	 */
-	fud = READ_ONCE(ctx->file->private_data);
+	fud = __fuse_get_dev(ctx->file);
 	if (ctx->file->f_op == &fuse_dev_operations && fud) {
 		fsc->sget_key = fud->fc;
 		sb = sget_fc(fsc, fuse_test_super, fuse_set_no_super);

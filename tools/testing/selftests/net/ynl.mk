@@ -5,10 +5,11 @@
 # Inputs:
 #
 # YNL_GENS:      families we need in the selftests
-# YNL_PROGS:     TEST_PROGS which need YNL (TODO, none exist, yet)
+# YNL_GEN_PROGS: TEST_GEN_PROGS which need YNL
 # YNL_GEN_FILES: TEST_GEN_FILES which need YNL
 
-YNL_OUTPUTS := $(patsubst %,$(OUTPUT)/%,$(YNL_GEN_FILES))
+YNL_OUTPUTS :=	$(patsubst %,$(OUTPUT)/%,$(YNL_GEN_FILES)) \
+		$(patsubst %,$(OUTPUT)/%,$(YNL_GEN_PROGS))
 YNL_SPECS := \
 	$(patsubst %,$(top_srcdir)/Documentation/netlink/specs/%.yaml,$(YNL_GENS))
 

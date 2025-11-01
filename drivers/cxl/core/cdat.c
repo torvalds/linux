@@ -336,9 +336,9 @@ static int match_cxlrd_hb(struct device *dev, void *data)
 	cxlrd = to_cxl_root_decoder(dev);
 	cxlsd = &cxlrd->cxlsd;
 
-	guard(rwsem_read)(&cxl_region_rwsem);
+	guard(rwsem_read)(&cxl_rwsem.region);
 	for (int i = 0; i < cxlsd->nr_targets; i++) {
-		if (host_bridge == cxlsd->target[i]->dport_dev)
+		if (cxlsd->target[i] && host_bridge == cxlsd->target[i]->dport_dev)
 			return 1;
 	}
 
@@ -440,8 +440,8 @@ static int cdat_sslbis_handler(union acpi_subtable_headers *header, void *arg,
 	} *tbl = (struct acpi_cdat_sslbis_table *)header;
 	int size = sizeof(header->cdat) + sizeof(tbl->sslbis_header);
 	struct acpi_cdat_sslbis *sslbis;
-	struct cxl_port *port = arg;
-	struct device *dev = &port->dev;
+	struct cxl_dport *dport = arg;
+	struct device *dev = &dport->port->dev;
 	int remain, entries, i;
 	u16 len;
 
@@ -467,8 +467,6 @@ static int cdat_sslbis_handler(union acpi_subtable_headers *header, void *arg,
 		u16 y = le16_to_cpu((__force __le16)tbl->entries[i].porty_id);
 		__le64 le_base;
 		__le16 le_val;
-		struct cxl_dport *dport;
-		unsigned long index;
 		u16 dsp_id;
 		u64 val;
 
@@ -499,28 +497,27 @@ static int cdat_sslbis_handler(union acpi_subtable_headers *header, void *arg,
 		val = cdat_normalize(le16_to_cpu(le_val), le64_to_cpu(le_base),
 				     sslbis->data_type);
 
-		xa_for_each(&port->dports, index, dport) {
-			if (dsp_id == ACPI_CDAT_SSLBIS_ANY_PORT ||
-			    dsp_id == dport->port_id) {
-				cxl_access_coordinate_set(dport->coord,
-							  sslbis->data_type,
-							  val);
-			}
+		if (dsp_id == ACPI_CDAT_SSLBIS_ANY_PORT ||
+		    dsp_id == dport->port_id) {
+			cxl_access_coordinate_set(dport->coord,
+						  sslbis->data_type, val);
+			return 0;
 		}
 	}
 
 	return 0;
 }
 
-void cxl_switch_parse_cdat(struct cxl_port *port)
+void cxl_switch_parse_cdat(struct cxl_dport *dport)
 {
+	struct cxl_port *port = dport->port;
 	int rc;
 
 	if (!port->cdat.table)
 		return;
 
 	rc = cdat_table_parse(ACPI_CDAT_TYPE_SSLBIS, cdat_sslbis_handler,
-			      port, port->cdat.table, port->cdat.length);
+			      dport, port->cdat.table, port->cdat.length);
 	rc = cdat_table_parse_output(rc);
 	if (rc)
 		dev_dbg(&port->dev, "Failed to parse SSLBIS: %d\n", rc);
@@ -987,7 +984,7 @@ void cxl_region_shared_upstream_bandwidth_update(struct cxl_region *cxlr)
 	bool is_root;
 	int rc;
 
-	lockdep_assert_held(&cxl_dpa_rwsem);
+	lockdep_assert_held(&cxl_rwsem.dpa);
 
 	struct xarray *usp_xa __free(free_perf_xa) =
 		kzalloc(sizeof(*usp_xa), GFP_KERNEL);
@@ -1057,7 +1054,7 @@ void cxl_region_perf_data_calculate(struct cxl_region *cxlr,
 {
 	struct cxl_dpa_perf *perf;
 
-	lockdep_assert_held(&cxl_dpa_rwsem);
+	lockdep_assert_held(&cxl_rwsem.dpa);
 
 	perf = cxled_get_dpa_perf(cxled);
 	if (IS_ERR(perf))
@@ -1074,15 +1071,4 @@ void cxl_region_perf_data_calculate(struct cxl_region *cxlr,
 		cxlr->coord[i].read_bandwidth += perf->coord[i].read_bandwidth;
 		cxlr->coord[i].write_bandwidth += perf->coord[i].write_bandwidth;
 	}
-}
-
-int cxl_update_hmat_access_coordinates(int nid, struct cxl_region *cxlr,
-				       enum access_coordinate_class access)
-{
-	return hmat_update_target_coordinates(nid, &cxlr->coord[access], access);
-}
-
-bool cxl_need_node_perf_attrs_update(int nid)
-{
-	return !acpi_node_backed_by_real_pxm(nid);
 }

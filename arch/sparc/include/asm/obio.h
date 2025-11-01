@@ -97,7 +97,7 @@
 #define CC_EREG		0x1F00E00  /* Error code register */
 #define CC_CID		0x1F00F04  /* Component ID */
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 static inline int bw_get_intr_mask(int sbus_level)
 {
@@ -221,6 +221,6 @@ static inline void cc_set_igen(unsigned int gen)
 			      "i" (ASI_M_MXCC));
 }
 
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 
 #endif /* !(_SPARC_OBIO_H) */

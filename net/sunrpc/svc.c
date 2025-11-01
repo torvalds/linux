@@ -352,7 +352,7 @@ static int svc_pool_map_get_node(unsigned int pidx)
 		if (m->mode == SVC_POOL_PERNODE)
 			return m->pool_to[pidx];
 	}
-	return NUMA_NO_NODE;
+	return numa_mem_id();
 }
 /*
  * Set the given thread's cpus_allowed mask so that it
@@ -436,7 +436,6 @@ void svc_rpcb_cleanup(struct svc_serv *serv, struct net *net)
 	svc_unregister(serv, net);
 	rpcb_put_local(net);
 }
-EXPORT_SYMBOL_GPL(svc_rpcb_cleanup);
 
 static int svc_uses_rpcbind(struct svc_serv *serv)
 {
@@ -638,8 +637,6 @@ EXPORT_SYMBOL_GPL(svc_destroy);
 static bool
 svc_init_buffer(struct svc_rqst *rqstp, const struct svc_serv *serv, int node)
 {
-	unsigned long ret;
-
 	rqstp->rq_maxpages = svc_serv_maxpages(serv);
 
 	/* rq_pages' last entry is NULL for historical reasons. */
@@ -649,9 +646,7 @@ svc_init_buffer(struct svc_rqst *rqstp, const struct svc_serv *serv, int node)
 	if (!rqstp->rq_pages)
 		return false;
 
-	ret = alloc_pages_bulk_node(GFP_KERNEL, node, rqstp->rq_maxpages,
-				    rqstp->rq_pages);
-	return ret == rqstp->rq_maxpages;
+	return true;
 }
 
 /*
@@ -674,8 +669,8 @@ svc_rqst_free(struct svc_rqst *rqstp)
 	folio_batch_release(&rqstp->rq_fbatch);
 	kfree(rqstp->rq_bvec);
 	svc_release_buffer(rqstp);
-	if (rqstp->rq_scratch_page)
-		put_page(rqstp->rq_scratch_page);
+	if (rqstp->rq_scratch_folio)
+		folio_put(rqstp->rq_scratch_folio);
 	kfree(rqstp->rq_resp);
 	kfree(rqstp->rq_argp);
 	kfree(rqstp->rq_auth_data);
@@ -696,8 +691,8 @@ svc_prepare_thread(struct svc_serv *serv, struct svc_pool *pool, int node)
 	rqstp->rq_server = serv;
 	rqstp->rq_pool = pool;
 
-	rqstp->rq_scratch_page = alloc_pages_node(node, GFP_KERNEL, 0);
-	if (!rqstp->rq_scratch_page)
+	rqstp->rq_scratch_folio = __folio_alloc_node(GFP_KERNEL, 0, node);
+	if (!rqstp->rq_scratch_folio)
 		goto out_enomem;
 
 	rqstp->rq_argp = kmalloc_node(serv->sv_xdrsize, GFP_KERNEL, node);
@@ -755,14 +750,16 @@ void svc_pool_wake_idle_thread(struct svc_pool *pool)
 		WRITE_ONCE(rqstp->rq_qtime, ktime_get());
 		if (!task_is_running(rqstp->rq_task)) {
 			wake_up_process(rqstp->rq_task);
-			trace_svc_wake_up(rqstp->rq_task->pid);
+			trace_svc_pool_thread_wake(pool, rqstp->rq_task->pid);
 			percpu_counter_inc(&pool->sp_threads_woken);
+		} else {
+			trace_svc_pool_thread_running(pool, rqstp->rq_task->pid);
 		}
 		rcu_read_unlock();
 		return;
 	}
 	rcu_read_unlock();
-
+	trace_svc_pool_thread_noidle(pool, 0);
 }
 EXPORT_SYMBOL_GPL(svc_pool_wake_idle_thread);
 
@@ -1336,6 +1333,9 @@ svc_process_common(struct svc_rqst *rqstp)
 	int			pr, rc;
 	__be32			*p;
 
+	/* Reset the accept_stat for the RPC */
+	rqstp->rq_accept_statp = NULL;
+
 	/* Will be turned off only when NFSv4 Sessions are used */
 	set_bit(RQ_USEDEFERRAL, &rqstp->rq_flags);
 	clear_bit(RQ_DROPME, &rqstp->rq_flags);
@@ -1375,9 +1375,8 @@ svc_process_common(struct svc_rqst *rqstp)
 	case SVC_OK:
 		break;
 	case SVC_GARBAGE:
-		goto err_garbage_args;
-	case SVC_SYSERR:
-		goto err_system_err;
+		rqstp->rq_auth_stat = rpc_autherr_badcred;
+		goto err_bad_auth;
 	case SVC_DENIED:
 		goto err_bad_auth;
 	case SVC_CLOSE:
@@ -1388,7 +1387,8 @@ svc_process_common(struct svc_rqst *rqstp)
 		goto sendit;
 	default:
 		pr_warn_once("Unexpected svc_auth_status (%d)\n", auth_res);
-		goto err_system_err;
+		rqstp->rq_auth_stat = rpc_autherr_failed;
+		goto err_bad_auth;
 	}
 
 	if (progp == NULL)
@@ -1425,8 +1425,6 @@ svc_process_common(struct svc_rqst *rqstp)
 
 	/* Call the function that processes the request. */
 	rc = process.dispatch(rqstp);
-	if (procp->pc_release)
-		procp->pc_release(rqstp);
 	xdr_finish_decode(xdr);
 
 	if (!rc)
@@ -1515,20 +1513,6 @@ err_bad_proc:
 		serv->sv_stats->rpcbadfmt++;
 	*rqstp->rq_accept_statp = rpc_proc_unavail;
 	goto sendit;
-
-err_garbage_args:
-	svc_printk(rqstp, "failed to decode RPC header\n");
-
-	if (serv->sv_stats)
-		serv->sv_stats->rpcbadfmt++;
-	*rqstp->rq_accept_statp = rpc_garbage_args;
-	goto sendit;
-
-err_system_err:
-	if (serv->sv_stats)
-		serv->sv_stats->rpcbadfmt++;
-	*rqstp->rq_accept_statp = rpc_system_err;
-	goto sendit;
 }
 
 /*
@@ -1537,6 +1521,14 @@ err_system_err:
 static void svc_drop(struct svc_rqst *rqstp)
 {
 	trace_svc_drop(rqstp);
+}
+
+static void svc_release_rqst(struct svc_rqst *rqstp)
+{
+	const struct svc_procedure *procp = rqstp->rq_procinfo;
+
+	if (procp && procp->pc_release)
+		procp->pc_release(rqstp);
 }
 
 /**
@@ -1578,9 +1570,12 @@ void svc_process(struct svc_rqst *rqstp)
 	if (unlikely(*p != rpc_call))
 		goto out_baddir;
 
-	if (!svc_process_common(rqstp))
+	if (!svc_process_common(rqstp)) {
+		svc_release_rqst(rqstp);
 		goto out_drop;
+	}
 	svc_send(rqstp);
+	svc_release_rqst(rqstp);
 	return;
 
 out_baddir:
@@ -1648,6 +1643,7 @@ void svc_process_bc(struct rpc_rqst *req, struct svc_rqst *rqstp)
 	if (!proc_error) {
 		/* Processing error: drop the request */
 		xprt_free_bc_request(req);
+		svc_release_rqst(rqstp);
 		return;
 	}
 	/* Finally, send the reply synchronously */
@@ -1661,6 +1657,7 @@ void svc_process_bc(struct rpc_rqst *req, struct svc_rqst *rqstp)
 	timeout.to_maxval = timeout.to_initval;
 	memcpy(&req->rq_snd_buf, &rqstp->rq_res, sizeof(req->rq_snd_buf));
 	task = rpc_run_bc_task(req, &timeout);
+	svc_release_rqst(rqstp);
 
 	if (IS_ERR(task))
 		return;

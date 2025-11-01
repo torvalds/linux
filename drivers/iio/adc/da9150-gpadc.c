@@ -308,10 +308,9 @@ static int da9150_gpadc_probe(struct platform_device *pdev)
 	int irq, ret;
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*gpadc));
-	if (!indio_dev) {
-		dev_err(&pdev->dev, "Failed to allocate IIO device\n");
+	if (!indio_dev)
 		return -ENOMEM;
-	}
+
 	gpadc = iio_priv(indio_dev);
 
 	gpadc->da9150 = da9150;

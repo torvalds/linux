@@ -129,6 +129,12 @@ static int iwl_mld_add_key_to_fw(struct iwl_mld *mld, u32 sta_mask,
 	bool tkip = key->cipher == WLAN_CIPHER_SUITE_TKIP;
 	int max_key_len = sizeof(cmd.u.add.key);
 
+#ifdef CONFIG_PM_SLEEP
+	/* If there was a rekey in wowlan, FW already has the key */
+	if (mld->fw_status.resuming)
+		return 0;
+#endif
+
 	if (WARN_ON(!sta_mask))
 		return -EINVAL;
 
@@ -159,6 +165,12 @@ static void iwl_mld_remove_key_from_fw(struct iwl_mld *mld, u32 sta_mask,
 		.u.remove.key_id = cpu_to_le32(keyidx),
 		.u.remove.key_flags = cpu_to_le32(key_flags),
 	};
+
+#ifdef CONFIG_PM_SLEEP
+	/* If there was a rekey in wowlan, FW already removed the key */
+	if (mld->fw_status.resuming)
+		return;
+#endif
 
 	if (WARN_ON(!sta_mask))
 		return;
@@ -355,4 +367,42 @@ int iwl_mld_update_sta_keys(struct iwl_mld *mld,
 	ieee80211_iter_keys(mld->hw, vif, iwl_mld_update_sta_key_iter,
 			    &data);
 	return data.err;
+}
+
+void iwl_mld_track_bigtk(struct iwl_mld *mld,
+			 struct ieee80211_vif *vif,
+			 struct ieee80211_key_conf *key, bool add)
+{
+	struct iwl_mld_vif *mld_vif = iwl_mld_vif_from_mac80211(vif);
+	struct iwl_mld_link *link;
+
+	if (vif->type != NL80211_IFTYPE_STATION)
+		return;
+
+	if (WARN_ON(key->keyidx < 6 || key->keyidx > 7))
+		return;
+
+	if (WARN_ON(key->link_id < 0))
+		return;
+
+	link = iwl_mld_link_dereference_check(mld_vif, key->link_id);
+	if (WARN_ON(!link))
+		return;
+
+	if (add)
+		rcu_assign_pointer(link->bigtks[key->keyidx - 6], key);
+	else
+		RCU_INIT_POINTER(link->bigtks[key->keyidx - 6], NULL);
+}
+
+bool iwl_mld_beacon_protection_enabled(struct iwl_mld *mld,
+				       struct ieee80211_bss_conf *link)
+{
+	struct iwl_mld_link *mld_link = iwl_mld_link_from_mac80211(link);
+
+	if (WARN_ON(!mld_link))
+		return false;
+
+	return rcu_access_pointer(mld_link->bigtks[0]) ||
+		rcu_access_pointer(mld_link->bigtks[1]);
 }

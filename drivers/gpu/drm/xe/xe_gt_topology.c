@@ -12,6 +12,7 @@
 #include "regs/xe_gt_regs.h"
 #include "xe_assert.h"
 #include "xe_gt.h"
+#include "xe_gt_mcr.h"
 #include "xe_gt_printk.h"
 #include "xe_mmio.h"
 #include "xe_wa.h"
@@ -122,6 +123,21 @@ gen_l3_mask_from_pattern(struct xe_device *xe, xe_l3_bank_mask_t dst,
 	}
 }
 
+bool xe_gt_topology_report_l3(struct xe_gt *gt)
+{
+	/*
+	 * No known userspace needs/uses the L3 bank mask reported by
+	 * the media GT, and the hardware itself is known to report bogus
+	 * values on several platforms.  Only report L3 bank mask as part
+	 * of the media GT's topology on pre-Xe3 platforms since that's
+	 * already part of our ABI.
+	 */
+	if (xe_gt_is_media_type(gt) && MEDIA_VER(gt_to_xe(gt)) >= 30)
+		return false;
+
+	return true;
+}
+
 static void
 load_l3_bank_mask(struct xe_gt *gt, xe_l3_bank_mask_t l3_bank_mask)
 {
@@ -129,19 +145,14 @@ load_l3_bank_mask(struct xe_gt *gt, xe_l3_bank_mask_t l3_bank_mask)
 	struct xe_mmio *mmio = &gt->mmio;
 	u32 fuse3 = xe_mmio_read32(mmio, MIRROR_FUSE3);
 
-	/*
-	 * PTL platforms with media version 30.00 do not provide proper values
-	 * for the media GT's L3 bank registers.  Skip the readout since we
-	 * don't have any way to obtain real values.
-	 *
-	 * This may get re-described as an official workaround in the future,
-	 * but there's no tracking number assigned yet so we use a custom
-	 * OOB workaround descriptor.
-	 */
-	if (XE_WA(gt, no_media_l3))
+	if (!xe_gt_topology_report_l3(gt))
 		return;
 
-	if (GRAPHICS_VER(xe) >= 30) {
+	if (GRAPHICS_VER(xe) >= 35) {
+		u32 fuse_val = xe_mmio_read32(mmio, MIRROR_L3BANK_ENABLE);
+
+		bitmap_from_arr32(l3_bank_mask, &fuse_val, 32);
+	} else if (GRAPHICS_VER(xe) >= 30) {
 		xe_l3_bank_mask_t per_node = {};
 		u32 meml3_en = REG_FIELD_GET(XE2_NODE_ENABLE_MASK, fuse3);
 		u32 mirror_l3bank_enable = xe_mmio_read32(mmio, MIRROR_L3BANK_ENABLE);
@@ -262,8 +273,14 @@ static const char *eu_type_to_str(enum xe_gt_eu_type eu_type)
 	return NULL;
 }
 
-void
-xe_gt_topology_dump(struct xe_gt *gt, struct drm_printer *p)
+/**
+ * xe_gt_topology_dump() - Dump GT topology into a drm printer.
+ * @gt: the &xe_gt
+ * @p: the &drm_printer
+ *
+ * Return: always 0.
+ */
+int xe_gt_topology_dump(struct xe_gt *gt, struct drm_printer *p)
 {
 	drm_printf(p, "dss mask (geometry): %*pb\n", XE_MAX_DSS_FUSE_BITS,
 		   gt->fuse_topo.g_dss_mask);
@@ -275,8 +292,10 @@ xe_gt_topology_dump(struct xe_gt *gt, struct drm_printer *p)
 	drm_printf(p, "EU type:             %s\n",
 		   eu_type_to_str(gt->fuse_topo.eu_type));
 
-	drm_printf(p, "L3 bank mask:        %*pb\n", XE_MAX_L3_BANK_MASK_BITS,
-		   gt->fuse_topo.l3_bank_mask);
+	if (xe_gt_topology_report_l3(gt))
+		drm_printf(p, "L3 bank mask:        %*pb\n", XE_MAX_L3_BANK_MASK_BITS,
+			   gt->fuse_topo.l3_bank_mask);
+	return 0;
 }
 
 /*
@@ -290,9 +309,11 @@ xe_dss_mask_group_ffs(const xe_dss_mask_t mask, int groupsize, int groupnum)
 	return find_next_bit(mask, XE_MAX_DSS_FUSE_BITS, groupnum * groupsize);
 }
 
-bool xe_dss_mask_empty(const xe_dss_mask_t mask)
+/* Used to obtain the index of the first L3 bank. */
+unsigned int
+xe_l3_bank_mask_ffs(const xe_l3_bank_mask_t mask)
 {
-	return bitmap_empty(mask, XE_MAX_DSS_FUSE_BITS);
+	return find_first_bit(mask, XE_MAX_L3_BANK_MASK_BITS);
 }
 
 /**
@@ -332,4 +353,20 @@ bool xe_gt_has_geometry_dss(struct xe_gt *gt, unsigned int dss)
 bool xe_gt_has_compute_dss(struct xe_gt *gt, unsigned int dss)
 {
 	return test_bit(dss, gt->fuse_topo.c_dss_mask);
+}
+
+bool xe_gt_has_discontiguous_dss_groups(const struct xe_gt *gt)
+{
+	unsigned int xecore;
+	int last_group = -1;
+	u16 group, instance;
+
+	for_each_dss_steering(xecore, gt, group, instance) {
+		if (last_group != group) {
+			if (group - last_group > 1)
+				return true;
+			last_group = group;
+		}
+	}
+	return false;
 }

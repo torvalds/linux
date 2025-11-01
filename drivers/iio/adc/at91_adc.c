@@ -1226,7 +1226,7 @@ static const struct at91_adc_trigger at91sam9260_triggers[] = {
 	{ .name = "external", .value = 0xd, .is_external = true },
 };
 
-static struct at91_adc_caps at91sam9260_caps = {
+static const struct at91_adc_caps at91sam9260_caps = {
 	.calc_startup_ticks = calc_startup_ticks_9260,
 	.num_channels = 4,
 	.low_res_bits = 8,
@@ -1250,7 +1250,7 @@ static const struct at91_adc_trigger at91sam9x5_triggers[] = {
 	{ .name = "continuous", .value = 0x6 },
 };
 
-static struct at91_adc_caps at91sam9rl_caps = {
+static const struct at91_adc_caps at91sam9rl_caps = {
 	.has_ts = true,
 	.calc_startup_ticks = calc_startup_ticks_9260,	/* same as 9260 */
 	.num_channels = 6,
@@ -1268,7 +1268,7 @@ static struct at91_adc_caps at91sam9rl_caps = {
 	.trigger_number = ARRAY_SIZE(at91sam9x5_triggers),
 };
 
-static struct at91_adc_caps at91sam9g45_caps = {
+static const struct at91_adc_caps at91sam9g45_caps = {
 	.has_ts = true,
 	.calc_startup_ticks = calc_startup_ticks_9260,	/* same as 9260 */
 	.num_channels = 8,
@@ -1286,7 +1286,7 @@ static struct at91_adc_caps at91sam9g45_caps = {
 	.trigger_number = ARRAY_SIZE(at91sam9x5_triggers),
 };
 
-static struct at91_adc_caps at91sam9x5_caps = {
+static const struct at91_adc_caps at91sam9x5_caps = {
 	.has_ts = true,
 	.has_tsmr = true,
 	.ts_filter_average = 3,
@@ -1308,7 +1308,7 @@ static struct at91_adc_caps at91sam9x5_caps = {
 	.trigger_number = ARRAY_SIZE(at91sam9x5_triggers),
 };
 
-static struct at91_adc_caps sama5d3_caps = {
+static const struct at91_adc_caps sama5d3_caps = {
 	.has_ts = true,
 	.has_tsmr = true,
 	.ts_filter_average = 3,

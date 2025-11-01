@@ -3,6 +3,7 @@
 #include "test_attach_kprobe_sleepable.skel.h"
 #include "test_attach_probe_manual.skel.h"
 #include "test_attach_probe.skel.h"
+#include "kprobe_write_ctx.skel.h"
 
 /* this is how USDT semaphore is actually defined, except volatile modifier */
 volatile unsigned short uprobe_ref_ctr __attribute__((unused)) __attribute((section(".probes")));
@@ -200,6 +201,31 @@ static void test_attach_kprobe_long_event_name(void)
 cleanup:
 	test_attach_probe_manual__destroy(skel);
 }
+
+#ifdef __x86_64__
+/* attach kprobe/kretprobe long event name testings */
+static void test_attach_kprobe_write_ctx(void)
+{
+	struct kprobe_write_ctx *skel = NULL;
+	struct bpf_link *link = NULL;
+
+	skel = kprobe_write_ctx__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "kprobe_write_ctx__open_and_load"))
+		return;
+
+	link = bpf_program__attach_kprobe_opts(skel->progs.kprobe_write_ctx,
+					     "bpf_fentry_test1", NULL);
+	if (!ASSERT_ERR_PTR(link, "bpf_program__attach_kprobe_opts"))
+		bpf_link__destroy(link);
+
+	kprobe_write_ctx__destroy(skel);
+}
+#else
+static void test_attach_kprobe_write_ctx(void)
+{
+	test__skip();
+}
+#endif
 
 static void test_attach_probe_auto(struct test_attach_probe *skel)
 {
@@ -406,6 +432,8 @@ void test_attach_probe(void)
 		test_attach_uprobe_long_event_name();
 	if (test__start_subtest("kprobe-long_name"))
 		test_attach_kprobe_long_event_name();
+	if (test__start_subtest("kprobe-write-ctx"))
+		test_attach_kprobe_write_ctx();
 
 cleanup:
 	test_attach_probe__destroy(skel);

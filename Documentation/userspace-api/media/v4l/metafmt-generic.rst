@@ -71,7 +71,7 @@ This format is little endian.
 **Byte Order Of V4L2_META_FMT_GENERIC_CSI2_10.**
 Each cell is one byte. "M" denotes a byte of metadata and "x" a byte of padding.
 
-.. tabularcolumns:: |p{2.4cm}|p{1.2cm}|p{1.2cm}|p{1.2cm}|p{1.2cm}|p{.8cm}|
+.. tabularcolumns:: |p{2.4cm}|p{1.2cm}|p{1.2cm}|p{1.2cm}|p{1.2cm}|p{1.8cm}|
 
 .. flat-table:: Sample 4x2 Metadata Frame
     :header-rows:  0
@@ -115,7 +115,7 @@ This format is little endian.
 **Byte Order Of V4L2_META_FMT_GENERIC_CSI2_12.**
 Each cell is one byte. "M" denotes a byte of metadata and "x" a byte of padding.
 
-.. tabularcolumns:: |p{2.4cm}|p{1.2cm}|p{1.2cm}|p{1.2cm}|p{1.2cm}|p{.8cm}|p{.8cm}|
+.. tabularcolumns:: |p{2.4cm}|p{1.2cm}|p{1.2cm}|p{1.8cm}|p{1.2cm}|p{1.2cm}|p{1.8cm}|
 
 .. flat-table:: Sample 4x2 Metadata Frame
     :header-rows:  0
@@ -156,7 +156,7 @@ This format is little endian.
 **Byte Order Of V4L2_META_FMT_GENERIC_CSI2_14.**
 Each cell is one byte. "M" denotes a byte of metadata and "x" a byte of padding.
 
-.. tabularcolumns:: |p{2.4cm}|p{1.2cm}|p{1.2cm}|p{1.2cm}|p{1.2cm}|p{.8cm}|p{.8cm}|p{.8cm}|
+.. tabularcolumns:: |p{2.4cm}|p{1.2cm}|p{1.2cm}|p{1.2cm}|p{1.2cm}|p{1.8cm}|p{1.8cm}|p{1.8cm}|
 
 .. flat-table:: Sample 4x2 Metadata Frame
     :header-rows:  0
@@ -252,7 +252,7 @@ This format is little endian.
 **Byte Order Of V4L2_META_FMT_GENERIC_CSI2_20.**
 Each cell is one byte. "M" denotes a byte of metadata and "x" a byte of padding.
 
-.. tabularcolumns:: |p{2.4cm}|p{1.2cm}|p{.8cm}|p{1.2cm}|p{.8cm}|p{.8cm}|p{1.2cm}|p{.8cm}|p{1.2cm}|p{.8cm}|p{.8cm}|
+.. tabularcolumns:: |p{2.4cm}|p{1.2cm}|p{1.2cm}|p{1.2cm}|p{1.2cm}|p{1.8cm}|p{1.2cm}|p{1.2cm}|p{1.2cm}|p{1.2cm}|p{1.8cm}
 
 .. flat-table:: Sample 4x2 Metadata Frame
     :header-rows:  0

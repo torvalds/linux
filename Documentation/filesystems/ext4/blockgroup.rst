@@ -1,7 +1,10 @@
 .. SPDX-License-Identifier: GPL-2.0
 
+Block Groups
+------------
+
 Layout
-------
+~~~~~~
 
 The layout of a standard block group is approximately as follows (each
 of these fields is discussed in a separate section below):
@@ -60,7 +63,7 @@ groups (flex_bg). Leftover space is used for file data blocks, indirect
 block maps, extent tree blocks, and extended attributes.
 
 Flexible Block Groups
----------------------
+~~~~~~~~~~~~~~~~~~~~~
 
 Starting in ext4, there is a new feature called flexible block groups
 (flex_bg). In a flex_bg, several block groups are tied together as one
@@ -78,7 +81,7 @@ if flex_bg is enabled. The number of block groups that make up a
 flex_bg is given by 2 ^ ``sb.s_log_groups_per_flex``.
 
 Meta Block Groups
------------------
+~~~~~~~~~~~~~~~~~
 
 Without the option META_BG, for safety concerns, all block group
 descriptors copies are kept in the first block group. Given the default
@@ -117,7 +120,7 @@ Please see an important note about ``BLOCK_UNINIT`` in the section about
 block and inode bitmaps.
 
 Lazy Block Group Initialization
--------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 A new feature for ext4 are three block group descriptor flags that
 enable mkfs to skip initializing other parts of the block group

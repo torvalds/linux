@@ -165,10 +165,8 @@ static void guest_code(void)
 static void test_init_timer_irq(struct kvm_vm *vm)
 {
 	/* Timer initid should be same for all the vCPUs, so query only vCPU-0 */
-	vcpu_device_attr_get(vcpus[0], KVM_ARM_VCPU_TIMER_CTRL,
-			     KVM_ARM_VCPU_TIMER_IRQ_PTIMER, &ptimer_irq);
-	vcpu_device_attr_get(vcpus[0], KVM_ARM_VCPU_TIMER_CTRL,
-			     KVM_ARM_VCPU_TIMER_IRQ_VTIMER, &vtimer_irq);
+	ptimer_irq = vcpu_get_ptimer_irq(vcpus[0]);
+	vtimer_irq = vcpu_get_vtimer_irq(vcpus[0]);
 
 	sync_global_to_guest(vm, ptimer_irq);
 	sync_global_to_guest(vm, vtimer_irq);
@@ -176,13 +174,13 @@ static void test_init_timer_irq(struct kvm_vm *vm)
 	pr_debug("ptimer_irq: %d; vtimer_irq: %d\n", ptimer_irq, vtimer_irq);
 }
 
-static int gic_fd;
-
 struct kvm_vm *test_vm_create(void)
 {
 	struct kvm_vm *vm;
 	unsigned int i;
 	int nr_vcpus = test_args.nr_vcpus;
+
+	TEST_REQUIRE(kvm_supports_vgic_v3());
 
 	vm = vm_create_with_vcpus(nr_vcpus, guest_code, vcpus);
 
@@ -204,8 +202,6 @@ struct kvm_vm *test_vm_create(void)
 		vcpu_init_descriptor_tables(vcpus[i]);
 
 	test_init_timer_irq(vm);
-	gic_fd = vgic_v3_setup(vm, nr_vcpus, 64);
-	__TEST_REQUIRE(gic_fd >= 0, "Failed to create vgic-v3");
 
 	/* Make all the test's cmdline args visible to the guest */
 	sync_global_to_guest(vm, test_args);
@@ -215,6 +211,5 @@ struct kvm_vm *test_vm_create(void)
 
 void test_vm_cleanup(struct kvm_vm *vm)
 {
-	close(gic_fd);
 	kvm_vm_free(vm);
 }

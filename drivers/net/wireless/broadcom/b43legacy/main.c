@@ -2662,7 +2662,7 @@ static void b43legacy_set_retry_limits(struct b43legacy_wldev *dev,
 	b43legacy_shm_write16(dev, B43legacy_SHM_WIRELESS, 0x0007, long_retry);
 }
 
-static int b43legacy_op_dev_config(struct ieee80211_hw *hw,
+static int b43legacy_op_dev_config(struct ieee80211_hw *hw, int radio_idx,
 				   u32 changed)
 {
 	struct b43legacy_wl *wl = hw_to_b43legacy_wl(hw);

@@ -13,7 +13,7 @@ description: |
   Qualcomm LPASS core clock control module provides the clocks and power
   domains on SC7280.
 
-  See also:: include/dt-bindings/clock/qcom,lpass-sc7280.h
+  See also: include/dt-bindings/clock/qcom,lpass-sc7280.h
 
 properties:
   compatible:

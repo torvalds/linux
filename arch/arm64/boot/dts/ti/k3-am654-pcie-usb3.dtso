@@ -45,6 +45,7 @@
 	<&k3_clks 151 8>;      /* set PIPE3_TXB_CLK to WIZ8B2M4VSB */
 	phys = <&serdes0 PHY_TYPE_USB3 0>;
 	phy-names = "usb3-phy";
+	bootph-all;
 };
 
 &usb0 {

@@ -79,6 +79,7 @@ select:
           - marvell,armada-3700-cpu-misc
           - marvell,armada-3700-nb-pm
           - marvell,armada-3700-avs
+          - marvell,armada-3700-usb2-host-device-misc
           - marvell,armada-3700-usb2-host-misc
           - marvell,dove-global-config
           - mediatek,mt2701-pctl-a-syscfg
@@ -90,6 +91,7 @@ select:
           - mediatek,mt8173-pctl-a-syscfg
           - mediatek,mt8365-syscfg
           - microchip,lan966x-cpu-syscon
+          - microchip,mpfs-control-scb
           - microchip,mpfs-sysreg-scb
           - microchip,sam9x60-sfr
           - microchip,sama7d65-ddr3phy
@@ -185,6 +187,7 @@ properties:
           - marvell,armada-3700-cpu-misc
           - marvell,armada-3700-nb-pm
           - marvell,armada-3700-avs
+          - marvell,armada-3700-usb2-host-device-misc
           - marvell,armada-3700-usb2-host-misc
           - marvell,dove-global-config
           - mediatek,mt2701-pctl-a-syscfg
@@ -197,6 +200,7 @@ properties:
           - mediatek,mt8365-infracfg-nao
           - mediatek,mt8365-syscfg
           - microchip,lan966x-cpu-syscon
+          - microchip,mpfs-control-scb
           - microchip,mpfs-sysreg-scb
           - microchip,sam9x60-sfr
           - microchip,sama7d65-ddr3phy

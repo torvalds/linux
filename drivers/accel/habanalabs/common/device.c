@@ -1630,6 +1630,11 @@ int hl_device_reset(struct hl_device *hdev, u32 flags)
 	from_watchdog_thread = !!(flags & HL_DRV_RESET_FROM_WD_THR);
 	reset_upon_device_release = hdev->reset_upon_device_release && from_dev_release;
 
+	if (hdev->cpld_shutdown) {
+		dev_err(hdev->dev, "Cannot reset device, cpld is shutdown! Device is NOT usable\n");
+		return -EIO;
+	}
+
 	if (!hard_reset && (hl_device_status(hdev) == HL_DEVICE_STATUS_MALFUNCTION)) {
 		dev_dbg(hdev->dev, "soft-reset isn't supported on a malfunctioning device\n");
 		return 0;
@@ -2576,6 +2581,14 @@ void hl_device_fini(struct hl_device *hdev)
 	if (rc)
 		dev_err(hdev->dev, "hw_fini failed in device fini while removing device %d\n", rc);
 
+	/* Reset the H/W (if it accessible). It will be in idle state after this returns */
+	if (!hdev->cpld_shutdown) {
+		rc = hdev->asic_funcs->hw_fini(hdev, true, false);
+		if (rc)
+			dev_err(hdev->dev,
+				"hw_fini failed in device fini while removing device %d\n", rc);
+	}
+
 	hdev->fw_loader.fw_comp_loaded = FW_TYPE_NONE;
 
 	/* Release kernel context */
@@ -2942,4 +2955,14 @@ void hl_handle_clk_change_event(struct hl_device *hdev, u16 event_type, u64 *eve
 	}
 
 	mutex_unlock(&clk_throttle->lock);
+}
+
+void hl_eq_cpld_shutdown_event_handle(struct hl_device *hdev, u16 event_id, u64 *event_mask)
+{
+	hl_handle_critical_hw_err(hdev, event_id, event_mask);
+	*event_mask |= HL_NOTIFIER_EVENT_DEVICE_UNAVAILABLE;
+
+	/* Avoid any new accesses to the H/W */
+	hdev->disabled = true;
+	hdev->cpld_shutdown = true;
 }

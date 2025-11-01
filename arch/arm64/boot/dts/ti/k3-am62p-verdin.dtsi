@@ -147,7 +147,7 @@
 		regulator-name = "+V_SODIMM";
 	};
 
-	reserved-memory {
+	reserved_memory: reserved-memory {
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
@@ -162,7 +162,13 @@
 			no-map;
 		};
 
-		wkup_r5fss0_core0_memory_region: r5f-dma-memory@9c900000 {
+		wkup_r5fss0_core0_dma_memory_region: memory@9c800000 {
+			compatible = "shared-dma-pool";
+			reg = <0x00 0x9c800000 0x00 0x100000>;
+			no-map;
+		};
+
+		wkup_r5fss0_core0_memory_region: memory@9c900000 {
 			compatible = "shared-dma-pool";
 			reg = <0x00 0x9c900000 0x00 0x01e00000>;
 			no-map;
@@ -426,14 +432,14 @@
 	/* Verdin PWM_3_DSI as GPIO */
 	pinctrl_pwm3_dsi_gpio: main-gpio1-16-default-pins {
 		pinctrl-single,pins = <
-			AM62PX_IOPAD(0x01b8, PIN_OUTPUT, 7) /* (E20) SPI0_CS1.GPIO1_16 */ /* SODIMM 19 */
+			AM62PX_IOPAD(0x01b8, PIN_INPUT, 7) /* (E20) SPI0_CS1.GPIO1_16 */ /* SODIMM 19 */
 		>;
 	};
 
 	/* Verdin SD_1_CD# */
 	pinctrl_sd1_cd: main-gpio1-48-default-pins {
 		pinctrl-single,pins = <
-			AM62PX_IOPAD(0x0240, PIN_INPUT, 7) /* (D23) MMC1_SDCD.GPIO1_48 */ /* SODIMM 84 */
+			AM62PX_IOPAD(0x0240, PIN_INPUT_PULLUP, 7) /* (D23) MMC1_SDCD.GPIO1_48 */ /* SODIMM 84 */
 		>;
 	};
 
@@ -717,8 +723,8 @@
 	/* Verdin I2C_3_HDMI */
 	pinctrl_mcu_i2c0: mcu-i2c0-default-pins {
 		pinctrl-single,pins = <
-			AM62PX_MCU_IOPAD(0x0044, PIN_INPUT, 0) /* (E11) MCU_I2C0_SCL */ /* SODIMM 59 */
-			AM62PX_MCU_IOPAD(0x0048, PIN_INPUT, 0) /* (D11) MCU_I2C0_SDA */ /* SODIMM 57 */
+			AM62PX_MCU_IOPAD(0x0044, PIN_INPUT_PULLUP, 0) /* (E11) MCU_I2C0_SCL */ /* SODIMM 59 */
+			AM62PX_MCU_IOPAD(0x0048, PIN_INPUT_PULLUP, 0) /* (D11) MCU_I2C0_SDA */ /* SODIMM 57 */
 		>;
 	};
 
@@ -830,22 +836,28 @@
 	status = "disabled";
 };
 
-&mailbox0_cluster0 {
-	status = "okay";
-
-	mbox_r5_0: mbox-r5-0 {
-		ti,mbox-rx = <0 0 0>;
-		ti,mbox-tx = <1 0 0>;
-	};
+&main0_alert {
+	temperature = <95000>;
 };
 
-&mailbox0_cluster1 {
-	status = "okay";
+&main0_crit {
+	temperature = <105000>;
+};
 
-	mbox_mcu_r5_0: mbox-mcu-r5-0 {
-		ti,mbox-rx = <0 0 0>;
-		ti,mbox-tx = <1 0 0>;
-	};
+&main1_alert {
+	temperature = <95000>;
+};
+
+&main1_crit {
+	temperature = <105000>;
+};
+
+&main2_alert {
+	temperature = <95000>;
+};
+
+&main2_crit {
+	temperature = <105000>;
 };
 
 &main_gpio0 {
@@ -1402,3 +1414,5 @@
 	uart-has-rtscts;
 	status = "disabled";
 };
+
+#include "k3-am62p-ti-ipc-firmware.dtsi"

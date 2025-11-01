@@ -164,6 +164,8 @@ ipsec_fs_roce_rx_rule_setup(struct mlx5_core_dev *mdev,
 	roce->rule = rule;
 
 	memset(spec, 0, sizeof(*spec));
+	if (default_dst->type == MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE)
+		flow_act.flags |= FLOW_ACT_IGNORE_FLOW_LEVEL;
 	rule = mlx5_add_flow_rules(roce->ft, spec, &flow_act, default_dst, 1);
 	if (IS_ERR(rule)) {
 		err = PTR_ERR(rule);
@@ -178,6 +180,8 @@ ipsec_fs_roce_rx_rule_setup(struct mlx5_core_dev *mdev,
 		goto out;
 
 	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
+	if (default_dst->type == MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE)
+		flow_act.flags &= ~FLOW_ACT_IGNORE_FLOW_LEVEL;
 	dst.type = MLX5_FLOW_DESTINATION_TYPE_TABLE_TYPE;
 	dst.ft = roce->ft_rdma;
 	rule = mlx5_add_flow_rules(roce->nic_master_ft, NULL, &flow_act, &dst,

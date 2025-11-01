@@ -259,8 +259,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <0>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -270,6 +272,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache0>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <0>;
 
 			cpu0_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -284,8 +287,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <1>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -295,6 +300,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache0>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <0>;
 
 			cpu1_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -309,8 +315,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <2>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -320,6 +328,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache0>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <0>;
 
 			cpu2_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -334,8 +343,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <3>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -345,6 +356,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache0>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <0>;
 
 			cpu3_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -359,8 +371,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <4>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -370,6 +384,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache1>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <0>;
 
 			cpu4_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -384,8 +399,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <5>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -395,6 +412,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache1>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <0>;
 
 			cpu5_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -409,8 +427,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <6>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -420,6 +440,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache1>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <0>;
 
 			cpu6_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -434,8 +455,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <7>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -445,6 +468,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache1>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <0>;
 
 			cpu7_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -459,8 +483,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <8>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -470,6 +496,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache4>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <1>;
 
 			cpu8_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -484,8 +511,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <9>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -495,6 +524,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache4>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <1>;
 
 			cpu9_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -509,8 +539,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <10>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -520,6 +552,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache4>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <1>;
 
 			cpu10_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -534,8 +567,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <11>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -545,6 +580,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache4>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <1>;
 
 			cpu11_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -559,8 +595,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <12>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -570,6 +608,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache5>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <1>;
 
 			cpu12_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -584,8 +623,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <13>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -595,6 +636,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache5>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <1>;
 
 			cpu13_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -609,8 +651,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <14>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -620,6 +664,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache5>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <1>;
 
 			cpu14_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -634,8 +679,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <15>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -645,6 +692,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache5>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <1>;
 
 			cpu15_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -659,8 +707,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <16>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -670,6 +720,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache2>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <0>;
 
 			cpu16_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -684,8 +735,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <17>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -695,6 +748,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache2>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <0>;
 
 			cpu17_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -709,8 +763,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <18>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -720,6 +776,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache2>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <0>;
 
 			cpu18_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -734,8 +791,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <19>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -745,6 +804,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache2>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <0>;
 
 			cpu19_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -759,8 +819,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <20>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -770,6 +832,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache3>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <0>;
 
 			cpu20_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -784,8 +847,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <21>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -795,6 +860,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache3>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <0>;
 
 			cpu21_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -809,8 +875,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <22>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -820,6 +888,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache3>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <0>;
 
 			cpu22_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -834,8 +903,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <23>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -845,6 +916,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache3>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <0>;
 
 			cpu23_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -859,8 +931,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <24>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -870,6 +944,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache6>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <1>;
 
 			cpu24_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -884,8 +959,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <25>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -895,6 +972,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache6>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <1>;
 
 			cpu25_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -909,8 +987,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <26>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -920,6 +1000,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache6>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <1>;
 
 			cpu26_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -934,8 +1015,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <27>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -945,6 +1028,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache6>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <1>;
 
 			cpu27_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -959,8 +1043,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <28>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -970,6 +1056,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache7>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <1>;
 
 			cpu28_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -984,8 +1071,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <29>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -995,6 +1084,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache7>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <1>;
 
 			cpu29_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -1009,8 +1099,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <30>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -1020,6 +1112,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache7>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <1>;
 
 			cpu30_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -1034,8 +1127,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <31>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -1045,6 +1140,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache7>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <1>;
 
 			cpu31_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -1059,8 +1155,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <32>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -1070,6 +1168,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache8>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <2>;
 
 			cpu32_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -1084,8 +1183,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <33>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -1095,6 +1196,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache8>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <2>;
 
 			cpu33_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -1109,8 +1211,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <34>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -1120,6 +1224,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache8>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <2>;
 
 			cpu34_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -1134,8 +1239,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <35>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -1145,6 +1252,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache8>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <2>;
 
 			cpu35_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -1159,8 +1267,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <36>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -1170,6 +1280,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache9>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <2>;
 
 			cpu36_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -1184,8 +1295,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <37>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -1195,6 +1308,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache9>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <2>;
 
 			cpu37_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -1209,8 +1323,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <38>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -1220,6 +1336,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache9>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <2>;
 
 			cpu38_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -1234,8 +1351,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <39>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -1245,6 +1364,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache9>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <2>;
 
 			cpu39_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -1259,8 +1379,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <40>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -1270,6 +1392,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache12>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <3>;
 
 			cpu40_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -1284,8 +1407,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <41>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -1295,6 +1420,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache12>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <3>;
 
 			cpu41_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -1309,8 +1435,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <42>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -1320,6 +1448,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache12>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <3>;
 
 			cpu42_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -1334,8 +1463,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <43>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -1345,6 +1476,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache12>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <3>;
 
 			cpu43_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -1359,8 +1491,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <44>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -1370,6 +1504,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache13>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <3>;
 
 			cpu44_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -1384,8 +1519,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <45>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -1395,6 +1532,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache13>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <3>;
 
 			cpu45_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -1409,8 +1547,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <46>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -1420,6 +1560,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache13>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <3>;
 
 			cpu46_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -1434,8 +1575,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <47>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -1445,6 +1588,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache13>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <3>;
 
 			cpu47_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -1459,8 +1603,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <48>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -1470,6 +1616,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache10>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <2>;
 
 			cpu48_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -1484,8 +1631,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <49>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -1495,6 +1644,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache10>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <2>;
 
 			cpu49_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -1509,8 +1659,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <50>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -1520,6 +1672,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache10>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <2>;
 
 			cpu50_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -1534,8 +1687,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <51>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -1545,6 +1700,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache10>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <2>;
 
 			cpu51_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -1559,8 +1715,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <52>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -1570,6 +1728,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache11>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <2>;
 
 			cpu52_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -1584,8 +1743,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <53>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -1595,6 +1756,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache11>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <2>;
 
 			cpu53_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -1609,8 +1771,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <54>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -1620,6 +1784,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache11>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <2>;
 
 			cpu54_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -1634,8 +1799,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <55>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -1645,6 +1812,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache11>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <2>;
 
 			cpu55_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -1659,8 +1827,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <56>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -1670,6 +1840,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache14>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <3>;
 
 			cpu56_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -1684,8 +1855,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <57>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -1695,6 +1868,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache14>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <3>;
 
 			cpu57_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -1709,8 +1883,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <58>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -1720,6 +1896,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache14>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <3>;
 
 			cpu58_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -1734,8 +1911,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <59>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -1745,6 +1924,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache14>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <3>;
 
 			cpu59_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -1759,8 +1939,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <60>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -1770,6 +1952,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache15>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <3>;
 
 			cpu60_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -1784,8 +1967,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <61>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -1795,6 +1980,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache15>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <3>;
 
 			cpu61_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -1809,8 +1995,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <62>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -1820,6 +2008,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache15>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <3>;
 
 			cpu62_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";
@@ -1834,8 +2023,10 @@
 			riscv,isa = "rv64imafdc";
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
-					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "ziccrse", "zicntr", "zicsr",
+					       "zifencei", "zihpm", "zfh",
+					       "xtheadvector";
+			thead,vlenb = <16>;
 			reg = <63>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
@@ -1845,6 +2036,7 @@
 			d-cache-sets = <512>;
 			next-level-cache = <&l2_cache15>;
 			mmu-type = "riscv,sv39";
+			numa-node-id = <3>;
 
 			cpu63_intc: interrupt-controller {
 				compatible = "riscv,cpu-intc";

@@ -14,6 +14,9 @@
 #![cfg_attr(test, allow(unsafe_op_in_unsafe_fn))]
 #![allow(
     clippy::all,
+    clippy::cast_lossless,
+    clippy::ptr_as_ptr,
+    clippy::ref_as_ptr,
     clippy::undocumented_unsafe_blocks,
     dead_code,
     missing_docs,
@@ -30,5 +33,7 @@
 type __kernel_size_t = usize;
 type __kernel_ssize_t = isize;
 type __kernel_ptrdiff_t = isize;
+
+use pin_init::MaybeZeroable;
 
 include!(concat!(env!("OBJTREE"), "/rust/uapi/uapi_generated.rs"));

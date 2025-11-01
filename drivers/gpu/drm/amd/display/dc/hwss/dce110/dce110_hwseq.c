@@ -48,7 +48,7 @@
 #include "link_encoder.h"
 #include "link_enc_cfg.h"
 #include "link_hwss.h"
-#include "link.h"
+#include "link_service.h"
 #include "dccg.h"
 #include "clock_source.h"
 #include "clk_mgr.h"
@@ -659,6 +659,20 @@ void dce110_update_info_frame(struct pipe_ctx *pipe_ctx)
 	}
 }
 
+static void
+dce110_dac_encoder_control(struct pipe_ctx *pipe_ctx, bool enable)
+{
+	struct dc_link *link = pipe_ctx->stream->link;
+	struct dc_bios *bios = link->ctx->dc_bios;
+	struct bp_encoder_control encoder_control = {0};
+
+	encoder_control.action = enable ? ENCODER_CONTROL_ENABLE : ENCODER_CONTROL_DISABLE;
+	encoder_control.engine_id = link->link_enc->analog_engine;
+	encoder_control.pixel_clock = pipe_ctx->stream->timing.pix_clk_100hz / 10;
+
+	bios->funcs->encoder_control(bios, &encoder_control);
+}
+
 void dce110_enable_stream(struct pipe_ctx *pipe_ctx)
 {
 	enum dc_lane_count lane_count =
@@ -671,6 +685,7 @@ void dce110_enable_stream(struct pipe_ctx *pipe_ctx)
 	uint32_t early_control = 0;
 	struct timing_generator *tg = pipe_ctx->stream_res.tg;
 
+	link_hwss->setup_stream_attribute(pipe_ctx);
 	link_hwss->setup_stream_encoder(pipe_ctx);
 
 	dc->hwss.update_info_frame(pipe_ctx);
@@ -688,6 +703,9 @@ void dce110_enable_stream(struct pipe_ctx *pipe_ctx)
 		early_control = lane_count;
 
 	tg->funcs->set_early_control(tg, early_control);
+
+	if (dc_is_rgb_signal(pipe_ctx->stream->signal))
+		dce110_dac_encoder_control(pipe_ctx, true);
 }
 
 static enum bp_result link_transmitter_control(
@@ -1175,7 +1193,8 @@ void dce110_disable_stream(struct pipe_ctx *pipe_ctx)
 		pipe_ctx->stream_res.stream_enc->funcs->stop_dp_info_packets(
 			pipe_ctx->stream_res.stream_enc);
 
-	dc->hwss.disable_audio_stream(pipe_ctx);
+	if (!dc_is_rgb_signal(pipe_ctx->stream->signal))
+		dc->hwss.disable_audio_stream(pipe_ctx);
 
 	link_hwss->reset_stream_encoder(pipe_ctx);
 
@@ -1186,13 +1205,18 @@ void dce110_disable_stream(struct pipe_ctx *pipe_ctx)
 		if (dccg) {
 			dccg->funcs->disable_symclk32_se(dccg, dp_hpo_inst);
 			dccg->funcs->set_dpstreamclk(dccg, REFCLK, tg->inst, dp_hpo_inst);
-			if (dccg && dccg->funcs->set_dtbclk_dto)
-				dccg->funcs->set_dtbclk_dto(dccg, &dto_params);
+			if (!(dc->ctx->dce_version >= DCN_VERSION_3_5)) {
+				if (dccg && dccg->funcs->set_dtbclk_dto)
+					dccg->funcs->set_dtbclk_dto(dccg, &dto_params);
+			}
 		}
 	} else if (dccg && dccg->funcs->disable_symclk_se) {
 		dccg->funcs->disable_symclk_se(dccg, stream_enc->stream_enc_inst,
 					       link_enc->transmitter - TRANSMITTER_UNIPHY_A);
 	}
+
+	if (dc_is_rgb_signal(pipe_ctx->stream->signal))
+		dce110_dac_encoder_control(pipe_ctx, false);
 }
 
 void dce110_unblank_stream(struct pipe_ctx *pipe_ctx,
@@ -1225,7 +1249,7 @@ void dce110_blank_stream(struct pipe_ctx *pipe_ctx)
 		return;
 
 	if (link->local_sink && link->local_sink->sink_signal == SIGNAL_TYPE_EDP) {
-		if (!link->skip_implict_edp_power_control)
+		if (!link->skip_implict_edp_power_control && hws)
 			hws->funcs.edp_backlight_control(link, false);
 		link->dc->hwss.set_abm_immediate_disable(pipe_ctx);
 	}
@@ -1267,7 +1291,7 @@ void dce110_set_avmute(struct pipe_ctx *pipe_ctx, bool enable)
 		pipe_ctx->stream_res.stream_enc->funcs->set_avmute(pipe_ctx->stream_res.stream_enc, enable);
 }
 
-static enum audio_dto_source translate_to_dto_source(enum controller_id crtc_id)
+enum audio_dto_source translate_to_dto_source(enum controller_id crtc_id)
 {
 	switch (crtc_id) {
 	case CONTROLLER_ID_D0:
@@ -1287,7 +1311,7 @@ static enum audio_dto_source translate_to_dto_source(enum controller_id crtc_id)
 	}
 }
 
-static void populate_audio_dp_link_info(
+void populate_audio_dp_link_info(
 	const struct pipe_ctx *pipe_ctx,
 	struct audio_dp_link_info *dp_link_info)
 {
@@ -1379,7 +1403,7 @@ static void populate_audio_dp_link_info(
 	}
 }
 
-static void build_audio_output(
+void build_audio_output(
 	struct dc_state *state,
 	const struct pipe_ctx *pipe_ctx,
 	struct audio_output *audio_output)
@@ -1578,6 +1602,51 @@ static enum dc_status dce110_enable_stream_timing(
 	return DC_OK;
 }
 
+static void
+dce110_select_crtc_source(struct pipe_ctx *pipe_ctx)
+{
+	struct dc_link *link = pipe_ctx->stream->link;
+	struct dc_bios *bios = link->ctx->dc_bios;
+	struct bp_crtc_source_select crtc_source_select = {0};
+	enum engine_id engine_id = link->link_enc->preferred_engine;
+	uint8_t bit_depth;
+
+	if (dc_is_rgb_signal(pipe_ctx->stream->signal))
+		engine_id = link->link_enc->analog_engine;
+
+	switch (pipe_ctx->stream->timing.display_color_depth) {
+	case COLOR_DEPTH_UNDEFINED:
+		bit_depth = 0;
+		break;
+	case COLOR_DEPTH_666:
+		bit_depth = 6;
+		break;
+	default:
+	case COLOR_DEPTH_888:
+		bit_depth = 8;
+		break;
+	case COLOR_DEPTH_101010:
+		bit_depth = 10;
+		break;
+	case COLOR_DEPTH_121212:
+		bit_depth = 12;
+		break;
+	case COLOR_DEPTH_141414:
+		bit_depth = 14;
+		break;
+	case COLOR_DEPTH_161616:
+		bit_depth = 16;
+		break;
+	}
+
+	crtc_source_select.controller_id = CONTROLLER_ID_D0 + pipe_ctx->stream_res.tg->inst;
+	crtc_source_select.bit_depth = bit_depth;
+	crtc_source_select.engine_id = engine_id;
+	crtc_source_select.sink_signal = pipe_ctx->stream->signal;
+
+	bios->funcs->select_crtc_source(bios, &crtc_source_select);
+}
+
 enum dc_status dce110_apply_single_controller_ctx_to_hw(
 		struct pipe_ctx *pipe_ctx,
 		struct dc_state *context,
@@ -1595,6 +1664,10 @@ enum dc_status dce110_apply_single_controller_ctx_to_hw(
 
 	if (hws->funcs.disable_stream_gating) {
 		hws->funcs.disable_stream_gating(dc, pipe_ctx);
+	}
+
+	if (pipe_ctx->stream->signal == SIGNAL_TYPE_RGB) {
+		dce110_select_crtc_source(pipe_ctx);
 	}
 
 	if (pipe_ctx->stream_res.audio != NULL) {
@@ -1676,13 +1749,27 @@ enum dc_status dce110_apply_single_controller_ctx_to_hw(
 		pipe_ctx->stream_res.tg->funcs->set_static_screen_control(
 				pipe_ctx->stream_res.tg, event_triggers, 2);
 
-	if (!dc_is_virtual_signal(pipe_ctx->stream->signal))
+	if (!dc_is_virtual_signal(pipe_ctx->stream->signal) &&
+		!dc_is_rgb_signal(pipe_ctx->stream->signal))
 		pipe_ctx->stream_res.stream_enc->funcs->dig_connect_to_otg(
 			pipe_ctx->stream_res.stream_enc,
 			pipe_ctx->stream_res.tg->inst);
 
 	if (dc_is_dp_signal(pipe_ctx->stream->signal))
 		dc->link_srv->dp_trace_source_sequence(link, DPCD_SOURCE_SEQ_AFTER_CONNECT_DIG_FE_OTG);
+
+	/* Temporary workaround to perform DSC programming ahead of stream enablement
+	 * for smartmux/SPRS
+	 * TODO: Remove SmartMux/SPRS checks once movement of DSC programming is generalized
+	 */
+	if (pipe_ctx->stream->timing.flags.DSC) {
+		if ((pipe_ctx->stream->signal == SIGNAL_TYPE_EDP &&
+			((link->dc->config.smart_mux_version && link->dc->is_switch_in_progress_dest)
+			|| link->is_dds || link->skip_implict_edp_power_control)) &&
+			(dc_is_dp_signal(pipe_ctx->stream->signal) ||
+			dc_is_virtual_signal(pipe_ctx->stream->signal)))
+			dc->link_srv->set_dsc_enable(pipe_ctx, true);
+	}
 
 	if (!stream->dpms_off)
 		dc->link_srv->set_dpms_on(context, pipe_ctx);
@@ -1897,6 +1984,7 @@ void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 	bool can_apply_edp_fast_boot = false;
 	bool can_apply_seamless_boot = false;
 	bool keep_edp_vdd_on = false;
+	bool should_clean_dsc_block = true;
 	struct dc_bios *dcb = dc->ctx->dc_bios;
 	DC_LOGGER_INIT();
 
@@ -1909,10 +1997,8 @@ void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 
 	get_edp_streams(context, edp_streams, &edp_stream_num);
 
-	// Check fastboot support, disable on DCE8 because of blank screens
-	if (edp_num && edp_stream_num && dc->ctx->dce_version != DCE_VERSION_8_0 &&
-		    dc->ctx->dce_version != DCE_VERSION_8_1 &&
-		    dc->ctx->dce_version != DCE_VERSION_8_3) {
+	/* Check fastboot support, disable on DCE 6-8 because of blank screens */
+	if (edp_num && edp_stream_num && dc->ctx->dce_version < DCE_VERSION_10_0) {
 		for (i = 0; i < edp_num; i++) {
 			edp_link = edp_links[i];
 			if (edp_link != edp_streams[0]->link)
@@ -1925,6 +2011,13 @@ void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 
 				can_apply_edp_fast_boot = dc_validate_boot_timing(dc,
 					edp_stream->sink, &edp_stream->timing);
+
+				// For Mux-platform, the default value is false.
+				// Disable fast boot during mux switching.
+				// The flag would be clean after switching done.
+				if (dc->is_switch_in_progress_dest && edp_link->is_dds)
+					can_apply_edp_fast_boot = false;
+
 				edp_stream->apply_edp_fast_boot_optimization = can_apply_edp_fast_boot;
 				if (can_apply_edp_fast_boot) {
 					DC_LOG_EVENT_LINK_TRAINING("eDP fast boot Enable\n");
@@ -1968,6 +2061,10 @@ void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 	if (edp_with_sink_num)
 		edp_link_with_sink = edp_links_with_sink[0];
 
+	// During a mux switch, powering down the HW blocks and then enabling
+	// the link via a DPCD SET_POWER write causes a brief flash
+	keep_edp_vdd_on |= dc->is_switch_in_progress_dest;
+
 	if (!can_apply_edp_fast_boot && !can_apply_seamless_boot) {
 		if (edp_link_with_sink && !keep_edp_vdd_on) {
 			/*turn off backlight before DP_blank and encoder powered down*/
@@ -1980,9 +2077,15 @@ void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 		power_down_all_hw_blocks(dc);
 
 		/* DSC could be enabled on eDP during VBIOS post.
-		 * To clean up dsc blocks if eDP is in link but not active.
+		 * To clean up dsc blocks if all eDP dpms_off is true.
 		 */
-		if (edp_link_with_sink && (edp_stream_num == 0))
+		for (i = 0; i < edp_stream_num; i++) {
+			if (!edp_streams[i]->dpms_off) {
+				should_clean_dsc_block = false;
+			}
+		}
+
+		if (should_clean_dsc_block)
 			clean_up_dsc_blocks(dc);
 
 		disable_vga_and_power_gate_all_controllers(dc);
@@ -2228,7 +2331,7 @@ static bool should_enable_fbc(struct dc *dc,
 /*
  *  Enable FBC
  */
-static void enable_fbc(
+void enable_fbc(
 		struct dc *dc,
 		struct dc_state *context)
 {

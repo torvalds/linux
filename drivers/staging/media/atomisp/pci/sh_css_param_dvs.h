@@ -7,6 +7,8 @@
 #ifndef _SH_CSS_PARAMS_DVS_H_
 #define _SH_CSS_PARAMS_DVS_H_
 
+#include <linux/math.h>
+
 #include <math_support.h>
 #include <ia_css_types.h>
 #include "gdc_global.h" /* gdc_warp_param_mem_t */
@@ -20,21 +22,19 @@
 
 /* ISP2400 */
 /* horizontal 64x64 blocks round up to DVS_BLOCKDIM_X, make even */
-#define DVS_NUM_BLOCKS_X(X)		(CEIL_MUL(CEIL_DIV((X), DVS_BLOCKDIM_X), 2))
+#define DVS_NUM_BLOCKS_X(X)		round_up(DIV_ROUND_UP((X), DVS_BLOCKDIM_X), 2)
+#define DVS_NUM_BLOCKS_X_CHROMA(X)	DIV_ROUND_UP((X), DVS_BLOCKDIM_X)
 
 /* ISP2400 */
 /* vertical   64x64 blocks round up to DVS_BLOCKDIM_Y */
-#define DVS_NUM_BLOCKS_Y(X)		(CEIL_DIV((X), DVS_BLOCKDIM_Y_LUMA))
-#define DVS_NUM_BLOCKS_X_CHROMA(X)	(CEIL_DIV((X), DVS_BLOCKDIM_X))
-#define DVS_NUM_BLOCKS_Y_CHROMA(X)	(CEIL_DIV((X), DVS_BLOCKDIM_Y_CHROMA))
+#define DVS_NUM_BLOCKS_Y(X)		DIV_ROUND_UP((X), DVS_BLOCKDIM_Y_LUMA)
+#define DVS_NUM_BLOCKS_Y_CHROMA(X)	DIV_ROUND_UP((X), DVS_BLOCKDIM_Y_CHROMA)
 
-#define DVS_TABLE_IN_BLOCKDIM_X_LUMA(X)	(DVS_NUM_BLOCKS_X(X) + 1)  /* N blocks have N + 1 set of coords */
-#define DVS_TABLE_IN_BLOCKDIM_X_CHROMA(X)   (DVS_NUM_BLOCKS_X_CHROMA(X) + 1)
+/* N blocks have N + 1 set of coords */
+#define DVS_TABLE_IN_BLOCKDIM_X_LUMA(X)		(DVS_NUM_BLOCKS_X(X) + 1)
+#define DVS_TABLE_IN_BLOCKDIM_X_CHROMA(X)	(DVS_NUM_BLOCKS_X_CHROMA(X) + 1)
 #define DVS_TABLE_IN_BLOCKDIM_Y_LUMA(X)		(DVS_NUM_BLOCKS_Y(X) + 1)
 #define DVS_TABLE_IN_BLOCKDIM_Y_CHROMA(X)	(DVS_NUM_BLOCKS_Y_CHROMA(X) + 1)
-
-#define DVS_ENVELOPE_X(X) (((X) == 0) ? (DVS_ENV_MIN_X) : (X))
-#define DVS_ENVELOPE_Y(X) (((X) == 0) ? (DVS_ENV_MIN_Y) : (X))
 
 #define DVS_COORD_FRAC_BITS (10)
 
@@ -43,8 +43,8 @@
 
 #define XMEM_ALIGN_LOG2 (5)
 
-#define DVS_6AXIS_COORDS_ELEMS CEIL_MUL(sizeof(gdc_warp_param_mem_t) \
-					, HIVE_ISP_DDR_WORD_BYTES)
+#define DVS_6AXIS_COORDS_ELEMS \
+	round_up(sizeof(gdc_warp_param_mem_t), HIVE_ISP_DDR_WORD_BYTES)
 
 /* currently we only support two output with the same resolution, output 0 is th default one. */
 #define DVS_6AXIS_BYTES(binary) \

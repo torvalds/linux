@@ -67,7 +67,7 @@
 #include "reg_helper.h"
 
 #include "dce100/dce100_resource.h"
-#include "link.h"
+#include "link_service.h"
 
 #ifndef mmDP0_DP_DPHY_INTERNAL_CTRL
 	#define mmDP0_DP_DPHY_INTERNAL_CTRL		0x210f
@@ -491,6 +491,7 @@ static struct dce_i2c_hw *dce120_i2c_hw_create(
 	return dce_i2c_hw;
 }
 static const struct bios_registers bios_regs = {
+	.BIOS_SCRATCH_0 = mmBIOS_SCRATCH_0 + NBIO_BASE(mmBIOS_SCRATCH_0_BASE_IDX),
 	.BIOS_SCRATCH_3 = mmBIOS_SCRATCH_3 + NBIO_BASE(mmBIOS_SCRATCH_3_BASE_IDX),
 	.BIOS_SCRATCH_6 = mmBIOS_SCRATCH_6 + NBIO_BASE(mmBIOS_SCRATCH_6_BASE_IDX)
 };
@@ -526,8 +527,11 @@ static const struct dc_plane_cap plane_cap = {
 };
 
 static const struct dc_debug_options debug_defaults = {
-		.disable_clock_gate = true,
-		.enable_legacy_fast_update = true,
+	.disable_clock_gate = true,
+};
+
+static const struct dc_check_config config_defaults = {
+	.enable_legacy_fast_update = true,
 };
 
 static struct clock_source *dce120_clock_source_create(
@@ -990,12 +994,12 @@ static void bw_calcs_data_update_from_pplib(struct dc *dc)
 		memory_type_multiplier = MEMORY_TYPE_HBM;
 
 	dc->bw_vbios->low_yclk = bw_frc_to_fixed(
-		mem_clks.data[0].clocks_in_khz * memory_type_multiplier, 1000);
+		(int64_t)mem_clks.data[0].clocks_in_khz * memory_type_multiplier, 1000);
 	dc->bw_vbios->mid_yclk = bw_frc_to_fixed(
-		mem_clks.data[mem_clks.num_levels>>1].clocks_in_khz * memory_type_multiplier,
+		(int64_t)mem_clks.data[mem_clks.num_levels>>1].clocks_in_khz * memory_type_multiplier,
 		1000);
 	dc->bw_vbios->high_yclk = bw_frc_to_fixed(
-		mem_clks.data[mem_clks.num_levels-1].clocks_in_khz * memory_type_multiplier,
+		(int64_t)mem_clks.data[mem_clks.num_levels-1].clocks_in_khz * memory_type_multiplier,
 		1000);
 
 	/* Now notify PPLib/SMU about which Watermarks sets they should select
@@ -1089,6 +1093,7 @@ static bool dce120_resource_construct(
 	dc->caps.psp_setup_panel_mode = true;
 	dc->caps.extended_aux_timeout_support = false;
 	dc->debug = debug_defaults;
+	dc->check_config = config_defaults;
 
 	/*************************************************
 	 *  Create resources                             *

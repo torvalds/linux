@@ -121,6 +121,8 @@ TEST_F(pci_ep_basic, MSI_TEST)
 
 	for (i = 1; i <= 32; i++) {
 		pci_ep_ioctl(PCITEST_MSI, i);
+		if (ret == -EINVAL)
+			SKIP(return, "MSI%d is disabled", i);
 		EXPECT_FALSE(ret) TH_LOG("Test failed for MSI%d", i);
 	}
 }
@@ -137,6 +139,8 @@ TEST_F(pci_ep_basic, MSIX_TEST)
 
 	for (i = 1; i <= 2048; i++) {
 		pci_ep_ioctl(PCITEST_MSIX, i);
+		if (ret == -EINVAL)
+			SKIP(return, "MSI-X%d is disabled", i);
 		EXPECT_FALSE(ret) TH_LOG("Test failed for MSI-X%d", i);
 	}
 }
@@ -228,5 +232,33 @@ TEST_F(pci_ep_data_transfer, COPY_TEST)
 		EXPECT_FALSE(ret) TH_LOG("Test failed for size (%ld)",
 					 test_size[i]);
 	}
+}
+
+FIXTURE(pcie_ep_doorbell)
+{
+	int fd;
+};
+
+FIXTURE_SETUP(pcie_ep_doorbell)
+{
+	self->fd = open(test_device, O_RDWR);
+
+	ASSERT_NE(-1, self->fd) TH_LOG("Can't open PCI Endpoint Test device");
+};
+
+FIXTURE_TEARDOWN(pcie_ep_doorbell)
+{
+	close(self->fd);
+};
+
+TEST_F(pcie_ep_doorbell, DOORBELL_TEST)
+{
+	int ret;
+
+	pci_ep_ioctl(PCITEST_SET_IRQTYPE, PCITEST_IRQ_TYPE_AUTO);
+	ASSERT_EQ(0, ret) TH_LOG("Can't set AUTO IRQ type");
+
+	pci_ep_ioctl(PCITEST_DOORBELL, 0);
+	EXPECT_FALSE(ret) TH_LOG("Test failed for Doorbell\n");
 }
 TEST_HARNESS_MAIN

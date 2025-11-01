@@ -2074,7 +2074,7 @@ mptscsih_taskmgmt_complete(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf,
  *	This is anyones guess quite frankly.
  */
 int
-mptscsih_bios_param(struct scsi_device * sdev, struct block_device *bdev,
+mptscsih_bios_param(struct scsi_device * sdev, struct gendisk *unused,
 		sector_t capacity, int geom[])
 {
 	int		heads;

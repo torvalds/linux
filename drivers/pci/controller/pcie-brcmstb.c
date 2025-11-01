@@ -12,6 +12,7 @@
 #include <linux/iopoll.h>
 #include <linux/ioport.h>
 #include <linux/irqchip/chained_irq.h>
+#include <linux/irqchip/irq-msi-lib.h>
 #include <linux/irqdomain.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
@@ -46,6 +47,7 @@
 #define  PCIE_RC_CFG_PRIV1_ID_VAL3_CLASS_CODE_MASK	0xffffff
 
 #define PCIE_RC_CFG_PRIV1_LINK_CAPABILITY			0x04dc
+#define  PCIE_RC_CFG_PRIV1_LINK_CAPABILITY_MAX_LINK_WIDTH_MASK	0x1f0
 #define  PCIE_RC_CFG_PRIV1_LINK_CAPABILITY_ASPM_SUPPORT_MASK	0xc00
 
 #define PCIE_RC_CFG_PRIV1_ROOT_CAP			0x4f8
@@ -54,6 +56,9 @@
 #define PCIE_RC_DL_MDIO_ADDR				0x1100
 #define PCIE_RC_DL_MDIO_WR_DATA				0x1104
 #define PCIE_RC_DL_MDIO_RD_DATA				0x1108
+
+#define PCIE_RC_PL_REG_PHY_CTL_1			0x1804
+#define  PCIE_RC_PL_REG_PHY_CTL_1_REG_P2_POWERDOWN_ENA_NOSYNC_MASK	0x8
 
 #define PCIE_RC_PL_PHY_CTL_15				0x184c
 #define  PCIE_RC_PL_PHY_CTL_15_DIS_PLL_PD_MASK		0x400000
@@ -265,7 +270,6 @@ struct brcm_msi {
 	struct device		*dev;
 	void __iomem		*base;
 	struct device_node	*np;
-	struct irq_domain	*msi_domain;
 	struct irq_domain	*inner_domain;
 	struct mutex		lock; /* guards the alloc/free operations */
 	u64			target_addr;
@@ -465,17 +469,20 @@ static void brcm_pcie_set_outbound_win(struct brcm_pcie *pcie,
 	writel(tmp, pcie->base + PCIE_MEM_WIN0_LIMIT_HI(win));
 }
 
-static struct irq_chip brcm_msi_irq_chip = {
-	.name            = "BRCM STB PCIe MSI",
-	.irq_ack         = irq_chip_ack_parent,
-	.irq_mask        = pci_msi_mask_irq,
-	.irq_unmask      = pci_msi_unmask_irq,
-};
+#define BRCM_MSI_FLAGS_REQUIRED (MSI_FLAG_USE_DEF_DOM_OPS	| \
+				 MSI_FLAG_USE_DEF_CHIP_OPS	| \
+				 MSI_FLAG_NO_AFFINITY)
 
-static struct msi_domain_info brcm_msi_domain_info = {
-	.flags	= MSI_FLAG_USE_DEF_DOM_OPS | MSI_FLAG_USE_DEF_CHIP_OPS |
-		  MSI_FLAG_NO_AFFINITY | MSI_FLAG_MULTI_PCI_MSI,
-	.chip	= &brcm_msi_irq_chip,
+#define BRCM_MSI_FLAGS_SUPPORTED (MSI_GENERIC_FLAGS_MASK	| \
+				  MSI_FLAG_MULTI_PCI_MSI)
+
+static const struct msi_parent_ops brcm_msi_parent_ops = {
+	.required_flags		= BRCM_MSI_FLAGS_REQUIRED,
+	.supported_flags	= BRCM_MSI_FLAGS_SUPPORTED,
+	.bus_select_token	= DOMAIN_BUS_PCI_MSI,
+	.chip_flags		= MSI_CHIP_FLAG_SET_ACK,
+	.prefix			= "BRCM-",
+	.init_dev_msi_info	= msi_lib_init_dev_msi_info,
 };
 
 static void brcm_pcie_msi_isr(struct irq_desc *desc)
@@ -581,21 +588,18 @@ static const struct irq_domain_ops msi_domain_ops = {
 
 static int brcm_allocate_domains(struct brcm_msi *msi)
 {
-	struct fwnode_handle *fwnode = of_fwnode_handle(msi->np);
 	struct device *dev = msi->dev;
 
-	msi->inner_domain = irq_domain_create_linear(NULL, msi->nr, &msi_domain_ops, msi);
-	if (!msi->inner_domain) {
-		dev_err(dev, "failed to create IRQ domain\n");
-		return -ENOMEM;
-	}
+	struct irq_domain_info info = {
+		.fwnode		= of_fwnode_handle(msi->np),
+		.ops		= &msi_domain_ops,
+		.host_data	= msi,
+		.size		= msi->nr,
+	};
 
-	msi->msi_domain = pci_msi_create_irq_domain(fwnode,
-						    &brcm_msi_domain_info,
-						    msi->inner_domain);
-	if (!msi->msi_domain) {
+	msi->inner_domain = msi_create_parent_irq_domain(&info, &brcm_msi_parent_ops);
+	if (!msi->inner_domain) {
 		dev_err(dev, "failed to create MSI domain\n");
-		irq_domain_remove(msi->inner_domain);
 		return -ENOMEM;
 	}
 
@@ -604,7 +608,6 @@ static int brcm_allocate_domains(struct brcm_msi *msi)
 
 static void brcm_free_domains(struct brcm_msi *msi)
 {
-	irq_domain_remove(msi->msi_domain);
 	irq_domain_remove(msi->inner_domain);
 }
 
@@ -970,7 +973,7 @@ static int brcm_pcie_get_inbound_wins(struct brcm_pcie *pcie,
 	 *
 	 * The PCIe host controller by design must set the inbound viewport to
 	 * be a contiguous arrangement of all of the system's memory.  In
-	 * addition, its size mut be a power of two.  To further complicate
+	 * addition, its size must be a power of two.  To further complicate
 	 * matters, the viewport must start on a pcie-address that is aligned
 	 * on a multiple of its size.  If a portion of the viewport does not
 	 * represent system memory -- e.g. 3GB of memory requires a 4GB
@@ -1072,7 +1075,7 @@ static int brcm_pcie_setup(struct brcm_pcie *pcie)
 	void __iomem *base = pcie->base;
 	struct pci_host_bridge *bridge;
 	struct resource_entry *entry;
-	u32 tmp, burst, aspm_support;
+	u32 tmp, burst, aspm_support, num_lanes, num_lanes_cap;
 	u8 num_out_wins = 0;
 	int num_inbound_wins = 0;
 	int memc, ret;
@@ -1179,6 +1182,27 @@ static int brcm_pcie_setup(struct brcm_pcie *pcie)
 	u32p_replace_bits(&tmp, aspm_support,
 		PCIE_RC_CFG_PRIV1_LINK_CAPABILITY_ASPM_SUPPORT_MASK);
 	writel(tmp, base + PCIE_RC_CFG_PRIV1_LINK_CAPABILITY);
+
+	/* 'tmp' still holds the contents of PRIV1_LINK_CAPABILITY */
+	num_lanes_cap = u32_get_bits(tmp, PCIE_RC_CFG_PRIV1_LINK_CAPABILITY_MAX_LINK_WIDTH_MASK);
+	num_lanes = 0;
+
+	/*
+	 * Use hardware negotiated Max Link Width value by default.  If the
+	 * "num-lanes" DT property is present, assume that the chip's default
+	 * link width capability information is incorrect/undesired and use the
+	 * specified value instead.
+	 */
+	if (!of_property_read_u32(pcie->np, "num-lanes", &num_lanes) &&
+	    num_lanes && num_lanes <= 4 && num_lanes_cap != num_lanes) {
+		u32p_replace_bits(&tmp, num_lanes,
+			PCIE_RC_CFG_PRIV1_LINK_CAPABILITY_MAX_LINK_WIDTH_MASK);
+		writel(tmp, base + PCIE_RC_CFG_PRIV1_LINK_CAPABILITY);
+		tmp = readl(base + PCIE_RC_PL_REG_PHY_CTL_1);
+		u32p_replace_bits(&tmp, 1,
+			PCIE_RC_PL_REG_PHY_CTL_1_REG_P2_POWERDOWN_ENA_NOSYNC_MASK);
+		writel(tmp, base + PCIE_RC_PL_REG_PHY_CTL_1);
+	}
 
 	/*
 	 * For config space accesses on the RC, show the right class for
@@ -1333,11 +1357,7 @@ static int brcm_pcie_start_link(struct brcm_pcie *pcie)
 	if (ret)
 		return ret;
 
-	/*
-	 * Wait for 100ms after PERST# deassertion; see PCIe CEM specification
-	 * sections 2.2, PCIe r5.0, 6.6.1.
-	 */
-	msleep(100);
+	msleep(PCIE_RESET_CONFIG_WAIT_MS);
 
 	/*
 	 * Give the RC/EP even more time to wake up, before trying to

@@ -174,6 +174,8 @@ int vkms_enable_writeback_connector(struct vkms_device *vkmsdev,
 	if (ret)
 		return ret;
 	vkms_output->wb_encoder.possible_crtcs |= drm_crtc_mask(&vkms_output->crtc);
+	vkms_output->wb_encoder.possible_clones |=
+		drm_encoder_mask(&vkms_output->wb_encoder);
 
 	drm_connector_helper_add(&wb->base, &vkms_wb_conn_helper_funcs);
 

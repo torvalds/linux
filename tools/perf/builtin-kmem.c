@@ -2024,7 +2024,7 @@ int cmd_kmem(int argc, const char **argv)
 		symbol_conf.use_callchain = true;
 	}
 
-	symbol__init(&session->header.env);
+	symbol__init(perf_session__env(session));
 
 	if (perf_time__parse_str(&ptime, time_str) != 0) {
 		pr_err("Invalid time string\n");

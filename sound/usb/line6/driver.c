@@ -286,31 +286,30 @@ static void line6_data_received(struct urb *urb)
 {
 	struct usb_line6 *line6 = (struct usb_line6 *)urb->context;
 	struct midi_buffer *mb = &line6->line6midi->midibuf_in;
-	unsigned long flags;
 	int done;
 
 	if (urb->status == -ESHUTDOWN)
 		return;
 
 	if (line6->properties->capabilities & LINE6_CAP_CONTROL_MIDI) {
-		spin_lock_irqsave(&line6->line6midi->lock, flags);
-		done =
-			line6_midibuf_write(mb, urb->transfer_buffer, urb->actual_length);
+		scoped_guard(spinlock_irqsave, &line6->line6midi->lock) {
+			done =
+				line6_midibuf_write(mb, urb->transfer_buffer, urb->actual_length);
 
-		if (done < urb->actual_length) {
-			line6_midibuf_ignore(mb, done);
-			dev_dbg(line6->ifcdev, "%d %d buffer overflow - message skipped\n",
-				done, urb->actual_length);
+			if (done < urb->actual_length) {
+				line6_midibuf_ignore(mb, done);
+				dev_dbg(line6->ifcdev, "%d %d buffer overflow - message skipped\n",
+					done, urb->actual_length);
+			}
 		}
-		spin_unlock_irqrestore(&line6->line6midi->lock, flags);
 
 		for (;;) {
-			spin_lock_irqsave(&line6->line6midi->lock, flags);
-			done =
-				line6_midibuf_read(mb, line6->buffer_message,
-						   LINE6_MIDI_MESSAGE_MAXLEN,
-						   LINE6_MIDIBUF_READ_RX);
-			spin_unlock_irqrestore(&line6->line6midi->lock, flags);
+			scoped_guard(spinlock_irqsave, &line6->line6midi->lock) {
+				done =
+					line6_midibuf_read(mb, line6->buffer_message,
+							   LINE6_MIDI_MESSAGE_MAXLEN,
+							   LINE6_MIDIBUF_READ_RX);
+			}
 
 			if (done <= 0)
 				break;
@@ -628,16 +627,12 @@ line6_hwdep_write(struct snd_hwdep *hwdep, const char __user *data, long count,
 static __poll_t
 line6_hwdep_poll(struct snd_hwdep *hwdep, struct file *file, poll_table *wait)
 {
-	__poll_t rv;
 	struct usb_line6 *line6 = hwdep->private_data;
 
 	poll_wait(file, &line6->messages.wait_queue, wait);
 
-	mutex_lock(&line6->messages.read_lock);
-	rv = kfifo_len(&line6->messages.fifo) == 0 ? 0 : EPOLLIN | EPOLLRDNORM;
-	mutex_unlock(&line6->messages.read_lock);
-
-	return rv;
+	guard(mutex)(&line6->messages.read_lock);
+	return kfifo_len(&line6->messages.fifo) == 0 ? 0 : EPOLLIN | EPOLLRDNORM;
 }
 
 static const struct snd_hwdep_ops hwdep_ops = {
@@ -678,7 +673,7 @@ static int line6_hwdep_init(struct usb_line6 *line6)
 	err = snd_hwdep_new(line6->card, "config", 0, &hwdep);
 	if (err < 0)
 		goto end;
-	strcpy(hwdep->name, "config");
+	strscpy(hwdep->name, "config");
 	hwdep->iface = SNDRV_HWDEP_IFACE_LINE6;
 	hwdep->ops = hwdep_ops;
 	hwdep->private_data = line6;
@@ -770,9 +765,9 @@ int line6_probe(struct usb_interface *interface,
 	line6->ifcdev = &interface->dev;
 	INIT_DELAYED_WORK(&line6->startup_work, line6_startup_work);
 
-	strcpy(card->id, properties->id);
-	strcpy(card->driver, driver_name);
-	strcpy(card->shortname, properties->name);
+	strscpy(card->id, properties->id);
+	strscpy(card->driver, driver_name);
+	strscpy(card->shortname, properties->name);
 	sprintf(card->longname, "Line 6 %s at USB %s", properties->name,
 		dev_name(line6->ifcdev));
 	card->private_free = line6_destruct;

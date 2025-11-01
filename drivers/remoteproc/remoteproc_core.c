@@ -699,7 +699,7 @@ static int rproc_alloc_carveout(struct rproc *rproc,
 		return -ENOMEM;
 	}
 
-	dev_dbg(dev, "carveout va %pK, dma %pad, len 0x%zx\n",
+	dev_dbg(dev, "carveout va %p, dma %pad, len 0x%zx\n",
 		va, &dma, mem->len);
 
 	if (mem->da != FW_RSC_ADDR_ANY && !rproc->domain) {

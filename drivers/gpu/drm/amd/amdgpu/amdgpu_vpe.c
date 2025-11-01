@@ -322,6 +322,26 @@ static int vpe_early_init(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
+static bool vpe_need_dpm0_at_power_down(struct amdgpu_device *adev)
+{
+	switch (amdgpu_ip_version(adev, VPE_HWIP, 0)) {
+	case IP_VERSION(6, 1, 1):
+		return adev->pm.fw_version < 0x0a640500;
+	default:
+		return false;
+	}
+}
+
+static int vpe_get_dpm_level(struct amdgpu_device *adev)
+{
+	struct amdgpu_vpe *vpe = &adev->vpe;
+
+	if (!adev->pm.dpm_enabled)
+		return 0;
+
+	return RREG32(vpe_get_reg_offset(vpe, 0, vpe->regs.dpm_request_lv));
+}
+
 static void vpe_idle_work_handler(struct work_struct *work)
 {
 	struct amdgpu_device *adev =
@@ -329,11 +349,17 @@ static void vpe_idle_work_handler(struct work_struct *work)
 	unsigned int fences = 0;
 
 	fences += amdgpu_fence_count_emitted(&adev->vpe.ring);
+	if (fences)
+		goto reschedule;
 
-	if (fences == 0)
-		amdgpu_device_ip_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_VPE, AMD_PG_STATE_GATE);
-	else
-		schedule_delayed_work(&adev->vpe.idle_work, VPE_IDLE_TIMEOUT);
+	if (vpe_need_dpm0_at_power_down(adev) && vpe_get_dpm_level(adev) != 0)
+		goto reschedule;
+
+	amdgpu_device_ip_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_VPE, AMD_PG_STATE_GATE);
+	return;
+
+reschedule:
+	schedule_delayed_work(&adev->vpe.idle_work, VPE_IDLE_TIMEOUT);
 }
 
 static int vpe_common_init(struct amdgpu_vpe *vpe)
@@ -379,9 +405,10 @@ static int vpe_sw_init(struct amdgpu_ip_block *ip_block)
 	if (ret)
 		goto out;
 
-	/* TODO: Add queue reset mask when FW fully supports it */
 	adev->vpe.supported_reset =
 		 amdgpu_get_soft_full_reset_mask(&adev->vpe.ring);
+	if (!amdgpu_sriov_vf(adev))
+		adev->vpe.supported_reset |= AMDGPU_RESET_TYPE_PER_QUEUE;
 	ret = amdgpu_vpe_sysfs_reset_mask_init(adev);
 	if (ret)
 		goto out;
@@ -435,6 +462,8 @@ static int vpe_hw_fini(struct amdgpu_ip_block *ip_block)
 	struct amdgpu_device *adev = ip_block->adev;
 	struct amdgpu_vpe *vpe = &adev->vpe;
 
+	cancel_delayed_work_sync(&adev->vpe.idle_work);
+
 	vpe_ring_stop(vpe);
 
 	/* Power off VPE */
@@ -445,10 +474,6 @@ static int vpe_hw_fini(struct amdgpu_ip_block *ip_block)
 
 static int vpe_suspend(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = ip_block->adev;
-
-	cancel_delayed_work_sync(&adev->vpe.idle_work);
-
 	return vpe_hw_fini(ip_block);
 }
 
@@ -874,6 +899,27 @@ static void vpe_ring_end_use(struct amdgpu_ring *ring)
 	schedule_delayed_work(&adev->vpe.idle_work, VPE_IDLE_TIMEOUT);
 }
 
+static int vpe_ring_reset(struct amdgpu_ring *ring,
+			  unsigned int vmid,
+			  struct amdgpu_fence *timedout_fence)
+{
+	struct amdgpu_device *adev = ring->adev;
+	int r;
+
+	amdgpu_ring_reset_helper_begin(ring, timedout_fence);
+
+	r = amdgpu_device_ip_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_VPE,
+						   AMD_PG_STATE_GATE);
+	if (r)
+		return r;
+	r = amdgpu_device_ip_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_VPE,
+						   AMD_PG_STATE_UNGATE);
+	if (r)
+		return r;
+
+	return amdgpu_ring_reset_helper_end(ring, timedout_fence);
+}
+
 static ssize_t amdgpu_get_vpe_reset_mask(struct device *dev,
 						struct device_attribute *attr,
 						char *buf)
@@ -942,6 +988,7 @@ static const struct amdgpu_ring_funcs vpe_ring_funcs = {
 	.preempt_ib = vpe_ring_preempt_ib,
 	.begin_use = vpe_ring_begin_use,
 	.end_use = vpe_ring_end_use,
+	.reset = vpe_ring_reset,
 };
 
 static void vpe_set_ring_funcs(struct amdgpu_device *adev)

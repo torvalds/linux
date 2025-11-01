@@ -15,7 +15,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/of.h>
-#include <linux/of_address.h>
+#include <linux/of_reserved_mem.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/types.h>
@@ -214,7 +214,6 @@ static int rti_wdt_probe(struct platform_device *pdev)
 	struct rti_wdt_device *wdt;
 	struct clk *clk;
 	u32 last_ping = 0;
-	struct device_node *node;
 	u32 reserved_mem_size;
 	struct resource res;
 	u32 *vaddr;
@@ -299,15 +298,8 @@ static int rti_wdt_probe(struct platform_device *pdev)
 		}
 	}
 
-	node = of_parse_phandle(pdev->dev.of_node, "memory-region", 0);
-	if (node) {
-		ret = of_address_to_resource(node, 0, &res);
-		of_node_put(node);
-		if (ret) {
-			dev_err(dev, "No memory address assigned to the region.\n");
-			goto err_iomap;
-		}
-
+	ret = of_reserved_mem_region_to_resource(pdev->dev.of_node, 0, &res);
+	if (!ret) {
 		/*
 		 * If reserved memory is defined for watchdog reset cause.
 		 * Readout the Power-on(PON) reason and pass to bootstatus.

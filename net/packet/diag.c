@@ -83,7 +83,7 @@ static int pdiag_put_ring(struct packet_ring_buffer *ring, int ver, int nl_type,
 	pdr.pdr_frame_nr = ring->frame_max + 1;
 
 	if (ver > TPACKET_V2) {
-		pdr.pdr_retire_tmo = ring->prb_bdqc.retire_blk_tov;
+		pdr.pdr_retire_tmo = ktime_to_ms(ring->prb_bdqc.interval_ktime);
 		pdr.pdr_sizeof_priv = ring->prb_bdqc.blk_sizeof_priv;
 		pdr.pdr_features = ring->prb_bdqc.feature_req_word;
 	} else {
@@ -153,7 +153,7 @@ static int sk_diag_fill(struct sock *sk, struct sk_buff *skb,
 
 	if ((req->pdiag_show & PACKET_SHOW_INFO) &&
 	    nla_put_u32(skb, PACKET_DIAG_UID,
-			from_kuid_munged(user_ns, sock_i_uid(sk))))
+			from_kuid_munged(user_ns, sk_uid(sk))))
 		goto out_nlmsg_trim;
 
 	if ((req->pdiag_show & PACKET_SHOW_MCLIST) &&

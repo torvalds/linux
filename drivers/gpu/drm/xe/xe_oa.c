@@ -403,7 +403,7 @@ static int xe_oa_append_reports(struct xe_oa_stream *stream, char __user *buf,
 static void xe_oa_init_oa_buffer(struct xe_oa_stream *stream)
 {
 	u32 gtt_offset = xe_bo_ggtt_addr(stream->oa_buffer.bo);
-	int size_exponent = __ffs(stream->oa_buffer.bo->size);
+	int size_exponent = __ffs(xe_bo_size(stream->oa_buffer.bo));
 	u32 oa_buf = gtt_offset | OAG_OABUFFER_MEMORY_SELECT;
 	struct xe_mmio *mmio = &stream->gt->mmio;
 	unsigned long flags;
@@ -435,7 +435,7 @@ static void xe_oa_init_oa_buffer(struct xe_oa_stream *stream)
 	spin_unlock_irqrestore(&stream->oa_buffer.ptr_lock, flags);
 
 	/* Zero out the OA buffer since we rely on zero report id and timestamp fields */
-	memset(stream->oa_buffer.vaddr, 0, stream->oa_buffer.bo->size);
+	memset(stream->oa_buffer.vaddr, 0, xe_bo_size(stream->oa_buffer.bo));
 }
 
 static u32 __format_to_oactrl(const struct xe_oa_format *format, int counter_sel_mask)
@@ -822,7 +822,7 @@ static void xe_oa_disable_metric_set(struct xe_oa_stream *stream)
 	u32 sqcnt1;
 
 	/* Enable thread stall DOP gating and EU DOP gating. */
-	if (XE_WA(stream->gt, 1508761755)) {
+	if (XE_GT_WA(stream->gt, 1508761755)) {
 		xe_gt_mcr_multicast_write(stream->gt, ROW_CHICKEN,
 					  _MASKED_BIT_DISABLE(STALL_DOP_GATING_DISABLE));
 		xe_gt_mcr_multicast_write(stream->gt, ROW_CHICKEN2,
@@ -837,7 +837,8 @@ static void xe_oa_disable_metric_set(struct xe_oa_stream *stream)
 		xe_oa_configure_oa_context(stream, false);
 
 	/* Make sure we disable noa to save power. */
-	xe_mmio_rmw32(mmio, RPM_CONFIG1, GT_NOA_ENABLE, 0);
+	if (GT_VER(stream->gt) < 35)
+		xe_mmio_rmw32(mmio, RPM_CONFIG1, GT_NOA_ENABLE, 0);
 
 	sqcnt1 = SQCNT1_PMON_ENABLE |
 		 (HAS_OA_BPC_REPORTING(stream->oa->xe) ? SQCNT1_OABPC : 0);
@@ -883,9 +884,9 @@ static int xe_oa_alloc_oa_buffer(struct xe_oa_stream *stream, size_t size)
 {
 	struct xe_bo *bo;
 
-	bo = xe_bo_create_pin_map(stream->oa->xe, stream->gt->tile, NULL,
-				  size, ttm_bo_type_kernel,
-				  XE_BO_FLAG_SYSTEM | XE_BO_FLAG_GGTT);
+	bo = xe_bo_create_pin_map_novm(stream->oa->xe, stream->gt->tile,
+				       size, ttm_bo_type_kernel,
+				       XE_BO_FLAG_SYSTEM | XE_BO_FLAG_GGTT, false);
 	if (IS_ERR(bo))
 		return PTR_ERR(bo);
 
@@ -1065,7 +1066,7 @@ static u32 oag_report_ctx_switches(const struct xe_oa_stream *stream)
 static u32 oag_buf_size_select(const struct xe_oa_stream *stream)
 {
 	return _MASKED_FIELD(OAG_OA_DEBUG_BUF_SIZE_SELECT,
-			     stream->oa_buffer.bo->size > SZ_16M ?
+			     xe_bo_size(stream->oa_buffer.bo) > SZ_16M ?
 			     OAG_OA_DEBUG_BUF_SIZE_SELECT : 0);
 }
 
@@ -1079,7 +1080,7 @@ static int xe_oa_enable_metric_set(struct xe_oa_stream *stream)
 	 * EU NOA signals behave incorrectly if EU clock gating is enabled.
 	 * Disable thread stall DOP gating and EU DOP gating.
 	 */
-	if (XE_WA(stream->gt, 1508761755)) {
+	if (XE_GT_WA(stream->gt, 1508761755)) {
 		xe_gt_mcr_multicast_write(stream->gt, ROW_CHICKEN,
 					  _MASKED_BIT_ENABLE(STALL_DOP_GATING_DISABLE));
 		xe_gt_mcr_multicast_write(stream->gt, ROW_CHICKEN2,
@@ -1582,7 +1583,7 @@ static long xe_oa_status_locked(struct xe_oa_stream *stream, unsigned long arg)
 
 static long xe_oa_info_locked(struct xe_oa_stream *stream, unsigned long arg)
 {
-	struct drm_xe_oa_stream_info info = { .oa_buf_size = stream->oa_buffer.bo->size, };
+	struct drm_xe_oa_stream_info info = { .oa_buf_size = xe_bo_size(stream->oa_buffer.bo), };
 	void __user *uaddr = (void __user *)arg;
 
 	if (copy_to_user(uaddr, &info, sizeof(info)))
@@ -1668,7 +1669,7 @@ static int xe_oa_mmap(struct file *file, struct vm_area_struct *vma)
 	}
 
 	/* Can mmap the entire OA buffer or nothing (no partial OA buffer mmaps) */
-	if (vma->vm_end - vma->vm_start != stream->oa_buffer.bo->size) {
+	if (vma->vm_end - vma->vm_start != xe_bo_size(stream->oa_buffer.bo)) {
 		drm_dbg(&stream->oa->xe->drm, "Wrong mmap size, must be OA buffer size\n");
 		return -EINVAL;
 	}
@@ -1754,7 +1755,7 @@ static int xe_oa_stream_init(struct xe_oa_stream *stream,
 	 * GuC reset of engines causes OA to lose configuration
 	 * state. Prevent this by overriding GUCRC mode.
 	 */
-	if (XE_WA(stream->gt, 1509372804)) {
+	if (XE_GT_WA(stream->gt, 1509372804)) {
 		ret = xe_guc_pc_override_gucrc_mode(&gt->uc.guc.pc,
 						    SLPC_GUCRC_MODE_GUCRC_NO_RC6);
 		if (ret)
@@ -1886,7 +1887,7 @@ u32 xe_oa_timestamp_frequency(struct xe_gt *gt)
 {
 	u32 reg, shift;
 
-	if (XE_WA(gt, 18013179988) || XE_WA(gt, 14015568240)) {
+	if (XE_GT_WA(gt, 18013179988) || XE_GT_WA(gt, 14015568240)) {
 		xe_pm_runtime_get(gt_to_xe(gt));
 		reg = xe_mmio_read32(&gt->mmio, RPM_CONFIG0);
 		xe_pm_runtime_put(gt_to_xe(gt));
@@ -1941,7 +1942,7 @@ static int xe_oa_assign_hwe(struct xe_oa *oa, struct xe_oa_open_param *param)
 
 	/* If not provided, OA unit defaults to OA unit 0 as per uapi */
 	if (!param->oa_unit)
-		param->oa_unit = &xe_device_get_gt(oa->xe, 0)->oa.oa_unit[0];
+		param->oa_unit = &xe_root_mmio_gt(oa->xe)->oa.oa_unit[0];
 
 	/* When we have an exec_q, get hwe from the exec_q */
 	if (param->exec_q) {
@@ -2493,7 +2494,7 @@ int xe_oa_register(struct xe_device *xe)
 
 static u32 num_oa_units_per_gt(struct xe_gt *gt)
 {
-	if (!xe_gt_is_media_type(gt) || GRAPHICS_VER(gt_to_xe(gt)) < 20)
+	if (xe_gt_is_main_type(gt) || GRAPHICS_VER(gt_to_xe(gt)) < 20)
 		return 1;
 	else if (!IS_DGFX(gt_to_xe(gt)))
 		return XE_OAM_UNIT_SCMI_0 + 1; /* SAG + SCMI_0 */
@@ -2506,7 +2507,7 @@ static u32 __hwe_oam_unit(struct xe_hw_engine *hwe)
 	if (GRAPHICS_VERx100(gt_to_xe(hwe->gt)) < 1270)
 		return XE_OA_UNIT_INVALID;
 
-	xe_gt_WARN_ON(hwe->gt, !xe_gt_is_media_type(hwe->gt));
+	xe_gt_WARN_ON(hwe->gt, xe_gt_is_main_type(hwe->gt));
 
 	if (GRAPHICS_VER(gt_to_xe(hwe->gt)) < 20)
 		return 0;
@@ -2589,7 +2590,7 @@ static void __xe_oa_init_oa_units(struct xe_gt *gt)
 	for (i = 0; i < num_units; i++) {
 		struct xe_oa_unit *u = &gt->oa.oa_unit[i];
 
-		if (!xe_gt_is_media_type(gt)) {
+		if (xe_gt_is_main_type(gt)) {
 			u->regs = __oag_regs();
 			u->type = DRM_XE_OA_UNIT_TYPE_OAG;
 		} else {

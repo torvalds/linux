@@ -113,6 +113,10 @@ struct iwl_txf_iter_data {
  * @phy_filters: specific phy filters as read from WPFC BIOS table
  * @ppag_bios_rev: PPAG BIOS revision
  * @ppag_bios_source: see &enum bios_source
+ * @acpi_dsm_funcs_valid: bitmap indicating which DSM values are valid,
+ *	zero (default initialization) means it hasn't been read yet,
+ *	and BIT(0) is set when it has since function 0 also has this
+ *	bitmap and is always supported
  */
 struct iwl_fw_runtime {
 	struct iwl_trans *trans;
@@ -146,8 +150,6 @@ struct iwl_fw_runtime {
 		unsigned long non_collect_ts_start[IWL_FW_INI_TIME_POINT_NUM];
 		u32 *d3_debug_data;
 		u32 lmac_err_id[MAX_NUM_LMAC];
-		u32 tcm_err_id[MAX_NUM_TCM];
-		u32 rcm_err_id[MAX_NUM_RCM];
 		u32 umac_err_id;
 
 		struct iwl_txf_iter_data txf_iter_data;
@@ -189,6 +191,10 @@ struct iwl_fw_runtime {
 	bool uats_valid;
 	u8 uefi_tables_lock_status;
 	struct iwl_phy_specific_cfg phy_filters;
+
+#ifdef CONFIG_ACPI
+	u32 acpi_dsm_funcs_valid;
+#endif
 };
 
 void iwl_fw_runtime_init(struct iwl_fw_runtime *fwrt, struct iwl_trans *trans,

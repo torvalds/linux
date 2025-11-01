@@ -78,7 +78,7 @@ static int master_stats_probe(struct platform_device *pdev)
 	if (count < 0)
 		return count;
 
-	data = devm_kzalloc(dev, count * sizeof(*data), GFP_KERNEL);
+	data = devm_kcalloc(dev, count, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 

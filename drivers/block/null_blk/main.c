@@ -223,7 +223,7 @@ MODULE_PARM_DESC(discard, "Support discard operations (requires memory-backed nu
 
 static unsigned long g_cache_size;
 module_param_named(cache_size, g_cache_size, ulong, 0444);
-MODULE_PARM_DESC(mbps, "Cache size in MiB for memory-backed device. Default: 0 (none)");
+MODULE_PARM_DESC(cache_size, "Cache size in MiB for memory-backed device. Default: 0 (none)");
 
 static bool g_fua = true;
 module_param_named(fua, g_fua, bool, 0444);
@@ -1179,7 +1179,7 @@ static int copy_from_nullb(struct nullb *nullb, struct page *dest,
 			memcpy_page(dest, off + count, t_page->page, offset,
 				    temp);
 		else
-			zero_user(dest, off + count, temp);
+			memzero_page(dest, off + count, temp);
 
 		count += temp;
 		sector += temp >> SECTOR_SHIFT;

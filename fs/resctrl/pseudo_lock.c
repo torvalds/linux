@@ -764,13 +764,9 @@ static ssize_t pseudo_lock_measure_trigger(struct file *file,
 	if (ret == 0) {
 		if (sel != 1 && sel != 2 && sel != 3)
 			return -EINVAL;
-		ret = debugfs_file_get(file->f_path.dentry);
-		if (ret)
-			return ret;
 		ret = pseudo_lock_measure_cycles(rdtgrp, sel);
 		if (ret == 0)
 			ret = count;
-		debugfs_file_put(file->f_path.dentry);
 	}
 
 	return ret;

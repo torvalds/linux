@@ -8,9 +8,13 @@ MPTCP Sysfs variables
 ===============================
 
 add_addr_timeout - INTEGER (seconds)
-	Set the timeout after which an ADD_ADDR control message will be
-	resent to an MPTCP peer that has not acknowledged a previous
-	ADD_ADDR message.
+	Set the maximum value of timeout after which an ADD_ADDR control message
+	will be resent to an MPTCP peer that has not acknowledged a previous
+	ADD_ADDR message. A dynamically estimated retransmission timeout based
+	on the estimated connection round-trip-time is used if this value is
+	lower than the maximum one.
+
+	Do not retransmit if set to 0.
 
 	The default value matches TCP_RTO_MAX. This is a per-namespace
 	sysctl.

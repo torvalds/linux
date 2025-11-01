@@ -10,6 +10,7 @@
 
 #include <sys/mman.h>
 #include <asm/mman.h>
+#include <asm/hwcap.h>
 #include <linux/sched.h>
 
 #include "kselftest.h"
@@ -298,6 +299,68 @@ out:
 	return pass;
 }
 
+/* A vfork()ed process can run and exit */
+static bool test_vfork(void)
+{
+	unsigned long child_mode;
+	int ret, status;
+	pid_t pid;
+	bool pass = true;
+
+	pid = vfork();
+	if (pid == -1) {
+		ksft_print_msg("vfork() failed: %d\n", errno);
+		pass = false;
+		goto out;
+	}
+	if (pid == 0) {
+		/*
+		 * In child, make sure we can call a function, read
+		 * the GCS pointer and status and then exit.
+		 */
+		valid_gcs_function();
+		get_gcspr();
+
+		ret = my_syscall5(__NR_prctl, PR_GET_SHADOW_STACK_STATUS,
+				  &child_mode, 0, 0, 0);
+		if (ret == 0 && !(child_mode & PR_SHADOW_STACK_ENABLE)) {
+			ksft_print_msg("GCS not enabled in child\n");
+			ret = EXIT_FAILURE;
+		}
+
+		_exit(ret);
+	}
+
+	/*
+	 * In parent, check we can still do function calls then check
+	 * on the child.
+	 */
+	valid_gcs_function();
+
+	ksft_print_msg("Waiting for child %d\n", pid);
+
+	ret = waitpid(pid, &status, 0);
+	if (ret == -1) {
+		ksft_print_msg("Failed to wait for child: %d\n",
+			       errno);
+		return false;
+	}
+
+	if (!WIFEXITED(status)) {
+		ksft_print_msg("Child exited due to signal %d\n",
+			       WTERMSIG(status));
+		pass = false;
+	} else if (WEXITSTATUS(status)) {
+		ksft_print_msg("Child exited with status %d\n",
+			       WEXITSTATUS(status));
+		pass = false;
+	}
+
+out:
+
+	return pass;
+}
+
 typedef bool (*gcs_test)(void);
 
 static struct {
@@ -314,6 +377,7 @@ static struct {
 	{ "enable_invalid", enable_invalid, true },
 	{ "map_guarded_stack", map_guarded_stack },
 	{ "fork", test_fork },
+	{ "vfork", test_vfork },
 };
 
 int main(void)
@@ -323,14 +387,13 @@ int main(void)
 
 	ksft_print_header();
 
-	/*
-	 * We don't have getauxval() with nolibc so treat a failure to
-	 * read GCS state as a lack of support and skip.
-	 */
+	if (!(getauxval(AT_HWCAP) & HWCAP_GCS))
+		ksft_exit_skip("SKIP GCS not supported\n");
+
 	ret = my_syscall5(__NR_prctl, PR_GET_SHADOW_STACK_STATUS,
 			  &gcs_mode, 0, 0, 0);
 	if (ret != 0)
-		ksft_exit_skip("Failed to read GCS state: %d\n", ret);
+		ksft_exit_fail_msg("Failed to read GCS state: %d\n", ret);
 
 	if (!(gcs_mode & PR_SHADOW_STACK_ENABLE)) {
 		gcs_mode = PR_SHADOW_STACK_ENABLE;
@@ -347,7 +410,7 @@ int main(void)
 	}
 
 	/* One last test: disable GCS, we can do this one time */
-	my_syscall5(__NR_prctl, PR_SET_SHADOW_STACK_STATUS, 0, 0, 0, 0);
+	ret = my_syscall5(__NR_prctl, PR_SET_SHADOW_STACK_STATUS, 0, 0, 0, 0);
 	if (ret != 0)
 		ksft_print_msg("Failed to disable GCS: %d\n", ret);
 

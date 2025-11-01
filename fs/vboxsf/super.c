@@ -189,7 +189,7 @@ static int vboxsf_fill_super(struct super_block *sb, struct fs_context *fc)
 	sb->s_blocksize = 1024;
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
 	sb->s_op = &vboxsf_super_ops;
-	sb->s_d_op = &vboxsf_dentry_ops;
+	set_default_d_op(sb, &vboxsf_dentry_ops);
 
 	iroot = iget_locked(sb, 0);
 	if (!iroot) {

@@ -14,9 +14,7 @@ struct xe_gt;
 
 int xe_gt_sriov_pf_service_init(struct xe_gt *gt);
 void xe_gt_sriov_pf_service_update(struct xe_gt *gt);
-void xe_gt_sriov_pf_service_reset(struct xe_gt *gt, unsigned int vfid);
 
-int xe_gt_sriov_pf_service_print_version(struct xe_gt *gt, struct drm_printer *p);
 int xe_gt_sriov_pf_service_print_runtime(struct xe_gt *gt, struct drm_printer *p);
 
 #ifdef CONFIG_PCI_IOV

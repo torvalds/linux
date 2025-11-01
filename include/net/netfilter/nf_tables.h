@@ -459,19 +459,13 @@ struct nft_set_ext;
  *	control plane functions.
  */
 struct nft_set_ops {
-	bool				(*lookup)(const struct net *net,
+	const struct nft_set_ext *	(*lookup)(const struct net *net,
 						  const struct nft_set *set,
+						  const u32 *key);
+	const struct nft_set_ext *	(*update)(struct nft_set *set,
 						  const u32 *key,
-						  const struct nft_set_ext **ext);
-	bool				(*update)(struct nft_set *set,
-						  const u32 *key,
-						  struct nft_elem_priv *
-							(*new)(struct nft_set *,
-							       const struct nft_expr *,
-							       struct nft_regs *),
 						  const struct nft_expr *expr,
-						  struct nft_regs *regs,
-						  const struct nft_set_ext **ext);
+						  struct nft_regs *regs);
 	bool				(*delete)(const struct nft_set *set,
 						  const u32 *key);
 
@@ -562,6 +556,7 @@ struct nft_set_elem_expr {
  * 	@size: maximum set size
  *	@field_len: length of each field in concatenation, bytes
  *	@field_count: number of concatenated fields in element
+ *	@in_update_walk: true during ->walk() in transaction phase
  *	@use: number of rules references to this set
  * 	@nelems: number of elements
  * 	@ndeact: number of deactivated elements queued for removal
@@ -596,6 +591,7 @@ struct nft_set {
 	u32				size;
 	u8				field_len[NFT_REG32_COUNT];
 	u8				field_count;
+	bool				in_update_walk;
 	u32				use;
 	atomic_t			nelems;
 	u32				ndeact;
@@ -1141,11 +1137,6 @@ int nft_setelem_validate(const struct nft_ctx *ctx, struct nft_set *set,
 int nft_set_catchall_validate(const struct nft_ctx *ctx, struct nft_set *set);
 int nf_tables_bind_chain(const struct nft_ctx *ctx, struct nft_chain *chain);
 void nf_tables_unbind_chain(const struct nft_ctx *ctx, struct nft_chain *chain);
-
-struct nft_hook;
-void nf_tables_chain_device_notify(const struct nft_chain *chain,
-				   const struct nft_hook *hook,
-				   const struct net_device *dev, int event);
 
 enum nft_chain_types {
 	NFT_CHAIN_T_DEFAULT = 0,
@@ -1923,7 +1914,6 @@ struct nftables_pernet {
 	struct mutex		commit_mutex;
 	u64			table_handle;
 	u64			tstamp;
-	unsigned int		base_seq;
 	unsigned int		gc_seq;
 	u8			validate_state;
 	struct work_struct	destroy_work;
@@ -1943,11 +1933,6 @@ static inline u64 nft_net_tstamp(const struct net *net)
 
 #define __NFT_REDUCE_READONLY	1UL
 #define NFT_REDUCE_READONLY	(void *)__NFT_REDUCE_READONLY
-
-static inline bool nft_reduce_is_readonly(const struct nft_expr *expr)
-{
-	return expr->ops->reduce == NFT_REDUCE_READONLY;
-}
 
 void nft_reg_track_update(struct nft_regs_track *track,
 			  const struct nft_expr *expr, u8 dreg, u8 len);

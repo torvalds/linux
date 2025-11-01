@@ -505,9 +505,7 @@ xqcheck_collect_counts(
 	 * transactions do not take sb_internal.
 	 */
 	xchk_trans_cancel(sc);
-	error = xchk_trans_alloc_empty(sc);
-	if (error)
-		return error;
+	xchk_trans_alloc_empty(sc);
 
 	while ((error = xchk_iscan_iter(&xqc->iscan, &ip)) == 1) {
 		error = xqcheck_collect_inode(xqc, ip);

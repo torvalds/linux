@@ -572,7 +572,7 @@
 		/* ADC converstion time: 80 clocks */
 		st,sample-time = <4>;
 
-		stmpe_ts: stmpe_touchscreen {
+		stmpe_ts: touchscreen {
 			compatible = "st,stmpe-ts";
 			/* 8 sample average control */
 			st,ave-ctrl = <3>;

@@ -4,6 +4,7 @@
  */
 
 #include "i915_drv.h"
+#include "i915_utils.h"
 
 bool i915_vtd_active(struct drm_i915_private *i915)
 {

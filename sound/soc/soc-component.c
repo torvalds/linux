@@ -637,7 +637,7 @@ int snd_soc_component_compr_ack(struct snd_compr_stream *cstream, size_t bytes)
 EXPORT_SYMBOL_GPL(snd_soc_component_compr_ack);
 
 int snd_soc_component_compr_pointer(struct snd_compr_stream *cstream,
-				    struct snd_compr_tstamp *tstamp)
+				    struct snd_compr_tstamp64 *tstamp)
 {
 	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
 	struct snd_soc_component *component;
@@ -1278,7 +1278,6 @@ void snd_soc_pcm_component_pm_runtime_put(struct snd_soc_pcm_runtime *rtd,
 		if (rollback && !soc_component_mark_match(component, stream, pm))
 			continue;
 
-		pm_runtime_mark_last_busy(component->dev);
 		pm_runtime_put_autosuspend(component->dev);
 
 		/* remove marked stream */

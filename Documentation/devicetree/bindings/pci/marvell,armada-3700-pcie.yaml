@@ -1,0 +1,103 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pci/marvell,armada-3700-pcie.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Marvell Armada 3700 (Aardvark) PCIe Controller
+
+maintainers:
+  - Thomas Petazzoni <thomas.petazzoni@bootlin.com>
+  - Pali Rohár <pali@kernel.org>
+
+allOf:
+  - $ref: /schemas/pci/pci-host-bridge.yaml#
+
+properties:
+  compatible:
+    const: marvell,armada-3700-pcie
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  msi-controller: true
+
+  msi-parent:
+    maxItems: 1
+
+  phys:
+    maxItems: 1
+
+  reset-gpios:
+    description: PCIe reset GPIO signals.
+
+  interrupt-controller:
+    type: object
+    additionalProperties: false
+
+    properties:
+      '#address-cells':
+        const: 0
+
+      interrupt-controller: true
+
+      '#interrupt-cells':
+        const: 1
+
+    required:
+      - interrupt-controller
+      - '#interrupt-cells'
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - '#interrupt-cells'
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/gpio/gpio.h>
+
+    bus {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        pcie@d0070000 {
+            compatible = "marvell,armada-3700-pcie";
+            device_type = "pci";
+            reg = <0 0xd0070000 0 0x20000>;
+            #address-cells = <3>;
+            #size-cells = <2>;
+            bus-range = <0x00 0xff>;
+            interrupts = <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>;
+            msi-controller;
+            msi-parent = <&pcie0>;
+            ranges = <0x82000000 0 0xe8000000 0 0xe8000000 0 0x1000000>,
+                    <0x81000000 0 0xe9000000 0 0xe9000000 0 0x10000>;
+
+            #interrupt-cells = <1>;
+            interrupt-map-mask = <0 0 0 7>;
+            interrupt-map = <0 0 0 1 &pcie_intc 0>,
+                            <0 0 0 2 &pcie_intc 1>,
+                            <0 0 0 3 &pcie_intc 2>,
+                            <0 0 0 4 &pcie_intc 3>;
+            phys = <&comphy1 0>;
+            max-link-speed = <2>;
+            reset-gpios = <&gpio1 15 GPIO_ACTIVE_LOW>;
+
+            pcie_intc: interrupt-controller {
+                #address-cells = <0>;
+                interrupt-controller;
+                #interrupt-cells = <1>;
+            };
+        };
+    };

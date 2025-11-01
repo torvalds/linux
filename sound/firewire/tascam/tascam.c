@@ -73,9 +73,9 @@ static int identify_model(struct snd_tscm *tscm)
 	if (tscm->spec == NULL)
 		return -ENODEV;
 
-	strcpy(tscm->card->driver, "FW-TASCAM");
-	strcpy(tscm->card->shortname, model);
-	strcpy(tscm->card->mixername, model);
+	strscpy(tscm->card->driver, "FW-TASCAM");
+	strscpy(tscm->card->shortname, model);
+	strscpy(tscm->card->mixername, model);
 	snprintf(tscm->card->longname, sizeof(tscm->card->longname),
 		 "TASCAM %s, GUID %08x%08x at %s, S%d", model,
 		 fw_dev->config_rom[3], fw_dev->config_rom[4],
@@ -158,9 +158,8 @@ static void snd_tscm_update(struct fw_unit *unit)
 
 	snd_tscm_transaction_reregister(tscm);
 
-	mutex_lock(&tscm->mutex);
+	guard(mutex)(&tscm->mutex);
 	snd_tscm_stream_update_duplex(tscm);
-	mutex_unlock(&tscm->mutex);
 }
 
 static void snd_tscm_remove(struct fw_unit *unit)

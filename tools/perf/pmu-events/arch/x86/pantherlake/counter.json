@@ -1,0 +1,17 @@
+[
+    {
+        "Unit": "cpu_atom",
+        "CountersNumFixed": "7",
+        "CountersNumGeneric": "8"
+    },
+    {
+        "Unit": "cpu_core",
+        "CountersNumFixed": "4",
+        "CountersNumGeneric": "10"
+    },
+    {
+        "Unit": "iMC",
+        "CountersNumFixed": "0",
+        "CountersNumGeneric": "5"
+    }
+]

@@ -1,0 +1,8 @@
+What:		/sys/bus/platform/devices/VPC2004:*/conservation_mode
+Date:		Aug 2017
+KernelVersion:	4.14
+Contact:	platform-driver-x86@vger.kernel.org
+Description:
+		Controls whether the conservation mode is enabled or not.
+		This feature limits the maximum battery charge percentage to
+		around 50-60% in order to prolong the lifetime of the battery.

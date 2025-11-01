@@ -33,7 +33,6 @@ static const struct regmap_config a53pll_regmap_config = {
 	.reg_stride		= 4,
 	.val_bits		= 32,
 	.max_register		= 0x40,
-	.fast_io		= true,
 };
 
 static struct pll_freq_tbl *qcom_a53pll_get_freq_tbl(struct device *dev)

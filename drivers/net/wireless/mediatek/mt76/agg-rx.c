@@ -173,6 +173,8 @@ void mt76_rx_aggr_reorder(struct sk_buff *skb, struct sk_buff_head *frames)
 	if (ackp == IEEE80211_QOS_CTL_ACK_POLICY_NOACK)
 		return;
 
+	if (wcid->def_wcid)
+		wcid = wcid->def_wcid;
 	tid = rcu_dereference(wcid->aggr[tidno]);
 	if (!tid)
 		return;

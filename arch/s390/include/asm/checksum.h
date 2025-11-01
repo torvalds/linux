@@ -27,7 +27,7 @@ static inline __wsum cksm(const void *buff, int len, __wsum sum)
 	kmsan_check_memory(buff, len);
 	asm volatile(
 		"0:	cksm	%[sum],%[rp]\n"
-		"	jo	0b\n"
+		"	jo	0b"
 		: [sum] "+&d" (sum), [rp] "+&d" (rp.pair) : : "cc", "memory");
 	return sum;
 }

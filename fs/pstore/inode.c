@@ -282,7 +282,7 @@ static int pstore_reconfigure(struct fs_context *fc)
 
 static const struct super_operations pstore_ops = {
 	.statfs		= simple_statfs,
-	.drop_inode	= generic_delete_inode,
+	.drop_inode	= inode_just_drop,
 	.evict_inode	= pstore_evict_inode,
 	.show_options	= pstore_show_options,
 };
@@ -300,7 +300,7 @@ static struct dentry *psinfo_lock_root(void)
 		return NULL;
 
 	root = pstore_sb->s_root;
-	inode_lock(d_inode(root));
+	inode_lock_nested(d_inode(root), I_MUTEX_PARENT);
 
 	return root;
 }
@@ -318,8 +318,7 @@ int pstore_put_backend_records(struct pstore_info *psi)
 		list_for_each_entry_safe(pos, tmp, &records_list, list) {
 			if (pos->record->psi == psi) {
 				list_del_init(&pos->list);
-				d_invalidate(pos->dentry);
-				simple_unlink(d_inode(root), pos->dentry);
+				locked_recursive_removal(pos->dentry, NULL);
 				pos->dentry = NULL;
 			}
 		}

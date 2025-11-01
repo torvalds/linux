@@ -4,6 +4,7 @@
 #include <linux/socket.h>
 #include <linux/kernel.h>
 #include <net/dst_metadata.h>
+#include <net/flow.h>
 #include <net/udp.h>
 #include <net/udp_tunnel.h>
 #include <net/inet_dscp.h>
@@ -134,15 +135,17 @@ void udp_tunnel_notify_add_rx_port(struct socket *sock, unsigned short type)
 	struct udp_tunnel_info ti;
 	struct net_device *dev;
 
+	ASSERT_RTNL();
+
 	ti.type = type;
 	ti.sa_family = sk->sk_family;
 	ti.port = inet_sk(sk)->inet_sport;
 
-	rcu_read_lock();
-	for_each_netdev_rcu(net, dev) {
+	for_each_netdev(net, dev) {
+		udp_tunnel_nic_lock(dev);
 		udp_tunnel_nic_add_port(dev, &ti);
+		udp_tunnel_nic_unlock(dev);
 	}
-	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(udp_tunnel_notify_add_rx_port);
 
@@ -154,22 +157,24 @@ void udp_tunnel_notify_del_rx_port(struct socket *sock, unsigned short type)
 	struct udp_tunnel_info ti;
 	struct net_device *dev;
 
+	ASSERT_RTNL();
+
 	ti.type = type;
 	ti.sa_family = sk->sk_family;
 	ti.port = inet_sk(sk)->inet_sport;
 
-	rcu_read_lock();
-	for_each_netdev_rcu(net, dev) {
+	for_each_netdev(net, dev) {
+		udp_tunnel_nic_lock(dev);
 		udp_tunnel_nic_del_port(dev, &ti);
+		udp_tunnel_nic_unlock(dev);
 	}
-	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(udp_tunnel_notify_del_rx_port);
 
 void udp_tunnel_xmit_skb(struct rtable *rt, struct sock *sk, struct sk_buff *skb,
 			 __be32 src, __be32 dst, __u8 tos, __u8 ttl,
 			 __be16 df, __be16 src_port, __be16 dst_port,
-			 bool xnet, bool nocheck)
+			 bool xnet, bool nocheck, u16 ipcb_flags)
 {
 	struct udphdr *uh;
 
@@ -185,7 +190,8 @@ void udp_tunnel_xmit_skb(struct rtable *rt, struct sock *sk, struct sk_buff *skb
 
 	udp_set_csum(nocheck, skb, src, dst, skb->len);
 
-	iptunnel_xmit(sk, rt, skb, src, dst, IPPROTO_UDP, tos, ttl, df, xnet);
+	iptunnel_xmit(sk, rt, skb, src, dst, IPPROTO_UDP, tos, ttl, df, xnet,
+		      ipcb_flags);
 }
 EXPORT_SYMBOL_GPL(udp_tunnel_xmit_skb);
 
@@ -248,7 +254,7 @@ struct rtable *udp_tunnel_dst_lookup(struct sk_buff *skb,
 	fl4.saddr = key->u.ipv4.src;
 	fl4.fl4_dport = dport;
 	fl4.fl4_sport = sport;
-	fl4.flowi4_tos = tos & INET_DSCP_MASK;
+	fl4.flowi4_dscp = inet_dsfield_to_dscp(tos);
 	fl4.flowi4_flags = key->flow_flags;
 
 	rt = ip_route_output_key(net, &fl4);

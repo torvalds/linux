@@ -19,8 +19,6 @@
 #include "../mmu.h"
 #include "common.h"
 
-#define X2APIC_MSR(r) (APIC_BASE_MSR + ((r) >> 4))
-
 #ifdef CONFIG_X86_64
 #define MAX_NR_USER_RETURN_MSRS	7
 #else
@@ -183,6 +181,9 @@ struct nested_vmx {
 	 */
 	u64 pre_vmenter_debugctl;
 	u64 pre_vmenter_bndcfgs;
+	u64 pre_vmenter_s_cet;
+	u64 pre_vmenter_ssp;
+	u64 pre_vmenter_ssp_tbl;
 
 	/* to migrate it to L1 if L2 writes to L1's CR8 directly */
 	int l1_tpr_threshold;
@@ -296,13 +297,6 @@ struct vcpu_vmx {
 	struct pt_desc pt_desc;
 	struct lbr_desc lbr_desc;
 
-	/* Save desired MSR intercept (read: pass-through) state */
-#define MAX_POSSIBLE_PASSTHROUGH_MSRS	16
-	struct {
-		DECLARE_BITMAP(read, MAX_POSSIBLE_PASSTHROUGH_MSRS);
-		DECLARE_BITMAP(write, MAX_POSSIBLE_PASSTHROUGH_MSRS);
-	} shadow_msr_intercept;
-
 	/* ve_info must be page aligned. */
 	struct vmx_ve_information *ve_info;
 };
@@ -395,24 +389,54 @@ bool __vmx_vcpu_run(struct vcpu_vmx *vmx, unsigned long *regs,
 int vmx_find_loadstore_msr_slot(struct vmx_msrs *m, u32 msr);
 void vmx_ept_load_pdptrs(struct kvm_vcpu *vcpu);
 
-void vmx_disable_intercept_for_msr(struct kvm_vcpu *vcpu, u32 msr, int type);
-void vmx_enable_intercept_for_msr(struct kvm_vcpu *vcpu, u32 msr, int type);
+void vmx_set_intercept_for_msr(struct kvm_vcpu *vcpu, u32 msr, int type, bool set);
+
+static inline void vmx_disable_intercept_for_msr(struct kvm_vcpu *vcpu,
+						 u32 msr, int type)
+{
+	vmx_set_intercept_for_msr(vcpu, msr, type, false);
+}
+
+static inline void vmx_enable_intercept_for_msr(struct kvm_vcpu *vcpu,
+						u32 msr, int type)
+{
+	vmx_set_intercept_for_msr(vcpu, msr, type, true);
+}
 
 u64 vmx_get_l2_tsc_offset(struct kvm_vcpu *vcpu);
 u64 vmx_get_l2_tsc_multiplier(struct kvm_vcpu *vcpu);
 
 gva_t vmx_get_untagged_addr(struct kvm_vcpu *vcpu, gva_t gva, unsigned int flags);
 
-static inline void vmx_set_intercept_for_msr(struct kvm_vcpu *vcpu, u32 msr,
-					     int type, bool value)
+void vmx_update_cpu_dirty_logging(struct kvm_vcpu *vcpu);
+
+u64 vmx_get_supported_debugctl(struct kvm_vcpu *vcpu, bool host_initiated);
+bool vmx_is_valid_debugctl(struct kvm_vcpu *vcpu, u64 data, bool host_initiated);
+
+#define VMX_HOST_OWNED_DEBUGCTL_BITS	(DEBUGCTLMSR_FREEZE_IN_SMM)
+
+static inline void vmx_guest_debugctl_write(struct kvm_vcpu *vcpu, u64 val)
 {
-	if (value)
-		vmx_enable_intercept_for_msr(vcpu, msr, type);
-	else
-		vmx_disable_intercept_for_msr(vcpu, msr, type);
+	WARN_ON_ONCE(val & VMX_HOST_OWNED_DEBUGCTL_BITS);
+
+	val |= vcpu->arch.host_debugctl & VMX_HOST_OWNED_DEBUGCTL_BITS;
+	vmcs_write64(GUEST_IA32_DEBUGCTL, val);
 }
 
-void vmx_update_cpu_dirty_logging(struct kvm_vcpu *vcpu);
+static inline u64 vmx_guest_debugctl_read(void)
+{
+	return vmcs_read64(GUEST_IA32_DEBUGCTL) & ~VMX_HOST_OWNED_DEBUGCTL_BITS;
+}
+
+static inline void vmx_reload_guest_debugctl(struct kvm_vcpu *vcpu)
+{
+	u64 val = vmcs_read64(GUEST_IA32_DEBUGCTL);
+
+	if (!((val ^ vcpu->arch.host_debugctl) & VMX_HOST_OWNED_DEBUGCTL_BITS))
+		return;
+
+	vmx_guest_debugctl_write(vcpu, val & ~VMX_HOST_OWNED_DEBUGCTL_BITS);
+}
 
 /*
  * Note, early Intel manuals have the write-low and read-high bitmap offsets
@@ -463,7 +487,8 @@ static inline u8 vmx_get_rvi(void)
 	 VM_ENTRY_LOAD_IA32_EFER |					\
 	 VM_ENTRY_LOAD_BNDCFGS |					\
 	 VM_ENTRY_PT_CONCEAL_PIP |					\
-	 VM_ENTRY_LOAD_IA32_RTIT_CTL)
+	 VM_ENTRY_LOAD_IA32_RTIT_CTL |					\
+	 VM_ENTRY_LOAD_CET_STATE)
 
 #define __KVM_REQUIRED_VMX_VM_EXIT_CONTROLS				\
 	(VM_EXIT_SAVE_DEBUG_CONTROLS |					\
@@ -485,7 +510,8 @@ static inline u8 vmx_get_rvi(void)
 	       VM_EXIT_LOAD_IA32_EFER |					\
 	       VM_EXIT_CLEAR_BNDCFGS |					\
 	       VM_EXIT_PT_CONCEAL_PIP |					\
-	       VM_EXIT_CLEAR_IA32_RTIT_CTL)
+	       VM_EXIT_CLEAR_IA32_RTIT_CTL |				\
+	       VM_EXIT_LOAD_CET_STATE)
 
 #define KVM_REQUIRED_VMX_PIN_BASED_VM_EXEC_CONTROL			\
 	(PIN_BASED_EXT_INTR_MASK |					\
@@ -587,6 +613,14 @@ static __always_inline void lname##_controls_clearbit(struct vcpu_vmx *vmx, u##b
 {												\
 	BUILD_BUG_ON(!(val & (KVM_REQUIRED_VMX_##uname | KVM_OPTIONAL_VMX_##uname)));		\
 	lname##_controls_set(vmx, lname##_controls_get(vmx) & ~val);				\
+}												\
+static __always_inline void lname##_controls_changebit(struct vcpu_vmx *vmx, u##bits val,	\
+						       bool set)				\
+{												\
+	if (set)										\
+		lname##_controls_setbit(vmx, val);						\
+	else											\
+		lname##_controls_clearbit(vmx, val);						\
 }
 BUILD_CONTROLS_SHADOW(vm_entry, VM_ENTRY_CONTROLS, 32)
 BUILD_CONTROLS_SHADOW(vm_exit, VM_EXIT_CONTROLS, 32)
@@ -684,6 +718,11 @@ static inline bool vmx_guest_state_valid(struct kvm_vcpu *vcpu)
 }
 
 void dump_vmcs(struct kvm_vcpu *vcpu);
+
+static inline int vmx_get_instr_info_reg(u32 vmx_instr_info)
+{
+	return (vmx_instr_info >> 3) & 0xf;
+}
 
 static inline int vmx_get_instr_info_reg2(u32 vmx_instr_info)
 {

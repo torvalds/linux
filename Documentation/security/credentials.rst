@@ -555,5 +555,5 @@ the VFS, and that can be done by calling into such as ``vfs_mkdir()`` with a
 different set of credentials.  This is done in the following places:
 
  * ``sys_faccessat()``.
- * ``do_coredump()``.
+ * ``vfs_coredump()``.
  * nfs4recover.c.

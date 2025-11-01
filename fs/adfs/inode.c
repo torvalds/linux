@@ -53,13 +53,14 @@ static void adfs_write_failed(struct address_space *mapping, loff_t to)
 		truncate_pagecache(inode, inode->i_size);
 }
 
-static int adfs_write_begin(struct file *file, struct address_space *mapping,
-			loff_t pos, unsigned len,
-			struct folio **foliop, void **fsdata)
+static int adfs_write_begin(const struct kiocb *iocb,
+			    struct address_space *mapping,
+			    loff_t pos, unsigned len,
+			    struct folio **foliop, void **fsdata)
 {
 	int ret;
 
-	ret = cont_write_begin(file, mapping, pos, len, foliop, fsdata,
+	ret = cont_write_begin(iocb, mapping, pos, len, foliop, fsdata,
 				adfs_get_block,
 				&ADFS_I(mapping->host)->mmu_private);
 	if (unlikely(ret))

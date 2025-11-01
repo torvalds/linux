@@ -86,7 +86,7 @@ static ssize_t iwl_dbgfs_fw_restart_write(struct iwl_mld *mld, char *buf,
 
 	if (count == 6 && !strcmp(buf, "nolog\n")) {
 		mld->fw_status.do_not_dump_once = true;
-		set_bit(STATUS_SUPPRESS_CMD_ERROR_ONCE, &mld->trans->status);
+		mld->trans->suppress_cmd_error_once = true;
 	}
 
 	/* take the return value to make compiler happy - it will
@@ -546,6 +546,11 @@ iwl_mld_add_debugfs_files(struct iwl_mld *mld, struct dentry *debugfs_dir)
 #endif
 	MLD_DEBUGFS_ADD_FILE(inject_packet, debugfs_dir, 0200);
 
+#ifdef CONFIG_PM_SLEEP
+	debugfs_create_u32("max_sleep", 0600, debugfs_dir,
+			   &mld->debug_max_sleep);
+#endif
+
 	debugfs_create_bool("rx_ts_ptp", 0600, debugfs_dir,
 			    &mld->monitor.ptp_time);
 
@@ -996,8 +1001,12 @@ void iwl_mld_add_link_debugfs(struct ieee80211_hw *hw,
 	 * If not, this is a per-link dir of a MLO vif, add in it the iwlmld
 	 * dir.
 	 */
-	if (!mld_link_dir)
+	if (!mld_link_dir) {
 		mld_link_dir = debugfs_create_dir("iwlmld", dir);
+	} else {
+		/* Release the reference from debugfs_lookup */
+		dput(mld_link_dir);
+	}
 }
 
 static ssize_t _iwl_dbgfs_fixed_rate_write(struct iwl_mld *mld, char *buf,

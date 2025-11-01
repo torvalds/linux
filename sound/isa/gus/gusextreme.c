@@ -145,7 +145,6 @@ static int snd_gusextreme_gus_card_create(struct snd_card *card,
 static int snd_gusextreme_detect(struct snd_gus_card *gus,
 				 struct snd_es1688 *es1688)
 {
-	unsigned long flags;
 	unsigned char d;
 
 	/*
@@ -162,17 +161,17 @@ static int snd_gusextreme_detect(struct snd_gus_card *gus,
 	 * 0x260 = 2,2,1
 	 */
 
-	spin_lock_irqsave(&es1688->mixer_lock, flags);
-	snd_es1688_mixer_write(es1688, 0x40, 0x0b);	/* don't change!!! */
-	spin_unlock_irqrestore(&es1688->mixer_lock, flags);
+	scoped_guard(spinlock_irqsave, &es1688->mixer_lock) {
+		snd_es1688_mixer_write(es1688, 0x40, 0x0b); /* don't change!!! */
+	}
 
-	spin_lock_irqsave(&es1688->reg_lock, flags);
-	outb(gus->gf1.port & 0x040 ? 2 : 0, ES1688P(es1688, INIT1));
-	outb(0, 0x201);
-	outb(gus->gf1.port & 0x020 ? 2 : 0, ES1688P(es1688, INIT1));
-	outb(0, 0x201);
-	outb(gus->gf1.port & 0x010 ? 3 : 1, ES1688P(es1688, INIT1));
-	spin_unlock_irqrestore(&es1688->reg_lock, flags);
+	scoped_guard(spinlock_irqsave, &es1688->reg_lock) {
+		outb(gus->gf1.port & 0x040 ? 2 : 0, ES1688P(es1688, INIT1));
+		outb(0, 0x201);
+		outb(gus->gf1.port & 0x020 ? 2 : 0, ES1688P(es1688, INIT1));
+		outb(0, 0x201);
+		outb(gus->gf1.port & 0x010 ? 3 : 1, ES1688P(es1688, INIT1));
+	}
 
 	udelay(100);
 
@@ -204,15 +203,15 @@ static int snd_gusextreme_mixer(struct snd_card *card)
 	id1.iface = id2.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
 
 	/* reassign AUX to SYNTHESIZER */
-	strcpy(id1.name, "Aux Playback Volume");
-	strcpy(id2.name, "Synth Playback Volume");
+	strscpy(id1.name, "Aux Playback Volume");
+	strscpy(id2.name, "Synth Playback Volume");
 	error = snd_ctl_rename_id(card, &id1, &id2);
 	if (error < 0)
 		return error;
 
 	/* reassign Master Playback Switch to Synth Playback Switch */
-	strcpy(id1.name, "Master Playback Switch");
-	strcpy(id2.name, "Synth Playback Switch");
+	strscpy(id1.name, "Master Playback Switch");
+	strscpy(id2.name, "Synth Playback Switch");
 	error = snd_ctl_rename_id(card, &id1, &id2);
 	if (error < 0)
 		return error;

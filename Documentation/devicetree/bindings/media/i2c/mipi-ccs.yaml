@@ -23,6 +23,9 @@ description:
   More detailed documentation can be found in
   Documentation/devicetree/bindings/media/video-interfaces.txt .
 
+allOf:
+  - $ref: /schemas/media/video-interface-devices.yaml#
+
 properties:
   compatible:
     oneOf:
@@ -52,22 +55,17 @@ properties:
 
   clock-frequency:
     description: Frequency of the external clock to the sensor in Hz.
+    deprecated: true
 
   reset-gpios:
     description: Reset GPIO. Also commonly called XSHUTDOWN in hardware
       documentation.
     maxItems: 1
 
-  flash-leds:
-    description: Flash LED phandles. See ../video-interfaces.txt for details.
-
-  lens-focus:
-    description: Lens focus controller phandles. See ../video-interfaces.txt
-      for details.
+  flash-leds: true
+  lens-focus: true
 
   rotation:
-    description: Rotation of the sensor.  See ../video-interfaces.txt for
-      details.
     enum: [ 0, 180 ]
 
   port:
@@ -96,7 +94,6 @@ properties:
 required:
   - compatible
   - reg
-  - clock-frequency
   - clocks
 
 additionalProperties: false
@@ -117,8 +114,11 @@ examples:
             reg = <0x10>;
             reset-gpios = <&gpio3 20 GPIO_ACTIVE_LOW>;
             vana-supply = <&vaux3>;
+
             clocks = <&omap3_isp 0>;
-            clock-frequency = <9600000>;
+            assigned-clocks = <&omap3_isp 0>;
+            assigned-clock-rates = <9600000>;
+
             port {
                 ccs_ep: endpoint {
                     data-lanes = <1 2>;

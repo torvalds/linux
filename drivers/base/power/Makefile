@@ -4,5 +4,6 @@ obj-$(CONFIG_PM_SLEEP)	+= main.o wakeup.o wakeup_stats.o
 obj-$(CONFIG_PM_TRACE_RTC)	+= trace.o
 obj-$(CONFIG_HAVE_CLK)	+= clock_ops.o
 obj-$(CONFIG_PM_QOS_KUNIT_TEST) += qos-test.o
+obj-$(CONFIG_PM_RUNTIME_KUNIT_TEST) += runtime-test.o
 
 ccflags-$(CONFIG_DEBUG_DRIVER) := -DDEBUG

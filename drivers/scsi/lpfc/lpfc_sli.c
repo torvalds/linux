@@ -5167,7 +5167,6 @@ lpfc_sli4_brdreset(struct lpfc_hba *phba)
 	phba->link_events = 0;
 	phba->pport->fc_myDID = 0;
 	phba->pport->fc_prevDID = 0;
-	clear_bit(HBA_SETUP, &phba->hba_flag);
 
 	spin_lock_irq(&phba->hbalock);
 	psli->sli_flag &= ~(LPFC_PROCESS_LA);
@@ -5284,6 +5283,7 @@ lpfc_sli_brdrestart_s4(struct lpfc_hba *phba)
 			"0296 Restart HBA Data: x%x x%x\n",
 			phba->pport->port_state, psli->sli_flag);
 
+	clear_bit(HBA_SETUP, &phba->hba_flag);
 	lpfc_sli4_queue_unset(phba);
 
 	rc = lpfc_sli4_brdreset(phba);
@@ -8820,7 +8820,7 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 	if (unlikely(rc)) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0381 Error %d during queue setup.\n", rc);
-		goto out_stop_timers;
+		goto out_destroy_queue;
 	}
 	/* Initialize the driver internal SLI layer lists. */
 	lpfc_sli4_setup(phba);
@@ -9103,7 +9103,6 @@ out_free_iocblist:
 	lpfc_free_iocb_list(phba);
 out_destroy_queue:
 	lpfc_sli4_queue_destroy(phba);
-out_stop_timers:
 	lpfc_stop_hba_timers(phba);
 out_free_mbox:
 	mempool_free(mboxq, phba->mbox_mem_pool);
@@ -12439,19 +12438,11 @@ lpfc_sli_issue_abort_iotag(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	}
 
 	/*
-	 * If we're unloading, don't abort iocb on the ELS ring, but change
-	 * the callback so that nothing happens when it finishes.
+	 * Always abort the outstanding WQE and set the IA bit correctly
+	 * for the context.  This is necessary for correctly removing
+	 * outstanding ndlp reference counts when the CQE completes with
+	 * the XB bit set.
 	 */
-	if (test_bit(FC_UNLOADING, &vport->load_flag) &&
-	    pring->ringno == LPFC_ELS_RING) {
-		if (cmdiocb->cmd_flag & LPFC_IO_FABRIC)
-			cmdiocb->fabric_cmd_cmpl = lpfc_ignore_els_cmpl;
-		else
-			cmdiocb->cmd_cmpl = lpfc_ignore_els_cmpl;
-		return retval;
-	}
-
-	/* issue ABTS for this IOCB based on iotag */
 	abtsiocbp = __lpfc_sli_get_iocbq(phba);
 	if (abtsiocbp == NULL)
 		return IOCB_NORESOURCE;
@@ -16477,10 +16468,10 @@ lpfc_cq_create_set(struct lpfc_hba *phba, struct lpfc_queue **cqp,
 			case 4096:
 				if (phba->sli4_hba.pc_sli4_params.cqv ==
 				    LPFC_Q_CREATE_VERSION_2) {
-					bf_set(lpfc_mbx_cq_create_set_cqe_cnt,
+					bf_set(lpfc_mbx_cq_create_set_cqe_cnt_lo,
 					       &cq_set->u.request,
-						cq->entry_count);
-					bf_set(lpfc_mbx_cq_create_set_cqe_cnt,
+					       cq->entry_count);
+					bf_set(lpfc_mbx_cq_create_set_cqecnt,
 					       &cq_set->u.request,
 					       LPFC_CQ_CNT_WORD7);
 					break;
@@ -16496,15 +16487,15 @@ lpfc_cq_create_set(struct lpfc_hba *phba, struct lpfc_queue **cqp,
 				}
 				fallthrough;	/* otherwise default to smallest */
 			case 256:
-				bf_set(lpfc_mbx_cq_create_set_cqe_cnt,
+				bf_set(lpfc_mbx_cq_create_set_cqecnt,
 				       &cq_set->u.request, LPFC_CQ_CNT_256);
 				break;
 			case 512:
-				bf_set(lpfc_mbx_cq_create_set_cqe_cnt,
+				bf_set(lpfc_mbx_cq_create_set_cqecnt,
 				       &cq_set->u.request, LPFC_CQ_CNT_512);
 				break;
 			case 1024:
-				bf_set(lpfc_mbx_cq_create_set_cqe_cnt,
+				bf_set(lpfc_mbx_cq_create_set_cqecnt,
 				       &cq_set->u.request, LPFC_CQ_CNT_1024);
 				break;
 			}
@@ -21373,7 +21364,7 @@ lpfc_sli4_issue_wqe(struct lpfc_hba *phba, struct lpfc_sli4_hdw_queue *qp,
 	struct lpfc_sglq *sglq;
 	struct lpfc_sli_ring *pring;
 	unsigned long iflags;
-	uint32_t ret = 0;
+	int ret = 0;
 
 	/* NVME_LS and NVME_LS ABTS requests. */
 	if (pwqe->cmd_flag & LPFC_IO_NVME_LS) {

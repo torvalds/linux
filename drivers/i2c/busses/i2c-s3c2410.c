@@ -138,7 +138,6 @@ static void i2c_s3c_irq_nextbyte(struct s3c24xx_i2c *i2c, unsigned long iicstat)
 
 #ifdef CONFIG_OF
 static const struct of_device_id s3c24xx_i2c_match[] = {
-	{ .compatible = "samsung,s3c2410-i2c", .data = (void *)0 },
 	{ .compatible = "samsung,s3c2440-i2c", .data = (void *)QUIRK_S3C2440 },
 	{ .compatible = "samsung,s3c2440-hdmiphy-i2c",
 	  .data = (void *)(QUIRK_S3C2440 | QUIRK_HDMIPHY | QUIRK_NO_GPIO) },
@@ -800,9 +799,9 @@ static u32 s3c24xx_i2c_func(struct i2c_adapter *adap)
 
 /* i2c bus registration info */
 static const struct i2c_algorithm s3c24xx_i2c_algorithm = {
-	.master_xfer		= s3c24xx_i2c_xfer,
-	.master_xfer_atomic     = s3c24xx_i2c_xfer_atomic,
-	.functionality		= s3c24xx_i2c_func,
+	.xfer = s3c24xx_i2c_xfer,
+	.xfer_atomic = s3c24xx_i2c_xfer_atomic,
+	.functionality = s3c24xx_i2c_func,
 };
 
 /*

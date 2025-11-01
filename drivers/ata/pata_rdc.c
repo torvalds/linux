@@ -276,7 +276,7 @@ static struct ata_port_operations rdc_pata_ops = {
 	.cable_detect		= rdc_pata_cable_detect,
 	.set_piomode		= rdc_set_piomode,
 	.set_dmamode		= rdc_set_dmamode,
-	.prereset		= rdc_pata_prereset,
+	.reset.prereset		= rdc_pata_prereset,
 };
 
 static const struct ata_port_info rdc_port_info = {
@@ -359,8 +359,8 @@ static void rdc_remove_one(struct pci_dev *pdev)
 }
 
 static const struct pci_device_id rdc_pci_tbl[] = {
-	{ PCI_DEVICE(0x17F3, 0x1011), },
-	{ PCI_DEVICE(0x17F3, 0x1012), },
+	{ PCI_VDEVICE(RDC, 0x1011) },
+	{ PCI_VDEVICE(RDC, 0x1012) },
 	{ }	/* terminate list */
 };
 

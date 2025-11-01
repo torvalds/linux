@@ -15,11 +15,22 @@ properties:
     oneOf:
       - items:
           - enum:
+              - renesas,r8a7796-gpu
+              - renesas,r8a77961-gpu
+          - const: img,img-gx6250
+          - const: img,img-rogue
+      - items:
+          - enum:
               - ti,am62-gpu
           - const: img,img-axe-1-16m
           # This deprecated element must be kept around to allow old kernels to
           # work with newer dts.
           - const: img,img-axe
+          - const: img,img-rogue
+      - items:
+          - enum:
+              - thead,th1520-gpu
+          - const: img,img-bxm-4-64
           - const: img,img-rogue
       - items:
           - enum:
@@ -77,17 +88,32 @@ required:
 additionalProperties: false
 
 allOf:
-  # Constraints added alongside the new compatible strings that would otherwise
-  # create an ABI break.
   - if:
       properties:
         compatible:
           contains:
-            const: img,img-rogue
+            enum:
+              - ti,am62-gpu
+              - ti,j721s2-gpu
     then:
-      required:
-        - power-domains
-        - power-domain-names
+      properties:
+        clocks:
+          maxItems: 1
+
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - img,img-gx6250
+              - thead,th1520-gpu
+    then:
+      properties:
+        clocks:
+          minItems: 3
+        clock-names:
+          minItems: 3
 
   - if:
       properties:
@@ -100,30 +126,41 @@ allOf:
           maxItems: 1
         power-domain-names:
           maxItems: 1
-
-  - if:
-      properties:
-        compatible:
-          contains:
-            const: img,img-bxs-4-64
-    then:
-      properties:
-        power-domains:
-          minItems: 2
-        power-domain-names:
-          minItems: 2
+      required:
+        - power-domains
+        - power-domain-names
 
   - if:
       properties:
         compatible:
           contains:
             enum:
-              - ti,am62-gpu
-              - ti,j721s2-gpu
+              - img,img-gx6250
+              - img,img-bxs-4-64
     then:
       properties:
-        clocks:
-          maxItems: 1
+        power-domains:
+          minItems: 2
+        power-domain-names:
+          minItems: 2
+      required:
+        - power-domains
+        - power-domain-names
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: thead,th1520-gpu
+    then:
+      properties:
+        power-domains:
+          items:
+            - description: The single, unified power domain for the GPU on the
+                TH1520 SoC, integrating all internal IP power domains.
+        power-domain-names: false
+      required:
+        - power-domains
 
 examples:
   - |

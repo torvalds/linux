@@ -377,11 +377,8 @@ xfs_iwalk_run_callbacks(
 	if (!has_more)
 		return 0;
 
-	if (iwag->drop_trans) {
-		error = xfs_trans_alloc_empty(mp, &iwag->tp);
-		if (error)
-			return error;
-	}
+	if (iwag->drop_trans)
+		iwag->tp = xfs_trans_alloc_empty(mp);
 
 	/* ...and recreate the cursor just past where we left off. */
 	error = xfs_ialloc_read_agi(iwag->pag, iwag->tp, 0, agi_bpp);
@@ -617,9 +614,7 @@ xfs_iwalk_ag_work(
 	 * Grab an empty transaction so that we can use its recursive buffer
 	 * locking abilities to detect cycles in the inobt without deadlocking.
 	 */
-	error = xfs_trans_alloc_empty(mp, &iwag->tp);
-	if (error)
-		goto out;
+	iwag->tp = xfs_trans_alloc_empty(mp);
 	iwag->drop_trans = 1;
 
 	error = xfs_iwalk_ag(iwag);

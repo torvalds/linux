@@ -319,6 +319,10 @@ static int hfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	int silent = fc->sb_flags & SB_SILENT;
 	int res;
 
+	atomic64_set(&sbi->file_count, 0);
+	atomic64_set(&sbi->folder_count, 0);
+	atomic64_set(&sbi->next_id, 0);
+
 	/* load_nls_default does not fail */
 	if (sbi->nls_disk && !sbi->nls_io)
 		sbi->nls_io = load_nls_default();
@@ -365,7 +369,7 @@ static int hfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	if (!root_inode)
 		goto bail_no_root;
 
-	sb->s_d_op = &hfs_dentry_operations;
+	set_default_d_op(sb, &hfs_dentry_operations);
 	res = -ENOMEM;
 	sb->s_root = d_make_root(root_inode);
 	if (!sb->s_root)

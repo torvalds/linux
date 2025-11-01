@@ -323,7 +323,7 @@
 		>;
 	};
 
-	pinctrl_gpio_switch0: pinctrl-gpio-switch0 {
+	pinctrl_gpio_switch0: pinctrl-gpio-switch0grp {
 		fsl,pins = <
 			VF610_PAD_PTB28__GPIO_98		0x219d
 		>;
@@ -343,7 +343,7 @@
 		>;
 	};
 
-	pinctrl_leds_debug: pinctrl-leds-debug {
+	pinctrl_leds_debug: pinctrl-leds-debuggrp {
 		fsl,pins = <
 			VF610_PAD_PTD3__GPIO_82			0x31c2
 		>;

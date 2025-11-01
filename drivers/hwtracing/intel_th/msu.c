@@ -19,7 +19,6 @@
 #include <linux/io.h>
 #include <linux/workqueue.h>
 #include <linux/dma-mapping.h>
-#include <linux/pfn_t.h>
 
 #ifdef CONFIG_X86
 #include <asm/set_memory.h>
@@ -1618,7 +1617,7 @@ static vm_fault_t msc_mmap_fault(struct vm_fault *vmf)
 		return VM_FAULT_SIGBUS;
 
 	get_page(page);
-	return vmf_insert_mixed(vmf->vma, vmf->address, page_to_pfn_t(page));
+	return vmf_insert_mixed(vmf->vma, vmf->address, page_to_pfn(page));
 }
 
 static const struct vm_operations_struct msc_mmap_ops = {

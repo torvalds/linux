@@ -904,7 +904,7 @@ static void active_engine(struct kthread_work *work)
 			arg->result = PTR_ERR(ce[count]);
 			pr_err("[%s] Create context #%ld failed: %d!\n",
 			       engine->name, count, arg->result);
-			while (--count)
+			while (count--)
 				intel_context_put(ce[count]);
 			return;
 		}

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 menuconfig SND_MXS_SOC
-	tristate "SoC Audio for Freescale MXS CPUs"
+	tristate "Freescale MXS"
 	depends on ARCH_MXS || COMPILE_TEST
 	depends on COMMON_CLK
 	select SND_SOC_GENERIC_DMAENGINE_PCM

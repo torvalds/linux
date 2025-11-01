@@ -269,18 +269,17 @@ static const unsigned char cmi8330_sb_init_values[][2] = {
 static int cmi8330_add_sb_mixers(struct snd_sb *chip)
 {
 	int idx, err;
-	unsigned long flags;
 
-	spin_lock_irqsave(&chip->mixer_lock, flags);
-	snd_sbmixer_write(chip, 0x00, 0x00);		/* mixer reset */
-	spin_unlock_irqrestore(&chip->mixer_lock, flags);
+	scoped_guard(spinlock_irqsave, &chip->mixer_lock) {
+		snd_sbmixer_write(chip, 0x00, 0x00);	/* mixer reset */
+	}
 
 	/* mute and zero volume channels */
 	for (idx = 0; idx < ARRAY_SIZE(cmi8330_sb_init_values); idx++) {
-		spin_lock_irqsave(&chip->mixer_lock, flags);
-		snd_sbmixer_write(chip, cmi8330_sb_init_values[idx][0],
-				  cmi8330_sb_init_values[idx][1]);
-		spin_unlock_irqrestore(&chip->mixer_lock, flags);
+		scoped_guard(spinlock_irqsave, &chip->mixer_lock) {
+			snd_sbmixer_write(chip, cmi8330_sb_init_values[idx][0],
+					  cmi8330_sb_init_values[idx][1]);
+		}
 	}
 
 	for (idx = 0; idx < ARRAY_SIZE(cmi8330_sb_mixers); idx++) {
@@ -297,7 +296,7 @@ static int snd_cmi8330_mixer(struct snd_card *card, struct snd_cmi8330 *acard)
 	unsigned int idx;
 	int err;
 
-	strcpy(card->mixername, (acard->type == CMI8329) ? "CMI8329" : "CMI8330/C3D");
+	strscpy(card->mixername, (acard->type == CMI8329) ? "CMI8329" : "CMI8330/C3D");
 
 	for (idx = 0; idx < ARRAY_SIZE(snd_cmi8330_controls); idx++) {
 		err = snd_ctl_add(card,
@@ -437,7 +436,7 @@ static int snd_cmi8330_pcm(struct snd_card *card, struct snd_cmi8330 *chip)
 	err = snd_pcm_new(card, (chip->type == CMI8329) ? "CMI8329" : "CMI8330", 0, 1, 1, &pcm);
 	if (err < 0)
 		return err;
-	strcpy(pcm->name, (chip->type == CMI8329) ? "CMI8329" : "CMI8330");
+	strscpy(pcm->name, (chip->type == CMI8329) ? "CMI8329" : "CMI8330");
 	pcm->private_data = chip;
 	
 	/* SB16 */
@@ -590,8 +589,8 @@ static int snd_cmi8330_probe(struct snd_card *card, int dev)
 				mpuport[dev]);
 	}
 
-	strcpy(card->driver, (acard->type == CMI8329) ? "CMI8329" : "CMI8330/C3D");
-	strcpy(card->shortname, (acard->type == CMI8329) ? "C-Media CMI8329" : "C-Media CMI8330/C3D");
+	strscpy(card->driver, (acard->type == CMI8329) ? "CMI8329" : "CMI8330/C3D");
+	strscpy(card->shortname, (acard->type == CMI8329) ? "C-Media CMI8329" : "C-Media CMI8330/C3D");
 	sprintf(card->longname, "%s at 0x%lx, irq %d, dma %d",
 		card->shortname,
 		acard->wss->port,

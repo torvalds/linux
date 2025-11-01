@@ -164,6 +164,8 @@ static inline bool wq_has_sleeper(struct wait_queue_head *wq_head)
 extern void add_wait_queue(struct wait_queue_head *wq_head, struct wait_queue_entry *wq_entry);
 extern void add_wait_queue_exclusive(struct wait_queue_head *wq_head, struct wait_queue_entry *wq_entry);
 extern void add_wait_queue_priority(struct wait_queue_head *wq_head, struct wait_queue_entry *wq_entry);
+extern int add_wait_queue_priority_exclusive(struct wait_queue_head *wq_head,
+					     struct wait_queue_entry *wq_entry);
 extern void remove_wait_queue(struct wait_queue_head *wq_head, struct wait_queue_entry *wq_entry);
 
 static inline void __add_wait_queue(struct wait_queue_head *wq_head, struct wait_queue_entry *wq_entry)
@@ -960,6 +962,18 @@ extern int do_wait_intr_irq(wait_queue_head_t *, wait_queue_entry_t *);
 	might_sleep();								\
 	if (!(condition))							\
 		__ret = __wait_event_state(wq_head, condition, state);		\
+	__ret;									\
+})
+
+#define __wait_event_state_exclusive(wq, condition, state)			\
+	___wait_event(wq, condition, state, 1, 0, schedule())
+
+#define wait_event_state_exclusive(wq, condition, state)			\
+({										\
+	int __ret = 0;								\
+	might_sleep();								\
+	if (!(condition))							\
+		__ret = __wait_event_state_exclusive(wq, condition, state);	\
 	__ret;									\
 })
 

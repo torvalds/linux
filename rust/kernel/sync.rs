@@ -10,18 +10,25 @@ use crate::types::Opaque;
 use pin_init;
 
 mod arc;
+pub mod aref;
+pub mod atomic;
+pub mod barrier;
+pub mod completion;
 mod condvar;
 pub mod lock;
 mod locked_by;
 pub mod poll;
 pub mod rcu;
+mod refcount;
 
 pub use arc::{Arc, ArcBorrow, UniqueArc};
+pub use completion::Completion;
 pub use condvar::{new_condvar, CondVar, CondVarTimeoutResult};
 pub use lock::global::{global_lock, GlobalGuard, GlobalLock, GlobalLockBackend, GlobalLockedBy};
 pub use lock::mutex::{new_mutex, Mutex, MutexGuard};
 pub use lock::spinlock::{new_spinlock, SpinLock, SpinLockGuard};
 pub use locked_by::LockedBy;
+pub use refcount::Refcount;
 
 /// Represents a lockdep class. It's a wrapper around C's `lock_class_key`.
 #[repr(transparent)]
@@ -39,7 +46,7 @@ impl LockClassKey {
     /// Initializes a dynamically allocated lock class key. In the common case of using a
     /// statically allocated lock class key, the static_lock_class! macro should be used instead.
     ///
-    /// # Example
+    /// # Examples
     /// ```
     /// # use kernel::c_str;
     /// # use kernel::alloc::KBox;
@@ -93,8 +100,11 @@ impl PinnedDrop for LockClassKey {
 macro_rules! static_lock_class {
     () => {{
         static CLASS: $crate::sync::LockClassKey =
-            // SAFETY: lockdep expects uninitialized memory when it's handed a statically allocated
-            // lock_class_key
+            // Lockdep expects uninitialized memory when it's handed a statically allocated `struct
+            // lock_class_key`.
+            //
+            // SAFETY: `LockClassKey` transparently wraps `Opaque` which permits uninitialized
+            // memory.
             unsafe { ::core::mem::MaybeUninit::uninit().assume_init() };
         $crate::prelude::Pin::static_ref(&CLASS)
     }};

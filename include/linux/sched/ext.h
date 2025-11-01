@@ -108,7 +108,11 @@ enum scx_kf_mask {
 	SCX_KF_UNLOCKED		= 0,	  /* sleepable and not rq locked */
 	/* ENQUEUE and DISPATCH may be nested inside CPU_RELEASE */
 	SCX_KF_CPU_RELEASE	= 1 << 0, /* ops.cpu_release() */
-	/* ops.dequeue (in REST) may be nested inside DISPATCH */
+	/*
+	 * ops.dispatch() may release rq lock temporarily and thus ENQUEUE and
+	 * SELECT_CPU may be nested inside. ops.dequeue (in REST) may also be
+	 * nested inside DISPATCH.
+	 */
 	SCX_KF_DISPATCH		= 1 << 1, /* ops.dispatch() */
 	SCX_KF_ENQUEUE		= 1 << 2, /* ops.enqueue() and ops.select_cpu() */
 	SCX_KF_SELECT_CPU	= 1 << 3, /* ops.select_cpu() */
@@ -164,7 +168,7 @@ struct sched_ext_entity {
 
 	/*
 	 * Runtime budget in nsecs. This is usually set through
-	 * scx_bpf_dispatch() but can also be modified directly by the BPF
+	 * scx_bpf_dsq_insert() but can also be modified directly by the BPF
 	 * scheduler. Automatically decreased by SCX as the task executes. On
 	 * depletion, a scheduling event is triggered.
 	 *
@@ -176,10 +180,10 @@ struct sched_ext_entity {
 
 	/*
 	 * Used to order tasks when dispatching to the vtime-ordered priority
-	 * queue of a dsq. This is usually set through scx_bpf_dispatch_vtime()
-	 * but can also be modified directly by the BPF scheduler. Modifying it
-	 * while a task is queued on a dsq may mangle the ordering and is not
-	 * recommended.
+	 * queue of a dsq. This is usually set through
+	 * scx_bpf_dsq_insert_vtime() but can also be modified directly by the
+	 * BPF scheduler. Modifying it while a task is queued on a dsq may
+	 * mangle the ordering and is not recommended.
 	 */
 	u64			dsq_vtime;
 
@@ -206,12 +210,25 @@ struct sched_ext_entity {
 void sched_ext_free(struct task_struct *p);
 void print_scx_info(const char *log_lvl, struct task_struct *p);
 void scx_softlockup(u32 dur_s);
+bool scx_rcu_cpu_stall(void);
 
 #else	/* !CONFIG_SCHED_CLASS_EXT */
 
 static inline void sched_ext_free(struct task_struct *p) {}
 static inline void print_scx_info(const char *log_lvl, struct task_struct *p) {}
 static inline void scx_softlockup(u32 dur_s) {}
+static inline bool scx_rcu_cpu_stall(void) { return false; }
 
 #endif	/* CONFIG_SCHED_CLASS_EXT */
+
+struct scx_task_group {
+#ifdef CONFIG_EXT_GROUP_SCHED
+	u32			flags;		/* SCX_TG_* */
+	u32			weight;
+	u64			bw_period_us;
+	u64			bw_quota_us;
+	u64			bw_burst_us;
+#endif
+};
+
 #endif	/* _LINUX_SCHED_EXT_H */

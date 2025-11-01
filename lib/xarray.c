@@ -370,7 +370,7 @@ static void *xas_alloc(struct xa_state *xas, unsigned int shift)
 	if (node) {
 		xas->xa_alloc = NULL;
 	} else {
-		gfp_t gfp = GFP_NOWAIT | __GFP_NOWARN;
+		gfp_t gfp = GFP_NOWAIT;
 
 		if (xas->xa->xa_flags & XA_FLAGS_ACCOUNT)
 			gfp |= __GFP_ACCOUNT;
@@ -1910,6 +1910,7 @@ EXPORT_SYMBOL(xa_store_range);
  * @xas: XArray operation state.
  *
  * Called after xas_load, the xas should not be in an error state.
+ * The xas should not be pointing to a sibling entry.
  *
  * Return: A number between 0 and 63 indicating the order of the entry.
  */
@@ -1920,6 +1921,8 @@ int xas_get_order(struct xa_state *xas)
 	if (!xas->xa_node)
 		return 0;
 
+	XA_NODE_BUG_ON(xas->xa_node, xa_is_sibling(xa_entry(xas->xa,
+		       xas->xa_node, xas->xa_offset)));
 	for (;;) {
 		unsigned int slot = xas->xa_offset + (1 << order);
 

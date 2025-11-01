@@ -59,6 +59,18 @@ static ssize_t sched_itmt_enabled_write(struct file *filp,
 	return result;
 }
 
+static int sched_core_priority_show(struct seq_file *s, void *unused)
+{
+	int cpu;
+
+	seq_puts(s, "CPU #\tPriority\n");
+	for_each_possible_cpu(cpu)
+		seq_printf(s, "%d\t%d\n", cpu, arch_asym_cpu_priority(cpu));
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(sched_core_priority);
+
 static const struct file_operations dfs_sched_itmt_fops = {
 	.read =         debugfs_read_file_bool,
 	.write =        sched_itmt_enabled_write,
@@ -67,6 +79,7 @@ static const struct file_operations dfs_sched_itmt_fops = {
 };
 
 static struct dentry *dfs_sched_itmt;
+static struct dentry *dfs_sched_core_prio;
 
 /**
  * sched_set_itmt_support() - Indicate platform supports ITMT
@@ -102,6 +115,14 @@ int sched_set_itmt_support(void)
 		return -ENOMEM;
 	}
 
+	dfs_sched_core_prio = debugfs_create_file("sched_core_priority", 0644,
+						  arch_debugfs_dir, NULL,
+						  &sched_core_priority_fops);
+	if (IS_ERR_OR_NULL(dfs_sched_core_prio)) {
+		dfs_sched_core_prio = NULL;
+		return -ENOMEM;
+	}
+
 	sched_itmt_capable = true;
 
 	sysctl_sched_itmt_enabled = 1;
@@ -133,6 +154,8 @@ void sched_clear_itmt_support(void)
 
 	debugfs_remove(dfs_sched_itmt);
 	dfs_sched_itmt = NULL;
+	debugfs_remove(dfs_sched_core_prio);
+	dfs_sched_core_prio = NULL;
 
 	if (sysctl_sched_itmt_enabled) {
 		/* disable sched_itmt if we are no longer ITMT capable */

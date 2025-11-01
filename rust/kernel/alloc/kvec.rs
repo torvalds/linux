@@ -3,12 +3,16 @@
 //! Implementation of [`Vec`].
 
 use super::{
-    allocator::{KVmalloc, Kmalloc, Vmalloc},
+    allocator::{KVmalloc, Kmalloc, Vmalloc, VmallocPageIter},
     layout::ArrayLayout,
-    AllocError, Allocator, Box, Flags,
+    AllocError, Allocator, Box, Flags, NumaNode,
+};
+use crate::{
+    fmt,
+    page::AsPageIter, //
 };
 use core::{
-    fmt,
+    borrow::{Borrow, BorrowMut},
     marker::PhantomData,
     mem::{ManuallyDrop, MaybeUninit},
     ops::Deref,
@@ -174,7 +178,7 @@ where
 
     /// Returns the number of elements that can be stored within the vector without allocating
     /// additional memory.
-    pub fn capacity(&self) -> usize {
+    pub const fn capacity(&self) -> usize {
         if const { Self::is_zst() } {
             usize::MAX
         } else {
@@ -184,7 +188,7 @@ where
 
     /// Returns the number of elements stored within the vector.
     #[inline]
-    pub fn len(&self) -> usize {
+    pub const fn len(&self) -> usize {
         self.len
     }
 
@@ -195,7 +199,7 @@ where
     /// - `additional` must be less than or equal to `self.capacity - self.len`.
     /// - All elements within the interval [`self.len`,`self.len + additional`) must be initialized.
     #[inline]
-    pub unsafe fn inc_len(&mut self, additional: usize) {
+    pub const unsafe fn inc_len(&mut self, additional: usize) {
         // Guaranteed by the type invariant to never underflow.
         debug_assert!(additional <= self.capacity() - self.len());
         // INVARIANT: By the safety requirements of this method this represents the exact number of
@@ -223,6 +227,16 @@ where
     }
 
     /// Returns a slice of the entire vector.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let mut v = KVec::new();
+    /// v.push(1, GFP_KERNEL)?;
+    /// v.push(2, GFP_KERNEL)?;
+    /// assert_eq!(v.as_slice(), &[1, 2]);
+    /// # Ok::<(), Error>(())
+    /// ```
     #[inline]
     pub fn as_slice(&self) -> &[T] {
         self
@@ -244,7 +258,7 @@ where
     /// Returns a raw pointer to the vector's backing buffer, or, if `T` is a ZST, a dangling raw
     /// pointer.
     #[inline]
-    pub fn as_ptr(&self) -> *const T {
+    pub const fn as_ptr(&self) -> *const T {
         self.ptr.as_ptr()
     }
 
@@ -260,7 +274,7 @@ where
     /// assert!(!v.is_empty());
     /// ```
     #[inline]
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
@@ -288,7 +302,7 @@ where
         // - `self.len` is smaller than `self.capacity` by the type invariant and hence, the
         //   resulting pointer is guaranteed to be part of the same allocated object.
         // - `self.len` can not overflow `isize`.
-        let ptr = unsafe { self.as_mut_ptr().add(self.len) } as *mut MaybeUninit<T>;
+        let ptr = unsafe { self.as_mut_ptr().add(self.len) }.cast::<MaybeUninit<T>>();
 
         // SAFETY: The memory between `self.len` and `self.capacity` is guaranteed to be allocated
         // and valid, but uninitialized.
@@ -633,6 +647,7 @@ where
                 layout.into(),
                 self.layout.into(),
                 flags,
+                NumaNode::NO_NODE,
             )?
         };
 
@@ -847,11 +862,11 @@ where
         // - `ptr` points to memory with at least a size of `size_of::<T>() * len`,
         // - all elements within `b` are initialized values of `T`,
         // - `len` does not exceed `isize::MAX`.
-        unsafe { Vec::from_raw_parts(ptr as _, len, len) }
+        unsafe { Vec::from_raw_parts(ptr.cast(), len, len) }
     }
 }
 
-impl<T> Default for KVec<T> {
+impl<T, A: Allocator> Default for Vec<T, A> {
     #[inline]
     fn default() -> Self {
         Self::new()
@@ -887,6 +902,58 @@ where
         // SAFETY: The memory behind `self.as_ptr()` is guaranteed to contain `self.len`
         // initialized elements of type `T`.
         unsafe { slice::from_raw_parts_mut(self.as_mut_ptr(), self.len) }
+    }
+}
+
+/// # Examples
+///
+/// ```
+/// # use core::borrow::Borrow;
+/// struct Foo<B: Borrow<[u32]>>(B);
+///
+/// // Owned array.
+/// let owned_array = Foo([1, 2, 3]);
+///
+/// // Owned vector.
+/// let owned_vec = Foo(KVec::from_elem(0, 3, GFP_KERNEL)?);
+///
+/// let arr = [1, 2, 3];
+/// // Borrowed slice from `arr`.
+/// let borrowed_slice = Foo(&arr[..]);
+/// # Ok::<(), Error>(())
+/// ```
+impl<T, A> Borrow<[T]> for Vec<T, A>
+where
+    A: Allocator,
+{
+    fn borrow(&self) -> &[T] {
+        self.as_slice()
+    }
+}
+
+/// # Examples
+///
+/// ```
+/// # use core::borrow::BorrowMut;
+/// struct Foo<B: BorrowMut<[u32]>>(B);
+///
+/// // Owned array.
+/// let owned_array = Foo([1, 2, 3]);
+///
+/// // Owned vector.
+/// let owned_vec = Foo(KVec::from_elem(0, 3, GFP_KERNEL)?);
+///
+/// let mut arr = [1, 2, 3];
+/// // Borrowed slice from `arr`.
+/// let borrowed_slice = Foo(&mut arr[..]);
+/// # Ok::<(), Error>(())
+/// ```
+impl<T, A> BorrowMut<[T]> for Vec<T, A>
+where
+    A: Allocator,
+{
+    fn borrow_mut(&mut self) -> &mut [T] {
+        self.as_mut_slice()
     }
 }
 
@@ -961,6 +1028,43 @@ where
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter_mut()
+    }
+}
+
+/// # Examples
+///
+/// ```
+/// # use kernel::prelude::*;
+/// use kernel::alloc::allocator::VmallocPageIter;
+/// use kernel::page::{AsPageIter, PAGE_SIZE};
+///
+/// let mut vec = VVec::<u8>::new();
+///
+/// assert!(vec.page_iter().next().is_none());
+///
+/// vec.reserve(PAGE_SIZE, GFP_KERNEL)?;
+///
+/// let page = vec.page_iter().next().expect("At least one page should be available.\n");
+///
+/// // SAFETY: There is no concurrent read or write to the same page.
+/// unsafe { page.fill_zero_raw(0, PAGE_SIZE)? };
+/// # Ok::<(), Error>(())
+/// ```
+impl<T> AsPageIter for VVec<T> {
+    type Iter<'a>
+        = VmallocPageIter<'a>
+    where
+        T: 'a;
+
+    fn page_iter(&mut self) -> Self::Iter<'_> {
+        let ptr = self.ptr.cast();
+        let size = self.layout.size();
+
+        // SAFETY:
+        // - `ptr` is a valid pointer to the beginning of a `Vmalloc` allocation.
+        // - `ptr` is guaranteed to be valid for the lifetime of `'a`.
+        // - `size` is the size of the `Vmalloc` allocation `ptr` points to.
+        unsafe { VmallocPageIter::new(ptr, size) }
     }
 }
 
@@ -1058,7 +1162,13 @@ where
             // the type invariant to be smaller than `cap`. Depending on `realloc` this operation
             // may shrink the buffer or leave it as it is.
             ptr = match unsafe {
-                A::realloc(Some(buf.cast()), layout.into(), old_layout.into(), flags)
+                A::realloc(
+                    Some(buf.cast()),
+                    layout.into(),
+                    old_layout.into(),
+                    flags,
+                    NumaNode::NO_NODE,
+                )
             } {
                 // If we fail to shrink, which likely can't even happen, continue with the existing
                 // buffer.
@@ -1241,7 +1351,7 @@ impl<'vec, T> Drop for DrainAll<'vec, T> {
     }
 }
 
-#[macros::kunit_tests(rust_kvec_kunit)]
+#[macros::kunit_tests(rust_kvec)]
 mod tests {
     use super::*;
     use crate::prelude::*;

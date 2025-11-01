@@ -52,6 +52,7 @@ static void cifs_prepare_write(struct netfs_io_subrequest *subreq)
 	struct netfs_io_stream *stream = &req->rreq.io_streams[subreq->stream_nr];
 	struct TCP_Server_Info *server;
 	struct cifsFileInfo *open_file = req->cfile;
+	struct cifs_sb_info *cifs_sb = CIFS_SB(wdata->rreq->inode->i_sb);
 	size_t wsize = req->rreq.wsize;
 	int rc;
 
@@ -62,6 +63,10 @@ static void cifs_prepare_write(struct netfs_io_subrequest *subreq)
 
 	server = cifs_pick_channel(tlink_tcon(open_file->tlink)->ses);
 	wdata->server = server;
+
+	if (cifs_sb->ctx->wsize == 0)
+		cifs_negotiate_wsize(server, cifs_sb->ctx,
+				     tlink_tcon(req->cfile->tlink));
 
 retry:
 	if (open_file->invalidHandle) {
@@ -92,8 +97,12 @@ retry:
 			      cifs_trace_rw_credits_write_prepare);
 
 #ifdef CONFIG_CIFS_SMB_DIRECT
-	if (server->smbd_conn)
-		stream->sreq_max_segs = server->smbd_conn->max_frmr_depth;
+	if (server->smbd_conn) {
+		const struct smbdirect_socket_parameters *sp =
+			smbd_get_parameters(server->smbd_conn);
+
+		stream->sreq_max_segs = sp->max_frmr_depth;
+	}
 #endif
 }
 
@@ -160,10 +169,9 @@ static int cifs_prepare_read(struct netfs_io_subrequest *subreq)
 	server = cifs_pick_channel(tlink_tcon(req->cfile->tlink)->ses);
 	rdata->server = server;
 
-	if (cifs_sb->ctx->rsize == 0) {
+	if (cifs_sb->ctx->rsize == 0)
 		cifs_negotiate_rsize(server, cifs_sb->ctx,
 				     tlink_tcon(req->cfile->tlink));
-	}
 
 	rc = server->ops->wait_mtu_credits(server, cifs_sb->ctx->rsize,
 					   &size, &rdata->credits);
@@ -183,8 +191,12 @@ static int cifs_prepare_read(struct netfs_io_subrequest *subreq)
 			      cifs_trace_rw_credits_read_submit);
 
 #ifdef CONFIG_CIFS_SMB_DIRECT
-	if (server->smbd_conn)
-		rreq->io_streams[0].sreq_max_segs = server->smbd_conn->max_frmr_depth;
+	if (server->smbd_conn) {
+		const struct smbdirect_socket_parameters *sp =
+			smbd_get_parameters(server->smbd_conn);
+
+		rreq->io_streams[0].sreq_max_segs = sp->max_frmr_depth;
+	}
 #endif
 	return 0;
 }
@@ -940,6 +952,66 @@ void _cifsFileInfo_put(struct cifsFileInfo *cifs_file,
 	}
 }
 
+int cifs_file_flush(const unsigned int xid, struct inode *inode,
+		    struct cifsFileInfo *cfile)
+{
+	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+	struct cifs_tcon *tcon;
+	int rc;
+
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NOSSYNC)
+		return 0;
+
+	if (cfile && (OPEN_FMODE(cfile->f_flags) & FMODE_WRITE)) {
+		tcon = tlink_tcon(cfile->tlink);
+		return tcon->ses->server->ops->flush(xid, tcon,
+						     &cfile->fid);
+	}
+	rc = cifs_get_writable_file(CIFS_I(inode), FIND_WR_ANY, &cfile);
+	if (!rc) {
+		tcon = tlink_tcon(cfile->tlink);
+		rc = tcon->ses->server->ops->flush(xid, tcon, &cfile->fid);
+		cifsFileInfo_put(cfile);
+	} else if (rc == -EBADF) {
+		rc = 0;
+	}
+	return rc;
+}
+
+static int cifs_do_truncate(const unsigned int xid, struct dentry *dentry)
+{
+	struct cifsInodeInfo *cinode = CIFS_I(d_inode(dentry));
+	struct inode *inode = d_inode(dentry);
+	struct cifsFileInfo *cfile = NULL;
+	struct TCP_Server_Info *server;
+	struct cifs_tcon *tcon;
+	int rc;
+
+	rc = filemap_write_and_wait(inode->i_mapping);
+	if (is_interrupt_error(rc))
+		return -ERESTARTSYS;
+	mapping_set_error(inode->i_mapping, rc);
+
+	cfile = find_writable_file(cinode, FIND_WR_FSUID_ONLY);
+	rc = cifs_file_flush(xid, inode, cfile);
+	if (!rc) {
+		if (cfile) {
+			tcon = tlink_tcon(cfile->tlink);
+			server = tcon->ses->server;
+			rc = server->ops->set_file_size(xid, tcon,
+							cfile, 0, false);
+		}
+		if (!rc) {
+			netfs_resize_file(&cinode->netfs, 0, true);
+			cifs_setsize(inode, 0);
+			inode->i_blocks = 0;
+		}
+	}
+	if (cfile)
+		cifsFileInfo_put(cfile);
+	return rc;
+}
+
 int cifs_open(struct inode *inode, struct file *file)
 
 {
@@ -992,9 +1064,18 @@ int cifs_open(struct inode *inode, struct file *file)
 			file->f_op = &cifs_file_direct_ops;
 	}
 
+	if (file->f_flags & O_TRUNC) {
+		rc = cifs_do_truncate(xid, file_dentry(file));
+		if (rc)
+			goto out;
+	}
+
 	/* Get the cached handle as SMB2 close is deferred */
 	if (OPEN_FMODE(file->f_flags) & FMODE_WRITE) {
-		rc = cifs_get_writable_path(tcon, full_path, FIND_WR_FSUID_ONLY, &cfile);
+		rc = cifs_get_writable_path(tcon, full_path,
+					    FIND_WR_FSUID_ONLY |
+					    FIND_WR_NO_PENDING_DELETE,
+					    &cfile);
 	} else {
 		rc = cifs_get_readable_path(tcon, full_path, &cfile);
 	}
@@ -2526,6 +2607,9 @@ refind_writable:
 			continue;
 		if (with_delete && !(open_file->fid.access & DELETE))
 			continue;
+		if ((flags & FIND_WR_NO_PENDING_DELETE) &&
+		    open_file->status_file_deleted)
+			continue;
 		if (OPEN_FMODE(open_file->f_flags) & FMODE_WRITE) {
 			if (!open_file->invalidHandle) {
 				/* found a good writable file */
@@ -2643,6 +2727,16 @@ cifs_get_readable_path(struct cifs_tcon *tcon, const char *name,
 		spin_unlock(&tcon->open_file_lock);
 		free_dentry_path(page);
 		*ret_file = find_readable_file(cinode, 0);
+		if (*ret_file) {
+			spin_lock(&cinode->open_file_lock);
+			if ((*ret_file)->status_file_deleted) {
+				spin_unlock(&cinode->open_file_lock);
+				cifsFileInfo_put(*ret_file);
+				*ret_file = NULL;
+			} else {
+				spin_unlock(&cinode->open_file_lock);
+			}
+		}
 		return *ret_file ? 0 : -ENOENT;
 	}
 
@@ -2657,13 +2751,10 @@ cifs_get_readable_path(struct cifs_tcon *tcon, const char *name,
 int cifs_strict_fsync(struct file *file, loff_t start, loff_t end,
 		      int datasync)
 {
-	unsigned int xid;
-	int rc = 0;
-	struct cifs_tcon *tcon;
-	struct TCP_Server_Info *server;
 	struct cifsFileInfo *smbfile = file->private_data;
 	struct inode *inode = file_inode(file);
-	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+	unsigned int xid;
+	int rc;
 
 	rc = file_write_and_wait_range(file, start, end);
 	if (rc) {
@@ -2671,39 +2762,15 @@ int cifs_strict_fsync(struct file *file, loff_t start, loff_t end,
 		return rc;
 	}
 
-	xid = get_xid();
-
-	cifs_dbg(FYI, "Sync file - name: %pD datasync: 0x%x\n",
-		 file, datasync);
+	cifs_dbg(FYI, "%s: name=%pD datasync=0x%x\n", __func__, file, datasync);
 
 	if (!CIFS_CACHE_READ(CIFS_I(inode))) {
 		rc = cifs_zap_mapping(inode);
-		if (rc) {
-			cifs_dbg(FYI, "rc: %d during invalidate phase\n", rc);
-			rc = 0; /* don't care about it in fsync */
-		}
+		cifs_dbg(FYI, "%s: invalidate mapping: rc = %d\n", __func__, rc);
 	}
 
-	tcon = tlink_tcon(smbfile->tlink);
-	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NOSSYNC)) {
-		server = tcon->ses->server;
-		if (server->ops->flush == NULL) {
-			rc = -ENOSYS;
-			goto strict_fsync_exit;
-		}
-
-		if ((OPEN_FMODE(smbfile->f_flags) & FMODE_WRITE) == 0) {
-			smbfile = find_writable_file(CIFS_I(inode), FIND_WR_ANY);
-			if (smbfile) {
-				rc = server->ops->flush(xid, tcon, &smbfile->fid);
-				cifsFileInfo_put(smbfile);
-			} else
-				cifs_dbg(FYI, "ignore fsync for file not open for write\n");
-		} else
-			rc = server->ops->flush(xid, tcon, &smbfile->fid);
-	}
-
-strict_fsync_exit:
+	xid = get_xid();
+	rc = cifs_file_flush(xid, inode, smbfile);
 	free_xid(xid);
 	return rc;
 }
@@ -2995,38 +3062,38 @@ static const struct vm_operations_struct cifs_file_vm_ops = {
 	.page_mkwrite = cifs_page_mkwrite,
 };
 
-int cifs_file_strict_mmap(struct file *file, struct vm_area_struct *vma)
+int cifs_file_strict_mmap_prepare(struct vm_area_desc *desc)
 {
 	int xid, rc = 0;
-	struct inode *inode = file_inode(file);
+	struct inode *inode = file_inode(desc->file);
 
 	xid = get_xid();
 
 	if (!CIFS_CACHE_READ(CIFS_I(inode)))
 		rc = cifs_zap_mapping(inode);
 	if (!rc)
-		rc = generic_file_mmap(file, vma);
+		rc = generic_file_mmap_prepare(desc);
 	if (!rc)
-		vma->vm_ops = &cifs_file_vm_ops;
+		desc->vm_ops = &cifs_file_vm_ops;
 
 	free_xid(xid);
 	return rc;
 }
 
-int cifs_file_mmap(struct file *file, struct vm_area_struct *vma)
+int cifs_file_mmap_prepare(struct vm_area_desc *desc)
 {
 	int rc, xid;
 
 	xid = get_xid();
 
-	rc = cifs_revalidate_file(file);
+	rc = cifs_revalidate_file(desc->file);
 	if (rc)
 		cifs_dbg(FYI, "Validation prior to mmap failed, error=%d\n",
 			 rc);
 	if (!rc)
-		rc = generic_file_mmap(file, vma);
+		rc = generic_file_mmap_prepare(desc);
 	if (!rc)
-		vma->vm_ops = &cifs_file_vm_ops;
+		desc->vm_ops = &cifs_file_vm_ops;
 
 	free_xid(xid);
 	return rc;
@@ -3084,7 +3151,8 @@ void cifs_oplock_break(struct work_struct *work)
 	struct cifsFileInfo *cfile = container_of(work, struct cifsFileInfo,
 						  oplock_break);
 	struct inode *inode = d_inode(cfile->dentry);
-	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+	struct super_block *sb = inode->i_sb;
+	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 	struct cifsInodeInfo *cinode = CIFS_I(inode);
 	struct cifs_tcon *tcon;
 	struct TCP_Server_Info *server;
@@ -3094,6 +3162,12 @@ void cifs_oplock_break(struct work_struct *work)
 	__u64 persistent_fid, volatile_fid;
 	__u16 net_fid;
 
+	/*
+	 * Hold a reference to the superblock to prevent it and its inodes from
+	 * being freed while we are accessing cinode. Otherwise, _cifsFileInfo_put()
+	 * may release the last reference to the sb and trigger inode eviction.
+	 */
+	cifs_sb_active(sb);
 	wait_on_bit(&cinode->flags, CIFS_INODE_PENDING_WRITERS,
 			TASK_UNINTERRUPTIBLE);
 
@@ -3166,6 +3240,7 @@ oplock_break_ack:
 	cifs_put_tlink(tlink);
 out:
 	cifs_done_oplock_break(cinode);
+	cifs_sb_deactive(sb);
 }
 
 static int cifs_swap_activate(struct swap_info_struct *sis,

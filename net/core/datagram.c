@@ -345,7 +345,7 @@ int __sk_queue_drop_skb(struct sock *sk, struct sk_buff_head *sk_queue,
 		spin_unlock_bh(&sk_queue->lock);
 	}
 
-	atomic_inc(&sk->sk_drops);
+	sk_drops_inc(sk);
 	return err;
 }
 EXPORT_SYMBOL(__sk_queue_drop_skb);
@@ -617,6 +617,20 @@ fault:
 	return -EFAULT;
 }
 EXPORT_SYMBOL(skb_copy_datagram_from_iter);
+
+int skb_copy_datagram_from_iter_full(struct sk_buff *skb, int offset,
+				     struct iov_iter *from, int len)
+{
+	struct iov_iter_state state;
+	int ret;
+
+	iov_iter_save_state(from, &state);
+	ret = skb_copy_datagram_from_iter(skb, offset, from, len);
+	if (ret)
+		iov_iter_restore(from, &state);
+	return ret;
+}
+EXPORT_SYMBOL(skb_copy_datagram_from_iter_full);
 
 int zerocopy_fill_skb_from_iter(struct sk_buff *skb,
 				struct iov_iter *from, size_t length)

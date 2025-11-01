@@ -20,7 +20,7 @@
 #define ITLB_HIT_BIT	3
 #define DTLB_HIT_BIT	4
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 /* TLB flushing:
  *
@@ -201,5 +201,5 @@ static inline unsigned long read_itlb_translation (int way)
 	return tmp;
 }
 
-#endif	/* __ASSEMBLY__ */
+#endif	/* __ASSEMBLER__ */
 #endif	/* _XTENSA_TLBFLUSH_H */

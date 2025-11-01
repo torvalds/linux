@@ -501,10 +501,15 @@ void mptcp_active_enable(struct sock *sk)
 	struct mptcp_pernet *pernet = mptcp_get_pernet(sock_net(sk));
 
 	if (atomic_read(&pernet->active_disable_times)) {
-		struct dst_entry *dst = sk_dst_get(sk);
+		struct net_device *dev;
+		struct dst_entry *dst;
 
-		if (dst && dst->dev && (dst->dev->flags & IFF_LOOPBACK))
+		rcu_read_lock();
+		dst = __sk_dst_get(sk);
+		dev = dst ? dst_dev_rcu(dst) : NULL;
+		if (!(dev && (dev->flags & IFF_LOOPBACK)))
 			atomic_set(&pernet->active_disable_times, 0);
+		rcu_read_unlock();
 	}
 }
 
@@ -533,9 +538,9 @@ void mptcp_active_detect_blackhole(struct sock *ssk, bool expired)
 	to_max = mptcp_get_pernet(net)->syn_retrans_before_tcp_fallback;
 
 	if (timeouts == to_max || (timeouts < to_max && expired)) {
-		MPTCP_INC_STATS(net, MPTCP_MIB_MPCAPABLEACTIVEDROP);
 		subflow->mpc_drop = 1;
-		mptcp_subflow_early_fallback(mptcp_sk(subflow->conn), subflow);
+		mptcp_early_fallback(mptcp_sk(subflow->conn), subflow,
+				     MPTCP_MIB_MPCAPABLEACTIVEDROP);
 	}
 }
 

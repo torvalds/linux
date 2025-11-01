@@ -7,6 +7,7 @@
 #ifndef _ULTRASOC_SMB_H
 #define _ULTRASOC_SMB_H
 
+#include <linux/bitfield.h>
 #include <linux/miscdevice.h>
 #include <linux/spinlock.h>
 

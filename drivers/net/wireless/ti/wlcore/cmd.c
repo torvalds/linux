@@ -1804,32 +1804,6 @@ out:
 	return ret;
 }
 
-int wl12xx_cmd_start_fwlog(struct wl1271 *wl)
-{
-	struct wl12xx_cmd_start_fwlog *cmd;
-	int ret = 0;
-
-	wl1271_debug(DEBUG_CMD, "cmd start firmware logger");
-
-	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
-	if (!cmd) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	ret = wl1271_cmd_send(wl, CMD_START_FWLOGGER, cmd, sizeof(*cmd), 0);
-	if (ret < 0) {
-		wl1271_error("failed to send start firmware logger command");
-		goto out_free;
-	}
-
-out_free:
-	kfree(cmd);
-
-out:
-	return ret;
-}
-
 int wl12xx_cmd_stop_fwlog(struct wl1271 *wl)
 {
 	struct wl12xx_cmd_stop_fwlog *cmd;

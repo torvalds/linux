@@ -1281,7 +1281,7 @@ static int sienna_cichlid_print_clk_levels(struct smu_context *smu,
 	struct smu_11_0_7_overdrive_table *od_settings = smu->od_settings;
 	OverDriveTable_t *od_table =
 		(OverDriveTable_t *)table_context->overdrive_table;
-	int i, size = 0, ret = 0;
+	int i, size = 0, ret = 0, start_offset = 0;
 	uint32_t cur_value = 0, value = 0, count = 0;
 	uint32_t freq_values[3] = {0};
 	uint32_t mark_index = 0;
@@ -1289,6 +1289,7 @@ static int sienna_cichlid_print_clk_levels(struct smu_context *smu,
 	uint32_t min_value, max_value;
 
 	smu_cmn_get_sysfs_buf(&buf, &size);
+	start_offset = size;
 
 	switch (clk_type) {
 	case SMU_GFXCLK:
@@ -1434,7 +1435,7 @@ static int sienna_cichlid_print_clk_levels(struct smu_context *smu,
 	}
 
 print_clk_out:
-	return size;
+	return size - start_offset;
 }
 
 static int sienna_cichlid_force_clk_levels(struct smu_context *smu,
@@ -2145,7 +2146,8 @@ static int sienna_cichlid_update_pcie_parameters(struct smu_context *smu,
 	uint8_t min_gen_speed, max_gen_speed;
 	uint8_t min_lane_width, max_lane_width;
 	uint32_t smu_pcie_arg;
-	int ret, i;
+	int ret = 0;
+	int i;
 
 	GET_PPTABLE_MEMBER(PcieGenSpeed, &table_member1);
 	GET_PPTABLE_MEMBER(PcieLaneCount, &table_member2);
@@ -2170,19 +2172,22 @@ static int sienna_cichlid_update_pcie_parameters(struct smu_context *smu,
 	pcie_table->pcie_lane[1] = max_lane_width;
 
 	for (i = 0; i < NUM_LINK_LEVELS; i++) {
-		smu_pcie_arg = (i << 16 |
+		if (!(smu->adev->pm.pp_feature & PP_PCIE_DPM_MASK) ||
+			table_member1[i] > pcie_gen_cap || table_member2[i] > pcie_width_cap) {
+			smu_pcie_arg = (i << 16 |
 				pcie_table->pcie_gen[i] << 8 |
 				pcie_table->pcie_lane[i]);
 
-		ret = smu_cmn_send_smc_msg_with_param(smu,
-				SMU_MSG_OverridePcieParameters,
-				smu_pcie_arg,
-				NULL);
-		if (ret)
-			return ret;
+			ret = smu_cmn_send_smc_msg_with_param(smu,
+						SMU_MSG_OverridePcieParameters,
+						smu_pcie_arg,
+						NULL);
+			if (ret)
+				break;
+		}
 	}
 
-	return 0;
+	return ret;
 }
 
 static int sienna_cichlid_get_dpm_ultimate_freq(struct smu_context *smu,
@@ -2644,10 +2649,10 @@ static int sienna_cichlid_i2c_control_init(struct smu_context *smu)
 		control->quirks = &sienna_cichlid_i2c_control_quirks;
 		i2c_set_adapdata(control, smu_i2c);
 
-		res = i2c_add_adapter(control);
+		res = devm_i2c_add_adapter(adev->dev, control);
 		if (res) {
 			DRM_ERROR("Failed to register hw i2c, err: %d\n", res);
-			goto Out_err;
+			return res;
 		}
 	}
 	/* assign the buses used for the FRU EEPROM and RAS EEPROM */
@@ -2656,27 +2661,12 @@ static int sienna_cichlid_i2c_control_init(struct smu_context *smu)
 	adev->pm.fru_eeprom_i2c_bus = &adev->pm.smu_i2c[0].adapter;
 
 	return 0;
-Out_err:
-	for ( ; i >= 0; i--) {
-		struct amdgpu_smu_i2c_bus *smu_i2c = &adev->pm.smu_i2c[i];
-		struct i2c_adapter *control = &smu_i2c->adapter;
-
-		i2c_del_adapter(control);
-	}
-	return res;
 }
 
 static void sienna_cichlid_i2c_control_fini(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
-	int i;
 
-	for (i = 0; i < MAX_SMU_I2C_BUSES; i++) {
-		struct amdgpu_smu_i2c_bus *smu_i2c = &adev->pm.smu_i2c[i];
-		struct i2c_adapter *control = &smu_i2c->adapter;
-
-		i2c_del_adapter(control);
-	}
 	adev->pm.ras_eeprom_i2c_bus = NULL;
 	adev->pm.fru_eeprom_i2c_bus = NULL;
 }

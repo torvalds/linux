@@ -55,7 +55,7 @@
 			label = "cover";
 			gpios = <&gpio0 RK_PC7 GPIO_ACTIVE_LOW>;
 			linux,input-type = <EV_SW>;
-			linux,code = <SW_MACHINE_COVER>;
+			linux,code = <SW_LID>;
 			linux,can-disable;
 			wakeup-event-action = <EV_ACT_DEASSERTED>;
 			wakeup-source;

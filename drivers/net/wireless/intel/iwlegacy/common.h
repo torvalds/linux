@@ -1956,7 +1956,7 @@ il_get_hw_mode(struct il_priv *il, enum nl80211_band band)
 }
 
 /* mac80211 handlers */
-int il_mac_config(struct ieee80211_hw *hw, u32 changed);
+int il_mac_config(struct ieee80211_hw *hw, int radio_idx, u32 changed);
 void il_mac_reset_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
 void il_mac_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			     struct ieee80211_bss_conf *bss_conf, u64 changes);

@@ -52,7 +52,7 @@
 
 #include <uapi/asm/epapr_hcalls.h>
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <asm/byteorder.h>
@@ -571,5 +571,5 @@ static inline long epapr_hypercall4(unsigned int nr, unsigned long p1,
 	in[3] = p4;
 	return epapr_hypercall(in, out, nr);
 }
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 #endif /* _EPAPR_HCALLS_H */

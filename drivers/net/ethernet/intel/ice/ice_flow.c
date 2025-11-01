@@ -1421,7 +1421,7 @@ ice_flow_add_prof_sync(struct ice_hw *hw, enum ice_block blk,
 	}
 
 	/* Add a HW profile for this flow profile */
-	status = ice_add_prof(hw, blk, prof_id, (u8 *)params->ptypes,
+	status = ice_add_prof(hw, blk, prof_id, params->ptypes,
 			      params->attr, params->attr_cnt, params->es,
 			      params->mask, symm, true);
 	if (status) {
@@ -1617,7 +1617,7 @@ ice_flow_set_parser_prof(struct ice_hw *hw, u16 dest_vsi, u16 fdir_vsi,
 		break;
 	}
 
-	status = ice_add_prof(hw, blk, id, (u8 *)prof->ptypes,
+	status = ice_add_prof(hw, blk, id, prof->ptypes,
 			      params->attr, params->attr_cnt,
 			      params->es, params->mask, false, false);
 	if (status)
@@ -2573,38 +2573,38 @@ ice_rem_rss_cfg(struct ice_hw *hw, u16 vsi_handle,
  * convert its values to their appropriate flow L3, L4 values.
  */
 #define ICE_FLOW_AVF_RSS_IPV4_MASKS \
-	(BIT_ULL(ICE_AVF_FLOW_FIELD_IPV4_OTHER) | \
-	 BIT_ULL(ICE_AVF_FLOW_FIELD_FRAG_IPV4))
+	(BIT_ULL(LIBIE_FILTER_PCTYPE_NONF_IPV4_OTHER) | \
+	 BIT_ULL(LIBIE_FILTER_PCTYPE_FRAG_IPV4))
 #define ICE_FLOW_AVF_RSS_TCP_IPV4_MASKS \
-	(BIT_ULL(ICE_AVF_FLOW_FIELD_IPV4_TCP_SYN_NO_ACK) | \
-	 BIT_ULL(ICE_AVF_FLOW_FIELD_IPV4_TCP))
+	(BIT_ULL(LIBIE_FILTER_PCTYPE_NONF_IPV4_TCP_SYN_NO_ACK) | \
+	 BIT_ULL(LIBIE_FILTER_PCTYPE_NONF_IPV4_TCP))
 #define ICE_FLOW_AVF_RSS_UDP_IPV4_MASKS \
-	(BIT_ULL(ICE_AVF_FLOW_FIELD_UNICAST_IPV4_UDP) | \
-	 BIT_ULL(ICE_AVF_FLOW_FIELD_MULTICAST_IPV4_UDP) | \
-	 BIT_ULL(ICE_AVF_FLOW_FIELD_IPV4_UDP))
+	(BIT_ULL(LIBIE_FILTER_PCTYPE_NONF_UNICAST_IPV4_UDP) | \
+	 BIT_ULL(LIBIE_FILTER_PCTYPE_NONF_MULTICAST_IPV4_UDP) | \
+	 BIT_ULL(LIBIE_FILTER_PCTYPE_NONF_IPV4_UDP))
 #define ICE_FLOW_AVF_RSS_ALL_IPV4_MASKS \
 	(ICE_FLOW_AVF_RSS_TCP_IPV4_MASKS | ICE_FLOW_AVF_RSS_UDP_IPV4_MASKS | \
-	 ICE_FLOW_AVF_RSS_IPV4_MASKS | BIT_ULL(ICE_AVF_FLOW_FIELD_IPV4_SCTP))
+	 ICE_FLOW_AVF_RSS_IPV4_MASKS | BIT_ULL(LIBIE_FILTER_PCTYPE_NONF_IPV4_SCTP))
 
 #define ICE_FLOW_AVF_RSS_IPV6_MASKS \
-	(BIT_ULL(ICE_AVF_FLOW_FIELD_IPV6_OTHER) | \
-	 BIT_ULL(ICE_AVF_FLOW_FIELD_FRAG_IPV6))
+	(BIT_ULL(LIBIE_FILTER_PCTYPE_NONF_IPV6_OTHER) | \
+	 BIT_ULL(LIBIE_FILTER_PCTYPE_FRAG_IPV6))
 #define ICE_FLOW_AVF_RSS_UDP_IPV6_MASKS \
-	(BIT_ULL(ICE_AVF_FLOW_FIELD_UNICAST_IPV6_UDP) | \
-	 BIT_ULL(ICE_AVF_FLOW_FIELD_MULTICAST_IPV6_UDP) | \
-	 BIT_ULL(ICE_AVF_FLOW_FIELD_IPV6_UDP))
+	(BIT_ULL(LIBIE_FILTER_PCTYPE_NONF_UNICAST_IPV6_UDP) | \
+	 BIT_ULL(LIBIE_FILTER_PCTYPE_NONF_MULTICAST_IPV6_UDP) | \
+	 BIT_ULL(LIBIE_FILTER_PCTYPE_NONF_IPV6_UDP))
 #define ICE_FLOW_AVF_RSS_TCP_IPV6_MASKS \
-	(BIT_ULL(ICE_AVF_FLOW_FIELD_IPV6_TCP_SYN_NO_ACK) | \
-	 BIT_ULL(ICE_AVF_FLOW_FIELD_IPV6_TCP))
+	(BIT_ULL(LIBIE_FILTER_PCTYPE_NONF_IPV6_TCP_SYN_NO_ACK) | \
+	 BIT_ULL(LIBIE_FILTER_PCTYPE_NONF_IPV6_TCP))
 #define ICE_FLOW_AVF_RSS_ALL_IPV6_MASKS \
 	(ICE_FLOW_AVF_RSS_TCP_IPV6_MASKS | ICE_FLOW_AVF_RSS_UDP_IPV6_MASKS | \
-	 ICE_FLOW_AVF_RSS_IPV6_MASKS | BIT_ULL(ICE_AVF_FLOW_FIELD_IPV6_SCTP))
+	 ICE_FLOW_AVF_RSS_IPV6_MASKS | BIT_ULL(LIBIE_FILTER_PCTYPE_NONF_IPV6_SCTP))
 
 /**
  * ice_add_avf_rss_cfg - add an RSS configuration for AVF driver
  * @hw: pointer to the hardware structure
  * @vsi: VF's VSI
- * @avf_hash: hash bit fields (ICE_AVF_FLOW_FIELD_*) to configure
+ * @avf_hash: hash bit fields (LIBIE_FILTER_PCTYPE_*) to configure
  *
  * This function will take the hash bitmap provided by the AVF driver via a
  * message, convert it to ICE-compatible values, and configure RSS flow
@@ -2621,8 +2621,7 @@ int ice_add_avf_rss_cfg(struct ice_hw *hw, struct ice_vsi *vsi, u64 avf_hash)
 		return -EINVAL;
 
 	vsi_handle = vsi->idx;
-	if (avf_hash == ICE_AVF_FLOW_FIELD_INVALID ||
-	    !ice_is_vsi_valid(hw, vsi_handle))
+	if (!avf_hash || !ice_is_vsi_valid(hw, vsi_handle))
 		return -EINVAL;
 
 	/* Make sure no unsupported bits are specified */
@@ -2658,11 +2657,11 @@ int ice_add_avf_rss_cfg(struct ice_hw *hw, struct ice_vsi *vsi, u64 avf_hash)
 					ICE_FLOW_HASH_UDP_PORT;
 				hash_flds &= ~ICE_FLOW_AVF_RSS_UDP_IPV4_MASKS;
 			} else if (hash_flds &
-				   BIT_ULL(ICE_AVF_FLOW_FIELD_IPV4_SCTP)) {
+				   BIT_ULL(LIBIE_FILTER_PCTYPE_NONF_IPV4_SCTP)) {
 				rss_hash = ICE_FLOW_HASH_IPV4 |
 					ICE_FLOW_HASH_SCTP_PORT;
 				hash_flds &=
-					~BIT_ULL(ICE_AVF_FLOW_FIELD_IPV4_SCTP);
+					~BIT_ULL(LIBIE_FILTER_PCTYPE_NONF_IPV4_SCTP);
 			}
 		} else if (hash_flds & ICE_FLOW_AVF_RSS_ALL_IPV6_MASKS) {
 			if (hash_flds & ICE_FLOW_AVF_RSS_IPV6_MASKS) {
@@ -2679,11 +2678,11 @@ int ice_add_avf_rss_cfg(struct ice_hw *hw, struct ice_vsi *vsi, u64 avf_hash)
 					ICE_FLOW_HASH_UDP_PORT;
 				hash_flds &= ~ICE_FLOW_AVF_RSS_UDP_IPV6_MASKS;
 			} else if (hash_flds &
-				   BIT_ULL(ICE_AVF_FLOW_FIELD_IPV6_SCTP)) {
+				   BIT_ULL(LIBIE_FILTER_PCTYPE_NONF_IPV6_SCTP)) {
 				rss_hash = ICE_FLOW_HASH_IPV6 |
 					ICE_FLOW_HASH_SCTP_PORT;
 				hash_flds &=
-					~BIT_ULL(ICE_AVF_FLOW_FIELD_IPV6_SCTP);
+					~BIT_ULL(LIBIE_FILTER_PCTYPE_NONF_IPV6_SCTP);
 			}
 		}
 

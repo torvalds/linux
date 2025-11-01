@@ -195,16 +195,6 @@ config NF_CONNTRACK_LABELS
 config NF_CONNTRACK_OVS
 	bool
 
-config NF_CT_PROTO_DCCP
-	bool 'DCCP protocol connection tracking support'
-	depends on NETFILTER_ADVANCED
-	default y
-	help
-	  With this option enabled, the layer 3 independent connection
-	  tracking code will be able to do state tracking on DCCP connections.
-
-	  If unsure, say Y.
-
 config NF_CT_PROTO_GRE
 	bool
 
@@ -516,6 +506,12 @@ config NFT_CT
 	  This option adds the "ct" expression that you can use to match
 	  connection tracking information such as the flow state.
 
+config NFT_EXTHDR_DCCP
+	bool "Netfilter nf_tables exthdr DCCP support (DEPRECATED)"
+	default n
+	help
+	  This option adds support for matching on DCCP extension headers.
+
 config NFT_FLOW_OFFLOAD
 	depends on NF_CONNTRACK && NF_FLOW_TABLE
 	tristate "Netfilter nf_tables hardware flow offload module"
@@ -761,6 +757,16 @@ config NETFILTER_XTABLES_COMPAT
 	   binaries on 64bit kernels.
 
 	   If unsure, say N.
+
+config NETFILTER_XTABLES_LEGACY
+	bool "Netfilter legacy tables support"
+	depends on !PREEMPT_RT
+	help
+	  Say Y here if you still require support for legacy tables. This is
+	  required by the legacy tools (iptables-legacy) and is not needed if
+	  you use iptables over nftables (iptables-nft).
+	  Legacy support is not limited to IP, it also includes EBTABLES and
+	  ARPTABLES.
 
 comment "Xtables combined modules"
 
@@ -1278,9 +1284,9 @@ config NETFILTER_XT_MATCH_CPU
 	  To compile it as a module, choose M here.  If unsure, say N.
 
 config NETFILTER_XT_MATCH_DCCP
-	tristate '"dccp" protocol match support'
+	tristate '"dccp" protocol match support (DEPRECATED)'
 	depends on NETFILTER_ADVANCED
-	default IP_DCCP
+	default n
 	help
 	  With this option enabled, you will be able to use the iptables
 	  `dccp' match in order to match on DCCP source/destination ports

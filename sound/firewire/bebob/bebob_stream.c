@@ -964,33 +964,24 @@ void snd_bebob_stream_lock_changed(struct snd_bebob *bebob)
 
 int snd_bebob_stream_lock_try(struct snd_bebob *bebob)
 {
-	int err;
-
-	spin_lock_irq(&bebob->lock);
+	guard(spinlock_irq)(&bebob->lock);
 
 	/* user land lock this */
-	if (bebob->dev_lock_count < 0) {
-		err = -EBUSY;
-		goto end;
-	}
+	if (bebob->dev_lock_count < 0)
+		return -EBUSY;
 
 	/* this is the first time */
 	if (bebob->dev_lock_count++ == 0)
 		snd_bebob_stream_lock_changed(bebob);
-	err = 0;
-end:
-	spin_unlock_irq(&bebob->lock);
-	return err;
+	return 0;
 }
 
 void snd_bebob_stream_lock_release(struct snd_bebob *bebob)
 {
-	spin_lock_irq(&bebob->lock);
+	guard(spinlock_irq)(&bebob->lock);
 
 	if (WARN_ON(bebob->dev_lock_count <= 0))
-		goto end;
+		return;
 	if (--bebob->dev_lock_count == 0)
 		snd_bebob_stream_lock_changed(bebob);
-end:
-	spin_unlock_irq(&bebob->lock);
 }

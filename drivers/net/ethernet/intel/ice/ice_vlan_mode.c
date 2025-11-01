@@ -63,7 +63,7 @@ static int
 ice_aq_get_vlan_mode(struct ice_hw *hw,
 		     struct ice_aqc_get_vlan_mode *get_params)
 {
-	struct ice_aq_desc desc;
+	struct libie_aq_desc desc;
 
 	if (!get_params)
 		return -EINVAL;
@@ -275,7 +275,7 @@ ice_aq_set_vlan_mode(struct ice_hw *hw,
 		     struct ice_aqc_set_vlan_mode *set_params)
 {
 	u8 rdma_packet, mng_vlan_prot_id;
-	struct ice_aq_desc desc;
+	struct libie_aq_desc desc;
 
 	if (!set_params)
 		return -EINVAL;
@@ -295,7 +295,7 @@ ice_aq_set_vlan_mode(struct ice_hw *hw,
 
 	ice_fill_dflt_direct_cmd_desc(&desc,
 				      ice_aqc_opc_set_vlan_mode_parameters);
-	desc.flags |= cpu_to_le16(ICE_AQ_FLAG_RD);
+	desc.flags |= cpu_to_le16(LIBIE_AQ_FLAG_RD);
 
 	return ice_aq_send_cmd(hw, &desc, set_params, sizeof(*set_params),
 			       NULL);

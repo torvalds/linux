@@ -18,4 +18,44 @@
 			bias-bus-hold;
 		};
 	};
+
+	sdcc3_default_state: sdcc3-default-state {
+		clk-pins {
+			pins = "sdc3_clk";
+			drive-strength = <8>;
+			bias-disable;
+		};
+
+		cmd-pins {
+			pins = "sdc3_cmd";
+			drive-strength = <8>;
+			bias-pull-up;
+		};
+
+		data-pins {
+			pins = "sdc3_data";
+			drive-strength = <8>;
+			bias-pull-up;
+		};
+	};
+
+	sdcc3_sleep_state: sdcc3-sleep-state {
+		clk-pins {
+			pins = "sdc3_clk";
+			drive-strength = <2>;
+			bias-disable;
+		};
+
+		cmd-pins {
+			pins = "sdc3_cmd";
+			drive-strength = <2>;
+			bias-pull-up;
+		};
+
+		data-pins {
+			pins = "sdc3_data";
+			drive-strength = <2>;
+			bias-pull-up;
+		};
+	};
 };

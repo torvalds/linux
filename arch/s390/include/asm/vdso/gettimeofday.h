@@ -16,13 +16,7 @@
 
 static inline u64 __arch_get_hw_counter(s32 clock_mode, const struct vdso_time_data *vd)
 {
-	u64 adj, now;
-
-	now = get_tod_clock();
-	adj = vd->arch_data.tod_steering_end - now;
-	if (unlikely((s64) adj > 0))
-		now += (vd->arch_data.tod_steering_delta < 0) ? (adj >> 15) : -(adj >> 15);
-	return now;
+	return get_tod_clock() - vd->arch_data.tod_delta;
 }
 
 static __always_inline

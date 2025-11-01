@@ -15,6 +15,8 @@ enum gic_type {
 	GIC_V2,
 	/* Full GICv3, optionally with v2 compat */
 	GIC_V3,
+	/* Full GICv5, optionally with v3 compat */
+	GIC_V5,
 };
 
 struct gic_kvm_info {

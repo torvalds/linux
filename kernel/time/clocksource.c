@@ -144,7 +144,7 @@ static u64 suspend_start;
  * Default for maximum permissible skew when cs->uncertainty_margin is
  * not specified, and the lower bound even when cs->uncertainty_margin
  * is specified.  This is also the default that is used when registering
- * clocks with unspecifed cs->uncertainty_margin, so this macro is used
+ * clocks with unspecified cs->uncertainty_margin, so this macro is used
  * even in CONFIG_CLOCKSOURCE_WATCHDOG=n kernels.
  */
 #define WATCHDOG_MAX_SKEW (MAX_SKEW_USEC * NSEC_PER_USEC)
@@ -323,9 +323,7 @@ static void clocksource_verify_choose_cpus(void)
 		return;
 
 	/* Make sure to select at least one CPU other than the current CPU. */
-	cpu = cpumask_first(cpu_online_mask);
-	if (cpu == smp_processor_id())
-		cpu = cpumask_next(cpu, cpu_online_mask);
+	cpu = cpumask_any_but(cpu_online_mask, smp_processor_id());
 	if (WARN_ON_ONCE(cpu >= nr_cpu_ids))
 		return;
 	cpumask_set_cpu(cpu, &cpus_chosen);
@@ -342,10 +340,7 @@ static void clocksource_verify_choose_cpus(void)
 	 * CPUs that are currently online.
 	 */
 	for (i = 1; i < n; i++) {
-		cpu = get_random_u32_below(nr_cpu_ids);
-		cpu = cpumask_next(cpu - 1, cpu_online_mask);
-		if (cpu >= nr_cpu_ids)
-			cpu = cpumask_first(cpu_online_mask);
+		cpu = cpumask_random(cpu_online_mask);
 		if (!WARN_ON_ONCE(cpu >= nr_cpu_ids))
 			cpumask_set_cpu(cpu, &cpus_chosen);
 	}
@@ -412,9 +407,8 @@ void clocksource_verify_percpu(struct clocksource *cs)
 	if (!cpumask_empty(&cpus_behind))
 		pr_warn("        CPUs %*pbl behind CPU %d for clocksource %s.\n",
 			cpumask_pr_args(&cpus_behind), testcpu, cs->name);
-	if (!cpumask_empty(&cpus_ahead) || !cpumask_empty(&cpus_behind))
-		pr_warn("        CPU %d check durations %lldns - %lldns for clocksource %s.\n",
-			testcpu, cs_nsec_min, cs_nsec_max, cs->name);
+	pr_info("        CPU %d check durations %lldns - %lldns for clocksource %s.\n",
+		testcpu, cs_nsec_min, cs_nsec_max, cs->name);
 }
 EXPORT_SYMBOL_GPL(clocksource_verify_percpu);
 
@@ -589,9 +583,7 @@ static void clocksource_watchdog(struct timer_list *unused)
 	 * Cycle through CPUs to check if the CPUs stay synchronized
 	 * to each other.
 	 */
-	next_cpu = cpumask_next(raw_smp_processor_id(), cpu_online_mask);
-	if (next_cpu >= nr_cpu_ids)
-		next_cpu = cpumask_first(cpu_online_mask);
+	next_cpu = cpumask_next_wrap(raw_smp_processor_id(), cpu_online_mask);
 
 	/*
 	 * Arm timer if not already pending: could race with concurrent

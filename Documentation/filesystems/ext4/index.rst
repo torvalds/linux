@@ -5,7 +5,7 @@ ext4 Data Structures and Algorithms
 ===================================
 
 .. toctree::
-   :maxdepth: 6
+   :maxdepth: 2
    :numbered:
 
    about

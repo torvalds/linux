@@ -12,7 +12,7 @@
 #include "internal.h"
 
 
-static const struct proc_ns_operations *ns_entries[] = {
+static const struct proc_ns_operations *const ns_entries[] = {
 #ifdef CONFIG_NET_NS
 	&netns_operations,
 #endif
@@ -111,14 +111,13 @@ static struct dentry *proc_ns_instantiate(struct dentry *dentry,
 	ei->ns_ops = ns_ops;
 	pid_update_inode(task, inode);
 
-	d_set_d_op(dentry, &pid_dentry_operations);
-	return d_splice_alias(inode, dentry);
+	return d_splice_alias_ops(inode, dentry, &pid_dentry_operations);
 }
 
 static int proc_ns_dir_readdir(struct file *file, struct dir_context *ctx)
 {
 	struct task_struct *task = get_proc_task(file_inode(file));
-	const struct proc_ns_operations **entry, **last;
+	const struct proc_ns_operations *const *entry, *const *last;
 
 	if (!task)
 		return -ENOENT;
@@ -152,7 +151,7 @@ static struct dentry *proc_ns_dir_lookup(struct inode *dir,
 				struct dentry *dentry, unsigned int flags)
 {
 	struct task_struct *task = get_proc_task(dir);
-	const struct proc_ns_operations **entry, **last;
+	const struct proc_ns_operations *const *entry, *const *last;
 	unsigned int len = dentry->d_name.len;
 	struct dentry *res = ERR_PTR(-ENOENT);
 

@@ -660,4 +660,5 @@ source "drivers/misc/pvpanic/Kconfig"
 source "drivers/misc/mchp_pci1xxxx/Kconfig"
 source "drivers/misc/keba/Kconfig"
 source "drivers/misc/amd-sbi/Kconfig"
+source "drivers/misc/rp1/Kconfig"
 endmenu

@@ -755,7 +755,7 @@ static void lanai_shutdown_rx_vci(const struct lanai_vcc *lvcc)
 /* Shutdown transmitting on card.
  * Unfortunately the lanai needs us to wait until all the data
  * drains out of the buffer before we can dealloc it, so this
- * can take awhile -- up to 370ms for a full 128KB buffer
+ * can take a while -- up to 370ms for a full 128KB buffer
  * assuming everone else is quiet.  In theory the time is
  * boundless if there's a CBR VCC holding things up.
  */

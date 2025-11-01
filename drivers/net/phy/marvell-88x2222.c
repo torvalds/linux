@@ -475,21 +475,20 @@ static int mv2222_config_init(struct phy_device *phydev)
 
 static int mv2222_sfp_insert(void *upstream, const struct sfp_eeprom_id *id)
 {
-	DECLARE_PHY_INTERFACE_MASK(interfaces);
 	struct phy_device *phydev = upstream;
+	const struct sfp_module_caps *caps;
 	phy_interface_t sfp_interface;
 	struct mv2222_data *priv;
 	struct device *dev;
 	int ret;
 
-	__ETHTOOL_DECLARE_LINK_MODE_MASK(sfp_supported) = { 0, };
-
 	priv = phydev->priv;
 	dev = &phydev->mdio.dev;
 
-	sfp_parse_support(phydev->sfp_bus, id, sfp_supported, interfaces);
-	phydev->port = sfp_parse_port(phydev->sfp_bus, id, sfp_supported);
-	sfp_interface = sfp_select_interface(phydev->sfp_bus, sfp_supported);
+	caps = sfp_get_module_caps(phydev->sfp_bus);
+
+	phydev->port = caps->port;
+	sfp_interface = sfp_select_interface(phydev->sfp_bus, caps->link_modes);
 
 	dev_info(dev, "%s SFP module inserted\n", phy_modes(sfp_interface));
 
@@ -502,7 +501,7 @@ static int mv2222_sfp_insert(void *upstream, const struct sfp_eeprom_id *id)
 	}
 
 	priv->line_interface = sfp_interface;
-	linkmode_and(priv->supported, phydev->supported, sfp_supported);
+	linkmode_and(priv->supported, phydev->supported, caps->link_modes);
 
 	ret = mv2222_config_line(phydev);
 	if (ret < 0)

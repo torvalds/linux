@@ -1,0 +1,79 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pinctrl/nxp,lpc1850-scu.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NXP LPC18xx/43xx SCU pin controller
+
+description:
+  Not all pins support all pin generic node properties so either refer to
+  the NXP 1850/4350 user manual or the pin table in the pinctrl-lpc18xx
+  driver for supported pin properties.
+
+maintainers:
+  - Frank Li <Frank.Li@nxp.com>
+
+properties:
+  compatible:
+    const: nxp,lpc1850-scu
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+patternProperties:
+  '-pins$':
+    type: object
+    additionalProperties: false
+
+    patternProperties:
+      '_cfg$':
+        type: object
+
+        allOf:
+          - $ref: pincfg-node.yaml#
+          - $ref: pinmux-node.yaml#
+
+        unevaluatedProperties: false
+
+        properties:
+          nxp,gpio-pin-interrupt:
+            $ref: /schemas/types.yaml#/definitions/uint32
+            minimum: 0
+            maximum: 7
+            description:
+              Assign pin to gpio pin interrupt controller
+              irq number 0 to 7. See example below.
+
+required:
+  - compatible
+  - reg
+  - clocks
+
+allOf:
+  - $ref: pinctrl.yaml#
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/lpc18xx-ccu.h>
+
+    pinctrl@40086000 {
+        compatible = "nxp,lpc1850-scu";
+        reg = <0x40086000 0x1000>;
+        clocks = <&ccu1 CLK_CPU_SCU>;
+
+        gpio-joystick-pins {
+            gpio-joystick-1_cfg {
+                pins = "p9_0";
+                function = "gpio";
+                nxp,gpio-pin-interrupt = <0>;
+                input-enable;
+                bias-disable;
+            };
+        };
+    };

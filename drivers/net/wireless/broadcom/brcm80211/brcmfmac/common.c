@@ -525,7 +525,7 @@ struct brcmf_mp_device *brcmf_get_module_param(struct device *dev,
 	if (!settings)
 		return NULL;
 
-	/* start by using the module paramaters */
+	/* start by using the module parameters */
 	settings->p2p_enable = !!brcmf_p2p_enable;
 	settings->feature_disable = brcmf_feature_disable;
 	settings->fcmode = brcmf_fcmode;
@@ -612,7 +612,7 @@ static int __init brcmfmac_module_init(void)
 	if (err == -ENODEV)
 		brcmf_dbg(INFO, "No platform data available.\n");
 
-	/* Initialize global module paramaters */
+	/* Initialize global module parameters */
 	brcmf_mp_attach();
 
 	/* Continue the initialization by registering the different busses */

@@ -5,12 +5,6 @@
 # Copyright (C) 2014 Linaro Ltd <ard.biesheuvel@linaro.org>
 #
 
-obj-$(CONFIG_CRYPTO_SHA1_ARM64_CE) += sha1-ce.o
-sha1-ce-y := sha1-ce-glue.o sha1-ce-core.o
-
-obj-$(CONFIG_CRYPTO_SHA512_ARM64_CE) += sha512-ce.o
-sha512-ce-y := sha512-ce-glue.o sha512-ce-core.o
-
 obj-$(CONFIG_CRYPTO_SHA3_ARM64) += sha3-ce.o
 sha3-ce-y := sha3-ce-glue.o sha3-ce-core.o
 
@@ -53,9 +47,6 @@ aes-ce-blk-y := aes-glue-ce.o aes-ce.o
 obj-$(CONFIG_CRYPTO_AES_ARM64_NEON_BLK) += aes-neon-blk.o
 aes-neon-blk-y := aes-glue-neon.o aes-neon.o
 
-obj-$(CONFIG_CRYPTO_SHA512_ARM64) += sha512-arm64.o
-sha512-arm64-y := sha512-glue.o sha512-core.o
-
 obj-$(CONFIG_CRYPTO_NHPOLY1305_NEON) += nhpoly1305-neon.o
 nhpoly1305-neon-y := nh-neon-core.o nhpoly1305-neon-glue.o
 
@@ -64,11 +55,3 @@ aes-arm64-y := aes-cipher-core.o aes-cipher-glue.o
 
 obj-$(CONFIG_CRYPTO_AES_ARM64_BS) += aes-neon-bs.o
 aes-neon-bs-y := aes-neonbs-core.o aes-neonbs-glue.o
-
-quiet_cmd_perlasm = PERLASM $@
-      cmd_perlasm = $(PERL) $(<) void $(@)
-
-$(obj)/sha512-core.S: $(src)/../lib/crypto/sha2-armv8.pl
-	$(call cmd,perlasm)
-
-clean-files += sha512-core.S

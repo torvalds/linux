@@ -1,0 +1,104 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/gpio/maxim,max31910.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Maxim MAX3191x GPIO serializer
+
+maintainers:
+  - Lukas Wunner <lukas@wunner.de>
+
+properties:
+  compatible:
+    enum:
+      - maxim,max31910
+      - maxim,max31911
+      - maxim,max31912
+      - maxim,max31913
+      - maxim,max31953
+      - maxim,max31963
+
+  reg:
+    maxItems: 1
+
+  gpio-controller: true
+
+  '#gpio-cells':
+    const: 2
+
+  '#daisy-chained-devices':
+    description: Number of chips in the daisy-chain.
+    default: 1
+
+  maxim,modesel-gpios:
+    description:
+      GPIO pins to configure modesel of each chip. The number of GPIOs must
+      equal "#daisy-chained-devices" (if each chip is driven by a separate pin)
+      or 1 (if all chips are wired to the same pin).
+
+  maxim,fault-gpios:
+    description:
+      GPIO pins to read fault of each chip. The number of GPIOs must equal
+      "#daisy-chained-devices" or 1.
+
+  maxim,db0-gpios:
+    description:
+      GPIO pins to configure debounce of each chip. The number of GPIOs must
+      equal "#daisy-chained-devices" or 1.
+
+  maxim,db1-gpios:
+    description:
+      GPIO pins to configure debounce of each chip. The number of GPIOs must
+      equal "maxim,db0-gpios".
+
+  maxim,modesel-8bit:
+    description:
+      Boolean whether the modesel pin of the chips is pulled high (8-bit mode).
+      Use this if the modesel pin is hardwired and consequently
+      "maxim,modesel-gpios" cannot be specified. By default if neither this nor
+      "maxim,modesel-gpios" is given, the driver assumes that modesel is pulled
+      low (16-bit mode).
+    type: boolean
+
+  maxim,ignore-undervoltage:
+    description:
+      Boolean whether to ignore undervoltage alarms signaled by the
+      "maxim,fault-gpios" or by the status byte (in 16-bit mode). Use this if
+      the chips are powered through 5VOUT instead of VCC24V, in which case they
+      will constantly signal undervoltage.
+    type: boolean
+
+required:
+  - compatible
+  - reg
+  - gpio-controller
+  - '#gpio-cells'
+
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    spi {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        gpio@0 {
+            compatible = "maxim,max31913";
+            reg = <0>;
+            gpio-controller;
+            #gpio-cells = <2>;
+
+            maxim,modesel-gpios = <&gpio2 23>;
+            maxim,fault-gpios = <&gpio2 24 GPIO_ACTIVE_LOW>;
+            maxim,db0-gpios = <&gpio2 25>;
+            maxim,db1-gpios = <&gpio2 26>;
+
+            spi-max-frequency = <25000000>;
+        };
+    };

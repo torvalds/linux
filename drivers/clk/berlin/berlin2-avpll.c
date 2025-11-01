@@ -319,7 +319,7 @@ berlin2_avpll_channel_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
 
 	/*
 	 * AV3 divider start at VCO_CTRL14, bit 7; each 4 bits wide.
-	 * AV2/AV3 form a fractional divider, where only specfic values for AV3
+	 * AV2/AV3 form a fractional divider, where only specific values for AV3
 	 * are allowed. AV3 != 0 divides by AV2/2, AV3=0 is bypass.
 	 */
 	if (ch->index < 6) {

@@ -28,9 +28,6 @@
 
 #include "bmc150_magn.h"
 
-#define BMC150_MAGN_DRV_NAME			"bmc150_magn"
-#define BMC150_MAGN_IRQ_NAME			"bmc150_magn_event"
-
 #define BMC150_MAGN_REG_CHIP_ID			0x40
 #define BMC150_MAGN_CHIP_ID_VAL			0x32
 
@@ -260,22 +257,17 @@ static int bmc150_magn_set_power_mode(struct bmc150_magn_data *data,
 
 static int bmc150_magn_set_power_state(struct bmc150_magn_data *data, bool on)
 {
-#ifdef CONFIG_PM
-	int ret;
+	int ret = 0;
 
-	if (on) {
+	if (on)
 		ret = pm_runtime_resume_and_get(data->dev);
-	} else {
-		pm_runtime_mark_last_busy(data->dev);
-		ret = pm_runtime_put_autosuspend(data->dev);
-	}
-
+	else
+		pm_runtime_put_autosuspend(data->dev);
 	if (ret < 0) {
 		dev_err(data->dev,
 			"failed to change power state to %d\n", on);
 		return ret;
 	}
-#endif
 
 	return 0;
 }
@@ -918,7 +910,7 @@ int bmc150_magn_probe(struct device *dev, struct regmap *regmap,
 					   iio_trigger_generic_data_rdy_poll,
 					   NULL,
 					   IRQF_TRIGGER_RISING | IRQF_ONESHOT,
-					   BMC150_MAGN_IRQ_NAME,
+					   "bmc150_magn_event",
 					   data->dready_trig);
 		if (ret < 0) {
 			dev_err(dev, "request irq %d failed\n", irq);

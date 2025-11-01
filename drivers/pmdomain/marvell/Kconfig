@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+menu "Marvell PM Domains"
+	depends on ARCH_MMP || COMPILE_TEST
+
+config PXA1908_PM_DOMAINS
+	tristate "Marvell PXA1908 power domains"
+	depends on OF
+	depends on PM
+	default y if ARCH_MMP && ARM64
+	select AUXILIARY_BUS
+	select MFD_SYSCON
+	select PM_GENERIC_DOMAINS
+	select PM_GENERIC_DOMAINS_OF
+	help
+	  Say Y here to enable support for Marvell PXA1908's power domanis.
+
+endmenu

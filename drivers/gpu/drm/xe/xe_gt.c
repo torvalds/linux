@@ -37,10 +37,10 @@
 #include "xe_gt_sriov_pf.h"
 #include "xe_gt_sriov_vf.h"
 #include "xe_gt_sysfs.h"
-#include "xe_gt_tlb_invalidation.h"
 #include "xe_gt_topology.h"
 #include "xe_guc_exec_queue_types.h"
 #include "xe_guc_pc.h"
+#include "xe_guc_submit.h"
 #include "xe_hw_fence.h"
 #include "xe_hw_engine_class_sysfs.h"
 #include "xe_irq.h"
@@ -57,6 +57,7 @@
 #include "xe_sa.h"
 #include "xe_sched_job.h"
 #include "xe_sriov.h"
+#include "xe_tlb_inval.h"
 #include "xe_tuning.h"
 #include "xe_uc.h"
 #include "xe_uc_fw.h"
@@ -64,29 +65,29 @@
 #include "xe_wa.h"
 #include "xe_wopcm.h"
 
-static void gt_fini(struct drm_device *drm, void *arg)
-{
-	struct xe_gt *gt = arg;
-
-	destroy_workqueue(gt->ordered_wq);
-}
-
 struct xe_gt *xe_gt_alloc(struct xe_tile *tile)
 {
+	struct xe_device *xe = tile_to_xe(tile);
+	struct drm_device *drm = &xe->drm;
+	bool shared_wq = xe->info.needs_shared_vf_gt_wq && tile->primary_gt &&
+		IS_SRIOV_VF(xe);
+	struct workqueue_struct *ordered_wq;
 	struct xe_gt *gt;
-	int err;
 
-	gt = drmm_kzalloc(&tile_to_xe(tile)->drm, sizeof(*gt), GFP_KERNEL);
+	gt = drmm_kzalloc(drm, sizeof(*gt), GFP_KERNEL);
 	if (!gt)
 		return ERR_PTR(-ENOMEM);
 
 	gt->tile = tile;
-	gt->ordered_wq = alloc_ordered_workqueue("gt-ordered-wq",
-						 WQ_MEM_RECLAIM);
+	if (shared_wq && tile->primary_gt->ordered_wq)
+		ordered_wq = tile->primary_gt->ordered_wq;
+	else
+		ordered_wq = drmm_alloc_ordered_workqueue(drm, "gt-ordered-wq",
+							  WQ_MEM_RECLAIM);
+	if (IS_ERR(ordered_wq))
+		return ERR_CAST(ordered_wq);
 
-	err = drmm_add_action_or_reset(&gt_to_xe(gt)->drm, gt_fini, gt);
-	if (err)
-		return ERR_PTR(err);
+	gt->ordered_wq = ordered_wq;
 
 	return gt;
 }
@@ -97,7 +98,7 @@ void xe_gt_sanitize(struct xe_gt *gt)
 	 * FIXME: if xe_uc_sanitize is called here, on TGL driver will not
 	 * reload
 	 */
-	gt->uc.guc.submission_state.enabled = false;
+	xe_guc_submit_disable(&gt->uc.guc);
 }
 
 static void xe_gt_enable_host_l2_vram(struct xe_gt *gt)
@@ -105,14 +106,14 @@ static void xe_gt_enable_host_l2_vram(struct xe_gt *gt)
 	unsigned int fw_ref;
 	u32 reg;
 
-	if (!XE_WA(gt, 16023588340))
+	if (!XE_GT_WA(gt, 16023588340))
 		return;
 
 	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
 	if (!fw_ref)
 		return;
 
-	if (!xe_gt_is_media_type(gt)) {
+	if (xe_gt_is_main_type(gt)) {
 		reg = xe_gt_mcr_unicast_read_any(gt, XE2_GAMREQSTRM_CTRL);
 		reg |= CG_DIS_CNTLBUS;
 		xe_gt_mcr_multicast_write(gt, XE2_GAMREQSTRM_CTRL, reg);
@@ -127,7 +128,7 @@ static void xe_gt_disable_host_l2_vram(struct xe_gt *gt)
 	unsigned int fw_ref;
 	u32 reg;
 
-	if (!XE_WA(gt, 16023588340))
+	if (!XE_GT_WA(gt, 16023588340))
 		return;
 
 	if (xe_gt_is_media_type(gt))
@@ -146,30 +147,23 @@ static void xe_gt_disable_host_l2_vram(struct xe_gt *gt)
 
 static void gt_reset_worker(struct work_struct *w);
 
-static int emit_nop_job(struct xe_gt *gt, struct xe_exec_queue *q)
+static int emit_job_sync(struct xe_exec_queue *q, struct xe_bb *bb,
+			 long timeout_jiffies)
 {
 	struct xe_sched_job *job;
-	struct xe_bb *bb;
 	struct dma_fence *fence;
 	long timeout;
 
-	bb = xe_bb_new(gt, 4, false);
-	if (IS_ERR(bb))
-		return PTR_ERR(bb);
-
 	job = xe_bb_create_job(q, bb);
-	if (IS_ERR(job)) {
-		xe_bb_free(bb, NULL);
+	if (IS_ERR(job))
 		return PTR_ERR(job);
-	}
 
 	xe_sched_job_arm(job);
 	fence = dma_fence_get(&job->drm.s_fence->finished);
 	xe_sched_job_push(job);
 
-	timeout = dma_fence_wait_timeout(fence, false, HZ);
+	timeout = dma_fence_wait_timeout(fence, false, timeout_jiffies);
 	dma_fence_put(fence);
-	xe_bb_free(bb, NULL);
 	if (timeout < 0)
 		return timeout;
 	else if (!timeout)
@@ -178,27 +172,30 @@ static int emit_nop_job(struct xe_gt *gt, struct xe_exec_queue *q)
 	return 0;
 }
 
+static int emit_nop_job(struct xe_gt *gt, struct xe_exec_queue *q)
+{
+	struct xe_bb *bb;
+	int ret;
+
+	bb = xe_bb_new(gt, 4, false);
+	if (IS_ERR(bb))
+		return PTR_ERR(bb);
+
+	ret = emit_job_sync(q, bb, HZ);
+	xe_bb_free(bb, NULL);
+
+	return ret;
+}
+
 static int emit_wa_job(struct xe_gt *gt, struct xe_exec_queue *q)
 {
 	struct xe_reg_sr *sr = &q->hwe->reg_lrc;
 	struct xe_reg_sr_entry *entry;
+	int count_rmw = 0, count = 0, ret;
 	unsigned long idx;
-	struct xe_sched_job *job;
 	struct xe_bb *bb;
-	struct dma_fence *fence;
-	long timeout;
-	int count_rmw = 0;
-	int count = 0;
-
-	if (q->hwe->class == XE_ENGINE_CLASS_RENDER)
-		/* Big enough to emit all of the context's 3DSTATE */
-		bb = xe_bb_new(gt, xe_gt_lrc_size(gt, q->hwe->class), false);
-	else
-		/* Just pick a large BB size */
-		bb = xe_bb_new(gt, SZ_4K, false);
-
-	if (IS_ERR(bb))
-		return PTR_ERR(bb);
+	size_t bb_len = 0;
+	u32 *cs;
 
 	/* count RMW registers as those will be handled separately */
 	xa_for_each(&sr->xa, idx, entry) {
@@ -208,13 +205,34 @@ static int emit_wa_job(struct xe_gt *gt, struct xe_exec_queue *q)
 			++count_rmw;
 	}
 
-	if (count || count_rmw)
-		xe_gt_dbg(gt, "LRC WA %s save-restore batch\n", sr->name);
+	if (count)
+		bb_len += count * 2 + 1;
+
+	if (count_rmw)
+		bb_len += count_rmw * 20 + 7;
+
+	if (q->hwe->class == XE_ENGINE_CLASS_RENDER)
+		/*
+		 * Big enough to emit all of the context's 3DSTATE via
+		 * xe_lrc_emit_hwe_state_instructions()
+		 */
+		bb_len += xe_gt_lrc_size(gt, q->hwe->class) / sizeof(u32);
+
+	xe_gt_dbg(gt, "LRC %s WA job: %zu dwords\n", q->hwe->name, bb_len);
+
+	bb = xe_bb_new(gt, bb_len, false);
+	if (IS_ERR(bb))
+		return PTR_ERR(bb);
+
+	cs = bb->cs;
 
 	if (count) {
-		/* emit single LRI with all non RMW regs */
+		/*
+		 * Emit single LRI with all non RMW regs: 1 leading dw + 2dw per
+		 * reg + 1
+		 */
 
-		bb->cs[bb->len++] = MI_LOAD_REGISTER_IMM | MI_LRI_NUM_REGS(count);
+		*cs++ = MI_LOAD_REGISTER_IMM | MI_LRI_NUM_REGS(count);
 
 		xa_for_each(&sr->xa, idx, entry) {
 			struct xe_reg reg = entry->reg;
@@ -229,79 +247,68 @@ static int emit_wa_job(struct xe_gt *gt, struct xe_exec_queue *q)
 
 			val |= entry->set_bits;
 
-			bb->cs[bb->len++] = reg.addr;
-			bb->cs[bb->len++] = val;
+			*cs++ = reg.addr;
+			*cs++ = val;
 			xe_gt_dbg(gt, "REG[0x%x] = 0x%08x", reg.addr, val);
 		}
 	}
 
 	if (count_rmw) {
-		/* emit MI_MATH for each RMW reg */
+		/* Emit MI_MATH for each RMW reg: 20dw per reg + 7 trailing dw */
 
 		xa_for_each(&sr->xa, idx, entry) {
 			if (entry->reg.masked || entry->clr_bits == ~0)
 				continue;
 
-			bb->cs[bb->len++] = MI_LOAD_REGISTER_REG | MI_LRR_DST_CS_MMIO;
-			bb->cs[bb->len++] = entry->reg.addr;
-			bb->cs[bb->len++] = CS_GPR_REG(0, 0).addr;
+			*cs++ = MI_LOAD_REGISTER_REG | MI_LRR_DST_CS_MMIO;
+			*cs++ = entry->reg.addr;
+			*cs++ = CS_GPR_REG(0, 0).addr;
 
-			bb->cs[bb->len++] = MI_LOAD_REGISTER_IMM | MI_LRI_NUM_REGS(2) |
-					    MI_LRI_LRM_CS_MMIO;
-			bb->cs[bb->len++] = CS_GPR_REG(0, 1).addr;
-			bb->cs[bb->len++] = entry->clr_bits;
-			bb->cs[bb->len++] = CS_GPR_REG(0, 2).addr;
-			bb->cs[bb->len++] = entry->set_bits;
+			*cs++ = MI_LOAD_REGISTER_IMM | MI_LRI_NUM_REGS(2) |
+				MI_LRI_LRM_CS_MMIO;
+			*cs++ = CS_GPR_REG(0, 1).addr;
+			*cs++ = entry->clr_bits;
+			*cs++ = CS_GPR_REG(0, 2).addr;
+			*cs++ = entry->set_bits;
 
-			bb->cs[bb->len++] = MI_MATH(8);
-			bb->cs[bb->len++] = CS_ALU_INSTR_LOAD(SRCA, REG0);
-			bb->cs[bb->len++] = CS_ALU_INSTR_LOADINV(SRCB, REG1);
-			bb->cs[bb->len++] = CS_ALU_INSTR_AND;
-			bb->cs[bb->len++] = CS_ALU_INSTR_STORE(REG0, ACCU);
-			bb->cs[bb->len++] = CS_ALU_INSTR_LOAD(SRCA, REG0);
-			bb->cs[bb->len++] = CS_ALU_INSTR_LOAD(SRCB, REG2);
-			bb->cs[bb->len++] = CS_ALU_INSTR_OR;
-			bb->cs[bb->len++] = CS_ALU_INSTR_STORE(REG0, ACCU);
+			*cs++ = MI_MATH(8);
+			*cs++ = CS_ALU_INSTR_LOAD(SRCA, REG0);
+			*cs++ = CS_ALU_INSTR_LOADINV(SRCB, REG1);
+			*cs++ = CS_ALU_INSTR_AND;
+			*cs++ = CS_ALU_INSTR_STORE(REG0, ACCU);
+			*cs++ = CS_ALU_INSTR_LOAD(SRCA, REG0);
+			*cs++ = CS_ALU_INSTR_LOAD(SRCB, REG2);
+			*cs++ = CS_ALU_INSTR_OR;
+			*cs++ = CS_ALU_INSTR_STORE(REG0, ACCU);
 
-			bb->cs[bb->len++] = MI_LOAD_REGISTER_REG | MI_LRR_SRC_CS_MMIO;
-			bb->cs[bb->len++] = CS_GPR_REG(0, 0).addr;
-			bb->cs[bb->len++] = entry->reg.addr;
+			*cs++ = MI_LOAD_REGISTER_REG | MI_LRR_SRC_CS_MMIO;
+			*cs++ = CS_GPR_REG(0, 0).addr;
+			*cs++ = entry->reg.addr;
 
 			xe_gt_dbg(gt, "REG[%#x] = ~%#x|%#x\n",
 				  entry->reg.addr, entry->clr_bits, entry->set_bits);
 		}
 
 		/* reset used GPR */
-		bb->cs[bb->len++] = MI_LOAD_REGISTER_IMM | MI_LRI_NUM_REGS(3) | MI_LRI_LRM_CS_MMIO;
-		bb->cs[bb->len++] = CS_GPR_REG(0, 0).addr;
-		bb->cs[bb->len++] = 0;
-		bb->cs[bb->len++] = CS_GPR_REG(0, 1).addr;
-		bb->cs[bb->len++] = 0;
-		bb->cs[bb->len++] = CS_GPR_REG(0, 2).addr;
-		bb->cs[bb->len++] = 0;
+		*cs++ = MI_LOAD_REGISTER_IMM | MI_LRI_NUM_REGS(3) |
+			MI_LRI_LRM_CS_MMIO;
+		*cs++ = CS_GPR_REG(0, 0).addr;
+		*cs++ = 0;
+		*cs++ = CS_GPR_REG(0, 1).addr;
+		*cs++ = 0;
+		*cs++ = CS_GPR_REG(0, 2).addr;
+		*cs++ = 0;
 	}
 
-	xe_lrc_emit_hwe_state_instructions(q, bb);
+	cs = xe_lrc_emit_hwe_state_instructions(q, cs);
 
-	job = xe_bb_create_job(q, bb);
-	if (IS_ERR(job)) {
-		xe_bb_free(bb, NULL);
-		return PTR_ERR(job);
-	}
+	bb->len = cs - bb->cs;
 
-	xe_sched_job_arm(job);
-	fence = dma_fence_get(&job->drm.s_fence->finished);
-	xe_sched_job_push(job);
+	ret = emit_job_sync(q, bb, HZ);
 
-	timeout = dma_fence_wait_timeout(fence, false, HZ);
-	dma_fence_put(fence);
 	xe_bb_free(bb, NULL);
-	if (timeout < 0)
-		return timeout;
-	else if (!timeout)
-		return -ETIME;
 
-	return 0;
+	return ret;
 }
 
 int xe_gt_record_default_lrcs(struct xe_gt *gt)
@@ -363,14 +370,6 @@ int xe_gt_record_default_lrcs(struct xe_gt *gt)
 			goto put_nop_q;
 		}
 
-		/* Reload golden LRC to record the effect of any indirect W/A */
-		err = emit_nop_job(gt, q);
-		if (err) {
-			xe_gt_err(gt, "hwe %s: emit_nop_job failed (%pe) guc_id=%u\n",
-				  hwe->name, ERR_PTR(err), q->guc->id);
-			goto put_nop_q;
-		}
-
 		xe_map_memcpy_from(xe, default_lrc,
 				   &q->lrc[0]->bo->vmap,
 				   xe_lrc_pphwsp_offset(q->lrc[0]),
@@ -390,6 +389,7 @@ put_exec_queue:
 
 int xe_gt_init_early(struct xe_gt *gt)
 {
+	unsigned int fw_ref;
 	int err;
 
 	if (IS_SRIOV_PF(gt_to_xe(gt))) {
@@ -398,9 +398,15 @@ int xe_gt_init_early(struct xe_gt *gt)
 			return err;
 	}
 
+	if (IS_SRIOV_VF(gt_to_xe(gt))) {
+		err = xe_gt_sriov_vf_init_early(gt);
+		if (err)
+			return err;
+	}
+
 	xe_reg_sr_init(&gt->reg_sr, "GT", gt_to_xe(gt));
 
-	err = xe_wa_init(gt);
+	err = xe_wa_gt_init(gt);
 	if (err)
 		return err;
 
@@ -408,16 +414,35 @@ int xe_gt_init_early(struct xe_gt *gt)
 	if (err)
 		return err;
 
-	xe_wa_process_oob(gt);
+	xe_wa_process_gt_oob(gt);
 
 	xe_force_wake_init_gt(gt, gt_to_fw(gt));
 	spin_lock_init(&gt->global_invl_lock);
 
-	err = xe_gt_tlb_invalidation_init_early(gt);
+	err = xe_gt_tlb_inval_init_early(gt);
 	if (err)
 		return err;
 
 	xe_mocs_init_early(gt);
+
+	/*
+	 * Only after this point can GT-specific MMIO operations
+	 * (including things like communication with the GuC)
+	 * be performed.
+	 */
+	xe_gt_mmio_init(gt);
+
+	err = xe_uc_init_noalloc(&gt->uc);
+	if (err)
+		return err;
+
+	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
+	if (!fw_ref)
+		return -ETIMEDOUT;
+
+	xe_gt_mcr_init_early(gt);
+	xe_pat_init(gt);
+	xe_force_wake_put(gt_to_fw(gt), fw_ref);
 
 	return 0;
 }
@@ -433,7 +458,7 @@ static void dump_pat_on_error(struct xe_gt *gt)
 	xe_pat_dump(gt, &p);
 }
 
-static int gt_fw_domain_init(struct xe_gt *gt)
+static int gt_init_with_gt_forcewake(struct xe_gt *gt)
 {
 	unsigned int fw_ref;
 	int err;
@@ -442,7 +467,15 @@ static int gt_fw_domain_init(struct xe_gt *gt)
 	if (!fw_ref)
 		return -ETIMEDOUT;
 
-	if (!xe_gt_is_media_type(gt)) {
+	err = xe_uc_init(&gt->uc);
+	if (err)
+		goto err_force_wake;
+
+	xe_gt_topology_init(gt);
+	xe_gt_mcr_init(gt);
+	xe_gt_enable_host_l2_vram(gt);
+
+	if (xe_gt_is_main_type(gt)) {
 		err = xe_ggtt_init(gt_to_tile(gt)->mem.ggtt);
 		if (err)
 			goto err_force_wake;
@@ -457,8 +490,10 @@ static int gt_fw_domain_init(struct xe_gt *gt)
 	xe_gt_mcr_init(gt);
 
 	err = xe_hw_engines_init_early(gt);
-	if (err)
+	if (err) {
+		dump_pat_on_error(gt);
 		goto err_force_wake;
+	}
 
 	err = xe_hw_engine_class_sysfs_init(gt);
 	if (err)
@@ -479,13 +514,12 @@ static int gt_fw_domain_init(struct xe_gt *gt)
 	return 0;
 
 err_force_wake:
-	dump_pat_on_error(gt);
 	xe_force_wake_put(gt_to_fw(gt), fw_ref);
 
 	return err;
 }
 
-static int all_fw_domain_init(struct xe_gt *gt)
+static int gt_init_with_all_forcewake(struct xe_gt *gt)
 {
 	unsigned int fw_ref;
 	int err;
@@ -518,7 +552,7 @@ static int all_fw_domain_init(struct xe_gt *gt)
 	if (err)
 		goto err_force_wake;
 
-	if (!xe_gt_is_media_type(gt)) {
+	if (xe_gt_is_main_type(gt)) {
 		/*
 		 * USM has its only SA pool to non-block behind user operations
 		 */
@@ -534,17 +568,15 @@ static int all_fw_domain_init(struct xe_gt *gt)
 		}
 	}
 
-	if (!xe_gt_is_media_type(gt)) {
+	if (xe_gt_is_main_type(gt)) {
 		struct xe_tile *tile = gt_to_tile(gt);
 
-		tile->migrate = xe_migrate_init(tile);
-		if (IS_ERR(tile->migrate)) {
-			err = PTR_ERR(tile->migrate);
+		err = xe_migrate_init(tile->migrate);
+		if (err)
 			goto err_force_wake;
-		}
 	}
 
-	err = xe_uc_init_hw(&gt->uc);
+	err = xe_uc_load_hw(&gt->uc);
 	if (err)
 		goto err_force_wake;
 
@@ -554,13 +586,11 @@ static int all_fw_domain_init(struct xe_gt *gt)
 		xe_gt_apply_ccs_mode(gt);
 	}
 
-	if (IS_SRIOV_PF(gt_to_xe(gt)) && !xe_gt_is_media_type(gt))
+	if (IS_SRIOV_PF(gt_to_xe(gt)) && xe_gt_is_main_type(gt))
 		xe_lmtt_init_hw(&gt_to_tile(gt)->sriov.pf.lmtt);
 
-	if (IS_SRIOV_PF(gt_to_xe(gt))) {
-		xe_gt_sriov_pf_init(gt);
+	if (IS_SRIOV_PF(gt_to_xe(gt)))
 		xe_gt_sriov_pf_init_hw(gt);
-	}
 
 	xe_force_wake_put(gt_to_fw(gt), fw_ref);
 
@@ -569,39 +599,6 @@ static int all_fw_domain_init(struct xe_gt *gt)
 err_force_wake:
 	xe_force_wake_put(gt_to_fw(gt), fw_ref);
 
-	return err;
-}
-
-/*
- * Initialize enough GT to be able to load GuC in order to obtain hwconfig and
- * enable CTB communication.
- */
-int xe_gt_init_hwconfig(struct xe_gt *gt)
-{
-	unsigned int fw_ref;
-	int err;
-
-	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
-	if (!fw_ref)
-		return -ETIMEDOUT;
-
-	xe_gt_mcr_init_early(gt);
-	xe_pat_init(gt);
-
-	err = xe_uc_init(&gt->uc);
-	if (err)
-		goto out_fw;
-
-	err = xe_uc_init_hwconfig(&gt->uc);
-	if (err)
-		goto out_fw;
-
-	xe_gt_topology_init(gt);
-	xe_gt_mcr_init(gt);
-	xe_gt_enable_host_l2_vram(gt);
-
-out_fw:
-	xe_force_wake_put(gt_to_fw(gt), fw_ref);
 	return err;
 }
 
@@ -632,15 +629,15 @@ int xe_gt_init(struct xe_gt *gt)
 	if (err)
 		return err;
 
-	err = xe_gt_pagefault_init(gt);
-	if (err)
-		return err;
-
 	err = xe_gt_sysfs_init(gt);
 	if (err)
 		return err;
 
-	err = gt_fw_domain_init(gt);
+	err = gt_init_with_gt_forcewake(gt);
+	if (err)
+		return err;
+
+	err = xe_gt_pagefault_init(gt);
 	if (err)
 		return err;
 
@@ -654,7 +651,7 @@ int xe_gt_init(struct xe_gt *gt)
 
 	xe_force_wake_init_engines(gt, gt_to_fw(gt));
 
-	err = all_fw_domain_init(gt);
+	err = gt_init_with_all_forcewake(gt);
 	if (err)
 		return err;
 
@@ -663,6 +660,12 @@ int xe_gt_init(struct xe_gt *gt)
 	err = xe_eu_stall_init(gt);
 	if (err)
 		return err;
+
+	if (IS_SRIOV_VF(gt_to_xe(gt))) {
+		err = xe_gt_sriov_vf_init(gt);
+		if (err)
+			return err;
+	}
 
 	return 0;
 }
@@ -742,7 +745,7 @@ static int vf_gt_restart(struct xe_gt *gt)
 	if (err)
 		return err;
 
-	err = xe_uc_init_hw(&gt->uc);
+	err = xe_uc_load_hw(&gt->uc);
 	if (err)
 		return err;
 
@@ -780,11 +783,11 @@ static int do_gt_restart(struct xe_gt *gt)
 	if (err)
 		return err;
 
-	err = xe_uc_init_hw(&gt->uc);
+	err = xe_uc_load_hw(&gt->uc);
 	if (err)
 		return err;
 
-	if (IS_SRIOV_PF(gt_to_xe(gt)) && !xe_gt_is_media_type(gt))
+	if (IS_SRIOV_PF(gt_to_xe(gt)) && xe_gt_is_main_type(gt))
 		xe_lmtt_init_hw(&gt_to_tile(gt)->sriov.pf.lmtt);
 
 	if (IS_SRIOV_PF(gt_to_xe(gt)))
@@ -815,16 +818,18 @@ static int gt_reset(struct xe_gt *gt)
 	unsigned int fw_ref;
 	int err;
 
-	if (xe_device_wedged(gt_to_xe(gt)))
-		return -ECANCELED;
+	if (xe_device_wedged(gt_to_xe(gt))) {
+		err = -ECANCELED;
+		goto err_pm_put;
+	}
 
 	/* We only support GT resets with GuC submission */
-	if (!xe_device_uc_enabled(gt_to_xe(gt)))
-		return -ENODEV;
+	if (!xe_device_uc_enabled(gt_to_xe(gt))) {
+		err = -ENODEV;
+		goto err_pm_put;
+	}
 
 	xe_gt_info(gt, "reset started\n");
-
-	xe_pm_runtime_get(gt_to_xe(gt));
 
 	if (xe_fault_inject_gt_reset()) {
 		err = -ECANCELED;
@@ -839,13 +844,16 @@ static int gt_reset(struct xe_gt *gt)
 		goto err_out;
 	}
 
+	if (IS_SRIOV_PF(gt_to_xe(gt)))
+		xe_gt_sriov_pf_stop_prepare(gt);
+
 	xe_uc_gucrc_disable(&gt->uc);
 	xe_uc_stop_prepare(&gt->uc);
 	xe_gt_pagefault_reset(gt);
 
 	xe_uc_stop(&gt->uc);
 
-	xe_gt_tlb_invalidation_reset(gt);
+	xe_tlb_inval_reset(&gt->tlb_inval);
 
 	err = do_gt_reset(gt);
 	if (err)
@@ -869,6 +877,7 @@ err_fail:
 	xe_gt_err(gt, "reset failed (%pe)\n", ERR_PTR(err));
 
 	xe_device_declare_wedged(gt_to_xe(gt));
+err_pm_put:
 	xe_pm_runtime_put(gt_to_xe(gt));
 
 	return err;
@@ -890,7 +899,9 @@ void xe_gt_reset_async(struct xe_gt *gt)
 		return;
 
 	xe_gt_info(gt, "reset queued\n");
-	queue_work(gt->ordered_wq, &gt->reset.worker);
+	xe_pm_runtime_get_noresume(gt_to_xe(gt));
+	if (!queue_work(gt->ordered_wq, &gt->reset.worker))
+		xe_pm_runtime_put(gt_to_xe(gt));
 }
 
 void xe_gt_suspend_prepare(struct xe_gt *gt)
@@ -961,7 +972,7 @@ int xe_gt_sanitize_freq(struct xe_gt *gt)
 	if ((!xe_uc_fw_is_available(&gt->uc.gsc.fw) ||
 	     xe_uc_fw_is_loaded(&gt->uc.gsc.fw) ||
 	     xe_uc_fw_is_in_error_state(&gt->uc.gsc.fw)) &&
-	    XE_WA(gt, 22019338487))
+	    XE_GT_WA(gt, 22019338487))
 		ret = xe_guc_pc_restore_stashed_freq(&gt->uc.guc.pc);
 
 	return ret;
@@ -1059,5 +1070,5 @@ void xe_gt_declare_wedged(struct xe_gt *gt)
 	xe_gt_assert(gt, gt_to_xe(gt)->wedged.mode);
 
 	xe_uc_declare_wedged(&gt->uc);
-	xe_gt_tlb_invalidation_reset(gt);
+	xe_tlb_inval_reset(&gt->tlb_inval);
 }

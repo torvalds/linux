@@ -1349,7 +1349,6 @@ static int xiic_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 	mutex_unlock(&i2c->lock);
 
 out:
-	pm_runtime_mark_last_busy(i2c->dev);
 	pm_runtime_put_autosuspend(i2c->dev);
 	return err;
 }
@@ -1398,8 +1397,8 @@ static u32 xiic_func(struct i2c_adapter *adap)
 }
 
 static const struct i2c_algorithm xiic_algorithm = {
-	.master_xfer = xiic_xfer,
-	.master_xfer_atomic = xiic_xfer_atomic,
+	.xfer = xiic_xfer,
+	.xfer_atomic = xiic_xfer_atomic,
 	.functionality = xiic_func,
 };
 

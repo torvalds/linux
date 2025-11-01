@@ -60,6 +60,14 @@ static inline struct dma_pool *dma_pool_create(const char *name,
 				    NUMA_NO_NODE);
 }
 
+/**
+ * dma_pool_zalloc - Get a zero-initialized block of DMA coherent memory.
+ * @pool: dma pool that will produce the block
+ * @mem_flags: GFP_* bitmask
+ * @handle: pointer to dma address of block
+ *
+ * Same as dma_pool_alloc(), but the returned memory is zeroed.
+ */
 static inline void *dma_pool_zalloc(struct dma_pool *pool, gfp_t mem_flags,
 				    dma_addr_t *handle)
 {

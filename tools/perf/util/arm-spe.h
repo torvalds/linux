@@ -47,6 +47,8 @@ enum {
 	ARM_SPE_CPU_PMU_TYPE,
 	/* Minimal interval */
 	ARM_SPE_CAP_MIN_IVAL,
+	/* Event filter */
+	ARM_SPE_CAP_EVENT_FILTER,
 	ARM_SPE_CPU_PRIV_MAX,
 };
 

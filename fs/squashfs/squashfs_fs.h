@@ -208,6 +208,7 @@ static inline int squashfs_block_size(__le32 raw)
 #define SQUASHFS_META_INDEXES	(SQUASHFS_METADATA_SIZE / sizeof(unsigned int))
 #define SQUASHFS_META_ENTRIES	127
 #define SQUASHFS_META_SLOTS	8
+#define SQUASHFS_SCAN_INDEXES	1024
 
 struct meta_entry {
 	u64			data_block;

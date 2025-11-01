@@ -277,49 +277,49 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	return 0;
 }
 
-static int vidioc_s_hw_freq_seek(struct file *file, void *fh, const struct v4l2_hw_freq_seek *a)
+static int vidioc_s_hw_freq_seek(struct file *file, void *priv, const struct v4l2_hw_freq_seek *a)
 {
 	struct video_device *vdev = video_devdata(file);
 
 	if (vdev->vfl_type == VFL_TYPE_RADIO)
-		return vivid_radio_rx_s_hw_freq_seek(file, fh, a);
+		return vivid_radio_rx_s_hw_freq_seek(file, priv, a);
 	return -ENOTTY;
 }
 
-static int vidioc_enum_freq_bands(struct file *file, void *fh, struct v4l2_frequency_band *band)
+static int vidioc_enum_freq_bands(struct file *file, void *priv, struct v4l2_frequency_band *band)
 {
 	struct video_device *vdev = video_devdata(file);
 
 	if (vdev->vfl_type == VFL_TYPE_RADIO)
-		return vivid_radio_rx_enum_freq_bands(file, fh, band);
+		return vivid_radio_rx_enum_freq_bands(file, priv, band);
 	if (vdev->vfl_type == VFL_TYPE_SDR)
-		return vivid_sdr_enum_freq_bands(file, fh, band);
+		return vivid_sdr_enum_freq_bands(file, priv, band);
 	return -ENOTTY;
 }
 
-static int vidioc_g_tuner(struct file *file, void *fh, struct v4l2_tuner *vt)
+static int vidioc_g_tuner(struct file *file, void *priv, struct v4l2_tuner *vt)
 {
 	struct video_device *vdev = video_devdata(file);
 
 	if (vdev->vfl_type == VFL_TYPE_RADIO)
-		return vivid_radio_rx_g_tuner(file, fh, vt);
+		return vivid_radio_rx_g_tuner(file, priv, vt);
 	if (vdev->vfl_type == VFL_TYPE_SDR)
-		return vivid_sdr_g_tuner(file, fh, vt);
-	return vivid_video_g_tuner(file, fh, vt);
+		return vivid_sdr_g_tuner(file, priv, vt);
+	return vivid_video_g_tuner(file, priv, vt);
 }
 
-static int vidioc_s_tuner(struct file *file, void *fh, const struct v4l2_tuner *vt)
+static int vidioc_s_tuner(struct file *file, void *priv, const struct v4l2_tuner *vt)
 {
 	struct video_device *vdev = video_devdata(file);
 
 	if (vdev->vfl_type == VFL_TYPE_RADIO)
-		return vivid_radio_rx_s_tuner(file, fh, vt);
+		return vivid_radio_rx_s_tuner(file, priv, vt);
 	if (vdev->vfl_type == VFL_TYPE_SDR)
-		return vivid_sdr_s_tuner(file, fh, vt);
-	return vivid_video_s_tuner(file, fh, vt);
+		return vivid_sdr_s_tuner(file, priv, vt);
+	return vivid_video_s_tuner(file, priv, vt);
 }
 
-static int vidioc_g_frequency(struct file *file, void *fh, struct v4l2_frequency *vf)
+static int vidioc_g_frequency(struct file *file, void *priv, struct v4l2_frequency *vf)
 {
 	struct vivid_dev *dev = video_drvdata(file);
 	struct video_device *vdev = video_devdata(file);
@@ -329,11 +329,11 @@ static int vidioc_g_frequency(struct file *file, void *fh, struct v4l2_frequency
 			vdev->vfl_dir == VFL_DIR_RX ?
 			&dev->radio_rx_freq : &dev->radio_tx_freq, vf);
 	if (vdev->vfl_type == VFL_TYPE_SDR)
-		return vivid_sdr_g_frequency(file, fh, vf);
-	return vivid_video_g_frequency(file, fh, vf);
+		return vivid_sdr_g_frequency(file, priv, vf);
+	return vivid_video_g_frequency(file, priv, vf);
 }
 
-static int vidioc_s_frequency(struct file *file, void *fh, const struct v4l2_frequency *vf)
+static int vidioc_s_frequency(struct file *file, void *priv, const struct v4l2_frequency *vf)
 {
 	struct vivid_dev *dev = video_drvdata(file);
 	struct video_device *vdev = video_devdata(file);
@@ -343,113 +343,113 @@ static int vidioc_s_frequency(struct file *file, void *fh, const struct v4l2_fre
 			vdev->vfl_dir == VFL_DIR_RX ?
 			&dev->radio_rx_freq : &dev->radio_tx_freq, vf);
 	if (vdev->vfl_type == VFL_TYPE_SDR)
-		return vivid_sdr_s_frequency(file, fh, vf);
-	return vivid_video_s_frequency(file, fh, vf);
+		return vivid_sdr_s_frequency(file, priv, vf);
+	return vivid_video_s_frequency(file, priv, vf);
 }
 
-static int vidioc_overlay(struct file *file, void *fh, unsigned i)
+static int vidioc_overlay(struct file *file, void *priv, unsigned i)
 {
 	struct video_device *vdev = video_devdata(file);
 
 	if (vdev->vfl_dir == VFL_DIR_RX)
 		return -ENOTTY;
-	return vivid_vid_out_overlay(file, fh, i);
+	return vivid_vid_out_overlay(file, priv, i);
 }
 
-static int vidioc_g_fbuf(struct file *file, void *fh, struct v4l2_framebuffer *a)
+static int vidioc_g_fbuf(struct file *file, void *priv, struct v4l2_framebuffer *a)
 {
 	struct video_device *vdev = video_devdata(file);
 
 	if (vdev->vfl_dir == VFL_DIR_RX)
 		return -ENOTTY;
-	return vivid_vid_out_g_fbuf(file, fh, a);
+	return vivid_vid_out_g_fbuf(file, priv, a);
 }
 
-static int vidioc_s_fbuf(struct file *file, void *fh, const struct v4l2_framebuffer *a)
+static int vidioc_s_fbuf(struct file *file, void *priv, const struct v4l2_framebuffer *a)
 {
 	struct video_device *vdev = video_devdata(file);
 
 	if (vdev->vfl_dir == VFL_DIR_RX)
 		return -ENOTTY;
-	return vivid_vid_out_s_fbuf(file, fh, a);
+	return vivid_vid_out_s_fbuf(file, priv, a);
 }
 
-static int vidioc_s_std(struct file *file, void *fh, v4l2_std_id id)
+static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id id)
 {
 	struct video_device *vdev = video_devdata(file);
 
 	if (vdev->vfl_dir == VFL_DIR_RX)
-		return vivid_vid_cap_s_std(file, fh, id);
-	return vivid_vid_out_s_std(file, fh, id);
+		return vivid_vid_cap_s_std(file, priv, id);
+	return vivid_vid_out_s_std(file, priv, id);
 }
 
-static int vidioc_s_dv_timings(struct file *file, void *fh, struct v4l2_dv_timings *timings)
+static int vidioc_s_dv_timings(struct file *file, void *priv, struct v4l2_dv_timings *timings)
 {
 	struct video_device *vdev = video_devdata(file);
 
 	if (vdev->vfl_dir == VFL_DIR_RX)
-		return vivid_vid_cap_s_dv_timings(file, fh, timings);
-	return vivid_vid_out_s_dv_timings(file, fh, timings);
+		return vivid_vid_cap_s_dv_timings(file, priv, timings);
+	return vivid_vid_out_s_dv_timings(file, priv, timings);
 }
 
-static int vidioc_g_pixelaspect(struct file *file, void *fh,
+static int vidioc_g_pixelaspect(struct file *file, void *priv,
 				int type, struct v4l2_fract *f)
 {
 	struct video_device *vdev = video_devdata(file);
 
 	if (vdev->vfl_dir == VFL_DIR_RX)
-		return vivid_vid_cap_g_pixelaspect(file, fh, type, f);
-	return vivid_vid_out_g_pixelaspect(file, fh, type, f);
+		return vivid_vid_cap_g_pixelaspect(file, priv, type, f);
+	return vivid_vid_out_g_pixelaspect(file, priv, type, f);
 }
 
-static int vidioc_g_selection(struct file *file, void *fh,
+static int vidioc_g_selection(struct file *file, void *priv,
 			      struct v4l2_selection *sel)
 {
 	struct video_device *vdev = video_devdata(file);
 
 	if (vdev->vfl_dir == VFL_DIR_RX)
-		return vivid_vid_cap_g_selection(file, fh, sel);
-	return vivid_vid_out_g_selection(file, fh, sel);
+		return vivid_vid_cap_g_selection(file, priv, sel);
+	return vivid_vid_out_g_selection(file, priv, sel);
 }
 
-static int vidioc_s_selection(struct file *file, void *fh,
+static int vidioc_s_selection(struct file *file, void *priv,
 			      struct v4l2_selection *sel)
 {
 	struct video_device *vdev = video_devdata(file);
 
 	if (vdev->vfl_dir == VFL_DIR_RX)
-		return vivid_vid_cap_s_selection(file, fh, sel);
-	return vivid_vid_out_s_selection(file, fh, sel);
+		return vivid_vid_cap_s_selection(file, priv, sel);
+	return vivid_vid_out_s_selection(file, priv, sel);
 }
 
-static int vidioc_g_parm(struct file *file, void *fh,
+static int vidioc_g_parm(struct file *file, void *priv,
 			  struct v4l2_streamparm *parm)
 {
 	struct video_device *vdev = video_devdata(file);
 
 	if (vdev->vfl_type == VFL_TYPE_TOUCH)
-		return vivid_g_parm_tch(file, fh, parm);
+		return vivid_g_parm_tch(file, priv, parm);
 	if (vdev->vfl_dir == VFL_DIR_RX)
-		return vivid_vid_cap_g_parm(file, fh, parm);
-	return vivid_vid_out_g_parm(file, fh, parm);
+		return vivid_vid_cap_g_parm(file, priv, parm);
+	return vivid_vid_out_g_parm(file, priv, parm);
 }
 
-static int vidioc_s_parm(struct file *file, void *fh,
+static int vidioc_s_parm(struct file *file, void *priv,
 			  struct v4l2_streamparm *parm)
 {
 	struct video_device *vdev = video_devdata(file);
 
 	if (vdev->vfl_dir == VFL_DIR_RX)
-		return vivid_vid_cap_s_parm(file, fh, parm);
+		return vivid_vid_cap_s_parm(file, priv, parm);
 	return -ENOTTY;
 }
 
-static int vidioc_log_status(struct file *file, void *fh)
+static int vidioc_log_status(struct file *file, void *priv)
 {
 	struct vivid_dev *dev = video_drvdata(file);
 	struct video_device *vdev = video_devdata(file);
 
-	v4l2_ctrl_log_status(file, fh);
+	v4l2_ctrl_log_status(file, priv);
 	if (vdev->vfl_dir == VFL_DIR_RX && vdev->vfl_type == VFL_TYPE_VIDEO)
 		tpg_log_status(&dev->tpg);
 	return 0;
@@ -654,11 +654,11 @@ static int vivid_fop_release(struct file *file)
 		v4l2_info(&dev->v4l2_dev, "reconnect\n");
 		vivid_reconnect(dev);
 	}
-	if (file->private_data == dev->radio_rx_rds_owner) {
+	if (file_to_v4l2_fh(file) == dev->radio_rx_rds_owner) {
 		dev->radio_rx_rds_last_block = 0;
 		dev->radio_rx_rds_owner = NULL;
 	}
-	if (file->private_data == dev->radio_tx_rds_owner) {
+	if (file_to_v4l2_fh(file) == dev->radio_tx_rds_owner) {
 		dev->radio_tx_rds_last_block = 0;
 		dev->radio_tx_rds_owner = NULL;
 	}

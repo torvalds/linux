@@ -7,6 +7,7 @@
 #include <linux/bitfield.h>
 #include <linux/kernel.h>
 #include <linux/component.h>
+#include <linux/hw_bitfield.h>
 #include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
@@ -1695,8 +1696,9 @@ static unsigned long rk3588_set_intf_mux(struct vop2_video_port *vp, int id, u32
 		die |= RK3588_SYS_DSP_INFACE_EN_HDMI0 |
 			    FIELD_PREP(RK3588_SYS_DSP_INFACE_EN_EDP_HDMI0_MUX, vp->id);
 		val = rk3588_get_hdmi_pol(polflags);
-		regmap_write(vop2->vop_grf, RK3588_GRF_VOP_CON2, HIWORD_UPDATE(1, 1, 1));
-		regmap_write(vop2->vo1_grf, RK3588_GRF_VO1_CON0, HIWORD_UPDATE(val, 6, 5));
+		regmap_write(vop2->vop_grf, RK3588_GRF_VOP_CON2, FIELD_PREP_WM16(BIT(1), 1));
+		regmap_write(vop2->vo1_grf, RK3588_GRF_VO1_CON0,
+			     FIELD_PREP_WM16(GENMASK(6, 5), val));
 		break;
 	case ROCKCHIP_VOP2_EP_HDMI1:
 		div &= ~RK3588_DSP_IF_EDP_HDMI1_DCLK_DIV;
@@ -1707,8 +1709,9 @@ static unsigned long rk3588_set_intf_mux(struct vop2_video_port *vp, int id, u32
 		die |= RK3588_SYS_DSP_INFACE_EN_HDMI1 |
 			    FIELD_PREP(RK3588_SYS_DSP_INFACE_EN_EDP_HDMI1_MUX, vp->id);
 		val = rk3588_get_hdmi_pol(polflags);
-		regmap_write(vop2->vop_grf, RK3588_GRF_VOP_CON2, HIWORD_UPDATE(1, 4, 4));
-		regmap_write(vop2->vo1_grf, RK3588_GRF_VO1_CON0, HIWORD_UPDATE(val, 8, 7));
+		regmap_write(vop2->vop_grf, RK3588_GRF_VOP_CON2, FIELD_PREP_WM16(BIT(4), 1));
+		regmap_write(vop2->vo1_grf, RK3588_GRF_VO1_CON0,
+			     FIELD_PREP_WM16(GENMASK(8, 7), val));
 		break;
 	case ROCKCHIP_VOP2_EP_EDP0:
 		div &= ~RK3588_DSP_IF_EDP_HDMI0_DCLK_DIV;
@@ -1718,7 +1721,7 @@ static unsigned long rk3588_set_intf_mux(struct vop2_video_port *vp, int id, u32
 		die &= ~RK3588_SYS_DSP_INFACE_EN_EDP_HDMI0_MUX;
 		die |= RK3588_SYS_DSP_INFACE_EN_EDP0 |
 			   FIELD_PREP(RK3588_SYS_DSP_INFACE_EN_EDP_HDMI0_MUX, vp->id);
-		regmap_write(vop2->vop_grf, RK3588_GRF_VOP_CON2, HIWORD_UPDATE(1, 0, 0));
+		regmap_write(vop2->vop_grf, RK3588_GRF_VOP_CON2, FIELD_PREP_WM16(BIT(0), 1));
 		break;
 	case ROCKCHIP_VOP2_EP_EDP1:
 		div &= ~RK3588_DSP_IF_EDP_HDMI1_DCLK_DIV;
@@ -1728,7 +1731,7 @@ static unsigned long rk3588_set_intf_mux(struct vop2_video_port *vp, int id, u32
 		die &= ~RK3588_SYS_DSP_INFACE_EN_EDP_HDMI1_MUX;
 		die |= RK3588_SYS_DSP_INFACE_EN_EDP1 |
 			   FIELD_PREP(RK3588_SYS_DSP_INFACE_EN_EDP_HDMI1_MUX, vp->id);
-		regmap_write(vop2->vop_grf, RK3588_GRF_VOP_CON2, HIWORD_UPDATE(1, 3, 3));
+		regmap_write(vop2->vop_grf, RK3588_GRF_VOP_CON2, FIELD_PREP_WM16(BIT(3), 1));
 		break;
 	case ROCKCHIP_VOP2_EP_MIPI0:
 		div &= ~RK3588_DSP_IF_MIPI0_PCLK_DIV;
@@ -2052,12 +2055,55 @@ static void vop2_setup_alpha(struct vop2_video_port *vp)
 	}
 }
 
+static u32 rk3568_vop2_read_port_mux(struct vop2 *vop2)
+{
+	return vop2_readl(vop2, RK3568_OVL_PORT_SEL);
+}
+
+static void rk3568_vop2_wait_for_port_mux_done(struct vop2 *vop2)
+{
+	u32 port_mux_sel;
+	int ret;
+
+	/*
+	 * Spin until the previous port_mux figuration is done.
+	 */
+	ret = readx_poll_timeout_atomic(rk3568_vop2_read_port_mux, vop2, port_mux_sel,
+					port_mux_sel == vop2->old_port_sel, 0, 50 * 1000);
+	if (ret)
+		DRM_DEV_ERROR(vop2->dev, "wait port_mux done timeout: 0x%x--0x%x\n",
+			      port_mux_sel, vop2->old_port_sel);
+}
+
+static u32 rk3568_vop2_read_layer_cfg(struct vop2 *vop2)
+{
+	return vop2_readl(vop2, RK3568_OVL_LAYER_SEL);
+}
+
+static void rk3568_vop2_wait_for_layer_cfg_done(struct vop2 *vop2, u32 cfg)
+{
+	u32 atv_layer_cfg;
+	int ret;
+
+	/*
+	 * Spin until the previous layer configuration is done.
+	 */
+	ret = readx_poll_timeout_atomic(rk3568_vop2_read_layer_cfg, vop2, atv_layer_cfg,
+					atv_layer_cfg == cfg, 0, 50 * 1000);
+	if (ret)
+		DRM_DEV_ERROR(vop2->dev, "wait layer cfg done timeout: 0x%x--0x%x\n",
+			      atv_layer_cfg, cfg);
+}
+
 static void rk3568_vop2_setup_layer_mixer(struct vop2_video_port *vp)
 {
 	struct vop2 *vop2 = vp->vop2;
 	struct drm_plane *plane;
 	u32 layer_sel = 0;
 	u32 port_sel;
+	u32 old_layer_sel = 0;
+	u32 atv_layer_sel = 0;
+	u32 old_port_sel = 0;
 	u8 layer_id;
 	u8 old_layer_id;
 	u8 layer_sel_id;
@@ -2069,19 +2115,18 @@ static void rk3568_vop2_setup_layer_mixer(struct vop2_video_port *vp)
 	struct vop2_video_port *vp2 = &vop2->vps[2];
 	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(vp->crtc.state);
 
+	mutex_lock(&vop2->ovl_lock);
 	ovl_ctrl = vop2_readl(vop2, RK3568_OVL_CTRL);
 	ovl_ctrl &= ~RK3568_OVL_CTRL__LAYERSEL_REGDONE_IMD;
 	ovl_ctrl &= ~RK3568_OVL_CTRL__LAYERSEL_REGDONE_SEL;
-	ovl_ctrl |= FIELD_PREP(RK3568_OVL_CTRL__LAYERSEL_REGDONE_SEL, vp->id);
 
 	if (vcstate->yuv_overlay)
 		ovl_ctrl |= RK3568_OVL_CTRL__YUV_MODE(vp->id);
 	else
 		ovl_ctrl &= ~RK3568_OVL_CTRL__YUV_MODE(vp->id);
 
-	vop2_writel(vop2, RK3568_OVL_CTRL, ovl_ctrl);
-
-	port_sel = vop2_readl(vop2, RK3568_OVL_PORT_SEL);
+	old_port_sel = vop2->old_port_sel;
+	port_sel = old_port_sel;
 	port_sel &= RK3568_OVL_PORT_SEL__SEL_PORT;
 
 	if (vp0->nlayers)
@@ -2102,7 +2147,13 @@ static void rk3568_vop2_setup_layer_mixer(struct vop2_video_port *vp)
 	else
 		port_sel |= FIELD_PREP(RK3568_OVL_PORT_SET__PORT2_MUX, 8);
 
-	layer_sel = vop2_readl(vop2, RK3568_OVL_LAYER_SEL);
+	/* Fixed value for rk3588 */
+	if (vop2->version == VOP_VERSION_RK3588)
+		port_sel |= FIELD_PREP(RK3588_OVL_PORT_SET__PORT3_MUX, 7);
+
+	atv_layer_sel = vop2_readl(vop2, RK3568_OVL_LAYER_SEL);
+	old_layer_sel = vop2->old_layer_sel;
+	layer_sel = old_layer_sel;
 
 	ofs = 0;
 	for (i = 0; i < vp->id; i++)
@@ -2186,8 +2237,37 @@ static void rk3568_vop2_setup_layer_mixer(struct vop2_video_port *vp)
 			     old_win->data->layer_sel_id[vp->id]);
 	}
 
+	vop2->old_layer_sel = layer_sel;
+	vop2->old_port_sel = port_sel;
+	/*
+	 * As the RK3568_OVL_LAYER_SEL and RK3568_OVL_PORT_SEL are shared by all Video Ports,
+	 * and the configuration take effect by one Video Port's vsync.
+	 * When performing layer migration or change the zpos of layers, there are two things
+	 * to be observed and followed:
+	 * 1. When a layer is migrated from one VP to another, the configuration of the layer
+	 *    can only take effect after the Port mux configuration is enabled.
+	 *
+	 * 2. When we change the zpos of layers, we must ensure that the change for the previous
+	 *    VP takes effect before we proceed to change the next VP. Otherwise, the new
+	 *    configuration might overwrite the previous one for the previous VP, or it could
+	 *    lead to the configuration of the previous VP being take effect along with the VSYNC
+	 *    of the new VP.
+	 */
+	if (layer_sel != old_layer_sel || port_sel != old_port_sel)
+		ovl_ctrl |= FIELD_PREP(RK3568_OVL_CTRL__LAYERSEL_REGDONE_SEL, vp->id);
+	vop2_writel(vop2, RK3568_OVL_CTRL, ovl_ctrl);
+
+	if (port_sel != old_port_sel) {
+		vop2_writel(vop2, RK3568_OVL_PORT_SEL, port_sel);
+		vop2_cfg_done(vp);
+		rk3568_vop2_wait_for_port_mux_done(vop2);
+	}
+
+	if (layer_sel != old_layer_sel && atv_layer_sel != old_layer_sel)
+		rk3568_vop2_wait_for_layer_cfg_done(vop2, vop2->old_layer_sel);
+
 	vop2_writel(vop2, RK3568_OVL_LAYER_SEL, layer_sel);
-	vop2_writel(vop2, RK3568_OVL_PORT_SEL, port_sel);
+	mutex_unlock(&vop2->ovl_lock);
 }
 
 static void rk3568_vop2_setup_dly_for_windows(struct vop2_video_port *vp)

@@ -567,7 +567,6 @@ static void toshsd_powerdown(struct toshsd_host *host)
 	pci_write_config_byte(host->pdev, SD_PCICFG_CLKSTOP, 0);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int toshsd_pm_suspend(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
@@ -599,7 +598,6 @@ static int toshsd_pm_resume(struct device *dev)
 
 	return 0;
 }
-#endif /* CONFIG_PM_SLEEP */
 
 static int toshsd_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
@@ -612,7 +610,7 @@ static int toshsd_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ret)
 		return ret;
 
-	mmc = mmc_alloc_host(sizeof(struct toshsd_host), &pdev->dev);
+	mmc = devm_mmc_alloc_host(&pdev->dev, sizeof(*host));
 	if (!mmc) {
 		ret = -ENOMEM;
 		goto err;
@@ -669,7 +667,6 @@ unmap:
 release:
 	pci_release_regions(pdev);
 free:
-	mmc_free_host(mmc);
 	pci_set_drvdata(pdev, NULL);
 err:
 	pci_disable_device(pdev);
@@ -685,21 +682,18 @@ static void toshsd_remove(struct pci_dev *pdev)
 	free_irq(pdev->irq, host);
 	pci_iounmap(pdev, host->ioaddr);
 	pci_release_regions(pdev);
-	mmc_free_host(host->mmc);
 	pci_set_drvdata(pdev, NULL);
 	pci_disable_device(pdev);
 }
 
-static const struct dev_pm_ops toshsd_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(toshsd_pm_suspend, toshsd_pm_resume)
-};
+static DEFINE_SIMPLE_DEV_PM_OPS(toshsd_pm_ops, toshsd_pm_suspend, toshsd_pm_resume);
 
 static struct pci_driver toshsd_driver = {
 	.name = DRIVER_NAME,
 	.id_table = pci_ids,
 	.probe = toshsd_probe,
 	.remove = toshsd_remove,
-	.driver.pm = &toshsd_pm_ops,
+	.driver.pm = pm_sleep_ptr(&toshsd_pm_ops),
 };
 
 module_pci_driver(toshsd_driver);

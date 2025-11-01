@@ -84,8 +84,6 @@ struct pci_config_window *pci_ecam_create(struct device *dev,
 			goto err_exit_iomap;
 	}
 
-	cfg->priv = dev_get_drvdata(dev);
-
 	if (ops->init) {
 		err = ops->init(cfg);
 		if (err)

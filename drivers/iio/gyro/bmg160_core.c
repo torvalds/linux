@@ -21,8 +21,6 @@
 #include <linux/regulator/consumer.h>
 #include "bmg160.h"
 
-#define BMG160_IRQ_NAME		"bmg160_event"
-
 #define BMG160_REG_CHIP_ID		0x00
 #define BMG160_CHIP_ID_VAL		0x0F
 
@@ -311,10 +309,8 @@ static int bmg160_set_power_state(struct bmg160_data *data, bool on)
 
 	if (on)
 		ret = pm_runtime_get_sync(dev);
-	else {
-		pm_runtime_mark_last_busy(dev);
+	else
 		ret = pm_runtime_put_autosuspend(dev);
-	}
 
 	if (ret < 0) {
 		dev_err(dev, "Failed: bmg160_set_power_state for %d\n", on);
@@ -1099,7 +1095,7 @@ int bmg160_core_probe(struct device *dev, struct regmap *regmap, int irq,
 						bmg160_data_rdy_trig_poll,
 						bmg160_event_handler,
 						IRQF_TRIGGER_RISING,
-						BMG160_IRQ_NAME,
+						"bmg160_event",
 						indio_dev);
 		if (ret)
 			return ret;

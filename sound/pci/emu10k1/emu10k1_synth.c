@@ -55,10 +55,9 @@ static int snd_emu10k1_synth_probe(struct device *_dev)
 		return -ENOMEM;
 	}
 
-	spin_lock_irq(&hw->voice_lock);
+	guard(spinlock_irq)(&hw->voice_lock);
 	hw->synth = emux;
 	hw->get_synth_voice = snd_emu10k1_synth_get_voice;
-	spin_unlock_irq(&hw->voice_lock);
 
 	dev->driver_data = emux;
 
@@ -77,10 +76,10 @@ static int snd_emu10k1_synth_remove(struct device *_dev)
 	emux = dev->driver_data;
 
 	hw = emux->hw;
-	spin_lock_irq(&hw->voice_lock);
-	hw->synth = NULL;
-	hw->get_synth_voice = NULL;
-	spin_unlock_irq(&hw->voice_lock);
+	scoped_guard(spinlock_irq, &hw->voice_lock) {
+		hw->synth = NULL;
+		hw->get_synth_voice = NULL;
+	}
 
 	snd_emux_free(emux);
 	return 0;

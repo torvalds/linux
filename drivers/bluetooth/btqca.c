@@ -739,7 +739,7 @@ static int qca_check_bdaddr(struct hci_dev *hdev, const struct qca_fw_config *co
 
 	bda = (struct hci_rp_read_bd_addr *)skb->data;
 	if (!bacmp(&bda->bdaddr, &config->bdaddr))
-		set_bit(HCI_QUIRK_USE_BDADDR_PROPERTY, &hdev->quirks);
+		hci_set_quirk(hdev, HCI_QUIRK_USE_BDADDR_PROPERTY);
 
 	kfree_skb(skb);
 

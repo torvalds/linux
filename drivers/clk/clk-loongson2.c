@@ -13,10 +13,6 @@
 #include <linux/io-64-nonatomic-lo-hi.h>
 #include <dt-bindings/clock/loongson,ls2k-clk.h>
 
-static const struct clk_parent_data pdata[] = {
-	{ .fw_name = "ref_100m", },
-};
-
 enum loongson2_clk_type {
 	CLK_TYPE_PLL,
 	CLK_TYPE_SCALE,
@@ -42,6 +38,7 @@ struct loongson2_clk_data {
 	u8 div_width;
 	u8 mult_shift;
 	u8 mult_width;
+	u8 bit_idx;
 };
 
 struct loongson2_clk_board_info {
@@ -50,6 +47,7 @@ struct loongson2_clk_board_info {
 	const char *name;
 	const char *parent_name;
 	unsigned long fixed_rate;
+	unsigned long flags;
 	u8 reg_offset;
 	u8 div_shift;
 	u8 div_width;
@@ -95,6 +93,19 @@ struct loongson2_clk_board_info {
 		.div_width	= _dwidth,			\
 	}
 
+#define CLK_SCALE_MODE(_id, _name, _pname, _offset,		\
+		  _dshift, _dwidth, _midx)			\
+	{							\
+		.id		= _id,				\
+		.type		= CLK_TYPE_SCALE,		\
+		.name		= _name,			\
+		.parent_name	= _pname,			\
+		.reg_offset	= _offset,			\
+		.div_shift	= _dshift,			\
+		.div_width	= _dwidth,			\
+		.bit_idx	= _midx + 1,			\
+	}
+
 #define CLK_GATE(_id, _name, _pname, _offset, _bidx)		\
 	{							\
 		.id		= _id,				\
@@ -105,6 +116,18 @@ struct loongson2_clk_board_info {
 		.bit_idx	= _bidx,			\
 	}
 
+#define CLK_GATE_FLAGS(_id, _name, _pname, _offset, _bidx,	\
+		       _flags)					\
+	{							\
+		.id		= _id,				\
+		.type		= CLK_TYPE_GATE,		\
+		.name		= _name,			\
+		.parent_name	= _pname,			\
+		.reg_offset	= _offset,			\
+		.bit_idx	= _bidx,			\
+		.flags		= _flags			\
+	}
+
 #define CLK_FIXED(_id, _name, _pname, _rate)			\
 	{							\
 		.id		= _id,				\
@@ -113,6 +136,51 @@ struct loongson2_clk_board_info {
 		.parent_name	= _pname,			\
 		.fixed_rate	= _rate,			\
 	}
+
+static const struct loongson2_clk_board_info ls2k0300_clks[] = {
+	/* Reference Clock */
+	CLK_PLL(LS2K0300_NODE_PLL, "pll_node",   0x00, 15, 9, 8, 7),
+	CLK_PLL(LS2K0300_DDR_PLL,  "pll_ddr",    0x08, 15, 9, 8, 7),
+	CLK_PLL(LS2K0300_PIX_PLL,  "pll_pix",    0x10, 15, 9, 8, 7),
+	CLK_FIXED(LS2K0300_CLK_STABLE, "clk_stable", NULL, 100000000),
+	CLK_FIXED(LS2K0300_CLK_THSENS, "clk_thsens", NULL, 10000000),
+	/* Node PLL */
+	CLK_DIV(LS2K0300_CLK_NODE_DIV, "clk_node_div", "pll_node", 0x00, 24, 7),
+	CLK_DIV(LS2K0300_CLK_GMAC_DIV, "clk_gmac_div", "pll_node", 0x04, 0, 7),
+	CLK_DIV(LS2K0300_CLK_I2S_DIV,  "clk_i2s_div",  "pll_node", 0x04, 8, 7),
+	CLK_GATE(LS2K0300_CLK_NODE_PLL_GATE,   "clk_node_pll_gate", "clk_node_div", 0x00, 0),
+	CLK_GATE(LS2K0300_CLK_GMAC_GATE,       "clk_gmac_gate",	    "clk_gmac_div", 0x00, 1),
+	CLK_GATE(LS2K0300_CLK_I2S_GATE,	       "clk_i2s_gate",	    "clk_i2s_div", 0x00, 2),
+	CLK_GATE_FLAGS(LS2K0300_CLK_NODE_GATE, "clk_node_gate",     "clk_node_scale", 0x24, 0,
+		       CLK_IS_CRITICAL),
+	CLK_SCALE_MODE(LS2K0300_CLK_NODE_SCALE, "clk_node_scale", "clk_node_pll_gate", 0x20, 0, 3,
+		       3),
+	/* DDR PLL */
+	CLK_DIV(LS2K0300_CLK_DDR_DIV, "clk_ddr_div", "pll_ddr", 0x08, 24, 7),
+	CLK_DIV(LS2K0300_CLK_NET_DIV, "clk_net_div", "pll_ddr", 0x0c, 0, 7),
+	CLK_DIV(LS2K0300_CLK_DEV_DIV, "clk_dev_div", "pll_ddr", 0x0c, 8, 7),
+	CLK_GATE(LS2K0300_CLK_NET_GATE,		"clk_net_gate", "clk_net_div", 0x08, 1),
+	CLK_GATE(LS2K0300_CLK_DEV_GATE,		"clk_dev_gate",	"clk_dev_div", 0x08, 2),
+	CLK_GATE_FLAGS(LS2K0300_CLK_DDR_GATE,	"clk_ddr_gate",	"clk_ddr_div", 0x08, 0,
+		       CLK_IS_CRITICAL),
+	/* PIX PLL */
+	CLK_DIV(LS2K0300_CLK_PIX_DIV,	 "clk_pix_div",	   "pll_pix", 0x10, 24, 7),
+	CLK_DIV(LS2K0300_CLK_GMACBP_DIV, "clk_gmacbp_div", "pll_pix", 0x14, 0, 7),
+	CLK_GATE(LS2K0300_CLK_PIX_PLL_GATE, "clk_pix_pll_gate",	"clk_pix_div", 0x10, 0),
+	CLK_GATE(LS2K0300_CLK_PIX_GATE,	    "clk_pix_gate",	"clk_pix_scale", 0x24, 6),
+	CLK_GATE(LS2K0300_CLK_GMACBP_GATE,  "clk_gmacbp_gate",	"clk_gmacbp_div", 0x10, 1),
+	CLK_SCALE_MODE(LS2K0300_CLK_PIX_SCALE, "clk_pix_scale", "clk_pix_pll_gate", 0x20, 4, 3, 7),
+	/* clk_dev_gate */
+	CLK_DIV(LS2K0300_CLK_SDIO_SCALE, "clk_sdio_scale", "clk_dev_gate", 0x20, 24, 4),
+	CLK_GATE(LS2K0300_CLK_USB_GATE,	 "clk_usb_gate",	"clk_usb_scale", 0x24, 2),
+	CLK_GATE(LS2K0300_CLK_SDIO_GATE, "clk_sdio_gate",	"clk_sdio_scale", 0x24, 4),
+	CLK_GATE(LS2K0300_CLK_APB_GATE,  "clk_apb_gate",	"clk_apb_scale", 0x24, 3),
+	CLK_GATE_FLAGS(LS2K0300_CLK_BOOT_GATE, "clk_boot_gate",	"clk_boot_scale", 0x24, 1,
+		       CLK_IS_CRITICAL),
+	CLK_SCALE_MODE(LS2K0300_CLK_USB_SCALE,  "clk_usb_scale",  "clk_dev_gate", 0x20, 12, 3, 15),
+	CLK_SCALE_MODE(LS2K0300_CLK_APB_SCALE,  "clk_apb_scale",  "clk_dev_gate", 0x20, 16, 3, 19),
+	CLK_SCALE_MODE(LS2K0300_CLK_BOOT_SCALE, "clk_boot_scale", "clk_dev_gate", 0x20, 8, 3, 11),
+};
 
 static const struct loongson2_clk_board_info ls2k0500_clks[] = {
 	CLK_PLL(LOONGSON2_NODE_PLL,   "pll_node", 0,    16, 8, 8, 6),
@@ -230,20 +298,26 @@ static const struct clk_ops loongson2_pll_recalc_ops = {
 static unsigned long loongson2_freqscale_recalc_rate(struct clk_hw *hw,
 						     unsigned long parent_rate)
 {
-	u64 val, mult;
+	u64 val, scale;
+	u32 mode = 0;
 	struct loongson2_clk_data *clk = to_loongson2_clk(hw);
 
 	val  = readq(clk->reg);
-	mult = loongson2_rate_part(val, clk->div_shift, clk->div_width) + 1;
+	scale = loongson2_rate_part(val, clk->div_shift, clk->div_width) + 1;
 
-	return div_u64((u64)parent_rate * mult, 8);
+	if (clk->bit_idx)
+		mode = val & BIT(clk->bit_idx - 1);
+
+	return mode == 0 ? div_u64((u64)parent_rate * scale, 8) :
+			   div_u64((u64)parent_rate, scale);
 }
 
 static const struct clk_ops loongson2_freqscale_recalc_ops = {
 	.recalc_rate = loongson2_freqscale_recalc_rate,
 };
 
-static struct clk_hw *loongson2_clk_register(struct loongson2_clk_provider *clp,
+static struct clk_hw *loongson2_clk_register(const char *parent,
+					     struct loongson2_clk_provider *clp,
 					     const struct loongson2_clk_board_info *cld,
 					     const struct clk_ops *ops)
 {
@@ -260,17 +334,14 @@ static struct clk_hw *loongson2_clk_register(struct loongson2_clk_provider *clp,
 	init.ops   = ops;
 	init.flags = 0;
 	init.num_parents = 1;
-
-	if (!cld->parent_name)
-		init.parent_data = pdata;
-	else
-		init.parent_names = &cld->parent_name;
+	init.parent_names = &parent;
 
 	clk->reg	= clp->base + cld->reg_offset;
 	clk->div_shift	= cld->div_shift;
 	clk->div_width	= cld->div_width;
 	clk->mult_shift	= cld->mult_shift;
 	clk->mult_width	= cld->mult_width;
+	clk->bit_idx	= cld->bit_idx;
 	clk->hw.init	= &init;
 
 	hw = &clk->hw;
@@ -288,10 +359,16 @@ static int loongson2_clk_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct loongson2_clk_provider *clp;
 	const struct loongson2_clk_board_info *p, *data;
+	const char *refclk_name, *parent_name;
 
 	data = device_get_match_data(dev);
 	if (!data)
 		return -EINVAL;
+
+	refclk_name = of_clk_get_parent_name(dev->of_node, 0);
+	if (IS_ERR(refclk_name))
+		return dev_err_probe(dev, PTR_ERR(refclk_name),
+				     "failed to get refclk name\n");
 
 	for (p = data; p->name; p++)
 		clks_num = max(clks_num, p->id + 1);
@@ -314,32 +391,36 @@ static int loongson2_clk_probe(struct platform_device *pdev)
 
 	for (i = 0; i < clks_num; i++) {
 		p = &data[i];
+		parent_name = p->parent_name ? p->parent_name : refclk_name;
+
 		switch (p->type) {
 		case CLK_TYPE_PLL:
-			hw = loongson2_clk_register(clp, p,
+			hw = loongson2_clk_register(parent_name, clp, p,
 						    &loongson2_pll_recalc_ops);
 			break;
 		case CLK_TYPE_SCALE:
-			hw = loongson2_clk_register(clp, p,
+			hw = loongson2_clk_register(parent_name, clp, p,
 						    &loongson2_freqscale_recalc_ops);
 			break;
 		case CLK_TYPE_DIVIDER:
 			hw = devm_clk_hw_register_divider(dev, p->name,
-							  p->parent_name, 0,
+							  parent_name, 0,
 							  clp->base + p->reg_offset,
 							  p->div_shift, p->div_width,
-							  CLK_DIVIDER_ONE_BASED,
+							  CLK_DIVIDER_ONE_BASED |
+							  CLK_DIVIDER_ALLOW_ZERO,
 							  &clp->clk_lock);
 			break;
 		case CLK_TYPE_GATE:
-			hw = devm_clk_hw_register_gate(dev, p->name, p->parent_name, 0,
+			hw = devm_clk_hw_register_gate(dev, p->name, parent_name,
+						       p->flags,
 						       clp->base + p->reg_offset,
 						       p->bit_idx, 0,
 						       &clp->clk_lock);
 			break;
 		case CLK_TYPE_FIXED:
-			hw = devm_clk_hw_register_fixed_rate_parent_data(dev, p->name, pdata,
-									 0, p->fixed_rate);
+			hw = devm_clk_hw_register_fixed_rate(dev, p->name, parent_name,
+							     0, p->fixed_rate);
 			break;
 		default:
 			return dev_err_probe(dev, -EINVAL, "Invalid clk type\n");
@@ -357,6 +438,7 @@ static int loongson2_clk_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id loongson2_clk_match_table[] = {
+	{ .compatible = "loongson,ls2k0300-clk", .data = &ls2k0300_clks },
 	{ .compatible = "loongson,ls2k0500-clk", .data = &ls2k0500_clks },
 	{ .compatible = "loongson,ls2k-clk", .data = &ls2k1000_clks },
 	{ .compatible = "loongson,ls2k2000-clk", .data = &ls2k2000_clks },

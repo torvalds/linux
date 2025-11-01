@@ -33,14 +33,12 @@
 #include <xmit_osdep.h>
 #include <rtw_recv.h>
 
-#include <recv_osdep.h>
 #include <rtw_efuse.h>
 #include <hal_intf.h>
 #include <hal_com.h>
 #include <rtw_qos.h>
 #include <rtw_pwrctrl.h>
 #include <rtw_mlme.h>
-#include <mlme_osdep.h>
 #include <rtw_io.h>
 #include <rtw_ioctl_set.h>
 #include <osdep_intf.h>
@@ -350,7 +348,6 @@ struct adapter {
 
 	void *HalData;
 	u32 hal_data_sz;
-	struct hal_ops	HalFunc;
 
 	s32	bDriverStopped;
 	s32	bSurpriseRemoved;

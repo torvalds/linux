@@ -297,8 +297,11 @@ void vcpu_set_ich_hcr(struct kvm_vcpu *vcpu)
 {
 	struct vgic_v3_cpu_if *vgic_v3 = &vcpu->arch.vgic_cpu.vgic_v3;
 
+	if (!vgic_is_v3(vcpu->kvm))
+		return;
+
 	/* Hide GICv3 sysreg if necessary */
-	if (!kvm_has_gicv3(vcpu->kvm)) {
+	if (vcpu->kvm->arch.vgic.vgic_model == KVM_DEV_TYPE_ARM_VGIC_V2) {
 		vgic_v3->vgic_hcr |= (ICH_HCR_EL2_TALL0 | ICH_HCR_EL2_TALL1 |
 				      ICH_HCR_EL2_TC);
 		return;
@@ -588,6 +591,7 @@ int vgic_v3_map_resources(struct kvm *kvm)
 }
 
 DEFINE_STATIC_KEY_FALSE(vgic_v3_cpuif_trap);
+DEFINE_STATIC_KEY_FALSE(vgic_v3_has_v2_compat);
 
 static int __init early_group0_trap_cfg(char *buf)
 {
@@ -696,6 +700,13 @@ int vgic_v3_probe(const struct gic_kvm_info *info)
 
 	if (kvm_vgic_global_state.vcpu_base == 0)
 		kvm_info("disabling GICv2 emulation\n");
+
+	/*
+	 * Flip the static branch if the HW supports v2, even if we're
+	 * not using it (such as in protected mode).
+	 */
+	if (has_v2)
+		static_branch_enable(&vgic_v3_has_v2_compat);
 
 	if (cpus_have_final_cap(ARM64_WORKAROUND_CAVIUM_30115)) {
 		group0_trap = true;

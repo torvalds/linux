@@ -6,6 +6,8 @@
 #ifndef _AMPHION_VPU_HELPERS_H
 #define _AMPHION_VPU_HELPERS_H
 
+#include "vpu_defs.h"
+
 struct vpu_pair {
 	u32 src;
 	u32 dst;
@@ -54,10 +56,6 @@ static inline u8 vpu_helper_read_byte(struct vpu_buffer *stream_buffer, u32 pos)
 	return pdata[pos % stream_buffer->length];
 }
 
-int vpu_color_check_primaries(u32 primaries);
-int vpu_color_check_transfers(u32 transfers);
-int vpu_color_check_matrix(u32 matrix);
-int vpu_color_check_full_range(u32 full_range);
 u32 vpu_color_cvrt_primaries_v2i(u32 primaries);
 u32 vpu_color_cvrt_primaries_i2v(u32 primaries);
 u32 vpu_color_cvrt_transfers_v2i(u32 transfers);
@@ -66,8 +64,12 @@ u32 vpu_color_cvrt_matrix_v2i(u32 matrix);
 u32 vpu_color_cvrt_matrix_i2v(u32 matrix);
 u32 vpu_color_cvrt_full_range_v2i(u32 full_range);
 u32 vpu_color_cvrt_full_range_i2v(u32 full_range);
-int vpu_color_get_default(u32 primaries, u32 *ptransfers, u32 *pmatrix, u32 *pfull_range);
 
 int vpu_find_dst_by_src(struct vpu_pair *pairs, u32 cnt, u32 src);
 int vpu_find_src_by_dst(struct vpu_pair *pairs, u32 cnt, u32 dst);
+
+u32 vpu_get_h264_v4l2_profile(struct vpu_dec_codec_info *hdr);
+u32 vpu_get_h264_v4l2_level(struct vpu_dec_codec_info *hdr);
+u32 vpu_get_hevc_v4l2_profile(struct vpu_dec_codec_info *hdr);
+u32 vpu_get_hevc_v4l2_level(struct vpu_dec_codec_info *hdr);
 #endif

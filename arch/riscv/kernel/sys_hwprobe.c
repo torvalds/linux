@@ -15,6 +15,7 @@
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
 #include <asm/vector.h>
+#include <asm/vendor_extensions/mips_hwprobe.h>
 #include <asm/vendor_extensions/sifive_hwprobe.h>
 #include <asm/vendor_extensions/thead_hwprobe.h>
 #include <vdso/vsyscall.h>
@@ -153,14 +154,12 @@ static void hwprobe_isa_ext0(struct riscv_hwprobe *pair,
 			EXT_KEY(ZVKT);
 		}
 
-		if (has_fpu()) {
-			EXT_KEY(ZCD);
-			EXT_KEY(ZCF);
-			EXT_KEY(ZFA);
-			EXT_KEY(ZFBFMIN);
-			EXT_KEY(ZFH);
-			EXT_KEY(ZFHMIN);
-		}
+		EXT_KEY(ZCD);
+		EXT_KEY(ZCF);
+		EXT_KEY(ZFA);
+		EXT_KEY(ZFBFMIN);
+		EXT_KEY(ZFH);
+		EXT_KEY(ZFHMIN);
 
 		if (IS_ENABLED(CONFIG_RISCV_ISA_SUPM))
 			EXT_KEY(SUPM);
@@ -308,6 +307,9 @@ static void hwprobe_one_pair(struct riscv_hwprobe *pair,
 
 	case RISCV_HWPROBE_KEY_VENDOR_EXT_THEAD_0:
 		hwprobe_isa_vendor_ext_thead_0(pair, cpus);
+		break;
+	case RISCV_HWPROBE_KEY_VENDOR_EXT_MIPS_0:
+		hwprobe_isa_vendor_ext_mips_0(pair, cpus);
 		break;
 
 	/*

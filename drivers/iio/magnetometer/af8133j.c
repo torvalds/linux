@@ -361,10 +361,8 @@ static irqreturn_t af8133j_trigger_handler(int irq, void *p)
 	struct {
 		__le16 values[3];
 		aligned_s64 timestamp;
-	} sample;
+	} sample = { };
 	int ret;
-
-	memset(&sample, 0, sizeof(sample));
 
 	ret = af8133j_read_measurement(data, sample.values);
 	if (ret)

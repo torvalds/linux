@@ -7,7 +7,7 @@
 
 #include "fsverity_private.h"
 
-#include <crypto/hash.h>
+#include <linux/export.h>
 #include <linux/mount.h>
 #include <linux/sched/signal.h>
 #include <linux/uaccess.h>
@@ -19,12 +19,10 @@ struct block_buffer {
 };
 
 /* Hash a block, writing the result to the next level's pending block buffer. */
-static int hash_one_block(struct inode *inode,
-			  const struct merkle_tree_params *params,
+static int hash_one_block(const struct merkle_tree_params *params,
 			  struct block_buffer *cur)
 {
 	struct block_buffer *next = cur + 1;
-	int err;
 
 	/*
 	 * Safety check to prevent a buffer overflow in case of a filesystem bug
@@ -37,10 +35,7 @@ static int hash_one_block(struct inode *inode,
 	/* Zero-pad the block if it's shorter than the block size. */
 	memset(&cur->data[cur->filled], 0, params->block_size - cur->filled);
 
-	err = fsverity_hash_block(params, inode, cur->data,
-				  &next->data[next->filled]);
-	if (err)
-		return err;
+	fsverity_hash_block(params, cur->data, &next->data[next->filled]);
 	next->filled += params->digest_size;
 	cur->filled = 0;
 	return 0;
@@ -126,7 +121,7 @@ static int build_merkle_tree(struct file *filp,
 			fsverity_err(inode, "Short read of file data");
 			goto out;
 		}
-		err = hash_one_block(inode, params, &buffers[-1]);
+		err = hash_one_block(params, &buffers[-1]);
 		if (err)
 			goto out;
 		for (level = 0; level < num_levels; level++) {
@@ -137,7 +132,7 @@ static int build_merkle_tree(struct file *filp,
 			}
 			/* Next block at @level is full */
 
-			err = hash_one_block(inode, params, &buffers[level]);
+			err = hash_one_block(params, &buffers[level]);
 			if (err)
 				goto out;
 			err = write_merkle_tree_block(inode,
@@ -157,7 +152,7 @@ static int build_merkle_tree(struct file *filp,
 	/* Finish all nonempty pending tree blocks. */
 	for (level = 0; level < num_levels; level++) {
 		if (buffers[level].filled != 0) {
-			err = hash_one_block(inode, params, &buffers[level]);
+			err = hash_one_block(params, &buffers[level]);
 			if (err)
 				goto out;
 			err = write_merkle_tree_block(inode,
@@ -287,9 +282,9 @@ static int enable_verity(struct file *filp,
 		/* Successfully enabled verity */
 
 		/*
-		 * Readers can start using ->i_verity_info immediately, so it
-		 * can't be rolled back once set.  So don't set it until just
-		 * after the filesystem has successfully enabled verity.
+		 * Readers can start using the inode's verity info immediately,
+		 * so it can't be rolled back once set.  So don't set it until
+		 * just after the filesystem has successfully enabled verity.
 		 */
 		fsverity_set_info(inode, vi);
 	}

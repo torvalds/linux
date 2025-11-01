@@ -206,10 +206,17 @@ bool ovl_dentry_weird(struct dentry *dentry)
 	if (!d_can_lookup(dentry) && !d_is_file(dentry) && !d_is_symlink(dentry))
 		return true;
 
-	return dentry->d_flags & (DCACHE_NEED_AUTOMOUNT |
-				  DCACHE_MANAGE_TRANSIT |
-				  DCACHE_OP_HASH |
-				  DCACHE_OP_COMPARE);
+	if (dentry->d_flags & (DCACHE_NEED_AUTOMOUNT | DCACHE_MANAGE_TRANSIT))
+		return true;
+
+	/*
+	 * Exceptionally for layers with casefold, we accept that they have
+	 * their own hash and compare operations
+	 */
+	if (sb_has_encoding(dentry->d_sb))
+		return false;
+
+	return dentry->d_flags & (DCACHE_OP_HASH | DCACHE_OP_COMPARE);
 }
 
 enum ovl_path_type ovl_path_type(struct dentry *dentry)
@@ -959,7 +966,7 @@ void ovl_check_protattr(struct inode *inode, struct dentry *upper)
 }
 
 int ovl_set_protattr(struct inode *inode, struct dentry *upper,
-		      struct fileattr *fa)
+		      struct file_kattr *fa)
 {
 	struct ovl_fs *ofs = OVL_FS(inode->i_sb);
 	char buf[OVL_PROTATTR_MAX];
@@ -1071,7 +1078,6 @@ static void ovl_cleanup_index(struct dentry *dentry)
 {
 	struct ovl_fs *ofs = OVL_FS(dentry->d_sb);
 	struct dentry *indexdir = ovl_indexdir(dentry->d_sb);
-	struct inode *dir = indexdir->d_inode;
 	struct dentry *lowerdentry = ovl_dentry_lower(dentry);
 	struct dentry *upperdentry = ovl_dentry_upper(dentry);
 	struct dentry *index = NULL;
@@ -1107,21 +1113,18 @@ static void ovl_cleanup_index(struct dentry *dentry)
 		goto out;
 	}
 
-	inode_lock_nested(dir, I_MUTEX_PARENT);
-	index = ovl_lookup_upper(ofs, name.name, indexdir, name.len);
+	index = ovl_lookup_upper_unlocked(ofs, name.name, indexdir, name.len);
 	err = PTR_ERR(index);
 	if (IS_ERR(index)) {
 		index = NULL;
 	} else if (ovl_index_all(dentry->d_sb)) {
 		/* Whiteout orphan index to block future open by handle */
 		err = ovl_cleanup_and_whiteout(OVL_FS(dentry->d_sb),
-					       dir, index);
+					       indexdir, index);
 	} else {
 		/* Cleanup orphan index entries */
-		err = ovl_cleanup(ofs, dir, index);
+		err = ovl_cleanup(ofs, indexdir, index);
 	}
-
-	inode_unlock(dir);
 	if (err)
 		goto fail;
 
@@ -1220,19 +1223,20 @@ void ovl_nlink_end(struct dentry *dentry)
 	ovl_inode_unlock(inode);
 }
 
-int ovl_lock_rename_workdir(struct dentry *workdir, struct dentry *upperdir)
+int ovl_lock_rename_workdir(struct dentry *workdir, struct dentry *work,
+			    struct dentry *upperdir, struct dentry *upper)
 {
 	struct dentry *trap;
-
-	/* Workdir should not be the same as upperdir */
-	if (workdir == upperdir)
-		goto err;
 
 	/* Workdir should not be subdir of upperdir and vice versa */
 	trap = lock_rename(workdir, upperdir);
 	if (IS_ERR(trap))
 		goto err;
 	if (trap)
+		goto err_unlock;
+	if (work && work->d_parent != workdir)
+		goto err_unlock;
+	if (upper && upper->d_parent != upperdir)
 		goto err_unlock;
 
 	return 0;
@@ -1377,7 +1381,7 @@ err_free:
 }
 
 /* Call with mounter creds as it may open the file */
-int ovl_ensure_verity_loaded(struct path *datapath)
+int ovl_ensure_verity_loaded(const struct path *datapath)
 {
 	struct inode *inode = d_inode(datapath->dentry);
 	struct file *filp;
@@ -1397,8 +1401,8 @@ int ovl_ensure_verity_loaded(struct path *datapath)
 }
 
 int ovl_validate_verity(struct ovl_fs *ofs,
-			struct path *metapath,
-			struct path *datapath)
+			const struct path *metapath,
+			const struct path *datapath)
 {
 	struct ovl_metacopy metacopy_data;
 	u8 actual_digest[FS_VERITY_MAX_DIGEST_SIZE];
@@ -1451,7 +1455,7 @@ int ovl_validate_verity(struct ovl_fs *ofs,
 	return 0;
 }
 
-int ovl_get_verity_digest(struct ovl_fs *ofs, struct path *src,
+int ovl_get_verity_digest(struct ovl_fs *ofs, const struct path *src,
 			  struct ovl_metacopy *metacopy)
 {
 	int err, digest_size;
@@ -1543,4 +1547,15 @@ void ovl_copyattr(struct inode *inode)
 	inode_set_ctime_to_ts(inode, inode_get_ctime(realinode));
 	i_size_write(inode, i_size_read(realinode));
 	spin_unlock(&inode->i_lock);
+}
+
+int ovl_parent_lock(struct dentry *parent, struct dentry *child)
+{
+	inode_lock_nested(parent->d_inode, I_MUTEX_PARENT);
+	if (!child ||
+	    (!d_unhashed(child) && child->d_parent == parent))
+		return 0;
+
+	inode_unlock(parent->d_inode);
+	return -EINVAL;
 }

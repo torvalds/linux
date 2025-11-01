@@ -49,5 +49,7 @@ struct iris_inst *iris_get_instance(struct iris_core *core, u32 session_id);
 void iris_helper_buffers_done(struct iris_inst *inst, unsigned int type,
 			      enum vb2_buffer_state state);
 int iris_wait_for_session_response(struct iris_inst *inst, bool is_flush);
+int iris_check_core_mbpf(struct iris_inst *inst);
+int iris_check_core_mbps(struct iris_inst *inst);
 
 #endif

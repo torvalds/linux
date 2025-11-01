@@ -102,6 +102,7 @@ static void __used common(void)
 
 	BLANK();
 	DEFINE(PTREGS_SIZE, sizeof(struct pt_regs));
+	OFFSET(C_PTREGS_SIZE, pt_regs, orig_ax);
 
 	/* TLB state for the entry code */
 	OFFSET(TLB_STATE_user_pcid_flush_mask, tlb_state, user_pcid_flush_mask);

@@ -10,7 +10,7 @@
 
 #include <asm/page.h>
 
-#ifdef __ASSEMBLY__
+#ifdef __ASSEMBLER__
 #include <asm/thread_info.h>	/* TI_UWINMASK for WINDOW_FLUSH */
 #endif
 
@@ -97,7 +97,7 @@
 	bne	99b;							\
 	 restore %g0, %g0, %g0;
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 extern unsigned long last_valid_pfn;
 
 /* This makes sense. Honest it does - Anton */
@@ -136,6 +136,6 @@ srmmu_get_pte (unsigned long addr)
 	return entry;
 }
 
-#endif /* !(__ASSEMBLY__) */
+#endif /* !(__ASSEMBLER__) */
 
 #endif /* !(_SPARC_PGTSRMMU_H) */

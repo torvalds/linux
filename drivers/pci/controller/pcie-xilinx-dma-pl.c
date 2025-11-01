@@ -7,6 +7,7 @@
 #include <linux/bitfield.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/irqchip/irq-msi-lib.h>
 #include <linux/irqdomain.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -90,7 +91,6 @@ struct xilinx_pl_dma_variant {
 };
 
 struct xilinx_msi {
-	struct irq_domain	*msi_domain;
 	unsigned long		*bitmap;
 	struct irq_domain	*dev_domain;
 	struct mutex		lock;		/* Protect bitmap variable */
@@ -373,20 +373,20 @@ static irqreturn_t xilinx_pl_dma_pcie_intr_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static struct irq_chip xilinx_msi_irq_chip = {
-	.name = "pl_dma:PCIe MSI",
-	.irq_enable = pci_msi_unmask_irq,
-	.irq_disable = pci_msi_mask_irq,
-	.irq_mask = pci_msi_mask_irq,
-	.irq_unmask = pci_msi_unmask_irq,
-};
+#define XILINX_MSI_FLAGS_REQUIRED (MSI_FLAG_USE_DEF_DOM_OPS	| \
+				   MSI_FLAG_USE_DEF_CHIP_OPS	| \
+				   MSI_FLAG_NO_AFFINITY)
 
-static struct msi_domain_info xilinx_msi_domain_info = {
-	.flags = MSI_FLAG_USE_DEF_DOM_OPS | MSI_FLAG_USE_DEF_CHIP_OPS |
-		 MSI_FLAG_NO_AFFINITY | MSI_FLAG_MULTI_PCI_MSI,
-	.chip = &xilinx_msi_irq_chip,
-};
+#define XILINX_MSI_FLAGS_SUPPORTED (MSI_GENERIC_FLAGS_MASK	| \
+				    MSI_FLAG_MULTI_PCI_MSI)
 
+static const struct msi_parent_ops xilinx_msi_parent_ops = {
+	.required_flags		= XILINX_MSI_FLAGS_REQUIRED,
+	.supported_flags	= XILINX_MSI_FLAGS_SUPPORTED,
+	.bus_select_token	= DOMAIN_BUS_PCI_MSI,
+	.prefix			= "pl_dma-",
+	.init_dev_msi_info	= msi_lib_init_dev_msi_info,
+};
 static void xilinx_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 {
 	struct pl_dma_pcie *pcie = irq_data_get_irq_chip_data(data);
@@ -458,11 +458,6 @@ static void xilinx_pl_dma_pcie_free_irq_domains(struct pl_dma_pcie *port)
 		irq_domain_remove(msi->dev_domain);
 		msi->dev_domain = NULL;
 	}
-
-	if (msi->msi_domain) {
-		irq_domain_remove(msi->msi_domain);
-		msi->msi_domain = NULL;
-	}
 }
 
 static int xilinx_pl_dma_pcie_init_msi_irq_domain(struct pl_dma_pcie *port)
@@ -470,17 +465,15 @@ static int xilinx_pl_dma_pcie_init_msi_irq_domain(struct pl_dma_pcie *port)
 	struct device *dev = port->dev;
 	struct xilinx_msi *msi = &port->msi;
 	int size = BITS_TO_LONGS(XILINX_NUM_MSI_IRQS) * sizeof(long);
-	struct fwnode_handle *fwnode = of_fwnode_handle(port->dev->of_node);
+	struct irq_domain_info info = {
+		.fwnode		= dev_fwnode(port->dev),
+		.ops		= &dev_msi_domain_ops,
+		.host_data	= port,
+		.size		= XILINX_NUM_MSI_IRQS,
+	};
 
-	msi->dev_domain = irq_domain_create_linear(NULL, XILINX_NUM_MSI_IRQS,
-						   &dev_msi_domain_ops, port);
+	msi->dev_domain  = msi_create_parent_irq_domain(&info, &xilinx_msi_parent_ops);
 	if (!msi->dev_domain)
-		goto out;
-
-	msi->msi_domain = pci_msi_create_irq_domain(fwnode,
-						    &xilinx_msi_domain_info,
-						    msi->dev_domain);
-	if (!msi->msi_domain)
 		goto out;
 
 	mutex_init(&msi->lock);

@@ -161,6 +161,16 @@ static const struct dentry_operations ovl_dentry_operations = {
 	.d_weak_revalidate = ovl_dentry_weak_revalidate,
 };
 
+#if IS_ENABLED(CONFIG_UNICODE)
+static const struct dentry_operations ovl_dentry_ci_operations = {
+	.d_real = ovl_d_real,
+	.d_revalidate = ovl_dentry_revalidate,
+	.d_weak_revalidate = ovl_dentry_weak_revalidate,
+	.d_hash = generic_ci_d_hash,
+	.d_compare = generic_ci_d_compare,
+};
+#endif
+
 static struct kmem_cache *ovl_inode_cachep;
 
 static struct inode *ovl_alloc_inode(struct super_block *sb)
@@ -280,7 +290,7 @@ static const struct super_operations ovl_super_operations = {
 	.alloc_inode	= ovl_alloc_inode,
 	.free_inode	= ovl_free_inode,
 	.destroy_inode	= ovl_destroy_inode,
-	.drop_inode	= generic_delete_inode,
+	.drop_inode	= inode_just_drop,
 	.put_super	= ovl_put_super,
 	.sync_fs	= ovl_sync_fs,
 	.statfs		= ovl_statfs,
@@ -299,8 +309,8 @@ static struct dentry *ovl_workdir_create(struct ovl_fs *ofs,
 	int err;
 	bool retried = false;
 
-	inode_lock_nested(dir, I_MUTEX_PARENT);
 retry:
+	inode_lock_nested(dir, I_MUTEX_PARENT);
 	work = ovl_lookup_upper(ofs, name, ofs->workbasedir, strlen(name));
 
 	if (!IS_ERR(work)) {
@@ -311,23 +321,24 @@ retry:
 
 		if (work->d_inode) {
 			err = -EEXIST;
+			inode_unlock(dir);
 			if (retried)
 				goto out_dput;
 
 			if (persist)
-				goto out_unlock;
+				return work;
 
 			retried = true;
-			err = ovl_workdir_cleanup(ofs, dir, mnt, work, 0);
+			err = ovl_workdir_cleanup(ofs, ofs->workbasedir, mnt, work, 0);
 			dput(work);
-			if (err == -EINVAL) {
-				work = ERR_PTR(err);
-				goto out_unlock;
-			}
+			if (err == -EINVAL)
+				return ERR_PTR(err);
+
 			goto retry;
 		}
 
 		work = ovl_do_mkdir(ofs, dir, work, attr.ia_mode);
+		inode_unlock(dir);
 		err = PTR_ERR(work);
 		if (IS_ERR(work))
 			goto out_err;
@@ -365,11 +376,10 @@ retry:
 		if (err)
 			goto out_dput;
 	} else {
+		inode_unlock(dir);
 		err = PTR_ERR(work);
 		goto out_err;
 	}
-out_unlock:
-	inode_unlock(dir);
 	return work;
 
 out_dput:
@@ -377,8 +387,7 @@ out_dput:
 out_err:
 	pr_warn("failed to create directory %s/%s (errno: %i); mounting read-only\n",
 		ofs->config.workdir, name, -err);
-	work = NULL;
-	goto out_unlock;
+	return NULL;
 }
 
 static int ovl_check_namelen(const struct path *path, struct ovl_fs *ofs,
@@ -395,7 +404,7 @@ static int ovl_check_namelen(const struct path *path, struct ovl_fs *ofs,
 	return err;
 }
 
-static int ovl_lower_dir(const char *name, struct path *path,
+static int ovl_lower_dir(const char *name, const struct path *path,
 			 struct ovl_fs *ofs, int *stack_depth)
 {
 	int fh_type;
@@ -557,37 +566,42 @@ out:
 static int ovl_check_rename_whiteout(struct ovl_fs *ofs)
 {
 	struct dentry *workdir = ofs->workdir;
-	struct inode *dir = d_inode(workdir);
 	struct dentry *temp;
 	struct dentry *dest;
 	struct dentry *whiteout;
 	struct name_snapshot name;
 	int err;
 
-	inode_lock_nested(dir, I_MUTEX_PARENT);
-
 	temp = ovl_create_temp(ofs, workdir, OVL_CATTR(S_IFREG | 0));
 	err = PTR_ERR(temp);
 	if (IS_ERR(temp))
-		goto out_unlock;
+		return err;
 
+	err = ovl_parent_lock(workdir, temp);
+	if (err) {
+		dput(temp);
+		return err;
+	}
 	dest = ovl_lookup_temp(ofs, workdir);
 	err = PTR_ERR(dest);
 	if (IS_ERR(dest)) {
 		dput(temp);
-		goto out_unlock;
+		ovl_parent_unlock(workdir);
+		return err;
 	}
 
 	/* Name is inline and stable - using snapshot as a copy helper */
 	take_dentry_name_snapshot(&name, temp);
-	err = ovl_do_rename(ofs, dir, temp, dir, dest, RENAME_WHITEOUT);
+	err = ovl_do_rename(ofs, workdir, temp, workdir, dest, RENAME_WHITEOUT);
+	ovl_parent_unlock(workdir);
 	if (err) {
 		if (err == -EINVAL)
 			err = 0;
 		goto cleanup_temp;
 	}
 
-	whiteout = ovl_lookup_upper(ofs, name.name.name, workdir, name.name.len);
+	whiteout = ovl_lookup_upper_unlocked(ofs, name.name.name,
+					     workdir, name.name.len);
 	err = PTR_ERR(whiteout);
 	if (IS_ERR(whiteout))
 		goto cleanup_temp;
@@ -596,17 +610,14 @@ static int ovl_check_rename_whiteout(struct ovl_fs *ofs)
 
 	/* Best effort cleanup of whiteout and temp file */
 	if (err)
-		ovl_cleanup(ofs, dir, whiteout);
+		ovl_cleanup(ofs, workdir, whiteout);
 	dput(whiteout);
 
 cleanup_temp:
-	ovl_cleanup(ofs, dir, temp);
+	ovl_cleanup(ofs, workdir, temp);
 	release_dentry_name_snapshot(&name);
 	dput(temp);
 	dput(dest);
-
-out_unlock:
-	inode_unlock(dir);
 
 	return err;
 }
@@ -621,8 +632,7 @@ static struct dentry *ovl_lookup_or_create(struct ovl_fs *ofs,
 	inode_lock_nested(parent->d_inode, I_MUTEX_PARENT);
 	child = ovl_lookup_upper(ofs, name, parent, len);
 	if (!IS_ERR(child) && !child->d_inode)
-		child = ovl_create_real(ofs, parent->d_inode, child,
-					OVL_CATTR(mode));
+		child = ovl_create_real(ofs, parent, child, OVL_CATTR(mode));
 	inode_unlock(parent->d_inode);
 	dput(parent);
 
@@ -991,6 +1001,25 @@ static int ovl_get_data_fsid(struct ovl_fs *ofs)
 	return ofs->numfs;
 }
 
+/*
+ * Set the ovl sb encoding as the same one used by the first layer
+ */
+static int ovl_set_encoding(struct super_block *sb, struct super_block *fs_sb)
+{
+	if (!sb_has_encoding(fs_sb))
+		return 0;
+
+#if IS_ENABLED(CONFIG_UNICODE)
+	if (sb_has_strict_encoding(fs_sb)) {
+		pr_err("strict encoding not supported\n");
+		return -EINVAL;
+	}
+
+	sb->s_encoding = fs_sb->s_encoding;
+	sb->s_encoding_flags = fs_sb->s_encoding_flags;
+#endif
+	return 0;
+}
 
 static int ovl_get_layers(struct super_block *sb, struct ovl_fs *ofs,
 			  struct ovl_fs_context *ctx, struct ovl_layer *layers)
@@ -1024,6 +1053,12 @@ static int ovl_get_layers(struct super_block *sb, struct ovl_fs *ofs,
 	if (ovl_upper_mnt(ofs)) {
 		ofs->fs[0].sb = ovl_upper_mnt(ofs)->mnt_sb;
 		ofs->fs[0].is_lower = false;
+
+		if (ofs->casefold) {
+			err = ovl_set_encoding(sb, ofs->fs[0].sb);
+			if (err)
+				return err;
+		}
 	}
 
 	nr_merged_lower = ctx->nr - ctx->nr_data;
@@ -1083,6 +1118,19 @@ static int ovl_get_layers(struct super_block *sb, struct ovl_fs *ofs,
 		l->name = NULL;
 		ofs->numlayer++;
 		ofs->fs[fsid].is_lower = true;
+
+		if (ofs->casefold) {
+			if (!ovl_upper_mnt(ofs) && !sb_has_encoding(sb)) {
+				err = ovl_set_encoding(sb, ofs->fs[fsid].sb);
+				if (err)
+					return err;
+			}
+
+			if (!sb_same_encoding(sb, mnt->mnt_sb)) {
+				pr_err("all layers must have the same encoding\n");
+				return -EINVAL;
+			}
+		}
 	}
 
 	/*
@@ -1300,11 +1348,25 @@ static struct dentry *ovl_get_root(struct super_block *sb,
 	ovl_dentry_set_flag(OVL_E_CONNECTED, root);
 	ovl_set_upperdata(d_inode(root));
 	ovl_inode_init(d_inode(root), &oip, ino, fsid);
+	WARN_ON(!!IS_CASEFOLDED(d_inode(root)) != ofs->casefold);
 	ovl_dentry_init_flags(root, upperdentry, oe, DCACHE_OP_WEAK_REVALIDATE);
 	/* root keeps a reference of upperdentry */
 	dget(upperdentry);
 
 	return root;
+}
+
+static void ovl_set_d_op(struct super_block *sb)
+{
+#if IS_ENABLED(CONFIG_UNICODE)
+	struct ovl_fs *ofs = sb->s_fs_info;
+
+	if (ofs->casefold) {
+		set_default_d_op(sb, &ovl_dentry_ci_operations);
+		return;
+	}
+#endif
+	set_default_d_op(sb, &ovl_dentry_operations);
 }
 
 int ovl_fill_super(struct super_block *sb, struct fs_context *fc)
@@ -1322,7 +1384,7 @@ int ovl_fill_super(struct super_block *sb, struct fs_context *fc)
 	if (WARN_ON(fc->user_ns != current_user_ns()))
 		goto out_err;
 
-	sb->s_d_op = &ovl_dentry_operations;
+	ovl_set_d_op(sb);
 
 	err = -ENOMEM;
 	if (!ofs->creator_cred)

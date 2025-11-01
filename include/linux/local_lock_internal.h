@@ -17,7 +17,10 @@ typedef struct {
 
 /* local_trylock() and local_trylock_irqsave() only work with local_trylock_t */
 typedef struct {
-	local_lock_t	llock;
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+	struct lockdep_map	dep_map;
+	struct task_struct	*owner;
+#endif
 	u8		acquired;
 } local_trylock_t;
 
@@ -31,7 +34,7 @@ typedef struct {
 	.owner = NULL,
 
 # define LOCAL_TRYLOCK_DEBUG_INIT(lockname)		\
-	.llock = { LOCAL_LOCK_DEBUG_INIT((lockname).llock) },
+	LOCAL_LOCK_DEBUG_INIT(lockname)
 
 static inline void local_lock_acquire(local_lock_t *l)
 {
@@ -81,7 +84,7 @@ do {								\
 	local_lock_debug_init(lock);				\
 } while (0)
 
-#define __local_trylock_init(lock) __local_lock_init(lock.llock)
+#define __local_trylock_init(lock) __local_lock_init((local_lock_t *)lock)
 
 #define __spinlock_nested_bh_init(lock)				\
 do {								\
@@ -99,14 +102,14 @@ do {								\
 		local_trylock_t *tl;					\
 		local_lock_t *l;					\
 									\
-		l = (local_lock_t *)this_cpu_ptr(lock);			\
+		l = (local_lock_t *)(lock);				\
 		tl = (local_trylock_t *)l;				\
 		_Generic((lock),					\
-			__percpu local_trylock_t *: ({			\
+			local_trylock_t *: ({				\
 				lockdep_assert(tl->acquired == 0);	\
 				WRITE_ONCE(tl->acquired, 1);		\
 			}),						\
-			__percpu local_lock_t *: (void)0);		\
+			local_lock_t *: (void)0);			\
 		local_lock_acquire(l);					\
 	} while (0)
 
@@ -133,7 +136,7 @@ do {								\
 		local_trylock_t *tl;				\
 								\
 		preempt_disable();				\
-		tl = this_cpu_ptr(lock);			\
+		tl = (lock);					\
 		if (READ_ONCE(tl->acquired)) {			\
 			preempt_enable();			\
 			tl = NULL;				\
@@ -150,7 +153,7 @@ do {								\
 		local_trylock_t *tl;				\
 								\
 		local_irq_save(flags);				\
-		tl = this_cpu_ptr(lock);			\
+		tl = (lock);					\
 		if (READ_ONCE(tl->acquired)) {			\
 			local_irq_restore(flags);		\
 			tl = NULL;				\
@@ -162,20 +165,23 @@ do {								\
 		!!tl;						\
 	})
 
+/* preemption or migration must be disabled before calling __local_lock_is_locked */
+#define __local_lock_is_locked(lock) READ_ONCE(this_cpu_ptr(lock)->acquired)
+
 #define __local_lock_release(lock)					\
 	do {								\
 		local_trylock_t *tl;					\
 		local_lock_t *l;					\
 									\
-		l = (local_lock_t *)this_cpu_ptr(lock);			\
+		l = (local_lock_t *)(lock);				\
 		tl = (local_trylock_t *)l;				\
 		local_lock_release(l);					\
 		_Generic((lock),					\
-			__percpu local_trylock_t *: ({			\
+			local_trylock_t *: ({				\
 				lockdep_assert(tl->acquired == 1);	\
 				WRITE_ONCE(tl->acquired, 0);		\
 			}),						\
-			__percpu local_lock_t *: (void)0);		\
+			local_lock_t *: (void)0);			\
 	} while (0)
 
 #define __local_unlock(lock)					\
@@ -199,11 +205,11 @@ do {								\
 #define __local_lock_nested_bh(lock)				\
 	do {							\
 		lockdep_assert_in_softirq();			\
-		local_lock_acquire(this_cpu_ptr(lock));	\
+		local_lock_acquire((lock));			\
 	} while (0)
 
 #define __local_unlock_nested_bh(lock)				\
-	local_lock_release(this_cpu_ptr(lock))
+	local_lock_release((lock))
 
 #else /* !CONFIG_PREEMPT_RT */
 
@@ -227,7 +233,7 @@ typedef spinlock_t local_trylock_t;
 #define __local_lock(__lock)					\
 	do {							\
 		migrate_disable();				\
-		spin_lock(this_cpu_ptr((__lock)));		\
+		spin_lock((__lock));				\
 	} while (0)
 
 #define __local_lock_irq(lock)			__local_lock(lock)
@@ -241,7 +247,7 @@ typedef spinlock_t local_trylock_t;
 
 #define __local_unlock(__lock)					\
 	do {							\
-		spin_unlock(this_cpu_ptr((__lock)));		\
+		spin_unlock((__lock));				\
 		migrate_enable();				\
 	} while (0)
 
@@ -252,12 +258,12 @@ typedef spinlock_t local_trylock_t;
 #define __local_lock_nested_bh(lock)				\
 do {								\
 	lockdep_assert_in_softirq_func();			\
-	spin_lock(this_cpu_ptr(lock));				\
+	spin_lock((lock));					\
 } while (0)
 
 #define __local_unlock_nested_bh(lock)				\
 do {								\
-	spin_unlock(this_cpu_ptr((lock)));			\
+	spin_unlock((lock));					\
 } while (0)
 
 #define __local_trylock(lock)					\
@@ -268,7 +274,7 @@ do {								\
 			__locked = 0;				\
 		} else {					\
 			migrate_disable();			\
-			__locked = spin_trylock(this_cpu_ptr((lock)));	\
+			__locked = spin_trylock((lock));	\
 			if (!__locked)				\
 				migrate_enable();		\
 		}						\
@@ -281,5 +287,9 @@ do {								\
 		flags = 0;					\
 		__local_trylock(lock);				\
 	})
+
+/* migration must be disabled before calling __local_lock_is_locked */
+#define __local_lock_is_locked(__lock)					\
+	(rt_mutex_owner(&this_cpu_ptr(__lock)->lock) == current)
 
 #endif /* CONFIG_PREEMPT_RT */

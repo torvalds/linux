@@ -18,7 +18,10 @@
 #include <asm/atomic.h>
 #include <asm/kvm.h>
 
+#include <sys/eventfd.h>
 #include <sys/ioctl.h>
+
+#include <pthread.h>
 
 #include "kvm_util_arch.h"
 #include "kvm_util_types.h"
@@ -60,6 +63,9 @@ struct kvm_vcpu {
 	struct kvm_run *run;
 #ifdef __x86_64__
 	struct kvm_cpuid2 *cpuid;
+#endif
+#ifdef __aarch64__
+	struct kvm_vcpu_init init;
 #endif
 	struct kvm_binary_stats stats;
 	struct kvm_dirty_gfn *dirty_gfns;
@@ -253,16 +259,22 @@ struct vm_guest_mode_params {
 };
 extern const struct vm_guest_mode_params vm_guest_mode_params[];
 
+int __open_path_or_exit(const char *path, int flags, const char *enoent_help);
 int open_path_or_exit(const char *path, int flags);
 int open_kvm_dev_path_or_exit(void);
 
-bool get_kvm_param_bool(const char *param);
-bool get_kvm_intel_param_bool(const char *param);
-bool get_kvm_amd_param_bool(const char *param);
+int kvm_get_module_param_integer(const char *module_name, const char *param);
+bool kvm_get_module_param_bool(const char *module_name, const char *param);
 
-int get_kvm_param_integer(const char *param);
-int get_kvm_intel_param_integer(const char *param);
-int get_kvm_amd_param_integer(const char *param);
+static inline bool get_kvm_param_bool(const char *param)
+{
+	return kvm_get_module_param_bool("kvm", param);
+}
+
+static inline int get_kvm_param_integer(const char *param)
+{
+	return kvm_get_module_param_integer("kvm", param);
+}
 
 unsigned int kvm_check_cap(long cap);
 
@@ -273,6 +285,31 @@ static inline bool kvm_has_cap(long cap)
 
 #define __KVM_SYSCALL_ERROR(_name, _ret) \
 	"%s failed, rc: %i errno: %i (%s)", (_name), (_ret), errno, strerror(errno)
+
+static inline void *__kvm_mmap(size_t size, int prot, int flags, int fd,
+			       off_t offset)
+{
+	void *mem;
+
+	mem = mmap(NULL, size, prot, flags, fd, offset);
+	TEST_ASSERT(mem != MAP_FAILED, __KVM_SYSCALL_ERROR("mmap()",
+		    (int)(unsigned long)MAP_FAILED));
+
+	return mem;
+}
+
+static inline void *kvm_mmap(size_t size, int prot, int flags, int fd)
+{
+	return __kvm_mmap(size, prot, flags, fd, 0);
+}
+
+static inline void kvm_munmap(void *mem, size_t size)
+{
+	int ret;
+
+	ret = munmap(mem, size);
+	TEST_ASSERT(!ret, __KVM_SYSCALL_ERROR("munmap()", ret));
+}
 
 /*
  * Use the "inner", double-underscore macro when reporting errors from within
@@ -499,6 +536,45 @@ static inline int vm_get_stats_fd(struct kvm_vm *vm)
 	int fd = __vm_ioctl(vm, KVM_GET_STATS_FD, NULL);
 
 	TEST_ASSERT_VM_VCPU_IOCTL(fd >= 0, KVM_GET_STATS_FD, fd, vm);
+	return fd;
+}
+
+static inline int __kvm_irqfd(struct kvm_vm *vm, uint32_t gsi, int eventfd,
+			      uint32_t flags)
+{
+	struct kvm_irqfd irqfd = {
+		.fd = eventfd,
+		.gsi = gsi,
+		.flags = flags,
+		.resamplefd = -1,
+	};
+
+	return __vm_ioctl(vm, KVM_IRQFD, &irqfd);
+}
+
+static inline void kvm_irqfd(struct kvm_vm *vm, uint32_t gsi, int eventfd,
+			      uint32_t flags)
+{
+	int ret = __kvm_irqfd(vm, gsi, eventfd, flags);
+
+	TEST_ASSERT_VM_VCPU_IOCTL(!ret, KVM_IRQFD, ret, vm);
+}
+
+static inline void kvm_assign_irqfd(struct kvm_vm *vm, uint32_t gsi, int eventfd)
+{
+	kvm_irqfd(vm, gsi, eventfd, 0);
+}
+
+static inline void kvm_deassign_irqfd(struct kvm_vm *vm, uint32_t gsi, int eventfd)
+{
+	kvm_irqfd(vm, gsi, eventfd, KVM_IRQFD_FLAG_DEASSIGN);
+}
+
+static inline int kvm_new_eventfd(void)
+{
+	int fd = eventfd(0, 0);
+
+	TEST_ASSERT(fd >= 0, __KVM_SYSCALL_ERROR("eventfd()", fd));
 	return fd;
 }
 
@@ -1013,7 +1089,34 @@ struct kvm_vcpu *vm_recreate_with_one_vcpu(struct kvm_vm *vm);
 
 void kvm_set_files_rlimit(uint32_t nr_vcpus);
 
-void kvm_pin_this_task_to_pcpu(uint32_t pcpu);
+int __pin_task_to_cpu(pthread_t task, int cpu);
+
+static inline void pin_task_to_cpu(pthread_t task, int cpu)
+{
+	int r;
+
+	r = __pin_task_to_cpu(task, cpu);
+	TEST_ASSERT(!r, "Failed to set thread affinity to pCPU '%u'", cpu);
+}
+
+static inline int pin_task_to_any_cpu(pthread_t task)
+{
+	int cpu = sched_getcpu();
+
+	pin_task_to_cpu(task, cpu);
+	return cpu;
+}
+
+static inline void pin_self_to_cpu(int cpu)
+{
+	pin_task_to_cpu(pthread_self(), cpu);
+}
+
+static inline int pin_self_to_any_cpu(void)
+{
+	return pin_task_to_any_cpu(pthread_self());
+}
+
 void kvm_print_vcpu_pinning_help(void);
 void kvm_parse_vcpu_pinning(const char *pcpus_string, uint32_t vcpu_to_pcpu[],
 			    int nr_vcpus);
@@ -1187,10 +1290,14 @@ static inline int __vm_disable_nx_huge_pages(struct kvm_vm *vm)
  */
 void kvm_selftest_arch_init(void);
 
-void kvm_arch_vm_post_create(struct kvm_vm *vm);
+void kvm_arch_vm_post_create(struct kvm_vm *vm, unsigned int nr_vcpus);
+void kvm_arch_vm_finalize_vcpus(struct kvm_vm *vm);
+void kvm_arch_vm_release(struct kvm_vm *vm);
 
 bool vm_is_gpa_protected(struct kvm_vm *vm, vm_paddr_t paddr);
 
 uint32_t guest_get_vcpuid(void);
+
+bool kvm_arch_has_default_irqchip(void);
 
 #endif /* SELFTEST_KVM_UTIL_H */

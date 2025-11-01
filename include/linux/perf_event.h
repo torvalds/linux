@@ -635,8 +635,46 @@ struct perf_addr_filter_range {
 	unsigned long			size;
 };
 
-/**
- * enum perf_event_state - the states of an event:
+/*
+ * The normal states are:
+ *
+ *            ACTIVE    --.
+ *               ^        |
+ *               |        |
+ *       sched_{in,out}() |
+ *               |        |
+ *               v        |
+ *      ,---> INACTIVE  --+ <-.
+ *      |                 |   |
+ *      |                {dis,en}able()
+ *   sched_in()           |   |
+ *      |       OFF    <--' --+
+ *      |                     |
+ *      `--->  ERROR    ------'
+ *
+ * That is:
+ *
+ * sched_in:       INACTIVE          -> {ACTIVE,ERROR}
+ * sched_out:      ACTIVE            -> INACTIVE
+ * disable:        {ACTIVE,INACTIVE} -> OFF
+ * enable:         {OFF,ERROR}       -> INACTIVE
+ *
+ * Where {OFF,ERROR} are disabled states.
+ *
+ * Then we have the {EXIT,REVOKED,DEAD} states which are various shades of
+ * defunct events:
+ *
+ *  - EXIT means task that the even was assigned to died, but child events
+ *    still live, and further children can still be created. But the event
+ *    itself will never be active again. It can only transition to
+ *    {REVOKED,DEAD};
+ *
+ *  - REVOKED means the PMU the event was associated with is gone; all
+ *    functionality is stopped but the event is still alive. Can only
+ *    transition to DEAD;
+ *
+ *  - DEAD event really is DYING tearing down state and freeing bits.
+ *
  */
 enum perf_event_state {
 	PERF_EVENT_STATE_DEAD		= -5,
@@ -821,7 +859,7 @@ struct perf_event {
 
 	/* mmap bits */
 	struct mutex			mmap_mutex;
-	atomic_t			mmap_count;
+	refcount_t			mmap_count;
 
 	struct perf_buffer		*rb;
 	struct list_head		rb_entry;
@@ -1681,7 +1719,7 @@ DECLARE_PER_CPU(struct perf_callchain_entry, perf_callchain_entry);
 extern void perf_callchain_user(struct perf_callchain_entry_ctx *entry, struct pt_regs *regs);
 extern void perf_callchain_kernel(struct perf_callchain_entry_ctx *entry, struct pt_regs *regs);
 extern struct perf_callchain_entry *
-get_perf_callchain(struct pt_regs *regs, u32 init_nr, bool kernel, bool user,
+get_perf_callchain(struct pt_regs *regs, bool kernel, bool user,
 		   u32 max_stack, bool crosstask, bool add_mark);
 extern int get_callchain_buffers(int max_stack);
 extern void put_callchain_buffers(void);

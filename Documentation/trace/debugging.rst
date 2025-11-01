@@ -59,7 +59,7 @@ There is various methods of acquiring the state of the system when a kernel
 crash occurs. This could be from the oops message in printk, or one could
 use kexec/kdump. But these just show what happened at the time of the crash.
 It can be very useful in knowing what happened up to the point of the crash.
-The tracing ring buffer, by default, is a circular buffer than will
+The tracing ring buffer, by default, is a circular buffer that will
 overwrite older events with newer ones. When a crash happens, the content of
 the ring buffer will be all the events that lead up to the crash.
 

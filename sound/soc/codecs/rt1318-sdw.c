@@ -434,7 +434,6 @@ static int rt1318_io_init(struct device *dev, struct sdw_slave *slave)
 	rt1318->first_hw_init = true;
 	rt1318->hw_init = true;
 
-	pm_runtime_mark_last_busy(&slave->dev);
 	pm_runtime_put_autosuspend(&slave->dev);
 
 	dev_dbg(&slave->dev, "%s hw_init complete\n", __func__);

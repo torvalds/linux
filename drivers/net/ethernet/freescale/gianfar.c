@@ -97,6 +97,7 @@
 #include <linux/phy_fixed.h>
 #include <linux/of.h>
 #include <linux/of_net.h>
+#include <linux/property.h>
 
 #include "gianfar.h"
 
@@ -571,18 +572,6 @@ static int gfar_parse_group(struct device_node *np,
 	return 0;
 }
 
-static int gfar_of_group_count(struct device_node *np)
-{
-	struct device_node *child;
-	int num = 0;
-
-	for_each_available_child_of_node(np, child)
-		if (of_node_name_eq(child, "queue-group"))
-			num++;
-
-	return num;
-}
-
 /* Reads the controller's registers to determine what interface
  * connects it to the PHY.
  */
@@ -654,8 +643,10 @@ static int gfar_of_init(struct platform_device *ofdev, struct net_device **pdev)
 		num_rx_qs = 1;
 	} else { /* MQ_MG_MODE */
 		/* get the actual number of supported groups */
-		unsigned int num_grps = gfar_of_group_count(np);
+		unsigned int num_grps;
 
+		num_grps = device_get_named_child_node_count(&ofdev->dev,
+							     "queue-group");
 		if (num_grps == 0 || num_grps > MAXGROUPS) {
 			dev_err(&ofdev->dev, "Invalid # of int groups(%d)\n",
 				num_grps);

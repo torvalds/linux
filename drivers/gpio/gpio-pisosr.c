@@ -67,13 +67,6 @@ static int pisosr_gpio_direction_input(struct gpio_chip *chip,
 	return 0;
 }
 
-static int pisosr_gpio_direction_output(struct gpio_chip *chip,
-					unsigned offset, int value)
-{
-	/* This device is input only */
-	return -EINVAL;
-}
-
 static int pisosr_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
 	struct pisosr_gpio *gpio = gpiochip_get_data(chip);
@@ -108,18 +101,12 @@ static const struct gpio_chip template_chip = {
 	.owner			= THIS_MODULE,
 	.get_direction		= pisosr_gpio_get_direction,
 	.direction_input	= pisosr_gpio_direction_input,
-	.direction_output	= pisosr_gpio_direction_output,
 	.get			= pisosr_gpio_get,
 	.get_multiple		= pisosr_gpio_get_multiple,
 	.base			= -1,
 	.ngpio			= DEFAULT_NGPIO,
 	.can_sleep		= true,
 };
-
-static void pisosr_mutex_destroy(void *lock)
-{
-	mutex_destroy(lock);
-}
 
 static int pisosr_gpio_probe(struct spi_device *spi)
 {
@@ -147,8 +134,7 @@ static int pisosr_gpio_probe(struct spi_device *spi)
 		return dev_err_probe(dev, PTR_ERR(gpio->load_gpio),
 				     "Unable to allocate load GPIO\n");
 
-	mutex_init(&gpio->lock);
-	ret = devm_add_action_or_reset(dev, pisosr_mutex_destroy, &gpio->lock);
+	ret = devm_mutex_init(dev, &gpio->lock);
 	if (ret)
 		return ret;
 

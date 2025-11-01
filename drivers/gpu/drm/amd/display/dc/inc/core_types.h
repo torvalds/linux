@@ -58,14 +58,16 @@
 #include "transform.h"
 #include "dpp.h"
 
-#include "dml2/dml21/inc/dml_top_dchub_registers.h"
-#include "dml2/dml21/inc/dml_top_types.h"
+#include "dml2_0/dml21/inc/dml_top_dchub_registers.h"
+#include "dml2_0/dml21/inc/dml_top_types.h"
 
 struct resource_pool;
 struct dc_state;
 struct resource_context;
 struct clk_bw_params;
 struct dc_mcache_params;
+
+#define MAX_RMCM_INST  2
 
 struct resource_funcs {
 	enum engine_id (*get_preferred_eng_id_dpia)(unsigned int dpia_index);
@@ -82,7 +84,7 @@ struct resource_funcs {
 	enum dc_status (*validate_bandwidth)(
 					struct dc *dc,
 					struct dc_state *context,
-					bool fast_validate);
+					enum dc_validate_mode validate_mode);
 	void (*calculate_wm_and_dlg)(
 				struct dc *dc, struct dc_state *context,
 				display_e2e_pipe_params_st *pipes,
@@ -107,7 +109,7 @@ struct resource_funcs {
 		struct dc *dc,
 		struct dc_state *context,
 		display_e2e_pipe_params_st *pipes,
-		bool fast_validate);
+		enum dc_validate_mode validate_mode);
 
 	/*
 	 * Algorithm for assigning available link encoders to links.
@@ -223,6 +225,11 @@ struct resource_funcs {
 			const struct dc_stream_state *stream);
 	bool (*program_mcache_pipe_config)(struct dc_state *context,
 		const struct dc_mcache_params *mcache_params);
+	enum dc_status (*update_dc_state_for_encoder_switch)(struct dc_link *link,
+		struct dc_link_settings *link_setting,
+		uint8_t pipe_count,
+		struct pipe_ctx *pipes,
+		struct audio_output *audio_output);
 };
 
 struct audio_support{
@@ -267,7 +274,7 @@ struct resource_pool {
 	/* An array for accessing the link encoder objects that have been created.
 	 * Index in array corresponds to engine ID - viz. 0: ENGINE_ID_DIGA
 	 */
-	struct link_encoder *link_encoders[MAX_DIG_LINK_ENCODERS];
+	struct link_encoder *link_encoders[MAX_LINK_ENCODERS];
 	/* Number of DIG link encoder objects created - i.e. number of valid
 	 * entries in link_encoders array.
 	 */
@@ -281,6 +288,7 @@ struct resource_pool {
 	struct hpo_dp_link_encoder *hpo_dp_link_enc[MAX_HPO_DP2_LINK_ENCODERS];
 	struct dc_3dlut *mpc_lut[MAX_PIPES];
 	struct dc_transfer_func *mpc_shaper[MAX_PIPES];
+	struct dc_rmcm_3dlut rmcm_3dlut[MAX_RMCM_INST];
 
 	struct {
 		unsigned int xtalin_clock_inKhz;
@@ -425,7 +433,14 @@ enum p_state_switch_method {
 	P_STATE_V_ACTIVE,
 	P_STATE_SUB_VP,
 	P_STATE_DRR_SUB_VP,
-	P_STATE_V_BLANK_SUB_VP
+	P_STATE_V_BLANK_SUB_VP,
+};
+
+struct dsc_padding_params {
+	/* pixels borrowed from hblank to hactive */
+	uint8_t dsc_hactive_padding;
+	uint32_t dsc_htotal_padding;
+	uint32_t dsc_pix_clk_100hz;
 };
 
 struct pipe_ctx {
@@ -485,8 +500,7 @@ struct pipe_ctx {
 	/* subvp_index: only valid if the pipe is a SUBVP_MAIN*/
 	uint8_t subvp_index;
 	struct pixel_rate_divider pixel_rate_divider;
-	/* pixels borrowed from hblank to hactive */
-	uint8_t hblank_borrow;
+	struct dsc_padding_params dsc_padding_params;
 	/* next vupdate */
 	uint32_t next_vupdate;
 	uint32_t wait_frame_count;
@@ -500,7 +514,7 @@ struct pipe_ctx {
 struct link_enc_cfg_context {
 	enum link_enc_cfg_mode mode;
 	struct link_enc_assignment link_enc_assignments[MAX_PIPES];
-	enum engine_id link_enc_avail[MAX_DIG_LINK_ENCODERS];
+	enum engine_id link_enc_avail[MAX_LINK_ENCODERS];
 	struct link_enc_assignment transient_assignments[MAX_PIPES];
 };
 
@@ -512,8 +526,8 @@ struct resource_context {
 	uint8_t dp_clock_source_ref_count;
 	bool is_dsc_acquired[MAX_PIPES];
 	struct link_enc_cfg_context link_enc_cfg_ctx;
-	unsigned int dio_link_enc_to_link_idx[MAX_DIG_LINK_ENCODERS];
-	int dio_link_enc_ref_cnts[MAX_DIG_LINK_ENCODERS];
+	unsigned int dio_link_enc_to_link_idx[MAX_LINK_ENCODERS];
+	int dio_link_enc_ref_cnts[MAX_LINK_ENCODERS];
 	bool is_hpo_dp_stream_enc_acquired[MAX_HPO_DP2_ENCODERS];
 	unsigned int hpo_dp_link_enc_to_link_idx[MAX_HPO_DP2_LINK_ENCODERS];
 	int hpo_dp_link_enc_ref_cnts[MAX_HPO_DP2_LINK_ENCODERS];
@@ -556,7 +570,10 @@ struct dcn_bw_output {
 	struct dml2_mcache_surface_allocation mcache_allocations[DML2_MAX_PLANES];
 	struct dmub_cmd_fams2_global_config fams2_global_config;
 	union dmub_cmd_fams2_config fams2_stream_base_params[DML2_MAX_PLANES];
-	union dmub_cmd_fams2_config fams2_stream_sub_params[DML2_MAX_PLANES];
+	union {
+		union dmub_cmd_fams2_config fams2_stream_sub_params[DML2_MAX_PLANES];
+		union dmub_fams2_stream_static_sub_state_v2 fams2_stream_sub_params_v2[DML2_MAX_PLANES];
+	};
 	struct dml2_display_arb_regs arb_regs;
 };
 
@@ -672,6 +689,7 @@ struct replay_context {
 	/* Controller Id used for Dig Fe source select */
 	enum controller_id controllerId;
 	unsigned int line_time_in_ns;
+	bool os_request_force_ffu;
 };
 
 enum dc_replay_enable {

@@ -21,7 +21,6 @@
 #include <linux/list.h>
 #include <linux/netdevice.h>
 #include <linux/printk.h>
-#include <linux/rculist.h>
 #include <linux/rcupdate.h>
 #include <linux/skbuff.h>
 #include <linux/slab.h>
@@ -35,7 +34,6 @@
 #include "hard-interface.h"
 #include "log.h"
 #include "mesh-interface.h"
-#include "network-coding.h"
 #include "originator.h"
 #include "routing.h"
 #include "translation-table.h"
@@ -64,11 +62,8 @@ int batadv_send_skb_packet(struct sk_buff *skb,
 			   struct batadv_hard_iface *hard_iface,
 			   const u8 *dst_addr)
 {
-	struct batadv_priv *bat_priv;
 	struct ethhdr *ethhdr;
 	int ret;
-
-	bat_priv = netdev_priv(hard_iface->mesh_iface);
 
 	if (hard_iface->if_status != BATADV_IF_ACTIVE)
 		goto send_skb_err;
@@ -97,9 +92,6 @@ int batadv_send_skb_packet(struct sk_buff *skb,
 	skb->protocol = htons(ETH_P_BATMAN);
 
 	skb->dev = hard_iface->net_dev;
-
-	/* Save a clone of the skb to use when decoding coded packets */
-	batadv_nc_skb_store_for_decoding(bat_priv, skb);
 
 	/* dev_queue_xmit() returns a negative result on error.	 However on
 	 * congestion and traffic shaping, it drops and returns NET_XMIT_DROP
@@ -203,14 +195,7 @@ int batadv_send_skb_to_orig(struct sk_buff *skb,
 		goto put_neigh_node;
 	}
 
-	/* try to network code the packet, if it is received on an interface
-	 * (i.e. being forwarded). If the packet originates from this node or if
-	 * network coding fails, then send the packet as usual.
-	 */
-	if (recv_if && batadv_nc_skb_forward(skb, neigh_node))
-		ret = -EINPROGRESS;
-	else
-		ret = batadv_send_unicast_skb(skb, neigh_node);
+	ret = batadv_send_unicast_skb(skb, neigh_node);
 
 	/* skb was consumed */
 	skb = NULL;
@@ -924,6 +909,7 @@ static int __batadv_forw_bcast_packet(struct batadv_priv *bat_priv,
 {
 	struct batadv_hard_iface *hard_iface;
 	struct batadv_hard_iface *primary_if;
+	struct list_head *iter;
 	int ret = NETDEV_TX_OK;
 
 	primary_if = batadv_primary_if_get_selected(bat_priv);
@@ -931,10 +917,7 @@ static int __batadv_forw_bcast_packet(struct batadv_priv *bat_priv,
 		return NETDEV_TX_BUSY;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(hard_iface, &batadv_hardif_list, list) {
-		if (hard_iface->mesh_iface != bat_priv->mesh_iface)
-			continue;
-
+	netdev_for_each_lower_private_rcu(bat_priv->mesh_iface, hard_iface, iter) {
 		if (!kref_get_unless_zero(&hard_iface->refcount))
 			continue;
 

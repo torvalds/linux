@@ -1,0 +1,29 @@
+digraph state_automaton {
+	center = true;
+	size = "7,11";
+	{node [shape = doublecircle] "any_thread_running"};
+	{node [shape = circle] "any_thread_running"};
+	{node [shape = circle] "nested_preempt"};
+	{node [shape = plaintext, style=invis, label=""] "__init_preempt_irq"};
+	{node [shape = circle] "preempt_irq"};
+	{node [shape = circle] "rescheduling"};
+	"__init_preempt_irq" -> "preempt_irq";
+	"any_thread_running" [label = "any_thread_running", color = green3];
+	"any_thread_running" -> "any_thread_running" [ label = "schedule_entry\nirq_entry" ];
+	"any_thread_running" -> "rescheduling" [ label = "sched_need_resched" ];
+	"nested_preempt" [label = "nested_preempt"];
+	"nested_preempt" -> "any_thread_running" [ label = "schedule_entry_preempt\nschedule_entry" ];
+	"nested_preempt" -> "nested_preempt" [ label = "irq_entry" ];
+	"nested_preempt" -> "preempt_irq" [ label = "sched_need_resched" ];
+	"preempt_irq" [label = "preempt_irq"];
+	"preempt_irq" -> "nested_preempt" [ label = "schedule_entry_preempt\nschedule_entry" ];
+	"preempt_irq" -> "preempt_irq" [ label = "irq_entry\nsched_need_resched" ];
+	"rescheduling" [label = "rescheduling"];
+	"rescheduling" -> "any_thread_running" [ label = "schedule_entry_preempt\nschedule_entry" ];
+	"rescheduling" -> "preempt_irq" [ label = "irq_entry" ];
+	"rescheduling" -> "rescheduling" [ label = "sched_need_resched" ];
+	{ rank = min ;
+		"__init_preempt_irq";
+		"preempt_irq";
+	}
+}

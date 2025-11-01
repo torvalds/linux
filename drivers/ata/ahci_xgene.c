@@ -450,7 +450,6 @@ static int xgene_ahci_pmp_softreset(struct ata_link *link, unsigned int *class,
 {
 	int pmp = sata_srst_pmp(link);
 	struct ata_port *ap = link->ap;
-	u32 rc;
 	void __iomem *port_mmio = ahci_port_base(ap);
 	u32 port_fbs;
 
@@ -463,9 +462,7 @@ static int xgene_ahci_pmp_softreset(struct ata_link *link, unsigned int *class,
 	port_fbs |= pmp << PORT_FBS_DEV_OFFSET;
 	writel(port_fbs, port_mmio + PORT_FBS);
 
-	rc = ahci_do_softreset(link, class, pmp, deadline, ahci_check_ready);
-
-	return rc;
+	return ahci_do_softreset(link, class, pmp, deadline, ahci_check_ready);
 }
 
 /**
@@ -500,7 +497,7 @@ static int xgene_ahci_softreset(struct ata_link *link, unsigned int *class,
 	u32 port_fbs;
 	u32 port_fbs_save;
 	u32 retry = 1;
-	u32 rc;
+	int rc;
 
 	port_fbs_save = readl(port_mmio + PORT_FBS);
 
@@ -613,11 +610,11 @@ static irqreturn_t xgene_ahci_irq_intr(int irq, void *dev_instance)
 static struct ata_port_operations xgene_ahci_v1_ops = {
 	.inherits = &ahci_ops,
 	.host_stop = xgene_ahci_host_stop,
-	.hardreset = xgene_ahci_hardreset,
+	.reset.hardreset = xgene_ahci_hardreset,
+	.reset.softreset = xgene_ahci_softreset,
+	.pmp_reset.softreset = xgene_ahci_pmp_softreset,
 	.read_id = xgene_ahci_read_id,
 	.qc_issue = xgene_ahci_qc_issue,
-	.softreset = xgene_ahci_softreset,
-	.pmp_softreset = xgene_ahci_pmp_softreset
 };
 
 static const struct ata_port_info xgene_ahci_v1_port_info = {
@@ -630,7 +627,7 @@ static const struct ata_port_info xgene_ahci_v1_port_info = {
 static struct ata_port_operations xgene_ahci_v2_ops = {
 	.inherits = &ahci_ops,
 	.host_stop = xgene_ahci_host_stop,
-	.hardreset = xgene_ahci_hardreset,
+	.reset.hardreset = xgene_ahci_hardreset,
 	.read_id = xgene_ahci_read_id,
 };
 

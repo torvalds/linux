@@ -5,6 +5,8 @@
  */
 #include <linux/module.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
+#include <linux/irqdesc.h>
 #include <linux/irqdomain.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>
@@ -204,13 +206,12 @@ static int lmh_probe(struct platform_device *pdev)
 	ret = qcom_scm_lmh_dcvsh(LMH_SUB_FN_THERMAL, LMH_TH_LOW_THRESHOLD, temp_low,
 				 LMH_NODE_DCVS, node_id, 0);
 	if (ret) {
-		dev_err(dev, "Error setting thermal ARM threshold%d\n", ret);
+		dev_err(dev, "Error setting thermal LOW threshold%d\n", ret);
 		return ret;
 	}
 
 	lmh_data->irq = platform_get_irq(pdev, 0);
-	lmh_data->domain = irq_domain_create_linear(of_fwnode_handle(np), 1, &lmh_irq_ops,
-						    lmh_data);
+	lmh_data->domain = irq_domain_create_linear(dev_fwnode(dev), 1, &lmh_irq_ops, lmh_data);
 	if (!lmh_data->domain) {
 		dev_err(dev, "Error adding irq_domain\n");
 		return -EINVAL;

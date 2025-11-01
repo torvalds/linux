@@ -13,6 +13,10 @@
 
 #define TEST_UID	65534 /* usually nobody, any !root is fine */
 
+#define CG_THREADS_FILE (!cg_test_v1_named ? "cgroup.threads" : "tasks")
+#define CG_NAMED_NAME "selftest"
+#define CG_PATH_FORMAT (!cg_test_v1_named ? "0::%s" : (":name=" CG_NAMED_NAME ":%s"))
+
 /*
  * Checks if two given values differ by less than err% of their sum.
  */
@@ -56,6 +60,7 @@ extern int cg_run_nowait(const char *cgroup,
 extern int cg_wait_for_proc_count(const char *cgroup, int count);
 extern int cg_killall(const char *cgroup);
 int proc_mount_contains(const char *option);
+int cgroup_feature(const char *feature);
 extern ssize_t proc_read_text(int pid, bool thread, const char *item, char *buf, size_t size);
 extern int proc_read_strstr(int pid, bool thread, const char *item, const char *needle);
 extern pid_t clone_into_cgroup(int cgroup_fd);
@@ -65,3 +70,4 @@ extern int dirfd_open_opath(const char *dir);
 extern int cg_prepare_for_wait(const char *cgroup);
 extern int memcg_prepare_for_wait(const char *cgroup);
 extern int cg_wait_for(int fd);
+extern bool cg_test_v1_named;

@@ -37,9 +37,7 @@ static void io_waitid_free(struct io_kiocb *req)
 	struct io_waitid_async *iwa = req->async_data;
 
 	put_pid(iwa->wo.wo_pid);
-	kfree(req->async_data);
-	req->async_data = NULL;
-	req->flags &= ~REQ_F_ASYNC_DATA;
+	io_req_async_data_free(req);
 }
 
 static bool io_waitid_compat_copy_si(struct io_waitid *iw, int signo)
@@ -232,13 +230,14 @@ static int io_waitid_wait(struct wait_queue_entry *wait, unsigned mode,
 	if (!pid_child_should_wake(wo, p))
 		return 0;
 
+	list_del_init(&wait->entry);
+
 	/* cancel is in progress */
 	if (atomic_fetch_inc(&iw->refs) & IO_WAITID_REF_MASK)
 		return 1;
 
 	req->io_task_work.func = io_waitid_cb;
 	io_req_task_work_add(req);
-	list_del_init(&wait->entry);
 	return 1;
 }
 

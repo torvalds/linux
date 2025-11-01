@@ -1890,6 +1890,7 @@
 			      <0x31000000 0x2000>,	/* GICC */
 			      <0x31010000 0x2000>,	/* GICV */
 			      <0x31020000 0x2000>;	/* GICH */
+			#address-cells = <0>;
 			#interrupt-cells = <3>;
 			interrupt-controller;
 			interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;

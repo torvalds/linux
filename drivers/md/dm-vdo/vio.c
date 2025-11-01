@@ -212,7 +212,7 @@ int vio_reset_bio_with_size(struct vio *vio, char *data, int size, bio_end_io_t 
 		return VDO_SUCCESS;
 
 	bio->bi_ioprio = 0;
-	bio->bi_io_vec = bio->bi_inline_vecs;
+	bio->bi_io_vec = bio_inline_vecs(bio);
 	bio->bi_max_vecs = vio->block_count + 1;
 	if (VDO_ASSERT(size <= vio_size, "specified size %d is not greater than allocated %d",
 		       size, vio_size) != VDO_SUCCESS)

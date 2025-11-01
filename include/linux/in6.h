@@ -18,6 +18,13 @@
 
 #include <uapi/linux/in6.h>
 
+/* Large enough to hold both sockaddr_in and sockaddr_in6. */
+struct sockaddr_inet {
+	unsigned short	sa_family;
+	char		sa_data[sizeof(struct sockaddr_in6) -
+				sizeof(unsigned short)];
+};
+
 /* IPv6 Wildcard Address (::) and Loopback Address (::1) defined in RFC2553
  * NOTE: Be aware the IN6ADDR_* constants and in6addr_* externals are defined
  * in network byte order, not in host byte order as are the IPv4 equivalents

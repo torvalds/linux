@@ -11,7 +11,7 @@
 /* Empirical constants... */
 #define LINUX_OPPROM_MAGIC      0x10010407
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #include <linux/of.h>
 
 /* V0 prom device operations. */
@@ -275,6 +275,6 @@ struct linux_prom_pci_intmask {
 	unsigned int interrupt;
 };
 
-#endif /* !(__ASSEMBLY__) */
+#endif /* !(__ASSEMBLER__) */
 
 #endif /* !(__SPARC_OPENPROM_H) */

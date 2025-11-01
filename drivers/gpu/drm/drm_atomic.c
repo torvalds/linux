@@ -207,9 +207,9 @@ void drm_atomic_state_default_clear(struct drm_atomic_state *state)
 			continue;
 
 		connector->funcs->atomic_destroy_state(connector,
-						       state->connectors[i].state);
+						       state->connectors[i].state_to_destroy);
 		state->connectors[i].ptr = NULL;
-		state->connectors[i].state = NULL;
+		state->connectors[i].state_to_destroy = NULL;
 		state->connectors[i].old_state = NULL;
 		state->connectors[i].new_state = NULL;
 		drm_connector_put(connector);
@@ -222,10 +222,10 @@ void drm_atomic_state_default_clear(struct drm_atomic_state *state)
 			continue;
 
 		crtc->funcs->atomic_destroy_state(crtc,
-						  state->crtcs[i].state);
+						  state->crtcs[i].state_to_destroy);
 
 		state->crtcs[i].ptr = NULL;
-		state->crtcs[i].state = NULL;
+		state->crtcs[i].state_to_destroy = NULL;
 		state->crtcs[i].old_state = NULL;
 		state->crtcs[i].new_state = NULL;
 
@@ -242,9 +242,9 @@ void drm_atomic_state_default_clear(struct drm_atomic_state *state)
 			continue;
 
 		plane->funcs->atomic_destroy_state(plane,
-						   state->planes[i].state);
+						   state->planes[i].state_to_destroy);
 		state->planes[i].ptr = NULL;
-		state->planes[i].state = NULL;
+		state->planes[i].state_to_destroy = NULL;
 		state->planes[i].old_state = NULL;
 		state->planes[i].new_state = NULL;
 	}
@@ -253,9 +253,9 @@ void drm_atomic_state_default_clear(struct drm_atomic_state *state)
 		struct drm_private_obj *obj = state->private_objs[i].ptr;
 
 		obj->funcs->atomic_destroy_state(obj,
-						 state->private_objs[i].state);
+						 state->private_objs[i].state_to_destroy);
 		state->private_objs[i].ptr = NULL;
-		state->private_objs[i].state = NULL;
+		state->private_objs[i].state_to_destroy = NULL;
 		state->private_objs[i].old_state = NULL;
 		state->private_objs[i].new_state = NULL;
 	}
@@ -349,7 +349,7 @@ drm_atomic_get_crtc_state(struct drm_atomic_state *state,
 
 	WARN_ON(!state->acquire_ctx);
 
-	crtc_state = drm_atomic_get_existing_crtc_state(state, crtc);
+	crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
 	if (crtc_state)
 		return crtc_state;
 
@@ -361,7 +361,7 @@ drm_atomic_get_crtc_state(struct drm_atomic_state *state,
 	if (!crtc_state)
 		return ERR_PTR(-ENOMEM);
 
-	state->crtcs[index].state = crtc_state;
+	state->crtcs[index].state_to_destroy = crtc_state;
 	state->crtcs[index].old_state = crtc->state;
 	state->crtcs[index].new_state = crtc_state;
 	state->crtcs[index].ptr = crtc;
@@ -480,8 +480,8 @@ static int drm_atomic_connector_check(struct drm_connector *connector,
 	}
 
 	if (state->crtc)
-		crtc_state = drm_atomic_get_existing_crtc_state(state->state,
-								state->crtc);
+		crtc_state = drm_atomic_get_new_crtc_state(state->state,
+							   state->crtc);
 
 	if (writeback_job->fb && !crtc_state->active) {
 		drm_dbg_atomic(connector->dev,
@@ -534,7 +534,7 @@ drm_atomic_get_plane_state(struct drm_atomic_state *state,
 	WARN_ON(plane->old_fb);
 	WARN_ON(plane->crtc);
 
-	plane_state = drm_atomic_get_existing_plane_state(state, plane);
+	plane_state = drm_atomic_get_new_plane_state(state, plane);
 	if (plane_state)
 		return plane_state;
 
@@ -546,7 +546,7 @@ drm_atomic_get_plane_state(struct drm_atomic_state *state,
 	if (!plane_state)
 		return ERR_PTR(-ENOMEM);
 
-	state->planes[index].state = plane_state;
+	state->planes[index].state_to_destroy = plane_state;
 	state->planes[index].ptr = plane;
 	state->planes[index].old_state = plane->state;
 	state->planes[index].new_state = plane_state;
@@ -831,14 +831,14 @@ struct drm_private_state *
 drm_atomic_get_private_obj_state(struct drm_atomic_state *state,
 				 struct drm_private_obj *obj)
 {
-	int index, num_objs, i, ret;
+	int index, num_objs, ret;
 	size_t size;
 	struct __drm_private_objs_state *arr;
 	struct drm_private_state *obj_state;
 
-	for (i = 0; i < state->num_private_objs; i++)
-		if (obj == state->private_objs[i].ptr)
-			return state->private_objs[i].state;
+	obj_state = drm_atomic_get_new_private_obj_state(state, obj);
+	if (obj_state)
+		return obj_state;
 
 	ret = drm_modeset_lock(&obj->lock, state->acquire_ctx);
 	if (ret)
@@ -858,7 +858,7 @@ drm_atomic_get_private_obj_state(struct drm_atomic_state *state,
 	if (!obj_state)
 		return ERR_PTR(-ENOMEM);
 
-	state->private_objs[index].state = obj_state;
+	state->private_objs[index].state_to_destroy = obj_state;
 	state->private_objs[index].old_state = obj->state;
 	state->private_objs[index].new_state = obj_state;
 	state->private_objs[index].ptr = obj;
@@ -1152,15 +1152,16 @@ drm_atomic_get_connector_state(struct drm_atomic_state *state,
 		state->num_connector = alloc;
 	}
 
-	if (state->connectors[index].state)
-		return state->connectors[index].state;
+	connector_state = drm_atomic_get_new_connector_state(state, connector);
+	if (connector_state)
+		return connector_state;
 
 	connector_state = connector->funcs->atomic_duplicate_state(connector);
 	if (!connector_state)
 		return ERR_PTR(-ENOMEM);
 
 	drm_connector_get(connector);
-	state->connectors[index].state = connector_state;
+	state->connectors[index].state_to_destroy = connector_state;
 	state->connectors[index].old_state = connector->state;
 	state->connectors[index].new_state = connector_state;
 	state->connectors[index].ptr = connector;
@@ -1308,7 +1309,6 @@ drm_atomic_add_encoder_bridges(struct drm_atomic_state *state,
 			       struct drm_encoder *encoder)
 {
 	struct drm_bridge_state *bridge_state;
-	struct drm_bridge *bridge;
 
 	if (!encoder)
 		return 0;
@@ -1317,7 +1317,7 @@ drm_atomic_add_encoder_bridges(struct drm_atomic_state *state,
 		       "Adding all bridges for [encoder:%d:%s] to %p\n",
 		       encoder->base.id, encoder->name, state);
 
-	drm_for_each_bridge_in_chain(encoder, bridge) {
+	drm_for_each_bridge_in_chain_scoped(encoder, bridge) {
 		/* Skip bridges that don't implement the atomic state hooks. */
 		if (!bridge->funcs->atomic_duplicate_state)
 			continue;

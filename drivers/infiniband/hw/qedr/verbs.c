@@ -2953,12 +2953,16 @@ done:
 }
 
 struct ib_mr *qedr_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 len,
-			       u64 usr_addr, int acc, struct ib_udata *udata)
+			       u64 usr_addr, int acc, struct ib_dmah *dmah,
+			       struct ib_udata *udata)
 {
 	struct qedr_dev *dev = get_qedr_dev(ibpd->device);
 	struct qedr_mr *mr;
 	struct qedr_pd *pd;
 	int rc = -ENOMEM;
+
+	if (dmah)
+		return ERR_PTR(-EOPNOTSUPP);
 
 	pd = get_qedr_pd(ibpd);
 	DP_DEBUG(dev, QEDR_MSG_MR,

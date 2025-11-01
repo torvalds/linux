@@ -14,14 +14,14 @@
 #define	FEC_H
 /****************************************************************************/
 
+#include <dt-bindings/firmware/imx/rsrc.h>
+#include <linux/bpf.h>
 #include <linux/clocksource.h>
+#include <linux/firmware/imx/sci.h>
 #include <linux/net_tstamp.h>
 #include <linux/pm_qos.h>
-#include <linux/bpf.h>
 #include <linux/ptp_clock_kernel.h>
 #include <linux/timecounter.h>
-#include <dt-bindings/firmware/imx/rsrc.h>
-#include <linux/firmware/imx/sci.h>
 #include <net/xdp.h>
 
 #if defined(CONFIG_M523x) || defined(CONFIG_M527x) || defined(CONFIG_M528x) || \
@@ -115,7 +115,7 @@
 #define IEEE_T_MCOL		0x254 /* Frames tx'd with multiple collision */
 #define IEEE_T_DEF		0x258 /* Frames tx'd after deferral delay */
 #define IEEE_T_LCOL		0x25c /* Frames tx'd with late collision */
-#define IEEE_T_EXCOL		0x260 /* Frames tx'd with excesv collisions */
+#define IEEE_T_EXCOL		0x260 /* Frames tx'd with excessive collisions */
 #define IEEE_T_MACERR		0x264 /* Frames tx'd with TX FIFO underrun */
 #define IEEE_T_CSERR		0x268 /* Frames tx'd with carrier sense err */
 #define IEEE_T_SQE		0x26c /* Frames tx'd with SQE err */
@@ -342,16 +342,17 @@ struct bufdesc_ex {
 #define FEC_TX_BD_FTYPE(X)	(((X) & 0xf) << 20)
 
 /* The number of Tx and Rx buffers.  These are allocated from the page
- * pool.  The code may assume these are power of two, so it it best
+ * pool.  The code may assume these are power of two, so it is best
  * to keep them that size.
  * We don't need to allocate pages for the transmitter.  We just use
  * the skbuffer directly.
  */
 
+#define FEC_DRV_RESERVE_SPACE (XDP_PACKET_HEADROOM + \
+		SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
 #define FEC_ENET_XDP_HEADROOM	(XDP_PACKET_HEADROOM)
 #define FEC_ENET_RX_PAGES	256
-#define FEC_ENET_RX_FRSIZE	(PAGE_SIZE - FEC_ENET_XDP_HEADROOM \
-		- SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
+#define FEC_ENET_RX_FRSIZE	(PAGE_SIZE - FEC_DRV_RESERVE_SPACE)
 #define FEC_ENET_RX_FRPPG	(PAGE_SIZE / FEC_ENET_RX_FRSIZE)
 #define RX_RING_SIZE		(FEC_ENET_RX_FRPPG * FEC_ENET_RX_PAGES)
 #define FEC_ENET_TX_FRSIZE	2048
@@ -460,7 +461,7 @@ struct bufdesc_ex {
 #define FEC_QUIRK_SINGLE_MDIO		(1 << 11)
 /* Controller supports RACC register */
 #define FEC_QUIRK_HAS_RACC		(1 << 12)
-/* Controller supports interrupt coalesc */
+/* Controller supports interrupt coalesce */
 #define FEC_QUIRK_HAS_COALESCE		(1 << 13)
 /* Interrupt doesn't wake CPU from deep idle */
 #define FEC_QUIRK_ERR006687		(1 << 14)
@@ -495,7 +496,7 @@ struct bufdesc_ex {
  */
 #define FEC_QUIRK_HAS_EEE		(1 << 20)
 
-/* i.MX8QM ENET IP version add new feture to generate delayed TXC/RXC
+/* i.MX8QM ENET IP version add new feature to generate delayed TXC/RXC
  * as an alternative option to make sure it works well with various PHYs.
  * For the implementation of delayed clock, ENET takes synchronized 250MHz
  * clocks to generate 2ns delay.
@@ -512,6 +513,9 @@ struct bufdesc_ex {
  * Older blocks in the ColdFire parts do not support it.
  */
 #define FEC_QUIRK_HAS_MDIO_C45		BIT(24)
+
+/* Jumbo Frame support */
+#define FEC_QUIRK_JUMBO_FRAME		BIT(25)
 
 struct bufdesc_prop {
 	int qid;
@@ -614,12 +618,14 @@ struct fec_enet_private {
 	unsigned int num_tx_queues;
 	unsigned int num_rx_queues;
 
-	/* The saved address of a sent-in-place packet/buffer, for skfree(). */
 	struct fec_enet_priv_tx_q *tx_queue[FEC_ENET_MAX_TX_QS];
 	struct fec_enet_priv_rx_q *rx_queue[FEC_ENET_MAX_RX_QS];
 
 	unsigned int total_tx_ring_size;
 	unsigned int total_rx_ring_size;
+	unsigned int max_buf_size;
+	unsigned int pagepool_order;
+	unsigned int rx_frame_size;
 
 	struct	platform_device *pdev;
 

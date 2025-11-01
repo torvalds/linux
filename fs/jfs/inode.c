@@ -59,9 +59,15 @@ struct inode *jfs_iget(struct super_block *sb, unsigned long ino)
 			 */
 			inode->i_link[inode->i_size] = '\0';
 		}
-	} else {
+	} else if (S_ISCHR(inode->i_mode) || S_ISBLK(inode->i_mode) ||
+		   S_ISFIFO(inode->i_mode) || S_ISSOCK(inode->i_mode)) {
 		inode->i_op = &jfs_file_inode_operations;
 		init_special_inode(inode, inode->i_mode, inode->i_rdev);
+	} else {
+		printk(KERN_DEBUG "JFS: Invalid file type 0%04o for inode %lu.\n",
+		       inode->i_mode, inode->i_ino);
+		iget_failed(inode);
+		return ERR_PTR(-EIO);
 	}
 	unlock_new_inode(inode);
 	return inode;
@@ -145,9 +151,9 @@ void jfs_evict_inode(struct inode *inode)
 	if (!inode->i_nlink && !is_bad_inode(inode)) {
 		dquot_initialize(inode);
 
+		truncate_inode_pages_final(&inode->i_data);
 		if (JFS_IP(inode)->fileset == FILESYSTEM_I) {
 			struct inode *ipimap = JFS_SBI(inode->i_sb)->ipimap;
-			truncate_inode_pages_final(&inode->i_data);
 
 			if (test_cflag(COMMIT_Freewmap, inode))
 				jfs_free_zero_link(inode);
@@ -290,9 +296,10 @@ static void jfs_write_failed(struct address_space *mapping, loff_t to)
 	}
 }
 
-static int jfs_write_begin(struct file *file, struct address_space *mapping,
-				loff_t pos, unsigned len,
-				struct folio **foliop, void **fsdata)
+static int jfs_write_begin(const struct kiocb *iocb,
+			   struct address_space *mapping,
+			   loff_t pos, unsigned len,
+			   struct folio **foliop, void **fsdata)
 {
 	int ret;
 
@@ -303,13 +310,14 @@ static int jfs_write_begin(struct file *file, struct address_space *mapping,
 	return ret;
 }
 
-static int jfs_write_end(struct file *file, struct address_space *mapping,
-		loff_t pos, unsigned len, unsigned copied, struct folio *folio,
-		void *fsdata)
+static int jfs_write_end(const struct kiocb *iocb,
+			 struct address_space *mapping,
+			 loff_t pos, unsigned len, unsigned copied,
+			 struct folio *folio, void *fsdata)
 {
 	int ret;
 
-	ret = generic_write_end(file, mapping, pos, len, copied, folio, fsdata);
+	ret = generic_write_end(iocb, mapping, pos, len, copied, folio, fsdata);
 	if (ret < len)
 		jfs_write_failed(mapping, pos + len);
 	return ret;

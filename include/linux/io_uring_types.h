@@ -26,6 +26,8 @@ enum io_uring_cmd_flags {
 	IO_URING_F_MULTISHOT		= 4,
 	/* executed by io-wq */
 	IO_URING_F_IOWQ			= 8,
+	/* executed inline from syscall */
+	IO_URING_F_INLINE		= 16,
 	/* int's last bit, sign checks are usually faster than a bit test */
 	IO_URING_F_NONBLOCK		= INT_MIN,
 
@@ -82,6 +84,25 @@ struct io_mapped_region {
 	unsigned		nr_pages;
 	unsigned		flags;
 };
+
+/*
+ * Return value from io_buffer_list selection, to avoid stashing it in
+ * struct io_kiocb. For legacy/classic provided buffers, keeping a reference
+ * across execution contexts are fine. But for ring provided buffers, the
+ * list may go away as soon as ->uring_lock is dropped. As the io_kiocb
+ * persists, it's better to just keep the buffer local for those cases.
+ */
+struct io_br_sel {
+	struct io_buffer_list *buf_list;
+	/*
+	 * Some selection parts return the user address, others return an error.
+	 */
+	union {
+		void __user *addr;
+		ssize_t val;
+	};
+};
+
 
 /*
  * Arbitrary limit, can be raised if need be
@@ -418,9 +439,6 @@ struct io_ring_ctx {
 	struct list_head		defer_list;
 	unsigned			nr_drained;
 
-	struct io_alloc_cache		msg_cache;
-	spinlock_t			msg_lock;
-
 #ifdef CONFIG_NET_RX_BUSY_POLL
 	struct list_head	napi_list;	/* track busy poll napi_id */
 	spinlock_t		napi_lock;	/* napi_list lock */
@@ -502,6 +520,7 @@ enum {
 	REQ_F_BUF_NODE_BIT,
 	REQ_F_HAS_METADATA_BIT,
 	REQ_F_IMPORT_BUFFER_BIT,
+	REQ_F_SQE_COPIED_BIT,
 
 	/* not a real bit, just to check we're not overflowing the space */
 	__REQ_F_LAST_BIT,
@@ -591,6 +610,8 @@ enum {
 	 * For SEND_ZC, whether to import buffers (i.e. the first issue).
 	 */
 	REQ_F_IMPORT_BUFFER	= IO_REQ_FLAG(REQ_F_IMPORT_BUFFER_BIT),
+	/* ->sqe_copy() has been called, if necessary */
+	REQ_F_SQE_COPIED	= IO_REQ_FLAG(REQ_F_SQE_COPIED_BIT),
 };
 
 typedef void (*io_req_tw_func_t)(struct io_kiocb *req, io_tw_token_t tw);
@@ -669,12 +690,6 @@ struct io_kiocb {
 		/* stores selected buf, valid IFF REQ_F_BUFFER_SELECTED is set */
 		struct io_buffer	*kbuf;
 
-		/*
-		 * stores buffer ID for ring provided buffers, valid IFF
-		 * REQ_F_BUFFER_RING is set.
-		 */
-		struct io_buffer_list	*buf_list;
-
 		struct io_rsrc_node	*buf_node;
 	};
 
@@ -698,6 +713,8 @@ struct io_kiocb {
 		struct hlist_node	hash_node;
 		/* For IOPOLL setup queues, with hybrid polling */
 		u64                     iopoll_start;
+		/* for private io_kiocb freeing */
+		struct rcu_head		rcu_head;
 	};
 	/* internal polling, see IORING_FEAT_FAST_POLL */
 	struct async_poll		*apoll;
@@ -720,10 +737,4 @@ struct io_overflow_cqe {
 	struct list_head list;
 	struct io_uring_cqe cqe;
 };
-
-static inline bool io_ctx_cqe32(struct io_ring_ctx *ctx)
-{
-	return ctx->flags & IORING_SETUP_CQE32;
-}
-
 #endif

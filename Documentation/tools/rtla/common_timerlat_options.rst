@@ -1,3 +1,13 @@
+.. |threshold|  replace:: **-a/--auto**, **-i/--irq**, or **-T/--thread**
+.. |thresharg|  replace:: -T
+.. |tracer|     replace:: timerlat
+
+.. |actionsperf| replace::
+        For time-sensitive actions, it is recommended to run **rtla timerlat** with BPF
+        support and RT priority. Note that due to implementational limitations, actions
+        might be delayed up to one second after tracing is stopped if BPF mode is not
+        available or disabled.
+
 **-a**, **--auto** *us*
 
         Set the automatic trace mode. This mode sets some commonly used options

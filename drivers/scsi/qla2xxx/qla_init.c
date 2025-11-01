@@ -2059,11 +2059,11 @@ static void qla_marker_sp_done(srb_t *sp, int res)
 	int cnt = 5; \
 	do { \
 		if (_chip_gen != sp->vha->hw->chip_reset || _login_gen != sp->fcport->login_gen) {\
-			_rval = EINVAL; \
+			_rval = -EINVAL; \
 			break; \
 		} \
 		_rval = qla2x00_start_sp(_sp); \
-		if (_rval == EAGAIN) \
+		if (_rval == -EAGAIN) \
 			msleep(1); \
 		else \
 			break; \
@@ -8603,8 +8603,6 @@ failed:
 	return QLA_SUCCESS;
 }
 
-#define QLA_FW_URL "http://ldriver.qlogic.com/firmware/"
-
 int
 qla2x00_load_risc(scsi_qla_host_t *vha, uint32_t *srisc_addr)
 {
@@ -8622,8 +8620,6 @@ qla2x00_load_risc(scsi_qla_host_t *vha, uint32_t *srisc_addr)
 	if (!blob) {
 		ql_log(ql_log_info, vha, 0x0083,
 		    "Firmware image unavailable.\n");
-		ql_log(ql_log_info, vha, 0x0084,
-		    "Firmware images can be retrieved from: "QLA_FW_URL ".\n");
 		return QLA_FUNCTION_FAILED;
 	}
 

@@ -129,8 +129,7 @@ static int hvt_op_open(struct inode *inode, struct file *file)
 		 * device gets released.
 		 */
 		hvt->mode = HVUTIL_TRANSPORT_CHARDEV;
-	}
-	else if (hvt->mode == HVUTIL_TRANSPORT_NETLINK) {
+	} else if (hvt->mode == HVUTIL_TRANSPORT_NETLINK) {
 		/*
 		 * We're switching from netlink communication to using char
 		 * device. Issue the reset first.
@@ -195,7 +194,7 @@ static void hvt_cn_callback(struct cn_msg *msg, struct netlink_skb_parms *nsp)
 	}
 	spin_unlock(&hvt_list_lock);
 	if (!hvt_found) {
-		pr_warn("hvt_cn_callback: spurious message received!\n");
+		pr_warn("%s: spurious message received!\n", __func__);
 		return;
 	}
 
@@ -210,7 +209,7 @@ static void hvt_cn_callback(struct cn_msg *msg, struct netlink_skb_parms *nsp)
 	if (hvt->mode == HVUTIL_TRANSPORT_NETLINK)
 		hvt_found->on_msg(msg->data, msg->len);
 	else
-		pr_warn("hvt_cn_callback: unexpected netlink message!\n");
+		pr_warn("%s: unexpected netlink message!\n", __func__);
 	mutex_unlock(&hvt->lock);
 }
 
@@ -260,8 +259,9 @@ int hvutil_transport_send(struct hvutil_transport *hvt, void *msg, int len,
 		hvt->outmsg_len = len;
 		hvt->on_read = on_read_cb;
 		wake_up_interruptible(&hvt->outmsg_q);
-	} else
+	} else {
 		ret = -ENOMEM;
+	}
 out_unlock:
 	mutex_unlock(&hvt->lock);
 	return ret;

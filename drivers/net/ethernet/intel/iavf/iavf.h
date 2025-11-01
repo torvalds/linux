@@ -114,8 +114,6 @@ struct iavf_q_vector {
 	u16 reg_idx;		/* register index of the interrupt */
 	char name[IFNAMSIZ + 15];
 	bool arm_wb_state;
-	cpumask_t affinity_mask;
-	struct irq_affinity_notify affinity_notify;
 };
 
 /* Helper macros to switch between ints/sec and what the register uses.
@@ -315,8 +313,8 @@ struct iavf_adapter {
 #define IAVF_FLAG_AQ_CONFIGURE_RSS		BIT_ULL(9) /* direct AQ config */
 #define IAVF_FLAG_AQ_GET_CONFIG			BIT_ULL(10)
 /* Newer style, RSS done by the PF so we can ignore hardware vagaries. */
-#define IAVF_FLAG_AQ_GET_HENA			BIT_ULL(11)
-#define IAVF_FLAG_AQ_SET_HENA			BIT_ULL(12)
+#define IAVF_FLAG_AQ_GET_RSS_HASHCFG		BIT_ULL(11)
+#define IAVF_FLAG_AQ_SET_RSS_HASHCFG		BIT_ULL(12)
 #define IAVF_FLAG_AQ_SET_RSS_KEY		BIT_ULL(13)
 #define IAVF_FLAG_AQ_SET_RSS_LUT		BIT_ULL(14)
 #define IAVF_FLAG_AQ_SET_RSS_HFUNC		BIT_ULL(15)
@@ -456,7 +454,7 @@ struct iavf_adapter {
 	u32 aq_wait_count;
 	/* RSS stuff */
 	enum virtchnl_rss_algorithm hfunc;
-	u64 hena;
+	u64 rss_hashcfg;
 	u16 rss_key_size;
 	u16 rss_lut_size;
 	u8 *rss_key;
@@ -600,8 +598,8 @@ void iavf_set_promiscuous(struct iavf_adapter *adapter);
 bool iavf_promiscuous_mode_changed(struct iavf_adapter *adapter);
 void iavf_request_stats(struct iavf_adapter *adapter);
 int iavf_request_reset(struct iavf_adapter *adapter);
-void iavf_get_hena(struct iavf_adapter *adapter);
-void iavf_set_hena(struct iavf_adapter *adapter);
+void iavf_get_rss_hashcfg(struct iavf_adapter *adapter);
+void iavf_set_rss_hashcfg(struct iavf_adapter *adapter);
 void iavf_set_rss_key(struct iavf_adapter *adapter);
 void iavf_set_rss_lut(struct iavf_adapter *adapter);
 void iavf_set_rss_hfunc(struct iavf_adapter *adapter);

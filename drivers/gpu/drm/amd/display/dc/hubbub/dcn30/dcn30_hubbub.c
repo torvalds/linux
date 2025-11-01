@@ -440,6 +440,17 @@ void hubbub3_init_watermarks(struct hubbub *hubbub)
 	REG_WRITE(DCHUBBUB_ARB_ALLOW_DRAM_CLK_CHANGE_WATERMARK_D, reg);
 }
 
+void hubbub3_read_reg_state(struct hubbub *hubbub, struct dcn_hubbub_reg_state *hubbub_reg_state)
+{
+	struct dcn20_hubbub *hubbub1 = TO_DCN20_HUBBUB(hubbub);
+
+	hubbub_reg_state->det0_ctrl = REG_READ(DCHUBBUB_DET0_CTRL);
+	hubbub_reg_state->det1_ctrl = REG_READ(DCHUBBUB_DET1_CTRL);
+	hubbub_reg_state->det2_ctrl = REG_READ(DCHUBBUB_DET2_CTRL);
+	hubbub_reg_state->det3_ctrl = REG_READ(DCHUBBUB_DET3_CTRL);
+	hubbub_reg_state->compbuf_ctrl = REG_READ(DCHUBBUB_COMPBUF_CTRL);
+}
+
 static const struct hubbub_funcs hubbub30_funcs = {
 	.update_dchub = hubbub2_update_dchub,
 	.init_dchub_sys_ctx = hubbub3_init_dchub_sys_ctx,
@@ -457,6 +468,7 @@ static const struct hubbub_funcs hubbub30_funcs = {
 	.force_pstate_change_control = hubbub3_force_pstate_change_control,
 	.init_watermarks = hubbub3_init_watermarks,
 	.hubbub_read_state = hubbub2_read_state,
+	.hubbub_read_reg_state = hubbub3_read_reg_state
 };
 
 void hubbub3_construct(struct dcn20_hubbub *hubbub3,

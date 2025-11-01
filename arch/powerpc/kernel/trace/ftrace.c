@@ -488,8 +488,10 @@ int ftrace_init_nop(struct module *mod, struct dyn_ftrace *rec)
 		return ret;
 
 	/* Set up out-of-line stub */
-	if (IS_ENABLED(CONFIG_PPC_FTRACE_OUT_OF_LINE))
-		return ftrace_init_ool_stub(mod, rec);
+	if (IS_ENABLED(CONFIG_PPC_FTRACE_OUT_OF_LINE)) {
+		ret = ftrace_init_ool_stub(mod, rec);
+		goto out;
+	}
 
 	/* Nop-out the ftrace location */
 	new = ppc_inst(PPC_RAW_NOP());
@@ -519,6 +521,10 @@ int ftrace_init_nop(struct module *mod, struct dyn_ftrace *rec)
 	} else {
 		return -EINVAL;
 	}
+
+out:
+	if (!ret)
+		ret = ftrace_rec_set_nop_ops(rec);
 
 	return ret;
 }

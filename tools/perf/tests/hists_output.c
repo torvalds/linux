@@ -146,7 +146,7 @@ static int test1(struct evsel *evsel, struct machine *machine)
 	field_order = NULL;
 	sort_order = NULL; /* equivalent to sort_order = "comm,dso,sym" */
 
-	setup_sorting(NULL);
+	setup_sorting(/*evlist=*/NULL, machine->env);
 
 	/*
 	 * expected output:
@@ -248,7 +248,7 @@ static int test2(struct evsel *evsel, struct machine *machine)
 	field_order = "overhead,cpu";
 	sort_order = "pid";
 
-	setup_sorting(NULL);
+	setup_sorting(/*evlist=*/NULL, machine->env);
 
 	/*
 	 * expected output:
@@ -304,7 +304,7 @@ static int test3(struct evsel *evsel, struct machine *machine)
 	field_order = "comm,overhead,dso";
 	sort_order = NULL;
 
-	setup_sorting(NULL);
+	setup_sorting(/*evlist=*/NULL, machine->env);
 
 	/*
 	 * expected output:
@@ -378,7 +378,7 @@ static int test4(struct evsel *evsel, struct machine *machine)
 	field_order = "dso,sym,comm,overhead,dso";
 	sort_order = "sym";
 
-	setup_sorting(NULL);
+	setup_sorting(/*evlist=*/NULL, machine->env);
 
 	/*
 	 * expected output:
@@ -480,7 +480,7 @@ static int test5(struct evsel *evsel, struct machine *machine)
 	field_order = "cpu,pid,comm,dso,sym";
 	sort_order = "dso,pid";
 
-	setup_sorting(NULL);
+	setup_sorting(/*evlist=*/NULL, machine->env);
 
 	/*
 	 * expected output:

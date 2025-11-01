@@ -438,7 +438,7 @@ static int pmic_gpio_config_get(struct pinctrl_dev *pctldev,
 	case PIN_CONFIG_OUTPUT_ENABLE:
 		arg = pad->output_enabled;
 		break;
-	case PIN_CONFIG_OUTPUT:
+	case PIN_CONFIG_LEVEL:
 		arg = pad->out_value;
 		break;
 	case PMIC_GPIO_CONF_PULL_UP:
@@ -530,7 +530,7 @@ static int pmic_gpio_config_set(struct pinctrl_dev *pctldev, unsigned int pin,
 		case PIN_CONFIG_OUTPUT_ENABLE:
 			pad->output_enabled = arg ? true : false;
 			break;
-		case PIN_CONFIG_OUTPUT:
+		case PIN_CONFIG_LEVEL:
 			pad->output_enabled = true;
 			pad->out_value = arg;
 			break;
@@ -737,7 +737,7 @@ static int pmic_gpio_direction_output(struct gpio_chip *chip,
 	struct pmic_gpio_state *state = gpiochip_get_data(chip);
 	unsigned long config;
 
-	config = pinconf_to_config_packed(PIN_CONFIG_OUTPUT, val);
+	config = pinconf_to_config_packed(PIN_CONFIG_LEVEL, val);
 
 	return pmic_gpio_config_set(state->ctrl, pin, &config, 1);
 }
@@ -769,7 +769,7 @@ static int pmic_gpio_set(struct gpio_chip *chip, unsigned int pin, int value)
 	struct pmic_gpio_state *state = gpiochip_get_data(chip);
 	unsigned long config;
 
-	config = pinconf_to_config_packed(PIN_CONFIG_OUTPUT, value);
+	config = pinconf_to_config_packed(PIN_CONFIG_LEVEL, value);
 
 	return pmic_gpio_config_set(state->ctrl, pin, &config, 1);
 }
@@ -802,7 +802,7 @@ static const struct gpio_chip pmic_gpio_gpio_template = {
 	.direction_input	= pmic_gpio_direction_input,
 	.direction_output	= pmic_gpio_direction_output,
 	.get			= pmic_gpio_get,
-	.set_rv			= pmic_gpio_set,
+	.set			= pmic_gpio_set,
 	.request		= gpiochip_generic_request,
 	.free			= gpiochip_generic_free,
 	.of_xlate		= pmic_gpio_of_xlate,
@@ -1206,6 +1206,7 @@ static const struct of_device_id pmic_gpio_of_match[] = {
 	{ .compatible = "qcom,pm6450-gpio", .data = (void *) 9 },
 	{ .compatible = "qcom,pm7250b-gpio", .data = (void *) 12 },
 	{ .compatible = "qcom,pm7325-gpio", .data = (void *) 10 },
+	{ .compatible = "qcom,pm7550-gpio", .data = (void *) 12 },
 	{ .compatible = "qcom,pm7550ba-gpio", .data = (void *) 8},
 	{ .compatible = "qcom,pm8005-gpio", .data = (void *) 4 },
 	{ .compatible = "qcom,pm8019-gpio", .data = (void *) 6 },
@@ -1244,6 +1245,7 @@ static const struct of_device_id pmic_gpio_of_match[] = {
 	{ .compatible = "qcom,pmi8994-gpio", .data = (void *) 10 },
 	{ .compatible = "qcom,pmi8998-gpio", .data = (void *) 14 },
 	{ .compatible = "qcom,pmih0108-gpio", .data = (void *) 18 },
+	{ .compatible = "qcom,pmiv0104-gpio", .data = (void *) 10 },
 	{ .compatible = "qcom,pmk8350-gpio", .data = (void *) 4 },
 	{ .compatible = "qcom,pmk8550-gpio", .data = (void *) 6 },
 	{ .compatible = "qcom,pmm8155au-gpio", .data = (void *) 10 },

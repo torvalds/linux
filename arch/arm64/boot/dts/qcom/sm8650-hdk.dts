@@ -894,6 +894,10 @@
 	status = "okay";
 };
 
+&iris {
+	status = "okay";
+};
+
 &gpu {
 	status = "okay";
 
@@ -935,10 +939,6 @@
 
 &mdss_dp0 {
 	status = "okay";
-};
-
-&mdss_dp0_out {
-	data-lanes = <0 1>;
 };
 
 &pcie0 {
@@ -1044,10 +1044,6 @@
 &pm8550b_eusb2_repeater {
 	vdd18-supply = <&vreg_l15b_1p8>;
 	vdd3-supply = <&vreg_l5b_3p1>;
-};
-
-&pmk8550_rtc {
-	status = "okay";
 };
 
 &pon_pwrkey {
@@ -1306,12 +1302,10 @@
  */
 
 &usb_1 {
-	status = "okay";
-};
-
-&usb_1_dwc3 {
 	dr_mode = "otg";
 	usb-role-switch;
+
+	status = "okay";
 };
 
 &usb_1_dwc3_hs {

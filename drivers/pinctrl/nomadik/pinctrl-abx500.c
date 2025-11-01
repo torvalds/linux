@@ -536,7 +536,7 @@ static const struct gpio_chip abx500gpio_chip = {
 	.direction_input	= abx500_gpio_direction_input,
 	.get			= abx500_gpio_get,
 	.direction_output	= abx500_gpio_direction_output,
-	.set_rv			= abx500_gpio_set,
+	.set			= abx500_gpio_set,
 	.to_irq			= abx500_gpio_to_irq,
 	.dbg_show		= abx500_gpio_dbg_show,
 };
@@ -860,8 +860,8 @@ static int abx500_pin_config_set(struct pinctrl_dev *pctldev,
 
 		dev_dbg(chip->parent, "pin %d [%#lx]: %s %s\n",
 			pin, configs[i],
-			(param == PIN_CONFIG_OUTPUT) ? "output " : "input",
-			(param == PIN_CONFIG_OUTPUT) ?
+			(param == PIN_CONFIG_LEVEL) ? "output " : "input",
+			(param == PIN_CONFIG_LEVEL) ?
 			str_high_low(argument) :
 			(argument ? "pull up" : "pull down"));
 
@@ -907,7 +907,7 @@ static int abx500_pin_config_set(struct pinctrl_dev *pctldev,
 			ret = abx500_gpio_direction_input(chip, offset);
 			break;
 
-		case PIN_CONFIG_OUTPUT:
+		case PIN_CONFIG_LEVEL:
 			ret = abx500_gpio_direction_output(chip, offset,
 				argument);
 			break;

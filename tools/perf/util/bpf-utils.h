@@ -8,6 +8,16 @@
 #ifdef HAVE_LIBBPF_SUPPORT
 
 #include <bpf/libbpf.h>
+#include <bpf/libbpf_version.h>
+
+#define LIBBPF_CURRENT_VERSION_GEQ(major, minor)                       \
+       (LIBBPF_MAJOR_VERSION > (major) ||                              \
+        (LIBBPF_MAJOR_VERSION == (major) && LIBBPF_MINOR_VERSION >= (minor)))
+
+#if LIBBPF_CURRENT_VERSION_GEQ(1, 7)
+// libbpf 1.7+ support the btf_dump_type_data_opts.emit_strings option.
+#define HAVE_LIBBPF_STRINGS_SUPPORT 1
+#endif
 
 /*
  * Get bpf_prog_info in continuous memory

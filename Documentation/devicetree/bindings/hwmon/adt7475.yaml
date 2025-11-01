@@ -53,7 +53,10 @@ properties:
       default: 1
 
   "#pwm-cells":
-    const: 4
+    oneOf:
+      - const: 3
+      - const: 4
+        deprecated: true
     description: |
       Number of cells in a PWM specifier.
       - 0: The PWM channel
@@ -68,7 +71,7 @@ properties:
            - 11363636 (88 Hz)
            - 44444 (22 kHz)
       - 2: PWM flags 0 or PWM_POLARITY_INVERTED
-      - 3: The default PWM duty cycle in nanoseconds
+      - 3: The default PWM duty cycle in nanoseconds, defaults to period.
 
 patternProperties:
   "^adi,bypass-attenuator-in[0-4]$":
@@ -124,15 +127,15 @@ examples:
         adi,bypass-attenuator-in1 = <0>;
         adi,pin10-function = "smbalert#";
         adi,pin14-function = "tach4";
-        #pwm-cells = <4>;
+        #pwm-cells = <3>;
 
-        /* PWMs at 22.5 kHz frequency, 50% duty*/
+        /* PWMs at 22.5 kHz frequency */
         fan-0 {
-          pwms = <&pwm 0 44444 0 22222>;
+          pwms = <&pwm 0 44444 0>;
         };
 
         fan-1 {
-          pwms = <&pwm 2 44444 0 22222>;
+          pwms = <&pwm 2 44444 0>;
         };
       };
     };

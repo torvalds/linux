@@ -176,7 +176,7 @@ static int mhi_alloc_aligned_ring(struct mhi_controller *mhi_cntrl,
 	return 0;
 }
 
-void mhi_deinit_free_irq(struct mhi_controller *mhi_cntrl)
+static void mhi_deinit_free_irq(struct mhi_controller *mhi_cntrl)
 {
 	int i;
 	struct mhi_event *mhi_event = mhi_cntrl->mhi_event;
@@ -191,10 +191,9 @@ void mhi_deinit_free_irq(struct mhi_controller *mhi_cntrl)
 	free_irq(mhi_cntrl->irq[0], mhi_cntrl);
 }
 
-int mhi_init_irq_setup(struct mhi_controller *mhi_cntrl)
+static int mhi_init_irq_setup(struct mhi_controller *mhi_cntrl)
 {
 	struct mhi_event *mhi_event = mhi_cntrl->mhi_event;
-	struct device *dev = &mhi_cntrl->mhi_dev->dev;
 	unsigned long irq_flags = IRQF_SHARED | IRQF_NO_SUSPEND;
 	int i, ret;
 
@@ -221,7 +220,7 @@ int mhi_init_irq_setup(struct mhi_controller *mhi_cntrl)
 			continue;
 
 		if (mhi_event->irq >= mhi_cntrl->nr_irqs) {
-			dev_err(dev, "irq %d not available for event ring\n",
+			dev_err(mhi_cntrl->cntrl_dev, "irq %d not available for event ring\n",
 				mhi_event->irq);
 			ret = -EINVAL;
 			goto error_request;
@@ -232,7 +231,7 @@ int mhi_init_irq_setup(struct mhi_controller *mhi_cntrl)
 				  irq_flags,
 				  "mhi", mhi_event);
 		if (ret) {
-			dev_err(dev, "Error requesting irq:%d for ev:%d\n",
+			dev_err(mhi_cntrl->cntrl_dev, "Error requesting irq:%d for ev:%d\n",
 				mhi_cntrl->irq[mhi_event->irq], i);
 			goto error_request;
 		}
@@ -254,7 +253,7 @@ error_request:
 	return ret;
 }
 
-void mhi_deinit_dev_ctxt(struct mhi_controller *mhi_cntrl)
+static void mhi_deinit_dev_ctxt(struct mhi_controller *mhi_cntrl)
 {
 	int i;
 	struct mhi_ctxt *mhi_ctxt = mhi_cntrl->mhi_ctxt;
@@ -299,7 +298,7 @@ void mhi_deinit_dev_ctxt(struct mhi_controller *mhi_cntrl)
 	mhi_cntrl->mhi_ctxt = NULL;
 }
 
-int mhi_init_dev_ctxt(struct mhi_controller *mhi_cntrl)
+static int mhi_init_dev_ctxt(struct mhi_controller *mhi_cntrl)
 {
 	struct mhi_ctxt *mhi_ctxt;
 	struct mhi_chan_ctxt *chan_ctxt;

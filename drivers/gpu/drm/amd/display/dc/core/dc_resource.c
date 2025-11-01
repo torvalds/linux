@@ -40,7 +40,7 @@
 #include "virtual/virtual_stream_encoder.h"
 #include "dpcd_defs.h"
 #include "link_enc_cfg.h"
-#include "link.h"
+#include "link_service.h"
 #include "clk_mgr.h"
 #include "dc_state_priv.h"
 #include "dc_stream_priv.h"
@@ -95,8 +95,7 @@
 #define DC_LOGGER \
 	dc->ctx->logger
 #define DC_LOGGER_INIT(logger)
-
-#include "dml2/dml2_wrapper.h"
+#include "dml2_0/dml2_wrapper.h"
 
 #define UNABLE_TO_SPLIT -1
 
@@ -165,7 +164,13 @@ enum dce_version resource_parse_asic_id(struct hw_asic_id asic_id)
 
 	case FAMILY_NV:
 		dc_version = DCN_VERSION_2_0;
-		if (asic_id.chip_id == DEVICE_ID_NV_13FE || asic_id.chip_id == DEVICE_ID_NV_143F) {
+		if (asic_id.chip_id == DEVICE_ID_NV_13FE ||
+		    asic_id.chip_id == DEVICE_ID_NV_143F ||
+		    asic_id.chip_id == DEVICE_ID_NV_13F9 ||
+		    asic_id.chip_id == DEVICE_ID_NV_13FA ||
+		    asic_id.chip_id == DEVICE_ID_NV_13FB ||
+		    asic_id.chip_id == DEVICE_ID_NV_13FC ||
+		    asic_id.chip_id == DEVICE_ID_NV_13DB) {
 			dc_version = DCN_VERSION_2_01;
 			break;
 		}
@@ -439,6 +444,14 @@ bool resource_construct(
 			pool->stream_enc[i] = create_funcs->create_stream_encoder(i, ctx);
 			if (pool->stream_enc[i] == NULL)
 				DC_ERR("DC: failed to create stream_encoder!\n");
+			pool->stream_enc_count++;
+		}
+
+		for (i = 0; i < caps->num_analog_stream_encoder; i++) {
+			pool->stream_enc[caps->num_stream_encoder + i] =
+				create_funcs->create_stream_encoder(ENGINE_ID_DACA + i, ctx);
+			if (pool->stream_enc[caps->num_stream_encoder + i] == NULL)
+				DC_ERR("DC: failed to create analog stream_encoder %d!\n", i);
 			pool->stream_enc_count++;
 		}
 	}
@@ -2143,7 +2156,7 @@ int resource_get_odm_slice_dst_width(struct pipe_ctx *otg_master,
 	h_active = timing->h_addressable +
 			timing->h_border_left +
 			timing->h_border_right +
-			otg_master->hblank_borrow;
+			otg_master->dsc_padding_params.dsc_hactive_padding;
 	width = h_active / count;
 
 	if (otg_master->stream_res.tg)
@@ -2685,17 +2698,40 @@ static inline int find_fixed_dio_link_enc(const struct dc_link *link)
 }
 
 static inline int find_free_dio_link_enc(const struct resource_context *res_ctx,
-		const struct dc_link *link, const struct resource_pool *pool)
+		const struct dc_link *link, const struct resource_pool *pool, struct dc_stream_state *stream)
 {
-	int i;
+	int i, j = -1;
+	int stream_enc_inst = -1;
 	int enc_count = pool->dig_link_enc_count;
 
-	/* for dpia, check preferred encoder first and then the next one */
-	for (i = 0; i < enc_count; i++)
-		if (res_ctx->dio_link_enc_ref_cnts[(link->dpia_preferred_eng_id + i) % enc_count] == 0)
-			break;
+	/* Find stream encoder instance for the stream */
+	if (stream) {
+		for (i = 0; i < pool->pipe_count; i++) {
+			if ((res_ctx->pipe_ctx[i].stream == stream) &&
+				(res_ctx->pipe_ctx[i].stream_res.stream_enc != NULL)) {
+				stream_enc_inst = res_ctx->pipe_ctx[i].stream_res.stream_enc->id;
+				break;
+			}
+		}
+	}
 
-	return (i >= 0 && i < enc_count) ? (link->dpia_preferred_eng_id + i) % enc_count : -1;
+	/* Assign dpia preferred > stream enc instance > available */
+	for (i = 0; i < enc_count; i++) {
+		if (res_ctx->dio_link_enc_ref_cnts[i] == 0) {
+			if (j == -1)
+				j = i;
+
+			if (link->dpia_preferred_eng_id == i) {
+				j = i;
+				break;
+			}
+
+			if (stream_enc_inst == i) {
+				j = stream_enc_inst;
+			}
+		}
+	}
+	return j;
 }
 
 static inline void acquire_dio_link_enc(
@@ -2776,7 +2812,7 @@ static bool add_dio_link_enc_to_ctx(const struct dc *dc,
 		retain_dio_link_enc(res_ctx, enc_index);
 	} else {
 		if (stream->link->is_dig_mapping_flexible)
-			enc_index = find_free_dio_link_enc(res_ctx, stream->link, pool);
+			enc_index = find_free_dio_link_enc(res_ctx, stream->link, pool, stream);
 		else {
 			int link_index = 0;
 
@@ -2786,7 +2822,7 @@ static bool add_dio_link_enc_to_ctx(const struct dc *dc,
 			 * one into the acquiring link.
 			 */
 			if (enc_index >= 0 && is_dio_enc_acquired_by_other_link(stream->link, enc_index, &link_index)) {
-				int new_enc_index = find_free_dio_link_enc(res_ctx, dc->links[link_index], pool);
+				int new_enc_index = find_free_dio_link_enc(res_ctx, dc->links[link_index], pool, stream);
 
 				if (new_enc_index >= 0)
 					swap_dio_link_enc_to_muxable_ctx(context, pool, new_enc_index, enc_index);
@@ -3940,7 +3976,9 @@ enum dc_status resource_map_pool_resources(
 	/* TODO: Add check if ASIC support and EDID audio */
 	if (!stream->converter_disable_audio &&
 	    dc_is_audio_capable_signal(pipe_ctx->stream->signal) &&
-	    stream->audio_info.mode_count && stream->audio_info.flags.all) {
+	    stream->audio_info.mode_count &&
+		(stream->audio_info.flags.all ||
+		(stream->sink && stream->sink->edid_caps.panel_patch.skip_audio_sab_check))) {
 		pipe_ctx->stream_res.audio = find_first_free_audio(
 		&context->res_ctx, pool, pipe_ctx->stream_res.stream_enc->id, dc_ctx->dce_version);
 
@@ -4053,7 +4091,7 @@ static bool add_all_planes_for_stream(
  * @set: An array of dc_validation_set with all the current streams reference
  * @set_count: Total of streams
  * @context: New context
- * @fast_validate: Enable or disable fast validation
+ * @validate_mode: identify the validation mode
  *
  * This function updates the potential new stream in the context object. It
  * creates multiple lists for the add, remove, and unchanged streams. In
@@ -4068,7 +4106,7 @@ enum dc_status dc_validate_with_context(struct dc *dc,
 					const struct dc_validation_set set[],
 					int set_count,
 					struct dc_state *context,
-					bool fast_validate)
+					enum dc_validate_mode validate_mode)
 {
 	struct dc_stream_state *unchanged_streams[MAX_PIPES] = { 0 };
 	struct dc_stream_state *del_streams[MAX_PIPES] = { 0 };
@@ -4242,7 +4280,7 @@ enum dc_status dc_validate_with_context(struct dc *dc,
 		dc_state_set_stream_subvp_cursor_limit(context->streams[i], context, false);
 	}
 
-	res = dc_validate_global_state(dc, context, fast_validate);
+	res = dc_validate_global_state(dc, context, validate_mode);
 
 	/* calculate pixel rate divider after deciding pxiel clock & odm combine  */
 	if ((dc->hwss.calculate_pix_rate_divider) && (res == DC_OK)) {
@@ -4259,39 +4297,33 @@ fail:
 	return res;
 }
 
+#if defined(CONFIG_DRM_AMD_DC_FP)
+#endif /* CONFIG_DRM_AMD_DC_FP */
+
 /**
- * decide_hblank_borrow - Decides the horizontal blanking borrow value for a given pipe context.
+ * calculate_timing_params_for_dsc_with_padding - Calculates timing parameters for DSC with padding.
  * @pipe_ctx: Pointer to the pipe context structure.
  *
- * This function calculates the horizontal blanking borrow value for a given pipe context based on the
+ * This function calculates the timing parameters for a given pipe context based on the
  * display stream compression (DSC) configuration. If the horizontal active pixels (hactive) are less
- * than the total width of the DSC slices, it sets the hblank_borrow value to the difference. If the
- * total horizontal timing minus the hblank_borrow value is less than 32, it resets the hblank_borrow
+ * than the total width of the DSC slices, it sets the dsc_hactive_padding value to the difference. If the
+ * total horizontal timing minus the dsc_hactive_padding value is less than 32, it resets the dsc_hactive_padding
  * value to 0.
  */
-static void decide_hblank_borrow(struct pipe_ctx *pipe_ctx)
+static void calculate_timing_params_for_dsc_with_padding(struct pipe_ctx *pipe_ctx)
 {
-	uint32_t hactive;
-	uint32_t ceil_slice_width;
 	struct dc_stream_state *stream = NULL;
 
 	if (!pipe_ctx)
 		return;
 
 	stream = pipe_ctx->stream;
+	pipe_ctx->dsc_padding_params.dsc_hactive_padding = 0;
+	pipe_ctx->dsc_padding_params.dsc_htotal_padding = 0;
 
-	if (stream->timing.flags.DSC) {
-		hactive = stream->timing.h_addressable + stream->timing.h_border_left + stream->timing.h_border_right;
+	if (stream)
+		pipe_ctx->dsc_padding_params.dsc_pix_clk_100hz = stream->timing.pix_clk_100hz;
 
-		/* Assume if determined slices does not divide Hactive evenly, Hborrow is needed for padding*/
-		if (hactive % stream->timing.dsc_cfg.num_slices_h != 0) {
-			ceil_slice_width = (hactive / stream->timing.dsc_cfg.num_slices_h) + 1;
-			pipe_ctx->hblank_borrow = ceil_slice_width * stream->timing.dsc_cfg.num_slices_h - hactive;
-
-			if (stream->timing.h_total - hactive - pipe_ctx->hblank_borrow < 32)
-				pipe_ctx->hblank_borrow = 0;
-		}
-	}
 }
 
 /**
@@ -4299,7 +4331,7 @@ static void decide_hblank_borrow(struct pipe_ctx *pipe_ctx)
  *
  * @dc: dc struct for this driver
  * @new_ctx: state to be validated
- * @fast_validate: set to true if only yes/no to support matters
+ * @validate_mode: identify the validation mode
  *
  * Checks hardware resource availability and bandwidth requirement.
  *
@@ -4309,7 +4341,7 @@ static void decide_hblank_borrow(struct pipe_ctx *pipe_ctx)
 enum dc_status dc_validate_global_state(
 		struct dc *dc,
 		struct dc_state *new_ctx,
-		bool fast_validate)
+		enum dc_validate_mode validate_mode)
 {
 	enum dc_status result = DC_ERROR_UNEXPECTED;
 	int i, j;
@@ -4334,7 +4366,7 @@ enum dc_status dc_validate_global_state(
 
 			/* Decide whether hblank borrow is needed and save it in pipe_ctx */
 			if (dc->debug.enable_hblank_borrow)
-				decide_hblank_borrow(pipe_ctx);
+				calculate_timing_params_for_dsc_with_padding(pipe_ctx);
 
 			if (dc->res_pool->funcs->patch_unknown_plane_state &&
 					pipe_ctx->plane_state &&
@@ -4368,7 +4400,7 @@ enum dc_status dc_validate_global_state(
 	result = resource_build_scaling_params_for_context(dc, new_ctx);
 
 	if (result == DC_OK)
-		result = dc->res_pool->funcs->validate_bandwidth(dc, new_ctx, fast_validate);
+		result = dc->res_pool->funcs->validate_bandwidth(dc, new_ctx, validate_mode);
 
 	return result;
 }
@@ -4409,7 +4441,13 @@ static void set_avi_info_frame(
 	unsigned int fr_ind = pipe_ctx->stream->timing.fr_index;
 	enum dc_timing_3d_format format;
 
+	if (stream->avi_infopacket.valid) {
+		*info_packet = stream->avi_infopacket;
+		return;
+	}
+
 	memset(&hdmi_info, 0, sizeof(union hdmi_info_packet));
+
 
 	color_space = pipe_ctx->stream->output_color_space;
 	if (color_space == COLOR_SPACE_UNKNOWN)
@@ -5194,7 +5232,7 @@ struct link_encoder *get_temp_dio_link_enc(
 		enc_index = link->eng_id;
 
 	if (enc_index < 0)
-		enc_index = find_free_dio_link_enc(res_ctx, link, pool);
+		enc_index = find_free_dio_link_enc(res_ctx, link, pool, NULL);
 
 	if (enc_index >= 0)
 		link_enc = pool->link_encoders[enc_index];

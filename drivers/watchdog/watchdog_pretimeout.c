@@ -7,6 +7,8 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/string.h>
+#include <linux/sysfs.h>
+#include <linux/types.h>
 #include <linux/watchdog.h>
 
 #include "watchdog_core.h"

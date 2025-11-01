@@ -851,7 +851,6 @@ static void stm32_cryp_finish_req(struct stm32_cryp *cryp, int err)
 	if (!err && (!(is_gcm(cryp) || is_ccm(cryp) || is_ecb(cryp))))
 		stm32_cryp_get_iv(cryp);
 
-	pm_runtime_mark_last_busy(cryp->dev);
 	pm_runtime_put_autosuspend(cryp->dev);
 
 	if (is_gcm(cryp) || is_ccm(cryp))
@@ -2782,5 +2781,5 @@ static struct platform_driver stm32_cryp_driver = {
 module_platform_driver(stm32_cryp_driver);
 
 MODULE_AUTHOR("Fabien Dessenne <fabien.dessenne@st.com>");
-MODULE_DESCRIPTION("STMicrolectronics STM32 CRYP hardware driver");
+MODULE_DESCRIPTION("STMicroelectronics STM32 CRYP hardware driver");
 MODULE_LICENSE("GPL");

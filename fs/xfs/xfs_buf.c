@@ -387,8 +387,6 @@ xfs_buf_map_verify(
 	struct xfs_buftarg	*btp,
 	struct xfs_buf_map	*map)
 {
-	xfs_daddr_t		eofs;
-
 	/* Check for IOs smaller than the sector size / not sector aligned */
 	ASSERT(!(BBTOB(map->bm_len) < btp->bt_meta_sectorsize));
 	ASSERT(!(BBTOB(map->bm_bn) & (xfs_off_t)btp->bt_meta_sectormask));
@@ -397,11 +395,10 @@ xfs_buf_map_verify(
 	 * Corrupted block numbers can get through to here, unfortunately, so we
 	 * have to check that the buffer falls within the filesystem bounds.
 	 */
-	eofs = XFS_FSB_TO_BB(btp->bt_mount, btp->bt_mount->m_sb.sb_dblocks);
-	if (map->bm_bn < 0 || map->bm_bn >= eofs) {
+	if (map->bm_bn < 0 || map->bm_bn >= btp->bt_nr_sectors) {
 		xfs_alert(btp->bt_mount,
 			  "%s: daddr 0x%llx out of range, EOFS 0x%llx",
-			  __func__, map->bm_bn, eofs);
+			  __func__, map->bm_bn, btp->bt_nr_sectors);
 		WARN_ON(1);
 		return -EFSCORRUPTED;
 	}
@@ -1299,7 +1296,7 @@ xfs_buf_bio_end_io(
 	if (bio->bi_status)
 		xfs_buf_ioerror(bp, blk_status_to_errno(bio->bi_status));
 	else if ((bp->b_flags & XBF_WRITE) && (bp->b_flags & XBF_ASYNC) &&
-		 XFS_TEST_ERROR(false, bp->b_mount, XFS_ERRTAG_BUF_IOERROR))
+		 XFS_TEST_ERROR(bp->b_mount, XFS_ERRTAG_BUF_IOERROR))
 		xfs_buf_ioerror(bp, -EIO);
 
 	if (bp->b_flags & XBF_ASYNC) {
@@ -1683,7 +1680,7 @@ xfs_free_buftarg(
 	fs_put_dax(btp->bt_daxdev, btp->bt_mount);
 	/* the main block device is closed by kill_block_super */
 	if (btp->bt_bdev != btp->bt_mount->m_super->s_bdev)
-		bdev_fput(btp->bt_bdev_file);
+		bdev_fput(btp->bt_file);
 	kfree(btp);
 }
 
@@ -1712,40 +1709,39 @@ xfs_configure_buftarg_atomic_writes(
 		max_bytes = 0;
 	}
 
-	btp->bt_bdev_awu_min = min_bytes;
-	btp->bt_bdev_awu_max = max_bytes;
+	btp->bt_awu_min = min_bytes;
+	btp->bt_awu_max = max_bytes;
 }
 
 /* Configure a buffer target that abstracts a block device. */
 int
 xfs_configure_buftarg(
 	struct xfs_buftarg	*btp,
-	unsigned int		sectorsize)
+	unsigned int		sectorsize,
+	xfs_rfsblock_t		nr_blocks)
 {
-	int			error;
+	struct xfs_mount	*mp = btp->bt_mount;
 
-	ASSERT(btp->bt_bdev != NULL);
+	if (btp->bt_bdev) {
+		int		error;
 
-	/* Set up metadata sector size info */
-	btp->bt_meta_sectorsize = sectorsize;
-	btp->bt_meta_sectormask = sectorsize - 1;
+		error = bdev_validate_blocksize(btp->bt_bdev, sectorsize);
+		if (error) {
+			xfs_warn(mp,
+				"Cannot use blocksize %u on device %pg, err %d",
+				sectorsize, btp->bt_bdev, error);
+			return -EINVAL;
+		}
 
-	error = bdev_validate_blocksize(btp->bt_bdev, sectorsize);
-	if (error) {
-		xfs_warn(btp->bt_mount,
-			"Cannot use blocksize %u on device %pg, err %d",
-			sectorsize, btp->bt_bdev, error);
-		return -EINVAL;
+		if (bdev_can_atomic_write(btp->bt_bdev))
+			xfs_configure_buftarg_atomic_writes(btp);
 	}
 
-	/*
-	 * Flush the block device pagecache so our bios see anything dirtied
-	 * before mount.
-	 */
-	if (bdev_can_atomic_write(btp->bt_bdev))
-		xfs_configure_buftarg_atomic_writes(btp);
-
-	return sync_blockdev(btp->bt_bdev);
+	btp->bt_meta_sectorsize = sectorsize;
+	btp->bt_meta_sectormask = sectorsize - 1;
+	/* m_blkbb_log is not set up yet */
+	btp->bt_nr_sectors = nr_blocks << (mp->m_sb.sb_blocklog - BBSHIFT);
+	return 0;
 }
 
 int
@@ -1754,6 +1750,9 @@ xfs_init_buftarg(
 	size_t				logical_sectorsize,
 	const char			*descr)
 {
+	/* The maximum size of the buftarg is only known once the sb is read. */
+	btp->bt_nr_sectors = (xfs_daddr_t)-1;
+
 	/* Set up device logical sector size mask */
 	btp->bt_logical_sectorsize = logical_sectorsize;
 	btp->bt_logical_sectormask = logical_sectorsize - 1;
@@ -1803,7 +1802,7 @@ xfs_alloc_buftarg(
 	btp = kzalloc(sizeof(*btp), GFP_KERNEL | __GFP_NOFAIL);
 
 	btp->bt_mount = mp;
-	btp->bt_bdev_file = bdev_file;
+	btp->bt_file = bdev_file;
 	btp->bt_bdev = file_bdev(bdev_file);
 	btp->bt_dev = btp->bt_bdev->bd_dev;
 	btp->bt_daxdev = fs_dax_get_by_bdev(btp->bt_bdev, &btp->bt_dax_part_off,
@@ -2082,44 +2081,6 @@ xfs_buf_delwri_submit(
 	return error;
 }
 
-/*
- * Push a single buffer on a delwri queue.
- *
- * The purpose of this function is to submit a single buffer of a delwri queue
- * and return with the buffer still on the original queue.
- *
- * The buffer locking and queue management logic between _delwri_pushbuf() and
- * _delwri_queue() guarantee that the buffer cannot be queued to another list
- * before returning.
- */
-int
-xfs_buf_delwri_pushbuf(
-	struct xfs_buf		*bp,
-	struct list_head	*buffer_list)
-{
-	int			error;
-
-	ASSERT(bp->b_flags & _XBF_DELWRI_Q);
-
-	trace_xfs_buf_delwri_pushbuf(bp, _RET_IP_);
-
-	xfs_buf_lock(bp);
-	bp->b_flags &= ~(_XBF_DELWRI_Q | XBF_ASYNC);
-	bp->b_flags |= XBF_WRITE;
-	xfs_buf_submit(bp);
-
-	/*
-	 * The buffer is now locked, under I/O but still on the original delwri
-	 * queue. Wait for I/O completion, restore the DELWRI_Q flag and
-	 * return with the buffer unlocked and still on the original queue.
-	 */
-	error = xfs_buf_iowait(bp);
-	bp->b_flags |= _XBF_DELWRI_Q;
-	xfs_buf_unlock(bp);
-
-	return error;
-}
-
 void xfs_buf_set_ref(struct xfs_buf *bp, int lru_ref)
 {
 	/*
@@ -2127,7 +2088,7 @@ void xfs_buf_set_ref(struct xfs_buf *bp, int lru_ref)
 	 * This allows userspace to disrupt buffer caching for debug/testing
 	 * purposes.
 	 */
-	if (XFS_TEST_ERROR(false, bp->b_mount, XFS_ERRTAG_BUF_LRU_REF))
+	if (XFS_TEST_ERROR(bp->b_mount, XFS_ERRTAG_BUF_LRU_REF))
 		lru_ref = 0;
 
 	atomic_set(&bp->b_lru_ref, lru_ref);

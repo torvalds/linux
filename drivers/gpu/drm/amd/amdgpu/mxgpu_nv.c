@@ -202,8 +202,8 @@ send_request:
 	case IDH_REQ_RAS_CPER_DUMP:
 		event = IDH_RAS_CPER_DUMP_READY;
 		break;
-	case IDH_REQ_RAS_BAD_PAGES:
-		event = IDH_RAS_BAD_PAGES_READY;
+	case IDH_REQ_RAS_CHK_CRITI:
+		event = IDH_REQ_RAS_CHK_CRITI_READY;
 		break;
 	default:
 		break;
@@ -222,12 +222,20 @@ send_request:
 				adev->virt.req_init_data_ver = 0;
 		} else {
 			if (req == IDH_REQ_GPU_INIT_DATA) {
-				adev->virt.req_init_data_ver =
-					RREG32_NO_KIQ(mmMAILBOX_MSGBUF_RCV_DW1);
-
-				/* assume V1 in case host doesn't set version number */
-				if (adev->virt.req_init_data_ver < 1)
-					adev->virt.req_init_data_ver = 1;
+				switch (RREG32_NO_KIQ(mmMAILBOX_MSGBUF_RCV_DW1)) {
+				case GPU_CRIT_REGION_V2:
+					adev->virt.req_init_data_ver = GPU_CRIT_REGION_V2;
+					adev->virt.init_data_header.offset =
+						RREG32_NO_KIQ(mmMAILBOX_MSGBUF_RCV_DW2);
+					adev->virt.init_data_header.size_kb =
+						RREG32_NO_KIQ(mmMAILBOX_MSGBUF_RCV_DW3);
+					break;
+				default:
+					adev->virt.req_init_data_ver = GPU_CRIT_REGION_V1;
+					adev->virt.init_data_header.offset = -1;
+					adev->virt.init_data_header.size_kb = 0;
+					break;
+				}
 			}
 		}
 
@@ -285,7 +293,8 @@ static int xgpu_nv_release_full_gpu_access(struct amdgpu_device *adev,
 
 static int xgpu_nv_request_init_data(struct amdgpu_device *adev)
 {
-	return xgpu_nv_send_access_requests(adev, IDH_REQ_GPU_INIT_DATA);
+	return xgpu_nv_send_access_requests_with_param(adev, IDH_REQ_GPU_INIT_DATA,
+			0, GPU_CRIT_REGION_V2, 0);
 }
 
 static int xgpu_nv_mailbox_ack_irq(struct amdgpu_device *adev,
@@ -359,14 +368,32 @@ static void xgpu_nv_mailbox_flr_work(struct work_struct *work)
 	}
 }
 
-static void xgpu_nv_mailbox_bad_pages_work(struct work_struct *work)
+static void xgpu_nv_mailbox_req_bad_pages_work(struct work_struct *work)
 {
-	struct amdgpu_virt *virt = container_of(work, struct amdgpu_virt, bad_pages_work);
+	struct amdgpu_virt *virt = container_of(work, struct amdgpu_virt, req_bad_pages_work);
 	struct amdgpu_device *adev = container_of(virt, struct amdgpu_device, virt);
 
 	if (down_read_trylock(&adev->reset_domain->sem)) {
 		amdgpu_virt_fini_data_exchange(adev);
 		amdgpu_virt_request_bad_pages(adev);
+		up_read(&adev->reset_domain->sem);
+	}
+}
+
+/**
+ * xgpu_nv_mailbox_handle_bad_pages_work - Reinitialize the data exchange region to get fresh bad page information
+ * @work: pointer to the work_struct
+ *
+ * This work handler is triggered when bad pages are ready, and it reinitializes
+ * the data exchange region to retrieve updated bad page information from the host.
+ */
+static void xgpu_nv_mailbox_handle_bad_pages_work(struct work_struct *work)
+{
+	struct amdgpu_virt *virt = container_of(work, struct amdgpu_virt, handle_bad_pages_work);
+	struct amdgpu_device *adev = container_of(virt, struct amdgpu_device, virt);
+
+	if (down_read_trylock(&adev->reset_domain->sem)) {
+		amdgpu_virt_fini_data_exchange(adev);
 		amdgpu_virt_init_data_exchange(adev);
 		up_read(&adev->reset_domain->sem);
 	}
@@ -397,10 +424,15 @@ static int xgpu_nv_mailbox_rcv_irq(struct amdgpu_device *adev,
 	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
 
 	switch (event) {
+	case IDH_RAS_BAD_PAGES_READY:
+		xgpu_nv_mailbox_send_ack(adev);
+		if (amdgpu_sriov_runtime(adev))
+			schedule_work(&adev->virt.handle_bad_pages_work);
+		break;
 	case IDH_RAS_BAD_PAGES_NOTIFICATION:
 		xgpu_nv_mailbox_send_ack(adev);
 		if (amdgpu_sriov_runtime(adev))
-			schedule_work(&adev->virt.bad_pages_work);
+			schedule_work(&adev->virt.req_bad_pages_work);
 		break;
 	case IDH_UNRECOV_ERR_NOTIFICATION:
 		xgpu_nv_mailbox_send_ack(adev);
@@ -485,7 +517,8 @@ int xgpu_nv_mailbox_get_irq(struct amdgpu_device *adev)
 	}
 
 	INIT_WORK(&adev->virt.flr_work, xgpu_nv_mailbox_flr_work);
-	INIT_WORK(&adev->virt.bad_pages_work, xgpu_nv_mailbox_bad_pages_work);
+	INIT_WORK(&adev->virt.req_bad_pages_work, xgpu_nv_mailbox_req_bad_pages_work);
+	INIT_WORK(&adev->virt.handle_bad_pages_work, xgpu_nv_mailbox_handle_bad_pages_work);
 
 	return 0;
 }
@@ -535,6 +568,16 @@ static int xgpu_nv_req_ras_bad_pages(struct amdgpu_device *adev)
 	return xgpu_nv_send_access_requests(adev, IDH_REQ_RAS_BAD_PAGES);
 }
 
+static int xgpu_nv_check_vf_critical_region(struct amdgpu_device *adev, u64 addr)
+{
+	uint32_t addr_hi, addr_lo;
+
+	addr_hi = (uint32_t)(addr >> 32);
+	addr_lo = (uint32_t)(addr & 0xFFFFFFFF);
+	return xgpu_nv_send_access_requests_with_param(
+		adev, IDH_REQ_RAS_CHK_CRITI, addr_hi, addr_lo, 0);
+}
+
 const struct amdgpu_virt_ops xgpu_nv_virt_ops = {
 	.req_full_gpu	= xgpu_nv_request_full_gpu_access,
 	.rel_full_gpu	= xgpu_nv_release_full_gpu_access,
@@ -548,4 +591,5 @@ const struct amdgpu_virt_ops xgpu_nv_virt_ops = {
 	.req_ras_err_count = xgpu_nv_req_ras_err_count,
 	.req_ras_cper_dump = xgpu_nv_req_ras_cper_dump,
 	.req_bad_pages = xgpu_nv_req_ras_bad_pages,
+	.req_ras_chk_criti = xgpu_nv_check_vf_critical_region
 };

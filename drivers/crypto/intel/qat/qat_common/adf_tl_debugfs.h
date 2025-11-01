@@ -17,6 +17,7 @@ struct adf_accel_dev;
 #define LAT_ACC_NAME		"gp_lat_acc_avg"
 #define BW_IN_NAME		"bw_in"
 #define BW_OUT_NAME		"bw_out"
+#define RE_ACC_NAME		"re_acc_avg"
 #define PAGE_REQ_LAT_NAME	"at_page_req_lat_avg"
 #define AT_TRANS_LAT_NAME	"at_trans_lat_avg"
 #define AT_MAX_UTLB_USED_NAME	"at_max_tlb_used"
@@ -42,6 +43,10 @@ struct adf_accel_dev;
 #define ADF_TL_SLICE_REG_OFF(slice, reg, qat_gen)		\
 	(ADF_TL_DEV_REG_OFF(slice##_slices[0], qat_gen) +	\
 	offsetof(struct adf_##qat_gen##_tl_slice_data_regs, reg))
+
+#define ADF_TL_CMDQ_REG_OFF(slice, reg, qat_gen)        \
+	(ADF_TL_DEV_REG_OFF(slice##_cmdq[0], qat_gen) + \
+	 offsetof(struct adf_##qat_gen##_tl_cmdq_data_regs, reg))
 
 #define ADF_TL_RP_REG_OFF(reg, qat_gen)					\
 	(ADF_TL_DATA_REG_OFF(tl_ring_pairs_data_regs[0], qat_gen) +	\

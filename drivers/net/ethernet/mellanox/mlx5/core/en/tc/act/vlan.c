@@ -94,29 +94,30 @@ mlx5e_tc_act_vlan_add_push_action(struct mlx5e_priv *priv,
 				  struct net_device **out_dev,
 				  struct netlink_ext_ack *extack)
 {
-	struct net_device *vlan_dev = *out_dev;
-	struct flow_action_entry vlan_act = {
-		.id = FLOW_ACTION_VLAN_PUSH,
-		.vlan.vid = vlan_dev_vlan_id(vlan_dev),
-		.vlan.proto = vlan_dev_vlan_proto(vlan_dev),
-		.vlan.prio = 0,
-	};
-	int err;
+	do {
+		struct net_device *vlan_dev = *out_dev;
+		struct flow_action_entry vlan_act = {
+			.id = FLOW_ACTION_VLAN_PUSH,
+			.vlan.vid = vlan_dev_vlan_id(vlan_dev),
+			.vlan.proto = vlan_dev_vlan_proto(vlan_dev),
+			.vlan.prio = 0,
+		};
+		int err;
 
-	err = parse_tc_vlan_action(priv, &vlan_act, attr->esw_attr, &attr->action, extack, NULL);
-	if (err)
-		return err;
+		err = parse_tc_vlan_action(priv, &vlan_act, attr->esw_attr,
+					   &attr->action, extack, NULL);
+		if (err)
+			return err;
 
-	rcu_read_lock();
-	*out_dev = dev_get_by_index_rcu(dev_net(vlan_dev), dev_get_iflink(vlan_dev));
-	rcu_read_unlock();
-	if (!*out_dev)
-		return -ENODEV;
+		rcu_read_lock();
+		*out_dev = dev_get_by_index_rcu(dev_net(vlan_dev),
+						dev_get_iflink(vlan_dev));
+		rcu_read_unlock();
+		if (!*out_dev)
+			return -ENODEV;
+	} while (is_vlan_dev(*out_dev));
 
-	if (is_vlan_dev(*out_dev))
-		err = mlx5e_tc_act_vlan_add_push_action(priv, attr, out_dev, extack);
-
-	return err;
+	return 0;
 }
 
 int

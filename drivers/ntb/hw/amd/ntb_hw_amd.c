@@ -197,13 +197,22 @@ static int amd_ntb_mw_set_trans(struct ntb_dev *ntb, int pidx, int idx,
 
 static int amd_ntb_get_link_status(struct amd_ntb_dev *ndev)
 {
-	struct pci_dev *pdev = NULL;
+	struct pci_dev *pdev = ndev->ntb.pdev;
 	struct pci_dev *pci_swds = NULL;
 	struct pci_dev *pci_swus = NULL;
 	u32 stat;
 	int rc;
 
 	if (ndev->ntb.topo == NTB_TOPO_SEC) {
+		if (ndev->dev_data->is_endpoint) {
+			rc = pcie_capability_read_dword(pdev, PCI_EXP_LNKCTL, &stat);
+			if (rc)
+				return rc;
+
+			ndev->lnk_sta = stat;
+			return 0;
+		}
+
 		/* Locate the pointer to Downstream Switch for this device */
 		pci_swds = pci_upstream_bridge(ndev->ntb.pdev);
 		if (pci_swds) {
@@ -1311,6 +1320,11 @@ static const struct ntb_dev_data dev_data[] = {
 		.mw_count = 2,
 		.mw_idx = 2,
 	},
+	{ /* for device 0x17d7 */
+		.mw_count = 2,
+		.mw_idx = 2,
+		.is_endpoint = true,
+	},
 };
 
 static const struct pci_device_id amd_ntb_pci_tbl[] = {
@@ -1319,6 +1333,8 @@ static const struct pci_device_id amd_ntb_pci_tbl[] = {
 	{ PCI_VDEVICE(AMD, 0x14c0), (kernel_ulong_t)&dev_data[1] },
 	{ PCI_VDEVICE(AMD, 0x14c3), (kernel_ulong_t)&dev_data[1] },
 	{ PCI_VDEVICE(AMD, 0x155a), (kernel_ulong_t)&dev_data[1] },
+	{ PCI_VDEVICE(AMD, 0x17d4), (kernel_ulong_t)&dev_data[1] },
+	{ PCI_VDEVICE(AMD, 0x17d7), (kernel_ulong_t)&dev_data[2] },
 	{ PCI_VDEVICE(HYGON, 0x145b), (kernel_ulong_t)&dev_data[0] },
 	{ 0, }
 };

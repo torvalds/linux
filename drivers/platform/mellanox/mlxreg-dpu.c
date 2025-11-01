@@ -483,7 +483,7 @@ static int mlxreg_dpu_config_init(struct mlxreg_dpu *mlxreg_dpu, void *regmap,
 							  mlxreg_dpu->io_data,
 							  sizeof(*mlxreg_dpu->io_data));
 		if (IS_ERR(mlxreg_dpu->io_regs)) {
-			dev_err(dev, "Failed to create regio for client %s at bus %d at addr 0x%02x\n",
+			dev_err(dev, "Failed to create region for client %s at bus %d at addr 0x%02x\n",
 				data->hpdev.brdinfo->type, data->hpdev.nr,
 				data->hpdev.brdinfo->addr);
 			return PTR_ERR(mlxreg_dpu->io_regs);

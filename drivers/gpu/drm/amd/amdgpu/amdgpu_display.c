@@ -332,8 +332,6 @@ int amdgpu_display_crtc_set_config(struct drm_mode_set *set,
 		if (crtc->enabled)
 			active = true;
 
-	pm_runtime_mark_last_busy(dev->dev);
-
 	adev = drm_to_adev(dev);
 	/* if we have active crtcs and we don't have a power ref,
 	 * take the current one
@@ -1196,13 +1194,14 @@ static int amdgpu_display_get_fb_info(const struct amdgpu_framebuffer *amdgpu_fb
 static int amdgpu_display_gem_fb_verify_and_init(struct drm_device *dev,
 						 struct amdgpu_framebuffer *rfb,
 						 struct drm_file *file_priv,
+						 const struct drm_format_info *info,
 						 const struct drm_mode_fb_cmd2 *mode_cmd,
 						 struct drm_gem_object *obj)
 {
 	int ret;
 
 	rfb->base.obj[0] = obj;
-	drm_helper_mode_fill_fb_struct(dev, &rfb->base, mode_cmd);
+	drm_helper_mode_fill_fb_struct(dev, &rfb->base, info, mode_cmd);
 	/* Verify that the modifier is supported. */
 	if (!drm_any_plane_has_format(dev, mode_cmd->pixel_format,
 				      mode_cmd->modifier[0])) {
@@ -1297,6 +1296,7 @@ static int amdgpu_display_framebuffer_init(struct drm_device *dev,
 struct drm_framebuffer *
 amdgpu_display_user_framebuffer_create(struct drm_device *dev,
 				       struct drm_file *file_priv,
+				       const struct drm_format_info *info,
 				       const struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct amdgpu_framebuffer *amdgpu_fb;
@@ -1317,7 +1317,7 @@ amdgpu_display_user_framebuffer_create(struct drm_device *dev,
 	/* Handle is imported dma-buf, so cannot be migrated to VRAM for scanout */
 	bo = gem_to_amdgpu_bo(obj);
 	domains = amdgpu_display_supported_domains(drm_to_adev(dev), bo->flags);
-	if (obj->import_attach && !(domains & AMDGPU_GEM_DOMAIN_GTT)) {
+	if (drm_gem_is_imported(obj) && !(domains & AMDGPU_GEM_DOMAIN_GTT)) {
 		drm_dbg_kms(dev, "Cannot create framebuffer from imported dma_buf\n");
 		drm_gem_object_put(obj);
 		return ERR_PTR(-EINVAL);
@@ -1330,7 +1330,7 @@ amdgpu_display_user_framebuffer_create(struct drm_device *dev,
 	}
 
 	ret = amdgpu_display_gem_fb_verify_and_init(dev, amdgpu_fb, file_priv,
-						    mode_cmd, obj);
+						    info, mode_cmd, obj);
 	if (ret) {
 		kfree(amdgpu_fb);
 		drm_gem_object_put(obj);
@@ -1362,6 +1362,64 @@ static const struct drm_prop_enum_list amdgpu_dither_enum_list[] = {
 	{ AMDGPU_FMT_DITHER_DISABLE, "off" },
 	{ AMDGPU_FMT_DITHER_ENABLE, "on" },
 };
+
+/**
+ * DOC: property for adaptive backlight modulation
+ *
+ * The 'adaptive backlight modulation' property is used for the compositor to
+ * directly control the adaptive backlight modulation power savings feature
+ * that is part of DCN hardware.
+ *
+ * The property will be attached specifically to eDP panels that support it.
+ *
+ * The property is by default set to 'sysfs' to allow the sysfs file 'panel_power_savings'
+ * to be able to control it.
+ * If set to 'off' the compositor will ensure it stays off.
+ * The other values 'min', 'bias min', 'bias max', and 'max' will control the
+ * intensity of the power savings.
+ *
+ * Modifying this value can have implications on color accuracy, so tread
+ * carefully.
+ */
+static int amdgpu_display_setup_abm_prop(struct amdgpu_device *adev)
+{
+	const struct drm_prop_enum_list props[] = {
+		{ ABM_SYSFS_CONTROL, "sysfs" },
+		{ ABM_LEVEL_OFF, "off" },
+		{ ABM_LEVEL_MIN, "min" },
+		{ ABM_LEVEL_BIAS_MIN, "bias min" },
+		{ ABM_LEVEL_BIAS_MAX, "bias max" },
+		{ ABM_LEVEL_MAX, "max" },
+	};
+	struct drm_property *prop;
+	int i;
+
+	if (!adev->dc_enabled)
+		return 0;
+
+	prop = drm_property_create(adev_to_drm(adev), DRM_MODE_PROP_ENUM,
+				"adaptive backlight modulation",
+				6);
+	if (!prop)
+		return -ENOMEM;
+
+	for (i = 0; i < ARRAY_SIZE(props); i++) {
+		int ret;
+
+		ret = drm_property_add_enum(prop, props[i].type,
+						props[i].name);
+
+		if (ret) {
+			drm_property_destroy(adev_to_drm(adev), prop);
+
+			return ret;
+		}
+	}
+
+	adev->mode_info.abm_level_property = prop;
+
+	return 0;
+}
 
 int amdgpu_display_modeset_create_props(struct amdgpu_device *adev)
 {
@@ -1409,7 +1467,7 @@ int amdgpu_display_modeset_create_props(struct amdgpu_device *adev)
 					 "dither",
 					 amdgpu_dither_enum_list, sz);
 
-	return 0;
+	return amdgpu_display_setup_abm_prop(adev);
 }
 
 void amdgpu_display_update_priority(struct amdgpu_device *adev)

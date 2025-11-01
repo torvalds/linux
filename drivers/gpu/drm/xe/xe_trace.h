@@ -14,10 +14,10 @@
 
 #include "xe_exec_queue_types.h"
 #include "xe_gpu_scheduler_types.h"
-#include "xe_gt_tlb_invalidation_types.h"
 #include "xe_gt_types.h"
 #include "xe_guc_exec_queue_types.h"
 #include "xe_sched_job.h"
+#include "xe_tlb_inval_types.h"
 #include "xe_vm.h"
 
 #define __dev_name_xe(xe)	dev_name((xe)->drm.dev)
@@ -25,13 +25,13 @@
 #define __dev_name_gt(gt)	__dev_name_xe(gt_to_xe((gt)))
 #define __dev_name_eq(q)	__dev_name_gt((q)->gt)
 
-DECLARE_EVENT_CLASS(xe_gt_tlb_invalidation_fence,
-		    TP_PROTO(struct xe_device *xe, struct xe_gt_tlb_invalidation_fence *fence),
+DECLARE_EVENT_CLASS(xe_tlb_inval_fence,
+		    TP_PROTO(struct xe_device *xe, struct xe_tlb_inval_fence *fence),
 		    TP_ARGS(xe, fence),
 
 		    TP_STRUCT__entry(
 			     __string(dev, __dev_name_xe(xe))
-			     __field(struct xe_gt_tlb_invalidation_fence *, fence)
+			     __field(struct xe_tlb_inval_fence *, fence)
 			     __field(int, seqno)
 			     ),
 
@@ -45,39 +45,23 @@ DECLARE_EVENT_CLASS(xe_gt_tlb_invalidation_fence,
 			      __get_str(dev), __entry->fence, __entry->seqno)
 );
 
-DEFINE_EVENT(xe_gt_tlb_invalidation_fence, xe_gt_tlb_invalidation_fence_create,
-	     TP_PROTO(struct xe_device *xe, struct xe_gt_tlb_invalidation_fence *fence),
+DEFINE_EVENT(xe_tlb_inval_fence, xe_tlb_inval_fence_send,
+	     TP_PROTO(struct xe_device *xe, struct xe_tlb_inval_fence *fence),
 	     TP_ARGS(xe, fence)
 );
 
-DEFINE_EVENT(xe_gt_tlb_invalidation_fence,
-	     xe_gt_tlb_invalidation_fence_work_func,
-	     TP_PROTO(struct xe_device *xe, struct xe_gt_tlb_invalidation_fence *fence),
+DEFINE_EVENT(xe_tlb_inval_fence, xe_tlb_inval_fence_recv,
+	     TP_PROTO(struct xe_device *xe, struct xe_tlb_inval_fence *fence),
 	     TP_ARGS(xe, fence)
 );
 
-DEFINE_EVENT(xe_gt_tlb_invalidation_fence, xe_gt_tlb_invalidation_fence_cb,
-	     TP_PROTO(struct xe_device *xe, struct xe_gt_tlb_invalidation_fence *fence),
+DEFINE_EVENT(xe_tlb_inval_fence, xe_tlb_inval_fence_signal,
+	     TP_PROTO(struct xe_device *xe, struct xe_tlb_inval_fence *fence),
 	     TP_ARGS(xe, fence)
 );
 
-DEFINE_EVENT(xe_gt_tlb_invalidation_fence, xe_gt_tlb_invalidation_fence_send,
-	     TP_PROTO(struct xe_device *xe, struct xe_gt_tlb_invalidation_fence *fence),
-	     TP_ARGS(xe, fence)
-);
-
-DEFINE_EVENT(xe_gt_tlb_invalidation_fence, xe_gt_tlb_invalidation_fence_recv,
-	     TP_PROTO(struct xe_device *xe, struct xe_gt_tlb_invalidation_fence *fence),
-	     TP_ARGS(xe, fence)
-);
-
-DEFINE_EVENT(xe_gt_tlb_invalidation_fence, xe_gt_tlb_invalidation_fence_signal,
-	     TP_PROTO(struct xe_device *xe, struct xe_gt_tlb_invalidation_fence *fence),
-	     TP_ARGS(xe, fence)
-);
-
-DEFINE_EVENT(xe_gt_tlb_invalidation_fence, xe_gt_tlb_invalidation_fence_timeout,
-	     TP_PROTO(struct xe_device *xe, struct xe_gt_tlb_invalidation_fence *fence),
+DEFINE_EVENT(xe_tlb_inval_fence, xe_tlb_inval_fence_timeout,
+	     TP_PROTO(struct xe_device *xe, struct xe_tlb_inval_fence *fence),
 	     TP_ARGS(xe, fence)
 );
 

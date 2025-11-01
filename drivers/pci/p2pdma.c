@@ -196,7 +196,7 @@ static const struct bin_attribute *const p2pmem_bin_attrs[] = {
 
 static const struct attribute_group p2pmem_group = {
 	.attrs = p2pmem_attrs,
-	.bin_attrs_new = p2pmem_bin_attrs,
+	.bin_attrs = p2pmem_bin_attrs,
 	.name = "p2pmem",
 };
 
@@ -360,7 +360,7 @@ int pci_p2pdma_add_resource(struct pci_dev *pdev, int bar, size_t size,
 pages_free:
 	devm_memunmap_pages(&pdev->dev, pgmap);
 pgmap_free:
-	devm_kfree(&pdev->dev, pgmap);
+	devm_kfree(&pdev->dev, p2p_pgmap);
 	return error;
 }
 EXPORT_SYMBOL_GPL(pci_p2pdma_add_resource);
@@ -738,7 +738,7 @@ EXPORT_SYMBOL_GPL(pci_p2pdma_distance_many);
  * pci_has_p2pmem - check if a given PCI device has published any p2pmem
  * @pdev: PCI device to check
  */
-bool pci_has_p2pmem(struct pci_dev *pdev)
+static bool pci_has_p2pmem(struct pci_dev *pdev)
 {
 	struct pci_p2pdma *p2pdma;
 	bool res;
@@ -750,7 +750,6 @@ bool pci_has_p2pmem(struct pci_dev *pdev)
 
 	return res;
 }
-EXPORT_SYMBOL_GPL(pci_has_p2pmem);
 
 /**
  * pci_p2pmem_find_many - find a peer-to-peer DMA memory device compatible with

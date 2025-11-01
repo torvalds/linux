@@ -246,13 +246,11 @@ static u8 batadv_mcast_mla_rtr_flags_get(struct batadv_priv *bat_priv,
 static u8 batadv_mcast_mla_forw_flags_get(struct batadv_priv *bat_priv)
 {
 	const struct batadv_hard_iface *hard_iface;
+	struct list_head *iter;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(hard_iface, &batadv_hardif_list, list) {
+	netdev_for_each_lower_private_rcu(bat_priv->mesh_iface, hard_iface, iter) {
 		if (hard_iface->if_status != BATADV_IF_ACTIVE)
-			continue;
-
-		if (hard_iface->mesh_iface != bat_priv->mesh_iface)
 			continue;
 
 		if (hard_iface->net_dev->mtu < IPV6_MIN_MTU) {

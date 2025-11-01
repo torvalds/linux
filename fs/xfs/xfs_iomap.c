@@ -79,6 +79,9 @@ xfs_iomap_valid(
 {
 	struct xfs_inode	*ip = XFS_I(inode);
 
+	if (iomap->type == IOMAP_HOLE)
+		return true;
+
 	if (iomap->validity_cookie !=
 			xfs_iomap_inode_sequence(ip, iomap->flags)) {
 		trace_xfs_iomap_invalid(ip, iomap);
@@ -89,7 +92,7 @@ xfs_iomap_valid(
 	return true;
 }
 
-static const struct iomap_folio_ops xfs_iomap_folio_ops = {
+const struct iomap_write_ops xfs_iomap_write_ops = {
 	.iomap_valid		= xfs_iomap_valid,
 };
 
@@ -146,12 +149,20 @@ xfs_bmbt_to_iomap(
 		iomap->bdev = target->bt_bdev;
 	iomap->flags = iomap_flags;
 
-	if (xfs_ipincount(ip) &&
-	    (ip->i_itemp->ili_fsync_fields & ~XFS_ILOG_TIMESTAMP))
-		iomap->flags |= IOMAP_F_DIRTY;
+	/*
+	 * If the inode is dirty for datasync purposes, let iomap know so it
+	 * doesn't elide the IO completion journal flushes on O_DSYNC IO.
+	 */
+	if (ip->i_itemp) {
+		struct xfs_inode_log_item *iip = ip->i_itemp;
+
+		spin_lock(&iip->ili_lock);
+		if (iip->ili_datasync_seq)
+			iomap->flags |= IOMAP_F_DIRTY;
+		spin_unlock(&iip->ili_lock);
+	}
 
 	iomap->validity_cookie = sequence_cookie;
-	iomap->folio_ops = &xfs_iomap_folio_ops;
 	return 0;
 }
 
@@ -827,7 +838,7 @@ xfs_bmap_hw_atomic_write_possible(
 	/*
 	 * The ->iomap_begin caller should ensure this, but check anyway.
 	 */
-	return len <= xfs_inode_buftarg(ip)->bt_bdev_awu_max;
+	return len <= xfs_inode_buftarg(ip)->bt_awu_max;
 }
 
 static int
@@ -1552,7 +1563,7 @@ xfs_zoned_buffered_write_iomap_begin(
 		return error;
 
 	if (XFS_IS_CORRUPT(mp, !xfs_ifork_has_extents(&ip->i_df)) ||
-	    XFS_TEST_ERROR(false, mp, XFS_ERRTAG_BMAPIFORMAT)) {
+	    XFS_TEST_ERROR(mp, XFS_ERRTAG_BMAPIFORMAT)) {
 		xfs_bmap_mark_sick(ip, XFS_DATA_FORK);
 		error = -EFSCORRUPTED;
 		goto out_unlock;
@@ -1726,7 +1737,7 @@ xfs_buffered_write_iomap_begin(
 		return error;
 
 	if (XFS_IS_CORRUPT(mp, !xfs_ifork_has_extents(&ip->i_df)) ||
-	    XFS_TEST_ERROR(false, mp, XFS_ERRTAG_BMAPIFORMAT)) {
+	    XFS_TEST_ERROR(mp, XFS_ERRTAG_BMAPIFORMAT)) {
 		xfs_bmap_mark_sick(ip, XFS_DATA_FORK);
 		error = -EFSCORRUPTED;
 		goto out_unlock;
@@ -2198,7 +2209,8 @@ xfs_zero_range(
 		return dax_zero_range(inode, pos, len, did_zero,
 				      &xfs_dax_write_iomap_ops);
 	return iomap_zero_range(inode, pos, len, did_zero,
-				&xfs_buffered_write_iomap_ops, ac);
+			&xfs_buffered_write_iomap_ops, &xfs_iomap_write_ops,
+			ac);
 }
 
 int
@@ -2214,5 +2226,6 @@ xfs_truncate_page(
 		return dax_truncate_page(inode, pos, did_zero,
 					&xfs_dax_write_iomap_ops);
 	return iomap_truncate_page(inode, pos, did_zero,
-				   &xfs_buffered_write_iomap_ops, ac);
+			&xfs_buffered_write_iomap_ops, &xfs_iomap_write_ops,
+			ac);
 }

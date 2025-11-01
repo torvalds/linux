@@ -3,7 +3,9 @@
  * Scheduler topology setup/handling methods
  */
 
+#include <linux/sched/isolation.h>
 #include <linux/bsearch.h>
+#include "sched.h"
 
 DEFINE_MUTEX(sched_domains_mutex);
 void sched_domains_mutex_lock(void)
@@ -87,7 +89,7 @@ static int sched_domain_debug_one(struct sched_domain *sd, int cpu, int level,
 			break;
 		}
 
-		if (!(sd->flags & SD_OVERLAP) &&
+		if (!(sd->flags & SD_NUMA) &&
 		    cpumask_intersects(groupmask, sched_group_span(group))) {
 			printk(KERN_CONT "\n");
 			printk(KERN_ERR "ERROR: repeated CPUs\n");
@@ -100,7 +102,7 @@ static int sched_domain_debug_one(struct sched_domain *sd, int cpu, int level,
 				group->sgc->id,
 				cpumask_pr_args(sched_group_span(group)));
 
-		if ((sd->flags & SD_OVERLAP) &&
+		if ((sd->flags & SD_NUMA) &&
 		    !cpumask_equal(group_balance_mask(group), sched_group_span(group))) {
 			printk(KERN_CONT " mask=%*pbl",
 				cpumask_pr_args(group_balance_mask(group)));
@@ -313,7 +315,7 @@ static int __init sched_energy_aware_sysctl_init(void)
 }
 
 late_initcall(sched_energy_aware_sysctl_init);
-#endif
+#endif /* CONFIG_PROC_SYSCTL */
 
 static void free_pd(struct perf_domain *pd)
 {
@@ -449,9 +451,9 @@ free:
 
 	return false;
 }
-#else
+#else /* !(CONFIG_ENERGY_MODEL && CONFIG_CPU_FREQ_GOV_SCHEDUTIL): */
 static void free_pd(struct perf_domain *pd) { }
-#endif /* CONFIG_ENERGY_MODEL && CONFIG_CPU_FREQ_GOV_SCHEDUTIL*/
+#endif /* !(CONFIG_ENERGY_MODEL && CONFIG_CPU_FREQ_GOV_SCHEDUTIL) */
 
 static void free_rootdomain(struct rcu_head *rcu)
 {
@@ -1318,8 +1320,6 @@ next:
 	update_group_capacity(sd, cpu);
 }
 
-#ifdef CONFIG_SMP
-
 /* Update the "asym_prefer_cpu" when arch_asym_cpu_priority() changes. */
 void sched_update_asym_prefer_cpu(int cpu, int old_prio, int new_prio)
 {
@@ -1344,7 +1344,7 @@ void sched_update_asym_prefer_cpu(int cpu, int old_prio, int new_prio)
 		 * "sg->asym_prefer_cpu" to "sg->sgc->asym_prefer_cpu"
 		 * which is shared by all the overlapping groups.
 		 */
-		WARN_ON_ONCE(sd->flags & SD_OVERLAP);
+		WARN_ON_ONCE(sd->flags & SD_NUMA);
 
 		sg = sd->groups;
 		if (cpu != sg->asym_prefer_cpu) {
@@ -1373,8 +1373,6 @@ void sched_update_asym_prefer_cpu(int cpu, int old_prio, int new_prio)
 		WRITE_ONCE(sg->asym_prefer_cpu, asym_prefer_cpu);
 	}
 }
-
-#endif /* CONFIG_SMP */
 
 /*
  * Set of available CPUs grouped by their corresponding capacities
@@ -1593,12 +1591,11 @@ static void claim_allocations(int cpu, struct sched_domain *sd)
 enum numa_topology_type sched_numa_topology_type;
 
 static int			sched_domains_numa_levels;
-static int			sched_domains_curr_level;
 
 int				sched_max_numa_distance;
 static int			*sched_domains_numa_distance;
 static struct cpumask		***sched_domains_numa_masks;
-#endif
+#endif /* CONFIG_NUMA */
 
 /*
  * SD_flags allowed in topology descriptions.
@@ -1634,14 +1631,7 @@ sd_init(struct sched_domain_topology_level *tl,
 	int sd_id, sd_weight, sd_flags = 0;
 	struct cpumask *sd_span;
 
-#ifdef CONFIG_NUMA
-	/*
-	 * Ugly hack to pass state to sd_numa_mask()...
-	 */
-	sched_domains_curr_level = tl->numa_level;
-#endif
-
-	sd_weight = cpumask_weight(tl->mask(cpu));
+	sd_weight = cpumask_weight(tl->mask(tl, cpu));
 
 	if (tl->sd_flags)
 		sd_flags = (*tl->sd_flags)();
@@ -1679,7 +1669,7 @@ sd_init(struct sched_domain_topology_level *tl,
 	};
 
 	sd_span = sched_domain_span(sd);
-	cpumask_and(sd_span, cpu_map, tl->mask(cpu));
+	cpumask_and(sd_span, cpu_map, tl->mask(tl, cpu));
 	sd_id = cpumask_first(sd_span);
 
 	sd->flags |= asym_cpu_capacity_classify(sd_span, cpu_map);
@@ -1714,7 +1704,7 @@ sd_init(struct sched_domain_topology_level *tl,
 				       SD_WAKE_AFFINE);
 		}
 
-#endif
+#endif /* CONFIG_NUMA */
 	} else {
 		sd->cache_nice_tries = 1;
 	}
@@ -1734,22 +1724,63 @@ sd_init(struct sched_domain_topology_level *tl,
 	return sd;
 }
 
+#ifdef CONFIG_SCHED_SMT
+int cpu_smt_flags(void)
+{
+	return SD_SHARE_CPUCAPACITY | SD_SHARE_LLC;
+}
+
+const struct cpumask *tl_smt_mask(struct sched_domain_topology_level *tl, int cpu)
+{
+	return cpu_smt_mask(cpu);
+}
+#endif
+
+#ifdef CONFIG_SCHED_CLUSTER
+int cpu_cluster_flags(void)
+{
+	return SD_CLUSTER | SD_SHARE_LLC;
+}
+
+const struct cpumask *tl_cls_mask(struct sched_domain_topology_level *tl, int cpu)
+{
+	return cpu_clustergroup_mask(cpu);
+}
+#endif
+
+#ifdef CONFIG_SCHED_MC
+int cpu_core_flags(void)
+{
+	return SD_SHARE_LLC;
+}
+
+const struct cpumask *tl_mc_mask(struct sched_domain_topology_level *tl, int cpu)
+{
+	return cpu_coregroup_mask(cpu);
+}
+#endif
+
+const struct cpumask *tl_pkg_mask(struct sched_domain_topology_level *tl, int cpu)
+{
+	return cpu_node_mask(cpu);
+}
+
 /*
  * Topology list, bottom-up.
  */
 static struct sched_domain_topology_level default_topology[] = {
 #ifdef CONFIG_SCHED_SMT
-	{ cpu_smt_mask, cpu_smt_flags, SD_INIT_NAME(SMT) },
+	SDTL_INIT(tl_smt_mask, cpu_smt_flags, SMT),
 #endif
 
 #ifdef CONFIG_SCHED_CLUSTER
-	{ cpu_clustergroup_mask, cpu_cluster_flags, SD_INIT_NAME(CLS) },
+	SDTL_INIT(tl_cls_mask, cpu_cluster_flags, CLS),
 #endif
 
 #ifdef CONFIG_SCHED_MC
-	{ cpu_coregroup_mask, cpu_core_flags, SD_INIT_NAME(MC) },
+	SDTL_INIT(tl_mc_mask, cpu_core_flags, MC),
 #endif
-	{ cpu_cpu_mask, SD_INIT_NAME(PKG) },
+	SDTL_INIT(tl_pkg_mask, NULL, PKG),
 	{ NULL, },
 };
 
@@ -1770,10 +1801,14 @@ void __init set_sched_topology(struct sched_domain_topology_level *tl)
 }
 
 #ifdef CONFIG_NUMA
-
-static const struct cpumask *sd_numa_mask(int cpu)
+static int cpu_numa_flags(void)
 {
-	return sched_domains_numa_masks[sched_domains_curr_level][cpu_to_node(cpu)];
+	return SD_NUMA;
+}
+
+static const struct cpumask *sd_numa_mask(struct sched_domain_topology_level *tl, int cpu)
+{
+	return sched_domains_numa_masks[tl->numa_level][cpu_to_node(cpu)];
 }
 
 static void sched_numa_warn(const char *str)
@@ -2010,23 +2045,14 @@ void sched_init_numa(int offline_node)
 	/*
 	 * Add the NUMA identity distance, aka single NODE.
 	 */
-	tl[i++] = (struct sched_domain_topology_level){
-		.mask = sd_numa_mask,
-		.numa_level = 0,
-		SD_INIT_NAME(NODE)
-	};
+	tl[i++] = SDTL_INIT(sd_numa_mask, NULL, NODE);
 
 	/*
 	 * .. and append 'j' levels of NUMA goodness.
 	 */
 	for (j = 1; j < nr_levels; i++, j++) {
-		tl[i] = (struct sched_domain_topology_level){
-			.mask = sd_numa_mask,
-			.sd_flags = cpu_numa_flags,
-			.flags = SDTL_OVERLAP,
-			.numa_level = j,
-			SD_INIT_NAME(NUMA)
-		};
+		tl[i] = SDTL_INIT(sd_numa_mask, cpu_numa_flags, NUMA);
+		tl[i].numa_level = j;
 	}
 
 	sched_domain_topology_saved = sched_domain_topology;
@@ -2212,6 +2238,8 @@ int sched_numa_find_nth_cpu(const struct cpumask *cpus, int cpu, int node)
 		goto unlock;
 
 	hop_masks = bsearch(&k, k.masks, sched_domains_numa_levels, sizeof(k.masks[0]), hop_cmp);
+	if (!hop_masks)
+		goto unlock;
 	hop = hop_masks	- k.masks;
 
 	ret = hop ?
@@ -2337,7 +2365,7 @@ static void __sdt_free(const struct cpumask *cpu_map)
 
 			if (sdd->sd) {
 				sd = *per_cpu_ptr(sdd->sd, j);
-				if (sd && (sd->flags & SD_OVERLAP))
+				if (sd && (sd->flags & SD_NUMA))
 					free_sched_groups(sd->groups, 0);
 				kfree(*per_cpu_ptr(sdd->sd, j));
 			}
@@ -2403,9 +2431,13 @@ static bool topology_span_sane(const struct cpumask *cpu_map)
 	id_seen = sched_domains_tmpmask2;
 
 	for_each_sd_topology(tl) {
+		int tl_common_flags = 0;
+
+		if (tl->sd_flags)
+			tl_common_flags = (*tl->sd_flags)();
 
 		/* NUMA levels are allowed to overlap */
-		if (tl->flags & SDTL_OVERLAP)
+		if (tl_common_flags & SD_NUMA)
 			continue;
 
 		cpumask_clear(covered);
@@ -2418,7 +2450,7 @@ static bool topology_span_sane(const struct cpumask *cpu_map)
 		 * breaks the linking done for an earlier span.
 		 */
 		for_each_cpu(cpu, cpu_map) {
-			const struct cpumask *tl_cpu_mask = tl->mask(cpu);
+			const struct cpumask *tl_cpu_mask = tl->mask(tl, cpu);
 			int id;
 
 			/* lowest bit set in this mask is used as a unique id */
@@ -2426,7 +2458,7 @@ static bool topology_span_sane(const struct cpumask *cpu_map)
 
 			if (cpumask_test_cpu(id, id_seen)) {
 				/* First CPU has already been seen, ensure identical spans */
-				if (!cpumask_equal(tl->mask(id), tl_cpu_mask))
+				if (!cpumask_equal(tl->mask(tl, id), tl_cpu_mask))
 					return false;
 			} else {
 				/* First CPU hasn't been seen before, ensure it's a completely new span */
@@ -2476,8 +2508,6 @@ build_sched_domains(const struct cpumask *cpu_map, struct sched_domain_attr *att
 
 			if (tl == sched_domain_topology)
 				*per_cpu_ptr(d.sd, i) = sd;
-			if (tl->flags & SDTL_OVERLAP)
-				sd->flags |= SD_OVERLAP;
 			if (cpumask_equal(cpu_map, sched_domain_span(sd)))
 				break;
 		}
@@ -2490,7 +2520,7 @@ build_sched_domains(const struct cpumask *cpu_map, struct sched_domain_attr *att
 	for_each_cpu(i, cpu_map) {
 		for (sd = *per_cpu_ptr(d.sd, i); sd; sd = sd->parent) {
 			sd->span_weight = cpumask_weight(sched_domain_span(sd));
-			if (sd->flags & SD_OVERLAP) {
+			if (sd->flags & SD_NUMA) {
 				if (build_overlap_sched_groups(sd, i))
 					goto error;
 			} else {

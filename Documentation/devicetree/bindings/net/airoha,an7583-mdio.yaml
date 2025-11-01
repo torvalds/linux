@@ -1,0 +1,59 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/airoha,an7583-mdio.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Airoha AN7583 Dedicated MDIO Controller
+
+maintainers:
+  - Christian Marangi <ansuelsmth@gmail.com>
+
+description:
+  Airoha AN7583 SoC have 3 different MDIO Controller.
+
+  One comes from the intergated Switch based on MT7530.
+
+  The other 2 (that this schema describe) live under the SCU
+  register supporting both C22 and C45 PHYs.
+
+$ref: mdio.yaml#
+
+properties:
+  compatible:
+    const: airoha,an7583-mdio
+
+  reg:
+    enum: [0xc8, 0xcc]
+
+  clocks:
+    maxItems: 1
+
+  resets:
+    maxItems: 1
+
+  clock-frequency:
+    default: 2500000
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - resets
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    system-controller {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        mdio-bus@c8 {
+            compatible = "airoha,an7583-mdio";
+            reg = <0xc8>;
+
+            clocks = <&scu>;
+            resets = <&scu>;
+        };
+    };

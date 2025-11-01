@@ -11,6 +11,7 @@
 #include <linux/netdevice.h>
 #include <linux/ieee80211.h>
 #include <linux/nl80211.h>
+#include <linux/module.h>
 #include <linux/mod_devicetable.h>
 #include "iwl-csr.h"
 #include "iwl-drv.h"
@@ -107,6 +108,9 @@ enum iwl_nvm_type {
 	MODULE_FIRMWARE(pfx "-" __stringify(api) ".ucode");	\
 	MODULE_FIRMWARE(pfx ".pnvm")
 
+#define IWL_CORE_FW(pfx, core)					\
+	MODULE_FIRMWARE(pfx "-c" __stringify(core) ".ucode")
+
 static inline u8 num_of_ant(u8 mask)
 {
 	return  !!((mask) & ANT_A) +
@@ -192,8 +196,8 @@ struct iwl_family_base_params {
 
 	u8 max_ll_items;
 	u8 led_compensation;
-	u8 ucode_api_max;
-	u8 ucode_api_min;
+	u16 ucode_api_max;
+	u16 ucode_api_min;
 	u32 mac_addr_from_csr:10;
 	u8 nvm_hw_section_num;
 	netdev_features_t features;
@@ -209,6 +213,34 @@ struct iwl_family_base_params {
 	const struct iwl_fw_mon_regs mon_smem_regs;
 	const struct iwl_fw_mon_regs mon_dbgi_regs;
 };
+
+/*
+ * FW is released as "core N release", and we used to have a
+ * gap of 3 between the API version and core number. Now the
+ * reported API version will be 1000 + core and we encode it
+ * in the filename as "c<core>".
+ */
+#define API_IS_CORE_START		1000
+#define API_TO_CORE_OFFS		3
+#define ENCODE_CORE_AS_API(core)	(API_IS_CORE_START + (core))
+
+static inline bool iwl_api_is_core_number(int api)
+{
+	return api >= API_IS_CORE_START;
+}
+
+static inline int iwl_api_to_core(int api)
+{
+	if (iwl_api_is_core_number(api))
+		return api - API_IS_CORE_START;
+
+	return api - API_TO_CORE_OFFS;
+}
+
+#define FW_API_FMT			"%s%d"
+#define FW_API_ARG(n)						\
+	iwl_api_is_core_number(n) ? "c" : "",			\
+	iwl_api_is_core_number(n) ? (n) - API_IS_CORE_START : (n)
 
 /*
  * @stbc: support Tx STBC and 1*SS Rx STBC
@@ -422,8 +454,8 @@ struct iwl_rf_cfg {
 	u8 valid_tx_ant;
 	u8 valid_rx_ant;
 	u8 non_shared_ant;
-	u8 ucode_api_max;
-	u8 ucode_api_min;
+	u16 ucode_api_max;
+	u16 ucode_api_min;
 	u16 num_rbds;
 };
 
@@ -488,8 +520,8 @@ struct iwl_dev_info {
 	    rf_type:9,
 	    match_bw_limit:1,
 	    bw_limit:1,
-	    match_rf_step:1,
-	    rf_step:4,
+	    match_discrete:1,
+	    discrete:1,
 	    match_rf_id:1,
 	    rf_id:4,
 	    match_cdb:1,
@@ -499,11 +531,12 @@ struct iwl_dev_info {
 #if IS_ENABLED(CONFIG_IWLWIFI_KUNIT_TESTS)
 extern const struct iwl_dev_info iwl_dev_info_table[];
 extern const unsigned int iwl_dev_info_table_size;
-const struct iwl_dev_info *
-iwl_pci_find_dev_info(u16 device, u16 subsystem_device, u16 rf_type, u8 cdb,
-		      u8 rf_id, u8 bw_limit, u8 rf_step);
 extern const struct pci_device_id iwl_hw_card_ids[];
 #endif
+
+const struct iwl_dev_info *
+iwl_pci_find_dev_info(u16 device, u16 subsystem_device, u16 rf_type, u8 cdb,
+		      u8 rf_id, u8 bw_limit, bool discrete);
 
 /*
  * This list declares the config structures for all devices.

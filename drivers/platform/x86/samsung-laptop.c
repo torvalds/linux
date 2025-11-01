@@ -16,6 +16,7 @@
 #include <linux/leds.h>
 #include <linux/dmi.h>
 #include <linux/platform_device.h>
+#include <linux/power_supply.h>
 #include <linux/rfkill.h>
 #include <linux/acpi.h>
 #include <linux/seq_file.h>
@@ -23,6 +24,7 @@
 #include <linux/ctype.h>
 #include <linux/efi.h>
 #include <linux/suspend.h>
+#include <acpi/battery.h>
 #include <acpi/video.h>
 
 /*
@@ -347,6 +349,8 @@ struct samsung_laptop {
 	struct samsung_quirks *quirks;
 
 	struct notifier_block pm_nb;
+
+	struct acpi_battery_hook battery_hook;
 
 	bool handle_backlight;
 	bool has_stepping_quirk;
@@ -697,6 +701,11 @@ static ssize_t set_performance_level(struct device *dev,
 static DEVICE_ATTR(performance_level, 0644,
 		   get_performance_level, set_performance_level);
 
+static void show_battery_life_extender_deprecation_warning(struct device *dev)
+{
+	dev_warn_once(dev, "battery_life_extender attribute has been deprecated, see charge_types.\n");
+}
+
 static int read_battery_life_extender(struct samsung_laptop *samsung)
 {
 	const struct sabi_commands *commands = &samsung->config->commands;
@@ -739,6 +748,8 @@ static ssize_t get_battery_life_extender(struct device *dev,
 	struct samsung_laptop *samsung = dev_get_drvdata(dev);
 	int ret;
 
+	show_battery_life_extender_deprecation_warning(dev);
+
 	ret = read_battery_life_extender(samsung);
 	if (ret < 0)
 		return ret;
@@ -753,6 +764,8 @@ static ssize_t set_battery_life_extender(struct device *dev,
 	struct samsung_laptop *samsung = dev_get_drvdata(dev);
 	int ret, value;
 
+	show_battery_life_extender_deprecation_warning(dev);
+
 	if (!count || kstrtoint(buf, 0, &value) != 0)
 		return -EINVAL;
 
@@ -765,6 +778,84 @@ static ssize_t set_battery_life_extender(struct device *dev,
 
 static DEVICE_ATTR(battery_life_extender, 0644,
 		   get_battery_life_extender, set_battery_life_extender);
+
+static int samsung_psy_ext_set_prop(struct power_supply *psy,
+				    const struct power_supply_ext *ext,
+				    void *ext_data,
+				    enum power_supply_property psp,
+				    const union power_supply_propval *val)
+{
+	struct samsung_laptop *samsung = ext_data;
+
+	switch (val->intval) {
+	case POWER_SUPPLY_CHARGE_TYPE_LONGLIFE:
+		return write_battery_life_extender(samsung, 1);
+	case POWER_SUPPLY_CHARGE_TYPE_STANDARD:
+		return write_battery_life_extender(samsung, 0);
+	default:
+		return -EINVAL;
+	}
+}
+
+static int samsung_psy_ext_get_prop(struct power_supply *psy,
+				    const struct power_supply_ext *ext,
+				    void *ext_data,
+				    enum power_supply_property psp,
+				    union power_supply_propval *val)
+{
+	struct samsung_laptop *samsung = ext_data;
+	int ret;
+
+	ret = read_battery_life_extender(samsung);
+	if (ret < 0)
+		return ret;
+
+	if (ret == 1)
+		val->intval = POWER_SUPPLY_CHARGE_TYPE_LONGLIFE;
+	else
+		val->intval = POWER_SUPPLY_CHARGE_TYPE_STANDARD;
+
+	return 0;
+}
+
+static int samsung_psy_prop_is_writeable(struct power_supply *psy,
+					 const struct power_supply_ext *ext,
+					 void *data,
+					 enum power_supply_property psp)
+{
+	return true;
+}
+
+static const enum power_supply_property samsung_power_supply_props[] = {
+	POWER_SUPPLY_PROP_CHARGE_TYPES,
+};
+
+static const struct power_supply_ext samsung_battery_ext = {
+	.name			= "samsung_laptop",
+	.properties		= samsung_power_supply_props,
+	.num_properties		= ARRAY_SIZE(samsung_power_supply_props),
+	.charge_types		= (BIT(POWER_SUPPLY_CHARGE_TYPE_STANDARD) |
+				   BIT(POWER_SUPPLY_CHARGE_TYPE_LONGLIFE)),
+	.get_property		= samsung_psy_ext_get_prop,
+	.set_property		= samsung_psy_ext_set_prop,
+	.property_is_writeable	= samsung_psy_prop_is_writeable,
+};
+
+static int samsung_battery_add(struct power_supply *battery, struct acpi_battery_hook *hook)
+{
+	struct samsung_laptop *samsung = container_of(hook, struct samsung_laptop, battery_hook);
+
+	return power_supply_register_extension(battery, &samsung_battery_ext,
+					       &samsung->platform_device->dev, samsung);
+}
+
+static int samsung_battery_remove(struct power_supply *battery,
+				  struct acpi_battery_hook *hook)
+{
+	power_supply_unregister_extension(battery, &samsung_battery_ext);
+
+	return 0;
+}
 
 static int read_usb_charge(struct samsung_laptop *samsung)
 {
@@ -1039,6 +1130,21 @@ static int __init samsung_lid_handling_init(struct samsung_laptop *samsung)
 
 	if (samsung->quirks->lid_handling)
 		retval = write_lid_handling(samsung, 1);
+
+	return retval;
+}
+
+static int __init samsung_battery_hook_init(struct samsung_laptop *samsung)
+{
+	int retval = 0;
+
+	if (samsung->config->commands.get_battery_life_extender != 0xFFFF) {
+		samsung->battery_hook.add_battery = samsung_battery_add;
+		samsung->battery_hook.remove_battery = samsung_battery_remove;
+		samsung->battery_hook.name = "Samsung Battery Extension";
+		retval = devm_battery_hook_register(&samsung->platform_device->dev,
+						    &samsung->battery_hook);
+	}
 
 	return retval;
 }
@@ -1601,6 +1707,10 @@ static int __init samsung_init(void)
 		goto error_leds;
 
 	ret = samsung_lid_handling_init(samsung);
+	if (ret)
+		goto error_lid_handling;
+
+	ret = samsung_battery_hook_init(samsung);
 	if (ret)
 		goto error_lid_handling;
 

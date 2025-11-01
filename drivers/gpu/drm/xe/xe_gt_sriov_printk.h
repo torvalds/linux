@@ -7,10 +7,13 @@
 #define _XE_GT_SRIOV_PRINTK_H_
 
 #include "xe_gt_printk.h"
-#include "xe_sriov_printk.h"
+#include "xe_tile_sriov_printk.h"
+
+#define __XE_GT_SRIOV_PRINTK_FMT(_gt, _fmt, ...) \
+	__XE_TILE_SRIOV_PRINTK_FMT((_gt)->tile, __XE_GT_PRINTK_FMT((_gt), _fmt, ##__VA_ARGS__))
 
 #define __xe_gt_sriov_printk(gt, _level, fmt, ...) \
-	xe_gt_printk((gt), _level, "%s" fmt, xe_sriov_printk_prefix(gt_to_xe(gt)), ##__VA_ARGS__)
+	xe_sriov_##_level(gt_to_xe(gt), __XE_GT_SRIOV_PRINTK_FMT((gt), fmt, ##__VA_ARGS__))
 
 #define xe_gt_sriov_err(_gt, _fmt, ...) \
 	__xe_gt_sriov_printk(_gt, err, _fmt, ##__VA_ARGS__)

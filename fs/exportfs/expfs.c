@@ -549,15 +549,13 @@ exportfs_decode_fh_raw(struct vfsmount *mnt, struct fid *fid, int fh_len,
 			goto err_result;
 		}
 
-		inode_lock(target_dir->d_inode);
-		nresult = lookup_one(mnt_idmap(mnt), &QSTR(nbuf), target_dir);
+		nresult = lookup_one_unlocked(mnt_idmap(mnt), &QSTR(nbuf), target_dir);
 		if (!IS_ERR(nresult)) {
 			if (unlikely(nresult->d_inode != result->d_inode)) {
 				dput(nresult);
 				nresult = ERR_PTR(-ESTALE);
 			}
 		}
-		inode_unlock(target_dir->d_inode);
 		/*
 		 * At this point we are done with the parent, but it's pinned
 		 * by the child dentry anyway.

@@ -10,7 +10,7 @@
  * the libc and compiler builtin ffs routines, therefore
  * differs in spirit from ffz (man ffs).
  */
-static inline int generic_ffs(int x)
+static inline __attribute_const__ int generic_ffs(int x)
 {
 	int r = 1;
 

@@ -234,9 +234,6 @@ static int atomisp_q_video_buffers_to_css(struct atomisp_sub_device *asd,
 	if (WARN_ON(css_pipe_id >= IA_CSS_PIPE_ID_NUM))
 		return -EINVAL;
 
-	if (pipe->stopping)
-		return -EINVAL;
-
 	space = ATOMISP_CSS_Q_DEPTH - atomisp_buffers_in_css(pipe);
 	while (space--) {
 		struct ia_css_frame *frame;
@@ -367,7 +364,7 @@ static void atomisp_buf_queue(struct vb2_buffer *vb)
 	mutex_lock(&asd->isp->mutex);
 
 	ret = atomisp_pipe_check(pipe, false);
-	if (ret || pipe->stopping) {
+	if (ret) {
 		spin_lock_irqsave(&pipe->irq_lock, irqflags);
 		atomisp_buffer_done(frame, VB2_BUF_STATE_ERROR);
 		spin_unlock_irqrestore(&pipe->irq_lock, irqflags);

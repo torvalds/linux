@@ -108,7 +108,7 @@ inline void print_sys_reg_msg(const struct sys_reg_params *p,
 	/* Look, we even formatted it for you to paste into the table! */
 	kvm_pr_unimpl("%pV { Op0(%2u), Op1(%2u), CRn(%2u), CRm(%2u), Op2(%2u), func_%s },\n",
 		      &(struct va_format){ fmt, &va },
-		      p->Op0, p->Op1, p->CRn, p->CRm, p->Op2, p->is_write ? "write" : "read");
+		      p->Op0, p->Op1, p->CRn, p->CRm, p->Op2, str_write_read(p->is_write));
 	va_end(va);
 }
 
@@ -256,5 +256,11 @@ int kvm_finalize_sys_regs(struct kvm_vcpu *vcpu);
 				(u64)SYS_FIELD_VALUE(reg, field, limit)));     \
 	(val);								       \
 })
+
+#define TO_ARM64_SYS_REG(r)	ARM64_SYS_REG(sys_reg_Op0(SYS_ ## r),	\
+					      sys_reg_Op1(SYS_ ## r),	\
+					      sys_reg_CRn(SYS_ ## r),	\
+					      sys_reg_CRm(SYS_ ## r),	\
+					      sys_reg_Op2(SYS_ ## r))
 
 #endif /* __ARM64_KVM_SYS_REGS_LOCAL_H__ */

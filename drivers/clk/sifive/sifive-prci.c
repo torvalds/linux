@@ -183,9 +183,8 @@ unsigned long sifive_prci_wrpll_recalc_rate(struct clk_hw *hw,
 	return wrpll_calc_output_rate(&pwd->c, parent_rate);
 }
 
-long sifive_prci_wrpll_round_rate(struct clk_hw *hw,
-				  unsigned long rate,
-				  unsigned long *parent_rate)
+int sifive_prci_wrpll_determine_rate(struct clk_hw *hw,
+				     struct clk_rate_request *req)
 {
 	struct __prci_clock *pc = clk_hw_to_prci_clock(hw);
 	struct __prci_wrpll_data *pwd = pc->pwd;
@@ -193,9 +192,11 @@ long sifive_prci_wrpll_round_rate(struct clk_hw *hw,
 
 	memcpy(&c, &pwd->c, sizeof(c));
 
-	wrpll_configure_for_rate(&c, rate, *parent_rate);
+	wrpll_configure_for_rate(&c, req->rate, req->best_parent_rate);
 
-	return wrpll_calc_output_rate(&c, *parent_rate);
+	req->rate = wrpll_calc_output_rate(&c, req->best_parent_rate);
+
+	return 0;
 }
 
 int sifive_prci_wrpll_set_rate(struct clk_hw *hw,

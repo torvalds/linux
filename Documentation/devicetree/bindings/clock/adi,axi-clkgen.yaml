@@ -42,6 +42,9 @@ properties:
           - const: clkin2
           - const: s_axi_aclk
 
+  clock-output-names:
+    maxItems: 1
+
   '#clock-cells':
     const: 0
 
@@ -65,4 +68,5 @@ examples:
       reg = <0xff000000 0x1000>;
       clocks = <&osc 1>, <&clkc 15>;
       clock-names = "clkin1", "s_axi_aclk";
+      clock-output-names = "spi_sclk";
     };

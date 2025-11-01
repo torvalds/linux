@@ -386,7 +386,7 @@ static int mei_nfc_if_version(struct mei_cl *cl,
 	ret = __mei_cl_send(cl, (u8 *)&cmd, sizeof(cmd), 0,
 			    MEI_CL_IO_TX_BLOCKING);
 	if (ret < 0) {
-		dev_err(bus->dev, "Could not send IF version cmd ret = %d\n", ret);
+		dev_err(&bus->dev, "Could not send IF version cmd ret = %d\n", ret);
 		return ret;
 	}
 
@@ -401,14 +401,14 @@ static int mei_nfc_if_version(struct mei_cl *cl,
 	bytes_recv = __mei_cl_recv(cl, (u8 *)reply, if_version_length, &vtag,
 				   0, 0);
 	if (bytes_recv < 0 || (size_t)bytes_recv < if_version_length) {
-		dev_err(bus->dev, "Could not read IF version ret = %d\n", bytes_recv);
+		dev_err(&bus->dev, "Could not read IF version ret = %d\n", bytes_recv);
 		ret = -EIO;
 		goto err;
 	}
 
 	memcpy(ver, reply->data, sizeof(*ver));
 
-	dev_info(bus->dev, "NFC MEI VERSION: IVN 0x%x Vendor ID 0x%x Type 0x%x\n",
+	dev_info(&bus->dev, "NFC MEI VERSION: IVN 0x%x Vendor ID 0x%x Type 0x%x\n",
 		 ver->fw_ivn, ver->vendor_id, ver->radio_type);
 
 err:
@@ -463,14 +463,14 @@ static void mei_nfc(struct mei_cl_device *cldev)
 	if (IS_ERR(cl)) {
 		ret = PTR_ERR(cl);
 		cl = NULL;
-		dev_err(bus->dev, "nfc hook alloc failed %d\n", ret);
+		dev_err(&cldev->dev, "nfc hook alloc failed %d\n", ret);
 		goto out;
 	}
 
 	me_cl = mei_me_cl_by_uuid(bus, &mei_nfc_info_guid);
 	if (!me_cl) {
 		ret = -ENOTTY;
-		dev_err(bus->dev, "Cannot find nfc info %d\n", ret);
+		dev_err(&cldev->dev, "Cannot find nfc info %d\n", ret);
 		goto out;
 	}
 
@@ -496,13 +496,13 @@ static void mei_nfc(struct mei_cl_device *cldev)
 		goto disconnect;
 	}
 
-	dev_dbg(bus->dev, "nfc radio %s\n", radio_name);
+	dev_dbg(&cldev->dev, "nfc radio %s\n", radio_name);
 	strscpy(cldev->name, radio_name, sizeof(cldev->name));
 
 disconnect:
 	mutex_lock(&bus->device_lock);
 	if (mei_cl_disconnect(cl) < 0)
-		dev_err(bus->dev, "Can't disconnect the NFC INFO ME\n");
+		dev_err(&cldev->dev, "Can't disconnect the NFC INFO ME\n");
 
 	mei_cl_flush_queues(cl, NULL);
 
@@ -515,7 +515,7 @@ out:
 	if (ret)
 		cldev->do_match = 0;
 
-	dev_dbg(bus->dev, "end of fixup match = %d\n", cldev->do_match);
+	dev_dbg(&cldev->dev, "end of fixup match = %d\n", cldev->do_match);
 }
 
 /**

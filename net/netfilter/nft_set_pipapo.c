@@ -397,42 +397,45 @@ int pipapo_refill(unsigned long *map, unsigned int len, unsigned int rules,
 }
 
 /**
- * nft_pipapo_lookup() - Lookup function
- * @net:	Network namespace
- * @set:	nftables API set representation
- * @key:	nftables API element representation containing key data
- * @ext:	nftables API extension pointer, filled with matching reference
+ * pipapo_get_slow() - Get matching element reference given key data
+ * @m:		storage containing the set elements
+ * @data:	Key data to be matched against existing elements
+ * @genmask:	If set, check that element is active in given genmask
+ * @tstamp:	timestamp to check for expired elements
  *
  * For more details, see DOC: Theory of Operation.
  *
- * Return: true on match, false otherwise.
+ * This is the main lookup function.  It matches key data against either
+ * the working match set or the uncommitted copy, depending on what the
+ * caller passed to us.
+ * nft_pipapo_get (lookup from userspace/control plane) and nft_pipapo_lookup
+ * (datapath lookup) pass the active copy.
+ * The insertion path will pass the uncommitted working copy.
+ *
+ * Return: pointer to &struct nft_pipapo_elem on match, NULL otherwise.
  */
-bool nft_pipapo_lookup(const struct net *net, const struct nft_set *set,
-		       const u32 *key, const struct nft_set_ext **ext)
+static struct nft_pipapo_elem *pipapo_get_slow(const struct nft_pipapo_match *m,
+					       const u8 *data, u8 genmask,
+					       u64 tstamp)
 {
-	struct nft_pipapo *priv = nft_set_priv(set);
+	unsigned long *res_map, *fill_map, *map;
 	struct nft_pipapo_scratch *scratch;
-	unsigned long *res_map, *fill_map;
-	u8 genmask = nft_genmask_cur(net);
-	const struct nft_pipapo_match *m;
 	const struct nft_pipapo_field *f;
-	const u8 *rp = (const u8 *)key;
 	bool map_index;
 	int i;
 
 	local_bh_disable();
 
-	m = rcu_dereference(priv->match);
-
-	if (unlikely(!m || !*raw_cpu_ptr(m->scratch)))
-		goto out;
-
 	scratch = *raw_cpu_ptr(m->scratch);
+	if (unlikely(!scratch))
+		goto out;
+	__local_lock_nested_bh(&scratch->bh_lock);
 
 	map_index = scratch->map_index;
 
-	res_map  = scratch->map + (map_index ? m->bsize_max : 0);
-	fill_map = scratch->map + (map_index ? 0 : m->bsize_max);
+	map = NFT_PIPAPO_LT_ALIGN(&scratch->__map[0]);
+	res_map  = map + (map_index ? m->bsize_max : 0);
+	fill_map = map + (map_index ? 0 : m->bsize_max);
 
 	pipapo_resmap_init(m, res_map);
 
@@ -444,119 +447,10 @@ bool nft_pipapo_lookup(const struct net *net, const struct nft_set *set,
 		 * packet bytes value, then AND bucket value
 		 */
 		if (likely(f->bb == 8))
-			pipapo_and_field_buckets_8bit(f, res_map, rp);
-		else
-			pipapo_and_field_buckets_4bit(f, res_map, rp);
-		NFT_PIPAPO_GROUP_BITS_ARE_8_OR_4;
-
-		rp += f->groups / NFT_PIPAPO_GROUPS_PER_BYTE(f);
-
-		/* Now populate the bitmap for the next field, unless this is
-		 * the last field, in which case return the matched 'ext'
-		 * pointer if any.
-		 *
-		 * Now res_map contains the matching bitmap, and fill_map is the
-		 * bitmap for the next field.
-		 */
-next_match:
-		b = pipapo_refill(res_map, f->bsize, f->rules, fill_map, f->mt,
-				  last);
-		if (b < 0) {
-			scratch->map_index = map_index;
-			local_bh_enable();
-
-			return false;
-		}
-
-		if (last) {
-			*ext = &f->mt[b].e->ext;
-			if (unlikely(nft_set_elem_expired(*ext) ||
-				     !nft_set_elem_active(*ext, genmask)))
-				goto next_match;
-
-			/* Last field: we're just returning the key without
-			 * filling the initial bitmap for the next field, so the
-			 * current inactive bitmap is clean and can be reused as
-			 * *next* bitmap (not initial) for the next packet.
-			 */
-			scratch->map_index = map_index;
-			local_bh_enable();
-
-			return true;
-		}
-
-		/* Swap bitmap indices: res_map is the initial bitmap for the
-		 * next field, and fill_map is guaranteed to be all-zeroes at
-		 * this point.
-		 */
-		map_index = !map_index;
-		swap(res_map, fill_map);
-
-		rp += NFT_PIPAPO_GROUPS_PADDING(f);
-	}
-
-out:
-	local_bh_enable();
-	return false;
-}
-
-/**
- * pipapo_get() - Get matching element reference given key data
- * @net:	Network namespace
- * @set:	nftables API set representation
- * @m:		storage containing active/existing elements
- * @data:	Key data to be matched against existing elements
- * @genmask:	If set, check that element is active in given genmask
- * @tstamp:	timestamp to check for expired elements
- * @gfp:	the type of memory to allocate (see kmalloc).
- *
- * This is essentially the same as the lookup function, except that it matches
- * key data against the uncommitted copy and doesn't use preallocated maps for
- * bitmap results.
- *
- * Return: pointer to &struct nft_pipapo_elem on match, error pointer otherwise.
- */
-static struct nft_pipapo_elem *pipapo_get(const struct net *net,
-					  const struct nft_set *set,
-					  const struct nft_pipapo_match *m,
-					  const u8 *data, u8 genmask,
-					  u64 tstamp, gfp_t gfp)
-{
-	struct nft_pipapo_elem *ret = ERR_PTR(-ENOENT);
-	unsigned long *res_map, *fill_map = NULL;
-	const struct nft_pipapo_field *f;
-	int i;
-
-	if (m->bsize_max == 0)
-		return ret;
-
-	res_map = kmalloc_array(m->bsize_max, sizeof(*res_map), gfp);
-	if (!res_map) {
-		ret = ERR_PTR(-ENOMEM);
-		goto out;
-	}
-
-	fill_map = kcalloc(m->bsize_max, sizeof(*res_map), gfp);
-	if (!fill_map) {
-		ret = ERR_PTR(-ENOMEM);
-		goto out;
-	}
-
-	pipapo_resmap_init(m, res_map);
-
-	nft_pipapo_for_each_field(f, i, m) {
-		bool last = i == m->field_count - 1;
-		int b;
-
-		/* For each bit group: select lookup table bucket depending on
-		 * packet bytes value, then AND bucket value
-		 */
-		if (f->bb == 8)
 			pipapo_and_field_buckets_8bit(f, res_map, data);
-		else if (f->bb == 4)
-			pipapo_and_field_buckets_4bit(f, res_map, data);
 		else
-			BUG();
+			pipapo_and_field_buckets_4bit(f, res_map, data);
+		NFT_PIPAPO_GROUP_BITS_ARE_8_OR_4;
 
 		data += f->groups / NFT_PIPAPO_GROUPS_PER_BYTE(f);
 
@@ -570,34 +464,122 @@ static struct nft_pipapo_elem *pipapo_get(const struct net *net,
 next_match:
 		b = pipapo_refill(res_map, f->bsize, f->rules, fill_map, f->mt,
 				  last);
-		if (b < 0)
-			goto out;
+		if (b < 0) {
+			scratch->map_index = map_index;
+			__local_unlock_nested_bh(&scratch->bh_lock);
+			local_bh_enable();
 
-		if (last) {
-			if (__nft_set_elem_expired(&f->mt[b].e->ext, tstamp))
-				goto next_match;
-			if ((genmask &&
-			     !nft_set_elem_active(&f->mt[b].e->ext, genmask)))
-				goto next_match;
-
-			ret = f->mt[b].e;
-			goto out;
+			return NULL;
 		}
 
-		data += NFT_PIPAPO_GROUPS_PADDING(f);
+		if (last) {
+			struct nft_pipapo_elem *e;
 
-		/* Swap bitmap indices: fill_map will be the initial bitmap for
-		 * the next field (i.e. the new res_map), and res_map is
-		 * guaranteed to be all-zeroes at this point, ready to be filled
-		 * according to the next mapping table.
+			e = f->mt[b].e;
+			if (unlikely(__nft_set_elem_expired(&e->ext, tstamp) ||
+				     !nft_set_elem_active(&e->ext, genmask)))
+				goto next_match;
+
+			/* Last field: we're just returning the key without
+			 * filling the initial bitmap for the next field, so the
+			 * current inactive bitmap is clean and can be reused as
+			 * *next* bitmap (not initial) for the next packet.
+			 */
+			scratch->map_index = map_index;
+			__local_unlock_nested_bh(&scratch->bh_lock);
+			local_bh_enable();
+			return e;
+		}
+
+		/* Swap bitmap indices: res_map is the initial bitmap for the
+		 * next field, and fill_map is guaranteed to be all-zeroes at
+		 * this point.
 		 */
+		map_index = !map_index;
 		swap(res_map, fill_map);
+
+		data += NFT_PIPAPO_GROUPS_PADDING(f);
 	}
 
+	__local_unlock_nested_bh(&scratch->bh_lock);
 out:
-	kfree(fill_map);
-	kfree(res_map);
-	return ret;
+	local_bh_enable();
+	return NULL;
+}
+
+/**
+ * pipapo_get() - Get matching element reference given key data
+ * @m:		Storage containing the set elements
+ * @data:	Key data to be matched against existing elements
+ * @genmask:	If set, check that element is active in given genmask
+ * @tstamp:	Timestamp to check for expired elements
+ *
+ * This is a dispatcher function, either calling out the generic C
+ * implementation or, if available, the AVX2 one.
+ * This helper is only called from the control plane, with either RCU
+ * read lock or transaction mutex held.
+ *
+ * Return: pointer to &struct nft_pipapo_elem on match, NULL otherwise.
+ */
+static struct nft_pipapo_elem *pipapo_get(const struct nft_pipapo_match *m,
+					  const u8 *data, u8 genmask,
+					  u64 tstamp)
+{
+	struct nft_pipapo_elem *e;
+
+	local_bh_disable();
+
+#if defined(CONFIG_X86_64) && !defined(CONFIG_UML)
+	if (boot_cpu_has(X86_FEATURE_AVX2) && irq_fpu_usable()) {
+		e = pipapo_get_avx2(m, data, genmask, tstamp);
+		local_bh_enable();
+		return e;
+	}
+#endif
+	e = pipapo_get_slow(m, data, genmask, tstamp);
+	local_bh_enable();
+	return e;
+}
+
+/**
+ * nft_pipapo_lookup() - Dataplane fronted for main lookup function
+ * @net:	Network namespace
+ * @set:	nftables API set representation
+ * @key:	pointer to nft registers containing key data
+ *
+ * This function is called from the data path.  It will search for
+ * an element matching the given key in the current active copy.
+ * Unlike other set types, this uses 0 instead of nft_genmask_cur().
+ *
+ * This is because new (future) elements are not reachable from
+ * priv->match, they get added to priv->clone instead.
+ * When the commit phase flips the generation bitmask, the
+ * 'now old' entries are skipped but without the 'now current'
+ * elements becoming visible. Using nft_genmask_cur() thus creates
+ * inconsistent state: matching old entries get skipped but thew
+ * newly matching entries are unreachable.
+ *
+ * GENMASK_ANY doesn't work for the same reason: old-gen entries get
+ * skipped, new-gen entries are only reachable from priv->clone.
+ *
+ * nft_pipapo_commit swaps ->clone and ->match shortly after the
+ * genbit flip.  As ->clone doesn't contain the old entries in the first
+ * place, lookup will only find the now-current ones.
+ *
+ * Return: ntables API extension pointer or NULL if no match.
+ */
+const struct nft_set_ext *
+nft_pipapo_lookup(const struct net *net, const struct nft_set *set,
+		  const u32 *key)
+{
+	struct nft_pipapo *priv = nft_set_priv(set);
+	const struct nft_pipapo_match *m;
+	const struct nft_pipapo_elem *e;
+
+	m = rcu_dereference(priv->match);
+	e = pipapo_get_slow(m, (const u8 *)key, 0, get_jiffies_64());
+
+	return e ? &e->ext : NULL;
 }
 
 /**
@@ -606,6 +588,11 @@ out:
  * @set:	nftables API set representation
  * @elem:	nftables API element representation containing key data
  * @flags:	Unused
+ *
+ * This function is called from the control plane path under
+ * RCU read lock.
+ *
+ * Return: set element private pointer or ERR_PTR(-ENOENT).
  */
 static struct nft_elem_priv *
 nft_pipapo_get(const struct net *net, const struct nft_set *set,
@@ -615,11 +602,10 @@ nft_pipapo_get(const struct net *net, const struct nft_set *set,
 	struct nft_pipapo_match *m = rcu_dereference(priv->match);
 	struct nft_pipapo_elem *e;
 
-	e = pipapo_get(net, set, m, (const u8 *)elem->key.val.data,
-		       nft_genmask_cur(net), get_jiffies_64(),
-		       GFP_ATOMIC);
-	if (IS_ERR(e))
-		return ERR_CAST(e);
+	e = pipapo_get(m, (const u8 *)elem->key.val.data,
+		       nft_genmask_cur(net), get_jiffies_64());
+	if (!e)
+		return ERR_PTR(-ENOENT);
 
 	return &e->priv;
 }
@@ -1204,22 +1190,17 @@ static void pipapo_map(struct nft_pipapo_match *m,
 }
 
 /**
- * pipapo_free_scratch() - Free per-CPU map at original (not aligned) address
+ * pipapo_free_scratch() - Free per-CPU map at original address
  * @m:		Matching data
  * @cpu:	CPU number
  */
 static void pipapo_free_scratch(const struct nft_pipapo_match *m, unsigned int cpu)
 {
 	struct nft_pipapo_scratch *s;
-	void *mem;
 
 	s = *per_cpu_ptr(m->scratch, cpu);
-	if (!s)
-		return;
 
-	mem = s;
-	mem -= s->align_off;
-	kfree(mem);
+	kvfree(s);
 }
 
 /**
@@ -1236,14 +1217,10 @@ static int pipapo_realloc_scratch(struct nft_pipapo_match *clone,
 
 	for_each_possible_cpu(i) {
 		struct nft_pipapo_scratch *scratch;
-#ifdef NFT_PIPAPO_ALIGN
-		void *scratch_aligned;
-		u32 align_off;
-#endif
-		scratch = kzalloc_node(struct_size(scratch, map,
-						   bsize_max * 2) +
-				       NFT_PIPAPO_ALIGN_HEADROOM,
-				       GFP_KERNEL_ACCOUNT, cpu_to_node(i));
+
+		scratch = kvzalloc_node(struct_size(scratch, __map, bsize_max * 2) +
+					NFT_PIPAPO_ALIGN_HEADROOM,
+					GFP_KERNEL_ACCOUNT, cpu_to_node(i));
 		if (!scratch) {
 			/* On failure, there's no need to undo previous
 			 * allocations: this means that some scratch maps have
@@ -1256,23 +1233,7 @@ static int pipapo_realloc_scratch(struct nft_pipapo_match *clone,
 		}
 
 		pipapo_free_scratch(clone, i);
-
-#ifdef NFT_PIPAPO_ALIGN
-		/* Align &scratch->map (not the struct itself): the extra
-		 * %NFT_PIPAPO_ALIGN_HEADROOM bytes passed to kzalloc_node()
-		 * above guarantee we can waste up to those bytes in order
-		 * to align the map field regardless of its offset within
-		 * the struct.
-		 */
-		BUILD_BUG_ON(offsetof(struct nft_pipapo_scratch, map) > NFT_PIPAPO_ALIGN_HEADROOM);
-
-		scratch_aligned = NFT_PIPAPO_LT_ALIGN(&scratch->map);
-		scratch_aligned -= offsetof(struct nft_pipapo_scratch, map);
-		align_off = scratch_aligned - (void *)scratch;
-
-		scratch = scratch_aligned;
-		scratch->align_off = align_off;
-#endif
+		local_lock_init(&scratch->bh_lock);
 		*per_cpu_ptr(clone->scratch, i) = scratch;
 	}
 
@@ -1345,8 +1306,8 @@ static int nft_pipapo_insert(const struct net *net, const struct nft_set *set,
 	else
 		end = start;
 
-	dup = pipapo_get(net, set, m, start, genmask, tstamp, GFP_KERNEL);
-	if (!IS_ERR(dup)) {
+	dup = pipapo_get(m, start, genmask, tstamp);
+	if (dup) {
 		/* Check if we already have the same exact entry */
 		const struct nft_data *dup_key, *dup_end;
 
@@ -1365,15 +1326,9 @@ static int nft_pipapo_insert(const struct net *net, const struct nft_set *set,
 		return -ENOTEMPTY;
 	}
 
-	if (PTR_ERR(dup) == -ENOENT) {
-		/* Look for partially overlapping entries */
-		dup = pipapo_get(net, set, m, end, nft_genmask_next(net), tstamp,
-				 GFP_KERNEL);
-	}
-
-	if (PTR_ERR(dup) != -ENOENT) {
-		if (IS_ERR(dup))
-			return PTR_ERR(dup);
+	/* Look for partially overlapping entries */
+	dup = pipapo_get(m, end, nft_genmask_next(net), tstamp);
+	if (dup) {
 		*elem_priv = &dup->priv;
 		return -ENOTEMPTY;
 	}
@@ -1914,9 +1869,9 @@ nft_pipapo_deactivate(const struct net *net, const struct nft_set *set,
 	if (!m)
 		return NULL;
 
-	e = pipapo_get(net, set, m, (const u8 *)elem->key.val.data,
-		       nft_genmask_next(net), nft_net_tstamp(net), GFP_KERNEL);
-	if (IS_ERR(e))
+	e = pipapo_get(m, (const u8 *)elem->key.val.data,
+		       nft_genmask_next(net), nft_net_tstamp(net));
+	if (!e)
 		return NULL;
 
 	nft_set_elem_change_active(net, set, &e->ext);

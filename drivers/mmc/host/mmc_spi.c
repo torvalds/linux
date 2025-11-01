@@ -563,10 +563,10 @@ mmc_spi_setup_data_message(struct mmc_spi_host *host, bool multiple, bool write)
 	 * the next token (next data block, or STOP_TRAN).  We can try to
 	 * minimize I/O ops by using a single read to collect end-of-busy.
 	 */
-	if (multiple || write) {
+	if (write) {
 		t = &host->early_status;
 		memset(t, 0, sizeof(*t));
-		t->len = write ? sizeof(scratch->status) : 1;
+		t->len = sizeof(scratch->status);
 		t->tx_buf = host->ones;
 		t->rx_buf = scratch->status;
 		t->cs_change = 1;
@@ -1185,7 +1185,7 @@ static int mmc_spi_probe(struct spi_device *spi)
 		goto nomem;
 	memset(ones, 0xff, MMC_SPI_BLOCKSIZE);
 
-	mmc = mmc_alloc_host(sizeof(*host), &spi->dev);
+	mmc = devm_mmc_alloc_host(&spi->dev, sizeof(*host));
 	if (!mmc)
 		goto nomem;
 
@@ -1305,7 +1305,6 @@ fail_glue_init:
 	kfree(host->data);
 fail_nobuf1:
 	mmc_spi_put_pdata(spi);
-	mmc_free_host(mmc);
 nomem:
 	kfree(ones);
 	return status;
@@ -1328,7 +1327,6 @@ static void mmc_spi_remove(struct spi_device *spi)
 
 	spi->max_speed_hz = mmc->f_max;
 	mmc_spi_put_pdata(spi);
-	mmc_free_host(mmc);
 }
 
 static const struct spi_device_id mmc_spi_dev_ids[] = {

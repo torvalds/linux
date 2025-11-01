@@ -206,7 +206,7 @@ static struct gpib_interface cec_pci_interface = {
 	.parallel_poll_configure = cec_parallel_poll_configure,
 	.parallel_poll_response = cec_parallel_poll_response,
 	.local_parallel_poll_mode = NULL, // XXX
-	.line_status = NULL,	//XXX
+	.line_status = NULL,	// XXX
 	.update_status = cec_update_status,
 	.primary_address = cec_primary_address,
 	.secondary_address = cec_secondary_address,
@@ -302,7 +302,7 @@ static int cec_pci_attach(struct gpib_board *board, const struct gpib_board_conf
 		return -EBUSY;
 
 	cec_priv->plx_iobase = pci_resource_start(cec_priv->pci_device, 1);
-		nec_priv->iobase = pci_resource_start(cec_priv->pci_device, 3);
+	nec_priv->iobase = pci_resource_start(cec_priv->pci_device, 3);
 
 	isr_flags |= IRQF_SHARED;
 	if (request_irq(cec_priv->pci_device->irq, cec_interrupt, isr_flags, DRV_NAME, board)) {

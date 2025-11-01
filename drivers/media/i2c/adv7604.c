@@ -42,7 +42,7 @@ module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "debug level (0-2)");
 
 MODULE_DESCRIPTION("Analog Devices ADV7604/10/11/12 video decoder driver");
-MODULE_AUTHOR("Hans Verkuil <hansverk@cisco.com>");
+MODULE_AUTHOR("Hans Verkuil <hverkuil@kernel.org>");
 MODULE_AUTHOR("Mats Randgaard <mats.randgaard@cisco.com>");
 MODULE_LICENSE("GPL");
 
@@ -2448,8 +2448,8 @@ static int adv76xx_set_edid(struct v4l2_subdev *sd, struct v4l2_edid *edid)
 	}
 	cec_s_phys_addr(state->cec_adap, parent_pa, false);
 
-	/* enable hotplug after 100 ms */
-	schedule_delayed_work(&state->delayed_work_enable_hotplug, HZ / 10);
+	/* enable hotplug after 143 ms */
+	schedule_delayed_work(&state->delayed_work_enable_hotplug, HZ / 7);
 	return 0;
 }
 

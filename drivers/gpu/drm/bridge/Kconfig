@@ -120,8 +120,8 @@ config DRM_ITE_IT6505
 	select DRM_DISPLAY_DP_AUX_BUS
 	select DRM_KMS_HELPER
 	select EXTCON
-	select CRYPTO
-	select CRYPTO_HASH
+	select CRYPTO_LIB_SHA1
+	select REGMAP_I2C
 	help
 	  ITE IT6505 DisplayPort bridge chip driver.
 
@@ -316,6 +316,19 @@ config DRM_SIMPLE_BRIDGE
 	  Support for non-programmable DRM bridges, such as ADI ADV7123, TI
 	  THS8134 and THS8135 or passive resistor ladder DACs.
 
+config DRM_SOLOMON_SSD2825
+	tristate "SSD2825 RGB/DSI bridge"
+	depends on SPI_MASTER && OF
+	select DRM_MIPI_DSI
+	select DRM_KMS_HELPER
+	select DRM_PANEL
+	help
+	  Say Y here if you want support for the Solomon SSD2825 RGB/DSI
+	  SPI bridge driver.
+
+	  Say M here if you want to support this hardware as a module.
+	  The module will be named "ssd2825".
+
 config DRM_THINE_THC63LVD1024
 	tristate "Thine THC63LVD1024 LVDS decoder bridge"
 	depends on OF
@@ -437,6 +450,18 @@ config DRM_TI_TPD12S015
 	help
 	  Texas Instruments TPD12S015 HDMI level shifter and ESD protection
 	  driver.
+
+config DRM_WAVESHARE_BRIDGE
+	tristate "Waveshare DSI bridge"
+	depends on OF
+	depends on BACKLIGHT_CLASS_DEVICE
+	select DRM_PANEL_BRIDGE
+	select DRM_KMS_HELPER
+	select DRM_MIPI_DSI
+	select REGMAP_I2C
+	help
+	  Driver for waveshare DSI to DPI bridge board.
+	  Please say Y if you have such hardware
 
 source "drivers/gpu/drm/bridge/analogix/Kconfig"
 

@@ -492,7 +492,7 @@ DEF_SCSI_QCMD(qlogicfas408_queuecommand)
  *	Return bios parameters
  */
 
-int qlogicfas408_biosparam(struct scsi_device *disk, struct block_device *dev,
+int qlogicfas408_biosparam(struct scsi_device *disk, struct gendisk *unused,
 			   sector_t capacity, int ip[])
 {
 /* This should mimic the DOS Qlogic driver's behavior exactly */

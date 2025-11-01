@@ -19,7 +19,6 @@
 #include "dm-audit.h"
 #include <linux/module.h>
 #include <linux/reboot.h>
-#include <linux/scatterlist.h>
 #include <linux/string.h>
 #include <linux/jump_label.h>
 #include <linux/security.h>
@@ -60,9 +59,6 @@ static unsigned int dm_verity_use_bh_bytes[4] = {
 module_param_array_named(use_bh_bytes, dm_verity_use_bh_bytes, uint, NULL, 0644);
 
 static DEFINE_STATIC_KEY_FALSE(use_bh_wq_enabled);
-
-/* Is at least one dm-verity instance using ahash_tfm instead of shash_tfm? */
-static DEFINE_STATIC_KEY_FALSE(ahash_enabled);
 
 struct dm_verity_prefetch_work {
 	struct work_struct work;
@@ -118,100 +114,21 @@ static sector_t verity_position_at_level(struct dm_verity *v, sector_t block,
 	return block >> (level * v->hash_per_block_bits);
 }
 
-static int verity_ahash_update(struct dm_verity *v, struct ahash_request *req,
-				const u8 *data, size_t len,
-				struct crypto_wait *wait)
-{
-	struct scatterlist sg;
-
-	if (likely(!is_vmalloc_addr(data))) {
-		sg_init_one(&sg, data, len);
-		ahash_request_set_crypt(req, &sg, NULL, len);
-		return crypto_wait_req(crypto_ahash_update(req), wait);
-	}
-
-	do {
-		int r;
-		size_t this_step = min_t(size_t, len, PAGE_SIZE - offset_in_page(data));
-
-		flush_kernel_vmap_range((void *)data, this_step);
-		sg_init_table(&sg, 1);
-		sg_set_page(&sg, vmalloc_to_page(data), this_step, offset_in_page(data));
-		ahash_request_set_crypt(req, &sg, NULL, this_step);
-		r = crypto_wait_req(crypto_ahash_update(req), wait);
-		if (unlikely(r))
-			return r;
-		data += this_step;
-		len -= this_step;
-	} while (len);
-
-	return 0;
-}
-
-/*
- * Wrapper for crypto_ahash_init, which handles verity salting.
- */
-static int verity_ahash_init(struct dm_verity *v, struct ahash_request *req,
-				struct crypto_wait *wait, bool may_sleep)
-{
-	int r;
-
-	ahash_request_set_tfm(req, v->ahash_tfm);
-	ahash_request_set_callback(req,
-		may_sleep ? CRYPTO_TFM_REQ_MAY_SLEEP | CRYPTO_TFM_REQ_MAY_BACKLOG : 0,
-		crypto_req_done, (void *)wait);
-	crypto_init_wait(wait);
-
-	r = crypto_wait_req(crypto_ahash_init(req), wait);
-
-	if (unlikely(r < 0)) {
-		if (r != -ENOMEM)
-			DMERR("crypto_ahash_init failed: %d", r);
-		return r;
-	}
-
-	if (likely(v->salt_size && (v->version >= 1)))
-		r = verity_ahash_update(v, req, v->salt, v->salt_size, wait);
-
-	return r;
-}
-
-static int verity_ahash_final(struct dm_verity *v, struct ahash_request *req,
-			      u8 *digest, struct crypto_wait *wait)
-{
-	int r;
-
-	if (unlikely(v->salt_size && (!v->version))) {
-		r = verity_ahash_update(v, req, v->salt, v->salt_size, wait);
-
-		if (r < 0) {
-			DMERR("%s failed updating salt: %d", __func__, r);
-			goto out;
-		}
-	}
-
-	ahash_request_set_crypt(req, NULL, digest, 0);
-	r = crypto_wait_req(crypto_ahash_final(req), wait);
-out:
-	return r;
-}
-
 int verity_hash(struct dm_verity *v, struct dm_verity_io *io,
-		const u8 *data, size_t len, u8 *digest, bool may_sleep)
+		const u8 *data, size_t len, u8 *digest)
 {
+	struct shash_desc *desc = &io->hash_desc;
 	int r;
 
-	if (static_branch_unlikely(&ahash_enabled) && !v->shash_tfm) {
-		struct ahash_request *req = verity_io_hash_req(v, io);
-		struct crypto_wait wait;
-
-		r = verity_ahash_init(v, req, &wait, may_sleep) ?:
-		    verity_ahash_update(v, req, data, len, &wait) ?:
-		    verity_ahash_final(v, req, digest, &wait);
+	desc->tfm = v->shash_tfm;
+	if (unlikely(v->initial_hashstate == NULL)) {
+		/* Version 0: salt at end */
+		r = crypto_shash_init(desc) ?:
+		    crypto_shash_update(desc, data, len) ?:
+		    crypto_shash_update(desc, v->salt, v->salt_size) ?:
+		    crypto_shash_final(desc, digest);
 	} else {
-		struct shash_desc *desc = verity_io_hash_req(v, io);
-
-		desc->tfm = v->shash_tfm;
+		/* Version 1: salt at beginning */
 		r = crypto_shash_import(desc, v->initial_hashstate) ?:
 		    crypto_shash_finup(desc, data, len, digest);
 	}
@@ -362,7 +279,7 @@ static int verity_verify_level(struct dm_verity *v, struct dm_verity_io *io,
 		}
 
 		r = verity_hash(v, io, data, 1 << v->hash_dev_block_bits,
-				verity_io_real_digest(v, io), !io->in_bh);
+				verity_io_real_digest(v, io));
 		if (unlikely(r < 0))
 			goto release_ret_r;
 
@@ -465,7 +382,7 @@ static noinline int verity_recheck(struct dm_verity *v, struct dm_verity_io *io,
 		goto free_ret;
 
 	r = verity_hash(v, io, buffer, 1 << v->data_dev_block_bits,
-			verity_io_real_digest(v, io), true);
+			verity_io_real_digest(v, io));
 	if (unlikely(r))
 		goto free_ret;
 
@@ -581,7 +498,7 @@ static int verity_verify_io(struct dm_verity_io *io)
 		}
 
 		r = verity_hash(v, io, data, block_size,
-				verity_io_real_digest(v, io), !io->in_bh);
+				verity_io_real_digest(v, io));
 		if (unlikely(r < 0)) {
 			kunmap_local(data);
 			return r;
@@ -1092,12 +1009,7 @@ static void verity_dtr(struct dm_target *ti)
 	kfree(v->zero_digest);
 	verity_free_sig(v);
 
-	if (v->ahash_tfm) {
-		static_branch_dec(&ahash_enabled);
-		crypto_free_ahash(v->ahash_tfm);
-	} else {
-		crypto_free_shash(v->shash_tfm);
-	}
+	crypto_free_shash(v->shash_tfm);
 
 	kfree(v->alg_name);
 
@@ -1157,7 +1069,8 @@ static int verity_alloc_zero_digest(struct dm_verity *v)
 	if (!v->zero_digest)
 		return r;
 
-	io = kmalloc(sizeof(*io) + v->hash_reqsize, GFP_KERNEL);
+	io = kmalloc(sizeof(*io) + crypto_shash_descsize(v->shash_tfm),
+		     GFP_KERNEL);
 
 	if (!io)
 		return r; /* verity_dtr will free zero_digest */
@@ -1168,7 +1081,7 @@ static int verity_alloc_zero_digest(struct dm_verity *v)
 		goto out;
 
 	r = verity_hash(v, io, zero_data, 1 << v->data_dev_block_bits,
-			v->zero_digest, true);
+			v->zero_digest);
 
 out:
 	kfree(io);
@@ -1324,9 +1237,7 @@ static int verity_parse_opt_args(struct dm_arg_set *as, struct dm_verity *v,
 static int verity_setup_hash_alg(struct dm_verity *v, const char *alg_name)
 {
 	struct dm_target *ti = v->ti;
-	struct crypto_ahash *ahash;
-	struct crypto_shash *shash = NULL;
-	const char *driver_name;
+	struct crypto_shash *shash;
 
 	v->alg_name = kstrdup(alg_name, GFP_KERNEL);
 	if (!v->alg_name) {
@@ -1334,50 +1245,14 @@ static int verity_setup_hash_alg(struct dm_verity *v, const char *alg_name)
 		return -ENOMEM;
 	}
 
-	/*
-	 * Allocate the hash transformation object that this dm-verity instance
-	 * will use.  The vast majority of dm-verity users use CPU-based
-	 * hashing, so when possible use the shash API to minimize the crypto
-	 * API overhead.  If the ahash API resolves to a different driver
-	 * (likely an off-CPU hardware offload), use ahash instead.  Also use
-	 * ahash if the obsolete dm-verity format with the appended salt is
-	 * being used, so that quirk only needs to be handled in one place.
-	 */
-	ahash = crypto_alloc_ahash(alg_name, 0,
-				   v->use_bh_wq ? CRYPTO_ALG_ASYNC : 0);
-	if (IS_ERR(ahash)) {
+	shash = crypto_alloc_shash(alg_name, 0, 0);
+	if (IS_ERR(shash)) {
 		ti->error = "Cannot initialize hash function";
-		return PTR_ERR(ahash);
+		return PTR_ERR(shash);
 	}
-	driver_name = crypto_ahash_driver_name(ahash);
-	if (v->version >= 1 /* salt prepended, not appended? */) {
-		shash = crypto_alloc_shash(alg_name, 0, 0);
-		if (!IS_ERR(shash) &&
-		    strcmp(crypto_shash_driver_name(shash), driver_name) != 0) {
-			/*
-			 * ahash gave a different driver than shash, so probably
-			 * this is a case of real hardware offload.  Use ahash.
-			 */
-			crypto_free_shash(shash);
-			shash = NULL;
-		}
-	}
-	if (!IS_ERR_OR_NULL(shash)) {
-		crypto_free_ahash(ahash);
-		ahash = NULL;
-		v->shash_tfm = shash;
-		v->digest_size = crypto_shash_digestsize(shash);
-		v->hash_reqsize = sizeof(struct shash_desc) +
-				  crypto_shash_descsize(shash);
-		DMINFO("%s using shash \"%s\"", alg_name, driver_name);
-	} else {
-		v->ahash_tfm = ahash;
-		static_branch_inc(&ahash_enabled);
-		v->digest_size = crypto_ahash_digestsize(ahash);
-		v->hash_reqsize = sizeof(struct ahash_request) +
-				  crypto_ahash_reqsize(ahash);
-		DMINFO("%s using ahash \"%s\"", alg_name, driver_name);
-	}
+	v->shash_tfm = shash;
+	v->digest_size = crypto_shash_digestsize(shash);
+	DMINFO("%s using \"%s\"", alg_name, crypto_shash_driver_name(shash));
 	if ((1 << v->hash_dev_block_bits) < v->digest_size * 2) {
 		ti->error = "Digest size too big";
 		return -EINVAL;
@@ -1402,7 +1277,7 @@ static int verity_setup_salt_and_hashstate(struct dm_verity *v, const char *arg)
 			return -EINVAL;
 		}
 	}
-	if (v->shash_tfm) {
+	if (v->version) { /* Version 1: salt at beginning */
 		SHASH_DESC_ON_STACK(desc, v->shash_tfm);
 		int r;
 
@@ -1681,7 +1556,8 @@ static int verity_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad;
 	}
 
-	ti->per_io_data_size = sizeof(struct dm_verity_io) + v->hash_reqsize;
+	ti->per_io_data_size = sizeof(struct dm_verity_io) +
+			       crypto_shash_descsize(v->shash_tfm);
 
 	r = verity_fec_ctr(v);
 	if (r)
@@ -1788,10 +1664,7 @@ static int verity_preresume(struct dm_target *ti)
 	bdev = dm_disk(dm_table_get_md(ti->table))->part0;
 	root_digest.digest = v->root_digest;
 	root_digest.digest_len = v->digest_size;
-	if (static_branch_unlikely(&ahash_enabled) && !v->shash_tfm)
-		root_digest.alg = crypto_ahash_alg_name(v->ahash_tfm);
-	else
-		root_digest.alg = crypto_shash_alg_name(v->shash_tfm);
+	root_digest.alg = crypto_shash_alg_name(v->shash_tfm);
 
 	r = security_bdev_setintegrity(bdev, LSM_INT_DMVERITY_ROOTHASH, &root_digest,
 				       sizeof(root_digest));
@@ -1817,7 +1690,7 @@ static struct target_type verity_target = {
 	.name		= "verity",
 /* Note: the LSMs depend on the singleton and immutable features */
 	.features	= DM_TARGET_SINGLETON | DM_TARGET_IMMUTABLE,
-	.version	= {1, 11, 0},
+	.version	= {1, 12, 0},
 	.module		= THIS_MODULE,
 	.ctr		= verity_ctr,
 	.dtr		= verity_dtr,

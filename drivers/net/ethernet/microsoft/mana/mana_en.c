@@ -10,6 +10,7 @@
 #include <linux/filter.h>
 #include <linux/mm.h>
 #include <linux/pci.h>
+#include <linux/export.h>
 
 #include <net/checksum.h>
 #include <net/ip6_checksum.h>
@@ -46,6 +47,24 @@ static const struct file_operations mana_dbg_q_fops = {
 	.open   = simple_open,
 	.read   = mana_dbg_q_read,
 };
+
+static bool mana_en_need_log(struct mana_port_context *apc, int err)
+{
+	if (apc && apc->ac && apc->ac->gdma_dev &&
+	    apc->ac->gdma_dev->gdma_context)
+		return mana_need_log(apc->ac->gdma_dev->gdma_context, err);
+	else
+		return true;
+}
+
+static void mana_put_rx_page(struct mana_rxq *rxq, struct page *page,
+			     bool from_pool)
+{
+	if (from_pool)
+		page_pool_put_full_page(rxq->page_pool, page, false);
+	else
+		put_page(page);
+}
 
 /* Microsoft Azure Network Adapter (MANA) functions */
 
@@ -251,10 +270,10 @@ netdev_tx_t mana_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	struct netdev_queue *net_txq;
 	struct mana_stats_tx *tx_stats;
 	struct gdma_queue *gdma_sq;
+	int err, len, num_gso_seg;
 	unsigned int csum_type;
 	struct mana_txq *txq;
 	struct mana_cq *cq;
-	int err, len;
 
 	if (unlikely(!apc->port_is_up))
 		goto tx_drop;
@@ -407,6 +426,7 @@ netdev_tx_t mana_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	skb_queue_tail(&txq->pending_skbs, skb);
 
 	len = skb->len;
+	num_gso_seg = skb_is_gso(skb) ? skb_shinfo(skb)->gso_segs : 1;
 	net_txq = netdev_get_tx_queue(ndev, txq_idx);
 
 	err = mana_gd_post_work_request(gdma_sq, &pkg.wqe_req,
@@ -431,10 +451,13 @@ netdev_tx_t mana_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	/* skb may be freed after mana_gd_post_work_request. Do not use it. */
 	skb = NULL;
 
+	/* Populated the packet and bytes counters based on post GSO packet
+	 * calculations
+	 */
 	tx_stats = &txq->stats;
 	u64_stats_update_begin(&tx_stats->syncp);
-	tx_stats->packets++;
-	tx_stats->bytes += len;
+	tx_stats->packets += num_gso_seg;
+	tx_stats->bytes += len + ((num_gso_seg - 1) * gso_hs);
 	u64_stats_update_end(&tx_stats->syncp);
 
 tx_busy:
@@ -616,21 +639,40 @@ static void *mana_get_rxbuf_pre(struct mana_rxq *rxq, dma_addr_t *da)
 }
 
 /* Get RX buffer's data size, alloc size, XDP headroom based on MTU */
-static void mana_get_rxbuf_cfg(int mtu, u32 *datasize, u32 *alloc_size,
-			       u32 *headroom)
+static void mana_get_rxbuf_cfg(struct mana_port_context *apc,
+			       int mtu, u32 *datasize, u32 *alloc_size,
+			       u32 *headroom, u32 *frag_count)
 {
-	if (mtu > MANA_XDP_MTU_MAX)
-		*headroom = 0; /* no support for XDP */
-	else
-		*headroom = XDP_PACKET_HEADROOM;
+	u32 len, buf_size;
 
-	*alloc_size = SKB_DATA_ALIGN(mtu + MANA_RXBUF_PAD + *headroom);
-
-	/* Using page pool in this case, so alloc_size is PAGE_SIZE */
-	if (*alloc_size < PAGE_SIZE)
-		*alloc_size = PAGE_SIZE;
-
+	/* Calculate datasize first (consistent across all cases) */
 	*datasize = mtu + ETH_HLEN;
+
+	/* For xdp and jumbo frames make sure only one packet fits per page */
+	if (mtu + MANA_RXBUF_PAD > PAGE_SIZE / 2 || mana_xdp_get(apc)) {
+		if (mana_xdp_get(apc)) {
+			*headroom = XDP_PACKET_HEADROOM;
+			*alloc_size = PAGE_SIZE;
+		} else {
+			*headroom = 0; /* no support for XDP */
+			*alloc_size = SKB_DATA_ALIGN(mtu + MANA_RXBUF_PAD +
+						     *headroom);
+		}
+
+		*frag_count = 1;
+		return;
+	}
+
+	/* Standard MTU case - optimize for multiple packets per page */
+	*headroom = 0;
+
+	/* Calculate base buffer size needed */
+	len = SKB_DATA_ALIGN(mtu + MANA_RXBUF_PAD + *headroom);
+	buf_size = ALIGN(len, MANA_RX_FRAG_ALIGNMENT);
+
+	/* Calculate how many packets can fit in a page */
+	*frag_count = PAGE_SIZE / buf_size;
+	*alloc_size = buf_size;
 }
 
 int mana_pre_alloc_rxbufs(struct mana_port_context *mpc, int new_mtu, int num_queues)
@@ -642,8 +684,9 @@ int mana_pre_alloc_rxbufs(struct mana_port_context *mpc, int new_mtu, int num_qu
 	void *va;
 	int i;
 
-	mana_get_rxbuf_cfg(new_mtu, &mpc->rxbpre_datasize,
-			   &mpc->rxbpre_alloc_size, &mpc->rxbpre_headroom);
+	mana_get_rxbuf_cfg(mpc, new_mtu, &mpc->rxbpre_datasize,
+			   &mpc->rxbpre_alloc_size, &mpc->rxbpre_headroom,
+			   &mpc->rxbpre_frag_count);
 
 	dev = mpc->ac->gdma_dev->gdma_context->dev;
 
@@ -719,6 +762,78 @@ out:
 	return err;
 }
 
+static int mana_shaper_set(struct net_shaper_binding *binding,
+			   const struct net_shaper *shaper,
+			   struct netlink_ext_ack *extack)
+{
+	struct mana_port_context *apc = netdev_priv(binding->netdev);
+	u32 old_speed, rate;
+	int err;
+
+	if (shaper->handle.scope != NET_SHAPER_SCOPE_NETDEV) {
+		NL_SET_ERR_MSG_MOD(extack, "net shaper scope should be netdev");
+		return -EINVAL;
+	}
+
+	if (apc->handle.id && shaper->handle.id != apc->handle.id) {
+		NL_SET_ERR_MSG_MOD(extack, "Cannot create multiple shapers");
+		return -EOPNOTSUPP;
+	}
+
+	if (!shaper->bw_max || (shaper->bw_max % 100000000)) {
+		NL_SET_ERR_MSG_MOD(extack, "Please use multiples of 100Mbps for bandwidth");
+		return -EINVAL;
+	}
+
+	rate = div_u64(shaper->bw_max, 1000); /* Convert bps to Kbps */
+	rate = div_u64(rate, 1000);	      /* Convert Kbps to Mbps */
+
+	/* Get current speed */
+	err = mana_query_link_cfg(apc);
+	old_speed = (err) ? SPEED_UNKNOWN : apc->speed;
+
+	if (!err) {
+		err = mana_set_bw_clamp(apc, rate, TRI_STATE_TRUE);
+		apc->speed = (err) ? old_speed : rate;
+		apc->handle = (err) ? apc->handle : shaper->handle;
+	}
+
+	return err;
+}
+
+static int mana_shaper_del(struct net_shaper_binding *binding,
+			   const struct net_shaper_handle *handle,
+			   struct netlink_ext_ack *extack)
+{
+	struct mana_port_context *apc = netdev_priv(binding->netdev);
+	int err;
+
+	err = mana_set_bw_clamp(apc, 0, TRI_STATE_FALSE);
+
+	if (!err) {
+		/* Reset mana port context parameters */
+		apc->handle.id = 0;
+		apc->handle.scope = NET_SHAPER_SCOPE_UNSPEC;
+		apc->speed = 0;
+	}
+
+	return err;
+}
+
+static void mana_shaper_cap(struct net_shaper_binding *binding,
+			    enum net_shaper_scope scope,
+			    unsigned long *flags)
+{
+	*flags = BIT(NET_SHAPER_A_CAPS_SUPPORT_BW_MAX) |
+		 BIT(NET_SHAPER_A_CAPS_SUPPORT_METRIC_BPS);
+}
+
+static const struct net_shaper_ops mana_shaper_ops = {
+	.set = mana_shaper_set,
+	.delete = mana_shaper_del,
+	.capabilities = mana_shaper_cap,
+};
+
 static const struct net_device_ops mana_devops = {
 	.ndo_open		= mana_open,
 	.ndo_stop		= mana_close,
@@ -729,6 +844,7 @@ static const struct net_device_ops mana_devops = {
 	.ndo_bpf		= mana_bpf,
 	.ndo_xdp_xmit		= mana_xdp_xmit,
 	.ndo_change_mtu		= mana_change_mtu,
+	.net_shaper_ops         = &mana_shaper_ops,
 };
 
 static void mana_cleanup_port_context(struct mana_port_context *apc)
@@ -774,8 +890,13 @@ static int mana_send_request(struct mana_context *ac, void *in_buf,
 	err = mana_gd_send_request(gc, in_len, in_buf, out_len,
 				   out_buf);
 	if (err || resp->status) {
-		dev_err(dev, "Failed to send mana message: %d, 0x%x\n",
-			err, resp->status);
+		if (err == -EOPNOTSUPP)
+			return err;
+
+		if (req->req.msg_type != MANA_QUERY_PHY_STAT &&
+		    mana_need_log(gc, err))
+			dev_err(dev, "Failed to send mana message: %d, 0x%x\n",
+				err, resp->status);
 		return err ? err : -EPROTO;
 	}
 
@@ -850,8 +971,10 @@ static void mana_pf_deregister_hw_vport(struct mana_port_context *apc)
 	err = mana_send_request(apc->ac, &req, sizeof(req), &resp,
 				sizeof(resp));
 	if (err) {
-		netdev_err(apc->ndev, "Failed to unregister hw vPort: %d\n",
-			   err);
+		if (mana_en_need_log(apc, err))
+			netdev_err(apc->ndev, "Failed to unregister hw vPort: %d\n",
+				   err);
+
 		return;
 	}
 
@@ -906,8 +1029,10 @@ static void mana_pf_deregister_filter(struct mana_port_context *apc)
 	err = mana_send_request(apc->ac, &req, sizeof(req), &resp,
 				sizeof(resp));
 	if (err) {
-		netdev_err(apc->ndev, "Failed to unregister filter: %d\n",
-			   err);
+		if (mana_en_need_log(apc, err))
+			netdev_err(apc->ndev, "Failed to unregister filter: %d\n",
+				   err);
+
 		return;
 	}
 
@@ -1137,7 +1262,9 @@ static int mana_cfg_vport_steering(struct mana_port_context *apc,
 	err = mana_send_request(apc->ac, req, req_buf_size, &resp,
 				sizeof(resp));
 	if (err) {
-		netdev_err(ndev, "Failed to configure vPort RX: %d\n", err);
+		if (mana_en_need_log(apc, err))
+			netdev_err(ndev, "Failed to configure vPort RX: %d\n", err);
+
 		goto out;
 	}
 
@@ -1159,6 +1286,95 @@ static int mana_cfg_vport_steering(struct mana_port_context *apc,
 out:
 	kfree(req);
 	return err;
+}
+
+int mana_query_link_cfg(struct mana_port_context *apc)
+{
+	struct net_device *ndev = apc->ndev;
+	struct mana_query_link_config_resp resp = {};
+	struct mana_query_link_config_req req = {};
+	int err;
+
+	mana_gd_init_req_hdr(&req.hdr, MANA_QUERY_LINK_CONFIG,
+			     sizeof(req), sizeof(resp));
+
+	req.vport = apc->port_handle;
+	req.hdr.resp.msg_version = GDMA_MESSAGE_V2;
+
+	err = mana_send_request(apc->ac, &req, sizeof(req), &resp,
+				sizeof(resp));
+
+	if (err) {
+		if (err == -EOPNOTSUPP) {
+			netdev_info_once(ndev, "MANA_QUERY_LINK_CONFIG not supported\n");
+			return err;
+		}
+		netdev_err(ndev, "Failed to query link config: %d\n", err);
+		return err;
+	}
+
+	err = mana_verify_resp_hdr(&resp.hdr, MANA_QUERY_LINK_CONFIG,
+				   sizeof(resp));
+
+	if (err || resp.hdr.status) {
+		netdev_err(ndev, "Failed to query link config: %d, 0x%x\n", err,
+			   resp.hdr.status);
+		if (!err)
+			err = -EOPNOTSUPP;
+		return err;
+	}
+
+	if (resp.qos_unconfigured) {
+		err = -EINVAL;
+		return err;
+	}
+	apc->speed = resp.link_speed_mbps;
+	apc->max_speed = resp.qos_speed_mbps;
+	return 0;
+}
+
+int mana_set_bw_clamp(struct mana_port_context *apc, u32 speed,
+		      int enable_clamping)
+{
+	struct mana_set_bw_clamp_resp resp = {};
+	struct mana_set_bw_clamp_req req = {};
+	struct net_device *ndev = apc->ndev;
+	int err;
+
+	mana_gd_init_req_hdr(&req.hdr, MANA_SET_BW_CLAMP,
+			     sizeof(req), sizeof(resp));
+	req.vport = apc->port_handle;
+	req.link_speed_mbps = speed;
+	req.enable_clamping = enable_clamping;
+
+	err = mana_send_request(apc->ac, &req, sizeof(req), &resp,
+				sizeof(resp));
+
+	if (err) {
+		if (err == -EOPNOTSUPP) {
+			netdev_info_once(ndev, "MANA_SET_BW_CLAMP not supported\n");
+			return err;
+		}
+		netdev_err(ndev, "Failed to set bandwidth clamp for speed %u, err = %d",
+			   speed, err);
+		return err;
+	}
+
+	err = mana_verify_resp_hdr(&resp.hdr, MANA_SET_BW_CLAMP,
+				   sizeof(resp));
+
+	if (err || resp.hdr.status) {
+		netdev_err(ndev, "Failed to set bandwidth clamp: %d, 0x%x\n", err,
+			   resp.hdr.status);
+		if (!err)
+			err = -EOPNOTSUPP;
+		return err;
+	}
+
+	if (resp.qos_unconfigured)
+		netdev_info(ndev, "QoS is unconfigured\n");
+
+	return 0;
 }
 
 int mana_create_wq_obj(struct mana_port_context *apc,
@@ -1232,7 +1448,9 @@ void mana_destroy_wq_obj(struct mana_port_context *apc, u32 wq_type,
 	err = mana_send_request(apc->ac, &req, sizeof(req), &resp,
 				sizeof(resp));
 	if (err) {
-		netdev_err(ndev, "Failed to destroy WQ object: %d\n", err);
+		if (mana_en_need_log(apc, err))
+			netdev_err(ndev, "Failed to destroy WQ object: %d\n", err);
+
 		return;
 	}
 
@@ -1653,8 +1871,11 @@ drop_xdp:
 
 drop:
 	if (from_pool) {
-		page_pool_recycle_direct(rxq->page_pool,
-					 virt_to_head_page(buf_va));
+		if (rxq->frag_count == 1)
+			page_pool_recycle_direct(rxq->page_pool,
+						 virt_to_head_page(buf_va));
+		else
+			page_pool_free_va(rxq->page_pool, buf_va, true);
 	} else {
 		WARN_ON_ONCE(rxq->xdp_save_va);
 		/* Save for reuse */
@@ -1670,33 +1891,46 @@ static void *mana_get_rxfrag(struct mana_rxq *rxq, struct device *dev,
 			     dma_addr_t *da, bool *from_pool)
 {
 	struct page *page;
+	u32 offset;
 	void *va;
-
 	*from_pool = false;
 
-	/* Reuse XDP dropped page if available */
-	if (rxq->xdp_save_va) {
-		va = rxq->xdp_save_va;
-		rxq->xdp_save_va = NULL;
-	} else {
-		page = page_pool_dev_alloc_pages(rxq->page_pool);
-		if (!page)
+	/* Don't use fragments for jumbo frames or XDP where it's 1 fragment
+	 * per page.
+	 */
+	if (rxq->frag_count == 1) {
+		/* Reuse XDP dropped page if available */
+		if (rxq->xdp_save_va) {
+			va = rxq->xdp_save_va;
+			page = virt_to_head_page(va);
+			rxq->xdp_save_va = NULL;
+		} else {
+			page = page_pool_dev_alloc_pages(rxq->page_pool);
+			if (!page)
+				return NULL;
+
+			*from_pool = true;
+			va = page_to_virt(page);
+		}
+
+		*da = dma_map_single(dev, va + rxq->headroom, rxq->datasize,
+				     DMA_FROM_DEVICE);
+		if (dma_mapping_error(dev, *da)) {
+			mana_put_rx_page(rxq, page, *from_pool);
 			return NULL;
+		}
 
-		*from_pool = true;
-		va = page_to_virt(page);
+		return va;
 	}
 
-	*da = dma_map_single(dev, va + rxq->headroom, rxq->datasize,
-			     DMA_FROM_DEVICE);
-	if (dma_mapping_error(dev, *da)) {
-		if (*from_pool)
-			page_pool_put_full_page(rxq->page_pool, page, false);
-		else
-			put_page(virt_to_head_page(va));
-
+	page =  page_pool_dev_alloc_frag(rxq->page_pool, &offset,
+					 rxq->alloc_size);
+	if (!page)
 		return NULL;
-	}
+
+	va  = page_to_virt(page) + offset;
+	*da = page_pool_get_dma_addr(page) + offset + rxq->headroom;
+	*from_pool = true;
 
 	return va;
 }
@@ -1713,9 +1947,9 @@ static void mana_refill_rx_oob(struct device *dev, struct mana_rxq *rxq,
 	va = mana_get_rxfrag(rxq, dev, &da, &from_pool);
 	if (!va)
 		return;
-
-	dma_unmap_single(dev, rxoob->sgl[0].address, rxq->datasize,
-			 DMA_FROM_DEVICE);
+	if (!rxoob->from_pool || rxq->frag_count == 1)
+		dma_unmap_single(dev, rxoob->sgl[0].address, rxq->datasize,
+				 DMA_FROM_DEVICE);
 	*old_buf = rxoob->buf_va;
 	*old_fp = rxoob->from_pool;
 
@@ -1911,8 +2145,8 @@ static void mana_destroy_txq(struct mana_port_context *apc)
 		napi = &apc->tx_qp[i].tx_cq.napi;
 		if (apc->tx_qp[i].txq.napi_initialized) {
 			napi_synchronize(napi);
-			napi_disable(napi);
-			netif_napi_del(napi);
+			napi_disable_locked(napi);
+			netif_napi_del_locked(napi);
 			apc->tx_qp[i].txq.napi_initialized = false;
 		}
 		mana_destroy_wq_obj(apc, GDMA_SQ, apc->tx_qp[i].tx_object);
@@ -2064,8 +2298,9 @@ static int mana_create_txq(struct mana_port_context *apc,
 
 		mana_create_txq_debugfs(apc, i);
 
-		netif_napi_add_tx(net, &cq->napi, mana_poll);
-		napi_enable(&cq->napi);
+		set_bit(NAPI_STATE_NO_BUSY_POLL, &cq->napi.state);
+		netif_napi_add_locked(net, &cq->napi, mana_poll);
+		napi_enable_locked(&cq->napi);
 		txq->napi_initialized = true;
 
 		mana_gd_ring_cq(cq->gdma_cq, SET_ARM_BIT);
@@ -2101,9 +2336,8 @@ static void mana_destroy_rxq(struct mana_port_context *apc,
 	if (napi_initialized) {
 		napi_synchronize(napi);
 
-		napi_disable(napi);
-
-		netif_napi_del(napi);
+		napi_disable_locked(napi);
+		netif_napi_del_locked(napi);
 	}
 	xdp_rxq_info_unreg(&rxq->xdp_rxq);
 
@@ -2120,15 +2354,15 @@ static void mana_destroy_rxq(struct mana_port_context *apc,
 		if (!rx_oob->buf_va)
 			continue;
 
-		dma_unmap_single(dev, rx_oob->sgl[0].address,
-				 rx_oob->sgl[0].size, DMA_FROM_DEVICE);
-
 		page = virt_to_head_page(rx_oob->buf_va);
 
-		if (rx_oob->from_pool)
-			page_pool_put_full_page(rxq->page_pool, page, false);
-		else
-			put_page(page);
+		if (rxq->frag_count == 1 || !rx_oob->from_pool) {
+			dma_unmap_single(dev, rx_oob->sgl[0].address,
+					 rx_oob->sgl[0].size, DMA_FROM_DEVICE);
+			mana_put_rx_page(rxq, page, rx_oob->from_pool);
+		} else {
+			page_pool_free_va(rxq->page_pool, rx_oob->buf_va, true);
+		}
 
 		rx_oob->buf_va = NULL;
 	}
@@ -2234,11 +2468,22 @@ static int mana_create_page_pool(struct mana_rxq *rxq, struct gdma_context *gc)
 	struct page_pool_params pprm = {};
 	int ret;
 
-	pprm.pool_size = mpc->rx_queue_size;
+	pprm.pool_size = mpc->rx_queue_size / rxq->frag_count + 1;
 	pprm.nid = gc->numa_node;
 	pprm.napi = &rxq->rx_cq.napi;
 	pprm.netdev = rxq->ndev;
 	pprm.order = get_order(rxq->alloc_size);
+	pprm.queue_idx = rxq->rxq_idx;
+	pprm.dev = gc->dev;
+
+	/* Let the page pool do the dma map when page sharing with multiple
+	 * fragments enabled for rx buffers.
+	 */
+	if (rxq->frag_count > 1) {
+		pprm.flags =  PP_FLAG_DMA_MAP | PP_FLAG_DMA_SYNC_DEV;
+		pprm.max_len = PAGE_SIZE;
+		pprm.dma_dir = DMA_FROM_DEVICE;
+	}
 
 	rxq->page_pool = page_pool_create(&pprm);
 
@@ -2277,9 +2522,8 @@ static struct mana_rxq *mana_create_rxq(struct mana_port_context *apc,
 	rxq->rxq_idx = rxq_idx;
 	rxq->rxobj = INVALID_MANA_HANDLE;
 
-	mana_get_rxbuf_cfg(ndev->mtu, &rxq->datasize, &rxq->alloc_size,
-			   &rxq->headroom);
-
+	mana_get_rxbuf_cfg(apc, ndev->mtu, &rxq->datasize, &rxq->alloc_size,
+			   &rxq->headroom, &rxq->frag_count);
 	/* Create page pool for RX queue */
 	err = mana_create_page_pool(rxq, gc);
 	if (err) {
@@ -2354,14 +2598,14 @@ static struct mana_rxq *mana_create_rxq(struct mana_port_context *apc,
 
 	gc->cq_table[cq->gdma_id] = cq->gdma_cq;
 
-	netif_napi_add_weight(ndev, &cq->napi, mana_poll, 1);
+	netif_napi_add_weight_locked(ndev, &cq->napi, mana_poll, 1);
 
 	WARN_ON(xdp_rxq_info_reg(&rxq->xdp_rxq, ndev, rxq_idx,
 				 cq->napi.napi_id));
 	WARN_ON(xdp_rxq_info_reg_mem_model(&rxq->xdp_rxq, MEM_TYPE_PAGE_POOL,
 					   rxq->page_pool));
 
-	napi_enable(&cq->napi);
+	napi_enable_locked(&cq->napi);
 
 	mana_gd_ring_cq(cq->gdma_cq, SET_ARM_BIT);
 out:
@@ -2611,6 +2855,88 @@ void mana_query_gf_stats(struct mana_port_context *apc)
 	apc->eth_stats.hc_tx_err_gdma = resp.tx_err_gdma;
 }
 
+void mana_query_phy_stats(struct mana_port_context *apc)
+{
+	struct mana_query_phy_stat_resp resp = {};
+	struct mana_query_phy_stat_req req = {};
+	struct net_device *ndev = apc->ndev;
+	int err;
+
+	mana_gd_init_req_hdr(&req.hdr, MANA_QUERY_PHY_STAT,
+			     sizeof(req), sizeof(resp));
+	err = mana_send_request(apc->ac, &req, sizeof(req), &resp,
+				sizeof(resp));
+	if (err)
+		return;
+
+	err = mana_verify_resp_hdr(&resp.hdr, MANA_QUERY_PHY_STAT,
+				   sizeof(resp));
+	if (err || resp.hdr.status) {
+		netdev_err(ndev,
+			   "Failed to query PHY stats: %d, resp:0x%x\n",
+				err, resp.hdr.status);
+		return;
+	}
+
+	/* Aggregate drop counters */
+	apc->phy_stats.rx_pkt_drop_phy = resp.rx_pkt_drop_phy;
+	apc->phy_stats.tx_pkt_drop_phy = resp.tx_pkt_drop_phy;
+
+	/* Per TC traffic Counters */
+	apc->phy_stats.rx_pkt_tc0_phy = resp.rx_pkt_tc0_phy;
+	apc->phy_stats.tx_pkt_tc0_phy = resp.tx_pkt_tc0_phy;
+	apc->phy_stats.rx_pkt_tc1_phy = resp.rx_pkt_tc1_phy;
+	apc->phy_stats.tx_pkt_tc1_phy = resp.tx_pkt_tc1_phy;
+	apc->phy_stats.rx_pkt_tc2_phy = resp.rx_pkt_tc2_phy;
+	apc->phy_stats.tx_pkt_tc2_phy = resp.tx_pkt_tc2_phy;
+	apc->phy_stats.rx_pkt_tc3_phy = resp.rx_pkt_tc3_phy;
+	apc->phy_stats.tx_pkt_tc3_phy = resp.tx_pkt_tc3_phy;
+	apc->phy_stats.rx_pkt_tc4_phy = resp.rx_pkt_tc4_phy;
+	apc->phy_stats.tx_pkt_tc4_phy = resp.tx_pkt_tc4_phy;
+	apc->phy_stats.rx_pkt_tc5_phy = resp.rx_pkt_tc5_phy;
+	apc->phy_stats.tx_pkt_tc5_phy = resp.tx_pkt_tc5_phy;
+	apc->phy_stats.rx_pkt_tc6_phy = resp.rx_pkt_tc6_phy;
+	apc->phy_stats.tx_pkt_tc6_phy = resp.tx_pkt_tc6_phy;
+	apc->phy_stats.rx_pkt_tc7_phy = resp.rx_pkt_tc7_phy;
+	apc->phy_stats.tx_pkt_tc7_phy = resp.tx_pkt_tc7_phy;
+
+	/* Per TC byte Counters */
+	apc->phy_stats.rx_byte_tc0_phy = resp.rx_byte_tc0_phy;
+	apc->phy_stats.tx_byte_tc0_phy = resp.tx_byte_tc0_phy;
+	apc->phy_stats.rx_byte_tc1_phy = resp.rx_byte_tc1_phy;
+	apc->phy_stats.tx_byte_tc1_phy = resp.tx_byte_tc1_phy;
+	apc->phy_stats.rx_byte_tc2_phy = resp.rx_byte_tc2_phy;
+	apc->phy_stats.tx_byte_tc2_phy = resp.tx_byte_tc2_phy;
+	apc->phy_stats.rx_byte_tc3_phy = resp.rx_byte_tc3_phy;
+	apc->phy_stats.tx_byte_tc3_phy = resp.tx_byte_tc3_phy;
+	apc->phy_stats.rx_byte_tc4_phy = resp.rx_byte_tc4_phy;
+	apc->phy_stats.tx_byte_tc4_phy = resp.tx_byte_tc4_phy;
+	apc->phy_stats.rx_byte_tc5_phy = resp.rx_byte_tc5_phy;
+	apc->phy_stats.tx_byte_tc5_phy = resp.tx_byte_tc5_phy;
+	apc->phy_stats.rx_byte_tc6_phy = resp.rx_byte_tc6_phy;
+	apc->phy_stats.tx_byte_tc6_phy = resp.tx_byte_tc6_phy;
+	apc->phy_stats.rx_byte_tc7_phy = resp.rx_byte_tc7_phy;
+	apc->phy_stats.tx_byte_tc7_phy = resp.tx_byte_tc7_phy;
+
+	/* Per TC pause Counters */
+	apc->phy_stats.rx_pause_tc0_phy = resp.rx_pause_tc0_phy;
+	apc->phy_stats.tx_pause_tc0_phy = resp.tx_pause_tc0_phy;
+	apc->phy_stats.rx_pause_tc1_phy = resp.rx_pause_tc1_phy;
+	apc->phy_stats.tx_pause_tc1_phy = resp.tx_pause_tc1_phy;
+	apc->phy_stats.rx_pause_tc2_phy = resp.rx_pause_tc2_phy;
+	apc->phy_stats.tx_pause_tc2_phy = resp.tx_pause_tc2_phy;
+	apc->phy_stats.rx_pause_tc3_phy = resp.rx_pause_tc3_phy;
+	apc->phy_stats.tx_pause_tc3_phy = resp.tx_pause_tc3_phy;
+	apc->phy_stats.rx_pause_tc4_phy = resp.rx_pause_tc4_phy;
+	apc->phy_stats.tx_pause_tc4_phy = resp.tx_pause_tc4_phy;
+	apc->phy_stats.rx_pause_tc5_phy = resp.rx_pause_tc5_phy;
+	apc->phy_stats.tx_pause_tc5_phy = resp.tx_pause_tc5_phy;
+	apc->phy_stats.rx_pause_tc6_phy = resp.rx_pause_tc6_phy;
+	apc->phy_stats.tx_pause_tc6_phy = resp.tx_pause_tc6_phy;
+	apc->phy_stats.rx_pause_tc7_phy = resp.rx_pause_tc7_phy;
+	apc->phy_stats.tx_pause_tc7_phy = resp.tx_pause_tc7_phy;
+}
+
 static int mana_init_port(struct net_device *ndev)
 {
 	struct mana_port_context *apc = netdev_priv(ndev);
@@ -2805,11 +3131,10 @@ static int mana_dealloc_queues(struct net_device *ndev)
 
 	apc->rss_state = TRI_STATE_FALSE;
 	err = mana_config_rss(apc, TRI_STATE_FALSE, false, false);
-	if (err) {
+	if (err && mana_en_need_log(apc, err))
 		netdev_err(ndev, "Failed to disable vPort: %d\n", err);
-		return err;
-	}
 
+	/* Even in err case, still need to cleanup the vPort */
 	mana_destroy_vport(apc);
 
 	return 0;
@@ -2917,6 +3242,8 @@ static int mana_probe_port(struct mana_context *ac, int port_idx,
 		netdev_err(ndev, "Unable to register netdev.\n");
 		goto free_indir;
 	}
+
+	debugfs_create_u32("current_speed", 0400, apc->mana_port_debugfs, &apc->speed);
 
 	return 0;
 

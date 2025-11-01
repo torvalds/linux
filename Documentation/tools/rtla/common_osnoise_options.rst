@@ -1,3 +1,11 @@
+.. |threshold|  replace:: **-a/--auto**, **-s/--stop**, or **-S/--stop-total**
+.. |thresharg|  replace:: -s
+.. |tracer|     replace:: osnoise
+
+.. |actionsperf| replace::
+        Due to implementational limitations, actions might be delayed
+        up to one second after tracing is stopped.
+
 **-a**, **--auto** *us*
 
         Set the automatic trace mode. This mode sets some commonly used options

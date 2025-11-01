@@ -302,7 +302,7 @@ int arena_spin_lock_slowpath(arena_spinlock_t __arena __arg_arena *lock, u32 val
 	 * barriers.
 	 */
 	if (val & _Q_LOCKED_MASK)
-		smp_cond_load_acquire_label(&lock->locked, !VAL, release_err);
+		(void)smp_cond_load_acquire_label(&lock->locked, !VAL, release_err);
 
 	/*
 	 * take ownership and clear the pending bit.
@@ -380,7 +380,7 @@ queue:
 		/* Link @node into the waitqueue. */
 		WRITE_ONCE(prev->next, node);
 
-		arch_mcs_spin_lock_contended_label(&node->locked, release_node_err);
+		(void)arch_mcs_spin_lock_contended_label(&node->locked, release_node_err);
 
 		/*
 		 * While waiting for the MCS lock, the next pointer may have

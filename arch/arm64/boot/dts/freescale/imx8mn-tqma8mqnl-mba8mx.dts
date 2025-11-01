@@ -79,6 +79,10 @@
 		 <&clk IMX8MN_AUDIO_PLL2_OUT>;
 };
 
+&sound {
+	audio-asrc = <&easrc>;
+};
+
 &tlv320aic3x04 {
 	clock-names = "mclk";
 	clocks = <&clk IMX8MN_CLK_SAI3_ROOT>;

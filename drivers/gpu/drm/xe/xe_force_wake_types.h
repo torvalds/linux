@@ -52,7 +52,7 @@ enum xe_force_wake_domains {
 };
 
 /**
- * struct xe_force_wake_domain - XE force wake domains
+ * struct xe_force_wake_domain - Xe force wake domains
  */
 struct xe_force_wake_domain {
 	/** @id: domain force wake id */
@@ -70,7 +70,7 @@ struct xe_force_wake_domain {
 };
 
 /**
- * struct xe_force_wake - XE force wake
+ * struct xe_force_wake - Xe force wake
  */
 struct xe_force_wake {
 	/** @gt: back pointers to GT */

@@ -292,8 +292,6 @@
 };
 
 &iomuxc {
-	pinctrl-names = "default";
-
 	pinctrl_backlight: dispgrp {
 		fsl,pins = <
 			/* BLEN_OUT */

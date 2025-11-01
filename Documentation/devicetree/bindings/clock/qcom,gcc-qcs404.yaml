@@ -14,7 +14,7 @@ description: |
   Qualcomm global clock control module provides the clocks, resets and power
   domains on QCS404.
 
-  See also:: include/dt-bindings/clock/qcom,gcc-qcs404.h
+  See also: include/dt-bindings/clock/qcom,gcc-qcs404.h
 
 properties:
   compatible:

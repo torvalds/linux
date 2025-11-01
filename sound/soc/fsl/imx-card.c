@@ -26,6 +26,7 @@ enum codec_type {
 	CODEC_AK4497,
 	CODEC_AK5552,
 	CODEC_CS42888,
+	CODEC_WM8524,
 };
 
 /*
@@ -196,6 +197,13 @@ static struct imx_akcodec_tdm_fs_mul cs42888_tdm_fs_mul[] = {
 	{ .min = 256,	.max = 256,	.mul = 256 },
 };
 
+static struct imx_akcodec_fs_mul wm8524_fs_mul[] = {
+	{ .rmin = 8000,   .rmax = 32000,  .wmin = 256,  .wmax = 1152, },
+	{ .rmin = 44100,  .rmax = 48000,  .wmin = 256,  .wmax = 768, },
+	{ .rmin = 88200,  .rmax = 96000,  .wmin = 128,  .wmax = 384, },
+	{ .rmin = 176400, .rmax = 192000, .wmin = 128,  .wmax = 192, },
+};
+
 static const u32 akcodec_rates[] = {
 	8000, 11025, 16000, 22050, 32000, 44100, 48000, 88200,
 	96000, 176400, 192000, 352800, 384000, 705600, 768000,
@@ -227,6 +235,10 @@ static const u32 cs42888_channels[] = {
 
 static const u32 cs42888_tdm_channels[] = {
 	1, 2, 3, 4, 5, 6, 7, 8,
+};
+
+static const u32 wm8524_channels[] = {
+	2,
 };
 
 static bool format_is_dsd(struct snd_pcm_hw_params *params)
@@ -261,6 +273,7 @@ static bool codec_is_akcodec(unsigned int type)
 	case CODEC_AK5558:
 	case CODEC_AK5552:
 	case CODEC_CS42888:
+	case CODEC_WM8524:
 		return true;
 	default:
 		break;
@@ -477,9 +490,24 @@ static int imx_aif_startup(struct snd_pcm_substream *substream)
 	return ret;
 }
 
+static void imx_aif_shutdown(struct snd_pcm_substream *substream)
+{
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	struct snd_soc_dai *cpu_dai;
+	struct snd_soc_dai *codec_dai;
+	int i;
+
+	for_each_rtd_cpu_dais(rtd, i, cpu_dai)
+		snd_soc_dai_set_sysclk(cpu_dai, 0, 0, SND_SOC_CLOCK_OUT);
+
+	for_each_rtd_codec_dais(rtd, i, codec_dai)
+		snd_soc_dai_set_sysclk(codec_dai, 0, 0, SND_SOC_CLOCK_IN);
+}
+
 static const struct snd_soc_ops imx_aif_ops = {
 	.hw_params = imx_aif_hw_params,
 	.startup = imx_aif_startup,
+	.shutdown = imx_aif_shutdown,
 };
 
 static const struct snd_soc_ops imx_aif_ops_be = {
@@ -513,7 +541,6 @@ static int imx_card_parse_of(struct imx_card_data *data)
 	struct device_node *platform = NULL;
 	struct device_node *codec = NULL;
 	struct device_node *cpu = NULL;
-	struct device_node *np;
 	struct device *dev = card->dev;
 	struct snd_soc_dai_link *link;
 	struct dai_link_data *link_data;
@@ -552,11 +579,10 @@ static int imx_card_parse_of(struct imx_card_data *data)
 	link = card->dai_link;
 	link_data = data->link_data;
 
-	for_each_child_of_node(dev->of_node, np) {
+	for_each_child_of_node_scoped(dev->of_node, np) {
 		dlc = devm_kzalloc(dev, 2 * sizeof(*dlc), GFP_KERNEL);
 		if (!dlc) {
-			ret = -ENOMEM;
-			goto err_put_np;
+			return -ENOMEM;
 		}
 
 		link->cpus	= &dlc[0];
@@ -567,8 +593,8 @@ static int imx_card_parse_of(struct imx_card_data *data)
 
 		ret = of_property_read_string(np, "link-name", &link->name);
 		if (ret) {
-			dev_err(card->dev, "error getting codec dai_link name\n");
-			goto err_put_np;
+			return dev_err_probe(card->dev, ret,
+					     "error getting codec dai_link name\n");
 		}
 
 		cpu = of_get_child_by_name(np, "cpu");
@@ -634,6 +660,8 @@ static int imx_card_parse_of(struct imx_card_data *data)
 				plat_data->type = CODEC_AK5552;
 			else if (!strcmp(link->codecs->dai_name, "cs42888"))
 				plat_data->type = CODEC_CS42888;
+			else if (!strcmp(link->codecs->dai_name, "wm8524-hifi"))
+				plat_data->type = CODEC_WM8524;
 
 		} else {
 			link->codecs	 = &snd_soc_dummy_dlc;
@@ -725,8 +753,7 @@ err:
 	of_node_put(cpu);
 	of_node_put(codec);
 	of_node_put(platform);
-err_put_np:
-	of_node_put(np);
+
 	return ret;
 }
 
@@ -808,6 +835,10 @@ static int imx_card_probe(struct platform_device *pdev)
 		data->dapm_routes[1].sink = "CPU-Capture";
 		data->dapm_routes[1].source = "Capture";
 		break;
+	case CODEC_WM8524:
+		data->dapm_routes[0].sink = "Playback";
+		data->dapm_routes[0].source = "CPU-Playback";
+		break;
 	default:
 		break;
 	}
@@ -856,6 +887,12 @@ static int imx_card_probe(struct platform_device *pdev)
 			plat_data->num_channels = ARRAY_SIZE(cs42888_channels);
 			plat_data->support_tdm_channels = cs42888_tdm_channels;
 			plat_data->num_tdm_channels = ARRAY_SIZE(cs42888_tdm_channels);
+			break;
+		case CODEC_WM8524:
+			plat_data->fs_mul = wm8524_fs_mul;
+			plat_data->num_fs_mul = ARRAY_SIZE(wm8524_fs_mul);
+			plat_data->support_channels = wm8524_channels;
+			plat_data->num_channels = ARRAY_SIZE(wm8524_channels);
 			break;
 		default:
 			break;

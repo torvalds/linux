@@ -99,14 +99,14 @@ int folio_xchg_last_cpupid(struct folio *folio, int cpupid)
 	unsigned long old_flags, flags;
 	int last_cpupid;
 
-	old_flags = READ_ONCE(folio->flags);
+	old_flags = READ_ONCE(folio->flags.f);
 	do {
 		flags = old_flags;
 		last_cpupid = (flags >> LAST_CPUPID_PGSHIFT) & LAST_CPUPID_MASK;
 
 		flags &= ~(LAST_CPUPID_MASK << LAST_CPUPID_PGSHIFT);
 		flags |= (cpupid & LAST_CPUPID_MASK) << LAST_CPUPID_PGSHIFT;
-	} while (unlikely(!try_cmpxchg(&folio->flags, &old_flags, flags)));
+	} while (unlikely(!try_cmpxchg(&folio->flags.f, &old_flags, flags)));
 
 	return last_cpupid;
 }

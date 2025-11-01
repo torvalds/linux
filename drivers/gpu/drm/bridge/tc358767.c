@@ -1760,7 +1760,8 @@ static const struct drm_connector_helper_funcs tc_connector_helper_funcs = {
 	.get_modes = tc_connector_get_modes,
 };
 
-static enum drm_connector_status tc_bridge_detect(struct drm_bridge *bridge)
+static enum drm_connector_status
+tc_bridge_detect(struct drm_bridge *bridge, struct drm_connector *connector)
 {
 	struct tc_data *tc = bridge_to_tc(bridge);
 	bool conn;
@@ -1785,7 +1786,7 @@ tc_connector_detect(struct drm_connector *connector, bool force)
 	struct tc_data *tc = connector_to_tc(connector);
 
 	if (tc->hpd_pin >= 0)
-		return tc_bridge_detect(&tc->bridge);
+		return tc_bridge_detect(&tc->bridge, connector);
 
 	if (tc->panel_bridge)
 		return connector_status_connected;
@@ -2422,6 +2423,7 @@ static int tc_probe_bridge_endpoint(struct tc_data *tc, enum tc_mode mode)
 	struct device_node *node = NULL;
 
 	for_each_endpoint_of_node(dev->of_node, node) {
+		of_graph_parse_endpoint(node, &endpoint);
 		if (endpoint.port == 2) {
 			of_property_read_u8_array(node, "toshiba,pre-emphasis",
 						  tc->pre_emphasis,

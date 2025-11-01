@@ -7,6 +7,7 @@
 #include <errno.h>
 #include <string.h>
 #include <assert.h>
+#include <regex.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <time.h>
@@ -460,6 +461,34 @@ static inline void *u64_to_ptr(__u64 ptr)
 	return (void *) (unsigned long) ptr;
 }
 
+static inline __u32 id_from_prog_fd(int fd)
+{
+	struct bpf_prog_info prog_info = {};
+	__u32 prog_info_len = sizeof(prog_info);
+	int err;
+
+	err = bpf_obj_get_info_by_fd(fd, &prog_info, &prog_info_len);
+	if (!ASSERT_OK(err, "id_from_prog_fd"))
+		return 0;
+
+	ASSERT_NEQ(prog_info.id, 0, "prog_info.id");
+	return prog_info.id;
+}
+
+static inline __u32 id_from_link_fd(int fd)
+{
+	struct bpf_link_info link_info = {};
+	__u32 link_info_len = sizeof(link_info);
+	int err;
+
+	err = bpf_link_get_info_by_fd(fd, &link_info, &link_info_len);
+	if (!ASSERT_OK(err, "id_from_link_fd"))
+		return 0;
+
+	ASSERT_NEQ(link_info.id, 0, "link_info.id");
+	return link_info.id;
+}
+
 int bpf_find_map(const char *test, struct bpf_object *obj, const char *name);
 int compare_map_keys(int map1_fd, int map2_fd);
 int compare_stack_ips(int smap_fd, int amap_fd, int stack_trace_len);
@@ -517,5 +546,21 @@ extern void test_loader_fini(struct test_loader *tester);
 	test_loader__run_subtests(&tester, #skel, skel##__elf_bytes);	       \
 	test_loader_fini(&tester);					       \
 })
+
+struct expect_msg {
+	const char *substr; /* substring match */
+	regex_t regex;
+	bool is_regex;
+	bool on_next_line;
+	bool negative;
+};
+
+struct expected_msgs {
+	struct expect_msg *patterns;
+	size_t cnt;
+};
+
+void validate_msgs(const char *log_buf, struct expected_msgs *msgs,
+		   void (*emit_fn)(const char *buf, bool force));
 
 #endif /* __TEST_PROGS_H */

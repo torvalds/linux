@@ -221,3 +221,35 @@ static int __init sgi_ds1286_devinit(void)
 }
 
 device_initcall(sgi_ds1286_devinit);
+
+#define SGI_ZILOG_BASE	(HPC3_CHIP0_BASE + \
+			 offsetof(struct hpc3_regs, pbus_extregs[6]) + \
+			 offsetof(struct sgioc_regs, uart))
+
+static struct resource sgi_zilog_resources[] = {
+	{
+		.start	= SGI_ZILOG_BASE,
+		.end	= SGI_ZILOG_BASE + 15,
+		.flags	= IORESOURCE_MEM
+	},
+	{
+		.start	= SGI_SERIAL_IRQ,
+		.end	= SGI_SERIAL_IRQ,
+		.flags	= IORESOURCE_IRQ
+	}
+};
+
+static struct platform_device zilog_device = {
+	.name		= "ip22zilog",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(sgi_zilog_resources),
+	.resource	= sgi_zilog_resources,
+};
+
+
+static int __init sgi_zilog_devinit(void)
+{
+	return platform_device_register(&zilog_device);
+}
+
+device_initcall(sgi_zilog_devinit);

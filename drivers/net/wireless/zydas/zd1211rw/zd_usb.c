@@ -445,7 +445,7 @@ static void int_urb_complete(struct urb *urb)
 	}
 
 	if (urb->actual_length < sizeof(hdr)) {
-		dev_dbg_f(urb_dev(urb), "error: urb %p to small\n", urb);
+		dev_dbg_f(urb_dev(urb), "error: urb %p too small\n", urb);
 		goto resubmit;
 	}
 

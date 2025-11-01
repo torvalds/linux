@@ -1,0 +1,132 @@
+# SPDX-License-Identifier: GPL-2.0
+# Test transitional symbols for config migration with all Kconfig types
+
+# Enable module support for tristate testing
+config MODULES
+	bool "Enable loadable module support"
+	modules
+	default y
+
+# Basic migration tests for all types
+config NEW_BOOL
+	bool "New bool option"
+	default OLD_BOOL
+
+config OLD_BOOL
+	bool
+	transitional
+
+config NEW_TRISTATE
+	tristate "New tristate option"
+	default OLD_TRISTATE
+
+config OLD_TRISTATE
+	tristate
+	transitional
+
+config NEW_STRING
+	string "New string option"
+	default OLD_STRING
+
+config OLD_STRING
+	string
+	transitional
+
+config NEW_HEX
+	hex "New hex option"
+	default OLD_HEX
+
+config OLD_HEX
+	hex
+	transitional
+
+config NEW_INT
+	int "New int option"
+	default OLD_INT
+
+config OLD_INT
+	int
+	transitional
+
+# Precedence tests for all types
+config NEW_BOOL_PRECEDENCE
+	bool "New bool option with precedence"
+	default OLD_BOOL_PRECEDENCE
+
+config OLD_BOOL_PRECEDENCE
+	bool
+	transitional
+
+config NEW_STRING_PRECEDENCE
+	string "New string option with precedence"
+	default OLD_STRING_PRECEDENCE
+
+config OLD_STRING_PRECEDENCE
+	string
+	transitional
+
+config NEW_TRISTATE_PRECEDENCE
+	tristate "New tristate option with precedence"
+	default OLD_TRISTATE_PRECEDENCE
+
+config OLD_TRISTATE_PRECEDENCE
+	tristate
+	transitional
+
+config NEW_HEX_PRECEDENCE
+	hex "New hex option with precedence"
+	default OLD_HEX_PRECEDENCE
+
+config OLD_HEX_PRECEDENCE
+	hex
+	transitional
+
+config NEW_INT_PRECEDENCE
+	int "New int option with precedence"
+	default OLD_INT_PRECEDENCE
+
+config OLD_INT_PRECEDENCE
+	int
+	transitional
+
+# Test that help sections are allowed for transitional symbols
+config OLD_WITH_HELP
+	bool
+	transitional
+	help
+	  This transitional symbol has a help section to validate that help is allowed.
+
+# Test that we can set something to =n via transitional symbol
+config NEW_DISABLED
+	tristate "Check for setting to disabled"
+	default OLD_DISABLED
+
+config OLD_DISABLED
+	tristate
+	transitional
+
+# Test that a potential new value disappears if it lacks a prompt
+config NEW_DISABLED_UNSAVED
+	tristate
+	default OLD_DISABLED
+
+config OLD_DISABLED_UNSAVED
+	tristate
+	transitional
+
+# Test conditional default: transitional value should not prevent prompting
+# when default visibility makes the expression evaluate to 'no'
+config DEPENDENCY_TEST
+	bool "Dependency for testing"
+	default n
+
+config NEW_CONDITIONAL_DEFAULT
+	bool "New option with conditional default"
+	default OLD_CONDITIONAL_DEFAULT if DEPENDENCY_TEST
+
+config OLD_CONDITIONAL_DEFAULT
+	bool
+	transitional
+
+config REGULAR_OPTION
+	bool "Regular option"

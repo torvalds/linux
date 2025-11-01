@@ -153,6 +153,13 @@ static inline netmem_ref page_pool_dev_alloc_netmem(struct page_pool *pool,
 	return page_pool_alloc_netmem(pool, offset, size, gfp);
 }
 
+static inline netmem_ref page_pool_dev_alloc_netmems(struct page_pool *pool)
+{
+	gfp_t gfp = GFP_ATOMIC | __GFP_NOWARN;
+
+	return page_pool_alloc_netmems(pool, gfp);
+}
+
 static inline struct page *page_pool_alloc(struct page_pool *pool,
 					   unsigned int *offset,
 					   unsigned int *size, gfp_t gfp)
@@ -437,12 +444,7 @@ static inline dma_addr_t page_pool_get_dma_addr_netmem(netmem_ref netmem)
  */
 static inline dma_addr_t page_pool_get_dma_addr(const struct page *page)
 {
-	dma_addr_t ret = page->dma_addr;
-
-	if (PAGE_POOL_32BIT_ARCH_WITH_64BIT_DMA)
-		ret <<= PAGE_SHIFT;
-
-	return ret;
+	return page_pool_get_dma_addr_netmem(page_to_netmem(page));
 }
 
 static inline void __page_pool_dma_sync_for_cpu(const struct page_pool *pool,
@@ -487,6 +489,11 @@ page_pool_dma_sync_netmem_for_cpu(const struct page_pool *pool,
 				     offset, dma_sync_size);
 }
 
+static inline void page_pool_get(struct page_pool *pool)
+{
+	refcount_inc(&pool->user_cnt);
+}
+
 static inline bool page_pool_put(struct page_pool *pool)
 {
 	return refcount_dec_and_test(&pool->user_cnt);
@@ -498,6 +505,18 @@ static inline void page_pool_nid_changed(struct page_pool *pool, int new_nid)
 		page_pool_update_nid(pool, new_nid);
 }
 
+/**
+ * page_pool_is_unreadable() - will allocated buffers be unreadable for the CPU
+ * @pool: queried page pool
+ *
+ * Check if page pool will return buffers which are unreadable to the CPU /
+ * kernel. This will only be the case if user space bound a memory provider (mp)
+ * which returns unreadable memory to the queue served by the page pool.
+ * If %PP_FLAG_ALLOW_UNREADABLE_NETMEM was set but there is no mp bound
+ * this helper will return false. See also netif_rxq_has_unreadable_mp().
+ *
+ * Return: true if memory allocated by the page pool may be unreadable
+ */
 static inline bool page_pool_is_unreadable(struct page_pool *pool)
 {
 	return !!pool->mp_ops;

@@ -145,7 +145,7 @@ static void finish_vm_setup(struct kvm_vm *vm)
 	slot0 = memslot2region(vm, 0);
 	ucall_init(vm, slot0->region.guest_phys_addr + slot0->region.memory_size);
 
-	kvm_arch_vm_post_create(vm);
+	kvm_arch_vm_post_create(vm, 0);
 }
 
 static struct kvm_vm *create_vm_two_memslots(void)

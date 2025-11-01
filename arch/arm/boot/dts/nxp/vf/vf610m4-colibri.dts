@@ -50,14 +50,12 @@
 };
 
 &iomuxc {
-	vf610-colibri {
-		pinctrl_uart2: uart2grp {
-			fsl,pins = <
-				VF610_PAD_PTD0__UART2_TX		0x21a2
-				VF610_PAD_PTD1__UART2_RX		0x21a1
-				VF610_PAD_PTD2__UART2_RTS		0x21a2
-				VF610_PAD_PTD3__UART2_CTS		0x21a1
-			>;
-		};
+	pinctrl_uart2: uart2grp {
+		fsl,pins = <
+			VF610_PAD_PTD0__UART2_TX		0x21a2
+			VF610_PAD_PTD1__UART2_RX		0x21a1
+			VF610_PAD_PTD2__UART2_RTS		0x21a2
+			VF610_PAD_PTD3__UART2_CTS		0x21a1
+		>;
 	};
 };

@@ -225,6 +225,21 @@ static int video_check_format(struct camss_video *video)
 	return 0;
 }
 
+static int video_prepare_streaming(struct vb2_queue *q)
+{
+	struct camss_video *video = vb2_get_drv_priv(q);
+	struct video_device *vdev = &video->vdev;
+	int ret;
+
+	ret = v4l2_pipeline_pm_get(&vdev->entity);
+	if (ret < 0) {
+		dev_err(video->camss->dev, "Failed to power up pipeline: %d\n",
+			ret);
+	}
+
+	return ret;
+}
+
 static int video_start_streaming(struct vb2_queue *q, unsigned int count)
 {
 	struct camss_video *video = vb2_get_drv_priv(q);
@@ -308,13 +323,23 @@ static void video_stop_streaming(struct vb2_queue *q)
 	video->ops->flush_buffers(video, VB2_BUF_STATE_ERROR);
 }
 
+static void video_unprepare_streaming(struct vb2_queue *q)
+{
+	struct camss_video *video = vb2_get_drv_priv(q);
+	struct video_device *vdev = &video->vdev;
+
+	v4l2_pipeline_pm_put(&vdev->entity);
+}
+
 static const struct vb2_ops msm_video_vb2_q_ops = {
 	.queue_setup     = video_queue_setup,
 	.buf_init        = video_buf_init,
 	.buf_prepare     = video_buf_prepare,
 	.buf_queue       = video_buf_queue,
+	.prepare_streaming = video_prepare_streaming,
 	.start_streaming = video_start_streaming,
 	.stop_streaming  = video_stop_streaming,
+	.unprepare_streaming = video_unprepare_streaming,
 };
 
 /* -----------------------------------------------------------------------------
@@ -579,64 +604,11 @@ static const struct v4l2_ioctl_ops msm_vid_ioctl_ops = {
  * V4L2 file operations
  */
 
-static int video_open(struct file *file)
-{
-	struct video_device *vdev = video_devdata(file);
-	struct camss_video *video = video_drvdata(file);
-	struct v4l2_fh *vfh;
-	int ret;
-
-	mutex_lock(&video->lock);
-
-	vfh = kzalloc(sizeof(*vfh), GFP_KERNEL);
-	if (vfh == NULL) {
-		ret = -ENOMEM;
-		goto error_alloc;
-	}
-
-	v4l2_fh_init(vfh, vdev);
-	v4l2_fh_add(vfh);
-
-	file->private_data = vfh;
-
-	ret = v4l2_pipeline_pm_get(&vdev->entity);
-	if (ret < 0) {
-		dev_err(video->camss->dev, "Failed to power up pipeline: %d\n",
-			ret);
-		goto error_pm_use;
-	}
-
-	mutex_unlock(&video->lock);
-
-	return 0;
-
-error_pm_use:
-	v4l2_fh_release(file);
-
-error_alloc:
-	mutex_unlock(&video->lock);
-
-	return ret;
-}
-
-static int video_release(struct file *file)
-{
-	struct video_device *vdev = video_devdata(file);
-
-	vb2_fop_release(file);
-
-	v4l2_pipeline_pm_put(&vdev->entity);
-
-	file->private_data = NULL;
-
-	return 0;
-}
-
 static const struct v4l2_file_operations msm_vid_fops = {
 	.owner          = THIS_MODULE,
 	.unlocked_ioctl = video_ioctl2,
-	.open           = video_open,
-	.release        = video_release,
+	.open           = v4l2_fh_open,
+	.release        = vb2_fop_release,
 	.poll           = vb2_fop_poll,
 	.mmap		= vb2_fop_mmap,
 	.read		= vb2_fop_read,

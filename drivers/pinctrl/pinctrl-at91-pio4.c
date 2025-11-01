@@ -442,8 +442,8 @@ static struct gpio_chip atmel_gpio_chip = {
 	.get                    = atmel_gpio_get,
 	.get_multiple           = atmel_gpio_get_multiple,
 	.direction_output       = atmel_gpio_direction_output,
-	.set_rv                 = atmel_gpio_set,
-	.set_multiple_rv        = atmel_gpio_set_multiple,
+	.set                    = atmel_gpio_set,
+	.set_multiple           = atmel_gpio_set_multiple,
 	.to_irq                 = atmel_gpio_to_irq,
 	.base                   = 0,
 };
@@ -862,7 +862,7 @@ static int atmel_conf_pin_config_group_set(struct pinctrl_dev *pctldev,
 				conf |= ATMEL_PIO_IFSCEN_MASK;
 			}
 			break;
-		case PIN_CONFIG_OUTPUT:
+		case PIN_CONFIG_LEVEL:
 			conf |= ATMEL_PIO_DIR_MASK;
 			bank = ATMEL_PIO_BANK(pin_id);
 			pin = ATMEL_PIO_LINE(pin_id);
@@ -1212,9 +1212,9 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 		dev_dbg(dev, "bank %i: irq=%d\n", i, ret);
 	}
 
-	atmel_pioctrl->irq_domain = irq_domain_create_linear(of_fwnode_handle(dev->of_node),
-			atmel_pioctrl->gpio_chip->ngpio,
-			&irq_domain_simple_ops, NULL);
+	atmel_pioctrl->irq_domain = irq_domain_create_linear(dev_fwnode(dev),
+							     atmel_pioctrl->gpio_chip->ngpio,
+							     &irq_domain_simple_ops, NULL);
 	if (!atmel_pioctrl->irq_domain)
 		return dev_err_probe(dev, -ENODEV, "can't add the irq domain\n");
 

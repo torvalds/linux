@@ -9,7 +9,6 @@ import socket
 import struct
 from struct import Struct
 import sys
-import yaml
 import ipaddress
 import uuid
 import queue
@@ -231,14 +230,7 @@ class NlMsg:
                     self.extack['unknown'].append(extack)
 
             if attr_space:
-                # We don't have the ability to parse nests yet, so only do global
-                if 'miss-type' in self.extack and 'miss-nest' not in self.extack:
-                    miss_type = self.extack['miss-type']
-                    if miss_type in attr_space.attrs_by_val:
-                        spec = attr_space.attrs_by_val[miss_type]
-                        self.extack['miss-type'] = spec['name']
-                        if 'doc' in spec:
-                            self.extack['miss-type-doc'] = spec['doc']
+                self.annotate_extack(attr_space)
 
     def _decode_policy(self, raw):
         policy = {}
@@ -264,6 +256,18 @@ class NlMsg:
                 policy['mask'] = attr.as_scalar('u64')
         return policy
 
+    def annotate_extack(self, attr_space):
+        """ Make extack more human friendly with attribute information """
+
+        # We don't have the ability to parse nests yet, so only do global
+        if 'miss-type' in self.extack and 'miss-nest' not in self.extack:
+            miss_type = self.extack['miss-type']
+            if miss_type in attr_space.attrs_by_val:
+                spec = attr_space.attrs_by_val[miss_type]
+                self.extack['miss-type'] = spec['name']
+                if 'doc' in spec:
+                    self.extack['miss-type-doc'] = spec['doc']
+
     def cmd(self):
         return self.nl_type
 
@@ -277,12 +281,12 @@ class NlMsg:
 
 
 class NlMsgs:
-    def __init__(self, data, attr_space=None):
+    def __init__(self, data):
         self.msgs = []
 
         offset = 0
         while offset < len(data):
-            msg = NlMsg(data, offset, attr_space=attr_space)
+            msg = NlMsg(data, offset)
             offset += msg.nl_len
             self.msgs.append(msg)
 
@@ -557,11 +561,13 @@ class YnlFamily(SpecFamily):
 
         if attr["type"] == 'nest':
             nl_type |= Netlink.NLA_F_NESTED
-            attr_payload = b''
             sub_space = attr['nested-attributes']
-            sub_attrs = SpaceAttrs(self.attr_sets[sub_space], value, search_attrs)
-            for subname, subvalue in value.items():
-                attr_payload += self._add_attr(sub_space, subname, subvalue, sub_attrs)
+            attr_payload = self._add_nest_attrs(value, sub_space, search_attrs)
+        elif attr['type'] == 'indexed-array' and attr['sub-type'] == 'nest':
+            nl_type |= Netlink.NLA_F_NESTED
+            sub_space = attr['nested-attributes']
+            attr_payload = self._encode_indexed_array(value, sub_space,
+                                                      search_attrs)
         elif attr["type"] == 'flag':
             if not value:
                 # If value is absent or false then skip attribute creation.
@@ -570,7 +576,9 @@ class YnlFamily(SpecFamily):
         elif attr["type"] == 'string':
             attr_payload = str(value).encode('ascii') + b'\x00'
         elif attr["type"] == 'binary':
-            if isinstance(value, bytes):
+            if value is None:
+                attr_payload = b''
+            elif isinstance(value, bytes):
                 attr_payload = value
             elif isinstance(value, str):
                 if attr.display_hint:
@@ -579,6 +587,9 @@ class YnlFamily(SpecFamily):
                     attr_payload = bytes.fromhex(value)
             elif isinstance(value, dict) and attr.struct_name:
                 attr_payload = self._encode_struct(attr.struct_name, value)
+            elif isinstance(value, list) and attr.sub_type in NlAttr.type_formats:
+                format = NlAttr.get_format(attr.sub_type)
+                attr_payload = b''.join([format.pack(x) for x in value])
             else:
                 raise Exception(f'Unknown type for binary attribute, value: {value}')
         elif attr['type'] in NlAttr.type_formats or attr.is_auto_scalar:
@@ -610,8 +621,37 @@ class YnlFamily(SpecFamily):
         else:
             raise Exception(f'Unknown type at {space} {name} {value} {attr["type"]}')
 
+        return self._add_attr_raw(nl_type, attr_payload)
+
+    def _add_attr_raw(self, nl_type, attr_payload):
         pad = b'\x00' * ((4 - len(attr_payload) % 4) % 4)
         return struct.pack('HH', len(attr_payload) + 4, nl_type) + attr_payload + pad
+
+    def _add_nest_attrs(self, value, sub_space, search_attrs):
+        sub_attrs = SpaceAttrs(self.attr_sets[sub_space], value, search_attrs)
+        attr_payload = b''
+        for subname, subvalue in value.items():
+            attr_payload += self._add_attr(sub_space, subname, subvalue,
+                                           sub_attrs)
+        return attr_payload
+
+    def _encode_indexed_array(self, vals, sub_space, search_attrs):
+        attr_payload = b''
+        for i, val in enumerate(vals):
+            idx = i | Netlink.NLA_F_NESTED
+            val_payload = self._add_nest_attrs(val, sub_space, search_attrs)
+            attr_payload += self._add_attr_raw(idx, val_payload)
+        return attr_payload
+
+    def _get_enum_or_unknown(self, enum, raw):
+        try:
+            name = enum.entries_by_val[raw].name
+        except KeyError as error:
+            if self.process_unknown:
+                name = f"Unknown({raw})"
+            else:
+                raise error
+        return name
 
     def _decode_enum(self, raw, attr_spec):
         enum = self.consts[attr_spec['enum']]
@@ -620,11 +660,11 @@ class YnlFamily(SpecFamily):
             value = set()
             while raw:
                 if raw & 1:
-                    value.add(enum.entries_by_val[i].name)
+                    value.add(self._get_enum_or_unknown(enum, i))
                 raw >>= 1
                 i += 1
         else:
-            value = enum.entries_by_val[raw].name
+            value = self._get_enum_or_unknown(enum, raw)
         return value
 
     def _decode_binary(self, attr, attr_spec):
@@ -686,7 +726,7 @@ class YnlFamily(SpecFamily):
             return attr.as_bin()
 
     def _rsp_add(self, rsp, name, is_multi, decoded):
-        if is_multi == None:
+        if is_multi is None:
             if name in rsp and type(rsp[name]) is not list:
                 rsp[name] = [rsp[name]]
                 is_multi = True
@@ -719,14 +759,14 @@ class YnlFamily(SpecFamily):
         decoded = {}
         offset = 0
         if msg_format.fixed_header:
-            decoded.update(self._decode_struct(attr.raw, msg_format.fixed_header));
+            decoded.update(self._decode_struct(attr.raw, msg_format.fixed_header))
             offset = self._struct_size(msg_format.fixed_header)
         if msg_format.attr_set:
             if msg_format.attr_set in self.attr_sets:
                 subdict = self._decode(NlAttrs(attr.raw, offset), msg_format.attr_set)
                 decoded.update(subdict)
             else:
-                raise Exception(f"Unknown attribute-set '{attr_space}' when decoding '{attr_spec.name}'")
+                raise Exception(f"Unknown attribute-set '{msg_format.attr_set}' when decoding '{attr_spec.name}'")
         return decoded
 
     def _decode(self, attrs, space, outer_attrs = None):
@@ -757,6 +797,8 @@ class YnlFamily(SpecFamily):
                     decoded = True
                 elif attr_spec.is_auto_scalar:
                     decoded = attr.as_auto_scalar(attr_spec['type'], attr_spec.byte_order)
+                    if 'enum' in attr_spec:
+                        decoded = self._decode_enum(decoded, attr_spec)
                 elif attr_spec["type"] in NlAttr.type_formats:
                     decoded = attr.as_scalar(attr_spec['type'], attr_spec.byte_order)
                     if 'enum' in attr_spec:
@@ -914,7 +956,7 @@ class YnlFamily(SpecFamily):
                 formatted = hex(raw)
             else:
                 formatted = bytes.hex(raw, ' ')
-        elif display_hint in [ 'ipv4', 'ipv6' ]:
+        elif display_hint in [ 'ipv4', 'ipv6', 'ipv4-or-v6' ]:
             formatted = format(ipaddress.ip_address(raw))
         elif display_hint == 'uuid':
             formatted = str(uuid.UUID(bytes=raw))
@@ -923,12 +965,17 @@ class YnlFamily(SpecFamily):
         return formatted
 
     def _from_string(self, string, attr_spec):
-        if attr_spec.display_hint in ['ipv4', 'ipv6']:
+        if attr_spec.display_hint in ['ipv4', 'ipv6', 'ipv4-or-v6']:
             ip = ipaddress.ip_address(string)
             if attr_spec['type'] == 'binary':
                 raw = ip.packed
             else:
                 raw = int(ip)
+        elif attr_spec.display_hint == 'hex':
+            if attr_spec['type'] == 'binary':
+                raw = bytes.fromhex(string)
+            else:
+                raw = int(string, 16)
         else:
             raise Exception(f"Display hint '{attr_spec.display_hint}' not implemented"
                             f" when parsing '{attr_spec['name']}'")
@@ -1034,12 +1081,13 @@ class YnlFamily(SpecFamily):
         op_rsp = []
         while not done:
             reply = self.sock.recv(self._recv_size)
-            nms = NlMsgs(reply, attr_space=op.attr_set)
+            nms = NlMsgs(reply)
             self._recv_dbg_print(reply, nms)
             for nl_msg in nms:
                 if nl_msg.nl_seq in reqs_by_seq:
                     (op, vals, req_msg, req_flags) = reqs_by_seq[nl_msg.nl_seq]
                     if nl_msg.extack:
+                        nl_msg.annotate_extack(op.attr_set)
                         self._decode_extack(req_msg, op, nl_msg.extack, vals)
                 else:
                     op = None

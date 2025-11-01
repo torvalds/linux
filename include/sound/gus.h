@@ -515,7 +515,6 @@ struct _SND_IW_LFO_PROGRAM {
 
 /* gus_mem.c */
 
-void snd_gf1_mem_lock(struct snd_gf1_mem * alloc, int xup);
 int snd_gf1_mem_xfree(struct snd_gf1_mem * alloc, struct snd_gf1_mem_block * block);
 struct snd_gf1_mem_block *snd_gf1_mem_alloc(struct snd_gf1_mem * alloc, int owner,
 				       char *name, int size, int w_16,

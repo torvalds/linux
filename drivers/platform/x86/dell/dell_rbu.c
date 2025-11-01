@@ -45,7 +45,7 @@
 MODULE_AUTHOR("Abhay Salunke <abhay_salunke@dell.com>");
 MODULE_DESCRIPTION("Driver for updating BIOS image on DELL systems");
 MODULE_LICENSE("GPL");
-MODULE_VERSION("3.2");
+MODULE_VERSION("3.3");
 
 #define BIOS_SCAN_LIMIT 0xffffffff
 #define MAX_IMAGE_LENGTH 16
@@ -77,21 +77,21 @@ struct packet_data {
 	int ordernum;
 };
 
-static struct packet_data packet_data_head;
+static struct list_head packet_data_list;
 
 static struct platform_device *rbu_device;
 static int context;
 
 static void init_packet_head(void)
 {
-	INIT_LIST_HEAD(&packet_data_head.list);
+	INIT_LIST_HEAD(&packet_data_list);
 	rbu_data.packet_read_count = 0;
 	rbu_data.num_packets = 0;
 	rbu_data.packetsize = 0;
 	rbu_data.imagesize = 0;
 }
 
-static int create_packet(void *data, size_t length)
+static int create_packet(void *data, size_t length) __must_hold(&rbu_data.lock)
 {
 	struct packet_data *newpacket;
 	int ordernum = 0;
@@ -183,7 +183,7 @@ static int create_packet(void *data, size_t length)
 
 	/* initialize the newly created packet headers */
 	INIT_LIST_HEAD(&newpacket->list);
-	list_add_tail(&newpacket->list, &packet_data_head.list);
+	list_add_tail(&newpacket->list, &packet_data_list);
 
 	memcpy(newpacket->data, data, length);
 
@@ -232,7 +232,8 @@ static int packetize_data(const u8 *data, size_t length)
 			done = 1;
 		}
 
-		if ((rc = create_packet(temp, packet_length)))
+		rc = create_packet(temp, packet_length);
+		if (rc)
 			return rc;
 
 		pr_debug("%p:%td\n", temp, (end - temp));
@@ -276,7 +277,7 @@ static int do_packet_read(char *data, struct packet_data *newpacket,
 	return bytes_copied;
 }
 
-static int packet_read_list(char *data, size_t * pread_length)
+static int packet_read_list(char *data, size_t *pread_length)
 {
 	struct packet_data *newpacket;
 	int temp_count = 0;
@@ -292,7 +293,7 @@ static int packet_read_list(char *data, size_t * pread_length)
 	remaining_bytes = *pread_length;
 	bytes_read = rbu_data.packet_read_count;
 
-	list_for_each_entry(newpacket, (&packet_data_head.list)->next, list) {
+	list_for_each_entry(newpacket, &packet_data_list, list) {
 		bytes_copied = do_packet_read(pdest, newpacket,
 			remaining_bytes, bytes_read, &temp_count);
 		remaining_bytes -= bytes_copied;
@@ -315,14 +316,14 @@ static void packet_empty_list(void)
 {
 	struct packet_data *newpacket, *tmp;
 
-	list_for_each_entry_safe(newpacket, tmp, (&packet_data_head.list)->next, list) {
+	list_for_each_entry_safe(newpacket, tmp, &packet_data_list, list) {
 		list_del(&newpacket->list);
 
 		/*
 		 * zero out the RBU packet memory before freeing
 		 * to make sure there are no stale RBU packets left in memory
 		 */
-		memset(newpacket->data, 0, rbu_data.packetsize);
+		memset(newpacket->data, 0, newpacket->length);
 		set_memory_wb((unsigned long)newpacket->data,
 			1 << newpacket->ordernum);
 		free_pages((unsigned long) newpacket->data,
@@ -445,7 +446,8 @@ static ssize_t read_packet_data(char *buffer, loff_t pos, size_t count)
 	bytes_left = rbu_data.imagesize - pos;
 	data_length = min(bytes_left, count);
 
-	if ((retval = packet_read_list(ptempBuf, &data_length)) < 0)
+	retval = packet_read_list(ptempBuf, &data_length);
+	if (retval < 0)
 		goto read_rbu_data_exit;
 
 	if ((pos + count) > rbu_data.imagesize) {
@@ -636,7 +638,7 @@ static const struct bin_attribute *const rbu_bin_attrs[] = {
 };
 
 static const struct attribute_group rbu_group = {
-	.bin_attrs_new = rbu_bin_attrs,
+	.bin_attrs = rbu_bin_attrs,
 };
 
 static int __init dcdrbu_init(void)

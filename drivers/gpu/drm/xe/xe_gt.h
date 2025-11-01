@@ -12,6 +12,7 @@
 
 #include "xe_device.h"
 #include "xe_device_types.h"
+#include "xe_gt_sriov_vf.h"
 #include "xe_hw_engine.h"
 
 #define for_each_hw_engine(hwe__, gt__, id__) \
@@ -21,14 +22,19 @@
 
 #define CCS_MASK(gt) (((gt)->info.engine_mask & XE_HW_ENGINE_CCS_MASK) >> XE_HW_ENGINE_CCS0)
 
+#define GT_VER(gt) ({ \
+	typeof(gt) gt_ = (gt); \
+	struct xe_device *xe = gt_to_xe(gt_); \
+	xe_gt_is_media_type(gt_) ? MEDIA_VER(xe) : GRAPHICS_VER(xe); \
+})
+
 extern struct fault_attr gt_reset_failure;
 static inline bool xe_fault_inject_gt_reset(void)
 {
-	return should_fail(&gt_reset_failure, 1);
+	return IS_ENABLED(CONFIG_DEBUG_FS) && should_fail(&gt_reset_failure, 1);
 }
 
 struct xe_gt *xe_gt_alloc(struct xe_tile *tile);
-int xe_gt_init_hwconfig(struct xe_gt *gt);
 int xe_gt_init_early(struct xe_gt *gt);
 int xe_gt_init(struct xe_gt *gt);
 void xe_gt_mmio_init(struct xe_gt *gt);
@@ -107,6 +113,11 @@ static inline bool xe_gt_has_indirect_ring_state(struct xe_gt *gt)
 	       xe_device_uc_enabled(gt_to_xe(gt));
 }
 
+static inline bool xe_gt_is_main_type(struct xe_gt *gt)
+{
+	return gt->info.type == XE_GT_TYPE_MAIN;
+}
+
 static inline bool xe_gt_is_media_type(struct xe_gt *gt)
 {
 	return gt->info.type == XE_GT_TYPE_MEDIA;
@@ -118,6 +129,18 @@ static inline bool xe_gt_is_usm_hwe(struct xe_gt *gt, struct xe_hw_engine *hwe)
 
 	return xe->info.has_usm && hwe->class == XE_ENGINE_CLASS_COPY &&
 		hwe->instance == gt->usm.reserved_bcs_instance;
+}
+
+/**
+ * xe_gt_recovery_pending() - GT recovery pending
+ * @gt: the &xe_gt
+ *
+ * Return: True if GT recovery in pending, False otherwise
+ */
+static inline bool xe_gt_recovery_pending(struct xe_gt *gt)
+{
+	return IS_SRIOV_VF(gt_to_xe(gt)) &&
+		xe_gt_sriov_vf_recovery_pending(gt);
 }
 
 #endif

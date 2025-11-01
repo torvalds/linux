@@ -317,7 +317,7 @@ static void p54_pspoll_workaround(struct p54_common *priv, struct sk_buff *skb)
 	tim_len = tim[1];
 	tim_ie = (struct ieee80211_tim_ie *) &tim[2];
 
-	new_psm = ieee80211_check_tim(tim_ie, tim_len, priv->aid);
+	new_psm = ieee80211_check_tim(tim_ie, tim_len, priv->aid, false);
 	if (new_psm != priv->powersave_override) {
 		priv->powersave_override = new_psm;
 		p54_set_ps(priv);

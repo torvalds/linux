@@ -1038,12 +1038,17 @@ static inline struct sk_buff *qdisc_dequeue_internal(struct Qdisc *sch, bool dir
 	skb = __skb_dequeue(&sch->gso_skb);
 	if (skb) {
 		sch->q.qlen--;
+		qdisc_qstats_backlog_dec(sch, skb);
 		return skb;
 	}
-	if (direct)
-		return __qdisc_dequeue_head(&sch->q);
-	else
+	if (direct) {
+		skb = __qdisc_dequeue_head(&sch->q);
+		if (skb)
+			qdisc_qstats_backlog_dec(sch, skb);
+		return skb;
+	} else {
 		return sch->dequeue(sch);
+	}
 }
 
 static inline struct sk_buff *qdisc_dequeue_head(struct Qdisc *sch)

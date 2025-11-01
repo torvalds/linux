@@ -1347,7 +1347,7 @@ static const int TSI148_LCSR_INTC_MBC[4] = { TSI148_LCSR_INTC_MB0C,
 #define TSI148_GCSR_GCTRL_LRST         BIT(15)	/* Local Reset */
 #define TSI148_GCSR_GCTRL_SFAILEN      BIT(14)	/* System Fail enable */
 #define TSI148_GCSR_GCTRL_BDFAILS      BIT(13)	/* Board Fail Status */
-#define TSI148_GCSR_GCTRL_SCON         BIT(12)	/* System Copntroller */
+#define TSI148_GCSR_GCTRL_SCON         BIT(12)	/* System Controller */
 #define TSI148_GCSR_GCTRL_MEN          BIT(11)	/* Module Enable (READY) */
 
 #define TSI148_GCSR_GCTRL_LMI3S        BIT(7)	/* Loc Monitor 3 Int Status */

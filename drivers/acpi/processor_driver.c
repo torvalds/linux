@@ -166,8 +166,7 @@ static int __acpi_processor_start(struct acpi_device *device)
 	if (result && !IS_ENABLED(CONFIG_ACPI_CPU_FREQ_PSS))
 		dev_dbg(&device->dev, "CPPC data invalid or not present\n");
 
-	if (!cpuidle_get_driver() || cpuidle_get_driver() == &acpi_idle_driver)
-		acpi_processor_power_init(pr);
+	acpi_processor_power_init(pr);
 
 	acpi_pss_perf_init(pr);
 
@@ -263,6 +262,8 @@ static int __init acpi_processor_driver_init(void)
 	if (result < 0)
 		return result;
 
+	acpi_processor_register_idle_driver();
+
 	result = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN,
 				   "acpi/cpu-drv:online",
 				   acpi_soft_cpu_online, NULL);
@@ -301,6 +302,7 @@ static void __exit acpi_processor_driver_exit(void)
 
 	cpuhp_remove_state_nocalls(hp_online);
 	cpuhp_remove_state_nocalls(CPUHP_ACPI_CPUDRV_DEAD);
+	acpi_processor_unregister_idle_driver();
 	driver_unregister(&acpi_processor_driver);
 }
 

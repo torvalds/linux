@@ -47,29 +47,20 @@ rcbagbt_init_rec_from_cur(
 	bag_rec->rbg_refcount = bag_irec->rbg_refcount;
 }
 
-STATIC int64_t
-rcbagbt_key_diff(
+STATIC int
+rcbagbt_cmp_key_with_cur(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_key	*key)
 {
 	struct rcbag_rec		*rec = (struct rcbag_rec *)&cur->bc_rec;
 	const struct rcbag_key		*kp = (const struct rcbag_key *)key;
 
-	if (kp->rbg_startblock > rec->rbg_startblock)
-		return 1;
-	if (kp->rbg_startblock < rec->rbg_startblock)
-		return -1;
-
-	if (kp->rbg_blockcount > rec->rbg_blockcount)
-		return 1;
-	if (kp->rbg_blockcount < rec->rbg_blockcount)
-		return -1;
-
-	return 0;
+	return cmp_int(kp->rbg_startblock, rec->rbg_startblock) ?:
+	       cmp_int(kp->rbg_blockcount, rec->rbg_blockcount);
 }
 
-STATIC int64_t
-rcbagbt_diff_two_keys(
+STATIC int
+rcbagbt_cmp_two_keys(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_key	*k1,
 	const union xfs_btree_key	*k2,
@@ -80,17 +71,8 @@ rcbagbt_diff_two_keys(
 
 	ASSERT(mask == NULL);
 
-	if (kp1->rbg_startblock > kp2->rbg_startblock)
-		return 1;
-	if (kp1->rbg_startblock < kp2->rbg_startblock)
-		return -1;
-
-	if (kp1->rbg_blockcount > kp2->rbg_blockcount)
-		return 1;
-	if (kp1->rbg_blockcount < kp2->rbg_blockcount)
-		return -1;
-
-	return 0;
+	return cmp_int(kp1->rbg_startblock, kp2->rbg_startblock) ?:
+	       cmp_int(kp1->rbg_blockcount, kp2->rbg_blockcount);
 }
 
 STATIC int
@@ -201,9 +183,9 @@ static const struct xfs_btree_ops rcbagbt_mem_ops = {
 	.init_key_from_rec	= rcbagbt_init_key_from_rec,
 	.init_rec_from_cur	= rcbagbt_init_rec_from_cur,
 	.init_ptr_from_cur	= xfbtree_init_ptr_from_cur,
-	.key_diff		= rcbagbt_key_diff,
+	.cmp_key_with_cur	= rcbagbt_cmp_key_with_cur,
 	.buf_ops		= &rcbagbt_mem_buf_ops,
-	.diff_two_keys		= rcbagbt_diff_two_keys,
+	.cmp_two_keys		= rcbagbt_cmp_two_keys,
 	.keys_inorder		= rcbagbt_keys_inorder,
 	.recs_inorder		= rcbagbt_recs_inorder,
 };

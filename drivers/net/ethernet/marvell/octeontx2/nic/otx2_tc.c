@@ -467,7 +467,8 @@ static int otx2_tc_parse_actions(struct otx2_nic *nic,
 			target = act->dev;
 			if (target->dev.parent) {
 				priv = netdev_priv(target);
-				if (rvu_get_pf(nic->pcifunc) != rvu_get_pf(priv->pcifunc)) {
+				if (rvu_get_pf(nic->pdev, nic->pcifunc) !=
+					rvu_get_pf(nic->pdev, priv->pcifunc)) {
 					NL_SET_ERR_MSG_MOD(extack,
 							   "can't redirect to other pf/vf");
 					return -EOPNOTSUPP;
@@ -1325,7 +1326,6 @@ static int otx2_tc_add_flow(struct otx2_nic *nic,
 
 free_leaf:
 	otx2_tc_del_from_flow_list(flow_cfg, new_node);
-	kfree_rcu(new_node, rcu);
 	if (new_node->is_act_police) {
 		mutex_lock(&nic->mbox.lock);
 
@@ -1345,6 +1345,7 @@ free_leaf:
 
 		mutex_unlock(&nic->mbox.lock);
 	}
+	kfree_rcu(new_node, rcu);
 
 	return rc;
 }

@@ -29,7 +29,7 @@
 #define RISCV_HEADER_VERSION (RISCV_HEADER_VERSION_MAJOR << 16 | \
 			      RISCV_HEADER_VERSION_MINOR)
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #define riscv_image_flag_field(flags, field)\
 			       (((flags) >> field##_SHIFT) & field##_MASK)
 /**
@@ -63,5 +63,5 @@ struct riscv_image_header {
 	u32 magic2;
 	u32 res3;
 };
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 #endif /* _ASM_RISCV_IMAGE_H */

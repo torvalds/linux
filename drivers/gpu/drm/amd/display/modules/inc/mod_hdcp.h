@@ -220,6 +220,7 @@ struct mod_hdcp_link_adjustment_hdcp2 {
 
 struct mod_hdcp_link_adjustment {
 	uint8_t auth_delay;
+	uint8_t retry_limit;
 	struct mod_hdcp_link_adjustment_hdcp1 hdcp1;
 	struct mod_hdcp_link_adjustment_hdcp2 hdcp2;
 };
@@ -229,9 +230,23 @@ struct mod_hdcp_error {
 	uint8_t state_id;
 };
 
+struct mod_hdcp1_trace {
+	uint8_t attempt_count;
+	uint8_t downstream_device_count;
+};
+
+struct mod_hdcp2_trace {
+	uint8_t attempt_count;
+	uint8_t downstream_device_count;
+	uint8_t hdcp1_device_downstream;
+	uint8_t hdcp2_legacy_device_downstream;
+};
+
 struct mod_hdcp_trace {
 	struct mod_hdcp_error errors[MAX_NUM_OF_ERROR_TRACE];
 	uint8_t error_count;
+	struct mod_hdcp1_trace hdcp1;
+	struct mod_hdcp2_trace hdcp2;
 };
 
 enum mod_hdcp_encryption_status {

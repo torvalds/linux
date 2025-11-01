@@ -103,7 +103,7 @@ static void bpf_token_show_fdinfo(struct seq_file *m, struct file *filp)
 
 static const struct inode_operations bpf_token_iops = { };
 
-static const struct file_operations bpf_token_fops = {
+const struct file_operations bpf_token_fops = {
 	.release	= bpf_token_release,
 	.show_fdinfo	= bpf_token_show_fdinfo,
 };
@@ -208,6 +208,29 @@ out_token:
 out_file:
 	fput(file);
 	return err;
+}
+
+int bpf_token_get_info_by_fd(struct bpf_token *token,
+			     const union bpf_attr *attr,
+			     union bpf_attr __user *uattr)
+{
+	struct bpf_token_info __user *uinfo = u64_to_user_ptr(attr->info.info);
+	struct bpf_token_info info;
+	u32 info_len = attr->info.info_len;
+
+	info_len = min_t(u32, info_len, sizeof(info));
+	memset(&info, 0, sizeof(info));
+
+	info.allowed_cmds = token->allowed_cmds;
+	info.allowed_maps = token->allowed_maps;
+	info.allowed_progs = token->allowed_progs;
+	info.allowed_attachs = token->allowed_attachs;
+
+	if (copy_to_user(uinfo, &info, info_len) ||
+	    put_user(info_len, &uattr->info.info_len))
+		return -EFAULT;
+
+	return 0;
 }
 
 struct bpf_token *bpf_token_get_from_fd(u32 ufd)

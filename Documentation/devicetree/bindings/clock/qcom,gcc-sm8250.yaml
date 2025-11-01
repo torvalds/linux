@@ -14,7 +14,7 @@ description: |
   Qualcomm global clock control module provides the clocks, resets and power
   domains on SM8250.
 
-  See also:: include/dt-bindings/clock/qcom,gcc-sm8250.h
+  See also: include/dt-bindings/clock/qcom,gcc-sm8250.h
 
 properties:
   compatible:

@@ -224,7 +224,7 @@ static int io_poll_check_events(struct io_kiocb *req, io_tw_token_t tw)
 {
 	int v;
 
-	if (unlikely(io_should_terminate_tw()))
+	if (unlikely(io_should_terminate_tw(req->ctx)))
 		return -ECANCELED;
 
 	do {
@@ -273,8 +273,6 @@ static int io_poll_check_events(struct io_kiocb *req, io_tw_token_t tw)
 				return IOU_POLL_REISSUE;
 			}
 		}
-		if (unlikely(req->cqe.res & EPOLLERR))
-			req_set_fail(req);
 		if (req->apoll_events & EPOLLONESHOT)
 			return IOU_POLL_DONE;
 
@@ -318,10 +316,8 @@ void io_poll_task_func(struct io_kiocb *req, io_tw_token_t tw)
 
 	ret = io_poll_check_events(req, tw);
 	if (ret == IOU_POLL_NO_ACTION) {
-		io_kbuf_recycle(req, 0);
 		return;
 	} else if (ret == IOU_POLL_REQUEUE) {
-		io_kbuf_recycle(req, 0);
 		__io_poll_execute(req, 0);
 		return;
 	}
@@ -669,20 +665,41 @@ static struct async_poll *io_req_alloc_apoll(struct io_kiocb *req,
 	return apoll;
 }
 
+int io_arm_apoll(struct io_kiocb *req, unsigned issue_flags, __poll_t mask)
+{
+	struct async_poll *apoll;
+	struct io_poll_table ipt;
+	int ret;
+
+	mask |= EPOLLET;
+	if (!io_file_can_poll(req))
+		return IO_APOLL_ABORTED;
+	if (!(req->flags & REQ_F_APOLL_MULTISHOT))
+		mask |= EPOLLONESHOT;
+
+	apoll = io_req_alloc_apoll(req, issue_flags);
+	if (!apoll)
+		return IO_APOLL_ABORTED;
+	req->flags &= ~(REQ_F_SINGLE_POLL | REQ_F_DOUBLE_POLL);
+	req->flags |= REQ_F_POLLED;
+	ipt.pt._qproc = io_async_queue_proc;
+
+	ret = __io_arm_poll_handler(req, &apoll->poll, &ipt, mask, issue_flags);
+	if (ret)
+		return ret > 0 ? IO_APOLL_READY : IO_APOLL_ABORTED;
+	trace_io_uring_poll_arm(req, mask, apoll->poll.events);
+	return IO_APOLL_OK;
+}
+
 int io_arm_poll_handler(struct io_kiocb *req, unsigned issue_flags)
 {
 	const struct io_issue_def *def = &io_issue_defs[req->opcode];
-	struct async_poll *apoll;
-	struct io_poll_table ipt;
-	__poll_t mask = POLLPRI | POLLERR | EPOLLET;
-	int ret;
+	__poll_t mask = POLLPRI | POLLERR;
 
 	if (!def->pollin && !def->pollout)
 		return IO_APOLL_ABORTED;
 	if (!io_file_can_poll(req))
 		return IO_APOLL_ABORTED;
-	if (!(req->flags & REQ_F_APOLL_MULTISHOT))
-		mask |= EPOLLONESHOT;
 
 	if (def->pollin) {
 		mask |= EPOLLIN | EPOLLRDNORM;
@@ -696,20 +713,7 @@ int io_arm_poll_handler(struct io_kiocb *req, unsigned issue_flags)
 	if (def->poll_exclusive)
 		mask |= EPOLLEXCLUSIVE;
 
-	apoll = io_req_alloc_apoll(req, issue_flags);
-	if (!apoll)
-		return IO_APOLL_ABORTED;
-	req->flags &= ~(REQ_F_SINGLE_POLL | REQ_F_DOUBLE_POLL);
-	req->flags |= REQ_F_POLLED;
-	ipt.pt._qproc = io_async_queue_proc;
-
-	io_kbuf_recycle(req, issue_flags);
-
-	ret = __io_arm_poll_handler(req, &apoll->poll, &ipt, mask, issue_flags);
-	if (ret)
-		return ret > 0 ? IO_APOLL_READY : IO_APOLL_ABORTED;
-	trace_io_uring_poll_arm(req, mask, apoll->poll.events);
-	return IO_APOLL_OK;
+	return io_arm_apoll(req, issue_flags, mask);
 }
 
 /*

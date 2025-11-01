@@ -475,7 +475,7 @@ msm_hdmi_hotplug_work(struct work_struct *work)
 		container_of(work, struct hdmi_bridge, hpd_work);
 	struct drm_bridge *bridge = &hdmi_bridge->base;
 
-	drm_bridge_hpd_notify(bridge, drm_bridge_detect(bridge));
+	drm_bridge_hpd_notify(bridge, drm_bridge_detect(bridge, hdmi_bridge->hdmi->connector));
 }
 
 /* initialize bridge */

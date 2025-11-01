@@ -34,3 +34,8 @@
 # We use const helpers to aid bindgen, to avoid conflicts when constants are
 # recognized, block generation of the non-helper constants.
 --blocklist-item ARCH_SLAB_MINALIGN
+--blocklist-item ARCH_KMALLOC_MINALIGN
+
+# Structs should implement `Zeroable` when all of their fields do.
+--with-derive-custom-struct .*=MaybeZeroable
+--with-derive-custom-union .*=MaybeZeroable

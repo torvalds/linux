@@ -239,7 +239,6 @@ static int snd_interwave_detect(struct snd_interwave *iwcard,
 #endif
 				          )
 {
-	unsigned long flags;
 	unsigned char rev1, rev2;
 	int d;
 
@@ -257,12 +256,12 @@ static int snd_interwave_detect(struct snd_interwave *iwcard,
 		dev_dbg(gus->card->dev, "[0x%lx] check 2 failed - 0x%x\n", gus->gf1.port, d);
 		return -ENODEV;
 	}
-	spin_lock_irqsave(&gus->reg_lock, flags);
-	rev1 = snd_gf1_look8(gus, SNDRV_GF1_GB_VERSION_NUMBER);
-	snd_gf1_write8(gus, SNDRV_GF1_GB_VERSION_NUMBER, ~rev1);
-	rev2 = snd_gf1_look8(gus, SNDRV_GF1_GB_VERSION_NUMBER);
-	snd_gf1_write8(gus, SNDRV_GF1_GB_VERSION_NUMBER, rev1);
-	spin_unlock_irqrestore(&gus->reg_lock, flags);
+	scoped_guard(spinlock_irqsave, &gus->reg_lock) {
+		rev1 = snd_gf1_look8(gus, SNDRV_GF1_GB_VERSION_NUMBER);
+		snd_gf1_write8(gus, SNDRV_GF1_GB_VERSION_NUMBER, ~rev1);
+		rev2 = snd_gf1_look8(gus, SNDRV_GF1_GB_VERSION_NUMBER);
+		snd_gf1_write8(gus, SNDRV_GF1_GB_VERSION_NUMBER, rev1);
+	}
 	dev_dbg(gus->card->dev,
 		"[0x%lx] InterWave check - rev1=0x%x, rev2=0x%x\n",
 		gus->gf1.port, rev1, rev2);
@@ -271,7 +270,7 @@ static int snd_interwave_detect(struct snd_interwave *iwcard,
 		dev_dbg(gus->card->dev,
 			"[0x%lx] InterWave check - passed\n", gus->gf1.port);
 		gus->interwave = 1;
-		strcpy(gus->card->shortname, "AMD InterWave");
+		strscpy(gus->card->shortname, "AMD InterWave");
 		gus->revision = rev1 >> 4;
 #ifndef SNDRV_STB
 		return 0;	/* ok.. We have an InterWave board */
@@ -457,18 +456,16 @@ static void snd_interwave_detect_memory(struct snd_gus_card *gus)
 
 static void snd_interwave_init(int dev, struct snd_gus_card *gus)
 {
-	unsigned long flags;
-
 	/* ok.. some InterWave specific initialization */
-	spin_lock_irqsave(&gus->reg_lock, flags);
-	snd_gf1_write8(gus, SNDRV_GF1_GB_SOUND_BLASTER_CONTROL, 0x00);
-	snd_gf1_write8(gus, SNDRV_GF1_GB_COMPATIBILITY, 0x1f);
-	snd_gf1_write8(gus, SNDRV_GF1_GB_DECODE_CONTROL, 0x49);
-	snd_gf1_write8(gus, SNDRV_GF1_GB_VERSION_NUMBER, 0x11);
-	snd_gf1_write8(gus, SNDRV_GF1_GB_MPU401_CONTROL_A, 0x00);
-	snd_gf1_write8(gus, SNDRV_GF1_GB_MPU401_CONTROL_B, 0x30);
-	snd_gf1_write8(gus, SNDRV_GF1_GB_EMULATION_IRQ, 0x00);
-	spin_unlock_irqrestore(&gus->reg_lock, flags);
+	scoped_guard(spinlock_irqsave, &gus->reg_lock) {
+		snd_gf1_write8(gus, SNDRV_GF1_GB_SOUND_BLASTER_CONTROL, 0x00);
+		snd_gf1_write8(gus, SNDRV_GF1_GB_COMPATIBILITY, 0x1f);
+		snd_gf1_write8(gus, SNDRV_GF1_GB_DECODE_CONTROL, 0x49);
+		snd_gf1_write8(gus, SNDRV_GF1_GB_VERSION_NUMBER, 0x11);
+		snd_gf1_write8(gus, SNDRV_GF1_GB_MPU401_CONTROL_A, 0x00);
+		snd_gf1_write8(gus, SNDRV_GF1_GB_MPU401_CONTROL_B, 0x30);
+		snd_gf1_write8(gus, SNDRV_GF1_GB_EMULATION_IRQ, 0x00);
+	}
 	gus->equal_irq = 1;
 	gus->codec_flag = 1;
 	gus->interwave = 1;
@@ -500,11 +497,11 @@ static int snd_interwave_mixer(struct snd_wss *chip)
 	id1.iface = id2.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
 #if 0
 	/* remove mono microphone controls */
-	strcpy(id1.name, "Mic Playback Switch");
+	strscpy(id1.name, "Mic Playback Switch");
 	err = snd_ctl_remove_id(card, &id1);
 	if (err < 0)
 		return err;
-	strcpy(id1.name, "Mic Playback Volume");
+	strscpy(id1.name, "Mic Playback Volume");
 	err = snd_ctl_remove_id(card, &id1);
 	if (err < 0)
 		return err;
@@ -520,24 +517,24 @@ static int snd_interwave_mixer(struct snd_wss *chip)
 	snd_wss_out(chip, CS4231_LEFT_MIC_INPUT, 0x9f);
 	snd_wss_out(chip, CS4231_RIGHT_MIC_INPUT, 0x9f);
 	/* reassign AUXA to SYNTHESIZER */
-	strcpy(id1.name, "Aux Playback Switch");
-	strcpy(id2.name, "Synth Playback Switch");
+	strscpy(id1.name, "Aux Playback Switch");
+	strscpy(id2.name, "Synth Playback Switch");
 	err = snd_ctl_rename_id(card, &id1, &id2);
 	if (err < 0)
 		return err;
-	strcpy(id1.name, "Aux Playback Volume");
-	strcpy(id2.name, "Synth Playback Volume");
+	strscpy(id1.name, "Aux Playback Volume");
+	strscpy(id2.name, "Synth Playback Volume");
 	err = snd_ctl_rename_id(card, &id1, &id2);
 	if (err < 0)
 		return err;
 	/* reassign AUXB to CD */
-	strcpy(id1.name, "Aux Playback Switch"); id1.index = 1;
-	strcpy(id2.name, "CD Playback Switch");
+	strscpy(id1.name, "Aux Playback Switch"); id1.index = 1;
+	strscpy(id2.name, "CD Playback Switch");
 	err = snd_ctl_rename_id(card, &id1, &id2);
 	if (err < 0)
 		return err;
-	strcpy(id1.name, "Aux Playback Volume");
-	strcpy(id2.name, "CD Playback Volume");
+	strscpy(id1.name, "Aux Playback Volume");
+	strscpy(id2.name, "CD Playback Volume");
 	err = snd_ctl_rename_id(card, &id1, &id2);
 	if (err < 0)
 		return err;
@@ -713,14 +710,14 @@ static int snd_interwave_probe(struct snd_card *card, int dev,
 		memset(&id1, 0, sizeof(id1));
 		memset(&id2, 0, sizeof(id2));
 		id1.iface = id2.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
-		strcpy(id1.name, "Master Playback Switch");
-		strcpy(id2.name, id1.name);
+		strscpy(id1.name, "Master Playback Switch");
+		strscpy(id2.name, id1.name);
 		id2.index = 1;
 		err = snd_ctl_rename_id(card, &id1, &id2);
 		if (err < 0)
 			return err;
-		strcpy(id1.name, "Master Playback Volume");
-		strcpy(id2.name, id1.name);
+		strscpy(id1.name, "Master Playback Volume");
+		strscpy(id2.name, id1.name);
 		err = snd_ctl_rename_id(card, &id1, &id2);
 		if (err < 0)
 			return err;
@@ -742,8 +739,8 @@ static int snd_interwave_probe(struct snd_card *card, int dev,
 #else
 	str = "InterWave STB";
 #endif
-	strcpy(card->driver, str);
-	strcpy(card->shortname, str);
+	strscpy(card->driver, str);
+	strscpy(card->shortname, str);
 	sprintf(card->longname, "%s at 0x%lx, irq %i, dma %d",
 		str,
 		gus->gf1.port,

@@ -46,11 +46,15 @@ DEFINE_EVENT(kvm_transition, kvm_out,
 /* Further exit reasons */
 #define KVM_TRACE_EXIT_IDLE		64
 #define KVM_TRACE_EXIT_CACHE		65
+#define KVM_TRACE_EXIT_CPUCFG		66
+#define KVM_TRACE_EXIT_CSR		67
 
 /* Tracepoints for VM exits */
 #define kvm_trace_symbol_exit_types			\
 	{ KVM_TRACE_EXIT_IDLE,		"IDLE" },	\
-	{ KVM_TRACE_EXIT_CACHE,		"CACHE" }
+	{ KVM_TRACE_EXIT_CACHE,		"CACHE" },	\
+	{ KVM_TRACE_EXIT_CPUCFG,	"CPUCFG" },	\
+	{ KVM_TRACE_EXIT_CSR,		"CSR" }
 
 DECLARE_EVENT_CLASS(kvm_exit,
 	    TP_PROTO(struct kvm_vcpu *vcpu, unsigned int reason),
@@ -79,6 +83,14 @@ DEFINE_EVENT(kvm_exit, kvm_exit_idle,
 	     TP_ARGS(vcpu, reason));
 
 DEFINE_EVENT(kvm_exit, kvm_exit_cache,
+	     TP_PROTO(struct kvm_vcpu *vcpu, unsigned int reason),
+	     TP_ARGS(vcpu, reason));
+
+DEFINE_EVENT(kvm_exit, kvm_exit_cpucfg,
+	     TP_PROTO(struct kvm_vcpu *vcpu, unsigned int reason),
+	     TP_ARGS(vcpu, reason));
+
+DEFINE_EVENT(kvm_exit, kvm_exit_csr,
 	     TP_PROTO(struct kvm_vcpu *vcpu, unsigned int reason),
 	     TP_ARGS(vcpu, reason));
 
@@ -147,6 +159,41 @@ TRACE_EVENT(kvm_aux,
 		      __print_symbolic(__entry->state,
 				       kvm_trace_symbol_aux_state),
 		      __entry->pc)
+);
+
+#define KVM_TRACE_IOCSR_READ_UNSATISFIED 0
+#define KVM_TRACE_IOCSR_READ 1
+#define KVM_TRACE_IOCSR_WRITE 2
+
+#define kvm_trace_symbol_iocsr \
+	{ KVM_TRACE_IOCSR_READ_UNSATISFIED, "unsatisfied-read" }, \
+	{ KVM_TRACE_IOCSR_READ, "read" }, \
+	{ KVM_TRACE_IOCSR_WRITE, "write" }
+
+TRACE_EVENT(kvm_iocsr,
+	TP_PROTO(int type, int len, u64 gpa, void *val),
+	TP_ARGS(type, len, gpa, val),
+
+	TP_STRUCT__entry(
+		__field(	u32,	type	)
+		__field(	u32,	len	)
+		__field(	u64,	gpa	)
+		__field(	u64,	val	)
+	),
+
+	TP_fast_assign(
+		__entry->type		= type;
+		__entry->len		= len;
+		__entry->gpa		= gpa;
+		__entry->val		= 0;
+		if (val)
+			memcpy(&__entry->val, val,
+			       min_t(u32, sizeof(__entry->val), len));
+	),
+
+	TP_printk("iocsr %s len %u gpa 0x%llx val 0x%llx",
+		  __print_symbolic(__entry->type, kvm_trace_symbol_iocsr),
+		  __entry->len, __entry->gpa, __entry->val)
 );
 
 TRACE_EVENT(kvm_vpid_change,

@@ -430,4 +430,5 @@ const struct ethtool_ops bcmasp_ethtool_ops = {
 	.get_ethtool_stats	= bcmasp_get_ethtool_stats,
 	.get_sset_count		= bcmasp_get_sset_count,
 	.get_ts_info		= ethtool_op_get_ts_info,
+	.nway_reset		= phy_ethtool_nway_reset,
 };

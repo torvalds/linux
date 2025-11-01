@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (C) 2018 Intel Corporation
 
-#include <linux/unaligned.h>
 #include <linux/acpi.h>
+#include <linux/clk.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
+#include <linux/unaligned.h>
+
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
@@ -106,11 +108,12 @@ struct imx319_mode {
 };
 
 struct imx319_hwcfg {
-	u32 ext_clk;			/* sensor external clk */
 	unsigned long link_freq_bitmap;
 };
 
 struct imx319 {
+	struct device *dev;
+
 	struct v4l2_subdev sd;
 	struct media_pad pad;
 
@@ -1839,14 +1842,13 @@ static int imx319_write_reg(struct imx319 *imx319, u16 reg, u32 len, u32 val)
 static int imx319_write_regs(struct imx319 *imx319,
 			     const struct imx319_reg *regs, u32 len)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&imx319->sd);
 	int ret;
 	u32 i;
 
 	for (i = 0; i < len; i++) {
 		ret = imx319_write_reg(imx319, regs[i].address, 1, regs[i].val);
 		if (ret) {
-			dev_err_ratelimited(&client->dev,
+			dev_err_ratelimited(imx319->dev,
 					    "write reg 0x%4.4x return err %d",
 					    regs[i].address, ret);
 			return ret;
@@ -1880,7 +1882,6 @@ static int imx319_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct imx319 *imx319 = container_of(ctrl->handler,
 					     struct imx319, ctrl_handler);
-	struct i2c_client *client = v4l2_get_subdevdata(&imx319->sd);
 	s64 max;
 	int ret;
 
@@ -1899,7 +1900,7 @@ static int imx319_set_ctrl(struct v4l2_ctrl *ctrl)
 	 * Applying V4L2 control value only happens
 	 * when power is up for streaming
 	 */
-	if (!pm_runtime_get_if_in_use(&client->dev))
+	if (!pm_runtime_get_if_in_use(imx319->dev))
 		return 0;
 
 	switch (ctrl->id) {
@@ -1933,12 +1934,12 @@ static int imx319_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	default:
 		ret = -EINVAL;
-		dev_info(&client->dev, "ctrl(id:0x%x,val:0x%x) is not handled",
+		dev_info(imx319->dev, "ctrl(id:0x%x,val:0x%x) is not handled",
 			 ctrl->id, ctrl->val);
 		break;
 	}
 
-	pm_runtime_put(&client->dev);
+	pm_runtime_put(imx319->dev);
 
 	return ret;
 }
@@ -2087,7 +2088,6 @@ imx319_set_pad_format(struct v4l2_subdev *sd,
 /* Verify chip ID */
 static int imx319_identify_module(struct imx319 *imx319)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&imx319->sd);
 	int ret;
 	u32 val;
 
@@ -2099,7 +2099,7 @@ static int imx319_identify_module(struct imx319 *imx319)
 		return ret;
 
 	if (val != IMX319_CHIP_ID) {
-		dev_err(&client->dev, "chip id mismatch: %x!=%x",
+		dev_err(imx319->dev, "chip id mismatch: %x!=%x",
 			IMX319_CHIP_ID, val);
 		return -EIO;
 	}
@@ -2112,7 +2112,6 @@ static int imx319_identify_module(struct imx319 *imx319)
 /* Start streaming */
 static int imx319_start_streaming(struct imx319 *imx319)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&imx319->sd);
 	const struct imx319_reg_list *reg_list;
 	int ret;
 
@@ -2124,7 +2123,7 @@ static int imx319_start_streaming(struct imx319 *imx319)
 	reg_list = &imx319_global_setting;
 	ret = imx319_write_regs(imx319, reg_list->regs, reg_list->num_of_regs);
 	if (ret) {
-		dev_err(&client->dev, "failed to set global settings");
+		dev_err(imx319->dev, "failed to set global settings");
 		return ret;
 	}
 
@@ -2132,7 +2131,7 @@ static int imx319_start_streaming(struct imx319 *imx319)
 	reg_list = &imx319->cur_mode->reg_list;
 	ret = imx319_write_regs(imx319, reg_list->regs, reg_list->num_of_regs);
 	if (ret) {
-		dev_err(&client->dev, "failed to set mode");
+		dev_err(imx319->dev, "failed to set mode");
 		return ret;
 	}
 
@@ -2160,13 +2159,12 @@ static int imx319_stop_streaming(struct imx319 *imx319)
 static int imx319_set_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct imx319 *imx319 = to_imx319(sd);
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret = 0;
 
 	mutex_lock(&imx319->mutex);
 
 	if (enable) {
-		ret = pm_runtime_resume_and_get(&client->dev);
+		ret = pm_runtime_resume_and_get(imx319->dev);
 		if (ret < 0)
 			goto err_unlock;
 
@@ -2179,7 +2177,7 @@ static int imx319_set_stream(struct v4l2_subdev *sd, int enable)
 			goto err_rpm_put;
 	} else {
 		imx319_stop_streaming(imx319);
-		pm_runtime_put(&client->dev);
+		pm_runtime_put(imx319->dev);
 	}
 
 	/* vflip and hflip cannot change during streaming */
@@ -2191,7 +2189,7 @@ static int imx319_set_stream(struct v4l2_subdev *sd, int enable)
 	return ret;
 
 err_rpm_put:
-	pm_runtime_put(&client->dev);
+	pm_runtime_put(imx319->dev);
 err_unlock:
 	mutex_unlock(&imx319->mutex);
 
@@ -2231,7 +2229,6 @@ static const struct v4l2_subdev_internal_ops imx319_internal_ops = {
 /* Initialize control handlers */
 static int imx319_init_controls(struct imx319 *imx319)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&imx319->sd);
 	struct v4l2_ctrl_handler *ctrl_hdlr;
 	s64 exposure_max;
 	s64 vblank_def;
@@ -2311,7 +2308,7 @@ static int imx319_init_controls(struct imx319 *imx319)
 				     0, 0, imx319_test_pattern_menu);
 	if (ctrl_hdlr->error) {
 		ret = ctrl_hdlr->error;
-		dev_err(&client->dev, "control init failed: %d", ret);
+		dev_err(imx319->dev, "control init failed: %d", ret);
 		goto error;
 	}
 
@@ -2350,20 +2347,6 @@ static struct imx319_hwcfg *imx319_get_hwcfg(struct device *dev)
 	if (!cfg)
 		goto out_err;
 
-	ret = fwnode_property_read_u32(dev_fwnode(dev), "clock-frequency",
-				       &cfg->ext_clk);
-	if (ret) {
-		dev_err(dev, "can't get clock frequency");
-		goto out_err;
-	}
-
-	dev_dbg(dev, "ext clk: %d", cfg->ext_clk);
-	if (cfg->ext_clk != IMX319_EXT_CLK) {
-		dev_err(dev, "external clock %d is not supported",
-			cfg->ext_clk);
-		goto out_err;
-	}
-
 	ret = v4l2_link_freq_to_bitmap(dev, bus_cfg.link_frequencies,
 				       bus_cfg.nr_of_link_frequencies,
 				       link_freq_menu_items,
@@ -2385,6 +2368,8 @@ out_err:
 static int imx319_probe(struct i2c_client *client)
 {
 	struct imx319 *imx319;
+	unsigned long freq;
+	struct clk *clk;
 	bool full_power;
 	int ret;
 
@@ -2392,24 +2377,37 @@ static int imx319_probe(struct i2c_client *client)
 	if (!imx319)
 		return -ENOMEM;
 
+	imx319->dev = &client->dev;
+
 	mutex_init(&imx319->mutex);
+
+	clk = devm_v4l2_sensor_clk_get(imx319->dev, NULL);
+	if (IS_ERR(clk))
+		return dev_err_probe(imx319->dev, PTR_ERR(clk),
+				     "failed to acquire clock\n");
+
+	freq = clk_get_rate(clk);
+	if (freq != IMX319_EXT_CLK)
+		return dev_err_probe(imx319->dev, -EINVAL,
+				     "external clock %lu is not supported",
+				     freq);
 
 	/* Initialize subdev */
 	v4l2_i2c_subdev_init(&imx319->sd, client, &imx319_subdev_ops);
 
-	full_power = acpi_dev_state_d0(&client->dev);
+	full_power = acpi_dev_state_d0(imx319->dev);
 	if (full_power) {
 		/* Check module identity */
 		ret = imx319_identify_module(imx319);
 		if (ret) {
-			dev_err(&client->dev, "failed to find sensor: %d", ret);
+			dev_err(imx319->dev, "failed to find sensor: %d", ret);
 			goto error_probe;
 		}
 	}
 
-	imx319->hwcfg = imx319_get_hwcfg(&client->dev);
+	imx319->hwcfg = imx319_get_hwcfg(imx319->dev);
 	if (!imx319->hwcfg) {
-		dev_err(&client->dev, "failed to get hwcfg");
+		dev_err(imx319->dev, "failed to get hwcfg");
 		ret = -ENODEV;
 		goto error_probe;
 	}
@@ -2419,7 +2417,7 @@ static int imx319_probe(struct i2c_client *client)
 
 	ret = imx319_init_controls(imx319);
 	if (ret) {
-		dev_err(&client->dev, "failed to init controls: %d", ret);
+		dev_err(imx319->dev, "failed to init controls: %d", ret);
 		goto error_probe;
 	}
 
@@ -2434,27 +2432,27 @@ static int imx319_probe(struct i2c_client *client)
 	imx319->pad.flags = MEDIA_PAD_FL_SOURCE;
 	ret = media_entity_pads_init(&imx319->sd.entity, 1, &imx319->pad);
 	if (ret) {
-		dev_err(&client->dev, "failed to init entity pads: %d", ret);
+		dev_err(imx319->dev, "failed to init entity pads: %d", ret);
 		goto error_handler_free;
 	}
 
 	/* Set the device's state to active if it's in D0 state. */
 	if (full_power)
-		pm_runtime_set_active(&client->dev);
-	pm_runtime_enable(&client->dev);
+		pm_runtime_set_active(imx319->dev);
+	pm_runtime_enable(imx319->dev);
 
 	ret = v4l2_async_register_subdev_sensor(&imx319->sd);
 	if (ret < 0)
 		goto error_media_entity_pm;
 
-	pm_runtime_idle(&client->dev);
+	pm_runtime_idle(imx319->dev);
 
 	return 0;
 
 error_media_entity_pm:
-	pm_runtime_disable(&client->dev);
+	pm_runtime_disable(imx319->dev);
 	if (full_power)
-		pm_runtime_set_suspended(&client->dev);
+		pm_runtime_set_suspended(imx319->dev);
 	media_entity_cleanup(&imx319->sd.entity);
 
 error_handler_free:
@@ -2475,9 +2473,9 @@ static void imx319_remove(struct i2c_client *client)
 	media_entity_cleanup(&sd->entity);
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
 
-	pm_runtime_disable(&client->dev);
-	if (!pm_runtime_status_suspended(&client->dev))
-		pm_runtime_set_suspended(&client->dev);
+	pm_runtime_disable(imx319->dev);
+	if (!pm_runtime_status_suspended(imx319->dev))
+		pm_runtime_set_suspended(imx319->dev);
 
 	mutex_destroy(&imx319->mutex);
 }

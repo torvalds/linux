@@ -229,7 +229,7 @@ const struct pci_error_handlers adf_err_handler = {
 };
 EXPORT_SYMBOL_GPL(adf_err_handler);
 
-int adf_dev_autoreset(struct adf_accel_dev *accel_dev)
+static int adf_dev_autoreset(struct adf_accel_dev *accel_dev)
 {
 	if (accel_dev->autoreset_on_error)
 		return adf_dev_aer_schedule_reset(accel_dev, ADF_DEV_RESET_ASYNC);

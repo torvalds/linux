@@ -507,7 +507,6 @@ static int amdgpu_atif_handler(struct amdgpu_device *adev,
 				pm_runtime_get_sync(adev_to_drm(adev)->dev);
 				/* Just fire off a uevent and let userspace tell us what to do */
 				drm_helper_hpd_irq_event(adev_to_drm(adev));
-				pm_runtime_mark_last_busy(adev_to_drm(adev)->dev);
 				pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
 			}
 		}
@@ -811,18 +810,18 @@ int amdgpu_acpi_power_shift_control(struct amdgpu_device *adev,
 /**
  * amdgpu_acpi_smart_shift_update - update dGPU device state to SBIOS
  *
- * @dev: drm_device pointer
+ * @adev: amdgpu device pointer
  * @ss_state: current smart shift event
  *
  * returns 0 on success,
  * otherwise return error number.
  */
-int amdgpu_acpi_smart_shift_update(struct drm_device *dev, enum amdgpu_ss ss_state)
+int amdgpu_acpi_smart_shift_update(struct amdgpu_device *adev,
+				   enum amdgpu_ss ss_state)
 {
-	struct amdgpu_device *adev = drm_to_adev(dev);
 	int r;
 
-	if (!amdgpu_device_supports_smart_shift(dev))
+	if (!amdgpu_device_supports_smart_shift(adev))
 		return 0;
 
 	switch (ss_state) {
@@ -1545,7 +1544,7 @@ static int isp_match_acpi_device_ids(struct device *dev, const void *data)
 	return acpi_match_device(data, dev) ? 1 : 0;
 }
 
-int amdgpu_acpi_get_isp4_dev_hid(u8 (*hid)[ACPI_ID_LEN])
+int amdgpu_acpi_get_isp4_dev(struct acpi_device **dev)
 {
 	struct device *pdev __free(put_device) = NULL;
 	struct acpi_device *acpi_pdev;
@@ -1559,7 +1558,7 @@ int amdgpu_acpi_get_isp4_dev_hid(u8 (*hid)[ACPI_ID_LEN])
 	if (!acpi_pdev)
 		return -ENODEV;
 
-	strscpy(*hid, acpi_device_hid(acpi_pdev));
+	*dev = acpi_pdev;
 
 	return 0;
 }

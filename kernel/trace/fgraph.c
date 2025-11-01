@@ -815,6 +815,7 @@ __ftrace_return_to_handler(struct ftrace_regs *fregs, unsigned long frame_pointe
 	unsigned long bitmap;
 	unsigned long ret;
 	int offset;
+	int bit;
 	int i;
 
 	ret_stack = ftrace_pop_return_trace(&trace, &ret, frame_pointer, &offset);
@@ -828,6 +829,15 @@ __ftrace_return_to_handler(struct ftrace_regs *fregs, unsigned long frame_pointe
 
 	if (fregs)
 		ftrace_regs_set_instruction_pointer(fregs, ret);
+
+	bit = ftrace_test_recursion_trylock(trace.func, ret);
+	/*
+	 * This can fail because ftrace_test_recursion_trylock() allows one nest
+	 * call. If we are already in a nested call, then we don't probe this and
+	 * just return the original return address.
+	 */
+	if (unlikely(bit < 0))
+		goto out;
 
 #ifdef CONFIG_FUNCTION_GRAPH_RETVAL
 	trace.retval = ftrace_regs_get_return_value(fregs);
@@ -852,6 +862,8 @@ __ftrace_return_to_handler(struct ftrace_regs *fregs, unsigned long frame_pointe
 		}
 	}
 
+	ftrace_test_recursion_unlock(bit);
+out:
 	/*
 	 * The ftrace_graph_return() may still access the current
 	 * ret_stack structure, we need to make sure the update of
@@ -1325,6 +1337,10 @@ int register_ftrace_graph(struct fgraph_ops *gops)
 	int ret = 0;
 	int i = -1;
 
+	if (WARN_ONCE(gops->ops.flags & FTRACE_OPS_FL_GRAPH,
+		      "function graph ops registered again"))
+		return -EBUSY;
+
 	guard(mutex)(&ftrace_lock);
 
 	if (!fgraph_stack_cachep) {
@@ -1393,6 +1409,8 @@ error:
 		ftrace_graph_active--;
 		gops->saved_func = NULL;
 		fgraph_lru_release_index(i);
+		if (!ftrace_graph_active)
+			unregister_pm_notifier(&ftrace_suspend_notifier);
 	}
 	return ret;
 }
@@ -1401,17 +1419,21 @@ void unregister_ftrace_graph(struct fgraph_ops *gops)
 {
 	int command = 0;
 
+	if (WARN_ONCE(!(gops->ops.flags & FTRACE_OPS_FL_GRAPH),
+		      "function graph ops unregistered without registering"))
+		return;
+
 	guard(mutex)(&ftrace_lock);
 
 	if (unlikely(!ftrace_graph_active))
-		return;
+		goto out;
 
 	if (unlikely(gops->idx < 0 || gops->idx >= FGRAPH_ARRAY_SIZE ||
 		     fgraph_array[gops->idx] != gops))
-		return;
+		goto out;
 
 	if (fgraph_lru_release_index(gops->idx) < 0)
-		return;
+		goto out;
 
 	fgraph_array[gops->idx] = &fgraph_stub;
 
@@ -1434,4 +1456,6 @@ void unregister_ftrace_graph(struct fgraph_ops *gops)
 		unregister_trace_sched_switch(ftrace_graph_probe_sched_switch, NULL);
 	}
 	gops->saved_func = NULL;
+ out:
+	gops->ops.flags &= ~FTRACE_OPS_FL_GRAPH;
 }

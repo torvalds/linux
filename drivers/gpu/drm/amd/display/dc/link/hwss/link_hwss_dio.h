@@ -27,7 +27,7 @@
 #define __LINK_HWSS_DIO_H__
 
 #include "link_hwss.h"
-#include "link.h"
+#include "link_service.h"
 
 const struct link_hwss *get_dio_link_hwss(void);
 bool can_use_dio_link_hwss(const struct dc_link *link,

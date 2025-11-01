@@ -14,6 +14,7 @@
 
 #include <linux/irqchip.h>
 #include <linux/irqchip/arm-gic.h>
+#include <linux/irqchip/irq-msi-lib.h>
 #include <linux/msi.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -29,83 +30,44 @@
 #define ALPINE_MSIX_SPI_TARGET_CLUSTER0		BIT(16)
 
 struct alpine_msix_data {
-	spinlock_t msi_map_lock;
-	phys_addr_t addr;
-	u32 spi_first;		/* The SGI number that MSIs start */
-	u32 num_spis;		/* The number of SGIs for MSIs */
-	unsigned long *msi_map;
-};
-
-static void alpine_msix_mask_msi_irq(struct irq_data *d)
-{
-	pci_msi_mask_irq(d);
-	irq_chip_mask_parent(d);
-}
-
-static void alpine_msix_unmask_msi_irq(struct irq_data *d)
-{
-	pci_msi_unmask_irq(d);
-	irq_chip_unmask_parent(d);
-}
-
-static struct irq_chip alpine_msix_irq_chip = {
-	.name			= "MSIx",
-	.irq_mask		= alpine_msix_mask_msi_irq,
-	.irq_unmask		= alpine_msix_unmask_msi_irq,
-	.irq_eoi		= irq_chip_eoi_parent,
-	.irq_set_affinity	= irq_chip_set_affinity_parent,
+	spinlock_t	msi_map_lock;
+	phys_addr_t	addr;
+	u32		spi_first;	/* The SGI number that MSIs start */
+	u32		num_spis;	/* The number of SGIs for MSIs */
+	unsigned long	*msi_map;
 };
 
 static int alpine_msix_allocate_sgi(struct alpine_msix_data *priv, int num_req)
 {
 	int first;
 
-	spin_lock(&priv->msi_map_lock);
-
-	first = bitmap_find_next_zero_area(priv->msi_map, priv->num_spis, 0,
-					   num_req, 0);
-	if (first >= priv->num_spis) {
-		spin_unlock(&priv->msi_map_lock);
+	guard(spinlock)(&priv->msi_map_lock);
+	first = bitmap_find_next_zero_area(priv->msi_map, priv->num_spis, 0, num_req, 0);
+	if (first >= priv->num_spis)
 		return -ENOSPC;
-	}
 
 	bitmap_set(priv->msi_map, first, num_req);
-
-	spin_unlock(&priv->msi_map_lock);
-
 	return priv->spi_first + first;
 }
 
-static void alpine_msix_free_sgi(struct alpine_msix_data *priv, unsigned sgi,
-				 int num_req)
+static void alpine_msix_free_sgi(struct alpine_msix_data *priv, unsigned int sgi, int num_req)
 {
 	int first = sgi - priv->spi_first;
 
-	spin_lock(&priv->msi_map_lock);
-
+	guard(spinlock)(&priv->msi_map_lock);
 	bitmap_clear(priv->msi_map, first, num_req);
-
-	spin_unlock(&priv->msi_map_lock);
 }
 
-static void alpine_msix_compose_msi_msg(struct irq_data *data,
-					struct msi_msg *msg)
+static void alpine_msix_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 {
 	struct alpine_msix_data *priv = irq_data_get_irq_chip_data(data);
 	phys_addr_t msg_addr = priv->addr;
 
 	msg_addr |= (data->hwirq << 3);
-
 	msg->address_hi = upper_32_bits(msg_addr);
 	msg->address_lo = lower_32_bits(msg_addr);
 	msg->data = 0;
 }
-
-static struct msi_domain_info alpine_msix_domain_info = {
-	.flags	= MSI_FLAG_USE_DEF_DOM_OPS | MSI_FLAG_USE_DEF_CHIP_OPS |
-		  MSI_FLAG_PCI_MSIX,
-	.chip	= &alpine_msix_irq_chip,
-};
 
 static struct irq_chip middle_irq_chip = {
 	.name			= "alpine_msix_middle",
@@ -116,8 +78,7 @@ static struct irq_chip middle_irq_chip = {
 	.irq_compose_msi_msg	= alpine_msix_compose_msi_msg,
 };
 
-static int alpine_msix_gic_domain_alloc(struct irq_domain *domain,
-					unsigned int virq, int sgi)
+static int alpine_msix_gic_domain_alloc(struct irq_domain *domain, unsigned int virq, int sgi)
 {
 	struct irq_fwspec fwspec;
 	struct irq_data *d;
@@ -138,12 +99,10 @@ static int alpine_msix_gic_domain_alloc(struct irq_domain *domain,
 
 	d = irq_domain_get_irq_data(domain->parent, virq);
 	d->chip->irq_set_type(d, IRQ_TYPE_EDGE_RISING);
-
 	return 0;
 }
 
-static int alpine_msix_middle_domain_alloc(struct irq_domain *domain,
-					   unsigned int virq,
+static int alpine_msix_middle_domain_alloc(struct irq_domain *domain, unsigned int virq,
 					   unsigned int nr_irqs, void *args)
 {
 	struct alpine_msix_data *priv = domain->host_data;
@@ -161,7 +120,6 @@ static int alpine_msix_middle_domain_alloc(struct irq_domain *domain,
 		irq_domain_set_hwirq_and_chip(domain, virq + i, sgi + i,
 					      &middle_irq_chip, priv);
 	}
-
 	return 0;
 
 err_sgi:
@@ -170,8 +128,7 @@ err_sgi:
 	return err;
 }
 
-static void alpine_msix_middle_domain_free(struct irq_domain *domain,
-					   unsigned int virq,
+static void alpine_msix_middle_domain_free(struct irq_domain *domain, unsigned int virq,
 					   unsigned int nr_irqs)
 {
 	struct irq_data *d = irq_domain_get_irq_data(domain, virq);
@@ -182,14 +139,35 @@ static void alpine_msix_middle_domain_free(struct irq_domain *domain,
 }
 
 static const struct irq_domain_ops alpine_msix_middle_domain_ops = {
+	.select	= msi_lib_irq_domain_select,
 	.alloc	= alpine_msix_middle_domain_alloc,
 	.free	= alpine_msix_middle_domain_free,
 };
 
-static int alpine_msix_init_domains(struct alpine_msix_data *priv,
-				    struct device_node *node)
+#define ALPINE_MSI_FLAGS_REQUIRED  (MSI_FLAG_USE_DEF_DOM_OPS |		\
+				    MSI_FLAG_USE_DEF_CHIP_OPS |		\
+				    MSI_FLAG_PCI_MSI_MASK_PARENT)
+
+#define ALPINE_MSI_FLAGS_SUPPORTED (MSI_GENERIC_FLAGS_MASK |		\
+				    MSI_FLAG_PCI_MSIX)
+
+static struct msi_parent_ops alpine_msi_parent_ops = {
+	.supported_flags	= ALPINE_MSI_FLAGS_SUPPORTED,
+	.required_flags		= ALPINE_MSI_FLAGS_REQUIRED,
+	.chip_flags		= MSI_CHIP_FLAG_SET_EOI,
+	.bus_select_token	= DOMAIN_BUS_NEXUS,
+	.bus_select_mask	= MATCH_PCI_MSI,
+	.prefix			= "ALPINE-",
+	.init_dev_msi_info	= msi_lib_init_dev_msi_info,
+};
+
+static int alpine_msix_init_domains(struct alpine_msix_data *priv, struct device_node *node)
 {
-	struct irq_domain *middle_domain, *msi_domain, *gic_domain;
+	struct irq_domain_info info = {
+		.fwnode		= of_fwnode_handle(node),
+		.ops		= &alpine_msix_middle_domain_ops,
+		.host_data	= priv,
+	};
 	struct device_node *gic_node;
 
 	gic_node = of_irq_find_parent(node);
@@ -198,40 +176,26 @@ static int alpine_msix_init_domains(struct alpine_msix_data *priv,
 		return -ENODEV;
 	}
 
-	gic_domain = irq_find_host(gic_node);
+	info.parent = irq_find_host(gic_node);
 	of_node_put(gic_node);
-	if (!gic_domain) {
+	if (!info.parent) {
 		pr_err("Failed to find the GIC domain\n");
 		return -ENXIO;
 	}
 
-	middle_domain = irq_domain_create_hierarchy(gic_domain, 0, 0, NULL,
-						    &alpine_msix_middle_domain_ops, priv);
-	if (!middle_domain) {
-		pr_err("Failed to create the MSIX middle domain\n");
-		return -ENOMEM;
-	}
-
-	msi_domain = pci_msi_create_irq_domain(of_fwnode_handle(node),
-					       &alpine_msix_domain_info,
-					       middle_domain);
-	if (!msi_domain) {
+	if (!msi_create_parent_irq_domain(&info, &alpine_msi_parent_ops)) {
 		pr_err("Failed to create MSI domain\n");
-		irq_domain_remove(middle_domain);
 		return -ENOMEM;
 	}
-
 	return 0;
 }
 
-static int alpine_msix_init(struct device_node *node,
-			    struct device_node *parent)
+static int alpine_msix_init(struct device_node *node, struct device_node *parent)
 {
-	struct alpine_msix_data *priv;
+	struct alpine_msix_data *priv __free(kfree) = kzalloc(sizeof(*priv), GFP_KERNEL);
 	struct resource res;
 	int ret;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
@@ -240,7 +204,7 @@ static int alpine_msix_init(struct device_node *node,
 	ret = of_address_to_resource(node, 0, &res);
 	if (ret) {
 		pr_err("Failed to allocate resource\n");
-		goto err_priv;
+		return ret;
 	}
 
 	/*
@@ -255,35 +219,28 @@ static int alpine_msix_init(struct device_node *node,
 
 	if (of_property_read_u32(node, "al,msi-base-spi", &priv->spi_first)) {
 		pr_err("Unable to parse MSI base\n");
-		ret = -EINVAL;
-		goto err_priv;
+		return -EINVAL;
 	}
 
 	if (of_property_read_u32(node, "al,msi-num-spis", &priv->num_spis)) {
 		pr_err("Unable to parse MSI numbers\n");
-		ret = -EINVAL;
-		goto err_priv;
+		return -EINVAL;
 	}
 
-	priv->msi_map = bitmap_zalloc(priv->num_spis, GFP_KERNEL);
-	if (!priv->msi_map) {
-		ret = -ENOMEM;
-		goto err_priv;
-	}
+	unsigned long *msi_map __free(kfree) = bitmap_zalloc(priv->num_spis, GFP_KERNEL);
 
-	pr_debug("Registering %d msixs, starting at %d\n",
-		 priv->num_spis, priv->spi_first);
+	if (!msi_map)
+		return -ENOMEM;
+	priv->msi_map = msi_map;
+
+	pr_debug("Registering %d msixs, starting at %d\n", priv->num_spis, priv->spi_first);
 
 	ret = alpine_msix_init_domains(priv, node);
 	if (ret)
-		goto err_map;
+		return ret;
 
+	retain_and_null_ptr(priv);
+	retain_and_null_ptr(msi_map);
 	return 0;
-
-err_map:
-	bitmap_free(priv->msi_map);
-err_priv:
-	kfree(priv);
-	return ret;
 }
 IRQCHIP_DECLARE(alpine_msix, "al,alpine-msix", alpine_msix_init);

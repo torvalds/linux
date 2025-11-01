@@ -469,7 +469,7 @@ static int max77759_gpio_probe(struct platform_device *pdev)
 	chip->gc.direction_input = max77759_gpio_direction_input;
 	chip->gc.direction_output = max77759_gpio_direction_output;
 	chip->gc.get = max77759_gpio_get_value;
-	chip->gc.set_rv = max77759_gpio_set_value;
+	chip->gc.set = max77759_gpio_set_value;
 
 	girq = &chip->gc.irq;
 	gpio_irq_chip_set_chip(girq, &max77759_gpio_irq_chip);

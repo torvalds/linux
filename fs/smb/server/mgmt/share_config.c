@@ -19,7 +19,7 @@
 #include "../transport_ipc.h"
 #include "../misc.h"
 
-#define SHARE_HASH_BITS		3
+#define SHARE_HASH_BITS		12
 static DEFINE_HASHTABLE(shares_table, SHARE_HASH_BITS);
 static DECLARE_RWSEM(shares_table_lock);
 

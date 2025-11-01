@@ -23,6 +23,7 @@ properties:
       - pci14e4,5fa0 # BCM4377
       - pci14e4,5f69 # BCM4378
       - pci14e4,5f71 # BCM4387
+      - pci14e4,5f72 # BCM4388
 
   reg:
     maxItems: 1

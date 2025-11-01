@@ -36,6 +36,7 @@ struct nvme_dhchap_queue_context {
 	u8 status;
 	u8 dhgroup_id;
 	u8 hash_id;
+	u8 sc_c;
 	size_t hash_len;
 	u8 c1[64];
 	u8 c2[64];
@@ -153,6 +154,8 @@ static int nvme_auth_set_dhchap_negotiate_data(struct nvme_ctrl *ctrl,
 	data->auth_protocol[0].dhchap.idlist[33] = NVME_AUTH_DHGROUP_4096;
 	data->auth_protocol[0].dhchap.idlist[34] = NVME_AUTH_DHGROUP_6144;
 	data->auth_protocol[0].dhchap.idlist[35] = NVME_AUTH_DHGROUP_8192;
+
+	chap->sc_c = data->sc_c;
 
 	return size;
 }
@@ -331,9 +334,10 @@ static int nvme_auth_set_dhchap_reply_data(struct nvme_ctrl *ctrl,
 	} else {
 		memset(chap->c2, 0, chap->hash_len);
 	}
-	if (ctrl->opts->concat)
+	if (ctrl->opts->concat) {
 		chap->s2 = 0;
-	else
+		chap->bi_directional = false;
+	} else
 		chap->s2 = nvme_auth_get_seqnum();
 	data->seqnum = cpu_to_le32(chap->s2);
 	if (chap->host_key_len) {
@@ -488,7 +492,7 @@ static int nvme_auth_dhchap_setup_host_response(struct nvme_ctrl *ctrl,
 	ret = crypto_shash_update(shash, buf, 2);
 	if (ret)
 		goto out;
-	memset(buf, 0, sizeof(buf));
+	*buf = chap->sc_c;
 	ret = crypto_shash_update(shash, buf, 1);
 	if (ret)
 		goto out;
@@ -499,6 +503,7 @@ static int nvme_auth_dhchap_setup_host_response(struct nvme_ctrl *ctrl,
 				  strlen(ctrl->opts->host->nqn));
 	if (ret)
 		goto out;
+	memset(buf, 0, sizeof(buf));
 	ret = crypto_shash_update(shash, buf, 1);
 	if (ret)
 		goto out;
@@ -742,7 +747,7 @@ static int nvme_auth_secure_concat(struct nvme_ctrl *ctrl,
 			 "%s: qid %d failed to generate digest, error %d\n",
 			 __func__, chap->qid, ret);
 		goto out_free_psk;
-	};
+	}
 	dev_dbg(ctrl->device, "%s: generated digest %s\n",
 		 __func__, digest);
 	ret = nvme_auth_derive_tls_psk(chap->hash_id, psk, psk_len,
@@ -752,7 +757,7 @@ static int nvme_auth_secure_concat(struct nvme_ctrl *ctrl,
 			 "%s: qid %d failed to derive TLS psk, error %d\n",
 			 __func__, chap->qid, ret);
 		goto out_free_digest;
-	};
+	}
 
 	tls_key = nvme_tls_psk_refresh(ctrl->opts->keyring,
 				       ctrl->opts->host->nqn,

@@ -379,11 +379,14 @@ static void iwl_mld_update_link_sig(struct ieee80211_vif *vif, int sig,
 
 	/* TODO: task=statistics handle CQM notifications */
 
-	if (sig < IWL_MLD_LOW_RSSI_MLO_SCAN_THRESH)
-		iwl_mld_int_mlo_scan(mld, vif);
-
-	if (!iwl_mld_emlsr_active(vif))
+	if (!iwl_mld_emlsr_active(vif)) {
+		/* We're not in EMLSR and our signal is bad,
+		 * try to switch link maybe. EMLSR will be handled below.
+		 */
+		if (sig < IWL_MLD_LOW_RSSI_MLO_SCAN_THRESH)
+			iwl_mld_int_mlo_scan(mld, vif);
 		return;
+	}
 
 	/* We are in EMLSR, check if we need to exit */
 	exit_emlsr_thresh =
@@ -508,8 +511,6 @@ void iwl_mld_handle_stats_oper_notif(struct iwl_mld *mld,
 	iwl_mld_process_per_link_stats(mld, stats->per_link, curr_ts_usec);
 	iwl_mld_process_per_sta_stats(mld, stats->per_sta);
 	iwl_mld_process_per_phy_stats(mld, stats->per_phy);
-
-	iwl_mld_check_omi_bw_reduction(mld);
 }
 
 void iwl_mld_handle_stats_oper_part1_notif(struct iwl_mld *mld,

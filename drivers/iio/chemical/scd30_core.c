@@ -587,7 +587,7 @@ static irqreturn_t scd30_trigger_handler(int irq, void *p)
 	struct {
 		int data[SCD30_MEAS_COUNT];
 		aligned_s64 ts;
-	} scan;
+	} scan = { };
 	int ret;
 
 	mutex_lock(&state->lock);
@@ -595,7 +595,6 @@ static irqreturn_t scd30_trigger_handler(int irq, void *p)
 		ret = scd30_read_poll(state);
 	else
 		ret = scd30_read_meas(state);
-	memset(&scan, 0, sizeof(scan));
 	memcpy(scan.data, state->meas, sizeof(state->meas));
 	mutex_unlock(&state->lock);
 	if (ret)
@@ -636,7 +635,7 @@ static int scd30_setup_trigger(struct iio_dev *indio_dev)
 	trig = devm_iio_trigger_alloc(dev, "%s-dev%d", indio_dev->name,
 				      iio_device_id(indio_dev));
 	if (!trig)
-		return dev_err_probe(dev, -ENOMEM, "failed to allocate trigger\n");
+		return -ENOMEM;
 
 	trig->ops = &scd30_trigger_ops;
 	iio_trigger_set_drvdata(trig, indio_dev);

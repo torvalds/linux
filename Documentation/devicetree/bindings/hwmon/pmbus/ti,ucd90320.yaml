@@ -23,7 +23,13 @@ description: |
 properties:
   compatible:
     enum:
+      - ti,ucd9000
+      - ti,ucd9090
+      - ti,ucd90120
+      - ti,ucd90124
+      - ti,ucd90160
       - ti,ucd90320
+      - ti,ucd90910
 
   reg:
     maxItems: 1

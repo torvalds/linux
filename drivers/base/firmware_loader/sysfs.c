@@ -359,8 +359,8 @@ out:
 static const struct bin_attribute firmware_attr_data = {
 	.attr = { .name = "data", .mode = 0644 },
 	.size = 0,
-	.read_new = firmware_data_read,
-	.write_new = firmware_data_write,
+	.read = firmware_data_read,
+	.write = firmware_data_write,
 };
 
 static struct attribute *fw_dev_attrs[] = {
@@ -381,7 +381,7 @@ static const struct bin_attribute *const fw_dev_bin_attrs[] = {
 
 static const struct attribute_group fw_dev_attr_group = {
 	.attrs = fw_dev_attrs,
-	.bin_attrs_new = fw_dev_bin_attrs,
+	.bin_attrs = fw_dev_bin_attrs,
 #ifdef CONFIG_FW_UPLOAD
 	.is_visible = fw_upload_is_visible,
 #endif

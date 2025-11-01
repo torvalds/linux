@@ -15,6 +15,7 @@
 #ifndef __LINUX_USB_GADGET_H
 #define __LINUX_USB_GADGET_H
 
+#include <linux/cleanup.h>
 #include <linux/configfs.h>
 #include <linux/device.h>
 #include <linux/errno.h>
@@ -32,6 +33,7 @@ struct usb_ep;
 
 /**
  * struct usb_request - describes one i/o request
+ * @ep: The associated endpoint set by usb_ep_alloc_request().
  * @buf: Buffer used for data.  Always provide this; some controllers
  *	only use PIO, or don't use DMA for some endpoints.
  * @dma: DMA address corresponding to 'buf'.  If you don't set this
@@ -98,6 +100,7 @@ struct usb_ep;
  */
 
 struct usb_request {
+	struct usb_ep		*ep;
 	void			*buf;
 	unsigned		length;
 	dma_addr_t		dma;
@@ -288,6 +291,28 @@ static inline int usb_ep_fifo_status(struct usb_ep *ep)
 static inline void usb_ep_fifo_flush(struct usb_ep *ep)
 { }
 #endif /* USB_GADGET */
+
+/*-------------------------------------------------------------------------*/
+
+/**
+ * free_usb_request - frees a usb_request object and its buffer
+ * @req: the request being freed
+ *
+ * This helper function frees both the request's buffer and the request object
+ * itself by calling usb_ep_free_request(). Its signature is designed to be used
+ * with DEFINE_FREE() to enable automatic, scope-based cleanup for usb_request
+ * pointers.
+ */
+static inline void free_usb_request(struct usb_request *req)
+{
+	if (!req)
+		return;
+
+	kfree(req->buf);
+	usb_ep_free_request(req->ep, req);
+}
+
+DEFINE_FREE(free_usb_request, struct usb_request *, free_usb_request(_T))
 
 /*-------------------------------------------------------------------------*/
 
@@ -859,10 +884,6 @@ container_of(str_item, struct gadget_string, item)
 /* write vector of descriptors into buffer */
 int usb_descriptor_fillbuf(void *, unsigned,
 		const struct usb_descriptor_header **);
-
-/* build config descriptor from single descriptor vector */
-int usb_gadget_config_buf(const struct usb_config_descriptor *config,
-	void *buf, unsigned buflen, const struct usb_descriptor_header **desc);
 
 /* copy a NULL-terminated vector of descriptors */
 struct usb_descriptor_header **usb_copy_descriptors(

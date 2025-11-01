@@ -1751,7 +1751,7 @@ static int pci_fintek_init(struct pci_dev *dev)
 	return max_port;
 }
 
-static void f815xxa_mem_serial_out(struct uart_port *p, int offset, int value)
+static void f815xxa_mem_serial_out(struct uart_port *p, unsigned int offset, u32 value)
 {
 	struct f815xxa_data *data = p->private_data;
 	unsigned long flags;
@@ -1846,10 +1846,10 @@ static void kt_handle_break(struct uart_port *p)
 	serial8250_clear_and_reinit_fifos(up);
 }
 
-static unsigned int kt_serial_in(struct uart_port *p, int offset)
+static u32 kt_serial_in(struct uart_port *p, unsigned int offset)
 {
 	struct uart_8250_port *up = up_to_u8250p(p);
-	unsigned int val;
+	u32 val;
 
 	/*
 	 * When the Intel ME (management engine) gets reset its serial

@@ -68,6 +68,7 @@ properties:
               - ti,pca9536
               - ti,tca6408
               - ti,tca6416
+              - ti,tca6418
               - ti,tca6424
               - ti,tca9535
               - ti,tca9538

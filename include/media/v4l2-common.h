@@ -7,7 +7,7 @@
     Each ioctl begins with VIDIOC_INT_ to clearly mark that it is an internal
     define,
 
-    Copyright (C) 2005  Hans Verkuil <hverkuil@xs4all.nl>
+    Copyright (C) 2005  Hans Verkuil <hverkuil@kernel.org>
 
  */
 
@@ -97,6 +97,7 @@ int v4l2_ctrl_query_fill(struct v4l2_queryctrl *qctrl,
 
 /* ------------------------------------------------------------------------- */
 
+struct clk;
 struct v4l2_device;
 struct v4l2_subdev;
 struct v4l2_subdev_ops;
@@ -559,17 +560,18 @@ int v4l2_fill_pixfmt_mp(struct v4l2_pix_format_mplane *pixfmt, u32 pixelformat,
 /**
  * v4l2_get_link_freq - Get link rate from transmitter
  *
- * @pad: The transmitter's media pad (or control handler for non-MC users or
- *	 compatibility reasons, don't use in new code)
+ * @pad: The transmitter's media pad
  * @mul: The multiplier between pixel rate and link frequency. Bits per pixel on
  *	 D-PHY, samples per clock on parallel. 0 otherwise.
  * @div: The divisor between pixel rate and link frequency. Number of data lanes
  *	 times two on D-PHY, 1 on parallel. 0 otherwise.
  *
- * This function is intended for obtaining the link frequency from the
- * transmitter sub-devices. It returns the link rate, either from the
- * V4L2_CID_LINK_FREQ control implemented by the transmitter, or value
- * calculated based on the V4L2_CID_PIXEL_RATE implemented by the transmitter.
+ * This function obtains and returns the link frequency from the transmitter
+ * sub-device's pad. The link frequency is retrieved using the get_mbus_config
+ * sub-device pad operation. If this fails, the function falls back to obtaining
+ * the frequency either directly from the V4L2_CID_LINK_FREQ control if
+ * implemented by the transmitter, or by calculating it from the pixel rate
+ * obtained from the V4L2_CID_PIXEL_RATE control.
  *
  * Return:
  * * >0: Link frequency
@@ -577,19 +579,9 @@ int v4l2_fill_pixfmt_mp(struct v4l2_pix_format_mplane *pixfmt, u32 pixelformat,
  * * %-EINVAL: Invalid link frequency value
  */
 #ifdef CONFIG_MEDIA_CONTROLLER
-#define v4l2_get_link_freq(pad, mul, div)				\
-	_Generic(pad,							\
-		 struct media_pad *: __v4l2_get_link_freq_pad,		\
-		 struct v4l2_ctrl_handler *: __v4l2_get_link_freq_ctrl)	\
-	(pad, mul, div)
-s64 __v4l2_get_link_freq_pad(struct media_pad *pad, unsigned int mul,
-			     unsigned int div);
-#else
-#define v4l2_get_link_freq(handler, mul, div)		\
-	__v4l2_get_link_freq_ctrl(handler, mul, div)
+s64 v4l2_get_link_freq(const struct media_pad *pad, unsigned int mul,
+		       unsigned int div);
 #endif
-s64 __v4l2_get_link_freq_ctrl(struct v4l2_ctrl_handler *handler,
-			      unsigned int mul, unsigned int div);
 
 void v4l2_simplify_fraction(u32 *numerator, u32 *denominator,
 		unsigned int n_terms, unsigned int threshold);
@@ -619,6 +611,79 @@ int v4l2_link_freq_to_bitmap(struct device *dev, const u64 *fw_link_freqs,
 			     const s64 *driver_link_freqs,
 			     unsigned int num_of_driver_link_freqs,
 			     unsigned long *bitmap);
+
+struct clk *__devm_v4l2_sensor_clk_get(struct device *dev, const char *id,
+				       bool legacy, bool fixed_rate,
+				       unsigned long clk_rate);
+
+/**
+ * devm_v4l2_sensor_clk_get - lookup and obtain a reference to a clock producer
+ *	for a camera sensor
+ *
+ * @dev: device for v4l2 sensor clock "consumer"
+ * @id: clock consumer ID
+ *
+ * This function behaves the same way as devm_clk_get() except where there
+ * is no clock producer like in ACPI-based platforms.
+ *
+ * For ACPI-based platforms, the function will read the "clock-frequency"
+ * ACPI _DSD property and register a fixed-clock with the frequency indicated
+ * in the property.
+ *
+ * This function also handles the special ACPI-based system case where:
+ *
+ * * The clock-frequency _DSD property is present.
+ * * A reference to the clock producer is present, where the clock is provided
+ *   by a camera sensor PMIC driver (e.g. int3472/tps68470.c)
+ *
+ * In this case try to set the clock-frequency value to the provided clock.
+ *
+ * As the name indicates, this function may only be used on camera sensor
+ * devices. This is because generally only camera sensors do need a clock to
+ * query the frequency from, due to the requirement to configure the PLL for a
+ * given CSI-2 interface frequency where the sensor's external clock frequency
+ * is a factor. Additionally, the clock frequency tends to be available on ACPI
+ * firmware based systems for camera sensors specifically (if e.g. DisCo for
+ * Imaging compliant).
+ *
+ * Returns a pointer to a struct clk on success or an error pointer on failure.
+ */
+static inline struct clk *
+devm_v4l2_sensor_clk_get(struct device *dev, const char *id)
+{
+	return __devm_v4l2_sensor_clk_get(dev, id, false, false, 0);
+}
+
+/**
+ * devm_v4l2_sensor_clk_get_legacy - lookup and obtain a reference to a clock
+ *	producer for a camera sensor.
+ *
+ * @dev: device for v4l2 sensor clock "consumer"
+ * @id: clock consumer ID
+ * @fixed_rate: interpret the @clk_rate as a fixed rate or default rate
+ * @clk_rate: the clock rate
+ *
+ * This function behaves the same way as devm_v4l2_sensor_clk_get() except that
+ * it extends the behaviour on ACPI platforms to all platforms.
+ *
+ * The function also provides the ability to set the clock rate to a fixed
+ * frequency by setting @fixed_rate to true and specifying the fixed frequency
+ * in @clk_rate, or to use a default clock rate when the "clock-frequency"
+ * property is absent by setting @fixed_rate to false and specifying the default
+ * frequency in @clk_rate. Setting @fixed_rate to true and @clk_rate to 0 is an
+ * error.
+ *
+ * This function is meant to support legacy behaviour in existing drivers only.
+ * It must not be used in any new driver.
+ *
+ * Returns a pointer to a struct clk on success or an error pointer on failure.
+ */
+static inline struct clk *
+devm_v4l2_sensor_clk_get_legacy(struct device *dev, const char *id,
+				bool fixed_rate, unsigned long clk_rate)
+{
+	return __devm_v4l2_sensor_clk_get(dev, id, true, fixed_rate, clk_rate);
+}
 
 static inline u64 v4l2_buffer_get_timestamp(const struct v4l2_buffer *buf)
 {

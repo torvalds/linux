@@ -1,4 +1,11 @@
 # SPDX-License-Identifier: GPL-2.0-only
+config DRM_DW_DP
+	tristate
+	select DRM_DISPLAY_HELPER
+	select DRM_DISPLAY_DP_HELPER
+	select DRM_KMS_HELPER
+	select REGMAP_MMIO
+
 config DRM_DW_HDMI
 	tristate
 	select DRM_DISPLAY_HDMI_HELPER
@@ -53,6 +60,14 @@ config DRM_DW_HDMI_QP
 	select DRM_DISPLAY_HELPER
 	select DRM_KMS_HELPER
 	select REGMAP_MMIO
+
+config DRM_DW_HDMI_QP_CEC
+	bool "Synopsis Designware QP CEC interface"
+	depends on DRM_DW_HDMI_QP
+	select DRM_DISPLAY_HDMI_CEC_HELPER
+	help
+	  Support the CEC interface which is part of the Synopsys
+	  Designware HDMI QP block.
 
 config DRM_DW_MIPI_DSI
 	tristate

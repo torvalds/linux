@@ -236,8 +236,18 @@ static void stm_drm_platform_shutdown(struct platform_device *pdev)
 	drm_atomic_helper_shutdown(platform_get_drvdata(pdev));
 }
 
+static struct ltdc_plat_data stm_drm_plat_data = {
+	.pad_max_freq_hz = 90000000,
+};
+
+static struct ltdc_plat_data stm_drm_plat_data_mp25 = {
+	.pad_max_freq_hz = 150000000,
+};
+
 static const struct of_device_id drv_dt_ids[] = {
-	{ .compatible = "st,stm32-ltdc"},
+	{ .compatible = "st,stm32-ltdc", .data = &stm_drm_plat_data, },
+	{ .compatible = "st,stm32mp251-ltdc", .data = &stm_drm_plat_data_mp25, },
+	{ .compatible = "st,stm32mp255-ltdc", .data = &stm_drm_plat_data_mp25, },
 	{ /* end node */ },
 };
 MODULE_DEVICE_TABLE(of, drv_dt_ids);

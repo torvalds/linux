@@ -97,9 +97,11 @@ void __init native_init_IRQ(void)
 	/* Execute any quirks before the call gates are initialised: */
 	x86_init.irqs.pre_vector_init();
 
-	if (cpu_feature_enabled(X86_FEATURE_FRED))
+	/* FRED's IRQ path may be used even if FRED isn't fully enabled. */
+	if (IS_ENABLED(CONFIG_X86_FRED))
 		fred_complete_exception_setup();
-	else
+
+	if (!cpu_feature_enabled(X86_FEATURE_FRED))
 		idt_setup_apic_and_irq_gates();
 
 	lapic_assign_system_vectors();

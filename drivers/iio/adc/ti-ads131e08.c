@@ -625,7 +625,7 @@ static irqreturn_t ads131e08_trigger_handler(int irq, void *private)
 	 * 16 bits of data into the buffer.
 	 */
 	unsigned int num_bytes = ADS131E08_NUM_DATA_BYTES(st->data_rate);
-	u8 tweek_offset = num_bytes == 2 ? 1 : 0;
+	u8 tweak_offset = num_bytes == 2 ? 1 : 0;
 
 	if (iio_trigger_using_own(indio_dev))
 		ret = ads131e08_read_data(st, st->readback_len);
@@ -640,25 +640,25 @@ static irqreturn_t ads131e08_trigger_handler(int irq, void *private)
 		dest = st->tmp_buf.data + i * ADS131E08_NUM_STORAGE_BYTES;
 
 		/*
-		 * Tweek offset is 0:
+		 * Tweak offset is 0:
 		 * +---+---+---+---+
 		 * |D0 |D1 |D2 | X | (3 data bytes)
 		 * +---+---+---+---+
 		 *  a+0 a+1 a+2 a+3
 		 *
-		 * Tweek offset is 1:
+		 * Tweak offset is 1:
 		 * +---+---+---+---+
 		 * |P0 |D0 |D1 | X | (one padding byte and 2 data bytes)
 		 * +---+---+---+---+
 		 *  a+0 a+1 a+2 a+3
 		 */
-		memcpy(dest + tweek_offset, src, num_bytes);
+		memcpy(dest + tweak_offset, src, num_bytes);
 
 		/*
 		 * Data conversion from 16 bits of data to 24 bits of data
 		 * is done by sign extension (properly filling padding byte).
 		 */
-		if (tweek_offset)
+		if (tweak_offset)
 			*dest = *src & BIT(7) ? 0xff : 0x00;
 
 		i++;
@@ -807,10 +807,8 @@ static int ads131e08_probe(struct spi_device *spi)
 	}
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
-	if (!indio_dev) {
-		dev_err(&spi->dev, "failed to allocate IIO device\n");
+	if (!indio_dev)
 		return -ENOMEM;
-	}
 
 	st = iio_priv(indio_dev);
 	st->info = info;
@@ -841,10 +839,8 @@ static int ads131e08_probe(struct spi_device *spi)
 
 	st->trig = devm_iio_trigger_alloc(&spi->dev, "%s-dev%d",
 		indio_dev->name, iio_device_id(indio_dev));
-	if (!st->trig) {
-		dev_err(&spi->dev, "failed to allocate IIO trigger\n");
+	if (!st->trig)
 		return -ENOMEM;
-	}
 
 	st->trig->ops = &ads131e08_trigger_ops;
 	st->trig->dev.parent = &spi->dev;

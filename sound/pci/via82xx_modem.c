@@ -483,7 +483,7 @@ static irqreturn_t snd_via82xx_interrupt(int irq, void *dev_id)
 // _skip_sgd:
 
 	/* check status for each stream */
-	spin_lock(&chip->reg_lock);
+	guard(spinlock)(&chip->reg_lock);
 	for (i = 0; i < chip->num_devs; i++) {
 		struct viadev *viadev = &chip->devs[i];
 		unsigned char c_status = inb(VIADEV_REG(viadev, OFFSET_STATUS));
@@ -497,7 +497,6 @@ static irqreturn_t snd_via82xx_interrupt(int irq, void *dev_id)
 		}
 		outb(c_status, VIADEV_REG(viadev, OFFSET_STATUS)); /* ack */
 	}
-	spin_unlock(&chip->reg_lock);
 	return IRQ_HANDLED;
 }
 
@@ -616,7 +615,7 @@ static snd_pcm_uframes_t snd_via686_pcm_pointer(struct snd_pcm_substream *substr
 	if (!(inb(VIADEV_REG(viadev, OFFSET_STATUS)) & VIA_REG_STAT_ACTIVE))
 		return 0;
 
-	spin_lock(&chip->reg_lock);
+	guard(spinlock)(&chip->reg_lock);
 	count = inl(VIADEV_REG(viadev, OFFSET_CURR_COUNT)) & 0xffffff;
 	/* The via686a does not have the current index register,
 	 * so we need to calculate the index from CURR_PTR.
@@ -628,7 +627,6 @@ static snd_pcm_uframes_t snd_via686_pcm_pointer(struct snd_pcm_substream *substr
 		idx = ((ptr - (unsigned int)viadev->table.addr) / 8 - 1) %
 			viadev->tbl_entries;
 	res = calc_linear_pos(chip, viadev, idx, count);
-	spin_unlock(&chip->reg_lock);
 
 	return bytes_to_frames(substream->runtime, res);
 }
@@ -842,7 +840,7 @@ static int snd_via686_pcm_new(struct via82xx_modem *chip)
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_via686_capture_ops);
 	pcm->dev_class = SNDRV_PCM_CLASS_MODEM;
 	pcm->private_data = chip;
-	strcpy(pcm->name, chip->card->shortname);
+	strscpy(pcm->name, chip->card->shortname);
 	chip->pcms[0] = pcm;
 	init_viadev(chip, 0, VIA_REG_MO_STATUS, 0);
 	init_viadev(chip, 1, VIA_REG_MI_STATUS, 1);
@@ -1116,7 +1114,7 @@ static int __snd_via82xx_probe(struct pci_dev *pci,
 	card_type = pci_id->driver_data;
 	switch (card_type) {
 	case TYPE_CARD_VIA82XX_MODEM:
-		strcpy(card->driver, "VIA82XX-MODEM");
+		strscpy(card->driver, "VIA82XX-MODEM");
 		sprintf(card->shortname, "VIA 82XX modem");
 		break;
 	default:

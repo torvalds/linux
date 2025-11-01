@@ -17,6 +17,7 @@
 #include "xe_oa_types.h"
 #include "xe_reg_sr_types.h"
 #include "xe_sa_types.h"
+#include "xe_tlb_inval_types.h"
 #include "xe_uc_types.h"
 
 struct xe_exec_queue_ops;
@@ -65,11 +66,19 @@ struct xe_mmio_range {
  */
 enum xe_steering_type {
 	L3BANK,
+	NODE,
 	MSLICE,
 	LNCF,
 	DSS,
 	OADDRM,
 	SQIDI_PSMI,
+
+	/*
+	 * Although most GAM ranges must be steered to (0,0) and thus use the
+	 * INSTANCE0 type farther down, some platforms have special rules
+	 * for specific subtypes that require steering to (1,0) instead.
+	 */
+	GAM1,
 
 	/*
 	 * On some platforms there are multiple types of MCR registers that
@@ -185,34 +194,8 @@ struct xe_gt {
 		struct work_struct worker;
 	} reset;
 
-	/** @tlb_invalidation: TLB invalidation state */
-	struct {
-		/** @tlb_invalidation.seqno: TLB invalidation seqno, protected by CT lock */
-#define TLB_INVALIDATION_SEQNO_MAX	0x100000
-		int seqno;
-		/**
-		 * @tlb_invalidation.seqno_recv: last received TLB invalidation seqno,
-		 * protected by CT lock
-		 */
-		int seqno_recv;
-		/**
-		 * @tlb_invalidation.pending_fences: list of pending fences waiting TLB
-		 * invaliations, protected by CT lock
-		 */
-		struct list_head pending_fences;
-		/**
-		 * @tlb_invalidation.pending_lock: protects @tlb_invalidation.pending_fences
-		 * and updating @tlb_invalidation.seqno_recv.
-		 */
-		spinlock_t pending_lock;
-		/**
-		 * @tlb_invalidation.fence_tdr: schedules a delayed call to
-		 * xe_gt_tlb_fence_timeout after the timeut interval is over.
-		 */
-		struct delayed_work fence_tdr;
-		/** @tlb_invalidation.lock: protects TLB invalidation fences */
-		spinlock_t lock;
-	} tlb_invalidation;
+	/** @tlb_inval: TLB invalidation state */
+	struct xe_tlb_inval tlb_inval;
 
 	/**
 	 * @ccs_mode: Number of compute engines enabled.
@@ -227,14 +210,14 @@ struct xe_gt {
 		/**
 		 * @usm.bb_pool: Pool from which batchbuffers, for USM operations
 		 * (e.g. migrations, fixing page tables), are allocated.
-		 * Dedicated pool needed so USM operations to not get blocked
+		 * Dedicated pool needed so USM operations do not get blocked
 		 * behind any user operations which may have resulted in a
 		 * fault.
 		 */
 		struct xe_sa_manager *bb_pool;
 		/**
 		 * @usm.reserved_bcs_instance: reserved BCS instance used for USM
-		 * operations (e.g. mmigrations, fixing page tables)
+		 * operations (e.g. migrations, fixing page tables)
 		 */
 		u16 reserved_bcs_instance;
 		/** @usm.pf_wq: page fault work queue, unbound, high priority */
@@ -245,8 +228,8 @@ struct xe_gt {
 		 * @usm.pf_queue: Page fault queue used to sync faults so faults can
 		 * be processed not under the GuC CT lock. The queue is sized so
 		 * it can sync all possible faults (1 per physical engine).
-		 * Multiple queues exists for page faults from different VMs are
-		 * be processed in parallel.
+		 * Multiple queues exist for page faults from different VMs to be
+		 * processed in parallel.
 		 */
 		struct pf_queue {
 			/** @usm.pf_queue.gt: back pointer to GT */
@@ -377,6 +360,8 @@ struct xe_gt {
 		u16 group_target;
 		/** @steering.instance_target: instance to steer accesses to */
 		u16 instance_target;
+		/** @steering.initialized: Whether this steering range is initialized */
+		bool initialized;
 	} steering[NUM_STEERING_TYPES];
 
 	/**
@@ -409,8 +394,8 @@ struct xe_gt {
 		unsigned long *oob;
 		/**
 		 * @wa_active.oob_initialized: mark oob as initialized to help
-		 * detecting misuse of XE_WA() - it can only be called on
-		 * initialization after OOB WAs have being processed
+		 * detecting misuse of XE_GT_WA() - it can only be called on
+		 * initialization after OOB WAs have been processed
 		 */
 		bool oob_initialized;
 	} wa_active;

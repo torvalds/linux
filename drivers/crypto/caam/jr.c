@@ -629,8 +629,7 @@ static int caam_jr_probe(struct platform_device *pdev)
 	}
 
 	/* Initialize crypto engine */
-	jrpriv->engine = crypto_engine_alloc_init_and_set(jrdev, true, NULL,
-							  false,
+	jrpriv->engine = crypto_engine_alloc_init_and_set(jrdev, true, false,
 							  CRYPTO_ENGINE_MAX_QLEN);
 	if (!jrpriv->engine) {
 		dev_err(jrdev, "Could not init crypto-engine\n");

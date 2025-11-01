@@ -282,11 +282,8 @@ static int imx_region_name_to_blk_type(const char *region_name)
 static int imx_parse_ioremap_memory(struct snd_sof_dev *sdev)
 {
 	const struct imx_chip_info *chip_info;
-	struct reserved_mem *reserved;
 	struct platform_device *pdev;
-	struct device_node *res_np;
-	phys_addr_t base, size;
-	struct resource *res;
+	struct resource *res, _res;
 	int i, blk_type, ret;
 
 	pdev = to_platform_device(sdev->dev);
@@ -307,40 +304,21 @@ static int imx_parse_ioremap_memory(struct snd_sof_dev *sdev)
 						     "failed to fetch %s resource\n",
 						     chip_info->memory[i].name);
 
-			base = res->start;
-			size = resource_size(res);
 		} else {
-			ret = of_property_match_string(pdev->dev.of_node,
-						       "memory-region-names",
-						       chip_info->memory[i].name);
+			ret = of_reserved_mem_region_to_resource_byname(pdev->dev.of_node,
+									chip_info->memory[i].name,
+									&_res);
 			if (ret < 0)
 				return dev_err_probe(sdev->dev, ret,
-						     "no valid index for %s\n",
+						     "no valid entry for %s\n",
 						     chip_info->memory[i].name);
-
-			res_np = of_parse_phandle(pdev->dev.of_node,
-						  "memory-region",
-						  ret);
-			if (!res_np)
-				return dev_err_probe(sdev->dev, -ENODEV,
-						     "failed to parse phandle %s\n",
-						     chip_info->memory[i].name);
-
-			reserved = of_reserved_mem_lookup(res_np);
-			of_node_put(res_np);
-			if (!reserved)
-				return dev_err_probe(sdev->dev, -ENODEV,
-						     "failed to get %s reserved\n",
-						     chip_info->memory[i].name);
-
-			base = reserved->base;
-			size = reserved->size;
+			res = &_res;
 		}
 
-		sdev->bar[blk_type] = devm_ioremap(sdev->dev, base, size);
-		if (!sdev->bar[blk_type])
+		sdev->bar[blk_type] = devm_ioremap_resource(sdev->dev, res);
+		if (IS_ERR(sdev->bar[blk_type]))
 			return dev_err_probe(sdev->dev,
-					     -ENOMEM,
+					     PTR_ERR(sdev->bar[blk_type]),
 					     "failed to ioremap %s region\n",
 					     chip_info->memory[i].name);
 	}
@@ -376,8 +354,8 @@ static int imx_probe(struct snd_sof_dev *sdev)
 
 	common = devm_kzalloc(sdev->dev, sizeof(*common), GFP_KERNEL);
 	if (!common)
-		return dev_err_probe(sdev->dev, -ENOMEM,
-				     "failed to allocate common data\n");
+		return -ENOMEM;
+
 	sdev->pdata->hw_pdata = common;
 
 	common->ipc_dev = platform_device_register_data(sdev->dev, "imx-dsp",
@@ -404,7 +382,7 @@ static int imx_probe(struct snd_sof_dev *sdev)
 				       imx_unregister_action,
 				       sdev);
 	if (ret)
-		return dev_err_probe(sdev->dev, ret, "failed to add devm action\n");
+		return ret;
 
 	common->ipc_handle = dev_get_drvdata(&common->ipc_dev->dev);
 	if (!common->ipc_handle)

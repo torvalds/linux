@@ -238,20 +238,16 @@ v9fs_vfs_atomic_open_dotl(struct inode *dir, struct dentry *dentry,
 	struct p9_fid *dfid = NULL, *ofid = NULL;
 	struct v9fs_session_info *v9ses;
 	struct posix_acl *pacl = NULL, *dacl = NULL;
-	struct dentry *res = NULL;
 
 	if (d_in_lookup(dentry)) {
-		res = v9fs_vfs_lookup(dir, dentry, 0);
-		if (IS_ERR(res))
-			return PTR_ERR(res);
-
-		if (res)
-			dentry = res;
+		struct dentry *res = v9fs_vfs_lookup(dir, dentry, 0);
+		if (res || d_really_is_positive(dentry))
+			return	finish_no_open(file, res);
 	}
 
 	/* Only creates */
-	if (!(flags & O_CREAT) || d_really_is_positive(dentry))
-		return	finish_no_open(file, res);
+	if (!(flags & O_CREAT))
+		return	finish_no_open(file, NULL);
 
 	v9ses = v9fs_inode2v9ses(dir);
 
@@ -337,7 +333,6 @@ out:
 	p9_fid_put(ofid);
 	p9_fid_put(fid);
 	v9fs_put_acl(dacl, pacl);
-	dput(res);
 	return err;
 }
 
@@ -902,8 +897,14 @@ int v9fs_refresh_inode_dotl(struct p9_fid *fid, struct inode *inode)
 	/*
 	 * Don't update inode if the file type is different
 	 */
-	if (inode_wrong_type(inode, st->st_mode))
+	if (inode_wrong_type(inode, st->st_mode)) {
+		/*
+		 * Do this as a way of letting the caller know the inode should not
+		 * be reused
+		 */
+		v9fs_invalidate_inode_attr(inode);
 		goto out;
+	}
 
 	/*
 	 * We don't want to refresh inode->i_size,

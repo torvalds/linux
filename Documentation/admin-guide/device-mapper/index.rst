@@ -18,6 +18,7 @@ Device Mapper
     dm-integrity
     dm-io
     dm-log
+    dm-pcache
     dm-queue-length
     dm-raid
     dm-service-time

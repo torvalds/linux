@@ -12,6 +12,7 @@
 #include <linux/iopoll.h>
 #include <linux/irq.h>
 #include <linux/irqchip/chained_irq.h>
+#include <linux/irqchip/irq-msi-lib.h>
 #include <linux/irqdomain.h>
 #include <linux/kernel.h>
 #include <linux/mfd/syscon.h>
@@ -180,7 +181,6 @@ struct mtk_pcie_soc {
  * @irq: GIC irq
  * @irq_domain: legacy INTx IRQ domain
  * @inner_domain: inner IRQ domain
- * @msi_domain: MSI IRQ domain
  * @lock: protect the msi_irq_in_use bitmap
  * @msi_irq_in_use: bit map for assigned MSI IRQ
  */
@@ -200,7 +200,6 @@ struct mtk_pcie_port {
 	int irq;
 	struct irq_domain *irq_domain;
 	struct irq_domain *inner_domain;
-	struct irq_domain *msi_domain;
 	struct mutex lock;
 	DECLARE_BITMAP(msi_irq_in_use, MTK_MSI_IRQS_NUM);
 };
@@ -470,37 +469,36 @@ static const struct irq_domain_ops msi_domain_ops = {
 	.free	= mtk_pcie_irq_domain_free,
 };
 
-static struct irq_chip mtk_msi_irq_chip = {
-	.name		= "MTK PCIe MSI",
-	.irq_ack	= irq_chip_ack_parent,
-	.irq_mask	= pci_msi_mask_irq,
-	.irq_unmask	= pci_msi_unmask_irq,
-};
+#define MTK_MSI_FLAGS_REQUIRED (MSI_FLAG_USE_DEF_DOM_OPS	| \
+				MSI_FLAG_USE_DEF_CHIP_OPS	| \
+				MSI_FLAG_NO_AFFINITY)
 
-static struct msi_domain_info mtk_msi_domain_info = {
-	.flags	= MSI_FLAG_USE_DEF_DOM_OPS | MSI_FLAG_USE_DEF_CHIP_OPS |
-		  MSI_FLAG_NO_AFFINITY | MSI_FLAG_PCI_MSIX,
-	.chip	= &mtk_msi_irq_chip,
+#define MTK_MSI_FLAGS_SUPPORTED (MSI_GENERIC_FLAGS_MASK		| \
+				 MSI_FLAG_PCI_MSIX)
+
+static const struct msi_parent_ops mtk_msi_parent_ops = {
+	.required_flags		= MTK_MSI_FLAGS_REQUIRED,
+	.supported_flags	= MTK_MSI_FLAGS_SUPPORTED,
+	.bus_select_token	= DOMAIN_BUS_PCI_MSI,
+	.chip_flags		= MSI_CHIP_FLAG_SET_ACK,
+	.prefix			= "MTK-",
+	.init_dev_msi_info	= msi_lib_init_dev_msi_info,
 };
 
 static int mtk_pcie_allocate_msi_domains(struct mtk_pcie_port *port)
 {
-	struct fwnode_handle *fwnode = of_fwnode_handle(port->pcie->dev->of_node);
-
 	mutex_init(&port->lock);
 
-	port->inner_domain = irq_domain_create_linear(fwnode, MTK_MSI_IRQS_NUM,
-						      &msi_domain_ops, port);
+	struct irq_domain_info info = {
+		.fwnode		= dev_fwnode(port->pcie->dev),
+		.ops		= &msi_domain_ops,
+		.host_data	= port,
+		.size		= MTK_MSI_IRQS_NUM,
+	};
+
+	port->inner_domain = msi_create_parent_irq_domain(&info, &mtk_msi_parent_ops);
 	if (!port->inner_domain) {
 		dev_err(port->pcie->dev, "failed to create IRQ domain\n");
-		return -ENOMEM;
-	}
-
-	port->msi_domain = pci_msi_create_irq_domain(fwnode, &mtk_msi_domain_info,
-						     port->inner_domain);
-	if (!port->msi_domain) {
-		dev_err(port->pcie->dev, "failed to create MSI domain\n");
-		irq_domain_remove(port->inner_domain);
 		return -ENOMEM;
 	}
 
@@ -532,8 +530,6 @@ static void mtk_pcie_irq_teardown(struct mtk_pcie *pcie)
 			irq_domain_remove(port->irq_domain);
 
 		if (IS_ENABLED(CONFIG_PCI_MSI)) {
-			if (port->msi_domain)
-				irq_domain_remove(port->msi_domain);
 			if (port->inner_domain)
 				irq_domain_remove(port->inner_domain);
 		}

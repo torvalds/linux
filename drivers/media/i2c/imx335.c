@@ -1026,11 +1026,10 @@ static int imx335_parse_hw_config(struct imx335 *imx335)
 	}
 
 	/* Get sensor input clock */
-	imx335->inclk = devm_clk_get(imx335->dev, NULL);
-	if (IS_ERR(imx335->inclk)) {
-		dev_err(imx335->dev, "could not get inclk\n");
-		return PTR_ERR(imx335->inclk);
-	}
+	imx335->inclk = devm_v4l2_sensor_clk_get(imx335->dev, NULL);
+	if (IS_ERR(imx335->inclk))
+		return dev_err_probe(imx335->dev, PTR_ERR(imx335->inclk),
+				     "could not get inclk\n");
 
 	rate = clk_get_rate(imx335->inclk);
 	if (rate != IMX335_INCLK_RATE) {

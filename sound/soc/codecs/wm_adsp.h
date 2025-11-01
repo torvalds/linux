@@ -29,12 +29,14 @@ struct wm_adsp {
 	const char *part;
 	const char *fwf_name;
 	const char *system_name;
+	const char *fwf_suffix;
 	struct snd_soc_component *component;
 
 	unsigned int sys_config_size;
 
 	int fw;
 	bool wmfw_optional;
+	bool bin_mandatory;
 
 	struct work_struct boot_work;
 	int (*control_add)(struct wm_adsp *dsp, struct cs_dsp_coeff_ctl *cs_ctl);
@@ -129,7 +131,7 @@ int wm_adsp_compr_trigger(struct snd_soc_component *component,
 int wm_adsp_compr_handle_irq(struct wm_adsp *dsp);
 int wm_adsp_compr_pointer(struct snd_soc_component *component,
 			  struct snd_compr_stream *stream,
-			  struct snd_compr_tstamp *tstamp);
+			  struct snd_compr_tstamp64 *tstamp);
 int wm_adsp_compr_copy(struct snd_soc_component *component,
 		       struct snd_compr_stream *stream,
 		       char __user *buf, size_t count);

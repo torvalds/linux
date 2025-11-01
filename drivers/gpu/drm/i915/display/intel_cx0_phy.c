@@ -39,7 +39,13 @@ bool intel_encoder_is_c10phy(struct intel_encoder *encoder)
 	struct intel_display *display = to_intel_display(encoder);
 	enum phy phy = intel_encoder_to_phy(encoder);
 
-	if (display->platform.pantherlake && phy == PHY_A)
+	/* PTL doesn't have a PHY connected to PORT B; as such,
+	 * there will never be a case where PTL uses PHY B.
+	 * WCL uses PORT A and B with the C10 PHY.
+	 * Reusing the condition for WCL and extending it for PORT B
+	 * should not cause any issues for PTL.
+	 */
+	if (display->platform.pantherlake && phy < PHY_C)
 		return true;
 
 	if ((display->platform.lunarlake || display->platform.meteorlake) && phy < PHY_C)
@@ -3233,13 +3239,21 @@ void intel_lnl_mac_transmit_lfps(struct intel_encoder *encoder,
 				 const struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(encoder);
-	u8 owned_lane_mask = intel_cx0_get_owned_lane_mask(encoder);
-	bool enable = intel_alpm_is_alpm_aux_less(enc_to_intel_dp(encoder),
-						  crtc_state);
+	intel_wakeref_t wakeref;
 	int i;
+	u8 owned_lane_mask;
 
-	if (DISPLAY_VER(display) < 20)
+	if (DISPLAY_VER(display) < 20 ||
+	    !intel_alpm_is_alpm_aux_less(enc_to_intel_dp(encoder), crtc_state))
 		return;
+
+	owned_lane_mask = intel_cx0_get_owned_lane_mask(encoder);
+
+	wakeref = intel_cx0_phy_transaction_begin(encoder);
+
+	if (intel_encoder_is_c10phy(encoder))
+		intel_cx0_rmw(encoder, owned_lane_mask, PHY_C10_VDR_CONTROL(1), 0,
+			      C10_VDR_CTRL_MSGBUS_ACCESS, MB_WRITE_COMMITTED);
 
 	for (i = 0; i < 4; i++) {
 		int tx = i % 2 + 1;
@@ -3250,9 +3264,10 @@ void intel_lnl_mac_transmit_lfps(struct intel_encoder *encoder,
 
 		intel_cx0_rmw(encoder, lane_mask, PHY_CMN1_CONTROL(tx, 0),
 			      CONTROL0_MAC_TRANSMIT_LFPS,
-			      enable ? CONTROL0_MAC_TRANSMIT_LFPS : 0,
-			      MB_WRITE_COMMITTED);
+			      CONTROL0_MAC_TRANSMIT_LFPS, MB_WRITE_COMMITTED);
 	}
+
+	intel_cx0_phy_transaction_end(encoder, wakeref);
 }
 
 static u8 cx0_power_control_disable_val(struct intel_encoder *encoder)

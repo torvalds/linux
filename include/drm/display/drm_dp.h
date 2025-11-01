@@ -115,6 +115,7 @@
 
 #define DP_MAX_LANE_COUNT                   0x002
 # define DP_MAX_LANE_COUNT_MASK		    0x1f
+# define DP_POST_LT_ADJ_REQ_SUPPORTED	    (1 << 5) /* 1.3 */
 # define DP_TPS3_SUPPORTED		    (1 << 6) /* 1.2 */
 # define DP_ENHANCED_FRAME_CAP		    (1 << 7)
 
@@ -583,6 +584,7 @@
 
 #define DP_LANE_COUNT_SET	            0x101
 # define DP_LANE_COUNT_MASK		    0x0f
+# define DP_POST_LT_ADJ_REQ_GRANTED         (1 << 5) /* 1.3 */
 # define DP_LANE_COUNT_ENHANCED_FRAME_EN    (1 << 7)
 
 #define DP_TRAINING_PATTERN_SET	            0x102
@@ -800,6 +802,7 @@
 
 #define DP_LANE_ALIGN_STATUS_UPDATED                    0x204
 #define  DP_INTERLANE_ALIGN_DONE                        (1 << 0)
+#define  DP_POST_LT_ADJ_REQ_IN_PROGRESS                 (1 << 1) /* 1.3 */
 #define  DP_128B132B_DPRX_EQ_INTERLANE_ALIGN_DONE       (1 << 2) /* 2.0 E11 */
 #define  DP_128B132B_DPRX_CDS_INTERLANE_ALIGN_DONE      (1 << 3) /* 2.0 E11 */
 #define  DP_128B132B_LT_FAILED                          (1 << 4) /* 2.0 E11 */

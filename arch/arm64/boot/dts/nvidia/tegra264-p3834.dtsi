@@ -1,0 +1,30 @@
+// SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+
+#include "tegra264.dtsi"
+
+/ {
+	compatible = "nvidia,p3834", "nvidia,tegra264";
+
+	aliases {
+	};
+
+	bus@0 {
+		serial@c4e0000 {
+			status = "okay";
+		};
+
+		serial@c5a0000 {
+			status = "okay";
+		};
+	};
+
+	bus@8100000000 {
+		iommu@5000000 {
+			status = "okay";
+		};
+
+		iommu@6000000 {
+			status = "okay";
+		};
+	};
+};

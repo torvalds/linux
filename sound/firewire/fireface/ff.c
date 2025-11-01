@@ -27,9 +27,9 @@ static void name_card(struct snd_ff *ff)
 
 	name = names[ff->unit_version];
 
-	strcpy(ff->card->driver, "Fireface");
-	strcpy(ff->card->shortname, name);
-	strcpy(ff->card->mixername, name);
+	strscpy(ff->card->driver, "Fireface");
+	strscpy(ff->card->shortname, name);
+	strscpy(ff->card->mixername, name);
 	snprintf(ff->card->longname, sizeof(ff->card->longname),
 		 "RME %s, GUID %08x%08x at %s, S%d", name,
 		 fw_dev->config_rom[3], fw_dev->config_rom[4],

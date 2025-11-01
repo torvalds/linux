@@ -76,6 +76,8 @@ properties:
     minItems: 1
     maxItems: 2
 
+  nonposted-mmio: true
+
 required:
   - compatible
   - interconnects

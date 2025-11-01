@@ -14,6 +14,7 @@
 #define KMSG_COMPONENT "tape"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
+#include <linux/export.h>
 #include <linux/stddef.h>
 #include <linux/kernel.h>
 #include <linux/bio.h>

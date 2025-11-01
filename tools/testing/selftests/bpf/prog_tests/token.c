@@ -115,7 +115,7 @@ static int create_bpffs_fd(void)
 
 static int materialize_bpffs_fd(int fs_fd, struct bpffs_opts *opts)
 {
-	int mnt_fd, err;
+	int err;
 
 	/* set up token delegation mount options */
 	err = set_delegate_mask(fs_fd, "delegate_cmds", opts->cmds, opts->cmds_str);
@@ -136,12 +136,7 @@ static int materialize_bpffs_fd(int fs_fd, struct bpffs_opts *opts)
 	if (err < 0)
 		return -errno;
 
-	/* create O_PATH fd for detached mount */
-	mnt_fd = sys_fsmount(fs_fd, 0, 0);
-	if (err < 0)
-		return -errno;
-
-	return mnt_fd;
+	return 0;
 }
 
 /* send FD over Unix domain (AF_UNIX) socket */
@@ -287,6 +282,7 @@ static void child(int sock_fd, struct bpffs_opts *opts, child_callback_fn callba
 {
 	int mnt_fd = -1, fs_fd = -1, err = 0, bpffs_fd = -1, token_fd = -1;
 	struct token_lsm *lsm_skel = NULL;
+	char one;
 
 	/* load and attach LSM "policy" before we go into unpriv userns */
 	lsm_skel = token_lsm__open_and_load();
@@ -333,13 +329,19 @@ static void child(int sock_fd, struct bpffs_opts *opts, child_callback_fn callba
 	err = sendfd(sock_fd, fs_fd);
 	if (!ASSERT_OK(err, "send_fs_fd"))
 		goto cleanup;
-	zclose(fs_fd);
+
+	/* wait that the parent reads the fd, does the fsconfig() calls
+	 * and send us a signal that it is done
+	 */
+	err = read(sock_fd, &one, sizeof(one));
+	if (!ASSERT_GE(err, 0, "read_one"))
+		goto cleanup;
 
 	/* avoid mucking around with mount namespaces and mounting at
-	 * well-known path, just get detach-mounted BPF FS fd back from parent
+	 * well-known path, just create O_PATH fd for detached mount
 	 */
-	err = recvfd(sock_fd, &mnt_fd);
-	if (!ASSERT_OK(err, "recv_mnt_fd"))
+	mnt_fd = sys_fsmount(fs_fd, 0, 0);
+	if (!ASSERT_OK_FD(mnt_fd, "mnt_fd"))
 		goto cleanup;
 
 	/* try to fspick() BPF FS and try to add some delegation options */
@@ -429,24 +431,24 @@ again:
 
 static void parent(int child_pid, struct bpffs_opts *bpffs_opts, int sock_fd)
 {
-	int fs_fd = -1, mnt_fd = -1, token_fd = -1, err;
+	int fs_fd = -1, token_fd = -1, err;
+	char one = 1;
 
 	err = recvfd(sock_fd, &fs_fd);
 	if (!ASSERT_OK(err, "recv_bpffs_fd"))
 		goto cleanup;
 
-	mnt_fd = materialize_bpffs_fd(fs_fd, bpffs_opts);
-	if (!ASSERT_GE(mnt_fd, 0, "materialize_bpffs_fd")) {
+	err = materialize_bpffs_fd(fs_fd, bpffs_opts);
+	if (!ASSERT_GE(err, 0, "materialize_bpffs_fd")) {
 		err = -EINVAL;
 		goto cleanup;
 	}
-	zclose(fs_fd);
 
-	/* pass BPF FS context object to parent */
-	err = sendfd(sock_fd, mnt_fd);
-	if (!ASSERT_OK(err, "send_mnt_fd"))
+	/* notify the child that we did the fsconfig() calls and it can proceed. */
+	err = write(sock_fd, &one, sizeof(one));
+	if (!ASSERT_EQ(err, sizeof(one), "send_one"))
 		goto cleanup;
-	zclose(mnt_fd);
+	zclose(fs_fd);
 
 	/* receive BPF token FD back from child for some extra tests */
 	err = recvfd(sock_fd, &token_fd);
@@ -459,7 +461,6 @@ static void parent(int child_pid, struct bpffs_opts *bpffs_opts, int sock_fd)
 cleanup:
 	zclose(sock_fd);
 	zclose(fs_fd);
-	zclose(mnt_fd);
 	zclose(token_fd);
 
 	if (child_pid > 0)
@@ -1046,6 +1047,41 @@ err_out:
 
 #define bit(n) (1ULL << (n))
 
+static int userns_bpf_token_info(int mnt_fd, struct token_lsm *lsm_skel)
+{
+	int err, token_fd = -1;
+	struct bpf_token_info info;
+	u32 len = sizeof(struct bpf_token_info);
+
+	/* create BPF token from BPF FS mount */
+	token_fd = bpf_token_create(mnt_fd, NULL);
+	if (!ASSERT_GT(token_fd, 0, "token_create")) {
+		err = -EINVAL;
+		goto cleanup;
+	}
+
+	memset(&info, 0, len);
+	err = bpf_obj_get_info_by_fd(token_fd, &info, &len);
+	if (!ASSERT_ERR(err, "bpf_obj_get_token_info"))
+		goto cleanup;
+	if (!ASSERT_EQ(info.allowed_cmds, bit(BPF_MAP_CREATE), "token_info_cmds_map_create")) {
+		err = -EINVAL;
+		goto cleanup;
+	}
+	if (!ASSERT_EQ(info.allowed_progs, bit(BPF_PROG_TYPE_XDP), "token_info_progs_xdp")) {
+		err = -EINVAL;
+		goto cleanup;
+	}
+
+	/* The BPF_PROG_TYPE_EXT is not set in token */
+	if (ASSERT_EQ(info.allowed_progs, bit(BPF_PROG_TYPE_EXT), "token_info_progs_ext"))
+		err = -EINVAL;
+
+cleanup:
+	zclose(token_fd);
+	return err;
+}
+
 void test_token(void)
 {
 	if (test__start_subtest("map_token")) {
@@ -1148,5 +1184,14 @@ void test_token(void)
 		};
 
 		subtest_userns(&opts, userns_obj_priv_implicit_token_envvar);
+	}
+	if (test__start_subtest("bpf_token_info")) {
+		struct bpffs_opts opts = {
+			.cmds = bit(BPF_MAP_CREATE),
+			.progs = bit(BPF_PROG_TYPE_XDP),
+			.attachs = ~0ULL,
+		};
+
+		subtest_userns(&opts, userns_bpf_token_info);
 	}
 }

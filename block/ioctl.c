@@ -13,6 +13,7 @@
 #include <linux/uaccess.h>
 #include <linux/pagemap.h>
 #include <linux/io_uring/cmd.h>
+#include <linux/blk-integrity.h>
 #include <uapi/linux/blkdev.h>
 #include "blk.h"
 #include "blk-crypto-internal.h"
@@ -480,7 +481,7 @@ static int blkdev_getgeo(struct block_device *bdev,
 	 */
 	memset(&geo, 0, sizeof(geo));
 	geo.start = get_start_sect(bdev);
-	ret = disk->fops->getgeo(bdev, &geo);
+	ret = disk->fops->getgeo(disk, &geo);
 	if (ret)
 		return ret;
 	if (copy_to_user(argp, &geo, sizeof(geo)))
@@ -514,7 +515,7 @@ static int compat_hdio_getgeo(struct block_device *bdev,
 	 * want to override it.
 	 */
 	geo.start = get_start_sect(bdev);
-	ret = disk->fops->getgeo(bdev, &geo);
+	ret = disk->fops->getgeo(disk, &geo);
 	if (ret)
 		return ret;
 
@@ -644,7 +645,7 @@ static int blkdev_common_ioctl(struct block_device *bdev, blk_mode_t mode,
 	case IOC_PR_CLEAR:
 		return blkdev_pr_clear(bdev, mode, argp);
 	default:
-		return -ENOIOCTLCMD;
+		return blk_get_meta_cap(bdev, cmd, argp);
 	}
 }
 
@@ -775,7 +776,7 @@ static void blk_cmd_complete(struct io_uring_cmd *cmd, unsigned int issue_flags)
 	if (bic->res == -EAGAIN && bic->nowait)
 		io_uring_cmd_issue_blocking(cmd);
 	else
-		io_uring_cmd_done(cmd, bic->res, 0, issue_flags);
+		io_uring_cmd_done(cmd, bic->res, issue_flags);
 }
 
 static void bio_cmd_bio_end_io(struct bio *bio)

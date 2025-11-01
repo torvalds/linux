@@ -10,7 +10,6 @@
 #include <linux/usb/typec_altmode.h>
 
 const char *ucsi_cmd_str(u64 raw_cmd);
-const char *ucsi_cci_str(u32 cci);
 const char *ucsi_recipient_str(u8 recipient);
 
 DECLARE_EVENT_CLASS(ucsi_log_command,

@@ -12,8 +12,8 @@
 #include <linux/rtnetlink.h>
 #include <linux/jhash.h>
 #include <net/pkt_cls.h>
+#include <linux/bnxt/hsi.h>
 
-#include "bnxt_hsi.h"
 #include "bnxt.h"
 #include "bnxt_hwrm.h"
 #include "bnxt_vfr.h"

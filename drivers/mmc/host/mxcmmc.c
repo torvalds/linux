@@ -1005,23 +1005,21 @@ static int mxcmci_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	mmc = mmc_alloc_host(sizeof(*host), &pdev->dev);
+	mmc = devm_mmc_alloc_host(&pdev->dev, sizeof(*host));
 	if (!mmc)
 		return -ENOMEM;
 
 	host = mmc_priv(mmc);
 
 	host->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
-	if (IS_ERR(host->base)) {
-		ret = PTR_ERR(host->base);
-		goto out_free;
-	}
+	if (IS_ERR(host->base))
+		return PTR_ERR(host->base);
 
 	host->phys_base = res->start;
 
 	ret = mmc_of_parse(mmc);
 	if (ret)
-		goto out_free;
+		return ret;
 	mmc->ops = &mxcmci_ops;
 
 	/* For devicetree parsing, the bus width is read from devicetree */
@@ -1054,7 +1052,7 @@ static int mxcmci_probe(struct platform_device *pdev)
 
 	ret = mmc_regulator_get_supply(mmc);
 	if (ret)
-		goto out_free;
+		return ret;
 
 	if (!mmc->ocr_avail) {
 		if (pdata && pdata->ocr_avail)
@@ -1070,20 +1068,16 @@ static int mxcmci_probe(struct platform_device *pdev)
 		host->default_irq_mask = 0;
 
 	host->clk_ipg = devm_clk_get(&pdev->dev, "ipg");
-	if (IS_ERR(host->clk_ipg)) {
-		ret = PTR_ERR(host->clk_ipg);
-		goto out_free;
-	}
+	if (IS_ERR(host->clk_ipg))
+		return PTR_ERR(host->clk_ipg);
 
 	host->clk_per = devm_clk_get(&pdev->dev, "per");
-	if (IS_ERR(host->clk_per)) {
-		ret = PTR_ERR(host->clk_per);
-		goto out_free;
-	}
+	if (IS_ERR(host->clk_per))
+		return PTR_ERR(host->clk_per);
 
 	ret = clk_prepare_enable(host->clk_per);
 	if (ret)
-		goto out_free;
+		return ret;
 
 	ret = clk_prepare_enable(host->clk_ipg);
 	if (ret)
@@ -1169,9 +1163,6 @@ out_clk_put:
 out_clk_per_put:
 	clk_disable_unprepare(host->clk_per);
 
-out_free:
-	mmc_free_host(mmc);
-
 	return ret;
 }
 
@@ -1190,8 +1181,6 @@ static void mxcmci_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(host->clk_per);
 	clk_disable_unprepare(host->clk_ipg);
-
-	mmc_free_host(mmc);
 }
 
 static int mxcmci_suspend(struct device *dev)

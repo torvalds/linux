@@ -75,6 +75,9 @@ static void i40iw_fill_device_info(struct irdma_device *iwdev, struct i40e_info 
 	struct irdma_pci_f *rf = iwdev->rf;
 
 	rf->rdma_ver = IRDMA_GEN_1;
+	rf->sc_dev.hw = &rf->hw;
+	rf->sc_dev.hw_attrs.uk_attrs.hw_rev = IRDMA_GEN_1;
+	rf->sc_dev.privileged = true;
 	rf->gen_ops.request_reset = i40iw_request_reset;
 	rf->pcidev = cdev_info->pcidev;
 	rf->pf_id = cdev_info->fid;

@@ -3,6 +3,7 @@
  *  Freescale FlexTimer Module (FTM) PWM Driver
  *
  *  Copyright 2012-2013 Freescale Semiconductor, Inc.
+ *  Copyright 2020-2025 NXP
  */
 
 #include <linux/clk.h>
@@ -10,7 +11,6 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
@@ -31,6 +31,8 @@ enum fsl_pwm_clk {
 
 struct fsl_ftm_soc {
 	bool has_enable_bits;
+	bool has_flt_reg;
+	unsigned int npwm;
 };
 
 struct fsl_pwm_periodcfg {
@@ -40,7 +42,6 @@ struct fsl_pwm_periodcfg {
 };
 
 struct fsl_pwm_chip {
-	struct mutex lock;
 	struct regmap *regmap;
 
 	/* This value is valid iff a pwm is running */
@@ -89,11 +90,8 @@ static int fsl_pwm_request(struct pwm_chip *chip, struct pwm_device *pwm)
 	struct fsl_pwm_chip *fpc = to_fsl_chip(chip);
 
 	ret = clk_prepare_enable(fpc->ipg_clk);
-	if (!ret && fpc->soc->has_enable_bits) {
-		mutex_lock(&fpc->lock);
+	if (!ret && fpc->soc->has_enable_bits)
 		regmap_set_bits(fpc->regmap, FTM_SC, BIT(pwm->hwpwm + 16));
-		mutex_unlock(&fpc->lock);
-	}
 
 	return ret;
 }
@@ -102,11 +100,8 @@ static void fsl_pwm_free(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	struct fsl_pwm_chip *fpc = to_fsl_chip(chip);
 
-	if (fpc->soc->has_enable_bits) {
-		mutex_lock(&fpc->lock);
+	if (fpc->soc->has_enable_bits)
 		regmap_clear_bits(fpc->regmap, FTM_SC, BIT(pwm->hwpwm + 16));
-		mutex_unlock(&fpc->lock);
-	}
 
 	clk_disable_unprepare(fpc->ipg_clk);
 }
@@ -304,7 +299,7 @@ static int fsl_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 {
 	struct fsl_pwm_chip *fpc = to_fsl_chip(chip);
 	struct pwm_state *oldstate = &pwm->state;
-	int ret = 0;
+	int ret;
 
 	/*
 	 * oldstate to newstate : action
@@ -315,8 +310,6 @@ static int fsl_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	 * disabled to enabled : update settings + enable
 	 */
 
-	mutex_lock(&fpc->lock);
-
 	if (!newstate->enabled) {
 		if (oldstate->enabled) {
 			regmap_set_bits(fpc->regmap, FTM_OUTMASK,
@@ -325,30 +318,28 @@ static int fsl_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 			clk_disable_unprepare(fpc->clk[fpc->period.clk_select]);
 		}
 
-		goto end_mutex;
+		return 0;
 	}
 
 	ret = fsl_pwm_apply_config(chip, pwm, newstate);
 	if (ret)
-		goto end_mutex;
+		return ret;
 
 	/* check if need to enable */
 	if (!oldstate->enabled) {
 		ret = clk_prepare_enable(fpc->clk[fpc->period.clk_select]);
 		if (ret)
-			goto end_mutex;
+			return ret;
 
 		ret = clk_prepare_enable(fpc->clk[FSL_PWM_CLK_CNTEN]);
 		if (ret) {
 			clk_disable_unprepare(fpc->clk[fpc->period.clk_select]);
-			goto end_mutex;
+			return ret;
 		}
 
 		regmap_clear_bits(fpc->regmap, FTM_OUTMASK, BIT(pwm->hwpwm));
 	}
 
-end_mutex:
-	mutex_unlock(&fpc->lock);
 	return ret;
 }
 
@@ -386,6 +377,20 @@ static bool fsl_pwm_volatile_reg(struct device *dev, unsigned int reg)
 	return false;
 }
 
+static bool fsl_pwm_is_reg(struct device *dev, unsigned int reg)
+{
+	struct pwm_chip *chip = dev_get_drvdata(dev);
+	struct fsl_pwm_chip *fpc = to_fsl_chip(chip);
+
+	if (reg >= FTM_CSC(fpc->soc->npwm) && reg < FTM_CNTIN)
+		return false;
+
+	if ((reg == FTM_FLTCTRL || reg == FTM_FLTPOL) && !fpc->soc->has_flt_reg)
+		return false;
+
+	return true;
+}
+
 static const struct regmap_config fsl_pwm_regmap_config = {
 	.reg_bits = 32,
 	.reg_stride = 4,
@@ -394,23 +399,24 @@ static const struct regmap_config fsl_pwm_regmap_config = {
 	.max_register = FTM_PWMLOAD,
 	.volatile_reg = fsl_pwm_volatile_reg,
 	.cache_type = REGCACHE_FLAT,
+	.writeable_reg = fsl_pwm_is_reg,
+	.readable_reg = fsl_pwm_is_reg,
 };
 
 static int fsl_pwm_probe(struct platform_device *pdev)
 {
+	const struct fsl_ftm_soc *soc = of_device_get_match_data(&pdev->dev);
 	struct pwm_chip *chip;
 	struct fsl_pwm_chip *fpc;
 	void __iomem *base;
 	int ret;
 
-	chip = devm_pwmchip_alloc(&pdev->dev, 8, sizeof(*fpc));
+	chip = devm_pwmchip_alloc(&pdev->dev, soc->npwm, sizeof(*fpc));
 	if (IS_ERR(chip))
 		return PTR_ERR(chip);
 	fpc = to_fsl_chip(chip);
 
-	mutex_init(&fpc->lock);
-
-	fpc->soc = of_device_get_match_data(&pdev->dev);
+	fpc->soc = soc;
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
@@ -526,15 +532,26 @@ static const struct dev_pm_ops fsl_pwm_pm_ops = {
 
 static const struct fsl_ftm_soc vf610_ftm_pwm = {
 	.has_enable_bits = false,
+	.has_flt_reg = true,
+	.npwm = 8,
 };
 
 static const struct fsl_ftm_soc imx8qm_ftm_pwm = {
 	.has_enable_bits = true,
+	.has_flt_reg = true,
+	.npwm = 8,
+};
+
+static const struct fsl_ftm_soc s32g2_ftm_pwm = {
+	.has_enable_bits = true,
+	.has_flt_reg = false,
+	.npwm = 6,
 };
 
 static const struct of_device_id fsl_pwm_dt_ids[] = {
 	{ .compatible = "fsl,vf610-ftm-pwm", .data = &vf610_ftm_pwm },
 	{ .compatible = "fsl,imx8qm-ftm-pwm", .data = &imx8qm_ftm_pwm },
+	{ .compatible = "nxp,s32g2-ftm-pwm", .data = &s32g2_ftm_pwm },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, fsl_pwm_dt_ids);

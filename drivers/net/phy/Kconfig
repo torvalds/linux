@@ -3,6 +3,11 @@
 # PHY Layer Configuration
 #
 
+config MDIO_BUS
+	tristate "MDIO bus consumer layer"
+	help
+	  MDIO bus consumer layer
+
 config PHYLINK
 	tristate
 	select PHYLIB
@@ -24,6 +29,9 @@ if PHYLIB
 
 config SWPHY
 	bool
+
+config PHY_PACKAGE
+	 tristate
 
 config LED_TRIGGER_PHY
 	bool "Support LED triggers for tracking link state"
@@ -157,6 +165,7 @@ config BCM54140_PHY
 	tristate "Broadcom BCM54140 PHY"
 	depends on HWMON || HWMON=n
 	select BCM_NET_PHYLIB
+	select PHY_PACKAGE
 	help
 	  Support the Broadcom BCM54140 Quad SGMII/QSGMII PHY.
 
@@ -292,8 +301,9 @@ source "drivers/net/phy/mediatek/Kconfig"
 config MICREL_PHY
 	tristate "Micrel PHYs"
 	depends on PTP_1588_CLOCK_OPTIONAL
+	select PHY_PACKAGE
 	help
-	  Supports the KSZ9021, VSC8201, KS8001 PHYs.
+	  Supports the KSZ8xxx, KSZ9xxx, and LAN88xx families of Micrel/Microchip PHYs.
 
 config MICROCHIP_T1S_PHY
 	tristate "Microchip 10BASE-T1S Ethernet PHYs"
@@ -323,6 +333,7 @@ config MICROSEMI_PHY
 	depends on MACSEC || MACSEC=n
 	depends on PTP_1588_CLOCK_OPTIONAL || !NETWORK_PHY_TIMESTAMPING
 	select CRYPTO_LIB_AES if MACSEC
+	select PHY_PACKAGE
 	help
 	  Currently supports VSC8514, VSC8530, VSC8531, VSC8540 and VSC8541 PHYs
 
@@ -355,7 +366,7 @@ config NXP_TJA11XX_PHY
 	tristate "NXP TJA11xx PHYs support"
 	depends on HWMON
 	help
-	  Currently supports the NXP TJA1100 and TJA1101 PHY.
+	  Currently supports the NXP TJA1100, TJA1101 and TJA1102 PHYs.
 
 config NCN26000_PHY
 	tristate "Onsemi 10BASE-T1S Ethernet PHY"
@@ -459,7 +470,3 @@ config XILINX_GMII2RGMII
 	  Ethernet physical media devices and the Gigabit Ethernet controller.
 
 endif # PHYLIB
-
-config MICREL_KS8995MA
-	tristate "Micrel KS8995MA 5-ports 10/100 managed Ethernet switch"
-	depends on SPI

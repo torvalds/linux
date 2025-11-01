@@ -17,7 +17,7 @@ struct mtk_wed_wo;
 struct mtk_wed_soc_data {
 	struct {
 		u32 tx_bm_tkid;
-		u32 wpdma_rx_ring0;
+		u32 wpdma_rx_ring[MTK_WED_RX_QUEUES];
 		u32 reset_idx_tx_mask;
 		u32 reset_idx_rx_mask;
 	} regmap;

@@ -143,7 +143,10 @@ static int jpeg_v4_0_sw_init(struct amdgpu_ip_block *ip_block)
 	if (r)
 		return r;
 
-	adev->jpeg.supported_reset = AMDGPU_RESET_TYPE_PER_QUEUE;
+	adev->jpeg.supported_reset =
+		amdgpu_get_soft_full_reset_mask(adev->jpeg.inst[0].ring_dec);
+	if (!amdgpu_sriov_vf(adev))
+		adev->jpeg.supported_reset |= AMDGPU_RESET_TYPE_PER_QUEUE;
 	r = amdgpu_jpeg_sysfs_reset_mask_init(adev);
 
 	return r;
@@ -720,14 +723,20 @@ static int jpeg_v4_0_process_interrupt(struct amdgpu_device *adev,
 	return 0;
 }
 
-static int jpeg_v4_0_ring_reset(struct amdgpu_ring *ring, unsigned int vmid)
+static int jpeg_v4_0_ring_reset(struct amdgpu_ring *ring,
+				unsigned int vmid,
+				struct amdgpu_fence *timedout_fence)
 {
-	if (amdgpu_sriov_vf(ring->adev))
-		return -EINVAL;
+	int r;
 
-	jpeg_v4_0_stop(ring->adev);
-	jpeg_v4_0_start(ring->adev);
-	return amdgpu_ring_test_helper(ring);
+	amdgpu_ring_reset_helper_begin(ring, timedout_fence);
+	r = jpeg_v4_0_stop(ring->adev);
+	if (r)
+		return r;
+	r = jpeg_v4_0_start(ring->adev);
+	if (r)
+		return r;
+	return amdgpu_ring_reset_helper_end(ring, timedout_fence);
 }
 
 static const struct amd_ip_funcs jpeg_v4_0_ip_funcs = {
@@ -753,7 +762,7 @@ static const struct amdgpu_ring_funcs jpeg_v4_0_dec_ring_vm_funcs = {
 	.get_rptr = jpeg_v4_0_dec_ring_get_rptr,
 	.get_wptr = jpeg_v4_0_dec_ring_get_wptr,
 	.set_wptr = jpeg_v4_0_dec_ring_set_wptr,
-	.parse_cs = jpeg_v2_dec_ring_parse_cs,
+	.parse_cs = amdgpu_jpeg_dec_parse_cs,
 	.emit_frame_size =
 		SOC15_FLUSH_GPU_TLB_NUM_WREG * 6 +
 		SOC15_FLUSH_GPU_TLB_NUM_REG_WAIT * 8 +

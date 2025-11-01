@@ -109,26 +109,3 @@ axi_vdma_0: axivdma@40030000 {
 		xlnx,datawidth = <0x40>;
 	} ;
 } ;
-
-
-* DMA client
-
-Required properties:
-- dmas: a list of <[Video DMA device phandle] [Channel ID]> pairs,
-	where Channel ID is '0' for write/tx and '1' for read/rx
-	channel. For MCMDA, MM2S channel(write/tx) ID start from
-	'0' and is in [0-15] range. S2MM channel(read/rx) ID start
-	from '16' and is in [16-31] range. These channels ID are
-	fixed irrespective of IP configuration.
-
-- dma-names: a list of DMA channel names, one per "dmas" entry
-
-Example:
-++++++++
-
-vdmatest_0: vdmatest@0 {
-	compatible ="xlnx,axi-vdma-test-1.00.a";
-	dmas = <&axi_vdma_0 0
-		&axi_vdma_0 1>;
-	dma-names = "vdma0", "vdma1";
-} ;

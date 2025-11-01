@@ -66,7 +66,6 @@ config RT2800PCI
 	select RT2X00_LIB_PCI
 	select RT2X00_LIB_FIRMWARE
 	select RT2X00_LIB_CRYPTO
-	select CRC_CCITT
 	select EEPROM_93CX6
 	help
 	  This adds support for rt27xx/rt28xx/rt30xx wireless chipset family.
@@ -142,7 +141,6 @@ config RT2800USB
 	select RT2X00_LIB_USB
 	select RT2X00_LIB_FIRMWARE
 	select RT2X00_LIB_CRYPTO
-	select CRC_CCITT
 	help
 	  This adds support for rt27xx/rt28xx/rt30xx wireless chipset family.
 	  Supported chips: RT2770, RT2870 & RT3070, RT3071 & RT3072
@@ -202,8 +200,7 @@ endif
 
 config RT2800SOC
 	tristate "Ralink WiSoC support"
-	depends on SOC_RT288X || SOC_RT305X || SOC_MT7620
-	select RT2X00_LIB_SOC
+	depends on OF && (SOC_RT288X || SOC_RT305X || SOC_MT7620 || COMPILE_TEST)
 	select RT2X00_LIB_MMIO
 	select RT2X00_LIB_CRYPTO
 	select RT2X00_LIB_FIRMWARE
@@ -218,6 +215,7 @@ config RT2800SOC
 
 config RT2800_LIB
 	tristate
+	select CRC_CCITT
 
 config RT2800_LIB_MMIO
 	tristate
@@ -226,12 +224,9 @@ config RT2800_LIB_MMIO
 
 config RT2X00_LIB_MMIO
 	tristate
-
-config RT2X00_LIB_PCI
-	tristate
 	select RT2X00_LIB
 
-config RT2X00_LIB_SOC
+config RT2X00_LIB_PCI
 	tristate
 	select RT2X00_LIB
 

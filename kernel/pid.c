@@ -71,13 +71,13 @@ static int pid_max_max = PID_MAX_LIMIT;
  * the scheme scales to up to 4 million PIDs, runtime.
  */
 struct pid_namespace init_pid_ns = {
-	.ns.count = REFCOUNT_INIT(2),
+	.ns.__ns_ref = REFCOUNT_INIT(2),
 	.idr = IDR_INIT(init_pid_ns.idr),
 	.pid_allocated = PIDNS_ADDING,
 	.level = 0,
 	.child_reaper = &init_task,
 	.user_ns = &init_user_ns,
-	.ns.inum = PROC_PID_INIT_INO,
+	.ns.inum = ns_init_inum(&init_pid_ns),
 #ifdef CONFIG_PID_NS
 	.ns.ops = &pidns_operations,
 #endif
@@ -85,6 +85,7 @@ struct pid_namespace init_pid_ns = {
 #if defined(CONFIG_SYSCTL) && defined(CONFIG_MEMFD_CREATE)
 	.memfd_noexec_scope = MEMFD_NOEXEC_SCOPE_EXEC,
 #endif
+	.ns.ns_type = ns_common_type(&init_pid_ns),
 };
 EXPORT_SYMBOL_GPL(init_pid_ns);
 
@@ -100,7 +101,7 @@ void put_pid(struct pid *pid)
 
 	ns = pid->numbers[pid->level].ns;
 	if (refcount_dec_and_test(&pid->count)) {
-		WARN_ON_ONCE(pid->stashed);
+		pidfs_free_pid(pid);
 		kmem_cache_free(ns->pid_cachep, pid);
 		put_pid_ns(ns);
 	}
@@ -491,7 +492,7 @@ pid_t pid_nr_ns(struct pid *pid, struct pid_namespace *ns)
 	struct upid *upid;
 	pid_t nr = 0;
 
-	if (pid && ns->level <= pid->level) {
+	if (pid && ns && ns->level <= pid->level) {
 		upid = &pid->numbers[ns->level];
 		if (upid->ns == ns)
 			nr = upid->nr;
@@ -514,7 +515,8 @@ pid_t __task_pid_nr_ns(struct task_struct *task, enum pid_type type,
 	rcu_read_lock();
 	if (!ns)
 		ns = task_active_pid_ns(current);
-	nr = pid_nr_ns(rcu_dereference(*task_pid_ptr(task, type)), ns);
+	if (ns)
+		nr = pid_nr_ns(rcu_dereference(*task_pid_ptr(task, type)), ns);
 	rcu_read_unlock();
 
 	return nr;
@@ -680,7 +682,7 @@ static int pid_table_root_permissions(struct ctl_table_header *head,
 		container_of(head->set, struct pid_namespace, set);
 	int mode = table->mode;
 
-	if (ns_capable(pidns->user_ns, CAP_SYS_ADMIN) ||
+	if (ns_capable_noaudit(pidns->user_ns, CAP_SYS_ADMIN) ||
 	    uid_eq(current_euid(), make_kuid(pidns->user_ns, 0)))
 		mode = (mode & S_IRWXU) >> 6;
 	else if (in_egroup_p(make_kgid(pidns->user_ns, 0)))
@@ -713,6 +715,29 @@ static struct ctl_table_root pid_table_root = {
 	.set_ownership	= pid_table_root_set_ownership,
 };
 
+static int proc_do_cad_pid(const struct ctl_table *table, int write, void *buffer,
+		size_t *lenp, loff_t *ppos)
+{
+	struct pid *new_pid;
+	pid_t tmp_pid;
+	int r;
+	struct ctl_table tmp_table = *table;
+
+	tmp_pid = pid_vnr(cad_pid);
+	tmp_table.data = &tmp_pid;
+
+	r = proc_dointvec(&tmp_table, write, buffer, lenp, ppos);
+	if (r || !write)
+		return r;
+
+	new_pid = find_get_pid(tmp_pid);
+	if (!new_pid)
+		return -ESRCH;
+
+	put_pid(xchg(&cad_pid, new_pid));
+	return 0;
+}
+
 static const struct ctl_table pid_table[] = {
 	{
 		.procname	= "pid_max",
@@ -723,6 +748,14 @@ static const struct ctl_table pid_table[] = {
 		.extra1		= &pid_max_min,
 		.extra2		= &pid_max_max,
 	},
+#ifdef CONFIG_PROC_SYSCTL
+	{
+		.procname	= "cad_pid",
+		.maxlen		= sizeof(int),
+		.mode		= 0600,
+		.proc_handler	= proc_do_cad_pid,
+	},
+#endif
 };
 #endif
 

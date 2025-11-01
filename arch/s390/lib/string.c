@@ -27,7 +27,7 @@ static inline char *__strend(const char *s)
 	asm volatile(
 		"	lghi	0,0\n"
 		"0:	srst	%[e],%[s]\n"
-		"	jo	0b\n"
+		"	jo	0b"
 		: [e] "+&a" (e), [s] "+&a" (s)
 		:
 		: "cc", "memory", "0");
@@ -41,7 +41,7 @@ static inline char *__strnend(const char *s, size_t n)
 	asm volatile(
 		"	lghi	0,0\n"
 		"0:	srst	%[p],%[s]\n"
-		"	jo	0b\n"
+		"	jo	0b"
 		: [p] "+&d" (p), [s] "+&a" (s)
 		:
 		: "cc", "memory", "0");
@@ -95,7 +95,7 @@ char *strcat(char *dest, const char *src)
 		"0:	srst	%[dummy],%[dest]\n"
 		"	jo	0b\n"
 		"1:	mvst	%[dummy],%[src]\n"
-		"	jo	1b\n"
+		"	jo	1b"
 		: [dummy] "+&a" (dummy), [dest] "+&a" (dest), [src] "+&a" (src)
 		:
 		: "cc", "memory", "0");
@@ -291,7 +291,7 @@ void *memscan(void *s, int c, size_t n)
 	asm volatile(
 		"	lgr	0,%[c]\n"
 		"0:	srst	%[ret],%[s]\n"
-		"	jo	0b\n"
+		"	jo	0b"
 		: [ret] "+&a" (ret), [s] "+&a" (s)
 		: [c] "d" (c)
 		: "cc", "memory", "0");

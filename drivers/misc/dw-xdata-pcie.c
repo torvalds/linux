@@ -16,6 +16,7 @@
 #include <linux/mutex.h>
 #include <linux/delay.h>
 #include <linux/pci.h>
+#include <linux/string_choices.h>
 
 #define DW_XDATA_DRIVER_NAME		"dw-xdata-pcie"
 
@@ -132,7 +133,7 @@ static void dw_xdata_start(struct dw_xdata *dw, bool write)
 
 	if (!(status & STATUS_DONE))
 		dev_dbg(dev, "xData: started %s direction\n",
-			write ? "write" : "read");
+			str_write_read(write));
 }
 
 static void dw_xdata_perf_meas(struct dw_xdata *dw, u64 *data, bool write)
@@ -195,7 +196,7 @@ static void dw_xdata_perf(struct dw_xdata *dw, u64 *rate, bool write)
 	mutex_unlock(&dw->mutex);
 
 	dev_dbg(dev, "xData: time=%llu us, %s=%llu MB/s\n",
-		diff, write ? "write" : "read", *rate);
+		diff, str_write_read(write), *rate);
 }
 
 static struct dw_xdata *misc_dev_to_dw(struct miscdevice *misc_dev)

@@ -2,7 +2,7 @@
 /*
     tvaudio.h - definition for tvaudio inputs
 
-    Copyright (C) 2006 Hans Verkuil (hverkuil@xs4all.nl)
+    Copyright (C) 2006 Hans Verkuil (hverkuil@kernel.org)
 
 */
 

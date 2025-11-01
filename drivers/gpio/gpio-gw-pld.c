@@ -86,7 +86,7 @@ static int gw_pld_probe(struct i2c_client *client)
 	gw->chip.direction_input = gw_pld_input8;
 	gw->chip.get = gw_pld_get8;
 	gw->chip.direction_output = gw_pld_output8;
-	gw->chip.set_rv = gw_pld_set8;
+	gw->chip.set = gw_pld_set8;
 	gw->client = client;
 
 	/*

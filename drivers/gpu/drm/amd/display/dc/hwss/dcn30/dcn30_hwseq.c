@@ -50,10 +50,11 @@
 #include "dpcd_defs.h"
 #include "dcn20/dcn20_hwseq.h"
 #include "dcn30/dcn30_resource.h"
-#include "link.h"
+#include "link_service.h"
 #include "dc_state_priv.h"
 
-
+#define TO_DCN_DCCG(dccg)\
+	container_of(dccg, struct dcn_dccg, base)
 
 #define DC_LOGGER_INIT(logger)
 
@@ -1226,5 +1227,56 @@ void dcn30_wait_for_all_pending_updates(const struct pipe_ctx *pipe_ctx)
 
 			udelay(1);
 		}
+	}
+}
+
+void dcn30_get_underflow_debug_data(const struct dc *dc,
+	struct timing_generator *tg,
+	struct dc_underflow_debug_data *out_data)
+{
+	struct hubbub *hubbub = dc->res_pool->hubbub;
+
+	if (hubbub) {
+		if (hubbub->funcs->hubbub_read_reg_state) {
+			hubbub->funcs->hubbub_read_reg_state(hubbub, out_data->hubbub_reg_state);
+		}
+	}
+
+	for (int i = 0; i < MAX_PIPES; i++) {
+		struct hubp *hubp = dc->res_pool->hubps[i];
+		struct dpp *dpp = dc->res_pool->dpps[i];
+		struct output_pixel_processor *opp = dc->res_pool->opps[i];
+		struct display_stream_compressor *dsc = dc->res_pool->dscs[i];
+		struct mpc *mpc = dc->res_pool->mpc;
+		struct timing_generator *optc = dc->res_pool->timing_generators[i];
+		struct dccg *dccg = dc->res_pool->dccg;
+
+		if (hubp)
+			if (hubp->funcs->hubp_read_reg_state)
+				hubp->funcs->hubp_read_reg_state(hubp, out_data->hubp_reg_state[i]);
+
+		if (dpp)
+			if (dpp->funcs->dpp_read_reg_state)
+				dpp->funcs->dpp_read_reg_state(dpp, out_data->dpp_reg_state[i]);
+
+		if (opp)
+			if (opp->funcs->opp_read_reg_state)
+				opp->funcs->opp_read_reg_state(opp, out_data->opp_reg_state[i]);
+
+		if (dsc)
+			if (dsc->funcs->dsc_read_reg_state)
+				dsc->funcs->dsc_read_reg_state(dsc, out_data->dsc_reg_state[i]);
+
+		if (mpc)
+			if (mpc->funcs->mpc_read_reg_state)
+				mpc->funcs->mpc_read_reg_state(mpc, i, out_data->mpc_reg_state[i]);
+
+		if (optc)
+			if (optc->funcs->optc_read_reg_state)
+				optc->funcs->optc_read_reg_state(optc, out_data->optc_reg_state[i]);
+
+		if (dccg)
+			if (dccg->funcs->dccg_read_reg_state)
+				dccg->funcs->dccg_read_reg_state(dccg, out_data->dccg_reg_state[i]);
 	}
 }

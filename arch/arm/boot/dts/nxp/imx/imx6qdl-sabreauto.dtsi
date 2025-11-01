@@ -32,35 +32,35 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_gpio_keys>;
 
-		home {
+		key-home {
 			label = "Home";
 			gpios = <&gpio1 11 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_HOME>;
 			wakeup-source;
 		};
 
-		back {
+		key-back {
 			label = "Back";
 			gpios = <&gpio1 12 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_BACK>;
 			wakeup-source;
 		};
 
-		program {
+		key-program {
 			label = "Program";
 			gpios = <&gpio2 12 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_PROGRAM>;
 			wakeup-source;
 		};
 
-		volume-up {
+		key-volume-up {
 			label = "Volume Up";
 			gpios = <&gpio2 15 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_VOLUMEUP>;
 			wakeup-source;
 		};
 
-		volume-down {
+		key-volume-down {
 			label = "Volume Down";
 			gpios = <&gpio5 14 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_VOLUMEDOWN>;

@@ -23,6 +23,7 @@ static struct pci_driver rtw_8723de_driver = {
 	.remove = rtw_pci_remove,
 	.driver.pm = &rtw_pm_ops,
 	.shutdown = rtw_pci_shutdown,
+	.err_handler  = &rtw_pci_err_handler,
 };
 module_pci_driver(rtw_8723de_driver);
 

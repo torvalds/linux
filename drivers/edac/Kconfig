@@ -576,4 +576,20 @@ config EDAC_LOONGSON
 	  errors (CE) only. Loongson-3A5000/3C5000/3D5000/3A6000/3C6000
 	  are compatible.
 
+config EDAC_CORTEX_A72
+	tristate "ARM Cortex A72"
+	depends on ARM64
+	help
+	  Support for L1/L2 cache error detection for ARM Cortex A72 processor.
+	  The detected and reported errors are from reading CPU/L2 memory error
+	  syndrome registers.
+
+config EDAC_VERSALNET
+	tristate "AMD VersalNET DDR Controller"
+	depends on CDX_CONTROLLER && ARCH_ZYNQMP
+	help
+	  Support for single bit error correction, double bit error detection
+	  and other system errors from various IP subsystems like RPU, NOCs,
+	  HNICX, PL on the AMD Versal NET DDR memory controller.
+
 endif # EDAC

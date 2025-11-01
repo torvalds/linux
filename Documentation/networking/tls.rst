@@ -16,11 +16,13 @@ User interface
 Creating a TLS connection
 -------------------------
 
-First create a new TCP socket and set the TLS ULP.
+First create a new TCP socket and once the connection is established set the
+TLS ULP.
 
 .. code-block:: c
 
   sock = socket(AF_INET, SOCK_STREAM, 0);
+  connect(sock, addr, addrlen);
   setsockopt(sock, SOL_TCP, TCP_ULP, "tls", sizeof("tls"));
 
 Setting the TLS ULP allows us to set/get TLS socket options. Currently

@@ -103,8 +103,6 @@ static void omap_fbdev_fb_destroy(struct fb_info *info)
 	drm_framebuffer_remove(fb);
 
 	drm_client_release(&helper->client);
-	drm_fb_helper_unprepare(helper);
-	kfree(helper);
 }
 
 /*
@@ -197,7 +195,10 @@ int omap_fbdev_driver_fbdev_probe(struct drm_fb_helper *helper,
 		goto fail;
 	}
 
-	fb = omap_framebuffer_init(dev, &mode_cmd, &bo);
+	fb = omap_framebuffer_init(dev,
+				   drm_get_format_info(dev, mode_cmd.pixel_format,
+						       mode_cmd.modifier[0]),
+				   &mode_cmd, &bo);
 	if (IS_ERR(fb)) {
 		dev_err(dev->dev, "failed to allocate fb\n");
 		/* note: if fb creation failed, we can't rely on fb destroy

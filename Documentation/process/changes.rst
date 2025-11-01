@@ -30,7 +30,7 @@ you probably needn't concern yourself with pcmciautils.
         Program        Minimal version       Command to check the version
 ====================== ===============  ========================================
 GNU C                  8.1              gcc --version
-Clang/LLVM (optional)  13.0.1           clang --version
+Clang/LLVM (optional)  15.0.0           clang --version
 Rust (optional)        1.78.0           rustc --version
 bindgen (optional)     0.65.1           bindgen --version
 GNU make               4.0              make --version
@@ -43,7 +43,6 @@ util-linux             2.10o            mount --version
 kmod                   13               depmod -V
 e2fsprogs              1.41.4           e2fsck -V
 jfsutils               1.1.3            fsck.jfs -V
-reiserfsprogs          3.6.3            reiserfsck -V
 xfsprogs               2.6.0            xfs_db -V
 squashfs-tools         4.0              mksquashfs -version
 btrfs-progs            0.18             btrfs --version
@@ -62,7 +61,7 @@ Sphinx\ [#f1]_         3.4.3            sphinx-build --version
 GNU tar                1.28             tar --version
 gtags (optional)       6.6.5            gtags --version
 mkimage (optional)     2017.01          mkimage --version
-Python (optional)      3.9.x            python3 --version
+Python                 3.9.x            python3 --version
 GNU AWK (optional)     5.1.0            gawk --version
 ====================== ===============  ========================================
 
@@ -154,6 +153,13 @@ Perl
 
 You will need perl 5 and the following modules: ``Getopt::Long``,
 ``Getopt::Std``, ``File::Basename``, and ``File::Find`` to build the kernel.
+
+Python
+------
+
+Several config options require it: it is required for arm/arm64
+default configs, CONFIG_LTO_CLANG, some DRM optional configs,
+the kernel-doc tool, and docs build (Sphinx), among others.
 
 BC
 --
@@ -261,14 +267,6 @@ The following utilities are available:
 - ``mkfs.jfs`` - create a JFS formatted partition.
 
 - other file system utilities are also available in this package.
-
-Reiserfsprogs
--------------
-
-The reiserfsprogs package should be used for reiserfs-3.6.x
-(Linux kernels 2.4.x). It is a combined package and contains working
-versions of ``mkreiserfs``, ``resize_reiserfs``, ``debugreiserfs`` and
-``reiserfsck``. These utils work on both i386 and alpha platforms.
 
 Xfsprogs
 --------
@@ -492,11 +490,6 @@ JFSutils
 --------
 
 - <https://jfs.sourceforge.net/>
-
-Reiserfsprogs
--------------
-
-- <https://git.kernel.org/pub/scm/linux/kernel/git/jeffm/reiserfsprogs.git/>
 
 Xfsprogs
 --------

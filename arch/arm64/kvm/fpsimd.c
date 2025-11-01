@@ -15,32 +15,6 @@
 #include <asm/sysreg.h>
 
 /*
- * Called on entry to KVM_RUN unless this vcpu previously ran at least
- * once and the most recent prior KVM_RUN for this vcpu was called from
- * the same task as current (highly likely).
- *
- * This is guaranteed to execute before kvm_arch_vcpu_load_fp(vcpu),
- * such that on entering hyp the relevant parts of current are already
- * mapped.
- */
-int kvm_arch_vcpu_run_map_fp(struct kvm_vcpu *vcpu)
-{
-	struct user_fpsimd_state *fpsimd = &current->thread.uw.fpsimd_state;
-	int ret;
-
-	/* pKVM has its own tracking of the host fpsimd state. */
-	if (is_protected_kvm_enabled())
-		return 0;
-
-	/* Make sure the host task fpsimd state is visible to hyp: */
-	ret = kvm_share_hyp(fpsimd, fpsimd + 1);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
-/*
  * Prepare vcpu for saving the host's FPSIMD state and loading the guest's.
  * The actual loading is done by the FPSIMD access trap taken to hyp.
  *

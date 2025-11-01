@@ -529,7 +529,6 @@ static const struct regmap_config axmclk_regmap_config = {
 	.reg_stride	= 4,
 	.val_bits	= 32,
 	.max_register	= 0x1fffc,
-	.fast_io	= true,
 };
 
 static const struct of_device_id axmclk_match_table[] = {

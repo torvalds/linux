@@ -565,7 +565,7 @@ static int vangogh_print_legacy_clk_levels(struct smu_context *smu,
 	DpmClocks_t *clk_table = smu->smu_table.clocks_table;
 	SmuMetrics_legacy_t metrics;
 	struct smu_dpm_context *smu_dpm_ctx = &(smu->smu_dpm);
-	int i, idx, size = 0, ret = 0;
+	int i, idx, size = 0, ret = 0, start_offset = 0;
 	uint32_t cur_value = 0, value = 0, count = 0;
 	bool cur_value_match_level = false;
 
@@ -576,6 +576,7 @@ static int vangogh_print_legacy_clk_levels(struct smu_context *smu,
 		return ret;
 
 	smu_cmn_get_sysfs_buf(&buf, &size);
+	start_offset = size;
 
 	switch (clk_type) {
 	case SMU_OD_SCLK:
@@ -658,7 +659,7 @@ static int vangogh_print_legacy_clk_levels(struct smu_context *smu,
 		break;
 	}
 
-	return size;
+	return size - start_offset;
 }
 
 static int vangogh_print_clk_levels(struct smu_context *smu,
@@ -666,8 +667,7 @@ static int vangogh_print_clk_levels(struct smu_context *smu,
 {
 	DpmClocks_t *clk_table = smu->smu_table.clocks_table;
 	SmuMetrics_t metrics;
-	struct smu_dpm_context *smu_dpm_ctx = &(smu->smu_dpm);
-	int i, idx, size = 0, ret = 0;
+	int i, idx, size = 0, ret = 0, start_offset = 0;
 	uint32_t cur_value = 0, value = 0, count = 0;
 	bool cur_value_match_level = false;
 	uint32_t min, max;
@@ -679,34 +679,29 @@ static int vangogh_print_clk_levels(struct smu_context *smu,
 		return ret;
 
 	smu_cmn_get_sysfs_buf(&buf, &size);
+	start_offset = size;
 
 	switch (clk_type) {
 	case SMU_OD_SCLK:
-		if (smu_dpm_ctx->dpm_level == AMD_DPM_FORCED_LEVEL_MANUAL) {
-			size += sysfs_emit_at(buf, size, "%s:\n", "OD_SCLK");
-			size += sysfs_emit_at(buf, size, "0: %10uMhz\n",
-			(smu->gfx_actual_hard_min_freq > 0) ? smu->gfx_actual_hard_min_freq : smu->gfx_default_hard_min_freq);
-			size += sysfs_emit_at(buf, size, "1: %10uMhz\n",
-			(smu->gfx_actual_soft_max_freq > 0) ? smu->gfx_actual_soft_max_freq : smu->gfx_default_soft_max_freq);
-		}
+		size += sysfs_emit_at(buf, size, "%s:\n", "OD_SCLK");
+		size += sysfs_emit_at(buf, size, "0: %10uMhz\n",
+		(smu->gfx_actual_hard_min_freq > 0) ? smu->gfx_actual_hard_min_freq : smu->gfx_default_hard_min_freq);
+		size += sysfs_emit_at(buf, size, "1: %10uMhz\n",
+		(smu->gfx_actual_soft_max_freq > 0) ? smu->gfx_actual_soft_max_freq : smu->gfx_default_soft_max_freq);
 		break;
 	case SMU_OD_CCLK:
-		if (smu_dpm_ctx->dpm_level == AMD_DPM_FORCED_LEVEL_MANUAL) {
-			size += sysfs_emit_at(buf, size, "CCLK_RANGE in Core%d:\n",  smu->cpu_core_id_select);
-			size += sysfs_emit_at(buf, size, "0: %10uMhz\n",
-			(smu->cpu_actual_soft_min_freq > 0) ? smu->cpu_actual_soft_min_freq : smu->cpu_default_soft_min_freq);
-			size += sysfs_emit_at(buf, size, "1: %10uMhz\n",
-			(smu->cpu_actual_soft_max_freq > 0) ? smu->cpu_actual_soft_max_freq : smu->cpu_default_soft_max_freq);
-		}
+		size += sysfs_emit_at(buf, size, "CCLK_RANGE in Core%d:\n",  smu->cpu_core_id_select);
+		size += sysfs_emit_at(buf, size, "0: %10uMhz\n",
+		(smu->cpu_actual_soft_min_freq > 0) ? smu->cpu_actual_soft_min_freq : smu->cpu_default_soft_min_freq);
+		size += sysfs_emit_at(buf, size, "1: %10uMhz\n",
+		(smu->cpu_actual_soft_max_freq > 0) ? smu->cpu_actual_soft_max_freq : smu->cpu_default_soft_max_freq);
 		break;
 	case SMU_OD_RANGE:
-		if (smu_dpm_ctx->dpm_level == AMD_DPM_FORCED_LEVEL_MANUAL) {
-			size += sysfs_emit_at(buf, size, "%s:\n", "OD_RANGE");
-			size += sysfs_emit_at(buf, size, "SCLK: %7uMhz %10uMhz\n",
-				smu->gfx_default_hard_min_freq, smu->gfx_default_soft_max_freq);
-			size += sysfs_emit_at(buf, size, "CCLK: %7uMhz %10uMhz\n",
-				smu->cpu_default_soft_min_freq, smu->cpu_default_soft_max_freq);
-		}
+		size += sysfs_emit_at(buf, size, "%s:\n", "OD_RANGE");
+		size += sysfs_emit_at(buf, size, "SCLK: %7uMhz %10uMhz\n",
+			smu->gfx_default_hard_min_freq, smu->gfx_default_soft_max_freq);
+		size += sysfs_emit_at(buf, size, "CCLK: %7uMhz %10uMhz\n",
+			smu->cpu_default_soft_min_freq, smu->cpu_default_soft_max_freq);
 		break;
 	case SMU_SOCCLK:
 		/* the level 3 ~ 6 of socclk use the same frequency for vangogh */
@@ -786,7 +781,7 @@ static int vangogh_print_clk_levels(struct smu_context *smu,
 		break;
 	}
 
-	return size;
+	return size - start_offset;
 }
 
 static int vangogh_common_print_clk_levels(struct smu_context *smu,
@@ -2315,8 +2310,7 @@ static int vangogh_get_power_limit(struct smu_context *smu,
 				   uint32_t *max_power_limit,
 				   uint32_t *min_power_limit)
 {
-	struct smu_11_5_power_context *power_context =
-								smu->smu_power.power_context;
+	struct smu_11_5_power_context *power_context = smu->smu_power.power_context;
 	uint32_t ppt_limit;
 	int ret = 0;
 
@@ -2352,12 +2346,11 @@ static int vangogh_get_power_limit(struct smu_context *smu,
 }
 
 static int vangogh_get_ppt_limit(struct smu_context *smu,
-								uint32_t *ppt_limit,
-								enum smu_ppt_limit_type type,
-								enum smu_ppt_limit_level level)
+				 uint32_t *ppt_limit,
+				 enum smu_ppt_limit_type type,
+				 enum smu_ppt_limit_level level)
 {
-	struct smu_11_5_power_context *power_context =
-							smu->smu_power.power_context;
+	struct smu_11_5_power_context *power_context = smu->smu_power.power_context;
 
 	if (!power_context)
 		return -EOPNOTSUPP;
@@ -2406,7 +2399,6 @@ static int vangogh_set_power_limit(struct smu_context *smu,
 		smu->current_power_limit = ppt_limit;
 		break;
 	case SMU_FAST_PPT_LIMIT:
-		ppt_limit &= ~(SMU_FAST_PPT_LIMIT << 24);
 		if (ppt_limit > power_context->max_fast_ppt_limit) {
 			dev_err(smu->adev->dev,
 				"New power limit (%d) is over the max allowed %d\n",

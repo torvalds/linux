@@ -250,7 +250,7 @@ static int i2c_acpi_get_info(struct acpi_device *adev,
 
 	if (adapter) {
 		/* The adapter must match the one in I2cSerialBus() connector */
-		if (ACPI_HANDLE(&adapter->dev) != lookup.adapter_handle)
+		if (!device_match_acpi_handle(&adapter->dev, lookup.adapter_handle))
 			return -ENODEV;
 	} else {
 		struct acpi_device *adapter_adev;
@@ -370,6 +370,7 @@ static const struct acpi_device_id i2c_acpi_force_100khz_device_ids[] = {
 	 * the device works without issues on Windows at what is expected to be
 	 * a 400KHz frequency. The root cause of the issue is not known.
 	 */
+	{ "DLL0945", 0 },
 	{ "ELAN06FA", 0 },
 	{}
 };

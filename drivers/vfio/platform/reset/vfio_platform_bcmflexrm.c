@@ -72,6 +72,8 @@ static int vfio_platform_bcmflexrm_reset(struct vfio_platform_device *vdev)
 	int rc = 0, ret = 0, ring_num = 0;
 	struct vfio_platform_region *reg = &vdev->regions[0];
 
+	dev_err_once(vdev->device, "DEPRECATION: VFIO Broadcom FlexRM platform reset is deprecated and will be removed in a future kernel release\n");
+
 	/* Map FlexRM ring registers if not mapped */
 	if (!reg->ioaddr) {
 		reg->ioaddr = ioremap(reg->addr, reg->size);

@@ -10,6 +10,7 @@
 #include <linux/init.h>
 #include <linux/acpi.h>
 #include <linux/efi-bgrt.h>
+#include <linux/export.h>
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
 #include <linux/memblock.h>

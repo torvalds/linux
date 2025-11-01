@@ -246,9 +246,11 @@ static inline struct dentry *ovl_do_mkdir(struct ovl_fs *ofs,
 					  struct dentry *dentry,
 					  umode_t mode)
 {
-	dentry = vfs_mkdir(ovl_upper_mnt_idmap(ofs), dir, dentry, mode);
-	pr_debug("mkdir(%pd2, 0%o) = %i\n", dentry, mode, PTR_ERR_OR_ZERO(dentry));
-	return dentry;
+	struct dentry *ret;
+
+	ret = vfs_mkdir(ovl_upper_mnt_idmap(ofs), dir, dentry, mode);
+	pr_debug("mkdir(%pd2, 0%o) = %i\n", dentry, mode, PTR_ERR_OR_ZERO(ret));
+	return ret;
 }
 
 static inline int ovl_do_mknod(struct ovl_fs *ofs,
@@ -353,19 +355,18 @@ static inline int ovl_do_remove_acl(struct ovl_fs *ofs, struct dentry *dentry,
 	return vfs_remove_acl(ovl_upper_mnt_idmap(ofs), dentry, acl_name);
 }
 
-static inline int ovl_do_rename(struct ovl_fs *ofs, struct inode *olddir,
-				struct dentry *olddentry, struct inode *newdir,
+static inline int ovl_do_rename(struct ovl_fs *ofs, struct dentry *olddir,
+				struct dentry *olddentry, struct dentry *newdir,
 				struct dentry *newdentry, unsigned int flags)
 {
 	int err;
 	struct renamedata rd = {
-		.old_mnt_idmap	= ovl_upper_mnt_idmap(ofs),
-		.old_dir 	= olddir,
-		.old_dentry 	= olddentry,
-		.new_mnt_idmap	= ovl_upper_mnt_idmap(ofs),
-		.new_dir 	= newdir,
-		.new_dentry 	= newdentry,
-		.flags 		= flags,
+		.mnt_idmap	= ovl_upper_mnt_idmap(ofs),
+		.old_parent	= olddir,
+		.old_dentry	= olddentry,
+		.new_parent	= newdir,
+		.new_dentry	= newdentry,
+		.flags		= flags,
 	};
 
 	pr_debug("rename(%pd2, %pd2, 0x%x)\n", olddentry, newdentry, flags);
@@ -405,6 +406,15 @@ static inline struct dentry *ovl_lookup_upper(struct ovl_fs *ofs,
 	return lookup_one(ovl_upper_mnt_idmap(ofs), &QSTR_LEN(name, len), base);
 }
 
+static inline struct dentry *ovl_lookup_upper_unlocked(struct ovl_fs *ofs,
+						       const char *name,
+						       struct dentry *base,
+						       int len)
+{
+	return lookup_one_unlocked(ovl_upper_mnt_idmap(ofs),
+				   &QSTR_LEN(name, len), base);
+}
+
 static inline bool ovl_open_flags_need_copy_up(int flags)
 {
 	if (!flags)
@@ -414,6 +424,11 @@ static inline bool ovl_open_flags_need_copy_up(int flags)
 }
 
 /* util.c */
+int ovl_parent_lock(struct dentry *parent, struct dentry *child);
+static inline void ovl_parent_unlock(struct dentry *parent)
+{
+	inode_unlock(parent->d_inode);
+}
 int ovl_get_write_access(struct dentry *dentry);
 void ovl_put_write_access(struct dentry *dentry);
 void ovl_start_write(struct dentry *dentry);
@@ -446,6 +461,12 @@ void ovl_dentry_init_reval(struct dentry *dentry, struct dentry *upperdentry,
 void ovl_dentry_init_flags(struct dentry *dentry, struct dentry *upperdentry,
 			   struct ovl_entry *oe, unsigned int mask);
 bool ovl_dentry_weird(struct dentry *dentry);
+
+static inline bool ovl_dentry_casefolded(struct dentry *dentry)
+{
+	return sb_has_encoding(dentry->d_sb) && IS_CASEFOLDED(d_inode(dentry));
+}
+
 enum ovl_path_type ovl_path_type(struct dentry *dentry);
 void ovl_path_upper(struct dentry *dentry, struct path *path);
 void ovl_path_lower(struct dentry *dentry, struct path *path);
@@ -533,18 +554,19 @@ bool ovl_is_inuse(struct dentry *dentry);
 bool ovl_need_index(struct dentry *dentry);
 int ovl_nlink_start(struct dentry *dentry);
 void ovl_nlink_end(struct dentry *dentry);
-int ovl_lock_rename_workdir(struct dentry *workdir, struct dentry *upperdir);
+int ovl_lock_rename_workdir(struct dentry *workdir, struct dentry *work,
+			    struct dentry *upperdir, struct dentry *upper);
 int ovl_check_metacopy_xattr(struct ovl_fs *ofs, const struct path *path,
 			     struct ovl_metacopy *data);
 int ovl_set_metacopy_xattr(struct ovl_fs *ofs, struct dentry *d,
 			   struct ovl_metacopy *metacopy);
 bool ovl_is_metacopy_dentry(struct dentry *dentry);
 char *ovl_get_redirect_xattr(struct ovl_fs *ofs, const struct path *path, int padding);
-int ovl_ensure_verity_loaded(struct path *path);
+int ovl_ensure_verity_loaded(const struct path *path);
 int ovl_validate_verity(struct ovl_fs *ofs,
-			struct path *metapath,
-			struct path *datapath);
-int ovl_get_verity_digest(struct ovl_fs *ofs, struct path *src,
+			const struct path *metapath,
+			const struct path *datapath);
+int ovl_get_verity_digest(struct ovl_fs *ofs, const struct path *src,
 			  struct ovl_metacopy *metacopy);
 int ovl_sync_status(struct ovl_fs *ofs);
 
@@ -721,7 +743,7 @@ void ovl_cleanup_whiteouts(struct ovl_fs *ofs, struct dentry *upper,
 void ovl_cache_free(struct list_head *list);
 void ovl_dir_cache_free(struct inode *inode);
 int ovl_check_d_type_supported(const struct path *realpath);
-int ovl_workdir_cleanup(struct ovl_fs *ofs, struct inode *dir,
+int ovl_workdir_cleanup(struct ovl_fs *ofs, struct dentry *parent,
 			struct vfsmount *mnt, struct dentry *dentry, int level);
 int ovl_indexdir_cleanup(struct ovl_fs *ofs);
 
@@ -798,10 +820,12 @@ struct inode *ovl_get_inode(struct super_block *sb,
 			    struct ovl_inode_params *oip);
 void ovl_copyattr(struct inode *to);
 
+/* vfs fileattr flags read from overlay.protattr xattr to ovl inode */
+#define OVL_PROT_I_FLAGS_MASK  (S_APPEND | S_IMMUTABLE)
+/* vfs fileattr flags copied from real to ovl inode */
+#define OVL_FATTR_I_FLAGS_MASK (OVL_PROT_I_FLAGS_MASK | S_SYNC | S_NOATIME)
 /* vfs inode flags copied from real to ovl inode */
-#define OVL_COPY_I_FLAGS_MASK	(S_SYNC | S_NOATIME | S_APPEND | S_IMMUTABLE)
-/* vfs inode flags read from overlay.protattr xattr to ovl inode */
-#define OVL_PROT_I_FLAGS_MASK	(S_APPEND | S_IMMUTABLE)
+#define OVL_COPY_I_FLAGS_MASK  (OVL_FATTR_I_FLAGS_MASK | S_CASEFOLD)
 
 /*
  * fileattr flags copied from lower to upper inode on copy up.
@@ -815,7 +839,7 @@ void ovl_copyattr(struct inode *to);
 
 void ovl_check_protattr(struct inode *inode, struct dentry *upper);
 int ovl_set_protattr(struct inode *inode, struct dentry *upper,
-		      struct fileattr *fa);
+		      struct file_kattr *fa);
 
 static inline void ovl_copyflags(struct inode *from, struct inode *to)
 {
@@ -826,7 +850,7 @@ static inline void ovl_copyflags(struct inode *from, struct inode *to)
 
 /* dir.c */
 extern const struct inode_operations ovl_dir_inode_operations;
-int ovl_cleanup_and_whiteout(struct ovl_fs *ofs, struct inode *dir,
+int ovl_cleanup_and_whiteout(struct ovl_fs *ofs, struct dentry *dir,
 			     struct dentry *dentry);
 struct ovl_cattr {
 	dev_t rdev;
@@ -838,20 +862,20 @@ struct ovl_cattr {
 #define OVL_CATTR(m) (&(struct ovl_cattr) { .mode = (m) })
 
 struct dentry *ovl_create_real(struct ovl_fs *ofs,
-			       struct inode *dir, struct dentry *newdentry,
+			       struct dentry *parent, struct dentry *newdentry,
 			       struct ovl_cattr *attr);
-int ovl_cleanup(struct ovl_fs *ofs, struct inode *dir, struct dentry *dentry);
+int ovl_cleanup(struct ovl_fs *ofs, struct dentry *workdir, struct dentry *dentry);
 struct dentry *ovl_lookup_temp(struct ovl_fs *ofs, struct dentry *workdir);
 struct dentry *ovl_create_temp(struct ovl_fs *ofs, struct dentry *workdir,
 			       struct ovl_cattr *attr);
 
 /* file.c */
 extern const struct file_operations ovl_file_operations;
-int ovl_real_fileattr_get(const struct path *realpath, struct fileattr *fa);
-int ovl_real_fileattr_set(const struct path *realpath, struct fileattr *fa);
-int ovl_fileattr_get(struct dentry *dentry, struct fileattr *fa);
+int ovl_real_fileattr_get(const struct path *realpath, struct file_kattr *fa);
+int ovl_real_fileattr_set(const struct path *realpath, struct file_kattr *fa);
+int ovl_fileattr_get(struct dentry *dentry, struct file_kattr *fa);
 int ovl_fileattr_set(struct mnt_idmap *idmap,
-		     struct dentry *dentry, struct fileattr *fa);
+		     struct dentry *dentry, struct file_kattr *fa);
 struct ovl_file;
 struct ovl_file *ovl_file_alloc(struct file *realfile);
 void ovl_file_free(struct ovl_file *of);

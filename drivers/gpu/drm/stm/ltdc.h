@@ -40,10 +40,16 @@ struct fps_info {
 	ktime_t last_timestamp;
 };
 
+struct ltdc_plat_data {
+	int pad_max_freq_hz;	/* max frequency supported by pad */
+};
+
 struct ltdc_device {
 	void __iomem *regs;
 	struct regmap *regmap;
 	struct clk *pixel_clk;	/* lcd pixel clock */
+	struct clk *lvds_clk;	/* lvds pixel clock */
+	struct clk *bus_clk;	/* bus clock */
 	struct mutex err_lock;	/* protecting error_status */
 	struct ltdc_caps caps;
 	u32 irq_status;

@@ -120,7 +120,7 @@
 #endif
 
 // In the kernel sources (include/linux/cfi_types.h), this has a different
-// definition when CONFIG_CFI_CLANG is used, for tools/ just use the !clang
+// definition when CONFIG_CFI is used, for tools/ just use the !cfi
 // definition:
 #ifndef SYM_TYPED_START
 #define SYM_TYPED_START(name, linkage, align...)        \
@@ -130,6 +130,10 @@
 #ifndef SYM_TYPED_FUNC_START
 #define SYM_TYPED_FUNC_START(name)                      \
         SYM_TYPED_START(name, SYM_L_GLOBAL, SYM_A_ALIGN)
+#endif
+
+#ifndef SYM_PIC_ALIAS
+#define SYM_PIC_ALIAS(sym)	SYM_ALIAS(__pi_ ## sym, sym, SYM_T_FUNC, SYM_L_GLOBAL)
 #endif
 
 #endif	/* PERF_LINUX_LINKAGE_H_ */

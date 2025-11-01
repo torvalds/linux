@@ -17,7 +17,7 @@
 #include "ice_protocol_type.h"
 #include "ice_sbq_cmd.h"
 #include "ice_vlan_mode.h"
-#include "ice_fwlog.h"
+#include <linux/net/intel/libie/fwlog.h>
 #include <linux/wait.h>
 #include <net/dscp.h>
 
@@ -293,8 +293,10 @@ struct ice_hw_common_caps {
 	u8 dcb;
 	u8 ieee_1588;
 	u8 rdma;
-	u8 roce_lag;
-	u8 sriov_lag;
+
+	bool roce_lag;
+	bool sriov_lag;
+	bool sriov_aa_lag;
 
 	bool nvm_update_pending_nvm;
 	bool nvm_update_pending_orom;
@@ -326,17 +328,17 @@ struct ice_hw_common_caps {
 #define ICE_TS_TMR_IDX_ASSOC_M		BIT(24)
 
 /* TIME_REF clock rate specification */
-enum ice_time_ref_freq {
-	ICE_TIME_REF_FREQ_25_000	= 0,
-	ICE_TIME_REF_FREQ_122_880	= 1,
-	ICE_TIME_REF_FREQ_125_000	= 2,
-	ICE_TIME_REF_FREQ_153_600	= 3,
-	ICE_TIME_REF_FREQ_156_250	= 4,
-	ICE_TIME_REF_FREQ_245_760	= 5,
+enum ice_tspll_freq {
+	ICE_TSPLL_FREQ_25_000	= 0,
+	ICE_TSPLL_FREQ_122_880	= 1,
+	ICE_TSPLL_FREQ_125_000	= 2,
+	ICE_TSPLL_FREQ_153_600	= 3,
+	ICE_TSPLL_FREQ_156_250	= 4,
+	ICE_TSPLL_FREQ_245_760	= 5,
 
-	NUM_ICE_TIME_REF_FREQ,
+	NUM_ICE_TSPLL_FREQ,
 
-	ICE_TIME_REF_FREQ_INVALID	= -1,
+	ICE_TSPLL_FREQ_INVALID	= -1,
 };
 
 /* Clock source specification */
@@ -349,7 +351,7 @@ enum ice_clk_src {
 
 struct ice_ts_func_info {
 	/* Function specific info */
-	enum ice_time_ref_freq time_ref;
+	enum ice_tspll_freq time_ref;
 	u8 clk_freq;
 	u8 clk_src;
 	u8 tmr_index_assoc;
@@ -946,9 +948,7 @@ struct ice_hw {
 	u8 fw_patch;		/* firmware patch version */
 	u32 fw_build;		/* firmware build number */
 
-	struct ice_fwlog_cfg fwlog_cfg;
-	bool fwlog_supported; /* does hardware support FW logging? */
-	struct ice_fwlog_ring fwlog_ring;
+	struct libie_fwlog fwlog;
 
 /* Device max aggregate bandwidths corresponding to the GL_PWR_MODE_CTL
  * register. Used for determining the ITR/INTRL granularity during

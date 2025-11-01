@@ -46,8 +46,6 @@
 #define STK3310_PS_MAX_VAL			0xFFFF
 
 #define STK3310_DRIVER_NAME			"stk3310"
-#define STK3310_REGMAP_NAME			"stk3310_regmap"
-#define STK3310_EVENT				"stk3310_event"
 
 #define STK3310_SCALE_AVAILABLE			"6.4 1.6 0.4 0.1"
 
@@ -527,7 +525,7 @@ static bool stk3310_is_volatile_reg(struct device *dev, unsigned int reg)
 }
 
 static const struct regmap_config stk3310_regmap_config = {
-	.name = STK3310_REGMAP_NAME,
+	.name = "stk3310_regmap",
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = STK3310_MAX_REG,
@@ -609,10 +607,8 @@ static int stk3310_probe(struct i2c_client *client)
 	struct stk3310_data *data;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
-	if (!indio_dev) {
-		dev_err(&client->dev, "iio allocation failed!\n");
+	if (!indio_dev)
 		return -ENOMEM;
-	}
 
 	data = iio_priv(indio_dev);
 	data->client = client;
@@ -643,7 +639,7 @@ static int stk3310_probe(struct i2c_client *client)
 						stk3310_irq_event_handler,
 						IRQF_TRIGGER_FALLING |
 						IRQF_ONESHOT,
-						STK3310_EVENT, indio_dev);
+						"stk3310_event", indio_dev);
 		if (ret < 0) {
 			dev_err(&client->dev, "request irq %d failed\n",
 				client->irq);

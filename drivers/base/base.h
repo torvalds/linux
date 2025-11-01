@@ -248,8 +248,17 @@ void device_links_driver_cleanup(struct device *dev);
 void device_links_no_driver(struct device *dev);
 bool device_links_busy(struct device *dev);
 void device_links_unbind_consumers(struct device *dev);
+bool device_link_flag_is_sync_state_only(u32 flags);
 void fw_devlink_drivers_done(void);
 void fw_devlink_probing_done(void);
+
+#define dev_for_each_link_to_supplier(__link, __dev)	\
+	list_for_each_entry_srcu(__link, &(__dev)->links.suppliers, c_node, \
+				 device_links_read_lock_held())
+
+#define dev_for_each_link_to_consumer(__link, __dev)	\
+	list_for_each_entry_srcu(__link, &(__dev)->links.consumers, s_node, \
+				 device_links_read_lock_held())
 
 /* device pm support */
 void device_pm_move_to_tail(struct device *dev);

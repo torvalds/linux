@@ -16,7 +16,7 @@ config SH_DMAE_BASE
 	depends on SUPERH || COMPILE_TEST
 	depends on !SUPERH || SH_DMA
 	depends on !SH_DMA_API
-	default y
+	default SUPERH || SH_DMA
 	select RENESAS_DMA
 	help
 	  Enable support for the Renesas SuperH DMA controllers.

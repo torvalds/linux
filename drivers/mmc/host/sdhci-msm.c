@@ -81,6 +81,7 @@
 #define CORE_IO_PAD_PWR_SWITCH_EN	BIT(15)
 #define CORE_IO_PAD_PWR_SWITCH	BIT(16)
 #define CORE_HC_SELECT_IN_EN	BIT(18)
+#define CORE_HC_SELECT_IN_SDR50	(4 << 19)
 #define CORE_HC_SELECT_IN_HS400	(6 << 19)
 #define CORE_HC_SELECT_IN_MASK	(7 << 19)
 
@@ -1133,6 +1134,10 @@ static bool sdhci_msm_is_tuning_needed(struct sdhci_host *host)
 {
 	struct mmc_ios *ios = &host->mmc->ios;
 
+	if (ios->timing == MMC_TIMING_UHS_SDR50 &&
+	    host->flags & SDHCI_SDR50_NEEDS_TUNING)
+		return true;
+
 	/*
 	 * Tuning is required for SDR104, HS200 and HS400 cards and
 	 * if clock frequency is greater than 100MHz in these modes.
@@ -1201,6 +1206,8 @@ static int sdhci_msm_execute_tuning(struct mmc_host *mmc, u32 opcode)
 	struct mmc_ios ios = host->mmc->ios;
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct sdhci_msm_host *msm_host = sdhci_pltfm_priv(pltfm_host);
+	const struct sdhci_msm_offset *msm_offset = msm_host->offset;
+	u32 config;
 
 	if (!sdhci_msm_is_tuning_needed(host)) {
 		msm_host->use_cdr = false;
@@ -1216,6 +1223,14 @@ static int sdhci_msm_execute_tuning(struct mmc_host *mmc, u32 opcode)
 	 * HS400 settings.
 	 */
 	msm_host->tuning_done = 0;
+
+	if (ios.timing == MMC_TIMING_UHS_SDR50 &&
+	    host->flags & SDHCI_SDR50_NEEDS_TUNING) {
+		config = readl_relaxed(host->ioaddr + msm_offset->core_vendor_spec);
+		config &= ~CORE_HC_SELECT_IN_MASK;
+		config |= CORE_HC_SELECT_IN_EN | CORE_HC_SELECT_IN_SDR50;
+		writel_relaxed(config, host->ioaddr + msm_offset->core_vendor_spec);
+	}
 
 	/*
 	 * For HS400 tuning in HS200 timing requires:
@@ -1564,6 +1579,7 @@ static void sdhci_msm_check_power_status(struct sdhci_host *host, u32 req_type)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct sdhci_msm_host *msm_host = sdhci_pltfm_priv(pltfm_host);
+	struct mmc_host *mmc = host->mmc;
 	bool done = false;
 	u32 val = SWITCHABLE_SIGNALING_VOLTAGE;
 	const struct sdhci_msm_offset *msm_offset =
@@ -1621,6 +1637,12 @@ static void sdhci_msm_check_power_status(struct sdhci_host *host, u32 req_type)
 				 "%s: pwr_irq for req: (%d) timed out\n",
 				 mmc_hostname(host->mmc), req_type);
 	}
+
+	if ((req_type & REQ_BUS_ON) && mmc->card && !mmc->ops->get_cd(mmc)) {
+		sdhci_writeb(host, 0, SDHCI_POWER_CONTROL);
+		host->pwr = 0;
+	}
+
 	pr_debug("%s: %s: request %d done\n", mmc_hostname(host->mmc),
 			__func__, req_type);
 }
@@ -1677,6 +1699,13 @@ static void sdhci_msm_handle_pwr_irq(struct sdhci_host *host, int irq)
 			msm_offset->core_pwrctl_clear);
 		retry--;
 		udelay(10);
+	}
+
+	if ((irq_status & CORE_PWRCTL_BUS_ON) && mmc->card &&
+	    !mmc->ops->get_cd(mmc)) {
+		msm_host_writel(msm_host, CORE_PWRCTL_BUS_FAIL, host,
+				msm_offset->core_pwrctl_ctl);
+		return;
 	}
 
 	/* Handle BUS ON/OFF*/
@@ -1929,7 +1958,7 @@ static void sdhci_msm_ice_enable(struct sdhci_msm_host *msm_host)
 		qcom_ice_enable(msm_host->ice);
 }
 
-static __maybe_unused int sdhci_msm_ice_resume(struct sdhci_msm_host *msm_host)
+static int sdhci_msm_ice_resume(struct sdhci_msm_host *msm_host)
 {
 	if (msm_host->mmc->caps2 & MMC_CAP2_CRYPTO)
 		return qcom_ice_resume(msm_host->ice);
@@ -1937,7 +1966,7 @@ static __maybe_unused int sdhci_msm_ice_resume(struct sdhci_msm_host *msm_host)
 	return 0;
 }
 
-static __maybe_unused int sdhci_msm_ice_suspend(struct sdhci_msm_host *msm_host)
+static int sdhci_msm_ice_suspend(struct sdhci_msm_host *msm_host)
 {
 	if (msm_host->mmc->caps2 & MMC_CAP2_CRYPTO)
 		return qcom_ice_suspend(msm_host->ice);
@@ -1997,13 +2026,13 @@ static inline void sdhci_msm_ice_enable(struct sdhci_msm_host *msm_host)
 {
 }
 
-static inline __maybe_unused int
+static inline int
 sdhci_msm_ice_resume(struct sdhci_msm_host *msm_host)
 {
 	return 0;
 }
 
-static inline __maybe_unused int
+static inline int
 sdhci_msm_ice_suspend(struct sdhci_msm_host *msm_host)
 {
 	return 0;
@@ -2526,7 +2555,7 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 
 	ret = mmc_of_parse(host->mmc);
 	if (ret)
-		goto pltfm_free;
+		return ret;
 
 	/*
 	 * Based on the compatible string, load the required msm host info from
@@ -2548,7 +2577,7 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 
 	ret = sdhci_msm_gcc_reset(&pdev->dev, host);
 	if (ret)
-		goto pltfm_free;
+		return ret;
 
 	/* Setup SDCC bus voter clock. */
 	msm_host->bus_clk = devm_clk_get(&pdev->dev, "bus");
@@ -2556,10 +2585,10 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 		/* Vote for max. clk rate for max. performance */
 		ret = clk_set_rate(msm_host->bus_clk, INT_MAX);
 		if (ret)
-			goto pltfm_free;
+			return ret;
 		ret = clk_prepare_enable(msm_host->bus_clk);
 		if (ret)
-			goto pltfm_free;
+			return ret;
 	}
 
 	/* Setup main peripheral bus clock */
@@ -2750,7 +2779,6 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 	if (ret)
 		goto pm_runtime_disable;
 
-	pm_runtime_mark_last_busy(&pdev->dev);
 	pm_runtime_put_autosuspend(&pdev->dev);
 
 	return 0;
@@ -2765,8 +2793,6 @@ clk_disable:
 bus_clk_disable:
 	if (!IS_ERR(msm_host->bus_clk))
 		clk_disable_unprepare(msm_host->bus_clk);
-pltfm_free:
-	sdhci_pltfm_free(pdev);
 	return ret;
 }
 
@@ -2788,10 +2814,9 @@ static void sdhci_msm_remove(struct platform_device *pdev)
 				   msm_host->bulk_clks);
 	if (!IS_ERR(msm_host->bus_clk))
 		clk_disable_unprepare(msm_host->bus_clk);
-	sdhci_pltfm_free(pdev);
 }
 
-static __maybe_unused int sdhci_msm_runtime_suspend(struct device *dev)
+static int sdhci_msm_runtime_suspend(struct device *dev)
 {
 	struct sdhci_host *host = dev_get_drvdata(dev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
@@ -2810,7 +2835,7 @@ static __maybe_unused int sdhci_msm_runtime_suspend(struct device *dev)
 	return sdhci_msm_ice_suspend(msm_host);
 }
 
-static __maybe_unused int sdhci_msm_runtime_resume(struct device *dev)
+static int sdhci_msm_runtime_resume(struct device *dev)
 {
 	struct sdhci_host *host = dev_get_drvdata(dev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
@@ -2846,11 +2871,8 @@ static __maybe_unused int sdhci_msm_runtime_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops sdhci_msm_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				pm_runtime_force_resume)
-	SET_RUNTIME_PM_OPS(sdhci_msm_runtime_suspend,
-			   sdhci_msm_runtime_resume,
-			   NULL)
+	SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
+	RUNTIME_PM_OPS(sdhci_msm_runtime_suspend, sdhci_msm_runtime_resume, NULL)
 };
 
 static struct platform_driver sdhci_msm_driver = {
@@ -2859,7 +2881,7 @@ static struct platform_driver sdhci_msm_driver = {
 	.driver = {
 		   .name = "sdhci_msm",
 		   .of_match_table = sdhci_msm_dt_match,
-		   .pm = &sdhci_msm_pm_ops,
+		   .pm = pm_ptr(&sdhci_msm_pm_ops),
 		   .probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 };

@@ -68,7 +68,7 @@ struct zynqmp_sram_bank {
 };
 
 /**
- * struct mbox_info
+ * struct mbox_info - mailbox channel data
  *
  * @rx_mc_buf: to copy data from mailbox rx channel
  * @tx_mc_buf: to copy data to mailbox tx channel
@@ -89,7 +89,7 @@ struct mbox_info {
 };
 
 /**
- * struct rsc_tbl_data
+ * struct rsc_tbl_data - resource table metadata
  *
  * Platform specific data structure used to sync resource table address.
  * It's important to maintain order and size of each field on remote side.
@@ -128,7 +128,7 @@ static const struct mem_bank_data zynqmp_tcm_banks_lockstep[] = {
 };
 
 /**
- * struct zynqmp_r5_core
+ * struct zynqmp_r5_core - remoteproc core's internal data
  *
  * @rsc_tbl_va: resource table virtual address
  * @sram: Array of sram memories assigned to this core
@@ -157,7 +157,7 @@ struct zynqmp_r5_core {
 };
 
 /**
- * struct zynqmp_r5_cluster
+ * struct zynqmp_r5_cluster - remoteproc cluster's internal data
  *
  * @dev: r5f subsystem cluster device node
  * @mode: cluster mode of type zynqmp_r5_cluster_mode
@@ -732,7 +732,7 @@ static int zynqmp_r5_parse_fw(struct rproc *rproc, const struct firmware *fw)
 }
 
 /**
- * zynqmp_r5_rproc_prepare()
+ * zynqmp_r5_rproc_prepare() - prepare core to boot/attach
  * adds carveouts for TCM bank and reserved memory regions
  *
  * @rproc: Device node of each rproc
@@ -765,7 +765,7 @@ static int zynqmp_r5_rproc_prepare(struct rproc *rproc)
 }
 
 /**
- * zynqmp_r5_rproc_unprepare()
+ * zynqmp_r5_rproc_unprepare() - programming sequence after stop/detach.
  * Turns off TCM banks using power-domain id
  *
  * @rproc: Device node of each rproc
@@ -908,7 +908,7 @@ static const struct rproc_ops zynqmp_r5_rproc_ops = {
 };
 
 /**
- * zynqmp_r5_add_rproc_core()
+ * zynqmp_r5_add_rproc_core() - Add core data to framework.
  * Allocate and add struct rproc object for each r5f core
  * This is called for each individual r5f core
  *
@@ -938,6 +938,8 @@ static struct zynqmp_r5_core *zynqmp_r5_add_rproc_core(struct device *cdev)
 
 	rproc_coredump_set_elf_info(r5_rproc, ELFCLASS32, EM_ARM);
 
+	r5_rproc->recovery_disabled = true;
+	r5_rproc->has_iommu = false;
 	r5_rproc->auto_boot = false;
 	r5_core = r5_rproc->priv;
 	r5_core->dev = cdev;
@@ -1142,7 +1144,7 @@ static int zynqmp_r5_get_tcm_node_from_dt(struct zynqmp_r5_cluster *cluster)
 }
 
 /**
- * zynqmp_r5_get_tcm_node()
+ * zynqmp_r5_get_tcm_node() - Get TCM info
  * Ideally this function should parse tcm node and store information
  * in r5_core instance. For now, Hardcoded TCM information is used.
  * This approach is used as TCM bindings for system-dt is being developed
@@ -1329,18 +1331,22 @@ static int zynqmp_r5_cluster_init(struct zynqmp_r5_cluster *cluster)
 
 	/*
 	 * Number of cores is decided by number of child nodes of
-	 * r5f subsystem node in dts. If Split mode is used in dts
-	 * 2 child nodes are expected.
+	 * r5f subsystem node in dts.
+	 * In split mode maximum two child nodes are expected.
+	 * However, only single core can be enabled too.
+	 * Driver can handle following configuration in split mode:
+	 * 1) core0 enabled, core1 disabled
+	 * 2) core0 disabled, core1 enabled
+	 * 3) core0 and core1 both are enabled.
+	 * For now, no more than two cores are expected per cluster
+	 * in split mode.
 	 * In lockstep mode if two child nodes are available,
 	 * only use first child node and consider it as core0
 	 * and ignore core1 dt node.
 	 */
 	core_count = of_get_available_child_count(dev_node);
-	if (core_count == 0) {
+	if (core_count == 0 || core_count > 2) {
 		dev_err(dev, "Invalid number of r5 cores %d", core_count);
-		return -EINVAL;
-	} else if (cluster_mode == SPLIT_MODE && core_count != 2) {
-		dev_err(dev, "Invalid number of r5 cores for split mode\n");
 		return -EINVAL;
 	} else if (cluster_mode == LOCKSTEP_MODE && core_count == 2) {
 		dev_warn(dev, "Only r5 core0 will be used\n");
@@ -1464,6 +1470,45 @@ static void zynqmp_r5_cluster_exit(void *data)
 }
 
 /*
+ * zynqmp_r5_remoteproc_shutdown()
+ * Follow shutdown sequence in case of kexec call.
+ *
+ * @pdev: domain platform device for cluster
+ *
+ * Return: None.
+ */
+static void zynqmp_r5_remoteproc_shutdown(struct platform_device *pdev)
+{
+	const char *rproc_state_str = NULL;
+	struct zynqmp_r5_cluster *cluster;
+	struct zynqmp_r5_core *r5_core;
+	struct rproc *rproc;
+	int i, ret = 0;
+
+	cluster = platform_get_drvdata(pdev);
+
+	for (i = 0; i < cluster->core_count; i++) {
+		r5_core = cluster->r5_cores[i];
+		rproc = r5_core->rproc;
+
+		if (rproc->state == RPROC_RUNNING) {
+			ret = rproc_shutdown(rproc);
+			rproc_state_str = "shutdown";
+		} else if (rproc->state == RPROC_ATTACHED) {
+			ret = rproc_detach(rproc);
+			rproc_state_str = "detach";
+		} else {
+			ret = 0;
+		}
+
+		if (ret) {
+			dev_err(cluster->dev, "failed to %s rproc %d\n",
+				rproc_state_str, rproc->index);
+		}
+	}
+}
+
+/*
  * zynqmp_r5_remoteproc_probe()
  * parse device-tree, initialize hardware and allocate required resources
  * and remoteproc ops
@@ -1524,6 +1569,7 @@ static struct platform_driver zynqmp_r5_remoteproc_driver = {
 		.name = "zynqmp_r5_remoteproc",
 		.of_match_table = zynqmp_r5_remoteproc_match,
 	},
+	.shutdown = zynqmp_r5_remoteproc_shutdown,
 };
 module_platform_driver(zynqmp_r5_remoteproc_driver);
 

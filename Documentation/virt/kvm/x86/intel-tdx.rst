@@ -79,7 +79,20 @@ to be configured to the TDX guest.
   struct kvm_tdx_capabilities {
         __u64 supported_attrs;
         __u64 supported_xfam;
-        __u64 reserved[254];
+
+        /* TDG.VP.VMCALL hypercalls executed in kernel and forwarded to
+         * userspace, respectively
+         */
+        __u64 kernel_tdvmcallinfo_1_r11;
+        __u64 user_tdvmcallinfo_1_r11;
+
+        /* TDG.VP.VMCALL instruction executions subfunctions executed in kernel
+         * and forwarded to userspace, respectively
+         */
+        __u64 kernel_tdvmcallinfo_1_r12;
+        __u64 user_tdvmcallinfo_1_r12;
+
+        __u64 reserved[250];
 
         /* Configurable CPUID bits for userspace */
         struct kvm_cpuid2 cpuid;

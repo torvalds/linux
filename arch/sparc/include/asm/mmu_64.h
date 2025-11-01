@@ -59,7 +59,7 @@
 #define CTX_HWBITS(__ctx)	((__ctx.sparc64_ctx_val) & CTX_HW_MASK)
 #define CTX_NRBITS(__ctx)	((__ctx.sparc64_ctx_val) & CTX_NR_MASK)
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #define TSB_ENTRY_ALIGNMENT	16
 
@@ -117,7 +117,7 @@ typedef struct {
 	spinlock_t		tag_lock;
 } mm_context_t;
 
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 
 #define TSB_CONFIG_TSB		0x00
 #define TSB_CONFIG_RSS_LIMIT	0x08

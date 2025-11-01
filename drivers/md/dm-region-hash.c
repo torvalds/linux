@@ -206,7 +206,7 @@ struct dm_region_hash *dm_region_hash_create(
 	rh->shift = RH_HASH_SHIFT;
 	rh->prime = RH_HASH_MULT;
 
-	rh->buckets = vmalloc(array_size(nr_buckets, sizeof(*rh->buckets)));
+	rh->buckets = vmalloc_array(nr_buckets, sizeof(*rh->buckets));
 	if (!rh->buckets) {
 		DMERR("unable to allocate region hash bucket memory");
 		kfree(rh);

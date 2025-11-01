@@ -9,7 +9,7 @@
 #include <linux/sched/clock.h>
 #include <linux/random.h>
 #include <linux/topology.h>
-#include <asm/amd/fch.h>
+#include <linux/platform_data/x86/amd-fch.h>
 #include <asm/processor.h>
 #include <asm/apic.h>
 #include <asm/cacheinfo.h>
@@ -31,7 +31,7 @@
 
 #include "cpu.h"
 
-u16 invlpgb_count_max __ro_after_init;
+u16 invlpgb_count_max __ro_after_init = 1;
 
 static inline int rdmsrq_amd_safe(unsigned msr, u64 *p)
 {
@@ -377,6 +377,47 @@ static void bsp_determine_snp(struct cpuinfo_x86 *c)
 #endif
 }
 
+#define ZEN_MODEL_STEP_UCODE(fam, model, step, ucode) \
+	X86_MATCH_VFM_STEPS(VFM_MAKE(X86_VENDOR_AMD, fam, model), \
+			    step, step, ucode)
+
+static const struct x86_cpu_id amd_tsa_microcode[] = {
+	ZEN_MODEL_STEP_UCODE(0x19, 0x01, 0x1, 0x0a0011d7),
+	ZEN_MODEL_STEP_UCODE(0x19, 0x01, 0x2, 0x0a00123b),
+	ZEN_MODEL_STEP_UCODE(0x19, 0x08, 0x2, 0x0a00820d),
+	ZEN_MODEL_STEP_UCODE(0x19, 0x11, 0x1, 0x0a10114c),
+	ZEN_MODEL_STEP_UCODE(0x19, 0x11, 0x2, 0x0a10124c),
+	ZEN_MODEL_STEP_UCODE(0x19, 0x18, 0x1, 0x0a108109),
+	ZEN_MODEL_STEP_UCODE(0x19, 0x21, 0x0, 0x0a20102e),
+	ZEN_MODEL_STEP_UCODE(0x19, 0x21, 0x2, 0x0a201211),
+	ZEN_MODEL_STEP_UCODE(0x19, 0x44, 0x1, 0x0a404108),
+	ZEN_MODEL_STEP_UCODE(0x19, 0x50, 0x0, 0x0a500012),
+	ZEN_MODEL_STEP_UCODE(0x19, 0x61, 0x2, 0x0a60120a),
+	ZEN_MODEL_STEP_UCODE(0x19, 0x74, 0x1, 0x0a704108),
+	ZEN_MODEL_STEP_UCODE(0x19, 0x75, 0x2, 0x0a705208),
+	ZEN_MODEL_STEP_UCODE(0x19, 0x78, 0x0, 0x0a708008),
+	ZEN_MODEL_STEP_UCODE(0x19, 0x7c, 0x0, 0x0a70c008),
+	ZEN_MODEL_STEP_UCODE(0x19, 0xa0, 0x2, 0x0aa00216),
+	{},
+};
+
+static void tsa_init(struct cpuinfo_x86 *c)
+{
+	if (cpu_has(c, X86_FEATURE_HYPERVISOR))
+		return;
+
+	if (cpu_has(c, X86_FEATURE_ZEN3) ||
+	    cpu_has(c, X86_FEATURE_ZEN4)) {
+		if (x86_match_min_microcode_rev(amd_tsa_microcode))
+			setup_force_cpu_cap(X86_FEATURE_VERW_CLEAR);
+		else
+			pr_debug("%s: current revision: 0x%x\n", __func__, c->microcode);
+	} else {
+		setup_force_cpu_cap(X86_FEATURE_TSA_SQ_NO);
+		setup_force_cpu_cap(X86_FEATURE_TSA_L1_NO);
+	}
+}
+
 static void bsp_init_amd(struct cpuinfo_x86 *c)
 {
 	if (cpu_has(c, X86_FEATURE_CONSTANT_TSC)) {
@@ -489,6 +530,11 @@ static void bsp_init_amd(struct cpuinfo_x86 *c)
 	}
 
 	bsp_determine_snp(c);
+	tsa_init(c);
+
+	if (cpu_has(c, X86_FEATURE_GP_ON_USER_CPUID))
+		setup_force_cpu_cap(X86_FEATURE_CPUID_FAULT);
+
 	return;
 
 warn:
@@ -498,6 +544,23 @@ warn:
 static void early_detect_mem_encrypt(struct cpuinfo_x86 *c)
 {
 	u64 msr;
+
+	/*
+	 * Mark using WBINVD is needed during kexec on processors that
+	 * support SME. This provides support for performing a successful
+	 * kexec when going from SME inactive to SME active (or vice-versa).
+	 *
+	 * The cache must be cleared so that if there are entries with the
+	 * same physical address, both with and without the encryption bit,
+	 * they don't race each other when flushed and potentially end up
+	 * with the wrong entry being committed to memory.
+	 *
+	 * Test the CPUID bit directly because with mem_encrypt=off the
+	 * BSP will clear the X86_FEATURE_SME bit and the APs will not
+	 * see it set after that.
+	 */
+	if (c->extended_cpuid_level >= 0x8000001f && (cpuid_eax(0x8000001f) & BIT(0)))
+		__this_cpu_write(cache_state_incoherent, true);
 
 	/*
 	 * BIOS support is required for SME and SEV.
@@ -930,6 +993,16 @@ static void init_amd_zen2(struct cpuinfo_x86 *c)
 	init_spectral_chicken(c);
 	fix_erratum_1386(c);
 	zen2_zenbleed_check(c);
+
+	/* Disable RDSEED on AMD Cyan Skillfish because of an error. */
+	if (c->x86_model == 0x47 && c->x86_stepping == 0x0) {
+		clear_cpu_cap(c, X86_FEATURE_RDSEED);
+		msr_clear_bit(MSR_AMD64_CPUID_FN_7, 18);
+		pr_emerg("RDSEED is not reliable on this platform; disabling.\n");
+	}
+
+	/* Correct misconfigured CPUID on some clients. */
+	clear_cpu_cap(c, X86_FEATURE_INVLPGB);
 }
 
 static void init_amd_zen3(struct cpuinfo_x86 *c)
@@ -1270,8 +1343,8 @@ static const char * const s5_reset_reason_txt[] = {
 
 static __init int print_s5_reset_status_mmio(void)
 {
-	unsigned long value;
 	void __iomem *addr;
+	u32 value;
 	int i;
 
 	if (!cpu_feature_enabled(X86_FEATURE_ZEN))
@@ -1282,6 +1355,22 @@ static __init int print_s5_reset_status_mmio(void)
 		return 0;
 
 	value = ioread32(addr);
+
+	/* Value with "all bits set" is an error response and should be ignored. */
+	if (value == U32_MAX) {
+		iounmap(addr);
+		return 0;
+	}
+
+	/*
+	 * Clear all reason bits so they won't be retained if the next reset
+	 * does not update the register. Besides, some bits are never cleared by
+	 * hardware so it's software's responsibility to clear them.
+	 *
+	 * Writing the value back effectively clears all reason bits as they are
+	 * write-1-to-clear.
+	 */
+	iowrite32(value, addr);
 	iounmap(addr);
 
 	for (i = 0; i < ARRAY_SIZE(s5_reset_reason_txt); i++) {
@@ -1289,7 +1378,7 @@ static __init int print_s5_reset_status_mmio(void)
 			continue;
 
 		if (s5_reset_reason_txt[i]) {
-			pr_info("x86/amd: Previous system reset reason [0x%08lx]: %s\n",
+			pr_info("x86/amd: Previous system reset reason [0x%08x]: %s\n",
 				value, s5_reset_reason_txt[i]);
 		}
 	}

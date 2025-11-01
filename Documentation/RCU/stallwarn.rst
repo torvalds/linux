@@ -119,7 +119,7 @@ warnings:
 	uncommon in large datacenter.  In one memorable case some decades
 	back, a CPU failed in a running system, becoming unresponsive,
 	but not causing an immediate crash.  This resulted in a series
-	of RCU CPU stall warnings, eventually leading the realization
+	of RCU CPU stall warnings, eventually leading to the realization
 	that the CPU had failed.
 
 The RCU, RCU-sched, RCU-tasks, and RCU-tasks-trace implementations have

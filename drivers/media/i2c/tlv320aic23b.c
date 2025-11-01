@@ -7,7 +7,7 @@
  * Based on wm8775 driver
  *
  * Copyright (C) 2004 Ulf Eklund <ivtv at eklund.to>
- * Copyright (C) 2005 Hans Verkuil <hverkuil@xs4all.nl>
+ * Copyright (C) 2005 Hans Verkuil <hverkuil@kernel.org>
  */
 
 #include <linux/module.h>

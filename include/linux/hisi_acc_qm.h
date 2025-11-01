@@ -104,6 +104,8 @@
 #define UACCE_MODE_SVA			1 /* use uacce sva mode */
 #define UACCE_MODE_DESC	"0(default) means only register to crypto, 1 means both register to crypto and uacce"
 
+#define QM_ECC_MBIT			BIT(2)
+
 enum qm_stop_reason {
 	QM_NORMAL,
 	QM_SOFT_RESET,
@@ -125,6 +127,7 @@ enum qm_hw_ver {
 	QM_HW_V2 = 0x21,
 	QM_HW_V3 = 0x30,
 	QM_HW_V4 = 0x50,
+	QM_HW_V5 = 0x51,
 };
 
 enum qm_fun_type {
@@ -239,17 +242,20 @@ enum acc_err_result {
 	ACC_ERR_RECOVERED,
 };
 
-struct hisi_qm_err_info {
-	char *acpi_rst;
-	u32 msi_wr_port;
+struct hisi_qm_err_mask {
 	u32 ecc_2bits_mask;
-	u32 qm_shutdown_mask;
-	u32 dev_shutdown_mask;
-	u32 qm_reset_mask;
-	u32 dev_reset_mask;
+	u32 shutdown_mask;
+	u32 reset_mask;
 	u32 ce;
 	u32 nfe;
 	u32 fe;
+};
+
+struct hisi_qm_err_info {
+	char *acpi_rst;
+	u32 msi_wr_port;
+	struct hisi_qm_err_mask qm_err;
+	struct hisi_qm_err_mask dev_err;
 };
 
 struct hisi_qm_err_status {
@@ -272,6 +278,8 @@ struct hisi_qm_err_ini {
 	enum acc_err_result (*get_err_result)(struct hisi_qm *qm);
 	bool (*dev_is_abnormal)(struct hisi_qm *qm);
 	int (*set_priv_status)(struct hisi_qm *qm);
+	void (*disable_axi_error)(struct hisi_qm *qm);
+	void (*enable_axi_error)(struct hisi_qm *qm);
 };
 
 struct hisi_qm_cap_info {
@@ -556,9 +564,9 @@ int hisi_qm_mb(struct hisi_qm *qm, u8 cmd, dma_addr_t dma_addr, u16 queue,
 struct hisi_acc_sgl_pool;
 struct hisi_acc_hw_sgl *hisi_acc_sg_buf_map_to_hw_sgl(struct device *dev,
 	struct scatterlist *sgl, struct hisi_acc_sgl_pool *pool,
-	u32 index, dma_addr_t *hw_sgl_dma);
+	u32 index, dma_addr_t *hw_sgl_dma, enum dma_data_direction dir);
 void hisi_acc_sg_buf_unmap(struct device *dev, struct scatterlist *sgl,
-			   struct hisi_acc_hw_sgl *hw_sgl);
+			   struct hisi_acc_hw_sgl *hw_sgl, enum dma_data_direction dir);
 struct hisi_acc_sgl_pool *hisi_acc_create_sgl_pool(struct device *dev,
 						   u32 count, u32 sge_nr);
 void hisi_acc_free_sgl_pool(struct device *dev,

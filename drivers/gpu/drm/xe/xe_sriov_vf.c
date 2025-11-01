@@ -3,19 +3,15 @@
  * Copyright © 2023-2024 Intel Corporation
  */
 
+#include <drm/drm_debugfs.h>
 #include <drm/drm_managed.h>
 
-#include "xe_assert.h"
-#include "xe_device.h"
 #include "xe_gt.h"
-#include "xe_gt_sriov_printk.h"
 #include "xe_gt_sriov_vf.h"
-#include "xe_guc_ct.h"
-#include "xe_pm.h"
-#include "xe_sriov.h"
+#include "xe_guc.h"
 #include "xe_sriov_printk.h"
 #include "xe_sriov_vf.h"
-#include "xe_tile_sriov_vf.h"
+#include "xe_sriov_vf_ccs.h"
 
 /**
  * DOC: VF restore procedure in PF KMD and VF KMD
@@ -124,16 +120,54 @@
  *      |                               |                               |
  */
 
-static bool vf_migration_supported(struct xe_device *xe)
+/**
+ * xe_sriov_vf_migration_supported - Report whether SR-IOV VF migration is
+ * supported or not.
+ * @xe: the &xe_device to check
+ *
+ * Returns: true if VF migration is supported, false otherwise.
+ */
+bool xe_sriov_vf_migration_supported(struct xe_device *xe)
+{
+	xe_assert(xe, IS_SRIOV_VF(xe));
+	return !xe->sriov.vf.migration.disabled;
+}
+
+/**
+ * xe_sriov_vf_migration_disable - Turn off VF migration with given log message.
+ * @xe: the &xe_device instance.
+ * @fmt: format string for the log message, to be combined with following VAs.
+ */
+void xe_sriov_vf_migration_disable(struct xe_device *xe, const char *fmt, ...)
+{
+	struct va_format vaf;
+	va_list va_args;
+
+	xe_assert(xe, IS_SRIOV_VF(xe));
+
+	va_start(va_args, fmt);
+	vaf.fmt = fmt;
+	vaf.va  = &va_args;
+	xe_sriov_notice(xe, "migration disabled: %pV\n", &vaf);
+	va_end(va_args);
+
+	xe->sriov.vf.migration.disabled = true;
+}
+
+static void vf_migration_init_early(struct xe_device *xe)
 {
 	/*
 	 * TODO: Add conditions to allow specific platforms, when they're
 	 * supported at production quality.
 	 */
-	return IS_ENABLED(CONFIG_DRM_XE_DEBUG);
-}
+	if (!IS_ENABLED(CONFIG_DRM_XE_DEBUG))
+		return xe_sriov_vf_migration_disable(xe,
+				"experimental feature not available on production builds");
 
-static void migration_worker_func(struct work_struct *w);
+	if (!xe_device_has_memirq(xe))
+		return xe_sriov_vf_migration_disable(xe, "requires memory-based IRQ support");
+
+}
 
 /**
  * xe_sriov_vf_init_early - Initialize SR-IOV VF specific data.
@@ -141,181 +175,45 @@ static void migration_worker_func(struct work_struct *w);
  */
 void xe_sriov_vf_init_early(struct xe_device *xe)
 {
-	INIT_WORK(&xe->sriov.vf.migration.worker, migration_worker_func);
-
-	if (!vf_migration_supported(xe))
-		xe_sriov_info(xe, "migration not supported by this module version\n");
+	vf_migration_init_early(xe);
 }
 
 /**
- * vf_post_migration_requery_guc - Re-query GuC for current VF provisioning.
- * @xe: the &xe_device struct instance
+ * xe_sriov_vf_init_late() - SR-IOV VF late initialization functions.
+ * @xe: the &xe_device to initialize
  *
- * After migration, we need to re-query all VF configuration to make sure
- * they match previous provisioning. Note that most of VF provisioning
- * shall be the same, except GGTT range, since GGTT is not virtualized per-VF.
+ * This function initializes code for CCS migration.
  *
- * Returns: 0 if the operation completed successfully, or a negative error
- * code otherwise.
+ * Return: 0 on success or a negative error code on failure.
  */
-static int vf_post_migration_requery_guc(struct xe_device *xe)
+int xe_sriov_vf_init_late(struct xe_device *xe)
 {
-	struct xe_gt *gt;
-	unsigned int id;
-	int err, ret = 0;
-
-	for_each_gt(gt, xe, id) {
-		err = xe_gt_sriov_vf_query_config(gt);
-		ret = ret ?: err;
-	}
-
-	return ret;
+	return xe_sriov_vf_ccs_init(xe);
 }
 
-static void vf_post_migration_fixup_ctb(struct xe_device *xe)
+static int sa_info_vf_ccs(struct seq_file *m, void *data)
 {
-	struct xe_gt *gt;
-	unsigned int id;
+	struct drm_info_node *node = m->private;
+	struct xe_device *xe = to_xe_device(node->minor->dev);
+	struct drm_printer p = drm_seq_file_printer(m);
 
-	xe_assert(xe, IS_SRIOV_VF(xe));
-
-	for_each_gt(gt, xe, id) {
-		s32 shift = xe_gt_sriov_vf_ggtt_shift(gt);
-
-		xe_guc_ct_fixup_messages_with_ggtt(&gt->uc.guc.ct, shift);
-	}
+	xe_sriov_vf_ccs_print(xe, &p);
+	return 0;
 }
 
-/*
- * vf_post_migration_imminent - Check if post-restore recovery is coming.
- * @xe: the &xe_device struct instance
- *
- * Return: True if migration recovery worker will soon be running. Any worker currently
- * executing does not affect the result.
- */
-static bool vf_post_migration_imminent(struct xe_device *xe)
-{
-	return xe->sriov.vf.migration.gt_flags != 0 ||
-	work_pending(&xe->sriov.vf.migration.worker);
-}
-
-static bool vf_post_migration_fixup_ggtt_nodes(struct xe_device *xe)
-{
-	bool need_fixups = false;
-	struct xe_tile *tile;
-	unsigned int id;
-
-	for_each_tile(tile, xe, id) {
-		struct xe_gt *gt = tile->primary_gt;
-		s64 shift;
-
-		shift = xe_gt_sriov_vf_ggtt_shift(gt);
-		if (shift) {
-			need_fixups = true;
-			xe_tile_sriov_vf_fixup_ggtt_nodes(tile, shift);
-		}
-	}
-	return need_fixups;
-}
-
-/*
- * Notify all GuCs about resource fixups apply finished.
- */
-static void vf_post_migration_notify_resfix_done(struct xe_device *xe)
-{
-	struct xe_gt *gt;
-	unsigned int id;
-
-	for_each_gt(gt, xe, id) {
-		if (vf_post_migration_imminent(xe))
-			goto skip;
-		xe_gt_sriov_vf_notify_resfix_done(gt);
-	}
-	return;
-
-skip:
-	drm_dbg(&xe->drm, "another recovery imminent, skipping notifications\n");
-}
-
-static void vf_post_migration_recovery(struct xe_device *xe)
-{
-	bool need_fixups;
-	int err;
-
-	drm_dbg(&xe->drm, "migration recovery in progress\n");
-	xe_pm_runtime_get(xe);
-	err = vf_post_migration_requery_guc(xe);
-	if (vf_post_migration_imminent(xe))
-		goto defer;
-	if (unlikely(err))
-		goto fail;
-	if (!vf_migration_supported(xe)) {
-		xe_sriov_err(xe, "migration not supported by this module version\n");
-		err = -ENOTRECOVERABLE;
-		goto fail;
-	}
-
-	need_fixups = vf_post_migration_fixup_ggtt_nodes(xe);
-	/* FIXME: add the recovery steps */
-	if (need_fixups)
-		vf_post_migration_fixup_ctb(xe);
-
-	vf_post_migration_notify_resfix_done(xe);
-	xe_pm_runtime_put(xe);
-	drm_notice(&xe->drm, "migration recovery ended\n");
-	return;
-defer:
-	xe_pm_runtime_put(xe);
-	drm_dbg(&xe->drm, "migration recovery deferred\n");
-	return;
-fail:
-	xe_pm_runtime_put(xe);
-	drm_err(&xe->drm, "migration recovery failed (%pe)\n", ERR_PTR(err));
-	xe_device_declare_wedged(xe);
-}
-
-static void migration_worker_func(struct work_struct *w)
-{
-	struct xe_device *xe = container_of(w, struct xe_device,
-					    sriov.vf.migration.worker);
-
-	vf_post_migration_recovery(xe);
-}
-
-static bool vf_ready_to_recovery_on_all_gts(struct xe_device *xe)
-{
-	struct xe_gt *gt;
-	unsigned int id;
-
-	for_each_gt(gt, xe, id) {
-		if (!test_bit(id, &xe->sriov.vf.migration.gt_flags)) {
-			xe_gt_sriov_dbg_verbose(gt, "still not ready to recover\n");
-			return false;
-		}
-	}
-	return true;
-}
+static const struct drm_info_list debugfs_list[] = {
+	{ .name = "sa_info_vf_ccs", .show = sa_info_vf_ccs },
+};
 
 /**
- * xe_sriov_vf_start_migration_recovery - Start VF migration recovery.
- * @xe: the &xe_device to start recovery on
+ * xe_sriov_vf_debugfs_register - Register VF debugfs attributes.
+ * @xe: the &xe_device
+ * @root: the root &dentry
  *
- * This function shall be called only by VF.
+ * Prepare debugfs attributes exposed by the VF.
  */
-void xe_sriov_vf_start_migration_recovery(struct xe_device *xe)
+void xe_sriov_vf_debugfs_register(struct xe_device *xe, struct dentry *root)
 {
-	bool started;
-
-	xe_assert(xe, IS_SRIOV_VF(xe));
-
-	if (!vf_ready_to_recovery_on_all_gts(xe))
-		return;
-
-	WRITE_ONCE(xe->sriov.vf.migration.gt_flags, 0);
-	/* Ensure other threads see that no flags are set now. */
-	smp_mb();
-
-	started = queue_work(xe->sriov.wq, &xe->sriov.vf.migration.worker);
-	drm_info(&xe->drm, "VF migration recovery %s\n", started ?
-		 "scheduled" : "already in progress");
+	drm_debugfs_create_files(debugfs_list, ARRAY_SIZE(debugfs_list),
+				 root, xe->drm.primary);
 }

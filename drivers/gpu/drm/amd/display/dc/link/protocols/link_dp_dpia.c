@@ -75,12 +75,15 @@ enum dc_status dpcd_get_tunneling_device_data(struct dc_link *link)
 
 	if (link->dpcd_caps.usb4_dp_tun_info.dp_tun_cap.bits.dpia_bw_alloc) {
 		status = core_link_read_dpcd(link, USB4_DRIVER_BW_CAPABILITY,
-				dpcd_dp_tun_data, 1);
+				dpcd_dp_tun_data, 2);
 
 		if (status != DC_OK)
 			goto err;
 
-		link->dpcd_caps.usb4_dp_tun_info.driver_bw_cap.raw = dpcd_dp_tun_data[0];
+		link->dpcd_caps.usb4_dp_tun_info.driver_bw_cap.raw =
+			dpcd_dp_tun_data[USB4_DRIVER_BW_CAPABILITY - USB4_DRIVER_BW_CAPABILITY];
+		link->dpcd_caps.usb4_dp_tun_info.dpia_tunnel_info.raw =
+			dpcd_dp_tun_data[DP_IN_ADAPTER_TUNNEL_INFO - USB4_DRIVER_BW_CAPABILITY];
 	}
 
 	DC_LOG_DEBUG("%s: Link[%d]  DP tunneling support  (RouterId=%d  AdapterId=%d)  "
@@ -155,8 +158,14 @@ void link_decide_dp_tunnel_settings(struct dc_stream_state *stream,
 					link->dpcd_caps.usb4_dp_tun_info.dp_tun_cap.bits.dp_tunneling;
 
 		if (link->dpcd_caps.usb4_dp_tun_info.dp_tun_cap.bits.dpia_bw_alloc
-				&& link->dpcd_caps.usb4_dp_tun_info.driver_bw_cap.bits.driver_bw_alloc_support)
+				&& link->dpcd_caps.usb4_dp_tun_info.driver_bw_cap.bits.driver_bw_alloc_support) {
 			dp_tunnel_setting->should_use_dp_bw_allocation = true;
+			dp_tunnel_setting->cm_id = link->dpcd_caps.usb4_dp_tun_info.usb4_driver_id & 0x0F;
+			dp_tunnel_setting->group_id = link->dpcd_caps.usb4_dp_tun_info.dpia_tunnel_info.bits.group_id;
+			dp_tunnel_setting->estimated_bw = link->dpia_bw_alloc_config.estimated_bw;
+			dp_tunnel_setting->allocated_bw = link->dpia_bw_alloc_config.allocated_bw;
+			dp_tunnel_setting->bw_granularity = link->dpia_bw_alloc_config.bw_granularity;
+		}
 	}
 }
 

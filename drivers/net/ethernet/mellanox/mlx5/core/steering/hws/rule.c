@@ -3,10 +3,8 @@
 
 #include "internal.h"
 
-static void hws_rule_skip(struct mlx5hws_matcher *matcher,
-			  struct mlx5hws_match_template *mt,
-			  u32 flow_source,
-			  bool *skip_rx, bool *skip_tx)
+void mlx5hws_rule_skip(struct mlx5hws_matcher *matcher, u32 flow_source,
+		       bool *skip_rx, bool *skip_tx)
 {
 	/* By default FDB rules are added to both RX and TX */
 	*skip_rx = false;
@@ -14,20 +12,21 @@ static void hws_rule_skip(struct mlx5hws_matcher *matcher,
 
 	if (flow_source == MLX5_FLOW_CONTEXT_FLOW_SOURCE_LOCAL_VPORT) {
 		*skip_rx = true;
-	} else if (flow_source == MLX5_FLOW_CONTEXT_FLOW_SOURCE_UPLINK) {
-		*skip_tx = true;
-	} else {
-		/* If no flow source was set for current rule,
-		 * check for flow source in matcher attributes.
-		 */
-		if (matcher->attr.optimize_flow_src) {
-			*skip_tx =
-				matcher->attr.optimize_flow_src == MLX5HWS_MATCHER_FLOW_SRC_WIRE;
-			*skip_rx =
-				matcher->attr.optimize_flow_src == MLX5HWS_MATCHER_FLOW_SRC_VPORT;
-			return;
-		}
+		return;
 	}
+
+	if (flow_source == MLX5_FLOW_CONTEXT_FLOW_SOURCE_UPLINK) {
+		*skip_tx = true;
+		return;
+	}
+
+	/* If no flow source was set for current rule,
+	 * check for flow source in matcher attributes.
+	 */
+	*skip_tx = matcher->attr.optimize_flow_src ==
+			MLX5HWS_MATCHER_FLOW_SRC_WIRE;
+	*skip_rx = matcher->attr.optimize_flow_src ==
+			MLX5HWS_MATCHER_FLOW_SRC_VPORT;
 }
 
 static void
@@ -66,7 +65,8 @@ static void hws_rule_init_dep_wqe(struct mlx5hws_send_ring_dep_wqe *dep_wqe,
 				attr->rule_idx : 0;
 
 	if (tbl->type == MLX5HWS_TABLE_TYPE_FDB) {
-		hws_rule_skip(matcher, mt, attr->flow_source, &skip_rx, &skip_tx);
+		mlx5hws_rule_skip(matcher, attr->flow_source,
+				  &skip_rx, &skip_tx);
 
 		if (!skip_rx) {
 			dep_wqe->rtc_0 = matcher->match_ste.rtc_0_id;

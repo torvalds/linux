@@ -1,0 +1,47 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/embedded-controller/microsoft,surface-sam.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Surface System Aggregator Module (SAM, SSAM)
+
+maintainers:
+  - Konrad Dybcio <konradybcio@kernel.org>
+
+description: |
+  Surface devices use a standardized embedded controller to let the
+  operating system interface with various hardware functions. The
+  specific functionalities are modeled as subdevices and matched on
+  five levels: domain, category, target, instance and function.
+
+properties:
+  compatible:
+    const: microsoft,surface-sam
+
+  interrupts:
+    maxItems: 1
+
+  current-speed: true
+
+required:
+  - compatible
+  - interrupts
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    uart {
+        embedded-controller {
+            compatible = "microsoft,surface-sam";
+
+            interrupts-extended = <&tlmm 91 IRQ_TYPE_EDGE_RISING>;
+
+            pinctrl-0 = <&ssam_state>;
+            pinctrl-names = "default";
+
+            current-speed = <4000000>;
+        };
+    };

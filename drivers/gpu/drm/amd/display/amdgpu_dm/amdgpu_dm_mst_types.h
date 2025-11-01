@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 /*
  * Copyright 2012-15 Advanced Micro Devices, Inc.
  *
@@ -59,7 +60,7 @@ enum mst_msg_ready_type {
 struct amdgpu_display_manager;
 struct amdgpu_dm_connector;
 
-int dm_mst_get_pbn_divider(struct dc_link *link);
+uint32_t dm_mst_get_pbn_divider(struct dc_link *link);
 
 void amdgpu_dm_initialize_dp_connector(struct amdgpu_display_manager *dm,
 				       struct amdgpu_dm_connector *aconnector,

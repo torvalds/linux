@@ -556,8 +556,11 @@ static const struct dc_debug_options debug_defaults_drv = {
 		.recovery_enabled = false, /*enable this by default after testing.*/
 		.max_downscale_src_width = 3840,
 		.underflow_assert_delay_us = 0xFFFFFFFF,
-		.enable_legacy_fast_update = true,
 		.using_dml2 = false,
+};
+
+static const struct dc_check_config config_defaults = {
+		.enable_legacy_fast_update = true,
 };
 
 static void dcn10_dpp_destroy(struct dpp **dpp)
@@ -1129,12 +1132,12 @@ static void dcn10_destroy_resource_pool(struct resource_pool **pool)
 static enum dc_status dcn10_validate_bandwidth(
 		struct dc *dc,
 		struct dc_state *context,
-		bool fast_validate)
+		enum dc_validate_mode validate_mode)
 {
 	bool voltage_supported;
 
 	DC_FP_START();
-	voltage_supported = dcn_validate_bandwidth(dc, context, fast_validate);
+	voltage_supported = dcn_validate_bandwidth(dc, context, validate_mode);
 	DC_FP_END();
 
 	return voltage_supported ? DC_OK : DC_FAIL_BANDWIDTH_VALIDATE;
@@ -1395,6 +1398,8 @@ static bool dcn10_resource_construct(
 	dc->caps.color.mpc.ogam_rom_caps.pq = 0;
 	dc->caps.color.mpc.ogam_rom_caps.hlg = 0;
 	dc->caps.color.mpc.ocsc = 0;
+	dc->debug = debug_defaults_drv;
+	dc->check_config = config_defaults;
 
 	if (dc->ctx->dce_environment == DCE_ENV_PRODUCTION_DRV)
 		dc->debug = debug_defaults_drv;

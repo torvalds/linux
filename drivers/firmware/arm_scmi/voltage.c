@@ -393,7 +393,7 @@ static int scmi_voltage_domains_num_get(const struct scmi_protocol_handle *ph)
 	return vinfo->num_domains;
 }
 
-static struct scmi_voltage_proto_ops voltage_proto_ops = {
+static const struct scmi_voltage_proto_ops voltage_proto_ops = {
 	.num_domains_get = scmi_voltage_domains_num_get,
 	.info_get = scmi_voltage_info_get,
 	.config_set = scmi_voltage_config_set,

@@ -223,13 +223,33 @@
 #define MAC_TSSR			0x0d20
 #define MAC_TXSNR			0x0d30
 #define MAC_TXSSR			0x0d34
-
+#define MAC_TICNR                       0x0d58
+#define MAC_TICSNR                      0x0d5C
+#define MAC_TECNR                       0x0d60
+#define MAC_TECSNR                      0x0d64
+#define MAC_PPSCR			0x0d70
+#define MAC_PPS0_TTSR			0x0d80
+#define MAC_PPS0_TTNSR			0x0d84
+#define MAC_PPS0_INTERVAL		0x0d88
+#define MAC_PPS0_WIDTH			0x0d8C
 #define MAC_QTFCR_INC			4
 #define MAC_MACA_INC			4
 #define MAC_HTR_INC			4
 
 #define MAC_RQC2_INC			4
 #define MAC_RQC2_Q_PER_REG		4
+
+/* PPS helpers */
+#define PPSEN0				BIT(4)
+#define MAC_PPSx_TTSR(x)		((MAC_PPS0_TTSR) + ((x) * 0x10))
+#define MAC_PPSx_TTNSR(x)		((MAC_PPS0_TTNSR) + ((x) * 0x10))
+#define MAC_PPSx_INTERVAL(x)		((MAC_PPS0_INTERVAL) + ((x) * 0x10))
+#define MAC_PPSx_WIDTH(x)		((MAC_PPS0_WIDTH) + ((x) * 0x10))
+#define PPS_MAXIDX(x)			((((x) + 1) * 8) - 1)
+#define PPS_MINIDX(x)			((x) * 8)
+#define XGBE_PPSCMD_STOP		0x5
+#define XGBE_PPSCMD_START		0x2
+#define XGBE_PPSTARGET_PULSE		0x2
 
 /* MAC register entry bit positions and sizes */
 #define MAC_HWF0R_ADDMACADRSEL_INDEX	18
@@ -364,6 +384,10 @@
 #define MAC_RCR_CST_WIDTH		1
 #define MAC_RCR_DCRCC_INDEX		3
 #define MAC_RCR_DCRCC_WIDTH		1
+#define MAC_RCR_GPSLCE_INDEX		6
+#define MAC_RCR_GPSLCE_WIDTH		1
+#define MAC_RCR_WD_INDEX		7
+#define MAC_RCR_WD_WIDTH		1
 #define MAC_RCR_HDSMS_INDEX		12
 #define MAC_RCR_HDSMS_WIDTH		3
 #define MAC_RCR_IPC_INDEX		9
@@ -374,6 +398,8 @@
 #define MAC_RCR_LM_WIDTH		1
 #define MAC_RCR_RE_INDEX		0
 #define MAC_RCR_RE_WIDTH		1
+#define MAC_RCR_GPSL_INDEX		16
+#define MAC_RCR_GPSL_WIDTH		14
 #define MAC_RFCR_PFCE_INDEX		8
 #define MAC_RFCR_PFCE_WIDTH		1
 #define MAC_RFCR_RFE_INDEX		0
@@ -412,6 +438,8 @@
 #define MAC_TCR_VNE_WIDTH		1
 #define MAC_TCR_VNM_INDEX		25
 #define MAC_TCR_VNM_WIDTH		1
+#define MAC_TCR_JD_INDEX		16
+#define MAC_TCR_JD_WIDTH		1
 #define MAC_TIR_TNID_INDEX		0
 #define MAC_TIR_TNID_WIDTH		16
 #define MAC_TSCR_AV8021ASMEN_INDEX	28
@@ -420,6 +448,8 @@
 #define MAC_TSCR_SNAPTYPSEL_WIDTH	2
 #define MAC_TSCR_TSADDREG_INDEX		5
 #define MAC_TSCR_TSADDREG_WIDTH		1
+#define MAC_TSCR_TSUPDT_INDEX		3
+#define MAC_TSCR_TSUPDT_WIDTH		1
 #define MAC_TSCR_TSCFUPDT_INDEX		1
 #define MAC_TSCR_TSCFUPDT_WIDTH		1
 #define MAC_TSCR_TSCTRLSSR_INDEX	9
@@ -448,6 +478,10 @@
 #define MAC_TSSR_TXTSC_WIDTH		1
 #define MAC_TXSNR_TXTSSTSMIS_INDEX	31
 #define MAC_TXSNR_TXTSSTSMIS_WIDTH	1
+#define MAC_TICSNR_TSICSNS_INDEX	8
+#define MAC_TICSNR_TSICSNS_WIDTH	8
+#define MAC_TECSNR_TSECSNS_INDEX	8
+#define MAC_TECSNR_TSECSNS_WIDTH	8
 #define MAC_VLANHTR_VLHT_INDEX		0
 #define MAC_VLANHTR_VLHT_WIDTH		16
 #define MAC_VLANIR_VLTI_INDEX		20
@@ -478,8 +512,10 @@
 #define MAC_VR_SNPSVER_WIDTH		8
 #define MAC_VR_USERVER_INDEX		16
 #define MAC_VR_USERVER_WIDTH		8
+#define MAC_PPSx_TTNSR_TRGTBUSY0_INDEX	31
+#define MAC_PPSx_TTNSR_TRGTBUSY0_WIDTH	1
 
-/* MMC register offsets */
+ /* MMC register offsets */
 #define MMC_CR				0x0800
 #define MMC_RISR			0x0804
 #define MMC_TISR			0x0808
@@ -1268,6 +1304,8 @@
 #ifndef MDIO_VEND2_CTRL1_SS13
 #define MDIO_VEND2_CTRL1_SS13		BIT(13)
 #endif
+
+#define XGBE_VEND2_MAC_AUTO_SW		BIT(9)
 
 /* MDIO mask values */
 #define XGBE_AN_CL73_INT_CMPLT		BIT(0)

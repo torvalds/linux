@@ -171,7 +171,7 @@ static int ttl_probe(struct platform_device *pdev)
 	gpio->parent = &pdev->dev;
 	gpio->label = pdev->name;
 	gpio->get = ttl_get_value;
-	gpio->set_rv = ttl_set_value;
+	gpio->set = ttl_set_value;
 	gpio->owner = THIS_MODULE;
 
 	/* request dynamic allocation */

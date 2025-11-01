@@ -155,58 +155,29 @@ static int cmp_bkt(const void *_a, const void *_b)
 }
 
 /*
- * TODO:
- * Support other iter types, if required.
- * Only ITER_XARRAY is supported for now.
+ * Collect some 2K samples with 2K gaps between.
  */
-static int collect_sample(const struct iov_iter *iter, ssize_t max, u8 *sample)
+static int collect_sample(const struct iov_iter *source, ssize_t max, u8 *sample)
 {
-	struct folio *folios[16], *folio;
-	unsigned int nr, i, j, npages;
-	loff_t start = iter->xarray_start + iter->iov_offset;
-	pgoff_t last, index = start / PAGE_SIZE;
-	size_t len, off, foff;
-	void *p;
-	int s = 0;
+	struct iov_iter iter = *source;
+	size_t s = 0;
 
-	last = (start + max - 1) / PAGE_SIZE;
-	do {
-		nr = xa_extract(iter->xarray, (void **)folios, index, last, ARRAY_SIZE(folios),
-				XA_PRESENT);
-		if (nr == 0)
-			return -EIO;
+	while (iov_iter_count(&iter) >= SZ_2K) {
+		size_t part = umin(umin(iov_iter_count(&iter), SZ_2K), max);
+		size_t n;
 
-		for (i = 0; i < nr; i++) {
-			folio = folios[i];
-			npages = folio_nr_pages(folio);
-			foff = start - folio_pos(folio);
-			off = foff % PAGE_SIZE;
+		n = copy_from_iter(sample + s, part, &iter);
+		if (n != part)
+			return -EFAULT;
 
-			for (j = foff / PAGE_SIZE; j < npages; j++) {
-				size_t len2;
+		s += n;
+		max -= n;
 
-				len = min_t(size_t, max, PAGE_SIZE - off);
-				len2 = min_t(size_t, len, SZ_2K);
+		if (iov_iter_count(&iter) < PAGE_SIZE - SZ_2K)
+			break;
 
-				p = kmap_local_page(folio_page(folio, j));
-				memcpy(&sample[s], p, len2);
-				kunmap_local(p);
-
-				s += len2;
-
-				if (len2 < SZ_2K || s >= max - SZ_2K)
-					return s;
-
-				max -= len;
-				if (max <= 0)
-					return s;
-
-				start += len;
-				off = 0;
-				index++;
-			}
-		}
-	} while (nr == ARRAY_SIZE(folios));
+		iov_iter_advance(&iter, SZ_2K);
+	}
 
 	return s;
 }

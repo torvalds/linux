@@ -23,6 +23,13 @@
 			compatible = "arm,cortex-a35";
 			reg = <0x0 0x0>;
 			enable-method = "psci";
+			d-cache-line-size = <32>;
+			d-cache-size = <0x8000>;
+			d-cache-sets = <32>;
+			i-cache-line-size = <32>;
+			i-cache-size = <0x8000>;
+			i-cache-sets = <32>;
+			next-level-cache = <&l2>;
 		};
 
 		cpu1: cpu@1 {
@@ -30,6 +37,22 @@
 			compatible = "arm,cortex-a35";
 			reg = <0x0 0x1>;
 			enable-method = "psci";
+			d-cache-line-size = <32>;
+			d-cache-size = <0x8000>;
+			d-cache-sets = <32>;
+			i-cache-line-size = <32>;
+			i-cache-size = <0x8000>;
+			i-cache-sets = <32>;
+			next-level-cache = <&l2>;
+		};
+
+		l2: l2-cache0 {
+			compatible = "cache";
+			cache-level = <2>;
+			cache-unified;
+			cache-size = <0x7d000>; /* L2. 512 KB */
+			cache-line-size = <64>;
+			cache-sets = <512>;
 		};
 	};
 
@@ -50,6 +73,13 @@
 		compatible = "fixed-clock";
 		clock-frequency = <24000000>;
 		clock-output-names = "xtal";
+		#clock-cells = <0>;
+	};
+
+	xtal_32k: xtal-clk-32k {
+		compatible = "fixed-clock";
+		clock-frequency = <32768>;
+		clock-output-names = "xtal_32k";
 		#clock-cells = <0>;
 	};
 
@@ -792,7 +822,7 @@
 			pwm_mn: pwm@54000 {
 				compatible = "amlogic,c3-pwm",
 					     "amlogic,meson-s4-pwm";
-				reg = <0x0 54000 0x0 0x24>;
+				reg = <0x0 0x54000 0x0 0x24>;
 				clocks = <&clkc_periphs CLKID_PWM_M>,
 					 <&clkc_periphs CLKID_PWM_N>;
 				#pwm-cells = <3>;
@@ -966,6 +996,15 @@
 					<&clkc_pll CLKID_FCLK_DIV2>;
 				clock-names = "core", "device";
 				status = "disabled";
+			};
+
+			rtc@9a000 {
+				compatible = "amlogic,c3-rtc",
+					     "amlogic,a5-rtc";
+				reg = <0x0 0x9a000 0x0 0x38>;
+				interrupts = <GIC_SPI 131 IRQ_TYPE_EDGE_RISING>;
+				clocks = <&xtal_32k>, <&clkc_periphs CLKID_SYS_RTC>;
+				clock-names = "osc", "sys";
 			};
 		};
 

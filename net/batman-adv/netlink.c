@@ -20,7 +20,6 @@
 #include <linux/if_vlan.h>
 #include <linux/init.h>
 #include <linux/limits.h>
-#include <linux/list.h>
 #include <linux/minmax.h>
 #include <linux/netdevice.h>
 #include <linux/netlink.h>
@@ -45,7 +44,6 @@
 #include "log.h"
 #include "mesh-interface.h"
 #include "multicast.h"
-#include "network-coding.h"
 #include "originator.h"
 #include "tp_meter.h"
 #include "translation-table.h"
@@ -145,7 +143,6 @@ static const struct nla_policy batadv_netlink_policy[NUM_BATADV_ATTR] = {
 	[BATADV_ATTR_LOG_LEVEL]			= { .type = NLA_U32 },
 	[BATADV_ATTR_MULTICAST_FORCEFLOOD_ENABLED]	= { .type = NLA_U8 },
 	[BATADV_ATTR_MULTICAST_FANOUT]		= { .type = NLA_U32 },
-	[BATADV_ATTR_NETWORK_CODING_ENABLED]	= { .type = NLA_U8 },
 	[BATADV_ATTR_ORIG_INTERVAL]		= { .type = NLA_U32 },
 	[BATADV_ATTR_ELP_INTERVAL]		= { .type = NLA_U32 },
 	[BATADV_ATTR_THROUGHPUT_OVERRIDE]	= { .type = NLA_U32 },
@@ -345,12 +342,6 @@ static int batadv_netlink_mesh_fill(struct sk_buff *msg,
 			atomic_read(&bat_priv->multicast_fanout)))
 		goto nla_put_failure;
 #endif /* CONFIG_BATMAN_ADV_MCAST */
-
-#ifdef CONFIG_BATMAN_ADV_NC
-	if (nla_put_u8(msg, BATADV_ATTR_NETWORK_CODING_ENABLED,
-		       !!atomic_read(&bat_priv->network_coding)))
-		goto nla_put_failure;
-#endif /* CONFIG_BATMAN_ADV_NC */
 
 	if (nla_put_u32(msg, BATADV_ATTR_ORIG_INTERVAL,
 			atomic_read(&bat_priv->orig_interval)))
@@ -588,15 +579,6 @@ static int batadv_netlink_set_mesh(struct sk_buff *skb, struct genl_info *info)
 		atomic_set(&bat_priv->multicast_fanout, nla_get_u32(attr));
 	}
 #endif /* CONFIG_BATMAN_ADV_MCAST */
-
-#ifdef CONFIG_BATMAN_ADV_NC
-	if (info->attrs[BATADV_ATTR_NETWORK_CODING_ENABLED]) {
-		attr = info->attrs[BATADV_ATTR_NETWORK_CODING_ENABLED];
-
-		atomic_set(&bat_priv->network_coding, !!nla_get_u8(attr));
-		batadv_nc_status_update(bat_priv->mesh_iface);
-	}
-#endif /* CONFIG_BATMAN_ADV_NC */
 
 	if (info->attrs[BATADV_ATTR_ORIG_INTERVAL]) {
 		u32 orig_interval;
@@ -968,6 +950,7 @@ batadv_netlink_dump_hardif(struct sk_buff *msg, struct netlink_callback *cb)
 	struct batadv_priv *bat_priv;
 	int portid = NETLINK_CB(cb->skb).portid;
 	int skip = cb->args[0];
+	struct list_head *iter;
 	int i = 0;
 
 	mesh_iface = batadv_netlink_get_meshif(cb);
@@ -979,10 +962,7 @@ batadv_netlink_dump_hardif(struct sk_buff *msg, struct netlink_callback *cb)
 	rtnl_lock();
 	cb->seq = batadv_hardif_generation << 1 | 1;
 
-	list_for_each_entry(hard_iface, &batadv_hardif_list, list) {
-		if (hard_iface->mesh_iface != mesh_iface)
-			continue;
-
+	netdev_for_each_lower_private(mesh_iface, hard_iface, iter) {
 		if (i++ < skip)
 			continue;
 

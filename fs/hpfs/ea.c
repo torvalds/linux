@@ -41,7 +41,7 @@ void hpfs_ea_ext_remove(struct super_block *s, secno a, int ano, unsigned len)
 		struct buffer_head *bh;
 		struct anode *anode;
 		if ((anode = hpfs_map_anode(s, a, &bh))) {
-			hpfs_remove_btree(s, &anode->btree);
+			hpfs_remove_btree(s, GET_BTREE_PTR(&anode->btree));
 			brelse(bh);
 			hpfs_free_sectors(s, a, 1);
 		}

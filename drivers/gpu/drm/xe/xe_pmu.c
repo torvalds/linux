@@ -157,10 +157,13 @@ static bool event_gt_forcewake(struct perf_event *event)
 	return true;
 }
 
-static bool event_supported(struct xe_pmu *pmu, unsigned int gt,
+static bool event_supported(struct xe_pmu *pmu, unsigned int gt_id,
 			    unsigned int id)
 {
-	if (gt >= XE_MAX_GT_PER_TILE)
+	struct xe_device *xe = container_of(pmu, typeof(*xe), pmu);
+	struct xe_gt *gt = xe_device_get_gt(xe, gt_id);
+
+	if (!gt)
 		return false;
 
 	return id < sizeof(pmu->supported_events) * BITS_PER_BYTE &&
@@ -494,13 +497,22 @@ static const struct attribute_group *pmu_events_attr_update[] = {
 static void set_supported_events(struct xe_pmu *pmu)
 {
 	struct xe_device *xe = container_of(pmu, typeof(*xe), pmu);
-	struct xe_gt *gt = xe_device_get_gt(xe, 0);
+	struct xe_gt *gt;
+	int id;
+
+	/* If there are no GTs, don't support any GT-related events */
+	if (xe->info.gt_count == 0)
+		return;
 
 	if (!xe->info.skip_guc_pc) {
 		pmu->supported_events |= BIT_ULL(XE_PMU_EVENT_GT_C6_RESIDENCY);
 		pmu->supported_events |= BIT_ULL(XE_PMU_EVENT_GT_ACTUAL_FREQUENCY);
 		pmu->supported_events |= BIT_ULL(XE_PMU_EVENT_GT_REQUESTED_FREQUENCY);
 	}
+
+	/* Find the first available GT to query engine event capabilities */
+	for_each_gt(gt, xe, id)
+		break;
 
 	if (xe_guc_engine_activity_supported(&gt->uc.guc)) {
 		pmu->supported_events |= BIT_ULL(XE_PMU_EVENT_ENGINE_ACTIVE_TICKS);

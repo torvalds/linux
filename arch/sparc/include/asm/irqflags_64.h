@@ -13,7 +13,7 @@
 
 #include <asm/pil.h>
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 static inline notrace unsigned long arch_local_save_flags(void)
 {
@@ -93,6 +93,6 @@ static inline notrace unsigned long arch_local_irq_save(void)
 	return flags;
 }
 
-#endif /* (__ASSEMBLY__) */
+#endif /* (__ASSEMBLER__) */
 
 #endif /* !(_ASM_IRQFLAGS_H) */

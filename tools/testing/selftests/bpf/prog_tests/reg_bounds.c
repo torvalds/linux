@@ -465,6 +465,20 @@ static struct range range_refine(enum num_t x_t, struct range x, enum num_t y_t,
 		return range_improve(x_t, x, x_swap);
 	}
 
+	if (!t_is_32(x_t) && !t_is_32(y_t) && x_t != y_t) {
+		if (x_t == S64 && x.a > x.b) {
+			if (x.b < y.a && x.a <= y.b)
+				return range(x_t, x.a, y.b);
+			if (x.a > y.b && x.b >= y.a)
+				return range(x_t, y.a, x.b);
+		} else if (x_t == U64 && y.a > y.b) {
+			if (y.b < x.a && y.a <= x.b)
+				return range(x_t, y.a, x.b);
+			if (y.a > x.b && y.b >= x.a)
+				return range(x_t, x.a, y.b);
+		}
+	}
+
 	/* otherwise, plain range cast and intersection works */
 	return range_improve(x_t, x, y_cast);
 }
@@ -609,7 +623,7 @@ static void range_cond(enum num_t t, struct range x, struct range y,
 			*newx = range(t, x.a, x.b);
 			*newy = range(t, y.a + 1, y.b);
 		} else if (x.a == x.b && x.b == y.b) {
-			/* X is a constant matching rigth side of Y */
+			/* X is a constant matching right side of Y */
 			*newx = range(t, x.a, x.b);
 			*newy = range(t, y.a, y.b - 1);
 		} else if (y.a == y.b && x.a == y.a) {
@@ -617,7 +631,7 @@ static void range_cond(enum num_t t, struct range x, struct range y,
 			*newx = range(t, x.a + 1, x.b);
 			*newy = range(t, y.a, y.b);
 		} else if (y.a == y.b && x.b == y.b) {
-			/* Y is a constant matching rigth side of X */
+			/* Y is a constant matching right side of X */
 			*newx = range(t, x.a, x.b - 1);
 			*newy = range(t, y.a, y.b);
 		} else {

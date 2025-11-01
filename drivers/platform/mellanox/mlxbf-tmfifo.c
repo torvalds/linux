@@ -281,7 +281,8 @@ static int mlxbf_tmfifo_alloc_vrings(struct mlxbf_tmfifo *fifo,
 		vring->align = SMP_CACHE_BYTES;
 		vring->index = i;
 		vring->vdev_id = tm_vdev->vdev.id.device;
-		vring->drop_desc.len = VRING_DROP_DESC_MAX_LEN;
+		vring->drop_desc.len = cpu_to_virtio32(&tm_vdev->vdev,
+						       VRING_DROP_DESC_MAX_LEN);
 		dev = &tm_vdev->vdev.dev;
 
 		size = vring_size(vring->num, vring->align);
@@ -1287,7 +1288,7 @@ static void mlxbf_tmfifo_get_cfg_mac(u8 *mac)
 		ether_addr_copy(mac, mlxbf_tmfifo_net_default_mac);
 }
 
-/* Set TmFifo thresolds which is used to trigger interrupts. */
+/* Set TmFifo thresholds which is used to trigger interrupts. */
 static void mlxbf_tmfifo_set_threshold(struct mlxbf_tmfifo *fifo)
 {
 	u64 ctl;

@@ -34,34 +34,6 @@ static inline void sanity_check_seg_type(struct f2fs_sb_info *sbi,
 	f2fs_bug_on(sbi, seg_type >= NR_PERSISTENT_LOG);
 }
 
-#define IS_CURSEG(sbi, seg)						\
-	(((seg) == CURSEG_I(sbi, CURSEG_HOT_DATA)->segno) ||	\
-	 ((seg) == CURSEG_I(sbi, CURSEG_WARM_DATA)->segno) ||	\
-	 ((seg) == CURSEG_I(sbi, CURSEG_COLD_DATA)->segno) ||	\
-	 ((seg) == CURSEG_I(sbi, CURSEG_HOT_NODE)->segno) ||	\
-	 ((seg) == CURSEG_I(sbi, CURSEG_WARM_NODE)->segno) ||	\
-	 ((seg) == CURSEG_I(sbi, CURSEG_COLD_NODE)->segno) ||	\
-	 ((seg) == CURSEG_I(sbi, CURSEG_COLD_DATA_PINNED)->segno) ||	\
-	 ((seg) == CURSEG_I(sbi, CURSEG_ALL_DATA_ATGC)->segno))
-
-#define IS_CURSEC(sbi, secno)						\
-	(((secno) == CURSEG_I(sbi, CURSEG_HOT_DATA)->segno /		\
-	  SEGS_PER_SEC(sbi)) ||	\
-	 ((secno) == CURSEG_I(sbi, CURSEG_WARM_DATA)->segno /		\
-	  SEGS_PER_SEC(sbi)) ||	\
-	 ((secno) == CURSEG_I(sbi, CURSEG_COLD_DATA)->segno /		\
-	  SEGS_PER_SEC(sbi)) ||	\
-	 ((secno) == CURSEG_I(sbi, CURSEG_HOT_NODE)->segno /		\
-	  SEGS_PER_SEC(sbi)) ||	\
-	 ((secno) == CURSEG_I(sbi, CURSEG_WARM_NODE)->segno /		\
-	  SEGS_PER_SEC(sbi)) ||	\
-	 ((secno) == CURSEG_I(sbi, CURSEG_COLD_NODE)->segno /		\
-	  SEGS_PER_SEC(sbi)) ||	\
-	 ((secno) == CURSEG_I(sbi, CURSEG_COLD_DATA_PINNED)->segno /	\
-	  SEGS_PER_SEC(sbi)) ||	\
-	 ((secno) == CURSEG_I(sbi, CURSEG_ALL_DATA_ATGC)->segno /	\
-	  SEGS_PER_SEC(sbi)))
-
 #define MAIN_BLKADDR(sbi)						\
 	(SM_I(sbi) ? SM_I(sbi)->main_blkaddr : 				\
 		le32_to_cpu(F2FS_RAW_SUPER(sbi)->main_blkaddr))
@@ -318,6 +290,28 @@ static inline struct curseg_info *CURSEG_I(struct f2fs_sb_info *sbi, int type)
 	return (struct curseg_info *)(SM_I(sbi)->curseg_array + type);
 }
 
+static inline bool is_curseg(struct f2fs_sb_info *sbi, unsigned int segno)
+{
+	int i;
+
+	for (i = CURSEG_HOT_DATA; i < NO_CHECK_TYPE; i++) {
+		if (segno == CURSEG_I(sbi, i)->segno)
+			return true;
+	}
+	return false;
+}
+
+static inline bool is_cursec(struct f2fs_sb_info *sbi, unsigned int secno)
+{
+	int i;
+
+	for (i = CURSEG_HOT_DATA; i < NO_CHECK_TYPE; i++) {
+		if (secno == GET_SEC_FROM_SEG(sbi, CURSEG_I(sbi, i)->segno))
+			return true;
+	}
+	return false;
+}
+
 static inline struct seg_entry *get_seg_entry(struct f2fs_sb_info *sbi,
 						unsigned int segno)
 {
@@ -509,7 +503,7 @@ static inline void __set_test_and_free(struct f2fs_sb_info *sbi,
 
 	free_i->free_segments++;
 
-	if (!inmem && IS_CURSEC(sbi, secno))
+	if (!inmem && is_cursec(sbi, secno))
 		goto unlock_out;
 
 	/* check large section */
@@ -606,6 +600,16 @@ static inline int reserved_sections(struct f2fs_sb_info *sbi)
 	return GET_SEC_FROM_SEG(sbi, reserved_segments(sbi));
 }
 
+static inline unsigned int get_left_section_blocks(struct f2fs_sb_info *sbi,
+					enum log_type type, unsigned int segno)
+{
+	if (f2fs_lfs_mode(sbi) && __is_large_section(sbi))
+		return CAP_BLKS_PER_SEC(sbi) - SEGS_TO_BLKS(sbi,
+			(segno - GET_START_SEG_FROM_SEC(sbi, segno))) -
+			CURSEG_I(sbi, type)->next_blkoff;
+	return CAP_BLKS_PER_SEC(sbi) - get_ckpt_valid_blocks(sbi, segno, true);
+}
+
 static inline bool has_curseg_enough_space(struct f2fs_sb_info *sbi,
 			unsigned int node_blocks, unsigned int data_blocks,
 			unsigned int dent_blocks)
@@ -620,14 +624,7 @@ static inline bool has_curseg_enough_space(struct f2fs_sb_info *sbi,
 		if (unlikely(segno == NULL_SEGNO))
 			return false;
 
-		if (f2fs_lfs_mode(sbi) && __is_large_section(sbi)) {
-			left_blocks = CAP_BLKS_PER_SEC(sbi) -
-				SEGS_TO_BLKS(sbi, (segno - GET_START_SEG_FROM_SEC(sbi, segno))) -
-				CURSEG_I(sbi, i)->next_blkoff;
-		} else {
-			left_blocks = CAP_BLKS_PER_SEC(sbi) -
-					get_ckpt_valid_blocks(sbi, segno, true);
-		}
+		left_blocks = get_left_section_blocks(sbi, i, segno);
 
 		blocks = i <= CURSEG_COLD_DATA ? data_blocks : node_blocks;
 		if (blocks > left_blocks)
@@ -640,14 +637,7 @@ static inline bool has_curseg_enough_space(struct f2fs_sb_info *sbi,
 	if (unlikely(segno == NULL_SEGNO))
 		return false;
 
-	if (f2fs_lfs_mode(sbi) && __is_large_section(sbi)) {
-		left_blocks = CAP_BLKS_PER_SEC(sbi) -
-				SEGS_TO_BLKS(sbi, (segno - GET_START_SEG_FROM_SEC(sbi, segno))) -
-				CURSEG_I(sbi, CURSEG_HOT_DATA)->next_blkoff;
-	} else {
-		left_blocks = CAP_BLKS_PER_SEC(sbi) -
-				get_ckpt_valid_blocks(sbi, segno, true);
-	}
+	left_blocks = get_left_section_blocks(sbi, CURSEG_HOT_DATA, segno);
 
 	if (dent_blocks > left_blocks)
 		return false;
@@ -674,8 +664,7 @@ static inline void __get_secs_required(struct f2fs_sb_info *sbi,
 	unsigned int dent_blocks = total_dent_blocks % CAP_BLKS_PER_SEC(sbi);
 	unsigned int data_blocks = 0;
 
-	if (f2fs_lfs_mode(sbi) &&
-		unlikely(is_sbi_flag_set(sbi, SBI_CP_DISABLED))) {
+	if (f2fs_lfs_mode(sbi)) {
 		total_data_blocks = get_pages(sbi, F2FS_DIRTY_DATA);
 		data_secs = total_data_blocks / CAP_BLKS_PER_SEC(sbi);
 		data_blocks = total_data_blocks % CAP_BLKS_PER_SEC(sbi);
@@ -684,7 +673,7 @@ static inline void __get_secs_required(struct f2fs_sb_info *sbi,
 	if (lower_p)
 		*lower_p = node_secs + dent_secs + data_secs;
 	if (upper_p)
-		*upper_p = node_secs + dent_secs +
+		*upper_p = node_secs + dent_secs + data_secs +
 			(node_blocks ? 1 : 0) + (dent_blocks ? 1 : 0) +
 			(data_blocks ? 1 : 0);
 	if (curseg_p)
@@ -986,7 +975,7 @@ static inline block_t sum_blk_addr(struct f2fs_sb_info *sbi, int base, int type)
 
 static inline bool sec_usage_check(struct f2fs_sb_info *sbi, unsigned int secno)
 {
-	if (IS_CURSEC(sbi, secno) || (sbi->cur_victim_sec == secno))
+	if (is_cursec(sbi, secno) || (sbi->cur_victim_sec == secno))
 		return true;
 	return false;
 }

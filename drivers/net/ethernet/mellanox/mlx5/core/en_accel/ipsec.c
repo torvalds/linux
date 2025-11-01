@@ -36,6 +36,7 @@
 #include <linux/inetdevice.h>
 #include <linux/netdevice.h>
 #include <net/netevent.h>
+#include <net/ipv6_stubs.h>
 
 #include "en.h"
 #include "eswitch.h"
@@ -259,9 +260,15 @@ static void mlx5e_ipsec_init_macs(struct mlx5e_ipsec_sa_entry *sa_entry,
 				  struct mlx5_accel_esp_xfrm_attrs *attrs)
 {
 	struct mlx5_core_dev *mdev = mlx5e_ipsec_sa2dev(sa_entry);
+	struct mlx5e_ipsec_addr *addrs = &attrs->addrs;
 	struct net_device *netdev = sa_entry->dev;
+	struct xfrm_state *x = sa_entry->x;
+	struct dst_entry *rt_dst_entry;
+	struct flowi4 fl4 = {};
+	struct flowi6 fl6 = {};
 	struct neighbour *n;
 	u8 addr[ETH_ALEN];
+	struct rtable *rt;
 	const void *pkey;
 	u8 *dst, *src;
 
@@ -274,18 +281,89 @@ static void mlx5e_ipsec_init_macs(struct mlx5e_ipsec_sa_entry *sa_entry,
 	case XFRM_DEV_OFFLOAD_IN:
 		src = attrs->dmac;
 		dst = attrs->smac;
-		pkey = &attrs->addrs.saddr.a4;
+
+		switch (addrs->family) {
+		case AF_INET:
+			fl4.flowi4_proto = x->sel.proto;
+			fl4.daddr = addrs->saddr.a4;
+			fl4.saddr = addrs->daddr.a4;
+			pkey = &addrs->saddr.a4;
+			break;
+		case AF_INET6:
+			fl6.flowi6_proto = x->sel.proto;
+			memcpy(fl6.daddr.s6_addr32, addrs->saddr.a6, 16);
+			memcpy(fl6.saddr.s6_addr32, addrs->daddr.a6, 16);
+			pkey = &addrs->saddr.a6;
+			break;
+		default:
+			return;
+		}
 		break;
 	case XFRM_DEV_OFFLOAD_OUT:
 		src = attrs->smac;
 		dst = attrs->dmac;
-		pkey = &attrs->addrs.daddr.a4;
+		switch (addrs->family) {
+		case AF_INET:
+			fl4.flowi4_proto = x->sel.proto;
+			fl4.daddr = addrs->daddr.a4;
+			fl4.saddr = addrs->saddr.a4;
+			pkey = &addrs->daddr.a4;
+			break;
+		case AF_INET6:
+			fl6.flowi6_proto = x->sel.proto;
+			memcpy(fl6.daddr.s6_addr32, addrs->daddr.a6, 16);
+			memcpy(fl6.saddr.s6_addr32, addrs->saddr.a6, 16);
+			pkey = &addrs->daddr.a6;
+			break;
+		default:
+			return;
+		}
 		break;
 	default:
 		return;
 	}
 
 	ether_addr_copy(src, addr);
+
+	/* Destination can refer to a routed network, so perform FIB lookup
+	 * to resolve nexthop and get its MAC. Neighbour resolution is used as
+	 * fallback.
+	 */
+	switch (addrs->family) {
+	case AF_INET:
+		rt = ip_route_output_key(dev_net(netdev), &fl4);
+		if (IS_ERR(rt))
+			goto neigh;
+
+		if (rt->rt_type != RTN_UNICAST) {
+			ip_rt_put(rt);
+			goto neigh;
+		}
+		rt_dst_entry = &rt->dst;
+		break;
+	case AF_INET6:
+		rt_dst_entry = ipv6_stub->ipv6_dst_lookup_flow(
+			dev_net(netdev), NULL, &fl6, NULL);
+		if (IS_ERR(rt_dst_entry))
+			goto neigh;
+		break;
+	default:
+		return;
+	}
+
+	n = dst_neigh_lookup(rt_dst_entry, pkey);
+	if (!n) {
+		dst_release(rt_dst_entry);
+		goto neigh;
+	}
+
+	neigh_ha_snapshot(addr, n, netdev);
+	ether_addr_copy(dst, addr);
+	dst_release(rt_dst_entry);
+	neigh_release(n);
+	return;
+
+neigh:
 	n = neigh_lookup(&arp_tbl, pkey, netdev);
 	if (!n) {
 		n = neigh_create(&arp_tbl, pkey, netdev);
@@ -694,6 +772,7 @@ static int mlx5e_xfrm_add_state(struct net_device *dev,
 				struct netlink_ext_ack *extack)
 {
 	struct mlx5e_ipsec_sa_entry *sa_entry = NULL;
+	bool allow_tunnel_mode = false;
 	struct mlx5e_ipsec *ipsec;
 	struct mlx5e_priv *priv;
 	gfp_t gfp;
@@ -725,6 +804,20 @@ static int mlx5e_xfrm_add_state(struct net_device *dev,
 		goto err_xfrm;
 	}
 
+	if (mlx5_eswitch_block_mode(priv->mdev))
+		goto unblock_ipsec;
+
+	if (x->props.mode == XFRM_MODE_TUNNEL &&
+	    x->xso.type == XFRM_DEV_OFFLOAD_PACKET) {
+		allow_tunnel_mode = mlx5e_ipsec_fs_tunnel_allowed(sa_entry);
+		if (!allow_tunnel_mode) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Packet offload tunnel mode is disabled due to encap settings");
+			err = -EINVAL;
+			goto unblock_mode;
+		}
+	}
+
 	/* check esn */
 	if (x->props.flags & XFRM_STATE_ESN)
 		mlx5e_ipsec_update_esn_state(sa_entry);
@@ -739,7 +832,7 @@ static int mlx5e_xfrm_add_state(struct net_device *dev,
 
 	err = mlx5_ipsec_create_work(sa_entry);
 	if (err)
-		goto unblock_ipsec;
+		goto unblock_encap;
 
 	err = mlx5e_ipsec_create_dwork(sa_entry);
 	if (err)
@@ -753,14 +846,6 @@ static int mlx5e_xfrm_add_state(struct net_device *dev,
 	err = mlx5e_accel_ipsec_fs_add_rule(sa_entry);
 	if (err)
 		goto err_hw_ctx;
-
-	if (x->props.mode == XFRM_MODE_TUNNEL &&
-	    x->xso.type == XFRM_DEV_OFFLOAD_PACKET &&
-	    !mlx5e_ipsec_fs_tunnel_enabled(sa_entry)) {
-		NL_SET_ERR_MSG_MOD(extack, "Packet offload tunnel mode is disabled due to encap settings");
-		err = -EINVAL;
-		goto err_add_rule;
-	}
 
 	/* We use *_bh() variant because xfrm_timer_handler(), which runs
 	 * in softirq context, can reach our state delete logic and we need
@@ -777,8 +862,7 @@ static int mlx5e_xfrm_add_state(struct net_device *dev,
 		queue_delayed_work(ipsec->wq, &sa_entry->dwork->dwork,
 				   MLX5_IPSEC_RESCHED);
 
-	if (x->xso.type == XFRM_DEV_OFFLOAD_PACKET &&
-	    x->props.mode == XFRM_MODE_TUNNEL) {
+	if (allow_tunnel_mode) {
 		xa_lock_bh(&ipsec->sadb);
 		__xa_set_mark(&ipsec->sadb, sa_entry->ipsec_obj_id,
 			      MLX5E_IPSEC_TUNNEL_SA);
@@ -787,6 +871,11 @@ static int mlx5e_xfrm_add_state(struct net_device *dev,
 
 out:
 	x->xso.offload_handle = (unsigned long)sa_entry;
+	if (allow_tunnel_mode)
+		mlx5_eswitch_unblock_encap(priv->mdev);
+
+	mlx5_eswitch_unblock_mode(priv->mdev);
+
 	return 0;
 
 err_add_rule:
@@ -799,6 +888,11 @@ release_work:
 	if (sa_entry->work)
 		kfree(sa_entry->work->data);
 	kfree(sa_entry->work);
+unblock_encap:
+	if (allow_tunnel_mode)
+		mlx5_eswitch_unblock_encap(priv->mdev);
+unblock_mode:
+	mlx5_eswitch_unblock_mode(priv->mdev);
 unblock_ipsec:
 	mlx5_eswitch_unblock_ipsec(priv->mdev);
 err_xfrm:

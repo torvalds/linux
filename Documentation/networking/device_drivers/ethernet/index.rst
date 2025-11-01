@@ -50,6 +50,8 @@ Contents:
    neterion/s2io
    netronome/nfp
    pensando/ionic
+   pensando/ionic_rdma
+   qualcomm/ppe/ppe
    smsc/smc9
    stmicro/stmmac
    ti/cpsw
@@ -58,7 +60,9 @@ Contents:
    ti/tlan
    ti/icssg_prueth
    wangxun/txgbe
+   wangxun/txgbevf
    wangxun/ngbe
+   wangxun/ngbevf
 
 .. only::  subproject and html
 

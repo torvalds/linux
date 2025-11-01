@@ -36,6 +36,7 @@
 #include <linux/kernel.h>
 #include <linux/completion.h>
 #include <linux/pci.h>
+#include <linux/pci-tph.h>
 #include <linux/irq.h>
 #include <linux/spinlock_types.h>
 #include <linux/semaphore.h>
@@ -129,12 +130,14 @@ enum {
 	MLX5_REG_PDDR		 = 0x5031,
 	MLX5_REG_PMLP		 = 0x5002,
 	MLX5_REG_PPLM		 = 0x5023,
+	MLX5_REG_PPHCR		 = 0x503E,
 	MLX5_REG_PCAM		 = 0x507f,
 	MLX5_REG_NODE_DESC	 = 0x6001,
 	MLX5_REG_HOST_ENDIANNESS = 0x7004,
 	MLX5_REG_MTCAP		 = 0x9009,
 	MLX5_REG_MTMP		 = 0x900A,
 	MLX5_REG_MCIA		 = 0x9014,
+	MLX5_REG_MNVDA		 = 0x9024,
 	MLX5_REG_MFRL		 = 0x9028,
 	MLX5_REG_MLCR		 = 0x902b,
 	MLX5_REG_MRTC		 = 0x902d,
@@ -431,7 +434,6 @@ struct mlx5_sq_bfreg {
 	struct mlx5_uars_page  *up;
 	bool			wc;
 	u32			index;
-	unsigned int		offset;
 };
 
 struct mlx5_core_health {
@@ -610,7 +612,7 @@ struct mlx5_priv {
 	struct mlx5_ft_pool		*ft_pool;
 
 	struct mlx5_bfreg_data		bfregs;
-	struct mlx5_uars_page	       *uar;
+	struct mlx5_sq_bfreg bfreg;
 #ifdef CONFIG_MLX5_SF
 	struct mlx5_vhca_state_notifier *vhca_state_notifier;
 	struct mlx5_sf_dev_table *sf_dev_table;
@@ -656,12 +658,14 @@ struct mlx5e_resources {
 		u32                        pdn;
 		struct mlx5_td             td;
 		u32			   mkey;
-		struct mlx5_sq_bfreg       bfreg;
+		struct mlx5_sq_bfreg      *bfregs;
+		unsigned int               num_bfregs;
 #define MLX5_MAX_NUM_TC 8
 		u32                        tisn[MLX5_MAX_PORTS][MLX5_MAX_NUM_TC];
 		bool			   tisn_valid;
 	} hw_objs;
 	struct net_device *uplink_netdev;
+	netdevice_tracker tracker;
 	struct mutex uplink_netdev_lock;
 	struct mlx5_crypto_dek_priv *dek_priv;
 };
@@ -688,6 +692,7 @@ struct mlx5_fw_tracer;
 struct mlx5_vxlan;
 struct mlx5_geneve;
 struct mlx5_hv_vhca;
+struct mlx5_st;
 
 #define MLX5_LOG_SW_ICM_BLOCK_SIZE(dev) (MLX5_CAP_DEV_MEM(dev, log_sw_icm_alloc_granularity))
 #define MLX5_SW_ICM_BLOCK_SIZE(dev) (1 << MLX5_LOG_SW_ICM_BLOCK_SIZE(dev))
@@ -757,6 +762,7 @@ struct mlx5_core_dev {
 	u32			issi;
 	struct mlx5e_resources  mlx5e_res;
 	struct mlx5_dm          *dm;
+	struct mlx5_st          *st;
 	struct mlx5_vxlan       *vxlan;
 	struct mlx5_geneve      *geneve;
 	struct {
@@ -797,6 +803,8 @@ struct mlx5_db {
 	dma_addr_t		dma;
 	int			index;
 };
+
+#define MLX5_DEFAULT_NUM_DOORBELLS 8
 
 enum {
 	MLX5_COMP_EQ_SIZE = 1024,
@@ -1160,6 +1168,23 @@ int mlx5_dm_sw_icm_alloc(struct mlx5_core_dev *dev, enum mlx5_sw_icm_type type,
 int mlx5_dm_sw_icm_dealloc(struct mlx5_core_dev *dev, enum mlx5_sw_icm_type type,
 			   u64 length, u16 uid, phys_addr_t addr, u32 obj_id);
 
+#ifdef CONFIG_PCIE_TPH
+int mlx5_st_alloc_index(struct mlx5_core_dev *dev, enum tph_mem_type mem_type,
+			unsigned int cpu_uid, u16 *st_index);
+int mlx5_st_dealloc_index(struct mlx5_core_dev *dev, u16 st_index);
+#else
+static inline int mlx5_st_alloc_index(struct mlx5_core_dev *dev,
+				      enum tph_mem_type mem_type,
+				      unsigned int cpu_uid, u16 *st_index)
+{
+	return -EOPNOTSUPP;
+}
+static inline int mlx5_st_dealloc_index(struct mlx5_core_dev *dev, u16 st_index)
+{
+	return -EOPNOTSUPP;
+}
+#endif
+
 struct mlx5_core_dev *mlx5_vf_get_core_dev(struct pci_dev *pdev);
 void mlx5_vf_put_core_dev(struct mlx5_core_dev *mdev);
 
@@ -1349,4 +1374,9 @@ enum {
 };
 
 bool mlx5_wc_support_get(struct mlx5_core_dev *mdev);
+
+static inline struct net *mlx5_core_net(struct mlx5_core_dev *dev)
+{
+	return devlink_net(priv_to_devlink(dev));
+}
 #endif /* MLX5_DRIVER_H */

@@ -378,7 +378,7 @@ static const struct gpio_chip rk805_gpio_chip = {
 	.free			= gpiochip_generic_free,
 	.get_direction		= rk805_gpio_get_direction,
 	.get			= rk805_gpio_get,
-	.set_rv			= rk805_gpio_set,
+	.set			= rk805_gpio_set,
 	.direction_input	= pinctrl_gpio_direction_input,
 	.direction_output	= rk805_gpio_direction_output,
 	.can_sleep		= true,
@@ -541,7 +541,7 @@ static int rk805_pinconf_get(struct pinctrl_dev *pctldev,
 	u32 arg = 0;
 
 	switch (param) {
-	case PIN_CONFIG_OUTPUT:
+	case PIN_CONFIG_LEVEL:
 	case PIN_CONFIG_INPUT_ENABLE:
 		arg = rk805_gpio_get(&pci->gpio_chip, pin);
 		break;
@@ -568,7 +568,7 @@ static int rk805_pinconf_set(struct pinctrl_dev *pctldev,
 		arg = pinconf_to_config_argument(configs[i]);
 
 		switch (param) {
-		case PIN_CONFIG_OUTPUT:
+		case PIN_CONFIG_LEVEL:
 			rk805_gpio_set(&pci->gpio_chip, pin, arg);
 			rk805_pmx_gpio_set_direction(pctldev, NULL, pin, false);
 			break;

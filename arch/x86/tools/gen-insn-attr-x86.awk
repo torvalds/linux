@@ -21,6 +21,7 @@ function clear_vars() {
 	eid = -1 # escape id
 	gid = -1 # group id
 	aid = -1 # AVX id
+	xopid = -1 # XOP id
 	tname = ""
 }
 
@@ -39,9 +40,11 @@ BEGIN {
 	ggid = 1
 	geid = 1
 	gaid = 0
+	gxopid = 0
 	delete etable
 	delete gtable
 	delete atable
+	delete xoptable
 
 	opnd_expr = "^[A-Za-z/]"
 	ext_expr = "^\\("
@@ -61,6 +64,7 @@ BEGIN {
 	imm_flag["Ob"] = "INAT_MOFFSET"
 	imm_flag["Ov"] = "INAT_MOFFSET"
 	imm_flag["Lx"] = "INAT_MAKE_IMM(INAT_IMM_BYTE)"
+	imm_flag["Lo"] = "INAT_MAKE_IMM(INAT_IMM_BYTE)"
 
 	modrm_expr = "^([CDEGMNPQRSUVW/][a-z]+|NTA|T[012])"
 	force64_expr = "\\([df]64\\)"
@@ -87,6 +91,8 @@ BEGIN {
 	evexonly_expr = "\\(ev\\)"
 	# (es) is the same as (ev) but also "SCALABLE" i.e. W and pp determine operand size
 	evex_scalable_expr = "\\(es\\)"
+	# All opcodes in XOP table or with (xop) superscript accept XOP prefix
+	xopok_expr = "\\(xop\\)"
 
 	prefix_expr = "\\(Prefix\\)"
 	prefix_num["Operand-Size"] = "INAT_PFX_OPNDSZ"
@@ -106,6 +112,7 @@ BEGIN {
 	prefix_num["VEX+2byte"] = "INAT_PFX_VEX3"
 	prefix_num["EVEX"] = "INAT_PFX_EVEX"
 	prefix_num["REX2"] = "INAT_PFX_REX2"
+	prefix_num["XOP"] = "INAT_PFX_XOP"
 
 	clear_vars()
 }
@@ -147,12 +154,27 @@ function array_size(arr,   i,c) {
 	if (NF != 1) {
 		# AVX/escape opcode table
 		aid = $2
+		xopid = -1
 		if (gaid <= aid)
 			gaid = aid + 1
 		if (tname == "")	# AVX only opcode table
 			tname = sprintf("inat_avx_table_%d", $2)
 	}
 	if (aid == -1 && eid == -1)	# primary opcode table
+		tname = "inat_primary_table"
+}
+
+/^XOPcode:/ {
+	if (NF != 1) {
+		# XOP opcode table
+		xopid = $2
+		aid = -1
+		if (gxopid <= xopid)
+			gxopid = xopid + 1
+		if (tname == "")	# XOP only opcode table
+			tname = sprintf("inat_xop_table_%d", $2)
+	}
+	if (xopid == -1 && eid == -1)	# primary opcode table
 		tname = "inat_primary_table"
 }
 
@@ -206,6 +228,8 @@ function print_table(tbl,name,fmt,n)
 			etable[eid,0] = tname
 			if (aid >= 0)
 				atable[aid,0] = tname
+			else if (xopid >= 0)
+				xoptable[xopid] = tname
 		}
 		if (array_size(lptable1) != 0) {
 			print_table(lptable1,tname "_1[INAT_OPCODE_TABLE_SIZE]",
@@ -347,6 +371,8 @@ function convert_operands(count,opnd,       i,j,imm,mod)
 			flags = add_flags(flags, "INAT_VEXOK | INAT_VEXONLY")
 		else if (match(ext, vexok_expr) || match(opcode, vexok_opcode_expr))
 			flags = add_flags(flags, "INAT_VEXOK")
+		else if (match(ext, xopok_expr) || xopid >= 0)
+			flags = add_flags(flags, "INAT_XOPOK")
 
 		# check prefixes
 		if (match(ext, prefix_expr)) {
@@ -413,6 +439,14 @@ END {
 				print "	["i"]["j"] = "atable[i,j]","
 	print "};\n"
 
+	print "/* XOP opcode map array */"
+	print "const insn_attr_t * const inat_xop_tables[X86_XOP_M_MAX - X86_XOP_M_MIN + 1]" \
+	      " = {"
+	for (i = 0; i < gxopid; i++)
+		if (xoptable[i])
+			print "	["i"] = "xoptable[i]","
+	print "};"
+
 	print "#else /* !__BOOT_COMPRESSED */\n"
 
 	print "/* Escape opcode map array */"
@@ -428,6 +462,10 @@ END {
 	print "/* AVX opcode map array */"
 	print "static const insn_attr_t *inat_avx_tables[X86_VEX_M_MAX + 1]"\
 	      "[INAT_LSTPFX_MAX + 1];"
+	print ""
+
+	print "/* XOP opcode map array */"
+	print "static const insn_attr_t *inat_xop_tables[X86_XOP_M_MAX - X86_XOP_M_MIN + 1];"
 	print ""
 
 	print "static void inat_init_tables(void)"
@@ -454,6 +492,12 @@ END {
 		for (j = 0; j < max_lprefix; j++)
 			if (atable[i,j])
 				print "\tinat_avx_tables["i"]["j"] = "atable[i,j]";"
+
+	print ""
+	print "\t/* Print XOP opcode map array */"
+	for (i = 0; i < gxopid; i++)
+		if (xoptable[i])
+			print "\tinat_xop_tables["i"] = "xoptable[i]";"
 
 	print "}"
 	print "#endif"

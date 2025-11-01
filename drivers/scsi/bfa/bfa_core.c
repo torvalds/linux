@@ -1282,7 +1282,6 @@ bfa_iocfc_cfgrsp(struct bfa_s *bfa)
 	struct bfi_iocfc_cfgrsp_s	*cfgrsp	 = iocfc->cfgrsp;
 	struct bfa_iocfc_fwcfg_s	*fwcfg	 = &cfgrsp->fwcfg;
 
-	fwcfg->num_cqs	      = fwcfg->num_cqs;
 	fwcfg->num_ioim_reqs  = be16_to_cpu(fwcfg->num_ioim_reqs);
 	fwcfg->num_fwtio_reqs = be16_to_cpu(fwcfg->num_fwtio_reqs);
 	fwcfg->num_tskim_reqs = be16_to_cpu(fwcfg->num_tskim_reqs);

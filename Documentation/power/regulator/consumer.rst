@@ -23,10 +23,18 @@ To release the regulator the consumer driver should call ::
 	regulator_put(regulator);
 
 Consumers can be supplied by more than one regulator e.g. codec consumer with
-analog and digital supplies ::
+analog and digital supplies by means of bulk operations ::
 
-	digital = regulator_get(dev, "Vcc");  /* digital core */
-	analog = regulator_get(dev, "Avdd");  /* analog */
+	struct regulator_bulk_data supplies[2];
+
+	supplies[0].supply = "Vcc"; /* digital core */
+	supplies[1].supply = "Avdd"; /* analog */
+
+	ret = regulator_bulk_get(dev, ARRAY_SIZE(supplies), supplies);
+
+	// convenience helper to call regulator_put() on multiple regulators
+	regulator_bulk_free(ARRAY_SIZE(supplies), supplies);
+
 
 The regulator access functions regulator_get() and regulator_put() will
 usually be called in your device drivers probe() and remove() respectively.
@@ -51,10 +59,20 @@ A consumer can determine if a regulator is enabled by calling::
 
 This will return > zero when the regulator is enabled.
 
+A set of regulators can be enabled with a single bulk operation ::
+
+	int regulator_bulk_enable(int num_consumers,
+				  struct regulator_bulk_data *consumers);
+
 
 A consumer can disable its supply when no longer needed by calling::
 
 	int regulator_disable(regulator);
+
+Or a number of them ::
+
+	int regulator_bulk_disable(int num_consumers,
+			 	   struct regulator_bulk_data *consumers);
 
 NOTE:
   This may not disable the supply if it's shared with other consumers. The
@@ -64,10 +82,14 @@ Finally, a regulator can be forcefully disabled in the case of an emergency::
 
 	int regulator_force_disable(regulator);
 
+This operation is also supported for multiple regulators ::
+
+	int regulator_bulk_force_disable(int num_consumers,
+			 		 struct regulator_bulk_data *consumers);
+
 NOTE:
   this will immediately and forcefully shutdown the regulator output. All
   consumers will be powered off.
-
 
 3. Regulator Voltage Control & Status (dynamic drivers)
 =======================================================

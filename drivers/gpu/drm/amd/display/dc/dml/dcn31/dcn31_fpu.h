@@ -55,5 +55,5 @@ int dcn_get_approx_det_segs_required_for_pstate(
 int dcn31x_populate_dml_pipes_from_context(struct dc *dc,
 					  struct dc_state *context,
 					  display_e2e_pipe_params_st *pipes,
-					  bool fast_validate);
+					  enum dc_validate_mode validate_mode);
 #endif /* __DCN31_FPU_H__*/

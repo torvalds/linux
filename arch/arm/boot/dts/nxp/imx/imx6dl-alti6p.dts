@@ -25,7 +25,7 @@
 		clock-output-names = "enet_ref_pad";
 	};
 
-	i2c2-mux {
+	i2c-mux-2 {
 		compatible = "i2c-mux";
 		i2c-parent = <&i2c2>;
 		mux-controls = <&i2c_mux>;
@@ -45,7 +45,7 @@
 		};
 	};
 
-	i2c4-mux {
+	i2c-mux-4 {
 		compatible = "i2c-mux";
 		i2c-parent = <&i2c4>;
 		mux-controls = <&i2c_mux>;

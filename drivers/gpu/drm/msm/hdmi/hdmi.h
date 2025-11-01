@@ -200,12 +200,12 @@ struct hdmi_codec_daifmt;
 struct hdmi_codec_params;
 
 int msm_hdmi_audio_update(struct hdmi *hdmi);
-int msm_hdmi_bridge_audio_prepare(struct drm_connector *connector,
-				  struct drm_bridge *bridge,
+int msm_hdmi_bridge_audio_prepare(struct drm_bridge *bridge,
+				  struct drm_connector *connector,
 				  struct hdmi_codec_daifmt *daifmt,
 				  struct hdmi_codec_params *params);
-void msm_hdmi_bridge_audio_shutdown(struct drm_connector *connector,
-				    struct drm_bridge *bridge);
+void msm_hdmi_bridge_audio_shutdown(struct drm_bridge *bridge,
+				    struct drm_connector *connector);
 
 /*
  * hdmi bridge:
@@ -215,7 +215,7 @@ int msm_hdmi_bridge_init(struct hdmi *hdmi);
 
 void msm_hdmi_hpd_irq(struct drm_bridge *bridge);
 enum drm_connector_status msm_hdmi_bridge_detect(
-		struct drm_bridge *bridge);
+		struct drm_bridge *bridge, struct drm_connector *connector);
 void msm_hdmi_hpd_enable(struct drm_bridge *bridge);
 void msm_hdmi_hpd_disable(struct drm_bridge *bridge);
 

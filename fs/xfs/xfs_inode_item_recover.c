@@ -30,13 +30,13 @@ xlog_recover_inode_ra_pass2(
 	struct xlog                     *log,
 	struct xlog_recover_item        *item)
 {
-	if (item->ri_buf[0].i_len == sizeof(struct xfs_inode_log_format)) {
-		struct xfs_inode_log_format	*ilfp = item->ri_buf[0].i_addr;
+	if (item->ri_buf[0].iov_len == sizeof(struct xfs_inode_log_format)) {
+		struct xfs_inode_log_format	*ilfp = item->ri_buf[0].iov_base;
 
 		xlog_buf_readahead(log, ilfp->ilf_blkno, ilfp->ilf_len,
 				   &xfs_inode_buf_ra_ops);
 	} else {
-		struct xfs_inode_log_format_32	*ilfp = item->ri_buf[0].i_addr;
+		struct xfs_inode_log_format_32	*ilfp = item->ri_buf[0].iov_base;
 
 		xlog_buf_readahead(log, ilfp->ilf_blkno, ilfp->ilf_len,
 				   &xfs_inode_buf_ra_ops);
@@ -326,8 +326,8 @@ xlog_recover_inode_commit_pass2(
 	int				need_free = 0;
 	xfs_failaddr_t			fa;
 
-	if (item->ri_buf[0].i_len == sizeof(struct xfs_inode_log_format)) {
-		in_f = item->ri_buf[0].i_addr;
+	if (item->ri_buf[0].iov_len == sizeof(struct xfs_inode_log_format)) {
+		in_f = item->ri_buf[0].iov_base;
 	} else {
 		in_f = kmalloc(sizeof(struct xfs_inode_log_format),
 				GFP_KERNEL | __GFP_NOFAIL);
@@ -366,7 +366,7 @@ xlog_recover_inode_commit_pass2(
 		error = -EFSCORRUPTED;
 		goto out_release;
 	}
-	ldip = item->ri_buf[1].i_addr;
+	ldip = item->ri_buf[1].iov_base;
 	if (XFS_IS_CORRUPT(mp, ldip->di_magic != XFS_DINODE_MAGIC)) {
 		xfs_alert(mp,
 			"%s: Bad inode log record, rec ptr "PTR_FMT", ino %lld",
@@ -472,12 +472,12 @@ xlog_recover_inode_commit_pass2(
 		goto out_release;
 	}
 	isize = xfs_log_dinode_size(mp);
-	if (unlikely(item->ri_buf[1].i_len > isize)) {
+	if (unlikely(item->ri_buf[1].iov_len > isize)) {
 		XFS_CORRUPTION_ERROR("Bad log dinode size", XFS_ERRLEVEL_LOW,
 				     mp, ldip, sizeof(*ldip));
 		xfs_alert(mp,
-			"Bad inode 0x%llx log dinode size 0x%x",
-			in_f->ilf_ino, item->ri_buf[1].i_len);
+			"Bad inode 0x%llx log dinode size 0x%zx",
+			in_f->ilf_ino, item->ri_buf[1].iov_len);
 		error = -EFSCORRUPTED;
 		goto out_release;
 	}
@@ -500,8 +500,8 @@ xlog_recover_inode_commit_pass2(
 
 	if (in_f->ilf_size == 2)
 		goto out_owner_change;
-	len = item->ri_buf[2].i_len;
-	src = item->ri_buf[2].i_addr;
+	len = item->ri_buf[2].iov_len;
+	src = item->ri_buf[2].iov_base;
 	ASSERT(in_f->ilf_size <= 4);
 	ASSERT((in_f->ilf_size == 3) || (fields & XFS_ILOG_AFORK));
 	ASSERT(!(fields & XFS_ILOG_DFORK) ||
@@ -538,8 +538,8 @@ xlog_recover_inode_commit_pass2(
 		} else {
 			attr_index = 2;
 		}
-		len = item->ri_buf[attr_index].i_len;
-		src = item->ri_buf[attr_index].i_addr;
+		len = item->ri_buf[attr_index].iov_len;
+		src = item->ri_buf[attr_index].iov_base;
 		ASSERT(len == xlog_calc_iovec_len(in_f->ilf_asize));
 
 		switch (in_f->ilf_fields & XFS_ILOG_AFORK) {

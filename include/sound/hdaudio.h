@@ -651,6 +651,7 @@ int snd_hdac_stream_set_lpib(struct hdac_stream *azx_dev, u32 value);
 #define snd_hdac_dsp_lock(dev)		mutex_lock(&(dev)->dsp_mutex)
 #define snd_hdac_dsp_unlock(dev)	mutex_unlock(&(dev)->dsp_mutex)
 #define snd_hdac_stream_is_locked(dev)	((dev)->locked)
+DEFINE_GUARD(snd_hdac_dsp_lock, struct hdac_stream *, snd_hdac_dsp_lock(_T), snd_hdac_dsp_unlock(_T))
 /* DSP loader helpers */
 int snd_hdac_dsp_prepare(struct hdac_stream *azx_dev, unsigned int format,
 			 unsigned int byte_size, struct snd_dma_buffer *bufp);
@@ -680,6 +681,30 @@ static inline void snd_hdac_dsp_cleanup(struct hdac_stream *azx_dev,
 }
 #endif /* CONFIG_SND_HDA_DSP_LOADER */
 
+/*
+ * Easy macros for widget capabilities
+ */
+#define snd_hdac_get_wcaps(codec, nid) \
+	snd_hdac_read_parm(codec, nid, AC_PAR_AUDIO_WIDGET_CAP)
+
+/* get the widget type from widget capability bits */
+static inline int snd_hdac_get_wcaps_type(unsigned int wcaps)
+{
+	if (!wcaps)
+		return -1; /* invalid type */
+	return (wcaps & AC_WCAP_TYPE) >> AC_WCAP_TYPE_SHIFT;
+}
+
+/* get the number of supported channels */
+static inline unsigned int snd_hdac_get_wcaps_channels(u32 wcaps)
+{
+	unsigned int chans;
+
+	chans = (wcaps & AC_WCAP_CHAN_CNT_EXT) >> 13;
+	chans = (chans + 1) * 2;
+
+	return chans;
+}
 
 /*
  * generic array helpers

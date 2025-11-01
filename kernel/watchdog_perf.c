@@ -12,6 +12,7 @@
 
 #define pr_fmt(fmt) "NMI watchdog: " fmt
 
+#include <linux/panic.h>
 #include <linux/nmi.h>
 #include <linux/atomic.h>
 #include <linux/module.h>
@@ -108,6 +109,9 @@ static void watchdog_overflow_callback(struct perf_event *event,
 	/* Ensure the watchdog never gets throttled */
 	event->hw.interrupts = 0;
 
+	if (panic_in_progress())
+		return;
+
 	if (!watchdog_check_timestamp())
 		return;
 
@@ -184,6 +188,28 @@ void watchdog_hardlockup_disable(unsigned int cpu)
 		this_cpu_write(watchdog_ev, NULL);
 		atomic_dec(&watchdog_cpus);
 	}
+}
+
+/**
+ * hardlockup_detector_perf_adjust_period - Adjust the event period due
+ *                                          to current cpu frequency change
+ * @period: The target period to be set
+ */
+void hardlockup_detector_perf_adjust_period(u64 period)
+{
+	struct perf_event *event = this_cpu_read(watchdog_ev);
+
+	if (!(watchdog_enabled & WATCHDOG_HARDLOCKUP_ENABLED))
+		return;
+
+	if (!event)
+		return;
+
+	if (event->attr.sample_period == period)
+		return;
+
+	if (perf_event_period(event, period))
+		pr_err("failed to change period to %llu\n", period);
 }
 
 /**

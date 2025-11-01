@@ -134,10 +134,12 @@ static struct dentry *v9fs_mount(struct file_system_type *fs_type, int flags,
 	if (retval)
 		goto release_sb;
 
-	if (v9ses->cache & (CACHE_META|CACHE_LOOSE))
-		sb->s_d_op = &v9fs_cached_dentry_operations;
-	else
-		sb->s_d_op = &v9fs_dentry_operations;
+	if (v9ses->cache & (CACHE_META|CACHE_LOOSE)) {
+		set_default_d_op(sb, &v9fs_cached_dentry_operations);
+	} else {
+		set_default_d_op(sb, &v9fs_dentry_operations);
+		sb->s_d_flags |= DCACHE_DONTCACHE;
+	}
 
 	inode = v9fs_get_new_inode_from_fid(v9ses, fid, sb);
 	if (IS_ERR(inode)) {
@@ -250,7 +252,7 @@ static int v9fs_drop_inode(struct inode *inode)
 
 	v9ses = v9fs_inode2v9ses(inode);
 	if (v9ses->cache & (CACHE_META|CACHE_LOOSE))
-		return generic_drop_inode(inode);
+		return inode_generic_drop(inode);
 	/*
 	 * in case of non cached mode always drop the
 	 * inode because we want the inode attribute

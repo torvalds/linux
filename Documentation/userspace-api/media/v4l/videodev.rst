@@ -6,4 +6,6 @@
 Video For Linux Two Header File
 *******************************
 
-.. kernel-include:: $BUILDDIR/videodev2.h.rst
+.. kernel-include:: include/uapi/linux/videodev2.h
+    :generate-cross-refs:
+    :exception-file: videodev2.h.rst.exceptions

@@ -10,7 +10,7 @@
  * Changes by T.Adachi (tadachi@tadachi-net.com)
  *    - support audio, video scaler etc, and checked the initialize sequence.
  *
- * Cleaned up by Hans Verkuil <hverkuil@xs4all.nl>
+ * Cleaned up by Hans Verkuil <hverkuil@kernel.org>
  *
  * Note: this is a reversed engineered driver based on captures from
  * the I2C bus under Windows. This chip is very similar to the saa7134,

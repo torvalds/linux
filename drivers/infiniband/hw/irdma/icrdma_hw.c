@@ -38,6 +38,7 @@ static u64 icrdma_masks[IRDMA_MAX_MASKS] = {
 	ICRDMA_CQPSQ_CQ_CEQID,
 	ICRDMA_CQPSQ_CQ_CQID,
 	ICRDMA_COMMIT_FPM_CQCNT,
+	ICRDMA_CQPSQ_UPESD_HMCFNID,
 };
 
 static u64 icrdma_shifts[IRDMA_MAX_SHIFTS] = {
@@ -47,6 +48,7 @@ static u64 icrdma_shifts[IRDMA_MAX_SHIFTS] = {
 	ICRDMA_CQPSQ_CQ_CEQID_S,
 	ICRDMA_CQPSQ_CQ_CQID_S,
 	ICRDMA_COMMIT_FPM_CQCNT_S,
+	ICRDMA_CQPSQ_UPESD_HMCFNID_S,
 };
 
 /**
@@ -194,6 +196,7 @@ void icrdma_init_hw(struct irdma_sc_dev *dev)
 	dev->hw_attrs.max_hw_ord = ICRDMA_MAX_ORD_SIZE;
 	dev->hw_attrs.max_stat_inst = ICRDMA_MAX_STATS_COUNT;
 	dev->hw_attrs.max_stat_idx = IRDMA_HW_STAT_INDEX_MAX_GEN_2;
+	dev->hw_attrs.max_hw_device_pages = ICRDMA_MAX_PUSH_PAGE_COUNT;
 
 	dev->hw_attrs.uk_attrs.min_hw_wq_size = ICRDMA_MIN_WQ_SIZE;
 	dev->hw_attrs.uk_attrs.max_hw_sq_chunk = IRDMA_MAX_QUANTA_PER_WR;

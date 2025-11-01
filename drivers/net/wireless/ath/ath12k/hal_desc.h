@@ -1225,6 +1225,7 @@ struct hal_reo_flush_queue {
 #define HAL_REO_FLUSH_CACHE_INFO0_FLUSH_WO_INVALIDATE	BIT(12)
 #define HAL_REO_FLUSH_CACHE_INFO0_BLOCK_CACHE_USAGE	BIT(13)
 #define HAL_REO_FLUSH_CACHE_INFO0_FLUSH_ALL		BIT(14)
+#define HAL_REO_FLUSH_CACHE_INFO0_FLUSH_QUEUE_1K_DESC	BIT(15)
 
 struct hal_reo_flush_cache {
 	struct hal_reo_cmd_hdr cmd;

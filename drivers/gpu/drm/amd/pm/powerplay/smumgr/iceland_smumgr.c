@@ -2028,7 +2028,7 @@ static int iceland_init_smc_table(struct pp_hwmgr *hwmgr)
 	table->VoltageResponseTime  = 0;
 	table->PhaseResponseTime  = 0;
 	table->MemoryThermThrottleEnable  = 1;
-	table->PCIeBootLinkLevel = 0;
+	table->PCIeBootLinkLevel = (uint8_t) (data->dpm_table.pcie_speed_table.count);
 	table->PCIeGenInterval = 1;
 
 	result = iceland_populate_smc_svi2_config(hwmgr, table);
@@ -2655,9 +2655,8 @@ static int iceland_initialize_mc_reg_table(struct pp_hwmgr *hwmgr)
 
 static bool iceland_is_dpm_running(struct pp_hwmgr *hwmgr)
 {
-	return (1 == PHM_READ_INDIRECT_FIELD(hwmgr->device,
-			CGS_IND_REG__SMC, FEATURE_STATUS, VOLTAGE_CONTROLLER_ON))
-			? true : false;
+	return PHM_READ_INDIRECT_FIELD(hwmgr->device,
+			CGS_IND_REG__SMC, FEATURE_STATUS, VOLTAGE_CONTROLLER_ON) == 1;
 }
 
 const struct pp_smumgr_func iceland_smu_funcs = {

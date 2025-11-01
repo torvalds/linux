@@ -19,14 +19,6 @@
 #define LOCAL_PENDING_LIST_IDX	LOCAL_LIST_IDX(BPF_LRU_LOCAL_LIST_T_PENDING)
 #define IS_LOCAL_LIST_TYPE(t)	((t) >= BPF_LOCAL_LIST_T_OFFSET)
 
-static int get_next_cpu(int cpu)
-{
-	cpu = cpumask_next(cpu, cpu_possible_mask);
-	if (cpu >= nr_cpu_ids)
-		cpu = cpumask_first(cpu_possible_mask);
-	return cpu;
-}
-
 /* Local list helpers */
 static struct list_head *local_free_list(struct bpf_lru_locallist *loc_l)
 {
@@ -337,12 +329,12 @@ static void bpf_lru_list_pop_free_to_local(struct bpf_lru *lru,
 				 list) {
 		__bpf_lru_node_move_to_free(l, node, local_free_list(loc_l),
 					    BPF_LRU_LOCAL_LIST_T_FREE);
-		if (++nfree == LOCAL_FREE_TARGET)
+		if (++nfree == lru->target_free)
 			break;
 	}
 
-	if (nfree < LOCAL_FREE_TARGET)
-		__bpf_lru_list_shrink(lru, l, LOCAL_FREE_TARGET - nfree,
+	if (nfree < lru->target_free)
+		__bpf_lru_list_shrink(lru, l, lru->target_free - nfree,
 				      local_free_list(loc_l),
 				      BPF_LRU_LOCAL_LIST_T_FREE);
 
@@ -482,7 +474,7 @@ static struct bpf_lru_node *bpf_common_lru_pop_free(struct bpf_lru *lru,
 
 		raw_spin_unlock_irqrestore(&steal_loc_l->lock, flags);
 
-		steal = get_next_cpu(steal);
+		steal = cpumask_next_wrap(steal, cpu_possible_mask);
 	} while (!node && steal != first_steal);
 
 	loc_l->next_steal = steal;
@@ -577,6 +569,9 @@ static void bpf_common_lru_populate(struct bpf_lru *lru, void *buf,
 		list_add(&node->list, &l->lists[BPF_LRU_LIST_T_FREE]);
 		buf += elem_size;
 	}
+
+	lru->target_free = clamp((nr_elems / num_possible_cpus()) / 2,
+				 1, LOCAL_FREE_TARGET);
 }
 
 static void bpf_percpu_lru_populate(struct bpf_lru *lru, void *buf,

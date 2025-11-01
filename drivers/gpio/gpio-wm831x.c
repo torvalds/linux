@@ -58,13 +58,14 @@ static int wm831x_gpio_get(struct gpio_chip *chip, unsigned offset)
 		return 0;
 }
 
-static void wm831x_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
+static int wm831x_gpio_set(struct gpio_chip *chip, unsigned int offset,
+			   int value)
 {
 	struct wm831x_gpio *wm831x_gpio = gpiochip_get_data(chip);
 	struct wm831x *wm831x = wm831x_gpio->wm831x;
 
-	wm831x_set_bits(wm831x, WM831X_GPIO_LEVEL, 1 << offset,
-			value << offset);
+	return wm831x_set_bits(wm831x, WM831X_GPIO_LEVEL, 1 << offset,
+			       value << offset);
 }
 
 static int wm831x_gpio_direction_out(struct gpio_chip *chip,
@@ -85,9 +86,7 @@ static int wm831x_gpio_direction_out(struct gpio_chip *chip,
 		return ret;
 
 	/* Can only set GPIO state once it's in output mode */
-	wm831x_gpio_set(chip, offset, value);
-
-	return 0;
+	return wm831x_gpio_set(chip, offset, value);
 }
 
 static int wm831x_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
@@ -160,7 +159,6 @@ static void wm831x_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 	int i, tristated;
 
 	for (i = 0; i < chip->ngpio; i++) {
-		int gpio = i + chip->base;
 		int reg;
 		const char *pull, *powerdomain;
 
@@ -176,13 +174,13 @@ static void wm831x_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 		}
 
 		seq_printf(s, " gpio-%-3d (%-20.20s) ",
-			   gpio, label ?: "Unrequested");
+			   i, label ?: "Unrequested");
 
 		reg = wm831x_reg_read(wm831x, WM831X_GPIO1_CONTROL + i);
 		if (reg < 0) {
 			dev_err(wm831x->dev,
 				"GPIO control %d read failed: %d\n",
-				gpio, reg);
+				i, reg);
 			seq_putc(s, '\n');
 			continue;
 		}

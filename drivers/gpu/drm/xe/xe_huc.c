@@ -66,14 +66,18 @@ static int huc_alloc_gsc_pkt(struct xe_huc *huc)
 int xe_huc_init(struct xe_huc *huc)
 {
 	struct xe_gt *gt = huc_to_gt(huc);
-	struct xe_tile *tile = gt_to_tile(gt);
 	struct xe_device *xe = gt_to_xe(gt);
 	int ret;
 
 	huc->fw.type = XE_UC_FW_TYPE_HUC;
 
-	/* On platforms with a media GT the HuC is only available there */
-	if (tile->media_gt && (gt != tile->media_gt)) {
+	/*
+	 * The HuC is only available on the media GT on most platforms.  The
+	 * exception to that rule are the old Xe1 platforms where there was
+	 * no separate GT for media IP, so the HuC was part of the primary
+	 * GT.  Such platforms have graphics versions 12.55 and earlier.
+	 */
+	if (!xe_gt_is_media_type(gt) && GRAPHICS_VERx100(xe) > 1255) {
 		xe_uc_fw_change_status(&huc->fw, XE_UC_FIRMWARE_NOT_SUPPORTED);
 		return 0;
 	}
@@ -171,7 +175,7 @@ static int huc_auth_via_gsccs(struct xe_huc *huc)
 				       sizeof(struct pxp43_new_huc_auth_in));
 	wr_offset = huc_emit_pxp_auth_msg(xe, &pkt->vmap, wr_offset,
 					  xe_bo_ggtt_addr(huc->fw.bo),
-					  huc->fw.bo->size);
+					  xe_bo_size(huc->fw.bo));
 	do {
 		err = xe_gsc_pkt_submit_kernel(&gt->uc.gsc, ggtt_offset, wr_offset,
 					       ggtt_offset + PXP43_HUC_AUTH_INOUT_SIZE,

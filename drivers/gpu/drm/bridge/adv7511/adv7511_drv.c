@@ -132,6 +132,13 @@ static const struct regmap_config adv7511_regmap_config = {
 	.volatile_reg = adv7511_register_volatile,
 };
 
+static const struct regmap_config adv7511_packet_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+
+	.max_register = 0xff,
+};
+
 /* -----------------------------------------------------------------------------
  * Hardware configuration
  */
@@ -864,7 +871,8 @@ static int adv7511_bridge_attach(struct drm_bridge *bridge,
 	return ret;
 }
 
-static enum drm_connector_status adv7511_bridge_detect(struct drm_bridge *bridge)
+static enum drm_connector_status
+adv7511_bridge_detect(struct drm_bridge *bridge, struct drm_connector *connector)
 {
 	struct adv7511 *adv = bridge_to_adv7511(bridge);
 
@@ -885,8 +893,17 @@ static int adv7511_bridge_hdmi_clear_infoframe(struct drm_bridge *bridge,
 	struct adv7511 *adv7511 = bridge_to_adv7511(bridge);
 
 	switch (type) {
+	case HDMI_INFOFRAME_TYPE_AUDIO:
+		adv7511_packet_disable(adv7511, ADV7511_PACKET_ENABLE_AUDIO_INFOFRAME);
+		break;
 	case HDMI_INFOFRAME_TYPE_AVI:
 		adv7511_packet_disable(adv7511, ADV7511_PACKET_ENABLE_AVI_INFOFRAME);
+		break;
+	case HDMI_INFOFRAME_TYPE_SPD:
+		adv7511_packet_disable(adv7511, ADV7511_PACKET_ENABLE_SPD);
+		break;
+	case HDMI_INFOFRAME_TYPE_VENDOR:
+		adv7511_packet_disable(adv7511, ADV7511_PACKET_ENABLE_SPARE1);
 		break;
 	default:
 		drm_dbg_driver(adv7511->bridge.dev, "Unsupported HDMI InfoFrame %x\n", type);
@@ -902,15 +919,51 @@ static int adv7511_bridge_hdmi_write_infoframe(struct drm_bridge *bridge,
 {
 	struct adv7511 *adv7511 = bridge_to_adv7511(bridge);
 
-	adv7511_bridge_hdmi_clear_infoframe(bridge, type);
-
 	switch (type) {
+	case HDMI_INFOFRAME_TYPE_AUDIO:
+		/* send current Audio infoframe values while updating */
+		regmap_update_bits(adv7511->regmap, ADV7511_REG_INFOFRAME_UPDATE,
+				   BIT(5), BIT(5));
+
+		/* The Audio infoframe id is not configurable */
+		regmap_bulk_write(adv7511->regmap, ADV7511_REG_AUDIO_INFOFRAME_VERSION,
+				  buffer + 1, len - 1);
+
+		/* use Audio infoframe updated info */
+		regmap_update_bits(adv7511->regmap, ADV7511_REG_INFOFRAME_UPDATE,
+				   BIT(5), 0);
+
+		adv7511_packet_enable(adv7511, ADV7511_PACKET_ENABLE_AUDIO_INFOFRAME);
+		break;
 	case HDMI_INFOFRAME_TYPE_AVI:
+		/* send current AVI infoframe values while updating */
+		regmap_update_bits(adv7511->regmap, ADV7511_REG_INFOFRAME_UPDATE,
+				   BIT(6), BIT(6));
+
 		/* The AVI infoframe id is not configurable */
 		regmap_bulk_write(adv7511->regmap, ADV7511_REG_AVI_INFOFRAME_VERSION,
 				  buffer + 1, len - 1);
 
+		regmap_write(adv7511->regmap, ADV7511_REG_AUDIO_INFOFRAME_LENGTH, 0x2);
+		regmap_write(adv7511->regmap, ADV7511_REG_AUDIO_INFOFRAME(1), 0x1);
+
+		/* use AVI infoframe updated info */
+		regmap_update_bits(adv7511->regmap, ADV7511_REG_INFOFRAME_UPDATE,
+				   BIT(6), 0);
+
 		adv7511_packet_enable(adv7511, ADV7511_PACKET_ENABLE_AVI_INFOFRAME);
+		break;
+	case HDMI_INFOFRAME_TYPE_SPD:
+		adv7511_packet_disable(adv7511, ADV7511_PACKET_ENABLE_SPD);
+		regmap_bulk_write(adv7511->regmap_packet, ADV7511_PACKET_SPD(0),
+				  buffer, len);
+		adv7511_packet_enable(adv7511, ADV7511_PACKET_ENABLE_SPD);
+		break;
+	case HDMI_INFOFRAME_TYPE_VENDOR:
+		adv7511_packet_disable(adv7511, ADV7511_PACKET_ENABLE_SPARE1);
+		regmap_bulk_write(adv7511->regmap_packet, ADV7511_PACKET_SPARE1(0),
+				  buffer, len);
+		adv7511_packet_enable(adv7511, ADV7511_PACKET_ENABLE_SPARE1);
 		break;
 	default:
 		drm_dbg_driver(adv7511->bridge.dev, "Unsupported HDMI InfoFrame %x\n", type);
@@ -1241,6 +1294,13 @@ static int adv7511_probe(struct i2c_client *i2c)
 		goto err_i2c_unregister_edid;
 	}
 
+	adv7511->regmap_packet = devm_regmap_init_i2c(adv7511->i2c_packet,
+						      &adv7511_packet_config);
+	if (IS_ERR(adv7511->regmap_packet)) {
+		ret = PTR_ERR(adv7511->regmap_packet);
+		goto err_i2c_unregister_packet;
+	}
+
 	regmap_write(adv7511->regmap, ADV7511_REG_PACKET_I2C_ADDR,
 		     adv7511->i2c_packet->addr << 1);
 
@@ -1262,9 +1322,7 @@ static int adv7511_probe(struct i2c_client *i2c)
 
 	adv7511->bridge.ops = DRM_BRIDGE_OP_DETECT |
 		DRM_BRIDGE_OP_EDID |
-		DRM_BRIDGE_OP_HDMI |
-		DRM_BRIDGE_OP_HDMI_AUDIO |
-		DRM_BRIDGE_OP_HDMI_CEC_ADAPTER;
+		DRM_BRIDGE_OP_HDMI;
 	if (adv7511->i2c_main->irq)
 		adv7511->bridge.ops |= DRM_BRIDGE_OP_HPD;
 
@@ -1272,6 +1330,7 @@ static int adv7511_probe(struct i2c_client *i2c)
 	adv7511->bridge.product = adv7511->info->name;
 
 #ifdef CONFIG_DRM_I2C_ADV7511_AUDIO
+	adv7511->bridge.ops |= DRM_BRIDGE_OP_HDMI_AUDIO;
 	adv7511->bridge.hdmi_audio_dev = dev;
 	adv7511->bridge.hdmi_audio_max_i2s_playback_channels = 2;
 	adv7511->bridge.hdmi_audio_i2s_formats = (SNDRV_PCM_FMTBIT_S16_LE |
@@ -1284,6 +1343,7 @@ static int adv7511_probe(struct i2c_client *i2c)
 #endif
 
 #ifdef CONFIG_DRM_I2C_ADV7511_CEC
+	adv7511->bridge.ops |= DRM_BRIDGE_OP_HDMI_CEC_ADAPTER;
 	adv7511->bridge.hdmi_cec_dev = dev;
 	adv7511->bridge.hdmi_cec_adapter_name = dev_name(dev);
 	adv7511->bridge.hdmi_cec_available_las = ADV7511_MAX_ADDRS;

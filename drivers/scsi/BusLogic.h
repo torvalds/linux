@@ -1273,7 +1273,7 @@ static inline void blogic_incszbucket(unsigned int *cmdsz_buckets,
 
 static const char *blogic_drvr_info(struct Scsi_Host *);
 static int blogic_qcmd(struct Scsi_Host *h, struct scsi_cmnd *);
-static int blogic_diskparam(struct scsi_device *, struct block_device *, sector_t, int *);
+static int blogic_diskparam(struct scsi_device *, struct gendisk *, sector_t, int *);
 static int blogic_sdev_configure(struct scsi_device *,
 				 struct queue_limits *lim);
 static void blogic_qcompleted_ccb(struct blogic_ccb *);

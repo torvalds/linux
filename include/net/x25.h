@@ -203,7 +203,6 @@ void x25_send_frame(struct sk_buff *, struct x25_neigh *);
 int x25_lapb_receive_frame(struct sk_buff *, struct net_device *,
 			   struct packet_type *, struct net_device *);
 void x25_establish_link(struct x25_neigh *);
-void x25_terminate_link(struct x25_neigh *);
 
 /* x25_facilities.c */
 int x25_parse_facilities(struct sk_buff *, struct x25_facilities *,

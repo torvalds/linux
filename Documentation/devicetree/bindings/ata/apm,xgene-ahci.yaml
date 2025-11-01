@@ -9,14 +9,11 @@ title: APM X-Gene 6.0 Gb/s SATA host controller
 maintainers:
   - Rob Herring <robh@kernel.org>
 
-allOf:
-  - $ref: ahci-common.yaml#
-
 properties:
   compatible:
     enum:
       - apm,xgene-ahci
-      - apm,xgene-ahci-pcie
+      - apm,xgene-ahci-v2
 
   reg:
     minItems: 4
@@ -35,11 +32,21 @@ properties:
 
 required:
   - compatible
-  - clocks
-  - phys
-  - phy-names
 
 unevaluatedProperties: false
+
+allOf:
+  - $ref: ahci-common.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: apm,xgene-ahci
+    then:
+      required:
+        - clocks
+        - phys
+        - phy-names
 
 examples:
   - |

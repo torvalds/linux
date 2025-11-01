@@ -109,7 +109,7 @@ void ip4_datagram_release_cb(struct sock *sk)
 	rcu_read_lock();
 
 	dst = __sk_dst_get(sk);
-	if (!dst || !dst->obsolete || dst->ops->check(dst, 0)) {
+	if (!dst || !READ_ONCE(dst->obsolete) || dst->ops->check(dst, 0)) {
 		rcu_read_unlock();
 		return;
 	}

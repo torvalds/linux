@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * dts file for Xilinx ZynqMP SMK-K24 RevA
+ *
+ * (C) Copyright 2020 - 2021, Xilinx, Inc.
+ * (C) Copyright 2022, Advanced Micro Devices, Inc.
+ *
+ * Michal Simek <michal.simek@amd.com>
+ */
+
+#include "zynqmp-sm-k24-revA.dts"
+
+/ {
+	model = "ZynqMP SMK-K24 RevA";
+	compatible = "xlnx,zynqmp-smk-k24-revA", "xlnx,zynqmp-smk-k24",
+		     "xlnx,zynqmp";
+};
+
+&sdhci0 {
+	status = "disabled";
+};

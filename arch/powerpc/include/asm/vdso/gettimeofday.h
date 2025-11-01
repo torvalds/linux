@@ -2,7 +2,7 @@
 #ifndef _ASM_POWERPC_VDSO_GETTIMEOFDAY_H
 #define _ASM_POWERPC_VDSO_GETTIMEOFDAY_H
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <asm/vdso/timebase.h>
 #include <asm/barrier.h>
@@ -141,6 +141,6 @@ int __c_kernel_gettimeofday(struct __kernel_old_timeval *tv, struct timezone *tz
 __kernel_old_time_t __c_kernel_time(__kernel_old_time_t *time,
 				    const struct vdso_time_data *vd);
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* _ASM_POWERPC_VDSO_GETTIMEOFDAY_H */

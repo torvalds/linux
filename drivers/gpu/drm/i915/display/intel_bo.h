@@ -7,6 +7,8 @@
 #include <linux/types.h>
 
 struct drm_gem_object;
+struct drm_scanout_buffer;
+struct intel_framebuffer;
 struct seq_file;
 struct vm_area_struct;
 

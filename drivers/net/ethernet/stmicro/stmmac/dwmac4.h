@@ -341,6 +341,7 @@ static inline u32 mtl_chanx_base_addr(const struct dwmac4_addrs *addrs,
 #define MTL_OP_MODE_RFA_SHIFT		8
 
 #define MTL_OP_MODE_EHFC		BIT(7)
+#define MTL_OP_MODE_DIS_TCP_EF		BIT(6)
 
 #define MTL_OP_MODE_RTC_MASK		GENMASK(1, 0)
 #define MTL_OP_MODE_RTC_SHIFT		0

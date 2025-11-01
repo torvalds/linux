@@ -25,7 +25,6 @@
 #include <linux/iio/buffer.h>
 #include <linux/iio/kfifo_buf.h>
 
-#define MAX30102_REGMAP_NAME	"max30102_regmap"
 #define MAX30102_DRV_NAME	"max30102"
 #define MAX30102_PART_NUMBER	0x15
 
@@ -112,7 +111,7 @@ struct max30102_data {
 };
 
 static const struct regmap_config max30102_regmap_config = {
-	.name = MAX30102_REGMAP_NAME,
+	.name = "max30102_regmap",
 
 	.reg_bits = 8,
 	.val_bits = 8,

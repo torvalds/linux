@@ -284,7 +284,6 @@ struct s5k5baf {
 	struct regulator_bulk_data supplies[S5K5BAF_NUM_SUPPLIES];
 
 	struct clk *clock;
-	u32 mclk_frequency;
 
 	struct s5k5baf_fw *fw;
 
@@ -576,7 +575,7 @@ static void s5k5baf_hw_patch(struct s5k5baf *state)
 
 static void s5k5baf_hw_set_clocks(struct s5k5baf *state)
 {
-	unsigned long mclk = state->mclk_frequency / 1000;
+	unsigned long mclk = clk_get_rate(state->clock) / 1000;
 	u16 status;
 	static const u16 nseq_clk_cfg[] = {
 		NSEQ(REG_I_USE_NPVI_CLOCKS,
@@ -945,10 +944,6 @@ static int s5k5baf_power_on(struct s5k5baf *state)
 	ret = regulator_bulk_enable(S5K5BAF_NUM_SUPPLIES, state->supplies);
 	if (ret < 0)
 		goto err;
-
-	ret = clk_set_rate(state->clock, state->mclk_frequency);
-	if (ret < 0)
-		goto err_reg_dis;
 
 	ret = clk_prepare_enable(state->clock);
 	if (ret < 0)
@@ -1841,14 +1836,6 @@ static int s5k5baf_parse_device_node(struct s5k5baf *state, struct device *dev)
 		return -EINVAL;
 	}
 
-	ret = of_property_read_u32(node, "clock-frequency",
-				   &state->mclk_frequency);
-	if (ret < 0) {
-		state->mclk_frequency = S5K5BAF_DEFAULT_MCLK_FREQ;
-		dev_info(dev, "using default %u Hz clock frequency\n",
-			 state->mclk_frequency);
-	}
-
 	node_ep = of_graph_get_endpoint_by_regs(node, 0, -1);
 	if (!node_ep) {
 		dev_err(dev, "no endpoint defined at node %pOF\n", node);
@@ -1967,9 +1954,11 @@ static int s5k5baf_probe(struct i2c_client *c)
 	if (ret < 0)
 		goto err_me;
 
-	state->clock = devm_clk_get(state->sd.dev, S5K5BAF_CLK_NAME);
+	state->clock = devm_v4l2_sensor_clk_get_legacy(state->sd.dev,
+						       S5K5BAF_CLK_NAME, false,
+						       S5K5BAF_DEFAULT_MCLK_FREQ);
 	if (IS_ERR(state->clock)) {
-		ret = -EPROBE_DEFER;
+		ret = PTR_ERR(state->clock);
 		goto err_me;
 	}
 

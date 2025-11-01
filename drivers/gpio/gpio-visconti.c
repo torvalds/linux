@@ -10,6 +10,7 @@
 
 #include <linux/bitops.h>
 #include <linux/gpio/driver.h>
+#include <linux/gpio/generic.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
@@ -32,7 +33,7 @@
 struct visconti_gpio {
 	void __iomem *base;
 	spinlock_t lock; /* protect gpio register */
-	struct gpio_chip gpio_chip;
+	struct gpio_generic_chip chip;
 	struct device *dev;
 };
 
@@ -158,6 +159,7 @@ static const struct irq_chip visconti_gpio_irq_chip = {
 
 static int visconti_gpio_probe(struct platform_device *pdev)
 {
+	struct gpio_generic_chip_config config;
 	struct device *dev = &pdev->dev;
 	struct visconti_gpio *priv;
 	struct gpio_irq_chip *girq;
@@ -189,19 +191,22 @@ static int visconti_gpio_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	ret = bgpio_init(&priv->gpio_chip, dev, 4,
-			 priv->base + GPIO_IDATA,
-			 priv->base + GPIO_OSET,
-			 priv->base + GPIO_OCLR,
-			 priv->base + GPIO_DIR,
-			 NULL,
-			 0);
+	config = (struct gpio_generic_chip_config) {
+		.dev = dev,
+		.sz = 4,
+		.dat = priv->base + GPIO_IDATA,
+		.set = priv->base + GPIO_OSET,
+		.clr = priv->base + GPIO_OCLR,
+		.dirout = priv->base + GPIO_DIR,
+	};
+
+	ret = gpio_generic_chip_init(&priv->chip, &config);
 	if (ret) {
 		dev_err(dev, "unable to init generic GPIO\n");
 		return ret;
 	}
 
-	girq = &priv->gpio_chip.irq;
+	girq = &priv->chip.gc.irq;
 	gpio_irq_chip_set_chip(girq, &visconti_gpio_irq_chip);
 	girq->fwnode = dev_fwnode(dev);
 	girq->parent_domain = parent;
@@ -210,7 +215,7 @@ static int visconti_gpio_probe(struct platform_device *pdev)
 	girq->default_type = IRQ_TYPE_NONE;
 	girq->handler = handle_level_irq;
 
-	return devm_gpiochip_add_data(dev, &priv->gpio_chip, priv);
+	return devm_gpiochip_add_data(dev, &priv->chip.gc, priv);
 }
 
 static const struct of_device_id visconti_gpio_of_match[] = {

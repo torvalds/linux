@@ -42,8 +42,6 @@ static void exynos_drm_fb_destroy(struct fb_info *info)
 	drm_framebuffer_remove(fb);
 
 	drm_client_release(&fb_helper->client);
-	drm_fb_helper_unprepare(fb_helper);
-	kfree(fb_helper);
 }
 
 static const struct fb_ops exynos_drm_fb_ops = {
@@ -116,7 +114,10 @@ int exynos_drm_fbdev_driver_fbdev_probe(struct drm_fb_helper *helper,
 		return PTR_ERR(exynos_gem);
 
 	helper->fb =
-		exynos_drm_framebuffer_init(dev, &mode_cmd, &exynos_gem, 1);
+		exynos_drm_framebuffer_init(dev,
+					    drm_get_format_info(dev, mode_cmd.pixel_format,
+								mode_cmd.modifier[0]),
+					    &mode_cmd, &exynos_gem, 1);
 	if (IS_ERR(helper->fb)) {
 		DRM_DEV_ERROR(dev->dev, "failed to create drm framebuffer.\n");
 		ret = PTR_ERR(helper->fb);

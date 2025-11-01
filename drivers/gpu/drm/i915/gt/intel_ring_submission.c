@@ -15,18 +15,19 @@
 #include "i915_irq.h"
 #include "i915_mitigations.h"
 #include "i915_reg.h"
+#include "i915_wait_util.h"
 #include "intel_breadcrumbs.h"
 #include "intel_context.h"
+#include "intel_engine_heartbeat.h"
+#include "intel_engine_pm.h"
 #include "intel_engine_regs.h"
 #include "intel_gt.h"
 #include "intel_gt_irq.h"
+#include "intel_gt_print.h"
 #include "intel_gt_regs.h"
 #include "intel_reset.h"
 #include "intel_ring.h"
 #include "shmem_utils.h"
-#include "intel_engine_heartbeat.h"
-#include "intel_engine_pm.h"
-#include "intel_gt_print.h"
 
 /* Rough estimate of the typical request size, performing a flush,
  * set-context and then emitting the batch.
@@ -610,7 +611,6 @@ static int ring_context_alloc(struct intel_context *ce)
 	/* One ringbuffer to rule them all */
 	GEM_BUG_ON(!engine->legacy.ring);
 	ce->ring = engine->legacy.ring;
-	ce->timeline = intel_timeline_get(engine->legacy.timeline);
 
 	GEM_BUG_ON(ce->state);
 	if (engine->context_size) {
@@ -622,6 +622,8 @@ static int ring_context_alloc(struct intel_context *ce)
 
 		ce->state = vma;
 	}
+
+	ce->timeline = intel_timeline_get(engine->legacy.timeline);
 
 	return 0;
 }

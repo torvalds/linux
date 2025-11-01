@@ -10,20 +10,22 @@
  * Author:     Srikar Dronamraju
  */
 
+#include <linux/bitops.h>
+#include <linux/btf.h>
+#include <linux/cleanup.h>
+#include <linux/kprobes.h>
+#include <linux/limits.h>
+#include <linux/perf_event.h>
+#include <linux/ptrace.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/smp.h>
+#include <linux/string.h>
+#include <linux/stringify.h>
 #include <linux/tracefs.h>
 #include <linux/types.h>
-#include <linux/string.h>
-#include <linux/ptrace.h>
-#include <linux/perf_event.h>
-#include <linux/kprobes.h>
-#include <linux/stringify.h>
-#include <linux/limits.h>
 #include <linux/uaccess.h>
-#include <linux/bitops.h>
-#include <linux/btf.h>
+
 #include <asm/bitsperlong.h>
 
 #include "trace.h"
@@ -269,16 +271,21 @@ struct event_file_link {
 	struct list_head		list;
 };
 
+static inline unsigned int trace_probe_load_flag(struct trace_probe *tp)
+{
+	return smp_load_acquire(&tp->event->flags);
+}
+
 static inline bool trace_probe_test_flag(struct trace_probe *tp,
 					 unsigned int flag)
 {
-	return !!(tp->event->flags & flag);
+	return !!(trace_probe_load_flag(tp) & flag);
 }
 
 static inline void trace_probe_set_flag(struct trace_probe *tp,
 					unsigned int flag)
 {
-	tp->event->flags |= flag;
+	smp_store_release(&tp->event->flags, tp->event->flags | flag);
 }
 
 static inline void trace_probe_clear_flag(struct trace_probe *tp,
@@ -438,6 +445,14 @@ extern void traceprobe_free_probe_arg(struct probe_arg *arg);
  * this MUST be called for clean up the context and return a resource.
  */
 void traceprobe_finish_parse(struct traceprobe_parse_context *ctx);
+static inline void traceprobe_free_parse_ctx(struct traceprobe_parse_context *ctx)
+{
+	traceprobe_finish_parse(ctx);
+	kfree(ctx);
+}
+
+DEFINE_FREE(traceprobe_parse_context, struct traceprobe_parse_context *,
+	if (_T) traceprobe_free_parse_ctx(_T))
 
 extern int traceprobe_split_symbol_offset(char *symbol, long *offset);
 int traceprobe_parse_event_name(const char **pevent, const char **pgroup,

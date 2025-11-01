@@ -13,5 +13,5 @@ xdrgen_decode_{{ name }}(struct xdr_stream *xdr, {{ classifier }}{{ name }} *ptr
 {% if annotate %}
 	/* (fixed-length opaque) */
 {% endif %}
-	return xdr_stream_decode_opaque_fixed(xdr, ptr, {{ size }}) >= 0;
+	return xdr_stream_decode_opaque_fixed(xdr, ptr, {{ size }}) == 0;
 };

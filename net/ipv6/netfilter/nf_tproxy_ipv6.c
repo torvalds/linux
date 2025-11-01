@@ -80,7 +80,6 @@ nf_tproxy_get_sock_v6(struct net *net, struct sk_buff *skb, int thoff,
 		      const struct net_device *in,
 		      const enum nf_tproxy_lookup_t lookup_type)
 {
-	struct inet_hashinfo *hinfo = net->ipv4.tcp_death_row.hashinfo;
 	struct sock *sk;
 
 	switch (protocol) {
@@ -94,7 +93,7 @@ nf_tproxy_get_sock_v6(struct net *net, struct sk_buff *skb, int thoff,
 
 		switch (lookup_type) {
 		case NF_TPROXY_LOOKUP_LISTENER:
-			sk = inet6_lookup_listener(net, hinfo, skb,
+			sk = inet6_lookup_listener(net, skb,
 						   thoff + __tcp_hdrlen(hp),
 						   saddr, sport,
 						   daddr, ntohs(dport),
@@ -109,7 +108,7 @@ nf_tproxy_get_sock_v6(struct net *net, struct sk_buff *skb, int thoff,
 			 */
 			break;
 		case NF_TPROXY_LOOKUP_ESTABLISHED:
-			sk = __inet6_lookup_established(net, hinfo, saddr, sport, daddr,
+			sk = __inet6_lookup_established(net, saddr, sport, daddr,
 							ntohs(dport), in->ifindex, 0);
 			break;
 		default:

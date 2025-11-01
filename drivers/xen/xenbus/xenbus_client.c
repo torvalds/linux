@@ -202,6 +202,7 @@ int xenbus_watch_pathfmt(struct xenbus_device *dev,
 }
 EXPORT_SYMBOL_GPL(xenbus_watch_pathfmt);
 
+__printf(4, 5)
 static void xenbus_switch_fatal(struct xenbus_device *, int, int,
 				const char *, ...);
 
@@ -287,6 +288,7 @@ int xenbus_frontend_closed(struct xenbus_device *dev)
 }
 EXPORT_SYMBOL_GPL(xenbus_frontend_closed);
 
+__printf(3, 0)
 static void xenbus_va_dev_error(struct xenbus_device *dev, int err,
 				const char *fmt, va_list ap)
 {
@@ -953,7 +955,7 @@ static const struct xenbus_ring_ops ring_ops_hvm = {
 void __init xenbus_ring_ops_init(void)
 {
 #ifdef CONFIG_XEN_PV
-	if (!xen_feature(XENFEAT_auto_translated_physmap))
+	if (xen_pv_domain())
 		ring_ops = &ring_ops_pv;
 	else
 #endif

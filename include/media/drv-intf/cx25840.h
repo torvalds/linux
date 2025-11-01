@@ -3,7 +3,7 @@
 /*
  *   cx25840.h - definition for cx25840/1/2/3 inputs
  *
- *   Copyright (C) 2006 Hans Verkuil (hverkuil@xs4all.nl)
+ *   Copyright (C) 2006 Hans Verkuil (hverkuil@kernel.org)
  */
 
 #ifndef _CX25840_H_

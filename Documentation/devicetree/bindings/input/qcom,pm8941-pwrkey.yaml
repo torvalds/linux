@@ -10,9 +10,6 @@ maintainers:
   - Courtney Cavin <courtney.cavin@sonymobile.com>
   - Vinod Koul <vkoul@kernel.org>
 
-allOf:
-  - $ref: input.yaml#
-
 properties:
   compatible:
     enum:
@@ -25,23 +22,40 @@ properties:
     maxItems: 1
 
   debounce:
-    description: |
-          Time in microseconds that key must be pressed or
-          released for state change interrupt to trigger.
+    description:
+      Time in microseconds that key must be pressed or released for state
+      change interrupt to trigger.
     $ref: /schemas/types.yaml#/definitions/uint32
 
   bias-pull-up:
-    description: |
-           Presence of this property indicates that the KPDPWR_N
-           pin should be configured for pull up.
+    description:
+      Presence of this property indicates that the KPDPWR_N pin should be
+      configured for pull up.
     $ref: /schemas/types.yaml#/definitions/flag
 
+  wakeup-source:
+    description:
+      Button can wake-up the system.  Only applicable for 'resin', 'pwrkey'
+      always wakes the system by default.
+
   linux,code:
-    description: |
-           The input key-code associated with the power key.
-           Use the linux event codes defined in
-           include/dt-bindings/input/linux-event-codes.h
-           When property is omitted KEY_POWER is assumed.
+    description:
+      The input key-code associated with the power key.  Use the linux event
+      codes defined in include/dt-bindings/input/linux-event-codes.h.
+      When property is omitted KEY_POWER is assumed.
+
+allOf:
+  - $ref: input.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,pm8941-pwrkey
+              - qcom,pmk8350-pwrkey
+    then:
+      properties:
+        wakeup-source: false
 
 required:
   - compatible

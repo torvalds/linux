@@ -122,3 +122,17 @@ void xe_sched_add_msg_locked(struct xe_gpu_scheduler *sched,
 	list_add_tail(&msg->link, &sched->msgs);
 	xe_sched_process_msg_queue(sched);
 }
+
+/**
+ * xe_sched_add_msg_head() - Xe GPU scheduler add message to head of list
+ * @sched: Xe GPU scheduler
+ * @msg: Message to add
+ */
+void xe_sched_add_msg_head(struct xe_gpu_scheduler *sched,
+			   struct xe_sched_msg *msg)
+{
+	lockdep_assert_held(&sched->base.job_list_lock);
+
+	list_add(&msg->link, &sched->msgs);
+	xe_sched_process_msg_queue(sched);
+}

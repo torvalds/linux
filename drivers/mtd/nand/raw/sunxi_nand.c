@@ -2205,4 +2205,3 @@ module_platform_driver(sunxi_nfc_driver);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Boris BREZILLON");
 MODULE_DESCRIPTION("Allwinner NAND Flash Controller driver");
-MODULE_ALIAS("platform:sunxi_nand");

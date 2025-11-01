@@ -82,9 +82,9 @@ config CONTEXT_TRACKING_IDLE
 	help
 	  Tracks idle state on behalf of RCU.
 
-if GENERIC_CLOCKEVENTS
 menu "Timers subsystem"
 
+if GENERIC_CLOCKEVENTS
 # Core internal switch. Selected by NO_HZ_COMMON / HIGH_RES_TIMERS. This is
 # only related to the tick functionality. Oneshot clockevent devices
 # are supported independent of this.
@@ -208,6 +208,17 @@ config CLOCKSOURCE_WATCHDOG_MAX_SKEW_US
 	  interval and NTP's maximum frequency drift of 500 parts
 	  per million.	If the clocksource is good enough for NTP,
 	  it is good enough for the clocksource watchdog!
+endif
+
+config POSIX_AUX_CLOCKS
+	bool "Enable auxiliary POSIX clocks"
+	depends on POSIX_TIMERS
+	help
+	  Auxiliary POSIX clocks are clocks which can be steered
+	  independently of the core timekeeper, which controls the
+	  MONOTONIC, REALTIME, BOOTTIME and TAI clocks.  They are useful to
+	  provide e.g. lockless time accessors to independent PTP clocks
+	  and other clock domains, which are not correlated to the TAI/NTP
+	  notion of time.
 
 endmenu
-endif

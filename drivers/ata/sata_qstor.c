@@ -123,8 +123,8 @@ static struct ata_port_operations qs_ata_ops = {
 
 	.freeze			= qs_freeze,
 	.thaw			= qs_thaw,
-	.prereset		= qs_prereset,
-	.softreset		= ATA_OP_NULL,
+	.reset.prereset		= qs_prereset,
+	.reset.softreset	= ATA_OP_NULL,
 	.error_handler		= qs_error_handler,
 	.lost_interrupt		= ATA_OP_NULL,
 

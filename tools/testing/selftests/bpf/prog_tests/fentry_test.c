@@ -43,8 +43,13 @@ static void fentry_test(void)
 	struct fentry_test_lskel *fentry_skel = NULL;
 	int err;
 
-	fentry_skel = fentry_test_lskel__open_and_load();
-	if (!ASSERT_OK_PTR(fentry_skel, "fentry_skel_load"))
+	fentry_skel = fentry_test_lskel__open();
+	if (!ASSERT_OK_PTR(fentry_skel, "fentry_skel_open"))
+		goto cleanup;
+
+	fentry_skel->keyring_id	= KEY_SPEC_SESSION_KEYRING;
+	err = fentry_test_lskel__load(fentry_skel);
+	if (!ASSERT_OK(err, "fentry_skel_load"))
 		goto cleanup;
 
 	err = fentry_test_common(fentry_skel);

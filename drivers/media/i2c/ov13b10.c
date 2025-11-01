@@ -700,6 +700,8 @@ static const struct ov13b10_mode supported_2_lanes_modes[] = {
 };
 
 struct ov13b10 {
+	struct device *dev;
+
 	struct v4l2_subdev sd;
 	struct media_pad pad;
 
@@ -805,7 +807,6 @@ static int ov13b10_write_reg(struct ov13b10 *ov13b,
 static int ov13b10_write_regs(struct ov13b10 *ov13b,
 			      const struct ov13b10_reg *regs, u32 len)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&ov13b->sd);
 	int ret;
 	u32 i;
 
@@ -813,7 +814,7 @@ static int ov13b10_write_regs(struct ov13b10 *ov13b,
 		ret = ov13b10_write_reg(ov13b, regs[i].address, 1,
 					regs[i].val);
 		if (ret) {
-			dev_err_ratelimited(&client->dev,
+			dev_err_ratelimited(ov13b->dev,
 					    "Failed to write reg 0x%4.4x. error = %d\n",
 					    regs[i].address, ret);
 
@@ -968,7 +969,6 @@ static int ov13b10_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct ov13b10 *ov13b = container_of(ctrl->handler,
 					     struct ov13b10, ctrl_handler);
-	struct i2c_client *client = v4l2_get_subdevdata(&ov13b->sd);
 	s64 max;
 	int ret;
 
@@ -987,7 +987,7 @@ static int ov13b10_set_ctrl(struct v4l2_ctrl *ctrl)
 	 * Applying V4L2 control value only happens
 	 * when power is up for streaming
 	 */
-	if (!pm_runtime_get_if_in_use(&client->dev))
+	if (!pm_runtime_get_if_in_use(ov13b->dev))
 		return 0;
 
 	ret = 0;
@@ -1021,13 +1021,13 @@ static int ov13b10_set_ctrl(struct v4l2_ctrl *ctrl)
 		ov13b10_set_ctrl_vflip(ov13b, ctrl->val);
 		break;
 	default:
-		dev_info(&client->dev,
+		dev_info(ov13b->dev,
 			 "ctrl(id:0x%x,val:0x%x) is not handled\n",
 			 ctrl->id, ctrl->val);
 		break;
 	}
 
-	pm_runtime_put(&client->dev);
+	pm_runtime_put(ov13b->dev);
 
 	return ret;
 }
@@ -1166,7 +1166,6 @@ ov13b10_set_pad_format(struct v4l2_subdev *sd,
 /* Verify chip ID */
 static int ov13b10_identify_module(struct ov13b10 *ov13b)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&ov13b->sd);
 	int ret;
 	u32 val;
 
@@ -1179,7 +1178,7 @@ static int ov13b10_identify_module(struct ov13b10 *ov13b)
 		return ret;
 
 	if (val != OV13B10_CHIP_ID) {
-		dev_err(&client->dev, "chip id mismatch: %x!=%x\n",
+		dev_err(ov13b->dev, "chip id mismatch: %x!=%x\n",
 			OV13B10_CHIP_ID, val);
 		return -EIO;
 	}
@@ -1234,7 +1233,6 @@ static int ov13b10_power_on(struct device *dev)
 
 static int ov13b10_start_streaming(struct ov13b10 *ov13b)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&ov13b->sd);
 	const struct ov13b10_reg_list *reg_list;
 	int ret, link_freq_index;
 
@@ -1246,7 +1244,7 @@ static int ov13b10_start_streaming(struct ov13b10 *ov13b)
 	ret = ov13b10_write_reg(ov13b, OV13B10_REG_SOFTWARE_RST,
 				OV13B10_REG_VALUE_08BIT, OV13B10_SOFTWARE_RST);
 	if (ret) {
-		dev_err(&client->dev, "%s failed to set powerup registers\n",
+		dev_err(ov13b->dev, "%s failed to set powerup registers\n",
 			__func__);
 		return ret;
 	}
@@ -1255,7 +1253,7 @@ static int ov13b10_start_streaming(struct ov13b10 *ov13b)
 	reg_list = &link_freq_configs[link_freq_index].reg_list;
 	ret = ov13b10_write_reg_list(ov13b, reg_list);
 	if (ret) {
-		dev_err(&client->dev, "%s failed to set plls\n", __func__);
+		dev_err(ov13b->dev, "%s failed to set plls\n", __func__);
 		return ret;
 	}
 
@@ -1263,7 +1261,7 @@ static int ov13b10_start_streaming(struct ov13b10 *ov13b)
 	reg_list = &ov13b->cur_mode->reg_list;
 	ret = ov13b10_write_reg_list(ov13b, reg_list);
 	if (ret) {
-		dev_err(&client->dev, "%s failed to set mode\n", __func__);
+		dev_err(ov13b->dev, "%s failed to set mode\n", __func__);
 		return ret;
 	}
 
@@ -1287,13 +1285,12 @@ static int ov13b10_stop_streaming(struct ov13b10 *ov13b)
 static int ov13b10_set_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct ov13b10 *ov13b = to_ov13b10(sd);
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret = 0;
 
 	mutex_lock(&ov13b->mutex);
 
 	if (enable) {
-		ret = pm_runtime_resume_and_get(&client->dev);
+		ret = pm_runtime_resume_and_get(ov13b->dev);
 		if (ret < 0)
 			goto err_unlock;
 
@@ -1306,7 +1303,7 @@ static int ov13b10_set_stream(struct v4l2_subdev *sd, int enable)
 			goto err_rpm_put;
 	} else {
 		ov13b10_stop_streaming(ov13b);
-		pm_runtime_put(&client->dev);
+		pm_runtime_put(ov13b->dev);
 	}
 
 	mutex_unlock(&ov13b->mutex);
@@ -1314,7 +1311,7 @@ static int ov13b10_set_stream(struct v4l2_subdev *sd, int enable)
 	return ret;
 
 err_rpm_put:
-	pm_runtime_put(&client->dev);
+	pm_runtime_put(ov13b->dev);
 err_unlock:
 	mutex_unlock(&ov13b->mutex);
 
@@ -1360,7 +1357,6 @@ static const struct v4l2_subdev_internal_ops ov13b10_internal_ops = {
 /* Initialize control handlers */
 static int ov13b10_init_controls(struct ov13b10 *ov13b)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&ov13b->sd);
 	struct v4l2_fwnode_device_properties props;
 	struct v4l2_ctrl_handler *ctrl_hdlr;
 	s64 exposure_max;
@@ -1443,12 +1439,12 @@ static int ov13b10_init_controls(struct ov13b10 *ov13b)
 
 	if (ctrl_hdlr->error) {
 		ret = ctrl_hdlr->error;
-		dev_err(&client->dev, "%s control init failed (%d)\n",
+		dev_err(ov13b->dev, "%s control init failed (%d)\n",
 			__func__, ret);
 		goto error;
 	}
 
-	ret = v4l2_fwnode_device_parse(&client->dev, &props);
+	ret = v4l2_fwnode_device_parse(ov13b->dev, &props);
 	if (ret)
 		goto error;
 
@@ -1474,44 +1470,49 @@ static void ov13b10_free_controls(struct ov13b10 *ov13b)
 	mutex_destroy(&ov13b->mutex);
 }
 
-static int ov13b10_get_pm_resources(struct device *dev)
+static int ov13b10_get_pm_resources(struct ov13b10 *ov13b)
 {
-	struct v4l2_subdev *sd = dev_get_drvdata(dev);
-	struct ov13b10 *ov13b = to_ov13b10(sd);
+	unsigned long freq;
 	int ret;
 
-	ov13b->reset = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_LOW);
+	ov13b->reset = devm_gpiod_get_optional(ov13b->dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(ov13b->reset))
-		return dev_err_probe(dev, PTR_ERR(ov13b->reset),
+		return dev_err_probe(ov13b->dev, PTR_ERR(ov13b->reset),
 				     "failed to get reset gpio\n");
 
-	ov13b->img_clk = devm_clk_get_optional(dev, NULL);
+	ov13b->img_clk = devm_v4l2_sensor_clk_get(ov13b->dev, NULL);
 	if (IS_ERR(ov13b->img_clk))
-		return dev_err_probe(dev, PTR_ERR(ov13b->img_clk),
+		return dev_err_probe(ov13b->dev, PTR_ERR(ov13b->img_clk),
 				     "failed to get imaging clock\n");
 
-	ov13b->avdd = devm_regulator_get_optional(dev, "avdd");
+	freq = clk_get_rate(ov13b->img_clk);
+	if (freq != OV13B10_EXT_CLK)
+		return dev_err_probe(ov13b->dev, -EINVAL,
+				     "external clock %lu is not supported\n",
+				     freq);
+
+	ov13b->avdd = devm_regulator_get_optional(ov13b->dev, "avdd");
 	if (IS_ERR(ov13b->avdd)) {
 		ret = PTR_ERR(ov13b->avdd);
 		ov13b->avdd = NULL;
 		if (ret != -ENODEV)
-			return dev_err_probe(dev, ret,
+			return dev_err_probe(ov13b->dev, ret,
 					     "failed to get avdd regulator\n");
 	}
 
 	return 0;
 }
 
-static int ov13b10_check_hwcfg(struct device *dev, struct ov13b10 *ov13b)
+static int ov13b10_check_hwcfg(struct ov13b10 *ov13b)
 {
 	struct v4l2_fwnode_endpoint bus_cfg = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY
 	};
+	struct device *dev = ov13b->dev;
 	struct fwnode_handle *ep;
 	struct fwnode_handle *fwnode = dev_fwnode(dev);
 	unsigned int i, j;
 	int ret;
-	u32 ext_clk;
 	u8 dlane;
 
 	if (!fwnode)
@@ -1520,19 +1521,6 @@ static int ov13b10_check_hwcfg(struct device *dev, struct ov13b10 *ov13b)
 	ep = fwnode_graph_get_next_endpoint(fwnode, NULL);
 	if (!ep)
 		return -EPROBE_DEFER;
-
-	ret = fwnode_property_read_u32(dev_fwnode(dev), "clock-frequency",
-				       &ext_clk);
-	if (ret) {
-		dev_err(dev, "can't get clock frequency");
-		return ret;
-	}
-
-	if (ext_clk != OV13B10_EXT_CLK) {
-		dev_err(dev, "external clock %d is not supported",
-			ext_clk);
-		return -EINVAL;
-	}
 
 	ret = v4l2_fwnode_endpoint_alloc_parse(ep, &bus_cfg);
 	fwnode_handle_put(ep);
@@ -1602,32 +1590,34 @@ static int ov13b10_probe(struct i2c_client *client)
 	if (!ov13b)
 		return -ENOMEM;
 
+	ov13b->dev = &client->dev;
+
 	/* Check HW config */
-	ret = ov13b10_check_hwcfg(&client->dev, ov13b);
+	ret = ov13b10_check_hwcfg(ov13b);
 	if (ret) {
-		dev_err(&client->dev, "failed to check hwcfg: %d", ret);
+		dev_err(ov13b->dev, "failed to check hwcfg: %d", ret);
 		return ret;
 	}
 
 	/* Initialize subdev */
 	v4l2_i2c_subdev_init(&ov13b->sd, client, &ov13b10_subdev_ops);
 
-	ret = ov13b10_get_pm_resources(&client->dev);
+	ret = ov13b10_get_pm_resources(ov13b);
 	if (ret)
 		return ret;
 
-	full_power = acpi_dev_state_d0(&client->dev);
+	full_power = acpi_dev_state_d0(ov13b->dev);
 	if (full_power) {
-		ret = ov13b10_power_on(&client->dev);
+		ret = ov13b10_power_on(ov13b->dev);
 		if (ret) {
-			dev_err(&client->dev, "failed to power on\n");
+			dev_err(ov13b->dev, "failed to power on\n");
 			return ret;
 		}
 
 		/* Check module identity */
 		ret = ov13b10_identify_module(ov13b);
 		if (ret) {
-			dev_err(&client->dev, "failed to find sensor: %d\n", ret);
+			dev_err(ov13b->dev, "failed to find sensor: %d\n", ret);
 			goto error_power_off;
 		}
 	}
@@ -1646,7 +1636,7 @@ static int ov13b10_probe(struct i2c_client *client)
 	ov13b->pad.flags = MEDIA_PAD_FL_SOURCE;
 	ret = media_entity_pads_init(&ov13b->sd.entity, 1, &ov13b->pad);
 	if (ret) {
-		dev_err(&client->dev, "%s failed:%d\n", __func__, ret);
+		dev_err(ov13b->dev, "%s failed:%d\n", __func__, ret);
 		goto error_handler_free;
 	}
 
@@ -1657,9 +1647,9 @@ static int ov13b10_probe(struct i2c_client *client)
 	 */
 	/* Set the device's state to active if it's in D0 state. */
 	if (full_power)
-		pm_runtime_set_active(&client->dev);
-	pm_runtime_enable(&client->dev);
-	pm_runtime_idle(&client->dev);
+		pm_runtime_set_active(ov13b->dev);
+	pm_runtime_enable(ov13b->dev);
+	pm_runtime_idle(ov13b->dev);
 
 	ret = v4l2_async_register_subdev_sensor(&ov13b->sd);
 	if (ret < 0)
@@ -1668,17 +1658,17 @@ static int ov13b10_probe(struct i2c_client *client)
 	return 0;
 
 error_media_entity_runtime_pm:
-	pm_runtime_disable(&client->dev);
+	pm_runtime_disable(ov13b->dev);
 	if (full_power)
-		pm_runtime_set_suspended(&client->dev);
+		pm_runtime_set_suspended(ov13b->dev);
 	media_entity_cleanup(&ov13b->sd.entity);
 
 error_handler_free:
 	ov13b10_free_controls(ov13b);
-	dev_err(&client->dev, "%s failed:%d\n", __func__, ret);
+	dev_err(ov13b->dev, "%s failed:%d\n", __func__, ret);
 
 error_power_off:
-	ov13b10_power_off(&client->dev);
+	ov13b10_power_off(ov13b->dev);
 
 	return ret;
 }
@@ -1692,8 +1682,8 @@ static void ov13b10_remove(struct i2c_client *client)
 	media_entity_cleanup(&sd->entity);
 	ov13b10_free_controls(ov13b);
 
-	pm_runtime_disable(&client->dev);
-	pm_runtime_set_suspended(&client->dev);
+	pm_runtime_disable(ov13b->dev);
+	pm_runtime_set_suspended(ov13b->dev);
 }
 
 static DEFINE_RUNTIME_DEV_PM_OPS(ov13b10_pm_ops, ov13b10_suspend,

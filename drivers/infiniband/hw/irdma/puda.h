@@ -91,7 +91,7 @@ struct irdma_puda_rsrc_info {
 	u32 rq_size;
 	u32 tx_buf_cnt; /* total bufs allocated will be rq_size + tx_buf_cnt */
 	u16 buf_size;
-	u8 stats_idx;
+	u16 stats_idx;
 	bool stats_idx_valid:1;
 	int abi_ver;
 };
@@ -140,7 +140,7 @@ struct irdma_puda_rsrc {
 	u64 crc_err;
 	u64 pmode_count;
 	u64 partials_handled;
-	u8 stats_idx;
+	u16 stats_idx;
 	bool check_crc:1;
 	bool stats_idx_valid:1;
 };

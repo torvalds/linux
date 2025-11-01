@@ -20,7 +20,6 @@
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_print.h>
 #include <drm/drm_rect.h>
-#include <drm/drm_simple_kms_helper.h>
 #include <drm/gud.h>
 
 #include "gud_internal.h"
@@ -62,7 +61,7 @@ static size_t gud_xrgb8888_to_r124(u8 *dst, const struct drm_format_info *format
 	size_t len;
 	void *buf;
 
-	WARN_ON_ONCE(format->char_per_block[0] != 1);
+	drm_WARN_ON_ONCE(fb->dev, format->char_per_block[0] != 1);
 
 	/* Start on a byte boundary */
 	rect->x1 = ALIGN_DOWN(rect->x1, block_width);
@@ -70,7 +69,7 @@ static size_t gud_xrgb8888_to_r124(u8 *dst, const struct drm_format_info *format
 	height = drm_rect_height(rect);
 	len = drm_format_info_min_pitch(format, 0, width) * height;
 
-	buf = kmalloc(width * height, GFP_KERNEL);
+	buf = kmalloc_array(height, width, GFP_KERNEL);
 	if (!buf)
 		return 0;
 
@@ -139,7 +138,7 @@ static size_t gud_xrgb8888_to_color(u8 *dst, const struct drm_format_info *forma
 				pix = ((r >> 7) << 2) | ((g >> 7) << 1) | (b >> 7);
 				break;
 			default:
-				WARN_ON_ONCE(1);
+				drm_WARN_ON_ONCE(fb->dev, 1);
 				return len;
 			}
 
@@ -188,8 +187,13 @@ retry:
 		} else if (format->format == DRM_FORMAT_RGB332) {
 			drm_fb_xrgb8888_to_rgb332(&dst, NULL, src, fb, rect, fmtcnv_state);
 		} else if (format->format == DRM_FORMAT_RGB565) {
-			drm_fb_xrgb8888_to_rgb565(&dst, NULL, src, fb, rect, fmtcnv_state,
-						  gud_is_big_endian());
+			if (gud_is_big_endian()) {
+				drm_fb_xrgb8888_to_rgb565be(&dst, NULL, src, fb, rect,
+							    fmtcnv_state);
+			} else {
+				drm_fb_xrgb8888_to_rgb565(&dst, NULL, src, fb, rect,
+							  fmtcnv_state);
+			}
 		} else if (format->format == DRM_FORMAT_RGB888) {
 			drm_fb_xrgb8888_to_rgb888(&dst, NULL, src, fb, rect, fmtcnv_state);
 		} else {
@@ -446,14 +450,15 @@ static void gud_fb_handle_damage(struct gud_device *gdrm, struct drm_framebuffer
 	gud_flush_damage(gdrm, fb, src, !fb->obj[0]->import_attach, damage);
 }
 
-int gud_pipe_check(struct drm_simple_display_pipe *pipe,
-		   struct drm_plane_state *new_plane_state,
-		   struct drm_crtc_state *new_crtc_state)
+int gud_plane_atomic_check(struct drm_plane *plane,
+			   struct drm_atomic_state *state)
 {
-	struct gud_device *gdrm = to_gud_device(pipe->crtc.dev);
-	struct drm_plane_state *old_plane_state = pipe->plane.state;
-	const struct drm_display_mode *mode = &new_crtc_state->mode;
-	struct drm_atomic_state *state = new_plane_state->state;
+	struct gud_device *gdrm = to_gud_device(plane->dev);
+	struct drm_plane_state *old_plane_state = drm_atomic_get_old_plane_state(state, plane);
+	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state, plane);
+	struct drm_crtc *crtc = new_plane_state->crtc;
+	struct drm_crtc_state *crtc_state;
+	const struct drm_display_mode *mode;
 	struct drm_framebuffer *old_fb = old_plane_state->fb;
 	struct drm_connector_state *connector_state = NULL;
 	struct drm_framebuffer *fb = new_plane_state->fb;
@@ -464,20 +469,37 @@ int gud_pipe_check(struct drm_simple_display_pipe *pipe,
 	int idx, ret;
 	size_t len;
 
-	if (WARN_ON_ONCE(!fb))
+	if (drm_WARN_ON_ONCE(plane->dev, !fb))
 		return -EINVAL;
 
+	if (drm_WARN_ON_ONCE(plane->dev, !crtc))
+		return -EINVAL;
+
+	crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
+
+	mode = &crtc_state->mode;
+
+	ret = drm_atomic_helper_check_plane_state(new_plane_state, crtc_state,
+						  DRM_PLANE_NO_SCALING,
+						  DRM_PLANE_NO_SCALING,
+						  false, false);
+	if (ret)
+		return ret;
+
+	if (!new_plane_state->visible)
+		return 0;
+
 	if (old_plane_state->rotation != new_plane_state->rotation)
-		new_crtc_state->mode_changed = true;
+		crtc_state->mode_changed = true;
 
 	if (old_fb && old_fb->format != format)
-		new_crtc_state->mode_changed = true;
+		crtc_state->mode_changed = true;
 
-	if (!new_crtc_state->mode_changed && !new_crtc_state->connectors_changed)
+	if (!crtc_state->mode_changed && !crtc_state->connectors_changed)
 		return 0;
 
 	/* Only one connector is supported */
-	if (hweight32(new_crtc_state->connector_mask) != 1)
+	if (hweight32(crtc_state->connector_mask) != 1)
 		return -EINVAL;
 
 	if (format->format == DRM_FORMAT_XRGB8888 && gdrm->xrgb8888_emulation_format)
@@ -495,7 +517,7 @@ int gud_pipe_check(struct drm_simple_display_pipe *pipe,
 	if (!connector_state) {
 		struct drm_connector_list_iter conn_iter;
 
-		drm_connector_list_iter_begin(pipe->crtc.dev, &conn_iter);
+		drm_connector_list_iter_begin(plane->dev, &conn_iter);
 		drm_for_each_connector_iter(connector, &conn_iter) {
 			if (connector->state->crtc) {
 				connector_state = connector->state;
@@ -505,7 +527,7 @@ int gud_pipe_check(struct drm_simple_display_pipe *pipe,
 		drm_connector_list_iter_end(&conn_iter);
 	}
 
-	if (WARN_ON_ONCE(!connector_state))
+	if (drm_WARN_ON_ONCE(plane->dev, !connector_state))
 		return -ENOENT;
 
 	len = struct_size(req, properties,
@@ -517,7 +539,7 @@ int gud_pipe_check(struct drm_simple_display_pipe *pipe,
 	gud_from_display_mode(&req->mode, mode);
 
 	req->format = gud_from_fourcc(format->format);
-	if (WARN_ON_ONCE(!req->format)) {
+	if (drm_WARN_ON_ONCE(plane->dev, !req->format)) {
 		ret = -EINVAL;
 		goto out;
 	}
@@ -539,7 +561,7 @@ int gud_pipe_check(struct drm_simple_display_pipe *pipe,
 			val = new_plane_state->rotation;
 			break;
 		default:
-			WARN_ON_ONCE(1);
+			drm_WARN_ON_ONCE(plane->dev, 1);
 			ret = -EINVAL;
 			goto out;
 		}
@@ -562,16 +584,18 @@ out:
 	return ret;
 }
 
-void gud_pipe_update(struct drm_simple_display_pipe *pipe,
-		     struct drm_plane_state *old_state)
+void gud_plane_atomic_update(struct drm_plane *plane,
+			     struct drm_atomic_state *atomic_state)
 {
-	struct drm_device *drm = pipe->crtc.dev;
+	struct drm_device *drm = plane->dev;
 	struct gud_device *gdrm = to_gud_device(drm);
-	struct drm_plane_state *state = pipe->plane.state;
-	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(state);
-	struct drm_framebuffer *fb = state->fb;
-	struct drm_crtc *crtc = &pipe->crtc;
+	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(atomic_state, plane);
+	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(atomic_state, plane);
+	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(new_state);
+	struct drm_framebuffer *fb = new_state->fb;
+	struct drm_crtc *crtc = new_state->crtc;
 	struct drm_rect damage;
+	struct drm_atomic_helper_damage_iter iter;
 	int ret, idx;
 
 	if (crtc->state->mode_changed || !crtc->state->enable) {
@@ -606,7 +630,8 @@ void gud_pipe_update(struct drm_simple_display_pipe *pipe,
 	if (ret)
 		goto ctrl_disable;
 
-	if (drm_atomic_helper_damage_merged(old_state, state, &damage))
+	drm_atomic_helper_damage_iter_init(&iter, old_state, new_state);
+	drm_atomic_for_each_plane_damage(&iter, &damage)
 		gud_fb_handle_damage(gdrm, fb, &shadow_plane_state->data[0], &damage);
 
 	drm_gem_fb_end_cpu_access(fb, DMA_FROM_DEVICE);

@@ -19,11 +19,13 @@ enum rtw89_acpi_dsm_func {
 	RTW89_ACPI_DSM_FUNC_TAS_EN = 5,
 	RTW89_ACPI_DSM_FUNC_UNII4_SUP = 6,
 	RTW89_ACPI_DSM_FUNC_6GHZ_SP_SUP = 7,
+	RTW89_ACPI_DSM_FUNC_REG_RULES_EN = 10,
+	RTW89_ACPI_DSM_FUNC_6GHZ_VLP_SUP = 11,
 };
 
 enum rtw89_acpi_conf_unii4 {
-	RTW89_ACPI_CONF_UNII4_FCC = BIT(0),
-	RTW89_ACPI_CONF_UNII4_IC = BIT(1),
+	RTW89_ACPI_CONF_UNII4_US = BIT(0),
+	RTW89_ACPI_CONF_UNII4_CA = BIT(1),
 };
 
 enum rtw89_acpi_policy_mode {
@@ -56,9 +58,23 @@ struct rtw89_acpi_policy_6ghz {
 
 enum rtw89_acpi_conf_6ghz_sp {
 	RTW89_ACPI_CONF_6GHZ_SP_US = BIT(0),
+	RTW89_ACPI_CONF_6GHZ_SP_CA = BIT(1),
 };
 
 struct rtw89_acpi_policy_6ghz_sp {
+	u8 signature[4];
+	u8 revision;
+	u8 override;
+	u8 conf;
+	u8 rsvd;
+} __packed;
+
+enum rtw89_acpi_conf_6ghz_vlp {
+	RTW89_ACPI_CONF_6GHZ_VLP_US = BIT(0),
+	RTW89_ACPI_CONF_6GHZ_VLP_CA = BIT(1),
+};
+
+struct rtw89_acpi_policy_6ghz_vlp {
 	u8 signature[4];
 	u8 revision;
 	u8 override;
@@ -74,13 +90,26 @@ struct rtw89_acpi_policy_tas {
 	u8 rsvd[3];
 } __packed;
 
+enum rtw89_acpi_conf_reg_rules {
+	RTW89_ACPI_CONF_REG_RULE_REGD_UK = BIT(0),
+};
+
+struct rtw89_acpi_policy_reg_rules {
+	u8 signature[4];
+	u8 revision;
+	u8 conf;
+	u8 rsvd[3];
+} __packed;
+
 struct rtw89_acpi_dsm_result {
 	union {
 		u8 value;
 		/* caller needs to free it after using */
 		struct rtw89_acpi_policy_6ghz *policy_6ghz;
 		struct rtw89_acpi_policy_6ghz_sp *policy_6ghz_sp;
+		struct rtw89_acpi_policy_6ghz_vlp *policy_6ghz_vlp;
 		struct rtw89_acpi_policy_tas *policy_tas;
+		struct rtw89_acpi_policy_reg_rules *policy_reg_rules;
 	} u;
 };
 

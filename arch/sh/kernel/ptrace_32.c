@@ -291,7 +291,7 @@ static const struct user_regset sh_regsets[] = {
 	 *	PC, PR, SR, GBR, MACH, MACL, TRA
 	 */
 	[REGSET_GENERAL] = {
-		.core_note_type	= NT_PRSTATUS,
+		USER_REGSET_NOTE_TYPE(PRSTATUS),
 		.n		= ELF_NGREG,
 		.size		= sizeof(long),
 		.align		= sizeof(long),
@@ -301,7 +301,7 @@ static const struct user_regset sh_regsets[] = {
 
 #ifdef CONFIG_SH_FPU
 	[REGSET_FPU] = {
-		.core_note_type	= NT_PRFPREG,
+		USER_REGSET_NOTE_TYPE(PRFPREG),
 		.n		= sizeof(struct user_fpu_struct) / sizeof(long),
 		.size		= sizeof(long),
 		.align		= sizeof(long),

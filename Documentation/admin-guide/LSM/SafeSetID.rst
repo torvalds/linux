@@ -41,7 +41,7 @@ namespace). The higher level goal is to allow for uid-based sandboxing of system
 services without having to give out CAP_SETUID all over the place just so that
 non-root programs can drop to even-lesser-privileged uids. This is especially
 relevant when one non-root daemon on the system should be allowed to spawn other
-processes as different uids, but its undesirable to give the daemon a
+processes as different uids, but it's undesirable to give the daemon a
 basically-root-equivalent CAP_SETUID.
 
 

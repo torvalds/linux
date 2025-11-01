@@ -11,7 +11,7 @@
 
 #include <linux/types.h>
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 typedef unsigned long	cpuid_t;
 typedef signed short	nasid_t;	/* node id in numa-as-id space */

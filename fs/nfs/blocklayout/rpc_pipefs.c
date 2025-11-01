@@ -141,24 +141,18 @@ static const struct rpc_pipe_ops bl_upcall_ops = {
 	.destroy_msg	= bl_pipe_destroy_msg,
 };
 
-static struct dentry *nfs4blocklayout_register_sb(struct super_block *sb,
+static int nfs4blocklayout_register_sb(struct super_block *sb,
 					    struct rpc_pipe *pipe)
 {
-	struct dentry *dir, *dentry;
+	struct dentry *dir;
+	int err;
 
 	dir = rpc_d_lookup_sb(sb, NFS_PIPE_DIRNAME);
 	if (dir == NULL)
-		return ERR_PTR(-ENOENT);
-	dentry = rpc_mkpipe_dentry(dir, "blocklayout", NULL, pipe);
+		return -ENOENT;
+	err = rpc_mkpipe_dentry(dir, "blocklayout", NULL, pipe);
 	dput(dir);
-	return dentry;
-}
-
-static void nfs4blocklayout_unregister_sb(struct super_block *sb,
-					  struct rpc_pipe *pipe)
-{
-	if (pipe->dentry)
-		rpc_unlink(pipe->dentry);
+	return err;
 }
 
 static int rpc_pipefs_event(struct notifier_block *nb, unsigned long event,
@@ -167,7 +161,6 @@ static int rpc_pipefs_event(struct notifier_block *nb, unsigned long event,
 	struct super_block *sb = ptr;
 	struct net *net = sb->s_fs_info;
 	struct nfs_net *nn = net_generic(net, nfs_net_id);
-	struct dentry *dentry;
 	int ret = 0;
 
 	if (!try_module_get(THIS_MODULE))
@@ -180,16 +173,10 @@ static int rpc_pipefs_event(struct notifier_block *nb, unsigned long event,
 
 	switch (event) {
 	case RPC_PIPEFS_MOUNT:
-		dentry = nfs4blocklayout_register_sb(sb, nn->bl_device_pipe);
-		if (IS_ERR(dentry)) {
-			ret = PTR_ERR(dentry);
-			break;
-		}
-		nn->bl_device_pipe->dentry = dentry;
+		ret = nfs4blocklayout_register_sb(sb, nn->bl_device_pipe);
 		break;
 	case RPC_PIPEFS_UMOUNT:
-		if (nn->bl_device_pipe->dentry)
-			nfs4blocklayout_unregister_sb(sb, nn->bl_device_pipe);
+		rpc_unlink(nn->bl_device_pipe);
 		break;
 	default:
 		ret = -ENOTSUPP;
@@ -203,18 +190,17 @@ static struct notifier_block nfs4blocklayout_block = {
 	.notifier_call = rpc_pipefs_event,
 };
 
-static struct dentry *nfs4blocklayout_register_net(struct net *net,
-						   struct rpc_pipe *pipe)
+static int nfs4blocklayout_register_net(struct net *net, struct rpc_pipe *pipe)
 {
 	struct super_block *pipefs_sb;
-	struct dentry *dentry;
+	int ret;
 
 	pipefs_sb = rpc_get_sb_net(net);
 	if (!pipefs_sb)
-		return NULL;
-	dentry = nfs4blocklayout_register_sb(pipefs_sb, pipe);
+		return 0;
+	ret = nfs4blocklayout_register_sb(pipefs_sb, pipe);
 	rpc_put_sb_net(net);
-	return dentry;
+	return ret;
 }
 
 static void nfs4blocklayout_unregister_net(struct net *net,
@@ -224,7 +210,7 @@ static void nfs4blocklayout_unregister_net(struct net *net,
 
 	pipefs_sb = rpc_get_sb_net(net);
 	if (pipefs_sb) {
-		nfs4blocklayout_unregister_sb(pipefs_sb, pipe);
+		rpc_unlink(pipe);
 		rpc_put_sb_net(net);
 	}
 }
@@ -232,20 +218,17 @@ static void nfs4blocklayout_unregister_net(struct net *net,
 static int nfs4blocklayout_net_init(struct net *net)
 {
 	struct nfs_net *nn = net_generic(net, nfs_net_id);
-	struct dentry *dentry;
+	int err;
 
 	mutex_init(&nn->bl_mutex);
 	init_waitqueue_head(&nn->bl_wq);
 	nn->bl_device_pipe = rpc_mkpipe_data(&bl_upcall_ops, 0);
 	if (IS_ERR(nn->bl_device_pipe))
 		return PTR_ERR(nn->bl_device_pipe);
-	dentry = nfs4blocklayout_register_net(net, nn->bl_device_pipe);
-	if (IS_ERR(dentry)) {
+	err = nfs4blocklayout_register_net(net, nn->bl_device_pipe);
+	if (unlikely(err))
 		rpc_destroy_pipe_data(nn->bl_device_pipe);
-		return PTR_ERR(dentry);
-	}
-	nn->bl_device_pipe->dentry = dentry;
-	return 0;
+	return err;
 }
 
 static void nfs4blocklayout_net_exit(struct net *net)

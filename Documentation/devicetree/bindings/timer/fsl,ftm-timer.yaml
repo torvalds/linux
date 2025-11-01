@@ -14,7 +14,9 @@ properties:
     const: fsl,ftm-timer
 
   reg:
-    maxItems: 1
+    items:
+      - description: clock event device
+      - description: clock source device
 
   interrupts:
     maxItems: 1
@@ -50,7 +52,8 @@ examples:
 
     ftm@400b8000 {
         compatible = "fsl,ftm-timer";
-        reg = <0x400b8000 0x1000>;
+        reg = <0x400b8000 0x1000>,
+              <0x400b9000 0x1000>;
         interrupts = <0 44 IRQ_TYPE_LEVEL_HIGH>;
         clock-names = "ftm-evt", "ftm-src", "ftm-evt-counter-en", "ftm-src-counter-en";
         clocks = <&clks VF610_CLK_FTM2>, <&clks VF610_CLK_FTM3>,

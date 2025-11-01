@@ -245,6 +245,7 @@
 		      <0x0 0x52000000 0 0x2000>,  /* GICC */
 		      <0x0 0x52010000 0 0x1000>,  /* GICH */
 		      <0x0 0x52020000 0 0x20000>; /* GICV */
+		#address-cells = <0>;
 		#interrupt-cells = <3>;
 		interrupt-controller;
 		interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;
@@ -333,6 +334,11 @@
 			compatible = "fsl,imx8qm-iomuxc";
 		};
 
+		scu_reset: reset-controller {
+			compatible = "fsl,imx-scu-reset";
+			#reset-cells = <1>;
+		};
+
 		rtc: rtc {
 			compatible = "fsl,imx8qxp-sc-rtc";
 		};
@@ -355,6 +361,11 @@
 		tsens: thermal-sensor {
 			compatible = "fsl,imx8qxp-sc-thermal", "fsl,imx-sc-thermal";
 			#thermal-sensor-cells = <1>;
+		};
+
+		watchdog {
+			compatible = "fsl,imx8qm-sc-wdt", "fsl,imx-sc-wdt";
+			timeout-sec = <60>;
 		};
 	};
 
@@ -612,6 +623,7 @@
 	};
 
 	/* sorted in register address */
+	#include "imx8-ss-security.dtsi"
 	#include "imx8-ss-cm41.dtsi"
 	#include "imx8-ss-audio.dtsi"
 	#include "imx8-ss-vpu.dtsi"

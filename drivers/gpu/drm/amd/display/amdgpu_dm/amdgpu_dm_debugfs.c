@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 /*
  * Copyright 2018 Advanced Micro Devices, Inc.
  *
@@ -758,6 +759,7 @@ static ssize_t dp_phy_test_pattern_debugfs_write(struct file *f, const char __us
 	int max_param_num = 11;
 	enum dp_test_pattern test_pattern = DP_TEST_PATTERN_UNSUPPORTED;
 	bool disable_hpd = false;
+	bool supports_hpd = link->irq_source_hpd != DC_IRQ_SOURCE_INVALID;
 	bool valid_test_pattern = false;
 	uint8_t param_nums = 0;
 	/* init with default 80bit custom pattern */
@@ -849,7 +851,7 @@ static ssize_t dp_phy_test_pattern_debugfs_write(struct file *f, const char __us
 	 * because it might have been disabled after a test pattern was set.
 	 * AUX depends on HPD * sequence dependent, do not move!
 	 */
-	if (!disable_hpd)
+	if (supports_hpd && !disable_hpd)
 		dc_link_enable_hpd(link);
 
 	prefer_link_settings.lane_count = link->verified_link_cap.lane_count;
@@ -887,7 +889,7 @@ static ssize_t dp_phy_test_pattern_debugfs_write(struct file *f, const char __us
 	 * Need disable interrupt to avoid SW driver disable DP output. This is
 	 * done after the test pattern is set.
 	 */
-	if (valid_test_pattern && disable_hpd)
+	if (valid_test_pattern && supports_hpd && disable_hpd)
 		dc_link_disable_hpd(link);
 
 	kfree(wr_buf);
@@ -3106,6 +3108,35 @@ static int replay_get_state(void *data, u64 *val)
 }
 
 /*
+ *  Start / Stop capture Replay residency
+ */
+static int replay_set_residency(void *data, u64 val)
+{
+	struct amdgpu_dm_connector *connector = data;
+	struct dc_link *link = connector->dc_link;
+	bool is_start = (val != 0);
+	u32 residency = 0;
+
+	link->dc->link_srv->edp_replay_residency(link, &residency, is_start, PR_RESIDENCY_MODE_PHY);
+	return 0;
+}
+
+/*
+ *  Read Replay residency
+ */
+static int replay_get_residency(void *data, u64 *val)
+{
+	struct amdgpu_dm_connector *connector = data;
+	struct dc_link *link = connector->dc_link;
+	u32 residency = 0;
+
+	link->dc->link_srv->edp_replay_residency(link, &residency, false, PR_RESIDENCY_MODE_PHY);
+	*val = (u64)residency;
+
+	return 0;
+}
+
+/*
  *  Read PSR state
  */
 static int psr_get(void *data, u64 *val)
@@ -3324,7 +3355,8 @@ DEFINE_DEBUGFS_ATTRIBUTE(dmcub_trace_event_state_fops, dmcub_trace_event_state_g
 			 dmcub_trace_event_state_set, "%llu\n");
 
 DEFINE_DEBUGFS_ATTRIBUTE(replay_state_fops, replay_get_state, NULL, "%llu\n");
-
+DEFINE_DEBUGFS_ATTRIBUTE(replay_residency_fops, replay_get_residency, replay_set_residency,
+			 "%llu\n");
 DEFINE_DEBUGFS_ATTRIBUTE(psr_fops, psr_get, NULL, "%llu\n");
 DEFINE_DEBUGFS_ATTRIBUTE(psr_residency_fops, psr_read_residency, NULL,
 			 "%llu\n");
@@ -3502,6 +3534,8 @@ void connector_debugfs_init(struct amdgpu_dm_connector *connector)
 		debugfs_create_file("replay_capability", 0444, dir, connector,
 					&replay_capability_fops);
 		debugfs_create_file("replay_state", 0444, dir, connector, &replay_state_fops);
+		debugfs_create_file_unsafe("replay_residency", 0444, dir,
+					   connector, &replay_residency_fops);
 		debugfs_create_file_unsafe("psr_capability", 0444, dir, connector, &psr_capability_fops);
 		debugfs_create_file_unsafe("psr_state", 0444, dir, connector, &psr_fops);
 		debugfs_create_file_unsafe("psr_residency", 0444, dir,
@@ -3988,7 +4022,7 @@ static int capabilities_show(struct seq_file *m, void *unused)
 
 	struct hubbub *hubbub = dc->res_pool->hubbub;
 
-	if (hubbub->funcs->get_mall_en)
+	if (hubbub && hubbub->funcs->get_mall_en)
 		hubbub->funcs->get_mall_en(hubbub, &mall_in_use);
 
 	if (dc->cap_funcs.get_subvp_en)

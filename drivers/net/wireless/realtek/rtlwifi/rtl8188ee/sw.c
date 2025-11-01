@@ -190,7 +190,7 @@ static bool rtl88e_get_btc_status(void)
 	return false;
 }
 
-static struct rtl_hal_ops rtl8188ee_hal_ops = {
+static const struct rtl_hal_ops rtl8188ee_hal_ops = {
 	.init_sw_vars = rtl88e_init_sw_vars,
 	.deinit_sw_vars = rtl88e_deinit_sw_vars,
 	.read_eeprom_info = rtl88ee_read_eeprom_info,

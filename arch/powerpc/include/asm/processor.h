@@ -29,14 +29,14 @@
 #ifdef CONFIG_PPC64
 /* Default SMT priority is set to 3. Use 11- 13bits to save priority. */
 #define PPR_PRIORITY 3
-#ifdef __ASSEMBLY__
+#ifdef __ASSEMBLER__
 #define DEFAULT_PPR (PPR_PRIORITY << 50)
 #else
 #define DEFAULT_PPR ((u64)PPR_PRIORITY << 50)
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 #endif /* CONFIG_PPC64 */
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #include <linux/types.h>
 #include <linux/thread_info.h>
 #include <asm/ptrace.h>
@@ -460,5 +460,5 @@ int enter_vmx_ops(void);
 void *exit_vmx_ops(void *dest);
 
 #endif /* __KERNEL__ */
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 #endif /* _ASM_POWERPC_PROCESSOR_H */

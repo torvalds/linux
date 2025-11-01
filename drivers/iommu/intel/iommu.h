@@ -77,7 +77,6 @@
 #define	DMAR_FEDATA_REG	0x3c	/* Fault event interrupt data register */
 #define	DMAR_FEADDR_REG	0x40	/* Fault event interrupt addr register */
 #define	DMAR_FEUADDR_REG 0x44	/* Upper address register */
-#define	DMAR_AFLOG_REG	0x58	/* Advanced Fault control */
 #define	DMAR_PMEN_REG	0x64	/* Enable Protected Memory Region */
 #define	DMAR_PLMBASE_REG 0x68	/* PMRR Low addr */
 #define	DMAR_PLMLIMIT_REG 0x6c	/* PMRR low limit */
@@ -173,8 +172,6 @@
 #define cap_pgsel_inv(c)	(((c) >> 39) & 1)
 
 #define cap_super_page_val(c)	(((c) >> 34) & 0xf)
-#define cap_super_offset(c)	(((find_first_bit(&cap_super_page_val(c), 4)) \
-					* OFFSET_STRIDE) + 21)
 
 #define cap_fault_reg_offset(c)	((((c) >> 24) & 0x3ff) * 16)
 #define cap_max_fault_reg_offset(c) \
@@ -462,7 +459,6 @@ enum {
 #define QI_PGRP_PASID(pasid)	(((u64)(pasid)) << 32)
 
 /* Page group response descriptor QW1 */
-#define QI_PGRP_LPIG(x)		(((u64)(x)) << 2)
 #define QI_PGRP_IDX(idx)	(((u64)(idx)) << 3)
 
 
@@ -541,7 +537,8 @@ enum {
 #define pasid_supported(iommu)	(sm_supported(iommu) &&			\
 				 ecap_pasid((iommu)->ecap))
 #define ssads_supported(iommu) (sm_supported(iommu) &&                 \
-				ecap_slads((iommu)->ecap))
+				ecap_slads((iommu)->ecap) &&           \
+				ecap_smpwc(iommu->ecap))
 #define nested_supported(iommu)	(sm_supported(iommu) &&			\
 				 ecap_nest((iommu)->ecap))
 
@@ -613,6 +610,9 @@ struct dmar_domain {
 	u8 nested_parent:1;		/* Has other domains nested on it */
 	u8 has_mappings:1;		/* Has mappings configured through
 					 * iommu_map() interface.
+					 */
+	u8 iotlb_sync_map:1;		/* Need to flush IOTLB cache or write
+					 * buffer when creating mappings.
 					 */
 
 	spinlock_t lock;		/* Protect device tracking lists */
@@ -1252,10 +1252,9 @@ domain_add_dev_pasid(struct iommu_domain *domain,
 void domain_remove_dev_pasid(struct iommu_domain *domain,
 			     struct device *dev, ioasid_t pasid);
 
-int __domain_setup_first_level(struct intel_iommu *iommu,
-			       struct device *dev, ioasid_t pasid,
-			       u16 did, pgd_t *pgd, int flags,
-			       struct iommu_domain *old);
+int __domain_setup_first_level(struct intel_iommu *iommu, struct device *dev,
+			       ioasid_t pasid, u16 did, phys_addr_t fsptptr,
+			       int flags, struct iommu_domain *old);
 
 int dmar_ir_support(void);
 
@@ -1289,6 +1288,8 @@ struct cache_tag {
 	unsigned int users;
 };
 
+int cache_tag_assign(struct dmar_domain *domain, u16 did, struct device *dev,
+		     ioasid_t pasid, enum cache_tag_type type);
 int cache_tag_assign_domain(struct dmar_domain *domain,
 			    struct device *dev, ioasid_t pasid);
 void cache_tag_unassign_domain(struct dmar_domain *domain,
@@ -1376,6 +1377,18 @@ struct context_entry *iommu_context_addr(struct intel_iommu *iommu, u8 bus,
 					 u8 devfn, int alloc);
 
 extern const struct iommu_ops intel_iommu_ops;
+extern const struct iommu_domain_ops intel_fs_paging_domain_ops;
+extern const struct iommu_domain_ops intel_ss_paging_domain_ops;
+
+static inline bool intel_domain_is_fs_paging(struct dmar_domain *domain)
+{
+	return domain->domain.ops == &intel_fs_paging_domain_ops;
+}
+
+static inline bool intel_domain_is_ss_paging(struct dmar_domain *domain)
+{
+	return domain->domain.ops == &intel_ss_paging_domain_ops;
+}
 
 #ifdef CONFIG_INTEL_IOMMU
 extern int intel_iommu_sm;

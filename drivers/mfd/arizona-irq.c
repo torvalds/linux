@@ -136,7 +136,7 @@ static irqreturn_t arizona_irq_thread(int irq, void *data)
 			dev_err(arizona->dev,
 				"Failed to read main IRQ status: %d\n", ret);
 		}
-
+#ifdef CONFIG_GPIOLIB_LEGACY
 		/*
 		 * Poll the IRQ pin status to see if we're really done
 		 * if the interrupt controller can't do it for us.
@@ -150,9 +150,9 @@ static irqreturn_t arizona_irq_thread(int irq, void *data)
 			   !gpio_get_value_cansleep(arizona->pdata.irq_gpio)) {
 			poll = true;
 		}
+#endif
 	} while (poll);
 
-	pm_runtime_mark_last_busy(arizona->dev);
 	pm_runtime_put_autosuspend(arizona->dev);
 
 	return IRQ_HANDLED;
@@ -350,6 +350,7 @@ int arizona_irq_init(struct arizona *arizona)
 		goto err_map_main_irq;
 	}
 
+#ifdef CONFIG_GPIOLIB_LEGACY
 	/* Used to emulate edge trigger and to work around broken pinmux */
 	if (arizona->pdata.irq_gpio) {
 		if (gpio_to_irq(arizona->pdata.irq_gpio) != arizona->irq) {
@@ -369,6 +370,7 @@ int arizona_irq_init(struct arizona *arizona)
 			arizona->pdata.irq_gpio = 0;
 		}
 	}
+#endif
 
 	ret = request_threaded_irq(arizona->irq, NULL, arizona_irq_thread,
 				   flags, "arizona", arizona);

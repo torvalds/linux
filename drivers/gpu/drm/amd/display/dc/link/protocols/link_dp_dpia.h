@@ -27,7 +27,7 @@
 #ifndef __DC_LINK_DPIA_H__
 #define __DC_LINK_DPIA_H__
 
-#include "link.h"
+#include "link_service.h"
 
 /* Read tunneling device capability from DPCD and update link capability
  * accordingly.

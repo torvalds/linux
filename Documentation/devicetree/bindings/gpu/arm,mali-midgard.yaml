@@ -53,8 +53,10 @@ properties:
           - enum:
               - rockchip,rk3399-mali
           - const: arm,mali-t860
-
-          # "arm,mali-t880"
+      - items:
+          - enum:
+              - samsung,exynos8890-mali
+          - const: arm,mali-t880
 
   reg:
     maxItems: 1

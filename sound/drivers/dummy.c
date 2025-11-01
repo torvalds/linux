@@ -9,6 +9,7 @@
 #include <linux/platform_device.h>
 #include <linux/jiffies.h>
 #include <linux/slab.h>
+#include <linux/string.h>
 #include <linux/time.h>
 #include <linux/wait.h>
 #include <linux/hrtimer.h>
@@ -268,19 +269,19 @@ static void dummy_systimer_update(struct dummy_systimer_pcm *dpcm)
 static int dummy_systimer_start(struct snd_pcm_substream *substream)
 {
 	struct dummy_systimer_pcm *dpcm = substream->runtime->private_data;
-	spin_lock(&dpcm->lock);
+
+	guard(spinlock)(&dpcm->lock);
 	dpcm->base_time = jiffies;
 	dummy_systimer_rearm(dpcm);
-	spin_unlock(&dpcm->lock);
 	return 0;
 }
 
 static int dummy_systimer_stop(struct snd_pcm_substream *substream)
 {
 	struct dummy_systimer_pcm *dpcm = substream->runtime->private_data;
-	spin_lock(&dpcm->lock);
+
+	guard(spinlock)(&dpcm->lock);
 	timer_delete(&dpcm->timer);
-	spin_unlock(&dpcm->lock);
 	return 0;
 }
 
@@ -302,15 +303,14 @@ static int dummy_systimer_prepare(struct snd_pcm_substream *substream)
 static void dummy_systimer_callback(struct timer_list *t)
 {
 	struct dummy_systimer_pcm *dpcm = timer_container_of(dpcm, t, timer);
-	unsigned long flags;
 	int elapsed = 0;
 
-	spin_lock_irqsave(&dpcm->lock, flags);
-	dummy_systimer_update(dpcm);
-	dummy_systimer_rearm(dpcm);
-	elapsed = dpcm->elapsed;
-	dpcm->elapsed = 0;
-	spin_unlock_irqrestore(&dpcm->lock, flags);
+	scoped_guard(spinlock_irqsave, &dpcm->lock) {
+		dummy_systimer_update(dpcm);
+		dummy_systimer_rearm(dpcm);
+		elapsed = dpcm->elapsed;
+		dpcm->elapsed = 0;
+	}
 	if (elapsed)
 		snd_pcm_period_elapsed(dpcm->substream);
 }
@@ -319,13 +319,10 @@ static snd_pcm_uframes_t
 dummy_systimer_pointer(struct snd_pcm_substream *substream)
 {
 	struct dummy_systimer_pcm *dpcm = substream->runtime->private_data;
-	snd_pcm_uframes_t pos;
 
-	spin_lock(&dpcm->lock);
+	guard(spinlock)(&dpcm->lock);
 	dummy_systimer_update(dpcm);
-	pos = dpcm->frac_pos / HZ;
-	spin_unlock(&dpcm->lock);
-	return pos;
+	return dpcm->frac_pos / HZ;
 }
 
 static int dummy_systimer_create(struct snd_pcm_substream *substream)
@@ -684,7 +681,7 @@ static int snd_card_dummy_pcm(struct snd_dummy *dummy, int device,
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, ops);
 	pcm->private_data = dummy;
 	pcm->info_flags = 0;
-	strcpy(pcm->name, "Dummy PCM");
+	strscpy(pcm->name, "Dummy PCM");
 	if (!fake_buffer) {
 		snd_pcm_set_managed_buffer_all(pcm,
 			SNDRV_DMA_TYPE_CONTINUOUS,
@@ -723,10 +720,9 @@ static int snd_dummy_volume_get(struct snd_kcontrol *kcontrol,
 	struct snd_dummy *dummy = snd_kcontrol_chip(kcontrol);
 	int addr = kcontrol->private_value;
 
-	spin_lock_irq(&dummy->mixer_lock);
+	guard(spinlock_irq)(&dummy->mixer_lock);
 	ucontrol->value.integer.value[0] = dummy->mixer_volume[addr][0];
 	ucontrol->value.integer.value[1] = dummy->mixer_volume[addr][1];
-	spin_unlock_irq(&dummy->mixer_lock);
 	return 0;
 }
 
@@ -747,12 +743,11 @@ static int snd_dummy_volume_put(struct snd_kcontrol *kcontrol,
 		right = mixer_volume_level_min;
 	if (right > mixer_volume_level_max)
 		right = mixer_volume_level_max;
-	spin_lock_irq(&dummy->mixer_lock);
+	guard(spinlock_irq)(&dummy->mixer_lock);
 	change = dummy->mixer_volume[addr][0] != left ||
 	         dummy->mixer_volume[addr][1] != right;
 	dummy->mixer_volume[addr][0] = left;
 	dummy->mixer_volume[addr][1] = right;
-	spin_unlock_irq(&dummy->mixer_lock);
 	return change;
 }
 
@@ -772,10 +767,9 @@ static int snd_dummy_capsrc_get(struct snd_kcontrol *kcontrol,
 	struct snd_dummy *dummy = snd_kcontrol_chip(kcontrol);
 	int addr = kcontrol->private_value;
 
-	spin_lock_irq(&dummy->mixer_lock);
+	guard(spinlock_irq)(&dummy->mixer_lock);
 	ucontrol->value.integer.value[0] = dummy->capture_source[addr][0];
 	ucontrol->value.integer.value[1] = dummy->capture_source[addr][1];
-	spin_unlock_irq(&dummy->mixer_lock);
 	return 0;
 }
 
@@ -787,12 +781,11 @@ static int snd_dummy_capsrc_put(struct snd_kcontrol *kcontrol, struct snd_ctl_el
 
 	left = ucontrol->value.integer.value[0] & 1;
 	right = ucontrol->value.integer.value[1] & 1;
-	spin_lock_irq(&dummy->mixer_lock);
+	guard(spinlock_irq)(&dummy->mixer_lock);
 	change = dummy->capture_source[addr][0] != left &&
 	         dummy->capture_source[addr][1] != right;
 	dummy->capture_source[addr][0] = left;
 	dummy->capture_source[addr][1] = right;
-	spin_unlock_irq(&dummy->mixer_lock);
 	return change;
 }
 
@@ -875,7 +868,7 @@ static int snd_card_dummy_new_mixer(struct snd_dummy *dummy)
 	int err;
 
 	spin_lock_init(&dummy->mixer_lock);
-	strcpy(card->mixername, "Dummy Mixer");
+	strscpy(card->mixername, "Dummy Mixer");
 	dummy->iobox = 1;
 
 	for (idx = 0; idx < ARRAY_SIZE(snd_dummy_controls); idx++) {
@@ -1083,8 +1076,8 @@ static int snd_dummy_probe(struct platform_device *devptr)
 	err = snd_card_dummy_new_mixer(dummy);
 	if (err < 0)
 		return err;
-	strcpy(card->driver, "Dummy");
-	strcpy(card->shortname, "Dummy");
+	strscpy(card->driver, "Dummy");
+	strscpy(card->shortname, "Dummy");
 	sprintf(card->longname, "Dummy %i", dev + 1);
 
 	dummy_proc_init(dummy);

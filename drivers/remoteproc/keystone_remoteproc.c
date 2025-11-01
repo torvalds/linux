@@ -349,6 +349,20 @@ static int keystone_rproc_of_get_dev_syscon(struct platform_device *pdev,
 	return 0;
 }
 
+static void keystone_rproc_mem_release(void *data)
+{
+	struct device *dev = data;
+
+	of_reserved_mem_device_release(dev);
+}
+
+static void keystone_rproc_pm_runtime_put(void *data)
+{
+	struct device *dev = data;
+
+	pm_runtime_put_sync(dev);
+}
+
 static int keystone_rproc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -394,80 +408,58 @@ static int keystone_rproc_probe(struct platform_device *pdev)
 		return PTR_ERR(ksproc->reset);
 
 	/* enable clock for accessing DSP internal memories */
-	pm_runtime_enable(dev);
+	ret = devm_pm_runtime_enable(dev);
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "Failed to enable runtime PM\n");
+
 	ret = pm_runtime_resume_and_get(dev);
-	if (ret < 0) {
-		dev_err(dev, "failed to enable clock, status = %d\n", ret);
-		goto disable_rpm;
-	}
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "failed to enable clock\n");
+
+	ret = devm_add_action_or_reset(dev, keystone_rproc_pm_runtime_put, dev);
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to add disable pm devm action\n");
 
 	ret = keystone_rproc_of_get_memories(pdev, ksproc);
 	if (ret)
-		goto disable_clk;
+		return ret;
 
 	ksproc->irq_ring = platform_get_irq_byname(pdev, "vring");
-	if (ksproc->irq_ring < 0) {
-		ret = ksproc->irq_ring;
-		goto disable_clk;
-	}
+	if (ksproc->irq_ring < 0)
+		return ksproc->irq_ring;
 
 	ksproc->irq_fault = platform_get_irq_byname(pdev, "exception");
-	if (ksproc->irq_fault < 0) {
-		ret = ksproc->irq_fault;
-		goto disable_clk;
-	}
+	if (ksproc->irq_fault < 0)
+		return ksproc->irq_fault;
 
-	ksproc->kick_gpio = gpiod_get(dev, "kick", GPIOD_ASIS);
+	ksproc->kick_gpio = devm_gpiod_get(dev, "kick", GPIOD_ASIS);
 	ret = PTR_ERR_OR_ZERO(ksproc->kick_gpio);
-	if (ret) {
-		dev_err(dev, "failed to get gpio for virtio kicks, status = %d\n",
-			ret);
-		goto disable_clk;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to get gpio for virtio kicks\n");
 
-	if (of_reserved_mem_device_init(dev))
+	ret = of_reserved_mem_device_init(dev);
+	if (ret) {
 		dev_warn(dev, "device does not have specific CMA pool\n");
+	} else {
+		ret = devm_add_action_or_reset(dev, keystone_rproc_mem_release, dev);
+		if (ret)
+			return ret;
+	}
 
 	/* ensure the DSP is in reset before loading firmware */
 	ret = reset_control_status(ksproc->reset);
 	if (ret < 0) {
-		dev_err(dev, "failed to get reset status, status = %d\n", ret);
-		goto release_mem;
+		return dev_err_probe(dev, ret, "failed to get reset status\n");
 	} else if (ret == 0) {
 		WARN(1, "device is not in reset\n");
 		keystone_rproc_dsp_reset(ksproc);
 	}
 
-	ret = rproc_add(rproc);
-	if (ret) {
-		dev_err(dev, "failed to add register device with remoteproc core, status = %d\n",
-			ret);
-		goto release_mem;
-	}
-
-	platform_set_drvdata(pdev, ksproc);
+	ret = devm_rproc_add(dev, rproc);
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to register device with remoteproc core\n");
 
 	return 0;
-
-release_mem:
-	of_reserved_mem_device_release(dev);
-	gpiod_put(ksproc->kick_gpio);
-disable_clk:
-	pm_runtime_put_sync(dev);
-disable_rpm:
-	pm_runtime_disable(dev);
-	return ret;
-}
-
-static void keystone_rproc_remove(struct platform_device *pdev)
-{
-	struct keystone_rproc *ksproc = platform_get_drvdata(pdev);
-
-	rproc_del(ksproc->rproc);
-	gpiod_put(ksproc->kick_gpio);
-	pm_runtime_put_sync(&pdev->dev);
-	pm_runtime_disable(&pdev->dev);
-	of_reserved_mem_device_release(&pdev->dev);
 }
 
 static const struct of_device_id keystone_rproc_of_match[] = {
@@ -481,7 +473,6 @@ MODULE_DEVICE_TABLE(of, keystone_rproc_of_match);
 
 static struct platform_driver keystone_rproc_driver = {
 	.probe	= keystone_rproc_probe,
-	.remove = keystone_rproc_remove,
 	.driver	= {
 		.name = "keystone-rproc",
 		.of_match_table = keystone_rproc_of_match,

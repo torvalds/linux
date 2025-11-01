@@ -5,6 +5,7 @@
 #include "defs.h"
 #include "type.h"
 #include "protos.h"
+#include "virtchnl.h"
 
 /**
  * irdma_find_sd_index_limit - finds segment descriptor index limit
@@ -228,6 +229,10 @@ int irdma_sc_create_hmc_obj(struct irdma_sc_dev *dev,
 	bool pd_error = false;
 	int ret_code = 0;
 
+	if (dev->hw_attrs.uk_attrs.hw_rev >= IRDMA_GEN_3 &&
+	    dev->hmc_info->hmc_obj[info->rsrc_type].mem_loc == IRDMA_LOC_MEM)
+		return 0;
+
 	if (info->start_idx >= info->hmc_info->hmc_obj[info->rsrc_type].cnt)
 		return -EINVAL;
 
@@ -330,7 +335,7 @@ static int irdma_finish_del_sd_reg(struct irdma_sc_dev *dev,
 	u32 i, sd_idx;
 	struct irdma_dma_mem *mem;
 
-	if (!reset)
+	if (dev->privileged && !reset)
 		ret_code = irdma_hmc_sd_grp(dev, info->hmc_info,
 					    info->hmc_info->sd_indexes[0],
 					    info->del_sd_cnt, false);
@@ -375,6 +380,9 @@ int irdma_sc_del_hmc_obj(struct irdma_sc_dev *dev,
 	u32 pd_idx, pd_lmt, rel_pd_idx;
 	u32 i, j;
 	int ret_code = 0;
+
+	if (dev->hmc_info->hmc_obj[info->rsrc_type].mem_loc == IRDMA_LOC_MEM)
+		return 0;
 
 	if (info->start_idx >= info->hmc_info->hmc_obj[info->rsrc_type].cnt) {
 		ibdev_dbg(to_ibdev(dev),
@@ -589,7 +597,10 @@ int irdma_add_pd_table_entry(struct irdma_sc_dev *dev,
 		pd_entry->sd_index = sd_idx;
 		pd_entry->valid = true;
 		pd_table->use_cnt++;
-		irdma_invalidate_pf_hmc_pd(dev, sd_idx, rel_pd_idx);
+
+		if (hmc_info->hmc_fn_id < dev->hw_attrs.first_hw_vf_fpm_id &&
+		    dev->privileged)
+			irdma_invalidate_pf_hmc_pd(dev, sd_idx, rel_pd_idx);
 	}
 	pd_entry->bp.use_cnt++;
 
@@ -640,7 +651,8 @@ int irdma_remove_pd_bp(struct irdma_sc_dev *dev,
 	pd_addr = pd_table->pd_page_addr.va;
 	pd_addr += rel_pd_idx;
 	memset(pd_addr, 0, sizeof(u64));
-	irdma_invalidate_pf_hmc_pd(dev, sd_idx, idx);
+	if (dev->privileged && dev->hmc_fn_id == hmc_info->hmc_fn_id)
+		irdma_invalidate_pf_hmc_pd(dev, sd_idx, idx);
 
 	if (!pd_entry->rsrc_pg) {
 		mem = &pd_entry->bp.addr;

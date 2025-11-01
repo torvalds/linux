@@ -24,6 +24,14 @@ properties:
   reg:
     maxItems: 1
 
+  interrupts:
+    maxItems: 2
+
+  interrupt-names:
+    items:
+      - const: error_irq
+      - const: irq
+
   clocks:
     items:
       - description: CSI2Rx system clock

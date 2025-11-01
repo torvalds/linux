@@ -157,15 +157,14 @@ static void read_status_messages(struct amdtp_stream *s,
 			if ((before ^ after) & mask) {
 				struct snd_firewire_tascam_change *entry =
 						&tscm->queue[tscm->push_pos];
-				unsigned long flag;
 
-				spin_lock_irqsave(&tscm->lock, flag);
-				entry->index = index;
-				entry->before = before;
-				entry->after = after;
-				if (++tscm->push_pos >= SND_TSCM_QUEUE_COUNT)
-					tscm->push_pos = 0;
-				spin_unlock_irqrestore(&tscm->lock, flag);
+				scoped_guard(spinlock_irqsave, &tscm->lock) {
+					entry->index = index;
+					entry->before = before;
+					entry->after = after;
+					if (++tscm->push_pos >= SND_TSCM_QUEUE_COUNT)
+						tscm->push_pos = 0;
+				}
 
 				wake_up(&tscm->hwdep_wait);
 			}

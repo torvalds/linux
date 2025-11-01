@@ -2,14 +2,14 @@
 
 #include <linux/pci.h>
 
-void rust_helper_pci_set_drvdata(struct pci_dev *pdev, void *data)
+u16 rust_helper_pci_dev_id(struct pci_dev *dev)
 {
-	pci_set_drvdata(pdev, data);
+	return PCI_DEVID(dev->bus->number, dev->devfn);
 }
 
-void *rust_helper_pci_get_drvdata(struct pci_dev *pdev)
+resource_size_t rust_helper_pci_resource_start(struct pci_dev *pdev, int bar)
 {
-	return pci_get_drvdata(pdev);
+	return pci_resource_start(pdev, bar);
 }
 
 resource_size_t rust_helper_pci_resource_len(struct pci_dev *pdev, int bar)
@@ -21,3 +21,11 @@ bool rust_helper_dev_is_pci(const struct device *dev)
 {
 	return dev_is_pci(dev);
 }
+
+#ifndef CONFIG_PCI_MSI
+int rust_helper_pci_irq_vector(struct pci_dev *pdev, unsigned int nvec)
+{
+	return pci_irq_vector(pdev, nvec);
+}
+
+#endif

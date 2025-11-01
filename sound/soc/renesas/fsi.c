@@ -343,14 +343,9 @@ static void __fsi_reg_mask_set(u32 __iomem *reg, u32 mask, u32 data)
 #define fsi_core_read(p, r)   _fsi_master_read(p, p->core->r)
 static u32 _fsi_master_read(struct fsi_master *master, u32 reg)
 {
-	u32 ret;
-	unsigned long flags;
+	guard(spinlock_irqsave)(&master->lock);
 
-	spin_lock_irqsave(&master->lock, flags);
-	ret = __fsi_reg_read(master->base + reg);
-	spin_unlock_irqrestore(&master->lock, flags);
-
-	return ret;
+	return __fsi_reg_read(master->base + reg);
 }
 
 #define fsi_master_mask_set(p, r, m, d) _fsi_master_mask_set(p, MST_##r, m, d)
@@ -358,11 +353,9 @@ static u32 _fsi_master_read(struct fsi_master *master, u32 reg)
 static void _fsi_master_mask_set(struct fsi_master *master,
 			       u32 reg, u32 mask, u32 data)
 {
-	unsigned long flags;
+	guard(spinlock_irqsave)(&master->lock);
 
-	spin_lock_irqsave(&master->lock, flags);
 	__fsi_reg_mask_set(master->base + reg, mask, data);
-	spin_unlock_irqrestore(&master->lock, flags);
 }
 
 /*
@@ -499,14 +492,10 @@ static int fsi_stream_is_working(struct fsi_priv *fsi,
 				 struct fsi_stream *io)
 {
 	struct fsi_master *master = fsi_get_master(fsi);
-	unsigned long flags;
-	int ret;
 
-	spin_lock_irqsave(&master->lock, flags);
-	ret = !!(io->substream && io->substream->runtime);
-	spin_unlock_irqrestore(&master->lock, flags);
+	guard(spinlock_irqsave)(&master->lock);
 
-	return ret;
+	return !!(io->substream && io->substream->runtime);
 }
 
 static struct fsi_priv *fsi_stream_to_priv(struct fsi_stream *io)
@@ -520,9 +509,9 @@ static void fsi_stream_init(struct fsi_priv *fsi,
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct fsi_master *master = fsi_get_master(fsi);
-	unsigned long flags;
 
-	spin_lock_irqsave(&master->lock, flags);
+	guard(spinlock_irqsave)(&master->lock);
+
 	io->substream	= substream;
 	io->buff_sample_capa	= fsi_frame2sample(fsi, runtime->buffer_size);
 	io->buff_sample_pos	= 0;
@@ -533,16 +522,14 @@ static void fsi_stream_init(struct fsi_priv *fsi,
 	io->oerr_num	= -1; /* ignore 1st err */
 	io->uerr_num	= -1; /* ignore 1st err */
 	fsi_stream_handler_call(io, init, fsi, io);
-	spin_unlock_irqrestore(&master->lock, flags);
 }
 
 static void fsi_stream_quit(struct fsi_priv *fsi, struct fsi_stream *io)
 {
 	struct snd_soc_dai *dai = fsi_get_dai(io->substream);
 	struct fsi_master *master = fsi_get_master(fsi);
-	unsigned long flags;
 
-	spin_lock_irqsave(&master->lock, flags);
+	guard(spinlock_irqsave)(&master->lock);
 
 	if (io->oerr_num > 0)
 		dev_err(dai->dev, "over_run = %d\n", io->oerr_num);
@@ -560,7 +547,6 @@ static void fsi_stream_quit(struct fsi_priv *fsi, struct fsi_stream *io)
 	io->bus_option		= 0;
 	io->oerr_num	= 0;
 	io->uerr_num	= 0;
-	spin_unlock_irqrestore(&master->lock, flags);
 }
 
 static int fsi_stream_transfer(struct fsi_stream *io)

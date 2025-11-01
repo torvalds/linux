@@ -25,7 +25,7 @@ static int verify_sha256_digest(void)
 {
 	struct kexec_sha_region *ptr, *end;
 	u8 digest[SHA256_DIGEST_SIZE];
-	struct sha256_state sctx;
+	struct sha256_ctx sctx;
 
 	sha256_init(&sctx);
 	end = purgatory_sha_regions + ARRAY_SIZE(purgatory_sha_regions);

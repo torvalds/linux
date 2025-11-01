@@ -98,7 +98,7 @@ static int snd_card_ad1816a_pnp(int dev, struct pnp_card_link *card,
 	pdev = pnp_request_card_device(card, id->devs[1].id, NULL);
 	if (pdev == NULL) {
 		mpu_port[dev] = -1;
-		dev_warn(&pdev->dev, "MPU401 device busy, skipping.\n");
+		pr_warn("MPU401 device busy, skipping.\n");
 		return 0;
 	}
 
@@ -143,8 +143,8 @@ static int snd_card_ad1816a_probe(int dev, struct pnp_card_link *pcard,
 	if (clockfreq[dev] >= 5000 && clockfreq[dev] <= 100000)
 		chip->clock_freq = clockfreq[dev];
 
-	strcpy(card->driver, "AD1816A");
-	strcpy(card->shortname, "ADI SoundPort AD1816A");
+	strscpy(card->driver, "AD1816A");
+	strscpy(card->shortname, "ADI SoundPort AD1816A");
 	sprintf(card->longname, "%s, SS at 0x%lx, irq %d, dma %d&%d",
 		card->shortname, chip->port, irq[dev], dma1[dev], dma2[dev]);
 

@@ -210,6 +210,11 @@ struct slpc_shared_data {
 	u8 reserved_mode_definition[4096];
 } __packed;
 
+enum slpc_power_profile {
+	SLPC_POWER_PROFILE_BASE = 0x0,
+	SLPC_POWER_PROFILE_POWER_SAVING = 0x1
+};
+
 /**
  * DOC: SLPC H2G MESSAGE FORMAT
  *

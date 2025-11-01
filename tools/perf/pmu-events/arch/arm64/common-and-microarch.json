@@ -1833,5 +1833,75 @@
         "EventCode": "0x8324",
         "EventName": "L1I_CACHE_REFILL_PERCYC",
         "BriefDescription": "Level 1 instruction or unified cache refills in progress."
+    },
+    {
+        "EventCode": "0x8431",
+        "EventName": "ASE_FP_VREDUCE_SPEC",
+        "BriefDescription": "Floating-point operation_speculatively_executed, Advanced SIMD pairwise or reduction."
+    },
+    {
+        "EventCode": "0x8432",
+        "EventName": "SVE_FP_PREDUCE_SPEC",
+        "BriefDescription": "Floating-point operation_speculatively_executed, Advanced SIMD pairwise add step or pairwise reduce step."
+    },
+    {
+        "EventCode": "0x8443",
+        "EventName": "ASE_FP_BF16_MIN_SPEC",
+        "BriefDescription": "Advanced SIMD data processing operation speculatively_executed, smallest type is BFloat16 floating-point."
+    },
+    {
+        "EventCode": "0x8444",
+        "EventName": "ASE_FP_FP8_MIN_SPEC",
+        "BriefDescription": "Advanced SIMD data processing operation speculatively_executed, smallest type is 8-bit floating-point."
+    },
+    {
+        "EventCode": "0x844B",
+        "EventName": "ASE_SVE_FP_BF16_MIN_SPEC",
+        "BriefDescription": "Advanced SIMD data processing or SVE data processing operation speculatively_executed, smallest type is BFloat16 floating-point."
+    },
+    {
+        "EventCode": "0x844C",
+        "EventName": "ASE_SVE_FP_FP8_MIN_SPEC",
+        "BriefDescription": "Advanced SIMD data processing or SVE data processing operation speculatively_executed, smallest type is 8-bit floating-point."
+    },
+    {
+        "EventCode": "0x8463",
+        "EventName": "SVE_FP_BF16_MIN_SPEC",
+        "BriefDescription": "SVE data processing operation speculatively_executed, smallest type is BFloat16 floating-point."
+    },
+    {
+        "EventCode": "0x8464",
+        "EventName": "SVE_FP_FP8_MIN_SPEC",
+        "BriefDescription": "SVE data processing operation speculatively_executed, smallest type is 8-bit floating-point."
+    },
+    {
+        "EventCode": "0x8473",
+        "EventName": "FP_BF16_MIN_SPEC",
+        "BriefDescription": "Floating-point operation speculatively_executed, smallest type is BFloat16 floating-point."
+    },
+    {
+        "EventCode": "0x8474",
+        "EventName": "FP_FP8_MIN_SPEC",
+        "BriefDescription": "Floating-point operation speculatively_executed, smallest type is 8-bit floating-point."
+    },
+    {
+        "EventCode": "0x8483",
+        "EventName": "FP_BF16_FIXED_MIN_OPS_SPEC",
+        "BriefDescription": "Non-scalable element arithmetic operations speculatively executed, smallest type is BFloat16 floating-point."
+    },
+    {
+        "EventCode": "0x8484",
+        "EventName": "FP_FP8_FIXED_MIN_OPS_SPEC",
+        "BriefDescription": "Non-scalable element arithmetic operations speculatively executed, smallest type is 8-bit floating-point."
+    },
+    {
+        "EventCode": "0x848B",
+        "EventName": "FP_BF16_SCALE_MIN_OPS_SPEC",
+        "BriefDescription": "Scalable element arithmetic operations speculatively executed, smallest type is BFloat16 floating-point."
+    },
+    {
+        "EventCode": "0x848C",
+        "EventName": "FP_FP8_SCALE_MIN_OPS_SPEC",
+        "BriefDescription": "Scalable element arithmetic operations speculatively executed, smallest type is 8-bit floating-point."
     }
 ]

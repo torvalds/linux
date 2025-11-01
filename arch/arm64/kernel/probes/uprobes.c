@@ -6,6 +6,7 @@
 #include <linux/ptrace.h>
 #include <linux/uprobes.h>
 #include <asm/cacheflush.h>
+#include <asm/gcs.h>
 
 #include "decode-insn.h"
 
@@ -159,11 +160,43 @@ arch_uretprobe_hijack_return_addr(unsigned long trampoline_vaddr,
 				  struct pt_regs *regs)
 {
 	unsigned long orig_ret_vaddr;
+	unsigned long gcs_ret_vaddr;
+	int err = 0;
+	u64 gcspr;
 
 	orig_ret_vaddr = procedure_link_pointer(regs);
+
+	if (task_gcs_el0_enabled(current)) {
+		gcspr = read_sysreg_s(SYS_GCSPR_EL0);
+		gcs_ret_vaddr = get_user_gcs((__force unsigned long __user *)gcspr, &err);
+		if (err) {
+			force_sig(SIGSEGV);
+			goto out;
+		}
+
+		/*
+		 * If the LR and GCS return addr don't match, then some kind of PAC
+		 * signing or control flow occurred since entering the probed function.
+		 * Likely because the user is attempting to retprobe on an instruction
+		 * that isn't a function boundary or inside a leaf function. Explicitly
+		 * abort this retprobe because it will generate a GCS exception.
+		 */
+		if (gcs_ret_vaddr != orig_ret_vaddr) {
+			orig_ret_vaddr = -1;
+			goto out;
+		}
+
+		put_user_gcs(trampoline_vaddr, (__force unsigned long __user *)gcspr, &err);
+		if (err) {
+			force_sig(SIGSEGV);
+			goto out;
+		}
+	}
+
 	/* Replace the return addr with trampoline addr */
 	procedure_link_pointer_set(regs, trampoline_vaddr);
 
+out:
 	return orig_ret_vaddr;
 }
 
@@ -173,7 +206,7 @@ int arch_uprobe_exception_notify(struct notifier_block *self,
 	return NOTIFY_DONE;
 }
 
-static int uprobe_breakpoint_handler(struct pt_regs *regs,
+int uprobe_brk_handler(struct pt_regs *regs,
 				     unsigned long esr)
 {
 	if (uprobe_pre_sstep_notifier(regs))
@@ -182,7 +215,7 @@ static int uprobe_breakpoint_handler(struct pt_regs *regs,
 	return DBG_HOOK_ERROR;
 }
 
-static int uprobe_single_step_handler(struct pt_regs *regs,
+int uprobe_single_step_handler(struct pt_regs *regs,
 				      unsigned long esr)
 {
 	struct uprobe_task *utask = current->utask;
@@ -194,23 +227,3 @@ static int uprobe_single_step_handler(struct pt_regs *regs,
 	return DBG_HOOK_ERROR;
 }
 
-/* uprobe breakpoint handler hook */
-static struct break_hook uprobes_break_hook = {
-	.imm = UPROBES_BRK_IMM,
-	.fn = uprobe_breakpoint_handler,
-};
-
-/* uprobe single step handler hook */
-static struct step_hook uprobes_step_hook = {
-	.fn = uprobe_single_step_handler,
-};
-
-static int __init arch_init_uprobes(void)
-{
-	register_user_break_hook(&uprobes_break_hook);
-	register_user_step_hook(&uprobes_step_hook);
-
-	return 0;
-}
-
-device_initcall(arch_init_uprobes);

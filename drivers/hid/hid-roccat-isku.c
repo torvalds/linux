@@ -181,8 +181,8 @@ ISKU_SYSFS_RW(thingy, THINGY); \
 static const struct bin_attribute bin_attr_##thingy = { \
 	.attr = { .name = #thingy, .mode = 0660 }, \
 	.size = ISKU_SIZE_ ## THINGY, \
-	.read_new = isku_sysfs_read_ ## thingy, \
-	.write_new = isku_sysfs_write_ ## thingy \
+	.read = isku_sysfs_read_ ## thingy, \
+	.write = isku_sysfs_write_ ## thingy \
 }
 
 #define ISKU_BIN_ATTR_R(thingy, THINGY) \
@@ -190,7 +190,7 @@ ISKU_SYSFS_R(thingy, THINGY); \
 static const struct bin_attribute bin_attr_##thingy = { \
 	.attr = { .name = #thingy, .mode = 0440 }, \
 	.size = ISKU_SIZE_ ## THINGY, \
-	.read_new = isku_sysfs_read_ ## thingy, \
+	.read = isku_sysfs_read_ ## thingy, \
 }
 
 #define ISKU_BIN_ATTR_W(thingy, THINGY) \
@@ -198,7 +198,7 @@ ISKU_SYSFS_W(thingy, THINGY); \
 static const struct bin_attribute bin_attr_##thingy = { \
 	.attr = { .name = #thingy, .mode = 0220 }, \
 	.size = ISKU_SIZE_ ## THINGY, \
-	.write_new = isku_sysfs_write_ ## thingy \
+	.write = isku_sysfs_write_ ## thingy \
 }
 
 ISKU_BIN_ATTR_RW(macro, MACRO);
@@ -238,7 +238,7 @@ static const struct bin_attribute *const isku_bin_attributes[] = {
 
 static const struct attribute_group isku_group = {
 	.attrs = isku_attrs,
-	.bin_attrs_new = isku_bin_attributes,
+	.bin_attrs = isku_bin_attributes,
 };
 
 static const struct attribute_group *isku_groups[] = {

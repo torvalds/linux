@@ -19,91 +19,7 @@
 #include "xe_gt_sriov_pf_service_types.h"
 #include "xe_guc_ct.h"
 #include "xe_guc_hxg_helpers.h"
-
-static void pf_init_versions(struct xe_gt *gt)
-{
-	BUILD_BUG_ON(!GUC_RELAY_VERSION_BASE_MAJOR && !GUC_RELAY_VERSION_BASE_MINOR);
-	BUILD_BUG_ON(GUC_RELAY_VERSION_BASE_MAJOR > GUC_RELAY_VERSION_LATEST_MAJOR);
-
-	/* base versions may differ between platforms */
-	gt->sriov.pf.service.version.base.major = GUC_RELAY_VERSION_BASE_MAJOR;
-	gt->sriov.pf.service.version.base.minor = GUC_RELAY_VERSION_BASE_MINOR;
-
-	/* latest version is same for all platforms */
-	gt->sriov.pf.service.version.latest.major = GUC_RELAY_VERSION_LATEST_MAJOR;
-	gt->sriov.pf.service.version.latest.minor = GUC_RELAY_VERSION_LATEST_MINOR;
-}
-
-/* Return: 0 on success or a negative error code on failure. */
-static int pf_negotiate_version(struct xe_gt *gt,
-				u32 wanted_major, u32 wanted_minor,
-				u32 *major, u32 *minor)
-{
-	struct xe_gt_sriov_pf_service_version base = gt->sriov.pf.service.version.base;
-	struct xe_gt_sriov_pf_service_version latest = gt->sriov.pf.service.version.latest;
-
-	xe_gt_assert(gt, base.major);
-	xe_gt_assert(gt, base.major <= latest.major);
-	xe_gt_assert(gt, (base.major < latest.major) || (base.minor <= latest.minor));
-
-	/* VF doesn't care - return our latest  */
-	if (wanted_major == VF2PF_HANDSHAKE_MAJOR_ANY &&
-	    wanted_minor == VF2PF_HANDSHAKE_MINOR_ANY) {
-		*major = latest.major;
-		*minor = latest.minor;
-		return 0;
-	}
-
-	/* VF wants newer than our - return our latest  */
-	if (wanted_major > latest.major) {
-		*major = latest.major;
-		*minor = latest.minor;
-		return 0;
-	}
-
-	/* VF wants older than min required - reject */
-	if (wanted_major < base.major ||
-	    (wanted_major == base.major && wanted_minor < base.minor)) {
-		return -EPERM;
-	}
-
-	/* previous major - return wanted, as we should still support it */
-	if (wanted_major < latest.major) {
-		/* XXX: we are not prepared for multi-versions yet */
-		xe_gt_assert(gt, base.major == latest.major);
-		return -ENOPKG;
-	}
-
-	/* same major - return common minor */
-	*major = wanted_major;
-	*minor = min_t(u32, latest.minor, wanted_minor);
-	return 0;
-}
-
-static void pf_connect(struct xe_gt *gt, u32 vfid, u32 major, u32 minor)
-{
-	xe_gt_sriov_pf_assert_vfid(gt, vfid);
-	xe_gt_assert(gt, major || minor);
-
-	gt->sriov.pf.vfs[vfid].version.major = major;
-	gt->sriov.pf.vfs[vfid].version.minor = minor;
-}
-
-static void pf_disconnect(struct xe_gt *gt, u32 vfid)
-{
-	xe_gt_sriov_pf_assert_vfid(gt, vfid);
-
-	gt->sriov.pf.vfs[vfid].version.major = 0;
-	gt->sriov.pf.vfs[vfid].version.minor = 0;
-}
-
-static bool pf_is_negotiated(struct xe_gt *gt, u32 vfid, u32 major, u32 minor)
-{
-	xe_gt_sriov_pf_assert_vfid(gt, vfid);
-
-	return major == gt->sriov.pf.vfs[vfid].version.major &&
-	       minor <= gt->sriov.pf.vfs[vfid].version.minor;
-}
+#include "xe_sriov_pf_service.h"
 
 static const struct xe_reg tgl_runtime_regs[] = {
 	RPM_CONFIG0,			/* _MMIO(0x0d00) */
@@ -266,7 +182,7 @@ static void pf_prepare_runtime_info(struct xe_gt *gt)
 	read_many(gt, size, regs, values);
 
 	if (IS_ENABLED(CONFIG_DRM_XE_DEBUG_SRIOV)) {
-		struct drm_printer p = xe_gt_info_printer(gt);
+		struct drm_printer p = xe_gt_dbg_printer(gt);
 
 		xe_gt_sriov_pf_service_print_runtime(gt, &p);
 	}
@@ -284,8 +200,6 @@ static void pf_prepare_runtime_info(struct xe_gt *gt)
 int xe_gt_sriov_pf_service_init(struct xe_gt *gt)
 {
 	int err;
-
-	pf_init_versions(gt);
 
 	err = pf_alloc_runtime_info(gt);
 	if (unlikely(err))
@@ -311,47 +225,6 @@ void xe_gt_sriov_pf_service_update(struct xe_gt *gt)
 	pf_prepare_runtime_info(gt);
 }
 
-/**
- * xe_gt_sriov_pf_service_reset - Reset a connection with the VF.
- * @gt: the &xe_gt
- * @vfid: the VF identifier
- *
- * Reset a VF driver negotiated VF/PF ABI version.
- * After that point, the VF driver will have to perform new version handshake
- * to continue use of the PF services again.
- *
- * This function can only be called on PF.
- */
-void xe_gt_sriov_pf_service_reset(struct xe_gt *gt, unsigned int vfid)
-{
-	pf_disconnect(gt, vfid);
-}
-
-/* Return: 0 on success or a negative error code on failure. */
-static int pf_process_handshake(struct xe_gt *gt, u32 vfid,
-				u32 wanted_major, u32 wanted_minor,
-				u32 *major, u32 *minor)
-{
-	int err;
-
-	xe_gt_sriov_dbg_verbose(gt, "VF%u wants ABI version %u.%u\n",
-				vfid, wanted_major, wanted_minor);
-
-	err = pf_negotiate_version(gt, wanted_major, wanted_minor, major, minor);
-
-	if (err < 0) {
-		xe_gt_sriov_notice(gt, "VF%u failed to negotiate ABI %u.%u (%pe)\n",
-				   vfid, wanted_major, wanted_minor, ERR_PTR(err));
-		pf_disconnect(gt, vfid);
-	} else {
-		xe_gt_sriov_dbg(gt, "VF%u negotiated ABI version %u.%u\n",
-				vfid, *major, *minor);
-		pf_connect(gt, vfid, *major, *minor);
-	}
-
-	return 0;
-}
-
 /* Return: length of the response message or a negative error code on failure. */
 static int pf_process_handshake_msg(struct xe_gt *gt, u32 origin,
 				    const u32 *request, u32 len, u32 *response, u32 size)
@@ -371,7 +244,8 @@ static int pf_process_handshake_msg(struct xe_gt *gt, u32 origin,
 	wanted_major = FIELD_GET(VF2PF_HANDSHAKE_REQUEST_MSG_1_MAJOR, request[1]);
 	wanted_minor = FIELD_GET(VF2PF_HANDSHAKE_REQUEST_MSG_1_MINOR, request[1]);
 
-	err = pf_process_handshake(gt, origin, wanted_major, wanted_minor, &major, &minor);
+	err = xe_sriov_pf_service_handshake_vf(gt_to_xe(gt), origin, wanted_major, wanted_minor,
+					       &major, &minor);
 	if (err < 0)
 		return err;
 
@@ -430,8 +304,10 @@ static int pf_process_runtime_query_msg(struct xe_gt *gt, u32 origin,
 	u32 remaining = 0;
 	int ret;
 
-	if (!pf_is_negotiated(gt, origin, 1, 0))
+	/* this action is available from ABI 1.0 */
+	if (!xe_sriov_pf_service_is_negotiated(gt_to_xe(gt), origin, 1, 0))
 		return -EACCES;
+
 	if (unlikely(msg_len > VF2PF_QUERY_RUNTIME_REQUEST_MSG_LEN))
 		return -EMSGSIZE;
 	if (unlikely(msg_len < VF2PF_QUERY_RUNTIME_REQUEST_MSG_LEN))
@@ -528,33 +404,3 @@ int xe_gt_sriov_pf_service_print_runtime(struct xe_gt *gt, struct drm_printer *p
 
 	return 0;
 }
-
-/**
- * xe_gt_sriov_pf_service_print_version - Print ABI versions negotiated with VFs.
- * @gt: the &xe_gt
- * @p: the &drm_printer
- *
- * This function is for PF use only.
- */
-int xe_gt_sriov_pf_service_print_version(struct xe_gt *gt, struct drm_printer *p)
-{
-	struct xe_device *xe = gt_to_xe(gt);
-	unsigned int n, total_vfs = xe_sriov_pf_get_totalvfs(xe);
-	struct xe_gt_sriov_pf_service_version *version;
-
-	xe_gt_assert(gt, IS_SRIOV_PF(xe));
-
-	for (n = 1; n <= total_vfs; n++) {
-		version = &gt->sriov.pf.vfs[n].version;
-		if (!version->major && !version->minor)
-			continue;
-
-		drm_printf(p, "VF%u:\t%u.%u\n", n, version->major, version->minor);
-	}
-
-	return 0;
-}
-
-#if IS_BUILTIN(CONFIG_DRM_XE_KUNIT_TEST)
-#include "tests/xe_gt_sriov_pf_service_test.c"
-#endif

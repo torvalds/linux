@@ -16,10 +16,10 @@
  *   good time to allocate memory and send ADD_ADDR if needed. Depending on the
  *   traffic-patterns it can take a long time until the MPTCP_EVENT_ESTABLISHED
  *   is sent. Attributes: token, family, saddr4 | saddr6, daddr4 | daddr6,
- *   sport, dport, server-side.
+ *   sport, dport, [server-side], [flags].
  * @MPTCP_EVENT_ESTABLISHED: A MPTCP connection is established (can start new
  *   subflows). Attributes: token, family, saddr4 | saddr6, daddr4 | daddr6,
- *   sport, dport, server-side.
+ *   sport, dport, [server-side], [flags].
  * @MPTCP_EVENT_CLOSED: A MPTCP connection has stopped. Attribute: token.
  * @MPTCP_EVENT_ANNOUNCED: A new address has been announced by the peer.
  *   Attributes: token, rem_id, family, daddr4 | daddr6 [, dport].
@@ -27,14 +27,14 @@
  *   token, rem_id.
  * @MPTCP_EVENT_SUB_ESTABLISHED: A new subflow has been established. 'error'
  *   should not be set. Attributes: token, family, loc_id, rem_id, saddr4 |
- *   saddr6, daddr4 | daddr6, sport, dport, backup, if_idx [, error].
+ *   saddr6, daddr4 | daddr6, sport, dport, backup, if-idx [, error].
  * @MPTCP_EVENT_SUB_CLOSED: A subflow has been closed. An error (copy of
  *   sk_err) could be set if an error has been detected for this subflow.
  *   Attributes: token, family, loc_id, rem_id, saddr4 | saddr6, daddr4 |
- *   daddr6, sport, dport, backup, if_idx [, error].
+ *   daddr6, sport, dport, backup, if-idx [, error].
  * @MPTCP_EVENT_SUB_PRIORITY: The priority of a subflow has changed. 'error'
  *   should not be set. Attributes: token, family, loc_id, rem_id, saddr4 |
- *   saddr6, daddr4 | daddr6, sport, dport, backup, if_idx [, error].
+ *   saddr6, daddr4 | daddr6, sport, dport, backup, if-idx [, error].
  * @MPTCP_EVENT_LISTENER_CREATED: A new PM listener is created. Attributes:
  *   family, sport, saddr4 | saddr6.
  * @MPTCP_EVENT_LISTENER_CLOSED: A PM listener is closed. Attributes: family,

@@ -2040,11 +2040,12 @@ static int mtip_hw_ioctl(struct driver_data *dd, unsigned int cmd,
  * @dir      Direction (read or write)
  *
  * return value
- *	None
+ *	0	The IO completed successfully.
+ *	-ENOMEM	The DMA mapping failed.
  */
-static void mtip_hw_submit_io(struct driver_data *dd, struct request *rq,
-			      struct mtip_cmd *command,
-			      struct blk_mq_hw_ctx *hctx)
+static int mtip_hw_submit_io(struct driver_data *dd, struct request *rq,
+			     struct mtip_cmd *command,
+			     struct blk_mq_hw_ctx *hctx)
 {
 	struct mtip_cmd_hdr *hdr =
 		dd->port->command_list + sizeof(struct mtip_cmd_hdr) * rq->tag;
@@ -2056,12 +2057,14 @@ static void mtip_hw_submit_io(struct driver_data *dd, struct request *rq,
 	unsigned int nents;
 
 	/* Map the scatter list for DMA access */
-	nents = blk_rq_map_sg(rq, command->sg);
-	nents = dma_map_sg(&dd->pdev->dev, command->sg, nents, dma_dir);
+	command->scatter_ents = blk_rq_map_sg(rq, command->sg);
+	nents = dma_map_sg(&dd->pdev->dev, command->sg,
+			   command->scatter_ents, dma_dir);
+	if (!nents)
+		return -ENOMEM;
+
 
 	prefetch(&port->flags);
-
-	command->scatter_ents = nents;
 
 	/*
 	 * The number of retries for this command before it is
@@ -2112,11 +2115,13 @@ static void mtip_hw_submit_io(struct driver_data *dd, struct request *rq,
 	if (unlikely(port->flags & MTIP_PF_PAUSE_IO)) {
 		set_bit(rq->tag, port->cmds_to_issue);
 		set_bit(MTIP_PF_ISSUE_CMDS_BIT, &port->flags);
-		return;
+		return 0;
 	}
 
 	/* Issue the command to the hardware */
 	mtip_issue_ncq_command(port, rq->tag);
+
+	return 0;
 }
 
 /*
@@ -3143,17 +3148,17 @@ static int mtip_block_compat_ioctl(struct block_device *dev,
  * that each partition is also 4KB aligned. Non-aligned partitions adversely
  * affects performance.
  *
- * @dev Pointer to the block_device strucutre.
+ * @disk Pointer to the gendisk strucutre.
  * @geo Pointer to a hd_geometry structure.
  *
  * return value
  *	0       Operation completed successfully.
  *	-ENOTTY An error occurred while reading the drive capacity.
  */
-static int mtip_block_getgeo(struct block_device *dev,
+static int mtip_block_getgeo(struct gendisk *disk,
 				struct hd_geometry *geo)
 {
-	struct driver_data *dd = dev->bd_disk->private_data;
+	struct driver_data *dd = disk->private_data;
 	sector_t capacity;
 
 	if (!dd)
@@ -3315,7 +3320,9 @@ static blk_status_t mtip_queue_rq(struct blk_mq_hw_ctx *hctx,
 
 	blk_mq_start_request(rq);
 
-	mtip_hw_submit_io(dd, rq, cmd, hctx);
+	if (mtip_hw_submit_io(dd, rq, cmd, hctx))
+		return BLK_STS_IOERR;
+
 	return BLK_STS_OK;
 }
 

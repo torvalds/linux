@@ -12,7 +12,7 @@
 #include <asm/feature-fixups.h>
 #include <asm/extable.h>
 
-#ifdef __ASSEMBLY__
+#ifdef __ASSEMBLER__
 
 #define SZL			(BITS_PER_LONG/8)
 
@@ -183,7 +183,7 @@
 /*
  * Used to name C functions called from asm
  */
-#ifdef CONFIG_PPC_KERNEL_PCREL
+#if defined(__powerpc64__) && defined(CONFIG_PPC_KERNEL_PCREL)
 #define CFUNC(name) name@notoc
 #else
 #define CFUNC(name) name
@@ -868,7 +868,7 @@ END_FTR_SECTION_NESTED(CPU_FTR_CELL_TB_BUG, CPU_FTR_CELL_TB_BUG, 96)
 
 #endif /* !CONFIG_PPC_BOOK3E_64 */
 
-#endif /*  __ASSEMBLY__ */
+#endif /*  __ASSEMBLER__ */
 
 #define SOFT_MASK_TABLE(_start, _end)		\
 	stringify_in_c(.section __soft_mask_table,"a";)\

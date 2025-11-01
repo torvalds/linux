@@ -9,13 +9,17 @@
 #ifndef _LINUX_WATCHDOG_H
 #define _LINUX_WATCHDOG_H
 
-
 #include <linux/bitops.h>
-#include <linux/cdev.h>
-#include <linux/device.h>
-#include <linux/kernel.h>
+#include <linux/limits.h>
 #include <linux/notifier.h>
+#include <linux/printk.h>
+#include <linux/types.h>
+
 #include <uapi/linux/watchdog.h>
+
+struct attribute_group;
+struct device;
+struct module;
 
 struct watchdog_ops;
 struct watchdog_device;

@@ -3139,9 +3139,8 @@ static int tonga_initialize_mc_reg_table(struct pp_hwmgr *hwmgr)
 
 static bool tonga_is_dpm_running(struct pp_hwmgr *hwmgr)
 {
-	return (1 == PHM_READ_INDIRECT_FIELD(hwmgr->device,
-			CGS_IND_REG__SMC, FEATURE_STATUS, VOLTAGE_CONTROLLER_ON))
-			? true : false;
+	return PHM_READ_INDIRECT_FIELD(hwmgr->device,
+			CGS_IND_REG__SMC, FEATURE_STATUS, VOLTAGE_CONTROLLER_ON) == 1;
 }
 
 static int tonga_update_dpm_settings(struct pp_hwmgr *hwmgr,

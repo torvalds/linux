@@ -64,10 +64,10 @@ static void intel_connector_modeset_retry_work_fn(struct work_struct *work)
 
 void intel_connector_queue_modeset_retry_work(struct intel_connector *connector)
 {
-	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+	struct intel_display *display = to_intel_display(connector);
 
 	drm_connector_get(&connector->base);
-	if (!queue_work(i915->unordered_wq, &connector->modeset_retry_work))
+	if (!queue_work(display->wq.unordered, &connector->modeset_retry_work))
 		drm_connector_put(&connector->base);
 }
 
@@ -77,7 +77,7 @@ void intel_connector_cancel_modeset_retry_work(struct intel_connector *connector
 		drm_connector_put(&connector->base);
 }
 
-int intel_connector_init(struct intel_connector *connector)
+static int intel_connector_init(struct intel_connector *connector)
 {
 	struct intel_digital_connector_state *conn_state;
 

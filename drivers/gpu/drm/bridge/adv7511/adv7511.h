@@ -195,13 +195,14 @@
 #define ADV7511_I2S_IEC958_DIRECT		3
 
 #define ADV7511_PACKET(p, x)	    ((p) * 0x20 + (x))
-#define ADV7511_PACKET_SDP(x)	    ADV7511_PACKET(0, x)
+#define ADV7511_PACKET_SPD(x)	    ADV7511_PACKET(0, x)
 #define ADV7511_PACKET_MPEG(x)	    ADV7511_PACKET(1, x)
 #define ADV7511_PACKET_ACP(x)	    ADV7511_PACKET(2, x)
 #define ADV7511_PACKET_ISRC1(x)	    ADV7511_PACKET(3, x)
 #define ADV7511_PACKET_ISRC2(x)	    ADV7511_PACKET(4, x)
 #define ADV7511_PACKET_GM(x)	    ADV7511_PACKET(5, x)
-#define ADV7511_PACKET_SPARE(x)	    ADV7511_PACKET(6, x)
+#define ADV7511_PACKET_SPARE1(x)    ADV7511_PACKET(6, x)
+#define ADV7511_PACKET_SPARE2(x)    ADV7511_PACKET(7, x)
 
 #define ADV7511_REG_CEC_TX_FRAME_HDR	0x00
 #define ADV7511_REG_CEC_TX_FRAME_DATA0	0x01
@@ -348,6 +349,7 @@ struct adv7511 {
 	struct i2c_client *i2c_cec;
 
 	struct regmap *regmap;
+	struct regmap *regmap_packet;
 	struct regmap *regmap_cec;
 	enum drm_connector_status status;
 	bool powered;
@@ -399,8 +401,8 @@ static inline struct adv7511 *bridge_to_adv7511(struct drm_bridge *bridge)
 }
 
 #ifdef CONFIG_DRM_I2C_ADV7511_CEC
-int adv7511_cec_init(struct drm_connector *connector,
-		     struct drm_bridge *bridge);
+int adv7511_cec_init(struct drm_bridge *bridge,
+		     struct drm_connector *connector);
 int adv7511_cec_enable(struct drm_bridge *bridge, bool enable);
 int adv7511_cec_log_addr(struct drm_bridge *bridge, u8 addr);
 int adv7511_cec_transmit(struct drm_bridge *bridge, u8 attempts,
@@ -424,12 +426,12 @@ int adv7533_attach_dsi(struct adv7511 *adv);
 int adv7533_parse_dt(struct device_node *np, struct adv7511 *adv);
 
 #ifdef CONFIG_DRM_I2C_ADV7511_AUDIO
-int adv7511_hdmi_audio_startup(struct drm_connector *connector,
-			       struct drm_bridge *bridge);
-void adv7511_hdmi_audio_shutdown(struct drm_connector *connector,
-				 struct drm_bridge *bridge);
-int adv7511_hdmi_audio_prepare(struct drm_connector *connector,
-			       struct drm_bridge *bridge,
+int adv7511_hdmi_audio_startup(struct drm_bridge *bridge,
+			       struct drm_connector *connector);
+void adv7511_hdmi_audio_shutdown(struct drm_bridge *bridge,
+				 struct drm_connector *connector);
+int adv7511_hdmi_audio_prepare(struct drm_bridge *bridge,
+			       struct drm_connector *connector,
 			       struct hdmi_codec_daifmt *fmt,
 			       struct hdmi_codec_params *hparms);
 #else /*CONFIG_DRM_I2C_ADV7511_AUDIO */

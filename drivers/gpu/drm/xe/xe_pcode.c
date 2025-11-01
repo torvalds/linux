@@ -336,3 +336,33 @@ int xe_pcode_probe_early(struct xe_device *xe)
 	return xe_pcode_ready(xe, false);
 }
 ALLOW_ERROR_INJECTION(xe_pcode_probe_early, ERRNO); /* See xe_pci_probe */
+
+/* Helpers with drm device. These should only be called by the display side */
+#if IS_ENABLED(CONFIG_DRM_XE_DISPLAY)
+
+int intel_pcode_read(struct drm_device *drm, u32 mbox, u32 *val, u32 *val1)
+{
+	struct xe_device *xe = to_xe_device(drm);
+	struct xe_tile *tile = xe_device_get_root_tile(xe);
+
+	return xe_pcode_read(tile, mbox, val, val1);
+}
+
+int intel_pcode_write_timeout(struct drm_device *drm, u32 mbox, u32 val, int timeout_ms)
+{
+	struct xe_device *xe = to_xe_device(drm);
+	struct xe_tile *tile = xe_device_get_root_tile(xe);
+
+	return xe_pcode_write_timeout(tile, mbox, val, timeout_ms);
+}
+
+int intel_pcode_request(struct drm_device *drm, u32 mbox, u32 request,
+			u32 reply_mask, u32 reply, int timeout_base_ms)
+{
+	struct xe_device *xe = to_xe_device(drm);
+	struct xe_tile *tile = xe_device_get_root_tile(xe);
+
+	return xe_pcode_request(tile, mbox, request, reply_mask, reply, timeout_base_ms);
+}
+
+#endif

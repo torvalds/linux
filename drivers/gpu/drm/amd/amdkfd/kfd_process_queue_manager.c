@@ -914,7 +914,10 @@ static int criu_checkpoint_queues_device(struct kfd_process_device *pdd,
 
 		q_data = (struct kfd_criu_queue_priv_data *)q_private_data;
 
-		/* data stored in this order: priv_data, mqd, ctl_stack */
+		/*
+		 * data stored in this order:
+		 * priv_data, mqd[xcc0], mqd[xcc1],..., ctl_stack[xcc0], ctl_stack[xcc1]...
+		 */
 		q_data->mqd_size = mqd_size;
 		q_data->ctl_stack_size = ctl_stack_size;
 
@@ -963,7 +966,7 @@ int kfd_criu_checkpoint_queues(struct kfd_process *p,
 }
 
 static void set_queue_properties_from_criu(struct queue_properties *qp,
-					  struct kfd_criu_queue_priv_data *q_data)
+					  struct kfd_criu_queue_priv_data *q_data, uint32_t num_xcc)
 {
 	qp->is_interop = false;
 	qp->queue_percent = q_data->q_percent;
@@ -976,7 +979,11 @@ static void set_queue_properties_from_criu(struct queue_properties *qp,
 	qp->eop_ring_buffer_size = q_data->eop_ring_buffer_size;
 	qp->ctx_save_restore_area_address = q_data->ctx_save_restore_area_address;
 	qp->ctx_save_restore_area_size = q_data->ctx_save_restore_area_size;
-	qp->ctl_stack_size = q_data->ctl_stack_size;
+	if (q_data->type == KFD_QUEUE_TYPE_COMPUTE)
+		qp->ctl_stack_size = q_data->ctl_stack_size / num_xcc;
+	else
+		qp->ctl_stack_size = q_data->ctl_stack_size;
+
 	qp->type = q_data->type;
 	qp->format = q_data->format;
 }
@@ -1036,12 +1043,15 @@ int kfd_criu_restore_queue(struct kfd_process *p,
 		goto exit;
 	}
 
-	/* data stored in this order: mqd, ctl_stack */
+	/*
+	 * data stored in this order:
+	 * mqd[xcc0], mqd[xcc1],..., ctl_stack[xcc0], ctl_stack[xcc1]...
+	 */
 	mqd = q_extra_data;
 	ctl_stack = mqd + q_data->mqd_size;
 
 	memset(&qp, 0, sizeof(qp));
-	set_queue_properties_from_criu(&qp, q_data);
+	set_queue_properties_from_criu(&qp, q_data, NUM_XCC(pdd->dev->adev->gfx.xcc_mask));
 
 	print_queue_properties(&qp);
 

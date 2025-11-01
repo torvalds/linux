@@ -114,7 +114,6 @@ struct mxc_isi_buffer {
 };
 
 struct mxc_isi_reg {
-	u32 offset;
 	u32 mask;
 };
 
@@ -158,6 +157,8 @@ struct mxc_gasket_ops {
 enum model {
 	MXC_ISI_IMX8MN,
 	MXC_ISI_IMX8MP,
+	MXC_ISI_IMX8QM,
+	MXC_ISI_IMX8QXP,
 	MXC_ISI_IMX8ULP,
 	MXC_ISI_IMX93,
 };
@@ -170,8 +171,6 @@ struct mxc_isi_plat_data {
 	const struct mxc_isi_ier_reg  *ier_reg;
 	const struct mxc_isi_set_thd *set_thd;
 	const struct mxc_gasket_ops *gasket_ops;
-	const struct clk_bulk_data *clks;
-	unsigned int num_clks;
 	bool buf_active_reverse;
 	bool has_36bit_dma;
 };
@@ -203,9 +202,8 @@ struct mxc_isi_video {
 	struct video_device		vdev;
 	struct media_pad		pad;
 
-	/* Protects is_streaming, and the vdev and vb2_q operations */
+	/* Protects the vdev and vb2_q operations */
 	struct mutex			lock;
-	bool				is_streaming;
 
 	struct v4l2_pix_format_mplane	pix;
 	const struct mxc_isi_format_info *fmtinfo;
@@ -283,6 +281,7 @@ struct mxc_isi_dev {
 
 	void __iomem			*regs;
 	struct clk_bulk_data		*clks;
+	int				num_clks;
 	struct regmap			*gasket;
 
 	struct mxc_isi_crossbar		crossbar;
@@ -343,6 +342,8 @@ int mxc_isi_video_buffer_prepare(struct mxc_isi_dev *isi, struct vb2_buffer *vb2
 #ifdef CONFIG_VIDEO_IMX8_ISI_M2M
 int mxc_isi_m2m_register(struct mxc_isi_dev *isi, struct v4l2_device *v4l2_dev);
 int mxc_isi_m2m_unregister(struct mxc_isi_dev *isi);
+void mxc_isi_m2m_suspend(struct mxc_isi_m2m *m2m);
+int mxc_isi_m2m_resume(struct mxc_isi_m2m *m2m);
 #else
 static inline int mxc_isi_m2m_register(struct mxc_isi_dev *isi,
 				       struct v4l2_device *v4l2_dev)
@@ -350,6 +351,13 @@ static inline int mxc_isi_m2m_register(struct mxc_isi_dev *isi,
 	return 0;
 }
 static inline int mxc_isi_m2m_unregister(struct mxc_isi_dev *isi)
+{
+	return 0;
+}
+static inline void mxc_isi_m2m_suspend(struct mxc_isi_m2m *m2m)
+{
+}
+static inline int mxc_isi_m2m_resume(struct mxc_isi_m2m *m2m)
 {
 	return 0;
 }
@@ -362,7 +370,7 @@ void mxc_isi_channel_get(struct mxc_isi_pipe *pipe);
 void mxc_isi_channel_put(struct mxc_isi_pipe *pipe);
 void mxc_isi_channel_enable(struct mxc_isi_pipe *pipe);
 void mxc_isi_channel_disable(struct mxc_isi_pipe *pipe);
-int mxc_isi_channel_chain(struct mxc_isi_pipe *pipe, bool bypass);
+int mxc_isi_channel_chain(struct mxc_isi_pipe *pipe);
 void mxc_isi_channel_unchain(struct mxc_isi_pipe *pipe);
 
 void mxc_isi_channel_config(struct mxc_isi_pipe *pipe,

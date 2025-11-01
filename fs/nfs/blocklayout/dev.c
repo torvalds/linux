@@ -257,10 +257,11 @@ static bool bl_map_stripe(struct pnfs_block_dev *dev, u64 offset,
 	struct pnfs_block_dev *child;
 	u64 chunk;
 	u32 chunk_idx;
+	u64 disk_chunk;
 	u64 disk_offset;
 
 	chunk = div_u64(offset, dev->chunk_size);
-	div_u64_rem(chunk, dev->nr_children, &chunk_idx);
+	disk_chunk = div_u64_rem(chunk, dev->nr_children, &chunk_idx);
 
 	if (chunk_idx >= dev->nr_children) {
 		dprintk("%s: invalid chunk idx %d (%lld/%lld)\n",
@@ -273,7 +274,7 @@ static bool bl_map_stripe(struct pnfs_block_dev *dev, u64 offset,
 	offset = chunk * dev->chunk_size;
 
 	/* disk offset of the stripe */
-	disk_offset = div_u64(offset, dev->nr_children);
+	disk_offset = disk_chunk * dev->chunk_size;
 
 	child = &dev->children[chunk_idx];
 	child->map(child, disk_offset, map);
@@ -540,16 +541,16 @@ bl_alloc_deviceid_node(struct nfs_server *server, struct pnfs_device *pdev,
 	struct pnfs_block_dev *top;
 	struct xdr_stream xdr;
 	struct xdr_buf buf;
-	struct page *scratch;
+	struct folio *scratch;
 	int nr_volumes, ret, i;
 	__be32 *p;
 
-	scratch = alloc_page(gfp_mask);
+	scratch = folio_alloc(gfp_mask, 0);
 	if (!scratch)
 		goto out;
 
 	xdr_init_decode_pages(&xdr, &buf, pdev->pages, pdev->pglen);
-	xdr_set_scratch_page(&xdr, scratch);
+	xdr_set_scratch_folio(&xdr, scratch);
 
 	p = xdr_inline_decode(&xdr, sizeof(__be32));
 	if (!p)
@@ -581,7 +582,7 @@ bl_alloc_deviceid_node(struct nfs_server *server, struct pnfs_device *pdev,
 out_free_volumes:
 	kfree(volumes);
 out_free_scratch:
-	__free_page(scratch);
+	folio_put(scratch);
 out:
 	return node;
 }

@@ -553,6 +553,43 @@ Description:
 			Integer > 0: representing full cycles
 			Integer = 0: cycle_count info is not available
 
+What:		/sys/class/power_supply/<supply_name>/internal_resistance
+Date:		August 2025
+Contact:	linux-arm-msm@vger.kernel.org
+Description:
+		Represent the battery's internal resistance, often referred
+		to as Equivalent Series Resistance (ESR). It is a dynamic
+		parameter that reflects the opposition to current flow within
+		the cell. It is not a fixed value but varies significantly
+		based on several operational conditions, including battery
+		state of charge (SoC), temperature, and whether the battery
+		is in a charging or discharging state.
+
+		Access: Read
+
+		Valid values: Represented in microohms
+
+What:		/sys/class/power_supply/<supply_name>/state_of_health
+Date:		August 2025
+Contact:	linux-arm-msm@vger.kernel.org
+Description:
+		The state_of_health parameter quantifies the overall condition
+		of a battery as a percentage, reflecting its ability to deliver
+		rated performance relative to its original specifications. It is
+		dynamically computed using a combination of learned capacity
+		and impedance-based degradation indicators, both of which evolve
+		over the battery's lifecycle.
+		Note that the exact algorithms are kept secret by most battery
+		vendors and the value from different battery vendors cannot be
+		compared with each other as there is no vendor-agnostic definition
+		of "performance". Also this usually cannot be used for any
+		calculations (i.e. this is not the factor between charge_full and
+		charge_full_design).
+
+		Access: Read
+
+		Valid values: 0 - 100 (percent)
+
 **USB Properties**
 
 What:		/sys/class/power_supply/<supply_name>/input_current_limit

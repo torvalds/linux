@@ -14,7 +14,7 @@ I/O) on regular files with extents, provided the underlying storage device
 supports hardware atomic writes. This is supported in the following two ways:
 
 1. **Single-fsblock Atomic Writes**:
-   EXT4's supports atomic write operations with a single filesystem block since
+   EXT4 supports atomic write operations with a single filesystem block since
    v6.13. In this the atomic write unit minimum and maximum sizes are both set
    to filesystem blocksize.
    e.g. doing atomic write of 16KB with 16KB filesystem blocksize on 64KB
@@ -50,7 +50,7 @@ Multi-fsblock Implementation Details
 
 The bigalloc feature changes ext4 to allocate in units of multiple filesystem
 blocks, also known as clusters. With bigalloc each bit within block bitmap
-represents cluster (power of 2 number of blocks) rather than individual
+represents a cluster (power of 2 number of blocks) rather than individual
 filesystem blocks.
 EXT4 supports multi-fsblock atomic writes with bigalloc, subject to the
 following constraints. The minimum atomic write size is the larger of the fs
@@ -148,10 +148,10 @@ reserved during:
     only required to handle a split extent across leaf blocks.
 
 How to
-------
+~~~~~~
 
 Creating Filesystems with Atomic Write Support
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 First check the atomic write units supported by block device.
 See :ref:`atomic_write_bdev_support` for more details.
@@ -176,7 +176,7 @@ Where ``-b`` specifies the block size, ``-C`` specifies the cluster size in byte
 and ``-O bigalloc`` enables the bigalloc feature.
 
 Application Interface
-~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^
 
 Applications can use the ``pwritev2()`` system call with the ``RWF_ATOMIC`` flag
 to perform atomic writes:
@@ -189,7 +189,7 @@ The write must be aligned to the filesystem's block size and not exceed the
 filesystem's maximum atomic write unit size.
 See ``generic_atomic_write_valid()`` for more details.
 
-``statx()`` system call with ``STATX_WRITE_ATOMIC`` flag can provides following
+``statx()`` system call with ``STATX_WRITE_ATOMIC`` flag can provide following
 details:
 
  * ``stx_atomic_write_unit_min``: Minimum size of an atomic write request.
@@ -204,7 +204,7 @@ writes are supported.
 .. _atomic_write_bdev_support:
 
 Hardware Support
-----------------
+~~~~~~~~~~~~~~~~
 
 The underlying storage device must support atomic write operations.
 Modern NVMe and SCSI devices often provide this capability.
@@ -217,7 +217,7 @@ Nonzero values for these attributes indicate that the device supports
 atomic writes.
 
 See Also
---------
+~~~~~~~~
 
 * :doc:`bigalloc` - Documentation on the bigalloc feature
 * :doc:`allocators` - Documentation on block allocation in ext4

@@ -353,7 +353,7 @@ snd_ad1889_playback_prepare(struct snd_pcm_substream *ss)
 		reg |= AD_DS_WSMC_WAST;
 
 	/* let's make sure we don't clobber ourselves */
-	spin_lock_irq(&chip->lock);
+	guard(spinlock_irq)(&chip->lock);
 	
 	chip->wave.size = size;
 	chip->wave.reg = reg;
@@ -371,8 +371,6 @@ snd_ad1889_playback_prepare(struct snd_pcm_substream *ss)
 
 	/* writes flush */
 	ad1889_readw(chip, AD_DS_WSMC);
-	
-	spin_unlock_irq(&chip->lock);
 	
 	dev_dbg(chip->card->dev,
 		"prepare playback: addr = 0x%x, count = %u, size = %u, reg = 0x%x, rate = %u\n",
@@ -403,7 +401,7 @@ snd_ad1889_capture_prepare(struct snd_pcm_substream *ss)
 		reg |= AD_DS_RAMC_ADST;
 
 	/* let's make sure we don't clobber ourselves */
-	spin_lock_irq(&chip->lock);
+	guard(spinlock_irq)(&chip->lock);
 	
 	chip->ramc.size = size;
 	chip->ramc.reg = reg;
@@ -418,8 +416,6 @@ snd_ad1889_capture_prepare(struct snd_pcm_substream *ss)
 
 	/* writes flush */
 	ad1889_readw(chip, AD_DS_RAMC);
-	
-	spin_unlock_irq(&chip->lock);
 	
 	dev_dbg(chip->card->dev,
 		"prepare capture: addr = 0x%x, count = %u, size = %u, reg = 0x%x, rate = %u\n",
@@ -605,7 +601,7 @@ snd_ad1889_pcm_init(struct snd_ad1889 *chip, int device)
 
 	pcm->private_data = chip;
 	pcm->info_flags = 0;
-	strcpy(pcm->name, chip->card->shortname);
+	strscpy(pcm->name, chip->card->shortname);
 	
 	chip->pcm = pcm;
 	chip->psubs = NULL;
@@ -775,7 +771,7 @@ snd_ad1889_free(struct snd_card *card)
 {
 	struct snd_ad1889 *chip = card->private_data;
 
-	spin_lock_irq(&chip->lock);
+	guard(spinlock_irq)(&chip->lock);
 
 	ad1889_mute(chip);
 
@@ -785,8 +781,6 @@ snd_ad1889_free(struct snd_card *card)
 	/* clear DISR. If we don't, we'd better jump off the Eiffel Tower */
 	ad1889_writel(chip, AD_DMA_DISR, AD_DMA_DISR_PTAI | AD_DMA_DISR_PMAI);
 	ad1889_readl(chip, AD_DMA_DISR);	/* flush, dammit! */
-
-	spin_unlock_irq(&chip->lock);
 }
 
 static int
@@ -866,8 +860,8 @@ __snd_ad1889_probe(struct pci_dev *pci,
 		return err;
 	chip = card->private_data;
 
-	strcpy(card->driver, "AD1889");
-	strcpy(card->shortname, "Analog Devices AD1889");
+	strscpy(card->driver, "AD1889");
+	strscpy(card->shortname, "Analog Devices AD1889");
 
 	/* (3) */
 	err = snd_ad1889_create(card, pci);

@@ -293,19 +293,26 @@ static void drm_log_free_scanout(struct drm_client_dev *client)
 	}
 }
 
-static void drm_log_client_unregister(struct drm_client_dev *client)
+static void drm_log_client_free(struct drm_client_dev *client)
 {
 	struct drm_log *dlog = client_to_drm_log(client);
 	struct drm_device *dev = client->dev;
+
+	kfree(dlog);
+
+	drm_dbg(dev, "Unregistered with drm log\n");
+}
+
+static void drm_log_client_unregister(struct drm_client_dev *client)
+{
+	struct drm_log *dlog = client_to_drm_log(client);
 
 	unregister_console(&dlog->con);
 
 	mutex_lock(&dlog->lock);
 	drm_log_free_scanout(client);
-	drm_client_release(client);
 	mutex_unlock(&dlog->lock);
-	kfree(dlog);
-	drm_dbg(dev, "Unregistered with drm log\n");
+	drm_client_release(client);
 }
 
 static int drm_log_client_hotplug(struct drm_client_dev *client)
@@ -319,7 +326,7 @@ static int drm_log_client_hotplug(struct drm_client_dev *client)
 	return 0;
 }
 
-static int drm_log_client_suspend(struct drm_client_dev *client, bool _console_lock)
+static int drm_log_client_suspend(struct drm_client_dev *client)
 {
 	struct drm_log *dlog = client_to_drm_log(client);
 
@@ -328,7 +335,7 @@ static int drm_log_client_suspend(struct drm_client_dev *client, bool _console_l
 	return 0;
 }
 
-static int drm_log_client_resume(struct drm_client_dev *client, bool _console_lock)
+static int drm_log_client_resume(struct drm_client_dev *client)
 {
 	struct drm_log *dlog = client_to_drm_log(client);
 
@@ -339,6 +346,7 @@ static int drm_log_client_resume(struct drm_client_dev *client, bool _console_lo
 
 static const struct drm_client_funcs drm_log_client_funcs = {
 	.owner		= THIS_MODULE,
+	.free		= drm_log_client_free,
 	.unregister	= drm_log_client_unregister,
 	.hotplug	= drm_log_client_hotplug,
 	.suspend	= drm_log_client_suspend,

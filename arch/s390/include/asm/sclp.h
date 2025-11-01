@@ -21,7 +21,7 @@
 #define SCLP_ERRNOTIFY_AQ_INFO_LOG		2
 #define SCLP_ERRNOTIFY_AQ_OPTICS_DATA		3
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #include <linux/uio.h>
 #include <asm/chpid.h>
 #include <asm/cpu.h>
@@ -199,5 +199,5 @@ static inline int sclp_get_core_info(struct sclp_core_info *info, int early)
 	return _sclp_get_core_info(info);
 }
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 #endif /* _ASM_S390_SCLP_H */

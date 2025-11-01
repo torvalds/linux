@@ -212,6 +212,7 @@ batadv_v_neigh_dump(struct sk_buff *msg, struct netlink_callback *cb,
 		    struct batadv_hard_iface *single_hardif)
 {
 	struct batadv_hard_iface *hard_iface;
+	struct list_head *iter;
 	int i_hardif = 0;
 	int i_hardif_s = cb->args[0];
 	int idx = cb->args[1];
@@ -227,10 +228,7 @@ batadv_v_neigh_dump(struct sk_buff *msg, struct netlink_callback *cb,
 				i_hardif++;
 		}
 	} else {
-		list_for_each_entry_rcu(hard_iface, &batadv_hardif_list, list) {
-			if (hard_iface->mesh_iface != bat_priv->mesh_iface)
-				continue;
-
+		netdev_for_each_lower_private_rcu(bat_priv->mesh_iface, hard_iface, iter) {
 			if (i_hardif++ < i_hardif_s)
 				continue;
 

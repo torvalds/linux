@@ -24,6 +24,9 @@ properties:
     description: |
       Channel node of a voltage io-channel.
 
+  "#io-channel-cells":
+    const: 0
+
   sense-resistor-micro-ohms:
     description: The sense resistance.
 
@@ -46,6 +49,7 @@ examples:
   - |
     sysi {
         compatible = "current-sense-amplifier";
+        #io-channel-cells = <0>;
         io-channels = <&tiadc 0>;
 
         sense-resistor-micro-ohms = <20000>;

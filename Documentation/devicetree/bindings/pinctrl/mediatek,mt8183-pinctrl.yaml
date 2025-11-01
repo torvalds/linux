@@ -48,6 +48,8 @@ properties:
     description:
       GPIO valid number range.
 
+  gpio-line-names: true
+
   interrupt-controller: true
 
   interrupts:

@@ -99,6 +99,13 @@ static const struct net_device_ops netdev_ops = {
 	.ndo_tx_timeout		= rio_tx_timeout,
 };
 
+static bool is_support_rmon_mmio(struct pci_dev *pdev)
+{
+	return pdev->vendor == PCI_VENDOR_ID_DLINK &&
+	       pdev->device == 0x4000 &&
+	       pdev->revision == 0x0c;
+}
+
 static int
 rio_probe1 (struct pci_dev *pdev, const struct pci_device_id *ent)
 {
@@ -131,18 +138,22 @@ rio_probe1 (struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	np = netdev_priv(dev);
 
+	if (is_support_rmon_mmio(pdev))
+		np->rmon_enable = true;
+
 	/* IO registers range. */
 	ioaddr = pci_iomap(pdev, 0, 0);
 	if (!ioaddr)
 		goto err_out_dev;
 	np->eeprom_addr = ioaddr;
 
-#ifdef MEM_MAPPING
-	/* MM registers range. */
-	ioaddr = pci_iomap(pdev, 1, 0);
-	if (!ioaddr)
-		goto err_out_iounmap;
-#endif
+	if (np->rmon_enable) {
+		/* MM registers range. */
+		ioaddr = pci_iomap(pdev, 1, 0);
+		if (!ioaddr)
+			goto err_out_iounmap;
+	}
+
 	np->ioaddr = ioaddr;
 	np->chip_id = chip_idx;
 	np->pdev = pdev;
@@ -289,9 +300,8 @@ err_out_unmap_tx:
 	dma_free_coherent(&pdev->dev, TX_TOTAL_SIZE, np->tx_ring,
 			  np->tx_ring_dma);
 err_out_iounmap:
-#ifdef MEM_MAPPING
-	pci_iounmap(pdev, np->ioaddr);
-#endif
+	if (np->rmon_enable)
+		pci_iounmap(pdev, np->ioaddr);
 	pci_iounmap(pdev, np->eeprom_addr);
 err_out_dev:
 	free_netdev (dev);
@@ -498,25 +508,34 @@ static int alloc_list(struct net_device *dev)
 	for (i = 0; i < RX_RING_SIZE; i++) {
 		/* Allocated fixed size of skbuff */
 		struct sk_buff *skb;
+		dma_addr_t addr;
 
 		skb = netdev_alloc_skb_ip_align(dev, np->rx_buf_sz);
 		np->rx_skbuff[i] = skb;
-		if (!skb) {
-			free_list(dev);
-			return -ENOMEM;
-		}
+		if (!skb)
+			goto err_free_list;
+
+		addr = dma_map_single(&np->pdev->dev, skb->data,
+				      np->rx_buf_sz, DMA_FROM_DEVICE);
+		if (dma_mapping_error(&np->pdev->dev, addr))
+			goto err_kfree_skb;
 
 		np->rx_ring[i].next_desc = cpu_to_le64(np->rx_ring_dma +
 						((i + 1) % RX_RING_SIZE) *
 						sizeof(struct netdev_desc));
 		/* Rubicon now supports 40 bits of addressing space. */
-		np->rx_ring[i].fraginfo =
-		    cpu_to_le64(dma_map_single(&np->pdev->dev, skb->data,
-					       np->rx_buf_sz, DMA_FROM_DEVICE));
+		np->rx_ring[i].fraginfo = cpu_to_le64(addr);
 		np->rx_ring[i].fraginfo |= cpu_to_le64((u64)np->rx_buf_sz << 48);
 	}
 
 	return 0;
+
+err_kfree_skb:
+	dev_kfree_skb(np->rx_skbuff[i]);
+	np->rx_skbuff[i] = NULL;
+err_free_list:
+	free_list(dev);
+	return -ENOMEM;
 }
 
 static void rio_hw_init(struct net_device *dev)
@@ -578,7 +597,8 @@ static void rio_hw_init(struct net_device *dev)
 	dw8(TxDMAPollPeriod, 0xff);
 	dw8(RxDMABurstThresh, 0x30);
 	dw8(RxDMAUrgentThresh, 0x30);
-	dw32(RmonStatMask, 0x0007ffff);
+	if (!np->rmon_enable)
+		dw32(RmonStatMask, 0x0007ffff);
 	/* clear statistics */
 	clear_stats (dev);
 
@@ -953,15 +973,18 @@ receive_packet (struct net_device *dev)
 		} else {
 			struct sk_buff *skb;
 
+			skb = NULL;
 			/* Small skbuffs for short packets */
-			if (pkt_len > copy_thresh) {
+			if (pkt_len <= copy_thresh)
+				skb = netdev_alloc_skb_ip_align(dev, pkt_len);
+			if (!skb) {
 				dma_unmap_single(&np->pdev->dev,
 						 desc_to_dma(desc),
 						 np->rx_buf_sz,
 						 DMA_FROM_DEVICE);
 				skb_put (skb = np->rx_skbuff[entry], pkt_len);
 				np->rx_skbuff[entry] = NULL;
-			} else if ((skb = netdev_alloc_skb_ip_align(dev, pkt_len))) {
+			} else {
 				dma_sync_single_for_cpu(&np->pdev->dev,
 							desc_to_dma(desc),
 							np->rx_buf_sz,
@@ -1076,9 +1099,6 @@ get_stats (struct net_device *dev)
 {
 	struct netdev_private *np = netdev_priv(dev);
 	void __iomem *ioaddr = np->ioaddr;
-#ifdef MEM_MAPPING
-	int i;
-#endif
 	unsigned int stat_reg;
 	unsigned long flags;
 
@@ -1091,7 +1111,7 @@ get_stats (struct net_device *dev)
 	dev->stats.rx_bytes += dr32(OctetRcvOk);
 	dev->stats.tx_bytes += dr32(OctetXmtOk);
 
-	dev->stats.multicast = dr32(McstFramesRcvdOk);
+	dev->stats.multicast += dr32(McstFramesRcvdOk);
 	dev->stats.collisions += dr32(SingleColFrames)
 			     +  dr32(MultiColFrames);
 
@@ -1123,10 +1143,10 @@ get_stats (struct net_device *dev)
 	dr16(MacControlFramesXmtd);
 	dr16(FramesWEXDeferal);
 
-#ifdef MEM_MAPPING
-	for (i = 0x100; i <= 0x150; i += 4)
-		dr32(i);
-#endif
+	if (np->rmon_enable)
+		for (int i = 0x100; i <= 0x150; i += 4)
+			dr32(i);
+
 	dr16(TxJumboFrames);
 	dr16(RxJumboFrames);
 	dr16(TCPCheckSumErrors);
@@ -1143,9 +1163,6 @@ clear_stats (struct net_device *dev)
 {
 	struct netdev_private *np = netdev_priv(dev);
 	void __iomem *ioaddr = np->ioaddr;
-#ifdef MEM_MAPPING
-	int i;
-#endif
 
 	/* All statistics registers need to be acknowledged,
 	   else statistic overflow could cause problems */
@@ -1181,10 +1198,9 @@ clear_stats (struct net_device *dev)
 	dr16(BcstFramesXmtdOk);
 	dr16(MacControlFramesXmtd);
 	dr16(FramesWEXDeferal);
-#ifdef MEM_MAPPING
-	for (i = 0x100; i <= 0x150; i += 4)
-		dr32(i);
-#endif
+	if (np->rmon_enable)
+		for (int i = 0x100; i <= 0x150; i += 4)
+			dr32(i);
 	dr16(TxJumboFrames);
 	dr16(RxJumboFrames);
 	dr16(TCPCheckSumErrors);
@@ -1810,9 +1826,8 @@ rio_remove1 (struct pci_dev *pdev)
 				  np->rx_ring_dma);
 		dma_free_coherent(&pdev->dev, TX_TOTAL_SIZE, np->tx_ring,
 				  np->tx_ring_dma);
-#ifdef MEM_MAPPING
-		pci_iounmap(pdev, np->ioaddr);
-#endif
+		if (np->rmon_enable)
+			pci_iounmap(pdev, np->ioaddr);
 		pci_iounmap(pdev, np->eeprom_addr);
 		free_netdev (dev);
 		pci_release_regions (pdev);

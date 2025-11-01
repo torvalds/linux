@@ -304,7 +304,7 @@
 				status = "disabled";
 			};
 
-			iomuxc: iomuxc@40048000 {
+			iomuxc: pinctrl@40048000 {
 				compatible = "fsl,vf610-iomuxc";
 				reg = <0x40048000 0x1000>;
 			};
@@ -318,6 +318,7 @@
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				gpio-ranges = <&iomuxc 0 0 32>;
+				ngpios = <32>;
 			};
 
 			gpio1: gpio@4004a000 {
@@ -329,6 +330,7 @@
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				gpio-ranges = <&iomuxc 0 32 32>;
+				ngpios = <32>;
 			};
 
 			gpio2: gpio@4004b000 {
@@ -340,6 +342,7 @@
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				gpio-ranges = <&iomuxc 0 64 32>;
+				ngpios = <32>;
 			};
 
 			gpio3: gpio@4004c000 {
@@ -351,6 +354,7 @@
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				gpio-ranges = <&iomuxc 0 96 32>;
+				ngpios = <32>;
 			};
 
 			gpio4: gpio@4004d000 {
@@ -362,6 +366,7 @@
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				gpio-ranges = <&iomuxc 0 128 7>;
+				ngpios = <7>;
 			};
 
 			anatop: anatop@40050000 {
@@ -603,7 +608,7 @@
 
 			ftm: ftm@400b8000 {
 				compatible = "fsl,ftm-timer";
-				reg = <0x400b8000 0x1000 0x400b9000 0x1000>;
+				reg = <0x400b8000 0x1000>, <0x400b9000 0x1000>;
 				interrupts = <44 IRQ_TYPE_LEVEL_HIGH>;
 				clock-names = "ftm-evt", "ftm-src",
 					"ftm-evt-counter-en", "ftm-src-counter-en";
@@ -677,7 +682,7 @@
 				status = "disabled";
 			};
 
-			nfc: nand@400e0000 {
+			nfc: nand-controller@400e0000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,vf610-nfc";

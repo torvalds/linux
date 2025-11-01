@@ -110,7 +110,7 @@ int main(int argc, char *argv[])
 	struct kvm_vm *vm;
 
 	TEST_REQUIRE(host_cpu_is_intel);
-	TEST_REQUIRE(!vm_is_unrestricted_guest(NULL));
+	TEST_REQUIRE(!kvm_is_unrestricted_guest_enabled());
 
 	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
 	get_set_sigalrm_vcpu(vcpu);

@@ -38,7 +38,7 @@
 
 #define	NETtel_LEDADDR	0x30400000
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 extern volatile unsigned short ppdata;
 
@@ -80,7 +80,7 @@ static __inline__ void mcf_setppdata(unsigned int mask, unsigned int bits)
 #define	MCFPP_DTR0	0x0040
 #define	MCFPP_DTR1	0x0000		/* Port 1 no DTR support */
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 /*
  *	These functions defined to give quasi generic access to the
  *	PPIO bits used for DTR/DCD.

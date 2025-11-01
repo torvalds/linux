@@ -252,7 +252,7 @@ static int sas_get_ata_command_set(struct domain_device *dev)
 	return ata_dev_classify(&tf);
 }
 
-int sas_get_ata_info(struct domain_device *dev, struct ex_phy *phy)
+static int sas_get_ata_info(struct domain_device *dev, struct ex_phy *phy)
 {
 	if (phy->attached_tproto & SAS_PROTOCOL_STP)
 		dev->tproto = phy->attached_tproto;
@@ -559,8 +559,8 @@ static int sas_ata_prereset(struct ata_link *link, unsigned long deadline)
 }
 
 static struct ata_port_operations sas_sata_ops = {
-	.prereset		= sas_ata_prereset,
-	.hardreset		= sas_ata_hard_reset,
+	.reset.prereset		= sas_ata_prereset,
+	.reset.hardreset	= sas_ata_hard_reset,
 	.error_handler		= ata_std_error_handler,
 	.post_internal_cmd	= sas_ata_post_internal,
 	.qc_defer               = ata_std_qc_defer,
@@ -927,13 +927,7 @@ EXPORT_SYMBOL_GPL(sas_ata_schedule_reset);
 
 void sas_ata_wait_eh(struct domain_device *dev)
 {
-	struct ata_port *ap;
-
-	if (!dev_is_sata(dev))
-		return;
-
-	ap = dev->sata_dev.ap;
-	ata_port_wait_eh(ap);
+	ata_port_wait_eh(dev->sata_dev.ap);
 }
 
 void sas_ata_device_link_abort(struct domain_device *device, bool force_reset)

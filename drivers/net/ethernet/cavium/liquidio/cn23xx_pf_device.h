@@ -54,9 +54,6 @@ struct oct_vf_stats {
 
 int setup_cn23xx_octeon_pf_device(struct octeon_device *oct);
 
-int validate_cn23xx_pf_config_info(struct octeon_device *oct,
-				   struct octeon_config *conf23xx);
-
 u32 cn23xx_pf_get_oq_ticks(struct octeon_device *oct, u32 time_intr_in_us);
 
 int cn23xx_sriov_config(struct octeon_device *oct);

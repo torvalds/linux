@@ -279,13 +279,21 @@ static int of_pci_prop_intr_map(struct pci_dev *pdev, struct of_changeset *ocs,
 			mapp++;
 			*mapp = out_irq[i].np->phandle;
 			mapp++;
-			if (addr_sz[i]) {
-				ret = of_property_read_u32_array(out_irq[i].np,
-								 "reg", mapp,
-								 addr_sz[i]);
-				if (ret)
-					goto failed;
-			}
+
+			/*
+			 * A device address does not affect the device <->
+			 * interrupt-controller HW connection for all
+			 * modern interrupt controllers; moreover, the
+			 * kernel (i.e., of_irq_parse_raw()) ignores the
+			 * values in the parent unit address cells while
+			 * parsing the interrupt-map property because they
+			 * are irrelevant for interrupt mapping in modern
+			 * systems.
+			 *
+			 * Leave the parent unit address initialized to 0 --
+			 * just take into account the #address-cells size
+			 * to build the property properly.
+			 */
 			mapp += addr_sz[i];
 			memcpy(mapp, out_irq[i].args,
 			       out_irq[i].args_count * sizeof(u32));

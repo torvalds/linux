@@ -662,8 +662,8 @@ static const struct bin_attribute ds2781_param_eeprom_bin_attr = {
 		.mode = S_IRUGO | S_IWUSR,
 	},
 	.size = DS2781_PARAM_EEPROM_SIZE,
-	.read_new = ds2781_read_param_eeprom_bin,
-	.write_new = ds2781_write_param_eeprom_bin,
+	.read = ds2781_read_param_eeprom_bin,
+	.write = ds2781_write_param_eeprom_bin,
 };
 
 static ssize_t ds2781_read_user_eeprom_bin(struct file *filp,
@@ -708,8 +708,8 @@ static const struct bin_attribute ds2781_user_eeprom_bin_attr = {
 		.mode = S_IRUGO | S_IWUSR,
 	},
 	.size = DS2781_USER_EEPROM_SIZE,
-	.read_new = ds2781_read_user_eeprom_bin,
-	.write_new = ds2781_write_user_eeprom_bin,
+	.read = ds2781_read_user_eeprom_bin,
+	.write = ds2781_write_user_eeprom_bin,
 };
 
 static DEVICE_ATTR(pmod_enabled, S_IRUGO | S_IWUSR, ds2781_get_pmod_enabled,
@@ -737,7 +737,7 @@ static const struct bin_attribute *const ds2781_sysfs_bin_attrs[] = {
 
 static const struct attribute_group ds2781_sysfs_group = {
 	.attrs = ds2781_sysfs_attrs,
-	.bin_attrs_new = ds2781_sysfs_bin_attrs,
+	.bin_attrs = ds2781_sysfs_bin_attrs,
 
 };
 

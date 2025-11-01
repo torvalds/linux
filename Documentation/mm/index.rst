@@ -20,6 +20,7 @@ see the :doc:`admin guide <../admin-guide/mm/index>`.
    highmem
    page_reclaim
    swap
+   swap-table
    page_cache
    shmfs
    oom
@@ -56,7 +57,6 @@ documentation, or deleted if it has served its purpose.
    page_owner
    page_table_check
    remap_file_pages
-   slub
    split_page_table_lock
    transhuge
    unevictable-lru

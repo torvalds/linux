@@ -47,7 +47,7 @@ int ixgbe_get_invariants_X540(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_setup_mac_link_X540 - Set the auto advertised capabilitires
+ *  ixgbe_setup_mac_link_X540 - Set the auto advertised capabilities
  *  @hw: pointer to hardware structure
  *  @speed: new link speed
  *  @autoneg_wait_to_complete: true when waiting for completion is needed
@@ -373,9 +373,9 @@ static int ixgbe_calc_eeprom_checksum_X540(struct ixgbe_hw *hw)
 		}
 	}
 
-	checksum = (u16)IXGBE_EEPROM_SUM - checksum;
+	checksum = IXGBE_EEPROM_SUM - checksum;
 
-	return (int)checksum;
+	return checksum;
 }
 
 /**

@@ -4,7 +4,7 @@
  *
  * Copyright 2007	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
- * Copyright (C) 2018 - 2019, 2021-2024 Intel Corporation
+ * Copyright (C) 2018 - 2019, 2021-2025 Intel Corporation
  */
 
 #include <linux/debugfs.h>
@@ -82,7 +82,6 @@ static ssize_t aqm_read(struct file *file,
 	int len = 0;
 
 	spin_lock_bh(&local->fq.lock);
-	rcu_read_lock();
 
 	len = scnprintf(buf, sizeof(buf),
 			"access name value\n"
@@ -105,7 +104,6 @@ static ssize_t aqm_read(struct file *file,
 			fq->limit,
 			fq->quantum);
 
-	rcu_read_unlock();
 	spin_unlock_bh(&local->fq.lock);
 
 	return simple_read_from_buffer(user_buf, count, ppos,
@@ -490,7 +488,6 @@ static const char *hw_flag_names[] = {
 	FLAG(DETECTS_COLOR_COLLISION),
 	FLAG(MLO_MCAST_MULTI_LINK_TX),
 	FLAG(DISALLOW_PUNCTURING),
-	FLAG(DISALLOW_PUNCTURING_5GHZ),
 	FLAG(HANDLES_QUIET_CSA),
 	FLAG(STRICT),
 #undef FLAG
@@ -718,7 +715,6 @@ void debugfs_hw_add(struct ieee80211_local *local)
 	DEBUGFS_STATS_ADD(dot11ReceivedFragmentCount);
 	DEBUGFS_STATS_ADD(dot11MulticastReceivedFrameCount);
 	DEBUGFS_STATS_ADD(dot11TransmittedFrameCount);
-	DEBUGFS_STATS_ADD(tx_handlers_drop);
 	DEBUGFS_STATS_ADD(tx_handlers_queued);
 	DEBUGFS_STATS_ADD(tx_handlers_drop_wep);
 	DEBUGFS_STATS_ADD(tx_handlers_drop_not_assoc);

@@ -63,7 +63,7 @@ OF_EARLYCON_DECLARE(uniphier, "socionext,uniphier-uart",
  * The register map is slightly different from that of 8250.
  * IO callbacks must be overridden for correct access to FCR, LCR, MCR and SCR.
  */
-static unsigned int uniphier_serial_in(struct uart_port *p, int offset)
+static u32 uniphier_serial_in(struct uart_port *p, unsigned int offset)
 {
 	unsigned int valshift = 0;
 
@@ -92,7 +92,7 @@ static unsigned int uniphier_serial_in(struct uart_port *p, int offset)
 	return (readl(p->membase + offset) >> valshift) & 0xff;
 }
 
-static void uniphier_serial_out(struct uart_port *p, int offset, int value)
+static void uniphier_serial_out(struct uart_port *p, unsigned int offset, u32 value)
 {
 	unsigned int valshift = 0;
 	bool normal = false;

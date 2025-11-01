@@ -159,29 +159,32 @@ static unsigned long max9485_clkout_recalc_rate(struct clk_hw *hw,
 	return 0;
 }
 
-static long max9485_clkout_round_rate(struct clk_hw *hw, unsigned long rate,
-				      unsigned long *parent_rate)
+static int max9485_clkout_determine_rate(struct clk_hw *hw,
+					 struct clk_rate_request *req)
 {
 	const struct max9485_rate *curr, *prev = NULL;
 
 	for (curr = max9485_rates; curr->out != 0; curr++) {
 		/* Exact matches */
-		if (curr->out == rate)
-			return rate;
+		if (curr->out == req->rate)
+			return 0;
 
 		/*
 		 * Find the first entry that has a frequency higher than the
 		 * requested one.
 		 */
-		if (curr->out > rate) {
+		if (curr->out > req->rate) {
 			unsigned int mid;
 
 			/*
 			 * If this is the first entry, clamp the value to the
 			 * lowest possible frequency.
 			 */
-			if (!prev)
-				return curr->out;
+			if (!prev) {
+				req->rate = curr->out;
+
+				return 0;
+			}
 
 			/*
 			 * Otherwise, determine whether the previous entry or
@@ -189,14 +192,18 @@ static long max9485_clkout_round_rate(struct clk_hw *hw, unsigned long rate,
 			 */
 			mid = prev->out + ((curr->out - prev->out) / 2);
 
-			return (mid > rate) ? prev->out : curr->out;
+			req->rate = mid > req->rate ? prev->out : curr->out;
+
+			return 0;
 		}
 
 		prev = curr;
 	}
 
 	/* If the last entry was still too high, clamp the value */
-	return prev->out;
+	req->rate = prev->out;
+
+	return 0;
 }
 
 struct max9485_clk {
@@ -221,7 +228,7 @@ static const struct max9485_clk max9485_clks[MAX9485_NUM_CLKS] = {
 		.parent_index = -1,
 		.ops = {
 			.set_rate	= max9485_clkout_set_rate,
-			.round_rate	= max9485_clkout_round_rate,
+			.determine_rate = max9485_clkout_determine_rate,
 			.recalc_rate	= max9485_clkout_recalc_rate,
 		},
 	},

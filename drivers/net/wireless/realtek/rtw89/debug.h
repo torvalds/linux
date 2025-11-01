@@ -56,6 +56,7 @@ static inline void rtw89_debugfs_deinit(struct rtw89_dev *rtwdev) {}
 #endif
 
 #define rtw89_info(rtwdev, a...) dev_info((rtwdev)->dev, ##a)
+#define rtw89_info_once(rtwdev, a...) dev_info_once((rtwdev)->dev, ##a)
 #define rtw89_warn(rtwdev, a...) dev_warn((rtwdev)->dev, ##a)
 #define rtw89_err(rtwdev, a...) dev_err((rtwdev)->dev, ##a)
 

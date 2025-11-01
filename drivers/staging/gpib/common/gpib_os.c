@@ -326,7 +326,7 @@ static int setup_serial_poll(struct gpib_board *board, unsigned int usec_timeout
 	cmd_string[i++] = MLA(board->pad);	/* controller's listen address */
 	if (board->sad >= 0)
 		cmd_string[i++] = MSA(board->sad);
-	cmd_string[i++] = SPE;	//serial poll enable
+	cmd_string[i++] = SPE;	// serial poll enable
 
 	ret = board->interface->command(board, cmd_string, i, &bytes_written);
 	if (ret < 0 || bytes_written < i) {
@@ -610,7 +610,7 @@ int ibclose(struct inode *inode, struct file *filep)
 
 long ibioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 {
-	unsigned int minor = iminor(filep->f_path.dentry->d_inode);
+	unsigned int minor = iminor(file_inode(filep));
 	struct gpib_board *board;
 	struct gpib_file_private *file_priv = filep->private_data;
 	long retval = -ENOTTY;
@@ -831,7 +831,7 @@ static int board_type_ioctl(struct gpib_file_private *file_priv,
 	retval = copy_from_user(&cmd, (void __user *)arg,
 				sizeof(struct gpib_board_type_ioctl));
 	if (retval)
-		return retval;
+		return -EFAULT;
 
 	for (list_ptr = registered_drivers.next; list_ptr != &registered_drivers;
 	     list_ptr = list_ptr->next) {
@@ -1774,7 +1774,7 @@ static int query_board_rsv_ioctl(struct gpib_board *board, unsigned long arg)
 
 static int board_info_ioctl(const struct gpib_board *board, unsigned long arg)
 {
-	struct gpib_board_info_ioctl info;
+	struct gpib_board_info_ioctl info = { };
 	int retval;
 
 	info.pad = board->pad;

@@ -118,7 +118,7 @@
  * VMAP'd stacks are allocated at page granularity, so we must ensure that such
  * stacks are a multiple of page size.
  */
-#if defined(CONFIG_VMAP_STACK) && (MIN_THREAD_SHIFT < PAGE_SHIFT)
+#if (MIN_THREAD_SHIFT < PAGE_SHIFT)
 #define THREAD_SHIFT		PAGE_SHIFT
 #else
 #define THREAD_SHIFT		MIN_THREAD_SHIFT
@@ -135,11 +135,7 @@
  * checking sp & (1 << THREAD_SHIFT), which we can do cheaply in the entry
  * assembly.
  */
-#ifdef CONFIG_VMAP_STACK
 #define THREAD_ALIGN		(2 * THREAD_SIZE)
-#else
-#define THREAD_ALIGN		THREAD_SIZE
-#endif
 
 #define IRQ_STACK_SIZE		THREAD_SIZE
 
@@ -312,6 +308,7 @@ static inline const void *__tag_set(const void *addr, u8 tag)
 #define arch_enable_tag_checks_sync()		mte_enable_kernel_sync()
 #define arch_enable_tag_checks_async()		mte_enable_kernel_async()
 #define arch_enable_tag_checks_asymm()		mte_enable_kernel_asymm()
+#define arch_enable_tag_checks_write_only()	mte_enable_kernel_store_only()
 #define arch_suppress_tag_checks_start()	mte_enable_tco()
 #define arch_suppress_tag_checks_stop()		mte_disable_tco()
 #define arch_force_async_tag_fault()		mte_check_tfsr_exit()

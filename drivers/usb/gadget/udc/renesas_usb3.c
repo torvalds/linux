@@ -2657,6 +2657,7 @@ static void renesas_usb3_remove(struct platform_device *pdev)
 	struct renesas_usb3 *usb3 = platform_get_drvdata(pdev);
 
 	debugfs_remove_recursive(usb3->dentry);
+	put_device(usb3->host_dev);
 	device_remove_file(&pdev->dev, &dev_attr_role);
 
 	cancel_work_sync(&usb3->role_work);
@@ -2973,7 +2974,6 @@ err_alloc_prd:
 	return ret;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int renesas_usb3_suspend(struct device *dev)
 {
 	struct renesas_usb3 *usb3 = dev_get_drvdata(dev);
@@ -3004,17 +3004,16 @@ static int renesas_usb3_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
-static SIMPLE_DEV_PM_OPS(renesas_usb3_pm_ops, renesas_usb3_suspend,
-			renesas_usb3_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(renesas_usb3_pm_ops, renesas_usb3_suspend,
+				renesas_usb3_resume);
 
 static struct platform_driver renesas_usb3_driver = {
 	.probe		= renesas_usb3_probe,
 	.remove		= renesas_usb3_remove,
 	.driver		= {
 		.name =	udc_name,
-		.pm		= &renesas_usb3_pm_ops,
+		.pm		= pm_sleep_ptr(&renesas_usb3_pm_ops),
 		.of_match_table = usb3_of_match,
 	},
 };
@@ -3023,4 +3022,3 @@ module_platform_driver(renesas_usb3_driver);
 MODULE_DESCRIPTION("Renesas USB3.0 Peripheral driver");
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Yoshihiro Shimoda <yoshihiro.shimoda.uh@renesas.com>");
-MODULE_ALIAS("platform:renesas_usb3");

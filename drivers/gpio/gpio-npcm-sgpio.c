@@ -211,9 +211,7 @@ static int npcm_sgpio_dir_in(struct gpio_chip *gc, unsigned int offset)
 
 static int npcm_sgpio_dir_out(struct gpio_chip *gc, unsigned int offset, int val)
 {
-	gc->set(gc, offset, val);
-
-	return 0;
+	return gc->set(gc, offset, val);
 }
 
 static int npcm_sgpio_get_direction(struct gpio_chip *gc, unsigned int offset)
@@ -226,7 +224,7 @@ static int npcm_sgpio_get_direction(struct gpio_chip *gc, unsigned int offset)
 	return GPIO_LINE_DIRECTION_IN;
 }
 
-static void npcm_sgpio_set(struct gpio_chip *gc, unsigned int offset, int val)
+static int npcm_sgpio_set(struct gpio_chip *gc, unsigned int offset, int val)
 {
 	struct npcm_sgpio *gpio = gpiochip_get_data(gc);
 	const struct  npcm_sgpio_bank *bank = offset_to_bank(offset);
@@ -242,6 +240,8 @@ static void npcm_sgpio_set(struct gpio_chip *gc, unsigned int offset, int val)
 		reg &= ~BIT(GPIO_BIT(offset));
 
 	iowrite8(reg, addr);
+
+	return 0;
 }
 
 static int npcm_sgpio_get(struct gpio_chip *gc, unsigned int offset)

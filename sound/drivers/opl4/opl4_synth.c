@@ -272,13 +272,12 @@ static const unsigned char snd_opl4_volume_table[128] = {
  */
 void snd_opl4_synth_reset(struct snd_opl4 *opl4)
 {
-	unsigned long flags;
 	int i;
 
-	spin_lock_irqsave(&opl4->reg_lock, flags);
-	for (i = 0; i < OPL4_MAX_VOICES; i++)
-		snd_opl4_write(opl4, OPL4_REG_MISC + i, OPL4_DAMP_BIT);
-	spin_unlock_irqrestore(&opl4->reg_lock, flags);
+	scoped_guard(spinlock_irqsave, &opl4->reg_lock) {
+		for (i = 0; i < OPL4_MAX_VOICES; i++)
+			snd_opl4_write(opl4, OPL4_REG_MISC + i, OPL4_DAMP_BIT);
+	}
 
 	INIT_LIST_HEAD(&opl4->off_voices);
 	INIT_LIST_HEAD(&opl4->on_voices);
@@ -296,14 +295,12 @@ void snd_opl4_synth_reset(struct snd_opl4 *opl4)
  */
 void snd_opl4_synth_shutdown(struct snd_opl4 *opl4)
 {
-	unsigned long flags;
 	int i;
 
-	spin_lock_irqsave(&opl4->reg_lock, flags);
+	guard(spinlock_irqsave)(&opl4->reg_lock);
 	for (i = 0; i < OPL4_MAX_VOICES; i++)
 		snd_opl4_write(opl4, OPL4_REG_MISC + i,
 			       opl4->voices[i].reg_misc & ~OPL4_KEY_ON_BIT);
-	spin_unlock_irqrestore(&opl4->reg_lock, flags);
 }
 
 /*
@@ -313,17 +310,15 @@ static void snd_opl4_do_for_note(struct snd_opl4 *opl4, int note, struct snd_mid
 				 void (*func)(struct snd_opl4 *opl4, struct opl4_voice *voice))
 {
 	int i;
-	unsigned long flags;
 	struct opl4_voice *voice;
 
-	spin_lock_irqsave(&opl4->reg_lock, flags);
+	guard(spinlock_irqsave)(&opl4->reg_lock);
 	for (i = 0; i < OPL4_MAX_VOICES; i++) {
 		voice = &opl4->voices[i];
 		if (voice->chan == chan && voice->note == note) {
 			func(opl4, voice);
 		}
 	}
-	spin_unlock_irqrestore(&opl4->reg_lock, flags);
 }
 
 /*
@@ -334,17 +329,15 @@ static void snd_opl4_do_for_channel(struct snd_opl4 *opl4,
 				    void (*func)(struct snd_opl4 *opl4, struct opl4_voice *voice))
 {
 	int i;
-	unsigned long flags;
 	struct opl4_voice *voice;
 
-	spin_lock_irqsave(&opl4->reg_lock, flags);
+	guard(spinlock_irqsave)(&opl4->reg_lock);
 	for (i = 0; i < OPL4_MAX_VOICES; i++) {
 		voice = &opl4->voices[i];
 		if (voice->chan == chan) {
 			func(opl4, voice);
 		}
 	}
-	spin_unlock_irqrestore(&opl4->reg_lock, flags);
 }
 
 /*
@@ -354,16 +347,14 @@ static void snd_opl4_do_for_all(struct snd_opl4 *opl4,
 				void (*func)(struct snd_opl4 *opl4, struct opl4_voice *voice))
 {
 	int i;
-	unsigned long flags;
 	struct opl4_voice *voice;
 
-	spin_lock_irqsave(&opl4->reg_lock, flags);
+	guard(spinlock_irqsave)(&opl4->reg_lock);
 	for (i = 0; i < OPL4_MAX_VOICES; i++) {
 		voice = &opl4->voices[i];
 		if (voice->chan)
 			func(opl4, voice);
 	}
-	spin_unlock_irqrestore(&opl4->reg_lock, flags);
 }
 
 static void snd_opl4_update_volume(struct snd_opl4 *opl4, struct opl4_voice *voice)
@@ -486,7 +477,6 @@ void snd_opl4_note_on(void *private_data, int note, int vel, struct snd_midi_cha
 	struct opl4_voice *voice[2];
 	const struct opl4_sound *sound[2];
 	int voices = 0, i;
-	unsigned long flags;
 
 	/* determine the number of voices and voice parameters */
 	i = chan->drum_channel ? 0x80 : (chan->midi_program & 0x7f);
@@ -501,41 +491,41 @@ void snd_opl4_note_on(void *private_data, int note, int vel, struct snd_midi_cha
 	}
 
 	/* allocate and initialize the needed voices */
-	spin_lock_irqsave(&opl4->reg_lock, flags);
-	for (i = 0; i < voices; i++) {
-		voice[i] = snd_opl4_get_voice(opl4);
-		list_move_tail(&voice[i]->list, &opl4->on_voices);
-		voice[i]->chan = chan;
-		voice[i]->note = note;
-		voice[i]->velocity = vel & 0x7f;
-		voice[i]->sound = sound[i];
-	}
+	scoped_guard(spinlock_irqsave, &opl4->reg_lock) {
+		for (i = 0; i < voices; i++) {
+			voice[i] = snd_opl4_get_voice(opl4);
+			list_move_tail(&voice[i]->list, &opl4->on_voices);
+			voice[i]->chan = chan;
+			voice[i]->note = note;
+			voice[i]->velocity = vel & 0x7f;
+			voice[i]->sound = sound[i];
+		}
 
-	/* set tone number (triggers header loading) */
-	for (i = 0; i < voices; i++) {
-		voice[i]->reg_f_number =
-			(sound[i]->tone >> 8) & OPL4_TONE_NUMBER_BIT8;
-		snd_opl4_write(opl4, OPL4_REG_F_NUMBER + voice[i]->number,
-			       voice[i]->reg_f_number);
-		snd_opl4_write(opl4, OPL4_REG_TONE_NUMBER + voice[i]->number,
-			       sound[i]->tone & 0xff);
-	}
+		/* set tone number (triggers header loading) */
+		for (i = 0; i < voices; i++) {
+			voice[i]->reg_f_number =
+				(sound[i]->tone >> 8) & OPL4_TONE_NUMBER_BIT8;
+			snd_opl4_write(opl4, OPL4_REG_F_NUMBER + voice[i]->number,
+				       voice[i]->reg_f_number);
+			snd_opl4_write(opl4, OPL4_REG_TONE_NUMBER + voice[i]->number,
+				       sound[i]->tone & 0xff);
+		}
 
-	/* set parameters which can be set while loading */
-	for (i = 0; i < voices; i++) {
-		voice[i]->reg_misc = OPL4_LFO_RESET_BIT;
-		snd_opl4_update_pan(opl4, voice[i]);
-		snd_opl4_update_pitch(opl4, voice[i]);
-		voice[i]->level_direct = OPL4_LEVEL_DIRECT_BIT;
-		snd_opl4_update_volume(opl4, voice[i]);
+		/* set parameters which can be set while loading */
+		for (i = 0; i < voices; i++) {
+			voice[i]->reg_misc = OPL4_LFO_RESET_BIT;
+			snd_opl4_update_pan(opl4, voice[i]);
+			snd_opl4_update_pitch(opl4, voice[i]);
+			voice[i]->level_direct = OPL4_LEVEL_DIRECT_BIT;
+			snd_opl4_update_volume(opl4, voice[i]);
+		}
 	}
-	spin_unlock_irqrestore(&opl4->reg_lock, flags);
 
 	/* wait for completion of loading */
 	snd_opl4_wait_for_wave_headers(opl4);
 
 	/* set remaining parameters */
-	spin_lock_irqsave(&opl4->reg_lock, flags);
+	guard(spinlock_irqsave)(&opl4->reg_lock);
 	for (i = 0; i < voices; i++) {
 		snd_opl4_update_tone_parameters(opl4, voice[i]);
 		voice[i]->reg_lfo_vibrato = voice[i]->sound->reg_lfo_vibrato;
@@ -549,7 +539,6 @@ void snd_opl4_note_on(void *private_data, int note, int vel, struct snd_midi_cha
 		snd_opl4_write(opl4, OPL4_REG_MISC + voice[i]->number,
 			       voice[i]->reg_misc);
 	}
-	spin_unlock_irqrestore(&opl4->reg_lock, flags);
 }
 
 static void snd_opl4_voice_off(struct snd_opl4 *opl4, struct opl4_voice *voice)

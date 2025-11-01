@@ -28,6 +28,36 @@ devlink dev info provides version information for all three components. In
 addition to the version the hg commit hash of the build is included as a
 separate entry.
 
+Configuration
+-------------
+
+Ringparams (ethtool -g / -G)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+fbnic has two submission (host -> device) rings for every completion
+(device -> host) ring. The three ring objects together form a single
+"queue" as used by higher layer software (a Rx, or a Tx queue).
+
+For Rx the two submission rings are used to pass empty pages to the NIC.
+Ring 0 is the Header Page Queue (HPQ), NIC will use its pages to place
+L2-L4 headers (or full frames if frame is not header-data split).
+Ring 1 is the Payload Page Queue (PPQ) and used for packet payloads.
+The completion ring is used to receive packet notifications / metadata.
+ethtool ``rx`` ringparam maps to the size of the completion ring,
+``rx-mini`` to the HPQ, and ``rx-jumbo`` to the PPQ.
+
+For Tx both submission rings can be used to submit packets, the completion
+ring carries notifications for both. fbnic uses one of the submission
+rings for normal traffic from the stack and the second one for XDP frames.
+ethtool ``tx`` ringparam controls both the size of the submission rings
+and the completion ring.
+
+Every single entry on the HPQ and PPQ (``rx-mini``, ``rx-jumbo``)
+corresponds to 4kB of allocated memory, while entries on the remaining
+rings are in units of descriptors (8B). The ideal ratio of submission
+and completion ring sizes will depend on the workload, as for small packets
+multiple packets will fit into a single page.
+
 Upgrading Firmware
 ------------------
 
@@ -38,6 +68,25 @@ the operation of the device.
 On host boot the latest UEFI driver is always used, no explicit activation
 is required. Firmware activation is required to run new control firmware. cmrt
 firmware can only be activated by power cycling the NIC.
+
+Health reporters
+----------------
+
+fw reporter
+~~~~~~~~~~~
+
+The ``fw`` health reporter tracks FW crashes. Dumping the reporter will
+show the core dump of the most recent FW crash, and if no FW crash has
+happened since power cycle - a snapshot of the FW memory. Diagnose callback
+shows FW uptime based on the most recently received heartbeat message
+(the crashes are detected by checking if uptime goes down).
+
+otp reporter
+~~~~~~~~~~~~
+
+OTP memory ("fuses") are used for secure boot and anti-rollback
+protection. The OTP memory is ECC protected, ECC errors indicate
+either manufacturing defect or part deteriorating with age.
 
 Statistics
 ----------
@@ -130,3 +179,14 @@ behavior and potential performance bottlenecks.
 	  credit exhaustion
         - ``pcie_ob_rd_no_np_cred``: Read requests dropped due to non-posted
 	  credit exhaustion
+
+XDP Length Error:
+~~~~~~~~~~~~~~~~~
+
+For XDP programs without frags support, fbnic tries to make sure that MTU fits
+into a single buffer. If an oversized frame is received and gets fragmented,
+it is dropped and the following netlink counters are updated
+
+   - ``rx-length``: number of frames dropped due to lack of fragmentation
+     support in the attached XDP program
+   - ``rx-errors``: total number of packets with errors received on the interface

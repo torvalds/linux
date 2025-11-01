@@ -24,16 +24,10 @@
 
 static int tpm_read_log_memory_region(struct tpm_chip *chip)
 {
-	struct device_node *node;
 	struct resource res;
 	int rc;
 
-	node = of_parse_phandle(chip->dev.parent->of_node, "memory-region", 0);
-	if (!node)
-		return -ENODEV;
-
-	rc = of_address_to_resource(node, 0, &res);
-	of_node_put(node);
+	rc = of_reserved_mem_region_to_resource(chip->dev.parent->of_node, 0, &res);
 	if (rc)
 		return rc;
 

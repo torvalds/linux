@@ -21,20 +21,20 @@ int timerlat_bpf_init(struct timerlat_params *params)
 		return 1;
 
 	/* Pass common options */
-	bpf->rodata->output_divisor = params->output_divisor;
-	bpf->rodata->entries = params->entries;
-	bpf->rodata->irq_threshold = params->stop_us;
-	bpf->rodata->thread_threshold = params->stop_total_us;
-	bpf->rodata->aa_only = params->aa_only;
+	bpf->rodata->output_divisor = params->common.output_divisor;
+	bpf->rodata->entries = params->common.hist.entries;
+	bpf->rodata->irq_threshold = params->common.stop_us;
+	bpf->rodata->thread_threshold = params->common.stop_total_us;
+	bpf->rodata->aa_only = params->common.aa_only;
 
-	if (params->entries != 0) {
+	if (params->common.hist.entries != 0) {
 		/* Pass histogram options */
-		bpf->rodata->bucket_size = params->bucket_size;
+		bpf->rodata->bucket_size = params->common.hist.bucket_size;
 
 		/* Set histogram array sizes */
-		bpf_map__set_max_entries(bpf->maps.hist_irq, params->entries);
-		bpf_map__set_max_entries(bpf->maps.hist_thread, params->entries);
-		bpf_map__set_max_entries(bpf->maps.hist_user, params->entries);
+		bpf_map__set_max_entries(bpf->maps.hist_irq, params->common.hist.entries);
+		bpf_map__set_max_entries(bpf->maps.hist_thread, params->common.hist.entries);
+		bpf_map__set_max_entries(bpf->maps.hist_user, params->common.hist.entries);
 	} else {
 		/* No entries, disable histogram */
 		bpf_map__set_autocreate(bpf->maps.hist_irq, false);
@@ -42,7 +42,7 @@ int timerlat_bpf_init(struct timerlat_params *params)
 		bpf_map__set_autocreate(bpf->maps.hist_user, false);
 	}
 
-	if (params->aa_only) {
+	if (params->common.aa_only) {
 		/* Auto-analysis only, disable summary */
 		bpf_map__set_autocreate(bpf->maps.summary_irq, false);
 		bpf_map__set_autocreate(bpf->maps.summary_thread, false);
@@ -104,6 +104,19 @@ int timerlat_bpf_wait(int timeout)
 	ring_buffer__free(rb);
 
 	return retval;
+}
+
+/*
+ * timerlat_bpf_restart_tracing - restart stopped tracing
+ */
+int timerlat_bpf_restart_tracing(void)
+{
+	unsigned int key = 0;
+	unsigned long long value = 0;
+
+	return bpf_map__update_elem(bpf->maps.stop_tracing,
+				    &key, sizeof(key),
+				    &value, sizeof(value), BPF_ANY);
 }
 
 static int get_value(struct bpf_map *map_irq,

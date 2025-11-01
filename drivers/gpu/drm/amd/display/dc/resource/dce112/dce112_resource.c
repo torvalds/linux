@@ -76,6 +76,7 @@
 #endif
 
 #ifndef mmBIOS_SCRATCH_2
+	#define mmBIOS_SCRATCH_0 0x05C9
 	#define mmBIOS_SCRATCH_2 0x05CB
 	#define mmBIOS_SCRATCH_3 0x05CC
 	#define mmBIOS_SCRATCH_6 0x05CF
@@ -385,6 +386,7 @@ static const struct dce110_clk_src_mask cs_mask = {
 };
 
 static const struct bios_registers bios_regs = {
+	.BIOS_SCRATCH_0 = mmBIOS_SCRATCH_0,
 	.BIOS_SCRATCH_3 = mmBIOS_SCRATCH_3,
 	.BIOS_SCRATCH_6 = mmBIOS_SCRATCH_6
 };
@@ -429,8 +431,10 @@ static const struct dc_plane_cap plane_cap = {
 	64
 };
 
-static const struct dc_debug_options debug_defaults = {
-		.enable_legacy_fast_update = true,
+static const struct dc_debug_options debug_defaults = { 0 };
+
+static const struct dc_check_config config_defaults = {
+	.enable_legacy_fast_update = true,
 };
 
 #define CTX  ctx
@@ -886,7 +890,7 @@ static enum dc_status build_mapped_resource(
 enum dc_status dce112_validate_bandwidth(
 	struct dc *dc,
 	struct dc_state *context,
-	bool fast_validate)
+	enum dc_validate_mode validate_mode)
 {
 	bool result = false;
 
@@ -1111,12 +1115,12 @@ static void bw_calcs_data_update_from_pplib(struct dc *dc)
 				&clks);
 
 		dc->bw_vbios->low_yclk = bw_frc_to_fixed(
-			clks.clocks_in_khz[0] * memory_type_multiplier, 1000);
+			(int64_t)clks.clocks_in_khz[0] * memory_type_multiplier, 1000);
 		dc->bw_vbios->mid_yclk = bw_frc_to_fixed(
-			clks.clocks_in_khz[clks.num_levels>>1] * memory_type_multiplier,
+			(int64_t)clks.clocks_in_khz[clks.num_levels>>1] * memory_type_multiplier,
 			1000);
 		dc->bw_vbios->high_yclk = bw_frc_to_fixed(
-			clks.clocks_in_khz[clks.num_levels-1] * memory_type_multiplier,
+			(int64_t)clks.clocks_in_khz[clks.num_levels-1] * memory_type_multiplier,
 			1000);
 
 		return;
@@ -1152,12 +1156,12 @@ static void bw_calcs_data_update_from_pplib(struct dc *dc)
 	 * YCLK = UMACLK*m_memoryTypeMultiplier
 	 */
 	dc->bw_vbios->low_yclk = bw_frc_to_fixed(
-		mem_clks.data[0].clocks_in_khz * memory_type_multiplier, 1000);
+		(int64_t)mem_clks.data[0].clocks_in_khz * memory_type_multiplier, 1000);
 	dc->bw_vbios->mid_yclk = bw_frc_to_fixed(
-		mem_clks.data[mem_clks.num_levels>>1].clocks_in_khz * memory_type_multiplier,
+		(int64_t)mem_clks.data[mem_clks.num_levels>>1].clocks_in_khz * memory_type_multiplier,
 		1000);
 	dc->bw_vbios->high_yclk = bw_frc_to_fixed(
-		mem_clks.data[mem_clks.num_levels-1].clocks_in_khz * memory_type_multiplier,
+		(int64_t)mem_clks.data[mem_clks.num_levels-1].clocks_in_khz * memory_type_multiplier,
 		1000);
 
 	/* Now notify PPLib/SMU about which Watermarks sets they should select
@@ -1247,6 +1251,7 @@ static bool dce112_resource_construct(
 	dc->caps.dual_link_dvi = true;
 	dc->caps.extended_aux_timeout_support = false;
 	dc->debug = debug_defaults;
+	dc->check_config = config_defaults;
 
 	/*************************************************
 	 *  Create resources                             *

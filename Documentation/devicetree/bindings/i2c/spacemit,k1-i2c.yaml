@@ -9,6 +9,9 @@ title: I2C controller embedded in SpacemiT's K1 SoC
 maintainers:
   - Troy Mitchell <troymitchell988@gmail.com>
 
+allOf:
+  - $ref: /schemas/i2c/i2c-controller.yaml#
+
 properties:
   compatible:
     const: spacemit,k1-i2c
@@ -53,7 +56,7 @@ examples:
         reg = <0xd4010800 0x38>;
         interrupt-parent = <&plic>;
         interrupts = <36>;
-        clocks =<&ccu 32>, <&ccu 84>;
+        clocks = <&ccu 32>, <&ccu 84>;
         clock-names = "func", "bus";
         clock-frequency = <100000>;
     };

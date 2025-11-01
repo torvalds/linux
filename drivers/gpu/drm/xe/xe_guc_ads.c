@@ -18,6 +18,7 @@
 #include "xe_bo.h"
 #include "xe_gt.h"
 #include "xe_gt_ccs_mode.h"
+#include "xe_gt_mcr.h"
 #include "xe_gt_printk.h"
 #include "xe_guc.h"
 #include "xe_guc_buf.h"
@@ -30,7 +31,6 @@
 #include "xe_platform_types.h"
 #include "xe_uc_fw.h"
 #include "xe_wa.h"
-#include "xe_gt_mcr.h"
 
 /* Slack of a few additional entries per engine */
 #define ADS_REGSET_EXTRA_MAX	8
@@ -247,7 +247,7 @@ static size_t calculate_regset_size(struct xe_gt *gt)
 
 	count += ADS_REGSET_EXTRA_MAX * XE_NUM_HW_ENGINES;
 
-	if (XE_WA(gt, 1607983814))
+	if (XE_GT_WA(gt, 1607983814))
 		count += LNCFCMOCS_REG_COUNT;
 
 	return count * sizeof(struct guc_mmio_reg);
@@ -284,52 +284,26 @@ static size_t calculate_golden_lrc_size(struct xe_guc_ads *ads)
 	return total_size;
 }
 
-static void guc_waklv_enable_one_word(struct xe_guc_ads *ads,
-				      enum xe_guc_klv_ids klv_id,
-				      u32 value,
-				      u32 *offset, u32 *remain)
+static void guc_waklv_enable(struct xe_guc_ads *ads,
+			     u32 data[], u32 data_len_dw,
+			     u32 *offset, u32 *remain,
+			     enum xe_guc_klv_ids klv_id)
 {
-	u32 size;
-	u32 klv_entry[] = {
-		/* 16:16 key/length */
-		FIELD_PREP(GUC_KLV_0_KEY, klv_id) |
-		FIELD_PREP(GUC_KLV_0_LEN, 1),
-		value,
-		/* 1 dword data */
-	};
-
-	size = sizeof(klv_entry);
+	size_t size = sizeof(u32) * (1 + data_len_dw);
 
 	if (*remain < size) {
 		drm_warn(&ads_to_xe(ads)->drm,
-			 "w/a klv buffer too small to add klv id %d\n", klv_id);
-	} else {
-		xe_map_memcpy_to(ads_to_xe(ads), ads_to_map(ads), *offset,
-				 klv_entry, size);
-		*offset += size;
-		*remain -= size;
-	}
-}
-
-static void guc_waklv_enable_simple(struct xe_guc_ads *ads,
-				    enum xe_guc_klv_ids klv_id, u32 *offset, u32 *remain)
-{
-	u32 klv_entry[] = {
-		/* 16:16 key/length */
-		FIELD_PREP(GUC_KLV_0_KEY, klv_id) |
-		FIELD_PREP(GUC_KLV_0_LEN, 0),
-		/* 0 dwords data */
-	};
-	u32 size;
-
-	size = sizeof(klv_entry);
-
-	if (xe_gt_WARN(ads_to_gt(ads), *remain < size,
-		       "w/a klv buffer too small to add klv id %d\n", klv_id))
+			 "w/a klv buffer too small to add klv id 0x%04X\n", klv_id);
 		return;
+	}
 
-	xe_map_memcpy_to(ads_to_xe(ads), ads_to_map(ads), *offset,
-			 klv_entry, size);
+	/* 16:16 key/length */
+	xe_map_wr(ads_to_xe(ads), ads_to_map(ads), *offset, u32,
+		  FIELD_PREP(GUC_KLV_0_KEY, klv_id) | FIELD_PREP(GUC_KLV_0_LEN, data_len_dw));
+	/* data_len_dw dwords of data */
+	xe_map_memcpy_to(ads_to_xe(ads), ads_to_map(ads),
+			 *offset + sizeof(u32), data, data_len_dw * sizeof(u32));
+
 	*offset += size;
 	*remain -= size;
 }
@@ -343,44 +317,51 @@ static void guc_waklv_init(struct xe_guc_ads *ads)
 	offset = guc_ads_waklv_offset(ads);
 	remain = guc_ads_waklv_size(ads);
 
-	if (XE_WA(gt, 14019882105) || XE_WA(gt, 16021333562))
-		guc_waklv_enable_simple(ads,
-					GUC_WORKAROUND_KLV_BLOCK_INTERRUPTS_WHEN_MGSR_BLOCKED,
-					&offset, &remain);
-	if (XE_WA(gt, 18024947630))
-		guc_waklv_enable_simple(ads,
-					GUC_WORKAROUND_KLV_ID_GAM_PFQ_SHADOW_TAIL_POLLING,
-					&offset, &remain);
-	if (XE_WA(gt, 16022287689))
-		guc_waklv_enable_simple(ads,
-					GUC_WORKAROUND_KLV_ID_DISABLE_MTP_DURING_ASYNC_COMPUTE,
-					&offset, &remain);
+	if (XE_GT_WA(gt, 14019882105) || XE_GT_WA(gt, 16021333562))
+		guc_waklv_enable(ads, NULL, 0, &offset, &remain,
+				 GUC_WORKAROUND_KLV_BLOCK_INTERRUPTS_WHEN_MGSR_BLOCKED);
+	if (XE_GT_WA(gt, 18024947630))
+		guc_waklv_enable(ads, NULL, 0, &offset, &remain,
+				 GUC_WORKAROUND_KLV_ID_GAM_PFQ_SHADOW_TAIL_POLLING);
+	if (XE_GT_WA(gt, 16022287689))
+		guc_waklv_enable(ads, NULL, 0, &offset, &remain,
+				 GUC_WORKAROUND_KLV_ID_DISABLE_MTP_DURING_ASYNC_COMPUTE);
 
-	if (XE_WA(gt, 14022866841))
-		guc_waklv_enable_simple(ads,
-					GUC_WA_KLV_WAKE_POWER_DOMAINS_FOR_OUTBOUND_MMIO,
-					&offset, &remain);
+	if (XE_GT_WA(gt, 14022866841))
+		guc_waklv_enable(ads, NULL, 0, &offset, &remain,
+				 GUC_WA_KLV_WAKE_POWER_DOMAINS_FOR_OUTBOUND_MMIO);
 
 	/*
 	 * On RC6 exit, GuC will write register 0xB04 with the default value provided. As of now,
 	 * the default value for this register is determined to be 0xC40. This could change in the
 	 * future, so GuC depends on KMD to send it the correct value.
 	 */
-	if (XE_WA(gt, 13011645652))
-		guc_waklv_enable_one_word(ads,
-					  GUC_WA_KLV_NP_RD_WRITE_TO_CLEAR_RCSM_AT_CGP_LATE_RESTORE,
-					  0xC40,
-					  &offset, &remain);
+	if (XE_GT_WA(gt, 13011645652)) {
+		u32 data = 0xC40;
 
-	if (XE_WA(gt, 14022293748) || XE_WA(gt, 22019794406))
-		guc_waklv_enable_simple(ads,
-					GUC_WORKAROUND_KLV_ID_BACK_TO_BACK_RCS_ENGINE_RESET,
-					&offset, &remain);
+		guc_waklv_enable(ads, &data, 1, &offset, &remain,
+				 GUC_WA_KLV_NP_RD_WRITE_TO_CLEAR_RCSM_AT_CGP_LATE_RESTORE);
+	}
 
-	if (GUC_FIRMWARE_VER(&gt->uc.guc) >= MAKE_GUC_VER(70, 44, 0) && XE_WA(gt, 16026508708))
-		guc_waklv_enable_simple(ads,
-					GUC_WA_KLV_RESET_BB_STACK_PTR_ON_VF_SWITCH,
-					&offset, &remain);
+	if (XE_GT_WA(gt, 14022293748) || XE_GT_WA(gt, 22019794406))
+		guc_waklv_enable(ads, NULL, 0, &offset, &remain,
+				 GUC_WORKAROUND_KLV_ID_BACK_TO_BACK_RCS_ENGINE_RESET);
+
+	if (GUC_FIRMWARE_VER(&gt->uc.guc) >= MAKE_GUC_VER(70, 44, 0) && XE_GT_WA(gt, 16026508708))
+		guc_waklv_enable(ads, NULL, 0, &offset, &remain,
+				 GUC_WA_KLV_RESET_BB_STACK_PTR_ON_VF_SWITCH);
+	if (GUC_FIRMWARE_VER(&gt->uc.guc) >= MAKE_GUC_VER(70, 47, 0) && XE_GT_WA(gt, 16026007364)) {
+		u32 data[] = {
+			0x0,
+			0xF,
+		};
+		guc_waklv_enable(ads, data, ARRAY_SIZE(data), &offset, &remain,
+				 GUC_WA_KLV_RESTORE_UNSAVED_MEDIA_CONTROL_REG);
+	}
+
+	if (XE_GT_WA(gt, 14020001231))
+		guc_waklv_enable(ads, NULL, 0, &offset, &remain,
+				 GUC_WORKAROUND_KLV_DISABLE_PSMI_INTERRUPTS_AT_C6_ENTRY_RESTORE_AT_EXIT);
 
 	size = guc_ads_waklv_size(ads) - remain;
 	if (!size)
@@ -784,7 +765,7 @@ static unsigned int guc_mmio_regset_write(struct xe_guc_ads *ads,
 		guc_mmio_regset_write_one(ads, regset_map, e->reg, count++);
 	}
 
-	if (XE_WA(hwe->gt, 1607983814) && hwe->class == XE_ENGINE_CLASS_RENDER) {
+	if (XE_GT_WA(hwe->gt, 1607983814) && hwe->class == XE_ENGINE_CLASS_RENDER) {
 		for (i = 0; i < LNCFCMOCS_REG_COUNT; i++) {
 			guc_mmio_regset_write_one(ads, regset_map,
 						  XELP_LNCFCMOCS(i), count++);
@@ -839,16 +820,20 @@ static void guc_mmio_reg_state_init(struct xe_guc_ads *ads)
 static void guc_um_init_params(struct xe_guc_ads *ads)
 {
 	u32 um_queue_offset = guc_ads_um_queues_offset(ads);
+	struct xe_guc *guc = ads_to_guc(ads);
 	u64 base_dpa;
 	u32 base_ggtt;
+	bool with_dpa;
 	int i;
+
+	with_dpa = !xe_guc_using_main_gamctrl_queues(guc);
 
 	base_ggtt = xe_bo_ggtt_addr(ads->bo) + um_queue_offset;
 	base_dpa = xe_bo_main_addr(ads->bo, PAGE_SIZE) + um_queue_offset;
 
 	for (i = 0; i < GUC_UM_HW_QUEUE_MAX; ++i) {
 		ads_blob_write(ads, um_init_params.queue_params[i].base_dpa,
-			       base_dpa + (i * GUC_UM_QUEUE_SIZE));
+			       with_dpa ? (base_dpa + (i * GUC_UM_QUEUE_SIZE)) : 0);
 		ads_blob_write(ads, um_init_params.queue_params[i].base_ggtt_address,
 			       base_ggtt + (i * GUC_UM_QUEUE_SIZE));
 		ads_blob_write(ads, um_init_params.queue_params[i].size_in_bytes,
@@ -890,7 +875,7 @@ void xe_guc_ads_populate_minimal(struct xe_guc_ads *ads)
 
 	xe_gt_assert(gt, ads->bo);
 
-	xe_map_memset(ads_to_xe(ads), ads_to_map(ads), 0, 0, ads->bo->size);
+	xe_map_memset(ads_to_xe(ads), ads_to_map(ads), 0, 0, xe_bo_size(ads->bo));
 	guc_policies_init(ads);
 	guc_golden_lrc_init(ads);
 	guc_mapping_table_init_invalid(gt, &info_map);
@@ -914,7 +899,7 @@ void xe_guc_ads_populate(struct xe_guc_ads *ads)
 
 	xe_gt_assert(gt, ads->bo);
 
-	xe_map_memset(ads_to_xe(ads), ads_to_map(ads), 0, 0, ads->bo->size);
+	xe_map_memset(ads_to_xe(ads), ads_to_map(ads), 0, 0, xe_bo_size(ads->bo));
 	guc_policies_init(ads);
 	fill_engine_enable_masks(gt, &info_map);
 	guc_mmio_reg_state_init(ads);
@@ -995,16 +980,6 @@ static int guc_ads_action_update_policies(struct xe_guc_ads *ads, u32 policy_off
 	return xe_guc_ct_send(ct, action, ARRAY_SIZE(action), 0, 0);
 }
 
-static int guc_ads_update_policies(struct xe_guc_ads *ads, const struct guc_policies *policies)
-{
-	CLASS(xe_guc_buf_from_data, buf)(&ads_to_guc(ads)->buf, policies, sizeof(*policies));
-
-	if (!xe_guc_buf_is_valid(buf))
-		return -ENOBUFS;
-
-	return guc_ads_action_update_policies(ads, xe_guc_buf_flush(buf));
-}
-
 /**
  * xe_guc_ads_scheduler_policy_toggle_reset - Toggle reset policy
  * @ads: Additional data structures object
@@ -1015,13 +990,16 @@ static int guc_ads_update_policies(struct xe_guc_ads *ads, const struct guc_poli
  */
 int xe_guc_ads_scheduler_policy_toggle_reset(struct xe_guc_ads *ads)
 {
-	struct xe_device *xe = ads_to_xe(ads);
 	struct guc_policies *policies;
-	int ret;
+	struct xe_guc *guc = ads_to_guc(ads);
+	struct xe_device *xe = ads_to_xe(ads);
+	CLASS(xe_guc_buf, buf)(&guc->buf, sizeof(*policies));
 
-	policies = kmalloc(sizeof(*policies), GFP_KERNEL);
-	if (!policies)
-		return -ENOMEM;
+	if (!xe_guc_buf_is_valid(buf))
+		return -ENOBUFS;
+
+	policies = xe_guc_buf_cpu_ptr(buf);
+	memset(policies, 0, sizeof(*policies));
 
 	policies->dpc_promote_time = ads_blob_read(ads, policies.dpc_promote_time);
 	policies->max_num_work_items = ads_blob_read(ads, policies.max_num_work_items);
@@ -1031,7 +1009,5 @@ int xe_guc_ads_scheduler_policy_toggle_reset(struct xe_guc_ads *ads)
 	else
 		policies->global_flags &= ~GLOBAL_POLICY_DISABLE_ENGINE_RESET;
 
-	ret = guc_ads_update_policies(ads, policies);
-	kfree(policies);
-	return ret;
+	return guc_ads_action_update_policies(ads, xe_guc_buf_flush(buf));
 }

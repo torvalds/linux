@@ -33,6 +33,7 @@
 #include "amdgpu_reset.h"
 #include "amdgpu_xcp.h"
 #include "amdgpu_xgmi.h"
+#include "amdgpu_mes.h"
 #include "nvd.h"
 
 /* delay 0.1 second to enable gfx off feature */
@@ -149,7 +150,7 @@ static bool amdgpu_gfx_is_graphics_multipipe_capable(struct amdgpu_device *adev)
 static bool amdgpu_gfx_is_compute_multipipe_capable(struct amdgpu_device *adev)
 {
 	if (amdgpu_compute_multipipe != -1) {
-		DRM_INFO("amdgpu: forcing compute pipe policy %d\n",
+		dev_info(adev->dev, "amdgpu: forcing compute pipe policy %d\n",
 			 amdgpu_compute_multipipe);
 		return amdgpu_compute_multipipe == 1;
 	}
@@ -674,7 +675,7 @@ int amdgpu_gfx_enable_kcq(struct amdgpu_device *adev, int xcc_id)
 		 * generation exposes more than 64 queues. If so, the
 		 * definition of queue_mask needs updating */
 		if (WARN_ON(i > (sizeof(queue_mask)*8))) {
-			DRM_ERROR("Invalid KCQ enabled: %d\n", i);
+			dev_err(adev->dev, "Invalid KCQ enabled: %d\n", i);
 			break;
 		}
 
@@ -683,15 +684,15 @@ int amdgpu_gfx_enable_kcq(struct amdgpu_device *adev, int xcc_id)
 
 	amdgpu_device_flush_hdp(adev, NULL);
 
-	DRM_INFO("kiq ring mec %d pipe %d q %d\n", kiq_ring->me, kiq_ring->pipe,
-		 kiq_ring->queue);
+	dev_info(adev->dev, "kiq ring mec %d pipe %d q %d\n", kiq_ring->me,
+		 kiq_ring->pipe, kiq_ring->queue);
 
 	spin_lock(&kiq->ring_lock);
 	r = amdgpu_ring_alloc(kiq_ring, kiq->pmf->map_queues_size *
 					adev->gfx.num_compute_rings +
 					kiq->pmf->set_resources_size);
 	if (r) {
-		DRM_ERROR("Failed to lock KIQ (%d).\n", r);
+		dev_err(adev->dev, "Failed to lock KIQ (%d).\n", r);
 		spin_unlock(&kiq->ring_lock);
 		return r;
 	}
@@ -712,7 +713,7 @@ int amdgpu_gfx_enable_kcq(struct amdgpu_device *adev, int xcc_id)
 	r = amdgpu_ring_test_helper(kiq_ring);
 	spin_unlock(&kiq->ring_lock);
 	if (r)
-		DRM_ERROR("KCQ enable failed\n");
+		dev_err(adev->dev, "KCQ enable failed\n");
 
 	return r;
 }
@@ -734,7 +735,7 @@ int amdgpu_gfx_enable_kgq(struct amdgpu_device *adev, int xcc_id)
 			r = amdgpu_mes_map_legacy_queue(adev,
 							&adev->gfx.gfx_ring[j]);
 			if (r) {
-				DRM_ERROR("failed to map gfx queue\n");
+				dev_err(adev->dev, "failed to map gfx queue\n");
 				return r;
 			}
 		}
@@ -748,7 +749,7 @@ int amdgpu_gfx_enable_kgq(struct amdgpu_device *adev, int xcc_id)
 		r = amdgpu_ring_alloc(kiq_ring, kiq->pmf->map_queues_size *
 						adev->gfx.num_gfx_rings);
 		if (r) {
-			DRM_ERROR("Failed to lock KIQ (%d).\n", r);
+			dev_err(adev->dev, "Failed to lock KIQ (%d).\n", r);
 			spin_unlock(&kiq->ring_lock);
 			return r;
 		}
@@ -769,7 +770,7 @@ int amdgpu_gfx_enable_kgq(struct amdgpu_device *adev, int xcc_id)
 	r = amdgpu_ring_test_helper(kiq_ring);
 	spin_unlock(&kiq->ring_lock);
 	if (r)
-		DRM_ERROR("KGQ enable failed\n");
+		dev_err(adev->dev, "KGQ enable failed\n");
 
 	return r;
 }
@@ -1030,7 +1031,7 @@ int amdgpu_gfx_cp_ecc_error_irq(struct amdgpu_device *adev,
 
 	ih_data.head = *ras_if;
 
-	DRM_ERROR("CP ECC ERROR IRQ\n");
+	dev_err(adev->dev, "CP ECC ERROR IRQ\n");
 	amdgpu_ras_interrupt_dispatch(adev, &ih_data);
 	return 0;
 }
@@ -1102,6 +1103,9 @@ uint32_t amdgpu_kiq_rreg(struct amdgpu_device *adev, uint32_t reg, uint32_t xcc_
 
 	might_sleep();
 	while (r < 1 && cnt++ < MAX_KIQ_REG_TRY) {
+		if (amdgpu_in_reset(adev))
+			goto failed_kiq_read;
+
 		msleep(MAX_KIQ_REG_BAILOUT_INTERVAL);
 		r = amdgpu_fence_wait_polling(ring, seq, MAX_KIQ_REG_WAIT);
 	}
@@ -1171,6 +1175,8 @@ void amdgpu_kiq_wreg(struct amdgpu_device *adev, uint32_t reg, uint32_t v, uint3
 
 	might_sleep();
 	while (r < 1 && cnt++ < MAX_KIQ_REG_TRY) {
+		if (amdgpu_in_reset(adev))
+			goto failed_kiq_write;
 
 		msleep(MAX_KIQ_REG_BAILOUT_INTERVAL);
 		r = amdgpu_fence_wait_polling(ring, seq, MAX_KIQ_REG_WAIT);
@@ -1187,6 +1193,75 @@ failed_unlock:
 	spin_unlock_irqrestore(&kiq->ring_lock, flags);
 failed_kiq_write:
 	dev_err(adev->dev, "failed to write reg:%x\n", reg);
+}
+
+int amdgpu_kiq_hdp_flush(struct amdgpu_device *adev)
+{
+	signed long r, cnt = 0;
+	unsigned long flags;
+	uint32_t seq;
+	struct amdgpu_kiq *kiq = &adev->gfx.kiq[0];
+	struct amdgpu_ring *ring = &kiq->ring;
+
+	if (amdgpu_device_skip_hw_access(adev))
+		return 0;
+
+	if (adev->enable_mes_kiq && adev->mes.ring[0].sched.ready)
+		return amdgpu_mes_hdp_flush(adev);
+
+	if (!ring->funcs->emit_hdp_flush) {
+		return -EOPNOTSUPP;
+	}
+
+	spin_lock_irqsave(&kiq->ring_lock, flags);
+	r = amdgpu_ring_alloc(ring, 32);
+	if (r)
+		goto failed_unlock;
+
+	amdgpu_ring_emit_hdp_flush(ring);
+	r = amdgpu_fence_emit_polling(ring, &seq, MAX_KIQ_REG_WAIT);
+	if (r)
+		goto failed_undo;
+
+	amdgpu_ring_commit(ring);
+	spin_unlock_irqrestore(&kiq->ring_lock, flags);
+
+	r = amdgpu_fence_wait_polling(ring, seq, MAX_KIQ_REG_WAIT);
+
+	/* don't wait anymore for gpu reset case because this way may
+	 * block gpu_recover() routine forever, e.g. this virt_kiq_rreg
+	 * is triggered in TTM and ttm_bo_lock_delayed_workqueue() will
+	 * never return if we keep waiting in virt_kiq_rreg, which cause
+	 * gpu_recover() hang there.
+	 *
+	 * also don't wait anymore for IRQ context
+	 * */
+	if (r < 1 && (amdgpu_in_reset(adev) || in_interrupt()))
+		goto failed_kiq_hdp_flush;
+
+	might_sleep();
+	while (r < 1 && cnt++ < MAX_KIQ_REG_TRY) {
+		if (amdgpu_in_reset(adev))
+			goto failed_kiq_hdp_flush;
+
+		msleep(MAX_KIQ_REG_BAILOUT_INTERVAL);
+		r = amdgpu_fence_wait_polling(ring, seq, MAX_KIQ_REG_WAIT);
+	}
+
+	if (cnt > MAX_KIQ_REG_TRY) {
+		dev_err(adev->dev, "failed to flush HDP via KIQ timeout\n");
+		return -ETIMEDOUT;
+	}
+
+	return 0;
+
+failed_undo:
+	amdgpu_ring_undo(ring);
+failed_unlock:
+	spin_unlock_irqrestore(&kiq->ring_lock, flags);
+failed_kiq_hdp_flush:
+	dev_err(adev->dev, "failed to flush HDP via KIQ\n");
+	return r < 0 ? r : -EIO;
 }
 
 int amdgpu_gfx_get_num_kcq(struct amdgpu_device *adev)
@@ -1474,7 +1549,8 @@ static int amdgpu_gfx_run_cleaner_shader_job(struct amdgpu_ring *ring)
 	owner = (void *)(unsigned long)atomic_inc_return(&counter);
 
 	r = amdgpu_job_alloc_with_ib(ring->adev, &entity, owner,
-				     64, 0, &job);
+				     64, 0, &job,
+				     AMDGPU_KERNEL_JOB_ID_CLEANER_SHADER);
 	if (r)
 		goto err;
 
@@ -1594,7 +1670,6 @@ static ssize_t amdgpu_gfx_set_run_cleaner_shader(struct device *dev,
 
 	ret = amdgpu_gfx_run_cleaner_shader(adev, value);
 
-	pm_runtime_mark_last_busy(ddev->dev);
 	pm_runtime_put_autosuspend(ddev->dev);
 
 	if (ret)
@@ -2279,7 +2354,7 @@ void amdgpu_gfx_profile_ring_end_use(struct amdgpu_ring *ring)
  * Return:
  * return the latest index.
  */
-u32 amdgpu_gfx_csb_preamble_start(volatile u32 *buffer)
+u32 amdgpu_gfx_csb_preamble_start(u32 *buffer)
 {
 	u32 count = 0;
 
@@ -2303,7 +2378,7 @@ u32 amdgpu_gfx_csb_preamble_start(volatile u32 *buffer)
  * Return:
  * return the latest index.
  */
-u32 amdgpu_gfx_csb_data_parser(struct amdgpu_device *adev, volatile u32 *buffer, u32 count)
+u32 amdgpu_gfx_csb_data_parser(struct amdgpu_device *adev, u32 *buffer, u32 count)
 {
 	const struct cs_section_def *sect = NULL;
 	const struct cs_extent_def *ext = NULL;
@@ -2330,7 +2405,7 @@ u32 amdgpu_gfx_csb_data_parser(struct amdgpu_device *adev, volatile u32 *buffer,
  * @buffer: This is an output variable that gets the PACKET3 preamble end.
  * @count: Index to start set the preemble end.
  */
-void amdgpu_gfx_csb_preamble_end(volatile u32 *buffer, u32 count)
+void amdgpu_gfx_csb_preamble_end(u32 *buffer, u32 count)
 {
 	buffer[count++] = cpu_to_le32(PACKET3(PACKET3_PREAMBLE_CNTL, 0));
 	buffer[count++] = cpu_to_le32(PACKET3_PREAMBLE_END_CLEAR_STATE);
@@ -2479,3 +2554,4 @@ void amdgpu_debugfs_compute_sched_mask_init(struct amdgpu_device *adev)
 			    &amdgpu_debugfs_compute_sched_mask_fops);
 #endif
 }
+

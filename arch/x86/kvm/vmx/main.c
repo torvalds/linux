@@ -29,40 +29,8 @@ static __init int vt_hardware_setup(void)
 	if (ret)
 		return ret;
 
-	/*
-	 * Update vt_x86_ops::vm_size here so it is ready before
-	 * kvm_ops_update() is called in kvm_x86_vendor_init().
-	 *
-	 * Note, the actual bringing up of TDX must be done after
-	 * kvm_ops_update() because enabling TDX requires enabling
-	 * hardware virtualization first, i.e., all online CPUs must
-	 * be in post-VMXON state.  This means the @vm_size here
-	 * may be updated to TDX's size but TDX may fail to enable
-	 * at later time.
-	 *
-	 * The VMX/VT code could update kvm_x86_ops::vm_size again
-	 * after bringing up TDX, but this would require exporting
-	 * either kvm_x86_ops or kvm_ops_update() from the base KVM
-	 * module, which looks overkill.  Anyway, the worst case here
-	 * is KVM may allocate couple of more bytes than needed for
-	 * each VM.
-	 */
-	if (enable_tdx) {
-		vt_x86_ops.vm_size = max_t(unsigned int, vt_x86_ops.vm_size,
-				sizeof(struct kvm_tdx));
-		/*
-		 * Note, TDX may fail to initialize in a later time in
-		 * vt_init(), in which case it is not necessary to setup
-		 * those callbacks.  But making them valid here even
-		 * when TDX fails to init later is fine because those
-		 * callbacks won't be called if the VM isn't TDX guest.
-		 */
-		vt_x86_ops.link_external_spt = tdx_sept_link_private_spt;
-		vt_x86_ops.set_external_spte = tdx_sept_set_private_spte;
-		vt_x86_ops.free_external_spt = tdx_sept_free_private_spt;
-		vt_x86_ops.remove_external_spte = tdx_sept_remove_private_spte;
-		vt_x86_ops.protected_apic_has_interrupt = tdx_protected_apic_has_interrupt;
-	}
+	if (enable_tdx)
+		tdx_hardware_setup();
 
 	return 0;
 }
@@ -175,12 +143,12 @@ static int vt_vcpu_pre_run(struct kvm_vcpu *vcpu)
 	return vmx_vcpu_pre_run(vcpu);
 }
 
-static fastpath_t vt_vcpu_run(struct kvm_vcpu *vcpu, bool force_immediate_exit)
+static fastpath_t vt_vcpu_run(struct kvm_vcpu *vcpu, u64 run_flags)
 {
 	if (is_td_vcpu(vcpu))
-		return tdx_vcpu_run(vcpu, force_immediate_exit);
+		return tdx_vcpu_run(vcpu, run_flags);
 
-	return vmx_vcpu_run(vcpu, force_immediate_exit);
+	return vmx_vcpu_run(vcpu, run_flags);
 }
 
 static int vt_handle_exit(struct kvm_vcpu *vcpu,
@@ -220,18 +188,18 @@ static int vt_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 	return vmx_get_msr(vcpu, msr_info);
 }
 
-static void vt_msr_filter_changed(struct kvm_vcpu *vcpu)
+static void vt_recalc_intercepts(struct kvm_vcpu *vcpu)
 {
 	/*
-	 * TDX doesn't allow VMM to configure interception of MSR accesses.
-	 * TDX guest requests MSR accesses by calling TDVMCALL.  The MSR
-	 * filters will be applied when handling the TDVMCALL for RDMSR/WRMSR
-	 * if the userspace has set any.
+	 * TDX doesn't allow VMM to configure interception of instructions or
+	 * MSR accesses.  TDX guest requests MSR accesses by calling TDVMCALL.
+	 * The MSR filters will be applied when handling the TDVMCALL for
+	 * RDMSR/WRMSR if the userspace has set any.
 	 */
 	if (is_td_vcpu(vcpu))
 		return;
 
-	vmx_msr_filter_changed(vcpu);
+	vmx_recalc_intercepts(vcpu);
 }
 
 static int vt_complete_emulated_msr(struct kvm_vcpu *vcpu, int err)
@@ -487,14 +455,6 @@ static void vt_set_gdt(struct kvm_vcpu *vcpu, struct desc_ptr *dt)
 		return;
 
 	vmx_set_gdt(vcpu, dt);
-}
-
-static void vt_set_dr6(struct kvm_vcpu *vcpu, unsigned long val)
-{
-	if (is_td_vcpu(vcpu))
-		return;
-
-	vmx_set_dr6(vcpu, val);
 }
 
 static void vt_set_dr7(struct kvm_vcpu *vcpu, unsigned long val)
@@ -871,10 +831,11 @@ static int vt_vcpu_mem_enc_ioctl(struct kvm_vcpu *vcpu, void __user *argp)
 	return tdx_vcpu_ioctl(vcpu, argp);
 }
 
-static int vt_gmem_private_max_mapping_level(struct kvm *kvm, kvm_pfn_t pfn)
+static int vt_gmem_max_mapping_level(struct kvm *kvm, kvm_pfn_t pfn,
+				     bool is_private)
 {
 	if (is_td(kvm))
-		return tdx_gmem_private_max_mapping_level(kvm, pfn);
+		return tdx_gmem_max_mapping_level(kvm, pfn, is_private);
 
 	return 0;
 }
@@ -923,6 +884,8 @@ struct kvm_x86_ops vt_x86_ops __initdata = {
 	.vcpu_load = vt_op(vcpu_load),
 	.vcpu_put = vt_op(vcpu_put),
 
+	.HOST_OWNED_DEBUGCTL = VMX_HOST_OWNED_DEBUGCTL_BITS,
+
 	.update_exception_bitmap = vt_op(update_exception_bitmap),
 	.get_feature_msr = vmx_get_feature_msr,
 	.get_msr = vt_op(get_msr),
@@ -943,7 +906,6 @@ struct kvm_x86_ops vt_x86_ops __initdata = {
 	.set_idt = vt_op(set_idt),
 	.get_gdt = vt_op(get_gdt),
 	.set_gdt = vt_op(set_gdt),
-	.set_dr6 = vt_op(set_dr6),
 	.set_dr7 = vt_op(set_dr7),
 	.sync_dirty_debug_regs = vt_op(sync_dirty_debug_regs),
 	.cache_reg = vt_op(cache_reg),
@@ -1014,7 +976,7 @@ struct kvm_x86_ops vt_x86_ops __initdata = {
 	.nested_ops = &vmx_nested_ops,
 
 	.pi_update_irte = vmx_pi_update_irte,
-	.pi_start_assignment = vmx_pi_start_assignment,
+	.pi_start_bypass = vmx_pi_start_bypass,
 
 #ifdef CONFIG_X86_64
 	.set_hv_timer = vt_op(set_hv_timer),
@@ -1034,7 +996,7 @@ struct kvm_x86_ops vt_x86_ops __initdata = {
 	.apic_init_signal_blocked = vt_op(apic_init_signal_blocked),
 	.migrate_timers = vmx_migrate_timers,
 
-	.msr_filter_changed = vt_op(msr_filter_changed),
+	.recalc_intercepts = vt_op(recalc_intercepts),
 	.complete_emulated_msr = vt_op(complete_emulated_msr),
 
 	.vcpu_deliver_sipi_vector = kvm_vcpu_deliver_sipi_vector,
@@ -1044,7 +1006,7 @@ struct kvm_x86_ops vt_x86_ops __initdata = {
 	.mem_enc_ioctl = vt_op_tdx_only(mem_enc_ioctl),
 	.vcpu_mem_enc_ioctl = vt_op_tdx_only(vcpu_mem_enc_ioctl),
 
-	.private_max_mapping_level = vt_op_tdx_only(gmem_private_max_mapping_level)
+	.gmem_max_mapping_level = vt_op_tdx_only(gmem_max_mapping_level)
 };
 
 struct kvm_x86_init_ops vt_init_ops __initdata = {

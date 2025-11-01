@@ -394,7 +394,7 @@ static void *file_setup_area(int nr_hpages)
 		perror("open()");
 		exit(EXIT_FAILURE);
 	}
-	p = mmap(BASE_ADDR, size, PROT_READ | PROT_EXEC,
+	p = mmap(BASE_ADDR, size, PROT_READ,
 		 MAP_PRIVATE, finfo.fd, 0);
 	if (p == MAP_FAILED || p != BASE_ADDR) {
 		perror("mmap()");
@@ -560,8 +560,6 @@ static bool wait_for_scan(const char *msg, char *p, int nr_hpages,
 		printf(".");
 		usleep(TICK);
 	}
-
-	madvise(p, nr_hpages * hpage_pmd_size, MADV_NOHUGEPAGE);
 
 	return timeout == -1;
 }
@@ -1189,6 +1187,11 @@ int main(int argc, char **argv)
 		 */
 		.read_ahead_kb = 0,
 	};
+
+	if (!thp_is_enabled()) {
+		printf("Transparent Hugepages not available\n");
+		return KSFT_SKIP;
+	}
 
 	parse_test_type(argc, argv);
 

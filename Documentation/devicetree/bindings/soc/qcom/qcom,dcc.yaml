@@ -18,6 +18,7 @@ properties:
   compatible:
     items:
       - enum:
+          - qcom,sm7150-dcc
           - qcom,sm8150-dcc
           - qcom,sc7280-dcc
           - qcom,sc7180-dcc

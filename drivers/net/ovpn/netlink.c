@@ -352,7 +352,7 @@ int ovpn_nl_peer_new_doit(struct sk_buff *skb, struct genl_info *info)
 		return -EINVAL;
 
 	ret = nla_parse_nested(attrs, OVPN_A_PEER_MAX, info->attrs[OVPN_A_PEER],
-			       ovpn_peer_nl_policy, info->extack);
+			       ovpn_peer_new_input_nl_policy, info->extack);
 	if (ret)
 		return ret;
 
@@ -476,7 +476,7 @@ int ovpn_nl_peer_set_doit(struct sk_buff *skb, struct genl_info *info)
 		return -EINVAL;
 
 	ret = nla_parse_nested(attrs, OVPN_A_PEER_MAX, info->attrs[OVPN_A_PEER],
-			       ovpn_peer_nl_policy, info->extack);
+			       ovpn_peer_set_input_nl_policy, info->extack);
 	if (ret)
 		return ret;
 
@@ -654,7 +654,7 @@ int ovpn_nl_peer_get_doit(struct sk_buff *skb, struct genl_info *info)
 	struct ovpn_peer *peer;
 	struct sk_buff *msg;
 	u32 peer_id;
-	int ret;
+	int ret, i;
 
 	if (GENL_REQ_ATTR_CHECK(info, OVPN_A_PEER))
 		return -EINVAL;
@@ -667,6 +667,23 @@ int ovpn_nl_peer_get_doit(struct sk_buff *skb, struct genl_info *info)
 	if (NL_REQ_ATTR_CHECK(info->extack, info->attrs[OVPN_A_PEER], attrs,
 			      OVPN_A_PEER_ID))
 		return -EINVAL;
+
+	/* OVPN_CMD_PEER_GET expects only the PEER_ID, therefore
+	 * ensure that the user hasn't specified any other attribute.
+	 *
+	 * Unfortunately this check cannot be performed via netlink
+	 * spec/policy and must be open-coded.
+	 */
+	for (i = 0; i < OVPN_A_PEER_MAX + 1; i++) {
+		if (i == OVPN_A_PEER_ID)
+			continue;
+
+		if (attrs[i]) {
+			NL_SET_ERR_MSG_FMT_MOD(info->extack,
+					       "unexpected attribute %u", i);
+			return -EINVAL;
+		}
+	}
 
 	peer_id = nla_get_u32(attrs[OVPN_A_PEER_ID]);
 	peer = ovpn_peer_get_by_id(ovpn, peer_id);
@@ -768,7 +785,7 @@ int ovpn_nl_peer_del_doit(struct sk_buff *skb, struct genl_info *info)
 		return -EINVAL;
 
 	ret = nla_parse_nested(attrs, OVPN_A_PEER_MAX, info->attrs[OVPN_A_PEER],
-			       ovpn_peer_nl_policy, info->extack);
+			       ovpn_peer_del_input_nl_policy, info->extack);
 	if (ret)
 		return ret;
 
@@ -969,14 +986,14 @@ int ovpn_nl_key_get_doit(struct sk_buff *skb, struct genl_info *info)
 	struct ovpn_peer *peer;
 	struct sk_buff *msg;
 	u32 peer_id;
-	int ret;
+	int ret, i;
 
 	if (GENL_REQ_ATTR_CHECK(info, OVPN_A_KEYCONF))
 		return -EINVAL;
 
 	ret = nla_parse_nested(attrs, OVPN_A_KEYCONF_MAX,
 			       info->attrs[OVPN_A_KEYCONF],
-			       ovpn_keyconf_nl_policy, info->extack);
+			       ovpn_keyconf_get_nl_policy, info->extack);
 	if (ret)
 		return ret;
 
@@ -987,6 +1004,24 @@ int ovpn_nl_key_get_doit(struct sk_buff *skb, struct genl_info *info)
 	if (NL_REQ_ATTR_CHECK(info->extack, info->attrs[OVPN_A_KEYCONF], attrs,
 			      OVPN_A_KEYCONF_SLOT))
 		return -EINVAL;
+
+	/* OVPN_CMD_KEY_GET expects only the PEER_ID and the SLOT, therefore
+	 * ensure that the user hasn't specified any other attribute.
+	 *
+	 * Unfortunately this check cannot be performed via netlink
+	 * spec/policy and must be open-coded.
+	 */
+	for (i = 0; i < OVPN_A_KEYCONF_MAX + 1; i++) {
+		if (i == OVPN_A_KEYCONF_PEER_ID ||
+		    i == OVPN_A_KEYCONF_SLOT)
+			continue;
+
+		if (attrs[i]) {
+			NL_SET_ERR_MSG_FMT_MOD(info->extack,
+					       "unexpected attribute %u", i);
+			return -EINVAL;
+		}
+	}
 
 	peer_id = nla_get_u32(attrs[OVPN_A_KEYCONF_PEER_ID]);
 	peer = ovpn_peer_get_by_id(ovpn, peer_id);
@@ -1037,7 +1072,7 @@ int ovpn_nl_key_swap_doit(struct sk_buff *skb, struct genl_info *info)
 
 	ret = nla_parse_nested(attrs, OVPN_A_KEYCONF_MAX,
 			       info->attrs[OVPN_A_KEYCONF],
-			       ovpn_keyconf_nl_policy, info->extack);
+			       ovpn_keyconf_swap_input_nl_policy, info->extack);
 	if (ret)
 		return ret;
 
@@ -1074,7 +1109,7 @@ int ovpn_nl_key_del_doit(struct sk_buff *skb, struct genl_info *info)
 
 	ret = nla_parse_nested(attrs, OVPN_A_KEYCONF_MAX,
 			       info->attrs[OVPN_A_KEYCONF],
-			       ovpn_keyconf_nl_policy, info->extack);
+			       ovpn_keyconf_del_input_nl_policy, info->extack);
 	if (ret)
 		return ret;
 

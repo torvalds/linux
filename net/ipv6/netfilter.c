@@ -24,7 +24,7 @@ int ip6_route_me_harder(struct net *net, struct sock *sk_partial, struct sk_buff
 {
 	const struct ipv6hdr *iph = ipv6_hdr(skb);
 	struct sock *sk = sk_to_full_sk(sk_partial);
-	struct net_device *dev = skb_dst(skb)->dev;
+	struct net_device *dev = skb_dst_dev(skb);
 	struct flow_keys flkeys;
 	unsigned int hh_len;
 	struct dst_entry *dst;
@@ -63,7 +63,10 @@ int ip6_route_me_harder(struct net *net, struct sock *sk_partial, struct sk_buff
 #ifdef CONFIG_XFRM
 	if (!(IP6CB(skb)->flags & IP6SKB_XFRM_TRANSFORMED) &&
 	    xfrm_decode_session(net, skb, flowi6_to_flowi(&fl6), AF_INET6) == 0) {
-		skb_dst_set(skb, NULL);
+		/* ignore return value from skb_dstref_steal, xfrm_lookup takes
+		 * care of dropping the refcnt if needed.
+		 */
+		skb_dstref_steal(skb);
 		dst = xfrm_lookup(net, dst, flowi6_to_flowi(&fl6), sk, 0);
 		if (IS_ERR(dst))
 			return PTR_ERR(dst);
@@ -72,7 +75,7 @@ int ip6_route_me_harder(struct net *net, struct sock *sk_partial, struct sk_buff
 #endif
 
 	/* Change in oif may mean change in hh_len. */
-	hh_len = skb_dst(skb)->dev->hard_header_len;
+	hh_len = skb_dst_dev(skb)->hard_header_len;
 	if (skb_headroom(skb) < hh_len &&
 	    pskb_expand_head(skb, HH_DATA_ALIGN(hh_len - skb_headroom(skb)),
 			     0, GFP_ATOMIC))

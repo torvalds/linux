@@ -294,7 +294,6 @@ static int ad4851_scale_fill(struct iio_dev *indio_dev)
 }
 
 static int ad4851_set_oversampling_ratio(struct iio_dev *indio_dev,
-					 const struct iio_chan_spec *chan,
 					 unsigned int osr)
 {
 	struct ad4851_state *st = iio_priv(indio_dev);
@@ -321,7 +320,8 @@ static int ad4851_set_oversampling_ratio(struct iio_dev *indio_dev,
 			return ret;
 	}
 
-	ret = iio_backend_oversampling_ratio_set(st->back, osr);
+	/* Channel is ignored by the backend being used here */
+	ret = iio_backend_oversampling_ratio_set(st->back, 0, osr);
 	if (ret)
 		return ret;
 
@@ -444,10 +444,12 @@ static int ad4851_setup(struct ad4851_state *st)
 	if (ret)
 		return ret;
 
-	ret = regmap_write(st->regmap, AD4851_REG_INTERFACE_CONFIG_A,
-			   AD4851_SDO_ENABLE);
-	if (ret)
-		return ret;
+	if (!(st->spi->mode & SPI_3WIRE)) {
+		ret = regmap_write(st->regmap, AD4851_REG_INTERFACE_CONFIG_A,
+				   AD4851_SDO_ENABLE);
+		if (ret)
+			return ret;
+	}
 
 	ret = regmap_read(st->regmap, AD4851_REG_PRODUCT_ID_L, &product_id);
 	if (ret)
@@ -831,7 +833,7 @@ static int ad4851_write_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_CALIBBIAS:
 		return ad4851_set_calibbias(st, chan->channel, val);
 	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
-		return ad4851_set_oversampling_ratio(indio_dev, chan, val);
+		return ad4851_set_oversampling_ratio(indio_dev, val);
 	default:
 		return -EINVAL;
 	}

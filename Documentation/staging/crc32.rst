@@ -34,7 +34,7 @@ do it in the right order, matching the endianness.
 Just like with ordinary division, you proceed one digit (bit) at a time.
 Each step of the division you take one more digit (bit) of the dividend
 and append it to the current remainder.  Then you figure out the
-appropriate multiple of the divisor to subtract to being the remainder
+appropriate multiple of the divisor to subtract to bring the remainder
 back into range.  In binary, this is easy - it has to be either 0 or 1,
 and to make the XOR cancel, it's just a copy of bit 32 of the remainder.
 
@@ -116,7 +116,7 @@ for any fractional bytes at the end.
 To reduce the number of conditional branches, software commonly uses
 the byte-at-a-time table method, popularized by Dilip V. Sarwate,
 "Computation of Cyclic Redundancy Checks via Table Look-Up", Comm. ACM
-v.31 no.8 (August 1998) p. 1008-1013.
+v.31 no.8 (August 1988) p. 1008-1013.
 
 Here, rather than just shifting one bit of the remainder to decide
 in the correct multiple to subtract, we can shift a byte at a time.

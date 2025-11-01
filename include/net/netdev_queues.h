@@ -127,6 +127,9 @@ void netdev_stat_queue_sum(struct net_device *netdev,
  * @ndo_queue_stop:	Stop the RX queue at the specified index. The stopped
  *			queue's memory is written at the specified address.
  *
+ * @ndo_queue_get_dma_dev: Get dma device for zero-copy operations to be used
+ *			   for this queue. Return NULL on error.
+ *
  * Note that @ndo_queue_mem_alloc and @ndo_queue_mem_free may be called while
  * the interface is closed. @ndo_queue_start and @ndo_queue_stop will only
  * be called for an interface which is open.
@@ -144,7 +147,11 @@ struct netdev_queue_mgmt_ops {
 	int			(*ndo_queue_stop)(struct net_device *dev,
 						  void *per_queue_mem,
 						  int idx);
+	struct device *		(*ndo_queue_get_dma_dev)(struct net_device *dev,
+							 int idx);
 };
+
+bool netif_rxq_has_unreadable_mp(struct net_device *dev, int idx);
 
 /**
  * DOC: Lockless queue stopping / waking helpers.
@@ -294,6 +301,15 @@ netdev_txq_completed_mb(struct netdev_queue *dev_queue,
 		netif_txq_try_stop(_txq, get_desc, start_thrs);		\
 	})
 
+static inline void netif_subqueue_sent(const struct net_device *dev,
+				       unsigned int idx, unsigned int bytes)
+{
+	struct netdev_queue *txq;
+
+	txq = netdev_get_tx_queue(dev, idx);
+	netdev_tx_sent_queue(txq, bytes);
+}
+
 #define netif_subqueue_maybe_stop(dev, idx, get_desc, stop_thrs, start_thrs) \
 	({								\
 		struct netdev_queue *_txq;				\
@@ -311,5 +327,7 @@ netdev_txq_completed_mb(struct netdev_queue *dev_queue,
 		netif_txq_completed_wake(_txq, pkts, bytes,		\
 					 get_desc, start_thrs);		\
 	})
+
+struct device *netdev_queue_get_dma_dev(struct net_device *dev, int idx);
 
 #endif

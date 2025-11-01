@@ -181,7 +181,7 @@ void cpts_misc_interrupt(struct cpts *cpts)
 }
 EXPORT_SYMBOL_GPL(cpts_misc_interrupt);
 
-static u64 cpts_systim_read(const struct cyclecounter *cc)
+static u64 cpts_systim_read(struct cyclecounter *cc)
 {
 	struct cpts *cpts = container_of(cc, struct cpts, cc);
 

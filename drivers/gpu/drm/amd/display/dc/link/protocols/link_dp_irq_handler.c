@@ -398,10 +398,12 @@ bool dp_should_allow_hpd_rx_irq(const struct dc_link *link)
 	 * Don't handle RX IRQ unless one of following is met:
 	 * 1) The link is established (cur_link_settings != unknown)
 	 * 2) We know we're dealing with a branch device, SST or MST
+	 * 3) The link is bw_alloc enabled.
 	 */
 
 	if ((link->cur_link_settings.lane_count != LANE_COUNT_UNKNOWN) ||
-		is_dp_branch_device(link))
+		is_dp_branch_device(link) ||
+		link->dpia_bw_alloc_config.bw_alloc_enabled)
 		return true;
 
 	return false;

@@ -753,14 +753,14 @@
 		"EventCode": "4203",
 		"EventName": "PCC_COMPUTE_LAST_BLOCK_CMAC_USING_ENCRYPTED_TDEA_128",
 		"BriefDescription": "PCC COMPUTE LAST BLOCK CMAC USING ENCRYPTED TDEA 128",
-		"PublicDescription": "PCC-Compute-Last-Block-CMAC-Using-Encrypted-TDEA- 128 function ending with CC=0"
+		"PublicDescription": "PCC-Compute-Last-Block-CMAC-Using-Encrypted-TDEA-128 function ending with CC=0"
 	},
 	{
 		"Unit": "PAI-CRYPTO",
 		"EventCode": "4204",
 		"EventName": "PCC_COMPUTE_LAST_BLOCK_CMAC_USING_ENCRYPTED_TDEA_192",
 		"BriefDescription": "PCC COMPUTE LAST BLOCK CMAC USING ENCRYPTED TDEA 192",
-		"PublicDescription": "PCC-Compute-Last-Block-CMAC-Using-Encrypted-TDEA- 192 function ending with CC=0"
+		"PublicDescription": "PCC-Compute-Last-Block-CMAC-Using-Encrypted-TDEA-192 function ending with CC=0"
 	},
 	{
 		"Unit": "PAI-CRYPTO",
@@ -788,21 +788,21 @@
 		"EventCode": "4208",
 		"EventName": "PCC_COMPUTE_LAST_BLOCK_CMAC_USING_ENCRYPTED_AES_128",
 		"BriefDescription": "PCC COMPUTE LAST BLOCK CMAC USING ENCRYPTED AES 128",
-		"PublicDescription": "PCC-Compute-Last-Block-CMAC-Using-Encrypted-AES- 128 function ending with CC=0"
+		"PublicDescription": "PCC-Compute-Last-Block-CMAC-Using-Encrypted-AES-128 function ending with CC=0"
 	},
 	{
 		"Unit": "PAI-CRYPTO",
 		"EventCode": "4209",
 		"EventName": "PCC_COMPUTE_LAST_BLOCK_CMAC_USING_ENCRYPTED_AES_192",
 		"BriefDescription": "PCC COMPUTE LAST BLOCK CMAC USING ENCRYPTED AES 192",
-		"PublicDescription": "PCC-Compute-Last-Block-CMAC-Using-Encrypted-AES- 192 function ending with CC=0"
+		"PublicDescription": "PCC-Compute-Last-Block-CMAC-Using-Encrypted-AES-192 function ending with CC=0"
 	},
 	{
 		"Unit": "PAI-CRYPTO",
 		"EventCode": "4210",
-		"EventName": "PCC_COMPUTE_LAST_BLOCK_CMAC_USING_ENCRYPTED_AES_256A",
-		"BriefDescription": "PCC COMPUTE LAST BLOCK CMAC USING ENCRYPTED AES 256A",
-		"PublicDescription": "PCC-Compute-Last-Block-CMAC-Using-Encrypted-AES- 256A function ending with CC=0"
+		"EventName": "PCC_COMPUTE_LAST_BLOCK_CMAC_USING_ENCRYPTED_AES_256",
+		"BriefDescription": "PCC COMPUTE LAST BLOCK CMAC USING ENCRYPTED AES 256",
+		"PublicDescription": "PCC-Compute-Last-Block-CMAC-Using-Encrypted-AES-256 function ending with CC=0"
 	},
 	{
 		"Unit": "PAI-CRYPTO",

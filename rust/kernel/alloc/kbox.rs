@@ -3,10 +3,10 @@
 //! Implementation of [`Box`].
 
 #[allow(unused_imports)] // Used in doc comments.
-use super::allocator::{KVmalloc, Kmalloc, Vmalloc};
-use super::{AllocError, Allocator, Flags};
+use super::allocator::{KVmalloc, Kmalloc, Vmalloc, VmallocPageIter};
+use super::{AllocError, Allocator, Flags, NumaNode};
 use core::alloc::Layout;
-use core::fmt;
+use core::borrow::{Borrow, BorrowMut};
 use core::marker::PhantomData;
 use core::mem::ManuallyDrop;
 use core::mem::MaybeUninit;
@@ -15,7 +15,10 @@ use core::pin::Pin;
 use core::ptr::NonNull;
 use core::result::Result;
 
+use crate::ffi::c_void;
+use crate::fmt;
 use crate::init::InPlaceInit;
+use crate::page::AsPageIter;
 use crate::types::ForeignOwnable;
 use pin_init::{InPlaceWrite, Init, PinInit, ZeroableOption};
 
@@ -271,7 +274,7 @@ where
     /// ```
     pub fn new_uninit(flags: Flags) -> Result<Box<MaybeUninit<T>, A>, AllocError> {
         let layout = Layout::new::<MaybeUninit<T>>();
-        let ptr = A::alloc(layout, flags)?;
+        let ptr = A::alloc(layout, flags, NumaNode::NO_NODE)?;
 
         // INVARIANT: `ptr` is either a dangling pointer or points to memory allocated with `A`,
         // which is sufficient in size and alignment for storing a `T`.
@@ -286,6 +289,83 @@ where
         A: 'static,
     {
         Ok(Self::new(x, flags)?.into())
+    }
+
+    /// Construct a pinned slice of elements `Pin<Box<[T], A>>`.
+    ///
+    /// This is a convenient means for creation of e.g. slices of structrures containing spinlocks
+    /// or mutexes.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use kernel::sync::{new_spinlock, SpinLock};
+    ///
+    /// struct Inner {
+    ///     a: u32,
+    ///     b: u32,
+    /// }
+    ///
+    /// #[pin_data]
+    /// struct Example {
+    ///     c: u32,
+    ///     #[pin]
+    ///     d: SpinLock<Inner>,
+    /// }
+    ///
+    /// impl Example {
+    ///     fn new() -> impl PinInit<Self, Error> {
+    ///         try_pin_init!(Self {
+    ///             c: 10,
+    ///             d <- new_spinlock!(Inner { a: 20, b: 30 }),
+    ///         })
+    ///     }
+    /// }
+    ///
+    /// // Allocate a boxed slice of 10 `Example`s.
+    /// let s = KBox::pin_slice(
+    ///     | _i | Example::new(),
+    ///     10,
+    ///     GFP_KERNEL
+    /// )?;
+    ///
+    /// assert_eq!(s[5].c, 10);
+    /// assert_eq!(s[3].d.lock().a, 20);
+    /// # Ok::<(), Error>(())
+    /// ```
+    pub fn pin_slice<Func, Item, E>(
+        mut init: Func,
+        len: usize,
+        flags: Flags,
+    ) -> Result<Pin<Box<[T], A>>, E>
+    where
+        Func: FnMut(usize) -> Item,
+        Item: PinInit<T, E>,
+        E: From<AllocError>,
+    {
+        let mut buffer = super::Vec::<T, A>::with_capacity(len, flags)?;
+        for i in 0..len {
+            let ptr = buffer.spare_capacity_mut().as_mut_ptr().cast();
+            // SAFETY:
+            // - `ptr` is a valid pointer to uninitialized memory.
+            // - `ptr` is not used if an error is returned.
+            // - `ptr` won't be moved until it is dropped, i.e. it is pinned.
+            unsafe { init(i).__pinned_init(ptr)? };
+
+            // SAFETY:
+            // - `i + 1 <= len`, hence we don't exceed the capacity, due to the call to
+            //   `with_capacity()` above.
+            // - The new value at index buffer.len() + 1 is the only element being added here, and
+            //   it has been initialized above by `init(i).__pinned_init(ptr)`.
+            unsafe { buffer.inc_len(1) };
+        }
+
+        let (ptr, _, _) = buffer.into_raw_parts();
+        let slice = core::ptr::slice_from_raw_parts_mut(ptr, len);
+
+        // SAFETY: `slice` points to an allocation allocated with `A` (`buffer`) and holds a valid
+        // `[T]`.
+        Ok(Pin::from(unsafe { Box::from_raw(slice) }))
     }
 
     /// Convert a [`Box<T,A>`] to a [`Pin<Box<T,A>>`]. If `T` does not implement
@@ -398,70 +478,79 @@ where
     }
 }
 
-// SAFETY: The `into_foreign` function returns a pointer that is well-aligned.
+// SAFETY: The pointer returned by `into_foreign` comes from a well aligned
+// pointer to `T` allocated by `A`.
 unsafe impl<T: 'static, A> ForeignOwnable for Box<T, A>
 where
     A: Allocator,
 {
-    type PointedTo = T;
+    const FOREIGN_ALIGN: usize = if core::mem::align_of::<T>() < A::MIN_ALIGN {
+        A::MIN_ALIGN
+    } else {
+        core::mem::align_of::<T>()
+    };
+
     type Borrowed<'a> = &'a T;
     type BorrowedMut<'a> = &'a mut T;
 
-    fn into_foreign(self) -> *mut Self::PointedTo {
-        Box::into_raw(self)
+    fn into_foreign(self) -> *mut c_void {
+        Box::into_raw(self).cast()
     }
 
-    unsafe fn from_foreign(ptr: *mut Self::PointedTo) -> Self {
+    unsafe fn from_foreign(ptr: *mut c_void) -> Self {
         // SAFETY: The safety requirements of this function ensure that `ptr` comes from a previous
         // call to `Self::into_foreign`.
-        unsafe { Box::from_raw(ptr) }
+        unsafe { Box::from_raw(ptr.cast()) }
     }
 
-    unsafe fn borrow<'a>(ptr: *mut Self::PointedTo) -> &'a T {
+    unsafe fn borrow<'a>(ptr: *mut c_void) -> &'a T {
         // SAFETY: The safety requirements of this method ensure that the object remains alive and
         // immutable for the duration of 'a.
-        unsafe { &*ptr }
+        unsafe { &*ptr.cast() }
     }
 
-    unsafe fn borrow_mut<'a>(ptr: *mut Self::PointedTo) -> &'a mut T {
+    unsafe fn borrow_mut<'a>(ptr: *mut c_void) -> &'a mut T {
+        let ptr = ptr.cast();
         // SAFETY: The safety requirements of this method ensure that the pointer is valid and that
         // nothing else will access the value for the duration of 'a.
         unsafe { &mut *ptr }
     }
 }
 
-// SAFETY: The `into_foreign` function returns a pointer that is well-aligned.
+// SAFETY: The pointer returned by `into_foreign` comes from a well aligned
+// pointer to `T` allocated by `A`.
 unsafe impl<T: 'static, A> ForeignOwnable for Pin<Box<T, A>>
 where
     A: Allocator,
 {
-    type PointedTo = T;
+    const FOREIGN_ALIGN: usize = <Box<T, A> as ForeignOwnable>::FOREIGN_ALIGN;
     type Borrowed<'a> = Pin<&'a T>;
     type BorrowedMut<'a> = Pin<&'a mut T>;
 
-    fn into_foreign(self) -> *mut Self::PointedTo {
+    fn into_foreign(self) -> *mut c_void {
         // SAFETY: We are still treating the box as pinned.
-        Box::into_raw(unsafe { Pin::into_inner_unchecked(self) })
+        Box::into_raw(unsafe { Pin::into_inner_unchecked(self) }).cast()
     }
 
-    unsafe fn from_foreign(ptr: *mut Self::PointedTo) -> Self {
+    unsafe fn from_foreign(ptr: *mut c_void) -> Self {
         // SAFETY: The safety requirements of this function ensure that `ptr` comes from a previous
         // call to `Self::into_foreign`.
-        unsafe { Pin::new_unchecked(Box::from_raw(ptr)) }
+        unsafe { Pin::new_unchecked(Box::from_raw(ptr.cast())) }
     }
 
-    unsafe fn borrow<'a>(ptr: *mut Self::PointedTo) -> Pin<&'a T> {
+    unsafe fn borrow<'a>(ptr: *mut c_void) -> Pin<&'a T> {
         // SAFETY: The safety requirements for this function ensure that the object is still alive,
         // so it is safe to dereference the raw pointer.
         // The safety requirements of `from_foreign` also ensure that the object remains alive for
         // the lifetime of the returned value.
-        let r = unsafe { &*ptr };
+        let r = unsafe { &*ptr.cast() };
 
         // SAFETY: This pointer originates from a `Pin<Box<T>>`.
         unsafe { Pin::new_unchecked(r) }
     }
 
-    unsafe fn borrow_mut<'a>(ptr: *mut Self::PointedTo) -> Pin<&'a mut T> {
+    unsafe fn borrow_mut<'a>(ptr: *mut c_void) -> Pin<&'a mut T> {
+        let ptr = ptr.cast();
         // SAFETY: The safety requirements for this function ensure that the object is still alive,
         // so it is safe to dereference the raw pointer.
         // The safety requirements of `from_foreign` also ensure that the object remains alive for
@@ -496,6 +585,62 @@ where
         // SAFETY: `self.0` is always properly aligned, dereferenceable and points to an initialized
         // instance of `T`.
         unsafe { self.0.as_mut() }
+    }
+}
+
+/// # Examples
+///
+/// ```
+/// # use core::borrow::Borrow;
+/// # use kernel::alloc::KBox;
+/// struct Foo<B: Borrow<u32>>(B);
+///
+/// // Owned instance.
+/// let owned = Foo(1);
+///
+/// // Owned instance using `KBox`.
+/// let owned_kbox = Foo(KBox::new(1, GFP_KERNEL)?);
+///
+/// let i = 1;
+/// // Borrowed from `i`.
+/// let borrowed = Foo(&i);
+/// # Ok::<(), Error>(())
+/// ```
+impl<T, A> Borrow<T> for Box<T, A>
+where
+    T: ?Sized,
+    A: Allocator,
+{
+    fn borrow(&self) -> &T {
+        self.deref()
+    }
+}
+
+/// # Examples
+///
+/// ```
+/// # use core::borrow::BorrowMut;
+/// # use kernel::alloc::KBox;
+/// struct Foo<B: BorrowMut<u32>>(B);
+///
+/// // Owned instance.
+/// let owned = Foo(1);
+///
+/// // Owned instance using `KBox`.
+/// let owned_kbox = Foo(KBox::new(1, GFP_KERNEL)?);
+///
+/// let mut i = 1;
+/// // Borrowed from `i`.
+/// let borrowed = Foo(&mut i);
+/// # Ok::<(), Error>(())
+/// ```
+impl<T, A> BorrowMut<T> for Box<T, A>
+where
+    T: ?Sized,
+    A: Allocator,
+{
+    fn borrow_mut(&mut self) -> &mut T {
+        self.deref_mut()
     }
 }
 
@@ -534,5 +679,42 @@ where
         // - `self.0` was previously allocated with `A`.
         // - `layout` is equal to the `Layout´ `self.0` was allocated with.
         unsafe { A::free(self.0.cast(), layout) };
+    }
+}
+
+/// # Examples
+///
+/// ```
+/// # use kernel::prelude::*;
+/// use kernel::alloc::allocator::VmallocPageIter;
+/// use kernel::page::{AsPageIter, PAGE_SIZE};
+///
+/// let mut vbox = VBox::new((), GFP_KERNEL)?;
+///
+/// assert!(vbox.page_iter().next().is_none());
+///
+/// let mut vbox = VBox::<[u8; PAGE_SIZE]>::new_uninit(GFP_KERNEL)?;
+///
+/// let page = vbox.page_iter().next().expect("At least one page should be available.\n");
+///
+/// // SAFETY: There is no concurrent read or write to the same page.
+/// unsafe { page.fill_zero_raw(0, PAGE_SIZE)? };
+/// # Ok::<(), Error>(())
+/// ```
+impl<T> AsPageIter for VBox<T> {
+    type Iter<'a>
+        = VmallocPageIter<'a>
+    where
+        T: 'a;
+
+    fn page_iter(&mut self) -> Self::Iter<'_> {
+        let ptr = self.0.cast();
+        let size = core::mem::size_of::<T>();
+
+        // SAFETY:
+        // - `ptr` is a valid pointer to the beginning of a `Vmalloc` allocation.
+        // - `ptr` is guaranteed to be valid for the lifetime of `'a`.
+        // - `size` is the size of the `Vmalloc` allocation `ptr` points to.
+        unsafe { VmallocPageIter::new(ptr, size) }
     }
 }

@@ -78,7 +78,6 @@ config SPARC64
 	select MMU_GATHER_NO_FLUSH_CACHE
 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
 	select HAVE_DYNAMIC_FTRACE
-	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_PAGE_SIZE_8KB
 	select HAVE_SYSCALL_TRACEPOINTS
 	select HAVE_CONTEXT_TRACKING_USER
@@ -97,6 +96,7 @@ config SPARC64
 	select HAVE_ARCH_AUDITSYSCALL
 	select ARCH_SUPPORTS_ATOMIC_RMW
 	select ARCH_SUPPORTS_DEBUG_PAGEALLOC
+	select ARCH_SUPPORTS_HUGETLBFS
 	select HAVE_NMI
 	select HAVE_REGS_AND_STACK_ACCESS_API
 	select ARCH_USE_QUEUED_RWLOCKS
@@ -110,7 +110,8 @@ config SPARC64
 	select HAVE_SETUP_PER_CPU_AREA
 	select NEED_PER_CPU_EMBED_FIRST_CHUNK
 	select NEED_PER_CPU_PAGE_FIRST_CHUNK
-	select ARCH_HAS_CRC32
+	select ARCH_SUPPORTS_SCHED_SMT if SMP
+	select ARCH_SUPPORTS_SCHED_MC  if SMP
 
 config ARCH_PROC_KCORE_TEXT
 	def_bool y
@@ -288,24 +289,6 @@ config ARCH_FORCE_MAX_ORDER
 if SPARC64 || COMPILE_TEST
 source "kernel/power/Kconfig"
 endif
-
-config SCHED_SMT
-	bool "SMT (Hyperthreading) scheduler support"
-	depends on SPARC64 && SMP
-	default y
-	help
-	  SMT scheduler support improves the CPU scheduler's decision making
-	  when dealing with SPARC cpus at a cost of slightly increased overhead
-	  in some places. If unsure say N here.
-
-config SCHED_MC
-	bool "Multi-core scheduler support"
-	depends on SPARC64 && SMP
-	default y
-	help
-	  Multi-core scheduler support improves the CPU scheduler's decision
-	  making when dealing with multi-core CPU chips at a cost of slightly
-	  increased overhead in some places. If unsure say N here.
 
 config CMDLINE_BOOL
 	bool "Default bootloader kernel arguments"

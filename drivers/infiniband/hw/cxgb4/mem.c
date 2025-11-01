@@ -489,7 +489,8 @@ err_free_mhp:
 }
 
 struct ib_mr *c4iw_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
-			       u64 virt, int acc, struct ib_udata *udata)
+			       u64 virt, int acc, struct ib_dmah *dmah,
+			       struct ib_udata *udata)
 {
 	__be64 *pages;
 	int shift, n, i;
@@ -500,6 +501,9 @@ struct ib_mr *c4iw_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	struct c4iw_mr *mhp;
 
 	pr_debug("ib_pd %p\n", pd);
+
+	if (dmah)
+		return ERR_PTR(-EOPNOTSUPP);
 
 	if (length == ~0ULL)
 		return ERR_PTR(-EINVAL);

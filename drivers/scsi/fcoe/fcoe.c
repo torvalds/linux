@@ -1300,26 +1300,6 @@ static void fcoe_thread_cleanup_local(unsigned int cpu)
 }
 
 /**
- * fcoe_select_cpu() - Selects CPU to handle post-processing of incoming
- *			command.
- *
- * This routine selects next CPU based on cpumask to distribute
- * incoming requests in round robin.
- *
- * Returns: int CPU number
- */
-static inline unsigned int fcoe_select_cpu(void)
-{
-	static unsigned int selected_cpu;
-
-	selected_cpu = cpumask_next(selected_cpu, cpu_online_mask);
-	if (selected_cpu >= nr_cpu_ids)
-		selected_cpu = cpumask_first(cpu_online_mask);
-
-	return selected_cpu;
-}
-
-/**
  * fcoe_rcv() - Receive packets from a net device
  * @skb:    The received packet
  * @netdev: The net device that the packet was received on
@@ -1405,7 +1385,7 @@ static int fcoe_rcv(struct sk_buff *skb, struct net_device *netdev,
 		cpu = ntohs(fh->fh_ox_id) & fc_cpu_mask;
 	else {
 		if (ntohs(fh->fh_rx_id) == FC_XID_UNKNOWN)
-			cpu = fcoe_select_cpu();
+			cpu = skb->alloc_cpu;
 		else
 			cpu = ntohs(fh->fh_rx_id) & fc_cpu_mask;
 	}

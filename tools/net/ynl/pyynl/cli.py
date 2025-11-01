@@ -113,6 +113,8 @@ def main():
         spec = f"{spec_dir()}/{args.family}.yaml"
         if args.schema is None and spec.startswith(sys_schema_dir):
             args.schema = '' # disable schema validation when installed
+        if args.process_unknown is None:
+            args.process_unknown = True
     else:
         spec = args.spec
     if not os.path.isfile(spec):

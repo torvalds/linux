@@ -856,8 +856,6 @@ static struct sk_buff *am65_cpsw_build_skb(void *page_addr,
 {
 	struct sk_buff *skb;
 
-	len += AM65_CPSW_HEADROOM;
-
 	skb = build_skb(page_addr, len);
 	if (unlikely(!skb))
 		return NULL;
@@ -1344,7 +1342,7 @@ static int am65_cpsw_nuss_rx_packets(struct am65_cpsw_rx_flow *flow,
 	}
 
 	skb = am65_cpsw_build_skb(page_addr, ndev,
-				  AM65_CPSW_MAX_PACKET_SIZE, headroom);
+				  PAGE_SIZE, headroom);
 	if (unlikely(!skb)) {
 		new_page = page;
 		goto requeue;
@@ -1524,7 +1522,7 @@ static int am65_cpsw_nuss_tx_compl_packets(struct am65_cpsw_common *common,
 		}
 	}
 
-	if (single_port) {
+	if (single_port && num_tx) {
 		netif_txq = netdev_get_tx_queue(ndev, chn);
 		netdev_tx_completed_queue(netif_txq, num_tx, total_bytes);
 		am65_cpsw_nuss_tx_wake(tx_chn, ndev, netif_txq);
@@ -1815,6 +1813,9 @@ static int am65_cpsw_nuss_hwtstamp_set(struct net_device *ndev,
 	case HWTSTAMP_FILTER_NONE:
 		port->rx_ts_enabled = false;
 		break;
+	case HWTSTAMP_FILTER_PTP_V1_L4_EVENT:
+	case HWTSTAMP_FILTER_PTP_V1_L4_SYNC:
+	case HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ:
 	case HWTSTAMP_FILTER_PTP_V2_L4_EVENT:
 	case HWTSTAMP_FILTER_PTP_V2_L4_SYNC:
 	case HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ:
@@ -1825,7 +1826,7 @@ static int am65_cpsw_nuss_hwtstamp_set(struct net_device *ndev,
 	case HWTSTAMP_FILTER_PTP_V2_SYNC:
 	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
 		port->rx_ts_enabled = true;
-		cfg.rx_filter = HWTSTAMP_FILTER_PTP_V2_EVENT;
+		cfg.rx_filter = HWTSTAMP_FILTER_PTP_V2_EVENT | HWTSTAMP_FILTER_PTP_V1_L4_EVENT;
 		break;
 	case HWTSTAMP_FILTER_ALL:
 	case HWTSTAMP_FILTER_SOME:
@@ -1886,8 +1887,8 @@ static int am65_cpsw_nuss_hwtstamp_get(struct net_device *ndev,
 	cfg.flags = 0;
 	cfg.tx_type = port->tx_ts_enabled ?
 		      HWTSTAMP_TX_ON : HWTSTAMP_TX_OFF;
-	cfg.rx_filter = port->rx_ts_enabled ?
-			HWTSTAMP_FILTER_PTP_V2_EVENT : HWTSTAMP_FILTER_NONE;
+	cfg.rx_filter = port->rx_ts_enabled ? HWTSTAMP_FILTER_PTP_V2_EVENT |
+			HWTSTAMP_FILTER_PTP_V1_L4_EVENT : HWTSTAMP_FILTER_NONE;
 
 	return copy_to_user(ifr->ifr_data, &cfg, sizeof(cfg)) ? -EFAULT : 0;
 }
@@ -2602,6 +2603,7 @@ static int am65_cpsw_nuss_init_slave_ports(struct am65_cpsw_common *common)
 		return -ENOENT;
 
 	for_each_child_of_node(node, port_np) {
+		phy_interface_t phy_if;
 		struct am65_cpsw_port *port;
 		u32 port_id;
 
@@ -2667,14 +2669,36 @@ static int am65_cpsw_nuss_init_slave_ports(struct am65_cpsw_common *common)
 
 		/* get phy/link info */
 		port->slave.port_np = of_node_get(port_np);
-		ret = of_get_phy_mode(port_np, &port->slave.phy_if);
+		ret = of_get_phy_mode(port_np, &phy_if);
 		if (ret) {
 			dev_err(dev, "%pOF read phy-mode err %d\n",
 				port_np, ret);
 			goto of_node_put;
 		}
 
-		ret = phy_set_mode_ext(port->slave.ifphy, PHY_MODE_ETHERNET, port->slave.phy_if);
+		/* CPSW controllers supported by this driver have a fixed
+		 * internal TX delay in RGMII mode. Fix up PHY mode to account
+		 * for this and warn about Device Trees that claim to have a TX
+		 * delay on the PCB.
+		 */
+		switch (phy_if) {
+		case PHY_INTERFACE_MODE_RGMII_ID:
+			phy_if = PHY_INTERFACE_MODE_RGMII_RXID;
+			break;
+		case PHY_INTERFACE_MODE_RGMII_TXID:
+			phy_if = PHY_INTERFACE_MODE_RGMII;
+			break;
+		case PHY_INTERFACE_MODE_RGMII:
+		case PHY_INTERFACE_MODE_RGMII_RXID:
+			dev_warn(dev,
+				 "RGMII mode without internal TX delay unsupported; please fix your Device Tree\n");
+			break;
+		default:
+			break;
+		}
+
+		port->slave.phy_if = phy_if;
+		ret = phy_set_mode_ext(port->slave.ifphy, PHY_MODE_ETHERNET, phy_if);
 		if (ret)
 			goto of_node_put;
 

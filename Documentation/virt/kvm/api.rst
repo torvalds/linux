@@ -1229,6 +1229,9 @@ It is not possible to read back a pending external abort (injected via
 KVM_SET_VCPU_EVENTS or otherwise) because such an exception is always delivered
 directly to the virtual CPU).
 
+Calling this ioctl on a vCPU that hasn't been initialized will return
+-ENOEXEC.
+
 ::
 
   struct kvm_vcpu_events {
@@ -1309,6 +1312,8 @@ exceptions by manipulating individual registers using the KVM_SET_ONE_REG API.
 
 See KVM_GET_VCPU_EVENTS for the data structure.
 
+Calling this ioctl on a vCPU that hasn't been initialized will return
+-ENOEXEC.
 
 4.33 KVM_GET_DEBUGREGS
 ----------------------
@@ -2006,7 +2011,14 @@ frequency is KHz.
 
 If the KVM_CAP_VM_TSC_CONTROL capability is advertised, this can also
 be used as a vm ioctl to set the initial tsc frequency of subsequently
-created vCPUs.
+created vCPUs.  Note, the vm ioctl is only allowed prior to creating vCPUs.
+
+For TSC protected Confidential Computing (CoCo) VMs where TSC frequency
+is configured once at VM scope and remains unchanged during VM's
+lifetime, the vm ioctl should be used to configure the TSC frequency
+and the vcpu ioctl is not supported.
+
+Example of such CoCo VMs: TDX guests.
 
 4.56 KVM_GET_TSC_KHZ
 --------------------
@@ -2901,6 +2913,16 @@ such as set vcpu counter or reset vcpu, and they have the following id bit patte
 
   0x9030 0000 0002 <reg:16>
 
+x86 MSR registers have the following id bit patterns::
+  0x2030 0002 <msr number:32>
+
+Following are the KVM-defined registers for x86:
+
+======================= ========= =============================================
+    Encoding            Register  Description
+======================= ========= =============================================
+  0x2030 0003 0000 0000 SSP       Shadow Stack Pointer
+======================= ========= =============================================
 
 4.69 KVM_GET_ONE_REG
 --------------------
@@ -3067,6 +3089,12 @@ This IOCTL replaces the obsolete KVM_GET_PIT.
 
 Sets the state of the in-kernel PIT model. Only valid after KVM_CREATE_PIT2.
 See KVM_GET_PIT2 for details on struct kvm_pit_state2.
+
+.. Tip::
+  ``KVM_SET_PIT2`` strictly adheres to the spec of Intel 8254 PIT.  For example,
+  a ``count`` value of 0 in ``struct kvm_pit_channel_state`` is interpreted as
+  65536, which is the maximum count value. Refer to `Intel 8254 programmable
+  interval timer <https://www.scs.stanford.edu/10wi-cs140/pintos/specs/8254.pdf>`_.
 
 This IOCTL replaces the obsolete KVM_SET_PIT.
 
@@ -3575,7 +3603,7 @@ VCPU matching underlying host.
 ---------------------
 
 :Capability: basic
-:Architectures: arm64, mips, riscv
+:Architectures: arm64, mips, riscv, x86 (if KVM_CAP_ONE_REG)
 :Type: vcpu ioctl
 :Parameters: struct kvm_reg_list (in/out)
 :Returns: 0 on success; -1 on error
@@ -3618,6 +3646,8 @@ Note that s390 does not support KVM_GET_REG_LIST for historical reasons
 
 - KVM_REG_S390_GBEA
 
+Note, for x86, all MSRs enumerated by KVM_GET_MSR_INDEX_LIST are supported as
+type KVM_X86_REG_TYPE_MSR, but are NOT enumerated via KVM_GET_REG_LIST.
 
 4.85 KVM_ARM_SET_DEVICE_ADDR (deprecated)
 -----------------------------------------
@@ -6407,6 +6437,24 @@ most one mapping per page, i.e. binding multiple memory regions to a single
 guest_memfd range is not allowed (any number of memory regions can be bound to
 a single guest_memfd file, but the bound ranges must not overlap).
 
+The capability KVM_CAP_GUEST_MEMFD_FLAGS enumerates the `flags` that can be
+specified via KVM_CREATE_GUEST_MEMFD.  Currently defined flags:
+
+  ============================ ================================================
+  GUEST_MEMFD_FLAG_MMAP        Enable using mmap() on the guest_memfd file
+                               descriptor.
+  GUEST_MEMFD_FLAG_INIT_SHARED Make all memory in the file shared during
+                               KVM_CREATE_GUEST_MEMFD (memory files created
+                               without INIT_SHARED will be marked private).
+                               Shared memory can be faulted into host userspace
+                               page tables. Private memory cannot.
+  ============================ ================================================
+
+When the KVM MMU performs a PFN lookup to service a guest fault and the backing
+guest_memfd has the GUEST_MEMFD_FLAG_MMAP set, then the fault will always be
+consumed from guest_memfd, regardless of whether it is a shared or a private
+fault.
+
 See KVM_SET_USER_MEMORY_REGION2 for additional details.
 
 4.143 KVM_PRE_FAULT_MEMORY
@@ -6645,7 +6693,8 @@ to the byte array.
 .. note::
 
       For KVM_EXIT_IO, KVM_EXIT_MMIO, KVM_EXIT_OSI, KVM_EXIT_PAPR, KVM_EXIT_XEN,
-      KVM_EXIT_EPR, KVM_EXIT_X86_RDMSR and KVM_EXIT_X86_WRMSR the corresponding
+      KVM_EXIT_EPR, KVM_EXIT_HYPERCALL, KVM_EXIT_TDX,
+      KVM_EXIT_X86_RDMSR and KVM_EXIT_X86_WRMSR the corresponding
       operations are complete (and guest state is consistent) only after userspace
       has re-entered the kernel with KVM_RUN.  The kernel side will first finish
       incomplete operations and then check for pending signals.
@@ -7174,6 +7223,69 @@ The valid value for 'flags' is:
   - KVM_NOTIFY_CONTEXT_INVALID -- the VM context is corrupted and not valid
     in VMCS. It would run into unknown result if resume the target VM.
 
+::
+
+		/* KVM_EXIT_TDX */
+		struct {
+			__u64 flags;
+			__u64 nr;
+			union {
+				struct {
+					u64 ret;
+					u64 data[5];
+				} unknown;
+				struct {
+					u64 ret;
+					u64 gpa;
+					u64 size;
+				} get_quote;
+				struct {
+					u64 ret;
+					u64 leaf;
+					u64 r11, r12, r13, r14;
+				} get_tdvmcall_info;
+				struct {
+					u64 ret;
+					u64 vector;
+				} setup_event_notify;
+			};
+		} tdx;
+
+Process a TDVMCALL from the guest.  KVM forwards select TDVMCALL based
+on the Guest-Hypervisor Communication Interface (GHCI) specification;
+KVM bridges these requests to the userspace VMM with minimal changes,
+placing the inputs in the union and copying them back to the guest
+on re-entry.
+
+Flags are currently always zero, whereas ``nr`` contains the TDVMCALL
+number from register R11.  The remaining field of the union provide the
+inputs and outputs of the TDVMCALL.  Currently the following values of
+``nr`` are defined:
+
+ * ``TDVMCALL_GET_QUOTE``: the guest has requested to generate a TD-Quote
+   signed by a service hosting TD-Quoting Enclave operating on the host.
+   Parameters and return value are in the ``get_quote`` field of the union.
+   The ``gpa`` field and ``size`` specify the guest physical address
+   (without the shared bit set) and the size of a shared-memory buffer, in
+   which the TDX guest passes a TD Report.  The ``ret`` field represents
+   the return value of the GetQuote request.  When the request has been
+   queued successfully, the TDX guest can poll the status field in the
+   shared-memory area to check whether the Quote generation is completed or
+   not. When completed, the generated Quote is returned via the same buffer.
+
+ * ``TDVMCALL_GET_TD_VM_CALL_INFO``: the guest has requested the support
+   status of TDVMCALLs.  The output values for the given leaf should be
+   placed in fields from ``r11`` to ``r14`` of the ``get_tdvmcall_info``
+   field of the union.
+
+ * ``TDVMCALL_SETUP_EVENT_NOTIFY_INTERRUPT``: the guest has requested to
+   set up a notification interrupt for vector ``vector``.
+
+KVM may add support for more values in the future that may cause a userspace
+exit, even without calls to ``KVM_ENABLE_CAP`` or similar.  In this case,
+it will enter with output fields already valid; in the common case, the
+``unknown.ret`` field of the union will be ``TDVMCALL_STATUS_SUBFUNC_UNSUPPORTED``.
+Userspace need not do anything if it does not wish to support a TDVMCALL.
 ::
 
 		/* Fix the size of the union. */
@@ -7780,6 +7892,7 @@ Valid bits in args[0] are::
   #define KVM_X86_DISABLE_EXITS_HLT              (1 << 1)
   #define KVM_X86_DISABLE_EXITS_PAUSE            (1 << 2)
   #define KVM_X86_DISABLE_EXITS_CSTATE           (1 << 3)
+  #define KVM_X86_DISABLE_EXITS_APERFMPERF       (1 << 4)
 
 Enabling this capability on a VM provides userspace with a way to no
 longer intercept some instructions for improved latency in some
@@ -7789,6 +7902,28 @@ just pass the KVM_CHECK_EXTENSION result to KVM_ENABLE_CAP to disable
 all such vmexits.
 
 Do not enable KVM_FEATURE_PV_UNHALT if you disable HLT exits.
+
+Virtualizing the ``IA32_APERF`` and ``IA32_MPERF`` MSRs requires more
+than just disabling APERF/MPERF exits. While both Intel and AMD
+document strict usage conditions for these MSRs--emphasizing that only
+the ratio of their deltas over a time interval (T0 to T1) is
+architecturally defined--simply passing through the MSRs can still
+produce an incorrect ratio.
+
+This erroneous ratio can occur if, between T0 and T1:
+
+1. The vCPU thread migrates between logical processors.
+2. Live migration or suspend/resume operations take place.
+3. Another task shares the vCPU's logical processor.
+4. C-states lower than C0 are emulated (e.g., via HLT interception).
+5. The guest TSC frequency doesn't match the host TSC frequency.
+
+Due to these complexities, KVM does not automatically associate this
+passthrough capability with the guest CPUID bit,
+``CPUID.6:ECX.APERFMPERF[bit 0]``. Userspace VMMs that deem this
+mechanism adequate for virtualizing the ``IA32_APERF`` and
+``IA32_MPERF`` MSRs must set the guest CPUID bit explicitly.
+
 
 7.14 KVM_CAP_S390_HPAGE_1M
 --------------------------
@@ -8316,7 +8451,7 @@ core crystal clock frequency, if a non-zero CPUID 0x15 is exposed to the guest.
 7.36 KVM_CAP_DIRTY_LOG_RING/KVM_CAP_DIRTY_LOG_RING_ACQ_REL
 ----------------------------------------------------------
 
-:Architectures: x86, arm64
+:Architectures: x86, arm64, riscv
 :Type: vm
 :Parameters: args[0] - size of the dirty log ring
 
@@ -8528,7 +8663,7 @@ ENOSYS for the others.
 When enabled, KVM will exit to userspace with KVM_EXIT_SYSTEM_EVENT of
 type KVM_SYSTEM_EVENT_SUSPEND to process the guest suspend request.
 
-7.37 KVM_CAP_ARM_WRITABLE_IMP_ID_REGS
+7.42 KVM_CAP_ARM_WRITABLE_IMP_ID_REGS
 -------------------------------------
 
 :Architectures: arm64
@@ -8556,6 +8691,17 @@ given VM.
 
 When this capability is enabled, KVM resets the VCPU when setting
 MP_STATE_INIT_RECEIVED through IOCTL.  The original MP_STATE is preserved.
+
+7.43 KVM_CAP_ARM_CACHEABLE_PFNMAP_SUPPORTED
+-------------------------------------------
+
+:Architectures: arm64
+:Target: VM
+:Parameters: None
+
+This capability indicate to the userspace whether a PFNMAP memory region
+can be safely mapped as cacheable. This relies on the presence of
+force write back (FWB) feature support on the hardware.
 
 8. Other capabilities.
 ======================

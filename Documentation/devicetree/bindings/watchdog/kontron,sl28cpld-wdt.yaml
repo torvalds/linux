@@ -11,14 +11,19 @@ maintainers:
 
 description: |
   This module is part of the sl28cpld multi-function device. For more
-  details see ../mfd/kontron,sl28cpld.yaml.
+  details see ../embedded-controller/kontron,sl28cpld.yaml.
 
 allOf:
   - $ref: watchdog.yaml#
 
 properties:
   compatible:
-    const: kontron,sl28cpld-wdt
+    oneOf:
+      - items:
+          - enum:
+              - kontron,sa67mcu-wdt
+          - const: kontron,sl28cpld-wdt
+      - const: kontron,sl28cpld-wdt
 
   reg:
     maxItems: 1

@@ -85,6 +85,18 @@ skl_hda_get_board_quirk(struct snd_soc_acpi_mach_params *mach_params)
 	return board_quirk;
 }
 
+static int skl_hda_add_dai_link(struct snd_soc_card *card,
+				struct snd_soc_dai_link *link)
+{
+	struct sof_card_private *ctx = snd_soc_card_get_drvdata(card);
+
+	/* Ignore the HDMI PCM link if iDisp is not present */
+	if (strstr(link->stream_name, "HDMI") && !ctx->hdmi.idisp_codec)
+		link->ignore = true;
+
+	return 0;
+}
+
 static int skl_hda_audio_probe(struct platform_device *pdev)
 {
 	struct snd_soc_acpi_mach *mach = pdev->dev.platform_data;
@@ -101,6 +113,7 @@ static int skl_hda_audio_probe(struct platform_device *pdev)
 	card->owner = THIS_MODULE;
 	card->fully_routed = true;
 	card->late_probe = skl_hda_card_late_probe;
+	card->add_dai_link = skl_hda_add_dai_link;
 
 	dev_dbg(&pdev->dev, "board_quirk = %lx\n", board_quirk);
 

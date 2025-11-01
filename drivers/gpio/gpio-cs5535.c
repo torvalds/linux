@@ -296,7 +296,7 @@ static struct cs5535_gpio_chip cs5535_gpio_chip = {
 		.request = chip_gpio_request,
 
 		.get = chip_gpio_get,
-		.set_rv = chip_gpio_set,
+		.set = chip_gpio_set,
 
 		.direction_input = chip_direction_input,
 		.direction_output = chip_direction_output,

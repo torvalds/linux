@@ -26,7 +26,7 @@
 #define __LINK_HWSS_HPO_DP_H__
 
 #include "link_hwss.h"
-#include "link.h"
+#include "link_service.h"
 
 void set_hpo_dp_throttled_vcp_size(struct pipe_ctx *pipe_ctx,
 		struct fixed31_32 throttled_vcp_size);

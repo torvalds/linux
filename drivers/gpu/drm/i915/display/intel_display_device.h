@@ -9,7 +9,6 @@
 #include <linux/bitops.h>
 #include <linux/types.h>
 
-#include "intel_display_conversion.h"
 #include "intel_display_limits.h"
 
 struct drm_printer;
@@ -192,9 +191,8 @@ struct intel_display_platforms {
 #define HAS_TRANSCODER(__display, trans)	((DISPLAY_RUNTIME_INFO(__display)->cpu_transcoder_mask & \
 						  BIT(trans)) != 0)
 #define HAS_UNCOMPRESSED_JOINER(__display)	(DISPLAY_VER(__display) >= 13)
-#define HAS_ULTRAJOINER(__display)	((DISPLAY_VER(__display) >= 20 || \
-					  ((__display)->platform.dgfx && DISPLAY_VER(__display) == 14)) && \
-					 HAS_DSC(__display))
+#define HAS_ULTRAJOINER(__display)	(((__display)->platform.dgfx && \
+					  DISPLAY_VER(__display) == 14) && HAS_DSC(__display))
 #define HAS_VRR(__display)		(DISPLAY_VER(__display) >= 11)
 #define INTEL_NUM_PIPES(__display)	(hweight8(DISPLAY_RUNTIME_INFO(__display)->pipe_mask))
 #define OVERLAY_NEEDS_PHYSICAL(__display)	(DISPLAY_INFO(__display)->overlay_needs_physical)
@@ -225,8 +223,8 @@ struct intel_display_platforms {
 	(IS_DISPLAY_VERx100((__display), (ipver), (ipver)) && \
 	 IS_DISPLAY_STEP((__display), (from), (until)))
 
-#define DISPLAY_INFO(__display)		(__to_intel_display(__display)->info.__device_info)
-#define DISPLAY_RUNTIME_INFO(__display)	(&__to_intel_display(__display)->info.__runtime_info)
+#define DISPLAY_INFO(__display)		((__display)->info.__device_info)
+#define DISPLAY_RUNTIME_INFO(__display)	(&(__display)->info.__runtime_info)
 
 #define DISPLAY_VER(__display)		(DISPLAY_RUNTIME_INFO(__display)->ip.ver)
 #define DISPLAY_VERx100(__display)	(DISPLAY_RUNTIME_INFO(__display)->ip.ver * 100 + \
@@ -237,7 +235,7 @@ struct intel_display_platforms {
 #define INTEL_DISPLAY_STEP(__display)	(DISPLAY_RUNTIME_INFO(__display)->step)
 
 #define IS_DISPLAY_STEP(__display, since, until) \
-	(drm_WARN_ON(__to_intel_display(__display)->drm, INTEL_DISPLAY_STEP(__display) == STEP_NONE), \
+	(drm_WARN_ON((__display)->drm, INTEL_DISPLAY_STEP(__display) == STEP_NONE), \
 	 INTEL_DISPLAY_STEP(__display) >= (since) && INTEL_DISPLAY_STEP(__display) < (until))
 
 #define ARLS_HOST_BRIDGE_PCI_ID1 0x7D1C
@@ -308,6 +306,7 @@ struct intel_display_device_info {
 	} color;
 };
 
+bool intel_display_device_present(struct intel_display *display);
 bool intel_display_device_enabled(struct intel_display *display);
 struct intel_display *intel_display_device_probe(struct pci_dev *pdev);
 void intel_display_device_remove(struct intel_display *display);

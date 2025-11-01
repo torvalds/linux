@@ -8,6 +8,7 @@
  * Authors: Microsoft Linux virtualization team
  */
 
+#include <linux/entry-virt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/fs.h>
@@ -36,12 +37,6 @@
 MODULE_AUTHOR("Microsoft");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Microsoft Hyper-V root partition VMM interface /dev/mshv");
-
-/* TODO move this to mshyperv.h when needed outside driver */
-static inline bool hv_parent_partition(void)
-{
-	return hv_root_partition();
-}
 
 /* TODO move this to another file when debugfs code is added */
 enum hv_stats_vp_counters {			/* HV_THREAD_COUNTER */
@@ -487,28 +482,6 @@ mshv_vp_wait_for_hv_kick(struct mshv_vp *vp)
 	return 0;
 }
 
-static int mshv_pre_guest_mode_work(struct mshv_vp *vp)
-{
-	const ulong work_flags = _TIF_NOTIFY_SIGNAL | _TIF_SIGPENDING |
-				 _TIF_NEED_RESCHED  | _TIF_NOTIFY_RESUME;
-	ulong th_flags;
-
-	th_flags = read_thread_flags();
-	while (th_flags & work_flags) {
-		int ret;
-
-		/* nb: following will call schedule */
-		ret = mshv_do_pre_guest_mode_work(th_flags);
-
-		if (ret)
-			return ret;
-
-		th_flags = read_thread_flags();
-	}
-
-	return 0;
-}
-
 /* Must be called with interrupts enabled */
 static long mshv_run_vp_with_root_scheduler(struct mshv_vp *vp)
 {
@@ -529,9 +502,11 @@ static long mshv_run_vp_with_root_scheduler(struct mshv_vp *vp)
 		u32 flags = 0;
 		struct hv_output_dispatch_vp output;
 
-		ret = mshv_pre_guest_mode_work(vp);
-		if (ret)
-			break;
+		if (__xfer_to_guest_mode_work_pending()) {
+			ret = xfer_to_guest_mode_handle_work();
+			if (ret)
+				break;
+		}
 
 		if (vp->run.flags.intercept_suspend)
 			flags |= HV_DISPATCH_VP_FLAG_CLEAR_INTERCEPT_SUSPEND;
@@ -2074,9 +2049,13 @@ static int __init hv_retrieve_scheduler_type(enum hv_scheduler_type *out)
 /* Retrieve and stash the supported scheduler type */
 static int __init mshv_retrieve_scheduler_type(struct device *dev)
 {
-	int ret;
+	int ret = 0;
 
-	ret = hv_retrieve_scheduler_type(&hv_scheduler_type);
+	if (hv_l1vh_partition())
+		hv_scheduler_type = HV_SCHEDULER_TYPE_CORE_SMT;
+	else
+		ret = hv_retrieve_scheduler_type(&hv_scheduler_type);
+
 	if (ret)
 		return ret;
 
@@ -2203,9 +2182,6 @@ static int __init mshv_root_partition_init(struct device *dev)
 {
 	int err;
 
-	if (mshv_retrieve_scheduler_type(dev))
-		return -ENODEV;
-
 	err = root_scheduler_init(dev);
 	if (err)
 		return err;
@@ -2227,7 +2203,7 @@ static int __init mshv_parent_partition_init(void)
 	struct device *dev;
 	union hv_hypervisor_version_info version_info;
 
-	if (!hv_root_partition() || is_kdump_kernel())
+	if (!hv_parent_partition() || is_kdump_kernel())
 		return -ENODEV;
 
 	if (hv_get_hypervisor_version(&version_info))
@@ -2264,7 +2240,12 @@ static int __init mshv_parent_partition_init(void)
 
 	mshv_cpuhp_online = ret;
 
-	ret = mshv_root_partition_init(dev);
+	ret = mshv_retrieve_scheduler_type(dev);
+	if (ret)
+		goto remove_cpu_state;
+
+	if (hv_root_partition())
+		ret = mshv_root_partition_init(dev);
 	if (ret)
 		goto remove_cpu_state;
 

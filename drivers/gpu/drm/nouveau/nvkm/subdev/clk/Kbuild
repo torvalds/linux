@@ -10,6 +10,8 @@ nvkm-y += nvkm/subdev/clk/gf100.o
 nvkm-y += nvkm/subdev/clk/gk104.o
 nvkm-y += nvkm/subdev/clk/gk20a.o
 nvkm-y += nvkm/subdev/clk/gm20b.o
+nvkm-y += nvkm/subdev/clk/gp10b.o
+nvkm-$(CONFIG_PM_DEVFREQ) += nvkm/subdev/clk/gk20a_devfreq.o
 
 nvkm-y += nvkm/subdev/clk/pllnv04.o
 nvkm-y += nvkm/subdev/clk/pllgt215.o

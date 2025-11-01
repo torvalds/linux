@@ -385,7 +385,7 @@ static int get_bind_to_device(int sd, char *name, size_t len)
 	name[0] = '\0';
 	rc = getsockopt(sd, SOL_SOCKET, SO_BINDTODEVICE, name, &optlen);
 	if (rc < 0)
-		log_err_errno("setsockopt(SO_BINDTODEVICE)");
+		log_err_errno("getsockopt(SO_BINDTODEVICE)");
 
 	return rc;
 }
@@ -535,7 +535,7 @@ static int set_freebind(int sd, int version)
 		break;
 	case AF_INET6:
 		if (setsockopt(sd, SOL_IPV6, IPV6_FREEBIND, &one, sizeof(one))) {
-			log_err_errno("setsockopt(IPV6_FREEBIND");
+			log_err_errno("setsockopt(IPV6_FREEBIND)");
 			rc = -1;
 		}
 		break;
@@ -812,7 +812,7 @@ static int convert_addr(struct sock_args *args, const char *_str,
 			sep++;
 			if (str_to_uint(sep, 1, pfx_len_max,
 					&args->prefix_len) != 0) {
-				fprintf(stderr, "Invalid port\n");
+				fprintf(stderr, "Invalid prefix length\n");
 				return 1;
 			}
 		} else {
@@ -1272,7 +1272,7 @@ static int msg_loop(int client, int sd, void *addr, socklen_t alen,
 		}
 	}
 
-	nfds = interactive ? MAX(fileno(stdin), sd)  + 1 : sd + 1;
+	nfds = interactive ? MAX(fileno(stdin), sd) + 1 : sd + 1;
 	while (1) {
 		FD_ZERO(&rfds);
 		FD_SET(sd, &rfds);
@@ -1492,7 +1492,7 @@ static int lsock_init(struct sock_args *args)
 	sd = socket(args->version, args->type, args->protocol);
 	if (sd < 0) {
 		log_err_errno("Error opening socket");
-		return  -1;
+		return -1;
 	}
 
 	if (set_reuseaddr(sd) != 0)
@@ -1912,7 +1912,7 @@ static int ipc_parent(int cpid, int fd, struct sock_args *args)
 	 * waiting to be told when to continue
 	 */
 	if (read(fd, &buf, sizeof(buf)) <= 0) {
-		log_err_errno("Failed to read IPC status from status");
+		log_err_errno("Failed to read IPC status from pipe");
 		return 1;
 	}
 	if (!buf) {

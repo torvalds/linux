@@ -19,12 +19,17 @@ int cgroup_setup_and_join(const char *relative_path);
 int get_root_cgroup(void);
 int create_and_get_cgroup(const char *relative_path);
 void remove_cgroup(const char *relative_path);
+void remove_cgroup_pid(const char *relative_path, int pid);
 unsigned long long get_cgroup_id(const char *relative_path);
 int get_cgroup1_hierarchy_id(const char *subsys_name);
 
 int join_cgroup(const char *relative_path);
 int join_root_cgroup(void);
 int join_parent_cgroup(const char *relative_path);
+
+int set_cgroup_xattr(const char *relative_path,
+		     const char *name,
+		     const char *value);
 
 int setup_cgroup_environment(void);
 void cleanup_cgroup_environment(void);

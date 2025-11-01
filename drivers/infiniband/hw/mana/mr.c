@@ -106,6 +106,7 @@ static int mana_ib_gd_destroy_mr(struct mana_ib_dev *dev, u64 mr_handle)
 
 struct ib_mr *mana_ib_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 length,
 				  u64 iova, int access_flags,
+				  struct ib_dmah *dmah,
 				  struct ib_udata *udata)
 {
 	struct mana_ib_pd *pd = container_of(ibpd, struct mana_ib_pd, ibpd);
@@ -115,6 +116,9 @@ struct ib_mr *mana_ib_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 length,
 	struct mana_ib_mr *mr;
 	u64 dma_region_handle;
 	int err;
+
+	if (dmah)
+		return ERR_PTR(-EOPNOTSUPP);
 
 	dev = container_of(ibdev, struct mana_ib_dev, ib_dev);
 
@@ -134,7 +138,8 @@ struct ib_mr *mana_ib_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 length,
 	if (IS_ERR(mr->umem)) {
 		err = PTR_ERR(mr->umem);
 		ibdev_dbg(ibdev,
-			  "Failed to get umem for register user-mr, %d\n", err);
+			  "Failed to get umem for register user-mr, %pe\n",
+			  mr->umem);
 		goto err_free;
 	}
 
@@ -188,6 +193,7 @@ err_free:
 
 struct ib_mr *mana_ib_reg_user_mr_dmabuf(struct ib_pd *ibpd, u64 start, u64 length,
 					 u64 iova, int fd, int access_flags,
+					 struct ib_dmah *dmah,
 					 struct uverbs_attr_bundle *attrs)
 {
 	struct mana_ib_pd *pd = container_of(ibpd, struct mana_ib_pd, ibpd);
@@ -198,6 +204,9 @@ struct ib_mr *mana_ib_reg_user_mr_dmabuf(struct ib_pd *ibpd, u64 start, u64 leng
 	struct mana_ib_mr *mr;
 	u64 dma_region_handle;
 	int err;
+
+	if (dmah)
+		return ERR_PTR(-EOPNOTSUPP);
 
 	dev = container_of(ibdev, struct mana_ib_dev, ib_dev);
 
@@ -212,7 +221,8 @@ struct ib_mr *mana_ib_reg_user_mr_dmabuf(struct ib_pd *ibpd, u64 start, u64 leng
 	umem_dmabuf = ib_umem_dmabuf_get_pinned(ibdev, start, length, fd, access_flags);
 	if (IS_ERR(umem_dmabuf)) {
 		err = PTR_ERR(umem_dmabuf);
-		ibdev_dbg(ibdev, "Failed to get dmabuf umem, %d\n", err);
+		ibdev_dbg(ibdev, "Failed to get dmabuf umem, %pe\n",
+			  umem_dmabuf);
 		goto err_free;
 	}
 

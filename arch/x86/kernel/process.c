@@ -89,6 +89,16 @@ DEFINE_PER_CPU(bool, __tss_limit_invalid);
 EXPORT_PER_CPU_SYMBOL_GPL(__tss_limit_invalid);
 
 /*
+ * The cache may be in an incoherent state and needs flushing during kexec.
+ * E.g., on SME/TDX platforms, dirty cacheline aliases with and without
+ * encryption bit(s) can coexist and the cache needs to be flushed before
+ * booting to the new kernel to avoid the silent memory corruption due to
+ * dirty cachelines with different encryption property being written back
+ * to the memory.
+ */
+DEFINE_PER_CPU(bool, cache_state_incoherent);
+
+/*
  * this gets called so that we can store lazy state into memory and copy the
  * current task into the new thread.
  */
@@ -159,7 +169,7 @@ __visible void ret_from_fork(struct task_struct *prev, struct pt_regs *regs,
 
 int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 {
-	unsigned long clone_flags = args->flags;
+	u64 clone_flags = args->flags;
 	unsigned long sp = args->stack;
 	unsigned long tls = args->tls;
 	struct inactive_task_frame *frame;
@@ -334,13 +344,21 @@ DEFINE_PER_CPU(u64, msr_misc_features_shadow);
 
 static void set_cpuid_faulting(bool on)
 {
-	u64 msrval;
 
-	msrval = this_cpu_read(msr_misc_features_shadow);
-	msrval &= ~MSR_MISC_FEATURES_ENABLES_CPUID_FAULT;
-	msrval |= (on << MSR_MISC_FEATURES_ENABLES_CPUID_FAULT_BIT);
-	this_cpu_write(msr_misc_features_shadow, msrval);
-	wrmsrq(MSR_MISC_FEATURES_ENABLES, msrval);
+	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL) {
+		u64 msrval;
+
+		msrval = this_cpu_read(msr_misc_features_shadow);
+		msrval &= ~MSR_MISC_FEATURES_ENABLES_CPUID_FAULT;
+		msrval |= (on << MSR_MISC_FEATURES_ENABLES_CPUID_FAULT_BIT);
+		this_cpu_write(msr_misc_features_shadow, msrval);
+		wrmsrq(MSR_MISC_FEATURES_ENABLES, msrval);
+	} else if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD) {
+		if (on)
+			msr_set_bit(MSR_K7_HWCR, MSR_K7_HWCR_CPUID_USER_DIS_BIT);
+		else
+			msr_clear_bit(MSR_K7_HWCR, MSR_K7_HWCR_CPUID_USER_DIS_BIT);
+	}
 }
 
 static void disable_cpuid(void)
@@ -819,19 +837,7 @@ void __noreturn stop_this_cpu(void *dummy)
 	disable_local_APIC();
 	mcheck_cpu_clear(c);
 
-	/*
-	 * Use wbinvd on processors that support SME. This provides support
-	 * for performing a successful kexec when going from SME inactive
-	 * to SME active (or vice-versa). The cache must be cleared so that
-	 * if there are entries with the same physical address, both with and
-	 * without the encryption bit, they don't race each other when flushed
-	 * and potentially end up with the wrong entry being committed to
-	 * memory.
-	 *
-	 * Test the CPUID bit directly because the machine might've cleared
-	 * X86_FEATURE_SME due to cmdline options.
-	 */
-	if (c->extended_cpuid_level >= 0x8000001f && (cpuid_eax(0x8000001f) & BIT(0)))
+	if (this_cpu_read(cache_state_incoherent))
 		wbinvd();
 
 	/*
@@ -907,16 +913,24 @@ static __init bool prefer_mwait_c1_over_halt(void)
  */
 static __cpuidle void mwait_idle(void)
 {
+	if (need_resched())
+		return;
+
+	x86_idle_clear_cpu_buffers();
+
 	if (!current_set_polling_and_test()) {
 		const void *addr = &current_thread_info()->flags;
 
 		alternative_input("", "clflush (%[addr])", X86_BUG_CLFLUSH_MONITOR, [addr] "a" (addr));
 		__monitor(addr, 0, 0);
-		if (!need_resched()) {
-			__sti_mwait(0, 0);
-			raw_local_irq_disable();
-		}
+		if (need_resched())
+			goto out;
+
+		__sti_mwait(0, 0);
+		raw_local_irq_disable();
 	}
+
+out:
 	__current_clr_polling();
 }
 

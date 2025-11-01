@@ -85,7 +85,7 @@ examples:
         dma-coherent;
         calxeda,port-phys = <&combophy5 0>, <&combophy0 0>, <&combophy0 1>,
                              <&combophy0 2>, <&combophy0 3>;
-        calxeda,sgpio-gpio =<&gpioh 5 1>, <&gpioh 6 1>, <&gpioh 7 1>;
+        calxeda,sgpio-gpio = <&gpioh 5 1>, <&gpioh 6 1>, <&gpioh 7 1>;
         calxeda,led-order = <4 0 1 2 3>;
         calxeda,tx-atten = <0xff 22 0xff 0xff 23>;
         calxeda,pre-clocks = <10>;

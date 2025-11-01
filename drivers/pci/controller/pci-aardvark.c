@@ -13,6 +13,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/irqchip/irq-msi-lib.h>
 #include <linux/irqdomain.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -278,7 +279,6 @@ struct advk_pcie {
 	struct irq_domain *irq_domain;
 	struct irq_chip irq_chip;
 	raw_spinlock_t irq_lock;
-	struct irq_domain *msi_domain;
 	struct irq_domain *msi_inner_domain;
 	raw_spinlock_t msi_irq_lock;
 	DECLARE_BITMAP(msi_used, MSI_IRQ_NUM);
@@ -1332,18 +1332,6 @@ static void advk_msi_irq_unmask(struct irq_data *d)
 	raw_spin_unlock_irqrestore(&pcie->msi_irq_lock, flags);
 }
 
-static void advk_msi_top_irq_mask(struct irq_data *d)
-{
-	pci_msi_mask_irq(d);
-	irq_chip_mask_parent(d);
-}
-
-static void advk_msi_top_irq_unmask(struct irq_data *d)
-{
-	pci_msi_unmask_irq(d);
-	irq_chip_unmask_parent(d);
-}
-
 static struct irq_chip advk_msi_bottom_irq_chip = {
 	.name			= "MSI",
 	.irq_compose_msi_msg	= advk_msi_irq_compose_msi_msg,
@@ -1436,17 +1424,20 @@ static const struct irq_domain_ops advk_pcie_irq_domain_ops = {
 	.xlate = irq_domain_xlate_onecell,
 };
 
-static struct irq_chip advk_msi_irq_chip = {
-	.name		= "advk-MSI",
-	.irq_mask	= advk_msi_top_irq_mask,
-	.irq_unmask	= advk_msi_top_irq_unmask,
-};
+#define ADVK_MSI_FLAGS_REQUIRED (MSI_FLAG_USE_DEF_DOM_OPS	| \
+				 MSI_FLAG_USE_DEF_CHIP_OPS	| \
+				 MSI_FLAG_PCI_MSI_MASK_PARENT	| \
+				 MSI_FLAG_NO_AFFINITY)
+#define ADVK_MSI_FLAGS_SUPPORTED (MSI_GENERIC_FLAGS_MASK	| \
+				  MSI_FLAG_PCI_MSIX		| \
+				  MSI_FLAG_MULTI_PCI_MSI)
 
-static struct msi_domain_info advk_msi_domain_info = {
-	.flags	= MSI_FLAG_USE_DEF_DOM_OPS | MSI_FLAG_USE_DEF_CHIP_OPS |
-		  MSI_FLAG_NO_AFFINITY | MSI_FLAG_MULTI_PCI_MSI |
-		  MSI_FLAG_PCI_MSIX,
-	.chip	= &advk_msi_irq_chip,
+static const struct msi_parent_ops advk_msi_parent_ops = {
+	.required_flags		= ADVK_MSI_FLAGS_REQUIRED,
+	.supported_flags	= ADVK_MSI_FLAGS_SUPPORTED,
+	.bus_select_token	= DOMAIN_BUS_PCI_MSI,
+	.prefix			= "advk-",
+	.init_dev_msi_info	= msi_lib_init_dev_msi_info,
 };
 
 static int advk_pcie_init_msi_irq_domain(struct advk_pcie *pcie)
@@ -1456,26 +1447,22 @@ static int advk_pcie_init_msi_irq_domain(struct advk_pcie *pcie)
 	raw_spin_lock_init(&pcie->msi_irq_lock);
 	mutex_init(&pcie->msi_used_lock);
 
-	pcie->msi_inner_domain = irq_domain_create_linear(NULL, MSI_IRQ_NUM,
-							  &advk_msi_domain_ops, pcie);
+	struct irq_domain_info info = {
+		.fwnode		= dev_fwnode(dev),
+		.ops		= &advk_msi_domain_ops,
+		.host_data	= pcie,
+		.size		= MSI_IRQ_NUM,
+	};
+
+	pcie->msi_inner_domain = msi_create_parent_irq_domain(&info, &advk_msi_parent_ops);
 	if (!pcie->msi_inner_domain)
 		return -ENOMEM;
-
-	pcie->msi_domain =
-		pci_msi_create_irq_domain(dev_fwnode(dev),
-					  &advk_msi_domain_info,
-					  pcie->msi_inner_domain);
-	if (!pcie->msi_domain) {
-		irq_domain_remove(pcie->msi_inner_domain);
-		return -ENOMEM;
-	}
 
 	return 0;
 }
 
 static void advk_pcie_remove_msi_irq_domain(struct advk_pcie *pcie)
 {
-	irq_domain_remove(pcie->msi_domain);
 	irq_domain_remove(pcie->msi_inner_domain);
 }
 

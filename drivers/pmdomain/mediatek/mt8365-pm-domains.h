@@ -29,11 +29,13 @@
 			    MT8365_SMI_COMMON_CLAMP_EN)
 
 #define MT8365_BUS_PROT_WAY_EN(_set_mask, _set, _sta_mask, _sta)	\
-		_BUS_PROT(_set_mask, _set, _set, _sta_mask, _sta,	\
-			  BUS_PROT_COMPONENT_INFRA |			\
-			  BUS_PROT_STA_COMPONENT_INFRA_NAO |		\
-			  BUS_PROT_INVERTED |				\
-			  BUS_PROT_REG_UPDATE)
+		_BUS_PROT_STA(INFRA, INFRA_NAO, _set_mask, _set, _set,	\
+			      _sta_mask, _sta,				\
+			      BUS_PROT_INVERTED | BUS_PROT_REG_UPDATE)
+
+static enum scpsys_bus_prot_block scpsys_bus_prot_blocks_mt8365[] = {
+	BUS_PROT_BLOCK_INFRA, BUS_PROT_BLOCK_INFRA_NAO, BUS_PROT_BLOCK_SMI
+};
 
 static const struct scpsys_domain_data scpsys_domain_data_mt8365[] = {
 	[MT8365_POWER_DOMAIN_MM] = {
@@ -192,6 +194,8 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8365[] = {
 static const struct scpsys_soc_data mt8365_scpsys_data = {
 	.domains_data = scpsys_domain_data_mt8365,
 	.num_domains = ARRAY_SIZE(scpsys_domain_data_mt8365),
+	.bus_prot_blocks = scpsys_bus_prot_blocks_mt8365,
+	.num_bus_prot_blocks = ARRAY_SIZE(scpsys_bus_prot_blocks_mt8365),
 };
 
 #endif /* __SOC_MEDIATEK_MT8365_PM_DOMAINS_H */

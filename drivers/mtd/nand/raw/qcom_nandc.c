@@ -1379,7 +1379,7 @@ static int qcom_nand_attach_chip(struct nand_chip *chip)
 	struct qcom_nand_controller *nandc = get_qcom_nand_controller(chip);
 	int cwperpage, bad_block_byte, ret;
 	bool wide_bus;
-	int ecc_mode = 1;
+	int ecc_mode = ECC_MODE_8BIT;
 
 	/* controller only supports 512 bytes data steps */
 	ecc->size = NANDC_STEP_SIZE;
@@ -1400,7 +1400,7 @@ static int qcom_nand_attach_chip(struct nand_chip *chip)
 	if (ecc->strength >= 8) {
 		/* 8 bit ECC defaults to BCH ECC on all platforms */
 		host->bch_enabled = true;
-		ecc_mode = 1;
+		ecc_mode = ECC_MODE_8BIT;
 
 		if (wide_bus) {
 			host->ecc_bytes_hw = 14;
@@ -1420,7 +1420,7 @@ static int qcom_nand_attach_chip(struct nand_chip *chip)
 		if (nandc->props->ecc_modes & ECC_BCH_4BIT) {
 			/* BCH */
 			host->bch_enabled = true;
-			ecc_mode = 0;
+			ecc_mode = ECC_MODE_4BIT;
 
 			if (wide_bus) {
 				host->ecc_bytes_hw = 8;

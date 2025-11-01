@@ -16,9 +16,6 @@ description: |
   Support various Texas Instruments fuel gauge devices that share similar
   register maps and power supply properties
 
-allOf:
-  - $ref: power-supply.yaml#
-
 properties:
   compatible:
     enum:
@@ -58,6 +55,10 @@ properties:
     maxItems: 1
     description: integer, I2C address of the fuel gauge.
 
+  interrupts:
+    maxItems: 1
+    description: the SOC_INT or GPOUT pin
+
   monitored-battery:
     description: |
        The fuel gauge uses the following battery properties:
@@ -67,6 +68,36 @@ properties:
        Both or neither of the *-full-design-*-hours properties must be set.
 
   power-supplies: true
+
+allOf:
+  - $ref: power-supply.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - ti,bq27200
+              - ti,bq27210
+              - ti,bq27500 # deprecated, use revision specific property below
+              - ti,bq27510 # deprecated, use revision specific property below
+              - ti,bq27520 # deprecated, use revision specific property below
+              - ti,bq27500-1
+              - ti,bq27510g1
+              - ti,bq27510g2
+              - ti,bq27521
+              - ti,bq27541
+              - ti,bq27542
+              - ti,bq27546
+              - ti,bq27742
+              - ti,bq27545
+              - ti,bq27411
+              - ti,bq27z561
+              - ti,bq28z610
+              - ti,bq34z100
+              - ti,bq78z100
+    then:
+      properties:
+        interrupts: false
 
 required:
   - compatible

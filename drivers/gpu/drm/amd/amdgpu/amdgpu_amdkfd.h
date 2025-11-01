@@ -71,7 +71,7 @@ struct kgd_mem {
 	struct mutex lock;
 	struct amdgpu_bo *bo;
 	struct dma_buf *dmabuf;
-	struct hmm_range *range;
+	struct amdgpu_hmm_range *range;
 	struct list_head attachments;
 	/* protected by amdkfd_process_info.lock */
 	struct list_head validate_list;
@@ -107,11 +107,13 @@ struct amdgpu_kfd_dev {
 	bool init_complete;
 	struct work_struct reset_work;
 
-	/* HMM page migration MEMORY_DEVICE_PRIVATE mapping */
-	struct dev_pagemap pgmap;
-
 	/* Client for KFD BO GEM handle allocations */
 	struct drm_client_dev client;
+
+	/* HMM page migration MEMORY_DEVICE_PRIVATE mapping
+	 * Must be last --ends in a flexible-array member.
+	 */
+	struct dev_pagemap pgmap;
 };
 
 enum kgd_engine_type {
@@ -154,8 +156,10 @@ struct amdkfd_process_info {
 int amdgpu_amdkfd_init(void);
 void amdgpu_amdkfd_fini(void);
 
-void amdgpu_amdkfd_suspend(struct amdgpu_device *adev, bool run_pm);
-int amdgpu_amdkfd_resume(struct amdgpu_device *adev, bool run_pm);
+void amdgpu_amdkfd_suspend(struct amdgpu_device *adev, bool suspend_proc);
+int amdgpu_amdkfd_resume(struct amdgpu_device *adev, bool resume_proc);
+void amdgpu_amdkfd_suspend_process(struct amdgpu_device *adev);
+int amdgpu_amdkfd_resume_process(struct amdgpu_device *adev);
 void amdgpu_amdkfd_interrupt(struct amdgpu_device *adev,
 			const void *ih_ring_entry);
 void amdgpu_amdkfd_device_probe(struct amdgpu_device *adev);
@@ -411,18 +415,22 @@ struct kfd_dev *kgd2kfd_probe(struct amdgpu_device *adev, bool vf);
 bool kgd2kfd_device_init(struct kfd_dev *kfd,
 			 const struct kgd2kfd_shared_resources *gpu_resources);
 void kgd2kfd_device_exit(struct kfd_dev *kfd);
-void kgd2kfd_suspend(struct kfd_dev *kfd, bool run_pm);
-int kgd2kfd_resume(struct kfd_dev *kfd, bool run_pm);
+void kgd2kfd_suspend(struct kfd_dev *kfd, bool suspend_proc);
+int kgd2kfd_resume(struct kfd_dev *kfd, bool resume_proc);
+void kgd2kfd_suspend_process(struct kfd_dev *kfd);
+int kgd2kfd_resume_process(struct kfd_dev *kfd);
 int kgd2kfd_pre_reset(struct kfd_dev *kfd,
 		      struct amdgpu_reset_context *reset_context);
 int kgd2kfd_post_reset(struct kfd_dev *kfd);
 void kgd2kfd_interrupt(struct kfd_dev *kfd, const void *ih_ring_entry);
 void kgd2kfd_set_sram_ecc_flag(struct kfd_dev *kfd);
 void kgd2kfd_smi_event_throttle(struct kfd_dev *kfd, uint64_t throttle_bitmask);
-int kgd2kfd_check_and_lock_kfd(void);
-void kgd2kfd_unlock_kfd(void);
+int kgd2kfd_check_and_lock_kfd(struct kfd_dev *kfd);
+void kgd2kfd_unlock_kfd(struct kfd_dev *kfd);
 int kgd2kfd_start_sched(struct kfd_dev *kfd, uint32_t node_id);
+int kgd2kfd_start_sched_all_nodes(struct kfd_dev *kfd);
 int kgd2kfd_stop_sched(struct kfd_dev *kfd, uint32_t node_id);
+int kgd2kfd_stop_sched_all_nodes(struct kfd_dev *kfd);
 bool kgd2kfd_compute_active(struct kfd_dev *kfd, uint32_t node_id);
 bool kgd2kfd_vmfault_fast_path(struct amdgpu_device *adev, struct amdgpu_iv_entry *entry,
 			       bool retry_fault);
@@ -454,11 +462,20 @@ static inline void kgd2kfd_device_exit(struct kfd_dev *kfd)
 {
 }
 
-static inline void kgd2kfd_suspend(struct kfd_dev *kfd, bool run_pm)
+static inline void kgd2kfd_suspend(struct kfd_dev *kfd, bool suspend_proc)
 {
 }
 
-static inline int kgd2kfd_resume(struct kfd_dev *kfd, bool run_pm)
+static inline int kgd2kfd_resume(struct kfd_dev *kfd, bool resume_proc)
+{
+	return 0;
+}
+
+static inline void kgd2kfd_suspend_process(struct kfd_dev *kfd)
+{
+}
+
+static inline int kgd2kfd_resume_process(struct kfd_dev *kfd)
 {
 	return 0;
 }
@@ -489,12 +506,12 @@ void kgd2kfd_smi_event_throttle(struct kfd_dev *kfd, uint64_t throttle_bitmask)
 {
 }
 
-static inline int kgd2kfd_check_and_lock_kfd(void)
+static inline int kgd2kfd_check_and_lock_kfd(struct kfd_dev *kfd)
 {
 	return 0;
 }
 
-static inline void kgd2kfd_unlock_kfd(void)
+static inline void kgd2kfd_unlock_kfd(struct kfd_dev *kfd)
 {
 }
 
@@ -503,7 +520,17 @@ static inline int kgd2kfd_start_sched(struct kfd_dev *kfd, uint32_t node_id)
 	return 0;
 }
 
+static inline int kgd2kfd_start_sched_all_nodes(struct kfd_dev *kfd)
+{
+	return 0;
+}
+
 static inline int kgd2kfd_stop_sched(struct kfd_dev *kfd, uint32_t node_id)
+{
+	return 0;
+}
+
+static inline int kgd2kfd_stop_sched_all_nodes(struct kfd_dev *kfd)
 {
 	return 0;
 }

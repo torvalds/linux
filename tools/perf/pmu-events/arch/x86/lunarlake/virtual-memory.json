@@ -37,24 +37,6 @@
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "Counts the number of first level TLB misses but second level hits due to a demand load that did not start a page walk. Account for 4k page size only. Will result in a DTLB write from STLB.",
-        "Counter": "0,1,2,3,4,5,6,7",
-        "EventCode": "0x08",
-        "EventName": "DTLB_LOAD_MISSES.STLB_HIT_4K",
-        "SampleAfterValue": "200003",
-        "UMask": "0x20",
-        "Unit": "cpu_atom"
-    },
-    {
-        "BriefDescription": "Counts the number of first level TLB misses but second level hits due to a demand load that did not start a page walk. Account for large page sizes only. Will result in a DTLB write from STLB.",
-        "Counter": "0,1,2,3,4,5,6,7",
-        "EventCode": "0x08",
-        "EventName": "DTLB_LOAD_MISSES.STLB_HIT_LGPG",
-        "SampleAfterValue": "200003",
-        "UMask": "0x40",
-        "Unit": "cpu_atom"
-    },
-    {
         "BriefDescription": "Cycles when at least one PMH is busy with a page walk for a demand load.",
         "Counter": "0,1,2,3,4,5,6,7,8,9",
         "CounterMask": "1",

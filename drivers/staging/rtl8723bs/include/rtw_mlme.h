@@ -341,8 +341,6 @@ extern void rtw_init_registrypriv_dev_network(struct adapter *adapter);
 
 extern void rtw_update_registrypriv_dev_network(struct adapter *adapter);
 
-extern void rtw_get_encrypt_decrypt_from_registrypriv(struct adapter *adapter);
-
 extern void _rtw_join_timeout_handler(struct timer_list *t);
 extern void rtw_scan_timeout_handler(struct timer_list *t);
 
@@ -397,5 +395,6 @@ u8 rtw_to_roam(struct adapter *adapter);
 int rtw_select_roaming_candidate(struct mlme_priv *pmlmepriv);
 
 void rtw_sta_media_status_rpt(struct adapter *adapter, struct sta_info *psta, u32 mstatus);
+void rtw_reset_securitypriv(struct adapter *adapter);
 
 #endif /* __RTL871X_MLME_H_ */

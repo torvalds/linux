@@ -53,6 +53,9 @@ properties:
   reg:
     maxItems: 1
 
+  "#io-channel-cells":
+    const: 1
+
   vcc-supply: true
   vref-supply:
     description: Optional external reference.  If not supplied, internal

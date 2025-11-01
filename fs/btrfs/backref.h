@@ -190,7 +190,7 @@ struct btrfs_backref_share_check_ctx {
 	 * It's very common to have several file extent items that point to the
 	 * same extent (bytenr) but with different offsets and lengths. This
 	 * typically happens for COW writes, partial writes into prealloc
-	 * extents, NOCOW writes after snapshoting a root, hole punching or
+	 * extents, NOCOW writes after snapshotting a root, hole punching or
 	 * reflinking within the same file (less common perhaps).
 	 * So keep a small cache with the lookup results for the extent pointed
 	 * by the last few file extent items. This cache is checked, with a
@@ -226,8 +226,7 @@ int iterate_extent_inodes(struct btrfs_backref_walk_ctx *ctx,
 			  iterate_extent_inodes_t *iterate, void *user_ctx);
 
 int iterate_inodes_from_logical(u64 logical, struct btrfs_fs_info *fs_info,
-				struct btrfs_path *path, void *ctx,
-				bool ignore_offset);
+				void *ctx, bool ignore_offset);
 
 int paths_from_inode(u64 inum, struct inode_fs_paths *ipath);
 
@@ -313,10 +312,15 @@ int btrfs_backref_iter_next(struct btrfs_backref_iter *iter);
  * Represent a tree block in the backref cache
  */
 struct btrfs_backref_node {
-	struct {
-		struct rb_node rb_node;
-		u64 bytenr;
-	}; /* Use rb_simple_node for search/insert */
+	union{
+		/* Use rb_simple_node for search/insert */
+		struct {
+			struct rb_node rb_node;
+			u64 bytenr;
+		};
+
+		struct rb_simple_node simple_node;
+	};
 
 	/*
 	 * This is a sanity check, whenever we COW a block we will update
@@ -410,7 +414,7 @@ struct btrfs_backref_cache {
 	/*
 	 * Whether this cache is for relocation
 	 *
-	 * Reloction backref cache require more info for reloc root compared
+	 * Relocation backref cache require more info for reloc root compared
 	 * to generic backref cache.
 	 */
 	bool is_reloc;
@@ -423,13 +427,6 @@ struct btrfs_backref_node *btrfs_backref_alloc_node(
 struct btrfs_backref_edge *btrfs_backref_alloc_edge(
 		struct btrfs_backref_cache *cache);
 
-#define		LINK_LOWER	(1U << 0)
-#define		LINK_UPPER	(1U << 1)
-
-void btrfs_backref_link_edge(struct btrfs_backref_edge *edge,
-			     struct btrfs_backref_node *lower,
-			     struct btrfs_backref_node *upper,
-			     int link_which);
 void btrfs_backref_free_node(struct btrfs_backref_cache *cache,
 			     struct btrfs_backref_node *node);
 void btrfs_backref_free_edge(struct btrfs_backref_cache *cache,

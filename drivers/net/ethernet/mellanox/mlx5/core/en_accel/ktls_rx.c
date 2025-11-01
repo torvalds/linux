@@ -498,9 +498,9 @@ static void resync_update_sn(struct mlx5e_rq *rq, struct sk_buff *skb)
 		depth += sizeof(struct iphdr);
 		th = (void *)iph + sizeof(struct iphdr);
 
-		sk = inet_lookup_established(net, net->ipv4.tcp_death_row.hashinfo,
-					     iph->saddr, th->source, iph->daddr,
-					     th->dest, netdev->ifindex);
+		sk = inet_lookup_established(net, iph->saddr, th->source,
+					     iph->daddr, th->dest,
+					     netdev->ifindex);
 #if IS_ENABLED(CONFIG_IPV6)
 	} else {
 		struct ipv6hdr *ipv6h = (struct ipv6hdr *)iph;
@@ -508,8 +508,7 @@ static void resync_update_sn(struct mlx5e_rq *rq, struct sk_buff *skb)
 		depth += sizeof(struct ipv6hdr);
 		th = (void *)ipv6h + sizeof(struct ipv6hdr);
 
-		sk = __inet6_lookup_established(net, net->ipv4.tcp_death_row.hashinfo,
-						&ipv6h->saddr, th->source,
+		sk = __inet6_lookup_established(net, &ipv6h->saddr, th->source,
 						&ipv6h->daddr, ntohs(th->dest),
 						netdev->ifindex, 0);
 #endif

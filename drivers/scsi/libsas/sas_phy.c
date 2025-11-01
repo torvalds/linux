@@ -20,7 +20,7 @@ static void sas_phye_loss_of_signal(struct work_struct *work)
 	struct asd_sas_phy *phy = ev->phy;
 
 	phy->error = 0;
-	sas_deform_port(phy, 1);
+	sas_deform_port(phy, true);
 }
 
 static void sas_phye_oob_done(struct work_struct *work)
@@ -40,7 +40,7 @@ static void sas_phye_oob_error(struct work_struct *work)
 	struct sas_internal *i =
 		to_sas_internal(sas_ha->shost->transportt);
 
-	sas_deform_port(phy, 1);
+	sas_deform_port(phy, true);
 
 	if (!port && phy->enabled && i->dft->lldd_control_phy) {
 		phy->error++;
@@ -85,7 +85,7 @@ static void sas_phye_resume_timeout(struct work_struct *work)
 
 	phy->error = 0;
 	phy->suspended = 0;
-	sas_deform_port(phy, 1);
+	sas_deform_port(phy, true);
 }
 
 

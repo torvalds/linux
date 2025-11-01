@@ -36,6 +36,8 @@ void __nolibc_timespec_kernel_to_user(const struct __kernel_timespec *kts, struc
  * int clock_getres(clockid_t clockid, struct timespec *res);
  * int clock_gettime(clockid_t clockid, struct timespec *tp);
  * int clock_settime(clockid_t clockid, const struct timespec *tp);
+ * int clock_nanosleep(clockid_t clockid, int flags, const struct timespec *rqtp,
+ *                     struct timespec *rmtp)
  */
 
 static __attribute__((unused))
@@ -43,7 +45,7 @@ int sys_clock_getres(clockid_t clockid, struct timespec *res)
 {
 #if defined(__NR_clock_getres)
 	return my_syscall2(__NR_clock_getres, clockid, res);
-#elif defined(__NR_clock_getres_time64)
+#else
 	struct __kernel_timespec kres;
 	int ret;
 
@@ -51,8 +53,6 @@ int sys_clock_getres(clockid_t clockid, struct timespec *res)
 	if (res)
 		__nolibc_timespec_kernel_to_user(&kres, res);
 	return ret;
-#else
-	return __nolibc_enosys(__func__, clockid, res);
 #endif
 }
 
@@ -67,7 +67,7 @@ int sys_clock_gettime(clockid_t clockid, struct timespec *tp)
 {
 #if defined(__NR_clock_gettime)
 	return my_syscall2(__NR_clock_gettime, clockid, tp);
-#elif defined(__NR_clock_gettime64)
+#else
 	struct __kernel_timespec ktp;
 	int ret;
 
@@ -75,8 +75,6 @@ int sys_clock_gettime(clockid_t clockid, struct timespec *tp)
 	if (tp)
 		__nolibc_timespec_kernel_to_user(&ktp, tp);
 	return ret;
-#else
-	return __nolibc_enosys(__func__, clockid, tp);
 #endif
 }
 
@@ -107,11 +105,44 @@ int clock_settime(clockid_t clockid, struct timespec *tp)
 	return __sysret(sys_clock_settime(clockid, tp));
 }
 
+static __attribute__((unused))
+int sys_clock_nanosleep(clockid_t clockid, int flags, const struct timespec *rqtp,
+			struct timespec *rmtp)
+{
+#if defined(__NR_clock_nanosleep)
+	return my_syscall4(__NR_clock_nanosleep, clockid, flags, rqtp, rmtp);
+#elif defined(__NR_clock_nanosleep_time64)
+	struct __kernel_timespec krqtp, krmtp;
+	int ret;
+
+	__nolibc_timespec_user_to_kernel(rqtp, &krqtp);
+	ret = my_syscall4(__NR_clock_nanosleep_time64, clockid, flags, &krqtp, &krmtp);
+	if (rmtp)
+		__nolibc_timespec_kernel_to_user(&krmtp, rmtp);
+	return ret;
+#else
+	return __nolibc_enosys(__func__, clockid, flags, rqtp, rmtp);
+#endif
+}
+
+static __attribute__((unused))
+int clock_nanosleep(clockid_t clockid, int flags, const struct timespec *rqtp,
+		    struct timespec *rmtp)
+{
+	/* Directly return a positive error number */
+	return -sys_clock_nanosleep(clockid, flags, rqtp, rmtp);
+}
 
 static __inline__
 double difftime(time_t time1, time_t time2)
 {
 	return time1 - time2;
+}
+
+static __inline__
+int nanosleep(const struct timespec *rqtp, struct timespec *rmtp)
+{
+	return __sysret(sys_clock_nanosleep(CLOCK_REALTIME, 0, rqtp, rmtp));
 }
 
 

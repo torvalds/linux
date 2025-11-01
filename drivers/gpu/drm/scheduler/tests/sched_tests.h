@@ -11,7 +11,6 @@
 #include <linux/hrtimer.h>
 #include <linux/ktime.h>
 #include <linux/list.h>
-#include <linux/atomic.h>
 #include <linux/mutex.h>
 #include <linux/types.h>
 
@@ -32,9 +31,8 @@
  *
  * @base: DRM scheduler base class
  * @test: Backpointer to owning the kunit test case
- * @lock: Lock to protect the simulated @hw_timeline, @job_list and @done_list
+ * @lock: Lock to protect the simulated @hw_timeline and @job_list
  * @job_list: List of jobs submitted to the mock GPU
- * @done_list: List of jobs completed by the mock GPU
  * @hw_timeline: Simulated hardware timeline has a @context, @next_seqno and
  *		 @cur_seqno for implementing a struct dma_fence signaling the
  *		 simulated job completion.
@@ -49,7 +47,6 @@ struct drm_mock_scheduler {
 
 	spinlock_t		lock;
 	struct list_head	job_list;
-	struct list_head	done_list;
 
 	struct {
 		u64		context;
@@ -96,8 +93,10 @@ struct drm_mock_sched_job {
 
 	struct completion	done;
 
-#define DRM_MOCK_SCHED_JOB_DONE		0x1
-#define DRM_MOCK_SCHED_JOB_TIMEDOUT	0x2
+#define DRM_MOCK_SCHED_JOB_DONE			0x1
+#define DRM_MOCK_SCHED_JOB_TIMEDOUT		0x2
+#define DRM_MOCK_SCHED_JOB_DONT_RESET		0x4
+#define DRM_MOCK_SCHED_JOB_RESET_SKIPPED	0x8
 	unsigned long		flags;
 
 	struct list_head	link;

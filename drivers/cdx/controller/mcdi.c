@@ -23,9 +23,10 @@
 #include <linux/log2.h>
 #include <linux/net_tstamp.h>
 #include <linux/wait.h>
+#include <linux/cdx/bitfield.h>
 
-#include "bitfield.h"
-#include "mcdi.h"
+#include <linux/cdx/mcdi.h>
+#include "mcdid.h"
 
 static void cdx_mcdi_cancel_cmd(struct cdx_mcdi *cdx, struct cdx_mcdi_cmd *cmd);
 static void cdx_mcdi_wait_for_cleanup(struct cdx_mcdi *cdx);
@@ -99,6 +100,19 @@ static unsigned long cdx_mcdi_rpc_timeout(struct cdx_mcdi *cdx, unsigned int cmd
 		return cdx->mcdi_ops->mcdi_rpc_timeout(cdx, cmd);
 }
 
+/**
+ * cdx_mcdi_init - Initialize MCDI (Management Controller Driver Interface) state
+ * @cdx:	Handle to the CDX MCDI structure
+ *
+ * This function allocates and initializes internal MCDI structures and resources
+ * for the CDX device, including the workqueue, locking primitives, and command
+ * tracking mechanisms. It sets the initial operating mode and prepares the device
+ * for MCDI operations.
+ *
+ * Return:
+ * * 0        - on success
+ * * -ENOMEM  - if memory allocation or workqueue creation fails
+ */
 int cdx_mcdi_init(struct cdx_mcdi *cdx)
 {
 	struct cdx_mcdi_iface *mcdi;
@@ -128,7 +142,16 @@ fail2:
 fail:
 	return rc;
 }
+EXPORT_SYMBOL_GPL(cdx_mcdi_init);
 
+/**
+ * cdx_mcdi_finish - Cleanup MCDI (Management Controller Driver Interface) state
+ * @cdx:	Handle to the CDX MCDI structure
+ *
+ * This function is responsible for cleaning up the MCDI (Management Controller Driver Interface)
+ * resources associated with a cdx_mcdi structure. Also destroys the mcdi workqueue.
+ *
+ */
 void cdx_mcdi_finish(struct cdx_mcdi *cdx)
 {
 	struct cdx_mcdi_iface *mcdi;
@@ -143,6 +166,7 @@ void cdx_mcdi_finish(struct cdx_mcdi *cdx)
 	kfree(cdx->mcdi);
 	cdx->mcdi = NULL;
 }
+EXPORT_SYMBOL_GPL(cdx_mcdi_finish);
 
 static bool cdx_mcdi_flushed(struct cdx_mcdi_iface *mcdi, bool ignore_cleanups)
 {
@@ -553,6 +577,19 @@ static void cdx_mcdi_start_or_queue(struct cdx_mcdi_iface *mcdi,
 			cdx_mcdi_cmd_start_or_queue(mcdi, cmd);
 }
 
+/**
+ * cdx_mcdi_process_cmd - Process an incoming MCDI response
+ * @cdx:	Handle to the CDX MCDI structure
+ * @outbuf:	Pointer to the response buffer received from the management controller
+ * @len:	Length of the response buffer in bytes
+ *
+ * This function handles a response from the management controller. It locates the
+ * corresponding command using the sequence number embedded in the header,
+ * completes the command if it is still pending, and initiates any necessary cleanup.
+ *
+ * The function assumes that the response buffer is well-formed and at least one
+ * dword in size.
+ */
 void cdx_mcdi_process_cmd(struct cdx_mcdi *cdx, struct cdx_dword *outbuf, int len)
 {
 	struct cdx_mcdi_iface *mcdi;
@@ -590,6 +627,7 @@ void cdx_mcdi_process_cmd(struct cdx_mcdi *cdx, struct cdx_dword *outbuf, int le
 
 	cdx_mcdi_process_cleanup_list(mcdi->cdx, &cleanup_list);
 }
+EXPORT_SYMBOL_GPL(cdx_mcdi_process_cmd);
 
 static void cdx_mcdi_cmd_work(struct work_struct *context)
 {
@@ -757,6 +795,7 @@ int cdx_mcdi_rpc(struct cdx_mcdi *cdx, unsigned int cmd,
 	return cdx_mcdi_rpc_sync(cdx, cmd, inbuf, inlen, outbuf, outlen,
 				 outlen_actual, false);
 }
+EXPORT_SYMBOL_GPL(cdx_mcdi_rpc);
 
 /**
  * cdx_mcdi_rpc_async - Schedule an MCDI command to run asynchronously

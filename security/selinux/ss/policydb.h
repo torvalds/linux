@@ -300,6 +300,8 @@ struct policydb {
 
 	struct ebitmap permissive_map;
 
+	struct ebitmap neveraudit_map;
+
 	/* length of this policy when it was loaded */
 	size_t len;
 

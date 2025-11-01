@@ -19,12 +19,14 @@
  * struct sof_ipc4_timestamp_info - IPC4 timestamp info
  * @host_copier: the host copier of the pcm stream
  * @dai_copier: the dai copier of the pcm stream
- * @stream_start_offset: reported by fw in memory window (converted to frames)
- * @stream_end_offset: reported by fw in memory window (converted to frames)
+ * @stream_start_offset: reported by fw in memory window (converted to
+ *                       frames at host_copier sampling rate)
+ * @stream_end_offset: reported by fw in memory window (converted to
+ *                     frames at host_copier sampling rate)
  * @llp_offset: llp offset in memory window
- * @boundary: wrap boundary should be used for the LLP frame counter
  * @delay: Calculated and stored in pointer callback. The stored value is
- *	   returned in the delay callback.
+ *         returned in the delay callback. Expressed in frames at host copier
+ *         sampling rate.
  */
 struct sof_ipc4_timestamp_info {
 	struct sof_ipc4_copier *host_copier;
@@ -33,7 +35,6 @@ struct sof_ipc4_timestamp_info {
 	u64 stream_end_offset;
 	u32 llp_offset;
 
-	u64 boundary;
 	snd_pcm_sframes_t delay;
 };
 
@@ -48,6 +49,18 @@ struct sof_ipc4_pcm_stream_priv {
 	bool chain_dma_allocated;
 };
 
+/*
+ * Modulus to use to compare host and link position counters. The sampling
+ * rates may be different, so the raw hardware counters will wrap
+ * around at different times. To calculate differences, use
+ * DELAY_BOUNDARY as a common modulus. This value must be smaller than
+ * the wrap-around point of any hardware counter, and larger than any
+ * valid delay measurement.
+ */
+#define DELAY_BOUNDARY		U32_MAX
+
+#define DELAY_MAX		(DELAY_BOUNDARY >> 1)
+
 static inline struct sof_ipc4_timestamp_info *
 sof_ipc4_sps_to_time_info(struct snd_sof_pcm_stream *sps)
 {
@@ -56,16 +69,40 @@ sof_ipc4_sps_to_time_info(struct snd_sof_pcm_stream *sps)
 	return stream_priv->time_info;
 }
 
+static
+char *sof_ipc4_set_multi_pipeline_state_debug(struct snd_sof_dev *sdev, char *buf, size_t size,
+					      struct ipc4_pipeline_set_state_data *trigger_list)
+{
+	int i, offset = 0;
+
+	for (i = 0; i < trigger_list->count; i++) {
+		offset += snprintf(buf + offset, size - offset, " %d",
+				   trigger_list->pipeline_instance_ids[i]);
+
+		if (offset >= size - 1) {
+			buf[size - 1] = '\0';
+			break;
+		}
+	}
+	return buf;
+}
+
 static int sof_ipc4_set_multi_pipeline_state(struct snd_sof_dev *sdev, u32 state,
 					     struct ipc4_pipeline_set_state_data *trigger_list)
 {
 	struct sof_ipc4_msg msg = {{ 0 }};
 	u32 primary, ipc_size;
+	char debug_buf[32];
 
 	/* trigger a single pipeline */
 	if (trigger_list->count == 1)
 		return sof_ipc4_set_pipeline_state(sdev, trigger_list->pipeline_instance_ids[0],
 						   state);
+
+	dev_dbg(sdev->dev, "Set pipelines %s to state %d%s",
+		sof_ipc4_set_multi_pipeline_state_debug(sdev, debug_buf, sizeof(debug_buf),
+							trigger_list),
+		state, sof_ipc4_pipeline_state_str(state));
 
 	primary = state;
 	primary |= SOF_IPC4_MSG_TYPE_SET(SOF_IPC4_GLB_SET_PIPELINE_STATE);
@@ -89,7 +126,8 @@ int sof_ipc4_set_pipeline_state(struct snd_sof_dev *sdev, u32 instance_id, u32 s
 	struct sof_ipc4_msg msg = {{ 0 }};
 	u32 primary;
 
-	dev_dbg(sdev->dev, "ipc4 set pipeline instance %d state %d", instance_id, state);
+	dev_dbg(sdev->dev, "Set pipeline %d to state %d%s", instance_id, state,
+		sof_ipc4_pipeline_state_str(state));
 
 	primary = state;
 	primary |= SOF_IPC4_GLB_PIPE_STATE_ID(instance_id);
@@ -409,9 +447,33 @@ static int sof_ipc4_trigger_pipelines(struct snd_soc_component *component,
 	 * If use_chain_dma attribute is set we proceed to chained DMA
 	 * trigger function that handles the rest for the substream.
 	 */
-	if (pipeline->use_chain_dma)
-		return sof_ipc4_chain_dma_trigger(sdev, spcm, substream->stream,
-						  pipeline_list, state, cmd);
+	if (pipeline->use_chain_dma) {
+		struct sof_ipc4_timestamp_info *time_info;
+
+		time_info = sof_ipc4_sps_to_time_info(&spcm->stream[substream->stream]);
+
+		ret = sof_ipc4_chain_dma_trigger(sdev, spcm, substream->stream,
+						 pipeline_list, state, cmd);
+		if (ret || !time_info)
+			return ret;
+
+		if (state == SOF_IPC4_PIPE_PAUSED) {
+			/*
+			 * Record the DAI position for delay reporting
+			 * To handle multiple pause/resume/xrun we need to add
+			 * the positions to simulate how the firmware behaves
+			 */
+			u64 pos = snd_sof_pcm_get_dai_frame_counter(sdev, component,
+								    substream);
+
+			time_info->stream_end_offset += pos;
+		} else if (state == SOF_IPC4_PIPE_RESET) {
+			/* Reset the end offset as the stream is stopped */
+			time_info->stream_end_offset = 0;
+		}
+
+		return 0;
+	}
 
 	/* allocate memory for the pipeline data */
 	trigger_list = kzalloc(struct_size(trigger_list, pipeline_instance_ids,
@@ -557,12 +619,15 @@ static int sof_ipc4_pcm_hw_free(struct snd_soc_component *component,
 	return sof_ipc4_trigger_pipelines(component, substream, SOF_IPC4_PIPE_RESET, 0);
 }
 
-static void ipc4_ssp_dai_config_pcm_params_match(struct snd_sof_dev *sdev, const char *link_name,
-						 struct snd_pcm_hw_params *params)
+static int ipc4_ssp_dai_config_pcm_params_match(struct snd_sof_dev *sdev,
+						const char *link_name,
+						struct snd_pcm_hw_params *params)
 {
 	struct snd_sof_dai_link *slink;
 	struct snd_sof_dai *dai;
 	bool dai_link_found = false;
+	int current_config = -1;
+	bool partial_match;
 	int i;
 
 	list_for_each_entry(slink, &sdev->dai_link_list, list) {
@@ -573,19 +638,50 @@ static void ipc4_ssp_dai_config_pcm_params_match(struct snd_sof_dev *sdev, const
 	}
 
 	if (!dai_link_found)
-		return;
+		return 0;
 
+	/*
+	 * Find the first best matching hardware config:
+	 * rate + format + channels are matching
+	 * rate + channel are matching
+	 *
+	 * The copier cannot do rate and/or channel conversion.
+	 */
 	for (i = 0; i < slink->num_hw_configs; i++) {
 		struct snd_soc_tplg_hw_config *hw_config = &slink->hw_configs[i];
 
-		if (params_rate(params) == le32_to_cpu(hw_config->fsync_rate)) {
-			/* set current config for all DAI's with matching name */
-			list_for_each_entry(dai, &sdev->dai_list, list)
-				if (!strcmp(slink->link->name, dai->name))
-					dai->current_config = le32_to_cpu(hw_config->id);
+		if (params_rate(params) == le32_to_cpu(hw_config->fsync_rate) &&
+		    params_width(params) == le32_to_cpu(hw_config->tdm_slot_width) &&
+		    params_channels(params) <= le32_to_cpu(hw_config->tdm_slots)) {
+			current_config = le32_to_cpu(hw_config->id);
+			partial_match = false;
+			/* best match found */
 			break;
+		} else if (current_config < 0 &&
+			   params_rate(params) == le32_to_cpu(hw_config->fsync_rate) &&
+			   params_channels(params) <= le32_to_cpu(hw_config->tdm_slots)) {
+			current_config = le32_to_cpu(hw_config->id);
+			partial_match = true;
+			/* keep looking for better match */
 		}
 	}
+
+	if (current_config < 0) {
+		dev_err(sdev->dev,
+			"%s: No suitable hw_config found for %s (num_hw_configs: %d)\n",
+			__func__, slink->link->name, slink->num_hw_configs);
+		return -EINVAL;
+	}
+
+	dev_dbg(sdev->dev,
+		"hw_config for %s: %d (num_hw_configs: %d) with %s match\n",
+		slink->link->name, current_config, slink->num_hw_configs,
+		partial_match ? "partial" : "full");
+	list_for_each_entry(dai, &sdev->dai_list, list)
+		if (!strcmp(slink->link->name, dai->name))
+			dai->current_config = current_config;
+
+	return 0;
 }
 
 /*
@@ -639,6 +735,58 @@ static int sof_ipc4_pcm_dai_link_fixup_rate(struct snd_sof_dev *sdev,
 
 		rate->min = be_rate;
 		rate->max = rate->min;
+	}
+
+	return 0;
+}
+
+static int sof_ipc4_pcm_dai_link_fixup_channels(struct snd_sof_dev *sdev,
+						struct snd_pcm_hw_params *params,
+						struct sof_ipc4_copier *ipc4_copier)
+{
+	struct sof_ipc4_pin_format *pin_fmts = ipc4_copier->available_fmt.input_pin_fmts;
+	struct snd_interval *channels = hw_param_interval(params, SNDRV_PCM_HW_PARAM_CHANNELS);
+	int num_input_formats = ipc4_copier->available_fmt.num_input_formats;
+	unsigned int fe_channels = params_channels(params);
+	bool fe_be_match = false;
+	bool single_be_channels = true;
+	unsigned int be_channels, val;
+	int i;
+
+	if (WARN_ON_ONCE(!num_input_formats))
+		return -EINVAL;
+
+	/*
+	 * Copier does not change channels, so we
+	 * need to only consider the input pin information.
+	 */
+	be_channels = SOF_IPC4_AUDIO_FORMAT_CFG_CHANNELS_COUNT(pin_fmts[0].audio_fmt.fmt_cfg);
+	for (i = 0; i < num_input_formats; i++) {
+		val = SOF_IPC4_AUDIO_FORMAT_CFG_CHANNELS_COUNT(pin_fmts[i].audio_fmt.fmt_cfg);
+
+		if (val != be_channels)
+			single_be_channels = false;
+
+		if (val == fe_channels) {
+			fe_be_match = true;
+			break;
+		}
+	}
+
+	/*
+	 * If channels is different than FE channels, topology must contain a
+	 * module which can change the number of channels. But we do require
+	 * topology to define a single channels in the DAI copier config in
+	 * this case (FE channels may be variable).
+	 */
+	if (!fe_be_match) {
+		if (!single_be_channels) {
+			dev_err(sdev->dev, "Unable to select channels for DAI link\n");
+			return -EINVAL;
+		}
+
+		channels->min = be_channels;
+		channels->max = be_channels;
 	}
 
 	return 0;
@@ -707,6 +855,10 @@ static int sof_ipc4_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd,
 	if (ret)
 		return ret;
 
+	ret = sof_ipc4_pcm_dai_link_fixup_channels(sdev, params, ipc4_copier);
+	if (ret)
+		return ret;
+
 	if (single_bitdepth) {
 		snd_mask_none(fmt);
 		valid_bits = SOF_IPC4_AUDIO_FORMAT_CFG_V_BIT_DEPTH(ipc4_fmt->fmt_cfg);
@@ -728,13 +880,10 @@ static int sof_ipc4_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd,
 		break;
 	}
 
-	switch (ipc4_copier->dai_type) {
-	case SOF_DAI_INTEL_SSP:
-		ipc4_ssp_dai_config_pcm_params_match(sdev, (char *)rtd->dai_link->name, params);
-		break;
-	default:
-		break;
-	}
+	if (ipc4_copier->dai_type == SOF_DAI_INTEL_SSP)
+		return ipc4_ssp_dai_config_pcm_params_match(sdev,
+							    (char *)rtd->dai_link->name,
+							    params);
 
 	return 0;
 }
@@ -913,6 +1062,35 @@ static int sof_ipc4_pcm_hw_params(struct snd_soc_component *component,
 	return 0;
 }
 
+static u64 sof_ipc4_frames_dai_to_host(struct sof_ipc4_timestamp_info *time_info, u64 value)
+{
+	u64 dai_rate, host_rate;
+
+	if (!time_info->dai_copier || !time_info->host_copier)
+		return value;
+
+	/*
+	 * copiers do not change sampling rate, so we can use the
+	 * out_format independently of stream direction
+	 */
+	dai_rate = time_info->dai_copier->data.out_format.sampling_frequency;
+	host_rate = time_info->host_copier->data.out_format.sampling_frequency;
+
+	if (!dai_rate || !host_rate || dai_rate == host_rate)
+		return value;
+
+	/* take care not to overflow u64, rates can be up to 768000 */
+	if (value > U32_MAX) {
+		value = div64_u64(value, dai_rate);
+		value *= host_rate;
+	} else {
+		value *= host_rate;
+		value = div64_u64(value, dai_rate);
+	}
+
+	return value;
+}
+
 static int sof_ipc4_get_stream_start_offset(struct snd_sof_dev *sdev,
 					    struct snd_pcm_substream *substream,
 					    struct snd_sof_pcm_stream *sps,
@@ -928,8 +1106,30 @@ static int sof_ipc4_get_stream_start_offset(struct snd_sof_dev *sdev,
 	if (!host_copier || !dai_copier)
 		return -EINVAL;
 
-	if (host_copier->data.gtw_cfg.node_id == SOF_IPC4_INVALID_NODE_ID)
+	if (host_copier->data.gtw_cfg.node_id == SOF_IPC4_INVALID_NODE_ID) {
 		return -EINVAL;
+	} else if (host_copier->data.gtw_cfg.node_id == SOF_IPC4_CHAIN_DMA_NODE_ID) {
+		/*
+		 * While the firmware does not support time_info reporting for
+		 * streams using ChainDMA, it is granted that ChainDMA can only
+		 * be used on Host+Link pairs where the link position is
+		 * accessible from the host side.
+		 *
+		 * Enable delay calculation in case of ChainDMA via host
+		 * accessible registers.
+		 *
+		 * The ChainDMA prefills the link DMA with a preamble
+		 * of zero samples. Set the stream start offset based
+		 * on size of the preamble (driver provided fifo size
+		 * multiplied by 2.5). We add 1ms of margin as the FW
+		 * will align the buffer size to DMA hardware
+		 * alignment that is not known to host.
+		 */
+		int pre_ms = SOF_IPC4_CHAIN_DMA_BUF_SIZE_MS * 5 / 2 + 1;
+
+		time_info->stream_start_offset = pre_ms * substream->runtime->rate / MSEC_PER_SEC;
+		goto out;
+	}
 
 	node_index = SOF_IPC4_NODE_INDEX(host_copier->data.gtw_cfg.node_id);
 	offset = offsetof(struct sof_ipc4_fw_registers, pipeline_regs) + node_index * sizeof(ppl_reg);
@@ -947,13 +1147,13 @@ static int sof_ipc4_get_stream_start_offset(struct snd_sof_dev *sdev,
 	time_info->stream_end_offset = ppl_reg.stream_end_offset;
 	do_div(time_info->stream_end_offset, dai_sample_size);
 
-	/*
-	 * Calculate the wrap boundary need to be used for delay calculation
-	 * The host counter is in bytes, it will wrap earlier than the frames
-	 * based link counter.
-	 */
-	time_info->boundary = div64_u64(~((u64)0),
-					frames_to_bytes(substream->runtime, 1));
+	/* convert to host frame time */
+	time_info->stream_start_offset =
+		sof_ipc4_frames_dai_to_host(time_info, time_info->stream_start_offset);
+	time_info->stream_end_offset =
+		sof_ipc4_frames_dai_to_host(time_info, time_info->stream_end_offset);
+
+out:
 	/* Initialize the delay value to 0 (no delay) */
 	time_info->delay = 0;
 
@@ -996,6 +1196,8 @@ static int sof_ipc4_pcm_pointer(struct snd_soc_component *component,
 
 	/* For delay calculation we need the host counter */
 	host_cnt = snd_sof_pcm_get_host_byte_counter(sdev, component, substream);
+
+	/* Store the original value to host_ptr */
 	host_ptr = host_cnt;
 
 	/* convert the host_cnt to frames */
@@ -1014,6 +1216,8 @@ static int sof_ipc4_pcm_pointer(struct snd_soc_component *component,
 		sof_mailbox_read(sdev, time_info->llp_offset, &llp, sizeof(llp));
 		dai_cnt = ((u64)llp.reading.llp_u << 32) | llp.reading.llp_l;
 	}
+
+	dai_cnt = sof_ipc4_frames_dai_to_host(time_info, dai_cnt);
 	dai_cnt += time_info->stream_end_offset;
 
 	/* In two cases dai dma counter is not accurate
@@ -1047,8 +1251,9 @@ static int sof_ipc4_pcm_pointer(struct snd_soc_component *component,
 		dai_cnt -= time_info->stream_start_offset;
 	}
 
-	/* Wrap the dai counter at the boundary where the host counter wraps */
-	div64_u64_rem(dai_cnt, time_info->boundary, &dai_cnt);
+	/* Convert to a common base before comparisons */
+	dai_cnt &= DELAY_BOUNDARY;
+	host_cnt &= DELAY_BOUNDARY;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		head_cnt = host_cnt;
@@ -1058,14 +1263,18 @@ static int sof_ipc4_pcm_pointer(struct snd_soc_component *component,
 		tail_cnt = host_cnt;
 	}
 
-	if (head_cnt < tail_cnt) {
-		time_info->delay = time_info->boundary - tail_cnt + head_cnt;
-		goto out;
+	if (unlikely(head_cnt < tail_cnt))
+		time_info->delay = DELAY_BOUNDARY - tail_cnt + head_cnt;
+	else
+		time_info->delay = head_cnt - tail_cnt;
+
+	if (time_info->delay > DELAY_MAX) {
+		spcm_dbg_ratelimited(spcm, substream->stream,
+				     "inaccurate delay, host %llu dai_cnt %llu",
+				     host_cnt, dai_cnt);
+		time_info->delay = 0;
 	}
 
-	time_info->delay =  head_cnt - tail_cnt;
-
-out:
 	/*
 	 * Convert the host byte counter to PCM pointer which wraps in buffer
 	 * and it is in frames

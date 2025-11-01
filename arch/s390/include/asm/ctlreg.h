@@ -80,7 +80,7 @@
 #define CR14_EXTERNAL_DAMAGE_SUBMASK		BIT(CR14_EXTERNAL_DAMAGE_SUBMASK_BIT)
 #define CR14_WARNING_SUBMASK			BIT(CR14_WARNING_SUBMASK_BIT)
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/bug.h>
 
@@ -100,7 +100,7 @@ struct ctlreg {
 	BUILD_BUG_ON(sizeof(struct addrtype) != _esize);		\
 	typecheck(struct ctlreg, array[0]);				\
 	asm volatile(							\
-		"	lctlg	%[_low],%[_high],%[_arr]\n"		\
+		"	lctlg	%[_low],%[_high],%[_arr]"		\
 		:							\
 		: [_arr] "Q" (*(struct addrtype *)(&array)),		\
 		  [_low] "i" (low), [_high] "i" (high)			\
@@ -119,7 +119,7 @@ struct ctlreg {
 	BUILD_BUG_ON(sizeof(struct addrtype) != _esize);		\
 	typecheck(struct ctlreg, array[0]);				\
 	asm volatile(							\
-		"	stctg	%[_low],%[_high],%[_arr]\n"		\
+		"	stctg	%[_low],%[_high],%[_arr]"		\
 		: [_arr] "=Q" (*(struct addrtype *)(&array))		\
 		: [_low] "i" (low), [_high] "i" (high));		\
 } while (0)
@@ -127,7 +127,7 @@ struct ctlreg {
 static __always_inline void local_ctl_load(unsigned int cr, struct ctlreg *reg)
 {
 	asm volatile(
-		"	lctlg	%[cr],%[cr],%[reg]\n"
+		"	lctlg	%[cr],%[cr],%[reg]"
 		:
 		: [reg] "Q" (*reg), [cr] "i" (cr)
 		: "memory");
@@ -136,7 +136,7 @@ static __always_inline void local_ctl_load(unsigned int cr, struct ctlreg *reg)
 static __always_inline void local_ctl_store(unsigned int cr, struct ctlreg *reg)
 {
 	asm volatile(
-		"	stctg	%[cr],%[cr],%[reg]\n"
+		"	stctg	%[cr],%[cr],%[reg]"
 		: [reg] "=Q" (*reg)
 		: [cr] "i" (cr));
 }
@@ -252,5 +252,5 @@ union ctlreg15 {
 	};
 };
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 #endif /* __ASM_S390_CTLREG_H */

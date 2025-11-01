@@ -51,13 +51,8 @@ struct spear_spics {
 	struct gpio_chip	chip;
 };
 
-/* gpio framework specific routines */
-static int spics_get_value(struct gpio_chip *chip, unsigned offset)
-{
-	return -ENXIO;
-}
-
-static void spics_set_value(struct gpio_chip *chip, unsigned offset, int value)
+static int spics_set_value(struct gpio_chip *chip, unsigned int offset,
+			   int value)
 {
 	struct spear_spics *spics = gpiochip_get_data(chip);
 	u32 tmp;
@@ -74,18 +69,14 @@ static void spics_set_value(struct gpio_chip *chip, unsigned offset, int value)
 	tmp &= ~(0x1 << spics->cs_value_bit);
 	tmp |= value << spics->cs_value_bit;
 	writel_relaxed(tmp, spics->base + spics->perip_cfg);
-}
 
-static int spics_direction_input(struct gpio_chip *chip, unsigned offset)
-{
-	return -ENXIO;
+	return 0;
 }
 
 static int spics_direction_output(struct gpio_chip *chip, unsigned offset,
 		int value)
 {
-	spics_set_value(chip, offset, value);
-	return 0;
+	return spics_set_value(chip, offset, value);
 }
 
 static int spics_request(struct gpio_chip *chip, unsigned offset)
@@ -148,9 +139,7 @@ static int spics_gpio_probe(struct platform_device *pdev)
 	spics->chip.base = -1;
 	spics->chip.request = spics_request;
 	spics->chip.free = spics_free;
-	spics->chip.direction_input = spics_direction_input;
 	spics->chip.direction_output = spics_direction_output;
-	spics->chip.get = spics_get_value;
 	spics->chip.set = spics_set_value;
 	spics->chip.label = dev_name(&pdev->dev);
 	spics->chip.parent = &pdev->dev;

@@ -12,16 +12,16 @@
 #include <asm/starfire.h>
 #include <asm/spitfire.h>
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/cpumask.h>
 #include <linux/cache.h>
 
-#endif /* !(__ASSEMBLY__) */
+#endif /* !(__ASSEMBLER__) */
 
 #ifdef CONFIG_SMP
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 /*
  *	Private routines/data
@@ -68,7 +68,7 @@ int __cpu_disable(void);
 void __cpu_die(unsigned int cpu);
 #endif
 
-#endif /* !(__ASSEMBLY__) */
+#endif /* !(__ASSEMBLER__) */
 
 #else
 

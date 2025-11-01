@@ -24,6 +24,7 @@ class ConfigMainWindow;
 class ConfigSettings : public QSettings {
 public:
 	ConfigSettings();
+	~ConfigSettings(void);
 	QList<int> readSizes(const QString& key, bool *ok);
 	bool writeSizes(const QString& key, const QList<int>& value);
 };

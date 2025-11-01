@@ -597,8 +597,6 @@ struct ms_hyperv_tsc_page {	 /* HV_REFERENCE_TSC_PAGE */
 #define HV_SYNIC_SINT_AUTO_EOI		(1ULL << 17)
 #define HV_SYNIC_SINT_VECTOR_MASK	(0xFF)
 
-#
-
 /* Hyper-V defined statically assigned SINTs */
 #define HV_SYNIC_INTERCEPTION_SINT_INDEX 0x00000000
 #define HV_SYNIC_IOMMU_FAULT_SINT_INDEX  0x00000001

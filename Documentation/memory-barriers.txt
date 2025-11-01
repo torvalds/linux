@@ -2192,6 +2192,8 @@ interpolate the memory barrier in the right place:
 	wait_event_timeout();
 	wait_on_bit();
 	wait_on_bit_lock();
+	wait_event_cmd();
+	wait_event_exclusive_cmd();
 
 
 Secondly, code that performs a wake up normally follows something like this:

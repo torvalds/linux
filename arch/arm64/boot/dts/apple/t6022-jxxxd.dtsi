@@ -1,0 +1,38 @@
+// SPDX-License-Identifier: GPL-2.0+ OR MIT
+/*
+ * Mac Pro (M2 Ultra, 2023) and Mac Studio (M2 Ultra, 2023)
+ *
+ * This file contains the parts common to J180 and J475 devices with t6022.
+ *
+ * target-type: J180d / J475d
+ *
+ * Copyright The Asahi Linux Contributors
+ */
+
+/* delete power-domains for missing disp0 / disp0_die1 */
+/delete-node/ &ps_disp0_cpu0;
+/delete-node/ &ps_disp0_fe;
+
+/delete-node/ &ps_disp0_cpu0_die1;
+/delete-node/ &ps_disp0_fe_die1;
+
+/* USB Type C */
+&i2c0 {
+	/* front-right */
+	hpm4: usb-pd@39 {
+		compatible = "apple,cd321x";
+		reg = <0x39>;
+		interrupt-parent = <&pinctrl_ap>;
+		interrupts = <44 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-names = "irq";
+	};
+
+	/* front-left */
+	hpm5: usb-pd@3a {
+		compatible = "apple,cd321x";
+		reg = <0x3a>;
+		interrupt-parent = <&pinctrl_ap>;
+		interrupts = <44 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-names = "irq";
+	};
+};
