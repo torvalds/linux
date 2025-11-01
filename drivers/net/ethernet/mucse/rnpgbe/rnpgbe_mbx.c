@@ -401,5 +401,6 @@ void mucse_init_mbx_params_pf(struct mucse_hw *hw)
 
 	mbx->delay_us = 100;
 	mbx->timeout_us = 4 * USEC_PER_SEC;
+	mutex_init(&mbx->lock);
 	mucse_mbx_reset(hw);
 }
