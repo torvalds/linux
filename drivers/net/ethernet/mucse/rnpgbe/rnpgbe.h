@@ -4,13 +4,28 @@
 #ifndef _RNPGBE_H
 #define _RNPGBE_H
 
+#include <linux/types.h>
+
 enum rnpgbe_boards {
 	board_n500,
 	board_n210
 };
 
+struct mucse_mbx_info {
+	u32 timeout_us;
+	u32 delay_us;
+	u16 fw_req;
+	u16 fw_ack;
+	/* fw <--> pf mbx */
+	u32 fwpf_shm_base;
+	u32 pf2fw_mbx_ctrl;
+	u32 fwpf_mbx_mask;
+	u32 fwpf_ctrl_base;
+};
+
 struct mucse_hw {
 	void __iomem *hw_addr;
+	struct mucse_mbx_info mbx;
 };
 
 struct mucse {
@@ -18,6 +33,8 @@ struct mucse {
 	struct pci_dev *pdev;
 	struct mucse_hw hw;
 };
+
+int rnpgbe_init_hw(struct mucse_hw *hw, int board_type);
 
 /* Device IDs */
 #define PCI_VENDOR_ID_MUCSE               0x8848

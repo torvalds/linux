@@ -64,6 +64,11 @@ static int rnpgbe_add_adapter(struct pci_dev *pdev,
 	}
 
 	hw->hw_addr = hw_addr;
+	err = rnpgbe_init_hw(hw, board_type);
+	if (err) {
+		dev_err(&pdev->dev, "Init hw err %d\n", err);
+		goto err_free_net;
+	}
 
 	return 0;
 
