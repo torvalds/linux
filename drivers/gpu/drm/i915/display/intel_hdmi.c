@@ -68,6 +68,20 @@
 #include "intel_snps_phy.h"
 #include "intel_vrr.h"
 
+bool intel_hdmi_is_frl(u32 clock)
+{
+	switch (clock) {
+	case 300000: /* 3 Gbps */
+	case 600000: /* 6 Gbps */
+	case 800000: /* 8 Gbps */
+	case 1000000: /* 10 Gbps */
+	case 1200000: /* 12 Gbps */
+		return true;
+	default:
+		return false;
+	}
+}
+
 static void
 assert_hdmi_port_disabled(struct intel_hdmi *intel_hdmi)
 {
