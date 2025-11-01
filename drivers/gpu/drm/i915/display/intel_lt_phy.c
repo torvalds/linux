@@ -1627,3 +1627,81 @@ void intel_lt_phy_pll_enable(struct intel_encoder *encoder,
 
 	intel_lt_phy_transaction_end(encoder, wakeref);
 }
+
+void intel_lt_phy_pll_disable(struct intel_encoder *encoder)
+{
+	struct intel_display *display = to_intel_display(encoder);
+	enum phy phy = intel_encoder_to_phy(encoder);
+	enum port port = encoder->port;
+	intel_wakeref_t wakeref;
+	u8 owned_lane_mask = intel_lt_phy_get_owned_lane_mask(encoder);
+	u32 lane_pipe_reset = owned_lane_mask == INTEL_LT_PHY_BOTH_LANES
+				? (XELPDP_LANE_PIPE_RESET(0) |
+				   XELPDP_LANE_PIPE_RESET(1))
+				: XELPDP_LANE_PIPE_RESET(0);
+	u32 lane_phy_current_status = owned_lane_mask == INTEL_LT_PHY_BOTH_LANES
+					? (XELPDP_LANE_PHY_CURRENT_STATUS(0) |
+					   XELPDP_LANE_PHY_CURRENT_STATUS(1))
+					: XELPDP_LANE_PHY_CURRENT_STATUS(0);
+	u32 lane_phy_pulse_status = owned_lane_mask == INTEL_LT_PHY_BOTH_LANES
+					? (XE3PLPDP_LANE_PHY_PULSE_STATUS(0) |
+					   XE3PLPDP_LANE_PHY_PULSE_STATUS(1))
+					: XE3PLPDP_LANE_PHY_PULSE_STATUS(0);
+
+	wakeref = intel_lt_phy_transaction_begin(encoder);
+
+	/* 1. Clear PORT_BUF_CTL2 [PHY Pulse Status]. */
+	intel_de_rmw(display, XELPDP_PORT_BUF_CTL2(display, port),
+		     lane_phy_pulse_status,
+		     lane_phy_pulse_status);
+
+	/* 2. Set PORT_BUF_CTL2<port> Lane<PHY Lanes Owned> Pipe Reset to 1. */
+	intel_de_rmw(display, XELPDP_PORT_BUF_CTL2(display, port), lane_pipe_reset,
+		     lane_pipe_reset);
+
+	/* 3. Poll for PORT_BUF_CTL2<port> Lane<PHY Lanes Owned> PHY Current Status == 1. */
+	if (intel_de_wait_custom(display, XELPDP_PORT_BUF_CTL2(display, port),
+				 lane_phy_current_status,
+				 lane_phy_current_status,
+				 XE3PLPD_RESET_START_LATENCY_US, 0, NULL))
+		drm_warn(display->drm,
+			 "PHY %c failed to reset Lane after %dms.\n",
+			 phy_name(phy), XE3PLPD_RESET_START_LATENCY_US);
+
+	/* 4. Clear for PHY pulse status on owned PHY lanes. */
+	intel_de_rmw(display, XELPDP_PORT_BUF_CTL2(display, port),
+		     lane_phy_pulse_status,
+		     lane_phy_pulse_status);
+
+	/*
+	 * 5. Follow the Display Voltage Frequency Switching -
+	 * Sequence Before Frequency Change. We handle this step in bxt_set_cdclk().
+	 */
+	/* 6. Program PORT_CLOCK_CTL[PCLK PLL Request LN0] = 0. */
+	intel_de_rmw(display, XELPDP_PORT_CLOCK_CTL(display, port),
+		     XELPDP_LANE_PCLK_PLL_REQUEST(0), 0);
+
+	/* 7. Program DDI_CLK_VALFREQ to 0. */
+	intel_de_write(display, DDI_CLK_VALFREQ(encoder->port), 0);
+
+	/* 8. Poll for PORT_CLOCK_CTL[PCLK PLL Ack LN0]= 0. */
+	if (intel_de_wait_custom(display, XELPDP_PORT_CLOCK_CTL(display, port),
+				 XELPDP_LANE_PCLK_PLL_ACK(0), 0,
+				 XE3PLPD_MACCLK_TURNOFF_LATENCY_US, 0, NULL))
+		drm_warn(display->drm, "PHY %c PLL MacCLK Ack deassertion Timeout after %dus.\n",
+			 phy_name(phy), XE3PLPD_MACCLK_TURNOFF_LATENCY_US);
+
+	/*
+	 *  9. Follow the Display Voltage Frequency Switching -
+	 *  Sequence After Frequency Change. We handle this step in bxt_set_cdclk().
+	 */
+	/* 10. Program PORT_CLOCK_CTL register to disable and gate clocks. */
+	intel_de_rmw(display, XELPDP_PORT_CLOCK_CTL(display, port),
+		     XELPDP_DDI_CLOCK_SELECT_MASK(display) | XELPDP_FORWARD_CLOCK_UNGATE, 0);
+
+	/* 11. Program PORT_BUF_CTL5[MacCLK Reset_0] = 1 to assert MacCLK reset. */
+	intel_de_rmw(display, XE3PLPD_PORT_BUF_CTL5(port),
+		     XE3PLPD_MACCLK_RESET_0, XE3PLPD_MACCLK_RESET_0);
+
+	intel_lt_phy_transaction_end(encoder, wakeref);
+}
