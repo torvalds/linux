@@ -2549,8 +2549,6 @@
 			interrupts = <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&i2c9m0_xfer>;
-			resets = <&cru SRST_I2C9>, <&cru SRST_P_I2C9>;
-			reset-names = "i2c", "apb";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
