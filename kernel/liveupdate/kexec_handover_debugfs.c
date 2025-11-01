@@ -150,8 +150,8 @@ __init void kho_in_debugfs_init(struct kho_debugfs *dbg, const void *fdt)
 		err = __kho_debugfs_fdt_add(&dbg->fdt_list, sub_fdt_dir, name,
 					    phys_to_virt(*fdt_phys));
 		if (err) {
-			pr_warn("failed to add fdt %s to debugfs: %d\n", name,
-				err);
+			pr_warn("failed to add fdt %s to debugfs: %pe\n", name,
+				ERR_PTR(err));
 			continue;
 		}
 	}
@@ -168,8 +168,10 @@ err_out:
 	 * reviving state from KHO and setting up KHO for the next
 	 * kexec.
 	 */
-	if (err)
-		pr_err("failed exposing handover FDT in debugfs: %d\n", err);
+	if (err) {
+		pr_err("failed exposing handover FDT in debugfs: %pe\n",
+		       ERR_PTR(err));
+	}
 }
 
 __init int kho_out_debugfs_init(struct kho_debugfs *dbg)
