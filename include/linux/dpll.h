@@ -163,6 +163,7 @@ struct dpll_pin_properties {
 	u32 freq_supported_num;
 	struct dpll_pin_frequency *freq_supported;
 	struct dpll_pin_phase_adjust_range phase_range;
+	u32 phase_gran;
 };
 
 #if IS_ENABLED(CONFIG_DPLL)

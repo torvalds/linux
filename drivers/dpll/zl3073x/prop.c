@@ -208,7 +208,18 @@ struct zl3073x_pin_props *zl3073x_pin_props_get(struct zl3073x_dev *zldev,
 			DPLL_PIN_CAPABILITIES_PRIORITY_CAN_CHANGE |
 			DPLL_PIN_CAPABILITIES_STATE_CAN_CHANGE;
 	} else {
+		u8 out, synth;
+		u32 f;
+
 		props->dpll_props.type = DPLL_PIN_TYPE_GNSS;
+
+		/* The output pin phase adjustment granularity equals half of
+		 * the synth frequency count.
+		 */
+		out = zl3073x_output_pin_out_get(index);
+		synth = zl3073x_out_synth_get(zldev, out);
+		f = 2 * zl3073x_synth_freq_get(zldev, synth);
+		props->dpll_props.phase_gran = f ? div_u64(PSEC_PER_SEC, f) : 1;
 	}
 
 	props->dpll_props.phase_range.min = S32_MIN;
