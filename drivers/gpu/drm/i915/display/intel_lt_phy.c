@@ -9,6 +9,8 @@
 #include "i915_utils.h"
 #include "intel_cx0_phy.h"
 #include "intel_cx0_phy_regs.h"
+#include "intel_ddi.h"
+#include "intel_ddi_buf_trans.h"
 #include "intel_de.h"
 #include "intel_display.h"
 #include "intel_display_types.h"
@@ -1003,6 +1005,12 @@ static void intel_lt_phy_write(struct intel_encoder *encoder,
 	intel_cx0_write(encoder, lane_mask, addr, data, committed);
 }
 
+static void intel_lt_phy_rmw(struct intel_encoder *encoder,
+			     u8 lane_mask, u16 addr, u8 clear, u8 set, bool committed)
+{
+	intel_cx0_rmw(encoder, lane_mask, addr, clear, set, committed);
+}
+
 static void intel_lt_phy_clear_status_p2p(struct intel_encoder *encoder,
 					  int lane)
 {
@@ -1702,6 +1710,61 @@ void intel_lt_phy_pll_disable(struct intel_encoder *encoder)
 	/* 11. Program PORT_BUF_CTL5[MacCLK Reset_0] = 1 to assert MacCLK reset. */
 	intel_de_rmw(display, XE3PLPD_PORT_BUF_CTL5(port),
 		     XE3PLPD_MACCLK_RESET_0, XE3PLPD_MACCLK_RESET_0);
+
+	intel_lt_phy_transaction_end(encoder, wakeref);
+}
+
+void intel_lt_phy_set_signal_levels(struct intel_encoder *encoder,
+				    const struct intel_crtc_state *crtc_state)
+{
+	struct intel_display *display = to_intel_display(encoder);
+	const struct intel_ddi_buf_trans *trans;
+	u8 owned_lane_mask;
+	intel_wakeref_t wakeref;
+	int n_entries, ln;
+	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
+
+	if (intel_tc_port_in_tbt_alt_mode(dig_port))
+		return;
+
+	owned_lane_mask = intel_lt_phy_get_owned_lane_mask(encoder);
+
+	wakeref = intel_lt_phy_transaction_begin(encoder);
+
+	trans = encoder->get_buf_trans(encoder, crtc_state, &n_entries);
+	if (drm_WARN_ON_ONCE(display->drm, !trans)) {
+		intel_lt_phy_transaction_end(encoder, wakeref);
+		return;
+	}
+
+	for (ln = 0; ln < crtc_state->lane_count; ln++) {
+		int level = intel_ddi_level(encoder, crtc_state, ln);
+		int lane = ln / 2;
+		int tx = ln % 2;
+		u8 lane_mask = lane == 0 ? INTEL_LT_PHY_LANE0 : INTEL_LT_PHY_LANE1;
+
+		if (!(lane_mask & owned_lane_mask))
+			continue;
+
+		intel_lt_phy_rmw(encoder, lane_mask, LT_PHY_TXY_CTL8(tx),
+				 LT_PHY_TX_SWING_LEVEL_MASK | LT_PHY_TX_SWING_MASK,
+				 LT_PHY_TX_SWING_LEVEL(trans->entries[level].lt.txswing_level) |
+				 LT_PHY_TX_SWING(trans->entries[level].lt.txswing),
+				 MB_WRITE_COMMITTED);
+
+		intel_lt_phy_rmw(encoder, lane_mask, LT_PHY_TXY_CTL2(tx),
+				 LT_PHY_TX_CURSOR_MASK,
+				 LT_PHY_TX_CURSOR(trans->entries[level].lt.pre_cursor),
+				 MB_WRITE_COMMITTED);
+		intel_lt_phy_rmw(encoder, lane_mask, LT_PHY_TXY_CTL3(tx),
+				 LT_PHY_TX_CURSOR_MASK,
+				 LT_PHY_TX_CURSOR(trans->entries[level].lt.main_cursor),
+				 MB_WRITE_COMMITTED);
+		intel_lt_phy_rmw(encoder, lane_mask, LT_PHY_TXY_CTL4(tx),
+				 LT_PHY_TX_CURSOR_MASK,
+				 LT_PHY_TX_CURSOR(trans->entries[level].lt.post_cursor),
+				 MB_WRITE_COMMITTED);
+	}
 
 	intel_lt_phy_transaction_end(encoder, wakeref);
 }
