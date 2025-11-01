@@ -1509,6 +1509,11 @@ void intel_lt_phy_pll_enable(struct intel_encoder *encoder,
 	enum phy phy = intel_encoder_to_phy(encoder);
 	enum port port = encoder->port;
 	intel_wakeref_t wakeref = 0;
+	u32 lane_phy_pulse_status = owned_lane_mask == INTEL_LT_PHY_BOTH_LANES
+					? (XE3PLPDP_LANE_PHY_PULSE_STATUS(0) |
+					   XE3PLPDP_LANE_PHY_PULSE_STATUS(1))
+					: XE3PLPDP_LANE_PHY_PULSE_STATUS(0);
+	u8 rate_update;
 
 	wakeref = intel_lt_phy_transaction_begin(encoder);
 
@@ -1563,6 +1568,9 @@ void intel_lt_phy_pll_enable(struct intel_encoder *encoder,
 		 * Change. We handle this step in bxt_set_cdclk().
 		 */
 		/* 10. Program DDI_CLK_VALFREQ to match intended DDI clock frequency. */
+		intel_de_write(display, DDI_CLK_VALFREQ(encoder->port),
+			       crtc_state->port_clock);
+
 		/* 11. Program PORT_CLOCK_CTL[PCLK PLL Request LN0] = 1. */
 		intel_de_rmw(display, XELPDP_PORT_CLOCK_CTL(display, port),
 			     XELPDP_LANE_PCLK_PLL_REQUEST(0),
@@ -1585,17 +1593,37 @@ void intel_lt_phy_pll_enable(struct intel_encoder *encoder,
 		     XELPDP_FORWARD_CLOCK_UNGATE);
 
 	/* 14. SW clears PORT_BUF_CTL2 [PHY Pulse Status]. */
+	intel_de_rmw(display, XELPDP_PORT_BUF_CTL2(display, port),
+		     lane_phy_pulse_status,
+		     lane_phy_pulse_status);
 	/*
 	 * 15. Clear the PHY VDR register 0xCC4[Rate Control VDR Update] over PHY message bus for
 	 * Owned PHY Lanes.
 	 */
+	rate_update = intel_lt_phy_read(encoder, INTEL_LT_PHY_LANE0, LT_PHY_RATE_UPDATE);
+	rate_update &= ~LT_PHY_RATE_CONTROL_VDR_UPDATE;
+	intel_lt_phy_write(encoder, owned_lane_mask, LT_PHY_RATE_UPDATE,
+			   rate_update, MB_WRITE_COMMITTED);
+
 	/* 16. Poll for PORT_BUF_CTL2 register PHY Pulse Status = 1 for Owned PHY Lanes. */
+	if (intel_de_wait_custom(display, XELPDP_PORT_BUF_CTL2(display, port),
+				 lane_phy_pulse_status, lane_phy_pulse_status,
+				 XE3PLPD_RATE_CALIB_DONE_LATENCY_US, 2, NULL))
+		drm_warn(display->drm, "PHY %c PLL rate not changed after %dus.\n",
+			 phy_name(phy), XE3PLPD_RATE_CALIB_DONE_LATENCY_US);
+
 	/* 17. SW clears PORT_BUF_CTL2 [PHY Pulse Status]. */
+	intel_de_rmw(display, XELPDP_PORT_BUF_CTL2(display, port),
+		     lane_phy_pulse_status,
+		     lane_phy_pulse_status);
+
 	/*
 	 * 18. Follow the Display Voltage Frequency Switching - Sequence After Frequency Change.
 	 * We handle this step in bxt_set_cdclk()
 	 */
 	/* 19. Move the PHY powerdown state to Active and program to enable/disable transmitters */
+	intel_lt_phy_powerdown_change_sequence(encoder, owned_lane_mask,
+					       XELPDP_P0_STATE_ACTIVE);
 
 	intel_lt_phy_transaction_end(encoder, wakeref);
 }
