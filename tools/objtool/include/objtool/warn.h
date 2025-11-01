@@ -107,6 +107,15 @@ extern int indent;
 
 static inline void unindent(int *unused) { indent--; }
 
+/*
+ * Clang prior to 17 is being silly and considers many __cleanup() variables
+ * as unused (because they are, their sole purpose is to go out of scope).
+ *
+ * https://github.com/llvm/llvm-project/commit/877210faa447f4cc7db87812f8ed80e398fedd61
+ */
+#undef __cleanup
+#define __cleanup(func) __maybe_unused __attribute__((__cleanup__(func)))
+
 #define __dbg(format, ...)						\
 	fprintf(stderr,							\
 		"DEBUG: %s%s" format "\n",				\
@@ -127,7 +136,7 @@ static inline void unindent(int *unused) { indent--; }
 })
 
 #define dbg_indent(args...)						\
-	int __attribute__((cleanup(unindent))) __dummy_##__COUNTER__;	\
+	int __cleanup(unindent) __dummy_##__COUNTER__;			\
 	__dbg_indent(args);						\
 	indent++
 
