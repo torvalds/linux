@@ -125,8 +125,8 @@ static void intel_cx0_phy_transaction_end(struct intel_encoder *encoder, intel_w
 	intel_display_power_put(display, POWER_DOMAIN_DC_OFF, wakeref);
 }
 
-static void intel_clear_response_ready_flag(struct intel_encoder *encoder,
-					    int lane)
+void intel_clear_response_ready_flag(struct intel_encoder *encoder,
+				     int lane)
 {
 	struct intel_display *display = to_intel_display(encoder);
 
@@ -135,7 +135,7 @@ static void intel_clear_response_ready_flag(struct intel_encoder *encoder,
 		     0, XELPDP_PORT_P2M_RESPONSE_READY | XELPDP_PORT_P2M_ERROR_SET);
 }
 
-static void intel_cx0_bus_reset(struct intel_encoder *encoder, int lane)
+void intel_cx0_bus_reset(struct intel_encoder *encoder, int lane)
 {
 	struct intel_display *display = to_intel_display(encoder);
 	enum port port = encoder->port;
@@ -156,8 +156,8 @@ static void intel_cx0_bus_reset(struct intel_encoder *encoder, int lane)
 	intel_clear_response_ready_flag(encoder, lane);
 }
 
-static int intel_cx0_wait_for_ack(struct intel_encoder *encoder,
-				  int command, int lane, u32 *val)
+int intel_cx0_wait_for_ack(struct intel_encoder *encoder,
+			   int command, int lane, u32 *val)
 {
 	struct intel_display *display = to_intel_display(encoder);
 	enum port port = encoder->port;

@@ -20,6 +20,10 @@
 #include "intel_psr.h"
 #include "intel_tc.h"
 
+#define for_each_lt_phy_lane_in_mask(__lane_mask, __lane) \
+	for ((__lane) = 0; (__lane) < 2; (__lane)++) \
+		for_each_if((__lane_mask) & BIT(__lane))
+
 #define INTEL_LT_PHY_LANE0		BIT(0)
 #define INTEL_LT_PHY_LANE1		BIT(1)
 #define INTEL_LT_PHY_BOTH_LANES		(INTEL_LT_PHY_LANE1 |\
@@ -999,6 +1003,115 @@ static void intel_lt_phy_write(struct intel_encoder *encoder,
 	intel_cx0_write(encoder, lane_mask, addr, data, committed);
 }
 
+static void intel_lt_phy_clear_status_p2p(struct intel_encoder *encoder,
+					  int lane)
+{
+	struct intel_display *display = to_intel_display(encoder);
+
+	intel_de_rmw(display,
+		     XE3PLPD_PORT_P2M_MSGBUS_STATUS_P2P(encoder->port, lane),
+		     XELPDP_PORT_P2M_RESPONSE_READY, 0);
+}
+
+static void
+assert_dc_off(struct intel_display *display)
+{
+	bool enabled;
+
+	enabled = intel_display_power_is_enabled(display, POWER_DOMAIN_DC_OFF);
+	drm_WARN_ON(display->drm, !enabled);
+}
+
+static int __intel_lt_phy_p2p_write_once(struct intel_encoder *encoder,
+					 int lane, u16 addr, u8 data,
+					 i915_reg_t mac_reg_addr,
+					 u8 expected_mac_val)
+{
+	struct intel_display *display = to_intel_display(encoder);
+	enum port port = encoder->port;
+	enum phy phy = intel_encoder_to_phy(encoder);
+	int ack;
+	u32 val;
+
+	if (intel_de_wait_for_clear(display, XELPDP_PORT_M2P_MSGBUS_CTL(display, port, lane),
+				    XELPDP_PORT_P2P_TRANSACTION_PENDING,
+				    XELPDP_MSGBUS_TIMEOUT_SLOW)) {
+		drm_dbg_kms(display->drm,
+			    "PHY %c Timeout waiting for previous transaction to complete. Resetting bus.\n",
+			    phy_name(phy));
+		intel_cx0_bus_reset(encoder, lane);
+		return -ETIMEDOUT;
+	}
+
+	intel_de_rmw(display, XELPDP_PORT_P2M_MSGBUS_STATUS(display, port, lane), 0, 0);
+
+	intel_de_write(display, XELPDP_PORT_M2P_MSGBUS_CTL(display, port, lane),
+		       XELPDP_PORT_P2P_TRANSACTION_PENDING |
+		       XELPDP_PORT_M2P_COMMAND_WRITE_COMMITTED |
+		       XELPDP_PORT_M2P_DATA(data) |
+		       XELPDP_PORT_M2P_ADDRESS(addr));
+
+	ack = intel_cx0_wait_for_ack(encoder, XELPDP_PORT_P2M_COMMAND_WRITE_ACK, lane, &val);
+	if (ack < 0)
+		return ack;
+
+	if (val & XELPDP_PORT_P2M_ERROR_SET) {
+		drm_dbg_kms(display->drm,
+			    "PHY %c Error occurred during P2P write command. Status: 0x%x\n",
+			    phy_name(phy), val);
+		intel_lt_phy_clear_status_p2p(encoder, lane);
+		intel_cx0_bus_reset(encoder, lane);
+		return -EINVAL;
+	}
+
+	/*
+	 * RE-VISIT:
+	 * This needs to be added to give PHY time to set everything up this was a requirement
+	 * to get the display up and running
+	 * This is the time PHY takes to settle down after programming the PHY.
+	 */
+	udelay(150);
+	intel_clear_response_ready_flag(encoder, lane);
+	intel_lt_phy_clear_status_p2p(encoder, lane);
+
+	return 0;
+}
+
+static void __intel_lt_phy_p2p_write(struct intel_encoder *encoder,
+				     int lane, u16 addr, u8 data,
+				     i915_reg_t mac_reg_addr,
+				     u8 expected_mac_val)
+{
+	struct intel_display *display = to_intel_display(encoder);
+	enum phy phy = intel_encoder_to_phy(encoder);
+	int i, status;
+
+	assert_dc_off(display);
+
+	/* 3 tries is assumed to be enough to write successfully */
+	for (i = 0; i < 3; i++) {
+		status = __intel_lt_phy_p2p_write_once(encoder, lane, addr, data, mac_reg_addr,
+						       expected_mac_val);
+
+		if (status == 0)
+			return;
+	}
+
+	drm_err_once(display->drm,
+		     "PHY %c P2P Write %04x failed after %d retries.\n", phy_name(phy), addr, i);
+}
+
+static void intel_lt_phy_p2p_write(struct intel_encoder *encoder,
+				   u8 lane_mask, u16 addr, u8 data,
+				   i915_reg_t mac_reg_addr,
+				   u8 expected_mac_val)
+{
+	int lane;
+
+	for_each_lt_phy_lane_in_mask(lane_mask, lane)
+		__intel_lt_phy_p2p_write(encoder, lane, addr, data, mac_reg_addr, expected_mac_val);
+}
+
 static void
 intel_lt_phy_setup_powerdown(struct intel_encoder *encoder, u8 lane_count)
 {
@@ -1428,6 +1541,10 @@ void intel_lt_phy_pll_enable(struct intel_encoder *encoder,
 		 * register at offset 0xC00 for Owned PHY Lanes*.
 		 */
 		/* 6.3. Clear P2P transaction Ready bit. */
+		intel_lt_phy_p2p_write(encoder, owned_lane_mask, LT_PHY_RATE_UPDATE,
+				       LT_PHY_RATE_CONTROL_VDR_UPDATE, LT_PHY_MAC_VDR,
+				       LT_PHY_PCLKIN_GATE);
+
 		/* 7. Program PORT_CLOCK_CTL[PCLK PLL Request LN0] = 0. */
 		/* 8. Poll for PORT_CLOCK_CTL[PCLK PLL Ack LN0]= 0. */
 		/*
