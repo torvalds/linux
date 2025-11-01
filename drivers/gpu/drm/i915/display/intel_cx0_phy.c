@@ -271,8 +271,7 @@ static u8 __intel_cx0_read(struct intel_encoder *encoder,
 	return 0;
 }
 
-static u8 intel_cx0_read(struct intel_encoder *encoder,
-			 u8 lane_mask, u16 addr)
+u8 intel_cx0_read(struct intel_encoder *encoder, u8 lane_mask, u16 addr)
 {
 	int lane = lane_mask_to_lane(lane_mask);
 
