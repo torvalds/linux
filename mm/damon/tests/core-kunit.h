@@ -144,20 +144,14 @@ static void damon_test_aggregate(struct kunit *test)
 
 static void damon_test_split_at(struct kunit *test)
 {
-	struct damon_ctx *c = damon_new_ctx();
 	struct damon_target *t;
 	struct damon_region *r, *r_new;
 
-	if (!c)
-		kunit_skip(test, "ctx alloc fail");
 	t = damon_new_target();
-	if (!t) {
-		damon_destroy_ctx(c);
+	if (!t)
 		kunit_skip(test, "target alloc fail");
-	}
 	r = damon_new_region(0, 100);
 	if (!r) {
-		damon_destroy_ctx(c);
 		damon_free_target(t);
 		kunit_skip(test, "region alloc fail");
 	}
@@ -178,7 +172,6 @@ static void damon_test_split_at(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, r->last_nr_accesses, r_new->last_nr_accesses);
 
 	damon_free_target(t);
-	damon_destroy_ctx(c);
 }
 
 static void damon_test_merge_two(struct kunit *test)
