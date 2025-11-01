@@ -1235,6 +1235,98 @@ intel_lt_phy_pll_is_ssc_enabled(struct intel_crtc_state *crtc_state,
 	return false;
 }
 
+static int
+intel_lt_phy_calc_hdmi_port_clock(const struct intel_lt_phy_pll_state *lt_state)
+{
+#define REF_CLK_KHZ 38400
+#define REGVAL(i) (				\
+	(lt_state->data[i][3])		|	\
+	(lt_state->data[i][2] << 8)	|	\
+	(lt_state->data[i][1] << 16)	|	\
+	(lt_state->data[i][0] << 24)		\
+)
+
+	int clk = 0;
+	u32 d8, pll_reg_5, pll_reg_3, pll_reg_57, m2div_frac, m2div_int;
+	u64 temp0, temp1;
+	/*
+	 * The algorithm uses '+' to combine bitfields when
+	 * constructing PLL_reg3 and PLL_reg57:
+	 * PLL_reg57 = (D7 << 24) + (postdiv << 15) + (D8 << 7) + D6_new;
+	 * PLL_reg3 = (D4 << 21) + (D3 << 18) + (D1 << 15) + (m2div_int << 5);
+	 *
+	 * However, this is likely intended to be a bitwise OR operation,
+	 * as each field occupies distinct, non-overlapping bits in the register.
+	 *
+	 * PLL_reg57 is composed of following fields packed into a 32-bit value:
+	 * - D7: max value 10 -> fits in 4 bits -> placed at bits 24-27
+	 * - postdiv: max value 9 -> fits in 4 bits -> placed at bits 15-18
+	 * - D8: derived from loop_cnt / 2, max 127 -> fits in 7 bits
+	 *	(though 8 bits are given to it) -> placed at bits 7-14
+	 * - D6_new: fits in lower 7 bits -> placed at bits 0-6
+	 * PLL_reg57 = (D7 << 24) | (postdiv << 15) | (D8 << 7) | D6_new;
+	 *
+	 * Similarly, PLL_reg3 is packed as:
+	 * - D4: max value 256 -> fits in 9 bits -> placed at bits 21-29
+	 * - D3: max value 9 -> fits in 4 bits -> placed at bits 18-21
+	 * - D1: max value 2 -> fits in 2 bits -> placed at bits 15-16
+	 * - m2div_int: max value 511 -> fits in 9 bits (10 bits allocated)
+	 *   -> placed at bits 5-14
+	 * PLL_reg3 = (D4 << 21) | (D3 << 18) | (D1 << 15) | (m2div_int << 5);
+	 */
+	pll_reg_5 = REGVAL(2);
+	pll_reg_3 = REGVAL(1);
+	pll_reg_57 = REGVAL(3);
+	m2div_frac = pll_reg_5;
+
+	/*
+	 * From forward algorithm we know
+	 * m2div = 2 * m2
+	 * val = y * frequency * 5
+	 * So now,
+	 * frequency = (m2 * 2 * refclk_khz / (d8 * 10))
+	 * frequency = (m2div * refclk_khz / (d8 * 10))
+	 */
+	d8 = (pll_reg_57 & REG_GENMASK(14, 7)) >> 7;
+	m2div_int = (pll_reg_3  & REG_GENMASK(14, 5)) >> 5;
+	temp0 = ((u64)m2div_frac * REF_CLK_KHZ) >> 32;
+	temp1 = (u64)m2div_int * REF_CLK_KHZ;
+	if (d8 == 0)
+		return 0;
+
+	clk = div_u64((temp1 + temp0), d8 * 10);
+
+	return clk;
+}
+
+int
+intel_lt_phy_calc_port_clock(struct intel_encoder *encoder,
+			     const struct intel_crtc_state *crtc_state)
+{
+	int clk;
+	const struct intel_lt_phy_pll_state *lt_state =
+		&crtc_state->dpll_hw_state.ltpll;
+	u8 mode, rate;
+
+	mode = REG_FIELD_GET8(LT_PHY_VDR_MODE_ENCODING_MASK,
+			      lt_state->config[0]);
+	/*
+	 * For edp/dp read the clock value from the tables
+	 * and return the clock as the algorithm used for
+	 * calculating the port clock does not exactly matches
+	 * with edp/dp clock.
+	 */
+	if (mode == MODE_DP) {
+		rate = REG_FIELD_GET8(LT_PHY_VDR_RATE_ENCODING_MASK,
+				      lt_state->config[0]);
+		clk = intel_lt_phy_get_dp_clock(rate);
+	} else {
+		clk = intel_lt_phy_calc_hdmi_port_clock(lt_state);
+	}
+
+	return clk;
+}
+
 int
 intel_lt_phy_pll_calc_state(struct intel_crtc_state *crtc_state,
 			    struct intel_encoder *encoder)
