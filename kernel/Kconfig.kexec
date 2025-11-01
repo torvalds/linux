@@ -100,7 +100,6 @@ config KEXEC_HANDOVER
 	depends on !DEFERRED_STRUCT_PAGE_INIT
 	select MEMBLOCK_KHO_SCRATCH
 	select KEXEC_FILE
-	select DEBUG_FS
 	select LIBFDT
 	select CMA
 	help
@@ -117,6 +116,17 @@ config KEXEC_HANDOVER_DEBUG
 	  subsystem. Since, KHO performance is crucial in live update
 	  scenarios and the extra code might be adding overhead it is
 	  only optionally enabled.
+
+config KEXEC_HANDOVER_DEBUGFS
+	bool "kexec handover debugfs interface"
+	default KEXEC_HANDOVER
+	depends on KEXEC_HANDOVER
+	select DEBUG_FS
+	help
+	  Allow to control kexec handover device tree via debugfs
+	  interface, i.e. finalize the state or aborting the finalization.
+	  Also, enables inspecting the KHO fdt trees with the debugfs binary
+	  blobs.
 
 config CRASH_DUMP
 	bool "kernel crash dumps"
