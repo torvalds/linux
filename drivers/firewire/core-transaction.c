@@ -51,27 +51,33 @@ static void remove_transaction_entry(struct fw_card *card, struct fw_transaction
 	card->transactions.tlabel_mask &= ~(1ULL << entry->tlabel);
 }
 
+// card->transactions.lock must be acquired in advance.
+#define find_and_pop_transaction_entry(card, condition)			\
+({									\
+	struct fw_transaction *iter, *t = NULL;				\
+	list_for_each_entry(iter, &card->transactions.list, link) {	\
+		if (condition) {					\
+			t = iter;					\
+			break;						\
+		}							\
+	}								\
+	if (t && try_cancel_split_timeout(t))				\
+		remove_transaction_entry(card, t);			\
+	t;								\
+})
+
 static int close_transaction(struct fw_transaction *transaction, struct fw_card *card, int rcode,
 			     u32 response_tstamp)
 {
-	struct fw_transaction *t = NULL, *iter;
+	struct fw_transaction *t;
 
 	// NOTE: This can be without irqsave when we can guarantee that __fw_send_request() for
 	// local destination never runs in any type of IRQ context.
 	scoped_guard(spinlock_irqsave, &card->transactions.lock) {
-		list_for_each_entry(iter, &card->transactions.list, link) {
-			if (iter == transaction) {
-				if (try_cancel_split_timeout(iter)) {
-					remove_transaction_entry(card, iter);
-					t = iter;
-				}
-				break;
-			}
-		}
+		t = find_and_pop_transaction_entry(card, iter == transaction);
+		if (!t)
+			return -ENOENT;
 	}
-
-	if (!t)
-		return -ENOENT;
 
 	if (!t->with_tstamp) {
 		t->callback.without_tstamp(card, rcode, NULL, 0, t->callback_data);
@@ -1102,7 +1108,7 @@ EXPORT_SYMBOL(fw_core_handle_request);
 
 void fw_core_handle_response(struct fw_card *card, struct fw_packet *p)
 {
-	struct fw_transaction *t = NULL, *iter;
+	struct fw_transaction *t = NULL;
 	u32 *data;
 	size_t data_length;
 	int tcode, tlabel, source, rcode;
@@ -1144,15 +1150,8 @@ void fw_core_handle_response(struct fw_card *card, struct fw_packet *p)
 	// NOTE: This can be without irqsave when we can guarantee that __fw_send_request() for
 	// local destination never runs in any type of IRQ context.
 	scoped_guard(spinlock_irqsave, &card->transactions.lock) {
-		list_for_each_entry(iter, &card->transactions.list, link) {
-			if (iter->node_id == source && iter->tlabel == tlabel) {
-				if (try_cancel_split_timeout(iter)) {
-					remove_transaction_entry(card, iter);
-					t = iter;
-				}
-				break;
-			}
-		}
+		t = find_and_pop_transaction_entry(card,
+				iter->node_id == source && iter->tlabel == tlabel);
 	}
 
 	trace_async_response_inbound((uintptr_t)t, card->index, p->generation, p->speed, p->ack,
