@@ -1856,6 +1856,36 @@ void intel_lt_phy_set_signal_levels(struct intel_encoder *encoder,
 	intel_lt_phy_transaction_end(encoder, wakeref);
 }
 
+void intel_lt_phy_dump_hw_state(struct intel_display *display,
+				const struct intel_lt_phy_pll_state *hw_state)
+{
+	int i, j;
+
+	drm_dbg_kms(display->drm, "lt_phy_pll_hw_state:\n");
+	for (i = 0; i < 3; i++) {
+		drm_dbg_kms(display->drm, "config[%d] = 0x%.4x,\n",
+			    i, hw_state->config[i]);
+	}
+
+	for (i = 0; i <= 12; i++)
+		for (j = 3; j >= 0; j--)
+			drm_dbg_kms(display->drm, "vdr_data[%d][%d] = 0x%.4x,\n",
+				    i, j, hw_state->data[i][j]);
+}
+
+bool
+intel_lt_phy_pll_compare_hw_state(const struct intel_lt_phy_pll_state *a,
+				  const struct intel_lt_phy_pll_state *b)
+{
+	if (memcmp(&a->config, &b->config, sizeof(a->config)) != 0)
+		return false;
+
+	if (memcmp(&a->data, &b->data, sizeof(a->data)) != 0)
+		return false;
+
+	return true;
+}
+
 void intel_xe3plpd_pll_enable(struct intel_encoder *encoder,
 			      const struct intel_crtc_state *crtc_state)
 {
