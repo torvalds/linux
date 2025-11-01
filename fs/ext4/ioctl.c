@@ -1394,6 +1394,10 @@ static int ext4_ioctl_set_tune_sb(struct file *filp,
 	if (copy_from_user(&params, in, sizeof(params)))
 		return -EFAULT;
 
+	if (strnlen(params.mount_opts, sizeof(params.mount_opts)) ==
+	    sizeof(params.mount_opts))
+		return -E2BIG;
+
 	if ((params.set_flags & ~TUNE_OPS_SUPPORTED) != 0)
 		return -EOPNOTSUPP;
 
