@@ -1131,7 +1131,7 @@ static int yt921x_fdb_wait(struct yt921x_priv *priv, u32 *valp)
 	res = yt921x_reg_wait(priv, YT921X_FDB_RESULT, YT921X_FDB_RESULT_DONE,
 			      &val);
 	if (res) {
-		dev_err(dev, "FDB probably stucked\n");
+		dev_err(dev, "FDB probably stuck\n");
 		return res;
 	}
 
