@@ -951,6 +951,8 @@ do_transfer()
 	local FAILING_LINKS=${FAILING_LINKS:-""}
 	local fastclose=${fastclose:-""}
 	local speed=${speed:-"fast"}
+	local listener_in="${sin}"
+	local connector_in="${cin}"
 	port=$(get_port)
 
 	:> "$cout"
@@ -999,16 +1001,12 @@ do_transfer()
 
 	extra_srv_args="$extra_args $extra_srv_args"
 	if [ "$test_linkfail" -gt 1 ];then
-		timeout ${timeout_test} \
-			ip netns exec ${listener_ns} \
-				./mptcp_connect -t ${timeout_poll} -l -p $port -s ${srv_proto} \
-					$extra_srv_args "::" < "$sinfail" > "$sout" &
-	else
-		timeout ${timeout_test} \
-			ip netns exec ${listener_ns} \
-				./mptcp_connect -t ${timeout_poll} -l -p $port -s ${srv_proto} \
-					$extra_srv_args "::" < "$sin" > "$sout" &
+		listener_in="${sinfail}"
 	fi
+	timeout ${timeout_test} \
+		ip netns exec ${listener_ns} \
+			./mptcp_connect -t ${timeout_poll} -l -p ${port} -s ${srv_proto} \
+				${extra_srv_args} "::" < "${listener_in}" > "${sout}" &
 	local spid=$!
 
 	mptcp_lib_wait_local_port_listen "${listener_ns}" "${port}"
@@ -1020,6 +1018,7 @@ do_transfer()
 				./mptcp_connect -t ${timeout_poll} -p $port -s ${cl_proto} \
 					$extra_cl_args $connect_addr < "$cin" > "$cout" &
 	elif [ "$test_linkfail" -eq 1 ] || [ "$test_linkfail" -eq 2 ];then
+		connector_in="${cinsent}"
 		( cat "$cinfail" ; sleep 2; link_failure $listener_ns ; cat "$cinfail" ) | \
 			tee "$cinsent" | \
 			timeout ${timeout_test} \
@@ -1027,6 +1026,7 @@ do_transfer()
 					./mptcp_connect -t ${timeout_poll} -p $port -s ${cl_proto} \
 						$extra_cl_args $connect_addr > "$cout" &
 	else
+		connector_in="${cinsent}"
 		tee "$cinsent" < "$cinfail" | \
 			timeout ${timeout_test} \
 				ip netns exec ${connector_ns} \
@@ -1057,17 +1057,9 @@ do_transfer()
 		return 1
 	fi
 
-	if [ "$test_linkfail" -gt 1 ];then
-		check_transfer $sinfail $cout "file received by client" $trunc_size
-	else
-		check_transfer $sin $cout "file received by client" $trunc_size
-	fi
+	check_transfer $listener_in $cout "file received by client" $trunc_size
 	retc=$?
-	if [ "$test_linkfail" -eq 0 ];then
-		check_transfer $cin $sout "file received by server" $trunc_size
-	else
-		check_transfer $cinsent $sout "file received by server" $trunc_size
-	fi
+	check_transfer $connector_in $sout "file received by server" $trunc_size
 	rets=$?
 
 	[ $retc -eq 0 ] && [ $rets -eq 0 ]
