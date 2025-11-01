@@ -1506,6 +1506,8 @@ void intel_lt_phy_pll_enable(struct intel_encoder *encoder,
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 	bool lane_reversal = dig_port->lane_reversal;
 	u8 owned_lane_mask = intel_lt_phy_get_owned_lane_mask(encoder);
+	enum phy phy = intel_encoder_to_phy(encoder);
+	enum port port = encoder->port;
 	intel_wakeref_t wakeref = 0;
 
 	wakeref = intel_lt_phy_transaction_begin(encoder);
@@ -1546,19 +1548,42 @@ void intel_lt_phy_pll_enable(struct intel_encoder *encoder,
 				       LT_PHY_PCLKIN_GATE);
 
 		/* 7. Program PORT_CLOCK_CTL[PCLK PLL Request LN0] = 0. */
+		intel_de_rmw(display, XELPDP_PORT_CLOCK_CTL(display, port),
+			     XELPDP_LANE_PCLK_PLL_REQUEST(0), 0);
+
 		/* 8. Poll for PORT_CLOCK_CTL[PCLK PLL Ack LN0]= 0. */
+		if (intel_de_wait_custom(display, XELPDP_PORT_CLOCK_CTL(display, port),
+					 XELPDP_LANE_PCLK_PLL_ACK(0), 0,
+					 XE3PLPD_MACCLK_TURNOFF_LATENCY_US, 0, NULL))
+			drm_warn(display->drm, "PHY %c PLL MacCLK Ack deassertion Timeout after %dus.\n",
+				 phy_name(phy), XE3PLPD_MACCLK_TURNOFF_LATENCY_US);
+
 		/*
 		 * 9. Follow the Display Voltage Frequency Switching - Sequence Before Frequency
 		 * Change. We handle this step in bxt_set_cdclk().
 		 */
 		/* 10. Program DDI_CLK_VALFREQ to match intended DDI clock frequency. */
 		/* 11. Program PORT_CLOCK_CTL[PCLK PLL Request LN0] = 1. */
+		intel_de_rmw(display, XELPDP_PORT_CLOCK_CTL(display, port),
+			     XELPDP_LANE_PCLK_PLL_REQUEST(0),
+			     XELPDP_LANE_PCLK_PLL_REQUEST(0));
+
 		/* 12. Poll for PORT_CLOCK_CTL[PCLK PLL Ack LN0]= 1. */
+		if (intel_de_wait_custom(display, XELPDP_PORT_CLOCK_CTL(display, port),
+					 XELPDP_LANE_PCLK_PLL_ACK(0),
+					 XELPDP_LANE_PCLK_PLL_ACK(0),
+					 XE3PLPD_MACCLK_TURNON_LATENCY_US, 2, NULL))
+			drm_warn(display->drm, "PHY %c PLL MacCLK Ack assertion Timeout after %dus.\n",
+				 phy_name(phy), XE3PLPD_MACCLK_TURNON_LATENCY_US);
 	} else {
 		intel_de_write(display, DDI_CLK_VALFREQ(encoder->port), crtc_state->port_clock);
 	}
 
 	/* 13. Ungate the forward clock by setting PORT_CLOCK_CTL[Forward Clock Ungate] = 1. */
+	intel_de_rmw(display, XELPDP_PORT_CLOCK_CTL(display, port),
+		     XELPDP_FORWARD_CLOCK_UNGATE,
+		     XELPDP_FORWARD_CLOCK_UNGATE);
+
 	/* 14. SW clears PORT_BUF_CTL2 [PHY Pulse Status]. */
 	/*
 	 * 15. Clear the PHY VDR register 0xCC4[Rate Control VDR Update] over PHY message bus for
