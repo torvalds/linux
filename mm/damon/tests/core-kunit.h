@@ -267,20 +267,14 @@ static void damon_test_merge_regions_of(struct kunit *test)
 
 static void damon_test_split_regions_of(struct kunit *test)
 {
-	struct damon_ctx *c = damon_new_ctx();
 	struct damon_target *t;
 	struct damon_region *r;
 
-	if (!c)
-		kunit_skip("ctx alloc fail");
 	t = damon_new_target();
-	if (!t) {
-		damon_destroy_ctx(c);
+	if (!t)
 		kunit_skip(test, "target alloc fail");
-	}
 	r = damon_new_region(0, 22);
 	if (!r) {
-		damon_destroy_ctx(c);
 		damon_free_target(t);
 		kunit_skip(test, "region alloc fail");
 	}
@@ -290,13 +284,10 @@ static void damon_test_split_regions_of(struct kunit *test)
 	damon_free_target(t);
 
 	t = damon_new_target();
-	if (!t) {
-		damon_destroy_ctx(c);
+	if (!t)
 		kunit_skip(test, "second target alloc fail");
-	}
 	r = damon_new_region(0, 220);
 	if (!r) {
-		damon_destroy_ctx(c);
 		damon_free_target(t);
 		kunit_skip(test, "second region alloc fail");
 	}
@@ -304,7 +295,6 @@ static void damon_test_split_regions_of(struct kunit *test)
 	damon_split_regions_of(t, 4, DAMON_MIN_REGION);
 	KUNIT_EXPECT_LE(test, damon_nr_regions(t), 4u);
 	damon_free_target(t);
-	damon_destroy_ctx(c);
 }
 
 static void damon_test_ops_registration(struct kunit *test)
