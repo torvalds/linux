@@ -15,6 +15,7 @@
 
 struct rtw89_dev;
 struct rtw89_pci_info;
+struct rtw89_usb_info;
 struct rtw89_mac_gen_def;
 struct rtw89_phy_gen_def;
 struct rtw89_fw_blacklist;
@@ -4514,6 +4515,7 @@ struct rtw89_chip_variant {
 
 union rtw89_bus_info {
 	const struct rtw89_pci_info *pci;
+	const struct rtw89_usb_info *usb;
 };
 
 struct rtw89_driver_info {

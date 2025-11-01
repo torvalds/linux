@@ -167,27 +167,6 @@ rtw89_usb_ops_check_and_reclaim_tx_resource(struct rtw89_dev *rtwdev,
 	return 42; /* TODO some kind of calculation? */
 }
 
-static u8 rtw89_usb_get_bulkout_id(u8 ch_dma)
-{
-	switch (ch_dma) {
-	case RTW89_DMA_ACH0:
-		return 3;
-	case RTW89_DMA_ACH1:
-		return 4;
-	case RTW89_DMA_ACH2:
-		return 5;
-	case RTW89_DMA_ACH3:
-		return 6;
-	default:
-	case RTW89_DMA_B0MG:
-		return 0;
-	case RTW89_DMA_B0HI:
-		return 1;
-	case RTW89_DMA_H2C:
-		return 2;
-	}
-}
-
 static void rtw89_usb_write_port_complete(struct urb *urb)
 {
 	struct rtw89_usb_tx_ctrl_block *txcb = urb->context;
@@ -249,9 +228,10 @@ static int rtw89_usb_write_port(struct rtw89_dev *rtwdev, u8 ch_dma,
 				void *data, int len, void *context)
 {
 	struct rtw89_usb *rtwusb = rtw89_usb_priv(rtwdev);
+	const struct rtw89_usb_info *info = rtwusb->info;
 	struct usb_device *usbd = rtwusb->udev;
 	struct urb *urb;
-	u8 bulkout_id = rtw89_usb_get_bulkout_id(ch_dma);
+	u8 bulkout_id = info->bulkout_id[ch_dma];
 	unsigned int pipe;
 	int ret;
 
@@ -949,6 +929,7 @@ int rtw89_usb_probe(struct usb_interface *intf,
 
 	rtwusb = rtw89_usb_priv(rtwdev);
 	rtwusb->rtwdev = rtwdev;
+	rtwusb->info = info->bus.usb;
 
 	rtwdev->hci.ops = &rtw89_usb_ops;
 	rtwdev->hci.type = RTW89_HCI_TYPE_USB;

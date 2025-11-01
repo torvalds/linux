@@ -7,10 +7,25 @@
 #include "rtw8852b.h"
 #include "usb.h"
 
+static const struct rtw89_usb_info rtw8852b_usb_info = {
+	.bulkout_id = {
+		[RTW89_DMA_ACH0] = 3,
+		[RTW89_DMA_ACH1] = 4,
+		[RTW89_DMA_ACH2] = 5,
+		[RTW89_DMA_ACH3] = 6,
+		[RTW89_DMA_B0MG] = 0,
+		[RTW89_DMA_B0HI] = 1,
+		[RTW89_DMA_H2C] = 2,
+	},
+};
+
 static const struct rtw89_driver_info rtw89_8852bu_info = {
 	.chip = &rtw8852b_chip_info,
 	.variant = NULL,
 	.quirks = NULL,
+	.bus = {
+		.usb = &rtw8852b_usb_info,
+	}
 };
 
 static const struct usb_device_id rtw_8852bu_id_table[] = {
