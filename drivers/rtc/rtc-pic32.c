@@ -340,8 +340,6 @@ static int pic32_rtc_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_nortc;
 
-	pdata->rtc->max_user_freq = 128;
-
 	pic32_rtc_setfreq(&pdev->dev, 1);
 	ret = devm_request_irq(&pdev->dev, pdata->alarm_irq,
 			       pic32_rtc_alarmirq, 0,
