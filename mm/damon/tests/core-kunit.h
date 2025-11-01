@@ -516,11 +516,16 @@ static void damos_test_new_filter(struct kunit *test)
 
 static void damos_test_commit_filter(struct kunit *test)
 {
-	struct damos_filter *src_filter = damos_new_filter(
-		DAMOS_FILTER_TYPE_ANON, true, true);
-	struct damos_filter *dst_filter = damos_new_filter(
-		DAMOS_FILTER_TYPE_ACTIVE, false, false);
+	struct damos_filter *src_filter, *dst_filter;
 
+	src_filter = damos_new_filter(DAMOS_FILTER_TYPE_ANON, true, true);
+	if (!src_filter)
+		kunit_skip(test, "src filter alloc fail");
+	dst_filter = damos_new_filter(DAMOS_FILTER_TYPE_ACTIVE, false, false);
+	if (!dst_filter) {
+		damos_destroy_filter(src_filter);
+		kunit_skip(test, "dst filter alloc fail");
+	}
 	damos_commit_filter(dst_filter, src_filter);
 	KUNIT_EXPECT_EQ(test, dst_filter->type, src_filter->type);
 	KUNIT_EXPECT_EQ(test, dst_filter->matching, src_filter->matching);
