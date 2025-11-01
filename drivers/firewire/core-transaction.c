@@ -44,6 +44,13 @@ static int try_cancel_split_timeout(struct fw_transaction *t)
 		return 1;
 }
 
+// card->transactions.lock must be acquired in advance.
+static void remove_transaction_entry(struct fw_card *card, struct fw_transaction *entry)
+{
+	list_del_init(&entry->link);
+	card->transactions.tlabel_mask &= ~(1ULL << entry->tlabel);
+}
+
 static int close_transaction(struct fw_transaction *transaction, struct fw_card *card, int rcode,
 			     u32 response_tstamp)
 {
@@ -55,8 +62,7 @@ static int close_transaction(struct fw_transaction *transaction, struct fw_card 
 		list_for_each_entry(iter, &card->transactions.list, link) {
 			if (iter == transaction) {
 				if (try_cancel_split_timeout(iter)) {
-					list_del_init(&iter->link);
-					card->transactions.tlabel_mask &= ~(1ULL << iter->tlabel);
+					remove_transaction_entry(card, iter);
 					t = iter;
 				}
 				break;
@@ -122,8 +128,7 @@ static void split_transaction_timeout_callback(struct timer_list *timer)
 	scoped_guard(spinlock_irqsave, &card->transactions.lock) {
 		if (list_empty(&t->link))
 			return;
-		list_del(&t->link);
-		card->transactions.tlabel_mask &= ~(1ULL << t->tlabel);
+		remove_transaction_entry(card, t);
 	}
 
 	if (!t->with_tstamp) {
@@ -1142,8 +1147,7 @@ void fw_core_handle_response(struct fw_card *card, struct fw_packet *p)
 		list_for_each_entry(iter, &card->transactions.list, link) {
 			if (iter->node_id == source && iter->tlabel == tlabel) {
 				if (try_cancel_split_timeout(iter)) {
-					list_del_init(&iter->link);
-					card->transactions.tlabel_mask &= ~(1ULL << iter->tlabel);
+					remove_transaction_entry(card, iter);
 					t = iter;
 				}
 				break;
