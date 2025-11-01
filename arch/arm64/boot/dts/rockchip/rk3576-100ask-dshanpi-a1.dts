@@ -44,7 +44,7 @@
 		simple-audio-card,pin-switches = "Headphone", "Line Out";
 
 		simple-audio-card,cpu {
-			sound-dai = <&sai1>;
+			sound-dai = <&sai2>;
 		};
 
 		simple-audio-card,codec {
@@ -600,18 +600,18 @@
 &i2c4 {
 	status = "okay";
 
-	es8388: audio-codec@10 {
+	es8388: audio-codec@11 {
 		compatible = "everest,es8388", "everest,es8328";
-		reg = <0x10>;
-		clocks = <&cru CLK_SAI1_MCLKOUT_TO_IO>;
+		reg = <0x11>;
+		clocks = <&cru CLK_SAI2_MCLKOUT_TO_IO>;
+		assigned-clocks = <&cru CLK_SAI2_MCLKOUT_TO_IO>;
+		assigned-clock-rates = <12288000>;
 		AVDD-supply = <&vcc_3v3_s0>;
 		DVDD-supply = <&vcc_3v3_s0>;
 		HPVDD-supply = <&vcc_3v3_s0>;
 		PVDD-supply = <&vcc_3v3_s0>;
-		assigned-clocks = <&cru CLK_SAI1_MCLKOUT_TO_IO>;
-		assigned-clock-rates = <12288000>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&sai1m0_mclk>;
+		pinctrl-0 = <&sai2m0_mclk>;
 		#sound-dai-cells = <0>;
 	};
 };
@@ -661,7 +661,7 @@
 
 	headphone {
 		hp_det: hp-det {
-			rockchip,pins = <0 RK_PD3 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <0 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
@@ -678,12 +678,7 @@
 	};
 };
 
-&sai1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&sai1m0_lrck
-		     &sai1m0_sclk
-		     &sai1m0_sdi0
-		     &sai1m0_sdo0>;
+&sai2 {
 	status = "okay";
 };
 
