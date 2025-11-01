@@ -158,8 +158,8 @@ static int rzg2l_usbphy_ctrl_pwrrdy_init(struct device *dev)
 	field.msb = __fls(args[1]);
 
 	pwrrdy = devm_regmap_field_alloc(dev, regmap, field);
-	if (!pwrrdy)
-		return -ENOMEM;
+	if (IS_ERR(pwrrdy))
+		return PTR_ERR(pwrrdy);
 
 	rzg2l_usbphy_ctrl_set_pwrrdy(pwrrdy, true);
 
