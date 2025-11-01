@@ -1507,6 +1507,92 @@ intel_lt_phy_program_pll(struct intel_encoder *encoder,
 	}
 }
 
+static void
+intel_lt_phy_enable_disable_tx(struct intel_encoder *encoder,
+			       const struct intel_crtc_state *crtc_state)
+{
+	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
+	bool lane_reversal = dig_port->lane_reversal;
+	u8 lane_count = crtc_state->lane_count;
+	bool is_dp_alt =
+		intel_tc_port_in_dp_alt_mode(dig_port);
+	enum intel_tc_pin_assignment tc_pin =
+		intel_tc_port_get_pin_assignment(dig_port);
+	u8 transmitter_mask = 0;
+
+	/*
+	 * We have a two transmitters per lane and total of 2 PHY lanes so a total
+	 * of 4 transmitters. We prepare a mask of the lanes that need to be activated
+	 * and the transmitter which need to be activated for each lane. TX 0,1 correspond
+	 * to LANE0 and TX 2, 3 correspond to LANE1.
+	 */
+
+	switch (lane_count) {
+	case 1:
+		transmitter_mask = lane_reversal ? REG_BIT8(3) : REG_BIT8(0);
+		if (is_dp_alt) {
+			if (tc_pin == INTEL_TC_PIN_ASSIGNMENT_D)
+				transmitter_mask = REG_BIT8(0);
+			else
+				transmitter_mask = REG_BIT8(1);
+		}
+		break;
+	case 2:
+		transmitter_mask = lane_reversal ? REG_GENMASK8(3, 2) : REG_GENMASK8(1, 0);
+		if (is_dp_alt)
+			transmitter_mask = REG_GENMASK8(1, 0);
+		break;
+	case 3:
+		transmitter_mask = lane_reversal ? REG_GENMASK8(3, 1) : REG_GENMASK8(2, 0);
+		if (is_dp_alt)
+			transmitter_mask = REG_GENMASK8(2, 0);
+		break;
+	case 4:
+		transmitter_mask = REG_GENMASK8(3, 0);
+		break;
+	default:
+		MISSING_CASE(lane_count);
+		transmitter_mask = REG_GENMASK8(3, 0);
+		break;
+	}
+
+	if (transmitter_mask & BIT(0)) {
+		intel_lt_phy_p2p_write(encoder, INTEL_LT_PHY_LANE0, LT_PHY_TXY_CTL10(0),
+				       LT_PHY_TX_LANE_ENABLE, LT_PHY_TXY_CTL10_MAC(0),
+				       LT_PHY_TX_LANE_ENABLE);
+	} else {
+		intel_lt_phy_p2p_write(encoder, INTEL_LT_PHY_LANE0, LT_PHY_TXY_CTL10(0),
+				       0, LT_PHY_TXY_CTL10_MAC(0), 0);
+	}
+
+	if (transmitter_mask & BIT(1)) {
+		intel_lt_phy_p2p_write(encoder, INTEL_LT_PHY_LANE0, LT_PHY_TXY_CTL10(1),
+				       LT_PHY_TX_LANE_ENABLE, LT_PHY_TXY_CTL10_MAC(1),
+				       LT_PHY_TX_LANE_ENABLE);
+	} else {
+		intel_lt_phy_p2p_write(encoder, INTEL_LT_PHY_LANE0, LT_PHY_TXY_CTL10(1),
+				       0, LT_PHY_TXY_CTL10_MAC(1), 0);
+	}
+
+	if (transmitter_mask & BIT(2)) {
+		intel_lt_phy_p2p_write(encoder, INTEL_LT_PHY_LANE1, LT_PHY_TXY_CTL10(0),
+				       LT_PHY_TX_LANE_ENABLE, LT_PHY_TXY_CTL10_MAC(0),
+				       LT_PHY_TX_LANE_ENABLE);
+	} else {
+		intel_lt_phy_p2p_write(encoder, INTEL_LT_PHY_LANE1, LT_PHY_TXY_CTL10(0),
+				       0, LT_PHY_TXY_CTL10_MAC(0), 0);
+	}
+
+	if (transmitter_mask & BIT(3)) {
+		intel_lt_phy_p2p_write(encoder, INTEL_LT_PHY_LANE1, LT_PHY_TXY_CTL10(1),
+				       LT_PHY_TX_LANE_ENABLE, LT_PHY_TXY_CTL10_MAC(1),
+				       LT_PHY_TX_LANE_ENABLE);
+	} else {
+		intel_lt_phy_p2p_write(encoder, INTEL_LT_PHY_LANE1, LT_PHY_TXY_CTL10(1),
+				       0, LT_PHY_TXY_CTL10_MAC(1), 0);
+	}
+}
+
 void intel_lt_phy_pll_enable(struct intel_encoder *encoder,
 			     const struct intel_crtc_state *crtc_state)
 {
@@ -1633,6 +1719,7 @@ void intel_lt_phy_pll_enable(struct intel_encoder *encoder,
 	intel_lt_phy_powerdown_change_sequence(encoder, owned_lane_mask,
 					       XELPDP_P0_STATE_ACTIVE);
 
+	intel_lt_phy_enable_disable_tx(encoder, crtc_state);
 	intel_lt_phy_transaction_end(encoder, wakeref);
 }
 
