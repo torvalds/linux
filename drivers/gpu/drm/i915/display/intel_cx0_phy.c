@@ -23,9 +23,6 @@
 #include "intel_snps_hdmi_pll.h"
 #include "intel_tc.h"
 
-#define MB_WRITE_COMMITTED      true
-#define MB_WRITE_UNCOMMITTED    false
-
 #define for_each_cx0_lane_in_mask(__lane_mask, __lane) \
 	for ((__lane) = 0; (__lane) < 2; (__lane)++) \
 		for_each_if((__lane_mask) & BIT(__lane))
@@ -358,8 +355,8 @@ static void __intel_cx0_write(struct intel_encoder *encoder,
 		     "PHY %c Write %04x failed after %d retries.\n", phy_name(phy), addr, i);
 }
 
-static void intel_cx0_write(struct intel_encoder *encoder,
-			    u8 lane_mask, u16 addr, u8 data, bool committed)
+void intel_cx0_write(struct intel_encoder *encoder,
+		     u8 lane_mask, u16 addr, u8 data, bool committed)
 {
 	int lane;
 

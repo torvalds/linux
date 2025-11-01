@@ -992,6 +992,12 @@ static u8 intel_lt_phy_read(struct intel_encoder *encoder, u8 lane_mask, u16 add
 	return intel_cx0_read(encoder, lane_mask, addr);
 }
 
+static void intel_lt_phy_write(struct intel_encoder *encoder,
+			       u8 lane_mask, u16 addr, u8 data, bool committed)
+{
+	intel_cx0_write(encoder, lane_mask, addr, data, committed);
+}
+
 static void
 intel_lt_phy_setup_powerdown(struct intel_encoder *encoder, u8 lane_count)
 {
@@ -1228,6 +1234,36 @@ intel_lt_phy_pll_calc_state(struct intel_crtc_state *crtc_state,
 	return -EINVAL;
 }
 
+static void
+intel_lt_phy_program_pll(struct intel_encoder *encoder,
+			 const struct intel_crtc_state *crtc_state)
+{
+	u8 owned_lane_mask = intel_lt_phy_get_owned_lane_mask(encoder);
+	int i, j, k;
+
+	intel_lt_phy_write(encoder, owned_lane_mask, LT_PHY_VDR_0_CONFIG,
+			   crtc_state->dpll_hw_state.ltpll.config[0], MB_WRITE_COMMITTED);
+	intel_lt_phy_write(encoder, INTEL_LT_PHY_LANE0, LT_PHY_VDR_1_CONFIG,
+			   crtc_state->dpll_hw_state.ltpll.config[1], MB_WRITE_COMMITTED);
+	intel_lt_phy_write(encoder, owned_lane_mask, LT_PHY_VDR_2_CONFIG,
+			   crtc_state->dpll_hw_state.ltpll.config[2], MB_WRITE_COMMITTED);
+
+	for (i = 0; i <= 12; i++) {
+		intel_lt_phy_write(encoder, INTEL_LT_PHY_LANE0, LT_PHY_VDR_X_ADDR_MSB(i),
+				   crtc_state->dpll_hw_state.ltpll.addr_msb[i],
+				   MB_WRITE_COMMITTED);
+		intel_lt_phy_write(encoder, INTEL_LT_PHY_LANE0, LT_PHY_VDR_X_ADDR_LSB(i),
+				   crtc_state->dpll_hw_state.ltpll.addr_lsb[i],
+				   MB_WRITE_COMMITTED);
+
+		for (j = 3, k = 0; j >= 0; j--, k++)
+			intel_lt_phy_write(encoder, INTEL_LT_PHY_LANE0,
+					   LT_PHY_VDR_X_DATAY(i, j),
+					   crtc_state->dpll_hw_state.ltpll.data[i][k],
+					   MB_WRITE_COMMITTED);
+	}
+}
+
 void intel_lt_phy_pll_enable(struct intel_encoder *encoder,
 			     const struct intel_crtc_state *crtc_state)
 {
@@ -1258,6 +1294,8 @@ void intel_lt_phy_pll_enable(struct intel_encoder *encoder,
 		 * 5. Program the PHY internal PLL registers over PHY message bus for the desired
 		 * frequency and protocol type
 		 */
+		intel_lt_phy_program_pll(encoder, crtc_state);
+
 		/* 6. Use the P2P transaction flow */
 		/*
 		 * 6.1. Set the PHY VDR register 0xCC4[Rate Control VDR Update] = 1 over PHY message
