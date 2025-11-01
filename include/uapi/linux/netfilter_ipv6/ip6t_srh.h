@@ -41,13 +41,13 @@
 
 /**
  *      struct ip6t_srh - SRH match options
- *      @ next_hdr: Next header field of SRH
- *      @ hdr_len: Extension header length field of SRH
- *      @ segs_left: Segments left field of SRH
- *      @ last_entry: Last entry field of SRH
- *      @ tag: Tag field of SRH
- *      @ mt_flags: match options
- *      @ mt_invflags: Invert the sense of match options
+ *      @next_hdr: Next header field of SRH
+ *      @hdr_len: Extension header length field of SRH
+ *      @segs_left: Segments left field of SRH
+ *      @last_entry: Last entry field of SRH
+ *      @tag: Tag field of SRH
+ *      @mt_flags: match options
+ *      @mt_invflags: Invert the sense of match options
  */
 
 struct ip6t_srh {
@@ -62,19 +62,19 @@ struct ip6t_srh {
 
 /**
  *      struct ip6t_srh1 - SRH match options (revision 1)
- *      @ next_hdr: Next header field of SRH
- *      @ hdr_len: Extension header length field of SRH
- *      @ segs_left: Segments left field of SRH
- *      @ last_entry: Last entry field of SRH
- *      @ tag: Tag field of SRH
- *      @ psid_addr: Address of previous SID in SRH SID list
- *      @ nsid_addr: Address of NEXT SID in SRH SID list
- *      @ lsid_addr: Address of LAST SID in SRH SID list
- *      @ psid_msk: Mask of previous SID in SRH SID list
- *      @ nsid_msk: Mask of next SID in SRH SID list
- *      @ lsid_msk: MAsk of last SID in SRH SID list
- *      @ mt_flags: match options
- *      @ mt_invflags: Invert the sense of match options
+ *      @next_hdr: Next header field of SRH
+ *      @hdr_len: Extension header length field of SRH
+ *      @segs_left: Segments left field of SRH
+ *      @last_entry: Last entry field of SRH
+ *      @tag: Tag field of SRH
+ *      @psid_addr: Address of previous SID in SRH SID list
+ *      @nsid_addr: Address of NEXT SID in SRH SID list
+ *      @lsid_addr: Address of LAST SID in SRH SID list
+ *      @psid_msk: Mask of previous SID in SRH SID list
+ *      @nsid_msk: Mask of next SID in SRH SID list
+ *      @lsid_msk: MAsk of last SID in SRH SID list
+ *      @mt_flags: match options
+ *      @mt_invflags: Invert the sense of match options
  */
 
 struct ip6t_srh1 {
