@@ -7,6 +7,7 @@
 
 #include "rnpgbe.h"
 #include "rnpgbe_hw.h"
+#include "rnpgbe_mbx_fw.h"
 
 static const char rnpgbe_driver_name[] = "rnpgbe";
 
@@ -25,6 +26,58 @@ static struct pci_device_id rnpgbe_pci_tbl[] = {
 };
 
 /**
+ * rnpgbe_open - Called when a network interface is made active
+ * @netdev: network interface device structure
+ *
+ * The open entry point is called when a network interface is made
+ * active by the system (IFF_UP).
+ *
+ * Return: 0
+ **/
+static int rnpgbe_open(struct net_device *netdev)
+{
+	return 0;
+}
+
+/**
+ * rnpgbe_close - Disables a network interface
+ * @netdev: network interface device structure
+ *
+ * The close entry point is called when an interface is de-activated
+ * by the OS.
+ *
+ * Return: 0, this is not allowed to fail
+ **/
+static int rnpgbe_close(struct net_device *netdev)
+{
+	return 0;
+}
+
+/**
+ * rnpgbe_xmit_frame - Send a skb to driver
+ * @skb: skb structure to be sent
+ * @netdev: network interface device structure
+ *
+ * Return: NETDEV_TX_OK
+ **/
+static netdev_tx_t rnpgbe_xmit_frame(struct sk_buff *skb,
+				     struct net_device *netdev)
+{
+	struct mucse *mucse = netdev_priv(netdev);
+
+	dev_kfree_skb_any(skb);
+	mucse->stats.tx_dropped++;
+
+	return NETDEV_TX_OK;
+}
+
+static const struct net_device_ops rnpgbe_netdev_ops = {
+	.ndo_open       = rnpgbe_open,
+	.ndo_stop       = rnpgbe_close,
+	.ndo_start_xmit = rnpgbe_xmit_frame,
+};
+
+/**
  * rnpgbe_add_adapter - Add netdev for this pci_dev
  * @pdev: PCI device information structure
  * @board_type: board type
@@ -39,10 +92,11 @@ static int rnpgbe_add_adapter(struct pci_dev *pdev,
 			      int board_type)
 {
 	struct net_device *netdev;
+	u8 perm_addr[ETH_ALEN];
 	void __iomem *hw_addr;
 	struct mucse *mucse;
 	struct mucse_hw *hw;
-	int err;
+	int err, err_notify;
 
 	netdev = alloc_etherdev_mq(sizeof(struct mucse), RNPGBE_MAX_QUEUES);
 	if (!netdev)
@@ -64,14 +118,67 @@ static int rnpgbe_add_adapter(struct pci_dev *pdev,
 	}
 
 	hw->hw_addr = hw_addr;
+	hw->pdev = pdev;
+
 	err = rnpgbe_init_hw(hw, board_type);
 	if (err) {
 		dev_err(&pdev->dev, "Init hw err %d\n", err);
 		goto err_free_net;
 	}
+	/* Step 1: Send power-up notification to firmware (no response expected)
+	 * This informs firmware to initialize hardware power state, but
+	 * firmware only acknowledges receipt without returning data. Must be
+	 * done before synchronization as firmware may be in low-power idle
+	 * state initially.
+	 */
+	err_notify = rnpgbe_send_notify(hw, true, mucse_fw_powerup);
+	if (err_notify) {
+		dev_warn(&pdev->dev, "Send powerup to hw failed %d\n",
+			 err_notify);
+		dev_warn(&pdev->dev, "Maybe low performance\n");
+	}
+	/* Step 2: Synchronize mailbox communication with firmware (requires
+	 * response) After power-up, confirm firmware is ready to process
+	 * requests with responses. This ensures subsequent request/response
+	 * interactions work reliably.
+	 */
+	err = mucse_mbx_sync_fw(hw);
+	if (err) {
+		dev_err(&pdev->dev, "Sync fw failed! %d\n", err);
+		goto err_powerdown;
+	}
+
+	netdev->netdev_ops = &rnpgbe_netdev_ops;
+	err = rnpgbe_reset_hw(hw);
+	if (err) {
+		dev_err(&pdev->dev, "Hw reset failed %d\n", err);
+		goto err_powerdown;
+	}
+
+	err = rnpgbe_get_permanent_mac(hw, perm_addr);
+	if (!err) {
+		eth_hw_addr_set(netdev, perm_addr);
+	} else if (err == -EINVAL) {
+		dev_warn(&pdev->dev, "Using random MAC\n");
+		eth_hw_addr_random(netdev);
+	} else if (err) {
+		dev_err(&pdev->dev, "get perm_addr failed %d\n", err);
+		goto err_powerdown;
+	}
+
+	err = register_netdev(netdev);
+	if (err)
+		goto err_powerdown;
 
 	return 0;
-
+err_powerdown:
+	/* notify powerdown only powerup ok */
+	if (!err_notify) {
+		err_notify = rnpgbe_send_notify(hw, false, mucse_fw_powerup);
+		if (err_notify)
+			dev_warn(&pdev->dev, "Send powerdown to hw failed %d\n",
+				 err_notify);
+	}
 err_free_net:
 	free_netdev(netdev);
 	return err;
@@ -138,11 +245,17 @@ err_disable_dev:
 static void rnpgbe_rm_adapter(struct pci_dev *pdev)
 {
 	struct mucse *mucse = pci_get_drvdata(pdev);
+	struct mucse_hw *hw = &mucse->hw;
 	struct net_device *netdev;
+	int err;
 
 	if (!mucse)
 		return;
 	netdev = mucse->netdev;
+	unregister_netdev(netdev);
+	err = rnpgbe_send_notify(hw, false, mucse_fw_powerup);
+	if (err)
+		dev_warn(&pdev->dev, "Send powerdown to hw failed %d\n", err);
 	free_netdev(netdev);
 }
 
@@ -173,6 +286,8 @@ static void rnpgbe_dev_shutdown(struct pci_dev *pdev)
 
 	rtnl_lock();
 	netif_device_detach(netdev);
+	if (netif_running(netdev))
+		rnpgbe_close(netdev);
 	rtnl_unlock();
 	pci_disable_device(pdev);
 }
