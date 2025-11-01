@@ -2854,7 +2854,7 @@ static void intel_cx0_powerdown_change_sequence(struct intel_encoder *encoder,
 			 phy_name(phy), XELPDP_PORT_RESET_START_TIMEOUT_US);
 }
 
-static void intel_cx0_setup_powerdown(struct intel_encoder *encoder)
+void intel_cx0_setup_powerdown(struct intel_encoder *encoder)
 {
 	struct intel_display *display = to_intel_display(encoder);
 	enum port port = encoder->port;
