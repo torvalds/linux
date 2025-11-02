@@ -375,6 +375,7 @@ TRACE_EVENT(aer_event,
 	EM ( MF_MSG_DAX, "dax page" )					\
 	EM ( MF_MSG_UNSPLIT_THP, "unsplit thp" )			\
 	EM ( MF_MSG_ALREADY_POISONED, "already poisoned" )		\
+	EM ( MF_MSG_PFN_MAP, "non struct page pfn" )                    \
 	EMe ( MF_MSG_UNKNOWN, "unknown page" )
 
 /*
