@@ -629,6 +629,37 @@ static const struct ref_scale_ops jiffies_ops = {
 	.name		= "jiffies"
 };
 
+static void ref_bh_section(const int nloops)
+{
+	int i;
+
+	preempt_disable();
+	for (i = nloops; i >= 0; i--) {
+		local_bh_disable();
+		local_bh_enable();
+	}
+	preempt_enable();
+}
+
+static void ref_bh_delay_section(const int nloops, const int udl, const int ndl)
+{
+	int i;
+
+	preempt_disable();
+	for (i = nloops; i >= 0; i--) {
+		local_bh_disable();
+		un_delay(udl, ndl);
+		local_bh_enable();
+	}
+	preempt_enable();
+}
+
+static const struct ref_scale_ops bh_ops = {
+	.readsection	= ref_bh_section,
+	.delaysection	= ref_bh_delay_section,
+	.name		= "bh"
+};
+
 static void ref_irq_section(const int nloops)
 {
 	int i;
@@ -1229,7 +1260,8 @@ ref_scale_init(void)
 	static const struct ref_scale_ops *scale_ops[] = {
 		&rcu_ops, &srcu_ops, &srcu_fast_ops, RCU_TRACE_OPS RCU_TASKS_OPS
 		&refcnt_ops, &rwlock_ops, &rwsem_ops, &lock_ops, &lock_irq_ops,
-		&acqrel_ops, &sched_clock_ops, &clock_ops, &jiffies_ops, &irq_ops, &irqsave_ops,
+		&acqrel_ops, &sched_clock_ops, &clock_ops, &jiffies_ops,
+		&bh_ops, &irq_ops, &irqsave_ops,
 		&typesafe_ref_ops, &typesafe_lock_ops, &typesafe_seqlock_ops,
 	};
 
