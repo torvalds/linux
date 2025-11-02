@@ -19,6 +19,7 @@
 #define BAD_PROT 0xFFFF
 
 /* SMB command codes:
+ * See MS-CIFS 2.2.2.1
  * Note some commands have minimal (wct=0,bcc=0), or uninteresting, responses
  * (ie which include no useful data other than the SMB error code itself).
  * This can allow us to avoid response buffer allocations and copy in some cases
@@ -152,6 +153,7 @@
 
 /*
  * SMB flag definitions
+ * See MS-CIFS 2.2.3.1
  */
 #define SMBFLG_EXTD_LOCK 0x01	/* server supports lock-read write-unlock smb */
 #define SMBFLG_RCV_POSTED 0x02	/* obsolete */
@@ -165,6 +167,8 @@
 
 /*
  * SMB flag2 definitions
+ * See MS-CIFS 2.2.3.1
+ *     MS-SMB 2.2.3.1
  */
 #define SMBFLG2_KNOWS_LONG_NAMES cpu_to_le16(1)	/* can send long (non-8.3)
 						   path names in response */
@@ -225,29 +229,30 @@
 /*
  * File Attribute flags
  */
-#define ATTR_READONLY  0x0001
-#define ATTR_HIDDEN    0x0002
-#define ATTR_SYSTEM    0x0004
-#define ATTR_VOLUME    0x0008
-#define ATTR_DIRECTORY 0x0010
-#define ATTR_ARCHIVE   0x0020
-#define ATTR_DEVICE    0x0040
-#define ATTR_NORMAL    0x0080
-#define ATTR_TEMPORARY 0x0100
-#define ATTR_SPARSE    0x0200
-#define ATTR_REPARSE   0x0400
-#define ATTR_COMPRESSED 0x0800
-#define ATTR_OFFLINE    0x1000	/* ie file not immediately available -
-					on offline storage */
-#define ATTR_NOT_CONTENT_INDEXED 0x2000
-#define ATTR_ENCRYPTED  0x4000
-#define ATTR_POSIX_SEMANTICS 0x01000000
-#define ATTR_BACKUP_SEMANTICS 0x02000000
-#define ATTR_DELETE_ON_CLOSE 0x04000000
-#define ATTR_SEQUENTIAL_SCAN 0x08000000
-#define ATTR_RANDOM_ACCESS   0x10000000
-#define ATTR_NO_BUFFERING    0x20000000
-#define ATTR_WRITE_THROUGH   0x80000000
+#define ATTR_READONLY		0x0001		/* See MS-CIFS 2.2.1.2.3 */
+#define ATTR_HIDDEN		0x0002		/* See MS-CIFS 2.2.1.2.3 */
+#define ATTR_SYSTEM		0x0004		/* See MS-CIFS 2.2.1.2.3 */
+#define ATTR_VOLUME		0x0008
+#define ATTR_DIRECTORY		0x0010		/* See MS-CIFS 2.2.1.2.3 */
+#define ATTR_ARCHIVE		0x0020		/* See MS-CIFS 2.2.1.2.3 */
+#define ATTR_DEVICE		0x0040
+#define ATTR_NORMAL		0x0080		/* See MS-CIFS 2.2.1.2.3 */
+#define ATTR_TEMPORARY		0x0100		/* See MS-CIFS 2.2.1.2.3 */
+#define ATTR_SPARSE		0x0200		/* See MS-SMB 2.2.1.2.1 */
+#define ATTR_REPARSE_POINT	0x0400		/* See MS-SMB 2.2.1.2.1 */
+#define ATTR_COMPRESSED		0x0800		/* See MS-CIFS 2.2.1.2.3 */
+#define ATTR_OFFLINE		0x1000		/* See MS-SMB 2.2.1.2.1
+						   ie file not immediately available -
+						   on offline storage */
+#define ATTR_NOT_CONTENT_INDEXED 0x2000		/* See MS-SMB 2.2.1.2.1 */
+#define ATTR_ENCRYPTED		0x4000		/* See MS-SMB 2.2.1.2.1 */
+#define ATTR_POSIX_SEMANTICS	0x0100000	/* See MS-CIFS 2.2.1.2.3 */
+#define ATTR_BACKUP_SEMANTICS	0x0200000	/* See MS-CIFS 2.2.1.2.3 */
+#define ATTR_DELETE_ON_CLOSE	0x0400000	/* See MS-CIFS 2.2.1.2.3 */
+#define ATTR_SEQUENTIAL_SCAN	0x0800000	/* See MS-CIFS 2.2.1.2.3 */
+#define ATTR_RANDOM_ACCESS	0x1000000	/* See MS-CIFS 2.2.1.2.3 */
+#define ATTR_NO_BUFFERING	0x2000000	/* See MS-CIFS 2.2.1.2.3 */
+#define ATTR_WRITE_THROUGH	0x8000000	/* See MS-CIFS 2.2.1.2.3 */
 
 /* ShareAccess flags */
 #define FILE_NO_SHARE     0x00000000

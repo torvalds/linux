@@ -38,17 +38,6 @@
 #define F_CREATED	2
 #define F_OVERWRITTEN	3
 
-/*
- * File Attribute flags
- */
-#define ATTR_POSIX_SEMANTICS		0x01000000
-#define ATTR_BACKUP_SEMANTICS		0x02000000
-#define ATTR_DELETE_ON_CLOSE		0x04000000
-#define ATTR_SEQUENTIAL_SCAN		0x08000000
-#define ATTR_RANDOM_ACCESS		0x10000000
-#define ATTR_NO_BUFFERING		0x20000000
-#define ATTR_WRITE_THROUGH		0x80000000
-
 /* Combinations of file access permission bits */
 #define SET_FILE_READ_RIGHTS (FILE_READ_DATA | FILE_READ_EA \
 		| FILE_READ_ATTRIBUTES \
@@ -80,11 +69,15 @@
 		FILE_EXECUTE | FILE_DELETE_CHILD | \
 		FILE_READ_ATTRIBUTES | FILE_WRITE_ATTRIBUTES)
 
-#define SMB_COM_NEGOTIATE		0x72
-#define SMB1_CLIENT_GUID_SIZE		(16)
+#define SMB_COM_NEGOTIATE		0x72 /* See MS-CIFS 2.2.2.1 */
 
+/* See MS-CIFS 2.2.3.1 */
 #define SMBFLG_RESPONSE 0x80	/* this PDU is a response from server */
 
+/*
+ * See MS-CIFS 2.2.3.1
+ *     MS-SMB 2.2.3.1
+ */
 #define SMBFLG2_IS_LONG_NAME	cpu_to_le16(0x40)
 #define SMBFLG2_EXT_SEC		cpu_to_le16(0x800)
 #define SMBFLG2_ERR_STATUS	cpu_to_le16(0x4000)

@@ -50,7 +50,7 @@ static inline __u32 file_create_options(struct dentry *dentry)
 
 	if (dentry) {
 		ci = CIFS_I(d_inode(dentry));
-		if (ci->cifsAttrs & ATTR_REPARSE)
+		if (ci->cifsAttrs & ATTR_REPARSE_POINT)
 			return OPEN_REPARSE_POINT;
 	}
 	return 0;

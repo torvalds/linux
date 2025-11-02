@@ -647,7 +647,7 @@ static int cifs_query_path_info(const unsigned int xid,
 
 	if (!rc) {
 		move_cifs_info_to_smb2(&data->fi, &fi);
-		data->reparse_point = le32_to_cpu(fi.Attributes) & ATTR_REPARSE;
+		data->reparse_point = le32_to_cpu(fi.Attributes) & ATTR_REPARSE_POINT;
 	}
 
 #ifdef CONFIG_CIFS_XATTR
