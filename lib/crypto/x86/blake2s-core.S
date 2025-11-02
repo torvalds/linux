@@ -193,7 +193,7 @@ SYM_FUNC_START(blake2s_compress_ssse3)
 
 	movdqu		%xmm0,(CTX)		// Store new h[0..3]
 	movdqu		%xmm1,16(CTX)		// Store new h[4..7]
-	movdqu		%xmm14,32(CTX)		// Store new t and f
+	movq		%xmm14,32(CTX)		// Store new t (f is unchanged)
 	RET
 SYM_FUNC_END(blake2s_compress_ssse3)
 
@@ -287,7 +287,7 @@ SYM_FUNC_START(blake2s_compress_avx512)
 
 	vmovdqu		%xmm0,(CTX)		// Store new h[0..3]
 	vmovdqu		%xmm1,16(CTX)		// Store new h[4..7]
-	vmovdqu		%xmm4,32(CTX)		// Store new t and f
+	vmovq		%xmm4,32(CTX)		// Store new t (f is unchanged)
 	vzeroupper
 	RET
 SYM_FUNC_END(blake2s_compress_avx512)
