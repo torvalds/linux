@@ -87,6 +87,10 @@ static int mei_txe_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	hw = to_txe_hw(dev);
 	hw->mem_addr = pcim_iomap_table(pdev);
 
+	err = mei_register(dev, &pdev->dev);
+	if (err)
+		goto end;
+
 	pci_enable_msi(pdev);
 
 	/* clear spurious interrupts */
@@ -106,12 +110,8 @@ static int mei_txe_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err) {
 		dev_err(&pdev->dev, "mei: request_threaded_irq failure. irq = %d\n",
 			pdev->irq);
-		goto end;
+		goto deregister;
 	}
-
-	err = mei_register(dev, &pdev->dev);
-	if (err)
-		goto release_irq;
 
 	if (mei_start(dev)) {
 		dev_err(&pdev->dev, "init hw failure.\n");
@@ -145,11 +145,10 @@ static int mei_txe_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	return 0;
 
 deregister:
-	mei_deregister(dev);
-release_irq:
 	mei_cancel_work(dev);
 	mei_disable_interrupts(dev);
 	free_irq(pdev->irq, dev);
+	mei_deregister(dev);
 end:
 	dev_err(&pdev->dev, "initialization failed.\n");
 	return err;

@@ -362,27 +362,26 @@ static int mei_vsc_probe(struct platform_device *pdev)
 
 	ret = mei_register(mei_dev, dev);
 	if (ret)
-		goto err_dereg;
+		goto err;
 
 	ret = mei_start(mei_dev);
 	if (ret) {
 		dev_err_probe(dev, ret, "init hw failed\n");
-		goto err_cancel;
+		goto err;
 	}
 
 	pm_runtime_enable(mei_dev->parent);
 
 	return 0;
 
-err_dereg:
-	mei_deregister(mei_dev);
-
-err_cancel:
+err:
 	mei_cancel_work(mei_dev);
 
 	vsc_tp_register_event_cb(tp, NULL, NULL);
 
 	mei_disable_interrupts(mei_dev);
+
+	mei_deregister(mei_dev);
 
 	return ret;
 }
