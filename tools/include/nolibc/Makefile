@@ -23,7 +23,7 @@ else
 Q=@
 endif
 
-arch_file := arch-$(ARCH).h
+arch_files := arch.h $(wildcard arch-*.h)
 all_files := \
 		compiler.h \
 		crt.h \
@@ -82,7 +82,7 @@ help:
 	@echo "Supported targets under nolibc:"
 	@echo "  all                 call \"headers\""
 	@echo "  clean               clean the sysroot"
-	@echo "  headers             prepare a sysroot in \$${OUTPUT}sysroot"
+	@echo "  headers             prepare a multi-arch sysroot in \$${OUTPUT}sysroot"
 	@echo "  headers_standalone  like \"headers\", and also install kernel headers"
 	@echo "  help                this help"
 	@echo ""
@@ -93,18 +93,11 @@ help:
 	@echo "  OUTPUT  = $(OUTPUT)"
 	@echo ""
 
+# installs headers for all archs at once.
 headers:
-	$(Q)mkdir -p $(OUTPUT)sysroot
-	$(Q)mkdir -p $(OUTPUT)sysroot/include
-	$(Q)cp --parents $(all_files) $(OUTPUT)sysroot/include/
-	$(Q)if [ "$(ARCH)" = "i386" -o "$(ARCH)" = "x86_64" ]; then \
-		cat arch-x86.h;                 \
-	elif [ -e "$(arch_file)" ]; then        \
-		cat $(arch_file);               \
-	else                                    \
-		echo "Fatal: architecture $(ARCH) not yet supported by nolibc." >&2; \
-		exit 1;                         \
-	fi > $(OUTPUT)sysroot/include/arch.h
+	$(Q)mkdir -p "$(OUTPUT)sysroot"
+	$(Q)mkdir -p "$(OUTPUT)sysroot/include"
+	$(Q)cp --parents $(arch_files) $(all_files) "$(OUTPUT)sysroot/include/"
 
 headers_standalone: headers
 	$(Q)$(MAKE) -C $(srctree) headers
