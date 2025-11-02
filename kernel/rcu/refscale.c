@@ -629,6 +629,70 @@ static const struct ref_scale_ops jiffies_ops = {
 	.name		= "jiffies"
 };
 
+static void ref_irq_section(const int nloops)
+{
+	int i;
+
+	preempt_disable();
+	for (i = nloops; i >= 0; i--) {
+		local_irq_disable();
+		local_irq_enable();
+	}
+	preempt_enable();
+}
+
+static void ref_irq_delay_section(const int nloops, const int udl, const int ndl)
+{
+	int i;
+
+	preempt_disable();
+	for (i = nloops; i >= 0; i--) {
+		local_irq_disable();
+		un_delay(udl, ndl);
+		local_irq_enable();
+	}
+	preempt_enable();
+}
+
+static const struct ref_scale_ops irq_ops = {
+	.readsection	= ref_irq_section,
+	.delaysection	= ref_irq_delay_section,
+	.name		= "irq"
+};
+
+static void ref_irqsave_section(const int nloops)
+{
+	unsigned long flags;
+	int i;
+
+	preempt_disable();
+	for (i = nloops; i >= 0; i--) {
+		local_irq_save(flags);
+		local_irq_restore(flags);
+	}
+	preempt_enable();
+}
+
+static void ref_irqsave_delay_section(const int nloops, const int udl, const int ndl)
+{
+	unsigned long flags;
+	int i;
+
+	preempt_disable();
+	for (i = nloops; i >= 0; i--) {
+		local_irq_save(flags);
+		un_delay(udl, ndl);
+		local_irq_restore(flags);
+	}
+	preempt_enable();
+}
+
+static const struct ref_scale_ops irqsave_ops = {
+	.readsection	= ref_irqsave_section,
+	.delaysection	= ref_irqsave_delay_section,
+	.name		= "irqsave"
+};
+
 ////////////////////////////////////////////////////////////////////////
 //
 // Methods leveraging SLAB_TYPESAFE_BY_RCU.
@@ -1165,7 +1229,7 @@ ref_scale_init(void)
 	static const struct ref_scale_ops *scale_ops[] = {
 		&rcu_ops, &srcu_ops, &srcu_fast_ops, RCU_TRACE_OPS RCU_TASKS_OPS
 		&refcnt_ops, &rwlock_ops, &rwsem_ops, &lock_ops, &lock_irq_ops,
-		&acqrel_ops, &sched_clock_ops, &clock_ops, &jiffies_ops,
+		&acqrel_ops, &sched_clock_ops, &clock_ops, &jiffies_ops, &irq_ops, &irqsave_ops,
 		&typesafe_ref_ops, &typesafe_lock_ops, &typesafe_seqlock_ops,
 	};
 
