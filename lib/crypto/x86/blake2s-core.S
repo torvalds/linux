@@ -278,10 +278,8 @@ SYM_FUNC_START(blake2s_compress_avx512)
 	jne		.Lavx512_roundloop
 
 	// Compute the new h: h[0..7] ^= v[0..7] ^ v[8..15]
-	vpxor		%xmm10,%xmm0,%xmm0
-	vpxor		%xmm11,%xmm1,%xmm1
-	vpxor		%xmm2,%xmm0,%xmm0
-	vpxor		%xmm3,%xmm1,%xmm1
+	vpternlogd	$0x96,%xmm10,%xmm2,%xmm0
+	vpternlogd	$0x96,%xmm11,%xmm3,%xmm1
 	decq		NBLOCKS
 	jne		.Lavx512_mainloop
 
