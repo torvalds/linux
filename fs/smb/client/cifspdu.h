@@ -388,19 +388,15 @@ put_bcc(__u16 count, struct smb_hdr *hdr)
  *
  */
 
-typedef struct negotiate_req {
-	struct smb_hdr hdr;	/* wct = 0 */
-	__le16 ByteCount;
-	unsigned char DialectsArray[];
-} __attribute__((packed)) NEGOTIATE_REQ;
-
 #define MIN_TZ_ADJ (15 * 60) /* minimum grid for timezones in seconds */
 
 #define READ_RAW_ENABLE 1
 #define WRITE_RAW_ENABLE 2
 #define RAW_ENABLE (READ_RAW_ENABLE | WRITE_RAW_ENABLE)
 #define SMB1_CLIENT_GUID_SIZE (16)
-typedef struct negotiate_rsp {
+
+/* See MS-CIFS 2.2.4.52.2 */
+typedef struct smb_negotiate_rsp {
 	struct smb_hdr hdr;	/* wct = 17 */
 	__le16 DialectIndex; /* 0xFFFF = no dialect acceptable */
 	__u8 SecurityMode;
@@ -426,7 +422,7 @@ typedef struct negotiate_rsp {
 			unsigned char SecurityBlob[];
 		} __attribute__((packed)) extended_response;
 	} __attribute__((packed)) u;
-} __attribute__((packed)) NEGOTIATE_RSP;
+} __packed SMB_NEGOTIATE_RSP;
 
 /* SecurityMode bits */
 #define SECMODE_USER          0x01	/* off indicates share level security */

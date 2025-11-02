@@ -2151,4 +2151,11 @@ struct smb_hdr {
 #define SET_MINIMUM_RIGHTS (FILE_READ_EA | FILE_READ_ATTRIBUTES \
 				| READ_CONTROL | SYNCHRONIZE)
 
+/* See MS-CIFS 2.2.4.52.1 */
+typedef struct smb_negotiate_req {
+	struct smb_hdr hdr;	/* wct = 0 */
+	__le16 ByteCount;
+	unsigned char DialectsArray[];
+} __packed SMB_NEGOTIATE_REQ;
+
 #endif				/* _COMMON_SMB2PDU_H */

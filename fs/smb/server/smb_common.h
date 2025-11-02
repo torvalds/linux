@@ -116,12 +116,7 @@
 #define SMBFLG2_ERR_STATUS	cpu_to_le16(0x4000)
 #define SMBFLG2_UNICODE		cpu_to_le16(0x8000)
 
-struct smb_negotiate_req {
-	struct smb_hdr hdr;     /* wct = 0 */
-	__le16 ByteCount;
-	unsigned char DialectsArray[];
-} __packed;
-
+/* See MS-CIFS 2.2.4.52.2 */
 struct smb_negotiate_rsp {
 	struct smb_hdr hdr;     /* wct = 17 */
 	__le16 DialectIndex; /* 0xFFFF = no dialect acceptable */
