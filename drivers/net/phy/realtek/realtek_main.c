@@ -128,6 +128,11 @@
  */
 #define RTL822X_VND2_C22_REG(reg)		(0xa400 + 2 * (reg))
 
+#define RTL8221B_VND2_INER			0xa4d2
+#define RTL8221B_VND2_INER_LINK_STATUS		BIT(4)
+
+#define RTL8221B_VND2_INSR			0xa4d4
+
 #define RTL8224_MII_RTCT			0x11
 #define RTL8224_MII_RTCT_ENABLE			BIT(0)
 #define RTL8224_MII_RTCT_PAIR_A			BIT(4)
@@ -1880,6 +1885,53 @@ static irqreturn_t rtl9000a_handle_interrupt(struct phy_device *phydev)
 	return IRQ_HANDLED;
 }
 
+static int rtl8221b_ack_interrupt(struct phy_device *phydev)
+{
+	int err;
+
+	err = phy_read_mmd(phydev, MDIO_MMD_VEND2, RTL8221B_VND2_INSR);
+
+	return (err < 0) ? err : 0;
+}
+
+static int rtl8221b_config_intr(struct phy_device *phydev)
+{
+	int err;
+
+	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
+		err = rtl8221b_ack_interrupt(phydev);
+		if (err)
+			return err;
+
+		err = phy_write_mmd(phydev, MDIO_MMD_VEND2, RTL8221B_VND2_INER,
+				    RTL8221B_VND2_INER_LINK_STATUS);
+	} else {
+		err = phy_write_mmd(phydev, MDIO_MMD_VEND2,
+				    RTL8221B_VND2_INER, 0);
+		if (err)
+			return err;
+
+		err = rtl8221b_ack_interrupt(phydev);
+	}
+
+	return err;
+}
+
+static irqreturn_t rtl8221b_handle_interrupt(struct phy_device *phydev)
+{
+	int err;
+
+	err = rtl8221b_ack_interrupt(phydev);
+	if (err) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
+
+	phy_trigger_machine(phydev);
+
+	return IRQ_HANDLED;
+}
+
 static struct phy_driver realtek_drvs[] = {
 	{
 		PHY_ID_MATCH_EXACT(0x00008201),
@@ -2054,6 +2106,8 @@ static struct phy_driver realtek_drvs[] = {
 	}, {
 		.match_phy_device = rtl8221b_vb_cg_c45_match_phy_device,
 		.name           = "RTL8221B-VB-CG 2.5Gbps PHY (C45)",
+		.config_intr	= rtl8221b_config_intr,
+		.handle_interrupt = rtl8221b_handle_interrupt,
 		.probe		= rtl822x_probe,
 		.config_init    = rtl822xb_config_init,
 		.get_rate_matching = rtl822xb_get_rate_matching,
@@ -2078,6 +2132,8 @@ static struct phy_driver realtek_drvs[] = {
 	}, {
 		.match_phy_device = rtl8221b_vm_cg_c45_match_phy_device,
 		.name           = "RTL8221B-VM-CG 2.5Gbps PHY (C45)",
+		.config_intr	= rtl8221b_config_intr,
+		.handle_interrupt = rtl8221b_handle_interrupt,
 		.probe		= rtl822x_probe,
 		.config_init    = rtl822xb_config_init,
 		.get_rate_matching = rtl822xb_get_rate_matching,
