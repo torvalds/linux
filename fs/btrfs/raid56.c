@@ -299,8 +299,8 @@ static int rbio_bucket(struct btrfs_raid_bio *rbio)
 	return hash_64(num >> 16, BTRFS_STRIPE_HASH_TABLE_BITS);
 }
 
-static bool full_page_sectors_uptodate(struct btrfs_raid_bio *rbio,
-				       unsigned int page_nr)
+static __maybe_unused bool full_page_sectors_uptodate(struct btrfs_raid_bio *rbio,
+						      unsigned int page_nr)
 {
 	const u32 sectorsize = rbio->bioc->fs_info->sectorsize;
 	const u32 sectors_per_page = PAGE_SIZE / sectorsize;
