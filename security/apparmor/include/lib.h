@@ -47,8 +47,10 @@ extern struct aa_dfa *stacksplitdfa;
 #define AA_DEBUG_LABEL(LAB, X, fmt, args...)				\
 do {									\
 	if ((LAB)->flags & FLAG_DEBUG1)					\
-		AA_DEBUG(X, fmt, args);					\
+		AA_DEBUG(X, fmt, ##args);				\
 } while (0)
+
+#define AA_DEBUG_PROFILE(PROF, X, fmt...) AA_DEBUG_LABEL(&(PROF)->label, X, ##fmt)
 
 #define AA_WARN(X) WARN((X), "APPARMOR WARN %s: %s\n", __func__, #X)
 
