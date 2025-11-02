@@ -130,21 +130,6 @@ static inline int get_random_bytes_wait(void *buf, size_t nbytes)
 	return ret;
 }
 
-#define declare_get_random_var_wait(name, ret_type) \
-	static inline int get_random_ ## name ## _wait(ret_type *out) { \
-		int ret = wait_for_random_bytes(); \
-		if (unlikely(ret)) \
-			return ret; \
-		*out = get_random_ ## name(); \
-		return 0; \
-	}
-declare_get_random_var_wait(u8, u8)
-declare_get_random_var_wait(u16, u16)
-declare_get_random_var_wait(u32, u32)
-declare_get_random_var_wait(u64, u32)
-declare_get_random_var_wait(long, unsigned long)
-#undef declare_get_random_var
-
 #ifdef CONFIG_SMP
 int random_prepare_cpu(unsigned int cpu);
 int random_online_cpu(unsigned int cpu);
