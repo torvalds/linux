@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * sha1-ce-core.S - SHA-1 secure hash using ARMv8 Crypto Extensions
+ * SHA-1 secure hash using ARMv8 Crypto Extensions
  *
  * Copyright (C) 2014 Linaro Ltd <ard.biesheuvel@linaro.org>
  */

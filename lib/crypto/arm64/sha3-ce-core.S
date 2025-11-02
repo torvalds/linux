@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * sha3-ce-core.S - core SHA-3 transform using v8.2 Crypto Extensions
+ * Core SHA-3 transform using v8.2 Crypto Extensions
  *
  * Copyright (C) 2018 Linaro Ltd <ard.biesheuvel@linaro.org>
  *
