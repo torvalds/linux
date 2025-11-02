@@ -217,6 +217,13 @@
 		};
 	};
 
+	vph_pwr: regulator-vph-pwr {
+		compatible = "regulator-fixed";
+		regulator-name = "vph_pwr";
+		regulator-min-microvolt = <3700000>;
+		regulator-max-microvolt = <3700000>;
+	};
+
 	thermal-zones {
 		sdm-skin-thermal {
 			thermal-sensors = <&pmk8350_adc_tm 3>;
@@ -253,13 +260,6 @@
 				};
 			};
 		};
-	};
-
-	vph_pwr: vph-pwr-regulator {
-		compatible = "regulator-fixed";
-		regulator-name = "vph_pwr";
-		regulator-min-microvolt = <3700000>;
-		regulator-max-microvolt = <3700000>;
 	};
 
 	wcn6750-pmu {
