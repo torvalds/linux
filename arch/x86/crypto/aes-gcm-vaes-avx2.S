@@ -1123,6 +1123,7 @@ SYM_FUNC_END(aes_gcm_aad_update_vaes_avx2)
 	lea		.Lselect_high_bytes_table(%rip), %rax
 	vmovdqu		(%rax, TAGLEN64), %xmm1
 	vpshufb		BSWAP_MASK, %xmm1, %xmm1 // select low bytes, not high
+	xor		%eax, %eax
 	vptest		%xmm1, %xmm0
 	sete		%al
 .endif
