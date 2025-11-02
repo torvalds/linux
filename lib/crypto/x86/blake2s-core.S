@@ -6,19 +6,25 @@
 
 #include <linux/linkage.h>
 
-.section .rodata.cst32.BLAKE2S_IV, "aM", @progbits, 32
+.section .rodata.cst32.iv, "aM", @progbits, 32
 .align 32
-IV:	.octa 0xA54FF53A3C6EF372BB67AE856A09E667
+.Liv:
+	.octa 0xA54FF53A3C6EF372BB67AE856A09E667
 	.octa 0x5BE0CD191F83D9AB9B05688C510E527F
-.section .rodata.cst16.ROT16, "aM", @progbits, 16
+
+.section .rodata.cst16.ror16, "aM", @progbits, 16
 .align 16
-ROT16:	.octa 0x0D0C0F0E09080B0A0504070601000302
-.section .rodata.cst16.ROR328, "aM", @progbits, 16
+.Lror16:
+	.octa 0x0D0C0F0E09080B0A0504070601000302
+
+.section .rodata.cst16.ror8, "aM", @progbits, 16
 .align 16
-ROR328:	.octa 0x0C0F0E0D080B0A090407060500030201
-.section .rodata.cst64.BLAKE2S_SIGMA, "aM", @progbits, 160
+.Lror8:
+	.octa 0x0C0F0E0D080B0A090407060500030201
+
+.section .rodata.cst64.sigma, "aM", @progbits, 160
 .align 64
-SIGMA:
+.Lsigma:
 .byte  0,  2,  4,  6,  1,  3,  5,  7, 14,  8, 10, 12, 15,  9, 11, 13
 .byte 14,  4,  9, 13, 10,  8, 15,  6,  5,  1,  0, 11,  3, 12,  2,  7
 .byte 11, 12,  5, 15,  8,  0,  2, 13,  9, 10,  3,  7,  4, 14,  6,  1
@@ -29,9 +35,10 @@ SIGMA:
 .byte 13,  7, 12,  3, 11, 14,  1,  9,  2,  5, 15,  8, 10,  0,  4,  6
 .byte  6, 14, 11,  0, 15,  9,  3,  8, 10, 12, 13,  1,  5,  2,  7,  4
 .byte 10,  8,  7,  1,  2,  4,  6,  5, 13, 15,  9,  3,  0, 11, 14, 12
-.section .rodata.cst64.BLAKE2S_SIGMA2, "aM", @progbits, 160
+
+.section .rodata.cst64.sigma2, "aM", @progbits, 160
 .align 64
-SIGMA2:
+.Lsigma2:
 .byte  0,  2,  4,  6,  1,  3,  5,  7, 14,  8, 10, 12, 15,  9, 11, 13
 .byte  8,  2, 13, 15, 10,  9, 12,  3,  6,  4,  0, 14,  5, 11,  1,  7
 .byte 11, 13,  8,  6,  5, 10, 14,  3,  2,  4, 12, 15,  1,  0,  7,  9
@@ -47,21 +54,21 @@ SIGMA2:
 SYM_FUNC_START(blake2s_compress_ssse3)
 	movdqu		(%rdi),%xmm0
 	movdqu		0x10(%rdi),%xmm1
-	movdqa		ROT16(%rip),%xmm12
-	movdqa		ROR328(%rip),%xmm13
+	movdqa		.Lror16(%rip),%xmm12
+	movdqa		.Lror8(%rip),%xmm13
 	movdqu		0x20(%rdi),%xmm14
 	movd		%ecx,%xmm15
-	leaq		SIGMA+0xa0(%rip),%r8
+	leaq		.Lsigma+0xa0(%rip),%r8
 	jmp		.Lbeginofloop
 	.align		32
 .Lbeginofloop:
 	movdqa		%xmm0,%xmm10
 	movdqa		%xmm1,%xmm11
 	paddq		%xmm15,%xmm14
-	movdqa		IV(%rip),%xmm2
+	movdqa		.Liv(%rip),%xmm2
 	movdqa		%xmm14,%xmm3
-	pxor		IV+0x10(%rip),%xmm3
-	leaq		SIGMA(%rip),%rcx
+	pxor		.Liv+0x10(%rip),%xmm3
+	leaq		.Lsigma(%rip),%rcx
 .Lroundloop:
 	movzbl		(%rcx),%eax
 	movd		(%rsi,%rax,4),%xmm4
@@ -174,8 +181,8 @@ SYM_FUNC_START(blake2s_compress_avx512)
 	vmovdqu		0x10(%rdi),%xmm1
 	vmovdqu		0x20(%rdi),%xmm4
 	vmovd		%ecx,%xmm5
-	vmovdqa		IV(%rip),%xmm14
-	vmovdqa		IV+16(%rip),%xmm15
+	vmovdqa		.Liv(%rip),%xmm14
+	vmovdqa		.Liv+16(%rip),%xmm15
 	jmp		.Lblake2s_compress_avx512_mainloop
 .align 32
 .Lblake2s_compress_avx512_mainloop:
@@ -187,7 +194,7 @@ SYM_FUNC_START(blake2s_compress_avx512)
 	vmovdqu		(%rsi),%ymm6
 	vmovdqu		0x20(%rsi),%ymm7
 	addq		$0x40,%rsi
-	leaq		SIGMA2(%rip),%rax
+	leaq		.Lsigma2(%rip),%rax
 	movb		$0xa,%cl
 .Lblake2s_compress_avx512_roundloop:
 	vpmovzxbd	(%rax),%ymm8
