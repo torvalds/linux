@@ -184,6 +184,7 @@ static const struct ref_scale_ops rcu_ops = {
 
 // Definitions for SRCU ref scale testing.
 DEFINE_STATIC_SRCU(srcu_refctl_scale);
+DEFINE_STATIC_SRCU_FAST(srcu_fast_refctl_scale);
 static struct srcu_struct *srcu_ctlp = &srcu_refctl_scale;
 
 static void srcu_ref_scale_read_section(const int nloops)
@@ -216,6 +217,12 @@ static const struct ref_scale_ops srcu_ops = {
 	.name		= "srcu"
 };
 
+static bool srcu_fast_sync_scale_init(void)
+{
+	srcu_ctlp = &srcu_fast_refctl_scale;
+	return true;
+}
+
 static void srcu_fast_ref_scale_read_section(const int nloops)
 {
 	int i;
@@ -240,7 +247,7 @@ static void srcu_fast_ref_scale_delay_section(const int nloops, const int udl, c
 }
 
 static const struct ref_scale_ops srcu_fast_ops = {
-	.init		= rcu_sync_scale_init,
+	.init		= srcu_fast_sync_scale_init,
 	.readsection	= srcu_fast_ref_scale_read_section,
 	.delaysection	= srcu_fast_ref_scale_delay_section,
 	.name		= "srcu-fast"
