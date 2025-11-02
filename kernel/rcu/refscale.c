@@ -382,6 +382,155 @@ static const struct ref_scale_ops percpuinc_ops = {
 	.name		= "percpuinc"
 };
 
+// Note that this can lose counts in preemptible kernels.
+static void ref_incpercpu_section(const int nloops)
+{
+	int i;
+
+	for (i = nloops; i >= 0; i--) {
+		unsigned long *tap = this_cpu_ptr(&test_acqrel);
+
+		WRITE_ONCE(*tap, READ_ONCE(*tap) + 1);
+		WRITE_ONCE(*tap, READ_ONCE(*tap) - 1);
+	}
+}
+
+static void ref_incpercpu_delay_section(const int nloops, const int udl, const int ndl)
+{
+	int i;
+
+	for (i = nloops; i >= 0; i--) {
+		unsigned long *tap = this_cpu_ptr(&test_acqrel);
+
+		WRITE_ONCE(*tap, READ_ONCE(*tap) + 1);
+		un_delay(udl, ndl);
+		WRITE_ONCE(*tap, READ_ONCE(*tap) - 1);
+	}
+}
+
+static const struct ref_scale_ops incpercpu_ops = {
+	.init		= rcu_sync_scale_init,
+	.readsection	= ref_incpercpu_section,
+	.delaysection	= ref_incpercpu_delay_section,
+	.name		= "incpercpu"
+};
+
+static void ref_incpercpupreempt_section(const int nloops)
+{
+	int i;
+
+	for (i = nloops; i >= 0; i--) {
+		unsigned long *tap;
+
+		preempt_disable();
+		tap = this_cpu_ptr(&test_acqrel);
+		WRITE_ONCE(*tap, READ_ONCE(*tap) + 1);
+		WRITE_ONCE(*tap, READ_ONCE(*tap) - 1);
+		preempt_enable();
+	}
+}
+
+static void ref_incpercpupreempt_delay_section(const int nloops, const int udl, const int ndl)
+{
+	int i;
+
+	for (i = nloops; i >= 0; i--) {
+		unsigned long *tap;
+
+		preempt_disable();
+		tap = this_cpu_ptr(&test_acqrel);
+		WRITE_ONCE(*tap, READ_ONCE(*tap) + 1);
+		un_delay(udl, ndl);
+		WRITE_ONCE(*tap, READ_ONCE(*tap) - 1);
+		preempt_enable();
+	}
+}
+
+static const struct ref_scale_ops incpercpupreempt_ops = {
+	.init		= rcu_sync_scale_init,
+	.readsection	= ref_incpercpupreempt_section,
+	.delaysection	= ref_incpercpupreempt_delay_section,
+	.name		= "incpercpupreempt"
+};
+
+static void ref_incpercpubh_section(const int nloops)
+{
+	int i;
+
+	for (i = nloops; i >= 0; i--) {
+		unsigned long *tap;
+
+		local_bh_disable();
+		tap = this_cpu_ptr(&test_acqrel);
+		WRITE_ONCE(*tap, READ_ONCE(*tap) + 1);
+		WRITE_ONCE(*tap, READ_ONCE(*tap) - 1);
+		local_bh_enable();
+	}
+}
+
+static void ref_incpercpubh_delay_section(const int nloops, const int udl, const int ndl)
+{
+	int i;
+
+	for (i = nloops; i >= 0; i--) {
+		unsigned long *tap;
+
+		local_bh_disable();
+		tap = this_cpu_ptr(&test_acqrel);
+		WRITE_ONCE(*tap, READ_ONCE(*tap) + 1);
+		un_delay(udl, ndl);
+		WRITE_ONCE(*tap, READ_ONCE(*tap) - 1);
+		local_bh_enable();
+	}
+}
+
+static const struct ref_scale_ops incpercpubh_ops = {
+	.init		= rcu_sync_scale_init,
+	.readsection	= ref_incpercpubh_section,
+	.delaysection	= ref_incpercpubh_delay_section,
+	.name		= "incpercpubh"
+};
+
+static void ref_incpercpuirqsave_section(const int nloops)
+{
+	int i;
+	unsigned long flags;
+
+	for (i = nloops; i >= 0; i--) {
+		unsigned long *tap;
+
+		local_irq_save(flags);
+		tap = this_cpu_ptr(&test_acqrel);
+		WRITE_ONCE(*tap, READ_ONCE(*tap) + 1);
+		WRITE_ONCE(*tap, READ_ONCE(*tap) - 1);
+		local_irq_restore(flags);
+	}
+}
+
+static void ref_incpercpuirqsave_delay_section(const int nloops, const int udl, const int ndl)
+{
+	int i;
+	unsigned long flags;
+
+	for (i = nloops; i >= 0; i--) {
+		unsigned long *tap;
+
+		local_irq_save(flags);
+		tap = this_cpu_ptr(&test_acqrel);
+		WRITE_ONCE(*tap, READ_ONCE(*tap) + 1);
+		un_delay(udl, ndl);
+		WRITE_ONCE(*tap, READ_ONCE(*tap) - 1);
+		local_irq_restore(flags);
+	}
+}
+
+static const struct ref_scale_ops incpercpuirqsave_ops = {
+	.init		= rcu_sync_scale_init,
+	.readsection	= ref_incpercpuirqsave_section,
+	.delaysection	= ref_incpercpuirqsave_delay_section,
+	.name		= "incpercpuirqsave"
+};
+
 // Definitions for rwlock
 static rwlock_t test_rwlock;
 
@@ -1318,8 +1467,10 @@ ref_scale_init(void)
 	int firsterr = 0;
 	static const struct ref_scale_ops *scale_ops[] = {
 		&rcu_ops, &srcu_ops, &srcu_fast_ops, RCU_TRACE_OPS RCU_TASKS_OPS
-		&refcnt_ops, &rwlock_ops, &rwsem_ops, &lock_ops, &lock_irq_ops,
-		&percpuinc_ops, &acqrel_ops, &sched_clock_ops, &clock_ops, &jiffies_ops,
+		&refcnt_ops, &percpuinc_ops, &incpercpu_ops, &incpercpupreempt_ops,
+		&incpercpubh_ops, &incpercpuirqsave_ops,
+		&rwlock_ops, &rwsem_ops, &lock_ops, &lock_irq_ops, &acqrel_ops,
+		&sched_clock_ops, &clock_ops, &jiffies_ops,
 		&preempt_ops, &bh_ops, &irq_ops, &irqsave_ops,
 		&typesafe_ref_ops, &typesafe_lock_ops, &typesafe_seqlock_ops,
 	};
