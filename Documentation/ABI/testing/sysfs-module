@@ -59,6 +59,8 @@ Description:	Module taint flags:
 			F   force-loaded module
 			C   staging driver module
 			E   unsigned module
+			K   livepatch module
+			N   in-kernel test module
 			==  =====================
 
 What:		/sys/module/grant_table/parameters/free_per_iteration
