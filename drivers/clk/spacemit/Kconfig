@@ -14,4 +14,10 @@ config SPACEMIT_K1_CCU
 	help
 	  Support for clock controller unit in SpacemiT K1 SoC.
 
+config SPACEMIT_K3_CCU
+	tristate "Support for SpacemiT K3 SoC"
+	select SPACEMIT_CCU
+	help
+	  Support for clock controller unit in SpacemiT K3 SoC.
+
 endmenu
