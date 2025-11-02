@@ -323,6 +323,9 @@ static const struct ref_scale_ops rcu_trace_ops = {
 // Definitions for reference count
 static atomic_t refcnt;
 
+// Definitions acquire-release.
+static DEFINE_PER_CPU(unsigned long, test_acqrel);
+
 static void ref_refcnt_section(const int nloops)
 {
 	int i;
@@ -349,6 +352,34 @@ static const struct ref_scale_ops refcnt_ops = {
 	.readsection	= ref_refcnt_section,
 	.delaysection	= ref_refcnt_delay_section,
 	.name		= "refcnt"
+};
+
+static void ref_percpuinc_section(const int nloops)
+{
+	int i;
+
+	for (i = nloops; i >= 0; i--) {
+		this_cpu_inc(test_acqrel);
+		this_cpu_dec(test_acqrel);
+	}
+}
+
+static void ref_percpuinc_delay_section(const int nloops, const int udl, const int ndl)
+{
+	int i;
+
+	for (i = nloops; i >= 0; i--) {
+		this_cpu_inc(test_acqrel);
+		un_delay(udl, ndl);
+		this_cpu_dec(test_acqrel);
+	}
+}
+
+static const struct ref_scale_ops percpuinc_ops = {
+	.init		= rcu_sync_scale_init,
+	.readsection	= ref_percpuinc_section,
+	.delaysection	= ref_percpuinc_delay_section,
+	.name		= "percpuinc"
 };
 
 // Definitions for rwlock
@@ -493,9 +524,6 @@ static const struct ref_scale_ops lock_irq_ops = {
 	.delaysection	= ref_lock_irq_delay_section,
 	.name		= "lock-irq"
 };
-
-// Definitions acquire-release.
-static DEFINE_PER_CPU(unsigned long, test_acqrel);
 
 static void ref_acqrel_section(const int nloops)
 {
@@ -1291,7 +1319,7 @@ ref_scale_init(void)
 	static const struct ref_scale_ops *scale_ops[] = {
 		&rcu_ops, &srcu_ops, &srcu_fast_ops, RCU_TRACE_OPS RCU_TASKS_OPS
 		&refcnt_ops, &rwlock_ops, &rwsem_ops, &lock_ops, &lock_irq_ops,
-		&acqrel_ops, &sched_clock_ops, &clock_ops, &jiffies_ops,
+		&percpuinc_ops, &acqrel_ops, &sched_clock_ops, &clock_ops, &jiffies_ops,
 		&preempt_ops, &bh_ops, &irq_ops, &irqsave_ops,
 		&typesafe_ref_ops, &typesafe_lock_ops, &typesafe_seqlock_ops,
 	};
