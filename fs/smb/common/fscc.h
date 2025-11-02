@@ -121,6 +121,14 @@ struct smb2_file_network_open_info {
 #define FILE_CASE_PRESERVED_NAMES	0x00000002
 #define FILE_CASE_SENSITIVE_SEARCH	0x00000001
 
+/* See MS-FSCC 2.5.8 */
+typedef struct {
+	__le64 TotalAllocationUnits;
+	__le64 AvailableAllocationUnits;
+	__le32 SectorsPerAllocationUnit;
+	__le32 BytesPerSector;
+} __packed FILE_SYSTEM_SIZE_INFO;	/* size info, level 0x103 */
+
 /* See MS-FSCC 2.5.10 */
 typedef struct {
 	__le32 DeviceType;

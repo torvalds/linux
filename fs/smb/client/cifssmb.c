@@ -4746,7 +4746,7 @@ CIFSSMBQFSInfo(const unsigned int xid, struct cifs_tcon *tcon,
 /* level 0x103 SMB_QUERY_FILE_SYSTEM_INFO */
 	TRANSACTION2_QFSI_REQ *pSMB = NULL;
 	TRANSACTION2_QFSI_RSP *pSMBr = NULL;
-	FILE_SYSTEM_INFO *response_data;
+	FILE_SYSTEM_SIZE_INFO *response_data;
 	int rc = 0;
 	int bytes_returned = 0;
 	__u16 params, byte_count;
@@ -4794,7 +4794,7 @@ QFSInfoRetry:
 			__u16 data_offset = le16_to_cpu(pSMBr->t2.DataOffset);
 
 			response_data =
-			    (FILE_SYSTEM_INFO
+			    (FILE_SYSTEM_SIZE_INFO
 			     *) (((char *) &pSMBr->hdr.Protocol) +
 				 data_offset);
 			FSData->f_bsize =
@@ -4811,7 +4811,7 @@ QFSInfoRetry:
 			FSData->f_blocks =
 			    le64_to_cpu(response_data->TotalAllocationUnits);
 			FSData->f_bfree = FSData->f_bavail =
-			    le64_to_cpu(response_data->FreeAllocationUnits);
+			    le64_to_cpu(response_data->AvailableAllocationUnits);
 			cifs_dbg(FYI, "Blocks: %lld  Free: %lld Block size %ld\n",
 				 (unsigned long long)FSData->f_blocks,
 				 (unsigned long long)FSData->f_bfree,

@@ -1983,13 +1983,6 @@ struct aliasInfo92 {
 } __attribute__((packed));
 
 typedef struct {
-	__le64 TotalAllocationUnits;
-	__le64 FreeAllocationUnits;
-	__le32 SectorsPerAllocationUnit;
-	__le32 BytesPerSector;
-} __attribute__((packed)) FILE_SYSTEM_INFO;	/* size info, level 0x103 */
-
-typedef struct {
 	__le32 fsid;
 	__le32 SectorsPerAllocationUnit;
 	__le32 TotalAllocationUnits;
