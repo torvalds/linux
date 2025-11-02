@@ -548,7 +548,7 @@ static void cifs_fill_dirent_full(struct cifs_dirent *de,
 }
 
 static void cifs_fill_dirent_search(struct cifs_dirent *de,
-		const SEARCH_ID_FULL_DIR_INFO *info)
+		const FILE_ID_FULL_DIR_INFO *info)
 {
 	de->name = &info->FileName[0];
 	de->namelen = le32_to_cpu(info->FileNameLength);
