@@ -18,6 +18,12 @@
 
 #include "bcm2712-rpi-5-b-ovl-rp1.dts"
 
+/ {
+	aliases {
+		ethernet0 = &rp1_eth;
+	};
+};
+
 &pcie2 {
 	#include "rp1-nexus.dtsi"
 };
