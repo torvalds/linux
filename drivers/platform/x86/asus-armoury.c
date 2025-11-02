@@ -174,6 +174,7 @@ static int armoury_get_devstate(struct kobj_attribute *attr, u32 *retval, u32 de
  * and should perform relevant checks.
  *
  * Returns:
+ * * %-EINVAL	- attempt to set a dangerous or unsupported value.
  * * %-EIO	- WMI function returned an error.
  * * %0		- successful and retval is filled.
  * * %other	- error from WMI call.
@@ -183,6 +184,26 @@ static int armoury_set_devstate(struct kobj_attribute *attr,
 {
 	u32 result;
 	int err;
+
+	/*
+	 * Prevent developers from bricking devices or issuing dangerous
+	 * commands that can be difficult or impossible to recover from.
+	 */
+	switch (dev_id) {
+	case ASUS_WMI_DEVID_APU_MEM:
+		/*
+		 * A hard reset might suffice to save the device,
+		 * but there is no value in sending these commands.
+		 */
+		if (value == 0x100 || value == 0x101) {
+			pr_err("Refusing to set APU memory to unsafe value: 0x%x\n", value);
+			return -EINVAL;
+		}
+		break;
+	default:
+		/* No problems are known for this dev_id */
+		break;
+	}
 
 	err = asus_wmi_set_devstate(dev_id, value, retval ? retval : &result);
 	if (err) {
@@ -599,6 +620,82 @@ static ssize_t egpu_enable_possible_values_show(struct kobject *kobj, struct kob
 }
 ASUS_ATTR_GROUP_ENUM(egpu_enable, "egpu_enable", "Enable the eGPU (also disables dGPU)");
 
+/* Device memory available to APU */
+
+/*
+ * Values map for APU reserved memory (index + 1 number of GB).
+ * Some looks out of order, but are actually correct.
+ */
+static u32 apu_mem_map[] = {
+	[0] = 0x000, /* called "AUTO" on the BIOS, is the minimum available */
+	[1] = 0x102,
+	[2] = 0x103,
+	[3] = 0x104,
+	[4] = 0x105,
+	[5] = 0x107,
+	[6] = 0x108,
+	[7] = 0x109,
+	[8] = 0x106,
+};
+
+static ssize_t apu_mem_current_value_show(struct kobject *kobj, struct kobj_attribute *attr,
+					  char *buf)
+{
+	int err;
+	u32 mem;
+
+	err = armoury_get_devstate(attr, &mem, ASUS_WMI_DEVID_APU_MEM);
+	if (err)
+		return err;
+
+	/* After 0x000 is set, a read will return 0x100 */
+	if (mem == 0x100)
+		return sysfs_emit(buf, "0\n");
+
+	for (unsigned int i = 0; i < ARRAY_SIZE(apu_mem_map); i++) {
+		if (apu_mem_map[i] == mem)
+			return sysfs_emit(buf, "%u\n", i);
+	}
+
+	pr_warn("Unrecognised value for APU mem 0x%08x\n", mem);
+	return -EIO;
+}
+
+static ssize_t apu_mem_current_value_store(struct kobject *kobj, struct kobj_attribute *attr,
+					   const char *buf, size_t count)
+{
+	int result, err;
+	u32 requested, mem;
+
+	result = kstrtou32(buf, 10, &requested);
+	if (result)
+		return result;
+
+	if (requested >= ARRAY_SIZE(apu_mem_map))
+		return -EINVAL;
+	mem = apu_mem_map[requested];
+
+	err = armoury_set_devstate(attr, mem, NULL, ASUS_WMI_DEVID_APU_MEM);
+	if (err) {
+		pr_warn("Failed to set apu_mem 0x%x: %d\n", mem, err);
+		return err;
+	}
+
+	pr_info("APU memory changed to %uGB, reboot required\n", requested + 1);
+	sysfs_notify(kobj, NULL, attr->attr.name);
+
+	asus_set_reboot_and_signal_event();
+
+	return count;
+}
+
+static ssize_t apu_mem_possible_values_show(struct kobject *kobj, struct kobj_attribute *attr,
+					    char *buf)
+{
+	return armoury_attr_enum_list(buf, ARRAY_SIZE(apu_mem_map));
+}
+ASUS_ATTR_GROUP_ENUM(apu_mem, "apu_mem", "Set available system RAM (in GB) for the APU to use");
+
 /* Simple attribute creation */
 ASUS_ATTR_GROUP_ENUM_INT_RO(charge_mode, "charge_mode", ASUS_WMI_DEVID_CHARGE_MODE, "0;1;2\n",
 			    "Show the current mode of charging");
@@ -618,6 +715,7 @@ static const struct asus_attr_group armoury_attr_groups[] = {
 	{ &egpu_connected_attr_group, ASUS_WMI_DEVID_EGPU_CONNECTED },
 	{ &egpu_enable_attr_group, ASUS_WMI_DEVID_EGPU },
 	{ &dgpu_disable_attr_group, ASUS_WMI_DEVID_DGPU },
+	{ &apu_mem_attr_group, ASUS_WMI_DEVID_APU_MEM },
 
 	{ &charge_mode_attr_group, ASUS_WMI_DEVID_CHARGE_MODE },
 	{ &boot_sound_attr_group, ASUS_WMI_DEVID_BOOT_SOUND },
