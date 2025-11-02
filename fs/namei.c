@@ -172,8 +172,8 @@ static int getname_long(struct filename *name, const char __user *filename)
 	return 0;
 }
 
-struct filename *
-getname_flags(const char __user *filename, int flags)
+static struct filename *
+do_getname(const char __user *filename, int flags, bool incomplete)
 {
 	struct filename *result;
 	char *kname;
@@ -214,8 +214,15 @@ getname_flags(const char __user *filename, int flags)
 	}
 
 	initname(result);
-	audit_getname(result);
+	if (likely(!incomplete))
+		audit_getname(result);
 	return result;
+}
+
+struct filename *
+getname_flags(const char __user *filename, int flags)
+{
+	return do_getname(filename, flags, false);
 }
 
 struct filename *getname_uflags(const char __user *filename, int uflags)
@@ -242,7 +249,7 @@ struct filename *__getname_maybe_null(const char __user *pathname)
 	return no_free_ptr(name);
 }
 
-struct filename *getname_kernel(const char * filename)
+static struct filename *do_getname_kernel(const char *filename, bool incomplete)
 {
 	struct filename *result;
 	int len = strlen(filename) + 1;
@@ -267,8 +274,14 @@ struct filename *getname_kernel(const char * filename)
 	}
 	result->name = p;
 	initname(result);
-	audit_getname(result);
+	if (likely(!incomplete))
+		audit_getname(result);
 	return result;
+}
+
+struct filename *getname_kernel(const char *filename)
+{
+	return do_getname_kernel(filename, false);
 }
 EXPORT_SYMBOL(getname_kernel);
 
@@ -293,6 +306,49 @@ void putname(struct filename *name)
 	free_filename(name);
 }
 EXPORT_SYMBOL(putname);
+
+static inline int __delayed_getname(struct delayed_filename *v,
+			   const char __user *string, int flags)
+{
+	v->__incomplete_filename = do_getname(string, flags, true);
+	return PTR_ERR_OR_ZERO(v->__incomplete_filename);
+}
+
+int delayed_getname(struct delayed_filename *v, const char __user *string)
+{
+	return __delayed_getname(v, string, 0);
+}
+
+int delayed_getname_uflags(struct delayed_filename *v, const char __user *string,
+			 int uflags)
+{
+	int flags = (uflags & AT_EMPTY_PATH) ? LOOKUP_EMPTY : 0;
+	return __delayed_getname(v, string, flags);
+}
+
+int putname_to_delayed(struct delayed_filename *v, struct filename *name)
+{
+	if (likely(atomic_read(&name->refcnt) == 1)) {
+		v->__incomplete_filename = name;
+		return 0;
+	}
+	v->__incomplete_filename = do_getname_kernel(name->name, true);
+	putname(name);
+	return PTR_ERR_OR_ZERO(v->__incomplete_filename);
+}
+
+void dismiss_delayed_filename(struct delayed_filename *v)
+{
+	putname(no_free_ptr(v->__incomplete_filename));
+}
+
+struct filename *complete_getname(struct delayed_filename *v)
+{
+	struct filename *res = no_free_ptr(v->__incomplete_filename);
+	if (!IS_ERR(res))
+		audit_getname(res);
+	return res;
+}
 
 /**
  * check_acl - perform ACL permission checking

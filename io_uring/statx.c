@@ -16,7 +16,7 @@ struct io_statx {
 	int				dfd;
 	unsigned int			mask;
 	unsigned int			flags;
-	struct filename			*filename;
+	struct delayed_filename		filename;
 	struct statx __user		*buffer;
 };
 
@@ -24,6 +24,7 @@ int io_statx_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 	struct io_statx *sx = io_kiocb_to_cmd(req, struct io_statx);
 	const char __user *path;
+	int ret;
 
 	if (sqe->buf_index || sqe->splice_fd_in)
 		return -EINVAL;
@@ -36,14 +37,10 @@ int io_statx_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	sx->buffer = u64_to_user_ptr(READ_ONCE(sqe->addr2));
 	sx->flags = READ_ONCE(sqe->statx_flags);
 
-	sx->filename = getname_uflags(path, sx->flags);
+	ret = delayed_getname_uflags(&sx->filename, path, sx->flags);
 
-	if (IS_ERR(sx->filename)) {
-		int ret = PTR_ERR(sx->filename);
-
-		sx->filename = NULL;
+	if (unlikely(ret))
 		return ret;
-	}
 
 	req->flags |= REQ_F_NEED_CLEANUP;
 	req->flags |= REQ_F_FORCE_ASYNC;
@@ -53,11 +50,12 @@ int io_statx_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 int io_statx(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_statx *sx = io_kiocb_to_cmd(req, struct io_statx);
+	CLASS(filename_complete_delayed, name)(&sx->filename);
 	int ret;
 
 	WARN_ON_ONCE(issue_flags & IO_URING_F_NONBLOCK);
 
-	ret = do_statx(sx->dfd, sx->filename, sx->flags, sx->mask, sx->buffer);
+	ret = do_statx(sx->dfd, name, sx->flags, sx->mask, sx->buffer);
 	io_req_set_res(req, ret, 0);
 	return IOU_COMPLETE;
 }
@@ -66,6 +64,5 @@ void io_statx_cleanup(struct io_kiocb *req)
 {
 	struct io_statx *sx = io_kiocb_to_cmd(req, struct io_statx);
 
-	if (sx->filename)
-		putname(sx->filename);
+	dismiss_delayed_filename(&sx->filename);
 }
