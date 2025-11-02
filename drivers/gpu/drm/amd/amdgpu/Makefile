@@ -244,7 +244,8 @@ amdgpu-y += \
 	smuio_v13_0.o \
 	smuio_v13_0_3.o \
 	smuio_v13_0_6.o \
-	smuio_v14_0_2.o
+	smuio_v14_0_2.o \
+	smuio_v15_0_8.o
 
 # add reset block
 amdgpu-y += \
