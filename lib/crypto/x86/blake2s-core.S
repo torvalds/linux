@@ -45,8 +45,6 @@ SIGMA2:
 
 .text
 SYM_FUNC_START(blake2s_compress_ssse3)
-	testq		%rdx,%rdx
-	je		.Lendofloop
 	movdqu		(%rdi),%xmm0
 	movdqu		0x10(%rdi),%xmm1
 	movdqa		ROT16(%rip),%xmm12
@@ -168,7 +166,6 @@ SYM_FUNC_START(blake2s_compress_ssse3)
 	movdqu		%xmm0,(%rdi)
 	movdqu		%xmm1,0x10(%rdi)
 	movdqu		%xmm14,0x20(%rdi)
-.Lendofloop:
 	RET
 SYM_FUNC_END(blake2s_compress_ssse3)
 
