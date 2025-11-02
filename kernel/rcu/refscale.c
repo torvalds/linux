@@ -185,6 +185,7 @@ static const struct ref_scale_ops rcu_ops = {
 // Definitions for SRCU ref scale testing.
 DEFINE_STATIC_SRCU(srcu_refctl_scale);
 DEFINE_STATIC_SRCU_FAST(srcu_fast_refctl_scale);
+DEFINE_STATIC_SRCU_FAST_UPDOWN(srcu_fast_updown_refctl_scale);
 static struct srcu_struct *srcu_ctlp = &srcu_refctl_scale;
 
 static void srcu_ref_scale_read_section(const int nloops)
@@ -251,6 +252,42 @@ static const struct ref_scale_ops srcu_fast_ops = {
 	.readsection	= srcu_fast_ref_scale_read_section,
 	.delaysection	= srcu_fast_ref_scale_delay_section,
 	.name		= "srcu-fast"
+};
+
+static bool srcu_fast_updown_sync_scale_init(void)
+{
+	srcu_ctlp = &srcu_fast_updown_refctl_scale;
+	return true;
+}
+
+static void srcu_fast_updown_ref_scale_read_section(const int nloops)
+{
+	int i;
+	struct srcu_ctr __percpu *scp;
+
+	for (i = nloops; i >= 0; i--) {
+		scp = srcu_read_lock_fast_updown(srcu_ctlp);
+		srcu_read_unlock_fast_updown(srcu_ctlp, scp);
+	}
+}
+
+static void srcu_fast_updown_ref_scale_delay_section(const int nloops, const int udl, const int ndl)
+{
+	int i;
+	struct srcu_ctr __percpu *scp;
+
+	for (i = nloops; i >= 0; i--) {
+		scp = srcu_read_lock_fast_updown(srcu_ctlp);
+		un_delay(udl, ndl);
+		srcu_read_unlock_fast_updown(srcu_ctlp, scp);
+	}
+}
+
+static const struct ref_scale_ops srcu_fast_updown_ops = {
+	.init		= srcu_fast_updown_sync_scale_init,
+	.readsection	= srcu_fast_updown_ref_scale_read_section,
+	.delaysection	= srcu_fast_updown_ref_scale_delay_section,
+	.name		= "srcu-fast-updown"
 };
 
 #ifdef CONFIG_TASKS_RCU
@@ -1170,7 +1207,8 @@ ref_scale_init(void)
 	long i;
 	int firsterr = 0;
 	static const struct ref_scale_ops *scale_ops[] = {
-		&rcu_ops, &srcu_ops, &srcu_fast_ops, RCU_TRACE_OPS RCU_TASKS_OPS
+		&rcu_ops, &srcu_ops, &srcu_fast_ops, &srcu_fast_updown_ops,
+		RCU_TRACE_OPS RCU_TASKS_OPS
 		&refcnt_ops, &rwlock_ops, &rwsem_ops, &lock_ops, &lock_irq_ops,
 		&acqrel_ops, &sched_clock_ops, &clock_ops, &jiffies_ops,
 		&typesafe_ref_ops, &typesafe_lock_ops, &typesafe_seqlock_ops,
