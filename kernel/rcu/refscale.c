@@ -136,6 +136,7 @@ struct ref_scale_ops {
 	void (*cleanup)(void);
 	void (*readsection)(const int nloops);
 	void (*delaysection)(const int nloops, const int udl, const int ndl);
+	bool enable_irqs;
 	const char *name;
 };
 
@@ -488,6 +489,7 @@ static const struct ref_scale_ops incpercpubh_ops = {
 	.init		= rcu_sync_scale_init,
 	.readsection	= ref_incpercpubh_section,
 	.delaysection	= ref_incpercpubh_delay_section,
+	.enable_irqs	= true,
 	.name		= "incpercpubh"
 };
 
@@ -865,6 +867,7 @@ static void ref_bh_delay_section(const int nloops, const int udl, const int ndl)
 static const struct ref_scale_ops bh_ops = {
 	.readsection	= ref_bh_section,
 	.delaysection	= ref_bh_delay_section,
+	.enable_irqs	= true,
 	.name		= "bh"
 };
 
@@ -1227,15 +1230,18 @@ repeat:
 	if (!atomic_dec_return(&n_warmedup))
 		while (atomic_read_acquire(&n_warmedup))
 			rcu_scale_one_reader();
-	// Also keep interrupts disabled.  This also has the effect
-	// of preventing entries into slow path for rcu_read_unlock().
-	local_irq_save(flags);
+	// Also keep interrupts disabled when it is safe to do so, which
+	// it is not for local_bh_enable().  This also has the effect of
+	// preventing entries into slow path for rcu_read_unlock().
+	if (!cur_ops->enable_irqs)
+		local_irq_save(flags);
 	start = ktime_get_mono_fast_ns();
 
 	rcu_scale_one_reader();
 
 	duration = ktime_get_mono_fast_ns() - start;
-	local_irq_restore(flags);
+	if (!cur_ops->enable_irqs)
+		local_irq_restore(flags);
 
 	rt->last_duration_ns = WARN_ON_ONCE(duration < 0) ? 0 : duration;
 	// To reduce runtime-skew noise, do maintain-load invocations until
