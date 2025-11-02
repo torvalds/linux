@@ -537,8 +537,13 @@ static int lynxfb_ops_setcolreg(unsigned int regno,
 		return -EINVAL;
 	}
 
-	if (info->var.grayscale)
-		red = green = blue = (red * 77 + green * 151 + blue * 28) >> 8;
+	if (info->var.grayscale) {
+		int lum = (red * 77 + green * 151 + blue * 28) >> 8;
+
+		red = lum;
+		green = lum;
+		blue = lum;
+	}
 
 	if (var->bits_per_pixel == 8 &&
 	    info->fix.visual == FB_VISUAL_PSEUDOCOLOR) {
