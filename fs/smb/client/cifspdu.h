@@ -711,7 +711,12 @@ struct ntlmv2_resp {
 
 #define CIFS_NETWORK_OPSYS "CIFS VFS Client for Linux"
 
-/* Capabilities bits (for NTLM SessSetup request) */
+
+/*
+ * Capabilities bits (for NTLM SessSetup request)
+ * See MS-CIFS 2.2.4.52.2
+ *     MS-SMB 2.2.4.5.2.1
+ */
 #define CAP_UNICODE            0x00000004
 #define CAP_LARGE_FILES        0x00000008
 #define CAP_NT_SMBS            0x00000010
@@ -719,7 +724,7 @@ struct ntlmv2_resp {
 #define CAP_LEVEL_II_OPLOCKS   0x00000080
 #define CAP_NT_FIND            0x00000200	/* reserved should be zero
 				(because NT_SMBs implies the same thing?) */
-#define CAP_BULK_TRANSFER      0x20000000
+#define CAP_BULK_TRANSFER      0x00000400
 #define CAP_EXTENDED_SECURITY  0x80000000
 
 /* Action bits */
