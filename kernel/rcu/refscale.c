@@ -629,6 +629,37 @@ static const struct ref_scale_ops jiffies_ops = {
 	.name		= "jiffies"
 };
 
+static void ref_preempt_section(const int nloops)
+{
+	int i;
+
+	migrate_disable();
+	for (i = nloops; i >= 0; i--) {
+		preempt_disable();
+		preempt_enable();
+	}
+	migrate_enable();
+}
+
+static void ref_preempt_delay_section(const int nloops, const int udl, const int ndl)
+{
+	int i;
+
+	migrate_disable();
+	for (i = nloops; i >= 0; i--) {
+		preempt_disable();
+		un_delay(udl, ndl);
+		preempt_enable();
+	}
+	migrate_enable();
+}
+
+static const struct ref_scale_ops preempt_ops = {
+	.readsection	= ref_preempt_section,
+	.delaysection	= ref_preempt_delay_section,
+	.name		= "preempt"
+};
+
 static void ref_bh_section(const int nloops)
 {
 	int i;
@@ -1261,7 +1292,7 @@ ref_scale_init(void)
 		&rcu_ops, &srcu_ops, &srcu_fast_ops, RCU_TRACE_OPS RCU_TASKS_OPS
 		&refcnt_ops, &rwlock_ops, &rwsem_ops, &lock_ops, &lock_irq_ops,
 		&acqrel_ops, &sched_clock_ops, &clock_ops, &jiffies_ops,
-		&bh_ops, &irq_ops, &irqsave_ops,
+		&preempt_ops, &bh_ops, &irq_ops, &irqsave_ops,
 		&typesafe_ref_ops, &typesafe_lock_ops, &typesafe_seqlock_ops,
 	};
 
