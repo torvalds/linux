@@ -150,7 +150,7 @@ static inline void free_filename(struct filename *p)
 static inline void initname(struct filename *name)
 {
 	name->aname = NULL;
-	atomic_set(&name->refcnt, 1);
+	name->refcnt = 1;
 }
 
 static int getname_long(struct filename *name, const char __user *filename)
@@ -292,13 +292,13 @@ void putname(struct filename *name)
 	if (IS_ERR_OR_NULL(name))
 		return;
 
-	refcnt = atomic_read(&name->refcnt);
+	refcnt = name->refcnt;
 	if (unlikely(refcnt != 1)) {
 		if (WARN_ON_ONCE(!refcnt))
 			return;
 
-		if (!atomic_dec_and_test(&name->refcnt))
-			return;
+		name->refcnt--;
+		return;
 	}
 
 	if (unlikely(name->name != name->iname))
@@ -328,12 +328,12 @@ int delayed_getname_uflags(struct delayed_filename *v, const char __user *string
 
 int putname_to_delayed(struct delayed_filename *v, struct filename *name)
 {
-	if (likely(atomic_read(&name->refcnt) == 1)) {
+	if (likely(name->refcnt == 1)) {
 		v->__incomplete_filename = name;
 		return 0;
 	}
+	name->refcnt--;
 	v->__incomplete_filename = do_getname_kernel(name->name, true);
-	putname(name);
 	return PTR_ERR_OR_ZERO(v->__incomplete_filename);
 }
 
