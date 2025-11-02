@@ -2,8 +2,10 @@
 /*
  *
  *   Copyright (C) International Business Machines  Corp., 2002,2008
+ *                 2018 Samsung Electronics Co., Ltd.
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *              Jeremy Allison (jra@samba.org)
+ *              Namjae Jeon (linkinjeon@kernel.org)
  *
  */
 #ifndef _COMMON_SMB_GLOB_H
@@ -64,5 +66,7 @@ static inline void inc_rfc1001_len(void *buf, int count)
 #define ALT_SMB311_VERSION_STRING "3.11"
 
 #define CIFS_DEFAULT_IOSIZE (1024 * 1024)
+
+#define MAX_CIFS_SMALL_BUFFER_SIZE 448 /* big enough for most */
 
 #endif	/* _COMMON_SMB_GLOB_H */
