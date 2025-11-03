@@ -1402,6 +1402,8 @@ static void gswip_phylink_mac_config(struct phylink_config *config,
 		break;
 	case PHY_INTERFACE_MODE_RMII:
 		miicfg |= GSWIP_MII_CFG_MODE_RMIIM;
+		if (of_property_read_bool(dp->dn, "maxlinear,rmii-refclk-out"))
+			miicfg |= GSWIP_MII_CFG_RMII_CLK;
 		break;
 	case PHY_INTERFACE_MODE_RGMII:
 	case PHY_INTERFACE_MODE_RGMII_ID:
