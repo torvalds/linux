@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
+/* Copyright (c) 2025 Christian Brauner <brauner@kernel.org> */
 
 #include <linux/ns_common.h>
 #include <linux/proc_ns.h>

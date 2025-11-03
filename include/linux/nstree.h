@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
+/* Copyright (c) 2025 Christian Brauner <brauner@kernel.org> */
 #ifndef _LINUX_NSTREE_H
 #define _LINUX_NSTREE_H
 
