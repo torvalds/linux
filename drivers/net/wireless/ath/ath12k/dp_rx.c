@@ -1269,29 +1269,6 @@ bool ath12k_dp_rx_check_nwifi_hdr_len_valid(struct ath12k_dp *dp,
 	return false;
 }
 
-u16 ath12k_dp_rx_get_peer_id(struct ath12k_base *ab,
-			     enum ath12k_peer_metadata_version ver,
-			     __le32 peer_metadata)
-{
-	switch (ver) {
-	default:
-		ath12k_warn(ab, "Unknown peer metadata version: %d", ver);
-		fallthrough;
-	case ATH12K_PEER_METADATA_V0:
-		return le32_get_bits(peer_metadata,
-				     RX_MPDU_DESC_META_DATA_V0_PEER_ID);
-	case ATH12K_PEER_METADATA_V1:
-		return le32_get_bits(peer_metadata,
-				     RX_MPDU_DESC_META_DATA_V1_PEER_ID);
-	case ATH12K_PEER_METADATA_V1A:
-		return le32_get_bits(peer_metadata,
-				     RX_MPDU_DESC_META_DATA_V1A_PEER_ID);
-	case ATH12K_PEER_METADATA_V1B:
-		return le32_get_bits(peer_metadata,
-				     RX_MPDU_DESC_META_DATA_V1B_PEER_ID);
-	}
-}
-
 static void ath12k_dp_rx_frag_timer(struct timer_list *timer)
 {
 	struct ath12k_dp_rx_tid *rx_tid = timer_container_of(rx_tid, timer,
