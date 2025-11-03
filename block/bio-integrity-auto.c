@@ -158,8 +158,6 @@ bool bio_integrity_prep(struct bio *bio)
 	if (!buf)
 		goto err_end_io;
 	bid = mempool_alloc(&bid_pool, GFP_NOIO);
-	if (!bid)
-		goto err_free_buf;
 	bio_integrity_init(bio, &bid->bip, &bid->bvec, 1);
 
 	bid->bio = bio;
@@ -187,8 +185,6 @@ bool bio_integrity_prep(struct bio *bio)
 		bid->saved_bio_iter = bio->bi_iter;
 	return true;
 
-err_free_buf:
-	kfree(buf);
 err_end_io:
 	bio->bi_status = BLK_STS_RESOURCE;
 	bio_endio(bio);
