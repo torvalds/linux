@@ -1077,6 +1077,7 @@ err_free:
 
 	return ret;
 }
+EXPORT_SYMBOL(ath12k_dp_tx_htt_rx_filter_setup);
 
 int
 ath12k_dp_tx_htt_h2t_ext_stats_req(struct ath12k *ar, u8 type,

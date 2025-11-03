@@ -379,7 +379,6 @@ fail_remove_tx_buf:
 
 	return ret;
 }
-EXPORT_SYMBOL(ath12k_wifi7_dp_tx);
 
 static void
 ath12k_dp_tx_htt_tx_complete_buf(struct ath12k_base *ab,

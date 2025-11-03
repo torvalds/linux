@@ -25,6 +25,7 @@ ath12k_dp_tx_get_encap_type(struct ath12k_base *ab, struct sk_buff *skb)
 
 	return HAL_TCL_ENCAP_TYPE_NATIVE_WIFI;
 }
+EXPORT_SYMBOL(ath12k_dp_tx_get_encap_type);
 
 void ath12k_dp_tx_encap_nwifi(struct sk_buff *skb)
 {
@@ -42,6 +43,7 @@ void ath12k_dp_tx_encap_nwifi(struct sk_buff *skb)
 	hdr = (void *)skb->data;
 	hdr->frame_control &= ~__cpu_to_le16(IEEE80211_STYPE_QOS_DATA);
 }
+EXPORT_SYMBOL(ath12k_dp_tx_encap_nwifi);
 
 u8 ath12k_dp_tx_get_tid(struct sk_buff *skb)
 {
@@ -55,6 +57,7 @@ u8 ath12k_dp_tx_get_tid(struct sk_buff *skb)
 	else
 		return skb->priority & IEEE80211_QOS_CTL_TID_MASK;
 }
+EXPORT_SYMBOL(ath12k_dp_tx_get_tid);
 
 enum hal_encrypt_type ath12k_dp_tx_get_encrypt_type(u32 cipher)
 {
@@ -77,6 +80,7 @@ enum hal_encrypt_type ath12k_dp_tx_get_encrypt_type(u32 cipher)
 		return HAL_ENCRYPT_TYPE_OPEN;
 	}
 }
+EXPORT_SYMBOL(ath12k_dp_tx_get_encrypt_type);
 
 void ath12k_dp_tx_release_txbuf(struct ath12k_dp *dp,
 				struct ath12k_tx_desc_info *tx_desc,
@@ -87,6 +91,7 @@ void ath12k_dp_tx_release_txbuf(struct ath12k_dp *dp,
 	list_move_tail(&tx_desc->list, &dp->tx_desc_free_list[pool_id]);
 	spin_unlock_bh(&dp->tx_desc_lock[pool_id]);
 }
+EXPORT_SYMBOL(ath12k_dp_tx_release_txbuf);
 
 struct ath12k_tx_desc_info *ath12k_dp_tx_assign_buffer(struct ath12k_dp *dp,
 						       u8 pool_id)
@@ -108,6 +113,7 @@ struct ath12k_tx_desc_info *ath12k_dp_tx_assign_buffer(struct ath12k_dp *dp,
 
 	return desc;
 }
+EXPORT_SYMBOL(ath12k_dp_tx_assign_buffer);
 
 void *ath12k_dp_metadata_align_skb(struct sk_buff *skb, u8 tail_len)
 {
@@ -121,6 +127,7 @@ void *ath12k_dp_metadata_align_skb(struct sk_buff *skb, u8 tail_len)
 	memset(metadata, 0, tail_len);
 	return metadata;
 }
+EXPORT_SYMBOL(ath12k_dp_metadata_align_skb);
 
 static void ath12k_dp_tx_move_payload(struct sk_buff *skb,
 				      unsigned long delta,
@@ -175,6 +182,7 @@ int ath12k_dp_tx_align_payload(struct ath12k_base *ab,
 out:
 	return ret;
 }
+EXPORT_SYMBOL(ath12k_dp_tx_align_payload);
 
 void ath12k_dp_tx_free_txbuf(struct ath12k_base *ab,
 			     struct dp_tx_ring *tx_ring,
@@ -200,3 +208,4 @@ void ath12k_dp_tx_free_txbuf(struct ath12k_base *ab,
 	if (atomic_dec_and_test(&ar->dp.num_tx_pending))
 		wake_up(&ar->dp.tx_empty_waitq);
 }
+EXPORT_SYMBOL(ath12k_dp_tx_free_txbuf);

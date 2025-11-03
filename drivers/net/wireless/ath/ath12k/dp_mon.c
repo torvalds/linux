@@ -4437,3 +4437,4 @@ int ath12k_dp_mon_process_ring(struct ath12k_base *ab, int mac_id,
 
 	return num_buffs_reaped;
 }
+EXPORT_SYMBOL(ath12k_dp_mon_process_ring);

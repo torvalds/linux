@@ -32,6 +32,7 @@ EXPORT_SYMBOL(ath12k_debug_mask);
 bool ath12k_ftm_mode;
 module_param_named(ftm_mode, ath12k_ftm_mode, bool, 0444);
 MODULE_PARM_DESC(ftm_mode, "Boots up in factory test mode");
+EXPORT_SYMBOL(ath12k_ftm_mode);
 
 /* protected with ath12k_hw_group_mutex */
 static struct list_head ath12k_hw_group_list = LIST_HEAD_INIT(ath12k_hw_group_list);

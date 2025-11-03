@@ -59,7 +59,6 @@ int ath12k_wifi7_hal_init(struct ath12k_base *ab)
 
 	return 0;
 }
-EXPORT_SYMBOL(ath12k_wifi7_hal_init);
 
 static unsigned int ath12k_wifi7_hal_reo1_ring_id_offset(struct ath12k_hal *hal)
 {

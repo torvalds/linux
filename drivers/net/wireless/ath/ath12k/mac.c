@@ -363,6 +363,7 @@ u16 ath12k_mac_he_convert_tones_to_ru_tones(u16 tones)
 		return RU_26;
 	}
 }
+EXPORT_SYMBOL(ath12k_mac_he_convert_tones_to_ru_tones);
 
 enum nl80211_eht_gi ath12k_mac_eht_gi_to_nl80211_eht_gi(u8 sgi)
 {
@@ -377,6 +378,7 @@ enum nl80211_eht_gi ath12k_mac_eht_gi_to_nl80211_eht_gi(u8 sgi)
 		return NL80211_RATE_INFO_EHT_GI_0_8;
 	}
 }
+EXPORT_SYMBOL(ath12k_mac_eht_gi_to_nl80211_eht_gi);
 
 enum nl80211_eht_ru_alloc ath12k_mac_eht_ru_tones_to_nl80211_eht_ru_alloc(u16 ru_tones)
 {
@@ -417,6 +419,7 @@ enum nl80211_eht_ru_alloc ath12k_mac_eht_ru_tones_to_nl80211_eht_ru_alloc(u16 ru
 		return NL80211_RATE_INFO_EHT_RU_ALLOC_26;
 	}
 }
+EXPORT_SYMBOL(ath12k_mac_eht_ru_tones_to_nl80211_eht_ru_alloc);
 
 enum rate_info_bw
 ath12k_mac_bw_to_mac80211_bw(enum ath12k_supported_bw bw)
@@ -443,6 +446,7 @@ ath12k_mac_bw_to_mac80211_bw(enum ath12k_supported_bw bw)
 
 	return ret;
 }
+EXPORT_SYMBOL(ath12k_mac_bw_to_mac80211_bw);
 
 enum ath12k_supported_bw ath12k_mac_mac80211_bw_to_ath12k_bw(enum rate_info_bw bw)
 {
@@ -486,6 +490,7 @@ int ath12k_mac_hw_ratecode_to_legacy_rate(u8 hw_rc, u8 preamble, u8 *rateidx,
 
 	return -EINVAL;
 }
+EXPORT_SYMBOL(ath12k_mac_hw_ratecode_to_legacy_rate);
 
 u8 ath12k_mac_bitrate_to_idx(const struct ieee80211_supported_band *sband,
 			     u32 bitrate)

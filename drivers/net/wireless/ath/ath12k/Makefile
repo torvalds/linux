@@ -24,15 +24,6 @@ ath12k-y += core.o \
 
 ath12k-$(CONFIG_ATH12K_AHB) += ahb.o
 
-ath12k-y += wifi7/hal_tx.o \
-	    wifi7/hal_rx.o \
-	    wifi7/dp_rx.o \
-	    wifi7/dp_tx.o \
-	    wifi7/dp.o \
-	    wifi7/hal.o \
-	    wifi7/hal_qcn9274.o \
-	    wifi7/hal_wcn7850.o
-
 obj-$(CONFIG_ATH12K) += wifi7/
 
 ath12k-$(CONFIG_ATH12K_DEBUGFS) += debugfs.o debugfs_htt_stats.o debugfs_sta.o

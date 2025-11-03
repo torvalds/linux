@@ -5,6 +5,14 @@ ath12k_wifi7-y += core.o \
 	          wmi.o \
 	          mhi.o \
 	          ce.o \
-	          hw.o
+	          hw.o \
+		  hal_tx.o \
+		  hal_rx.o \
+		  dp_rx.o \
+		  dp_tx.o \
+		  dp.o \
+		  hal.o \
+		  hal_qcn9274.o \
+		  hal_wcn7850.o
 
 ath12k_wifi7-$(CONFIG_ATH12K_AHB) += ahb.o

@@ -170,10 +170,8 @@ struct ath12k_dp *ath12k_wifi7_dp_device_alloc(struct ath12k_base *ab)
 
 	return dp;
 }
-EXPORT_SYMBOL(ath12k_wifi7_dp_device_alloc);
 
 void ath12k_wifi7_dp_device_free(struct ath12k_dp *dp)
 {
 	kfree(dp);
 }
-EXPORT_SYMBOL(ath12k_wifi7_dp_device_free);
