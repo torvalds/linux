@@ -788,7 +788,7 @@ EXPORT_SYMBOL(ceph_reset_client_addr);
 /*
  * mount: join the ceph cluster, and open root directory.
  */
-int __ceph_open_session(struct ceph_client *client, unsigned long started)
+int __ceph_open_session(struct ceph_client *client)
 {
 	DEFINE_WAIT_FUNC(wait, woken_wake_function);
 	long timeout = ceph_timeout_jiffies(client->options->mount_timeout);
@@ -844,12 +844,11 @@ EXPORT_SYMBOL(__ceph_open_session);
 int ceph_open_session(struct ceph_client *client)
 {
 	int ret;
-	unsigned long started = jiffies;  /* note the start time */
 
 	dout("open_session start\n");
 	mutex_lock(&client->mount_mutex);
 
-	ret = __ceph_open_session(client, started);
+	ret = __ceph_open_session(client);
 
 	mutex_unlock(&client->mount_mutex);
 	return ret;
