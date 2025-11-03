@@ -380,6 +380,8 @@ int amdgpu_virt_ras_hw_init(struct amdgpu_device *adev)
 			(struct amdgpu_virt_ras_cmd *)ras_mgr->virt_ras_cmd;
 	struct vram_blocks_ecc *blks_ecc = &virt_ras->blocks_ecc;
 
+	amdgpu_virt_get_ras_capability(adev);
+
 	memset(blks_ecc, 0, sizeof(*blks_ecc));
 	blks_ecc->size = PAGE_SIZE;
 	if (amdgpu_bo_create_kernel(adev, blks_ecc->size,
@@ -427,4 +429,32 @@ int amdgpu_virt_ras_pre_reset(struct amdgpu_device *adev)
 int amdgpu_virt_ras_post_reset(struct amdgpu_device *adev)
 {
 	return 0;
+}
+
+void amdgpu_virt_ras_set_remote_uniras(struct amdgpu_device *adev, bool en)
+{
+	struct amdgpu_ras_mgr *ras_mgr = amdgpu_ras_mgr_get_context(adev);
+	struct amdgpu_virt_ras_cmd *virt_ras;
+
+	if (!ras_mgr || !ras_mgr->virt_ras_cmd)
+		return;
+
+	virt_ras = (struct amdgpu_virt_ras_cmd *)ras_mgr->virt_ras_cmd;
+	virt_ras->remote_uniras_supported = en;
+}
+
+bool amdgpu_virt_ras_remote_uniras_enabled(struct amdgpu_device *adev)
+{
+	struct amdgpu_ras_mgr *ras_mgr = amdgpu_ras_mgr_get_context(adev);
+	struct amdgpu_virt_ras_cmd *virt_ras;
+
+	if (amdgpu_in_reset(adev))
+		return false;
+
+	if (!ras_mgr || !ras_mgr->virt_ras_cmd)
+		return false;
+
+	virt_ras = (struct amdgpu_virt_ras_cmd *)ras_mgr->virt_ras_cmd;
+
+	return virt_ras->remote_uniras_supported;
 }

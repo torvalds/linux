@@ -39,6 +39,7 @@ struct vram_blocks_ecc {
 };
 
 struct amdgpu_virt_ras_cmd {
+	bool remote_uniras_supported;
 	struct remote_batch_trace_mgr batch_mgr;
 	struct vram_blocks_ecc blocks_ecc;
 };
@@ -51,4 +52,6 @@ int amdgpu_virt_ras_handle_cmd(struct ras_core_context *ras_core,
 		struct ras_cmd_ctx *cmd);
 int amdgpu_virt_ras_pre_reset(struct amdgpu_device *adev);
 int amdgpu_virt_ras_post_reset(struct amdgpu_device *adev);
+void amdgpu_virt_ras_set_remote_uniras(struct amdgpu_device *adev, bool en);
+bool amdgpu_virt_ras_remote_uniras_enabled(struct amdgpu_device *adev);
 #endif

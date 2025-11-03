@@ -452,6 +452,9 @@ bool amdgpu_uniras_enabled(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras_mgr *ras_mgr = amdgpu_ras_mgr_get_context(adev);
 
+	if (amdgpu_sriov_vf(adev))
+		return amdgpu_virt_ras_remote_uniras_enabled(adev);
+
 	if (!ras_mgr || !ras_mgr->ras_core)
 		return false;
 

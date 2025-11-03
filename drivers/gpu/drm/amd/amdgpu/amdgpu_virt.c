@@ -37,6 +37,7 @@
 #include "vi.h"
 #include "soc15.h"
 #include "nv.h"
+#include "amdgpu_virt_ras_cmd.h"
 
 #define POPULATE_UCODE_INFO(vf2pf_info, ucode, ver) \
 	do { \
@@ -1532,6 +1533,9 @@ bool amdgpu_virt_get_ras_capability(struct amdgpu_device *adev)
 
 	if (adev->virt.ras_en_caps.bits.poison_propogation_mode)
 		con->poison_supported = true; /* Poison is handled by host */
+
+	if (adev->virt.ras_en_caps.bits.uniras_supported)
+		amdgpu_virt_ras_set_remote_uniras(adev, true);
 
 	return true;
 }
