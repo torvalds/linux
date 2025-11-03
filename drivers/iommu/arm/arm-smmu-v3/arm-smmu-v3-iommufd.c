@@ -99,6 +99,8 @@ static void arm_smmu_make_nested_domain_ste(
 int arm_smmu_attach_prepare_vmaster(struct arm_smmu_attach_state *state,
 				    struct arm_smmu_nested_domain *nested_domain)
 {
+	unsigned int cfg =
+		FIELD_GET(STRTAB_STE_0_CFG, le64_to_cpu(nested_domain->ste[0]));
 	struct arm_smmu_vmaster *vmaster;
 	unsigned long vsid;
 	int ret;
@@ -107,8 +109,17 @@ int arm_smmu_attach_prepare_vmaster(struct arm_smmu_attach_state *state,
 
 	ret = iommufd_viommu_get_vdev_id(&nested_domain->vsmmu->core,
 					 state->master->dev, &vsid);
-	if (ret)
+	/*
+	 * Attaching to a translate nested domain must allocate a vDEVICE prior,
+	 * as CD/ATS invalidations and vevents require a vSID to work properly.
+	 * A abort/bypass domain is allowed to attach w/o vmaster for GBPA case.
+	 */
+	if (ret) {
+		if (cfg == STRTAB_STE_0_CFG_ABORT ||
+		    cfg == STRTAB_STE_0_CFG_BYPASS)
+			return 0;
 		return ret;
+	}
 
 	vmaster = kzalloc(sizeof(*vmaster), GFP_KERNEL);
 	if (!vmaster)

@@ -450,6 +450,16 @@ struct iommu_hwpt_vtd_s1 {
  * nested domain will translate the same as the nesting parent. The S1 will
  * install a Context Descriptor Table pointing at userspace memory translated
  * by the nesting parent.
+ *
+ * It's suggested to allocate a vDEVICE object carrying vSID and then re-attach
+ * the nested domain, as soon as the vSID is available in the VMM level:
+ *
+ * - when Cfg=translate, a vDEVICE must be allocated prior to attaching to the
+ *   allocated nested domain, as CD/ATS invalidations and vevents need a vSID.
+ * - when Cfg=bypass/abort, a vDEVICE is not enforced during the nested domain
+ *   attachment, to support a GBPA case where VM sets CR0.SMMUEN=0. However, if
+ *   VM sets CR0.SMMUEN=1 while missing a vDEVICE object, kernel would fail to
+ *   report events to the VM. E.g. F_TRANSLATION when guest STE.Cfg=abort.
  */
 struct iommu_hwpt_arm_smmuv3 {
 	__aligned_le64 ste[2];
