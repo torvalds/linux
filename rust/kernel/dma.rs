@@ -505,7 +505,7 @@ impl<T: AsBytes + FromBytes> CoherentAllocation<T> {
         //   data is also guaranteed by the safety requirements of the function.
         // - `offset + count` can't overflow since it is smaller than `self.count` and we've checked
         //   that `self.count` won't overflow early in the constructor.
-        Ok(unsafe { core::slice::from_raw_parts(self.cpu_addr.add(offset), count) })
+        Ok(unsafe { core::slice::from_raw_parts(self.start_ptr().add(offset), count) })
     }
 
     /// Performs the same functionality as [`CoherentAllocation::as_slice`], except that a mutable
@@ -525,7 +525,7 @@ impl<T: AsBytes + FromBytes> CoherentAllocation<T> {
         //   data is also guaranteed by the safety requirements of the function.
         // - `offset + count` can't overflow since it is smaller than `self.count` and we've checked
         //   that `self.count` won't overflow early in the constructor.
-        Ok(unsafe { core::slice::from_raw_parts_mut(self.cpu_addr.add(offset), count) })
+        Ok(unsafe { core::slice::from_raw_parts_mut(self.start_ptr_mut().add(offset), count) })
     }
 
     /// Writes data to the region starting from `offset`. `offset` is in units of `T`, not the
@@ -557,7 +557,11 @@ impl<T: AsBytes + FromBytes> CoherentAllocation<T> {
         // - `offset + count` can't overflow since it is smaller than `self.count` and we've checked
         //   that `self.count` won't overflow early in the constructor.
         unsafe {
-            core::ptr::copy_nonoverlapping(src.as_ptr(), self.cpu_addr.add(offset), src.len())
+            core::ptr::copy_nonoverlapping(
+                src.as_ptr(),
+                self.start_ptr_mut().add(offset),
+                src.len(),
+            )
         };
         Ok(())
     }
@@ -637,7 +641,7 @@ impl<T: AsBytes + FromBytes> Drop for CoherentAllocation<T> {
             bindings::dma_free_attrs(
                 self.dev.as_raw(),
                 size,
-                self.cpu_addr.cast(),
+                self.start_ptr_mut().cast(),
                 self.dma_handle,
                 self.dma_attrs.as_raw(),
             )
