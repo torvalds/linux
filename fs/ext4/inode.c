@@ -202,8 +202,7 @@ void ext4_evict_inode(struct inode *inode)
 	 * the inode. Flush worker is ignoring it because of I_FREEING flag but
 	 * we still need to remove the inode from the writeback lists.
 	 */
-	if (!list_empty_careful(&inode->i_io_list))
-		inode_io_list_del(inode);
+	inode_io_list_del(inode);
 
 	/*
 	 * Protect us against freezing - iput() caller didn't have to have any
