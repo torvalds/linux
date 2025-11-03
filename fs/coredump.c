@@ -1092,7 +1092,7 @@ void vfs_coredump(const kernel_siginfo_t *siginfo)
 	size_t *argv __free(kfree) = NULL;
 	struct core_state core_state;
 	struct core_name cn;
-	struct mm_struct *mm = current->mm;
+	const struct mm_struct *mm = current->mm;
 	const struct linux_binfmt *binfmt = mm->binfmt;
 	const struct cred *old_cred;
 	int argc = 0;
