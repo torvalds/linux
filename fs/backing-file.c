@@ -157,13 +157,37 @@ static int backing_aio_init_wq(struct kiocb *iocb)
 	return sb_init_dio_done_wq(sb);
 }
 
+static int do_backing_file_read_iter(struct file *file, struct iov_iter *iter,
+				     struct kiocb *iocb, int flags)
+{
+	struct backing_aio *aio = NULL;
+	int ret;
+
+	if (is_sync_kiocb(iocb)) {
+		rwf_t rwf = iocb_to_rw_flags(flags);
+
+		return vfs_iter_read(file, iter, &iocb->ki_pos, rwf);
+	}
+
+	aio = kmem_cache_zalloc(backing_aio_cachep, GFP_KERNEL);
+	if (!aio)
+		return -ENOMEM;
+
+	aio->orig_iocb = iocb;
+	kiocb_clone(&aio->iocb, iocb, get_file(file));
+	aio->iocb.ki_complete = backing_aio_rw_complete;
+	refcount_set(&aio->ref, 2);
+	ret = vfs_iocb_iter_read(file, &aio->iocb, iter);
+	backing_aio_put(aio);
+	if (ret != -EIOCBQUEUED)
+		backing_aio_cleanup(aio, ret);
+	return ret;
+}
 
 ssize_t backing_file_read_iter(struct file *file, struct iov_iter *iter,
 			       struct kiocb *iocb, int flags,
 			       struct backing_file_ctx *ctx)
 {
-	struct backing_aio *aio = NULL;
-	const struct cred *old_cred;
 	ssize_t ret;
 
 	if (WARN_ON_ONCE(!(file->f_mode & FMODE_BACKING)))
@@ -176,28 +200,8 @@ ssize_t backing_file_read_iter(struct file *file, struct iov_iter *iter,
 	    !(file->f_mode & FMODE_CAN_ODIRECT))
 		return -EINVAL;
 
-	old_cred = override_creds(ctx->cred);
-	if (is_sync_kiocb(iocb)) {
-		rwf_t rwf = iocb_to_rw_flags(flags);
-
-		ret = vfs_iter_read(file, iter, &iocb->ki_pos, rwf);
-	} else {
-		ret = -ENOMEM;
-		aio = kmem_cache_zalloc(backing_aio_cachep, GFP_KERNEL);
-		if (!aio)
-			goto out;
-
-		aio->orig_iocb = iocb;
-		kiocb_clone(&aio->iocb, iocb, get_file(file));
-		aio->iocb.ki_complete = backing_aio_rw_complete;
-		refcount_set(&aio->ref, 2);
-		ret = vfs_iocb_iter_read(file, &aio->iocb, iter);
-		backing_aio_put(aio);
-		if (ret != -EIOCBQUEUED)
-			backing_aio_cleanup(aio, ret);
-	}
-out:
-	revert_creds(old_cred);
+	scoped_with_creds(ctx->cred)
+		ret = do_backing_file_read_iter(file, iter, iocb, flags);
 
 	if (ctx->accessed)
 		ctx->accessed(iocb->ki_filp);
