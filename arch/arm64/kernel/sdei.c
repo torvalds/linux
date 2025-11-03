@@ -63,8 +63,6 @@ static void free_sdei_stacks(void)
 {
 	int cpu;
 
-	BUILD_BUG_ON(!IS_ENABLED(CONFIG_VMAP_STACK));
-
 	for_each_possible_cpu(cpu) {
 		_free_sdei_stack(&sdei_stack_normal_ptr, cpu);
 		_free_sdei_stack(&sdei_stack_critical_ptr, cpu);
@@ -87,8 +85,6 @@ static int init_sdei_stacks(void)
 {
 	int cpu;
 	int err = 0;
-
-	BUILD_BUG_ON(!IS_ENABLED(CONFIG_VMAP_STACK));
 
 	for_each_possible_cpu(cpu) {
 		err = _init_sdei_stack(&sdei_stack_normal_ptr, cpu);
