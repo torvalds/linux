@@ -39,14 +39,15 @@
 #define RMII_RESET_SPEED		(0x3 << 14)
 #define CTRL_SPEED_MASK			GENMASK(15, 14)
 
+struct imx_priv_data;
+
 struct imx_dwmac_ops {
 	u32 addr_width;
 	u32 flags;
 	bool mac_rgmii_txclk_auto_adj;
 
 	int (*fix_soc_reset)(struct stmmac_priv *priv, void __iomem *ioaddr);
-	int (*set_intf_mode)(struct plat_stmmacenet_data *plat_dat,
-			     u8 phy_intf_sel);
+	int (*set_intf_mode)(struct imx_priv_data *dwmac, u8 phy_intf_sel);
 	void (*fix_mac_speed)(void *priv, int speed, unsigned int mode);
 };
 
@@ -63,10 +64,8 @@ struct imx_priv_data {
 	struct plat_stmmacenet_data *plat_dat;
 };
 
-static int imx8mp_set_intf_mode(struct plat_stmmacenet_data *plat_dat,
-				u8 phy_intf_sel)
+static int imx8mp_set_intf_mode(struct imx_priv_data *dwmac, u8 phy_intf_sel)
 {
-	struct imx_priv_data *dwmac = plat_dat->bsp_priv;
 	unsigned int val;
 
 	val = FIELD_PREP(GPR_ENET_QOS_INTF_SEL_MASK, phy_intf_sel) |
@@ -82,17 +81,14 @@ static int imx8mp_set_intf_mode(struct plat_stmmacenet_data *plat_dat,
 };
 
 static int
-imx8dxl_set_intf_mode(struct plat_stmmacenet_data *plat_dat,
-		      u8 phy_intf_sel)
+imx8dxl_set_intf_mode(struct imx_priv_data *dwmac, u8 phy_intf_sel)
 {
 	/* TBD: depends on imx8dxl scu interfaces to be upstreamed */
 	return 0;
 }
 
-static int imx93_set_intf_mode(struct plat_stmmacenet_data *plat_dat,
-			       u8 phy_intf_sel)
+static int imx93_set_intf_mode(struct imx_priv_data *dwmac, u8 phy_intf_sel)
 {
-	struct imx_priv_data *dwmac = plat_dat->bsp_priv;
 	unsigned int val;
 	int ret;
 
@@ -140,14 +136,12 @@ static int imx_dwmac_clks_config(void *priv, bool enabled)
 
 static int imx_dwmac_init(struct platform_device *pdev, void *priv)
 {
-	struct plat_stmmacenet_data *plat_dat;
 	struct imx_priv_data *dwmac = priv;
 	phy_interface_t interface;
 	int phy_intf_sel, ret;
 
 	if (dwmac->ops->set_intf_mode) {
-		plat_dat = dwmac->plat_dat;
-		interface = plat_dat->phy_interface;
+		interface = dwmac->plat_dat->phy_interface;
 
 		phy_intf_sel = stmmac_get_phy_intf_sel(interface);
 		if (phy_intf_sel != PHY_INTF_SEL_GMII_MII &&
@@ -159,7 +153,7 @@ static int imx_dwmac_init(struct platform_device *pdev, void *priv)
 			return phy_intf_sel < 0 ? phy_intf_sel : -EINVAL;
 		}
 
-		ret = dwmac->ops->set_intf_mode(plat_dat, phy_intf_sel);
+		ret = dwmac->ops->set_intf_mode(dwmac, phy_intf_sel);
 		if (ret)
 			return ret;
 	}
