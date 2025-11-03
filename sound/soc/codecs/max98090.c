@@ -1325,10 +1325,12 @@ static const struct snd_soc_dapm_route max98090_dapm_routes[] = {
 	{"ADCL", NULL, "SHDN"},
 	{"ADCR", NULL, "SHDN"},
 
+	{"DMIC M1 Mux", "Enable", "DMICL"},
+	{"DMIC M1 Mux", "Enable", "DMICR"},
+
 	{"DMIC Mux", "ADC", "ADCL"},
 	{"DMIC Mux", "ADC", "ADCR"},
-	{"DMIC Mux", "DMIC", "DMICL"},
-	{"DMIC Mux", "DMIC", "DMICR"},
+	{"DMIC Mux", "DMIC", "DMIC M1 Mux"},
 
 	{"LBENL Mux", "Normal", "DMIC Mux"},
 	{"LBENL Mux", "Loopback", "LTENL Mux"},
@@ -1453,6 +1455,11 @@ static const struct snd_soc_dapm_route max98091_dapm_routes[] = {
 	{"DMIC3", NULL, "DMIC34_HPF"},
 	{"DMIC4", NULL, "DMIC34_HPF"},
 
+	{"DMIC M2 Mux", "Enable", "DMIC3"},
+	{"DMIC M2 Mux", "Enable", "DMIC4"},
+
+	{"AIFOUT2L", NULL, "DMIC M2 Mux"},
+	{"AIFOUT2R", NULL, "DMIC M2 Mux"},
 	{"AIFOUT2L", NULL, "SHDN"},
 	{"AIFOUT2R", NULL, "SHDN"},
 	{"AIFOUT2L", NULL, "SDOEN"},
