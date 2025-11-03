@@ -280,6 +280,11 @@ static inline void put_cred(const struct cred *cred)
 	put_cred_many(cred, 1);
 }
 
+DEFINE_CLASS(prepare_creds,
+	      struct cred *,
+	      if (_T) put_cred(_T),
+	      prepare_creds(), void)
+
 DEFINE_FREE(put_cred, struct cred *, if (!IS_ERR_OR_NULL(_T)) put_cred(_T))
 
 /**
