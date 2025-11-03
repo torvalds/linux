@@ -1150,6 +1150,7 @@ static int altera_tse_probe(struct platform_device *pdev)
 	}
 
 	SET_NETDEV_DEV(ndev, &pdev->dev);
+	platform_set_drvdata(pdev, ndev);
 
 	priv = netdev_priv(ndev);
 	priv->device = &pdev->dev;
@@ -1393,8 +1394,6 @@ static int altera_tse_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to register TSE net device\n");
 		goto err_register_netdev;
 	}
-
-	platform_set_drvdata(pdev, ndev);
 
 	priv->revision = ioread32(&priv->mac_dev->megacore_revision);
 
