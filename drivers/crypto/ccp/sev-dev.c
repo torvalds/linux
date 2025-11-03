@@ -259,27 +259,20 @@ static int sev_cmd_buffer_len(int cmd)
 
 static struct file *open_file_as_root(const char *filename, int flags, umode_t mode)
 {
-	struct file *fp;
-	struct path root;
-	struct cred *cred;
-	const struct cred *old_cred;
+	struct path root __free(path_put) = {};
 
 	task_lock(&init_task);
 	get_fs_root(init_task.fs, &root);
 	task_unlock(&init_task);
 
-	cred = prepare_creds();
+	CLASS(prepare_creds, cred)();
 	if (!cred)
 		return ERR_PTR(-ENOMEM);
+
 	cred->fsuid = GLOBAL_ROOT_UID;
-	old_cred = override_creds(cred);
 
-	fp = file_open_root(&root, filename, flags, mode);
-	path_put(&root);
-
-	put_cred(revert_creds(old_cred));
-
-	return fp;
+	scoped_with_creds(cred)
+		return file_open_root(&root, filename, flags, mode);
 }
 
 static int sev_read_init_ex_file(void)
