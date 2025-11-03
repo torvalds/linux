@@ -395,6 +395,7 @@ struct bnxt_qplib_cq_coal_param {
 	u8 normal_maxbuf;
 	u8 during_maxbuf;
 	u8 en_ring_idle_mode;
+	u8 enable;
 };
 
 #define BNXT_QPLIB_CQ_COAL_DEF_BUF_MAXTIME		0x1
