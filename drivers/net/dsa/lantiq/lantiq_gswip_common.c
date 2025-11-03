@@ -1537,6 +1537,49 @@ static int gswip_get_sset_count(struct dsa_switch *ds, int port, int sset)
 	return ARRAY_SIZE(gswip_rmon_cnt);
 }
 
+static int gswip_set_mac_eee(struct dsa_switch *ds, int port,
+			     struct ethtool_keee *e)
+{
+	if (e->tx_lpi_timer > 0x7f)
+		return -EINVAL;
+
+	return 0;
+}
+
+static void gswip_phylink_mac_disable_tx_lpi(struct phylink_config *config)
+{
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct gswip_priv *priv = dp->ds->priv;
+
+	regmap_clear_bits(priv->gswip, GSWIP_MAC_CTRL_4p(dp->index),
+			  GSWIP_MAC_CTRL_4_LPIEN);
+}
+
+static int gswip_phylink_mac_enable_tx_lpi(struct phylink_config *config,
+					   u32 timer, bool tx_clock_stop)
+{
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct gswip_priv *priv = dp->ds->priv;
+
+	return regmap_update_bits(priv->gswip, GSWIP_MAC_CTRL_4p(dp->index),
+				  GSWIP_MAC_CTRL_4_LPIEN |
+				  GSWIP_MAC_CTRL_4_GWAIT_MASK |
+				  GSWIP_MAC_CTRL_4_WAIT_MASK,
+				  GSWIP_MAC_CTRL_4_LPIEN |
+				  GSWIP_MAC_CTRL_4_GWAIT(timer) |
+				  GSWIP_MAC_CTRL_4_WAIT(timer));
+}
+
+static bool gswip_support_eee(struct dsa_switch *ds, int port)
+{
+	struct gswip_priv *priv = ds->priv;
+
+	if (GSWIP_VERSION_GE(priv, GSWIP_VERSION_2_2))
+		return true;
+
+	return false;
+}
+
 static struct phylink_pcs *gswip_phylink_mac_select_pcs(struct phylink_config *config,
 							phy_interface_t interface)
 {
@@ -1553,6 +1596,8 @@ static const struct phylink_mac_ops gswip_phylink_mac_ops = {
 	.mac_config		= gswip_phylink_mac_config,
 	.mac_link_down		= gswip_phylink_mac_link_down,
 	.mac_link_up		= gswip_phylink_mac_link_up,
+	.mac_disable_tx_lpi	= gswip_phylink_mac_disable_tx_lpi,
+	.mac_enable_tx_lpi	= gswip_phylink_mac_enable_tx_lpi,
 	.mac_select_pcs		= gswip_phylink_mac_select_pcs,
 };
 
@@ -1580,6 +1625,8 @@ static const struct dsa_switch_ops gswip_switch_ops = {
 	.get_strings		= gswip_get_strings,
 	.get_ethtool_stats	= gswip_get_ethtool_stats,
 	.get_sset_count		= gswip_get_sset_count,
+	.set_mac_eee		= gswip_set_mac_eee,
+	.support_eee		= gswip_support_eee,
 };
 
 void gswip_disable_switch(struct gswip_priv *priv)
