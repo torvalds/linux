@@ -90,7 +90,6 @@ cifs_get_spnego_key(struct cifs_ses *sesInfo,
 	size_t desc_len;
 	struct key *spnego_key;
 	const char *hostname = server->hostname;
-	const struct cred *saved_cred;
 
 	/* length of fields (with semicolons): ver=0xyz ip4=ipaddress
 	   host=hostname sec=mechanism uid=0xFF user=username */
@@ -158,9 +157,8 @@ cifs_get_spnego_key(struct cifs_ses *sesInfo,
 		dp += sprintf(dp, ";upcall_target=app");
 
 	cifs_dbg(FYI, "key description = %s\n", description);
-	saved_cred = override_creds(spnego_cred);
-	spnego_key = request_key(&cifs_spnego_key_type, description, "");
-	revert_creds(saved_cred);
+	scoped_with_creds(spnego_cred)
+		spnego_key = request_key(&cifs_spnego_key_type, description, "");
 
 #ifdef CONFIG_CIFS_DEBUG2
 	if (cifsFYI && !IS_ERR(spnego_key)) {
