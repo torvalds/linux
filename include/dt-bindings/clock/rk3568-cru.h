@@ -483,8 +483,6 @@
 
 #define PCLK_CORE_PVTM		450
 
-#define CLK_NR_CLKS		(PCLK_CORE_PVTM + 1)
-
 /* scmi-clocks indices */
 
 #define SCMI_CLK_CPU		0
