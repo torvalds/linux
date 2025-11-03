@@ -2007,7 +2007,7 @@ static void gmap_pmdp_clear(struct mm_struct *mm, unsigned long vmaddr,
 						   _SEGMENT_ENTRY_GMAP_UC |
 						   _SEGMENT_ENTRY));
 			if (purge)
-				__pmdp_csp(pmdp);
+				__pmdp_cspg(pmdp);
 			set_pmd(pmdp, __pmd(_SEGMENT_ENTRY_EMPTY));
 		}
 		spin_unlock(&gmap->guest_table_lock);
@@ -2026,17 +2026,6 @@ void gmap_pmdp_invalidate(struct mm_struct *mm, unsigned long vmaddr)
 	gmap_pmdp_clear(mm, vmaddr, 0);
 }
 EXPORT_SYMBOL_GPL(gmap_pmdp_invalidate);
-
-/**
- * gmap_pmdp_csp - csp all affected guest pmd entries
- * @mm: pointer to the process mm_struct
- * @vmaddr: virtual address in the process address space
- */
-void gmap_pmdp_csp(struct mm_struct *mm, unsigned long vmaddr)
-{
-	gmap_pmdp_clear(mm, vmaddr, 1);
-}
-EXPORT_SYMBOL_GPL(gmap_pmdp_csp);
 
 /**
  * gmap_pmdp_idte_local - invalidate and clear a guest pmd entry

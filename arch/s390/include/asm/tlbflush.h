@@ -35,9 +35,9 @@ static inline void __tlb_flush_idte(unsigned long asce)
  */
 static inline void __tlb_flush_global(void)
 {
-	unsigned int dummy = 0;
+	unsigned long dummy = 0;
 
-	csp(&dummy, 0, 0);
+	cspg(&dummy, 0, 0);
 }
 
 /*
