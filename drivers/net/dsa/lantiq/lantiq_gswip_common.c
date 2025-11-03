@@ -130,30 +130,6 @@ static void gswip_mii_mask_cfg(struct gswip_priv *priv, u32 mask, u32 set,
 			  set);
 }
 
-static void gswip_mii_mask_pcdu(struct gswip_priv *priv, u32 mask, u32 set,
-				int port)
-{
-	int reg_port;
-
-	/* MII_PCDU register only exists for MII ports */
-	if (!(priv->hw_info->mii_ports & BIT(port)))
-		return;
-
-	reg_port = port + priv->hw_info->mii_port_reg_offset;
-
-	switch (reg_port) {
-	case 0:
-		regmap_write_bits(priv->mii, GSWIP_MII_PCDU0, mask, set);
-		break;
-	case 1:
-		regmap_write_bits(priv->mii, GSWIP_MII_PCDU1, mask, set);
-		break;
-	case 5:
-		regmap_write_bits(priv->mii, GSWIP_MII_PCDU5, mask, set);
-		break;
-	}
-}
-
 static int gswip_mdio_poll(struct gswip_priv *priv)
 {
 	u32 ctrl;
@@ -620,6 +596,61 @@ static int gswip_port_vlan_filtering(struct dsa_switch *ds, int port,
 	gswip_port_commit_pvid(priv, port);
 
 	return 0;
+}
+
+static void gswip_mii_delay_setup(struct gswip_priv *priv, struct dsa_port *dp,
+				  phy_interface_t interface)
+{
+	u32 tx_delay = GSWIP_MII_PCDU_TXDLY_DEFAULT;
+	u32 rx_delay = GSWIP_MII_PCDU_RXDLY_DEFAULT;
+	struct device_node *port_dn = dp->dn;
+	u16 mii_pcdu_reg;
+
+	/* As MII_PCDU registers only exist for MII ports, silently return
+	 * unless the port is an MII port
+	 */
+	if (!(priv->hw_info->mii_ports & BIT(dp->index)))
+		return;
+
+	switch (dp->index + priv->hw_info->mii_port_reg_offset) {
+	case 0:
+		mii_pcdu_reg = GSWIP_MII_PCDU0;
+		break;
+	case 1:
+		mii_pcdu_reg = GSWIP_MII_PCDU1;
+		break;
+	case 5:
+		mii_pcdu_reg = GSWIP_MII_PCDU5;
+		break;
+	default:
+		return;
+	}
+
+	/* legacy code to set default delays according to the interface mode */
+	switch (interface) {
+	case PHY_INTERFACE_MODE_RGMII_ID:
+		tx_delay = 0;
+		rx_delay = 0;
+		break;
+	case PHY_INTERFACE_MODE_RGMII_RXID:
+		rx_delay = 0;
+		break;
+	case PHY_INTERFACE_MODE_RGMII_TXID:
+		tx_delay = 0;
+		break;
+	default:
+		break;
+	}
+
+	/* allow settings delays using device tree properties */
+	of_property_read_u32(port_dn, "rx-internal-delay-ps", &rx_delay);
+	of_property_read_u32(port_dn, "tx-internal-delay-ps", &tx_delay);
+
+	regmap_write_bits(priv->mii, mii_pcdu_reg,
+			  GSWIP_MII_PCDU_TXDLY_MASK |
+			  GSWIP_MII_PCDU_RXDLY_MASK,
+			  GSWIP_MII_PCDU_TXDLY(tx_delay) |
+			  GSWIP_MII_PCDU_RXDLY(rx_delay));
 }
 
 static int gswip_setup(struct dsa_switch *ds)
@@ -1425,20 +1456,7 @@ static void gswip_phylink_mac_config(struct phylink_config *config,
 			   GSWIP_MII_CFG_RGMII_IBS | GSWIP_MII_CFG_LDCLKDIS,
 			   miicfg, port);
 
-	switch (state->interface) {
-	case PHY_INTERFACE_MODE_RGMII_ID:
-		gswip_mii_mask_pcdu(priv, GSWIP_MII_PCDU_TXDLY_MASK |
-					  GSWIP_MII_PCDU_RXDLY_MASK, 0, port);
-		break;
-	case PHY_INTERFACE_MODE_RGMII_RXID:
-		gswip_mii_mask_pcdu(priv, GSWIP_MII_PCDU_RXDLY_MASK, 0, port);
-		break;
-	case PHY_INTERFACE_MODE_RGMII_TXID:
-		gswip_mii_mask_pcdu(priv, GSWIP_MII_PCDU_TXDLY_MASK, 0, port);
-		break;
-	default:
-		break;
-	}
+	gswip_mii_delay_setup(priv, dp, state->interface);
 }
 
 static void gswip_phylink_mac_link_down(struct phylink_config *config,
