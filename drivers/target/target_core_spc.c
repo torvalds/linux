@@ -521,7 +521,6 @@ spc_emulate_evpd_b0(struct se_cmd *cmd, unsigned char *buf)
 		have_tp = 1;
 
 	buf[0] = dev->transport->get_device_type(dev);
-	buf[3] = have_tp ? 0x3c : 0x10;
 
 	/* Set WSNZ to 1 */
 	buf[4] = 0x01;
@@ -562,11 +561,10 @@ spc_emulate_evpd_b0(struct se_cmd *cmd, unsigned char *buf)
 	else
 		put_unaligned_be32(dev->dev_attrib.optimal_sectors, &buf[12]);
 
-	/*
-	 * Exit now if we don't support TP.
-	 */
+	put_unaligned_be16(12, &buf[2]);
+
 	if (!have_tp)
-		goto max_write_same;
+		goto try_atomic;
 
 	/*
 	 * Set MAXIMUM UNMAP LBA COUNT
@@ -595,9 +593,29 @@ spc_emulate_evpd_b0(struct se_cmd *cmd, unsigned char *buf)
 	/*
 	 * MAXIMUM WRITE SAME LENGTH
 	 */
-max_write_same:
 	put_unaligned_be64(dev->dev_attrib.max_write_same_len, &buf[36]);
 
+	put_unaligned_be16(40, &buf[2]);
+
+try_atomic:
+	/*
+	 * ATOMIC
+	 */
+	if (!dev->dev_attrib.atomic_max_len)
+		goto done;
+
+	if (dev->dev_attrib.atomic_max_len < io_max_blocks)
+		put_unaligned_be32(dev->dev_attrib.atomic_max_len, &buf[44]);
+	else
+		put_unaligned_be32(io_max_blocks, &buf[44]);
+
+	put_unaligned_be32(dev->dev_attrib.atomic_alignment, &buf[48]);
+	put_unaligned_be32(dev->dev_attrib.atomic_granularity, &buf[52]);
+	put_unaligned_be32(dev->dev_attrib.atomic_max_with_boundary, &buf[56]);
+	put_unaligned_be32(dev->dev_attrib.atomic_max_boundary, &buf[60]);
+
+	put_unaligned_be16(60, &buf[2]);
+done:
 	return 0;
 }
 
@@ -1452,6 +1470,24 @@ static const struct target_opcode_descriptor tcm_opcode_write_same32 = {
 	.update_usage_bits = set_dpofua_usage_bits32,
 };
 
+static bool tcm_is_atomic_enabled(const struct target_opcode_descriptor *descr,
+				  struct se_cmd *cmd)
+{
+	return cmd->se_dev->dev_attrib.atomic_max_len;
+}
+
+static struct target_opcode_descriptor tcm_opcode_write_atomic16 = {
+	.support = SCSI_SUPPORT_FULL,
+	.opcode = WRITE_ATOMIC_16,
+	.cdb_size = 16,
+	.usage_bits = {WRITE_ATOMIC_16, 0xf8, 0xff, 0xff,
+		       0xff, 0xff, 0xff, 0xff,
+		       0xff, 0xff, 0xff, 0xff,
+		       0xff, 0xff, SCSI_GROUP_NUMBER_MASK, SCSI_CONTROL_MASK},
+	.enabled = tcm_is_atomic_enabled,
+	.update_usage_bits = set_dpofua_usage_bits,
+};
+
 static bool tcm_is_caw_enabled(const struct target_opcode_descriptor *descr,
 			       struct se_cmd *cmd)
 {
@@ -2008,6 +2044,7 @@ static const struct target_opcode_descriptor *tcm_supported_opcodes[] = {
 	&tcm_opcode_write16,
 	&tcm_opcode_write_verify16,
 	&tcm_opcode_write_same32,
+	&tcm_opcode_write_atomic16,
 	&tcm_opcode_compare_write,
 	&tcm_opcode_read_capacity,
 	&tcm_opcode_read_capacity16,
