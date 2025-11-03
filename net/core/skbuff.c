@@ -7200,6 +7200,7 @@ nodefer:	kfree_skb_napi_cache(skb);
 
 	DEBUG_NET_WARN_ON_ONCE(skb_dst(skb));
 	DEBUG_NET_WARN_ON_ONCE(skb->destructor);
+	DEBUG_NET_WARN_ON_ONCE(skb_nfct(skb));
 
 	sdn = per_cpu_ptr(net_hotdata.skb_defer_nodes, cpu) + numa_node_id();
 

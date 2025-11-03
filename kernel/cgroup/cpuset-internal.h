@@ -155,9 +155,6 @@ struct cpuset {
 	/* for custom sched domain */
 	int relax_domain_level;
 
-	/* number of valid local child partitions */
-	int nr_subparts;
-
 	/* partition root state */
 	int partition_root_state;
 
