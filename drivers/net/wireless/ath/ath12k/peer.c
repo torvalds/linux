@@ -50,10 +50,7 @@ void ath12k_peer_cleanup(struct ath12k *ar, u32 vdev_id)
 		ath12k_warn(ab, "removing stale peer %pM from vdev_id %d\n",
 			    peer->addr, vdev_id);
 
-		list_del(&peer->list);
-
-		kfree(peer->peer_stats.rx_stats);
-		kfree(peer);
+		ath12k_dp_link_peer_free(peer);
 		ar->num_peers--;
 	}
 

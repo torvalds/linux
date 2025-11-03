@@ -9,6 +9,14 @@
 #include "debug.h"
 #include "debugfs.h"
 
+void ath12k_dp_link_peer_free(struct ath12k_dp_link_peer *peer)
+{
+	list_del(&peer->list);
+
+	kfree(peer->peer_stats.rx_stats);
+	kfree(peer);
+}
+
 struct ath12k_dp_link_peer *
 ath12k_dp_link_peer_find_by_vdev_and_addr(struct ath12k_dp *dp,
 					  int vdev_id, const u8 *addr)
@@ -140,10 +148,7 @@ void ath12k_dp_link_peer_unmap_event(struct ath12k_base *ab, u16 peer_id)
 	ath12k_dbg(ab, ATH12K_DBG_DP_HTT, "htt peer unmap vdev %d peer %pM id %d\n",
 		   peer->vdev_id, peer->addr, peer_id);
 
-	list_del(&peer->list);
-
-	kfree(peer->peer_stats.rx_stats);
-	kfree(peer);
+	ath12k_dp_link_peer_free(peer);
 	wake_up(&ab->peer_mapping_wq);
 
 exit:

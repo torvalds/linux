@@ -178,4 +178,5 @@ struct ath12k_dp_peer *ath12k_dp_peer_find_by_peerid(struct ath12k_pdev_dp *dp_p
 						     u16 peer_id);
 struct ath12k_dp_link_peer *
 ath12k_dp_link_peer_find_by_peerid(struct ath12k_pdev_dp *dp_pdev, u16 peer_id);
+void ath12k_dp_link_peer_free(struct ath12k_dp_link_peer *peer);
 #endif

@@ -1213,10 +1213,7 @@ void ath12k_mac_peer_cleanup_all(struct ath12k *ar)
 	synchronize_rcu();
 
 	list_for_each_entry_safe(peer, tmp, &peers, list) {
-		list_del(&peer->list);
-
-		kfree(peer->peer_stats.rx_stats);
-		kfree(peer);
+		ath12k_dp_link_peer_free(peer);
 	}
 
 	ar->num_peers = 0;
@@ -6377,10 +6374,8 @@ static void ath12k_mac_station_post_remove(struct ath12k *ar,
 		ath12k_warn(ar->ab, "Found peer entry %pM n vdev %i after it was supposedly removed\n",
 			    vif->addr, arvif->vdev_id);
 		peer->sta = NULL;
-		list_del(&peer->list);
 
-		kfree(peer->peer_stats.rx_stats);
-		kfree(peer);
+		ath12k_dp_link_peer_free(peer);
 		ar->num_peers--;
 	}
 
