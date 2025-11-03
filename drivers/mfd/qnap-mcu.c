@@ -333,6 +333,7 @@ static const struct qnap_mcu_variant qnap_ts433_mcu = {
 };
 
 static struct mfd_cell qnap_mcu_cells[] = {
+	{ .name = "qnap-mcu-eeprom", },
 	{ .name = "qnap-mcu-input", },
 	{ .name = "qnap-mcu-leds", },
 	{ .name = "qnap-mcu-hwmon", }
