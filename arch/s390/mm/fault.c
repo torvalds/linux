@@ -133,8 +133,17 @@ static void dump_fault_info(struct pt_regs *regs)
 	union teid teid = { .val = regs->int_parm_long };
 	unsigned long asce;
 
-	pr_alert("Failing address: %016lx TEID: %016lx\n",
+	pr_alert("Failing address: %016lx TEID: %016lx",
 		 get_fault_address(regs), teid.val);
+	if (test_facility(131))
+		pr_cont(" ESOP-2");
+	else if (machine_has_esop())
+		pr_cont(" ESOP-1");
+	else
+		pr_cont(" SOP");
+	if (test_facility(75))
+		pr_cont(" FSI");
+	pr_cont("\n");
 	pr_alert("Fault in ");
 	switch (teid.as) {
 	case PSW_BITS_AS_HOME:
