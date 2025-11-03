@@ -255,6 +255,7 @@ struct gswip_hw_info {
 	unsigned int allowed_cpu_ports;
 	unsigned int mii_ports;
 	int mii_port_reg_offset;
+	bool supports_2500m;
 	const struct gswip_pce_microcode (*pce_microcode)[];
 	size_t pce_microcode_size;
 	enum dsa_tag_protocol tag_protocol;
