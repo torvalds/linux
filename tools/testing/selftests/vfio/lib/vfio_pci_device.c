@@ -2,6 +2,7 @@
 #include <dirent.h>
 #include <fcntl.h>
 #include <libgen.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -141,7 +142,7 @@ static void vfio_pci_irq_get(struct vfio_pci_device *device, u32 index,
 	ioctl_assert(device->fd, VFIO_DEVICE_GET_IRQ_INFO, irq_info);
 }
 
-static void vfio_iommu_dma_map(struct vfio_pci_device *device,
+static int vfio_iommu_dma_map(struct vfio_pci_device *device,
 			       struct vfio_dma_region *region)
 {
 	struct vfio_iommu_type1_dma_map args = {
@@ -152,10 +153,13 @@ static void vfio_iommu_dma_map(struct vfio_pci_device *device,
 		.size = region->size,
 	};
 
-	ioctl_assert(device->container_fd, VFIO_IOMMU_MAP_DMA, &args);
+	if (ioctl(device->container_fd, VFIO_IOMMU_MAP_DMA, &args))
+		return -errno;
+
+	return 0;
 }
 
-static void iommufd_dma_map(struct vfio_pci_device *device,
+static int iommufd_dma_map(struct vfio_pci_device *device,
 			    struct vfio_dma_region *region)
 {
 	struct iommu_ioas_map args = {
@@ -169,54 +173,108 @@ static void iommufd_dma_map(struct vfio_pci_device *device,
 		.ioas_id = device->ioas_id,
 	};
 
-	ioctl_assert(device->iommufd, IOMMU_IOAS_MAP, &args);
+	if (ioctl(device->iommufd, IOMMU_IOAS_MAP, &args))
+		return -errno;
+
+	return 0;
 }
 
-void vfio_pci_dma_map(struct vfio_pci_device *device,
+int __vfio_pci_dma_map(struct vfio_pci_device *device,
 		      struct vfio_dma_region *region)
 {
+	int ret;
+
 	if (device->iommufd)
-		iommufd_dma_map(device, region);
+		ret = iommufd_dma_map(device, region);
 	else
-		vfio_iommu_dma_map(device, region);
+		ret = vfio_iommu_dma_map(device, region);
+
+	if (ret)
+		return ret;
 
 	list_add(&region->link, &device->dma_regions);
+
+	return 0;
 }
 
-static void vfio_iommu_dma_unmap(struct vfio_pci_device *device,
-				 struct vfio_dma_region *region)
+static int vfio_iommu_dma_unmap(int fd, u64 iova, u64 size, u32 flags,
+				u64 *unmapped)
 {
 	struct vfio_iommu_type1_dma_unmap args = {
 		.argsz = sizeof(args),
-		.iova = region->iova,
-		.size = region->size,
+		.iova = iova,
+		.size = size,
+		.flags = flags,
 	};
 
-	ioctl_assert(device->container_fd, VFIO_IOMMU_UNMAP_DMA, &args);
+	if (ioctl(fd, VFIO_IOMMU_UNMAP_DMA, &args))
+		return -errno;
+
+	if (unmapped)
+		*unmapped = args.size;
+
+	return 0;
 }
 
-static void iommufd_dma_unmap(struct vfio_pci_device *device,
-			      struct vfio_dma_region *region)
+static int iommufd_dma_unmap(int fd, u64 iova, u64 length, u32 ioas_id,
+			     u64 *unmapped)
 {
 	struct iommu_ioas_unmap args = {
 		.size = sizeof(args),
-		.iova = region->iova,
-		.length = region->size,
-		.ioas_id = device->ioas_id,
+		.iova = iova,
+		.length = length,
+		.ioas_id = ioas_id,
 	};
 
-	ioctl_assert(device->iommufd, IOMMU_IOAS_UNMAP, &args);
+	if (ioctl(fd, IOMMU_IOAS_UNMAP, &args))
+		return -errno;
+
+	if (unmapped)
+		*unmapped = args.length;
+
+	return 0;
 }
 
-void vfio_pci_dma_unmap(struct vfio_pci_device *device,
-			struct vfio_dma_region *region)
+int __vfio_pci_dma_unmap(struct vfio_pci_device *device,
+			 struct vfio_dma_region *region, u64 *unmapped)
 {
-	if (device->iommufd)
-		iommufd_dma_unmap(device, region);
-	else
-		vfio_iommu_dma_unmap(device, region);
+	int ret;
 
-	list_del(&region->link);
+	if (device->iommufd)
+		ret = iommufd_dma_unmap(device->iommufd, region->iova,
+					region->size, device->ioas_id,
+					unmapped);
+	else
+		ret = vfio_iommu_dma_unmap(device->container_fd, region->iova,
+					   region->size, 0, unmapped);
+
+	if (ret)
+		return ret;
+
+	list_del_init(&region->link);
+
+	return 0;
+}
+
+int __vfio_pci_dma_unmap_all(struct vfio_pci_device *device, u64 *unmapped)
+{
+	int ret;
+	struct vfio_dma_region *curr, *next;
+
+	if (device->iommufd)
+		ret = iommufd_dma_unmap(device->iommufd, 0, UINT64_MAX,
+					device->ioas_id, unmapped);
+	else
+		ret = vfio_iommu_dma_unmap(device->container_fd, 0, 0,
+					   VFIO_DMA_UNMAP_FLAG_ALL, unmapped);
+
+	if (ret)
+		return ret;
+
+	list_for_each_entry_safe(curr, next, &device->dma_regions, link)
+		list_del_init(&curr->link);
+
+	return 0;
 }
 
 static void vfio_pci_region_get(struct vfio_pci_device *device, int index,

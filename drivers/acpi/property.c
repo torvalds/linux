@@ -1107,7 +1107,7 @@ int __acpi_node_get_property_reference(const struct fwnode_handle *fwnode,
 				       size_t num_args,
 				       struct fwnode_reference_args *args)
 {
-	return acpi_fwnode_get_reference_args(fwnode, propname, NULL, index, num_args, args);
+	return acpi_fwnode_get_reference_args(fwnode, propname, NULL, num_args, index, args);
 }
 EXPORT_SYMBOL_GPL(__acpi_node_get_property_reference);
 
