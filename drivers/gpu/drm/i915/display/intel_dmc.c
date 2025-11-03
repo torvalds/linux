@@ -1712,14 +1712,14 @@ void intel_pipedmc_irq_handler(struct intel_display *display, enum pipe pipe)
 			drm_err_ratelimited(display->drm, "[CRTC:%d:%s] PIPEDMC GTT fault\n",
 					    crtc->base.base.id, crtc->base.name);
 		if (tmp & PIPEDMC_ERROR)
-			drm_err(display->drm, "[CRTC:%d:%s]] PIPEDMC error\n",
+			drm_err(display->drm, "[CRTC:%d:%s] PIPEDMC error\n",
 				crtc->base.base.id, crtc->base.name);
 	}
 
 	int_vector = intel_de_read(display, PIPEDMC_STATUS(pipe)) & PIPEDMC_INT_VECTOR_MASK;
 	if (tmp == 0 && int_vector != 0)
-		drm_err(display->drm, "[CRTC:%d:%s]] PIPEDMC interrupt vector 0x%x\n",
-			crtc->base.base.id, crtc->base.name, tmp);
+		drm_err(display->drm, "[CRTC:%d:%s] PIPEDMC interrupt vector 0x%x\n",
+			crtc->base.base.id, crtc->base.name, int_vector);
 }
 
 void intel_pipedmc_enable_event(struct intel_crtc *crtc,
