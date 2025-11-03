@@ -595,28 +595,25 @@ static void nfs_local_call_read(struct work_struct *work)
 	struct nfs_local_kiocb *iocb =
 		container_of(work, struct nfs_local_kiocb, work);
 	struct file *filp = iocb->kiocb.ki_filp;
-	const struct cred *save_cred;
 	ssize_t status;
 
-	save_cred = override_creds(filp->f_cred);
+	scoped_with_creds(filp->f_cred) {
+		for (int i = 0; i < iocb->n_iters ; i++) {
+			if (iocb->iter_is_dio_aligned[i]) {
+				iocb->kiocb.ki_flags |= IOCB_DIRECT;
+				iocb->kiocb.ki_complete = nfs_local_read_aio_complete;
+				iocb->aio_complete_work = nfs_local_read_aio_complete_work;
+			}
 
-	for (int i = 0; i < iocb->n_iters ; i++) {
-		if (iocb->iter_is_dio_aligned[i]) {
-			iocb->kiocb.ki_flags |= IOCB_DIRECT;
-			iocb->kiocb.ki_complete = nfs_local_read_aio_complete;
-			iocb->aio_complete_work = nfs_local_read_aio_complete_work;
-		}
-
-		iocb->kiocb.ki_pos = iocb->offset[i];
-		status = filp->f_op->read_iter(&iocb->kiocb, &iocb->iters[i]);
-		if (status != -EIOCBQUEUED) {
-			nfs_local_pgio_done(iocb->hdr, status);
-			if (iocb->hdr->task.tk_status)
-				break;
+			iocb->kiocb.ki_pos = iocb->offset[i];
+			status = filp->f_op->read_iter(&iocb->kiocb, &iocb->iters[i]);
+			if (status != -EIOCBQUEUED) {
+				nfs_local_pgio_done(iocb->hdr, status);
+				if (iocb->hdr->task.tk_status)
+					break;
+			}
 		}
 	}
-
-	revert_creds(save_cred);
 
 	if (status != -EIOCBQUEUED) {
 		nfs_local_read_done(iocb, status);
@@ -784,17 +781,10 @@ static void nfs_local_write_aio_complete(struct kiocb *kiocb, long ret)
 	nfs_local_pgio_aio_complete(iocb); /* Calls nfs_local_write_aio_complete_work */
 }
 
-static void nfs_local_call_write(struct work_struct *work)
+static ssize_t do_nfs_local_call_write(struct nfs_local_kiocb *iocb,
+				       struct file *filp)
 {
-	struct nfs_local_kiocb *iocb =
-		container_of(work, struct nfs_local_kiocb, work);
-	struct file *filp = iocb->kiocb.ki_filp;
-	unsigned long old_flags = current->flags;
-	const struct cred *save_cred;
 	ssize_t status;
-
-	current->flags |= PF_LOCAL_THROTTLE | PF_MEMALLOC_NOIO;
-	save_cred = override_creds(filp->f_cred);
 
 	file_start_write(filp);
 	for (int i = 0; i < iocb->n_iters ; i++) {
@@ -840,7 +830,22 @@ retry:
 	}
 	file_end_write(filp);
 
-	revert_creds(save_cred);
+	return status;
+}
+
+static void nfs_local_call_write(struct work_struct *work)
+{
+	struct nfs_local_kiocb *iocb =
+		container_of(work, struct nfs_local_kiocb, work);
+	struct file *filp = iocb->kiocb.ki_filp;
+	unsigned long old_flags = current->flags;
+	ssize_t status;
+
+	current->flags |= PF_LOCAL_THROTTLE | PF_MEMALLOC_NOIO;
+
+	scoped_with_creds(filp->f_cred)
+		status = do_nfs_local_call_write(iocb, filp);
+
 	current->flags = old_flags;
 
 	if (status != -EIOCBQUEUED) {
