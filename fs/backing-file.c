@@ -283,15 +283,13 @@ ssize_t backing_file_splice_read(struct file *in, struct kiocb *iocb,
 				 unsigned int flags,
 				 struct backing_file_ctx *ctx)
 {
-	const struct cred *old_cred;
 	ssize_t ret;
 
 	if (WARN_ON_ONCE(!(in->f_mode & FMODE_BACKING)))
 		return -EIO;
 
-	old_cred = override_creds(ctx->cred);
-	ret = vfs_splice_read(in, &iocb->ki_pos, pipe, len, flags);
-	revert_creds(old_cred);
+	scoped_with_creds(ctx->cred)
+		ret = vfs_splice_read(in, &iocb->ki_pos, pipe, len, flags);
 
 	if (ctx->accessed)
 		ctx->accessed(iocb->ki_filp);
