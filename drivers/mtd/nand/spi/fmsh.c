@@ -58,7 +58,7 @@ static const struct spinand_info fmsh_spinand_table[] = {
 		     SPINAND_INFO_OP_VARIANTS(&read_cache_variants,
 					      &write_cache_variants,
 					      &update_cache_variants),
-		     SPINAND_HAS_QE_BIT,
+		     0,
 		     SPINAND_ECCINFO(&fm25s01a_ooblayout, NULL)),
 };
 
