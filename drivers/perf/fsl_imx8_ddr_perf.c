@@ -645,8 +645,8 @@ static void ddr_perf_pmu_disable(struct pmu *pmu)
 {
 }
 
-static int ddr_perf_init(struct ddr_pmu *pmu, void __iomem *base,
-			 struct device *dev)
+static void ddr_perf_init(struct ddr_pmu *pmu, void __iomem *base,
+			  struct device *dev)
 {
 	*pmu = (struct ddr_pmu) {
 		.pmu = (struct pmu) {
@@ -667,9 +667,6 @@ static int ddr_perf_init(struct ddr_pmu *pmu, void __iomem *base,
 		.base = base,
 		.dev = dev,
 	};
-
-	pmu->id = ida_alloc(&ddr_ida, GFP_KERNEL);
-	return pmu->id;
 }
 
 static irqreturn_t ddr_perf_irq_handler(int irq, void *p)
@@ -753,15 +750,21 @@ static int ddr_perf_probe(struct platform_device *pdev)
 	if (!pmu)
 		return -ENOMEM;
 
-	num = ddr_perf_init(pmu, base, &pdev->dev);
+	ddr_perf_init(pmu, base, &pdev->dev);
 
 	platform_set_drvdata(pdev, pmu);
+
+	num = ida_alloc(&ddr_ida, GFP_KERNEL);
+	if (num < 0)
+		return num;
+
+	pmu->id = num;
 
 	name = devm_kasprintf(&pdev->dev, GFP_KERNEL, DDR_PERF_DEV_NAME "%d",
 			      num);
 	if (!name) {
 		ret = -ENOMEM;
-		goto cpuhp_state_err;
+		goto idr_free;
 	}
 
 	pmu->devtype_data = of_device_get_match_data(&pdev->dev);
@@ -774,7 +777,7 @@ static int ddr_perf_probe(struct platform_device *pdev)
 
 	if (ret < 0) {
 		dev_err(&pdev->dev, "cpuhp_setup_state_multi failed\n");
-		goto cpuhp_state_err;
+		goto idr_free;
 	}
 
 	pmu->cpuhp_state = ret;
@@ -821,7 +824,7 @@ ddr_perf_err:
 	cpuhp_state_remove_instance_nocalls(pmu->cpuhp_state, &pmu->node);
 cpuhp_instance_err:
 	cpuhp_remove_multi_state(pmu->cpuhp_state);
-cpuhp_state_err:
+idr_free:
 	ida_free(&ddr_ida, pmu->id);
 	dev_warn(&pdev->dev, "i.MX8 DDR Perf PMU failed (%d), disabled\n", ret);
 	return ret;
