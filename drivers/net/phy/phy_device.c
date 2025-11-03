@@ -825,8 +825,8 @@ struct phy_device *phy_device_create(struct mii_bus *bus, int addr, u32 phy_id,
 
 	dev->speed = SPEED_UNKNOWN;
 	dev->duplex = DUPLEX_UNKNOWN;
-	dev->pause = 0;
-	dev->asym_pause = 0;
+	dev->pause = false;
+	dev->asym_pause = false;
 	dev->link = 0;
 	dev->port = PORT_TP;
 	dev->interface = PHY_INTERFACE_MODE_GMII;
@@ -2092,8 +2092,8 @@ int genphy_setup_forced(struct phy_device *phydev)
 {
 	u16 ctl;
 
-	phydev->pause = 0;
-	phydev->asym_pause = 0;
+	phydev->pause = false;
+	phydev->asym_pause = false;
 
 	ctl = mii_bmcr_encode_fixed(phydev->speed, phydev->duplex);
 
@@ -2500,8 +2500,8 @@ int genphy_read_status(struct phy_device *phydev)
 	phydev->master_slave_state = MASTER_SLAVE_STATE_UNSUPPORTED;
 	phydev->speed = SPEED_UNKNOWN;
 	phydev->duplex = DUPLEX_UNKNOWN;
-	phydev->pause = 0;
-	phydev->asym_pause = 0;
+	phydev->pause = false;
+	phydev->asym_pause = false;
 
 	if (phydev->is_gigabit_capable) {
 		err = genphy_read_master_slave(phydev);
@@ -2554,8 +2554,8 @@ int genphy_c37_read_status(struct phy_device *phydev, bool *changed)
 	/* Signal link has changed */
 	*changed = true;
 	phydev->duplex = DUPLEX_UNKNOWN;
-	phydev->pause = 0;
-	phydev->asym_pause = 0;
+	phydev->pause = false;
+	phydev->asym_pause = false;
 
 	if (phydev->autoneg == AUTONEG_ENABLE && phydev->autoneg_complete) {
 		lpa = phy_read(phydev, MII_LPA);

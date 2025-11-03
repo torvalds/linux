@@ -485,8 +485,8 @@ static int genphy_c45_baset1_read_lpa(struct phy_device *phydev)
 		mii_t1_adv_l_mod_linkmode_t(phydev->lp_advertising, 0);
 		mii_t1_adv_m_mod_linkmode_t(phydev->lp_advertising, 0);
 
-		phydev->pause = 0;
-		phydev->asym_pause = 0;
+		phydev->pause = false;
+		phydev->asym_pause = false;
 
 		return 0;
 	}
@@ -498,8 +498,8 @@ static int genphy_c45_baset1_read_lpa(struct phy_device *phydev)
 		return val;
 
 	mii_t1_adv_l_mod_linkmode_t(phydev->lp_advertising, val);
-	phydev->pause = val & MDIO_AN_T1_ADV_L_PAUSE_CAP ? 1 : 0;
-	phydev->asym_pause = val & MDIO_AN_T1_ADV_L_PAUSE_ASYM ? 1 : 0;
+	phydev->pause = val & MDIO_AN_T1_ADV_L_PAUSE_CAP;
+	phydev->asym_pause = val & MDIO_AN_T1_ADV_L_PAUSE_ASYM;
 
 	val = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_T1_LP_M);
 	if (val < 0)
@@ -536,8 +536,8 @@ int genphy_c45_read_lpa(struct phy_device *phydev)
 				   phydev->lp_advertising);
 		mii_10gbt_stat_mod_linkmode_lpa_t(phydev->lp_advertising, 0);
 		mii_adv_mod_linkmode_adv_t(phydev->lp_advertising, 0);
-		phydev->pause = 0;
-		phydev->asym_pause = 0;
+		phydev->pause = false;
+		phydev->asym_pause = false;
 
 		return 0;
 	}
@@ -551,8 +551,8 @@ int genphy_c45_read_lpa(struct phy_device *phydev)
 		return val;
 
 	mii_adv_mod_linkmode_adv_t(phydev->lp_advertising, val);
-	phydev->pause = val & LPA_PAUSE_CAP ? 1 : 0;
-	phydev->asym_pause = val & LPA_PAUSE_ASYM ? 1 : 0;
+	phydev->pause = val & LPA_PAUSE_CAP;
+	phydev->asym_pause = val & LPA_PAUSE_ASYM;
 
 	/* Read the link partner's 10G advertisement */
 	val = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_10GBT_STAT);
@@ -1171,8 +1171,8 @@ int genphy_c45_read_status(struct phy_device *phydev)
 
 	phydev->speed = SPEED_UNKNOWN;
 	phydev->duplex = DUPLEX_UNKNOWN;
-	phydev->pause = 0;
-	phydev->asym_pause = 0;
+	phydev->pause = false;
+	phydev->asym_pause = false;
 
 	if (phydev->autoneg == AUTONEG_ENABLE) {
 		ret = genphy_c45_read_lpa(phydev);
