@@ -27,6 +27,9 @@
    xfrm_proc
    netmem
    alias
+   mptcp-sysctl
+   generic-hdlc
+   timestamping
 
 Todolist:
 
@@ -76,7 +79,6 @@ Todolist:
 *   eql
 *   fib_trie
 *   filter
-*   generic-hdlc
 *   generic_netlink
 *   netlink_spec/index
 *   gen_stats
@@ -96,7 +98,6 @@ Todolist:
 *   mctp
 *   mpls-sysctl
 *   mptcp
-*   mptcp-sysctl
 *   multiqueue
 *   multi-pf-netdev
 *   net_cachelines/index
@@ -126,7 +127,6 @@ Todolist:
 *   sctp
 *   secid
 *   seg6-sysctl
-*   skbuff
 *   smc-sysctl
 *   sriov
 *   statistics
@@ -138,7 +138,6 @@ Todolist:
 *   tcp_ao
 *   tcp-thin
 *   team
-*   timestamping
 *   tipc
 *   tproxy
 *   tuntap

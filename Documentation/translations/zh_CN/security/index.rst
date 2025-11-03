@@ -18,7 +18,9 @@
    credentials
    snp-tdx-threat-model
    lsm
+   lsm-development
    sak
+   SCTP
    self-protection
    siphash
    tpm/index
@@ -28,7 +30,5 @@
 TODOLIST:
 * IMA-templates
 * keys/index
-* lsm-development
-* SCTP
 * secrets/index
 * ipe
