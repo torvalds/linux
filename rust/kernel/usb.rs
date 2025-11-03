@@ -89,7 +89,7 @@ impl<T: Driver + 'static> Adapter<T> {
         // and stored a `Pin<KBox<T>>`.
         let data = unsafe { dev.drvdata_obtain::<T>() };
 
-        T::disconnect(intf, data.data());
+        T::disconnect(intf, data.as_ref());
     }
 }
 
