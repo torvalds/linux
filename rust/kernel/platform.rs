@@ -301,15 +301,17 @@ macro_rules! define_irq_accessor_by_index {
             index: u32,
             name: &'static CStr,
             handler: impl PinInit<T, Error> + 'a,
-        ) -> Result<impl PinInit<irq::$reg_type<T>, Error> + 'a> {
-            let request = self.$request_fn(index)?;
+        ) -> impl PinInit<irq::$reg_type<T>, Error> + 'a {
+            pin_init::pin_init_scope(move || {
+                let request = self.$request_fn(index)?;
 
-            Ok(irq::$reg_type::<T>::new(
-                request,
-                flags,
-                name,
-                handler,
-            ))
+                Ok(irq::$reg_type::<T>::new(
+                    request,
+                    flags,
+                    name,
+                    handler,
+                ))
+            })
         }
     };
 }
@@ -325,18 +327,20 @@ macro_rules! define_irq_accessor_by_name {
         pub fn $fn_name<'a, T: irq::$handler_trait + 'static>(
             &'a self,
             flags: irq::Flags,
-            irq_name: &CStr,
+            irq_name: &'a CStr,
             name: &'static CStr,
             handler: impl PinInit<T, Error> + 'a,
-        ) -> Result<impl PinInit<irq::$reg_type<T>, Error> + 'a> {
-            let request = self.$request_fn(irq_name)?;
+        ) -> impl PinInit<irq::$reg_type<T>, Error> + 'a {
+            pin_init::pin_init_scope(move || {
+                let request = self.$request_fn(irq_name)?;
 
-            Ok(irq::$reg_type::<T>::new(
-                request,
-                flags,
-                name,
-                handler,
-            ))
+                Ok(irq::$reg_type::<T>::new(
+                    request,
+                    flags,
+                    name,
+                    handler,
+                ))
+            })
         }
     };
 }
