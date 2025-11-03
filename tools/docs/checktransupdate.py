@@ -9,9 +9,9 @@ commit to find the latest english commit from the translation commit
 differences occur, report the file and commits that need to be updated.
 
 The usage is as follows:
-- ./scripts/checktransupdate.py -l zh_CN
+- tools/docs/checktransupdate.py -l zh_CN
 This will print all the files that need to be updated or translated in the zh_CN locale.
-- ./scripts/checktransupdate.py Documentation/translations/zh_CN/dev-tools/testing-overview.rst
+- tools/docs/checktransupdate.py Documentation/translations/zh_CN/dev-tools/testing-overview.rst
 This will only print the status of the specified file.
 
 The output is something like:
@@ -168,7 +168,7 @@ def check_per_file(file_path):
 def valid_locales(locale):
     """Check if the locale is valid or not"""
     script_path = os.path.dirname(os.path.abspath(__file__))
-    linux_path = os.path.join(script_path, "..")
+    linux_path = os.path.join(script_path, "../..")
     if not os.path.isdir(f"{linux_path}/Documentation/translations/{locale}"):
         raise ArgumentTypeError("Invalid locale: {locale}")
     return locale
@@ -232,7 +232,7 @@ def config_logging(log_level, log_file="checktransupdate.log"):
 def main():
     """Main function of the script"""
     script_path = os.path.dirname(os.path.abspath(__file__))
-    linux_path = os.path.join(script_path, "..")
+    linux_path = os.path.join(script_path, "../..")
 
     parser = ArgumentParser(description="Check the translation update")
     parser.add_argument(

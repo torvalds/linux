@@ -313,7 +313,7 @@ class MissingCheckers(AncillaryMethods):
         Right now, we still need Perl for doc build, as it is required
         by some tools called at docs or kernel build time, like:
 
-            scripts/documentation-file-ref-check
+            tools/docs/documentation-file-ref-check
 
         Also, checkpatch is on Perl.
         """

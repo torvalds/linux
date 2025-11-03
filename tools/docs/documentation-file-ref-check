@@ -17,7 +17,7 @@ my %false_positives = (
 );
 
 my $scriptname = $0;
-$scriptname =~ s,.*/([^/]+/),$1,;
+$scriptname =~ s,tools/docs/([^/]+/),$1,;
 
 # Parse arguments
 my $help = 0;
