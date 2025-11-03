@@ -41,6 +41,10 @@
 #define smnMP1_FIRMWARE_FLAGS		0x3010024
 #define smnMP1_PUB_CTRL			0x3010d10
 
+#define SMU15_DRIVER_IF_VERSION_SMU_V15_0_8 0x007D0000
+
+#define FEATURE_MASK(feature) (1ULL << feature)
+
 #define MAX_DPM_LEVELS 16
 #define MAX_PCIE_CONF 3
 
@@ -104,6 +108,7 @@ struct smu_15_0_dpm_context {
 	struct smu_15_0_dpm_tables  dpm_tables;
 	uint32_t                    workload_policy_mask;
 	uint32_t                    dcef_min_ds_clk;
+	uint64_t                    caps;
 };
 
 enum smu_15_0_power_state {
@@ -118,6 +123,7 @@ struct smu_15_0_power_context {
 	uint32_t	power_source;
 	uint8_t		in_power_limit_boost_mode;
 	enum smu_15_0_power_state power_state;
+	atomic_t 	throttle_status;
 };
 
 #if defined(SWSMU_CODE_LAYER_L2) || defined(SWSMU_CODE_LAYER_L3)

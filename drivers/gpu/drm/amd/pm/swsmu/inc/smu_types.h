@@ -292,7 +292,12 @@
 	__SMU_DUMMY_MAP(AllowZstates), \
 	__SMU_DUMMY_MAP(GetSmartShiftStatus), \
 	__SMU_DUMMY_MAP(EnableLSdma), \
-	__SMU_DUMMY_MAP(DisableLSdma),
+	__SMU_DUMMY_MAP(DisableLSdma), \
+	__SMU_DUMMY_MAP(InitializeGfx), \
+	__SMU_DUMMY_MAP(SetSoftMaxFclk), \
+	__SMU_DUMMY_MAP(SetSoftMaxGl2clk), \
+	__SMU_DUMMY_MAP(SetSoftMinGl2clk), \
+	__SMU_DUMMY_MAP(GetSystemMetricsVersion),
 
 #undef __SMU_DUMMY_MAP
 #define __SMU_DUMMY_MAP(type)	SMU_MSG_##type
@@ -473,6 +478,14 @@ enum smu_clk_type {
        __SMU_DUMMY_MAP(GFX_DIDT_XVMIN),				\
        __SMU_DUMMY_MAP(FAN_ABNORMAL),				\
        __SMU_DUMMY_MAP(PIT),				\
+       __SMU_DUMMY_MAP(DS_DMABECLK),				\
+       __SMU_DUMMY_MAP(DS_MPIFOECLK),				\
+       __SMU_DUMMY_MAP(DS_MPRASCLK),				\
+       __SMU_DUMMY_MAP(DS_MPNHTCLK),				\
+       __SMU_DUMMY_MAP(DS_FIOCLK),				\
+       __SMU_DUMMY_MAP(DS_DXIOCLK),				\
+       __SMU_DUMMY_MAP(DS_GL2CLK),				\
+       __SMU_DUMMY_MAP(DPM_GL2CLK),				\
        __SMU_DUMMY_MAP(HROM_EN),
 
 #undef __SMU_DUMMY_MAP

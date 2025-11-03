@@ -589,71 +589,52 @@ int smu_v15_0_notify_memory_pool_location(struct smu_context *smu)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
 	struct smu_table *memory_pool = &smu_table->memory_pool;
-	int ret = 0;
-	uint64_t address;
-	uint32_t address_low, address_high;
+	struct smu_msg_args args = {
+		.msg = SMU_MSG_DramLogSetDramAddr,
+		.num_args = 3,
+		.num_out_args = 0,
+	};
 
 	if (memory_pool->size == 0 || memory_pool->cpu_addr == NULL)
-		return ret;
+		return 0;
 
-	address = memory_pool->mc_address;
-	address_high = (uint32_t)upper_32_bits(address);
-	address_low  = (uint32_t)lower_32_bits(address);
+	/* SMU_MSG_DramLogSetDramAddr: ARG0=low, ARG1=high, ARG2=size */
+	args.args[0] = lower_32_bits(memory_pool->mc_address);
+	args.args[1] = upper_32_bits(memory_pool->mc_address);
+	args.args[2] = (u32)memory_pool->size;
 
-	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_DramLogSetDramAddrHigh,
-					      address_high, NULL);
-	if (ret)
-		return ret;
-	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_DramLogSetDramAddrLow,
-					      address_low, NULL);
-	if (ret)
-		return ret;
-	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_DramLogSetDramSize,
-					      (uint32_t)memory_pool->size, NULL);
-	if (ret)
-		return ret;
-
-	return ret;
+	return smu->msg_ctl.ops->send_msg(&smu->msg_ctl, &args);
 }
 
 int smu_v15_0_set_driver_table_location(struct smu_context *smu)
 {
 	struct smu_table *driver_table = &smu->smu_table.driver_table;
-	int ret = 0;
+	struct smu_msg_args args = {
+		.msg = SMU_MSG_SetDriverDramAddrHigh,
+		.num_args = 2,
+		.num_out_args = 0,
+	};
 
-	if (driver_table->mc_address) {
-		ret = smu_cmn_send_smc_msg_with_param(smu,
-						      SMU_MSG_SetDriverDramAddrHigh,
-						      upper_32_bits(driver_table->mc_address),
-						      NULL);
-		if (!ret)
-			ret = smu_cmn_send_smc_msg_with_param(smu,
-							      SMU_MSG_SetDriverDramAddrLow,
-							      lower_32_bits(driver_table->mc_address),
-							      NULL);
-	}
+	args.args[0] = lower_32_bits(driver_table->mc_address);
+	args.args[1] = upper_32_bits(driver_table->mc_address);
 
-	return ret;
+	return smu->msg_ctl.ops->send_msg(&smu->msg_ctl, &args);
 }
 
 int smu_v15_0_set_tool_table_location(struct smu_context *smu)
 {
-	int ret = 0;
 	struct smu_table *tool_table = &smu->smu_table.tables[SMU_TABLE_PMSTATUSLOG];
+	struct smu_msg_args args = {
+		.msg = SMU_MSG_SetToolsDramAddrHigh,
+		.num_args = 2,
+		.num_out_args = 0,
+	};
 
-	if (tool_table->mc_address) {
-		ret = smu_cmn_send_smc_msg_with_param(smu,
-						      SMU_MSG_SetToolsDramAddrHigh,
-						      upper_32_bits(tool_table->mc_address),
-						      NULL);
-		if (!ret)
-			ret = smu_cmn_send_smc_msg_with_param(smu,
-							      SMU_MSG_SetToolsDramAddrLow,
-							      lower_32_bits(tool_table->mc_address),
-							      NULL);
-	}
+	/* SMU_MSG_SetToolsDramAddr: ARG0=low, ARG1=high */
+	args.args[0] = lower_32_bits(tool_table->mc_address);
+	args.args[1] = upper_32_bits(tool_table->mc_address);
 
-	return ret;
+	return smu->msg_ctl.ops->send_msg(&smu->msg_ctl, &args);
 }
 
 int smu_v15_0_set_allowed_mask(struct smu_context *smu)
@@ -700,8 +681,7 @@ int smu_v15_0_gfx_off_control(struct smu_context *smu, bool enable)
 	return ret;
 }
 
-int smu_v15_0_system_features_control(struct smu_context *smu,
-				      bool en)
+int smu_v15_0_system_features_control(struct smu_context *smu, bool en)
 {
 	return smu_cmn_send_smc_msg(smu, (en ? SMU_MSG_EnableAllSmuFeatures :
 					  SMU_MSG_DisableAllSmuFeatures), NULL);
@@ -905,7 +885,8 @@ static int smu_v15_0_wait_for_reset_complete(struct smu_context *smu,
 	return ret;
 }
 
-int smu_v15_0_wait_for_event(struct smu_context *smu, enum smu_event_type event,
+int smu_v15_0_wait_for_event(struct smu_context *smu,
+			     enum smu_event_type event,
 			     uint64_t event_arg)
 {
 	int ret = -EINVAL;

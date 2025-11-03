@@ -47,6 +47,7 @@
 #include "smu_v14_0_0_ppt.h"
 #include "smu_v14_0_2_ppt.h"
 #include "smu_v15_0_0_ppt.h"
+#include "smu_v15_0_8_ppt.h"
 #include "amd_pcie.h"
 
 /*
