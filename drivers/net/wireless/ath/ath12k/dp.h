@@ -408,6 +408,8 @@ struct ath12k_dp_arch_ops {
 	int (*rx_link_desc_return)(struct ath12k_base *ab,
 				   struct ath12k_buffer_addr *buf_addr_info,
 				   enum hal_wbm_rel_bm_act action);
+	void (*rx_frags_cleanup)(struct ath12k_dp_rx_tid *rx_tid,
+				 bool rel_link_desc);
 	int (*peer_rx_tid_reo_update)(struct ath12k_dp *dp,
 				      struct ath12k_dp_link_peer *peer,
 				      struct ath12k_dp_rx_tid *rx_tid,
@@ -586,6 +588,14 @@ int ath12k_dp_arch_rx_link_desc_return(struct ath12k_dp *dp,
 				       enum hal_wbm_rel_bm_act action)
 {
 	return dp->ops->rx_link_desc_return(dp->ab, buf_addr_info, action);
+}
+
+static inline
+void ath12k_dp_arch_rx_frags_cleanup(struct ath12k_dp *dp,
+				     struct ath12k_dp_rx_tid *rx_tid,
+				     bool rel_link_desc)
+{
+	dp->ops->rx_frags_cleanup(rx_tid, rel_link_desc);
 }
 
 static inline int ath12k_dp_arch_peer_rx_tid_reo_update(struct ath12k_dp *dp,

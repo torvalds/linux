@@ -445,30 +445,6 @@ free_desc:
 	rx_tid->qbuf.vaddr = NULL;
 }
 
-void ath12k_dp_rx_frags_cleanup(struct ath12k_dp_rx_tid *rx_tid,
-				bool rel_link_desc)
-{
-	enum hal_wbm_rel_bm_act act = HAL_WBM_REL_BM_ACT_PUT_IN_IDLE;
-	struct ath12k_buffer_addr *buf_addr_info;
-	struct ath12k_dp *dp = rx_tid->dp;
-
-	lockdep_assert_held(&dp->dp_lock);
-
-	if (rx_tid->dst_ring_desc) {
-		if (rel_link_desc) {
-			buf_addr_info = &rx_tid->dst_ring_desc->buf_addr_info;
-			ath12k_dp_arch_rx_link_desc_return(dp, buf_addr_info, act);
-		}
-		kfree(rx_tid->dst_ring_desc);
-		rx_tid->dst_ring_desc = NULL;
-	}
-
-	rx_tid->cur_sn = 0;
-	rx_tid->last_frag_no = 0;
-	rx_tid->rx_frag_bitmap = 0;
-	__skb_queue_purge(&rx_tid->rx_frags);
-}
-
 void ath12k_dp_rx_peer_tid_cleanup(struct ath12k *ar, struct ath12k_dp_link_peer *peer)
 {
 	struct ath12k_dp_rx_tid *rx_tid;
@@ -485,7 +461,7 @@ void ath12k_dp_rx_peer_tid_cleanup(struct ath12k *ar, struct ath12k_dp_link_peer
 		rx_tid = &peer->dp_peer->rx_tid[i];
 
 		ath12k_dp_arch_rx_peer_tid_delete(dp, peer, i);
-		ath12k_dp_rx_frags_cleanup(rx_tid, true);
+		ath12k_dp_arch_rx_frags_cleanup(dp, rx_tid, true);
 
 		spin_unlock_bh(&dp->dp_lock);
 		timer_delete_sync(&rx_tid->frag_timer);
@@ -1327,7 +1303,7 @@ static void ath12k_dp_rx_frag_timer(struct timer_list *timer)
 		spin_unlock_bh(&rx_tid->dp->dp_lock);
 		return;
 	}
-	ath12k_dp_rx_frags_cleanup(rx_tid, true);
+	ath12k_dp_arch_rx_frags_cleanup(rx_tid->dp, rx_tid, true);
 	spin_unlock_bh(&rx_tid->dp->dp_lock);
 }
 

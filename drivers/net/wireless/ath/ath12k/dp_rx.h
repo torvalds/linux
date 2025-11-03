@@ -183,8 +183,6 @@ void ath12k_dp_rx_h_sort_frags(struct ath12k_base *ab,
 			       struct sk_buff *cur_frag);
 void ath12k_dp_rx_h_undecap_frag(struct ath12k_pdev_dp *dp_pdev, struct sk_buff *msdu,
 				 enum hal_encrypt_type enctype, u32 flags);
-void ath12k_dp_rx_frags_cleanup(struct ath12k_dp_rx_tid *rx_tid,
-				bool rel_link_desc);
 int ath12k_dp_rx_h_michael_mic(struct crypto_shash *tfm, u8 *key,
 			       struct ieee80211_hdr *hdr, u8 *data,
 			       size_t data_len, u8 *mic);

@@ -144,6 +144,7 @@ static struct ath12k_dp_arch_ops ath12k_wifi7_dp_arch_ops = {
 	.rx_peer_tid_delete = ath12k_wifi7_dp_rx_peer_tid_delete,
 	.reo_cache_flush = ath12k_wifi7_dp_reo_cache_flush,
 	.rx_link_desc_return = ath12k_wifi7_dp_rx_link_desc_return,
+	.rx_frags_cleanup = ath12k_wifi7_dp_rx_frags_cleanup,
 	.peer_rx_tid_reo_update = ath12k_wifi7_peer_rx_tid_reo_update,
 	.rx_assign_reoq = ath12k_wifi7_dp_rx_assign_reoq,
 	.peer_rx_tid_qref_setup = ath12k_wifi7_peer_rx_tid_qref_setup,
