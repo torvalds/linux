@@ -927,7 +927,9 @@ static int bt_6lowpan_disconnect(struct l2cap_conn *conn, u8 dst_type)
 
 	BT_DBG("peer %p chan %p", peer, peer->chan);
 
+	l2cap_chan_lock(peer->chan);
 	l2cap_chan_close(peer->chan, ENOENT);
+	l2cap_chan_unlock(peer->chan);
 
 	return 0;
 }
@@ -1089,7 +1091,9 @@ static void do_enable_set(struct work_struct *work)
 
 	mutex_lock(&set_lock);
 	if (listen_chan) {
+		l2cap_chan_lock(listen_chan);
 		l2cap_chan_close(listen_chan, 0);
+		l2cap_chan_unlock(listen_chan);
 		l2cap_chan_put(listen_chan);
 	}
 
@@ -1148,7 +1152,9 @@ static ssize_t lowpan_control_write(struct file *fp,
 
 		mutex_lock(&set_lock);
 		if (listen_chan) {
+			l2cap_chan_lock(listen_chan);
 			l2cap_chan_close(listen_chan, 0);
+			l2cap_chan_unlock(listen_chan);
 			l2cap_chan_put(listen_chan);
 			listen_chan = NULL;
 		}
@@ -1310,7 +1316,9 @@ static void __exit bt_6lowpan_exit(void)
 	debugfs_remove(lowpan_control_debugfs);
 
 	if (listen_chan) {
+		l2cap_chan_lock(listen_chan);
 		l2cap_chan_close(listen_chan, 0);
+		l2cap_chan_unlock(listen_chan);
 		l2cap_chan_put(listen_chan);
 	}
 
