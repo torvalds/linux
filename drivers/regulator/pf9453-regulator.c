@@ -119,7 +119,6 @@ enum {
 #define LDO_ENMODE_ONREQ_STBY_DPSTBY	0x03
 
 /* PF9453_REG_BUCK1_CTRL bits */
-#define BUCK1_LPMODE			0x30
 #define BUCK1_AD			0x08
 #define BUCK1_FPWM			0x04
 #define BUCK1_ENMODE_MASK		GENMASK(1, 0)
@@ -130,19 +129,16 @@ enum {
 #define BUCK2_RAMP_12P5MV		0x1
 #define BUCK2_RAMP_6P25MV		0x2
 #define BUCK2_RAMP_3P125MV		0x3
-#define BUCK2_LPMODE			0x30
 #define BUCK2_AD			0x08
 #define BUCK2_FPWM			0x04
 #define BUCK2_ENMODE_MASK		GENMASK(1, 0)
 
 /* PF9453_REG_BUCK3_CTRL bits */
-#define BUCK3_LPMODE			0x30
 #define BUCK3_AD			0x08
 #define BUCK3_FPWM			0x04
 #define BUCK3_ENMODE_MASK		GENMASK(1, 0)
 
 /* PF9453_REG_BUCK4_CTRL bits */
-#define BUCK4_LPMODE			0x30
 #define BUCK4_AD			0x08
 #define BUCK4_FPWM			0x04
 #define BUCK4_ENMODE_MASK		GENMASK(1, 0)
@@ -535,14 +531,6 @@ static int buck_set_dvs(const struct regulator_desc *desc,
 		}
 	}
 
-	if (ret == 0) {
-		struct pf9453_regulator_desc *regulator = container_of(desc,
-					struct pf9453_regulator_desc, desc);
-
-		/* Enable DVS control through PMIC_STBY_REQ for this BUCK */
-		ret = pf9453_pmic_write(pf9453, regulator->desc.enable_reg,
-					BUCK2_LPMODE, BUCK2_LPMODE);
-	}
 	return ret;
 }
 
