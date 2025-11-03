@@ -892,9 +892,6 @@ static int tse_open(struct net_device *dev)
 		netdev_warn(dev, "device MAC address %pM\n",
 			    dev->dev_addr);
 
-	if ((priv->revision < 0xd00) || (priv->revision > 0xe00))
-		netdev_warn(dev, "TSE revision %x\n", priv->revision);
-
 	spin_lock(&priv->mac_cfg_lock);
 
 	ret = reset_mac(priv);
@@ -1142,6 +1139,7 @@ static int altera_tse_probe(struct platform_device *pdev)
 	struct net_device *ndev;
 	void __iomem *descmap;
 	int ret = -ENODEV;
+	u32 revision;
 
 	ndev = alloc_etherdev(sizeof(struct altera_tse_private));
 	if (!ndev) {
@@ -1395,12 +1393,14 @@ static int altera_tse_probe(struct platform_device *pdev)
 		goto err_register_netdev;
 	}
 
-	priv->revision = ioread32(&priv->mac_dev->megacore_revision);
+	revision = ioread32(&priv->mac_dev->megacore_revision);
+
+	if (revision < 0xd00 || revision > 0xe00)
+		netdev_warn(ndev, "TSE revision %x\n", revision);
 
 	if (netif_msg_probe(priv))
 		dev_info(&pdev->dev, "Altera TSE MAC version %d.%d at 0x%08lx irq %d/%d\n",
-			 (priv->revision >> 8) & 0xff,
-			 priv->revision & 0xff,
+			 (revision >> 8) & 0xff, revision & 0xff,
 			 (unsigned long) control_port->start, priv->rx_irq,
 			 priv->tx_irq);
 
