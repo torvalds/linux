@@ -3102,6 +3102,36 @@ int stmmac_get_phy_intf_sel(phy_interface_t interface)
 }
 EXPORT_SYMBOL_GPL(stmmac_get_phy_intf_sel);
 
+static int stmmac_prereset_configure(struct stmmac_priv *priv)
+{
+	struct plat_stmmacenet_data *plat_dat = priv->plat;
+	phy_interface_t interface;
+	int phy_intf_sel, ret;
+
+	if (!plat_dat->set_phy_intf_sel)
+		return 0;
+
+	interface = plat_dat->phy_interface;
+	phy_intf_sel = stmmac_get_phy_intf_sel(interface);
+	if (phy_intf_sel < 0) {
+		netdev_err(priv->dev,
+			   "failed to get phy_intf_sel for %s: %pe\n",
+			   phy_modes(interface), ERR_PTR(phy_intf_sel));
+		return phy_intf_sel;
+	}
+
+	ret = plat_dat->set_phy_intf_sel(plat_dat->bsp_priv, phy_intf_sel);
+	if (ret == -EINVAL)
+		netdev_err(priv->dev, "platform does not support %s\n",
+			   phy_modes(interface));
+	else if (ret < 0)
+		netdev_err(priv->dev,
+			   "platform failed to set interface %s: %pe\n",
+			   phy_modes(interface), ERR_PTR(ret));
+
+	return ret;
+}
+
 /**
  * stmmac_init_dma_engine - DMA init.
  * @priv: driver private structure
@@ -3127,6 +3157,10 @@ static int stmmac_init_dma_engine(struct stmmac_priv *priv)
 
 	if (priv->extend_desc && (priv->mode == STMMAC_RING_MODE))
 		priv->plat->dma_cfg->atds = 1;
+
+	ret = stmmac_prereset_configure(priv);
+	if (ret)
+		return ret;
 
 	ret = stmmac_reset(priv, priv->ioaddr);
 	if (ret) {
