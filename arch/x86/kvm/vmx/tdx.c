@@ -903,7 +903,7 @@ void tdx_vcpu_free(struct kvm_vcpu *vcpu)
 	}
 	if (tdx->vp.tdvpr_page) {
 		tdx_reclaim_control_page(tdx->vp.tdvpr_page);
-		tdx->vp.tdvpr_page = 0;
+		tdx->vp.tdvpr_page = NULL;
 		tdx->vp.tdvpr_pa = 0;
 	}
 
@@ -2581,7 +2581,7 @@ free_tdcs:
 free_tdr:
 	if (tdr_page)
 		__free_page(tdr_page);
-	kvm_tdx->td.tdr_page = 0;
+	kvm_tdx->td.tdr_page = NULL;
 
 free_hkid:
 	tdx_hkid_free(kvm_tdx);
@@ -3000,7 +3000,7 @@ free_tdcx:
 free_tdvpr:
 	if (tdx->vp.tdvpr_page)
 		__free_page(tdx->vp.tdvpr_page);
-	tdx->vp.tdvpr_page = 0;
+	tdx->vp.tdvpr_page = NULL;
 	tdx->vp.tdvpr_pa = 0;
 
 	return ret;
