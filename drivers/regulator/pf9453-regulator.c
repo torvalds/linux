@@ -187,13 +187,6 @@ enum {
 #define WDOG_B_CFG_WARM			0x40
 #define WDOG_B_CFG_COLD			0x80
 
-/* PF9453_REG_CONFIG2 bits */
-#define I2C_LT_MASK			GENMASK(1, 0)
-#define I2C_LT_FORCE_DISABLE		0x00
-#define I2C_LT_ON_STANDBY_RUN		0x01
-#define I2C_LT_ON_RUN			0x02
-#define I2C_LT_FORCE_ENABLE		0x03
-
 static const struct regmap_range pf9453_status_range = {
 	.range_min = PF9453_REG_INT1,
 	.range_max = PF9453_REG_PWRON_STAT,
