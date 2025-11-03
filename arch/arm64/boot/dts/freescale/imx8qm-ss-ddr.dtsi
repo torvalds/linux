@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: GPL-2.0+
+/*
+ * Copyright 2025 NXP
+ *	Dong Aisheng <aisheng.dong@nxp.com>
+ */
+
+&ddr_pmu0 {
+	compatible = "fsl,imx8qm-ddr-pmu", "fsl,imx8-ddr-pmu";
+	interrupts = <GIC_SPI 130 IRQ_TYPE_LEVEL_HIGH>;
+};
+
+&ddr_subsys {
+	ddr_pmu1: ddr-pmu@5c120000 {
+		compatible = "fsl,imx8qm-ddr-pmu", "fsl,imx8-ddr-pmu";
+		reg = <0x5c120000 0x10000>;
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 131 IRQ_TYPE_LEVEL_HIGH>;
+	};
+};
