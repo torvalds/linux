@@ -2966,7 +2966,7 @@ void scx_cancel_fork(struct task_struct *p)
 	percpu_up_read(&scx_fork_rwsem);
 }
 
-void sched_ext_free(struct task_struct *p)
+void sched_ext_dead(struct task_struct *p)
 {
 	unsigned long flags;
 
