@@ -339,6 +339,7 @@ static int start_readonly;
  */
 static bool create_on_open = true;
 static bool legacy_async_del_gendisk = true;
+static bool check_new_feature = true;
 
 /*
  * We have a system wide 'event count' that is incremented
@@ -1851,9 +1852,13 @@ static int super_1_load(struct md_rdev *rdev, struct md_rdev *refdev, int minor_
 	}
 	if (sb->pad0 ||
 	    sb->pad3[0] ||
-	    memcmp(sb->pad3, sb->pad3+1, sizeof(sb->pad3) - sizeof(sb->pad3[1])))
-		/* Some padding is non-zero, might be a new feature */
-		return -EINVAL;
+	    memcmp(sb->pad3, sb->pad3+1, sizeof(sb->pad3) - sizeof(sb->pad3[1]))) {
+		pr_warn("Some padding is non-zero on %pg, might be a new feature\n",
+			rdev->bdev);
+		if (check_new_feature)
+			return -EINVAL;
+		pr_warn("check_new_feature is disabled, data corruption possible\n");
+	}
 
 	rdev->preferred_minor = 0xffff;
 	rdev->data_offset = le64_to_cpu(sb->data_offset);
@@ -10741,6 +10746,7 @@ module_param(start_dirty_degraded, int, S_IRUGO|S_IWUSR);
 module_param_call(new_array, add_named_array, NULL, NULL, S_IWUSR);
 module_param(create_on_open, bool, S_IRUSR|S_IWUSR);
 module_param(legacy_async_del_gendisk, bool, 0600);
+module_param(check_new_feature, bool, 0600);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("MD RAID framework");
