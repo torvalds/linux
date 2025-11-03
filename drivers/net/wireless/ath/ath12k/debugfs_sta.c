@@ -153,41 +153,32 @@ static ssize_t ath12k_dbg_sta_dump_rx_stats(struct file *file,
 	bool he_rates_avail;
 	struct ath12k *ar;
 
-	wiphy_lock(ah->hw->wiphy);
+	guard(wiphy)(ah->hw->wiphy);
 
-	if (!(BIT(link_id) & ahsta->links_map)) {
-		wiphy_unlock(ah->hw->wiphy);
+	if (!(BIT(link_id) & ahsta->links_map))
 		return -ENOENT;
-	}
 
 	arsta = wiphy_dereference(ah->hw->wiphy, ahsta->link[link_id]);
-	if (!arsta || !arsta->arvif->ar) {
-		wiphy_unlock(ah->hw->wiphy);
+	if (!arsta || !arsta->arvif->ar)
 		return -ENOENT;
-	}
 
 	ar = arsta->arvif->ar;
 
 	u8 *buf __free(kfree) = kzalloc(size, GFP_KERNEL);
-	if (!buf) {
-		ret = -ENOENT;
-		goto out;
-	}
+	if (!buf)
+		return -ENOMEM;
 
 	dp = ath12k_ab_to_dp(ar->ab);
-	spin_lock_bh(&dp->dp_lock);
+
+	guard(spinlock_bh)(&dp->dp_lock);
 
 	link_peer = ath12k_dp_link_peer_find_by_addr(dp, arsta->addr);
-	if (!link_peer) {
-		ret = -ENOENT;
-		goto unlock;
-	}
+	if (!link_peer)
+		return -ENOENT;
 
 	rx_stats = link_peer->peer_stats.rx_stats;
-	if (!rx_stats) {
-		ret = -ENOENT;
-		goto unlock;
-	}
+	if (!rx_stats)
+		return -ENOENT;
 
 	len += scnprintf(buf + len, size - len, "RX peer stats:\n\n");
 	len += scnprintf(buf + len, size - len, "Num of MSDUs: %llu\n",
@@ -247,13 +238,8 @@ static ssize_t ath12k_dbg_sta_dump_rx_stats(struct file *file,
 	len += ath12k_dbg_sta_dump_rate_stats(buf, len, size, he_rates_avail,
 					      &rx_stats->byte_stats);
 
-unlock:
-	spin_unlock_bh(&dp->dp_lock);
-
 	if (len)
 		ret = simple_read_from_buffer(user_buf, count, ppos, buf, len);
-out:
-	wiphy_unlock(ah->hw->wiphy);
 	return ret;
 }
 
