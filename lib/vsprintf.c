@@ -3054,8 +3054,8 @@ EXPORT_SYMBOL(scnprintf);
  * @fmt: The format string to use
  * @args: Arguments for the format string
  *
- * The function returns the number of characters written
- * into @buf. Use vsnprintf() or vscnprintf() in order to avoid
+ * The return value is the number of characters written into @buf not including
+ * the trailing '\0'. Use vsnprintf() or vscnprintf() in order to avoid
  * buffer overflows.
  *
  * If you're not already dealing with a va_list consider using sprintf().
@@ -3074,8 +3074,8 @@ EXPORT_SYMBOL(vsprintf);
  * @fmt: The format string to use
  * @...: Arguments for the format string
  *
- * The function returns the number of characters written
- * into @buf. Use snprintf() or scnprintf() in order to avoid
+ * The return value is the number of characters written into @buf not including
+ * the trailing '\0'. Use snprintf() or scnprintf() in order to avoid
  * buffer overflows.
  *
  * See the vsnprintf() documentation for format string extensions over C99.
