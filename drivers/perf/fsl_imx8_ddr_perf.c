@@ -5,6 +5,7 @@
  */
 
 #include <linux/bitfield.h>
+#include <linux/clk.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -732,10 +733,12 @@ static int ddr_perf_offline_cpu(unsigned int cpu, struct hlist_node *node)
 
 static int ddr_perf_probe(struct platform_device *pdev)
 {
+	struct clk_bulk_data *clks;
 	struct ddr_pmu *pmu;
 	struct device_node *np;
 	void __iomem *base;
 	char *name;
+	int nclks;
 	int num;
 	int ret;
 	int irq;
@@ -753,6 +756,10 @@ static int ddr_perf_probe(struct platform_device *pdev)
 	ddr_perf_init(pmu, base, &pdev->dev);
 
 	platform_set_drvdata(pdev, pmu);
+
+	nclks = devm_clk_bulk_get_all_enabled(&pdev->dev, &clks);
+	if (nclks < 0)
+		return dev_err_probe(&pdev->dev, nclks, "Failure get clks\n");
 
 	num = ida_alloc(&ddr_ida, GFP_KERNEL);
 	if (num < 0)
