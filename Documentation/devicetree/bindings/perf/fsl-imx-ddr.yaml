@@ -14,6 +14,7 @@ properties:
     oneOf:
       - enum:
           - fsl,imx8-ddr-pmu
+          - fsl,imx8dxl-db-pmu
           - fsl,imx8m-ddr-pmu
           - fsl,imx8mq-ddr-pmu
           - fsl,imx8mm-ddr-pmu
@@ -28,7 +29,10 @@ properties:
               - fsl,imx8mp-ddr-pmu
           - const: fsl,imx8m-ddr-pmu
       - items:
-          - const: fsl,imx8dxl-ddr-pmu
+          - enum:
+              - fsl,imx8dxl-ddr-pmu
+              - fsl,imx8qm-ddr-pmu
+              - fsl,imx8qxp-ddr-pmu
           - const: fsl,imx8-ddr-pmu
       - items:
           - enum:
@@ -43,12 +47,35 @@ properties:
   interrupts:
     maxItems: 1
 
+  clocks:
+    maxItems: 2
+
+  clock-names:
+    items:
+      - const: ipg
+      - const: cnt
+
 required:
   - compatible
   - reg
   - interrupts
 
 additionalProperties: false
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: fsl,imx8dxl-db-pmu
+    then:
+      required:
+        - clocks
+        - clock-names
+    else:
+      properties:
+        clocks: false
+        clock-names: false
 
 examples:
   - |
