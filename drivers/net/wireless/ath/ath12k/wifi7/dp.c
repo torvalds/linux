@@ -138,7 +138,15 @@ done:
 
 static struct ath12k_dp_arch_ops ath12k_wifi7_dp_arch_ops = {
 	.service_srng = ath12k_wifi7_dp_service_srng,
-	.dp_tx_get_vdev_bank_config = ath12k_wifi7_dp_tx_get_vdev_bank_config,
+	.tx_get_vdev_bank_config = ath12k_wifi7_dp_tx_get_vdev_bank_config,
+	.reo_cmd_send = ath12k_wifi7_dp_reo_cmd_send,
+	.setup_pn_check_reo_cmd = ath12k_wifi7_dp_setup_pn_check_reo_cmd,
+	.rx_peer_tid_delete = ath12k_wifi7_dp_rx_peer_tid_delete,
+	.reo_cache_flush = ath12k_wifi7_dp_reo_cache_flush,
+	.rx_link_desc_return = ath12k_wifi7_dp_rx_link_desc_return,
+	.peer_rx_tid_reo_update = ath12k_wifi7_peer_rx_tid_reo_update,
+	.rx_assign_reoq = ath12k_wifi7_dp_rx_assign_reoq,
+	.peer_rx_tid_qref_setup = ath12k_wifi7_peer_rx_tid_qref_setup,
 };
 
 /* TODO: remove export once this file is built with wifi7 ko */

@@ -431,7 +431,7 @@ void ath12k_dp_rx_tid_del_func(struct ath12k_dp *dp, void *ctx,
 			 */
 			spin_unlock_bh(&dp->reo_cmd_lock);
 
-			ath12k_wifi7_dp_reo_cache_flush(ab, &elem->data);
+			ath12k_dp_arch_reo_cache_flush(dp, &elem->data);
 			kfree(elem);
 			spin_lock_bh(&dp->reo_cmd_lock);
 		}
@@ -449,18 +449,16 @@ free_desc:
 void ath12k_dp_rx_frags_cleanup(struct ath12k_dp_rx_tid *rx_tid,
 				bool rel_link_desc)
 {
+	enum hal_wbm_rel_bm_act act = HAL_WBM_REL_BM_ACT_PUT_IN_IDLE;
 	struct ath12k_buffer_addr *buf_addr_info;
 	struct ath12k_dp *dp = rx_tid->dp;
-	struct ath12k_base *ab = dp->ab;
 
 	lockdep_assert_held(&dp->dp_lock);
 
 	if (rx_tid->dst_ring_desc) {
 		if (rel_link_desc) {
 			buf_addr_info = &rx_tid->dst_ring_desc->buf_addr_info;
-			ath12k_wifi7_dp_rx_link_desc_return
-				(ab, buf_addr_info,
-				 HAL_WBM_REL_BM_ACT_PUT_IN_IDLE);
+			ath12k_dp_arch_rx_link_desc_return(dp, buf_addr_info, act);
 		}
 		kfree(rx_tid->dst_ring_desc);
 		rx_tid->dst_ring_desc = NULL;
@@ -487,7 +485,7 @@ void ath12k_dp_rx_peer_tid_cleanup(struct ath12k *ar, struct ath12k_dp_link_peer
 	for (i = 0; i <= IEEE80211_NUM_TIDS; i++) {
 		rx_tid = &peer->dp_peer->rx_tid[i];
 
-		ath12k_wifi7_dp_rx_peer_tid_delete(ar, peer, i);
+		ath12k_dp_arch_rx_peer_tid_delete(dp, peer, i);
 		ath12k_dp_rx_frags_cleanup(rx_tid, true);
 
 		spin_unlock_bh(&dp->dp_lock);
@@ -539,8 +537,8 @@ int ath12k_dp_rx_peer_tid_setup(struct ath12k *ar, const u8 *peer_mac, int vdev_
 	rx_tid = &peer->dp_peer->rx_tid[tid];
 	/* Update the tid queue if it is already setup */
 	if (peer->rx_tid_active_bitmask & (1 << tid)) {
-		ret = ath12k_wifi7_peer_rx_tid_reo_update(ar, peer, rx_tid,
-							  ba_win_sz, ssn, true);
+		ret = ath12k_dp_arch_peer_rx_tid_reo_update(dp, peer, rx_tid,
+							    ba_win_sz, ssn, true);
 		spin_unlock_bh(&dp->dp_lock);
 		if (ret) {
 			ath12k_warn(ab, "failed to update reo for rx tid %d\n", tid);
@@ -567,7 +565,7 @@ int ath12k_dp_rx_peer_tid_setup(struct ath12k *ar, const u8 *peer_mac, int vdev_
 
 	rx_tid->ba_win_sz = ba_win_sz;
 
-	ret = ath12k_wifi7_dp_rx_assign_reoq(ab, peer->dp_peer, rx_tid, ssn, pn_type);
+	ret = ath12k_dp_arch_rx_assign_reoq(dp, peer->dp_peer, rx_tid, ssn, pn_type);
 	if (ret) {
 		spin_unlock_bh(&dp->dp_lock);
 		ath12k_warn(ab, "failed to assign reoq buf for rx tid %u\n", tid);
@@ -582,11 +580,11 @@ int ath12k_dp_rx_peer_tid_setup(struct ath12k *ar, const u8 *peer_mac, int vdev_
 		 * and tid with qaddr.
 		 */
 		if (peer->mlo)
-			ath12k_wifi7_peer_rx_tid_qref_setup(ab, peer->ml_id, tid,
-							    paddr_aligned);
+			ath12k_dp_arch_peer_rx_tid_qref_setup(dp, peer->ml_id, tid,
+							      paddr_aligned);
 		else
-			ath12k_wifi7_peer_rx_tid_qref_setup(ab, peer->peer_id, tid,
-							    paddr_aligned);
+			ath12k_dp_arch_peer_rx_tid_qref_setup(dp, peer->peer_id, tid,
+							      paddr_aligned);
 
 		spin_unlock_bh(&dp->dp_lock);
 	} else {
@@ -670,8 +668,8 @@ int ath12k_dp_rx_ampdu_stop(struct ath12k *ar,
 		return 0;
 	}
 
-	ret = ath12k_wifi7_peer_rx_tid_reo_update(ar, peer, peer->dp_peer->rx_tid,
-						  1, 0, false);
+	ret = ath12k_dp_arch_peer_rx_tid_reo_update(dp, peer, peer->dp_peer->rx_tid,
+						    1, 0, false);
 	spin_unlock_bh(&dp->dp_lock);
 	if (ret) {
 		ath12k_warn(ab, "failed to update reo for rx tid %d: %d\n",
@@ -720,11 +718,11 @@ int ath12k_dp_rx_peer_pn_replay_config(struct ath12k_link_vif *arvif,
 
 		rx_tid = &peer->dp_peer->rx_tid[tid];
 
-		ath12k_wifi7_dp_setup_pn_check_reo_cmd(&cmd, rx_tid, key->cipher,
-						       key_cmd);
-		ret = ath12k_wifi7_dp_reo_cmd_send(ab, rx_tid,
-						   HAL_REO_CMD_UPDATE_RX_QUEUE,
-						   &cmd, NULL);
+		ath12k_dp_arch_setup_pn_check_reo_cmd(dp, &cmd, rx_tid, key->cipher,
+						      key_cmd);
+		ret = ath12k_dp_arch_reo_cmd_send(dp, rx_tid,
+						  HAL_REO_CMD_UPDATE_RX_QUEUE,
+						  &cmd, NULL);
 		if (ret) {
 			ath12k_warn(ab, "failed to configure rx tid %d queue of peer %pM for pn replay detection %d\n",
 				    tid, peer_addr, ret);

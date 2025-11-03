@@ -68,7 +68,7 @@ static void ath12k_wifi7_peer_rx_tid_qref_reset(struct ath12k_base *ab,
 		      u32_encode_bits(tid, DP_REO_QREF_NUM);
 }
 
-void ath12k_wifi7_dp_rx_peer_tid_delete(struct ath12k *ar,
+void ath12k_wifi7_dp_rx_peer_tid_delete(struct ath12k_base *ab,
 					struct ath12k_dp_link_peer *peer, u8 tid)
 {
 	struct ath12k_hal_reo_cmd cmd = {};
@@ -82,22 +82,22 @@ void ath12k_wifi7_dp_rx_peer_tid_delete(struct ath12k *ar,
 	cmd.addr_lo = lower_32_bits(rx_tid->qbuf.paddr_aligned);
 	cmd.addr_hi = upper_32_bits(rx_tid->qbuf.paddr_aligned);
 	cmd.upd0 = HAL_REO_CMD_UPD0_VLD;
-	ret = ath12k_wifi7_dp_reo_cmd_send(ar->ab, rx_tid,
+	ret = ath12k_wifi7_dp_reo_cmd_send(ab, rx_tid,
 					   HAL_REO_CMD_UPDATE_RX_QUEUE, &cmd,
 					   ath12k_dp_rx_tid_del_func);
 	if (ret) {
-		ath12k_err(ar->ab, "failed to send HAL_REO_CMD_UPDATE_RX_QUEUE cmd, tid %d (%d)\n",
+		ath12k_err(ab, "failed to send HAL_REO_CMD_UPDATE_RX_QUEUE cmd, tid %d (%d)\n",
 			   tid, ret);
-		dma_unmap_single(ar->ab->dev, rx_tid->qbuf.paddr_aligned,
+		dma_unmap_single(ab->dev, rx_tid->qbuf.paddr_aligned,
 				 rx_tid->qbuf.size, DMA_BIDIRECTIONAL);
 		kfree(rx_tid->qbuf.vaddr);
 		rx_tid->qbuf.vaddr = NULL;
 	}
 
 	if (peer->mlo)
-		ath12k_wifi7_peer_rx_tid_qref_reset(ar->ab, peer->ml_id, tid);
+		ath12k_wifi7_peer_rx_tid_qref_reset(ab, peer->ml_id, tid);
 	else
-		ath12k_wifi7_peer_rx_tid_qref_reset(ar->ab, peer->peer_id, tid);
+		ath12k_wifi7_peer_rx_tid_qref_reset(ab, peer->peer_id, tid);
 
 	peer->rx_tid_active_bitmask &= ~(1 << tid);
 }
@@ -179,13 +179,14 @@ int ath12k_wifi7_dp_reo_cmd_send(struct ath12k_base *ab,
 	return 0;
 }
 
-int ath12k_wifi7_peer_rx_tid_reo_update(struct ath12k *ar,
+int ath12k_wifi7_peer_rx_tid_reo_update(struct ath12k_dp *dp,
 					struct ath12k_dp_link_peer *peer,
 					struct ath12k_dp_rx_tid *rx_tid,
 					u32 ba_win_sz, u16 ssn,
 					bool update_ssn)
 {
 	struct ath12k_hal_reo_cmd cmd = {};
+	struct ath12k_base *ab = dp->ab;
 	int ret;
 
 	cmd.addr_lo = lower_32_bits(rx_tid->qbuf.paddr_aligned);
@@ -199,11 +200,11 @@ int ath12k_wifi7_peer_rx_tid_reo_update(struct ath12k *ar,
 		cmd.upd2 = u32_encode_bits(ssn, HAL_REO_CMD_UPD2_SSN);
 	}
 
-	ret = ath12k_wifi7_dp_reo_cmd_send(ar->ab, rx_tid,
+	ret = ath12k_wifi7_dp_reo_cmd_send(ab, rx_tid,
 					   HAL_REO_CMD_UPDATE_RX_QUEUE, &cmd,
 					   NULL);
 	if (ret) {
-		ath12k_warn(ar->ab, "failed to update rx tid queue, tid %d (%d)\n",
+		ath12k_warn(ab, "failed to update rx tid queue, tid %d (%d)\n",
 			    rx_tid->tid, ret);
 		return ret;
 	}

@@ -10,7 +10,6 @@
 #include "hif.h"
 #include "hal.h"
 #include "debug.h"
-#include "wifi7/dp_rx.h"
 #include "peer.h"
 #include "dp_mon.h"
 #include "dp_cmn.h"
@@ -99,7 +98,7 @@ peer_clean:
 	}
 
 	for (tid--; tid >= 0; tid--)
-		ath12k_wifi7_dp_rx_peer_tid_delete(ar, peer, tid);
+		ath12k_dp_arch_rx_peer_tid_delete(dp, peer, tid);
 
 	spin_unlock_bh(&dp->dp_lock);
 
@@ -345,7 +344,7 @@ static int ath12k_dp_tx_get_bank_profile(struct ath12k_base *ab,
 	bool configure_register = false;
 
 	/* convert vdev params into hal_tx_bank_config */
-	bank_config = dp->ops->dp_tx_get_vdev_bank_config(ab, arvif);
+	bank_config = ath12k_dp_arch_tx_get_vdev_bank_config(dp, arvif);
 
 	spin_lock_bh(&dp->tx_bank_lock);
 	/* TODO: implement using idr kernel framework*/
