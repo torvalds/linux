@@ -331,7 +331,6 @@ EXPORT_SYMBOL_GPL(backing_file_splice_write);
 int backing_file_mmap(struct file *file, struct vm_area_struct *vma,
 		      struct backing_file_ctx *ctx)
 {
-	const struct cred *old_cred;
 	struct file *user_file = vma->vm_file;
 	int ret;
 
@@ -343,9 +342,8 @@ int backing_file_mmap(struct file *file, struct vm_area_struct *vma,
 
 	vma_set_file(vma, file);
 
-	old_cred = override_creds(ctx->cred);
-	ret = vfs_mmap(vma->vm_file, vma);
-	revert_creds(old_cred);
+	scoped_with_creds(ctx->cred)
+		ret = vfs_mmap(vma->vm_file, vma);
 
 	if (ctx->accessed)
 		ctx->accessed(user_file);
