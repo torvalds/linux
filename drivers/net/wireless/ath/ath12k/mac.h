@@ -191,9 +191,6 @@ void ath12k_mac_update_freq_range(struct ath12k *ar,
 void ath12k_mac_fill_reg_tpc_info(struct ath12k *ar,
 				  struct ath12k_link_vif *arvif,
 				  struct ieee80211_chanctx_conf *ctx);
-void ath12k_mac_op_tx(struct ieee80211_hw *hw,
-		      struct ieee80211_tx_control *control,
-		      struct sk_buff *skb);
 int ath12k_mac_op_start(struct ieee80211_hw *hw);
 void ath12k_mac_op_stop(struct ieee80211_hw *hw, bool suspend);
 void
@@ -317,4 +314,16 @@ int ath12k_mac_op_get_txpower(struct ieee80211_hw *hw,
 			      struct ieee80211_vif *vif,
 			      unsigned int link_id,
 			      int *dbm);
+int ath12k_mac_mgmt_tx(struct ath12k *ar, struct sk_buff *skb,
+		       bool is_prb_rsp);
+void ath12k_mac_add_p2p_noa_ie(struct ath12k *ar,
+			       struct ieee80211_vif *vif,
+			       struct sk_buff *skb,
+			       bool is_prb_rsp);
+u8 ath12k_mac_get_tx_link(struct ieee80211_sta *sta, struct ieee80211_vif *vif,
+			  u8 link, struct sk_buff *skb, u32 info_flags);
+
+void ath12k_mlo_mcast_update_tx_link_address(struct ieee80211_vif *vif,
+					     u8 link_id, struct sk_buff *skb,
+					     u32 info_flags);
 #endif
