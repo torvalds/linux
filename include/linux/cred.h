@@ -192,8 +192,10 @@ DEFINE_CLASS(override_creds,
 	     revert_creds(_T),
 	     override_creds(override_cred), const struct cred *override_cred)
 
-#define scoped_with_kernel_creds() \
-	scoped_class(override_creds, __UNIQUE_ID(cred), kernel_cred())
+#define scoped_with_creds(cred) \
+	scoped_class(override_creds, __UNIQUE_ID(label), cred)
+
+#define scoped_with_kernel_creds() scoped_with_creds(kernel_cred())
 
 /**
  * get_cred_many - Get references on a set of credentials
