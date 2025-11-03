@@ -92,21 +92,21 @@ static inline u32 ath12k_he_gi_to_nl80211_he_gi(u8 sgi)
 	return ret;
 }
 
-static inline bool ath12k_dp_rx_h_more_frags(struct ath12k_base *ab,
+static inline bool ath12k_dp_rx_h_more_frags(struct ath12k_hal *hal,
 					     struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr;
 
-	hdr = (struct ieee80211_hdr *)(skb->data + ab->hal.hal_desc_sz);
+	hdr = (struct ieee80211_hdr *)(skb->data + hal->hal_desc_sz);
 	return ieee80211_has_morefrags(hdr->frame_control);
 }
 
-static inline u16 ath12k_dp_rx_h_frag_no(struct ath12k_base *ab,
+static inline u16 ath12k_dp_rx_h_frag_no(struct ath12k_hal *hal,
 					 struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr;
 
-	hdr = (struct ieee80211_hdr *)(skb->data + ab->hal.hal_desc_sz);
+	hdr = (struct ieee80211_hdr *)(skb->data + hal->hal_desc_sz);
 	return le16_to_cpu(hdr->seq_ctrl) & IEEE80211_SCTL_FRAG;
 }
 
@@ -116,18 +116,18 @@ static inline u8 ath12k_dp_rx_h_l3pad(struct ath12k_base *ab,
 	return ab->hal.ops->rx_desc_get_l3_pad_bytes(desc);
 }
 
-static inline void ath12k_dp_rx_desc_end_tlv_copy(struct ath12k_base *ab,
+static inline void ath12k_dp_rx_desc_end_tlv_copy(struct ath12k_hal *hal,
 						  struct hal_rx_desc *fdesc,
 						  struct hal_rx_desc *ldesc)
 {
-	ab->hal.ops->rx_desc_copy_end_tlv(fdesc, ldesc);
+	hal->ops->rx_desc_copy_end_tlv(fdesc, ldesc);
 }
 
-static inline void ath12k_dp_rxdesc_set_msdu_len(struct ath12k_base *ab,
+static inline void ath12k_dp_rxdesc_set_msdu_len(struct ath12k_hal *hal,
 						 struct hal_rx_desc *desc,
 						 u16 len)
 {
-	ab->hal.ops->rx_desc_set_msdu_len(desc, len);
+	hal->ops->rx_desc_set_msdu_len(desc, len);
 }
 
 static inline u32 ath12k_dp_rxdesc_get_ppduid(struct ath12k_base *ab,
@@ -136,25 +136,25 @@ static inline u32 ath12k_dp_rxdesc_get_ppduid(struct ath12k_base *ab,
 	return ab->hal.ops->rx_desc_get_mpdu_ppdu_id(rx_desc);
 }
 
-static inline void ath12k_dp_rx_desc_get_dot11_hdr(struct ath12k_base *ab,
+static inline void ath12k_dp_rx_desc_get_dot11_hdr(struct ath12k_hal *hal,
 						   struct hal_rx_desc *desc,
 						   struct ieee80211_hdr *hdr)
 {
-	ab->hal.ops->rx_desc_get_dot11_hdr(desc, hdr);
+	hal->ops->rx_desc_get_dot11_hdr(desc, hdr);
 }
 
-static inline void ath12k_dp_rx_desc_get_crypto_header(struct ath12k_base *ab,
+static inline void ath12k_dp_rx_desc_get_crypto_header(struct ath12k_hal *hal,
 						       struct hal_rx_desc *desc,
 						       u8 *crypto_hdr,
 						       enum hal_encrypt_type enctype)
 {
-	ab->hal.ops->rx_desc_get_crypto_header(desc, crypto_hdr, enctype);
+	hal->ops->rx_desc_get_crypto_header(desc, crypto_hdr, enctype);
 }
 
-static inline u8 ath12k_dp_rx_get_msdu_src_link(struct ath12k_base *ab,
+static inline u8 ath12k_dp_rx_get_msdu_src_link(struct ath12k_hal *hal,
 						struct hal_rx_desc *desc)
 {
-	return ab->hal.ops->rx_desc_get_msdu_src_link_id(desc);
+	return hal->ops->rx_desc_get_msdu_src_link_id(desc);
 }
 
 static inline void ath12k_dp_clean_up_skb_list(struct sk_buff_head *skb_list)
@@ -178,7 +178,7 @@ bool ath12k_dp_rx_check_nwifi_hdr_len_valid(struct ath12k_dp *dp,
 					    struct sk_buff *msdu,
 					    struct hal_rx_desc_data *rx_info);
 u64 ath12k_dp_rx_h_get_pn(struct ath12k_dp *dp, struct sk_buff *skb);
-void ath12k_dp_rx_h_sort_frags(struct ath12k_base *ab,
+void ath12k_dp_rx_h_sort_frags(struct ath12k_hal *hal,
 			       struct sk_buff_head *frag_list,
 			       struct sk_buff *cur_frag);
 void ath12k_dp_rx_h_undecap_frag(struct ath12k_pdev_dp *dp_pdev, struct sk_buff *msdu,
@@ -210,7 +210,7 @@ void ath12k_dp_rx_free(struct ath12k_base *ab);
 int ath12k_dp_rx_pdev_alloc(struct ath12k_base *ab, int pdev_idx);
 void ath12k_dp_rx_pdev_free(struct ath12k_base *ab, int pdev_idx);
 void ath12k_dp_rx_reo_cmd_list_cleanup(struct ath12k_base *ab);
-int ath12k_dp_rx_bufs_replenish(struct ath12k_base *ab,
+int ath12k_dp_rx_bufs_replenish(struct ath12k_dp *dp,
 				struct dp_rxdma_ring *rx_ring,
 				struct list_head *used_list,
 				int req_entries);

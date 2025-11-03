@@ -89,7 +89,7 @@ int ath12k_dp_mon_buf_replenish(struct ath12k_base *ab,
 int ath12k_dp_mon_status_bufs_replenish(struct ath12k_base *ab,
 					struct dp_rxdma_mon_ring *rx_ring,
 					int req_entries);
-int ath12k_dp_mon_process_ring(struct ath12k_base *ab, int mac_id,
+int ath12k_dp_mon_process_ring(struct ath12k_dp *dp, int mac_id,
 			       struct napi_struct *napi, int budget,
 			       enum dp_monitor_mode monitor_mode);
 struct sk_buff *ath12k_dp_mon_tx_alloc_skb(void);

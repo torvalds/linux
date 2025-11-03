@@ -146,10 +146,9 @@ static void ath12k_dp_tx_move_payload(struct sk_buff *skb,
 	}
 }
 
-int ath12k_dp_tx_align_payload(struct ath12k_base *ab,
-			       struct sk_buff **pskb)
+int ath12k_dp_tx_align_payload(struct ath12k_dp *dp, struct sk_buff **pskb)
 {
-	u32 iova_mask = ab->hw_params->iova_mask;
+	u32 iova_mask = dp->hw_params->iova_mask;
 	unsigned long offset, delta1, delta2;
 	struct sk_buff *skb2, *skb = *pskb;
 	unsigned int headroom = skb_headroom(skb);
@@ -184,28 +183,29 @@ out:
 }
 EXPORT_SYMBOL(ath12k_dp_tx_align_payload);
 
-void ath12k_dp_tx_free_txbuf(struct ath12k_base *ab,
+void ath12k_dp_tx_free_txbuf(struct ath12k_dp *dp,
 			     struct dp_tx_ring *tx_ring,
 			     struct ath12k_tx_desc_params *desc_params)
 {
-	struct ath12k *ar;
+	struct ath12k_pdev_dp *dp_pdev;
 	struct sk_buff *msdu = desc_params->skb;
 	struct ath12k_skb_cb *skb_cb;
-	u8 pdev_id = ath12k_hw_mac_id_to_pdev_id(ab->hw_params, desc_params->mac_id);
+	u8 pdev_idx = ath12k_hw_mac_id_to_pdev_id(dp->hw_params, desc_params->mac_id);
 
 	skb_cb = ATH12K_SKB_CB(msdu);
-	ar = ab->pdevs[pdev_id].ar;
 
-	dma_unmap_single(ab->dev, skb_cb->paddr, msdu->len, DMA_TO_DEVICE);
+	dp_pdev = ath12k_dp_to_pdev_dp(dp, pdev_idx);
+
+	dma_unmap_single(dp->dev, skb_cb->paddr, msdu->len, DMA_TO_DEVICE);
 	if (skb_cb->paddr_ext_desc) {
-		dma_unmap_single(ab->dev, skb_cb->paddr_ext_desc,
+		dma_unmap_single(dp->dev, skb_cb->paddr_ext_desc,
 				 desc_params->skb_ext_desc->len, DMA_TO_DEVICE);
 		dev_kfree_skb_any(desc_params->skb_ext_desc);
 	}
 
-	ieee80211_free_txskb(ar->ah->hw, msdu);
+	ieee80211_free_txskb(ath12k_pdev_dp_to_hw(dp_pdev), msdu);
 
-	if (atomic_dec_and_test(&ar->dp.num_tx_pending))
-		wake_up(&ar->dp.tx_empty_waitq);
+	if (atomic_dec_and_test(&dp_pdev->num_tx_pending))
+		wake_up(&dp_pdev->tx_empty_waitq);
 }
 EXPORT_SYMBOL(ath12k_dp_tx_free_txbuf);

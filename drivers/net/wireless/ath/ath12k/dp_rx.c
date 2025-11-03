@@ -61,11 +61,12 @@ static void ath12k_dp_rx_enqueue_free(struct ath12k_dp *dp,
 }
 
 /* Returns number of Rx buffers replenished */
-int ath12k_dp_rx_bufs_replenish(struct ath12k_base *ab,
+int ath12k_dp_rx_bufs_replenish(struct ath12k_dp *dp,
 				struct dp_rxdma_ring *rx_ring,
 				struct list_head *used_list,
 				int req_entries)
 {
+	struct ath12k_base *ab = dp->ab;
 	struct ath12k_buffer_addr *desc;
 	struct hal_srng *srng;
 	struct sk_buff *skb;
@@ -73,13 +74,12 @@ int ath12k_dp_rx_bufs_replenish(struct ath12k_base *ab,
 	int num_remain;
 	u32 cookie;
 	dma_addr_t paddr;
-	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
 	struct ath12k_rx_desc_info *rx_desc;
-	enum hal_rx_buf_return_buf_manager mgr = ab->hal.hal_params->rx_buf_rbm;
+	enum hal_rx_buf_return_buf_manager mgr = dp->hal->hal_params->rx_buf_rbm;
 
 	req_entries = min(req_entries, rx_ring->bufs_max);
 
-	srng = &ab->hal.srng_list[rx_ring->refill_buf_ring.ring_id];
+	srng = &dp->hal->srng_list[rx_ring->refill_buf_ring.ring_id];
 
 	spin_lock_bh(&srng->lock);
 
@@ -118,10 +118,10 @@ int ath12k_dp_rx_bufs_replenish(struct ath12k_base *ab,
 				 skb->data);
 		}
 
-		paddr = dma_map_single(ab->dev, skb->data,
+		paddr = dma_map_single(dp->dev, skb->data,
 				       skb->len + skb_tailroom(skb),
 				       DMA_FROM_DEVICE);
-		if (dma_mapping_error(ab->dev, paddr))
+		if (dma_mapping_error(dp->dev, paddr))
 			goto fail_free_skb;
 
 		rx_desc = list_first_entry_or_null(used_list,
@@ -142,14 +142,14 @@ int ath12k_dp_rx_bufs_replenish(struct ath12k_base *ab,
 
 		num_remain--;
 
-		ath12k_hal_rx_buf_addr_info_set(&ab->hal, desc, paddr, cookie,
+		ath12k_hal_rx_buf_addr_info_set(dp->hal, desc, paddr, cookie,
 						mgr);
 	}
 
 	goto out;
 
 fail_dma_unmap:
-	dma_unmap_single(ab->dev, paddr, skb->len + skb_tailroom(skb),
+	dma_unmap_single(dp->dev, paddr, skb->len + skb_tailroom(skb),
 			 DMA_FROM_DEVICE);
 fail_free_skb:
 	dev_kfree_skb_any(skb);
@@ -233,7 +233,7 @@ static int ath12k_dp_rxdma_ring_buf_setup(struct ath12k_base *ab,
 	rx_ring->bufs_max = rx_ring->refill_buf_ring.size /
 			ath12k_hal_srng_get_entrysize(ab, HAL_RXDMA_BUF);
 
-	ath12k_dp_rx_bufs_replenish(ab, rx_ring, &list, 0);
+	ath12k_dp_rx_bufs_replenish(ath12k_ab_to_dp(ab), rx_ring, &list, 0);
 
 	return 0;
 }
@@ -816,8 +816,6 @@ static void ath12k_dp_rx_h_undecap_nwifi(struct ath12k_pdev_dp *dp_pdev,
 					 enum hal_encrypt_type enctype,
 					 struct hal_rx_desc_data *rx_info)
 {
-	struct ath12k_dp *dp = dp_pdev->dp;
-	struct ath12k_base *ab = dp->ab;
 	struct ath12k_skb_rxcb *rxcb = ATH12K_SKB_RXCB(msdu);
 	u8 decap_hdr[DP_MAX_NWIFI_HDR_LEN];
 	struct ieee80211_hdr *hdr;
@@ -850,7 +848,7 @@ static void ath12k_dp_rx_h_undecap_nwifi(struct ath12k_pdev_dp *dp_pdev,
 	if (!(rx_info->rx_status->flag & RX_FLAG_IV_STRIPPED)) {
 		crypto_hdr = skb_push(msdu,
 				      ath12k_dp_rx_crypto_param_len(dp_pdev, enctype));
-		ath12k_dp_rx_desc_get_crypto_header(ab,
+		ath12k_dp_rx_desc_get_crypto_header(dp_pdev->dp->hal,
 						    rxcb->rx_desc, crypto_hdr,
 						    enctype);
 	}
@@ -929,19 +927,20 @@ static void ath12k_get_dot11_hdr_from_rx_desc(struct ath12k_pdev_dp *dp_pdev,
 {
 	struct hal_rx_desc *rx_desc = rxcb->rx_desc;
 	struct ath12k_dp *dp = dp_pdev->dp;
-	struct ath12k_base *ab = dp->ab;
+	struct ath12k_hal *hal = dp->hal;
 	size_t hdr_len, crypto_len;
 	struct ieee80211_hdr hdr;
 	__le16 qos_ctl;
 	u8 *crypto_hdr;
 
-	ath12k_dp_rx_desc_get_dot11_hdr(ab, rx_desc, &hdr);
+	ath12k_dp_rx_desc_get_dot11_hdr(hal, rx_desc, &hdr);
 	hdr_len = ieee80211_hdrlen(hdr.frame_control);
 
 	if (!(rx_info->rx_status->flag & RX_FLAG_IV_STRIPPED)) {
 		crypto_len = ath12k_dp_rx_crypto_param_len(dp_pdev, enctype);
 		crypto_hdr = skb_push(msdu, crypto_len);
-		ath12k_dp_rx_desc_get_crypto_header(ab, rx_desc, crypto_hdr, enctype);
+		ath12k_dp_rx_desc_get_crypto_header(dp->hal, rx_desc, crypto_hdr,
+						    enctype);
 	}
 
 	skb_push(msdu, hdr_len);
@@ -1188,7 +1187,6 @@ void ath12k_dp_rx_deliver_msdu(struct ath12k_pdev_dp *dp_pdev, struct napi_struc
 			       struct hal_rx_desc_data *rx_info)
 {
 	struct ath12k_dp *dp = dp_pdev->dp;
-	struct ath12k_base *ab = dp->ab;
 	struct ieee80211_rx_status *rx_status;
 	struct ieee80211_sta *pubsta;
 	struct ath12k_dp_peer *peer;
@@ -1207,7 +1205,7 @@ void ath12k_dp_rx_deliver_msdu(struct ath12k_pdev_dp *dp_pdev, struct napi_struc
 		status->link_id = peer->hw_links[rxcb->hw_link_id];
 	}
 
-	ath12k_dbg(ab, ATH12K_DBG_DATA,
+	ath12k_dbg(dp->ab, ATH12K_DBG_DATA,
 		   "rx skb %p len %u peer %pM %d %s sn %u %s%s%s%s%s%s%s%s%s%s rate_idx %u vht_nss %u freq %u band %u flag 0x%x fcs-err %i mic-err %i amsdu-more %i\n",
 		   msdu,
 		   msdu->len,
@@ -1233,7 +1231,7 @@ void ath12k_dp_rx_deliver_msdu(struct ath12k_pdev_dp *dp_pdev, struct napi_struc
 		   !!(status->flag & RX_FLAG_MMIC_ERROR),
 		   !!(status->flag & RX_FLAG_AMSDU_MORE));
 
-	ath12k_dbg_dump(ab, ATH12K_DBG_DP_RX, NULL, "dp rx msdu: ",
+	ath12k_dbg_dump(dp->ab, ATH12K_DBG_DP_RX, NULL, "dp rx msdu: ",
 			msdu->data, msdu->len);
 
 	rx_status = IEEE80211_SKB_RXCB(msdu);
@@ -1410,18 +1408,18 @@ void ath12k_dp_rx_h_undecap_frag(struct ath12k_pdev_dp *dp_pdev, struct sk_buff 
 }
 EXPORT_SYMBOL(ath12k_dp_rx_h_undecap_frag);
 
-static int ath12k_dp_rx_h_cmp_frags(struct ath12k_base *ab,
+static int ath12k_dp_rx_h_cmp_frags(struct ath12k_hal *hal,
 				    struct sk_buff *a, struct sk_buff *b)
 {
 	int frag1, frag2;
 
-	frag1 = ath12k_dp_rx_h_frag_no(ab, a);
-	frag2 = ath12k_dp_rx_h_frag_no(ab, b);
+	frag1 = ath12k_dp_rx_h_frag_no(hal, a);
+	frag2 = ath12k_dp_rx_h_frag_no(hal, b);
 
 	return frag1 - frag2;
 }
 
-void ath12k_dp_rx_h_sort_frags(struct ath12k_base *ab,
+void ath12k_dp_rx_h_sort_frags(struct ath12k_hal *hal,
 			       struct sk_buff_head *frag_list,
 			       struct sk_buff *cur_frag)
 {
@@ -1429,7 +1427,7 @@ void ath12k_dp_rx_h_sort_frags(struct ath12k_base *ab,
 	int cmp;
 
 	skb_queue_walk(frag_list, skb) {
-		cmp = ath12k_dp_rx_h_cmp_frags(ab, skb, cur_frag);
+		cmp = ath12k_dp_rx_h_cmp_frags(hal, skb, cur_frag);
 		if (cmp < 0)
 			continue;
 		__skb_queue_before(frag_list, skb, cur_frag);
