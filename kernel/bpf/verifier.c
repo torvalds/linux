@@ -15993,6 +15993,30 @@ static int is_scalar_branch_taken(struct bpf_reg_state *reg1, struct bpf_reg_sta
 	s64 smin2 = is_jmp32 ? (s64)reg2->s32_min_value : reg2->smin_value;
 	s64 smax2 = is_jmp32 ? (s64)reg2->s32_max_value : reg2->smax_value;
 
+	if (reg1 == reg2) {
+		switch (opcode) {
+		case BPF_JGE:
+		case BPF_JLE:
+		case BPF_JSGE:
+		case BPF_JSLE:
+		case BPF_JEQ:
+			return 1;
+		case BPF_JGT:
+		case BPF_JLT:
+		case BPF_JSGT:
+		case BPF_JSLT:
+		case BPF_JNE:
+			return 0;
+		case BPF_JSET:
+			if (tnum_is_const(t1))
+				return t1.value != 0;
+			else
+				return (smin1 <= 0 && smax1 >= 0) ? -1 : 1;
+		default:
+			return -1;
+		}
+	}
+
 	switch (opcode) {
 	case BPF_JEQ:
 		/* constants, umin/umax and smin/smax checks would be
@@ -16437,6 +16461,13 @@ static int reg_set_min_max(struct bpf_verifier_env *env,
 	 * the same object, but we don't bother with that).
 	 */
 	if (false_reg1->type != SCALAR_VALUE || false_reg2->type != SCALAR_VALUE)
+		return 0;
+
+	/* We compute branch direction for same SCALAR_VALUE registers in
+	 * is_scalar_branch_taken(). For unknown branch directions (e.g., BPF_JSET)
+	 * on the same registers, we don't need to adjust the min/max values.
+	 */
+	if (false_reg1 == false_reg2)
 		return 0;
 
 	/* fallthrough (FALSE) branch */
