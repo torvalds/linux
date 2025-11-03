@@ -98,7 +98,7 @@ static int filter_write(u32 reg)
 	if (!__ratelimit(&fw_rs))
 		return 0;
 
-	pr_warn("Write to unrecognized MSR 0x%x by %s (pid: %d).\n",
+	pr_warn("Write to unrecognized MSR 0x%x by %s (pid: %d), tainting CPU_OUT_OF_SPEC.\n",
 	        reg, current->comm, current->pid);
 	pr_warn("See https://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git/about for details.\n");
 
