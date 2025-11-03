@@ -83,7 +83,6 @@ static inline void __tlb_flush_mm_lazy(struct mm_struct * mm)
 
 /*
  * TLB flushing:
- *  flush_tlb() - flushes the current mm struct TLBs
  *  flush_tlb_all() - flushes all processes TLBs
  *  flush_tlb_mm(mm) - flushes the specified mm context TLB's
  *  flush_tlb_page(vma, vmaddr) - flushes one page
@@ -99,7 +98,6 @@ static inline void __tlb_flush_mm_lazy(struct mm_struct * mm)
  * only one user. At the end of the update the flush_tlb_mm and
  * flush_tlb_range functions need to do the flush.
  */
-#define flush_tlb()				do { } while (0)
 #define flush_tlb_all()				do { } while (0)
 #define flush_tlb_page(vma, addr)		do { } while (0)
 
