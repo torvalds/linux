@@ -422,15 +422,14 @@ static int pctv452e_i2c_msg(struct dvb_usb_device *d, u8 addr,
 	u8 id;
 	int ret;
 
+	if (snd_len > 64 - 7 || rcv_len > 64 - 7)
+		return -EINVAL;
+
 	buf = kmalloc(64, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
 	id = state->c++;
-
-	ret = -EINVAL;
-	if (snd_len > 64 - 7 || rcv_len > 64 - 7)
-		goto failed;
 
 	buf[0] = SYNC_BYTE_OUT;
 	buf[1] = id;
