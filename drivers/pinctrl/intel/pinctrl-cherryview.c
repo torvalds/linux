@@ -1528,10 +1528,8 @@ static int chv_gpio_add_pin_ranges(struct gpio_chip *chip)
 	for (i = 0; i < community->ngpps; i++) {
 		gpp = &community->gpps[i];
 		ret = gpiochip_add_pin_range(chip, dev_name(dev), gpp->base, gpp->base, gpp->size);
-		if (ret) {
-			dev_err(dev, "failed to add GPIO pin range\n");
-			return ret;
-		}
+		if (ret)
+			return dev_err_probe(dev, ret, "failed to add GPIO pin range\n");
 	}
 
 	return 0;
@@ -1567,17 +1565,13 @@ static int chv_gpio_probe(struct intel_pinctrl *pctrl, int irq)
 		chip->irq.init_valid_mask = chv_init_irq_valid_mask;
 	} else {
 		irq_base = devm_irq_alloc_descs(dev, -1, 0, pctrl->soc->npins, NUMA_NO_NODE);
-		if (irq_base < 0) {
-			dev_err(dev, "Failed to allocate IRQ numbers\n");
-			return irq_base;
-		}
+		if (irq_base < 0)
+			return dev_err_probe(dev, irq_base, "failed to allocate IRQ numbers\n");
 	}
 
 	ret = devm_gpiochip_add_data(dev, chip, pctrl);
-	if (ret) {
-		dev_err(dev, "Failed to register gpiochip\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to register gpiochip\n");
 
 	if (!need_valid_mask) {
 		for (i = 0; i < community->ngpps; i++) {
@@ -1673,10 +1667,8 @@ static int chv_pinctrl_probe(struct platform_device *pdev)
 	pctrl->pctldesc.npins = pctrl->soc->npins;
 
 	pctrl->pctldev = devm_pinctrl_register(dev, &pctrl->pctldesc, pctrl);
-	if (IS_ERR(pctrl->pctldev)) {
-		dev_err(dev, "failed to register pinctrl driver\n");
-		return PTR_ERR(pctrl->pctldev);
-	}
+	if (IS_ERR(pctrl->pctldev))
+		return dev_err_probe(dev, PTR_ERR(pctrl->pctldev), "failed to register pinctrl\n");
 
 	ret = chv_gpio_probe(pctrl, irq);
 	if (ret)
