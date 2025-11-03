@@ -30,6 +30,12 @@ properties:
           - const: vamrs,rock960
           - const: rockchip,rk3399
 
+      - description: 9Tripod X3568 series board
+        items:
+          - enum:
+              - 9tripod,x3568-v4
+          - const: rockchip,rk3568
+
       - description: Amarula Vyasa RK3288
         items:
           - const: amarula,vyasa-rk3288
