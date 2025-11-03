@@ -1197,8 +1197,8 @@ void vfs_coredump(const kernel_siginfo_t *siginfo)
 	}
 
 close_fail:
-	coredump_cleanup(&cn, &cprm);
 	revert_creds(old_cred);
+	coredump_cleanup(&cn, &cprm);
 	return;
 }
 
