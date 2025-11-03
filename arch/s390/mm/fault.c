@@ -368,20 +368,15 @@ void do_protection_exception(struct pt_regs *regs)
 	if (!(regs->int_code & 0x200))
 		regs->psw.addr = __rewind_psw(regs->psw, regs->int_code >> 16);
 	/*
-	 * Check for low-address protection.  This needs to be treated
-	 * as a special case because the translation exception code
-	 * field is not guaranteed to contain valid data in this case.
+	 * If bit 61 if the TEID is not set, the remainder of the
+	 * TEID is unpredictable. Special handling is required.
 	 */
 	if (unlikely(!teid.b61)) {
 		if (user_mode(regs)) {
-			/* Low-address protection in user mode: cannot happen */
 			dump_fault_info(regs);
-			die(regs, "Low-address protection");
+			die(regs, "Unexpected TEID");
 		}
-		/*
-		 * Low-address protection in kernel mode means
-		 * NULL pointer write access in kernel mode.
-		 */
+		/* Assume low-address protection in kernel mode. */
 		return handle_fault_error_nolock(regs, 0);
 	}
 	if (unlikely(cpu_has_nx() && teid.b56)) {
