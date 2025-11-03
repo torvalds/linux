@@ -148,7 +148,7 @@ struct fsl_spdif_priv {
 	struct clk *pll11k_clk;
 };
 
-static struct fsl_spdif_soc_data fsl_spdif_vf610 = {
+static const struct fsl_spdif_soc_data fsl_spdif_vf610 = {
 	.imx = false,
 	.shared_root_clock = false,
 	.raw_capture_mode = false,
@@ -158,7 +158,7 @@ static struct fsl_spdif_soc_data fsl_spdif_vf610 = {
 	.tx_formats = FSL_SPDIF_FORMATS_PLAYBACK,
 };
 
-static struct fsl_spdif_soc_data fsl_spdif_imx35 = {
+static const struct fsl_spdif_soc_data fsl_spdif_imx35 = {
 	.imx = true,
 	.shared_root_clock = false,
 	.raw_capture_mode = false,
@@ -168,7 +168,7 @@ static struct fsl_spdif_soc_data fsl_spdif_imx35 = {
 	.tx_formats = FSL_SPDIF_FORMATS_PLAYBACK,
 };
 
-static struct fsl_spdif_soc_data fsl_spdif_imx6sx = {
+static const struct fsl_spdif_soc_data fsl_spdif_imx6sx = {
 	.imx = true,
 	.shared_root_clock = true,
 	.raw_capture_mode = false,
@@ -179,7 +179,7 @@ static struct fsl_spdif_soc_data fsl_spdif_imx6sx = {
 
 };
 
-static struct fsl_spdif_soc_data fsl_spdif_imx8qm = {
+static const struct fsl_spdif_soc_data fsl_spdif_imx8qm = {
 	.imx = true,
 	.shared_root_clock = true,
 	.raw_capture_mode = false,
@@ -189,7 +189,7 @@ static struct fsl_spdif_soc_data fsl_spdif_imx8qm = {
 	.tx_formats = SNDRV_PCM_FMTBIT_S24_LE,  /* Applied for EDMA */
 };
 
-static struct fsl_spdif_soc_data fsl_spdif_imx8mm = {
+static const struct fsl_spdif_soc_data fsl_spdif_imx8mm = {
 	.imx = true,
 	.shared_root_clock = false,
 	.raw_capture_mode = true,
@@ -199,7 +199,7 @@ static struct fsl_spdif_soc_data fsl_spdif_imx8mm = {
 	.tx_formats = FSL_SPDIF_FORMATS_PLAYBACK,
 };
 
-static struct fsl_spdif_soc_data fsl_spdif_imx8ulp = {
+static const struct fsl_spdif_soc_data fsl_spdif_imx8ulp = {
 	.imx = true,
 	.shared_root_clock = true,
 	.raw_capture_mode = false,
@@ -1146,7 +1146,7 @@ static int fsl_spdif_usync_put(struct snd_kcontrol *kcontrol,
 }
 
 /* FSL SPDIF IEC958 controller defines */
-static struct snd_kcontrol_new fsl_spdif_ctrls[] = {
+static const struct snd_kcontrol_new fsl_spdif_ctrls[] = {
 	/* Status cchanel controller */
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
@@ -1233,7 +1233,7 @@ static struct snd_kcontrol_new fsl_spdif_ctrls[] = {
 	},
 };
 
-static struct snd_kcontrol_new fsl_spdif_ctrls_rcm[] = {
+static const struct snd_kcontrol_new fsl_spdif_ctrls_rcm[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_PCM,
 		.name = "IEC958 Raw Capture Mode",
