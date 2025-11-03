@@ -927,6 +927,51 @@ struct hal_srng {
 	} u;
 };
 
+/* hal_wbm_link_desc
+ *
+ *	Producer: WBM
+ *	Consumer: WBM
+ *
+ * buf_addr_info
+ *		Details of the physical address of a buffer or MSDU
+ *		link descriptor.
+ */
+
+enum hal_wbm_rel_src_module {
+	HAL_WBM_REL_SRC_MODULE_TQM,
+	HAL_WBM_REL_SRC_MODULE_RXDMA,
+	HAL_WBM_REL_SRC_MODULE_REO,
+	HAL_WBM_REL_SRC_MODULE_FW,
+	HAL_WBM_REL_SRC_MODULE_SW,
+	HAL_WBM_REL_SRC_MODULE_MAX,
+};
+
+/* hal_wbm_rel_desc_type
+ *
+ * msdu_buffer
+ *	The address points to an MSDU buffer
+ *
+ * msdu_link_descriptor
+ *	The address points to an Tx MSDU link descriptor
+ *
+ * mpdu_link_descriptor
+ *	The address points to an MPDU link descriptor
+ *
+ * msdu_ext_descriptor
+ *	The address points to an MSDU extension descriptor
+ *
+ * queue_ext_descriptor
+ *	The address points to an TQM queue extension descriptor. WBM should
+ *	treat this is the same way as a link descriptor.
+ */
+enum hal_wbm_rel_desc_type {
+	HAL_WBM_REL_DESC_TYPE_REL_MSDU,
+	HAL_WBM_REL_DESC_TYPE_MSDU_LINK,
+	HAL_WBM_REL_DESC_TYPE_MPDU_LINK,
+	HAL_WBM_REL_DESC_TYPE_MSDU_EXT,
+	HAL_WBM_REL_DESC_TYPE_QUEUE_EXT,
+};
+
 /* Interrupt mitigation - Batch threshold in terms of number of frames */
 #define HAL_SRNG_INT_BATCH_THRESHOLD_TX 256
 #define HAL_SRNG_INT_BATCH_THRESHOLD_RX 128
@@ -1335,6 +1380,14 @@ struct hal_ops {
 	void (*cc_config)(struct ath12k_base *ab);
 	enum hal_rx_buf_return_buf_manager
 		(*get_idle_link_rbm)(struct ath12k_hal *hal, u8 device_id);
+	void (*rx_msdu_list_get)(struct ath12k *ar,
+				 void *link_desc,
+				 void *msdu_list,
+				 u16 *num_msdus);
+	void (*rx_reo_ent_buf_paddr_get)(void *rx_desc, dma_addr_t *paddr,
+					 u32 *sw_cookie,
+					 struct ath12k_buffer_addr **pp_buf_addr,
+					 u8 *rbm, u32 *msdu_cnt);
 };
 
 dma_addr_t ath12k_hal_srng_get_tp_addr(struct ath12k_base *ab,
@@ -1417,4 +1470,11 @@ void ath12k_hal_rx_buf_addr_info_get(struct ath12k_hal *hal,
 void ath12k_hal_cc_config(struct ath12k_base *ab);
 enum hal_rx_buf_return_buf_manager
 ath12k_hal_get_idle_link_rbm(struct ath12k_hal *hal, u8 device_id);
+void ath12k_hal_rx_msdu_list_get(struct ath12k_hal *hal, struct ath12k *ar,
+				 void *link_desc, void *msdu_list,
+				 u16 *num_msdus);
+void ath12k_hal_rx_reo_ent_buf_paddr_get(struct ath12k_hal *hal, void *rx_desc,
+					 dma_addr_t *paddr, u32 *sw_cookie,
+					 struct ath12k_buffer_addr **pp_buf_addr,
+					 u8 *rbm, u32 *msdu_cnt);
 #endif

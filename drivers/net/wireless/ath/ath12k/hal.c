@@ -116,6 +116,24 @@ void ath12k_hal_rx_buf_addr_info_get(struct ath12k_hal *hal,
 	hal->ops->rx_buf_addr_info_get(binfo, paddr, msdu_cookies, rbm);
 }
 
+void ath12k_hal_rx_msdu_list_get(struct ath12k_hal *hal, struct ath12k *ar,
+				 void *link_desc,
+				 void *msdu_list,
+				 u16 *num_msdus)
+{
+	hal->ops->rx_msdu_list_get(ar, link_desc, msdu_list, num_msdus);
+}
+
+void ath12k_hal_rx_reo_ent_buf_paddr_get(struct ath12k_hal *hal, void *rx_desc,
+					 dma_addr_t *paddr,
+					 u32 *sw_cookie,
+					 struct ath12k_buffer_addr **pp_buf_addr,
+					 u8 *rbm, u32 *msdu_cnt)
+{
+	hal->ops->rx_reo_ent_buf_paddr_get(rx_desc, paddr, sw_cookie,
+					   pp_buf_addr, rbm, msdu_cnt);
+}
+
 void ath12k_hal_cc_config(struct ath12k_base *ab)
 {
 	ab->hal.ops->cc_config(ab);

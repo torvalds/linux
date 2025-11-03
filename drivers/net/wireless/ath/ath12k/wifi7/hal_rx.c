@@ -457,10 +457,10 @@ void ath12k_wifi7_hal_rx_reo_ent_paddr_get(struct ath12k_base *ab,
 	*cookie = le32_get_bits(buff_addr->info1, BUFFER_ADDR_INFO1_SW_COOKIE);
 }
 
-void ath12k_hal_rx_reo_ent_buf_paddr_get(void *rx_desc, dma_addr_t *paddr,
-					 u32 *sw_cookie,
-					 struct ath12k_buffer_addr **pp_buf_addr,
-					 u8 *rbm, u32 *msdu_cnt)
+void ath12k_wifi7_hal_rx_reo_ent_buf_paddr_get(void *rx_desc, dma_addr_t *paddr,
+					       u32 *sw_cookie,
+					       struct ath12k_buffer_addr **pp_buf_addr,
+					       u8 *rbm, u32 *msdu_cnt)
 {
 	struct hal_reo_entrance_ring *reo_ent_ring =
 		(struct hal_reo_entrance_ring *)rx_desc;
@@ -488,11 +488,14 @@ void ath12k_hal_rx_reo_ent_buf_paddr_get(void *rx_desc, dma_addr_t *paddr,
 	*pp_buf_addr = (void *)buf_addr_info;
 }
 
-void ath12k_hal_rx_msdu_list_get(struct ath12k *ar,
-				 struct hal_rx_msdu_link *link_desc,
-				 struct hal_rx_msdu_list *msdu_list,
-				 u16 *num_msdus)
+void ath12k_wifi7_hal_rx_msdu_list_get(struct ath12k *ar,
+				       void *link_desc_opaque,
+				       void *msdu_list_opaque, u16 *num_msdus)
 {
+	struct hal_rx_msdu_link *link_desc =
+				(struct hal_rx_msdu_link *)link_desc_opaque;
+	struct hal_rx_msdu_list *msdu_list =
+				(struct hal_rx_msdu_list *)msdu_list_opaque;
 	struct hal_rx_msdu_details *msdu_details = NULL;
 	struct rx_msdu_desc *msdu_desc_info = NULL;
 	u32 last = 0, first = 0;

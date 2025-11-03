@@ -11,7 +11,6 @@
 #include "dp_htt.h"
 #include "dp_cmn.h"
 #include <linux/rhashtable.h>
-#include "wifi7/hal_desc.h"
 
 #define MAX_RXDMA_PER_PDEV     2
 

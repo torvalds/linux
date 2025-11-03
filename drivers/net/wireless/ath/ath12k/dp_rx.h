@@ -136,16 +136,6 @@ static inline u32 ath12k_dp_rxdesc_get_ppduid(struct ath12k_base *ab,
 	return ab->hal.ops->rx_desc_get_mpdu_ppdu_id(rx_desc);
 }
 
-static inline bool ath12k_dp_rxdesc_mpdu_valid(struct ath12k_base *ab,
-					       struct hal_rx_desc *rx_desc)
-{
-	u32 tlv_tag;
-
-	tlv_tag = ab->hal.ops->rx_desc_get_mpdu_start_tag(rx_desc);
-
-	return tlv_tag == HAL_RX_MPDU_START;
-}
-
 static inline void ath12k_dp_rx_desc_get_dot11_hdr(struct ath12k_base *ab,
 						   struct hal_rx_desc *desc,
 						   struct ieee80211_hdr *hdr)
@@ -244,10 +234,6 @@ u32 ath12k_dp_rx_h_mpdu_err(struct ath12k_base *ab,
 int ath12k_dp_rx_crypto_mic_len(struct ath12k_dp *dp, enum hal_encrypt_type enctype);
 u32 ath12k_dp_rxdesc_get_ppduid(struct ath12k_base *ab,
 				struct hal_rx_desc *rx_desc);
-bool ath12k_dp_rxdesc_mpdu_valid(struct ath12k_base *ab,
-				 struct hal_rx_desc *rx_desc);
-bool ath12k_dp_rxdesc_mpdu_valid(struct ath12k_base *ab,
-				 struct hal_rx_desc *rx_desc);
 void ath12k_dp_rx_h_ppdu(struct ath12k_pdev_dp *dp_pdev,
 			 struct hal_rx_desc_data *rx_info);
 struct sk_buff *ath12k_dp_rx_get_msdu_last_buf(struct sk_buff_head *msdu_list,

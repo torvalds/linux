@@ -12,7 +12,6 @@
 #include "debug.h"
 #include "hw.h"
 #include "dp_rx.h"
-#include "wifi7/dp_rx.h"
 #include "dp_tx.h"
 #include "peer.h"
 #include "dp_mon.h"

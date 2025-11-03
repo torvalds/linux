@@ -1596,52 +1596,6 @@ struct hal_wbm_link_desc {
 	struct ath12k_buffer_addr buf_addr_info;
 } __packed;
 
-/* hal_wbm_link_desc
- *
- *	Producer: WBM
- *	Consumer: WBM
- *
- * buf_addr_info
- *		Details of the physical address of a buffer or MSDU
- *		link descriptor.
- */
-
-enum hal_wbm_rel_src_module {
-	HAL_WBM_REL_SRC_MODULE_TQM,
-	HAL_WBM_REL_SRC_MODULE_RXDMA,
-	HAL_WBM_REL_SRC_MODULE_REO,
-	HAL_WBM_REL_SRC_MODULE_FW,
-	HAL_WBM_REL_SRC_MODULE_SW,
-	HAL_WBM_REL_SRC_MODULE_MAX,
-};
-
-enum hal_wbm_rel_desc_type {
-	HAL_WBM_REL_DESC_TYPE_REL_MSDU,
-	HAL_WBM_REL_DESC_TYPE_MSDU_LINK,
-	HAL_WBM_REL_DESC_TYPE_MPDU_LINK,
-	HAL_WBM_REL_DESC_TYPE_MSDU_EXT,
-	HAL_WBM_REL_DESC_TYPE_QUEUE_EXT,
-};
-
-/* hal_wbm_rel_desc_type
- *
- * msdu_buffer
- *	The address points to an MSDU buffer
- *
- * msdu_link_descriptor
- *	The address points to an Tx MSDU link descriptor
- *
- * mpdu_link_descriptor
- *	The address points to an MPDU link descriptor
- *
- * msdu_ext_descriptor
- *	The address points to an MSDU extension descriptor
- *
- * queue_ext_descriptor
- *	The address points to an TQM queue extension descriptor. WBM should
- *	treat this is the same way as a link descriptor.
- */
-
 #define HAL_WBM_COMPL_RX_INFO0_REL_SRC_MODULE		GENMASK(2, 0)
 #define HAL_WBM_COMPL_RX_INFO0_BM_ACTION		GENMASK(5, 3)
 #define HAL_WBM_COMPL_RX_INFO0_DESC_TYPE		GENMASK(8, 6)
