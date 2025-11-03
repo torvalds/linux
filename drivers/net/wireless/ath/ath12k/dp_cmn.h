@@ -74,6 +74,14 @@ struct ath12k_dp_peer_create_params {
 	bool ucast_ra_only;
 };
 
+struct ath12k_dp_link_peer_rate_info {
+	struct rate_info txrate;
+	u64 rx_duration;
+	u64 tx_duration;
+	u8 rssi_comb;
+	s8 signal_avg;
+};
+
 static inline struct ath12k_dp_link_vif *
 ath12k_dp_vif_to_dp_link_vif(struct ath12k_dp_vif *dp_vif, u8 link_id)
 {
@@ -91,4 +99,8 @@ int ath12k_dp_link_peer_assign(struct ath12k_dp *dp, struct ath12k_dp_hw *dp_hw,
 			       u8 link_id, u32 hw_link_id);
 void ath12k_dp_link_peer_unassign(struct ath12k_dp *dp, struct ath12k_dp_hw *dp_hw,
 				  u8 vdev_id, u8 *addr, u32 hw_link_id);
+void
+ath12k_dp_link_peer_get_sta_rate_info_stats(struct ath12k_dp *dp, const u8 *addr,
+					    struct ath12k_dp_link_peer_rate_info *info);
+void ath12k_dp_link_peer_reset_rx_stats(struct ath12k_dp *dp, const u8 *addr);
 #endif

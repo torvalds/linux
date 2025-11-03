@@ -64,6 +64,15 @@ struct ath12k_base;
 #define HAL_WBM_IDLE_SCATTER_BUF_SIZE (HAL_WBM_IDLE_SCATTER_BUF_SIZE_MAX - \
 				       HAL_WBM_IDLE_SCATTER_NEXT_PTR_SIZE)
 
+#define HAL_AST_IDX_INVALID    0xFFFF
+#define HAL_RX_MAX_MCS         12
+#define HAL_RX_MAX_MCS_HT      31
+#define HAL_RX_MAX_MCS_VHT     9
+#define HAL_RX_MAX_MCS_HE      11
+#define HAL_RX_MAX_MCS_BE      15
+#define HAL_RX_MAX_NSS         8
+#define HAL_RX_MAX_NUM_LEGACY_RATES 12
+
 enum hal_srng_ring_id {
 	HAL_SRNG_RING_ID_REO2SW0 = 0,
 	HAL_SRNG_RING_ID_REO2SW1,

@@ -7,6 +7,7 @@
 #include "core.h"
 #include "peer.h"
 #include "debug.h"
+#include "debugfs.h"
 
 static int ath12k_wait_for_dp_link_peer_common(struct ath12k_base *ab, int vdev_id,
 					       const u8 *addr, bool expect_mapped)
@@ -50,6 +51,8 @@ void ath12k_peer_cleanup(struct ath12k *ar, u32 vdev_id)
 			    peer->addr, vdev_id);
 
 		list_del(&peer->list);
+
+		kfree(peer->peer_stats.rx_stats);
 		kfree(peer);
 		ar->num_peers--;
 	}

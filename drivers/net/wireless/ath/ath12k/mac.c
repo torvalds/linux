@@ -23,6 +23,7 @@
 #include "wow.h"
 #include "debugfs_sta.h"
 #include "dp.h"
+#include "dp_cmn.h"
 
 #define CHAN2G(_channel, _freq, _flags) { \
 	.band                   = NL80211_BAND_2GHZ, \
@@ -1213,6 +1214,8 @@ void ath12k_mac_peer_cleanup_all(struct ath12k *ar)
 
 	list_for_each_entry_safe(peer, tmp, &peers, list) {
 		list_del(&peer->list);
+
+		kfree(peer->peer_stats.rx_stats);
 		kfree(peer);
 	}
 
@@ -6375,14 +6378,13 @@ static void ath12k_mac_station_post_remove(struct ath12k *ar,
 			    vif->addr, arvif->vdev_id);
 		peer->sta = NULL;
 		list_del(&peer->list);
+
+		kfree(peer->peer_stats.rx_stats);
 		kfree(peer);
 		ar->num_peers--;
 	}
 
 	spin_unlock_bh(&dp->dp_lock);
-
-	kfree(arsta->rx_stats);
-	arsta->rx_stats = NULL;
 }
 
 static int ath12k_mac_station_unauthorize(struct ath12k *ar,
@@ -6527,14 +6529,6 @@ static int ath12k_mac_station_add(struct ath12k *ar,
 		goto exit;
 	}
 
-	if (ath12k_debugfs_is_extd_rx_stats_enabled(ar) && !arsta->rx_stats) {
-		arsta->rx_stats = kzalloc(sizeof(*arsta->rx_stats), GFP_KERNEL);
-		if (!arsta->rx_stats) {
-			ret = -ENOMEM;
-			goto dec_num_station;
-		}
-	}
-
 	spin_lock_bh(&ab->base_lock);
 
 	/*
@@ -6552,7 +6546,7 @@ static int ath12k_mac_station_add(struct ath12k *ar,
 	if (ret) {
 		ath12k_warn(ab, "Failed to add arsta: %pM to hash table, ret: %d",
 			    arsta->addr, ret);
-		goto free_rx_stats;
+		goto dec_num_station;
 	}
 
 	peer_param.vdev_id = arvif->vdev_id;
@@ -6598,7 +6592,6 @@ static int ath12k_mac_station_add(struct ath12k *ar,
 		}
 	}
 
-	ewma_avg_rssi_init(&arsta->avg_rssi);
 	return 0;
 
 free_peer:
@@ -6606,9 +6599,6 @@ free_peer:
 	spin_lock_bh(&ab->base_lock);
 	ath12k_link_sta_rhash_delete(ab, arsta);
 	spin_unlock_bh(&ab->base_lock);
-free_rx_stats:
-	kfree(arsta->rx_stats);
-	arsta->rx_stats = NULL;
 dec_num_station:
 	ath12k_mac_dec_num_stations(arvif, arsta);
 exit:
@@ -12888,9 +12878,12 @@ void ath12k_mac_op_sta_statistics(struct ieee80211_hw *hw,
 				  struct station_info *sinfo)
 {
 	struct ath12k_sta *ahsta = ath12k_sta_to_ahsta(sta);
+	struct ath12k_dp_link_peer_rate_info rate_info = {};
 	struct ath12k_fw_stats_req_params params = {};
+	struct ath12k_dp_link_peer *peer;
 	struct ath12k_link_sta *arsta;
 	s8 signal, noise_floor;
+	struct ath12k_dp *dp;
 	struct ath12k *ar;
 	bool db2dbm;
 
@@ -12901,34 +12894,37 @@ void ath12k_mac_op_sta_statistics(struct ieee80211_hw *hw,
 	if (!ar)
 		return;
 
+	dp = ath12k_ab_to_dp(ar->ab);
+	ath12k_dp_link_peer_get_sta_rate_info_stats(dp, arsta->addr, &rate_info);
+
 	db2dbm = test_bit(WMI_TLV_SERVICE_HW_DB2DBM_CONVERSION_SUPPORT,
 			  ar->ab->wmi_ab.svc_map);
 
-	sinfo->rx_duration = arsta->rx_duration;
+	sinfo->rx_duration = rate_info.rx_duration;
 	sinfo->filled |= BIT_ULL(NL80211_STA_INFO_RX_DURATION);
 
-	sinfo->tx_duration = arsta->tx_duration;
+	sinfo->tx_duration = rate_info.tx_duration;
 	sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_DURATION);
 
-	if (arsta->txrate.legacy || arsta->txrate.nss) {
-		if (arsta->txrate.legacy) {
-			sinfo->txrate.legacy = arsta->txrate.legacy;
+	if (rate_info.txrate.legacy || rate_info.txrate.nss) {
+		if (rate_info.txrate.legacy) {
+			sinfo->txrate.legacy = rate_info.txrate.legacy;
 		} else {
-			sinfo->txrate.mcs = arsta->txrate.mcs;
-			sinfo->txrate.nss = arsta->txrate.nss;
-			sinfo->txrate.bw = arsta->txrate.bw;
-			sinfo->txrate.he_gi = arsta->txrate.he_gi;
-			sinfo->txrate.he_dcm = arsta->txrate.he_dcm;
-			sinfo->txrate.he_ru_alloc = arsta->txrate.he_ru_alloc;
-			sinfo->txrate.eht_gi = arsta->txrate.eht_gi;
-			sinfo->txrate.eht_ru_alloc = arsta->txrate.eht_ru_alloc;
+			sinfo->txrate.mcs = rate_info.txrate.mcs;
+			sinfo->txrate.nss = rate_info.txrate.nss;
+			sinfo->txrate.bw = rate_info.txrate.bw;
+			sinfo->txrate.he_gi = rate_info.txrate.he_gi;
+			sinfo->txrate.he_dcm = rate_info.txrate.he_dcm;
+			sinfo->txrate.he_ru_alloc = rate_info.txrate.he_ru_alloc;
+			sinfo->txrate.eht_gi = rate_info.txrate.eht_gi;
+			sinfo->txrate.eht_ru_alloc = rate_info.txrate.eht_ru_alloc;
 		}
-		sinfo->txrate.flags = arsta->txrate.flags;
+		sinfo->txrate.flags = rate_info.txrate.flags;
 		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_BITRATE);
 	}
 
 	/* TODO: Use real NF instead of default one. */
-	signal = arsta->rssi_comb;
+	signal = rate_info.rssi_comb;
 
 	params.pdev_id = ar->pdev->pdev_id;
 	params.vdev_id = 0;
@@ -12948,17 +12944,26 @@ void ath12k_mac_op_sta_statistics(struct ieee80211_hw *hw,
 		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_SIGNAL);
 	}
 
-	sinfo->signal_avg = ewma_avg_rssi_read(&arsta->avg_rssi);
+	sinfo->signal_avg = rate_info.signal_avg;
 
 	if (!db2dbm)
 		sinfo->signal_avg += noise_floor;
 
 	sinfo->filled |= BIT_ULL(NL80211_STA_INFO_SIGNAL_AVG);
 
-	sinfo->tx_retries = arsta->tx_retry_count;
-	sinfo->tx_failed = arsta->tx_retry_failed;
+	spin_lock_bh(&dp->dp_lock);
+	peer = ath12k_dp_link_peer_find_by_addr(dp, arsta->addr);
+	if (!peer) {
+		spin_unlock_bh(&dp->dp_lock);
+		return;
+	}
+
+	sinfo->tx_retries = peer->tx_retry_count;
+	sinfo->tx_failed = peer->tx_retry_failed;
 	sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_RETRIES);
 	sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_FAILED);
+
+	spin_unlock_bh(&dp->dp_lock);
 }
 EXPORT_SYMBOL(ath12k_mac_op_sta_statistics);
 
@@ -12969,6 +12974,7 @@ void ath12k_mac_op_link_sta_statistics(struct ieee80211_hw *hw,
 {
 	struct ath12k_sta *ahsta = ath12k_sta_to_ahsta(link_sta->sta);
 	struct ath12k_fw_stats_req_params params = {};
+	struct ath12k_dp_link_peer *peer;
 	struct ath12k_link_sta *arsta;
 	struct ath12k *ar;
 	s8 signal;
@@ -12988,33 +12994,40 @@ void ath12k_mac_op_link_sta_statistics(struct ieee80211_hw *hw,
 	db2dbm = test_bit(WMI_TLV_SERVICE_HW_DB2DBM_CONVERSION_SUPPORT,
 			  ar->ab->wmi_ab.svc_map);
 
-	link_sinfo->rx_duration = arsta->rx_duration;
+	spin_lock_bh(&ar->ab->dp->dp_lock);
+	peer = ath12k_dp_link_peer_find_by_addr(ar->ab->dp, arsta->addr);
+	if (!peer) {
+		spin_unlock_bh(&ar->ab->dp->dp_lock);
+		return;
+	}
+
+	link_sinfo->rx_duration = peer->rx_duration;
 	link_sinfo->filled |= BIT_ULL(NL80211_STA_INFO_RX_DURATION);
 
-	link_sinfo->tx_duration = arsta->tx_duration;
+	link_sinfo->tx_duration = peer->tx_duration;
 	link_sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_DURATION);
 
-	if (arsta->txrate.legacy || arsta->txrate.nss) {
-		if (arsta->txrate.legacy) {
-			link_sinfo->txrate.legacy = arsta->txrate.legacy;
+	if (peer->txrate.legacy || peer->txrate.nss) {
+		if (peer->txrate.legacy) {
+			link_sinfo->txrate.legacy = peer->txrate.legacy;
 		} else {
-			link_sinfo->txrate.mcs = arsta->txrate.mcs;
-			link_sinfo->txrate.nss = arsta->txrate.nss;
-			link_sinfo->txrate.bw = arsta->txrate.bw;
-			link_sinfo->txrate.he_gi = arsta->txrate.he_gi;
-			link_sinfo->txrate.he_dcm = arsta->txrate.he_dcm;
+			link_sinfo->txrate.mcs = peer->txrate.mcs;
+			link_sinfo->txrate.nss = peer->txrate.nss;
+			link_sinfo->txrate.bw = peer->txrate.bw;
+			link_sinfo->txrate.he_gi = peer->txrate.he_gi;
+			link_sinfo->txrate.he_dcm = peer->txrate.he_dcm;
 			link_sinfo->txrate.he_ru_alloc =
-				arsta->txrate.he_ru_alloc;
-			link_sinfo->txrate.eht_gi = arsta->txrate.eht_gi;
+				peer->txrate.he_ru_alloc;
+			link_sinfo->txrate.eht_gi = peer->txrate.eht_gi;
 			link_sinfo->txrate.eht_ru_alloc =
-				arsta->txrate.eht_ru_alloc;
+				peer->txrate.eht_ru_alloc;
 		}
-		link_sinfo->txrate.flags = arsta->txrate.flags;
+		link_sinfo->txrate.flags = peer->txrate.flags;
 		link_sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_BITRATE);
 	}
 
 	/* TODO: Use real NF instead of default one. */
-	signal = arsta->rssi_comb;
+	signal = peer->rssi_comb;
 
 	params.pdev_id = ar->pdev->pdev_id;
 	params.vdev_id = 0;
@@ -13031,17 +13044,18 @@ void ath12k_mac_op_link_sta_statistics(struct ieee80211_hw *hw,
 		link_sinfo->filled |= BIT_ULL(NL80211_STA_INFO_SIGNAL);
 	}
 
-	link_sinfo->signal_avg = ewma_avg_rssi_read(&arsta->avg_rssi);
+	link_sinfo->signal_avg = ewma_avg_rssi_read(&peer->avg_rssi);
 
 	if (!db2dbm)
 		link_sinfo->signal_avg += ATH12K_DEFAULT_NOISE_FLOOR;
 
 	link_sinfo->filled |= BIT_ULL(NL80211_STA_INFO_SIGNAL_AVG);
 
-	link_sinfo->tx_retries = arsta->tx_retry_count;
-	link_sinfo->tx_failed = arsta->tx_retry_failed;
+	link_sinfo->tx_retries = peer->tx_retry_count;
+	link_sinfo->tx_failed = peer->tx_retry_failed;
 	link_sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_RETRIES);
 	link_sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_FAILED);
+	spin_unlock_bh(&ar->ab->dp->dp_lock);
 }
 EXPORT_SYMBOL(ath12k_mac_op_link_sta_statistics);
 

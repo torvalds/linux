@@ -7,6 +7,7 @@
 #include "core.h"
 #include "dp_peer.h"
 #include "debug.h"
+#include "debugfs.h"
 
 struct ath12k_dp_link_peer *
 ath12k_dp_link_peer_find_by_vdev_and_addr(struct ath12k_dp *dp,
@@ -140,6 +141,8 @@ void ath12k_dp_link_peer_unmap_event(struct ath12k_base *ab, u16 peer_id)
 		   peer->vdev_id, peer->addr, peer_id);
 
 	list_del(&peer->list);
+
+	kfree(peer->peer_stats.rx_stats);
 	kfree(peer);
 	wake_up(&ab->peer_mapping_wq);
 
@@ -152,6 +155,7 @@ void ath12k_dp_link_peer_map_event(struct ath12k_base *ab, u8 vdev_id, u16 peer_
 {
 	struct ath12k_dp_link_peer *peer;
 	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
+	struct ath12k *ar;
 
 	spin_lock_bh(&dp->dp_lock);
 	peer = ath12k_dp_link_peer_find_by_vdev_and_addr(dp, vdev_id, mac_addr);
@@ -165,10 +169,20 @@ void ath12k_dp_link_peer_map_event(struct ath12k_base *ab, u8 vdev_id, u16 peer_
 		peer->ast_hash = ast_hash;
 		peer->hw_peer_id = hw_peer_id;
 		ether_addr_copy(peer->addr, mac_addr);
+
+		rcu_read_lock();
+		ar = ath12k_mac_get_ar_by_vdev_id(ab, vdev_id);
+		if (ar && ath12k_debugfs_is_extd_rx_stats_enabled(ar) &&
+		    !peer->peer_stats.rx_stats) {
+			peer->peer_stats.rx_stats =
+				kzalloc(sizeof(*peer->peer_stats.rx_stats), GFP_ATOMIC);
+		}
+		rcu_read_unlock();
+
 		list_add(&peer->list, &dp->peers);
 		wake_up(&ab->peer_mapping_wq);
+		ewma_avg_rssi_init(&peer->avg_rssi);
 	}
-
 	ath12k_dbg(ab, ATH12K_DBG_DP_HTT, "htt peer map vdev %d peer %pM id %d\n",
 		   vdev_id, mac_addr, peer_id);
 
@@ -624,4 +638,46 @@ void ath12k_dp_link_peer_unassign(struct ath12k_dp *dp, struct ath12k_dp_hw *dp_
 	spin_unlock_bh(&dp->dp_lock);
 
 	synchronize_rcu();
+}
+
+void
+ath12k_dp_link_peer_get_sta_rate_info_stats(struct ath12k_dp *dp, const u8 *addr,
+					    struct ath12k_dp_link_peer_rate_info *info)
+{
+	struct ath12k_dp_link_peer *link_peer;
+
+	guard(spinlock_bh)(&dp->dp_lock);
+
+	link_peer = ath12k_dp_link_peer_find_by_addr(dp, addr);
+	if (!link_peer)
+		return;
+
+	info->rx_duration = link_peer->rx_duration;
+	info->tx_duration = link_peer->tx_duration;
+	info->txrate.legacy = link_peer->txrate.legacy;
+	info->txrate.mcs = link_peer->txrate.mcs;
+	info->txrate.nss = link_peer->txrate.nss;
+	info->txrate.bw = link_peer->txrate.bw;
+	info->txrate.he_gi = link_peer->txrate.he_gi;
+	info->txrate.he_dcm = link_peer->txrate.he_dcm;
+	info->txrate.he_ru_alloc = link_peer->txrate.he_ru_alloc;
+	info->txrate.flags = link_peer->txrate.flags;
+	info->rssi_comb = link_peer->rssi_comb;
+	info->signal_avg = ewma_avg_rssi_read(&link_peer->avg_rssi);
+}
+
+void ath12k_dp_link_peer_reset_rx_stats(struct ath12k_dp *dp, const u8 *addr)
+{
+	struct ath12k_rx_peer_stats *rx_stats;
+	struct ath12k_dp_link_peer *link_peer;
+
+	guard(spinlock_bh)(&dp->dp_lock);
+
+	link_peer = ath12k_dp_link_peer_find_by_addr(dp, addr);
+	if (!link_peer || !link_peer->peer_stats.rx_stats)
+		return;
+
+	rx_stats = link_peer->peer_stats.rx_stats;
+	if (rx_stats)
+		memset(rx_stats, 0, sizeof(*rx_stats));
 }

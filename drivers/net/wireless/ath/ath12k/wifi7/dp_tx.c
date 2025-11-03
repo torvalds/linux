@@ -517,31 +517,36 @@ static void ath12k_wifi7_dp_tx_update_txcompl(struct ath12k_pdev_dp *dp_pdev,
 					      struct hal_tx_status *ts)
 {
 	struct ath12k_dp *dp = dp_pdev->dp;
+	struct ath12k_dp_link_peer *peer;
 	struct ath12k_base *ab = dp->ab;
-	struct ath12k_dp_peer *peer;
-	struct ieee80211_sta *sta;
-	struct ath12k_sta *ahsta;
 	struct ath12k_link_sta *arsta;
 	struct rate_info txrate = {};
+	struct ieee80211_sta *sta;
+	struct ath12k_sta *ahsta;
 	u16 rate, ru_tones;
 	u8 rate_idx = 0;
 	int ret;
 
-	peer = ath12k_dp_peer_find_by_peerid(dp_pdev, ts->peer_id);
+	peer = ath12k_dp_link_peer_find_by_peerid(dp_pdev, ts->peer_id);
 	if (!peer || !peer->sta) {
 		ath12k_dbg(ab, ATH12K_DBG_DP_TX,
 			   "failed to find the peer by id %u\n", ts->peer_id);
 		return;
 	}
+
+	spin_lock_bh(&dp->dp_lock);
+
 	sta = peer->sta;
 	ahsta = ath12k_sta_to_ahsta(sta);
 	arsta = &ahsta->deflink;
 
+	spin_unlock_bh(&dp->dp_lock);
+
 	/* This is to prefer choose the real NSS value arsta->last_txrate.nss,
 	 * if it is invalid, then choose the NSS value while assoc.
 	 */
-	if (arsta->last_txrate.nss)
-		txrate.nss = arsta->last_txrate.nss;
+	if (peer->last_txrate.nss)
+		txrate.nss = peer->last_txrate.nss;
 	else
 		txrate.nss = arsta->peer_nss;
 
@@ -625,9 +630,9 @@ static void ath12k_wifi7_dp_tx_update_txcompl(struct ath12k_pdev_dp *dp_pdev,
 			ath12k_mac_eht_ru_tones_to_nl80211_eht_ru_alloc(ts->tones);
 	}
 
-	spin_lock_bh(&ab->base_lock);
-	arsta->txrate = txrate;
-	spin_unlock_bh(&ab->base_lock);
+	spin_lock_bh(&dp->dp_lock);
+	peer->txrate = txrate;
+	spin_unlock_bh(&dp->dp_lock);
 }
 
 static void ath12k_wifi7_dp_tx_complete_msdu(struct ath12k_pdev_dp *dp_pdev,
@@ -646,9 +651,7 @@ static void ath12k_wifi7_dp_tx_complete_msdu(struct ath12k_pdev_dp *dp_pdev,
 	s32 noise_floor;
 	struct ieee80211_tx_status status = {};
 	struct ieee80211_rate_status status_rate = {};
-	struct ath12k_dp_peer *peer;
-	struct ath12k_link_sta *arsta;
-	struct ath12k_sta *ahsta;
+	struct ath12k_dp_link_peer *peer;
 	struct rate_info rate;
 
 	if (WARN_ON_ONCE(ts->buf_rel_source != HAL_WBM_REL_SRC_MODULE_TQM)) {
@@ -743,7 +746,7 @@ static void ath12k_wifi7_dp_tx_complete_msdu(struct ath12k_pdev_dp *dp_pdev,
 
 	ath12k_wifi7_dp_tx_update_txcompl(dp_pdev, ts);
 
-	peer = ath12k_dp_peer_find_by_peerid(dp_pdev, ts->peer_id);
+	peer = ath12k_dp_link_peer_find_by_peerid(dp_pdev, ts->peer_id);
 	if (!peer || !peer->sta) {
 		ath12k_err(ab,
 			   "dp_tx: failed to find the peer with peer_id %d\n",
@@ -751,13 +754,11 @@ static void ath12k_wifi7_dp_tx_complete_msdu(struct ath12k_pdev_dp *dp_pdev,
 		ieee80211_free_txskb(ath12k_pdev_dp_to_hw(dp_pdev), msdu);
 		goto exit;
 	}
-	ahsta = ath12k_sta_to_ahsta(peer->sta);
-	arsta = &ahsta->deflink;
 
 	status.sta = peer->sta;
 	status.info = info;
 	status.skb = msdu;
-	rate = arsta->last_txrate;
+	rate = peer->last_txrate;
 
 	status_rate.rate_idx = rate;
 	status_rate.try_count = 1;

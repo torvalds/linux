@@ -395,50 +395,7 @@ struct ath12k_vif_iter {
 	struct ath12k_link_vif *arvif;
 };
 
-#define HAL_AST_IDX_INVALID	0xFFFF
-#define HAL_RX_MAX_MCS		12
-#define HAL_RX_MAX_MCS_HT	31
-#define HAL_RX_MAX_MCS_VHT	9
-#define HAL_RX_MAX_MCS_HE	11
-#define HAL_RX_MAX_MCS_BE	15
-#define HAL_RX_MAX_NSS		8
-#define HAL_RX_MAX_NUM_LEGACY_RATES 12
-
 #define ATH12K_SCAN_TIMEOUT_HZ (20 * HZ)
-
-struct ath12k_rx_peer_rate_stats {
-	u64 ht_mcs_count[HAL_RX_MAX_MCS_HT + 1];
-	u64 vht_mcs_count[HAL_RX_MAX_MCS_VHT + 1];
-	u64 he_mcs_count[HAL_RX_MAX_MCS_HE + 1];
-	u64 be_mcs_count[HAL_RX_MAX_MCS_BE + 1];
-	u64 nss_count[HAL_RX_MAX_NSS];
-	u64 bw_count[HAL_RX_BW_MAX];
-	u64 gi_count[HAL_RX_GI_MAX];
-	u64 legacy_count[HAL_RX_MAX_NUM_LEGACY_RATES];
-	u64 rx_rate[HAL_RX_BW_MAX][HAL_RX_GI_MAX][HAL_RX_MAX_NSS][HAL_RX_MAX_MCS_HT + 1];
-};
-
-struct ath12k_rx_peer_stats {
-	u64 num_msdu;
-	u64 num_mpdu_fcs_ok;
-	u64 num_mpdu_fcs_err;
-	u64 tcp_msdu_count;
-	u64 udp_msdu_count;
-	u64 other_msdu_count;
-	u64 ampdu_msdu_count;
-	u64 non_ampdu_msdu_count;
-	u64 stbc_count;
-	u64 beamformed_count;
-	u64 coding_count[HAL_RX_SU_MU_CODING_MAX];
-	u64 tid_count[IEEE80211_NUM_TIDS + 1];
-	u64 pream_cnt[HAL_RX_PREAMBLE_MAX];
-	u64 reception_type[HAL_RX_RECEPTION_TYPE_MAX];
-	u64 rx_duration;
-	u64 dcm_count;
-	u64 ru_alloc_cnt[HAL_RX_RU_ALLOC_TYPE_MAX];
-	struct ath12k_rx_peer_rate_stats pkt_stats;
-	struct ath12k_rx_peer_rate_stats byte_stats;
-};
 
 #define ATH12K_HE_MCS_NUM       12
 #define ATH12K_VHT_MCS_NUM      10
@@ -521,12 +478,6 @@ struct ath12k_per_ppdu_tx_stats {
 	u32 retry_bytes;
 };
 
-struct ath12k_wbm_tx_stats {
-	u64 wbm_tx_comp_stats[HAL_WBM_REL_HTT_TX_COMP_STATUS_MAX];
-};
-
-DECLARE_EWMA(avg_rssi, 10, 8)
-
 struct ath12k_link_sta {
 	struct ath12k_link_vif *arvif;
 	struct ath12k_sta *ahsta;
@@ -541,15 +492,7 @@ struct ath12k_link_sta {
 	u32 smps;
 
 	struct wiphy_work update_wk;
-	struct rate_info txrate;
-	struct rate_info last_txrate;
-	u64 rx_duration;
-	u64 tx_duration;
-	u8 rssi_comb;
-	struct ewma_avg_rssi avg_rssi;
 	u8 link_id;
-	struct ath12k_rx_peer_stats *rx_stats;
-	struct ath12k_wbm_tx_stats *wbm_tx_stats;
 	u32 bw_prev;
 	u32 peer_nss;
 	s8 rssi_beacon;
@@ -559,8 +502,6 @@ struct ath12k_link_sta {
 
 	 /* for firmware use only */
 	u8 link_idx;
-	u32 tx_retry_failed;
-	u32 tx_retry_count;
 
 	/* peer addr based rhashtable list pointer */
 	struct rhash_head rhash_addr;

@@ -3456,6 +3456,9 @@ ath12k_dp_mon_rx_update_peer_rate_table_stats(struct ath12k_rx_peer_stats *rx_st
 	u32 gi_idx = ppdu_info->gi;
 	u32 len;
 
+	if (!rx_stats)
+		return;
+
 	if (mcs_idx > HAL_RX_MAX_MCS_HT || nss_idx >= HAL_RX_MAX_NSS ||
 	    bw_idx >= HAL_RX_BW_MAX || gi_idx >= HAL_RX_GI_MAX) {
 		return;
@@ -3476,14 +3479,14 @@ ath12k_dp_mon_rx_update_peer_rate_table_stats(struct ath12k_rx_peer_stats *rx_st
 	stats->rx_rate[bw_idx][gi_idx][nss_idx][mcs_idx] += len;
 }
 
-static void ath12k_dp_mon_rx_update_peer_su_stats(struct ath12k_link_sta *arsta,
+static void ath12k_dp_mon_rx_update_peer_su_stats(struct ath12k_dp_link_peer *peer,
 						  struct hal_rx_mon_ppdu_info *ppdu_info)
 {
-	struct ath12k_rx_peer_stats *rx_stats = arsta->rx_stats;
+	struct ath12k_rx_peer_stats *rx_stats = peer->peer_stats.rx_stats;
 	u32 num_msdu;
 
-	arsta->rssi_comb = ppdu_info->rssi_comb;
-	ewma_avg_rssi_add(&arsta->avg_rssi, ppdu_info->rssi_comb);
+	peer->rssi_comb = ppdu_info->rssi_comb;
+	ewma_avg_rssi_add(&peer->avg_rssi, ppdu_info->rssi_comb);
 	if (!rx_stats)
 		return;
 
@@ -3531,7 +3534,7 @@ static void ath12k_dp_mon_rx_update_peer_su_stats(struct ath12k_link_sta *arsta,
 	rx_stats->dcm_count += ppdu_info->dcm;
 
 	rx_stats->rx_duration += ppdu_info->rx_duration;
-	arsta->rx_duration = rx_stats->rx_duration;
+	peer->rx_duration = rx_stats->rx_duration;
 
 	if (ppdu_info->nss > 0 && ppdu_info->nss <= HAL_RX_MAX_NSS) {
 		rx_stats->pkt_stats.nss_count[ppdu_info->nss - 1] += num_msdu;
@@ -3638,7 +3641,6 @@ ath12k_dp_mon_rx_update_user_stats(struct ath12k_base *ab,
 				   struct hal_rx_mon_ppdu_info *ppdu_info,
 				   u32 uid)
 {
-	struct ath12k_link_sta *arsta;
 	struct ath12k_rx_peer_stats *rx_stats = NULL;
 	struct hal_rx_user_status *user_stats = &ppdu_info->userstats[uid];
 	struct ath12k_dp_link_peer *peer;
@@ -3656,16 +3658,9 @@ ath12k_dp_mon_rx_update_user_stats(struct ath12k_base *ab,
 		return;
 	}
 
-	arsta = ath12k_dp_link_peer_to_link_sta(ab, peer);
-	if (!arsta) {
-		ath12k_warn(ab, "link sta not found on peer %pM id %d\n",
-			    peer->addr, peer->peer_id);
-		return;
-	}
-
-	arsta->rssi_comb = ppdu_info->rssi_comb;
-	ewma_avg_rssi_add(&arsta->avg_rssi, ppdu_info->rssi_comb);
-	rx_stats = arsta->rx_stats;
+	peer->rssi_comb = ppdu_info->rssi_comb;
+	ewma_avg_rssi_add(&peer->avg_rssi, ppdu_info->rssi_comb);
+	rx_stats = peer->peer_stats.rx_stats;
 	if (!rx_stats)
 		return;
 
@@ -3709,7 +3704,7 @@ ath12k_dp_mon_rx_update_user_stats(struct ath12k_base *ab,
 		rx_stats->ru_alloc_cnt[user_stats->ul_ofdma_ru_size] += num_msdu;
 
 	rx_stats->rx_duration += ppdu_info->rx_duration;
-	arsta->rx_duration = rx_stats->rx_duration;
+	peer->rx_duration = rx_stats->rx_duration;
 
 	if (user_stats->nss > 0 && user_stats->nss <= HAL_RX_MAX_NSS) {
 		rx_stats->pkt_stats.nss_count[user_stats->nss - 1] += num_msdu;
@@ -3774,7 +3769,6 @@ int ath12k_dp_mon_srng_process(struct ath12k_pdev_dp *pdev_dp, int *budget,
 	struct dp_srng *mon_dst_ring;
 	struct hal_srng *srng;
 	struct dp_rxdma_mon_ring *buf_ring;
-	struct ath12k_link_sta *arsta;
 	struct ath12k_dp_link_peer *peer;
 	struct sk_buff_head skb_list;
 	u64 cookie;
@@ -3898,16 +3892,7 @@ move_next:
 		}
 
 		if (ppdu_info->reception_type == HAL_RX_RECEPTION_TYPE_SU) {
-			arsta = ath12k_dp_link_peer_to_link_sta(ab, peer);
-			if (!arsta) {
-				ath12k_warn(ab, "link sta not found on peer %pM id %d\n",
-					    peer->addr, peer->peer_id);
-				rcu_read_unlock();
-				dev_kfree_skb_any(skb);
-				continue;
-			}
-			ath12k_dp_mon_rx_update_peer_su_stats(arsta,
-							      ppdu_info);
+			ath12k_dp_mon_rx_update_peer_su_stats(peer, ppdu_info);
 		} else if ((ppdu_info->fc_valid) &&
 			   (ppdu_info->ast_index != HAL_AST_IDX_INVALID)) {
 			ath12k_dp_mon_rx_process_ulofdma(ppdu_info);
