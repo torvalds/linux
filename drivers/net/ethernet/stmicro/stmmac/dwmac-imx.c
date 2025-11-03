@@ -45,7 +45,8 @@ struct imx_dwmac_ops {
 	bool mac_rgmii_txclk_auto_adj;
 
 	int (*fix_soc_reset)(struct stmmac_priv *priv, void __iomem *ioaddr);
-	int (*set_intf_mode)(struct plat_stmmacenet_data *plat_dat);
+	int (*set_intf_mode)(struct plat_stmmacenet_data *plat_dat,
+			     u8 phy_intf_sel);
 	void (*fix_mac_speed)(void *priv, int speed, unsigned int mode);
 };
 
@@ -62,26 +63,23 @@ struct imx_priv_data {
 	struct plat_stmmacenet_data *plat_dat;
 };
 
-static int imx8mp_set_intf_mode(struct plat_stmmacenet_data *plat_dat)
+static int imx8mp_set_intf_mode(struct plat_stmmacenet_data *plat_dat,
+				u8 phy_intf_sel)
 {
 	struct imx_priv_data *dwmac = plat_dat->bsp_priv;
-	u8 phy_intf_sel;
 	int val;
 
 	switch (plat_dat->phy_interface) {
 	case PHY_INTERFACE_MODE_MII:
-		phy_intf_sel = PHY_INTF_SEL_GMII_MII;
 		val = 0;
 		break;
 	case PHY_INTERFACE_MODE_RMII:
-		phy_intf_sel = PHY_INTF_SEL_RMII;
 		val = dwmac->rmii_refclk_ext ? 0 : GPR_ENET_QOS_CLK_TX_CLK_SEL;
 		break;
 	case PHY_INTERFACE_MODE_RGMII:
 	case PHY_INTERFACE_MODE_RGMII_ID:
 	case PHY_INTERFACE_MODE_RGMII_RXID:
 	case PHY_INTERFACE_MODE_RGMII_TXID:
-		phy_intf_sel = PHY_INTF_SEL_RGMII;
 		val = GPR_ENET_QOS_RGMII_EN;
 		break;
 	default:
@@ -98,7 +96,8 @@ static int imx8mp_set_intf_mode(struct plat_stmmacenet_data *plat_dat)
 };
 
 static int
-imx8dxl_set_intf_mode(struct plat_stmmacenet_data *plat_dat)
+imx8dxl_set_intf_mode(struct plat_stmmacenet_data *plat_dat,
+		      u8 phy_intf_sel)
 {
 	int ret = 0;
 
@@ -106,16 +105,13 @@ imx8dxl_set_intf_mode(struct plat_stmmacenet_data *plat_dat)
 	return ret;
 }
 
-static int imx93_set_intf_mode(struct plat_stmmacenet_data *plat_dat)
+static int imx93_set_intf_mode(struct plat_stmmacenet_data *plat_dat,
+			       u8 phy_intf_sel)
 {
 	struct imx_priv_data *dwmac = plat_dat->bsp_priv;
-	u8 phy_intf_sel;
 	int val, ret;
 
 	switch (plat_dat->phy_interface) {
-	case PHY_INTERFACE_MODE_MII:
-		phy_intf_sel = PHY_INTF_SEL_GMII_MII;
-		break;
 	case PHY_INTERFACE_MODE_RMII:
 		if (dwmac->rmii_refclk_ext) {
 			ret = regmap_clear_bits(dwmac->intf_regmap,
@@ -125,13 +121,12 @@ static int imx93_set_intf_mode(struct plat_stmmacenet_data *plat_dat)
 			if (ret)
 				return ret;
 		}
-		phy_intf_sel = PHY_INTF_SEL_RMII;
 		break;
+	case PHY_INTERFACE_MODE_MII:
 	case PHY_INTERFACE_MODE_RGMII:
 	case PHY_INTERFACE_MODE_RGMII_ID:
 	case PHY_INTERFACE_MODE_RGMII_RXID:
 	case PHY_INTERFACE_MODE_RGMII_TXID:
-		phy_intf_sel = PHY_INTF_SEL_RGMII;
 		break;
 	default:
 		dev_dbg(dwmac->dev, "imx dwmac doesn't support %s interface\n",
@@ -176,12 +171,24 @@ static int imx_dwmac_init(struct platform_device *pdev, void *priv)
 {
 	struct plat_stmmacenet_data *plat_dat;
 	struct imx_priv_data *dwmac = priv;
-	int ret;
-
-	plat_dat = dwmac->plat_dat;
+	phy_interface_t interface;
+	int phy_intf_sel, ret;
 
 	if (dwmac->ops->set_intf_mode) {
-		ret = dwmac->ops->set_intf_mode(plat_dat);
+		plat_dat = dwmac->plat_dat;
+		interface = plat_dat->phy_interface;
+
+		phy_intf_sel = stmmac_get_phy_intf_sel(interface);
+		if (phy_intf_sel != PHY_INTF_SEL_GMII_MII &&
+		    phy_intf_sel != PHY_INTF_SEL_RGMII &&
+		    phy_intf_sel != PHY_INTF_SEL_RMII) {
+			dev_dbg(dwmac->dev,
+				"imx dwmac doesn't support %s interface\n",
+				phy_modes(interface));
+			return phy_intf_sel < 0 ? phy_intf_sel : -EINVAL;
+		}
+
+		ret = dwmac->ops->set_intf_mode(plat_dat, phy_intf_sel);
 		if (ret)
 			return ret;
 	}
