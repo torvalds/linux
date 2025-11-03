@@ -134,36 +134,19 @@ static int imx_dwmac_clks_config(void *priv, bool enabled)
 	return ret;
 }
 
-static int imx_dwmac_init(struct platform_device *pdev, void *priv)
+static int imx_set_phy_intf_sel(void *bsp_priv, u8 phy_intf_sel)
 {
-	struct imx_priv_data *dwmac = priv;
-	phy_interface_t interface;
-	int phy_intf_sel, ret;
+	struct imx_priv_data *dwmac = bsp_priv;
 
-	if (dwmac->ops->set_intf_mode) {
-		interface = dwmac->plat_dat->phy_interface;
+	if (!dwmac->ops->set_intf_mode)
+		return 0;
 
-		phy_intf_sel = stmmac_get_phy_intf_sel(interface);
-		if (phy_intf_sel != PHY_INTF_SEL_GMII_MII &&
-		    phy_intf_sel != PHY_INTF_SEL_RGMII &&
-		    phy_intf_sel != PHY_INTF_SEL_RMII) {
-			dev_dbg(dwmac->dev,
-				"imx dwmac doesn't support %s interface\n",
-				phy_modes(interface));
-			return phy_intf_sel < 0 ? phy_intf_sel : -EINVAL;
-		}
+	if (phy_intf_sel != PHY_INTF_SEL_GMII_MII &&
+	    phy_intf_sel != PHY_INTF_SEL_RGMII &&
+	    phy_intf_sel != PHY_INTF_SEL_RMII)
+		return -EINVAL;
 
-		ret = dwmac->ops->set_intf_mode(dwmac, phy_intf_sel);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
-}
-
-static void imx_dwmac_exit(struct platform_device *pdev, void *priv)
-{
-	/* nothing to do now */
+	return dwmac->ops->set_intf_mode(dwmac, phy_intf_sel);
 }
 
 static int imx_dwmac_set_clk_tx_rate(void *bsp_priv, struct clk *clk_tx_i,
@@ -342,8 +325,7 @@ static int imx_dwmac_probe(struct platform_device *pdev)
 		plat_dat->tx_queues_cfg[i].tbs_en = 1;
 
 	plat_dat->host_dma_width = dwmac->ops->addr_width;
-	plat_dat->init = imx_dwmac_init;
-	plat_dat->exit = imx_dwmac_exit;
+	plat_dat->set_phy_intf_sel = imx_set_phy_intf_sel;
 	plat_dat->clks_config = imx_dwmac_clks_config;
 	plat_dat->bsp_priv = dwmac;
 	dwmac->plat_dat = plat_dat;
