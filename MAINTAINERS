@@ -7414,7 +7414,7 @@ F:	Documentation/
 F:	scripts/kernel-doc*
 F:	scripts/lib/abi/*
 F:	scripts/lib/kdoc/*
-F:	tools/docs/*
+F:	tools/docs/
 F:	tools/net/ynl/pyynl/lib/doc_generator.py
 X:	Documentation/ABI/
 X:	Documentation/admin-guide/media/
@@ -7448,8 +7448,8 @@ DOCUMENTATION SCRIPTS
 M:	Mauro Carvalho Chehab <mchehab@kernel.org>
 L:	linux-doc@vger.kernel.org
 S:	Maintained
-F:	Documentation/sphinx/parse-headers.pl
-F:	tools/docs/sphinx-pre-install
+F:	Documentation/sphinx/
+F:	tools/docs/
 
 DOCUMENTATION/ITALIAN
 M:	Federico Vaga <federico.vaga@vaga.pv.it>
