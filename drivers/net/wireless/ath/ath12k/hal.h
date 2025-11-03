@@ -795,7 +795,10 @@ struct ath12k_buffer_addr {
 struct hal_ce_srng_dest_desc;
 struct hal_ce_srng_dst_status_desc;
 struct hal_ce_srng_src_desc;
-struct hal_wbm_link_desc;
+
+struct hal_wbm_link_desc {
+	struct ath12k_buffer_addr buf_addr_info;
+} __packed;
 
 /* srng flags */
 #define HAL_SRNG_FLAGS_MSI_SWAP			0x00000008
@@ -1202,6 +1205,7 @@ struct ath12k_hal {
 	int num_shadow_reg_configured;
 
 	u32 hal_desc_sz;
+	u32 hal_wbm_release_ring_tx_size;
 
 	const struct ath12k_hal_tcl_to_wbm_rbm_map *tcl_to_wbm_rbm_map;
 };

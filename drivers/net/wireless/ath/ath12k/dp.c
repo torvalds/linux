@@ -11,7 +11,6 @@
 #include "hal.h"
 #include "debug.h"
 #include "peer.h"
-#include "dp_mon.h"
 #include "dp_cmn.h"
 
 enum ath12k_dp_desc_type {
@@ -1532,7 +1531,7 @@ static int ath12k_dp_setup(struct ath12k_base *ab)
 	if (ret)
 		goto fail_dp_bank_profiles_cleanup;
 
-	size = sizeof(struct hal_wbm_release_ring_tx) *
+	size = ab->hal.hal_wbm_release_ring_tx_size *
 	       DP_TX_COMP_RING_SIZE(ab);
 
 	ret = ath12k_dp_reoq_lut_setup(ab);

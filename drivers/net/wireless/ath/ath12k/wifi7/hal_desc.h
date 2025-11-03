@@ -1592,10 +1592,6 @@ struct hal_tx_rate_stats {
 	__le32 tsf;
 } __packed;
 
-struct hal_wbm_link_desc {
-	struct ath12k_buffer_addr buf_addr_info;
-} __packed;
-
 #define HAL_WBM_COMPL_RX_INFO0_REL_SRC_MODULE		GENMASK(2, 0)
 #define HAL_WBM_COMPL_RX_INFO0_BM_ACTION		GENMASK(5, 3)
 #define HAL_WBM_COMPL_RX_INFO0_DESC_TYPE		GENMASK(8, 6)

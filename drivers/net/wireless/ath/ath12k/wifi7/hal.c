@@ -55,6 +55,7 @@ int ath12k_wifi7_hal_init(struct ath12k_base *ab)
 	hal->tcl_to_wbm_rbm_map = ath12k_wifi7_hw_ver_map[ab->hw_rev].tcl_to_wbm_rbm_map;
 	hal->regs = ath12k_wifi7_hw_ver_map[ab->hw_rev].hw_regs;
 	hal->hal_params = ath12k_wifi7_hw_ver_map[ab->hw_rev].hal_params;
+	hal->hal_wbm_release_ring_tx_size = sizeof(struct hal_wbm_release_ring_tx);
 
 	return 0;
 }

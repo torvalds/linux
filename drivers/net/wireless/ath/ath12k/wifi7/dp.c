@@ -7,6 +7,7 @@
 #include "../debug.h"
 #include "../dp_rx.h"
 #include "../dp_tx.h"
+#include "hal_desc.h"
 #include "../dp_mon.h"
 #include "../dp_cmn.h"
 #include "dp_rx.h"
