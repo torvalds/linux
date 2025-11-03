@@ -12,6 +12,7 @@ use crate::{
     sync::aref::ARef,
     transmute::{AsBytes, FromBytes},
 };
+use core::ptr::NonNull;
 
 /// DMA address type.
 ///
@@ -358,7 +359,7 @@ pub struct CoherentAllocation<T: AsBytes + FromBytes> {
     dev: ARef<device::Device>,
     dma_handle: DmaAddress,
     count: usize,
-    cpu_addr: *mut T,
+    cpu_addr: NonNull<T>,
     dma_attrs: Attrs,
 }
 
@@ -392,7 +393,7 @@ impl<T: AsBytes + FromBytes> CoherentAllocation<T> {
             .ok_or(EOVERFLOW)?;
         let mut dma_handle = 0;
         // SAFETY: Device pointer is guaranteed as valid by the type invariant on `Device`.
-        let ret = unsafe {
+        let addr = unsafe {
             bindings::dma_alloc_attrs(
                 dev.as_raw(),
                 size,
@@ -401,9 +402,7 @@ impl<T: AsBytes + FromBytes> CoherentAllocation<T> {
                 dma_attrs.as_raw(),
             )
         };
-        if ret.is_null() {
-            return Err(ENOMEM);
-        }
+        let addr = NonNull::new(addr).ok_or(ENOMEM)?;
         // INVARIANT:
         // - We just successfully allocated a coherent region which is accessible for
         //   `count` elements, hence the cpu address is valid. We also hold a refcounted reference
@@ -414,7 +413,7 @@ impl<T: AsBytes + FromBytes> CoherentAllocation<T> {
             dev: dev.into(),
             dma_handle,
             count,
-            cpu_addr: ret.cast::<T>(),
+            cpu_addr: addr.cast(),
             dma_attrs,
         })
     }
@@ -446,13 +445,13 @@ impl<T: AsBytes + FromBytes> CoherentAllocation<T> {
 
     /// Returns the base address to the allocated region in the CPU's virtual address space.
     pub fn start_ptr(&self) -> *const T {
-        self.cpu_addr
+        self.cpu_addr.as_ptr()
     }
 
     /// Returns the base address to the allocated region in the CPU's virtual address space as
     /// a mutable pointer.
     pub fn start_ptr_mut(&mut self) -> *mut T {
-        self.cpu_addr
+        self.cpu_addr.as_ptr()
     }
 
     /// Returns a DMA handle which may be given to the device as the DMA address base of
@@ -580,7 +579,7 @@ impl<T: AsBytes + FromBytes> CoherentAllocation<T> {
         // and we've just checked that the range and index is within bounds.
         // - `offset` can't overflow since it is smaller than `self.count` and we've checked
         // that `self.count` won't overflow early in the constructor.
-        Ok(unsafe { self.cpu_addr.add(offset) })
+        Ok(unsafe { self.cpu_addr.as_ptr().add(offset) })
     }
 
     /// Reads the value of `field` and ensures that its type is [`FromBytes`].
