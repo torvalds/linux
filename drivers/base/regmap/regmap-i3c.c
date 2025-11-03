@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (c) 2018 Synopsys, Inc. and/or its affiliates.
 
+#include <linux/array_size.h>
 #include <linux/regmap.h>
 #include <linux/i3c/device.h>
 #include <linux/i3c/master.h>
@@ -18,7 +19,7 @@ static int regmap_i3c_write(void *context, const void *data, size_t count)
 		},
 	};
 
-	return i3c_device_do_priv_xfers(i3c, xfers, 1);
+	return i3c_device_do_priv_xfers(i3c, xfers, ARRAY_SIZE(xfers));
 }
 
 static int regmap_i3c_read(void *context,
@@ -37,7 +38,7 @@ static int regmap_i3c_read(void *context,
 	xfers[1].len = val_size;
 	xfers[1].data.in = val;
 
-	return i3c_device_do_priv_xfers(i3c, xfers, 2);
+	return i3c_device_do_priv_xfers(i3c, xfers, ARRAY_SIZE(xfers));
 }
 
 static const struct regmap_bus regmap_i3c = {
