@@ -1036,7 +1036,7 @@ static bool coredump_pipe(struct core_name *cn, struct coredump_params *cprm,
 
 static bool coredump_write(struct core_name *cn,
 			  struct coredump_params *cprm,
-			  struct linux_binfmt *binfmt)
+			  const struct linux_binfmt *binfmt)
 {
 
 	if (dump_interrupted())
@@ -1093,7 +1093,7 @@ void vfs_coredump(const kernel_siginfo_t *siginfo)
 	struct core_state core_state;
 	struct core_name cn;
 	struct mm_struct *mm = current->mm;
-	struct linux_binfmt *binfmt = mm->binfmt;
+	const struct linux_binfmt *binfmt = mm->binfmt;
 	const struct cred *old_cred;
 	int argc = 0;
 	struct coredump_params cprm = {
