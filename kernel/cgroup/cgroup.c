@@ -250,12 +250,9 @@ bool cgroup_enable_per_threadgroup_rwsem __read_mostly;
 
 /* cgroup namespace for init task */
 struct cgroup_namespace init_cgroup_ns = {
-	.ns.__ns_ref	= REFCOUNT_INIT(2),
+	.ns		= NS_COMMON_INIT(init_cgroup_ns, 2),
 	.user_ns	= &init_user_ns,
-	.ns.ops		= &cgroupns_operations,
-	.ns.inum	= ns_init_inum(&init_cgroup_ns),
 	.root_cset	= &init_css_set,
-	.ns.ns_type	= ns_common_type(&init_cgroup_ns),
 };
 
 static struct file_system_type cgroup2_fs_type;

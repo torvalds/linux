@@ -5985,11 +5985,8 @@ SYSCALL_DEFINE4(listmount, const struct mnt_id_req __user *, req,
 }
 
 struct mnt_namespace init_mnt_ns = {
-	.ns.inum	= ns_init_inum(&init_mnt_ns),
-	.ns.ops		= &mntns_operations,
+	.ns		= NS_COMMON_INIT(init_mnt_ns, 1),
 	.user_ns	= &init_user_ns,
-	.ns.__ns_ref	= REFCOUNT_INIT(1),
-	.ns.ns_type	= ns_common_type(&init_mnt_ns),
 	.passive	= REFCOUNT_INIT(1),
 	.mounts		= RB_ROOT,
 	.poll		= __WAIT_QUEUE_HEAD_INITIALIZER(init_mnt_ns.poll),
