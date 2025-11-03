@@ -454,7 +454,7 @@ static int io_files_update_with_index_alloc(struct io_kiocb *req,
 		return -ENXIO;
 
 	for (done = 0; done < up->nr_args; done++) {
-		if (copy_from_user(&fd, &fds[done], sizeof(fd))) {
+		if (get_user(fd, &fds[done])) {
 			ret = -EFAULT;
 			break;
 		}
@@ -468,7 +468,7 @@ static int io_files_update_with_index_alloc(struct io_kiocb *req,
 					  IORING_FILE_INDEX_ALLOC);
 		if (ret < 0)
 			break;
-		if (copy_to_user(&fds[done], &ret, sizeof(ret))) {
+		if (put_user(ret, &fds[done])) {
 			__io_close_fixed(req->ctx, issue_flags, ret);
 			ret = -EFAULT;
 			break;
