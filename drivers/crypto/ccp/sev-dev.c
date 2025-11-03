@@ -259,8 +259,8 @@ static int sev_cmd_buffer_len(int cmd)
 
 static struct file *open_file_as_root(const char *filename, int flags, umode_t mode)
 {
+	struct path root __free(path_put) = {};
 	struct file *fp;
-	struct path root;
 	struct cred *cred;
 	const struct cred *old_cred;
 
@@ -275,7 +275,6 @@ static struct file *open_file_as_root(const char *filename, int flags, umode_t m
 	old_cred = override_creds(cred);
 
 	fp = file_open_root(&root, filename, flags, mode);
-	path_put(&root);
 
 	put_cred(revert_creds(old_cred));
 
