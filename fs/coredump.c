@@ -1086,6 +1086,73 @@ static inline bool coredump_skip(const struct coredump_params *cprm,
 	return false;
 }
 
+static void do_coredump(struct core_name *cn, struct coredump_params *cprm,
+			size_t **argv, int *argc, const struct linux_binfmt *binfmt)
+{
+	if (!coredump_parse(cn, cprm, argv, argc)) {
+		coredump_report_failure("format_corename failed, aborting core");
+		return;
+	}
+
+	switch (cn->core_type) {
+	case COREDUMP_FILE:
+		if (!coredump_file(cn, cprm, binfmt))
+			return;
+		break;
+	case COREDUMP_PIPE:
+		if (!coredump_pipe(cn, cprm, *argv, *argc))
+			return;
+		break;
+	case COREDUMP_SOCK_REQ:
+		fallthrough;
+	case COREDUMP_SOCK:
+		if (!coredump_socket(cn, cprm))
+			return;
+		break;
+	default:
+		WARN_ON_ONCE(true);
+		return;
+	}
+
+	/* Don't even generate the coredump. */
+	if (cn->mask & COREDUMP_REJECT)
+		return;
+
+	/* get us an unshared descriptor table; almost always a no-op */
+	/* The cell spufs coredump code reads the file descriptor tables */
+	if (unshare_files())
+		return;
+
+	if ((cn->mask & COREDUMP_KERNEL) && !coredump_write(cn, cprm, binfmt))
+		return;
+
+	coredump_sock_shutdown(cprm->file);
+
+	/* Let the parent know that a coredump was generated. */
+	if (cn->mask & COREDUMP_USERSPACE)
+		cn->core_dumped = true;
+
+	/*
+	 * When core_pipe_limit is set we wait for the coredump server
+	 * or usermodehelper to finish before exiting so it can e.g.,
+	 * inspect /proc/<pid>.
+	 */
+	if (cn->mask & COREDUMP_WAIT) {
+		switch (cn->core_type) {
+		case COREDUMP_PIPE:
+			wait_for_dump_helpers(cprm->file);
+			break;
+		case COREDUMP_SOCK_REQ:
+			fallthrough;
+		case COREDUMP_SOCK:
+			coredump_sock_wait(cprm->file);
+			break;
+		default:
+			break;
+		}
+	}
+}
+
 void vfs_coredump(const kernel_siginfo_t *siginfo)
 {
 	struct cred *cred __free(put_cred) = NULL;
@@ -1133,70 +1200,8 @@ void vfs_coredump(const kernel_siginfo_t *siginfo)
 
 	old_cred = override_creds(cred);
 
-	if (!coredump_parse(&cn, &cprm, &argv, &argc)) {
-		coredump_report_failure("format_corename failed, aborting core");
-		goto close_fail;
-	}
+	do_coredump(&cn, &cprm, &argv, &argc, binfmt);
 
-	switch (cn.core_type) {
-	case COREDUMP_FILE:
-		if (!coredump_file(&cn, &cprm, binfmt))
-			goto close_fail;
-		break;
-	case COREDUMP_PIPE:
-		if (!coredump_pipe(&cn, &cprm, argv, argc))
-			goto close_fail;
-		break;
-	case COREDUMP_SOCK_REQ:
-		fallthrough;
-	case COREDUMP_SOCK:
-		if (!coredump_socket(&cn, &cprm))
-			goto close_fail;
-		break;
-	default:
-		WARN_ON_ONCE(true);
-		goto close_fail;
-	}
-
-	/* Don't even generate the coredump. */
-	if (cn.mask & COREDUMP_REJECT)
-		goto close_fail;
-
-	/* get us an unshared descriptor table; almost always a no-op */
-	/* The cell spufs coredump code reads the file descriptor tables */
-	if (unshare_files())
-		goto close_fail;
-
-	if ((cn.mask & COREDUMP_KERNEL) && !coredump_write(&cn, &cprm, binfmt))
-		goto close_fail;
-
-	coredump_sock_shutdown(cprm.file);
-
-	/* Let the parent know that a coredump was generated. */
-	if (cn.mask & COREDUMP_USERSPACE)
-		cn.core_dumped = true;
-
-	/*
-	 * When core_pipe_limit is set we wait for the coredump server
-	 * or usermodehelper to finish before exiting so it can e.g.,
-	 * inspect /proc/<pid>.
-	 */
-	if (cn.mask & COREDUMP_WAIT) {
-		switch (cn.core_type) {
-		case COREDUMP_PIPE:
-			wait_for_dump_helpers(cprm.file);
-			break;
-		case COREDUMP_SOCK_REQ:
-			fallthrough;
-		case COREDUMP_SOCK:
-			coredump_sock_wait(cprm.file);
-			break;
-		default:
-			break;
-		}
-	}
-
-close_fail:
 	revert_creds(old_cred);
 	coredump_cleanup(&cn, &cprm);
 	return;
