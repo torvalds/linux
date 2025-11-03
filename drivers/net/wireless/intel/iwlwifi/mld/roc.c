@@ -231,7 +231,9 @@ void iwl_mld_handle_roc_notif(struct iwl_mld *mld,
 	struct ieee80211_vif *vif;
 
 	vif = iwl_mld_find_roc_vif(mld, activity);
-	if (WARN_ON(!vif))
+	if (IWL_FW_CHECK(mld, !vif,
+			 "unexpected ROC notif from FW for activity %d\n",
+			 activity))
 		return;
 
 	mld_vif = iwl_mld_vif_from_mac80211(vif);

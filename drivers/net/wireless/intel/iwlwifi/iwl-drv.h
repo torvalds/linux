@@ -62,7 +62,8 @@ struct iwl_rf_cfg;
  * starts the driver: fetches the firmware. This should be called by bus
  * specific system flows implementations. For example, the bus specific probe
  * function should do bus related operations only, and then call to this
- * function. It returns the driver object or %NULL if an error occurred.
+ * function.
+ * Return: the driver object or %NULL if an error occurred.
  */
 struct iwl_drv *iwl_drv_start(struct iwl_trans *trans);
 
@@ -76,6 +77,12 @@ struct iwl_drv *iwl_drv_start(struct iwl_trans *trans);
  * call this function and then do the bus related operations only.
  */
 void iwl_drv_stop(struct iwl_drv *drv);
+
+/*
+ * iwl_drv_is_wifi7_supported - returns if wifi7 is supported
+ * If yes, iwlmld needs to be used to drive the device.
+ */
+bool iwl_drv_is_wifi7_supported(struct iwl_trans *trans);
 
 /*
  * exported symbol management

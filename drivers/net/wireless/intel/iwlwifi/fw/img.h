@@ -14,14 +14,13 @@
 #include "error-dump.h"
 
 /**
- * enum iwl_ucode_type
- *
- * The type of ucode.
+ * enum iwl_ucode_type - type of ucode
  *
  * @IWL_UCODE_REGULAR: Normal runtime ucode
  * @IWL_UCODE_INIT: Initial ucode
  * @IWL_UCODE_WOWLAN: Wake on Wireless enabled ucode
  * @IWL_UCODE_REGULAR_USNIFFER: Normal runtime ucode when using usniffer image
+ * @IWL_UCODE_TYPE_MAX: (internal value)
  */
 enum iwl_ucode_type {
 	IWL_UCODE_REGULAR,
@@ -122,7 +121,7 @@ struct fw_img {
 #define FW_ADDR_CACHE_CONTROL 0xC0000000UL
 
 /**
- * struct iwl_fw_paging
+ * struct iwl_fw_paging - FW paging descriptor
  * @fw_paging_phys: page phy pointer
  * @fw_paging_block: pointer to the allocated block
  * @fw_paging_size: page size
@@ -197,6 +196,11 @@ struct iwl_dump_exclude {
  * @dump_excl_wowlan: image dump exclusion areas for WoWLAN image
  * @pnvm_data: PNVM data embedded in the .ucode file, if any
  * @pnvm_size: size of the embedded PNVM data
+ * @dbg: debug data, see &struct iwl_fw_dbg
+ * @default_calib: default calibration data
+ * @phy_config: PHY configuration flags
+ * @valid_rx_ant: valid RX antenna bitmap
+ * @valid_tx_ant: valid TX antenna bitmap
  */
 struct iwl_fw {
 	u32 ucode_ver;

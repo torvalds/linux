@@ -2894,4 +2894,9 @@ iwl_mvm_send_ap_tx_power_constraint_cmd(struct iwl_mvm *mvm,
 
 void iwl_mvm_smps_workaround(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			     bool update);
+
+/* rate_n_flags conversion */
+u32 iwl_mvm_v3_rate_from_fw(__le32 rate, u8 rate_ver);
+__le32 iwl_mvm_v3_rate_to_fw(u32 rate, u8 rate_ver);
+
 #endif /* __IWL_MVM_H__ */
