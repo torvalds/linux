@@ -37,10 +37,10 @@
 /* 1st Level Abstractions.  */
 
 /* Initialize a new transport from provided memory.  */
-static struct sctp_transport *sctp_transport_init(struct net *net,
-						  struct sctp_transport *peer,
-						  const union sctp_addr *addr,
-						  gfp_t gfp)
+static void sctp_transport_init(struct net *net,
+				struct sctp_transport *peer,
+				const union sctp_addr *addr,
+				gfp_t gfp)
 {
 	/* Copy in the address.  */
 	peer->af_specific = sctp_get_af_specific(addr->sa.sa_family);
@@ -83,8 +83,6 @@ static struct sctp_transport *sctp_transport_init(struct net *net,
 	get_random_bytes(&peer->hb_nonce, sizeof(peer->hb_nonce));
 
 	refcount_set(&peer->refcnt, 1);
-
-	return peer;
 }
 
 /* Allocate and initialize a new transport.  */
@@ -96,20 +94,13 @@ struct sctp_transport *sctp_transport_new(struct net *net,
 
 	transport = kzalloc(sizeof(*transport), gfp);
 	if (!transport)
-		goto fail;
+		return NULL;
 
-	if (!sctp_transport_init(net, transport, addr, gfp))
-		goto fail_init;
+	sctp_transport_init(net, transport, addr, gfp);
 
 	SCTP_DBG_OBJCNT_INC(transport);
 
 	return transport;
-
-fail_init:
-	kfree(transport);
-
-fail:
-	return NULL;
 }
 
 /* This transport is no longer needed.  Free up if possible, or
