@@ -341,13 +341,12 @@ impl Registration {
                 return Err(Error::from_errno(ret));
             }
 
-            // SAFETY: `adev` is guaranteed to be non-null, since the `KBox` was allocated
-            // successfully.
-            //
             // INVARIANT: The device will remain registered until `auxiliary_device_delete()` is
             // called, which happens in `Self::drop()`.
             Ok(Devres::new(
                 parent,
+                // SAFETY: `adev` is guaranteed to be non-null, since the `KBox` was allocated
+                // successfully.
                 Self(unsafe { NonNull::new_unchecked(adev) }),
             ))
         })
