@@ -67,29 +67,15 @@ static int imx8mp_set_intf_mode(struct plat_stmmacenet_data *plat_dat,
 				u8 phy_intf_sel)
 {
 	struct imx_priv_data *dwmac = plat_dat->bsp_priv;
-	int val;
+	unsigned int val;
 
-	switch (plat_dat->phy_interface) {
-	case PHY_INTERFACE_MODE_MII:
-		val = 0;
-		break;
-	case PHY_INTERFACE_MODE_RMII:
-		val = dwmac->rmii_refclk_ext ? 0 : GPR_ENET_QOS_CLK_TX_CLK_SEL;
-		break;
-	case PHY_INTERFACE_MODE_RGMII:
-	case PHY_INTERFACE_MODE_RGMII_ID:
-	case PHY_INTERFACE_MODE_RGMII_RXID:
-	case PHY_INTERFACE_MODE_RGMII_TXID:
-		val = GPR_ENET_QOS_RGMII_EN;
-		break;
-	default:
-		pr_debug("imx dwmac doesn't support %s interface\n",
-			 phy_modes(plat_dat->phy_interface));
-		return -EINVAL;
-	}
+	val = FIELD_PREP(GPR_ENET_QOS_INTF_SEL_MASK, phy_intf_sel) |
+	      GPR_ENET_QOS_CLK_GEN_EN;
 
-	val |= FIELD_PREP(GPR_ENET_QOS_INTF_SEL_MASK, phy_intf_sel) |
-	       GPR_ENET_QOS_CLK_GEN_EN;
+	if (phy_intf_sel == PHY_INTF_SEL_RMII && !dwmac->rmii_refclk_ext)
+		val |= GPR_ENET_QOS_CLK_TX_CLK_SEL;
+	else if (phy_intf_sel == PHY_INTF_SEL_RGMII)
+		val |= GPR_ENET_QOS_RGMII_EN;
 
 	return regmap_update_bits(dwmac->intf_regmap, dwmac->intf_reg_off,
 				  GPR_ENET_QOS_INTF_MODE_MASK, val);
@@ -99,39 +85,24 @@ static int
 imx8dxl_set_intf_mode(struct plat_stmmacenet_data *plat_dat,
 		      u8 phy_intf_sel)
 {
-	int ret = 0;
-
 	/* TBD: depends on imx8dxl scu interfaces to be upstreamed */
-	return ret;
+	return 0;
 }
 
 static int imx93_set_intf_mode(struct plat_stmmacenet_data *plat_dat,
 			       u8 phy_intf_sel)
 {
 	struct imx_priv_data *dwmac = plat_dat->bsp_priv;
-	int val, ret;
+	unsigned int val;
+	int ret;
 
-	switch (plat_dat->phy_interface) {
-	case PHY_INTERFACE_MODE_RMII:
-		if (dwmac->rmii_refclk_ext) {
-			ret = regmap_clear_bits(dwmac->intf_regmap,
-						dwmac->intf_reg_off +
-						MX93_GPR_CLK_SEL_OFFSET,
-						MX93_GPR_ENET_QOS_CLK_SEL_MASK);
-			if (ret)
-				return ret;
-		}
-		break;
-	case PHY_INTERFACE_MODE_MII:
-	case PHY_INTERFACE_MODE_RGMII:
-	case PHY_INTERFACE_MODE_RGMII_ID:
-	case PHY_INTERFACE_MODE_RGMII_RXID:
-	case PHY_INTERFACE_MODE_RGMII_TXID:
-		break;
-	default:
-		dev_dbg(dwmac->dev, "imx dwmac doesn't support %s interface\n",
-			phy_modes(plat_dat->phy_interface));
-		return -EINVAL;
+	if (phy_intf_sel == PHY_INTF_SEL_RMII && dwmac->rmii_refclk_ext) {
+		ret = regmap_clear_bits(dwmac->intf_regmap,
+					dwmac->intf_reg_off +
+					MX93_GPR_CLK_SEL_OFFSET,
+					MX93_GPR_ENET_QOS_CLK_SEL_MASK);
+		if (ret)
+			return ret;
 	}
 
 	val = FIELD_PREP(MX93_GPR_ENET_QOS_INTF_SEL_MASK, phy_intf_sel) |
