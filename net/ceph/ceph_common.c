@@ -786,41 +786,52 @@ void ceph_reset_client_addr(struct ceph_client *client)
 EXPORT_SYMBOL(ceph_reset_client_addr);
 
 /*
- * true if we have the mon map (and have thus joined the cluster)
- */
-static bool have_mon_and_osd_map(struct ceph_client *client)
-{
-	return client->monc.monmap && client->monc.monmap->epoch &&
-	       client->osdc.osdmap && client->osdc.osdmap->epoch;
-}
-
-/*
  * mount: join the ceph cluster, and open root directory.
  */
 int __ceph_open_session(struct ceph_client *client, unsigned long started)
 {
-	unsigned long timeout = client->options->mount_timeout;
-	long err;
+	DEFINE_WAIT_FUNC(wait, woken_wake_function);
+	long timeout = ceph_timeout_jiffies(client->options->mount_timeout);
+	bool have_monmap, have_osdmap;
+	int err;
 
 	/* open session, and wait for mon and osd maps */
 	err = ceph_monc_open_session(&client->monc);
 	if (err < 0)
 		return err;
 
-	while (!have_mon_and_osd_map(client)) {
-		if (timeout && time_after_eq(jiffies, started + timeout))
-			return -ETIMEDOUT;
+	add_wait_queue(&client->auth_wq, &wait);
+	for (;;) {
+		mutex_lock(&client->monc.mutex);
+		err = client->auth_err;
+		have_monmap = client->monc.monmap && client->monc.monmap->epoch;
+		mutex_unlock(&client->monc.mutex);
+
+		down_read(&client->osdc.lock);
+		have_osdmap = client->osdc.osdmap && client->osdc.osdmap->epoch;
+		up_read(&client->osdc.lock);
+
+		if (err || (have_monmap && have_osdmap))
+			break;
+
+		if (signal_pending(current)) {
+			err = -ERESTARTSYS;
+			break;
+		}
+
+		if (!timeout) {
+			err = -ETIMEDOUT;
+			break;
+		}
 
 		/* wait */
 		dout("mount waiting for mon_map\n");
-		err = wait_event_interruptible_timeout(client->auth_wq,
-			have_mon_and_osd_map(client) || (client->auth_err < 0),
-			ceph_timeout_jiffies(timeout));
-		if (err < 0)
-			return err;
-		if (client->auth_err < 0)
-			return client->auth_err;
+		timeout = wait_woken(&wait, TASK_INTERRUPTIBLE, timeout);
 	}
+	remove_wait_queue(&client->auth_wq, &wait);
+
+	if (err)
+		return err;
 
 	pr_info("client%llu fsid %pU\n", ceph_client_gid(client),
 		&client->fsid);
