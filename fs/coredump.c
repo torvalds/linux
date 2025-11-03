@@ -1160,7 +1160,6 @@ void vfs_coredump(const kernel_siginfo_t *siginfo)
 	struct core_name cn;
 	const struct mm_struct *mm = current->mm;
 	const struct linux_binfmt *binfmt = mm->binfmt;
-	const struct cred *old_cred;
 	int argc = 0;
 	struct coredump_params cprm = {
 		.siginfo = siginfo,
@@ -1197,11 +1196,8 @@ void vfs_coredump(const kernel_siginfo_t *siginfo)
 	if (coredump_wait(siginfo->si_signo, &core_state) < 0)
 		return;
 
-	old_cred = override_creds(cred);
-
-	do_coredump(&cn, &cprm, &argv, &argc, binfmt);
-
-	revert_creds(old_cred);
+	scoped_with_creds(cred)
+		do_coredump(&cn, &cprm, &argv, &argc, binfmt);
 	coredump_cleanup(&cn, &cprm);
 	return;
 }
