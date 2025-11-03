@@ -175,10 +175,12 @@ impl Device<device::Bound> {
         flags: irq::Flags,
         name: &'static CStr,
         handler: impl PinInit<T, Error> + 'a,
-    ) -> Result<impl PinInit<irq::Registration<T>, Error> + 'a> {
-        let request = vector.try_into()?;
+    ) -> impl PinInit<irq::Registration<T>, Error> + 'a {
+        pin_init::pin_init_scope(move || {
+            let request = vector.try_into()?;
 
-        Ok(irq::Registration::<T>::new(request, flags, name, handler))
+            Ok(irq::Registration::<T>::new(request, flags, name, handler))
+        })
     }
 
     /// Returns a [`kernel::irq::ThreadedRegistration`] for the given IRQ vector.
@@ -188,12 +190,14 @@ impl Device<device::Bound> {
         flags: irq::Flags,
         name: &'static CStr,
         handler: impl PinInit<T, Error> + 'a,
-    ) -> Result<impl PinInit<irq::ThreadedRegistration<T>, Error> + 'a> {
-        let request = vector.try_into()?;
+    ) -> impl PinInit<irq::ThreadedRegistration<T>, Error> + 'a {
+        pin_init::pin_init_scope(move || {
+            let request = vector.try_into()?;
 
-        Ok(irq::ThreadedRegistration::<T>::new(
-            request, flags, name, handler,
-        ))
+            Ok(irq::ThreadedRegistration::<T>::new(
+                request, flags, name, handler,
+            ))
+        })
     }
 
     /// Allocate IRQ vectors for this PCI device with automatic cleanup.
