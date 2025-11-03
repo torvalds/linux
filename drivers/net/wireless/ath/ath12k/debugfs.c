@@ -1027,7 +1027,8 @@ static ssize_t ath12k_debugfs_dump_device_dp_stats(struct file *file,
 						   size_t count, loff_t *ppos)
 {
 	struct ath12k_base *ab = file->private_data;
-	struct ath12k_device_dp_stats *device_stats = &ab->device_stats;
+	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
+	struct ath12k_device_dp_stats *device_stats = &dp->device_stats;
 	int len = 0, i, j, ret;
 	struct ath12k *ar;
 	const int size = 4096;

@@ -1272,7 +1272,7 @@ void ath12k_dp_rx_deliver_msdu(struct ath12k_pdev_dp *dp_pdev, struct napi_struc
 	ieee80211_rx_napi(ath12k_pdev_dp_to_hw(dp_pdev), pubsta, msdu, napi);
 }
 
-bool ath12k_dp_rx_check_nwifi_hdr_len_valid(struct ath12k_base *ab,
+bool ath12k_dp_rx_check_nwifi_hdr_len_valid(struct ath12k_dp *dp,
 					    struct hal_rx_desc *rx_desc,
 					    struct sk_buff *msdu,
 					    struct hal_rx_desc_data *rx_info)
@@ -1289,7 +1289,7 @@ bool ath12k_dp_rx_check_nwifi_hdr_len_valid(struct ath12k_base *ab,
 	if ((likely(hdr_len <= DP_MAX_NWIFI_HDR_LEN)))
 		return true;
 
-	ab->device_stats.invalid_rbm++;
+	dp->device_stats.invalid_rbm++;
 	WARN_ON_ONCE(1);
 	return false;
 }

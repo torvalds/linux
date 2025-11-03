@@ -11,6 +11,7 @@
 #include "dp_htt.h"
 #include "dp_cmn.h"
 #include <linux/rhashtable.h>
+#include "wifi7/hal_desc.h"
 
 #define MAX_RXDMA_PER_PDEV     2
 
@@ -420,6 +421,31 @@ struct ath12k_dp_arch_ops {
 				       dma_addr_t paddr);
 };
 
+struct ath12k_device_dp_tx_err_stats {
+	/* TCL Ring Descriptor unavailable */
+	u32 desc_na[DP_TCL_NUM_RING_MAX];
+	/* Other failures during dp_tx due to mem allocation failure
+	 * idr unavailable etc.
+	 */
+	atomic_t misc_fail;
+};
+
+struct ath12k_device_dp_stats {
+	u32 err_ring_pkts;
+	u32 invalid_rbm;
+	u32 rxdma_error[HAL_REO_ENTR_RING_RXDMA_ECODE_MAX];
+	u32 reo_error[HAL_REO_DEST_RING_ERROR_CODE_MAX];
+	u32 hal_reo_error[DP_REO_DST_RING_MAX];
+	struct ath12k_device_dp_tx_err_stats tx_err;
+	u32 reo_rx[DP_REO_DST_RING_MAX][ATH12K_MAX_DEVICES];
+	u32 rx_wbm_rel_source[HAL_WBM_REL_SRC_MODULE_MAX][ATH12K_MAX_DEVICES];
+	u32 tqm_rel_reason[MAX_TQM_RELEASE_REASON];
+	u32 fw_tx_status[MAX_FW_TX_STATUS];
+	u32 tx_wbm_rel_source[HAL_WBM_REL_SRC_MODULE_MAX];
+	u32 tx_enqueued[DP_TCL_NUM_RING_MAX];
+	u32 tx_completed[DP_TCL_NUM_RING_MAX];
+};
+
 struct ath12k_dp {
 	struct ath12k_base *ab;
 	u32 mon_dest_ring_stuck_cnt;
@@ -514,6 +540,7 @@ struct ath12k_dp {
 	/* The rhashtable containing struct ath12k_link_peer keyed by mac addr */
 	struct rhashtable *rhead_peer_addr;
 	struct rhashtable_params rhash_peer_addr_param;
+	struct ath12k_device_dp_stats device_stats;
 };
 
 static inline u32 ath12k_dp_arch_tx_get_vdev_bank_config(struct ath12k_dp *dp,

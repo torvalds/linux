@@ -205,7 +205,7 @@ tcl_ring_sel:
 	default:
 		/* TODO: Take care of other encap modes as well */
 		ret = -EINVAL;
-		atomic_inc(&ab->device_stats.tx_err.misc_fail);
+		atomic_inc(&dp->device_stats.tx_err.misc_fail);
 		goto fail_remove_tx_buf;
 	}
 
@@ -228,7 +228,7 @@ tcl_ring_sel:
 map:
 	ti.paddr = dma_map_single(ab->dev, skb->data, skb->len, DMA_TO_DEVICE);
 	if (dma_mapping_error(ab->dev, ti.paddr)) {
-		atomic_inc(&ab->device_stats.tx_err.misc_fail);
+		atomic_inc(&dp->device_stats.tx_err.misc_fail);
 		ath12k_warn(ab, "failed to DMA map data Tx buffer\n");
 		ret = -ENOMEM;
 		goto fail_remove_tx_buf;
@@ -311,7 +311,7 @@ skip_htt_meta:
 		 * desc because the desc is directly enqueued onto hw queue.
 		 */
 		ath12k_hal_srng_access_end(ab, tcl_ring);
-		ab->device_stats.tx_err.desc_na[ti.ring_id]++;
+		dp->device_stats.tx_err.desc_na[ti.ring_id]++;
 		spin_unlock_bh(&tcl_ring->lock);
 		ret = -ENOMEM;
 
@@ -340,7 +340,7 @@ skip_htt_meta:
 		arvif->link_stats.tx_enqueued++;
 	spin_unlock_bh(&arvif->link_stats_lock);
 
-	ab->device_stats.tx_enqueued[ti.ring_id]++;
+	dp->device_stats.tx_enqueued[ti.ring_id]++;
 
 	ath12k_wifi7_hal_tx_cmd_desc_setup(ab, hal_tcl_desc, &ti);
 
@@ -403,7 +403,7 @@ ath12k_dp_tx_htt_tx_complete_buf(struct ath12k_base *ab,
 
 	ar = skb_cb->ar;
 	dp_pdev = &ar->dp;
-	ab->device_stats.tx_completed[tx_ring->tcl_data_ring_id]++;
+	ab->dp->device_stats.tx_completed[tx_ring->tcl_data_ring_id]++;
 
 	if (atomic_dec_and_test(&ar->dp.num_tx_pending))
 		wake_up(&ar->dp.tx_empty_waitq);
@@ -475,13 +475,14 @@ ath12k_dp_tx_process_htt_tx_complete(struct ath12k_base *ab, void *desc,
 	struct htt_tx_wbm_completion *status_desc;
 	struct ath12k_dp_htt_wbm_tx_status ts = {};
 	enum hal_wbm_htt_tx_comp_status wbm_status;
+	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
 	u16 peer_id;
 
 	status_desc = desc;
 
 	wbm_status = le32_get_bits(status_desc->info0,
 				   HTT_TX_WBM_COMP_INFO0_STATUS);
-	ab->device_stats.fw_tx_status[wbm_status]++;
+	dp->device_stats.fw_tx_status[wbm_status]++;
 
 	switch (wbm_status) {
 	case HAL_WBM_REL_HTT_TX_COMP_STATUS_OK:
@@ -656,7 +657,7 @@ static void ath12k_wifi7_dp_tx_complete_msdu(struct ath12k_pdev_dp *dp_pdev,
 	}
 
 	skb_cb = ATH12K_SKB_CB(msdu);
-	ab->device_stats.tx_completed[ring]++;
+	dp->device_stats.tx_completed[ring]++;
 
 	dma_unmap_single(ab->dev, skb_cb->paddr, msdu->len, DMA_TO_DEVICE);
 	if (skb_cb->paddr_ext_desc) {
@@ -883,11 +884,11 @@ void ath12k_wifi7_dp_tx_completion_handler(struct ath12k_base *ab, int ring_id)
 		/* Find the HAL_WBM_RELEASE_INFO0_REL_SRC_MODULE value */
 		buf_rel_source = le32_get_bits(tx_status->info0,
 					       HAL_WBM_RELEASE_INFO0_REL_SRC_MODULE);
-		ab->device_stats.tx_wbm_rel_source[buf_rel_source]++;
+		dp->device_stats.tx_wbm_rel_source[buf_rel_source]++;
 
 		rel_status = le32_get_bits(tx_status->info0,
 					   HAL_WBM_COMPL_TX_INFO0_TQM_RELEASE_REASON);
-		ab->device_stats.tqm_rel_reason[rel_status]++;
+		dp->device_stats.tqm_rel_reason[rel_status]++;
 
 		/* Release descriptor as soon as extracting necessary info
 		 * to reduce contention
