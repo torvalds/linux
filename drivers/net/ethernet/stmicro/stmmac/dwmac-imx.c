@@ -24,24 +24,12 @@
 
 #define GPR_ENET_QOS_INTF_MODE_MASK	GENMASK(21, 16)
 #define GPR_ENET_QOS_INTF_SEL_MASK	GENMASK(20, 16)
-#define GPR_ENET_QOS_INTF_SEL_MII	FIELD_PREP(GPR_ENET_QOS_INTF_SEL_MASK, \
-						   PHY_INTF_SEL_GMII_MII)
-#define GPR_ENET_QOS_INTF_SEL_RMII	FIELD_PREP(GPR_ENET_QOS_INTF_SEL_MASK, \
-						   PHY_INTF_SEL_RMII)
-#define GPR_ENET_QOS_INTF_SEL_RGMII	FIELD_PREP(GPR_ENET_QOS_INTF_SEL_MASK, \
-						   PHY_INTF_SEL_RGMII)
 #define GPR_ENET_QOS_CLK_GEN_EN		(0x1 << 19)
 #define GPR_ENET_QOS_CLK_TX_CLK_SEL	(0x1 << 20)
 #define GPR_ENET_QOS_RGMII_EN		(0x1 << 21)
 
 #define MX93_GPR_ENET_QOS_INTF_MODE_MASK	GENMASK(3, 0)
 #define MX93_GPR_ENET_QOS_INTF_SEL_MASK		GENMASK(3, 1)
-#define MX93_GPR_ENET_QOS_INTF_SEL_MII		FIELD_PREP(MX93_GPR_ENET_QOS_INTF_SEL_MASK, \
-							   PHY_INTF_SEL_GMII_MII)
-#define MX93_GPR_ENET_QOS_INTF_SEL_RMII		FIELD_PREP(MX93_GPR_ENET_QOS_INTF_SEL_MASK, \
-							   PHY_INTF_SEL_RMII)
-#define MX93_GPR_ENET_QOS_INTF_SEL_RGMII	FIELD_PREP(MX93_GPR_ENET_QOS_INTF_SEL_MASK, \
-							   PHY_INTF_SEL_RGMII)
 #define MX93_GPR_ENET_QOS_CLK_GEN_EN		(0x1 << 0)
 #define MX93_GPR_ENET_QOS_CLK_SEL_MASK		BIT_MASK(0)
 #define MX93_GPR_CLK_SEL_OFFSET			(4)
@@ -77,22 +65,24 @@ struct imx_priv_data {
 static int imx8mp_set_intf_mode(struct plat_stmmacenet_data *plat_dat)
 {
 	struct imx_priv_data *dwmac = plat_dat->bsp_priv;
+	u8 phy_intf_sel;
 	int val;
 
 	switch (plat_dat->phy_interface) {
 	case PHY_INTERFACE_MODE_MII:
-		val = GPR_ENET_QOS_INTF_SEL_MII;
+		phy_intf_sel = PHY_INTF_SEL_GMII_MII;
+		val = 0;
 		break;
 	case PHY_INTERFACE_MODE_RMII:
-		val = GPR_ENET_QOS_INTF_SEL_RMII;
-		val |= (dwmac->rmii_refclk_ext ? 0 : GPR_ENET_QOS_CLK_TX_CLK_SEL);
+		phy_intf_sel = PHY_INTF_SEL_RMII;
+		val = dwmac->rmii_refclk_ext ? 0 : GPR_ENET_QOS_CLK_TX_CLK_SEL;
 		break;
 	case PHY_INTERFACE_MODE_RGMII:
 	case PHY_INTERFACE_MODE_RGMII_ID:
 	case PHY_INTERFACE_MODE_RGMII_RXID:
 	case PHY_INTERFACE_MODE_RGMII_TXID:
-		val = GPR_ENET_QOS_INTF_SEL_RGMII |
-		      GPR_ENET_QOS_RGMII_EN;
+		phy_intf_sel = PHY_INTF_SEL_RGMII;
+		val = GPR_ENET_QOS_RGMII_EN;
 		break;
 	default:
 		pr_debug("imx dwmac doesn't support %s interface\n",
@@ -100,7 +90,9 @@ static int imx8mp_set_intf_mode(struct plat_stmmacenet_data *plat_dat)
 		return -EINVAL;
 	}
 
-	val |= GPR_ENET_QOS_CLK_GEN_EN;
+	val |= FIELD_PREP(GPR_ENET_QOS_INTF_SEL_MASK, phy_intf_sel) |
+	       GPR_ENET_QOS_CLK_GEN_EN;
+
 	return regmap_update_bits(dwmac->intf_regmap, dwmac->intf_reg_off,
 				  GPR_ENET_QOS_INTF_MODE_MASK, val);
 };
@@ -117,11 +109,12 @@ imx8dxl_set_intf_mode(struct plat_stmmacenet_data *plat_dat)
 static int imx93_set_intf_mode(struct plat_stmmacenet_data *plat_dat)
 {
 	struct imx_priv_data *dwmac = plat_dat->bsp_priv;
+	u8 phy_intf_sel;
 	int val, ret;
 
 	switch (plat_dat->phy_interface) {
 	case PHY_INTERFACE_MODE_MII:
-		val = MX93_GPR_ENET_QOS_INTF_SEL_MII;
+		phy_intf_sel = PHY_INTF_SEL_GMII_MII;
 		break;
 	case PHY_INTERFACE_MODE_RMII:
 		if (dwmac->rmii_refclk_ext) {
@@ -132,13 +125,13 @@ static int imx93_set_intf_mode(struct plat_stmmacenet_data *plat_dat)
 			if (ret)
 				return ret;
 		}
-		val = MX93_GPR_ENET_QOS_INTF_SEL_RMII;
+		phy_intf_sel = PHY_INTF_SEL_RMII;
 		break;
 	case PHY_INTERFACE_MODE_RGMII:
 	case PHY_INTERFACE_MODE_RGMII_ID:
 	case PHY_INTERFACE_MODE_RGMII_RXID:
 	case PHY_INTERFACE_MODE_RGMII_TXID:
-		val = MX93_GPR_ENET_QOS_INTF_SEL_RGMII;
+		phy_intf_sel = PHY_INTF_SEL_RGMII;
 		break;
 	default:
 		dev_dbg(dwmac->dev, "imx dwmac doesn't support %s interface\n",
@@ -146,7 +139,9 @@ static int imx93_set_intf_mode(struct plat_stmmacenet_data *plat_dat)
 		return -EINVAL;
 	}
 
-	val |= MX93_GPR_ENET_QOS_CLK_GEN_EN;
+	val = FIELD_PREP(MX93_GPR_ENET_QOS_INTF_SEL_MASK, phy_intf_sel) |
+	      MX93_GPR_ENET_QOS_CLK_GEN_EN;
+
 	return regmap_update_bits(dwmac->intf_regmap, dwmac->intf_reg_off,
 				  MX93_GPR_ENET_QOS_INTF_MODE_MASK, val);
 };
@@ -248,8 +243,8 @@ static void imx93_dwmac_fix_speed(void *priv, int speed, unsigned int mode)
 	if (regmap_read(dwmac->intf_regmap, dwmac->intf_reg_off, &iface))
 		return;
 
-	iface &= MX93_GPR_ENET_QOS_INTF_SEL_MASK;
-	if (iface != MX93_GPR_ENET_QOS_INTF_SEL_RGMII)
+	if (FIELD_GET(MX93_GPR_ENET_QOS_INTF_SEL_MASK, iface) !=
+	    PHY_INTF_SEL_RGMII)
 		return;
 
 	old_ctrl = readl(dwmac->base_addr + MAC_CTRL_REG);
@@ -262,6 +257,7 @@ static void imx93_dwmac_fix_speed(void *priv, int speed, unsigned int mode)
 	readl(dwmac->base_addr + MAC_CTRL_REG);
 
 	usleep_range(10, 20);
+	iface &= MX93_GPR_ENET_QOS_INTF_SEL_MASK;
 	iface |= MX93_GPR_ENET_QOS_CLK_GEN_EN;
 	regmap_update_bits(dwmac->intf_regmap, dwmac->intf_reg_off,
 			   MX93_GPR_ENET_QOS_INTF_MODE_MASK, iface);
