@@ -29,7 +29,7 @@ static void bio_integrity_finish(struct bio_integrity_data *bid)
 {
 	bid->bio->bi_integrity = NULL;
 	bid->bio->bi_opf &= ~REQ_INTEGRITY;
-	kfree(bvec_virt(bid->bip.bip_vec));
+	bio_integrity_free_buf(&bid->bip);
 	mempool_free(bid, &bid_pool);
 }
 
@@ -110,8 +110,6 @@ bool bio_integrity_prep(struct bio *bio)
 	struct bio_integrity_data *bid;
 	bool set_flags = true;
 	gfp_t gfp = GFP_NOIO;
-	unsigned int len;
-	void *buf;
 
 	if (!bi)
 		return true;
@@ -152,19 +150,12 @@ bool bio_integrity_prep(struct bio *bio)
 	if (WARN_ON_ONCE(bio_has_crypt_ctx(bio)))
 		return true;
 
-	/* Allocate kernel buffer for protection data */
-	len = bio_integrity_bytes(bi, bio_sectors(bio));
-	buf = kmalloc(len, gfp);
-	if (!buf)
-		goto err_end_io;
 	bid = mempool_alloc(&bid_pool, GFP_NOIO);
-	if (!bid)
-		goto err_free_buf;
 	bio_integrity_init(bio, &bid->bip, &bid->bvec, 1);
-
 	bid->bio = bio;
-
 	bid->bip.bip_flags |= BIP_BLOCK_INTEGRITY;
+	bio_integrity_alloc_buf(bio, gfp & __GFP_ZERO);
+
 	bip_set_seed(&bid->bip, bio->bi_iter.bi_sector);
 
 	if (set_flags) {
@@ -176,23 +167,12 @@ bool bio_integrity_prep(struct bio *bio)
 			bid->bip.bip_flags |= BIP_CHECK_REFTAG;
 	}
 
-	if (bio_integrity_add_page(bio, virt_to_page(buf), len,
-			offset_in_page(buf)) < len)
-		goto err_end_io;
-
 	/* Auto-generate integrity metadata if this is a write */
 	if (bio_data_dir(bio) == WRITE && bip_should_check(&bid->bip))
 		blk_integrity_generate(bio);
 	else
 		bid->saved_bio_iter = bio->bi_iter;
 	return true;
-
-err_free_buf:
-	kfree(buf);
-err_end_io:
-	bio->bi_status = BLK_STS_RESOURCE;
-	bio_endio(bio);
-	return false;
 }
 EXPORT_SYMBOL(bio_integrity_prep);
 
