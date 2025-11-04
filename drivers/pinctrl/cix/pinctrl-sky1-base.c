@@ -560,6 +560,21 @@ int sky1_base_pinctrl_probe(struct platform_device *pdev,
 		return ret;
 	}
 
+	/*
+	 * The SKY1 SoC has two pin controllers: one for normal working state
+	 * and one for sleep state. Since one controller only has working
+	 * states and the other only sleep states, it will seem to the
+	 * controller is always in the first configured state, so no
+	 * transitions between default->sleep->default are detected and no
+	 * new pin states are applied when we go in and out of sleep state.
+	 *
+	 * To counter this, provide dummies, so that the sleep-only pin
+	 * controller still get some default states, and the working state pin
+	 * controller get some sleep states, so that state transitions occur
+	 * and we re-configure pins for default and sleep states.
+	 */
+	pinctrl_provide_dummies();
+
 	dev_dbg(&pdev->dev, "initialized SKY1 pinctrl driver\n");
 
 	return pinctrl_enable(spctl->pctl);

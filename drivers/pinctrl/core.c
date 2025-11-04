@@ -70,6 +70,7 @@ void pinctrl_provide_dummies(void)
 {
 	pinctrl_dummy_state = true;
 }
+EXPORT_SYMBOL_GPL(pinctrl_provide_dummies);
 
 const char *pinctrl_dev_get_name(struct pinctrl_dev *pctldev)
 {
