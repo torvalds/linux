@@ -255,10 +255,11 @@ static int ad5446_probe(struct device *dev, const char *name,
 	if (ret < 0 && ret != -ENODEV)
 		return ret;
 	if (ret == -ENODEV) {
-		if (chip_info->int_vref_mv)
-			st->vref_mv = chip_info->int_vref_mv;
-		else
-			dev_warn(dev, "reference voltage unspecified\n");
+		if (!chip_info->int_vref_mv)
+			return dev_err_probe(dev, ret,
+					     "reference voltage unspecified\n");
+
+		st->vref_mv = chip_info->int_vref_mv;
 	} else {
 		st->vref_mv = ret / 1000;
 	}
