@@ -379,14 +379,19 @@ static inline void local_mcck_enable(void)
 /*
  * Rewind PSW instruction address by specified number of bytes.
  */
-static inline unsigned long __rewind_psw(psw_t psw, unsigned long ilc)
+static inline unsigned long __rewind_psw(psw_t psw, long ilen)
 {
 	unsigned long mask;
 
 	mask = (psw.mask & PSW_MASK_EA) ? -1UL :
 	       (psw.mask & PSW_MASK_BA) ? (1UL << 31) - 1 :
 					  (1UL << 24) - 1;
-	return (psw.addr - ilc) & mask;
+	return (psw.addr - ilen) & mask;
+}
+
+static inline unsigned long __forward_psw(psw_t psw, long ilen)
+{
+	return __rewind_psw(psw, -ilen);
 }
 
 /*
