@@ -194,6 +194,15 @@ static void rtw89_usb_write_port_complete(struct urb *urb)
 
 		skb_pull(skb, txdesc_size);
 
+		if (rtw89_is_tx_rpt_skb(skb)) {
+			if (urb->status == 0)
+				rtw89_tx_rpt_skb_add(rtwdev, skb);
+			else
+				rtw89_tx_rpt_tx_status(rtwdev, skb,
+						       RTW89_TX_MACID_DROP);
+			continue;
+		}
+
 		info = IEEE80211_SKB_CB(skb);
 		ieee80211_tx_info_clear_status(info);
 
@@ -358,6 +367,7 @@ static int rtw89_usb_ops_tx_write(struct rtw89_dev *rtwdev,
 {
 	struct rtw89_tx_desc_info *desc_info = &tx_req->desc_info;
 	struct rtw89_usb *rtwusb = rtw89_usb_priv(rtwdev);
+	struct rtw89_tx_skb_data *skb_data;
 	struct sk_buff *skb = tx_req->skb;
 	struct rtw89_txwd_body *txdesc;
 	u32 txdesc_size;
@@ -383,6 +393,12 @@ static int rtw89_usb_ops_tx_write(struct rtw89_dev *rtwdev,
 	rtw89_chip_fill_txdesc(rtwdev, desc_info, txdesc);
 
 	le32p_replace_bits(&txdesc->dword0, 1, RTW89_TXWD_BODY0_STF_MODE);
+
+	skb_data = RTW89_TX_SKB_CB(skb);
+	if (tx_req->desc_info.sn)
+		skb_data->tx_rpt_sn = tx_req->desc_info.sn;
+	if (tx_req->desc_info.tx_cnt_lmt)
+		skb_data->tx_pkt_cnt_lmt = tx_req->desc_info.tx_cnt_lmt;
 
 	skb_queue_tail(&rtwusb->tx_queue[desc_info->ch_dma], skb);
 
@@ -672,6 +688,7 @@ static void rtw89_usb_ops_reset(struct rtw89_dev *rtwdev)
 	struct rtw89_usb *rtwusb = rtw89_usb_priv(rtwdev);
 
 	rtw89_usb_cancel_tx_bufs(rtwusb);
+	rtw89_tx_rpt_skbs_purge(rtwdev);
 }
 
 static int rtw89_usb_ops_start(struct rtw89_dev *rtwdev)
@@ -962,6 +979,7 @@ int rtw89_usb_probe(struct usb_interface *intf,
 
 	rtwdev->hci.ops = &rtw89_usb_ops;
 	rtwdev->hci.type = RTW89_HCI_TYPE_USB;
+	rtwdev->hci.tx_rpt_enabled = true;
 
 	ret = rtw89_usb_intf_init(rtwdev, intf);
 	if (ret) {
