@@ -74,6 +74,18 @@ struct pt_iommu_info {
 
 struct pt_iommu_ops {
 	/**
+	 * @set_dirty: Make the iova write dirty
+	 * @iommu_table: Table to manipulate
+	 * @iova: IO virtual address to start
+	 *
+	 * This is only used by iommufd testing. It makes the iova dirty so that
+	 * read_and_clear_dirty() will see it as dirty. Unlike all the other ops
+	 * this one is safe to call without holding any locking. It may return
+	 * -EAGAIN if there is a race.
+	 */
+	int (*set_dirty)(struct pt_iommu *iommu_table, dma_addr_t iova);
+
+	/**
 	 * @get_info: Return the pt_iommu_info structure
 	 * @iommu_table: Table to query
 	 *
