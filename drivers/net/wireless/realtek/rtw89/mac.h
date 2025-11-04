@@ -1645,19 +1645,26 @@ void rtw89_tx_rpt_init(struct rtw89_dev *rtwdev,
 }
 
 static inline
-bool rtw89_is_tx_rpt_skb(struct sk_buff *skb)
+bool rtw89_is_tx_rpt_skb(struct rtw89_dev *rtwdev, struct sk_buff *skb)
 {
+	struct rtw89_tx_skb_data *skb_data = RTW89_TX_SKB_CB(skb);
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 
-	return info->flags & IEEE80211_TX_CTL_REQ_TX_STATUS;
+	return rtw89_core_is_tx_wait(rtwdev, skb_data) ||
+	       (info->flags & IEEE80211_TX_CTL_REQ_TX_STATUS);
 }
 
 static inline
 void rtw89_tx_rpt_tx_status(struct rtw89_dev *rtwdev, struct sk_buff *skb,
 			    u8 tx_status)
 {
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct rtw89_tx_skb_data *skb_data = RTW89_TX_SKB_CB(skb);
+	struct ieee80211_tx_info *info;
 
+	if (rtw89_core_tx_wait_complete(rtwdev, skb_data, tx_status))
+		return;
+
+	info = IEEE80211_SKB_CB(skb);
 	ieee80211_tx_info_clear_status(info);
 
 	if (tx_status == RTW89_TX_DONE)

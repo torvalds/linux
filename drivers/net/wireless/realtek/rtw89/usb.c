@@ -194,7 +194,7 @@ static void rtw89_usb_write_port_complete(struct urb *urb)
 
 		skb_pull(skb, txdesc_size);
 
-		if (rtw89_is_tx_rpt_skb(skb)) {
+		if (rtw89_is_tx_rpt_skb(rtwdev, skb)) {
 			if (urb->status == 0)
 				rtw89_tx_rpt_skb_add(rtwdev, skb);
 			else

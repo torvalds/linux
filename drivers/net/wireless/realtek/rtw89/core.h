@@ -6328,6 +6328,7 @@ static inline int rtw89_hci_tx_write(struct rtw89_dev *rtwdev,
 static inline void rtw89_hci_reset(struct rtw89_dev *rtwdev)
 {
 	rtwdev->hci.ops->reset(rtwdev);
+	/* hci.ops->reset must complete all pending TX wait SKBs */
 	rtw89_tx_wait_list_clear(rtwdev);
 }
 
@@ -7407,6 +7408,12 @@ static inline struct sk_buff *rtw89_alloc_skb_for_rx(struct rtw89_dev *rtwdev,
 	}
 
 	return dev_alloc_skb(length);
+}
+
+static inline bool rtw89_core_is_tx_wait(struct rtw89_dev *rtwdev,
+					 struct rtw89_tx_skb_data *skb_data)
+{
+	return rcu_access_pointer(skb_data->wait);
 }
 
 static inline bool rtw89_core_tx_wait_complete(struct rtw89_dev *rtwdev,
