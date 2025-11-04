@@ -28,7 +28,8 @@ static const char * const ad5446_powerdown_modes[] = {
 };
 
 static int ad5446_set_powerdown_mode(struct iio_dev *indio_dev,
-	const struct iio_chan_spec *chan, unsigned int mode)
+				     const struct iio_chan_spec *chan,
+				     unsigned int mode)
 {
 	struct ad5446_state *st = iio_priv(indio_dev);
 
@@ -38,7 +39,7 @@ static int ad5446_set_powerdown_mode(struct iio_dev *indio_dev,
 }
 
 static int ad5446_get_powerdown_mode(struct iio_dev *indio_dev,
-	const struct iio_chan_spec *chan)
+				     const struct iio_chan_spec *chan)
 {
 	struct ad5446_state *st = iio_priv(indio_dev);
 
@@ -53,9 +54,9 @@ static const struct iio_enum ad5446_powerdown_mode_enum = {
 };
 
 static ssize_t ad5446_read_dac_powerdown(struct iio_dev *indio_dev,
-					   uintptr_t private,
-					   const struct iio_chan_spec *chan,
-					   char *buf)
+					 uintptr_t private,
+					 const struct iio_chan_spec *chan,
+					 char *buf)
 {
 	struct ad5446_state *st = iio_priv(indio_dev);
 
@@ -63,9 +64,9 @@ static ssize_t ad5446_read_dac_powerdown(struct iio_dev *indio_dev,
 }
 
 static ssize_t ad5446_write_dac_powerdown(struct iio_dev *indio_dev,
-					    uintptr_t private,
-					    const struct iio_chan_spec *chan,
-					    const char *buf, size_t len)
+					  uintptr_t private,
+					  const struct iio_chan_spec *chan,
+					  const char *buf, size_t len)
 {
 	struct ad5446_state *st = iio_priv(indio_dev);
 	unsigned int shift;
@@ -147,10 +148,8 @@ static int ad5446_write_dac_raw(struct iio_dev *indio_dev,
 }
 
 static int ad5446_write_raw(struct iio_dev *indio_dev,
-			       struct iio_chan_spec const *chan,
-			       int val,
-			       int val2,
-			       long mask)
+			    struct iio_chan_spec const *chan, int val,
+			    int val2, long mask)
 {
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
