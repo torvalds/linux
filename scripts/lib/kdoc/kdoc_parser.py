@@ -451,6 +451,13 @@ class KernelDoc:
         variables used by the state machine.
         """
 
+        #
+        # Flush the warnings out before we proceed further
+        #
+        if self.entry and self.entry not in self.entries:
+            for log_msg in self.entry.warnings:
+                self.config.log.warning(log_msg)
+
         self.entry = KernelEntry(self.config, self.fname, ln)
 
         # State flags
