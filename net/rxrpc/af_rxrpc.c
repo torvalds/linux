@@ -481,7 +481,7 @@ EXPORT_SYMBOL(rxrpc_kernel_set_notifications);
  * - this just targets it at a specific destination; no actual connection
  *   negotiation takes place
  */
-static int rxrpc_connect(struct socket *sock, struct sockaddr *addr,
+static int rxrpc_connect(struct socket *sock, struct sockaddr_unsized *addr,
 			 int addr_len, int flags)
 {
 	struct sockaddr_rxrpc *srx = (struct sockaddr_rxrpc *)addr;

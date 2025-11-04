@@ -1657,7 +1657,7 @@ static int bcm_release(struct socket *sock)
 	return 0;
 }
 
-static int bcm_connect(struct socket *sock, struct sockaddr *uaddr, int len,
+static int bcm_connect(struct socket *sock, struct sockaddr_unsized *uaddr, int len,
 		       int flags)
 {
 	struct sockaddr_can *addr = (struct sockaddr_can *)uaddr;

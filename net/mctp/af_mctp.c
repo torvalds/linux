@@ -128,7 +128,7 @@ out_release:
 /* Used to set a specific peer prior to bind. Not used for outbound
  * connections (Tag Owner set) since MCTP is a datagram protocol.
  */
-static int mctp_connect(struct socket *sock, struct sockaddr *addr,
+static int mctp_connect(struct socket *sock, struct sockaddr_unsized *addr,
 			int addrlen, int flags)
 {
 	struct sock *sk = sock->sk;

@@ -4820,7 +4820,7 @@ static int sctp_connect(struct sock *sk, struct sockaddr *addr,
 	return err;
 }
 
-int sctp_inet_connect(struct socket *sock, struct sockaddr *uaddr,
+int sctp_inet_connect(struct socket *sock, struct sockaddr_unsized *uaddr,
 		      int addr_len, int flags)
 {
 	if (addr_len < sizeof(uaddr->sa_family))
@@ -4829,7 +4829,7 @@ int sctp_inet_connect(struct socket *sock, struct sockaddr *uaddr,
 	if (uaddr->sa_family == AF_UNSPEC)
 		return -EOPNOTSUPP;
 
-	return sctp_connect(sock->sk, uaddr, addr_len, flags);
+	return sctp_connect(sock->sk, (struct sockaddr *)uaddr, addr_len, flags);
 }
 
 /* Only called when shutdown a listening SCTP socket. */

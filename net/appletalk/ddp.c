@@ -1204,7 +1204,7 @@ out:
 }
 
 /* Set the address we talk to */
-static int atalk_connect(struct socket *sock, struct sockaddr *uaddr,
+static int atalk_connect(struct socket *sock, struct sockaddr_unsized *uaddr,
 			 int addr_len, int flags)
 {
 	struct sock *sk = sock->sk;

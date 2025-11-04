@@ -56,10 +56,10 @@ out:
 	return error;
 }
 
-static int pvc_connect(struct socket *sock, struct sockaddr *sockaddr,
+static int pvc_connect(struct socket *sock, struct sockaddr_unsized *sockaddr,
 		       int sockaddr_len, int flags)
 {
-	return pvc_bind(sock, (struct sockaddr_unsized *)sockaddr, sockaddr_len);
+	return pvc_bind(sock, sockaddr, sockaddr_len);
 }
 
 static int pvc_setsockopt(struct socket *sock, int level, int optname,

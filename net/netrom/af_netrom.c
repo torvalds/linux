@@ -632,8 +632,8 @@ static int nr_bind(struct socket *sock, struct sockaddr_unsized *uaddr, int addr
 	return 0;
 }
 
-static int nr_connect(struct socket *sock, struct sockaddr *uaddr,
-	int addr_len, int flags)
+static int nr_connect(struct socket *sock, struct sockaddr_unsized *uaddr,
+		      int addr_len, int flags)
 {
 	struct sock *sk = sock->sk;
 	struct nr_sock *nr = nr_sk(sk);

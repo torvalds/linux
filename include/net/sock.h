@@ -1921,7 +1921,7 @@ int sock_cmsg_send(struct sock *sk, struct msghdr *msg,
  * does not implement a particular function.
  */
 int sock_no_bind(struct socket *sock, struct sockaddr_unsized *saddr, int len);
-int sock_no_connect(struct socket *, struct sockaddr *, int, int);
+int sock_no_connect(struct socket *sock, struct sockaddr_unsized *saddr, int len, int flags);
 int sock_no_socketpair(struct socket *, struct socket *);
 int sock_no_accept(struct socket *, struct socket *, struct proto_accept_arg *);
 int sock_no_getname(struct socket *, struct sockaddr *, int);

@@ -3411,7 +3411,7 @@ generic_ip_connect(struct TCP_Server_Info *server)
 		 socket->sk->sk_sndbuf,
 		 socket->sk->sk_rcvbuf, socket->sk->sk_rcvtimeo);
 
-	rc = kernel_connect(socket, saddr, slen,
+	rc = kernel_connect(socket, (struct sockaddr_unsized *)saddr, slen,
 			    server->noblockcnt ? O_NONBLOCK : 0);
 	/*
 	 * When mounting SMB root file systems, we do not want to block in

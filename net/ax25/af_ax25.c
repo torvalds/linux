@@ -1175,7 +1175,7 @@ out:
  *	FIXME: nonblock behaviour looks like it may have a bug.
  */
 static int __must_check ax25_connect(struct socket *sock,
-	struct sockaddr *uaddr, int addr_len, int flags)
+	struct sockaddr_unsized *uaddr, int addr_len, int flags)
 {
 	struct sock *sk = sock->sk;
 	ax25_cb *ax25 = sk_to_ax25(sk), *ax25t;

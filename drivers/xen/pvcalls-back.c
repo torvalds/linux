@@ -409,7 +409,7 @@ static int pvcalls_back_connect(struct xenbus_device *dev,
 	ret = sock_create(AF_INET, SOCK_STREAM, 0, &sock);
 	if (ret < 0)
 		goto out;
-	ret = inet_stream_connect(sock, sa, req->u.connect.len, 0);
+	ret = inet_stream_connect(sock, (struct sockaddr_unsized *)sa, req->u.connect.len, 0);
 	if (ret < 0) {
 		sock_release(sock);
 		goto out;

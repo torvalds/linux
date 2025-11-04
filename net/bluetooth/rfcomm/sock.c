@@ -371,7 +371,8 @@ done:
 	return err;
 }
 
-static int rfcomm_sock_connect(struct socket *sock, struct sockaddr *addr, int alen, int flags)
+static int rfcomm_sock_connect(struct socket *sock, struct sockaddr_unsized *addr,
+			       int alen, int flags)
 {
 	struct sockaddr_rc *sa = (struct sockaddr_rc *) addr;
 	struct sock *sk = sock->sk;

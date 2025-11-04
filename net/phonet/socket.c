@@ -214,8 +214,8 @@ static int pn_socket_autobind(struct socket *sock)
 	return 0; /* socket was already bound */
 }
 
-static int pn_socket_connect(struct socket *sock, struct sockaddr *addr,
-		int len, int flags)
+static int pn_socket_connect(struct socket *sock, struct sockaddr_unsized *addr,
+			     int len, int flags)
 {
 	struct sock *sk = sock->sk;
 	struct pn_sock *pn = pn_sk(sk);
@@ -252,7 +252,7 @@ static int pn_socket_connect(struct socket *sock, struct sockaddr *addr,
 	pn->resource = pn_sockaddr_get_resource(spn);
 	sock->state = SS_CONNECTING;
 
-	err = sk->sk_prot->connect(sk, addr, len);
+	err = sk->sk_prot->connect(sk, (struct sockaddr *)addr, len);
 	if (err) {
 		sock->state = SS_UNCONNECTED;
 		pn->dobject = 0;

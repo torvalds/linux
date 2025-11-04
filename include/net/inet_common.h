@@ -23,11 +23,11 @@ struct sockaddr;
 struct socket;
 
 int inet_release(struct socket *sock);
-int inet_stream_connect(struct socket *sock, struct sockaddr *uaddr,
+int inet_stream_connect(struct socket *sock, struct sockaddr_unsized *uaddr,
 			int addr_len, int flags);
-int __inet_stream_connect(struct socket *sock, struct sockaddr *uaddr,
+int __inet_stream_connect(struct socket *sock, struct sockaddr_unsized *uaddr,
 			  int addr_len, int flags, int is_sendmsg);
-int inet_dgram_connect(struct socket *sock, struct sockaddr *uaddr,
+int inet_dgram_connect(struct socket *sock, struct sockaddr_unsized *uaddr,
 		       int addr_len, int flags);
 int inet_accept(struct socket *sock, struct socket *newsock,
 		struct proto_accept_arg *arg);

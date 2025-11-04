@@ -1084,7 +1084,7 @@ out:
 	return rc;
 }
 
-static int qrtr_connect(struct socket *sock, struct sockaddr *saddr,
+static int qrtr_connect(struct socket *sock, struct sockaddr_unsized *saddr,
 			int len, int flags)
 {
 	DECLARE_SOCKADDR(struct sockaddr_qrtr *, addr, saddr);

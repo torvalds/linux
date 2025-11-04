@@ -107,7 +107,7 @@ static int ieee802154_sock_bind(struct socket *sock, struct sockaddr_unsized *ua
 	return sock_no_bind(sock, uaddr, addr_len);
 }
 
-static int ieee802154_sock_connect(struct socket *sock, struct sockaddr *uaddr,
+static int ieee802154_sock_connect(struct socket *sock, struct sockaddr_unsized *uaddr,
 				   int addr_len, int flags)
 {
 	struct sock *sk = sock->sk;
@@ -118,7 +118,7 @@ static int ieee802154_sock_connect(struct socket *sock, struct sockaddr *uaddr,
 	if (uaddr->sa_family == AF_UNSPEC)
 		return sk->sk_prot->disconnect(sk, flags);
 
-	return sk->sk_prot->connect(sk, uaddr, addr_len);
+	return sk->sk_prot->connect(sk, (struct sockaddr *)uaddr, addr_len);
 }
 
 static int ieee802154_dev_ioctl(struct sock *sk, struct ifreq __user *arg,

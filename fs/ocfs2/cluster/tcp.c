@@ -1638,7 +1638,7 @@ static void o2net_start_connect(struct work_struct *work)
 	remoteaddr.sin_port = node->nd_ipv4_port;
 
 	ret = sc->sc_sock->ops->connect(sc->sc_sock,
-					(struct sockaddr *)&remoteaddr,
+					(struct sockaddr_unsized *)&remoteaddr,
 					sizeof(remoteaddr),
 					O_NONBLOCK);
 	if (ret == -EINPROGRESS)

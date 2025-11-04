@@ -995,7 +995,7 @@ vsock_bind(struct socket *sock, struct sockaddr_unsized *addr, int addr_len)
 
 	sk = sock->sk;
 
-	if (vsock_addr_cast((struct sockaddr *)addr, addr_len, &vm_addr) != 0)
+	if (vsock_addr_cast(addr, addr_len, &vm_addr) != 0)
 		return -EINVAL;
 
 	lock_sock(sk);
@@ -1328,7 +1328,7 @@ out:
 }
 
 static int vsock_dgram_connect(struct socket *sock,
-			       struct sockaddr *addr, int addr_len, int flags)
+			       struct sockaddr_unsized *addr, int addr_len, int flags)
 {
 	int err;
 	struct sock *sk;
@@ -1528,7 +1528,7 @@ static void vsock_connect_timeout(struct work_struct *work)
 	sock_put(sk);
 }
 
-static int vsock_connect(struct socket *sock, struct sockaddr *addr,
+static int vsock_connect(struct socket *sock, struct sockaddr_unsized *addr,
 			 int addr_len, int flags)
 {
 	int err;

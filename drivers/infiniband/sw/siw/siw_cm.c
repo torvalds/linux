@@ -1344,7 +1344,7 @@ static int kernel_bindconnect(struct socket *s, struct sockaddr *laddr,
 	if (rv < 0)
 		return rv;
 
-	rv = s->ops->connect(s, raddr, size, flags);
+	rv = s->ops->connect(s, (struct sockaddr_unsized *)raddr, size, flags);
 
 	return rv < 0 ? rv : 0;
 }
