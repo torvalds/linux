@@ -69,17 +69,19 @@ properties:
     enum: [0, 200, 600, 1200, 1600, 1800, 2000, 2200, 2400]
 
   eswin,hsp-sp-csr:
+    description:
+      HSP CSR is to control and get status of different high-speed peripherals
+      (such as Ethernet, USB, SATA, etc.) via register, which can tune
+      board-level's parameters of PHY, etc.
     $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
-      - description: Phandle to HSP(High-Speed Peripheral) device
-      - description: Offset of phy control register for internal
-                     or external clock selection
-      - description: Offset of AXI clock controller Low-Power request
-                     register
-      - description: Offset of register controlling TX/RX clock delay
-    description: |
-      High-Speed Peripheral device needed to configure clock selection,
-      clock low-power mode and clock delay.
+      - items:
+          - description: Phandle to HSP(High-Speed Peripheral) device
+          - description: Offset of phy control register for internal
+                         or external clock selection
+          - description: Offset of AXI clock controller Low-Power request
+                         register
+          - description: Offset of register controlling TX/RX clock delay
 
 required:
   - compatible
