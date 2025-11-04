@@ -300,6 +300,23 @@ config SND_SOC_SOF_PANTHERLAKE
 	  Say Y if you have such a device.
 	  If unsure select "N".
 
+config SND_SOC_SOF_INTEL_NVL
+	tristate
+	select SND_SOC_SOF_HDA_COMMON
+	select SND_SOC_SOF_INTEL_SOUNDWIRE_LINK_BASELINE
+	select SND_SOC_SOF_IPC4
+	select SND_SOC_SOF_INTEL_PTL
+
+config SND_SOC_SOF_NOVALAKE
+	tristate "SOF support for Novalake"
+	default SND_SOC_SOF_PCI
+	select SND_SOC_SOF_INTEL_NVL
+	help
+	  This adds support for Sound Open Firmware for Intel(R) platforms
+	  using the Novalake processors.
+	  Say Y if you have such a device.
+	  If unsure select "N".
+
 config SND_SOC_SOF_HDA_COMMON
 	tristate
 

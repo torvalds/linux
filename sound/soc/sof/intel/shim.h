@@ -23,6 +23,7 @@ enum sof_intel_hw_ip_version {
 	SOF_INTEL_ACE_1_0,	/* MeteorLake */
 	SOF_INTEL_ACE_2_0,	/* LunarLake */
 	SOF_INTEL_ACE_3_0,	/* PantherLake */
+	SOF_INTEL_ACE_4_0,	/* NovaLake */
 };
 
 /*
