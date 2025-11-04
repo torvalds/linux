@@ -30,4 +30,16 @@ config IOMMU_PT
 	  related to struct iommu_domain using GENERIC_PT. It provides a single
 	  implementation of the page table operations that can be shared by
 	  multiple drivers.
+
+if IOMMU_PT
+config IOMMU_PT_AMDV1
+	tristate "IOMMU page table for 64-bit AMD IOMMU v1"
+	depends on !GENERIC_ATOMIC64 # for cmpxchg64
+	help
+	  iommu_domain implementation for the AMD v1 page table. AMDv1 is the
+	  "host" page table. It supports granular page sizes of almost every
+	  power of 2 and decodes an full 64-bit IOVA space.
+
+	  Selected automatically by an IOMMU driver that uses this format.
+endif
 endif

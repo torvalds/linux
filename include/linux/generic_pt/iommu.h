@@ -145,6 +145,18 @@ struct pt_iommu_cfg {
 	static_assert(offsetof(s, pt_iommu_memb.domain) ==   \
 		      offsetof(s, domain_memb))
 
+struct pt_iommu_amdv1_cfg {
+	struct pt_iommu_cfg common;
+	unsigned int starting_level;
+};
+
+struct pt_iommu_amdv1_hw_info {
+	u64 host_pt_root;
+	u8 mode;
+};
+
+IOMMU_FORMAT(amdv1, amdpt);
+
 #undef IOMMU_PROTOTYPES
 #undef IOMMU_FORMAT
 #endif
