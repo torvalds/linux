@@ -6,8 +6,6 @@
 
 #include "smbdirect_internal.h"
 
-static void smbdirect_connection_mr_io_recovery_work(struct work_struct *work);
-
 /*
  * Allocate MRs used for RDMA read/write
  * The number of MRs will not exceed hardware capability in responder_resources
@@ -65,8 +63,6 @@ int smbdirect_connection_create_mr_list(struct smbdirect_socket *sc)
 		list_add_tail(&mr->list, &sc->mr_io.all.list);
 		atomic_inc(&sc->mr_io.ready.count);
 	}
-
-	INIT_WORK(&sc->mr_io.recovery_work, smbdirect_connection_mr_io_recovery_work);
 
 	return 0;
 
@@ -127,8 +123,6 @@ void smbdirect_connection_destroy_mr_list(struct smbdirect_socket *sc)
 	LIST_HEAD(all_list);
 	unsigned long flags;
 
-	disable_work_sync(&sc->mr_io.recovery_work);
-
 	spin_lock_irqsave(&sc->mr_io.all.lock, flags);
 	list_splice_tail_init(&sc->mr_io.all.list, &all_list);
 	spin_unlock_irqrestore(&sc->mr_io.all.lock, flags);
@@ -164,11 +158,8 @@ void smbdirect_connection_destroy_mr_list(struct smbdirect_socket *sc)
 
 /*
  * Get a MR from mr_list. This function waits until there is at least one MR
- * available in the list. It may access the list while the
- * smbdirect_connection_mr_io_recovery_work is recovering the MR list. This
- * doesn't need a lock as they never modify the same places. However, there may
- * be several CPUs issuing I/O trying to get MR at the same time, mr_list_lock
- * is used to protect this situation.
+ * available in the list. There may be several CPUs issuing I/O trying to get MR
+ * at the same time, mr_list_lock is used to protect this situation.
  */
 static struct smbdirect_mr_io *
 smbdirect_connection_get_mr_io(struct smbdirect_socket *sc)
@@ -244,65 +235,6 @@ static void smbdirect_connection_mr_io_local_inv_done(struct ib_cq *cq, struct i
 		smbdirect_socket_schedule_cleanup(sc, -ECONNABORTED);
 	}
 	complete(&mr->invalidate_done);
-}
-
-/*
- * The work queue function that recovers MRs
- * We need to call ib_dereg_mr() and ib_alloc_mr() before this MR can be used
- * again. Both calls are slow, so finish them in a workqueue. This will not
- * block I/O path.
- * There is one workqueue that recovers MRs, there is no need to lock as the
- * I/O requests calling smbd_register_mr will never update the links in the
- * mr_list.
- */
-static void smbdirect_connection_mr_io_recovery_work(struct work_struct *work)
-{
-	struct smbdirect_socket *sc =
-		container_of(work, struct smbdirect_socket, mr_io.recovery_work);
-	struct smbdirect_socket_parameters *sp = &sc->parameters;
-	struct smbdirect_mr_io *mr;
-	int ret;
-
-	list_for_each_entry(mr, &sc->mr_io.all.list, list) {
-		if (mr->state != SMBDIRECT_MR_ERROR)
-			/* This MR is being used, don't recover it */
-			continue;
-
-		/* recover this MR entry */
-		ret = ib_dereg_mr(mr->mr);
-		if (ret) {
-			smbdirect_log_rdma_mr(sc, SMBDIRECT_LOG_ERR,
-				"ib_dereg_mr failed ret=%u (%1pe)\n",
-				ret, SMBDIRECT_DEBUG_ERR_PTR(ret));
-			smbdirect_socket_schedule_cleanup(sc, ret);
-			continue;
-		}
-
-		mr->mr = ib_alloc_mr(sc->ib.pd,
-				     sc->mr_io.type,
-				     sp->max_frmr_depth);
-		if (IS_ERR(mr->mr)) {
-			ret = PTR_ERR(mr->mr);
-			smbdirect_log_rdma_mr(sc, SMBDIRECT_LOG_ERR,
-				"ib_alloc_mr failed ret=%d (%1pe) type=0x%x depth=%u\n",
-				ret, SMBDIRECT_DEBUG_ERR_PTR(ret),
-				sc->mr_io.type, sp->max_frmr_depth);
-			smbdirect_socket_schedule_cleanup(sc, ret);
-			continue;
-		}
-
-		mr->state = SMBDIRECT_MR_READY;
-
-		/* smbdirect_mr->state is updated by this function
-		 * and is read and updated by I/O issuing CPUs trying
-		 * to get a MR, the call to atomic_inc_return
-		 * implicates a memory barrier and guarantees this
-		 * value is updated before waking up any calls to
-		 * get_mr() from the I/O issuing CPUs
-		 */
-		if (atomic_inc_return(&sc->mr_io.ready.count) == 1)
-			wake_up(&sc->mr_io.ready.wait_queue);
-	}
 }
 
 /*
@@ -421,15 +353,13 @@ smbdirect_connection_register_mr_io(struct smbdirect_socket *sc,
 		"ib_post_send failed ret=%d (%1pe) reg_wr->key=0x%x\n",
 		ret, SMBDIRECT_DEBUG_ERR_PTR(ret), reg_wr->key);
 
-	/* If all failed, attempt to recover this MR by setting it SMBDIRECT_MR_ERROR*/
 map_mr_error:
 	ib_dma_unmap_sg(sc->ib.dev, mr->sgt.sgl, mr->sgt.nents, mr->dir);
 
 dma_map_error:
 	mr->sgt.nents = 0;
 	mr->state = SMBDIRECT_MR_ERROR;
-	if (atomic_dec_and_test(&sc->mr_io.used.count))
-		wake_up(&sc->mr_io.cleanup.wait_queue);
+	atomic_dec(&sc->mr_io.used.count);
 
 	smbdirect_socket_schedule_cleanup(sc, ret);
 
@@ -529,20 +459,15 @@ void smbdirect_connection_deregister_mr_io(struct smbdirect_mr_io *mr)
 		mr->sgt.nents = 0;
 	}
 
-	if (mr->state == SMBDIRECT_MR_INVALIDATED) {
-		mr->state = SMBDIRECT_MR_READY;
-		if (atomic_inc_return(&sc->mr_io.ready.count) == 1)
-			wake_up(&sc->mr_io.ready.wait_queue);
-	} else
-		/*
-		 * Schedule the work to do MR recovery for future I/Os MR
-		 * recovery is slow and don't want it to block current I/O
-		 */
-		queue_work(sc->workqueue, &sc->mr_io.recovery_work);
+	WARN_ONCE(mr->state != SMBDIRECT_MR_INVALIDATED,
+		  "mr->state[%u] != SMBDIRECT_MR_INVALIDATED[%u]\n",
+		  mr->state, SMBDIRECT_MR_INVALIDATED);
+	mr->state = SMBDIRECT_MR_READY;
+	if (atomic_inc_return(&sc->mr_io.ready.count) == 1)
+		wake_up(&sc->mr_io.ready.wait_queue);
 
 done:
-	if (atomic_dec_and_test(&sc->mr_io.used.count))
-		wake_up(&sc->mr_io.cleanup.wait_queue);
+	atomic_dec(&sc->mr_io.used.count);
 
 put_kref:
 	/*
