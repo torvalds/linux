@@ -48,6 +48,8 @@ enum blk_zone_type {
  *                      FINISH ZONE command.
  * @BLK_ZONE_COND_READONLY: The zone is read-only.
  * @BLK_ZONE_COND_OFFLINE: The zone is offline (sectors cannot be read/written).
+ * @BLK_ZONE_COND_ACTIVE: The zone is either implicitly open, explicitly open,
+ *			  or closed.
  *
  * The Zone Condition state machine in the ZBC/ZAC standards maps the above
  * deinitions as:
@@ -61,6 +63,13 @@ enum blk_zone_type {
  *
  * Conditions 0x5 to 0xC are reserved by the current ZBC/ZAC spec and should
  * be considered invalid.
+ *
+ * The condition BLK_ZONE_COND_ACTIVE is used only with cached zone reports.
+ * It is used to report any of the BLK_ZONE_COND_IMP_OPEN,
+ * BLK_ZONE_COND_EXP_OPEN and BLK_ZONE_COND_CLOSED conditions. Conversely, a
+ * regular zone report will never report a zone condition using
+ * BLK_ZONE_COND_ACTIVE and instead use the conditions BLK_ZONE_COND_IMP_OPEN,
+ * BLK_ZONE_COND_EXP_OPEN or BLK_ZONE_COND_CLOSED as reported by the device.
  */
 enum blk_zone_cond {
 	BLK_ZONE_COND_NOT_WP	= 0x0,
@@ -71,6 +80,8 @@ enum blk_zone_cond {
 	BLK_ZONE_COND_READONLY	= 0xD,
 	BLK_ZONE_COND_FULL	= 0xE,
 	BLK_ZONE_COND_OFFLINE	= 0xF,
+
+	BLK_ZONE_COND_ACTIVE	= 0xFF,
 };
 
 /**

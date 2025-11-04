@@ -33,6 +33,7 @@ static const char *const zone_cond_name[] = {
 	ZONE_COND_NAME(READONLY),
 	ZONE_COND_NAME(FULL),
 	ZONE_COND_NAME(OFFLINE),
+	ZONE_COND_NAME(ACTIVE),
 };
 #undef ZONE_COND_NAME
 
@@ -57,6 +58,7 @@ static const char *const zone_cond_name[] = {
  * @zone_no: The number of the zone the plug is managing.
  * @wp_offset: The zone write pointer location relative to the start of the zone
  *             as a number of 512B sectors.
+ * @cond: Condition of the zone
  */
 struct blk_zone_wplug {
 	struct hlist_node	node;
@@ -69,6 +71,7 @@ struct blk_zone_wplug {
 	unsigned int		flags;
 	unsigned int		zone_no;
 	unsigned int		wp_offset;
+	enum blk_zone_cond	cond;
 };
 
 static inline unsigned int disk_zone_wplugs_hash_size(struct gendisk *disk)
@@ -113,6 +116,57 @@ const char *blk_zone_cond_str(enum blk_zone_cond zone_cond)
 	return zone_cond_str;
 }
 EXPORT_SYMBOL_GPL(blk_zone_cond_str);
+
+static void blk_zone_set_cond(u8 *zones_cond, unsigned int zno,
+			      enum blk_zone_cond cond)
+{
+	if (!zones_cond)
+		return;
+
+	switch (cond) {
+	case BLK_ZONE_COND_IMP_OPEN:
+	case BLK_ZONE_COND_EXP_OPEN:
+	case BLK_ZONE_COND_CLOSED:
+		zones_cond[zno] = BLK_ZONE_COND_ACTIVE;
+		return;
+	case BLK_ZONE_COND_NOT_WP:
+	case BLK_ZONE_COND_EMPTY:
+	case BLK_ZONE_COND_FULL:
+	case BLK_ZONE_COND_OFFLINE:
+	case BLK_ZONE_COND_READONLY:
+	default:
+		zones_cond[zno] = cond;
+		return;
+	}
+}
+
+static void disk_zone_set_cond(struct gendisk *disk, sector_t sector,
+			       enum blk_zone_cond cond)
+{
+	u8 *zones_cond;
+
+	rcu_read_lock();
+	zones_cond = rcu_dereference(disk->zones_cond);
+	if (zones_cond) {
+		unsigned int zno = disk_zone_no(disk, sector);
+
+		/*
+		 * The condition of a conventional, readonly and offline zones
+		 * never changes, so do nothing if the target zone is in one of
+		 * these conditions.
+		 */
+		switch (zones_cond[zno]) {
+		case BLK_ZONE_COND_NOT_WP:
+		case BLK_ZONE_COND_READONLY:
+		case BLK_ZONE_COND_OFFLINE:
+			break;
+		default:
+			blk_zone_set_cond(zones_cond, zno, cond);
+			break;
+		}
+	}
+	rcu_read_unlock();
+}
 
 /**
  * bdev_zone_is_seq - check if a sector belongs to a sequential write zone
@@ -416,6 +470,7 @@ static bool disk_insert_zone_wplug(struct gendisk *disk,
 {
 	struct blk_zone_wplug *zwplg;
 	unsigned long flags;
+	u8 *zones_cond;
 	unsigned int idx =
 		hash_32(zwplug->zone_no, disk->zone_wplugs_hash_bits);
 
@@ -431,6 +486,20 @@ static bool disk_insert_zone_wplug(struct gendisk *disk,
 			return false;
 		}
 	}
+
+	/*
+	 * Set the zone condition: if we do not yet have a zones_cond array
+	 * attached to the disk, then this is a zone write plug insert from the
+	 * first call to blk_revalidate_disk_zones(), in which case the zone is
+	 * necessarilly in the active condition.
+	 */
+	zones_cond = rcu_dereference_check(disk->zones_cond,
+				lockdep_is_held(&disk->zone_wplugs_lock));
+	if (zones_cond)
+		zwplug->cond = zones_cond[zwplug->zone_no];
+	else
+		zwplug->cond = BLK_ZONE_COND_ACTIVE;
+
 	hlist_add_head_rcu(&zwplug->node, &disk->zone_wplugs_hash[idx]);
 	atomic_inc(&disk->nr_zone_wplugs);
 	spin_unlock_irqrestore(&disk->zone_wplugs_lock, flags);
@@ -530,10 +599,15 @@ static void disk_remove_zone_wplug(struct gendisk *disk,
 
 	/*
 	 * Mark the zone write plug as unhashed and drop the extra reference we
-	 * took when the plug was inserted in the hash table.
+	 * took when the plug was inserted in the hash table. Also update the
+	 * disk zone condition array with the current condition of the zone
+	 * write plug.
 	 */
 	zwplug->flags |= BLK_ZONE_WPLUG_UNHASHED;
 	spin_lock_irqsave(&disk->zone_wplugs_lock, flags);
+	blk_zone_set_cond(rcu_dereference_check(disk->zones_cond,
+				lockdep_is_held(&disk->zone_wplugs_lock)),
+			  zwplug->zone_no, zwplug->cond);
 	hlist_del_init_rcu(&zwplug->node);
 	atomic_dec(&disk->nr_zone_wplugs);
 	spin_unlock_irqrestore(&disk->zone_wplugs_lock, flags);
@@ -636,6 +710,22 @@ static void disk_zone_wplug_abort(struct blk_zone_wplug *zwplug)
 }
 
 /*
+ * Update a zone write plug condition based on the write pointer offset.
+ */
+static void disk_zone_wplug_update_cond(struct gendisk *disk,
+					struct blk_zone_wplug *zwplug)
+{
+	lockdep_assert_held(&zwplug->lock);
+
+	if (disk_zone_wplug_is_full(disk, zwplug))
+		zwplug->cond = BLK_ZONE_COND_FULL;
+	else if (!zwplug->wp_offset)
+		zwplug->cond = BLK_ZONE_COND_EMPTY;
+	else
+		zwplug->cond = BLK_ZONE_COND_ACTIVE;
+}
+
+/*
  * Set a zone write plug write pointer offset to the specified value.
  * This aborts all plugged BIOs, which is fine as this function is called for
  * a zone reset operation, a zone finish operation or if the zone needs a wp
@@ -650,6 +740,8 @@ static void disk_zone_wplug_set_wp_offset(struct gendisk *disk,
 	/* Update the zone write pointer and abort all plugged BIOs. */
 	zwplug->flags &= ~BLK_ZONE_WPLUG_NEED_WP_UPDATE;
 	zwplug->wp_offset = wp_offset;
+	disk_zone_wplug_update_cond(disk, zwplug);
+
 	disk_zone_wplug_abort(zwplug);
 
 	/*
@@ -733,6 +825,7 @@ EXPORT_SYMBOL_GPL(disk_report_zone);
 static void blk_zone_reset_bio_endio(struct bio *bio)
 {
 	struct gendisk *disk = bio->bi_bdev->bd_disk;
+	sector_t sector = bio->bi_iter.bi_sector;
 	struct blk_zone_wplug *zwplug;
 
 	/*
@@ -741,7 +834,7 @@ static void blk_zone_reset_bio_endio(struct bio *bio)
 	 * resetting zones while writes are still in-flight will result in the
 	 * writes failing anyway.
 	 */
-	zwplug = disk_get_zone_wplug(disk, bio->bi_iter.bi_sector);
+	zwplug = disk_get_zone_wplug(disk, sector);
 	if (zwplug) {
 		unsigned long flags;
 
@@ -749,14 +842,18 @@ static void blk_zone_reset_bio_endio(struct bio *bio)
 		disk_zone_wplug_set_wp_offset(disk, zwplug, 0);
 		spin_unlock_irqrestore(&zwplug->lock, flags);
 		disk_put_zone_wplug(zwplug);
+	} else {
+		disk_zone_set_cond(disk, sector, BLK_ZONE_COND_EMPTY);
 	}
 }
 
 static void blk_zone_reset_all_bio_endio(struct bio *bio)
 {
 	struct gendisk *disk = bio->bi_bdev->bd_disk;
+	sector_t capacity = get_capacity(disk);
 	struct blk_zone_wplug *zwplug;
 	unsigned long flags;
+	sector_t sector;
 	unsigned int i;
 
 	/* Update the condition of all zone write plugs. */
@@ -770,12 +867,18 @@ static void blk_zone_reset_all_bio_endio(struct bio *bio)
 		}
 	}
 	rcu_read_unlock();
+
+	/* Update the cached zone conditions. */
+	for (sector = 0; sector < capacity;
+	     sector += bdev_zone_sectors(bio->bi_bdev))
+		disk_zone_set_cond(disk, sector, BLK_ZONE_COND_EMPTY);
 }
 
 static void blk_zone_finish_bio_endio(struct bio *bio)
 {
 	struct block_device *bdev = bio->bi_bdev;
 	struct gendisk *disk = bdev->bd_disk;
+	sector_t sector = bio->bi_iter.bi_sector;
 	struct blk_zone_wplug *zwplug;
 
 	/*
@@ -784,7 +887,7 @@ static void blk_zone_finish_bio_endio(struct bio *bio)
 	 * is fine as resetting zones while writes are still in-flight will
 	 * result in the writes failing anyway.
 	 */
-	zwplug = disk_get_zone_wplug(disk, bio->bi_iter.bi_sector);
+	zwplug = disk_get_zone_wplug(disk, sector);
 	if (zwplug) {
 		unsigned long flags;
 
@@ -793,6 +896,8 @@ static void blk_zone_finish_bio_endio(struct bio *bio)
 					      bdev_zone_sectors(bdev));
 		spin_unlock_irqrestore(&zwplug->lock, flags);
 		disk_put_zone_wplug(zwplug);
+	} else {
+		disk_zone_set_cond(disk, sector, BLK_ZONE_COND_FULL);
 	}
 }
 
@@ -888,6 +993,7 @@ static inline void disk_zone_wplug_add_bio(struct gendisk *disk,
  */
 void blk_zone_write_plug_bio_merged(struct bio *bio)
 {
+	struct gendisk *disk = bio->bi_bdev->bd_disk;
 	struct blk_zone_wplug *zwplug;
 	unsigned long flags;
 
@@ -909,13 +1015,13 @@ void blk_zone_write_plug_bio_merged(struct bio *bio)
 	 * have at least one request and one BIO referencing the zone write
 	 * plug. So this should not fail.
 	 */
-	zwplug = disk_get_zone_wplug(bio->bi_bdev->bd_disk,
-				     bio->bi_iter.bi_sector);
+	zwplug = disk_get_zone_wplug(disk, bio->bi_iter.bi_sector);
 	if (WARN_ON_ONCE(!zwplug))
 		return;
 
 	spin_lock_irqsave(&zwplug->lock, flags);
 	zwplug->wp_offset += bio_sectors(bio);
+	disk_zone_wplug_update_cond(disk, zwplug);
 	spin_unlock_irqrestore(&zwplug->lock, flags);
 }
 
@@ -974,6 +1080,7 @@ void blk_zone_write_plug_init_request(struct request *req)
 		/* Drop the reference taken by disk_zone_wplug_add_bio(). */
 		blk_queue_exit(q);
 		zwplug->wp_offset += bio_sectors(bio);
+		disk_zone_wplug_update_cond(disk, zwplug);
 
 		req_back_sector += bio_sectors(bio);
 	}
@@ -1037,6 +1144,7 @@ static bool blk_zone_wplug_prepare_bio(struct blk_zone_wplug *zwplug,
 
 	/* Advance the zone write pointer offset. */
 	zwplug->wp_offset += bio_sectors(bio);
+	disk_zone_wplug_update_cond(disk, zwplug);
 
 	return true;
 }
@@ -1683,7 +1791,7 @@ static int blk_revalidate_zone_cond(struct blk_zone *zone, unsigned int idx,
 		return -ENODEV;
 	}
 
-	args->zones_cond[idx] = cond;
+	blk_zone_set_cond(args->zones_cond, idx, cond);
 
 	return 0;
 
