@@ -1134,7 +1134,7 @@ static int sctp_bind_addrs(struct socket *sock, __be16 port)
 		make_sockaddr(&localaddr, port, &addr_len);
 
 		if (!i)
-			result = kernel_bind(sock, addr, addr_len);
+			result = kernel_bind(sock, (struct sockaddr_unsized *)addr, addr_len);
 		else
 			result = sock_bind_add(sock->sk, addr, addr_len);
 
@@ -1813,7 +1813,7 @@ static int dlm_tcp_bind(struct socket *sock)
 	memcpy(&src_addr, &dlm_local_addr[0], sizeof(src_addr));
 	make_sockaddr(&src_addr, 0, &addr_len);
 
-	result = kernel_bind(sock, (struct sockaddr *)&src_addr,
+	result = kernel_bind(sock, (struct sockaddr_unsized *)&src_addr,
 			     addr_len);
 	if (result < 0) {
 		/* This *may* not indicate a critical error */
@@ -1852,7 +1852,7 @@ static int dlm_tcp_listen_bind(struct socket *sock)
 
 	/* Bind to our port */
 	make_sockaddr(&dlm_local_addr[0], dlm_config.ci_tcp_port, &addr_len);
-	return kernel_bind(sock, (struct sockaddr *)&dlm_local_addr[0],
+	return kernel_bind(sock, (struct sockaddr_unsized *)&dlm_local_addr[0],
 			   addr_len);
 }
 

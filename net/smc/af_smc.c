@@ -421,7 +421,7 @@ static struct sock *smc_sock_alloc(struct net *net, struct socket *sock,
 	return sk;
 }
 
-int smc_bind(struct socket *sock, struct sockaddr *uaddr,
+int smc_bind(struct socket *sock, struct sockaddr_unsized *uaddr,
 	     int addr_len)
 {
 	struct sockaddr_in *addr = (struct sockaddr_in *)uaddr;

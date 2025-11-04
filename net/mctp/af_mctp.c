@@ -49,7 +49,7 @@ static bool mctp_sockaddr_ext_is_ok(const struct sockaddr_mctp_ext *addr)
 	       !addr->__smctp_pad0[2];
 }
 
-static int mctp_bind(struct socket *sock, struct sockaddr *addr, int addrlen)
+static int mctp_bind(struct socket *sock, struct sockaddr_unsized *addr, int addrlen)
 {
 	struct sock *sk = sock->sk;
 	struct mctp_sock *msk = container_of(sk, struct mctp_sock, sk);

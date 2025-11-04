@@ -24,7 +24,7 @@ static int pvc_shutdown(struct socket *sock, int how)
 	return 0;
 }
 
-static int pvc_bind(struct socket *sock, struct sockaddr *sockaddr,
+static int pvc_bind(struct socket *sock, struct sockaddr_unsized *sockaddr,
 		    int sockaddr_len)
 {
 	struct sock *sk = sock->sk;
@@ -59,7 +59,7 @@ out:
 static int pvc_connect(struct socket *sock, struct sockaddr *sockaddr,
 		       int sockaddr_len, int flags)
 {
-	return pvc_bind(sock, sockaddr, sockaddr_len);
+	return pvc_bind(sock, (struct sockaddr_unsized *)sockaddr, sockaddr_len);
 }
 
 static int pvc_setsockopt(struct socket *sock, int level, int optname,

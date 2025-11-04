@@ -205,7 +205,7 @@ static void __mctp_route_test_init(struct kunit *test,
 	addr.smctp_network = netid;
 	addr.smctp_addr.s_addr = 8;
 	addr.smctp_type = 0;
-	rc = kernel_bind(sock, (struct sockaddr *)&addr, sizeof(addr));
+	rc = kernel_bind(sock, (struct sockaddr_unsized *)&addr, sizeof(addr));
 	KUNIT_ASSERT_EQ(test, rc, 0);
 
 	*devp = dev;

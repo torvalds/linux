@@ -465,9 +465,9 @@ int inet6_bind_sk(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 }
 
 /* bind for INET6 API */
-int inet6_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
+int inet6_bind(struct socket *sock, struct sockaddr_unsized *uaddr, int addr_len)
 {
-	return inet6_bind_sk(sock->sk, uaddr, addr_len);
+	return inet6_bind_sk(sock->sk, (struct sockaddr *)uaddr, addr_len);
 }
 EXPORT_SYMBOL(inet6_bind);
 

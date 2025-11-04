@@ -822,7 +822,7 @@ int iscsit_setup_np(
 	sock_set_reuseaddr(sock->sk);
 	ip_sock_set_freebind(sock->sk);
 
-	ret = kernel_bind(sock, (struct sockaddr *)&np->np_sockaddr, len);
+	ret = kernel_bind(sock, (struct sockaddr_unsized *)&np->np_sockaddr, len);
 	if (ret < 0) {
 		pr_err("kernel_bind() failed: %d\n", ret);
 		goto fail;

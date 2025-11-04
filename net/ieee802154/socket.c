@@ -96,13 +96,13 @@ static int ieee802154_sock_sendmsg(struct socket *sock, struct msghdr *msg,
 	return sk->sk_prot->sendmsg(sk, msg, len);
 }
 
-static int ieee802154_sock_bind(struct socket *sock, struct sockaddr *uaddr,
+static int ieee802154_sock_bind(struct socket *sock, struct sockaddr_unsized *uaddr,
 				int addr_len)
 {
 	struct sock *sk = sock->sk;
 
 	if (sk->sk_prot->bind)
-		return sk->sk_prot->bind(sk, uaddr, addr_len);
+		return sk->sk_prot->bind(sk, (struct sockaddr *)uaddr, addr_len);
 
 	return sock_no_bind(sock, uaddr, addr_len);
 }

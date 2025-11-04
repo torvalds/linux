@@ -1094,7 +1094,7 @@ static int ax25_release(struct socket *sock)
  *	that we've implemented support for SO_BINDTODEVICE. It is however small
  *	and trivially backward compatible.
  */
-static int ax25_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
+static int ax25_bind(struct socket *sock, struct sockaddr_unsized *uaddr, int addr_len)
 {
 	struct sock *sk = sock->sk;
 	struct full_sockaddr_ax25 *addr = (struct full_sockaddr_ax25 *)uaddr;

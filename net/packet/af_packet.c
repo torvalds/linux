@@ -3279,11 +3279,12 @@ out_unlock:
  *	Bind a packet socket to a device
  */
 
-static int packet_bind_spkt(struct socket *sock, struct sockaddr *uaddr,
+static int packet_bind_spkt(struct socket *sock, struct sockaddr_unsized *uaddr,
 			    int addr_len)
 {
 	struct sock *sk = sock->sk;
-	char name[sizeof(uaddr->sa_data_min) + 1];
+	struct sockaddr *sa = (struct sockaddr *)uaddr;
+	char name[sizeof(sa->sa_data_min) + 1];
 
 	/*
 	 *	Check legality
@@ -3294,13 +3295,13 @@ static int packet_bind_spkt(struct socket *sock, struct sockaddr *uaddr,
 	/* uaddr->sa_data comes from the userspace, it's not guaranteed to be
 	 * zero-terminated.
 	 */
-	memcpy(name, uaddr->sa_data, sizeof(uaddr->sa_data_min));
-	name[sizeof(uaddr->sa_data_min)] = 0;
+	memcpy(name, sa->sa_data, sizeof(sa->sa_data_min));
+	name[sizeof(sa->sa_data_min)] = 0;
 
 	return packet_do_bind(sk, name, 0, 0);
 }
 
-static int packet_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
+static int packet_bind(struct socket *sock, struct sockaddr_unsized *uaddr, int addr_len)
 {
 	struct sockaddr_ll *sll = (struct sockaddr_ll *)uaddr;
 	struct sock *sk = sock->sk;

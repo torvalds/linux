@@ -97,7 +97,7 @@ static int svc_release(struct socket *sock)
 	return 0;
 }
 
-static int svc_bind(struct socket *sock, struct sockaddr *sockaddr,
+static int svc_bind(struct socket *sock, struct sockaddr_unsized *sockaddr,
 		    int sockaddr_len)
 {
 	DEFINE_WAIT(wait);

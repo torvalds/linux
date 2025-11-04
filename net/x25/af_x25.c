@@ -670,7 +670,7 @@ out:
 	return 0;
 }
 
-static int x25_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
+static int x25_bind(struct socket *sock, struct sockaddr_unsized *uaddr, int addr_len)
 {
 	struct sock *sk = sock->sk;
 	struct sockaddr_x25 *addr = (struct sockaddr_x25 *)uaddr;

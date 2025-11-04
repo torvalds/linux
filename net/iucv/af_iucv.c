@@ -563,7 +563,7 @@ static void __iucv_auto_name(struct iucv_sock *iucv)
 }
 
 /* Bind an unbound socket */
-static int iucv_sock_bind(struct socket *sock, struct sockaddr *addr,
+static int iucv_sock_bind(struct socket *sock, struct sockaddr_unsized *addr,
 			  int addr_len)
 {
 	DECLARE_SOCKADDR(struct sockaddr_iucv *, sa, addr);

@@ -650,7 +650,7 @@ static int pvcalls_back_bind(struct xenbus_device *dev,
 	if (ret < 0)
 		goto out;
 
-	ret = inet_bind(map->sock, (struct sockaddr *)&req->u.bind.addr,
+	ret = inet_bind(map->sock, (struct sockaddr_unsized *)&req->u.bind.addr,
 			req->u.bind.len);
 	if (ret < 0)
 		goto out;

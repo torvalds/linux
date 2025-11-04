@@ -3112,7 +3112,7 @@ bind_socket(struct TCP_Server_Info *server)
 		struct socket *socket = server->ssocket;
 
 		rc = kernel_bind(socket,
-				 (struct sockaddr *) &server->srcaddr,
+				 (struct sockaddr_unsized *) &server->srcaddr,
 				 sizeof(server->srcaddr));
 		if (rc < 0) {
 			struct sockaddr_in *saddr4;

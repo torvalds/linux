@@ -450,7 +450,7 @@ static struct socket *drbd_try_connect(struct drbd_connection *connection)
 	*  a free one dynamically.
 	*/
 	what = "bind before connect";
-	err = sock->ops->bind(sock, (struct sockaddr *) &src_in6, my_addr_len);
+	err = sock->ops->bind(sock, (struct sockaddr_unsized *) &src_in6, my_addr_len);
 	if (err < 0)
 		goto out;
 
@@ -537,7 +537,7 @@ static int prepare_listen_socket(struct drbd_connection *connection, struct acce
 	drbd_setbufsize(s_listen, sndbuf_size, rcvbuf_size);
 
 	what = "bind before listen";
-	err = s_listen->ops->bind(s_listen, (struct sockaddr *)&my_addr, my_addr_len);
+	err = s_listen->ops->bind(s_listen, (struct sockaddr_unsized *)&my_addr, my_addr_len);
 	if (err < 0)
 		goto out;
 

@@ -211,7 +211,7 @@ static int rxperf_open_socket(void)
 
 	ret = rxrpc_sock_set_security_keyring(socket->sk, rxperf_sec_keyring);
 
-	ret = kernel_bind(socket, (struct sockaddr *)&srx, sizeof(srx));
+	ret = kernel_bind(socket, (struct sockaddr_unsized *)&srx, sizeof(srx));
 	if (ret < 0)
 		goto error_2;
 

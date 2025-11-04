@@ -843,7 +843,7 @@ out:
 }
 
 static int unix_release(struct socket *);
-static int unix_bind(struct socket *, struct sockaddr *, int);
+static int unix_bind(struct socket *, struct sockaddr_unsized *, int);
 static int unix_stream_connect(struct socket *, struct sockaddr *,
 			       int addr_len, int flags);
 static int unix_socketpair(struct socket *, struct socket *);
@@ -1466,7 +1466,7 @@ out:
 	return err;
 }
 
-static int unix_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
+static int unix_bind(struct socket *sock, struct sockaddr_unsized *uaddr, int addr_len)
 {
 	struct sockaddr_un *sunaddr = (struct sockaddr_un *)uaddr;
 	struct sock *sk = sock->sk;

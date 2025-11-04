@@ -163,7 +163,7 @@ struct proto_ops {
 	struct module	*owner;
 	int		(*release)   (struct socket *sock);
 	int		(*bind)	     (struct socket *sock,
-				      struct sockaddr *myaddr,
+				      struct sockaddr_unsized *myaddr,
 				      int sockaddr_len);
 	int		(*connect)   (struct socket *sock,
 				      struct sockaddr *vaddr,
@@ -345,7 +345,7 @@ int kernel_sendmsg(struct socket *sock, struct msghdr *msg, struct kvec *vec,
 int kernel_recvmsg(struct socket *sock, struct msghdr *msg, struct kvec *vec,
 		   size_t num, size_t len, int flags);
 
-int kernel_bind(struct socket *sock, struct sockaddr *addr, int addrlen);
+int kernel_bind(struct socket *sock, struct sockaddr_unsized *addr, int addrlen);
 int kernel_listen(struct socket *sock, int backlog);
 int kernel_accept(struct socket *sock, struct socket **newsock, int flags);
 int kernel_connect(struct socket *sock, struct sockaddr *addr, int addrlen,

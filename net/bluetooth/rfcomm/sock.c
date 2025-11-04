@@ -324,7 +324,7 @@ static int rfcomm_sock_create(struct net *net, struct socket *sock,
 	return 0;
 }
 
-static int rfcomm_sock_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
+static int rfcomm_sock_bind(struct socket *sock, struct sockaddr_unsized *addr, int addr_len)
 {
 	struct sockaddr_rc sa;
 	struct sock *sk = sock->sk;

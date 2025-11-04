@@ -3462,7 +3462,7 @@ EXPORT_SYMBOL_GPL(sk_set_peek_off);
  * function, some default processing is provided.
  */
 
-int sock_no_bind(struct socket *sock, struct sockaddr *saddr, int len)
+int sock_no_bind(struct socket *sock, struct sockaddr_unsized *saddr, int len)
 {
 	return -EOPNOTSUPP;
 }

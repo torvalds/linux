@@ -966,7 +966,7 @@ static int p9_bind_privport(struct socket *sock)
 			((struct sockaddr_in *)&stor)->sin_port = htons((ushort)port);
 		else
 			((struct sockaddr_in6 *)&stor)->sin6_port = htons((ushort)port);
-		err = kernel_bind(sock, (struct sockaddr *)&stor, sizeof(stor));
+		err = kernel_bind(sock, (struct sockaddr_unsized *)&stor, sizeof(stor));
 		if (err != -EADDRINUSE)
 			break;
 	}

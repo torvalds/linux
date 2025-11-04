@@ -449,7 +449,7 @@ static int raw_release(struct socket *sock)
 	return 0;
 }
 
-static int raw_bind(struct socket *sock, struct sockaddr *uaddr, int len)
+static int raw_bind(struct socket *sock, struct sockaddr_unsized *uaddr, int len)
 {
 	struct sockaddr_can *addr = (struct sockaddr_can *)uaddr;
 	struct sock *sk = sock->sk;

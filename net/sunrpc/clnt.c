@@ -1457,12 +1457,12 @@ static int rpc_sockname(struct net *net, struct sockaddr *sap, size_t salen,
 	switch (sap->sa_family) {
 	case AF_INET:
 		err = kernel_bind(sock,
-				(struct sockaddr *)&rpc_inaddr_loopback,
+				(struct sockaddr_unsized *)&rpc_inaddr_loopback,
 				sizeof(rpc_inaddr_loopback));
 		break;
 	case AF_INET6:
 		err = kernel_bind(sock,
-				(struct sockaddr *)&rpc_in6addr_loopback,
+				(struct sockaddr_unsized *)&rpc_in6addr_loopback,
 				sizeof(rpc_in6addr_loopback));
 		break;
 	default:
