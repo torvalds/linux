@@ -126,7 +126,6 @@ void mod_hdcp_log_ddc_trace(struct mod_hdcp *hdcp)
 }
 
 #define CASE_FORMAT(entry) case entry: return #entry;
-
 char *mod_hdcp_status_to_str(int32_t status)
 {
 	switch (status) {
