@@ -2,7 +2,7 @@
 #ifndef _LINUX_FS_H
 #define _LINUX_FS_H
 
-#include <linux/fs/super_types.h>
+#include <linux/fs/super.h>
 #include <linux/vfsdebug.h>
 #include <linux/linkage.h>
 #include <linux/wait_bit.h>
@@ -1662,66 +1662,6 @@ struct timespec64 simple_inode_init_ts(struct inode *inode);
  * Snapshotting support.
  */
 
-/*
- * These are internal functions, please use sb_start_{write,pagefault,intwrite}
- * instead.
- */
-static inline void __sb_end_write(struct super_block *sb, int level)
-{
-	percpu_up_read(sb->s_writers.rw_sem + level-1);
-}
-
-static inline void __sb_start_write(struct super_block *sb, int level)
-{
-	percpu_down_read_freezable(sb->s_writers.rw_sem + level - 1, true);
-}
-
-static inline bool __sb_start_write_trylock(struct super_block *sb, int level)
-{
-	return percpu_down_read_trylock(sb->s_writers.rw_sem + level - 1);
-}
-
-#define __sb_writers_acquired(sb, lev)	\
-	percpu_rwsem_acquire(&(sb)->s_writers.rw_sem[(lev)-1], 1, _THIS_IP_)
-#define __sb_writers_release(sb, lev)	\
-	percpu_rwsem_release(&(sb)->s_writers.rw_sem[(lev)-1], _THIS_IP_)
-
-/**
- * __sb_write_started - check if sb freeze level is held
- * @sb: the super we write to
- * @level: the freeze level
- *
- * * > 0 - sb freeze level is held
- * *   0 - sb freeze level is not held
- * * < 0 - !CONFIG_LOCKDEP/LOCK_STATE_UNKNOWN
- */
-static inline int __sb_write_started(const struct super_block *sb, int level)
-{
-	return lockdep_is_held_type(sb->s_writers.rw_sem + level - 1, 1);
-}
-
-/**
- * sb_write_started - check if SB_FREEZE_WRITE is held
- * @sb: the super we write to
- *
- * May be false positive with !CONFIG_LOCKDEP/LOCK_STATE_UNKNOWN.
- */
-static inline bool sb_write_started(const struct super_block *sb)
-{
-	return __sb_write_started(sb, SB_FREEZE_WRITE);
-}
-
-/**
- * sb_write_not_started - check if SB_FREEZE_WRITE is not held
- * @sb: the super we write to
- *
- * May be false positive with !CONFIG_LOCKDEP/LOCK_STATE_UNKNOWN.
- */
-static inline bool sb_write_not_started(const struct super_block *sb)
-{
-	return __sb_write_started(sb, SB_FREEZE_WRITE) <= 0;
-}
-
 /**
  * file_write_started - check if SB_FREEZE_WRITE is held
  * @file: the file we write to
@@ -1750,118 +1690,6 @@ static inline bool file_write_not_started(const struct file *file)
 	if (!S_ISREG(file_inode(file)->i_mode))
 		return true;
 	return sb_write_not_started(file_inode(file)->i_sb);
-}
-
-/**
- * sb_end_write - drop write access to a superblock
- * @sb: the super we wrote to
- *
- * Decrement number of writers to the filesystem. Wake up possible waiters
- * wanting to freeze the filesystem.
- */
-static inline void sb_end_write(struct super_block *sb)
-{
-	__sb_end_write(sb, SB_FREEZE_WRITE);
-}
-
-/**
- * sb_end_pagefault - drop write access to a superblock from a page fault
- * @sb: the super we wrote to
- *
- * Decrement number of processes handling write page fault to the filesystem.
- * Wake up possible waiters wanting to freeze the filesystem.
- */
-static inline void sb_end_pagefault(struct super_block *sb)
-{
-	__sb_end_write(sb, SB_FREEZE_PAGEFAULT);
-}
-
-/**
- * sb_end_intwrite - drop write access to a superblock for internal fs purposes
- * @sb: the super we wrote to
- *
- * Decrement fs-internal number of writers to the filesystem.  Wake up possible
- * waiters wanting to freeze the filesystem.
- */
-static inline void sb_end_intwrite(struct super_block *sb)
-{
-	__sb_end_write(sb, SB_FREEZE_FS);
-}
-
-/**
- * sb_start_write - get write access to a superblock
- * @sb: the super we write to
- *
- * When a process wants to write data or metadata to a file system (i.e. dirty
- * a page or an inode), it should embed the operation in a sb_start_write() -
- * sb_end_write() pair to get exclusion against file system freezing. This
- * function increments number of writers preventing freezing. If the file
- * system is already frozen, the function waits until the file system is
- * thawed.
- *
- * Since freeze protection behaves as a lock, users have to preserve
- * ordering of freeze protection and other filesystem locks. Generally,
- * freeze protection should be the outermost lock. In particular, we have:
- *
- * sb_start_write
- *   -> i_rwsem			(write path, truncate, directory ops, ...)
- *   -> s_umount		(freeze_super, thaw_super)
- */
-static inline void sb_start_write(struct super_block *sb)
-{
-	__sb_start_write(sb, SB_FREEZE_WRITE);
-}
-
-static inline bool sb_start_write_trylock(struct super_block *sb)
-{
-	return __sb_start_write_trylock(sb, SB_FREEZE_WRITE);
-}
-
-/**
- * sb_start_pagefault - get write access to a superblock from a page fault
- * @sb: the super we write to
- *
- * When a process starts handling write page fault, it should embed the
- * operation into sb_start_pagefault() - sb_end_pagefault() pair to get
- * exclusion against file system freezing. This is needed since the page fault
- * is going to dirty a page. This function increments number of running page
- * faults preventing freezing. If the file system is already frozen, the
- * function waits until the file system is thawed.
- *
- * Since page fault freeze protection behaves as a lock, users have to preserve
- * ordering of freeze protection and other filesystem locks. It is advised to
- * put sb_start_pagefault() close to mmap_lock in lock ordering. Page fault
- * handling code implies lock dependency:
- *
- * mmap_lock
- *   -> sb_start_pagefault
- */
-static inline void sb_start_pagefault(struct super_block *sb)
-{
-	__sb_start_write(sb, SB_FREEZE_PAGEFAULT);
-}
-
-/**
- * sb_start_intwrite - get write access to a superblock for internal fs purposes
- * @sb: the super we write to
- *
- * This is the third level of protection against filesystem freezing. It is
- * free for use by a filesystem. The only requirement is that it must rank
- * below sb_start_pagefault.
- *
- * For example filesystem can call sb_start_intwrite() when starting a
- * transaction which somewhat eases handling of freezing for internal sources
- * of filesystem changes (internal fs threads, discarding preallocation on file
- * close, etc.).
- */
-static inline void sb_start_intwrite(struct super_block *sb)
-{
-	__sb_start_write(sb, SB_FREEZE_FS);
-}
-
-static inline bool sb_start_intwrite_trylock(struct super_block *sb)
-{
-	return __sb_start_write_trylock(sb, SB_FREEZE_FS);
 }
 
 bool inode_owner_or_capable(struct mnt_idmap *idmap,
@@ -2233,7 +2061,6 @@ extern loff_t vfs_dedupe_file_range_one(struct file *src_file, loff_t src_pos,
  */
 #define __IS_FLG(inode, flg)	((inode)->i_sb->s_flags & (flg))
 
-static inline bool sb_rdonly(const struct super_block *sb) { return sb->s_flags & SB_RDONLY; }
 #define IS_RDONLY(inode)	sb_rdonly((inode)->i_sb)
 #define IS_SYNC(inode)		(__IS_FLG(inode, SB_SYNCHRONOUS) || \
 					((inode)->i_flags & S_SYNC))
@@ -2467,10 +2294,6 @@ extern int unregister_filesystem(struct file_system_type *);
 extern int vfs_statfs(const struct path *, struct kstatfs *);
 extern int user_statfs(const char __user *, struct kstatfs *);
 extern int fd_statfs(int, struct kstatfs *);
-int freeze_super(struct super_block *super, enum freeze_holder who,
-		 const void *freeze_owner);
-int thaw_super(struct super_block *super, enum freeze_holder who,
-	       const void *freeze_owner);
 extern __printf(2, 3)
 int super_setup_bdi_name(struct super_block *sb, char *fmt, ...);
 extern int super_setup_bdi(struct super_block *sb);
@@ -2656,12 +2479,6 @@ extern struct kmem_cache *names_cachep;
 
 #define __getname()		kmem_cache_alloc(names_cachep, GFP_KERNEL)
 #define __putname(name)		kmem_cache_free(names_cachep, (void *)(name))
-
-extern struct super_block *blockdev_superblock;
-static inline bool sb_is_blkdev_sb(struct super_block *sb)
-{
-	return IS_ENABLED(CONFIG_BLOCK) && sb == blockdev_superblock;
-}
 
 void emergency_thaw_all(void);
 extern int sync_filesystem(struct super_block *);
@@ -3117,9 +2934,6 @@ static inline void remove_inode_hash(struct inode *inode)
 extern void inode_sb_list_add(struct inode *inode);
 extern void inode_add_lru(struct inode *inode);
 
-extern int sb_set_blocksize(struct super_block *, int);
-extern int sb_min_blocksize(struct super_block *, int);
-
 int generic_file_mmap(struct file *, struct vm_area_struct *);
 int generic_file_mmap_prepare(struct vm_area_desc *desc);
 int generic_file_readonly_mmap(struct file *, struct vm_area_struct *);
@@ -3438,38 +3252,6 @@ static inline bool generic_ci_validate_strict_name(struct inode *dir,
 	return true;
 }
 #endif
-
-static inline struct unicode_map *sb_encoding(const struct super_block *sb)
-{
-#if IS_ENABLED(CONFIG_UNICODE)
-	return sb->s_encoding;
-#else
-	return NULL;
-#endif
-}
-
-static inline bool sb_has_encoding(const struct super_block *sb)
-{
-	return !!sb_encoding(sb);
-}
-
-/*
- * Compare if two super blocks have the same encoding and flags
- */
-static inline bool sb_same_encoding(const struct super_block *sb1,
-				    const struct super_block *sb2)
-{
-#if IS_ENABLED(CONFIG_UNICODE)
-	if (sb1->s_encoding == sb2->s_encoding)
-		return true;
-
-	return (sb1->s_encoding && sb2->s_encoding &&
-	       (sb1->s_encoding->version == sb2->s_encoding->version) &&
-	       (sb1->s_encoding_flags == sb2->s_encoding_flags));
-#else
-	return true;
-#endif
-}
 
 int may_setattr(struct mnt_idmap *idmap, struct inode *inode,
 		unsigned int ia_valid);
