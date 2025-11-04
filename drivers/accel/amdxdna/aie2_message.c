@@ -210,6 +210,14 @@ int aie2_create_context(struct amdxdna_dev_hdl *ndev, struct amdxdna_hwctx *hwct
 	hwctx->fw_ctx_id = resp.context_id;
 	WARN_ONCE(hwctx->fw_ctx_id == -1, "Unexpected context id");
 
+	if (ndev->force_preempt_enabled) {
+		ret = aie2_runtime_cfg(ndev, AIE2_RT_CFG_FORCE_PREEMPT, &hwctx->fw_ctx_id);
+		if (ret) {
+			XDNA_ERR(xdna, "failed to enable force preempt %d", ret);
+			return ret;
+		}
+	}
+
 	cq_pair = &resp.cq_pair[0];
 	x2i.mb_head_ptr_reg = AIE2_MBOX_OFF(ndev, cq_pair->x2i_q.head_addr);
 	x2i.mb_tail_ptr_reg = AIE2_MBOX_OFF(ndev, cq_pair->x2i_q.tail_addr);
@@ -601,6 +609,11 @@ aie2_cmdlist_fill_dpu(struct amdxdna_gem_obj *cmd_bo, void *slot, size_t *size)
 	return 0;
 }
 
+static int aie2_cmdlist_unsupp(struct amdxdna_gem_obj *cmd_bo, void *slot, size_t *size)
+{
+	return -EOPNOTSUPP;
+}
+
 static u32 aie2_get_chain_msg_op(u32 cmd_op)
 {
 	switch (cmd_op) {
@@ -621,6 +634,8 @@ static struct aie2_exec_msg_ops legacy_exec_message_ops = {
 	.init_chain_req = aie2_init_exec_chain_req,
 	.fill_cf_slot = aie2_cmdlist_fill_cf,
 	.fill_dpu_slot = aie2_cmdlist_fill_dpu,
+	.fill_preempt_slot = aie2_cmdlist_unsupp,
+	.fill_elf_slot = aie2_cmdlist_unsupp,
 	.get_chain_msg_op = aie2_get_chain_msg_op,
 };
 
@@ -680,6 +695,74 @@ aie2_cmdlist_fill_npu_dpu(struct amdxdna_gem_obj *cmd_bo, void *slot, size_t *si
 	return 0;
 }
 
+static int
+aie2_cmdlist_fill_npu_preempt(struct amdxdna_gem_obj *cmd_bo, void *slot, size_t *size)
+{
+	struct cmd_chain_slot_npu *npu_slot = slot;
+	struct amdxdna_cmd_preempt_data *pd;
+	u32 cmd_len;
+	u32 arg_sz;
+
+	pd = amdxdna_cmd_get_payload(cmd_bo, &cmd_len);
+	arg_sz = cmd_len - sizeof(*pd);
+	if (cmd_len < sizeof(*pd) || arg_sz > MAX_NPU_ARGS_SIZE)
+		return -EINVAL;
+
+	if (*size < sizeof(*npu_slot) + arg_sz)
+		return -EINVAL;
+
+	npu_slot->cu_idx = amdxdna_cmd_get_cu_idx(cmd_bo);
+	if (npu_slot->cu_idx == INVALID_CU_IDX)
+		return -EINVAL;
+
+	memset(npu_slot, 0, sizeof(*npu_slot));
+	npu_slot->type = EXEC_NPU_TYPE_PREEMPT;
+	npu_slot->inst_buf_addr = pd->inst_buf;
+	npu_slot->save_buf_addr = pd->save_buf;
+	npu_slot->restore_buf_addr = pd->restore_buf;
+	npu_slot->inst_size = pd->inst_size;
+	npu_slot->save_size = pd->save_size;
+	npu_slot->restore_size = pd->restore_size;
+	npu_slot->inst_prop_cnt = pd->inst_prop_cnt;
+	npu_slot->arg_cnt = arg_sz / sizeof(u32);
+	memcpy(npu_slot->args, pd->prop_args, arg_sz);
+
+	*size = sizeof(*npu_slot) + arg_sz;
+	return 0;
+}
+
+static int
+aie2_cmdlist_fill_npu_elf(struct amdxdna_gem_obj *cmd_bo, void *slot, size_t *size)
+{
+	struct cmd_chain_slot_npu *npu_slot = slot;
+	struct amdxdna_cmd_preempt_data *pd;
+	u32 cmd_len;
+	u32 arg_sz;
+
+	pd = amdxdna_cmd_get_payload(cmd_bo, &cmd_len);
+	arg_sz = cmd_len - sizeof(*pd);
+	if (cmd_len < sizeof(*pd) || arg_sz > MAX_NPU_ARGS_SIZE)
+		return -EINVAL;
+
+	if (*size < sizeof(*npu_slot) + arg_sz)
+		return -EINVAL;
+
+	memset(npu_slot, 0, sizeof(*npu_slot));
+	npu_slot->type = EXEC_NPU_TYPE_ELF;
+	npu_slot->inst_buf_addr = pd->inst_buf;
+	npu_slot->save_buf_addr = pd->save_buf;
+	npu_slot->restore_buf_addr = pd->restore_buf;
+	npu_slot->inst_size = pd->inst_size;
+	npu_slot->save_size = pd->save_size;
+	npu_slot->restore_size = pd->restore_size;
+	npu_slot->inst_prop_cnt = pd->inst_prop_cnt;
+	npu_slot->arg_cnt = 1;
+	npu_slot->args[0] = AIE2_EXEC_BUFFER_KERNEL_OP_TXN;
+
+	*size = struct_size(npu_slot, args, npu_slot->arg_cnt);
+	return 0;
+}
+
 static u32 aie2_get_npu_chain_msg_op(u32 cmd_op)
 {
 	return MSG_OP_CHAIN_EXEC_NPU;
@@ -691,6 +774,8 @@ static struct aie2_exec_msg_ops npu_exec_message_ops = {
 	.init_chain_req = aie2_init_npu_chain_req,
 	.fill_cf_slot = aie2_cmdlist_fill_npu_cf,
 	.fill_dpu_slot = aie2_cmdlist_fill_npu_dpu,
+	.fill_preempt_slot = aie2_cmdlist_fill_npu_preempt,
+	.fill_elf_slot = aie2_cmdlist_fill_npu_elf,
 	.get_chain_msg_op = aie2_get_npu_chain_msg_op,
 };
 
@@ -748,6 +833,16 @@ aie2_cmdlist_fill_slot(void *slot, struct amdxdna_gem_obj *cmd_abo,
 		break;
 	case ERT_START_NPU:
 		ret = EXEC_MSG_OPS(xdna)->fill_dpu_slot(cmd_abo, slot, size);
+		break;
+	case ERT_START_NPU_PREEMPT:
+		if (!AIE2_FEATURE_ON(xdna->dev_handle, AIE2_PREEMPT))
+			return -EOPNOTSUPP;
+		ret = EXEC_MSG_OPS(xdna)->fill_preempt_slot(cmd_abo, slot, size);
+		break;
+	case ERT_START_NPU_PREEMPT_ELF:
+		if (!AIE2_FEATURE_ON(xdna->dev_handle, AIE2_PREEMPT))
+			return -EOPNOTSUPP;
+		ret = EXEC_MSG_OPS(xdna)->fill_elf_slot(cmd_abo, slot, size);
 		break;
 	default:
 		XDNA_INFO(xdna, "Unsupported op %d", op);

@@ -443,7 +443,9 @@ enum amdxdna_drm_get_param {
 	DRM_AMDXDNA_QUERY_FIRMWARE_VERSION = 8,
 	DRM_AMDXDNA_GET_POWER_MODE,
 	DRM_AMDXDNA_QUERY_TELEMETRY,
-	DRM_AMDXDNA_QUERY_RESOURCE_INFO = 12,
+	DRM_AMDXDNA_GET_FORCE_PREEMPT_STATE,
+	DRM_AMDXDNA_QUERY_RESOURCE_INFO,
+	DRM_AMDXDNA_GET_FRAME_BOUNDARY_PREEMPT_STATE,
 };
 
 /**
@@ -460,6 +462,16 @@ struct amdxdna_drm_get_resource_info {
 	__u64 npu_tops_curr;
 	/** @npu_task_curr: current number of tasks */
 	__u64 npu_task_curr;
+};
+
+/**
+ * struct amdxdna_drm_attribute_state - State of an attribute
+ */
+struct amdxdna_drm_attribute_state {
+	/** @state: enabled or disabled */
+	__u8 state;
+	/** @pad: MBZ */
+	__u8 pad[7];
 };
 
 /**
@@ -613,6 +625,8 @@ enum amdxdna_drm_set_param {
 	DRM_AMDXDNA_SET_POWER_MODE,
 	DRM_AMDXDNA_WRITE_AIE_MEM,
 	DRM_AMDXDNA_WRITE_AIE_REG,
+	DRM_AMDXDNA_SET_FORCE_PREEMPT,
+	DRM_AMDXDNA_SET_FRAME_BOUNDARY_PREEMPT,
 };
 
 /**

@@ -110,12 +110,15 @@ struct aie_metadata {
 enum rt_config_category {
 	AIE2_RT_CFG_INIT,
 	AIE2_RT_CFG_CLK_GATING,
+	AIE2_RT_CFG_FORCE_PREEMPT,
+	AIE2_RT_CFG_FRAME_BOUNDARY_PREEMPT,
 };
 
 struct rt_config {
 	u32	type;
 	u32	value;
 	u32	category;
+	unsigned long feature_mask;
 };
 
 struct dpm_clk_freq {
@@ -164,6 +167,8 @@ struct aie2_exec_msg_ops {
 	void (*init_chain_req)(void *req, u64 slot_addr, size_t size, u32 cmd_cnt);
 	int (*fill_cf_slot)(struct amdxdna_gem_obj *cmd_bo, void *slot, size_t *size);
 	int (*fill_dpu_slot)(struct amdxdna_gem_obj *cmd_bo, void *slot, size_t *size);
+	int (*fill_preempt_slot)(struct amdxdna_gem_obj *cmd_bo, void *slot, size_t *size);
+	int (*fill_elf_slot)(struct amdxdna_gem_obj *cmd_bo, void *slot, size_t *size);
 	u32 (*get_chain_msg_op)(u32 cmd_op);
 };
 
@@ -197,6 +202,8 @@ struct amdxdna_dev_hdl {
 	u32				hclk_freq;
 	u32				max_tops;
 	u32				curr_tops;
+	u32				force_preempt_enabled;
+	u32				frame_boundary_preempt;
 
 	/* Mailbox and the management channel */
 	struct mailbox			*mbox;
@@ -223,6 +230,7 @@ struct aie2_hw_ops {
 
 enum aie2_fw_feature {
 	AIE2_NPU_COMMAND,
+	AIE2_PREEMPT,
 	AIE2_FEATURE_MAX
 };
 
