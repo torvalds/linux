@@ -612,7 +612,7 @@ static inline int __pt_make_level_fn_err(struct pt_range *range, void *arg,
  * This builds a function call tree that can be fully inlined.
  * The caller must provide a function body in an __always_inline function::
  *
- *  static __always_inline int do(struct pt_range *range, void *arg,
+ *  static __always_inline int do_fn(struct pt_range *range, void *arg,
  *         unsigned int level, struct pt_table_p *table,
  *         pt_level_fn_t descend_fn)
  *
