@@ -112,6 +112,8 @@ FIXTURE_VARIANT_ADD_ALL_IOMMU_MODES(anonymous, 0, 0);
 FIXTURE_VARIANT_ADD_ALL_IOMMU_MODES(anonymous_hugetlb_2mb, SZ_2M, MAP_HUGETLB | MAP_HUGE_2MB);
 FIXTURE_VARIANT_ADD_ALL_IOMMU_MODES(anonymous_hugetlb_1gb, SZ_1G, MAP_HUGETLB | MAP_HUGE_1GB);
 
+#undef FIXTURE_VARIANT_ADD_IOMMU_MODE
+
 FIXTURE_SETUP(vfio_dma_mapping_test)
 {
 	self->device = vfio_pci_device_init(device_bdf, variant->iommu_mode);
@@ -129,6 +131,7 @@ TEST_F(vfio_dma_mapping_test, dma_map_unmap)
 	struct vfio_dma_region region;
 	struct iommu_mapping mapping;
 	u64 mapping_size = size;
+	u64 unmapped;
 	int rc;
 
 	region.vaddr = mmap(NULL, size, PROT_READ | PROT_WRITE, flags, -1, 0);
@@ -184,12 +187,102 @@ TEST_F(vfio_dma_mapping_test, dma_map_unmap)
 	}
 
 unmap:
-	vfio_pci_dma_unmap(self->device, &region);
+	rc = __vfio_pci_dma_unmap(self->device, &region, &unmapped);
+	ASSERT_EQ(rc, 0);
+	ASSERT_EQ(unmapped, region.size);
 	printf("Unmapped IOVA 0x%lx\n", region.iova);
 	ASSERT_EQ(INVALID_IOVA, __to_iova(self->device, region.vaddr));
 	ASSERT_NE(0, iommu_mapping_get(device_bdf, region.iova, &mapping));
 
 	ASSERT_TRUE(!munmap(region.vaddr, size));
+}
+
+FIXTURE(vfio_dma_map_limit_test) {
+	struct vfio_pci_device *device;
+	struct vfio_dma_region region;
+	size_t mmap_size;
+};
+
+FIXTURE_VARIANT(vfio_dma_map_limit_test) {
+	const char *iommu_mode;
+};
+
+#define FIXTURE_VARIANT_ADD_IOMMU_MODE(_iommu_mode)			       \
+FIXTURE_VARIANT_ADD(vfio_dma_map_limit_test, _iommu_mode) {		       \
+	.iommu_mode = #_iommu_mode,					       \
+}
+
+FIXTURE_VARIANT_ADD_ALL_IOMMU_MODES();
+
+#undef FIXTURE_VARIANT_ADD_IOMMU_MODE
+
+FIXTURE_SETUP(vfio_dma_map_limit_test)
+{
+	struct vfio_dma_region *region = &self->region;
+	u64 region_size = getpagesize();
+
+	/*
+	 * Over-allocate mmap by double the size to provide enough backing vaddr
+	 * for overflow tests
+	 */
+	self->mmap_size = 2 * region_size;
+
+	self->device = vfio_pci_device_init(device_bdf, variant->iommu_mode);
+	region->vaddr = mmap(NULL, self->mmap_size, PROT_READ | PROT_WRITE,
+			     MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+	ASSERT_NE(region->vaddr, MAP_FAILED);
+
+	/* One page prior to the end of address space */
+	region->iova = ~(iova_t)0 & ~(region_size - 1);
+	region->size = region_size;
+}
+
+FIXTURE_TEARDOWN(vfio_dma_map_limit_test)
+{
+	vfio_pci_device_cleanup(self->device);
+	ASSERT_EQ(munmap(self->region.vaddr, self->mmap_size), 0);
+}
+
+TEST_F(vfio_dma_map_limit_test, unmap_range)
+{
+	struct vfio_dma_region *region = &self->region;
+	u64 unmapped;
+	int rc;
+
+	vfio_pci_dma_map(self->device, region);
+	ASSERT_EQ(region->iova, to_iova(self->device, region->vaddr));
+
+	rc = __vfio_pci_dma_unmap(self->device, region, &unmapped);
+	ASSERT_EQ(rc, 0);
+	ASSERT_EQ(unmapped, region->size);
+}
+
+TEST_F(vfio_dma_map_limit_test, unmap_all)
+{
+	struct vfio_dma_region *region = &self->region;
+	u64 unmapped;
+	int rc;
+
+	vfio_pci_dma_map(self->device, region);
+	ASSERT_EQ(region->iova, to_iova(self->device, region->vaddr));
+
+	rc = __vfio_pci_dma_unmap_all(self->device, &unmapped);
+	ASSERT_EQ(rc, 0);
+	ASSERT_EQ(unmapped, region->size);
+}
+
+TEST_F(vfio_dma_map_limit_test, overflow)
+{
+	struct vfio_dma_region *region = &self->region;
+	int rc;
+
+	region->size = self->mmap_size;
+
+	rc = __vfio_pci_dma_map(self->device, region);
+	ASSERT_EQ(rc, -EOVERFLOW);
+
+	rc = __vfio_pci_dma_unmap(self->device, region, NULL);
+	ASSERT_EQ(rc, -EOVERFLOW);
 }
 
 int main(int argc, char *argv[])

@@ -1978,7 +1978,6 @@ static void esw_destroy_offloads_fdb_tables(struct mlx5_eswitch *esw)
 	/* Holds true only as long as DMFS is the default */
 	mlx5_flow_namespace_set_mode(esw->fdb_table.offloads.ns,
 				     MLX5_FLOW_STEERING_MODE_DMFS);
-	atomic64_set(&esw->user_count, 0);
 }
 
 static int esw_get_nr_ft_offloads_steering_src_ports(struct mlx5_eswitch *esw)

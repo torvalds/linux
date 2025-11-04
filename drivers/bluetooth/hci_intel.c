@@ -972,7 +972,7 @@ static int intel_recv(struct hci_uart *hu, const void *data, int count)
 	if (!test_bit(HCI_UART_REGISTERED, &hu->flags))
 		return -EUNATCH;
 
-	intel->rx_skb = h4_recv_buf(hu->hdev, intel->rx_skb, data, count,
+	intel->rx_skb = h4_recv_buf(hu, intel->rx_skb, data, count,
 				    intel_recv_pkts,
 				    ARRAY_SIZE(intel_recv_pkts));
 	if (IS_ERR(intel->rx_skb)) {
