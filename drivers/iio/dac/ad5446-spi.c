@@ -175,6 +175,7 @@ static const struct spi_device_id ad5446_spi_ids[] = {
 	{"ad5453", (kernel_ulong_t)&ad5446_chip_info}, /* ad5453 is compatible to the ad5446 */
 	{"ad5512a", (kernel_ulong_t)&ad5512a_chip_info},
 	{"ad5541a", (kernel_ulong_t)&ad5541a_chip_info},
+	{"ad5542", (kernel_ulong_t)&ad5541a_chip_info}, /* ad5541a and ad5542 are compatible */
 	{"ad5542a", (kernel_ulong_t)&ad5541a_chip_info}, /* ad5541a and ad5542a are compatible */
 	{"ad5543", (kernel_ulong_t)&ad5541a_chip_info}, /* ad5541a and ad5543 are compatible */
 	{"ad5553", (kernel_ulong_t)&ad5553_chip_info},
@@ -211,6 +212,7 @@ static const struct of_device_id ad5446_of_ids[] = {
 	{ .compatible = "adi,ad5453", .data = &ad5446_chip_info },
 	{ .compatible = "adi,ad5512a", .data = &ad5512a_chip_info },
 	{ .compatible = "adi,ad5541a", .data = &ad5541a_chip_info },
+	{ .compatible = "adi,ad5542", .data = &ad5541a_chip_info },
 	{ .compatible = "adi,ad5542a", .data = &ad5541a_chip_info },
 	{ .compatible = "adi,ad5543", .data = &ad5541a_chip_info },
 	{ .compatible = "adi,ad5553", .data = &ad5553_chip_info },
