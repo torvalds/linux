@@ -647,7 +647,7 @@ static int zloop_open(struct gendisk *disk, blk_mode_t mode)
 }
 
 static int zloop_report_zones(struct gendisk *disk, sector_t sector,
-		unsigned int nr_zones, report_zones_cb cb, void *data)
+		unsigned int nr_zones, struct blk_report_zones_args *args)
 {
 	struct zloop_device *zlo = disk->private_data;
 	struct blk_zone blkz = {};
@@ -687,7 +687,7 @@ static int zloop_report_zones(struct gendisk *disk, sector_t sector,
 
 		mutex_unlock(&zone->lock);
 
-		ret = cb(&blkz, i, data);
+		ret = disk_report_zone(disk, &blkz, i, args);
 		if (ret)
 			return ret;
 	}

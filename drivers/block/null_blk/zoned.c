@@ -191,7 +191,7 @@ void null_free_zoned_dev(struct nullb_device *dev)
 }
 
 int null_report_zones(struct gendisk *disk, sector_t sector,
-		unsigned int nr_zones, report_zones_cb cb, void *data)
+		unsigned int nr_zones, struct blk_report_zones_args *args)
 {
 	struct nullb *nullb = disk->private_data;
 	struct nullb_device *dev = nullb->dev;
@@ -225,7 +225,7 @@ int null_report_zones(struct gendisk *disk, sector_t sector,
 		blkz.capacity = zone->capacity;
 		null_unlock_zone(dev, zone);
 
-		error = cb(&blkz, i, data);
+		error = disk_report_zone(disk, &blkz, i, args);
 		if (error)
 			return error;
 	}

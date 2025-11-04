@@ -1108,7 +1108,7 @@ struct nvme_zone_info {
 };
 
 int nvme_ns_report_zones(struct nvme_ns *ns, sector_t sector,
-		unsigned int nr_zones, report_zones_cb cb, void *data);
+		unsigned int nr_zones, struct blk_report_zones_args *args);
 int nvme_query_zone_info(struct nvme_ns *ns, unsigned lbaf,
 		struct nvme_zone_info *zi);
 void nvme_update_zone_info(struct nvme_ns *ns, struct queue_limits *lim,

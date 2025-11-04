@@ -2599,10 +2599,9 @@ static void nvme_configure_opal(struct nvme_ctrl *ctrl, bool was_suspended)
 
 #ifdef CONFIG_BLK_DEV_ZONED
 static int nvme_report_zones(struct gendisk *disk, sector_t sector,
-		unsigned int nr_zones, report_zones_cb cb, void *data)
+		unsigned int nr_zones, struct blk_report_zones_args *args)
 {
-	return nvme_ns_report_zones(disk->private_data, sector, nr_zones, cb,
-			data);
+	return nvme_ns_report_zones(disk->private_data, sector, nr_zones, args);
 }
 #else
 #define nvme_report_zones	NULL

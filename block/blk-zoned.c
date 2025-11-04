@@ -114,29 +114,15 @@ const char *blk_zone_cond_str(enum blk_zone_cond zone_cond)
 }
 EXPORT_SYMBOL_GPL(blk_zone_cond_str);
 
-struct disk_report_zones_cb_args {
-	struct gendisk	*disk;
-	report_zones_cb	user_cb;
-	void		*user_data;
+/*
+ * Zone report arguments for block device drivers report_zones operation.
+ * @cb: report_zones_cb callback for each reported zone.
+ * @data: Private data passed to report_zones_cb.
+ */
+struct blk_report_zones_args {
+	report_zones_cb cb;
+	void		*data;
 };
-
-static void disk_zone_wplug_sync_wp_offset(struct gendisk *disk,
-					   struct blk_zone *zone);
-
-static int disk_report_zones_cb(struct blk_zone *zone, unsigned int idx,
-				void *data)
-{
-	struct disk_report_zones_cb_args *args = data;
-	struct gendisk *disk = args->disk;
-
-	if (disk->zone_wplugs_hash)
-		disk_zone_wplug_sync_wp_offset(disk, zone);
-
-	if (!args->user_cb)
-		return 0;
-
-	return args->user_cb(zone, idx, args->user_data);
-}
 
 /**
  * blkdev_report_zones - Get zones information
@@ -161,10 +147,9 @@ int blkdev_report_zones(struct block_device *bdev, sector_t sector,
 			unsigned int nr_zones, report_zones_cb cb, void *data)
 {
 	struct gendisk *disk = bdev->bd_disk;
-	struct disk_report_zones_cb_args args = {
-		.disk = disk,
-		.user_cb = cb,
-		.user_data = data,
+	struct blk_report_zones_args args = {
+		.cb = cb,
+		.data = data,
 	};
 
 	if (!bdev_is_zoned(bdev) || WARN_ON_ONCE(!disk->fops->report_zones))
@@ -173,8 +158,7 @@ int blkdev_report_zones(struct block_device *bdev, sector_t sector,
 	if (!nr_zones || sector >= get_capacity(disk))
 		return 0;
 
-	return disk->fops->report_zones(disk, sector, nr_zones,
-					disk_report_zones_cb, &args);
+	return disk->fops->report_zones(disk, sector, nr_zones, &args);
 }
 EXPORT_SYMBOL_GPL(blkdev_report_zones);
 
@@ -692,15 +676,32 @@ static void disk_zone_wplug_sync_wp_offset(struct gendisk *disk,
 	disk_put_zone_wplug(zwplug);
 }
 
-static int disk_zone_sync_wp_offset(struct gendisk *disk, sector_t sector)
+/**
+ * disk_report_zone - Report one zone
+ * @disk:	Target disk
+ * @zone:	The zone to report
+ * @idx:	The index of the zone in the overall zone report
+ * @args:	report zones callback and data
+ *
+ * Description:
+ *    Helper function for block device drivers to report one zone of a zone
+ *    report initiated with blkdev_report_zones(). The zone being reported is
+ *    specified by @zone and used to update, if necessary, the zone write plug
+ *    information for the zone. If @args specifies a user callback function,
+ *    this callback is executed.
+ */
+int disk_report_zone(struct gendisk *disk, struct blk_zone *zone,
+		     unsigned int idx, struct blk_report_zones_args *args)
 {
-	struct disk_report_zones_cb_args args = {
-		.disk = disk,
-	};
+	if (disk->zone_wplugs_hash)
+		disk_zone_wplug_sync_wp_offset(disk, zone);
 
-	return disk->fops->report_zones(disk, sector, 1,
-					disk_report_zones_cb, &args);
+	if (args && args->cb)
+		return args->cb(zone, idx, args->data);
+
+	return 0;
 }
+EXPORT_SYMBOL_GPL(disk_report_zone);
 
 static void blk_zone_reset_bio_endio(struct bio *bio)
 {
@@ -1786,6 +1787,10 @@ int blk_revalidate_disk_zones(struct gendisk *disk)
 	sector_t capacity = get_capacity(disk);
 	struct blk_revalidate_zone_args args = { };
 	unsigned int memflags, noio_flag;
+	struct blk_report_zones_args rep_args = {
+		.cb = blk_revalidate_zone_cb,
+		.data = &args,
+	};
 	int ret = -ENOMEM;
 
 	if (WARN_ON_ONCE(!blk_queue_is_zoned(q)))
@@ -1817,8 +1822,7 @@ int blk_revalidate_disk_zones(struct gendisk *disk)
 		return ret;
 	}
 
-	ret = disk->fops->report_zones(disk, 0, UINT_MAX,
-				       blk_revalidate_zone_cb, &args);
+	ret = disk->fops->report_zones(disk, 0, UINT_MAX, &rep_args);
 	if (!ret) {
 		pr_warn("%s: No zones reported\n", disk->disk_name);
 		ret = -ENODEV;
@@ -1863,6 +1867,7 @@ EXPORT_SYMBOL_GPL(blk_revalidate_disk_zones);
 int blk_zone_issue_zeroout(struct block_device *bdev, sector_t sector,
 			   sector_t nr_sects, gfp_t gfp_mask)
 {
+	struct gendisk *disk = bdev->bd_disk;
 	int ret;
 
 	if (WARN_ON_ONCE(!bdev_is_zoned(bdev)))
@@ -1878,7 +1883,7 @@ int blk_zone_issue_zeroout(struct block_device *bdev, sector_t sector,
 	 * pointer. Undo this using a report zone to update the zone write
 	 * pointer to the correct current value.
 	 */
-	ret = disk_zone_sync_wp_offset(bdev->bd_disk, sector);
+	ret = disk->fops->report_zones(disk, sector, 1, NULL);
 	if (ret != 1)
 		return ret < 0 ? ret : -EIO;
 
