@@ -134,8 +134,8 @@ allOf:
         compatible:
           contains:
             enum:
-              - img,img-gx6250
               - img,img-bxs-4-64
+              - img,img-gx6250
     then:
       properties:
         power-domains:
