@@ -413,10 +413,11 @@ static const uint64_t sun8i_layer_modifiers[] = {
 struct sun8i_layer *sun8i_vi_layer_init_one(struct drm_device *drm,
 					    struct sun8i_mixer *mixer,
 					    enum drm_plane_type type,
-					    int index)
+					    int index,
+					    int plane_cnt)
 {
 	u32 supported_encodings, supported_ranges;
-	unsigned int plane_cnt, format_count;
+	unsigned int format_count;
 	struct sun8i_layer *layer;
 	const u32 *formats;
 	int ret;
@@ -448,8 +449,6 @@ struct sun8i_layer *sun8i_vi_layer_init_one(struct drm_device *drm,
 		dev_err(drm->dev, "Couldn't initialize layer\n");
 		return ERR_PTR(ret);
 	}
-
-	plane_cnt = mixer->cfg->ui_num + mixer->cfg->vi_num;
 
 	if (mixer->cfg->vi_num == 1 || mixer->cfg->de_type >= SUN8I_MIXER_DE3) {
 		ret = drm_plane_create_alpha_property(&layer->plane);
