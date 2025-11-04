@@ -62,6 +62,9 @@ struct rtsn_private {
 
 	int tx_data_irq;
 	int rx_data_irq;
+
+	u32 tstamp_tx_ctrl;
+	u32 tstamp_rx_ctrl;
 };
 
 static u32 rtsn_read(struct rtsn_private *priv, enum rtsn_reg reg)
@@ -162,7 +165,7 @@ static int rtsn_rx(struct net_device *ndev, int budget)
 	unsigned int i;
 	bool get_ts;
 
-	get_ts = priv->ptp_priv->tstamp_rx_ctrl &
+	get_ts = priv->tstamp_rx_ctrl &
 		RCAR_GEN4_RXTSTAMP_TYPE_V2_L2_EVENT;
 
 	ndescriptors = priv->dirty_rx + priv->num_rx_ring - priv->cur_rx;
@@ -1122,21 +1125,19 @@ static int rtsn_do_ioctl(struct net_device *ndev, struct ifreq *ifr, int cmd)
 static int rtsn_hwtstamp_get(struct net_device *ndev,
 			     struct kernel_hwtstamp_config *config)
 {
-	struct rcar_gen4_ptp_private *ptp_priv;
 	struct rtsn_private *priv;
 
 	if (!netif_running(ndev))
 		return -ENODEV;
 
 	priv = netdev_priv(ndev);
-	ptp_priv = priv->ptp_priv;
 
 	config->flags = 0;
 
 	config->tx_type =
-		ptp_priv->tstamp_tx_ctrl ? HWTSTAMP_TX_ON : HWTSTAMP_TX_OFF;
+		priv->tstamp_tx_ctrl ? HWTSTAMP_TX_ON : HWTSTAMP_TX_OFF;
 
-	switch (ptp_priv->tstamp_rx_ctrl & RCAR_GEN4_RXTSTAMP_TYPE) {
+	switch (priv->tstamp_rx_ctrl & RCAR_GEN4_RXTSTAMP_TYPE) {
 	case RCAR_GEN4_RXTSTAMP_TYPE_V2_L2_EVENT:
 		config->rx_filter = HWTSTAMP_FILTER_PTP_V2_L2_EVENT;
 		break;
@@ -1155,7 +1156,6 @@ static int rtsn_hwtstamp_set(struct net_device *ndev,
 			     struct kernel_hwtstamp_config *config,
 			     struct netlink_ext_ack *extack)
 {
-	struct rcar_gen4_ptp_private *ptp_priv;
 	struct rtsn_private *priv;
 	u32 tstamp_rx_ctrl;
 	u32 tstamp_tx_ctrl;
@@ -1164,7 +1164,6 @@ static int rtsn_hwtstamp_set(struct net_device *ndev,
 		return -ENODEV;
 
 	priv = netdev_priv(ndev);
-	ptp_priv = priv->ptp_priv;
 
 	if (config->flags)
 		return -EINVAL;
@@ -1195,8 +1194,8 @@ static int rtsn_hwtstamp_set(struct net_device *ndev,
 		break;
 	}
 
-	ptp_priv->tstamp_tx_ctrl = tstamp_tx_ctrl;
-	ptp_priv->tstamp_rx_ctrl = tstamp_rx_ctrl;
+	priv->tstamp_tx_ctrl = tstamp_tx_ctrl;
+	priv->tstamp_rx_ctrl = tstamp_rx_ctrl;
 
 	return 0;
 }

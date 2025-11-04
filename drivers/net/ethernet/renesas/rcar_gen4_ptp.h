@@ -23,8 +23,6 @@ struct rcar_gen4_ptp_private {
 	struct ptp_clock *clock;
 	struct ptp_clock_info info;
 	spinlock_t lock;	/* For multiple registers access */
-	u32 tstamp_tx_ctrl;
-	u32 tstamp_rx_ctrl;
 	s64 default_addend;
 	bool initialized;
 };
