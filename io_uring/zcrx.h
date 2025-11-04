@@ -39,7 +39,6 @@ struct io_zcrx_area {
 };
 
 struct io_zcrx_ifq {
-	struct io_ring_ctx		*ctx;
 	struct io_zcrx_area		*area;
 	unsigned			niov_shift;
 	struct user_struct		*user;
@@ -55,6 +54,7 @@ struct io_zcrx_ifq {
 	struct device			*dev;
 	struct net_device		*netdev;
 	netdevice_tracker		netdev_tracker;
+	refcount_t			refs;
 
 	/*
 	 * Page pool and net configuration lock, can be taken deeper in the
@@ -70,7 +70,6 @@ int io_zcrx_return_bufs(struct io_ring_ctx *ctx,
 int io_register_zcrx_ifq(struct io_ring_ctx *ctx,
 			 struct io_uring_zcrx_ifq_reg __user *arg);
 void io_unregister_zcrx_ifqs(struct io_ring_ctx *ctx);
-void io_shutdown_zcrx_ifqs(struct io_ring_ctx *ctx);
 int io_zcrx_recv(struct io_kiocb *req, struct io_zcrx_ifq *ifq,
 		 struct socket *sock, unsigned int flags,
 		 unsigned issue_flags, unsigned int *len);
@@ -83,9 +82,6 @@ static inline int io_register_zcrx_ifq(struct io_ring_ctx *ctx,
 	return -EOPNOTSUPP;
 }
 static inline void io_unregister_zcrx_ifqs(struct io_ring_ctx *ctx)
-{
-}
-static inline void io_shutdown_zcrx_ifqs(struct io_ring_ctx *ctx)
 {
 }
 static inline int io_zcrx_recv(struct io_kiocb *req, struct io_zcrx_ifq *ifq,
