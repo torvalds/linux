@@ -38,4 +38,12 @@ int kprobe_multi_test(struct pt_regs *ctx)
 	return 0;
 }
 
+SEC("raw_tp/bpf_testmod_test_read")
+int rawtp_test(void *ctx)
+{
+	/* Skip ebpf program entry in the stack. */
+	stack_key = bpf_get_stackid(ctx, &stackmap, 0);
+	return 0;
+}
+
 char _license[] SEC("license") = "GPL";
