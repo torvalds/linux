@@ -5,6 +5,7 @@
  * Copyright 2010 Analog Devices Inc.
  */
 
+#include <linux/cleanup.h>
 #include <linux/export.h>
 #include <linux/interrupt.h>
 #include <linux/workqueue.h>
@@ -80,7 +81,7 @@ static ssize_t ad5446_write_dac_powerdown(struct iio_dev *indio_dev,
 	if (ret)
 		return ret;
 
-	mutex_lock(&st->lock);
+	guard(mutex)(&st->lock);
 	st->pwr_down = powerdown;
 
 	if (st->pwr_down) {
@@ -91,9 +92,10 @@ static ssize_t ad5446_write_dac_powerdown(struct iio_dev *indio_dev,
 	}
 
 	ret = st->chip_info->write(st, val);
-	mutex_unlock(&st->lock);
+	if (ret)
+		return ret;
 
-	return ret ? ret : len;
+	return len;
 }
 
 const struct iio_chan_spec_ext_info ad5446_ext_info_powerdown[] = {
@@ -129,32 +131,37 @@ static int ad5446_read_raw(struct iio_dev *indio_dev,
 	return -EINVAL;
 }
 
+static int ad5446_write_dac_raw(struct iio_dev *indio_dev,
+				const struct iio_chan_spec *chan,
+				int val)
+{
+	struct ad5446_state *st = iio_priv(indio_dev);
+
+	if (val >= (1 << chan->scan_type.realbits) || val < 0)
+		return -EINVAL;
+
+	val <<= chan->scan_type.shift;
+	guard(mutex)(&st->lock);
+
+	st->cached_val = val;
+	if (st->pwr_down)
+		return 0;
+
+	return st->chip_info->write(st, val);
+}
+
 static int ad5446_write_raw(struct iio_dev *indio_dev,
 			       struct iio_chan_spec const *chan,
 			       int val,
 			       int val2,
 			       long mask)
 {
-	struct ad5446_state *st = iio_priv(indio_dev);
-	int ret = 0;
-
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		if (val >= (1 << chan->scan_type.realbits) || val < 0)
-			return -EINVAL;
-
-		val <<= chan->scan_type.shift;
-		mutex_lock(&st->lock);
-		st->cached_val = val;
-		if (!st->pwr_down)
-			ret = st->chip_info->write(st, val);
-		mutex_unlock(&st->lock);
-		break;
+		return ad5446_write_dac_raw(indio_dev, chan, val);
 	default:
-		ret = -EINVAL;
+		return -EINVAL;
 	}
-
-	return ret;
 }
 
 static const struct iio_info ad5446_info = {
