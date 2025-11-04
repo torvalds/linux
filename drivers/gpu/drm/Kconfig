@@ -265,6 +265,18 @@ config DRM_SCHED
 	tristate
 	depends on DRM
 
+# Separate option as not all DRM drivers use it
+config DRM_PANEL_BACKLIGHT_QUIRKS
+	tristate
+
+config DRM_LIB_RANDOM
+	bool
+	default n
+
+config DRM_PRIVACY_SCREEN
+	bool
+	default n
+
 source "drivers/gpu/drm/sysfb/Kconfig"
 
 source "drivers/gpu/drm/arm/Kconfig"
@@ -392,18 +404,6 @@ source "drivers/gpu/drm/imagination/Kconfig"
 source "drivers/gpu/drm/tyr/Kconfig"
 
 source "drivers/gpu/drm/hyperv/Kconfig"
-
-# Separate option as not all DRM drivers use it
-config DRM_PANEL_BACKLIGHT_QUIRKS
-	tristate
-
-config DRM_LIB_RANDOM
-	bool
-	default n
-
-config DRM_PRIVACY_SCREEN
-	bool
-	default n
 
 endif
 
