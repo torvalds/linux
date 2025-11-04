@@ -235,6 +235,7 @@ int aie2_create_context(struct amdxdna_dev_hdl *ndev, struct amdxdna_hwctx *hwct
 		ret = -EINVAL;
 		goto out_destroy_context;
 	}
+	ndev->hwctx_num++;
 
 	XDNA_DBG(xdna, "%s mailbox channel irq: %d, msix_id: %d",
 		 hwctx->name, ret, resp.msix_id);
@@ -269,6 +270,7 @@ int aie2_destroy_context(struct amdxdna_dev_hdl *ndev, struct amdxdna_hwctx *hwc
 		 hwctx->fw_ctx_id);
 	hwctx->priv->mbox_chann = NULL;
 	hwctx->fw_ctx_id = -1;
+	ndev->hwctx_num--;
 
 	return ret;
 }
