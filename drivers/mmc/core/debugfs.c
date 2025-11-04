@@ -315,7 +315,10 @@ static int mmc_caps_set(void *data, u64 val)
 		      MMC_CAP_SD_HIGHSPEED |
 		      MMC_CAP_MMC_HIGHSPEED |
 		      MMC_CAP_UHS |
-		      MMC_CAP_DDR;
+		      MMC_CAP_DDR |
+		      MMC_CAP_4_BIT_DATA |
+		      MMC_CAP_8_BIT_DATA |
+		      MMC_CAP_CMD23;
 
 	if (diff & ~allowed)
 		return -EINVAL;
@@ -327,7 +330,10 @@ static int mmc_caps_set(void *data, u64 val)
 
 static int mmc_caps2_set(void *data, u64 val)
 {
-	u32 allowed = MMC_CAP2_HSX00_1_8V | MMC_CAP2_HSX00_1_2V;
+	u32 allowed = MMC_CAP2_HSX00_1_8V |
+		      MMC_CAP2_HSX00_1_2V |
+		      MMC_CAP2_CQE |
+		      MMC_CAP2_CQE_DCMD;
 	u32 *caps = data;
 	u32 diff = *caps ^ val;
 
