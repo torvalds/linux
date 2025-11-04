@@ -474,9 +474,6 @@ struct scx_task_iter {
  */
 static void scx_task_iter_start(struct scx_task_iter *iter)
 {
-	BUILD_BUG_ON(__SCX_DSQ_ITER_ALL_FLAGS &
-		     ((1U << __SCX_DSQ_LNODE_PRIV_SHIFT) - 1));
-
 	spin_lock_irq(&scx_tasks_lock);
 
 	iter->cursor = (struct sched_ext_entity){ .flags = SCX_TASK_CURSOR };
@@ -6218,6 +6215,8 @@ __bpf_kfunc int bpf_iter_scx_dsq_new(struct bpf_iter_scx_dsq *it, u64 dsq_id,
 		     sizeof(struct bpf_iter_scx_dsq));
 	BUILD_BUG_ON(__alignof__(struct bpf_iter_scx_dsq_kern) !=
 		     __alignof__(struct bpf_iter_scx_dsq));
+	BUILD_BUG_ON(__SCX_DSQ_ITER_ALL_FLAGS &
+		     ((1U << __SCX_DSQ_LNODE_PRIV_SHIFT) - 1));
 
 	/*
 	 * next() and destroy() will be called regardless of the return value.
