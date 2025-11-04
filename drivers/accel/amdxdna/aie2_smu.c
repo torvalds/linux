@@ -23,6 +23,13 @@
 #define AIE2_SMU_SET_SOFT_DPMLEVEL	0x7
 #define AIE2_SMU_SET_HARD_DPMLEVEL	0x8
 
+#define NPU4_DPM_TOPS(ndev, dpm_level) \
+({ \
+	typeof(ndev) _ndev = ndev; \
+	(4096 * (_ndev)->total_col * \
+	 (_ndev)->priv->dpm_clk_tbl[dpm_level].hclk / 1000000); \
+})
+
 static int aie2_smu_exec(struct amdxdna_dev_hdl *ndev, u32 reg_cmd,
 			 u32 reg_arg, u32 *out)
 {
@@ -84,6 +91,8 @@ int npu1_set_dpm(struct amdxdna_dev_hdl *ndev, u32 dpm_level)
 	amdxdna_pm_suspend_put(ndev->xdna);
 	ndev->hclk_freq = freq;
 	ndev->dpm_level = dpm_level;
+	ndev->max_tops = 2 * ndev->total_col;
+	ndev->curr_tops = ndev->max_tops * freq / 1028;
 
 	XDNA_DBG(ndev->xdna, "MP-NPU clock %d, H clock %d\n",
 		 ndev->npuclk_freq, ndev->hclk_freq);
@@ -121,6 +130,8 @@ int npu4_set_dpm(struct amdxdna_dev_hdl *ndev, u32 dpm_level)
 	ndev->npuclk_freq = ndev->priv->dpm_clk_tbl[dpm_level].npuclk;
 	ndev->hclk_freq = ndev->priv->dpm_clk_tbl[dpm_level].hclk;
 	ndev->dpm_level = dpm_level;
+	ndev->max_tops = NPU4_DPM_TOPS(ndev, ndev->max_dpm_level);
+	ndev->curr_tops = NPU4_DPM_TOPS(ndev, dpm_level);
 
 	XDNA_DBG(ndev->xdna, "MP-NPU clock %d, H clock %d\n",
 		 ndev->npuclk_freq, ndev->hclk_freq);
