@@ -1996,7 +1996,8 @@ static void tasdevice_parse_dt(struct tasdevice_priv *tas_priv)
 		dev_err(tas_priv->dev, "%s Can't get reset GPIO\n",
 			__func__);
 
-	strcpy(tas_priv->dev_name, tasdevice_id[tas_priv->chip_id].name);
+	strscpy(tas_priv->dev_name, tasdevice_id[tas_priv->chip_id].name,
+		sizeof(tas_priv->dev_name));
 }
 
 static int tasdevice_i2c_probe(struct i2c_client *i2c)
