@@ -9,7 +9,8 @@
 enum aie2_msg_opcode {
 	MSG_OP_CREATE_CONTEXT              = 0x2,
 	MSG_OP_DESTROY_CONTEXT             = 0x3,
-	MSG_OP_SYNC_BO			   = 0x7,
+	MSG_OP_GET_TELEMETRY               = 0x4,
+	MSG_OP_SYNC_BO                     = 0x7,
 	MSG_OP_EXECUTE_BUFFER_CF           = 0xC,
 	MSG_OP_QUERY_COL_STATUS            = 0xD,
 	MSG_OP_QUERY_AIE_TILE_INFO         = 0xE,
@@ -134,6 +135,28 @@ struct destroy_ctx_req {
 } __packed;
 
 struct destroy_ctx_resp {
+	enum aie2_msg_status	status;
+} __packed;
+
+enum telemetry_type {
+	TELEMETRY_TYPE_DISABLED,
+	TELEMETRY_TYPE_HEALTH,
+	TELEMETRY_TYPE_ERROR_INFO,
+	TELEMETRY_TYPE_PROFILING,
+	TELEMETRY_TYPE_DEBUG,
+	MAX_TELEMETRY_TYPE
+};
+
+struct get_telemetry_req {
+	enum telemetry_type	type;
+	__u64	buf_addr;
+	__u32	buf_size;
+} __packed;
+
+struct get_telemetry_resp {
+	__u32	major;
+	__u32	minor;
+	__u32	size;
 	enum aie2_msg_status	status;
 } __packed;
 

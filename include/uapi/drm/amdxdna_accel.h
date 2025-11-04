@@ -442,6 +442,7 @@ enum amdxdna_drm_get_param {
 	DRM_AMDXDNA_QUERY_HW_CONTEXTS,
 	DRM_AMDXDNA_QUERY_FIRMWARE_VERSION = 8,
 	DRM_AMDXDNA_GET_POWER_MODE,
+	DRM_AMDXDNA_QUERY_TELEMETRY,
 	DRM_AMDXDNA_QUERY_RESOURCE_INFO = 12,
 };
 
@@ -459,6 +460,22 @@ struct amdxdna_drm_get_resource_info {
 	__u64 npu_tops_curr;
 	/** @npu_task_curr: current number of tasks */
 	__u64 npu_task_curr;
+};
+
+/**
+ * struct amdxdna_drm_query_telemetry_header - Telemetry data header
+ */
+struct amdxdna_drm_query_telemetry_header {
+	/** @major: Firmware telemetry interface major version number */
+	__u32 major;
+	/** @minor: Firmware telemetry interface minor version number */
+	__u32 minor;
+	/** @type: Telemetry query type */
+	__u32 type;
+	/** @map_num_elements: Total number of elements in the map table */
+	__u32 map_num_elements;
+	/** @map: Element map */
+	__u32 map[];
 };
 
 /**

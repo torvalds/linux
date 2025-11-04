@@ -30,9 +30,10 @@ MODULE_FIRMWARE("amdnpu/17f0_20/npu.sbin");
  * 0.2: Support getting last error hardware error
  * 0.3: Support firmware debug buffer
  * 0.4: Support getting resource information
+ * 0.5: Support getting telemetry data
  */
 #define AMDXDNA_DRIVER_MAJOR		0
-#define AMDXDNA_DRIVER_MINOR		4
+#define AMDXDNA_DRIVER_MINOR		5
 
 /*
  * Bind the driver base on (vendor_id, device_id) pair and later use the

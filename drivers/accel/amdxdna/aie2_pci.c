@@ -862,6 +862,76 @@ static int aie2_query_resource_info(struct amdxdna_client *client,
 	return 0;
 }
 
+static int aie2_fill_hwctx_map(struct amdxdna_hwctx *hwctx, void *arg)
+{
+	struct amdxdna_dev *xdna = hwctx->client->xdna;
+	u32 *map = arg;
+
+	if (hwctx->fw_ctx_id >= xdna->dev_handle->priv->hwctx_limit) {
+		XDNA_ERR(xdna, "Invalid fw ctx id %d/%d ", hwctx->fw_ctx_id,
+			 xdna->dev_handle->priv->hwctx_limit);
+		return -EINVAL;
+	}
+
+	map[hwctx->fw_ctx_id] = hwctx->id;
+	return 0;
+}
+
+static int aie2_get_telemetry(struct amdxdna_client *client,
+			      struct amdxdna_drm_get_info *args)
+{
+	struct amdxdna_drm_query_telemetry_header *header __free(kfree) = NULL;
+	u32 telemetry_data_sz, header_sz, elem_num;
+	struct amdxdna_dev *xdna = client->xdna;
+	struct amdxdna_client *tmp_client;
+	int ret;
+
+	elem_num = xdna->dev_handle->priv->hwctx_limit;
+	header_sz = struct_size(header, map, elem_num);
+	if (args->buffer_size <= header_sz) {
+		XDNA_ERR(xdna, "Invalid buffer size");
+		return -EINVAL;
+	}
+
+	telemetry_data_sz = args->buffer_size - header_sz;
+	if (telemetry_data_sz > SZ_4M) {
+		XDNA_ERR(xdna, "Buffer size is too big, %d", telemetry_data_sz);
+		return -EINVAL;
+	}
+
+	header = kzalloc(header_sz, GFP_KERNEL);
+	if (!header)
+		return -ENOMEM;
+
+	if (copy_from_user(header, u64_to_user_ptr(args->buffer), sizeof(*header))) {
+		XDNA_ERR(xdna, "Failed to copy telemetry header from user");
+		return -EFAULT;
+	}
+
+	header->map_num_elements = elem_num;
+	list_for_each_entry(tmp_client, &xdna->client_list, node) {
+		ret = amdxdna_hwctx_walk(tmp_client, &header->map,
+					 aie2_fill_hwctx_map);
+		if (ret)
+			return ret;
+	}
+
+	ret = aie2_query_telemetry(xdna->dev_handle,
+				   u64_to_user_ptr(args->buffer + header_sz),
+				   telemetry_data_sz, header);
+	if (ret) {
+		XDNA_ERR(xdna, "Query telemetry failed ret %d", ret);
+		return ret;
+	}
+
+	if (copy_to_user(u64_to_user_ptr(args->buffer), header, header_sz)) {
+		XDNA_ERR(xdna, "Copy header failed");
+		return -EFAULT;
+	}
+
+	return 0;
+}
+
 static int aie2_get_info(struct amdxdna_client *client, struct amdxdna_drm_get_info *args)
 {
 	struct amdxdna_dev *xdna = client->xdna;
@@ -895,6 +965,9 @@ static int aie2_get_info(struct amdxdna_client *client, struct amdxdna_drm_get_i
 		break;
 	case DRM_AMDXDNA_GET_POWER_MODE:
 		ret = aie2_get_power_mode(client, args);
+		break;
+	case DRM_AMDXDNA_QUERY_TELEMETRY:
+		ret = aie2_get_telemetry(client, args);
 		break;
 	case DRM_AMDXDNA_QUERY_RESOURCE_INFO:
 		ret = aie2_query_resource_info(client, args);

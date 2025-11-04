@@ -47,7 +47,7 @@ static int aie2_send_mgmt_msg_wait(struct amdxdna_dev_hdl *ndev,
 		ndev->mgmt_chann = NULL;
 	}
 
-	if (!ret && *hdl->data != AIE2_STATUS_SUCCESS) {
+	if (!ret && *hdl->status != AIE2_STATUS_SUCCESS) {
 		XDNA_ERR(xdna, "command opcode 0x%x failed, status 0x%x",
 			 msg->opcode, *hdl->data);
 		ret = -EINVAL;
@@ -336,11 +336,6 @@ int aie2_query_status(struct amdxdna_dev_hdl *ndev, char __user *buf,
 		goto fail;
 	}
 
-	if (resp.status != AIE2_STATUS_SUCCESS) {
-		XDNA_ERR(xdna, "Query NPU status failed, status 0x%x", resp.status);
-		ret = -EINVAL;
-		goto fail;
-	}
 	XDNA_DBG(xdna, "Query NPU status completed");
 
 	if (size < resp.size) {
@@ -359,6 +354,55 @@ int aie2_query_status(struct amdxdna_dev_hdl *ndev, char __user *buf,
 
 fail:
 	dma_free_noncoherent(xdna->ddev.dev, size, buff_addr, dma_addr, DMA_FROM_DEVICE);
+	return ret;
+}
+
+int aie2_query_telemetry(struct amdxdna_dev_hdl *ndev,
+			 char __user *buf, u32 size,
+			 struct amdxdna_drm_query_telemetry_header *header)
+{
+	DECLARE_AIE2_MSG(get_telemetry, MSG_OP_GET_TELEMETRY);
+	struct amdxdna_dev *xdna = ndev->xdna;
+	dma_addr_t dma_addr;
+	u8 *addr;
+	int ret;
+
+	if (header->type >= MAX_TELEMETRY_TYPE)
+		return -EINVAL;
+
+	addr = dma_alloc_noncoherent(xdna->ddev.dev, size, &dma_addr,
+				     DMA_FROM_DEVICE, GFP_KERNEL);
+	if (!addr)
+		return -ENOMEM;
+
+	req.buf_addr = dma_addr;
+	req.buf_size = size;
+	req.type = header->type;
+
+	drm_clflush_virt_range(addr, size); /* device can access */
+	ret = aie2_send_mgmt_msg_wait(ndev, &msg);
+	if (ret) {
+		XDNA_ERR(xdna, "Query telemetry failed, status %d", ret);
+		goto free_buf;
+	}
+
+	if (size < resp.size) {
+		ret = -EINVAL;
+		XDNA_ERR(xdna, "Bad buffer size. Available: %u. Needs: %u", size, resp.size);
+		goto free_buf;
+	}
+
+	if (copy_to_user(buf, addr, resp.size)) {
+		ret = -EFAULT;
+		XDNA_ERR(xdna, "Failed to copy telemetry to user space");
+		goto free_buf;
+	}
+
+	header->major = resp.major;
+	header->minor = resp.minor;
+
+free_buf:
+	dma_free_noncoherent(xdna->ddev.dev, size, addr, dma_addr, DMA_FROM_DEVICE);
 	return ret;
 }
 
