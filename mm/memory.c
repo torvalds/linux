@@ -2023,8 +2023,7 @@ void unmap_page_range(struct mmu_gather *tlb,
 
 static void unmap_single_vma(struct mmu_gather *tlb,
 		struct vm_area_struct *vma, unsigned long start_addr,
-		unsigned long end_addr,
-		struct zap_details *details, bool mm_wr_locked)
+		unsigned long end_addr, struct zap_details *details)
 {
 	unsigned long start = max(vma->vm_start, start_addr);
 	unsigned long end;
@@ -2070,7 +2069,6 @@ static void unmap_single_vma(struct mmu_gather *tlb,
  * @start_addr: virtual address at which to start unmapping
  * @end_addr: virtual address at which to end unmapping
  * @tree_end: The maximum index to check
- * @mm_wr_locked: lock flag
  *
  * Unmap all pages in the vma list.
  *
@@ -2085,8 +2083,7 @@ static void unmap_single_vma(struct mmu_gather *tlb,
  */
 void unmap_vmas(struct mmu_gather *tlb, struct ma_state *mas,
 		struct vm_area_struct *vma, unsigned long start_addr,
-		unsigned long end_addr, unsigned long tree_end,
-		bool mm_wr_locked)
+		unsigned long end_addr, unsigned long tree_end)
 {
 	struct mmu_notifier_range range;
 	struct zap_details details = {
@@ -2102,8 +2099,7 @@ void unmap_vmas(struct mmu_gather *tlb, struct ma_state *mas,
 		unsigned long start = start_addr;
 		unsigned long end = end_addr;
 		hugetlb_zap_begin(vma, &start, &end);
-		unmap_single_vma(tlb, vma, start, end, &details,
-				 mm_wr_locked);
+		unmap_single_vma(tlb, vma, start, end, &details);
 		hugetlb_zap_end(vma, &details);
 		vma = mas_find(mas, tree_end - 1);
 	} while (vma && likely(!xa_is_zero(vma)));
@@ -2139,7 +2135,7 @@ void zap_page_range_single_batched(struct mmu_gather *tlb,
 	 * unmap 'address-end' not 'range.start-range.end' as range
 	 * could have been expanded for hugetlb pmd sharing.
 	 */
-	unmap_single_vma(tlb, vma, address, end, details, false);
+	unmap_single_vma(tlb, vma, address, end, details);
 	mmu_notifier_invalidate_range_end(&range);
 	if (is_vm_hugetlb_page(vma)) {
 		/*

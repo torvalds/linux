@@ -848,8 +848,7 @@ static inline void update_hiwater_vm(struct mm_struct *mm)
 
 static inline void unmap_vmas(struct mmu_gather *tlb, struct ma_state *mas,
 		      struct vm_area_struct *vma, unsigned long start_addr,
-		      unsigned long end_addr, unsigned long tree_end,
-		      bool mm_wr_locked)
+		      unsigned long end_addr, unsigned long tree_end)
 {
 }
 
