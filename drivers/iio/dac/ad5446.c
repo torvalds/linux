@@ -37,6 +37,8 @@
  * @pwr_down_mode:	power down mode (1k, 100k or tristate)
  * @pwr_down:		true if the device is in power down
  * @lock:		lock to protect the data buffer during write ops
+ * @d16:		16bit DMA safe buffer
+ * @d24:		24bit DMA safe buffer
  */
 
 struct ad5446_state {
@@ -47,6 +49,10 @@ struct ad5446_state {
 	unsigned			pwr_down_mode;
 	unsigned			pwr_down;
 	struct mutex			lock;
+	union {
+		__be16 d16;
+		u8 d24[3];
+	} __aligned(IIO_DMA_MINALIGN);
 };
 
 /**
@@ -265,19 +271,18 @@ static int ad5446_probe(struct device *dev, const char *name,
 static int ad5446_write(struct ad5446_state *st, unsigned val)
 {
 	struct spi_device *spi = to_spi_device(st->dev);
-	__be16 data = cpu_to_be16(val);
+	st->d16 = cpu_to_be16(val);
 
-	return spi_write(spi, &data, sizeof(data));
+	return spi_write(spi, &st->d16, sizeof(st->d16));
 }
 
 static int ad5660_write(struct ad5446_state *st, unsigned val)
 {
 	struct spi_device *spi = to_spi_device(st->dev);
-	uint8_t data[3];
 
-	put_unaligned_be24(val, &data[0]);
+	put_unaligned_be24(val, st->d24);
 
-	return spi_write(spi, data, sizeof(data));
+	return spi_write(spi, st->d24, sizeof(st->d24));
 }
 
 /*
@@ -489,13 +494,13 @@ static inline void ad5446_spi_unregister_driver(void) { }
 static int ad5622_write(struct ad5446_state *st, unsigned val)
 {
 	struct i2c_client *client = to_i2c_client(st->dev);
-	__be16 data = cpu_to_be16(val);
+	st->d16 = cpu_to_be16(val);
 	int ret;
 
-	ret = i2c_master_send(client, (char *)&data, sizeof(data));
+	ret = i2c_master_send_dmasafe(client, (char *)&st->d16, sizeof(st->d16));
 	if (ret < 0)
 		return ret;
-	if (ret != sizeof(data))
+	if (ret != sizeof(st->d16))
 		return -EIO;
 
 	return 0;
