@@ -1106,11 +1106,19 @@ rtw89_core_tx_update_desc_info(struct rtw89_dev *rtwdev,
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_hdr *hdr = (void *)skb->data;
 	struct rtw89_addr_cam_entry *addr_cam;
-	enum rtw89_core_tx_type tx_type;
 	enum btc_pkt_type pkt_type;
 	bool upd_wlan_hdr = false;
 	bool is_bmc;
 	u16 seq;
+
+	desc_info->pkt_size = skb->len;
+
+	if (unlikely(tx_req->tx_type == RTW89_CORE_TX_TYPE_FWCMD)) {
+		rtw89_core_tx_update_h2c_info(rtwdev, tx_req);
+		return;
+	}
+
+	tx_req->tx_type = rtw89_core_get_tx_type(rtwdev, skb);
 
 	if (tx_req->sta)
 		desc_info->mlo = tx_req->sta->mlo;
@@ -1118,20 +1126,15 @@ rtw89_core_tx_update_desc_info(struct rtw89_dev *rtwdev,
 		desc_info->mlo = ieee80211_vif_is_mld(tx_req->vif);
 
 	seq = (le16_to_cpu(hdr->seq_ctrl) & IEEE80211_SCTL_SEQ) >> 4;
-	if (tx_req->tx_type != RTW89_CORE_TX_TYPE_FWCMD) {
-		tx_type = rtw89_core_get_tx_type(rtwdev, skb);
-		tx_req->tx_type = tx_type;
+	addr_cam = rtw89_get_addr_cam_of(tx_req->rtwvif_link,
+					 tx_req->rtwsta_link);
+	if (addr_cam->valid && desc_info->mlo)
+		upd_wlan_hdr = true;
 
-		addr_cam = rtw89_get_addr_cam_of(tx_req->rtwvif_link,
-						 tx_req->rtwsta_link);
-		if (addr_cam->valid && desc_info->mlo)
-			upd_wlan_hdr = true;
-	}
 	is_bmc = (is_broadcast_ether_addr(hdr->addr1) ||
 		  is_multicast_ether_addr(hdr->addr1));
 
 	desc_info->seq = seq;
-	desc_info->pkt_size = skb->len;
 	desc_info->is_bmc = is_bmc;
 	desc_info->wd_page = true;
 	desc_info->hiq = info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM;
@@ -1148,8 +1151,7 @@ rtw89_core_tx_update_desc_info(struct rtw89_dev *rtwdev,
 		rtw89_core_tx_update_ampdu_info(rtwdev, tx_req, pkt_type);
 		rtw89_core_tx_update_llc_hdr(rtwdev, desc_info, skb);
 		break;
-	case RTW89_CORE_TX_TYPE_FWCMD:
-		rtw89_core_tx_update_h2c_info(rtwdev, tx_req);
+	default:
 		break;
 	}
 }
