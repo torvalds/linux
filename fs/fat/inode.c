@@ -22,6 +22,7 @@
 #include <linux/unaligned.h>
 #include <linux/random.h>
 #include <linux/iversion.h>
+#include <linux/fs_struct.h>
 #include "fat.h"
 
 #ifndef CONFIG_FAT_DEFAULT_IOCHARSET

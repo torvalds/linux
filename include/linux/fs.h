@@ -2336,8 +2336,6 @@ static inline void super_set_sysfs_name_generic(struct super_block *sb, const ch
 	va_end(args);
 }
 
-extern int current_umask(void);
-
 extern void ihold(struct inode * inode);
 extern void iput(struct inode *);
 int inode_update_timestamps(struct inode *inode, int flags);

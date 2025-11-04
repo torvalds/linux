@@ -9,6 +9,7 @@
 
 #include "hpfs_fn.h"
 #include <linux/module.h>
+#include <linux/fs_struct.h>
 #include <linux/fs_context.h>
 #include <linux/fs_parser.h>
 #include <linux/init.h>
