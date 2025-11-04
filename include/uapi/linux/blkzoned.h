@@ -87,10 +87,20 @@ enum blk_zone_cond {
 /**
  * enum blk_zone_report_flags - Feature flags of reported zone descriptors.
  *
- * @BLK_ZONE_REP_CAPACITY: Zone descriptor has capacity field.
+ * @BLK_ZONE_REP_CAPACITY: Output only. Indicates that zone descriptors in a
+ *			   zone report have a valid capacity field.
+ * @BLK_ZONE_REP_CACHED: Input only. Indicates that the zone report should be
+ *			 generated using cached zone information. In this case,
+ *			 the implicit open, explicit open and closed zone
+ *			 conditions are all reported with the
+ *			 BLK_ZONE_COND_ACTIVE condition.
  */
 enum blk_zone_report_flags {
-	BLK_ZONE_REP_CAPACITY	= (1 << 0),
+	/* Output flags */
+	BLK_ZONE_REP_CAPACITY	= (1U << 0),
+
+	/* Input flags */
+	BLK_ZONE_REP_CACHED	= (1U << 31),
 };
 
 /**
@@ -133,6 +143,10 @@ struct blk_zone {
  * @sector: starting sector of report
  * @nr_zones: IN maximum / OUT actual
  * @flags: one or more flags as defined by enum blk_zone_report_flags.
+ * @flags: one or more flags as defined by enum blk_zone_report_flags.
+ *	   With BLKREPORTZONE, this field is ignored as an input and is valid
+ *	   only as an output. Using BLKREPORTZONEV2, this field is used as both
+ *	   input and output.
  * @zones: Space to hold @nr_zones @zones entries on reply.
  *
  * The array of at most @nr_zones must follow this structure in memory.
@@ -159,9 +173,19 @@ struct blk_zone_range {
 /**
  * Zoned block device ioctl's:
  *
- * @BLKREPORTZONE: Get zone information. Takes a zone report as argument.
- *                 The zone report will start from the zone containing the
- *                 sector specified in the report request structure.
+ * @BLKREPORTZONE: Get zone information from a zoned device. Takes a zone report
+ *		   as argument. The zone report will start from the zone
+ *		   containing the sector specified in struct blk_zone_report.
+ *		   The flags field of struct blk_zone_report is used as an
+ *		   output only and ignored as an input.
+ *		   DEPRECATED, use BLKREPORTZONEV2 instead.
+ * @BLKREPORTZONEV2: Same as @BLKREPORTZONE but uses the flags field of
+ *		     struct blk_zone_report as an input, allowing to get a zone
+ *		     report using cached zone information if the flag
+ *		     BLK_ZONE_REP_CACHED is set. In such case, the zone report
+ *		     may include zones with the condition @BLK_ZONE_COND_ACTIVE
+ *		     (c.f. the description of this condition above for more
+ *		     details).
  * @BLKRESETZONE: Reset the write pointer of the zones in the specified
  *                sector range. The sector range must be zone aligned.
  * @BLKGETZONESZ: Get the device zone size in number of 512 B sectors.
@@ -180,5 +204,6 @@ struct blk_zone_range {
 #define BLKOPENZONE	_IOW(0x12, 134, struct blk_zone_range)
 #define BLKCLOSEZONE	_IOW(0x12, 135, struct blk_zone_range)
 #define BLKFINISHZONE	_IOW(0x12, 136, struct blk_zone_range)
+#define BLKREPORTZONEV2	_IOWR(0x12, 142, struct blk_zone_report)
 
 #endif /* _UAPI_BLKZONED_H */

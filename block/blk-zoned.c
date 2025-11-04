@@ -357,7 +357,12 @@ static int blkdev_copy_zone_to_user(struct blk_zone *zone, unsigned int idx,
 }
 
 /*
- * BLKREPORTZONE ioctl processing.
+ * Mask of valid input flags for BLKREPORTZONEV2 ioctl.
+ */
+#define BLK_ZONE_REPV2_INPUT_FLAGS	BLK_ZONE_REP_CACHED
+
+/*
+ * BLKREPORTZONE and BLKREPORTZONEV2 ioctl processing.
  * Called from blkdev_ioctl.
  */
 int blkdev_report_zones_ioctl(struct block_device *bdev, unsigned int cmd,
@@ -381,8 +386,22 @@ int blkdev_report_zones_ioctl(struct block_device *bdev, unsigned int cmd,
 		return -EINVAL;
 
 	args.zones = argp + sizeof(struct blk_zone_report);
-	ret = blkdev_report_zones(bdev, rep.sector, rep.nr_zones,
-				  blkdev_copy_zone_to_user, &args);
+
+	switch (cmd) {
+	case BLKREPORTZONE:
+		ret = blkdev_report_zones(bdev, rep.sector, rep.nr_zones,
+					  blkdev_copy_zone_to_user, &args);
+		break;
+	case BLKREPORTZONEV2:
+		if (rep.flags & ~BLK_ZONE_REPV2_INPUT_FLAGS)
+			return -EINVAL;
+		ret = blkdev_report_zones_cached(bdev, rep.sector, rep.nr_zones,
+					 blkdev_copy_zone_to_user, &args);
+		break;
+	default:
+		return -EINVAL;
+	}
+
 	if (ret < 0)
 		return ret;
 
