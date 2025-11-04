@@ -946,6 +946,29 @@ refill:
 	return rx_packets;
 }
 
+static void ravb_rx_rcar_hwstamp(struct ravb_private *priv, int q,
+				 struct ravb_ex_rx_desc *desc,
+				 struct sk_buff *skb)
+{
+	u32 get_ts = priv->tstamp_rx_ctrl & RAVB_RXTSTAMP_TYPE;
+	struct skb_shared_hwtstamps *shhwtstamps;
+	struct timespec64 ts;
+
+	get_ts &= (q == RAVB_NC) ?
+		RAVB_RXTSTAMP_TYPE_V2_L2_EVENT :
+		~RAVB_RXTSTAMP_TYPE_V2_L2_EVENT;
+
+	if (!get_ts)
+		return;
+
+	shhwtstamps = skb_hwtstamps(skb);
+	memset(shhwtstamps, 0, sizeof(*shhwtstamps));
+	ts.tv_sec = ((u64)le16_to_cpu(desc->ts_sh) << 32)
+		| le32_to_cpu(desc->ts_sl);
+	ts.tv_nsec = le32_to_cpu(desc->ts_n);
+	shhwtstamps->hwtstamp = timespec64_to_ktime(ts);
+}
+
 /* Packet receive function for Ethernet AVB */
 static int ravb_rx_rcar(struct net_device *ndev, int budget, int q)
 {
@@ -955,7 +978,6 @@ static int ravb_rx_rcar(struct net_device *ndev, int budget, int q)
 	struct ravb_ex_rx_desc *desc;
 	unsigned int limit, i;
 	struct sk_buff *skb;
-	struct timespec64 ts;
 	int rx_packets = 0;
 	u8  desc_status;
 	u16 pkt_len;
@@ -992,7 +1014,6 @@ static int ravb_rx_rcar(struct net_device *ndev, int budget, int q)
 			if (desc_status & MSC_CEEF)
 				stats->rx_missed_errors++;
 		} else {
-			u32 get_ts = priv->tstamp_rx_ctrl & RAVB_RXTSTAMP_TYPE;
 			struct ravb_rx_buffer *rx_buff;
 			void *rx_addr;
 
@@ -1010,19 +1031,8 @@ static int ravb_rx_rcar(struct net_device *ndev, int budget, int q)
 				break;
 			}
 			skb_mark_for_recycle(skb);
-			get_ts &= (q == RAVB_NC) ?
-					RAVB_RXTSTAMP_TYPE_V2_L2_EVENT :
-					~RAVB_RXTSTAMP_TYPE_V2_L2_EVENT;
-			if (get_ts) {
-				struct skb_shared_hwtstamps *shhwtstamps;
 
-				shhwtstamps = skb_hwtstamps(skb);
-				memset(shhwtstamps, 0, sizeof(*shhwtstamps));
-				ts.tv_sec = ((u64) le16_to_cpu(desc->ts_sh) <<
-					     32) | le32_to_cpu(desc->ts_sl);
-				ts.tv_nsec = le32_to_cpu(desc->ts_n);
-				shhwtstamps->hwtstamp = timespec64_to_ktime(ts);
-			}
+			ravb_rx_rcar_hwstamp(priv, q, desc, skb);
 
 			skb_put(skb, pkt_len);
 			skb->protocol = eth_type_trans(skb, ndev);
