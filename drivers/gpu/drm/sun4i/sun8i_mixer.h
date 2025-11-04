@@ -167,6 +167,7 @@ enum sun8i_mixer_type {
  * struct sun8i_mixer_cfg - mixer HW configuration
  * @vi_num: number of VI channels
  * @ui_num: number of UI channels
+ * @vi_scaler_num: Number of VI scalers. Used on DE2 and DE3.
  * @scaler_mask: bitmask which tells which channel supports scaling
  *	First, scaler supports for VI channels is defined and after that, scaler
  *	support for UI channels. For example, if mixer has 2 VI channels without
@@ -183,6 +184,7 @@ enum sun8i_mixer_type {
 struct sun8i_mixer_cfg {
 	int		vi_num;
 	int		ui_num;
+	unsigned int	vi_scaler_num;
 	int		scaler_mask;
 	int		ccsc;
 	unsigned long	mod_rate;
