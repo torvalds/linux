@@ -30,12 +30,50 @@
  * SOFTWARE.
  */
 
+#include <linux/pci.h>
 #include <rdma/ib_umem.h>
 #include <rdma/uverbs_ioctl.h>
 #include "hns_roce_device.h"
 #include "hns_roce_cmd.h"
 #include "hns_roce_hem.h"
 #include "hns_roce_common.h"
+
+void hns_roce_put_cq_bankid_for_uctx(struct hns_roce_ucontext *uctx)
+{
+	struct hns_roce_dev *hr_dev = to_hr_dev(uctx->ibucontext.device);
+	struct hns_roce_cq_table *cq_table = &hr_dev->cq_table;
+
+	if (hr_dev->pci_dev->revision < PCI_REVISION_ID_HIP09)
+		return;
+
+	mutex_lock(&cq_table->bank_mutex);
+	cq_table->ctx_num[uctx->cq_bank_id]--;
+	mutex_unlock(&cq_table->bank_mutex);
+}
+
+void hns_roce_get_cq_bankid_for_uctx(struct hns_roce_ucontext *uctx)
+{
+	struct hns_roce_dev *hr_dev = to_hr_dev(uctx->ibucontext.device);
+	struct hns_roce_cq_table *cq_table = &hr_dev->cq_table;
+	u32 least_load = cq_table->ctx_num[0];
+	u8 bankid = 0;
+	u8 i;
+
+	if (hr_dev->pci_dev->revision < PCI_REVISION_ID_HIP09)
+		return;
+
+	mutex_lock(&cq_table->bank_mutex);
+	for (i = 1; i < HNS_ROCE_CQ_BANK_NUM; i++) {
+		if (cq_table->ctx_num[i] < least_load) {
+			least_load = cq_table->ctx_num[i];
+			bankid = i;
+		}
+	}
+	cq_table->ctx_num[bankid]++;
+	mutex_unlock(&cq_table->bank_mutex);
+
+	uctx->cq_bank_id = bankid;
+}
 
 static u8 get_least_load_bankid_for_cq(struct hns_roce_bank *bank)
 {
@@ -55,7 +93,21 @@ static u8 get_least_load_bankid_for_cq(struct hns_roce_bank *bank)
 	return bankid;
 }
 
-static int alloc_cqn(struct hns_roce_dev *hr_dev, struct hns_roce_cq *hr_cq)
+static u8 select_cq_bankid(struct hns_roce_dev *hr_dev,
+			   struct hns_roce_bank *bank, struct ib_udata *udata)
+{
+	struct hns_roce_ucontext *uctx = udata ?
+		rdma_udata_to_drv_context(udata, struct hns_roce_ucontext,
+					  ibucontext) : NULL;
+
+	if (hr_dev->pci_dev->revision >= PCI_REVISION_ID_HIP09)
+		return uctx ? uctx->cq_bank_id : 0;
+
+	return get_least_load_bankid_for_cq(bank);
+}
+
+static int alloc_cqn(struct hns_roce_dev *hr_dev, struct hns_roce_cq *hr_cq,
+		     struct ib_udata *udata)
 {
 	struct hns_roce_cq_table *cq_table = &hr_dev->cq_table;
 	struct hns_roce_bank *bank;
@@ -63,7 +115,7 @@ static int alloc_cqn(struct hns_roce_dev *hr_dev, struct hns_roce_cq *hr_cq)
 	int id;
 
 	mutex_lock(&cq_table->bank_mutex);
-	bankid = get_least_load_bankid_for_cq(cq_table->bank);
+	bankid = select_cq_bankid(hr_dev, cq_table->bank, udata);
 	bank = &cq_table->bank[bankid];
 
 	id = ida_alloc_range(&bank->ida, bank->min, bank->max, GFP_KERNEL);
@@ -396,7 +448,7 @@ int hns_roce_create_cq(struct ib_cq *ib_cq, const struct ib_cq_init_attr *attr,
 		goto err_cq_buf;
 	}
 
-	ret = alloc_cqn(hr_dev, hr_cq);
+	ret = alloc_cqn(hr_dev, hr_cq, udata);
 	if (ret) {
 		ibdev_err(ibdev, "failed to alloc CQN, ret = %d.\n", ret);
 		goto err_cq_db;
