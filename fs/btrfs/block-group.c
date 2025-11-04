@@ -1850,12 +1850,10 @@ void btrfs_reclaim_bgs_work(struct work_struct *work)
 	if (!btrfs_should_reclaim(fs_info))
 		return;
 
-	sb_start_write(fs_info->sb);
+	guard(super_write)(fs_info->sb);
 
-	if (!btrfs_exclop_start(fs_info, BTRFS_EXCLOP_BALANCE)) {
-		sb_end_write(fs_info->sb);
+	if (!btrfs_exclop_start(fs_info, BTRFS_EXCLOP_BALANCE))
 		return;
-	}
 
 	/*
 	 * Long running balances can keep us blocked here for eternity, so
@@ -1863,7 +1861,6 @@ void btrfs_reclaim_bgs_work(struct work_struct *work)
 	 */
 	if (!mutex_trylock(&fs_info->reclaim_bgs_lock)) {
 		btrfs_exclop_finish(fs_info);
-		sb_end_write(fs_info->sb);
 		return;
 	}
 
@@ -1947,7 +1944,7 @@ void btrfs_reclaim_bgs_work(struct work_struct *work)
 		/*
 		 * Get out fast, in case we're read-only or unmounting the
 		 * filesystem. It is OK to drop block groups from the list even
-		 * for the read-only case. As we did sb_start_write(),
+		 * for the read-only case. As we did take the super write lock,
 		 * "mount -o remount,ro" won't happen and read-only filesystem
 		 * means it is forced read-only due to a fatal error. So, it
 		 * never gets back to read-write to let us reclaim again.
@@ -2030,7 +2027,6 @@ end:
 	list_splice_tail(&retry_list, &fs_info->reclaim_bgs);
 	spin_unlock(&fs_info->unused_bgs_lock);
 	btrfs_exclop_finish(fs_info);
-	sb_end_write(fs_info->sb);
 }
 
 void btrfs_reclaim_bgs(struct btrfs_fs_info *fs_info)
