@@ -9,15 +9,6 @@
 
 #include <linux/ptp_clock_kernel.h>
 
-/* driver's definitions */
-#define RCAR_GEN4_RXTSTAMP_ENABLED		BIT(0)
-#define RCAR_GEN4_RXTSTAMP_TYPE_V2_L2_EVENT	BIT(1)
-#define RCAR_GEN4_RXTSTAMP_TYPE_ALL		(RCAR_GEN4_RXTSTAMP_TYPE_V2_L2_EVENT | BIT(2))
-#define RCAR_GEN4_RXTSTAMP_TYPE			RCAR_GEN4_RXTSTAMP_TYPE_ALL
-
-#define RCAR_GEN4_TXTSTAMP_ENABLED		BIT(0)
-
-
 struct rcar_gen4_ptp_private {
 	void __iomem *addr;
 	struct ptp_clock *clock;
