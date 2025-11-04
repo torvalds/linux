@@ -111,8 +111,6 @@ struct smbdirect_socket {
 	/*
 	 * This points to the workqueues to
 	 * be used for this socket.
-	 * It can be per socket (on the client)
-	 * or point to a global workqueue (on the server)
 	 */
 	struct {
 		struct workqueue_struct *accept;
@@ -571,6 +569,13 @@ static __always_inline void smbdirect_socket_init(struct smbdirect_socket *sc)
 	memset(sc, 0, sizeof(*sc));
 
 	init_waitqueue_head(&sc->status_wait);
+
+	sc->workqueues.accept = smbdirect_globals.workqueues.accept;
+	sc->workqueues.connect = smbdirect_globals.workqueues.connect;
+	sc->workqueues.idle = smbdirect_globals.workqueues.idle;
+	sc->workqueues.refill = smbdirect_globals.workqueues.refill;
+	sc->workqueues.immediate = smbdirect_globals.workqueues.immediate;
+	sc->workqueues.cleanup = smbdirect_globals.workqueues.cleanup;
 
 	INIT_WORK(&sc->disconnect_work, __smbdirect_socket_disabled_work);
 	disable_work_sync(&sc->disconnect_work);

@@ -20,6 +20,15 @@ struct smbdirect_module_state {
 	struct mutex mutex;
 
 	struct {
+		struct workqueue_struct *accept;
+		struct workqueue_struct *connect;
+		struct workqueue_struct *idle;
+		struct workqueue_struct *refill;
+		struct workqueue_struct *immediate;
+		struct workqueue_struct *cleanup;
+	} workqueues;
+
+	struct {
 		rwlock_t lock;
 		struct list_head list;
 	} devices;
