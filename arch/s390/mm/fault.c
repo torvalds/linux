@@ -374,8 +374,10 @@ void do_protection_exception(struct pt_regs *regs)
 	 * The exception to this rule are aborted transactions, for these
 	 * the PSW already points to the correct location.
 	 */
-	if (!(regs->int_code & 0x200))
+	if (!(regs->int_code & 0x200)) {
 		regs->psw.addr = __rewind_psw(regs->psw, regs->int_code >> 16);
+		set_pt_regs_flag(regs, PIF_PSW_ADDR_ADJUSTED);
+	}
 	/*
 	 * If bit 61 if the TEID is not set, the remainder of the
 	 * TEID is unpredictable. Special handling is required.
