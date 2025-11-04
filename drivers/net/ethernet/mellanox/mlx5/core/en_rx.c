@@ -671,7 +671,7 @@ static int mlx5e_build_shampo_hd_umr(struct mlx5e_rq *rq,
 	u16 pi, header_offset, err, wqe_bbs;
 	u32 lkey = rq->mdev->mlx5e_res.hw_objs.mkey;
 	struct mlx5e_umr_wqe *umr_wqe;
-	int headroom, i = 0;
+	int headroom, i;
 
 	headroom = rq->buff.headroom;
 	wqe_bbs = MLX5E_KSM_UMR_WQEBBS(ksm_entries);
@@ -679,25 +679,24 @@ static int mlx5e_build_shampo_hd_umr(struct mlx5e_rq *rq,
 	umr_wqe = mlx5_wq_cyc_get_wqe(&sq->wq, pi);
 	build_ksm_umr(sq, umr_wqe, shampo->mkey_be, index, ksm_entries);
 
-	WARN_ON_ONCE(ksm_entries & (MLX5E_SHAMPO_WQ_HEADER_PER_PAGE - 1));
-	while (i < ksm_entries) {
-		struct mlx5e_frag_page *frag_page = mlx5e_shampo_hd_to_frag_page(rq, index);
+	for (i = 0; i < ksm_entries; i++, index++) {
+		struct mlx5e_frag_page *frag_page;
 		u64 addr;
 
-		err = mlx5e_page_alloc_fragmented(rq->hd_page_pool, frag_page);
-		if (unlikely(err))
-			goto err_unmap;
+		frag_page = mlx5e_shampo_hd_to_frag_page(rq, index);
+		header_offset = mlx5e_shampo_hd_offset(index);
+		if (!header_offset) {
+			err = mlx5e_page_alloc_fragmented(rq->hd_page_pool,
+							  frag_page);
+			if (err)
+				goto err_unmap;
+		}
 
 		addr = page_pool_get_dma_addr_netmem(frag_page->netmem);
-
-		for (int j = 0; j < MLX5E_SHAMPO_WQ_HEADER_PER_PAGE; j++) {
-			header_offset = mlx5e_shampo_hd_offset(index++);
-
-			umr_wqe->inline_ksms[i++] = (struct mlx5_ksm) {
-				.key = cpu_to_be32(lkey),
-				.va  = cpu_to_be64(addr + header_offset + headroom),
-			};
-		}
+		umr_wqe->inline_ksms[i] = (struct mlx5_ksm) {
+			.key = cpu_to_be32(lkey),
+			.va  = cpu_to_be64(addr + header_offset + headroom),
+		};
 	}
 
 	sq->db.wqe_info[pi] = (struct mlx5e_icosq_wqe_info) {
@@ -713,7 +712,7 @@ static int mlx5e_build_shampo_hd_umr(struct mlx5e_rq *rq,
 	return 0;
 
 err_unmap:
-	while (--i) {
+	while (--i >= 0) {
 		--index;
 		header_offset = mlx5e_shampo_hd_offset(index);
 		if (!header_offset) {
@@ -735,8 +734,7 @@ static int mlx5e_alloc_rx_hd_mpwqe(struct mlx5e_rq *rq)
 	struct mlx5e_icosq *sq = rq->icosq;
 	int i, err, max_ksm_entries, len;
 
-	max_ksm_entries = ALIGN_DOWN(MLX5E_MAX_KSM_PER_WQE(rq->mdev),
-				     MLX5E_SHAMPO_WQ_HEADER_PER_PAGE);
+	max_ksm_entries = MLX5E_MAX_KSM_PER_WQE(rq->mdev);
 	ksm_entries = bitmap_find_window(shampo->bitmap,
 					 shampo->hd_per_wqe,
 					 shampo->hd_per_wq, shampo->pi);
