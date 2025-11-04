@@ -648,17 +648,20 @@ static void build_ksm_umr(struct mlx5e_icosq *sq, struct mlx5e_umr_wqe *umr_wqe,
 	umr_wqe->hdr.uctrl.mkey_mask     = cpu_to_be64(MLX5_MKEY_MASK_FREE);
 }
 
-static struct mlx5e_frag_page *mlx5e_shampo_hd_to_frag_page(struct mlx5e_rq *rq, int header_index)
+static struct mlx5e_frag_page *mlx5e_shampo_hd_to_frag_page(struct mlx5e_rq *rq,
+							    int header_index)
 {
-	BUILD_BUG_ON(MLX5E_SHAMPO_LOG_MAX_HEADER_ENTRY_SIZE > PAGE_SHIFT);
+	struct mlx5e_shampo_hd *shampo = rq->mpwqe.shampo;
 
-	return &rq->mpwqe.shampo->pages[header_index >> MLX5E_SHAMPO_LOG_WQ_HEADER_PER_PAGE];
+	return &shampo->pages[header_index >> shampo->log_hd_per_page];
 }
 
-static u64 mlx5e_shampo_hd_offset(int header_index)
+static u64 mlx5e_shampo_hd_offset(struct mlx5e_rq *rq, int header_index)
 {
-	return (header_index & (MLX5E_SHAMPO_WQ_HEADER_PER_PAGE - 1)) <<
-		MLX5E_SHAMPO_LOG_MAX_HEADER_ENTRY_SIZE;
+	struct mlx5e_shampo_hd *shampo = rq->mpwqe.shampo;
+	u32 hd_per_page = shampo->hd_per_page;
+
+	return (header_index & (hd_per_page - 1)) << shampo->log_hd_entry_size;
 }
 
 static void mlx5e_free_rx_shampo_hd_entry(struct mlx5e_rq *rq, u16 header_index);
@@ -684,7 +687,7 @@ static int mlx5e_build_shampo_hd_umr(struct mlx5e_rq *rq,
 		u64 addr;
 
 		frag_page = mlx5e_shampo_hd_to_frag_page(rq, index);
-		header_offset = mlx5e_shampo_hd_offset(index);
+		header_offset = mlx5e_shampo_hd_offset(rq, index);
 		if (!header_offset) {
 			err = mlx5e_page_alloc_fragmented(rq->hd_page_pool,
 							  frag_page);
@@ -714,7 +717,7 @@ static int mlx5e_build_shampo_hd_umr(struct mlx5e_rq *rq,
 err_unmap:
 	while (--i >= 0) {
 		--index;
-		header_offset = mlx5e_shampo_hd_offset(index);
+		header_offset = mlx5e_shampo_hd_offset(rq, index);
 		if (!header_offset) {
 			struct mlx5e_frag_page *frag_page = mlx5e_shampo_hd_to_frag_page(rq, index);
 
@@ -738,7 +741,7 @@ static int mlx5e_alloc_rx_hd_mpwqe(struct mlx5e_rq *rq)
 	ksm_entries = bitmap_find_window(shampo->bitmap,
 					 shampo->hd_per_wqe,
 					 shampo->hd_per_wq, shampo->pi);
-	ksm_entries = ALIGN_DOWN(ksm_entries, MLX5E_SHAMPO_WQ_HEADER_PER_PAGE);
+	ksm_entries = ALIGN_DOWN(ksm_entries, shampo->hd_per_page);
 	if (!ksm_entries)
 		return 0;
 
@@ -856,7 +859,7 @@ mlx5e_free_rx_shampo_hd_entry(struct mlx5e_rq *rq, u16 header_index)
 {
 	struct mlx5e_shampo_hd *shampo = rq->mpwqe.shampo;
 
-	if (((header_index + 1) & (MLX5E_SHAMPO_WQ_HEADER_PER_PAGE - 1)) == 0) {
+	if (((header_index + 1) & (shampo->hd_per_page - 1)) == 0) {
 		struct mlx5e_frag_page *frag_page = mlx5e_shampo_hd_to_frag_page(rq, header_index);
 
 		mlx5e_page_release_fragmented(rq->hd_page_pool, frag_page);
@@ -1223,9 +1226,10 @@ static unsigned int mlx5e_lro_update_hdr(struct sk_buff *skb,
 static void *mlx5e_shampo_get_packet_hd(struct mlx5e_rq *rq, u16 header_index)
 {
 	struct mlx5e_frag_page *frag_page = mlx5e_shampo_hd_to_frag_page(rq, header_index);
-	u16 head_offset = mlx5e_shampo_hd_offset(header_index) + rq->buff.headroom;
+	u16 head_offset = mlx5e_shampo_hd_offset(rq, header_index);
+	void *addr = netmem_address(frag_page->netmem);
 
-	return netmem_address(frag_page->netmem) + head_offset;
+	return addr + head_offset + rq->buff.headroom;
 }
 
 static void mlx5e_shampo_update_ipv4_udp_hdr(struct mlx5e_rq *rq, struct iphdr *ipv4)
@@ -2265,7 +2269,8 @@ mlx5e_skb_from_cqe_shampo(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi,
 			  struct mlx5_cqe64 *cqe, u16 header_index)
 {
 	struct mlx5e_frag_page *frag_page = mlx5e_shampo_hd_to_frag_page(rq, header_index);
-	u16 head_offset = mlx5e_shampo_hd_offset(header_index);
+	u16 head_offset = mlx5e_shampo_hd_offset(rq, header_index);
+	struct mlx5e_shampo_hd *shampo = rq->mpwqe.shampo;
 	u16 head_size = cqe->shampo.header_size;
 	u16 rx_headroom = rq->buff.headroom;
 	struct sk_buff *skb = NULL;
@@ -2281,7 +2286,7 @@ mlx5e_skb_from_cqe_shampo(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi,
 	data		= hdr + rx_headroom;
 	frag_size	= MLX5_SKB_FRAG_SZ(rx_headroom + head_size);
 
-	if (likely(frag_size <= BIT(MLX5E_SHAMPO_LOG_MAX_HEADER_ENTRY_SIZE))) {
+	if (likely(frag_size <= BIT(shampo->log_hd_entry_size))) {
 		/* build SKB around header */
 		dma_sync_single_range_for_cpu(rq->pdev, dma_addr, 0, frag_size, rq->buff.map_dir);
 		net_prefetchw(hdr);
