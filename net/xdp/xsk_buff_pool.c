@@ -12,26 +12,22 @@
 
 void xp_add_xsk(struct xsk_buff_pool *pool, struct xdp_sock *xs)
 {
-	unsigned long flags;
-
 	if (!xs->tx)
 		return;
 
-	spin_lock_irqsave(&pool->xsk_tx_list_lock, flags);
+	spin_lock(&pool->xsk_tx_list_lock);
 	list_add_rcu(&xs->tx_list, &pool->xsk_tx_list);
-	spin_unlock_irqrestore(&pool->xsk_tx_list_lock, flags);
+	spin_unlock(&pool->xsk_tx_list_lock);
 }
 
 void xp_del_xsk(struct xsk_buff_pool *pool, struct xdp_sock *xs)
 {
-	unsigned long flags;
-
 	if (!xs->tx)
 		return;
 
-	spin_lock_irqsave(&pool->xsk_tx_list_lock, flags);
+	spin_lock(&pool->xsk_tx_list_lock);
 	list_del_rcu(&xs->tx_list);
-	spin_unlock_irqrestore(&pool->xsk_tx_list_lock, flags);
+	spin_unlock(&pool->xsk_tx_list_lock);
 }
 
 void xp_destroy(struct xsk_buff_pool *pool)
@@ -94,7 +90,8 @@ struct xsk_buff_pool *xp_create_and_assign_umem(struct xdp_sock *xs,
 	INIT_LIST_HEAD(&pool->xskb_list);
 	INIT_LIST_HEAD(&pool->xsk_tx_list);
 	spin_lock_init(&pool->xsk_tx_list_lock);
-	spin_lock_init(&pool->cq_lock);
+	spin_lock_init(&pool->cq_prod_lock);
+	spin_lock_init(&pool->cq_cached_prod_lock);
 	refcount_set(&pool->users, 1);
 
 	pool->fq = xs->fq_tmp;
