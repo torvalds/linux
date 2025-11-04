@@ -124,6 +124,8 @@ static inline int nfs_have_delegated_mtime(struct inode *inode)
 						 NFS_DELEGATION_FLAG_TIME);
 }
 
+extern bool directory_delegations;
+
 static inline void nfs_request_directory_delegation(struct inode *inode)
 {
 	if (S_ISDIR(inode->i_mode))
