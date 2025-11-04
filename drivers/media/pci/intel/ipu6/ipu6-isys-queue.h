@@ -39,7 +39,6 @@ struct ipu6_isys_video_buffer {
 
 #define IPU6_ISYS_BUFFER_LIST_FL_INCOMING	BIT(0)
 #define IPU6_ISYS_BUFFER_LIST_FL_ACTIVE	BIT(1)
-#define IPU6_ISYS_BUFFER_LIST_FL_SET_STATE	BIT(2)
 
 struct ipu6_isys_buffer_list {
 	struct list_head head;
