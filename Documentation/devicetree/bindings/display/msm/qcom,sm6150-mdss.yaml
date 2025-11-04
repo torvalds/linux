@@ -51,6 +51,14 @@ patternProperties:
       compatible:
         const: qcom,sm6150-dpu
 
+  "^displayport-controller@[0-9a-f]+$":
+    type: object
+    additionalProperties: true
+    properties:
+      compatible:
+        contains:
+          const: qcom,sm6150-dp
+
   "^dsi@[0-9a-f]+$":
     type: object
     additionalProperties: true
