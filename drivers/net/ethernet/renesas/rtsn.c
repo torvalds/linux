@@ -165,8 +165,7 @@ static int rtsn_rx(struct net_device *ndev, int budget)
 	unsigned int i;
 	bool get_ts;
 
-	get_ts = priv->tstamp_rx_ctrl &
-		RCAR_GEN4_RXTSTAMP_TYPE_V2_L2_EVENT;
+	get_ts = priv->tstamp_rx_ctrl != HWTSTAMP_FILTER_NONE;
 
 	ndescriptors = priv->dirty_rx + priv->num_rx_ring - priv->cur_rx;
 	rx_packets = 0;
@@ -1133,21 +1132,8 @@ static int rtsn_hwtstamp_get(struct net_device *ndev,
 	priv = netdev_priv(ndev);
 
 	config->flags = 0;
-
-	config->tx_type =
-		priv->tstamp_tx_ctrl ? HWTSTAMP_TX_ON : HWTSTAMP_TX_OFF;
-
-	switch (priv->tstamp_rx_ctrl & RCAR_GEN4_RXTSTAMP_TYPE) {
-	case RCAR_GEN4_RXTSTAMP_TYPE_V2_L2_EVENT:
-		config->rx_filter = HWTSTAMP_FILTER_PTP_V2_L2_EVENT;
-		break;
-	case RCAR_GEN4_RXTSTAMP_TYPE_ALL:
-		config->rx_filter = HWTSTAMP_FILTER_ALL;
-		break;
-	default:
-		config->rx_filter = HWTSTAMP_FILTER_NONE;
-		break;
-	}
+	config->tx_type = priv->tstamp_tx_ctrl;
+	config->rx_filter = priv->tstamp_rx_ctrl;
 
 	return 0;
 }
@@ -1156,9 +1142,9 @@ static int rtsn_hwtstamp_set(struct net_device *ndev,
 			     struct kernel_hwtstamp_config *config,
 			     struct netlink_ext_ack *extack)
 {
+	enum hwtstamp_rx_filters tstamp_rx_ctrl;
+	enum hwtstamp_tx_types tstamp_tx_ctrl;
 	struct rtsn_private *priv;
-	u32 tstamp_rx_ctrl;
-	u32 tstamp_tx_ctrl;
 
 	if (!netif_running(ndev))
 		return -ENODEV;
@@ -1170,10 +1156,8 @@ static int rtsn_hwtstamp_set(struct net_device *ndev,
 
 	switch (config->tx_type) {
 	case HWTSTAMP_TX_OFF:
-		tstamp_tx_ctrl = 0;
-		break;
 	case HWTSTAMP_TX_ON:
-		tstamp_tx_ctrl = RCAR_GEN4_TXTSTAMP_ENABLED;
+		tstamp_tx_ctrl = config->tx_type;
 		break;
 	default:
 		return -ERANGE;
@@ -1181,16 +1165,12 @@ static int rtsn_hwtstamp_set(struct net_device *ndev,
 
 	switch (config->rx_filter) {
 	case HWTSTAMP_FILTER_NONE:
-		tstamp_rx_ctrl = 0;
-		break;
 	case HWTSTAMP_FILTER_PTP_V2_L2_EVENT:
-		tstamp_rx_ctrl = RCAR_GEN4_RXTSTAMP_ENABLED |
-			RCAR_GEN4_RXTSTAMP_TYPE_V2_L2_EVENT;
+		tstamp_rx_ctrl = config->rx_filter;
 		break;
 	default:
 		config->rx_filter = HWTSTAMP_FILTER_ALL;
-		tstamp_rx_ctrl = RCAR_GEN4_RXTSTAMP_ENABLED |
-			RCAR_GEN4_RXTSTAMP_TYPE_ALL;
+		tstamp_rx_ctrl = HWTSTAMP_FILTER_ALL;
 		break;
 	}
 
