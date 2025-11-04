@@ -136,8 +136,6 @@ static bool increase_address_space(struct amd_io_pgtable *pgtable,
 	pgtable->mode += 1;
 	write_seqcount_end(&pgtable->seqcount);
 
-	amd_iommu_update_and_flush_device_table(domain);
-
 	pte = NULL;
 	ret = true;
 
