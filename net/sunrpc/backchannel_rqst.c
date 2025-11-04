@@ -25,6 +25,22 @@ unsigned int xprt_bc_max_slots(struct rpc_xprt *xprt)
 }
 
 /*
+ * Helper function to nullify backchannel server pointer in transport.
+ * We need to synchronize setting the pointer to NULL (done so after
+ * the backchannel server is shutdown) with the usage of that pointer
+ * by the backchannel request processing routines
+ * xprt_complete_bc_request() and rpcrdma_bc_receive_call().
+ */
+void xprt_svc_destroy_nullify_bc(struct rpc_xprt *xprt, struct svc_serv **serv)
+{
+	spin_lock(&xprt->bc_pa_lock);
+	svc_destroy(serv);
+	xprt->bc_serv = NULL;
+	spin_unlock(&xprt->bc_pa_lock);
+}
+EXPORT_SYMBOL_GPL(xprt_svc_destroy_nullify_bc);
+
+/*
  * Helper routines that track the number of preallocation elements
  * on the transport.
  */
