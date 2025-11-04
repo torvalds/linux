@@ -161,11 +161,6 @@ bool arch_uretprobe_is_alive(struct return_instance *ret, enum rp_check ctx,
 
 /* Instruction Emulation */
 
-static void adjust_psw_addr(psw_t *psw, unsigned long len)
-{
-	psw->addr = __rewind_psw(*psw, -len);
-}
-
 #define EMU_ILLEGAL_OP		1
 #define EMU_SPECIFICATION	2
 #define EMU_ADDRESSING		3
@@ -353,7 +348,7 @@ static void handle_insn_ril(struct arch_uprobe *auprobe, struct pt_regs *regs)
 		}
 		break;
 	}
-	adjust_psw_addr(&regs->psw, ilen);
+	regs->psw.addr = __forward_psw(regs->psw, ilen);
 	switch (rc) {
 	case EMU_ILLEGAL_OP:
 		regs->int_code = ilen << 16 | 0x0001;
