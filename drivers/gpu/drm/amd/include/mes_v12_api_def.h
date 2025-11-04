@@ -563,7 +563,26 @@ union MESAPI__RESET {
 		/* valid only if reset_queue_only = true */
 		uint32_t			doorbell_offset;
 
-		/* valid only if hang_detect_then_reset = true */
+		/*
+		 * valid only if hang_detect_then_reset or hang_detect_only = true
+		 * doorbell_offset_addr will store the structure as follows
+		 * struct
+		 * {
+		 *	uint32_t db_offset[list_size];
+		 *	uint32_t hqd_id[list_size];
+		 * }
+		 * The hqd_id has following defines :
+		 * struct
+		 * {
+		 *	uint32 queue_type : 3;  Type of the queue
+		 *	uint32 pipe_index : 4;  pipe Index
+		 *	uint32 hqd_index  : 8;  This is queue_index within the pipe
+		 *	uint32 reserved   : 17;
+		 * };
+		 * The list_size is the total queue numbers that been managed by mes.
+		 * It can be calculated from all hqd_masks(including gfX, compute and sdma)
+		 * on set_hw_resource API
+	         */
 		uint64_t			doorbell_offset_addr;
 		enum MES_QUEUE_TYPE		queue_type;
 
