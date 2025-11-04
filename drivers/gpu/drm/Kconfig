@@ -398,19 +398,7 @@ source "drivers/gpu/drm/imagination/Kconfig"
 
 source "drivers/gpu/drm/tyr/Kconfig"
 
-config DRM_HYPERV
-	tristate "DRM Support for Hyper-V synthetic video device"
-	depends on DRM && PCI && HYPERV_VMBUS
-	select DRM_CLIENT_SELECTION
-	select DRM_KMS_HELPER
-	select DRM_GEM_SHMEM_HELPER
-	help
-	 This is a KMS driver for Hyper-V synthetic video device. Choose this
-	 option if you would like to enable drm driver for Hyper-V virtual
-	 machine. Unselect Hyper-V framebuffer driver (CONFIG_FB_HYPERV) so
-	 that DRM driver is used by default.
-
-	 If M is selected the module will be called hyperv_drm.
+source "drivers/gpu/drm/hyperv/Kconfig"
 
 # Separate option as not all DRM drivers use it
 config DRM_PANEL_BACKLIGHT_QUIRKS
