@@ -1092,12 +1092,19 @@ struct nfs4_getattr_arg {
 	struct nfs4_sequence_args	seq_args;
 	const struct nfs_fh *		fh;
 	const u32 *			bitmask;
+	bool				get_dir_deleg;
+};
+
+struct nfs4_gdd_res {
+	u32				status;
+	nfs4_stateid			deleg;
 };
 
 struct nfs4_getattr_res {
 	struct nfs4_sequence_res	seq_res;
 	const struct nfs_server *	server;
 	struct nfs_fattr *		fattr;
+	struct nfs4_gdd_res *		gdd_res;
 };
 
 struct nfs4_link_arg {
