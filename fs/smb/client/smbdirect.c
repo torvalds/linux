@@ -211,7 +211,6 @@ void smbd_destroy(struct TCP_Server_Info *server)
 
 	smbdirect_socket_release(info->socket);
 
-	destroy_workqueue(info->workqueue);
 	kfree(info);
 	server->smbd_conn = NULL;
 }
@@ -261,7 +260,6 @@ static struct smbd_connection *_smbd_get_connection(
 	struct smbdirect_socket_parameters *sp;
 	__be16 *sport;
 	u64 port_flags = 0;
-	char wq_name[80];
 	int ret;
 
 	switch (port) {
@@ -306,10 +304,6 @@ static struct smbd_connection *_smbd_get_connection(
 	info = kzalloc_obj(*info);
 	if (!info)
 		return NULL;
-	scnprintf(wq_name, ARRAY_SIZE(wq_name), "smbd_%p", info);
-	info->workqueue = create_workqueue(wq_name);
-	if (!info->workqueue)
-		goto create_wq_failed;
 	ret = smbdirect_socket_create_kern(net, &sc);
 	if (ret)
 		goto socket_init_failed;
@@ -320,9 +314,6 @@ static struct smbd_connection *_smbd_get_connection(
 	ret = smbdirect_socket_set_kernel_settings(sc, IB_POLL_SOFTIRQ, GFP_KERNEL);
 	if (ret)
 		goto set_settings_failed;
-	ret = smbdirect_socket_set_custom_workqueue(sc, info->workqueue);
-	if (ret)
-		goto set_workqueue_failed;
 
 	if (dstaddr->sa_family == AF_INET6)
 		sport = &((struct sockaddr_in6 *)dstaddr)->sin6_port;
@@ -342,13 +333,10 @@ static struct smbd_connection *_smbd_get_connection(
 	return info;
 
 connect_failed:
-set_workqueue_failed:
 set_settings_failed:
 set_params_failed:
 	smbdirect_socket_release(sc);
 socket_init_failed:
-	destroy_workqueue(info->workqueue);
-create_wq_failed:
 	kfree(info);
 	return NULL;
 }
