@@ -109,12 +109,19 @@ struct smbdirect_socket {
 	int first_error;
 
 	/*
-	 * This points to the workqueue to
+	 * This points to the workqueues to
 	 * be used for this socket.
 	 * It can be per socket (on the client)
 	 * or point to a global workqueue (on the server)
 	 */
-	struct workqueue_struct *workqueue;
+	struct {
+		struct workqueue_struct *accept;
+		struct workqueue_struct *connect;
+		struct workqueue_struct *idle;
+		struct workqueue_struct *refill;
+		struct workqueue_struct *immediate;
+		struct workqueue_struct *cleanup;
+	} workqueues;
 
 	struct work_struct disconnect_work;
 

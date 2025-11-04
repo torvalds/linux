@@ -234,7 +234,7 @@ static int smbdirect_connect_rdma_connect(struct smbdirect_socket *sc)
 	 */
 	INIT_DELAYED_WORK(&sc->idle.timer_work, smbdirect_connection_idle_timer_work);
 	sc->idle.keepalive = SMBDIRECT_KEEPALIVE_PENDING;
-	mod_delayed_work(sc->workqueue, &sc->idle.timer_work,
+	mod_delayed_work(sc->workqueues.idle, &sc->idle.timer_work,
 			 msecs_to_jiffies(sp->rdma_connect_timeout_msec));
 
 	return 0;
@@ -511,7 +511,7 @@ static int smbdirect_connect_negotiate_start(struct smbdirect_socket *sc)
 	 * so that the timer will cause a disconnect.
 	 */
 	sc->idle.keepalive = SMBDIRECT_KEEPALIVE_PENDING;
-	mod_delayed_work(sc->workqueue, &sc->idle.timer_work,
+	mod_delayed_work(sc->workqueues.idle, &sc->idle.timer_work,
 			 msecs_to_jiffies(sp->negotiate_timeout_msec));
 
 	return 0;
@@ -632,7 +632,7 @@ static void smbdirect_connect_negotiate_recv_done(struct ib_cq *cq, struct ib_wc
 	if (!sc->first_error) {
 		INIT_WORK(&sc->connect.work, smbdirect_connect_negotiate_recv_work);
 		if (sc->status == SMBDIRECT_SOCKET_NEGOTIATE_RUNNING)
-			queue_work(sc->workqueue, &sc->connect.work);
+			queue_work(sc->workqueues.connect, &sc->connect.work);
 	}
 	spin_unlock_irqrestore(&sc->connect.lock, flags);
 
@@ -680,7 +680,7 @@ static void smbdirect_connect_negotiate_recv_work(struct work_struct *work)
 	 * order to trigger our next keepalive message.
 	 */
 	sc->idle.keepalive = SMBDIRECT_KEEPALIVE_NONE;
-	mod_delayed_work(sc->workqueue, &sc->idle.timer_work,
+	mod_delayed_work(sc->workqueues.idle, &sc->idle.timer_work,
 			 msecs_to_jiffies(sp->keepalive_interval_msec));
 
 	/*

@@ -614,7 +614,7 @@ void smbdirect_connection_put_recv_io(struct smbdirect_recv_io *msg)
 	sc->statistics.put_receive_buffer++;
 	spin_unlock_irqrestore(&sc->recv_io.free.lock, flags);
 
-	queue_work(sc->workqueue, &sc->recv_io.posted.refill_work);
+	queue_work(sc->workqueues.refill, &sc->recv_io.posted.refill_work);
 }
 
 __SMBDIRECT_PRIVATE__
@@ -822,11 +822,11 @@ void smbdirect_connection_idle_timer_work(struct work_struct *work)
 	 * in order to wait for a response
 	 */
 	sc->idle.keepalive = SMBDIRECT_KEEPALIVE_PENDING;
-	mod_delayed_work(sc->workqueue, &sc->idle.timer_work,
+	mod_delayed_work(sc->workqueues.idle, &sc->idle.timer_work,
 			 msecs_to_jiffies(sp->keepalive_timeout_msec));
 	smbdirect_log_keep_alive(sc, SMBDIRECT_LOG_INFO,
 		"schedule send of empty idle message\n");
-	queue_work(sc->workqueue, &sc->idle.immediate_work);
+	queue_work(sc->workqueues.immediate, &sc->idle.immediate_work);
 }
 
 __SMBDIRECT_PRIVATE__
@@ -878,7 +878,7 @@ static bool smbdirect_connection_request_keep_alive(struct smbdirect_socket *sc)
 		 * Now use the keepalive timeout (instead of keepalive interval)
 		 * in order to wait for a response
 		 */
-		mod_delayed_work(sc->workqueue, &sc->idle.timer_work,
+		mod_delayed_work(sc->workqueues.idle, &sc->idle.timer_work,
 				 msecs_to_jiffies(sp->keepalive_timeout_msec));
 		return true;
 	}
@@ -1167,7 +1167,7 @@ int smbdirect_connection_send_single_iter(struct smbdirect_socket *sc,
 		 * get some new recv credits we can grant to
 		 * the peer.
 		 */
-		queue_work(sc->workqueue, &sc->recv_io.posted.refill_work);
+		queue_work(sc->workqueues.refill, &sc->recv_io.posted.refill_work);
 
 		/*
 		 * wait until either the refill work or the peer
@@ -1568,7 +1568,7 @@ void smbdirect_connection_recv_io_done(struct ib_cq *cq, struct ib_wc *wc)
 	 * order to trigger our next keepalive message.
 	 */
 	sc->idle.keepalive = SMBDIRECT_KEEPALIVE_NONE;
-	mod_delayed_work(sc->workqueue, &sc->idle.timer_work,
+	mod_delayed_work(sc->workqueues.idle, &sc->idle.timer_work,
 			 msecs_to_jiffies(sp->keepalive_interval_msec));
 
 	ib_dma_sync_single_for_cpu(sc->ib.dev,
@@ -1673,7 +1673,7 @@ void smbdirect_connection_recv_io_done(struct ib_cq *cq, struct ib_wc *wc)
 	if (flags & SMBDIRECT_FLAG_RESPONSE_REQUESTED) {
 		smbdirect_log_keep_alive(sc, SMBDIRECT_LOG_INFO,
 			"schedule send of immediate response\n");
-		queue_work(sc->workqueue, &sc->idle.immediate_work);
+		queue_work(sc->workqueues.immediate, &sc->idle.immediate_work);
 	}
 
 	/*
@@ -1683,7 +1683,7 @@ void smbdirect_connection_recv_io_done(struct ib_cq *cq, struct ib_wc *wc)
 	if (data_length) {
 		if (current_recv_credits <= (sc->recv_io.credits.target / 4) ||
 		    sc->recv_io.credits.target > old_recv_credit_target)
-			queue_work(sc->workqueue, &sc->recv_io.posted.refill_work);
+			queue_work(sc->workqueues.refill, &sc->recv_io.posted.refill_work);
 
 		smbdirect_connection_reassembly_append_recv_io(sc, recv_io, data_length);
 		wake_up(&sc->recv_io.reassembly.wait_queue);
@@ -1814,7 +1814,7 @@ static void smbdirect_connection_recv_io_refill_work(struct work_struct *work)
 	if (posted > 0) {
 		smbdirect_log_keep_alive(sc, SMBDIRECT_LOG_INFO,
 			"schedule send of an empty message\n");
-		queue_work(sc->workqueue, &sc->idle.immediate_work);
+		queue_work(sc->workqueues.immediate, &sc->idle.immediate_work);
 	}
 }
 
