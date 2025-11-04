@@ -125,6 +125,11 @@ static inline void sb_start_write(struct super_block *sb)
 	__sb_start_write(sb, SB_FREEZE_WRITE);
 }
 
+DEFINE_GUARD(super_write,
+	     struct super_block *,
+	     sb_start_write(_T),
+	     sb_end_write(_T))
+
 static inline bool sb_start_write_trylock(struct super_block *sb)
 {
 	return __sb_start_write_trylock(sb, SB_FREEZE_WRITE);
