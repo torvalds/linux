@@ -405,6 +405,10 @@ Domain`_ references.
 ``%CONST``
   Name of a constant. (No cross-referencing, just formatting.)
 
+  Examples::
+
+    %0    %NULL    %-1    %-EFAULT    %-EINVAL    %-ENOMEM
+
 ````literal````
   A literal block that should be handled as-is. The output will use a
   ``monospaced font``.
