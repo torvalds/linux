@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * AD5446 SPI DAC driver
+ * AD5446 CORE DAC driver
  *
  * Copyright 2010 Analog Devices Inc.
  */
 
+#include <linux/export.h>
 #include <linux/interrupt.h>
 #include <linux/workqueue.h>
 #include <linux/device.h>
@@ -12,61 +13,18 @@
 #include <linux/slab.h>
 #include <linux/sysfs.h>
 #include <linux/list.h>
-#include <linux/spi/spi.h>
-#include <linux/i2c.h>
 #include <linux/regulator/consumer.h>
 #include <linux/err.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 
-#include <linux/unaligned.h>
+#include "ad5446.h"
 
 #define MODE_PWRDWN_1k		0x1
 #define MODE_PWRDWN_100k	0x2
 #define MODE_PWRDWN_TRISTATE	0x3
-
-/**
- * struct ad5446_state - driver instance specific data
- * @dev:		this device
- * @chip_info:		chip model specific constants, available modes etc
- * @vref_mv:		actual reference voltage used
- * @cached_val:		store/retrieve values during power down
- * @pwr_down_mode:	power down mode (1k, 100k or tristate)
- * @pwr_down:		true if the device is in power down
- * @lock:		lock to protect the data buffer during write ops
- * @d16:		16bit DMA safe buffer
- * @d24:		24bit DMA safe buffer
- */
-
-struct ad5446_state {
-	struct device		*dev;
-	const struct ad5446_chip_info	*chip_info;
-	unsigned short			vref_mv;
-	unsigned			cached_val;
-	unsigned			pwr_down_mode;
-	unsigned			pwr_down;
-	struct mutex			lock;
-	union {
-		__be16 d16;
-		u8 d24[3];
-	} __aligned(IIO_DMA_MINALIGN);
-};
-
-/**
- * struct ad5446_chip_info - chip specific information
- * @channel:		channel spec for the DAC
- * @int_vref_mv:	AD5620/40/60: the internal reference voltage
- * @write:		chip specific helper function to write to the register
- */
-
-struct ad5446_chip_info {
-	struct iio_chan_spec	channel;
-	u16			int_vref_mv;
-	int			(*write)(struct ad5446_state *st, unsigned val);
-};
 
 static const char * const ad5446_powerdown_modes[] = {
 	"1kohm_to_gnd", "100kohm_to_gnd", "three_state"
@@ -138,7 +96,7 @@ static ssize_t ad5446_write_dac_powerdown(struct iio_dev *indio_dev,
 	return ret ? ret : len;
 }
 
-static const struct iio_chan_spec_ext_info ad5446_ext_info_powerdown[] = {
+const struct iio_chan_spec_ext_info ad5446_ext_info_powerdown[] = {
 	{
 		.name = "powerdown",
 		.read = ad5446_read_dac_powerdown,
@@ -149,28 +107,7 @@ static const struct iio_chan_spec_ext_info ad5446_ext_info_powerdown[] = {
 	IIO_ENUM_AVAILABLE("powerdown_mode", IIO_SHARED_BY_TYPE, &ad5446_powerdown_mode_enum),
 	{ }
 };
-
-#define _AD5446_CHANNEL(bits, storage, _shift, ext) { \
-	.type = IIO_VOLTAGE, \
-	.indexed = 1, \
-	.output = 1, \
-	.channel = 0, \
-	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW), \
-	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE), \
-	.scan_type = { \
-		.sign = 'u', \
-		.realbits = (bits), \
-		.storagebits = (storage), \
-		.shift = (_shift), \
-		}, \
-	.ext_info = (ext), \
-}
-
-#define AD5446_CHANNEL(bits, storage, shift) \
-	_AD5446_CHANNEL(bits, storage, shift, NULL)
-
-#define AD5446_CHANNEL_POWERDOWN(bits, storage, shift) \
-	_AD5446_CHANNEL(bits, storage, shift, ad5446_ext_info_powerdown)
+EXPORT_SYMBOL_NS_GPL(ad5446_ext_info_powerdown, "IIO_AD5446");
 
 static int ad5446_read_raw(struct iio_dev *indio_dev,
 			   struct iio_chan_spec const *chan,
@@ -225,8 +162,8 @@ static const struct iio_info ad5446_info = {
 	.write_raw = ad5446_write_raw,
 };
 
-static int ad5446_probe(struct device *dev, const char *name,
-			const struct ad5446_chip_info *chip_info)
+int ad5446_probe(struct device *dev, const char *name,
+		 const struct ad5446_chip_info *chip_info)
 {
 	struct ad5446_state *st;
 	struct iio_dev *indio_dev;
@@ -266,379 +203,8 @@ static int ad5446_probe(struct device *dev, const char *name,
 
 	return devm_iio_device_register(dev, indio_dev);
 }
-
-#if IS_ENABLED(CONFIG_SPI_MASTER)
-
-static int ad5446_write(struct ad5446_state *st, unsigned val)
-{
-	struct spi_device *spi = to_spi_device(st->dev);
-	st->d16 = cpu_to_be16(val);
-
-	return spi_write(spi, &st->d16, sizeof(st->d16));
-}
-
-static int ad5660_write(struct ad5446_state *st, unsigned val)
-{
-	struct spi_device *spi = to_spi_device(st->dev);
-
-	put_unaligned_be24(val, st->d24);
-
-	return spi_write(spi, st->d24, sizeof(st->d24));
-}
-
-/*
- * ad5446_supported_spi_device_ids:
- * The AD5620/40/60 parts are available in different fixed internal reference
- * voltage options. The actual part numbers may look differently
- * (and a bit cryptic), however this style is used to make clear which
- * parts are supported here.
- */
-
-static const struct ad5446_chip_info ad5300_chip_info = {
-	.channel = AD5446_CHANNEL_POWERDOWN(8, 16, 4),
-	.write = ad5446_write,
-};
-
-static const struct ad5446_chip_info ad5310_chip_info = {
-	.channel = AD5446_CHANNEL_POWERDOWN(10, 16, 2),
-	.write = ad5446_write,
-};
-
-static const struct ad5446_chip_info ad5320_chip_info = {
-	.channel = AD5446_CHANNEL_POWERDOWN(12, 16, 0),
-	.write = ad5446_write,
-};
-
-static const struct ad5446_chip_info ad5444_chip_info = {
-	.channel = AD5446_CHANNEL(12, 16, 2),
-	.write = ad5446_write,
-};
-
-static const struct ad5446_chip_info ad5446_chip_info = {
-	.channel = AD5446_CHANNEL(14, 16, 0),
-	.write = ad5446_write,
-};
-
-static const struct ad5446_chip_info ad5450_chip_info = {
-	.channel = AD5446_CHANNEL(8, 16, 6),
-	.write = ad5446_write,
-};
-
-static const struct ad5446_chip_info ad5451_chip_info = {
-	.channel = AD5446_CHANNEL(10, 16, 4),
-	.write = ad5446_write,
-};
-
-static const struct ad5446_chip_info ad5541a_chip_info = {
-	.channel = AD5446_CHANNEL(16, 16, 0),
-	.write = ad5446_write,
-};
-
-static const struct ad5446_chip_info ad5512a_chip_info = {
-	.channel = AD5446_CHANNEL(12, 16, 4),
-	.write = ad5446_write,
-};
-
-static const struct ad5446_chip_info ad5553_chip_info = {
-	.channel = AD5446_CHANNEL(14, 16, 0),
-	.write = ad5446_write,
-};
-
-static const struct ad5446_chip_info ad5601_chip_info = {
-	.channel = AD5446_CHANNEL_POWERDOWN(8, 16, 6),
-	.write = ad5446_write,
-};
-
-static const struct ad5446_chip_info ad5611_chip_info = {
-	.channel = AD5446_CHANNEL_POWERDOWN(10, 16, 4),
-	.write = ad5446_write,
-};
-
-static const struct ad5446_chip_info ad5621_chip_info = {
-	.channel = AD5446_CHANNEL_POWERDOWN(12, 16, 2),
-	.write = ad5446_write,
-};
-
-static const struct ad5446_chip_info ad5641_chip_info = {
-	.channel = AD5446_CHANNEL_POWERDOWN(14, 16, 0),
-	.write = ad5446_write,
-};
-
-static const struct ad5446_chip_info ad5620_2500_chip_info = {
-	.channel = AD5446_CHANNEL_POWERDOWN(12, 16, 2),
-	.int_vref_mv = 2500,
-	.write = ad5446_write,
-};
-
-static const struct ad5446_chip_info ad5620_1250_chip_info = {
-	.channel = AD5446_CHANNEL_POWERDOWN(12, 16, 2),
-	.int_vref_mv = 1250,
-	.write = ad5446_write,
-};
-
-static const struct ad5446_chip_info ad5640_2500_chip_info = {
-	.channel = AD5446_CHANNEL_POWERDOWN(14, 16, 0),
-	.int_vref_mv = 2500,
-	.write = ad5446_write,
-};
-
-static const struct ad5446_chip_info ad5640_1250_chip_info = {
-	.channel = AD5446_CHANNEL_POWERDOWN(14, 16, 0),
-	.int_vref_mv = 1250,
-	.write = ad5446_write,
-};
-
-static const struct ad5446_chip_info ad5660_2500_chip_info = {
-	.channel = AD5446_CHANNEL_POWERDOWN(16, 16, 0),
-	.int_vref_mv = 2500,
-	.write = ad5660_write,
-};
-
-static const struct ad5446_chip_info ad5660_1250_chip_info = {
-	.channel = AD5446_CHANNEL_POWERDOWN(16, 16, 0),
-	.int_vref_mv = 1250,
-	.write = ad5660_write,
-};
-
-static const struct ad5446_chip_info ad5662_chip_info = {
-	.channel = AD5446_CHANNEL_POWERDOWN(16, 16, 0),
-	.write = ad5660_write,
-};
-
-static const struct spi_device_id ad5446_spi_ids[] = {
-	{"ad5300", (kernel_ulong_t)&ad5300_chip_info},
-	{"ad5310", (kernel_ulong_t)&ad5310_chip_info},
-	{"ad5320", (kernel_ulong_t)&ad5320_chip_info},
-	{"ad5444", (kernel_ulong_t)&ad5444_chip_info},
-	{"ad5446", (kernel_ulong_t)&ad5446_chip_info},
-	{"ad5450", (kernel_ulong_t)&ad5450_chip_info},
-	{"ad5451", (kernel_ulong_t)&ad5451_chip_info},
-	{"ad5452", (kernel_ulong_t)&ad5444_chip_info}, /* ad5452 is compatible to the ad5444 */
-	{"ad5453", (kernel_ulong_t)&ad5446_chip_info}, /* ad5453 is compatible to the ad5446 */
-	{"ad5512a", (kernel_ulong_t)&ad5512a_chip_info},
-	{"ad5541a", (kernel_ulong_t)&ad5541a_chip_info},
-	{"ad5542a", (kernel_ulong_t)&ad5541a_chip_info}, /* ad5541a and ad5542a are compatible */
-	{"ad5543", (kernel_ulong_t)&ad5541a_chip_info}, /* ad5541a and ad5543 are compatible */
-	{"ad5553", (kernel_ulong_t)&ad5553_chip_info},
-	{"ad5600", (kernel_ulong_t)&ad5541a_chip_info}, /* ad5541a and ad5600 are compatible  */
-	{"ad5601", (kernel_ulong_t)&ad5601_chip_info},
-	{"ad5611", (kernel_ulong_t)&ad5611_chip_info},
-	{"ad5621", (kernel_ulong_t)&ad5621_chip_info},
-	{"ad5641", (kernel_ulong_t)&ad5641_chip_info},
-	{"ad5620-2500", (kernel_ulong_t)&ad5620_2500_chip_info}, /* AD5620/40/60: */
-	/* part numbers may look differently */
-	{"ad5620-1250", (kernel_ulong_t)&ad5620_1250_chip_info},
-	{"ad5640-2500", (kernel_ulong_t)&ad5640_2500_chip_info},
-	{"ad5640-1250", (kernel_ulong_t)&ad5640_1250_chip_info},
-	{"ad5660-2500", (kernel_ulong_t)&ad5660_2500_chip_info},
-	{"ad5660-1250", (kernel_ulong_t)&ad5660_1250_chip_info},
-	{"ad5662", (kernel_ulong_t)&ad5662_chip_info},
-	{"dac081s101", (kernel_ulong_t)&ad5300_chip_info}, /* compatible Texas Instruments chips */
-	{"dac101s101", (kernel_ulong_t)&ad5310_chip_info},
-	{"dac121s101", (kernel_ulong_t)&ad5320_chip_info},
-	{"dac7512", (kernel_ulong_t)&ad5320_chip_info},
-	{ }
-};
-MODULE_DEVICE_TABLE(spi, ad5446_spi_ids);
-
-static const struct of_device_id ad5446_of_ids[] = {
-	{ .compatible = "adi,ad5300", .data = &ad5300_chip_info },
-	{ .compatible = "adi,ad5310", .data = &ad5310_chip_info },
-	{ .compatible = "adi,ad5320", .data = &ad5320_chip_info },
-	{ .compatible = "adi,ad5444", .data = &ad5444_chip_info },
-	{ .compatible = "adi,ad5446", .data = &ad5446_chip_info },
-	{ .compatible = "adi,ad5450", .data = &ad5450_chip_info },
-	{ .compatible = "adi,ad5451", .data = &ad5451_chip_info },
-	{ .compatible = "adi,ad5452", .data = &ad5444_chip_info },
-	{ .compatible = "adi,ad5453", .data = &ad5446_chip_info },
-	{ .compatible = "adi,ad5512a", .data = &ad5512a_chip_info },
-	{ .compatible = "adi,ad5541a", .data = &ad5541a_chip_info },
-	{ .compatible = "adi,ad5542a", .data = &ad5541a_chip_info },
-	{ .compatible = "adi,ad5543", .data = &ad5541a_chip_info },
-	{ .compatible = "adi,ad5553", .data = &ad5553_chip_info },
-	{ .compatible = "adi,ad5600", .data = &ad5541a_chip_info },
-	{ .compatible = "adi,ad5601", .data = &ad5601_chip_info },
-	{ .compatible = "adi,ad5611", .data = &ad5611_chip_info },
-	{ .compatible = "adi,ad5621", .data = &ad5621_chip_info },
-	{ .compatible = "adi,ad5641", .data = &ad5641_chip_info },
-	{ .compatible = "adi,ad5620-2500", .data = &ad5620_2500_chip_info },
-	{ .compatible = "adi,ad5620-1250", .data = &ad5620_1250_chip_info },
-	{ .compatible = "adi,ad5640-2500", .data = &ad5640_2500_chip_info },
-	{ .compatible = "adi,ad5640-1250", .data = &ad5640_1250_chip_info },
-	{ .compatible = "adi,ad5660-2500", .data = &ad5660_2500_chip_info },
-	{ .compatible = "adi,ad5660-1250", .data = &ad5660_1250_chip_info },
-	{ .compatible = "adi,ad5662", .data = &ad5662_chip_info },
-	{ .compatible = "ti,dac081s101", .data = &ad5300_chip_info },
-	{ .compatible = "ti,dac101s101", .data = &ad5310_chip_info },
-	{ .compatible = "ti,dac121s101", .data = &ad5320_chip_info },
-	{ .compatible = "ti,dac7512" },
-	{ }
-};
-MODULE_DEVICE_TABLE(of, ad5446_of_ids);
-
-static int ad5446_spi_probe(struct spi_device *spi)
-{
-	const struct spi_device_id *id = spi_get_device_id(spi);
-	const struct ad5446_chip_info *chip_info;
-
-	chip_info = spi_get_device_match_data(spi);
-	if (!chip_info)
-		return -ENODEV;
-
-	return ad5446_probe(&spi->dev, id->name, chip_info);
-}
-
-static struct spi_driver ad5446_spi_driver = {
-	.driver = {
-		.name	= "ad5446",
-		.of_match_table = ad5446_of_ids,
-	},
-	.probe		= ad5446_spi_probe,
-	.id_table	= ad5446_spi_ids,
-};
-
-static int __init ad5446_spi_register_driver(void)
-{
-	return spi_register_driver(&ad5446_spi_driver);
-}
-
-static void ad5446_spi_unregister_driver(void)
-{
-	spi_unregister_driver(&ad5446_spi_driver);
-}
-
-#else
-
-static inline int ad5446_spi_register_driver(void) { return 0; }
-static inline void ad5446_spi_unregister_driver(void) { }
-
-#endif
-
-#if IS_ENABLED(CONFIG_I2C)
-
-static int ad5622_write(struct ad5446_state *st, unsigned val)
-{
-	struct i2c_client *client = to_i2c_client(st->dev);
-	st->d16 = cpu_to_be16(val);
-	int ret;
-
-	ret = i2c_master_send_dmasafe(client, (char *)&st->d16, sizeof(st->d16));
-	if (ret < 0)
-		return ret;
-	if (ret != sizeof(st->d16))
-		return -EIO;
-
-	return 0;
-}
-
-/*
- * ad5446_supported_i2c_device_ids:
- * The AD5620/40/60 parts are available in different fixed internal reference
- * voltage options. The actual part numbers may look differently
- * (and a bit cryptic), however this style is used to make clear which
- * parts are supported here.
- */
-
-static const struct ad5446_chip_info ad5602_chip_info = {
-	.channel = AD5446_CHANNEL_POWERDOWN(8, 16, 4),
-	.write = ad5622_write,
-};
-
-static const struct ad5446_chip_info ad5612_chip_info = {
-	.channel = AD5446_CHANNEL_POWERDOWN(10, 16, 2),
-	.write = ad5622_write,
-};
-
-static const struct ad5446_chip_info ad5622_chip_info = {
-	.channel = AD5446_CHANNEL_POWERDOWN(12, 16, 0),
-	.write = ad5622_write,
-};
-
-static int ad5446_i2c_probe(struct i2c_client *i2c)
-{
-	const struct i2c_device_id *id = i2c_client_get_device_id(i2c);
-	const struct ad5446_chip_info *chip_info;
-
-	chip_info = i2c_get_match_data(i2c);
-	if (!chip_info)
-		return -ENODEV;
-
-	return ad5446_probe(&i2c->dev, id->name, chip_info);
-}
-
-static const struct i2c_device_id ad5446_i2c_ids[] = {
-	{"ad5301", (kernel_ulong_t)&ad5602_chip_info},
-	{"ad5311", (kernel_ulong_t)&ad5612_chip_info},
-	{"ad5321", (kernel_ulong_t)&ad5622_chip_info},
-	{"ad5602", (kernel_ulong_t)&ad5602_chip_info},
-	{"ad5612", (kernel_ulong_t)&ad5612_chip_info},
-	{"ad5622", (kernel_ulong_t)&ad5622_chip_info},
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, ad5446_i2c_ids);
-
-static const struct of_device_id ad5446_i2c_of_ids[] = {
-	{ .compatible = "adi,ad5301", .data = &ad5602_chip_info },
-	{ .compatible = "adi,ad5311", .data = &ad5612_chip_info },
-	{ .compatible = "adi,ad5321", .data = &ad5622_chip_info },
-	{ .compatible = "adi,ad5602", .data = &ad5602_chip_info },
-	{ .compatible = "adi,ad5612", .data = &ad5612_chip_info },
-	{ .compatible = "adi,ad5622", .data = &ad5622_chip_info },
-	{ }
-};
-MODULE_DEVICE_TABLE(of, ad5446_i2c_of_ids);
-
-static struct i2c_driver ad5446_i2c_driver = {
-	.driver = {
-		   .name = "ad5446",
-		   .of_match_table = ad5446_i2c_of_ids,
-	},
-	.probe = ad5446_i2c_probe,
-	.id_table = ad5446_i2c_ids,
-};
-
-static int __init ad5446_i2c_register_driver(void)
-{
-	return i2c_add_driver(&ad5446_i2c_driver);
-}
-
-static void __exit ad5446_i2c_unregister_driver(void)
-{
-	i2c_del_driver(&ad5446_i2c_driver);
-}
-
-#else
-
-static inline int ad5446_i2c_register_driver(void) { return 0; }
-static inline void ad5446_i2c_unregister_driver(void) { }
-
-#endif
-
-static int __init ad5446_init(void)
-{
-	int ret;
-
-	ret = ad5446_spi_register_driver();
-	if (ret)
-		return ret;
-
-	ret = ad5446_i2c_register_driver();
-	if (ret) {
-		ad5446_spi_unregister_driver();
-		return ret;
-	}
-
-	return 0;
-}
-module_init(ad5446_init);
-
-static void __exit ad5446_exit(void)
-{
-	ad5446_i2c_unregister_driver();
-	ad5446_spi_unregister_driver();
-}
-module_exit(ad5446_exit);
+EXPORT_SYMBOL_NS_GPL(ad5446_probe, "IIO_AD5446");
 
 MODULE_AUTHOR("Michael Hennerich <michael.hennerich@analog.com>");
-MODULE_DESCRIPTION("Analog Devices AD5444/AD5446 DAC");
+MODULE_DESCRIPTION("Analog Devices CORE AD5446 DAC and similar devices");
 MODULE_LICENSE("GPL v2");

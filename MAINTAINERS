@@ -447,6 +447,10 @@ L:	linux-iio@vger.kernel.org
 S:	Supported
 W:	https://ez.analog.com/linux-software-drivers
 F:	Documentation/devicetree/bindings/iio/dac/adi,ad5446.yaml
+F:	drivers/iio/dac/ad5446-i2c.c
+F:	drivers/iio/dac/ad5446-spi.c
+F:	drivers/iio/dac/ad5446.c
+F:	drivers/iio/dac/ad5446.h
 
 AD714X CAPACITANCE TOUCH SENSOR DRIVER (AD7142/3/7/8/7A)
 M:	Michael Hennerich <michael.hennerich@analog.com>
