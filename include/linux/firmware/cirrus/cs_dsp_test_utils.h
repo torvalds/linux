@@ -26,21 +26,21 @@ struct cs_dsp_test {
 
 	struct cs_dsp_test_local *local;
 
-	/* Following members are private */
+	/* private: Following members are private */
 	bool saw_bus_write;
 };
 
 /**
  * struct cs_dsp_mock_alg_def - Info for creating a mock algorithm entry.
  *
- * @id		  Algorithm ID.
- * @ver;	  Algorithm version.
- * @xm_base_words XM base address in DSP words.
- * @xm_size_words XM size in DSP words.
- * @ym_base_words YM base address in DSP words.
- * @ym_size_words YM size in DSP words.
- * @zm_base_words ZM base address in DSP words.
- * @zm_size_words ZM size in DSP words.
+ * @id:		   Algorithm ID.
+ * @ver:	   Algorithm version.
+ * @xm_base_words: XM base address in DSP words.
+ * @xm_size_words: XM size in DSP words.
+ * @ym_base_words: YM base address in DSP words.
+ * @ym_size_words: YM size in DSP words.
+ * @zm_base_words: ZM base address in DSP words.
+ * @zm_size_words: ZM size in DSP words.
  */
 struct cs_dsp_mock_alg_def {
 	unsigned int id;
