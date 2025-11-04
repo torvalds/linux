@@ -3746,7 +3746,8 @@ static int mptcp_ioctl(struct sock *sk, int cmd, int *karg)
 	return 0;
 }
 
-static int mptcp_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
+static int mptcp_connect(struct sock *sk, struct sockaddr_unsized *uaddr,
+			 int addr_len)
 {
 	struct mptcp_subflow_context *subflow;
 	struct mptcp_sock *msk = mptcp_sk(sk);
@@ -3870,10 +3871,10 @@ static int mptcp_bind(struct socket *sock, struct sockaddr_unsized *uaddr, int a
 	}
 
 	if (sk->sk_family == AF_INET)
-		err = inet_bind_sk(ssk, (struct sockaddr *)uaddr, addr_len);
+		err = inet_bind_sk(ssk, uaddr, addr_len);
 #if IS_ENABLED(CONFIG_MPTCP_IPV6)
 	else if (sk->sk_family == AF_INET6)
-		err = inet6_bind_sk(ssk, (struct sockaddr *)uaddr, addr_len);
+		err = inet6_bind_sk(ssk, uaddr, addr_len);
 #endif
 	if (!err)
 		mptcp_copy_inaddrs(sk, ssk);

@@ -306,7 +306,8 @@ static struct sctp_transport *sctp_addr_id2transport(struct sock *sk,
  *             sockaddr_in6 [RFC 2553]),
  *   addr_len - the size of the address structure.
  */
-static int sctp_bind(struct sock *sk, struct sockaddr *addr, int addr_len)
+static int sctp_bind(struct sock *sk, struct sockaddr_unsized *addr,
+		     int addr_len)
 {
 	int retval = 0;
 
@@ -1053,13 +1054,13 @@ static int sctp_setsockopt_bindx(struct sock *sk, struct sockaddr *addrs,
 	}
 }
 
-static int sctp_bind_add(struct sock *sk, struct sockaddr *addrs,
-		int addrlen)
+static int sctp_bind_add(struct sock *sk, struct sockaddr_unsized *addrs,
+			 int addrlen)
 {
 	int err;
 
 	lock_sock(sk);
-	err = sctp_setsockopt_bindx(sk, addrs, addrlen, SCTP_BINDX_ADD_ADDR);
+	err = sctp_setsockopt_bindx(sk, (struct sockaddr *)addrs, addrlen, SCTP_BINDX_ADD_ADDR);
 	release_sock(sk);
 	return err;
 }

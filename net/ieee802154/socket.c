@@ -102,7 +102,7 @@ static int ieee802154_sock_bind(struct socket *sock, struct sockaddr_unsized *ua
 	struct sock *sk = sock->sk;
 
 	if (sk->sk_prot->bind)
-		return sk->sk_prot->bind(sk, (struct sockaddr *)uaddr, addr_len);
+		return sk->sk_prot->bind(sk, uaddr, addr_len);
 
 	return sock_no_bind(sock, uaddr, addr_len);
 }
@@ -118,7 +118,7 @@ static int ieee802154_sock_connect(struct socket *sock, struct sockaddr_unsized 
 	if (uaddr->sa_family == AF_UNSPEC)
 		return sk->sk_prot->disconnect(sk, flags);
 
-	return sk->sk_prot->connect(sk, (struct sockaddr *)uaddr, addr_len);
+	return sk->sk_prot->connect(sk, uaddr, addr_len);
 }
 
 static int ieee802154_dev_ioctl(struct sock *sk, struct ifreq __user *arg,
@@ -193,7 +193,7 @@ static void raw_close(struct sock *sk, long timeout)
 	sk_common_release(sk);
 }
 
-static int raw_bind(struct sock *sk, struct sockaddr *_uaddr, int len)
+static int raw_bind(struct sock *sk, struct sockaddr_unsized *_uaddr, int len)
 {
 	struct ieee802154_addr addr;
 	struct sockaddr_ieee802154 *uaddr = (struct sockaddr_ieee802154 *)_uaddr;
@@ -227,7 +227,7 @@ out:
 	return err;
 }
 
-static int raw_connect(struct sock *sk, struct sockaddr *uaddr,
+static int raw_connect(struct sock *sk, struct sockaddr_unsized *uaddr,
 		       int addr_len)
 {
 	return -ENOTSUPP;
@@ -485,7 +485,7 @@ static void dgram_close(struct sock *sk, long timeout)
 	sk_common_release(sk);
 }
 
-static int dgram_bind(struct sock *sk, struct sockaddr *uaddr, int len)
+static int dgram_bind(struct sock *sk, struct sockaddr_unsized *uaddr, int len)
 {
 	struct sockaddr_ieee802154 *addr = (struct sockaddr_ieee802154 *)uaddr;
 	struct ieee802154_addr haddr;
@@ -563,7 +563,7 @@ static int dgram_ioctl(struct sock *sk, int cmd, int *karg)
 }
 
 /* FIXME: autobind */
-static int dgram_connect(struct sock *sk, struct sockaddr *uaddr,
+static int dgram_connect(struct sock *sk, struct sockaddr_unsized *uaddr,
 			 int len)
 {
 	struct sockaddr_ieee802154 *addr = (struct sockaddr_ieee802154 *)uaddr;

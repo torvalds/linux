@@ -441,7 +441,7 @@ int inet_release(struct socket *sock)
 }
 EXPORT_SYMBOL(inet_release);
 
-int inet_bind_sk(struct sock *sk, struct sockaddr *uaddr, int addr_len)
+int inet_bind_sk(struct sock *sk, struct sockaddr_unsized *uaddr, int addr_len)
 {
 	u32 flags = BIND_WITH_LOCK;
 	int err;
@@ -466,11 +466,11 @@ int inet_bind_sk(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 
 int inet_bind(struct socket *sock, struct sockaddr_unsized *uaddr, int addr_len)
 {
-	return inet_bind_sk(sock->sk, (struct sockaddr *)uaddr, addr_len);
+	return inet_bind_sk(sock->sk, uaddr, addr_len);
 }
 EXPORT_SYMBOL(inet_bind);
 
-int __inet_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len,
+int __inet_bind(struct sock *sk, struct sockaddr_unsized *uaddr, int addr_len,
 		u32 flags)
 {
 	struct sockaddr_in *addr = (struct sockaddr_in *)uaddr;
@@ -584,14 +584,14 @@ int inet_dgram_connect(struct socket *sock, struct sockaddr_unsized *uaddr,
 		return prot->disconnect(sk, flags);
 
 	if (BPF_CGROUP_PRE_CONNECT_ENABLED(sk)) {
-		err = prot->pre_connect(sk, (struct sockaddr *)uaddr, addr_len);
+		err = prot->pre_connect(sk, uaddr, addr_len);
 		if (err)
 			return err;
 	}
 
 	if (data_race(!inet_sk(sk)->inet_num) && inet_autobind(sk))
 		return -EAGAIN;
-	return prot->connect(sk, (struct sockaddr *)uaddr, addr_len);
+	return prot->connect(sk, uaddr, addr_len);
 }
 EXPORT_SYMBOL(inet_dgram_connect);
 
@@ -671,12 +671,12 @@ int __inet_stream_connect(struct socket *sock, struct sockaddr_unsized *uaddr,
 			goto out;
 
 		if (BPF_CGROUP_PRE_CONNECT_ENABLED(sk)) {
-			err = sk->sk_prot->pre_connect(sk, (struct sockaddr *)uaddr, addr_len);
+			err = sk->sk_prot->pre_connect(sk, uaddr, addr_len);
 			if (err)
 				goto out;
 		}
 
-		err = sk->sk_prot->connect(sk, (struct sockaddr *)uaddr, addr_len);
+		err = sk->sk_prot->connect(sk, uaddr, addr_len);
 		if (err < 0)
 			goto out;
 

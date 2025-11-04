@@ -1126,7 +1126,7 @@ static void writequeue_entry_complete(struct writequeue_entry *e, int completed)
 static int sctp_bind_addrs(struct socket *sock, __be16 port)
 {
 	struct sockaddr_storage localaddr;
-	struct sockaddr *addr = (struct sockaddr *)&localaddr;
+	struct sockaddr_unsized *addr = (struct sockaddr_unsized *)&localaddr;
 	int i, addr_len, result = 0;
 
 	for (i = 0; i < dlm_local_count; i++) {
@@ -1134,7 +1134,7 @@ static int sctp_bind_addrs(struct socket *sock, __be16 port)
 		make_sockaddr(&localaddr, port, &addr_len);
 
 		if (!i)
-			result = kernel_bind(sock, (struct sockaddr_unsized *)addr, addr_len);
+			result = kernel_bind(sock, addr, addr_len);
 		else
 			result = sock_bind_add(sock->sk, addr, addr_len);
 

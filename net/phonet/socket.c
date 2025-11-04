@@ -163,7 +163,7 @@ static int pn_socket_bind(struct socket *sock, struct sockaddr_unsized *addr, in
 	u8 saddr;
 
 	if (sk->sk_prot->bind)
-		return sk->sk_prot->bind(sk, (struct sockaddr *)addr, len);
+		return sk->sk_prot->bind(sk, addr, len);
 
 	if (len < sizeof(struct sockaddr_pn))
 		return -EINVAL;
@@ -252,7 +252,7 @@ static int pn_socket_connect(struct socket *sock, struct sockaddr_unsized *addr,
 	pn->resource = pn_sockaddr_get_resource(spn);
 	sock->state = SS_CONNECTING;
 
-	err = sk->sk_prot->connect(sk, (struct sockaddr *)addr, len);
+	err = sk->sk_prot->connect(sk, addr, len);
 	if (err) {
 		sock->state = SS_UNCONNECTED;
 		pn->dobject = 0;
