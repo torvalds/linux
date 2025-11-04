@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config DRM_VGEM
+	tristate "Virtual GEM provider"
+	depends on DRM && MMU
+	select DRM_GEM_SHMEM_HELPER
+	help
+	  Choose this option to get a virtual graphics memory manager,
+	  as used by Mesa's software renderer for enhanced performance.
+	  If M is selected the module will be called vgem.
