@@ -2149,7 +2149,7 @@ struct bnxt_bs_trace_info {
 static inline void bnxt_bs_trace_check_wrap(struct bnxt_bs_trace_info *bs_trace,
 					    u32 offset)
 {
-	if (!bs_trace->wrapped &&
+	if (!bs_trace->wrapped && bs_trace->magic_byte &&
 	    *bs_trace->magic_byte != BNXT_TRACE_BUF_MAGIC_BYTE)
 		bs_trace->wrapped = 1;
 	bs_trace->last_offset = offset;
