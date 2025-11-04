@@ -3347,22 +3347,6 @@
 			#interrupt-cells = <2>;
 			interrupt-controller;
 		};
-
-		hda@88090b0000 {
-			compatible = "nvidia,tegra264-hda";
-			reg = <0x88 0x90b0000 0x0 0x10000>;
-			interrupts = <GIC_SPI 251 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&bpmp TEGRA264_CLK_AZA_2XBIT>;
-			clock-names = "hda";
-			resets = <&bpmp TEGRA264_RESET_HDA>,
-				 <&bpmp TEGRA264_RESET_HDACODEC>;
-			reset-names = "hda", "hda2codec_2x";
-			interconnects = <&mc TEGRA264_MEMORY_CLIENT_HDAR &emc>,
-					<&mc TEGRA264_MEMORY_CLIENT_HDAW &emc>;
-			interconnect-names = "dma-mem", "write";
-			iommus = <&smmu3 TEGRA264_SID_HDA>;
-			status = "disabled";
-		};
 	};
 
 	/* TOP_MMIO */
@@ -3715,6 +3699,22 @@
 
 			#iommu-cells = <1>;
 			dma-coherent;
+		};
+
+		hda@90b0000 {
+			compatible = "nvidia,tegra264-hda";
+			reg = <0x0 0x90b0000 0x0 0x10000>;
+			interrupts = <GIC_SPI 251 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&bpmp TEGRA264_CLK_AZA_2XBIT>;
+			clock-names = "hda";
+			resets = <&bpmp TEGRA264_RESET_HDA>,
+				 <&bpmp TEGRA264_RESET_HDACODEC>;
+			reset-names = "hda", "hda2codec_2x";
+			interconnects = <&mc TEGRA264_MEMORY_CLIENT_HDAR &emc>,
+					<&mc TEGRA264_MEMORY_CLIENT_HDAW &emc>;
+			interconnect-names = "dma-mem", "write";
+			iommus = <&smmu3 TEGRA264_SID_HDA>;
+			status = "disabled";
 		};
 	};
 

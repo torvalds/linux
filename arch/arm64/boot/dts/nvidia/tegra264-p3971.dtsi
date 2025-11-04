@@ -29,8 +29,10 @@
 				status = "okay";
 			};
 		};
+	};
 
-		hda@88090b0000 {
+	bus@8800000000 {
+		hda@90b0000 {
 			nvidia,model = "NVIDIA Jetson Thor AGX HDA";
 			status = "okay";
 		};
