@@ -88,7 +88,7 @@ definitions:
   -
     name: napi-threaded
     type: enum
-    entries: [disabled, enabled]
+    entries: [disabled, enabled, busy-poll]
 
 attribute-sets:
   -
@@ -291,7 +291,8 @@ attribute-sets:
         name: threaded
         doc: Whether the NAPI is configured to operate in threaded polling
              mode. If this is set to enabled then the NAPI context operates
-             in threaded polling mode.
+             in threaded polling mode. If this is set to busy-poll, then the
+             threaded polling mode also busy polls.
         type: u32
         enum: napi-threaded
   -

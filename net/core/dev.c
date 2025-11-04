@@ -7089,7 +7089,8 @@ static void napi_stop_kthread(struct napi_struct *napi)
 		 */
 		if ((val & NAPIF_STATE_SCHED_THREADED) ||
 		    !(val & NAPIF_STATE_SCHED)) {
-			new = val & (~NAPIF_STATE_THREADED);
+			new = val & (~(NAPIF_STATE_THREADED |
+				       NAPIF_STATE_THREADED_BUSY_POLL));
 		} else {
 			msleep(20);
 			continue;
@@ -7111,6 +7112,16 @@ static void napi_stop_kthread(struct napi_struct *napi)
 
 	kthread_stop(napi->thread);
 	napi->thread = NULL;
+}
+
+static void napi_set_threaded_state(struct napi_struct *napi,
+				    enum netdev_napi_threaded threaded_mode)
+{
+	bool threaded = threaded_mode != NETDEV_NAPI_THREADED_DISABLED;
+	bool busy_poll = threaded_mode == NETDEV_NAPI_THREADED_BUSY_POLL;
+
+	assign_bit(NAPI_STATE_THREADED, &napi->state, threaded);
+	assign_bit(NAPI_STATE_THREADED_BUSY_POLL, &napi->state, busy_poll);
 }
 
 int napi_set_threaded(struct napi_struct *napi,
@@ -7139,7 +7150,7 @@ int napi_set_threaded(struct napi_struct *napi,
 	} else {
 		/* Make sure kthread is created before THREADED bit is set. */
 		smp_mb__before_atomic();
-		assign_bit(NAPI_STATE_THREADED, &napi->state, threaded);
+		napi_set_threaded_state(napi, threaded);
 	}
 
 	return 0;
@@ -7531,7 +7542,9 @@ void napi_disable_locked(struct napi_struct *n)
 		}
 
 		new = val | NAPIF_STATE_SCHED | NAPIF_STATE_NPSVC;
-		new &= ~(NAPIF_STATE_THREADED | NAPIF_STATE_PREFER_BUSY_POLL);
+		new &= ~(NAPIF_STATE_THREADED |
+			 NAPIF_STATE_THREADED_BUSY_POLL |
+			 NAPIF_STATE_PREFER_BUSY_POLL);
 	} while (!try_cmpxchg(&n->state, &val, new));
 
 	hrtimer_cancel(&n->timer);
@@ -7743,7 +7756,7 @@ static int napi_thread_wait(struct napi_struct *napi)
 	return -1;
 }
 
-static void napi_threaded_poll_loop(struct napi_struct *napi)
+static void napi_threaded_poll_loop(struct napi_struct *napi, bool busy_poll)
 {
 	struct bpf_net_context __bpf_net_ctx, *bpf_net_ctx;
 	struct softnet_data *sd;
@@ -7772,22 +7785,47 @@ static void napi_threaded_poll_loop(struct napi_struct *napi)
 		}
 		skb_defer_free_flush();
 		bpf_net_ctx_clear(bpf_net_ctx);
+
+		/* When busy poll is enabled, the old packets are not flushed in
+		 * napi_complete_done. So flush them here.
+		 */
+		if (busy_poll)
+			gro_flush_normal(&napi->gro, HZ >= 1000);
 		local_bh_enable();
+
+		/* Call cond_resched here to avoid watchdog warnings. */
+		if (repoll || busy_poll) {
+			rcu_softirq_qs_periodic(last_qs);
+			cond_resched();
+		}
 
 		if (!repoll)
 			break;
-
-		rcu_softirq_qs_periodic(last_qs);
-		cond_resched();
 	}
 }
 
 static int napi_threaded_poll(void *data)
 {
 	struct napi_struct *napi = data;
+	bool want_busy_poll;
+	bool in_busy_poll;
+	unsigned long val;
 
-	while (!napi_thread_wait(napi))
-		napi_threaded_poll_loop(napi);
+	while (!napi_thread_wait(napi)) {
+		val = READ_ONCE(napi->state);
+
+		want_busy_poll = val & NAPIF_STATE_THREADED_BUSY_POLL;
+		in_busy_poll = val & NAPIF_STATE_IN_BUSY_POLL;
+
+		if (unlikely(val & NAPIF_STATE_DISABLE))
+			want_busy_poll = false;
+
+		if (want_busy_poll != in_busy_poll)
+			assign_bit(NAPI_STATE_IN_BUSY_POLL, &napi->state,
+				   want_busy_poll);
+
+		napi_threaded_poll_loop(napi, want_busy_poll);
+	}
 
 	return 0;
 }
@@ -13097,7 +13135,7 @@ static void run_backlog_napi(unsigned int cpu)
 {
 	struct softnet_data *sd = per_cpu_ptr(&softnet_data, cpu);
 
-	napi_threaded_poll_loop(&sd->backlog);
+	napi_threaded_poll_loop(&sd->backlog, false);
 }
 
 static void backlog_napi_setup(unsigned int cpu)
