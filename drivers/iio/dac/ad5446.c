@@ -5,21 +5,17 @@
  * Copyright 2010 Analog Devices Inc.
  */
 
+#include <linux/array_size.h>
 #include <linux/cleanup.h>
-#include <linux/export.h>
-#include <linux/interrupt.h>
-#include <linux/workqueue.h>
 #include <linux/device.h>
-#include <linux/kernel.h>
-#include <linux/slab.h>
-#include <linux/sysfs.h>
-#include <linux/list.h>
-#include <linux/regulator/consumer.h>
 #include <linux/err.h>
-#include <linux/module.h>
-
+#include <linux/export.h>
 #include <linux/iio/iio.h>
-#include <linux/iio/sysfs.h>
+#include <linux/kstrtox.h>
+#include <linux/module.h>
+#include <linux/mutex.h>
+#include <linux/regulator/consumer.h>
+#include <linux/sysfs.h>
 
 #include "ad5446.h"
 

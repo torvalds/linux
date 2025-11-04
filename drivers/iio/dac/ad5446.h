@@ -3,6 +3,7 @@
 #define _LINUX_AD5446_H
 
 #include <linux/bits.h>
+#include <linux/compiler.h>
 #include <linux/iio/iio.h>
 #include <linux/mutex.h>
 #include <linux/types.h>
