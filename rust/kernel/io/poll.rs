@@ -5,7 +5,7 @@
 //! C header: [`include/linux/iopoll.h`](srctree/include/linux/iopoll.h).
 
 use crate::{
-    error::{code::*, Result},
+    prelude::*,
     processor::cpu_relax,
     task::might_sleep,
     time::{

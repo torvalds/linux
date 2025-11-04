@@ -4,8 +4,10 @@
 //!
 //! C header: [`include/asm-generic/io.h`](srctree/include/asm-generic/io.h)
 
-use crate::error::{code::EINVAL, Result};
-use crate::{bindings, build_assert, ffi::c_void};
+use crate::{
+    bindings,
+    prelude::*, //
+};
 
 pub mod mem;
 pub mod poll;

@@ -5,12 +5,16 @@
 //!
 //! C header: [`include/linux/ioport.h`](srctree/include/linux/ioport.h)
 
-use core::ops::Deref;
-use core::ptr::NonNull;
+use core::{
+    ops::Deref,
+    ptr::NonNull, //
+};
 
-use crate::prelude::*;
-use crate::str::{CStr, CString};
-use crate::types::Opaque;
+use crate::{
+    prelude::*,
+    str::CString,
+    types::Opaque, //
+};
 
 /// Resource Size type.
 ///
