@@ -1064,8 +1064,8 @@ struct rswitch_private {
 	bool gwca_halt;
 	struct net_device *offload_brdev;
 
-	u32 tstamp_tx_ctrl;
-	u32 tstamp_rx_ctrl;
+	enum hwtstamp_tx_types tstamp_tx_ctrl;
+	enum hwtstamp_rx_filters tstamp_rx_ctrl;
 };
 
 bool is_rdev(const struct net_device *ndev);
