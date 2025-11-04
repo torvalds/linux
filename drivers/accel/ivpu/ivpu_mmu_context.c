@@ -529,7 +529,8 @@ ivpu_mmu_context_unmap_sgt(struct ivpu_device *vdev, struct ivpu_mmu_context *ct
 
 	ret = ivpu_mmu_invalidate_tlb(vdev, ctx->id);
 	if (ret)
-		ivpu_warn(vdev, "Failed to invalidate TLB for ctx %u: %d\n", ctx->id, ret);
+		ivpu_warn_ratelimited(vdev, "Failed to invalidate TLB for ctx %u: %d\n",
+				      ctx->id, ret);
 }
 
 int

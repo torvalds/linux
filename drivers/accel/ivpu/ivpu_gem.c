@@ -128,8 +128,6 @@ ivpu_bo_alloc_vpu_addr(struct ivpu_bo *bo, struct ivpu_mmu_context *ctx,
 		bo->ctx_id = ctx->id;
 		bo->vpu_addr = bo->mm_node.start;
 		ivpu_dbg_bo(vdev, bo, "vaddr");
-	} else {
-		ivpu_err(vdev, "Failed to add BO to context %u: %d\n", ctx->id, ret);
 	}
 
 	ivpu_bo_unlock(bo);
@@ -289,8 +287,8 @@ static int ivpu_gem_bo_open(struct drm_gem_object *obj, struct drm_file *file)
 	struct ivpu_addr_range *range;
 
 	if (bo->ctx) {
-		ivpu_warn(vdev, "Can't add BO to ctx %u: already in ctx %u\n",
-			  file_priv->ctx.id, bo->ctx->id);
+		ivpu_dbg(vdev, IOCTL, "Can't add BO %pe to ctx %u: already in ctx %u\n",
+			 bo, file_priv->ctx.id, bo->ctx->id);
 		return -EALREADY;
 	}
 
@@ -357,15 +355,19 @@ int ivpu_bo_create_ioctl(struct drm_device *dev, void *data, struct drm_file *fi
 	struct ivpu_bo *bo;
 	int ret;
 
-	if (args->flags & ~DRM_IVPU_BO_FLAGS)
+	if (args->flags & ~DRM_IVPU_BO_FLAGS) {
+		ivpu_dbg(vdev, IOCTL, "Invalid BO flags 0x%x\n", args->flags);
 		return -EINVAL;
+	}
 
-	if (size == 0)
+	if (size == 0) {
+		ivpu_dbg(vdev, IOCTL, "Invalid BO size %llu\n", args->size);
 		return -EINVAL;
+	}
 
 	bo = ivpu_bo_alloc(vdev, size, args->flags);
 	if (IS_ERR(bo)) {
-		ivpu_err(vdev, "Failed to allocate BO: %pe (ctx %u size %llu flags 0x%x)",
+		ivpu_dbg(vdev, IOCTL, "Failed to allocate BO: %pe ctx %u size %llu flags 0x%x\n",
 			 bo, file_priv->ctx.id, args->size, args->flags);
 		return PTR_ERR(bo);
 	}
@@ -374,7 +376,7 @@ int ivpu_bo_create_ioctl(struct drm_device *dev, void *data, struct drm_file *fi
 
 	ret = drm_gem_handle_create(file, &bo->base.base, &args->handle);
 	if (ret) {
-		ivpu_err(vdev, "Failed to create handle for BO: %pe (ctx %u size %llu flags 0x%x)",
+		ivpu_dbg(vdev, IOCTL, "Failed to create handle for BO: %pe ctx %u size %llu flags 0x%x\n",
 			 bo, file_priv->ctx.id, args->size, args->flags);
 	} else {
 		args->vpu_addr = bo->vpu_addr;
@@ -403,14 +405,17 @@ ivpu_bo_create(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx,
 
 	bo = ivpu_bo_alloc(vdev, size, flags);
 	if (IS_ERR(bo)) {
-		ivpu_err(vdev, "Failed to allocate BO: %pe (vpu_addr 0x%llx size %llu flags 0x%x)",
+		ivpu_err(vdev, "Failed to allocate BO: %pe vpu_addr 0x%llx size %llu flags 0x%x\n",
 			 bo, range->start, size, flags);
 		return NULL;
 	}
 
 	ret = ivpu_bo_alloc_vpu_addr(bo, ctx, range);
-	if (ret)
+	if (ret) {
+		ivpu_err(vdev, "Failed to allocate NPU address for BO: %pe ctx %u size %llu: %d\n",
+			 bo, ctx->id, size, ret);
 		goto err_put;
+	}
 
 	ret = ivpu_bo_bind(bo);
 	if (ret)

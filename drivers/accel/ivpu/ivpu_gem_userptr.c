@@ -84,12 +84,12 @@ ivpu_create_userptr_dmabuf(struct ivpu_device *vdev, void __user *user_ptr,
 	pinned = pin_user_pages_fast((unsigned long)user_ptr, nr_pages, gup_flags, pages);
 	if (pinned < 0) {
 		ret = pinned;
-		ivpu_warn(vdev, "Failed to pin user pages: %d\n", ret);
+		ivpu_dbg(vdev, IOCTL, "Failed to pin user pages: %d\n", ret);
 		goto free_pages_array;
 	}
 
 	if (pinned != nr_pages) {
-		ivpu_warn(vdev, "Pinned %d pages, expected %lu\n", pinned, nr_pages);
+		ivpu_dbg(vdev, IOCTL, "Pinned %d pages, expected %lu\n", pinned, nr_pages);
 		ret = -EFAULT;
 		goto unpin_pages;
 	}
@@ -102,7 +102,7 @@ ivpu_create_userptr_dmabuf(struct ivpu_device *vdev, void __user *user_ptr,
 
 	ret = sg_alloc_table_from_pages(sgt, pages, nr_pages, 0, size, GFP_KERNEL);
 	if (ret) {
-		ivpu_warn(vdev, "Failed to create sg table: %d\n", ret);
+		ivpu_dbg(vdev, IOCTL, "Failed to create sg table: %d\n", ret);
 		goto free_sgt;
 	}
 
@@ -116,7 +116,7 @@ ivpu_create_userptr_dmabuf(struct ivpu_device *vdev, void __user *user_ptr,
 	dma_buf = dma_buf_export(&exp_info);
 	if (IS_ERR(dma_buf)) {
 		ret = PTR_ERR(dma_buf);
-		ivpu_warn(vdev, "Failed to export userptr dma-buf: %d\n", ret);
+		ivpu_dbg(vdev, IOCTL, "Failed to export userptr dma-buf: %d\n", ret);
 		goto free_sg_table;
 	}
 
@@ -170,17 +170,28 @@ int ivpu_bo_create_from_userptr_ioctl(struct drm_device *dev, void *data, struct
 	struct ivpu_bo *bo;
 	int ret;
 
-	if (args->flags & ~(DRM_IVPU_BO_HIGH_MEM | DRM_IVPU_BO_DMA_MEM | DRM_IVPU_BO_READ_ONLY))
+	if (args->flags & ~(DRM_IVPU_BO_HIGH_MEM | DRM_IVPU_BO_DMA_MEM | DRM_IVPU_BO_READ_ONLY)) {
+		ivpu_dbg(vdev, IOCTL, "Invalid BO flags: 0x%x\n", args->flags);
 		return -EINVAL;
+	}
 
-	if (!args->user_ptr || !args->size)
+	if (!args->user_ptr || !args->size) {
+		ivpu_dbg(vdev, IOCTL, "Userptr or size are zero: ptr %llx size %llu\n",
+			 args->user_ptr, args->size);
 		return -EINVAL;
+	}
 
-	if (!PAGE_ALIGNED(args->user_ptr) || !PAGE_ALIGNED(args->size))
+	if (!PAGE_ALIGNED(args->user_ptr) || !PAGE_ALIGNED(args->size)) {
+		ivpu_dbg(vdev, IOCTL, "Userptr or size not page aligned: ptr %llx size %llu\n",
+			 args->user_ptr, args->size);
 		return -EINVAL;
+	}
 
-	if (!access_ok(user_ptr, args->size))
+	if (!access_ok(user_ptr, args->size)) {
+		ivpu_dbg(vdev, IOCTL, "Userptr is not accessible: ptr %llx size %llu\n",
+			 args->user_ptr, args->size);
 		return -EFAULT;
+	}
 
 	bo = ivpu_bo_create_from_userptr(vdev, user_ptr, args->size, args->flags);
 	if (IS_ERR(bo))
@@ -188,7 +199,7 @@ int ivpu_bo_create_from_userptr_ioctl(struct drm_device *dev, void *data, struct
 
 	ret = drm_gem_handle_create(file, &bo->base.base, &args->handle);
 	if (ret) {
-		ivpu_err(vdev, "Failed to create handle for BO: %pe (ctx %u size %llu flags 0x%x)",
+		ivpu_dbg(vdev, IOCTL, "Failed to create handle for BO: %pe ctx %u size %llu flags 0x%x\n",
 			 bo, file_priv->ctx.id, args->size, args->flags);
 	} else {
 		ivpu_dbg(vdev, BO, "Created userptr BO: handle=%u vpu_addr=0x%llx size=%llu flags=0x%x\n",
