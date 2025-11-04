@@ -266,7 +266,7 @@ static int pwm_mediatek_round_waveform_fromhw(struct pwm_chip *chip, struct pwm_
 				DIV_ROUND_UP_ULL(NSEC_PER_SEC, clk_rate),
 			.duty_length_ns = 0,
 		};
-	};
+	}
 
 	dev_dbg(&chip->dev, "pwm#%u: ENABLE: %x, CLKDIV: %x, PERIOD: %x, DUTY: %x @%lu -> %lld/%lld\n",
 		pwm->hwpwm, wfhw->enable, clkdiv, cnt_period, cnt_duty, clk_rate,
