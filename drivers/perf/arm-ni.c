@@ -323,9 +323,15 @@ static int arm_ni_validate_group(struct perf_event *event)
 	return 0;
 }
 
+static bool arm_ni_is_7xx(const struct arm_ni *ni)
+{
+	return ni->part == PART_NI_700 || ni->part == PART_NI_710AE;
+}
+
 static int arm_ni_event_init(struct perf_event *event)
 {
 	struct arm_ni_cd *cd = pmu_to_cd(event->pmu);
+	struct arm_ni *ni;
 
 	if (event->attr.type != event->pmu->type)
 		return -ENOENT;
@@ -333,7 +339,10 @@ static int arm_ni_event_init(struct perf_event *event)
 	if (is_sampling_event(event))
 		return -EINVAL;
 
-	event->cpu = cd_to_ni(cd)->cpu;
+	ni = cd_to_ni(cd);
+	event->cpu = ni->cpu;
+	event->hw.flags = arm_ni_is_7xx(ni);
+
 	if (NI_EVENT_TYPE(event) == NI_PMU)
 		return arm_ni_validate_group(event);
 
@@ -411,18 +420,12 @@ static void arm_ni_init_evcnt(struct hw_perf_event *hw)
 	writel_relaxed(S32_MIN, (void __iomem *)hw->event_base);
 }
 
-static bool arm_ni_is_7xx(const struct arm_ni *ni)
-{
-	return ni->part == PART_NI_700 || ni->part == PART_NI_710AE;
-}
-
 static int arm_ni_event_add(struct perf_event *event, int flags)
 {
 	struct arm_ni_cd *cd = pmu_to_cd(event->pmu);
 	struct hw_perf_event *hw = &event->hw;
 	struct arm_ni_unit *unit;
 	enum ni_node_type type = NI_EVENT_TYPE(event);
-	bool is_7xx = arm_ni_is_7xx(cd_to_ni(cd));
 	u32 reg;
 
 	if (type == NI_PMU) {
@@ -430,7 +433,7 @@ static int arm_ni_event_add(struct perf_event *event, int flags)
 			return -ENOSPC;
 		hw->idx = NI_CCNT_IDX;
 		hw->event_base = (unsigned long)cd->pmu_base +
-				 is_7xx ? NI700_PMCCNTR_L : NI_PMCCNTR_L;
+				 (hw->flags ? NI700_PMCCNTR_L : NI_PMCCNTR_L);
 		cd->ccnt = event;
 		arm_ni_init_ccnt(hw);
 	} else {
@@ -443,7 +446,7 @@ static int arm_ni_event_add(struct perf_event *event, int flags)
 		unit = (void *)hw->config_base;
 		unit->event[hw->idx] = NI_EVENT_EVENTID(event);
 		hw->event_base = (unsigned long)cd->pmu_base +
-				 is_7xx ? NI700_PMEVCNTR(hw->idx) : NI_PMEVCNTR(hw->idx);
+				 (hw->flags ? NI700_PMEVCNTR(hw->idx) : NI_PMEVCNTR(hw->idx));
 		arm_ni_init_evcnt(hw);
 		lo_hi_writeq_relaxed(le64_to_cpu(unit->pmusel), unit->pmusela);
 
