@@ -110,6 +110,7 @@ static const struct i2c_device_id tasdevice_id[] = {
 	{ "tas2781", TAS2781 },
 	{ "tas5802", TAS5802 },
 	{ "tas5815", TAS5815 },
+	{ "tas5822", TAS5822 },
 	{ "tas5825", TAS5825 },
 	{ "tas5827", TAS5827 },
 	{ "tas5828", TAS5828 },
@@ -129,6 +130,7 @@ static const struct of_device_id tasdevice_of_match[] = {
 	{ .compatible = "ti,tas2781" },
 	{ .compatible = "ti,tas5802" },
 	{ .compatible = "ti,tas5815" },
+	{ .compatible = "ti,tas5822" },
 	{ .compatible = "ti,tas5825" },
 	{ .compatible = "ti,tas5827" },
 	{ .compatible = "ti,tas5828" },
@@ -1669,7 +1671,7 @@ static void tasdevice_fw_ready(const struct firmware *fmw,
 	tas_priv->fw_state = TASDEVICE_DSP_FW_ALL_OK;
 
 	/* There is no calibration required for
-	 * TAS5802/TAS5815/TAS5825/TAS5827/TAS5828.
+	 * TAS5802/TAS5815/TAS5822/TAS5825/TAS5827/TAS5828.
 	 */
 	if (tas_priv->chip_id < TAS5802) {
 		ret = tasdevice_create_cali_ctrls(tas_priv);
@@ -1727,6 +1729,7 @@ out:
 		case TAS2781:
 		case TAS5802:
 		case TAS5815:
+		case TAS5822:
 		case TAS5825:
 		case TAS5827:
 		case TAS5828:
@@ -1892,6 +1895,7 @@ static int tasdevice_codec_probe(struct snd_soc_component *codec)
 		break;
 	case TAS5802:
 	case TAS5815:
+	case TAS5822:
 	case TAS5825:
 	case TAS5827:
 	case TAS5828:
@@ -2068,6 +2072,7 @@ static const struct acpi_device_id tasdevice_acpi_match[] = {
 	{ "TXNW2781", TAS2781 },
 	{ "TXNW5802", TAS5802 },
 	{ "TXNW5815", TAS5815 },
+	{ "TXNW5822", TAS5822 },
 	{ "TXNW5825", TAS5825 },
 	{ "TXNW5827", TAS5827 },
 	{ "TXNW5828", TAS5828 },
