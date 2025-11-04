@@ -25,6 +25,7 @@ void xprt_init_bc_request(struct rpc_rqst *req, struct rpc_task *task,
 void xprt_free_bc_request(struct rpc_rqst *req);
 int xprt_setup_backchannel(struct rpc_xprt *, unsigned int min_reqs);
 void xprt_destroy_backchannel(struct rpc_xprt *, unsigned int max_reqs);
+void xprt_enqueue_bc_request(struct rpc_rqst *req);
 
 /* Socket backchannel transport methods */
 int xprt_setup_bc(struct rpc_xprt *xprt, unsigned int min_reqs);
