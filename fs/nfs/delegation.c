@@ -379,6 +379,7 @@ nfs_detach_delegation_locked(struct nfs_inode *nfsi,
 	delegation->inode = NULL;
 	rcu_assign_pointer(nfsi->delegation, NULL);
 	spin_unlock(&delegation->lock);
+	clear_bit(NFS_INO_REQ_DIR_DELEG, &nfsi->flags);
 	return delegation;
 }
 
