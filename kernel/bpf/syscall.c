@@ -5056,19 +5056,19 @@ static int bpf_prog_get_info_by_fd(struct file *file,
 		struct bpf_insn *insns_sanitized;
 		bool fault;
 
-		if (prog->blinded && !bpf_dump_raw_ok(file->f_cred)) {
+		if (!prog->blinded || bpf_dump_raw_ok(file->f_cred)) {
+			insns_sanitized = bpf_insn_prepare_dump(prog, file->f_cred);
+			if (!insns_sanitized)
+				return -ENOMEM;
+			uinsns = u64_to_user_ptr(info.xlated_prog_insns);
+			ulen = min_t(u32, info.xlated_prog_len, ulen);
+			fault = copy_to_user(uinsns, insns_sanitized, ulen);
+			kfree(insns_sanitized);
+			if (fault)
+				return -EFAULT;
+		} else {
 			info.xlated_prog_insns = 0;
-			goto done;
 		}
-		insns_sanitized = bpf_insn_prepare_dump(prog, file->f_cred);
-		if (!insns_sanitized)
-			return -ENOMEM;
-		uinsns = u64_to_user_ptr(info.xlated_prog_insns);
-		ulen = min_t(u32, info.xlated_prog_len, ulen);
-		fault = copy_to_user(uinsns, insns_sanitized, ulen);
-		kfree(insns_sanitized);
-		if (fault)
-			return -EFAULT;
 	}
 
 	if (bpf_prog_is_offloaded(prog->aux)) {
