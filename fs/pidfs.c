@@ -634,17 +634,19 @@ void pidfs_exit(struct task_struct *tsk)
 
 	might_sleep();
 
-	guard(spinlock_irq)(&pid->wait_pidfd.lock);
-	attr = pid->attr;
-	if (!attr) {
-		/*
-		 * No one ever held a pidfd for this struct pid.
-		 * Mark it as dead so no one can add a pidfs
-		 * entry anymore. We're about to be reaped and
-		 * so no exit information would be available.
-		 */
-		pid->attr = PIDFS_PID_DEAD;
-		return;
+	/* Synchronize with pidfs_register_pid(). */
+	scoped_guard(spinlock_irq, &pid->wait_pidfd.lock) {
+		attr = pid->attr;
+		if (!attr) {
+			/*
+			 * No one ever held a pidfd for this struct pid.
+			 * Mark it as dead so no one can add a pidfs
+			 * entry anymore. We're about to be reaped and
+			 * so no exit information would be available.
+			 */
+			pid->attr = PIDFS_PID_DEAD;
+			return;
+		}
 	}
 
 	/*
