@@ -221,7 +221,6 @@ static void rtw89_usb_write_port_complete(struct urb *urb)
 	}
 
 	kfree(txcb);
-	usb_free_urb(urb);
 }
 
 static int rtw89_usb_write_port(struct rtw89_dev *rtwdev, u8 ch_dma,
@@ -247,10 +246,17 @@ static int rtw89_usb_write_port(struct rtw89_dev *rtwdev, u8 ch_dma,
 	usb_fill_bulk_urb(urb, usbd, pipe, data, len,
 			  rtw89_usb_write_port_complete, context);
 	urb->transfer_flags |= URB_ZERO_PACKET;
-	ret = usb_submit_urb(urb, GFP_ATOMIC);
+	usb_anchor_urb(urb, &rtwusb->tx_submitted);
 
+	ret = usb_submit_urb(urb, GFP_ATOMIC);
 	if (ret)
-		usb_free_urb(urb);
+		usb_unanchor_urb(urb);
+
+	/* release our reference to this URB, USB core will eventually free it
+	 * on its own after the completion callback finishes (or URB is
+	 * immediately freed here if its submission has failed)
+	 */
+	usb_free_urb(urb);
 
 	if (ret == -ENODEV)
 		set_bit(RTW89_FLAG_UNPLUGGED, rtwdev->flags);
@@ -557,6 +563,11 @@ static void rtw89_usb_cancel_rx_bufs(struct rtw89_usb *rtwusb)
 	}
 }
 
+static void rtw89_usb_cancel_tx_bufs(struct rtw89_usb *rtwusb)
+{
+	usb_kill_anchored_urbs(&rtwusb->tx_submitted);
+}
+
 static void rtw89_usb_free_rx_bufs(struct rtw89_usb *rtwusb)
 {
 	struct rtw89_usb_rx_ctrl_block *rxcb;
@@ -658,7 +669,9 @@ static void rtw89_usb_deinit_tx(struct rtw89_dev *rtwdev)
 
 static void rtw89_usb_ops_reset(struct rtw89_dev *rtwdev)
 {
-	/* TODO: anything to do here? */
+	struct rtw89_usb *rtwusb = rtw89_usb_priv(rtwdev);
+
+	rtw89_usb_cancel_tx_bufs(rtwusb);
 }
 
 static int rtw89_usb_ops_start(struct rtw89_dev *rtwdev)
@@ -895,6 +908,8 @@ static int rtw89_usb_intf_init(struct rtw89_dev *rtwdev,
 	struct rtw89_usb *rtwusb = rtw89_usb_priv(rtwdev);
 	int ret;
 
+	init_usb_anchor(&rtwusb->tx_submitted);
+
 	ret = rtw89_usb_parse(rtwdev, intf);
 	if (ret)
 		return ret;
@@ -1021,6 +1036,7 @@ void rtw89_usb_disconnect(struct usb_interface *intf)
 	rtwusb = rtw89_usb_priv(rtwdev);
 
 	rtw89_usb_cancel_rx_bufs(rtwusb);
+	rtw89_usb_cancel_tx_bufs(rtwusb);
 
 	rtw89_core_unregister(rtwdev);
 	rtw89_core_deinit(rtwdev);
