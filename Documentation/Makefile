@@ -84,7 +84,7 @@ cleandocs:
 	$(Q)rm -rf $(BUILDDIR)
 
 # Used only on help
-_SPHINXDIRS   = $(sort $(patsubst $(srctree)/Documentation/%/index.rst,%,$(wildcard $(srctree)/Documentation/*/index.rst)))
+_SPHINXDIRS   = $(shell printf "%s\n" $(patsubst $(srctree)/Documentation/%/index.rst,%,$(wildcard $(srctree)/Documentation/*/index.rst)) | sort -f)
 
 dochelp:
 	@echo  ' Linux kernel internal documentation in different formats from ReST:'
