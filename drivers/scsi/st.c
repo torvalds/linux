@@ -3542,30 +3542,34 @@ static long st_common_ioctl(struct scsi_tape *STp, struct st_modedef *STm,
 		goto out;
 	}
 
-	if ((i = flush_buffer(STp, 0)) < 0) {
-		retval = i;
-		goto out;
-	} else { /* flush_buffer succeeds */
-		if (STp->can_partitions) {
-			i = switch_partition(STp);
-			if (i < 0) {
-				retval = i;
-				goto out;
+	switch (cmd_in) {
+	case SCSI_IOCTL_GET_IDLUN:
+	case SCSI_IOCTL_GET_BUS_NUMBER:
+	case SCSI_IOCTL_GET_PCI:
+		break;
+	case SG_IO:
+	case SCSI_IOCTL_SEND_COMMAND:
+	case CDROM_SEND_PACKET:
+		if (!capable(CAP_SYS_RAWIO)) {
+			retval = -EPERM;
+			goto out;
+		}
+		fallthrough;
+	default:
+		if ((i = flush_buffer(STp, 0)) < 0) {
+			retval = i;
+			goto out;
+		} else { /* flush_buffer succeeds */
+			if (STp->can_partitions) {
+				i = switch_partition(STp);
+				if (i < 0) {
+					retval = i;
+					goto out;
+				}
 			}
 		}
 	}
 	mutex_unlock(&STp->lock);
-
-	switch (cmd_in) {
-	case SG_IO:
-	case SCSI_IOCTL_SEND_COMMAND:
-	case CDROM_SEND_PACKET:
-		if (!capable(CAP_SYS_RAWIO))
-			return -EPERM;
-		break;
-	default:
-		break;
-	}
 
 	retval = scsi_ioctl(STp->device, file->f_mode & FMODE_WRITE,
 			    cmd_in, (void __user *)arg);
