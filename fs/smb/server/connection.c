@@ -562,6 +562,5 @@ void ksmbd_conn_transport_destroy(void)
 	ksmbd_tcp_destroy();
 	ksmbd_rdma_stop_listening();
 	stop_sessions();
-	ksmbd_rdma_destroy();
 	mutex_unlock(&init_lock);
 }
