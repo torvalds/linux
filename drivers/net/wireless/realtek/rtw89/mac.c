@@ -5489,6 +5489,40 @@ rtw89_mac_c2h_mcc_status_rpt(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 
 }
 
 static void
+rtw89_mac_c2h_tx_rpt(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 len)
+{
+	u8 sw_define, tx_status, txcnt;
+
+	if (rtwdev->chip->chip_id == RTL8922A) {
+		const struct rtw89_c2h_mac_tx_rpt_v2 *rpt_v2;
+
+		rpt_v2 = (const struct rtw89_c2h_mac_tx_rpt_v2 *)c2h->data;
+		sw_define = le32_get_bits(rpt_v2->w12,
+					  RTW89_C2H_MAC_TX_RPT_W12_SW_DEFINE_V2);
+		tx_status = le32_get_bits(rpt_v2->w12,
+					  RTW89_C2H_MAC_TX_RPT_W12_TX_STATE_V2);
+		txcnt = le32_get_bits(rpt_v2->w14,
+				      RTW89_C2H_MAC_TX_RPT_W14_DATA_TX_CNT_V2);
+	} else {
+		const struct rtw89_c2h_mac_tx_rpt *rpt;
+
+		rpt = (const struct rtw89_c2h_mac_tx_rpt *)c2h->data;
+		sw_define = le32_get_bits(rpt->w2, RTW89_C2H_MAC_TX_RPT_W2_SW_DEFINE);
+		tx_status = le32_get_bits(rpt->w2, RTW89_C2H_MAC_TX_RPT_W2_TX_STATE);
+		if (rtwdev->chip->chip_id == RTL8852C)
+			txcnt = le32_get_bits(rpt->w5,
+					      RTW89_C2H_MAC_TX_RPT_W5_DATA_TX_CNT_V1);
+		else
+			txcnt = le32_get_bits(rpt->w5,
+					      RTW89_C2H_MAC_TX_RPT_W5_DATA_TX_CNT);
+	}
+
+	rtw89_debug(rtwdev, RTW89_DBG_TXRX,
+		    "C2H TX RPT: sn %d, tx_status %d, txcnt %d\n",
+		    sw_define, tx_status, txcnt);
+}
+
+static void
 rtw89_mac_c2h_mrc_tsf_rpt(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 len)
 {
 	struct rtw89_wait_info *wait = &rtwdev->mcc.wait;
@@ -5723,6 +5757,12 @@ void (* const rtw89_mac_c2h_mcc_handler[])(struct rtw89_dev *rtwdev,
 };
 
 static
+void (* const rtw89_mac_c2h_misc_handler[])(struct rtw89_dev *rtwdev,
+					    struct sk_buff *c2h, u32 len) = {
+	[RTW89_MAC_C2H_FUNC_TX_REPORT] = rtw89_mac_c2h_tx_rpt,
+};
+
+static
 void (* const rtw89_mac_c2h_mlo_handler[])(struct rtw89_dev *rtwdev,
 					   struct sk_buff *c2h, u32 len) = {
 	[RTW89_MAC_C2H_FUNC_MLO_GET_TBL] = NULL,
@@ -5808,6 +5848,8 @@ bool rtw89_mac_c2h_chk_atomic(struct rtw89_dev *rtwdev, struct sk_buff *c2h,
 		}
 	case RTW89_MAC_C2H_CLASS_MCC:
 		return true;
+	case RTW89_MAC_C2H_CLASS_MISC:
+		return true;
 	case RTW89_MAC_C2H_CLASS_MLO:
 		return true;
 	case RTW89_MAC_C2H_CLASS_MRC:
@@ -5842,6 +5884,10 @@ void rtw89_mac_c2h_handle(struct rtw89_dev *rtwdev, struct sk_buff *skb,
 	case RTW89_MAC_C2H_CLASS_MCC:
 		if (func < NUM_OF_RTW89_MAC_C2H_FUNC_MCC)
 			handler = rtw89_mac_c2h_mcc_handler[func];
+		break;
+	case RTW89_MAC_C2H_CLASS_MISC:
+		if (func < NUM_OF_RTW89_MAC_C2H_FUNC_MISC)
+			handler = rtw89_mac_c2h_misc_handler[func];
 		break;
 	case RTW89_MAC_C2H_CLASS_MLO:
 		if (func < NUM_OF_RTW89_MAC_C2H_FUNC_MLO)
