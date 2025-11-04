@@ -9,8 +9,6 @@
 
 #include <linux/ptp_clock_kernel.h>
 
-#define RCAR_GEN4_GPTP_OFFSET_S4	0x00018000
-
 /* driver's definitions */
 #define RCAR_GEN4_RXTSTAMP_ENABLED		BIT(0)
 #define RCAR_GEN4_RXTSTAMP_TYPE_V2_L2_EVENT	BIT(1)

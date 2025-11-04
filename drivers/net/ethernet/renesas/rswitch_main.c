@@ -30,6 +30,8 @@
 #include "rswitch.h"
 #include "rswitch_l2.h"
 
+#define RSWITCH_GPTP_OFFSET_S4 0x00018000
+
 static int rswitch_reg_wait(void __iomem *addr, u32 offs, u32 mask, u32 expected)
 {
 	u32 val;
@@ -2175,7 +2177,7 @@ static int renesas_eth_sw_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->addr))
 		return PTR_ERR(priv->addr);
 
-	priv->ptp_priv->addr = priv->addr + RCAR_GEN4_GPTP_OFFSET_S4;
+	priv->ptp_priv->addr = priv->addr + RSWITCH_GPTP_OFFSET_S4;
 
 	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(40));
 	if (ret < 0) {
