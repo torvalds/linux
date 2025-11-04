@@ -132,9 +132,6 @@ void sun8i_ui_scaler_enable(struct sun8i_layer *layer, bool enable)
 	struct sun8i_mixer *mixer = layer->mixer;
 	u32 val, base;
 
-	if (WARN_ON(layer->channel < mixer->cfg->vi_num))
-		return;
-
 	base = sun8i_ui_scaler_base(mixer, layer->channel);
 
 	if (enable)
@@ -154,9 +151,6 @@ void sun8i_ui_scaler_setup(struct sun8i_layer *layer,
 	u32 insize, outsize;
 	int i, offset;
 	u32 base;
-
-	if (WARN_ON(layer->channel < mixer->cfg->vi_num))
-		return;
 
 	base = sun8i_ui_scaler_base(mixer, layer->channel);
 
