@@ -999,6 +999,9 @@ ieee80211_determine_chan_mode(struct ieee80211_sub_if_data *sdata,
 		.from_ap = true,
 		.start = ies->data,
 		.len = ies->len,
+		.type = ies->from_beacon ?
+			IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_BEACON :
+			IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_PROBE_RESP,
 	};
 	struct ieee802_11_elems *elems;
 	struct ieee80211_supported_band *sband;
@@ -5177,7 +5180,9 @@ static void ieee80211_epcs_teardown(struct ieee80211_sub_if_data *sdata)
 			continue;
 		}
 
-		elems = ieee802_11_parse_elems(ies->data, ies->len, false,
+		elems = ieee802_11_parse_elems(ies->data, ies->len,
+					       IEEE80211_FTYPE_MGMT |
+					       IEEE80211_STYPE_BEACON,
 					       NULL);
 		if (!elems) {
 			rcu_read_unlock();
@@ -5223,6 +5228,7 @@ static bool ieee80211_assoc_config_link(struct ieee80211_link_data *link,
 		.len = elem_len,
 		.link_id = link_id == assoc_data->assoc_link_id ? -1 : link_id,
 		.from_ap = true,
+		.type = le16_to_cpu(mgmt->frame_control) & IEEE80211_FCTL_TYPE,
 	};
 	bool is_5ghz = cbss->channel->band == NL80211_BAND_5GHZ;
 	bool is_6ghz = cbss->channel->band == NL80211_BAND_6GHZ;
@@ -6356,6 +6362,7 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 		.bss = NULL,
 		.link_id = -1,
 		.from_ap = true,
+		.type = le16_to_cpu(mgmt->frame_control) & IEEE80211_FCTL_TYPE,
 	};
 	struct ieee802_11_elems *elems;
 	int ac;
@@ -7264,7 +7271,9 @@ ieee80211_mgd_check_cross_link_csa(struct ieee80211_sub_if_data *sdata,
 						    (prof->sta_info_len - 1),
 						    len -
 						    (prof->sta_info_len - 1),
-						    false, NULL);
+						    IEEE80211_FTYPE_MGMT |
+						    IEEE80211_STYPE_BEACON,
+						    NULL);
 
 		/* memory allocation failed - let's hope that's transient */
 		if (!prof_elems)
@@ -7368,6 +7377,7 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_link_data *link,
 		.mode = link->u.mgd.conn.mode,
 		.link_id = -1,
 		.from_ap = true,
+		.type = le16_to_cpu(mgmt->frame_control) & IEEE80211_FCTL_TYPE,
 	};
 
 	lockdep_assert_wiphy(local->hw.wiphy);
@@ -7970,7 +7980,10 @@ void ieee80211_process_neg_ttlm_req(struct ieee80211_sub_if_data *sdata,
 	ies_len  = len - offsetof(struct ieee80211_mgmt,
 				  u.action.u.ttlm_req.variable);
 	elems = ieee802_11_parse_elems(mgmt->u.action.u.ttlm_req.variable,
-				       ies_len, true, NULL);
+				       ies_len,
+				       IEEE80211_FTYPE_MGMT |
+				       IEEE80211_STYPE_ACTION,
+				       NULL);
 	if (!elems) {
 		ttlm_res = NEG_TTLM_RES_REJECT;
 		goto out;
@@ -8176,9 +8189,11 @@ void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 				break;
 
 			/* CSA IE cannot be overridden, no need for BSSID */
-			elems = ieee802_11_parse_elems(
-					mgmt->u.action.u.chan_switch.variable,
-					ies_len, true, NULL);
+			elems = ieee802_11_parse_elems(mgmt->u.action.u.chan_switch.variable,
+						       ies_len,
+						       IEEE80211_FTYPE_MGMT |
+						       IEEE80211_STYPE_ACTION,
+						       NULL);
 
 			if (elems && !elems->parse_error) {
 				enum ieee80211_csa_source src =
@@ -8205,9 +8220,11 @@ void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 			 * extended CSA IE can't be overridden, no need for
 			 * BSSID
 			 */
-			elems = ieee802_11_parse_elems(
-					mgmt->u.action.u.ext_chan_switch.variable,
-					ies_len, true, NULL);
+			elems = ieee802_11_parse_elems(mgmt->u.action.u.ext_chan_switch.variable,
+						       ies_len,
+						       IEEE80211_FTYPE_MGMT |
+						       IEEE80211_STYPE_ACTION,
+						       NULL);
 
 			if (elems && !elems->parse_error) {
 				enum ieee80211_csa_source src;
@@ -10985,7 +11002,10 @@ static void ieee80211_ml_epcs(struct ieee80211_sub_if_data *sdata,
 		pos = scratch + sizeof(control);
 		len -= sizeof(control);
 
-		link_elems = ieee802_11_parse_elems(pos, len, false, NULL);
+		link_elems = ieee802_11_parse_elems(pos, len,
+						    IEEE80211_FTYPE_MGMT |
+						    IEEE80211_STYPE_ACTION,
+						    NULL);
 		if (!link_elems)
 			continue;
 
@@ -11036,7 +11056,10 @@ void ieee80211_process_epcs_ena_resp(struct ieee80211_sub_if_data *sdata,
 				 u.action.u.epcs.variable) -
 		IEEE80211_EPCS_ENA_RESP_BODY_LEN;
 
-	elems = ieee802_11_parse_elems(pos, ies_len, true, NULL);
+	elems = ieee802_11_parse_elems(pos, ies_len,
+				       IEEE80211_FTYPE_MGMT |
+				       IEEE80211_STYPE_ACTION,
+				       NULL);
 	if (!elems)
 		return;
 

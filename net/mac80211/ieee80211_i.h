@@ -2422,7 +2422,8 @@ static inline void ieee80211_tx_skb(struct ieee80211_sub_if_data *sdata,
  * @mode: connection mode for parsing
  * @start: pointer to the elements
  * @len: length of the elements
- * @action: %true if the elements came from an action frame
+ * @type: type of the frame the elements came from
+ *	(action, probe response, beacon, etc.)
  * @filter: bitmap of element IDs to filter out while calculating
  *	the element CRC
  * @crc: CRC starting value
@@ -2440,7 +2441,7 @@ struct ieee80211_elems_parse_params {
 	enum ieee80211_conn_mode mode;
 	const u8 *start;
 	size_t len;
-	bool action;
+	u8 type;
 	u64 filter;
 	u32 crc;
 	struct cfg80211_bss *bss;
@@ -2452,29 +2453,19 @@ struct ieee802_11_elems *
 ieee802_11_parse_elems_full(struct ieee80211_elems_parse_params *params);
 
 static inline struct ieee802_11_elems *
-ieee802_11_parse_elems_crc(const u8 *start, size_t len, bool action,
-			   u64 filter, u32 crc,
-			   struct cfg80211_bss *bss)
+ieee802_11_parse_elems(const u8 *start, size_t len, u8 type,
+		       struct cfg80211_bss *bss)
 {
 	struct ieee80211_elems_parse_params params = {
 		.mode = IEEE80211_CONN_MODE_HIGHEST,
 		.start = start,
 		.len = len,
-		.action = action,
-		.filter = filter,
-		.crc = crc,
+		.type = type,
 		.bss = bss,
 		.link_id = -1,
 	};
 
 	return ieee802_11_parse_elems_full(&params);
-}
-
-static inline struct ieee802_11_elems *
-ieee802_11_parse_elems(const u8 *start, size_t len, bool action,
-		       struct cfg80211_bss *bss)
-{
-	return ieee802_11_parse_elems_crc(start, len, action, 0, 0, bss);
 }
 
 extern const int ieee802_1d_to_ac[8];
