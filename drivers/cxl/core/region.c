@@ -245,6 +245,9 @@ static void cxl_region_decode_reset(struct cxl_region *cxlr, int count)
 	struct cxl_region_params *p = &cxlr->params;
 	int i;
 
+	if (test_bit(CXL_REGION_F_LOCK, &cxlr->flags))
+		return;
+
 	/*
 	 * Before region teardown attempt to flush, evict any data cached for
 	 * this region, or scream loudly about missing arch / platform support
@@ -418,6 +421,9 @@ static ssize_t commit_store(struct device *dev, struct device_attribute *attr,
 			return rc;
 		return len;
 	}
+
+	if (test_bit(CXL_REGION_F_LOCK, &cxlr->flags))
+		return -EPERM;
 
 	rc = queue_reset(cxlr);
 	if (rc)
@@ -1059,6 +1065,16 @@ static int cxl_rr_assign_decoder(struct cxl_port *port, struct cxl_region *cxlr,
 	return 0;
 }
 
+static void cxl_region_set_lock(struct cxl_region *cxlr,
+				struct cxl_decoder *cxld)
+{
+	if (!test_bit(CXL_DECODER_F_LOCK, &cxld->flags))
+		return;
+
+	set_bit(CXL_REGION_F_LOCK, &cxlr->flags);
+	clear_bit(CXL_REGION_F_NEEDS_RESET, &cxlr->flags);
+}
+
 /**
  * cxl_port_attach_region() - track a region's interest in a port by endpoint
  * @port: port to add a new region reference 'struct cxl_region_ref'
@@ -1169,6 +1185,8 @@ static int cxl_port_attach_region(struct cxl_port *port,
 			goto out_erase;
 		}
 	}
+
+	cxl_region_set_lock(cxlr, cxld);
 
 	rc = cxl_rr_ep_add(cxl_rr, cxled);
 	if (rc) {
@@ -2439,6 +2457,7 @@ static struct cxl_region *cxl_region_alloc(struct cxl_root_decoder *cxlrd, int i
 	dev->bus = &cxl_bus_type;
 	dev->type = &cxl_region_type;
 	cxlr->id = id;
+	cxl_region_set_lock(cxlr, &cxlrd->cxlsd.cxld);
 
 	return cxlr;
 }
