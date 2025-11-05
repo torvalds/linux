@@ -1922,10 +1922,77 @@ bool dc_validate_boot_timing(const struct dc *dc,
 		return false;
 	}
 
-	/* block DSC for now, as VBIOS does not currently support DSC timings */
 	if (crtc_timing->flags.DSC) {
-		DC_LOG_DEBUG("boot timing validation failed due to DSC\n");
-		return false;
+		struct display_stream_compressor *dsc = NULL;
+		struct dcn_dsc_state dsc_state = {0};
+
+		/* Find DSC associated with this timing generator */
+		if (tg_inst < dc->res_pool->res_cap->num_dsc) {
+			dsc = dc->res_pool->dscs[tg_inst];
+		}
+
+		if (!dsc || !dsc->funcs->dsc_read_state) {
+			DC_LOG_DEBUG("boot timing validation failed due to no DSC resource or read function\n");
+			return false;
+		}
+
+		/* Read current DSC hardware state */
+		dsc->funcs->dsc_read_state(dsc, &dsc_state);
+
+		/* Check if DSC is actually enabled in hardware */
+		if (dsc_state.dsc_clock_en == 0) {
+			DC_LOG_DEBUG("boot timing validation failed due to DSC not enabled in hardware\n");
+			return false;
+		}
+
+		uint32_t num_slices_h = 0;
+		uint32_t num_slices_v = 0;
+
+		if (dsc_state.dsc_slice_width > 0) {
+			num_slices_h = (crtc_timing->h_addressable + dsc_state.dsc_slice_width - 1) / dsc_state.dsc_slice_width;
+		}
+
+		if (dsc_state.dsc_slice_height > 0) {
+			num_slices_v = (crtc_timing->v_addressable + dsc_state.dsc_slice_height - 1) / dsc_state.dsc_slice_height;
+		}
+
+		if (crtc_timing->dsc_cfg.num_slices_h != num_slices_h) {
+			DC_LOG_DEBUG("boot timing validation failed due to num_slices_h mismatch\n");
+			return false;
+		}
+
+		if (crtc_timing->dsc_cfg.num_slices_v != num_slices_v) {
+			DC_LOG_DEBUG("boot timing validation failed due to num_slices_v mismatch\n");
+			return false;
+		}
+
+		if (crtc_timing->dsc_cfg.bits_per_pixel != dsc_state.dsc_bits_per_pixel) {
+			DC_LOG_DEBUG("boot timing validation failed due to bits_per_pixel mismatch\n");
+			return false;
+		}
+
+		if (crtc_timing->dsc_cfg.block_pred_enable != dsc_state.dsc_block_pred_enable) {
+			DC_LOG_DEBUG("boot timing validation failed due to block_pred_enable mismatch\n");
+			return false;
+		}
+
+		if (crtc_timing->dsc_cfg.linebuf_depth != dsc_state.dsc_line_buf_depth) {
+			DC_LOG_DEBUG("boot timing validation failed due to linebuf_depth mismatch\n");
+			return false;
+		}
+
+		if (crtc_timing->dsc_cfg.version_minor != dsc_state.dsc_version_minor) {
+			DC_LOG_DEBUG("boot timing validation failed due to version_minor mismatch\n");
+			return false;
+		}
+
+		if (crtc_timing->dsc_cfg.ycbcr422_simple != dsc_state.dsc_simple_422) {
+			DC_LOG_DEBUG("boot timing validation failed due to pixel encoding mismatch\n");
+			return false;
+		}
+
+		// Skip checks for is_frl, is_dp, and rc_buffer_size which are not programmed by vbios
+		// or not necessary for seamless boot validation.
 	}
 
 	if (dc_is_dp_signal(link->connector_signal)) {
