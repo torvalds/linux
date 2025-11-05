@@ -559,10 +559,10 @@
 	status = "okay";
 };
 
-/* HS400 modes seemed to cause io errors. */
 &sdhci {
 	bus-width = <8>;
-	no-mmc-hs400;
+	mmc-hs400-1_8v;
+	mmc-hs400-enhanced-strobe;
 	no-sd;
 	no-sdio;
 	non-removable;
