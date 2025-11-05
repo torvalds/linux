@@ -13,10 +13,10 @@ Simple CLI
 Kernel comes with a simple CLI tool which should be useful when
 developing Netlink related code. The tool is implemented in Python
 and can use a YAML specification to issue Netlink requests
-to the kernel. Only Generic Netlink is supported.
+to the kernel.
 
 The tool is located at ``tools/net/ynl/pyynl/cli.py``. It accepts
-a handul of arguments, the most important ones are:
+a handful of arguments, the most important ones are:
 
  - ``--spec`` - point to the spec file
  - ``--do $name`` / ``--dump $name`` - issue request ``$name``
