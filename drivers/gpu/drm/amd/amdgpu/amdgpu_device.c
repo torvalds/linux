@@ -3323,8 +3323,7 @@ static int amdgpu_device_ip_init(struct amdgpu_device *adev)
 
 	amdgpu_fru_get_product_info(adev);
 
-	if (!amdgpu_sriov_vf(adev) || amdgpu_sriov_ras_cper_en(adev))
-		r = amdgpu_cper_init(adev);
+	r = amdgpu_cper_init(adev);
 
 init_failed:
 

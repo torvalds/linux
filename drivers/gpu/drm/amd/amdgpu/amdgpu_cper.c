@@ -23,6 +23,7 @@
  */
 #include <linux/list.h>
 #include "amdgpu.h"
+#include "amdgpu_ras_mgr.h"
 
 static const guid_t MCE			= CPER_NOTIFY_MCE;
 static const guid_t CMC			= CPER_NOTIFY_CMC;
@@ -559,7 +560,10 @@ int amdgpu_cper_init(struct amdgpu_device *adev)
 {
 	int r;
 
-	if (!amdgpu_aca_is_enabled(adev) && !amdgpu_sriov_ras_cper_en(adev))
+	if (amdgpu_sriov_vf(adev) && !amdgpu_sriov_ras_cper_en(adev))
+		return 0;
+	else if (!amdgpu_sriov_vf(adev) && !amdgpu_uniras_enabled(adev) &&
+		!amdgpu_aca_is_enabled(adev))
 		return 0;
 
 	r = amdgpu_cper_ring_init(adev);
