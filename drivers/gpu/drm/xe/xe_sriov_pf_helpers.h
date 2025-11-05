@@ -48,6 +48,17 @@ static inline unsigned int xe_sriov_pf_num_vfs(const struct xe_device *xe)
 	return pci_num_vf(to_pci_dev(xe->drm.dev));
 }
 
+/**
+ * xe_sriov_pf_admin_only() - Check if PF is mainly used for VFs administration.
+ * @xe: the PF &xe_device
+ *
+ * Return: True if PF is mainly used for VFs administration.
+ */
+static inline bool xe_sriov_pf_admin_only(const struct xe_device *xe)
+{
+	return !xe->info.probe_display;
+}
+
 static inline struct mutex *xe_sriov_pf_master_mutex(struct xe_device *xe)
 {
 	xe_assert(xe, IS_SRIOV_PF(xe));

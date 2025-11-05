@@ -985,6 +985,16 @@ int xe_gt_sriov_pf_config_bulk_set_ctxs(struct xe_gt *gt, unsigned int vfid,
 					   "GuC context IDs", no_unit, n, err);
 }
 
+static u32 pf_profile_fair_ctxs(struct xe_gt *gt, unsigned int num_vfs)
+{
+	bool admin_only_pf = xe_sriov_pf_admin_only(gt_to_xe(gt));
+
+	if (admin_only_pf && num_vfs == 1)
+		return ALIGN_DOWN(GUC_ID_MAX, SZ_1K);
+
+	return rounddown_pow_of_two(GUC_ID_MAX / num_vfs);
+}
+
 static u32 pf_estimate_fair_ctxs(struct xe_gt *gt, unsigned int num_vfs)
 {
 	struct xe_guc_id_mgr *idm = &gt->uc.guc.submission_state.idm;
@@ -1017,6 +1027,7 @@ static u32 pf_estimate_fair_ctxs(struct xe_gt *gt, unsigned int num_vfs)
 int xe_gt_sriov_pf_config_set_fair_ctxs(struct xe_gt *gt, unsigned int vfid,
 					unsigned int num_vfs)
 {
+	u32 profile = pf_profile_fair_ctxs(gt, num_vfs);
 	u32 fair;
 
 	xe_gt_assert(gt, vfid);
@@ -1028,6 +1039,11 @@ int xe_gt_sriov_pf_config_set_fair_ctxs(struct xe_gt *gt, unsigned int vfid,
 
 	if (!fair)
 		return -ENOSPC;
+
+	fair = min(fair, profile);
+	if (fair < profile)
+		xe_gt_sriov_info(gt, "Using non-profile provisioning (%s %u vs %u)\n",
+				 "GuC context IDs", fair, profile);
 
 	return xe_gt_sriov_pf_config_bulk_set_ctxs(gt, vfid, num_vfs, fair);
 }
