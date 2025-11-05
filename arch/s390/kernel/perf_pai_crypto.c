@@ -19,7 +19,7 @@
 #include <asm/pai.h>
 #include <asm/debug.h>
 
-static debug_info_t *cfm_dbg;
+static debug_info_t *paidbg;
 static unsigned int paicrypt_cnt;	/* Size of the mapped counter sets */
 					/* extracted with QPACI instruction */
 
@@ -55,7 +55,7 @@ static void paicrypt_root_free(void)
 		free_percpu(paicrypt_root.mapptr);
 		paicrypt_root.mapptr = NULL;
 	}
-	debug_sprintf_event(cfm_dbg, 5, "%s root.refcount %d\n", __func__,
+	debug_sprintf_event(paidbg, 5, "%s root.refcount %d\n", __func__,
 			    refcount_read(&paicrypt_root.refcnt));
 }
 
@@ -98,7 +98,7 @@ static void paicrypt_event_destroy_cpu(struct perf_event *event, int cpu)
 	struct paicrypt_map *cpump = mp->mapptr;
 
 	mutex_lock(&pai_reserve_mutex);
-	debug_sprintf_event(cfm_dbg, 5, "%s event %#llx cpu %d users %d "
+	debug_sprintf_event(paidbg, 5, "%s event %#llx cpu %d users %d "
 			    "refcnt %u\n", __func__, event->attr.config,
 			    event->cpu, cpump->active_events,
 			    refcount_read(&cpump->refcnt));
@@ -822,19 +822,19 @@ static int __init paicrypt_init(void)
 	}
 
 	/* Setup s390dbf facility */
-	cfm_dbg = debug_register(KMSG_COMPONENT, 2, 256, 128);
-	if (!cfm_dbg) {
+	paidbg = debug_register(KMSG_COMPONENT, 2, 256, 128);
+	if (!paidbg) {
 		pr_err("Registration of s390dbf pai_crypto failed\n");
 		return -ENOMEM;
 	}
-	debug_register_view(cfm_dbg, &debug_sprintf_view);
+	debug_register_view(paidbg, &debug_sprintf_view);
 
 	rc = perf_pmu_register(&paicrypt, "pai_crypto", -1);
 	if (rc) {
 		pr_err("Registering the pai_crypto PMU failed with rc=%i\n",
 		       rc);
-		debug_unregister_view(cfm_dbg, &debug_sprintf_view);
-		debug_unregister(cfm_dbg);
+		debug_unregister_view(paidbg, &debug_sprintf_view);
+		debug_unregister(paidbg);
 		return rc;
 	}
 	return 0;
