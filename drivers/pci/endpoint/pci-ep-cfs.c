@@ -638,7 +638,7 @@ static struct config_group *pci_epf_make(struct config_group *group,
 	kfree(epf_name);
 
 	INIT_DELAYED_WORK(&epf_group->cfs_work, pci_epf_cfs_work);
-	queue_delayed_work(system_wq, &epf_group->cfs_work,
+	queue_delayed_work(system_percpu_wq, &epf_group->cfs_work,
 			   msecs_to_jiffies(1));
 
 	return &epf_group->group;
