@@ -931,12 +931,9 @@
 	status = "okay";
 };
 
-/* DMA seems to interfere with bluetooth device normal operation. */
 &uart9 {
 	pinctrl-0 = <&uart9m2_xfer>, <&uart9m2_ctsn>, <&uart9m2_rtsn>;
 	pinctrl-names = "default";
-	/delete-property/ dma-names;
-	/delete-property/ dmas;
 	uart-has-rtscts;
 	status = "okay";
 
