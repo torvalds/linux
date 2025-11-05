@@ -108,7 +108,7 @@ static int pai_root_alloc(void)
 static DEFINE_MUTEX(pai_reserve_mutex);
 
 /* Free all memory allocated for event counting/sampling setup */
-static void paicrypt_free(struct pai_mapptr *mp)
+static void pai_free(struct pai_mapptr *mp)
 {
 	free_page((unsigned long)mp->mapptr->area);
 	kvfree(mp->mapptr->save);
@@ -119,7 +119,7 @@ static void paicrypt_free(struct pai_mapptr *mp)
 /* Adjust usage counters and remove allocated memory when all users are
  * gone.
  */
-static void paicrypt_event_destroy_cpu(struct perf_event *event, int cpu)
+static void pai_event_destroy_cpu(struct perf_event *event, int cpu)
 {
 	struct pai_mapptr *mp = per_cpu_ptr(pai_root.mapptr, cpu);
 	struct pai_map *cpump = mp->mapptr;
@@ -130,12 +130,12 @@ static void paicrypt_event_destroy_cpu(struct perf_event *event, int cpu)
 			    event->cpu, cpump->active_events,
 			    refcount_read(&cpump->refcnt));
 	if (refcount_dec_and_test(&cpump->refcnt))
-		paicrypt_free(mp);
+		pai_free(mp);
 	pai_root_free();
 	mutex_unlock(&pai_reserve_mutex);
 }
 
-static void paicrypt_event_destroy(struct perf_event *event)
+static void pai_event_destroy(struct perf_event *event)
 {
 	int cpu;
 
@@ -145,10 +145,10 @@ static void paicrypt_event_destroy(struct perf_event *event)
 		struct cpumask *mask = PAI_CPU_MASK(event);
 
 		for_each_cpu(cpu, mask)
-			paicrypt_event_destroy_cpu(event, cpu);
+			pai_event_destroy_cpu(event, cpu);
 		kfree(mask);
 	} else {
-		paicrypt_event_destroy_cpu(event, event->cpu);
+		pai_event_destroy_cpu(event, event->cpu);
 	}
 }
 
@@ -233,7 +233,7 @@ static int pai_alloc_cpu(struct perf_event *event, int cpu)
 					     sizeof(struct pai_userdata),
 					     GFP_KERNEL);
 		if (!cpump->area || !cpump->save) {
-			paicrypt_free(mp);
+			pai_free(mp);
 			goto undo;
 		}
 		INIT_LIST_HEAD(&cpump->syswide_list);
@@ -270,7 +270,7 @@ static int pai_alloc(struct perf_event *event)
 		rc = pai_alloc_cpu(event, cpu);
 		if (rc) {
 			for_each_cpu(cpu, maskptr)
-				paicrypt_event_destroy_cpu(event, cpu);
+				pai_event_destroy_cpu(event, cpu);
 			kfree(maskptr);
 			goto out;
 		}
@@ -280,7 +280,7 @@ static int pai_alloc(struct perf_event *event)
 	/*
 	 * On error all cpumask are freed and all events have been destroyed.
 	 * Save of which CPUs data structures have been allocated for.
-	 * Release them in paicrypt_event_destroy call back function
+	 * Release them in pai_event_destroy call back function
 	 * for this event.
 	 */
 	PAI_CPU_MASK(event) = maskptr;
@@ -358,7 +358,7 @@ static int paicrypt_event_init(struct perf_event *event)
 	int rc = pai_event_init(event, PAI_PMU_CRYPTO);
 
 	if (!rc) {
-		event->destroy = paicrypt_event_destroy;
+		event->destroy = pai_event_destroy;
 		static_branch_inc(&pai_key);
 	}
 	return rc;
