@@ -7,6 +7,7 @@
 #include <linux/mdio.h>
 #include <linux/mii.h>
 #include <linux/phy.h>
+#include <linux/ethtool_netlink.h>
 
 #include "mdio-open-alliance.h"
 #include "phylib-internal.h"
@@ -1573,3 +1574,124 @@ int genphy_c45_ethtool_set_eee(struct phy_device *phydev,
 	return ret;
 }
 EXPORT_SYMBOL(genphy_c45_ethtool_set_eee);
+
+/**
+ * oatc14_cable_test_get_result_code - Convert hardware cable test status to
+ *                                     ethtool result code.
+ * @status: The hardware-reported cable test status
+ *
+ * This helper function maps the OATC14 HDD cable test status to the
+ * corresponding ethtool cable test result code. It provides a translation
+ * between the device-specific status values and the standardized ethtool
+ * result codes.
+ *
+ * Return:
+ * * ETHTOOL_A_CABLE_RESULT_CODE_OK          - Cable is OK
+ * * ETHTOOL_A_CABLE_RESULT_CODE_OPEN        - Open circuit detected
+ * * ETHTOOL_A_CABLE_RESULT_CODE_SAME_SHORT  - Short circuit detected
+ * * ETHTOOL_A_CABLE_RESULT_CODE_UNSPEC      - Status not detectable or invalid
+ */
+static int oatc14_cable_test_get_result_code(enum oatc14_hdd_status status)
+{
+	switch (status) {
+	case OATC14_HDD_STATUS_CABLE_OK:
+		return ETHTOOL_A_CABLE_RESULT_CODE_OK;
+	case OATC14_HDD_STATUS_OPEN:
+		return ETHTOOL_A_CABLE_RESULT_CODE_OPEN;
+	case OATC14_HDD_STATUS_SHORT:
+		return ETHTOOL_A_CABLE_RESULT_CODE_SAME_SHORT;
+	case OATC14_HDD_STATUS_NOT_DETECTABLE:
+	default:
+		return ETHTOOL_A_CABLE_RESULT_CODE_UNSPEC;
+	}
+}
+
+/**
+ * genphy_c45_oatc14_cable_test_get_status - Get status of OATC14 10Base-T1S
+ *                                           PHY cable test.
+ * @phydev:   pointer to the PHY device structure
+ * @finished: pointer to a boolean set true if the test is complete
+ *
+ * Retrieves the current status of the OATC14 10Base-T1S PHY cable test.
+ * This function reads the OATC14 HDD register to determine whether the test
+ * results are valid and whether the test has finished.
+ *
+ * If the test is complete, the function reports the cable test result via
+ * the ethtool cable test interface using ethnl_cable_test_result(), and then
+ * clears the test control bit in the PHY register to reset the test state.
+ *
+ * Return: 0 on success, or a negative error code on failure (e.g. register
+ *         read/write error).
+ */
+int genphy_c45_oatc14_cable_test_get_status(struct phy_device *phydev,
+					    bool *finished)
+{
+	int ret;
+	u8 sts;
+
+	*finished = false;
+
+	ret = phy_read_mmd(phydev, MDIO_MMD_VEND2, MDIO_OATC14_HDD);
+	if (ret < 0)
+		return ret;
+
+	if (!(ret & OATC14_HDD_VALID))
+		return 0;
+
+	*finished = true;
+
+	sts = FIELD_GET(OATC14_HDD_SHORT_OPEN_STATUS, ret);
+
+	ret = ethnl_cable_test_result(phydev, ETHTOOL_A_CABLE_PAIR_A,
+				      oatc14_cable_test_get_result_code(sts));
+	if (ret)
+		return ret;
+
+	return phy_clear_bits_mmd(phydev, MDIO_MMD_VEND2,
+				  MDIO_OATC14_HDD, OATC14_HDD_CONTROL);
+}
+EXPORT_SYMBOL(genphy_c45_oatc14_cable_test_get_status);
+
+/**
+ * genphy_c45_oatc14_cable_test_start - Start a cable test on an OATC14
+ *                                      10Base-T1S PHY.
+ * @phydev: Pointer to the PHY device structure
+ *
+ * This function initiates a cable diagnostic test on a Clause 45 OATC14
+ * 10Base-T1S capable PHY device. It first reads the PHY’s advanced diagnostic
+ * capability register to check if High Definition Diagnostics (HDD) mode is
+ * supported. If the PHY does not report HDD capability, cable testing is not
+ * supported and the function returns -EOPNOTSUPP.
+ *
+ * For PHYs that support HDD, the function sets the appropriate control bits in
+ * the OATC14_HDD register to enable and start the cable diagnostic test.
+ *
+ * Return:
+ * * 0 on success
+ * * -EOPNOTSUPP if the PHY does not support HDD capability
+ * * A negative error code on I/O or register access failures
+ */
+int genphy_c45_oatc14_cable_test_start(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = phy_read_mmd(phydev, MDIO_MMD_VEND2, MDIO_OATC14_ADFCAP);
+	if (ret < 0)
+		return ret;
+
+	if (!(ret & OATC14_ADFCAP_HDD_CAPABILITY))
+		return -EOPNOTSUPP;
+
+	ret = phy_set_bits_mmd(phydev, MDIO_MMD_VEND2, MDIO_OATC14_HDD,
+			       OATC14_HDD_CONTROL);
+	if (ret)
+		return ret;
+
+	ret = phy_read_mmd(phydev, MDIO_MMD_VEND2, MDIO_OATC14_HDD);
+	if (ret < 0)
+		return ret;
+
+	return phy_set_bits_mmd(phydev, MDIO_MMD_VEND2, MDIO_OATC14_HDD,
+				OATC14_HDD_START_CONTROL);
+}
+EXPORT_SYMBOL(genphy_c45_oatc14_cable_test_start);
