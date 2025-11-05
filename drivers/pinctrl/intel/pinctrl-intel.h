@@ -76,6 +76,15 @@ enum {
 	INTEL_GPIO_BASE_MATCH	= 0,
 };
 
+/* Initialise struct intel_padgroup */
+#define INTEL_GPP(r, s, e, g)				\
+	{						\
+		.reg_num = (r),				\
+		.base = (s),				\
+		.size = ((e) - (s) + 1),		\
+		.gpio_base = (g),			\
+	}
+
 /**
  * struct intel_community - Intel pin community description
  * @barno: MMIO BAR number where registers for this community reside
