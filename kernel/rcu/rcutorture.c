@@ -693,6 +693,7 @@ static struct rcu_torture_ops rcu_busted_ops = {
 
 DEFINE_STATIC_SRCU(srcu_ctl);
 DEFINE_STATIC_SRCU_FAST(srcu_ctlf);
+DEFINE_STATIC_SRCU_FAST_UPDOWN(srcu_ctlfud);
 static struct srcu_struct srcu_ctld;
 static struct srcu_struct *srcu_ctlp = &srcu_ctl;
 static struct rcu_torture_ops srcud_ops;
@@ -703,7 +704,7 @@ static void srcu_torture_init(void)
 	if (reader_flavor & SRCU_READ_FLAVOR_FAST)
 		srcu_ctlp = &srcu_ctlf;
 	if (reader_flavor & SRCU_READ_FLAVOR_FAST_UPDOWN)
-		srcu_ctlp = &srcu_ctlf;
+		srcu_ctlp = &srcu_ctlfud;
 }
 
 static void srcu_get_gp_data(int *flags, unsigned long *gp_seq)
@@ -736,7 +737,7 @@ static int srcu_torture_read_lock(void)
 		ret += idx << 2;
 	}
 	if (reader_flavor & SRCU_READ_FLAVOR_FAST_UPDOWN) {
-		scp = srcu_read_lock_fast(srcu_ctlp);
+		scp = srcu_read_lock_fast_updown(srcu_ctlp);
 		idx = __srcu_ptr_to_ctr(srcu_ctlp, scp);
 		WARN_ON_ONCE(idx & ~0x1);
 		ret += idx << 3;
@@ -767,9 +768,10 @@ static void srcu_torture_read_unlock(int idx)
 {
 	WARN_ON_ONCE((reader_flavor && (idx & ~reader_flavor)) || (!reader_flavor && (idx & ~0x1)));
 	if (reader_flavor & SRCU_READ_FLAVOR_FAST_UPDOWN)
-		srcu_read_unlock_fast(srcu_ctlp, __srcu_ctr_to_ptr(srcu_ctlp, (idx & 0x8) >> 3));
+		srcu_read_unlock_fast_updown(srcu_ctlp,
+					     __srcu_ctr_to_ptr(srcu_ctlp, (idx & 0x8) >> 3));
 	if (reader_flavor & SRCU_READ_FLAVOR_FAST)
-		srcu_read_unlock_fast(srcu_ctlp, __srcu_ctr_to_ptr(srcu_ctlp, (idx & 0x8) >> 2));
+		srcu_read_unlock_fast(srcu_ctlp, __srcu_ctr_to_ptr(srcu_ctlp, (idx & 0x4) >> 2));
 	if (reader_flavor & SRCU_READ_FLAVOR_NMI)
 		srcu_read_unlock_nmisafe(srcu_ctlp, (idx & 0x2) >> 1);
 	if ((reader_flavor & SRCU_READ_FLAVOR_NORMAL) || !(reader_flavor & SRCU_READ_FLAVOR_ALL))
@@ -919,7 +921,7 @@ static void srcud_torture_init(void)
 {
 	rcu_sync_torture_init();
 	if (reader_flavor & SRCU_READ_FLAVOR_FAST_UPDOWN)
-		WARN_ON(init_srcu_struct_fast(&srcu_ctld));
+		WARN_ON(init_srcu_struct_fast_updown(&srcu_ctld));
 	else if (reader_flavor & SRCU_READ_FLAVOR_FAST)
 		WARN_ON(init_srcu_struct_fast(&srcu_ctld));
 	else

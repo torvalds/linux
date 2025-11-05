@@ -199,8 +199,15 @@ struct srcu_struct {
  *
  * See include/linux/percpu-defs.h for the rules on per-CPU variables.
  *
- * DEFINE_SRCU_FAST() creates an srcu_struct and associated structures
- * whose readers must be of the SRCU-fast variety.
+ * DEFINE_SRCU_FAST() and DEFINE_STATIC_SRCU_FAST create an srcu_struct
+ * and associated structures whose readers must be of the SRCU-fast variety.
+ * DEFINE_SRCU_FAST_UPDOWN() and DEFINE_STATIC_SRCU_FAST_UPDOWN() create
+ * an srcu_struct and associated structures whose readers must be of the
+ * SRCU-fast-updown variety.  The key point (aside from error checking) with
+ * both varieties is that the grace periods must use synchronize_rcu()
+ * instead of smp_mb(), and given that the first (for example)
+ * srcu_read_lock_fast() might race with the first synchronize_srcu(),
+ * this different must be specified at initialization time.
  */
 #ifdef MODULE
 # define __DEFINE_SRCU(name, fast, is_static)							\
@@ -221,6 +228,10 @@ struct srcu_struct {
 #define DEFINE_STATIC_SRCU(name)	__DEFINE_SRCU(name, 0, static)
 #define DEFINE_SRCU_FAST(name)		__DEFINE_SRCU(name, SRCU_READ_FLAVOR_FAST, /* not static */)
 #define DEFINE_STATIC_SRCU_FAST(name)	__DEFINE_SRCU(name, SRCU_READ_FLAVOR_FAST, static)
+#define DEFINE_SRCU_FAST_UPDOWN(name)	__DEFINE_SRCU(name, SRCU_READ_FLAVOR_FAST_UPDOWN, \
+						      /* not static */)
+#define DEFINE_STATIC_SRCU_FAST_UPDOWN(name) \
+					__DEFINE_SRCU(name, SRCU_READ_FLAVOR_FAST_UPDOWN, static)
 
 int __srcu_read_lock(struct srcu_struct *ssp) __acquires(ssp);
 void synchronize_srcu_expedited(struct srcu_struct *ssp);
@@ -297,6 +308,46 @@ static inline struct srcu_ctr __percpu notrace *__srcu_read_lock_fast(struct src
  */
 static inline void notrace
 __srcu_read_unlock_fast(struct srcu_struct *ssp, struct srcu_ctr __percpu *scp)
+{
+	barrier();  /* Avoid leaking the critical section. */
+	if (!IS_ENABLED(CONFIG_NEED_SRCU_NMI_SAFE))
+		this_cpu_inc(scp->srcu_unlocks.counter);  // Z, and implicit RCU reader.
+	else
+		atomic_long_inc(raw_cpu_ptr(&scp->srcu_unlocks));  // Z, and implicit RCU reader.
+}
+
+/*
+ * Counts the new reader in the appropriate per-CPU element of the
+ * srcu_struct.  Returns a pointer that must be passed to the matching
+ * srcu_read_unlock_fast_updown().  This type of reader is compatible
+ * with srcu_down_read_fast() and srcu_up_read_fast().
+ *
+ * See the __srcu_read_lock_fast() comment for more details.
+ */
+static inline
+struct srcu_ctr __percpu notrace *__srcu_read_lock_fast_updown(struct srcu_struct *ssp)
+{
+	struct srcu_ctr __percpu *scp = READ_ONCE(ssp->srcu_ctrp);
+
+	if (!IS_ENABLED(CONFIG_NEED_SRCU_NMI_SAFE))
+		this_cpu_inc(scp->srcu_locks.counter); // Y, and implicit RCU reader.
+	else
+		atomic_long_inc(raw_cpu_ptr(&scp->srcu_locks));  // Y, and implicit RCU reader.
+	barrier(); /* Avoid leaking the critical section. */
+	return scp;
+}
+
+/*
+ * Removes the count for the old reader from the appropriate
+ * per-CPU element of the srcu_struct.  Note that this may well be a
+ * different CPU than that which was incremented by the corresponding
+ * srcu_read_lock_fast(), but it must be within the same task.
+ *
+ * Please see the __srcu_read_lock_fast() function's header comment for
+ * information on implicit RCU readers and NMI safety.
+ */
+static inline void notrace
+__srcu_read_unlock_fast_updown(struct srcu_struct *ssp, struct srcu_ctr __percpu *scp)
 {
 	barrier();  /* Avoid leaking the critical section. */
 	if (!IS_ENABLED(CONFIG_NEED_SRCU_NMI_SAFE))

@@ -309,13 +309,24 @@ int __init_srcu_struct_fast(struct srcu_struct *ssp, const char *name, struct lo
 }
 EXPORT_SYMBOL_GPL(__init_srcu_struct_fast);
 
+int __init_srcu_struct_fast_updown(struct srcu_struct *ssp, const char *name,
+				   struct lock_class_key *key)
+{
+	ssp->srcu_reader_flavor = SRCU_READ_FLAVOR_FAST_UPDOWN;
+	return __init_srcu_struct_common(ssp, name, key);
+}
+EXPORT_SYMBOL_GPL(__init_srcu_struct_fast_updown);
+
 #else /* #ifdef CONFIG_DEBUG_LOCK_ALLOC */
 
 /**
  * init_srcu_struct - initialize a sleep-RCU structure
  * @ssp: structure to initialize.
  *
- * Must invoke this on a given srcu_struct before passing that srcu_struct
+ * Use this in place of DEFINE_SRCU() and DEFINE_STATIC_SRCU()
+ * for non-static srcu_struct structures that are to be passed to
+ * srcu_read_lock(), srcu_read_lock_nmisafe(), and friends.  It is necessary
+ * to invoke this on a given srcu_struct before passing that srcu_struct
  * to any other function.  Each srcu_struct represents a separate domain
  * of SRCU protection.
  */
@@ -330,9 +341,11 @@ EXPORT_SYMBOL_GPL(init_srcu_struct);
  * init_srcu_struct_fast - initialize a fast-reader sleep-RCU structure
  * @ssp: structure to initialize.
  *
- * Must invoke this on a given srcu_struct before passing that srcu_struct
- * to any other function.  Each srcu_struct represents a separate domain
- * of SRCU protection.
+ * Use this in place of DEFINE_SRCU_FAST() and DEFINE_STATIC_SRCU_FAST()
+ * for non-static srcu_struct structures that are to be passed to
+ * srcu_read_lock_fast() and friends.  It is necessary to invoke this on a
+ * given srcu_struct before passing that srcu_struct to any other function.
+ * Each srcu_struct represents a separate domain of SRCU protection.
  */
 int init_srcu_struct_fast(struct srcu_struct *ssp)
 {
@@ -340,6 +353,24 @@ int init_srcu_struct_fast(struct srcu_struct *ssp)
 	return init_srcu_struct_fields(ssp, false);
 }
 EXPORT_SYMBOL_GPL(init_srcu_struct_fast);
+
+/**
+ * init_srcu_struct_fast_updown - initialize a fast-reader up/down sleep-RCU structure
+ * @ssp: structure to initialize.
+ *
+ * Use this function in place of DEFINE_SRCU_FAST_UPDOWN() and
+ * DEFINE_STATIC_SRCU_FAST_UPDOWN() for non-static srcu_struct
+ * structures that are to be passed to srcu_read_lock_fast_updown(),
+ * srcu_down_read_fast(), and friends.  It is necessary to invoke this on a
+ * given srcu_struct before passing that srcu_struct to any other function.
+ * Each srcu_struct represents a separate domain of SRCU protection.
+ */
+int init_srcu_struct_fast_updown(struct srcu_struct *ssp)
+{
+	ssp->srcu_reader_flavor = SRCU_READ_FLAVOR_FAST_UPDOWN;
+	return init_srcu_struct_fields(ssp, false);
+}
+EXPORT_SYMBOL_GPL(init_srcu_struct_fast_updown);
 
 #endif /* #else #ifdef CONFIG_DEBUG_LOCK_ALLOC */
 
