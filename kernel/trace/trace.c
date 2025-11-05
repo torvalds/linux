@@ -2302,7 +2302,7 @@ static inline int do_run_tracer_selftest(struct tracer *type)
 }
 #endif /* CONFIG_FTRACE_STARTUP_TEST */
 
-static void add_tracer_options(struct trace_array *tr, struct tracer *t);
+static int add_tracer_options(struct trace_array *tr, struct tracer *t);
 
 static void __init apply_trace_boot_options(void);
 
@@ -2353,9 +2353,14 @@ int __init register_tracer(struct tracer *type)
 	if (ret < 0)
 		goto out;
 
+	ret = add_tracer_options(&global_trace, type);
+	if (ret < 0) {
+		pr_warn("Failed to create tracer options for %s\n", type->name);
+		goto out;
+	}
+
 	type->next = trace_types;
 	trace_types = type;
-	add_tracer_options(&global_trace, type);
 
  out:
 	mutex_unlock(&trace_types_lock);
@@ -6221,7 +6226,7 @@ int tracing_update_buffers(struct trace_array *tr)
 
 struct trace_option_dentry;
 
-static void
+static int
 create_trace_option_files(struct trace_array *tr, struct tracer *tracer);
 
 /*
@@ -6243,17 +6248,17 @@ static void tracing_set_nop(struct trace_array *tr)
 
 static bool tracer_options_updated;
 
-static void add_tracer_options(struct trace_array *tr, struct tracer *t)
+static int add_tracer_options(struct trace_array *tr, struct tracer *t)
 {
 	/* Only enable if the directory has been created already. */
 	if (!tr->dir && !(tr->flags & TRACE_ARRAY_FL_GLOBAL))
-		return;
+		return 0;
 
 	/* Only create trace option files after update_tracer_options finish */
 	if (!tracer_options_updated)
-		return;
+		return 0;
 
-	create_trace_option_files(tr, t);
+	return create_trace_option_files(tr, t);
 }
 
 int tracing_set_tracer(struct trace_array *tr, const char *buf)
@@ -9585,7 +9590,7 @@ create_trace_option_file(struct trace_array *tr,
 
 }
 
-static void
+static int
 create_trace_option_files(struct trace_array *tr, struct tracer *tracer)
 {
 	struct trace_option_dentry *topts;
@@ -9596,24 +9601,24 @@ create_trace_option_files(struct trace_array *tr, struct tracer *tracer)
 	int i;
 
 	if (!tracer)
-		return;
+		return 0;
 
 	flags = tracer->flags;
 
 	if (!flags || !flags->opts)
-		return;
+		return 0;
 
 	/*
 	 * If this is an instance, only create flags for tracers
 	 * the instance may have.
 	 */
 	if (!trace_ok_for_array(tracer, tr))
-		return;
+		return 0;
 
 	for (i = 0; i < tr->nr_topts; i++) {
 		/* Make sure there's no duplicate flags. */
 		if (WARN_ON_ONCE(tr->topts[i].tracer->flags == tracer->flags))
-			return;
+			return -EINVAL;
 	}
 
 	opts = flags->opts;
@@ -9623,13 +9628,13 @@ create_trace_option_files(struct trace_array *tr, struct tracer *tracer)
 
 	topts = kcalloc(cnt + 1, sizeof(*topts), GFP_KERNEL);
 	if (!topts)
-		return;
+		return 0;
 
 	tr_topts = krealloc(tr->topts, sizeof(*tr->topts) * (tr->nr_topts + 1),
 			    GFP_KERNEL);
 	if (!tr_topts) {
 		kfree(topts);
-		return;
+		return -ENOMEM;
 	}
 
 	tr->topts = tr_topts;
@@ -9644,6 +9649,7 @@ create_trace_option_files(struct trace_array *tr, struct tracer *tracer)
 			  "Failed to create trace option: %s",
 			  opts[cnt].name);
 	}
+	return 0;
 }
 
 static struct dentry *
@@ -10094,15 +10100,18 @@ static void init_trace_flags_index(struct trace_array *tr)
 		tr->trace_flags_index[i] = i;
 }
 
-static void __update_tracer_options(struct trace_array *tr)
+static int __update_tracer_options(struct trace_array *tr)
 {
 	struct tracer *t;
+	int ret = 0;
 
-	for (t = trace_types; t; t = t->next)
-		add_tracer_options(tr, t);
+	for (t = trace_types; t && !ret; t = t->next)
+		ret = add_tracer_options(tr, t);
+
+	return ret;
 }
 
-static void update_tracer_options(struct trace_array *tr)
+static __init void update_tracer_options(struct trace_array *tr)
 {
 	guard(mutex)(&trace_types_lock);
 	tracer_options_updated = true;
@@ -10151,9 +10160,13 @@ static int trace_array_create_dir(struct trace_array *tr)
 	}
 
 	init_tracer_tracefs(tr, tr->dir);
-	__update_tracer_options(tr);
-
-	return ret;
+	ret = __update_tracer_options(tr);
+	if (ret) {
+		event_trace_del_tracer(tr);
+		tracefs_remove(tr->dir);
+		return ret;
+	}
+	return 0;
 }
 
 static struct trace_array *
