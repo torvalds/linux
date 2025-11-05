@@ -1321,6 +1321,7 @@ void dm_accept_partial_bio(struct bio *bio, unsigned int n_sectors)
 	BUG_ON(dm_tio_flagged(tio, DM_TIO_IS_DUPLICATE_BIO));
 	BUG_ON(bio_sectors > *tio->len_ptr);
 	BUG_ON(n_sectors > bio_sectors);
+	BUG_ON(bio->bi_opf & REQ_ATOMIC);
 
 	if (static_branch_unlikely(&zoned_enabled) &&
 	    unlikely(bdev_is_zoned(bio->bi_bdev))) {
@@ -1735,8 +1736,12 @@ static blk_status_t __split_and_process_bio(struct clone_info *ci)
 	ci->submit_as_polled = !!(ci->bio->bi_opf & REQ_POLLED);
 
 	len = min_t(sector_t, max_io_len(ti, ci->sector), ci->sector_count);
-	if (ci->bio->bi_opf & REQ_ATOMIC && len != ci->sector_count)
-		return BLK_STS_IOERR;
+	if (ci->bio->bi_opf & REQ_ATOMIC) {
+		if (unlikely(!dm_target_supports_atomic_writes(ti->type)))
+			return BLK_STS_IOERR;
+		if (unlikely(len != ci->sector_count))
+			return BLK_STS_IOERR;
+	}
 
 	setup_split_accounting(ci, len);
 
