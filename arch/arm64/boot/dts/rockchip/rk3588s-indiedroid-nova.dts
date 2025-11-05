@@ -11,6 +11,7 @@
 
 / {
 	model = "Indiedroid Nova";
+	chassis-type = "embedded";
 	compatible = "indiedroid,nova", "rockchip,rk3588s";
 
 	adc-keys-0 {
