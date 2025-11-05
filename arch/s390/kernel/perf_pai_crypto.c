@@ -411,10 +411,11 @@ static void paicrypt_start(struct perf_event *event, int flags)
 	pai_start(event, flags, paicrypt_getall);
 }
 
-static int paicrypt_add(struct perf_event *event, int flags)
+static int pai_add(struct perf_event *event, int flags)
 {
 	struct pai_mapptr *mp = this_cpu_ptr(pai_root.mapptr);
 	struct pai_map *cpump = mp->mapptr;
+	int idx = PAI_PMU_IDX(event);
 	unsigned long ccd;
 
 	if (++cpump->active_events == 1) {
@@ -423,9 +424,14 @@ static int paicrypt_add(struct perf_event *event, int flags)
 		local_ctl_set_bit(0, CR0_CRYPTOGRAPHY_COUNTER_BIT);
 	}
 	if (flags & PERF_EF_START)
-		paicrypt_start(event, PERF_EF_RELOAD);
+		pai_pmu[idx].pmu->start(event, PERF_EF_RELOAD);
 	event->hw.state = 0;
 	return 0;
+}
+
+static int paicrypt_add(struct perf_event *event, int flags)
+{
+	return pai_add(event, flags);
 }
 
 static void pai_have_sample(struct perf_event *, struct pai_map *);
