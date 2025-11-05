@@ -186,7 +186,7 @@ static void io_req_rw_cleanup(struct io_kiocb *req, unsigned int issue_flags)
 	 * This is really a bug in the core code that does this, any issue
 	 * path should assume that a successful (or -EIOCBQUEUED) return can
 	 * mean that the underlying data can be gone at any time. But that
-	 * should be fixed seperately, and then this check could be killed.
+	 * should be fixed separately, and then this check could be killed.
 	 */
 	if (!(req->flags & (REQ_F_REISSUE | REQ_F_REFCOUNT))) {
 		req->flags &= ~REQ_F_NEED_CLEANUP;
@@ -349,7 +349,7 @@ static int io_prep_rwv(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 
 	/*
 	 * Have to do this validation here, as this is in io_read() rw->len
-	 * might have chanaged due to buffer selection
+	 * might have changed due to buffer selection
 	 */
 	return io_iov_buffer_select_prep(req);
 }
@@ -1020,7 +1020,7 @@ static int __io_read(struct io_kiocb *req, struct io_br_sel *sel,
 		iov_iter_restore(&io->iter, &io->iter_state);
 	} while (ret > 0);
 done:
-	/* it's faster to check here then delegate to kfree */
+	/* it's faster to check here than delegate to kfree */
 	return ret;
 }
 
