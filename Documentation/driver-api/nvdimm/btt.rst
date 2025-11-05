@@ -83,7 +83,7 @@ flags, and the remaining form the internal block number.
 ======== =============================================================
 Bit      Description
 ======== =============================================================
-31 - 30	 Error and Zero flags - Used in the following way::
+31 - 30	 Error and Zero flags - Used in the following way:
 
 	   == ==  ====================================================
 	   31 30  Description
