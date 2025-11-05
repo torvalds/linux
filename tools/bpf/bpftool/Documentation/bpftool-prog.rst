@@ -182,7 +182,7 @@ bpftool prog tracelog
 
 bpftool prog tracelog { stdout | stderr } *PROG*
     Dump the BPF stream of the program. BPF programs can write to these streams
-    at runtime with the **bpf_stream_vprintk**\ () kfunc. The kernel may write
+    at runtime with the **bpf_stream_vprintk_impl**\ () kfunc. The kernel may write
     error messages to the standard error stream. This facility should be used
     only for debugging purposes.
 
