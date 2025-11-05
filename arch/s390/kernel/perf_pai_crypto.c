@@ -159,23 +159,25 @@ static u64 paicrypt_getctr(unsigned long *page, int nr, bool kernel)
 	return page[nr];
 }
 
-/* Read the counter values. Return value from location in CMP. For event
- * CRYPTO_ALL sum up all events.
+/* Read the counter values. Return value from location in CMP. For base
+ * event xxx_ALL sum up all events. Returns counter value.
  */
-static u64 paicrypt_getdata(struct perf_event *event, bool kernel)
+static u64 pai_getdata(struct perf_event *event, bool kernel)
 {
 	struct pai_mapptr *mp = this_cpu_ptr(pai_root.mapptr);
 	struct pai_map *cpump = mp->mapptr;
+	int idx = PAI_PMU_IDX(event);
+	struct pai_pmu *pp = &pai_pmu[idx];
+	unsigned int i;
 	u64 sum = 0;
-	int i;
 
-	if (event->attr.config != PAI_CRYPTO_BASE) {
+	if (event->attr.config != pp->base) {
 		return paicrypt_getctr(cpump->area,
-				       event->attr.config - PAI_CRYPTO_BASE,
+				       event->attr.config - pp->base,
 				       kernel);
 	}
 
-	for (i = 1; i <= paicrypt_cnt; i++) {
+	for (i = 1; i <= pp->num_avail; i++) {
 		u64 val = paicrypt_getctr(cpump->area, i, kernel);
 
 		if (!val)
@@ -190,9 +192,9 @@ static u64 paicrypt_getall(struct perf_event *event)
 	u64 sum = 0;
 
 	if (!event->attr.exclude_kernel)
-		sum += paicrypt_getdata(event, true);
+		sum += pai_getdata(event, true);
 	if (!event->attr.exclude_user)
-		sum += paicrypt_getdata(event, false);
+		sum += pai_getdata(event, false);
 
 	return sum;
 }
