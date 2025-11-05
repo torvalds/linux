@@ -685,7 +685,7 @@ ieee80211_get_he_6ghz_capa(const struct ieee80211_supported_band *sband,
 }
 
 /**
- * ieee80211_get_eht_iftype_cap - return ETH capabilities for an sband's iftype
+ * ieee80211_get_eht_iftype_cap - return EHT capabilities for an sband's iftype
  * @sband: the sband to search for the iftype on
  * @iftype: enum nl80211_iftype
  *
