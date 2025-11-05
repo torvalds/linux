@@ -23,9 +23,6 @@ static void ieee80211_update_apvlan_links(struct ieee80211_sub_if_data *sdata)
 	list_for_each_entry(vlan, &sdata->u.ap.vlans, u.vlan.list) {
 		int link_id;
 
-		if (!vlan)
-			continue;
-
 		/* No support for 4addr with MLO yet */
 		if (vlan->wdev.use_4addr)
 			return;
