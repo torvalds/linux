@@ -358,6 +358,19 @@
 			#reset-cells = <1>;
 		};
 
+		i2c2: i2c@d4012000 {
+			compatible = "spacemit,k1-i2c";
+			reg = <0x0 0xd4012000 0x0 0x38>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&syscon_apbc CLK_TWSI2>,
+				 <&syscon_apbc CLK_TWSI2_BUS>;
+			clock-names = "func", "bus";
+			clock-frequency = <400000>;
+			interrupts = <38>;
+			status = "disabled";
+		};
+
 		syscon_apbc: system-controller@d4015000 {
 			compatible = "spacemit,k1-syscon-apbc";
 			reg = <0x0 0xd4015000 0x0 0x1000>;
@@ -456,19 +469,6 @@
 			#pwm-cells = <3>;
 			clocks = <&syscon_apbc CLK_PWM7>;
 			resets = <&syscon_apbc RESET_PWM7>;
-			status = "disabled";
-		};
-
-		i2c2: i2c@d4012000 {
-			compatible = "spacemit,k1-i2c";
-			reg = <0x0 0xd4012000 0x0 0x38>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-			clocks = <&syscon_apbc CLK_TWSI2>,
-				 <&syscon_apbc CLK_TWSI2_BUS>;
-			clock-names = "func", "bus";
-			clock-frequency = <400000>;
-			interrupts = <38>;
 			status = "disabled";
 		};
 
