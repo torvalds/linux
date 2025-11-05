@@ -560,7 +560,7 @@
 			     <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "job", "mmu", "gpu";
-		clocks = <&scmi_clk 1>, <&cru CLK_GPU>;
+		clocks = <&scmi_clk SCMI_CLK_GPU>, <&cru CLK_GPU>;
 		clock-names = "gpu", "bus";
 		#cooling-cells = <2>;
 		power-domains = <&power RK3568_PD_GPU>;
