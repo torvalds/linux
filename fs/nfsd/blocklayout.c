@@ -13,6 +13,7 @@
 #include "pnfs.h"
 #include "filecache.h"
 #include "vfs.h"
+#include "trace.h"
 
 #define NFSDDBG_FACILITY	NFSDDBG_PNFS
 
@@ -398,10 +399,12 @@ nfsd4_scsi_fence_client(struct nfs4_layout_stateid *ls, struct nfsd_file *file)
 {
 	struct nfs4_client *clp = ls->ls_stid.sc_client;
 	struct block_device *bdev = file->nf_file->f_path.mnt->mnt_sb->s_bdev;
+	int status;
 
-	bdev->bd_disk->fops->pr_ops->pr_preempt(bdev, NFSD_MDS_PR_KEY,
+	status = bdev->bd_disk->fops->pr_ops->pr_preempt(bdev, NFSD_MDS_PR_KEY,
 			nfsd4_scsi_pr_key(clp),
 			PR_EXCLUSIVE_ACCESS_REG_ONLY, true);
+	trace_nfsd_pnfs_fence(clp, bdev->bd_disk->disk_name, status);
 }
 
 const struct nfsd4_layout_ops scsi_layout_ops = {
