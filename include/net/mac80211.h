@@ -7223,7 +7223,7 @@ ieee80211_get_he_6ghz_capa_vif(const struct ieee80211_supported_band *sband,
 }
 
 /**
- * ieee80211_get_eht_iftype_cap_vif - return ETH capabilities for sband/vif
+ * ieee80211_get_eht_iftype_cap_vif - return EHT capabilities for sband/vif
  * @sband: the sband to search for the iftype on
  * @vif: the vif to get the iftype from
  *
