@@ -1072,7 +1072,9 @@ static void check_faultable_syscall(struct trace_event_call *call, int nr)
 	switch (nr) {
 	/* user arg 1 with size arg at 2 */
 	case __NR_write:
+#ifdef __NR_mq_timedsend
 	case __NR_mq_timedsend:
+#endif
 	case __NR_pwrite64:
 		sys_data->user_mask = BIT(1);
 		sys_data->user_arg_size = 2;
@@ -1186,7 +1188,9 @@ static void check_faultable_syscall(struct trace_event_call *call, int nr)
 	case __NR_syslog:
 	case __NR_statx:
 	case __NR_unlinkat:
+#ifdef __NR_utimensat
 	case __NR_utimensat:
+#endif
 		sys_data->user_mask = BIT(1);
 		break;
 	/* user arg at position 2 */
