@@ -1748,7 +1748,8 @@ static int skl_plane_check_fb(const struct intel_crtc_state *crtc_state,
 	}
 
 	if (rotation & DRM_MODE_REFLECT_X &&
-	    fb->modifier == DRM_FORMAT_MOD_LINEAR) {
+	    fb->modifier == DRM_FORMAT_MOD_LINEAR &&
+	    DISPLAY_VER(display) < 35) {
 		drm_dbg_kms(display->drm,
 			    "[PLANE:%d:%s] horizontal flip is not supported with linear surface formats\n",
 			    plane->base.base.id, plane->base.name);
