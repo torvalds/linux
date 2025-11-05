@@ -542,7 +542,7 @@ static void pai_have_sample(struct perf_event *event, struct pai_map *cpump)
 }
 
 /* Check if there is data to be saved on schedule out of a task. */
-static void paicrypt_have_samples(void)
+static void pai_have_samples(void)
 {
 	struct pai_mapptr *mp = this_cpu_ptr(pai_root.mapptr);
 	struct pai_map *cpump = mp->mapptr;
@@ -562,7 +562,7 @@ static void paicrypt_sched_task(struct perf_event_pmu_context *pmu_ctx,
 	 * results on schedule_out and if page was dirty, save old values.
 	 */
 	if (!sched_in)
-		paicrypt_have_samples();
+		pai_have_samples();
 }
 
 /* Attribute definitions for paicrypt interface. As with other CPU
