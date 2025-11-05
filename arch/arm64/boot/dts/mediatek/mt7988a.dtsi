@@ -999,6 +999,7 @@
 				int_2p5g_phy: ethernet-phy@15 {
 					compatible = "ethernet-phy-ieee802.3-c45";
 					reg = <15>;
+					status = "disabled";
 				};
 			};
 		};
