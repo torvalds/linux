@@ -2288,9 +2288,9 @@ static int scrub_raid56_parity_stripe(struct scrub_ctx *sctx,
 	bio_put(bio);
 	btrfs_bio_counter_dec(fs_info);
 
+out:
 	btrfs_release_path(&extent_path);
 	btrfs_release_path(&csum_path);
-out:
 	return ret;
 }
 
