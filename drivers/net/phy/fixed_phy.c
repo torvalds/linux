@@ -224,7 +224,7 @@ EXPORT_SYMBOL_GPL(fixed_phy_register);
 struct phy_device *fixed_phy_register_100fd(void)
 {
 	static const struct fixed_phy_status status = {
-		.link	= 1,
+		.link	= true,
 		.speed	= SPEED_100,
 		.duplex	= DUPLEX_FULL,
 	};

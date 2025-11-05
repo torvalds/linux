@@ -5,11 +5,11 @@
 #include <linux/types.h>
 
 struct fixed_phy_status {
-	int link;
 	int speed;
 	int duplex;
-	int pause;
-	int asym_pause;
+	bool link:1;
+	bool pause:1;
+	bool asym_pause:1;
 };
 
 struct device_node;
