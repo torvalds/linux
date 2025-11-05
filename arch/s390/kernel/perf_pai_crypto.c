@@ -152,10 +152,10 @@ static void pai_event_destroy(struct perf_event *event)
 	}
 }
 
-static u64 paicrypt_getctr(unsigned long *page, int nr, bool kernel)
+static u64 pai_getctr(unsigned long *page, int nr, unsigned long offset)
 {
-	if (kernel)
-		nr += PAI_CRYPTO_MAXCTR;
+	if (offset)
+		nr += offset / sizeof(*page);
 	return page[nr];
 }
 
@@ -172,13 +172,14 @@ static u64 pai_getdata(struct perf_event *event, bool kernel)
 	u64 sum = 0;
 
 	if (event->attr.config != pp->base) {
-		return paicrypt_getctr(cpump->area,
+		return pai_getctr(cpump->area,
 				       event->attr.config - pp->base,
-				       kernel);
+				       kernel ? pp->kernel_offset : 0);
 	}
 
 	for (i = 1; i <= pp->num_avail; i++) {
-		u64 val = paicrypt_getctr(cpump->area, i, kernel);
+		u64 val = pai_getctr(cpump->area, i,
+				     kernel ? pp->kernel_offset : 0);
 
 		if (!val)
 			continue;
@@ -416,7 +417,7 @@ static int paicrypt_add(struct perf_event *event, int flags)
 	return 0;
 }
 
-static void paicrypt_have_sample(struct perf_event *, struct pai_map *);
+static void pai_have_sample(struct perf_event *, struct pai_map *);
 static void paicrypt_stop(struct perf_event *event, int flags)
 {
 	struct pai_mapptr *mp = this_cpu_ptr(pai_root.mapptr);
@@ -429,7 +430,7 @@ static void paicrypt_stop(struct perf_event *event, int flags)
 			perf_sched_cb_dec(event->pmu);
 			list_del(PAI_SWLIST(event));
 		} else {
-			paicrypt_have_sample(event, cpump);
+			pai_have_sample(event, cpump);
 			cpump->event = NULL;
 		}
 	}
@@ -456,21 +457,21 @@ static void paicrypt_del(struct perf_event *event, int flags)
  * 8 bytes: Value of counter
  */
 static size_t paicrypt_copy(struct pai_userdata *userdata, unsigned long *page,
-			    unsigned long *page_old, bool exclude_user,
-			    bool exclude_kernel)
+			    struct pai_pmu *pp, unsigned long *page_old,
+			    bool exclude_user, bool exclude_kernel)
 {
 	int i, outidx = 0;
 
-	for (i = 1; i <= paicrypt_cnt; i++) {
+	for (i = 1; i <= pp->num_avail; i++) {
 		u64 val = 0, val_old = 0;
 
 		if (!exclude_kernel) {
-			val += paicrypt_getctr(page, i, true);
-			val_old += paicrypt_getctr(page_old, i, true);
+			val += pai_getctr(page, i, pp->kernel_offset);
+			val_old += pai_getctr(page_old, i, pp->kernel_offset);
 		}
 		if (!exclude_user) {
-			val += paicrypt_getctr(page, i, false);
-			val_old += paicrypt_getctr(page_old, i, false);
+			val += pai_getctr(page, i, 0);
+			val_old += pai_getctr(page_old, i, 0);
 		}
 		if (val >= val_old)
 			val -= val_old;
@@ -524,14 +525,15 @@ static int paicrypt_push_sample(size_t rawsize, struct pai_map *cpump,
 }
 
 /* Check if there is data to be saved on schedule out of a task. */
-static void paicrypt_have_sample(struct perf_event *event,
-				 struct pai_map *cpump)
+static void pai_have_sample(struct perf_event *event, struct pai_map *cpump)
 {
+	struct pai_pmu *pp;
 	size_t rawsize;
 
 	if (!event)		/* No event active */
 		return;
-	rawsize = paicrypt_copy(cpump->save, cpump->area,
+	pp = &pai_pmu[PAI_PMU_IDX(event)];
+	rawsize = paicrypt_copy(cpump->save, cpump->area, pp,
 				(unsigned long *)PAI_SAVE_AREA(event),
 				event->attr.exclude_user,
 				event->attr.exclude_kernel);
@@ -547,7 +549,7 @@ static void paicrypt_have_samples(void)
 	struct perf_event *event;
 
 	list_for_each_entry(event, &cpump->syswide_list, hw.tp_list)
-		paicrypt_have_sample(event, cpump);
+		pai_have_sample(event, cpump);
 }
 
 /* Called on schedule-in and schedule-out. No access to event structure,
