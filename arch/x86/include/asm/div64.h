@@ -60,6 +60,12 @@ static inline u64 div_u64_rem(u64 dividend, u32 divisor, u32 *remainder)
 }
 #define div_u64_rem	div_u64_rem
 
+/*
+ * gcc tends to zero extend 32bit values and do full 64bit maths.
+ * Define asm functions that avoid this.
+ * (clang generates better code for the C versions.)
+ */
+#ifndef __clang__
 static inline u64 mul_u32_u32(u32 a, u32 b)
 {
 	u32 high, low;
@@ -70,6 +76,19 @@ static inline u64 mul_u32_u32(u32 a, u32 b)
 	return low | ((u64)high) << 32;
 }
 #define mul_u32_u32 mul_u32_u32
+
+static inline u64 add_u64_u32(u64 a, u32 b)
+{
+	u32 high = a >> 32, low = a;
+
+	asm ("addl %[b], %[low]; adcl $0, %[high]"
+		: [low] "+r" (low), [high] "+r" (high)
+		: [b] "rm" (b) );
+
+	return low | (u64)high << 32;
+}
+#define add_u64_u32 add_u64_u32
+#endif
 
 /*
  * __div64_32() is never called on x86, so prevent the
