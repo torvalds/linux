@@ -732,8 +732,8 @@ static int __cpuidle acpi_idle_enter_s2idle(struct cpuidle_device *dev,
 	return 0;
 }
 
-static int acpi_processor_setup_cpuidle_cx(struct acpi_processor *pr,
-					   struct cpuidle_device *dev)
+static void acpi_processor_setup_cpuidle_cx(struct acpi_processor *pr,
+					    struct cpuidle_device *dev)
 {
 	int i, count = ACPI_IDLE_STATE_START;
 	struct acpi_processor_cx *cx;
@@ -753,14 +753,9 @@ static int acpi_processor_setup_cpuidle_cx(struct acpi_processor *pr,
 		if (count == CPUIDLE_STATE_MAX)
 			break;
 	}
-
-	if (!count)
-		return -EINVAL;
-
-	return 0;
 }
 
-static int acpi_processor_setup_cstates(struct acpi_processor *pr)
+static void acpi_processor_setup_cstates(struct acpi_processor *pr)
 {
 	int i, count;
 	struct acpi_processor_cx *cx;
@@ -822,11 +817,6 @@ static int acpi_processor_setup_cstates(struct acpi_processor *pr)
 	}
 
 	drv->state_count = count;
-
-	if (!count)
-		return -EINVAL;
-
-	return 0;
 }
 
 static inline void acpi_processor_cstate_first_run_checks(void)
@@ -1241,7 +1231,8 @@ static int acpi_processor_setup_cpuidle_states(struct acpi_processor *pr)
 	if (pr->flags.has_lpi)
 		return acpi_processor_setup_lpi_states(pr);
 
-	return acpi_processor_setup_cstates(pr);
+	acpi_processor_setup_cstates(pr);
+	return 0;
 }
 
 /**
@@ -1261,7 +1252,8 @@ static int acpi_processor_setup_cpuidle_dev(struct acpi_processor *pr,
 	if (pr->flags.has_lpi)
 		return acpi_processor_ffh_lpi_probe(pr->id);
 
-	return acpi_processor_setup_cpuidle_cx(pr, dev);
+	acpi_processor_setup_cpuidle_cx(pr, dev);
+	return 0;
 }
 
 static int acpi_processor_get_power_info(struct acpi_processor *pr)
