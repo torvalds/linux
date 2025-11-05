@@ -43,20 +43,20 @@ struct pai_mapptr {
 	struct pai_map *mapptr;
 };
 
-static struct paicrypt_root {		/* Anchor to per CPU data */
+static struct pai_root {		/* Anchor to per CPU data */
 	refcount_t refcnt;		/* Overall active events */
 	struct pai_mapptr __percpu *mapptr;
-} paicrypt_root;
+} pai_root;
 
 /* Free per CPU data when the last event is removed. */
 static void paicrypt_root_free(void)
 {
-	if (refcount_dec_and_test(&paicrypt_root.refcnt)) {
-		free_percpu(paicrypt_root.mapptr);
-		paicrypt_root.mapptr = NULL;
+	if (refcount_dec_and_test(&pai_root.refcnt)) {
+		free_percpu(pai_root.mapptr);
+		pai_root.mapptr = NULL;
 	}
 	debug_sprintf_event(paidbg, 5, "%s root.refcount %d\n", __func__,
-			    refcount_read(&paicrypt_root.refcnt));
+			    refcount_read(&pai_root.refcnt));
 }
 
 /*
@@ -67,12 +67,12 @@ static void paicrypt_root_free(void)
  */
 static int paicrypt_root_alloc(void)
 {
-	if (!refcount_inc_not_zero(&paicrypt_root.refcnt)) {
+	if (!refcount_inc_not_zero(&pai_root.refcnt)) {
 		/* The memory is already zeroed. */
-		paicrypt_root.mapptr = alloc_percpu(struct pai_mapptr);
-		if (!paicrypt_root.mapptr)
+		pai_root.mapptr = alloc_percpu(struct pai_mapptr);
+		if (!pai_root.mapptr)
 			return -ENOMEM;
-		refcount_set(&paicrypt_root.refcnt, 1);
+		refcount_set(&pai_root.refcnt, 1);
 	}
 	return 0;
 }
@@ -94,7 +94,7 @@ static void paicrypt_free(struct pai_mapptr *mp)
  */
 static void paicrypt_event_destroy_cpu(struct perf_event *event, int cpu)
 {
-	struct pai_mapptr *mp = per_cpu_ptr(paicrypt_root.mapptr, cpu);
+	struct pai_mapptr *mp = per_cpu_ptr(pai_root.mapptr, cpu);
 	struct pai_map *cpump = mp->mapptr;
 
 	mutex_lock(&pai_reserve_mutex);
@@ -137,7 +137,7 @@ static u64 paicrypt_getctr(unsigned long *page, int nr, bool kernel)
  */
 static u64 paicrypt_getdata(struct perf_event *event, bool kernel)
 {
-	struct pai_mapptr *mp = this_cpu_ptr(paicrypt_root.mapptr);
+	struct pai_mapptr *mp = this_cpu_ptr(pai_root.mapptr);
 	struct pai_map *cpump = mp->mapptr;
 	u64 sum = 0;
 	int i;
@@ -190,7 +190,7 @@ static int paicrypt_alloc_cpu(struct perf_event *event, int cpu)
 		goto unlock;
 
 	/* Allocate node for this event */
-	mp = per_cpu_ptr(paicrypt_root.mapptr, cpu);
+	mp = per_cpu_ptr(pai_root.mapptr, cpu);
 	cpump = mp->mapptr;
 	if (!cpump) {			/* Paicrypt_map allocated? */
 		rc = -ENOMEM;
@@ -326,7 +326,7 @@ static void paicrypt_read(struct perf_event *event)
 
 static void paicrypt_start(struct perf_event *event, int flags)
 {
-	struct pai_mapptr *mp = this_cpu_ptr(paicrypt_root.mapptr);
+	struct pai_mapptr *mp = this_cpu_ptr(pai_root.mapptr);
 	struct pai_map *cpump = mp->mapptr;
 	u64 sum;
 
@@ -347,7 +347,7 @@ static void paicrypt_start(struct perf_event *event, int flags)
 
 static int paicrypt_add(struct perf_event *event, int flags)
 {
-	struct pai_mapptr *mp = this_cpu_ptr(paicrypt_root.mapptr);
+	struct pai_mapptr *mp = this_cpu_ptr(pai_root.mapptr);
 	struct pai_map *cpump = mp->mapptr;
 	unsigned long ccd;
 
@@ -365,7 +365,7 @@ static int paicrypt_add(struct perf_event *event, int flags)
 static void paicrypt_have_sample(struct perf_event *, struct pai_map *);
 static void paicrypt_stop(struct perf_event *event, int flags)
 {
-	struct pai_mapptr *mp = this_cpu_ptr(paicrypt_root.mapptr);
+	struct pai_mapptr *mp = this_cpu_ptr(pai_root.mapptr);
 	struct pai_map *cpump = mp->mapptr;
 
 	if (!event->attr.sample_period) {	/* Counting */
@@ -384,7 +384,7 @@ static void paicrypt_stop(struct perf_event *event, int flags)
 
 static void paicrypt_del(struct perf_event *event, int flags)
 {
-	struct pai_mapptr *mp = this_cpu_ptr(paicrypt_root.mapptr);
+	struct pai_mapptr *mp = this_cpu_ptr(pai_root.mapptr);
 	struct pai_map *cpump = mp->mapptr;
 
 	paicrypt_stop(event, PERF_EF_UPDATE);
@@ -488,7 +488,7 @@ static void paicrypt_have_sample(struct perf_event *event,
 /* Check if there is data to be saved on schedule out of a task. */
 static void paicrypt_have_samples(void)
 {
-	struct pai_mapptr *mp = this_cpu_ptr(paicrypt_root.mapptr);
+	struct pai_mapptr *mp = this_cpu_ptr(pai_root.mapptr);
 	struct pai_map *cpump = mp->mapptr;
 	struct perf_event *event;
 
