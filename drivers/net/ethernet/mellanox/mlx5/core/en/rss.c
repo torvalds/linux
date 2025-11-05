@@ -231,6 +231,8 @@ mlx5e_rss_create_tir(struct mlx5e_rss *rss, enum mlx5_traffic_types tt,
 				    rqtn, rss_inner);
 	mlx5e_tir_builder_build_packet_merge(builder, pkt_merge_param);
 	rss_tt = mlx5e_rss_get_tt_config(rss, tt);
+	mlx5e_tir_builder_build_self_lb_block(builder, rss->params.self_lb_blk,
+					      rss->params.self_lb_blk);
 	mlx5e_tir_builder_build_rss(builder, &rss->hash, &rss_tt, inner);
 
 	err = mlx5e_tir_init(tir, builder, rss->mdev, true);

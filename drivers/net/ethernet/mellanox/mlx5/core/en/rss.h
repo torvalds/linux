@@ -23,6 +23,7 @@ struct mlx5e_rss_init_params {
 struct mlx5e_rss_params {
 	bool inner_ft_support;
 	u32 drop_rqn;
+	bool self_lb_blk;
 };
 
 struct mlx5e_rss_params_traffic_type
