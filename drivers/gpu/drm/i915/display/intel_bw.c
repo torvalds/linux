@@ -802,6 +802,15 @@ void intel_bw_init_hw(struct intel_display *display)
 	if (!HAS_DISPLAY(display))
 		return;
 
+	/*
+	 * Starting with Xe3p_LPD, the hardware tells us whether memory has ECC
+	 * enabled that would impact display bandwidth.  However, so far there
+	 * are no instructions in Bspec on how to handle that case.  Let's
+	 * complain if we ever find such a scenario.
+	 */
+	if (DISPLAY_VER(display) >= 35)
+		drm_WARN_ON(display->drm, dram_info->ecc_impacting_de_bw);
+
 	if (DISPLAY_VER(display) >= 30) {
 		if (DISPLAY_VERx100(display) == 3002)
 			tgl_get_bw_info(display, dram_info, &xe3lpd_3002_sa_info);
