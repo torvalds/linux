@@ -24,10 +24,10 @@
 #define GMAC_INTF_RATE_125M	125000000	/* 125MHz */
 
 /* SoC PHY interface control register */
-#define PHY_INTF_SEL_MII	0x00
-#define PHY_INTF_SEL_SGMII	0x01
-#define PHY_INTF_SEL_RGMII	0x02
-#define PHY_INTF_SEL_RMII	0x08
+#define S32_PHY_INTF_SEL_MII	0x00
+#define S32_PHY_INTF_SEL_SGMII	0x01
+#define S32_PHY_INTF_SEL_RGMII	0x02
+#define S32_PHY_INTF_SEL_RMII	0x08
 
 struct s32_priv_data {
 	void __iomem *ioaddr;
@@ -40,7 +40,7 @@ struct s32_priv_data {
 
 static int s32_gmac_write_phy_intf_select(struct s32_priv_data *gmac)
 {
-	writel(PHY_INTF_SEL_RGMII, gmac->ctrl_sts);
+	writel(S32_PHY_INTF_SEL_RGMII, gmac->ctrl_sts);
 
 	dev_dbg(gmac->dev, "PHY mode set to %s\n", phy_modes(*gmac->intf_mode));
 

@@ -250,6 +250,7 @@ struct plat_stmmacenet_data {
 	struct stmmac_txq_cfg tx_queues_cfg[MTL_MAX_TX_QUEUES];
 	void (*get_interfaces)(struct stmmac_priv *priv, void *bsp_priv,
 			       unsigned long *interfaces);
+	int (*set_phy_intf_sel)(void *priv, u8 phy_intf_sel);
 	int (*set_clk_tx_rate)(void *priv, struct clk *clk_tx_i,
 			       phy_interface_t interface, int speed);
 	void (*fix_mac_speed)(void *priv, int speed, unsigned int mode);

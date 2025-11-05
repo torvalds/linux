@@ -313,6 +313,16 @@ struct stmmac_safety_stats {
 #define DMA_HW_FEAT_ACTPHYIF	0x70000000	/* Active/selected PHY iface */
 #define DEFAULT_DMA_PBL		8
 
+/* phy_intf_sel_i and ACTPHYIF encodings */
+#define PHY_INTF_SEL_GMII_MII	0
+#define PHY_INTF_SEL_RGMII	1
+#define PHY_INTF_SEL_SGMII	2
+#define PHY_INTF_SEL_TBI	3
+#define PHY_INTF_SEL_RMII	4
+#define PHY_INTF_SEL_RTBI	5
+#define PHY_INTF_SEL_SMII	6
+#define PHY_INTF_SEL_REVMII	7
+
 /* MSI defines */
 #define STMMAC_MSI_VEC_MAX	32
 
