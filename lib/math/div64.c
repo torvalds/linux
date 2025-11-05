@@ -186,9 +186,6 @@ EXPORT_SYMBOL(iter_div_u64_rem);
 #ifndef mul_u64_u64_div_u64
 u64 mul_u64_u64_div_u64(u64 a, u64 b, u64 d)
 {
-	if (ilog2(a) + ilog2(b) <= 62)
-		return div64_u64(a * b, d);
-
 #if defined(__SIZEOF_INT128__)
 
 	/* native 64x64=128 bits multiplication */
@@ -211,6 +208,9 @@ u64 mul_u64_u64_div_u64(u64 a, u64 b, u64 d)
 	u64 n_lo = x, n_hi = z;
 
 #endif
+
+	if (!n_hi)
+		return div64_u64(n_lo, d);
 
 	if (unlikely(n_hi >= d)) {
 		/* trigger runtime exception if divisor is zero */
