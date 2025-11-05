@@ -66,7 +66,7 @@ static void input_events_event(struct input_handle *handle, unsigned int type,
 
 	spin_unlock_irqrestore(&data->lock, flags);
 
-	mod_delayed_work(system_wq, &data->work, led_off_delay);
+	mod_delayed_work(system_percpu_wq, &data->work, led_off_delay);
 }
 
 static int input_events_connect(struct input_handler *handler, struct input_dev *dev,
