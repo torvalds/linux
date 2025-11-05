@@ -362,11 +362,9 @@ static int stm32_gpio_request(struct gpio_chip *chip, unsigned offset)
 		return -EINVAL;
 	}
 
-	if (bank->rif_control) {
-		if (!stm32_gpio_rif_acquire_semaphore(bank, offset)) {
-			dev_err(pctl->dev, "pin %d not available.\n", pin);
-			return -EINVAL;
-		}
+	if (bank->rif_control && !stm32_gpio_rif_acquire_semaphore(bank, offset)) {
+		dev_err(pctl->dev, "pin %d not available.\n", offset);
+		return -EACCES;
 	}
 
 	return pinctrl_gpio_request(chip, offset);
@@ -1040,7 +1038,9 @@ static int stm32_pmx_gpio_set_direction(struct pinctrl_dev *pctldev,
 static int stm32_pmx_request(struct pinctrl_dev *pctldev, unsigned int gpio)
 {
 	struct stm32_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
+	unsigned int offset = stm32_gpio_pin(gpio);
 	struct pinctrl_gpio_range *range;
+	struct stm32_gpio_bank *bank;
 
 	range = pinctrl_find_gpio_range_from_pin_nolock(pctldev, gpio);
 	if (!range) {
@@ -1048,8 +1048,17 @@ static int stm32_pmx_request(struct pinctrl_dev *pctldev, unsigned int gpio)
 		return -EINVAL;
 	}
 
-	if (!gpiochip_line_is_valid(range->gc, stm32_gpio_pin(gpio))) {
+	if (!gpiochip_line_is_valid(range->gc, offset)) {
 		dev_warn(pctl->dev, "Can't access gpio %d\n", gpio);
+		return -EACCES;
+	}
+
+	bank = gpiochip_get_data(range->gc);
+	if (!bank)
+		return -ENODEV;
+
+	if (bank->rif_control && !stm32_gpio_rif_acquire_semaphore(bank, offset)) {
+		dev_err(pctl->dev, "pin %d not available.\n", offset);
 		return -EACCES;
 	}
 
@@ -1391,6 +1400,11 @@ static int stm32_pconf_parse_conf(struct pinctrl_dev *pctldev,
 
 	if (!gpiochip_line_is_valid(range->gc, offset)) {
 		dev_warn(pctl->dev, "Can't access gpio %d\n", pin);
+		return -EACCES;
+	}
+
+	if (bank->rif_control && !stm32_gpio_rif_acquire_semaphore(bank, offset)) {
+		dev_err(pctl->dev, "pin %d not available.\n", offset);
 		return -EACCES;
 	}
 
@@ -2014,15 +2028,20 @@ static int __maybe_unused stm32_pinctrl_restore_gpio_regs(
 	if (!range)
 		return 0;
 
+	bank = gpiochip_get_data(range->gc);
+
 	if (!gpiochip_line_is_valid(range->gc, offset))
 		return 0;
+
+	if (bank->rif_control && !stm32_gpio_rif_acquire_semaphore(bank, offset)) {
+		dev_err(pctl->dev, "pin %d not available.\n", offset);
+		return -EACCES;
+	}
 
 	pin_is_irq = gpiochip_line_is_irq(range->gc, offset);
 
 	if (!desc || (!pin_is_irq && !desc->gpio_owner))
 		return 0;
-
-	bank = gpiochip_get_data(range->gc);
 
 	mode = bank->pin_backup[offset].mode;
 	ret = stm32_pmx_set_mode(bank, offset, mode, bank->pin_backup[offset].alt);
