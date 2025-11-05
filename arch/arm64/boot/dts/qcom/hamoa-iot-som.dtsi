@@ -451,8 +451,7 @@
 };
 
 &tlmm {
-	gpio-reserved-ranges = <34 2>, /* TPM LP & INT */
-			       <44 4>; /* SPI (TPM) */
+	gpio-reserved-ranges = <34 2>; /* TPM LP & INT */
 
 	pcie4_default: pcie4-default-state {
 		clkreq-n-pins {
