@@ -276,11 +276,8 @@ ieee80211_determine_ap_chan(struct ieee80211_sub_if_data *sdata,
 			return IEEE80211_CONN_MODE_VHT;
 		}
 	} else if (!vht_oper || !elems->vht_cap_elem) {
-		if (sband->band == NL80211_BAND_5GHZ) {
-			sdata_info(sdata,
-				   "VHT information is missing, disabling VHT\n");
+		if (sband->band == NL80211_BAND_5GHZ)
 			return IEEE80211_CONN_MODE_HT;
-		}
 		no_vht = true;
 	} else if (sband->band == NL80211_BAND_2GHZ) {
 		no_vht = true;
