@@ -676,7 +676,7 @@ l1oip_socket_thread(void *data)
 	hc->sin_remote.sin_port = htons((unsigned short)hc->remoteport);
 
 	/* bind to incoming port */
-	if (socket->ops->bind(socket, (struct sockaddr *)&hc->sin_local,
+	if (socket->ops->bind(socket, (struct sockaddr_unsized *)&hc->sin_local,
 			      sizeof(hc->sin_local))) {
 		printk(KERN_ERR "%s: Failed to bind socket to port %d.\n",
 		       __func__, hc->localport);

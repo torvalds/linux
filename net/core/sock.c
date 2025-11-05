@@ -3462,13 +3462,13 @@ EXPORT_SYMBOL_GPL(sk_set_peek_off);
  * function, some default processing is provided.
  */
 
-int sock_no_bind(struct socket *sock, struct sockaddr *saddr, int len)
+int sock_no_bind(struct socket *sock, struct sockaddr_unsized *saddr, int len)
 {
 	return -EOPNOTSUPP;
 }
 EXPORT_SYMBOL(sock_no_bind);
 
-int sock_no_connect(struct socket *sock, struct sockaddr *saddr,
+int sock_no_connect(struct socket *sock, struct sockaddr_unsized *saddr,
 		    int len, int flags)
 {
 	return -EOPNOTSUPP;
@@ -4395,7 +4395,7 @@ bool sk_busy_loop_end(void *p, unsigned long start_time)
 EXPORT_SYMBOL(sk_busy_loop_end);
 #endif /* CONFIG_NET_RX_BUSY_POLL */
 
-int sock_bind_add(struct sock *sk, struct sockaddr *addr, int addr_len)
+int sock_bind_add(struct sock *sk, struct sockaddr_unsized *addr, int addr_len)
 {
 	if (!sk->sk_prot->bind_add)
 		return -EOPNOTSUPP;

@@ -1845,8 +1845,8 @@ static int xs_bind(struct sock_xprt *transport, struct socket *sock)
 	memcpy(&myaddr, &transport->srcaddr, transport->xprt.addrlen);
 	do {
 		rpc_set_port((struct sockaddr *)&myaddr, port);
-		err = kernel_bind(sock, (struct sockaddr *)&myaddr,
-				transport->xprt.addrlen);
+		err = kernel_bind(sock, (struct sockaddr_unsized *)&myaddr,
+				  transport->xprt.addrlen);
 		if (err == 0) {
 			if (transport->xprt.reuseport)
 				transport->srcport = port;
@@ -2005,7 +2005,7 @@ static int xs_local_finish_connecting(struct rpc_xprt *xprt,
 
 	xs_stream_start_connect(transport);
 
-	return kernel_connect(sock, xs_addr(xprt), xprt->addrlen, 0);
+	return kernel_connect(sock, (struct sockaddr_unsized *)xs_addr(xprt), xprt->addrlen, 0);
 }
 
 /**
@@ -2405,7 +2405,8 @@ static int xs_tcp_finish_connecting(struct rpc_xprt *xprt, struct socket *sock)
 
 	/* Tell the socket layer to start connecting... */
 	set_bit(XPRT_SOCK_CONNECTING, &transport->sock_state);
-	return kernel_connect(sock, xs_addr(xprt), xprt->addrlen, O_NONBLOCK);
+	return kernel_connect(sock, (struct sockaddr_unsized *)xs_addr(xprt),
+			      xprt->addrlen, O_NONBLOCK);
 }
 
 /**

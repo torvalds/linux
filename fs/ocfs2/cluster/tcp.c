@@ -1615,7 +1615,7 @@ static void o2net_start_connect(struct work_struct *work)
 	myaddr.sin_addr.s_addr = mynode->nd_ipv4_address;
 	myaddr.sin_port = htons(0); /* any port */
 
-	ret = sock->ops->bind(sock, (struct sockaddr *)&myaddr,
+	ret = sock->ops->bind(sock, (struct sockaddr_unsized *)&myaddr,
 			      sizeof(myaddr));
 	if (ret) {
 		mlog(ML_ERROR, "bind failed with %d at address %pI4\n",
@@ -1638,7 +1638,7 @@ static void o2net_start_connect(struct work_struct *work)
 	remoteaddr.sin_port = node->nd_ipv4_port;
 
 	ret = sc->sc_sock->ops->connect(sc->sc_sock,
-					(struct sockaddr *)&remoteaddr,
+					(struct sockaddr_unsized *)&remoteaddr,
 					sizeof(remoteaddr),
 					O_NONBLOCK);
 	if (ret == -EINPROGRESS)
@@ -2002,7 +2002,7 @@ static int o2net_open_listening_sock(__be32 addr, __be16 port)
 	INIT_WORK(&o2net_listen_work, o2net_accept_many);
 
 	sock->sk->sk_reuse = SK_CAN_REUSE;
-	ret = sock->ops->bind(sock, (struct sockaddr *)&sin, sizeof(sin));
+	ret = sock->ops->bind(sock, (struct sockaddr_unsized *)&sin, sizeof(sin));
 	if (ret < 0) {
 		printk(KERN_ERR "o2net: Error %d while binding socket at "
 		       "%pI4:%u\n", ret, &addr, ntohs(port)); 

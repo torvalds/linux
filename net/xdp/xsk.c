@@ -1238,7 +1238,7 @@ static bool xsk_validate_queues(struct xdp_sock *xs)
 	return xs->fq_tmp && xs->cq_tmp;
 }
 
-static int xsk_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
+static int xsk_bind(struct socket *sock, struct sockaddr_unsized *addr, int addr_len)
 {
 	struct sockaddr_xdp *sxdp = (struct sockaddr_xdp *)addr;
 	struct sock *sk = sock->sk;

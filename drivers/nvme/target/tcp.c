@@ -2055,7 +2055,7 @@ static int nvmet_tcp_add_port(struct nvmet_port *nport)
 	if (so_priority > 0)
 		sock_set_priority(port->sock->sk, so_priority);
 
-	ret = kernel_bind(port->sock, (struct sockaddr *)&port->addr,
+	ret = kernel_bind(port->sock, (struct sockaddr_unsized *)&port->addr,
 			sizeof(port->addr));
 	if (ret) {
 		pr_err("failed to bind port socket %d\n", ret);

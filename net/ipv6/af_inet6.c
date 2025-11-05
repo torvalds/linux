@@ -277,7 +277,7 @@ out_sk_release:
 	goto out;
 }
 
-static int __inet6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len,
+static int __inet6_bind(struct sock *sk, struct sockaddr_unsized *uaddr, int addr_len,
 			u32 flags)
 {
 	struct sockaddr_in6 *addr = (struct sockaddr_in6 *)uaddr;
@@ -438,7 +438,7 @@ out_unlock:
 	goto out;
 }
 
-int inet6_bind_sk(struct sock *sk, struct sockaddr *uaddr, int addr_len)
+int inet6_bind_sk(struct sock *sk, struct sockaddr_unsized *uaddr, int addr_len)
 {
 	u32 flags = BIND_WITH_LOCK;
 	const struct proto *prot;
@@ -465,7 +465,7 @@ int inet6_bind_sk(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 }
 
 /* bind for INET6 API */
-int inet6_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
+int inet6_bind(struct socket *sock, struct sockaddr_unsized *uaddr, int addr_len)
 {
 	return inet6_bind_sk(sock->sk, uaddr, addr_len);
 }

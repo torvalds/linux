@@ -1557,7 +1557,7 @@ static struct svc_xprt *svc_create_socket(struct svc_serv *serv,
 		ip6_sock_set_v6only(sock->sk);
 	if (type == SOCK_STREAM)
 		sock->sk->sk_reuse = SK_CAN_REUSE; /* allow address reuse */
-	error = kernel_bind(sock, sin, len);
+	error = kernel_bind(sock, (struct sockaddr_unsized *)sin, len);
 	if (error < 0)
 		goto bummer;
 

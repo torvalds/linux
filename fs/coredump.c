@@ -708,7 +708,7 @@ static bool coredump_sock_connect(struct core_name *cn, struct coredump_params *
 	 */
 	pidfs_coredump(cprm);
 
-	retval = kernel_connect(socket, (struct sockaddr *)(&addr), addr_len,
+	retval = kernel_connect(socket, (struct sockaddr_unsized *)(&addr), addr_len,
 				O_NONBLOCK | SOCK_COREDUMP);
 
 	if (retval) {

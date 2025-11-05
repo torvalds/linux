@@ -867,10 +867,10 @@ static int mptcp_pm_nl_create_listen_socket(struct sock *sk,
 		addrlen = sizeof(struct sockaddr_in6);
 #endif
 	if (ssk->sk_family == AF_INET)
-		err = inet_bind_sk(ssk, (struct sockaddr *)&addr, addrlen);
+		err = inet_bind_sk(ssk, (struct sockaddr_unsized *)&addr, addrlen);
 #if IS_ENABLED(CONFIG_MPTCP_IPV6)
 	else if (ssk->sk_family == AF_INET6)
-		err = inet6_bind_sk(ssk, (struct sockaddr *)&addr, addrlen);
+		err = inet6_bind_sk(ssk, (struct sockaddr_unsized *)&addr, addrlen);
 #endif
 	if (err)
 		return err;

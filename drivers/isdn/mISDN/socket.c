@@ -462,7 +462,7 @@ static int data_sock_getsockopt(struct socket *sock, int level, int optname,
 }
 
 static int
-data_sock_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
+data_sock_bind(struct socket *sock, struct sockaddr_unsized *addr, int addr_len)
 {
 	struct sockaddr_mISDN *maddr = (struct sockaddr_mISDN *) addr;
 	struct sock *sk = sock->sk;
@@ -696,7 +696,7 @@ base_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 }
 
 static int
-base_sock_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
+base_sock_bind(struct socket *sock, struct sockaddr_unsized *addr, int addr_len)
 {
 	struct sockaddr_mISDN *maddr = (struct sockaddr_mISDN *) addr;
 	struct sock *sk = sock->sk;

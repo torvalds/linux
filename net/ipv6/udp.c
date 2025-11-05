@@ -1282,7 +1282,7 @@ static void udp_v6_flush_pending_frames(struct sock *sk)
 	}
 }
 
-static int udpv6_pre_connect(struct sock *sk, struct sockaddr *uaddr,
+static int udpv6_pre_connect(struct sock *sk, struct sockaddr_unsized *uaddr,
 			     int addr_len)
 {
 	if (addr_len < offsetofend(struct sockaddr, sa_family))
@@ -1303,7 +1303,8 @@ static int udpv6_pre_connect(struct sock *sk, struct sockaddr *uaddr,
 	return BPF_CGROUP_RUN_PROG_INET6_CONNECT_LOCK(sk, uaddr, &addr_len);
 }
 
-static int udpv6_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
+static int udpv6_connect(struct sock *sk, struct sockaddr_unsized *uaddr,
+			 int addr_len)
 {
 	int res;
 

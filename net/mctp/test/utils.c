@@ -279,7 +279,7 @@ void mctp_test_bind_run(struct kunit *test,
 		addr.smctp_addr.s_addr = setup->peer_addr;
 		/* connect() type must match bind() type */
 		addr.smctp_type = setup->bind_type;
-		rc = kernel_connect(*sock, (struct sockaddr *)&addr,
+		rc = kernel_connect(*sock, (struct sockaddr_unsized *)&addr,
 				    sizeof(addr), 0);
 		KUNIT_EXPECT_EQ(test, rc, 0);
 	}
@@ -292,5 +292,6 @@ void mctp_test_bind_run(struct kunit *test,
 	addr.smctp_type = setup->bind_type;
 
 	*ret_bind_errno =
-		kernel_bind(*sock, (struct sockaddr *)&addr, sizeof(addr));
+		kernel_bind(*sock, (struct sockaddr_unsized *)&addr,
+			    sizeof(addr));
 }

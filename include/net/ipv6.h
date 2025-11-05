@@ -1188,10 +1188,10 @@ int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 int ipv6_getsockopt(struct sock *sk, int level, int optname,
 		    char __user *optval, int __user *optlen);
 
-int __ip6_datagram_connect(struct sock *sk, struct sockaddr *addr,
+int __ip6_datagram_connect(struct sock *sk, struct sockaddr_unsized *addr,
 			   int addr_len);
-int ip6_datagram_connect(struct sock *sk, struct sockaddr *addr, int addr_len);
-int ip6_datagram_connect_v6_only(struct sock *sk, struct sockaddr *addr,
+int ip6_datagram_connect(struct sock *sk, struct sockaddr_unsized *addr, int addr_len);
+int ip6_datagram_connect_v6_only(struct sock *sk, struct sockaddr_unsized *addr,
 				 int addr_len);
 int ip6_datagram_dst_update(struct sock *sk, bool fix_sk_saddr);
 void ip6_datagram_release_cb(struct sock *sk);
@@ -1208,8 +1208,8 @@ void ipv6_local_rxpmtu(struct sock *sk, struct flowi6 *fl6, u32 mtu);
 void inet6_cleanup_sock(struct sock *sk);
 void inet6_sock_destruct(struct sock *sk);
 int inet6_release(struct socket *sock);
-int inet6_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len);
-int inet6_bind_sk(struct sock *sk, struct sockaddr *uaddr, int addr_len);
+int inet6_bind(struct socket *sock, struct sockaddr_unsized *uaddr, int addr_len);
+int inet6_bind_sk(struct sock *sk, struct sockaddr_unsized *uaddr, int addr_len);
 int inet6_getname(struct socket *sock, struct sockaddr *uaddr,
 		  int peer);
 int inet6_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg);

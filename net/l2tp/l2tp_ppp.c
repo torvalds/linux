@@ -684,7 +684,7 @@ static struct l2tp_tunnel *pppol2tp_tunnel_get(struct net *net,
 
 /* connect() handler. Attach a PPPoX socket to a tunnel UDP socket
  */
-static int pppol2tp_connect(struct socket *sock, struct sockaddr *uservaddr,
+static int pppol2tp_connect(struct socket *sock, struct sockaddr_unsized *uservaddr,
 			    int sockaddr_len, int flags)
 {
 	struct sock *sk = sock->sk;

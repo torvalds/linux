@@ -205,7 +205,7 @@ int tcp_twsk_unique(struct sock *sk, struct sock *sktw, void *twp)
 }
 EXPORT_IPV6_MOD_GPL(tcp_twsk_unique);
 
-static int tcp_v4_pre_connect(struct sock *sk, struct sockaddr *uaddr,
+static int tcp_v4_pre_connect(struct sock *sk, struct sockaddr_unsized *uaddr,
 			      int addr_len)
 {
 	/* This check is replicated from tcp_v4_connect() and intended to
@@ -221,7 +221,7 @@ static int tcp_v4_pre_connect(struct sock *sk, struct sockaddr *uaddr,
 }
 
 /* This will initiate an outgoing connection. */
-int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
+int tcp_v4_connect(struct sock *sk, struct sockaddr_unsized *uaddr, int addr_len)
 {
 	struct sockaddr_in *usin = (struct sockaddr_in *)uaddr;
 	struct inet_timewait_death_row *tcp_death_row;

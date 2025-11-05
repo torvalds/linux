@@ -1660,7 +1660,7 @@ int __mptcp_subflow_connect(struct sock *sk, const struct mptcp_pm_local *local,
 		addrlen = sizeof(struct sockaddr_in6);
 #endif
 	ssk->sk_bound_dev_if = local->ifindex;
-	err = kernel_bind(sf, (struct sockaddr *)&addr, addrlen);
+	err = kernel_bind(sf, (struct sockaddr_unsized *)&addr, addrlen);
 	if (err) {
 		MPTCP_INC_STATS(sock_net(sk), MPTCP_MIB_JOINSYNTXBINDERR);
 		pr_debug("msk=%p local=%d remote=%d bind error: %d\n",
@@ -1680,7 +1680,7 @@ int __mptcp_subflow_connect(struct sock *sk, const struct mptcp_pm_local *local,
 
 	sock_hold(ssk);
 	list_add_tail(&subflow->node, &msk->conn_list);
-	err = kernel_connect(sf, (struct sockaddr *)&addr, addrlen, O_NONBLOCK);
+	err = kernel_connect(sf, (struct sockaddr_unsized *)&addr, addrlen, O_NONBLOCK);
 	if (err && err != -EINPROGRESS) {
 		MPTCP_INC_STATS(sock_net(sk), MPTCP_MIB_JOINSYNTXCONNECTERR);
 		pr_debug("msk=%p local=%d remote=%d connect error: %d\n",

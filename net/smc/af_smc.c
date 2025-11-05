@@ -421,7 +421,7 @@ static struct sock *smc_sock_alloc(struct net *net, struct socket *sock,
 	return sk;
 }
 
-int smc_bind(struct socket *sock, struct sockaddr *uaddr,
+int smc_bind(struct socket *sock, struct sockaddr_unsized *uaddr,
 	     int addr_len)
 {
 	struct sockaddr_in *addr = (struct sockaddr_in *)uaddr;
@@ -1642,7 +1642,7 @@ out:
 	release_sock(&smc->sk);
 }
 
-int smc_connect(struct socket *sock, struct sockaddr *addr,
+int smc_connect(struct socket *sock, struct sockaddr_unsized *addr,
 		int alen, int flags)
 {
 	struct sock *sk = sock->sk;
@@ -1694,7 +1694,7 @@ int smc_connect(struct socket *sock, struct sockaddr *addr,
 		rc = -EALREADY;
 		goto out;
 	}
-	rc = kernel_connect(smc->clcsock, addr, alen, flags);
+	rc = kernel_connect(smc->clcsock, (struct sockaddr_unsized *)addr, alen, flags);
 	if (rc && rc != -EINPROGRESS)
 		goto out;
 
