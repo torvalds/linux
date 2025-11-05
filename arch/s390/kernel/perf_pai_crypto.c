@@ -25,6 +25,11 @@ static unsigned int paicrypt_cnt;	/* Size of the mapped counter sets */
 
 DEFINE_STATIC_KEY_FALSE(pai_key);
 
+enum {
+	PAI_PMU_CRYPTO,			/* Index of PMU pai_crypto */
+	PAI_PMU_MAX			/* # of PAI PMUs */
+};
+
 struct pai_userdata {
 	u16 num;
 	u64 value;
@@ -47,6 +52,28 @@ static struct pai_root {		/* Anchor to per CPU data */
 	refcount_t refcnt;		/* Overall active events */
 	struct pai_mapptr __percpu *mapptr;
 } pai_root;
+
+/* This table defines the different parameters of the PAI PMUs. During
+ * initialization the machine dependent values are extracted and saved.
+ * However most of the values are static and do not change.
+ * There is one table entry per PAI PMU.
+ */
+struct pai_pmu {			/* Define PAI PMU characteristics */
+	const char *pmuname;		/* Name of PMU */
+	const int facility_nr;		/* Facility number to check for support */
+	unsigned int num_avail;		/* # Counters defined by hardware */
+	unsigned int num_named;		/* # Counters known by name */
+	unsigned long base;		/* Counter set base number */
+	unsigned long kernel_offset;	/* Offset to kernel part in counter page */
+	unsigned long area_size;	/* Size of counter area */
+	const char * const *names;	/* List of counter names */
+	struct pmu *pmu;		/* Ptr to supporting PMU */
+	int (*init)(struct pai_pmu *p);		/* PMU support init function */
+	void (*exit)(struct pai_pmu *p);	/* PMU support exit function */
+	struct attribute_group	*event_group;	/* Ptr to attribute of events */
+};
+
+static struct pai_pmu pai_pmu[];	/* Forward declaration */
 
 /* Free per CPU data when the last event is removed. */
 static void pai_root_free(void)
@@ -738,12 +765,12 @@ static const char * const paicrypt_ctrnames[] = {
 	[172] = "PCKMO_ENCRYPT_AES_XTS_256",
 };
 
-static void __init attr_event_free(struct attribute **attrs, int num)
+static void __init attr_event_free(struct attribute **attrs)
 {
 	struct perf_pmu_events_attr *pa;
-	int i;
+	unsigned int i;
 
-	for (i = 0; i < num; i++) {
+	for (i = 0; attrs[i]; i++) {
 		struct device_attribute *dap;
 
 		dap = container_of(attrs[i], struct device_attribute, attr);
@@ -753,89 +780,150 @@ static void __init attr_event_free(struct attribute **attrs, int num)
 	kfree(attrs);
 }
 
-static int __init attr_event_init_one(struct attribute **attrs, int num)
+static struct attribute * __init attr_event_init_one(int num,
+						     unsigned long base,
+						     const char *name)
 {
 	struct perf_pmu_events_attr *pa;
 
-	/* Index larger than array_size, no counter name available */
-	if (num >= ARRAY_SIZE(paicrypt_ctrnames)) {
-		attrs[num] = NULL;
-		return 0;
-	}
-
 	pa = kzalloc(sizeof(*pa), GFP_KERNEL);
 	if (!pa)
-		return -ENOMEM;
+		return NULL;
 
 	sysfs_attr_init(&pa->attr.attr);
-	pa->id = PAI_CRYPTO_BASE + num;
-	pa->attr.attr.name = paicrypt_ctrnames[num];
+	pa->id = base + num;
+	pa->attr.attr.name = name;
 	pa->attr.attr.mode = 0444;
 	pa->attr.show = cpumf_events_sysfs_show;
 	pa->attr.store = NULL;
-	attrs[num] = &pa->attr.attr;
-	return 0;
+	return &pa->attr.attr;
 }
 
-/* Create PMU sysfs event attributes on the fly. */
-static int __init attr_event_init(void)
+static struct attribute ** __init attr_event_init(struct pai_pmu *p)
 {
+	unsigned int min_attr = min_t(unsigned int, p->num_named, p->num_avail);
 	struct attribute **attrs;
-	int ret, i;
+	unsigned int i;
 
-	attrs = kmalloc_array(paicrypt_cnt + 2, sizeof(*attrs), GFP_KERNEL);
+	attrs = kmalloc_array(min_attr + 1, sizeof(*attrs), GFP_KERNEL | __GFP_ZERO);
 	if (!attrs)
-		return -ENOMEM;
-	for (i = 0; i <= paicrypt_cnt; i++) {
-		ret = attr_event_init_one(attrs, i);
-		if (ret) {
-			attr_event_free(attrs, i);
-			return ret;
+		goto out;
+	for (i = 0; i < min_attr; i++) {
+		attrs[i] = attr_event_init_one(i, p->base, p->names[i]);
+		if (!attrs[i]) {
+			attr_event_free(attrs);
+			attrs = NULL;
+			goto out;
 		}
 	}
 	attrs[i] = NULL;
-	paicrypt_events_group.attrs = attrs;
-	return 0;
+out:
+	return attrs;
+}
+
+static void __init pai_pmu_exit(struct pai_pmu *p)
+{
+	attr_event_free(p->event_group->attrs);
+	p->event_group->attrs = NULL;
+}
+
+/* Add a PMU. Install its events and register the PMU device driver
+ * call back functions.
+ */
+static int __init pai_pmu_init(struct pai_pmu *p)
+{
+	int rc = -ENOMEM;
+
+
+	/* Export known PAI events */
+	p->event_group->attrs = attr_event_init(p);
+	if (!p->event_group->attrs) {
+		pr_err("Creation of PMU %s /sysfs failed\n", p->pmuname);
+		goto out;
+	}
+
+	rc = perf_pmu_register(p->pmu, p->pmuname, -1);
+	if (rc) {
+		pai_pmu_exit(p);
+		pr_err("Registering PMU %s failed with rc=%i\n", p->pmuname,
+		       rc);
+	}
+out:
+	return rc;
+}
+
+/* PAI PMU characteristics table */
+static struct pai_pmu pai_pmu[] __refdata = {
+	[PAI_PMU_CRYPTO] = {
+		.pmuname = "pai_crypto",
+		.facility_nr = 196,
+		.num_named = ARRAY_SIZE(paicrypt_ctrnames),
+		.names = paicrypt_ctrnames,
+		.base = PAI_CRYPTO_BASE,
+		.kernel_offset = PAI_CRYPTO_KERNEL_OFFSET,
+		.area_size = PAGE_SIZE,
+		.init = pai_pmu_init,
+		.exit = pai_pmu_exit,
+		.pmu = &paicrypt,
+		.event_group = &paicrypt_events_group
+	}
+};
+
+/*
+ * Check if the PMU (via facility) is supported by machine. Try all of the
+ * supported PAI PMUs.
+ * Return number of successfully installed PMUs.
+ */
+static int __init paipmu_setup(void)
+{
+	struct qpaci_info_block ib;
+	int install_ok = 0, rc;
+	struct pai_pmu *p;
+	size_t i;
+
+	for (i = 0; i < ARRAY_SIZE(pai_pmu); ++i) {
+		p = &pai_pmu[i];
+
+		if (!test_facility(p->facility_nr))
+			continue;
+
+		qpaci(&ib);
+		switch (i) {
+		case PAI_PMU_CRYPTO:
+			p->num_avail = ib.num_cc;
+			paicrypt_cnt = ib.num_cc;
+			if (p->num_avail >= PAI_CRYPTO_MAXCTR) {
+				pr_err("Too many PMU %s counters %d\n",
+				       p->pmuname, p->num_avail);
+				continue;
+			}
+			break;
+		}
+		p->num_avail += 1;		/* Add xxx_ALL event */
+		if (p->init) {
+			rc = p->init(p);
+			if (!rc)
+				++install_ok;
+		}
+	}
+	return install_ok;
 }
 
 static int __init paicrypt_init(void)
 {
-	struct qpaci_info_block ib;
-	int rc;
-
-	if (!test_facility(196))
-		return 0;
-
-	qpaci(&ib);
-	paicrypt_cnt = ib.num_cc;
-	if (paicrypt_cnt == 0)
-		return 0;
-	if (paicrypt_cnt >= PAI_CRYPTO_MAXCTR) {
-		pr_err("Too many PMU pai_crypto counters %d\n", paicrypt_cnt);
-		return -E2BIG;
-	}
-
-	rc = attr_event_init();		/* Export known PAI crypto events */
-	if (rc) {
-		pr_err("Creation of PMU pai_crypto /sysfs failed\n");
-		return rc;
-	}
-
 	/* Setup s390dbf facility */
-	paidbg = debug_register(KMSG_COMPONENT, 2, 256, 128);
+	paidbg = debug_register(KMSG_COMPONENT, 32, 256, 128);
 	if (!paidbg) {
-		pr_err("Registration of s390dbf pai_crypto failed\n");
+		pr_err("Registration of s390dbf " KMSG_COMPONENT " failed\n");
 		return -ENOMEM;
 	}
 	debug_register_view(paidbg, &debug_sprintf_view);
 
-	rc = perf_pmu_register(&paicrypt, "pai_crypto", -1);
-	if (rc) {
-		pr_err("Registering the pai_crypto PMU failed with rc=%i\n",
-		       rc);
+	if (!paipmu_setup()) {
+		/* No PMU registration, no need for debug buffer */
 		debug_unregister_view(paidbg, &debug_sprintf_view);
 		debug_unregister(paidbg);
-		return rc;
+		return -ENODEV;
 	}
 	return 0;
 }
