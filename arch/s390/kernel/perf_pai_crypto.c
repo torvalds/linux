@@ -204,11 +204,11 @@ static u64 paicrypt_getall(struct perf_event *event)
  *
  * Allocate the memory for the event.
  */
-static int paicrypt_alloc_cpu(struct perf_event *event, int cpu)
+static int pai_alloc_cpu(struct perf_event *event, int cpu)
 {
+	int rc, idx = PAI_PMU_IDX(event);
 	struct pai_map *cpump = NULL;
 	struct pai_mapptr *mp;
-	int rc;
 
 	mutex_lock(&pai_reserve_mutex);
 	/* Allocate root node */
@@ -229,7 +229,7 @@ static int paicrypt_alloc_cpu(struct perf_event *event, int cpu)
 		 */
 		mp->mapptr = cpump;
 		cpump->area = (unsigned long *)get_zeroed_page(GFP_KERNEL);
-		cpump->save = kvmalloc_array(paicrypt_cnt + 1,
+		cpump->save = kvmalloc_array(pai_pmu[idx].num_avail + 1,
 					     sizeof(struct pai_userdata),
 					     GFP_KERNEL);
 		if (!cpump->area || !cpump->save) {
@@ -253,10 +253,11 @@ undo:
 	}
 unlock:
 	mutex_unlock(&pai_reserve_mutex);
+	/* If rc is non-zero, no increment of counter/sampler was done. */
 	return rc;
 }
 
-static int paicrypt_alloc(struct perf_event *event)
+static int pai_alloc(struct perf_event *event)
 {
 	struct cpumask *maskptr;
 	int cpu, rc = -ENOMEM;
@@ -266,7 +267,7 @@ static int paicrypt_alloc(struct perf_event *event)
 		goto out;
 
 	for_each_online_cpu(cpu) {
-		rc = paicrypt_alloc_cpu(event, cpu);
+		rc = pai_alloc_cpu(event, cpu);
 		if (rc) {
 			for_each_cpu(cpu, maskptr)
 				paicrypt_event_destroy_cpu(event, cpu);
@@ -288,22 +289,38 @@ out:
 	return rc;
 }
 
-/* Might be called on different CPU than the one the event is intended for. */
-static int paicrypt_event_init(struct perf_event *event)
+/* Validate event number and return error if event is not supported.
+ * On successful return, PAI_PMU_IDX(event) is set to the index of
+ * the supporting paing_support[] array element.
+ */
+static int pai_event_valid(struct perf_event *event, int idx)
 {
 	struct perf_event_attr *a = &event->attr;
-	int rc = 0;
+	struct pai_pmu *pp = &pai_pmu[idx];
 
 	/* PAI crypto PMU registered as PERF_TYPE_RAW, check event type */
 	if (a->type != PERF_TYPE_RAW && event->pmu->type != a->type)
 		return -ENOENT;
-	/* PAI crypto event must be in valid range, try others if not */
-	if (a->config < PAI_CRYPTO_BASE ||
-	    a->config > PAI_CRYPTO_BASE + paicrypt_cnt)
-		return -ENOENT;
-	/* Allow only CRYPTO_ALL for sampling */
-	if (a->sample_period && a->config != PAI_CRYPTO_BASE)
+	/* Allow only CRYPTO_ALL/NNPA_ALL for sampling */
+	if (a->sample_period && a->config != pp->base)
 		return -EINVAL;
+	/* PAI crypto event must be in valid range, try others if not */
+	if (a->config < pp->base || a->config > pp->base + pp->num_avail)
+		return -ENOENT;
+	PAI_PMU_IDX(event) = idx;
+	return 0;
+}
+
+/* Might be called on different CPU than the one the event is intended for. */
+static int pai_event_init(struct perf_event *event, int idx)
+{
+	struct perf_event_attr *a = &event->attr;
+	int rc;
+
+	/* PAI event must be valid and in supported range */
+	rc = pai_event_valid(event, idx);
+	if (rc)
+		goto out;
 	/* Get a page to store last counter values for sampling */
 	if (a->sample_period) {
 		PAI_SAVE_AREA(event) = get_zeroed_page(GFP_KERNEL);
@@ -314,14 +331,13 @@ static int paicrypt_event_init(struct perf_event *event)
 	}
 
 	if (event->cpu >= 0)
-		rc = paicrypt_alloc_cpu(event, event->cpu);
+		rc = pai_alloc_cpu(event, event->cpu);
 	else
-		rc = paicrypt_alloc(event);
+		rc = pai_alloc(event);
 	if (rc) {
 		free_page(PAI_SAVE_AREA(event));
 		goto out;
 	}
-	event->destroy = paicrypt_event_destroy;
 
 	if (a->sample_period) {
 		a->sample_period = 1;
@@ -333,9 +349,18 @@ static int paicrypt_event_init(struct perf_event *event)
 		/* Turn off inheritance */
 		a->inherit = 0;
 	}
-
-	static_branch_inc(&pai_key);
 out:
+	return rc;
+}
+
+static int paicrypt_event_init(struct perf_event *event)
+{
+	int rc = pai_event_init(event, PAI_PMU_CRYPTO);
+
+	if (!rc) {
+		event->destroy = paicrypt_event_destroy;
+		static_branch_inc(&pai_key);
+	}
 	return rc;
 }
 

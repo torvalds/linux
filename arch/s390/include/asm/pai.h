@@ -77,6 +77,7 @@ static __always_inline void pai_kernel_exit(struct pt_regs *regs)
 
 #define PAI_SAVE_AREA(x)	((x)->hw.event_base)
 #define PAI_CPU_MASK(x)		((x)->hw.addr_filters)
+#define PAI_PMU_IDX(x)		((x)->hw.last_tag)
 #define PAI_SWLIST(x)		(&(x)->hw.tp_list)
 
 #endif
