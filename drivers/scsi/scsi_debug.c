@@ -2961,11 +2961,11 @@ static int resp_mode_sense(struct scsi_cmnd *scp,
 	int target_dev_id;
 	int target = scp->device->id;
 	unsigned char *ap;
-	unsigned char *arr __free(kfree);
 	unsigned char *cmd = scp->cmnd;
 	bool dbd, llbaa, msense_6, is_disk, is_zbc, is_tape;
 
-	arr = kzalloc(SDEBUG_MAX_MSENSE_SZ, GFP_ATOMIC);
+	unsigned char *arr __free(kfree) = kzalloc(SDEBUG_MAX_MSENSE_SZ, GFP_ATOMIC);
+
 	if (!arr)
 		return -ENOMEM;
 	dbd = !!(cmd[1] & 0x8);		/* disable block descriptors */
