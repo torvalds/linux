@@ -168,6 +168,7 @@ struct ideapad_private {
 	struct ideapad_dytc_priv *dytc;
 	struct dentry *debug;
 	struct acpi_battery_hook battery_hook;
+	const struct power_supply_ext *battery_ext;
 	unsigned long cfg;
 	unsigned long r_touchpad_val;
 	struct {
@@ -2070,29 +2071,36 @@ static const enum power_supply_property ideapad_power_supply_props[] = {
 	POWER_SUPPLY_PROP_CHARGE_TYPES,
 };
 
-static const struct power_supply_ext ideapad_battery_ext = {
-	.name			= "ideapad_laptop",
-	.properties		= ideapad_power_supply_props,
-	.num_properties		= ARRAY_SIZE(ideapad_power_supply_props),
-	.charge_types		= (BIT(POWER_SUPPLY_CHARGE_TYPE_STANDARD) |
-				   BIT(POWER_SUPPLY_CHARGE_TYPE_LONGLIFE)),
-	.get_property		= ideapad_psy_ext_get_prop,
-	.set_property		= ideapad_psy_ext_set_prop,
-	.property_is_writeable	= ideapad_psy_prop_is_writeable,
-};
+#define DEFINE_IDEAPAD_POWER_SUPPLY_EXTENSION(_name, _charge_types)			\
+	static const struct power_supply_ext _name = {					\
+		.name			= "ideapad_laptop",				\
+		.properties		= ideapad_power_supply_props,			\
+		.num_properties		= ARRAY_SIZE(ideapad_power_supply_props),	\
+		.charge_types		= _charge_types,				\
+		.get_property		= ideapad_psy_ext_get_prop,			\
+		.set_property		= ideapad_psy_ext_set_prop,			\
+		.property_is_writeable	= ideapad_psy_prop_is_writeable,		\
+	}
+
+DEFINE_IDEAPAD_POWER_SUPPLY_EXTENSION(ideapad_battery_ext_v1,
+	(BIT(POWER_SUPPLY_CHARGE_TYPE_STANDARD) |
+	 BIT(POWER_SUPPLY_CHARGE_TYPE_LONGLIFE))
+);
 
 static int ideapad_battery_add(struct power_supply *battery, struct acpi_battery_hook *hook)
 {
 	struct ideapad_private *priv = container_of(hook, struct ideapad_private, battery_hook);
 
-	return power_supply_register_extension(battery, &ideapad_battery_ext,
+	return power_supply_register_extension(battery, priv->battery_ext,
 					       &priv->platform_device->dev, priv);
 }
 
 static int ideapad_battery_remove(struct power_supply *battery,
 				  struct acpi_battery_hook *hook)
 {
-	power_supply_unregister_extension(battery, &ideapad_battery_ext);
+	struct ideapad_private *priv = container_of(hook, struct ideapad_private, battery_hook);
+
+	power_supply_unregister_extension(battery, priv->battery_ext);
 
 	return 0;
 }
@@ -2118,6 +2126,9 @@ static int ideapad_check_features(struct ideapad_private *priv)
 
 	if (acpi_has_method(handle, "GBMD") && acpi_has_method(handle, "SBMC")) {
 		priv->features.conservation_mode = true;
+
+		priv->battery_ext = &ideapad_battery_ext_v1;
+
 		priv->battery_hook.add_battery = ideapad_battery_add;
 		priv->battery_hook.remove_battery = ideapad_battery_remove;
 		priv->battery_hook.name = "Ideapad Battery Extension";
