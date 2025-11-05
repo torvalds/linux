@@ -212,12 +212,16 @@ u64 mul_u64_u64_div_u64(u64 a, u64 b, u64 d)
 
 #endif
 
-	/* make sure d is not zero, trigger runtime exception otherwise */
-	if (unlikely(d == 0)) {
-		unsigned long zero = 0;
+	if (unlikely(n_hi >= d)) {
+		/* trigger runtime exception if divisor is zero */
+		if (d == 0) {
+			unsigned long zero = 0;
 
-		OPTIMIZER_HIDE_VAR(zero);
-		return ~0UL/zero;
+			OPTIMIZER_HIDE_VAR(zero);
+			return ~0UL/zero;
+		}
+		/* overflow: result is unrepresentable in a u64 */
+		return ~0ULL;
 	}
 
 	int shift = __builtin_ctzll(d);
@@ -232,11 +236,6 @@ u64 mul_u64_u64_div_u64(u64 a, u64 b, u64 d)
 		 *   res = div64_u64_rem(n, d >> shift, &rem);
 		 *   rem = (rem << shift) + (n_lo - (n << shift));
 		 */
-	}
-
-	if (n_hi >= d) {
-		/* overflow: result is unrepresentable in a u64 */
-		return -1;
 	}
 
 	/* Do the full 128 by 64 bits division */
