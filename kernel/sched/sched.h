@@ -1432,6 +1432,9 @@ static inline bool sched_core_cookie_match(struct rq *rq, struct task_struct *p)
 	if (!sched_core_enabled(rq))
 		return true;
 
+	if (rq->core->core_cookie == p->core_cookie)
+		return true;
+
 	for_each_cpu(cpu, cpu_smt_mask(cpu_of(rq))) {
 		if (!available_idle_cpu(cpu)) {
 			idle_core = false;
@@ -1443,7 +1446,7 @@ static inline bool sched_core_cookie_match(struct rq *rq, struct task_struct *p)
 	 * A CPU in an idle core is always the best choice for tasks with
 	 * cookies.
 	 */
-	return idle_core || rq->core->core_cookie == p->core_cookie;
+	return idle_core;
 }
 
 static inline bool sched_group_cookie_match(struct rq *rq,
