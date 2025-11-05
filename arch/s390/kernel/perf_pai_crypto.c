@@ -31,7 +31,7 @@ struct pai_userdata {
 } __packed;
 
 struct paicrypt_map {
-	unsigned long *page;		/* Page for CPU to store counters */
+	unsigned long *area;		/* Area for CPU to store counters */
 	struct pai_userdata *save;	/* Page to store no-zero counters */
 	unsigned int active_events;	/* # of PAI crypto users */
 	refcount_t refcnt;		/* Reference count mapped buffers */
@@ -83,7 +83,7 @@ static DEFINE_MUTEX(pai_reserve_mutex);
 /* Free all memory allocated for event counting/sampling setup */
 static void paicrypt_free(struct paicrypt_mapptr *mp)
 {
-	free_page((unsigned long)mp->mapptr->page);
+	free_page((unsigned long)mp->mapptr->area);
 	kvfree(mp->mapptr->save);
 	kfree(mp->mapptr);
 	mp->mapptr = NULL;
@@ -143,13 +143,13 @@ static u64 paicrypt_getdata(struct perf_event *event, bool kernel)
 	int i;
 
 	if (event->attr.config != PAI_CRYPTO_BASE) {
-		return paicrypt_getctr(cpump->page,
+		return paicrypt_getctr(cpump->area,
 				       event->attr.config - PAI_CRYPTO_BASE,
 				       kernel);
 	}
 
 	for (i = 1; i <= paicrypt_cnt; i++) {
-		u64 val = paicrypt_getctr(cpump->page, i, kernel);
+		u64 val = paicrypt_getctr(cpump->area, i, kernel);
 
 		if (!val)
 			continue;
@@ -201,11 +201,11 @@ static int paicrypt_alloc_cpu(struct perf_event *event, int cpu)
 		 * Only the first counting event has to allocate a page.
 		 */
 		mp->mapptr = cpump;
-		cpump->page = (unsigned long *)get_zeroed_page(GFP_KERNEL);
+		cpump->area = (unsigned long *)get_zeroed_page(GFP_KERNEL);
 		cpump->save = kvmalloc_array(paicrypt_cnt + 1,
 					     sizeof(struct pai_userdata),
 					     GFP_KERNEL);
-		if (!cpump->page || !cpump->save) {
+		if (!cpump->area || !cpump->save) {
 			paicrypt_free(mp);
 			goto undo;
 		}
@@ -334,7 +334,7 @@ static void paicrypt_start(struct perf_event *event, int flags)
 		sum = paicrypt_getall(event);	/* Get current value */
 		local64_set(&event->hw.prev_count, sum);
 	} else {				/* Sampling */
-		memcpy((void *)PAI_SAVE_AREA(event), cpump->page, PAGE_SIZE);
+		memcpy((void *)PAI_SAVE_AREA(event), cpump->area, PAGE_SIZE);
 		/* Enable context switch callback for system-wide sampling */
 		if (!(event->attach_state & PERF_ATTACH_TASK)) {
 			list_add_tail(PAI_SWLIST(event), &cpump->syswide_list);
@@ -352,7 +352,7 @@ static int paicrypt_add(struct perf_event *event, int flags)
 	unsigned long ccd;
 
 	if (++cpump->active_events == 1) {
-		ccd = virt_to_phys(cpump->page) | PAI_CRYPTO_KERNEL_OFFSET;
+		ccd = virt_to_phys(cpump->area) | PAI_CRYPTO_KERNEL_OFFSET;
 		WRITE_ONCE(get_lowcore()->ccd, ccd);
 		local_ctl_set_bit(0, CR0_CRYPTOGRAPHY_COUNTER_BIT);
 	}
@@ -465,7 +465,7 @@ static int paicrypt_push_sample(size_t rawsize, struct paicrypt_map *cpump,
 	overflow = perf_event_overflow(event, &data, &regs);
 	perf_event_update_userpage(event);
 	/* Save crypto counter lowcore page after reading event data. */
-	memcpy((void *)PAI_SAVE_AREA(event), cpump->page, PAGE_SIZE);
+	memcpy((void *)PAI_SAVE_AREA(event), cpump->area, PAGE_SIZE);
 	return overflow;
 }
 
@@ -477,7 +477,7 @@ static void paicrypt_have_sample(struct perf_event *event,
 
 	if (!event)		/* No event active */
 		return;
-	rawsize = paicrypt_copy(cpump->save, cpump->page,
+	rawsize = paicrypt_copy(cpump->save, cpump->area,
 				(unsigned long *)PAI_SAVE_AREA(event),
 				event->attr.exclude_user,
 				event->attr.exclude_kernel);
