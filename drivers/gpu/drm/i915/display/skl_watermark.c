@@ -3185,6 +3185,13 @@ static void sanitize_wm_latency(struct intel_display *display)
 	int level, num_levels = display->wm.num_levels;
 
 	/*
+	 * Xe3p and beyond should ignore level 0's reported latency and
+	 * always apply WaWmMemoryReadLatency logic.
+	 */
+	if (DISPLAY_VER(display) >= 35)
+		wm[0] = 0;
+
+	/*
 	 * If a level n (n > 1) has a 0us latency, all levels m (m >= n)
 	 * need to be disabled. We make sure to sanitize the values out
 	 * of the punit to satisfy this requirement.
