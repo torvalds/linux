@@ -802,10 +802,11 @@ void intel_bw_init_hw(struct intel_display *display)
 	if (!HAS_DISPLAY(display))
 		return;
 
-	if (DISPLAY_VERx100(display) >= 3002) {
-		tgl_get_bw_info(display, dram_info, &xe3lpd_3002_sa_info);
-	} else if (DISPLAY_VER(display) >= 30) {
-		tgl_get_bw_info(display, dram_info, &xe3lpd_sa_info);
+	if (DISPLAY_VER(display) >= 30) {
+		if (DISPLAY_VERx100(display) == 3002)
+			tgl_get_bw_info(display, dram_info, &xe3lpd_3002_sa_info);
+		else
+			tgl_get_bw_info(display, dram_info, &xe3lpd_sa_info);
 	} else if (DISPLAY_VERx100(display) >= 1401 && display->platform.dgfx) {
 		if (dram_info->type == INTEL_DRAM_GDDR_ECC)
 			xe2_hpd_get_bw_info(display, dram_info, &xe2_hpd_ecc_sa_info);
