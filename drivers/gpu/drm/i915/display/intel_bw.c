@@ -802,29 +802,30 @@ void intel_bw_init_hw(struct intel_display *display)
 	if (!HAS_DISPLAY(display))
 		return;
 
-	if (DISPLAY_VERx100(display) >= 3002)
+	if (DISPLAY_VERx100(display) >= 3002) {
 		tgl_get_bw_info(display, dram_info, &xe3lpd_3002_sa_info);
-	else if (DISPLAY_VER(display) >= 30)
+	} else if (DISPLAY_VER(display) >= 30) {
 		tgl_get_bw_info(display, dram_info, &xe3lpd_sa_info);
-	else if (DISPLAY_VERx100(display) >= 1401 && display->platform.dgfx &&
-		 dram_info->type == INTEL_DRAM_GDDR_ECC)
-		xe2_hpd_get_bw_info(display, dram_info, &xe2_hpd_ecc_sa_info);
-	else if (DISPLAY_VERx100(display) >= 1401 && display->platform.dgfx)
-		xe2_hpd_get_bw_info(display, dram_info, &xe2_hpd_sa_info);
-	else if (DISPLAY_VER(display) >= 14)
+	} else if (DISPLAY_VERx100(display) >= 1401 && display->platform.dgfx) {
+		if (dram_info->type == INTEL_DRAM_GDDR_ECC)
+			xe2_hpd_get_bw_info(display, dram_info, &xe2_hpd_ecc_sa_info);
+		else
+			xe2_hpd_get_bw_info(display, dram_info, &xe2_hpd_sa_info);
+	} else if (DISPLAY_VER(display) >= 14) {
 		tgl_get_bw_info(display, dram_info, &mtl_sa_info);
-	else if (display->platform.dg2)
+	} else if (display->platform.dg2) {
 		dg2_get_bw_info(display);
-	else if (display->platform.alderlake_p)
+	} else if (display->platform.alderlake_p) {
 		tgl_get_bw_info(display, dram_info, &adlp_sa_info);
-	else if (display->platform.alderlake_s)
+	} else if (display->platform.alderlake_s) {
 		tgl_get_bw_info(display, dram_info, &adls_sa_info);
-	else if (display->platform.rocketlake)
+	} else if (display->platform.rocketlake) {
 		tgl_get_bw_info(display, dram_info, &rkl_sa_info);
-	else if (DISPLAY_VER(display) == 12)
+	} else if (DISPLAY_VER(display) == 12) {
 		tgl_get_bw_info(display, dram_info, &tgl_sa_info);
-	else if (DISPLAY_VER(display) == 11)
+	} else if (DISPLAY_VER(display) == 11) {
 		icl_get_bw_info(display, dram_info, &icl_sa_info);
+	}
 }
 
 static unsigned int intel_bw_num_active_planes(struct intel_display *display,
