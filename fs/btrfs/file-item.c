@@ -373,7 +373,7 @@ int btrfs_lookup_bio_sums(struct btrfs_bio *bbio)
 		return -ENOMEM;
 
 	if (nblocks * csum_size > BTRFS_BIO_INLINE_CSUM_SIZE) {
-		bbio->csum = kmalloc_array(nblocks, csum_size, GFP_NOFS);
+		bbio->csum = kvcalloc(nblocks, csum_size, GFP_NOFS);
 		if (!bbio->csum)
 			return -ENOMEM;
 	} else {
@@ -439,7 +439,7 @@ int btrfs_lookup_bio_sums(struct btrfs_bio *bbio)
 		if (count < 0) {
 			ret = count;
 			if (bbio->csum != bbio->csum_inline)
-				kfree(bbio->csum);
+				kvfree(bbio->csum);
 			bbio->csum = NULL;
 			break;
 		}

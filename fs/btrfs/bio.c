@@ -293,7 +293,7 @@ static void btrfs_check_read_bio(struct btrfs_bio *bbio, struct btrfs_device *de
 		offset += sectorsize;
 	}
 	if (bbio->csum != bbio->csum_inline)
-		kfree(bbio->csum);
+		kvfree(bbio->csum);
 
 	if (fbio)
 		btrfs_repair_done(fbio);
