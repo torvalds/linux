@@ -1,6 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _LINUX_FS_TYPES_H
-#define _LINUX_FS_TYPES_H
+#ifndef _LINUX_FS_DIRENT_H
+#define _LINUX_FS_DIRENT_H
+
+#include <linux/stat.h>
+#include <linux/types.h>
 
 /*
  * This is a header for the common implementation of dirent
@@ -66,10 +69,10 @@
 
 /*
  * declarations for helper functions, accompanying implementation
- * is in fs/fs_types.c
+ * is in fs/fs_dirent.c
  */
 extern unsigned char fs_ftype_to_dtype(unsigned int filetype);
 extern unsigned char fs_umode_to_ftype(umode_t mode);
 extern unsigned char fs_umode_to_dtype(umode_t mode);
 
-#endif
+#endif /* _LINUX_FS_DIRENT_H */
