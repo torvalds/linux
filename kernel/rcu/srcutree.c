@@ -286,15 +286,28 @@ err_free_sup:
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 
-int __init_srcu_struct(struct srcu_struct *ssp, const char *name,
-		       struct lock_class_key *key)
+static int
+__init_srcu_struct_common(struct srcu_struct *ssp, const char *name, struct lock_class_key *key)
 {
 	/* Don't re-initialize a lock while it is held. */
 	debug_check_no_locks_freed((void *)ssp, sizeof(*ssp));
 	lockdep_init_map(&ssp->dep_map, name, key, 0);
 	return init_srcu_struct_fields(ssp, false);
 }
+
+int __init_srcu_struct(struct srcu_struct *ssp, const char *name, struct lock_class_key *key)
+{
+	ssp->srcu_reader_flavor = 0;
+	return __init_srcu_struct_common(ssp, name, key);
+}
 EXPORT_SYMBOL_GPL(__init_srcu_struct);
+
+int __init_srcu_struct_fast(struct srcu_struct *ssp, const char *name, struct lock_class_key *key)
+{
+	ssp->srcu_reader_flavor = SRCU_READ_FLAVOR_FAST;
+	return __init_srcu_struct_common(ssp, name, key);
+}
+EXPORT_SYMBOL_GPL(__init_srcu_struct_fast);
 
 #else /* #ifdef CONFIG_DEBUG_LOCK_ALLOC */
 
@@ -308,9 +321,25 @@ EXPORT_SYMBOL_GPL(__init_srcu_struct);
  */
 int init_srcu_struct(struct srcu_struct *ssp)
 {
+	ssp->srcu_reader_flavor = 0;
 	return init_srcu_struct_fields(ssp, false);
 }
 EXPORT_SYMBOL_GPL(init_srcu_struct);
+
+/**
+ * init_srcu_struct_fast - initialize a fast-reader sleep-RCU structure
+ * @ssp: structure to initialize.
+ *
+ * Must invoke this on a given srcu_struct before passing that srcu_struct
+ * to any other function.  Each srcu_struct represents a separate domain
+ * of SRCU protection.
+ */
+int init_srcu_struct_fast(struct srcu_struct *ssp)
+{
+	ssp->srcu_reader_flavor = SRCU_READ_FLAVOR_FAST;
+	return init_srcu_struct_fields(ssp, false);
+}
+EXPORT_SYMBOL_GPL(init_srcu_struct_fast);
 
 #endif /* #else #ifdef CONFIG_DEBUG_LOCK_ALLOC */
 
@@ -734,6 +763,9 @@ void __srcu_check_read_flavor(struct srcu_struct *ssp, int read_flavor)
 
 	sdp = raw_cpu_ptr(ssp->sda);
 	old_read_flavor = READ_ONCE(sdp->srcu_reader_flavor);
+	WARN_ON_ONCE(ssp->srcu_reader_flavor && read_flavor != ssp->srcu_reader_flavor);
+	WARN_ON_ONCE(old_read_flavor && ssp->srcu_reader_flavor &&
+		     old_read_flavor != ssp->srcu_reader_flavor);
 	if (!old_read_flavor) {
 		old_read_flavor = cmpxchg(&sdp->srcu_reader_flavor, 0, read_flavor);
 		if (!old_read_flavor)

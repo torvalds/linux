@@ -104,6 +104,7 @@ struct srcu_usage {
 struct srcu_struct {
 	struct srcu_ctr __percpu *srcu_ctrp;
 	struct srcu_data __percpu *sda;		/* Per-CPU srcu_data array. */
+	u8 srcu_reader_flavor;
 	struct lockdep_map dep_map;
 	struct srcu_usage *srcu_sup;		/* Update-side data. */
 };
@@ -162,20 +163,21 @@ struct srcu_struct {
 	.work = __DELAYED_WORK_INITIALIZER(name.work, NULL, 0),					\
 }
 
-#define __SRCU_STRUCT_INIT_COMMON(name, usage_name)						\
+#define __SRCU_STRUCT_INIT_COMMON(name, usage_name, fast)					\
 	.srcu_sup = &usage_name,								\
+	.srcu_reader_flavor = fast,								\
 	__SRCU_DEP_MAP_INIT(name)
 
-#define __SRCU_STRUCT_INIT_MODULE(name, usage_name)						\
+#define __SRCU_STRUCT_INIT_MODULE(name, usage_name, fast)					\
 {												\
-	__SRCU_STRUCT_INIT_COMMON(name, usage_name)						\
+	__SRCU_STRUCT_INIT_COMMON(name, usage_name, fast)					\
 }
 
-#define __SRCU_STRUCT_INIT(name, usage_name, pcpu_name)						\
+#define __SRCU_STRUCT_INIT(name, usage_name, pcpu_name, fast)					\
 {												\
 	.sda = &pcpu_name,									\
 	.srcu_ctrp = &pcpu_name.srcu_ctrs[0],							\
-	__SRCU_STRUCT_INIT_COMMON(name, usage_name)						\
+	__SRCU_STRUCT_INIT_COMMON(name, usage_name, fast)						\
 }
 
 /*
@@ -196,23 +198,29 @@ struct srcu_struct {
  *	init_srcu_struct(&my_srcu);
  *
  * See include/linux/percpu-defs.h for the rules on per-CPU variables.
+ *
+ * DEFINE_SRCU_FAST() creates an srcu_struct and associated structures
+ * whose readers must be of the SRCU-fast variety.
  */
 #ifdef MODULE
-# define __DEFINE_SRCU(name, is_static)								\
+# define __DEFINE_SRCU(name, fast, is_static)							\
 	static struct srcu_usage name##_srcu_usage = __SRCU_USAGE_INIT(name##_srcu_usage);	\
-	is_static struct srcu_struct name = __SRCU_STRUCT_INIT_MODULE(name, name##_srcu_usage);	\
+	is_static struct srcu_struct name = __SRCU_STRUCT_INIT_MODULE(name, name##_srcu_usage,	\
+								      fast);			\
 	extern struct srcu_struct * const __srcu_struct_##name;					\
 	struct srcu_struct * const __srcu_struct_##name						\
 		__section("___srcu_struct_ptrs") = &name
 #else
-# define __DEFINE_SRCU(name, is_static)								\
+# define __DEFINE_SRCU(name, fast, is_static)							\
 	static DEFINE_PER_CPU(struct srcu_data, name##_srcu_data);				\
 	static struct srcu_usage name##_srcu_usage = __SRCU_USAGE_INIT(name##_srcu_usage);	\
 	is_static struct srcu_struct name =							\
-		__SRCU_STRUCT_INIT(name, name##_srcu_usage, name##_srcu_data)
+		__SRCU_STRUCT_INIT(name, name##_srcu_usage, name##_srcu_data, fast)
 #endif
-#define DEFINE_SRCU(name)		__DEFINE_SRCU(name, /* not static */)
-#define DEFINE_STATIC_SRCU(name)	__DEFINE_SRCU(name, static)
+#define DEFINE_SRCU(name)		__DEFINE_SRCU(name, 0, /* not static */)
+#define DEFINE_STATIC_SRCU(name)	__DEFINE_SRCU(name, 0, static)
+#define DEFINE_SRCU_FAST(name)		__DEFINE_SRCU(name, SRCU_READ_FLAVOR_FAST, /* not static */)
+#define DEFINE_STATIC_SRCU_FAST(name)	__DEFINE_SRCU(name, SRCU_READ_FLAVOR_FAST, static)
 
 int __srcu_read_lock(struct srcu_struct *ssp) __acquires(ssp);
 void synchronize_srcu_expedited(struct srcu_struct *ssp);
