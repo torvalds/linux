@@ -982,6 +982,8 @@ void mptcp_diag_fill_info(struct mptcp_sock *msk, struct mptcp_info *info)
 			mptcp_pm_get_endp_subflow_max(msk);
 		info->mptcpi_endp_laminar_max =
 			mptcp_pm_get_endp_laminar_max(msk);
+		info->mptcpi_endp_fullmesh_max =
+			mptcp_pm_get_endp_fullmesh_max(msk);
 	}
 
 	if (__mptcp_check_fallback(msk))
