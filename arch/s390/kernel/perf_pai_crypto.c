@@ -25,12 +25,30 @@ DEFINE_STATIC_KEY_FALSE(pai_key);
 
 enum {
 	PAI_PMU_CRYPTO,			/* Index of PMU pai_crypto */
+	PAI_PMU_EXT,			/* Index of PMU pai_ext */
 	PAI_PMU_MAX			/* # of PAI PMUs */
+};
+
+enum {
+	PAIE1_CB_SZ = 0x200,		/* Size of PAIE1 control block */
+	PAIE1_CTRBLOCK_SZ = 0x400	/* Size of PAIE1 counter blocks */
 };
 
 struct pai_userdata {
 	u16 num;
 	u64 value;
+} __packed;
+
+/* Create the PAI extension 1 control block area.
+ * The PAI extension control block 1 is pointed to by lowcore
+ * address 0x1508 for each CPU. This control block is 512 bytes in size
+ * and requires a 512 byte boundary alignment.
+ */
+struct paiext_cb {		/* PAI extension 1 control block */
+	u64 header;		/* Not used */
+	u64 reserved1;
+	u64 acc;		/* Addr to analytics counter control block */
+	u8 reserved2[488];
 } __packed;
 
 struct pai_map {
@@ -40,6 +58,8 @@ struct pai_map {
 	refcount_t refcnt;		/* Reference count mapped buffers */
 	struct perf_event *event;	/* Perf event for sampling */
 	struct list_head syswide_list;	/* List system-wide sampling events */
+	struct paiext_cb *paiext_cb;	/* PAI extension control block area */
+	bool fullpage;			/* True: counter area is a full page */
 };
 
 struct pai_mapptr {
@@ -108,7 +128,11 @@ static DEFINE_MUTEX(pai_reserve_mutex);
 /* Free all memory allocated for event counting/sampling setup */
 static void pai_free(struct pai_mapptr *mp)
 {
-	free_page((unsigned long)mp->mapptr->area);
+	if (mp->mapptr->fullpage)
+		free_page((unsigned long)mp->mapptr->area);
+	else
+		kfree(mp->mapptr->area);
+	kfree(mp->mapptr->paiext_cb);
 	kvfree(mp->mapptr->save);
 	kfree(mp->mapptr);
 	mp->mapptr = NULL;
@@ -215,6 +239,7 @@ static int pai_alloc_cpu(struct perf_event *event, int cpu)
 {
 	int rc, idx = PAI_PMU_IDX(event);
 	struct pai_map *cpump = NULL;
+	bool need_paiext_cb = false;
 	struct pai_mapptr *mp;
 
 	mutex_lock(&pai_reserve_mutex);
@@ -235,11 +260,33 @@ static int pai_alloc_cpu(struct perf_event *event, int cpu)
 		 * Only the first counting event has to allocate a page.
 		 */
 		mp->mapptr = cpump;
-		cpump->area = (unsigned long *)get_zeroed_page(GFP_KERNEL);
+		if (idx == PAI_PMU_CRYPTO) {
+			cpump->area = (unsigned long *)get_zeroed_page(GFP_KERNEL);
+			/* free_page() can handle 0x0 address */
+			cpump->fullpage = true;
+		} else {			/* PAI_PMU_EXT */
+			/*
+			 * Allocate memory for counter area and counter extraction.
+			 * These are
+			 * - a 512 byte block and requires 512 byte boundary
+			 *   alignment.
+			 * - a 1KB byte block and requires 1KB boundary
+			 *   alignment.
+			 * Only the first counting event has to allocate the area.
+			 *
+			 * Note: This works with commit 59bb47985c1d by default.
+			 * Backporting this to kernels without this commit might
+			 * needs adjustment.
+			 */
+			cpump->area = kzalloc(pai_pmu[idx].area_size, GFP_KERNEL);
+			cpump->paiext_cb = kzalloc(PAIE1_CB_SZ, GFP_KERNEL);
+			need_paiext_cb = true;
+		}
 		cpump->save = kvmalloc_array(pai_pmu[idx].num_avail + 1,
 					     sizeof(struct pai_userdata),
 					     GFP_KERNEL);
-		if (!cpump->area || !cpump->save) {
+		if (!cpump->area || !cpump->save ||
+		    (need_paiext_cb && !cpump->paiext_cb)) {
 			pai_free(mp);
 			goto undo;
 		}
@@ -314,6 +361,8 @@ static int pai_event_valid(struct perf_event *event, int idx)
 	/* PAI crypto event must be in valid range, try others if not */
 	if (a->config < pp->base || a->config > pp->base + pp->num_avail)
 		return -ENOENT;
+	if (idx == PAI_PMU_EXT && a->exclude_user)
+		return -EINVAL;
 	PAI_PMU_IDX(event) = idx;
 	return 0;
 }
@@ -422,12 +471,21 @@ static int pai_add(struct perf_event *event, int flags)
 	int idx = PAI_PMU_IDX(event);
 	struct pai_mapptr *mp = this_cpu_ptr(pai_root[idx].mapptr);
 	struct pai_map *cpump = mp->mapptr;
+	struct paiext_cb *pcb = cpump->paiext_cb;
 	unsigned long ccd;
 
 	if (++cpump->active_events == 1) {
-		ccd = virt_to_phys(cpump->area) | PAI_CRYPTO_KERNEL_OFFSET;
-		WRITE_ONCE(get_lowcore()->ccd, ccd);
-		local_ctl_set_bit(0, CR0_CRYPTOGRAPHY_COUNTER_BIT);
+		if (!pcb) {		/* PAI crypto */
+			ccd = virt_to_phys(cpump->area) | PAI_CRYPTO_KERNEL_OFFSET;
+			WRITE_ONCE(get_lowcore()->ccd, ccd);
+			local_ctl_set_bit(0, CR0_CRYPTOGRAPHY_COUNTER_BIT);
+		} else {		/* PAI extension 1 */
+			ccd = virt_to_phys(pcb);
+			WRITE_ONCE(get_lowcore()->aicd, ccd);
+			pcb->acc = virt_to_phys(cpump->area) | 0x1;
+			/* Enable CPU instruction lookup for PAIE1 control block */
+			local_ctl_set_bit(0, CR0_PAI_EXTENSION_BIT);
+		}
 	}
 	if (flags & PERF_EF_START)
 		pai_pmu[idx].pmu->start(event, PERF_EF_RELOAD);
@@ -471,11 +529,19 @@ static void pai_del(struct perf_event *event, int flags)
 	int idx = PAI_PMU_IDX(event);
 	struct pai_mapptr *mp = this_cpu_ptr(pai_root[idx].mapptr);
 	struct pai_map *cpump = mp->mapptr;
+	struct paiext_cb *pcb = cpump->paiext_cb;
 
 	pai_pmu[idx].pmu->stop(event, PERF_EF_UPDATE);
 	if (--cpump->active_events == 0) {
-		local_ctl_clear_bit(0, CR0_CRYPTOGRAPHY_COUNTER_BIT);
-		WRITE_ONCE(get_lowcore()->ccd, 0);
+		if (!pcb) {		/* PAI crypto */
+			local_ctl_clear_bit(0, CR0_CRYPTOGRAPHY_COUNTER_BIT);
+			WRITE_ONCE(get_lowcore()->ccd, 0);
+		} else {		/* PAI extension 1 */
+			/* Disable CPU instruction lookup for PAIE1 control block */
+			local_ctl_clear_bit(0, CR0_PAI_EXTENSION_BIT);
+			pcb->acc = 0;
+			WRITE_ONCE(get_lowcore()->aicd, 0);
+		}
 	}
 }
 
@@ -614,6 +680,70 @@ static void paicrypt_sched_task(struct perf_event_pmu_context *pmu_ctx,
 	 */
 	if (!sched_in)
 		pai_have_samples(PAI_PMU_CRYPTO);
+}
+
+/* ============================= paiext ====================================*/
+
+static void paiext_event_destroy(struct perf_event *event)
+{
+	pai_event_destroy(event);
+}
+
+/* Might be called on different CPU than the one the event is intended for. */
+static int paiext_event_init(struct perf_event *event)
+{
+	int rc = pai_event_init(event, PAI_PMU_EXT);
+
+	if (!rc) {
+		event->attr.exclude_kernel = true;	/* No kernel space part */
+		event->destroy = paiext_event_destroy;
+		/* Offset of NNPA in paiext_cb */
+		event->hw.config_base = offsetof(struct paiext_cb, acc);
+	}
+	return rc;
+}
+
+static u64 paiext_getall(struct perf_event *event)
+{
+	return pai_getdata(event, false);
+}
+
+static void paiext_read(struct perf_event *event)
+{
+	pai_read(event, paiext_getall);
+}
+
+static void paiext_start(struct perf_event *event, int flags)
+{
+	pai_start(event, flags, paiext_getall);
+}
+
+static int paiext_add(struct perf_event *event, int flags)
+{
+	return pai_add(event, flags);
+}
+
+static void paiext_stop(struct perf_event *event, int flags)
+{
+	pai_stop(event, flags);
+}
+
+static void paiext_del(struct perf_event *event, int flags)
+{
+	pai_del(event, flags);
+}
+
+/* Called on schedule-in and schedule-out. No access to event structure,
+ * but for sampling only event NNPA_ALL is allowed.
+ */
+static void paiext_sched_task(struct perf_event_pmu_context *pmu_ctx,
+			      struct task_struct *task, bool sched_in)
+{
+	/* We started with a clean page on event installation. So read out
+	 * results on schedule_out and if page was dirty, save old values.
+	 */
+	if (!sched_in)
+		pai_have_samples(PAI_PMU_EXT);
 }
 
 /* Attribute definitions for paicrypt interface. As with other CPU
@@ -845,6 +975,81 @@ static const char * const paicrypt_ctrnames[] = {
 	[172] = "PCKMO_ENCRYPT_AES_XTS_256",
 };
 
+static struct attribute *paiext_format_attr[] = {
+	&format_attr_event.attr,
+	NULL,
+};
+
+static struct attribute_group paiext_events_group = {
+	.name = "events",
+	.attrs = NULL,			/* Filled in attr_event_init() */
+};
+
+static struct attribute_group paiext_format_group = {
+	.name = "format",
+	.attrs = paiext_format_attr,
+};
+
+static const struct attribute_group *paiext_attr_groups[] = {
+	&paiext_events_group,
+	&paiext_format_group,
+	NULL,
+};
+
+/* Performance monitoring unit for mapped counters */
+static struct pmu paiext = {
+	.task_ctx_nr  = perf_hw_context,
+	.event_init   = paiext_event_init,
+	.add	      = paiext_add,
+	.del	      = paiext_del,
+	.start	      = paiext_start,
+	.stop	      = paiext_stop,
+	.read	      = paiext_read,
+	.sched_task   = paiext_sched_task,
+	.attr_groups  = paiext_attr_groups,
+};
+
+/* List of symbolic PAI extension 1 NNPA counter names. */
+static const char * const paiext_ctrnames[] = {
+	[0] = "NNPA_ALL",
+	[1] = "NNPA_ADD",
+	[2] = "NNPA_SUB",
+	[3] = "NNPA_MUL",
+	[4] = "NNPA_DIV",
+	[5] = "NNPA_MIN",
+	[6] = "NNPA_MAX",
+	[7] = "NNPA_LOG",
+	[8] = "NNPA_EXP",
+	[9] = "NNPA_IBM_RESERVED_9",
+	[10] = "NNPA_RELU",
+	[11] = "NNPA_TANH",
+	[12] = "NNPA_SIGMOID",
+	[13] = "NNPA_SOFTMAX",
+	[14] = "NNPA_BATCHNORM",
+	[15] = "NNPA_MAXPOOL2D",
+	[16] = "NNPA_AVGPOOL2D",
+	[17] = "NNPA_LSTMACT",
+	[18] = "NNPA_GRUACT",
+	[19] = "NNPA_CONVOLUTION",
+	[20] = "NNPA_MATMUL_OP",
+	[21] = "NNPA_MATMUL_OP_BCAST23",
+	[22] = "NNPA_SMALLBATCH",
+	[23] = "NNPA_LARGEDIM",
+	[24] = "NNPA_SMALLTENSOR",
+	[25] = "NNPA_1MFRAME",
+	[26] = "NNPA_2GFRAME",
+	[27] = "NNPA_ACCESSEXCEPT",
+	[28] = "NNPA_TRANSFORM",
+	[29] = "NNPA_GELU",
+	[30] = "NNPA_MOMENTS",
+	[31] = "NNPA_LAYERNORM",
+	[32] = "NNPA_MATMUL_OP_BCAST1",
+	[33] = "NNPA_SQRT",
+	[34] = "NNPA_INVSQRT",
+	[35] = "NNPA_NORM",
+	[36] = "NNPA_REDUCE",
+};
+
 static void __init attr_event_free(struct attribute **attrs)
 {
 	struct perf_pmu_events_attr *pa;
@@ -946,6 +1151,19 @@ static struct pai_pmu pai_pmu[] __refdata = {
 		.exit = pai_pmu_exit,
 		.pmu = &paicrypt,
 		.event_group = &paicrypt_events_group
+	},
+	[PAI_PMU_EXT] = {
+		.pmuname = "pai_ext",
+		.facility_nr = 197,
+		.num_named = ARRAY_SIZE(paiext_ctrnames),
+		.names = paiext_ctrnames,
+		.base = PAI_NNPA_BASE,
+		.kernel_offset = 0,
+		.area_size = PAIE1_CTRBLOCK_SZ,
+		.init = pai_pmu_init,
+		.exit = pai_pmu_exit,
+		.pmu = &paiext,
+		.event_group = &paiext_events_group
 	}
 };
 
@@ -976,6 +1194,9 @@ static int __init paipmu_setup(void)
 				       p->pmuname, p->num_avail);
 				continue;
 			}
+			break;
+		case PAI_PMU_EXT:
+			p->num_avail = ib.num_nnpa;
 			break;
 		}
 		p->num_avail += 1;		/* Add xxx_ALL event */
