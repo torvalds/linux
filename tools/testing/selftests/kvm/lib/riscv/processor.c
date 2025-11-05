@@ -8,6 +8,7 @@
 #include <linux/compiler.h>
 #include <assert.h>
 
+#include "guest_modes.h"
 #include "kvm_util.h"
 #include "processor.h"
 #include "ucall_common.h"
@@ -197,22 +198,41 @@ void riscv_vcpu_mmu_setup(struct kvm_vcpu *vcpu)
 {
 	struct kvm_vm *vm = vcpu->vm;
 	unsigned long satp;
+	unsigned long satp_mode;
+	unsigned long max_satp_mode;
 
 	/*
 	 * The RISC-V Sv48 MMU mode supports 56-bit physical address
 	 * for 48-bit virtual address with 4KB last level page size.
 	 */
 	switch (vm->mode) {
-	case VM_MODE_P52V48_4K:
-	case VM_MODE_P48V48_4K:
-	case VM_MODE_P40V48_4K:
+	case VM_MODE_P56V57_4K:
+	case VM_MODE_P50V57_4K:
+	case VM_MODE_P41V57_4K:
+		satp_mode = SATP_MODE_57;
+		break;
+	case VM_MODE_P56V48_4K:
+	case VM_MODE_P50V48_4K:
+	case VM_MODE_P41V48_4K:
+		satp_mode = SATP_MODE_48;
+		break;
+	case VM_MODE_P56V39_4K:
+	case VM_MODE_P50V39_4K:
+	case VM_MODE_P41V39_4K:
+		satp_mode = SATP_MODE_39;
 		break;
 	default:
 		TEST_FAIL("Unknown guest mode, mode: 0x%x", vm->mode);
 	}
 
+	max_satp_mode = vcpu_get_reg(vcpu, RISCV_CONFIG_REG(satp_mode));
+
+	if ((satp_mode >> SATP_MODE_SHIFT) > max_satp_mode)
+		TEST_FAIL("Unable to set satp mode 0x%lx, max mode 0x%lx\n",
+			  satp_mode >> SATP_MODE_SHIFT, max_satp_mode);
+
 	satp = (vm->pgd >> PGTBL_PAGE_SIZE_SHIFT) & SATP_PPN;
-	satp |= SATP_MODE_48;
+	satp |= satp_mode;
 
 	vcpu_set_reg(vcpu, RISCV_GENERAL_CSR_REG(satp), satp);
 }
@@ -514,4 +534,39 @@ unsigned long get_host_sbi_spec_version(void)
 	GUEST_ASSERT(!ret.error);
 
 	return ret.value;
+}
+
+void kvm_selftest_arch_init(void)
+{
+	/*
+	 * riscv64 doesn't have a true default mode, so start by detecting the
+	 * supported vm mode.
+	 */
+	guest_modes_append_default();
+}
+
+unsigned long riscv64_get_satp_mode(void)
+{
+	int kvm_fd, vm_fd, vcpu_fd, err;
+	uint64_t val;
+	struct kvm_one_reg reg = {
+		.id     = RISCV_CONFIG_REG(satp_mode),
+		.addr   = (uint64_t)&val,
+	};
+
+	kvm_fd = open_kvm_dev_path_or_exit();
+	vm_fd = __kvm_ioctl(kvm_fd, KVM_CREATE_VM, NULL);
+	TEST_ASSERT(vm_fd >= 0, KVM_IOCTL_ERROR(KVM_CREATE_VM, vm_fd));
+
+	vcpu_fd = ioctl(vm_fd, KVM_CREATE_VCPU, 0);
+	TEST_ASSERT(vcpu_fd >= 0, KVM_IOCTL_ERROR(KVM_CREATE_VCPU, vcpu_fd));
+
+	err = ioctl(vcpu_fd, KVM_GET_ONE_REG, &reg);
+	TEST_ASSERT(err == 0, KVM_IOCTL_ERROR(KVM_GET_ONE_REG, vcpu_fd));
+
+	close(vcpu_fd);
+	close(vm_fd);
+	close(kvm_fd);
+
+	return val;
 }

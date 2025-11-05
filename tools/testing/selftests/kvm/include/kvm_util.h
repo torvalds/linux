@@ -186,6 +186,17 @@ enum vm_guest_mode {
 	VM_MODE_P36V48_64K,
 	VM_MODE_P47V47_16K,
 	VM_MODE_P36V47_16K,
+
+	VM_MODE_P56V57_4K,	/* For riscv64 */
+	VM_MODE_P56V48_4K,
+	VM_MODE_P56V39_4K,
+	VM_MODE_P50V57_4K,
+	VM_MODE_P50V48_4K,
+	VM_MODE_P50V39_4K,
+	VM_MODE_P41V57_4K,
+	VM_MODE_P41V48_4K,
+	VM_MODE_P41V39_4K,
+
 	NUM_VM_MODES,
 };
 
@@ -210,9 +221,9 @@ kvm_static_assert(sizeof(struct vm_shape) == sizeof(uint64_t));
 	shape;					\
 })
 
-#if defined(__aarch64__)
-
 extern enum vm_guest_mode vm_mode_default;
+
+#if defined(__aarch64__)
 
 #define VM_MODE_DEFAULT			vm_mode_default
 #define MIN_PAGE_SHIFT			12U
@@ -236,7 +247,7 @@ extern enum vm_guest_mode vm_mode_default;
 #error "RISC-V 32-bit kvm selftests not supported"
 #endif
 
-#define VM_MODE_DEFAULT			VM_MODE_P40V48_4K
+#define VM_MODE_DEFAULT			vm_mode_default
 #define MIN_PAGE_SHIFT			12U
 #define ptes_per_page(page_size)	((page_size) / 8)
 

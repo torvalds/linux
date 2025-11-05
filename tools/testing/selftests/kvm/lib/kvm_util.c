@@ -209,6 +209,15 @@ const char *vm_guest_mode_string(uint32_t i)
 		[VM_MODE_P36V48_64K]	= "PA-bits:36,  VA-bits:48, 64K pages",
 		[VM_MODE_P47V47_16K]	= "PA-bits:47,  VA-bits:47, 16K pages",
 		[VM_MODE_P36V47_16K]	= "PA-bits:36,  VA-bits:47, 16K pages",
+		[VM_MODE_P56V57_4K]	= "PA-bits:56,  VA-bits:57,  4K pages",
+		[VM_MODE_P56V48_4K]	= "PA-bits:56,  VA-bits:48,  4K pages",
+		[VM_MODE_P56V39_4K]	= "PA-bits:56,  VA-bits:39,  4K pages",
+		[VM_MODE_P50V57_4K]	= "PA-bits:50,  VA-bits:57,  4K pages",
+		[VM_MODE_P50V48_4K]	= "PA-bits:50,  VA-bits:48,  4K pages",
+		[VM_MODE_P50V39_4K]	= "PA-bits:50,  VA-bits:39,  4K pages",
+		[VM_MODE_P41V57_4K]	= "PA-bits:41,  VA-bits:57,  4K pages",
+		[VM_MODE_P41V48_4K]	= "PA-bits:41,  VA-bits:48,  4K pages",
+		[VM_MODE_P41V39_4K]	= "PA-bits:41,  VA-bits:39,  4K pages",
 	};
 	_Static_assert(sizeof(strings)/sizeof(char *) == NUM_VM_MODES,
 		       "Missing new mode strings?");
@@ -236,6 +245,15 @@ const struct vm_guest_mode_params vm_guest_mode_params[] = {
 	[VM_MODE_P36V48_64K]	= { 36, 48, 0x10000, 16 },
 	[VM_MODE_P47V47_16K]	= { 47, 47,  0x4000, 14 },
 	[VM_MODE_P36V47_16K]	= { 36, 47,  0x4000, 14 },
+	[VM_MODE_P56V57_4K]	= { 56, 57,  0x1000, 12 },
+	[VM_MODE_P56V48_4K]	= { 56, 48,  0x1000, 12 },
+	[VM_MODE_P56V39_4K]	= { 56, 39,  0x1000, 12 },
+	[VM_MODE_P50V57_4K]	= { 50, 57,  0x1000, 12 },
+	[VM_MODE_P50V48_4K]	= { 50, 48,  0x1000, 12 },
+	[VM_MODE_P50V39_4K]	= { 50, 39,  0x1000, 12 },
+	[VM_MODE_P41V57_4K]	= { 41, 57,  0x1000, 12 },
+	[VM_MODE_P41V48_4K]	= { 41, 48,  0x1000, 12 },
+	[VM_MODE_P41V39_4K]	= { 41, 39,  0x1000, 12 },
 };
 _Static_assert(sizeof(vm_guest_mode_params)/sizeof(struct vm_guest_mode_params) == NUM_VM_MODES,
 	       "Missing new mode params?");
@@ -337,6 +355,21 @@ struct kvm_vm *____vm_create(struct vm_shape shape)
 		break;
 	case VM_MODE_P44V64_4K:
 		vm->pgtable_levels = 5;
+		break;
+	case VM_MODE_P56V57_4K:
+	case VM_MODE_P50V57_4K:
+	case VM_MODE_P41V57_4K:
+		vm->pgtable_levels = 5;
+		break;
+	case VM_MODE_P56V48_4K:
+	case VM_MODE_P50V48_4K:
+	case VM_MODE_P41V48_4K:
+		vm->pgtable_levels = 4;
+		break;
+	case VM_MODE_P56V39_4K:
+	case VM_MODE_P50V39_4K:
+	case VM_MODE_P41V39_4K:
+		vm->pgtable_levels = 3;
 		break;
 	default:
 		TEST_FAIL("Unknown guest mode: 0x%x", vm->mode);
