@@ -79,6 +79,26 @@
 
 };
 
+&gpio0 {
+	interrupts = <13>, <14>, <15>, <16>,
+		     <17>, <18>, <19>, <20>,
+		     <21>, <22>, <23>, <24>,
+		     <25>, <26>;
+	ngpios = <14>;
+	status = "okay";
+};
+
+&gpio1 {
+	interrupts = <27>, <28>, <29>, <30>,
+		     <31>, <32>, <33>, <34>,
+		     <35>, <36>, <37>, <38>,
+		     <39>, <40>, <41>, <42>,
+		     <43>, <44>, <45>, <46>,
+		     <47>, <48>, <49>, <50>;
+	ngpios = <24>;
+	status = "okay";
+};
+
 &gpio2 {
 	interrupts = <53>, <53>, <53>, <53>,
 		     <53>, <53>, <53>, <53>,
@@ -198,6 +218,82 @@
 &spi1 {
 	status = "okay";
 };
+
+&qspi {
+	status = "okay";
+	cs-gpios = <&gpio1 17 GPIO_ACTIVE_LOW>, <&gpio0 12 GPIO_ACTIVE_LOW>;
+	num-cs = <2>;
+
+	adc@0 {
+		compatible = "microchip,mcp3464r";
+		reg = <0>; /* CE0 */
+		spi-cpol;
+		spi-cpha;
+		spi-max-frequency = <5000000>;
+		microchip,hw-device-address = <1>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "okay";
+
+		channel@0 {
+			/* CH0 to AGND */
+			reg = <0>;
+			label = "CH0";
+		};
+
+		channel@1 {
+			/* CH1 to AGND */
+			reg = <1>;
+			label = "CH1";
+		};
+
+		channel@2 {
+			/* CH2 to AGND */
+			reg = <2>;
+			label = "CH2";
+		};
+
+		channel@3 {
+			/* CH3 to AGND */
+			reg = <3>;
+			label = "CH3";
+		};
+
+		channel@4 {
+			/* CH4 to AGND */
+			reg = <4>;
+			label = "CH4";
+		};
+
+		channel@5 {
+			/* CH5 to AGND */
+			reg = <5>;
+			label = "CH5";
+		};
+
+		channel@6 {
+			/* CH6 to AGND */
+			reg = <6>;
+			label = "CH6";
+		};
+
+		channel@7 {
+			/* CH7 is connected to AGND */
+			reg = <7>;
+			label = "CH7";
+		};
+	};
+
+	mmc@1 {
+		compatible = "mmc-spi-slot";
+		reg = <1>;
+		gpios = <&gpio2 31 1>;
+		voltage-ranges = <3300 3300>;
+		spi-max-frequency = <5000000>;
+		disable-wp;
+	};
+};
+
 
 &syscontroller {
 	microchip,bitstream-flash = <&sys_ctrl_flash>;
