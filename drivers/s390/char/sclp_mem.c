@@ -275,6 +275,8 @@ static ssize_t sclp_memmap_on_memory_store(struct kobject *kobj, struct kobj_att
 	rc = kstrtobool(buf, &value);
 	if (rc)
 		return rc;
+	if (value && !mhp_supports_memmap_on_memory())
+		return -EOPNOTSUPP;
 	rc = lock_device_hotplug_sysfs();
 	if (rc)
 		return rc;
