@@ -382,17 +382,20 @@ static void paicrypt_read(struct perf_event *event)
 	pai_read(event, paicrypt_getall);
 }
 
-static void paicrypt_start(struct perf_event *event, int flags)
+static void pai_start(struct perf_event *event, int flags,
+		      u64 (*fct)(struct perf_event *event))
 {
+	int idx = PAI_PMU_IDX(event);
+	struct pai_pmu *pp = &pai_pmu[idx];
 	struct pai_mapptr *mp = this_cpu_ptr(pai_root.mapptr);
 	struct pai_map *cpump = mp->mapptr;
 	u64 sum;
 
 	if (!event->attr.sample_period) {	/* Counting */
-		sum = paicrypt_getall(event);	/* Get current value */
+		sum = fct(event);		/* Get current value */
 		local64_set(&event->hw.prev_count, sum);
 	} else {				/* Sampling */
-		memcpy((void *)PAI_SAVE_AREA(event), cpump->area, PAGE_SIZE);
+		memcpy((void *)PAI_SAVE_AREA(event), cpump->area, pp->area_size);
 		/* Enable context switch callback for system-wide sampling */
 		if (!(event->attach_state & PERF_ATTACH_TASK)) {
 			list_add_tail(PAI_SWLIST(event), &cpump->syswide_list);
@@ -401,6 +404,11 @@ static void paicrypt_start(struct perf_event *event, int flags)
 			cpump->event = event;
 		}
 	}
+}
+
+static void paicrypt_start(struct perf_event *event, int flags)
+{
+	pai_start(event, flags, paicrypt_getall);
 }
 
 static int paicrypt_add(struct perf_event *event, int flags)
