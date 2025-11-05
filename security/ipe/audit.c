@@ -46,6 +46,7 @@ static const char *const audit_op_names[__IPE_OP_MAX + 1] = {
 
 static const char *const audit_hook_names[__IPE_HOOK_MAX] = {
 	"BPRM_CHECK",
+	"BPRM_CREDS_FOR_EXEC",
 	"MMAP",
 	"MPROTECT",
 	"KERNEL_READ",
