@@ -365,16 +365,21 @@ static int paicrypt_event_init(struct perf_event *event)
 	return rc;
 }
 
-static void paicrypt_read(struct perf_event *event)
+static void pai_read(struct perf_event *event,
+		     u64 (*fct)(struct perf_event *event))
 {
 	u64 prev, new, delta;
 
 	prev = local64_read(&event->hw.prev_count);
-	new = paicrypt_getall(event);
+	new = fct(event);
 	local64_set(&event->hw.prev_count, new);
-	delta = (prev <= new) ? new - prev
-			      : (-1ULL - prev) + new + 1;	 /* overflow */
+	delta = (prev <= new) ? new - prev : (-1ULL - prev) + new + 1;
 	local64_add(delta, &event->count);
+}
+
+static void paicrypt_read(struct perf_event *event)
+{
+	pai_read(event, paicrypt_getall);
 }
 
 static void paicrypt_start(struct perf_event *event, int flags)
