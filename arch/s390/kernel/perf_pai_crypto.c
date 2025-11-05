@@ -435,13 +435,14 @@ static int paicrypt_add(struct perf_event *event, int flags)
 }
 
 static void pai_have_sample(struct perf_event *, struct pai_map *);
-static void paicrypt_stop(struct perf_event *event, int flags)
+static void pai_stop(struct perf_event *event, int flags)
 {
 	struct pai_mapptr *mp = this_cpu_ptr(pai_root.mapptr);
 	struct pai_map *cpump = mp->mapptr;
+	int idx = PAI_PMU_IDX(event);
 
 	if (!event->attr.sample_period) {	/* Counting */
-		paicrypt_read(event);
+		pai_pmu[idx].pmu->read(event);
 	} else {				/* Sampling */
 		if (!(event->attach_state & PERF_ATTACH_TASK)) {
 			perf_sched_cb_dec(event->pmu);
@@ -452,6 +453,11 @@ static void paicrypt_stop(struct perf_event *event, int flags)
 		}
 	}
 	event->hw.state = PERF_HES_STOPPED;
+}
+
+static void paicrypt_stop(struct perf_event *event, int flags)
+{
+	pai_stop(event, flags);
 }
 
 static void paicrypt_del(struct perf_event *event, int flags)
