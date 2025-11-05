@@ -30,7 +30,7 @@ struct pai_userdata {
 	u64 value;
 } __packed;
 
-struct paicrypt_map {
+struct pai_map {
 	unsigned long *area;		/* Area for CPU to store counters */
 	struct pai_userdata *save;	/* Page to store no-zero counters */
 	unsigned int active_events;	/* # of PAI crypto users */
@@ -40,7 +40,7 @@ struct paicrypt_map {
 };
 
 struct pai_mapptr {
-	struct paicrypt_map *mapptr;
+	struct pai_map *mapptr;
 };
 
 static struct paicrypt_root {		/* Anchor to per CPU data */
@@ -95,7 +95,7 @@ static void paicrypt_free(struct pai_mapptr *mp)
 static void paicrypt_event_destroy_cpu(struct perf_event *event, int cpu)
 {
 	struct pai_mapptr *mp = per_cpu_ptr(paicrypt_root.mapptr, cpu);
-	struct paicrypt_map *cpump = mp->mapptr;
+	struct pai_map *cpump = mp->mapptr;
 
 	mutex_lock(&pai_reserve_mutex);
 	debug_sprintf_event(paidbg, 5, "%s event %#llx cpu %d users %d "
@@ -138,7 +138,7 @@ static u64 paicrypt_getctr(unsigned long *page, int nr, bool kernel)
 static u64 paicrypt_getdata(struct perf_event *event, bool kernel)
 {
 	struct pai_mapptr *mp = this_cpu_ptr(paicrypt_root.mapptr);
-	struct paicrypt_map *cpump = mp->mapptr;
+	struct pai_map *cpump = mp->mapptr;
 	u64 sum = 0;
 	int i;
 
@@ -179,7 +179,7 @@ static u64 paicrypt_getall(struct perf_event *event)
  */
 static int paicrypt_alloc_cpu(struct perf_event *event, int cpu)
 {
-	struct paicrypt_map *cpump = NULL;
+	struct pai_map *cpump = NULL;
 	struct pai_mapptr *mp;
 	int rc;
 
@@ -327,7 +327,7 @@ static void paicrypt_read(struct perf_event *event)
 static void paicrypt_start(struct perf_event *event, int flags)
 {
 	struct pai_mapptr *mp = this_cpu_ptr(paicrypt_root.mapptr);
-	struct paicrypt_map *cpump = mp->mapptr;
+	struct pai_map *cpump = mp->mapptr;
 	u64 sum;
 
 	if (!event->attr.sample_period) {	/* Counting */
@@ -348,7 +348,7 @@ static void paicrypt_start(struct perf_event *event, int flags)
 static int paicrypt_add(struct perf_event *event, int flags)
 {
 	struct pai_mapptr *mp = this_cpu_ptr(paicrypt_root.mapptr);
-	struct paicrypt_map *cpump = mp->mapptr;
+	struct pai_map *cpump = mp->mapptr;
 	unsigned long ccd;
 
 	if (++cpump->active_events == 1) {
@@ -362,11 +362,11 @@ static int paicrypt_add(struct perf_event *event, int flags)
 	return 0;
 }
 
-static void paicrypt_have_sample(struct perf_event *, struct paicrypt_map *);
+static void paicrypt_have_sample(struct perf_event *, struct pai_map *);
 static void paicrypt_stop(struct perf_event *event, int flags)
 {
 	struct pai_mapptr *mp = this_cpu_ptr(paicrypt_root.mapptr);
-	struct paicrypt_map *cpump = mp->mapptr;
+	struct pai_map *cpump = mp->mapptr;
 
 	if (!event->attr.sample_period) {	/* Counting */
 		paicrypt_read(event);
@@ -385,7 +385,7 @@ static void paicrypt_stop(struct perf_event *event, int flags)
 static void paicrypt_del(struct perf_event *event, int flags)
 {
 	struct pai_mapptr *mp = this_cpu_ptr(paicrypt_root.mapptr);
-	struct paicrypt_map *cpump = mp->mapptr;
+	struct pai_map *cpump = mp->mapptr;
 
 	paicrypt_stop(event, PERF_EF_UPDATE);
 	if (--cpump->active_events == 0) {
@@ -431,7 +431,7 @@ static size_t paicrypt_copy(struct pai_userdata *userdata, unsigned long *page,
 	return outidx * sizeof(*userdata);
 }
 
-static int paicrypt_push_sample(size_t rawsize, struct paicrypt_map *cpump,
+static int paicrypt_push_sample(size_t rawsize, struct pai_map *cpump,
 				struct perf_event *event)
 {
 	struct perf_sample_data data;
@@ -471,7 +471,7 @@ static int paicrypt_push_sample(size_t rawsize, struct paicrypt_map *cpump,
 
 /* Check if there is data to be saved on schedule out of a task. */
 static void paicrypt_have_sample(struct perf_event *event,
-				 struct paicrypt_map *cpump)
+				 struct pai_map *cpump)
 {
 	size_t rawsize;
 
@@ -489,7 +489,7 @@ static void paicrypt_have_sample(struct perf_event *event,
 static void paicrypt_have_samples(void)
 {
 	struct pai_mapptr *mp = this_cpu_ptr(paicrypt_root.mapptr);
-	struct paicrypt_map *cpump = mp->mapptr;
+	struct pai_map *cpump = mp->mapptr;
 	struct perf_event *event;
 
 	list_for_each_entry(event, &cpump->syswide_list, hw.tp_list)
