@@ -416,9 +416,14 @@ static void tsa_init(struct cpuinfo_x86 *c)
 		else
 			pr_debug("%s: current revision: 0x%x\n", __func__, c->microcode);
 	} else {
-		setup_force_cpu_cap(X86_FEATURE_TSA_SQ_NO);
-		setup_force_cpu_cap(X86_FEATURE_TSA_L1_NO);
+		if (!cpu_has(c, X86_FEATURE_ZEN5)) {
+			setup_force_cpu_cap(X86_FEATURE_TSA_SQ_NO);
+			setup_force_cpu_cap(X86_FEATURE_TSA_L1_NO);
+		}
 	}
+
+	if (!cpu_has(c, X86_FEATURE_ZEN5))
+		setup_force_cpu_cap(X86_FEATURE_TSA_FILL_NO);
 }
 
 static void bsp_init_amd(struct cpuinfo_x86 *c)
