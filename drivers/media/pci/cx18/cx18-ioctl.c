@@ -521,10 +521,8 @@ static int cx18_g_input(struct file *file, void *fh, unsigned int *i)
 	return 0;
 }
 
-int cx18_s_input(struct file *file, void *fh, unsigned int inp)
+int cx18_do_s_input(struct cx18 *cx, unsigned int inp)
 {
-	struct cx18_open_id *id = file2id(file);
-	struct cx18 *cx = id->cx;
 	v4l2_std_id std = V4L2_STD_ALL;
 	const struct cx18_card_video_input *card_input =
 				cx->card->video_inputs + inp;
@@ -558,6 +556,11 @@ int cx18_s_input(struct file *file, void *fh, unsigned int inp)
 	return 0;
 }
 
+static int cx18_s_input(struct file *file, void *fh, unsigned int inp)
+{
+	return cx18_do_s_input(file2id(file)->cx, inp);
+}
+
 static int cx18_g_frequency(struct file *file, void *fh,
 				struct v4l2_frequency *vf)
 {
@@ -570,11 +573,8 @@ static int cx18_g_frequency(struct file *file, void *fh,
 	return 0;
 }
 
-int cx18_s_frequency(struct file *file, void *fh, const struct v4l2_frequency *vf)
+int cx18_do_s_frequency(struct cx18 *cx, const struct v4l2_frequency *vf)
 {
-	struct cx18_open_id *id = file2id(file);
-	struct cx18 *cx = id->cx;
-
 	if (vf->tuner != 0)
 		return -EINVAL;
 
@@ -585,6 +585,12 @@ int cx18_s_frequency(struct file *file, void *fh, const struct v4l2_frequency *v
 	return 0;
 }
 
+static int cx18_s_frequency(struct file *file, void *fh,
+			    const struct v4l2_frequency *vf)
+{
+	return cx18_do_s_frequency(file2id(file)->cx, vf);
+}
+
 static int cx18_g_std(struct file *file, void *fh, v4l2_std_id *std)
 {
 	struct cx18 *cx = file2id(file)->cx;
@@ -593,11 +599,8 @@ static int cx18_g_std(struct file *file, void *fh, v4l2_std_id *std)
 	return 0;
 }
 
-int cx18_s_std(struct file *file, void *fh, v4l2_std_id std)
+int cx18_do_s_std(struct cx18 *cx, v4l2_std_id std)
 {
-	struct cx18_open_id *id = file2id(file);
-	struct cx18 *cx = id->cx;
-
 	if ((std & V4L2_STD_ALL) == 0)
 		return -EINVAL;
 
@@ -640,6 +643,11 @@ int cx18_s_std(struct file *file, void *fh, v4l2_std_id std)
 	/* Tuner */
 	cx18_call_all(cx, video, s_std, cx->std);
 	return 0;
+}
+
+static int cx18_s_std(struct file *file, void *fh, v4l2_std_id std)
+{
+	return cx18_do_s_std(file2id(file)->cx, std);
 }
 
 static int cx18_s_tuner(struct file *file, void *fh, const struct v4l2_tuner *vt)
