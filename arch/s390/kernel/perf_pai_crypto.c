@@ -2,10 +2,10 @@
 /*
  * Performance event support - Processor Activity Instrumentation Facility
  *
- *  Copyright IBM Corp. 2022
+ *  Copyright IBM Corp. 2026
  *  Author(s): Thomas Richter <tmricht@linux.ibm.com>
  */
-#define KMSG_COMPONENT	"pai_crypto"
+#define KMSG_COMPONENT	"pai"
 #define pr_fmt(fmt)	KMSG_COMPONENT ": " fmt
 
 #include <linux/kernel.h>
@@ -49,7 +49,7 @@ struct pai_mapptr {
 static struct pai_root {		/* Anchor to per CPU data */
 	refcount_t refcnt;		/* Overall active events */
 	struct pai_mapptr __percpu *mapptr;
-} pai_root;
+} pai_root[PAI_PMU_MAX];
 
 /* This table defines the different parameters of the PAI PMUs. During
  * initialization the machine dependent values are extracted and saved.
@@ -74,14 +74,14 @@ struct pai_pmu {			/* Define PAI PMU characteristics */
 static struct pai_pmu pai_pmu[];	/* Forward declaration */
 
 /* Free per CPU data when the last event is removed. */
-static void pai_root_free(void)
+static void pai_root_free(int idx)
 {
-	if (refcount_dec_and_test(&pai_root.refcnt)) {
-		free_percpu(pai_root.mapptr);
-		pai_root.mapptr = NULL;
+	if (refcount_dec_and_test(&pai_root[idx].refcnt)) {
+		free_percpu(pai_root[idx].mapptr);
+		pai_root[idx].mapptr = NULL;
 	}
-	debug_sprintf_event(paidbg, 5, "%s root.refcount %d\n", __func__,
-			    refcount_read(&pai_root.refcnt));
+	debug_sprintf_event(paidbg, 5, "%s root[%d].refcount %d\n", __func__,
+			    idx, refcount_read(&pai_root[idx].refcnt));
 }
 
 /*
@@ -90,14 +90,14 @@ static void pai_root_free(void)
  * CPUs possible, which might be larger than the number of CPUs currently
  * online.
  */
-static int pai_root_alloc(void)
+static int pai_root_alloc(int idx)
 {
-	if (!refcount_inc_not_zero(&pai_root.refcnt)) {
+	if (!refcount_inc_not_zero(&pai_root[idx].refcnt)) {
 		/* The memory is already zeroed. */
-		pai_root.mapptr = alloc_percpu(struct pai_mapptr);
-		if (!pai_root.mapptr)
+		pai_root[idx].mapptr = alloc_percpu(struct pai_mapptr);
+		if (!pai_root[idx].mapptr)
 			return -ENOMEM;
-		refcount_set(&pai_root.refcnt, 1);
+		refcount_set(&pai_root[idx].refcnt, 1);
 	}
 	return 0;
 }
@@ -119,17 +119,18 @@ static void pai_free(struct pai_mapptr *mp)
  */
 static void pai_event_destroy_cpu(struct perf_event *event, int cpu)
 {
-	struct pai_mapptr *mp = per_cpu_ptr(pai_root.mapptr, cpu);
+	int idx = PAI_PMU_IDX(event);
+	struct pai_mapptr *mp = per_cpu_ptr(pai_root[idx].mapptr, cpu);
 	struct pai_map *cpump = mp->mapptr;
 
 	mutex_lock(&pai_reserve_mutex);
-	debug_sprintf_event(paidbg, 5, "%s event %#llx cpu %d users %d "
-			    "refcnt %u\n", __func__, event->attr.config,
+	debug_sprintf_event(paidbg, 5, "%s event %#llx idx %d cpu %d users %d "
+			    "refcnt %u\n", __func__, event->attr.config, idx,
 			    event->cpu, cpump->active_events,
 			    refcount_read(&cpump->refcnt));
 	if (refcount_dec_and_test(&cpump->refcnt))
 		pai_free(mp);
-	pai_root_free();
+	pai_root_free(idx);
 	mutex_unlock(&pai_reserve_mutex);
 }
 
@@ -162,10 +163,10 @@ static u64 pai_getctr(unsigned long *page, int nr, unsigned long offset)
  */
 static u64 pai_getdata(struct perf_event *event, bool kernel)
 {
-	struct pai_mapptr *mp = this_cpu_ptr(pai_root.mapptr);
-	struct pai_map *cpump = mp->mapptr;
 	int idx = PAI_PMU_IDX(event);
+	struct pai_mapptr *mp = this_cpu_ptr(pai_root[idx].mapptr);
 	struct pai_pmu *pp = &pai_pmu[idx];
+	struct pai_map *cpump = mp->mapptr;
 	unsigned int i;
 	u64 sum = 0;
 
@@ -213,12 +214,12 @@ static int pai_alloc_cpu(struct perf_event *event, int cpu)
 
 	mutex_lock(&pai_reserve_mutex);
 	/* Allocate root node */
-	rc = pai_root_alloc();
+	rc = pai_root_alloc(idx);
 	if (rc)
 		goto unlock;
 
 	/* Allocate node for this event */
-	mp = per_cpu_ptr(pai_root.mapptr, cpu);
+	mp = per_cpu_ptr(pai_root[idx].mapptr, cpu);
 	cpump = mp->mapptr;
 	if (!cpump) {			/* Paicrypt_map allocated? */
 		rc = -ENOMEM;
@@ -250,7 +251,7 @@ undo:
 		 * the event in not created, its destroy() function is never
 		 * invoked. Adjust the reference counter for the anchor.
 		 */
-		pai_root_free();
+		pai_root_free(idx);
 	}
 unlock:
 	mutex_unlock(&pai_reserve_mutex);
@@ -387,7 +388,7 @@ static void pai_start(struct perf_event *event, int flags,
 {
 	int idx = PAI_PMU_IDX(event);
 	struct pai_pmu *pp = &pai_pmu[idx];
-	struct pai_mapptr *mp = this_cpu_ptr(pai_root.mapptr);
+	struct pai_mapptr *mp = this_cpu_ptr(pai_root[idx].mapptr);
 	struct pai_map *cpump = mp->mapptr;
 	u64 sum;
 
@@ -413,9 +414,9 @@ static void paicrypt_start(struct perf_event *event, int flags)
 
 static int pai_add(struct perf_event *event, int flags)
 {
-	struct pai_mapptr *mp = this_cpu_ptr(pai_root.mapptr);
-	struct pai_map *cpump = mp->mapptr;
 	int idx = PAI_PMU_IDX(event);
+	struct pai_mapptr *mp = this_cpu_ptr(pai_root[idx].mapptr);
+	struct pai_map *cpump = mp->mapptr;
 	unsigned long ccd;
 
 	if (++cpump->active_events == 1) {
@@ -437,9 +438,9 @@ static int paicrypt_add(struct perf_event *event, int flags)
 static void pai_have_sample(struct perf_event *, struct pai_map *);
 static void pai_stop(struct perf_event *event, int flags)
 {
-	struct pai_mapptr *mp = this_cpu_ptr(pai_root.mapptr);
-	struct pai_map *cpump = mp->mapptr;
 	int idx = PAI_PMU_IDX(event);
+	struct pai_mapptr *mp = this_cpu_ptr(pai_root[idx].mapptr);
+	struct pai_map *cpump = mp->mapptr;
 
 	if (!event->attr.sample_period) {	/* Counting */
 		pai_pmu[idx].pmu->read(event);
@@ -462,9 +463,9 @@ static void paicrypt_stop(struct perf_event *event, int flags)
 
 static void pai_del(struct perf_event *event, int flags)
 {
-	struct pai_mapptr *mp = this_cpu_ptr(pai_root.mapptr);
-	struct pai_map *cpump = mp->mapptr;
 	int idx = PAI_PMU_IDX(event);
+	struct pai_mapptr *mp = this_cpu_ptr(pai_root[idx].mapptr);
+	struct pai_map *cpump = mp->mapptr;
 
 	pai_pmu[idx].pmu->stop(event, PERF_EF_UPDATE);
 	if (--cpump->active_events == 0) {
@@ -587,9 +588,9 @@ static void pai_have_sample(struct perf_event *event, struct pai_map *cpump)
 }
 
 /* Check if there is data to be saved on schedule out of a task. */
-static void pai_have_samples(void)
+static void pai_have_samples(int idx)
 {
-	struct pai_mapptr *mp = this_cpu_ptr(pai_root.mapptr);
+	struct pai_mapptr *mp = this_cpu_ptr(pai_root[idx].mapptr);
 	struct pai_map *cpump = mp->mapptr;
 	struct perf_event *event;
 
@@ -607,7 +608,7 @@ static void paicrypt_sched_task(struct perf_event_pmu_context *pmu_ctx,
 	 * results on schedule_out and if page was dirty, save old values.
 	 */
 	if (!sched_in)
-		pai_have_samples();
+		pai_have_samples(PAI_PMU_CRYPTO);
 }
 
 /* Attribute definitions for paicrypt interface. As with other CPU
@@ -982,7 +983,7 @@ static int __init paipmu_setup(void)
 	return install_ok;
 }
 
-static int __init paicrypt_init(void)
+static int __init pai_init(void)
 {
 	/* Setup s390dbf facility */
 	paidbg = debug_register(KMSG_COMPONENT, 32, 256, 128);
@@ -1001,4 +1002,4 @@ static int __init paicrypt_init(void)
 	return 0;
 }
 
-device_initcall(paicrypt_init);
+device_initcall(pai_init);
