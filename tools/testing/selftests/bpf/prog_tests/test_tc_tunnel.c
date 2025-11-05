@@ -69,7 +69,7 @@ struct subtest_cfg {
 	int client_egress_prog_fd;
 	int server_ingress_prog_fd;
 	char extra_decap_mod_args[TUNNEL_ARGS_MAX_LEN];
-	int *server_fd;
+	int server_fd;
 };
 
 struct connection {
@@ -135,24 +135,21 @@ static int run_server(struct subtest_cfg *cfg)
 {
 	int family = cfg->ipproto == 6 ? AF_INET6 : AF_INET;
 	struct nstoken *nstoken;
+	struct network_helper_opts opts = {
+		.timeout_ms = TIMEOUT_MS
+	};
 
 	nstoken = open_netns(SERVER_NS);
 	if (!ASSERT_OK_PTR(nstoken, "open server ns"))
 		return -1;
 
-	cfg->server_fd = start_reuseport_server(family, SOCK_STREAM,
-						cfg->server_addr, TEST_PORT,
-						TIMEOUT_MS, 1);
+	cfg->server_fd = start_server_str(family, SOCK_STREAM, cfg->server_addr,
+					  TEST_PORT, &opts);
 	close_netns(nstoken);
-	if (!ASSERT_OK_PTR(cfg->server_fd, "start server"))
+	if (!ASSERT_OK_FD(cfg->server_fd, "start server"))
 		return -1;
 
 	return 0;
-}
-
-static void stop_server(struct subtest_cfg *cfg)
-{
-	free_fds(cfg->server_fd, 1);
 }
 
 static int check_server_rx_data(struct subtest_cfg *cfg,
@@ -188,7 +185,7 @@ static struct connection *connect_client_to_server(struct subtest_cfg *cfg)
 		return NULL;
 	}
 
-	server_fd = accept(*cfg->server_fd, NULL, NULL);
+	server_fd = accept(cfg->server_fd, NULL, NULL);
 	if (server_fd < 0) {
 		close(client_fd);
 		free(conn);
@@ -384,12 +381,13 @@ fail:
 
 static void run_test(struct subtest_cfg *cfg)
 {
-	struct nstoken *nstoken = open_netns(CLIENT_NS);
-
-	if (!ASSERT_OK_PTR(nstoken, "open client ns"))
-		return;
+	struct nstoken *nstoken;
 
 	if (!ASSERT_OK(run_server(cfg), "run server"))
+		return;
+
+	nstoken = open_netns(CLIENT_NS);
+	if (!ASSERT_OK_PTR(nstoken, "open client ns"))
 		goto fail;
 
 	/* Basic communication must work */
@@ -416,8 +414,8 @@ static void run_test(struct subtest_cfg *cfg)
 	ASSERT_OK(send_and_test_data(cfg, true), "connect with encap and decap progs");
 
 fail:
-	stop_server(cfg);
 	close_netns(nstoken);
+	close(cfg->server_fd);
 }
 
 static int setup(void)
