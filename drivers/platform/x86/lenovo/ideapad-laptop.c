@@ -31,6 +31,7 @@
 #include <linux/power_supply.h>
 #include <linux/rfkill.h>
 #include <linux/seq_file.h>
+#include <linux/string_choices.h>
 #include <linux/sysfs.h>
 #include <linux/types.h>
 #include <linux/wmi.h>
@@ -462,25 +463,25 @@ static int debugfs_status_show(struct seq_file *s, void *data)
 	if (!read_ec_data(priv->adev->handle, VPCCMD_R_BL, &value))
 		seq_printf(s, "Backlight now:  %lu\n", value);
 	if (!read_ec_data(priv->adev->handle, VPCCMD_R_BL_POWER, &value))
-		seq_printf(s, "BL power value: %s (%lu)\n", value ? "on" : "off", value);
+		seq_printf(s, "BL power value: %s (%lu)\n", str_on_off(value), value);
 
 	seq_puts(s, "=====================\n");
 
 	if (!read_ec_data(priv->adev->handle, VPCCMD_R_RF, &value))
-		seq_printf(s, "Radio status: %s (%lu)\n", value ? "on" : "off", value);
+		seq_printf(s, "Radio status: %s (%lu)\n", str_on_off(value), value);
 	if (!read_ec_data(priv->adev->handle, VPCCMD_R_WIFI, &value))
-		seq_printf(s, "Wifi status:  %s (%lu)\n", value ? "on" : "off", value);
+		seq_printf(s, "Wifi status:  %s (%lu)\n", str_on_off(value), value);
 	if (!read_ec_data(priv->adev->handle, VPCCMD_R_BT, &value))
-		seq_printf(s, "BT status:    %s (%lu)\n", value ? "on" : "off", value);
+		seq_printf(s, "BT status:    %s (%lu)\n", str_on_off(value), value);
 	if (!read_ec_data(priv->adev->handle, VPCCMD_R_3G, &value))
-		seq_printf(s, "3G status:    %s (%lu)\n", value ? "on" : "off", value);
+		seq_printf(s, "3G status:    %s (%lu)\n", str_on_off(value), value);
 
 	seq_puts(s, "=====================\n");
 
 	if (!read_ec_data(priv->adev->handle, VPCCMD_R_TOUCHPAD, &value))
-		seq_printf(s, "Touchpad status: %s (%lu)\n", value ? "on" : "off", value);
+		seq_printf(s, "Touchpad status: %s (%lu)\n", str_on_off(value), value);
 	if (!read_ec_data(priv->adev->handle, VPCCMD_R_CAMERA, &value))
-		seq_printf(s, "Camera status:   %s (%lu)\n", value ? "on" : "off", value);
+		seq_printf(s, "Camera status:   %s (%lu)\n", str_on_off(value), value);
 
 	seq_puts(s, "=====================\n");
 
