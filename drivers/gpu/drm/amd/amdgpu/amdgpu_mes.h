@@ -149,6 +149,7 @@ struct amdgpu_mes {
 	void                *resource_1_addr[AMDGPU_MAX_MES_PIPES];
 
 	int				hung_queue_db_array_size;
+	int				hung_queue_hqd_info_offset;
 	struct amdgpu_bo		*hung_queue_db_array_gpu_obj;
 	uint64_t			hung_queue_db_array_gpu_addr;
 	void				*hung_queue_db_array_cpu_addr;

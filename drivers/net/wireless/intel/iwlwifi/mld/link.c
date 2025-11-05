@@ -501,6 +501,7 @@ void iwl_mld_remove_link(struct iwl_mld *mld,
 	struct iwl_mld_vif *mld_vif = iwl_mld_vif_from_mac80211(bss_conf->vif);
 	struct iwl_mld_link *link = iwl_mld_link_from_mac80211(bss_conf);
 	bool is_deflink = link == &mld_vif->deflink;
+	u8 fw_id = link->fw_id;
 
 	if (WARN_ON(!link || link->active))
 		return;
@@ -513,10 +514,10 @@ void iwl_mld_remove_link(struct iwl_mld *mld,
 
 	RCU_INIT_POINTER(mld_vif->link[bss_conf->link_id], NULL);
 
-	if (WARN_ON(link->fw_id >= mld->fw->ucode_capa.num_links))
+	if (WARN_ON(fw_id >= mld->fw->ucode_capa.num_links))
 		return;
 
-	RCU_INIT_POINTER(mld->fw_id_to_bss_conf[link->fw_id], NULL);
+	RCU_INIT_POINTER(mld->fw_id_to_bss_conf[fw_id], NULL);
 }
 
 void iwl_mld_handle_missed_beacon_notif(struct iwl_mld *mld,

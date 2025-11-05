@@ -162,7 +162,7 @@ struct h4_recv_pkt {
 int h4_init(void);
 int h4_deinit(void);
 
-struct sk_buff *h4_recv_buf(struct hci_dev *hdev, struct sk_buff *skb,
+struct sk_buff *h4_recv_buf(struct hci_uart *hu, struct sk_buff *skb,
 			    const unsigned char *buffer, int count,
 			    const struct h4_recv_pkt *pkts, int pkts_count);
 #endif

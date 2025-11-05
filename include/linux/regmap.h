@@ -1643,7 +1643,7 @@ struct regmap_irq_chip_data;
  * @status_invert: Inverted status register: cleared bits are active interrupts.
  * @status_is_level: Status register is actuall signal level: Xor status
  *		     register with previous value to get active interrupts.
- * @wake_invert: Inverted wake register: cleared bits are wake enabled.
+ * @wake_invert: Inverted wake register: cleared bits are wake disabled.
  * @type_in_mask: Use the mask registers for controlling irq type. Use this if
  *		  the hardware provides separate bits for rising/falling edge
  *		  or low/high level interrupts and they should be combined into
