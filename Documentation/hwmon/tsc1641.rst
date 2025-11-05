@@ -1,0 +1,87 @@
+.. SPDX-License-Identifier: GPL-2.0-only
+
+Kernel driver tsc1641
+=====================
+
+Supported chips:
+
+  * ST TSC1641
+
+    Prefix: 'tsc1641'
+
+    Addresses scanned: -
+
+    Datasheet:
+	https://www.st.com/resource/en/datasheet/tsc1641.pdf
+
+Author:
+	- Igor Reznichenko <igor@reznichenko.net>
+
+
+Description
+-----------
+
+The TSC1641 is a high-precision current, voltage, power, and temperature
+monitoring analog front-end (AFE). It monitors bidirectional current into a
+shunt resistor and load voltage up to 60 V in a synchronized way. Digital bus
+interface is I2C/SMbus. The TSC1641 allows the assertion of several alerts
+regarding the voltage, current, power and temperature.
+
+Usage Notes
+-----------
+
+The TSC1641 driver requires the value of the external shunt resistor to
+correctly compute current and power measurements. The resistor value, in
+micro-ohms, should be provided either through the device tree property
+"shunt-resistor-micro-ohms" or via writable sysfs attribute "shunt_resistor".
+Please refer to the Documentation/devicetree/bindings/hwmon/st,tsc1641.yaml
+for bindings if the device tree is used.
+
+Supported range of shunt resistor values is from 100 uOhm to 655.35 mOhm, in
+10 uOhm steps.
+When selecting the value keep in mind device maximum DC power measurement is
+1600W. See datasheet p.22 for ST recommendations on selecting shunt value.
+
+If the shunt resistor value is not specified in the device tree, the driver
+initializes it to 1000 uOhm by default. Users may configure the correct shunt
+resistor value at runtime by writing to the "shunt_resistor" sysfs attribute.
+
+The driver only supports continuous operating mode.
+Measurement ranges:
+
+================ ===============================================================
+Current          Bidirectional, dependent on shunt
+Bus voltage      0-60V
+Maximum DC power 1600W
+Temperature      -40C to +125C
+================ ===============================================================
+
+Sysfs entries
+-------------
+
+==================== ===========================================================
+in0_input            bus voltage (mV)
+in0_max              bus voltage max alarm limit (mV)
+in0_max_alarm        bus voltage max alarm limit exceeded
+in0_min              bus voltage min alarm limit (mV)
+in0_min_alarm        bus voltage min alarm limit exceeded
+
+curr1_input          current measurement (mA)
+curr1_max            current max alarm limit (mA)
+curr1_max_alarm      current max alarm limit exceeded
+curr1_min            current min alarm limit (mA)
+curr1_min_alarm      current min alarm limit exceeded
+
+power1_input         power measurement (uW)
+power1_max           power max alarm limit (uW)
+power1_max_alarm     power max alarm limit exceeded
+
+shunt_resistor       shunt resistor value (uOhms)
+
+temp1_input          temperature measurement (mdegC)
+temp1_max            temperature max alarm limit (mdegC)
+temp1_max_alarm      temperature max alarm limit exceeded
+
+update_interval      data conversion time (1 - 33ms), longer conversion time
+                     corresponds to higher effective resolution in bits
+==================== ===========================================================
