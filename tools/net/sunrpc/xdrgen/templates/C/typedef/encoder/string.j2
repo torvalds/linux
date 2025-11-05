@@ -14,4 +14,4 @@ xdrgen_encode_{{ name }}(struct xdr_stream *xdr, const {{ classifier }}{{ name }
 	/* (variable-length string) */
 {% endif %}
 	return xdr_stream_encode_opaque(xdr, value.data, value.len) >= 0;
-};
+}
