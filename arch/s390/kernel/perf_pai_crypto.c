@@ -485,9 +485,9 @@ static void paicrypt_del(struct perf_event *event, int flags)
  * 2 bytes: Number of counter
  * 8 bytes: Value of counter
  */
-static size_t paicrypt_copy(struct pai_userdata *userdata, unsigned long *page,
-			    struct pai_pmu *pp, unsigned long *page_old,
-			    bool exclude_user, bool exclude_kernel)
+static size_t pai_copy(struct pai_userdata *userdata, unsigned long *page,
+		       struct pai_pmu *pp, unsigned long *page_old,
+		       bool exclude_user, bool exclude_kernel)
 {
 	int i, outidx = 0;
 
@@ -578,10 +578,10 @@ static void pai_have_sample(struct perf_event *event, struct pai_map *cpump)
 	if (!event)		/* No event active */
 		return;
 	pp = &pai_pmu[PAI_PMU_IDX(event)];
-	rawsize = paicrypt_copy(cpump->save, cpump->area, pp,
-				(unsigned long *)PAI_SAVE_AREA(event),
-				event->attr.exclude_user,
-				event->attr.exclude_kernel);
+	rawsize = pai_copy(cpump->save, cpump->area, pp,
+			   (unsigned long *)PAI_SAVE_AREA(event),
+			   event->attr.exclude_user,
+			   event->attr.exclude_kernel);
 	if (rawsize)			/* No incremented counters */
 		pai_push_sample(rawsize, cpump, event);
 }
