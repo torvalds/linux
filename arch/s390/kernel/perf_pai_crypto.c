@@ -460,16 +460,22 @@ static void paicrypt_stop(struct perf_event *event, int flags)
 	pai_stop(event, flags);
 }
 
-static void paicrypt_del(struct perf_event *event, int flags)
+static void pai_del(struct perf_event *event, int flags)
 {
 	struct pai_mapptr *mp = this_cpu_ptr(pai_root.mapptr);
 	struct pai_map *cpump = mp->mapptr;
+	int idx = PAI_PMU_IDX(event);
 
-	paicrypt_stop(event, PERF_EF_UPDATE);
+	pai_pmu[idx].pmu->stop(event, PERF_EF_UPDATE);
 	if (--cpump->active_events == 0) {
 		local_ctl_clear_bit(0, CR0_CRYPTOGRAPHY_COUNTER_BIT);
 		WRITE_ONCE(get_lowcore()->ccd, 0);
 	}
+}
+
+static void paicrypt_del(struct perf_event *event, int flags)
+{
+	pai_del(event, flags);
 }
 
 /* Create raw data and save it in buffer. Calculate the delta for each
