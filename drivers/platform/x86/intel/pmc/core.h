@@ -304,6 +304,8 @@ enum ppfear_regs {
 /* Wildcat Lake */
 #define WCL_PMC_LTR_RESERVED			0x1B64
 #define WCL_PCD_PMC_MMIO_REG_LEN		0x3178
+#define WCL_NUM_S0IX_BLOCKER			94
+#define WCL_BLK_REQ_OFFSET			50
 
 /* SSRAM PMC Device ID */
 /* LNL */
