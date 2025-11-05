@@ -899,6 +899,19 @@ static int blkdev_report_zone_fallback(struct block_device *bdev,
 	return blkdev_do_report_zones(bdev, sector, 1, &args);
 }
 
+/*
+ * For devices that natively support zone append operations, we do not use zone
+ * write plugging for zone append writes, which makes the zone condition
+ * tracking invalid once zone append was used.  In that case fall back to a
+ * regular report zones to get correct information.
+ */
+static inline bool blkdev_has_cached_report_zones(struct block_device *bdev)
+{
+	return disk_need_zone_resources(bdev->bd_disk) &&
+		(bdev_emulates_zone_append(bdev) ||
+		 !test_bit(GD_ZONE_APPEND_USED, &bdev->bd_disk->state));
+}
+
 /**
  * blkdev_get_zone_info - Get a single zone information from cached data
  * @bdev:   Target block device
@@ -931,6 +944,9 @@ int blkdev_get_zone_info(struct block_device *bdev, sector_t sector,
 
 	memset(zone, 0, sizeof(*zone));
 	sector = ALIGN_DOWN(sector, zone_sectors);
+
+	if (!blkdev_has_cached_report_zones(bdev))
+		return blkdev_report_zone_fallback(bdev, sector, zone);
 
 	rcu_read_lock();
 	zones_cond = rcu_dereference(disk->zones_cond);
@@ -1035,11 +1051,7 @@ int blkdev_report_zones_cached(struct block_device *bdev, sector_t sector,
 	if (!nr_zones || sector >= capacity)
 		return 0;
 
-	/*
-	 * If we do not have any zone write plug resources, fallback to using
-	 * the regular zone report.
-	 */
-	if (!disk_need_zone_resources(disk)) {
+	if (!blkdev_has_cached_report_zones(bdev)) {
 		struct blk_report_zones_args args = {
 			.cb = cb,
 			.data = data,
@@ -1115,6 +1127,7 @@ static void blk_zone_reset_all_bio_endio(struct bio *bio)
 	for (sector = 0; sector < capacity;
 	     sector += bdev_zone_sectors(bio->bi_bdev))
 		disk_zone_set_cond(disk, sector, BLK_ZONE_COND_EMPTY);
+	clear_bit(GD_ZONE_APPEND_USED, &disk->state);
 }
 
 static void blk_zone_finish_bio_endio(struct bio *bio)
@@ -1473,6 +1486,9 @@ static void blk_zone_wplug_handle_native_zone_append(struct bio *bio)
 	struct gendisk *disk = bio->bi_bdev->bd_disk;
 	struct blk_zone_wplug *zwplug;
 	unsigned long flags;
+
+	if (!test_bit(GD_ZONE_APPEND_USED, &disk->state))
+		set_bit(GD_ZONE_APPEND_USED, &disk->state);
 
 	/*
 	 * We have native support for zone append operations, so we are not

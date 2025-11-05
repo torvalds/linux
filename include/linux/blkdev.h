@@ -173,6 +173,7 @@ struct gendisk {
 #define GD_ADDED			4
 #define GD_SUPPRESS_PART_SCAN		5
 #define GD_OWNS_QUEUE			6
+#define GD_ZONE_APPEND_USED		7
 
 	struct mutex open_mutex;	/* open/close mutex */
 	unsigned open_partitions;	/* number of open partitions */
