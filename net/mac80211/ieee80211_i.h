@@ -916,9 +916,6 @@ struct ieee80211_chanctx {
 	struct list_head list;
 	struct rcu_head rcu_head;
 
-	struct list_head assigned_links;
-	struct list_head reserved_links;
-
 	enum ieee80211_chanctx_replace_state replace_state;
 	struct ieee80211_chanctx *replace_ctx;
 
@@ -1070,9 +1067,6 @@ struct ieee80211_link_data_ap {
 struct ieee80211_link_data {
 	struct ieee80211_sub_if_data *sdata;
 	unsigned int link_id;
-
-	struct list_head assigned_chanctx_list; /* protected by wiphy mutex */
-	struct list_head reserved_chanctx_list; /* protected by wiphy mutex */
 
 	/* multicast keys only */
 	struct ieee80211_key __rcu *gtk[NUM_DEFAULT_KEYS +

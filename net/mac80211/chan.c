@@ -20,8 +20,10 @@ static int ieee80211_chanctx_num_assigned(struct ieee80211_local *local,
 
 	lockdep_assert_wiphy(local->hw.wiphy);
 
-	list_for_each_entry(link, &ctx->assigned_links, assigned_chanctx_list)
-		num++;
+	for_each_sdata_link(local, link) {
+		if (rcu_access_pointer(link->conf->chanctx_conf) == &ctx->conf)
+			num++;
+	}
 
 	return num;
 }
@@ -34,8 +36,10 @@ static int ieee80211_chanctx_num_reserved(struct ieee80211_local *local,
 
 	lockdep_assert_wiphy(local->hw.wiphy);
 
-	list_for_each_entry(link, &ctx->reserved_links, reserved_chanctx_list)
-		num++;
+	for_each_sdata_link(local, link) {
+		if (link->reserved_chanctx == ctx)
+			num++;
+	}
 
 	return num;
 }
@@ -43,8 +47,19 @@ static int ieee80211_chanctx_num_reserved(struct ieee80211_local *local,
 int ieee80211_chanctx_refcount(struct ieee80211_local *local,
 			       struct ieee80211_chanctx *ctx)
 {
-	return ieee80211_chanctx_num_assigned(local, ctx) +
-	       ieee80211_chanctx_num_reserved(local, ctx);
+	struct ieee80211_link_data *link;
+	int num = 0;
+
+	lockdep_assert_wiphy(local->hw.wiphy);
+
+	for_each_sdata_link(local, link) {
+		if (rcu_access_pointer(link->conf->chanctx_conf) == &ctx->conf)
+			num++;
+		if (link->reserved_chanctx == ctx)
+			num++;
+	}
+
+	return num;
 }
 
 static int ieee80211_num_chanctx(struct ieee80211_local *local, int radio_idx)
@@ -150,7 +165,10 @@ ieee80211_chanctx_reserved_chanreq(struct ieee80211_local *local,
 	if (WARN_ON(!req))
 		return NULL;
 
-	list_for_each_entry(link, &ctx->reserved_links, reserved_chanctx_list) {
+	for_each_sdata_link(local, link) {
+		if (link->reserved_chanctx != ctx)
+			continue;
+
 		req = ieee80211_chanreq_compatible(&link->reserved, req, tmp);
 		if (!req)
 			break;
@@ -170,8 +188,11 @@ ieee80211_chanctx_non_reserved_chandef(struct ieee80211_local *local,
 
 	lockdep_assert_wiphy(local->hw.wiphy);
 
-	list_for_each_entry(link, &ctx->assigned_links, assigned_chanctx_list) {
+	for_each_sdata_link(local, link) {
 		struct ieee80211_bss_conf *link_conf = link->conf;
+
+		if (rcu_access_pointer(link_conf->chanctx_conf) != &ctx->conf)
+			continue;
 
 		if (link->reserved_chanctx)
 			continue;
@@ -200,7 +221,7 @@ ieee80211_chanctx_can_reserve(struct ieee80211_local *local,
 	if (!ieee80211_chanctx_non_reserved_chandef(local, ctx, req, &tmp))
 		return false;
 
-	if (!list_empty(&ctx->reserved_links) &&
+	if (ieee80211_chanctx_num_reserved(local, ctx) != 0 &&
 	    ieee80211_chanctx_reserved_chanreq(local, ctx, req, &tmp))
 		return true;
 
@@ -633,8 +654,6 @@ ieee80211_find_chanctx(struct ieee80211_local *local,
 		 * context to actually be removed.
 		 */
 		link->reserved_chanctx = ctx;
-		list_add(&link->reserved_chanctx_list,
-			 &ctx->reserved_links);
 
 		ieee80211_change_chanctx(local, ctx, ctx, compat);
 
@@ -705,8 +724,6 @@ ieee80211_alloc_chanctx(struct ieee80211_local *local,
 	if (!ctx)
 		return NULL;
 
-	INIT_LIST_HEAD(&ctx->assigned_links);
-	INIT_LIST_HEAD(&ctx->reserved_links);
 	ctx->conf.def = chanreq->oper;
 	ctx->conf.ap = chanreq->ap;
 	ctx->conf.rx_chains_static = 1;
@@ -904,7 +921,6 @@ static int ieee80211_assign_link_chanctx(struct ieee80211_link_data *link,
 
 		drv_unassign_vif_chanctx(local, sdata, link->conf, curr_ctx);
 		conf = NULL;
-		list_del(&link->assigned_chanctx_list);
 	}
 
 	if (new_ctx) {
@@ -919,9 +935,6 @@ static int ieee80211_assign_link_chanctx(struct ieee80211_link_data *link,
 
 			/* succeeded, so commit it to the data structures */
 			conf = &new_ctx->conf;
-			if (!local->in_reconfig)
-				list_add(&link->assigned_chanctx_list,
-					 &new_ctx->assigned_links);
 		}
 	} else {
 		ret = 0;
@@ -1108,7 +1121,6 @@ void ieee80211_link_unreserve_chanctx(struct ieee80211_link_data *link)
 	if (WARN_ON(!ctx))
 		return;
 
-	list_del(&link->reserved_chanctx_list);
 	link->reserved_chanctx = NULL;
 
 	if (ieee80211_chanctx_refcount(sdata->local, ctx) == 0) {
@@ -1142,9 +1154,9 @@ ieee80211_replace_chanctx(struct ieee80211_local *local,
 	struct wiphy *wiphy = local->hw.wiphy;
 	const struct wiphy_radio *radio;
 
-	if (!curr_ctx || (curr_ctx->replace_state ==
-			  IEEE80211_CHANCTX_WILL_BE_REPLACED) ||
-	    !list_empty(&curr_ctx->reserved_links)) {
+	if (!curr_ctx ||
+	    curr_ctx->replace_state == IEEE80211_CHANCTX_WILL_BE_REPLACED ||
+	    ieee80211_chanctx_num_reserved(local, curr_ctx) != 0) {
 		/*
 		 * Another link already requested this context for a
 		 * reservation. Find another one hoping all links assigned
@@ -1167,7 +1179,7 @@ ieee80211_replace_chanctx(struct ieee80211_local *local,
 			    IEEE80211_CHANCTX_REPLACE_NONE)
 				continue;
 
-			if (!list_empty(&ctx->reserved_links))
+			if (ieee80211_chanctx_num_reserved(local, ctx) != 0)
 				continue;
 
 			if (ctx->conf.radio_idx >= 0) {
@@ -1185,9 +1197,9 @@ ieee80211_replace_chanctx(struct ieee80211_local *local,
 	 * If that's true then all available contexts already have reservations
 	 * and cannot be used.
 	 */
-	if (!curr_ctx || (curr_ctx->replace_state ==
-			  IEEE80211_CHANCTX_WILL_BE_REPLACED) ||
-	    !list_empty(&curr_ctx->reserved_links))
+	if (!curr_ctx ||
+	    curr_ctx->replace_state == IEEE80211_CHANCTX_WILL_BE_REPLACED ||
+	    ieee80211_chanctx_num_reserved(local, curr_ctx) != 0)
 		return ERR_PTR(-EBUSY);
 
 	new_ctx = ieee80211_alloc_chanctx(local, chanreq, mode, -1);
@@ -1267,7 +1279,6 @@ int ieee80211_link_reserve_chanctx(struct ieee80211_link_data *link,
 			return PTR_ERR(new_ctx);
 	}
 
-	list_add(&link->reserved_chanctx_list, &new_ctx->reserved_links);
 	link->reserved_chanctx = new_ctx;
 	link->reserved = *chanreq;
 	link->reserved_radar_required = radar_required;
@@ -1381,7 +1392,6 @@ ieee80211_link_use_reserved_reassign(struct ieee80211_link_data *link)
 	vif_chsw[0].new_ctx = &new_ctx->conf;
 	vif_chsw[0].link_conf = link->conf;
 
-	list_del(&link->reserved_chanctx_list);
 	link->reserved_chanctx = NULL;
 
 	err = drv_switch_vif_chanctx(local, vif_chsw, 1,
@@ -1394,7 +1404,6 @@ ieee80211_link_use_reserved_reassign(struct ieee80211_link_data *link)
 	}
 
 	link->radar_required = link->reserved_radar_required;
-	list_move(&link->assigned_chanctx_list, &new_ctx->assigned_links);
 	rcu_assign_pointer(link_conf->chanctx_conf, &new_ctx->conf);
 
 	if (sdata->vif.type == NL80211_IFTYPE_AP)
@@ -1451,7 +1460,6 @@ ieee80211_link_use_reserved_assign(struct ieee80211_link_data *link)
 
 	ieee80211_change_chanctx(local, new_ctx, new_ctx, chanreq);
 
-	list_del(&link->reserved_chanctx_list);
 	link->reserved_chanctx = NULL;
 
 	err = ieee80211_assign_link_chanctx(link, new_ctx, false);
@@ -1517,8 +1525,10 @@ static int ieee80211_chsw_switch_vifs(struct ieee80211_local *local,
 			goto out;
 		}
 
-		list_for_each_entry(link, &ctx->reserved_links,
-				    reserved_chanctx_list) {
+		for_each_sdata_link(local, link) {
+			if (link->reserved_chanctx != ctx)
+				continue;
+
 			if (!ieee80211_link_has_in_place_reservation(link))
 				continue;
 
@@ -1551,7 +1561,7 @@ static int ieee80211_chsw_switch_ctxs(struct ieee80211_local *local)
 		if (ctx->replace_state != IEEE80211_CHANCTX_REPLACES_OTHER)
 			continue;
 
-		if (!list_empty(&ctx->replace_ctx->assigned_links))
+		if (ieee80211_chanctx_num_assigned(local, ctx) != 0)
 			continue;
 
 		ieee80211_del_chanctx(local, ctx->replace_ctx, false);
@@ -1568,7 +1578,7 @@ err:
 		if (ctx->replace_state != IEEE80211_CHANCTX_REPLACES_OTHER)
 			continue;
 
-		if (!list_empty(&ctx->replace_ctx->assigned_links))
+		if (ieee80211_chanctx_num_assigned(local, ctx) != 0)
 			continue;
 
 		ieee80211_del_chanctx(local, ctx, false);
@@ -1619,8 +1629,10 @@ static int ieee80211_vif_use_reserved_switch(struct ieee80211_local *local)
 		n_reserved = 0;
 		n_ready = 0;
 
-		list_for_each_entry(link, &ctx->replace_ctx->assigned_links,
-				    assigned_chanctx_list) {
+		for_each_sdata_link(local, link) {
+			if (rcu_access_pointer(link->conf->chanctx_conf) != &ctx->conf)
+				continue;
+
 			n_assigned++;
 			if (link->reserved_chanctx) {
 				n_reserved++;
@@ -1641,8 +1653,10 @@ static int ieee80211_vif_use_reserved_switch(struct ieee80211_local *local)
 		}
 
 		ctx->conf.radar_enabled = false;
-		list_for_each_entry(link, &ctx->reserved_links,
-				    reserved_chanctx_list) {
+		for_each_sdata_link(local, link) {
+			if (link->reserved_chanctx != ctx)
+				continue;
+
 			if (ieee80211_link_has_in_place_reservation(link) &&
 			    !link->reserved_ready)
 				return -EAGAIN;
@@ -1683,8 +1697,10 @@ static int ieee80211_vif_use_reserved_switch(struct ieee80211_local *local)
 			goto err;
 		}
 
-		list_for_each_entry(link, &ctx->reserved_links,
-				    reserved_chanctx_list) {
+		for_each_sdata_link(local, link) {
+			if (link->reserved_chanctx != ctx)
+				continue;
+
 			if (!ieee80211_link_has_in_place_reservation(link))
 				continue;
 
@@ -1718,7 +1734,7 @@ static int ieee80211_vif_use_reserved_switch(struct ieee80211_local *local)
 	 * context(s).
 	 */
 	list_for_each_entry(ctx, &local->chanctx_list, list) {
-		struct ieee80211_link_data *link, *link_tmp;
+		struct ieee80211_link_data *link;
 
 		if (ctx->replace_state != IEEE80211_CHANCTX_REPLACES_OTHER)
 			continue;
@@ -1728,11 +1744,13 @@ static int ieee80211_vif_use_reserved_switch(struct ieee80211_local *local)
 			goto err;
 		}
 
-		list_for_each_entry(link, &ctx->reserved_links,
-				    reserved_chanctx_list) {
+		for_each_sdata_link(local, link) {
 			struct ieee80211_sub_if_data *sdata = link->sdata;
 			struct ieee80211_bss_conf *link_conf = link->conf;
 			u64 changed = 0;
+
+			if (link->reserved_chanctx != ctx)
+				continue;
 
 			if (!ieee80211_link_has_in_place_reservation(link))
 				continue;
@@ -1765,14 +1783,13 @@ static int ieee80211_vif_use_reserved_switch(struct ieee80211_local *local)
 		ieee80211_recalc_radar_chanctx(local, ctx);
 		ieee80211_recalc_chanctx_min_def(local, ctx, NULL, false);
 
-		list_for_each_entry_safe(link, link_tmp, &ctx->reserved_links,
-					 reserved_chanctx_list) {
+		for_each_sdata_link(local, link) {
+			if (link->reserved_chanctx != ctx)
+				continue;
+
 			if (ieee80211_link_get_chanctx(link) != ctx)
 				continue;
 
-			list_del(&link->reserved_chanctx_list);
-			list_move(&link->assigned_chanctx_list,
-				  &ctx->assigned_links);
 			link->reserved_chanctx = NULL;
 
 			ieee80211_link_chanctx_reservation_complete(link);
@@ -1786,12 +1803,11 @@ static int ieee80211_vif_use_reserved_switch(struct ieee80211_local *local)
 		 * reservation for originally requested interface has already
 		 * succeeded at this point.
 		 */
-		list_for_each_entry_safe(link, link_tmp, &ctx->reserved_links,
-					 reserved_chanctx_list) {
-			if (WARN_ON(ieee80211_link_has_in_place_reservation(link)))
+		for_each_sdata_link(local, link) {
+			if (link->reserved_chanctx != ctx)
 				continue;
 
-			if (WARN_ON(link->reserved_chanctx != ctx))
+			if (WARN_ON(ieee80211_link_has_in_place_reservation(link)))
 				continue;
 
 			if (!link->reserved_ready)
@@ -1834,13 +1850,15 @@ static int ieee80211_vif_use_reserved_switch(struct ieee80211_local *local)
 
 err:
 	list_for_each_entry(ctx, &local->chanctx_list, list) {
-		struct ieee80211_link_data *link, *link_tmp;
+		struct ieee80211_link_data *link;
 
 		if (ctx->replace_state != IEEE80211_CHANCTX_REPLACES_OTHER)
 			continue;
 
-		list_for_each_entry_safe(link, link_tmp, &ctx->reserved_links,
-					 reserved_chanctx_list) {
+		for_each_sdata_link(local, link) {
+			if (link->reserved_chanctx != ctx)
+				continue;
+
 			ieee80211_link_unreserve_chanctx(link);
 			ieee80211_link_chanctx_reservation_complete(link);
 		}
@@ -1949,7 +1967,6 @@ int _ieee80211_link_use_channel(struct ieee80211_link_data *link,
 		/* remove reservation */
 		WARN_ON(link->reserved_chanctx != ctx);
 		link->reserved_chanctx = NULL;
-		list_del(&link->reserved_chanctx_list);
 	}
 
 	if (ret) {
