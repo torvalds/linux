@@ -20,8 +20,6 @@
 #include <asm/debug.h>
 
 static debug_info_t *paidbg;
-static unsigned int paicrypt_cnt;	/* Size of the mapped counter sets */
-					/* extracted with QPACI instruction */
 
 DEFINE_STATIC_KEY_FALSE(pai_key);
 
@@ -486,9 +484,25 @@ static size_t paicrypt_copy(struct pai_userdata *userdata, unsigned long *page,
 	return outidx * sizeof(*userdata);
 }
 
-static int paicrypt_push_sample(size_t rawsize, struct pai_map *cpump,
-				struct perf_event *event)
+/* Write sample when one or more counters values are nonzero.
+ *
+ * Note: The function paicrypt_sched_task() and pai_push_sample() are not
+ * invoked after function paicrypt_del() has been called because of function
+ * perf_sched_cb_dec(). Both functions are only
+ * called when sampling is active. Function perf_sched_cb_inc()
+ * has been invoked to install function paicrypt_sched_task() as call back
+ * to run at context switch time.
+ *
+ * This causes function perf_event_context_sched_out() and
+ * perf_event_context_sched_in() to check whether the PMU has installed an
+ * sched_task() callback. That callback is not active after paicrypt_del()
+ * returns and has deleted the event on that CPU.
+ */
+static int pai_push_sample(size_t rawsize, struct pai_map *cpump,
+			   struct perf_event *event)
 {
+	int idx = PAI_PMU_IDX(event);
+	struct pai_pmu *pp = &pai_pmu[idx];
 	struct perf_sample_data data;
 	struct perf_raw_record raw;
 	struct pt_regs regs;
@@ -520,7 +534,7 @@ static int paicrypt_push_sample(size_t rawsize, struct pai_map *cpump,
 	overflow = perf_event_overflow(event, &data, &regs);
 	perf_event_update_userpage(event);
 	/* Save crypto counter lowcore page after reading event data. */
-	memcpy((void *)PAI_SAVE_AREA(event), cpump->area, PAGE_SIZE);
+	memcpy((void *)PAI_SAVE_AREA(event), cpump->area, pp->area_size);
 	return overflow;
 }
 
@@ -538,7 +552,7 @@ static void pai_have_sample(struct perf_event *event, struct pai_map *cpump)
 				event->attr.exclude_user,
 				event->attr.exclude_kernel);
 	if (rawsize)			/* No incremented counters */
-		paicrypt_push_sample(rawsize, cpump, event);
+		pai_push_sample(rawsize, cpump, event);
 }
 
 /* Check if there is data to be saved on schedule out of a task. */
@@ -920,7 +934,6 @@ static int __init paipmu_setup(void)
 		switch (i) {
 		case PAI_PMU_CRYPTO:
 			p->num_avail = ib.num_cc;
-			paicrypt_cnt = ib.num_cc;
 			if (p->num_avail >= PAI_CRYPTO_MAXCTR) {
 				pr_err("Too many PMU %s counters %d\n",
 				       p->pmuname, p->num_avail);
