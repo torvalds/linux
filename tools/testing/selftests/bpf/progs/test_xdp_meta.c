@@ -11,37 +11,36 @@
 
 #define ctx_ptr(ctx, mem) (void *)(unsigned long)ctx->mem
 
-/* Demonstrates how metadata can be passed from an XDP program to a TC program
- * using bpf_xdp_adjust_meta.
- * For the sake of testing the metadata support in drivers, the XDP program uses
- * a fixed-size payload after the Ethernet header as metadata. The TC program
- * copies the metadata it receives into a map so it can be checked from
- * userspace.
+/* Demonstrate passing metadata from XDP to TC using bpf_xdp_adjust_meta.
+ *
+ * The XDP program extracts a fixed-size payload following the Ethernet header
+ * and stores it as packet metadata to test the driver's metadata support. The
+ * TC program then verifies if the passed metadata is correct.
  */
 
-struct {
-	__uint(type, BPF_MAP_TYPE_ARRAY);
-	__uint(max_entries, 1);
-	__type(key, __u32);
-	__uint(value_size, META_SIZE);
-} test_result SEC(".maps");
-
 bool test_pass;
+
+static const __u8 meta_want[META_SIZE] = {
+	0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+	0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18,
+	0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28,
+	0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38,
+};
 
 SEC("tc")
 int ing_cls(struct __sk_buff *ctx)
 {
-	__u8 *data, *data_meta;
-	__u32 key = 0;
+	__u8 *meta_have = ctx_ptr(ctx, data_meta);
+	__u8 *data = ctx_ptr(ctx, data);
 
-	data_meta = ctx_ptr(ctx, data_meta);
-	data      = ctx_ptr(ctx, data);
+	if (meta_have + META_SIZE > data)
+		goto out;
 
-	if (data_meta + META_SIZE > data)
-		return TC_ACT_SHOT;
+	if (__builtin_memcmp(meta_want, meta_have, META_SIZE))
+		goto out;
 
-	bpf_map_update_elem(&test_result, &key, data_meta, BPF_ANY);
-
+	test_pass = true;
+out:
 	return TC_ACT_SHOT;
 }
 
@@ -49,17 +48,17 @@ int ing_cls(struct __sk_buff *ctx)
 SEC("tc")
 int ing_cls_dynptr_read(struct __sk_buff *ctx)
 {
+	__u8 meta_have[META_SIZE];
 	struct bpf_dynptr meta;
-	const __u32 zero = 0;
-	__u8 *dst;
-
-	dst = bpf_map_lookup_elem(&test_result, &zero);
-	if (!dst)
-		return TC_ACT_SHOT;
 
 	bpf_dynptr_from_skb_meta(ctx, 0, &meta);
-	bpf_dynptr_read(dst, META_SIZE, &meta, 0, 0);
+	bpf_dynptr_read(meta_have, META_SIZE, &meta, 0, 0);
 
+	if (__builtin_memcmp(meta_want, meta_have, META_SIZE))
+		goto out;
+
+	test_pass = true;
+out:
 	return TC_ACT_SHOT;
 }
 
@@ -86,20 +85,18 @@ SEC("tc")
 int ing_cls_dynptr_slice(struct __sk_buff *ctx)
 {
 	struct bpf_dynptr meta;
-	const __u32 zero = 0;
-	__u8 *dst, *src;
-
-	dst = bpf_map_lookup_elem(&test_result, &zero);
-	if (!dst)
-		return TC_ACT_SHOT;
+	__u8 *meta_have;
 
 	bpf_dynptr_from_skb_meta(ctx, 0, &meta);
-	src = bpf_dynptr_slice(&meta, 0, NULL, META_SIZE);
-	if (!src)
-		return TC_ACT_SHOT;
+	meta_have = bpf_dynptr_slice(&meta, 0, NULL, META_SIZE);
+	if (!meta_have)
+		goto out;
 
-	__builtin_memcpy(dst, src, META_SIZE);
+	if (__builtin_memcmp(meta_want, meta_have, META_SIZE))
+		goto out;
 
+	test_pass = true;
+out:
 	return TC_ACT_SHOT;
 }
 
@@ -129,14 +126,12 @@ int ing_cls_dynptr_slice_rdwr(struct __sk_buff *ctx)
 SEC("tc")
 int ing_cls_dynptr_offset_rd(struct __sk_buff *ctx)
 {
-	struct bpf_dynptr meta;
 	const __u32 chunk_len = META_SIZE / 4;
-	const __u32 zero = 0;
+	__u8 meta_have[META_SIZE];
+	struct bpf_dynptr meta;
 	__u8 *dst, *src;
 
-	dst = bpf_map_lookup_elem(&test_result, &zero);
-	if (!dst)
-		return TC_ACT_SHOT;
+	dst = meta_have;
 
 	/* 1. Regular read */
 	bpf_dynptr_from_skb_meta(ctx, 0, &meta);
@@ -155,9 +150,14 @@ int ing_cls_dynptr_offset_rd(struct __sk_buff *ctx)
 	/* 4. Read from a slice starting at an offset */
 	src = bpf_dynptr_slice(&meta, 2 * chunk_len, NULL, chunk_len);
 	if (!src)
-		return TC_ACT_SHOT;
+		goto out;
 	__builtin_memcpy(dst, src, chunk_len);
 
+	if (__builtin_memcmp(meta_want, meta_have, META_SIZE))
+		goto out;
+
+	test_pass = true;
+out:
 	return TC_ACT_SHOT;
 }
 
