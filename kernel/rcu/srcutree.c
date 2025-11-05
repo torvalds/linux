@@ -1688,6 +1688,64 @@ void srcu_barrier(struct srcu_struct *ssp)
 }
 EXPORT_SYMBOL_GPL(srcu_barrier);
 
+/* Callback for srcu_expedite_current() usage. */
+static void srcu_expedite_current_cb(struct rcu_head *rhp)
+{
+	unsigned long flags;
+	bool needcb = false;
+	struct srcu_data *sdp = container_of(rhp, struct srcu_data, srcu_ec_head);
+
+	spin_lock_irqsave_sdp_contention(sdp, &flags);
+	if (sdp->srcu_ec_state == SRCU_EC_IDLE) {
+		WARN_ON_ONCE(1);
+	} else if (sdp->srcu_ec_state == SRCU_EC_PENDING) {
+		sdp->srcu_ec_state = SRCU_EC_IDLE;
+	} else {
+		WARN_ON_ONCE(sdp->srcu_ec_state != SRCU_EC_REPOST);
+		sdp->srcu_ec_state = SRCU_EC_PENDING;
+		needcb = true;
+	}
+	spin_unlock_irqrestore_rcu_node(sdp, flags);
+	// If needed, requeue ourselves as an expedited SRCU callback.
+	if (needcb)
+		__call_srcu(sdp->ssp, &sdp->srcu_ec_head, srcu_expedite_current_cb, false);
+}
+
+/**
+ * srcu_expedite_current - Expedite the current SRCU grace period
+ * @ssp: srcu_struct to expedite.
+ *
+ * Cause the current SRCU grace period to become expedited.  The grace
+ * period following the current one might also be expedited.  If there is
+ * no current grace period, one might be created.  If the current grace
+ * period is currently sleeping, that sleep will complete before expediting
+ * will take effect.
+ */
+void srcu_expedite_current(struct srcu_struct *ssp)
+{
+	unsigned long flags;
+	bool needcb = false;
+	struct srcu_data *sdp;
+
+	migrate_disable();
+	sdp = this_cpu_ptr(ssp->sda);
+	spin_lock_irqsave_sdp_contention(sdp, &flags);
+	if (sdp->srcu_ec_state == SRCU_EC_IDLE) {
+		sdp->srcu_ec_state = SRCU_EC_PENDING;
+		needcb = true;
+	} else if (sdp->srcu_ec_state == SRCU_EC_PENDING) {
+		sdp->srcu_ec_state = SRCU_EC_REPOST;
+	} else {
+		WARN_ON_ONCE(sdp->srcu_ec_state != SRCU_EC_REPOST);
+	}
+	spin_unlock_irqrestore_rcu_node(sdp, flags);
+	// If needed, queue an expedited SRCU callback.
+	if (needcb)
+		__call_srcu(ssp, &sdp->srcu_ec_head, srcu_expedite_current_cb, false);
+	migrate_enable();
+}
+EXPORT_SYMBOL_GPL(srcu_expedite_current);
+
 /**
  * srcu_batches_completed - return batches completed.
  * @ssp: srcu_struct on which to report batch completion.

@@ -42,6 +42,8 @@ struct srcu_data {
 	struct timer_list delay_work;		/* Delay for CB invoking */
 	struct work_struct work;		/* Context for CB invoking. */
 	struct rcu_head srcu_barrier_head;	/* For srcu_barrier() use. */
+	struct rcu_head srcu_ec_head;		/* For srcu_expedite_current() use. */
+	int srcu_ec_state;			/*  State for srcu_expedite_current(). */
 	struct srcu_node *mynode;		/* Leaf srcu_node. */
 	unsigned long grpmask;			/* Mask for leaf srcu_node */
 						/*  ->srcu_data_have_cbs[]. */
@@ -135,6 +137,11 @@ struct srcu_struct {
 #define SRCU_STATE_SCAN1	1
 #define SRCU_STATE_SCAN2	2
 
+/* Values for srcu_expedite_current() state (->srcu_ec_state). */
+#define SRCU_EC_IDLE		0
+#define SRCU_EC_PENDING		1
+#define SRCU_EC_REPOST		2
+
 /*
  * Values for initializing gp sequence fields. Higher values allow wrap arounds to
  * occur earlier.
@@ -210,6 +217,7 @@ struct srcu_struct {
 int __srcu_read_lock(struct srcu_struct *ssp) __acquires(ssp);
 void synchronize_srcu_expedited(struct srcu_struct *ssp);
 void srcu_barrier(struct srcu_struct *ssp);
+void srcu_expedite_current(struct srcu_struct *ssp);
 void srcu_torture_stats_print(struct srcu_struct *ssp, char *tt, char *tf);
 
 // Converts a per-CPU pointer to an ->srcu_ctrs[] array element to that
