@@ -17,7 +17,7 @@
 		device_type = "memory";
 		/* 1G RAM - default variant */
 		reg = <0x00000000 0x80000000 0x00000000 0x40000000>;
-
+		bootph-pre-ram;
 	};
 
 	reserved_memory: reserved-memory {
@@ -54,10 +54,15 @@
 	};
 };
 
+&fss {
+	bootph-all;
+};
+
 &main_i2c0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_i2c0_pins>;
 	clock-frequency = <400000>;
+	bootph-pre-ram;
 	status = "okay";
 
 	tmp1075: temperature-sensor@4a {
@@ -72,6 +77,7 @@
 		vcc-supply = <&reg_1v8>;
 		pagesize = <16>;
 		read-only;
+		bootph-pre-ram;
 	};
 
 	pcf85063: rtc@51 {
@@ -89,9 +95,10 @@
 };
 
 &ospi0 {
-	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&ospi0_pins>;
+	bootph-all;
+	status = "okay";
 
 	flash@0 {
 		compatible = "jedec,spi-nor";
@@ -99,6 +106,7 @@
 		spi-tx-bus-width = <8>;
 		spi-rx-bus-width = <8>;
 		spi-max-frequency = <84000000>;
+		bootph-all;
 		cdns,tshsl-ns = <60>;
 		cdns,tsd2d-ns = <60>;
 		cdns,tchsh-ns = <60>;
@@ -121,6 +129,7 @@
 	disable-wp;
 	no-sdio;
 	no-sd;
+	bootph-all;
 	ti,driver-strength-ohm = <50>;
 };
 
@@ -132,6 +141,7 @@
 			/* (B18) I2C0_SDA */
 			AM64X_IOPAD(0x0264, PIN_INPUT_PULLUP, 0)
 		>;
+		bootph-pre-ram;
 	};
 
 	ospi0_pins: ospi0-pins {
@@ -159,6 +169,7 @@
 			/* (N19) OSPI0_DQS */
 			AM64X_IOPAD(0x0008, PIN_INPUT, 0)
 		>;
+		bootph-all;
 	};
 };
 
