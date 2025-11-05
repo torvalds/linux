@@ -417,11 +417,13 @@ over a rather long period of time, but improvements are always welcome!
 	you should be using RCU rather than SRCU, because RCU is almost
 	always faster and easier to use than is SRCU.
 
-	Also unlike other forms of RCU, explicit initialization and
-	cleanup is required either at build time via DEFINE_SRCU()
-	or DEFINE_STATIC_SRCU() or at runtime via init_srcu_struct()
-	and cleanup_srcu_struct().  These last two are passed a
-	"struct srcu_struct" that defines the scope of a given
+	Also unlike other forms of RCU, explicit initialization
+	and cleanup is required either at build time via
+	DEFINE_SRCU(), DEFINE_STATIC_SRCU(), DEFINE_SRCU_FAST(),
+	or DEFINE_STATIC_SRCU_FAST() or at runtime via either
+	init_srcu_struct() or init_srcu_struct_fast() and
+	cleanup_srcu_struct().	These last three are passed a
+	`struct srcu_struct` that defines the scope of a given
 	SRCU domain.  Once initialized, the srcu_struct is passed
 	to srcu_read_lock(), srcu_read_unlock() synchronize_srcu(),
 	synchronize_srcu_expedited(), and call_srcu().	A given
