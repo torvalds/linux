@@ -573,6 +573,8 @@ static struct phy_driver microchip_t1s_driver[] = {
 		.get_plca_cfg	    = genphy_c45_plca_get_cfg,
 		.set_plca_cfg	    = lan86xx_plca_set_cfg,
 		.get_plca_status    = genphy_c45_plca_get_status,
+		.cable_test_start   = genphy_c45_oatc14_cable_test_start,
+		.cable_test_get_status = genphy_c45_oatc14_cable_test_get_status,
 	},
 	{
 		PHY_ID_MATCH_EXACT(PHY_ID_LAN865X_REVB),
