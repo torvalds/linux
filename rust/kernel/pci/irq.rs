@@ -4,16 +4,20 @@
 
 use super::Device;
 use crate::{
-    bindings, device,
+    bindings,
+    device,
     device::Bound,
     devres,
-    error::{to_result, Result},
-    irq::{self, IrqRequest},
+    error::to_result,
+    irq::{
+        self,
+        IrqRequest, //
+    },
+    prelude::*,
     str::CStr,
-    sync::aref::ARef,
+    sync::aref::ARef, //
 };
 use core::ops::RangeInclusive;
-use kernel::prelude::*;
 
 /// IRQ type flags for PCI interrupt allocation.
 #[derive(Debug, Clone, Copy)]

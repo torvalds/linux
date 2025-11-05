@@ -4,14 +4,17 @@
 
 use super::Device;
 use crate::{
-    bindings, device,
+    bindings,
+    device,
     devres::Devres,
-    io::{Io, IoRaw},
-    str::CStr,
-    sync::aref::ARef,
+    io::{
+        Io,
+        IoRaw, //
+    },
+    prelude::*,
+    sync::aref::ARef, //
 };
 use core::ops::Deref;
-use kernel::prelude::*;
 
 /// A PCI BAR to perform I/O-Operations on.
 ///

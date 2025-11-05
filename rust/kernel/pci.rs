@@ -5,27 +5,46 @@
 //! C header: [`include/linux/pci.h`](srctree/include/linux/pci.h)
 
 use crate::{
-    bindings, container_of, device,
-    device_id::{RawDeviceId, RawDeviceIdIndex},
+    bindings,
+    container_of,
+    device,
+    device_id::{
+        RawDeviceId,
+        RawDeviceIdIndex, //
+    },
     driver,
-    error::{from_result, to_result, Result},
+    error::{
+        from_result,
+        to_result, //
+    },
+    prelude::*,
     str::CStr,
     types::Opaque,
-    ThisModule,
+    ThisModule, //
 };
 use core::{
     marker::PhantomData,
-    ptr::{addr_of_mut, NonNull},
+    ptr::{
+        addr_of_mut,
+        NonNull, //
+    },
 };
-use kernel::prelude::*;
 
 mod id;
 mod io;
 mod irq;
 
-pub use self::id::{Class, ClassMask, Vendor};
+pub use self::id::{
+    Class,
+    ClassMask,
+    Vendor, //
+};
 pub use self::io::Bar;
-pub use self::irq::{IrqType, IrqTypes, IrqVector};
+pub use self::irq::{
+    IrqType,
+    IrqTypes,
+    IrqVector, //
+};
 
 /// An adapter for the registration of PCI drivers.
 pub struct Adapter<T: Driver>(T);
