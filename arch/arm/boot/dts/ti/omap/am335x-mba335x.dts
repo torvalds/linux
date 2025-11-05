@@ -258,14 +258,14 @@
 
 	expander1_pins: expander1-pins {
 		pinctrl-single,pins = <
-			/* /* gpmc_csn3.gpio2_0 - interrupt */
+			/* gpmc_csn3.gpio2_0 - interrupt */
 			AM33XX_PADCONF(AM335X_PIN_GPMC_CSN3, PIN_INPUT_PULLUP, MUX_MODE7 )
 		>;
 	};
 
 	expander2_pins: expander2-pins {
 		pinctrl-single,pins = <
-			/* /* gpmc_ben1.gpio1_28 - interrupt */
+			/* gpmc_ben1.gpio1_28 - interrupt */
 			AM33XX_PADCONF(AM335X_PIN_GPMC_BEN1, PIN_INPUT_PULLUP, MUX_MODE7)
 		>;
 	};
