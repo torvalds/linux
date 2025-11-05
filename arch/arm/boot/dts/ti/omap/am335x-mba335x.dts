@@ -81,7 +81,8 @@
 			"Headphone Jack",	"HPR",
 			"Line Out",		"LOL",
 			"Line Out",		"LOR",
-			"Mic Jack",		"IN3_L",
+			"IN3_L",		"Mic Jack",
+			"Mic Jack",		"Mic Bias",
 			"Line In",		"IN1_L",
 			"Line In",		"IN1_R";
 		simple-audio-card,format = "i2s";
