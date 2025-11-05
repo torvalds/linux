@@ -3428,8 +3428,9 @@
 				reg = <0x00 0x8800000 0x0 0x20000>,
 				      <0x00 0x8890000 0x0 0x20000>;
 				interrupts = <GIC_SPI 141 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&bpmp TEGRA264_CLK_EMC>;
-				clock-names = "emc";
+				clocks = <&bpmp TEGRA264_CLK_EMC>,
+					 <&bpmp TEGRA264_CLK_DBB_UPHY0>;
+				clock-names = "emc", "dbb";
 
 				#interconnect-cells = <0>;
 				nvidia,bpmp = <&bpmp>;
