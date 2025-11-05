@@ -5859,8 +5859,8 @@ static void __slab_free(struct kmem_cache *s, struct slab *slab,
 			unsigned long addr)
 
 {
-	void *prior;
-	int was_frozen;
+	void *old_head;
+	bool was_frozen, was_full;
 	struct slab new;
 	unsigned long counters;
 	struct kmem_cache_node *n = NULL;
@@ -5874,20 +5874,37 @@ static void __slab_free(struct kmem_cache *s, struct slab *slab,
 		return;
 	}
 
+	/*
+	 * It is enough to test IS_ENABLED(CONFIG_SLUB_CPU_PARTIAL) below
+	 * instead of kmem_cache_has_cpu_partial(s), because kmem_cache_debug(s)
+	 * is the only other reason it can be false, and it is already handled
+	 * above.
+	 */
+
 	do {
 		if (unlikely(n)) {
 			spin_unlock_irqrestore(&n->list_lock, flags);
 			n = NULL;
 		}
-		prior = slab->freelist;
+		old_head = slab->freelist;
 		counters = slab->counters;
-		set_freepointer(s, tail, prior);
+		set_freepointer(s, tail, old_head);
 		new.counters = counters;
-		was_frozen = new.frozen;
+		was_frozen = !!new.frozen;
+		was_full = (old_head == NULL);
 		new.inuse -= cnt;
-		if ((!new.inuse || !prior) && !was_frozen) {
-			/* Needs to be taken off a list */
-			if (!kmem_cache_has_cpu_partial(s) || prior) {
+		/*
+		 * Might need to be taken off (due to becoming empty) or added
+		 * to (due to not being full anymore) the partial list.
+		 * Unless it's frozen.
+		 */
+		if ((!new.inuse || was_full) && !was_frozen) {
+			/*
+			 * If slab becomes non-full and we have cpu partial
+			 * lists, we put it there unconditionally to avoid
+			 * taking the list_lock. Otherwise we need it.
+			 */
+			if (!(IS_ENABLED(CONFIG_SLUB_CPU_PARTIAL) && was_full)) {
 
 				n = get_node(s, slab_nid(slab));
 				/*
@@ -5905,7 +5922,7 @@ static void __slab_free(struct kmem_cache *s, struct slab *slab,
 		}
 
 	} while (!slab_update_freelist(s, slab,
-		prior, counters,
+		old_head, counters,
 		head, new.counters,
 		"__slab_free"));
 
@@ -5917,7 +5934,7 @@ static void __slab_free(struct kmem_cache *s, struct slab *slab,
 			 * activity can be necessary.
 			 */
 			stat(s, FREE_FROZEN);
-		} else if (kmem_cache_has_cpu_partial(s) && !prior) {
+		} else if (IS_ENABLED(CONFIG_SLUB_CPU_PARTIAL) && was_full) {
 			/*
 			 * If we started with a full slab then put it onto the
 			 * per cpu partial list.
@@ -5926,6 +5943,11 @@ static void __slab_free(struct kmem_cache *s, struct slab *slab,
 			stat(s, CPU_PARTIAL_FREE);
 		}
 
+		/*
+		 * In other cases we didn't take the list_lock because the slab
+		 * was already on the partial list and will remain there.
+		 */
+
 		return;
 	}
 
@@ -5933,19 +5955,24 @@ static void __slab_free(struct kmem_cache *s, struct slab *slab,
 	 * This slab was partially empty but not on the per-node partial list,
 	 * in which case we shouldn't manipulate its list, just return.
 	 */
-	if (prior && !on_node_partial) {
+	if (!was_full && !on_node_partial) {
 		spin_unlock_irqrestore(&n->list_lock, flags);
 		return;
 	}
 
+	/*
+	 * If slab became empty, should we add/keep it on the partial list or we
+	 * have enough?
+	 */
 	if (unlikely(!new.inuse && n->nr_partial >= s->min_partial))
 		goto slab_empty;
 
 	/*
 	 * Objects left in the slab. If it was not on the partial list before
-	 * then add it.
+	 * then add it. This can only happen when cache has no per cpu partial
+	 * list otherwise we would have put it there.
 	 */
-	if (!kmem_cache_has_cpu_partial(s) && unlikely(!prior)) {
+	if (!IS_ENABLED(CONFIG_SLUB_CPU_PARTIAL) && unlikely(was_full)) {
 		add_partial(n, slab, DEACTIVATE_TO_TAIL);
 		stat(s, FREE_ADD_PARTIAL);
 	}
@@ -5953,10 +5980,11 @@ static void __slab_free(struct kmem_cache *s, struct slab *slab,
 	return;
 
 slab_empty:
-	if (prior) {
-		/*
-		 * Slab on the partial list.
-		 */
+	/*
+	 * The slab could have a single object and thus go from full to empty in
+	 * a single free, but more likely it was on the partial list. Remove it.
+	 */
+	if (likely(!was_full)) {
 		remove_partial(n, slab);
 		stat(s, FREE_REMOVE_PARTIAL);
 	}
