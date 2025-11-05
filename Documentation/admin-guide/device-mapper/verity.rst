@@ -236,8 +236,10 @@ is available at the cryptsetup project's wiki page
 
 Status
 ======
-V (for Valid) is returned if every check performed so far was valid.
-If any check failed, C (for Corruption) is returned.
+1. V (for Valid) is returned if every check performed so far was valid.
+   If any check failed, C (for Corruption) is returned.
+2. Number of corrected blocks by Forward Error Correction.
+   '-' if Forward Error Correction is not enabled.
 
 Example
 =======
