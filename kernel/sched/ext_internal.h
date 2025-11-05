@@ -895,6 +895,10 @@ struct scx_sched {
 	struct scx_dispatch_q	**global_dsqs;
 	struct scx_sched_pcpu __percpu *pcpu;
 
+	/*
+	 * Updates to the following warned bitfields can race causing RMW issues
+	 * but it doesn't really matter.
+	 */
 	bool			warned_zero_slice:1;
 	bool			warned_deprecated_rq:1;
 
