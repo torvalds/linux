@@ -4885,6 +4885,7 @@ static struct sock *sctp_clone_sock(struct sock *sk,
 	}
 #endif
 
+	newsp->do_auto_asconf = 0;
 	skb_queue_head_init(&newsp->pd_lobby);
 
 	newsp->ep = sctp_endpoint_new(newsk, GFP_KERNEL);

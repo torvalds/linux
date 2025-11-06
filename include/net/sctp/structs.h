@@ -228,10 +228,6 @@ struct sctp_sock {
 
 	atomic_t pd_mode;
 
-	/* Fields after this point will be skipped on copies, like on accept
-	 * and peeloff operations
-	 */
-
 	/* Receive to here while partial delivery is in effect. */
 	struct sk_buff_head pd_lobby;
 
