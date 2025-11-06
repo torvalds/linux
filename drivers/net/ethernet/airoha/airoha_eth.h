@@ -169,7 +169,10 @@ enum trtcm_param {
 struct airoha_queue_entry {
 	union {
 		void *buf;
-		struct sk_buff *skb;
+		struct {
+			struct list_head list;
+			struct sk_buff *skb;
+		};
 	};
 	dma_addr_t dma_addr;
 	u16 dma_len;
@@ -193,6 +196,8 @@ struct airoha_queue {
 	struct napi_struct napi;
 	struct page_pool *page_pool;
 	struct sk_buff *skb;
+
+	struct list_head tx_list;
 };
 
 struct airoha_tx_irq_queue {

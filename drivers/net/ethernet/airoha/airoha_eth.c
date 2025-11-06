@@ -892,18 +892,12 @@ static int airoha_qdma_tx_napi_poll(struct napi_struct *napi, int budget)
 
 		dma_unmap_single(eth->dev, e->dma_addr, e->dma_len,
 				 DMA_TO_DEVICE);
-		memset(e, 0, sizeof(*e));
+		e->dma_addr = 0;
+		list_add_tail(&e->list, &q->tx_list);
+
 		WRITE_ONCE(desc->msg0, 0);
 		WRITE_ONCE(desc->msg1, 0);
 		q->queued--;
-
-		/* completion ring can report out-of-order indexes if hw QoS
-		 * is enabled and packets with different priority are queued
-		 * to same DMA ring. Take into account possible out-of-order
-		 * reports incrementing DMA ring tail pointer
-		 */
-		while (q->tail != q->head && !q->entry[q->tail].dma_addr)
-			q->tail = (q->tail + 1) % q->ndesc;
 
 		if (skb) {
 			u16 queue = skb_get_queue_mapping(skb);
@@ -949,6 +943,7 @@ static int airoha_qdma_init_tx_queue(struct airoha_queue *q,
 	q->ndesc = size;
 	q->qdma = qdma;
 	q->free_thr = 1 + MAX_SKB_FRAGS;
+	INIT_LIST_HEAD(&q->tx_list);
 
 	q->entry = devm_kzalloc(eth->dev, q->ndesc * sizeof(*q->entry),
 				GFP_KERNEL);
@@ -961,9 +956,9 @@ static int airoha_qdma_init_tx_queue(struct airoha_queue *q,
 		return -ENOMEM;
 
 	for (i = 0; i < q->ndesc; i++) {
-		u32 val;
+		u32 val = FIELD_PREP(QDMA_DESC_DONE_MASK, 1);
 
-		val = FIELD_PREP(QDMA_DESC_DONE_MASK, 1);
+		list_add_tail(&q->entry[i].list, &q->tx_list);
 		WRITE_ONCE(q->desc[i].ctrl, cpu_to_le32(val));
 	}
 
@@ -973,9 +968,9 @@ static int airoha_qdma_init_tx_queue(struct airoha_queue *q,
 
 	airoha_qdma_wr(qdma, REG_TX_RING_BASE(qid), dma_addr);
 	airoha_qdma_rmw(qdma, REG_TX_CPU_IDX(qid), TX_RING_CPU_IDX_MASK,
-			FIELD_PREP(TX_RING_CPU_IDX_MASK, q->head));
+			FIELD_PREP(TX_RING_CPU_IDX_MASK, 0));
 	airoha_qdma_rmw(qdma, REG_TX_DMA_IDX(qid), TX_RING_DMA_IDX_MASK,
-			FIELD_PREP(TX_RING_DMA_IDX_MASK, q->head));
+			FIELD_PREP(TX_RING_DMA_IDX_MASK, 0));
 
 	return 0;
 }
@@ -1031,17 +1026,21 @@ static int airoha_qdma_init_tx(struct airoha_qdma *qdma)
 static void airoha_qdma_cleanup_tx_queue(struct airoha_queue *q)
 {
 	struct airoha_eth *eth = q->qdma->eth;
+	int i;
 
 	spin_lock_bh(&q->lock);
-	while (q->queued) {
-		struct airoha_queue_entry *e = &q->entry[q->tail];
+	for (i = 0; i < q->ndesc; i++) {
+		struct airoha_queue_entry *e = &q->entry[i];
+
+		if (!e->dma_addr)
+			continue;
 
 		dma_unmap_single(eth->dev, e->dma_addr, e->dma_len,
 				 DMA_TO_DEVICE);
 		dev_kfree_skb_any(e->skb);
+		e->dma_addr = 0;
 		e->skb = NULL;
-
-		q->tail = (q->tail + 1) % q->ndesc;
+		list_add_tail(&e->list, &q->tx_list);
 		q->queued--;
 	}
 	spin_unlock_bh(&q->lock);
@@ -1883,20 +1882,6 @@ static u32 airoha_get_dsa_tag(struct sk_buff *skb, struct net_device *dev)
 #endif
 }
 
-static bool airoha_dev_tx_queue_busy(struct airoha_queue *q, u32 nr_frags)
-{
-	u32 tail = q->tail <= q->head ? q->tail + q->ndesc : q->tail;
-	u32 index = q->head + nr_frags;
-
-	/* completion napi can free out-of-order tx descriptors if hw QoS is
-	 * enabled and packets with different priorities are queued to the same
-	 * DMA ring. Take into account possible out-of-order reports checking
-	 * if the tx queue is full using circular buffer head/tail pointers
-	 * instead of the number of queued packets.
-	 */
-	return index >= tail;
-}
-
 static int airoha_get_fe_port(struct airoha_gdm_port *port)
 {
 	struct airoha_qdma *qdma = port->qdma;
@@ -1919,8 +1904,10 @@ static netdev_tx_t airoha_dev_xmit(struct sk_buff *skb,
 	struct airoha_gdm_port *port = netdev_priv(dev);
 	struct airoha_qdma *qdma = port->qdma;
 	u32 nr_frags, tag, msg0, msg1, len;
+	struct airoha_queue_entry *e;
 	struct netdev_queue *txq;
 	struct airoha_queue *q;
+	LIST_HEAD(tx_list);
 	void *data;
 	int i, qid;
 	u16 index;
@@ -1966,7 +1953,7 @@ static netdev_tx_t airoha_dev_xmit(struct sk_buff *skb,
 	txq = netdev_get_tx_queue(dev, qid);
 	nr_frags = 1 + skb_shinfo(skb)->nr_frags;
 
-	if (airoha_dev_tx_queue_busy(q, nr_frags)) {
+	if (q->queued + nr_frags >= q->ndesc) {
 		/* not enough space in the queue */
 		netif_tx_stop_queue(txq);
 		spin_unlock_bh(&q->lock);
@@ -1975,11 +1962,13 @@ static netdev_tx_t airoha_dev_xmit(struct sk_buff *skb,
 
 	len = skb_headlen(skb);
 	data = skb->data;
-	index = q->head;
+
+	e = list_first_entry(&q->tx_list, struct airoha_queue_entry,
+			     list);
+	index = e - q->entry;
 
 	for (i = 0; i < nr_frags; i++) {
 		struct airoha_qdma_desc *desc = &q->desc[index];
-		struct airoha_queue_entry *e = &q->entry[index];
 		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 		dma_addr_t addr;
 		u32 val;
@@ -1989,7 +1978,14 @@ static netdev_tx_t airoha_dev_xmit(struct sk_buff *skb,
 		if (unlikely(dma_mapping_error(dev->dev.parent, addr)))
 			goto error_unmap;
 
-		index = (index + 1) % q->ndesc;
+		list_move_tail(&e->list, &tx_list);
+		e->skb = i ? NULL : skb;
+		e->dma_addr = addr;
+		e->dma_len = len;
+
+		e = list_first_entry(&q->tx_list, struct airoha_queue_entry,
+				     list);
+		index = e - q->entry;
 
 		val = FIELD_PREP(QDMA_DESC_LEN_MASK, len);
 		if (i < nr_frags - 1)
@@ -2002,15 +1998,9 @@ static netdev_tx_t airoha_dev_xmit(struct sk_buff *skb,
 		WRITE_ONCE(desc->msg1, cpu_to_le32(msg1));
 		WRITE_ONCE(desc->msg2, cpu_to_le32(0xffff));
 
-		e->skb = i ? NULL : skb;
-		e->dma_addr = addr;
-		e->dma_len = len;
-
 		data = skb_frag_address(frag);
 		len = skb_frag_size(frag);
 	}
-
-	q->head = index;
 	q->queued += i;
 
 	skb_tx_timestamp(skb);
@@ -2019,7 +2009,7 @@ static netdev_tx_t airoha_dev_xmit(struct sk_buff *skb,
 	if (netif_xmit_stopped(txq) || !netdev_xmit_more())
 		airoha_qdma_rmw(qdma, REG_TX_CPU_IDX(qid),
 				TX_RING_CPU_IDX_MASK,
-				FIELD_PREP(TX_RING_CPU_IDX_MASK, q->head));
+				FIELD_PREP(TX_RING_CPU_IDX_MASK, index));
 
 	if (q->ndesc - q->queued < q->free_thr)
 		netif_tx_stop_queue(txq);
@@ -2029,10 +2019,13 @@ static netdev_tx_t airoha_dev_xmit(struct sk_buff *skb,
 	return NETDEV_TX_OK;
 
 error_unmap:
-	for (i--; i >= 0; i--) {
-		index = (q->head + i) % q->ndesc;
-		dma_unmap_single(dev->dev.parent, q->entry[index].dma_addr,
-				 q->entry[index].dma_len, DMA_TO_DEVICE);
+	while (!list_empty(&tx_list)) {
+		e = list_first_entry(&tx_list, struct airoha_queue_entry,
+				     list);
+		dma_unmap_single(dev->dev.parent, e->dma_addr, e->dma_len,
+				 DMA_TO_DEVICE);
+		e->dma_addr = 0;
+		list_move_tail(&e->list, &q->tx_list);
 	}
 
 	spin_unlock_bh(&q->lock);
