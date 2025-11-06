@@ -11,6 +11,7 @@
  * pm_scnprint_table(), making it not compile time constant, so the compile
  * asserts from FIELD_GET() or u32_get_bits() won't be fulfilled.
  */
+#undef field_get
 #define field_get(_mask, _reg) (((_reg) & (_mask)) >> (ffs(_mask) - 1))
 
 #define PM_INFO_MAX_KEY_LEN	21
