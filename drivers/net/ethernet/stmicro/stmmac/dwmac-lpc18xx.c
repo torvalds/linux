@@ -47,14 +47,13 @@ static int lpc18xx_dwmac_probe(struct platform_device *pdev)
 		return PTR_ERR(reg);
 	}
 
-	if (plat_dat->phy_interface == PHY_INTERFACE_MODE_MII) {
-		ethmode = PHY_INTF_SEL_GMII_MII;
-	} else if (plat_dat->phy_interface == PHY_INTERFACE_MODE_RMII) {
-		ethmode = PHY_INTF_SEL_RMII;
-	} else {
+	if (plat_dat->phy_interface != PHY_INTERFACE_MODE_MII &&
+	    plat_dat->phy_interface != PHY_INTERFACE_MODE_RMII) {
 		dev_err(&pdev->dev, "Only MII and RMII mode supported\n");
 		return -EINVAL;
 	}
+
+	ethmode = stmmac_get_phy_intf_sel(plat_dat->phy_interface);
 
 	regmap_update_bits(reg, LPC18XX_CREG_CREG6,
 			   LPC18XX_CREG_CREG6_ETHMODE_MASK, ethmode);
