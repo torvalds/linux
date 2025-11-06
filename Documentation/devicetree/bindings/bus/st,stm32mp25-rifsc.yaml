@@ -33,14 +33,18 @@ select:
   properties:
     compatible:
       contains:
-        const: st,stm32mp25-rifsc
+        enum:
+          - st,stm32mp21-rifsc
+          - st,stm32mp25-rifsc
   required:
     - compatible
 
 properties:
   compatible:
     items:
-      - const: st,stm32mp25-rifsc
+      - enum:
+          - st,stm32mp21-rifsc
+          - st,stm32mp25-rifsc
       - const: simple-bus
 
   reg:
