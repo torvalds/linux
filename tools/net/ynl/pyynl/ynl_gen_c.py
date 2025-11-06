@@ -861,6 +861,18 @@ class TypeIndexedArray(Type):
         return [f"{member} = {self.c_name};",
                 f"{presence} = n_{self.c_name};"]
 
+    def free_needs_iter(self):
+        return self.sub_type == 'nest'
+
+    def _free_lines(self, ri, var, ref):
+        lines = []
+        if self.sub_type == 'nest':
+            lines += [
+                f"for (i = 0; i < {var}->{ref}_count.{self.c_name}; i++)",
+                f'{self.nested_render_name}_free(&{var}->{ref}{self.c_name}[i]);',
+            ]
+        lines += f"free({var}->{ref}{self.c_name});",
+        return lines
 
 class TypeNestTypeValue(Type):
     def _complex_member_type(self, ri):
