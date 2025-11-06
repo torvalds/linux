@@ -48,7 +48,7 @@ struct paiext_cb {		/* PAI extension 1 control block */
 	u64 header;		/* Not used */
 	u64 reserved1;
 	u64 acc;		/* Addr to analytics counter control block */
-	u8 reserved2[488];
+	u8 reserved2[PAIE1_CTRBLOCK_SZ - 3 * sizeof(u64)];
 } __packed;
 
 struct pai_map {
