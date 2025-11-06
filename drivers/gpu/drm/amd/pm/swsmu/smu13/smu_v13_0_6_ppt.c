@@ -1872,7 +1872,7 @@ static int smu_v13_0_6_get_power_limit(struct smu_context *smu,
 	if (current_power_limit)
 		*current_power_limit = power_limit;
 	if (default_power_limit)
-		*default_power_limit = power_limit;
+		*default_power_limit = pptable->MaxSocketPowerLimit;
 
 	if (max_power_limit) {
 		*max_power_limit = pptable->MaxSocketPowerLimit;
