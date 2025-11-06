@@ -219,6 +219,8 @@ static int airoha_mdio_probe(struct platform_device *pdev)
 	priv = bus->priv;
 	priv->base_addr = addr;
 	priv->regmap = device_node_to_regmap(dev->parent->of_node);
+	if (IS_ERR(priv->regmap))
+		return PTR_ERR(priv->regmap);
 
 	priv->clk = devm_clk_get_enabled(dev, NULL);
 	if (IS_ERR(priv->clk))
