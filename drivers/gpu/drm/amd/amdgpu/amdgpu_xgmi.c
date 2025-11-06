@@ -298,6 +298,9 @@ int amdgpu_xgmi_get_ext_link(struct amdgpu_device *adev, int link_num)
 {
 	int link_map_6_4_x[8] = { 0, 3, 1, 2, 7, 6, 4, 5 };
 
+	if (adev->gmc.xgmi.num_physical_nodes <= 1)
+		return -EINVAL;
+
 	switch (amdgpu_ip_version(adev, XGMI_HWIP, 0)) {
 	case IP_VERSION(6, 4, 0):
 	case IP_VERSION(6, 4, 1):
@@ -345,6 +348,9 @@ static u32 xgmi_v6_4_get_link_status(struct amdgpu_device *adev, int global_link
 int amdgpu_get_xgmi_link_status(struct amdgpu_device *adev, int global_link_num)
 {
 	u32 xgmi_state_reg_val;
+
+	if (adev->gmc.xgmi.num_physical_nodes <= 1)
+		return -EINVAL;
 
 	switch (amdgpu_ip_version(adev, XGMI_HWIP, 0)) {
 	case IP_VERSION(6, 4, 0):
