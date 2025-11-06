@@ -24,11 +24,11 @@ following kernel configuration options:
 * ``CONFIG_PSTORE_CONSOLE=y``
 
 Additionally, enable a backend to store the data. Depending upon your platform
-some options include:
+some potential options include:
 
 * ``CONFIG_EFI_VARS_PSTORE=y``
 * ``CONFIG_PSTORE_RAM=y``
-* ``CONFIG_PSTORE_FIRMWARE=y``
+* ``CONFIG_CHROMEOS_PSTORE=y``
 * ``CONFIG_PSTORE_BLK=y``
 
 Kernel Command-line Parameters
