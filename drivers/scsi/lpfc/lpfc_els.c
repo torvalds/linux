@@ -2367,7 +2367,7 @@ lpfc_cmpl_els_prli(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			mode = KERN_INFO;
 
 		/* Warn PRLI status */
-		lpfc_printf_vlog(vport, mode, LOG_ELS,
+		lpfc_vlog_msg(vport, mode, LOG_ELS,
 				 "2754 PRLI DID:%06X Status:x%x/x%x, "
 				 "data: x%x x%x x%lx\n",
 				 ndlp->nlp_DID, ulp_status,
@@ -3597,8 +3597,8 @@ lpfc_issue_els_rscn(struct lpfc_vport *vport, uint8_t retry)
 	}
 
 	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
-			      "Issue RSCN:       did:x%x",
-			      ndlp->nlp_DID, 0, 0);
+			      "Issue RSCN:   did:x%x refcnt %d",
+			      ndlp->nlp_DID, kref_read(&ndlp->kref), 0);
 
 	rc = lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, elsiocb, 0);
 	if (rc == IOCB_ERROR) {
