@@ -2279,7 +2279,8 @@ lpfc_issue_els_plogi(struct lpfc_vport *vport, uint32_t did, uint8_t retry)
 
 	sp->cmn.valid_vendor_ver_level = 0;
 	memset(sp->un.vendorVersion, 0, sizeof(sp->un.vendorVersion));
-	sp->cmn.bbRcvSizeMsb &= 0xF;
+	if (!test_bit(FC_PT2PT, &vport->fc_flag))
+		sp->cmn.bbRcvSizeMsb &= 0xF;
 
 	/* Check if the destination port supports VMID */
 	ndlp->vmid_support = 0;
@@ -5670,7 +5671,8 @@ lpfc_els_rsp_acc(struct lpfc_vport *vport, uint32_t flag,
 			sp->cmn.valid_vendor_ver_level = 0;
 			memset(sp->un.vendorVersion, 0,
 			       sizeof(sp->un.vendorVersion));
-			sp->cmn.bbRcvSizeMsb &= 0xF;
+			if (!test_bit(FC_PT2PT, &vport->fc_flag))
+				sp->cmn.bbRcvSizeMsb &= 0xF;
 
 			/* If our firmware supports this feature, convey that
 			 * info to the target using the vendor specific field.
