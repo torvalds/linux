@@ -2832,8 +2832,8 @@ void intel_cx0_powerdown_change_sequence(struct intel_encoder *encoder,
 				 intel_cx0_get_powerdown_update(lane_mask), 0,
 				 XELPDP_PORT_POWERDOWN_UPDATE_TIMEOUT_US, 2, NULL))
 		drm_warn(display->drm,
-			 "PHY %c failed to bring out of Lane reset after %dus.\n",
-			 phy_name(phy), XELPDP_PORT_RESET_START_TIMEOUT_US);
+			 "PHY %c failed to bring out of lane reset\n",
+			 phy_name(phy));
 }
 
 void intel_cx0_setup_powerdown(struct intel_encoder *encoder)
@@ -2894,8 +2894,8 @@ static void intel_cx0_phy_lane_reset(struct intel_encoder *encoder,
 				 XELPDP_PORT_BUF_SOC_PHY_READY,
 				 XELPDP_PORT_BUF_SOC_READY_TIMEOUT_US, 0, NULL))
 		drm_warn(display->drm,
-			 "PHY %c failed to bring out of SOC reset after %dus.\n",
-			 phy_name(phy), XELPDP_PORT_BUF_SOC_READY_TIMEOUT_US);
+			 "PHY %c failed to bring out of SOC reset\n",
+			 phy_name(phy));
 
 	intel_de_rmw(display, XELPDP_PORT_BUF_CTL2(display, port), lane_pipe_reset,
 		     lane_pipe_reset);
@@ -2904,8 +2904,8 @@ static void intel_cx0_phy_lane_reset(struct intel_encoder *encoder,
 				 lane_phy_current_status, lane_phy_current_status,
 				 XELPDP_PORT_RESET_START_TIMEOUT_US, 0, NULL))
 		drm_warn(display->drm,
-			 "PHY %c failed to bring out of Lane reset after %dus.\n",
-			 phy_name(phy), XELPDP_PORT_RESET_START_TIMEOUT_US);
+			 "PHY %c failed to bring out of lane reset\n",
+			 phy_name(phy));
 
 	intel_de_rmw(display, XELPDP_PORT_CLOCK_CTL(display, port),
 		     intel_cx0_get_pclk_refclk_request(owned_lane_mask),
@@ -2916,8 +2916,8 @@ static void intel_cx0_phy_lane_reset(struct intel_encoder *encoder,
 				 intel_cx0_get_pclk_refclk_ack(lane_mask),
 				 XELPDP_REFCLK_ENABLE_TIMEOUT_US, 0, NULL))
 		drm_warn(display->drm,
-			 "PHY %c failed to request refclk after %dus.\n",
-			 phy_name(phy), XELPDP_REFCLK_ENABLE_TIMEOUT_US);
+			 "PHY %c failed to request refclk\n",
+			 phy_name(phy));
 
 	intel_cx0_powerdown_change_sequence(encoder, INTEL_CX0_BOTH_LANES,
 					    XELPDP_P2_STATE_RESET);
@@ -2929,8 +2929,8 @@ static void intel_cx0_phy_lane_reset(struct intel_encoder *encoder,
 				    lane_phy_current_status,
 				    XELPDP_PORT_RESET_END_TIMEOUT))
 		drm_warn(display->drm,
-			 "PHY %c failed to bring out of Lane reset after %dms.\n",
-			 phy_name(phy), XELPDP_PORT_RESET_END_TIMEOUT);
+			 "PHY %c failed to bring out of lane reset\n",
+			 phy_name(phy));
 }
 
 static void intel_cx0_program_phy_lane(struct intel_encoder *encoder, int lane_count,
@@ -3069,8 +3069,8 @@ static void __intel_cx0pll_enable(struct intel_encoder *encoder,
 				 intel_cx0_get_pclk_pll_ack(INTEL_CX0_BOTH_LANES),
 				 intel_cx0_get_pclk_pll_ack(maxpclk_lane),
 				 XELPDP_PCLK_PLL_ENABLE_TIMEOUT_US, 0, NULL))
-		drm_warn(display->drm, "Port %c PLL not locked after %dus.\n",
-			 phy_name(phy), XELPDP_PCLK_PLL_ENABLE_TIMEOUT_US);
+		drm_warn(display->drm, "Port %c PLL not locked\n",
+			 phy_name(phy));
 
 	/*
 	 * 11. Follow the Display Voltage Frequency Switching Sequence After
@@ -3193,8 +3193,7 @@ void intel_mtl_tbt_pll_enable(struct intel_encoder *encoder,
 				 XELPDP_TBT_CLOCK_ACK,
 				 XELPDP_TBT_CLOCK_ACK,
 				 100, 0, NULL))
-		drm_warn(display->drm,
-			 "[ENCODER:%d:%s][%c] PHY PLL not locked after 100us.\n",
+		drm_warn(display->drm, "[ENCODER:%d:%s][%c] PHY PLL not locked\n",
 			 encoder->base.base.id, encoder->base.name, phy_name(phy));
 
 	/*
@@ -3308,9 +3307,8 @@ static void intel_cx0pll_disable(struct intel_encoder *encoder)
 				 intel_cx0_get_pclk_pll_ack(INTEL_CX0_BOTH_LANES) |
 				 intel_cx0_get_pclk_refclk_ack(INTEL_CX0_BOTH_LANES), 0,
 				 XELPDP_PCLK_PLL_DISABLE_TIMEOUT_US, 0, NULL))
-		drm_warn(display->drm,
-			 "Port %c PLL not unlocked after %dus.\n",
-			 phy_name(phy), XELPDP_PCLK_PLL_DISABLE_TIMEOUT_US);
+		drm_warn(display->drm, "Port %c PLL not unlocked\n",
+			 phy_name(phy));
 
 	/*
 	 * 6. Follow the Display Voltage Frequency Switching Sequence After
@@ -3355,8 +3353,7 @@ void intel_mtl_tbt_pll_disable(struct intel_encoder *encoder)
 	/* 3. Poll on PORT_CLOCK_CTL TBT CLOCK Ack == "0". */
 	if (intel_de_wait_custom(display, XELPDP_PORT_CLOCK_CTL(display, encoder->port),
 				 XELPDP_TBT_CLOCK_ACK, 0, 10, 0, NULL))
-		drm_warn(display->drm,
-			 "[ENCODER:%d:%s][%c] PHY PLL not unlocked after 10us.\n",
+		drm_warn(display->drm, "[ENCODER:%d:%s][%c] PHY PLL not unlocked\n",
 			 encoder->base.base.id, encoder->base.name, phy_name(phy));
 
 	/*
