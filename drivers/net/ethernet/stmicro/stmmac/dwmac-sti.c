@@ -81,11 +81,6 @@
  */
 #define MII_PHY_SEL_MASK	GENMASK(4, 2)
 #define MII_PHY_SEL_VAL(val)	FIELD_PREP_CONST(MII_PHY_SEL_MASK, val)
-#define ETH_PHY_SEL_RMII	MII_PHY_SEL_VAL(PHY_INTF_SEL_RMII)
-#define ETH_PHY_SEL_SGMII	MII_PHY_SEL_VAL(PHY_INTF_SEL_SGMII)
-#define ETH_PHY_SEL_RGMII	MII_PHY_SEL_VAL(PHY_INTF_SEL_RGMII)
-#define ETH_PHY_SEL_GMII	MII_PHY_SEL_VAL(PHY_INTF_SEL_GMII_MII)
-#define ETH_PHY_SEL_MII		MII_PHY_SEL_VAL(PHY_INTF_SEL_GMII_MII)
 
 struct sti_dwmac {
 	phy_interface_t interface;	/* MII interface */
@@ -104,13 +99,13 @@ struct sti_dwmac_of_data {
 	void (*fix_retime_src)(void *priv, int speed, unsigned int mode);
 };
 
-static u32 phy_intf_sels[] = {
-	[PHY_INTERFACE_MODE_MII] = ETH_PHY_SEL_MII,
-	[PHY_INTERFACE_MODE_GMII] = ETH_PHY_SEL_GMII,
-	[PHY_INTERFACE_MODE_RGMII] = ETH_PHY_SEL_RGMII,
-	[PHY_INTERFACE_MODE_RGMII_ID] = ETH_PHY_SEL_RGMII,
-	[PHY_INTERFACE_MODE_SGMII] = ETH_PHY_SEL_SGMII,
-	[PHY_INTERFACE_MODE_RMII] = ETH_PHY_SEL_RMII,
+static u8 phy_intf_sels[] = {
+	[PHY_INTERFACE_MODE_MII] = PHY_INTF_SEL_GMII_MII,
+	[PHY_INTERFACE_MODE_GMII] = PHY_INTF_SEL_GMII_MII,
+	[PHY_INTERFACE_MODE_RGMII] = PHY_INTF_SEL_RGMII,
+	[PHY_INTERFACE_MODE_RGMII_ID] = PHY_INTF_SEL_RGMII,
+	[PHY_INTERFACE_MODE_SGMII] = PHY_INTF_SEL_SGMII,
+	[PHY_INTERFACE_MODE_RMII] = PHY_INTF_SEL_RMII,
 };
 
 enum {
@@ -164,16 +159,18 @@ static void stih4xx_fix_retime_src(void *priv, int spd, unsigned int mode)
 static int sti_dwmac_set_mode(struct sti_dwmac *dwmac)
 {
 	struct regmap *regmap = dwmac->regmap;
-	int iface = dwmac->interface;
 	u32 reg = dwmac->ctrl_reg;
+	u8 phy_intf_sel;
 	u32 val;
 
 	if (dwmac->gmac_en)
 		regmap_update_bits(regmap, reg, EN_MASK, EN);
 
-	regmap_update_bits(regmap, reg, MII_PHY_SEL_MASK, phy_intf_sels[iface]);
+	phy_intf_sel = phy_intf_sels[dwmac->interface];
+	regmap_update_bits(regmap, reg, MII_PHY_SEL_MASK,
+			   FIELD_PREP(MII_PHY_SEL_MASK, phy_intf_sel));
 
-	val = (iface == PHY_INTERFACE_MODE_REVMII) ? 0 : ENMII;
+	val = (dwmac->interface == PHY_INTERFACE_MODE_REVMII) ? 0 : ENMII;
 	regmap_update_bits(regmap, reg, ENMII_MASK, val);
 
 	dwmac->fix_retime_src(dwmac, dwmac->speed, 0);
