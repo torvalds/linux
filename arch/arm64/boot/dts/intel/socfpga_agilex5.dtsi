@@ -79,6 +79,15 @@
 
 	};
 
+	firmware {
+		svc {
+			compatible = "intel,agilex5-svc";
+			method = "smc";
+			memory-region = <&service_reserved>;
+			iommus = <&smmu 10>;
+		};
+	};
+
 	psci {
 		compatible = "arm,psci-0.2";
 		method = "smc";
