@@ -650,8 +650,6 @@ lpfc_cmpl_els_flogi_fabric(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		ndlp->nlp_class_sup |= FC_COS_CLASS2;
 	if (sp->cls3.classValid)
 		ndlp->nlp_class_sup |= FC_COS_CLASS3;
-	if (sp->cls4.classValid)
-		ndlp->nlp_class_sup |= FC_COS_CLASS4;
 	ndlp->nlp_maxframe = ((sp->cmn.bbRcvSizeMsb & 0x0F) << 8) |
 				sp->cmn.bbRcvSizeLsb;
 
@@ -1356,6 +1354,14 @@ lpfc_issue_els_flogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		/* Can't do SLI4 class2 without support sequence coalescing */
 		sp->cls2.classValid = 0;
 		sp->cls2.seqDelivery = 0;
+
+		/* Fill out Auxiliary Parameter Data */
+		if (phba->pni) {
+			sp->aux.flags =
+				AUX_PARM_DATA_VALID | AUX_PARM_PNI_VALID;
+			sp->aux.pni = cpu_to_be64(phba->pni);
+			sp->aux.npiv_cnt = cpu_to_be16(phba->max_vpi - 1);
+		}
 	} else {
 		/* Historical, setting sequential-delivery bit for SLI3 */
 		sp->cls2.seqDelivery = (sp->cls2.classValid) ? 1 : 0;
@@ -5657,7 +5663,6 @@ lpfc_els_rsp_acc(struct lpfc_vport *vport, uint32_t flag,
 			sp->cls1.classValid = 0;
 			sp->cls2.classValid = 0;
 			sp->cls3.classValid = 0;
-			sp->cls4.classValid = 0;
 
 			/* Copy our worldwide names */
 			memcpy(&sp->portName, &vport->fc_sparam.portName,
@@ -11509,6 +11514,13 @@ lpfc_issue_els_fdisc(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	sp->cls1.classValid = 0;
 	sp->cls2.seqDelivery = 1;
 	sp->cls3.seqDelivery = 1;
+
+	/* Fill out Auxiliary Parameter Data */
+	if (phba->pni) {
+		sp->aux.flags =
+			AUX_PARM_DATA_VALID | AUX_PARM_PNI_VALID;
+		sp->aux.pni = cpu_to_be64(phba->pni);
+	}
 
 	pcmd += sizeof(uint32_t); /* CSP Word 2 */
 	pcmd += sizeof(uint32_t); /* CSP Word 3 */

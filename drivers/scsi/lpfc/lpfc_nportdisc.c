@@ -432,8 +432,6 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		ndlp->nlp_class_sup |= FC_COS_CLASS2;
 	if (sp->cls3.classValid)
 		ndlp->nlp_class_sup |= FC_COS_CLASS3;
-	if (sp->cls4.classValid)
-		ndlp->nlp_class_sup |= FC_COS_CLASS4;
 	ndlp->nlp_maxframe =
 		((sp->cmn.bbRcvSizeMsb & 0x0F) << 8) | sp->cmn.bbRcvSizeLsb;
 	/* if already logged in, do implicit logout */
@@ -1417,8 +1415,6 @@ lpfc_cmpl_plogi_plogi_issue(struct lpfc_vport *vport,
 		ndlp->nlp_class_sup |= FC_COS_CLASS2;
 	if (sp->cls3.classValid)
 		ndlp->nlp_class_sup |= FC_COS_CLASS3;
-	if (sp->cls4.classValid)
-		ndlp->nlp_class_sup |= FC_COS_CLASS4;
 	ndlp->nlp_maxframe =
 		((sp->cmn.bbRcvSizeMsb & 0x0F) << 8) | sp->cmn.bbRcvSizeLsb;
 

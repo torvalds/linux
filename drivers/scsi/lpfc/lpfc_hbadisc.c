@@ -4373,6 +4373,8 @@ out:
 		lpfc_ns_cmd(vport, SLI_CTNS_RNN_ID, 0, 0);
 		lpfc_ns_cmd(vport, SLI_CTNS_RSNN_NN, 0, 0);
 		lpfc_ns_cmd(vport, SLI_CTNS_RSPN_ID, 0, 0);
+		if (phba->pni)
+			lpfc_ns_cmd(vport, SLI_CTNS_RSPNI_PNI, 0, 0);
 		lpfc_ns_cmd(vport, SLI_CTNS_RFT_ID, 0, 0);
 
 		if ((vport->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||

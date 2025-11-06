@@ -633,6 +633,7 @@ struct lpfc_vport {
 #define FC_CT_RSPN_ID		0x8	 /* RSPN_ID accepted by switch */
 #define FC_CT_RFT_ID		0x10	 /* RFT_ID accepted by switch */
 #define FC_CT_RPRT_DEFER	0x20	 /* Defer issuing FDMI RPRT */
+#define FC_CT_RSPNI_PNI		0x40	 /* RSPNI_PNI accepted by switch */
 
 	struct list_head fc_nodes;
 	spinlock_t fc_nodes_list_lock; /* spinlock for fc_nodes list */
@@ -1076,6 +1077,8 @@ struct lpfc_hba {
 	struct lpfc_stats fc_stat;
 
 	uint32_t nport_event_cnt;	/* timestamp for nlplist entry */
+
+	unsigned long pni;		/* 64-bit Platform Name Identifier */
 
 	uint8_t  wwnn[8];
 	uint8_t  wwpn[8];
