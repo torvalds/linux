@@ -454,6 +454,17 @@ static int __maybe_unused ehci_platform_suspend(struct device *dev)
 	if (pdata->power_suspend)
 		pdata->power_suspend(pdev);
 
+	ret = reset_control_assert(priv->rsts);
+	if (ret) {
+		if (pdata->power_on)
+			pdata->power_on(pdev);
+
+		ehci_resume(hcd, false);
+
+		if (priv->quirk_poll)
+			quirk_poll_init(priv);
+	}
+
 	return ret;
 }
 
@@ -464,11 +475,18 @@ static int __maybe_unused ehci_platform_resume(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct ehci_platform_priv *priv = hcd_to_ehci_priv(hcd);
 	struct device *companion_dev;
+	int err;
+
+	err = reset_control_deassert(priv->rsts);
+	if (err)
+		return err;
 
 	if (pdata->power_on) {
-		int err = pdata->power_on(pdev);
-		if (err < 0)
+		err = pdata->power_on(pdev);
+		if (err < 0) {
+			reset_control_assert(priv->rsts);
 			return err;
+		}
 	}
 
 	companion_dev = usb_of_get_companion_dev(hcd->self.controller);
