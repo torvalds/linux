@@ -5254,8 +5254,11 @@ int set_tracer_flag(struct trace_array *tr, u64 mask, int enabled)
 		}
 	}
 
-	if (mask == TRACE_ITER(COPY_MARKER))
+	if (mask == TRACE_ITER(COPY_MARKER)) {
 		update_marker_trace(tr, enabled);
+		/* update_marker_trace updates the tr->trace_flags */
+		return 0;
+	}
 
 	if (enabled)
 		tr->trace_flags |= mask;
