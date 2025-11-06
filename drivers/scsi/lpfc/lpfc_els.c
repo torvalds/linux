@@ -3024,6 +3024,7 @@ lpfc_cmpl_els_logo(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			      ndlp->nlp_DID, ulp_status,
 			      ulp_word4);
 
+		/* Call NLP_EVT_DEVICE_RM if link is down or LOGO is aborted */
 		if (lpfc_error_lost_link(vport, ulp_status, ulp_word4))
 			skip_recovery = 1;
 	}
@@ -3306,7 +3307,8 @@ lpfc_reg_fab_ctrl_node(struct lpfc_vport *vport, struct lpfc_nodelist *fc_ndlp)
  *
  * This routine is a generic completion callback function for Discovery ELS cmd.
  * Currently used by the ELS command issuing routines for the ELS State Change
- * Request (SCR), lpfc_issue_els_scr() and the ELS RDF, lpfc_issue_els_rdf().
+ * Request (SCR), lpfc_issue_els_scr(), Exchange Diagnostic Capabilities (EDC),
+ * lpfc_issue_els_edc()  and the ELS RDF, lpfc_issue_els_rdf().
  * These commands will be retried once only for ELS timeout errors.
  **/
 static void
@@ -3705,10 +3707,7 @@ lpfc_issue_els_farpr(struct lpfc_vport *vport, uint32_t nportid, uint8_t retry)
 		lpfc_nlp_put(ndlp);
 		return 1;
 	}
-	/* This will cause the callback-function lpfc_cmpl_els_cmd to
-	 * trigger the release of the node.
-	 */
-	/* Don't release reference count as RDF is likely outstanding */
+
 	return 0;
 }
 
@@ -4299,7 +4298,7 @@ lpfc_issue_els_edc(struct lpfc_vport *vport, uint8_t retry)
 	rc = lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, elsiocb, 0);
 	if (rc == IOCB_ERROR) {
 		/* The additional lpfc_nlp_put will cause the following
-		 * lpfc_els_free_iocb routine to trigger the rlease of
+		 * lpfc_els_free_iocb routine to trigger the release of
 		 * the node.
 		 */
 		lpfc_els_free_iocb(phba, elsiocb);
@@ -5127,7 +5126,7 @@ lpfc_els_free_iocb(struct lpfc_hba *phba, struct lpfc_iocbq *elsiocb)
 {
 	struct lpfc_dmabuf *buf_ptr, *buf_ptr1;
 
-	/* The I/O iocb is complete.  Clear the node and first dmbuf */
+	/* The I/O iocb is complete.  Clear the node and first dmabuf */
 	elsiocb->ndlp = NULL;
 
 	/* cmd_dmabuf = cmd,  cmd_dmabuf->next = rsp, bpl_dmabuf = bpl */
@@ -8734,7 +8733,7 @@ reject_out:
  * @cmdiocb: pointer to lpfc command iocb data structure.
  * @ndlp: pointer to a node-list data structure.
  *
- * This routine processes Read Timout Value (RTV) IOCB received as an
+ * This routine processes Read Timeout Value (RTV) IOCB received as an
  * ELS unsolicited event. It first checks the remote port state. If the
  * remote port is not in NLP_STE_UNMAPPED_NODE state or NLP_STE_MAPPED_NODE
  * state, it invokes the lpfc_els_rsl_reject() routine to send the reject
@@ -10843,7 +10842,7 @@ lpfc_els_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	lpfc_els_unsol_buffer(phba, pring, vport, elsiocb);
 	/*
 	 * The different unsolicited event handlers would tell us
-	 * if they are done with "mp" by setting cmd_dmabuf to NULL.
+	 * if they are done with "mp" by setting cmd_dmabuf/bpl_dmabuf to NULL.
 	 */
 	if (elsiocb->cmd_dmabuf) {
 		lpfc_in_buf_free(phba, elsiocb->cmd_dmabuf);
