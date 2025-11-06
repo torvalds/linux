@@ -116,6 +116,56 @@ int nanosleep_test(int clockid, long long ns)
 	return 0;
 }
 
+static void dummy_event_handler(int val)
+{
+	/* No action needed */
+}
+
+static int nanosleep_test_remaining(int clockid)
+{
+	struct timespec rqtp = {}, rmtp = {};
+	struct itimerspec itimer = {};
+	struct sigaction sa = {};
+	timer_t timer;
+	int ret;
+
+	sa.sa_handler = dummy_event_handler;
+	ret = sigaction(SIGALRM, &sa, NULL);
+	if (ret)
+		return -1;
+
+	ret = timer_create(clockid, NULL, &timer);
+	if (ret)
+		return -1;
+
+	itimer.it_value.tv_nsec = NSEC_PER_SEC / 4;
+	ret = timer_settime(timer, 0, &itimer, NULL);
+	if (ret)
+		return -1;
+
+	rqtp.tv_nsec = NSEC_PER_SEC / 2;
+	ret = clock_nanosleep(clockid, 0, &rqtp, &rmtp);
+	if (ret != EINTR)
+		return -1;
+
+	ret = timer_delete(timer);
+	if (ret)
+		return -1;
+
+	sa.sa_handler = SIG_DFL;
+	ret = sigaction(SIGALRM, &sa, NULL);
+	if (ret)
+		return -1;
+
+	if (!in_order((struct timespec) {}, rmtp))
+		return -1;
+
+	if (!in_order(rmtp, rqtp))
+		return -1;
+
+	return 0;
+}
+
 int main(int argc, char **argv)
 {
 	long long length;
@@ -149,6 +199,11 @@ int main(int argc, char **argv)
 				ksft_exit_fail();
 			}
 			length *= 100;
+		}
+		ret = nanosleep_test_remaining(clockid);
+		if (ret < 0) {
+			ksft_test_result_fail("%-31s\n", clockstring(clockid));
+			ksft_exit_fail();
 		}
 		ksft_test_result_pass("%-31s\n", clockstring(clockid));
 next:
