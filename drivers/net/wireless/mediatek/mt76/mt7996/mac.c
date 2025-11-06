@@ -1035,21 +1035,50 @@ int mt7996_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 			  struct ieee80211_sta *sta,
 			  struct mt76_tx_info *tx_info)
 {
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)tx_info->skb->data;
 	struct mt7996_dev *dev = container_of(mdev, struct mt7996_dev, mt76);
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx_info->skb);
 	struct ieee80211_key_conf *key = info->control.hw_key;
 	struct ieee80211_vif *vif = info->control.vif;
+	struct mt7996_vif *mvif = vif ? (struct mt7996_vif *)vif->drv_priv : NULL;
+	struct mt7996_sta *msta = sta ? (struct mt7996_sta *)sta->drv_priv : NULL;
+	struct mt76_vif_link *mlink = NULL;
 	struct mt76_txwi_cache *t;
 	int id, i, pid, nbuf = tx_info->nbuf - 1;
 	bool is_8023 = info->flags & IEEE80211_TX_CTL_HW_80211_ENCAP;
 	__le32 *ptr = (__le32 *)txwi_ptr;
 	u8 *txwi = (u8 *)txwi_ptr;
+	u8 link_id;
 
 	if (unlikely(tx_info->skb->len <= ETH_HLEN))
 		return -EINVAL;
 
 	if (!wcid)
 		wcid = &dev->mt76.global_wcid;
+
+	if ((is_8023 || ieee80211_is_data_qos(hdr->frame_control)) && sta->mlo &&
+	    likely(tx_info->skb->protocol != cpu_to_be16(ETH_P_PAE))) {
+		u8 tid = tx_info->skb->priority & IEEE80211_QOS_CTL_TID_MASK;
+
+		link_id = (tid % 2) ? msta->seclink_id : msta->deflink_id;
+	} else {
+		link_id = u32_get_bits(info->control.flags,
+				       IEEE80211_TX_CTRL_MLO_LINK);
+	}
+
+	if (link_id != wcid->link_id && link_id != IEEE80211_LINK_UNSPECIFIED) {
+		if (msta) {
+			struct mt7996_sta_link *msta_link =
+				rcu_dereference(msta->link[link_id]);
+
+			if (msta_link)
+				wcid = &msta_link->wcid;
+		} else if (mvif) {
+			mlink = rcu_dereference(mvif->mt76.link[link_id]);
+			if (mlink && mlink->wcid)
+				wcid = mlink->wcid;
+		}
+	}
 
 	t = (struct mt76_txwi_cache *)(txwi + mdev->drv->txwi_size);
 	t->skb = tx_info->skb;
@@ -1155,10 +1184,7 @@ int mt7996_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 		if (!is_8023 && mt7996_tx_use_mgmt(dev, tx_info->skb))
 			txp->fw.flags |= cpu_to_le16(MT_CT_INFO_MGMT_FRAME);
 
-		if (vif) {
-			struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
-			struct mt76_vif_link *mlink = NULL;
-
+		if (mvif) {
 			if (wcid->offchannel)
 				mlink = rcu_dereference(mvif->mt76.offchannel_link);
 			if (!mlink)
