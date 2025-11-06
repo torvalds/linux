@@ -5159,14 +5159,12 @@ lpfc_els_free_iocb(struct lpfc_hba *phba, struct lpfc_iocbq *elsiocb)
 		} else {
 			buf_ptr1 = elsiocb->cmd_dmabuf;
 			lpfc_els_free_data(phba, buf_ptr1);
-			elsiocb->cmd_dmabuf = NULL;
 		}
 	}
 
 	if (elsiocb->bpl_dmabuf) {
 		buf_ptr = elsiocb->bpl_dmabuf;
 		lpfc_els_free_bpl(phba, buf_ptr);
-		elsiocb->bpl_dmabuf = NULL;
 	}
 	lpfc_sli_release_iocbq(phba, elsiocb);
 	return 0;
