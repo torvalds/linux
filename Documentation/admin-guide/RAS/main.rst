@@ -406,24 +406,8 @@ index of the MC::
 		   |->mc2
 		   ....
 
-Under each ``mcX`` directory each ``csrowX`` is again represented by a
-``csrowX``, where ``X`` is the csrow index::
-
-	.../mc/mc0/
-		|
-		|->csrow0
-		|->csrow2
-		|->csrow3
-		....
-
-Notice that there is no csrow1, which indicates that csrow0 is composed
-of a single ranked DIMMs. This should also apply in both Channels, in
-order to have dual-channel mode be operational. Since both csrow2 and
-csrow3 are populated, this indicates a dual ranked set of DIMMs for
-channels 0 and 1.
-
-Within each of the ``mcX`` and ``csrowX`` directories are several EDAC
-control and attribute files.
+Within each of the ``mcX`` directory are several EDAC control and
+attribute files.
 
 ``mcX`` directories
 -------------------
@@ -569,133 +553,13 @@ this ``X`` memory module:
 		- Unbuffered-DDR
 
 .. [#f5] On some systems, the memory controller doesn't have any logic
-  to identify the memory module. On such systems, the directory is called ``rankX`` and works on a similar way as the ``csrowX`` directories.
+  to identify the memory module. On such systems, the directory is called ``rankX``.
   On modern Intel memory controllers, the memory controller identifies the
   memory modules directly. On such systems, the directory is called ``dimmX``.
 
 .. [#f6] There are also some ``power`` directories and ``subsystem``
   symlinks inside the sysfs mapping that are automatically created by
   the sysfs subsystem. Currently, they serve no purpose.
-
-``csrowX`` directories
-----------------------
-
-When CONFIG_EDAC_LEGACY_SYSFS is enabled, sysfs will contain the ``csrowX``
-directories. As this API doesn't work properly for Rambus, FB-DIMMs and
-modern Intel Memory Controllers, this is being deprecated in favor of
-``dimmX`` directories.
-
-In the ``csrowX`` directories are EDAC control and attribute files for
-this ``X`` instance of csrow:
-
-
-- ``ue_count`` - Total Uncorrectable Errors count attribute file
-
-	This attribute file displays the total count of uncorrectable
-	errors that have occurred on this csrow. If panic_on_ue is set
-	this counter will not have a chance to increment, since EDAC
-	will panic the system.
-
-
-- ``ce_count`` - Total Correctable Errors count attribute file
-
-	This attribute file displays the total count of correctable
-	errors that have occurred on this csrow. This count is very
-	important to examine. CEs provide early indications that a
-	DIMM is beginning to fail. This count field should be
-	monitored for non-zero values and report such information
-	to the system administrator.
-
-
-- ``size_mb`` - Total memory managed by this csrow attribute file
-
-	This attribute file displays, in count of megabytes, the memory
-	that this csrow contains.
-
-
-- ``mem_type`` - Memory Type attribute file
-
-	This attribute file will display what type of memory is currently
-	on this csrow. Normally, either buffered or unbuffered memory.
-	Examples:
-
-		- Registered-DDR
-		- Unbuffered-DDR
-
-
-- ``edac_mode`` - EDAC Mode of operation attribute file
-
-	This attribute file will display what type of Error detection
-	and correction is being utilized.
-
-
-- ``dev_type`` - Device type attribute file
-
-	This attribute file will display what type of DRAM device is
-	being utilized on this DIMM.
-	Examples:
-
-		- x1
-		- x2
-		- x4
-		- x8
-
-
-- ``ch0_ce_count`` - Channel 0 CE Count attribute file
-
-	This attribute file will display the count of CEs on this
-	DIMM located in channel 0.
-
-
-- ``ch0_ue_count`` - Channel 0 UE Count attribute file
-
-	This attribute file will display the count of UEs on this
-	DIMM located in channel 0.
-
-
-- ``ch0_dimm_label`` - Channel 0 DIMM Label control file
-
-
-	This control file allows this DIMM to have a label assigned
-	to it. With this label in the module, when errors occur
-	the output can provide the DIMM label in the system log.
-	This becomes vital for panic events to isolate the
-	cause of the UE event.
-
-	DIMM Labels must be assigned after booting, with information
-	that correctly identifies the physical slot with its
-	silk screen label. This information is currently very
-	motherboard specific and determination of this information
-	must occur in userland at this time.
-
-
-- ``ch1_ce_count`` - Channel 1 CE Count attribute file
-
-
-	This attribute file will display the count of CEs on this
-	DIMM located in channel 1.
-
-
-- ``ch1_ue_count`` - Channel 1 UE Count attribute file
-
-
-	This attribute file will display the count of UEs on this
-	DIMM located in channel 0.
-
-
-- ``ch1_dimm_label`` - Channel 1 DIMM Label control file
-
-	This control file allows this DIMM to have a label assigned
-	to it. With this label in the module, when errors occur
-	the output can provide the DIMM label in the system log.
-	This becomes vital for panic events to isolate the
-	cause of the UE event.
-
-	DIMM Labels must be assigned after booting, with information
-	that correctly identifies the physical slot with its
-	silk screen label. This information is currently very
-	motherboard specific and determination of this information
-	must occur in userland at this time.
 
 
 System Logging
