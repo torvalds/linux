@@ -6782,6 +6782,7 @@ static void skb_defer_free_flush(void)
 		free_list = llist_del_all(&sdn->defer_list);
 
 		llist_for_each_entry_safe(skb, next, free_list, ll_node) {
+			prefetch(next);
 			napi_consume_skb(skb, 1);
 		}
 	}
