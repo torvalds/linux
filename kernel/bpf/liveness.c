@@ -485,6 +485,9 @@ bpf_insn_successors(struct bpf_verifier_env *env, u32 idx)
 	struct bpf_iarray *succ;
 	int insn_sz;
 
+	if (unlikely(insn_is_gotox(insn)))
+		return env->insn_aux_data[idx].jt;
+
 	/* pre-allocated array of size up to 2; reset cnt, as it may have been used already */
 	succ = env->succ;
 	succ->cnt = 0;
