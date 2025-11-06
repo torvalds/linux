@@ -439,9 +439,9 @@ static inline void __new_line_std_csv(struct perf_stat_config *config,
 	aggr_printout(config, os, os->evsel, os->id, os->aggr_nr);
 }
 
-static inline void __new_line_std(struct outstate *os)
+static inline void __new_line_std(struct perf_stat_config *config, struct outstate *os)
 {
-	fprintf(os->fh, "                                                 ");
+	fprintf(os->fh, "%*s", COUNTS_LEN + EVNAME_LEN + config->unit_width + 2, "");
 }
 
 static void do_new_line_std(struct perf_stat_config *config,
@@ -450,7 +450,7 @@ static void do_new_line_std(struct perf_stat_config *config,
 	__new_line_std_csv(config, os);
 	if (config->aggr_mode == AGGR_NONE)
 		fprintf(os->fh, "        ");
-	__new_line_std(os);
+	__new_line_std(config, os);
 }
 
 static void print_metric_std(struct perf_stat_config *config,
@@ -583,13 +583,13 @@ static void print_metricgroup_header_std(struct perf_stat_config *config,
 	int n;
 
 	if (!metricgroup_name) {
-		__new_line_std(os);
+		__new_line_std(config, os);
 		return;
 	}
 
 	n = fprintf(config->output, " %*s", EVNAME_LEN, metricgroup_name);
 
-	fprintf(config->output, "%*s", MGROUP_LEN - n - 1, "");
+	fprintf(config->output, "%*s", MGROUP_LEN + config->unit_width + 2 - n, "");
 }
 
 static void print_metric_only(struct perf_stat_config *config,
