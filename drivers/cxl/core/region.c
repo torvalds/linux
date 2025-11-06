@@ -844,8 +844,8 @@ static int match_free_decoder(struct device *dev, const void *data)
 	return 1;
 }
 
-static bool region_res_match_cxl_range(const struct cxl_region_params *p,
-				       const struct range *range)
+static bool spa_maps_hpa(const struct cxl_region_params *p,
+			 const struct range *range)
 {
 	if (!p->res)
 		return false;
@@ -871,7 +871,7 @@ static int match_auto_decoder(struct device *dev, const void *data)
 	cxld = to_cxl_decoder(dev);
 	r = &cxld->hpa_range;
 
-	if (region_res_match_cxl_range(p, r))
+	if (spa_maps_hpa(p, r))
 		return 1;
 
 	return 0;
@@ -1483,7 +1483,7 @@ static int cxl_port_setup_targets(struct cxl_port *port,
 	if (test_bit(CXL_REGION_F_AUTO, &cxlr->flags)) {
 		if (cxld->interleave_ways != iw ||
 		    (iw > 1 && cxld->interleave_granularity != ig) ||
-		    !region_res_match_cxl_range(p, &cxld->hpa_range) ||
+		    !spa_maps_hpa(p, &cxld->hpa_range) ||
 		    ((cxld->flags & CXL_DECODER_F_ENABLE) == 0)) {
 			dev_err(&cxlr->dev,
 				"%s:%s %s expected iw: %d ig: %d %pr\n",
@@ -3417,7 +3417,7 @@ static int match_region_by_range(struct device *dev, const void *data)
 	p = &cxlr->params;
 
 	guard(rwsem_read)(&cxl_rwsem.region);
-	return region_res_match_cxl_range(p, r);
+	return spa_maps_hpa(p, r);
 }
 
 static int cxl_extended_linear_cache_resize(struct cxl_region *cxlr,
