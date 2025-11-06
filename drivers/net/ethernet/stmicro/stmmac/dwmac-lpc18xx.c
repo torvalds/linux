@@ -23,12 +23,27 @@
 #define LPC18XX_CREG_CREG6			0x12c
 # define LPC18XX_CREG_CREG6_ETHMODE_MASK	GENMASK(2, 0)
 
+static int lpc18xx_set_phy_intf_sel(void *bsp_priv, u8 phy_intf_sel)
+{
+	struct regmap *reg = bsp_priv;
+
+	if (phy_intf_sel != PHY_INTF_SEL_GMII_MII &&
+	    phy_intf_sel != PHY_INTF_SEL_RMII)
+		return -EINVAL;
+
+	regmap_update_bits(reg, LPC18XX_CREG_CREG6,
+			   LPC18XX_CREG_CREG6_ETHMODE_MASK,
+			   FIELD_PREP(LPC18XX_CREG_CREG6_ETHMODE_MASK,
+				      phy_intf_sel));
+
+	return 0;
+}
+
 static int lpc18xx_dwmac_probe(struct platform_device *pdev)
 {
 	struct plat_stmmacenet_data *plat_dat;
 	struct stmmac_resources stmmac_res;
-	struct regmap *reg;
-	u8 ethmode;
+	struct regmap *regmap;
 	int ret;
 
 	ret = stmmac_get_platform_resources(pdev, &stmmac_res);
@@ -41,21 +56,14 @@ static int lpc18xx_dwmac_probe(struct platform_device *pdev)
 
 	plat_dat->core_type = DWMAC_CORE_GMAC;
 
-	reg = syscon_regmap_lookup_by_compatible("nxp,lpc1850-creg");
-	if (IS_ERR(reg)) {
+	regmap = syscon_regmap_lookup_by_compatible("nxp,lpc1850-creg");
+	if (IS_ERR(regmap)) {
 		dev_err(&pdev->dev, "syscon lookup failed\n");
-		return PTR_ERR(reg);
+		return PTR_ERR(regmap);
 	}
 
-	ethmode = stmmac_get_phy_intf_sel(plat_dat->phy_interface);
-	if (ethmode != PHY_INTF_SEL_GMII_MII &&
-	    ethmode != PHY_INTF_SEL_RMII) {
-		dev_err(&pdev->dev, "Only MII and RMII mode supported\n");
-		return -EINVAL;
-	}
-
-	regmap_update_bits(reg, LPC18XX_CREG_CREG6,
-			   LPC18XX_CREG_CREG6_ETHMODE_MASK, ethmode);
+	plat_dat->bsp_priv = regmap;
+	plat_dat->set_phy_intf_sel = lpc18xx_set_phy_intf_sel;
 
 	return stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
 }
