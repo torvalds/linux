@@ -26,6 +26,12 @@
 		status = "disabled";
 	};
 
+	beeper: beeper {
+		compatible = "pwm-beeper";
+		pwms = <&pwm3 0 500000 0>;
+		status = "disabled";
+	};
+
 	gpio_keys: gpio-keys {
 		compatible = "gpio-keys";
 		pinctrl-names = "default";
@@ -466,6 +472,13 @@
 		>;
 	};
 
+	pinctrl_sound: soundgrp {
+		fsl,pins = <
+			MX6QDL_PAD_SD1_DAT0__GPIO1_IO16	0x1b0b0
+			MX6QDL_PAD_SD1_DAT1__PWM3_OUT	0x8
+		>;
+	};
+
 	pinctrl_touch: touchgrp {
 		fsl,pins = <
 			MX6QDL_PAD_GPIO_19__GPIO4_IO05	0x1b098
@@ -548,6 +561,12 @@
 &pwm1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm1>;
+	status = "disabled";
+};
+
+&pwm3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_sound>;
 	status = "disabled";
 };
 
