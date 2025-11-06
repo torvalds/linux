@@ -1514,6 +1514,10 @@ static int disable_trace_fprobe(struct trace_event_call *call,
 	if (!trace_probe_is_enabled(tp)) {
 		list_for_each_entry(tf, trace_probe_probe_list(tp), tp.list) {
 			unregister_fprobe(&tf->fp);
+			if (tf->tuser) {
+				tracepoint_user_put(tf->tuser);
+				tf->tuser = NULL;
+			}
 		}
 	}
 
