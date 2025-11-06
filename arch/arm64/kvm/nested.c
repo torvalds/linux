@@ -85,7 +85,7 @@ int kvm_vcpu_init_nested(struct kvm_vcpu *vcpu)
 	/*
 	 * Let's treat memory allocation failures as benign: If we fail to
 	 * allocate anything, return an error and keep the allocated array
-	 * alive. Userspace may try to recover by intializing the vcpu
+	 * alive. Userspace may try to recover by initializing the vcpu
 	 * again, and there is no reason to affect the whole VM for this.
 	 */
 	num_mmus = atomic_read(&kvm->online_vcpus) * S2_MMU_PER_VCPU;
