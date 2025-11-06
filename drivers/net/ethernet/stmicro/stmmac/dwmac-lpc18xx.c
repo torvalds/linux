@@ -21,9 +21,7 @@
 
 /* Register defines for CREG syscon */
 #define LPC18XX_CREG_CREG6			0x12c
-# define LPC18XX_CREG_CREG6_ETHMODE_MASK	0x7
-# define LPC18XX_CREG_CREG6_ETHMODE_MII		PHY_INTF_SEL_GMII_MII
-# define LPC18XX_CREG_CREG6_ETHMODE_RMII	PHY_INTF_SEL_RMII
+# define LPC18XX_CREG_CREG6_ETHMODE_MASK	GENMASK(2, 0)
 
 static int lpc18xx_dwmac_probe(struct platform_device *pdev)
 {
@@ -50,9 +48,9 @@ static int lpc18xx_dwmac_probe(struct platform_device *pdev)
 	}
 
 	if (plat_dat->phy_interface == PHY_INTERFACE_MODE_MII) {
-		ethmode = LPC18XX_CREG_CREG6_ETHMODE_MII;
+		ethmode = PHY_INTF_SEL_GMII_MII;
 	} else if (plat_dat->phy_interface == PHY_INTERFACE_MODE_RMII) {
-		ethmode = LPC18XX_CREG_CREG6_ETHMODE_RMII;
+		ethmode = PHY_INTF_SEL_RMII;
 	} else {
 		dev_err(&pdev->dev, "Only MII and RMII mode supported\n");
 		return -EINVAL;
