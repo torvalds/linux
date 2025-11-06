@@ -2926,7 +2926,7 @@ static void intel_cx0_phy_lane_reset(struct intel_encoder *encoder,
 
 	if (intel_de_wait_for_clear(display, XELPDP_PORT_BUF_CTL2(display, port),
 				    lane_phy_current_status,
-				    XELPDP_PORT_RESET_END_TIMEOUT))
+				    XELPDP_PORT_RESET_END_TIMEOUT_MS))
 		drm_warn(display->drm,
 			 "PHY %c failed to bring out of lane reset\n",
 			 phy_name(phy));
