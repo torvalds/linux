@@ -93,6 +93,30 @@ config KUNIT_AUTORUN_ENABLED
 	  In most cases this should be left as Y. Only if additional opt-in
 	  behavior is needed should this be set to N.
 
+config KUNIT_DEFAULT_FILTER_GLOB
+	string "Default value of the filter_glob module parameter"
+	help
+	  Sets the default value of kunit.filter_glob. If set to a non-empty
+	  string only matching tests are executed.
+
+	  If unsure, leave empty so all tests are executed.
+
+config KUNIT_DEFAULT_FILTER
+	string "Default value of the filter module parameter"
+	help
+	  Sets the default value of kunit.filter. If set to a non-empty
+	  string only matching tests are executed.
+
+	  If unsure, leave empty so all tests are executed.
+
+config KUNIT_DEFAULT_FILTER_ACTION
+	string "Default value of the filter_action module parameter"
+	help
+	  Sets the default value of kunit.filter_action. If set to a non-empty
+	  string only matching tests are executed.
+
+	  If unsure, leave empty so all tests are executed.
+
 config KUNIT_DEFAULT_TIMEOUT
 	int "Default value of the timeout module parameter"
 	default 300
