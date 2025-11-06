@@ -603,6 +603,7 @@ static int cs4271_component_probe(struct snd_soc_component *component)
 				 CS4271_MODE2_PDN | CS4271_MODE2_CPEN);
 	if (ret < 0)
 		goto err_disable_clk;
+
 	ret = regmap_update_bits(cs4271->regmap, CS4271_MODE2,
 				 CS4271_MODE2_PDN, 0);
 	if (ret < 0)
