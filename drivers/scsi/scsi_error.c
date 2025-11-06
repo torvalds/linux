@@ -554,9 +554,9 @@ enum scsi_disposition scsi_check_sense(struct scsi_cmnd *scmd)
 		 * happened, even if someone else gets the sense data.
 		 */
 		if (sshdr.asc == 0x28)
-			scmd->device->ua_new_media_ctr++;
+			atomic_inc(&sdev->ua_new_media_ctr);
 		else if (sshdr.asc == 0x29)
-			scmd->device->ua_por_ctr++;
+			atomic_inc(&sdev->ua_por_ctr);
 	}
 
 	if (scsi_sense_is_deferred(&sshdr))
