@@ -1358,17 +1358,6 @@ typedef struct smb_com_transaction_change_notify_rsp {
 	/* __u8 Pad[3]; */
 } __packed TRANSACT_CHANGE_NOTIFY_RSP;
 
-/*
- * response contains array of the following structures
- * See MS-FSCC 2.7.1
- */
-struct file_notify_information {
-	__le32 NextEntryOffset;
-	__le32 Action;
-	__le32 FileNameLength;
-	__u8  FileName[];
-} __packed;
-
 struct cifs_quota_data {
 	__u32	rsrvd1;  /* 0 */
 	__u32	sid_size;

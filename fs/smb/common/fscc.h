@@ -145,6 +145,17 @@ typedef struct {
 } __packed FILE_SYSTEM_DEVICE_INFO; /* device info level 0x104 */
 
 /*
+ * Response contains array of the following structures
+ * See MS-FSCC 2.7.1
+ */
+struct file_notify_information {
+	__le32 NextEntryOffset;
+	__le32 Action;
+	__le32 FileNameLength;
+	__u8  FileName[];
+} __packed;
+
+/*
  * See POSIX Extensions to MS-FSCC 2.3.2.1
  * Link: https://gitlab.com/samba-team/smb3-posix-spec/-/blob/master/fscc_posix_extensions.md
  */
