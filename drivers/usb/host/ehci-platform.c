@@ -112,8 +112,7 @@ static void ehci_platform_power_off(struct platform_device *dev)
 	int clk;
 
 	for (clk = EHCI_MAX_CLKS - 1; clk >= 0; clk--)
-		if (priv->clks[clk])
-			clk_disable_unprepare(priv->clks[clk]);
+		clk_disable_unprepare(priv->clks[clk]);
 }
 
 static struct hc_driver __read_mostly ehci_platform_hc_driver;
