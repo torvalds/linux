@@ -10,6 +10,7 @@
 #include <drm/drm_buddy.h>
 
 #include "i915_drv.h"
+#include "i915_jiffies.h"
 #include "i915_ttm_buddy_manager.h"
 #include "intel_memory_region.h"
 #include "intel_region_ttm.h"

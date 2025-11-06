@@ -33,12 +33,10 @@
 
 #include <drm/drm_drv.h>
 
-#include "display/intel_display_core.h"
 #include "display/intel_display_irq.h"
 #include "display/intel_hotplug.h"
 #include "display/intel_hotplug_irq.h"
 #include "display/intel_lpe_audio.h"
-#include "display/intel_psr_regs.h"
 
 #include "gt/intel_breadcrumbs.h"
 #include "gt/intel_gt.h"
@@ -415,7 +413,7 @@ static irqreturn_t ilk_irq_handler(int irq, void *arg)
 	struct drm_i915_private *i915 = arg;
 	struct intel_display *display = i915->display;
 	void __iomem * const regs = intel_uncore_regs(&i915->uncore);
-	u32 de_iir, gt_iir, de_ier, sde_ier = 0;
+	u32 gt_iir, de_ier = 0, sde_ier = 0;
 	irqreturn_t ret = IRQ_NONE;
 
 	if (unlikely(!intel_irqs_enabled(i915)))
@@ -424,19 +422,8 @@ static irqreturn_t ilk_irq_handler(int irq, void *arg)
 	/* IRQs are synced during runtime_suspend, we don't require a wakeref */
 	disable_rpm_wakeref_asserts(&i915->runtime_pm);
 
-	/* disable master interrupt before clearing iir  */
-	de_ier = raw_reg_read(regs, DEIER);
-	raw_reg_write(regs, DEIER, de_ier & ~DE_MASTER_IRQ_CONTROL);
-
-	/* Disable south interrupts. We'll only write to SDEIIR once, so further
-	 * interrupts will will be stored on its back queue, and then we'll be
-	 * able to process them after we restore SDEIER (as soon as we restore
-	 * it, we'll get an interrupt if SDEIIR still has something to process
-	 * due to its back queue). */
-	if (!HAS_PCH_NOP(display)) {
-		sde_ier = raw_reg_read(regs, SDEIER);
-		raw_reg_write(regs, SDEIER, 0);
-	}
+	/* Disable master and south interrupts */
+	ilk_display_irq_master_disable(display, &de_ier, &sde_ier);
 
 	/* Find, clear, then process each source of interrupt */
 
@@ -450,15 +437,8 @@ static irqreturn_t ilk_irq_handler(int irq, void *arg)
 		ret = IRQ_HANDLED;
 	}
 
-	de_iir = raw_reg_read(regs, DEIIR);
-	if (de_iir) {
-		raw_reg_write(regs, DEIIR, de_iir);
-		if (DISPLAY_VER(display) >= 7)
-			ivb_display_irq_handler(display, de_iir);
-		else
-			ilk_display_irq_handler(display, de_iir);
+	if (ilk_display_irq_handler(display))
 		ret = IRQ_HANDLED;
-	}
 
 	if (GRAPHICS_VER(i915) >= 6) {
 		u32 pm_iir = raw_reg_read(regs, GEN6_PMIIR);
@@ -469,9 +449,8 @@ static irqreturn_t ilk_irq_handler(int irq, void *arg)
 		}
 	}
 
-	raw_reg_write(regs, DEIER, de_ier);
-	if (sde_ier)
-		raw_reg_write(regs, SDEIER, sde_ier);
+	/* Re-enable master and south interrupts */
+	ilk_display_irq_master_enable(display, de_ier, sde_ier);
 
 	pmu_irq_stats(i915, ret);
 
@@ -656,22 +635,10 @@ static irqreturn_t dg1_irq_handler(int irq, void *arg)
 static void ilk_irq_reset(struct drm_i915_private *dev_priv)
 {
 	struct intel_display *display = dev_priv->display;
-	struct intel_uncore *uncore = &dev_priv->uncore;
 
-	gen2_irq_reset(uncore, DE_IRQ_REGS);
-	dev_priv->irq_mask = ~0u;
-
-	if (GRAPHICS_VER(dev_priv) == 7)
-		intel_uncore_write(uncore, GEN7_ERR_INT, 0xffffffff);
-
-	if (IS_HASWELL(dev_priv)) {
-		intel_uncore_write(uncore, EDP_PSR_IMR, 0xffffffff);
-		intel_uncore_write(uncore, EDP_PSR_IIR, 0xffffffff);
-	}
-
+	/* The master interrupt enable is in DEIER, reset display irq first */
+	ilk_display_irq_reset(display);
 	gen5_gt_irq_reset(to_gt(dev_priv));
-
-	ibx_display_irq_reset(display);
 }
 
 static void valleyview_irq_reset(struct drm_i915_private *dev_priv)
@@ -826,9 +793,10 @@ static void cherryview_irq_postinstall(struct drm_i915_private *dev_priv)
 	intel_uncore_posting_read(&dev_priv->uncore, GEN8_MASTER_IRQ);
 }
 
+#define I9XX_HAS_FBC(i915) (IS_I85X(i915) || IS_I865G(i915) || IS_I915GM(i915) || IS_I945GM(i915))
+
 static u32 i9xx_error_mask(struct drm_i915_private *i915)
 {
-	struct intel_display *display = i915->display;
 	/*
 	 * On gen2/3 FBC generates (seemingly spurious)
 	 * display INVALID_GTT/INVALID_GTT_PTE table errors.
@@ -841,7 +809,7 @@ static u32 i9xx_error_mask(struct drm_i915_private *i915)
 	 * Unfortunately we can't mask off individual PGTBL_ER bits,
 	 * so we just have to mask off all page table errors via EMR.
 	 */
-	if (HAS_FBC(display))
+	if (I9XX_HAS_FBC(i915))
 		return I915_ERROR_MEMORY_REFRESH;
 	else
 		return I915_ERROR_PAGE_TABLE |
@@ -897,7 +865,7 @@ static void i915_irq_reset(struct drm_i915_private *dev_priv)
 
 	gen2_error_reset(uncore, GEN2_ERROR_REGS);
 	gen2_irq_reset(uncore, GEN2_IRQ_REGS);
-	dev_priv->irq_mask = ~0u;
+	dev_priv->gen2_imr_mask = ~0u;
 }
 
 static void i915_irq_postinstall(struct drm_i915_private *dev_priv)
@@ -908,28 +876,14 @@ static void i915_irq_postinstall(struct drm_i915_private *dev_priv)
 
 	gen2_error_init(uncore, GEN2_ERROR_REGS, ~i9xx_error_mask(dev_priv));
 
-	dev_priv->irq_mask =
-		~(I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |
-		  I915_DISPLAY_PIPE_B_EVENT_INTERRUPT |
-		  I915_MASTER_ERROR_INTERRUPT);
+	enable_mask = i9xx_display_irq_enable_mask(display) |
+		I915_MASTER_ERROR_INTERRUPT;
 
-	enable_mask =
-		I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |
-		I915_DISPLAY_PIPE_B_EVENT_INTERRUPT |
-		I915_MASTER_ERROR_INTERRUPT |
-		I915_USER_INTERRUPT;
+	dev_priv->gen2_imr_mask = ~enable_mask;
 
-	if (DISPLAY_VER(display) >= 3) {
-		dev_priv->irq_mask &= ~I915_ASLE_INTERRUPT;
-		enable_mask |= I915_ASLE_INTERRUPT;
-	}
+	enable_mask |= I915_USER_INTERRUPT;
 
-	if (HAS_HOTPLUG(display)) {
-		dev_priv->irq_mask &= ~I915_DISPLAY_PORT_INTERRUPT;
-		enable_mask |= I915_DISPLAY_PORT_INTERRUPT;
-	}
-
-	gen2_irq_init(uncore, GEN2_IRQ_REGS, dev_priv->irq_mask, enable_mask);
+	gen2_irq_init(uncore, GEN2_IRQ_REGS, dev_priv->gen2_imr_mask, enable_mask);
 
 	i915_display_irq_postinstall(display);
 }
@@ -958,8 +912,7 @@ static irqreturn_t i915_irq_handler(int irq, void *arg)
 
 		ret = IRQ_HANDLED;
 
-		if (HAS_HOTPLUG(display) &&
-		    iir & I915_DISPLAY_PORT_INTERRUPT)
+		if (iir & I915_DISPLAY_PORT_INTERRUPT)
 			hotplug_status = i9xx_hpd_irq_ack(display);
 
 		/* Call regardless, as some status bits might not be
@@ -999,7 +952,7 @@ static void i965_irq_reset(struct drm_i915_private *dev_priv)
 
 	gen2_error_reset(uncore, GEN2_ERROR_REGS);
 	gen2_irq_reset(uncore, GEN2_IRQ_REGS);
-	dev_priv->irq_mask = ~0u;
+	dev_priv->gen2_imr_mask = ~0u;
 }
 
 static u32 i965_error_mask(struct drm_i915_private *i915)
@@ -1029,25 +982,17 @@ static void i965_irq_postinstall(struct drm_i915_private *dev_priv)
 
 	gen2_error_init(uncore, GEN2_ERROR_REGS, ~i965_error_mask(dev_priv));
 
-	dev_priv->irq_mask =
-		~(I915_ASLE_INTERRUPT |
-		  I915_DISPLAY_PORT_INTERRUPT |
-		  I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |
-		  I915_DISPLAY_PIPE_B_EVENT_INTERRUPT |
-		  I915_MASTER_ERROR_INTERRUPT);
+	enable_mask = i9xx_display_irq_enable_mask(display) |
+		I915_MASTER_ERROR_INTERRUPT;
 
-	enable_mask =
-		I915_ASLE_INTERRUPT |
-		I915_DISPLAY_PORT_INTERRUPT |
-		I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |
-		I915_DISPLAY_PIPE_B_EVENT_INTERRUPT |
-		I915_MASTER_ERROR_INTERRUPT |
-		I915_USER_INTERRUPT;
+	dev_priv->gen2_imr_mask = ~enable_mask;
+
+	enable_mask |= I915_USER_INTERRUPT;
 
 	if (IS_G4X(dev_priv))
 		enable_mask |= I915_BSD_USER_INTERRUPT;
 
-	gen2_irq_init(uncore, GEN2_IRQ_REGS, dev_priv->irq_mask, enable_mask);
+	gen2_irq_init(uncore, GEN2_IRQ_REGS, dev_priv->gen2_imr_mask, enable_mask);
 
 	i965_display_irq_postinstall(display);
 }

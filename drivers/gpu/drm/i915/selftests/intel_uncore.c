@@ -64,7 +64,7 @@ static int intel_fw_table_check(const struct intel_forcewake_range *ranges,
 static int intel_shadow_table_check(void)
 {
 	struct {
-		const struct i915_range *regs;
+		const struct i915_mmio_range *regs;
 		unsigned int size;
 	} range_lists[] = {
 		{ gen8_shadowed_regs, ARRAY_SIZE(gen8_shadowed_regs) },
@@ -74,7 +74,7 @@ static int intel_shadow_table_check(void)
 		{ mtl_shadowed_regs, ARRAY_SIZE(mtl_shadowed_regs) },
 		{ xelpmp_shadowed_regs, ARRAY_SIZE(xelpmp_shadowed_regs) },
 	};
-	const struct i915_range *range;
+	const struct i915_mmio_range *range;
 	unsigned int i, j;
 	s32 prev;
 

@@ -7,16 +7,16 @@
 
 #include <drm/drm_print.h>
 
-#include "i915_utils.h"
-#include "intel_step.h"
 #include "intel_crtc.h"
 #include "intel_de.h"
 #include "intel_display_core.h"
 #include "intel_display_types.h"
-#include "intel_flipq.h"
+#include "intel_display_utils.h"
 #include "intel_dmc.h"
 #include "intel_dmc_regs.h"
 #include "intel_dsb.h"
+#include "intel_flipq.h"
+#include "intel_step.h"
 #include "intel_vblank.h"
 #include "intel_vrr.h"
 
