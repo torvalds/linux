@@ -832,8 +832,14 @@ static const struct mm_walk_ops split_to_ptes_ops = {
 
 static int range_split_to_ptes(unsigned long start, unsigned long end, gfp_t gfp)
 {
-	return walk_kernel_page_table_range_lockless(start, end,
+	int ret;
+
+	arch_enter_lazy_mmu_mode();
+	ret = walk_kernel_page_table_range_lockless(start, end,
 					&split_to_ptes_ops, NULL, &gfp);
+	arch_leave_lazy_mmu_mode();
+
+	return ret;
 }
 
 static bool linear_map_requires_bbml2 __initdata;
