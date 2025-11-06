@@ -1149,11 +1149,10 @@ void skb_release_head_state(struct sk_buff *skb)
 				skb);
 
 #endif
+		skb->destructor = NULL;
 	}
-#if IS_ENABLED(CONFIG_NF_CONNTRACK)
-	nf_conntrack_put(skb_nfct(skb));
-#endif
-	skb_ext_put(skb);
+	nf_reset_ct(skb);
+	skb_ext_reset(skb);
 }
 
 /* Free everything but the sk_buff shell. */
