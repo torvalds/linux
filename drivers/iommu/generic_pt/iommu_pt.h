@@ -158,7 +158,7 @@ PT_MAKE_LEVELS(__iova_to_phys, __do_iova_to_phys);
 
 /**
  * iova_to_phys() - Return the output address for the given IOVA
- * @iommu_table: Table to query
+ * @domain: Table to query
  * @iova: IO virtual address to query
  *
  * Determine the output address from the given IOVA. @iova may have any

@@ -38,7 +38,7 @@ config IOMMU_PT_AMDV1
 	help
 	  iommu_domain implementation for the AMD v1 page table. AMDv1 is the
 	  "host" page table. It supports granular page sizes of almost every
-	  power of 2 and decodes an full 64-bit IOVA space.
+	  power of 2 and decodes the full 64-bit IOVA space.
 
 	  Selected automatically by an IOMMU driver that uses this format.
 

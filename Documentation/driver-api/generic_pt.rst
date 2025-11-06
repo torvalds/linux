@@ -10,9 +10,8 @@ Generic Radix Page Table
 .. kernel-doc:: drivers/iommu/generic_pt/pt_defs.h
 	:doc: Generic Page Table Language
 
------
 Usage
------
+=====
 
 Generic PT is structured as a multi-compilation system. Since each format
 provides an API using a common set of names there can be only one format active
@@ -61,7 +60,6 @@ format-specific information.
 The implementation will further wrap struct pt_common in its own top-level
 struct, such as struct pt_iommu_amdv1.
 
-----------------------------------------------
 Format functions at the struct pt_common level
 ----------------------------------------------
 
@@ -69,13 +67,11 @@ Format functions at the struct pt_common level
 	:identifiers:
 .. kernel-doc:: drivers/iommu/generic_pt/pt_common.h
 
------------------
 Iteration Helpers
 -----------------
 
 .. kernel-doc:: drivers/iommu/generic_pt/pt_iter.h
 
-----------------
 Writing a Format
 ----------------
 
@@ -112,7 +108,6 @@ The generic tests are intended to prove out the format functions and give
 clearer failures to speed up finding the problems. Once those pass then the
 entire kunit suite should be run.
 
----------------------------
 IOMMU Invalidation Features
 ---------------------------
 
@@ -124,7 +119,7 @@ on its design. Every HW has its own approach on how to describe what has changed
 to have changed items removed from the TLB.
 
 PT_FEAT_FLUSH_RANGE
--------------------
+~~~~~~~~~~~~~~~~~~~
 
 PT_FEAT_FLUSH_RANGE is the easiest scheme to understand. It tries to generate a
 single range invalidation for each operation, over-invalidating if there are
@@ -134,7 +129,7 @@ however, if pages have to be freed then page table pointers have to be cleaned
 from the walk cache. The range can start/end at any page boundary.
 
 PT_FEAT_FLUSH_RANGE_NO_GAPS
----------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 PT_FEAT_FLUSH_RANGE_NO_GAPS is similar to PT_FEAT_FLUSH_RANGE; however, it tries
 to minimize the amount of impacted VA by issuing extra flush operations. This is
