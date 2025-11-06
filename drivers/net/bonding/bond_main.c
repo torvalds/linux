@@ -2120,7 +2120,7 @@ skip_mac_set:
 	/* check for initial state */
 	new_slave->link = BOND_LINK_NOCHANGE;
 	if (bond->params.miimon) {
-		if (netif_carrier_ok(slave_dev)) {
+		if (netif_running(slave_dev) && netif_carrier_ok(slave_dev)) {
 			if (bond->params.updelay) {
 				bond_set_slave_link_state(new_slave,
 							  BOND_LINK_BACK,
@@ -2665,7 +2665,8 @@ static int bond_miimon_inspect(struct bonding *bond)
 	bond_for_each_slave_rcu(bond, slave, iter) {
 		bond_propose_link_state(slave, BOND_LINK_NOCHANGE);
 
-		link_state = netif_carrier_ok(slave->dev);
+		link_state = netif_running(slave->dev) &&
+			     netif_carrier_ok(slave->dev);
 
 		switch (slave->link) {
 		case BOND_LINK_UP:
