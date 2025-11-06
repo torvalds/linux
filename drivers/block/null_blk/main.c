@@ -1129,7 +1129,7 @@ again:
 	return 0;
 }
 
-static int copy_to_nullb(struct nullb *nullb, struct page *source,
+static blk_status_t copy_to_nullb(struct nullb *nullb, struct page *source,
 	unsigned int off, sector_t sector, size_t n, bool is_fua)
 {
 	size_t temp, count = 0;
@@ -1146,7 +1146,7 @@ static int copy_to_nullb(struct nullb *nullb, struct page *source,
 		t_page = null_insert_page(nullb, sector,
 			!null_cache_active(nullb) || is_fua);
 		if (!t_page)
-			return -ENOSPC;
+			return BLK_STS_NOSPC;
 
 		memcpy_page(t_page->page, offset, source, off + count, temp);
 
@@ -1158,7 +1158,7 @@ static int copy_to_nullb(struct nullb *nullb, struct page *source,
 		count += temp;
 		sector += temp >> SECTOR_SHIFT;
 	}
-	return 0;
+	return BLK_STS_OK;
 }
 
 static void copy_from_nullb(struct nullb *nullb, struct page *dest,
@@ -1233,13 +1233,13 @@ static blk_status_t null_handle_flush(struct nullb *nullb)
 	return errno_to_blk_status(err);
 }
 
-static int null_transfer(struct nullb *nullb, struct page *page,
+static blk_status_t null_transfer(struct nullb *nullb, struct page *page,
 	unsigned int len, unsigned int off, bool is_write, sector_t sector,
 	bool is_fua)
 {
 	struct nullb_device *dev = nullb->dev;
+	blk_status_t err = BLK_STS_OK;
 	unsigned int valid_len = len;
-	int err = 0;
 
 	if (!is_write) {
 		if (dev->zoned)
@@ -1273,7 +1273,7 @@ static blk_status_t null_handle_data_transfer(struct nullb_cmd *cmd,
 {
 	struct request *rq = blk_mq_rq_from_pdu(cmd);
 	struct nullb *nullb = cmd->nq->dev->nullb;
-	int err = 0;
+	blk_status_t err = BLK_STS_OK;
 	unsigned int len;
 	sector_t sector = blk_rq_pos(rq);
 	unsigned int max_bytes = nr_sectors << SECTOR_SHIFT;
@@ -1298,7 +1298,7 @@ static blk_status_t null_handle_data_transfer(struct nullb_cmd *cmd,
 	}
 	spin_unlock_irq(&nullb->lock);
 
-	return errno_to_blk_status(err);
+	return err;
 }
 
 static inline blk_status_t null_handle_throttled(struct nullb_cmd *cmd)
