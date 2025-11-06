@@ -1595,8 +1595,20 @@ err_unlock:
 err_vma_res:
 	i915_vma_resource_free(vma_res);
 err_fence:
-	if (work)
-		dma_fence_work_commit_imm(&work->base);
+	if (work) {
+		/*
+		 * When pinning VMA to GGTT on CHV or BXT with VTD enabled,
+		 * commit VMA binding asynchronously to avoid risk of lock
+		 * inversion among reservation_ww locks held here and
+		 * cpu_hotplug_lock acquired from stop_machine(), which we
+		 * wrap around GGTT updates when running in those environments.
+		 */
+		if (i915_vma_is_ggtt(vma) &&
+		    intel_vm_no_concurrent_access_wa(vma->vm->i915))
+			dma_fence_work_commit(&work->base);
+		else
+			dma_fence_work_commit_imm(&work->base);
+	}
 err_rpm:
 	intel_runtime_pm_put(&vma->vm->i915->runtime_pm, wakeref);
 
