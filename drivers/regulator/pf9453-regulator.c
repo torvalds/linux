@@ -289,13 +289,15 @@ static int pf9453_pmic_write(struct pf9453 *pf9453, unsigned int reg, u8 mask, u
 }
 
 /**
- * pf9453_regulator_enable_regmap for regmap users
+ * pf9453_regulator_enable_regmap - enable regulator for regmap users
  *
  * @rdev: regulator to operate on
  *
  * Regulators that use regmap for their register I/O can set the
  * enable_reg and enable_mask fields in their descriptor and then use
  * this as their enable() operation, saving some code.
+ *
+ * Return: %0 on success, or negative errno.
  */
 static int pf9453_regulator_enable_regmap(struct regulator_dev *rdev)
 {
@@ -314,13 +316,15 @@ static int pf9453_regulator_enable_regmap(struct regulator_dev *rdev)
 }
 
 /**
- * pf9453_regulator_disable_regmap for regmap users
+ * pf9453_regulator_disable_regmap - disable regulator for regmap users
  *
  * @rdev: regulator to operate on
  *
  * Regulators that use regmap for their register I/O can set the
  * enable_reg and enable_mask fields in their descriptor and then use
  * this as their disable() operation, saving some code.
+ *
+ * Return: %0 on success, or negative errno.
  */
 static int pf9453_regulator_disable_regmap(struct regulator_dev *rdev)
 {
@@ -339,7 +343,7 @@ static int pf9453_regulator_disable_regmap(struct regulator_dev *rdev)
 }
 
 /**
- * pf9453_regulator_set_voltage_sel_regmap for regmap users
+ * pf9453_regulator_set_voltage_sel_regmap - set voltage for regmap users
  *
  * @rdev: regulator to operate on
  * @sel: Selector to set
@@ -347,6 +351,8 @@ static int pf9453_regulator_disable_regmap(struct regulator_dev *rdev)
  * Regulators that use regmap for their register I/O can set the
  * vsel_reg and vsel_mask fields in their descriptor and then use this
  * as their set_voltage_vsel operation, saving some code.
+ *
+ * Return: %0 on success, or negative errno.
  */
 static int pf9453_regulator_set_voltage_sel_regmap(struct regulator_dev *rdev, unsigned int sel)
 {
@@ -397,7 +403,7 @@ static int find_closest_bigger(unsigned int target, const unsigned int *table,
 }
 
 /**
- * pf9453_regulator_set_ramp_delay_regmap
+ * pf9453_regulator_set_ramp_delay_regmap - set ramp delay for regmap users
  *
  * @rdev: regulator to operate on
  * @ramp_delay: desired ramp delay value in microseconds
@@ -405,6 +411,8 @@ static int find_closest_bigger(unsigned int target, const unsigned int *table,
  * Regulators that use regmap for their register I/O can set the ramp_reg
  * and ramp_mask fields in their descriptor and then use this as their
  * set_ramp_delay operation, saving some code.
+ *
+ * Return: %0 on success, or negative errno.
  */
 static int pf9453_regulator_set_ramp_delay_regmap(struct regulator_dev *rdev, int ramp_delay)
 {
