@@ -20,7 +20,7 @@ struct net_hotdata net_hotdata __cacheline_aligned = {
 	.dev_tx_weight = 64,
 	.dev_rx_weight = 64,
 	.sysctl_max_skb_frags = MAX_SKB_FRAGS,
-	.sysctl_skb_defer_max = 64,
+	.sysctl_skb_defer_max = 128,
 	.sysctl_mem_pcpu_rsv = SK_MEMORY_PCPU_RESERVE
 };
 EXPORT_SYMBOL(net_hotdata);
