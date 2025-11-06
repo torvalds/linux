@@ -230,7 +230,7 @@ static void qcom_labibb_ocp_recovery_worker(struct work_struct *work)
 	return;
 
 reschedule:
-	mod_delayed_work(system_wq, &vreg->ocp_recovery_work,
+	mod_delayed_work(system_dfl_wq, &vreg->ocp_recovery_work,
 			 msecs_to_jiffies(OCP_RECOVERY_INTERVAL_MS));
 }
 
@@ -510,7 +510,7 @@ reschedule:
 	 * taking action is not truly urgent anymore.
 	 */
 	vreg->sc_count++;
-	mod_delayed_work(system_wq, &vreg->sc_recovery_work,
+	mod_delayed_work(system_dfl_wq, &vreg->sc_recovery_work,
 			 msecs_to_jiffies(SC_RECOVERY_INTERVAL_MS));
 }
 
