@@ -350,11 +350,17 @@ static const struct a6xx_gmu_oob_bits a6xx_gmu_oob_bits[] = {
 /* Trigger a OOB (out of band) request to the GMU */
 int a6xx_gmu_set_oob(struct a6xx_gmu *gmu, enum a6xx_gmu_oob_state state)
 {
+	struct a6xx_gpu *a6xx_gpu = container_of(gmu, struct a6xx_gpu, gmu);
+	struct adreno_gpu *adreno_gpu = &a6xx_gpu->base;
 	int ret;
 	u32 val;
 	int request, ack;
 
 	WARN_ON_ONCE(!mutex_is_locked(&gmu->lock));
+
+	/* Skip OOB calls since RGMU is not enabled */
+	if (adreno_has_rgmu(adreno_gpu))
+		return 0;
 
 	if (state >= ARRAY_SIZE(a6xx_gmu_oob_bits))
 		return -EINVAL;
@@ -395,9 +401,15 @@ int a6xx_gmu_set_oob(struct a6xx_gmu *gmu, enum a6xx_gmu_oob_state state)
 /* Clear a pending OOB state in the GMU */
 void a6xx_gmu_clear_oob(struct a6xx_gmu *gmu, enum a6xx_gmu_oob_state state)
 {
+	struct a6xx_gpu *a6xx_gpu = container_of(gmu, struct a6xx_gpu, gmu);
+	struct adreno_gpu *adreno_gpu = &a6xx_gpu->base;
 	int bit;
 
 	WARN_ON_ONCE(!mutex_is_locked(&gmu->lock));
+
+	/* Skip OOB calls since RGMU is not enabled */
+	if (adreno_has_rgmu(adreno_gpu))
+		return;
 
 	if (state >= ARRAY_SIZE(a6xx_gmu_oob_bits))
 		return;
@@ -1900,7 +1912,8 @@ void a6xx_gmu_remove(struct a6xx_gpu *a6xx_gpu)
 	gmu->mmio = NULL;
 	gmu->rscc = NULL;
 
-	if (!adreno_has_gmu_wrapper(adreno_gpu)) {
+	if (!adreno_has_gmu_wrapper(adreno_gpu) &&
+	    !adreno_has_rgmu(adreno_gpu)) {
 		a6xx_gmu_memory_free(gmu);
 
 		free_irq(gmu->gmu_irq, gmu);
@@ -1942,6 +1955,13 @@ int a6xx_gmu_wrapper_init(struct a6xx_gpu *a6xx_gpu, struct device_node *node)
 	/* Mark legacy for manual SPTPRAC control */
 	gmu->legacy = true;
 
+	/* RGMU requires clocks */
+	ret = devm_clk_bulk_get_all(gmu->dev, &gmu->clocks);
+	if (ret < 0)
+		goto err_clk;
+
+	gmu->nr_clocks = ret;
+
 	/* Map the GMU registers */
 	gmu->mmio = a6xx_gmu_get_mmio(pdev, "gmu");
 	if (IS_ERR(gmu->mmio)) {
@@ -1981,6 +2001,7 @@ detach_cxpd:
 err_mmio:
 	iounmap(gmu->mmio);
 
+err_clk:
 	/* Drop reference taken in of_find_device_by_node */
 	put_device(gmu->dev);
 
