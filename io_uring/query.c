@@ -5,14 +5,16 @@
 #include "query.h"
 #include "io_uring.h"
 
-#define IO_MAX_QUERY_SIZE		(sizeof(struct io_uring_query_opcode))
+union io_query_data {
+	struct io_uring_query_opcode opcodes;
+};
+
+#define IO_MAX_QUERY_SIZE		sizeof(union io_query_data)
 #define IO_MAX_QUERY_ENTRIES		1000
 
-static ssize_t io_query_ops(void *data)
+static ssize_t io_query_ops(union io_query_data *data)
 {
-	struct io_uring_query_opcode *e = data;
-
-	BUILD_BUG_ON(sizeof(*e) > IO_MAX_QUERY_SIZE);
+	struct io_uring_query_opcode *e = &data->opcodes;
 
 	e->nr_request_opcodes = IORING_OP_LAST;
 	e->nr_register_opcodes = IORING_REGISTER_LAST;
@@ -24,7 +26,7 @@ static ssize_t io_query_ops(void *data)
 }
 
 static int io_handle_query_entry(struct io_ring_ctx *ctx,
-				 void *data, void __user *uhdr,
+				 union io_query_data *data, void __user *uhdr,
 				 u64 *next_entry)
 {
 	struct io_uring_query_hdr hdr;
@@ -73,11 +75,11 @@ out:
 
 int io_query(struct io_ring_ctx *ctx, void __user *arg, unsigned nr_args)
 {
-	char entry_buffer[IO_MAX_QUERY_SIZE];
+	union io_query_data entry_buffer;
 	void __user *uhdr = arg;
 	int ret, nr = 0;
 
-	memset(entry_buffer, 0, sizeof(entry_buffer));
+	memset(&entry_buffer, 0, sizeof(entry_buffer));
 
 	if (nr_args)
 		return -EINVAL;
@@ -85,7 +87,7 @@ int io_query(struct io_ring_ctx *ctx, void __user *arg, unsigned nr_args)
 	while (uhdr) {
 		u64 next_hdr;
 
-		ret = io_handle_query_entry(ctx, entry_buffer, uhdr, &next_hdr);
+		ret = io_handle_query_entry(ctx, &entry_buffer, uhdr, &next_hdr);
 		if (ret)
 			return ret;
 		uhdr = u64_to_user_ptr(next_hdr);
