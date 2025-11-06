@@ -1890,15 +1890,14 @@ record__finish_output(struct record *rec)
 	}
 
 	/* Buildid scanning disabled or build ID in kernel and synthesized map events. */
-	if (!rec->no_buildid) {
+	if (!rec->no_buildid || !rec->no_buildid_cache) {
 		process_buildids(rec);
 
 		if (rec->buildid_all)
 			perf_session__dsos_hit_all(rec->session);
 	}
 	perf_session__write_header(rec->session, rec->evlist, fd, true);
-
-	return;
+	perf_session__cache_build_ids(rec->session);
 }
 
 static int record__synthesize_workload(struct record *rec, bool tail)
@@ -3083,7 +3082,7 @@ static int perf_record_config(const char *var, const char *value, void *cb)
 		else if (!strcmp(value, "no-cache"))
 			rec->no_buildid_cache = true;
 		else if (!strcmp(value, "skip"))
-			rec->no_buildid = true;
+			rec->no_buildid = rec->no_buildid_cache = true;
 		else if (!strcmp(value, "mmap"))
 			rec->buildid_mmap = true;
 		else if (!strcmp(value, "no-mmap"))
@@ -4192,24 +4191,25 @@ int cmd_record(int argc, const char **argv)
 		record.opts.record_switch_events = true;
 	}
 
-	if (!rec->buildid_mmap) {
-		pr_debug("Disabling build id in synthesized mmap2 events.\n");
-		symbol_conf.no_buildid_mmap2 = true;
-	} else if (rec->buildid_mmap_set) {
-		/*
-		 * Explicitly passing --buildid-mmap disables buildid processing
-		 * and cache generation.
-		 */
-		rec->no_buildid = true;
-	}
 	if (rec->buildid_mmap && !perf_can_record_build_id()) {
 		pr_warning("Missing support for build id in kernel mmap events.\n"
 			   "Disable this warning with --no-buildid-mmap\n");
 		rec->buildid_mmap = false;
 	}
+
 	if (rec->buildid_mmap) {
 		/* Enable perf_event_attr::build_id bit. */
 		rec->opts.build_id = true;
+		/* Disable build-ID table in the header. */
+		rec->no_buildid = true;
+	} else {
+		pr_debug("Disabling build id in synthesized mmap2 events.\n");
+		symbol_conf.no_buildid_mmap2 = true;
+	}
+
+	if (rec->no_buildid_set && rec->no_buildid) {
+		/* -B implies -N for historic reasons. */
+		rec->no_buildid_cache = true;
 	}
 
 	if (rec->opts.record_cgroup && !perf_can_record_cgroup()) {
@@ -4306,7 +4306,7 @@ int cmd_record(int argc, const char **argv)
 
 	err = -ENOMEM;
 
-	if (rec->no_buildid_cache || rec->no_buildid) {
+	if (rec->no_buildid_cache) {
 		disable_buildid_cache();
 	} else if (rec->switch_output.enabled) {
 		/*
