@@ -52,11 +52,23 @@
 	 * there must not be any returns or indirect branches between this code
 	 * and vmentry.
 	 */
-	movl SVM_spec_ctrl(%_ASM_DI), %eax
-	cmp PER_CPU_VAR(x86_spec_ctrl_current), %eax
+#ifdef CONFIG_X86_64
+	mov SVM_spec_ctrl(%rdi), %rdx
+	cmp PER_CPU_VAR(x86_spec_ctrl_current), %rdx
 	je 801b
+	movl %edx, %eax
+	shr $32, %rdx
+#else
+	mov SVM_spec_ctrl(%edi), %eax
+	mov PER_CPU_VAR(x86_spec_ctrl_current), %ecx
+	xor %eax, %ecx
+	mov SVM_spec_ctrl + 4(%edi), %edx
+	mov PER_CPU_VAR(x86_spec_ctrl_current + 4), %esi
+	xor %edx, %esi
+	or %esi, %ecx
+	je 801b
+#endif
 	mov $MSR_IA32_SPEC_CTRL, %ecx
-	xor %edx, %edx
 	wrmsr
 	jmp 801b
 .endm
@@ -81,13 +93,25 @@
 	jnz 998f
 	rdmsr
 	movl %eax, SVM_spec_ctrl(%_ASM_DI)
+	movl %edx, SVM_spec_ctrl + 4(%_ASM_DI)
 998:
-
 	/* Now restore the host value of the MSR if different from the guest's.  */
-	movl PER_CPU_VAR(x86_spec_ctrl_current), %eax
-	cmp SVM_spec_ctrl(%_ASM_DI), %eax
+#ifdef CONFIG_X86_64
+	mov PER_CPU_VAR(x86_spec_ctrl_current), %rdx
+	cmp SVM_spec_ctrl(%rdi), %rdx
 	je 901b
-	xor %edx, %edx
+	movl %edx, %eax
+	shr $32, %rdx
+#else
+	mov PER_CPU_VAR(x86_spec_ctrl_current), %eax
+	mov SVM_spec_ctrl(%edi), %esi
+	xor %eax, %esi
+	mov PER_CPU_VAR(x86_spec_ctrl_current + 4), %edx
+	mov SVM_spec_ctrl + 4(%edi), %edi
+	xor %edx, %edi
+	or %edi, %esi
+	je 901b
+#endif
 	wrmsr
 	jmp 901b
 .endm
@@ -134,7 +158,7 @@ SYM_FUNC_START(__svm_vcpu_run)
 	mov %_ASM_ARG1, %_ASM_DI
 .endif
 
-	/* Clobbers RAX, RCX, RDX.  */
+	/* Clobbers RAX, RCX, RDX (and ESI on 32-bit), consumes RDI (@svm). */
 	RESTORE_GUEST_SPEC_CTRL
 
 	/*
@@ -211,7 +235,10 @@ SYM_FUNC_START(__svm_vcpu_run)
 	/* IMPORTANT: Stuff the RSB immediately after VM-Exit, before RET! */
 	FILL_RETURN_BUFFER %_ASM_AX, RSB_CLEAR_LOOPS, X86_FEATURE_RSB_VMEXIT
 
-	/* Clobbers RAX, RCX, RDX.  */
+	/*
+	 * Clobbers RAX, RCX, RDX (and ESI, EDI on 32-bit), consumes RDI (@svm)
+	 * and RSP (pointer to @spec_ctrl_intercepted).
+	 */
 	RESTORE_HOST_SPEC_CTRL
 
 	/*
@@ -331,7 +358,7 @@ SYM_FUNC_START(__svm_sev_es_vcpu_run)
 	mov %rdi, SEV_ES_RDI (%rdx)
 	mov %rsi, SEV_ES_RSI (%rdx)
 
-	/* Clobbers RAX, RCX, RDX (@hostsa). */
+	/* Clobbers RAX, RCX, and RDX (@hostsa), consumes RDI (@svm). */
 	RESTORE_GUEST_SPEC_CTRL
 
 	/* Get svm->current_vmcb->pa into RAX. */
