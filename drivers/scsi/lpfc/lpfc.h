@@ -311,7 +311,6 @@ struct lpfc_defer_flogi_acc {
 	u16 rx_id;
 	u16 ox_id;
 	struct lpfc_nodelist *ndlp;
-
 };
 
 #define LPFC_VMID_TIMER   300	/* timer interval in seconds */

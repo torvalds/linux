@@ -1413,11 +1413,12 @@ lpfc_issue_els_flogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 				phba->defer_flogi_acc.ox_id;
 		}
 
-		lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
-				 "3354 Xmit deferred FLOGI ACC: rx_id: x%x,"
-				 " ox_id: x%x, hba_flag x%lx\n",
-				 phba->defer_flogi_acc.rx_id,
-				 phba->defer_flogi_acc.ox_id, phba->hba_flag);
+		/* The LS_ACC completion needs to drop the initial reference.
+		 * This is a special case for Pt2Pt because both FLOGIs need
+		 * to complete and lpfc defers the LS_ACC when the remote
+		 * FLOGI arrives before the driver's FLOGI.
+		 */
+		set_bit(NLP_FLOGI_DFR_ACC, &ndlp->nlp_flag);
 
 		/* Send deferred FLOGI ACC */
 		lpfc_els_rsp_acc(vport, ELS_CMD_FLOGI, &defer_flogi_acc,
@@ -1432,6 +1433,14 @@ lpfc_issue_els_flogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			lpfc_nlp_put(phba->defer_flogi_acc.ndlp);
 			phba->defer_flogi_acc.ndlp = NULL;
 		}
+
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
+				 "3354 Xmit deferred FLOGI ACC: rx_id: x%x,"
+				 " ox_id: x%x, ndlp x%px hba_flag x%lx\n",
+				 phba->defer_flogi_acc.rx_id,
+				 phba->defer_flogi_acc.ox_id,
+				 phba->defer_flogi_acc.ndlp,
+				 phba->hba_flag);
 
 		vport->fc_myDID = did;
 	}
@@ -5302,11 +5311,12 @@ lpfc_cmpl_els_rsp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	IOCB_t  *irsp;
 	LPFC_MBOXQ_t *mbox = NULL;
 	u32 ulp_status, ulp_word4, tmo, did, iotag;
+	u32 cmd;
 
 	if (!vport) {
 		lpfc_printf_log(phba, KERN_WARNING, LOG_ELS,
 				"3177 null vport in ELS rsp\n");
-		goto out;
+		goto release;
 	}
 	if (cmdiocb->context_un.mbox)
 		mbox = cmdiocb->context_un.mbox;
@@ -5416,7 +5426,7 @@ out:
 	 * these conditions because it doesn't need the login.
 	 */
 	if (phba->sli_rev == LPFC_SLI_REV4 &&
-	    vport && vport->port_type == LPFC_NPIV_PORT &&
+	    vport->port_type == LPFC_NPIV_PORT &&
 	    !(ndlp->fc4_xpt_flags & SCSI_XPT_REGD)) {
 		if (ndlp->nlp_state != NLP_STE_PLOGI_ISSUE &&
 		    ndlp->nlp_state != NLP_STE_REG_LOGIN_ISSUE &&
@@ -5432,6 +5442,27 @@ out:
 		}
 	}
 
+	/* The driver's unsolicited deferred FLOGI ACC in Pt2Pt needs to
+	 * release the initial reference because the put after the free_iocb
+	 * call removes only the reference from the defer logic. This FLOGI
+	 * is never registered with the SCSI transport.
+	 */
+	if (test_bit(FC_PT2PT, &vport->fc_flag) &&
+	    test_and_clear_bit(NLP_FLOGI_DFR_ACC, &ndlp->nlp_flag)) {
+		lpfc_printf_vlog(vport, KERN_INFO,
+				 LOG_ELS | LOG_NODE | LOG_DISCOVERY,
+				 "3357 Pt2Pt Defer FLOGI ACC ndlp x%px, "
+				 "nflags x%lx, fc_flag x%lx\n",
+				 ndlp, ndlp->nlp_flag,
+				 vport->fc_flag);
+		cmd = *((u32 *)cmdiocb->cmd_dmabuf->virt);
+		if (cmd == ELS_CMD_ACC) {
+			if (!test_and_set_bit(NLP_DROPPED, &ndlp->nlp_flag))
+				lpfc_nlp_put(ndlp);
+		}
+	}
+
+release:
 	/* Release the originating I/O reference. */
 	lpfc_els_free_iocb(phba, cmdiocb);
 	lpfc_nlp_put(ndlp);
@@ -8399,13 +8430,6 @@ lpfc_els_rcv_flogi(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 						     &wqe->xmit_els_rsp.wqe_com);
 
 		vport->fc_myDID = did;
-
-		lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
-				 "3344 Deferring FLOGI ACC: rx_id: x%x,"
-				 " ox_id: x%x, hba_flag x%lx\n",
-				 phba->defer_flogi_acc.rx_id,
-				 phba->defer_flogi_acc.ox_id, phba->hba_flag);
-
 		phba->defer_flogi_acc.flag = true;
 
 		/* This nlp_get is paired with nlp_puts that reset the
@@ -8414,6 +8438,14 @@ lpfc_els_rcv_flogi(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 		 * processed or cancelled.
 		 */
 		phba->defer_flogi_acc.ndlp = lpfc_nlp_get(ndlp);
+
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
+				 "3344 Deferring FLOGI ACC: rx_id: x%x,"
+				 " ox_id: x%x, ndlp x%px, hba_flag x%lx\n",
+				 phba->defer_flogi_acc.rx_id,
+				 phba->defer_flogi_acc.ox_id,
+				 phba->defer_flogi_acc.ndlp,
+				 phba->hba_flag);
 		return 0;
 	}
 
@@ -10354,11 +10386,8 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	 * Do not process any unsolicited ELS commands
 	 * if the ndlp is in DEV_LOSS
 	 */
-	if (test_bit(NLP_IN_DEV_LOSS, &ndlp->nlp_flag)) {
-		if (newnode)
-			lpfc_nlp_put(ndlp);
+	if (test_bit(NLP_IN_DEV_LOSS, &ndlp->nlp_flag))
 		goto dropit;
-	}
 
 	elsiocb->ndlp = lpfc_nlp_get(ndlp);
 	if (!elsiocb->ndlp)
