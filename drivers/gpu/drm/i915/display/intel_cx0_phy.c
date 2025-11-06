@@ -147,7 +147,7 @@ void intel_cx0_bus_reset(struct intel_encoder *encoder, int lane)
 
 	if (intel_de_wait_for_clear(display, XELPDP_PORT_M2P_MSGBUS_CTL(display, port, lane),
 				    XELPDP_PORT_M2P_TRANSACTION_RESET,
-				    XELPDP_MSGBUS_TIMEOUT_SLOW)) {
+				    XELPDP_MSGBUS_TIMEOUT_MS)) {
 		drm_err_once(display->drm,
 			     "Failed to bring PHY %c to idle.\n",
 			     phy_name(phy));
@@ -168,7 +168,7 @@ int intel_cx0_wait_for_ack(struct intel_encoder *encoder,
 				 XELPDP_PORT_P2M_MSGBUS_STATUS(display, port, lane),
 				 XELPDP_PORT_P2M_RESPONSE_READY,
 				 XELPDP_PORT_P2M_RESPONSE_READY,
-				 2, XELPDP_MSGBUS_TIMEOUT_SLOW, val)) {
+				 2, XELPDP_MSGBUS_TIMEOUT_MS, val)) {
 		drm_dbg_kms(display->drm,
 			    "PHY %c Timeout waiting for message ACK. Status: 0x%x\n",
 			    phy_name(phy), *val);
@@ -215,7 +215,7 @@ static int __intel_cx0_read_once(struct intel_encoder *encoder,
 
 	if (intel_de_wait_for_clear(display, XELPDP_PORT_M2P_MSGBUS_CTL(display, port, lane),
 				    XELPDP_PORT_M2P_TRANSACTION_PENDING,
-				    XELPDP_MSGBUS_TIMEOUT_SLOW)) {
+				    XELPDP_MSGBUS_TIMEOUT_MS)) {
 		drm_dbg_kms(display->drm,
 			    "PHY %c Timeout waiting for previous transaction to complete. Reset the bus and retry.\n", phy_name(phy));
 		intel_cx0_bus_reset(encoder, lane);
@@ -286,7 +286,7 @@ static int __intel_cx0_write_once(struct intel_encoder *encoder,
 
 	if (intel_de_wait_for_clear(display, XELPDP_PORT_M2P_MSGBUS_CTL(display, port, lane),
 				    XELPDP_PORT_M2P_TRANSACTION_PENDING,
-				    XELPDP_MSGBUS_TIMEOUT_SLOW)) {
+				    XELPDP_MSGBUS_TIMEOUT_MS)) {
 		drm_dbg_kms(display->drm,
 			    "PHY %c Timeout waiting for previous transaction to complete. Resetting the bus.\n", phy_name(phy));
 		intel_cx0_bus_reset(encoder, lane);
@@ -302,7 +302,7 @@ static int __intel_cx0_write_once(struct intel_encoder *encoder,
 
 	if (intel_de_wait_for_clear(display, XELPDP_PORT_M2P_MSGBUS_CTL(display, port, lane),
 				    XELPDP_PORT_M2P_TRANSACTION_PENDING,
-				    XELPDP_MSGBUS_TIMEOUT_SLOW)) {
+				    XELPDP_MSGBUS_TIMEOUT_MS)) {
 		drm_dbg_kms(display->drm,
 			    "PHY %c Timeout waiting for write to complete. Resetting the bus.\n", phy_name(phy));
 		intel_cx0_bus_reset(encoder, lane);
@@ -2815,7 +2815,7 @@ void intel_cx0_powerdown_change_sequence(struct intel_encoder *encoder,
 	for_each_cx0_lane_in_mask(lane_mask, lane)
 		if (intel_de_wait_for_clear(display, XELPDP_PORT_M2P_MSGBUS_CTL(display, port, lane),
 					    XELPDP_PORT_M2P_TRANSACTION_PENDING,
-					    XELPDP_MSGBUS_TIMEOUT_SLOW)) {
+					    XELPDP_MSGBUS_TIMEOUT_MS)) {
 			drm_dbg_kms(display->drm,
 				    "PHY %c Timeout waiting for previous transaction to complete. Reset the bus.\n",
 				    phy_name(phy));
