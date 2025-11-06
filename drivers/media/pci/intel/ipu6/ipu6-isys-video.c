@@ -1204,10 +1204,10 @@ int ipu6_isys_setup_video(struct ipu6_isys_video *av,
 
 	remote_sd = media_entity_to_v4l2_subdev(remote_pad->entity);
 	asd = to_ipu6_isys_subdev(remote_sd);
-	source_pad = media_pad_remote_pad_first(&remote_pad->entity->pads[0]);
-	if (!source_pad) {
+	source_pad = media_pad_remote_pad_unique(&remote_pad->entity->pads[0]);
+	if (IS_ERR(source_pad)) {
 		dev_dbg(dev, "No external source entity\n");
-		return -ENODEV;
+		return PTR_ERR(source_pad);
 	}
 
 	*source_entity = source_pad->entity;
